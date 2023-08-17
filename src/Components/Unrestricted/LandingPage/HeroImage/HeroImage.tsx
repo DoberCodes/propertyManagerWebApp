@@ -4,18 +4,13 @@ import {
 	HeroImageWrapper,
 } from './HeroImage.styles';
 
-export interface HeroImageProps {
-	children?: any;
-}
-
-export const HeroImage = (props: HeroImageProps) => {
+export const HeroImage = () => {
 	return (
 		<HeroImageWrapper>
-			<HeroImageTitle>Welcome to Property Manager</HeroImageTitle>
+			<HeroImageTitle>Welcome to My Property Manager</HeroImageTitle>
 			<HeroImageSubtitle>
 				We are here to help manage your property tasks
 			</HeroImageSubtitle>
-			<div>{props.children}</div>
 		</HeroImageWrapper>
 	);
 };
