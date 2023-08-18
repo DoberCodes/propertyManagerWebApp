@@ -1,21 +1,26 @@
 import styled from 'styled-components';
 
-export const Wrapper = styled.div`
+export const Wrapper = styled.form`
 	display: grid;
 	justify-content: center;
 	align-items: center;
-	padding: 20px 40px;
+	padding: 10px;
 	border: 1px solid black;
 	border-radius: 10px;
 	background-color: white;
 `;
 
+export const Title = styled.h2`
+	font-size: 26px;
+	font-weight: 600;
+	margin-left: 20px;
+	text-decoration: underline;
+`;
+
 export const Input = styled.input`
-	height: 40px;
-	width: 440px;
 	padding: 20px;
-	margin: 20px;
-	font-size: 24px;
+	font-size: 18px;
+	margin: 10px;
 	border: none;
 	border-bottom: 1px solid gray;
 	&:hover {
@@ -23,12 +28,14 @@ export const Input = styled.input`
 		cursor: pointer;
 	}
 `;
+export const BackButton = styled.a`
+	padding: 10px 0;
+`;
 
 export const Submit = styled.button`
-	margin: 10px auto;
-	width: 200px;
-	font-size: 24px;
-	padding: 10px 0;
+	margin: 20px auto 0 auto;
+	font-size: 18px;
+	padding: 5px 20px;
 	border-radius: 5px;
 	border: 1px solid gray;
 	&:hover {
@@ -38,7 +45,7 @@ export const Submit = styled.button`
 `;
 
 export const RegisterWrapper = styled.div`
-	margin: 50px 0 25px 0;
+	margin: 30px 0 25px 0;
 
 	a {
 		color: blue;
