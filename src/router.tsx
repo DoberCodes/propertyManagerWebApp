@@ -4,7 +4,7 @@ import { ErrorPage } from './pages/Unrestricted/ErrorPage';
 import { LoginPage } from './pages/Unrestricted/LoginPage';
 import { RegistrationPage } from './pages/Unrestricted/RegistrationPage';
 import { HomePage } from './pages/Restricted/HomePage';
-import { ProtectedRoutes } from './ProtectedRoutes';
+// import { ProtectedRoutes } from './ProtectedRoutes';
 
 export const routes = [
 	{
@@ -22,11 +22,7 @@ export const routes = [
 	},
 	{
 		path: '/Home',
-		element: (
-			<ProtectedRoutes isLoggedIn={true}>
-				<HomePage />
-			</ProtectedRoutes>
-		),
+		element: <HomePage />,
 	},
 ];
 

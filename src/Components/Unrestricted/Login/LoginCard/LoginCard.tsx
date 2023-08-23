@@ -18,10 +18,10 @@ export const LoginCard = () => {
 	const login = async (event: any) => {
 		event.preventDefault();
 		console.log(email, password);
-		await signIn(email, password);
+		const user = await signIn(email, password);
+		console.log(user);
 
 		// TODO: add Redux and alert handler to add a popup window to inform user to confirm password
-		console.log('confirm password');
 	};
 
 	return (

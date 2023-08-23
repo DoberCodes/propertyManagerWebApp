@@ -1,7 +1,11 @@
+import { Navbar } from '../../../Components/Restricted/Navbar';
+import { Wrapper } from './HomePage.styles';
+
 export const HomePage = () => {
 	return (
-		<div>
+		<Wrapper>
+			<Navbar />
 			<h1>Home Page</h1>
-		</div>
+		</Wrapper>
 	);
 };
