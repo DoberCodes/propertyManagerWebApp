@@ -1,16 +1,25 @@
 import styled from 'styled-components';
+import {
+	blue,
+	font_main,
+	font_title,
+	nav_height,
+} from '../../../global.styles';
 
 export const Wrapper = styled.div`
 	width: 100%;
 	border: 1px solid black;
 	display: flex;
 	align-items: center;
-	height: 100px;
+	height: ${nav_height};
+	padding-bottom: 10px;
+	background-color: ${blue};
 `;
 
 export const Title = styled.h1`
 	width: 40%;
 	margin-left: 20px;
+	font-size: ${font_title};
 `;
 
 export const NavItemWrapper = styled.div`
@@ -29,7 +38,7 @@ export const TopNav = styled.div`
 	display: grid;
 	grid-auto-flow: column;
 	justify-content: end;
-	font-size: 16px;
+	font-size: ${font_main};
 `;
 
 export const BottomNav = styled.div`
@@ -37,7 +46,7 @@ export const BottomNav = styled.div`
 	grid-auto-flow: column;
 	align-items: end;
 	width: 100%;
-	font-size: 24px;
+	font-size: ${font_title};
 	height: 75%;
 `;
 export const NavItem = styled.a`
