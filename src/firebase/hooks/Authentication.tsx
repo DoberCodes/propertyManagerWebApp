@@ -2,7 +2,6 @@ import {
 	createUserWithEmailAndPassword,
 	signInWithEmailAndPassword,
 } from 'firebase/auth';
-import { redirect } from 'react-router-dom';
 import { auth } from '../firebase';
 import { doc, setDoc } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -14,7 +13,7 @@ export const createAccount = async (
 	lastName: string,
 	householdName: string
 ) => {
-	await createUserWithEmailAndPassword(auth, username, password)
+	return await createUserWithEmailAndPassword(auth, username, password)
 		.then(async (userCred) => {
 			const user = userCred.user;
 			const payload = {
@@ -26,7 +25,6 @@ export const createAccount = async (
 				email: username,
 			};
 			await setDoc(doc(db, 'users', user.uid), payload);
-			redirect('/Home');
 		})
 		.catch((error) => {
 			const errorCode = error.code;
@@ -36,13 +34,9 @@ export const createAccount = async (
 };
 
 export const signIn = (email: string, password: string) => {
-	signInWithEmailAndPassword(auth, email, password)
-		.then(() => {
-			redirect('/Home');
-		})
-		.catch((error) => {
-			const errorCode = error.code;
-			const errorMessage = error.message;
-			console.log(errorCode + errorMessage);
-		});
+	return signInWithEmailAndPassword(auth, email, password).catch((error) => {
+		const errorCode = error.code;
+		const errorMessage = error.message;
+		console.log(errorCode + errorMessage);
+	});
 };

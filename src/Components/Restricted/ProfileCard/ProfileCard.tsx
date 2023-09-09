@@ -1,19 +1,17 @@
 import {
 	ProfilePicture,
+	Image,
 	Stat,
 	StatsWrapper,
 	Wrapper,
 } from './ProfileCard.styles';
-// import profile from '../../../Assets/images/profilePicture.jpg';
 
 export const ProfileCard = () => {
+	const profilePic = require('../../../Assets/images/profilePicture.png');
 	return (
 		<Wrapper>
 			<ProfilePicture>
-				<img
-					src={'../../../Assets/images/profilePicture.jpg'}
-					alt='Profile picture'
-				/>
+				<Image src={profilePic} alt='Profile picture' />
 			</ProfilePicture>
 			<StatsWrapper>
 				<Stat>

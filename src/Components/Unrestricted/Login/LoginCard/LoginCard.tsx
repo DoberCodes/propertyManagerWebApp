@@ -10,8 +10,10 @@ import {
 import { signIn } from '../../../../firebase/hooks/Authentication';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { solid } from '@fortawesome/fontawesome-svg-core/import.macro';
+import { useNavigate } from 'react-router-dom';
 
 export const LoginCard = () => {
+	const navigate = useNavigate();
 	const [email, setEmail] = useState<string>('');
 	const [password, setPassword] = useState<string>('');
 
@@ -20,6 +22,9 @@ export const LoginCard = () => {
 		console.log(email, password);
 		const user = await signIn(email, password);
 		console.log(user);
+		if (user) {
+			return navigate('/property_manager');
+		}
 
 		// TODO: add Redux and alert handler to add a popup window to inform user to confirm password
 	};

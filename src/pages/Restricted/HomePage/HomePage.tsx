@@ -4,7 +4,8 @@ import { ProfileCard } from '../../../Components/Restricted/ProfileCard';
 import { TaskList } from '../../../Components/Restricted/TaskList';
 import { Body, Wrapper } from './HomePage.styles';
 
-export const HomePage = () => {
+export const HomePage = (props: any) => {
+	console.log(props.user);
 	const tasks = [
 		{
 			id: '10',
@@ -15,7 +16,6 @@ export const HomePage = () => {
 
 	return (
 		<Wrapper>
-			<Navbar />
 			<Body>
 				<Card title='Overdue'>
 					<TaskList taskData={tasks} />

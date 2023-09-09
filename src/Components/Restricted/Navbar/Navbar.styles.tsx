@@ -5,6 +5,7 @@ import {
 	font_title,
 	nav_height,
 } from '../../../global.styles';
+import { Link } from 'react-router-dom';
 
 export const Wrapper = styled.div`
 	width: 100%;
@@ -49,7 +50,7 @@ export const BottomNav = styled.div`
 	font-size: ${font_title};
 	height: 75%;
 `;
-export const NavItem = styled.a`
+export const NavItem = styled(Link)`
 	text-align: center;
 	color: black;
 	text-decoration: none;
