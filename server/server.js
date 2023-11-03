@@ -1,42 +1,45 @@
-const express = require('express');
-const app = express();
-const cors = require('cors');
-const sqlite3 = require('sqlite');
+const { MongoClient, ServerApiVersion } = require('mongodb');
 
-app.use(cors);
-app.use((req, res, next) => {
-	res.setHeader('Access-Control_allow-Origin', '*');
-	next();
+const uri =
+	'mongodb+srv://austdobe:Contour98@mypropertymanager.mdchcmf.mongodb.net/?retryWrites=true&w=majority';
+
+// Create a MongoClient with a MongoClientOptions object to set the Stable API version
+const client = new MongoClient(uri, {
+	serverApi: {
+		version: ServerApiVersion.v1,
+		strict: true,
+		deprecationErrors: true,
+	},
 });
-app.use(express.json({ limit: '10mb' }));
+const payload = {
+	email: 'austin.dober@gmail.com',
+	password: 'Testing123',
+};
 
-let db = new sqlite3.Database('credentials.db', (err) => {
-	if (err) {
-		console.log(err);
+async function run() {
+	try {
+		// Connect the client to the server	(optional starting in v4.7)
+		await client.connect();
+		console.log('Connected to Server');
+
+		const db = client.db('Authentication');
+
+		const users = await db.collection('users');
+
+		const docs = await users
+			.find({ email: 'austin.dober@gmail.com', password: 'Testing123' })
+			.limit(1)
+			.toArray((err, docs) => {
+				console.log('Found the following user');
+				console.log(docs);
+			});
+		console.log(docs);
+	} catch (e) {
+		console.error(e);
+	} finally {
+		// Ensures that the client will close when you finish/error
+		await client.close();
 	}
-	console.log('Connected to database');
-});
+}
 
-app.post('/validatePassword', (req, res) => {
-	const { username, password } = req.body;
-	// const { username, password } = {
-	// 	username: 'austin.dober@gmail.com',
-	// 	password: 'Testing123',
-	// };
-
-	db.all(
-		`select * from credentials where username = '${username}' and password = '${password}'`,
-		(err, rows) => {
-			if (err) {
-				console.log(err);
-			}
-			if (rows.length) {
-				res.send({ validation: true });
-			} else {
-				res.send({ validation: false });
-			}
-		}
-	);
-});
-
-app.listen(3001, () => console.log('Listening at port 3001'));
+run().catch(console.dir);

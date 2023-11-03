@@ -1,11 +1,10 @@
-import { Route, Routes } from 'react-router-dom';
+import { Route, Routes, BrowserRouter as Router } from 'react-router-dom';
 import { LandingPage } from './pages/Unrestricted/LandingPage';
 import { ErrorPage } from './pages/Unrestricted/ErrorPage';
 import { LoginPage } from './pages/Unrestricted/LoginPage';
 import { RegistrationPage } from './pages/Unrestricted/RegistrationPage';
 import { HomePage } from './pages/Restricted/HomePage';
 import { Properties } from './pages/Restricted/Properties';
-import { BrowserRouter as Router } from 'react-router-dom';
 import { ProtectedRoutes } from './ProtectedRoutes';
 
 export const RouterComponent = () => {
