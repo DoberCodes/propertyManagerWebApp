@@ -7,7 +7,6 @@ import {
 	BackButton,
 	RegisterWrapper,
 } from './RegistrationCard.styles';
-import { createAccount } from '../../../../firebase/hooks/Authentication';
 import { Navigate } from 'react-router-dom';
 import { icon, solid } from '@fortawesome/fontawesome-svg-core/import.macro';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -25,7 +24,6 @@ export const RegistrationCard = () => {
 	const signup = (event: any) => {
 		event.preventDefault();
 		if (confirmed) {
-			createAccount(email, password, firstName, lastName, householdName);
 			return <Navigate to={'/home'}></Navigate>;
 		} else {
 			// TODO: add Redux and alert handler to add a popup window to inform user to confirm password

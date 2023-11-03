@@ -7,24 +7,37 @@ import {
 	Title,
 	BackButton,
 } from './LoginCard.styles';
-import { signIn } from '../../../../firebase/hooks/Authentication';
+// import { signIn } from '../../../../firebase/hooks/Authentication';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { solid } from '@fortawesome/fontawesome-svg-core/import.macro';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 
 export const LoginCard = () => {
 	const navigate = useNavigate();
-	const [email, setEmail] = useState<string>('');
+	const [username, setUsername] = useState<string>('');
 	const [password, setPassword] = useState<string>('');
 
 	const login = async (event: any) => {
 		event.preventDefault();
-		console.log(email, password);
-		const user = await signIn(email, password);
+		// console.log(username, password);
+		// const user = await signIn(email, password);
+		const user = await axios
+			.post('http://localhost:3001/validatePassword', {
+				username,
+				password,
+			})
+			.then((res) => {
+				if (res.data.validation) {
+					console.log('UserFound');
+				} else {
+					console.log('Please check username or password');
+				}
+			});
 		console.log(user);
-		if (user) {
-			return navigate('/property_manager');
-		}
+		// if (user) {
+		// 	return navigate('/property_manager');
+		// }
 
 		// TODO: add Redux and alert handler to add a popup window to inform user to confirm password
 	};
@@ -39,7 +52,7 @@ export const LoginCard = () => {
 				placeholder='Email Address'
 				autoComplete='email'
 				onChange={(event) => {
-					setEmail(event.target.value);
+					setUsername(event.target.value);
 				}}
 			/>
 			<Input
