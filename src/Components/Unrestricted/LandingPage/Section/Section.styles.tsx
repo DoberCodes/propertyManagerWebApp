@@ -5,7 +5,7 @@ export const Wrapper = styled.div<{ background?: string }>`
 	width: 100%;
 	max-width: 1440px;
 	margin: 0 auto;
-	padding: 100px 0 100px 0;
 	min-height: 500px;
+	scroll-margin-top: 100px;
 	background-color: ${(props) => props.background};
 `;

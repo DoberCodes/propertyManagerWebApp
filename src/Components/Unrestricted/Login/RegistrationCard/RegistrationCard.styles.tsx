@@ -1,13 +1,17 @@
 import styled from 'styled-components';
 
-export const Wrapper = styled.div`
+export const Wrapper = styled.form`
 	display: grid;
 	justify-content: center;
 	align-items: center;
-	padding: 20px 40px;
+	padding: 10px;
 	border: 1px solid black;
 	border-radius: 10px;
 	background-color: white;
+`;
+
+export const BackButton = styled.a`
+	padding: 10px;
 `;
 
 export const Title = styled.h2`
@@ -19,8 +23,8 @@ export const Title = styled.h2`
 
 export const Input = styled.input`
 	padding: 20px;
-	margin: 20px;
 	font-size: 18px;
+	margin: 10px;
 	border: none;
 	border-bottom: 1px solid gray;
 	&:hover {
@@ -30,9 +34,9 @@ export const Input = styled.input`
 `;
 
 export const Submit = styled.button`
-	margin: 10px auto;
+	margin: 20px auto;
 	font-size: 18px;
-	padding: 10px 20px;
+	padding: 5px 20px;
 	border-radius: 5px;
 	border: 1px solid gray;
 	&:hover {
@@ -42,8 +46,6 @@ export const Submit = styled.button`
 `;
 
 export const RegisterWrapper = styled.div`
-	margin: 50px 0 25px 0;
-
 	span {
 		color: blue;
 		&:hover {
