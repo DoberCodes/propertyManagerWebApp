@@ -5,20 +5,20 @@ const client = new MongoClient(Db, {
 	useUnifiedTopology: true,
 });
 
-var _db;
+let _db;
 
 module.exports = {
-	connectToServer: function (callback) {
-		client.connect(function (err, db) {
-			// Verify we got a good "db" object
-			if (db) {
-				_db = db.db('employees');
-				console.log('Successfully connected to MongoDB.');
-			}
-			return callback(err);
-		});
-	},
+	connectToServer: async function (callback) {
+		try {
+			await client.connect();
+		} catch (e) {
+			console.error(e);
+		}
 
+		_db = client.db('auth');
+
+		return _db === undefined ? false : true;
+	},
 	getDb: function () {
 		return _db;
 	},
