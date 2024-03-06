@@ -4,20 +4,21 @@ export const userSlice = createSlice({
 	name: 'user',
 	initialState: {
 		cred: {
-			UID: '',
-			householdName: '',
+			UserId: '',
+			UserName: '',
+		},
+		Profile: {
+			HouseHoldName: '',
 			email: '',
-			firstName: '',
-			lastName: '',
 		},
 	},
 	reducers: {
-		setUser: (state, action) => {
+		setUserCred: (state, action) => {
 			state.cred = action.payload;
 		},
 	},
 });
 
-export const { setUser } = userSlice.actions;
+export const { setUserCred } = userSlice.actions;
 
 export default userSlice.reducer;

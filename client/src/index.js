@@ -1,9 +1,8 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import reportWebVitals from './reportWebVitals.js';
-import { RouterProvider } from 'react-router-dom';
 import { Provider } from 'react-redux';
-import { store } from './Redux/store.tsx';
+import { store } from './Redux/Store/store.tsx';
 import { RouterComponent } from './router.tsx';
 import GlobalStyles from './global.styles.tsx';
 

@@ -1,59 +1,20 @@
 const express = require('express');
 
-const authenticationRoutes = express.Router();
+const propertyRoutes = express.Router();
 
 const dbo = require('../db/conn');
-const token = () => {
-	const length = 24;
-	let result = '';
-	const characters =
-		'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+<>?/';
-	const charactersLength = characters.length;
-	let counter = 0;
-	while (counter < length) {
-		if (counter === 12) {
-			result += '-';
-		}
-		result += characters.charAt(Math.floor(Math.random() * charactersLength));
-		counter += 1;
-	}
-	return result;
-};
 
 const ObjectId = require('mongodb').ObjectId;
 
-authenticationRoutes.route('/status').post(async (req, res) => {
-	let db_connect = dbo.getAuthDb();
-	console.log('Body Payload', req.body);
-	const payload = { token: req.body.token };
-	console.log('/Status Payload', payload);
+propertyRoutes.route('/properties/:id').get(async (req, res) => {
+	let db_connect = dbo.getPropertyDb();
+	console.log('Triggered');
+	let query = { UserId: req.params.id };
 	try {
-		const userToken = await db_connect.collection('token').findOne(payload);
-		console.log('User response', userToken);
-		const today = new Date().toDateString();
-		console.log('Todays date', today);
-		const modified = new Date(userToken.modifiedDate).toDateString();
-		console.log('Modified Date', modified);
-		if (userToken && new Date(modified) >= new Date(today)) {
-			console.log('triggered');
-			res.json(userToken.UserId);
-		} else {
-			res.status(204);
-		}
-	} catch (e) {
-		res.status(400);
-	}
-});
-
-authenticationRoutes.route('/authentication/:id').get(async (req, res) => {
-	let db_connect = dbo.getAuthDb();
-	console.log('req.params', req.params.id);
-	let query = { _id: new ObjectId(req.params.id) };
-	console.log(query);
-	try {
-		const user = await db_connect.collection('users').findOne(query);
-		if (user) {
-			res.json({ user: user.name });
+		const homes = await db_connect.collection('homes').findOne(query);
+		console.log(homes);
+		if (homes) {
+			res.json(homes);
 		} else {
 			res.status(404);
 		}
@@ -62,8 +23,8 @@ authenticationRoutes.route('/authentication/:id').get(async (req, res) => {
 	}
 });
 
-authenticationRoutes.route('/authentication').post(async (req, res) => {
-	let db_connect = dbo.getAuthDb();
+propertyRoutes.route('/properties').post(async (req, res) => {
+	let db_connect = dbo.getPropertyDb();
 	let query = { email: req.body.email, password: req.body.password };
 	try {
 		const user = await db_connect.collection('users').findOne(query);
@@ -111,8 +72,8 @@ authenticationRoutes.route('/authentication').post(async (req, res) => {
 	}
 });
 
-authenticationRoutes.route('/authentication/create').post((req, res) => {
-	let db_connect = dbo.getAuthDb();
+propertyRoutes.route('/properties/create').post((req, res) => {
+	let db_connect = dbo.getPropertyDb();
 
 	let newUser = {
 		username: req.body.username,
@@ -126,8 +87,8 @@ authenticationRoutes.route('/authentication/create').post((req, res) => {
 	});
 });
 
-authenticationRoutes.route('/authentication/update/:id').post((req, res) => {
-	let db_connect = dbo.getAuthDb();
+propertyRoutes.route('/properties/update/:id').post((req, res) => {
+	let db_connect = dbo.getPropertyDb();
 
 	let query = { _id: ObjectId(req.params.id) };
 
@@ -147,8 +108,8 @@ authenticationRoutes.route('/authentication/update/:id').post((req, res) => {
 		});
 });
 
-authenticationRoutes.route('/:id').delete((req, res) => {
-	let db_connect = dbo.getAuthDb();
+propertyRoutes.route('/properties/:id').delete((req, res) => {
+	let db_connect = dbo.getPropertyDb();
 
 	let query = { _id: ObjectId(req.params.id) };
 
@@ -157,5 +118,22 @@ authenticationRoutes.route('/:id').delete((req, res) => {
 		res.json(response);
 	});
 });
+propertyRoutes.route('/tasks/:id').get(async (req, res) => {
+	let db_connect = dbo.getPropertyDb();
+	console.log('Triggered req.body ', req.params);
+	let query = { houseId: req.params.id };
+	console.log('Tasks Query ', query);
+	try {
+		const tasks = await db_connect.collection('tasks').find(query).toArray();
+		console.log('Tasks home response', tasks);
+		if (tasks) {
+			res.json(tasks);
+		} else {
+			res.status(404);
+		}
+	} catch (e) {
+		console.log(e);
+	}
+});
 
-module.exports = authenticationRoutes;
+module.exports = propertyRoutes;

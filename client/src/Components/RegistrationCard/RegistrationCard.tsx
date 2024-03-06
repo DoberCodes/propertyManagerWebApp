@@ -24,7 +24,7 @@ export const RegistrationCard = () => {
 	const signup = (event: any) => {
 		event.preventDefault();
 		if (confirmed) {
-			return <Navigate to={'/home'}></Navigate>;
+			return <Navigate to={'/property_manager'}></Navigate>;
 		} else {
 			// TODO: add Redux and alert handler to add a popup window to inform user to confirm password
 			console.log('confirm password');

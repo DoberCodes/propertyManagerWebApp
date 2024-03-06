@@ -1,8 +1,8 @@
 import React from 'react';
 import { Wrapper } from './LandingPage.styles';
-import { LandingNavbar } from '../../../Components/Unrestricted/LandingPage/LandingNavbar';
-import { HeroImage } from '../../../Components/Unrestricted/LandingPage/HeroImage';
-import { Section } from '../../../Components/Unrestricted/LandingPage/Section';
+import { LandingNavbar } from '../../Components/Library/LandingNavbar';
+import { HeroImage } from '../../Components/Library/HeroImage';
+import { Section } from '../../Components/Library/Section';
 
 export const LandingPage = () => {
 	return (

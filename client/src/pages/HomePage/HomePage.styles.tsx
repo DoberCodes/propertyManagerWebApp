@@ -6,5 +6,5 @@ export const Body = styled.div`
 	display: flex;
 	height: 100%;
 	padding: 10px;
-	justify-content: space-around;
+	justify-content: center;
 `;

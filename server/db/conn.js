@@ -6,6 +6,7 @@ const client = new MongoClient(Db, {
 });
 
 let _db;
+let _db2;
 
 module.exports = {
 	connectToServer: async function (callback) {
@@ -15,11 +16,15 @@ module.exports = {
 			console.error(e);
 		}
 
-		_db = client.db('auth');
+		_db = client.db('Authentication');
+		_db2 = client.db('Properties');
 
-		return _db === undefined ? false : true;
+		return _db === undefined && _db2 === undefined ? false : true;
 	},
-	getDb: function () {
+	getAuthDb: function () {
 		return _db;
+	},
+	getPropertyDb: function () {
+		return _db2;
 	},
 };
