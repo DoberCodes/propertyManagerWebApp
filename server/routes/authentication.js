@@ -1,161 +1,141 @@
 const express = require('express');
-
+const bcrypt = require('bcryptjs');
 const authenticationRoutes = express.Router();
 
 const dbo = require('../db/conn');
-const token = () => {
-	const length = 24;
-	let result = '';
-	const characters =
-		'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+<>?/';
-	const charactersLength = characters.length;
-	let counter = 0;
-	while (counter < length) {
-		if (counter === 12) {
-			result += '-';
-		}
-		result += characters.charAt(Math.floor(Math.random() * charactersLength));
-		counter += 1;
-	}
-	return result;
-};
+const generateToken = require('../hooks/TokenGeneration');
 
 const ObjectId = require('mongodb').ObjectId;
 
 authenticationRoutes.route('/status').post(async (req, res) => {
 	let db_connect = dbo.getAuthDb();
-	console.log('Body Payload', req.body);
 	const payload = { token: req.body.token };
-	console.log('/Status Payload', payload);
 	try {
 		const userToken = await db_connect.collection('token').findOne(payload);
-		console.log('User response', userToken);
 		const today = new Date().toDateString();
-		console.log('Todays date', today);
 		const modified = new Date(userToken.modifiedDate).toDateString();
-		console.log('Modified Date', modified);
 		if (userToken && new Date(modified) >= new Date(today)) {
-			console.log('triggered');
 			res.json(userToken.UserId);
 		} else {
-			res.status(204);
+			res.status(204).send();
 		}
 	} catch (e) {
-		res.status(400);
+		res.status(400).json({ error: 'Invalid token' });
 	}
 });
 
 authenticationRoutes.route('/authentication/:id').get(async (req, res) => {
 	let db_connect = dbo.getAuthDb();
-	console.log('req.params', req.params.id);
 	let query = { _id: new ObjectId(req.params.id) };
-	console.log(query);
 	try {
 		const user = await db_connect.collection('users').findOne(query);
 		if (user) {
 			res.json({ user: user.name });
 		} else {
-			res.status(404);
+			res.status(404).json({ error: 'User not found' });
 		}
 	} catch (e) {
-		console.log(e);
+		res.status(400).json({ error: 'Invalid user ID' });
 	}
 });
 
 authenticationRoutes.route('/authentication').post(async (req, res) => {
 	let db_connect = dbo.getAuthDb();
-	let query = { email: req.body.email, password: req.body.password };
 	try {
-		const user = await db_connect.collection('users').findOne(query);
-		if (user !== null) {
-			const id = { UserId: user._id.toString() };
-			const today = new Date();
-			const activation = {
-				$set: {
-					UserId: user._id.toString(),
-					token: token(),
-					modifiedDate: new Date(today.setDate(today.getDate() + 1)),
-				},
-			};
-			try {
-				const userToken = await db_connect.collection('token').findOne(id);
-				console.log('Found Token!!!! ', userToken);
-				if (userToken) {
-					await db_connect
-						.collection('token')
-						.updateOne(id, activation, (err) => {
-							if (err) throw err;
-							res.status(200);
-						});
-				} else {
-					await db_connect.collection('token').insertOne(activation, (err) => {
-						if (err) throw err;
-						res.status(200);
-					});
-				}
-			} catch (e) {
-				console.log('Error', e);
-			}
-			res.status(200);
-			res.json({
-				username: user.name,
-				UserId: activation.$set.UserId,
-				token: activation.$set.token,
-				modifiedDate: activation.$set.modifiedDate,
-			});
-		} else {
-			res.status(400);
+		const user = await db_connect
+			.collection('users')
+			.findOne({ email: req.body.email });
+		if (!user) {
+			return res.status(400).json({ error: 'User not found' });
 		}
+
+		const isPasswordValid = await bcrypt.compare(
+			req.body.password,
+			user.password,
+		);
+		if (!isPasswordValid) {
+			return res.status(400).json({ error: 'Invalid password' });
+		}
+
+		const id = { UserId: user._id.toString() };
+		const newToken = generateToken();
+		const tomorrow = new Date();
+		tomorrow.setDate(tomorrow.getDate() + 1);
+
+		const activation = {
+			$set: {
+				UserId: user._id.toString(),
+				token: newToken,
+				modifiedDate: tomorrow,
+			},
+		};
+
+		const userToken = await db_connect.collection('token').findOne(id);
+		if (userToken) {
+			await db_connect.collection('token').updateOne(id, activation);
+		} else {
+			await db_connect.collection('token').insertOne(activation.$set);
+		}
+
+		res.status(200).json({
+			username: user.name,
+			UserId: activation.$set.UserId,
+			token: activation.$set.token,
+			modifiedDate: activation.$set.modifiedDate,
+		});
 	} catch (e) {
-		console.log('Error ', e);
+		res.status(500).json({ error: 'Authentication failed' });
 	}
 });
 
-authenticationRoutes.route('/authentication/create').post((req, res) => {
+authenticationRoutes.route('/authentication/create').post(async (req, res) => {
 	let db_connect = dbo.getAuthDb();
-
-	let newUser = {
-		username: req.body.username,
-		email: req.body.email,
-		password: req.body.password,
-	};
-
-	db_connect.collection('users').insertOne(newUser, (err, response) => {
-		if (err) throw err;
-		res.json(response);
-	});
-});
-
-authenticationRoutes.route('/authentication/update/:id').post((req, res) => {
-	let db_connect = dbo.getAuthDb();
-
-	let query = { _id: ObjectId(req.params.id) };
-
-	let updatedUser = {
-		$set: {
-			username: req.body.username,
+	try {
+		const hashedPassword = await bcrypt.hash(req.body.password, 10);
+		let newUser = {
+			name: req.body.username,
 			email: req.body.email,
-			password: req.body.password,
-		},
-	};
-
-	db_connect
-		.collection('users')
-		.updateOne(query, updatedUser, (err, response) => {
-			if (err) throw err;
-			res.json(response);
-		});
+			password: hashedPassword,
+		};
+		const response = await db_connect.collection('users').insertOne(newUser);
+		res.json(response);
+	} catch (e) {
+		res.status(500).json({ error: 'Failed to create user' });
+	}
 });
 
-authenticationRoutes.route('/:id').delete((req, res) => {
-	let db_connect = dbo.getAuthDb();
-
-	let query = { _id: ObjectId(req.params.id) };
-
-	db_connect.collection('users').deleteOne(query, (err, response) => {
-		if (err) throw err;
-		res.json(response);
+authenticationRoutes
+	.route('/authentication/update/:id')
+	.post(async (req, res) => {
+		let db_connect = dbo.getAuthDb();
+		try {
+			const hashedPassword = await bcrypt.hash(req.body.password, 10);
+			let query = { _id: new ObjectId(req.params.id) };
+			let updatedUser = {
+				$set: {
+					name: req.body.username,
+					email: req.body.email,
+					password: hashedPassword,
+				},
+			};
+			const response = await db_connect
+				.collection('users')
+				.updateOne(query, updatedUser);
+			res.json(response);
+		} catch (e) {
+			res.status(500).json({ error: 'Failed to update user' });
+		}
 	});
+
+authenticationRoutes.route('/:id').delete(async (req, res) => {
+	let db_connect = dbo.getAuthDb();
+	try {
+		let query = { _id: new ObjectId(req.params.id) };
+		const response = await db_connect.collection('users').deleteOne(query);
+		res.json(response);
+	} catch (e) {
+		res.status(500).json({ error: 'Failed to delete user' });
+	}
 });
 
 module.exports = authenticationRoutes;

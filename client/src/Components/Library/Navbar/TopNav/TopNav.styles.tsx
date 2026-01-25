@@ -4,16 +4,15 @@ import {
 	font_main,
 	font_title,
 	nav_height,
-} from '../../../global.styles';
+} from '../../../../global.styles';
 import { Link } from 'react-router-dom';
 
 export const Wrapper = styled.div`
-	width: 100%;
 	border: 1px solid black;
 	display: flex;
+	flex-flow: row;
 	align-items: center;
 	height: ${nav_height};
-	padding-bottom: 10px;
 	background-color: ${blue};
 `;
 
@@ -33,8 +32,7 @@ export const NavItemWrapper = styled.div`
 	margin-right: 20px;
 `;
 
-export const TopNav = styled.div`
-	width: 100%;
+export const Navbar = styled.div`
 	height: 25%;
 	display: grid;
 	grid-auto-flow: column;
@@ -46,9 +44,7 @@ export const BottomNav = styled.div`
 	display: grid;
 	grid-auto-flow: column;
 	align-items: end;
-	width: 100%;
 	font-size: ${font_title};
-	height: 75%;
 `;
 export const NavItem = styled(Link)`
 	text-align: center;

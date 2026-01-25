@@ -5,6 +5,8 @@ import { ErrorPage } from './pages/ErrorPage';
 import { LoginPage } from './pages/LoginPage';
 import { RegistrationPage } from './pages/RegistrationPage';
 import { ProtectedRoutes } from './ProtectedRoutes';
+import { HomePage } from './pages/HomePage';
+import { Layout } from './Components/Layout';
 
 export const RouterComponent = () => {
 	return (
@@ -17,10 +19,23 @@ export const RouterComponent = () => {
 				/>
 				<Route path='login' element={<LoginPage />} />
 				<Route path='registration' element={<RegistrationPage />} />
-				<Route path='property_manager' element={<ProtectedRoutes />} />
-				<Route path='*' element={<ProtectedRoutes />} />
-				{/* <Route path='dashboard' element={<HomePage />} />
-				<Route path='properties' element={<Properties />} /> */}
+				<Route
+					path='property_manager'
+					element={
+						<ProtectedRoutes>
+							<HomePage />
+						</ProtectedRoutes>
+					}>
+					<Route path='dashboard' element={<HomePage />} />
+				</Route>
+				<Route
+					path='*'
+					element={
+						<ProtectedRoutes>
+							<HomePage />
+						</ProtectedRoutes>
+					}
+				/>
 			</Routes>
 		</Router>
 	);

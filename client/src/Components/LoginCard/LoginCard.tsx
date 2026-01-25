@@ -10,7 +10,7 @@ import {
 // import { signIn } from '../../../../firebase/hooks/Authentication';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faArrowAltCircleLeft } from '@fortawesome/free-regular-svg-icons';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 
 export const LoginCard = () => {
 	const navigate = useNavigate();
@@ -21,38 +21,26 @@ export const LoginCard = () => {
 		event.preventDefault();
 		const payload = { email, password };
 		console.log(payload);
-		// console.log(username, password);
-		// const user = await signIn(email, password);
-		// await fetch('http://localhost:5000/authentication', {
-		// 	method: 'GET',
-		// 	headers: {
-		// 		'Content-type': 'application/json',
-		// 	},
-		// }).catch((err) => {
-		// 	console.log(err);
-		// });
-		await fetch('http://localhost:5000/authentication', {
-			method: 'POST',
-			headers: {
-				'Content-type': 'application/json',
-			},
-			body: JSON.stringify(payload),
-		})
-			.then(async (response) => {
+		try {
+			await fetch('http://localhost:5000/authentication', {
+				method: 'POST',
+				headers: {
+					'Content-type': 'application/json',
+				},
+				body: JSON.stringify(payload),
+			}).then(async (response) => {
 				const data = await response.json();
 				if (data) {
-					navigate('/property_manager', { state: data });
+					console.log('Login data', data);
+					localStorage.setItem('loggedUser', JSON.stringify(data.token));
 				}
-				console.log('data', data);
-			})
-			.catch((error) => {
-				console.log(error);
+				return;
 			});
-		//
-		// } else {
-		// 	console.log('No User Found');
-		// 	return;
-		// }
+			navigate('/property_manager');
+		} catch (error) {
+			console.log(error);
+			// setErrorMessage(error);
+		}
 		// TODO: add Redux and alert handler to add a popup window to inform user to confirm password
 	};
 

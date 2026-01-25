@@ -1,15 +1,19 @@
+const crypto = require('crypto');
+
+const TOKEN_LENGTH_MIN = 40;
+const TOKEN_LENGTH_MAX = 80;
+const VALID_CHARACTERS =
+	'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+';
+
 const token = () => {
-	console.log('Triggered');
-	const length = 12;
+	const length = crypto.randomInt(TOKEN_LENGTH_MIN, TOKEN_LENGTH_MAX + 1);
 	let result = '';
-	console.lo(result);
-	const characters =
-		'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+';
-	const charactersLength = characters.length;
-	let counter = 0;
-	while (counter < length) {
-		result += characters.charAt(Math.floor(Math.random() * charactersLength));
-		counter += 1;
+	for (let i = 0; i < length; i++) {
+		result += VALID_CHARACTERS.charAt(
+			crypto.randomInt(0, VALID_CHARACTERS.length),
+		);
 	}
 	return result;
 };
+
+module.exports = token;

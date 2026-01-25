@@ -1,11 +1,13 @@
 import { configureStore } from '@reduxjs/toolkit';
 import userReducer from '../Slices/userSlice';
-import propertyReducer from '../Slices/propertySlices';
+import navigationReducer from '../Slices/Nav/navigationSlice';
+import { propertyApi } from '../Slices/propertySlice';
 
 export const store = configureStore({
 	reducer: {
 		user: userReducer,
-		property: propertyReducer,
+		[propertyApi.reducerPath]: propertyApi.reducer,
+		navigation: navigationReducer,
 	},
 	middleware: (getDefaultMiddleware) => getDefaultMiddleware(),
 });

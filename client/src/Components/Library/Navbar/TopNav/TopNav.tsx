@@ -1,36 +1,36 @@
 import React from 'react';
 import {
-	BottomNav,
 	NavItem,
 	NavItemWrapper,
 	Title,
-	TopNav,
+	Navbar,
 	Wrapper,
-} from './Navbar.styles';
+} from './TopNav.styles';
 import { useNavigate } from 'react-router-dom';
+// import { useDispatch } from 'react-redux';
+// import { setTabSelection } from '../../../../Redux/Slices/Nav/navigationSlice';
 
-export const Navbar = () => {
+export const TopNav = () => {
 	const navigate = useNavigate();
+	// const dispatch = useDispatch();
 	const handleLogout = () => {
 		localStorage.removeItem('loggedUser');
 		navigate('/');
 	};
+	// const handleTabSelection = (tab: number) => {
+	// 	dispatch(setTabSelection(tab));
+	// };
 	return (
 		<Wrapper>
 			<Title>My Property Manager</Title>
 			<NavItemWrapper>
-				<TopNav>
+				<Navbar>
 					<NavItem to='/Settings'>Profile Settings</NavItem>
 					<NavItem to='/Manage'>Manage Household</NavItem>
 					<NavItem to='/' onClick={handleLogout}>
 						Log Out
 					</NavItem>
-				</TopNav>
-				<BottomNav>
-					<NavItem to='/dashboard'>Dashboard</NavItem>
-					<NavItem to='/Properties'>Properties</NavItem>
-					<NavItem to='/Facts'>FAQs</NavItem>
-				</BottomNav>
+				</Navbar>
 			</NavItemWrapper>
 		</Wrapper>
 	);
