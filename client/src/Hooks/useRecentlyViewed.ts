@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { getUserStorageKey } from './utils/storageList';
 
 interface RecentlyViewedProperty {
 	id: number;
@@ -11,7 +12,7 @@ const STORAGE_KEY = 'recentlyViewedProperties';
 const RECENTS_UPDATED_EVENT = 'recently-viewed-updated';
 const MAX_ITEMS = 5;
 
-export const useRecentlyViewed = () => {
+export const useRecentlyViewed = (userId?: string | number) => {
 	const [recentProperties, setRecentProperties] = useState<
 		RecentlyViewedProperty[]
 	>([]);
@@ -19,7 +20,10 @@ export const useRecentlyViewed = () => {
 	// Load from localStorage on mount and when notified
 	useEffect(() => {
 		const load = () => {
-			const stored = localStorage.getItem(STORAGE_KEY);
+			const storageKey = userId
+				? getUserStorageKey(userId, STORAGE_KEY)
+				: STORAGE_KEY;
+			const stored = localStorage.getItem(storageKey);
 			if (stored) {
 				try {
 					setRecentProperties(JSON.parse(stored));
@@ -35,7 +39,7 @@ export const useRecentlyViewed = () => {
 		const handler = () => load();
 		window.addEventListener(RECENTS_UPDATED_EVENT, handler);
 		return () => window.removeEventListener(RECENTS_UPDATED_EVENT, handler);
-	}, []);
+	}, [userId]);
 
 	const addRecentlyViewed = (property: {
 		id: number;
@@ -53,7 +57,10 @@ export const useRecentlyViewed = () => {
 			const limited = updated.slice(0, MAX_ITEMS);
 
 			// Save to localStorage and notify listeners
-			localStorage.setItem(STORAGE_KEY, JSON.stringify(limited));
+			const storageKey = userId
+				? getUserStorageKey(userId, STORAGE_KEY)
+				: STORAGE_KEY;
+			localStorage.setItem(storageKey, JSON.stringify(limited));
 			window.dispatchEvent(new Event(RECENTS_UPDATED_EVENT));
 
 			return limited;
@@ -62,7 +69,10 @@ export const useRecentlyViewed = () => {
 
 	const clearRecentlyViewed = () => {
 		setRecentProperties([]);
-		localStorage.removeItem(STORAGE_KEY);
+		const storageKey = userId
+			? getUserStorageKey(userId, STORAGE_KEY)
+			: STORAGE_KEY;
+		localStorage.removeItem(storageKey);
 		window.dispatchEvent(new Event(RECENTS_UPDATED_EVENT));
 	};
 

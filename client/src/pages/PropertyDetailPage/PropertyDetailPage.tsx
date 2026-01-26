@@ -1,6 +1,31 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useDispatch, useSelector } from 'react-redux';
+import { RootState, AppDispatch } from '../../Redux/Store/store';
+import {
+	addTask,
+	updateTask,
+	deleteTask,
+} from '../../Redux/Slices/propertyDataSlice';
+import {
+	addMaintenanceRequest,
+	convertRequestToTask,
+	MaintenanceRequestItem,
+} from '../../Redux/Slices/maintenanceRequestsSlice';
+import {
+	canApproveMaintenanceRequest,
+	isTenant,
+} from '../../utils/permissions';
 import { useFavorites } from '../../Hooks/useFavorites';
+import { TaskCompletionModal } from '../../Components/Library/TaskCompletionModal';
+import {
+	MaintenanceRequestModal,
+	MaintenanceRequest,
+} from '../../Components/Library/MaintenanceRequestModal';
+import {
+	ConvertRequestToTaskModal,
+	TaskData,
+} from '../../Components/Library/ConvertRequestToTaskModal';
 import {
 	Wrapper,
 	Header,
@@ -57,8 +82,34 @@ const PROPERTIES_DATA = [
 		title: 'Downtown Apartments',
 		slug: 'downtown-apartments',
 		image: 'https://via.placeholder.com/600x300?text=Downtown+Apartments',
+		propertyType: 'Multi-Family',
 		owner: 'John Smith',
 		address: '123 Main Street, Downtown District',
+		units: [
+			{
+				name: 'Apt 5B',
+				tenants: [
+					{
+						id: 7,
+						firstName: 'Emily',
+						lastName: 'Brown',
+						email: 'emily@test.com',
+						phone: '(555) 678-9012',
+						unit: 'Apt 5B',
+						leaseStart: '2025-06-01',
+						leaseEnd: '2026-05-31',
+					},
+				],
+			},
+			{
+				name: 'Apt 3A',
+				tenants: [],
+			},
+			{
+				name: 'Apt 4C',
+				tenants: [],
+			},
+		],
 		bedrooms: 4,
 		bathrooms: 2,
 		administrators: ['john@example.com', 'jane@example.com'],
@@ -96,8 +147,15 @@ const PROPERTIES_DATA = [
 		title: 'Business Park',
 		slug: 'business-park',
 		image: 'https://via.placeholder.com/600x300?text=Business+Park',
+		propertyType: 'Commercial',
 		owner: 'Corporate Solutions Inc',
 		address: '456 Commerce Avenue, Business District',
+		hasSuites: true,
+		suites: [
+			{ name: 'Suite 100', tenants: [] },
+			{ name: 'Suite 200', tenants: [] },
+			{ name: 'Suite 300', tenants: [] },
+		],
 		bedrooms: 0,
 		bathrooms: 8,
 		administrators: ['admin@business.com'],
@@ -117,12 +175,14 @@ const PROPERTIES_DATA = [
 			{ date: '2026-01-10', description: 'Roof maintenance', deviceId: 3 },
 			{ date: '2025-11-05', description: 'HVAC service', deviceId: 3 },
 		],
+		tenants: [] as any[],
 	},
 	{
 		id: 3,
 		title: 'Sunset Heights',
 		slug: 'sunset-heights',
 		image: 'https://via.placeholder.com/600x300?text=Sunset+Heights',
+		propertyType: 'Single Family',
 		owner: 'Sarah Johnson',
 		address: '789 Hill Road, Residential Area',
 		bedrooms: 5,
@@ -145,14 +205,34 @@ const PROPERTIES_DATA = [
 			{ date: '2025-12-15', description: 'Exterior paint touch-up' },
 			{ date: '2025-11-10', description: 'Roof repair' },
 		],
+		tenants: [] as any[],
 	},
 	{
 		id: 4,
 		title: 'Oak Street Complex',
 		slug: 'oak-street-complex',
 		image: 'https://via.placeholder.com/600x300?text=Oak+Street',
+		propertyType: 'Multi-Family',
 		owner: 'Property Group LLC',
 		address: '321 Oak Street, Mixed Use Zone',
+		units: [
+			{
+				name: 'Unit A',
+				tenants: [],
+			},
+			{
+				name: 'Unit B',
+				tenants: [],
+			},
+			{
+				name: 'Unit C',
+				tenants: [],
+			},
+			{
+				name: 'Unit D',
+				tenants: [],
+			},
+		],
 		bedrooms: 6,
 		bathrooms: 4,
 		administrators: ['manager@property.com'],
@@ -174,37 +254,27 @@ const PROPERTIES_DATA = [
 	},
 ];
 
-// Mock tasks data
-const MOCK_TASKS = [
-	{
-		id: 1,
-		title: 'Replace air filters',
-		dueDate: '2026-02-01',
-		status: 'In Progress',
-		property: 'Downtown Apartments',
-	},
-	{
-		id: 2,
-		title: 'Quarterly maintenance inspection',
-		dueDate: '2026-02-15',
-		status: 'Pending',
-		property: 'Downtown Apartments',
-	},
-	{
-		id: 3,
-		title: 'Parking lot sweeping',
-		dueDate: '2026-01-28',
-		status: 'Completed',
-		property: 'Business Park',
-	},
-];
-
 export const PropertyDetailPage = () => {
 	const { slug } = useParams<{ slug: string }>();
 	const navigate = useNavigate();
+	const dispatch = useDispatch<AppDispatch>();
 	const { isFavorite, toggleFavorite } = useFavorites();
+
+	// Get tasks from Redux
+	const currentUser = useSelector((state: RootState) => state.user.currentUser);
+	const allTasks = useSelector((state: RootState) => state.propertyData.tasks);
+	const teamMembers = useSelector((state: RootState) =>
+		state.team.groups.flatMap((group) => group.members),
+	);
+
 	const [activeTab, setActiveTab] = useState<
-		'details' | 'tasks' | 'maintenance'
+		| 'details'
+		| 'tasks'
+		| 'maintenance'
+		| 'tenants'
+		| 'requests'
+		| 'units'
+		| 'suites'
 	>('details');
 	const [isEditingTitle, setIsEditingTitle] = useState(false);
 	const [editedTitle, setEditedTitle] = useState('');
@@ -213,6 +283,11 @@ export const PropertyDetailPage = () => {
 	const [selectedTasks, setSelectedTasks] = useState<number[]>([]);
 	const [showTaskDialog, setShowTaskDialog] = useState(false);
 	const [editingTaskId, setEditingTaskId] = useState<number | null>(null);
+	const [showTaskAssignDialog, setShowTaskAssignDialog] = useState(false);
+	const [assigningTaskId, setAssigningTaskId] = useState<number | null>(null);
+	const [selectedAssignee, setSelectedAssignee] = useState<string>('');
+	const [showTaskCompletionModal, setShowTaskCompletionModal] = useState(false);
+	const [completingTaskId, setCompletingTaskId] = useState<number | null>(null);
 	const [taskFormData, setTaskFormData] = useState({
 		title: '',
 		dueDate: '',
@@ -226,17 +301,45 @@ export const PropertyDetailPage = () => {
 		model: '',
 		installationDate: '',
 	});
+	const [showMaintenanceRequestModal, setShowMaintenanceRequestModal] =
+		useState(false);
+	const [showConvertModal, setShowConvertModal] = useState(false);
+	const [convertingRequest, setConvertingRequest] =
+		useState<MaintenanceRequestItem | null>(null);
 
 	// Find the property based on slug
 	const property = useMemo(() => {
 		return PROPERTIES_DATA.find((p) => p.slug === slug);
 	}, [slug]);
 
+	const hasCommercialSuites =
+		property?.propertyType === 'Commercial' &&
+		(((property as any)?.hasSuites ?? false) ||
+			(Array.isArray((property as any)?.suites) &&
+				(property as any).suites.length > 0));
+
+	// Get maintenance requests for this property
+	const allMaintenanceRequests = useSelector(
+		(state: RootState) => state.maintenanceRequests.requests,
+	);
+	const propertyMaintenanceRequests = useMemo(() => {
+		if (!property) return [];
+		return allMaintenanceRequests.filter(
+			(req) => req.propertyId === property.id,
+		);
+	}, [property, allMaintenanceRequests]);
+
+	useEffect(() => {
+		if (hasCommercialSuites && activeTab === 'tenants') {
+			setActiveTab('suites');
+		}
+	}, [hasCommercialSuites, activeTab]);
+
 	// Filter tasks for this property
 	const propertyTasks = useMemo(() => {
 		if (!property) return [];
-		return MOCK_TASKS.filter((task) => task.property === property.title);
-	}, [property]);
+		return allTasks.filter((task) => task.property === property.title);
+	}, [property, allTasks]);
 
 	// Helper functions
 	const handleTitleEdit = () => {
@@ -288,10 +391,50 @@ export const PropertyDetailPage = () => {
 
 	const handleDeleteTask = () => {
 		if (selectedTasks.length > 0) {
-			// In a real app, this would delete via API
-			console.log('Deleting tasks:', selectedTasks);
+			selectedTasks.forEach((taskId) => {
+				dispatch(deleteTask(taskId));
+			});
 			setSelectedTasks([]);
 		}
+	};
+
+	const handleAssignTask = () => {
+		if (selectedTasks.length === 1) {
+			setAssigningTaskId(selectedTasks[0]);
+			setSelectedAssignee('');
+			setShowTaskAssignDialog(true);
+		}
+	};
+
+	const handleConfirmAssignment = () => {
+		if (assigningTaskId && selectedAssignee) {
+			const taskToUpdate = propertyTasks.find((t) => t.id === assigningTaskId);
+			if (taskToUpdate) {
+				dispatch(
+					updateTask({
+						...taskToUpdate,
+						assignee: selectedAssignee,
+					}),
+				);
+			}
+			setShowTaskAssignDialog(false);
+			setAssigningTaskId(null);
+			setSelectedAssignee('');
+			setSelectedTasks([]);
+		}
+	};
+
+	const handleCompleteTask = () => {
+		if (selectedTasks.length === 1) {
+			setCompletingTaskId(selectedTasks[0]);
+			setShowTaskCompletionModal(true);
+		}
+	};
+
+	const handleTaskCompletionSuccess = () => {
+		setShowTaskCompletionModal(false);
+		setCompletingTaskId(null);
+		setSelectedTasks([]);
 	};
 
 	const handlePropertyFieldChange = (field: string, value: string) => {
@@ -335,11 +478,111 @@ export const PropertyDetailPage = () => {
 		setShowDeviceDialog(false);
 	};
 
+	const handleMaintenanceRequestSubmit = (request: MaintenanceRequest) => {
+		if (!property || !currentUser) return;
+
+		// Find tenant's unit if they are a tenant
+		const tenantInfo = property.tenants?.find(
+			(t) => t.email === currentUser.email,
+		);
+
+		const newRequest = {
+			id: Math.max(...allMaintenanceRequests.map((r) => r.id), 0) + 1,
+			title: request.title,
+			description: request.description,
+			priority: request.priority,
+			category: request.category,
+			status: 'Pending' as const,
+			propertyId: property.id,
+			propertyTitle: property.title,
+			submittedBy: currentUser.id,
+			submittedByName: `${currentUser.firstName} ${currentUser.lastName}`,
+			submittedAt: new Date().toISOString(),
+			unit: tenantInfo?.unit, // Include unit for apartment buildings
+			files: request.files?.map((file) => ({
+				name: file.name,
+				url: URL.createObjectURL(file), // In real app, upload to server
+				size: file.size,
+			})),
+		};
+
+		dispatch(addMaintenanceRequest(newRequest));
+		alert('Maintenance request submitted successfully!');
+	};
+
+	const handleConvertRequestToTask = (requestId: number) => {
+		const request = allMaintenanceRequests.find((r) => r.id === requestId);
+		if (!request) return;
+
+		// Open modal with request data
+		setConvertingRequest(request);
+		setShowConvertModal(true);
+	};
+
+	const handleConvertToTask = (taskData: TaskData) => {
+		if (!convertingRequest || !property) return;
+
+		// Create a new task from the request with custom data
+		const newTask = {
+			id: Math.max(...allTasks.map((t) => t.id), 0) + 1,
+			title: taskData.title,
+			dueDate: taskData.dueDate,
+			status: taskData.status,
+			property: property.title,
+			unit: convertingRequest.unit,
+			suite: (convertingRequest as any).suite,
+			notes: taskData.notes,
+			assignee: taskData.assignee || undefined,
+		};
+
+		dispatch(addTask(newTask));
+		dispatch(
+			convertRequestToTask({
+				requestId: convertingRequest.id,
+				taskId: newTask.id,
+			}),
+		);
+		setShowConvertModal(false);
+		setConvertingRequest(null);
+	};
+
 	const handleTaskFormSubmit = (e: React.FormEvent) => {
 		e.preventDefault();
-		// In a real app, this would save via API
-		console.log('Saving task:', { id: editingTaskId, ...taskFormData });
+		if (!property || !taskFormData.title.trim()) return;
+
+		if (editingTaskId !== null) {
+			// Update existing task
+			const taskToUpdate = allTasks.find((t) => t.id === editingTaskId);
+			if (taskToUpdate) {
+				dispatch(
+					updateTask({
+						...taskToUpdate,
+						title: taskFormData.title,
+						dueDate: taskFormData.dueDate,
+						status: taskFormData.status,
+					}),
+				);
+			}
+		} else {
+			// Add new task
+			const newTask = {
+				id: Math.max(...allTasks.map((t) => t.id), 0) + 1,
+				title: taskFormData.title,
+				dueDate: taskFormData.dueDate,
+				status: taskFormData.status,
+				property: property.title,
+			};
+			dispatch(addTask(newTask));
+		}
 		setShowTaskDialog(false);
+		setSelectedTasks([]);
+		setEditingTaskId(null);
+		setTaskFormData({
+			title: '',
+			dueDate: '',
+			status: 'Pending',
+			notes: '',
+		});
 	};
 
 	const handleTaskFormChange = (
@@ -407,9 +650,20 @@ export const PropertyDetailPage = () => {
 								title: property.title,
 								slug: property.slug,
 							})
-						}>
+						}
+						style={{
+							display:
+								currentUser && !isTenant(currentUser.role) ? 'block' : 'none',
+						}}>
 						{isFav ? '★ Favorited' : '☆ Add to Favorites'}
 					</FavoriteButton>
+					{currentUser && isTenant(currentUser.role) && (
+						<FavoriteButton
+							onClick={() => setShowMaintenanceRequestModal(true)}
+							style={{ backgroundColor: '#f39c12' }}>
+							🔧 Request Maintenance
+						</FavoriteButton>
+					)}
 				</HeaderContent>
 			</Header>
 
@@ -431,6 +685,53 @@ export const PropertyDetailPage = () => {
 						onClick={() => setActiveTab('maintenance')}>
 						Maintenance History
 					</TabButton>
+					{property?.propertyType !== 'Multi-Family' &&
+						!hasCommercialSuites && (
+							<TabButton
+								isActive={activeTab === 'tenants'}
+								onClick={() => setActiveTab('tenants')}>
+								Tenants
+							</TabButton>
+						)}
+					{hasCommercialSuites && (
+						<TabButton
+							isActive={activeTab === 'suites'}
+							onClick={() => setActiveTab('suites')}>
+							Suites
+						</TabButton>
+					)}
+					{property?.propertyType === 'Multi-Family' && (
+						<TabButton
+							isActive={activeTab === 'units'}
+							onClick={() => setActiveTab('units')}>
+							Units
+						</TabButton>
+					)}
+					{currentUser && canApproveMaintenanceRequest(currentUser.role) && (
+						<TabButton
+							isActive={activeTab === 'requests'}
+							onClick={() => setActiveTab('requests')}>
+							Requests{' '}
+							{propertyMaintenanceRequests.filter((r) => r.status === 'Pending')
+								.length > 0 && (
+								<span
+									style={{
+										backgroundColor: '#f39c12',
+										color: 'white',
+										borderRadius: '10px',
+										padding: '2px 8px',
+										marginLeft: '6px',
+										fontSize: '12px',
+									}}>
+									{
+										propertyMaintenanceRequests.filter(
+											(r) => r.status === 'Pending',
+										).length
+									}
+								</span>
+							)}
+						</TabButton>
+					)}
 				</TabButtonsWrapper>
 			</TabControlsContainer>
 
@@ -449,6 +750,26 @@ export const PropertyDetailPage = () => {
 
 					<SectionContainer>
 						<InfoGrid>
+							<InfoCard>
+								<InfoLabel>Property Type</InfoLabel>
+								{isEditMode ? (
+									<FormSelect
+										value={
+											getPropertyFieldValue('propertyType') || 'Single Family'
+										}
+										onChange={(e) =>
+											handlePropertyFieldChange('propertyType', e.target.value)
+										}>
+										<option value='Single Family'>Single Family</option>
+										<option value='Multi-Family'>Multi-Family</option>
+										<option value='Commercial'>Commercial</option>
+									</FormSelect>
+								) : (
+									<InfoValue>
+										{property?.propertyType || 'Single Family'}
+									</InfoValue>
+								)}
+							</InfoCard>
 							<InfoCard>
 								<InfoLabel>Owner</InfoLabel>
 								{isEditMode ? (
@@ -477,34 +798,90 @@ export const PropertyDetailPage = () => {
 									<InfoValue>{getPropertyFieldValue('address')}</InfoValue>
 								)}
 							</InfoCard>
-							<InfoCard>
-								<InfoLabel>Bedrooms</InfoLabel>
-								{isEditMode ? (
-									<EditableFieldInput
-										type='number'
-										value={getPropertyFieldValue('bedrooms')}
-										onChange={(e) =>
-											handlePropertyFieldChange('bedrooms', e.target.value)
-										}
-									/>
-								) : (
-									<InfoValue>{getPropertyFieldValue('bedrooms')}</InfoValue>
+							{property?.propertyType === 'Multi-Family' && (
+								<InfoCard>
+									<InfoLabel>Units</InfoLabel>
+									{isEditMode ? (
+										<div
+											style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+											{(property?.units || []).map((unit: any) => (
+												<span
+													key={unit.name}
+													style={{
+														backgroundColor: '#dcfce7',
+														color: '#16a34a',
+														padding: '6px 12px',
+														borderRadius: '6px',
+														fontSize: '14px',
+														border: '1px solid #bbf7d0',
+													}}>
+													{unit.name}
+												</span>
+											))}
+										</div>
+									) : (
+										<InfoValue>
+											{(property?.units || [])
+												.map((u: any) => u.name)
+												.join(', ')}
+										</InfoValue>
+									)}
+								</InfoCard>
+							)}
+							{property?.propertyType === 'Commercial' &&
+								property?.hasSuites && (
+									<InfoCard>
+										<InfoLabel>Suites</InfoLabel>
+										<InfoValue>
+											{(property?.suites || [])
+												.map((s: any) => s.name)
+												.join(', ')}
+										</InfoValue>
+									</InfoCard>
 								)}
-							</InfoCard>
-							<InfoCard>
-								<InfoLabel>Bathrooms</InfoLabel>
-								{isEditMode ? (
-									<EditableFieldInput
-										type='number'
-										value={getPropertyFieldValue('bathrooms')}
-										onChange={(e) =>
-											handlePropertyFieldChange('bathrooms', e.target.value)
-										}
-									/>
-								) : (
-									<InfoValue>{getPropertyFieldValue('bathrooms')}</InfoValue>
+							{property?.propertyType !== 'Commercial' &&
+								property?.propertyType !== 'Multi-Family' && (
+									<>
+										<InfoCard>
+											<InfoLabel>Bedrooms</InfoLabel>
+											{isEditMode ? (
+												<EditableFieldInput
+													type='number'
+													value={getPropertyFieldValue('bedrooms')}
+													onChange={(e) =>
+														handlePropertyFieldChange(
+															'bedrooms',
+															e.target.value,
+														)
+													}
+												/>
+											) : (
+												<InfoValue>
+													{getPropertyFieldValue('bedrooms')}
+												</InfoValue>
+											)}
+										</InfoCard>
+										<InfoCard>
+											<InfoLabel>Bathrooms</InfoLabel>
+											{isEditMode ? (
+												<EditableFieldInput
+													type='number'
+													value={getPropertyFieldValue('bathrooms')}
+													onChange={(e) =>
+														handlePropertyFieldChange(
+															'bathrooms',
+															e.target.value,
+														)
+													}
+												/>
+											) : (
+												<InfoValue>
+													{getPropertyFieldValue('bathrooms')}
+												</InfoValue>
+											)}
+										</InfoCard>
+									</>
 								)}
-							</InfoCard>
 							<InfoCard>
 								<InfoLabel>Administrators</InfoLabel>
 								{isEditMode ? (
@@ -573,50 +950,64 @@ export const PropertyDetailPage = () => {
 							</InfoCard>
 						</SectionContainer>
 					)}
+				</TabContent>
+			)}
 
-					{/* Devices */}
-					{property.devices && (
+			{/* Suites Tab */}
+			{activeTab === 'suites' &&
+				property?.propertyType === 'Commercial' &&
+				property?.hasSuites && (
+					<TabContent>
 						<SectionContainer>
-							<DevicesSectionHeader>
-								<SectionHeader style={{ margin: 0 }}>
-									Household Devices
-								</SectionHeader>
-								<AddDeviceButton onClick={handleOpenDeviceDialog}>
-									+ Add Device
-								</AddDeviceButton>
-							</DevicesSectionHeader>
-							{property.devices.length > 0 ? (
+							<SectionHeader>Commercial Suites</SectionHeader>
+							{property.suites && property.suites.length > 0 ? (
 								<DevicesGrid>
-									{property.devices.map((device) => (
-										<DeviceCard key={device.id}>
+									{property.suites.map((suite: any) => (
+										<DeviceCard
+											key={suite.name}
+											onClick={() =>
+												navigate(
+													`/property/${property.slug}/suite/${encodeURIComponent(suite.name)}`,
+												)
+											}
+											style={{
+												padding: '16px',
+												border: '1px solid #e5e7eb',
+												borderRadius: '8px',
+												backgroundColor: '#f9fafb',
+												cursor: 'pointer',
+												transition: 'all 0.3s ease',
+											}}>
+											<InfoLabel>{suite.name}</InfoLabel>
 											<DeviceField>
-												<InfoLabel>Device Type</InfoLabel>
-												<InfoValue>{device.type}</InfoValue>
+												<InfoLabel>Tenants</InfoLabel>
+												<InfoValue>
+													{(suite.tenants?.length || 0) > 0
+														? suite
+																.tenants!.map(
+																	(t: any) => `${t.firstName} ${t.lastName}`,
+																)
+																.join(', ')
+														: 'None'}
+												</InfoValue>
 											</DeviceField>
 											<DeviceField>
-												<InfoLabel>Brand</InfoLabel>
-												<InfoValue>{device.brand}</InfoValue>
-											</DeviceField>
-											<DeviceField>
-												<InfoLabel>Model</InfoLabel>
-												<InfoValue>{device.model}</InfoValue>
-											</DeviceField>
-											<DeviceField>
-												<InfoLabel>Installation Date</InfoLabel>
-												<InfoValue>{device.installationDate}</InfoValue>
+												<InfoLabel>Devices</InfoLabel>
+												<InfoValue>
+													{suite.devices?.length || 0} device(s)
+												</InfoValue>
 											</DeviceField>
 										</DeviceCard>
 									))}
 								</DevicesGrid>
 							) : (
 								<EmptyState style={{ marginTop: '12px' }}>
-									<p>No household devices added yet</p>
+									<p>No suites available</p>
 								</EmptyState>
 							)}
 						</SectionContainer>
-					)}
-				</TabContent>
-			)}
+					</TabContent>
+				)}
 
 			{/* Tasks Tab */}
 			{activeTab === 'tasks' && (
@@ -631,6 +1022,17 @@ export const PropertyDetailPage = () => {
 								disabled={selectedTasks.length !== 1}
 								onClick={handleEditTask}>
 								Edit Task
+							</ToolbarButton>
+							<ToolbarButton
+								disabled={selectedTasks.length !== 1}
+								onClick={handleAssignTask}>
+								Assign To
+							</ToolbarButton>
+							<ToolbarButton
+								disabled={selectedTasks.length === 0}
+								onClick={handleCompleteTask}
+								style={{ backgroundColor: '#22c55e' }}>
+								Mark as Complete
 							</ToolbarButton>
 							<ToolbarButton
 								className='delete'
@@ -684,14 +1086,14 @@ export const PropertyDetailPage = () => {
 												<td>
 													<strong>{task.title}</strong>
 												</td>
-												<td>-</td>
+												<td>{task.assignee || 'Unassigned'}</td>
 												<td>{task.dueDate}</td>
 												<td>
 													<TaskStatus status={task.status}>
 														{task.status}
 													</TaskStatus>
 												</td>
-												<td>-</td>
+												<td>{task.notes || '-'}</td>
 											</tr>
 										))}
 									</tbody>
@@ -741,6 +1143,302 @@ export const PropertyDetailPage = () => {
 						) : (
 							<EmptyState>
 								<p>No maintenance history for this property</p>
+							</EmptyState>
+						)}
+					</SectionContainer>
+				</TabContent>
+			)}
+
+			{/* Tenants Tab */}
+			{activeTab === 'tenants' && !hasCommercialSuites && (
+				<TabContent>
+					<SectionContainer>
+						<SectionHeader>Property Tenants</SectionHeader>
+
+						{property.tenants && property.tenants.length > 0 ? (
+							<GridContainer>
+								<GridTable>
+									<thead>
+										<tr>
+											<th>Name</th>
+											<th>Unit</th>
+											<th>Email</th>
+											<th>Phone</th>
+											<th>Lease Start</th>
+											<th>Lease End</th>
+										</tr>
+									</thead>
+									<tbody>
+										{property.tenants.map((tenant) => (
+											<tr key={tenant.id}>
+												<td>
+													{tenant.firstName} {tenant.lastName}
+												</td>
+												<td>{tenant.unit || 'N/A'}</td>
+												<td>{tenant.email}</td>
+												<td>{tenant.phone}</td>
+												<td>{tenant.leaseStart || 'N/A'}</td>
+												<td>{tenant.leaseEnd || 'N/A'}</td>
+											</tr>
+										))}
+									</tbody>
+								</GridTable>
+							</GridContainer>
+						) : (
+							<EmptyState>
+								<p>No tenants assigned to this property</p>
+							</EmptyState>
+						)}
+					</SectionContainer>
+				</TabContent>
+			)}
+
+			{/* Units Tab */}
+			{activeTab === 'units' && property?.propertyType === 'Multi-Family' && (
+				<TabContent>
+					<SectionContainer>
+						<SectionHeader>Units</SectionHeader>
+						{property?.units && property.units.length > 0 ? (
+							<div
+								style={{
+									display: 'grid',
+									gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))',
+									gap: '16px',
+								}}>
+								{property.units.map((unit: any) => (
+									<div
+										key={unit.name}
+										onClick={() =>
+											navigate(
+												`/property/${property.slug}/unit/${encodeURIComponent(unit.name)}`,
+											)
+										}
+										style={{
+											padding: '16px',
+											border: '1px solid #e5e7eb',
+											borderRadius: '8px',
+											backgroundColor: '#f9fafb',
+											cursor: 'pointer',
+											transition: 'all 0.3s ease',
+										}}
+										onMouseEnter={(e) => {
+											e.currentTarget.style.borderColor = '#22c55e';
+											e.currentTarget.style.backgroundColor = '#f0fdf4';
+										}}
+										onMouseLeave={(e) => {
+											e.currentTarget.style.borderColor = '#e5e7eb';
+											e.currentTarget.style.backgroundColor = '#f9fafb';
+										}}>
+										<h3
+											style={{
+												margin: '0 0 8px 0',
+												color: '#1f2937',
+												fontSize: '16px',
+												fontWeight: '600',
+											}}>
+											{unit.name}
+										</h3>
+										<p
+											style={{
+												margin: '0',
+												color: '#6b7280',
+												fontSize: '14px',
+											}}>
+											Click to view unit details and tenants
+										</p>
+									</div>
+								))}
+							</div>
+						) : (
+							<EmptyState>
+								<p>No units added to this property</p>
+							</EmptyState>
+						)}
+					</SectionContainer>
+				</TabContent>
+			)}
+
+			{/* Suites Tab */}
+			{activeTab === 'suites' &&
+				property?.propertyType === 'Commercial' &&
+				property?.hasSuites && (
+					<TabContent>
+						<SectionContainer>
+							<SectionHeader>Suites</SectionHeader>
+							{property?.suites && property.suites.length > 0 ? (
+								<div
+									style={{
+										display: 'grid',
+										gridTemplateColumns:
+											'repeat(auto-fill, minmax(250px, 1fr))',
+										gap: '16px',
+									}}>
+									{property.suites.map((suite: any) => (
+										<div
+											key={suite.name}
+											style={{
+												padding: '16px',
+												border: '1px solid #e5e7eb',
+												borderRadius: '8px',
+												backgroundColor: '#f9fafb',
+												cursor: 'default',
+											}}
+											onMouseEnter={(e) => {
+												e.currentTarget.style.borderColor = '#22c55e';
+												e.currentTarget.style.backgroundColor = '#f0fdf4';
+											}}
+											onMouseLeave={(e) => {
+												e.currentTarget.style.borderColor = '#e5e7eb';
+												e.currentTarget.style.backgroundColor = '#f9fafb';
+											}}>
+											<h3
+												style={{
+													margin: '0 0 8px 0',
+													color: '#1f2937',
+													fontSize: '16px',
+													fontWeight: '600',
+												}}>
+												{suite.name}
+											</h3>
+											<p
+												style={{
+													margin: '0',
+													color: '#6b7280',
+													fontSize: '14px',
+												}}>
+												Tenants: {(suite.tenants || []).length}
+											</p>
+										</div>
+									))}
+								</div>
+							) : (
+								<EmptyState>
+									<p>No suites added to this property</p>
+								</EmptyState>
+							)}
+						</SectionContainer>
+					</TabContent>
+				)}
+
+			{/* Maintenance Requests Tab */}
+			{activeTab === 'requests' && (
+				<TabContent>
+					<SectionContainer>
+						<SectionHeader>Maintenance Requests</SectionHeader>
+
+						{propertyMaintenanceRequests.length > 0 ? (
+							<GridContainer>
+								<GridTable>
+									<thead>
+										<tr>
+											<th>Status</th>
+											<th>Title</th>
+											<th>Category</th>
+											<th>Priority</th>
+											<th>Submitted By</th>
+											<th>Unit</th>
+											<th>Date</th>
+											<th>Action</th>
+										</tr>
+									</thead>
+									<tbody>
+										{propertyMaintenanceRequests.map((request) => (
+											<tr key={request.id}>
+												<td>
+													<TaskStatus
+														status={
+															request.status === 'Pending'
+																? 'Pending'
+																: request.status === 'Converted to Task'
+																	? 'Completed'
+																	: 'In Progress'
+														}>
+														{request.status}
+													</TaskStatus>
+												</td>
+												<td>
+													<strong>{request.title}</strong>
+													<br />
+													<small
+														style={{
+															color: '#666',
+															fontSize: '12px',
+														}}>
+														{request.description.substring(0, 80)}
+														{request.description.length > 80 && '...'}
+													</small>
+												</td>
+												<td>{request.category}</td>
+												<td>
+													<span
+														style={{
+															color:
+																request.priority === 'Urgent'
+																	? '#e74c3c'
+																	: request.priority === 'High'
+																		? '#f39c12'
+																		: request.priority === 'Medium'
+																			? '#3498db'
+																			: '#95a5a6',
+															fontWeight: 'bold',
+														}}>
+														{request.priority}
+													</span>
+												</td>
+												<td>{request.submittedByName}</td>
+												<td>
+													{request.unit ? (
+														<span
+															style={{
+																backgroundColor: '#e8f5e9',
+																padding: '4px 8px',
+																borderRadius: '4px',
+																fontSize: '12px',
+																fontWeight: '500',
+																color: '#2e7d32',
+															}}>
+															{request.unit}
+														</span>
+													) : (
+														<span style={{ color: '#999', fontSize: '12px' }}>
+															N/A
+														</span>
+													)}
+												</td>
+												<td>
+													{new Date(request.submittedAt).toLocaleDateString()}
+												</td>
+												<td>
+													{request.status === 'Pending' &&
+														currentUser &&
+														canApproveMaintenanceRequest(currentUser.role) && (
+															<ToolbarButton
+																onClick={() =>
+																	handleConvertRequestToTask(request.id)
+																}
+																style={{
+																	padding: '6px 12px',
+																	fontSize: '13px',
+																	backgroundColor: '#27ae60',
+																}}>
+																Convert to Task
+															</ToolbarButton>
+														)}
+													{request.status === 'Converted to Task' && (
+														<span
+															style={{ color: '#27ae60', fontSize: '12px' }}>
+															✓ Task #{request.convertedToTaskId}
+														</span>
+													)}
+												</td>
+											</tr>
+										))}
+									</tbody>
+								</GridTable>
+							</GridContainer>
+						) : (
+							<EmptyState>
+								<p>No maintenance requests for this property</p>
 							</EmptyState>
 						)}
 					</SectionContainer>
@@ -891,6 +1589,93 @@ export const PropertyDetailPage = () => {
 						</DialogForm>
 					</DialogContent>
 				</DialogOverlay>
+			)}
+
+			{/* Task Assignment Dialog */}
+			{showTaskAssignDialog && (
+				<DialogOverlay onClick={() => setShowTaskAssignDialog(false)}>
+					<DialogContent onClick={(e) => e.stopPropagation()}>
+						<DialogHeader>
+							<h3>Assign Task to Team Member</h3>
+							<button
+								onClick={() => setShowTaskAssignDialog(false)}
+								style={{
+									background: 'none',
+									border: 'none',
+									fontSize: '24px',
+									cursor: 'pointer',
+								}}>
+								×
+							</button>
+						</DialogHeader>
+						<DialogForm
+							onSubmit={(e) => {
+								e.preventDefault();
+								handleConfirmAssignment();
+							}}>
+							<FormGroup>
+								<FormLabel>Assign To</FormLabel>
+								<FormSelect
+									value={selectedAssignee}
+									onChange={(e) => setSelectedAssignee(e.target.value)}>
+									<option value=''>Select a team member...</option>
+									{teamMembers.map((member) => (
+										<option
+											key={member.id}
+											value={`${member.firstName} ${member.lastName}`}>
+											{member.firstName} {member.lastName} ({member.title})
+										</option>
+									))}
+								</FormSelect>
+							</FormGroup>
+
+							<DialogButtonGroup>
+								<DialogCancelButton
+									type='button'
+									onClick={() => setShowTaskAssignDialog(false)}>
+									Cancel
+								</DialogCancelButton>
+								<DialogSubmitButton type='submit' disabled={!selectedAssignee}>
+									Assign
+								</DialogSubmitButton>
+							</DialogButtonGroup>
+						</DialogForm>
+					</DialogContent>
+				</DialogOverlay>
+			)}
+
+			{/* Task Completion Modal */}
+			{showTaskCompletionModal && completingTaskId && (
+				<TaskCompletionModal
+					taskId={completingTaskId}
+					taskTitle={
+						propertyTasks.find((t) => t.id === completingTaskId)?.title || ''
+					}
+					onClose={() => setShowTaskCompletionModal(false)}
+					onSuccess={handleTaskCompletionSuccess}
+				/>
+			)}
+
+			{/* Maintenance Request Modal */}
+			<MaintenanceRequestModal
+				isOpen={showMaintenanceRequestModal}
+				onClose={() => setShowMaintenanceRequestModal(false)}
+				onSubmit={handleMaintenanceRequestSubmit}
+				propertyTitle={property.title}
+			/>
+
+			{/* Convert Request to Task Modal */}
+			{convertingRequest && (
+				<ConvertRequestToTaskModal
+					isOpen={showConvertModal}
+					onClose={() => {
+						setShowConvertModal(false);
+						setConvertingRequest(null);
+					}}
+					onConvert={handleConvertToTask}
+					request={convertingRequest}
+					teamMembers={teamMembers}
+				/>
 			)}
 		</Wrapper>
 	);

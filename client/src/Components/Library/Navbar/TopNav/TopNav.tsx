@@ -1,4 +1,7 @@
 import React from 'react';
+import { useSelector, useDispatch } from 'react-redux';
+import { RootState } from '../../../../Redux/Store/store';
+import { logout } from '../../../../Redux/Slices/userSlice';
 import {
 	NavItem,
 	Title,
@@ -8,23 +11,30 @@ import {
 } from './TopNav.styles';
 import { UserProfile } from './UserProfile';
 import { useNavigate } from 'react-router-dom';
-// import { useDispatch } from 'react-redux';
-// import { setTabSelection } from '../../../../Redux/Slices/Nav/navigationSlice';
 
 export const TopNav = () => {
 	const navigate = useNavigate();
-	// const dispatch = useDispatch();
+	const dispatch = useDispatch();
+	const currentUser = useSelector((state: RootState) => state.user.currentUser);
+
+	console.log('TopNav: currentUser from Redux:', currentUser);
+
 	const handleLogout = () => {
 		localStorage.removeItem('loggedUser');
+		dispatch(logout());
 		navigate('/');
 	};
-	// const handleTabSelection = (tab: number) => {
-	// 	dispatch(setTabSelection(tab));
-	// };
+
 	return (
 		<Wrapper>
 			<LeftSection>
-				<UserProfile userName='John Doe' userTitle='Administrator' />
+				{currentUser && (
+					<UserProfile
+						userName={`${currentUser.firstName} ${currentUser.lastName}`}
+						userTitle={currentUser.title}
+						userImage={currentUser.image}
+					/>
+				)}
 			</LeftSection>
 			<RightSection>
 				<Title>My Property Manager</Title>

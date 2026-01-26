@@ -1,4 +1,19 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { RootState, AppDispatch } from '../../Redux/Store/store';
+import { canManageTeamMembers } from '../../utils/permissions';
+import { filterTeamMembersByRole } from '../../utils/dataFilters';
+import {
+	addTeamGroup,
+	deleteTeamGroup,
+	updateTeamGroupName,
+	toggleTeamGroupEditName,
+	addTeamMember,
+	updateTeamMember,
+	deleteTeamMember,
+	TeamMember,
+	TeamGroup,
+} from '../../Redux/Slices/teamSlice';
 import {
 	Wrapper,
 	PageHeader,
@@ -50,102 +65,6 @@ import {
 	SaveButton,
 } from './TeamPage.styles';
 
-interface TeamMember {
-	id: number;
-	firstName: string;
-	lastName: string;
-	title: string;
-	email: string;
-	phone: string;
-	role: string;
-	address: string;
-	image?: string;
-	notes: string;
-	linkedProperties: number[];
-	taskHistory: Array<{ date: string; task: string }>;
-	files: Array<{ name: string; id: string }>;
-}
-
-interface TeamGroup {
-	id: number;
-	name: string;
-	linkedProperties: number[];
-	members: TeamMember[];
-}
-
-// Mock data
-const TEAM_GROUPS: TeamGroup[] = [
-	{
-		id: 1,
-		name: 'Property Managers',
-		linkedProperties: [1, 2],
-		members: [
-			{
-				id: 1,
-				firstName: 'John',
-				lastName: 'Smith',
-				title: 'Senior Manager',
-				email: 'john@example.com',
-				phone: '(555) 123-4567',
-				role: 'property_manager',
-				address: '123 Main St, City, State',
-				image: 'https://via.placeholder.com/120?text=JS',
-				notes: 'Manages downtown properties',
-				linkedProperties: [1, 2],
-				taskHistory: [
-					{ date: '2026-01-25', task: 'Property inspection' },
-					{ date: '2026-01-20', task: 'Tenant meeting' },
-					{ date: '2026-01-15', task: 'Maintenance follow-up' },
-				],
-				files: [],
-			},
-			{
-				id: 2,
-				firstName: 'Sarah',
-				lastName: 'Johnson',
-				title: 'Assistant Manager',
-				email: 'sarah@example.com',
-				phone: '(555) 234-5678',
-				role: 'assistant_manager',
-				address: '456 Oak Ave, City, State',
-				image: 'https://via.placeholder.com/120?text=SJ',
-				notes: 'Handles tenant communications',
-				linkedProperties: [2, 3],
-				taskHistory: [
-					{ date: '2026-01-24', task: 'Rent collection' },
-					{ date: '2026-01-22', task: 'Maintenance coordination' },
-				],
-				files: [],
-			},
-		],
-	},
-	{
-		id: 2,
-		name: 'Maintenance Crew',
-		linkedProperties: [1, 2, 3, 4],
-		members: [
-			{
-				id: 3,
-				firstName: 'Mike',
-				lastName: 'Rodriguez',
-				title: 'Maintenance Lead',
-				email: 'mike@example.com',
-				phone: '(555) 345-6789',
-				role: 'maintenance',
-				address: '789 Elm St, City, State',
-				image: 'https://via.placeholder.com/120?text=MR',
-				notes: 'HVAC and plumbing specialist',
-				linkedProperties: [1, 2, 3],
-				taskHistory: [
-					{ date: '2026-01-25', task: 'HVAC filter replacement' },
-					{ date: '2026-01-23', task: 'Plumbing repair' },
-				],
-				files: [],
-			},
-		],
-	},
-];
-
 const MOCK_PROPERTIES = [
 	{ id: 1, title: 'Downtown Apartments' },
 	{ id: 2, title: 'Business Park' },
@@ -174,7 +93,17 @@ interface FormData {
 }
 
 export default function TeamPage() {
-	const [teamGroups, setTeamGroups] = useState(TEAM_GROUPS);
+	const dispatch = useDispatch<AppDispatch>();
+	const currentUser = useSelector((state: RootState) => state.user.currentUser);
+	const teamGroups = useSelector((state: RootState) => state.team.groups);
+
+	// Check if user can manage team members (add/edit/delete)
+	// All authenticated users can view the team page, but only managers can edit
+	const canManage = currentUser
+		? canManageTeamMembers(currentUser.role)
+		: false;
+	const canView = !!currentUser;
+
 	const [showTeamMemberDialog, setShowTeamMemberDialog] = useState(false);
 	const [currentGroupId, setCurrentGroupId] = useState<number | null>(null);
 	const [editingMember, setEditingMember] = useState<TeamMember | null>(null);
@@ -192,6 +121,12 @@ export default function TeamPage() {
 	const [uploadedFiles, setUploadedFiles] = useState<
 		Array<{ name: string; id: string }>
 	>([]);
+
+	// Filter out tenants from team management - tenants belong to properties, not teams
+	const filteredTeamGroups = teamGroups.map((group) => ({
+		...group,
+		members: group.members.filter((member) => member.role !== 'tenant'),
+	}));
 
 	const handleAddTeamMember = (groupId: number) => {
 		setCurrentGroupId(groupId);
@@ -257,9 +192,6 @@ export default function TeamPage() {
 	const handleSaveTeamMember = () => {
 		if (!currentGroupId) return;
 
-		const groupIndex = teamGroups.findIndex((g) => g.id === currentGroupId);
-		if (groupIndex === -1) return;
-
 		const newMember: TeamMember = {
 			id:
 				editingMember?.id ||
@@ -279,18 +211,22 @@ export default function TeamPage() {
 			files: uploadedFiles,
 		};
 
-		const updatedGroups = [...teamGroups];
-		const memberIndex = updatedGroups[groupIndex].members.findIndex(
-			(m) => m.id === editingMember?.id,
-		);
-
-		if (memberIndex >= 0) {
-			updatedGroups[groupIndex].members[memberIndex] = newMember;
+		if (editingMember) {
+			dispatch(
+				updateTeamMember({
+					groupId: currentGroupId,
+					member: newMember,
+				}),
+			);
 		} else {
-			updatedGroups[groupIndex].members.push(newMember);
+			dispatch(
+				addTeamMember({
+					groupId: currentGroupId,
+					member: newMember,
+				}),
+			);
 		}
 
-		setTeamGroups(updatedGroups);
 		setShowTeamMemberDialog(false);
 	};
 
@@ -313,43 +249,75 @@ export default function TeamPage() {
 	};
 
 	const handleDeleteTeamMember = (groupId: number, memberId: number) => {
-		const groupIndex = teamGroups.findIndex((g) => g.id === groupId);
-		if (groupIndex >= 0) {
-			const updatedGroups = [...teamGroups];
-			updatedGroups[groupIndex].members = updatedGroups[
-				groupIndex
-			].members.filter((m) => m.id !== memberId);
-			setTeamGroups(updatedGroups);
-		}
+		dispatch(deleteTeamMember({ groupId, memberId }));
+	};
+
+	const handleAddTeamGroup = () => {
+		dispatch(
+			addTeamGroup({
+				id: Date.now(),
+				name: 'New Team Group',
+				linkedProperties: [],
+				members: [],
+			}),
+		);
+	};
+
+	const handleEditTeamGroup = (groupId: number) => {
+		dispatch(toggleTeamGroupEditName(groupId));
+	};
+
+	const handleDeleteTeamGroup = (groupId: number) => {
+		dispatch(deleteTeamGroup(groupId));
+	};
+
+	const handleTeamGroupNameChange = (groupId: number, newName: string) => {
+		dispatch(updateTeamGroupName({ groupId, name: newName }));
 	};
 
 	return (
 		<Wrapper>
 			<PageHeader>
 				<PageTitle>Team Management</PageTitle>
-				<AddTeamGroupButton>+ Add Team Group</AddTeamGroupButton>
+				{canManage && (
+					<AddTeamGroupButton onClick={handleAddTeamGroup}>
+						+ Add Team Group
+					</AddTeamGroupButton>
+				)}
 			</PageHeader>
 
 			<TeamGroupSection>
-				{teamGroups.map((group) => (
+				{filteredTeamGroups.map((group) => (
 					<div key={group.id}>
 						<TeamGroupHeader>
 							<TeamGroupTitle>{group.name}</TeamGroupTitle>
-							<TeamGroupActions>
-								<TeamGroupActionButton title='Edit group'>
-									✎
-								</TeamGroupActionButton>
-								<TeamGroupActionButton title='Delete group'>
-									🗑
-								</TeamGroupActionButton>
-							</TeamGroupActions>
+							{canManage && (
+								<TeamGroupActions>
+									<TeamGroupActionButton
+										title='Edit group'
+										onClick={() => handleEditTeamGroup(group.id)}>
+										✎
+									</TeamGroupActionButton>
+									<TeamGroupActionButton
+										title='Delete group'
+										onClick={() => handleDeleteTeamGroup(group.id)}>
+										🗑
+									</TeamGroupActionButton>
+								</TeamGroupActions>
+							)}
 						</TeamGroupHeader>
 
 						<TeamMembersGrid>
 							{group.members.map((member) => (
 								<TeamMemberCard
 									key={member.id}
-									onClick={() => handleEditTeamMember(member, group.id)}>
+									onClick={() =>
+										canManage && handleEditTeamMember(member, group.id)
+									}
+									style={{
+										cursor: canManage ? 'pointer' : 'default',
+										opacity: canManage ? 1 : 0.7,
+									}}>
 									{member.image ? (
 										<TeamMemberImage
 											src={member.image}
@@ -368,10 +336,13 @@ export default function TeamPage() {
 								</TeamMemberCard>
 							))}
 
-							<AddTeamMemberCard onClick={() => handleAddTeamMember(group.id)}>
-								<AddIcon>+</AddIcon>
-								<AddText>Add Team Member</AddText>
-							</AddTeamMemberCard>
+							{canManage && (
+								<AddTeamMemberCard
+									onClick={() => handleAddTeamMember(group.id)}>
+									<AddIcon>+</AddIcon>
+									<AddText>Add Team Member</AddText>
+								</AddTeamMemberCard>
+							)}
 						</TeamMembersGrid>
 					</div>
 				))}

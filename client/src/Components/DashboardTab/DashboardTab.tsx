@@ -1,5 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
+import { RootState } from '../../Redux/Store/store';
+import { Task } from '../../Redux/Slices/propertyDataSlice';
+import {
+	canEditTasks,
+	canManageProperties,
+	isTenant,
+	getTenantPropertySlug,
+} from '../../utils/permissions';
+import { filterTasksByRole } from '../../utils/dataFilters';
+import { TaskCompletionModal } from '../Library/TaskCompletionModal';
 import {
 	Wrapper,
 	TaskGridSection,
@@ -16,24 +27,40 @@ import {
 	SectionContent,
 } from './DashboardTab.styles';
 
-interface Task {
-	id: number;
-	task: string;
-	dueDate: string;
-	status: string;
-	property: string;
-	notes: string;
+interface TaskWithEdit extends Task {
 	isEditing?: boolean;
 }
 
 export const DashboardTab = () => {
 	const navigate = useNavigate();
+	const currentUser = useSelector((state: RootState) => state.user.currentUser);
+	const teamMembers = useSelector((state: RootState) =>
+		state.team.groups.flatMap((group) => group.members),
+	);
+	const allTasks = useSelector(
+		(state: RootState) => state.propertyData.tasks || [],
+	);
+
+	// Redirect tenants to their assigned property
+	useEffect(() => {
+		if (currentUser && isTenant(currentUser.role)) {
+			const propertySlug = getTenantPropertySlug(
+				currentUser.assignedPropertyId,
+			);
+			if (propertySlug) {
+				navigate(`/property/${propertySlug}`, { replace: true });
+			}
+		}
+	}, [currentUser, navigate]);
+
 	const [actionMenuOpen, setActionMenuOpen] = useState(false);
 	const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
-	const [tasks, setTasks] = useState<Task[]>([
+	const [showTaskCompletionModal, setShowTaskCompletionModal] = useState(false);
+	const [completingTaskId, setCompletingTaskId] = useState<number | null>(null);
+	const [tasks, setTasks] = useState<TaskWithEdit[]>([
 		{
 			id: 1,
-			task: 'Fix plumbing issue',
+			title: 'Fix plumbing issue',
 			dueDate: '2026-02-10',
 			status: 'In Progress',
 			property: 'Downtown Apartments',
@@ -41,15 +68,15 @@ export const DashboardTab = () => {
 		},
 		{
 			id: 2,
-			task: 'Paint living room',
+			title: 'Paint living room',
 			dueDate: '2026-02-15',
-			status: 'Not Started',
+			status: 'Pending',
 			property: 'Sunset Heights',
 			notes: 'Use light blue color',
 		},
 		{
 			id: 3,
-			task: 'Replace HVAC filter',
+			title: 'Replace HVAC filter',
 			dueDate: '2026-02-05',
 			status: 'Completed',
 			property: 'Oak Street Complex',
@@ -57,12 +84,26 @@ export const DashboardTab = () => {
 		},
 	]);
 
+	// Check if user can edit tasks
+	const canEdit = currentUser ? canEditTasks(currentUser.role) : false;
+	const canManage = currentUser ? canManageProperties(currentUser.role) : false;
+
+	// Filter tasks based on user role
+	const filteredTasks = useMemo(() => {
+		const tasksForFilter = tasks as Task[];
+		return filterTasksByRole(
+			tasksForFilter,
+			currentUser,
+			teamMembers,
+		) as TaskWithEdit[];
+	}, [tasks, currentUser, teamMembers]);
+
 	const handleAddTask = () => {
-		const newTask: Task = {
+		const newTask: TaskWithEdit = {
 			id: Date.now(),
-			task: '',
+			title: '',
 			dueDate: '',
-			status: '',
+			status: 'Pending',
 			property: '',
 			notes: '',
 			isEditing: true,
@@ -117,7 +158,7 @@ export const DashboardTab = () => {
 
 	const handleSelectAll = (checked: boolean) => {
 		if (checked) {
-			const allNonEditingTasks = tasks
+			const allNonEditingTasks = filteredTasks
 				.filter((task) => !task.isEditing)
 				.map((task) => task.id);
 			setSelectedRows(new Set(allNonEditingTasks));
@@ -129,6 +170,20 @@ export const DashboardTab = () => {
 	const handleDeleteSelected = () => {
 		const filteredTasks = tasks.filter((task) => !selectedRows.has(task.id));
 		setTasks(filteredTasks);
+		setSelectedRows(new Set());
+	};
+
+	const handleCompleteTask = () => {
+		if (selectedRows.size === 1) {
+			const taskId = Array.from(selectedRows)[0];
+			setCompletingTaskId(taskId);
+			setShowTaskCompletionModal(true);
+		}
+	};
+
+	const handleTaskCompletionSuccess = () => {
+		setShowTaskCompletionModal(false);
+		setCompletingTaskId(null);
 		setSelectedRows(new Set());
 	};
 
@@ -147,48 +202,31 @@ export const DashboardTab = () => {
 					</div>
 					<div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
 						<button
-							onClick={handleDeleteSelected}
-							disabled={selectedRows.size === 0}
+							onClick={handleCompleteTask}
+							disabled={selectedRows.size !== 1}
 							style={{
-								backgroundColor: selectedRows.size > 0 ? '#ef4444' : '#d1d5db',
+								backgroundColor:
+									selectedRows.size === 1 ? '#22c55e' : '#d1d5db',
 								color: 'white',
 								border: 'none',
 								padding: '8px 12px',
 								borderRadius: '4px',
-								cursor: selectedRows.size > 0 ? 'pointer' : 'not-allowed',
+								cursor: selectedRows.size === 1 ? 'pointer' : 'not-allowed',
 								fontSize: '14px',
 								transition: 'background-color 0.2s ease',
 							}}
 							onMouseEnter={(e) => {
-								if (selectedRows.size > 0) {
-									e.currentTarget.style.backgroundColor = '#dc2626';
+								if (selectedRows.size === 1) {
+									e.currentTarget.style.backgroundColor = '#16a34a';
 								}
 							}}
 							onMouseLeave={(e) => {
-								if (selectedRows.size > 0) {
-									e.currentTarget.style.backgroundColor = '#ef4444';
+								if (selectedRows.size === 1) {
+									e.currentTarget.style.backgroundColor = '#22c55e';
 								}
 							}}>
-							Delete Selected
+							Mark as Complete
 						</button>
-						<div style={{ position: 'relative' }}>
-							<ActionButton onClick={() => setActionMenuOpen(!actionMenuOpen)}>
-								+
-							</ActionButton>
-							{actionMenuOpen && (
-								<ActionDropdown>
-									<DropdownItem onClick={() => handleActionClick('add_column')}>
-										Add Column
-									</DropdownItem>
-									<DropdownItem onClick={() => handleActionClick('assign')}>
-										Assign
-									</DropdownItem>
-									<DropdownItem onClick={() => handleActionClick('add_task')}>
-										Add New Task
-									</DropdownItem>
-								</ActionDropdown>
-							)}
-						</div>
 					</div>
 				</TaskGridHeader>
 				<TableWrapper>
@@ -202,14 +240,14 @@ export const DashboardTab = () => {
 											if (input) {
 												input.indeterminate =
 													selectedRows.size > 0 &&
-													!tasks
+													!filteredTasks
 														.filter((t) => !t.isEditing)
 														.every((t) => selectedRows.has(t.id));
 											}
 										}}
 										checked={
-											tasks.filter((t) => !t.isEditing).length > 0 &&
-											tasks
+											filteredTasks.filter((t) => !t.isEditing).length > 0 &&
+											filteredTasks
 												.filter((t) => !t.isEditing)
 												.every((t) => selectedRows.has(t.id))
 										}
@@ -225,7 +263,7 @@ export const DashboardTab = () => {
 							</tr>
 						</thead>
 						<tbody>
-							{tasks.map((task) => (
+							{filteredTasks.map((task) => (
 								<tr
 									key={task.id}
 									onDoubleClick={() =>
@@ -252,9 +290,9 @@ export const DashboardTab = () => {
 										{task.isEditing ? (
 											<input
 												type='text'
-												value={task.task}
+												value={task.title}
 												onChange={(e) =>
-													handleCellChange(task.id, 'task', e.target.value)
+													handleCellChange(task.id, 'title', e.target.value)
 												}
 												onBlur={() => handleCellBlur(task.id)}
 												placeholder='Enter task name'
@@ -268,7 +306,7 @@ export const DashboardTab = () => {
 												}}
 											/>
 										) : (
-											task.task
+											task.title
 										)}
 									</td>
 									<td>
@@ -377,9 +415,48 @@ export const DashboardTab = () => {
 				</Section>
 				<Section>
 					<SectionTitle>My Team</SectionTitle>
-					<SectionContent>Team members will appear here</SectionContent>
+					<SectionContent>
+						{teamMembers.length > 0 ? (
+							<ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+								{teamMembers.map((member) => (
+									<li
+										key={member.id}
+										style={{
+											padding: '8px 0',
+											fontSize: '13px',
+											color: '#666666',
+											borderBottom: '1px solid #f0f0f0',
+										}}>
+										<div style={{ fontWeight: 'bold' }}>
+											{member.firstName} {member.lastName}
+										</div>
+										<div style={{ fontSize: '12px', color: '#999999' }}>
+											{member.title}
+										</div>
+										<div style={{ fontSize: '12px', color: '#999999' }}>
+											{member.email}
+										</div>
+									</li>
+								))}
+							</ul>
+						) : (
+							<div style={{ fontSize: '12px', color: '#999999' }}>
+								No team members found
+							</div>
+						)}
+					</SectionContent>
 				</Section>
 			</BottomSectionsWrapper>
+
+			{/* Task Completion Modal */}
+			{showTaskCompletionModal && completingTaskId && (
+				<TaskCompletionModal
+					taskId={completingTaskId}
+					taskTitle={tasks.find((t) => t.id === completingTaskId)?.title || ''}
+					onClose={() => setShowTaskCompletionModal(false)}
+					onSuccess={handleTaskCompletionSuccess}
+				/>
+			)}
 		</Wrapper>
 	);
 };

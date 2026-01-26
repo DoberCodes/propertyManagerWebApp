@@ -11,14 +11,14 @@ export const Wrapper = styled.div`
 
 export const Header = styled.div`
 	position: relative;
-	height: 300px;
+	height: 270px;
 	background-size: cover;
 	background-position: center;
 	background-color: #e0e0e0;
 	display: flex;
 	flex-direction: column;
 	justify-content: flex-end;
-	padding: 60px 20px 20px;
+	padding: 50px 20px 20px;
 	gap: 16px;
 	flex-shrink: 0;
 
@@ -38,13 +38,13 @@ export const Header = styled.div`
 	}
 
 	@media (max-width: 768px) {
-		height: 220px;
-		padding: 40px 15px 15px;
+		height: 198px;
+		padding: 36px 15px 15px;
 	}
 
 	@media (max-width: 480px) {
-		height: 160px;
-		padding: 30px 10px 10px;
+		height: 144px;
+		padding: 27px 10px 10px;
 		gap: 8px;
 	}
 `;
@@ -137,18 +137,19 @@ export const ToolbarButton = styled.button`
 	transition: background-color 0.2s ease;
 	white-space: nowrap;
 
-	&:hover {
+	&:hover:not(:disabled) {
 		background-color: #16a34a;
 	}
 
 	&:disabled {
-		background-color: #9ca3af;
+		background-color: #9ca3af !important;
 		cursor: not-allowed;
+		opacity: 0.6;
 	}
 
 	&.delete {
 		background-color: #ef4444;
-		&:hover {
+		&:hover:not(:disabled) {
 			background-color: #dc2626;
 		}
 	}

@@ -121,3 +121,110 @@ export const RegisterWrapper = styled.div`
 		font-size: 12px;
 	}
 `;
+
+export const PasswordInputWrapper = styled.div`
+	position: relative;
+	display: flex;
+	align-items: center;
+	margin: 10px;
+
+	@media (max-width: 768px) {
+		margin: 8px;
+	}
+
+	@media (max-width: 480px) {
+		margin: 6px;
+	}
+`;
+
+export const PasswordToggleButton = styled.button`
+	position: absolute;
+	right: 15px;
+	background: none;
+	border: none;
+	cursor: pointer;
+	color: #666;
+	font-size: 18px;
+	padding: 5px 10px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+
+	&:hover {
+		color: #000;
+	}
+
+	&:focus {
+		outline: none;
+	}
+
+	@media (max-width: 768px) {
+		font-size: 16px;
+		right: 12px;
+		padding: 4px 8px;
+	}
+
+	@media (max-width: 480px) {
+		font-size: 14px;
+		right: 10px;
+		padding: 3px 6px;
+	}
+`;
+
+export const CheckboxWrapper = styled.div`
+	display: flex;
+	align-items: center;
+	margin: 15px 10px 10px 10px;
+	gap: 8px;
+
+	input[type='checkbox'] {
+		width: 18px;
+		height: 18px;
+		cursor: pointer;
+		accent-color: #3498db;
+
+		&:hover {
+			cursor: pointer;
+		}
+	}
+
+	@media (max-width: 768px) {
+		margin: 12px 8px 8px 8px;
+		gap: 6px;
+
+		input[type='checkbox'] {
+			width: 16px;
+			height: 16px;
+		}
+	}
+
+	@media (max-width: 480px) {
+		margin: 10px 6px 6px 6px;
+		gap: 5px;
+
+		input[type='checkbox'] {
+			width: 14px;
+			height: 14px;
+		}
+	}
+`;
+
+export const CheckboxLabel = styled.label`
+	font-size: 14px;
+	color: #333;
+	cursor: pointer;
+	user-select: none;
+	margin: 0;
+
+	&:hover {
+		color: #000;
+	}
+
+	@media (max-width: 768px) {
+		font-size: 12px;
+	}
+
+	@media (max-width: 480px) {
+		font-size: 11px;
+	}
+`;

@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom/client';
 import reportWebVitals from './reportWebVitals.js';
 import { Provider } from 'react-redux';
 import { store } from './Redux/Store/store.tsx';
-import { RouterComponent } from './router.tsx';
+import App from './App.tsx';
 import GlobalStyles from './global.styles.tsx';
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
@@ -11,7 +11,7 @@ root.render(
 	<React.StrictMode>
 		<Provider store={store}>
 			<GlobalStyles />
-			<RouterComponent />
+			<App />
 		</Provider>
 	</React.StrictMode>
 );

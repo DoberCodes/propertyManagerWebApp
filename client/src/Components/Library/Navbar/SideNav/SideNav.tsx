@@ -1,5 +1,13 @@
 import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
+import { RootState } from '../../../../Redux/Store/store';
+import {
+	canManageTeamMembers,
+	canManageProperties,
+	canViewAllPages,
+	isTenant,
+} from '../../../../utils/permissions';
 import { useRecentlyViewed } from '../../../../Hooks/useRecentlyViewed';
 import { useFavorites } from '../../../../Hooks/useFavorites';
 import {
@@ -15,14 +23,37 @@ import {
 export const SideNav = () => {
 	const location = useLocation();
 	const navigate = useNavigate();
+	const currentUser = useSelector((state: RootState) => state.user.currentUser);
 	const { recentProperties } = useRecentlyViewed();
 	const { favorites } = useFavorites();
 
+	// Check permissions
+	const canAccessTeam = currentUser
+		? canManageTeamMembers(currentUser.role)
+		: false;
+	const canAccessProperties = currentUser
+		? canManageProperties(currentUser.role)
+		: false;
+	const canViewPages = currentUser ? canViewAllPages(currentUser.role) : false;
+	const isUserTenant = currentUser ? isTenant(currentUser.role) : false;
+
 	const menuItems = [
-		{ label: 'Dashboard', path: '/dashboard' },
-		{ label: 'Properties', path: '/manage' },
-		{ label: 'Team', path: '/team' },
-		{ label: 'Report', path: '/report' },
+		{ label: 'Dashboard', path: '/dashboard', visible: !isUserTenant },
+		{
+			label: 'Properties',
+			path: '/manage',
+			visible: !isUserTenant && (canAccessProperties || canViewPages),
+		},
+		{
+			label: 'Team',
+			path: '/team',
+			visible: !isUserTenant && (canAccessTeam || canViewPages),
+		},
+		{
+			label: 'Report',
+			path: '/report',
+			visible: !isUserTenant && (canAccessProperties || canViewPages),
+		},
 	];
 
 	const isActive = (path: string) => location.pathname === path;
@@ -33,14 +64,16 @@ export const SideNav = () => {
 			<MenuSection>
 				<SectionTitle>Navigation</SectionTitle>
 				<MenuNav>
-					{menuItems.map((item) => (
-						<MenuItem
-							key={item.label}
-							to={item.path}
-							className={isActive(item.path) ? 'active' : ''}>
-							{item.label}
-						</MenuItem>
-					))}
+					{menuItems
+						.filter((item) => item.visible)
+						.map((item) => (
+							<MenuItem
+								key={item.label}
+								to={item.path}
+								className={isActive(item.path) ? 'active' : ''}>
+								{item.label}
+							</MenuItem>
+						))}
 				</MenuNav>
 			</MenuSection>
 

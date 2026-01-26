@@ -1,0 +1,1 @@
+export { UnitDetailPage } from './UnitDetailPage';
