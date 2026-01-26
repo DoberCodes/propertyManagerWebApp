@@ -1,11 +1,12 @@
 import React from 'react';
 import {
 	NavItem,
-	NavItemWrapper,
 	Title,
-	Navbar,
 	Wrapper,
+	LeftSection,
+	RightSection,
 } from './TopNav.styles';
+import { UserProfile } from './UserProfile';
 import { useNavigate } from 'react-router-dom';
 // import { useDispatch } from 'react-redux';
 // import { setTabSelection } from '../../../../Redux/Slices/Nav/navigationSlice';
@@ -22,16 +23,15 @@ export const TopNav = () => {
 	// };
 	return (
 		<Wrapper>
-			<Title>My Property Manager</Title>
-			<NavItemWrapper>
-				<Navbar>
-					<NavItem to='/Settings'>Profile Settings</NavItem>
-					<NavItem to='/Manage'>Manage Household</NavItem>
-					<NavItem to='/' onClick={handleLogout}>
-						Log Out
-					</NavItem>
-				</Navbar>
-			</NavItemWrapper>
+			<LeftSection>
+				<UserProfile userName='John Doe' userTitle='Administrator' />
+			</LeftSection>
+			<RightSection>
+				<Title>My Property Manager</Title>
+				<NavItem to='/' onClick={handleLogout}>
+					Log Out
+				</NavItem>
+			</RightSection>
 		</Wrapper>
 	);
 };

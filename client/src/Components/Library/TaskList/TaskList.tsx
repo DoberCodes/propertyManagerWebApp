@@ -1,7 +1,7 @@
 import React from 'react';
-import { ListItem, Wrapper } from './TaskList.styles';
+import { Wrapper } from './TaskList.styles';
 
-export interface TaskList {
+export interface TaskListProps {
 	taskData: any;
 }
 
@@ -11,7 +11,7 @@ export interface Task {
 	date: any;
 }
 
-export const TaskList = (props: TaskList) => {
+export const TaskList = (props: TaskListProps) => {
 	console.log(props);
 	const date = props.taskData.dueDate;
 	console.log(date);

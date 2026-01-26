@@ -1,16 +1,20 @@
 import React from 'react';
-import { SideNav } from '../Library/Navbar/SideNav';
-import { Wrapper } from './Layout.styles';
-import { TopNav } from '../Library/Navbar';
+import { SideNav, TopNav } from '../Library/Navbar';
+import { Wrapper, Main, Sidebar, Content } from './Layout.styles';
 import { Outlet } from 'react-router-dom';
 
 export const Layout = () => {
 	return (
 		<Wrapper>
 			<TopNav />
-			<SideNav />
-
-			<Outlet />
+			<Main>
+				<Sidebar>
+					<SideNav />
+				</Sidebar>
+				<Content>
+					<Outlet />
+				</Content>
+			</Main>
 		</Wrapper>
 	);
 };

@@ -15,16 +15,9 @@ const GlobalStyles = createGlobalStyle`
         scroll-behavior: smooth;
     }
 
-	body {
-		background: ${({ theme }) => theme.bg2};
-		color: ${({ theme }) => theme.text};
-		/* fontfamily:  */
-		letter-spacing: .6px;
-	}
-
 `;
 
-export const nav_height = '100px';
+export const nav_height = '70px';
 export const footer_height = '300px';
 
 export const blue = '#4169E1';

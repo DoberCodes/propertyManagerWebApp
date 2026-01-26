@@ -1,33 +1,24 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Navigate } from 'react-router-dom';
 
 import { LoadingState } from './Components/LoadingState';
-import { TopNav } from './Components/Library/Navbar/TopNav';
-import { SideNav } from './Components/Library/Navbar/SideNav';
-import { Flexbox } from './global.styles';
-import { ThemeProvider } from 'styled-components';
-import { lightTheme, darkTheme } from './themes';
+// import { Flexbox } from './global.styles';
+// import GlobalStyles from './global.styles';
+// import { ThemeProvider } from 'styled-components';
+// import { lightTheme, darkTheme } from './themes';
 
-export const ThemeContext = React.createContext(null);
+// export const ThemeContext = React.createContext(null);
 
 export const ProtectedRoutes = ({ children }) => {
-	const [theme, setTheme] = useState('light');
-	const themeStyle = theme === 'light' ? lightTheme : darkTheme;
+	// const [theme, setTheme] = useState('light');
+	// const themeStyle = theme === 'light' ? lightTheme : darkTheme;
 	const Authenticated = true;
 	const isLoading = false;
 
 	if (Authenticated) {
-		return (
-			<ThemeProvider theme={themeStyle}>
-				<Flexbox span={'3'}>
-					<TopNav />
-				</Flexbox>
-				<Flexbox span={'1'}>
-					<SideNav />
-					{children}
-				</Flexbox>
-			</ThemeProvider>
-		);
+		// Authenticated: render children only. Layout and navigation are handled
+		// by parent routes (e.g., Layout component using Outlet).
+		return <>{children}</>;
 	}
 	if (isLoading) {
 		return <LoadingState />;
