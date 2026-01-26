@@ -22,7 +22,11 @@ export const UserProfile: React.FC<UserProfileProps> = ({
 }) => {
 	const [isOpen, setIsOpen] = useState(false);
 
-	console.log('UserProfile: Received props:', { userName, userTitle, userImage });
+	console.log('UserProfile: Received props:', {
+		userName,
+		userTitle,
+		userImage,
+	});
 
 	return (
 		<UserProfileWrapper isOpen={isOpen}>
