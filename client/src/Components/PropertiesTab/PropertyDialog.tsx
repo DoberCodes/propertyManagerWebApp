@@ -265,8 +265,7 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 										border: '1px solid #d1d5db',
 										borderRadius: '4px',
 										fontSize: '14px',
-									}}
-								>
+									}}>
 									<option value=''>Select a group</option>
 									{groups.map((g) => (
 										<option key={g.id} value={g.id}>
@@ -301,8 +300,7 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 											borderRadius: '4px',
 											cursor: 'pointer',
 											fontSize: '14px',
-										}}
-									>
+										}}>
 										Create
 									</button>
 								</div>
