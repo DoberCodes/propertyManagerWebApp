@@ -2,7 +2,7 @@ import React from 'react';
 import {
 	Route,
 	Routes,
-	BrowserRouter as Router,
+	HashRouter as Router,
 	Navigate,
 } from 'react-router-dom';
 import { LandingPage } from './pages/LandingPage';
