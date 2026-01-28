@@ -21,6 +21,7 @@ export const Main = styled.div`
 
 	@media (max-width: 768px) {
 		flex-direction: column;
+		height: calc(100vh - ${nav_height} - 70px);
 	}
 `;
 
@@ -40,20 +41,7 @@ export const Sidebar = styled.div`
 	}
 
 	@media (max-width: 768px) {
-		width: 100%;
-		min-width: 100%;
-		height: auto;
-		max-height: 200px;
-		border-right: none;
-		border-bottom: 1px solid #e5e7eb;
-		overflow-x: auto;
-		flex-direction: row;
-		position: static;
-		top: auto;
-	}
-
-	@media (max-width: 480px) {
-		max-height: 150px;
+		display: none;
 	}
 `;
 
@@ -63,12 +51,15 @@ export const Content = styled.div`
 	overflow-y: auto;
 	padding: 20px;
 	background-color: #ffffff;
+	padding-bottom: 70px;
 
 	@media (max-width: 768px) {
 		padding: 15px;
+		padding-bottom: 85px;
 	}
 
 	@media (max-width: 480px) {
 		padding: 10px;
+		padding-bottom: 85px;
 	}
 `;
