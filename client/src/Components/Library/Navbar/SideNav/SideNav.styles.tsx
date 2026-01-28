@@ -2,7 +2,70 @@ import styled from 'styled-components';
 import { font_main } from '../../../../global.styles';
 import { Link } from 'react-router-dom';
 
-export const Wrapper = styled.div`
+export const HamburgerButton = styled.button<{ isOpen: boolean }>`
+	display: none;
+	background: none;
+	border: none;
+	cursor: pointer;
+	padding: 8px;
+	flex-direction: column;
+	gap: 5px;
+	position: absolute;
+	left: 20px;
+	top: 20px;
+	z-index: 1001;
+
+	span {
+		width: 24px;
+		height: 3px;
+		background-color: #22c55e;
+		border-radius: 2px;
+		transition: all 0.3s ease;
+		display: block;
+	}
+
+	${(props) =>
+		props.isOpen &&
+		`
+		span:nth-child(1) {
+			transform: rotate(45deg) translate(10px, 10px);
+		}
+		span:nth-child(2) {
+			opacity: 0;
+		}
+		span:nth-child(3) {
+			transform: rotate(-45deg) translate(7px, -7px);
+		}
+	`}
+
+	@media (max-width: 768px) {
+		display: flex;
+	}
+`;
+
+export const NavOverlay = styled.div`
+	display: none;
+	position: fixed;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	background-color: rgba(0, 0, 0, 0.5);
+	z-index: 999;
+
+	@media (max-width: 768px) {
+		display: block;
+	}
+`;
+
+export const MobileMenuWrapper = styled.div<{ isOpen: boolean }>`
+	@media (max-width: 768px) {
+		display: ${(props) => (props.isOpen ? 'flex' : 'none')};
+		flex-direction: column;
+	}
+`;
+
+export const Wrapper = styled.div<{ isOpen?: boolean }>`
 	background-color: #fefefe;
 	display: flex;
 	flex-direction: column;
@@ -11,9 +74,16 @@ export const Wrapper = styled.div`
 	overflow: visible;
 
 	@media (max-width: 768px) {
-		overflow-x: auto;
-		flex-direction: row;
-		gap: 10px;
+		position: fixed;
+		left: 0;
+		top: 0;
+		width: 100%;
+		height: 100%;
+		background-color: #fefefe;
+		overflow-y: auto;
+		z-index: 1000;
+		flex-direction: column;
+		gap: 0;
 	}
 `;
 
@@ -26,15 +96,17 @@ export const MenuSection = styled.div`
 	flex: 0 0 auto;
 
 	@media (max-width: 768px) {
-		padding: 15px;
-		border-right: 1px solid rgba(0, 0, 0, 0.1);
-		min-width: 180px;
+		padding: 20px;
+		border-right: none;
+		border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+		min-width: auto;
 		flex: 0 0 auto;
+		margin-top: 50px;
 	}
 
 	@media (max-width: 480px) {
-		padding: 10px;
-		min-width: 140px;
+		padding: 15px;
+		margin-top: 45px;
 	}
 `;
 
@@ -92,16 +164,16 @@ export const Section = styled.div`
 	}
 
 	@media (max-width: 768px) {
-		padding: 15px;
-		border-bottom: none;
-		border-right: 1px solid rgba(0, 0, 0, 0.1);
-		min-width: 180px;
+		padding: 20px;
+		border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+		border-right: none;
+		min-width: auto;
 		flex: 0 0 auto;
 	}
 
 	@media (max-width: 480px) {
-		padding: 10px;
-		min-width: 140px;
+		padding: 15px;
+		min-width: auto;
 	}
 `;
 
@@ -130,14 +202,16 @@ export const SectionContent = styled.div`
 
 	@media (max-width: 768px) {
 		gap: 10px;
-		font-size: 12px;
-		height: 120px; /* Adjust height for smaller screens */
+		font-size: 13px;
+		height: auto;
+		max-height: 200px;
 	}
 
 	@media (max-width: 480px) {
 		gap: 8px;
-		font-size: 11px;
-		height: 100px; /* Adjust height for very small screens */
+		font-size: 12px;
+		height: auto;
+		max-height: 150px;
 	}
 `;
 
@@ -149,12 +223,13 @@ export const BottomSections = styled.div`
 	padding: 20px;
 
 	@media (max-width: 768px) {
-		padding: 15px;
-		gap: 15px;
+		padding: 20px;
+		gap: 0;
+		margin-top: 0;
 	}
 
 	@media (max-width: 480px) {
-		padding: 10px;
-		gap: 10px;
+		padding: 15px;
+		gap: 0;
 	}
 `;

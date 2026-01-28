@@ -33,7 +33,7 @@ export const App = () => {
 
 	return (
 		<>
-			<FirebaseConnectionTest />
+			{process.env.NODE_ENV === 'development' && <FirebaseConnectionTest />}
 			<RouterComponent />
 		</>
 	);
