@@ -2,7 +2,13 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../Redux/Store/store';
-import { Task } from '../../Redux/Slices/propertyDataSlice';
+import {
+	Task,
+	useGetTasksQuery,
+	useCreateTaskMutation,
+	useUpdateTaskMutation,
+	useDeleteTaskMutation,
+} from '../../Redux/API/apiSlice';
 import {
 	canEditTasks,
 	canManageProperties,
@@ -27,19 +33,23 @@ import {
 	SectionContent,
 } from './DashboardTab.styles';
 
-interface TaskWithEdit extends Task {
-	isEditing?: boolean;
-}
-
 export const DashboardTab = () => {
 	const navigate = useNavigate();
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
 	const teamMembers = useSelector((state: RootState) =>
 		state.team.groups.flatMap((group) => group.members),
 	);
-	const allTasks = useSelector(
-		(state: RootState) => state.propertyData.tasks || [],
+
+	// Fetch tasks from Firebase
+	const { data: allTasks = [], isLoading: tasksLoading } = useGetTasksQuery(
+		currentUser?.id || '',
+		{ skip: !currentUser },
 	);
+
+	// Firebase mutations
+	const [createTask] = useCreateTaskMutation();
+	const [updateTask] = useUpdateTaskMutation();
+	const [deleteTask] = useDeleteTaskMutation();
 
 	// Redirect tenants to their assigned property
 	useEffect(() => {
@@ -54,35 +64,10 @@ export const DashboardTab = () => {
 	}, [currentUser, navigate]);
 
 	const [actionMenuOpen, setActionMenuOpen] = useState(false);
-	const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
+	const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
 	const [showTaskCompletionModal, setShowTaskCompletionModal] = useState(false);
-	const [completingTaskId, setCompletingTaskId] = useState<number | null>(null);
-	const [tasks, setTasks] = useState<TaskWithEdit[]>([
-		{
-			id: 1,
-			title: 'Fix plumbing issue',
-			dueDate: '2026-02-10',
-			status: 'In Progress',
-			property: 'Downtown Apartments',
-			notes: 'Check main line',
-		},
-		{
-			id: 2,
-			title: 'Paint living room',
-			dueDate: '2026-02-15',
-			status: 'Pending',
-			property: 'Sunset Heights',
-			notes: 'Use light blue color',
-		},
-		{
-			id: 3,
-			title: 'Replace HVAC filter',
-			dueDate: '2026-02-05',
-			status: 'Completed',
-			property: 'Oak Street Complex',
-			notes: 'Order replacement parts',
-		},
-	]);
+	const [completingTaskId, setCompletingTaskId] = useState<string | null>(null);
+	const [assigningTaskId, setAssigningTaskId] = useState<string | null>(null);
 
 	// Check if user can edit tasks
 	const canEdit = currentUser ? canEditTasks(currentUser.role) : false;
@@ -90,63 +75,21 @@ export const DashboardTab = () => {
 
 	// Filter tasks based on user role
 	const filteredTasks = useMemo(() => {
-		const tasksForFilter = tasks as Task[];
-		return filterTasksByRole(
-			tasksForFilter,
-			currentUser,
-			teamMembers,
-		) as TaskWithEdit[];
-	}, [tasks, currentUser, teamMembers]);
-
-	const handleAddTask = () => {
-		const newTask: TaskWithEdit = {
-			id: Date.now(),
-			title: '',
-			dueDate: '',
-			status: 'Pending',
-			property: '',
-			notes: '',
-			isEditing: true,
-		};
-		setTasks([...tasks, newTask]);
-		setActionMenuOpen(false);
-	};
+		return filterTasksByRole(allTasks, currentUser, teamMembers);
+	}, [allTasks, currentUser, teamMembers]);
 
 	const handleActionClick = (action: string) => {
-		if (action === 'add_task') {
-			handleAddTask();
-		} else {
-			console.log('Action:', action);
-			setActionMenuOpen(false);
-		}
+		console.log('Action:', action);
+		setActionMenuOpen(false);
+		// TODO: Implement task creation using createTask mutation
 	};
 
-	const handleCellChange = (
-		taskId: number,
-		field: keyof Task,
-		value: string,
-	) => {
-		setTasks(
-			tasks.map((task) =>
-				task.id === taskId ? { ...task, [field]: value } : task,
-			),
-		);
-	};
-
-	const handleCellBlur = (taskId: number) => {
-		setTasks(
-			tasks.map((task) =>
-				task.id === taskId ? { ...task, isEditing: false } : task,
-			),
-		);
-	};
-
-	const handleRowDoubleClick = (taskId: number) => {
+	const handleRowDoubleClick = (taskId: string) => {
 		// Navigate to task detail page
 		navigate(`/task/${taskId}`);
 	};
 
-	const handleRowSelect = (taskId: number) => {
+	const handleRowSelect = (taskId: string) => {
 		const newSelected = new Set(selectedRows);
 		if (newSelected.has(taskId)) {
 			newSelected.delete(taskId);
@@ -158,19 +101,41 @@ export const DashboardTab = () => {
 
 	const handleSelectAll = (checked: boolean) => {
 		if (checked) {
-			const allNonEditingTasks = filteredTasks
-				.filter((task) => !task.isEditing)
-				.map((task) => task.id);
-			setSelectedRows(new Set(allNonEditingTasks));
+			const allTaskIds = filteredTasks.map((task) => task.id);
+			setSelectedRows(new Set(allTaskIds));
 		} else {
 			setSelectedRows(new Set());
 		}
 	};
 
-	const handleDeleteSelected = () => {
-		const filteredTasks = tasks.filter((task) => !selectedRows.has(task.id));
-		setTasks(filteredTasks);
-		setSelectedRows(new Set());
+	const handleDeleteSelected = async () => {
+		try {
+			// Delete all selected tasks
+			await Promise.all(
+				Array.from(selectedRows).map((taskId) => deleteTask(taskId).unwrap()),
+			);
+			setSelectedRows(new Set());
+		} catch (error) {
+			console.error('Error deleting tasks:', error);
+		}
+	};
+
+	const handleAssignTask = async (taskId: string, memberId: string | null) => {
+		try {
+			await updateTask({
+				id: taskId,
+				updates: { assignedTo: memberId || undefined },
+			}).unwrap();
+			setAssigningTaskId(null);
+		} catch (error) {
+			console.error('Error assigning task:', error);
+		}
+	};
+
+	const getAssignedMemberName = (memberId?: string) => {
+		if (!memberId) return 'Unassigned';
+		const member = teamMembers.find((m) => m.id === memberId);
+		return member ? `${member.firstName} ${member.lastName}` : 'Unknown';
 	};
 
 	const handleCompleteTask = () => {
@@ -240,22 +205,19 @@ export const DashboardTab = () => {
 											if (input) {
 												input.indeterminate =
 													selectedRows.size > 0 &&
-													!filteredTasks
-														.filter((t) => !t.isEditing)
-														.every((t) => selectedRows.has(t.id));
+													!filteredTasks.every((t) => selectedRows.has(t.id));
 											}
 										}}
 										checked={
-											filteredTasks.filter((t) => !t.isEditing).length > 0 &&
-											filteredTasks
-												.filter((t) => !t.isEditing)
-												.every((t) => selectedRows.has(t.id))
+											filteredTasks.length > 0 &&
+											filteredTasks.every((t) => selectedRows.has(t.id))
 										}
 										onChange={(e) => handleSelectAll(e.target.checked)}
 										style={{ cursor: 'pointer' }}
 									/>
 								</th>
 								<th>Task</th>
+								<th>Assigned To</th>
 								<th>Due Date</th>
 								<th>Status</th>
 								<th>Property</th>
@@ -266,136 +228,57 @@ export const DashboardTab = () => {
 							{filteredTasks.map((task) => (
 								<tr
 									key={task.id}
-									onDoubleClick={() =>
-										!task.isEditing && handleRowDoubleClick(task.id)
-									}
+									onDoubleClick={() => handleRowDoubleClick(task.id)}
 									style={{
-										cursor: task.isEditing ? 'default' : 'pointer',
+										cursor: 'pointer',
 										backgroundColor: selectedRows.has(task.id)
 											? 'rgba(34, 197, 94, 0.1)'
 											: undefined,
 									}}>
 									<td style={{ textAlign: 'center', width: '40px' }}>
-										{!task.isEditing && (
-											<input
-												type='checkbox'
-												checked={selectedRows.has(task.id)}
-												onChange={() => handleRowSelect(task.id)}
-												style={{ cursor: 'pointer' }}
-												onClick={(e) => e.stopPropagation()}
-											/>
-										)}
+										<input
+											type='checkbox'
+											checked={selectedRows.has(task.id)}
+											onChange={() => handleRowSelect(task.id)}
+											style={{ cursor: 'pointer' }}
+											onClick={(e) => e.stopPropagation()}
+										/>
 									</td>
+									<td>{task.title}</td>
 									<td>
-										{task.isEditing ? (
-											<input
-												type='text'
-												value={task.title}
+										{assigningTaskId === task.id ? (
+											<select
+												value={task.assignedTo || ''}
 												onChange={(e) =>
-													handleCellChange(task.id, 'title', e.target.value)
+													handleAssignTask(task.id, e.target.value || null)
 												}
-												onBlur={() => handleCellBlur(task.id)}
-												placeholder='Enter task name'
+												onBlur={() => setAssigningTaskId(null)}
 												autoFocus
 												style={{
-													width: '100%',
+													padding: '4px 8px',
+													borderRadius: '4px',
 													border: '1px solid #22c55e',
-													background: 'transparent',
-													padding: '4px',
-													fontSize: '14px',
-												}}
-											/>
+													cursor: 'pointer',
+												}}>
+												<option value=''>Unassigned</option>
+												{teamMembers.map((member) => (
+													<option key={member.id} value={member.id}>
+														{member.firstName} {member.lastName}
+													</option>
+												))}
+											</select>
 										) : (
-											task.title
+											<span
+												onClick={() => setAssigningTaskId(task.id)}
+												style={{ cursor: 'pointer', color: '#22c55e' }}>
+												{getAssignedMemberName(task.assignedTo)}
+											</span>
 										)}
 									</td>
-									<td>
-										{task.isEditing ? (
-											<input
-												type='date'
-												value={task.dueDate}
-												onChange={(e) =>
-													handleCellChange(task.id, 'dueDate', e.target.value)
-												}
-												onBlur={() => handleCellBlur(task.id)}
-												style={{
-													width: '100%',
-													border: '1px solid #22c55e',
-													background: 'transparent',
-													padding: '4px',
-													fontSize: '14px',
-												}}
-											/>
-										) : (
-											task.dueDate
-										)}
-									</td>
-									<td>
-										{task.isEditing ? (
-											<input
-												type='text'
-												value={task.status}
-												onChange={(e) =>
-													handleCellChange(task.id, 'status', e.target.value)
-												}
-												onBlur={() => handleCellBlur(task.id)}
-												placeholder='Enter status'
-												style={{
-													width: '100%',
-													border: '1px solid #22c55e',
-													background: 'transparent',
-													padding: '4px',
-													fontSize: '14px',
-												}}
-											/>
-										) : (
-											task.status
-										)}
-									</td>
-									<td>
-										{task.isEditing ? (
-											<input
-												type='text'
-												value={task.property}
-												onChange={(e) =>
-													handleCellChange(task.id, 'property', e.target.value)
-												}
-												onBlur={() => handleCellBlur(task.id)}
-												placeholder='Enter property'
-												style={{
-													width: '100%',
-													border: '1px solid #22c55e',
-													background: 'transparent',
-													padding: '4px',
-													fontSize: '14px',
-												}}
-											/>
-										) : (
-											task.property
-										)}
-									</td>
-									<td>
-										{task.isEditing ? (
-											<input
-												type='text'
-												value={task.notes}
-												onChange={(e) =>
-													handleCellChange(task.id, 'notes', e.target.value)
-												}
-												onBlur={() => handleCellBlur(task.id)}
-												placeholder='Enter notes'
-												style={{
-													width: '100%',
-													border: '1px solid #22c55e',
-													background: 'transparent',
-													padding: '4px',
-													fontSize: '14px',
-												}}
-											/>
-										) : (
-											task.notes
-										)}
-									</td>
+									<td>{task.dueDate}</td>
+									<td>{task.status}</td>
+									<td>{task.property}</td>
+									<td>{task.notes}</td>
 								</tr>
 							))}
 						</tbody>
@@ -452,7 +335,9 @@ export const DashboardTab = () => {
 			{showTaskCompletionModal && completingTaskId && (
 				<TaskCompletionModal
 					taskId={completingTaskId}
-					taskTitle={tasks.find((t) => t.id === completingTaskId)?.title || ''}
+					taskTitle={
+						allTasks.find((t) => t.id === completingTaskId)?.title || ''
+					}
 					onClose={() => setShowTaskCompletionModal(false)}
 					onSuccess={handleTaskCompletionSuccess}
 				/>

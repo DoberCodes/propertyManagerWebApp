@@ -37,13 +37,18 @@ import {
 } from './PropertyDialog.styles';
 
 interface Device {
-	id: number;
+	id: string; // Changed to string (Firebase)
 	type: string;
 	brand: string;
 	model: string;
 	installationDate: string;
 	warrantyFile?: string;
-	unit?: string; // For multi-family properties
+	location?: {
+		unit?: string; // For multi-family properties
+		suite?: string;
+	};
+	createdAt?: string; // Added (Firebase)
+	updatedAt?: string; // Added (Firebase)
 }
 
 interface MaintenanceRecord {
@@ -68,7 +73,7 @@ interface PropertyFormData {
 	notes: string;
 	files?: string[];
 	maintenanceHistory?: MaintenanceRecord[];
-	groupId?: number | null;
+	groupId?: string | null;
 }
 
 interface PropertyDialogProps {
@@ -76,9 +81,9 @@ interface PropertyDialogProps {
 	onClose: () => void;
 	onSave: (data: PropertyFormData) => void;
 	initialData?: PropertyFormData;
-	groups: Array<{ id: number; name: string }>;
-	selectedGroupId?: number | null;
-	onCreateGroup?: (name: string) => number; // returns new group id
+	groups: Array<{ id: string; name: string }>;
+	selectedGroupId?: string | null;
+	onCreateGroup?: (name: string) => string; // returns new group id
 }
 
 export const PropertyDialog: React.FC<PropertyDialogProps> = ({
@@ -105,7 +110,7 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 			bathrooms: 0,
 			devices: [
 				{
-					id: Date.now(),
+					id: `device-${Date.now()}`,
 					type: '',
 					brand: '',
 					model: '',
@@ -168,7 +173,7 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 					bathrooms: 0,
 					devices: [
 						{
-							id: Date.now(),
+							id: `device-${Date.now()}`,
 							type: '',
 							brand: '',
 							model: '',
@@ -263,7 +268,7 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 	};
 
 	const handleDeviceChange = (
-		deviceId: number,
+		deviceId: string,
 		field: keyof Device,
 		value: string,
 	) => {
@@ -281,7 +286,7 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 			devices: [
 				...prev.devices,
 				{
-					id: Date.now(),
+					id: `device-${Date.now()}`,
 					type: '',
 					brand: '',
 					model: '',
@@ -291,7 +296,7 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 		}));
 	};
 
-	const handleRemoveDevice = (deviceId: number) => {
+	const handleRemoveDevice = (deviceId: string) => {
 		setFormData((prev) => ({
 			...prev,
 			devices: prev.devices.filter((device) => device.id !== deviceId),
@@ -681,30 +686,7 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 						<SectionTitle>Household Devices</SectionTitle>
 						{formData.devices.map((device) => (
 							<DeviceRow key={device.id}>
-								{formData.propertyType === 'Multi-Family' && (
-									<FormField>
-										<Label>Unit</Label>
-										<select
-											value={device.unit || ''}
-											onChange={(e) =>
-												handleDeviceChange(device.id, 'unit', e.target.value)
-											}
-											style={{
-												padding: '10px 12px',
-												border: '1px solid #d1d5db',
-												borderRadius: '4px',
-												fontSize: '14px',
-												width: '100%',
-											}}>
-											<option value=''>Select Unit</option>
-											{formData.units.map((unit, idx) => (
-												<option key={idx} value={unit}>
-													{unit}
-												</option>
-											))}
-										</select>
-									</FormField>
-								)}
+								{/* Note: device.unit removed - Device interface uses location.unitId instead */}
 								<FormField>
 									<Label>Device Type</Label>
 									<Input

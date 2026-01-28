@@ -235,7 +235,13 @@ export const UnitDetailPage: React.FC = () => {
 	const navigate = useNavigate();
 	const { slug, unitName } = useParams<{ slug: string; unitName: string }>();
 	const [activeTab, setActiveTab] = React.useState<
-		'info' | 'tenants' | 'devices' | 'tasks' | 'history' | 'requests'
+		| 'info'
+		| 'tenants'
+		| 'occupants'
+		| 'devices'
+		| 'tasks'
+		| 'history'
+		| 'requests'
 	>('info');
 
 	// Get properties from Redux
@@ -267,13 +273,13 @@ export const UnitDetailPage: React.FC = () => {
 	const unitTasks = useMemo(() => {
 		if (!property || !unit) return [];
 		return tasks.filter(
-			(task) => task.property === property.title && task.unit === unit.name,
+			(task) => task.property === property.title && task.unitId === unit.id,
 		);
 	}, [property, unit, tasks]);
 
 	const unitMaintenanceHistory = useMemo(() => {
 		if (!property || !unit) return [];
-		return (property.maintenanceHistory || []).filter(
+		return (property.taskHistory || []).filter(
 			(record: any) => record.unit === unit.name,
 		);
 	}, [property, unit]);
@@ -285,10 +291,10 @@ export const UnitDetailPage: React.FC = () => {
 		);
 	}, [maintenanceRequests, property, unit]);
 
-	const getDeviceName = (deviceId?: number) => {
+	const getDeviceName = (deviceId?: string) => {
 		if (!property || !deviceId) return '-';
-		const device = property.devices?.find((d: any) => d.id === deviceId);
-		return device ? `${device.type} - ${device.brand}` : '-';
+		const device = property.deviceIds?.find((d: any) => d === deviceId);
+		return device ? `Device ${device}` : '-';
 	};
 
 	if (!property || !unit) {
@@ -336,14 +342,14 @@ export const UnitDetailPage: React.FC = () => {
 							Unit Info
 						</TabButton>
 						<TabButton
-							isActive={activeTab === 'tenants'}
-							onClick={() => setActiveTab('tenants')}>
-							Tenants ({(unit.tenants || []).length})
+							isActive={activeTab === 'occupants'}
+							onClick={() => setActiveTab('occupants')}>
+							Occupants ({(unit.occupants || []).length})
 						</TabButton>
 						<TabButton
 							isActive={activeTab === 'devices'}
 							onClick={() => setActiveTab('devices')}>
-							Devices ({(unit.devices || []).length})
+							Devices ({(unit.deviceIds || []).length})
 						</TabButton>
 						<TabButton
 							isActive={activeTab === 'tasks'}
@@ -392,12 +398,12 @@ export const UnitDetailPage: React.FC = () => {
 					</TabContent>
 				)}
 
-				{/* Tenants Tab */}
-				{activeTab === 'tenants' && (
+				{/* Occupants Tab */}
+				{activeTab === 'occupants' && (
 					<TabContent>
 						<SectionContainer>
-							<SectionHeader>Unit Tenants</SectionHeader>
-							{unit.tenants && unit.tenants.length > 0 ? (
+							<SectionHeader>Unit Occupants</SectionHeader>
+							{unit.occupants && unit.occupants.length > 0 ? (
 								<GridContainer>
 									<GridTable>
 										<thead>
@@ -410,15 +416,15 @@ export const UnitDetailPage: React.FC = () => {
 											</tr>
 										</thead>
 										<tbody>
-											{unit.tenants.map((tenant: any) => (
-												<tr key={tenant.id}>
+											{unit.occupants.map((occupant: any) => (
+												<tr key={occupant.id}>
 													<td>
-														{tenant.firstName} {tenant.lastName}
+														{occupant.firstName} {occupant.lastName}
 													</td>
-													<td>{tenant.email}</td>
-													<td>{tenant.phone}</td>
-													<td>{tenant.leaseStart || 'N/A'}</td>
-													<td>{tenant.leaseEnd || 'N/A'}</td>
+													<td>{occupant.email}</td>
+													<td>{occupant.phone}</td>
+													<td>{occupant.leaseStart || 'N/A'}</td>
+													<td>{occupant.leaseEnd || 'N/A'}</td>
 												</tr>
 											))}
 										</tbody>
@@ -426,7 +432,7 @@ export const UnitDetailPage: React.FC = () => {
 								</GridContainer>
 							) : (
 								<EmptyState>
-									<p>No tenants assigned to this unit</p>
+									<p>No occupants assigned to this unit</p>
 								</EmptyState>
 							)}
 						</SectionContainer>
@@ -438,24 +444,18 @@ export const UnitDetailPage: React.FC = () => {
 					<TabContent>
 						<SectionContainer>
 							<SectionHeader>Unit Devices</SectionHeader>
-							{unit.devices && unit.devices.length > 0 ? (
+							{unit.deviceIds && unit.deviceIds.length > 0 ? (
 								<GridContainer>
 									<GridTable>
 										<thead>
 											<tr>
-												<th>Type</th>
-												<th>Brand</th>
-												<th>Model</th>
-												<th>Installation Date</th>
+												<th>Device ID</th>
 											</tr>
 										</thead>
 										<tbody>
-											{unit.devices.map((device: any) => (
-												<tr key={device.id}>
-													<td>{device.type}</td>
-													<td>{device.brand}</td>
-													<td>{device.model}</td>
-													<td>{device.installationDate || 'N/A'}</td>
+											{unit.deviceIds.map((deviceId: string) => (
+												<tr key={deviceId}>
+													<td>{deviceId}</td>
 												</tr>
 											))}
 										</tbody>

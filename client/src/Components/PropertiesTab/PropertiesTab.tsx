@@ -1,23 +1,20 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useDispatch, useSelector } from 'react-redux';
+import { useSelector } from 'react-redux';
 import { PropertyDialog } from './PropertyDialog';
 import { useRecentlyViewed } from '../../Hooks/useRecentlyViewed';
 import { useFavorites } from '../../Hooks/useFavorites';
-import { RootState, AppDispatch } from '../../Redux/Store/store';
+import { RootState } from '../../Redux/Store/store';
 import {
-	addGroup,
-	deleteGroup,
-	updateGroupName,
-	toggleGroupEditName,
-	addPropertyToGroup,
-	updateProperty,
-	deleteProperty,
-	Unit,
-	Suite,
-	Property as PropertyModel,
-	PropertyGroup as PropertyGroupModel,
-} from '../../Redux/Slices/propertyDataSlice';
+	useGetPropertiesQuery,
+	useGetPropertyGroupsQuery,
+	useCreatePropertyMutation,
+	useUpdatePropertyMutation,
+	useDeletePropertyMutation,
+	useCreatePropertyGroupMutation,
+	useUpdatePropertyGroupMutation,
+	useDeletePropertyGroupMutation,
+} from '../../Redux/API/apiSlice';
 import { canManageProperties } from '../../utils/permissions';
 import { filterPropertyGroupsByRole } from '../../utils/dataFilters';
 import {
@@ -48,8 +45,6 @@ import {
 
 export const Properties = () => {
 	const navigate = useNavigate();
-	const dispatch = useDispatch<AppDispatch>();
-	const groups = useSelector((state: RootState) => state.propertyData.groups);
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
 	const teamMembers = useSelector((state: RootState) =>
 		state.team.groups.flatMap((group) => group.members),
@@ -57,51 +52,76 @@ export const Properties = () => {
 	const { addRecentlyViewed } = useRecentlyViewed();
 	const { toggleFavorite, isFavorite } = useFavorites();
 
+	// Firebase queries - skip if no user
+	const { data: properties = [], isLoading: propertiesLoading } =
+		useGetPropertiesQuery(currentUser?.id || '', { skip: !currentUser });
+	const { data: groups = [], isLoading: groupsLoading } =
+		useGetPropertyGroupsQuery(currentUser?.id || '', { skip: !currentUser });
+
+	// Firebase mutations
+	const [createProperty] = useCreatePropertyMutation();
+	const [updateProperty] = useUpdatePropertyMutation();
+	const [deleteProperty] = useDeletePropertyMutation();
+	const [createPropertyGroup] = useCreatePropertyGroupMutation();
+	const [updatePropertyGroup] = useUpdatePropertyGroupMutation();
+	const [deletePropertyGroup] = useDeletePropertyGroupMutation();
+
 	// Check if user can manage properties (add/edit/delete)
 	const canManage = currentUser ? canManageProperties(currentUser.role) : false;
 
-	// Filter groups based on user role and assignments
-	const filteredGroups = useMemo(
-		() => filterPropertyGroupsByRole(groups, currentUser, teamMembers),
-		[groups, currentUser, teamMembers],
-	);
+	// Combine groups with their properties
+	const groupsWithProperties = useMemo(() => {
+		return groups.map((group) => ({
+			...group,
+			properties: properties.filter((prop) => prop.groupId === group.id),
+		}));
+	}, [groups, properties]);
 
-	// Helper function to generate slug from title
-	const generateSlug = (title: string): string => {
-		return title
-			.toLowerCase()
-			.replace(/\s+/g, '-')
-			.replace(/[^\w-]/g, '');
-	};
+	// Filter groups based on user role and assignments
+	// Note: Casting to any[] to handle type mismatch between Redux types (number IDs) and Firebase types (string IDs)
+	const filteredGroups = useMemo(
+		() =>
+			filterPropertyGroupsByRole(
+				groupsWithProperties as any[],
+				currentUser,
+				teamMembers,
+			),
+		[groupsWithProperties, currentUser, teamMembers],
+	);
 
 	const [openDropdown, setOpenDropdown] = useState<string | null>(null);
 	const [dialogOpen, setDialogOpen] = useState(false);
 	const [selectedGroupForDialog, setSelectedGroupForDialog] = useState<
-		number | null
+		string | null
 	>(null);
-	const [selectedPropertyForEdit, setSelectedPropertyForEdit] =
-		useState<PropertyModel | null>(null);
+	const [selectedPropertyForEdit, setSelectedPropertyForEdit] = useState<
+		any | null
+	>(null);
 
-	const handleAddGroup = () => {
-		dispatch(
-			addGroup({
-				id: Date.now(),
-				name: 'New Group',
-				isEditingName: true,
-				properties: [],
-			}),
-		);
+	const handleAddGroup = async () => {
+		await createPropertyGroup({
+			userId: currentUser?.id || '',
+			name: 'New Group',
+			properties: [],
+		});
 	};
 
-	const handleGroupNameChange = (groupId: number, newName: string) => {
-		dispatch(updateGroupName({ groupId, name: newName }));
+	const handleGroupNameChange = async (groupId: string, newName: string) => {
+		const group = groups.find((g) => g.id === groupId);
+		if (group) {
+			await updatePropertyGroup({
+				id: groupId,
+				updates: { name: newName },
+			});
+		}
 	};
 
-	const handleToggleEditName = (groupId: number) => {
-		dispatch(toggleGroupEditName(groupId));
+	const handleToggleEditName = () => {
+		// This is handled by local state in the group editing
+		// No need for Redux action anymore
 	};
 
-	const handleAddPropertyClick = (groupId: number) => {
+	const handleAddPropertyClick = (groupId: string) => {
 		setSelectedGroupForDialog(groupId);
 		setSelectedPropertyForEdit(null);
 		setDialogOpen(true);
@@ -113,10 +133,7 @@ export const Properties = () => {
 		setDialogOpen(true);
 	};
 
-	const handleEditPropertyClick = (
-		groupId: number,
-		property: PropertyModel,
-	) => {
+	const handleEditPropertyClick = (groupId: string, property: any) => {
 		setSelectedGroupForDialog(groupId);
 		setSelectedPropertyForEdit(property);
 		addRecentlyViewed({
@@ -127,166 +144,110 @@ export const Properties = () => {
 		setDialogOpen(true);
 	};
 
-	const handleDeleteProperty = (groupId: number, propertyId: number) => {
-		dispatch(deleteProperty({ propertyId, groupId }));
+	const handleDeleteProperty = async (propertyId: string) => {
+		await deleteProperty(propertyId);
 		setOpenDropdown(null);
 	};
 
-	const handleDeleteGroup = (groupId: number) => {
-		dispatch(deleteGroup(groupId));
+	const handleDeleteGroup = async (groupId: string) => {
+		await deletePropertyGroup(groupId);
 	};
 
-	const handleSaveProperty = (formData: any) => {
-		const unitsData: Unit[] | undefined =
+	const handleSaveProperty = async (formData: any) => {
+		// Prepare units data for Multi-Family properties
+		const unitsData =
 			formData.propertyType === 'Multi-Family'
 				? (formData.units || []).map((unitName: string) => ({
 						name: unitName,
-						tenants: [],
+						occupants: [],
+						devices: [],
 					}))
 				: undefined;
 
-		const suitesData: Suite[] | undefined =
+		// Prepare suites data for Commercial properties
+		const suitesData =
 			formData.propertyType === 'Commercial' && formData.hasSuites
 				? (formData.suites || []).map((suiteName: string) => ({
 						name: suiteName,
-						tenants: [],
+						occupants: [],
+						devices: [],
 					}))
 				: undefined;
 
-		if (selectedGroupForDialog) {
-			if (selectedPropertyForEdit) {
-				// Edit existing property
-				addRecentlyViewed({
-					id: selectedPropertyForEdit.id,
-					title: formData.name,
-					slug: selectedPropertyForEdit.slug,
-				});
-				const updatedProperty: PropertyModel = {
-					...selectedPropertyForEdit,
+		if (selectedPropertyForEdit) {
+			// Edit existing property
+			await updateProperty({
+				id: selectedPropertyForEdit.id,
+				updates: {
 					title: formData.name,
 					image: formData.photo || selectedPropertyForEdit.image,
 					owner: formData.owner,
 					address: formData.address,
 					propertyType: formData.propertyType,
 					units:
-						formData.propertyType === 'Multi-Family'
-							? (unitsData ?? [])
-							: undefined,
+						formData.propertyType === 'Multi-Family' ? unitsData : undefined,
 					hasSuites:
 						formData.propertyType === 'Commercial'
 							? !!formData.hasSuites
 							: undefined,
 					suites:
 						formData.propertyType === 'Commercial' && formData.hasSuites
-							? (suitesData ?? [])
+							? suitesData
 							: undefined,
 					bedrooms: formData.bedrooms,
 					bathrooms: formData.bathrooms,
 					administrators: formData.administrators,
 					viewers: formData.viewers,
-					devices: formData.devices,
+					deviceIds: formData.devices.map((d) => d.id),
 					notes: formData.notes,
-					maintenanceHistory: formData.maintenanceHistory,
-				};
-				dispatch(
-					updateProperty({
-						groupId: selectedGroupForDialog,
-						property: updatedProperty,
-					}),
-				);
-			} else {
-				// Add new property
-				const newProperty: PropertyModel = {
-					id: Date.now(),
-					title: formData.name,
-					slug: generateSlug(formData.name),
-					image:
-						formData.photo ||
-						'https://via.placeholder.com/300x200?text=Property',
-					isFavorite: false,
-					owner: formData.owner,
-					address: formData.address,
-					propertyType: formData.propertyType,
-					units:
-						formData.propertyType === 'Multi-Family'
-							? (unitsData ?? [])
-							: undefined,
-					hasSuites:
-						formData.propertyType === 'Commercial'
-							? !!formData.hasSuites
-							: undefined,
-					suites:
-						formData.propertyType === 'Commercial' && formData.hasSuites
-							? (suitesData ?? [])
-							: undefined,
-					bedrooms: formData.bedrooms,
-					bathrooms: formData.bathrooms,
-					administrators: formData.administrators,
-					viewers: formData.viewers,
-					devices: formData.devices,
-					notes: formData.notes,
-					maintenanceHistory: formData.maintenanceHistory,
-				};
-				addRecentlyViewed({
-					id: newProperty.id,
-					title: newProperty.title,
-					slug: newProperty.slug,
-				});
-				dispatch(
-					addPropertyToGroup({
-						groupId: selectedGroupForDialog,
-						property: newProperty,
-					}),
-				);
-			}
+					taskHistory: formData.maintenanceHistory || [],
+				},
+			});
 		} else {
-			// Global add: use selected form group or create at end if none
-			const targetGroupId = formData.groupId;
-			if (targetGroupId) {
-				const newProperty: PropertyModel = {
-					id: Date.now(),
-					title: formData.name,
-					slug: generateSlug(formData.name),
-					image:
-						formData.photo ||
-						'https://via.placeholder.com/300x200?text=Property',
-					isFavorite: false,
-					owner: formData.owner,
-					address: formData.address,
-					propertyType: formData.propertyType,
-					units:
-						formData.propertyType === 'Multi-Family'
-							? (unitsData ?? [])
-							: undefined,
-					hasSuites:
-						formData.propertyType === 'Commercial'
-							? !!formData.hasSuites
-							: undefined,
-					suites:
-						formData.propertyType === 'Commercial' && formData.hasSuites
-							? (suitesData ?? [])
-							: undefined,
-					bedrooms: formData.bedrooms,
-					bathrooms: formData.bathrooms,
-					administrators: formData.administrators,
-					viewers: formData.viewers,
-					devices: formData.devices,
-					notes: formData.notes,
-					maintenanceHistory: formData.maintenanceHistory,
-				};
+			// Add new property
+			const slug = formData.name
+				.toLowerCase()
+				.replace(/\s+/g, '-')
+				.replace(/[^\w-]/g, '');
+
+			const newPropertyData = {
+				groupId: selectedGroupForDialog || '',
+				title: formData.name,
+				slug,
+				image:
+					formData.photo || 'https://via.placeholder.com/300x200?text=Property',
+				owner: formData.owner,
+				address: formData.address,
+				propertyType: formData.propertyType,
+				units: formData.propertyType === 'Multi-Family' ? unitsData : undefined,
+				hasSuites:
+					formData.propertyType === 'Commercial'
+						? !!formData.hasSuites
+						: undefined,
+				suites:
+					formData.propertyType === 'Commercial' && formData.hasSuites
+						? suitesData
+						: undefined,
+				bedrooms: formData.bedrooms,
+				bathrooms: formData.bathrooms,
+				administrators: formData.administrators,
+				viewers: formData.viewers,
+				deviceIds: formData.devices.map((d) => d.id),
+				notes: formData.notes,
+				taskHistory: formData.maintenanceHistory || [],
+			};
+
+			const result = await createProperty(newPropertyData);
+
+			if ('data' in result) {
 				addRecentlyViewed({
-					id: newProperty.id,
-					title: newProperty.title,
-					slug: newProperty.slug,
+					id: result.data.id as any, // Firebase uses string IDs
+					title: result.data.title,
+					slug: result.data.slug,
 				});
-				dispatch(
-					addPropertyToGroup({
-						groupId: targetGroupId,
-						property: newProperty,
-					}),
-				);
 			}
 		}
+
 		setDialogOpen(false);
 		setSelectedGroupForDialog(null);
 		setSelectedPropertyForEdit(null);
@@ -319,16 +280,16 @@ export const Properties = () => {
 				groups={filteredGroups.map((g) => ({ id: g.id, name: g.name }))}
 				selectedGroupId={selectedGroupForDialog}
 				onCreateGroup={(name: string) => {
-					const newId = Date.now();
-					dispatch(
-						addGroup({
-							id: newId,
-							name,
-							isEditingName: false,
-							properties: [],
-						}),
-					);
-					return newId;
+					if (!currentUser) return '';
+					const result = createPropertyGroup({
+						name,
+						properties: [],
+						userId: currentUser.id,
+					});
+					if ('data' in result && result.data) {
+						return (result.data as any).id;
+					}
+					return '';
 				}}
 				initialData={
 					selectedPropertyForEdit
@@ -376,13 +337,13 @@ export const Properties = () => {
 										type='text'
 										value={group.name}
 										onChange={(e) =>
-											handleGroupNameChange(group.id, e.target.value)
+											handleGroupNameChange(group.id as any, e.target.value)
 										}
-										onBlur={() => handleToggleEditName(group.id)}
+										onBlur={() => handleToggleEditName()}
 										autoFocus
 									/>
 								) : (
-									<GroupName onClick={() => handleToggleEditName(group.id)}>
+									<GroupName onClick={() => handleToggleEditName()}>
 										{group.name}
 									</GroupName>
 								)}
@@ -392,12 +353,12 @@ export const Properties = () => {
 									<GroupActions>
 										<GroupActionButton
 											title='Edit group'
-											onClick={() => handleToggleEditName(group.id)}>
+											onClick={() => handleToggleEditName()}>
 											✎
 										</GroupActionButton>
 										<GroupActionButton
 											title='Delete group'
-											onClick={() => handleDeleteGroup(group.id)}>
+											onClick={() => handleDeleteGroup(group.id as any)}>
 											🗑
 										</GroupActionButton>
 									</GroupActions>
@@ -405,7 +366,7 @@ export const Properties = () => {
 							</HeaderRight>
 						</GroupHeader>
 						<PropertiesGrid>
-							{group.properties.map((property) => (
+							{(group.properties || []).map((property) => (
 								<PropertyTile
 									key={property.id}
 									onClick={() => {
@@ -422,24 +383,24 @@ export const Properties = () => {
 											e.preventDefault();
 											e.stopPropagation();
 											toggleFavorite({
-												id: property.id,
+												id: property.id as any,
 												title: property.title,
 												slug: property.slug,
 											});
 										}}
 										title={
-											isFavorite(property.id)
+											isFavorite(property.id as any)
 												? 'Remove from favorites'
 												: 'Add to favorites'
 										}>
-										{isFavorite(property.id) ? '★' : '☆'}
+										{isFavorite(property.id as any) ? '★' : '☆'}
 									</FavoriteStar>
 									<PropertyOverlay>
 										<PropertyTitle
 											onClick={(e) => {
 												e.stopPropagation();
 												addRecentlyViewed({
-													id: property.id,
+													id: property.id as any,
 													title: property.title,
 													slug: property.slug,
 												});
@@ -462,13 +423,13 @@ export const Properties = () => {
 												<DropdownMenu onClick={(e) => e.stopPropagation()}>
 													<DropdownItem
 														onClick={() =>
-															handleEditPropertyClick(group.id, property)
+															handleEditPropertyClick(group.id as any, property)
 														}>
 														Edit
 													</DropdownItem>
 													<DropdownItem
 														onClick={() =>
-															handleDeleteProperty(group.id, property.id)
+															handleDeleteProperty(property.id as any)
 														}
 														style={{ color: '#ef4444' }}>
 														Delete

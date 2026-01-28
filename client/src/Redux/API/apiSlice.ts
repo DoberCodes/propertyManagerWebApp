@@ -24,11 +24,16 @@ export interface Property {
 	administrators?: string[];
 	viewers?: string[];
 	address?: string;
+	propertyType?: 'Single Family' | 'Multi-Family' | 'Commercial';
 	bedrooms?: number;
 	bathrooms?: number;
-	devices?: any[];
+	units?: Array<{ name: string; occupants?: any[]; deviceIds?: string[] }>; // For multi-family properties
+	hasSuites?: boolean; // For commercial properties
+	suites?: Array<{ name: string; occupants?: any[]; deviceIds?: string[] }>; // For commercial properties
+	deviceIds?: string[]; // Device IDs for property-level devices
 	notes?: string;
-	maintenanceHistory?: Array<{ date: string; description: string }>;
+	taskHistory?: Array<{ date: string; description: string }>;
+	maintenanceHistory?: Array<{ date: string; description: string }>; // Alias for taskHistory
 	isFavorite?: boolean;
 	createdAt?: string;
 	updatedAt?: string;
@@ -52,9 +57,35 @@ export interface CompletionFile {
 	uploadedAt: string;
 }
 
+export interface Device {
+	id: string;
+	type: string; // 'HVAC', 'Plumbing', 'Electrical', 'Appliance', 'Security', 'Other'
+	brand?: string;
+	model?: string;
+	serialNumber?: string;
+	installationDate?: string;
+	location: {
+		propertyId: string;
+		unitId?: string; // Optional: for device in a specific unit
+		suiteId?: string; // Optional: for device in a specific suite
+	};
+	status?: 'Active' | 'Maintenance' | 'Broken' | 'Decommissioned'; // Device status
+	maintenanceHistory?: Array<{
+		date: string;
+		description: string;
+		taskId?: string;
+	}>;
+	notes?: string;
+	createdAt?: string;
+	updatedAt?: string;
+}
+
 export interface Task {
 	id: string;
 	propertyId: string;
+	suiteId?: string; // Optional: for tasks specific to a suite
+	unitId?: string; // Optional: for tasks specific to a unit
+	devices?: string[]; // Optional: device IDs related to this task
 	title: string;
 	dueDate: string;
 	status:
@@ -65,6 +96,7 @@ export interface Task {
 		| 'Rejected';
 	property: string;
 	notes?: string;
+	assignedTo?: string; // Team member ID this task is assigned to
 	completionDate?: string;
 	completionFile?: CompletionFile;
 	completedBy?: string; // User ID who completed the task
@@ -101,6 +133,56 @@ export interface TeamGroup {
 	isEditingName?: boolean;
 	linkedProperties: string[];
 	members?: TeamMember[];
+	createdAt?: string;
+	updatedAt?: string;
+}
+
+export interface Suite {
+	id: string;
+	propertyId: string;
+	name: string;
+	floor: number;
+	bedrooms: number;
+	bathrooms: number;
+	area: number;
+	isOccupied: boolean;
+	deviceIds?: string[]; // Device IDs for devices in this suite
+	occupants?: Array<{
+		firstName: string;
+		lastName: string;
+		email: string;
+		phone: string;
+	}>; // Renamed from occupantName to occupants
+	taskHistory?: Array<{
+		taskId: string;
+		date: string;
+		title: string;
+		status: string;
+	}>; // Maintenance/task history for this suite
+	createdAt?: string;
+	updatedAt?: string;
+}
+
+export interface Unit {
+	id: string;
+	propertyId: string; // Changed from suiteId - units belong to properties (multifamily homes)
+	name: string;
+	floor: number;
+	area: number;
+	isOccupied: boolean;
+	deviceIds?: string[]; // Device IDs for devices in this unit
+	occupants?: Array<{
+		firstName: string;
+		lastName: string;
+		email: string;
+		phone: string;
+	}>; // Renamed from occupantName to occupants
+	taskHistory?: Array<{
+		taskId: string;
+		date: string;
+		title: string;
+		status: string;
+	}>; // Maintenance/task history for this unit
 	createdAt?: string;
 	updatedAt?: string;
 }
@@ -197,18 +279,42 @@ export const apiSlice = createApi({
 
 		// Property endpoints
 		getProperties: builder.query<Property[], string>({
-			async queryFn(groupId: string) {
+			async queryFn(userId: string) {
 				try {
-					const q = query(
-						collection(db, 'properties'),
-						where('groupId', '==', groupId),
+					// First, get all property groups for this user
+					const groupsQuery = query(
+						collection(db, 'propertyGroups'),
+						where('userId', '==', userId),
 					);
-					const querySnapshot = await getDocs(q);
-					const properties = querySnapshot.docs.map((doc) => ({
-						id: doc.id,
-						...doc.data(),
-					})) as Property[];
-					return { data: properties };
+					const groupsSnapshot = await getDocs(groupsQuery);
+					const groupIds = groupsSnapshot.docs.map((doc) => doc.id);
+
+					// If no groups, return empty array
+					if (groupIds.length === 0) {
+						return { data: [] };
+					}
+
+					// Fetch all properties for these groups
+					// Note: Firestore 'in' query supports up to 10 values
+					// For more than 10 groups, we'd need to batch the queries
+					const allProperties: Property[] = [];
+
+					// Process in batches of 10 (Firestore limitation)
+					for (let i = 0; i < groupIds.length; i += 10) {
+						const batch = groupIds.slice(i, i + 10);
+						const propertiesQuery = query(
+							collection(db, 'properties'),
+							where('groupId', 'in', batch),
+						);
+						const propertiesSnapshot = await getDocs(propertiesQuery);
+						const properties = propertiesSnapshot.docs.map((doc) => ({
+							id: doc.id,
+							...doc.data(),
+						})) as Property[];
+						allProperties.push(...properties);
+					}
+
+					return { data: allProperties };
 				} catch (error: any) {
 					return { error: error.message };
 				}
@@ -274,18 +380,55 @@ export const apiSlice = createApi({
 
 		// Task endpoints
 		getTasks: builder.query<Task[], string>({
-			async queryFn(propertyId: string) {
+			async queryFn(userId: string) {
 				try {
-					const q = query(
-						collection(db, 'tasks'),
-						where('propertyId', '==', propertyId),
+					// First, get all properties for this user's groups
+					const groupsQuery = query(
+						collection(db, 'propertyGroups'),
+						where('userId', '==', userId),
 					);
-					const querySnapshot = await getDocs(q);
-					const tasks = querySnapshot.docs.map((doc) => ({
-						id: doc.id,
-						...doc.data(),
-					})) as Task[];
-					return { data: tasks };
+					const groupsSnapshot = await getDocs(groupsQuery);
+					const groupIds = groupsSnapshot.docs.map((doc) => doc.id);
+
+					if (groupIds.length === 0) {
+						return { data: [] };
+					}
+
+					// Get all property IDs for these groups
+					const allPropertyIds: string[] = [];
+					for (let i = 0; i < groupIds.length; i += 10) {
+						const batch = groupIds.slice(i, i + 10);
+						const propertiesQuery = query(
+							collection(db, 'properties'),
+							where('groupId', 'in', batch),
+						);
+						const propertiesSnapshot = await getDocs(propertiesQuery);
+						propertiesSnapshot.docs.forEach((doc) => {
+							allPropertyIds.push(doc.id);
+						});
+					}
+
+					if (allPropertyIds.length === 0) {
+						return { data: [] };
+					}
+
+					// Fetch all tasks for these properties
+					const allTasks: Task[] = [];
+					for (let i = 0; i < allPropertyIds.length; i += 10) {
+						const batch = allPropertyIds.slice(i, i + 10);
+						const tasksQuery = query(
+							collection(db, 'tasks'),
+							where('propertyId', 'in', batch),
+						);
+						const tasksSnapshot = await getDocs(tasksQuery);
+						const tasks = tasksSnapshot.docs.map((doc) => ({
+							id: doc.id,
+							...doc.data(),
+						})) as Task[];
+						allTasks.push(...tasks);
+					}
+
+					return { data: allTasks };
 				} catch (error: any) {
 					return { error: error.message };
 				}
@@ -516,18 +659,40 @@ export const apiSlice = createApi({
 
 		// Team Member endpoints
 		getTeamMembers: builder.query<TeamMember[], string>({
-			async queryFn(groupId: string) {
+			async queryFn(userId: string) {
 				try {
-					const q = query(
-						collection(db, 'teamMembers'),
-						where('groupId', '==', groupId),
+					// First, get all team groups for this user
+					const groupsQuery = query(
+						collection(db, 'teamGroups'),
+						where('userId', '==', userId),
 					);
-					const querySnapshot = await getDocs(q);
-					const members = querySnapshot.docs.map((doc) => ({
-						id: doc.id,
-						...doc.data(),
-					})) as TeamMember[];
-					return { data: members };
+					const groupsSnapshot = await getDocs(groupsQuery);
+					const groupIds = groupsSnapshot.docs.map((doc) => doc.id);
+
+					// If no groups, return empty array
+					if (groupIds.length === 0) {
+						return { data: [] };
+					}
+
+					// Fetch all team members for these groups
+					const allMembers: TeamMember[] = [];
+
+					// Process in batches of 10 (Firestore limitation)
+					for (let i = 0; i < groupIds.length; i += 10) {
+						const batch = groupIds.slice(i, i + 10);
+						const membersQuery = query(
+							collection(db, 'teamMembers'),
+							where('groupId', 'in', batch),
+						);
+						const membersSnapshot = await getDocs(membersQuery);
+						const members = membersSnapshot.docs.map((doc) => ({
+							id: doc.id,
+							...doc.data(),
+						})) as TeamMember[];
+						allMembers.push(...members);
+					}
+
+					return { data: allMembers };
 				} catch (error: any) {
 					return { error: error.message };
 				}
@@ -577,6 +742,227 @@ export const apiSlice = createApi({
 				}
 			},
 		}),
+		// Suites endpoints
+		getSuites: builder.query<Suite[], string>({
+			async queryFn(propertyId: string) {
+				try {
+					const q = query(
+						collection(db, 'suites'),
+						where('propertyId', '==', propertyId),
+					);
+					const querySnapshot = await getDocs(q);
+					const suites = querySnapshot.docs.map(docToData);
+					return { data: suites };
+				} catch (error) {
+					return { error: (error as Error).message };
+				}
+			},
+		}),
+
+		getSuite: builder.query<Suite, string>({
+			async queryFn(suiteId: string) {
+				try {
+					const docRef = doc(db, 'suites', suiteId);
+					const docSnapshot = await getDoc(docRef);
+					const data = docToData(docSnapshot);
+					return { data: data as Suite };
+				} catch (error: any) {
+					return { error: error.message };
+				}
+			},
+		}),
+
+		createSuite: builder.mutation<Suite, Omit<Suite, 'id'>>({
+			async queryFn(newSuite) {
+				try {
+					const docRef = await addDoc(collection(db, 'suites'), {
+						...newSuite,
+						createdAt: new Date().toISOString(),
+						updatedAt: new Date().toISOString(),
+					});
+					return { data: { id: docRef.id, ...newSuite } as Suite };
+				} catch (error: any) {
+					return { error: error.message };
+				}
+			},
+		}),
+
+		updateSuite: builder.mutation<
+			Suite,
+			{ id: string; updates: Partial<Suite> }
+		>({
+			async queryFn({ id, updates }) {
+				try {
+					const docRef = doc(db, 'suites', id);
+					await updateDoc(docRef, {
+						...updates,
+						updatedAt: new Date().toISOString(),
+					});
+					return { data: { id, ...updates } as Suite };
+				} catch (error: any) {
+					return { error: error.message };
+				}
+			},
+		}),
+
+		deleteSuite: builder.mutation<void, string>({
+			async queryFn(suiteId: string) {
+				try {
+					await deleteDoc(doc(db, 'suites', suiteId));
+					return { data: undefined };
+				} catch (error: any) {
+					return { error: error.message };
+				}
+			},
+		}),
+
+		// Units endpoints
+		getUnits: builder.query<Unit[], string>({
+			async queryFn(propertyId: string) {
+				try {
+					const q = query(
+						collection(db, 'units'),
+						where('propertyId', '==', propertyId),
+					);
+					const querySnapshot = await getDocs(q);
+					const units = querySnapshot.docs.map(docToData);
+					return { data: units };
+				} catch (error) {
+					return { error: (error as Error).message };
+				}
+			},
+		}),
+
+		getUnit: builder.query<Unit, string>({
+			async queryFn(unitId: string) {
+				try {
+					const docRef = doc(db, 'units', unitId);
+					const docSnapshot = await getDoc(docRef);
+					const data = docToData(docSnapshot);
+					return { data: data as Unit };
+				} catch (error: any) {
+					return { error: error.message };
+				}
+			},
+		}),
+
+		createUnit: builder.mutation<Unit, Omit<Unit, 'id'>>({
+			async queryFn(newUnit) {
+				try {
+					const docRef = await addDoc(collection(db, 'units'), {
+						...newUnit,
+						createdAt: new Date().toISOString(),
+						updatedAt: new Date().toISOString(),
+					});
+					return { data: { id: docRef.id, ...newUnit } as Unit };
+				} catch (error: any) {
+					return { error: error.message };
+				}
+			},
+		}),
+
+		updateUnit: builder.mutation<Unit, { id: string; updates: Partial<Unit> }>({
+			async queryFn({ id, updates }) {
+				try {
+					const docRef = doc(db, 'units', id);
+					await updateDoc(docRef, {
+						...updates,
+						updatedAt: new Date().toISOString(),
+					});
+					return { data: { id, ...updates } as Unit };
+				} catch (error: any) {
+					return { error: error.message };
+				}
+			},
+		}),
+
+		deleteUnit: builder.mutation<void, string>({
+			async queryFn(unitId: string) {
+				try {
+					await deleteDoc(doc(db, 'units', unitId));
+					return { data: undefined };
+				} catch (error: any) {
+					return { error: error.message };
+				}
+			},
+		}),
+
+		// Device endpoints
+		getDevices: builder.query<Device[], string>({
+			async queryFn(propertyId: string) {
+				try {
+					const q = query(
+						collection(db, 'devices'),
+						where('location.propertyId', '==', propertyId),
+					);
+					const querySnapshot = await getDocs(q);
+					const devices = querySnapshot.docs.map((doc) => ({
+						id: doc.id,
+						...doc.data(),
+					})) as Device[];
+					return { data: devices };
+				} catch (error: any) {
+					return { error: error.message };
+				}
+			},
+		}),
+
+		getDevice: builder.query<Device, string>({
+			async queryFn(deviceId: string) {
+				try {
+					const docRef = doc(db, 'devices', deviceId);
+					const docSnapshot = await getDoc(docRef);
+					const data = docToData(docSnapshot);
+					return { data: data as Device };
+				} catch (error: any) {
+					return { error: error.message };
+				}
+			},
+		}),
+
+		createDevice: builder.mutation<Device, Omit<Device, 'id'>>({
+			async queryFn(newDevice) {
+				try {
+					const docRef = await addDoc(collection(db, 'devices'), {
+						...newDevice,
+						createdAt: new Date().toISOString(),
+						updatedAt: new Date().toISOString(),
+					});
+					return { data: { id: docRef.id, ...newDevice } as Device };
+				} catch (error: any) {
+					return { error: error.message };
+				}
+			},
+		}),
+
+		updateDevice: builder.mutation<
+			Device,
+			{ id: string; updates: Partial<Device> }
+		>({
+			async queryFn({ id, updates }) {
+				try {
+					const docRef = doc(db, 'devices', id);
+					await updateDoc(docRef, {
+						...updates,
+						updatedAt: new Date().toISOString(),
+					});
+					return { data: { id, ...updates } as Device };
+				} catch (error: any) {
+					return { error: error.message };
+				}
+			},
+		}),
+
+		deleteDevice: builder.mutation<void, string>({
+			async queryFn(deviceId: string) {
+				try {
+					await deleteDoc(doc(db, 'devices', deviceId));
+					return { data: undefined };
+				} catch (error: any) {
+					return { error: error.message };
+				}
+			},
+		}),
 	}),
 });
 
@@ -612,4 +998,22 @@ export const {
 	useCreateTeamMemberMutation,
 	useUpdateTeamMemberMutation,
 	useDeleteTeamMemberMutation,
+	// Suites
+	useGetSuitesQuery,
+	useGetSuiteQuery,
+	useCreateSuiteMutation,
+	useUpdateSuiteMutation,
+	useDeleteSuiteMutation,
+	// Units
+	useGetUnitsQuery,
+	useGetUnitQuery,
+	useCreateUnitMutation,
+	useUpdateUnitMutation,
+	useDeleteUnitMutation,
+	// Devices
+	useGetDevicesQuery,
+	useGetDeviceQuery,
+	useCreateDeviceMutation,
+	useUpdateDeviceMutation,
+	useDeleteDeviceMutation,
 } = apiSlice;

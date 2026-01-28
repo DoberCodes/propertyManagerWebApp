@@ -30,7 +30,7 @@ import {
 } from './TaskCompletionModal.styles';
 
 interface TaskCompletionModalProps {
-	taskId: number;
+	taskId: string;
 	taskTitle: string;
 	onClose: () => void;
 	onSuccess?: () => void;

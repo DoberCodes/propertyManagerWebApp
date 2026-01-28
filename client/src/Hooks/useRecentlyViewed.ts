@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { getUserStorageKey } from './utils/storageList';
 
 interface RecentlyViewedProperty {
-	id: number;
+	id: string;
 	title: string;
 	slug: string;
 	timestamp: number;
@@ -42,7 +42,7 @@ export const useRecentlyViewed = (userId?: string | number) => {
 	}, [userId]);
 
 	const addRecentlyViewed = (property: {
-		id: number;
+		id: string;
 		title: string;
 		slug: string;
 	}) => {

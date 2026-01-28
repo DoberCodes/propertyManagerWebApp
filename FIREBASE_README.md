@@ -18,6 +18,8 @@
   - Tasks (4 endpoints)
   - Team Groups (3 endpoints)
   - Team Members (4 endpoints)
+  - Suites (1 endpoint)
+  - Units (1 endpoint)
 - Full TypeScript support with exported types
 - Firebase Firestore queries pre-configured
 
@@ -82,6 +84,8 @@ In Firebase Console, create these collections:
 - `tasks`
 - `teamGroups`
 - `teamMembers`
+- `suites`
+- `units`
 
 ### Step 3: Set Up Security Rules
 
@@ -168,6 +172,18 @@ useGetTeamMembersQuery(groupId);
 useCreateTeamMemberMutation();
 useUpdateTeamMemberMutation();
 useDeleteTeamMemberMutation();
+```
+
+### Suites
+
+```tsx
+useGetSuitesQuery(propertyId);
+```
+
+### Units
+
+```tsx
+useGetUnitsQuery(suiteId);
 ```
 
 ## 🔄 Transitioning to Your Backend

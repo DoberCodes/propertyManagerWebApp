@@ -4,14 +4,13 @@ export const Wrapper = styled.div`
 	display: flex;
 	flex-direction: column;
 	gap: 0;
-	height: 100%;
-	overflow-y: auto;
+	min-height: 100%;
 	background-color: #fafafa;
 `;
 
 export const Header = styled.div`
 	position: relative;
-	height: 270px;
+	height: 150px;
 	background-size: cover;
 	background-position: center;
 	background-color: #e0e0e0;
@@ -101,8 +100,8 @@ export const TabButton = styled.button<{ isActive: boolean }>`
 
 export const TabContent = styled.div`
 	flex: 1;
-	padding: 24px;
-	overflow-y: auto;
+	padding: 16px;
+	overflow: visible;
 
 	@media (max-width: 768px) {
 		padding: 16px;

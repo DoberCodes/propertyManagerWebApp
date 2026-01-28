@@ -36,7 +36,8 @@
 		"start": "react-scripts start",
 		"build": "react-scripts build",
 		"test": "react-scripts test",
-		"eject": "react-scripts eject"
+		"eject": "react-scripts eject",
+		"seed:firebase": "node scripts/seedFirestore.cjs"
 	},
 	"eslintConfig": {
 		"extends": [
@@ -62,6 +63,7 @@
 	"devDependencies": {
 		"@types/babel__helper-module-imports": "^7",
 		"@types/react-is": "^18",
-		"@typescript-eslint/parser": "^6.17.0"
+		"@typescript-eslint/parser": "^6.17.0",
+		"dotenv": "^17.2.3"
 	}
 }

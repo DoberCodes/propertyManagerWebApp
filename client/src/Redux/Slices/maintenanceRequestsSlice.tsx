@@ -1,7 +1,7 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
 export interface MaintenanceRequestItem {
-	id: number;
+	id: string;
 	title: string;
 	description: string;
 	priority: 'Low' | 'Medium' | 'High' | 'Urgent';
@@ -12,7 +12,7 @@ export interface MaintenanceRequestItem {
 		| 'Approved'
 		| 'Converted to Task'
 		| 'Rejected';
-	propertyId: number;
+	propertyId: string;
 	propertyTitle: string;
 	submittedBy: string; // User ID
 	submittedByName: string;
@@ -21,7 +21,7 @@ export interface MaintenanceRequestItem {
 	suite?: string; // Suite identifier for commercial properties
 	reviewedBy?: string; // User ID
 	reviewedAt?: string;
-	convertedToTaskId?: number;
+	convertedToTaskId?: string;
 	files?: Array<{ name: string; url: string; size: number }>;
 	notes?: string;
 }
@@ -32,26 +32,8 @@ export interface MaintenanceRequestsState {
 }
 
 const initialState: MaintenanceRequestsState = {
-	requests: [
-		// Mock data for testing
-		{
-			id: 1,
-			title: 'Leaking faucet in kitchen',
-			description:
-				'The kitchen faucet has been dripping constantly. It seems to be getting worse.',
-			priority: 'Medium',
-			category: 'Plumbing',
-			status: 'Pending',
-			propertyId: 1,
-			propertyTitle: 'Downtown Apartments',
-			submittedBy: 'user-tenant-1',
-			submittedByName: 'Emily Brown',
-			submittedAt: '2026-01-24T10:30:00',
-			unit: 'Apt 5B',
-			files: [],
-		},
-	],
-	notifications: 1,
+	requests: [],
+	notifications: 0,
 };
 
 export const maintenanceRequestsSlice = createSlice({
@@ -68,7 +50,7 @@ export const maintenanceRequestsSlice = createSlice({
 		updateRequestStatus: (
 			state,
 			action: PayloadAction<{
-				id: number;
+				id: string;
 				status: MaintenanceRequestItem['status'];
 				reviewedBy?: string;
 				reviewedAt?: string;
@@ -83,7 +65,7 @@ export const maintenanceRequestsSlice = createSlice({
 		},
 		convertRequestToTask: (
 			state,
-			action: PayloadAction<{ requestId: number; taskId: number }>,
+			action: PayloadAction<{ requestId: string; taskId: string }>,
 		) => {
 			const request = state.requests.find(
 				(r) => r.id === action.payload.requestId,
@@ -95,7 +77,7 @@ export const maintenanceRequestsSlice = createSlice({
 		},
 		markRequestAsReviewed: (
 			state,
-			action: PayloadAction<{ id: number; reviewedBy: string }>,
+			action: PayloadAction<{ id: string; reviewedBy: string }>,
 		) => {
 			const request = state.requests.find((r) => r.id === action.payload.id);
 			if (request && request.status === 'Pending') {
@@ -107,7 +89,7 @@ export const maintenanceRequestsSlice = createSlice({
 		clearNotifications: (state) => {
 			state.notifications = 0;
 		},
-		deleteMaintenanceRequest: (state, action: PayloadAction<number>) => {
+		deleteMaintenanceRequest: (state, action: PayloadAction<string>) => {
 			state.requests = state.requests.filter((r) => r.id !== action.payload);
 		},
 	},

@@ -18,6 +18,7 @@ import {
 	MenuItem,
 	Section,
 	SectionContent,
+	BottomSections,
 } from './SideNav.styles';
 
 export const SideNav = () => {
@@ -77,79 +78,80 @@ export const SideNav = () => {
 				</MenuNav>
 			</MenuSection>
 
-			{/* Favorites Section */}
-			<Section>
-				<SectionTitle>Favorites</SectionTitle>
-				<SectionContent>
-					{favorites.length > 0 ? (
-						<ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
-							{favorites.map((property) => (
-								<li
-									key={property.id}
-									style={{
-										padding: '8px 0',
-										fontSize: '13px',
-										color: '#666666',
-										cursor: 'pointer',
-										transition: 'color 0.2s ease',
-										borderBottom: '1px solid #f0f0f0',
-									}}
-									onClick={() => navigate(`/property/${property.slug}`)}
-									onMouseEnter={(e) =>
-										(e.currentTarget.style.color = '#22c55e')
-									}
-									onMouseLeave={(e) =>
-										(e.currentTarget.style.color = '#666666')
-									}>
-									{'★ ' + property.title}
-								</li>
-							))}
-						</ul>
-					) : (
-						<div style={{ fontSize: '12px', color: '#999999' }}>
-							No favorite properties
-						</div>
-					)}
-				</SectionContent>
-			</Section>
+			{/* Bottom Sections */}
+			<BottomSections>
+				{/* Favorites Section */}
+				<Section>
+					<SectionTitle>Favorites</SectionTitle>
+					<SectionContent>
+						{favorites.length > 0 ? (
+							<ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+								{favorites.slice(0, 5).map((property) => (
+									<li
+										key={property.id}
+										style={{
+											padding: '8px 0',
+											fontSize: '13px',
+											color: '#666666',
+											cursor: 'pointer',
+											transition: 'color 0.2s ease',
+											borderBottom: '1px solid #f0f0f0',
+										}}
+										onClick={() => navigate(`/property/${property.slug}`)}
+										onMouseEnter={(e) =>
+											(e.currentTarget.style.color = '#22c55e')
+										}
+										onMouseLeave={(e) =>
+											(e.currentTarget.style.color = '#666666')
+										}>
+										{'★ ' + property.title}
+									</li>
+								))}
+							</ul>
+						) : (
+							<div style={{ fontSize: '12px', color: '#999999' }}>
+								No favorite properties
+							</div>
+						)}
+					</SectionContent>
+				</Section>
 
-			{/* Recently Viewed Tasks Section - REMOVED */}
-
-			{/* Recently Viewed Properties Section */}
-			<Section>
-				<SectionTitle>Recently Viewed Properties</SectionTitle>
-				<SectionContent>
-					{recentProperties.length > 0 ? (
-						<ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
-							{recentProperties.map((property) => (
-								<li
-									key={property.id}
-									style={{
-										padding: '8px 0',
-										fontSize: '13px',
-										color: '#666666',
-										cursor: 'pointer',
-										transition: 'color 0.2s ease',
-										borderBottom: '1px solid #f0f0f0',
-									}}
-									onClick={() => navigate(`/property/${property.slug}`)}
-									onMouseEnter={(e) =>
-										(e.currentTarget.style.color = '#22c55e')
-									}
-									onMouseLeave={(e) =>
-										(e.currentTarget.style.color = '#666666')
-									}>
-									{property.title}
-								</li>
-							))}
-						</ul>
-					) : (
-						<div style={{ fontSize: '12px', color: '#999999' }}>
-							No recently viewed properties
-						</div>
-					)}
-				</SectionContent>
-			</Section>
+				{/* Recently Viewed Properties Section */}
+				<Section>
+					<SectionTitle>Recently Viewed Properties</SectionTitle>
+					<SectionContent>
+						{recentProperties.length > 0 ? (
+							<ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+								{recentProperties.slice(0, 5).map((property) => (
+									<li
+										key={property.id}
+										style={{
+											padding: '8px 0',
+											fontSize: '13px',
+											color: '#666666',
+											cursor: 'pointer',
+											transition: 'color 0.2s ease',
+											borderBottom: '1px solid #f0f0f0',
+										}}
+										onClick={() => navigate(`/property/${property.slug}`)}
+										onMouseEnter={(e) =>
+											(e.currentTarget.style.color = '#22c55e')
+										}
+										onMouseLeave={(e) =>
+											(e.currentTarget.style.color = '#666666')
+										}>
+										{property.title}
+									</li>
+								))}
+							</ul>
+						) : (
+							<div style={{ fontSize: '12px', color: '#999999' }}>
+								No recently viewed properties
+							</div>
+						)}
+					</SectionContent>
+				</Section>
+			</BottomSections>
 		</Wrapper>
 	);
 };

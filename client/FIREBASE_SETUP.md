@@ -25,7 +25,7 @@ The API slice is configured to work with the following collections:
 
 ### Collections Structure:
 
-```
+````
 Firestore Database
 ├── propertyGroups/
 │   ├── {groupId}
@@ -37,27 +37,52 @@ Firestore Database
 │
 ├── properties/
 │   ├── {propertyId}
-│   │   ├── groupId (string)
-│   │   ├── title (string)
-│   │   ├── slug (string)
-│   │   ├── image (string)
-│   │   ├── owner (string)
-│   │   ├── address (string)
-│   │   ├── bedrooms (number)
-│   │   ├── bathrooms (number)
-│   │   ├── notes (string)
-│   │   ├── isFavorite (boolean)
+│   │   ├── groupId (string) [REQUIRED]
+│   │   ├── title (string) [REQUIRED]
+│   │   ├── slug (string) [REQUIRED]
+│   │   ├── image (string - optional)
+│   │   ├── owner (string - optional)
+│   │   ├── address (string - optional)
+│   │   ├── propertyType (string: 'Single Family'|'Multi-Family'|'Commercial' - optional)
+│   │   ├── bedrooms (number - optional)
+│   │   ├── bathrooms (number - optional)
+│   │   ├── units (array - optional, for Multi-Family properties) [NOT YET IN FIREBASE]
+│   │   │   ├── name (string)
+│   │   │   ├── occupants (array)
+│   │   │   └── deviceIds (array of device IDs)
+│   │   ├── hasSuites (boolean - optional, for Commercial properties) [NOT YET IN FIREBASE]
+│   │   ├── suites (array - optional, for Commercial properties with suites) [NOT YET IN FIREBASE]
+│   │   │   ├── name (string)
+│   │   │   ├── occupants (array)
+│   │   │   └── deviceIds (array of device IDs)
+│   │   ├── deviceIds (array of strings - optional, property-level device IDs)
+│   │   ├── administrators (array of strings - optional, user IDs)
+│   │   ├── viewers (array of strings - optional, user IDs)
+│   │   ├── taskHistory (array - optional) [NOT YET IN FIREBASE]
+│   │   │   ├── date (string)
+│   │   │   └── description (string)
+│   │   ├── maintenanceHistory (array - optional, alias for taskHistory) [NOT YET IN FIREBASE]
+│   │   ├── notes (string - optional)
+│   │   ├── isFavorite (boolean - optional)
 │   │   ├── createdAt (timestamp)
 │   │   └── updatedAt (timestamp)
 │
 ├── tasks/
 │   ├── {taskId}
 │   │   ├── propertyId (string)
+│   │   ├── suiteId (string - optional, for suite-specific tasks)
+│   │   ├── unitId (string - optional, for unit-specific tasks)
+│   │   ├── devices (array of strings - optional, device IDs related to task)
 │   │   ├── title (string)
 │   │   ├── dueDate (string)
-│   │   ├── status (string: 'Pending'|'In Progress'|'Completed')
+│   │   ├── status (string: 'Pending'|'In Progress'|'Awaiting Approval'|'Completed'|'Rejected')
 │   │   ├── property (string - property title)
 │   │   ├── notes (string)
+│   │   ├── completionDate (string - optional)
+│   │   ├── completedBy (string - user ID, optional)
+│   │   ├── approvedBy (string - user ID, optional)
+│   │   ├── approvedAt (string - optional)
+│   │   ├── rejectionReason (string - optional)
 │   │   ├── createdAt (timestamp)
 │   │   └── updatedAt (timestamp)
 │
@@ -86,7 +111,68 @@ Firestore Database
         ├── files (array of objects)
         ├── createdAt (timestamp)
         └── updatedAt (timestamp)
-```
+├── suites/
+│   ├── {suiteId}
+│   │   ├── propertyId (string)
+│   │   ├── name (string)
+│   │   ├── floor (number)
+│   │   ├── area (number)
+│   │   ├── isOccupied (boolean)
+│   │   ├── deviceIds (array of strings - device IDs for devices in this suite)
+│   │   ├── occupants (array of objects)
+│   │   │   ├── firstName (string)
+│   │   │   ├── lastName (string)
+│   │   │   ├── email (string)
+│   │   │   └── phone (string)
+│   │   ├── taskHistory (array - references to tasks completed in this suite)
+│   │   │   ├── taskId (string)
+│   │   │   ├── date (string)
+│   │   │   ├── title (string)
+│   │   │   └── status (string)
+│   │   ├── createdAt (timestamp)
+│   │   └── updatedAt (timestamp)
+├── units/
+│   ├── {unitId}
+│   │   ├── propertyId (string - links to multifamily property)
+│   │   ├── name (string)
+│   │   ├── floor (number)
+│   │   ├── bedrooms (number)
+│   │   ├── bathrooms (number)
+│   │   ├── area (number)
+│   │   ├── isOccupied (boolean)
+│   │   ├── deviceIds (array of strings - device IDs for devices in this unit)
+│   │   ├── occupants (array of objects)
+│   │   │   ├── firstName (string)
+│   │   │   ├── lastName (string)
+│   │   │   ├── email (string)
+│   │   │   └── phone (string)
+│   │   ├── taskHistory (array - references to tasks completed in this unit)
+│   │   │   ├── taskId (string)
+│   │   │   ├── date (string)
+│   │   │   ├── title (string)
+│   │   │   └── status (string)
+│   │   ├── createdAt (timestamp)
+│   │   └── updatedAt (timestamp)
+│
+└── devices/
+    ├── {deviceId}
+    │   ├── type (string: 'HVAC'|'Plumbing'|'Electrical'|'Appliance'|'Security'|'Other')
+    │   ├── brand (string - optional)
+    │   ├── model (string - optional)
+    │   ├── serialNumber (string - optional)
+    │   ├── installationDate (string - optional)
+    │   ├── location (object - where device is located)
+    │   │   ├── propertyId (string) [REQUIRED]
+    │   │   ├── unitId (string - optional, for device in a unit)
+    │   │   └── suiteId (string - optional, for device in a suite)
+    │   ├── status (string: 'Active'|'Maintenance'|'Broken'|'Decommissioned' - optional)
+    │   ├── maintenanceHistory (array - optional)
+    │   │   ├── date (string)
+    │   │   ├── description (string)
+    │   │   └── taskId (string - optional, reference to maintenance task)
+    │   ├── notes (string - optional)
+    │   ├── createdAt (timestamp)
+    │   └── updatedAt (timestamp)
 
 ## Using the API in Components
 
@@ -110,7 +196,7 @@ function MyComponent() {
 		</ul>
 	);
 }
-```
+````
 
 ### 2. Mutate Data (Create, Update, Delete)
 
@@ -210,6 +296,22 @@ function MyComponent() {
 - `useUpdateTeamMemberMutation()` - Update member
 - `useDeleteTeamMemberMutation()` - Delete member
 
+### Suites
+
+- `useGetSuitesQuery(propertyId)` - Get all suites in a property
+- `useGetSuiteQuery(suiteId)` - Get single suite
+- `useCreateSuiteMutation()` - Create suite
+- `useUpdateSuiteMutation()` - Update suite
+- `useDeleteSuiteMutation()` - Delete suite
+
+### Units
+
+- `useGetUnitsQuery(propertyId)` - Get all units in a multifamily property
+- `useGetUnitQuery(unitId)` - Get single unit
+- `useCreateUnitMutation()` - Create unit
+- `useUpdateUnitMutation()` - Update unit
+- `useDeleteUnitMutation()` - Delete unit
+
 ## Firebase Security Rules
 
 Add these security rules to your Firestore to protect user data:
@@ -268,6 +370,39 @@ function MyComponent() {
 }
 ```
 
+## Fields NOT YET In Firebase (Stored in Redux or App State)
+
+The following fields are used in the app but haven't been migrated to Firestore yet. They're marked with `[NOT YET IN FIREBASE]` in the collection structures above:
+
+### Property Fields:
+
+- `propertyType` - Type of property (Single Family, Multi-Family, Commercial)
+- `units` - Array of unit objects for multi-family properties (name, occupants, deviceIds)
+- `hasSuites` - Boolean flag for commercial properties with multiple suites
+- `suites` - Array of suite objects for commercial properties (name, occupants, deviceIds)
+- `taskHistory` / `maintenanceHistory` - Maintenance and task history for properties
+- `administrators` - Array of user IDs with admin access
+- `viewers` - Array of user IDs with viewer access
+
+### Already in Firebase:
+
+- ✅ **Devices** - Separate `devices` collection with full CRUD endpoints
+- ✅ **Device references** - Units/Suites/Properties store `deviceIds` instead of full objects
+
+### Why Remaining Fields Aren't In Firebase Yet:
+
+1. **Units/Suites/PropertyType** - These are part of a comprehensive property structure redesign. They should be stored as Firebase collections or nested documents, not flat arrays.
+2. **taskHistory/maintenanceHistory** - Currently stored as inline arrays, but should reference the `tasks` collection instead.
+3. **Access Control Fields** - These should be managed through Firebase Security Rules rather than denormalized data.
+
+### Action Items:
+
+- [ ] Migrate `units` to separate `propertyUnits` collection with propertyId reference
+- [ ] Migrate `suites` to separate `propertySuites` collection with propertyId reference
+- [ ] Use `propertyType` to determine unit/suite relationships (keep in Property doc, but validate at write time)
+- [ ] Replace `taskHistory` with Firestore queries filtering the `tasks` collection
+- [ ] Implement Firebase Security Rules for role-based access instead of storing admin/viewer arrays
+
 ## Current Setup Status
 
 - ✅ Firebase SDK installed
@@ -276,6 +411,8 @@ function MyComponent() {
 - ✅ Store integrated with API middleware
 - ✅ All endpoints ready for Firestore
 - ✅ Type safety for all operations
+- ✅ Devices collection implemented with full CRUD
+- ⚠️ Some fields still need Firebase migration (see above)
 
 ## Next Steps
 
@@ -284,6 +421,7 @@ function MyComponent() {
 3. **Optional**: Add Firebase Authentication for user management
 4. **Start using API hooks** in your components alongside Redux
 5. **Test Firebase connection** once credentials are in place
+6. **Migrate remaining fields** listed above to Firebase as needed
 
 ## Troubleshooting
 

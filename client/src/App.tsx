@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { useDispatch } from 'react-redux';
 import { setCurrentUser, MOCK_USERS } from './Redux/Slices/userSlice';
 import { RouterComponent } from './router';
+import { FirebaseConnectionTest } from './Components/FirebaseConnectionTest';
 
 export const App = () => {
 	const dispatch = useDispatch();
@@ -30,7 +31,12 @@ export const App = () => {
 		}
 	}, [dispatch]);
 
-	return <RouterComponent />;
+	return (
+		<>
+			<FirebaseConnectionTest />
+			<RouterComponent />
+		</>
+	);
 };
 
 export default App;

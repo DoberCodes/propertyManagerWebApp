@@ -1,10 +1,11 @@
 import styled from 'styled-components';
+import { nav_height } from '../../global.styles';
 
 export const Wrapper = styled.div`
 	display: flex;
 	flex-direction: column;
-	width: 100vw;
-	height: 100vh;
+	width: 100%;
+	height: 100vh; /* Ensure full viewport height */
 
 	@media (max-width: 1024px) {
 		width: 100%;
@@ -14,6 +15,7 @@ export const Wrapper = styled.div`
 export const Main = styled.div`
 	display: flex;
 	flex: 1;
+	height: calc(100vh - ${nav_height}); /* Adjust height to account for nav */
 	overflow: hidden;
 	flex-direction: row;
 
@@ -25,7 +27,7 @@ export const Main = styled.div`
 export const Sidebar = styled.div`
 	width: 250px;
 	min-width: 250px;
-	height: 100%;
+	height: 100%; /* Ensure sidebar spans full height */
 	overflow-y: auto;
 	border-right: 1px solid #e5e7eb;
 	background-color: #fefefe;
@@ -46,6 +48,8 @@ export const Sidebar = styled.div`
 		border-bottom: 1px solid #e5e7eb;
 		overflow-x: auto;
 		flex-direction: row;
+		position: static;
+		top: auto;
 	}
 
 	@media (max-width: 480px) {
@@ -55,7 +59,7 @@ export const Sidebar = styled.div`
 
 export const Content = styled.div`
 	flex: 1;
-	height: 100%;
+	height: 100%; /* Match height with Sidebar */
 	overflow-y: auto;
 	padding: 20px;
 	background-color: #ffffff;

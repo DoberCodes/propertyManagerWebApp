@@ -15,6 +15,16 @@ import {
 	TeamGroup,
 } from '../../Redux/Slices/teamSlice';
 import {
+	useGetTeamGroupsQuery,
+	useGetTeamMembersQuery,
+	useCreateTeamGroupMutation,
+	useUpdateTeamGroupMutation,
+	useDeleteTeamGroupMutation,
+	useCreateTeamMemberMutation,
+	useUpdateTeamMemberMutation,
+	useDeleteTeamMemberMutation,
+} from '../../Redux/API/apiSlice';
+import {
 	Wrapper,
 	PageHeader,
 	PageTitle,
@@ -26,6 +36,8 @@ import {
 	TeamGroupActionButton,
 	TeamMembersGrid,
 	TeamMemberCard,
+	TeamMemberActions,
+	TeamMemberActionButton,
 	TeamMemberImage,
 	TeamMemberImagePlaceholder,
 	TeamMemberName,
@@ -66,10 +78,10 @@ import {
 } from './TeamPage.styles';
 
 const MOCK_PROPERTIES = [
-	{ id: 1, title: 'Downtown Apartments' },
-	{ id: 2, title: 'Business Park' },
-	{ id: 3, title: 'Sunset Heights' },
-	{ id: 4, title: 'Oak Street Complex' },
+	{ id: 'prop-1', title: 'Downtown Apartments' },
+	{ id: 'prop-2', title: 'Business Park' },
+	{ id: 'prop-3', title: 'Sunset Heights' },
+	{ id: 'prop-4', title: 'Oak Street Complex' },
 ];
 
 const ROLE_OPTIONS = [
@@ -95,7 +107,28 @@ interface FormData {
 export default function TeamPage() {
 	const dispatch = useDispatch<AppDispatch>();
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
-	const teamGroups = useSelector((state: RootState) => state.team.groups);
+
+	// Firebase queries - skip if no user
+	const { data: teamGroups = [], isLoading: groupsLoading } =
+		useGetTeamGroupsQuery(currentUser?.id || '', { skip: !currentUser });
+	const { data: teamMembers = [], isLoading: membersLoading } =
+		useGetTeamMembersQuery(currentUser?.id || '', { skip: !currentUser });
+
+	// Firebase mutations
+	const [createTeamGroup] = useCreateTeamGroupMutation();
+	const [updateTeamGroup] = useUpdateTeamGroupMutation();
+	const [deleteTeamGroupApi] = useDeleteTeamGroupMutation();
+	const [createTeamMember] = useCreateTeamMemberMutation();
+	const [updateTeamMemberApi] = useUpdateTeamMemberMutation();
+	const [deleteTeamMemberApi] = useDeleteTeamMemberMutation();
+
+	// Combine groups with their members
+	const groupsWithMembers = useMemo(() => {
+		return teamGroups.map((group) => ({
+			...group,
+			members: teamMembers.filter((member) => member.groupId === group.id),
+		}));
+	}, [teamGroups, teamMembers]);
 
 	// Check if user can manage team members (add/edit/delete)
 	// All authenticated users can view the team page, but only managers can edit
@@ -105,7 +138,7 @@ export default function TeamPage() {
 	const canView = !!currentUser;
 
 	const [showTeamMemberDialog, setShowTeamMemberDialog] = useState(false);
-	const [currentGroupId, setCurrentGroupId] = useState<number | null>(null);
+	const [currentGroupId, setCurrentGroupId] = useState<string | null>(null);
 	const [editingMember, setEditingMember] = useState<TeamMember | null>(null);
 	const [imagePreview, setImagePreview] = useState<string | null>(null);
 	const [formData, setFormData] = useState({
@@ -116,19 +149,19 @@ export default function TeamPage() {
 		role: 'property_manager',
 		address: '',
 		notes: '',
-		linkedProperties: [] as number[],
+		linkedProperties: [] as string[],
 	});
 	const [uploadedFiles, setUploadedFiles] = useState<
 		Array<{ name: string; id: string }>
 	>([]);
 
 	// Filter out tenants from team management - tenants belong to properties, not teams
-	const filteredTeamGroups = teamGroups.map((group) => ({
+	const filteredTeamGroups = groupsWithMembers.map((group) => ({
 		...group,
-		members: group.members.filter((member) => member.role !== 'tenant'),
+		members: (group.members || []).filter((member) => member.role !== 'tenant'),
 	}));
 
-	const handleAddTeamMember = (groupId: number) => {
+	const handleAddTeamMember = (groupId: string) => {
 		setCurrentGroupId(groupId);
 		setEditingMember(null);
 		setFormData({
@@ -180,7 +213,7 @@ export default function TeamPage() {
 		}));
 	};
 
-	const handlePropertyToggle = (propertyId: number) => {
+	const handlePropertyToggle = (propertyId: string) => {
 		setFormData((prev) => ({
 			...prev,
 			linkedProperties: prev.linkedProperties.includes(propertyId)
@@ -189,14 +222,11 @@ export default function TeamPage() {
 		}));
 	};
 
-	const handleSaveTeamMember = () => {
+	const handleSaveTeamMember = async () => {
 		if (!currentGroupId) return;
 
-		const newMember: TeamMember = {
-			id:
-				editingMember?.id ||
-				Math.max(...teamGroups.flatMap((g) => g.members.map((m) => m.id)), 0) +
-					1,
+		const memberData = {
+			groupId: currentGroupId,
 			firstName: formData.firstName,
 			lastName: formData.lastName,
 			title: `${ROLE_OPTIONS.find((r) => r.value === formData.role)?.label || ''}`,
@@ -204,7 +234,7 @@ export default function TeamPage() {
 			phone: formData.phone,
 			role: formData.role,
 			address: formData.address,
-			image: imagePreview || editingMember?.image,
+			image: imagePreview || editingMember?.image || '',
 			notes: formData.notes,
 			linkedProperties: formData.linkedProperties,
 			taskHistory: editingMember?.taskHistory || [],
@@ -212,25 +242,18 @@ export default function TeamPage() {
 		};
 
 		if (editingMember) {
-			dispatch(
-				updateTeamMember({
-					groupId: currentGroupId,
-					member: newMember,
-				}),
-			);
+			await updateTeamMemberApi({
+				id: editingMember.id,
+				updates: memberData,
+			});
 		} else {
-			dispatch(
-				addTeamMember({
-					groupId: currentGroupId,
-					member: newMember,
-				}),
-			);
+			await createTeamMember(memberData);
 		}
 
 		setShowTeamMemberDialog(false);
 	};
 
-	const handleEditTeamMember = (member: TeamMember, groupId: number) => {
+	const handleEditTeamMember = (member: TeamMember, groupId: string) => {
 		setCurrentGroupId(groupId);
 		setEditingMember(member);
 		setFormData({
@@ -248,31 +271,35 @@ export default function TeamPage() {
 		setShowTeamMemberDialog(true);
 	};
 
-	const handleDeleteTeamMember = (groupId: number, memberId: number) => {
-		dispatch(deleteTeamMember({ groupId, memberId }));
+	const handleDeleteTeamMember = async (memberId: string) => {
+		await deleteTeamMemberApi(memberId);
 	};
 
-	const handleAddTeamGroup = () => {
-		dispatch(
-			addTeamGroup({
-				id: Date.now(),
-				name: 'New Team Group',
-				linkedProperties: [],
-				members: [],
-			}),
-		);
+	const handleAddTeamGroup = async () => {
+		if (!currentUser) return;
+		await createTeamGroup({
+			userId: currentUser.id,
+			name: 'New Team Group',
+			linkedProperties: [],
+		});
 	};
 
-	const handleEditTeamGroup = (groupId: number) => {
+	const handleEditTeamGroup = (groupId: string) => {
 		dispatch(toggleTeamGroupEditName(groupId));
 	};
 
-	const handleDeleteTeamGroup = (groupId: number) => {
-		dispatch(deleteTeamGroup(groupId));
+	const handleDeleteTeamGroup = async (groupId: string) => {
+		await deleteTeamGroupApi(groupId);
 	};
 
-	const handleTeamGroupNameChange = (groupId: number, newName: string) => {
-		dispatch(updateTeamGroupName({ groupId, name: newName }));
+	const handleTeamGroupNameChange = async (
+		groupId: string,
+		newName: string,
+	) => {
+		await updateTeamGroup({
+			id: groupId,
+			updates: { name: newName },
+		});
 	};
 
 	return (
@@ -308,7 +335,7 @@ export default function TeamPage() {
 						</TeamGroupHeader>
 
 						<TeamMembersGrid>
-							{group.members.map((member) => (
+							{(group.members || []).map((member) => (
 								<TeamMemberCard
 									key={member.id}
 									onClick={() =>
@@ -318,16 +345,24 @@ export default function TeamPage() {
 										cursor: canManage ? 'pointer' : 'default',
 										opacity: canManage ? 1 : 0.7,
 									}}>
-									{member.image ? (
-										<TeamMemberImage
-											src={member.image}
-											alt={`${member.firstName} ${member.lastName}`}
-										/>
-									) : (
-										<TeamMemberImagePlaceholder>
-											{member.firstName.charAt(0)}
-											{member.lastName.charAt(0)}
-										</TeamMemberImagePlaceholder>
+									{canManage && (
+										<TeamMemberActions>
+											<TeamMemberActionButton
+												className='delete'
+												title='Delete team member'
+												onClick={(e) => {
+													e.stopPropagation();
+													if (
+														window.confirm(
+															`Are you sure you want to delete ${member.firstName} ${member.lastName}?`,
+														)
+													) {
+														handleDeleteTeamMember(member.id);
+													}
+												}}>
+												🗑
+											</TeamMemberActionButton>
+										</TeamMemberActions>
 									)}
 									<TeamMemberName>
 										{member.firstName} {member.lastName}

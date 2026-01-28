@@ -6,7 +6,6 @@ export const Wrapper = styled.div`
 	gap: 20px;
 	padding: 20px;
 	min-height: 100%;
-	overflow-y: auto;
 	background-color: #fafafa; /* match TeamPage off-white */
 
 	@media (max-width: 768px) {

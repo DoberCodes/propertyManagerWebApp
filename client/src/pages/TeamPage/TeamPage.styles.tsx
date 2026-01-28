@@ -179,6 +179,7 @@ export const TeamMembersGrid = styled.div`
 `;
 
 export const TeamMemberCard = styled.div`
+	position: relative;
 	display: flex;
 	flex-direction: column;
 	align-items: center;
@@ -205,6 +206,45 @@ export const TeamMemberCard = styled.div`
 	@media (max-width: 480px) {
 		padding: 10px;
 		gap: 6px;
+	}
+`;
+
+export const TeamMemberActions = styled.div`
+	position: absolute;
+	top: 8px;
+	right: 8px;
+	display: flex;
+	gap: 4px;
+	opacity: 0;
+	transition: opacity 0.2s ease;
+
+	${TeamMemberCard}:hover & {
+		opacity: 1;
+	}
+`;
+
+export const TeamMemberActionButton = styled.button`
+	background-color: rgba(255, 255, 255, 0.95);
+	border: 1px solid #e5e7eb;
+	border-radius: 4px;
+	width: 28px;
+	height: 28px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	cursor: pointer;
+	transition: all 0.2s ease;
+	font-size: 14px;
+
+	&:hover {
+		background-color: #f3f4f6;
+		transform: scale(1.1);
+	}
+
+	&.delete:hover {
+		background-color: #fee2e2;
+		color: #dc2626;
+		border-color: #fecaca;
 	}
 `;
 

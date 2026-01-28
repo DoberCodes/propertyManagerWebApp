@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { getUserStorageKey } from './utils/storageList';
 
 interface FavoriteProperty {
-	id: number;
+	id: string;
 	title: string;
 	slug: string;
 	timestamp: number;
@@ -44,7 +44,7 @@ export const useFavorites = (userId?: string | number) => {
 	}, [userId]);
 
 	const addFavorite = (property: {
-		id: number;
+		id: string;
 		title: string;
 		slug: string;
 	}) => {
@@ -68,7 +68,7 @@ export const useFavorites = (userId?: string | number) => {
 		});
 	};
 
-	const removeFavorite = (propertyId: number) => {
+	const removeFavorite = (propertyId: string) => {
 		setFavorites((prev) => {
 			const updated = prev.filter((p) => p.id !== propertyId);
 			const storageKey = userId
@@ -81,7 +81,7 @@ export const useFavorites = (userId?: string | number) => {
 	};
 
 	const toggleFavorite = (property: {
-		id: number;
+		id: string;
 		title: string;
 		slug: string;
 	}) => {
@@ -92,7 +92,7 @@ export const useFavorites = (userId?: string | number) => {
 		}
 	};
 
-	const isFavorite = (propertyId: number): boolean => {
+	const isFavorite = (propertyId: string): boolean => {
 		return favorites.some((p) => p.id === propertyId);
 	};
 

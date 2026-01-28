@@ -3,6 +3,11 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState, AppDispatch } from '../../Redux/Store/store';
 import {
+	useGetTasksQuery,
+	useGetTeamMembersQuery,
+	useUpdateTaskMutation,
+} from '../../Redux/API/apiSlice';
+import {
 	addTask,
 	updateTask,
 	deleteTask,
@@ -78,7 +83,7 @@ import {
 // Mock properties data - in a real app, this would come from props or API
 const PROPERTIES_DATA = [
 	{
-		id: 1,
+		id: 'prop-1',
 		title: 'Downtown Apartments',
 		slug: 'downtown-apartments',
 		image: 'https://via.placeholder.com/600x300?text=Downtown+Apartments',
@@ -143,7 +148,7 @@ const PROPERTIES_DATA = [
 		],
 	},
 	{
-		id: 2,
+		id: 'prop-2',
 		title: 'Business Park',
 		slug: 'business-park',
 		image: 'https://via.placeholder.com/600x300?text=Business+Park',
@@ -178,7 +183,7 @@ const PROPERTIES_DATA = [
 		tenants: [] as any[],
 	},
 	{
-		id: 3,
+		id: 'prop-3',
 		title: 'Sunset Heights',
 		slug: 'sunset-heights',
 		image: 'https://via.placeholder.com/600x300?text=Sunset+Heights',
@@ -208,7 +213,7 @@ const PROPERTIES_DATA = [
 		tenants: [] as any[],
 	},
 	{
-		id: 4,
+		id: 'prop-4',
 		title: 'Oak Street Complex',
 		slug: 'oak-street-complex',
 		image: 'https://via.placeholder.com/600x300?text=Oak+Street',
@@ -260,12 +265,32 @@ export const PropertyDetailPage = () => {
 	const dispatch = useDispatch<AppDispatch>();
 	const { isFavorite, toggleFavorite } = useFavorites();
 
-	// Get tasks from Redux
+	// Get current user
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
-	const allTasks = useSelector((state: RootState) => state.propertyData.tasks);
-	const teamMembers = useSelector((state: RootState) =>
+
+	// Fetch team members from Firebase
+	const { data: firebaseTeamMembers = [] } = useGetTeamMembersQuery(
+		currentUser?.id || '',
+		{ skip: !currentUser },
+	);
+
+	// For backwards compatibility, also get from Redux
+	const reduxTeamMembers = useSelector((state: RootState) =>
 		state.team.groups.flatMap((group) => group.members),
 	);
+
+	// Use Firebase team members if available, otherwise fallback to Redux
+	const teamMembers =
+		firebaseTeamMembers.length > 0 ? firebaseTeamMembers : reduxTeamMembers;
+
+	// Fetch tasks from Firebase
+	const { data: allTasks = [], isLoading: tasksLoading } = useGetTasksQuery(
+		currentUser?.id || '',
+		{ skip: !currentUser },
+	);
+
+	// Firebase mutation for updating tasks
+	const [updateTaskMutation] = useUpdateTaskMutation();
 
 	const [activeTab, setActiveTab] = useState<
 		| 'details'
@@ -280,14 +305,14 @@ export const PropertyDetailPage = () => {
 	const [editedTitle, setEditedTitle] = useState('');
 	const [isEditMode, setIsEditMode] = useState(false);
 	const [editedProperty, setEditedProperty] = useState<any>({});
-	const [selectedTasks, setSelectedTasks] = useState<number[]>([]);
+	const [selectedTasks, setSelectedTasks] = useState<string[]>([]);
 	const [showTaskDialog, setShowTaskDialog] = useState(false);
-	const [editingTaskId, setEditingTaskId] = useState<number | null>(null);
+	const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
 	const [showTaskAssignDialog, setShowTaskAssignDialog] = useState(false);
-	const [assigningTaskId, setAssigningTaskId] = useState<number | null>(null);
+	const [assigningTaskId, setAssigningTaskId] = useState<string | null>(null);
 	const [selectedAssignee, setSelectedAssignee] = useState<string>('');
 	const [showTaskCompletionModal, setShowTaskCompletionModal] = useState(false);
-	const [completingTaskId, setCompletingTaskId] = useState<number | null>(null);
+	const [completingTaskId, setCompletingTaskId] = useState<string | null>(null);
 	const [taskFormData, setTaskFormData] = useState({
 		title: '',
 		dueDate: '',
@@ -338,7 +363,11 @@ export const PropertyDetailPage = () => {
 	// Filter tasks for this property
 	const propertyTasks = useMemo(() => {
 		if (!property) return [];
-		return allTasks.filter((task) => task.property === property.title);
+		// Match by property ID if it exists, otherwise try matching by title
+		return allTasks.filter(
+			(task) =>
+				task.propertyId === property.id || task.property === property.title,
+		);
 	}, [property, allTasks]);
 
 	// Helper functions
@@ -354,7 +383,7 @@ export const PropertyDetailPage = () => {
 		// You could update the property here via an API call
 	};
 
-	const handleTaskCheckbox = (taskId: number) => {
+	const handleTaskCheckbox = (taskId: string) => {
 		setSelectedTasks((prev) =>
 			prev.includes(taskId)
 				? prev.filter((id) => id !== taskId)
@@ -406,21 +435,20 @@ export const PropertyDetailPage = () => {
 		}
 	};
 
-	const handleConfirmAssignment = () => {
+	const handleConfirmAssignment = async () => {
 		if (assigningTaskId && selectedAssignee) {
-			const taskToUpdate = propertyTasks.find((t) => t.id === assigningTaskId);
-			if (taskToUpdate) {
-				dispatch(
-					updateTask({
-						...taskToUpdate,
-						assignee: selectedAssignee,
-					}),
-				);
+			try {
+				await updateTaskMutation({
+					id: assigningTaskId,
+					updates: { assignedTo: selectedAssignee },
+				}).unwrap();
+				setShowTaskAssignDialog(false);
+				setAssigningTaskId(null);
+				setSelectedAssignee('');
+				setSelectedTasks([]);
+			} catch (error) {
+				console.error('Error assigning task:', error);
 			}
-			setShowTaskAssignDialog(false);
-			setAssigningTaskId(null);
-			setSelectedAssignee('');
-			setSelectedTasks([]);
 		}
 	};
 
@@ -487,7 +515,7 @@ export const PropertyDetailPage = () => {
 		);
 
 		const newRequest = {
-			id: Math.max(...allMaintenanceRequests.map((r) => r.id), 0) + 1,
+			id: `req-${Date.now()}`,
 			title: request.title,
 			description: request.description,
 			priority: request.priority,
@@ -510,7 +538,7 @@ export const PropertyDetailPage = () => {
 		alert('Maintenance request submitted successfully!');
 	};
 
-	const handleConvertRequestToTask = (requestId: number) => {
+	const handleConvertRequestToTask = (requestId: string) => {
 		const request = allMaintenanceRequests.find((r) => r.id === requestId);
 		if (!request) return;
 
@@ -524,11 +552,12 @@ export const PropertyDetailPage = () => {
 
 		// Create a new task from the request with custom data
 		const newTask = {
-			id: Math.max(...allTasks.map((t) => t.id), 0) + 1,
+			id: `task-${Date.now()}`,
 			title: taskData.title,
 			dueDate: taskData.dueDate,
 			status: taskData.status,
 			property: property.title,
+			propertyId: property.id,
 			unit: convertingRequest.unit,
 			suite: (convertingRequest as any).suite,
 			notes: taskData.notes,
@@ -566,11 +595,12 @@ export const PropertyDetailPage = () => {
 		} else {
 			// Add new task
 			const newTask = {
-				id: Math.max(...allTasks.map((t) => t.id), 0) + 1,
+				id: `task-${Date.now()}`,
 				title: taskFormData.title,
 				dueDate: taskFormData.dueDate,
 				status: taskFormData.status,
 				property: property.title,
+				propertyId: property.id,
 			};
 			dispatch(addTask(newTask));
 		}
@@ -1062,7 +1092,7 @@ export const PropertyDetailPage = () => {
 												/>
 											</th>
 											<th>Task Name</th>
-											<th>Assignee</th>
+											<th>Assigned To</th>
 											<th>Due Date</th>
 											<th>Status</th>
 											<th>Notes</th>
@@ -1086,7 +1116,14 @@ export const PropertyDetailPage = () => {
 												<td>
 													<strong>{task.title}</strong>
 												</td>
-												<td>{task.assignee || 'Unassigned'}</td>
+												<td>
+													{task.assignedTo
+														? teamMembers
+																.filter((m) => m.id === task.assignedTo)
+																.map((m) => `${m.firstName} ${m.lastName}`)
+																.join('')
+														: 'Unassigned'}
+												</td>
 												<td>{task.dueDate}</td>
 												<td>
 													<TaskStatus status={task.status}>
@@ -1620,9 +1657,7 @@ export const PropertyDetailPage = () => {
 									onChange={(e) => setSelectedAssignee(e.target.value)}>
 									<option value=''>Select a team member...</option>
 									{teamMembers.map((member) => (
-										<option
-											key={member.id}
-											value={`${member.firstName} ${member.lastName}`}>
+										<option key={member.id} value={member.id}>
 											{member.firstName} {member.lastName} ({member.title})
 										</option>
 									))}

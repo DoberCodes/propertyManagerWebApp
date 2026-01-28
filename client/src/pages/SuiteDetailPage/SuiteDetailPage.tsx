@@ -9,15 +9,14 @@ const Wrapper = styled.div`
 	display: flex;
 	flex-direction: column;
 	gap: 0;
-	height: 100%;
-	overflow-y: auto;
+	min-height: 100%;
 	background-color: #fafafa;
 `;
 
 const Header = styled.div`
 	position: relative;
 	background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
-	padding: 30px 20px;
+	padding: 22px 18px;
 	color: white;
 	flex-shrink: 0;
 `;
@@ -27,7 +26,7 @@ const HeaderContent = styled.div`
 	margin: 0 auto;
 	display: flex;
 	flex-direction: column;
-	gap: 12px;
+	gap: 10px;
 `;
 
 const HeaderTopRow = styled.div`
@@ -35,18 +34,6 @@ const HeaderTopRow = styled.div`
 	align-items: center;
 	gap: 10px;
 	flex-wrap: wrap;
-`;
-
-const SlugBadge = styled.span`
-	background: #ecfdf3;
-	color: #16a34a;
-	border: 1px solid #bbf7d0;
-	padding: 6px 10px;
-	border-radius: 999px;
-	font-size: 12px;
-	font-weight: 700;
-	letter-spacing: 0.5px;
-	text-transform: uppercase;
 `;
 
 const BackLink = styled.button`
@@ -68,12 +55,12 @@ const BackLink = styled.button`
 
 const SuiteTitle = styled.h1`
 	margin: 0;
-	font-size: 28px;
+	font-size: 26px;
 	font-weight: 600;
 	color: white;
 
 	@media (max-width: 768px) {
-		font-size: 22px;
+		font-size: 21px;
 	}
 `;
 
@@ -85,7 +72,7 @@ const PropertyName = styled.p`
 
 const ContentContainer = styled.div`
 	flex: 1;
-	padding: 20px;
+	padding: 16px;
 	max-width: 1200px;
 	width: 100%;
 	margin: 0 auto;
@@ -141,33 +128,33 @@ const TabButton = styled.button<TabButtonProps>`
 const TabContent = styled.div`
 	background-color: white;
 	border-radius: 0 0 8px 8px;
-	padding: 20px;
+	padding: 16px;
 	margin-top: -2px;
 `;
 
 const SectionContainer = styled.div`
-	padding: 16px 0;
+	padding: 12px 0;
 `;
 
 const SectionHeader = styled.h2`
-	font-size: 18px;
+	font-size: 17px;
 	font-weight: 600;
 	color: #1f2937;
-	margin: 0 0 16px 0;
+	margin: 0 0 12px 0;
 `;
 
 const InfoGrid = styled.div`
 	display: grid;
-	grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-	gap: 16px;
-	margin-bottom: 20px;
+	grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+	gap: 12px;
+	margin-bottom: 16px;
 `;
 
 const InfoCard = styled.div`
 	background: #f9fafb;
 	border: 1px solid #e5e7eb;
 	border-radius: 8px;
-	padding: 16px;
+	padding: 12px;
 `;
 
 const InfoLabel = styled.label`
@@ -235,7 +222,7 @@ export const SuiteDetailPage: React.FC = () => {
 	const navigate = useNavigate();
 	const { slug, suiteName } = useParams<{ slug: string; suiteName: string }>();
 	const [activeTab, setActiveTab] = React.useState<
-		'info' | 'tenants' | 'devices' | 'tasks' | 'history' | 'requests'
+		'info' | 'occupants' | 'devices' | 'tasks' | 'history' | 'requests'
 	>('info');
 
 	const propertyGroups = useSelector(
@@ -265,13 +252,13 @@ export const SuiteDetailPage: React.FC = () => {
 	const suiteTasks = useMemo(() => {
 		if (!property || !suite) return [];
 		return tasks.filter(
-			(task) => task.property === property.title && task.suite === suite.name,
+			(task) => task.property === property.title && task.suiteId === suite.id,
 		);
 	}, [property, suite, tasks]);
 
 	const suiteMaintenanceHistory = useMemo(() => {
 		if (!property || !suite) return [];
-		return (property.maintenanceHistory || []).filter(
+		return (property.taskHistory || []).filter(
 			(record: any) => record.suite === suite.name,
 		);
 	}, [property, suite]);
@@ -279,14 +266,15 @@ export const SuiteDetailPage: React.FC = () => {
 	const suiteRequests = useMemo(() => {
 		if (!property || !suite) return [];
 		return maintenanceRequests.filter(
-			(req) => req.propertyId === property.id && req.suite === suite.name,
+			(req) =>
+				req.propertyId === (property.id as any) && req.suite === suite.name,
 		);
 	}, [maintenanceRequests, property, suite]);
 
-	const getDeviceName = (deviceId?: number) => {
+	const getDeviceName = (deviceId?: string) => {
 		if (!property || !deviceId) return '-';
-		const device = property.devices?.find((d: any) => d.id === deviceId);
-		return device ? `${device.type} - ${device.brand}` : '-';
+		const device = property.deviceIds?.find((d: any) => d === deviceId);
+		return device ? `Device ${device}` : '-';
 	};
 
 	if (!property || !suite) {
@@ -312,9 +300,6 @@ export const SuiteDetailPage: React.FC = () => {
 						]}
 					/>
 					<HeaderTopRow>
-						<SlugBadge>
-							{property.slug} / {suite.name.replace(/\s+/g, '-').toLowerCase()}
-						</SlugBadge>
 						<BackLink onClick={() => navigate(`/property/${property.slug}`)}>
 							← Back to Property
 						</BackLink>
@@ -333,19 +318,19 @@ export const SuiteDetailPage: React.FC = () => {
 							Suite Info
 						</TabButton>
 						<TabButton
-							isActive={activeTab === 'tenants'}
-							onClick={() => setActiveTab('tenants')}>
-							Tenants{' '}
-							{(suite.tenants || []).length
-								? `(${(suite.tenants || []).length})`
+							isActive={activeTab === 'occupants'}
+							onClick={() => setActiveTab('occupants')}>
+							Occupants{' '}
+							{(suite.occupants || []).length
+								? `(${(suite.occupants || []).length})`
 								: ''}
 						</TabButton>
 						<TabButton
 							isActive={activeTab === 'devices'}
 							onClick={() => setActiveTab('devices')}>
 							Devices{' '}
-							{(suite.devices || []).length
-								? `(${(suite.devices || []).length})`
+							{(suite.deviceIds || []).length
+								? `(${(suite.deviceIds || []).length})`
 								: ''}
 						</TabButton>
 						<TabButton
@@ -394,11 +379,11 @@ export const SuiteDetailPage: React.FC = () => {
 					</TabContent>
 				)}
 
-				{activeTab === 'tenants' && (
+				{activeTab === 'occupants' && (
 					<TabContent>
 						<SectionContainer>
-							<SectionHeader>Suite Tenants</SectionHeader>
-							{suite.tenants && suite.tenants.length > 0 ? (
+							<SectionHeader>Suite Occupants</SectionHeader>
+							{suite.occupants && suite.occupants.length > 0 ? (
 								<GridContainer>
 									<GridTable>
 										<thead>
@@ -411,15 +396,15 @@ export const SuiteDetailPage: React.FC = () => {
 											</tr>
 										</thead>
 										<tbody>
-											{suite.tenants.map((tenant: any) => (
-												<tr key={tenant.id}>
+											{suite.occupants.map((occupant: any) => (
+												<tr key={occupant.id}>
 													<td>
-														{tenant.firstName} {tenant.lastName}
+														{occupant.firstName} {occupant.lastName}
 													</td>
-													<td>{tenant.email}</td>
-													<td>{tenant.phone}</td>
-													<td>{tenant.leaseStart || 'N/A'}</td>
-													<td>{tenant.leaseEnd || 'N/A'}</td>
+													<td>{occupant.email}</td>
+													<td>{occupant.phone}</td>
+													<td>{occupant.leaseStart || 'N/A'}</td>
+													<td>{occupant.leaseEnd || 'N/A'}</td>
 												</tr>
 											))}
 										</tbody>
@@ -438,24 +423,18 @@ export const SuiteDetailPage: React.FC = () => {
 					<TabContent>
 						<SectionContainer>
 							<SectionHeader>Suite Devices</SectionHeader>
-							{suite.devices && suite.devices.length > 0 ? (
+							{suite.deviceIds && suite.deviceIds.length > 0 ? (
 								<GridContainer>
 									<GridTable>
 										<thead>
 											<tr>
-												<th>Type</th>
-												<th>Brand</th>
-												<th>Model</th>
-												<th>Installation Date</th>
+												<th>Device ID</th>
 											</tr>
 										</thead>
 										<tbody>
-											{suite.devices.map((device: any) => (
-												<tr key={device.id}>
-													<td>{device.type}</td>
-													<td>{device.brand}</td>
-													<td>{device.model}</td>
-													<td>{device.installationDate || 'N/A'}</td>
+											{suite.deviceIds.map((deviceId: string) => (
+												<tr key={deviceId}>
+													<td>{deviceId}</td>
 												</tr>
 											))}
 										</tbody>
@@ -492,7 +471,7 @@ export const SuiteDetailPage: React.FC = () => {
 													<td>
 														<strong>{task.title}</strong>
 													</td>
-													<td>{task.assignee || 'Unassigned'}</td>
+													<td>{task.completedBy || 'Unassigned'}</td>
 													<td>{task.dueDate}</td>
 													<td>{task.status}</td>
 													<td>{task.notes || '-'}</td>

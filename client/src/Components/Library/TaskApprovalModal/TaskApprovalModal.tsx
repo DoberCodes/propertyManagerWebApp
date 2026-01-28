@@ -33,7 +33,7 @@ import {
 } from './TaskApprovalModal.styles';
 
 interface TaskApprovalModalProps {
-	taskId: number;
+	taskId: string;
 	taskTitle: string;
 	taskProperty: string;
 	completionDate: string;

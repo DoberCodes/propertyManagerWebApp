@@ -1,40 +1,35 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
-export interface Tenant {
-	id: number;
+export interface Occupant {
 	firstName: string;
 	lastName: string;
 	email: string;
 	phone: string;
-	unit?: string;
-	leaseStart?: string;
-	leaseEnd?: string;
 }
 
 export interface Unit {
 	name: string;
-	tenants?: Tenant[];
-	devices?: any[];
+	occupants?: Occupant[];
+	deviceIds?: string[]; // Firebase device IDs
 	notes?: string;
 }
 
 export interface Suite {
 	name: string;
-	tenants?: Tenant[];
-	devices?: any[];
+	occupants?: Occupant[];
+	deviceIds?: string[]; // Firebase device IDs
 	notes?: string;
 }
 
 interface MaintenanceRecord {
 	date: string;
 	description: string;
-	deviceId?: number;
-	unit?: string;
-	suite?: string;
+	taskId?: string;
 }
 
 export interface Property {
-	id: number;
+	id: string; // Changed to string (Firebase)
+	groupId?: string; // Added (Firebase)
 	title: string;
 	slug: string;
 	image?: string;
@@ -43,23 +38,28 @@ export interface Property {
 	viewers?: string[];
 	address?: string;
 	propertyType?: 'Single Family' | 'Multi-Family' | 'Commercial';
-	units?: Unit[]; // For multi-family properties - now an array of Unit objects
-	hasSuites?: boolean; // For commercial properties - indicates if building has multiple suites
+	units?: Unit[]; // For multi-family properties
+	hasSuites?: boolean; // For commercial properties
 	suites?: Suite[]; // For commercial properties with multiple suites
 	bedrooms?: number;
 	bathrooms?: number;
-	devices?: any[];
+	deviceIds?: string[]; // Changed to IDs instead of objects
 	notes?: string;
 	maintenanceHistory?: MaintenanceRecord[];
+	taskHistory?: MaintenanceRecord[]; // Added (Firebase alias)
 	isFavorite?: boolean;
-	tenants?: Tenant[]; // For Single Family and Commercial properties (single suite/single business)
+	createdAt?: string; // Added (Firebase)
+	updatedAt?: string; // Added (Firebase)
 }
 
 export interface PropertyGroup {
-	id: number;
+	id: string; // Changed to string (Firebase)
+	userId?: string; // Added (Firebase)
 	name: string;
 	isEditingName?: boolean;
 	properties: Property[];
+	createdAt?: string; // Added (Firebase)
+	updatedAt?: string; // Added (Firebase)
 }
 
 export interface CompletionFile {
@@ -71,7 +71,11 @@ export interface CompletionFile {
 }
 
 export interface Task {
-	id: number;
+	id: string; // Changed to string (Firebase)
+	propertyId: string; // Added (Firebase)
+	suiteId?: string; // Changed from suite string
+	unitId?: string; // Changed from unit string
+	devices?: string[]; // Changed to device IDs
 	title: string;
 	dueDate: string;
 	status:
@@ -81,16 +85,16 @@ export interface Task {
 		| 'Completed'
 		| 'Rejected';
 	property: string;
-	unit?: string;
-	suite?: string;
 	notes?: string;
-	assignee?: string; // User ID or name of assigned team member
+	assignee?: string; // Optional assignee user ID
 	completionDate?: string;
 	completionFile?: CompletionFile;
 	completedBy?: string; // User ID who completed the task
 	approvedBy?: string; // Admin/Lead ID who approved
 	approvedAt?: string;
 	rejectionReason?: string;
+	createdAt?: string; // Added (Firebase)
+	updatedAt?: string; // Added (Firebase)
 }
 
 export interface PropertyDataState {
@@ -101,11 +105,11 @@ export interface PropertyDataState {
 const initialState: PropertyDataState = {
 	groups: [
 		{
-			id: 1,
+			id: 'group-1',
 			name: 'Downtown Properties',
 			properties: [
 				{
-					id: 1,
+					id: 'prop-1',
 					title: 'Downtown Apartments',
 					slug: 'downtown-apartments',
 					image: 'https://via.placeholder.com/300x200?text=Downtown+Apartments',
@@ -116,39 +120,31 @@ const initialState: PropertyDataState = {
 					units: [
 						{
 							name: 'Apt 5B',
-							tenants: [
+							occupants: [
 								{
-									id: 7,
 									firstName: 'Emily',
 									lastName: 'Brown',
 									email: 'emily@test.com',
 									phone: '(555) 678-9012',
-									unit: 'Apt 5B',
-									leaseStart: '2025-06-01',
-									leaseEnd: '2026-05-31',
 								},
 							],
 						},
-						{ name: 'Apt 3A', tenants: [] },
-						{ name: 'Apt 4C', tenants: [] },
+						{ name: 'Apt 3A', occupants: [] },
+						{ name: 'Apt 4C', occupants: [] },
 					],
 					maintenanceHistory: [
 						{
 							date: '2026-01-15',
 							description: 'HVAC filter replacement',
-							deviceId: 1,
-							unit: 'Apt 5B',
 						},
 						{
 							date: '2025-12-20',
 							description: 'Plumbing inspection',
-							deviceId: 2,
-							unit: 'Apt 3A',
 						},
 					],
 				},
 				{
-					id: 2,
+					id: 'prop-2',
 					title: 'Business Park',
 					slug: 'business-park',
 					image: 'https://via.placeholder.com/300x200?text=Business+Park',
@@ -158,27 +154,26 @@ const initialState: PropertyDataState = {
 					address: '456 Commerce Avenue, Business District',
 					hasSuites: true,
 					suites: [
-						{ name: 'Suite 100', tenants: [] },
-						{ name: 'Suite 200', tenants: [] },
-						{ name: 'Suite 300', tenants: [] },
+						{ name: 'Suite 100', occupants: [] },
+						{ name: 'Suite 200', occupants: [] },
+						{ name: 'Suite 300', occupants: [] },
 					],
 					maintenanceHistory: [
 						{
 							date: '2026-01-10',
 							description: 'Roof maintenance',
-							deviceId: 3,
 						},
-						{ date: '2025-11-05', description: 'HVAC service', deviceId: 3 },
+						{ date: '2025-11-05', description: 'HVAC service' },
 					],
 				},
 			],
 		},
 		{
-			id: 2,
+			id: 'group-2',
 			name: 'Residential Homes',
 			properties: [
 				{
-					id: 3,
+					id: 'prop-3',
 					title: 'Sunset Heights',
 					slug: 'sunset-heights',
 					image: 'https://via.placeholder.com/300x200?text=Sunset+Heights',
@@ -193,7 +188,7 @@ const initialState: PropertyDataState = {
 					],
 				},
 				{
-					id: 4,
+					id: 'prop-4',
 					title: 'Oak Street Complex',
 					slug: 'oak-street-complex',
 					image: 'https://via.placeholder.com/300x200?text=Oak+Street',
@@ -202,50 +197,26 @@ const initialState: PropertyDataState = {
 					owner: 'Property Group LLC',
 					address: '321 Oak Street, Mixed Use Zone',
 					units: [
-						{ name: 'Unit A', tenants: [] },
-						{ name: 'Unit B', tenants: [] },
-						{ name: 'Unit C', tenants: [] },
-						{ name: 'Unit D', tenants: [] },
+						{ name: 'Unit A', occupants: [] },
+						{ name: 'Unit B', occupants: [] },
+						{ name: 'Unit C', occupants: [] },
+						{ name: 'Unit D', occupants: [] },
 					],
 					maintenanceHistory: [
 						{
 							date: '2026-01-08',
 							description: 'Foundation inspection',
-							unit: 'Unit A',
 						},
 						{
 							date: '2025-12-01',
 							description: 'Electrical system upgrade',
-							unit: 'Unit B',
 						},
 					],
 				},
 			],
 		},
 	],
-	tasks: [
-		{
-			id: 1,
-			title: 'Replace air filters',
-			dueDate: '2026-02-01',
-			status: 'In Progress',
-			property: 'Downtown Apartments',
-		},
-		{
-			id: 2,
-			title: 'Quarterly maintenance inspection',
-			dueDate: '2026-02-15',
-			status: 'Pending',
-			property: 'Downtown Apartments',
-		},
-		{
-			id: 3,
-			title: 'Parking lot sweeping',
-			dueDate: '2026-01-28',
-			status: 'Completed',
-			property: 'Business Park',
-		},
-	],
+	tasks: [],
 };
 
 export const propertyDataSlice = createSlice({
@@ -256,12 +227,12 @@ export const propertyDataSlice = createSlice({
 		addGroup: (state, action: PayloadAction<PropertyGroup>) => {
 			state.groups.push(action.payload);
 		},
-		deleteGroup: (state, action: PayloadAction<number>) => {
+		deleteGroup: (state, action: PayloadAction<string>) => {
 			state.groups = state.groups.filter((g) => g.id !== action.payload);
 		},
 		updateGroupName: (
 			state,
-			action: PayloadAction<{ groupId: number; name: string }>,
+			action: PayloadAction<{ groupId: string; name: string }>,
 		) => {
 			const group = state.groups.find((g) => g.id === action.payload.groupId);
 			if (group) {
@@ -269,7 +240,7 @@ export const propertyDataSlice = createSlice({
 				group.isEditingName = false;
 			}
 		},
-		toggleGroupEditName: (state, action: PayloadAction<number>) => {
+		toggleGroupEditName: (state, action: PayloadAction<string>) => {
 			const group = state.groups.find((g) => g.id === action.payload);
 			if (group) {
 				group.isEditingName = !group.isEditingName;
@@ -279,7 +250,7 @@ export const propertyDataSlice = createSlice({
 		// Property actions
 		addPropertyToGroup: (
 			state,
-			action: PayloadAction<{ groupId: number; property: Property }>,
+			action: PayloadAction<{ groupId: string; property: Property }>,
 		) => {
 			const group = state.groups.find((g) => g.id === action.payload.groupId);
 			if (group) {
@@ -288,7 +259,7 @@ export const propertyDataSlice = createSlice({
 		},
 		updateProperty: (
 			state,
-			action: PayloadAction<{ groupId: number; property: Property }>,
+			action: PayloadAction<{ groupId: string; property: Property }>,
 		) => {
 			const group = state.groups.find((g) => g.id === action.payload.groupId);
 			if (group) {
@@ -302,7 +273,7 @@ export const propertyDataSlice = createSlice({
 		},
 		deleteProperty: (
 			state,
-			action: PayloadAction<{ groupId: number; propertyId: number }>,
+			action: PayloadAction<{ groupId: string; propertyId: string }>,
 		) => {
 			const group = state.groups.find((g) => g.id === action.payload.groupId);
 			if (group) {
@@ -324,10 +295,10 @@ export const propertyDataSlice = createSlice({
 				state.tasks[taskIndex] = action.payload;
 			}
 		},
-		deleteTask: (state, action: PayloadAction<number>) => {
+		deleteTask: (state, action: PayloadAction<string>) => {
 			state.tasks = state.tasks.filter((t) => t.id !== action.payload);
 		},
-		deleteTasks: (state, action: PayloadAction<number[]>) => {
+		deleteTasks: (state, action: PayloadAction<string[]>) => {
 			state.tasks = state.tasks.filter((t) => !action.payload.includes(t.id));
 		},
 
@@ -335,7 +306,7 @@ export const propertyDataSlice = createSlice({
 		submitTaskCompletion: (
 			state,
 			action: PayloadAction<{
-				taskId: number;
+				taskId: string;
 				completionDate: string;
 				completionFile: CompletionFile;
 				completedBy: string;
@@ -353,7 +324,7 @@ export const propertyDataSlice = createSlice({
 		approveTaskCompletion: (
 			state,
 			action: PayloadAction<{
-				taskId: number;
+				taskId: string;
 				approvedBy: string;
 				approvedAt: string;
 			}>,
@@ -368,7 +339,7 @@ export const propertyDataSlice = createSlice({
 		rejectTaskCompletion: (
 			state,
 			action: PayloadAction<{
-				taskId: number;
+				taskId: string;
 				rejectionReason: string;
 			}>,
 		) => {

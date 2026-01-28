@@ -1,8 +1,5 @@
-import {
-	Property,
-	PropertyGroup,
-	Task,
-} from '../Redux/Slices/propertyDataSlice';
+import { Property, PropertyGroup } from '../Redux/Slices/propertyDataSlice';
+import { Task } from '../Redux/API/apiSlice';
 import { TeamMember, TeamGroup } from '../Redux/Slices/teamSlice';
 import { User } from '../Redux/Slices/userSlice';
 import { hasFullAccess, hasLimitedAccess } from './permissions';

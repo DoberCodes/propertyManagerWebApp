@@ -5,8 +5,7 @@ export const Wrapper = styled.div`
 	flex-direction: column;
 	gap: 20px;
 	padding: 20px;
-	height: 100%;
-	overflow-y: auto;
+	min-height: 100%;
 
 	@media (max-width: 768px) {
 		padding: 15px;
@@ -142,7 +141,6 @@ export const DropdownItem = styled.button`
 
 export const TableWrapper = styled.div`
 	overflow-x: auto;
-	overflow-y: auto;
 	border: 1px solid #e0e0e0;
 	border-radius: 4px;
 	flex: 1;
@@ -209,7 +207,8 @@ export const BottomSectionsWrapper = styled.div`
 	grid-template-columns: repeat(3, 1fr);
 	gap: 20px;
 	flex-shrink: 0;
-	height: 250px;
+	height: auto;
+	min-height: 180px;
 
 	@media (max-width: 1024px) {
 		grid-template-columns: repeat(2, 1fr);
@@ -237,7 +236,7 @@ export const Section = styled.div`
 	padding: 20px;
 	display: flex;
 	flex-direction: column;
-	overflow-y: auto;
+	overflow: visible;
 
 	@media (max-width: 768px) {
 		padding: 15px;
