@@ -15,9 +15,14 @@ export const ProtectedRoutes = ({
 	requiredRoles = [],
 }: ProtectedRoutesProps) => {
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
-	const isLoading = false;
+	const isLoading = useSelector((state: RootState) => state.user.authLoading);
 
-	// Check authentication
+	// Show loading state while auth is being initialized
+	if (isLoading) {
+		return <LoadingState />;
+	}
+
+	// Check authentication after loading completes
 	if (!currentUser) {
 		return <Navigate to='/login' />;
 	}
@@ -25,10 +30,6 @@ export const ProtectedRoutes = ({
 	// Check role authorization if required roles specified
 	if (requiredRoles.length > 0 && !requiredRoles.includes(currentUser.role)) {
 		return <Navigate to='/unauthorized' />;
-	}
-
-	if (isLoading) {
-		return <LoadingState />;
 	}
 
 	// Authenticated and authorized: render children

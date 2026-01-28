@@ -15,6 +15,7 @@ export interface User {
 export interface UserState {
 	currentUser: User | null;
 	isAuthenticated: boolean;
+	authLoading: boolean; // Track if auth state is being initialized
 	// Legacy fields for backward compatibility
 	cred: {
 		UserId: string;
@@ -110,6 +111,7 @@ export const authenticateMockUser = (
 const initialState: UserState = {
 	currentUser: null, // No user logged in by default
 	isAuthenticated: false,
+	authLoading: true, // Start with true to prevent premature redirects
 	cred: {
 		UserId: '',
 		UserName: '',
@@ -142,6 +144,9 @@ export const userSlice = createSlice({
 				state.cred = { UserId: '', UserName: '' };
 				state.Profile = { HouseHoldName: '', email: '' };
 			}
+		},
+		setAuthLoading: (state, action: PayloadAction<boolean>) => {
+			state.authLoading = action.payload;
 		},
 		switchMockUser: (state, action: PayloadAction<string>) => {
 			const user = MOCK_USERS.find((u) => u.id === action.payload);
@@ -183,6 +188,7 @@ export const userSlice = createSlice({
 
 export const {
 	setCurrentUser,
+	setAuthLoading,
 	switchMockUser,
 	logout,
 	updateUserProfile,

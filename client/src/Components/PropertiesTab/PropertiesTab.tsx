@@ -97,28 +97,50 @@ export const Properties = () => {
 	const [selectedPropertyForEdit, setSelectedPropertyForEdit] = useState<
 		any | null
 	>(null);
+	const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
+	const [editingGroupName, setEditingGroupName] = useState<string>('');
 
 	const handleAddGroup = async () => {
-		await createPropertyGroup({
-			userId: currentUser?.id || '',
-			name: 'New Group',
-			properties: [],
-		});
-	};
+		if (!currentUser) {
+			console.error('No user logged in');
+			return;
+		}
 
-	const handleGroupNameChange = async (groupId: string, newName: string) => {
-		const group = groups.find((g) => g.id === groupId);
-		if (group) {
-			await updatePropertyGroup({
-				id: groupId,
-				updates: { name: newName },
+		try {
+			console.log('Creating new property group for user:', currentUser.id);
+			const result = await createPropertyGroup({
+				userId: currentUser.id,
+				name: 'New Group',
+				properties: [],
 			});
+			console.log('Property group created:', result);
+		} catch (error) {
+			console.error('Failed to create property group:', error);
 		}
 	};
 
-	const handleToggleEditName = () => {
-		// This is handled by local state in the group editing
-		// No need for Redux action anymore
+	const handleToggleEditName = (groupId: string) => {
+		if (editingGroupId === groupId) {
+			// Save the name change
+			if (
+				editingGroupName.trim() &&
+				editingGroupName !== groups.find((g) => g.id === groupId)?.name
+			) {
+				updatePropertyGroup({
+					id: groupId,
+					updates: { name: editingGroupName },
+				});
+			}
+			setEditingGroupId(null);
+			setEditingGroupName('');
+		} else {
+			// Start editing
+			const group = groups.find((g) => g.id === groupId);
+			if (group) {
+				setEditingGroupId(groupId);
+				setEditingGroupName(group.name);
+			}
+		}
 	};
 
 	const handleAddPropertyClick = (groupId: string) => {
@@ -210,8 +232,27 @@ export const Properties = () => {
 				.replace(/\s+/g, '-')
 				.replace(/[^\w-]/g, '');
 
-			const newPropertyData = {
-				groupId: selectedGroupForDialog || '',
+			// Use groupId from formData (selected in dialog) or fall back to state
+			const groupId = formData.groupId || selectedGroupForDialog;
+
+			// Debug logging
+			console.log('=== Property Creation Debug ===');
+			console.log('formData.groupId:', formData.groupId);
+			console.log('selectedGroupForDialog:', selectedGroupForDialog);
+			console.log('Final groupId:', groupId);
+			console.log('formData:', formData);
+
+			// Validate that a group is selected
+			if (!groupId || groupId === '') {
+				console.error('No group selected for new property');
+				alert('Please select a group for this property');
+				return;
+			}
+
+			// Build property data, conditionally including optional fields
+			// Firebase doesn't accept undefined values
+			const newPropertyData: any = {
+				groupId: groupId,
 				title: formData.name,
 				slug,
 				image:
@@ -219,15 +260,6 @@ export const Properties = () => {
 				owner: formData.owner,
 				address: formData.address,
 				propertyType: formData.propertyType,
-				units: formData.propertyType === 'Multi-Family' ? unitsData : undefined,
-				hasSuites:
-					formData.propertyType === 'Commercial'
-						? !!formData.hasSuites
-						: undefined,
-				suites:
-					formData.propertyType === 'Commercial' && formData.hasSuites
-						? suitesData
-						: undefined,
 				bedrooms: formData.bedrooms,
 				bathrooms: formData.bathrooms,
 				administrators: formData.administrators,
@@ -237,14 +269,36 @@ export const Properties = () => {
 				taskHistory: formData.maintenanceHistory || [],
 			};
 
-			const result = await createProperty(newPropertyData);
+			// Only add type-specific fields if they have values
+			if (formData.propertyType === 'Multi-Family' && unitsData) {
+				newPropertyData.units = unitsData;
+			}
+			if (formData.propertyType === 'Commercial') {
+				newPropertyData.hasSuites = !!formData.hasSuites;
+				if (formData.hasSuites && suitesData) {
+					newPropertyData.suites = suitesData;
+				}
+			}
 
-			if ('data' in result) {
-				addRecentlyViewed({
-					id: result.data.id as any, // Firebase uses string IDs
-					title: result.data.title,
-					slug: result.data.slug,
-				});
+			try {
+				const result = await createProperty(newPropertyData);
+
+				if ('data' in result) {
+					addRecentlyViewed({
+						id: result.data.id as any, // Firebase uses string IDs
+						title: result.data.title,
+						slug: result.data.slug,
+					});
+					console.log('Property created successfully:', result.data);
+				} else if ('error' in result) {
+					console.error('Failed to create property:', result.error);
+					alert('Failed to create property. Please try again.');
+					return;
+				}
+			} catch (error) {
+				console.error('Error creating property:', error);
+				alert('An error occurred while creating the property.');
+				return;
 			}
 		}
 
@@ -279,15 +333,15 @@ export const Properties = () => {
 				onSave={handleSaveProperty}
 				groups={filteredGroups.map((g) => ({ id: g.id, name: g.name }))}
 				selectedGroupId={selectedGroupForDialog}
-				onCreateGroup={(name: string) => {
+				onCreateGroup={async (name: string) => {
 					if (!currentUser) return '';
-					const result = createPropertyGroup({
+					const result = await createPropertyGroup({
 						name,
 						properties: [],
 						userId: currentUser.id,
 					});
 					if ('data' in result && result.data) {
-						return (result.data as any).id;
+						return (result.data as any).id as string;
 					}
 					return '';
 				}}
@@ -332,20 +386,21 @@ export const Properties = () => {
 					<GroupSection key={group.id}>
 						<GroupHeader>
 							<div>
-								{group.isEditingName ? (
+								{editingGroupId === group.id ? (
 									<GroupNameInput
 										type='text'
-										value={group.name}
-										onChange={(e) =>
-											handleGroupNameChange(group.id as any, e.target.value)
-										}
-										onBlur={() => handleToggleEditName()}
+										value={editingGroupName}
+										onChange={(e) => setEditingGroupName(e.target.value)}
+										onBlur={() => handleToggleEditName(group.id as any)}
+										onKeyDown={(e) => {
+											if (e.key === 'Enter') {
+												handleToggleEditName(group.id as any);
+											}
+										}}
 										autoFocus
 									/>
 								) : (
-									<GroupName onClick={() => handleToggleEditName()}>
-										{group.name}
-									</GroupName>
+									<GroupName>{group.name}</GroupName>
 								)}
 							</div>
 							<HeaderRight>
@@ -353,7 +408,7 @@ export const Properties = () => {
 									<GroupActions>
 										<GroupActionButton
 											title='Edit group'
-											onClick={() => handleToggleEditName()}>
+											onClick={() => handleToggleEditName(group.id as any)}>
 											✎
 										</GroupActionButton>
 										<GroupActionButton

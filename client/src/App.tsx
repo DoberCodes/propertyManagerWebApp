@@ -1,34 +1,38 @@
 import React, { useEffect } from 'react';
 import { useDispatch } from 'react-redux';
-import { setCurrentUser, MOCK_USERS } from './Redux/Slices/userSlice';
+import { setCurrentUser, setAuthLoading } from './Redux/Slices/userSlice';
 import { RouterComponent } from './router';
 import { FirebaseConnectionTest } from './Components/FirebaseConnectionTest';
+import { onAuthStateChange } from './services/authService';
 
 export const App = () => {
 	const dispatch = useDispatch();
 
 	useEffect(() => {
-		// Restore user session from localStorage on app startup
-		const savedSession = localStorage.getItem('loggedUser');
-		console.log('App.tsx: Checking for saved session...', savedSession);
-		if (savedSession) {
-			try {
-				const parsedSession = JSON.parse(savedSession);
-				console.log('App.tsx: Parsed session:', parsedSession);
-				// If there's a user object in the session, restore it
-				if (parsedSession.user) {
-					console.log('App.tsx: Restoring user:', parsedSession.user);
-					dispatch(setCurrentUser(parsedSession.user));
-				} else {
-					console.log('App.tsx: No user object in parsed session');
-				}
-			} catch (error) {
-				console.error('Failed to restore user session:', error);
+		// Listen to Firebase auth state changes to persist authentication
+		const unsubscribe = onAuthStateChange(async (user) => {
+			if (user) {
+				console.log('App.tsx: User authenticated:', user);
+				dispatch(setCurrentUser(user));
+				// Update localStorage to keep session in sync
+				localStorage.setItem(
+					'loggedUser',
+					JSON.stringify({
+						token: `firebase-token-${user.id}`,
+						user,
+					}),
+				);
+			} else {
+				console.log('App.tsx: No user authenticated');
+				dispatch(setCurrentUser(null));
 				localStorage.removeItem('loggedUser');
 			}
-		} else {
-			console.log('App.tsx: No saved session found');
-		}
+			// Auth check is complete - stop showing loading state
+			dispatch(setAuthLoading(false));
+		});
+
+		// Cleanup subscription on unmount
+		return () => unsubscribe();
 	}, [dispatch]);
 
 	return (

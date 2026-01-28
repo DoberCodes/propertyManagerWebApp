@@ -228,3 +228,45 @@ export const CheckboxLabel = styled.label`
 		font-size: 11px;
 	}
 `;
+export const ErrorMessage = styled.div`
+	background-color: #fee;
+	border: 1px solid #fcc;
+	color: #c33;
+	padding: 12px;
+	margin: 10px;
+	border-radius: 5px;
+	font-size: 14px;
+	text-align: center;
+
+	@media (max-width: 768px) {
+		padding: 10px;
+		margin: 8px;
+		font-size: 13px;
+	}
+
+	@media (max-width: 480px) {
+		padding: 8px;
+		margin: 6px;
+		font-size: 12px;
+	}
+`;
+
+export const LoadingSpinner = styled.div`
+	display: inline-block;
+	width: 20px;
+	height: 20px;
+	border: 3px solid #f3f3f3;
+	border-top: 3px solid #3498db;
+	border-radius: 50%;
+	animation: spin 1s linear infinite;
+	margin-right: 8px;
+
+	@keyframes spin {
+		0% {
+			transform: rotate(0deg);
+		}
+		100% {
+			transform: rotate(360deg);
+		}
+	}
+`;

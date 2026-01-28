@@ -196,6 +196,16 @@ const docToData = (docSnapshot: any) => {
 export const apiSlice = createApi({
 	reducerPath: 'api',
 	baseQuery: fakeBaseQuery(),
+	tagTypes: [
+		'PropertyGroups',
+		'Properties',
+		'TeamGroups',
+		'TeamMembers',
+		'Tasks',
+		'Devices',
+		'Suites',
+		'Units',
+	],
 	endpoints: (builder) => ({
 		// Property Group endpoints
 		getPropertyGroups: builder.query<PropertyGroup[], string>({
@@ -215,6 +225,7 @@ export const apiSlice = createApi({
 					return { error: error.message };
 				}
 			},
+			providesTags: ['PropertyGroups'],
 		}),
 
 		getPropertyGroup: builder.query<PropertyGroup, string>({
@@ -228,6 +239,7 @@ export const apiSlice = createApi({
 					return { error: error.message };
 				}
 			},
+			providesTags: ['PropertyGroups'],
 		}),
 
 		createPropertyGroup: builder.mutation<
@@ -246,6 +258,7 @@ export const apiSlice = createApi({
 					return { error: error.message };
 				}
 			},
+			invalidatesTags: ['PropertyGroups'],
 		}),
 
 		updatePropertyGroup: builder.mutation<
@@ -264,6 +277,7 @@ export const apiSlice = createApi({
 					return { error: error.message };
 				}
 			},
+			invalidatesTags: ['PropertyGroups'],
 		}),
 
 		deletePropertyGroup: builder.mutation<void, string>({
@@ -275,6 +289,7 @@ export const apiSlice = createApi({
 					return { error: error.message };
 				}
 			},
+			invalidatesTags: ['PropertyGroups'],
 		}),
 
 		// Property endpoints
@@ -319,6 +334,7 @@ export const apiSlice = createApi({
 					return { error: error.message };
 				}
 			},
+			providesTags: ['Properties'],
 		}),
 
 		getProperty: builder.query<Property, string>({
@@ -332,6 +348,7 @@ export const apiSlice = createApi({
 					return { error: error.message };
 				}
 			},
+			providesTags: ['Properties'],
 		}),
 
 		createProperty: builder.mutation<Property, Omit<Property, 'id'>>({
@@ -347,6 +364,7 @@ export const apiSlice = createApi({
 					return { error: error.message };
 				}
 			},
+			invalidatesTags: ['Properties'],
 		}),
 
 		updateProperty: builder.mutation<
@@ -365,6 +383,7 @@ export const apiSlice = createApi({
 					return { error: error.message };
 				}
 			},
+			invalidatesTags: ['Properties'],
 		}),
 
 		deleteProperty: builder.mutation<void, string>({
@@ -376,6 +395,7 @@ export const apiSlice = createApi({
 					return { error: error.message };
 				}
 			},
+			invalidatesTags: ['Properties'],
 		}),
 
 		// Task endpoints
@@ -433,6 +453,7 @@ export const apiSlice = createApi({
 					return { error: error.message };
 				}
 			},
+			providesTags: ['Tasks'],
 		}),
 
 		createTask: builder.mutation<Task, Omit<Task, 'id'>>({
@@ -448,6 +469,7 @@ export const apiSlice = createApi({
 					return { error: error.message };
 				}
 			},
+			invalidatesTags: ['Tasks'],
 		}),
 
 		updateTask: builder.mutation<Task, { id: string; updates: Partial<Task> }>({
@@ -463,6 +485,7 @@ export const apiSlice = createApi({
 					return { error: error.message };
 				}
 			},
+			invalidatesTags: ['Tasks'],
 		}),
 
 		deleteTask: builder.mutation<void, string>({
@@ -474,6 +497,7 @@ export const apiSlice = createApi({
 					return { error: error.message };
 				}
 			},
+			invalidatesTags: ['Tasks'],
 		}),
 
 		// Task completion workflow endpoints
@@ -541,6 +565,7 @@ export const apiSlice = createApi({
 					return { error: error.message };
 				}
 			},
+			invalidatesTags: ['Tasks'],
 		}),
 
 		approveTask: builder.mutation<
@@ -567,6 +592,7 @@ export const apiSlice = createApi({
 					return { error: error.message };
 				}
 			},
+			invalidatesTags: ['Tasks'],
 		}),
 
 		rejectTask: builder.mutation<
@@ -591,6 +617,7 @@ export const apiSlice = createApi({
 					return { error: error.message };
 				}
 			},
+			invalidatesTags: ['Tasks'],
 		}),
 
 		// Team Group endpoints
@@ -611,6 +638,7 @@ export const apiSlice = createApi({
 					return { error: error.message };
 				}
 			},
+			providesTags: ['TeamGroups'],
 		}),
 
 		createTeamGroup: builder.mutation<TeamGroup, Omit<TeamGroup, 'id'>>({
@@ -626,6 +654,7 @@ export const apiSlice = createApi({
 					return { error: error.message };
 				}
 			},
+			invalidatesTags: ['TeamGroups'],
 		}),
 
 		updateTeamGroup: builder.mutation<
@@ -644,6 +673,7 @@ export const apiSlice = createApi({
 					return { error: error.message };
 				}
 			},
+			invalidatesTags: ['TeamGroups'],
 		}),
 
 		deleteTeamGroup: builder.mutation<void, string>({
@@ -655,6 +685,7 @@ export const apiSlice = createApi({
 					return { error: error.message };
 				}
 			},
+			invalidatesTags: ['TeamGroups'],
 		}),
 
 		// Team Member endpoints
@@ -697,6 +728,7 @@ export const apiSlice = createApi({
 					return { error: error.message };
 				}
 			},
+			providesTags: ['TeamMembers'],
 		}),
 
 		createTeamMember: builder.mutation<TeamMember, Omit<TeamMember, 'id'>>({
@@ -712,6 +744,7 @@ export const apiSlice = createApi({
 					return { error: error.message };
 				}
 			},
+			invalidatesTags: ['TeamMembers'],
 		}),
 
 		updateTeamMember: builder.mutation<
@@ -730,6 +763,7 @@ export const apiSlice = createApi({
 					return { error: error.message };
 				}
 			},
+			invalidatesTags: ['TeamMembers'],
 		}),
 
 		deleteTeamMember: builder.mutation<void, string>({
@@ -741,6 +775,7 @@ export const apiSlice = createApi({
 					return { error: error.message };
 				}
 			},
+			invalidatesTags: ['TeamMembers'],
 		}),
 		// Suites endpoints
 		getSuites: builder.query<Suite[], string>({
@@ -757,6 +792,7 @@ export const apiSlice = createApi({
 					return { error: (error as Error).message };
 				}
 			},
+			providesTags: ['Suites'],
 		}),
 
 		getSuite: builder.query<Suite, string>({
@@ -770,6 +806,7 @@ export const apiSlice = createApi({
 					return { error: error.message };
 				}
 			},
+			providesTags: ['Suites'],
 		}),
 
 		createSuite: builder.mutation<Suite, Omit<Suite, 'id'>>({
@@ -785,6 +822,7 @@ export const apiSlice = createApi({
 					return { error: error.message };
 				}
 			},
+			invalidatesTags: ['Suites'],
 		}),
 
 		updateSuite: builder.mutation<
@@ -803,6 +841,7 @@ export const apiSlice = createApi({
 					return { error: error.message };
 				}
 			},
+			invalidatesTags: ['Suites'],
 		}),
 
 		deleteSuite: builder.mutation<void, string>({
@@ -814,6 +853,7 @@ export const apiSlice = createApi({
 					return { error: error.message };
 				}
 			},
+			invalidatesTags: ['Suites'],
 		}),
 
 		// Units endpoints
@@ -831,6 +871,7 @@ export const apiSlice = createApi({
 					return { error: (error as Error).message };
 				}
 			},
+			providesTags: ['Units'],
 		}),
 
 		getUnit: builder.query<Unit, string>({
@@ -844,6 +885,7 @@ export const apiSlice = createApi({
 					return { error: error.message };
 				}
 			},
+			providesTags: ['Units'],
 		}),
 
 		createUnit: builder.mutation<Unit, Omit<Unit, 'id'>>({
@@ -859,6 +901,7 @@ export const apiSlice = createApi({
 					return { error: error.message };
 				}
 			},
+			invalidatesTags: ['Units'],
 		}),
 
 		updateUnit: builder.mutation<Unit, { id: string; updates: Partial<Unit> }>({
@@ -874,6 +917,7 @@ export const apiSlice = createApi({
 					return { error: error.message };
 				}
 			},
+			invalidatesTags: ['Units'],
 		}),
 
 		deleteUnit: builder.mutation<void, string>({
@@ -885,6 +929,7 @@ export const apiSlice = createApi({
 					return { error: error.message };
 				}
 			},
+			invalidatesTags: ['Units'],
 		}),
 
 		// Device endpoints
@@ -905,6 +950,7 @@ export const apiSlice = createApi({
 					return { error: error.message };
 				}
 			},
+			providesTags: ['Devices'],
 		}),
 
 		getDevice: builder.query<Device, string>({
@@ -918,6 +964,7 @@ export const apiSlice = createApi({
 					return { error: error.message };
 				}
 			},
+			providesTags: ['Devices'],
 		}),
 
 		createDevice: builder.mutation<Device, Omit<Device, 'id'>>({
@@ -933,6 +980,7 @@ export const apiSlice = createApi({
 					return { error: error.message };
 				}
 			},
+			invalidatesTags: ['Devices'],
 		}),
 
 		updateDevice: builder.mutation<
@@ -951,6 +999,7 @@ export const apiSlice = createApi({
 					return { error: error.message };
 				}
 			},
+			invalidatesTags: ['Devices'],
 		}),
 
 		deleteDevice: builder.mutation<void, string>({
@@ -962,6 +1011,7 @@ export const apiSlice = createApi({
 					return { error: error.message };
 				}
 			},
+			invalidatesTags: ['Devices'],
 		}),
 	}),
 });

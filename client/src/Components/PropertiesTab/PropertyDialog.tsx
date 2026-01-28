@@ -83,7 +83,7 @@ interface PropertyDialogProps {
 	initialData?: PropertyFormData;
 	groups: Array<{ id: string; name: string }>;
 	selectedGroupId?: string | null;
-	onCreateGroup?: (name: string) => string; // returns new group id
+	onCreateGroup?: (name: string) => Promise<string>; // returns new group id
 }
 
 export const PropertyDialog: React.FC<PropertyDialogProps> = ({
@@ -315,6 +315,9 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 	};
 
 	const handleSave = () => {
+		console.log('=== PropertyDialog handleSave ===');
+		console.log('formData.groupId:', formData.groupId);
+		console.log('Full formData:', formData);
 		onSave(formData);
 	};
 
@@ -339,7 +342,17 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 									value={formData.groupId ?? ''}
 									onChange={(e) => {
 										const v = e.target.value;
-										handleInputChange('groupId', v ? Number(v) : null);
+										console.log(
+											'Group dropdown changed. Value:',
+											v,
+											'Type:',
+											typeof v,
+										);
+										handleInputChange('groupId', v || null);
+										console.log(
+											'After handleInputChange, formData.groupId will be:',
+											v || null,
+										);
 									}}
 									style={{
 										padding: '10px 12px',
@@ -366,11 +379,11 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 										style={{ flex: 1 }}
 									/>
 									<button
-										onClick={() => {
+										onClick={async () => {
 											if (onCreateGroup && newGroupName.trim()) {
-												const id = onCreateGroup(newGroupName.trim());
+												const id = await onCreateGroup(newGroupName.trim());
 												setNewGroupName('');
-												handleInputChange('groupId', id);
+												handleInputChange('groupId', id || null);
 											}
 										}}
 										style={{

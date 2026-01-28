@@ -116,3 +116,95 @@ export const RegisterWrapper = styled.div`
 		font-size: 12px;
 	}
 `;
+
+export const ErrorMessage = styled.div`
+	background-color: #fee;
+	border: 1px solid #fcc;
+	color: #c33;
+	padding: 12px;
+	border-radius: 4px;
+	margin-bottom: 16px;
+	font-size: 14px;
+	width: 100%;
+
+	@media (max-width: 768px) {
+		padding: 10px;
+		margin-bottom: 14px;
+		font-size: 13px;
+	}
+
+	@media (max-width: 480px) {
+		padding: 8px;
+		margin-bottom: 12px;
+		font-size: 12px;
+	}
+`;
+
+export const LoadingSpinner = styled.div`
+	border: 3px solid #f3f3f3;
+	border-top: 3px solid #3498db;
+	border-radius: 50%;
+	width: 20px;
+	height: 20px;
+	animation: spin 1s linear infinite;
+	display: inline-block;
+	margin-right: 8px;
+	vertical-align: middle;
+
+	@keyframes spin {
+		0% {
+			transform: rotate(0deg);
+		}
+		100% {
+			transform: rotate(360deg);
+		}
+	}
+`;
+
+export const PasswordInputWrapper = styled.div`
+	position: relative;
+	display: flex;
+	align-items: center;
+	margin: 10px;
+
+	@media (max-width: 768px) {
+		margin: 8px;
+	}
+
+	@media (max-width: 480px) {
+		margin: 6px;
+	}
+`;
+
+export const PasswordToggleButton = styled.button`
+	position: absolute;
+	right: 15px;
+	background: none;
+	border: none;
+	cursor: pointer;
+	color: #666;
+	font-size: 18px;
+	padding: 5px 10px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+
+	&:hover {
+		color: #333;
+	}
+
+	&:focus {
+		outline: none;
+	}
+
+	@media (max-width: 768px) {
+		font-size: 16px;
+		right: 12px;
+	}
+
+	@media (max-width: 480px) {
+		font-size: 14px;
+		right: 10px;
+		padding: 4px 8px;
+	}
+`;

@@ -6,6 +6,7 @@ import {
 	useGetTasksQuery,
 	useGetTeamMembersQuery,
 	useUpdateTaskMutation,
+	useGetPropertiesQuery,
 } from '../../Redux/API/apiSlice';
 import {
 	addTask,
@@ -268,15 +269,23 @@ export const PropertyDetailPage = () => {
 	// Get current user
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
 
+	// Fetch properties from Firebase
+	const { data: firebaseProperties = [], isLoading: propertiesLoading } =
+		useGetPropertiesQuery(currentUser?.id || '', { skip: !currentUser });
+
 	// Fetch team members from Firebase
 	const { data: firebaseTeamMembers = [] } = useGetTeamMembersQuery(
 		currentUser?.id || '',
 		{ skip: !currentUser },
 	);
 
-	// For backwards compatibility, also get from Redux
-	const reduxTeamMembers = useSelector((state: RootState) =>
-		state.team.groups.flatMap((group) => group.members),
+	// For backwards compatibility, also get from Redux - memoize to prevent rerenders
+	const reduxTeamMembers = useSelector(
+		(state: RootState) => {
+			const members = state.team.groups.flatMap((group) => group.members);
+			return members;
+		},
+		(a, b) => JSON.stringify(a) === JSON.stringify(b),
 	);
 
 	// Use Firebase team members if available, otherwise fallback to Redux
@@ -332,10 +341,12 @@ export const PropertyDetailPage = () => {
 	const [convertingRequest, setConvertingRequest] =
 		useState<MaintenanceRequestItem | null>(null);
 
-	// Find the property based on slug
+	// Find the property based on slug - use Firebase data if available
 	const property = useMemo(() => {
-		return PROPERTIES_DATA.find((p) => p.slug === slug);
-	}, [slug]);
+		const allProperties =
+			firebaseProperties.length > 0 ? firebaseProperties : PROPERTIES_DATA;
+		return allProperties.find((p: any) => p.slug === slug);
+	}, [slug, firebaseProperties]);
 
 	const hasCommercialSuites =
 		property?.propertyType === 'Commercial' &&
@@ -343,9 +354,10 @@ export const PropertyDetailPage = () => {
 			(Array.isArray((property as any)?.suites) &&
 				(property as any).suites.length > 0));
 
-	// Get maintenance requests for this property
+	// Get maintenance requests for this property - memoize selector
 	const allMaintenanceRequests = useSelector(
 		(state: RootState) => state.maintenanceRequests.requests,
+		(a, b) => a.length === b.length && a.every((item, idx) => item === b[idx]),
 	);
 	const propertyMaintenanceRequests = useMemo(() => {
 		if (!property) return [];
@@ -510,8 +522,9 @@ export const PropertyDetailPage = () => {
 		if (!property || !currentUser) return;
 
 		// Find tenant's unit if they are a tenant
-		const tenantInfo = property.tenants?.find(
-			(t) => t.email === currentUser.email,
+		// Handle both old static structure (property.tenants) and new Firebase structure (units.occupants)
+		const tenantInfo = (property as any).tenants?.find(
+			(t: any) => t.email === currentUser.email,
 		);
 
 		const newRequest = {
@@ -629,7 +642,10 @@ export const PropertyDetailPage = () => {
 
 	const getDeviceName = (deviceId?: number) => {
 		if (!property || !deviceId) return '-';
-		const device = property.devices?.find((d) => d.id === deviceId);
+		// Handle both old static structure (property.devices) and new Firebase structure (separate devices collection)
+		const device = (property as any).devices?.find(
+			(d: any) => d.id === deviceId,
+		);
 		return device ? `${device.type} - ${device.brand}` : '-';
 	};
 
@@ -1192,7 +1208,8 @@ export const PropertyDetailPage = () => {
 					<SectionContainer>
 						<SectionHeader>Property Tenants</SectionHeader>
 
-						{property.tenants && property.tenants.length > 0 ? (
+						{(property as any).tenants &&
+						(property as any).tenants.length > 0 ? (
 							<GridContainer>
 								<GridTable>
 									<thead>
@@ -1206,7 +1223,7 @@ export const PropertyDetailPage = () => {
 										</tr>
 									</thead>
 									<tbody>
-										{property.tenants.map((tenant) => (
+										{(property as any).tenants.map((tenant: any) => (
 											<tr key={tenant.id}>
 												<td>
 													{tenant.firstName} {tenant.lastName}

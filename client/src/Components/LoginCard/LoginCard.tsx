@@ -11,6 +11,8 @@ import {
 	PasswordToggleButton,
 	CheckboxWrapper,
 	CheckboxLabel,
+	ErrorMessage,
+	LoadingSpinner,
 } from './LoginCard.styles';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
@@ -19,10 +21,8 @@ import {
 	faEyeSlash,
 } from '@fortawesome/free-regular-svg-icons';
 import { useNavigate } from 'react-router-dom';
-import {
-	setCurrentUser,
-	authenticateMockUser,
-} from '../../Redux/Slices/userSlice';
+import { setCurrentUser } from '../../Redux/Slices/userSlice';
+import { signInWithEmail } from '../../services/authService';
 import { TestAccountsReference } from './TestAccountsReference';
 
 export const LoginCard = () => {
@@ -31,6 +31,7 @@ export const LoginCard = () => {
 	const [email, setEmail] = useState<string>('');
 	const [password, setPassword] = useState<string>('');
 	const [error, setError] = useState<string>('');
+	const [loading, setLoading] = useState<boolean>(false);
 	const [showPassword, setShowPassword] = useState<boolean>(false);
 	const [rememberEmail, setRememberEmail] = useState<boolean>(false);
 
@@ -64,33 +65,35 @@ export const LoginCard = () => {
 	const login = async (event: any) => {
 		event.preventDefault();
 		setError('');
+		setLoading(true);
 
-		console.log('LoginCard: Attempting login with:', { email, password });
+		try {
+			console.log('LoginCard: Attempting Firebase login with:', { email });
 
-		// Use mock authentication
-		const mockUser = authenticateMockUser(email, password);
-		console.log('LoginCard: Mock user result:', mockUser);
+			// Sign in with Firebase
+			const user = await signInWithEmail(email, password);
+			console.log('LoginCard: Firebase authentication successful:', user);
 
-		if (mockUser) {
-			// Successfully authenticated with mock user
-			console.log(
-				'LoginCard: Mock authentication successful, setting user:',
-				mockUser,
-			);
-			dispatch(setCurrentUser(mockUser));
+			// Set user in Redux store
+			dispatch(setCurrentUser(user));
+
+			// Save session to localStorage
 			localStorage.setItem(
 				'loggedUser',
 				JSON.stringify({
-					token: `mock-token-${mockUser.id}`,
-					user: mockUser,
+					token: `firebase-token-${user.id}`,
+					user,
 				}),
 			);
-			navigate('/dashboard');
-			return;
-		}
 
-		// Authentication failed
-		setError('Invalid email or password. Try: admin@test.com / admin');
+			// Navigate to dashboard
+			navigate('/dashboard');
+		} catch (error: any) {
+			console.error('LoginCard: Authentication error:', error);
+			setError(error.message || 'Login failed. Please try again.');
+		} finally {
+			setLoading(false);
+		}
 	};
 
 	return (
@@ -99,19 +102,7 @@ export const LoginCard = () => {
 				<FontAwesomeIcon icon={faArrowAltCircleLeft} />
 			</BackButton>
 			<Title>Login</Title>
-			{error && (
-				<div
-					style={{
-						color: '#e74c3c',
-						background: '#fff5f5',
-						padding: '10px',
-						borderRadius: '4px',
-						marginBottom: '10px',
-						border: '1px solid #e74c3c',
-					}}>
-					{error}
-				</div>
-			)}
+			{error && <ErrorMessage>{error}</ErrorMessage>}
 			<Input
 				placeholder='Email Address'
 				autoComplete='email'
@@ -153,11 +144,14 @@ export const LoginCard = () => {
 					Save email address
 				</CheckboxLabel>
 			</CheckboxWrapper>
-			<Submit onClick={(event) => login(event)}>Login</Submit>
+			<Submit onClick={(event) => login(event)} disabled={loading}>
+				{loading && <LoadingSpinner />}
+				{loading ? 'Signing in...' : 'Login'}
+			</Submit>
 			{process.env.NODE_ENV === 'development' && <TestAccountsReference />}
 			<RegisterWrapper>
 				<p>
-					Don't have an account? <a href='/Registration'>Sign up here</a>
+					Don't have an account? <a href='#/registration'>Sign up here</a>
 				</p>
 			</RegisterWrapper>
 		</Wrapper>

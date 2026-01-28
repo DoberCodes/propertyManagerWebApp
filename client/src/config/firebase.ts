@@ -1,6 +1,10 @@
 import { initializeApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
-import { getAuth } from 'firebase/auth';
+import {
+	getAuth,
+	setPersistence,
+	browserLocalPersistence,
+} from 'firebase/auth';
 import { getStorage } from 'firebase/storage';
 
 // Firebase configuration
@@ -24,5 +28,10 @@ const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
 export const auth = getAuth(app);
 export const storage = getStorage(app);
+
+// Set auth persistence to LOCAL (persists across browser sessions)
+setPersistence(auth, browserLocalPersistence).catch((error) => {
+	console.error('Error setting auth persistence:', error);
+});
 
 export default app;
