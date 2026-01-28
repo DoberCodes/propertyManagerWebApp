@@ -34,7 +34,7 @@ export const RouterComponent = () => {
 				{/* Public Routes */}
 				<Route
 					path='/'
-					element={<LandingPage />}
+					element={<Navigate to='/login' replace />}
 					errorElement={<ErrorPage />}
 				/>
 				<Route path='login' element={<LoginPage />} />
