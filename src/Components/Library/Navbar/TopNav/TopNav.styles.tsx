@@ -1,19 +1,26 @@
 import styled from 'styled-components';
 import { font_main, nav_height } from '../../../../global.styles';
 import { Link } from 'react-router-dom';
+import { COLORS } from '../../../../constants/colors';
 
 export const Wrapper = styled.div`
-	border: 1px solid black;
+	border: none;
+	border-bottom: 2px solid ${COLORS.gray200};
 	display: flex;
 	flex-flow: row;
 	align-items: center;
 	justify-content: space-between;
 	height: ${nav_height};
-	background-color: #fefefe;
+	background: linear-gradient(
+		90deg,
+		${COLORS.bgWhite} 0%,
+		${COLORS.gray50} 100%
+	);
 	padding: 0 20px;
 	overflow: visible;
 	position: relative;
 	z-index: 100;
+	box-shadow: ${COLORS.shadow};
 
 	@media (max-width: 768px) {
 		padding: 0 15px;
@@ -101,7 +108,11 @@ export const Title = styled.h1`
 	font-size: 20px;
 	margin: 0;
 	flex-shrink: 0;
-	color: #22c55e;
+	background: ${COLORS.gradientPrimary};
+	-webkit-background-clip: text;
+	-webkit-text-fill-color: transparent;
+	background-clip: text;
+	font-weight: 700;
 
 	@media (max-width: 768px) {
 		font-size: 16px;
@@ -133,7 +144,7 @@ export const NavItems = styled.div`
 
 export const NavItem = styled(Link)`
 	text-align: center;
-	color: #22c55e;
+	color: ${COLORS.primary};
 	text-decoration: none;
 	cursor: pointer;
 	white-space: nowrap;
@@ -144,27 +155,31 @@ export const NavItem = styled(Link)`
 	transition: all 0.2s ease;
 
 	&:hover {
-		background-color: rgba(34, 197, 94, 0.1);
+		background-color: ${COLORS.primaryLight};
+		color: ${COLORS.primaryDark};
 	}
 
 	&.active {
-		background-color: #22c55e;
-		color: white;
+		background: ${COLORS.gradientPrimary};
+		color: ${COLORS.bgWhite};
+		box-shadow: ${COLORS.shadowMd};
 	}
 `;
+
 export const HamburgerButton = styled.button`
 	display: none;
 	background: none;
 	border: none;
 	cursor: pointer;
 	font-size: 24px;
-	color: #22c55e;
+	color: ${COLORS.primary};
 	padding: 8px;
 	margin-right: 10px;
 	transition: all 0.2s ease;
 
 	&:hover {
 		transform: scale(1.1);
+		color: ${COLORS.primaryDark};
 	}
 
 	@media (max-width: 768px) {
@@ -179,7 +194,7 @@ export const SidebarOverlay = styled.div`
 	left: 0;
 	right: 0;
 	bottom: 0;
-	background-color: rgba(0, 0, 0, 0.5);
+	background-color: ${COLORS.overlay};
 	z-index: 999;
 
 	@media (max-width: 768px) {

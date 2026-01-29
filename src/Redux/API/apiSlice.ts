@@ -12,6 +12,7 @@ import {
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../../config/firebase';
+import { User } from '../Slices/userSlice';
 
 // Types
 export interface Property {
@@ -375,7 +376,7 @@ export const apiSlice = createApi({
 					return { error: error.message };
 				}
 			},
-			invalidatesTags: ['Properties'],
+			invalidatesTags: ['Properties', 'PropertyGroups'],
 		}),
 
 		updateProperty: builder.mutation<
@@ -394,7 +395,7 @@ export const apiSlice = createApi({
 					return { error: error.message };
 				}
 			},
-			invalidatesTags: ['Properties'],
+			invalidatesTags: ['Properties', 'PropertyGroups'],
 		}),
 
 		deleteProperty: builder.mutation<void, string>({
@@ -406,7 +407,7 @@ export const apiSlice = createApi({
 					return { error: error.message };
 				}
 			},
-			invalidatesTags: ['Properties'],
+			invalidatesTags: ['Properties', 'PropertyGroups'],
 		}),
 
 		// Task endpoints
@@ -629,6 +630,26 @@ export const apiSlice = createApi({
 				}
 			},
 			invalidatesTags: ['Tasks'],
+		}),
+
+		// User endpoints
+		updateUser: builder.mutation<
+			User,
+			{ id: string; updates: Partial<Omit<User, 'id' | 'role'>> }
+		>({
+			async queryFn({ id, updates }) {
+				try {
+					const docRef = doc(db, 'users', id);
+					await updateDoc(docRef, {
+						...updates,
+						updatedAt: new Date().toISOString(),
+					});
+					return { data: { id, ...updates } as User };
+				} catch (error: any) {
+					return { error: error.message };
+				}
+			},
+			invalidatesTags: [],
 		}),
 
 		// Team Group endpoints
@@ -1145,6 +1166,8 @@ export const {
 	useSubmitTaskCompletionMutation,
 	useApproveTaskMutation,
 	useRejectTaskMutation,
+	// User
+	useUpdateUserMutation,
 	// Team Groups
 	useGetTeamGroupsQuery,
 	useCreateTeamGroupMutation,

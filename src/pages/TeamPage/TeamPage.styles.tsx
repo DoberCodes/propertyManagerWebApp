@@ -132,6 +132,34 @@ export const TeamGroupTitle = styled.h2`
 	}
 `;
 
+export const TeamGroupNameInput = styled.input`
+	font-size: 20px;
+	font-weight: 700;
+	color: #1f2937;
+	margin: 0;
+	flex: 1;
+	letter-spacing: 0.3px;
+	border: 2px solid #10b981;
+	border-radius: 6px;
+	padding: 6px 12px;
+	background-color: #f0fdf4;
+	font-family: inherit;
+
+	&:focus {
+		outline: none;
+		border-color: #059669;
+		box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+	}
+
+	@media (max-width: 768px) {
+		font-size: 18px;
+	}
+
+	@media (max-width: 480px) {
+		font-size: 16px;
+	}
+`;
+
 export const TeamGroupActions = styled.div`
 	display: flex;
 	gap: 8px;

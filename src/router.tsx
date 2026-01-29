@@ -20,6 +20,7 @@ import { UnitDetailPage } from './pages/UnitDetailPage';
 import { SuiteDetailPage } from './pages/SuiteDetailPage/SuiteDetailPage';
 import TeamPage from './pages/TeamPage';
 import { ReportPage } from './pages/ReportPage';
+import { UserProfile } from './pages/UserProfile';
 import {
 	PROPERTY_MANAGEMENT_ROLES,
 	TEAM_MANAGEMENT_ROLES,
@@ -48,11 +49,11 @@ export const RouterComponent = () => {
 							<Layout />
 						</ProtectedRoutes>
 					}>
-					<Route path='/dashboard' element={<DashboardTab />} />
+					<Route path='dashboard' element={<DashboardTab />} />
 
 					{/* Properties management - accessible to admin, PM, AM, ML */}
 					<Route
-						path='/manage'
+						path='properties'
 						element={
 							<ProtectedRoutes requiredRoles={FULL_ACCESS_ROLES}>
 								<Properties />
@@ -60,7 +61,7 @@ export const RouterComponent = () => {
 						}
 					/>
 					<Route
-						path='/property/:slug'
+						path='property/:slug'
 						element={
 							<ProtectedRoutes requiredRoles={FULL_ACCESS_ROLES}>
 								<PropertyDetailPage />
@@ -68,7 +69,7 @@ export const RouterComponent = () => {
 						}
 					/>
 					<Route
-						path='/property/:slug/unit/:unitName'
+						path='property/:slug/unit/:unitName'
 						element={
 							<ProtectedRoutes requiredRoles={FULL_ACCESS_ROLES}>
 								<UnitDetailPage />
@@ -76,7 +77,7 @@ export const RouterComponent = () => {
 						}
 					/>
 					<Route
-						path='/property/:slug/suite/:suiteName'
+						path='property/:slug/suite/:suiteName'
 						element={
 							<ProtectedRoutes requiredRoles={FULL_ACCESS_ROLES}>
 								<SuiteDetailPage />
@@ -86,7 +87,7 @@ export const RouterComponent = () => {
 
 					{/* Team management - viewable by managers and maintenance; editable by admin/PM only */}
 					<Route
-						path='/team'
+						path='team'
 						element={
 							<ProtectedRoutes requiredRoles={TEAM_VIEW_ROLES}>
 								<TeamPage />
@@ -96,7 +97,7 @@ export const RouterComponent = () => {
 
 					{/* Reports - accessible to admin, PM, AM, ML */}
 					<Route
-						path='/report'
+						path='report'
 						element={
 							<ProtectedRoutes requiredRoles={FULL_ACCESS_ROLES}>
 								<ReportPage />
@@ -105,11 +106,21 @@ export const RouterComponent = () => {
 					/>
 
 					{/* Settings - accessible to all authenticated users */}
-					<Route path='/settings' element={<HomePage />} />
+					<Route path='settings' element={<HomePage />} />
+
+					{/* User Profile - accessible to all authenticated users */}
+					<Route
+						path='profile'
+						element={
+							<ProtectedRoutes>
+								<UserProfile />
+							</ProtectedRoutes>
+						}
+					/>
 				</Route>
 
 				{/* Fallback redirect */}
-				<Route path='*' element={<Navigate to='/dashboard' replace />} />
+				<Route path='*' element={<Navigate to='dashboard' replace />} />
 			</Routes>
 		</Router>
 	);

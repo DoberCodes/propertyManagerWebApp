@@ -41,42 +41,42 @@ export const SideNav = () => {
 	const isUserTenant = currentUser ? isTenant(currentUser.role) : false;
 
 	const menuItems = [
-		{ label: 'Dashboard', path: '/dashboard', visible: !isUserTenant },
+		{ label: 'Dashboard', path: 'dashboard', visible: !isUserTenant },
 		{
 			label: 'Properties',
-			path: '/manage',
+			path: 'properties',
 			visible: !isUserTenant && (canAccessProperties || canViewPages),
 		},
 		{
 			label: 'Team',
-			path: '/team',
+			path: 'team',
 			visible: !isUserTenant && (canAccessTeam || canViewPages),
 		},
 		{
 			label: 'Report',
-			path: '/report',
+			path: 'report',
 			visible: !isUserTenant && (canAccessProperties || canViewPages),
 		},
 	];
 
-	const isActive = (path: string) => location.pathname === path;
+	const isActive = (path: string) => location.hash.includes(path);
 
 	// Desktop nav items
 	const desktopMenuItems = [
-		{ label: 'Dashboard', path: '/dashboard', visible: !isUserTenant },
+		{ label: 'Dashboard', path: 'dashboard', visible: !isUserTenant },
 		{
 			label: 'Properties',
-			path: '/manage',
+			path: 'properties',
 			visible: !isUserTenant && (canAccessProperties || canViewPages),
 		},
 		{
 			label: 'Team',
-			path: '/team',
+			path: 'team',
 			visible: !isUserTenant && (canAccessTeam || canViewPages),
 		},
 		{
 			label: 'Report',
-			path: '/report',
+			path: 'report',
 			visible: !isUserTenant && (canAccessProperties || canViewPages),
 		},
 	];
@@ -191,25 +191,25 @@ export const MobileNav = () => {
 	const isUserTenant = currentUser ? isTenant(currentUser.role) : false;
 
 	const menuItems = [
-		{ label: 'Dashboard', path: '/dashboard', visible: !isUserTenant },
+		{ label: 'Dashboard', path: 'dashboard', visible: !isUserTenant },
 		{
 			label: 'Properties',
-			path: '/manage',
+			path: 'properties',
 			visible: !isUserTenant && (canAccessProperties || canViewPages),
 		},
 		{
 			label: 'Team',
-			path: '/team',
+			path: 'team',
 			visible: !isUserTenant && (canAccessTeam || canViewPages),
 		},
 		{
 			label: 'Report',
-			path: '/report',
+			path: 'report',
 			visible: !isUserTenant && (canAccessProperties || canViewPages),
 		},
 	];
 
-	const isActive = (path: string) => location.pathname === path;
+	const isActive = (path: string) => location.hash.includes(path);
 	const visibleItems = menuItems.filter((item) => item.visible);
 
 	return (

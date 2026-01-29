@@ -2,12 +2,14 @@ import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { PropertyDialog } from './PropertyDialog';
+import {
+	PageHeaderSection,
+	PageTitle as StandardPageTitle,
+} from '../Library/PageHeaders';
 import { useRecentlyViewed } from '../../Hooks/useRecentlyViewed';
 import { useFavorites } from '../../Hooks/useFavorites';
 import { RootState } from '../../Redux/Store/store';
 import {
-	useGetPropertiesQuery,
-	useGetPropertyGroupsQuery,
 	useCreatePropertyMutation,
 	useUpdatePropertyMutation,
 	useDeletePropertyMutation,
@@ -19,8 +21,6 @@ import { canManageProperties } from '../../utils/permissions';
 import { filterPropertyGroupsByRole } from '../../utils/dataFilters';
 import {
 	Wrapper,
-	PageHeader,
-	PageTitle,
 	TopActions,
 	GroupsContainer,
 	GroupSection,
@@ -49,18 +49,14 @@ export const Properties = () => {
 	const teamMembers = useSelector((state: RootState) =>
 		state.team.groups.flatMap((group) => group.members),
 	);
+
+	// Read property groups from Redux store (populated by DataLoader)
+	const propertyGroups = useSelector(
+		(state: RootState) => state.propertyData.groups,
+	);
+
 	const { addRecentlyViewed } = useRecentlyViewed(currentUser?.id);
 	const { toggleFavorite, isFavorite } = useFavorites(currentUser?.id);
-
-	// Firebase queries - skip if no user
-	const { data: properties = [] } = useGetPropertiesQuery(
-		currentUser?.id || '',
-		{ skip: !currentUser },
-	);
-	const { data: groups = [] } = useGetPropertyGroupsQuery(
-		currentUser?.id || '',
-		{ skip: !currentUser },
-	);
 
 	// Firebase mutations
 	const [createProperty] = useCreatePropertyMutation();
@@ -75,11 +71,11 @@ export const Properties = () => {
 
 	// Combine groups with their properties
 	const groupsWithProperties = useMemo(() => {
-		return groups.map((group) => ({
+		return propertyGroups.map((group) => ({
 			...group,
-			properties: properties.filter((prop) => prop.groupId === group.id),
+			properties: group.properties || [],
 		}));
-	}, [groups, properties]);
+	}, [propertyGroups]);
 
 	// Filter groups based on user role and assignments
 	// Note: Casting to any[] to handle type mismatch between Redux types (number IDs) and Firebase types (string IDs)
@@ -128,7 +124,7 @@ export const Properties = () => {
 			// Save the name change
 			if (
 				editingGroupName.trim() &&
-				editingGroupName !== groups.find((g) => g.id === groupId)?.name
+				editingGroupName !== propertyGroups.find((g) => g.id === groupId)?.name
 			) {
 				updatePropertyGroup({
 					id: groupId,
@@ -139,7 +135,7 @@ export const Properties = () => {
 			setEditingGroupName('');
 		} else {
 			// Start editing
-			const group = groups.find((g) => g.id === groupId);
+			const group = propertyGroups.find((g) => g.id === groupId);
 			if (group) {
 				setEditingGroupId(groupId);
 				setEditingGroupName(group.name);
@@ -170,7 +166,18 @@ export const Properties = () => {
 	};
 
 	const handleDeleteGroup = async (groupId: string) => {
-		await deletePropertyGroup(groupId);
+		if (
+			!window.confirm('Are you sure you want to delete this property group?')
+		) {
+			return;
+		}
+		try {
+			await deletePropertyGroup(groupId).unwrap();
+			console.log('Property group deleted successfully');
+		} catch (error) {
+			console.error('Failed to delete property group:', error);
+			alert('Failed to delete property group. Please try again.');
+		}
 	};
 
 	const handleSaveProperty = async (formData: any) => {
@@ -245,8 +252,7 @@ export const Properties = () => {
 				groupId: groupId,
 				title: formData.name,
 				slug,
-				image:
-					formData.photo || 'https://via.placeholder.com/300x200?text=Property',
+				image: formData.photo,
 				owner: formData.owner,
 				address: formData.address,
 				propertyType: formData.propertyType,
@@ -300,8 +306,8 @@ export const Properties = () => {
 	return (
 		<Wrapper>
 			{/* Page Header: Title on left, actions on right */}
-			<PageHeader>
-				<PageTitle>Properties</PageTitle>
+			<PageHeaderSection>
+				<StandardPageTitle>Properties</StandardPageTitle>
 				{canManage && (
 					<TopActions>
 						<AddGroupButton onClick={handleAddGroup}>
@@ -312,7 +318,7 @@ export const Properties = () => {
 						</AddPropertyButton>
 					</TopActions>
 				)}
-			</PageHeader>
+			</PageHeaderSection>
 			<PropertyDialog
 				isOpen={dialogOpen}
 				onClose={() => {

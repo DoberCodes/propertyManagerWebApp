@@ -42,6 +42,11 @@ export const teamSlice = createSlice({
 	name: 'team',
 	initialState,
 	reducers: {
+		// Cache actions - called when API data is fetched
+		setTeamGroups: (state, action: PayloadAction<TeamGroup[]>) => {
+			state.groups = action.payload;
+		},
+
 		// Group actions
 		addTeamGroup: (state, action: PayloadAction<TeamGroup>) => {
 			state.groups.push(action.payload);
@@ -105,6 +110,7 @@ export const teamSlice = createSlice({
 });
 
 export const {
+	setTeamGroups,
 	addTeamGroup,
 	deleteTeamGroup,
 	updateTeamGroupName,

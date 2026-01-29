@@ -23,7 +23,6 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { setCurrentUser } from '../../Redux/Slices/userSlice';
 import { signInWithEmail } from '../../services/authService';
-import { TestAccountsReference } from './TestAccountsReference';
 
 export const LoginCard = () => {
 	const navigate = useNavigate();
@@ -155,7 +154,7 @@ export const LoginCard = () => {
 				{loading && <LoadingSpinner />}
 				{loading ? 'Signing in...' : 'Login'}
 			</Submit>
-			{process.env.NODE_ENV === 'development' && <TestAccountsReference />}
+
 			<RegisterWrapper>
 				<p>
 					Don't have an account? <a href='#/registration'>Sign up here</a>

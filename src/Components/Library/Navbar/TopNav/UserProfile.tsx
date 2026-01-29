@@ -18,7 +18,7 @@ interface UserProfileProps {
 export const UserProfile: React.FC<UserProfileProps> = ({
 	userName = 'John Doe',
 	userTitle = 'Administrator',
-	userImage = 'https://via.placeholder.com/40',
+	userImage,
 }) => {
 	const [isOpen, setIsOpen] = useState(false);
 
@@ -46,7 +46,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({
 			</div>
 			{isOpen && (
 				<DropdownMenu>
-					<DropdownItem to='/settings'>Profile</DropdownItem>
+					<DropdownItem to='/profile'>Edit Profile</DropdownItem>
 					<DropdownItem to='/settings'>Settings</DropdownItem>
 				</DropdownMenu>
 			)}

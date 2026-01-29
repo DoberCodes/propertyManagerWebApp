@@ -27,87 +27,6 @@ export interface UserState {
 	};
 }
 
-// Mock users for testing different roles
-// Password for each user is their role value (e.g., 'admin', 'property_manager')
-export const MOCK_USERS: User[] = [
-	{
-		id: 'user-admin-1',
-		firstName: 'Admin',
-		lastName: 'User',
-		email: 'admin@test.com',
-		role: USER_ROLES.ADMIN,
-		title: 'System Administrator',
-		image: 'https://via.placeholder.com/120?text=AU',
-	},
-	{
-		id: 'user-pm-1',
-		firstName: 'John',
-		lastName: 'Smith',
-		email: 'john@test.com',
-		role: USER_ROLES.PROPERTY_MANAGER,
-		title: 'Senior Property Manager',
-		image: 'https://via.placeholder.com/120?text=JS',
-	},
-	{
-		id: 'user-am-1',
-		firstName: 'Sarah',
-		lastName: 'Johnson',
-		email: 'sarah@test.com',
-		role: USER_ROLES.ASSISTANT_MANAGER,
-		title: 'Assistant Manager',
-		image: 'https://via.placeholder.com/120?text=SJ',
-	},
-	{
-		id: 'user-ml-1',
-		firstName: 'Mike',
-		lastName: 'Rodriguez',
-		email: 'mike@test.com',
-		role: USER_ROLES.MAINTENANCE_LEAD,
-		title: 'Maintenance Lead',
-		image: 'https://via.placeholder.com/120?text=MR',
-	},
-	{
-		id: 'user-mt-1',
-		firstName: 'Chris',
-		lastName: 'Thompson',
-		email: 'chris@test.com',
-		role: USER_ROLES.MAINTENANCE,
-		title: 'Maintenance Technician',
-		image: 'https://via.placeholder.com/120?text=CT',
-	},
-	{
-		id: 'user-contractor-1',
-		firstName: 'David',
-		lastName: 'Lee',
-		email: 'david@test.com',
-		role: USER_ROLES.CONTRACTOR,
-		title: 'Independent Contractor',
-		image: 'https://via.placeholder.com/120?text=DL',
-	},
-	{
-		id: 'user-tenant-1',
-		firstName: 'Emily',
-		lastName: 'Brown',
-		email: 'emily@test.com',
-		role: USER_ROLES.TENANT,
-		title: 'Tenant',
-		image: 'https://via.placeholder.com/120?text=EB',
-		assignedPropertyId: 1, // Downtown Apartments
-	},
-];
-
-// Helper function for mock authentication
-export const authenticateMockUser = (
-	email: string,
-	password: string,
-): User | null => {
-	const user = MOCK_USERS.find((u) => u.email === email);
-	if (user && password === user.role) {
-		return user;
-	}
-	return null;
-};
-
 const initialState: UserState = {
 	currentUser: null, // No user logged in by default
 	isAuthenticated: false,
@@ -148,23 +67,6 @@ export const userSlice = createSlice({
 		setAuthLoading: (state, action: PayloadAction<boolean>) => {
 			state.authLoading = action.payload;
 		},
-		switchMockUser: (state, action: PayloadAction<string>) => {
-			const user = MOCK_USERS.find((u) => u.id === action.payload);
-			if (user) {
-				state.currentUser = user;
-				state.isAuthenticated = true;
-
-				// Update legacy fields
-				state.cred = {
-					UserId: user.id,
-					UserName: `${user.firstName} ${user.lastName}`,
-				};
-				state.Profile = {
-					HouseHoldName: `${user.firstName} ${user.lastName}`,
-					email: user.email,
-				};
-			}
-		},
 		logout: (state) => {
 			state.currentUser = null;
 			state.isAuthenticated = false;
@@ -189,7 +91,6 @@ export const userSlice = createSlice({
 export const {
 	setCurrentUser,
 	setAuthLoading,
-	switchMockUser,
 	logout,
 	updateUserProfile,
 	setUserCred,

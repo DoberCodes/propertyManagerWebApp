@@ -17,6 +17,7 @@ import {
 import {
 	useGetTeamGroupsQuery,
 	useGetTeamMembersQuery,
+	useGetPropertiesQuery,
 	useCreateTeamGroupMutation,
 	useUpdateTeamGroupMutation,
 	useDeleteTeamGroupMutation,
@@ -25,13 +26,17 @@ import {
 	useDeleteTeamMemberMutation,
 } from '../../Redux/API/apiSlice';
 import {
+	PageHeaderSection,
+	PageTitle as StandardPageTitle,
+} from '../../Components/Library/PageHeaders';
+import {
 	Wrapper,
 	PageHeader,
-	PageTitle,
 	AddTeamGroupButton,
 	TeamGroupSection,
 	TeamGroupHeader,
 	TeamGroupTitle,
+	TeamGroupNameInput,
 	TeamGroupActions,
 	TeamGroupActionButton,
 	TeamMembersGrid,
@@ -77,13 +82,6 @@ import {
 	SaveButton,
 } from './TeamPage.styles';
 
-const MOCK_PROPERTIES = [
-	{ id: 'prop-1', title: 'Downtown Apartments' },
-	{ id: 'prop-2', title: 'Business Park' },
-	{ id: 'prop-3', title: 'Sunset Heights' },
-	{ id: 'prop-4', title: 'Oak Street Complex' },
-];
-
 const ROLE_OPTIONS = [
 	{ value: 'property_manager', label: 'Property Manager' },
 	{ value: 'assistant_manager', label: 'Assistant Manager' },
@@ -108,11 +106,11 @@ export default function TeamPage() {
 	const dispatch = useDispatch<AppDispatch>();
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
 
-	// Firebase queries - skip if no user
-	const { data: teamGroups = [], isLoading: groupsLoading } =
-		useGetTeamGroupsQuery(currentUser?.id || '', { skip: !currentUser });
-	const { data: teamMembers = [], isLoading: membersLoading } =
-		useGetTeamMembersQuery(currentUser?.id || '', { skip: !currentUser });
+	// Read from Redux cache instead of making new queries
+	const teamGroupsCache = useSelector((state: RootState) => state.team.groups);
+	const properties = useSelector((state: RootState) =>
+		state.propertyData.groups.flatMap((g) => g.properties || []),
+	);
 
 	// Firebase mutations
 	const [createTeamGroup] = useCreateTeamGroupMutation();
@@ -124,11 +122,11 @@ export default function TeamPage() {
 
 	// Combine groups with their members
 	const groupsWithMembers = useMemo(() => {
-		return teamGroups.map((group) => ({
+		return teamGroupsCache.map((group) => ({
 			...group,
-			members: teamMembers.filter((member) => member.groupId === group.id),
+			members: group.members || [],
 		}));
-	}, [teamGroups, teamMembers]);
+	}, [teamGroupsCache]);
 
 	// Check if user can manage team members (add/edit/delete)
 	// All authenticated users can view the team page, but only managers can edit
@@ -140,6 +138,8 @@ export default function TeamPage() {
 	const [showTeamMemberDialog, setShowTeamMemberDialog] = useState(false);
 	const [currentGroupId, setCurrentGroupId] = useState<string | null>(null);
 	const [editingMember, setEditingMember] = useState<TeamMember | null>(null);
+	const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
+	const [editingGroupName, setEditingGroupName] = useState<string>('');
 	const [imagePreview, setImagePreview] = useState<string | null>(null);
 	const [formData, setFormData] = useState({
 		firstName: '',
@@ -284,12 +284,46 @@ export default function TeamPage() {
 		});
 	};
 
-	const handleEditTeamGroup = (groupId: string) => {
-		dispatch(toggleTeamGroupEditName(groupId));
+	const handleEditTeamGroup = async (groupId: string) => {
+		if (editingGroupId === groupId) {
+			// Save the name change
+			if (
+				editingGroupName.trim() &&
+				editingGroupName !== teamGroupsCache.find((g) => g.id === groupId)?.name
+			) {
+				try {
+					await updateTeamGroup({
+						id: groupId,
+						updates: { name: editingGroupName },
+					}).unwrap();
+				} catch (error) {
+					console.error('Failed to update team group name:', error);
+					alert('Failed to update group name. Please try again.');
+				}
+			}
+			setEditingGroupId(null);
+			setEditingGroupName('');
+		} else {
+			// Start editing
+			const group = teamGroupsCache.find((g) => g.id === groupId);
+			if (group) {
+				setEditingGroupId(groupId);
+				setEditingGroupName(group.name);
+			}
+		}
 	};
 
 	const handleDeleteTeamGroup = async (groupId: string) => {
-		await deleteTeamGroupApi(groupId);
+		if (!window.confirm('Are you sure you want to delete this team group?')) {
+			return;
+		}
+		try {
+			await deleteTeamGroupApi(groupId).unwrap();
+			console.log('Team group deleted successfully');
+		} catch (error) {
+			console.error('Failed to delete team group:', error);
+			alert('Failed to delete team group. Please try again.');
+		}
 	};
 
 	const handleTeamGroupNameChange = async (
@@ -304,20 +338,38 @@ export default function TeamPage() {
 
 	return (
 		<Wrapper>
-			<PageHeader>
-				<PageTitle>Team Management</PageTitle>
+			<PageHeaderSection>
+				<StandardPageTitle>Team Management</StandardPageTitle>
 				{canManage && (
 					<AddTeamGroupButton onClick={handleAddTeamGroup}>
 						+ Add Team Group
 					</AddTeamGroupButton>
 				)}
-			</PageHeader>
+			</PageHeaderSection>
 
 			<TeamGroupSection>
 				{filteredTeamGroups.map((group) => (
 					<div key={group.id}>
 						<TeamGroupHeader>
-							<TeamGroupTitle>{group.name}</TeamGroupTitle>
+							{editingGroupId === group.id ? (
+								<TeamGroupNameInput
+									type='text'
+									value={editingGroupName}
+									onChange={(e) => setEditingGroupName(e.target.value)}
+									onBlur={() => handleEditTeamGroup(group.id)}
+									onKeyDown={(e) => {
+										if (e.key === 'Enter') {
+											handleEditTeamGroup(group.id);
+										} else if (e.key === 'Escape') {
+											setEditingGroupId(null);
+											setEditingGroupName('');
+										}
+									}}
+									autoFocus
+								/>
+							) : (
+								<TeamGroupTitle>{group.name}</TeamGroupTitle>
+							)}
 							{canManage && (
 								<TeamGroupActions>
 									<TeamGroupActionButton
@@ -505,7 +557,7 @@ export default function TeamPage() {
 								<FormGroup>
 									<SectionTitle>Assigned Properties</SectionTitle>
 									<PropertyMultiSelect>
-										{MOCK_PROPERTIES.map((property) => (
+										{properties.map((property) => (
 											<PropertyCheckbox key={property.id}>
 												<input
 													type='checkbox'

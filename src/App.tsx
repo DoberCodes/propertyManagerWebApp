@@ -3,6 +3,7 @@ import { useDispatch } from 'react-redux';
 import { setCurrentUser, setAuthLoading } from './Redux/Slices/userSlice';
 import { RouterComponent } from './router';
 import { FirebaseConnectionTest } from './Components/FirebaseConnectionTest';
+import { DataFetchProvider } from './Hooks/DataFetchContext';
 import { onAuthStateChange } from './services/authService';
 
 export const App = () => {
@@ -38,7 +39,9 @@ export const App = () => {
 	return (
 		<>
 			{process.env.NODE_ENV === 'development' && <FirebaseConnectionTest />}
-			<RouterComponent />
+			<DataFetchProvider>
+				<RouterComponent />
+			</DataFetchProvider>
 		</>
 	);
 };

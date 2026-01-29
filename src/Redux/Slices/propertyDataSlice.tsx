@@ -103,119 +103,7 @@ export interface PropertyDataState {
 }
 
 const initialState: PropertyDataState = {
-	groups: [
-		{
-			id: 'group-1',
-			name: 'Downtown Properties',
-			properties: [
-				{
-					id: 'prop-1',
-					title: 'Downtown Apartments',
-					slug: 'downtown-apartments',
-					image: 'https://via.placeholder.com/300x200?text=Downtown+Apartments',
-					isFavorite: false,
-					propertyType: 'Multi-Family',
-					owner: 'John Smith',
-					address: '123 Main Street, Downtown District',
-					units: [
-						{
-							name: 'Apt 5B',
-							occupants: [
-								{
-									firstName: 'Emily',
-									lastName: 'Brown',
-									email: 'emily@test.com',
-									phone: '(555) 678-9012',
-								},
-							],
-						},
-						{ name: 'Apt 3A', occupants: [] },
-						{ name: 'Apt 4C', occupants: [] },
-					],
-					maintenanceHistory: [
-						{
-							date: '2026-01-15',
-							description: 'HVAC filter replacement',
-						},
-						{
-							date: '2025-12-20',
-							description: 'Plumbing inspection',
-						},
-					],
-				},
-				{
-					id: 'prop-2',
-					title: 'Business Park',
-					slug: 'business-park',
-					image: 'https://via.placeholder.com/300x200?text=Business+Park',
-					isFavorite: false,
-					propertyType: 'Commercial',
-					owner: 'Corporate Solutions Inc',
-					address: '456 Commerce Avenue, Business District',
-					hasSuites: true,
-					suites: [
-						{ name: 'Suite 100', occupants: [] },
-						{ name: 'Suite 200', occupants: [] },
-						{ name: 'Suite 300', occupants: [] },
-					],
-					maintenanceHistory: [
-						{
-							date: '2026-01-10',
-							description: 'Roof maintenance',
-						},
-						{ date: '2025-11-05', description: 'HVAC service' },
-					],
-				},
-			],
-		},
-		{
-			id: 'group-2',
-			name: 'Residential Homes',
-			properties: [
-				{
-					id: 'prop-3',
-					title: 'Sunset Heights',
-					slug: 'sunset-heights',
-					image: 'https://via.placeholder.com/300x200?text=Sunset+Heights',
-					isFavorite: false,
-					propertyType: 'Single Family',
-					owner: 'Sarah Johnson',
-					address: '789 Hill Road, Residential Area',
-					maintenanceHistory: [
-						{ date: '2026-01-20', description: 'Gutter cleaning' },
-						{ date: '2025-12-15', description: 'Exterior paint touch-up' },
-						{ date: '2025-11-10', description: 'Roof repair' },
-					],
-				},
-				{
-					id: 'prop-4',
-					title: 'Oak Street Complex',
-					slug: 'oak-street-complex',
-					image: 'https://via.placeholder.com/300x200?text=Oak+Street',
-					isFavorite: false,
-					propertyType: 'Multi-Family',
-					owner: 'Property Group LLC',
-					address: '321 Oak Street, Mixed Use Zone',
-					units: [
-						{ name: 'Unit A', occupants: [] },
-						{ name: 'Unit B', occupants: [] },
-						{ name: 'Unit C', occupants: [] },
-						{ name: 'Unit D', occupants: [] },
-					],
-					maintenanceHistory: [
-						{
-							date: '2026-01-08',
-							description: 'Foundation inspection',
-						},
-						{
-							date: '2025-12-01',
-							description: 'Electrical system upgrade',
-						},
-					],
-				},
-			],
-		},
-	],
+	groups: [],
 	tasks: [],
 };
 
@@ -223,6 +111,14 @@ export const propertyDataSlice = createSlice({
 	name: 'propertyData',
 	initialState,
 	reducers: {
+		// Cache actions - called when API data is fetched
+		setPropertyGroups: (state, action: PayloadAction<PropertyGroup[]>) => {
+			state.groups = action.payload;
+		},
+		setTasks: (state, action: PayloadAction<Task[]>) => {
+			state.tasks = action.payload;
+		},
+
 		// Group actions
 		addGroup: (state, action: PayloadAction<PropertyGroup>) => {
 			state.groups.push(action.payload);
@@ -354,6 +250,8 @@ export const propertyDataSlice = createSlice({
 });
 
 export const {
+	setPropertyGroups,
+	setTasks,
 	addGroup,
 	deleteGroup,
 	updateGroupName,

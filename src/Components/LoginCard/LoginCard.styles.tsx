@@ -1,4 +1,5 @@
 import styled from 'styled-components';
+import { COLORS } from '../../constants/colors';
 
 export const Wrapper = styled.form`
 	display: grid;
@@ -7,10 +8,12 @@ export const Wrapper = styled.form`
 	padding: 32px 24px;
 	border: none;
 	border-radius: 12px;
-	background-color: white;
+	background-color: ${COLORS.bgWhite};
 	width: 100%;
 	max-width: 420px;
-	box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+	box-shadow: ${COLORS.shadowLg};
+	position: relative;
+	z-index: 10;
 
 	@media (max-width: 768px) {
 		max-width: 380px;
@@ -32,7 +35,10 @@ export const Title = styled.h2`
 	margin: 0 auto 28px auto;
 	text-decoration: none;
 	text-align: center;
-	color: #1f2937;
+	background: ${COLORS.gradientPrimary};
+	-webkit-background-clip: text;
+	-webkit-text-fill-color: transparent;
+	background-clip: text;
 	letter-spacing: 0.5px;
 
 	@media (max-width: 768px) {
@@ -50,23 +56,23 @@ export const Input = styled.input`
 	padding: 12px 14px;
 	font-size: 16px;
 	margin: 10px 0;
-	border: 1.5px solid #e5e7eb;
+	border: 1.5px solid ${COLORS.gray200};
 	border-radius: 6px;
 	width: 100%;
 	box-sizing: border-box;
 	transition: all 0.2s ease;
-	background-color: #f9fafb;
+	background-color: ${COLORS.gray50};
 
 	&:focus {
 		outline: none;
-		border-color: #10b981;
-		box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
-		background-color: white;
+		border-color: ${COLORS.primary};
+		box-shadow: 0 0 0 3px ${COLORS.primaryLight};
+		background-color: ${COLORS.bgWhite};
 	}
 
 	&:hover {
-		border-color: #d1d5db;
-		background-color: white;
+		border-color: ${COLORS.gray300};
+		background-color: ${COLORS.bgWhite};
 	}
 
 	@media (max-width: 768px) {
@@ -97,17 +103,21 @@ export const Submit = styled.button`
 	padding: 12px 32px;
 	border-radius: 6px;
 	border: none;
-	background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+	background: ${COLORS.gradientPrimary};
 	color: white;
 	font-weight: 600;
 	cursor: pointer;
 	transition: all 0.2s ease;
-	box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+	box-shadow: 0 4px 6px rgba(16, 185, 129, 0.25);
 
 	&:hover {
-		background: linear-gradient(135deg, #059669 0%, #047857 100%);
-		box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
-		transform: translateY(-1px);
+		background: linear-gradient(
+			135deg,
+			${COLORS.primaryDark} 0%,
+			${COLORS.primaryDarker} 100%
+		);
+		box-shadow: 0 6px 12px rgba(16, 185, 129, 0.35);
+		transform: translateY(-2px);
 	}
 
 	&:active {
@@ -136,15 +146,15 @@ export const RegisterWrapper = styled.div`
 	margin: 28px 0 0 0;
 	text-align: center;
 	font-size: 15px;
-	color: #6b7280;
+	color: ${COLORS.textSecondary};
 
 	a {
-		color: #10b981;
+		color: ${COLORS.primary};
 		text-decoration: none;
 		font-weight: 600;
 		transition: color 0.2s ease;
 		&:hover {
-			color: #059669;
+			color: ${COLORS.primaryDark};
 			cursor: pointer;
 			text-decoration: underline;
 		}
@@ -188,7 +198,7 @@ export const PasswordToggleButton = styled.button`
 	background: none;
 	border: none;
 	cursor: pointer;
-	color: #9ca3af;
+	color: ${COLORS.textMuted};
 	font-size: 18px;
 	padding: 8px;
 	display: flex;
@@ -198,7 +208,7 @@ export const PasswordToggleButton = styled.button`
 	transition: color 0.2s ease;
 
 	&:hover {
-		color: #374151;
+		color: ${COLORS.textPrimary};
 	}
 
 	&:focus {
@@ -228,7 +238,7 @@ export const CheckboxWrapper = styled.div`
 		width: 18px;
 		height: 18px;
 		cursor: pointer;
-		accent-color: #10b981;
+		accent-color: ${COLORS.primary};
 		border-radius: 3px;
 
 		&:hover {
@@ -259,14 +269,14 @@ export const CheckboxWrapper = styled.div`
 
 export const CheckboxLabel = styled.label`
 	font-size: 14px;
-	color: #4b5563;
+	color: ${COLORS.gray600};
 	cursor: pointer;
 	user-select: none;
 	margin: 0;
 	transition: color 0.2s ease;
 
 	&:hover {
-		color: #1f2937;
+		color: ${COLORS.textPrimary};
 	}
 
 	@media (max-width: 768px) {
@@ -277,10 +287,11 @@ export const CheckboxLabel = styled.label`
 		font-size: 12px;
 	}
 `;
+
 export const ErrorMessage = styled.div`
-	background-color: #fee;
-	border: 1px solid #fcc;
-	color: #c33;
+	background-color: #fef2f2;
+	border: 1px solid #fecaca;
+	color: ${COLORS.error};
 	padding: 12px;
 	margin: 10px;
 	border-radius: 5px;
@@ -304,8 +315,8 @@ export const LoadingSpinner = styled.div`
 	display: inline-block;
 	width: 20px;
 	height: 20px;
-	border: 3px solid #f3f3f3;
-	border-top: 3px solid #3498db;
+	border: 3px solid ${COLORS.gray100};
+	border-top: 3px solid ${COLORS.primary};
 	border-radius: 50%;
 	animation: spin 1s linear infinite;
 	margin-right: 8px;
