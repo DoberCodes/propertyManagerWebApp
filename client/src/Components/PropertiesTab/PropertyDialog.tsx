@@ -67,8 +67,8 @@ interface PropertyFormData {
 	units: string[]; // For multi-family properties
 	hasSuites?: boolean; // For commercial properties
 	suites: string[]; // For commercial properties with multiple suites
-	bedrooms: number;
-	bathrooms: number;
+	bedrooms?: number | null;
+	bathrooms?: number | null;
 	devices: Device[];
 	notes: string;
 	files?: string[];
@@ -508,11 +508,13 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 									<Label>Bedrooms</Label>
 									<Input
 										type='number'
-										value={formData.bedrooms}
+										value={formData.bedrooms || ''}
 										onChange={(e) =>
 											handleInputChange(
 												'bedrooms',
-												parseInt(e.target.value) || 0,
+												e.target.value === ''
+													? null
+													: parseInt(e.target.value, 10),
 											)
 										}
 										placeholder='0'
@@ -522,11 +524,14 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 									<Label>Bathrooms</Label>
 									<Input
 										type='number'
-										value={formData.bathrooms}
+										step='0.5'
+										value={formData.bathrooms || ''}
 										onChange={(e) =>
 											handleInputChange(
 												'bathrooms',
-												parseInt(e.target.value) || 0,
+												e.target.value === ''
+													? null
+													: parseFloat(e.target.value),
 											)
 										}
 										placeholder='0'
@@ -737,7 +742,7 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 									<Label>Installation Date</Label>
 									<Input
 										type='date'
-										value={device.installationDate}
+										value={device.installationDate || ''}
 										onChange={(e) =>
 											handleDeviceChange(
 												device.id,
