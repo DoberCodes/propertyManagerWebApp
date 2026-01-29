@@ -13,10 +13,8 @@ import {
 	Label,
 	Input,
 	TextArea,
-	PhotoInput,
 	PhotoPreview,
 	PhotoPreviewImage,
-	RemovePhotoButton,
 	DevicesSection,
 	DeviceRow,
 	RemoveDeviceButton,
@@ -35,6 +33,7 @@ import {
 	TagInput,
 	AddButton,
 } from './PropertyDialog.styles';
+import { uploadToBase64, isValidImageFile } from '../../utils/base64Upload';
 
 interface Device {
 	id: string; // Changed to string (Firebase)
@@ -129,6 +128,8 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 	const [suiteInput, setSuiteInput] = useState('');
 
 	const [newGroupName, setNewGroupName] = useState('');
+	const [isUploadingImage, setIsUploadingImage] = useState(false);
+	const [imageError, setImageError] = useState<string | null>(null);
 
 	// Reset form when dialog opens or initialData changes
 	useEffect(() => {
@@ -303,14 +304,35 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 		}));
 	};
 
-	const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+	const handlePhotoUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+		const url = e.target.value;
+		handleInputChange('photo', url || undefined);
+		setImageError(null);
+	};
+
+	const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
 		const file = e.target.files?.[0];
 		if (file) {
-			const reader = new FileReader();
-			reader.onload = (event) => {
-				handleInputChange('photo', event.target?.result);
-			};
-			reader.readAsDataURL(file);
+			if (!isValidImageFile(file)) {
+				setImageError('Invalid file. Please upload an image under 700KB.');
+				return;
+			}
+
+			setImageError(null);
+			setIsUploadingImage(true);
+
+			try {
+				const imageUrl = await uploadToBase64(file);
+				handleInputChange('photo', imageUrl);
+				setIsUploadingImage(false);
+			} catch (error) {
+				const errorMessage =
+					error instanceof Error ? error.message : 'Failed to upload image';
+				setImageError(errorMessage);
+				setIsUploadingImage(false);
+			}
+			// Clear the file input
+			e.target.value = '';
 		}
 	};
 
@@ -404,24 +426,56 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 					{/* Photo Section */}
 					<FormSection>
 						<SectionTitle>Photo</SectionTitle>
-						{formData.photo ? (
-							<PhotoPreview>
-								<PhotoPreviewImage src={formData.photo} alt='Property' />
-								<RemovePhotoButton
-									onClick={() => handleInputChange('photo', undefined)}>
-									Remove
-								</RemovePhotoButton>
-							</PhotoPreview>
+						{imageError && (
+							<div
+								style={{
+									color: '#dc2626',
+									fontSize: '14px',
+									marginBottom: '12px',
+									padding: '8px 12px',
+									backgroundColor: '#fee2e2',
+									borderRadius: '4px',
+								}}>
+								{imageError}
+							</div>
+						)}
+						<FormRow>
+							<FormField>
+								<Input
+									type='text'
+									value={formData.photo || ''}
+									onChange={handlePhotoUrlChange}
+									placeholder='Enter image URL or upload a file below'
+									disabled={isUploadingImage}
+								/>
+							</FormField>
+						</FormRow>
+						{isUploadingImage ? (
+							<div
+								style={{
+									padding: '12px',
+									textAlign: 'center',
+									color: '#6b7280',
+									fontSize: '14px',
+								}}>
+								Processing image...
+							</div>
 						) : (
-							<FileLabel htmlFor='photo-input'>
-								<PhotoInput
-									id='photo-input'
+							<FileLabel htmlFor='photo-upload-input'>
+								<input
+									id='photo-upload-input'
 									type='file'
 									accept='image/*'
-									onChange={handlePhotoSelect}
+									onChange={handlePhotoUpload}
+									style={{ display: 'none' }}
 								/>
-								Choose Photo
+								📤 Upload Image File
 							</FileLabel>
+						)}
+						{formData.photo && (
+							<PhotoPreview>
+								<PhotoPreviewImage src={formData.photo} alt='Property' />
+							</PhotoPreview>
 						)}
 					</FormSection>
 
@@ -508,7 +562,12 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 									<Label>Bedrooms</Label>
 									<Input
 										type='number'
-										value={formData.bedrooms || ''}
+										value={
+											formData.bedrooms !== null &&
+											formData.bedrooms !== undefined
+												? formData.bedrooms
+												: ''
+										}
 										onChange={(e) =>
 											handleInputChange(
 												'bedrooms',
@@ -525,7 +584,12 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 									<Input
 										type='number'
 										step='0.5'
-										value={formData.bathrooms || ''}
+										value={
+											formData.bathrooms !== null &&
+											formData.bathrooms !== undefined
+												? formData.bathrooms
+												: ''
+										}
 										onChange={(e) =>
 											handleInputChange(
 												'bathrooms',

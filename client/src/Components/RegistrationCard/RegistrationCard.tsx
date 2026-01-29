@@ -98,17 +98,19 @@ export const RegistrationCard = () => {
 
 		try {
 			console.log('RegistrationCard: Starting Firebase registration', {
-				email,
-				firstName,
-				lastName,
+				email: email.trim(),
+				emailLength: email.length,
+				firstName: firstName.trim(),
+				lastName: lastName.trim(),
+				passwordLength: password.length,
 			});
 
-			// Register with Firebase - default role is admin
+			// Register with Firebase - default role is admin, trim values
 			const user = await signUpWithEmail(
-				email,
-				password,
-				firstName,
-				lastName,
+				email.trim(),
+				password.trim(),
+				firstName.trim(),
+				lastName.trim(),
 				USER_ROLES.ADMIN,
 			);
 

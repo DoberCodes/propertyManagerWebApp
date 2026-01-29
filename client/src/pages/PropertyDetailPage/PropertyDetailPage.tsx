@@ -7,6 +7,7 @@ import {
 	useGetTeamMembersQuery,
 	useUpdateTaskMutation,
 	useGetPropertiesQuery,
+	useUpdatePropertyMutation,
 } from '../../Redux/API/apiSlice';
 import {
 	addTask,
@@ -23,6 +24,7 @@ import {
 	isTenant,
 } from '../../utils/permissions';
 import { useFavorites } from '../../Hooks/useFavorites';
+import { uploadToBase64, isValidImageFile } from '../../utils/base64Upload';
 import { TaskCompletionModal } from '../../Components/Library/TaskCompletionModal';
 import {
 	MaintenanceRequestModal,
@@ -298,8 +300,9 @@ export const PropertyDetailPage = () => {
 		{ skip: !currentUser },
 	);
 
-	// Firebase mutation for updating tasks
+	// Firebase mutations for updating tasks and properties
 	const [updateTaskMutation] = useUpdateTaskMutation();
+	const [updatePropertyMutation] = useUpdatePropertyMutation();
 
 	const [activeTab, setActiveTab] = useState<
 		| 'details'
@@ -314,6 +317,8 @@ export const PropertyDetailPage = () => {
 	const [editedTitle, setEditedTitle] = useState('');
 	const [isEditMode, setIsEditMode] = useState(false);
 	const [editedProperty, setEditedProperty] = useState<any>({});
+	const [isUploadingImage, setIsUploadingImage] = useState(false);
+	const [imageError, setImageError] = useState<string | null>(null);
 	const [selectedTasks, setSelectedTasks] = useState<string[]>([]);
 	const [showTaskDialog, setShowTaskDialog] = useState(false);
 	const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
@@ -393,6 +398,62 @@ export const PropertyDetailPage = () => {
 		// For now, we'll just close the edit mode
 		setIsEditingTitle(false);
 		// You could update the property here via an API call
+	};
+
+	const handleImageUrlChange = async (url: string) => {
+		if (property) {
+			setImageError(null);
+			setIsUploadingImage(true);
+
+			try {
+				// Update property with new image URL
+				await updatePropertyMutation({
+					id: property.id,
+					updates: {
+						image: url || undefined,
+					},
+				}).unwrap();
+
+				setIsUploadingImage(false);
+			} catch (error) {
+				const errorMessage =
+					error instanceof Error ? error.message : 'Failed to update image';
+				setImageError(errorMessage);
+				setIsUploadingImage(false);
+			}
+		}
+	};
+
+	const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+		const file = e.target.files?.[0];
+		if (file && property) {
+			if (!isValidImageFile(file)) {
+				setImageError('Invalid file. Please upload an image under 700KB.');
+				return;
+			}
+
+			setImageError(null);
+			setIsUploadingImage(true);
+
+			try {
+				const imageUrl = await uploadToBase64(file);
+				await updatePropertyMutation({
+					id: property.id,
+					updates: {
+						image: imageUrl,
+					},
+				}).unwrap();
+
+				setIsUploadingImage(false);
+			} catch (error) {
+				const errorMessage =
+					error instanceof Error ? error.message : 'Failed to upload image';
+				setImageError(errorMessage);
+				setIsUploadingImage(false);
+			}
+			// Clear the file input
+			e.target.value = '';
+		}
 	};
 
 	const handleTaskCheckbox = (taskId: string) => {
@@ -669,6 +730,59 @@ export const PropertyDetailPage = () => {
 		<Wrapper>
 			<Header style={{ backgroundImage: `url(${property.image})` }}>
 				<BackButton onClick={() => navigate('/manage')}>← Back</BackButton>
+				{imageError && (
+					<div
+						style={{
+							position: 'relative',
+							zIndex: 10,
+							color: '#dc2626',
+							fontSize: '14px',
+							padding: '8px 12px',
+							backgroundColor: '#fee2e2',
+							borderRadius: '4px',
+							margin: '0 20px',
+						}}>
+						{imageError}
+					</div>
+				)}
+				{isUploadingImage ? (
+					<div
+						style={{
+							position: 'relative',
+							zIndex: 10,
+							textAlign: 'center',
+							color: 'white',
+							fontSize: '14px',
+						}}>
+						Uploading image...
+					</div>
+				) : (
+					<label
+						htmlFor='header-photo-upload'
+						style={{
+							position: 'absolute',
+							top: '20px',
+							right: '20px',
+							zIndex: 10,
+							background: 'rgba(0, 0, 0, 0.6)',
+							color: 'white',
+							border: 'none',
+							padding: '8px 16px',
+							borderRadius: '4px',
+							cursor: 'pointer',
+							fontSize: '14px',
+						}}
+						title='Click to upload property image'>
+						📷 Change Photo
+						<input
+							id='header-photo-upload'
+							type='file'
+							accept='image/*'
+							onChange={handlePhotoUpload}
+							style={{ display: 'none' }}
+						/>
+					</label>
+				)}
 				<HeaderContent>
 					<TitleContainer>
 						{isEditingTitle ? (

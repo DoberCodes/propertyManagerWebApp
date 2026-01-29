@@ -5,6 +5,9 @@ import { Provider } from 'react-redux';
 import { store } from './Redux/Store/store.tsx';
 import App from './App.tsx';
 import GlobalStyles from './global.styles.tsx';
+if (process.env.NODE_ENV === 'development') {
+	import('./utils/testFirebase.ts');
+}
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(

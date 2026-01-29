@@ -68,10 +68,17 @@ export const LoginCard = () => {
 		setLoading(true);
 
 		try {
-			console.log('LoginCard: Attempting Firebase login with:', { email });
+			console.log('LoginCard: Attempting Firebase login with:', {
+				email,
+				emailLength: email.length,
+				passwordLength: password.length,
+				emailTrimmed: email.trim(),
+				hasEmail: !!email,
+				hasPassword: !!password,
+			});
 
-			// Sign in with Firebase
-			const user = await signInWithEmail(email, password);
+			// Sign in with Firebase - trim values to remove whitespace
+			const user = await signInWithEmail(email.trim(), password.trim());
 			console.log('LoginCard: Firebase authentication successful:', user);
 
 			// Set user in Redux store
