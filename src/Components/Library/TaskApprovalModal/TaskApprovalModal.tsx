@@ -11,6 +11,7 @@ import {
 	useRejectTaskMutation,
 } from '../../../Redux/API/apiSlice';
 import { canApproveTaskCompletions } from '../../../utils/permissions';
+import { UserRole } from '../../../constants/roles';
 import {
 	ModalOverlay,
 	ModalContainer,
@@ -64,27 +65,10 @@ export const TaskApprovalModal: React.FC<TaskApprovalModalProps> = ({
 	const [rejectTask] = useRejectTaskMutation();
 
 	// Check if current user has permission to approve tasks
-	const hasApprovalPermission = currentUser
-		? canApproveTaskCompletions(currentUser.role)
-		: false;
-
-	if (!currentUser) {
-		return (
-			<ModalOverlay onClick={onClose}>
-				<ModalContainer>
-					<ModalHeader>
-						<ModalTitle>Authentication Required</ModalTitle>
-						<CloseButton onClick={onClose}>&times;</CloseButton>
-					</ModalHeader>
-					<ModalBody>
-						<ErrorMessage>
-							You must be logged in to review task completions.
-						</ErrorMessage>
-					</ModalBody>
-				</ModalContainer>
-			</ModalOverlay>
-		);
-	}
+	// currentUser is guaranteed to exist in protected routes
+	const hasApprovalPermission = canApproveTaskCompletions(
+		currentUser!.role as UserRole,
+	);
 
 	if (!hasApprovalPermission) {
 		return (
@@ -111,14 +95,11 @@ export const TaskApprovalModal: React.FC<TaskApprovalModalProps> = ({
 		setError('');
 
 		try {
-			const approvedAt = new Date().toISOString();
-
 			// Update Redux state
 			dispatch(
 				approveTaskCompletion({
 					taskId,
-					approvedBy: currentUser.id,
-					approvedAt,
+					approvedBy: currentUser!.id,
 				}),
 			);
 
@@ -126,7 +107,7 @@ export const TaskApprovalModal: React.FC<TaskApprovalModalProps> = ({
 			try {
 				await approveTask({
 					taskId: taskId.toString(),
-					approvedBy: currentUser.id,
+					approvedBy: currentUser!.id,
 				}).unwrap();
 			} catch (firebaseError) {
 				console.warn(

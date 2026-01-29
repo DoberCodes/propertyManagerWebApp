@@ -15,6 +15,32 @@ import { db, storage } from '../../config/firebase';
 import { User } from '../Slices/userSlice';
 
 // Types
+export type SharePermission = 'admin' | 'viewer';
+
+export interface PropertyShare {
+	id: string;
+	propertyId: string;
+	ownerId: string; // User who owns the property
+	sharedWithUserId: string; // User who has access
+	sharedWithEmail: string; // Email of user who has access
+	permission: SharePermission; // 'admin' or 'viewer'
+	createdAt: string;
+	updatedAt: string;
+}
+
+export interface UserInvitation {
+	id: string;
+	propertyId: string;
+	propertyTitle: string;
+	fromUserId: string;
+	fromUserEmail: string;
+	toEmail: string;
+	permission: SharePermission;
+	status: 'pending' | 'accepted' | 'rejected';
+	createdAt: string;
+	expiresAt: string;
+}
+
 export interface Property {
 	id: string;
 	groupId: string;
@@ -60,6 +86,7 @@ export interface CompletionFile {
 
 export interface Device {
 	id: string;
+	userId: string; // Owner of the device
 	type: string; // 'HVAC', 'Plumbing', 'Electrical', 'Appliance', 'Security', 'Other'
 	brand?: string;
 	model?: string;
@@ -83,6 +110,7 @@ export interface Device {
 
 export interface Task {
 	id: string;
+	userId: string; // Owner of the task
 	propertyId: string;
 	suiteId?: string; // Optional: for tasks specific to a suite
 	unitId?: string; // Optional: for tasks specific to a unit
@@ -140,6 +168,7 @@ export interface TeamGroup {
 
 export interface Suite {
 	id: string;
+	userId: string; // Owner of the suite
 	propertyId: string;
 	name: string;
 	floor: number;
@@ -166,6 +195,7 @@ export interface Suite {
 
 export interface Unit {
 	id: string;
+	userId: string; // Owner of the unit
 	propertyId: string; // Changed from suiteId - units belong to properties (multifamily homes)
 	name: string;
 	floor: number;
@@ -217,6 +247,8 @@ export const apiSlice = createApi({
 		'Suites',
 		'Units',
 		'Favorites',
+		'PropertyShares',
+		'UserInvitations',
 	],
 	endpoints: (builder) => ({
 		// Property Group endpoints
@@ -308,7 +340,12 @@ export const apiSlice = createApi({
 		getProperties: builder.query<Property[], string>({
 			async queryFn(userId: string) {
 				try {
-					// First, get all property groups for this user
+					// First, get user's email for shared properties lookup
+					const userDocRef = doc(db, 'users', userId);
+					const userDoc = await getDoc(userDocRef);
+					const userEmail = userDoc.data()?.email;
+
+					// Get all property groups owned by this user
 					const groupsQuery = query(
 						collection(db, 'propertyGroups'),
 						where('userId', '==', userId),
@@ -316,37 +353,69 @@ export const apiSlice = createApi({
 					const groupsSnapshot = await getDocs(groupsQuery);
 					const groupIds = groupsSnapshot.docs.map((doc) => doc.id);
 
-					// If no groups, return empty array
-					if (groupIds.length === 0) {
-						return { data: [] };
+					// Fetch all properties owned by this user
+					const ownedProperties: Property[] = [];
+					if (groupIds.length > 0) {
+						// Process in batches of 10 (Firestore limitation)
+						for (let i = 0; i < groupIds.length; i += 10) {
+							const batch = groupIds.slice(i, i + 10);
+							const propertiesQuery = query(
+								collection(db, 'properties'),
+								where('groupId', 'in', batch),
+							);
+							const propertiesSnapshot = await getDocs(propertiesQuery);
+							const properties = propertiesSnapshot.docs.map((doc) => ({
+								id: doc.id,
+								...doc.data(),
+							})) as Property[];
+							ownedProperties.push(...properties);
+						}
 					}
 
-					// Fetch all properties for these groups
-					// Note: Firestore 'in' query supports up to 10 values
-					// For more than 10 groups, we'd need to batch the queries
-					const allProperties: Property[] = [];
-
-					// Process in batches of 10 (Firestore limitation)
-					for (let i = 0; i < groupIds.length; i += 10) {
-						const batch = groupIds.slice(i, i + 10);
-						const propertiesQuery = query(
-							collection(db, 'properties'),
-							where('groupId', 'in', batch),
+					// Get shared properties
+					const sharedProperties: Property[] = [];
+					if (userEmail) {
+						const sharesQuery = query(
+							collection(db, 'propertyShares'),
+							where('sharedWithEmail', '==', userEmail),
 						);
-						const propertiesSnapshot = await getDocs(propertiesQuery);
-						const properties = propertiesSnapshot.docs.map((doc) => ({
+						const sharesSnapshot = await getDocs(sharesQuery);
+						const shares = sharesSnapshot.docs.map((doc) => ({
 							id: doc.id,
 							...doc.data(),
-						})) as Property[];
-						allProperties.push(...properties);
+						})) as PropertyShare[];
+
+						const propertyIds = shares.map((share) => share.propertyId);
+						if (propertyIds.length > 0) {
+							// Process in batches of 10
+							for (let i = 0; i < propertyIds.length; i += 10) {
+								const batch = propertyIds.slice(i, i + 10);
+								const propertiesQuery = query(
+									collection(db, 'properties'),
+									where('__name__', 'in', batch),
+								);
+								const propertiesSnapshot = await getDocs(propertiesQuery);
+								const properties = propertiesSnapshot.docs.map((doc) => ({
+									id: doc.id,
+									...doc.data(),
+								})) as Property[];
+								sharedProperties.push(...properties);
+							}
+						}
 					}
 
-					return { data: allProperties };
+					// Combine and deduplicate
+					const allProperties = [...ownedProperties, ...sharedProperties];
+					const uniqueProperties = Array.from(
+						new Map(allProperties.map((p) => [p.id, p])).values(),
+					);
+
+					return { data: uniqueProperties };
 				} catch (error: any) {
 					return { error: error.message };
 				}
 			},
-			providesTags: ['Properties'],
+			providesTags: ['Properties', 'PropertyShares'],
 		}),
 
 		getProperty: builder.query<Property, string>({
@@ -1141,6 +1210,247 @@ export const apiSlice = createApi({
 			},
 			invalidatesTags: ['Favorites'],
 		}),
+
+		// Property Sharing endpoints
+		getPropertyShares: builder.query<PropertyShare[], string>({
+			async queryFn(propertyId: string) {
+				try {
+					const q = query(
+						collection(db, 'propertyShares'),
+						where('propertyId', '==', propertyId),
+					);
+					const querySnapshot = await getDocs(q);
+					const shares = querySnapshot.docs.map((doc) => ({
+						id: doc.id,
+						...doc.data(),
+					})) as PropertyShare[];
+					return { data: shares };
+				} catch (error: any) {
+					return { error: error.message };
+				}
+			},
+			providesTags: ['PropertyShares'],
+		}),
+
+		getSharedPropertiesForUser: builder.query<Property[], string>({
+			async queryFn(userId: string) {
+				try {
+					// Get user's email first
+					const userDocRef = doc(db, 'users', userId);
+					const userDoc = await getDoc(userDocRef);
+					const userEmail = userDoc.data()?.email;
+
+					if (!userEmail) {
+						return { data: [] };
+					}
+
+					// Find all shares where this user has access
+					const sharesQuery = query(
+						collection(db, 'propertyShares'),
+						where('sharedWithEmail', '==', userEmail),
+					);
+					const sharesSnapshot = await getDocs(sharesQuery);
+					const shares = sharesSnapshot.docs.map((doc) => ({
+						id: doc.id,
+						...doc.data(),
+					})) as PropertyShare[];
+
+					// Get all shared properties
+					const propertyIds = shares.map((share) => share.propertyId);
+					if (propertyIds.length === 0) {
+						return { data: [] };
+					}
+
+					const allProperties: Property[] = [];
+					// Process in batches of 10 (Firestore limitation)
+					for (let i = 0; i < propertyIds.length; i += 10) {
+						const batch = propertyIds.slice(i, i + 10);
+						const propertiesQuery = query(
+							collection(db, 'properties'),
+							where('__name__', 'in', batch),
+						);
+						const propertiesSnapshot = await getDocs(propertiesQuery);
+						const properties = propertiesSnapshot.docs.map((doc) => ({
+							id: doc.id,
+							...doc.data(),
+						})) as Property[];
+						allProperties.push(...properties);
+					}
+
+					return { data: allProperties };
+				} catch (error: any) {
+					return { error: error.message };
+				}
+			},
+			providesTags: ['PropertyShares', 'Properties'],
+		}),
+
+		createPropertyShare: builder.mutation<
+			PropertyShare,
+			Omit<PropertyShare, 'id' | 'createdAt' | 'updatedAt'>
+		>({
+			async queryFn(newShare) {
+				try {
+					const now = new Date().toISOString();
+					const shareData = {
+						...newShare,
+						createdAt: now,
+						updatedAt: now,
+					};
+					const docRef = await addDoc(
+						collection(db, 'propertyShares'),
+						shareData,
+					);
+					return { data: { id: docRef.id, ...shareData } };
+				} catch (error: any) {
+					return { error: error.message };
+				}
+			},
+			invalidatesTags: ['PropertyShares', 'Properties'],
+		}),
+
+		updatePropertyShare: builder.mutation<
+			PropertyShare,
+			{ id: string; permission: SharePermission }
+		>({
+			async queryFn({ id, permission }) {
+				try {
+					const docRef = doc(db, 'propertyShares', id);
+					await updateDoc(docRef, {
+						permission,
+						updatedAt: new Date().toISOString(),
+					});
+					const updatedDoc = await getDoc(docRef);
+					return { data: { id, ...updatedDoc.data() } as PropertyShare };
+				} catch (error: any) {
+					return { error: error.message };
+				}
+			},
+			invalidatesTags: ['PropertyShares'],
+		}),
+
+		deletePropertyShare: builder.mutation<void, string>({
+			async queryFn(shareId: string) {
+				try {
+					await deleteDoc(doc(db, 'propertyShares', shareId));
+					return { data: undefined };
+				} catch (error: any) {
+					return { error: error.message };
+				}
+			},
+			invalidatesTags: ['PropertyShares', 'Properties'],
+		}),
+
+		// User Invitations endpoints
+		getUserInvitations: builder.query<UserInvitation[], string>({
+			async queryFn(userEmail: string) {
+				try {
+					const q = query(
+						collection(db, 'userInvitations'),
+						where('toEmail', '==', userEmail),
+						where('status', '==', 'pending'),
+					);
+					const querySnapshot = await getDocs(q);
+					const invitations = querySnapshot.docs.map((doc) => ({
+						id: doc.id,
+						...doc.data(),
+					})) as UserInvitation[];
+					return { data: invitations };
+				} catch (error: any) {
+					return { error: error.message };
+				}
+			},
+			providesTags: ['UserInvitations'],
+		}),
+
+		sendInvitation: builder.mutation<
+			UserInvitation,
+			Omit<UserInvitation, 'id' | 'createdAt' | 'expiresAt' | 'status'>
+		>({
+			async queryFn(invitation) {
+				try {
+					const now = new Date();
+					const expiresAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // 7 days
+					const invitationData = {
+						...invitation,
+						status: 'pending' as const,
+						createdAt: now.toISOString(),
+						expiresAt: expiresAt.toISOString(),
+					};
+					const docRef = await addDoc(
+						collection(db, 'userInvitations'),
+						invitationData,
+					);
+					return { data: { id: docRef.id, ...invitationData } };
+				} catch (error: any) {
+					return { error: error.message };
+				}
+			},
+			invalidatesTags: ['UserInvitations'],
+		}),
+
+		acceptInvitation: builder.mutation<
+			PropertyShare,
+			{ invitationId: string; userId: string }
+		>({
+			async queryFn({ invitationId, userId }) {
+				try {
+					// Get the invitation
+					const invitationRef = doc(db, 'userInvitations', invitationId);
+					const invitationDoc = await getDoc(invitationRef);
+					const invitation = {
+						id: invitationDoc.id,
+						...invitationDoc.data(),
+					} as UserInvitation;
+
+					// Get user's email
+					const userDocRef = doc(db, 'users', userId);
+					const userDoc = await getDoc(userDocRef);
+					const userEmail = userDoc.data()?.email;
+
+					if (!userEmail) {
+						return { error: 'User email not found' };
+					}
+
+					// Create property share
+					const now = new Date().toISOString();
+					const shareData = {
+						propertyId: invitation.propertyId,
+						ownerId: invitation.fromUserId,
+						sharedWithUserId: userId,
+						sharedWithEmail: userEmail,
+						permission: invitation.permission,
+						createdAt: now,
+						updatedAt: now,
+					};
+					const shareRef = await addDoc(
+						collection(db, 'propertyShares'),
+						shareData,
+					);
+
+					// Update invitation status
+					await updateDoc(invitationRef, { status: 'accepted' });
+
+					return { data: { id: shareRef.id, ...shareData } };
+				} catch (error: any) {
+					return { error: error.message };
+				}
+			},
+			invalidatesTags: ['UserInvitations', 'PropertyShares', 'Properties'],
+		}),
+
+		rejectInvitation: builder.mutation<void, string>({
+			async queryFn(invitationId: string) {
+				try {
+					const invitationRef = doc(db, 'userInvitations', invitationId);
+					await updateDoc(invitationRef, { status: 'rejected' });
+					return { data: undefined };
+				} catch (error: any) {
+					return { error: error.message };
+				}
+			},
+			invalidatesTags: ['UserInvitations'],
+		}),
 	}),
 });
 
@@ -1200,4 +1510,15 @@ export const {
 	useGetFavoritesQuery,
 	useAddFavoriteMutation,
 	useRemoveFavoriteMutation,
+	// Property Shares
+	useGetPropertySharesQuery,
+	useGetSharedPropertiesForUserQuery,
+	useCreatePropertyShareMutation,
+	useUpdatePropertyShareMutation,
+	useDeletePropertyShareMutation,
+	// User Invitations
+	useGetUserInvitationsQuery,
+	useSendInvitationMutation,
+	useAcceptInvitationMutation,
+	useRejectInvitationMutation,
 } = apiSlice;

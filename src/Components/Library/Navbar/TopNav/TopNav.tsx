@@ -16,6 +16,7 @@ import { UserProfile } from './UserProfile';
 import { useNavigate } from 'react-router-dom';
 import { useRecentlyViewed } from '../../../../Hooks/useRecentlyViewed';
 import { useFavorites } from '../../../../Hooks/useFavorites';
+import { UserRole } from '../../../../constants/roles';
 import {
 	canManageTeamMembers,
 	canManageProperties,
@@ -27,19 +28,23 @@ export const TopNav = () => {
 	const navigate = useNavigate();
 	const dispatch = useDispatch();
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
-	const { recentProperties } = useRecentlyViewed(currentUser?.id);
-	const { favorites } = useFavorites(currentUser?.id);
+	const { recentProperties } = useRecentlyViewed(currentUser!.id);
+	const { favorites } = useFavorites(currentUser!.id);
 	const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
 	// Check permissions for menu visibility
 	const canAccessTeam = currentUser
-		? canManageTeamMembers(currentUser.role)
+		? canManageTeamMembers(currentUser.role as UserRole)
 		: false;
 	const canAccessProperties = currentUser
-		? canManageProperties(currentUser.role)
+		? canManageProperties(currentUser.role as UserRole)
 		: false;
-	const canViewPages = currentUser ? canViewAllPages(currentUser.role) : false;
-	const isUserTenant = currentUser ? isTenant(currentUser.role) : false;
+	const canViewPages = currentUser
+		? canViewAllPages(currentUser.role as UserRole)
+		: false;
+	const isUserTenant = currentUser
+		? isTenant(currentUser.role as UserRole)
+		: false;
 
 	const navigationItems = [
 		{ label: 'Dashboard', path: 'dashboard', visible: !isUserTenant },

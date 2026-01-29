@@ -1,6 +1,6 @@
 import { configureStore } from '@reduxjs/toolkit';
 import userReducer from '../Slices/userSlice';
-import navigationReducer from '../Slices/Nav/navigationSlice';
+import navigationReducer from '../Slices/navigationSlice';
 import propertyDataReducer from '../Slices/propertyDataSlice';
 import teamReducer from '../Slices/teamSlice';
 import maintenanceRequestsReducer from '../Slices/maintenanceRequestsSlice';

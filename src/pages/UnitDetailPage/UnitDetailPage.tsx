@@ -256,7 +256,7 @@ export const UnitDetailPage: React.FC = () => {
 	// Find the property and unit
 	const { property, unit } = useMemo(() => {
 		for (const group of propertyGroups) {
-			for (const prop of group.properties) {
+			for (const prop of group.properties || []) {
 				if (prop.slug === slug && prop.propertyType === 'Multi-Family') {
 					const foundUnit = (prop.units as any[])?.find(
 						(u) => u.name === decodeURIComponent(unitName || ''),
@@ -493,7 +493,7 @@ export const UnitDetailPage: React.FC = () => {
 													<td>
 														<strong>{task.title}</strong>
 													</td>
-													<td>{task.assignee || 'Unassigned'}</td>
+													<td>{task.assignedTo || 'Unassigned'}</td>
 													<td>{task.dueDate}</td>
 													<td>{task.status}</td>
 													<td>{task.notes || '-'}</td>
@@ -573,7 +573,9 @@ export const UnitDetailPage: React.FC = () => {
 													<td>{req.priority}</td>
 													<td>{req.submittedByName}</td>
 													<td>
-														{new Date(req.submittedAt).toLocaleDateString()}
+														{req.submittedAt
+															? new Date(req.submittedAt).toLocaleDateString()
+															: 'N/A'}
 													</td>
 												</tr>
 											))}

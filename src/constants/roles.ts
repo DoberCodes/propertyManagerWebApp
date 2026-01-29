@@ -83,3 +83,12 @@ export const PAGE_VIEW_ROLES = [
 	USER_ROLES.MAINTENANCE_LEAD,
 	USER_ROLES.MAINTENANCE,
 ] as const;
+
+// Property sharing permission levels
+export const SHARE_PERMISSIONS = {
+	ADMIN: 'admin', // Can edit property and invite others
+	VIEWER: 'viewer', // Can only view property, cannot edit
+} as const;
+
+export type SharePermission =
+	(typeof SHARE_PERMISSIONS)[keyof typeof SHARE_PERMISSIONS];

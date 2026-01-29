@@ -48,7 +48,7 @@ ${request.description}
 ${request.unit ? `\nUnit: ${request.unit}` : ''}
 Category: ${request.category}
 Priority: ${request.priority}
-Submitted by: ${request.submittedByName} on ${new Date(request.submittedAt).toLocaleDateString()}`,
+Submitted by: ${request.submittedByName} on ${request.submittedAt ? new Date(request.submittedAt).toLocaleDateString() : 'N/A'}`,
 		priority: request.priority,
 	});
 
@@ -65,7 +65,7 @@ ${request.description}
 ${request.unit ? `\nUnit: ${request.unit}` : ''}
 Category: ${request.category}
 Priority: ${request.priority}
-Submitted by: ${request.submittedByName} on ${new Date(request.submittedAt).toLocaleDateString()}`,
+Submitted by: ${request.submittedByName} on ${request.submittedAt ? new Date(request.submittedAt).toLocaleDateString() : 'N/A'}`,
 				priority: request.priority,
 			});
 		}
@@ -106,7 +106,9 @@ Submitted by: ${request.submittedByName} on ${new Date(request.submittedAt).toLo
 					</SummaryDetail>
 					<SummaryDetail style={{ fontSize: '13px', color: '#666' }}>
 						Submitted by {request.submittedByName} •{' '}
-						{new Date(request.submittedAt).toLocaleDateString()}
+						{request.submittedAt
+							? new Date(request.submittedAt).toLocaleDateString()
+							: 'N/A'}
 					</SummaryDetail>
 				</RequestSummary>
 

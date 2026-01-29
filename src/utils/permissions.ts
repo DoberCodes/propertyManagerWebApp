@@ -162,3 +162,64 @@ export const getTenantPropertySlug = (
 		? propertySlugMap[assignedPropertyId] || null
 		: null;
 };
+
+/**
+ * Check if a user can share properties
+ * Only property owners can share their properties
+ */
+export const canShareProperty = (
+	userId: string,
+	property: { userId?: string } | any,
+): boolean => {
+	return property.userId === userId;
+};
+
+/**
+ * Check if a user has admin access to a shared property
+ * Users with 'admin' share permission can edit the property
+ */
+export const hasAdminShareAccess = (permission?: string): boolean => {
+	return permission === 'admin';
+};
+
+/**
+ * Check if a user has viewer access to a shared property
+ * Users with 'viewer' share permission can only view
+ */
+export const hasViewerShareAccess = (permission?: string): boolean => {
+	return permission === 'viewer';
+};
+
+/**
+ * Check if a user can edit a property
+ * Property owner or users with admin share access can edit
+ */
+export const canEditProperty = (
+	userId: string,
+	property: { userId?: string },
+	sharePermission?: string,
+): boolean => {
+	return property.userId === userId || hasAdminShareAccess(sharePermission);
+};
+
+/**
+ * Check if a user can delete a property
+ * Only property owners can delete properties
+ */
+export const canDeleteProperty = (
+	userId: string,
+	property: { userId?: string },
+): boolean => {
+	return property.userId === userId;
+};
+
+/**
+ * Get display label for share permission
+ */
+export const getSharePermissionLabel = (permission: string): string => {
+	const labels: Record<string, string> = {
+		admin: 'Administrator',
+		viewer: 'Viewer',
+	};
+	return labels[permission] || permission;
+};

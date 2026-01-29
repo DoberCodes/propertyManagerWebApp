@@ -17,19 +17,14 @@ export const DataLoader: React.FC = () => {
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
 
 	// Fetch property groups and sync to Redux
+	// currentUser is guaranteed to exist since DataLoader is inside Layout which is protected
 	const { data: propertyGroups = [] } = useGetPropertyGroupsQuery(
 		currentUser?.id || '',
-		{
-			skip: !currentUser,
-		},
 	);
 
 	// Fetch team data and sync to Redux
 	const { data: teamGroups = [] } = useGetTeamGroupsQuery(
 		currentUser?.id || '',
-		{
-			skip: !currentUser,
-		},
 	);
 
 	// Sync property groups to Redux when data changes

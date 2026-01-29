@@ -56,23 +56,7 @@ export const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
 	const [uploadFile] = useUploadTaskCompletionFileMutation();
 	const [submitCompletion] = useSubmitTaskCompletionMutation();
 
-	if (!currentUser) {
-		return (
-			<ModalOverlay onClick={onClose}>
-				<ModalContainer>
-					<ModalHeader>
-						<ModalTitle>Authentication Required</ModalTitle>
-						<CloseButton onClick={onClose}>&times;</CloseButton>
-					</ModalHeader>
-					<ModalBody>
-						<ErrorMessage>
-							You must be logged in to submit task completions.
-						</ErrorMessage>
-					</ModalBody>
-				</ModalContainer>
-			</ModalOverlay>
-		);
-	}
+	// currentUser is guaranteed to exist in protected routes
 
 	const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const file = e.target.files?.[0];
@@ -143,7 +127,7 @@ export const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
 					taskId,
 					completionDate,
 					completionFile: completionFileData,
-					completedBy: currentUser.id,
+					completedBy: currentUser!.id,
 				}),
 			);
 
@@ -153,7 +137,7 @@ export const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
 					taskId: taskId.toString(),
 					completionDate,
 					completionFile: completionFileData,
-					completedBy: currentUser.id,
+					completedBy: currentUser!.id,
 				}).unwrap();
 			} catch (firebaseError) {
 				console.warn(

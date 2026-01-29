@@ -8,9 +8,11 @@ import {
 	useGetTasksQuery,
 	useUpdateTaskMutation,
 } from '../../Redux/API/apiSlice';
+import { UserRole } from '../../constants/roles';
 import { isTenant, getTenantPropertySlug } from '../../utils/permissions';
 import { filterTasksByRole } from '../../utils/dataFilters';
 import { TaskCompletionModal } from '../Library/TaskCompletionModal';
+import { InvitationsPanel } from '../Library/InvitationsPanel';
 import {
 	Wrapper,
 	TaskGridSection,
@@ -32,16 +34,14 @@ export const DashboardTab = () => {
 	);
 
 	// Fetch tasks from Firebase
-	const { data: allTasks = [] } = useGetTasksQuery(currentUser?.id || '', {
-		skip: !currentUser,
-	});
+	const { data: allTasks = [] } = useGetTasksQuery(currentUser!.id);
 
 	// Firebase mutations
 	const [updateTask] = useUpdateTaskMutation();
 
 	// Redirect tenants to their assigned property
 	useEffect(() => {
-		if (currentUser && isTenant(currentUser.role)) {
+		if (currentUser && isTenant(currentUser.role as UserRole)) {
 			const propertySlug = getTenantPropertySlug(
 				currentUser.assignedPropertyId,
 			);
@@ -155,6 +155,12 @@ export const DashboardTab = () => {
 					</button>
 				</div>
 			</PageHeaderSection>
+
+			{/* Invitations Panel */}
+			<InvitationsPanel
+				userEmail={currentUser!.email}
+				userId={currentUser!.id}
+			/>
 
 			{/* Task Grid Section */}
 			<TaskGridSection>

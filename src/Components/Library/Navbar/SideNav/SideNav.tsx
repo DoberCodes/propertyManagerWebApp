@@ -10,6 +10,7 @@ import {
 } from '../../../../utils/permissions';
 import { useRecentlyViewed } from '../../../../Hooks/useRecentlyViewed';
 import { useFavorites } from '../../../../Hooks/useFavorites';
+import { UserRole } from '../../../../constants/roles';
 import {
 	DesktopWrapper,
 	MenuSection,
@@ -27,18 +28,22 @@ export const SideNav = () => {
 	const location = useLocation();
 	const navigate = useNavigate();
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
-	const { recentProperties } = useRecentlyViewed(currentUser?.id);
-	const { favorites } = useFavorites(currentUser?.id);
+	const { recentProperties } = useRecentlyViewed(currentUser!.id);
+	const { favorites } = useFavorites(currentUser!.id);
 
 	// Check permissions
 	const canAccessTeam = currentUser
-		? canManageTeamMembers(currentUser.role)
+		? canManageTeamMembers(currentUser.role as UserRole)
 		: false;
 	const canAccessProperties = currentUser
-		? canManageProperties(currentUser.role)
+		? canManageProperties(currentUser.role as UserRole)
 		: false;
-	const canViewPages = currentUser ? canViewAllPages(currentUser.role) : false;
-	const isUserTenant = currentUser ? isTenant(currentUser.role) : false;
+	const canViewPages = currentUser
+		? canViewAllPages(currentUser.role as UserRole)
+		: false;
+	const isUserTenant = currentUser
+		? isTenant(currentUser.role as UserRole)
+		: false;
 
 	const menuItems = [
 		{ label: 'Dashboard', path: 'dashboard', visible: !isUserTenant },
@@ -182,13 +187,17 @@ export const MobileNav = () => {
 
 	// Check permissions
 	const canAccessTeam = currentUser
-		? canManageTeamMembers(currentUser.role)
+		? canManageTeamMembers(currentUser.role as UserRole)
 		: false;
 	const canAccessProperties = currentUser
-		? canManageProperties(currentUser.role)
+		? canManageProperties(currentUser.role as UserRole)
 		: false;
-	const canViewPages = currentUser ? canViewAllPages(currentUser.role) : false;
-	const isUserTenant = currentUser ? isTenant(currentUser.role) : false;
+	const canViewPages = currentUser
+		? canViewAllPages(currentUser.role as UserRole)
+		: false;
+	const isUserTenant = currentUser
+		? isTenant(currentUser.role as UserRole)
+		: false;
 
 	const menuItems = [
 		{ label: 'Dashboard', path: 'dashboard', visible: !isUserTenant },

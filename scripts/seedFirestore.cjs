@@ -48,6 +48,60 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
 // Hardcoded mock data for seeding
+
+// Property Shares - Sample shared properties
+const mockPropertyShares = [
+	{
+		id: 'share-1',
+		propertyId: 'prop-1',
+		ownerId: 'user-admin-1',
+		sharedWithUserId: 'user-manager-1',
+		sharedWithEmail: 'manager@example.com',
+		permission: 'admin',
+		createdAt: new Date('2024-01-15').toISOString(),
+		updatedAt: new Date('2024-01-15').toISOString(),
+	},
+	{
+		id: 'share-2',
+		propertyId: 'prop-2',
+		ownerId: 'user-admin-1',
+		sharedWithUserId: 'user-assistant-1',
+		sharedWithEmail: 'assistant@example.com',
+		permission: 'viewer',
+		createdAt: new Date('2024-01-20').toISOString(),
+		updatedAt: new Date('2024-01-20').toISOString(),
+	},
+];
+
+// User Invitations - Pending property invitations
+const mockUserInvitations = [
+	{
+		id: 'invite-1',
+		propertyId: 'prop-3',
+		propertyTitle: 'Sunset Heights Condos',
+		fromUserId: 'user-admin-1',
+		fromUserEmail: 'admin@example.com',
+		toEmail: 'newuser@example.com',
+		permission: 'viewer',
+		status: 'pending',
+		createdAt: new Date('2024-01-25').toISOString(),
+		expiresAt: new Date('2024-02-01').toISOString(),
+	},
+	{
+		id: 'invite-2',
+		propertyId: 'prop-4',
+		propertyTitle: 'Oak Street Apartments',
+		fromUserId: 'user-admin-1',
+		fromUserEmail: 'admin@example.com',
+		toEmail: 'contractor@example.com',
+		permission: 'admin',
+		status: 'pending',
+		createdAt: new Date('2024-01-26').toISOString(),
+		expiresAt: new Date('2024-02-02').toISOString(),
+	},
+];
+
+// Hardcoded mock data for seeding (original data)
 // Using userId 'user-admin-1' to match the Admin test user from userSlice.tsx
 const mockPropertyGroups = [
 	{
@@ -69,6 +123,7 @@ const mockPropertyGroups = [
 const mockProperties = [
 	{
 		id: 'prop-1',
+		userId: 'user-admin-1',
 		groupId: 'group-1',
 		title: 'Downtown Apartments',
 		slug: 'downtown-apartments',
@@ -86,6 +141,7 @@ const mockProperties = [
 	},
 	{
 		id: 'prop-2',
+		userId: 'user-admin-1',
 		groupId: 'group-1',
 		title: 'Business Park',
 		slug: 'business-park',
@@ -104,6 +160,7 @@ const mockProperties = [
 	},
 	{
 		id: 'prop-3',
+		userId: 'user-admin-1',
 		groupId: 'group-2',
 		title: 'Sunset Heights',
 		slug: 'sunset-heights',
@@ -123,6 +180,7 @@ const mockProperties = [
 	},
 	{
 		id: 'prop-4',
+		userId: 'user-admin-1',
 		groupId: 'group-2',
 		title: 'Oak Street Complex',
 		slug: 'oak-street-complex',
@@ -143,6 +201,7 @@ const mockProperties = [
 const mockUnits = [
 	{
 		id: 'unit-1',
+		userId: 'user-admin-1',
 		propertyId: 'prop-1',
 		name: 'Apt 5B',
 		floor: 5,
@@ -165,6 +224,7 @@ const mockUnits = [
 	},
 	{
 		id: 'unit-2',
+		userId: 'user-admin-1',
 		propertyId: 'prop-1',
 		name: 'Apt 3A',
 		floor: 3,
@@ -180,6 +240,7 @@ const mockUnits = [
 	},
 	{
 		id: 'unit-3',
+		userId: 'user-admin-1',
 		propertyId: 'prop-1',
 		name: 'Apt 4C',
 		floor: 4,
@@ -195,6 +256,7 @@ const mockUnits = [
 	},
 	{
 		id: 'unit-4',
+		userId: 'user-admin-1',
 		propertyId: 'prop-4',
 		name: 'Unit A',
 		floor: 1,
@@ -210,6 +272,7 @@ const mockUnits = [
 	},
 	{
 		id: 'unit-5',
+		userId: 'user-admin-1',
 		propertyId: 'prop-4',
 		name: 'Unit B',
 		floor: 1,
@@ -225,6 +288,7 @@ const mockUnits = [
 	},
 	{
 		id: 'unit-6',
+		userId: 'user-admin-1',
 		propertyId: 'prop-4',
 		name: 'Unit C',
 		floor: 2,
@@ -240,6 +304,7 @@ const mockUnits = [
 	},
 	{
 		id: 'unit-7',
+		userId: 'user-admin-1',
 		propertyId: 'prop-4',
 		name: 'Unit D',
 		floor: 2,
@@ -258,6 +323,7 @@ const mockUnits = [
 const mockSuites = [
 	{
 		id: 'suite-1',
+		userId: 'user-admin-1',
 		propertyId: 'prop-2',
 		name: 'Suite 100',
 		floor: 1,
@@ -271,6 +337,7 @@ const mockSuites = [
 	},
 	{
 		id: 'suite-2',
+		userId: 'user-admin-1',
 		propertyId: 'prop-2',
 		name: 'Suite 200',
 		floor: 2,
@@ -284,6 +351,7 @@ const mockSuites = [
 	},
 	{
 		id: 'suite-3',
+		userId: 'user-admin-1',
 		propertyId: 'prop-2',
 		name: 'Suite 300',
 		floor: 3,
@@ -300,6 +368,7 @@ const mockSuites = [
 const mockTasks = [
 	{
 		id: 'task-1',
+		userId: 'user-admin-1',
 		propertyId: 'prop-1',
 		title: 'Replace air filters',
 		dueDate: '2026-02-01',
@@ -313,6 +382,7 @@ const mockTasks = [
 	},
 	{
 		id: 'task-2',
+		userId: 'user-admin-1',
 		propertyId: 'prop-1',
 		title: 'Quarterly maintenance inspection',
 		dueDate: '2026-02-15',
@@ -326,6 +396,7 @@ const mockTasks = [
 	},
 	{
 		id: 'task-3',
+		userId: 'user-admin-1',
 		propertyId: 'prop-2',
 		title: 'Parking lot sweeping',
 		dueDate: '2026-01-28',
@@ -341,6 +412,7 @@ const mockTasks = [
 	},
 	{
 		id: 'task-4',
+		userId: 'user-admin-1',
 		propertyId: 'prop-3',
 		title: 'Gutter cleaning',
 		dueDate: '2026-02-10',
@@ -407,6 +479,7 @@ const mockTeamMembers = [
 const mockDevices = [
 	{
 		id: 'device-1',
+		userId: 'user-admin-1',
 		type: 'HVAC',
 		brand: 'Carrier',
 		model: 'Infinity 21',
@@ -429,6 +502,7 @@ const mockDevices = [
 	},
 	{
 		id: 'device-2',
+		userId: 'user-admin-1',
 		type: 'Plumbing',
 		brand: 'Kohler',
 		model: 'Water Heater Pro',
@@ -451,6 +525,7 @@ const mockDevices = [
 	},
 	{
 		id: 'device-3',
+		userId: 'user-admin-1',
 		type: 'HVAC',
 		brand: 'Trane',
 		model: 'XR17',
@@ -530,6 +605,8 @@ async function seedFirestore() {
 		await seedCollection('teamGroups', mockTeamGroups);
 		await seedCollection('teamMembers', mockTeamMembers);
 		await seedCollection('devices', mockDevices);
+		await seedCollection('propertyShares', mockPropertyShares);
+		await seedCollection('userInvitations', mockUserInvitations);
 
 		console.log('\n✨ Firestore seeding completed successfully!');
 		console.log('\n📋 Summary:');
@@ -541,6 +618,8 @@ async function seedFirestore() {
 		console.log(`   • ${mockTeamGroups.length} Team Groups`);
 		console.log(`   • ${mockTeamMembers.length} Team Members`);
 		console.log(`   • ${mockDevices.length} Devices`);
+		console.log(`   • ${mockPropertyShares.length} Property Shares`);
+		console.log(`   • ${mockUserInvitations.length} User Invitations`);
 		console.log('\n🎉 Your Firestore database is ready to use!');
 	} catch (error) {
 		console.error('\n❌ Error seeding Firestore:', error.message);

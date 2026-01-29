@@ -70,18 +70,17 @@ export const ReportBuilder: React.FC = () => {
 
 	// Fetch Firebase data
 	const { data: tasks = [], isLoading: tasksLoading } = useGetTasksQuery(
-		currentUser?.id || '',
-		{ skip: !currentUser },
+		currentUser!.id,
 	);
 
 	const { data: properties = [], isLoading: propertiesLoading } =
-		useGetPropertiesQuery(currentUser?.id || '', { skip: !currentUser });
+		useGetPropertiesQuery(currentUser!.id);
 
 	const { data: propertyGroups = [], isLoading: groupsLoading } =
-		useGetPropertyGroupsQuery(currentUser?.id || '', { skip: !currentUser });
+		useGetPropertyGroupsQuery(currentUser!.id);
 
 	const { data: firebaseTeamMembers = [], isLoading: teamLoading } =
-		useGetTeamMembersQuery(currentUser?.id || '', { skip: !currentUser });
+		useGetTeamMembersQuery(currentUser!.id);
 
 	// Filter tasks to get maintenance requests (tasks with specific properties)
 	const maintenanceRequests = tasks.filter(

@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { RootState, AppDispatch } from '../../Redux/Store/store';
 import { canManageTeamMembers } from '../../utils/permissions';
 import { filterTeamMembersByRole } from '../../utils/dataFilters';
+import { UserRole } from '../../constants/roles';
 import {
 	addTeamGroup,
 	deleteTeamGroup,
@@ -131,7 +132,7 @@ export default function TeamPage() {
 	// Check if user can manage team members (add/edit/delete)
 	// All authenticated users can view the team page, but only managers can edit
 	const canManage = currentUser
-		? canManageTeamMembers(currentUser.role)
+		? canManageTeamMembers(currentUser.role as UserRole)
 		: false;
 	const canView = !!currentUser;
 
@@ -276,9 +277,9 @@ export default function TeamPage() {
 	};
 
 	const handleAddTeamGroup = async () => {
-		if (!currentUser) return;
+		// currentUser guaranteed to exist in protected routes
 		await createTeamGroup({
-			userId: currentUser.id,
+			userId: currentUser!.id,
 			name: 'New Team Group',
 			linkedProperties: [],
 		});

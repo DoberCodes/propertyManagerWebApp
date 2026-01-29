@@ -9,6 +9,7 @@ import {
 import { useRecentlyViewed } from '../../Hooks/useRecentlyViewed';
 import { useFavorites } from '../../Hooks/useFavorites';
 import { RootState } from '../../Redux/Store/store';
+import { UserRole } from '../../constants/roles';
 import {
 	useCreatePropertyMutation,
 	useUpdatePropertyMutation,
@@ -19,6 +20,7 @@ import {
 } from '../../Redux/API/apiSlice';
 import { canManageProperties } from '../../utils/permissions';
 import { filterPropertyGroupsByRole } from '../../utils/dataFilters';
+import { TeamMember } from '../../Redux/Slices/teamSlice';
 import {
 	Wrapper,
 	TopActions,
@@ -55,8 +57,8 @@ export const Properties = () => {
 		(state: RootState) => state.propertyData.groups,
 	);
 
-	const { addRecentlyViewed } = useRecentlyViewed(currentUser?.id);
-	const { toggleFavorite, isFavorite } = useFavorites(currentUser?.id);
+	const { addRecentlyViewed } = useRecentlyViewed(currentUser!.id);
+	const { toggleFavorite, isFavorite } = useFavorites(currentUser!.id);
 
 	// Firebase mutations
 	const [createProperty] = useCreatePropertyMutation();
@@ -67,7 +69,9 @@ export const Properties = () => {
 	const [deletePropertyGroup] = useDeletePropertyGroupMutation();
 
 	// Check if user can manage properties (add/edit/delete)
-	const canManage = currentUser ? canManageProperties(currentUser.role) : false;
+	const canManage = currentUser
+		? canManageProperties(currentUser.role as UserRole)
+		: false;
 
 	// Combine groups with their properties
 	const groupsWithProperties = useMemo(() => {
@@ -84,7 +88,7 @@ export const Properties = () => {
 			filterPropertyGroupsByRole(
 				groupsWithProperties as any[],
 				currentUser,
-				teamMembers,
+				teamMembers?.filter((m): m is TeamMember => m !== undefined),
 			),
 		[groupsWithProperties, currentUser, teamMembers],
 	);
@@ -249,19 +253,17 @@ export const Properties = () => {
 			// Build property data, conditionally including optional fields
 			// Firebase doesn't accept undefined values
 			const newPropertyData: any = {
+				userId: currentUser!.id,
 				groupId: groupId,
 				title: formData.name,
 				slug,
-				image: formData.photo,
+				...(formData.photo && { image: formData.photo }),
 				owner: formData.owner,
 				address: formData.address,
 				propertyType: formData.propertyType,
 				bedrooms: formData.bedrooms,
 				bathrooms: formData.bathrooms,
 				administrators: formData.administrators,
-				viewers: formData.viewers,
-				deviceIds: formData.devices.map((d) => d.id),
-				notes: formData.notes,
 				taskHistory: formData.maintenanceHistory || [],
 			};
 
@@ -330,11 +332,11 @@ export const Properties = () => {
 				groups={filteredGroups.map((g) => ({ id: g.id, name: g.name }))}
 				selectedGroupId={selectedGroupForDialog}
 				onCreateGroup={async (name: string) => {
-					if (!currentUser) return '';
+					// currentUser guaranteed to exist
 					const result = await createPropertyGroup({
 						name,
 						properties: [],
-						userId: currentUser.id,
+						userId: currentUser!.id,
 					});
 					if ('data' in result && result.data) {
 						return (result.data as any).id as string;

@@ -5,7 +5,6 @@ import {
 	HashRouter as Router,
 	Navigate,
 } from 'react-router-dom';
-import { LandingPage } from './pages/LandingPage';
 import { ErrorPage } from './pages/ErrorPage';
 import { UnauthorizedPage } from './pages/UnauthorizedPage';
 import { LoginPage } from './pages/LoginPage';
@@ -21,12 +20,7 @@ import { SuiteDetailPage } from './pages/SuiteDetailPage/SuiteDetailPage';
 import TeamPage from './pages/TeamPage';
 import { ReportPage } from './pages/ReportPage';
 import { UserProfile } from './pages/UserProfile';
-import {
-	PROPERTY_MANAGEMENT_ROLES,
-	TEAM_MANAGEMENT_ROLES,
-	TEAM_VIEW_ROLES,
-	FULL_ACCESS_ROLES,
-} from './constants/roles';
+import { TEAM_VIEW_ROLES, FULL_ACCESS_ROLES } from './constants/roles';
 
 export const RouterComponent = () => {
 	return (

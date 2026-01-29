@@ -235,7 +235,7 @@ export const SuiteDetailPage: React.FC = () => {
 
 	const { property, suite } = useMemo(() => {
 		for (const group of propertyGroups) {
-			for (const prop of group.properties) {
+			for (const prop of group.properties || []) {
 				if (prop.slug === slug && prop.propertyType === 'Commercial') {
 					const foundSuite = (prop.suites as any[])?.find(
 						(s) => s.name === decodeURIComponent(suiteName || ''),
@@ -549,7 +549,9 @@ export const SuiteDetailPage: React.FC = () => {
 													<td>{req.priority}</td>
 													<td>{req.submittedByName}</td>
 													<td>
-														{new Date(req.submittedAt).toLocaleDateString()}
+														{req.submittedAt
+															? new Date(req.submittedAt).toLocaleDateString()
+															: 'N/A'}
 													</td>
 												</tr>
 											))}

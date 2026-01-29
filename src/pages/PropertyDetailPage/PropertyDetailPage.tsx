@@ -6,6 +6,7 @@ import {
 	useGetTasksQuery,
 	useGetTeamMembersQuery,
 	useUpdateTaskMutation,
+	useCreateTaskMutation,
 	useGetPropertiesQuery,
 	useUpdatePropertyMutation,
 } from '../../Redux/API/apiSlice';
@@ -22,7 +23,10 @@ import {
 import {
 	canApproveMaintenanceRequest,
 	isTenant,
+	canShareProperty,
 } from '../../utils/permissions';
+import { UserRole } from '../../constants/roles';
+import { TeamMember } from '../../Redux/Slices/teamSlice';
 import { useFavorites } from '../../Hooks/useFavorites';
 import { uploadToBase64, isValidImageFile } from '../../utils/base64Upload';
 import { TaskCompletionModal } from '../../Components/Library/TaskCompletionModal';
@@ -34,6 +38,7 @@ import {
 	ConvertRequestToTaskModal,
 	TaskData,
 } from '../../Components/Library/ConvertRequestToTaskModal';
+import { SharePropertyModal } from '../../Components/Library/SharePropertyModal';
 import {
 	Wrapper,
 	Header,
@@ -90,16 +95,15 @@ export const PropertyDetailPage = () => {
 
 	// Get current user
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
-	const { isFavorite, toggleFavorite } = useFavorites(currentUser?.id);
+	const { isFavorite, toggleFavorite } = useFavorites(currentUser!.id);
 
 	// Fetch properties from Firebase
 	const { data: firebaseProperties = [], isLoading: propertiesLoading } =
-		useGetPropertiesQuery(currentUser?.id || '', { skip: !currentUser });
+		useGetPropertiesQuery(currentUser!.id);
 
 	// Fetch team members from Firebase
 	const { data: firebaseTeamMembers = [] } = useGetTeamMembersQuery(
-		currentUser?.id || '',
-		{ skip: !currentUser },
+		currentUser!.id,
 	);
 
 	// For backwards compatibility, also get from Redux - memoize to prevent rerenders
@@ -117,12 +121,12 @@ export const PropertyDetailPage = () => {
 
 	// Fetch tasks from Firebase
 	const { data: allTasks = [], isLoading: tasksLoading } = useGetTasksQuery(
-		currentUser?.id || '',
-		{ skip: !currentUser },
+		currentUser!.id,
 	);
 
 	// Firebase mutations for updating tasks and properties
 	const [updateTaskMutation] = useUpdateTaskMutation();
+	const [createTaskMutation] = useCreateTaskMutation();
 	const [updatePropertyMutation] = useUpdatePropertyMutation();
 
 	const [activeTab, setActiveTab] = useState<
@@ -148,6 +152,7 @@ export const PropertyDetailPage = () => {
 	const [selectedAssignee, setSelectedAssignee] = useState<string>('');
 	const [showTaskCompletionModal, setShowTaskCompletionModal] = useState(false);
 	const [completingTaskId, setCompletingTaskId] = useState<string | null>(null);
+	const [showShareModal, setShowShareModal] = useState(false);
 	const [taskFormData, setTaskFormData] = useState({
 		title: '',
 		dueDate: '',
@@ -399,12 +404,12 @@ export const PropertyDetailPage = () => {
 	};
 
 	const handleMaintenanceRequestSubmit = (request: MaintenanceRequest) => {
-		if (!property || !currentUser) return;
+		if (!property) return;
 
 		// Find tenant's unit if they are a tenant
 		// Handle both old static structure (property.tenants) and new Firebase structure (units.occupants)
 		const tenantInfo = (property as any).tenants?.find(
-			(t: any) => t.email === currentUser.email,
+			(t: any) => t.email === currentUser!.email,
 		);
 
 		const newRequest = {
@@ -416,14 +421,18 @@ export const PropertyDetailPage = () => {
 			status: 'Pending' as const,
 			propertyId: property.id,
 			propertyTitle: property.title,
-			submittedBy: currentUser.id,
-			submittedByName: `${currentUser.firstName} ${currentUser.lastName}`,
+			requestedBy: currentUser!.id,
+			requestedByEmail: currentUser!.email,
+			requestedDate: new Date().toISOString(),
+			submittedBy: currentUser!.id,
+			submittedByName: `${currentUser!.firstName} ${currentUser!.lastName}`,
 			submittedAt: new Date().toISOString(),
 			unit: tenantInfo?.unit, // Include unit for apartment buildings
 			files: request.files?.map((file) => ({
 				name: file.name,
 				url: URL.createObjectURL(file), // In real app, upload to server
 				size: file.size,
+				type: file.type,
 			})),
 		};
 
@@ -440,72 +449,77 @@ export const PropertyDetailPage = () => {
 		setShowConvertModal(true);
 	};
 
-	const handleConvertToTask = (taskData: TaskData) => {
+	const handleConvertToTask = async (taskData: TaskData) => {
 		if (!convertingRequest || !property) return;
 
-		// Create a new task from the request with custom data
-		const newTask = {
-			id: `task-${Date.now()}`,
-			title: taskData.title,
-			dueDate: taskData.dueDate,
-			status: taskData.status,
-			property: property.title,
-			propertyId: property.id,
-			unit: convertingRequest.unit,
-			suite: (convertingRequest as any).suite,
-			notes: taskData.notes,
-			assignee: taskData.assignee || undefined,
-		};
+		try {
+			// Create a new task from the request with custom data
+			const newTask = {
+				userId: currentUser!.id,
+				title: taskData.title,
+				dueDate: taskData.dueDate,
+				status: taskData.status,
+				property: property.title,
+				propertyId: property.id,
+				unitId: convertingRequest.unit,
+				suiteId: (convertingRequest as any).suite,
+				notes: taskData.notes,
+				assignedTo: taskData.assignee || undefined,
+			};
 
-		dispatch(addTask(newTask));
-		dispatch(
-			convertRequestToTask({
-				requestId: convertingRequest.id,
-				taskId: newTask.id,
-			}),
-		);
-		setShowConvertModal(false);
-		setConvertingRequest(null);
+			const result = await createTaskMutation(newTask).unwrap();
+			dispatch(convertRequestToTask(convertingRequest.id));
+			setShowConvertModal(false);
+			setConvertingRequest(null);
+		} catch (error) {
+			console.error('Error converting request to task:', error);
+			alert('Failed to convert request to task. Please try again.');
+		}
 	};
 
-	const handleTaskFormSubmit = (e: React.FormEvent) => {
+	const handleTaskFormSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
 		if (!property || !taskFormData.title.trim()) return;
 
-		if (editingTaskId !== null) {
-			// Update existing task
-			const taskToUpdate = allTasks.find((t) => t.id === editingTaskId);
-			if (taskToUpdate) {
-				dispatch(
-					updateTask({
-						...taskToUpdate,
-						title: taskFormData.title,
-						dueDate: taskFormData.dueDate,
-						status: taskFormData.status,
-					}),
-				);
+		try {
+			if (editingTaskId !== null) {
+				// Update existing task
+				const taskToUpdate = allTasks.find((t) => t.id === editingTaskId);
+				if (taskToUpdate) {
+					await updateTaskMutation({
+						id: editingTaskId,
+						updates: {
+							title: taskFormData.title,
+							dueDate: taskFormData.dueDate,
+							status: taskFormData.status,
+						},
+					}).unwrap();
+				}
+			} else {
+				// Add new task
+				const newTask = {
+					userId: currentUser!.id,
+					title: taskFormData.title,
+					dueDate: taskFormData.dueDate,
+					status: taskFormData.status,
+					property: property.title,
+					propertyId: property.id,
+				};
+				await createTaskMutation(newTask).unwrap();
 			}
-		} else {
-			// Add new task
-			const newTask = {
-				id: `task-${Date.now()}`,
-				title: taskFormData.title,
-				dueDate: taskFormData.dueDate,
-				status: taskFormData.status,
-				property: property.title,
-				propertyId: property.id,
-			};
-			dispatch(addTask(newTask));
+			setShowTaskDialog(false);
+			setSelectedTasks([]);
+			setEditingTaskId(null);
+			setTaskFormData({
+				title: '',
+				dueDate: '',
+				status: 'Pending',
+				notes: '',
+			});
+		} catch (error) {
+			console.error('Error saving task:', error);
+			alert('Failed to save task. Please try again.');
 		}
-		setShowTaskDialog(false);
-		setSelectedTasks([]);
-		setEditingTaskId(null);
-		setTaskFormData({
-			title: '',
-			dueDate: '',
-			status: 'Pending',
-			notes: '',
-		});
 	};
 
 	const handleTaskFormChange = (
@@ -632,17 +646,28 @@ export const PropertyDetailPage = () => {
 						}
 						style={{
 							display:
-								currentUser && !isTenant(currentUser.role) ? 'block' : 'none',
+								currentUser && !isTenant(currentUser.role as UserRole)
+									? 'block'
+									: 'none',
 						}}>
 						{isFav ? '★ Favorited' : '☆ Add to Favorites'}
 					</FavoriteButton>
-					{currentUser && isTenant(currentUser.role) && (
+					{currentUser && isTenant(currentUser.role as UserRole) && (
 						<FavoriteButton
 							onClick={() => setShowMaintenanceRequestModal(true)}
 							style={{ backgroundColor: '#f39c12' }}>
 							🔧 Request Maintenance
 						</FavoriteButton>
 					)}
+					{currentUser &&
+						property &&
+						canShareProperty(currentUser.id, property) && (
+							<FavoriteButton
+								onClick={() => setShowShareModal(true)}
+								style={{ backgroundColor: '#3498db' }}>
+								👥 Share Property
+							</FavoriteButton>
+						)}
 				</HeaderContent>
 			</Header>
 
@@ -686,31 +711,33 @@ export const PropertyDetailPage = () => {
 							Units
 						</TabButton>
 					)}
-					{currentUser && canApproveMaintenanceRequest(currentUser.role) && (
-						<TabButton
-							isActive={activeTab === 'requests'}
-							onClick={() => setActiveTab('requests')}>
-							Requests{' '}
-							{propertyMaintenanceRequests.filter((r) => r.status === 'Pending')
-								.length > 0 && (
-								<span
-									style={{
-										backgroundColor: '#f39c12',
-										color: 'white',
-										borderRadius: '10px',
-										padding: '2px 8px',
-										marginLeft: '6px',
-										fontSize: '12px',
-									}}>
-									{
-										propertyMaintenanceRequests.filter(
-											(r) => r.status === 'Pending',
-										).length
-									}
-								</span>
-							)}
-						</TabButton>
-					)}
+					{currentUser &&
+						canApproveMaintenanceRequest(currentUser.role as UserRole) && (
+							<TabButton
+								isActive={activeTab === 'requests'}
+								onClick={() => setActiveTab('requests')}>
+								Requests{' '}
+								{propertyMaintenanceRequests.filter(
+									(r) => r.status === 'Pending',
+								).length > 0 && (
+									<span
+										style={{
+											backgroundColor: '#f39c12',
+											color: 'white',
+											borderRadius: '10px',
+											padding: '2px 8px',
+											marginLeft: '6px',
+											fontSize: '12px',
+										}}>
+										{
+											propertyMaintenanceRequests.filter(
+												(r) => r.status === 'Pending',
+											).length
+										}
+									</span>
+								)}
+							</TabButton>
+						)}
 				</TabButtonsWrapper>
 			</TabControlsContainer>
 
@@ -1068,6 +1095,7 @@ export const PropertyDetailPage = () => {
 												<td>
 													{task.assignedTo
 														? teamMembers
+																.filter((m): m is TeamMember => m !== undefined)
 																.filter((m) => m.id === task.assignedTo)
 																.map((m) => `${m.firstName} ${m.lastName}`)
 																.join('')
@@ -1393,12 +1421,16 @@ export const PropertyDetailPage = () => {
 													)}
 												</td>
 												<td>
-													{new Date(request.submittedAt).toLocaleDateString()}
+													{request.submittedAt
+														? new Date(request.submittedAt).toLocaleDateString()
+														: 'N/A'}
 												</td>
 												<td>
 													{request.status === 'Pending' &&
 														currentUser &&
-														canApproveMaintenanceRequest(currentUser.role) && (
+														canApproveMaintenanceRequest(
+															currentUser.role as UserRole,
+														) && (
 															<ToolbarButton
 																onClick={() =>
 																	handleConvertRequestToTask(request.id)
@@ -1606,11 +1638,13 @@ export const PropertyDetailPage = () => {
 									value={selectedAssignee}
 									onChange={(e) => setSelectedAssignee(e.target.value)}>
 									<option value=''>Select a team member...</option>
-									{teamMembers.map((member) => (
-										<option key={member.id} value={member.id}>
-											{member.firstName} {member.lastName} ({member.title})
-										</option>
-									))}
+									{teamMembers
+										.filter((m): m is TeamMember => m !== undefined)
+										.map((member) => (
+											<option key={member.id} value={member.id}>
+												{member.firstName} {member.lastName} ({member.title})
+											</option>
+										))}
 								</FormSelect>
 							</FormGroup>
 
@@ -1659,7 +1693,21 @@ export const PropertyDetailPage = () => {
 					}}
 					onConvert={handleConvertToTask}
 					request={convertingRequest}
-					teamMembers={teamMembers}
+					teamMembers={teamMembers.filter(
+						(m): m is TeamMember => m !== undefined,
+					)}
+				/>
+			)}
+
+			{/* Share Property Modal */}
+			{property && (
+				<SharePropertyModal
+					open={showShareModal}
+					onClose={() => setShowShareModal(false)}
+					propertyId={property.id}
+					propertyTitle={property.title}
+					ownerId={currentUser!.id}
+					ownerEmail={currentUser!.email}
 				/>
 			)}
 		</Wrapper>

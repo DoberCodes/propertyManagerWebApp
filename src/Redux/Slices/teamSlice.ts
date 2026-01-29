@@ -1,8 +1,8 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
 export interface TeamMember {
-	id: string; // Changed to string (Firebase)
-	groupId: string; // Added (Firebase)
+	id: string;
+	groupId: string;
 	firstName: string;
 	lastName: string;
 	title: string;
@@ -12,25 +12,25 @@ export interface TeamMember {
 	address: string;
 	image?: string;
 	notes: string;
-	linkedProperties: string[]; // Changed to string (Firebase)
+	linkedProperties: string[];
 	taskHistory: Array<{ date: string; task: string }>;
 	files: Array<{ name: string; id: string }>;
-	createdAt?: string; // Added (Firebase)
-	updatedAt?: string; // Added (Firebase)
+	createdAt?: string;
+	updatedAt?: string;
 }
 
 export interface TeamGroup {
-	id: string; // Changed to string (Firebase)
-	userId: string; // Added (Firebase)
+	id: string;
+	userId: string;
 	name: string;
 	isEditingName?: boolean;
-	linkedProperties: string[]; // Changed to string (Firebase)
-	members: TeamMember[];
-	createdAt?: string; // Added (Firebase)
-	updatedAt?: string; // Added (Firebase)
+	linkedProperties: string[];
+	members?: TeamMember[];
+	createdAt?: string;
+	updatedAt?: string;
 }
 
-export interface TeamState {
+interface TeamState {
 	groups: TeamGroup[];
 }
 
@@ -38,21 +38,21 @@ const initialState: TeamState = {
 	groups: [],
 };
 
-export const teamSlice = createSlice({
+const teamSlice = createSlice({
 	name: 'team',
 	initialState,
 	reducers: {
-		// Cache actions - called when API data is fetched
 		setTeamGroups: (state, action: PayloadAction<TeamGroup[]>) => {
 			state.groups = action.payload;
 		},
-
-		// Group actions
 		addTeamGroup: (state, action: PayloadAction<TeamGroup>) => {
 			state.groups.push(action.payload);
 		},
-		deleteTeamGroup: (state, action: PayloadAction<string>) => {
-			state.groups = state.groups.filter((g) => g.id !== action.payload);
+		updateTeamGroup: (state, action: PayloadAction<TeamGroup>) => {
+			const index = state.groups.findIndex((g) => g.id === action.payload.id);
+			if (index !== -1) {
+				state.groups[index] = action.payload;
+			}
 		},
 		updateTeamGroupName: (
 			state,
@@ -61,7 +61,6 @@ export const teamSlice = createSlice({
 			const group = state.groups.find((g) => g.id === action.payload.groupId);
 			if (group) {
 				group.name = action.payload.name;
-				group.isEditingName = false;
 			}
 		},
 		toggleTeamGroupEditName: (state, action: PayloadAction<string>) => {
@@ -70,28 +69,29 @@ export const teamSlice = createSlice({
 				group.isEditingName = !group.isEditingName;
 			}
 		},
-
-		// Member actions
+		deleteTeamGroup: (state, action: PayloadAction<string>) => {
+			state.groups = state.groups.filter((g) => g.id !== action.payload);
+		},
 		addTeamMember: (
 			state,
 			action: PayloadAction<{ groupId: string; member: TeamMember }>,
 		) => {
 			const group = state.groups.find((g) => g.id === action.payload.groupId);
 			if (group) {
+				if (!group.members) {
+					group.members = [];
+				}
 				group.members.push(action.payload.member);
 			}
 		},
-		updateTeamMember: (
-			state,
-			action: PayloadAction<{ groupId: string; member: TeamMember }>,
-		) => {
+		updateTeamMember: (state, action: PayloadAction<TeamMember>) => {
 			const group = state.groups.find((g) => g.id === action.payload.groupId);
-			if (group) {
-				const memberIndex = group.members.findIndex(
-					(m) => m.id === action.payload.member.id,
+			if (group && group.members) {
+				const index = group.members.findIndex(
+					(m) => m.id === action.payload.id,
 				);
-				if (memberIndex >= 0) {
-					group.members[memberIndex] = action.payload.member;
+				if (index !== -1) {
+					group.members[index] = action.payload;
 				}
 			}
 		},
@@ -100,7 +100,7 @@ export const teamSlice = createSlice({
 			action: PayloadAction<{ groupId: string; memberId: string }>,
 		) => {
 			const group = state.groups.find((g) => g.id === action.payload.groupId);
-			if (group) {
+			if (group && group.members) {
 				group.members = group.members.filter(
 					(m) => m.id !== action.payload.memberId,
 				);
@@ -112,9 +112,10 @@ export const teamSlice = createSlice({
 export const {
 	setTeamGroups,
 	addTeamGroup,
-	deleteTeamGroup,
+	updateTeamGroup,
 	updateTeamGroupName,
 	toggleTeamGroupEditName,
+	deleteTeamGroup,
 	addTeamMember,
 	updateTeamMember,
 	deleteTeamMember,

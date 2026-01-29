@@ -3,6 +3,7 @@ import { useSelector } from 'react-redux';
 import { RootState } from '../../../Redux/Store/store';
 import { getRoleDisplayName, getRoleColor } from '../../../utils/permissions';
 import styled from 'styled-components';
+import { UserRole } from '../../../constants/roles';
 
 const Badge = styled.div<{ color: string }>`
 	display: inline-flex;
@@ -27,18 +28,18 @@ const Avatar = styled.img`
 export const CurrentUserBadge: React.FC = () => {
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
 
-	if (!currentUser) {
-		return null;
-	}
+	// currentUser guaranteed to exist in protected routes
 
 	return (
-		<Badge color={getRoleColor(currentUser.role)}>
-			{currentUser.image && <Avatar src={currentUser.image} alt={currentUser.firstName} />}
+		<Badge color={getRoleColor(currentUser!.role as UserRole)}>
+			{currentUser!.image && (
+				<Avatar src={currentUser!.image} alt={currentUser!.firstName} />
+			)}
 			<span>
-				{currentUser.firstName} {currentUser.lastName}
+				{currentUser!.firstName} {currentUser!.lastName}
 			</span>
 			<span style={{ opacity: 0.8, fontSize: '0.85rem' }}>
-				({getRoleDisplayName(currentUser.role)})
+				({getRoleDisplayName(currentUser!.role as UserRole)})
 			</span>
 		</Badge>
 	);

@@ -105,7 +105,7 @@ export const UserProfile: React.FC = () => {
 	};
 
 	const handleSave = async () => {
-		if (!currentUser) return;
+		// currentUser guaranteed to exist
 
 		// Validation
 		if (!formData.firstName.trim() || !formData.lastName.trim()) {
@@ -120,7 +120,7 @@ export const UserProfile: React.FC = () => {
 		try {
 			// Update user in Firebase
 			const updatedUser = await updateUser({
-				id: currentUser.id,
+				id: currentUser!.id,
 				updates: {
 					firstName: formData.firstName,
 					lastName: formData.lastName,
@@ -153,7 +153,7 @@ export const UserProfile: React.FC = () => {
 		navigate(-1);
 	};
 
-	if (!currentUser) return null;
+	// currentUser guaranteed to exist in protected routes
 
 	return (
 		<Wrapper>
@@ -244,7 +244,7 @@ export const UserProfile: React.FC = () => {
 							<FormInput
 								id='email'
 								type='email'
-								value={currentUser.email}
+								value={currentUser!.email}
 								disabled
 								placeholder='Your email address'
 							/>
@@ -259,7 +259,7 @@ export const UserProfile: React.FC = () => {
 							<FormInput
 								id='role'
 								type='text'
-								value={currentUser.role}
+								value={currentUser!.role}
 								disabled
 								placeholder='Your role'
 							/>

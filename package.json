@@ -40,7 +40,8 @@
 		"eject": "react-scripts eject",
 		"predeploy": "npm run build",
 		"deploy": "gh-pages -d build",
-		"seed:firebase": "node scripts/seedFirestore.cjs"
+		"seed:firebase": "node scripts/seedFirestore.cjs",
+		"init:firestore": "node scripts/initFirestore.cjs"
 	},
 	"eslintConfig": {
 		"extends": [
