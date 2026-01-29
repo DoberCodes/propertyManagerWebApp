@@ -104,8 +104,6 @@ export const getUserProfile = async (uid: string): Promise<User> => {
 			throw new Error('User profile not found');
 		}
 
-		const userData = userDoc.data() as User;
-
 		// Convert Firestore Timestamps to ISO strings for Redux serialization
 		const rawData: any = userDoc.data();
 		const serializedData: any = { ...rawData, id: uid };

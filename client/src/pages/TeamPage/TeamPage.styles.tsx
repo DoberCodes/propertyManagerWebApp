@@ -35,17 +35,18 @@ export const PageHeader = styled.div`
 `;
 
 export const PageTitle = styled.h1`
-	font-size: 28px;
-	font-weight: 700;
+	font-size: 32px;
+	font-weight: 800;
 	color: #1f2937;
 	margin: 0;
+	letter-spacing: 0.5px;
 
 	@media (max-width: 768px) {
-		font-size: 24px;
+		font-size: 28px;
 	}
 
 	@media (max-width: 480px) {
-		font-size: 20px;
+		font-size: 24px;
 	}
 `;
 
@@ -115,18 +116,19 @@ export const TeamGroupHeader = styled.div`
 `;
 
 export const TeamGroupTitle = styled.h2`
-	font-size: 18px;
-	font-weight: 600;
+	font-size: 20px;
+	font-weight: 700;
 	color: #1f2937;
 	margin: 0;
 	flex: 1;
+	letter-spacing: 0.3px;
 
 	@media (max-width: 768px) {
-		font-size: 16px;
+		font-size: 18px;
 	}
 
 	@media (max-width: 480px) {
-		font-size: 14px;
+		font-size: 16px;
 	}
 `;
 
@@ -526,7 +528,7 @@ export const ImageUploadInput = styled.input`
 `;
 
 export const ImageUploadButton = styled.label`
-	background-color: #3b82f6;
+	background-color: #10b981;
 	color: white;
 	border: none;
 	padding: 10px 16px;
@@ -537,7 +539,7 @@ export const ImageUploadButton = styled.label`
 	transition: background-color 0.2s ease;
 
 	&:hover {
-		background-color: #2563eb;
+		background-color: #059669;
 	}
 `;
 

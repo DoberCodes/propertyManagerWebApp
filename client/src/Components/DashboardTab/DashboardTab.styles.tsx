@@ -49,17 +49,17 @@ export const TaskGridHeader = styled.div`
 `;
 
 export const TaskGridTitle = styled.h2`
-	font-size: 18px;
-	font-weight: 600;
-	color: black;
+	font-size: 20px;
+	font-weight: 700;
+	color: #1f2937;
 	margin: 0;
 
 	@media (max-width: 768px) {
-		font-size: 16px;
+		font-size: 18px;
 	}
 
 	@media (max-width: 480px) {
-		font-size: 14px;
+		font-size: 16px;
 	}
 `;
 

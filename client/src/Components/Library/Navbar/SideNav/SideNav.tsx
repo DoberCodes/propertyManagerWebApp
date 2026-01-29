@@ -27,8 +27,8 @@ export const SideNav = () => {
 	const location = useLocation();
 	const navigate = useNavigate();
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
-	const { recentProperties } = useRecentlyViewed();
-	const { favorites } = useFavorites();
+	const { recentProperties } = useRecentlyViewed(currentUser?.id);
+	const { favorites } = useFavorites(currentUser?.id);
 
 	// Check permissions
 	const canAccessTeam = currentUser

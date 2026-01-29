@@ -228,17 +228,18 @@ export const GridTable = styled.table`
 
 export const PropertyTitle = styled.h1`
 	color: white;
-	font-size: 32px;
-	font-weight: 700;
+	font-size: 36px;
+	font-weight: 800;
 	margin: 0;
 	text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+	letter-spacing: 0.5px;
 
 	@media (max-width: 768px) {
-		font-size: 24px;
+		font-size: 28px;
 	}
 
 	@media (max-width: 480px) {
-		font-size: 18px;
+		font-size: 22px;
 	}
 `;
 
@@ -449,7 +450,7 @@ export const TaskStatus = styled.span<{ status: string }>`
 			case 'Completed':
 				return '#22c55e';
 			case 'In Progress':
-				return '#3b82f6';
+				return '#10b981';
 			case 'Pending':
 				return '#f59e0b';
 			default:
@@ -473,8 +474,10 @@ export const EmptyState = styled.div`
 
 	h2 {
 		margin: 0 0 12px 0;
-		font-size: 18px;
-		color: #666666;
+		font-size: 20px;
+		font-weight: 700;
+		color: #1f2937;
+		letter-spacing: 0.3px;
 	}
 
 	button {

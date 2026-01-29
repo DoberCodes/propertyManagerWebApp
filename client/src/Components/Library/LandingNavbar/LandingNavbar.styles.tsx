@@ -4,97 +4,115 @@ import styled from 'styled-components';
 
 export const NavWrapper = styled.div`
 	display: flex;
-	height: 100px;
+	height: 80px;
 	width: 100%;
-	background-color: blue;
+	background: linear-gradient(135deg, #065f46 0%, #047857 100%);
 	align-items: center;
-	padding: '20px 0 20px 0';
+	justify-content: space-between;
+	padding: 0 20px;
 	margin: 0 auto;
 	position: fixed;
 	top: 0;
 	flex-wrap: wrap;
 	gap: 10px;
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+	z-index: 100;
 
 	@media (max-width: 768px) {
-		height: 80px;
-		padding: 10px;
-		gap: 5px;
+		height: auto;
+		padding: 12px;
+		gap: 8px;
+		flex-direction: row;
 	}
 
 	@media (max-width: 480px) {
-		height: 70px;
+		height: auto;
 		flex-direction: column;
 		justify-content: center;
+		padding: 12px 8px;
+		gap: 8px;
 	}
 `;
 
 export const IconWrapper = styled.div``;
 
 export const NavTitle = styled.h2`
-	font-size: 36px;
-	font-weight: 700;
+	font-size: 28px;
+	font-weight: 800;
 	width: 35%;
 	text-align: center;
+	color: white;
+	letter-spacing: 0.5px;
+	margin: 0;
+	text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
 
 	@media (max-width: 768px) {
-		font-size: 28px;
+		font-size: 22px;
 		width: 40%;
 	}
 
 	@media (max-width: 480px) {
-		font-size: 20px;
+		font-size: 18px;
 		width: 100%;
+		padding: 8px 0;
 	}
 `;
 
 export const ButtonWrapper = styled.div`
-	width: 65%;
 	display: flex;
 	flex-direction: row;
-	justify-content: center;
+	justify-content: flex-end;
 	align-items: center;
-	gap: 10px;
+	gap: 8px;
+	flex: 1;
 
 	@media (max-width: 768px) {
-		width: 60%;
-		gap: 5px;
+		gap: 6px;
+		justify-content: center;
 	}
 
 	@media (max-width: 480px) {
 		width: 100%;
 		flex-wrap: wrap;
-		gap: 8px;
+		gap: 6px;
+		justify-content: center;
 	}
 `;
 
 export const NavAnchor = styled(HashLink)`
-	font-size: 20px;
-	font-weight: 700;
+	font-size: 16px;
+	font-weight: 600;
 	display: flex;
 	justify-content: center;
 	align-items: center;
-	margin: 0px 20px 0px 20px;
-	padding: 10px;
+	margin: 0px 12px 0px 12px;
+	padding: 8px 12px;
 	text-decoration: none;
-	color: black;
+	color: white;
 	white-space: nowrap;
+	border-radius: 4px;
+	transition:
+		background-color 0.2s,
+		transform 0.2s;
 
 	&:hover {
-		color: white;
+		background-color: rgba(255, 255, 255, 0.2);
+		transform: translateY(-2px);
 	}
 
 	@media (max-width: 768px) {
-		font-size: 16px;
-		margin: 0px 10px 0px 10px;
-		padding: 8px;
+		font-size: 14px;
+		margin: 0px 8px 0px 8px;
+		padding: 6px 10px;
 	}
 
 	@media (max-width: 480px) {
 		font-size: 12px;
-		margin: 0;
-		padding: 6px;
+		margin: 4px 4px;
+		padding: 6px 8px;
 		flex: 1;
-		min-width: 100px;
+		min-width: auto;
+		text-align: center;
 	}
 `;
 

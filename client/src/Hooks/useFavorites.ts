@@ -1,5 +1,10 @@
 import { useState, useEffect } from 'react';
 import { getUserStorageKey } from './utils/storageList';
+import {
+	useGetFavoritesQuery,
+	useAddFavoriteMutation,
+	useRemoveFavoriteMutation,
+} from '../Redux/API/apiSlice';
 
 interface FavoriteProperty {
 	id: string;
@@ -14,7 +19,39 @@ const FAVORITES_UPDATED_EVENT = 'favorites-updated';
 export const useFavorites = (userId?: string | number) => {
 	const [favorites, setFavorites] = useState<FavoriteProperty[]>([]);
 
-	// Load from localStorage on mount
+	// Fetch favorites from Firebase
+	const { data: firebaseFavorites = [], isLoading } = useGetFavoritesQuery(
+		String(userId || ''),
+		{ skip: !userId },
+	);
+
+	// Firebase mutations
+	const [addFavoriteMutation] = useAddFavoriteMutation();
+	const [removeFavoriteMutation] = useRemoveFavoriteMutation();
+
+	// Sync Firebase data to local state and localStorage
+	useEffect(() => {
+		if (firebaseFavorites.length > 0) {
+			const formattedFavorites = firebaseFavorites.map((fav) => ({
+				id: fav.propertyId,
+				title: fav.title,
+				slug: fav.slug,
+				timestamp: fav.timestamp,
+			}));
+			setFavorites(formattedFavorites);
+
+			// Update localStorage cache
+			const storageKey = userId
+				? getUserStorageKey(userId, STORAGE_KEY)
+				: STORAGE_KEY;
+			localStorage.setItem(storageKey, JSON.stringify(formattedFavorites));
+		} else if (!isLoading && userId) {
+			// If Firebase returns empty and we're not loading, clear favorites
+			setFavorites([]);
+		}
+	}, [firebaseFavorites, userId, isLoading]);
+
+	// Load from localStorage on mount (before Firebase loads)
 	useEffect(() => {
 		const loadFromStorage = () => {
 			const storageKey = userId
@@ -32,7 +69,7 @@ export const useFavorites = (userId?: string | number) => {
 			}
 		};
 
-		// Initial load
+		// Initial load from cache
 		loadFromStorage();
 
 		// Listen for cross-component updates
@@ -43,11 +80,12 @@ export const useFavorites = (userId?: string | number) => {
 		};
 	}, [userId]);
 
-	const addFavorite = (property: {
+	const addFavorite = async (property: {
 		id: string;
 		title: string;
 		slug: string;
 	}) => {
+		// Optimistic update
 		setFavorites((prev) => {
 			// Check if already exists
 			if (prev.some((p) => p.id === property.id)) {
@@ -66,9 +104,24 @@ export const useFavorites = (userId?: string | number) => {
 
 			return updated;
 		});
+
+		// Sync to Firebase
+		if (userId) {
+			try {
+				await addFavoriteMutation({
+					userId: String(userId),
+					propertyId: property.id,
+					title: property.title,
+					slug: property.slug,
+				}).unwrap();
+			} catch (error) {
+				console.error('Failed to add favorite to Firebase:', error);
+			}
+		}
 	};
 
-	const removeFavorite = (propertyId: string) => {
+	const removeFavorite = async (propertyId: string) => {
+		// Optimistic update
 		setFavorites((prev) => {
 			const updated = prev.filter((p) => p.id !== propertyId);
 			const storageKey = userId
@@ -78,6 +131,18 @@ export const useFavorites = (userId?: string | number) => {
 			window.dispatchEvent(new Event(FAVORITES_UPDATED_EVENT));
 			return updated;
 		});
+
+		// Sync to Firebase
+		if (userId) {
+			try {
+				await removeFavoriteMutation({
+					userId: String(userId),
+					propertyId,
+				}).unwrap();
+			} catch (error) {
+				console.error('Failed to remove favorite from Firebase:', error);
+			}
+		}
 	};
 
 	const toggleFavorite = (property: {
@@ -112,5 +177,6 @@ export const useFavorites = (userId?: string | number) => {
 		toggleFavorite,
 		isFavorite,
 		clearFavorites,
+		isLoading,
 	};
 };

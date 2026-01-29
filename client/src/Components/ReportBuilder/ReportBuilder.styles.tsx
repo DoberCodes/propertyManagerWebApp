@@ -32,17 +32,18 @@ export const PageHeader = styled.div`
 `;
 
 export const PageTitle = styled.h1`
-	font-size: 28px;
-	font-weight: 700;
+	font-size: 32px;
+	font-weight: 800;
 	color: #1f2937;
 	margin: 0;
+	letter-spacing: 0.5px;
 
 	@media (max-width: 768px) {
-		font-size: 24px;
+		font-size: 28px;
 	}
 
 	@media (max-width: 480px) {
-		font-size: 20px;
+		font-size: 24px;
 	}
 `;
 
@@ -95,9 +96,11 @@ export const Section = styled.div`
 `;
 
 export const SectionTitle = styled.h2`
-	font-size: 16px;
-	font-weight: 600;
+	font-size: 18px;
+	font-weight: 700;
 	color: #1f2937;
+	margin: 0;
+	letter-spacing: 0.3px;
 	margin: 0;
 	padding-bottom: 12px;
 	border-bottom: 1px solid #e5e7eb;
@@ -115,14 +118,14 @@ export const FormGroup = styled.div`
 `;
 
 export const Label = styled.label`
-	font-size: 13px;
+	font-size: 15px;
 	font-weight: 600;
 	color: #374151;
-	text-transform: uppercase;
-	letter-spacing: 0.5px;
+	display: block;
+	margin-bottom: 8px;
 
 	@media (max-width: 480px) {
-		font-size: 12px;
+		font-size: 14px;
 	}
 `;
 
@@ -323,6 +326,17 @@ export const PreviewSection = styled.div`
 		padding: 12px;
 		gap: 10px;
 	}
+`;
+
+export const LoadingMessage = styled.div`
+	padding: 16px;
+	background-color: #d1fae5;
+	color: #065f46;
+	border-radius: 8px;
+	border-left: 4px solid #065f46;
+	font-size: 14px;
+	text-align: center;
+	grid-column: 1 / -1;
 `;
 
 export const PreviewTable = styled.div`

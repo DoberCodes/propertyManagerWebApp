@@ -34,43 +34,54 @@ export const BackButton = styled.a`
 
 export const Title = styled.h2`
 	font-size: 26px;
-	font-weight: 600;
-	margin-left: 20px;
+	font-weight: 700;
+	margin: 10px auto 20px auto;
 	text-decoration: underline;
+	text-align: center;
+	color: #333;
 
 	@media (max-width: 768px) {
-		font-size: 22px;
-		margin-left: 15px;
+		font-size: 20px;
+		margin: 10px auto 18px auto;
 	}
 
 	@media (max-width: 480px) {
-		font-size: 18px;
-		margin-left: 10px;
+		font-size: 17px;
+		margin: 8px auto 16px auto;
 	}
 `;
 
 export const Input = styled.input`
-	padding: 20px;
-	font-size: 18px;
-	margin: 10px;
-	border: none;
-	border-bottom: 1px solid gray;
+	padding: 12px 12px;
+	font-size: 16px;
+	margin: 8px 0;
+	border: 1px solid #ddd;
+	border-radius: 4px;
+	width: calc(100% - 24px);
+	box-sizing: border-box;
+	transition: border-color 0.2s;
+
+	&:focus {
+		outline: none;
+		border-color: #3498db;
+		box-shadow: 0 0 4px rgba(52, 152, 219, 0.3);
+	}
 
 	&:hover {
-		border-color: black;
-		cursor: pointer;
+		border-color: #999;
 	}
 
 	@media (max-width: 768px) {
-		padding: 15px;
-		font-size: 16px;
-		margin: 8px;
+		padding: 11px 11px;
+		font-size: 15px;
+		margin: 7px 0;
 	}
 
 	@media (max-width: 480px) {
-		padding: 12px;
+		padding: 10px 10px;
 		font-size: 14px;
-		margin: 6px;
+		margin: 6px 0;
+		width: calc(100% - 20px);
 	}
 `;
 
@@ -101,9 +112,9 @@ export const Submit = styled.button`
 
 export const RegisterWrapper = styled.div`
 	span {
-		color: blue;
+		color: #10b981;
 		&:hover {
-			color: lightblue;
+			color: #059669;
 			cursor: pointer;
 		}
 	}

@@ -187,6 +187,16 @@ export interface Unit {
 	updatedAt?: string;
 }
 
+export interface Favorite {
+	id: string;
+	userId: string;
+	propertyId: string;
+	title: string;
+	slug: string;
+	timestamp: number;
+	createdAt?: string;
+}
+
 // Helper function to convert Firestore docs to data with IDs
 const docToData = (docSnapshot: any) => {
 	if (!docSnapshot.exists()) return null;
@@ -205,6 +215,7 @@ export const apiSlice = createApi({
 		'Devices',
 		'Suites',
 		'Units',
+		'Favorites',
 	],
 	endpoints: (builder) => ({
 		// Property Group endpoints
@@ -1013,6 +1024,102 @@ export const apiSlice = createApi({
 			},
 			invalidatesTags: ['Devices'],
 		}),
+
+		// Favorites endpoints
+		getFavorites: builder.query<Favorite[], string>({
+			async queryFn(userId: string) {
+				try {
+					const q = query(
+						collection(db, 'favorites'),
+						where('userId', '==', userId),
+					);
+					const querySnapshot = await getDocs(q);
+					const favorites = querySnapshot.docs.map((doc) => ({
+						id: doc.id,
+						...doc.data(),
+					})) as Favorite[];
+					// Sort by timestamp descending (most recent first)
+					favorites.sort((a, b) => b.timestamp - a.timestamp);
+					return { data: favorites };
+				} catch (error: any) {
+					return { error: error.message };
+				}
+			},
+			providesTags: ['Favorites'],
+		}),
+
+		addFavorite: builder.mutation<
+			Favorite,
+			{ userId: string; propertyId: string; title: string; slug: string }
+		>({
+			async queryFn({ userId, propertyId, title, slug }) {
+				try {
+					// Check if already exists
+					const q = query(
+						collection(db, 'favorites'),
+						where('userId', '==', userId),
+						where('propertyId', '==', propertyId),
+					);
+					const existingSnapshot = await getDocs(q);
+
+					if (!existingSnapshot.empty) {
+						// Already favorited, return existing
+						const existing = existingSnapshot.docs[0];
+						return {
+							data: {
+								id: existing.id,
+								...existing.data(),
+							} as Favorite,
+						};
+					}
+
+					// Create new favorite
+					const favoriteData = {
+						userId,
+						propertyId,
+						title,
+						slug,
+						timestamp: Date.now(),
+						createdAt: new Date().toISOString(),
+					};
+					const docRef = await addDoc(
+						collection(db, 'favorites'),
+						favoriteData,
+					);
+					return { data: { id: docRef.id, ...favoriteData } };
+				} catch (error: any) {
+					return { error: error.message };
+				}
+			},
+			invalidatesTags: ['Favorites'],
+		}),
+
+		removeFavorite: builder.mutation<
+			void,
+			{ userId: string; propertyId: string }
+		>({
+			async queryFn({ userId, propertyId }) {
+				try {
+					const q = query(
+						collection(db, 'favorites'),
+						where('userId', '==', userId),
+						where('propertyId', '==', propertyId),
+					);
+					const querySnapshot = await getDocs(q);
+
+					// Delete all matching favorites (should only be one)
+					const deletePromises = querySnapshot.docs.map((docSnapshot) =>
+						deleteDoc(doc(db, 'favorites', docSnapshot.id)),
+					);
+					await Promise.all(deletePromises);
+
+					return { data: undefined };
+				} catch (error: any) {
+					return { error: error.message };
+				}
+			},
+			invalidatesTags: ['Favorites'],
+		}),
 	}),
 });
 
@@ -1066,4 +1173,8 @@ export const {
 	useCreateDeviceMutation,
 	useUpdateDeviceMutation,
 	useDeleteDeviceMutation,
+	// Favorites
+	useGetFavoritesQuery,
+	useAddFavoriteMutation,
+	useRemoveFavoriteMutation,
 } = apiSlice;

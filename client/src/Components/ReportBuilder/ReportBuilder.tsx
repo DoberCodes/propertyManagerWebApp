@@ -2,6 +2,12 @@ import React, { useState, useMemo } from 'react';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../Redux/Store/store';
 import {
+	useGetTasksQuery,
+	useGetPropertiesQuery,
+	useGetPropertyGroupsQuery,
+	useGetTeamMembersQuery,
+} from '../../Redux/API/apiSlice';
+import {
 	Wrapper,
 	PageTitle,
 	PageDescription,
@@ -51,6 +57,7 @@ type ReportType =
 	| '';
 
 export const ReportBuilder: React.FC = () => {
+	const currentUser = useSelector((state: RootState) => state.user.currentUser);
 	const [reportType, setReportType] = useState<ReportType>('');
 	const [selectedColumns, setSelectedColumns] = useState<string[]>([]);
 	const [filters, setFilters] = useState<any>({
@@ -61,26 +68,35 @@ export const ReportBuilder: React.FC = () => {
 		dateTo: '',
 	});
 
-	// Redux data
-	const tasks = useSelector((state: RootState) => state.propertyData.tasks);
-	const groups = useSelector((state: RootState) => state.propertyData.groups);
-	const maintenanceRequests = useSelector(
-		(state: RootState) => state.maintenanceRequests.requests,
+	// Fetch Firebase data
+	const { data: tasks = [], isLoading: tasksLoading } = useGetTasksQuery(
+		currentUser?.id || '',
+		{ skip: !currentUser },
 	);
-	const teamMembers = useSelector((state: RootState) =>
-		state.team.groups.flatMap((g) => g.members),
+
+	const { data: properties = [], isLoading: propertiesLoading } =
+		useGetPropertiesQuery(currentUser?.id || '', { skip: !currentUser });
+
+	const { data: propertyGroups = [], isLoading: groupsLoading } =
+		useGetPropertyGroupsQuery(currentUser?.id || '', { skip: !currentUser });
+
+	const { data: firebaseTeamMembers = [], isLoading: teamLoading } =
+		useGetTeamMembersQuery(currentUser?.id || '', { skip: !currentUser });
+
+	// Filter tasks to get maintenance requests (tasks with specific properties)
+	const maintenanceRequests = tasks.filter(
+		(t: any) =>
+			t.type === 'maintenance' ||
+			t.title?.toLowerCase().includes('maintenance'),
 	);
 
 	// Build properties list for filters
-	const properties = useMemo(() => {
-		const props: any[] = [];
-		groups.forEach((group) => {
-			group.properties.forEach((prop) => {
-				props.push({ id: prop.id, title: prop.title });
-			});
-		});
-		return props;
-	}, [groups]);
+	const propertiesList = useMemo(() => {
+		return properties.map((prop) => ({
+			id: prop.id,
+			title: prop.title,
+		}));
+	}, [properties]);
 
 	// Get column options based on report type
 	const columnOptions = useMemo(() => {
@@ -104,18 +120,22 @@ export const ReportBuilder: React.FC = () => {
 		} else if (reportType === 'maintenance-requests') {
 			data = maintenanceRequests;
 		} else if (reportType === 'team') {
-			data = teamMembers;
+			data = firebaseTeamMembers;
 		} else if (reportType === 'employee-efficiency') {
 			// Calculate employee efficiency metrics
-			data = teamMembers.map((member) => {
-				const memberTasks = tasks.filter((t) => t.completedBy === member.id);
-				const completed = memberTasks.filter((t) => t.status === 'Completed');
+			data = firebaseTeamMembers.map((member: any) => {
+				const memberTasks = tasks.filter(
+					(t: any) => t.assignedTo === member.id,
+				);
+				const completed = memberTasks.filter(
+					(t: any) => t.status === 'Completed',
+				);
 
 				const avgDays =
 					memberTasks.length > 0
 						? memberTasks
-								.filter((t) => t.completionDate && t.dueDate)
-								.reduce((acc, t) => {
+								.filter((t: any) => t.completionDate && t.dueDate)
+								.reduce((acc: number, t: any) => {
 									const due = new Date(t.dueDate).getTime();
 									const comp = new Date(t.completionDate!).getTime();
 									return acc + (comp - due) / (1000 * 60 * 60 * 24);
@@ -130,9 +150,10 @@ export const ReportBuilder: React.FC = () => {
 					title: member.title,
 					totalTasksAssigned: memberTasks.length,
 					tasksCompleted: completed.length,
-					tasksInProgress: memberTasks.filter((t) => t.status === 'In Progress')
-						.length,
-					tasksPending: memberTasks.filter((t) => t.status === 'Pending')
+					tasksInProgress: memberTasks.filter(
+						(t: any) => t.status === 'In Progress',
+					).length,
+					tasksPending: memberTasks.filter((t: any) => t.status === 'Pending')
 						.length,
 					completionRate:
 						memberTasks.length > 0
@@ -149,67 +170,72 @@ export const ReportBuilder: React.FC = () => {
 			});
 		} else if (reportType === 'property-summary') {
 			// Calculate property summary metrics
-			data = groups.flatMap((group) =>
-				group.properties.map((prop) => {
-					const propTasks = tasks.filter((t) => t.property === prop.title);
-					const propRequests = maintenanceRequests.filter(
-						(r) => r.propertyId === (prop.id as any),
+			data = properties.map((prop: any) => {
+				const propTasks = tasks.filter((t: any) => t.propertyId === prop.id);
+				const propRequests = maintenanceRequests.filter(
+					(r: any) => r.propertyId === prop.id,
+				);
+
+				let totalUnits = 0;
+				let occupiedUnits = 0;
+				let totalOccupants = 0;
+
+				if (prop.units) {
+					totalUnits = prop.units.length;
+					occupiedUnits = prop.units.filter(
+						(u: any) => (u.occupants || []).length > 0,
+					).length;
+					totalOccupants = prop.units.reduce(
+						(sum: number, u: any) => sum + (u.occupants || []).length,
+						0,
 					);
+				}
 
-					let totalUnits = 0;
-					let occupiedUnits = 0;
-					let totalOccupants = 0;
-
-					if (prop.units) {
-						totalUnits = prop.units.length;
-						occupiedUnits = prop.units.filter(
-							(u: any) => (u.occupants || []).length > 0,
-						).length;
-						totalOccupants = prop.units.reduce(
-							(sum, u: any) => sum + (u.occupants || []).length,
-							0,
-						);
-					}
-
-					return {
-						propertyId: prop.id as any,
-						propertyTitle: prop.title,
-						address: prop.address || 'N/A',
-						totalUnits,
-						occupiedUnits,
-						totalTenants: totalOccupants,
-						totalTasks: propTasks.length,
-						completedTasks: propTasks.filter((t) => t.status === 'Completed')
-							.length,
-						maintenanceHistoryCount: (prop.taskHistory || []).length,
-						pendingMaintenanceRequests: propRequests.filter(
-							(r) => r.status === 'Pending',
-						).length,
-						approvedMaintenanceRequests: propRequests.filter(
-							(r) => r.status === 'Approved',
-						).length,
-					} as PropertySummaryMetrics;
-				}),
-			);
+				return {
+					propertyId: prop.id as any,
+					propertyTitle: prop.title,
+					address: prop.address || 'N/A',
+					owner: prop.owner || 'N/A',
+					propertyType: prop.propertyType || 'Unknown',
+					totalUnits,
+					occupiedUnits,
+					totalTenants: totalOccupants,
+					totalTasks: propTasks.length,
+					completedTasks: propTasks.filter((t: any) => t.status === 'Completed')
+						.length,
+					maintenanceHistoryCount: (prop.taskHistory || []).length,
+					pendingMaintenanceRequests: propRequests.filter(
+						(r: any) => r.status === 'Pending',
+					).length,
+					approvedMaintenanceRequests: propRequests.filter(
+						(r: any) => r.status === 'Approved',
+					).length,
+				} as PropertySummaryMetrics;
+			});
 		}
 
 		// Apply filters if applicable
 		if (reportType === 'maintenance-requests') {
 			if (filters.status) {
-				data = data.filter((r) => r.status === filters.status);
+				data = data.filter((r: any) => r.status === filters.status);
 			}
 			if (filters.priority) {
-				data = data.filter((r) => r.priority === filters.priority);
+				data = data.filter((r: any) => r.priority === filters.priority);
 			}
 			if (filters.propertyId) {
-				data = data.filter(
-					(r) => r.propertyId === parseInt(filters.propertyId),
-				);
+				data = data.filter((r: any) => r.propertyId === filters.propertyId);
 			}
 		}
 
 		return data;
-	}, [reportType, tasks, maintenanceRequests, teamMembers, groups, filters]);
+	}, [
+		reportType,
+		tasks,
+		maintenanceRequests,
+		firebaseTeamMembers,
+		properties,
+		filters,
+	]);
 
 	const handleReportTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
 		setReportType(e.target.value as ReportType);
@@ -270,6 +296,10 @@ export const ReportBuilder: React.FC = () => {
 		}
 	};
 
+	// Check if any queries are loading
+	const isLoading =
+		tasksLoading || propertiesLoading || groupsLoading || teamLoading;
+
 	return (
 		<Wrapper>
 			<PageHeader>
@@ -281,9 +311,11 @@ export const ReportBuilder: React.FC = () => {
 				</div>
 			</PageHeader>
 
+			{isLoading && <InfoMessage>Loading data...</InfoMessage>}
 			<ReportBuilderContainer>
 				{/* Report Type Selection */}
 				<Section>
+					{' '}
 					<SectionTitle>Report Type</SectionTitle>
 					<FormGroup>
 						<Label>Select Report</Label>
@@ -296,7 +328,6 @@ export const ReportBuilder: React.FC = () => {
 							<option value='property-summary'>Property Summary</option>
 						</Select>
 					</FormGroup>
-
 					{reportType === 'maintenance-requests' && (
 						<FilterContainer>
 							<Label style={{ marginTop: '12px' }}>Filters</Label>
@@ -347,7 +378,6 @@ export const ReportBuilder: React.FC = () => {
 							</FormGroup>
 						</FilterContainer>
 					)}
-
 					{reportType && (
 						<InfoMessage>
 							Found {previewData.length} record(s) for this report type

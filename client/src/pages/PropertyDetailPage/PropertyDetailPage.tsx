@@ -264,10 +264,10 @@ export const PropertyDetailPage = () => {
 	const { slug } = useParams<{ slug: string }>();
 	const navigate = useNavigate();
 	const dispatch = useDispatch<AppDispatch>();
-	const { isFavorite, toggleFavorite } = useFavorites();
 
 	// Get current user
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
+	const { isFavorite, toggleFavorite } = useFavorites(currentUser?.id);
 
 	// Fetch properties from Firebase
 	const { data: firebaseProperties = [], isLoading: propertiesLoading } =

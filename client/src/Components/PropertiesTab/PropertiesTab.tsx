@@ -49,14 +49,18 @@ export const Properties = () => {
 	const teamMembers = useSelector((state: RootState) =>
 		state.team.groups.flatMap((group) => group.members),
 	);
-	const { addRecentlyViewed } = useRecentlyViewed();
-	const { toggleFavorite, isFavorite } = useFavorites();
+	const { addRecentlyViewed } = useRecentlyViewed(currentUser?.id);
+	const { toggleFavorite, isFavorite } = useFavorites(currentUser?.id);
 
 	// Firebase queries - skip if no user
-	const { data: properties = [], isLoading: propertiesLoading } =
-		useGetPropertiesQuery(currentUser?.id || '', { skip: !currentUser });
-	const { data: groups = [], isLoading: groupsLoading } =
-		useGetPropertyGroupsQuery(currentUser?.id || '', { skip: !currentUser });
+	const { data: properties = [] } = useGetPropertiesQuery(
+		currentUser?.id || '',
+		{ skip: !currentUser },
+	);
+	const { data: groups = [] } = useGetPropertyGroupsQuery(
+		currentUser?.id || '',
+		{ skip: !currentUser },
+	);
 
 	// Firebase mutations
 	const [createProperty] = useCreatePropertyMutation();
@@ -141,12 +145,6 @@ export const Properties = () => {
 				setEditingGroupName(group.name);
 			}
 		}
-	};
-
-	const handleAddPropertyClick = (groupId: string) => {
-		setSelectedGroupForDialog(groupId);
-		setSelectedPropertyForEdit(null);
-		setDialogOpen(true);
 	};
 
 	const handleAddPropertyGlobalClick = () => {
@@ -235,16 +233,8 @@ export const Properties = () => {
 			// Use groupId from formData (selected in dialog) or fall back to state
 			const groupId = formData.groupId || selectedGroupForDialog;
 
-			// Debug logging
-			console.log('=== Property Creation Debug ===');
-			console.log('formData.groupId:', formData.groupId);
-			console.log('selectedGroupForDialog:', selectedGroupForDialog);
-			console.log('Final groupId:', groupId);
-			console.log('formData:', formData);
-
 			// Validate that a group is selected
 			if (!groupId || groupId === '') {
-				console.error('No group selected for new property');
 				alert('Please select a group for this property');
 				return;
 			}

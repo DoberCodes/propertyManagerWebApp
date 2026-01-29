@@ -20,7 +20,7 @@ const GlobalStyles = createGlobalStyle`
 export const nav_height = '70px';
 export const footer_height = '300px';
 
-export const blue = '#4169E1';
+export const blue = '#10b981';
 
 export const font_title = '28px';
 export const font_main = '18px';
