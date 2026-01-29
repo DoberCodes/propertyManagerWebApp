@@ -34,7 +34,7 @@ export const DashboardTab = () => {
 	);
 
 	// Fetch tasks from Firebase
-	const { data: allTasks = [] } = useGetTasksQuery(currentUser!.id);
+	const { data: allTasks = [] } = useGetTasksQuery();
 
 	// Firebase mutations
 	const [updateTask] = useUpdateTaskMutation();
@@ -157,10 +157,7 @@ export const DashboardTab = () => {
 			</PageHeaderSection>
 
 			{/* Invitations Panel */}
-			<InvitationsPanel
-				userEmail={currentUser!.email}
-				userId={currentUser!.id}
-			/>
+			<InvitationsPanel userId={currentUser!.id} />
 
 			{/* Task Grid Section */}
 			<TaskGridSection>

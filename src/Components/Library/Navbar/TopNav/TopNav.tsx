@@ -87,6 +87,7 @@ export const TopNav = () => {
 								userName={`${currentUser.firstName} ${currentUser.lastName}`}
 								userTitle={currentUser.title}
 								userImage={currentUser.image}
+								onLogout={handleLogout}
 							/>
 						</div>
 					)}
@@ -99,12 +100,10 @@ export const TopNav = () => {
 								userName={`${currentUser.firstName} ${currentUser.lastName}`}
 								userTitle={currentUser.title}
 								userImage={currentUser.image}
+								onLogout={handleLogout}
 							/>
 						</div>
 					)}
-					<NavItem to='/' onClick={handleLogout} className='desktop-logout'>
-						Log Out
-					</NavItem>
 				</RightSection>
 			</Wrapper>
 

@@ -23,7 +23,6 @@ import {
 import {
 	canApproveMaintenanceRequest,
 	isTenant,
-	canShareProperty,
 } from '../../utils/permissions';
 import { UserRole } from '../../constants/roles';
 import { TeamMember } from '../../Redux/Slices/teamSlice';
@@ -99,12 +98,15 @@ export const PropertyDetailPage = () => {
 
 	// Fetch properties from Firebase
 	const { data: firebaseProperties = [], isLoading: propertiesLoading } =
-		useGetPropertiesQuery(currentUser!.id);
+		useGetPropertiesQuery();
+
+	// Get property groups from Redux (populated by DataLoader)
+	const propertyGroups = useSelector(
+		(state: RootState) => state.propertyData.groups,
+	);
 
 	// Fetch team members from Firebase
-	const { data: firebaseTeamMembers = [] } = useGetTeamMembersQuery(
-		currentUser!.id,
-	);
+	const { data: firebaseTeamMembers = [] } = useGetTeamMembersQuery();
 
 	// For backwards compatibility, also get from Redux - memoize to prevent rerenders
 	const reduxTeamMembers = useSelector(
@@ -120,9 +122,7 @@ export const PropertyDetailPage = () => {
 		firebaseTeamMembers.length > 0 ? firebaseTeamMembers : reduxTeamMembers;
 
 	// Fetch tasks from Firebase
-	const { data: allTasks = [], isLoading: tasksLoading } = useGetTasksQuery(
-		currentUser!.id,
-	);
+	const { data: allTasks = [], isLoading: tasksLoading } = useGetTasksQuery();
 
 	// Firebase mutations for updating tasks and properties
 	const [updateTaskMutation] = useUpdateTaskMutation();
@@ -661,7 +661,11 @@ export const PropertyDetailPage = () => {
 					)}
 					{currentUser &&
 						property &&
-						canShareProperty(currentUser.id, property) && (
+						propertyGroups.some(
+							(group) =>
+								group.id === property.groupId &&
+								group.userId === currentUser.id,
+						) && (
 							<FavoriteButton
 								onClick={() => setShowShareModal(true)}
 								style={{ backgroundColor: '#3498db' }}>

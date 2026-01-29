@@ -51,21 +51,19 @@ export const DataFetchProvider: React.FC<DataFetchProviderProps> = ({
 
 	// Fetch all data
 	const { data: propertyGroups = [], isLoading: groupsLoading } =
-		useGetPropertyGroupsQuery(currentUser?.id || '', { skip: !currentUser });
-	const { isLoading: propertiesLoading } = useGetPropertiesQuery(
-		currentUser?.id || '',
-		{ skip: !currentUser },
-	);
+		useGetPropertyGroupsQuery(undefined, { skip: !currentUser });
+	const { isLoading: propertiesLoading } = useGetPropertiesQuery(undefined, {
+		skip: !currentUser,
+	});
 	const { data: tasks = [], isLoading: tasksLoading } = useGetTasksQuery(
-		currentUser?.id || '',
+		undefined,
 		{ skip: !currentUser },
 	);
 	const { data: teamGroups = [], isLoading: teamGroupsLoading } =
-		useGetTeamGroupsQuery(currentUser?.id || '', { skip: !currentUser });
-	const { isLoading: teamMembersLoading } = useGetTeamMembersQuery(
-		currentUser?.id || '',
-		{ skip: !currentUser },
-	);
+		useGetTeamGroupsQuery(undefined, { skip: !currentUser });
+	const { isLoading: teamMembersLoading } = useGetTeamMembersQuery(undefined, {
+		skip: !currentUser,
+	});
 
 	// Track initial load
 	useEffect(() => {

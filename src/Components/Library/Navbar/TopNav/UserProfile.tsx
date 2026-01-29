@@ -7,18 +7,21 @@ import {
 	UserTitle,
 	DropdownMenu,
 	DropdownItem,
+	DropdownButton,
 } from './UserProfile.styles';
 
 interface UserProfileProps {
 	userName?: string;
 	userTitle?: string;
 	userImage?: string;
+	onLogout?: () => void;
 }
 
 export const UserProfile: React.FC<UserProfileProps> = ({
 	userName = 'John Doe',
 	userTitle = 'Administrator',
 	userImage,
+	onLogout,
 }) => {
 	const [isOpen, setIsOpen] = useState(false);
 
@@ -48,6 +51,15 @@ export const UserProfile: React.FC<UserProfileProps> = ({
 				<DropdownMenu>
 					<DropdownItem to='/profile'>Edit Profile</DropdownItem>
 					<DropdownItem to='/settings'>Settings</DropdownItem>
+					{onLogout && (
+						<DropdownButton
+							onClick={() => {
+								setIsOpen(false);
+								onLogout();
+							}}>
+							Log Out
+						</DropdownButton>
+					)}
 				</DropdownMenu>
 			)}
 		</UserProfileWrapper>

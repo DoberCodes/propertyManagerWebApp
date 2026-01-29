@@ -10,10 +10,13 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import {
 	useGetPropertySharesQuery,
+	useGetPropertyInvitationsQuery,
 	useSendInvitationMutation,
 	useUpdatePropertyShareMutation,
 	useDeletePropertyShareMutation,
+	useCancelInvitationMutation,
 	PropertyShare,
+	UserInvitation,
 } from '../../../Redux/API/apiSlice';
 import { SHARE_PERMISSIONS } from '../../../constants/roles';
 import { getSharePermissionLabel } from '../../../utils/permissions';
@@ -43,12 +46,16 @@ export const SharePropertyModal: React.FC<SharePropertyModalProps> = ({
 
 	const { data: shares = [], isLoading } =
 		useGetPropertySharesQuery(propertyId);
+	const { data: pendingInvitations = [], isLoading: isLoadingInvitations } =
+		useGetPropertyInvitationsQuery(propertyId);
 	const [sendInvitation, { isLoading: isSending }] =
 		useSendInvitationMutation();
 	const [updateShare, { isLoading: isUpdating }] =
 		useUpdatePropertyShareMutation();
 	const [deleteShare, { isLoading: isDeleting }] =
 		useDeletePropertyShareMutation();
+	const [cancelInvitation, { isLoading: isCanceling }] =
+		useCancelInvitationMutation();
 
 	const handleSendInvitation = async () => {
 		setError('');
@@ -70,6 +77,15 @@ export const SharePropertyModal: React.FC<SharePropertyModalProps> = ({
 		);
 		if (existingShare) {
 			setError('This property is already shared with this email');
+			return;
+		}
+
+		// Check if already invited
+		const existingInvitation = pendingInvitations.find(
+			(inv) => inv.toEmail.toLowerCase() === email.toLowerCase(),
+		);
+		if (existingInvitation) {
+			setError('An invitation has already been sent to this email');
 			return;
 		}
 
@@ -115,6 +131,17 @@ export const SharePropertyModal: React.FC<SharePropertyModalProps> = ({
 				setSuccess('Access revoked successfully');
 			} catch (err: any) {
 				setError(err.message || 'Failed to revoke access');
+			}
+		}
+	};
+
+	const handleCancelInvitation = async (invitationId: string) => {
+		if (window.confirm('Are you sure you want to cancel this invitation?')) {
+			try {
+				await cancelInvitation(invitationId).unwrap();
+				setSuccess('Invitation canceled successfully');
+			} catch (err: any) {
+				setError(err.message || 'Failed to cancel invitation');
 			}
 		}
 	};
@@ -259,6 +286,53 @@ export const SharePropertyModal: React.FC<SharePropertyModalProps> = ({
 												</IconButton>
 											</>
 										)}
+									</ShareActions>
+								</ShareItem>
+							))}
+						</SharesList>
+					)}
+				</Section>
+
+				{/* Pending Invitations */}
+				<Section>
+					<SectionTitle>
+						Pending Invitations ({pendingInvitations.length})
+					</SectionTitle>
+					{isLoadingInvitations ? (
+						<LoadingContainer>
+							<FontAwesomeIcon icon={faSpinner} spin size='2x' />
+						</LoadingContainer>
+					) : pendingInvitations.length === 0 ? (
+						<EmptyState>No pending invitations.</EmptyState>
+					) : (
+						<SharesList>
+							{pendingInvitations.map((invitation: UserInvitation) => (
+								<ShareItem key={invitation.id}>
+									<ShareInfo>
+										<ShareEmail>{invitation.toEmail}</ShareEmail>
+										<Badge
+											color={
+												invitation.permission === 'admin'
+													? 'primary'
+													: 'default'
+											}>
+											{getSharePermissionLabel(invitation.permission)} • Pending
+										</Badge>
+										<PendingText>
+											Sent:{' '}
+											{new Date(invitation.createdAt).toLocaleDateString()} •
+											Expires:{' '}
+											{new Date(invitation.expiresAt).toLocaleDateString()}
+										</PendingText>
+									</ShareInfo>
+									<ShareActions>
+										<IconButton
+											color='danger'
+											onClick={() => handleCancelInvitation(invitation.id)}
+											title='Cancel invitation'
+											disabled={isCanceling}>
+											<FontAwesomeIcon icon={faTrash} />
+										</IconButton>
 									</ShareActions>
 								</ShareItem>
 							))}
@@ -528,6 +602,12 @@ const Badge = styled.span<{ color: 'primary' | 'default' }>`
 	background-color: ${(props) =>
 		props.color === 'primary' ? '#2196f3' : '#e0e0e0'};
 	color: ${(props) => (props.color === 'primary' ? 'white' : '#666')};
+`;
+
+const PendingText = styled.div`
+	font-size: 12px;
+	color: #666;
+	margin-top: 4px;
 `;
 
 const ShareActions = styled.div`

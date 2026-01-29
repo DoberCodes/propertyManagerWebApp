@@ -11,7 +11,7 @@ import {
 	addDoc,
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { db, storage } from '../../config/firebase';
+import { db, storage, auth } from '../../config/firebase';
 import { User } from '../Slices/userSlice';
 
 // Types
@@ -252,9 +252,22 @@ export const apiSlice = createApi({
 	],
 	endpoints: (builder) => ({
 		// Property Group endpoints
-		getPropertyGroups: builder.query<PropertyGroup[], string>({
-			async queryFn(userId: string) {
+		getPropertyGroups: builder.query<PropertyGroup[], void>({
+			async queryFn() {
 				try {
+					// Get authenticated user from Firebase Auth
+					const currentUser = auth.currentUser;
+					if (!currentUser) {
+						return { error: 'User not authenticated' };
+					}
+					const userId = currentUser.uid;
+
+					// Get user's email for shared properties lookup
+					const userDocRef = doc(db, 'users', userId);
+					const userDoc = await getDoc(userDocRef);
+					const userEmail = userDoc.data()?.email;
+
+					// Get property groups
 					const q = query(
 						collection(db, 'propertyGroups'),
 						where('userId', '==', userId),
@@ -264,12 +277,81 @@ export const apiSlice = createApi({
 						id: doc.id,
 						...doc.data(),
 					})) as PropertyGroup[];
-					return { data: groups };
+
+					// Fetch properties for each group
+					const groupsWithProperties = await Promise.all(
+						groups.map(async (group) => {
+							// Get properties owned by user in this group
+							const propertiesQuery = query(
+								collection(db, 'properties'),
+								where('groupId', '==', group.id),
+							);
+							const propertiesSnapshot = await getDocs(propertiesQuery);
+							const ownedProperties = propertiesSnapshot.docs.map((doc) => ({
+								id: doc.id,
+								...doc.data(),
+							})) as Property[];
+
+							// Get shared properties that should appear in this group
+							let sharedProperties: Property[] = [];
+							if (userEmail) {
+								const sharesQuery = query(
+									collection(db, 'propertyShares'),
+									where('sharedWithEmail', '==', userEmail),
+								);
+								const sharesSnapshot = await getDocs(sharesQuery);
+								const shares = sharesSnapshot.docs.map((doc) => ({
+									id: doc.id,
+									...doc.data(),
+								})) as PropertyShare[];
+
+								// Fetch shared property documents
+								const propertyIds = shares.map((share) => share.propertyId);
+								if (propertyIds.length > 0) {
+									// Process in batches of 10
+									for (let i = 0; i < propertyIds.length; i += 10) {
+										const batch = propertyIds.slice(i, i + 10);
+										const sharedPropertiesQuery = query(
+											collection(db, 'properties'),
+											where('__name__', 'in', batch),
+										);
+										const sharedPropertiesSnapshot = await getDocs(
+											sharedPropertiesQuery,
+										);
+										const properties = sharedPropertiesSnapshot.docs.map(
+											(doc) => ({
+												id: doc.id,
+												...doc.data(),
+											}),
+										) as Property[];
+										// Only include shared properties that belong to this group
+										const groupSharedProperties = properties.filter(
+											(p) => p.groupId === group.id,
+										);
+										sharedProperties.push(...groupSharedProperties);
+									}
+								}
+							}
+
+							// Combine owned and shared properties, deduplicate
+							const allProperties = [...ownedProperties, ...sharedProperties];
+							const uniqueProperties = Array.from(
+								new Map(allProperties.map((p) => [p.id, p])).values(),
+							);
+
+							return {
+								...group,
+								properties: uniqueProperties,
+							};
+						}),
+					);
+
+					return { data: groupsWithProperties };
 				} catch (error: any) {
 					return { error: error.message };
 				}
 			},
-			providesTags: ['PropertyGroups'],
+			providesTags: ['PropertyGroups', 'Properties', 'PropertyShares'],
 		}),
 
 		getPropertyGroup: builder.query<PropertyGroup, string>({
@@ -337,10 +419,17 @@ export const apiSlice = createApi({
 		}),
 
 		// Property endpoints
-		getProperties: builder.query<Property[], string>({
-			async queryFn(userId: string) {
+		getProperties: builder.query<Property[], void>({
+			async queryFn() {
 				try {
-					// First, get user's email for shared properties lookup
+					// Get authenticated user from Firebase Auth
+					const currentUser = auth.currentUser;
+					if (!currentUser) {
+						return { error: 'User not authenticated' };
+					}
+					const userId = currentUser.uid;
+
+					// Get user's email for shared properties lookup
 					const userDocRef = doc(db, 'users', userId);
 					const userDoc = await getDoc(userDocRef);
 					const userEmail = userDoc.data()?.email;
@@ -480,10 +569,17 @@ export const apiSlice = createApi({
 		}),
 
 		// Task endpoints
-		getTasks: builder.query<Task[], string>({
-			async queryFn(userId: string) {
+		getTasks: builder.query<Task[], void>({
+			async queryFn() {
 				try {
-					// First, get all properties for this user's groups
+					// Get authenticated user from Firebase Auth
+					const currentUser = auth.currentUser;
+					if (!currentUser) {
+						return { error: 'User not authenticated' };
+					}
+					const userId = currentUser.uid;
+
+					// Get all properties for this user's groups
 					const groupsQuery = query(
 						collection(db, 'propertyGroups'),
 						where('userId', '==', userId),
@@ -722,9 +818,15 @@ export const apiSlice = createApi({
 		}),
 
 		// Team Group endpoints
-		getTeamGroups: builder.query<TeamGroup[], string>({
-			async queryFn(userId: string) {
+		getTeamGroups: builder.query<TeamGroup[], void>({
+			async queryFn() {
 				try {
+					// Get authenticated user from Firebase Auth
+					const currentUser = auth.currentUser;
+					if (!currentUser) {
+						return { error: 'User not authenticated' };
+					}
+					const userId = currentUser.uid;
 					const q = query(
 						collection(db, 'teamGroups'),
 						where('userId', '==', userId),
@@ -790,9 +892,15 @@ export const apiSlice = createApi({
 		}),
 
 		// Team Member endpoints
-		getTeamMembers: builder.query<TeamMember[], string>({
-			async queryFn(userId: string) {
+		getTeamMembers: builder.query<TeamMember[], void>({
+			async queryFn() {
 				try {
+					// Get authenticated user from Firebase Auth
+					const currentUser = auth.currentUser;
+					if (!currentUser) {
+						return { error: 'User not authenticated' };
+					}
+					const userId = currentUser.uid;
 					// First, get all team groups for this user
 					const groupsQuery = query(
 						collection(db, 'teamGroups'),
@@ -1342,9 +1450,16 @@ export const apiSlice = createApi({
 		}),
 
 		// User Invitations endpoints
-		getUserInvitations: builder.query<UserInvitation[], string>({
-			async queryFn(userEmail: string) {
+		getUserInvitations: builder.query<UserInvitation[], void>({
+			async queryFn() {
 				try {
+					// Get authenticated user from Firebase Auth
+					const currentUser = auth.currentUser;
+					if (!currentUser || !currentUser.email) {
+						return { error: 'User not authenticated or email not available' };
+					}
+					const userEmail = currentUser.email;
+
 					const q = query(
 						collection(db, 'userInvitations'),
 						where('toEmail', '==', userEmail),
@@ -1451,6 +1566,40 @@ export const apiSlice = createApi({
 			},
 			invalidatesTags: ['UserInvitations'],
 		}),
+
+		cancelInvitation: builder.mutation<void, string>({
+			async queryFn(invitationId: string) {
+				try {
+					const invitationRef = doc(db, 'userInvitations', invitationId);
+					await deleteDoc(invitationRef);
+					return { data: undefined };
+				} catch (error: any) {
+					return { error: error.message };
+				}
+			},
+			invalidatesTags: ['UserInvitations'],
+		}),
+
+		getPropertyInvitations: builder.query<UserInvitation[], string>({
+			async queryFn(propertyId: string) {
+				try {
+					const q = query(
+						collection(db, 'userInvitations'),
+						where('propertyId', '==', propertyId),
+						where('status', '==', 'pending'),
+					);
+					const querySnapshot = await getDocs(q);
+					const invitations = querySnapshot.docs.map((doc) => ({
+						id: doc.id,
+						...doc.data(),
+					})) as UserInvitation[];
+					return { data: invitations };
+				} catch (error: any) {
+					return { error: error.message };
+				}
+			},
+			providesTags: ['UserInvitations'],
+		}),
 	}),
 });
 
@@ -1521,4 +1670,6 @@ export const {
 	useSendInvitationMutation,
 	useAcceptInvitationMutation,
 	useRejectInvitationMutation,
+	useCancelInvitationMutation,
+	useGetPropertyInvitationsQuery,
 } = apiSlice;

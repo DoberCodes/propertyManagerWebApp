@@ -14,20 +14,13 @@ import { setTeamGroups } from '../../Redux/Slices/teamSlice';
  */
 export const DataLoader: React.FC = () => {
 	const dispatch = useDispatch<AppDispatch>();
-	const currentUser = useSelector((state: RootState) => state.user.currentUser);
 
 	// Fetch property groups and sync to Redux
-	// currentUser is guaranteed to exist since DataLoader is inside Layout which is protected
-	const { data: propertyGroups = [] } = useGetPropertyGroupsQuery(
-		currentUser?.id || '',
-	);
+	// Uses Firebase Auth internally to get current user
+	const { data: propertyGroups = [] } = useGetPropertyGroupsQuery();
 
 	// Fetch team data and sync to Redux
-	const { data: teamGroups = [] } = useGetTeamGroupsQuery(
-		currentUser?.id || '',
-	);
-
-	// Sync property groups to Redux when data changes
+	const { data: teamGroups = [] } = useGetTeamGroupsQuery();
 	useEffect(() => {
 		if (propertyGroups.length > 0) {
 			// Normalize data to ensure properties array is always present

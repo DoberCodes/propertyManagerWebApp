@@ -82,10 +82,6 @@ export const RightSection = styled.div`
 		display: block;
 	}
 
-	.desktop-logout {
-		display: block;
-	}
-
 	@media (max-width: 768px) {
 		flex-wrap: nowrap;
 		justify-content: flex-end;
@@ -95,10 +91,6 @@ export const RightSection = styled.div`
 		}
 
 		.desktop-title {
-			display: none;
-		}
-
-		.desktop-logout {
 			display: none;
 		}
 	}

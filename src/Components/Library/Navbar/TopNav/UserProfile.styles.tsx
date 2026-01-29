@@ -117,3 +117,27 @@ export const DropdownItem = styled(Link)`
 		font-size: 12px;
 	}
 `;
+
+export const DropdownButton = styled.button`
+	display: block;
+	width: 100%;
+	padding: 10px 15px;
+	color: #ef4444;
+	background: none;
+	border: none;
+	text-align: left;
+	font-size: 14px;
+	cursor: pointer;
+	transition: all 0.2s ease;
+	border-radius: 0 0 4px 4px;
+
+	&:hover {
+		background-color: rgba(239, 68, 68, 0.1);
+		color: #dc2626;
+	}
+
+	@media (max-width: 480px) {
+		padding: 8px 12px;
+		font-size: 12px;
+	}
+`;

@@ -15,19 +15,16 @@ import {
 import { getSharePermissionLabel } from '../../../utils/permissions';
 
 interface InvitationsPanelProps {
-	userEmail: string;
 	userId: string;
 }
 
 export const InvitationsPanel: React.FC<InvitationsPanelProps> = ({
-	userEmail,
 	userId,
 }) => {
 	const [error, setError] = useState('');
 	const [success, setSuccess] = useState('');
 
-	const { data: invitations = [], isLoading } =
-		useGetUserInvitationsQuery(userEmail);
+	const { data: invitations = [], isLoading } = useGetUserInvitationsQuery();
 	const [acceptInvitation, { isLoading: isAccepting }] =
 		useAcceptInvitationMutation();
 	const [rejectInvitation, { isLoading: isRejecting }] =
