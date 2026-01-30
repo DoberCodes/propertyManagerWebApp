@@ -1,17 +1,38 @@
 import React, { useEffect } from 'react';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { setCurrentUser, setAuthLoading } from './Redux/Slices/userSlice';
 import { RouterComponent } from './router';
 import { FirebaseConnectionTest } from './Components/FirebaseConnectionTest';
 import { DataFetchProvider } from './Hooks/DataFetchContext';
 import { onAuthStateChange } from './services/authService';
+import styled from 'styled-components';
+
+const LoadingContainer = styled.div`
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	width: 100%;
+	height: 100vh;
+	background: linear-gradient(135deg, #065f46 0%, #047857 100%);
+	color: white;
+	font-size: 18px;
+	font-weight: 600;
+`;
 
 export const App = () => {
 	const dispatch = useDispatch();
+	const authLoading = useSelector((state: any) => state.user.authLoading);
 
 	useEffect(() => {
+		// Set a timeout to ensure auth loading completes even if Firebase hangs
+		const timeout = setTimeout(() => {
+			console.warn('Auth check timeout - completing auth check');
+			dispatch(setAuthLoading(false));
+		}, 5000); // 5 second timeout
+
 		// Listen to Firebase auth state changes to persist authentication
 		const unsubscribe = onAuthStateChange(async (user) => {
+			clearTimeout(timeout);
 			if (user) {
 				console.log('App.tsx: User authenticated:', user);
 				dispatch(setCurrentUser(user));
@@ -33,8 +54,15 @@ export const App = () => {
 		});
 
 		// Cleanup subscription on unmount
-		return () => unsubscribe();
+		return () => {
+			unsubscribe();
+			clearTimeout(timeout);
+		};
 	}, [dispatch]);
+
+	if (authLoading) {
+		return <LoadingContainer>Loading...</LoadingContainer>;
+	}
 
 	return (
 		<>

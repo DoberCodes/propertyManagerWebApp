@@ -8,7 +8,11 @@ export const Wrapper = styled.div`
 	margin-top: 80px;
 
 	@media (max-width: 768px) {
-		margin-top: 0;
+		margin-top: 70px;
+	}
+
+	@media (max-width: 480px) {
+		margin-top: 140px;
 	}
 `;
 
@@ -21,7 +25,7 @@ export const Hero = styled.section`
 	align-items: center;
 	justify-content: center;
 	gap: 60px;
-	padding: 80px 40px;
+	padding: 160px 40px 80px 40px;
 	background: linear-gradient(
 		135deg,
 		${COLORS.bgLight} 0%,
@@ -46,17 +50,17 @@ export const Hero = styled.section`
 	@media (max-width: 1024px) {
 		flex-direction: column;
 		gap: 40px;
-		padding: 60px 30px;
+		padding: 140px 30px 60px 30px;
 	}
 
 	@media (max-width: 768px) {
-		padding: 40px 20px;
+		padding: 120px 20px 40px 20px;
 		min-height: auto;
 		gap: 30px;
 	}
 
 	@media (max-width: 480px) {
-		padding: 30px 16px;
+		padding: 180px 16px 30px 16px;
 	}
 `;
 

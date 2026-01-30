@@ -19,14 +19,16 @@ export const NavWrapper = styled.div`
 	z-index: 100;
 
 	@media (max-width: 768px) {
-		height: auto;
-		padding: 12px;
+		height: 70px;
+		padding: 10px 12px;
 		gap: 8px;
 		flex-direction: row;
+		flex-wrap: nowrap;
 	}
 
 	@media (max-width: 480px) {
 		height: auto;
+		min-height: 140px;
 		flex-direction: column;
 		justify-content: center;
 		padding: 12px 8px;
@@ -47,14 +49,17 @@ export const NavTitle = styled.h2`
 	text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
 
 	@media (max-width: 768px) {
-		font-size: 22px;
-		width: 40%;
+		font-size: 18px;
+		width: auto;
+		flex: 1;
+		text-align: left;
 	}
 
 	@media (max-width: 480px) {
-		font-size: 18px;
+		font-size: 20px;
 		width: 100%;
-		padding: 8px 0;
+		padding: 4px 0;
+		text-align: center;
 	}
 `;
 
@@ -133,16 +138,20 @@ export const NavButton = styled(Link)`
 	}
 
 	@media (max-width: 768px) {
-		font-size: 16px;
-		margin: 0px 10px 0px 10px;
-		padding: 8px;
+		font-size: 14px;
+		margin: 0px 8px;
+		padding: 6px 12px;
+		background-color: white;
+		border-radius: 4px;
 	}
 
 	@media (max-width: 480px) {
-		font-size: 12px;
+		font-size: 14px;
 		margin: 0;
-		padding: 6px;
-		flex: 1;
-		min-width: 100px;
+		padding: 8px 16px;
+		flex: 0 1 auto;
+		min-width: 80px;
+		background-color: white;
+		border-radius: 4px;
 	}
 `;
