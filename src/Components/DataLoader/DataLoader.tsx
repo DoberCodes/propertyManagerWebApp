@@ -4,6 +4,7 @@ import { RootState, AppDispatch } from '../../Redux/Store/store';
 import {
 	useGetPropertyGroupsQuery,
 	useGetTeamGroupsQuery,
+	useGetTeamMembersQuery,
 } from '../../Redux/API/apiSlice';
 import { setPropertyGroups } from '../../Redux/Slices/propertyDataSlice';
 import { setTeamGroups } from '../../Redux/Slices/teamSlice';
@@ -16,14 +17,13 @@ export const DataLoader: React.FC = () => {
 	const dispatch = useDispatch<AppDispatch>();
 
 	// Fetch property groups and sync to Redux
-	// Uses Firebase Auth internally to get current user
 	const { data: propertyGroups = [] } = useGetPropertyGroupsQuery();
-
-	// Fetch team data and sync to Redux
+	// Fetch team groups and team members
 	const { data: teamGroups = [] } = useGetTeamGroupsQuery();
+	const { data: teamMembers = [] } = useGetTeamMembersQuery();
+
 	useEffect(() => {
 		if (propertyGroups.length > 0) {
-			// Normalize data to ensure properties array is always present
 			const normalized = propertyGroups.map((group) => ({
 				...group,
 				properties: group.properties || [],
@@ -32,18 +32,31 @@ export const DataLoader: React.FC = () => {
 		}
 	}, [propertyGroups, dispatch]);
 
-	// Sync team groups to Redux when data changes
 	useEffect(() => {
-		if (teamGroups.length > 0) {
-			// Normalize data to ensure members array is always present
-			const normalized = teamGroups.map((group) => ({
-				...group,
-				members: group.members || [],
-			}));
-			dispatch(setTeamGroups(normalized));
-		}
-	}, [teamGroups, dispatch]);
+		// Merge team members into their groups
+		const normalized = teamGroups.map((group) => ({
+			...group,
+			members: teamMembers.filter((m) => m.groupId === group.id),
+		}));
 
-	// This component doesn't render anything
+		// Find team members not associated with any group
+		const orphanMembers = teamMembers.filter(
+			(m) => !teamGroups.some((g) => g.id === m.groupId),
+		);
+
+		// If there are orphan members, add a fallback group
+		let allGroups = [...normalized];
+		if (orphanMembers.length > 0) {
+			allGroups.push({
+				id: 'orphan',
+				userId: '',
+				name: 'Other Team Members',
+				linkedProperties: [],
+				members: orphanMembers,
+			});
+		}
+		dispatch(setTeamGroups(allGroups));
+	}, [teamGroups, teamMembers, dispatch]);
+
 	return null;
 };

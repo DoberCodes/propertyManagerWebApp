@@ -1,4 +1,6 @@
 import React, { useState, useMemo } from 'react';
+import styled from 'styled-components';
+
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState, AppDispatch } from '../../Redux/Store/store';
 import { canManageTeamMembers } from '../../utils/permissions';
@@ -83,6 +85,7 @@ import {
 	CancelButton,
 	SaveButton,
 } from './TeamPage.styles';
+import { WarningDialog } from '../../Components/Library/WarningDialog';
 
 const ROLE_OPTIONS = [
 	{ value: 'property_manager', label: 'Property Manager' },
@@ -104,6 +107,13 @@ interface FormData {
 	linkedProperties: number[];
 }
 
+// Styled info text for read-only property assignment message
+const InfoText = styled.div`
+	color: #888;
+	font-size: 0.95em;
+	margin-top: 8px;
+`;
+
 export default function TeamPage() {
 	const dispatch = useDispatch<AppDispatch>();
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
@@ -122,6 +132,18 @@ export default function TeamPage() {
 	const [updateTeamMemberApi] = useUpdateTeamMemberMutation();
 	const [deleteTeamMemberApi] = useDeleteTeamMemberMutation();
 	const [createNotification] = useCreateNotificationMutation();
+
+	// WarningDialog state
+	const [warningDialogOpen, setWarningDialogOpen] = useState(false);
+	const [warningDialogMessage, setWarningDialogMessage] = useState('');
+	const [warningDialogTitle, setWarningDialogTitle] = useState('Warning');
+	const [warningDialogConfirmText, setWarningDialogConfirmText] =
+		useState('Confirm');
+	const [warningDialogCancelText, setWarningDialogCancelText] =
+		useState('Cancel');
+	const [warningDialogOnConfirm, setWarningDialogOnConfirm] = useState(
+		() => () => {},
+	);
 
 	// Combine groups with their members
 	const groupsWithMembers = useMemo(() => {
@@ -420,7 +442,14 @@ export default function TeamPage() {
 					}
 				} catch (error) {
 					console.error('Failed to update team group name:', error);
-					alert('Failed to update group name. Please try again.');
+					setWarningDialogTitle('Update Failed');
+					setWarningDialogMessage(
+						'Failed to update group name. Please try again.',
+					);
+					setWarningDialogConfirmText('OK');
+					setWarningDialogCancelText('');
+					setWarningDialogOnConfirm(() => () => setWarningDialogOpen(false));
+					setWarningDialogOpen(true);
 				}
 			}
 			setEditingGroupId(null);
@@ -436,40 +465,51 @@ export default function TeamPage() {
 	};
 
 	const handleDeleteTeamGroup = async (groupId: string) => {
-		if (!window.confirm('Are you sure you want to delete this team group?')) {
-			return;
-		}
-		try {
-			const groupToDelete = teamGroupsCache.find((g) => g.id === groupId);
-			await deleteTeamGroupApi(groupId).unwrap();
-
-			// Create notification for team group deletion
+		setWarningDialogTitle('Delete Team Group');
+		setWarningDialogMessage(
+			'Are you sure you want to delete this team group? This action cannot be undone.',
+		);
+		setWarningDialogConfirmText('Delete');
+		setWarningDialogCancelText('Cancel');
+		setWarningDialogOnConfirm(() => async () => {
+			setWarningDialogOpen(false);
 			try {
-				if (groupToDelete) {
-					await createNotification({
-						userId: currentUser!.id,
-						type: 'team_group_deleted',
-						title: 'Team Group Deleted',
-						message: `Team group "${groupToDelete.name}" has been deleted`,
-						data: {
-							groupId: groupId,
-							groupName: groupToDelete.name,
-						},
-						status: 'unread',
-						actionUrl: `/team`,
-						createdAt: new Date().toISOString(),
-						updatedAt: new Date().toISOString(),
-					}).unwrap();
+				const groupToDelete = teamGroupsCache.find((g) => g.id === groupId);
+				await deleteTeamGroupApi(groupId).unwrap();
+				try {
+					if (groupToDelete) {
+						await createNotification({
+							userId: currentUser!.id,
+							type: 'team_group_deleted',
+							title: 'Team Group Deleted',
+							message: `Team group "${groupToDelete.name}" has been deleted`,
+							data: {
+								groupId: groupId,
+								groupName: groupToDelete.name,
+							},
+							status: 'unread',
+							actionUrl: `/team`,
+							createdAt: new Date().toISOString(),
+							updatedAt: new Date().toISOString(),
+						}).unwrap();
+					}
+				} catch (notifError) {
+					console.error('Notification failed:', notifError);
 				}
-			} catch (notifError) {
-				console.error('Notification failed:', notifError);
+				console.log('Team group deleted successfully');
+			} catch (error) {
+				console.error('Failed to delete team group:', error);
+				setWarningDialogTitle('Delete Failed');
+				setWarningDialogMessage(
+					'Failed to delete team group. Please try again.',
+				);
+				setWarningDialogConfirmText('OK');
+				setWarningDialogCancelText('');
+				setWarningDialogOnConfirm(() => () => setWarningDialogOpen(false));
+				setWarningDialogOpen(true);
 			}
-
-			console.log('Team group deleted successfully');
-		} catch (error) {
-			console.error('Failed to delete team group:', error);
-			alert('Failed to delete team group. Please try again.');
-		}
+		});
+		setWarningDialogOpen(true);
 	};
 
 	const handleTeamGroupNameChange = async (
@@ -484,6 +524,15 @@ export default function TeamPage() {
 
 	return (
 		<Wrapper>
+			<WarningDialog
+				open={warningDialogOpen}
+				title={warningDialogTitle}
+				message={warningDialogMessage}
+				confirmText={warningDialogConfirmText}
+				cancelText={warningDialogCancelText}
+				onConfirm={warningDialogOnConfirm}
+				onCancel={() => setWarningDialogOpen(false)}
+			/>
 			<PageHeaderSection>
 				<StandardPageTitle>Team Management</StandardPageTitle>
 				{canManage && (
@@ -550,13 +599,17 @@ export default function TeamPage() {
 												title='Delete team member'
 												onClick={(e) => {
 													e.stopPropagation();
-													if (
-														window.confirm(
-															`Are you sure you want to delete ${member.firstName} ${member.lastName}?`,
-														)
-													) {
+													setWarningDialogTitle('Delete Team Member');
+													setWarningDialogMessage(
+														`Are you sure you want to delete ${member.firstName} ${member.lastName}? This action cannot be undone.`,
+													);
+													setWarningDialogConfirmText('Delete');
+													setWarningDialogCancelText('Cancel');
+													setWarningDialogOnConfirm(() => () => {
+														setWarningDialogOpen(false);
 														handleDeleteTeamMember(member.id);
-													}
+													});
+													setWarningDialogOpen(true);
 												}}>
 												🗑
 											</TeamMemberActionButton>
@@ -703,22 +756,46 @@ export default function TeamPage() {
 								<FormGroup>
 									<SectionTitle>Assigned Properties</SectionTitle>
 									<PropertyMultiSelect>
-										{properties.map((property) => (
-											<PropertyCheckbox key={property.id}>
-												<input
-													type='checkbox'
-													id={`property-${property.id}`}
-													checked={formData.linkedProperties.includes(
-														property.id,
-													)}
-													onChange={() => handlePropertyToggle(property.id)}
-												/>
-												<label htmlFor={`property-${property.id}`}>
-													{property.title}
-												</label>
-											</PropertyCheckbox>
-										))}
+										{properties.map((property) => {
+											// If editing a member in the 'Shared Properties' group, make checkboxes read-only
+											const isSharedGroup =
+												currentGroupId &&
+												teamGroupsCache
+													.find((g) => g.id === currentGroupId)
+													?.name?.toLowerCase() === 'shared properties';
+											const isLinked = formData.linkedProperties.includes(
+												property.id,
+											);
+											return (
+												<PropertyCheckbox key={property.id}>
+													<input
+														type='checkbox'
+														id={`property-${property.id}`}
+														checked={isLinked}
+														onChange={
+															isSharedGroup
+																? undefined
+																: () => handlePropertyToggle(property.id)
+														}
+														disabled={!!isSharedGroup}
+													/>
+													<label htmlFor={`property-${property.id}`}>
+														{property.title}
+													</label>
+												</PropertyCheckbox>
+											);
+										})}
 									</PropertyMultiSelect>
+									{currentGroupId &&
+										teamGroupsCache
+											.find((g) => g.id === currentGroupId)
+											?.name?.toLowerCase() === 'shared properties' && (
+											<InfoText>
+												Assigned properties for shared team members cannot be
+												changed. To update, move the member to a different
+												group.
+											</InfoText>
+										)}
 								</FormGroup>
 
 								{/* File Upload */}

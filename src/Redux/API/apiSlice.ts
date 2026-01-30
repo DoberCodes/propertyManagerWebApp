@@ -1035,6 +1035,26 @@ export const apiSlice = createApi({
 		deleteTeamMember: builder.mutation<void, string>({
 			async queryFn(memberId: string) {
 				try {
+					// Get the team member's email
+					const memberDoc = await getDoc(doc(db, 'teamMembers', memberId));
+					if (!memberDoc.exists()) {
+						return { error: 'Team member not found' };
+					}
+					const memberData = memberDoc.data();
+					const memberEmail = memberData.email;
+
+					// Check for shared properties with this email
+					const sharesQuery = query(
+						collection(db, 'propertyShares'),
+						where('sharedWithEmail', '==', memberEmail),
+					);
+					const sharesSnapshot = await getDocs(sharesQuery);
+					if (!sharesSnapshot.empty) {
+						return {
+							error: 'Cannot remove team member: they have shared properties.',
+						};
+					}
+
 					await deleteDoc(doc(db, 'teamMembers', memberId));
 					return { data: undefined };
 				} catch (error: any) {
@@ -1744,7 +1764,7 @@ export const apiSlice = createApi({
 					}
 
 					// Ensure both users are added as team members to each other's teams
-					const sharedTeamGroupName = 'Shared Property Team';
+					const sharedTeamGroupName = 'Shared Properties';
 					const propertyId = invitation.propertyId;
 
 					// Fetch user and owner data for team member creation
