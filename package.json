@@ -1,6 +1,6 @@
 {
 	"name": "myPropertyManager",
-	"version": "1.0.10",
+	"version": "1.0.11",
 	"private": true,
 	"type": "module",
 	"homepage": "https://dobercodes.github.io/propertyManagerWebApp",
