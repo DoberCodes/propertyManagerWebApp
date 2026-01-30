@@ -22,17 +22,22 @@ import TeamPage from './pages/TeamPage';
 import { ReportPage } from './pages/ReportPage';
 import { UserProfile } from './pages/UserProfile';
 import { TEAM_VIEW_ROLES, FULL_ACCESS_ROLES } from './constants/roles';
+import { isNativeApp } from './utils/platform';
+
+// Component to handle root route - redirects to login in mobile app
+const RootRoute = () => {
+	if (isNativeApp()) {
+		return <Navigate to='/login' replace />;
+	}
+	return <LandingPage />;
+};
 
 export const RouterComponent = () => {
 	return (
 		<Router>
 			<Routes>
 				{/* Public Routes */}
-				<Route
-					path='/'
-					element={<LandingPage />}
-					errorElement={<ErrorPage />}
-				/>
+				<Route path='/' element={<RootRoute />} errorElement={<ErrorPage />} />
 				<Route path='login' element={<LoginPage />} />
 				<Route path='registration' element={<RegistrationPage />} />
 				<Route path='unauthorized' element={<UnauthorizedPage />} />

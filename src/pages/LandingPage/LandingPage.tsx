@@ -401,7 +401,9 @@ const LandingPageComponent = () => {
 							Download the app and start managing your property maintenance with
 							ease. No credit card required. Free to use.
 						</DownloadSubtext>
-						<DownloadButton href='/PropertyManager.apk' download>
+						<DownloadButton
+							href='/propertyManagerWebApp/PropertyManager.apk'
+							download>
 							📱 Download APK
 						</DownloadButton>
 						<DownloadInfo>
