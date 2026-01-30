@@ -105,7 +105,10 @@ export const resetUpdateNotification = (): void => {
  * Get the download URL for the APK
  */
 export const getAPKDownloadURL = (): string => {
-	return `${window.location.origin}/PropertyManager.apk`;
+	return (
+		process.env.REACT_APP_APK_URL ||
+		'https://dobercodes.github.io/propertyManagerWebApp/PropertyManager.apk'
+	);
 };
 
 /**

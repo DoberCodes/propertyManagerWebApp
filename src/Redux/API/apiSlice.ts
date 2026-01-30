@@ -299,17 +299,16 @@ export const apiSlice = createApi({
 		getPropertyGroups: builder.query<PropertyGroup[], void>({
 			async queryFn() {
 				try {
-					// Get authenticated user from Firebase Auth
 					const currentUser = auth.currentUser;
 					if (!currentUser) {
 						return { error: 'User not authenticated' };
 					}
 					const userId = currentUser.uid;
-
 					// Get user's email for shared properties lookup
 					const userDocRef = doc(db, 'users', userId);
 					const userDoc = await getDoc(userDocRef);
-					const userEmail = userDoc.data()?.email;
+					const userData = userDoc.data();
+					const userEmail = userData?.email;
 
 					// Get property groups
 					const q = query(
@@ -1744,12 +1743,129 @@ export const apiSlice = createApi({
 						console.error('Failed to create sender notification:', notifError);
 					}
 
+					// Ensure both users are added as team members to each other's teams
+					const sharedTeamGroupName = 'Shared Property Team';
+					const propertyId = invitation.propertyId;
+
+					// Fetch user and owner data for team member creation
+					// userDoc and userEmail already fetched above
+					const userData = userDoc.data();
+
+					// Fetch owner data
+					const ownerDocRef = doc(db, 'users', invitation.fromUserId);
+					const ownerDoc = await getDoc(ownerDocRef);
+					const ownerData = ownerDoc.data();
+
+					// Ensure a default team group exists for the user, or create it
+					const ensureTeamGroup = async (teamUserId) => {
+						const groupQuery = query(
+							collection(db, 'teamGroups'),
+							where('userId', '==', teamUserId),
+							where('name', '==', sharedTeamGroupName),
+						);
+						const groupSnapshot = await getDocs(groupQuery);
+						if (!groupSnapshot.empty) {
+							const groupDoc = groupSnapshot.docs[0];
+							// Always update linkedProperties to include this property
+							const groupData = groupDoc.data() as TeamGroup;
+							const linked = groupData.linkedProperties || [];
+							if (!linked.includes(propertyId)) {
+								await updateDoc(doc(db, 'teamGroups', groupDoc.id), {
+									linkedProperties: [...linked, propertyId],
+									updatedAt: new Date().toISOString(),
+								});
+							}
+							return groupDoc.id;
+						}
+						// Create the group if it doesn't exist
+						const nowIso = new Date().toISOString();
+						const newGroupRef = await addDoc(collection(db, 'teamGroups'), {
+							userId: teamUserId,
+							name: sharedTeamGroupName,
+							linkedProperties: [propertyId],
+							createdAt: nowIso,
+							updatedAt: nowIso,
+						});
+						return newGroupRef.id;
+					};
+
+					const upsertTeamMember = async (
+						groupId: string,
+						memberData: Partial<TeamMember> & { email: string },
+					) => {
+						const memberQuery = query(
+							collection(db, 'teamMembers'),
+							where('groupId', '==', groupId),
+							where('email', '==', memberData.email),
+						);
+						const memberSnapshot = await getDocs(memberQuery);
+						if (!memberSnapshot.empty) {
+							const existingDoc = memberSnapshot.docs[0];
+							const existing = existingDoc.data() as TeamMember;
+							const linked = existing.linkedProperties || [];
+							if (!linked.includes(propertyId)) {
+								await updateDoc(doc(db, 'teamMembers', existingDoc.id), {
+									linkedProperties: [...linked, propertyId],
+									updatedAt: new Date().toISOString(),
+								});
+							}
+							return;
+						}
+
+						await addDoc(collection(db, 'teamMembers'), {
+							groupId,
+							firstName: memberData.firstName || '',
+							lastName: memberData.lastName || '',
+							title: memberData.title || 'Team Member',
+							email: memberData.email,
+							phone: memberData.phone || '',
+							role: memberData.role || 'property_manager',
+							address: memberData.address || '',
+							notes: memberData.notes || '',
+							image: memberData.image,
+							linkedProperties: [propertyId],
+							taskHistory: [],
+							files: [],
+							createdAt: new Date().toISOString(),
+							updatedAt: new Date().toISOString(),
+						});
+					};
+
+					const ownerGroupId = await ensureTeamGroup(invitation.fromUserId);
+					const recipientGroupId = await ensureTeamGroup(userId);
+
+					await upsertTeamMember(ownerGroupId, {
+						firstName: userData?.firstName,
+						lastName: userData?.lastName,
+						title: userData?.title,
+						email: userEmail,
+						role: userData?.role,
+						image: userData?.image,
+					});
+
+					if (ownerData?.email) {
+						await upsertTeamMember(recipientGroupId, {
+							firstName: ownerData?.firstName,
+							lastName: ownerData?.lastName,
+							title: ownerData?.title,
+							email: ownerData?.email,
+							role: ownerData?.role,
+							image: ownerData?.image,
+						});
+					}
+
 					return { data: { id: shareRef.id, ...shareData } };
 				} catch (error: any) {
 					return { error: error.message };
 				}
 			},
-			invalidatesTags: ['UserInvitations', 'PropertyShares', 'Properties'],
+			invalidatesTags: [
+				'UserInvitations',
+				'PropertyShares',
+				'Properties',
+				'TeamMembers',
+				'TeamGroups',
+			],
 		}),
 
 		rejectInvitation: builder.mutation<void, string>({

@@ -73,6 +73,26 @@ export const signUpWithEmail = async (
 			updatedAt: serverTimestamp(),
 		});
 
+		// Create default property group
+		await setDoc(
+			doc(db, 'propertyGroups', `${userCredential.user.uid}_default`),
+			{
+				userId: userCredential.user.uid,
+				name: 'My Properties',
+				createdAt: serverTimestamp(),
+				updatedAt: serverTimestamp(),
+			},
+		);
+
+		// Create default team group
+		await setDoc(doc(db, 'teamGroups', `${userCredential.user.uid}_default`), {
+			userId: userCredential.user.uid,
+			name: 'My Team',
+			linkedProperties: [],
+			createdAt: serverTimestamp(),
+			updatedAt: serverTimestamp(),
+		});
+
 		return userProfile;
 	} catch (error: any) {
 		console.error('Sign up error:', error);
