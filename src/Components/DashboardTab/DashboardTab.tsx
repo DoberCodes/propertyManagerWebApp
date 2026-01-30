@@ -1,4 +1,12 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import {
+	PieChart,
+	Pie,
+	Cell,
+	Tooltip,
+	Legend,
+	ResponsiveContainer,
+} from 'recharts';
 import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../Redux/Store/store';
@@ -43,6 +51,37 @@ export const DashboardTab = () => {
 	// Firebase mutations
 	const [updateTask] = useUpdateTaskMutation();
 	const [createNotification] = useCreateNotificationMutation();
+
+	// Pie chart data for efficiency
+	const efficiencyData = useMemo(() => {
+		const now = new Date();
+		let completed = 0,
+			inProgress = 0,
+			overdue = 0;
+		allTasks.forEach((task) => {
+			if (task.status === 'Completed') {
+				completed++;
+			} else if (
+				task.dueDate &&
+				new Date(task.dueDate) < now &&
+				(task.status === 'Pending' ||
+					task.status === 'In Progress' ||
+					task.status === 'Awaiting Approval' ||
+					task.status === 'Rejected')
+			) {
+				overdue++;
+			} else {
+				inProgress++;
+			}
+		});
+		return [
+			{ name: 'Completed', value: completed },
+			{ name: 'In Progress', value: inProgress },
+			{ name: 'Overdue', value: overdue },
+		];
+	}, [allTasks]);
+
+	const COLORS = ['#34d399', '#60a5fa', '#f87171'];
 
 	// Redirect tenants to their assigned property
 	useEffect(() => {
@@ -404,7 +443,29 @@ export const DashboardTab = () => {
 				<NotificationPanel />
 				<Section>
 					<SectionTitle>Efficiency Chart</SectionTitle>
-					<SectionContent>Chart placeholder</SectionContent>
+					<SectionContent>
+						<ResponsiveContainer width='100%' height={220}>
+							<PieChart>
+								<Pie
+									data={efficiencyData}
+									dataKey='value'
+									nameKey='name'
+									cx='50%'
+									cy='50%'
+									outerRadius={70}
+									label>
+									{efficiencyData.map((_, index) => (
+										<Cell
+											key={`cell-${index}`}
+											fill={COLORS[index % COLORS.length]}
+										/>
+									))}
+								</Pie>
+								<Tooltip />
+								<Legend />
+							</PieChart>
+						</ResponsiveContainer>
+					</SectionContent>
 				</Section>
 				<Section>
 					<SectionTitle>My Team</SectionTitle>

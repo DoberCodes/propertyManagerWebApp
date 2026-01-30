@@ -1,6 +1,76 @@
-# Getting Started with Create React App
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+# My Property Manager Web App
+
+This is a full-featured property management web application built with React, Redux Toolkit, Firebase, and Capacitor. It supports both web and native (Android) deployments, push notifications, team management, and real-time task tracking.
+
+## Key Features
+
+- User authentication and team management
+- Task assignment, tracking, and completion
+- Push notifications for native app users (requires Firebase Cloud Functions and Blaze plan)
+- Efficiency dashboard with live pie chart of task statuses (Completed, In Progress, Overdue)
+- Property and unit management
+- Modern, responsive UI
+
+## Getting Started
+
+### Prerequisites
+- Node.js and Yarn
+- Firebase project (with Firestore and Authentication enabled)
+- (For native features) Android Studio and Capacitor CLI
+
+### Installation
+1. Clone the repository
+2. Run `yarn install` to install dependencies
+3. Copy your Firebase service account key to `serviceAccountKey.json`
+4. Configure your Firebase project in `src/config/firebase.ts`
+
+### Running the App
+- `yarn start` — Start the web app at [http://localhost:3000](http://localhost:3000)
+- `yarn build` — Build for production
+- `yarn test` — Run tests
+
+### Native App (Android)
+- `yarn build && npx cap sync android` — Sync web build to Android
+- `npx cap open android` — Open in Android Studio
+- Build and run the app on your device/emulator
+
+### Push Notifications
+- Native push notifications require the Blaze plan and Firebase Cloud Functions
+- See `functions/sendPushOnNotificationCreate.ts` for the Cloud Function
+- Push tokens are saved to Firestore and used for notification delivery
+
+### Efficiency Chart
+- The dashboard includes a live pie chart (powered by [recharts](https://recharts.org/)) showing the breakdown of tasks by status: Completed, In Progress, and Overdue
+
+## Scripts
+
+- `yarn start` — Start development server
+- `yarn build` — Build for production
+- `yarn test` — Run tests
+- `yarn cap:sync` — Build and sync to Android
+- `yarn cap:open` — Open Android Studio
+- `yarn build:apk` — Build and sync APK
+- `yarn build:signed` — Build signed APK (see `build-signed-apk.sh`)
+
+## Project Structure
+
+- `src/` — Main source code
+- `src/Components/` — React components (Dashboard, Tasks, Notifications, etc.)
+- `src/Redux/` — Redux Toolkit slices and API
+- `src/services/` — Service modules (auth, push notifications)
+- `functions/` — Firebase Cloud Functions (for push notifications)
+- `scripts/` — Utility scripts (migrations, seeding, etc.)
+
+## Notes
+
+- Push notifications and APK download are only available on the native app
+- Update notifications and APK download logic are in `UpdateNotification.tsx`
+- For custom branding, see `src/Assets/images/`
+
+---
+
+For more details, see the in-app documentation and comments throughout the codebase.
 
 ## Available Scripts
 
