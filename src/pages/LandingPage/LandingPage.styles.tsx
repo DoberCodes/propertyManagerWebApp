@@ -954,12 +954,17 @@ export const FooterLinks = styled.div`
 	}
 `;
 
-export const FooterLink = styled.a`
+export const FooterLink = styled.button`
+	background: none;
+	border: none;
 	color: rgba(255, 255, 255, 0.8);
 	text-decoration: none;
 	font-weight: 500;
 	transition: color 0.2s ease;
 	font-size: 15px;
+	cursor: pointer;
+	padding: 0;
+	font-family: inherit;
 
 	&:hover {
 		color: ${COLORS.primary};
@@ -979,5 +984,105 @@ export const FooterCopyright = styled.div`
 
 	@media (max-width: 768px) {
 		font-size: 13px;
+	}
+`;
+
+export const DownloadSection = styled.section`
+	padding: 80px 20px;
+	background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+	text-align: center;
+	color: white;
+
+	@media (max-width: 768px) {
+		padding: 60px 20px;
+	}
+`;
+
+export const DownloadContainer = styled.div`
+	max-width: 800px;
+	margin: 0 auto;
+`;
+
+export const DownloadHeading = styled.h2`
+	font-size: 42px;
+	font-weight: 700;
+	margin-bottom: 20px;
+	line-height: 1.2;
+
+	@media (max-width: 768px) {
+		font-size: 32px;
+	}
+`;
+
+export const DownloadSubtext = styled.p`
+	font-size: 18px;
+	color: rgba(255, 255, 255, 0.9);
+	margin-bottom: 40px;
+	line-height: 1.6;
+
+	@media (max-width: 768px) {
+		font-size: 16px;
+	}
+`;
+
+export const DownloadButton = styled.a`
+	display: inline-block;
+	padding: 18px 48px;
+	background: white;
+	color: #667eea;
+	font-size: 18px;
+	font-weight: 600;
+	border-radius: 8px;
+	text-decoration: none;
+	margin: 0 10px;
+	transition: all 0.3s ease;
+	border: 2px solid white;
+	cursor: pointer;
+
+	&:hover {
+		background: transparent;
+		color: white;
+		transform: translateY(-2px);
+		box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+	}
+
+	@media (max-width: 768px) {
+		padding: 16px 32px;
+		font-size: 16px;
+		margin: 10px 0;
+		display: block;
+		width: 100%;
+		box-sizing: border-box;
+	}
+`;
+
+export const DownloadInfo = styled.div`
+	margin-top: 40px;
+	padding-top: 40px;
+	border-top: 1px solid rgba(255, 255, 255, 0.3);
+	display: flex;
+	justify-content: center;
+	gap: 40px;
+	flex-wrap: wrap;
+
+	@media (max-width: 768px) {
+		gap: 20px;
+	}
+`;
+
+export const InfoItem = styled.div`
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+
+	strong {
+		font-size: 16px;
+		color: rgba(255, 255, 255, 0.9);
+		margin-bottom: 5px;
+	}
+
+	span {
+		font-size: 14px;
+		color: rgba(255, 255, 255, 0.7);
 	}
 `;

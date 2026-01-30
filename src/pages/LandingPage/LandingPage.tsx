@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LandingNavbar } from '../../Components/Library/LandingNavbar';
 import {
@@ -53,11 +53,58 @@ import {
 	FooterContent,
 	FooterLinks,
 	FooterLink,
+	DownloadSection,
+	DownloadContainer,
+	DownloadHeading,
+	DownloadSubtext,
+	DownloadButton,
+	DownloadInfo,
+	InfoItem,
 	FooterCopyright,
 } from './LandingPage.styles';
 
 const LandingPageComponent = () => {
 	const navigate = useNavigate();
+	const [formData, setFormData] = useState({
+		name: '',
+		email: '',
+		subject: '',
+		message: '',
+	});
+	const [formStatus, setFormStatus] = useState<
+		'idle' | 'sending' | 'success' | 'error'
+	>('idle');
+
+	const handleInputChange = (
+		e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
+	) => {
+		const { name, value } = e.target;
+		setFormData((prev) => ({ ...prev, [name]: value }));
+	};
+
+	const handleSubmit = async (e: React.FormEvent) => {
+		e.preventDefault();
+		setFormStatus('sending');
+
+		try {
+			// Using a simple mailto approach for now
+			const mailtoLink = `mailto:contact@mypropertymanager.com?subject=${encodeURIComponent(formData.subject)}&body=${encodeURIComponent(
+				`Name: ${formData.name}\nEmail: ${formData.email}\n\nMessage:\n${formData.message}`,
+			)}`;
+
+			window.location.href = mailtoLink;
+
+			setFormStatus('success');
+			setFormData({ name: '', email: '', subject: '', message: '' });
+
+			// Reset status after 3 seconds
+			setTimeout(() => setFormStatus('idle'), 3000);
+		} catch (error) {
+			console.error('Error sending message:', error);
+			setFormStatus('error');
+			setTimeout(() => setFormStatus('idle'), 3000);
+		}
+	};
 
 	return (
 		<>
@@ -280,24 +327,56 @@ const LandingPageComponent = () => {
 				<ContactSection id='Contact'>
 					<ContactTitle>Get In Touch</ContactTitle>
 					<ContactContent>
-						<ContactForm>
+						<ContactForm onSubmit={handleSubmit}>
 							<FormGroup>
-								<FormInput type='text' placeholder='Your Name' required />
+								<FormInput
+									type='text'
+									name='name'
+									placeholder='Your Name'
+									value={formData.name}
+									onChange={handleInputChange}
+									required
+								/>
 							</FormGroup>
 							<FormGroup>
-								<FormInput type='email' placeholder='Your Email' required />
+								<FormInput
+									type='email'
+									name='email'
+									placeholder='Your Email'
+									value={formData.email}
+									onChange={handleInputChange}
+									required
+								/>
 							</FormGroup>
 							<FormGroup>
-								<FormInput type='text' placeholder='Subject' required />
+								<FormInput
+									type='text'
+									name='subject'
+									placeholder='Subject'
+									value={formData.subject}
+									onChange={handleInputChange}
+									required
+								/>
 							</FormGroup>
 							<FormGroup>
-								<FormTextarea placeholder='Your Message' rows={5} required />
+								<FormTextarea
+									name='message'
+									placeholder='Your Message'
+									rows={5}
+									value={formData.message}
+									onChange={handleInputChange}
+									required
+								/>
 							</FormGroup>
-							<SubmitButton type='submit'>Send Message</SubmitButton>
+							<SubmitButton type='submit' disabled={formStatus === 'sending'}>
+								{formStatus === 'sending' && 'Sending...'}
+								{formStatus === 'success' && '✓ Message Sent!'}
+								{formStatus === 'error' && 'Error - Try Again'}
+								{formStatus === 'idle' && 'Send Message'}
+							</SubmitButton>{' '}
 						</ContactForm>
 					</ContactContent>
 				</ContactSection>
-
 				{/* CTA Section */}
 				<CTASection id='GetStarted'>
 					<CTATitle>Stop Juggling Maintenance in Your Head</CTATitle>
@@ -314,7 +393,33 @@ const LandingPageComponent = () => {
 						</CTASecondary>
 					</CTAButtons>
 				</CTASection>
-
+				{/* Download Section */}
+				<DownloadSection id='Download'>
+					<DownloadContainer>
+						<DownloadHeading>Get Started Today</DownloadHeading>
+						<DownloadSubtext>
+							Download the app and start managing your property maintenance with
+							ease. No credit card required. Free to use.
+						</DownloadSubtext>
+						<DownloadButton href='/PropertyManager.apk' download>
+							📱 Download APK
+						</DownloadButton>
+						<DownloadInfo>
+							<InfoItem>
+								<strong>File Size</strong>
+								<span>6.4 MB</span>
+							</InfoItem>
+							<InfoItem>
+								<strong>Android Version</strong>
+								<span>8.0 and above</span>
+							</InfoItem>
+							<InfoItem>
+								<strong>Version</strong>
+								<span>1.0 (Beta)</span>
+							</InfoItem>
+						</DownloadInfo>
+					</DownloadContainer>
+				</DownloadSection>
 				{/* Footer */}
 				<FooterSection>
 					<FooterContent>
@@ -328,33 +433,51 @@ const LandingPageComponent = () => {
 						<FooterLinks>
 							<FooterLink
 								onClick={() => {
-									window.location.hash = 'About';
+									document
+										.getElementById('About')
+										?.scrollIntoView({ behavior: 'smooth' });
 								}}>
 								Our Story
 							</FooterLink>
 							<FooterLink
 								onClick={() => {
-									window.location.hash = 'Mission';
+									document
+										.getElementById('Mission')
+										?.scrollIntoView({ behavior: 'smooth' });
 								}}>
 								Why Us
 							</FooterLink>
 							<FooterLink
 								onClick={() => {
-									window.location.hash = 'Features';
+									document
+										.getElementById('Features')
+										?.scrollIntoView({ behavior: 'smooth' });
 								}}>
 								Features
 							</FooterLink>
 							<FooterLink
 								onClick={() => {
-									window.location.hash = 'Benefits';
+									document
+										.getElementById('Benefits')
+										?.scrollIntoView({ behavior: 'smooth' });
 								}}>
 								Benefits
 							</FooterLink>
 							<FooterLink
 								onClick={() => {
-									window.location.hash = 'Contact';
+									document
+										.getElementById('Contact')
+										?.scrollIntoView({ behavior: 'smooth' });
 								}}>
 								Get in Touch
+							</FooterLink>
+							<FooterLink
+								onClick={() => {
+									document
+										.getElementById('Download')
+										?.scrollIntoView({ behavior: 'smooth' });
+								}}>
+								Download
 							</FooterLink>
 						</FooterLinks>
 					</FooterContent>
