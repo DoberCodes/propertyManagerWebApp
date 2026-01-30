@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LandingNavbar } from '../../Components/Library/LandingNavbar';
+import HeroSection from './components/Hero';
 import {
 	Wrapper,
 	Hero,
@@ -65,6 +66,8 @@ import {
 
 import packageJson from '../../../package.json';
 import { getAPKFileSize } from '../../utils/versionCheck';
+import MissionSectionComponent from './components/MissionSection';
+import FeaturesSectionComponent from './components/FeaturesSection';
 
 const LandingPageComponent = () => {
 	const navigate = useNavigate();
@@ -124,26 +127,7 @@ const LandingPageComponent = () => {
 			<LandingNavbar />
 			<Wrapper>
 				{/* Hero Section */}
-				<Hero>
-					<HeroContent>
-						<HeroTitle>Your Maintenance, Simplified</HeroTitle>
-						<HeroSubtitle>
-							Whether you own one rental or manage a small portfolio, keeping
-							track of maintenance shouldn't feel like a second job. We help
-							homeowners and small landlords stay on top of it all—the simple
-							way.
-						</HeroSubtitle>
-						<HeroCTA onClick={() => navigate('/register')}>
-							Get Started Free
-						</HeroCTA>
-					</HeroContent>
-					<HeroImage>
-						<img
-							src='https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=600&h=400&fit=crop'
-							alt='Property management dashboard'
-						/>
-					</HeroImage>
-				</Hero>
+				<HeroSection />
 
 				{/* Our Story Section */}
 				<StorySection id='About'>
@@ -169,104 +153,11 @@ const LandingPageComponent = () => {
 					</StoryContent>
 				</StorySection>
 
-				{/* Our Mission Section */}
-				<MissionSection id='Mission'>
-					<MissionTitle>Why We're Different</MissionTitle>
-					<MissionContent>
-						<MissionCard>
-							<MissionCardIcon>🎯</MissionCardIcon>
-							<MissionCardTitle>Built for You</MissionCardTitle>
-							<MissionCardDescription>
-								We get it. You're managing everything yourself or with a small
-								team. No bloat, no overwhelming features.
-							</MissionCardDescription>
-						</MissionCard>
-						<MissionCard>
-							<MissionCardIcon>⚡</MissionCardIcon>
-							<MissionCardTitle>Quick to Set Up</MissionCardTitle>
-							<MissionCardDescription>
-								Get started in minutes. Invite your tenants or contractors.
-								Done. No training needed.
-							</MissionCardDescription>
-						</MissionCard>
-						<MissionCard>
-							<MissionCardIcon>💰</MissionCardIcon>
-							<MissionCardTitle>Affordable</MissionCardTitle>
-							<MissionCardDescription>
-								No enterprise pricing schemes. Fair rates for individuals and
-								small landlords.
-							</MissionCardDescription>
-						</MissionCard>
-						<MissionCard>
-							<MissionCardIcon>🛡️</MissionCardIcon>
-							<MissionCardTitle>Secure & Private</MissionCardTitle>
-							<MissionCardDescription>
-								Your property details stay private. Built on secure, trusted
-								infrastructure.
-							</MissionCardDescription>
-						</MissionCard>
-					</MissionContent>
-				</MissionSection>
+				{/* Mission Section */}
+				<MissionSectionComponent />
 
 				{/* Features Section */}
-				<FeaturesSection id='Features'>
-					<FeaturesTitle>Everything You Need</FeaturesTitle>
-					<FeaturesGrid>
-						<FeatureCard>
-							<FeatureIcon>🔧</FeatureIcon>
-							<FeatureTitle>Simple Maintenance Tracking</FeatureTitle>
-							<FeatureDescription>
-								Log repairs and maintenance issues in seconds. See what needs to
-								be done at a glance.
-							</FeatureDescription>
-						</FeatureCard>
-
-						<FeatureCard>
-							<FeatureIcon>📸</FeatureIcon>
-							<FeatureTitle>Photo Documentation</FeatureTitle>
-							<FeatureDescription>
-								Attach photos to maintenance requests. Keep a visual history of
-								repairs and updates.
-							</FeatureDescription>
-						</FeatureCard>
-
-						<FeatureCard>
-							<FeatureIcon>👥</FeatureIcon>
-							<FeatureTitle>Invite Tenants & Contractors</FeatureTitle>
-							<FeatureDescription>
-								Let tenants report issues. Contractors can update progress.
-								Everyone stays in sync.
-							</FeatureDescription>
-						</FeatureCard>
-
-						<FeatureCard>
-							<FeatureIcon>📋</FeatureIcon>
-							<FeatureTitle>Request Priority & Status</FeatureTitle>
-							<FeatureDescription>
-								Mark urgent vs. routine. Track what's pending, in progress, or
-								complete.
-							</FeatureDescription>
-						</FeatureCard>
-
-						<FeatureCard>
-							<FeatureIcon>📱</FeatureIcon>
-							<FeatureTitle>Works Everywhere</FeatureTitle>
-							<FeatureDescription>
-								Desktop, tablet, or phone. Manage your property from anywhere,
-								anytime.
-							</FeatureDescription>
-						</FeatureCard>
-
-						<FeatureCard>
-							<FeatureIcon>💬</FeatureIcon>
-							<FeatureTitle>Built-in Messaging</FeatureTitle>
-							<FeatureDescription>
-								No more scattered texts and emails. Communicate right where the
-								work happens.
-							</FeatureDescription>
-						</FeatureCard>
-					</FeaturesGrid>
-				</FeaturesSection>
+				<FeaturesSectionComponent />
 
 				{/* Benefits Section */}
 				<BenefitsSection id='Benefits'>
