@@ -42,20 +42,20 @@ export const App = () => {
 	const authLoading = useSelector((state: any) => state.user.authLoading);
 	const currentUser = useSelector((state: any) => state.user.currentUser);
 
-	// Register push notifications on native app startup
-	useEffect(() => {
-		if (!Capacitor.isNativePlatform()) return;
-		initializePushNotifications(
-			(token) => {
-				console.log('Push token received:', token);
-			},
-			(notification) => {
-				// Optionally handle foreground notification
-				console.log('Foreground push notification:', notification);
-			},
-			() => currentUser?.id || null,
-		);
-	}, [currentUser]);
+	// Register push notifications on native app startup (DISABLED: backend not ready)
+	// useEffect(() => {
+	// 	if (!Capacitor.isNativePlatform()) return;
+	// 	initializePushNotifications(
+	// 		(token) => {
+	// 			console.log('Push token received:', token);
+	// 		},
+	// 		(notification) => {
+	// 			// Optionally handle foreground notification
+	// 			console.log('Foreground push notification:', notification);
+	// 		},
+	// 		() => currentUser?.id || null,
+	// 	);
+	// }, [currentUser]);
 
 	useEffect(() => {
 		console.log('App mounted, starting auth check...');
