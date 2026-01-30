@@ -1,6 +1,6 @@
 {
 	"name": "myPropertyManager",
-	"version": "1.0.8",
+	"version": "1.0.9",
 	"private": true,
 	"type": "module",
 	"homepage": "https://dobercodes.github.io/propertyManagerWebApp",
@@ -15,6 +15,7 @@
 		"@fortawesome/free-regular-svg-icons": "^6.5.1",
 		"@fortawesome/free-solid-svg-icons": "^6.5.1",
 		"@fortawesome/react-fontawesome": "^0.2.0",
+		"@octokit/rest": "^22.0.1",
 		"@reduxjs/toolkit": "^1.9.7",
 		"@testing-library/jest-dom": "^6.1.5",
 		"@testing-library/react": "^14.1.2",
@@ -51,7 +52,7 @@
 		"cap:sync": "yarn build && npx cap sync android",
 		"cap:open": "npx cap open android",
 		"build:apk": "node scripts/initAppVersion.cjs && yarn build && npx cap sync android",
-		"build:signed": "bash build-signed-apk.sh",
+		"build:signed": "bash build-signed-apk.sh && git tag -a v$(node -p \"require('./package.json').version\") -m 'Release version $(node -p \"require('./package.json').version\")' && git push origin --tags",
 		"release:notes": "node scripts/generateReleaseNotes.cjs"
 	},
 	"eslintConfig": {
