@@ -47,7 +47,8 @@
 		"init:firestore": "node scripts/initFirestore.cjs",
 		"cap:sync": "yarn build && npx cap sync android",
 		"cap:open": "npx cap open android",
-		"build:apk": "node scripts/initAppVersion.cjs && yarn build && npx cap sync android"
+		"build:apk": "node scripts/initAppVersion.cjs && yarn build && npx cap sync android",
+		"build:signed": "bash build-signed-apk.sh"
 	},
 	"eslintConfig": {
 		"extends": [
