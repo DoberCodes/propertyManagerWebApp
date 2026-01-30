@@ -81,7 +81,7 @@ export const RightSection = styled.div`
 	gap: 20px;
 
 	.mobile-profile {
-		display: none; /* Hide profile dropdown on mobile - it's now in hamburger menu */
+		display: none; /* Hide profile picture on desktop */
 	}
 
 	.desktop-title {
@@ -93,7 +93,7 @@ export const RightSection = styled.div`
 		justify-content: flex-end;
 
 		.mobile-profile {
-			display: none; /* Keep hidden on mobile */
+			display: flex; /* Show profile picture on mobile */
 		}
 
 		.desktop-title {

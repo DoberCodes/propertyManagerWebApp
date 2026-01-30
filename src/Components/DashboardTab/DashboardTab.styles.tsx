@@ -232,56 +232,56 @@ export const BottomSectionsWrapper = styled.div`
 export const Section = styled.div`
 	background-color: white;
 	border: 1px solid #e0e0e0;
-	border-radius: 4px;
-	padding: 20px;
+	border-radius: 8px;
 	display: flex;
 	flex-direction: column;
-	overflow: visible;
+	overflow: hidden;
+	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 
 	@media (max-width: 768px) {
-		padding: 15px;
+		border-radius: 6px;
 	}
 
 	@media (max-width: 480px) {
-		padding: 10px;
+		border-radius: 4px;
 	}
 `;
 
 export const SectionTitle = styled.h3`
 	font-size: 16px;
 	font-weight: 600;
-	color: black;
-	margin: 0 0 16px 0;
-	padding-bottom: 12px;
+	color: #1f2937;
+	margin: 0;
+	padding: 16px 20px;
 	border-bottom: 1px solid #e0e0e0;
+	background: #f9fafb;
 
 	@media (max-width: 768px) {
 		font-size: 14px;
-		margin: 0 0 12px 0;
-		padding-bottom: 10px;
+		padding: 12px 16px;
 	}
 
 	@media (max-width: 480px) {
 		font-size: 12px;
-		margin: 0 0 8px 0;
-		padding-bottom: 8px;
+		padding: 10px 12px;
 	}
 `;
 
 export const SectionContent = styled.div`
 	flex: 1;
 	display: flex;
-	align-items: center;
-	justify-content: center;
+	flex-direction: column;
+	padding: 16px 20px;
 	color: #999999;
 	font-size: 14px;
-	text-align: center;
 
 	@media (max-width: 768px) {
 		font-size: 12px;
+		padding: 12px 16px;
 	}
 
 	@media (max-width: 480px) {
 		font-size: 11px;
+		padding: 10px 12px;
 	}
 `;

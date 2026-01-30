@@ -25,6 +25,7 @@ import {
 	useCreateTeamMemberMutation,
 	useUpdateTeamMemberMutation,
 	useDeleteTeamMemberMutation,
+	useCreateNotificationMutation,
 } from '../../Redux/API/apiSlice';
 import {
 	PageHeaderSection,
@@ -120,6 +121,7 @@ export default function TeamPage() {
 	const [createTeamMember] = useCreateTeamMemberMutation();
 	const [updateTeamMemberApi] = useUpdateTeamMemberMutation();
 	const [deleteTeamMemberApi] = useDeleteTeamMemberMutation();
+	const [createNotification] = useCreateNotificationMutation();
 
 	// Combine groups with their members
 	const groupsWithMembers = useMemo(() => {
@@ -242,13 +244,59 @@ export default function TeamPage() {
 			files: uploadedFiles,
 		};
 
-		if (editingMember) {
-			await updateTeamMemberApi({
-				id: editingMember.id,
-				updates: memberData,
-			});
-		} else {
-			await createTeamMember(memberData);
+		try {
+			if (editingMember) {
+				await updateTeamMemberApi({
+					id: editingMember.id,
+					updates: memberData,
+				}).unwrap();
+
+				// Create notification for team member update
+				try {
+					await createNotification({
+						userId: currentUser!.id,
+						type: 'team_member_updated',
+						title: 'Team Member Updated',
+						message: `Team member "${formData.firstName} ${formData.lastName}" has been updated`,
+						data: {
+							memberId: editingMember.id,
+							memberName: `${formData.firstName} ${formData.lastName}`,
+							groupId: currentGroupId,
+						},
+						status: 'unread',
+						actionUrl: `/team`,
+						createdAt: new Date().toISOString(),
+						updatedAt: new Date().toISOString(),
+					}).unwrap();
+				} catch (notifError) {
+					console.error('Notification failed:', notifError);
+				}
+			} else {
+				const result = await createTeamMember(memberData).unwrap();
+
+				// Create notification for team member creation
+				try {
+					await createNotification({
+						userId: currentUser!.id,
+						type: 'team_member_added',
+						title: 'Team Member Added',
+						message: `Team member "${formData.firstName} ${formData.lastName}" has been added`,
+						data: {
+							memberId: result.id,
+							memberName: `${formData.firstName} ${formData.lastName}`,
+							groupId: currentGroupId,
+						},
+						status: 'unread',
+						actionUrl: `/team`,
+						createdAt: new Date().toISOString(),
+						updatedAt: new Date().toISOString(),
+					}).unwrap();
+				} catch (notifError) {
+					console.error('Notification failed:', notifError);
+				}
+			}
+		} catch (error) {
+			console.error('Error saving team member:', error);
 		}
 
 		setShowTeamMemberDialog(false);
@@ -273,16 +321,69 @@ export default function TeamPage() {
 	};
 
 	const handleDeleteTeamMember = async (memberId: string) => {
-		await deleteTeamMemberApi(memberId);
+		try {
+			const memberToDelete = teamGroupsCache
+				.flatMap((g) => g.members || [])
+				.find((m) => m?.id === memberId);
+			await deleteTeamMemberApi(memberId).unwrap();
+
+			// Create notification for team member deletion
+			try {
+				if (memberToDelete) {
+					await createNotification({
+						userId: currentUser!.id,
+						type: 'team_member_removed',
+						title: 'Team Member Removed',
+						message: `Team member "${memberToDelete.firstName} ${memberToDelete.lastName}" has been removed`,
+						data: {
+							memberId: memberId,
+							memberName: `${memberToDelete.firstName} ${memberToDelete.lastName}`,
+						},
+						status: 'unread',
+						actionUrl: `/team`,
+						createdAt: new Date().toISOString(),
+						updatedAt: new Date().toISOString(),
+					}).unwrap();
+				}
+			} catch (notifError) {
+				console.error('Notification failed:', notifError);
+			}
+		} catch (error) {
+			console.error('Error deleting team member:', error);
+		}
 	};
 
 	const handleAddTeamGroup = async () => {
 		// currentUser guaranteed to exist in protected routes
-		await createTeamGroup({
-			userId: currentUser!.id,
-			name: 'New Team Group',
-			linkedProperties: [],
-		});
+		try {
+			const result = await createTeamGroup({
+				userId: currentUser!.id,
+				name: 'New Team Group',
+				linkedProperties: [],
+			}).unwrap();
+
+			// Create notification for team group creation
+			try {
+				await createNotification({
+					userId: currentUser!.id,
+					type: 'team_group_created',
+					title: 'Team Group Created',
+					message: 'New team group "New Team Group" has been created',
+					data: {
+						groupId: result.id,
+						groupName: 'New Team Group',
+					},
+					status: 'unread',
+					actionUrl: `/team`,
+					createdAt: new Date().toISOString(),
+					updatedAt: new Date().toISOString(),
+				}).unwrap();
+			} catch (notifError) {
+				console.error('Notification failed:', notifError);
+			}
+		} catch (error) {
+			console.error('Error creating team group:', error);
+		}
 	};
 
 	const handleEditTeamGroup = async (groupId: string) => {
@@ -297,6 +398,26 @@ export default function TeamPage() {
 						id: groupId,
 						updates: { name: editingGroupName },
 					}).unwrap();
+
+					// Create notification for team group update
+					try {
+						await createNotification({
+							userId: currentUser!.id,
+							type: 'team_group_updated',
+							title: 'Team Group Updated',
+							message: `Team group "${editingGroupName}" has been updated`,
+							data: {
+								groupId: groupId,
+								groupName: editingGroupName,
+							},
+							status: 'unread',
+							actionUrl: `/team`,
+							createdAt: new Date().toISOString(),
+							updatedAt: new Date().toISOString(),
+						}).unwrap();
+					} catch (notifError) {
+						console.error('Notification failed:', notifError);
+					}
 				} catch (error) {
 					console.error('Failed to update team group name:', error);
 					alert('Failed to update group name. Please try again.');
@@ -319,7 +440,31 @@ export default function TeamPage() {
 			return;
 		}
 		try {
+			const groupToDelete = teamGroupsCache.find((g) => g.id === groupId);
 			await deleteTeamGroupApi(groupId).unwrap();
+
+			// Create notification for team group deletion
+			try {
+				if (groupToDelete) {
+					await createNotification({
+						userId: currentUser!.id,
+						type: 'team_group_deleted',
+						title: 'Team Group Deleted',
+						message: `Team group "${groupToDelete.name}" has been deleted`,
+						data: {
+							groupId: groupId,
+							groupName: groupToDelete.name,
+						},
+						status: 'unread',
+						actionUrl: `/team`,
+						createdAt: new Date().toISOString(),
+						updatedAt: new Date().toISOString(),
+					}).unwrap();
+				}
+			} catch (notifError) {
+				console.error('Notification failed:', notifError);
+			}
+
 			console.log('Team group deleted successfully');
 		} catch (error) {
 			console.error('Failed to delete team group:', error);

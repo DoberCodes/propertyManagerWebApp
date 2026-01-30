@@ -15,6 +15,7 @@ import {
 	useCreateTaskMutation,
 	useGetPropertiesQuery,
 	useUpdatePropertyMutation,
+	useCreateNotificationMutation,
 } from '../../Redux/API/apiSlice';
 import {
 	addTask,
@@ -136,6 +137,7 @@ export const PropertyDetailPage = () => {
 	const [updateTaskMutation] = useUpdateTaskMutation();
 	const [createTaskMutation] = useCreateTaskMutation();
 	const [updatePropertyMutation] = useUpdatePropertyMutation();
+	const [createNotification] = useCreateNotificationMutation();
 
 	const [activeTab, setActiveTab] = useState<
 		| 'details'
@@ -235,26 +237,45 @@ export const PropertyDetailPage = () => {
 	};
 
 	const handleImageUrlChange = async (url: string) => {
-		if (property) {
-			setImageError(null);
-			setIsUploadingImage(true);
+		if (!property) return;
+		setImageError(null);
+		setIsUploadingImage(true);
 
+		try {
+			// Update property with new image URL
+			await updatePropertyMutation({
+				id: property.id,
+				updates: {
+					image: url || undefined,
+				},
+			}).unwrap();
+
+			// Create notification for property image update
 			try {
-				// Update property with new image URL
-				await updatePropertyMutation({
-					id: property.id,
-					updates: {
-						image: url || undefined,
+				await createNotification({
+					userId: currentUser!.id,
+					type: 'property_updated',
+					title: 'Property Updated',
+					message: `Property image for "${property.title}" has been updated`,
+					data: {
+						propertyId: property.id,
+						propertyTitle: property.title,
 					},
+					status: 'unread',
+					actionUrl: `/properties/${property.id}`,
+					createdAt: new Date().toISOString(),
+					updatedAt: new Date().toISOString(),
 				}).unwrap();
-
-				setIsUploadingImage(false);
-			} catch (error) {
-				const errorMessage =
-					error instanceof Error ? error.message : 'Failed to update image';
-				setImageError(errorMessage);
-				setIsUploadingImage(false);
+			} catch (notifError) {
+				console.error('Notification failed:', notifError);
 			}
+
+			setIsUploadingImage(false);
+		} catch (error) {
+			const errorMessage =
+				error instanceof Error ? error.message : 'Failed to update image';
+			setImageError(errorMessage);
+			setIsUploadingImage(false);
 		}
 	};
 
@@ -277,6 +298,26 @@ export const PropertyDetailPage = () => {
 						image: imageUrl,
 					},
 				}).unwrap();
+
+				// Create notification for property image update
+				try {
+					await createNotification({
+						userId: currentUser!.id,
+						type: 'property_updated',
+						title: 'Property Updated',
+						message: `Property image for "${property.title}" has been updated`,
+						data: {
+							propertyId: property.id,
+							propertyTitle: property.title,
+						},
+						status: 'unread',
+						actionUrl: `/properties/${property.id}`,
+						createdAt: new Date().toISOString(),
+						updatedAt: new Date().toISOString(),
+					}).unwrap();
+				} catch (notifError) {
+					console.error('Notification failed:', notifError);
+				}
 
 				setIsUploadingImage(false);
 			} catch (error) {
@@ -327,8 +368,37 @@ export const PropertyDetailPage = () => {
 
 	const handleDeleteTask = () => {
 		if (selectedTasks.length > 0) {
-			selectedTasks.forEach((taskId) => {
-				dispatch(deleteTask(taskId));
+			selectedTasks.forEach(async (taskId) => {
+				try {
+					const taskToDelete = allTasks.find((t) => t.id === taskId);
+					dispatch(deleteTask(taskId));
+
+					// Create notification for task deletion
+					if (taskToDelete) {
+						try {
+							await createNotification({
+								userId: currentUser!.id,
+								type: 'task_deleted',
+								title: 'Task Deleted',
+								message: `Task "${taskToDelete.title}" has been deleted`,
+								data: {
+									taskId: taskId,
+									taskTitle: taskToDelete.title,
+									propertyId: property?.id,
+									propertyTitle: property?.title,
+								},
+								status: 'unread',
+								actionUrl: `/properties/${property?.id}`,
+								createdAt: new Date().toISOString(),
+								updatedAt: new Date().toISOString(),
+							}).unwrap();
+						} catch (notifError) {
+							console.error('Notification failed:', notifError);
+						}
+					}
+				} catch (error) {
+					console.error('Error deleting task:', error);
+				}
 			});
 			setSelectedTasks([]);
 		}
@@ -345,10 +415,35 @@ export const PropertyDetailPage = () => {
 	const handleConfirmAssignment = async () => {
 		if (assigningTaskId && selectedAssignee) {
 			try {
+				const taskToAssign = allTasks.find((t) => t.id === assigningTaskId);
 				await updateTaskMutation({
 					id: assigningTaskId,
 					updates: { assignedTo: selectedAssignee },
 				}).unwrap();
+
+				// Create notification for task assignment
+				try {
+					await createNotification({
+						userId: currentUser!.id,
+						type: 'task_assigned',
+						title: 'Task Assigned',
+						message: `Task "${taskToAssign?.title}" has been assigned to ${selectedAssignee}`,
+						data: {
+							taskId: assigningTaskId,
+							taskTitle: taskToAssign?.title,
+							assignedTo: selectedAssignee,
+							propertyId: property?.id,
+							propertyTitle: property?.title,
+						},
+						status: 'unread',
+						actionUrl: `/properties/${property?.id}`,
+						createdAt: new Date().toISOString(),
+						updatedAt: new Date().toISOString(),
+					}).unwrap();
+				} catch (notifError) {
+					console.error('Notification failed:', notifError);
+				}
+
 				setShowTaskAssignDialog(false);
 				setAssigningTaskId(null);
 				setSelectedAssignee('');
@@ -447,6 +542,34 @@ export const PropertyDetailPage = () => {
 		};
 
 		dispatch(addMaintenanceRequest(newRequest));
+
+		// Create notification for maintenance request submission
+		try {
+			createNotification({
+				userId: currentUser!.id,
+				type: 'maintenance_request_created',
+				title: 'Maintenance Request Submitted',
+				message: `Maintenance request "${request.title}" has been submitted for "${property.title}"`,
+				data: {
+					requestId: newRequest.id,
+					requestTitle: request.title,
+					propertyId: property.id,
+					propertyTitle: property.title,
+					priority: request.priority,
+				},
+				status: 'unread',
+				actionUrl: `/properties/${property.id}`,
+				createdAt: new Date().toISOString(),
+				updatedAt: new Date().toISOString(),
+			})
+				.unwrap()
+				.catch((notifError: any) => {
+					console.error('Notification failed:', notifError);
+				});
+		} catch (error) {
+			console.error('Error creating notification:', error);
+		}
+
 		alert('Maintenance request submitted successfully!');
 	};
 
@@ -504,6 +627,28 @@ export const PropertyDetailPage = () => {
 							status: taskFormData.status,
 						},
 					}).unwrap();
+
+					// Create notification for task update
+					try {
+						await createNotification({
+							userId: currentUser!.id,
+							type: 'task_updated',
+							title: 'Task Updated',
+							message: `Task "${taskFormData.title}" has been updated`,
+							data: {
+								taskId: editingTaskId,
+								taskTitle: taskFormData.title,
+								propertyId: property.id,
+								propertyTitle: property.title,
+							},
+							status: 'unread',
+							actionUrl: `/properties/${property.id}`,
+							createdAt: new Date().toISOString(),
+							updatedAt: new Date().toISOString(),
+						}).unwrap();
+					} catch (notifError) {
+						console.error('Notification failed:', notifError);
+					}
 				}
 			} else {
 				// Add new task
@@ -515,7 +660,29 @@ export const PropertyDetailPage = () => {
 					property: property.title,
 					propertyId: property.id,
 				};
-				await createTaskMutation(newTask).unwrap();
+				const result = await createTaskMutation(newTask).unwrap();
+
+				// Create notification for task creation
+				try {
+					await createNotification({
+						userId: currentUser!.id,
+						type: 'task_created',
+						title: 'Task Created',
+						message: `New task "${taskFormData.title}" has been created`,
+						data: {
+							taskId: result.id,
+							taskTitle: taskFormData.title,
+							propertyId: property.id,
+							propertyTitle: property.title,
+						},
+						status: 'unread',
+						actionUrl: `/properties/${property.id}`,
+						createdAt: new Date().toISOString(),
+						updatedAt: new Date().toISOString(),
+					}).unwrap();
+				} catch (notifError) {
+					console.error('Notification failed:', notifError);
+				}
 			}
 			setShowTaskDialog(false);
 			setSelectedTasks([]);
@@ -575,6 +742,168 @@ export const PropertyDetailPage = () => {
 				<BackButton onClick={() => navigate('/manage')} title='Go back'>
 					<FontAwesomeIcon icon={faArrowLeft} />
 				</BackButton>
+				{/* 3-dot menu for mobile */}
+				{currentUser && (
+					<div
+						style={{
+							position: 'absolute',
+							top: '20px',
+							right: '20px',
+							display: 'none',
+							zIndex: 100,
+						}}
+						className='mobile-action-menu'>
+						<button
+							onClick={() => setIsActionMenuOpen(!isActionMenuOpen)}
+							style={{
+								background: 'none',
+								border: 'none',
+								padding: '8px 12px',
+								borderRadius: '4px',
+								cursor: 'pointer',
+								fontSize: '20px',
+								color: 'white',
+								zIndex: 3,
+							}}
+							title='More options'>
+							<FontAwesomeIcon icon={faEllipsisV} />
+						</button>
+						{isActionMenuOpen && (
+							<div
+								style={{
+									position: 'absolute',
+									top: '40px',
+									right: '0',
+									background: '#ffffff',
+									border: '1px solid #e5e7eb',
+									borderRadius: '6px',
+									boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+									minWidth: '220px',
+									zIndex: 1002,
+									overflow: 'hidden',
+								}}>
+								{!isTenant(currentUser.role as UserRole) && (
+									<button
+										onClick={() => {
+											toggleFavorite({
+												id: property.id,
+												title: property.title,
+												slug: property.slug,
+											});
+											setIsActionMenuOpen(false);
+										}}
+										style={{
+											width: '100%',
+											padding: '12px 16px',
+											border: 'none',
+											background: 'none',
+											textAlign: 'left',
+											cursor: 'pointer',
+											fontSize: '14px',
+											color: '#1a1a1a',
+											transition: 'background-color 0.2s ease',
+											borderBottom: '1px solid #f0f0f0',
+										}}
+										onMouseEnter={(e) =>
+											(e.currentTarget.style.backgroundColor = '#f3f4f6')
+										}
+										onMouseLeave={(e) =>
+											(e.currentTarget.style.backgroundColor = 'transparent')
+										}>
+										{isFav ? '★ Favorited' : '☆ Add to Favorites'}
+									</button>
+								)}
+								{isTenant(currentUser.role as UserRole) && (
+									<button
+										onClick={() => {
+											setShowMaintenanceRequestModal(true);
+											setIsActionMenuOpen(false);
+										}}
+										style={{
+											width: '100%',
+											padding: '12px 16px',
+											border: 'none',
+											background: 'none',
+											textAlign: 'left',
+											cursor: 'pointer',
+											fontSize: '14px',
+											color: '#1a1a1a',
+											transition: 'background-color 0.2s ease',
+											borderBottom: '1px solid #f0f0f0',
+										}}
+										onMouseEnter={(e) =>
+											(e.currentTarget.style.backgroundColor = '#f3f4f6')
+										}
+										onMouseLeave={(e) =>
+											(e.currentTarget.style.backgroundColor = 'transparent')
+										}>
+										🔧 Request Maintenance
+									</button>
+								)}
+								{property &&
+									propertyGroups.some(
+										(group) =>
+											group.id === property.groupId &&
+											group.userId === currentUser.id,
+									) && (
+										<button
+											onClick={() => {
+												setShowShareModal(true);
+												setIsActionMenuOpen(false);
+											}}
+											style={{
+												width: '100%',
+												padding: '12px 16px',
+												border: 'none',
+												background: 'none',
+												textAlign: 'left',
+												cursor: 'pointer',
+												fontSize: '14px',
+												color: '#1a1a1a',
+												transition: 'background-color 0.2s ease',
+											}}
+											onMouseEnter={(e) =>
+												(e.currentTarget.style.backgroundColor = '#f3f4f6')
+											}
+											onMouseLeave={(e) =>
+												(e.currentTarget.style.backgroundColor = 'transparent')
+											}>
+											👥 Share Property
+										</button>
+									)}
+								{!isUploadingImage && (
+									<label
+										htmlFor='header-photo-upload'
+										style={{
+											width: '100%',
+											padding: '12px 16px',
+											border: 'none',
+											background: 'none',
+											textAlign: 'left',
+											cursor: 'pointer',
+											fontSize: '14px',
+											color: '#1a1a1a',
+											transition: 'background-color 0.2s ease',
+											display: 'block',
+										}}
+										onMouseEnter={(e) =>
+											(e.currentTarget.style.backgroundColor = '#f3f4f6')
+										}
+										onMouseLeave={(e) =>
+											(e.currentTarget.style.backgroundColor = 'transparent')
+										}
+										title='Click to upload property image'>
+										<FontAwesomeIcon
+											icon={faCamera}
+											style={{ marginRight: '8px' }}
+										/>
+										Change Photo
+									</label>
+								)}
+							</div>
+						)}
+					</div>
+				)}
 				{imageError && (
 					<div
 						style={{
@@ -629,169 +958,7 @@ export const PropertyDetailPage = () => {
 							✎
 						</PencilIcon>
 					</TitleContainer>
-					{/* 3-dot menu for mobile */}
-					{currentUser && (
-						<div
-							style={{
-								position: 'absolute',
-								top: '12px',
-								right: '12px',
-								display: 'none',
-								zIndex: 100,
-							}}
-							className='mobile-action-menu'>
-							<button
-								onClick={() => setIsActionMenuOpen(!isActionMenuOpen)}
-								style={{
-									background: 'none',
-									border: 'none',
-									padding: '8px 12px',
-									borderRadius: '4px',
-									cursor: 'pointer',
-									fontSize: '20px',
-									color: 'white',
-									zIndex: 3,
-								}}
-								title='More options'>
-								<FontAwesomeIcon icon={faEllipsisV} />
-							</button>
-							{isActionMenuOpen && (
-								<div
-									style={{
-										position: 'absolute',
-										top: '40px',
-										right: '0',
-										background: '#ffffff',
-										border: '1px solid #e5e7eb',
-										borderRadius: '6px',
-										boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-										minWidth: '220px',
-										zIndex: 1002,
-										overflow: 'hidden',
-									}}>
-									{!isTenant(currentUser.role as UserRole) && (
-										<button
-											onClick={() => {
-												toggleFavorite({
-													id: property.id,
-													title: property.title,
-													slug: property.slug,
-												});
-												setIsActionMenuOpen(false);
-											}}
-											style={{
-												width: '100%',
-												padding: '12px 16px',
-												border: 'none',
-												background: 'none',
-												textAlign: 'left',
-												cursor: 'pointer',
-												fontSize: '14px',
-												color: '#1a1a1a',
-												transition: 'background-color 0.2s ease',
-												borderBottom: '1px solid #f0f0f0',
-											}}
-											onMouseEnter={(e) =>
-												(e.currentTarget.style.backgroundColor = '#f3f4f6')
-											}
-											onMouseLeave={(e) =>
-												(e.currentTarget.style.backgroundColor = 'transparent')
-											}>
-											{isFav ? '★ Favorited' : '☆ Add to Favorites'}
-										</button>
-									)}
-									{isTenant(currentUser.role as UserRole) && (
-										<button
-											onClick={() => {
-												setShowMaintenanceRequestModal(true);
-												setIsActionMenuOpen(false);
-											}}
-											style={{
-												width: '100%',
-												padding: '12px 16px',
-												border: 'none',
-												background: 'none',
-												textAlign: 'left',
-												cursor: 'pointer',
-												fontSize: '14px',
-												color: '#1a1a1a',
-												transition: 'background-color 0.2s ease',
-												borderBottom: '1px solid #f0f0f0',
-											}}
-											onMouseEnter={(e) =>
-												(e.currentTarget.style.backgroundColor = '#f3f4f6')
-											}
-											onMouseLeave={(e) =>
-												(e.currentTarget.style.backgroundColor = 'transparent')
-											}>
-											🔧 Request Maintenance
-										</button>
-									)}
-									{property &&
-										propertyGroups.some(
-											(group) =>
-												group.id === property.groupId &&
-												group.userId === currentUser.id,
-										) && (
-											<button
-												onClick={() => {
-													setShowShareModal(true);
-													setIsActionMenuOpen(false);
-												}}
-												style={{
-													width: '100%',
-													padding: '12px 16px',
-													border: 'none',
-													background: 'none',
-													textAlign: 'left',
-													cursor: 'pointer',
-													fontSize: '14px',
-													color: '#1a1a1a',
-													transition: 'background-color 0.2s ease',
-												}}
-												onMouseEnter={(e) =>
-													(e.currentTarget.style.backgroundColor = '#f3f4f6')
-												}
-												onMouseLeave={(e) =>
-													(e.currentTarget.style.backgroundColor =
-														'transparent')
-												}>
-												👥 Share Property
-											</button>
-										)}
-									{!isUploadingImage && (
-										<label
-											htmlFor='header-photo-upload'
-											style={{
-												width: '100%',
-												padding: '12px 16px',
-												border: 'none',
-												background: 'none',
-												textAlign: 'left',
-												cursor: 'pointer',
-												fontSize: '14px',
-												color: '#1a1a1a',
-												transition: 'background-color 0.2s ease',
-												display: 'block',
-											}}
-											onMouseEnter={(e) =>
-												(e.currentTarget.style.backgroundColor = '#f3f4f6')
-											}
-											onMouseLeave={(e) =>
-												(e.currentTarget.style.backgroundColor = 'transparent')
-											}
-											title='Click to upload property image'>
-											<FontAwesomeIcon
-												icon={faCamera}
-												style={{ marginRight: '8px' }}
-											/>
-											Change Photo
-										</label>
-									)}
-								</div>
-							)}
-						</div>
-					)}
+
 					<div style={{ display: 'contents' }} className='desktop-actions'>
 						<FavoriteButton
 							onClick={() =>
@@ -811,8 +978,7 @@ export const PropertyDetailPage = () => {
 						</FavoriteButton>
 						{currentUser && isTenant(currentUser.role as UserRole) && (
 							<FavoriteButton
-								onClick={() => setShowMaintenanceRequestModal(true)}
-								style={{ backgroundColor: '#f39c12' }}>
+								onClick={() => setShowMaintenanceRequestModal(true)}>
 								🔧 Request Maintenance
 							</FavoriteButton>
 						)}
@@ -823,9 +989,7 @@ export const PropertyDetailPage = () => {
 									group.id === property.groupId &&
 									group.userId === currentUser.id,
 							) && (
-								<FavoriteButton
-									onClick={() => setShowShareModal(true)}
-									style={{ backgroundColor: '#3498db' }}>
+								<FavoriteButton onClick={() => setShowShareModal(true)}>
 									👥 Share Property
 								</FavoriteButton>
 							)}

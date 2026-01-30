@@ -12,7 +12,7 @@ import { UserRole } from '../../constants/roles';
 import { isTenant, getTenantPropertySlug } from '../../utils/permissions';
 import { filterTasksByRole } from '../../utils/dataFilters';
 import { TaskCompletionModal } from '../Library/TaskCompletionModal';
-import { InvitationsPanel } from '../Library/InvitationsPanel';
+import { NotificationPanel } from '../Library/NotificationPanel';
 import {
 	Wrapper,
 	TaskGridSection,
@@ -156,9 +156,6 @@ export const DashboardTab = () => {
 				</div>
 			</PageHeaderSection>
 
-			{/* Invitations Panel */}
-			<InvitationsPanel userId={currentUser!.id} />
-
 			{/* Task Grid Section */}
 			<TaskGridSection>
 				{filteredTasks.length === 0 ? (
@@ -273,12 +270,9 @@ export const DashboardTab = () => {
 				)}{' '}
 			</TaskGridSection>
 
-			{/* Bottom Three Sections */}
+			{/* Bottom Two Sections */}
 			<BottomSectionsWrapper>
-				<Section>
-					<SectionTitle>Notifications</SectionTitle>
-					<SectionContent>No new notifications</SectionContent>
-				</Section>
+				<NotificationPanel />
 				<Section>
 					<SectionTitle>Efficiency Chart</SectionTitle>
 					<SectionContent>Chart placeholder</SectionContent>

@@ -250,9 +250,9 @@ export const PropertyTitle = styled.h1`
 `;
 
 export const FavoriteButton = styled.button`
-	background-color: #22c55e;
+	background-color: transparent;
 	color: white;
-	border: none;
+	border: 1px solid rgba(255, 255, 255, 0.5);
 	padding: 12px 20px;
 	border-radius: 6px;
 	font-size: 14px;
@@ -260,12 +260,14 @@ export const FavoriteButton = styled.button`
 	cursor: pointer;
 	transition:
 		background-color 0.2s ease,
+		border-color 0.2s ease,
 		transform 0.1s ease;
 	position: relative;
 	z-index: 2;
 
 	&:hover {
-		background-color: #16a34a;
+		background-color: rgba(255, 255, 255, 0.1);
+		border-color: rgba(255, 255, 255, 0.8);
 	}
 
 	&:active {
@@ -535,7 +537,9 @@ export const EditableTitleInput = styled.input`
 	border-radius: 4px;
 	font-size: 32px;
 	font-weight: 700;
-	width: 500px;
+	width: auto;
+	max-width: 90%;
+	min-width: 200px;
 
 	&:focus {
 		outline: none;

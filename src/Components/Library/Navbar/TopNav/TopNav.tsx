@@ -28,7 +28,6 @@ export const TopNav = () => {
 	const navigate = useNavigate();
 	const dispatch = useDispatch();
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
-	const { recentProperties } = useRecentlyViewed(currentUser!.id);
 	const { favorites } = useFavorites(currentUser!.id);
 	const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 	const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
@@ -99,7 +98,6 @@ export const TopNav = () => {
 						<div
 							className='mobile-profile'
 							style={{
-								display: 'flex',
 								alignItems: 'center',
 								gap: '10px',
 								cursor: 'pointer',

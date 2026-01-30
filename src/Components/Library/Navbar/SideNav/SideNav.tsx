@@ -102,30 +102,6 @@ export const SideNav = () => {
 
 	return (
 		<DesktopWrapper>
-			{/* Profile Section */}
-			<ProfileSection>
-				<ProfileImage
-					src={currentUser?.image || 'https://via.placeholder.com/60'}
-					alt={`${currentUser?.firstName} ${currentUser?.lastName}` || 'User'}
-				/>
-				<ProfileInfo>
-					<ProfileName>
-						{currentUser?.firstName && currentUser?.lastName
-							? `${currentUser.firstName} ${currentUser.lastName}`
-							: currentUser?.email || 'User'}
-					</ProfileName>
-					<ProfileRole>{currentUser?.role || 'User'}</ProfileRole>
-				</ProfileInfo>
-				<ProfileActions>
-					<ProfileButton onClick={() => navigate('/profile')}>
-						Settings
-					</ProfileButton>
-					<ProfileButton variant='danger' onClick={handleLogout}>
-						Log Out
-					</ProfileButton>
-				</ProfileActions>
-			</ProfileSection>
-
 			<MenuSection>
 				<SectionTitle>Navigation</SectionTitle>
 				<MenuNav>

@@ -17,6 +17,7 @@ import {
 	useCreatePropertyGroupMutation,
 	useUpdatePropertyGroupMutation,
 	useDeletePropertyGroupMutation,
+	useCreateNotificationMutation,
 } from '../../Redux/API/apiSlice';
 import { canManageProperties } from '../../utils/permissions';
 import { filterPropertyGroupsByRole } from '../../utils/dataFilters';
@@ -67,6 +68,7 @@ export const Properties = () => {
 	const [createPropertyGroup] = useCreatePropertyGroupMutation();
 	const [updatePropertyGroup] = useUpdatePropertyGroupMutation();
 	const [deletePropertyGroup] = useDeletePropertyGroupMutation();
+	const [createNotification] = useCreateNotificationMutation();
 
 	// Check if user can manage properties (add/edit/delete)
 	const canManage = currentUser
@@ -116,8 +118,28 @@ export const Properties = () => {
 				userId: currentUser.id,
 				name: 'New Group',
 				properties: [],
-			});
+			}).unwrap();
 			console.log('Property group created:', result);
+
+			// Create notification for property group creation
+			try {
+				await createNotification({
+					userId: currentUser.id,
+					type: 'property_group_created',
+					title: 'Property Group Created',
+					message: 'New property group "New Group" has been created',
+					data: {
+						groupId: result.id,
+						groupName: 'New Group',
+					},
+					status: 'unread',
+					actionUrl: `/properties`,
+					createdAt: new Date().toISOString(),
+					updatedAt: new Date().toISOString(),
+				}).unwrap();
+			} catch (notifError) {
+				console.error('Notification failed:', notifError);
+			}
 		} catch (error) {
 			console.error('Failed to create property group:', error);
 		}
@@ -130,10 +152,34 @@ export const Properties = () => {
 				editingGroupName.trim() &&
 				editingGroupName !== propertyGroups.find((g) => g.id === groupId)?.name
 			) {
-				updatePropertyGroup({
-					id: groupId,
-					updates: { name: editingGroupName },
-				});
+				try {
+					updatePropertyGroup({
+						id: groupId,
+						updates: { name: editingGroupName },
+					}).unwrap();
+
+					// Create notification for property group update
+					try {
+						createNotification({
+							userId: currentUser!.id,
+							type: 'property_group_updated',
+							title: 'Property Group Updated',
+							message: `Property group "${editingGroupName}" has been updated`,
+							data: {
+								groupId: groupId,
+								groupName: editingGroupName,
+							},
+							status: 'unread',
+							actionUrl: `/properties`,
+							createdAt: new Date().toISOString(),
+							updatedAt: new Date().toISOString(),
+						}).unwrap();
+					} catch (notifError) {
+						console.error('Notification failed:', notifError);
+					}
+				} catch (error) {
+					console.error('Error updating property group:', error);
+				}
 			}
 			setEditingGroupId(null);
 			setEditingGroupName('');
@@ -165,7 +211,35 @@ export const Properties = () => {
 	};
 
 	const handleDeleteProperty = async (propertyId: string) => {
-		await deleteProperty(propertyId);
+		try {
+			const propertyToDelete = filteredGroups
+				.flatMap((g) => g.properties || [])
+				.find((p) => p.id === propertyId);
+			await deleteProperty(propertyId).unwrap();
+
+			// Create notification for property deletion
+			try {
+				if (propertyToDelete) {
+					await createNotification({
+						userId: currentUser!.id,
+						type: 'property_deleted',
+						title: 'Property Deleted',
+						message: `Property "${propertyToDelete.title}" has been deleted`,
+						data: {
+							propertyId: propertyId,
+							propertyTitle: propertyToDelete.title,
+						},
+						status: 'unread',
+						createdAt: new Date().toISOString(),
+						updatedAt: new Date().toISOString(),
+					}).unwrap();
+				}
+			} catch (notifError) {
+				console.error('Notification failed:', notifError);
+			}
+		} catch (error) {
+			console.error('Error deleting property:', error);
+		}
 		setOpenDropdown(null);
 	};
 
@@ -176,7 +250,30 @@ export const Properties = () => {
 			return;
 		}
 		try {
+			const groupToDelete = propertyGroups.find((g) => g.id === groupId);
 			await deletePropertyGroup(groupId).unwrap();
+
+			// Create notification for property group deletion
+			try {
+				if (groupToDelete) {
+					await createNotification({
+						userId: currentUser!.id,
+						type: 'property_group_deleted',
+						title: 'Property Group Deleted',
+						message: `Property group "${groupToDelete.name}" has been deleted`,
+						data: {
+							groupId: groupId,
+							groupName: groupToDelete.name,
+						},
+						status: 'unread',
+						createdAt: new Date().toISOString(),
+						updatedAt: new Date().toISOString(),
+					}).unwrap();
+				}
+			} catch (notifError) {
+				console.error('Notification failed:', notifError);
+			}
+
 			console.log('Property group deleted successfully');
 		} catch (error) {
 			console.error('Failed to delete property group:', error);
@@ -207,33 +304,57 @@ export const Properties = () => {
 
 		if (selectedPropertyForEdit) {
 			// Edit existing property
-			await updateProperty({
-				id: selectedPropertyForEdit.id,
-				updates: {
-					title: formData.name,
-					image: formData.photo || selectedPropertyForEdit.image,
-					owner: formData.owner,
-					address: formData.address,
-					propertyType: formData.propertyType,
-					units:
-						formData.propertyType === 'Multi-Family' ? unitsData : undefined,
-					hasSuites:
-						formData.propertyType === 'Commercial'
-							? !!formData.hasSuites
-							: undefined,
-					suites:
-						formData.propertyType === 'Commercial' && formData.hasSuites
-							? suitesData
-							: undefined,
-					bedrooms: formData.bedrooms,
-					bathrooms: formData.bathrooms,
-					administrators: formData.administrators,
-					viewers: formData.viewers,
-					deviceIds: formData.devices.map((d) => d.id),
-					notes: formData.notes,
-					taskHistory: formData.maintenanceHistory || [],
-				},
-			});
+			try {
+				await updateProperty({
+					id: selectedPropertyForEdit.id,
+					updates: {
+						title: formData.name,
+						image: formData.photo || selectedPropertyForEdit.image,
+						owner: formData.owner,
+						address: formData.address,
+						propertyType: formData.propertyType,
+						units:
+							formData.propertyType === 'Multi-Family' ? unitsData : undefined,
+						hasSuites:
+							formData.propertyType === 'Commercial'
+								? !!formData.hasSuites
+								: undefined,
+						suites:
+							formData.propertyType === 'Commercial' && formData.hasSuites
+								? suitesData
+								: undefined,
+						bedrooms: formData.bedrooms,
+						bathrooms: formData.bathrooms,
+						administrators: formData.administrators,
+						viewers: formData.viewers,
+						deviceIds: formData.devices.map((d) => d.id),
+						notes: formData.notes,
+						taskHistory: formData.maintenanceHistory || [],
+					},
+				}).unwrap();
+
+				// Create notification for property update
+				try {
+					await createNotification({
+						userId: currentUser!.id,
+						type: 'property_updated',
+						title: 'Property Updated',
+						message: `Property "${formData.name}" has been updated`,
+						data: {
+							propertyId: selectedPropertyForEdit.id,
+							propertyTitle: formData.name,
+						},
+						status: 'unread',
+						actionUrl: `/properties/${selectedPropertyForEdit.id}`,
+						createdAt: new Date().toISOString(),
+						updatedAt: new Date().toISOString(),
+					}).unwrap();
+				} catch (notifError) {
+					console.error('Notification failed:', notifError);
+				}
+			} catch (error) {
+				console.error('Error updating property:', error);
+			}
 		} else {
 			// Add new property
 			const slug = formData.name
@@ -288,6 +409,28 @@ export const Properties = () => {
 						slug: result.data.slug,
 					});
 					console.log('Property created successfully:', result.data);
+
+					// Create notification for property added
+					try {
+						await createNotification({
+							userId: currentUser!.id,
+							type: 'property_added',
+							title: 'Property Added',
+							message: `${formData.name} has been added to your properties`,
+							data: {
+								propertyId: result.data.id,
+								propertyTitle: result.data.title,
+								propertyType: formData.propertyType,
+							},
+							status: 'unread',
+							actionUrl: `/property/${result.data.slug}`,
+							createdAt: new Date().toISOString(),
+							updatedAt: new Date().toISOString(),
+						}).unwrap();
+					} catch (notificationError) {
+						console.error('Failed to create notification:', notificationError);
+						// Don't fail the property creation if notification fails
+					}
 				} else if ('error' in result) {
 					console.error('Failed to create property:', result.error);
 					alert('Failed to create property. Please try again.');

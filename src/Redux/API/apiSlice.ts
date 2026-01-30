@@ -41,6 +41,48 @@ export interface UserInvitation {
 	expiresAt: string;
 }
 
+export interface Notification {
+	id: string;
+	userId: string; // Recipient of the notification
+	type:
+		| 'share_invitation'
+		| 'property_added'
+		| 'property_updated'
+		| 'property_deleted'
+		| 'property_group_created'
+		| 'property_group_updated'
+		| 'property_group_deleted'
+		| 'task_created'
+		| 'task_assigned'
+		| 'task_updated'
+		| 'task_deleted'
+		| 'team_member_added'
+		| 'team_member_updated'
+		| 'team_member_removed'
+		| 'team_group_created'
+		| 'team_group_updated'
+		| 'team_group_deleted'
+		| 'maintenance_request'
+		| 'maintenance_request_created'
+		| 'other';
+	title: string;
+	message: string;
+	data?: {
+		propertyId?: string;
+		propertyTitle?: string;
+		fromUserId?: string;
+		fromUserEmail?: string;
+		permission?: SharePermission;
+		taskId?: string;
+		maintenanceRequestId?: string;
+		[key: string]: any;
+	};
+	status: 'unread' | 'read' | 'accepted' | 'rejected';
+	actionUrl?: string;
+	createdAt: string;
+	updatedAt: string;
+}
+
 export interface Property {
 	id: string;
 	groupId: string;
@@ -249,6 +291,7 @@ export const apiSlice = createApi({
 		'Favorites',
 		'PropertyShares',
 		'UserInvitations',
+		'Notifications',
 	],
 	endpoints: (builder) => ({
 		// Property Group endpoints
@@ -1546,6 +1589,31 @@ export const apiSlice = createApi({
 					// Update invitation status
 					await updateDoc(invitationRef, { status: 'accepted' });
 
+					// Create a notification for the user
+					const notificationData = {
+						userId,
+						type: 'share_invitation',
+						title: 'Property Shared',
+						message: `${invitation.fromUserEmail} shared "${invitation.propertyTitle}" with you`,
+						data: {
+							propertyId: invitation.propertyId,
+							propertyTitle: invitation.propertyTitle,
+							fromUserId: invitation.fromUserId,
+							fromUserEmail: invitation.fromUserEmail,
+							permission: invitation.permission,
+						},
+						status: 'accepted',
+						createdAt: now,
+						updatedAt: now,
+					};
+
+					try {
+						await addDoc(collection(db, 'notifications'), notificationData);
+					} catch (notifError) {
+						// Notification creation failure is non-critical
+						console.error('Failed to create notification:', notifError);
+					}
+
 					return { data: { id: shareRef.id, ...shareData } };
 				} catch (error: any) {
 					return { error: error.message };
@@ -1600,6 +1668,132 @@ export const apiSlice = createApi({
 			},
 			providesTags: ['UserInvitations'],
 		}),
+
+		// Notifications
+		getUserNotifications: builder.query<Notification[], void>({
+			async queryFn() {
+				try {
+					const currentUser = auth.currentUser;
+					if (!currentUser) {
+						return { data: [] };
+					}
+
+					const q = query(
+						collection(db, 'notifications'),
+						where('userId', '==', currentUser.uid),
+					);
+					const querySnapshot = await getDocs(q);
+					const notifications = querySnapshot.docs
+						.map((doc) => ({
+							id: doc.id,
+							...doc.data(),
+						}))
+						.sort(
+							(a: any, b: any) =>
+								new Date(b.createdAt).getTime() -
+								new Date(a.createdAt).getTime(),
+						) as Notification[];
+					return { data: notifications };
+				} catch (error: any) {
+					return { error: error.message };
+				}
+			},
+			providesTags: ['Notifications'],
+		}),
+
+		createNotification: builder.mutation<
+			Notification,
+			Omit<Notification, 'id'>
+		>({
+			async queryFn(notificationData) {
+				try {
+					const notificationRef = collection(db, 'notifications');
+					const docRef = await addDoc(notificationRef, {
+						...notificationData,
+						createdAt: new Date().toISOString(),
+						updatedAt: new Date().toISOString(),
+					});
+
+					return {
+						data: {
+							id: docRef.id,
+							...notificationData,
+							createdAt: new Date().toISOString(),
+							updatedAt: new Date().toISOString(),
+						} as Notification,
+					};
+				} catch (error: any) {
+					return { error: error.message };
+				}
+			},
+			invalidatesTags: ['Notifications'],
+		}),
+
+		updateNotification: builder.mutation<
+			Notification,
+			{ id: string; updates: Partial<Notification> }
+		>({
+			async queryFn({ id, updates }) {
+				try {
+					const notificationRef = doc(db, 'notifications', id);
+					await updateDoc(notificationRef, {
+						...updates,
+						updatedAt: new Date().toISOString(),
+					});
+
+					const updatedDoc = await getDoc(notificationRef);
+					return {
+						data: {
+							id: updatedDoc.id,
+							...updatedDoc.data(),
+						} as Notification,
+					};
+				} catch (error: any) {
+					return { error: error.message };
+				}
+			},
+			invalidatesTags: ['Notifications'],
+		}),
+
+		deleteNotification: builder.mutation<void, string>({
+			async queryFn(notificationId) {
+				try {
+					await deleteDoc(doc(db, 'notifications', notificationId));
+					return { data: undefined };
+				} catch (error: any) {
+					return { error: error.message };
+				}
+			},
+			invalidatesTags: ['Notifications'],
+		}),
+
+		getUserByEmail: builder.query<{ id: string; email: string } | null, string>(
+			{
+				async queryFn(email: string) {
+					try {
+						const q = query(
+							collection(db, 'users'),
+							where('email', '==', email.toLowerCase()),
+						);
+						const querySnapshot = await getDocs(q);
+
+						if (querySnapshot.empty) {
+							return { data: null };
+						}
+
+						const userDoc = querySnapshot.docs[0];
+						return {
+							data: {
+								id: userDoc.id,
+								email: userDoc.data().email,
+							},
+						};
+					} catch (error: any) {
+						return { error: error.message };
+					}
+				},
+			},
+		),
 
 		addTenant: builder.mutation<
 			void,
@@ -1751,4 +1945,11 @@ export const {
 	// Tenants
 	useAddTenantMutation,
 	useRemoveTenantMutation,
+	// Notifications
+	useGetUserNotificationsQuery,
+	useCreateNotificationMutation,
+	useUpdateNotificationMutation,
+	useDeleteNotificationMutation,
+	// Users
+	useGetUserByEmailQuery,
 } = apiSlice;
