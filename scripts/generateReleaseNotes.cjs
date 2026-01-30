@@ -65,9 +65,46 @@ async function generateReleaseNotes() {
 		return;
 	}
 
-	const releaseNotes = commits
-		.map((commit) => `- ${commit.message} (${commit.author}, ${commit.date})`)
-		.join('\n');
+	// Categorize commits
+	const features = [];
+	const fixes = [];
+	const chores = [];
+
+	commits.forEach((commit) => {
+		if (commit.message.toLowerCase().startsWith('feature:')) {
+			features.push(commit);
+		} else if (commit.message.toLowerCase().startsWith('fix:')) {
+			fixes.push(commit);
+		} else {
+			chores.push(commit);
+		}
+	});
+
+	// Generate friendly release notes
+	let releaseNotes = `🎉 **Release Notes for Version ${packageJson.version}** 🎉\n\n`;
+
+	if (features.length > 0) {
+		releaseNotes += `## 🚀 New Features\n`;
+		features.forEach((commit) => {
+			releaseNotes += `- ${commit.message.replace('feature:', '').trim()} (${commit.author})\n`;
+		});
+		releaseNotes += `\n`;
+	}
+
+	if (fixes.length > 0) {
+		releaseNotes += `## 🐛 Bug Fixes\n`;
+		fixes.forEach((commit) => {
+			releaseNotes += `- ${commit.message.replace('fix:', '').trim()} (${commit.author})\n`;
+		});
+		releaseNotes += `\n`;
+	}
+
+	if (chores.length > 0) {
+		releaseNotes += `## 🛠️ Other Changes\n`;
+		chores.forEach((commit) => {
+			releaseNotes += `- ${commit.message.trim()} (${commit.author})\n`;
+		});
+	}
 
 	fs.writeFileSync('RELEASE_NOTES.txt', releaseNotes);
 	console.log('Release notes generated successfully.');

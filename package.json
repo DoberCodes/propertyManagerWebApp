@@ -52,7 +52,7 @@
 		"cap:sync": "yarn build && npx cap sync android",
 		"cap:open": "npx cap open android",
 		"build:apk": "node scripts/initAppVersion.cjs && yarn build && npx cap sync android",
-		"build:signed": "bash build-signed-apk.sh && git tag -a v$(node -p \"require('./package.json').version\") -m 'Release version $(node -p \"require('./package.json').version\")' && git push origin --tags",
+		"build:signed": "bash build-signed-apk.sh",
 		"release:notes": "node scripts/generateReleaseNotes.cjs"
 	},
 	"eslintConfig": {
