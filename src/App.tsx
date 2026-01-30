@@ -8,7 +8,7 @@ import { UpdateNotification } from './Components/UpdateNotification/UpdateNotifi
 import { checkForUpdates } from './utils/versionCheck';
 import styled from 'styled-components';
 import { Capacitor } from '@capacitor/core';
-import { initializePushNotifications } from './services/pushNotifications';
+// import { initializePushNotifications } from './services/pushNotifications';
 
 const LoadingContainer = styled.div`
 	display: flex;
@@ -40,7 +40,7 @@ const LoadingContainer = styled.div`
 export const App = () => {
 	const dispatch = useDispatch();
 	const authLoading = useSelector((state: any) => state.user.authLoading);
-	const currentUser = useSelector((state: any) => state.user.currentUser);
+	// const currentUser = useSelector((state: any) => state.user.currentUser);
 
 	// Register push notifications on native app startup (DISABLED: backend not ready)
 	// useEffect(() => {
@@ -165,24 +165,14 @@ export const App = () => {
 		);
 	}
 
-	try {
-		return (
-			<>
-				<UpdateNotification />
-				<DataFetchProvider>
-					<RouterComponent />
-				</DataFetchProvider>
-			</>
-		);
-	} catch (error) {
-		console.error('Error rendering app:', error);
-		return (
-			<LoadingContainer>
-				<div>❌</div>
-				<div>Error loading app</div>
-			</LoadingContainer>
-		);
-	}
+	return (
+		<>
+			<UpdateNotification />
+			<DataFetchProvider>
+				<RouterComponent />
+			</DataFetchProvider>
+		</>
+	);
 };
 
 export default App;

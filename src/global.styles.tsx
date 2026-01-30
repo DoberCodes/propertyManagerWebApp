@@ -56,8 +56,6 @@ const GlobalStyles = createGlobalStyle`
 export const nav_height = '70px';
 export const footer_height = '300px';
 
-export const blue = '${COLORS.primary}';
-
 export const font_title = '28px';
 export const font_main = '18px';
 
