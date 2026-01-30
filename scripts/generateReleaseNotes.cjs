@@ -115,7 +115,7 @@ function formatCommitSubject(subject) {
 	// Remove conventional commit prefix and clean up
 	return subject
 		.replace(
-			/^(feat|fix|refactor|perf|improve|chore|docs|style|test|build|ci)(\(.*?\))?:\s*/i,
+			/^(feat|fix|refactor|perf|improve|chore|docs|style|test|build|ci|release)(\(.*?\))?:\s*/i,
 			'',
 		)
 		.replace(/^[a-z]/, (c) => c.toUpperCase());
