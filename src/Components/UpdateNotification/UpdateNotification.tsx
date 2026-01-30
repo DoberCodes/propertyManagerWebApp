@@ -1,6 +1,3 @@
-import React, { useState, useEffect } from 'react';
-import styled from 'styled-components';
-import {
 	shouldShowUpdateNotification,
 	dismissUpdateNotification,
 	downloadAPK,
@@ -8,6 +5,7 @@ import {
 	getCurrentAppVersion,
 	checkForUpdates,
 } from '../../utils/versionCheck';
+import { isNativeApp } from '../../utils/platform';
 
 const NotificationWrapper = styled.div`
 	position: fixed;
@@ -202,9 +200,8 @@ interface UpdateNotificationProps {
  * Usage:
  * <UpdateNotification />
  */
-export const UpdateNotification: React.FC<UpdateNotificationProps> = ({
-	onDismiss,
-}) => {
+
+export const UpdateNotification: React.FC<UpdateNotificationProps> = ({ onDismiss }) => {
 	const [show, setShow] = useState(false);
 	const [showHelp, setShowHelp] = useState(false);
 
@@ -219,7 +216,8 @@ export const UpdateNotification: React.FC<UpdateNotificationProps> = ({
 			}
 
 			if (isMounted) {
-				setShow(shouldShowUpdateNotification());
+				// Only show if on native app
+				setShow(isNativeApp() && shouldShowUpdateNotification());
 			}
 		};
 

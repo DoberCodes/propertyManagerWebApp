@@ -8,6 +8,22 @@ import { UpdateNotification } from './Components/UpdateNotification/UpdateNotifi
 import { checkForUpdates } from './utils/versionCheck';
 import styled from 'styled-components';
 import { Capacitor } from '@capacitor/core';
+import { initializePushNotifications } from './services/pushNotifications';
+// Register push notifications on native app startup
+const currentUser = useSelector((state: any) => state.user.currentUser);
+useEffect(() => {
+	if (!Capacitor.isNativePlatform()) return;
+	initializePushNotifications(
+		(token) => {
+			console.log('Push token received:', token);
+		},
+		(notification) => {
+			// Optionally handle foreground notification
+			console.log('Foreground push notification:', notification);
+		},
+		() => currentUser?.id || null,
+	);
+}, [currentUser]);
 
 const LoadingContainer = styled.div`
 	display: flex;
