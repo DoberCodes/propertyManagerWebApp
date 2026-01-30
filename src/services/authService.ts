@@ -73,7 +73,7 @@ export const signUpWithEmail = async (
 			updatedAt: serverTimestamp(),
 		});
 
-		// Create default property group
+		// Always create default groups for new users (see scripts/migrateDefaultGroups.cjs for batch logic)
 		await setDoc(
 			doc(db, 'propertyGroups', `${userCredential.user.uid}_default`),
 			{
@@ -84,8 +84,9 @@ export const signUpWithEmail = async (
 			},
 		);
 
-		// Create default team group
-		await setDoc(doc(db, 'teamGroups', `${userCredential.user.uid}_default`), {
+		const myTeamGroupId = `${userCredential.user.uid}_default`;
+		const myTeamGroupRef = doc(db, 'teamGroups', myTeamGroupId);
+		await setDoc(myTeamGroupRef, {
 			userId: userCredential.user.uid,
 			name: 'My Team',
 			linkedProperties: [],

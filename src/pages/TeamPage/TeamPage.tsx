@@ -592,7 +592,7 @@ export default function TeamPage() {
 										cursor: canManage ? 'pointer' : 'default',
 										opacity: canManage ? 1 : 0.7,
 									}}>
-									{canManage && (
+									{canManage && currentUser?.email !== member.email && (
 										<TeamMemberActions>
 											<TeamMemberActionButton
 												className='delete'

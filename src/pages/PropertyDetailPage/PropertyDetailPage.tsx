@@ -16,6 +16,7 @@ import {
 	useGetPropertiesQuery,
 	useUpdatePropertyMutation,
 	useCreateNotificationMutation,
+	useGetPropertySharesQuery,
 } from '../../Redux/API/apiSlice';
 import {
 	addTask,
@@ -160,7 +161,21 @@ export const PropertyDetailPage = () => {
 	const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
 	const [showTaskAssignDialog, setShowTaskAssignDialog] = useState(false);
 	const [assigningTaskId, setAssigningTaskId] = useState<string | null>(null);
-	const [selectedAssignee, setSelectedAssignee] = useState<string>('');
+	const [selectedAssignee, setSelectedAssignee] = useState<any>(null);
+
+	// Only fetch property shares for the property of the task being assigned
+	const assigningTask = allTasks.find((t) => t.id === assigningTaskId);
+	const { data: propertyShares = [] } = useGetPropertySharesQuery(
+		assigningTask?.propertyId ?? '',
+		{ skip: !assigningTask },
+	);
+	const sharedUsers = propertyShares.map((share) => ({
+		id: share.sharedWithUserId || share.sharedWithEmail,
+		firstName: share.sharedWithEmail?.split('@')[0] || 'Shared User',
+		lastName: '',
+		email: share.sharedWithEmail,
+		isSharedUser: true,
+	}));
 	const [showTaskCompletionModal, setShowTaskCompletionModal] = useState(false);
 	const [completingTaskId, setCompletingTaskId] = useState<string | null>(null);
 	const [showShareModal, setShowShareModal] = useState(false);
@@ -407,7 +422,7 @@ export const PropertyDetailPage = () => {
 	const handleAssignTask = () => {
 		if (selectedTasks.length === 1) {
 			setAssigningTaskId(selectedTasks[0]);
-			setSelectedAssignee('');
+			setSelectedAssignee(null);
 			setShowTaskAssignDialog(true);
 		}
 	};
@@ -416,6 +431,7 @@ export const PropertyDetailPage = () => {
 		if (assigningTaskId && selectedAssignee) {
 			try {
 				const taskToAssign = allTasks.find((t) => t.id === assigningTaskId);
+				// assignedTo should be an object: { id, name, email }
 				await updateTaskMutation({
 					id: assigningTaskId,
 					updates: { assignedTo: selectedAssignee },
@@ -424,10 +440,10 @@ export const PropertyDetailPage = () => {
 				// Create notification for task assignment
 				try {
 					await createNotification({
-						userId: currentUser!.id,
+						userId: selectedAssignee.id,
 						type: 'task_assigned',
 						title: 'Task Assigned',
-						message: `Task "${taskToAssign?.title}" has been assigned to ${selectedAssignee}`,
+						message: `You have been assigned to task "${taskToAssign?.title}"`,
 						data: {
 							taskId: assigningTaskId,
 							taskTitle: taskToAssign?.title,
@@ -446,7 +462,7 @@ export const PropertyDetailPage = () => {
 
 				setShowTaskAssignDialog(false);
 				setAssigningTaskId(null);
-				setSelectedAssignee('');
+				setSelectedAssignee(null);
 				setSelectedTasks([]);
 			} catch (error) {
 				console.error('Error assigning task:', error);
@@ -597,7 +613,10 @@ export const PropertyDetailPage = () => {
 				unitId: convertingRequest.unit,
 				suiteId: (convertingRequest as any).suite,
 				notes: taskData.notes,
-				assignedTo: taskData.assignee || undefined,
+				assignedTo:
+					taskData.assignee && typeof taskData.assignee === 'object'
+						? taskData.assignee
+						: undefined,
 			};
 
 			const result = await createTaskMutation(newTask).unwrap();
@@ -1420,11 +1439,9 @@ export const PropertyDetailPage = () => {
 												</td>
 												<td>
 													{task.assignedTo
-														? teamMembers
-																.filter((m): m is TeamMember => m !== undefined)
-																.filter((m) => m.id === task.assignedTo)
-																.map((m) => `${m.firstName} ${m.lastName}`)
-																.join('')
+														? task.assignedTo.name ||
+															task.assignedTo.email ||
+															task.assignedTo.id
 														: 'Unassigned'}
 												</td>
 												<td>{task.dueDate}</td>
@@ -1968,9 +1985,53 @@ export const PropertyDetailPage = () => {
 							<FormGroup>
 								<FormLabel>Assign To</FormLabel>
 								<FormSelect
-									value={selectedAssignee}
-									onChange={(e) => setSelectedAssignee(e.target.value)}>
-									<option value=''>Select a team member...</option>
+									value={selectedAssignee ? selectedAssignee.id : ''}
+									onChange={(e) => {
+										const selectedId = e.target.value;
+										const filteredTeamMembers = teamMembers.filter(
+											(m): m is TeamMember => m !== undefined,
+										);
+										let found =
+											filteredTeamMembers.find((m) => m.id === selectedId) ||
+											sharedUsers.find((u) => u.id === selectedId) ||
+											(currentUser && currentUser.id === selectedId
+												? currentUser
+												: null);
+										if (found) {
+											// Safely construct the name property
+											let name = '';
+											if (
+												'firstName' in found &&
+												'lastName' in found &&
+												found.firstName &&
+												found.lastName
+											) {
+												name = `${found.firstName} ${found.lastName}`;
+											} else if ('firstName' in found && found.firstName) {
+												name = found.firstName;
+											} else if (
+												'name' in found &&
+												typeof found.name === 'string' &&
+												found.name
+											) {
+												name = found.name;
+											} else if ('email' in found && found.email) {
+												name = found.email;
+											} else {
+												name = found.id;
+											}
+											const assignedTo = {
+												id: found.id,
+												name,
+												email: found.email || '',
+											};
+											setSelectedAssignee(assignedTo);
+										} else {
+											setSelectedAssignee(null);
+										}
+									}}>
+									<option value=''>Select a user...</option>
+									{/* Team members */}
 									{teamMembers
 										.filter((m): m is TeamMember => m !== undefined)
 										.map((member) => (
@@ -1978,6 +2039,18 @@ export const PropertyDetailPage = () => {
 												{member.firstName} {member.lastName} ({member.title})
 											</option>
 										))}
+									{/* Shared users */}
+									{sharedUsers.map((user) => (
+										<option key={user.id} value={user.id}>
+											{user.firstName} {user.lastName} (Shared User)
+										</option>
+									))}
+									{/* Current user (self) */}
+									{currentUser && (
+										<option key={currentUser.id} value={currentUser.id}>
+											{currentUser.firstName} {currentUser.lastName} (You)
+										</option>
+									)}
 								</FormSelect>
 							</FormGroup>
 

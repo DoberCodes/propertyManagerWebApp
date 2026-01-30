@@ -130,84 +130,24 @@ export const filterTasksByRole = (
 
 /**
  * Filter team members based on user role
- * Full access roles see all team members
- * Limited access roles only see team members assigned to same properties
+ * All roles now see all team members (no property assignment filtering)
  */
 export const filterTeamMembersByRole = (
 	teamMembers: TeamMember[],
 	currentUser: User | null,
 ): TeamMember[] => {
 	if (!currentUser) return [];
-
-	// Full access roles see everyone
-	if (hasFullAccess(currentUser.role as UserRole)) {
-		return teamMembers;
-	}
-
-	// Limited access roles see members with overlapping property assignments
-	if (hasLimitedAccess(currentUser.role as UserRole)) {
-		const currentMember = teamMembers.find(
-			(member) => member.email === currentUser.email,
-		);
-
-		if (!currentMember || !currentMember.linkedProperties) {
-			return [];
-		}
-
-		// Filter to members who share at least one property assignment
-		return teamMembers.filter((member) =>
-			member.linkedProperties.some((propId) =>
-				currentMember.linkedProperties.includes(propId),
-			),
-		);
-	}
-
-	return [];
+	return teamMembers;
 };
 
 /**
- * Filter team groups based on user role and property assignments
+ * Filter team groups based on user role
+ * All roles now see all team groups (no property assignment filtering)
  */
 export const filterTeamGroupsByRole = (
 	groups: TeamGroup[],
 	currentUser: User | null,
-	teamMembers?: TeamMember[],
 ): TeamGroup[] => {
 	if (!currentUser) return [];
-
-	// Full access roles see everything
-	if (hasFullAccess(currentUser.role as UserRole)) {
-		return groups;
-	}
-
-	// Limited access roles only see groups linked to their properties
-	if (hasLimitedAccess(currentUser.role as UserRole) && teamMembers) {
-		const teamMember = teamMembers.find(
-			(member) => member.email === currentUser.email,
-		);
-
-		if (!teamMember || !teamMember.linkedProperties) {
-			return [];
-		}
-
-		// Filter groups that have overlapping property assignments
-		return groups
-			.map((group) => ({
-				...group,
-				members:
-					group.members?.filter((member) =>
-						member.linkedProperties.some((propId) =>
-							teamMember.linkedProperties.includes(propId),
-						),
-					) || [],
-			}))
-			.filter(
-				(group) =>
-					group.linkedProperties.some((propId) =>
-						teamMember.linkedProperties.includes(propId),
-					) && group.members.length > 0,
-			);
-	}
-
-	return [];
+	return groups;
 };

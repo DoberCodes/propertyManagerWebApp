@@ -17,10 +17,15 @@ export const DataLoader: React.FC = () => {
 	const dispatch = useDispatch<AppDispatch>();
 
 	// Fetch property groups and sync to Redux
+
 	const { data: propertyGroups = [] } = useGetPropertyGroupsQuery();
 	// Fetch team groups and team members
 	const { data: teamGroups = [] } = useGetTeamGroupsQuery();
 	const { data: teamMembers = [] } = useGetTeamMembersQuery();
+
+	// Debug: Log fetched data
+	console.log('[DataLoader] teamGroups from Firestore:', teamGroups);
+	console.log('[DataLoader] teamMembers from Firestore:', teamMembers);
 
 	useEffect(() => {
 		if (propertyGroups.length > 0) {

@@ -493,7 +493,15 @@ export const UnitDetailPage: React.FC = () => {
 													<td>
 														<strong>{task.title}</strong>
 													</td>
-													<td>{task.assignedTo || 'Unassigned'}</td>
+													<td>
+														{task.assignedTo
+															? typeof task.assignedTo === 'object'
+																? task.assignedTo.name ||
+																	task.assignedTo.email ||
+																	task.assignedTo.id
+																: task.assignedTo
+															: 'Unassigned'}
+													</td>
 													<td>{task.dueDate}</td>
 													<td>{task.status}</td>
 													<td>{task.notes || '-'}</td>

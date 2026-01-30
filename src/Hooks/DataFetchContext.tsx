@@ -89,7 +89,7 @@ export const DataFetchProvider: React.FC<DataFetchProviderProps> = ({
 					})),
 				),
 			);
-			dispatch(setTasks(tasks));
+			dispatch(setTasks(tasks)); // Make sure setTasks expects assignedTo as an object, not a string
 			dispatch(
 				setTeamGroups(
 					teamGroups.map((g) => ({

@@ -7,6 +7,9 @@ import { ZeroState } from '../Library/ZeroState';
 import {
 	useGetTasksQuery,
 	useUpdateTaskMutation,
+	useGetPropertySharesQuery,
+	useCreateNotificationMutation,
+	useGetPropertiesQuery,
 } from '../../Redux/API/apiSlice';
 import { UserRole } from '../../constants/roles';
 import { isTenant, getTenantPropertySlug } from '../../utils/permissions';
@@ -33,11 +36,13 @@ export const DashboardTab = () => {
 			.filter((member): member is typeof member => member !== undefined),
 	);
 
-	// Fetch tasks from Firebase
+	// Fetch tasks and properties from Firebase
 	const { data: allTasks = [] } = useGetTasksQuery();
+	const { data: allProperties = [] } = useGetPropertiesQuery();
 
 	// Firebase mutations
 	const [updateTask] = useUpdateTaskMutation();
+	const [createNotification] = useCreateNotificationMutation();
 
 	// Redirect tenants to their assigned property
 	useEffect(() => {
@@ -56,10 +61,25 @@ export const DashboardTab = () => {
 	const [completingTaskId, setCompletingTaskId] = useState<string | null>(null);
 	const [assigningTaskId, setAssigningTaskId] = useState<string | null>(null);
 
-	// Filter tasks based on user role
+	// Track which task is being assigned
+	const assigningTask = allTasks.find((t) => t.id === assigningTaskId);
+	// Only fetch property shares for the property of the task being assigned
+	const { data: propertyShares = [] } = useGetPropertySharesQuery(
+		assigningTask?.propertyId ?? '',
+		{ skip: !assigningTask },
+	);
+	const sharedUsers = propertyShares.map((share) => ({
+		id: share.sharedWithUserId || share.sharedWithEmail,
+		firstName: share.sharedWithEmail?.split('@')[0] || 'Shared User',
+		lastName: '',
+		email: share.sharedWithEmail,
+		isSharedUser: true,
+	}));
+
+	// Filter tasks based on user role and properties
 	const filteredTasks = useMemo(() => {
-		return filterTasksByRole(allTasks, currentUser, teamMembers);
-	}, [allTasks, currentUser, teamMembers]);
+		return filterTasksByRole(allTasks, currentUser, teamMembers, allProperties);
+	}, [allTasks, currentUser, teamMembers, allProperties]);
 
 	const handleRowDoubleClick = (taskId: string) => {
 		// Navigate to task detail page
@@ -85,22 +105,106 @@ export const DashboardTab = () => {
 		}
 	};
 
-	const handleAssignTask = async (taskId: string, memberId: string | null) => {
+	const handleAssignTask = async (
+		taskId: string,
+		assigneeId: string | null,
+	) => {
 		try {
+			type AssignedToType =
+				| { id: string; name: string; email?: string }
+				| undefined;
+			let assignedTo: AssignedToType = undefined;
+			if (assigneeId) {
+				let assignee = teamMembers.find((m) => m.id === assigneeId);
+				if (!assignee && currentUser && assigneeId === currentUser.id) {
+					assignee = {
+						id: currentUser.id,
+						firstName: currentUser.firstName || '',
+						lastName: currentUser.lastName || '',
+						email: currentUser.email,
+						groupId: '',
+						title: currentUser.title || '',
+						phone: currentUser.phone || '',
+						role: currentUser.role,
+						address: '',
+						notes: '',
+						linkedProperties: [],
+						taskHistory: [],
+						files: [],
+					};
+				}
+				if (!assignee) {
+					const shared = sharedUsers.find((u) => u.id === assigneeId);
+					if (shared) {
+						assignee = {
+							id: shared.id,
+							firstName: shared.firstName,
+							lastName: shared.lastName,
+							email: shared.email,
+							groupId: '',
+							title: '',
+							phone: '',
+							role: '',
+							address: '',
+							notes: '',
+							linkedProperties: [],
+							taskHistory: [],
+							files: [],
+						};
+					}
+				}
+				if (assignee) {
+					assignedTo = {
+						id: assignee.id,
+						name:
+							assignee.firstName && assignee.lastName
+								? `${assignee.firstName} ${assignee.lastName}`
+								: assignee.firstName || assignee.email || 'Shared User',
+						email: assignee.email,
+					};
+				}
+			}
 			await updateTask({
 				id: taskId,
-				updates: { assignedTo: memberId || undefined },
+				updates: { assignedTo: assignedTo ? assignedTo : undefined },
 			}).unwrap();
+
+			// Create notification for task assignment if assignedTo is set
+			if (assignedTo && typeof assignedTo === 'object' && 'id' in assignedTo) {
+				const taskToAssign = allTasks.find((t) => t.id === taskId);
+				const propertyId = taskToAssign?.propertyId;
+				const propertyTitle = taskToAssign?.property;
+				await createNotification({
+					userId: assignedTo.id,
+					type: 'task_assigned',
+					title: 'Task Assigned',
+					message: `You have been assigned to task "${taskToAssign?.title}"`,
+					data: {
+						taskId: taskId,
+						taskTitle: taskToAssign?.title,
+						assignedTo,
+						propertyId: propertyId,
+						propertyTitle: propertyTitle,
+					},
+					status: 'unread',
+					actionUrl: propertyId ? `/properties/${propertyId}` : undefined,
+					createdAt: new Date().toISOString(),
+					updatedAt: new Date().toISOString(),
+				}).unwrap();
+			}
 			setAssigningTaskId(null);
 		} catch (error) {
 			console.error('Error assigning task:', error);
 		}
 	};
 
-	const getAssignedMemberName = (memberId?: string) => {
-		if (!memberId) return 'Unassigned';
-		const member = teamMembers.find((m) => m.id === memberId);
-		return member ? `${member.firstName} ${member.lastName}` : 'Unknown';
+	const getAssignedMemberName = (assignedTo?: {
+		id: string;
+		name: string;
+		email?: string;
+	}) => {
+		if (!assignedTo) return 'Unassigned';
+		return assignedTo.name || assignedTo.email || 'Shared User';
 	};
 
 	const handleCompleteTask = () => {
@@ -231,7 +335,7 @@ export const DashboardTab = () => {
 										<td>
 											{assigningTaskId === task.id ? (
 												<select
-													value={task.assignedTo || ''}
+													value={task.assignedTo?.id || ''}
 													onChange={(e) =>
 														handleAssignTask(task.id, e.target.value || null)
 													}
@@ -244,11 +348,36 @@ export const DashboardTab = () => {
 														cursor: 'pointer',
 													}}>
 													<option value=''>Unassigned</option>
+													{/* Show all team members */}
 													{teamMembers.filter(Boolean).map((member) => (
 														<option key={member.id} value={member.id}>
 															{member.firstName} {member.lastName}
 														</option>
 													))}
+													{/* Show current user if not in teamMembers */}
+													{currentUser &&
+														!teamMembers.some(
+															(m) => m.id === currentUser.id,
+														) && (
+															<option
+																key={currentUser.id}
+																value={currentUser.id}>
+																{currentUser.firstName} {currentUser.lastName}{' '}
+																(You)
+															</option>
+														)}
+													{/* Show shared users for this property */}
+													{sharedUsers
+														.filter(
+															(user) =>
+																user.id !== currentUser?.id &&
+																!teamMembers.some((m) => m.id === user.id),
+														)
+														.map((user) => (
+															<option key={user.id} value={user.id}>
+																{user.firstName} (Shared User)
+															</option>
+														))}
 												</select>
 											) : (
 												<span

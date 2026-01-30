@@ -54,7 +54,11 @@ export interface Task {
 		| 'Rejected';
 	property: string;
 	notes?: string;
-	assignedTo?: string;
+	assignedTo?: {
+		id: string;
+		name: string;
+		email?: string;
+	};
 	completionDate?: string;
 	completionFile?: CompletionFile;
 	completedBy?: string;
