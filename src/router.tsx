@@ -12,6 +12,8 @@ import { LoginPage } from './pages/LoginPage';
 import { RegistrationPage } from './pages/RegistrationPage';
 import { ProtectedRoutes } from './ProtectedRoutes';
 import { HomePage } from './pages/HomePage';
+import SettingsPage from './pages/SettingsPage';
+import { FeatureDocsPage } from './pages/FeatureDocsPage';
 import { Layout } from './Components/Layout';
 import { DashboardTab } from './Components/DashboardTab';
 import { Properties } from './Components/PropertiesTab';
@@ -38,9 +40,19 @@ export const RouterComponent = () => {
 			<Routes>
 				{/* Public Routes */}
 				<Route path='/' element={<RootRoute />} errorElement={<ErrorPage />} />
-				<Route path='login' element={<LoginPage />} />
+				<Route
+					path='login'
+					element={
+						<ProtectedRoutes>
+							<LoginPage />
+						</ProtectedRoutes>
+					}
+				/>
 				<Route path='registration' element={<RegistrationPage />} />
 				<Route path='unauthorized' element={<UnauthorizedPage />} />
+				{/* Feature Docs - public */}
+				<Route path='docs' element={<FeatureDocsPage />} />
+				<Route path='features' element={<FeatureDocsPage />} />
 
 				{/* Protected Routes with Layout - Dashboard accessible to all authenticated users */}
 				<Route
@@ -106,7 +118,8 @@ export const RouterComponent = () => {
 					/>
 
 					{/* Settings - accessible to all authenticated users */}
-					<Route path='settings' element={<HomePage />} />
+					<Route path='settings' element={<SettingsPage />} />
+					<Route path='features' element={<FeatureDocsPage />} />
 
 					{/* User Profile - accessible to all authenticated users */}
 					<Route

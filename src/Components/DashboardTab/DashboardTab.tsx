@@ -317,6 +317,11 @@ export const DashboardTab = () => {
 								onClick: () => navigate('/team'),
 								variant: 'secondary',
 							},
+							{
+								label: 'Learn More',
+								onClick: () => navigate('/docs'),
+								variant: 'secondary',
+							},
 						]}
 					/>
 				) : (
