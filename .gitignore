@@ -29,3 +29,4 @@ yarn-error.log*
 # Documentation and keystore
 *.md
 my-release-key.keystore
+build-signed-apk.sh
