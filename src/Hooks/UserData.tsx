@@ -26,25 +26,21 @@ export const useGetAuthStatus = () => {
 				token: localUser,
 			};
 			const status = getStatus(payload);
-			console.log(status);
 			if (status) {
 				const authenticated = fetch(
 					`http://localhost:5000/authentication/${status}`,
 					{
 						method: 'GET',
 						signal: Timeout(5).signal,
-					}
+					},
 				).then(async (res) => {
-					console.log(res);
 					let userData;
 					if (res.status === 200) {
 						userData = await res.json();
-						console.log('User data', userData);
 						setAuthenticated(passed);
 						dispatch(setUserCred(userData));
 					}
 				});
-				console.log(authenticated);
 			} else {
 				setAuthenticated(failed);
 			}

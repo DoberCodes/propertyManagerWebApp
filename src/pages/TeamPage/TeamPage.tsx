@@ -496,7 +496,6 @@ export default function TeamPage() {
 				} catch (notifError) {
 					console.error('Notification failed:', notifError);
 				}
-				console.log('Team group deleted successfully');
 			} catch (error) {
 				console.error('Failed to delete team group:', error);
 				setWarningDialogTitle('Delete Failed');

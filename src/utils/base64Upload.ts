@@ -19,16 +19,9 @@ const readFileAsDataUrl = (file: File): Promise<string> =>
  */
 export const uploadToBase64 = async (file: File): Promise<string> => {
 	try {
-		console.log('Starting base64 conversion:', {
-			fileSize: file.size,
-			fileType: file.type,
-		});
-
 		const dataUrl = await readFileAsDataUrl(file);
-		console.log('Base64 conversion complete');
 		return dataUrl;
 	} catch (error) {
-		console.error('Base64 conversion error:', error);
 		throw new Error('Failed to read image. Please try another file.');
 	}
 };

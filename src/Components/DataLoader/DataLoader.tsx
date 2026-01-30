@@ -23,10 +23,6 @@ export const DataLoader: React.FC = () => {
 	const { data: teamGroups = [] } = useGetTeamGroupsQuery();
 	const { data: teamMembers = [] } = useGetTeamMembersQuery();
 
-	// Debug: Log fetched data
-	console.log('[DataLoader] teamGroups from Firestore:', teamGroups);
-	console.log('[DataLoader] teamMembers from Firestore:', teamMembers);
-
 	useEffect(() => {
 		if (propertyGroups.length > 0) {
 			const normalized = propertyGroups.map((group) => ({

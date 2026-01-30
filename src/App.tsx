@@ -58,11 +58,8 @@ export const App = () => {
 	// }, [currentUser]);
 
 	useEffect(() => {
-		console.log('App mounted, starting auth check...');
-
 		// Set a timeout to ensure auth loading completes even if Firebase hangs
 		const timeout = setTimeout(() => {
-			console.warn('Auth check timeout - completing auth check');
 			dispatch(setAuthLoading(false));
 		}, 5000); // 5 second timeout
 
@@ -70,7 +67,6 @@ export const App = () => {
 		const unsubscribe = onAuthStateChange(async (user) => {
 			clearTimeout(timeout);
 			if (user) {
-				console.log('App.tsx: User authenticated:', user);
 				dispatch(setCurrentUser(user));
 				// Update localStorage to keep session in sync
 				localStorage.setItem(
@@ -81,7 +77,6 @@ export const App = () => {
 					}),
 				);
 			} else {
-				console.log('App.tsx: No user authenticated');
 				dispatch(setCurrentUser(null));
 				localStorage.removeItem('loggedUser');
 			}

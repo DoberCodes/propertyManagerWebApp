@@ -11,7 +11,6 @@ import { LandingPage } from './pages/LandingPage';
 import { LoginPage } from './pages/LoginPage';
 import { RegistrationPage } from './pages/RegistrationPage';
 import { ProtectedRoutes } from './ProtectedRoutes';
-import { HomePage } from './pages/HomePage';
 import SettingsPage from './pages/SettingsPage';
 import { FeatureDocsPage } from './pages/FeatureDocsPage';
 import { Layout } from './Components/Layout';

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LandingNavbar } from '../../Components/Library/LandingNavbar';
 import {
@@ -63,6 +63,9 @@ import {
 	FooterCopyright,
 } from './LandingPage.styles';
 
+import packageJson from '../../../package.json';
+import { getAPKFileSize } from '../../utils/versionCheck';
+
 const LandingPageComponent = () => {
 	const navigate = useNavigate();
 	const [formData, setFormData] = useState({
@@ -74,6 +77,16 @@ const LandingPageComponent = () => {
 	const [formStatus, setFormStatus] = useState<
 		'idle' | 'sending' | 'success' | 'error'
 	>('idle');
+
+	const [apkFileSize, setApkFileSize] = useState('Unknown');
+
+	useEffect(() => {
+		const fetchFileSize = async () => {
+			const size = await getAPKFileSize();
+			setApkFileSize(size);
+		};
+		fetchFileSize();
+	}, []);
 
 	const handleInputChange = (
 		e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
@@ -396,10 +409,10 @@ const LandingPageComponent = () => {
 				{/* Download Section */}
 				<DownloadSection id='Download'>
 					<DownloadContainer>
-						<DownloadHeading>Get Started Today</DownloadHeading>
+						<DownloadHeading>Download the App</DownloadHeading>
 						<DownloadSubtext>
 							Download the app and start managing your property maintenance with
-							ease. No credit card required. Free to use.
+							ease. Available for Android devices.
 						</DownloadSubtext>
 						<DownloadButton
 							href='/propertyManagerWebApp/PropertyManager.apk'
@@ -409,7 +422,7 @@ const LandingPageComponent = () => {
 						<DownloadInfo>
 							<InfoItem>
 								<strong>File Size</strong>
-								<span>6.4 MB</span>
+								<span>{apkFileSize}</span>
 							</InfoItem>
 							<InfoItem>
 								<strong>Android Version</strong>
@@ -417,7 +430,7 @@ const LandingPageComponent = () => {
 							</InfoItem>
 							<InfoItem>
 								<strong>Version</strong>
-								<span>1.0 (Beta)</span>
+								<span>{packageJson.version}</span>
 							</InfoItem>
 						</DownloadInfo>
 					</DownloadContainer>

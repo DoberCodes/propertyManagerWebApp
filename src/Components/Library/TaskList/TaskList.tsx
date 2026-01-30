@@ -12,14 +12,9 @@ export interface Task {
 }
 
 export const TaskList = (props: TaskListProps) => {
-	console.log(props);
-	const date = props.taskData.dueDate;
-	console.log(date);
-
 	return (
 		<Wrapper>
 			{props.taskData.map((task) => {
-				console.log(task);
 				return (
 					<div>
 						<div>{task.taskName}</div>

@@ -113,13 +113,11 @@ export const Properties = () => {
 		}
 
 		try {
-			console.log('Creating new property group for user:', currentUser.id);
 			const result = await createPropertyGroup({
 				userId: currentUser.id,
 				name: 'New Group',
 				properties: [],
 			}).unwrap();
-			console.log('Property group created:', result);
 
 			// Create notification for property group creation
 			try {
@@ -273,8 +271,6 @@ export const Properties = () => {
 			} catch (notifError) {
 				console.error('Notification failed:', notifError);
 			}
-
-			console.log('Property group deleted successfully');
 		} catch (error) {
 			console.error('Failed to delete property group:', error);
 			alert('Failed to delete property group. Please try again.');
@@ -408,7 +404,6 @@ export const Properties = () => {
 						title: result.data.title,
 						slug: result.data.slug,
 					});
-					console.log('Property created successfully:', result.data);
 
 					// Create notification for property added
 					try {

@@ -520,7 +520,6 @@ export const PropertyDetailPage = () => {
 	const handleDeviceFormSubmit = (e: React.FormEvent) => {
 		e.preventDefault();
 		// In a real app, this would add to the property's devices via API
-		console.log('Adding device:', deviceFormData);
 		setShowDeviceDialog(false);
 	};
 

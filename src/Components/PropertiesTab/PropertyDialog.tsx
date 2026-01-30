@@ -337,9 +337,6 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 	};
 
 	const handleSave = () => {
-		console.log('=== PropertyDialog handleSave ===');
-		console.log('formData.groupId:', formData.groupId);
-		console.log('Full formData:', formData);
 		onSave(formData);
 	};
 
@@ -364,17 +361,8 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 									value={formData.groupId ?? ''}
 									onChange={(e) => {
 										const v = e.target.value;
-										console.log(
-											'Group dropdown changed. Value:',
-											v,
-											'Type:',
-											typeof v,
-										);
+
 										handleInputChange('groupId', v || null);
-										console.log(
-											'After handleInputChange, formData.groupId will be:',
-											v || null,
-										);
 									}}
 									style={{
 										padding: '10px 12px',

@@ -31,7 +31,6 @@ export function initializePushNotifications(
 
 	// On registration, get device token
 	PushNotifications.addListener('registration', async (token: Token) => {
-		console.log('Push registration success, token:', token.value);
 		if (onToken) onToken(token.value);
 		// Store token in Firestore under current user
 		if (getCurrentUserId) {
@@ -40,7 +39,6 @@ export function initializePushNotifications(
 				try {
 					const userRef = doc(db, 'users', userId);
 					await updateDoc(userRef, { pushToken: token.value });
-					console.log('Push token saved to Firestore for user', userId);
 				} catch (err) {
 					console.error('Failed to save push token to Firestore:', err);
 				}
@@ -57,7 +55,6 @@ export function initializePushNotifications(
 	PushNotifications.addListener(
 		'pushNotificationReceived',
 		(notification: PushNotification) => {
-			console.log('Push notification received:', notification);
 			if (onNotification) onNotification(notification);
 			// Optionally show in-app notification UI
 		},
@@ -67,7 +64,6 @@ export function initializePushNotifications(
 	PushNotifications.addListener(
 		'pushNotificationActionPerformed',
 		(action: PushNotificationActionPerformed) => {
-			console.log('Push notification action performed:', action);
 			// Route user or handle action
 		},
 	);

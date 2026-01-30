@@ -97,14 +97,6 @@ export const RegistrationCard = () => {
 		setLoading(true);
 
 		try {
-			console.log('RegistrationCard: Starting Firebase registration', {
-				email: email.trim(),
-				emailLength: email.length,
-				firstName: firstName.trim(),
-				lastName: lastName.trim(),
-				passwordLength: password.length,
-			});
-
 			// Register with Firebase - default role is admin, trim values
 			const user = await signUpWithEmail(
 				email.trim(),
@@ -113,8 +105,6 @@ export const RegistrationCard = () => {
 				lastName.trim(),
 				USER_ROLES.ADMIN,
 			);
-
-			console.log('RegistrationCard: Firebase registration successful', user);
 
 			// Update Redux store
 			dispatch(setCurrentUser(user));
@@ -127,8 +117,6 @@ export const RegistrationCard = () => {
 					user,
 				}),
 			);
-
-			console.log('RegistrationCard: Navigating to dashboard');
 
 			// Navigate to dashboard
 			navigate('/dashboard');
