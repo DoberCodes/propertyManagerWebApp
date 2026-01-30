@@ -5,10 +5,12 @@ import { RouterComponent } from './router';
 import { FirebaseConnectionTest } from './Components/FirebaseConnectionTest';
 import { DataFetchProvider } from './Hooks/DataFetchContext';
 import { onAuthStateChange } from './services/authService';
+import { DebugConsole } from './Components/DebugConsole/DebugConsole';
 import styled from 'styled-components';
 
 const LoadingContainer = styled.div`
 	display: flex;
+	flex-direction: column;
 	justify-content: center;
 	align-items: center;
 	width: 100%;
@@ -17,6 +19,20 @@ const LoadingContainer = styled.div`
 	color: white;
 	font-size: 18px;
 	font-weight: 600;
+	gap: 20px;
+
+	div {
+		animation: spin 1s linear infinite;
+	}
+
+	@keyframes spin {
+		from {
+			transform: rotate(0deg);
+		}
+		to {
+			transform: rotate(360deg);
+		}
+	}
 `;
 
 export const App = () => {
@@ -24,6 +40,8 @@ export const App = () => {
 	const authLoading = useSelector((state: any) => state.user.authLoading);
 
 	useEffect(() => {
+		console.log('App mounted, starting auth check...');
+
 		// Set a timeout to ensure auth loading completes even if Firebase hangs
 		const timeout = setTimeout(() => {
 			console.warn('Auth check timeout - completing auth check');
@@ -60,18 +78,35 @@ export const App = () => {
 		};
 	}, [dispatch]);
 
+	console.log('Current authLoading state:', authLoading);
+
 	if (authLoading) {
-		return <LoadingContainer>Loading...</LoadingContainer>;
+		return (
+			<LoadingContainer>
+				<div>⚙️</div>
+				<div>Initializing App...</div>
+			</LoadingContainer>
+		);
 	}
 
-	return (
-		<>
-			{process.env.NODE_ENV === 'development' && <FirebaseConnectionTest />}
-			<DataFetchProvider>
-				<RouterComponent />
-			</DataFetchProvider>
-		</>
-	);
+	try {
+		return (
+			<>
+				<DebugConsole />
+				<DataFetchProvider>
+					<RouterComponent />
+				</DataFetchProvider>
+			</>
+		);
+	} catch (error) {
+		console.error('Error rendering app:', error);
+		return (
+			<LoadingContainer>
+				<div>❌</div>
+				<div>Error loading app</div>
+			</LoadingContainer>
+		);
+	}
 };
 
 export default App;
