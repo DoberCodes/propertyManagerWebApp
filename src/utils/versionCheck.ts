@@ -12,6 +12,8 @@
 
 import { store } from '../Redux/Store/store';
 import { apiSlice } from '../Redux/API/apiSlice';
+import { Capacitor } from '@capacitor/core';
+import { Browser } from '@capacitor/browser';
 
 const CURRENT_APP_VERSION = '1.0.2'; // Should match package.json version
 const STORAGE_KEY = 'app_version_check';
@@ -109,13 +111,21 @@ export const getAPKDownloadURL = (): string => {
 /**
  * Trigger APK download
  */
-export const downloadAPK = (): void => {
-	const link = document.createElement('a');
-	link.href = getAPKDownloadURL();
-	link.download = 'PropertyManager.apk';
-	document.body.appendChild(link);
-	link.click();
-	document.body.removeChild(link);
+export const downloadAPK = async (): Promise<void> => {
+	const url = getAPKDownloadURL();
+
+	// On mobile, open in external browser for better download support
+	if (Capacitor.isNativePlatform()) {
+		await Browser.open({ url });
+	} else {
+		// On web, trigger direct download
+		const link = document.createElement('a');
+		link.href = url;
+		link.download = 'PropertyManager.apk';
+		document.body.appendChild(link);
+		link.click();
+		document.body.removeChild(link);
+	}
 };
 
 /**
