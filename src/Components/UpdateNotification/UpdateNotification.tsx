@@ -6,6 +6,7 @@ import {
 	downloadAPK,
 	getAvailableVersion,
 	getCurrentAppVersion,
+	checkForUpdates,
 } from '../../utils/versionCheck';
 
 const NotificationWrapper = styled.div`
@@ -142,13 +143,42 @@ export const UpdateNotification: React.FC<UpdateNotificationProps> = ({
 	const [show, setShow] = useState(false);
 
 	useEffect(() => {
-		// Check if update notification should be shown
-		if (shouldShowUpdateNotification()) {
-			setShow(true);
-		}
+		let isMounted = true;
+
+		const runCheck = async () => {
+			try {
+				await checkForUpdates();
+			} catch (error) {
+				console.error('Error checking for updates:', error);
+			}
+
+			if (isMounted) {
+				setShow(shouldShowUpdateNotification());
+			}
+		};
+
+		runCheck();
+
+		return () => {
+			isMounted = false;
+		};
 	}, []);
 
 	const handleDownload = () => {
+		const confirmed = window.confirm(
+			'Before downloading:\n\n' +
+				'Android requires enabling installs from unknown sources for APKs not from the Play Store.\n\n' +
+				'Instructions (may vary by device):\n' +
+				'1) Open Settings → Security (or Privacy)\n' +
+				'2) Enable "Install unknown apps" / "Unknown sources"\n' +
+				'3) Select your browser and allow installs\n\n' +
+				'Continue to download the APK?',
+		);
+
+		if (!confirmed) {
+			return;
+		}
+
 		downloadAPK();
 		handleDismiss();
 	};

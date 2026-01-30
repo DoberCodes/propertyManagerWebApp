@@ -167,12 +167,14 @@ export const checkForUpdates = async (): Promise<boolean> => {
 
 		if (result.data && result.data.version) {
 			const latestVersion = result.data.version;
+			const isNewer = compareVersions(latestVersion, CURRENT_APP_VERSION) > 0;
 
-			// Only set if the version is different
-			if (latestVersion !== CURRENT_APP_VERSION) {
+			if (isNewer) {
 				setAvailableVersion(latestVersion);
-				return shouldShowUpdateNotification();
+				resetUpdateNotification();
 			}
+
+			return shouldShowUpdateNotification();
 		}
 
 		return false;
