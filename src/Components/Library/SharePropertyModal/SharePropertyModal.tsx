@@ -7,10 +7,11 @@ import {
 	faTimes,
 	faUserPlus,
 	faSpinner,
+	faCheckCircle,
 } from '@fortawesome/free-solid-svg-icons';
 import {
 	useGetPropertySharesQuery,
-	useGetPropertyInvitationsQuery,
+	useGetAllPropertyInvitationsQuery,
 	useSendInvitationMutation,
 	useUpdatePropertyShareMutation,
 	useDeletePropertyShareMutation,
@@ -46,8 +47,8 @@ export const SharePropertyModal: React.FC<SharePropertyModalProps> = ({
 
 	const { data: shares = [], isLoading } =
 		useGetPropertySharesQuery(propertyId);
-	const { data: pendingInvitations = [], isLoading: isLoadingInvitations } =
-		useGetPropertyInvitationsQuery(propertyId);
+	const { data: allInvitations = [], isLoading: isLoadingInvitations } =
+		useGetAllPropertyInvitationsQuery(propertyId);
 	const [sendInvitation, { isLoading: isSending }] =
 		useSendInvitationMutation();
 	const [updateShare, { isLoading: isUpdating }] =
@@ -81,7 +82,7 @@ export const SharePropertyModal: React.FC<SharePropertyModalProps> = ({
 		}
 
 		// Check if already invited
-		const existingInvitation = pendingInvitations.find(
+		const existingInvitation = allInvitations.find(
 			(inv) => inv.toEmail.toLowerCase() === email.toLowerCase(),
 		);
 		if (existingInvitation) {
@@ -293,47 +294,60 @@ export const SharePropertyModal: React.FC<SharePropertyModalProps> = ({
 					)}
 				</Section>
 
-				{/* Pending Invitations */}
+				{/* Invitations Sent */}
 				<Section>
-					<SectionTitle>
-						Pending Invitations ({pendingInvitations.length})
-					</SectionTitle>
+					<SectionTitle>Invitations ({allInvitations.length})</SectionTitle>
 					{isLoadingInvitations ? (
 						<LoadingContainer>
 							<FontAwesomeIcon icon={faSpinner} spin size='2x' />
 						</LoadingContainer>
-					) : pendingInvitations.length === 0 ? (
-						<EmptyState>No pending invitations.</EmptyState>
+					) : allInvitations.length === 0 ? (
+						<EmptyState>No invitations sent.</EmptyState>
 					) : (
 						<SharesList>
-							{pendingInvitations.map((invitation: UserInvitation) => (
+							{allInvitations.map((invitation: UserInvitation) => (
 								<ShareItem key={invitation.id}>
 									<ShareInfo>
 										<ShareEmail>{invitation.toEmail}</ShareEmail>
 										<Badge
 											color={
-												invitation.permission === 'admin'
-													? 'primary'
-													: 'default'
+												invitation.status === 'accepted'
+													? 'success'
+													: invitation.permission === 'admin'
+														? 'primary'
+														: 'default'
 											}>
-											{getSharePermissionLabel(invitation.permission)} • Pending
+											{getSharePermissionLabel(invitation.permission)} •{' '}
+											{invitation.status === 'accepted' ? (
+												<>
+													<FontAwesomeIcon icon={faCheckCircle} /> Accepted
+												</>
+											) : (
+												'Pending'
+											)}
 										</Badge>
 										<PendingText>
 											Sent:{' '}
 											{new Date(invitation.createdAt).toLocaleDateString()} •
-											Expires:{' '}
-											{new Date(invitation.expiresAt).toLocaleDateString()}
+											{invitation.status === 'pending' && (
+												<>
+													Expires:{' '}
+													{new Date(invitation.expiresAt).toLocaleDateString()}
+												</>
+											)}
 										</PendingText>
 									</ShareInfo>
-									<ShareActions>
-										<IconButton
-											color='danger'
-											onClick={() => handleCancelInvitation(invitation.id)}
-											title='Cancel invitation'
-											disabled={isCanceling}>
-											<FontAwesomeIcon icon={faTrash} />
-										</IconButton>
-									</ShareActions>
+									{invitation.status === 'pending' && (
+										<ShareActions>
+											<IconButton
+												color='danger'
+												onClick={() => handleCancelInvitation(invitation.id)}
+												title='Cancel invitation'
+												disabled={isCanceling}>
+												<FontAwesomeIcon icon={faTrash} />
+											</IconButton>
+										</ShareActions>
+									)}
 								</ShareItem>
 							))}
 						</SharesList>
@@ -593,15 +607,19 @@ const ShareEmail = styled.div`
 	margin-bottom: 8px;
 `;
 
-const Badge = styled.span<{ color: 'primary' | 'default' }>`
+const Badge = styled.span<{ color: 'primary' | 'default' | 'success' }>`
 	display: inline-block;
 	padding: 4px 12px;
 	border-radius: 12px;
 	font-size: 12px;
 	font-weight: 500;
 	background-color: ${(props) =>
-		props.color === 'primary' ? '#2196f3' : '#e0e0e0'};
-	color: ${(props) => (props.color === 'primary' ? 'white' : '#666')};
+		props.color === 'primary'
+			? '#2196f3'
+			: props.color === 'success'
+				? '#4caf50'
+				: '#e0e0e0'};
+	color: ${(props) => (props.color === 'default' ? '#666' : 'white')};
 `;
 
 const PendingText = styled.div`

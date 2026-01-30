@@ -30,6 +30,7 @@ yarn-error.log*
 *.md
 my-release-key.keystore
 build-signed-apk.sh
+RELEASE_NOTES.txt
 
 # Firebase service account key
 serviceAccountKey.json

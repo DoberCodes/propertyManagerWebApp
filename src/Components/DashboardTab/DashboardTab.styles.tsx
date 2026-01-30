@@ -207,25 +207,24 @@ export const BottomSectionsWrapper = styled.div`
 	grid-template-columns: repeat(3, 1fr);
 	gap: 20px;
 	flex-shrink: 0;
-	height: auto;
-	min-height: 180px;
+	height: 400px;
 
 	@media (max-width: 1024px) {
 		grid-template-columns: repeat(2, 1fr);
 		gap: 16px;
-		height: 220px;
+		height: 400px;
 	}
 
 	@media (max-width: 768px) {
 		grid-template-columns: 1fr;
 		gap: 14px;
 		height: auto;
-		min-height: 180px;
+		min-height: 400px;
 	}
 
 	@media (max-width: 480px) {
 		gap: 10px;
-		min-height: 150px;
+		min-height: 350px;
 	}
 `;
 
@@ -237,13 +236,16 @@ export const Section = styled.div`
 	flex-direction: column;
 	overflow: hidden;
 	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+	height: 100%;
 
 	@media (max-width: 768px) {
 		border-radius: 6px;
+		height: 400px;
 	}
 
 	@media (max-width: 480px) {
 		border-radius: 4px;
+		height: 350px;
 	}
 `;
 
@@ -255,6 +257,7 @@ export const SectionTitle = styled.h3`
 	padding: 16px 20px;
 	border-bottom: 1px solid #e0e0e0;
 	background: #f9fafb;
+	flex-shrink: 0;
 
 	@media (max-width: 768px) {
 		font-size: 14px;
@@ -274,6 +277,8 @@ export const SectionContent = styled.div`
 	padding: 16px 20px;
 	color: #999999;
 	font-size: 14px;
+	overflow-y: auto;
+	min-height: 0;
 
 	@media (max-width: 768px) {
 		font-size: 12px;

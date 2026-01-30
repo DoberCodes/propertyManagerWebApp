@@ -4,8 +4,10 @@ import {
 	getAuth,
 	setPersistence,
 	browserLocalPersistence,
+	indexedDBLocalPersistence,
 } from 'firebase/auth';
 import { getStorage } from 'firebase/storage';
+import { Capacitor } from '@capacitor/core';
 
 // Firebase configuration
 // Replace these with your actual Firebase project credentials
@@ -29,9 +31,22 @@ export const db = getFirestore(app);
 export const auth = getAuth(app);
 export const storage = getStorage(app);
 
-// Set auth persistence to LOCAL (persists across browser sessions)
-setPersistence(auth, browserLocalPersistence).catch((error) => {
-	console.error('Error setting auth persistence:', error);
-});
+// Set auth persistence based on platform
+// Use indexedDBLocalPersistence for mobile (better for Capacitor)
+// Use browserLocalPersistence for web
+const persistence = Capacitor.isNativePlatform()
+	? indexedDBLocalPersistence
+	: browserLocalPersistence;
+
+setPersistence(auth, persistence)
+	.then(() => {
+		console.log(
+			'Auth persistence set successfully for',
+			Capacitor.getPlatform(),
+		);
+	})
+	.catch((error) => {
+		console.error('Error setting auth persistence:', error);
+	});
 
 export default app;

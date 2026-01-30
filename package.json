@@ -1,6 +1,6 @@
 {
 	"name": "myPropertyManager",
-	"version": "1.0.1",
+	"version": "1.0.2",
 	"private": true,
 	"type": "module",
 	"homepage": "https://dobercodes.github.io/propertyManagerWebApp",
@@ -48,7 +48,8 @@
 		"cap:sync": "yarn build && npx cap sync android",
 		"cap:open": "npx cap open android",
 		"build:apk": "node scripts/initAppVersion.cjs && yarn build && npx cap sync android",
-		"build:signed": "bash build-signed-apk.sh"
+		"build:signed": "bash build-signed-apk.sh",
+		"release:notes": "node scripts/generateReleaseNotes.cjs"
 	},
 	"eslintConfig": {
 		"extends": [

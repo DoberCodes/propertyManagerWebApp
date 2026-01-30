@@ -115,6 +115,8 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = () => {
 		switch (type) {
 			case 'share_invitation':
 				return '👥';
+			case 'share_invitation_accepted':
+				return '✅';
 			case 'property_added':
 				return '🏠';
 			case 'task_assigned':
@@ -130,6 +132,8 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = () => {
 		switch (type) {
 			case 'share_invitation':
 				return '#2196f3';
+			case 'share_invitation_accepted':
+				return '#4caf50';
 			case 'property_added':
 				return '#4caf50';
 			case 'task_assigned':

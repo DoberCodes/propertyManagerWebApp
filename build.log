@@ -1,0 +1,105 @@
+
+> myPropertyManager@1.0.1 build
+> react-scripts build
+
+(node:16120) [DEP0176] DeprecationWarning: fs.F_OK is deprecated, use fs.constants.F_OK instead
+(Use `node --trace-deprecation ...` to show where the warning was created)
+Creating an optimized production build...
+Browserslist: caniuse-lite is outdated. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Compiled with warnings.
+
+[eslint] 
+src\App.tsx
+  Line 113:18:  Unreachable code  no-unreachable
+
+src\Components\DataLoader\DataLoader.tsx
+  Line 2:23:  'useSelector' is defined but never used  @typescript-eslint/no-unused-vars
+  Line 3:10:  'RootState' is defined but never used    @typescript-eslint/no-unused-vars
+
+src\Components\Library\Navbar\SideNav\SideNav.tsx
+  Line 17:2:  'ProfileSection' is defined but never used         @typescript-eslint/no-unused-vars
+  Line 18:2:  'ProfileImage' is defined but never used           @typescript-eslint/no-unused-vars
+  Line 19:2:  'ProfileInfo' is defined but never used            @typescript-eslint/no-unused-vars
+  Line 20:2:  'ProfileName' is defined but never used            @typescript-eslint/no-unused-vars
+  Line 21:2:  'ProfileRole' is defined but never used            @typescript-eslint/no-unused-vars
+  Line 22:2:  'ProfileActions' is defined but never used         @typescript-eslint/no-unused-vars
+  Line 23:2:  'ProfileButton' is defined but never used          @typescript-eslint/no-unused-vars
+  Line 43:8:  'handleLogout' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  Line 62:8:  'menuItems' is assigned a value but never used     @typescript-eslint/no-unused-vars
+
+src\Components\Library\Navbar\TopNav\TopNav.tsx
+  Line 6:2:    'NavItem' is defined but never used            @typescript-eslint/no-unused-vars
+  Line 17:10:  'useRecentlyViewed' is defined but never used  @typescript-eslint/no-unused-vars
+
+src\Components\ReportBuilder\ReportBuilder.tsx
+  Line 60:8:   'currentUser' is assigned a value but never used     @typescript-eslint/no-unused-vars
+  Line 77:16:  'propertyGroups' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  Line 91:8:   'propertiesList' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+src\global.styles.tsx
+  Line 59:21:  Unexpected template string expression  no-template-curly-in-string
+
+src\pages\HomePage\HomePage.tsx
+  Line 1:17:   'useEffect' is defined but never used                  @typescript-eslint/no-unused-vars
+  Line 2:10:   'useDispatch' is defined but never used                @typescript-eslint/no-unused-vars
+  Line 4:10:   'Task' is defined but never used                       @typescript-eslint/no-unused-vars
+  Line 7:10:   'SideNav' is defined but never used                    @typescript-eslint/no-unused-vars
+  Line 7:19:   'TopNav' is defined but never used                     @typescript-eslint/no-unused-vars
+  Line 23:24:  'setUpcomingTasks' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  Line 24:20:  'setPastTasks' is assigned a value but never used      @typescript-eslint/no-unused-vars
+
+src\pages\PropertyDetailPage\PropertyDetailPage.tsx
+  Line 21:2:    'addTask' is defined but never used                          @typescript-eslint/no-unused-vars
+  Line 22:2:    'updateTask' is defined but never used                       @typescript-eslint/no-unused-vars
+  Line 95:2:    'DevicesSectionHeader' is defined but never used             @typescript-eslint/no-unused-vars
+  Line 96:2:    'AddDeviceButton' is defined but never used                  @typescript-eslint/no-unused-vars
+  Line 109:52:  'propertiesLoading' is assigned a value but never used       @typescript-eslint/no-unused-vars
+  Line 134:42:  'tasksLoading' is assigned a value but never used            @typescript-eslint/no-unused-vars
+  Line 239:8:   'handleImageUrlChange' is assigned a value but never used    @typescript-eslint/no-unused-vars
+  Line 484:8:   'handleOpenDeviceDialog' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  Line 603:10:  'result' is assigned a value but never used                  @typescript-eslint/no-unused-vars
+
+src\pages\TeamPage\TeamPage.tsx
+  Line 5:10:   'filterTeamMembersByRole' is defined but never used             @typescript-eslint/no-unused-vars
+  Line 8:2:    'addTeamGroup' is defined but never used                        @typescript-eslint/no-unused-vars
+  Line 9:2:    'deleteTeamGroup' is defined but never used                     @typescript-eslint/no-unused-vars
+  Line 10:2:   'updateTeamGroupName' is defined but never used                 @typescript-eslint/no-unused-vars
+  Line 11:2:   'toggleTeamGroupEditName' is defined but never used             @typescript-eslint/no-unused-vars
+  Line 12:2:   'addTeamMember' is defined but never used                       @typescript-eslint/no-unused-vars
+  Line 13:2:   'updateTeamMember' is defined but never used                    @typescript-eslint/no-unused-vars
+  Line 14:2:   'deleteTeamMember' is defined but never used                    @typescript-eslint/no-unused-vars
+  Line 16:2:   'TeamGroup' is defined but never used                           @typescript-eslint/no-unused-vars
+  Line 19:2:   'useGetTeamGroupsQuery' is defined but never used               @typescript-eslint/no-unused-vars
+  Line 20:2:   'useGetTeamMembersQuery' is defined but never used              @typescript-eslint/no-unused-vars
+  Line 21:2:   'useGetPropertiesQuery' is defined but never used               @typescript-eslint/no-unused-vars
+  Line 36:2:   'PageHeader' is defined but never used                          @typescript-eslint/no-unused-vars
+  Line 48:2:   'TeamMemberImage' is defined but never used                     @typescript-eslint/no-unused-vars
+  Line 96:11:  'FormData' is defined but never used                            @typescript-eslint/no-unused-vars
+  Line 108:8:  'dispatch' is assigned a value but never used                   @typescript-eslint/no-unused-vars
+  Line 139:8:  'canView' is assigned a value but never used                    @typescript-eslint/no-unused-vars
+  Line 475:8:  'handleTeamGroupNameChange' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+src\pages\UserProfile\UserProfile.tsx
+  Line 16:2:  'PageHeader' is defined but never used    @typescript-eslint/no-unused-vars
+  Line 17:2:  'PageTitle' is defined but never used     @typescript-eslint/no-unused-vars
+  Line 22:2:  'FormTextarea' is defined but never used  @typescript-eslint/no-unused-vars
+
+Search for the keywords to learn more about each warning.
+To ignore, add // eslint-disable-next-line to the line before.
+
+File sizes after gzip:
+
+  302.63 kB  build\static\js\main.53ea39c6.js
+  1.78 kB    build\static\js\453.51850cd8.chunk.js
+
+The project was built assuming it is hosted at /propertyManagerWebApp/.
+You can control this with the homepage field in your package.json.
+
+The build folder is ready to be deployed.
+
+Find out more about deployment here:
+
+  https://cra.link/deployment
+

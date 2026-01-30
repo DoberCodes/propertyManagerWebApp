@@ -46,6 +46,7 @@ export interface Notification {
 	userId: string; // Recipient of the notification
 	type:
 		| 'share_invitation'
+		| 'share_invitation_accepted'
 		| 'property_added'
 		| 'property_updated'
 		| 'property_deleted'
@@ -604,13 +605,25 @@ export const apiSlice = createApi({
 		deleteProperty: builder.mutation<void, string>({
 			async queryFn(propertyId: string) {
 				try {
+					// Delete the property
 					await deleteDoc(doc(db, 'properties', propertyId));
+
+					// Delete all favorites for this property
+					const favoritesQuery = query(
+						collection(db, 'favorites'),
+						where('propertyId', '==', propertyId),
+					);
+					const favoritesSnapshot = await getDocs(favoritesQuery);
+					for (const favDoc of favoritesSnapshot.docs) {
+						await deleteDoc(favDoc.ref);
+					}
+
 					return { data: undefined };
 				} catch (error: any) {
 					return { error: error.message };
 				}
 			},
-			invalidatesTags: ['Properties', 'PropertyGroups'],
+			invalidatesTags: ['Properties', 'PropertyGroups', 'Favorites'],
 		}),
 
 		// Task endpoints
@@ -1485,13 +1498,39 @@ export const apiSlice = createApi({
 		deletePropertyShare: builder.mutation<void, string>({
 			async queryFn(shareId: string) {
 				try {
+					// Get the share document to find the associated invitation
+					const shareDoc = await getDoc(doc(db, 'propertyShares', shareId));
+					if (!shareDoc.exists()) {
+						return { error: 'Property share not found' };
+					}
+
+					const shareData = shareDoc.data();
+					const propertyId = shareData.propertyId;
+					const sharedWithEmail = shareData.sharedWithEmail;
+
+					// Delete the property share
 					await deleteDoc(doc(db, 'propertyShares', shareId));
+
+					// Find and delete the associated accepted invitation
+					const invitationQuery = query(
+						collection(db, 'userInvitations'),
+						where('propertyId', '==', propertyId),
+						where('toEmail', '==', sharedWithEmail),
+						where('status', '==', 'accepted'),
+					);
+					const invitationSnapshot = await getDocs(invitationQuery);
+					if (!invitationSnapshot.empty) {
+						for (const invDoc of invitationSnapshot.docs) {
+							await deleteDoc(invDoc.ref);
+						}
+					}
+
 					return { data: undefined };
 				} catch (error: any) {
 					return { error: error.message };
 				}
 			},
-			invalidatesTags: ['PropertyShares', 'Properties'],
+			invalidatesTags: ['PropertyShares', 'Properties', 'UserInvitations'],
 		}),
 
 		// User Invitations endpoints
@@ -1648,8 +1687,8 @@ export const apiSlice = createApi({
 						});
 					}
 
-					// Create a notification for the user
-					const notificationData = {
+					// Create a notification for the recipient
+					const recipientNotificationData = {
 						userId,
 						type: 'share_invitation',
 						title: 'Property Shared',
@@ -1667,10 +1706,42 @@ export const apiSlice = createApi({
 					};
 
 					try {
-						await addDoc(collection(db, 'notifications'), notificationData);
+						await addDoc(
+							collection(db, 'notifications'),
+							recipientNotificationData,
+						);
 					} catch (notifError) {
-						// Notification creation failure is non-critical
-						console.error('Failed to create notification:', notifError);
+						console.error(
+							'Failed to create recipient notification:',
+							notifError,
+						);
+					}
+
+					// Create a notification for the sender
+					const senderNotificationData = {
+						userId: invitation.fromUserId,
+						type: 'share_invitation_accepted',
+						title: 'Invitation Accepted',
+						message: `${userEmail} accepted your invitation to share "${invitation.propertyTitle}"`,
+						data: {
+							propertyId: invitation.propertyId,
+							propertyTitle: invitation.propertyTitle,
+							userId: userId,
+							userEmail: userEmail,
+							permission: invitation.permission,
+						},
+						status: 'unread',
+						createdAt: now,
+						updatedAt: now,
+					};
+
+					try {
+						await addDoc(
+							collection(db, 'notifications'),
+							senderNotificationData,
+						);
+					} catch (notifError) {
+						console.error('Failed to create sender notification:', notifError);
 					}
 
 					return { data: { id: shareRef.id, ...shareData } };
@@ -1720,6 +1791,33 @@ export const apiSlice = createApi({
 						id: doc.id,
 						...doc.data(),
 					})) as UserInvitation[];
+					return { data: invitations };
+				} catch (error: any) {
+					return { error: error.message };
+				}
+			},
+			providesTags: ['UserInvitations'],
+		}),
+
+		// Get all invitations for a property (pending and accepted) for the owner
+		getAllPropertyInvitations: builder.query<UserInvitation[], string>({
+			async queryFn(propertyId: string) {
+				try {
+					const q = query(
+						collection(db, 'userInvitations'),
+						where('propertyId', '==', propertyId),
+					);
+					const querySnapshot = await getDocs(q);
+					const invitations = querySnapshot.docs
+						.map((doc) => ({
+							id: doc.id,
+							...doc.data(),
+						}))
+						.sort(
+							(a: any, b: any) =>
+								new Date(b.createdAt).getTime() -
+								new Date(a.createdAt).getTime(),
+						) as UserInvitation[];
 					return { data: invitations };
 				} catch (error: any) {
 					return { error: error.message };
@@ -2035,6 +2133,7 @@ export const {
 	useRejectInvitationMutation,
 	useCancelInvitationMutation,
 	useGetPropertyInvitationsQuery,
+	useGetAllPropertyInvitationsQuery,
 	// Tenants
 	useAddTenantMutation,
 	useRemoveTenantMutation,
