@@ -51,19 +51,27 @@ async function calculateNextVersion(currentVersion, commits) {
 	let newMinor = minor;
 	let newPatch = patch;
 
-	commits.forEach((commit) => {
-		const message = commit.message.toLowerCase();
-		if (message.includes('breaking change:')) {
-			newMajor += 1;
-			newMinor = 0; // Reset minor and patch when major is incremented
-			newPatch = 0;
-		} else if (message.startsWith('feature:')) {
-			newMinor += 1;
-			newPatch = 0; // Reset patch when minor is incremented
-		} else if (message.startsWith('fix:')) {
-			newPatch += 1;
-		}
-	});
+	// Determine the highest level of change in the commits
+	const hasBreakingChange = commits.some((commit) =>
+		commit.message.toLowerCase().includes('breaking change:'),
+	);
+	const hasFeature = commits.some((commit) =>
+		commit.message.toLowerCase().startsWith('feature:'),
+	);
+	const hasFix = commits.some((commit) =>
+		commit.message.toLowerCase().startsWith('fix:'),
+	);
+
+	if (hasBreakingChange) {
+		newMajor += 1;
+		newMinor = 0; // Reset minor and patch when major is incremented
+		newPatch = 0;
+	} else if (hasFeature) {
+		newMinor += 1;
+		newPatch = 0; // Reset patch when minor is incremented
+	} else if (hasFix) {
+		newPatch += 1;
+	}
 
 	return `${newMajor}.${newMinor}.${newPatch}`;
 }
