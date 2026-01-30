@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useSelector } from 'react-redux';
 import styled from 'styled-components';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
@@ -12,6 +13,7 @@ import {
 	useGetUserNotificationsQuery,
 	useUpdateNotificationMutation,
 	useDeleteNotificationMutation,
+	useAcceptInvitationMutation,
 	Notification,
 } from '../../../Redux/API/apiSlice';
 
@@ -29,12 +31,23 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = () => {
 		useUpdateNotificationMutation();
 	const [deleteNotification, { isLoading: isDeleting }] =
 		useDeleteNotificationMutation();
+	const [acceptInvitation, { isLoading: isAccepting }] =
+		useAcceptInvitationMutation();
+	const currentUser = useSelector((state: any) => state.user.currentUser);
 
 	const handleAcceptInvitation = async (notification: Notification) => {
 		setError('');
 		setSuccess('');
 
+		const invitationId = notification.data?.invitationId;
+		const userId = currentUser?.id;
+		if (!invitationId || !userId) {
+			setError('Missing invitation data. Please refresh and try again.');
+			return;
+		}
+
 		try {
+			await acceptInvitation({ invitationId, userId }).unwrap();
 			await updateNotification({
 				id: notification.id,
 				updates: { status: 'accepted' },
@@ -202,7 +215,7 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = () => {
 												<ActionButton
 													variant='accept'
 													onClick={() => handleAcceptInvitation(notification)}
-													disabled={isUpdating}
+													disabled={isUpdating || isAccepting}
 													title='Accept invitation'>
 													<FontAwesomeIcon icon={faCheckCircle} />
 													Accept

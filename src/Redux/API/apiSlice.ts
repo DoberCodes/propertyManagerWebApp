@@ -324,6 +324,8 @@ export const apiSlice = createApi({
 					// Fetch properties for each group
 					const groupsWithProperties = await Promise.all(
 						groups.map(async (group) => {
+							const isSharedGroup =
+								group.name?.toLowerCase() === 'shared properties';
 							// Get properties owned by user in this group
 							const propertiesQuery = query(
 								collection(db, 'properties'),
@@ -367,10 +369,10 @@ export const apiSlice = createApi({
 												...doc.data(),
 											}),
 										) as Property[];
-										// Only include shared properties that belong to this group
-										const groupSharedProperties = properties.filter(
-											(p) => p.groupId === group.id,
-										);
+										// Include all shared properties in the Shared Properties group
+										const groupSharedProperties = isSharedGroup
+											? properties
+											: properties.filter((p) => p.groupId === group.id);
 										sharedProperties.push(...groupSharedProperties);
 									}
 								}
@@ -1539,6 +1541,45 @@ export const apiSlice = createApi({
 						collection(db, 'userInvitations'),
 						invitationData,
 					);
+
+					// Create notification for recipient if user exists
+					const normalizedEmail = invitation.toEmail.toLowerCase();
+					const userQuery = query(
+						collection(db, 'users'),
+						where('email', '==', normalizedEmail),
+					);
+					const userSnapshot = await getDocs(userQuery);
+					const recipientDoc = userSnapshot.docs[0];
+
+					if (recipientDoc) {
+						const notificationData = {
+							userId: recipientDoc.id,
+							type: 'share_invitation',
+							title: 'Property Invitation',
+							message: `${invitation.fromUserEmail} invited you to access "${invitation.propertyTitle}"`,
+							data: {
+								invitationId: docRef.id,
+								propertyId: invitation.propertyId,
+								propertyTitle: invitation.propertyTitle,
+								fromUserId: invitation.fromUserId,
+								fromUserEmail: invitation.fromUserEmail,
+								permission: invitation.permission,
+							},
+							status: 'unread' as const,
+							createdAt: now.toISOString(),
+							updatedAt: now.toISOString(),
+						};
+
+						try {
+							await addDoc(collection(db, 'notifications'), notificationData);
+						} catch (notifError) {
+							console.error(
+								'Failed to create invitation notification:',
+								notifError,
+							);
+						}
+					}
+
 					return { data: { id: docRef.id, ...invitationData } };
 				} catch (error: any) {
 					return { error: error.message };
@@ -1588,6 +1629,24 @@ export const apiSlice = createApi({
 
 					// Update invitation status
 					await updateDoc(invitationRef, { status: 'accepted' });
+
+					// Ensure the recipient has a Shared Properties group
+					const sharedGroupName = 'Shared Properties';
+					const sharedGroupQuery = query(
+						collection(db, 'propertyGroups'),
+						where('userId', '==', userId),
+						where('name', '==', sharedGroupName),
+					);
+					const sharedGroupSnapshot = await getDocs(sharedGroupQuery);
+					if (sharedGroupSnapshot.empty) {
+						const nowIso = new Date().toISOString();
+						await addDoc(collection(db, 'propertyGroups'), {
+							userId,
+							name: sharedGroupName,
+							createdAt: nowIso,
+							updatedAt: nowIso,
+						});
+					}
 
 					// Create a notification for the user
 					const notificationData = {
