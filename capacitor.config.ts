@@ -1,9 +1,13 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.doberfamily.propertymanager',
-  appName: 'Property Manager',
-  webDir: 'build'
+	appId: 'com.doberfamily.propertymanager',
+	appName: 'Property Manager',
+	webDir: 'build',
+	server: {
+		baseUrl: '/',
+		cleartext: true,
+	},
 };
 
 export default config;
