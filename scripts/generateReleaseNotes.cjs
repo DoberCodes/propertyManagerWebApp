@@ -205,10 +205,22 @@ function main() {
 	const latestTag = getLatestTag();
 	console.log(`🏷️  Latest git tag: ${latestTag || 'none found'}\n`);
 
-	const commits = getGitCommits(latestTag);
+	let commits = getGitCommits(latestTag);
+
+	// Only include commits after the last 'release:' or 'Release:' commit
+	let lastReleaseIdx = -1;
+	for (let i = commits.length - 1; i >= 0; i--) {
+		if (/^release:/i.test(commits[i].subject.trim())) {
+			lastReleaseIdx = i;
+			break;
+		}
+	}
+	if (lastReleaseIdx !== -1) {
+		commits = commits.slice(lastReleaseIdx + 1);
+	}
 
 	if (commits.length === 0) {
-		console.log('ℹ️  No commits found since last release.');
+		console.log('ℹ️  No commits found since last release: prefix.');
 		console.log(
 			'\nSuggested version:',
 			incrementVersion(currentVersion, 'patch'),
@@ -217,7 +229,9 @@ function main() {
 		return;
 	}
 
-	console.log(`📊 Found ${commits.length} commits since last release\n`);
+	console.log(
+		`📊 Found ${commits.length} commits since last release: prefix\n`,
+	);
 
 	const result = generateReleaseNotes(commits, currentVersion);
 
