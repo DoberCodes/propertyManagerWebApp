@@ -1,3 +1,6 @@
+import React, { useState, useEffect } from 'react';
+import styled from 'styled-components';
+import {
 	shouldShowUpdateNotification,
 	dismissUpdateNotification,
 	downloadAPK,
@@ -201,7 +204,9 @@ interface UpdateNotificationProps {
  * <UpdateNotification />
  */
 
-export const UpdateNotification: React.FC<UpdateNotificationProps> = ({ onDismiss }) => {
+export const UpdateNotification: React.FC<UpdateNotificationProps> = ({
+	onDismiss,
+}) => {
 	const [show, setShow] = useState(false);
 	const [showHelp, setShowHelp] = useState(false);
 
@@ -228,6 +233,7 @@ export const UpdateNotification: React.FC<UpdateNotificationProps> = ({ onDismis
 		};
 	}, []);
 
+	// The handleDownload function is not related to push notifications, so it remains unchanged.
 	const handleDownload = async () => {
 		const confirmed = window.confirm(
 			'Before downloading:\n\n' +
