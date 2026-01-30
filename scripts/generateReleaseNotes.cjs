@@ -201,4 +201,18 @@ async function generateReleaseNotes() {
 	);
 }
 
+function formatReleaseNotes(commits, version) {
+	const notes = [`🎉 **Release Notes for Version ${version}** 🎉\n`];
+
+	const bugFixes = commits
+		.filter((commit) => commit.message.startsWith('fix:'))
+		.map((commit) => `- ${commit.message.replace(/^fix:/, '').trim()}`);
+
+	if (bugFixes.length > 0) {
+		notes.push('\n## 🐛 Bug Fixes', ...bugFixes);
+	}
+
+	return notes.join('\n');
+}
+
 generateReleaseNotes();
