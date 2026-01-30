@@ -22,6 +22,52 @@ const octokit = new Octokit({
 const owner = 'DoberCodes';
 const repo = 'propertyManagerWebApp';
 
+async function getCommitsFromPullRequests() {
+	try {
+		const { data: pullRequests } = await octokit.pulls.list({
+			owner,
+			repo,
+			state: 'closed',
+			per_page: 100,
+		});
+
+		return pullRequests
+			.filter((pr) => pr.merged_at !== null) // Only merged PRs
+			.map((pr) => ({
+				sha: pr.merge_commit_sha,
+				message: pr.title, // Use PR title as the commit message
+				author: pr.user.login,
+				date: pr.merged_at,
+			}));
+	} catch (error) {
+		console.error('Error fetching pull requests:', error);
+		return [];
+	}
+}
+
+async function calculateNextVersion(currentVersion, commits) {
+	const [major, minor, patch] = currentVersion.split('.').map(Number);
+	let newMajor = major;
+	let newMinor = minor;
+	let newPatch = patch;
+
+	commits.forEach((commit) => {
+		const message = commit.message.toLowerCase();
+		if (message.includes('breaking change:')) {
+			newMajor += 1;
+			newMinor = 0; // Reset minor and patch when major is incremented
+			newPatch = 0;
+		} else if (message.startsWith('feature:')) {
+			newMinor += 1;
+			newPatch = 0; // Reset patch when minor is incremented
+		} else if (message.startsWith('fix:')) {
+			newPatch += 1;
+		}
+	});
+
+	return `${newMajor}.${newMinor}.${newPatch}`;
+}
+
 async function getCommitsSinceLastTag() {
 	try {
 		// Fetch the latest release tag
@@ -45,12 +91,16 @@ async function getCommitsSinceLastTag() {
 			sha: latestTag,
 		});
 
-		return commits.map((commit) => ({
+		// Combine commits and pull request titles
+		const prCommits = await getCommitsFromPullRequests();
+		const allCommits = commits.map((commit) => ({
 			sha: commit.sha,
 			message: commit.commit.message,
 			author: commit.commit.author.name,
 			date: commit.commit.author.date,
 		}));
+
+		return [...allCommits, ...prCommits];
 	} catch (error) {
 		console.error('Error fetching commits:', error);
 		return [];
@@ -64,6 +114,9 @@ async function generateReleaseNotes() {
 		console.log('No commits found since the last tag.');
 		return;
 	}
+
+	// Calculate the next version
+	const nextVersion = await calculateNextVersion(packageJson.version, commits);
 
 	// Categorize commits
 	const features = [];
@@ -81,7 +134,7 @@ async function generateReleaseNotes() {
 	});
 
 	// Generate friendly release notes
-	let releaseNotes = `🎉 **Release Notes for Version ${packageJson.version}** 🎉\n\n`;
+	let releaseNotes = `🎉 **Release Notes for Version ${nextVersion}** 🎉\n\n`;
 
 	if (features.length > 0) {
 		releaseNotes += `## 🚀 New Features\n`;
@@ -114,7 +167,7 @@ async function generateReleaseNotes() {
 	console.log(
 		JSON.stringify(
 			{
-				version: packageJson.version,
+				version: nextVersion,
 				notes: releaseNotes,
 			},
 			null,
