@@ -26,4 +26,4 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 FIREBASE_RULES.md
-BUILD_APK.md
+BUILD_APK.mdmy-release-key.keystore

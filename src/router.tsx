@@ -7,6 +7,7 @@ import {
 } from 'react-router-dom';
 import { ErrorPage } from './pages/ErrorPage';
 import { UnauthorizedPage } from './pages/UnauthorizedPage';
+import { LandingPage } from './pages/LandingPage';
 import { LoginPage } from './pages/LoginPage';
 import { RegistrationPage } from './pages/RegistrationPage';
 import { ProtectedRoutes } from './ProtectedRoutes';
@@ -29,7 +30,7 @@ export const RouterComponent = () => {
 				{/* Public Routes */}
 				<Route
 					path='/'
-					element={<Navigate to='/login' replace />}
+					element={<LandingPage />}
 					errorElement={<ErrorPage />}
 				/>
 				<Route path='login' element={<LoginPage />} />

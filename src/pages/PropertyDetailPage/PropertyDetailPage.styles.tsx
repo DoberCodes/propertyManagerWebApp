@@ -301,6 +301,25 @@ export const SectionHeader = styled.h2`
 	font-weight: 600;
 	color: #333;
 	margin: 0 0 20px 0;
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+`;
+
+export const AddButton = styled.button`
+	padding: 8px 16px;
+	background-color: #22c55e;
+	color: white;
+	border: none;
+	border-radius: 4px;
+	font-size: 14px;
+	font-weight: 500;
+	cursor: pointer;
+	transition: all 0.2s ease;
+
+	&:hover {
+		background-color: #16a34a;
+	}
 `;
 
 export const InfoGrid = styled.div`

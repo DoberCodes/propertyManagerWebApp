@@ -38,6 +38,7 @@ import {
 	TaskData,
 } from '../../Components/Library/ConvertRequestToTaskModal';
 import { SharePropertyModal } from '../../Components/Library/SharePropertyModal';
+import { AddTenantModal } from '../../Components/Library/AddTenantModal';
 import {
 	Wrapper,
 	Header,
@@ -57,6 +58,7 @@ import {
 	InfoValue,
 	SectionHeader,
 	SectionContainer,
+	AddButton,
 	DevicesGrid,
 	DeviceCard,
 	DeviceField,
@@ -153,6 +155,7 @@ export const PropertyDetailPage = () => {
 	const [showTaskCompletionModal, setShowTaskCompletionModal] = useState(false);
 	const [completingTaskId, setCompletingTaskId] = useState<string | null>(null);
 	const [showShareModal, setShowShareModal] = useState(false);
+	const [showAddTenantModal, setShowAddTenantModal] = useState(false);
 	const [taskFormData, setTaskFormData] = useState({
 		title: '',
 		dueDate: '',
@@ -1171,7 +1174,14 @@ export const PropertyDetailPage = () => {
 			{activeTab === 'tenants' && !hasCommercialSuites && (
 				<TabContent>
 					<SectionContainer>
-						<SectionHeader>Property Tenants</SectionHeader>
+						<SectionHeader>
+							Property Tenants
+							{currentUser && !isTenant(currentUser.role as UserRole) && (
+								<AddButton onClick={() => setShowAddTenantModal(true)}>
+									+ Add Tenant
+								</AddButton>
+							)}
+						</SectionHeader>
 
 						{(property as any).tenants &&
 						(property as any).tenants.length > 0 ? (
@@ -1712,6 +1722,15 @@ export const PropertyDetailPage = () => {
 					propertyTitle={property.title}
 					ownerId={currentUser!.id}
 					ownerEmail={currentUser!.email}
+				/>
+			)}
+
+			{/* Add Tenant Modal */}
+			{property && (
+				<AddTenantModal
+					open={showAddTenantModal}
+					onClose={() => setShowAddTenantModal(false)}
+					propertyId={property.id}
 				/>
 			)}
 		</Wrapper>

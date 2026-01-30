@@ -1600,6 +1600,82 @@ export const apiSlice = createApi({
 			},
 			providesTags: ['UserInvitations'],
 		}),
+
+		addTenant: builder.mutation<
+			void,
+			{
+				propertyId: string;
+				firstName: string;
+				lastName: string;
+				email: string;
+				phone?: string;
+				unit?: string;
+				leaseStart?: string;
+				leaseEnd?: string;
+			}
+		>({
+			async queryFn(tenantData) {
+				try {
+					const propertyRef = doc(db, 'properties', tenantData.propertyId);
+					const propertySnap = await getDoc(propertyRef);
+
+					if (!propertySnap.exists()) {
+						return { error: 'Property not found' };
+					}
+
+					const property = propertySnap.data();
+					const tenants = property.tenants || [];
+
+					const newTenant = {
+						id: `tenant_${Date.now()}`,
+						firstName: tenantData.firstName,
+						lastName: tenantData.lastName,
+						email: tenantData.email,
+						phone: tenantData.phone || '',
+						unit: tenantData.unit || '',
+						leaseStart: tenantData.leaseStart || '',
+						leaseEnd: tenantData.leaseEnd || '',
+						createdAt: new Date().toISOString(),
+					};
+
+					tenants.push(newTenant);
+					await updateDoc(propertyRef, { tenants });
+
+					return { data: undefined };
+				} catch (error: any) {
+					return { error: error.message };
+				}
+			},
+			invalidatesTags: ['Properties'],
+		}),
+
+		removeTenant: builder.mutation<
+			void,
+			{ propertyId: string; tenantId: string }
+		>({
+			async queryFn({ propertyId, tenantId }) {
+				try {
+					const propertyRef = doc(db, 'properties', propertyId);
+					const propertySnap = await getDoc(propertyRef);
+
+					if (!propertySnap.exists()) {
+						return { error: 'Property not found' };
+					}
+
+					const property = propertySnap.data();
+					const tenants = (property.tenants || []).filter(
+						(t: any) => t.id !== tenantId,
+					);
+
+					await updateDoc(propertyRef, { tenants });
+
+					return { data: undefined };
+				} catch (error: any) {
+					return { error: error.message };
+				}
+			},
+			invalidatesTags: ['Properties'],
+		}),
 	}),
 });
 
@@ -1672,4 +1748,7 @@ export const {
 	useRejectInvitationMutation,
 	useCancelInvitationMutation,
 	useGetPropertyInvitationsQuery,
+	// Tenants
+	useAddTenantMutation,
+	useRemoveTenantMutation,
 } = apiSlice;

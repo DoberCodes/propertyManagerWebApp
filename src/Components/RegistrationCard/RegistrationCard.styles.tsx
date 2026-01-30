@@ -1,142 +1,186 @@
 import styled from 'styled-components';
+import { COLORS } from '../../constants/colors';
 
 export const Wrapper = styled.form`
 	display: grid;
 	justify-content: center;
 	align-items: center;
-	padding: 10px;
-	border: 1px solid black;
-	border-radius: 10px;
-	background-color: white;
+	padding: 32px 24px;
+	border: none;
+	border-radius: 12px;
+	background-color: ${COLORS.bgWhite};
 	width: 100%;
-	max-width: 400px;
+	max-width: 420px;
+	box-shadow: ${COLORS.shadowLg};
+	position: relative;
+	z-index: 10;
 
 	@media (max-width: 768px) {
-		max-width: 350px;
-		padding: 8px;
+		max-width: 380px;
+		padding: 28px 20px;
+		border-radius: 10px;
 	}
 
 	@media (max-width: 480px) {
 		max-width: 100%;
-		padding: 8px;
-		border-radius: 5px;
+		padding: 20px 16px;
+		border-radius: 8px;
+		margin: 10px;
 	}
 `;
 
 export const BackButton = styled.a`
-	padding: 10px;
+	padding: 10px 0;
 
 	@media (max-width: 480px) {
-		padding: 8px;
+		padding: 8px 0;
 		font-size: 14px;
 	}
 `;
 
 export const Title = styled.h2`
-	font-size: 26px;
-	font-weight: 700;
-	margin: 10px auto 20px auto;
-	text-decoration: underline;
+	font-size: 32px;
+	font-weight: 800;
+	margin: 0 auto 28px auto;
+	text-decoration: none;
 	text-align: center;
-	color: #333;
+	background: ${COLORS.gradientPrimary};
+	-webkit-background-clip: text;
+	-webkit-text-fill-color: transparent;
+	background-clip: text;
+	letter-spacing: 0.5px;
 
 	@media (max-width: 768px) {
-		font-size: 20px;
-		margin: 10px auto 18px auto;
+		font-size: 28px;
+		margin: 0 auto 24px auto;
 	}
 
 	@media (max-width: 480px) {
-		font-size: 17px;
-		margin: 8px auto 16px auto;
+		font-size: 24px;
+		margin: 0 auto 20px auto;
 	}
 `;
 
 export const Input = styled.input`
-	padding: 12px 12px;
+	padding: 12px 14px;
 	font-size: 16px;
-	margin: 8px 0;
-	border: 1px solid #ddd;
-	border-radius: 4px;
-	width: calc(100% - 24px);
+	margin: 10px 0;
+	border: 1.5px solid ${COLORS.gray200};
+	border-radius: 6px;
+	width: 100%;
 	box-sizing: border-box;
-	transition: border-color 0.2s;
+	transition: all 0.2s ease;
+	background-color: ${COLORS.gray50};
 
 	&:focus {
 		outline: none;
-		border-color: #3498db;
-		box-shadow: 0 0 4px rgba(52, 152, 219, 0.3);
+		border-color: ${COLORS.primary};
+		box-shadow: 0 0 0 3px ${COLORS.primaryLight};
+		background-color: ${COLORS.bgWhite};
 	}
 
 	&:hover {
-		border-color: #999;
+		border-color: ${COLORS.gray300};
+		background-color: ${COLORS.bgWhite};
 	}
 
 	@media (max-width: 768px) {
-		padding: 11px 11px;
+		padding: 11px 13px;
 		font-size: 15px;
-		margin: 7px 0;
+		margin: 9px 0;
 	}
 
 	@media (max-width: 480px) {
-		padding: 10px 10px;
+		padding: 10px 12px;
 		font-size: 14px;
-		margin: 6px 0;
-		width: calc(100% - 20px);
+		margin: 8px 0;
 	}
 `;
 
 export const Submit = styled.button`
-	margin: 20px auto;
-	font-size: 18px;
-	padding: 5px 20px;
-	border-radius: 5px;
-	border: 1px solid gray;
+	margin: 24px auto 0 auto;
+	font-size: 16px;
+	padding: 12px 32px;
+	border-radius: 6px;
+	border: none;
+	background: ${COLORS.gradientPrimary};
+	color: white;
+	font-weight: 600;
+	cursor: pointer;
+	transition: all 0.2s ease;
+	box-shadow: 0 4px 6px rgba(16, 185, 129, 0.25);
 
 	&:hover {
-		border-color: black;
-		cursor: pointer;
+		background: linear-gradient(
+			135deg,
+			${COLORS.primaryDark} 0%,
+			${COLORS.primaryDarker} 100%
+		);
+		box-shadow: 0 6px 12px rgba(16, 185, 129, 0.35);
+		transform: translateY(-2px);
+	}
+
+	&:active {
+		transform: translateY(0);
+	}
+
+	&:disabled {
+		opacity: 0.6;
+		cursor: not-allowed;
 	}
 
 	@media (max-width: 768px) {
-		font-size: 16px;
-		padding: 4px 15px;
-		margin: 15px auto;
+		font-size: 15px;
+		padding: 10px 28px;
+		margin: 20px auto 0 auto;
 	}
 
 	@media (max-width: 480px) {
 		font-size: 14px;
-		padding: 4px 12px;
-		margin: 10px auto;
+		padding: 10px 24px;
+		margin: 16px auto 0 auto;
 	}
 `;
 
 export const RegisterWrapper = styled.div`
+	margin: 28px 0 0 0;
+	text-align: center;
+	font-size: 15px;
+	color: ${COLORS.textSecondary};
+
 	span {
-		color: #10b981;
+		color: ${COLORS.primary};
+		font-weight: 600;
+		cursor: pointer;
+		transition: color 0.2s ease;
+
 		&:hover {
-			color: #059669;
-			cursor: pointer;
+			color: ${COLORS.primaryDark};
+			text-decoration: underline;
 		}
 	}
 
 	@media (max-width: 768px) {
+		margin: 24px 0 0 0;
 		font-size: 14px;
 	}
 
 	@media (max-width: 480px) {
-		font-size: 12px;
+		margin: 20px 0 0 0;
+		font-size: 13px;
 	}
 `;
 
 export const ErrorMessage = styled.div`
 	background-color: #fee;
-	border: 1px solid #fcc;
-	color: #c33;
+	border: 1px solid ${COLORS.error};
+	color: ${COLORS.errorDark};
 	padding: 12px;
-	border-radius: 4px;
+	border-radius: 6px;
 	margin-bottom: 16px;
 	font-size: 14px;
 	width: 100%;
+	font-weight: 500;
 
 	@media (max-width: 768px) {
 		padding: 10px;
@@ -152,8 +196,8 @@ export const ErrorMessage = styled.div`
 `;
 
 export const LoadingSpinner = styled.div`
-	border: 3px solid #f3f3f3;
-	border-top: 3px solid #3498db;
+	border: 3px solid ${COLORS.gray100};
+	border-top: 3px solid ${COLORS.primary};
 	border-radius: 50%;
 	width: 20px;
 	height: 20px;
@@ -176,32 +220,39 @@ export const PasswordInputWrapper = styled.div`
 	position: relative;
 	display: flex;
 	align-items: center;
-	margin: 10px;
+	margin: 10px 0;
+	width: 100%;
+
+	input[type='password'],
+	input[type='text'] {
+		padding-right: 45px;
+	}
 
 	@media (max-width: 768px) {
-		margin: 8px;
+		margin: 8px 0;
 	}
 
 	@media (max-width: 480px) {
-		margin: 6px;
+		margin: 6px 0;
 	}
 `;
 
 export const PasswordToggleButton = styled.button`
 	position: absolute;
-	right: 15px;
+	right: 12px;
 	background: none;
 	border: none;
 	cursor: pointer;
-	color: #666;
+	color: ${COLORS.gray500};
 	font-size: 18px;
-	padding: 5px 10px;
+	padding: 8px 12px;
 	display: flex;
 	align-items: center;
 	justify-content: center;
+	transition: color 0.2s ease;
 
 	&:hover {
-		color: #333;
+		color: ${COLORS.gray700};
 	}
 
 	&:focus {
@@ -210,12 +261,12 @@ export const PasswordToggleButton = styled.button`
 
 	@media (max-width: 768px) {
 		font-size: 16px;
-		right: 12px;
+		right: 10px;
 	}
 
 	@media (max-width: 480px) {
 		font-size: 14px;
 		right: 10px;
-		padding: 4px 8px;
+		padding: 6px 10px;
 	}
 `;
