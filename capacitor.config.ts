@@ -5,7 +5,6 @@ const config: CapacitorConfig = {
 	appName: 'Property Manager',
 	webDir: 'build',
 	server: {
-		baseUrl: '/',
 		cleartext: true,
 	},
 };
