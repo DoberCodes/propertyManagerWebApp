@@ -5,6 +5,7 @@ import { RouterComponent } from './router';
 import { DataFetchProvider } from './Hooks/DataFetchContext';
 import { onAuthStateChange } from './services/authService';
 import { UpdateNotification } from './Components/UpdateNotification/UpdateNotification';
+import { checkForUpdates } from './utils/versionCheck';
 import styled from 'styled-components';
 
 const LoadingContainer = styled.div`
@@ -69,6 +70,18 @@ export const App = () => {
 			// Auth check is complete - stop showing loading state
 			dispatch(setAuthLoading(false));
 		});
+
+		// Check for app updates after auth is initialized
+		const initVersionCheck = async () => {
+			try {
+				await checkForUpdates();
+			} catch (error) {
+				console.error('Error checking for updates:', error);
+			}
+		};
+
+		// Check for updates when app mounts
+		initVersionCheck();
 
 		// Cleanup subscription on unmount
 		return () => {

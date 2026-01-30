@@ -1,6 +1,51 @@
-# Firestore Seeding Script
+# Firestore Scripts
 
-This directory contains scripts for populating your Firestore database with mock data.
+This directory contains scripts for managing your Firestore database.
+
+## Available Scripts
+
+### 1. Seed Mock Data
+
+Populate Firestore with mock data for development/testing.
+
+```bash
+npm run seed:firebase
+```
+
+### 2. Initialize App Version (New!)
+
+Create the initial app version document in Firestore for the update notification system.
+
+```bash
+node scripts/initAppVersion.cjs
+```
+
+This creates an `appConfig/version` document with:
+
+- version: "1.0.0"
+- releaseDate: current timestamp
+- releaseNotes: description of the release
+
+**Run this once before building your first APK with the update system.**
+
+### 3. Update App Version (New!)
+
+Update the app version in Firestore when releasing a new APK.
+
+```bash
+node scripts/updateAppVersion.cjs <version> [release notes]
+```
+
+Examples:
+
+```bash
+node scripts/updateAppVersion.cjs 1.0.1 "Bug fixes and performance improvements"
+node scripts/updateAppVersion.cjs 1.1.0 "New features: Task assignment and property groups"
+```
+
+When you update the version in Firestore, users on older versions will automatically see the update notification banner prompting them to download the new APK.
+
+---
 
 ## Data Source
 

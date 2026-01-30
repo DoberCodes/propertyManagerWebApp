@@ -47,7 +47,7 @@
 		"init:firestore": "node scripts/initFirestore.cjs",
 		"cap:sync": "yarn build && npx cap sync android",
 		"cap:open": "npx cap open android",
-		"build:apk": "yarn build && npx cap sync android"
+		"build:apk": "node scripts/initAppVersion.cjs && yarn build && npx cap sync android"
 	},
 	"eslintConfig": {
 		"extends": [
@@ -75,6 +75,7 @@
 		"@types/react-is": "^18",
 		"@typescript-eslint/parser": "^6.17.0",
 		"dotenv": "^17.2.3",
+		"firebase-admin": "^13.6.0",
 		"gh-pages": "^6.1.1"
 	}
 }

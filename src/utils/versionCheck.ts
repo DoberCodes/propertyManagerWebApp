@@ -10,6 +10,9 @@
  * - Trigger download: downloadAPK()
  */
 
+import { store } from '../Redux/Store/store';
+import { apiSlice } from '../Redux/API/apiSlice';
+
 const CURRENT_APP_VERSION = '1.0.0'; // Should match package.json version
 const STORAGE_KEY = 'app_version_check';
 const DISMISS_KEY = 'app_update_dismissed';
@@ -153,19 +156,25 @@ export const getCurrentAppVersion = (): string => {
 
 /**
  * Check for updates from server (can be called periodically)
- * In a real app, this would hit your backend API endpoint
- * For now, it's a placeholder for future implementation
+ * Fetches the latest version from Firebase and checks if update is available
  */
 export const checkForUpdates = async (): Promise<boolean> => {
 	try {
-		// TODO: Implement backend API call to check for newer version
-		// Example implementation:
-		// const response = await fetch('/api/app/version');
-		// const data = await response.json();
-		// if (data.version) {
-		//   setAvailableVersion(data.version);
-		//   return shouldShowUpdateNotification();
-		// }
+		// Dispatch the API call to check for latest version
+		const result = await store.dispatch(
+			apiSlice.endpoints.getAppVersion.initiate(),
+		);
+
+		if (result.data && result.data.version) {
+			const latestVersion = result.data.version;
+
+			// Only set if the version is different
+			if (latestVersion !== CURRENT_APP_VERSION) {
+				setAvailableVersion(latestVersion);
+				return shouldShowUpdateNotification();
+			}
+		}
+
 		return false;
 	} catch (error) {
 		console.error('Error checking for updates:', error);

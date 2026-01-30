@@ -1870,6 +1870,40 @@ export const apiSlice = createApi({
 			},
 			invalidatesTags: ['Properties'],
 		}),
+
+		// App Version
+		getAppVersion: builder.query<
+			{ version: string; releaseDate?: string; releaseNotes?: string },
+			void
+		>({
+			async queryFn() {
+				try {
+					const versionDoc = await getDoc(doc(db, 'appConfig', 'version'));
+
+					if (!versionDoc.exists()) {
+						// Return default version if not configured yet
+						return {
+							data: {
+								version: '1.0.0',
+								releaseDate: new Date().toISOString(),
+								releaseNotes: 'Initial release',
+							},
+						};
+					}
+
+					const data = versionDoc.data();
+					return {
+						data: {
+							version: data.version || '1.0.0',
+							releaseDate: data.releaseDate,
+							releaseNotes: data.releaseNotes,
+						},
+					};
+				} catch (error: any) {
+					return { error: error.message };
+				}
+			},
+		}),
 	}),
 });
 
@@ -1952,4 +1986,6 @@ export const {
 	useDeleteNotificationMutation,
 	// Users
 	useGetUserByEmailQuery,
+	// App Version
+	useGetAppVersionQuery,
 } = apiSlice;
