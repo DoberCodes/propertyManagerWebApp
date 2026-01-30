@@ -6,6 +6,8 @@ export const Wrapper = styled.div`
 	flex-direction: column;
 	width: 100%;
 	height: 100vh; /* Ensure full viewport height */
+	padding-top: env(safe-area-inset-top);
+	padding-bottom: env(safe-area-inset-bottom);
 
 	@media (max-width: 1024px) {
 		width: 100%;

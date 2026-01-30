@@ -1,6 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import {
+	faArrowLeft,
+	faEllipsisV,
+	faCamera,
+} from '@fortawesome/free-solid-svg-icons';
 import { RootState, AppDispatch } from '../../Redux/Store/store';
 import {
 	useGetTasksQuery,
@@ -143,6 +149,7 @@ export const PropertyDetailPage = () => {
 	const [isEditingTitle, setIsEditingTitle] = useState(false);
 	const [editedTitle, setEditedTitle] = useState('');
 	const [isEditMode, setIsEditMode] = useState(false);
+	const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
 	const [editedProperty, setEditedProperty] = useState<any>({});
 	const [isUploadingImage, setIsUploadingImage] = useState(false);
 	const [imageError, setImageError] = useState<string | null>(null);
@@ -565,7 +572,9 @@ export const PropertyDetailPage = () => {
 	return (
 		<Wrapper>
 			<Header style={{ backgroundImage: `url(${property.image})` }}>
-				<BackButton onClick={() => navigate('/manage')}>← Back</BackButton>
+				<BackButton onClick={() => navigate('/manage')} title='Go back'>
+					<FontAwesomeIcon icon={faArrowLeft} />
+				</BackButton>
 				{imageError && (
 					<div
 						style={{
@@ -592,33 +601,14 @@ export const PropertyDetailPage = () => {
 						}}>
 						Uploading image...
 					</div>
-				) : (
-					<label
-						htmlFor='header-photo-upload'
-						style={{
-							position: 'absolute',
-							top: '20px',
-							right: '20px',
-							zIndex: 10,
-							background: 'rgba(0, 0, 0, 0.6)',
-							color: 'white',
-							border: 'none',
-							padding: '8px 16px',
-							borderRadius: '4px',
-							cursor: 'pointer',
-							fontSize: '14px',
-						}}
-						title='Click to upload property image'>
-						📷 Change Photo
-						<input
-							id='header-photo-upload'
-							type='file'
-							accept='image/*'
-							onChange={handlePhotoUpload}
-							style={{ display: 'none' }}
-						/>
-					</label>
-				)}
+				) : null}
+				<input
+					id='header-photo-upload'
+					type='file'
+					accept='image/*'
+					onChange={handlePhotoUpload}
+					style={{ display: 'none' }}
+				/>
 				<HeaderContent>
 					<TitleContainer>
 						{isEditingTitle ? (
@@ -639,42 +629,207 @@ export const PropertyDetailPage = () => {
 							✎
 						</PencilIcon>
 					</TitleContainer>
-					<FavoriteButton
-						onClick={() =>
-							toggleFavorite({
-								id: property.id,
-								title: property.title,
-								slug: property.slug,
-							})
-						}
-						style={{
-							display:
-								currentUser && !isTenant(currentUser.role as UserRole)
-									? 'block'
-									: 'none',
-						}}>
-						{isFav ? '★ Favorited' : '☆ Add to Favorites'}
-					</FavoriteButton>
-					{currentUser && isTenant(currentUser.role as UserRole) && (
-						<FavoriteButton
-							onClick={() => setShowMaintenanceRequestModal(true)}
-							style={{ backgroundColor: '#f39c12' }}>
-							🔧 Request Maintenance
-						</FavoriteButton>
+					{/* 3-dot menu for mobile */}
+					{currentUser && (
+						<div
+							style={{
+								position: 'absolute',
+								top: '12px',
+								right: '12px',
+								display: 'none',
+								zIndex: 100,
+							}}
+							className='mobile-action-menu'>
+							<button
+								onClick={() => setIsActionMenuOpen(!isActionMenuOpen)}
+								style={{
+									background: 'none',
+									border: 'none',
+									padding: '8px 12px',
+									borderRadius: '4px',
+									cursor: 'pointer',
+									fontSize: '20px',
+									color: 'white',
+									zIndex: 3,
+								}}
+								title='More options'>
+								<FontAwesomeIcon icon={faEllipsisV} />
+							</button>
+							{isActionMenuOpen && (
+								<div
+									style={{
+										position: 'absolute',
+										top: '40px',
+										right: '0',
+										background: '#ffffff',
+										border: '1px solid #e5e7eb',
+										borderRadius: '6px',
+										boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+										minWidth: '220px',
+										zIndex: 1002,
+										overflow: 'hidden',
+									}}>
+									{!isTenant(currentUser.role as UserRole) && (
+										<button
+											onClick={() => {
+												toggleFavorite({
+													id: property.id,
+													title: property.title,
+													slug: property.slug,
+												});
+												setIsActionMenuOpen(false);
+											}}
+											style={{
+												width: '100%',
+												padding: '12px 16px',
+												border: 'none',
+												background: 'none',
+												textAlign: 'left',
+												cursor: 'pointer',
+												fontSize: '14px',
+												color: '#1a1a1a',
+												transition: 'background-color 0.2s ease',
+												borderBottom: '1px solid #f0f0f0',
+											}}
+											onMouseEnter={(e) =>
+												(e.currentTarget.style.backgroundColor = '#f3f4f6')
+											}
+											onMouseLeave={(e) =>
+												(e.currentTarget.style.backgroundColor = 'transparent')
+											}>
+											{isFav ? '★ Favorited' : '☆ Add to Favorites'}
+										</button>
+									)}
+									{isTenant(currentUser.role as UserRole) && (
+										<button
+											onClick={() => {
+												setShowMaintenanceRequestModal(true);
+												setIsActionMenuOpen(false);
+											}}
+											style={{
+												width: '100%',
+												padding: '12px 16px',
+												border: 'none',
+												background: 'none',
+												textAlign: 'left',
+												cursor: 'pointer',
+												fontSize: '14px',
+												color: '#1a1a1a',
+												transition: 'background-color 0.2s ease',
+												borderBottom: '1px solid #f0f0f0',
+											}}
+											onMouseEnter={(e) =>
+												(e.currentTarget.style.backgroundColor = '#f3f4f6')
+											}
+											onMouseLeave={(e) =>
+												(e.currentTarget.style.backgroundColor = 'transparent')
+											}>
+											🔧 Request Maintenance
+										</button>
+									)}
+									{property &&
+										propertyGroups.some(
+											(group) =>
+												group.id === property.groupId &&
+												group.userId === currentUser.id,
+										) && (
+											<button
+												onClick={() => {
+													setShowShareModal(true);
+													setIsActionMenuOpen(false);
+												}}
+												style={{
+													width: '100%',
+													padding: '12px 16px',
+													border: 'none',
+													background: 'none',
+													textAlign: 'left',
+													cursor: 'pointer',
+													fontSize: '14px',
+													color: '#1a1a1a',
+													transition: 'background-color 0.2s ease',
+												}}
+												onMouseEnter={(e) =>
+													(e.currentTarget.style.backgroundColor = '#f3f4f6')
+												}
+												onMouseLeave={(e) =>
+													(e.currentTarget.style.backgroundColor =
+														'transparent')
+												}>
+												👥 Share Property
+											</button>
+										)}
+									{!isUploadingImage && (
+										<label
+											htmlFor='header-photo-upload'
+											style={{
+												width: '100%',
+												padding: '12px 16px',
+												border: 'none',
+												background: 'none',
+												textAlign: 'left',
+												cursor: 'pointer',
+												fontSize: '14px',
+												color: '#1a1a1a',
+												transition: 'background-color 0.2s ease',
+												display: 'block',
+											}}
+											onMouseEnter={(e) =>
+												(e.currentTarget.style.backgroundColor = '#f3f4f6')
+											}
+											onMouseLeave={(e) =>
+												(e.currentTarget.style.backgroundColor = 'transparent')
+											}
+											title='Click to upload property image'>
+											<FontAwesomeIcon
+												icon={faCamera}
+												style={{ marginRight: '8px' }}
+											/>
+											Change Photo
+										</label>
+									)}
+								</div>
+							)}
+						</div>
 					)}
-					{currentUser &&
-						property &&
-						propertyGroups.some(
-							(group) =>
-								group.id === property.groupId &&
-								group.userId === currentUser.id,
-						) && (
+					<div style={{ display: 'contents' }} className='desktop-actions'>
+						<FavoriteButton
+							onClick={() =>
+								toggleFavorite({
+									id: property.id,
+									title: property.title,
+									slug: property.slug,
+								})
+							}
+							style={{
+								display:
+									currentUser && !isTenant(currentUser.role as UserRole)
+										? 'block'
+										: 'none',
+							}}>
+							{isFav ? '★ Favorited' : '☆ Add to Favorites'}
+						</FavoriteButton>
+						{currentUser && isTenant(currentUser.role as UserRole) && (
 							<FavoriteButton
-								onClick={() => setShowShareModal(true)}
-								style={{ backgroundColor: '#3498db' }}>
-								👥 Share Property
+								onClick={() => setShowMaintenanceRequestModal(true)}
+								style={{ backgroundColor: '#f39c12' }}>
+								🔧 Request Maintenance
 							</FavoriteButton>
 						)}
+						{currentUser &&
+							property &&
+							propertyGroups.some(
+								(group) =>
+									group.id === property.groupId &&
+									group.userId === currentUser.id,
+							) && (
+								<FavoriteButton
+									onClick={() => setShowShareModal(true)}
+									style={{ backgroundColor: '#3498db' }}>
+									👥 Share Property
+								</FavoriteButton>
+							)}
+					</div>
 				</HeaderContent>
 			</Header>
 
@@ -1733,6 +1888,27 @@ export const PropertyDetailPage = () => {
 					propertyId={property.id}
 				/>
 			)}
+
+			<style>{`
+				.desktop-actions {
+					display: flex;
+					gap: 12px;
+				}
+
+				.mobile-action-menu {
+					display: none !important;
+				}
+
+				@media (max-width: 480px) {
+					.desktop-actions {
+						display: none !important;
+					}
+
+					.mobile-action-menu {
+						display: block !important;
+					}
+				}
+			`}</style>
 		</Wrapper>
 	);
 };

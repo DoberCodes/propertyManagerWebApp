@@ -17,6 +17,8 @@ export const Wrapper = styled.div`
 		${COLORS.gray50} 100%
 	);
 	padding: 0 20px;
+	padding-left: max(20px, env(safe-area-inset-left));
+	padding-right: max(20px, env(safe-area-inset-right));
 	overflow: visible;
 	position: relative;
 	z-index: 100;
@@ -24,10 +26,14 @@ export const Wrapper = styled.div`
 
 	@media (max-width: 768px) {
 		padding: 0 15px;
+		padding-left: max(15px, env(safe-area-inset-left));
+		padding-right: max(15px, env(safe-area-inset-right));
 	}
 
 	@media (max-width: 480px) {
 		padding: 0 10px;
+		padding-left: max(10px, env(safe-area-inset-left));
+		padding-right: max(10px, env(safe-area-inset-right));
 	}
 `;
 
@@ -75,7 +81,7 @@ export const RightSection = styled.div`
 	gap: 20px;
 
 	.mobile-profile {
-		display: none;
+		display: none; /* Hide profile dropdown on mobile - it's now in hamburger menu */
 	}
 
 	.desktop-title {
@@ -87,7 +93,7 @@ export const RightSection = styled.div`
 		justify-content: flex-end;
 
 		.mobile-profile {
-			display: flex;
+			display: none; /* Keep hidden on mobile */
 		}
 
 		.desktop-title {
@@ -204,6 +210,7 @@ export const MobileSidebar = styled.div<{ isOpen: boolean }>`
 	height: calc(100vh - 60px - 70px);
 	background-color: #fefefe;
 	overflow-y: auto;
+	overflow-x: hidden;
 	z-index: 1000;
 	box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
 	transform: ${(props) =>

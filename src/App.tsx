@@ -2,10 +2,9 @@ import React, { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { setCurrentUser, setAuthLoading } from './Redux/Slices/userSlice';
 import { RouterComponent } from './router';
-import { FirebaseConnectionTest } from './Components/FirebaseConnectionTest';
 import { DataFetchProvider } from './Hooks/DataFetchContext';
 import { onAuthStateChange } from './services/authService';
-import { DebugConsole } from './Components/DebugConsole/DebugConsole';
+import { UpdateNotification } from './Components/UpdateNotification/UpdateNotification';
 import styled from 'styled-components';
 
 const LoadingContainer = styled.div`
@@ -92,7 +91,7 @@ export const App = () => {
 	try {
 		return (
 			<>
-				<DebugConsole />
+				<UpdateNotification />
 				<DataFetchProvider>
 					<RouterComponent />
 				</DataFetchProvider>

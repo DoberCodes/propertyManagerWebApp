@@ -15,6 +15,78 @@ export const DesktopWrapper = styled.div`
 	}
 `;
 
+export const ProfileSection = styled.div`
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	padding: 24px 20px;
+	border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+	gap: 12px;
+	background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+`;
+
+export const ProfileImage = styled.img`
+	width: 60px;
+	height: 60px;
+	border-radius: 50%;
+	border: 3px solid #22c55e;
+	object-fit: cover;
+`;
+
+export const ProfileInfo = styled.div`
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 4px;
+`;
+
+export const ProfileName = styled.div`
+	font-size: 16px;
+	font-weight: 600;
+	color: #1a1a1a;
+	text-align: center;
+`;
+
+export const ProfileRole = styled.div`
+	font-size: 12px;
+	color: #666666;
+	text-transform: uppercase;
+	letter-spacing: 0.5px;
+`;
+
+export const ProfileActions = styled.div`
+	display: flex;
+	flex-direction: column;
+	width: 100%;
+	gap: 8px;
+	margin-top: 8px;
+`;
+
+export const ProfileButton = styled.button<{ variant?: 'primary' | 'danger' }>`
+	width: 100%;
+	padding: 10px 16px;
+	border: none;
+	border-radius: 6px;
+	font-size: 13px;
+	font-weight: 600;
+	cursor: pointer;
+	transition: all 0.2s ease;
+	background: ${(props) =>
+		props.variant === 'danger' ? '#ef4444' : '#22c55e'};
+	color: white;
+
+	&:hover {
+		background: ${(props) =>
+			props.variant === 'danger' ? '#dc2626' : '#16a34a'};
+		transform: translateY(-1px);
+		box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+	}
+
+	&:active {
+		transform: translateY(0);
+	}
+`;
+
 export const MobileBottomNav = styled.div`
 	display: flex;
 	position: fixed;
@@ -26,6 +98,9 @@ export const MobileBottomNav = styled.div`
 	flex-direction: row;
 	justify-content: space-around;
 	padding: 8px 0;
+	padding-bottom: max(8px, env(safe-area-inset-bottom));
+	padding-left: env(safe-area-inset-left);
+	padding-right: env(safe-area-inset-right);
 	z-index: 100;
 	box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1);
 

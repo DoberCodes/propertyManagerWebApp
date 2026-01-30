@@ -1,7 +1,8 @@
 import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../../../../Redux/Store/store';
+import { logout } from '../../../../Redux/Slices/userSlice';
 import {
 	canManageTeamMembers,
 	canManageProperties,
@@ -13,6 +14,13 @@ import { useFavorites } from '../../../../Hooks/useFavorites';
 import { UserRole } from '../../../../constants/roles';
 import {
 	DesktopWrapper,
+	ProfileSection,
+	ProfileImage,
+	ProfileInfo,
+	ProfileName,
+	ProfileRole,
+	ProfileActions,
+	ProfileButton,
 	MenuSection,
 	SectionTitle,
 	MenuNav,
@@ -27,9 +35,15 @@ import {
 export const SideNav = () => {
 	const location = useLocation();
 	const navigate = useNavigate();
+	const dispatch = useDispatch();
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
 	const { recentProperties } = useRecentlyViewed(currentUser!.id);
 	const { favorites } = useFavorites(currentUser!.id);
+
+	const handleLogout = () => {
+		dispatch(logout());
+		navigate('/login');
+	};
 
 	// Check permissions
 	const canAccessTeam = currentUser
@@ -88,6 +102,30 @@ export const SideNav = () => {
 
 	return (
 		<DesktopWrapper>
+			{/* Profile Section */}
+			<ProfileSection>
+				<ProfileImage
+					src={currentUser?.image || 'https://via.placeholder.com/60'}
+					alt={`${currentUser?.firstName} ${currentUser?.lastName}` || 'User'}
+				/>
+				<ProfileInfo>
+					<ProfileName>
+						{currentUser?.firstName && currentUser?.lastName
+							? `${currentUser.firstName} ${currentUser.lastName}`
+							: currentUser?.email || 'User'}
+					</ProfileName>
+					<ProfileRole>{currentUser?.role || 'User'}</ProfileRole>
+				</ProfileInfo>
+				<ProfileActions>
+					<ProfileButton onClick={() => navigate('/profile')}>
+						Settings
+					</ProfileButton>
+					<ProfileButton variant='danger' onClick={handleLogout}>
+						Log Out
+					</ProfileButton>
+				</ProfileActions>
+			</ProfileSection>
+
 			<MenuSection>
 				<SectionTitle>Navigation</SectionTitle>
 				<MenuNav>

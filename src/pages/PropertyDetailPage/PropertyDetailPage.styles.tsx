@@ -42,8 +42,8 @@ export const Header = styled.div`
 	}
 
 	@media (max-width: 480px) {
-		height: 144px;
-		padding: 27px 10px 10px;
+		height: 120px;
+		padding: 12px 12px 12px;
 		gap: 8px;
 	}
 `;
@@ -52,13 +52,19 @@ export const HeaderContent = styled.div`
 	position: relative;
 	z-index: 2;
 	display: flex;
-	justify-content: space-between;
+	justify-content: center;
 	align-items: center;
 	gap: 16px;
 	flex-wrap: wrap;
 
+	@media (max-width: 768px) {
+		gap: 10px;
+	}
+
 	@media (max-width: 480px) {
-		gap: 8px;
+		flex-direction: column;
+		align-items: center;
+		gap: 6px;
 	}
 `;
 
@@ -264,6 +270,13 @@ export const FavoriteButton = styled.button`
 
 	&:active {
 		transform: scale(0.98);
+	}
+
+	@media (max-width: 480px) {
+		padding: 10px 14px;
+		font-size: 12px;
+		width: 100%;
+		text-align: center;
 	}
 `;
 
@@ -508,8 +521,10 @@ export const EmptyState = styled.div`
 export const TitleContainer = styled.div`
 	display: flex;
 	align-items: center;
+	justify-content: center;
 	gap: 12px;
 	flex: 1;
+	text-align: center;
 `;
 
 export const EditableTitleInput = styled.input`
