@@ -159,33 +159,7 @@ async function generateReleaseNotes() {
 	});
 
 	// Generate friendly release notes
-	let releaseNotes = `🎉 **Release Notes for Version ${nextVersion}** 🎉\n\n`;
-
-	if (features.length > 0) {
-		releaseNotes += `## 🚀 New Features\n`;
-		features.forEach((commit) => {
-			releaseNotes += `- ${commit.message.replace('feature:', '').trim()} (${commit.author})\n`;
-		});
-		releaseNotes += `\n`;
-	}
-
-	if (fixes.length > 0) {
-		releaseNotes += `## 🐛 Bug Fixes\n`;
-		fixes.forEach((commit) => {
-			releaseNotes += `- ${commit.message.replace('fix:', '').trim()} (${commit.author})\n`;
-		});
-		releaseNotes += `\n`;
-	}
-
-	if (chores.length > 0) {
-		releaseNotes += `## 🛠️ Other Changes\n`;
-		chores.forEach((commit) => {
-			releaseNotes += `- ${commit.message.trim()} (${commit.author})\n`;
-		});
-	}
-
-	fs.writeFileSync('RELEASE_NOTES.txt', releaseNotes);
-	console.log('Release notes generated successfully.');
+	const releaseNotes = formatReleaseNotes(commits, nextVersion);
 
 	// Output JSON with version and notes
 	console.log('JSON Output:');
@@ -199,6 +173,8 @@ async function generateReleaseNotes() {
 			2,
 		),
 	);
+
+	// Ensure the release notes are used in the GitHub release creation or other relevant steps
 }
 
 function formatReleaseNotes(commits, version) {
@@ -206,7 +182,13 @@ function formatReleaseNotes(commits, version) {
 
 	const bugFixes = commits
 		.filter((commit) => commit.message.startsWith('fix:'))
-		.map((commit) => `- ${commit.message.replace(/^fix:/, '').trim()}`);
+		.map(
+			(commit) =>
+				`- ${commit.message
+					.replace(/^fix:/, '')
+					.replace(/\s*\(.*?\)/g, '')
+					.trim()}`,
+		); // Ensure committer name is stripped globally
 
 	if (bugFixes.length > 0) {
 		notes.push('\n## 🐛 Bug Fixes', ...bugFixes);
