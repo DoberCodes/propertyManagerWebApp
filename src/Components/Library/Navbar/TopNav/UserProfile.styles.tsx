@@ -118,22 +118,28 @@ export const DropdownItem = styled(Link)`
 	}
 `;
 
-export const DropdownButton = styled.button`
+export const DropdownButton = styled.button<{ variant?: 'default' | 'danger' }>`
 	display: block;
 	width: 100%;
 	padding: 10px 15px;
-	color: #ef4444;
+	color: ${(props) => (props.variant === 'danger' ? '#ef4444' : '#22c55e')};
 	background: none;
 	border: none;
 	text-align: left;
 	font-size: 14px;
 	cursor: pointer;
 	transition: all 0.2s ease;
-	border-radius: 0 0 4px 4px;
+
+	&:last-child {
+		border-radius: 0 0 4px 4px;
+	}
 
 	&:hover {
-		background-color: rgba(239, 68, 68, 0.1);
-		color: #dc2626;
+		background-color: ${(props) =>
+			props.variant === 'danger'
+				? 'rgba(239, 68, 68, 0.1)'
+				: 'rgba(34, 197, 94, 0.1)'};
+		color: ${(props) => (props.variant === 'danger' ? '#dc2626' : '#22c55e')};
 	}
 
 	@media (max-width: 480px) {

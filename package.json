@@ -5,6 +5,9 @@
 	"type": "module",
 	"homepage": "https://dobercodes.github.io/propertyManagerWebApp",
 	"dependencies": {
+		"@capacitor/android": "^8.0.2",
+		"@capacitor/cli": "^8.0.2",
+		"@capacitor/core": "^8.0.2",
 		"@fortawesome/fontawesome-svg-core": "^6.5.1",
 		"@fortawesome/free-brands-svg-icons": "^6.5.1",
 		"@fortawesome/free-regular-svg-icons": "^6.5.1",
@@ -41,7 +44,10 @@
 		"predeploy": "npm run build",
 		"deploy": "gh-pages -d build",
 		"seed:firebase": "node scripts/seedFirestore.cjs",
-		"init:firestore": "node scripts/initFirestore.cjs"
+		"init:firestore": "node scripts/initFirestore.cjs",
+		"cap:sync": "yarn build && npx cap sync android",
+		"cap:open": "npx cap open android",
+		"build:apk": "yarn build && npx cap sync android"
 	},
 	"eslintConfig": {
 		"extends": [

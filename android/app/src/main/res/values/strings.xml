@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Property Manager</string>
+    <string name="title_activity_main">Property Manager</string>
+    <string name="package_name">com.doberfamily.propertymanager</string>
+    <string name="custom_url_scheme">com.doberfamily.propertymanager</string>
+</resources>
