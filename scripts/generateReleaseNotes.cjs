@@ -84,23 +84,40 @@ async function getCommitsSinceLastTag() {
 
 		const latestTag = releases[0].name;
 
-		// Fetch commits since the latest tag
+		// Fetch the commit associated with the latest tag
+		const { data: tagCommit } = await octokit.repos.getCommit({
+			owner,
+			repo,
+			ref: latestTag,
+		});
+
+		const latestTagDate = new Date(tagCommit.commit.author.date);
+
+		// Fetch all commits and filter by date
 		const { data: commits } = await octokit.repos.listCommits({
 			owner,
 			repo,
-			sha: latestTag,
+			per_page: 100,
 		});
 
-		// Combine commits and pull request titles
-		const prCommits = await getCommitsFromPullRequests();
-		const allCommits = commits.map((commit) => ({
-			sha: commit.sha,
-			message: commit.commit.message,
-			author: commit.commit.author.name,
-			date: commit.commit.author.date,
-		}));
+		const filteredCommits = commits
+			.map((commit) => ({
+				sha: commit.sha,
+				message: commit.commit.message,
+				author: commit.commit.author.name,
+				date: commit.commit.author.date,
+			}))
+			.filter((commit) => new Date(commit.date) > latestTagDate);
 
-		return [...allCommits, ...prCommits];
+		// Filter out `release:` commits
+		const finalCommits = filteredCommits.filter(
+			(commit) => !commit.message.toLowerCase().startsWith('release:'),
+		);
+
+		// Log filtered commits for debugging
+		console.log('Filtered Commits:', finalCommits);
+
+		return finalCommits;
 	} catch (error) {
 		console.error('Error fetching commits:', error);
 		return [];
