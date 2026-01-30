@@ -13,7 +13,7 @@
 import { store } from '../Redux/Store/store';
 import { apiSlice } from '../Redux/API/apiSlice';
 
-const CURRENT_APP_VERSION = '1.0.0'; // Should match package.json version
+const CURRENT_APP_VERSION = '1.0.1'; // Should match package.json version
 const STORAGE_KEY = 'app_version_check';
 const DISMISS_KEY = 'app_update_dismissed';
 
