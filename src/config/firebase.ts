@@ -32,21 +32,34 @@ export const auth = getAuth(app);
 export const storage = getStorage(app);
 
 // Set auth persistence based on platform
-// Use indexedDBLocalPersistence for mobile (better for Capacitor)
-// Use browserLocalPersistence for web
-const persistence = Capacitor.isNativePlatform()
-	? indexedDBLocalPersistence
-	: browserLocalPersistence;
+// Prefer IndexedDB on native, but fall back to localStorage if unavailable
+const setAuthPersistence = async () => {
+	try {
+		if (Capacitor.isNativePlatform()) {
+			await setPersistence(auth, indexedDBLocalPersistence);
+			console.log(
+				'Auth persistence set to IndexedDB for',
+				Capacitor.getPlatform(),
+			);
+			return;
+		}
 
-setPersistence(auth, persistence)
-	.then(() => {
-		console.log(
-			'Auth persistence set successfully for',
-			Capacitor.getPlatform(),
+		await setPersistence(auth, browserLocalPersistence);
+		console.log('Auth persistence set to localStorage for web');
+	} catch (error) {
+		console.warn(
+			'IndexedDB persistence failed, falling back to localStorage:',
+			error,
 		);
-	})
-	.catch((error) => {
-		console.error('Error setting auth persistence:', error);
-	});
+		try {
+			await setPersistence(auth, browserLocalPersistence);
+			console.log('Auth persistence fallback set to localStorage');
+		} catch (fallbackError) {
+			console.error('Error setting fallback auth persistence:', fallbackError);
+		}
+	}
+};
+
+void setAuthPersistence();
 
 export default app;

@@ -7,6 +7,7 @@ import { onAuthStateChange } from './services/authService';
 import { UpdateNotification } from './Components/UpdateNotification/UpdateNotification';
 import { checkForUpdates } from './utils/versionCheck';
 import styled from 'styled-components';
+import { Capacitor } from '@capacitor/core';
 
 const LoadingContainer = styled.div`
 	display: flex;
@@ -89,6 +90,57 @@ export const App = () => {
 			clearTimeout(timeout);
 		};
 	}, [dispatch]);
+
+	useEffect(() => {
+		if (!Capacitor.isNativePlatform()) {
+			return;
+		}
+
+		let startY = 0;
+		let isPulling = false;
+		let triggered = false;
+		const threshold = 80;
+
+		const getScrollTop = () =>
+			window.scrollY || document.documentElement.scrollTop || 0;
+
+		const onTouchStart = (event: TouchEvent) => {
+			if (getScrollTop() !== 0) {
+				return;
+			}
+			startY = event.touches[0].clientY;
+			isPulling = true;
+			triggered = false;
+		};
+
+		const onTouchMove = (event: TouchEvent) => {
+			if (!isPulling || triggered) {
+				return;
+			}
+
+			const currentY = event.touches[0].clientY;
+			const delta = currentY - startY;
+
+			if (delta > threshold) {
+				triggered = true;
+				window.location.reload();
+			}
+		};
+
+		const onTouchEnd = () => {
+			isPulling = false;
+		};
+
+		window.addEventListener('touchstart', onTouchStart, { passive: true });
+		window.addEventListener('touchmove', onTouchMove, { passive: true });
+		window.addEventListener('touchend', onTouchEnd);
+
+		return () => {
+			window.removeEventListener('touchstart', onTouchStart);
+			window.removeEventListener('touchmove', onTouchMove);
+			window.removeEventListener('touchend', onTouchEnd);
+		};
+	}, []);
 
 	console.log('Current authLoading state:', authLoading);
 
