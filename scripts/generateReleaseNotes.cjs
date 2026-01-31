@@ -101,14 +101,26 @@ async function getCommitsSinceLastTag() {
 
 		const latestTagDate = new Date(tagCommit.commit.author.date);
 
-		// Fetch all commits and filter by date
-		const { data: commits } = await octokit.repos.listCommits({
-			owner,
-			repo,
-			per_page: 100,
-		});
+		// Fetch all commits since the latest tag using pagination
+		let page = 1;
+		let allCommits = [];
+		let keepFetching = true;
+		while (keepFetching) {
+			const { data: commits } = await octokit.repos.listCommits({
+				owner,
+				repo,
+				per_page: 100,
+				page,
+			});
+			if (commits.length === 0) {
+				keepFetching = false;
+			} else {
+				allCommits = allCommits.concat(commits);
+				page++;
+			}
+		}
 
-		const filteredCommits = commits
+		const filteredCommits = allCommits
 			.map((commit) => ({
 				sha: commit.sha,
 				message: commit.commit.message,
