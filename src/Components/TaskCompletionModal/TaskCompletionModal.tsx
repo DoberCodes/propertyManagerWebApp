@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { RootState } from '../../../Redux/Store/store';
+import { RootState } from '../../Redux/Store/store';
 import {
 	submitTaskCompletion,
 	CompletionFile,
-} from '../../../Redux/Slices/propertyDataSlice';
+} from '../../Redux/Slices/propertyDataSlice';
 import {
 	useUploadTaskCompletionFileMutation,
 	useSubmitTaskCompletionMutation,
-} from '../../../Redux/API/apiSlice';
+} from '../../Redux/API/apiSlice';
 import {
 	ModalOverlay,
 	ModalContainer,

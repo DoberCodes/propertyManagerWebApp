@@ -2,6 +2,7 @@ import React from 'react';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../Redux/Store/store';
 import { PropertyDetailPage } from '../../pages/PropertyDetailPage';
+import { canApproveTaskCompletions } from '../../utils/permissions';
 
 /**
  * Wrapper for homeowner property view. Restricts access and UI for homeowners.
@@ -20,8 +21,8 @@ const HomeownerPropertyWrapper: React.FC = () => {
 	);
 
 	// Only allow one property for homeowners
-	const userType = (currentUser as any)?.userType || currentUser?.role;
-	const isHomeowner = userType === 'homeowner';
+	const isHomeowner = currentUser?.userType === 'homeowner';
+	console.info('HomeownerPropertyWrapper rendered for user:', currentUser);
 
 	if (!isHomeowner) {
 		// Fallback: not a homeowner, render nothing or redirect

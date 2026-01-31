@@ -1,17 +1,17 @@
 import React, { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { RootState } from '../../../Redux/Store/store';
+import { RootState } from '../../Redux/Store/store';
 import {
 	approveTaskCompletion,
 	rejectTaskCompletion,
 	CompletionFile,
-} from '../../../Redux/Slices/propertyDataSlice';
+} from '../../Redux/Slices/propertyDataSlice';
 import {
 	useApproveTaskMutation,
 	useRejectTaskMutation,
-} from '../../../Redux/API/apiSlice';
-import { canApproveTaskCompletions } from '../../../utils/permissions';
-import { UserRole } from '../../../constants/roles';
+} from '../../Redux/API/apiSlice';
+import { canApproveTaskCompletions } from '../../utils/permissions';
+import { UserRole } from '../../constants/roles';
 import {
 	ModalOverlay,
 	ModalContainer,

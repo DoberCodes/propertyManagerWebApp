@@ -45,7 +45,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({
 				<DropdownMenu>
 					<DropdownItem to='/profile'>Edit Profile</DropdownItem>
 					<DropdownItem to='/settings'>Settings</DropdownItem>
-					<DropdownButton
+					{/* <DropdownButton
 						onClick={() => {
 							setIsOpen(false);
 							// Trigger APK download
@@ -57,7 +57,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({
 							document.body.removeChild(link);
 						}}>
 						Download Mobile App
-					</DropdownButton>
+					</DropdownButton> */}
 					{onLogout && (
 						<DropdownButton
 							variant='danger'

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
-import { MaintenanceRequestItem } from '../../../Redux/Slices/maintenanceRequestsSlice';
-import { TeamMember } from '../../../Redux/Slices/teamSlice';
+import { MaintenanceRequestItem } from '../../Redux/Slices/maintenanceRequestsSlice';
+import { TeamMember } from '../../Redux/Slices/teamSlice';
 
 interface ConvertRequestToTaskModalProps {
 	isOpen: boolean;

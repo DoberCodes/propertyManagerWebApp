@@ -18,9 +18,9 @@ import {
 	useCancelInvitationMutation,
 	PropertyShare,
 	UserInvitation,
-} from '../../../Redux/API/apiSlice';
-import { SHARE_PERMISSIONS } from '../../../constants/roles';
-import { getSharePermissionLabel } from '../../../utils/permissions';
+} from '../../Redux/API/apiSlice';
+import { SHARE_PERMISSIONS } from '../../constants/roles';
+import { getSharePermissionLabel } from '../../utils/permissions';
 
 interface SharePropertyModalProps {
 	open: boolean;

@@ -267,7 +267,19 @@ export const UpdateNotification: React.FC<UpdateNotificationProps> = ({
 	return (
 		<NotificationWrapper>
 			<CloseButton onClick={handleDismiss}>×</CloseButton>
-			<NotificationTitle>📱 Update Available</NotificationTitle>
+			<NotificationTitle>
+				📱 Update Available
+				<span
+					style={{
+						fontWeight: 400,
+						fontSize: 12,
+						display: 'block',
+						marginTop: 2,
+					}}>
+					Current: v{currentVersion}{' '}
+					{availableVersion && `→ Available: v${availableVersion}`}
+				</span>
+			</NotificationTitle>
 			<NotificationText>
 				A new version of My Property Manager is ready to download. Get the
 				latest features and improvements.

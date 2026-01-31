@@ -1,9 +1,9 @@
 import React from 'react';
 import { useSelector } from 'react-redux';
-import { RootState } from '../../../Redux/Store/store';
-import { getRoleDisplayName, getRoleColor } from '../../../utils/permissions';
 import styled from 'styled-components';
-import { UserRole } from '../../../constants/roles';
+import { RootState } from '../../Redux/Store/store';
+import { getRoleDisplayName, getRoleColor } from '../../utils/permissions';
+import { UserRole } from '../../constants/roles';
 
 const Badge = styled.div<{ color: string }>`
 	display: inline-flex;

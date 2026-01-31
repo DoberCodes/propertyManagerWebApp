@@ -15,7 +15,7 @@ import {
 	useDeleteNotificationMutation,
 	useAcceptInvitationMutation,
 	Notification,
-} from '../../../Redux/API/apiSlice';
+} from '../../Redux/API/apiSlice';
 
 interface NotificationPanelProps {
 	userId?: string;

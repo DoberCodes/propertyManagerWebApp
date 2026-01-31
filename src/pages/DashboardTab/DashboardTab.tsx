@@ -10,8 +10,8 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../Redux/Store/store';
-import { PageHeaderSection } from '../Library/PageHeaders';
-import { ZeroState } from '../Library/ZeroState';
+import { PageHeaderSection } from '../../Components/Library/PageHeaders';
+import { ZeroState } from '../../Components/Library/ZeroState';
 import {
 	useGetTasksQuery,
 	useUpdateTaskMutation,
@@ -22,8 +22,8 @@ import {
 import { UserRole } from '../../constants/roles';
 import { isTenant, getTenantPropertySlug } from '../../utils/permissions';
 import { filterTasksByRole } from '../../utils/dataFilters';
-import { TaskCompletionModal } from '../Library/TaskCompletionModal';
-import { NotificationPanel } from '../Library/NotificationPanel';
+import { TaskCompletionModal } from '../../Components/TaskCompletionModal';
+import { NotificationPanel } from '../../Components/NotificationPanel';
 import {
 	Wrapper,
 	TaskGridSection,

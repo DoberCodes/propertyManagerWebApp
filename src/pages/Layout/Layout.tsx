@@ -1,6 +1,6 @@
 import React from 'react';
-import { SideNav, MobileNav, TopNav } from '../Library/Navbar';
-import { DataLoader } from '../DataLoader';
+import { SideNav, MobileNav, TopNav } from '../../Components/Library/Navbar';
+import { DataLoader } from '../../Components/DataLoader';
 import { Wrapper, Main, Sidebar, Content } from './Layout.styles';
 import { Outlet } from 'react-router-dom';
 

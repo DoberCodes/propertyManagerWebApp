@@ -13,8 +13,8 @@ import { RegistrationPage } from './pages/RegistrationPage';
 import { ProtectedRoutes } from './ProtectedRoutes';
 import SettingsPage from './pages/SettingsPage';
 import { FeatureDocsPage } from './pages/FeatureDocsPage';
-import { Layout } from './Components/Layout';
-import { DashboardTab } from './Components/DashboardTab';
+import { Layout } from './pages/Layout';
+import { DashboardTab } from './pages/DashboardTab';
 import { Properties } from './Components/PropertiesTab';
 import { PropertyDetailPage } from './pages/PropertyDetailPage';
 import { UnitDetailPage } from './pages/UnitDetailPage';
@@ -25,6 +25,7 @@ import { UserProfile } from './pages/UserProfile';
 import { TEAM_VIEW_ROLES, FULL_ACCESS_ROLES } from './constants/roles';
 import { isNativeApp } from './utils/platform';
 import HomeownerPropertyWrapper from './Components/PropertiesTab/HomeownerPropertyWrapper';
+import { useSelector } from 'react-redux';
 
 // Component to handle root route - redirects to login in mobile app
 const RootRoute = () => {
@@ -35,6 +36,10 @@ const RootRoute = () => {
 };
 
 export const RouterComponent = () => {
+	const userType = useSelector(
+		(state: any) =>
+			state.user.currentUser?.userType || state.user.currentUser?.role,
+	);
 	return (
 		<Router>
 			<Routes>
@@ -64,29 +69,23 @@ export const RouterComponent = () => {
 					<Route path='dashboard' element={<DashboardTab />} />
 
 					{/* Properties management - accessible to admin, PM, AM, ML */}
-					<Route
-						path='properties'
-						element={
-							<ProtectedRoutes requiredRoles={FULL_ACCESS_ROLES}>
-								<Properties />
-							</ProtectedRoutes>
-						}
-					/>
+					{userType === 'homeowner' ? (
+						<Route path='properties' element={<HomeownerPropertyWrapper />} />
+					) : (
+						<Route
+							path='properties'
+							element={
+								<ProtectedRoutes requiredRoles={FULL_ACCESS_ROLES}>
+									<Properties />
+								</ProtectedRoutes>
+							}
+						/>
+					)}
 					<Route
 						path='property/:slug'
 						element={
 							<ProtectedRoutes requiredRoles={FULL_ACCESS_ROLES}>
-								{/* Render homeowner wrapper if user is a homeowner, else normal property page */}
-								{(() => {
-									const user = JSON.parse(
-										localStorage.getItem('loggedUser') || '{}',
-									).user;
-									const userType = user?.userType || user?.role;
-									if (userType === 'homeowner') {
-										return <HomeownerPropertyWrapper />;
-									}
-									return <PropertyDetailPage />;
-								})()}
+								<PropertyDetailPage />
 							</ProtectedRoutes>
 						}
 					/>
@@ -106,16 +105,16 @@ export const RouterComponent = () => {
 							</ProtectedRoutes>
 						}
 					/>
-
-					{/* Team management - viewable by managers and maintenance; editable by admin/PM only */}
-					<Route
-						path='team'
-						element={
-							<ProtectedRoutes requiredRoles={TEAM_VIEW_ROLES}>
-								<TeamPage />
-							</ProtectedRoutes>
-						}
-					/>
+					{userType !== 'homeowner' && (
+						<Route
+							path='team'
+							element={
+								<ProtectedRoutes requiredRoles={TEAM_VIEW_ROLES}>
+									<TeamPage />
+								</ProtectedRoutes>
+							}
+						/>
+					)}
 
 					{/* Reports - accessible to admin, PM, AM, ML */}
 					<Route

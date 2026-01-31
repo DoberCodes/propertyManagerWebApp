@@ -1,8 +1,7 @@
 import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { useSelector, useDispatch } from 'react-redux';
+import { useSelector } from 'react-redux';
 import { RootState } from '../../../../Redux/Store/store';
-import { logout } from '../../../../Redux/Slices/userSlice';
 import {
 	canManageTeamMembers,
 	canManageProperties,
@@ -14,13 +13,6 @@ import { useFavorites } from '../../../../Hooks/useFavorites';
 import { UserRole } from '../../../../constants/roles';
 import {
 	DesktopWrapper,
-	ProfileSection,
-	ProfileImage,
-	ProfileInfo,
-	ProfileName,
-	ProfileRole,
-	ProfileActions,
-	ProfileButton,
 	MenuSection,
 	SectionTitle,
 	MenuNav,
@@ -35,15 +27,9 @@ import {
 export const SideNav = () => {
 	const location = useLocation();
 	const navigate = useNavigate();
-	const dispatch = useDispatch();
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
 	const { recentProperties } = useRecentlyViewed(currentUser!.id);
 	const { favorites } = useFavorites(currentUser!.id);
-
-	const handleLogout = () => {
-		dispatch(logout());
-		navigate('/login');
-	};
 
 	// Check permissions
 	const canAccessTeam = currentUser
@@ -58,25 +44,9 @@ export const SideNav = () => {
 	const isUserTenant = currentUser
 		? isTenant(currentUser.role as UserRole)
 		: false;
-
-	const menuItems = [
-		{ label: 'Dashboard', path: 'dashboard', visible: !isUserTenant },
-		{
-			label: 'Properties',
-			path: 'properties',
-			visible: !isUserTenant && (canAccessProperties || canViewPages),
-		},
-		{
-			label: 'Team',
-			path: 'team',
-			visible: !isUserTenant && (canAccessTeam || canViewPages),
-		},
-		{
-			label: 'Report',
-			path: 'report',
-			visible: !isUserTenant && (canAccessProperties || canViewPages),
-		},
-	];
+	const isHomeowner = currentUser
+		? currentUser.userType === 'homeowner'
+		: false;
 
 	const isActive = (path: string) => location.hash.includes(path);
 
@@ -91,7 +61,8 @@ export const SideNav = () => {
 		{
 			label: 'Team',
 			path: 'team',
-			visible: !isUserTenant && (canAccessTeam || canViewPages),
+			visible:
+				!isUserTenant || (!isHomeowner && (canAccessTeam || canViewPages)),
 		},
 		{
 			label: 'Report',
@@ -212,6 +183,9 @@ export const MobileNav = () => {
 	const isUserTenant = currentUser
 		? isTenant(currentUser.role as UserRole)
 		: false;
+	const isHomeowner = currentUser
+		? currentUser.userType === 'homeowner'
+		: false;
 
 	const menuItems = [
 		{ label: 'Dashboard', path: 'dashboard', visible: !isUserTenant },
@@ -223,7 +197,7 @@ export const MobileNav = () => {
 		{
 			label: 'Team',
 			path: 'team',
-			visible: !isUserTenant && (canAccessTeam || canViewPages),
+			visible: !isUserTenant && (canAccessTeam || canViewPages || !isHomeowner),
 		},
 		{
 			label: 'Report',

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import styled from 'styled-components';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTimes, faSpinner } from '@fortawesome/free-solid-svg-icons';
-import { useAddTenantMutation } from '../../../Redux/API/apiSlice';
+import { useAddTenantMutation } from '../../Redux/API/apiSlice';
 
 interface AddTenantModalProps {
 	open: boolean;

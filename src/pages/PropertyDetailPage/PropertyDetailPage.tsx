@@ -36,17 +36,17 @@ import { UserRole } from '../../constants/roles';
 import { TeamMember } from '../../Redux/Slices/teamSlice';
 import { useFavorites } from '../../Hooks/useFavorites';
 import { uploadToBase64, isValidImageFile } from '../../utils/base64Upload';
-import { TaskCompletionModal } from '../../Components/Library/TaskCompletionModal';
+import { TaskCompletionModal } from '../../Components/TaskCompletionModal';
 import {
 	MaintenanceRequestModal,
 	MaintenanceRequest,
-} from '../../Components/Library/MaintenanceRequestModal';
+} from '../../Components/MaintenanceRequestModal';
 import {
 	ConvertRequestToTaskModal,
 	TaskData,
-} from '../../Components/Library/ConvertRequestToTaskModal';
-import { SharePropertyModal } from '../../Components/Library/SharePropertyModal';
-import { AddTenantModal } from '../../Components/Library/AddTenantModal';
+} from '../../Components/ConvertRequestToTaskModal';
+import { SharePropertyModal } from '../../Components/SharePropertyModal';
+import { AddTenantModal } from '../../Components/AddTenantModal';
 import Tabs from '../../Components/Library/Tabs/Tabs';
 import {
 	Wrapper,
