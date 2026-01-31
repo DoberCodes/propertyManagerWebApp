@@ -16,7 +16,7 @@ export const Wrapper = styled.div`
 		${COLORS.bgWhite} 0%,
 		${COLORS.gray50} 100%
 	);
-	padding: 0 20px;
+	padding: 20px 20px;
 	padding-left: max(20px, env(safe-area-inset-left));
 	padding-right: max(20px, env(safe-area-inset-right));
 	overflow: visible;
@@ -25,13 +25,13 @@ export const Wrapper = styled.div`
 	box-shadow: ${COLORS.shadow};
 
 	@media (max-width: 768px) {
-		padding: 0 15px;
+		padding: 20px 15px;
 		padding-left: max(15px, env(safe-area-inset-left));
 		padding-right: max(15px, env(safe-area-inset-right));
 	}
 
 	@media (max-width: 480px) {
-		padding: 0 10px;
+		padding: 20px 10px;
 		padding-left: max(10px, env(safe-area-inset-left));
 		padding-right: max(10px, env(safe-area-inset-right));
 	}

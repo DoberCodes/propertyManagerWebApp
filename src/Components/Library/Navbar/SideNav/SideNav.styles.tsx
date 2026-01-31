@@ -97,8 +97,8 @@ export const MobileBottomNav = styled.div`
 	border-top: 1px solid #e5e7eb;
 	flex-direction: row;
 	justify-content: space-around;
-	padding: 8px 0;
-	padding-bottom: max(8px, env(safe-area-inset-bottom));
+	padding: 20px 0;
+	padding-bottom: max(20px, env(safe-area-inset-bottom));
 	padding-left: env(safe-area-inset-left);
 	padding-right: env(safe-area-inset-right);
 	z-index: 100;

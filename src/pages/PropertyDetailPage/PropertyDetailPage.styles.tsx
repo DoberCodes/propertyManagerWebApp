@@ -286,8 +286,8 @@ export const BackButton = styled.button`
 	position: absolute;
 	top: 20px;
 	left: 20px;
-	background-color: rgba(0, 0, 0, 0.5);
 	color: white;
+	background-color: transparent;
 	border: none;
 	padding: 10px 16px;
 	border-radius: 4px;
@@ -537,9 +537,7 @@ export const EditableTitleInput = styled.input`
 	border-radius: 4px;
 	font-size: 32px;
 	font-weight: 700;
-	width: auto;
-	max-width: 90%;
-	min-width: 200px;
+	max-width: fit-content;
 
 	&:focus {
 		outline: none;

@@ -83,6 +83,16 @@ export const Properties = () => {
 		}));
 	}, [propertyGroups]);
 
+	// Get userType from registration (ensure it's stored in user object)
+	// TODO: Make sure userType is persisted in user model after registration
+	const userType = (currentUser as any)?.userType || currentUser?.role;
+
+	// Count total properties for this user
+	const totalProperties = groupsWithProperties.reduce(
+		(acc, group) => acc + (group.properties?.length || 0),
+		0,
+	);
+
 	// Filter groups based on user role and assignments
 	// Note: Casting to any[] to handle type mismatch between Redux types (number IDs) and Firebase types (string IDs)
 	const filteredGroups = useMemo(
@@ -192,6 +202,20 @@ export const Properties = () => {
 	};
 
 	const handleAddPropertyGlobalClick = () => {
+		// Restrict homeowners to one property
+		if (userType === 'homeowner' && totalProperties >= 1) {
+			alert('Homeowners can only add one property.');
+			return;
+		}
+		// For landlords, trigger billing options if needed
+		if (userType === 'landlord') {
+			// Example: Show billing modal or redirect (replace with your billing logic)
+			// if (totalProperties === 0) {
+			//     showBillingOptions();
+			//     return;
+			// }
+			// For now, just allow property add
+		}
 		setSelectedGroupForDialog(null);
 		setSelectedPropertyForEdit(null);
 		setDialogOpen(true);

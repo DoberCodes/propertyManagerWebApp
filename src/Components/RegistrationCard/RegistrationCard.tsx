@@ -35,6 +35,7 @@ export const RegistrationCard = () => {
 	const [showPassword, setShowPassword] = useState<boolean>(false);
 	const [showPasswordConfirm, setShowPasswordConfirm] =
 		useState<boolean>(false);
+	const [userType, setUserType] = useState<string>('');
 	const navigate = useNavigate();
 	const dispatch = useDispatch();
 
@@ -45,6 +46,12 @@ export const RegistrationCard = () => {
 		}
 		if (!lastName.trim()) {
 			setError('Please enter your last name');
+			return false;
+		}
+		if (!userType) {
+			setError(
+				'Please select if you are registering as a homeowner or a landlord',
+			);
 			return false;
 		}
 		return true;
@@ -175,6 +182,42 @@ export const RegistrationCard = () => {
 						}}
 						required
 					/>
+					<div style={{ margin: '16px 0', fontSize: '15px', color: '#333' }}>
+						<label
+							style={{ fontWeight: 500, marginBottom: 8, display: 'block' }}>
+							Are you registering as a homeowner or a landlord?
+						</label>
+						<div style={{ display: 'flex', gap: '24px', marginTop: 8 }}>
+							<label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+								<input
+									type='radio'
+									name='userType'
+									value='homeowner'
+									checked={userType === 'homeowner'}
+									onChange={() => {
+										setUserType('homeowner');
+										setError('');
+									}}
+									required
+								/>
+								Homeowner
+							</label>
+							<label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+								<input
+									type='radio'
+									name='userType'
+									value='landlord'
+									checked={userType === 'landlord'}
+									onChange={() => {
+										setUserType('landlord');
+										setError('');
+									}}
+									required
+								/>
+								Landlord
+							</label>
+						</div>
+					</div>
 					<Submit type='button' onClick={handleNext}>
 						Next
 					</Submit>

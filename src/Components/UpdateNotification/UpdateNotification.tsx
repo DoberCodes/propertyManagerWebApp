@@ -194,16 +194,6 @@ interface UpdateNotificationProps {
 	onDismiss?: () => void;
 }
 
-/**
- * UpdateNotification Component
- *
- * Displays a notification when a new version of the app is available.
- * Should be placed in the main app layout so it's always visible.
- *
- * Usage:
- * <UpdateNotification />
- */
-
 export const UpdateNotification: React.FC<UpdateNotificationProps> = ({
 	onDismiss,
 }) => {

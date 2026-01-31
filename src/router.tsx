@@ -24,6 +24,7 @@ import { ReportPage } from './pages/ReportPage';
 import { UserProfile } from './pages/UserProfile';
 import { TEAM_VIEW_ROLES, FULL_ACCESS_ROLES } from './constants/roles';
 import { isNativeApp } from './utils/platform';
+import HomeownerPropertyWrapper from './Components/PropertiesTab/HomeownerPropertyWrapper';
 
 // Component to handle root route - redirects to login in mobile app
 const RootRoute = () => {
@@ -75,7 +76,17 @@ export const RouterComponent = () => {
 						path='property/:slug'
 						element={
 							<ProtectedRoutes requiredRoles={FULL_ACCESS_ROLES}>
-								<PropertyDetailPage />
+								{/* Render homeowner wrapper if user is a homeowner, else normal property page */}
+								{(() => {
+									const user = JSON.parse(
+										localStorage.getItem('loggedUser') || '{}',
+									).user;
+									const userType = user?.userType || user?.role;
+									if (userType === 'homeowner') {
+										return <HomeownerPropertyWrapper />;
+									}
+									return <PropertyDetailPage />;
+								})()}
 							</ProtectedRoutes>
 						}
 					/>

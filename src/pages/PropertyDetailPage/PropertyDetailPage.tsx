@@ -47,6 +47,7 @@ import {
 } from '../../Components/Library/ConvertRequestToTaskModal';
 import { SharePropertyModal } from '../../Components/Library/SharePropertyModal';
 import { AddTenantModal } from '../../Components/Library/AddTenantModal';
+import Tabs from '../../Components/Library/Tabs/Tabs';
 import {
 	Wrapper,
 	Header,
@@ -54,13 +55,11 @@ import {
 	PropertyTitle,
 	FavoriteButton,
 	BackButton,
-	TabButton,
 	TabContent,
 	Toolbar,
 	ToolbarButton,
 	GridContainer,
 	GridTable,
-	InfoGrid,
 	InfoCard,
 	InfoLabel,
 	InfoValue,
@@ -76,7 +75,6 @@ import {
 	EditableTitleInput,
 	PencilIcon,
 	TabControlsContainer,
-	TabButtonsWrapper,
 	TaskCheckbox,
 	DialogOverlay,
 	DialogContent,
@@ -96,8 +94,14 @@ import {
 	DevicesSectionHeader,
 	AddDeviceButton,
 } from './PropertyDetailPage.styles';
+import { PropertyDetailSection } from './PropertyDetailSection';
 
-export const PropertyDetailPage = () => {
+interface PropertyDetailPageProps {
+	homeownerMode?: boolean;
+	property?: any;
+}
+
+export const PropertyDetailPage = (props: PropertyDetailPageProps) => {
 	const { slug } = useParams<{ slug: string }>();
 	const navigate = useNavigate();
 	const dispatch = useDispatch<AppDispatch>();
@@ -162,6 +166,7 @@ export const PropertyDetailPage = () => {
 	const [showTaskAssignDialog, setShowTaskAssignDialog] = useState(false);
 	const [assigningTaskId, setAssigningTaskId] = useState<string | null>(null);
 	const [selectedAssignee, setSelectedAssignee] = useState<any>(null);
+	const propertyOverride = props.property;
 
 	// Only fetch property shares for the property of the task being assigned
 	const assigningTask = allTasks.find((t) => t.id === assigningTaskId);
@@ -201,7 +206,9 @@ export const PropertyDetailPage = () => {
 
 	// Find the property based on slug from Firebase data
 	const property = useMemo(() => {
-		return firebaseProperties.find((p: any) => p.slug === slug);
+		return propertyOverride
+			? propertyOverride
+			: firebaseProperties.find((p: any) => p.slug === slug);
 	}, [slug, firebaseProperties]);
 
 	const hasCommercialSuites =
@@ -495,16 +502,6 @@ export const PropertyDetailPage = () => {
 			return editedProperty[field];
 		}
 		return (property as any)?.[field] || '';
-	};
-
-	const handleOpenDeviceDialog = () => {
-		setDeviceFormData({
-			type: '',
-			brand: '',
-			model: '',
-			installationDate: '',
-		});
-		setShowDeviceDialog(true);
 	};
 
 	const handleDeviceFormChange = (
@@ -1017,72 +1014,15 @@ export const PropertyDetailPage = () => {
 
 			{/* Tab Navigation */}
 			<TabControlsContainer>
-				<TabButtonsWrapper>
-					<TabButton
-						isActive={activeTab === 'details'}
-						onClick={() => setActiveTab('details')}>
-						Details
-					</TabButton>
-					<TabButton
-						isActive={activeTab === 'tasks'}
-						onClick={() => setActiveTab('tasks')}>
-						Tasks
-					</TabButton>
-					<TabButton
-						isActive={activeTab === 'maintenance'}
-						onClick={() => setActiveTab('maintenance')}>
-						Maintenance History
-					</TabButton>
-					{property?.propertyType !== 'Multi-Family' &&
-						!hasCommercialSuites && (
-							<TabButton
-								isActive={activeTab === 'tenants'}
-								onClick={() => setActiveTab('tenants')}>
-								Tenants
-							</TabButton>
-						)}
-					{hasCommercialSuites && (
-						<TabButton
-							isActive={activeTab === 'suites'}
-							onClick={() => setActiveTab('suites')}>
-							Suites
-						</TabButton>
-					)}
-					{property?.propertyType === 'Multi-Family' && (
-						<TabButton
-							isActive={activeTab === 'units'}
-							onClick={() => setActiveTab('units')}>
-							Units
-						</TabButton>
-					)}
-					{currentUser &&
-						canApproveMaintenanceRequest(currentUser.role as UserRole) && (
-							<TabButton
-								isActive={activeTab === 'requests'}
-								onClick={() => setActiveTab('requests')}>
-								Requests{' '}
-								{propertyMaintenanceRequests.filter(
-									(r) => r.status === 'Pending',
-								).length > 0 && (
-									<span
-										style={{
-											backgroundColor: '#f39c12',
-											color: 'white',
-											borderRadius: '10px',
-											padding: '2px 8px',
-											marginLeft: '6px',
-											fontSize: '12px',
-										}}>
-										{
-											propertyMaintenanceRequests.filter(
-												(r) => r.status === 'Pending',
-											).length
-										}
-									</span>
-								)}
-							</TabButton>
-						)}
-				</TabButtonsWrapper>
+				<Tabs
+					property={property}
+					hasCommercialSuites={hasCommercialSuites}
+					currentUser={currentUser}
+					propertyMaintenanceRequests={propertyMaintenanceRequests}
+					canApproveMaintenanceRequest={canApproveMaintenanceRequest}
+					activeTab={activeTab}
+					setActiveTab={setActiveTab as (tab: string) => void}
+				/>
 			</TabControlsContainer>
 
 			{/* Details Tab */}
@@ -1098,184 +1038,12 @@ export const PropertyDetailPage = () => {
 						</MinimalEditButton>
 					</DetailsEditHeader>
 
-					<SectionContainer>
-						<InfoGrid>
-							<InfoCard>
-								<InfoLabel>Property Type</InfoLabel>
-								{isEditMode ? (
-									<FormSelect
-										value={
-											getPropertyFieldValue('propertyType') || 'Single Family'
-										}
-										onChange={(e) =>
-											handlePropertyFieldChange('propertyType', e.target.value)
-										}>
-										<option value='Single Family'>Single Family</option>
-										<option value='Multi-Family'>Multi-Family</option>
-										<option value='Commercial'>Commercial</option>
-									</FormSelect>
-								) : (
-									<InfoValue>
-										{property?.propertyType || 'Single Family'}
-									</InfoValue>
-								)}
-							</InfoCard>
-							<InfoCard>
-								<InfoLabel>Owner</InfoLabel>
-								{isEditMode ? (
-									<EditableFieldInput
-										type='text'
-										value={getPropertyFieldValue('owner')}
-										onChange={(e) =>
-											handlePropertyFieldChange('owner', e.target.value)
-										}
-									/>
-								) : (
-									<InfoValue>{getPropertyFieldValue('owner')}</InfoValue>
-								)}
-							</InfoCard>
-							<InfoCard>
-								<InfoLabel>Address</InfoLabel>
-								{isEditMode ? (
-									<EditableFieldInput
-										type='text'
-										value={getPropertyFieldValue('address')}
-										onChange={(e) =>
-											handlePropertyFieldChange('address', e.target.value)
-										}
-									/>
-								) : (
-									<InfoValue>{getPropertyFieldValue('address')}</InfoValue>
-								)}
-							</InfoCard>
-							{property?.propertyType === 'Multi-Family' && (
-								<InfoCard>
-									<InfoLabel>Units</InfoLabel>
-									{isEditMode ? (
-										<div
-											style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-											{(property?.units || []).map((unit: any) => (
-												<span
-													key={unit.name}
-													style={{
-														backgroundColor: '#dcfce7',
-														color: '#16a34a',
-														padding: '6px 12px',
-														borderRadius: '6px',
-														fontSize: '14px',
-														border: '1px solid #bbf7d0',
-													}}>
-													{unit.name}
-												</span>
-											))}
-										</div>
-									) : (
-										<InfoValue>
-											{(property?.units || [])
-												.map((u: any) => u.name)
-												.join(', ')}
-										</InfoValue>
-									)}
-								</InfoCard>
-							)}
-							{property?.propertyType === 'Commercial' &&
-								property?.hasSuites && (
-									<InfoCard>
-										<InfoLabel>Suites</InfoLabel>
-										<InfoValue>
-											{(property?.suites || [])
-												.map((s: any) => s.name)
-												.join(', ')}
-										</InfoValue>
-									</InfoCard>
-								)}
-							{property?.propertyType !== 'Commercial' &&
-								property?.propertyType !== 'Multi-Family' && (
-									<>
-										<InfoCard>
-											<InfoLabel>Bedrooms</InfoLabel>
-											{isEditMode ? (
-												<EditableFieldInput
-													type='number'
-													value={getPropertyFieldValue('bedrooms')}
-													onChange={(e) =>
-														handlePropertyFieldChange(
-															'bedrooms',
-															e.target.value,
-														)
-													}
-												/>
-											) : (
-												<InfoValue>
-													{getPropertyFieldValue('bedrooms')}
-												</InfoValue>
-											)}
-										</InfoCard>
-										<InfoCard>
-											<InfoLabel>Bathrooms</InfoLabel>
-											{isEditMode ? (
-												<EditableFieldInput
-													type='number'
-													value={getPropertyFieldValue('bathrooms')}
-													onChange={(e) =>
-														handlePropertyFieldChange(
-															'bathrooms',
-															e.target.value,
-														)
-													}
-												/>
-											) : (
-												<InfoValue>
-													{getPropertyFieldValue('bathrooms')}
-												</InfoValue>
-											)}
-										</InfoCard>
-									</>
-								)}
-							<InfoCard>
-								<InfoLabel>Administrators</InfoLabel>
-								{isEditMode ? (
-									<EditableFieldInput
-										type='text'
-										value={getPropertyFieldValue('administrators')}
-										onChange={(e) =>
-											handlePropertyFieldChange(
-												'administrators',
-												e.target.value,
-											)
-										}
-										placeholder='Comma-separated emails'
-									/>
-								) : (
-									<InfoValue>
-										{(property?.administrators?.length || 0) > 0
-											? property?.administrators?.join(', ')
-											: 'None'}
-									</InfoValue>
-								)}
-							</InfoCard>
-							<InfoCard>
-								<InfoLabel>Viewers</InfoLabel>
-								{isEditMode ? (
-									<EditableFieldInput
-										type='text'
-										value={getPropertyFieldValue('viewers')}
-										onChange={(e) =>
-											handlePropertyFieldChange('viewers', e.target.value)
-										}
-										placeholder='Comma-separated emails'
-									/>
-								) : (
-									<InfoValue>
-										{(property?.viewers?.length || 0) > 0
-											? property?.viewers?.join(', ')
-											: 'None'}
-									</InfoValue>
-								)}
-							</InfoCard>
-						</InfoGrid>
-					</SectionContainer>
-
+					<PropertyDetailSection
+						isEditMode={isEditMode}
+						property={property}
+						getPropertyFieldValue={getPropertyFieldValue}
+						handlePropertyFieldChange={handlePropertyFieldChange}
+					/>
 					{/* Notes */}
 					{property.notes && (
 						<SectionContainer>
