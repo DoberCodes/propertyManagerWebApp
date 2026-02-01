@@ -61,8 +61,7 @@ export const SideNav = () => {
 		{
 			label: 'Team',
 			path: 'team',
-			visible:
-				!isUserTenant || (!isHomeowner && (canAccessTeam || canViewPages)),
+			visible: !isUserTenant && !isHomeowner && (canAccessTeam || canViewPages),
 		},
 		{
 			label: 'Report',
@@ -197,7 +196,7 @@ export const MobileNav = () => {
 		{
 			label: 'Team',
 			path: 'team',
-			visible: !isUserTenant && (canAccessTeam || canViewPages || !isHomeowner),
+			visible: !isUserTenant && !isHomeowner && (canAccessTeam || canViewPages),
 		},
 		{
 			label: 'Report',

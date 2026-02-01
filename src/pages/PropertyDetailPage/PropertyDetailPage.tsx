@@ -108,6 +108,14 @@ export const PropertyDetailPage = (props: PropertyDetailPageProps) => {
 
 	// Get current user
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
+
+	// Determine if this is homeowner mode based on user type
+	// Props.homeownerMode is for backwards compatibility, but userType is the source of truth
+	const isHomeownerMode =
+		props.homeownerMode ||
+		currentUser?.userType === 'homeowner' ||
+		currentUser?.role === 'homeowner';
+
 	const { isFavorite, toggleFavorite } = useFavorites(currentUser!.id);
 
 	// Fetch properties from Firebase
