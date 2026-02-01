@@ -34,3 +34,6 @@ RELEASE_NOTES.txt
 
 # Firebase service account key
 serviceAccountKey.json
+# APK files (too large for git, deployed via GitHub Pages)
+public/PropertyManager.apk
+*.apk
