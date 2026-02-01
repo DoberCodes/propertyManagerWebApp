@@ -391,33 +391,47 @@ echo ""
 print_header "Step 5: Auto-Committing Changes"
 
 git add package.json client/package.json src/utils/versionCheck.ts
-git commit -m "release: v$NEW_VERSION
+if git diff --cached --quiet; then
+  print_warning "No version changes to commit. Skipping commit/push/tag steps."
+  SKIP_GIT_STEPS=1
+else
+  git commit -m "release: v$NEW_VERSION
 
 - Bump version to $NEW_VERSION
 - Update app version check
 - Build signed APK"
-print_success "Changes committed to main"
+  print_success "Changes committed to main"
+  SKIP_GIT_STEPS=0
+fi
 
 # Push to main
 echo ""
 print_header "Step 6: Pushing to Main"
-if ! git push origin main; then
-  print_error "Failed to push to main branch"
-  send_slack_notification "Failed to push v$NEW_VERSION to main" "error"
-  exit 1
+if [[ "$SKIP_GIT_STEPS" == "1" ]]; then
+  print_warning "Skipping push (no new commits)."
+else
+  if ! git push origin main; then
+    print_error "Failed to push to main branch"
+    send_slack_notification "Failed to push v$NEW_VERSION to main" "error"
+    exit 1
+  fi
+  print_success "Pushed to main branch"
 fi
-print_success "Pushed to main branch"
 
 # ========== CREATE GIT TAG ==========
 echo ""
 print_header "Step 7: Creating Git Tag"
-git tag -a v$NEW_VERSION -m "Release version $NEW_VERSION"
-if ! git push origin --tags; then
-  print_error "Failed to push tags"
-  send_slack_notification "Failed to create tag for v$NEW_VERSION" "error"
-  exit 1
+if [[ "$SKIP_GIT_STEPS" == "1" ]]; then
+  print_warning "Skipping tag creation (no new commits)."
+else
+  git tag -a v$NEW_VERSION -m "Release version $NEW_VERSION"
+  if ! git push origin --tags; then
+    print_error "Failed to push tags"
+    send_slack_notification "Failed to create tag for v$NEW_VERSION" "error"
+    exit 1
+  fi
+  print_success "Git tag v$NEW_VERSION created and pushed"
 fi
-print_success "Git tag v$NEW_VERSION created and pushed"
 fi
 
 # ========== CREATE GITHUB RELEASE ==========
