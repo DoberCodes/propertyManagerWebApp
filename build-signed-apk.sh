@@ -37,6 +37,10 @@ print_warning() {
   echo -e "${YELLOW}⚠ $1${NC}"
 }
 
+print_info() {
+  echo -e "${BLUE}ℹ $1${NC}"
+}
+
 # Function to send Slack notification
 send_slack_notification() {
   local message=$1
@@ -211,27 +215,61 @@ print_success "Capacitor synced"
 
 echo ""
 print_header "Step 3: Building Signed APK"
-print_warning "Manual step required: Android Studio will open."
-echo "Instructions:"
-echo "  1. Android Studio will open"
-echo "  2. Click: Build → Generate Signed Bundle/APK"
-echo "  3. Select APK (not Bundle)"
-echo "  4. Key store path: my-release-key.keystore"
-echo "  5. Key alias: my-key-alias"
-echo "  6. Build type: Release"
-echo "  7. Click Finish"
-echo ""
-npx cap open android
-echo ""
-read -p "Press ENTER when Android Studio has finished building..."
 
-# Verify APK was created
-if [ ! -f "android/app/release/app-release.apk" ]; then
-  print_error "app-release.apk not found! Build may have failed in Android Studio."
-  send_slack_notification "APK build failed for v$NEW_VERSION" "error"
+# Check keystore file
+if [ ! -f "my-release-key.keystore" ]; then
+  print_error "Keystore file (my-release-key.keystore) not found!"
+  print_warning "Run: keytool -genkey -v -keystore my-release-key.keystore -alias my-key-alias -keyalg RSA -keysize 2048 -validity 10000"
+  send_slack_notification "APK build failed - keystore not found for v$NEW_VERSION" "error"
   exit 1
 fi
-print_success "APK built successfully"
+
+# Prompt for keystore password
+if [[ "$DRY_RUN" == "--dry-run" ]]; then
+  print_warning "Dry-run mode: skipping APK build"
+  KEYSTORE_PASSWORD="dummy"
+else
+  read -sp "Enter keystore password: " KEYSTORE_PASSWORD
+  echo ""
+  read -sp "Confirm keystore password: " KEYSTORE_PASSWORD_CONFIRM
+  echo ""
+
+  if [ "$KEYSTORE_PASSWORD" != "$KEYSTORE_PASSWORD_CONFIRM" ]; then
+    print_error "Passwords do not match!"
+    exit 1
+  fi
+fi
+
+# Use same password for both keystore and key by default
+KEY_PASSWORD="$KEYSTORE_PASSWORD"
+
+# Build APK using Gradle (skip in dry-run)
+if [[ "$DRY_RUN" == "--dry-run" ]]; then
+  print_success "APK build skipped (dry-run mode)"
+else
+  print_info "Building APK with Gradle..."
+  cd android
+  if ! ./gradlew assembleRelease \
+    -Pandroid.injected.signing.store.file=../my-release-key.keystore \
+    -Pandroid.injected.signing.store.password="$KEYSTORE_PASSWORD" \
+    -Pandroid.injected.signing.key.alias=my-key-alias \
+    -Pandroid.injected.signing.key.password="$KEY_PASSWORD" \
+    --quiet; then
+    cd ..
+    print_error "Gradle build failed!"
+    send_slack_notification "APK build failed for v$NEW_VERSION" "error"
+    exit 1
+  fi
+  cd ..
+
+  # Verify APK was created
+  if [ ! -f "android/app/release/app-release.apk" ]; then
+    print_error "app-release.apk not found! Gradle build may have failed."
+    send_slack_notification "APK build failed for v$NEW_VERSION" "error"
+    exit 1
+  fi
+  print_success "APK built successfully with Gradle"
+fi
 
 echo ""
 print_header "Step 4: Finalizing Build"
