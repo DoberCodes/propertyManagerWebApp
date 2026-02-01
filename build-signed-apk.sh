@@ -487,6 +487,37 @@ if ! yarn deploy; then
 fi
 print_success "Deployed to GitHub Pages"
 
+# ========== VERIFY RELEASE IS LIVE ==========
+echo ""
+print_header "Step 10: Verifying Release is Live"
+
+RELEASE_URL="https://github.com/DoberCodes/propertyManagerWebApp/releases/tag/v$NEW_VERSION"
+APK_URL="https://dobercodes.github.io/propertyManagerWebApp/PropertyManager.apk"
+PAGES_URL="https://dobercodes.github.io/propertyManagerWebApp/"
+
+print_info "Checking GitHub release..."
+if gh release view "v$NEW_VERSION" --json "url,assets,isPrerelease,isDraft" -q ".url" >/dev/null 2>&1; then
+  print_success "✓ GitHub release v$NEW_VERSION is live"
+  RELEASE_ASSET_COUNT=$(gh release view "v$NEW_VERSION" --json "assets" -q ".assets | length")
+  print_info "  Assets: $RELEASE_ASSET_COUNT file(s)"
+else
+  print_warning "⚠ Could not verify GitHub release (may still be accessible)"
+fi
+
+print_info "Checking APK availability..."
+if curl -s -I "$APK_URL" | grep -q "200\|302"; then
+  print_success "✓ APK is accessible at release URL"
+else
+  print_warning "⚠ APK URL may not be immediately accessible (CDN propagation)"
+fi
+
+print_info "Checking GitHub Pages site..."
+if curl -s -I "$PAGES_URL" | grep -q "200"; then
+  print_success "✓ GitHub Pages site is live"
+else
+  print_warning "⚠ GitHub Pages may still be building (check back in 1-2 minutes)"
+fi
+
 # ========== FINAL SUMMARY ==========
 echo ""
 print_header "Release Complete!"
