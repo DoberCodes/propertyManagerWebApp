@@ -443,11 +443,10 @@ REPO_NAME=${GITHUB_REPOSITORY:-$(gh repo view --json nameWithOwner -q .nameWithO
 
 if [ -f "$RELEASE_NOTES_FILE" ] && [ -f "$APK_FILE" ]; then
   if gh release view "v$NEW_VERSION" >/dev/null 2>&1; then
-    print_warning "Release v$NEW_VERSION already exists. Updating notes and uploading APK."
+    print_warning "Release v$NEW_VERSION already exists. Uploading APK."
     if ! GH_TOKEN=$(gh auth token) gh release edit "v$NEW_VERSION" --notes-file "$RELEASE_NOTES_FILE"; then
-      print_error "Failed to update GitHub release notes"
-      send_slack_notification "Failed to update GitHub release notes for v$NEW_VERSION" "error"
-      exit 1
+      print_warning "Failed to update GitHub release notes. Continuing with APK upload."
+      send_slack_notification "Failed to update GitHub release notes for v$NEW_VERSION" "warning"
     fi
   else
     if ! GH_TOKEN=$(gh auth token) gh api -X POST "repos/$REPO_NAME/releases" \
