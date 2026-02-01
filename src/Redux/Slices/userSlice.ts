@@ -1,4 +1,5 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { apiSlice } from '../API/apiSlice';
 
 // User type matching Firebase Auth + Firestore user data
 export interface User {

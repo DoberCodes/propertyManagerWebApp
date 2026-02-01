@@ -1846,24 +1846,21 @@ export const apiSlice = createApi({
 					const q = query(
 						collection(db, 'notifications'),
 						where('userId', '==', currentUser.uid),
+						orderBy('createdAt', 'desc'),
 					);
 					const querySnapshot = await getDocs(q);
-					const notifications = querySnapshot.docs
-						.map((doc) => ({
-							id: doc.id,
-							...doc.data(),
-						}))
-						.sort(
-							(a: any, b: any) =>
-								new Date(b.createdAt).getTime() -
-								new Date(a.createdAt).getTime(),
-						) as Notification[];
+					const notifications = querySnapshot.docs.map((doc) => ({
+						id: doc.id,
+						...doc.data(),
+					})) as Notification[];
 					return { data: notifications };
 				} catch (error: any) {
 					return { error: error.message };
 				}
 			},
 			providesTags: ['Notifications'],
+			// Force refetch when component mounts to avoid stale data
+			keepUnusedDataFor: 0,
 		}),
 
 		createNotification: builder.mutation<

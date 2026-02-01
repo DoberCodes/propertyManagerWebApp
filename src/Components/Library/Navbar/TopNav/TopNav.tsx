@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../../../../Redux/Store/store';
 import { logout } from '../../../../Redux/Slices/userSlice';
+import { apiSlice } from '../../../../Redux/API/apiSlice';
 import {
 	NavItem,
 	Title,
@@ -68,6 +69,8 @@ export const TopNav = () => {
 	const handleLogout = () => {
 		localStorage.removeItem('loggedUser');
 		dispatch(logout());
+		// Reset RTK Query cache to prevent stale data for next user
+		dispatch(apiSlice.util.resetApiState());
 		navigate('/');
 	};
 
