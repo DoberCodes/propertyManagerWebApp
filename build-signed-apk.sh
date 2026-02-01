@@ -463,10 +463,14 @@ if [ -f "$RELEASE_NOTES_FILE" ] && [ -f "$APK_FILE" ]; then
     print_success "GitHub release v$NEW_VERSION created"
   fi
 
-  if ! gh release upload "v$NEW_VERSION" "$APK_FILE" --clobber 2>/dev/null; then
-    print_warning "Could not upload APK to release. Release may still be accessible on GitHub."
+  if [ -f "$APK_FILE" ]; then
+    if gh release upload "v$NEW_VERSION" "$APK_FILE" --clobber; then
+      print_success "APK uploaded to GitHub release"
+    else
+      print_warning "Could not upload APK to release. You can upload it manually from GitHub."
+    fi
   else
-    print_success "APK uploaded to GitHub release"
+    print_warning "APK file not found. Cannot upload to release."
   fi
 else
   print_error "Missing release notes or APK file"
