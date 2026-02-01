@@ -6,14 +6,12 @@ import { TaskData } from '../../types/Task.types';
 import {
 	DialogOverlay as Overlay,
 	DialogContent as Modal,
-} from '../Library/Modal/ModalStyles';
-import {
 	FormGroup,
 	FormLabel as Label,
 	FormInput as Input,
 	FormSelect as Select,
 	FormTextarea as Textarea,
-} from '../Library/Forms/FormStyles';
+} from '../Library';
 
 interface ConvertRequestToTaskModalProps {
 	isOpen: boolean;

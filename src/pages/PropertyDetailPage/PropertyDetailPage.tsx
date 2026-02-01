@@ -36,7 +36,7 @@ import { MaintenanceRequestModal } from '../../Components/MaintenanceRequestModa
 import { ConvertRequestToTaskModal } from '../../Components/ConvertRequestToTaskModal';
 import { SharePropertyModal } from '../../Components/SharePropertyModal';
 import { AddTenantModal } from '../../Components/AddTenantModal';
-import Tabs from '../../Components/Library/Tabs/Tabs';
+import { Tabs } from '../../Components/Library';
 import {
 	DialogOverlay,
 	DialogContent,
@@ -45,14 +45,12 @@ import {
 	DialogButtonGroup,
 	DialogCancelButton,
 	DialogSubmitButton,
-} from '../../Components/Library/Modal/ModalStyles';
-import {
 	FormGroup,
 	FormLabel,
 	FormInput,
 	FormSelect,
 	FormTextarea,
-} from '../../Components/Library/Forms/FormStyles';
+} from '../../Components/Library';
 import {
 	Wrapper,
 	Header,

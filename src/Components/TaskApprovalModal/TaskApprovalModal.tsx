@@ -12,6 +12,7 @@ import {
 } from '../../Redux/API/apiSlice';
 import { canApproveTaskCompletions } from '../../utils/permissions';
 import { UserRole } from '../../constants/roles';
+import { ButtonGroup } from '../Library';
 import {
 	ModalOverlay,
 	ModalContainer,
@@ -28,7 +29,6 @@ import {
 	RejectionSection,
 	TextArea,
 	ErrorMessage,
-	ButtonGroup,
 	RejectButton,
 	ApproveButton,
 } from './TaskApprovalModal.styles';
@@ -237,7 +237,7 @@ export const TaskApprovalModal: React.FC<TaskApprovalModalProps> = ({
 						<>
 							{error && <ErrorMessage>{error}</ErrorMessage>}
 
-							<ButtonGroup>
+							<ButtonGroup gap='1rem' marginTop='1.5rem'>
 								<RejectButton
 									onClick={() => setShowRejectForm(true)}
 									disabled={isSubmitting}>
@@ -268,7 +268,7 @@ export const TaskApprovalModal: React.FC<TaskApprovalModalProps> = ({
 							/>
 							{error && <ErrorMessage>{error}</ErrorMessage>}
 
-							<ButtonGroup>
+							<ButtonGroup gap='1rem'>
 								<RejectButton
 									onClick={() => {
 										setShowRejectForm(false);

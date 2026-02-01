@@ -13,7 +13,8 @@ import {
 	FormGroup,
 	FormLabel,
 	FormInput,
-} from '../../Components/Library/Forms/FormStyles';
+	ButtonGroup,
+} from '../../Components/Library';
 import {
 	Wrapper,
 	Container,
@@ -23,7 +24,6 @@ import {
 	ImagePreview,
 	ImageUploadButton,
 	ImageUploadInput,
-	ButtonGroup,
 	CancelButton,
 	SaveButton,
 	ErrorMessage,

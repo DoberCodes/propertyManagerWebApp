@@ -4,14 +4,12 @@ import { MaintenanceRequest } from '../../types/MaintenanceRequest.types';
 import {
 	DialogOverlay as Overlay,
 	DialogContent as Modal,
-} from '../Library/Modal/ModalStyles';
-import {
 	FormGroup,
 	FormLabel as Label,
 	FormInput as Input,
 	FormSelect as Select,
 	FormTextarea as Textarea,
-} from '../Library/Forms/FormStyles';
+} from '../Library';
 
 interface MaintenanceRequestModalProps {
 	isOpen: boolean;

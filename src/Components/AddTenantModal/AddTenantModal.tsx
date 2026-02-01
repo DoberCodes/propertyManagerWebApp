@@ -6,8 +6,10 @@ import { useAddTenantMutation } from '../../Redux/API/apiSlice';
 import {
 	DialogOverlay as ModalOverlay,
 	DialogContent as ModalContent,
-} from '../Library/Modal/ModalStyles';
-import { FormGroup, FormLabel, FormInput } from '../Library/Forms/FormStyles';
+	FormGroup,
+	FormLabel,
+	FormInput,
+} from '../Library';
 
 interface AddTenantModalProps {
 	open: boolean;

@@ -1,6 +1,6 @@
 import React from 'react';
 import { PropertyDetailSectionProps } from '../../types/PropertyDetailPage.types';
-import { FormSelect } from '../../Components/Library/Forms/FormStyles';
+import { FormSelect } from '../../Components/Library';
 import {
 	EditableFieldInput,
 	InfoCard,

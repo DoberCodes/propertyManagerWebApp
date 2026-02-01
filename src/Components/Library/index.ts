@@ -61,9 +61,14 @@ export {
 	PrimaryButton,
 	SecondaryButton,
 	DangerButton,
+	SmallButton,
+	IconButton,
 } from './Buttons/ButtonStyles';
+export { ButtonGroup } from './ButtonGroup/ButtonGroup';
 
 // Navigation
+export { default as Tabs } from './Tabs/Tabs';
+export * from './NotificationPanel';
 export {
 	TabContent,
 	TabButton,

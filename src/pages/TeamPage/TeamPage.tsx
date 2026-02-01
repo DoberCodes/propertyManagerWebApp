@@ -37,14 +37,12 @@ import {
 	DialogOverlay,
 	DialogContent,
 	DialogHeader as LibraryDialogHeader,
-} from '../../Components/Library/Modal/ModalStyles';
-import {
 	FormGroup,
 	FormLabel,
 	FormInput,
 	FormSelect,
 	FormTextarea,
-} from '../../Components/Library/Forms/FormStyles';
+} from '../../Components/Library';
 import {
 	Wrapper,
 	PageHeader,

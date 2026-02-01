@@ -17,12 +17,10 @@ import {
 	ModalCloseButton,
 	ModalBody,
 	ModalFooter,
-} from '../Library/Modal/ModalStyles';
-import {
 	SecondaryButton as CancelButton,
 	PrimaryButton as SubmitButton,
-} from '../Library/Buttons/ButtonStyles';
-import { FormGroup } from '../Library/Forms/FormStyles';
+	FormGroup,
+} from '../Library';
 import {
 	Label,
 	Input,

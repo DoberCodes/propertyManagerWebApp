@@ -23,7 +23,7 @@ import { UserRole } from '../../constants/roles';
 import { isTenant, getTenantPropertySlug } from '../../utils/permissions';
 import { filterTasksByRole } from '../../utils/dataFilters';
 import { TaskCompletionModal } from '../../Components/TaskCompletionModal';
-import { NotificationPanel } from '../../Components/Library/NotificationPanel';
+import { NotificationPanel } from '../../Components/Library';
 import {
 	Wrapper,
 	TaskGridSection,

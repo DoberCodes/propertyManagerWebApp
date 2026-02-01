@@ -1,4 +1,4 @@
-import { FormGroup } from '../../Components/Library/Forms/FormStyles';
+import { FormGroup } from '../../Components/Library';
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LandingNavbar } from '../../Components/Library/LandingNavbar';

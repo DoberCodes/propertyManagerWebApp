@@ -11,7 +11,7 @@ import {
 	FormGroup as LibraryFormGroup,
 	FormLabel as LibraryLabel,
 	FormSelect as LibrarySelect,
-} from '../Library/Forms/FormStyles';
+} from '../Library';
 import {
 	Wrapper,
 	PageTitle,

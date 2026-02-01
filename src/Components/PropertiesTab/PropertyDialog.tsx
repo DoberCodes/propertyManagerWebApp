@@ -7,12 +7,10 @@ import {
 	ModalCloseButton as CloseButton,
 	ModalBody as DialogContent,
 	ModalFooter as DialogFooter,
-} from '../Library/Modal/ModalStyles';
-import {
 	PrimaryButton as SaveButton,
 	SecondaryButton as CancelButton,
 	SmallButton as AddButton,
-} from '../Library/Buttons/ButtonStyles';
+} from '../Library';
 import {
 	FormSection,
 	SectionTitle,
