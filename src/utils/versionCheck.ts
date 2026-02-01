@@ -16,7 +16,7 @@ import { Browser } from '@capacitor/browser';
 
 const CURRENT_APP_VERSION = '1.2.2'; // Should match package.json version
 const STORAGE_KEY = 'app_version_check';
-const DISMISS_KEY = 'app_update_dismissed';
+const DISMISS_KEY = 'app_update_dismissed_version';
 
 interface VersionCheckData {
 	lastChecked: number;
@@ -50,15 +50,12 @@ export const getAPKFileSize = async () => {
 /**
  * Check if update notification should be displayed
  * Returns true if there's a newer version available and hasn't been dismissed
+ * Dismissal is version-specific, so new versions will still show a notification
  */
 export const shouldShowUpdateNotification = (): boolean => {
 	try {
 		const versionCheck = localStorage.getItem(STORAGE_KEY);
-		const dismissed = localStorage.getItem(DISMISS_KEY);
-
-		if (dismissed === 'true') {
-			return false;
-		}
+		const dismissedVersion = localStorage.getItem(DISMISS_KEY);
 
 		if (versionCheck) {
 			const data: VersionCheckData = JSON.parse(versionCheck);
@@ -67,6 +64,10 @@ export const shouldShowUpdateNotification = (): boolean => {
 				data.availableVersion &&
 				compareVersions(data.availableVersion, CURRENT_APP_VERSION) > 0
 			) {
+				// If a version was dismissed, only show notification if available version is newer than dismissed version
+				if (dismissedVersion) {
+					return compareVersions(data.availableVersion, dismissedVersion) > 0;
+				}
 				return true;
 			}
 		}
@@ -111,10 +112,22 @@ export const setAvailableVersion = (version: string): void => {
 };
 
 /**
- * Dismiss the update notification for this session
+ * Dismiss the update notification for the current available version
+ * New versions will still show a notification
  */
 export const dismissUpdateNotification = (): void => {
-	localStorage.setItem(DISMISS_KEY, 'true');
+	try {
+		const versionCheck = localStorage.getItem(STORAGE_KEY);
+		if (versionCheck) {
+			const data: VersionCheckData = JSON.parse(versionCheck);
+			// Store the dismissed version, not just a boolean
+			// This allows newer versions to still show notifications
+			localStorage.setItem(DISMISS_KEY, data.availableVersion);
+		}
+	} catch (error) {
+		console.error('Error dismissing update notification:', error);
+		localStorage.setItem(DISMISS_KEY, getCurrentAppVersion());
+	}
 };
 
 /**
