@@ -251,16 +251,8 @@ echo "Using auto-generated release notes."
 RELEASE_NOTES_SUMMARY=$(echo "$RELEASE_NOTES" | head -n 8)
 
 echo ""
-if [[ "$DRY_RUN" != "--dry-run" && "$DRY_RUN" != "-d" ]]; then
-  node scripts/updateAppVersion.cjs "$NEW_VERSION" "$RELEASE_NOTES"
-  print_success "Version updated to $NEW_VERSION"
-  
-  # Update the hardcoded version in versionCheck.ts
-  sed -i "s/const CURRENT_APP_VERSION = '[^']*';/const CURRENT_APP_VERSION = '$NEW_VERSION';/" src/utils/versionCheck.ts
-  print_success "Updated CURRENT_APP_VERSION in versionCheck.ts"
-else
-  print_warning "Skipping version update in dry-run mode"
-fi
+# VERSION UPDATE MOVED TO AFTER SUCCESSFUL BUILD
+# This prevents version bumps when builds fail
 fi
 
 # ========== DRY RUN MODE ==========
@@ -382,6 +374,29 @@ cp android/app/release/app-release.apk public/PropertyManager.apk
 print_success "APK copied to public folder"
 ls -lh public/PropertyManager.apk
 
+# ========== UPDATE VERSION FILES ==========
+# Version update happens AFTER successful build to prevent version bumps on build failures
+echo ""
+print_header "Step 4.5: Updating Version Files"
+if [[ "$DRY_RUN" != "--dry-run" && "$DRY_RUN" != "-d" ]]; then
+  node scripts/updateAppVersion.cjs "$NEW_VERSION" "$RELEASE_NOTES"
+  print_success "Version updated to $NEW_VERSION in Firestore"
+  
+  # Update package.json version
+  node -e "const pkg = require('./package.json'); pkg.version = '$NEW_VERSION'; require('fs').writeFileSync('./package.json', JSON.stringify(pkg, null, '\t') + '\n');"
+  node -e "const pkg = require('./client/package.json'); pkg.version = '$NEW_VERSION'; require('fs').writeFileSync('./client/package.json', JSON.stringify(pkg, null, '\t') + '\n');"
+  print_success "Version updated to $NEW_VERSION in package.json"
+  
+  # Update the hardcoded version in versionCheck.ts
+  sed -i "s/const CURRENT_APP_VERSION = '[^']*';/const CURRENT_APP_VERSION = '$NEW_VERSION';/" src/utils/versionCheck.ts
+  print_success "Updated CURRENT_APP_VERSION in versionCheck.ts"
+else
+  print_warning "Skipping version update in dry-run mode"
+fi
+
+echo ""
+print_header "Step 5: Rebuilding for Web Deployment"
+
 # Restore homepage for web deployment
 sed -i 's|"homepage": "./"|"homepage": "https://dobercodes.github.io/propertyManagerWebApp"|g' package.json client/package.json
 print_success "Homepage restored to GitHub Pages URL"
@@ -392,7 +407,7 @@ print_success "Web app rebuilt for deployment"
 
 # ========== AUTOMATED GIT COMMIT ==========
 echo ""
-print_header "Step 5: Auto-Committing Changes"
+print_header "Step 6: Auto-Committing Changes"
 
 git add package.json client/package.json src/utils/versionCheck.ts
 if git diff --cached --quiet; then
@@ -410,7 +425,7 @@ fi
 
 # Push to main
 echo ""
-print_header "Step 6: Pushing to Main"
+print_header "Step 7: Pushing to Main"
 if [[ "$SKIP_GIT_STEPS" == "1" ]]; then
   print_warning "Skipping push (no new commits)."
 else
@@ -424,7 +439,7 @@ fi
 
 # ========== CREATE GIT TAG ==========
 echo ""
-print_header "Step 7: Creating Git Tag"
+print_header "Step 8: Creating Git Tag"
 if [[ "$SKIP_GIT_STEPS" == "1" ]]; then
   print_warning "Skipping tag creation (no new commits)."
 else
@@ -440,7 +455,7 @@ fi
 
 # ========== CREATE GITHUB RELEASE ==========
 echo ""
-print_header "Step 8: Creating GitHub Release"
+print_header "Step 9: Creating GitHub Release"
 RELEASE_NOTES_FILE="RELEASE_NOTES.txt"
 APK_FILE="public/PropertyManager.apk"
 REPO_NAME=${GITHUB_REPOSITORY:-$(gh repo view --json nameWithOwner -q .nameWithOwner)}
@@ -485,7 +500,7 @@ print_success "Release notes cleared and APK removed from public folder"
 
 # ========== GITHUB PAGES DEPLOYMENT ==========
 echo ""
-print_header "Step 9: Deploying to GitHub Pages"
+print_header "Step 10: Deploying to GitHub Pages"
 if ! yarn deploy; then
   print_error "GitHub Pages deployment failed"
   send_slack_notification "GitHub Pages deployment failed for v$NEW_VERSION" "error"
@@ -495,7 +510,7 @@ print_success "Deployed to GitHub Pages"
 
 # ========== VERIFY RELEASE IS LIVE ==========
 echo ""
-print_header "Step 10: Verifying Release is Live"
+print_header "Step 11: Verifying Release is Live"
 
 RELEASE_URL="https://github.com/DoberCodes/propertyManagerWebApp/releases/tag/v$NEW_VERSION"
 APK_URL="https://dobercodes.github.io/propertyManagerWebApp/PropertyManager.apk"
