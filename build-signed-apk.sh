@@ -444,7 +444,7 @@ REPO_NAME=${GITHUB_REPOSITORY:-$(gh repo view --json nameWithOwner -q .nameWithO
 if [ -f "$RELEASE_NOTES_FILE" ] && [ -f "$APK_FILE" ]; then
   if gh release view "v$NEW_VERSION" >/dev/null 2>&1; then
     print_warning "Release v$NEW_VERSION already exists. Uploading APK."
-    if ! GH_TOKEN=$(gh auth token) gh release edit "v$NEW_VERSION" --notes-file "$RELEASE_NOTES_FILE"; then
+    if ! env -u GH_TOKEN -u GITHUB_TOKEN gh release edit "v$NEW_VERSION" --notes-file "$RELEASE_NOTES_FILE"; then
       print_warning "Failed to update GitHub release notes. Continuing with APK upload."
       send_slack_notification "Failed to update GitHub release notes for v$NEW_VERSION" "warning"
     fi
@@ -460,7 +460,7 @@ if [ -f "$RELEASE_NOTES_FILE" ] && [ -f "$APK_FILE" ]; then
     print_success "GitHub release v$NEW_VERSION created"
   fi
 
-  if ! GH_TOKEN=$(gh auth token) gh release upload "v$NEW_VERSION" "$APK_FILE" --clobber; then
+  if ! env -u GH_TOKEN -u GITHUB_TOKEN gh release upload "v$NEW_VERSION" "$APK_FILE" --clobber; then
     print_error "Failed to upload APK to GitHub release"
     send_slack_notification "Failed to upload APK for v$NEW_VERSION" "error"
     exit 1
