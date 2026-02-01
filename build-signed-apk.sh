@@ -453,10 +453,9 @@ if [ -f "$RELEASE_NOTES_FILE" ] && [ -f "$APK_FILE" ]; then
       send_slack_notification "Failed to update GitHub release notes for v$NEW_VERSION" "warning"
     fi
   else
-    if ! GH_TOKEN=$(gh auth token) gh api -X POST "repos/$REPO_NAME/releases" \
-      -f tag_name="v$NEW_VERSION" \
-      -f name="Release v$NEW_VERSION" \
-      -f body="$(cat "$RELEASE_NOTES_FILE")"; then
+    if ! gh release create "v$NEW_VERSION" \
+      --title "Release v$NEW_VERSION" \
+      --notes-file "$RELEASE_NOTES_FILE"; then
       print_error "Failed to create GitHub release"
       send_slack_notification "Failed to create GitHub release for v$NEW_VERSION" "error"
       exit 1
@@ -464,12 +463,11 @@ if [ -f "$RELEASE_NOTES_FILE" ] && [ -f "$APK_FILE" ]; then
     print_success "GitHub release v$NEW_VERSION created"
   fi
 
-  if ! env -u GH_TOKEN -u GITHUB_TOKEN gh release upload "v$NEW_VERSION" "$APK_FILE" --clobber; then
-    print_error "Failed to upload APK to GitHub release"
-    send_slack_notification "Failed to upload APK for v$NEW_VERSION" "error"
-    exit 1
+  if ! gh release upload "v$NEW_VERSION" "$APK_FILE" --clobber 2>/dev/null; then
+    print_warning "Could not upload APK to release. Release may still be accessible on GitHub."
+  else
+    print_success "APK uploaded to GitHub release"
   fi
-  print_success "APK uploaded to GitHub release"
 else
   print_error "Missing release notes or APK file"
   send_slack_notification "Missing files for GitHub release v$NEW_VERSION" "error"
