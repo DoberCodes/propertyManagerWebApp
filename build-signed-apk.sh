@@ -25,6 +25,11 @@
 
 set -e  # Exit on any error
 
+# Load environment variables from .env file if it exists
+if [ -f ".env" ]; then
+  export $(cat .env | grep -v '^#' | xargs)
+fi
+
 # Configuration
 DRY_RUN=${1:-""}
 SLACK_WEBHOOK=${SLACK_WEBHOOK:-""}  # Set SLACK_WEBHOOK env var for notifications
@@ -248,19 +253,28 @@ if [[ "$DRY_RUN" == "--dry-run" ]]; then
   print_warning "Dry-run mode: skipping APK build"
   KEYSTORE_PASSWORD="dummy"
 else
-  read -sp "Enter keystore password: " KEYSTORE_PASSWORD
-  echo ""
-  read -sp "Confirm keystore password: " KEYSTORE_PASSWORD_CONFIRM
-  echo ""
+  # Check if password is in env file
+  if [[ -z "$KEYSTORE_PASSWORD" ]]; then
+    read -sp "Enter keystore password: " KEYSTORE_PASSWORD
+    echo ""
+    read -sp "Confirm keystore password: " KEYSTORE_PASSWORD_CONFIRM
+    echo ""
 
-  if [ "$KEYSTORE_PASSWORD" != "$KEYSTORE_PASSWORD_CONFIRM" ]; then
-    print_error "Passwords do not match!"
-    exit 1
+    if [ "$KEYSTORE_PASSWORD" != "$KEYSTORE_PASSWORD_CONFIRM" ]; then
+      print_error "Passwords do not match!"
+      exit 1
+    fi
+  else
+    print_info "Using KEYSTORE_PASSWORD from .env file"
   fi
 fi
 
-# Use same password for both keystore and key by default
-KEY_PASSWORD="$KEYSTORE_PASSWORD"
+# Use same password for both keystore and key (or use KEY_PASSWORD from env if set)
+if [[ -z "$KEYSTORE_KEY_PASSWORD" ]]; then
+  KEY_PASSWORD="$KEYSTORE_PASSWORD"
+else
+  KEY_PASSWORD="$KEYSTORE_KEY_PASSWORD"
+fi
 
 # Build APK using Gradle (skip in dry-run)
 if [[ "$DRY_RUN" == "--dry-run" ]]; then
