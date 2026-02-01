@@ -1,69 +1,13 @@
 import React, { useState } from 'react';
 import { useSelector } from 'react-redux';
 import { Navigate } from 'react-router-dom';
-import styled from 'styled-components';
 import { RootState } from '../../Redux/Store/store';
+import { ZeroState } from '../Library/ZeroState';
 import { PropertyDialog } from './PropertyDialog';
 import {
 	useCreatePropertyMutation,
 	useCreatePropertyGroupMutation,
 } from '../../Redux/API/apiSlice';
-
-const ZeroStateContainer = styled.div`
-	display: flex;
-	flex-direction: column;
-	align-items: center;
-	justify-content: center;
-	min-height: 70vh;
-	padding: 40px 20px;
-	background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-	border-radius: 12px;
-	margin: 20px;
-`;
-
-const ZeroStateIcon = styled.div`
-	font-size: 80px;
-	margin-bottom: 20px;
-`;
-
-const ZeroStateTitle = styled.h2`
-	font-size: 28px;
-	font-weight: 600;
-	color: #2c3e50;
-	margin-bottom: 10px;
-	text-align: center;
-`;
-
-const ZeroStateDescription = styled.p`
-	font-size: 16px;
-	color: #555;
-	margin-bottom: 30px;
-	text-align: center;
-	max-width: 400px;
-	line-height: 1.6;
-`;
-
-const AddPropertyButton = styled.button`
-	padding: 12px 32px;
-	font-size: 16px;
-	font-weight: 600;
-	color: white;
-	background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-	border: none;
-	border-radius: 8px;
-	cursor: pointer;
-	transition: all 0.3s ease;
-	box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
-
-	&:hover {
-		transform: translateY(-2px);
-		box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
-	}
-
-	&:active {
-		transform: translateY(0);
-	}
-`;
 
 /**
  * Wrapper for homeowner property view.
@@ -129,17 +73,18 @@ const HomeownerPropertyWrapper: React.FC = () => {
 		// No property: show zero-state
 		return (
 			<>
-				<ZeroStateContainer>
-					<ZeroStateIcon>🏠</ZeroStateIcon>
-					<ZeroStateTitle>No Property Yet</ZeroStateTitle>
-					<ZeroStateDescription>
-						Welcome! Let's get started by adding your property. This will help
-						you manage all your property details, units, and tasks in one place.
-					</ZeroStateDescription>
-					<AddPropertyButton onClick={() => setDialogOpen(true)}>
-						+ Add Your Property
-					</AddPropertyButton>
-				</ZeroStateContainer>
+				<ZeroState
+					icon='🏠'
+					title='No Property Yet'
+					description='Welcome! Let's get started by adding your property. This will help you manage all your property details, units, and tasks in one place.'
+					actions={[
+						{
+							label: '+ Add Your Property',
+							onClick: () => setDialogOpen(true),
+							variant: 'primary',
+						},
+					]}
+				/>
 
 				<PropertyDialog
 					isOpen={dialogOpen}
