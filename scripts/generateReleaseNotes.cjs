@@ -192,18 +192,73 @@ async function generateReleaseNotes() {
 function formatReleaseNotes(commits, version) {
 	const notes = [`🎉 **Release Notes for Version ${version}** 🎉\n`];
 
-	const bugFixes = commits
-		.filter((commit) => commit.message.startsWith('fix:'))
+	// Breaking Changes
+	const breakingChanges = commits
+		.filter((commit) =>
+			commit.message.toLowerCase().includes('breaking change:'),
+		)
 		.map(
 			(commit) =>
 				`- ${commit.message
-					.replace(/^fix:/, '')
+					.replace(/^[Bb]reaking [Cc]hange:\s*/i, '')
 					.replace(/\s*\(.*?\)/g, '')
 					.trim()}`,
-		); // Ensure committer name is stripped globally
+		);
+
+	if (breakingChanges.length > 0) {
+		notes.push('\n## ⚠️ BREAKING CHANGES', ...breakingChanges);
+	}
+
+	// Features
+	const features = commits
+		.filter((commit) => commit.message.toLowerCase().startsWith('feature:'))
+		.map(
+			(commit) =>
+				`- ${commit.message
+					.replace(/^[Ff]eature:\s*/i, '')
+					.replace(/\s*\(.*?\)/g, '')
+					.trim()}`,
+		);
+
+	if (features.length > 0) {
+		notes.push('\n## ✨ Features', ...features);
+	}
+
+	// Bug Fixes
+	const bugFixes = commits
+		.filter((commit) => commit.message.toLowerCase().startsWith('fix:'))
+		.map(
+			(commit) =>
+				`- ${commit.message
+					.replace(/^[Ff]ix:\s*/i, '')
+					.replace(/\s*\(.*?\)/g, '')
+					.trim()}`,
+		);
 
 	if (bugFixes.length > 0) {
 		notes.push('\n## 🐛 Bug Fixes', ...bugFixes);
+	}
+
+	// Chores/Improvements
+	const chores = commits
+		.filter(
+			(commit) =>
+				commit.message.toLowerCase().startsWith('chore:') ||
+				(!commit.message.toLowerCase().startsWith('feature:') &&
+					!commit.message.toLowerCase().startsWith('fix:') &&
+					!commit.message.toLowerCase().startsWith('release:') &&
+					!commit.message.toLowerCase().includes('breaking change:')),
+		)
+		.map(
+			(commit) =>
+				`- ${commit.message
+					.replace(/^[Cc]hore:\s*/i, '')
+					.replace(/\s*\(.*?\)/g, '')
+					.trim()}`,
+		);
+
+	if (chores.length > 0) {
+		notes.push('\n## 🔧 Improvements & Maintenance', ...chores);
 	}
 
 	return notes.join('\n');
