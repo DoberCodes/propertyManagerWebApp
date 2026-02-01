@@ -283,7 +283,7 @@ else
   print_info "Building APK with Gradle..."
   cd android
   if ! ./gradlew assembleRelease \
-    -Pandroid.injected.signing.store.file=../my-release-key.keystore \
+    -Pandroid.injected.signing.store.file="$(cd .. && pwd)/my-release-key.keystore" \
     -Pandroid.injected.signing.store.password="$KEYSTORE_PASSWORD" \
     -Pandroid.injected.signing.key.alias=my-key-alias \
     -Pandroid.injected.signing.key.password="$KEY_PASSWORD" \
