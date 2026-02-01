@@ -1,11 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import {
-	DialogOverlay,
-	DialogContainer,
-	DialogHeader,
-	DialogTitle,
-	CloseButton,
-	DialogContent,
+	ModalOverlay as DialogOverlay,
+	ModalContainer as DialogContainer,
+	ModalHeader as DialogHeader,
+	ModalTitle as DialogTitle,
+	ModalCloseButton as CloseButton,
+	ModalBody as DialogContent,
+	ModalFooter as DialogFooter,
+} from '../Library/Modal/ModalStyles';
+import {
+	PrimaryButton as SaveButton,
+	SecondaryButton as CancelButton,
+	SmallButton as AddButton,
+} from '../Library/Buttons/ButtonStyles';
+import {
 	FormSection,
 	SectionTitle,
 	FormRow,
@@ -24,14 +32,10 @@ import {
 	FileUploadSection,
 	FileInput,
 	FileLabel,
-	DialogFooter,
-	SaveButton,
-	CancelButton,
 	TagsContainer,
 	Tag,
 	RemoveTagButton,
 	TagInput,
-	AddButton,
 } from './PropertyDialog.styles';
 import { uploadToBase64, isValidImageFile } from '../../utils/base64Upload';
 

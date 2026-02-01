@@ -4,7 +4,7 @@ import { setCurrentUser, setAuthLoading } from './Redux/Slices/userSlice';
 import { RouterComponent } from './router';
 import { DataFetchProvider } from './Hooks/DataFetchContext';
 import { onAuthStateChange } from './services/authService';
-import { UpdateNotification } from './Components/UpdateNotification/UpdateNotification';
+import { UpdateNotification } from './Components/Library/UpdateNotification/UpdateNotification';
 import { checkForUpdates } from './utils/versionCheck';
 import styled from 'styled-components';
 import { Capacitor } from '@capacitor/core';

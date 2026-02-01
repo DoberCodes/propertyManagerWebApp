@@ -302,88 +302,6 @@ export const BackButton = styled.button`
 	}
 `;
 
-export const SectionContainer = styled.div`
-	padding: 24px;
-	border-bottom: 1px solid #e0e0e0;
-
-	&:last-child {
-		border-bottom: none;
-	}
-`;
-
-export const SectionHeader = styled.h2`
-	font-size: 20px;
-	font-weight: 600;
-	color: #333;
-	margin: 0 0 20px 0;
-	display: flex;
-	justify-content: space-between;
-	align-items: center;
-`;
-
-export const AddButton = styled.button`
-	padding: 8px 16px;
-	background-color: #22c55e;
-	color: white;
-	border: none;
-	border-radius: 4px;
-	font-size: 14px;
-	font-weight: 500;
-	cursor: pointer;
-	transition: all 0.2s ease;
-
-	&:hover {
-		background-color: #16a34a;
-	}
-`;
-
-export const InfoGrid = styled.div`
-	display: grid;
-	grid-template-columns: repeat(3, 1fr);
-	gap: 16px;
-
-	@media (max-width: 1024px) {
-		grid-template-columns: repeat(2, 1fr);
-	}
-
-	@media (max-width: 768px) {
-		grid-template-columns: 1fr;
-		gap: 12px;
-	}
-`;
-
-export const InfoCard = styled.div`
-	background-color: white;
-	border: 1px solid #e0e0e0;
-	border-radius: 6px;
-	padding: 16px;
-	display: flex;
-	flex-direction: column;
-	gap: 8px;
-
-	@media (max-width: 768px) {
-		padding: 12px;
-	}
-
-	@media (max-width: 480px) {
-		padding: 10px;
-	}
-`;
-
-export const InfoLabel = styled.label`
-	font-size: 12px;
-	font-weight: 600;
-	color: #999999;
-	text-transform: uppercase;
-	letter-spacing: 0.5px;
-`;
-
-export const InfoValue = styled.span`
-	font-size: 14px;
-	color: #333;
-	word-break: break-word;
-`;
-
 export const DevicesGrid = styled.div`
 	display: grid;
 	grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -615,146 +533,6 @@ export const TaskCheckbox = styled.input.attrs({ type: 'checkbox' })`
 	accent-color: #22c55e;
 `;
 
-// Dialog styles
-export const DialogOverlay = styled.div`
-	position: fixed;
-	top: 0;
-	left: 0;
-	right: 0;
-	bottom: 0;
-	background-color: rgba(0, 0, 0, 0.5);
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	z-index: 1000;
-`;
-
-export const DialogContent = styled.div`
-	background-color: white;
-	border-radius: 8px;
-	padding: 32px;
-	max-width: 500px;
-	width: 90%;
-	max-height: 80vh;
-	overflow-y: auto;
-	box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
-`;
-
-export const DialogHeader = styled.h2`
-	margin: 0 0 24px 0;
-	font-size: 24px;
-	font-weight: 700;
-	color: #333;
-`;
-
-export const DialogForm = styled.form`
-	display: flex;
-	flex-direction: column;
-	gap: 16px;
-`;
-
-export const FormGroup = styled.div`
-	display: flex;
-	flex-direction: column;
-	gap: 8px;
-`;
-
-export const FormLabel = styled.label`
-	font-size: 13px;
-	font-weight: 600;
-	color: #666;
-	text-transform: uppercase;
-	letter-spacing: 0.5px;
-`;
-
-export const FormInput = styled.input`
-	padding: 10px 12px;
-	border: 1px solid #e0e0e0;
-	border-radius: 4px;
-	font-size: 14px;
-	font-family: inherit;
-
-	&:focus {
-		outline: none;
-		border-color: #22c55e;
-		box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.1);
-	}
-`;
-
-export const FormSelect = styled.select`
-	padding: 10px 12px;
-	border: 1px solid #e0e0e0;
-	border-radius: 4px;
-	font-size: 14px;
-	font-family: inherit;
-
-	&:focus {
-		outline: none;
-		border-color: #22c55e;
-		box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.1);
-	}
-`;
-
-export const FormTextarea = styled.textarea`
-	padding: 10px 12px;
-	border: 1px solid #e0e0e0;
-	border-radius: 4px;
-	font-size: 14px;
-	font-family: inherit;
-	resize: vertical;
-	min-height: 100px;
-
-	&:focus {
-		outline: none;
-		border-color: #22c55e;
-		box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.1);
-	}
-`;
-
-export const DialogButtonGroup = styled.div`
-	display: flex;
-	gap: 12px;
-	justify-content: flex-end;
-	margin-top: 24px;
-`;
-
-export const DialogCancelButton = styled.button`
-	background-color: #f3f4f6;
-	color: #333;
-	border: none;
-	padding: 10px 16px;
-	border-radius: 4px;
-	font-size: 13px;
-	font-weight: 600;
-	cursor: pointer;
-	transition: background-color 0.2s ease;
-
-	&:hover {
-		background-color: #e5e7eb;
-	}
-`;
-
-export const DialogSubmitButton = styled.button`
-	background-color: #22c55e;
-	color: white;
-	border: none;
-	padding: 10px 16px;
-	border-radius: 4px;
-	font-size: 13px;
-	font-weight: 600;
-	cursor: pointer;
-	transition: background-color 0.2s ease;
-
-	&:hover {
-		background-color: #16a34a;
-	}
-
-	&:disabled {
-		background-color: #9ca3af;
-		cursor: not-allowed;
-	}
-`;
-
 // Minimal edit button (moved to Details tab)
 export const MinimalEditButton = styled.button`
 	background: none;
@@ -841,4 +619,40 @@ export const AddDeviceButton = styled.button`
 		background-color: #9ca3af;
 		cursor: not-allowed;
 	}
+`;
+
+// Info Card and Grid Components for Property Detail Section
+export const SectionContainer = styled.div`
+	margin-bottom: 24px;
+`;
+
+export const InfoGrid = styled.div`
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+	gap: 16px;
+	margin-top: 12px;
+`;
+
+export const InfoCard = styled.div`
+	background: #f9fafb;
+	border: 1px solid #e5e7eb;
+	border-radius: 8px;
+	padding: 16px;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+`;
+
+export const InfoLabel = styled.label`
+	font-size: 12px;
+	font-weight: 600;
+	text-transform: uppercase;
+	color: #6b7280;
+	letter-spacing: 0.5px;
+`;
+
+export const InfoValue = styled.span`
+	font-size: 14px;
+	color: #1f2937;
+	word-break: break-word;
 `;

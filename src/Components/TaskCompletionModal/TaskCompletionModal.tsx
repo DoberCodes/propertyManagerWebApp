@@ -14,9 +14,16 @@ import {
 	ModalContainer,
 	ModalHeader,
 	ModalTitle,
-	CloseButton,
+	ModalCloseButton,
 	ModalBody,
-	FormGroup,
+	ModalFooter,
+} from '../Library/Modal/ModalStyles';
+import {
+	SecondaryButton as CancelButton,
+	PrimaryButton as SubmitButton,
+} from '../Library/Buttons/ButtonStyles';
+import { FormGroup } from '../Library/Forms/FormStyles';
+import {
 	Label,
 	Input,
 	FileUploadArea,
@@ -24,9 +31,6 @@ import {
 	FileUploadLabel,
 	FileInfo,
 	ErrorMessage,
-	ButtonGroup,
-	CancelButton,
-	SubmitButton,
 } from './TaskCompletionModal.styles';
 
 interface TaskCompletionModalProps {
@@ -171,7 +175,7 @@ export const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
 			<ModalContainer>
 				<ModalHeader>
 					<ModalTitle>Mark Task as Complete</ModalTitle>
-					<CloseButton onClick={onClose}>&times;</CloseButton>
+					<ModalCloseButton onClick={onClose}>&times;</ModalCloseButton>
 				</ModalHeader>
 
 				<ModalBody>
@@ -253,16 +257,16 @@ export const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
 						<strong>Note:</strong> Once submitted, this task will be sent to an
 						admin or maintenance lead for final approval.
 					</p>
-
-					<ButtonGroup>
-						<CancelButton onClick={onClose} disabled={isSubmitting}>
-							Cancel
-						</CancelButton>
-						<SubmitButton onClick={handleSubmit} disabled={isSubmitting}>
-							{isSubmitting ? 'Submitting...' : 'Submit for Approval'}
-						</SubmitButton>
-					</ButtonGroup>
 				</ModalBody>
+
+				<ModalFooter>
+					<CancelButton onClick={onClose} disabled={isSubmitting}>
+						Cancel
+					</CancelButton>
+					<SubmitButton onClick={handleSubmit} disabled={isSubmitting}>
+						{isSubmitting ? 'Submitting...' : 'Submit for Approval'}
+					</SubmitButton>
+				</ModalFooter>
 			</ModalContainer>
 		</ModalOverlay>
 	);

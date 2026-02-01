@@ -381,61 +381,7 @@ export const AddText = styled.p`
 	text-align: center;
 `;
 
-// Dialog Styles
-export const DialogOverlay = styled.div`
-	position: fixed;
-	top: 0;
-	left: 0;
-	right: 0;
-	bottom: 0;
-	background-color: rgba(0, 0, 0, 0.5);
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	z-index: 1000;
-`;
-
-export const DialogContent = styled.div`
-	background-color: white;
-	border-radius: 12px;
-	box-shadow: 0 20px 25px rgba(0, 0, 0, 0.15);
-	width: 90%;
-	max-width: 800px;
-	max-height: 90vh;
-	display: flex;
-	flex-direction: column;
-
-	@media (max-width: 768px) {
-		width: 95%;
-		max-width: 600px;
-		max-height: 85vh;
-	}
-
-	@media (max-width: 480px) {
-		width: 98%;
-		max-width: 100%;
-		max-height: 95vh;
-		border-radius: 8px;
-	}
-`;
-
-export const DialogHeader = styled.div`
-	padding: 24px;
-	border-bottom: 1px solid #e5e7eb;
-	display: flex;
-	justify-content: space-between;
-	align-items: center;
-	flex-shrink: 0;
-
-	@media (max-width: 768px) {
-		padding: 16px;
-	}
-
-	@media (max-width: 480px) {
-		padding: 12px;
-	}
-`;
-
+// Keep TeamPage-specific Dialog components that differ from Library
 export const DialogTitle = styled.h2`
 	font-size: 20px;
 	font-weight: 700;
@@ -568,78 +514,6 @@ export const ImageUploadButton = styled.label`
 
 	&:hover {
 		background-color: #059669;
-	}
-`;
-
-export const FormGroup = styled.div`
-	display: flex;
-	flex-direction: column;
-	gap: 8px;
-`;
-
-export const FormLabel = styled.label`
-	font-size: 13px;
-	font-weight: 600;
-	color: #374151;
-`;
-
-export const FormInput = styled.input`
-	padding: 10px 12px;
-	border: 1px solid #d1d5db;
-	border-radius: 6px;
-	font-size: 14px;
-	transition: border-color 0.2s ease;
-
-	&:focus {
-		outline: none;
-		border-color: #3b82f6;
-		box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-	}
-
-	&::placeholder {
-		color: #9ca3af;
-	}
-`;
-
-export const FormSelect = styled.select`
-	padding: 10px 12px;
-	border: 1px solid #d1d5db;
-	border-radius: 6px;
-	font-size: 14px;
-	background-color: white;
-	transition: border-color 0.2s ease;
-	cursor: pointer;
-
-	&:focus {
-		outline: none;
-		border-color: #3b82f6;
-		box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-	}
-
-	option {
-		padding: 8px;
-	}
-`;
-
-export const FormTextarea = styled.textarea`
-	padding: 10px 12px;
-	border: 1px solid #d1d5db;
-	border-radius: 6px;
-	font-size: 14px;
-	font-family: inherit;
-	resize: vertical;
-	min-height: 80px;
-	max-height: 120px;
-	transition: border-color 0.2s ease;
-
-	&:focus {
-		outline: none;
-		border-color: #3b82f6;
-		box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-	}
-
-	&::placeholder {
-		color: #9ca3af;
 	}
 `;
 

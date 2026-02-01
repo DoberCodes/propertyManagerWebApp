@@ -1,3 +1,4 @@
+import { FormGroup } from '../../Components/Library/Forms/FormStyles';
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LandingNavbar } from '../../Components/Library/LandingNavbar';
@@ -46,7 +47,6 @@ import {
 	ContactTitle,
 	ContactContent,
 	ContactForm,
-	FormGroup,
 	FormInput,
 	FormTextarea,
 	SubmitButton,

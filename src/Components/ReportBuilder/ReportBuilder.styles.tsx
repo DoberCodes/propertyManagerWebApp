@@ -111,52 +111,6 @@ export const SectionTitle = styled.h2`
 	}
 `;
 
-export const FormGroup = styled.div`
-	display: flex;
-	flex-direction: column;
-	gap: 8px;
-`;
-
-export const Label = styled.label`
-	font-size: 15px;
-	font-weight: 600;
-	color: #374151;
-	display: block;
-	margin-bottom: 8px;
-
-	@media (max-width: 480px) {
-		font-size: 14px;
-	}
-`;
-
-export const Select = styled.select`
-	padding: 10px 12px;
-	border: 1px solid #d1d5db;
-	border-radius: 6px;
-	font-size: 14px;
-	color: #1f2937;
-	background-color: white;
-	cursor: pointer;
-	transition:
-		border-color 0.2s ease,
-		box-shadow 0.2s ease;
-
-	&:hover {
-		border-color: #9ca3af;
-	}
-
-	&:focus {
-		outline: none;
-		border-color: #22c55e;
-		box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.1);
-	}
-
-	@media (max-width: 480px) {
-		font-size: 13px;
-		padding: 8px 10px;
-	}
-`;
-
 export const Input = styled.input`
 	padding: 10px 12px;
 	border: 1px solid #d1d5db;

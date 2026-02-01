@@ -7,8 +7,8 @@ import {
 	getAvailableVersion,
 	getCurrentAppVersion,
 	checkForUpdates,
-} from '../../utils/versionCheck';
-import { isNativeApp } from '../../utils/platform';
+} from '../../../utils/versionCheck';
+import { isNativeApp } from '../../../utils/platform';
 
 const NotificationWrapper = styled.div`
 	position: fixed;

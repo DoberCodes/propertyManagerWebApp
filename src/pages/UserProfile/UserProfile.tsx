@@ -10,13 +10,15 @@ import {
 	PageTitle as StandardPageTitle,
 } from '../../Components/Library/PageHeaders';
 import {
+	FormGroup,
+	FormLabel,
+	FormInput,
+} from '../../Components/Library/Forms/FormStyles';
+import {
 	Wrapper,
 	Container,
 	FormContentWrapper,
 	FormSection,
-	FormGroup,
-	FormLabel,
-	FormInput,
 	ImageUploadSection,
 	ImagePreview,
 	ImageUploadButton,

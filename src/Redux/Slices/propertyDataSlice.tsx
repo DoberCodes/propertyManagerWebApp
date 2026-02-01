@@ -1,81 +1,18 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import {
+	Property,
+	PropertyGroup,
+	PropertyType,
+} from '../../types/Property.types';
+import { Task, CompletionFile } from '../../types/Task.types';
 
-// Property types for Redux cache
-export interface Property {
-	id: string;
-	groupId: string;
-	userId?: string;
-	title: string;
-	slug: string;
-	image?: string;
-	owner?: string;
-	administrators?: string[];
-	viewers?: string[];
-	address?: string;
-	propertyType?: 'Single Family' | 'Multi-Family' | 'Commercial';
-	bedrooms?: number;
-	bathrooms?: number;
-	units?: Array<{ name: string; occupants?: any[]; deviceIds?: string[] }>;
-	hasSuites?: boolean;
-	suites?: Array<{ name: string; occupants?: any[]; deviceIds?: string[] }>;
-	deviceIds?: string[];
-	notes?: string;
-	taskHistory?: Array<{ date: string; description: string }>;
-	maintenanceHistory?: Array<{ date: string; description: string }>;
-	isFavorite?: boolean;
-	createdAt?: string;
-	updatedAt?: string;
-}
-
-export interface PropertyGroup {
-	id: string;
-	userId?: string;
-	name: string;
-	isEditingName?: boolean;
-	properties?: Property[];
-	createdAt?: string;
-	updatedAt?: string;
-}
-
-export interface Task {
-	id: string;
-	userId?: string;
-	propertyId: string;
-	suiteId?: string;
-	unitId?: string;
-	devices?: string[];
-	title: string;
-	dueDate: string;
-	status:
-		| 'Pending'
-		| 'In Progress'
-		| 'Awaiting Approval'
-		| 'Completed'
-		| 'Rejected';
-	property: string;
-	notes?: string;
-	assignedTo?: {
-		id: string;
-		name: string;
-		email?: string;
-	};
-	completionDate?: string;
-	completionFile?: CompletionFile;
-	completedBy?: string;
-	approvedBy?: string;
-	approvedAt?: string;
-	rejectionReason?: string;
-	createdAt?: string;
-	updatedAt?: string;
-}
-
-export interface CompletionFile {
-	name: string;
-	url: string;
-	size: number;
-	type: string;
-	uploadedAt: string;
-}
+// Re-export types for backward compatibility
+export type {
+	Property,
+	PropertyGroup,
+	PropertyType,
+} from '../../types/Property.types';
+export type { Task, CompletionFile } from '../../types/Task.types';
 
 interface PropertyDataState {
 	groups: PropertyGroup[];

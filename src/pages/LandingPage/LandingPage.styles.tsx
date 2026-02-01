@@ -674,6 +674,7 @@ export const FormGroup = styled.div`
 `;
 
 export const FormInput = styled.input`
+	width: 100%;
 	padding: 12px 16px;
 	font-size: 16px;
 	border: 1.5px solid ${COLORS.gray200};
@@ -700,6 +701,7 @@ export const FormInput = styled.input`
 `;
 
 export const FormTextarea = styled.textarea`
+	width: 100%;
 	padding: 12px 16px;
 	font-size: 16px;
 	border: 1.5px solid ${COLORS.gray200};

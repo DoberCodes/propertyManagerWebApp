@@ -1,21 +1,14 @@
 import React from 'react';
+import { PropertyDetailSectionProps } from '../../types/PropertyDetailPage.types';
+import { FormSelect } from '../../Components/Library/Forms/FormStyles';
 import {
 	EditableFieldInput,
-	FormSelect,
 	InfoCard,
 	InfoGrid,
 	InfoLabel,
 	InfoValue,
 	SectionContainer,
 } from './PropertyDetailPage.styles';
-
-interface PropertyDetailSectionProps {
-	// Define any props needed for the PropertyDetailSection
-	isEditMode: boolean;
-	property: any;
-	getPropertyFieldValue: (field: string) => any;
-	handlePropertyFieldChange: (field: string, value: any) => void;
-}
 
 export const PropertyDetailSection = (props: PropertyDetailSectionProps) => {
 	// Implementation of PropertyDetailSection component

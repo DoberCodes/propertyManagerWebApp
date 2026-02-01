@@ -76,7 +76,7 @@ const HomeownerPropertyWrapper: React.FC = () => {
 				<ZeroState
 					icon='🏠'
 					title='No Property Yet'
-					description='Welcome! Let's get started by adding your property. This will help you manage all your property details, units, and tasks in one place.'
+					description="Welcome! Let's get started by adding your property. This will help you manage all your property details, units, and tasks in one place."
 					actions={[
 						{
 							label: '+ Add Your Property',

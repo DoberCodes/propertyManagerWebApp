@@ -34,6 +34,18 @@ import {
 	PageTitle as StandardPageTitle,
 } from '../../Components/Library/PageHeaders';
 import {
+	DialogOverlay,
+	DialogContent,
+	DialogHeader as LibraryDialogHeader,
+} from '../../Components/Library/Modal/ModalStyles';
+import {
+	FormGroup,
+	FormLabel,
+	FormInput,
+	FormSelect,
+	FormTextarea,
+} from '../../Components/Library/Forms/FormStyles';
+import {
 	Wrapper,
 	PageHeader,
 	AddTeamGroupButton,
@@ -54,9 +66,6 @@ import {
 	AddTeamMemberCard,
 	AddIcon,
 	AddText,
-	DialogOverlay,
-	DialogContent,
-	DialogHeader,
 	DialogTitle,
 	DialogCloseButton,
 	DialogBody,
@@ -66,11 +75,6 @@ import {
 	ImagePreview,
 	ImageUploadInput,
 	ImageUploadButton,
-	FormGroup,
-	FormLabel,
-	FormInput,
-	FormSelect,
-	FormTextarea,
 	SectionTitle,
 	PropertyMultiSelect,
 	PropertyCheckbox,
@@ -637,14 +641,14 @@ export default function TeamPage() {
 			{showTeamMemberDialog && (
 				<DialogOverlay onClick={() => setShowTeamMemberDialog(false)}>
 					<DialogContent onClick={(e) => e.stopPropagation()}>
-						<DialogHeader>
+						<LibraryDialogHeader>
 							<DialogTitle>
 								{editingMember ? 'Edit Team Member' : 'Add Team Member'}
 							</DialogTitle>
 							<DialogCloseButton onClick={() => setShowTeamMemberDialog(false)}>
 								✕
 							</DialogCloseButton>
-						</DialogHeader>
+						</LibraryDialogHeader>
 
 						<DialogBody>
 							<LeftColumn>

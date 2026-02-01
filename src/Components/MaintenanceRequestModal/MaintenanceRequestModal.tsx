@@ -1,19 +1,23 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
+import { MaintenanceRequest } from '../../types/MaintenanceRequest.types';
+import {
+	DialogOverlay as Overlay,
+	DialogContent as Modal,
+} from '../Library/Modal/ModalStyles';
+import {
+	FormGroup,
+	FormLabel as Label,
+	FormInput as Input,
+	FormSelect as Select,
+	FormTextarea as Textarea,
+} from '../Library/Forms/FormStyles';
 
 interface MaintenanceRequestModalProps {
 	isOpen: boolean;
 	onClose: () => void;
 	onSubmit: (request: MaintenanceRequest) => void;
 	propertyTitle: string;
-}
-
-export interface MaintenanceRequest {
-	title: string;
-	description: string;
-	priority: 'Low' | 'Medium' | 'High' | 'Urgent';
-	category: string;
-	files?: File[];
 }
 
 export const MaintenanceRequestModal: React.FC<
@@ -166,29 +170,6 @@ export const MaintenanceRequestModal: React.FC<
 };
 
 // Styled Components
-const Overlay = styled.div`
-	position: fixed;
-	top: 0;
-	left: 0;
-	right: 0;
-	bottom: 0;
-	background-color: rgba(0, 0, 0, 0.5);
-	display: flex;
-	justify-content: center;
-	align-items: center;
-	z-index: 1000;
-`;
-
-const Modal = styled.div`
-	background: white;
-	border-radius: 8px;
-	width: 90%;
-	max-width: 600px;
-	max-height: 90vh;
-	overflow-y: auto;
-	box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-`;
-
 const Header = styled.div`
 	padding: 24px;
 	border-bottom: 1px solid #e0e0e0;
@@ -230,64 +211,6 @@ const CloseButton = styled.button`
 
 const Form = styled.form`
 	padding: 24px;
-`;
-
-const FormGroup = styled.div`
-	margin-bottom: 20px;
-`;
-
-const Label = styled.label`
-	display: block;
-	margin-bottom: 8px;
-	font-weight: 500;
-	color: #333;
-	font-size: 14px;
-`;
-
-const Input = styled.input`
-	width: 100%;
-	padding: 10px 12px;
-	border: 1px solid #ddd;
-	border-radius: 4px;
-	font-size: 14px;
-	transition: border-color 0.2s;
-
-	&:focus {
-		outline: none;
-		border-color: #4a90e2;
-	}
-`;
-
-const Select = styled.select`
-	width: 100%;
-	padding: 10px 12px;
-	border: 1px solid #ddd;
-	border-radius: 4px;
-	font-size: 14px;
-	background-color: white;
-	cursor: pointer;
-	transition: border-color 0.2s;
-
-	&:focus {
-		outline: none;
-		border-color: #4a90e2;
-	}
-`;
-
-const Textarea = styled.textarea`
-	width: 100%;
-	padding: 10px 12px;
-	border: 1px solid #ddd;
-	border-radius: 4px;
-	font-size: 14px;
-	font-family: inherit;
-	resize: vertical;
-	transition: border-color 0.2s;
-
-	&:focus {
-		outline: none;
-		border-color: #4a90e2;
-	}
 `;
 
 const FileInput = styled.input`

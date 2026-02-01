@@ -8,15 +8,17 @@ import {
 	useGetTeamMembersQuery,
 } from '../../Redux/API/apiSlice';
 import {
+	FormGroup as LibraryFormGroup,
+	FormLabel as LibraryLabel,
+	FormSelect as LibrarySelect,
+} from '../Library/Forms/FormStyles';
+import {
 	Wrapper,
 	PageTitle,
 	PageDescription,
 	ReportBuilderContainer,
 	Section,
 	SectionTitle,
-	FormGroup,
-	Label,
-	Select,
 	ColumnsGrid,
 	CheckboxWrapper,
 	Checkbox,
@@ -47,6 +49,11 @@ import {
 	EmployeeEfficiencyMetrics,
 	PropertySummaryMetrics,
 } from '../../utils/csvExport';
+
+// Alias Library components to match local naming convention
+const FormGroup = LibraryFormGroup;
+const Label = LibraryLabel;
+const Select = LibrarySelect;
 
 type ReportType =
 	| 'tasks'

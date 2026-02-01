@@ -3,6 +3,11 @@ import styled from 'styled-components';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTimes, faSpinner } from '@fortawesome/free-solid-svg-icons';
 import { useAddTenantMutation } from '../../Redux/API/apiSlice';
+import {
+	DialogOverlay as ModalOverlay,
+	DialogContent as ModalContent,
+} from '../Library/Modal/ModalStyles';
+import { FormGroup, FormLabel, FormInput } from '../Library/Forms/FormStyles';
 
 interface AddTenantModalProps {
 	open: boolean;
@@ -199,29 +204,6 @@ export const AddTenantModal: React.FC<AddTenantModalProps> = ({
 	);
 };
 
-const ModalOverlay = styled.div`
-	position: fixed;
-	top: 0;
-	left: 0;
-	right: 0;
-	bottom: 0;
-	background-color: rgba(0, 0, 0, 0.5);
-	display: flex;
-	justify-content: center;
-	align-items: center;
-	z-index: 1000;
-`;
-
-const ModalContent = styled.div`
-	background-color: white;
-	border-radius: 8px;
-	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
-	max-width: 500px;
-	width: 90%;
-	max-height: 90vh;
-	overflow-y: auto;
-`;
-
 const ModalHeader = styled.div`
 	display: flex;
 	justify-content: space-between;
@@ -250,33 +232,6 @@ const CloseButton = styled.button`
 
 const Form = styled.form`
 	padding: 24px;
-`;
-
-const FormGroup = styled.div`
-	margin-bottom: 16px;
-`;
-
-const FormLabel = styled.label`
-	display: block;
-	margin-bottom: 8px;
-	font-size: 14px;
-	font-weight: 500;
-	color: #333;
-`;
-
-const FormInput = styled.input`
-	width: 100%;
-	padding: 10px 12px;
-	border: 1px solid #ddd;
-	border-radius: 4px;
-	font-size: 14px;
-	box-sizing: border-box;
-
-	&:focus {
-		outline: none;
-		border-color: #2196f3;
-		box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.1);
-	}
 `;
 
 const Alert = styled.div<{ type: 'error' | 'success' }>`

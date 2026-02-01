@@ -1,7 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { MaintenanceRequestItem } from '../../Redux/Slices/maintenanceRequestsSlice';
-import { TeamMember } from '../../Redux/Slices/teamSlice';
+import { TeamMember } from '../../types/Team.types';
+import { TaskData } from '../../types/Task.types';
+import {
+	DialogOverlay as Overlay,
+	DialogContent as Modal,
+} from '../Library/Modal/ModalStyles';
+import {
+	FormGroup,
+	FormLabel as Label,
+	FormInput as Input,
+	FormSelect as Select,
+	FormTextarea as Textarea,
+} from '../Library/Forms/FormStyles';
 
 interface ConvertRequestToTaskModalProps {
 	isOpen: boolean;
@@ -9,15 +21,6 @@ interface ConvertRequestToTaskModalProps {
 	onConvert: (taskData: TaskData) => void;
 	request: MaintenanceRequestItem;
 	teamMembers: TeamMember[];
-}
-
-export interface TaskData {
-	title: string;
-	dueDate: string;
-	status: 'Pending' | 'In Progress' | 'Awaiting Approval' | 'Completed';
-	assignee?: string;
-	notes: string;
-	priority: string;
 }
 
 export const ConvertRequestToTaskModal: React.FC<
@@ -230,30 +233,6 @@ Submitted by: ${request.submittedByName} on ${request.submittedAt ? new Date(req
 };
 
 // Styled Components
-const Overlay = styled.div`
-	position: fixed;
-	top: 0;
-	left: 0;
-	right: 0;
-	bottom: 0;
-	background-color: rgba(0, 0, 0, 0.6);
-	display: flex;
-	justify-content: center;
-	align-items: center;
-	z-index: 1000;
-	padding: 20px;
-`;
-
-const Modal = styled.div`
-	background: white;
-	border-radius: 12px;
-	width: 100%;
-	max-width: 700px;
-	max-height: 90vh;
-	overflow-y: auto;
-	box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
-`;
-
 const Header = styled.div`
 	padding: 24px;
 	border-bottom: 2px solid #e0e0e0;
@@ -381,69 +360,8 @@ const FormRow = styled.div`
 	}
 `;
 
-const FormGroup = styled.div`
-	margin-bottom: 20px;
-`;
-
-const Label = styled.label`
-	display: block;
-	margin-bottom: 8px;
-	font-weight: 600;
-	color: #333;
-	font-size: 14px;
-`;
-
 const Required = styled.span`
 	color: #ef4444;
-`;
-
-const Input = styled.input`
-	width: 100%;
-	padding: 10px 12px;
-	border: 1px solid #ddd;
-	border-radius: 6px;
-	font-size: 14px;
-	transition: border-color 0.2s;
-
-	&:focus {
-		outline: none;
-		border-color: #22c55e;
-		box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.1);
-	}
-`;
-
-const Select = styled.select`
-	width: 100%;
-	padding: 10px 12px;
-	border: 1px solid #ddd;
-	border-radius: 6px;
-	font-size: 14px;
-	background-color: white;
-	cursor: pointer;
-	transition: border-color 0.2s;
-
-	&:focus {
-		outline: none;
-		border-color: #22c55e;
-		box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.1);
-	}
-`;
-
-const Textarea = styled.textarea`
-	width: 100%;
-	padding: 10px 12px;
-	border: 1px solid #ddd;
-	border-radius: 6px;
-	font-size: 14px;
-	font-family: inherit;
-	resize: vertical;
-	transition: border-color 0.2s;
-
-	&:focus {
-		outline: none;
-		border-color: #22c55e;
-		box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.1);
-	}
 `;
 
 const Helper = styled.div`

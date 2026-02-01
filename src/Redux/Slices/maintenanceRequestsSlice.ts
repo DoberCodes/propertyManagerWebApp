@@ -1,35 +1,8 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { MaintenanceRequestItem } from '../../types/MaintenanceRequest.types';
 
-export interface MaintenanceRequestItem {
-	id: string;
-	propertyId: string;
-	propertyTitle: string;
-	title: string;
-	description: string;
-	priority: 'Low' | 'Medium' | 'High' | 'Emergency' | 'Urgent';
-	status:
-		| 'Pending'
-		| 'In Progress'
-		| 'Completed'
-		| 'Cancelled'
-		| 'Converted to Task';
-	requestedBy: string;
-	requestedByEmail: string;
-	requestedDate: string;
-	assignedTo?: string;
-	completedDate?: string;
-	notes?: string;
-	images?: string[];
-	// Additional fields used in the app
-	submittedBy?: string;
-	submittedByName?: string;
-	submittedAt?: string;
-	unit?: string;
-	suite?: string;
-	category?: string;
-	files?: Array<{ name: string; url: string; size: number; type: string }>;
-	convertedToTaskId?: string;
-}
+// Re-export types for backward compatibility
+export type { MaintenanceRequestItem } from '../../types/MaintenanceRequest.types';
 
 interface MaintenanceRequestsState {
 	requests: MaintenanceRequestItem[];

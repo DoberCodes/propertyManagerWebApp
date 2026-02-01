@@ -212,7 +212,7 @@ export const TaskApprovalModal: React.FC<TaskApprovalModalProps> = ({
 							<InfoValue>
 								<FilePreview>
 									<FileLink
-										href={completionFile.url}
+										href={completionFile.url || '#'}
 										target='_blank'
 										rel='noopener noreferrer'>
 										📎 {completionFile.name}
@@ -224,7 +224,9 @@ export const TaskApprovalModal: React.FC<TaskApprovalModalProps> = ({
 											marginTop: '0.25rem',
 										}}>
 										{(completionFile.size / 1024).toFixed(1)} KB • Uploaded{' '}
-										{formatDate(completionFile.uploadedAt)}
+										{formatDate(
+											completionFile.uploadedAt || new Date().toISOString(),
+										)}
 									</div>
 								</FilePreview>
 							</InfoValue>
