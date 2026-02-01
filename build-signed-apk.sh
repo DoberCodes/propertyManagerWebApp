@@ -254,6 +254,10 @@ echo ""
 if [[ "$DRY_RUN" != "--dry-run" && "$DRY_RUN" != "-d" ]]; then
   node scripts/updateAppVersion.cjs "$NEW_VERSION" "$RELEASE_NOTES"
   print_success "Version updated to $NEW_VERSION"
+  
+  # Update the hardcoded version in versionCheck.ts
+  sed -i "s/const CURRENT_APP_VERSION = '[^']*';/const CURRENT_APP_VERSION = '$NEW_VERSION';/" src/utils/versionCheck.ts
+  print_success "Updated CURRENT_APP_VERSION in versionCheck.ts"
 else
   print_warning "Skipping version update in dry-run mode"
 fi
