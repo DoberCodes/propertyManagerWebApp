@@ -53,7 +53,8 @@
 		"cap:open": "npx cap open android",
 		"build:apk": "node scripts/initAppVersion.cjs && yarn build && npx cap sync android",
 		"build:signed": "bash build-signed-apk.sh",
-		"release:notes": "node scripts/generateReleaseNotes.cjs"
+		"release:notes": "node scripts/generateReleaseNotes.cjs",
+		"testDeploy": "bash build-signed-apk.sh --dry-run"
 	},
 	"eslintConfig": {
 		"extends": [
