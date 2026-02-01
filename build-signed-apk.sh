@@ -251,13 +251,11 @@ print_success "Web app rebuilt for deployment"
 echo ""
 print_header "Step 5: Auto-Committing Changes"
 
-git add package.json client/package.json src/utils/versionCheck.ts build/ android/
+git add package.json client/package.json src/utils/versionCheck.ts
 git commit -m "release: v$NEW_VERSION
 
 - Bump version to $NEW_VERSION
 - Update app version check
-- Rebuild React app
-- Sync Capacitor
 - Build signed APK"
 print_success "Changes committed to main"
 
