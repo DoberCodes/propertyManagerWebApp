@@ -425,17 +425,34 @@ echo ""
 print_header "Step 8: Creating GitHub Release"
 RELEASE_NOTES_FILE="RELEASE_NOTES.txt"
 APK_FILE="public/PropertyManager.apk"
+REPO_NAME=${GITHUB_REPOSITORY:-$(gh repo view --json nameWithOwner -q .nameWithOwner)}
 
 if [ -f "$RELEASE_NOTES_FILE" ] && [ -f "$APK_FILE" ]; then
-  if GH_TOKEN=$(gh auth token) gh release create "v$NEW_VERSION" "$APK_FILE" \
-    --title "Release v$NEW_VERSION" \
-    --notes-file "$RELEASE_NOTES_FILE"; then
-    print_success "GitHub release v$NEW_VERSION created"
+  if gh release view "v$NEW_VERSION" >/dev/null 2>&1; then
+    print_warning "Release v$NEW_VERSION already exists. Updating notes and uploading APK."
+    if ! GH_TOKEN=$(gh auth token) gh release edit "v$NEW_VERSION" --notes-file "$RELEASE_NOTES_FILE"; then
+      print_error "Failed to update GitHub release notes"
+      send_slack_notification "Failed to update GitHub release notes for v$NEW_VERSION" "error"
+      exit 1
+    fi
   else
-    print_error "Failed to create GitHub release"
-    send_slack_notification "Failed to create GitHub release for v$NEW_VERSION" "error"
+    if ! GH_TOKEN=$(gh auth token) gh api -X POST "repos/$REPO_NAME/releases" \
+      -f tag_name="v$NEW_VERSION" \
+      -f name="Release v$NEW_VERSION" \
+      -f body="$(cat "$RELEASE_NOTES_FILE")"; then
+      print_error "Failed to create GitHub release"
+      send_slack_notification "Failed to create GitHub release for v$NEW_VERSION" "error"
+      exit 1
+    fi
+    print_success "GitHub release v$NEW_VERSION created"
+  fi
+
+  if ! GH_TOKEN=$(gh auth token) gh release upload "v$NEW_VERSION" "$APK_FILE" --clobber; then
+    print_error "Failed to upload APK to GitHub release"
+    send_slack_notification "Failed to upload APK for v$NEW_VERSION" "error"
     exit 1
   fi
+  print_success "APK uploaded to GitHub release"
 else
   print_error "Missing release notes or APK file"
   send_slack_notification "Missing files for GitHub release v$NEW_VERSION" "error"
