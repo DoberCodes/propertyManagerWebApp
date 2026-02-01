@@ -31,7 +31,18 @@ if [ -f ".env" ]; then
 fi
 
 # Configuration
-DRY_RUN=${1:-""}
+DRY_RUN=""
+RELEASE_ONLY=""
+for arg in "$@"; do
+  case "$arg" in
+    --dry-run|-d)
+      DRY_RUN="--dry-run"
+      ;;
+    --release-only|-r)
+      RELEASE_ONLY="--release-only"
+      ;;
+  esac
+done
 SLACK_WEBHOOK=${SLACK_WEBHOOK:-""}  # Set SLACK_WEBHOOK env var for notifications
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -149,17 +160,46 @@ if [[ ! -f "my-release-key.keystore" ]]; then
 fi
 print_success "Required files found"
 
+if [[ "$RELEASE_ONLY" == "--release-only" ]]; then
+  print_warning "Release-only mode enabled. Skipping build and version generation."
+  if [[ ! -f "RELEASE_NOTES.txt" ]]; then
+    print_error "RELEASE_NOTES.txt not found. Cannot create release."
+    exit 1
+  fi
+  if [[ ! -f "public/PropertyManager.apk" ]]; then
+    print_error "public/PropertyManager.apk not found. Cannot create release."
+    exit 1
+  fi
+  NEW_VERSION=$(node -p "require('./package.json').version")
+  if ! git rev-parse -q --verify "refs/tags/v$NEW_VERSION" >/dev/null; then
+    print_error "Git tag v$NEW_VERSION not found. Run full build or create the tag first."
+    exit 1
+  fi
+  RELEASE_NOTES=$(cat RELEASE_NOTES.txt)
+  RELEASE_NOTES_SUMMARY=$(echo "$RELEASE_NOTES" | head -n 8)
+  goto_release_only=1
+else
+  goto_release_only=0
+fi
+
 echo ""
 
 # ========== RUN TESTS ==========
+if [[ "$goto_release_only" == "1" ]]; then
+  goto_release_only=1
+else
 print_header "Running Tests"
 if ! yarn test --watchAll=false --passWithNoTests 2>&1 | head -20; then
   print_warning "Tests failed or skipped. Continuing anyway..."
 fi
 print_success "Tests completed"
 echo ""
+fi
 
 # ========== GENERATE RELEASE NOTES ==========
+if [[ "$goto_release_only" == "1" ]]; then
+  goto_release_only=1
+else
 print_header "Step 0: Generating Release Notes"
 
 # Capture full output including debug info
@@ -175,18 +215,29 @@ AUTO_NOTES=$(echo "$RELEASE_INFO" | grep -A 10 "JSON Output:" | grep '"notes":' 
 
 # ========== CHANGELOG VALIDATION ==========
 if [[ -z "$SUGGESTED_VERSION" ]]; then
-  print_error "Failed to generate version number. Check git commits."
-  exit 1
+  CURRENT_VERSION=$(node -p "require('./package.json').version")
+  if [[ -n "$CURRENT_VERSION" && -f "RELEASE_NOTES.txt" ]]; then
+    print_warning "No new commits since last tag. Reusing version $CURRENT_VERSION and existing release notes."
+    SUGGESTED_VERSION="$CURRENT_VERSION"
+  else
+    print_error "Failed to generate version number. Check git commits."
+    exit 1
+  fi
 fi
 print_success "Version generated: $SUGGESTED_VERSION"
 
 if [[ -z "$AUTO_NOTES" ]]; then
-  print_error "No release notes generated. Check for commits since last tag."
-  exit 1
+  if [[ -f "RELEASE_NOTES.txt" ]]; then
+    print_warning "No new release notes generated. Reusing existing RELEASE_NOTES.txt."
+    AUTO_NOTES=$(cat RELEASE_NOTES.txt)
+  else
+    print_error "No release notes generated. Check for commits since last tag."
+    exit 1
+  fi
 fi
 print_success "Release notes generated ($(echo "$AUTO_NOTES" | wc -l) lines)"
 
-# Write auto-generated notes to RELEASE_NOTES.txt
+# Write release notes to RELEASE_NOTES.txt
 echo -e "$AUTO_NOTES" > RELEASE_NOTES.txt
 RELEASE_NOTES=$(cat RELEASE_NOTES.txt)
 
@@ -206,8 +257,15 @@ if [[ "$DRY_RUN" != "--dry-run" && "$DRY_RUN" != "-d" ]]; then
 else
   print_warning "Skipping version update in dry-run mode"
 fi
+fi
 
 # ========== DRY RUN MODE ==========
+if [[ "$goto_release_only" == "1" ]]; then
+  print_header "Release-Only Mode"
+  echo ""
+  print_warning "Skipping build, version update, commit, tag, and push."
+  echo ""
+else
 if [[ "$DRY_RUN" == "--dry-run" || "$DRY_RUN" == "-d" ]]; then
   print_header "DRY RUN MODE"
   echo ""
@@ -225,7 +283,9 @@ if [[ "$DRY_RUN" == "--dry-run" || "$DRY_RUN" == "-d" ]]; then
   print_success "Dry run completed successfully. Ready for real release!"
   exit 0
 fi
+fi
 
+if [[ "$goto_release_only" != "1" ]]; then
 # ========== BUILD STEPS ==========
 print_header "Step 1: Building React App"
 sed -i 's|"homepage": "https://dobercodes.github.io/propertyManagerWebApp"|"homepage": "./"|g' package.json client/package.json
@@ -358,6 +418,7 @@ if ! git push origin --tags; then
   exit 1
 fi
 print_success "Git tag v$NEW_VERSION created and pushed"
+fi
 
 # ========== CREATE GITHUB RELEASE ==========
 echo ""
