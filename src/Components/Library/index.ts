@@ -87,7 +87,10 @@ export {
 
 // Page Layouts & Styles
 export {
-	PageContainer,
+	PageWrapper,
+	PageHeader,
+	PageTitle,
+	PageContentWrapper,
 	ContentContainer,
 	Section,
 	SectionTitle,
