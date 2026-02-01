@@ -427,7 +427,7 @@ RELEASE_NOTES_FILE="RELEASE_NOTES.txt"
 APK_FILE="public/PropertyManager.apk"
 
 if [ -f "$RELEASE_NOTES_FILE" ] && [ -f "$APK_FILE" ]; then
-  if gh release create "v$NEW_VERSION" "$APK_FILE" \
+  if GH_TOKEN=$(gh auth token) gh release create "v$NEW_VERSION" "$APK_FILE" \
     --title "Release v$NEW_VERSION" \
     --notes-file "$RELEASE_NOTES_FILE"; then
     print_success "GitHub release v$NEW_VERSION created"
