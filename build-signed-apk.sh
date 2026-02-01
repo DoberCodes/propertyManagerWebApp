@@ -131,6 +131,14 @@ if [[ -z $(gh auth token 2>/dev/null) ]]; then
 fi
 print_success "GitHub CLI authenticated"
 
+# Check GitHub token scopes (needs repo for releases)
+GITHUB_SCOPES=$(gh auth status -t -h github.com 2>/dev/null | grep -i "Token scopes" | sed 's/.*: //')
+if [[ -z "$GITHUB_SCOPES" || "$GITHUB_SCOPES" != *"repo"* ]]; then
+  print_error "GitHub token missing required scope: repo. Run: gh auth refresh -h github.com -s repo"
+  exit 1
+fi
+print_success "GitHub token has repo scope"
+
 # Check required files exist
 if [[ ! -f "serviceAccountKey.json" ]]; then
   print_warning "serviceAccountKey.json not found. Firebase updates will be skipped."
