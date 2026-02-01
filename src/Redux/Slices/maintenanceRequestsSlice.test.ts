@@ -18,12 +18,12 @@ describe('maintenanceRequestsSlice', () => {
 		description: 'Kitchen faucet is dripping',
 		priority: 'High',
 		category: 'Plumbing',
-		status: 'pending',
+		status: 'Pending',
 		propertyId: 'prop-1',
 		propertyTitle: 'Main Street Property',
 		requestedBy: 'user-1',
-		requestedByName: 'John Doe',
-		createdAt: '2026-01-15T10:00:00Z',
+		requestedByEmail: 'john@example.com',
+		requestedDate: '2026-01-15T10:00:00Z',
 	};
 
 	describe('reducers', () => {
@@ -194,7 +194,7 @@ describe('maintenanceRequestsSlice', () => {
 				const request2 = {
 					...mockRequest,
 					id: 'req-2',
-					status: 'pending',
+					status: 'Pending',
 				};
 				const stateWithRequests = { requests: [mockRequest, request2] };
 				const actual = maintenanceRequestsReducer(
@@ -203,7 +203,7 @@ describe('maintenanceRequestsSlice', () => {
 				);
 
 				expect(actual.requests[0].status).toBe('Completed');
-				expect(actual.requests[1].status).toBe('pending');
+				expect(actual.requests[1].status).toBe('Pending');
 			});
 
 			it('should not error if request not found', () => {
@@ -213,7 +213,7 @@ describe('maintenanceRequestsSlice', () => {
 					convertRequestToTask('req-999'),
 				);
 
-				expect(actual.requests[0].status).toBe('pending');
+				expect(actual.requests[0].status).toBe('Pending');
 			});
 		});
 
@@ -268,7 +268,7 @@ describe('maintenanceRequestsSlice', () => {
 					addMaintenanceRequest(mockRequest),
 				);
 				expect(state.requests).toHaveLength(1);
-				expect(state.requests[0].status).toBe('pending');
+				expect(state.requests[0].status).toBe('Pending');
 
 				// Update request
 				const updatedRequest = { ...mockRequest, priority: 'Low' };
