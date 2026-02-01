@@ -2,7 +2,26 @@
 
 # Build signed release APK script
 # This automates the process of building a signed APK for release
-# Features: pre-flight checks, auto-commits, changelog validation, tests, dry-run mode, notifications
+# 
+# Features:
+#   - Pre-flight checks (branch, git status, tools, auth)
+#   - Auto-commits version changes
+#   - Changelog validation from commits
+#   - Automated tests
+#   - Dry-run mode for validation
+#   - Automated Gradle APK build (no Android Studio needed!)
+#   - GitHub Release creation with APK attachment
+#   - GitHub Pages deployment
+#   - Slack notifications (optional)
+#
+# Usage:
+#   yarn testDeploy          # Dry-run to validate everything
+#   yarn build:signed        # Full release build (requires keystore password)
+#
+# Requirements:
+#   - Keystore file (my-release-key.keystore) in project root
+#   - GitHub CLI authenticated (gh auth login)
+#   - Git on main branch with no uncommitted changes
 
 set -e  # Exit on any error
 
