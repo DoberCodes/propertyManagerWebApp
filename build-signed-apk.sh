@@ -302,9 +302,10 @@ else
   exit 1
 fi
 
-# Clear release notes after push
+# Clear release notes and remove APK from public folder
 echo "" > RELEASE_NOTES.txt
-print_success "Release notes cleared"
+rm -f public/PropertyManager.apk
+print_success "Release notes cleared and APK removed from public folder"
 
 # ========== GITHUB PAGES DEPLOYMENT ==========
 echo ""
