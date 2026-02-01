@@ -2,7 +2,11 @@ import React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import styled from 'styled-components';
 import { useDetailPageData } from '../../Hooks/useDetailPageData';
-import { DetailPageLayout, TabContent, TasksTable } from '../../Components/Library';
+import {
+	DetailPageLayout,
+	TabContent,
+	TasksTable,
+} from '../../Components/Library';
 import { getDeviceName } from '../../utils/detailPageUtils';
 import { TabConfig } from '../../types/DetailPage.types';
 import {
