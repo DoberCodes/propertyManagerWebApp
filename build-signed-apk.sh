@@ -463,14 +463,14 @@ APK_VERSIONED_NAME="PropertyManager-$NEW_VERSION.apk"
 REPO_NAME=${GITHUB_REPOSITORY:-$(gh repo view --json nameWithOwner -q .nameWithOwner)}
 
 if [ -f "$RELEASE_NOTES_FILE" ] && [ -f "$APK_FILE" ]; then
-  if gh release view "v$NEW_VERSION" --repo "$REPO_NAME" >/dev/null 2>&1; then
+  if env -u GH_TOKEN -u GITHUB_TOKEN gh release view "v$NEW_VERSION" --repo "$REPO_NAME" >/dev/null 2>&1; then
     print_warning "Release v$NEW_VERSION already exists. Uploading APK."
-    if ! gh release edit "v$NEW_VERSION" --repo "$REPO_NAME" --notes-file "$RELEASE_NOTES_FILE"; then
+    if ! env -u GH_TOKEN -u GITHUB_TOKEN gh release edit "v$NEW_VERSION" --repo "$REPO_NAME" --notes-file "$RELEASE_NOTES_FILE"; then
       print_warning "Failed to update GitHub release notes. Continuing with APK upload."
       send_slack_notification "Failed to update GitHub release notes for v$NEW_VERSION" "warning"
     fi
   else
-    if ! gh release create "v$NEW_VERSION" \
+    if ! env -u GH_TOKEN -u GITHUB_TOKEN gh release create "v$NEW_VERSION" \
       --repo "$REPO_NAME" \
       --title "Release v$NEW_VERSION" \
       --notes-file "$RELEASE_NOTES_FILE"; then
@@ -482,7 +482,7 @@ if [ -f "$RELEASE_NOTES_FILE" ] && [ -f "$APK_FILE" ]; then
   fi
 
   if [ -f "$APK_FILE" ]; then
-    if gh release upload "v$NEW_VERSION" \
+    if env -u GH_TOKEN -u GITHUB_TOKEN gh release upload "v$NEW_VERSION" \
       "${APK_FILE}#${APK_ASSET_NAME}" \
       "${APK_FILE}#${APK_VERSIONED_NAME}" \
       --repo "$REPO_NAME" --clobber; then
