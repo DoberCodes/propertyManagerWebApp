@@ -43,9 +43,45 @@ const formatBytes = (bytes) => {
 };
 
 export const getAPKFileSize = async () => {
-	const apkFile = await fetch(getAPKDownloadURL()).then((res) => res.blob());
+	try {
+		// Prefer GitHub Releases API to avoid CORS issues on asset URLs
+		const releaseResponse = await fetch(
+			'https://api.github.com/repos/DoberCodes/propertyManagerWebApp/releases/latest',
+			{ cache: 'no-store' },
+		);
+		if (releaseResponse.ok) {
+			const release = await releaseResponse.json();
+			const assets = release?.assets || [];
+			const apkAsset = assets.find(
+				(asset) => asset?.name === 'PropertyManager.apk',
+			);
+			if (apkAsset?.size) {
+				return formatBytes(Number(apkAsset.size));
+			}
+		}
+	} catch (error) {
+		console.warn(
+			'Release API request failed, falling back to download size:',
+			error,
+		);
+	}
 
-	return formatBytes(apkFile.size);
+	try {
+		const fallbackUrl =
+			'https://github.com/DoberCodes/propertyManagerWebApp/releases/latest/download/PropertyManager.apk';
+		const fallbackResponse = await fetch(`${fallbackUrl}?t=${Date.now()}`, {
+			method: 'HEAD',
+			cache: 'no-store',
+		});
+		const fallbackLength = fallbackResponse.headers.get('content-length');
+		if (fallbackLength) {
+			return formatBytes(Number(fallbackLength));
+		}
+	} catch (error) {
+		console.warn('Fallback HEAD request failed:', error);
+	}
+
+	return 'Unknown';
 };
 /**
  * Check if update notification should be displayed
@@ -141,10 +177,15 @@ export const resetUpdateNotification = (): void => {
  * Get the download URL for the APK
  */
 export const getAPKDownloadURL = (): string => {
-	return (
-		process.env.REACT_APP_APK_URL ||
-		'https://github.com/DoberCodes/propertyManagerWebApp/releases/latest/download/PropertyManager.apk'
-	);
+	const configuredUrl = process.env.REACT_APP_APK_URL;
+	if (configuredUrl) {
+		// Ignore legacy GitHub Pages URL to ensure we always check the release asset
+		if (configuredUrl.includes('github.io')) {
+			return 'https://github.com/DoberCodes/propertyManagerWebApp/releases/latest/download/PropertyManager.apk';
+		}
+		return configuredUrl;
+	}
+	return 'https://github.com/DoberCodes/propertyManagerWebApp/releases/latest/download/PropertyManager.apk';
 };
 
 /**

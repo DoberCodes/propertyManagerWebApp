@@ -72,6 +72,7 @@ import FeaturesSectionComponent from './components/FeaturesSection';
 const LandingPageComponent = () => {
 	const navigate = useNavigate();
 	const apkDownloadUrl = getAPKDownloadURL();
+	const versionedApkDownloadUrl = `https://github.com/DoberCodes/propertyManagerWebApp/releases/latest/download/PropertyManager-${packageJson.version}.apk`;
 	const [formData, setFormData] = useState({
 		name: '',
 		email: '',
@@ -307,7 +308,10 @@ const LandingPageComponent = () => {
 							ease. Available for Android devices.
 						</DownloadSubtext>
 						<DownloadButton href={apkDownloadUrl} download>
-							📱 Download APK
+							📱 Download APK (Latest)
+						</DownloadButton>
+						<DownloadButton href={versionedApkDownloadUrl} download>
+							📦 Download APK v{packageJson.version}
 						</DownloadButton>
 						<DownloadInfo>
 							<InfoItem>
