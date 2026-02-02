@@ -1,5 +1,4 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { apiSlice } from '../API/apiSlice';
 
 // User type matching Firebase Auth + Firestore user data
 export interface User {
@@ -17,7 +16,7 @@ export interface User {
 	updatedAt?: string;
 }
 
-interface UserState {
+export interface UserState {
 	currentUser: User | null;
 	cred: any; // Legacy credential object
 	authLoading: boolean;

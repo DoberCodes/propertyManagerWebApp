@@ -6,7 +6,7 @@ import {
 	convertRequestToTask,
 	MaintenanceRequestItem,
 } from '../../Redux/Slices/maintenanceRequestsSlice';
-import { AppDispatch } from '../../Redux/Store/store';
+import { AppDispatch } from '../../Redux/store/store';
 import {
 	MaintenanceRequestHandlers,
 	MaintenanceRequest,

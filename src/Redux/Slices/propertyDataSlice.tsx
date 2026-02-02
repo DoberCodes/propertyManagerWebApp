@@ -1,9 +1,5 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import {
-	Property,
-	PropertyGroup,
-	PropertyType,
-} from '../../types/Property.types';
+import { PropertyGroup } from '../../types/Property.types';
 import { Task, CompletionFile } from '../../types/Task.types';
 
 // Re-export types for backward compatibility

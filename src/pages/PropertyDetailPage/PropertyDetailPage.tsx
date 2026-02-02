@@ -8,7 +8,7 @@ import {
 	faCamera,
 } from '@fortawesome/free-solid-svg-icons';
 import { PropertyDetailPageProps } from '../../types/PropertyDetailPage.types';
-import { RootState } from '../../Redux/Store/store';
+import { RootState } from '../../Redux/store/store';
 import { useTaskHandlers } from './useTaskHandlers';
 import { usePropertyEditHandlers } from './usePropertyEditHandlers';
 import { useMaintenanceRequestHandlers } from './useMaintenanceRequestHandlers';

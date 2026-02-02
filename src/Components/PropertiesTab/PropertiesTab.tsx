@@ -8,7 +8,7 @@ import {
 } from '../Library/PageHeaders';
 import { useRecentlyViewed } from '../../Hooks/useRecentlyViewed';
 import { useFavorites } from '../../Hooks/useFavorites';
-import { RootState } from '../../Redux/Store/store';
+import { RootState } from '../../Redux/store/store';
 import { UserRole } from '../../constants/roles';
 import {
 	useCreatePropertyMutation,

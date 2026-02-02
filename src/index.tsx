@@ -1,15 +1,19 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import reportWebVitals from './reportWebVitals.js';
+import reportWebVitals from './reportWebVitals';
 import { Provider } from 'react-redux';
-import { store } from './Redux/Store/store.tsx';
-import App from './App.tsx';
-import GlobalStyles from './global.styles.tsx';
+import { store } from './Redux/store';
+import App from './App';
+import GlobalStyles from './global.styles';
 if (process.env.NODE_ENV === 'development') {
-	import('./utils/testFirebase.ts');
+	import('./utils/testFirebase');
 }
 
-const root = ReactDOM.createRoot(document.getElementById('root'));
+const rootElement = document.getElementById('root');
+if (!rootElement) {
+	throw new Error('Failed to find the root element');
+}
+const root = ReactDOM.createRoot(rootElement);
 root.render(
 	<React.StrictMode>
 		<Provider store={store}>

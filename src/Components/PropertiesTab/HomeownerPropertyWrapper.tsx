@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useSelector } from 'react-redux';
 import { Navigate } from 'react-router-dom';
-import { RootState } from '../../Redux/Store/store';
+import { RootState } from '../../Redux/store/store';
 import { ZeroState } from '../Library/ZeroState';
 import { PropertyDialog } from './PropertyDialog';
 import {

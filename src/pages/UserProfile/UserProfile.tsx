@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import { RootState, AppDispatch } from '../../Redux/Store/store';
+import { RootState, AppDispatch } from '../../Redux/store';
 import { setCurrentUser } from '../../Redux/Slices/userSlice';
 import { useUpdateUserMutation } from '../../Redux/API/apiSlice';
 import { uploadToBase64, isValidImageFile } from '../../utils/base64Upload';

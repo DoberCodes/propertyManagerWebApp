@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { RootState } from '../../Redux/Store/store';
+import { RootState } from '../../Redux/store/store';
 import {
 	submitTaskCompletion,
 	CompletionFile,

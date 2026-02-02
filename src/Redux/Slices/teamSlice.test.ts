@@ -13,15 +13,23 @@ import { TeamGroup, TeamMember } from '../../types/Team.types';
 
 describe('teamSlice', () => {
 	const initialState = {
-		groups: [],
+		groups: [] as TeamGroup[],
 	};
 
 	const mockMember: TeamMember = {
 		id: 'member-1',
-		name: 'John Doe',
 		email: 'john@example.com',
 		role: 'contractor',
 		groupId: 'group-1',
+		firstName: '',
+		lastName: '',
+		title: '',
+		phone: '',
+		address: '',
+		notes: '',
+		linkedProperties: [],
+		taskHistory: [],
+		files: [],
 	};
 
 	const mockGroup: TeamGroup = {
@@ -236,13 +244,13 @@ describe('teamSlice', () => {
 		describe('updateTeamMember', () => {
 			it('should update existing team member', () => {
 				const stateWithGroup = { groups: [mockGroup] };
-				const updatedMember = { ...mockMember, name: 'Jane Doe' };
+				const updatedMember = { ...mockMember, email: 'jane@example.com' };
 				const actual = teamReducer(
 					stateWithGroup,
 					updateTeamMember(updatedMember),
 				);
 
-				expect(actual.groups[0].members?.[0].name).toBe('Jane Doe');
+				expect(actual.groups[0].members?.[0].email).toBe('jane@example.com');
 			});
 
 			it('should not update if member not found', () => {
@@ -253,7 +261,7 @@ describe('teamSlice', () => {
 					updateTeamMember(nonExistentMember),
 				);
 
-				expect(actual.groups[0].members?.[0].name).toBe('John Doe');
+				expect(actual.groups[0].members?.[0].email).toBe('john@example.com');
 			});
 		});
 

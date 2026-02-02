@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import { RootState, AppDispatch } from '../../Redux/Store/store';
+import { useDispatch } from 'react-redux';
+import { AppDispatch } from '../../Redux/store/store';
 import {
 	useGetPropertyGroupsQuery,
 	useGetTeamGroupsQuery,

@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useSelector } from 'react-redux';
-import { RootState } from '../../Redux/Store/store';
+import { RootState } from '../../Redux/store/store';
 import {
 	useGetTasksQuery,
 	useGetPropertiesQuery,

@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import styled from 'styled-components';
 
 import { useDispatch, useSelector } from 'react-redux';
-import { RootState, AppDispatch } from '../../Redux/Store/store';
+import { RootState, AppDispatch } from '../../Redux/store';
 import { canManageTeamMembers } from '../../utils/permissions';
 import { filterTeamMembersByRole } from '../../utils/dataFilters';
 import { UserRole } from '../../constants/roles';

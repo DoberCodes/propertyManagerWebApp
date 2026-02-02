@@ -61,7 +61,7 @@ describe('maintenanceRequestsSlice', () => {
 			});
 
 			it('should preserve order of requests', () => {
-				let state = initialState;
+				let state: any = initialState;
 
 				state = maintenanceRequestsReducer(
 					state,
@@ -75,7 +75,6 @@ describe('maintenanceRequestsSlice', () => {
 					state,
 					addMaintenanceRequest({ ...mockRequest, id: 'req-3' }),
 				);
-
 				expect(state.requests.map((r) => r.id)).toEqual([
 					'req-1',
 					'req-2',
@@ -196,7 +195,9 @@ describe('maintenanceRequestsSlice', () => {
 					id: 'req-2',
 					status: 'Pending',
 				};
-				const stateWithRequests = { requests: [mockRequest, request2] };
+				const stateWithRequests: any = {
+					requests: [mockRequest, request2],
+				};
 				const actual = maintenanceRequestsReducer(
 					stateWithRequests,
 					convertRequestToTask('req-1'),
@@ -260,8 +261,7 @@ describe('maintenanceRequestsSlice', () => {
 
 		describe('complex scenarios', () => {
 			it('should handle full workflow: add, update, convert, delete', () => {
-				let state = initialState;
-
+				let state: any = initialState;
 				// Add request
 				state = maintenanceRequestsReducer(
 					state,

@@ -45,6 +45,9 @@
 		"start": "react-scripts start",
 		"build": "react-scripts build",
 		"test": "react-scripts test",
+		"test:ci": "react-scripts test --watchAll=false --passWithNoTests",
+		"test:build": "yarn test:ci && yarn build",
+		"validate": "yarn test:ci && yarn build",
 		"eject": "react-scripts eject",
 		"predeploy": "npm run build",
 		"deploy": "gh-pages -d build",
@@ -79,6 +82,7 @@
 		"typescript": "^5.3.3"
 	},
 	"devDependencies": {
+		"@babel/plugin-proposal-private-property-in-object": "^7.21.11",
 		"@types/babel__helper-module-imports": "^7",
 		"@types/react-is": "^18",
 		"@typescript-eslint/parser": "^6.17.0",

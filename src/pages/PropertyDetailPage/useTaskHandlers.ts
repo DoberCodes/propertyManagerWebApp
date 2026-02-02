@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { AppDispatch } from '../../Redux/Store/store';
+import { AppDispatch } from '../../Redux/store';
 import { useDispatch } from 'react-redux';
 import { deleteTask as deleteTaskAction } from '../../Redux/Slices/propertyDataSlice';
 import { TaskHandlers, TaskFormData } from '../../types/Task.types';

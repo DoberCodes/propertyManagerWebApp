@@ -5,7 +5,7 @@
 
 import { useMemo } from 'react';
 import { useSelector } from 'react-redux';
-import { RootState } from '../Redux/Store/store';
+import { RootState } from '../Redux/store/store';
 import { Property } from '../types/Property.types';
 import { Task } from '../types/Task.types';
 import { MaintenanceRequestItem } from '../types/MaintenanceRequest.types';

@@ -9,10 +9,10 @@
  * - Dismiss notification: dismissUpdateNotification()
  * - Trigger download: downloadAPK()
  */
-import { store } from '../Redux/Store/store';
 import { apiSlice } from '../Redux/API/apiSlice';
 import { Capacitor } from '@capacitor/core';
 import { Browser } from '@capacitor/browser';
+import { store } from '../Redux/store';
 
 const CURRENT_APP_VERSION = '1.4.0'; // Should match package.json version
 const STORAGE_KEY = 'app_version_check';

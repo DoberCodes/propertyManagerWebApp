@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
-import type { RootState } from './Redux/Store/store';
+import type { RootState } from './Redux/store/store';
 import { logout } from './Redux/Slices/userSlice';
 import { LoadingState } from './Components/LoadingState';
 import type { UserRole } from './constants/roles';
