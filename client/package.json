@@ -1,9 +1,9 @@
 {
 	"name": "myPropertyManager",
-	"version": "0.1.0",
+	"version": "1.5.0",
 	"private": true,
 	"type": "module",
-	"homepage": "./",
+	"homepage": "https://dobercodes.github.io/propertyManagerWebApp",
 	"dependencies": {
 		"@fortawesome/fontawesome-svg-core": "^6.5.1",
 		"@fortawesome/free-brands-svg-icons": "^6.5.1",
