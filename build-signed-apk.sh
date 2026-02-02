@@ -407,6 +407,13 @@ if [[ "$DRY_RUN" != "--dry-run" && "$DRY_RUN" != "-d" ]]; then
   # Update the hardcoded version in versionCheck.ts
   sed -i "s/const CURRENT_APP_VERSION = '[^']*';/const CURRENT_APP_VERSION = '$NEW_VERSION';/" src/utils/versionCheck.ts
   print_success "Updated CURRENT_APP_VERSION in versionCheck.ts"
+  
+  # Update Android versionCode and versionName in build.gradle
+  CURRENT_VERSION_CODE=$(grep -oP 'versionCode \K\d+' android/app/build.gradle)
+  NEW_VERSION_CODE=$((CURRENT_VERSION_CODE + 1))
+  sed -i "s/versionCode $CURRENT_VERSION_CODE/versionCode $NEW_VERSION_CODE/" android/app/build.gradle
+  sed -i "s/versionName \"[^\"]*\"/versionName \"$NEW_VERSION\"/" android/app/build.gradle
+  print_success "Updated Android versionCode to $NEW_VERSION_CODE and versionName to $NEW_VERSION"
 else
   print_warning "Skipping version update in dry-run mode"
 fi
@@ -426,7 +433,7 @@ print_success "Web app rebuilt for deployment"
 echo ""
 print_header "Step 6: Auto-Committing Changes"
 
-git add package.json client/package.json src/utils/versionCheck.ts
+git add package.json client/package.json src/utils/versionCheck.ts android/app/build.gradle
 if git diff --cached --quiet; then
   print_warning "No version changes to commit. Skipping commit/push/tag steps."
   SKIP_GIT_STEPS=1
@@ -435,6 +442,7 @@ else
 
 - Bump version to $NEW_VERSION
 - Update app version check
+- Update Android versionCode and versionName
 - Build signed APK"
   print_success "Changes committed to main"
   SKIP_GIT_STEPS=0
