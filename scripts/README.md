@@ -45,6 +45,22 @@ node scripts/updateAppVersion.cjs 1.1.0 "New features: Task assignment and prope
 
 When you update the version in Firestore, users on older versions will automatically see the update notification banner prompting them to download the new APK.
 
+### 4. Migrate Recurring Task Fields
+
+Backfill recurring task fields for existing tasks so the new recurring task features are supported.
+
+```bash
+node scripts/migrateAddRecurringFields.cjs
+```
+
+### 5. Backfill Missing Task Fields
+
+Backfill missing required task fields (`id`, `notes`, `priority`).
+
+```bash
+node scripts/migrateTasksMissingFields.cjs
+```
+
 ---
 
 ## Data Source

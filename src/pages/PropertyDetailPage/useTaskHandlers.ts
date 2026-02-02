@@ -6,6 +6,7 @@ import { TaskHandlers, TaskFormData } from '../../types/Task.types';
 
 interface UseTaskHandlersProps {
 	onDeleteClick?: (taskIds: string[]) => void;
+	deleteTaskMutation?: any;
 }
 
 export const useTaskHandlers = (props?: UseTaskHandlersProps): TaskHandlers => {
@@ -89,10 +90,23 @@ export const useTaskHandlers = (props?: UseTaskHandlersProps): TaskHandlers => {
 		setSelectedTasks([]);
 	};
 
-	const confirmDeleteTask = () => {
+	const confirmDeleteTask = async () => {
+		// Delete from Redux
 		selectedTasks.forEach((taskId) => {
 			dispatch(deleteTaskAction(taskId));
 		});
+
+		// Delete from Firebase
+		if (props?.deleteTaskMutation) {
+			for (const taskId of selectedTasks) {
+				try {
+					await props.deleteTaskMutation(taskId).unwrap();
+				} catch (error) {
+					console.error('Failed to delete task from Firebase:', error);
+				}
+			}
+		}
+
 		setSelectedTasks([]);
 	};
 

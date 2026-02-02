@@ -18,6 +18,7 @@ import {
 	useGetTeamMembersQuery,
 	useUpdateTaskMutation,
 	useCreateTaskMutation,
+	useDeleteTaskMutation,
 	useGetPropertiesQuery,
 	useUpdatePropertyMutation,
 	useCreateNotificationMutation,
@@ -108,6 +109,7 @@ export const PropertyDetailPage = (props: PropertyDetailPageProps) => {
 	// Firebase mutations for updating tasks and properties
 	const [updateTaskMutation] = useUpdateTaskMutation();
 	const [createTaskMutation] = useCreateTaskMutation();
+	const [deleteTaskMutation] = useDeleteTaskMutation();
 	const [updatePropertyMutation] = useUpdatePropertyMutation();
 	const [createNotification] = useCreateNotificationMutation();
 
@@ -150,6 +152,7 @@ export const PropertyDetailPage = (props: PropertyDetailPageProps) => {
 	// Import handlers from custom hooks
 	const taskHandlers = useTaskHandlers({
 		onDeleteClick: handleTaskDeleteClick,
+		deleteTaskMutation,
 	});
 	const propertyHandlers = usePropertyEditHandlers();
 	const maintenanceHandlers = useMaintenanceRequestHandlers(
@@ -184,6 +187,25 @@ export const PropertyDetailPage = (props: PropertyDetailPageProps) => {
 		handleTaskCompletionSuccess,
 		confirmDeleteTask,
 	} = taskHandlers;
+
+	useEffect(() => {
+		if (!editingTaskId) return;
+		const taskToEdit = allTasks.find((t) => t.id === editingTaskId);
+		if (!taskToEdit) return;
+
+		setTaskFormData({
+			title: taskToEdit.title || '',
+			dueDate: taskToEdit.dueDate ? taskToEdit.dueDate.split('T')[0] : '',
+			status: taskToEdit.status || 'Pending',
+			notes: taskToEdit.notes || '',
+			priority: taskToEdit.priority,
+			assignedTo: taskToEdit.assignedTo?.id || taskToEdit.assignee || '',
+			isRecurring: taskToEdit.isRecurring || false,
+			recurrenceFrequency: taskToEdit.recurrenceFrequency,
+			recurrenceInterval: taskToEdit.recurrenceInterval,
+			recurrenceCustomUnit: taskToEdit.recurrenceCustomUnit,
+		});
+	}, [editingTaskId, allTasks, setTaskFormData]);
 
 	// Destructure property edit handlers
 	const {
@@ -263,9 +285,21 @@ export const PropertyDetailPage = (props: PropertyDetailPageProps) => {
 	const propertyTasks = useMemo(() => {
 		if (!property) return [];
 		// Match by property ID if it exists, otherwise try matching by title
-		return allTasks.filter(
+		const allPropertyTasks = allTasks.filter(
 			(task) =>
 				task.propertyId === property.id || task.property === property.title,
+		);
+		// Filter out completed tasks - they should show in Maintenance History instead
+		return allPropertyTasks.filter((task) => task.status !== 'Completed');
+	}, [property, allTasks]);
+
+	// Get completed tasks for Maintenance History tab
+	const completedTasks = useMemo(() => {
+		if (!property) return [];
+		return allTasks.filter(
+			(task) =>
+				(task.propertyId === property.id || task.property === property.title) &&
+				task.status === 'Completed',
 		);
 	}, [property, allTasks]);
 
@@ -348,13 +382,47 @@ export const PropertyDetailPage = (props: PropertyDetailPageProps) => {
 							: taskFormData.status === 'Overdue'
 								? 'Pending'
 								: taskFormData.status;
+
+					const safeTeamMembers = teamMembers.filter(
+						(member): member is TeamMember => Boolean(member),
+					);
+					const assignedTo = taskFormData.assignedTo
+						? safeTeamMembers.find(
+								(member) => member.id === taskFormData.assignedTo,
+							)
+						: undefined;
+
+					// Build updates object and filter out undefined values (Firebase doesn't support undefined)
+					const updates: any = {
+						title: taskFormData.title,
+						dueDate: taskFormData.dueDate,
+						status: reduxStatus,
+						notes: taskFormData.notes,
+						priority: taskFormData.priority,
+						isRecurring: Boolean(taskFormData.isRecurring),
+					};
+
+					if (assignedTo) {
+						updates.assignedTo = {
+							id: assignedTo.id,
+							name: `${assignedTo.firstName || ''} ${assignedTo.lastName || ''}`.trim(),
+							email: assignedTo.email,
+						};
+					}
+
+					if (taskFormData.recurrenceFrequency) {
+						updates.recurrenceFrequency = taskFormData.recurrenceFrequency;
+					}
+					if (taskFormData.recurrenceInterval) {
+						updates.recurrenceInterval = taskFormData.recurrenceInterval;
+					}
+					if (taskFormData.recurrenceCustomUnit) {
+						updates.recurrenceCustomUnit = taskFormData.recurrenceCustomUnit;
+					}
+
 					await updateTaskMutation({
 						id: editingTaskId,
-						updates: {
-							title: taskFormData.title,
-							dueDate: taskFormData.dueDate,
-							status: reduxStatus,
-						},
+						updates,
 					}).unwrap();
 
 					// Create notification for task update
@@ -379,6 +447,7 @@ export const PropertyDetailPage = (props: PropertyDetailPageProps) => {
 						console.error('Notification failed:', notifError);
 					}
 				}
+			} else {
 				// Add new task
 				const reduxStatus =
 					taskFormData.status === 'Hold'
@@ -386,14 +455,47 @@ export const PropertyDetailPage = (props: PropertyDetailPageProps) => {
 						: taskFormData.status === 'Overdue'
 							? 'Pending'
 							: taskFormData.status;
-				const newTask = {
+
+				const safeTeamMembers = teamMembers.filter(
+					(member): member is TeamMember => Boolean(member),
+				);
+				const assignedTo = taskFormData.assignedTo
+					? safeTeamMembers.find(
+							(member) => member.id === taskFormData.assignedTo,
+						)
+					: undefined;
+
+				// Build new task object and filter out undefined values (Firebase doesn't support undefined)
+				const newTask: any = {
 					userId: currentUser!.id,
 					title: taskFormData.title,
 					dueDate: taskFormData.dueDate,
 					status: reduxStatus,
 					property: property.title,
 					propertyId: property.id,
+					notes: taskFormData.notes,
+					priority: taskFormData.priority,
+					isRecurring: Boolean(taskFormData.isRecurring),
 				};
+
+				if (assignedTo) {
+					newTask.assignedTo = {
+						id: assignedTo.id,
+						name: `${assignedTo.firstName || ''} ${assignedTo.lastName || ''}`.trim(),
+						email: assignedTo.email,
+					};
+				}
+
+				if (taskFormData.recurrenceFrequency) {
+					newTask.recurrenceFrequency = taskFormData.recurrenceFrequency;
+				}
+				if (taskFormData.recurrenceInterval) {
+					newTask.recurrenceInterval = taskFormData.recurrenceInterval;
+				}
+				if (taskFormData.recurrenceCustomUnit) {
+					newTask.recurrenceCustomUnit = taskFormData.recurrenceCustomUnit;
+				}
+
 				await createTaskMutation(newTask).unwrap();
 
 				// Create notification for task creation
@@ -796,7 +898,9 @@ export const PropertyDetailPage = (props: PropertyDetailPageProps) => {
 			)}
 
 			{/* Maintenance History Tab */}
-			{activeTab === 'maintenance' && <MaintenanceTab property={property} />}
+			{activeTab === 'maintenance' && (
+				<MaintenanceTab property={property} completedTasks={completedTasks} />
+			)}
 
 			{/* Tenants Tab */}
 			{activeTab === 'tenants' && !hasCommercialSuites && (
@@ -1044,6 +1148,19 @@ export const PropertyDetailPage = (props: PropertyDetailPageProps) => {
 					setTaskToDelete(null);
 				}}
 			/>
+
+			{/* Task Completion Modal */}
+			{showTaskCompletionModal && completingTaskId && (
+				<TaskCompletionModal
+					taskId={completingTaskId}
+					taskTitle={
+						allTasks.find((t) => t.id === completingTaskId)?.title || ''
+					}
+					task={allTasks.find((t) => t.id === completingTaskId)}
+					onClose={() => setShowTaskCompletionModal(false)}
+					onSuccess={handleTaskCompletionSuccess}
+				/>
+			)}
 
 			<style>{`
 				.desktop-actions {

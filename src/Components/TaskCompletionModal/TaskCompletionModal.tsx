@@ -6,10 +6,10 @@ import {
 	CompletionFile,
 } from '../../Redux/Slices/propertyDataSlice';
 import {
-	useUploadTaskCompletionFileMutation,
 	useSubmitTaskCompletionMutation,
 	useCreateTaskMutation,
 } from '../../Redux/API/apiSlice';
+import { uploadToBase64 } from '../../utils/base64Upload';
 import { GenericModal, FormGroup } from '../Library';
 import { calculateNextDueDate } from '../../utils/recurringTaskUtils';
 import { Task } from '../../types/Task.types';
@@ -41,6 +41,7 @@ export const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
 	const dispatch = useDispatch();
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
 	const [completionDate, setCompletionDate] = useState('');
+	const [completionNotes, setCompletionNotes] = useState('');
 	const [selectedFile, setSelectedFile] = useState<File | null>(null);
 	const [errors, setErrors] = useState<{
 		date?: string;
@@ -49,7 +50,6 @@ export const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
 	}>({});
 	const [isSubmitting, setIsSubmitting] = useState(false);
 
-	const [uploadFile] = useUploadTaskCompletionFileMutation();
 	const [submitCompletion] = useSubmitTaskCompletionMutation();
 	const [createTask] = useCreateTaskMutation();
 
@@ -58,25 +58,25 @@ export const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
 	const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const file = e.target.files?.[0];
 		if (file) {
-			// Validate file size (max 10MB)
-			if (file.size > 10 * 1024 * 1024) {
-				setErrors({ ...errors, file: 'File size must be less than 10MB' });
+			// Validate file size (max 700KB for base64 encoding)
+			if (file.size > 700 * 1024) {
+				setErrors({ ...errors, file: 'File size must be less than 700KB' });
 				return;
 			}
 
-			// Validate file type (PDFs, images, documents)
+			// Validate file type (images and PDFs for base64)
 			const allowedTypes = [
-				'application/pdf',
 				'image/jpeg',
 				'image/png',
 				'image/jpg',
-				'application/msword',
-				'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+				'image/gif',
+				'image/webp',
+				'application/pdf',
 			];
 			if (!allowedTypes.includes(file.type)) {
 				setErrors({
 					...errors,
-					file: 'Please upload a PDF, image, or Word document',
+					file: 'Invalid file type. Please upload an image or PDF file',
 				});
 				return;
 			}
@@ -110,21 +110,26 @@ export const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
 		setErrors({});
 
 		try {
-			// Step 1: Upload file to Firebase Storage
-			const uploadResult = await uploadFile({
-				taskId: taskId.toString(),
-				file: selectedFile!,
-			}).unwrap();
+			// Step 1: Convert file to base64
+			const base64Url = await uploadToBase64(selectedFile!);
 
-			const completionFileData: CompletionFile = uploadResult;
+			const completionFileData: CompletionFile = {
+				name: selectedFile!.name,
+				url: base64Url,
+				size: selectedFile!.size,
+				type: selectedFile!.type,
+				uploadedAt: new Date().toISOString(),
+			};
 
 			// Step 2: Submit task completion to Redux
 			dispatch(
 				submitTaskCompletion({
 					taskId,
 					completionDate,
+					completionNotes,
 					completionFile: completionFileData,
 					completedBy: currentUser!.id,
+					userType: currentUser!.userType,
 				}),
 			);
 
@@ -133,8 +138,10 @@ export const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
 				await submitCompletion({
 					taskId: taskId.toString(),
 					completionDate,
+					completionNotes,
 					completionFile: completionFileData,
 					completedBy: currentUser!.id,
+					userType: currentUser!.userType,
 				}).unwrap();
 			} catch (firebaseError) {
 				console.warn(
@@ -154,23 +161,31 @@ export const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
 						completionDate || new Date().toISOString().split('T')[0],
 						task.recurrenceFrequency,
 						task.recurrenceInterval,
+						task.recurrenceCustomUnit,
 					);
 
-					await createTask({
+					// Build recurring task object, conditionally adding optional fields
+					const recurringTaskData: any = {
 						propertyId: task.propertyId,
 						title: task.title,
 						dueDate: nextDueDate,
 						status: 'Pending',
-						notes: task.notes,
-						priority: task.priority,
-						assignee: task.assignee,
 						isRecurring: true,
 						recurrenceFrequency: task.recurrenceFrequency,
 						recurrenceInterval: task.recurrenceInterval,
-						parentTaskId: task.id, // Link to original recurring task
+						parentTaskId: task.id,
 						lastRecurrenceDate:
 							completionDate || new Date().toISOString().split('T')[0],
-					} as any).unwrap();
+					};
+
+					// Conditionally add optional fields only if they have values
+					if (task.notes) recurringTaskData.notes = task.notes;
+					if (task.priority) recurringTaskData.priority = task.priority;
+					if (task.assignee) recurringTaskData.assignee = task.assignee;
+					if (task.recurrenceCustomUnit)
+						recurringTaskData.recurrenceCustomUnit = task.recurrenceCustomUnit;
+
+					await createTask(recurringTaskData).unwrap();
 
 					console.info(
 						`📅 New recurring task created: "${task.title}" due on ${nextDueDate}`,
@@ -235,16 +250,37 @@ export const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
 			</FormGroup>
 
 			<FormGroup>
+				{' '}
+				<Label htmlFor='completionNotes'>Completion Notes</Label>
+				<textarea
+					id='completionNotes'
+					value={completionNotes}
+					onChange={(e) => setCompletionNotes(e.target.value)}
+					placeholder='Add any notes about the work completed, materials used, or issues encountered...'
+					rows={4}
+					style={{
+						width: '100%',
+						padding: '0.75rem',
+						border: '1px solid #ddd',
+						borderRadius: '4px',
+						fontSize: '1rem',
+						fontFamily: 'inherit',
+						resize: 'vertical',
+					}}
+				/>
+			</FormGroup>
+
+			<FormGroup>
+				{' '}
 				<Label htmlFor='completionFile'>
-					Upload Completion Form / Work Order{' '}
-					<span style={{ color: '#e74c3c' }}>*</span>
+					Upload Completion Document <span style={{ color: '#e74c3c' }}>*</span>
 				</Label>
 				<FileUploadArea>
 					<FileInput
 						type='file'
 						id='completionFile'
 						onChange={handleFileChange}
-						accept='.pdf,.jpg,.jpeg,.png,.doc,.docx'
+						accept='image/jpeg,image/jpg,image/png,image/gif,image/webp,application/pdf'
 					/>
 					<FileUploadLabel htmlFor='completionFile'>
 						{selectedFile ? (
@@ -264,7 +300,7 @@ export const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
 								Click to upload or drag and drop
 								<br />
 								<span style={{ fontSize: '0.85rem', color: '#666' }}>
-									PDF, JPG, PNG, DOC (max 10MB)
+									JPG, PNG, GIF, WEBP (max 700KB)
 								</span>
 							</>
 						)}

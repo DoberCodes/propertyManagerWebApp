@@ -11,8 +11,7 @@ import {
 	deleteDoc,
 	addDoc,
 } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { db, storage, auth } from '../../config/firebase';
+import { db, auth } from '../../config/firebase';
 import { User } from '../Slices/userSlice';
 
 // Types
@@ -166,14 +165,32 @@ export interface Task {
 		| 'In Progress'
 		| 'Awaiting Approval'
 		| 'Completed'
-		| 'Rejected';
+		| 'Rejected'
+		| 'Overdue'
+		| 'Hold';
 	property: string;
 	notes?: string;
+	priority?: 'Low' | 'Medium' | 'High' | 'Urgent';
+	assignee?: string;
 	assignedTo?: {
 		id: string;
 		name: string;
 		email?: string;
 	}; // Assignee object
+	// Recurring task fields
+	isRecurring?: boolean;
+	recurrenceFrequency?:
+		| 'daily'
+		| 'weekly'
+		| 'biweekly'
+		| 'monthly'
+		| 'quarterly'
+		| 'yearly'
+		| 'custom';
+	recurrenceInterval?: number;
+	recurrenceCustomUnit?: 'days' | 'weeks' | 'months' | 'years';
+	parentTaskId?: string;
+	lastRecurrenceDate?: string;
 	completionDate?: string;
 	completionFile?: CompletionFile;
 	completedBy?: string; // User ID who completed the task
@@ -740,59 +757,45 @@ export const apiSlice = createApi({
 		}),
 
 		// Task completion workflow endpoints
-		uploadTaskCompletionFile: builder.mutation<
-			CompletionFile,
-			{ taskId: string; file: File }
-		>({
-			async queryFn({ taskId, file }) {
-				try {
-					// Create a unique filename
-					const timestamp = Date.now();
-					const fileName = `${timestamp}_${file.name}`;
-					const filePath = `task-completions/${taskId}/${fileName}`;
-
-					// Upload file to Firebase Storage
-					const storageRef = ref(storage, filePath);
-					const snapshot = await uploadBytes(storageRef, file);
-
-					// Get download URL
-					const downloadURL = await getDownloadURL(snapshot.ref);
-
-					const completionFile: CompletionFile = {
-						name: file.name,
-						url: downloadURL,
-						size: file.size,
-						type: file.type,
-						uploadedAt: new Date().toISOString(),
-					};
-
-					return { data: completionFile };
-				} catch (error: any) {
-					return { error: error.message };
-				}
-			},
-		}),
+		// Note: File upload now uses base64 encoding on the client side
+		// See TaskCompletionModal.tsx for implementation
 
 		submitTaskCompletion: builder.mutation<
 			Partial<Task>,
 			{
 				taskId: string;
 				completionDate: string;
+				completionNotes?: string;
 				completionFile: CompletionFile;
 				completedBy: string;
+				userType?: string;
 			}
 		>({
-			async queryFn({ taskId, completionDate, completionFile, completedBy }) {
+			async queryFn({
+				taskId,
+				completionDate,
+				completionNotes,
+				completionFile,
+				completedBy,
+				userType,
+			}) {
 				try {
 					const docRef = doc(db, 'tasks', taskId);
-					const updates = {
-						status: 'Awaiting Approval' as const,
+					// Build updates object, conditionally adding optional fields
+					// Homeowners can mark tasks as complete directly, others need approval
+					const updates: any = {
+						status:
+							userType === 'homeowner' ? 'Completed' : 'Awaiting Approval',
 						completionDate,
 						completionFile,
 						completedBy,
-						rejectionReason: undefined, // Clear any previous rejection
 						updatedAt: new Date().toISOString(),
 					};
+
+					// Only add completionNotes if it has a value
+					if (completionNotes) {
+						updates.completionNotes = completionNotes;
+					}
 
 					await updateDoc(docRef, updates);
 
@@ -2088,7 +2091,6 @@ export const {
 	useCreateTaskMutation,
 	useUpdateTaskMutation,
 	useDeleteTaskMutation,
-	useUploadTaskCompletionFileMutation,
 	useSubmitTaskCompletionMutation,
 	useApproveTaskMutation,
 	useRejectTaskMutation,

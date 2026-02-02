@@ -9,7 +9,9 @@ export type ReduxTaskStatus =
 	| 'In Progress'
 	| 'Awaiting Approval'
 	| 'Completed'
-	| 'Rejected';
+	| 'Rejected'
+	| 'Overdue'
+	| 'Hold';
 
 // Task recurrence frequency types
 export type RecurrenceFrequency =
@@ -18,7 +20,11 @@ export type RecurrenceFrequency =
 	| 'biweekly'
 	| 'monthly'
 	| 'quarterly'
-	| 'yearly';
+	| 'yearly'
+	| 'custom';
+
+// Custom recurrence unit types (for 'custom' frequency)
+export type RecurrenceCustomUnit = 'days' | 'weeks' | 'months' | 'years';
 
 // Extended task statuses used throughout the app
 export type TaskStatus =
@@ -26,6 +32,7 @@ export type TaskStatus =
 	| 'In Progress'
 	| 'Awaiting Approval'
 	| 'Completed'
+	| 'Rejected'
 	| 'Overdue'
 	| 'Hold';
 
@@ -64,6 +71,7 @@ export interface Task {
 	isRecurring?: boolean;
 	recurrenceFrequency?: RecurrenceFrequency;
 	recurrenceInterval?: number; // e.g., every X days/weeks/months
+	recurrenceCustomUnit?: RecurrenceCustomUnit; // Unit for 'custom' frequency
 	parentTaskId?: string; // Reference to original recurring task (if this is a copy)
 	lastRecurrenceDate?: string; // Last date this recurring task was auto-created
 }
@@ -84,9 +92,11 @@ export interface TaskFormData {
 	notes: string;
 	priority?: TaskPriority;
 	assignee?: string;
+	assignedTo?: string;
 	isRecurring?: boolean;
 	recurrenceFrequency?: RecurrenceFrequency;
 	recurrenceInterval?: number;
+	recurrenceCustomUnit?: RecurrenceCustomUnit;
 }
 
 export interface TaskHandlers {

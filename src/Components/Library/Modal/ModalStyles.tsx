@@ -34,9 +34,12 @@ export const ModalContainer = styled.div`
 	background: white;
 	border-radius: 12px;
 	width: 100%;
-	max-width: 600px;
+	max-width: 750px;
+	height: 70vh;
 	max-height: 90vh;
-	overflow-y: auto;
+	min-height: 500px;
+	display: flex;
+	flex-direction: column;
 	box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
 	animation: slideUp 0.3s ease-in-out;
 	display: flex;
@@ -55,12 +58,16 @@ export const ModalContainer = styled.div`
 
 	@media (max-width: 768px) {
 		max-width: 90%;
+		height: 75vh;
 		max-height: 85vh;
+		min-height: 400px;
 	}
 
 	@media (max-width: 480px) {
 		max-width: 95%;
+		height: 80vh;
 		max-height: 90vh;
+		min-height: 350px;
 		border-radius: 10px;
 	}
 `;
@@ -192,13 +199,25 @@ export const DialogForm = styled.form`
 	display: flex;
 	flex-direction: column;
 	gap: 0;
+	flex: 1;
+	min-height: 0;
+	position: relative;
+	padding-bottom: 4rem;
+	height: 100%;
 `;
 
 export const DialogButtonGroup = styled.div`
 	display: flex;
 	gap: 0.75rem;
-	margin-top: 1.5rem;
+	margin-top: 0;
 	justify-content: flex-end;
+	position: absolute;
+	bottom: 0;
+	right: 0;
+	background: white;
+	padding: 0.6rem 2rem;
+	width: 100%;
+	border-top: 1px solid ${COLORS.gray200};
 
 	@media (max-width: 480px) {
 		flex-direction: column-reverse;
@@ -318,6 +337,20 @@ export const FormGroup = styled.div`
 	}
 `;
 
+export const FormGrid = styled.div`
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 1.25rem 1.5rem;
+
+	@media (max-width: 768px) {
+		grid-template-columns: 1fr;
+	}
+`;
+
+export const FormGroupFull = styled(FormGroup)`
+	grid-column: 1 / -1;
+`;
+
 export const FormLabel = styled.label`
 	display: block;
 	margin-bottom: 0.5rem;
@@ -394,9 +427,12 @@ export const FormTextarea = styled.textarea`
 `;
 
 export const ModalFormContent = styled.div`
-	padding: 2rem;
+	padding: 1rem 2rem 4rem;
 	flex: 1;
 	overflow-y: auto;
+	min-height: 0;
+	display: flex;
+	flex-direction: column;
 `;
 
 export const WarningMessage = styled.div`
@@ -446,4 +482,44 @@ export const FormCheckbox = styled.input`
 		outline: none;
 		box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
 	}
+`;
+
+/**
+ * Tab Navigation Components
+ */
+export const ModalTabContainer = styled.div`
+	display: flex;
+	border-bottom: 2px solid ${COLORS.gray200};
+	margin-bottom: 1rem;
+	gap: 0.5rem;
+`;
+
+export const ModalTab = styled.button<{ active: boolean }>`
+	padding: 0.75rem 1.5rem;
+	background: ${(props) =>
+		props.active ? COLORS.primaryLight : 'transparent'};
+	color: ${(props) => (props.active ? COLORS.primary : COLORS.gray600)};
+	border: none;
+	border-bottom: 2px solid
+		${(props) => (props.active ? COLORS.primary : 'transparent')};
+	font-weight: ${(props) => (props.active ? '600' : '500')};
+	font-size: 0.95rem;
+	cursor: pointer;
+	transition: all 0.2s;
+	border-radius: 0.375rem 0.375rem 0 0;
+
+	&:hover {
+		background: ${(props) =>
+			props.active ? COLORS.primaryLight : COLORS.gray100};
+		color: ${(props) => (props.active ? COLORS.primary : COLORS.gray800)};
+	}
+
+	&:focus {
+		outline: none;
+		box-shadow: 0 0 0 2px ${COLORS.primaryLight};
+	}
+`;
+
+export const ModalTabContent = styled.div<{ active: boolean }>`
+	display: ${(props) => (props.active ? 'block' : 'none')};
 `;

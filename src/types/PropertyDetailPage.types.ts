@@ -61,6 +61,7 @@ export interface TasksTabProps {
 
 export interface MaintenanceTabProps {
 	property: any;
+	completedTasks?: any[];
 }
 
 export interface TenantsTabProps {

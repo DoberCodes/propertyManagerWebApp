@@ -74,6 +74,7 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 								<th>Task Name</th>
 								<th>Assigned To</th>
 								<th>Due Date</th>
+								<th>Priority</th>
 								<th>Status</th>
 								<th>Notes</th>
 							</tr>
@@ -103,7 +104,7 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 												task.assignedTo.id
 											: 'Unassigned'}
 									</td>
-									<td>{task.dueDate}</td>
+									<td>{task.dueDate}</td> <td>{task.priority || '-'}</td>{' '}
 									<td>
 										<TaskStatus status={task.status}>{task.status}</TaskStatus>
 									</td>

@@ -59,14 +59,21 @@ const propertyDataSlice = createSlice({
 			action: PayloadAction<{
 				taskId: string;
 				completionDate: string;
+				completionNotes?: string;
 				completionFile?: CompletionFile;
 				completedBy: string;
+				userType?: string;
 			}>,
 		) => {
 			const task = state.tasks.find((t) => t.id === action.payload.taskId);
 			if (task) {
-				task.status = 'Awaiting Approval';
+				// Homeowners can mark tasks as complete directly, others need approval
+				task.status =
+					action.payload.userType === 'homeowner'
+						? 'Completed'
+						: 'Awaiting Approval';
 				task.completionDate = action.payload.completionDate;
+				task.completionNotes = action.payload.completionNotes;
 				task.completionFile = action.payload.completionFile;
 				task.completedBy = action.payload.completedBy;
 			}
