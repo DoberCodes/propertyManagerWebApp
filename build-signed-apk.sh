@@ -76,6 +76,23 @@ print_info() {
   echo -e "${BLUE}ℹ $1${NC}"
 }
 
+# Run gh command and auto-refresh auth on failure, then retry once
+run_gh_with_refresh() {
+  local output
+  output=$(env -u GH_TOKEN -u GITHUB_TOKEN "$@" 2>&1) || {
+    if echo "$output" | grep -qi "Resource not accessible by personal access token\|authentication\|login"; then
+      print_warning "GitHub auth issue detected. Refreshing credentials..."
+      gh auth refresh -h github.com -s repo
+      env -u GH_TOKEN -u GITHUB_TOKEN "$@"
+      return $?
+    fi
+    echo "$output"
+    return 1
+  }
+  echo "$output"
+  return 0
+}
+
 # Function to send Slack notification
 send_slack_notification() {
   local message=$1
@@ -463,14 +480,14 @@ APK_VERSIONED_NAME="PropertyManager-$NEW_VERSION.apk"
 REPO_NAME=${GITHUB_REPOSITORY:-$(gh repo view --json nameWithOwner -q .nameWithOwner)}
 
 if [ -f "$RELEASE_NOTES_FILE" ] && [ -f "$APK_FILE" ]; then
-  if env -u GH_TOKEN -u GITHUB_TOKEN gh release view "v$NEW_VERSION" --repo "$REPO_NAME" >/dev/null 2>&1; then
+  if run_gh_with_refresh gh release view "v$NEW_VERSION" --repo "$REPO_NAME" >/dev/null 2>&1; then
     print_warning "Release v$NEW_VERSION already exists. Uploading APK."
-    if ! env -u GH_TOKEN -u GITHUB_TOKEN gh release edit "v$NEW_VERSION" --repo "$REPO_NAME" --notes-file "$RELEASE_NOTES_FILE"; then
+    if ! run_gh_with_refresh gh release edit "v$NEW_VERSION" --repo "$REPO_NAME" --notes-file "$RELEASE_NOTES_FILE"; then
       print_warning "Failed to update GitHub release notes. Continuing with APK upload."
       send_slack_notification "Failed to update GitHub release notes for v$NEW_VERSION" "warning"
     fi
   else
-    if ! env -u GH_TOKEN -u GITHUB_TOKEN gh release create "v$NEW_VERSION" \
+    if ! run_gh_with_refresh gh release create "v$NEW_VERSION" \
       --repo "$REPO_NAME" \
       --title "Release v$NEW_VERSION" \
       --notes-file "$RELEASE_NOTES_FILE"; then
@@ -490,7 +507,7 @@ if [ -f "$RELEASE_NOTES_FILE" ] && [ -f "$APK_FILE" ]; then
     cp "$APK_FILE" "$LATEST_APK_PATH"
     cp "$APK_FILE" "$VERSIONED_APK_PATH"
 
-    if env -u GH_TOKEN -u GITHUB_TOKEN gh release upload "v$NEW_VERSION" \
+    if run_gh_with_refresh gh release upload "v$NEW_VERSION" \
       "$LATEST_APK_PATH" \
       "$VERSIONED_APK_PATH" \
       --repo "$REPO_NAME" --clobber; then
