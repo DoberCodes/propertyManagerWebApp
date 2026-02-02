@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import { getCurrentLocation } from '../utils/geolocation';
 import {
 	Container,
 	WeatherInfo,
@@ -72,26 +73,7 @@ export const SeasonalMaintenance = ({
 	};
 
 	const getUserLocation = () => {
-		return new Promise<{ latitude: number; longitude: number }>(
-			(resolve, reject) => {
-				if (navigator.geolocation) {
-					navigator.geolocation.getCurrentPosition(
-						(position) => {
-							resolve({
-								latitude: position.coords.latitude,
-								longitude: position.coords.longitude,
-							});
-						},
-						(error) => {
-							reject(error);
-						},
-						{ timeout: 30000 },
-					);
-				} else {
-					reject(new Error('Geolocation is not supported by this browser.'));
-				}
-			},
-		);
+		return getCurrentLocation();
 	};
 
 	const fetchWeatherData = async (latitude: number, longitude: number) => {

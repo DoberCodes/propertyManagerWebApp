@@ -22,6 +22,7 @@ import { UserRole } from '../../constants/roles';
 import { isTenant, getTenantPropertySlug } from '../../utils/permissions';
 import { filterTasksByRole } from '../../utils/dataFilters';
 import { getDefaultTempUnit } from '../../utils/geolocationUtils';
+import { getCurrentLocation } from '../../utils/geolocation';
 import { TaskCompletionModal } from '../../Components/TaskCompletionModal';
 import { NotificationPanel } from '../../Components/Library';
 import {
@@ -95,29 +96,18 @@ export const DashboardTab = () => {
 		}
 	}, [currentUser, navigate]);
 
-	// Get user geolocation once on mount
+	// Get user geolocation once on mount (with permission request on mobile)
 	useEffect(() => {
-		const getLocation = () => {
-			if (navigator.geolocation) {
-				navigator.geolocation.getCurrentPosition(
-					(position) => {
-						const location = {
-							latitude: position.coords.latitude,
-							longitude: position.coords.longitude,
-						};
-						setUserLocation(location);
-						// Set default temp unit based on location
-						const defaultUnit = getDefaultTempUnit(
-							location.latitude,
-							location.longitude,
-						);
-						setTempUnit(defaultUnit);
-					},
-					(error) => {
-						console.warn('Geolocation error:', error.message);
-					},
-					{ timeout: 10000 },
+		const getLocation = async () => {
+			const location = await getCurrentLocation();
+			if (location) {
+				setUserLocation(location);
+				// Set default temp unit based on location
+				const defaultUnit = getDefaultTempUnit(
+					location.latitude,
+					location.longitude,
 				);
+				setTempUnit(defaultUnit);
 			}
 		};
 		getLocation();
