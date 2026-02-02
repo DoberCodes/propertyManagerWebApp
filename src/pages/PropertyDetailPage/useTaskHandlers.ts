@@ -4,7 +4,11 @@ import { useDispatch } from 'react-redux';
 import { deleteTask as deleteTaskAction } from '../../Redux/Slices/propertyDataSlice';
 import { TaskHandlers, TaskFormData } from '../../types/Task.types';
 
-export const useTaskHandlers = (): TaskHandlers => {
+interface UseTaskHandlersProps {
+	onDeleteClick?: (taskIds: string[]) => void;
+}
+
+export const useTaskHandlers = (props?: UseTaskHandlersProps): TaskHandlers => {
 	const dispatch = useDispatch<AppDispatch>();
 	const [selectedTasks, setSelectedTasks] = useState<string[]>([]);
 	const [showTaskDialog, setShowTaskDialog] = useState(false);
@@ -48,12 +52,8 @@ export const useTaskHandlers = (): TaskHandlers => {
 
 	const handleDeleteTask = () => {
 		if (selectedTasks.length === 0) return;
-		// eslint-disable-next-line no-restricted-globals
-		if (confirm('Are you sure you want to delete the selected task(s)?')) {
-			selectedTasks.forEach((taskId) => {
-				dispatch(deleteTaskAction(taskId));
-			});
-			setSelectedTasks([]);
+		if (props?.onDeleteClick) {
+			props.onDeleteClick(selectedTasks);
 		}
 	};
 
@@ -89,6 +89,13 @@ export const useTaskHandlers = (): TaskHandlers => {
 		setSelectedTasks([]);
 	};
 
+	const confirmDeleteTask = () => {
+		selectedTasks.forEach((taskId) => {
+			dispatch(deleteTaskAction(taskId));
+		});
+		setSelectedTasks([]);
+	};
+
 	return {
 		selectedTasks,
 		setSelectedTasks,
@@ -116,5 +123,6 @@ export const useTaskHandlers = (): TaskHandlers => {
 		handleCompleteTask,
 		handleTaskFormChange,
 		handleTaskCompletionSuccess,
+		confirmDeleteTask,
 	};
 };

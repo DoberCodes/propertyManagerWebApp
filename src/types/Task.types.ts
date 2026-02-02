@@ -11,6 +11,15 @@ export type ReduxTaskStatus =
 	| 'Completed'
 	| 'Rejected';
 
+// Task recurrence frequency types
+export type RecurrenceFrequency =
+	| 'daily'
+	| 'weekly'
+	| 'biweekly'
+	| 'monthly'
+	| 'quarterly'
+	| 'yearly';
+
 // Extended task statuses used throughout the app
 export type TaskStatus =
 	| 'Pending'
@@ -51,6 +60,12 @@ export interface Task {
 	approvedBy?: string;
 	approvedAt?: string;
 	rejectionReason?: string;
+	// Recurring task fields
+	isRecurring?: boolean;
+	recurrenceFrequency?: RecurrenceFrequency;
+	recurrenceInterval?: number; // e.g., every X days/weeks/months
+	parentTaskId?: string; // Reference to original recurring task (if this is a copy)
+	lastRecurrenceDate?: string; // Last date this recurring task was auto-created
 }
 
 export interface CompletionFile {
@@ -69,6 +84,9 @@ export interface TaskFormData {
 	notes: string;
 	priority?: TaskPriority;
 	assignee?: string;
+	isRecurring?: boolean;
+	recurrenceFrequency?: RecurrenceFrequency;
+	recurrenceInterval?: number;
 }
 
 export interface TaskHandlers {
@@ -102,6 +120,7 @@ export interface TaskHandlers {
 		>,
 	) => void;
 	handleTaskCompletionSuccess: () => void;
+	confirmDeleteTask: () => void;
 }
 
 export interface TaskData {

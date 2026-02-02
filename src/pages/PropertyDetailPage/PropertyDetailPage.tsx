@@ -36,15 +36,10 @@ import { MaintenanceRequestModal } from '../../Components/MaintenanceRequestModa
 import { ConvertRequestToTaskModal } from '../../Components/ConvertRequestToTaskModal';
 import { SharePropertyModal } from '../../Components/SharePropertyModal';
 import { AddTenantModal } from '../../Components/AddTenantModal';
-import { Tabs } from '../../Components/Library';
+import { DeleteConfirmationModal } from '../../Components/Library/Modal/DeleteConfirmationModal';
+import { Tabs, GenericModal } from '../../Components/Library';
 import {
-	DialogOverlay,
-	DialogContent,
-	DialogHeader,
-	DialogForm,
-	DialogButtonGroup,
-	DialogCancelButton,
-	DialogSubmitButton,
+	EditTaskModal,
 	FormGroup,
 	FormLabel,
 	FormInput,
@@ -128,6 +123,11 @@ export const PropertyDetailPage = (props: PropertyDetailPageProps) => {
 	const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
 	const [showShareModal, setShowShareModal] = useState(false);
 	const [showAddTenantModal, setShowAddTenantModal] = useState(false);
+	const [deleteTaskModalOpen, setDeleteTaskModalOpen] = useState(false);
+	const [taskToDelete, setTaskToDelete] = useState<{
+		id: string;
+		title: string;
+	} | null>(null);
 	const propertyOverride = props.property;
 
 	// Find the property based on slug from Firebase data - move up to use in hooks
@@ -137,8 +137,20 @@ export const PropertyDetailPage = (props: PropertyDetailPageProps) => {
 			: firebaseProperties.find((p: any) => p.slug === slug);
 	}, [slug, firebaseProperties, propertyOverride]);
 
+	// Handle task deletion with confirmation
+	const handleTaskDeleteClick = (taskIds: string[]) => {
+		if (taskIds.length === 0) return;
+		const task = allTasks.find((t) => t.id === taskIds[0]);
+		if (task) {
+			setTaskToDelete({ id: taskIds[0], title: task.title });
+			setDeleteTaskModalOpen(true);
+		}
+	};
+
 	// Import handlers from custom hooks
-	const taskHandlers = useTaskHandlers();
+	const taskHandlers = useTaskHandlers({
+		onDeleteClick: handleTaskDeleteClick,
+	});
 	const propertyHandlers = usePropertyEditHandlers();
 	const maintenanceHandlers = useMaintenanceRequestHandlers(
 		property,
@@ -170,6 +182,7 @@ export const PropertyDetailPage = (props: PropertyDetailPageProps) => {
 		handleCompleteTask,
 		handleTaskFormChange,
 		handleTaskCompletionSuccess,
+		confirmDeleteTask,
 	} = taskHandlers;
 
 	// Destructure property edit handlers
@@ -811,278 +824,173 @@ export const PropertyDetailPage = (props: PropertyDetailPageProps) => {
 
 			{/* Add Device Dialog */}
 			{showDeviceDialog && (
-				<DialogOverlay
-					onClick={(e: React.MouseEvent<HTMLDivElement>) => {
-						if (e.target === e.currentTarget) {
-							setShowDeviceDialog(false);
-						}
-					}}>
-					<DialogContent onClick={(e) => e.stopPropagation()}>
-						<DialogHeader>Add New Household Device</DialogHeader>
-						<DialogForm onSubmit={handleDeviceFormSubmit}>
-							<FormGroup>
-								<FormLabel>Device Type *</FormLabel>
-								<FormInput
-									type='text'
-									name='type'
-									value={deviceFormData.type}
-									onChange={handleDeviceFormChange}
-									placeholder='e.g., HVAC System, Water Heater'
-									required
-								/>
-							</FormGroup>
+				<GenericModal
+					isOpen={showDeviceDialog}
+					onClose={() => setShowDeviceDialog(false)}
+					title='Add New Household Device'
+					onSubmit={handleDeviceFormSubmit}
+					primaryButtonLabel='Add Device'
+					secondaryButtonLabel='Cancel'>
+					<FormGroup>
+						<FormLabel>Device Type *</FormLabel>
+						<FormInput
+							type='text'
+							name='type'
+							value={deviceFormData.type}
+							onChange={handleDeviceFormChange}
+							placeholder='e.g., HVAC System, Water Heater'
+							required
+						/>
+					</FormGroup>
 
-							<FormGroup>
-								<FormLabel>Brand *</FormLabel>
-								<FormInput
-									type='text'
-									name='brand'
-									value={deviceFormData.brand}
-									onChange={handleDeviceFormChange}
-									placeholder='e.g., Carrier, Rheem'
-									required
-								/>
-							</FormGroup>
+					<FormGroup>
+						<FormLabel>Brand *</FormLabel>
+						<FormInput
+							type='text'
+							name='brand'
+							value={deviceFormData.brand}
+							onChange={handleDeviceFormChange}
+							placeholder='e.g., Carrier, Rheem'
+							required
+						/>
+					</FormGroup>
 
-							<FormGroup>
-								<FormLabel>Model *</FormLabel>
-								<FormInput
-									type='text'
-									name='model'
-									value={deviceFormData.model}
-									onChange={handleDeviceFormChange}
-									placeholder='e.g., AquaEdge, Prestige'
-									required
-								/>
-							</FormGroup>
+					<FormGroup>
+						<FormLabel>Model *</FormLabel>
+						<FormInput
+							type='text'
+							name='model'
+							value={deviceFormData.model}
+							onChange={handleDeviceFormChange}
+							placeholder='e.g., AquaEdge, Prestige'
+							required
+						/>
+					</FormGroup>
 
-							<FormGroup>
-								<FormLabel>Installation Date *</FormLabel>
-								<FormInput
-									type='date'
-									name='installationDate'
-									value={deviceFormData.installationDate}
-									onChange={handleDeviceFormChange}
-									required
-								/>
-							</FormGroup>
-
-							<DialogButtonGroup>
-								<DialogCancelButton
-									type='button'
-									onClick={() => setShowDeviceDialog(false)}>
-									Cancel
-								</DialogCancelButton>
-								<DialogSubmitButton type='submit'>
-									Add Device
-								</DialogSubmitButton>
-							</DialogButtonGroup>
-						</DialogForm>
-					</DialogContent>
-				</DialogOverlay>
+					<FormGroup>
+						<FormLabel>Installation Date *</FormLabel>
+						<FormInput
+							type='date'
+							name='installationDate'
+							value={deviceFormData.installationDate}
+							onChange={handleDeviceFormChange}
+							required
+						/>
+					</FormGroup>
+				</GenericModal>
 			)}
 
 			{/* Task Create/Edit Dialog */}
-			{showTaskDialog && (
-				<DialogOverlay
-					onClick={(e: React.MouseEvent<HTMLDivElement>) => {
-						if (e.target === e.currentTarget) {
-							setShowTaskDialog(false);
-						}
-					}}>
-					<DialogContent onClick={(e) => e.stopPropagation()}>
-						<DialogHeader>
-							{editingTaskId ? 'Edit Task' : 'Create New Task'}
-						</DialogHeader>
-						<DialogForm onSubmit={handleTaskFormSubmit}>
-							<FormGroup>
-								<FormLabel>Task Name *</FormLabel>
-								<FormInput
-									type='text'
-									name='title'
-									value={taskFormData.title}
-									onChange={handleTaskFormChange}
-									placeholder='Enter task name'
-									required
-								/>
-							</FormGroup>
-
-							<FormGroup>
-								<FormLabel>Due Date *</FormLabel>
-								<FormInput
-									type='date'
-									name='dueDate'
-									value={taskFormData.dueDate}
-									onChange={handleTaskFormChange}
-									required
-								/>
-							</FormGroup>
-
-							<FormGroup>
-								<FormLabel>Status *</FormLabel>
-								<FormSelect
-									name='status'
-									value={taskFormData.status}
-									onChange={handleTaskFormChange}>
-									<option value='Pending'>Pending</option>
-									<option value='In Progress'>In Progress</option>
-									<option value='Completed'>Completed</option>
-								</FormSelect>
-							</FormGroup>
-
-							<FormGroup>
-								<FormLabel>Notes</FormLabel>
-								<FormTextarea
-									name='notes'
-									value={taskFormData.notes}
-									onChange={handleTaskFormChange}
-									placeholder='Add any notes about this task...'
-								/>
-							</FormGroup>
-
-							<DialogButtonGroup>
-								<DialogCancelButton
-									type='button'
-									onClick={() => setShowTaskDialog(false)}>
-									Cancel
-								</DialogCancelButton>
-								<DialogSubmitButton type='submit'>
-									{editingTaskId ? 'Update Task' : 'Create Task'}
-								</DialogSubmitButton>
-							</DialogButtonGroup>
-						</DialogForm>
-					</DialogContent>
-				</DialogOverlay>
-			)}
+			<EditTaskModal
+				isOpen={showTaskDialog}
+				isEditing={Boolean(editingTaskId)}
+				formData={taskFormData}
+				onClose={() => setShowTaskDialog(false)}
+				onSubmit={handleTaskFormSubmit}
+				onChange={handleTaskFormChange}
+				statusOptions={[
+					'Pending',
+					'In Progress',
+					'Awaiting Approval',
+					'Completed',
+					'Rejected',
+				]}
+				priorityOptions={['Low', 'Medium', 'High', 'Urgent']}
+				assigneeOptions={teamMembers
+					.filter((member): member is TeamMember => member !== undefined)
+					.map((member) => ({
+						label:
+							`${member.firstName || ''} ${member.lastName || ''} (${member.title || ''})`.trim(),
+						value: member.id,
+					}))}
+			/>
 
 			{/* Task Assignment Dialog */}
 			{showTaskAssignDialog && (
-				<DialogOverlay onClick={() => setShowTaskAssignDialog(false)}>
-					<DialogContent onClick={(e) => e.stopPropagation()}>
-						<DialogHeader>
-							<h3>Assign Task to Team Member</h3>
-							<button
-								onClick={() => setShowTaskAssignDialog(false)}
-								style={{
-									background: 'none',
-									border: 'none',
-									fontSize: '24px',
-									cursor: 'pointer',
-								}}>
-								×
-							</button>
-						</DialogHeader>
-						<DialogForm
-							onSubmit={(e) => {
-								e.preventDefault();
-								handleConfirmAssignment();
+				<GenericModal
+					isOpen={showTaskAssignDialog}
+					onClose={() => setShowTaskAssignDialog(false)}
+					title='Assign Task to Team Member'
+					onSubmit={(e) => {
+						e.preventDefault();
+						handleConfirmAssignment();
+					}}
+					primaryButtonLabel='Assign'
+					primaryButtonDisabled={!selectedAssignee}
+					secondaryButtonLabel='Cancel'>
+					<FormGroup>
+						<FormLabel>Assign To</FormLabel>
+						<FormSelect
+							value={selectedAssignee ? selectedAssignee.id : ''}
+							onChange={(e) => {
+								const selectedId = e.target.value;
+								const filteredTeamMembers = teamMembers.filter(
+									(m): m is TeamMember => m !== undefined,
+								);
+								let found =
+									filteredTeamMembers.find((m) => m.id === selectedId) ||
+									sharedUsers.find((u) => u.id === selectedId) ||
+									(currentUser && currentUser.id === selectedId
+										? currentUser
+										: null);
+								if (found) {
+									// Safely construct the name property
+									let name = '';
+									if (
+										'firstName' in found &&
+										'lastName' in found &&
+										found.firstName &&
+										found.lastName
+									) {
+										name = `${found.firstName} ${found.lastName}`;
+									} else if ('firstName' in found && found.firstName) {
+										name = found.firstName;
+									} else if (
+										'name' in found &&
+										typeof found.name === 'string' &&
+										found.name
+									) {
+										name = found.name;
+									} else if ('email' in found && found.email) {
+										name = found.email;
+									} else {
+										name = found.id;
+									}
+									const assignedTo = {
+										id: found.id,
+										name,
+										email: found.email || '',
+									};
+									setSelectedAssignee(assignedTo);
+								} else {
+									setSelectedAssignee(null);
+								}
 							}}>
-							<FormGroup>
-								<FormLabel>Assign To</FormLabel>
-								<FormSelect
-									value={selectedAssignee ? selectedAssignee.id : ''}
-									onChange={(e) => {
-										const selectedId = e.target.value;
-										const filteredTeamMembers = teamMembers.filter(
-											(m): m is TeamMember => m !== undefined,
-										);
-										let found =
-											filteredTeamMembers.find((m) => m.id === selectedId) ||
-											sharedUsers.find((u) => u.id === selectedId) ||
-											(currentUser && currentUser.id === selectedId
-												? currentUser
-												: null);
-										if (found) {
-											// Safely construct the name property
-											let name = '';
-											if (
-												'firstName' in found &&
-												'lastName' in found &&
-												found.firstName &&
-												found.lastName
-											) {
-												name = `${found.firstName} ${found.lastName}`;
-											} else if ('firstName' in found && found.firstName) {
-												name = found.firstName;
-											} else if (
-												'name' in found &&
-												typeof found.name === 'string' &&
-												found.name
-											) {
-												name = found.name;
-											} else if ('email' in found && found.email) {
-												name = found.email;
-											} else {
-												name = found.id;
-											}
-											const assignedTo = {
-												id: found.id,
-												name,
-												email: found.email || '',
-											};
-											setSelectedAssignee(assignedTo);
-										} else {
-											setSelectedAssignee(null);
-										}
-									}}>
-									<option value=''>Select a user...</option>
-									{/* Team members */}
-									{teamMembers
-										.filter((m): m is TeamMember => m !== undefined)
-										.map((member) => (
-											<option key={member.id} value={member.id}>
-												{member.firstName} {member.lastName} ({member.title})
-											</option>
-										))}
-									{/* Shared users */}
-									{sharedUsers.map((user) => (
-										<option key={user.id} value={user.id}>
-											{user.firstName} {user.lastName} (Shared User)
-										</option>
-									))}
-									{/* Current user (self) */}
-									{currentUser && (
-										<option key={currentUser.id} value={currentUser.id}>
-											{currentUser.firstName} {currentUser.lastName} (You)
-										</option>
-									)}
-								</FormSelect>
-							</FormGroup>
-
-							<DialogButtonGroup>
-								<DialogCancelButton
-									type='button'
-									onClick={() => setShowTaskAssignDialog(false)}>
-									Cancel
-								</DialogCancelButton>
-								<DialogSubmitButton type='submit' disabled={!selectedAssignee}>
-									Assign
-								</DialogSubmitButton>
-							</DialogButtonGroup>
-						</DialogForm>
-					</DialogContent>
-				</DialogOverlay>
+							<option value=''>Select a user...</option>
+							{/* Team members */}
+							{teamMembers
+								.filter((m): m is TeamMember => m !== undefined)
+								.map((member) => (
+									<option key={member.id} value={member.id}>
+										{member.firstName} {member.lastName} ({member.title})
+									</option>
+								))}
+							{/* Shared users */}
+							{sharedUsers.map((user) => (
+								<option key={user.id} value={user.id}>
+									{user.firstName} {user.lastName} (Shared User)
+								</option>
+							))}
+							{/* Current user (self) */}
+							{currentUser && (
+								<option key={currentUser.id} value={currentUser.id}>
+									{currentUser.firstName} {currentUser.lastName} (You)
+								</option>
+							)}
+						</FormSelect>
+					</FormGroup>
+				</GenericModal>
 			)}
-
-			{/* Task Completion Modal */}
-			{showTaskCompletionModal && completingTaskId && (
-				<TaskCompletionModal
-					taskId={completingTaskId}
-					taskTitle={
-						propertyTasks.find((t) => t.id === completingTaskId)?.title || ''
-					}
-					onClose={() => setShowTaskCompletionModal(false)}
-					onSuccess={handleTaskCompletionSuccess}
-				/>
-			)}
-
-			{/* Maintenance Request Modal */}
-			<MaintenanceRequestModal
-				isOpen={showMaintenanceRequestModal}
-				onClose={() => setShowMaintenanceRequestModal(false)}
-				onSubmit={handleMaintenanceRequestSubmit}
-				propertyTitle={property.title}
-			/>
 
 			{/* Convert Request to Task Modal */}
 			{convertingRequest && (
@@ -1120,6 +1028,22 @@ export const PropertyDetailPage = (props: PropertyDetailPageProps) => {
 					propertyId={property.id}
 				/>
 			)}
+
+			{/* Delete Task Confirmation Modal */}
+			<DeleteConfirmationModal
+				isOpen={deleteTaskModalOpen}
+				itemName={taskToDelete?.title || ''}
+				itemType='task'
+				onConfirm={() => {
+					confirmDeleteTask();
+					setDeleteTaskModalOpen(false);
+					setTaskToDelete(null);
+				}}
+				onCancel={() => {
+					setDeleteTaskModalOpen(false);
+					setTaskToDelete(null);
+				}}
+			/>
 
 			<style>{`
 				.desktop-actions {

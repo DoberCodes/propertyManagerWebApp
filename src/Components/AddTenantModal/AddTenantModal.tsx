@@ -1,15 +1,10 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faTimes, faSpinner } from '@fortawesome/free-solid-svg-icons';
+import { faSpinner } from '@fortawesome/free-solid-svg-icons';
 import { useAddTenantMutation } from '../../Redux/API/apiSlice';
-import {
-	DialogOverlay as ModalOverlay,
-	DialogContent as ModalContent,
-	FormGroup,
-	FormLabel,
-	FormInput,
-} from '../Library';
+import { GenericModal, FormGroup, FormLabel, FormInput } from '../Library';
+import { COLORS } from '../../constants/colors';
 
 interface AddTenantModalProps {
 	open: boolean;
@@ -92,202 +87,111 @@ export const AddTenantModal: React.FC<AddTenantModalProps> = ({
 		}
 	};
 
-	if (!open) return null;
-
 	return (
-		<ModalOverlay onClick={onClose}>
-			<ModalContent onClick={(e) => e.stopPropagation()}>
-				<ModalHeader>
-					<h2>Add Tenant</h2>
-					<CloseButton onClick={onClose}>
-						<FontAwesomeIcon icon={faTimes} />
-					</CloseButton>
-				</ModalHeader>
+		<GenericModal
+			isOpen={open}
+			title='Add Tenant'
+			onClose={onClose}
+			onSubmit={handleSubmit}
+			primaryButtonLabel={isLoading ? 'Adding...' : 'Add Tenant'}
+			secondaryButtonLabel='Cancel'
+			primaryButtonDisabled={isLoading}
+			isLoading={isLoading}>
+			{error && <Alert type='error'>{error}</Alert>}
+			{success && <Alert type='success'>{success}</Alert>}
 
-				{error && <Alert type='error'>{error}</Alert>}
-				{success && <Alert type='success'>{success}</Alert>}
+			<FormGroup>
+				<FormLabel>First Name *</FormLabel>
+				<FormInput
+					type='text'
+					name='firstName'
+					value={formData.firstName}
+					onChange={handleChange}
+					placeholder='Enter first name'
+					required
+				/>
+			</FormGroup>
 
-				<Form onSubmit={handleSubmit}>
-					<FormGroup>
-						<FormLabel>First Name *</FormLabel>
-						<FormInput
-							type='text'
-							name='firstName'
-							value={formData.firstName}
-							onChange={handleChange}
-							placeholder='Enter first name'
-							required
-						/>
-					</FormGroup>
+			<FormGroup>
+				<FormLabel>Last Name *</FormLabel>
+				<FormInput
+					type='text'
+					name='lastName'
+					value={formData.lastName}
+					onChange={handleChange}
+					placeholder='Enter last name'
+					required
+				/>
+			</FormGroup>
 
-					<FormGroup>
-						<FormLabel>Last Name *</FormLabel>
-						<FormInput
-							type='text'
-							name='lastName'
-							value={formData.lastName}
-							onChange={handleChange}
-							placeholder='Enter last name'
-							required
-						/>
-					</FormGroup>
+			<FormGroup>
+				<FormLabel>Email *</FormLabel>
+				<FormInput
+					type='email'
+					name='email'
+					value={formData.email}
+					onChange={handleChange}
+					placeholder='Enter email'
+					required
+				/>
+			</FormGroup>
 
-					<FormGroup>
-						<FormLabel>Email *</FormLabel>
-						<FormInput
-							type='email'
-							name='email'
-							value={formData.email}
-							onChange={handleChange}
-							placeholder='Enter email'
-							required
-						/>
-					</FormGroup>
+			<FormGroup>
+				<FormLabel>Phone</FormLabel>
+				<FormInput
+					type='tel'
+					name='phone'
+					value={formData.phone}
+					onChange={handleChange}
+					placeholder='Enter phone number'
+				/>
+			</FormGroup>
 
-					<FormGroup>
-						<FormLabel>Phone</FormLabel>
-						<FormInput
-							type='tel'
-							name='phone'
-							value={formData.phone}
-							onChange={handleChange}
-							placeholder='Enter phone number'
-						/>
-					</FormGroup>
+			<FormGroup>
+				<FormLabel>Unit</FormLabel>
+				<FormInput
+					type='text'
+					name='unit'
+					value={formData.unit}
+					onChange={handleChange}
+					placeholder='e.g., 101, Unit A'
+				/>
+			</FormGroup>
 
-					<FormGroup>
-						<FormLabel>Unit</FormLabel>
-						<FormInput
-							type='text'
-							name='unit'
-							value={formData.unit}
-							onChange={handleChange}
-							placeholder='e.g., 101, Unit A'
-						/>
-					</FormGroup>
+			<FormGroup>
+				<FormLabel>Lease Start Date</FormLabel>
+				<FormInput
+					type='date'
+					name='leaseStart'
+					value={formData.leaseStart}
+					onChange={handleChange}
+				/>
+			</FormGroup>
 
-					<FormGroup>
-						<FormLabel>Lease Start Date</FormLabel>
-						<FormInput
-							type='date'
-							name='leaseStart'
-							value={formData.leaseStart}
-							onChange={handleChange}
-						/>
-					</FormGroup>
-
-					<FormGroup>
-						<FormLabel>Lease End Date</FormLabel>
-						<FormInput
-							type='date'
-							name='leaseEnd'
-							value={formData.leaseEnd}
-							onChange={handleChange}
-						/>
-					</FormGroup>
-
-					<ButtonGroup>
-						<CancelButton type='button' onClick={onClose}>
-							Cancel
-						</CancelButton>
-						<SubmitButton type='submit' disabled={isLoading}>
-							{isLoading ? (
-								<>
-									<FontAwesomeIcon icon={faSpinner} spin /> Adding...
-								</>
-							) : (
-								'Add Tenant'
-							)}
-						</SubmitButton>
-					</ButtonGroup>
-				</Form>
-			</ModalContent>
-		</ModalOverlay>
+			<FormGroup>
+				<FormLabel>Lease End Date</FormLabel>
+				<FormInput
+					type='date'
+					name='leaseEnd'
+					value={formData.leaseEnd}
+					onChange={handleChange}
+				/>
+			</FormGroup>
+		</GenericModal>
 	);
 };
-
-const ModalHeader = styled.div`
-	display: flex;
-	justify-content: space-between;
-	align-items: center;
-	padding: 20px 24px;
-	border-bottom: 1px solid #e0e0e0;
-
-	h2 {
-		margin: 0;
-		font-size: 20px;
-		color: #333;
-	}
-`;
-
-const CloseButton = styled.button`
-	background: none;
-	border: none;
-	font-size: 24px;
-	cursor: pointer;
-	color: #666;
-
-	&:hover {
-		color: #333;
-	}
-`;
-
-const Form = styled.form`
-	padding: 24px;
-`;
 
 const Alert = styled.div<{ type: 'error' | 'success' }>`
 	margin-bottom: 16px;
 	padding: 12px 16px;
 	border-radius: 4px;
 	background-color: ${(props) =>
-		props.type === 'error' ? '#ffebee' : '#e8f5e9'};
-	color: ${(props) => (props.type === 'error' ? '#c62828' : '#2e7d32')};
+		props.type === 'error' ? COLORS.alertErrorBg : COLORS.alertSuccessBg};
+	color: ${(props) =>
+		props.type === 'error' ? COLORS.alertError : COLORS.alertSuccess};
 	border-left: 4px solid
-		${(props) => (props.type === 'error' ? '#c62828' : '#2e7d32')};
+		${(props) =>
+			props.type === 'error' ? COLORS.alertError : COLORS.alertSuccess};
 	font-size: 14px;
-`;
-
-const ButtonGroup = styled.div`
-	display: flex;
-	gap: 12px;
-	justify-content: flex-end;
-	margin-top: 24px;
-`;
-
-const CancelButton = styled.button`
-	padding: 10px 20px;
-	background-color: #f0f0f0;
-	color: #333;
-	border: 1px solid #ddd;
-	border-radius: 4px;
-	font-size: 14px;
-	font-weight: 500;
-	cursor: pointer;
-	transition: all 0.2s ease;
-
-	&:hover {
-		background-color: #e0e0e0;
-	}
-`;
-
-const SubmitButton = styled.button`
-	padding: 10px 20px;
-	background-color: #22c55e;
-	color: white;
-	border: none;
-	border-radius: 4px;
-	font-size: 14px;
-	font-weight: 500;
-	cursor: pointer;
-	transition: all 0.2s ease;
-
-	&:hover:not(:disabled) {
-		background-color: #16a34a;
-	}
-
-	&:disabled {
-		opacity: 0.6;
-		cursor: not-allowed;
-	}
+	margin: 0 0 16px 0;
 `;

@@ -9,6 +9,7 @@ export { Breadcrumb } from './Breadcrumb';
 
 // Data Display
 export { TasksTable } from './TasksTable';
+export { ReusableTable } from './ReusableTable';
 export { GridContainer, GridTable, EmptyState } from './DataGrid';
 export {
 	InfoGrid,
@@ -54,7 +55,12 @@ export {
 	DialogButtonGroup,
 	DialogCancelButton,
 	DialogSubmitButton,
+	ModalFormContent,
+	WarningMessage,
 } from './Modal/ModalStyles';
+export { EditTaskModal } from './Modal/EditTaskModal';
+export { GenericModal } from './Modal/GenericModal';
+export { DeleteConfirmationModal } from './Modal/DeleteConfirmationModal';
 
 // Buttons
 export {

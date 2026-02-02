@@ -4,11 +4,12 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
 	faTrash,
 	faEdit,
-	faTimes,
 	faUserPlus,
 	faSpinner,
 	faCheckCircle,
 } from '@fortawesome/free-solid-svg-icons';
+import { GenericModal } from '../Library';
+import { COLORS } from '../../constants/colors';
 import {
 	useGetPropertySharesQuery,
 	useGetAllPropertyInvitationsQuery,
@@ -150,271 +151,207 @@ export const SharePropertyModal: React.FC<SharePropertyModalProps> = ({
 	if (!open) return null;
 
 	return (
-		<ModalOverlay onClick={onClose}>
-			<ModalContent onClick={(e) => e.stopPropagation()}>
-				<ModalHeader>
-					<h2>Share Property</h2>
-					<CloseButton onClick={onClose}>
-						<FontAwesomeIcon icon={faTimes} />
-					</CloseButton>
-				</ModalHeader>
+		<GenericModal
+			isOpen={open}
+			onClose={onClose}
+			title='Share Property'
+			secondaryButtonLabel='Close'
+			secondaryButtonAction={onClose}>
+			<PropertyTitle>{propertyTitle}</PropertyTitle>
 
-				<PropertyTitle>{propertyTitle}</PropertyTitle>
+			{error && (
+				<Alert type='error'>
+					{error}
+					<CloseAlertButton onClick={() => setError('')}>×</CloseAlertButton>
+				</Alert>
+			)}
 
-				{error && (
-					<Alert type='error'>
-						{error}
-						<CloseAlertButton onClick={() => setError('')}>×</CloseAlertButton>
-					</Alert>
-				)}
+			{success && (
+				<Alert type='success'>
+					{success}
+					<CloseAlertButton onClick={() => setSuccess('')}>×</CloseAlertButton>
+				</Alert>
+			)}
 
-				{success && (
-					<Alert type='success'>
-						{success}
-						<CloseAlertButton onClick={() => setSuccess('')}>
-							×
-						</CloseAlertButton>
-					</Alert>
-				)}
+			{/* Invite New User */}
+			<Section>
+				<SectionTitle>Invite User</SectionTitle>
+				<InviteForm>
+					<Input
+						type='email'
+						value={email}
+						onChange={(e) => setEmail(e.target.value)}
+						placeholder='user@example.com'
+					/>
+					<Select
+						value={permission}
+						onChange={(e) =>
+							setPermission(e.target.value as 'admin' | 'viewer')
+						}>
+						<option value={SHARE_PERMISSIONS.VIEWER}>
+							{getSharePermissionLabel(SHARE_PERMISSIONS.VIEWER)}
+						</option>
+						<option value={SHARE_PERMISSIONS.ADMIN}>
+							{getSharePermissionLabel(SHARE_PERMISSIONS.ADMIN)}
+						</option>
+					</Select>
+					<Button onClick={handleSendInvitation} disabled={isSending || !email}>
+						{isSending ? (
+							<FontAwesomeIcon icon={faSpinner} spin />
+						) : (
+							<>
+								<FontAwesomeIcon icon={faUserPlus} /> Invite
+							</>
+						)}
+					</Button>
+				</InviteForm>
+				<HelperText>
+					<strong>Admin:</strong> Can view and edit property details
+					<br />
+					<strong>Viewer:</strong> Can only view property details
+				</HelperText>
+			</Section>
 
-				{/* Invite New User */}
-				<Section>
-					<SectionTitle>Invite User</SectionTitle>
-					<InviteForm>
-						<Input
-							type='email'
-							value={email}
-							onChange={(e) => setEmail(e.target.value)}
-							placeholder='user@example.com'
-						/>
-						<Select
-							value={permission}
-							onChange={(e) =>
-								setPermission(e.target.value as 'admin' | 'viewer')
-							}>
-							<option value={SHARE_PERMISSIONS.VIEWER}>
-								{getSharePermissionLabel(SHARE_PERMISSIONS.VIEWER)}
-							</option>
-							<option value={SHARE_PERMISSIONS.ADMIN}>
-								{getSharePermissionLabel(SHARE_PERMISSIONS.ADMIN)}
-							</option>
-						</Select>
-						<Button
-							onClick={handleSendInvitation}
-							disabled={isSending || !email}>
-							{isSending ? (
-								<FontAwesomeIcon icon={faSpinner} spin />
-							) : (
-								<>
-									<FontAwesomeIcon icon={faUserPlus} /> Invite
-								</>
-							)}
-						</Button>
-					</InviteForm>
-					<HelperText>
-						<strong>Admin:</strong> Can view and edit property details
-						<br />
-						<strong>Viewer:</strong> Can only view property details
-					</HelperText>
-				</Section>
-
-				{/* Current Shares */}
-				<Section>
-					<SectionTitle>Shared With ({shares.length})</SectionTitle>
-					{isLoading ? (
-						<LoadingContainer>
-							<FontAwesomeIcon icon={faSpinner} spin size='2x' />
-						</LoadingContainer>
-					) : shares.length === 0 ? (
-						<EmptyState>
-							This property hasn't been shared with anyone yet.
-						</EmptyState>
-					) : (
-						<SharesList>
-							{shares.map((share: PropertyShare) => (
-								<ShareItem key={share.id}>
-									<ShareInfo>
-										<ShareEmail>{share.sharedWithEmail}</ShareEmail>
-										{editingShareId === share.id ? (
-											<div style={{ marginTop: '8px' }}>
-												<Select
-													value={share.permission}
-													onChange={(e) =>
-														handleUpdateShare(
-															share.id,
-															e.target.value as 'admin' | 'viewer',
-														)
-													}
-													disabled={isUpdating}>
-													<option value={SHARE_PERMISSIONS.VIEWER}>
-														{getSharePermissionLabel(SHARE_PERMISSIONS.VIEWER)}
-													</option>
-													<option value={SHARE_PERMISSIONS.ADMIN}>
-														{getSharePermissionLabel(SHARE_PERMISSIONS.ADMIN)}
-													</option>
-												</Select>
-											</div>
-										) : (
-											<Badge
-												color={
-													share.permission === 'admin' ? 'primary' : 'default'
-												}>
-												{getSharePermissionLabel(share.permission)}
-											</Badge>
-										)}
-									</ShareInfo>
-									<ShareActions>
-										{editingShareId === share.id ? (
-											<SecondaryButton
-												onClick={() => setEditingShareId(null)}
+			{/* Current Shares */}
+			<Section>
+				<SectionTitle>Shared With ({shares.length})</SectionTitle>
+				{isLoading ? (
+					<LoadingContainer>
+						<FontAwesomeIcon icon={faSpinner} spin size='2x' />
+					</LoadingContainer>
+				) : shares.length === 0 ? (
+					<EmptyState>
+						This property hasn't been shared with anyone yet.
+					</EmptyState>
+				) : (
+					<SharesList>
+						{shares.map((share: PropertyShare) => (
+							<ShareItem key={share.id}>
+								<ShareInfo>
+									<ShareEmail>{share.sharedWithEmail}</ShareEmail>
+									{editingShareId === share.id ? (
+										<div style={{ marginTop: '8px' }}>
+											<Select
+												value={share.permission}
+												onChange={(e) =>
+													handleUpdateShare(
+														share.id,
+														e.target.value as 'admin' | 'viewer',
+													)
+												}
 												disabled={isUpdating}>
-												Cancel
-											</SecondaryButton>
-										) : (
-											<>
-												<IconButton
-													onClick={() => setEditingShareId(share.id)}
-													disabled={isDeleting}
-													title='Edit permission'>
-													<FontAwesomeIcon icon={faEdit} />
-												</IconButton>
-												<IconButton
-													onClick={() => handleDeleteShare(share.id)}
-													disabled={isDeleting}
-													title='Revoke access'
-													color='danger'>
-													<FontAwesomeIcon icon={faTrash} />
-												</IconButton>
-											</>
-										)}
-									</ShareActions>
-								</ShareItem>
-							))}
-						</SharesList>
-					)}
-				</Section>
-
-				{/* Invitations Sent */}
-				<Section>
-					<SectionTitle>Invitations ({allInvitations.length})</SectionTitle>
-					{isLoadingInvitations ? (
-						<LoadingContainer>
-							<FontAwesomeIcon icon={faSpinner} spin size='2x' />
-						</LoadingContainer>
-					) : allInvitations.length === 0 ? (
-						<EmptyState>No invitations sent.</EmptyState>
-					) : (
-						<SharesList>
-							{allInvitations.map((invitation: UserInvitation) => (
-								<ShareItem key={invitation.id}>
-									<ShareInfo>
-										<ShareEmail>{invitation.toEmail}</ShareEmail>
+												<option value={SHARE_PERMISSIONS.VIEWER}>
+													{getSharePermissionLabel(SHARE_PERMISSIONS.VIEWER)}
+												</option>
+												<option value={SHARE_PERMISSIONS.ADMIN}>
+													{getSharePermissionLabel(SHARE_PERMISSIONS.ADMIN)}
+												</option>
+											</Select>
+										</div>
+									) : (
 										<Badge
 											color={
-												invitation.status === 'accepted'
-													? 'success'
-													: invitation.permission === 'admin'
-														? 'primary'
-														: 'default'
+												share.permission === 'admin' ? 'primary' : 'default'
 											}>
-											{getSharePermissionLabel(invitation.permission)} •{' '}
-											{invitation.status === 'accepted' ? (
-												<>
-													<FontAwesomeIcon icon={faCheckCircle} /> Accepted
-												</>
-											) : (
-												'Pending'
-											)}
+											{getSharePermissionLabel(share.permission)}
 										</Badge>
-										<PendingText>
-											Sent:{' '}
-											{new Date(invitation.createdAt).toLocaleDateString()} •
-											{invitation.status === 'pending' && (
-												<>
-													Expires:{' '}
-													{new Date(invitation.expiresAt).toLocaleDateString()}
-												</>
-											)}
-										</PendingText>
-									</ShareInfo>
-									{invitation.status === 'pending' && (
-										<ShareActions>
+									)}
+								</ShareInfo>
+								<ShareActions>
+									{editingShareId === share.id ? (
+										<SecondaryButton
+											onClick={() => setEditingShareId(null)}
+											disabled={isUpdating}>
+											Cancel
+										</SecondaryButton>
+									) : (
+										<>
 											<IconButton
-												color='danger'
-												onClick={() => handleCancelInvitation(invitation.id)}
-												title='Cancel invitation'
-												disabled={isCanceling}>
+												onClick={() => setEditingShareId(share.id)}
+												disabled={isDeleting}
+												title='Edit permission'>
+												<FontAwesomeIcon icon={faEdit} />
+											</IconButton>
+											<IconButton
+												onClick={() => handleDeleteShare(share.id)}
+												disabled={isDeleting}
+												title='Revoke access'
+												color='danger'>
 												<FontAwesomeIcon icon={faTrash} />
 											</IconButton>
-										</ShareActions>
+										</>
 									)}
-								</ShareItem>
-							))}
-						</SharesList>
-					)}
-				</Section>
+								</ShareActions>
+							</ShareItem>
+						))}
+					</SharesList>
+				)}
+			</Section>
 
-				<ModalFooter>
-					<SecondaryButton onClick={onClose}>Close</SecondaryButton>
-				</ModalFooter>
-			</ModalContent>
-		</ModalOverlay>
+			{/* Invitations Sent */}
+			<Section>
+				<SectionTitle>Invitations ({allInvitations.length})</SectionTitle>
+				{isLoadingInvitations ? (
+					<LoadingContainer>
+						<FontAwesomeIcon icon={faSpinner} spin size='2x' />
+					</LoadingContainer>
+				) : allInvitations.length === 0 ? (
+					<EmptyState>No invitations sent.</EmptyState>
+				) : (
+					<SharesList>
+						{allInvitations.map((invitation: UserInvitation) => (
+							<ShareItem key={invitation.id}>
+								<ShareInfo>
+									<ShareEmail>{invitation.toEmail}</ShareEmail>
+									<Badge
+										color={
+											invitation.status === 'accepted'
+												? 'success'
+												: invitation.permission === 'admin'
+													? 'primary'
+													: 'default'
+										}>
+										{getSharePermissionLabel(invitation.permission)} •{' '}
+										{invitation.status === 'accepted' ? (
+											<>
+												<FontAwesomeIcon icon={faCheckCircle} /> Accepted
+											</>
+										) : (
+											'Pending'
+										)}
+									</Badge>
+									<PendingText>
+										Sent: {new Date(invitation.createdAt).toLocaleDateString()}{' '}
+										•
+										{invitation.status === 'pending' && (
+											<>
+												Expires:{' '}
+												{new Date(invitation.expiresAt).toLocaleDateString()}
+											</>
+										)}
+									</PendingText>
+								</ShareInfo>
+								{invitation.status === 'pending' && (
+									<ShareActions>
+										<IconButton
+											color='danger'
+											onClick={() => handleCancelInvitation(invitation.id)}
+											title='Cancel invitation'
+											disabled={isCanceling}>
+											<FontAwesomeIcon icon={faTrash} />
+										</IconButton>
+									</ShareActions>
+								)}
+							</ShareItem>
+						))}
+					</SharesList>
+				)}
+			</Section>
+		</GenericModal>
 	);
 };
 
 // Styled Components
-const ModalOverlay = styled.div`
-	position: fixed;
-	top: 0;
-	left: 0;
-	right: 0;
-	bottom: 0;
-	background-color: rgba(0, 0, 0, 0.5);
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	z-index: 1000;
-	padding: 20px;
-`;
-
-const ModalContent = styled.div`
-	background: white;
-	border-radius: 8px;
-	max-width: 600px;
-	width: 100%;
-	max-height: 90vh;
-	overflow-y: auto;
-	box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-`;
-
-const ModalHeader = styled.div`
-	display: flex;
-	justify-content: space-between;
-	align-items: center;
-	padding: 24px 24px 16px;
-	border-bottom: 1px solid #e0e0e0;
-
-	h2 {
-		margin: 0;
-		font-size: 24px;
-		font-weight: 600;
-		color: #333;
-	}
-`;
-
-const CloseButton = styled.button`
-	background: none;
-	border: none;
-	font-size: 24px;
-	cursor: pointer;
-	color: #666;
-	padding: 4px 8px;
-	line-height: 1;
-
-	&:hover {
-		color: #333;
-	}
-`;
 
 const PropertyTitle = styled.div`
 	padding: 12px 24px;
@@ -429,10 +366,12 @@ const Alert = styled.div<{ type: 'error' | 'success' }>`
 	border-radius: 4px;
 	position: relative;
 	background-color: ${(props) =>
-		props.type === 'error' ? '#ffebee' : '#e8f5e9'};
-	color: ${(props) => (props.type === 'error' ? '#c62828' : '#2e7d32')};
+		props.type === 'error' ? COLORS.alertErrorBg : COLORS.alertSuccessBg};
+	color: ${(props) =>
+		props.type === 'error' ? COLORS.alertError : COLORS.alertSuccess};
 	border-left: 4px solid
-		${(props) => (props.type === 'error' ? '#c62828' : '#2e7d32')};
+		${(props) =>
+			props.type === 'error' ? COLORS.alertError : COLORS.alertSuccess};
 `;
 
 const CloseAlertButton = styled.button`
@@ -655,11 +594,4 @@ const IconButton = styled.button<{ color?: 'danger' }>`
 		opacity: 0.3;
 		cursor: not-allowed;
 	}
-`;
-
-const ModalFooter = styled.div`
-	padding: 16px 24px;
-	display: flex;
-	justify-content: flex-end;
-	border-top: 1px solid #e0e0e0;
 `;

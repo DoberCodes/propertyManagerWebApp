@@ -6,6 +6,7 @@ import {
 	PageHeaderSection,
 	PageTitle as StandardPageTitle,
 } from '../Library/PageHeaders';
+import { DeleteConfirmationModal } from '../Library/Modal/DeleteConfirmationModal';
 import { useRecentlyViewed } from '../../Hooks/useRecentlyViewed';
 import { useFavorites } from '../../Hooks/useFavorites';
 import { RootState } from '../../Redux/store/store';
@@ -115,6 +116,12 @@ export const Properties = () => {
 	>(null);
 	const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
 	const [editingGroupName, setEditingGroupName] = useState<string>('');
+	const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+	const [propertyToDelete, setPropertyToDelete] = useState<{
+		id: string;
+		name: string;
+	} | null>(null);
+	const [isDeletingProperty, setIsDeletingProperty] = useState(false);
 
 	const handleAddGroup = async () => {
 		if (!currentUser) {
@@ -233,36 +240,53 @@ export const Properties = () => {
 	};
 
 	const handleDeleteProperty = async (propertyId: string) => {
+		const propertyToDelete = filteredGroups
+			.flatMap((g) => g.properties || [])
+			.find((p) => p.id === propertyId);
+
+		if (propertyToDelete) {
+			setPropertyToDelete({
+				id: propertyId,
+				name: propertyToDelete.title,
+			});
+			setDeleteModalOpen(true);
+		}
+	};
+
+	const handleConfirmDeleteProperty = async () => {
+		if (!propertyToDelete) return;
+
 		try {
-			const propertyToDelete = filteredGroups
-				.flatMap((g) => g.properties || [])
-				.find((p) => p.id === propertyId);
-			await deleteProperty(propertyId).unwrap();
+			setIsDeletingProperty(true);
+			await deleteProperty(propertyToDelete.id).unwrap();
 
 			// Create notification for property deletion
 			try {
-				if (propertyToDelete) {
-					await createNotification({
-						userId: currentUser!.id,
-						type: 'property_deleted',
-						title: 'Property Deleted',
-						message: `Property "${propertyToDelete.title}" has been deleted`,
-						data: {
-							propertyId: propertyId,
-							propertyTitle: propertyToDelete.title,
-						},
-						status: 'unread',
-						createdAt: new Date().toISOString(),
-						updatedAt: new Date().toISOString(),
-					}).unwrap();
-				}
+				await createNotification({
+					userId: currentUser!.id,
+					type: 'property_deleted',
+					title: 'Property Deleted',
+					message: `Property "${propertyToDelete.name}" has been deleted`,
+					data: {
+						propertyId: propertyToDelete.id,
+						propertyTitle: propertyToDelete.name,
+					},
+					status: 'unread',
+					createdAt: new Date().toISOString(),
+					updatedAt: new Date().toISOString(),
+				}).unwrap();
 			} catch (notifError) {
 				console.error('Notification failed:', notifError);
 			}
+
+			setDeleteModalOpen(false);
+			setPropertyToDelete(null);
 		} catch (error) {
 			console.error('Error deleting property:', error);
+		} finally {
+			setIsDeletingProperty(false);
+			setOpenDropdown(null);
 		}
-		setOpenDropdown(null);
 	};
 
 	const handleDeleteGroup = async (groupId: string) => {
@@ -658,6 +682,19 @@ export const Properties = () => {
 					</GroupSection>
 				))}
 			</GroupsContainer>
+
+			{/* Delete Confirmation Modal */}
+			<DeleteConfirmationModal
+				isOpen={deleteModalOpen}
+				itemName={propertyToDelete?.name || ''}
+				itemType='property'
+				onConfirm={handleConfirmDeleteProperty}
+				onCancel={() => {
+					setDeleteModalOpen(false);
+					setPropertyToDelete(null);
+				}}
+				isLoading={isDeletingProperty}
+			/>
 		</Wrapper>
 	);
 };

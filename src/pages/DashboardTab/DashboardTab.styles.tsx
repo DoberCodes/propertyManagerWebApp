@@ -249,7 +249,10 @@ export const Section = styled.div`
 	}
 `;
 
-export const SectionTitle = styled.h3`
+export const SectionTitle = styled.div`
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
 	font-size: 16px;
 	font-weight: 600;
 	color: #1f2937;
@@ -259,6 +262,13 @@ export const SectionTitle = styled.h3`
 	background: #f9fafb;
 	flex-shrink: 0;
 
+	h3 {
+		margin: 0;
+		font-size: inherit;
+		font-weight: inherit;
+		color: inherit;
+	}
+
 	@media (max-width: 768px) {
 		font-size: 14px;
 		padding: 12px 16px;
@@ -267,6 +277,37 @@ export const SectionTitle = styled.h3`
 	@media (max-width: 480px) {
 		font-size: 12px;
 		padding: 10px 12px;
+	}
+`;
+export const TempToggle = styled.div`
+	display: flex;
+	align-items: center;
+	background-color: #e5e7eb;
+	border-radius: 20px;
+	padding: 3px;
+	gap: 0;
+
+	button {
+		padding: 6px 14px;
+		margin: 0;
+		background-color: transparent;
+		color: #6b7280;
+		border: none;
+		border-radius: 18px;
+		cursor: pointer;
+		font-size: 0.85rem;
+		font-weight: 500;
+		transition: all 0.3s ease;
+
+		&:hover {
+			color: #4b5563;
+		}
+
+		&.active {
+			background-color: #10b981;
+			color: #fff;
+			box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+		}
 	}
 `;
 

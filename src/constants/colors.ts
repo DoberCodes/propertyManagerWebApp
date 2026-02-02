@@ -31,10 +31,27 @@ export const COLORS = {
 
 	// Semantic Colors
 	success: '#10b981', // Green (uses primary)
+	successLight: '#d1fae5', // Light green background
+	successDark: '#059669', // Dark green
 	warning: '#f59e0b', // Amber
+	warningLight: '#fef3c7', // Light amber background
+	warningDark: '#d97706', // Dark amber
 	error: '#ef4444', // Red
+	errorLight: '#fee2e2', // Light red background
 	errorDark: '#dc2626', // Dark red
 	info: '#3b82f6', // Blue
+	infoLight: '#dbeafe', // Light blue background
+	infoDark: '#1e40af', // Dark blue
+
+	// Alert Colors (for status messages)
+	alertError: '#c62828', // Error text
+	alertErrorBg: '#ffebee', // Error background
+	alertSuccess: '#2e7d32', // Success text
+	alertSuccessBg: '#e8f5e9', // Success background
+	alertWarning: '#f57c00', // Warning text
+	alertWarningBg: '#fff3e0', // Warning background
+	alertInfo: '#1565c0', // Info text
+	alertInfoBg: '#e3f2fd', // Info background
 
 	// Backgrounds
 	bgWhite: '#ffffff',

@@ -4,8 +4,7 @@ import { MaintenanceRequestItem } from '../../Redux/Slices/maintenanceRequestsSl
 import { TeamMember } from '../../types/Team.types';
 import { TaskData } from '../../types/Task.types';
 import {
-	DialogOverlay as Overlay,
-	DialogContent as Modal,
+	GenericModal,
 	FormGroup,
 	FormLabel as Label,
 	FormInput as Input,
@@ -72,7 +71,7 @@ Submitted by: ${request.submittedByName} on ${request.submittedAt ? new Date(req
 		}
 	}, [isOpen, request]);
 
-	const handleSubmit = (e: React.FormEvent) => {
+	const handleFormSubmit = (e: React.FormEvent) => {
 		e.preventDefault();
 		onConvert(taskData);
 		onClose();
@@ -81,17 +80,17 @@ Submitted by: ${request.submittedByName} on ${request.submittedAt ? new Date(req
 	if (!isOpen) return null;
 
 	return (
-		<Overlay onClick={onClose}>
-			<Modal onClick={(e) => e.stopPropagation()}>
-				<Header>
-					<div>
-						<Title>Convert Request to Task</Title>
-						<Subtitle>
-							Configure task details before creating from maintenance request
-						</Subtitle>
-					</div>
-					<CloseButton onClick={onClose}>&times;</CloseButton>
-				</Header>
+		<GenericModal
+			isOpen={isOpen}
+			onClose={onClose}
+			title='Convert Request to Task'
+			onSubmit={handleFormSubmit}
+			primaryButtonLabel='Create Task'
+			secondaryButtonLabel='Cancel'>
+			<div>
+				<Subtitle>
+					Configure task details before creating from maintenance request
+				</Subtitle>
 
 				<RequestSummary>
 					<SummaryTitle>Original Request:</SummaryTitle>
@@ -112,168 +111,120 @@ Submitted by: ${request.submittedByName} on ${request.submittedAt ? new Date(req
 							: 'N/A'}
 					</SummaryDetail>
 				</RequestSummary>
-
-				<Form onSubmit={handleSubmit}>
-					<FormRow>
-						<FormGroup>
-							<Label>
-								Task Title <Required>*</Required>
-							</Label>
-							<Input
-								type='text'
-								value={taskData.title}
-								onChange={(e) =>
-									setTaskData({ ...taskData, title: e.target.value })
-								}
-								placeholder='Enter task title'
-								required
-							/>
-						</FormGroup>
-					</FormRow>
-
-					<FormRow>
-						<FormGroup>
-							<Label>
-								Due Date <Required>*</Required>
-							</Label>
-							<Input
-								type='date'
-								value={taskData.dueDate}
-								onChange={(e) =>
-									setTaskData({ ...taskData, dueDate: e.target.value })
-								}
-								min={new Date().toISOString().split('T')[0]}
-								required
-							/>
-							<Helper>
-								Suggested based on {request.priority.toLowerCase()} priority
-							</Helper>
-						</FormGroup>
-
-						<FormGroup>
-							<Label>Initial Status</Label>
-							<Select
-								value={taskData.status}
-								onChange={(e) =>
-									setTaskData({
-										...taskData,
-										status: e.target.value as TaskData['status'],
-									})
-								}>
-								<option value='Pending'>Pending</option>
-								<option value='In Progress'>In Progress</option>
-							</Select>
-						</FormGroup>
-					</FormRow>
-
-					<FormGroup>
-						<Label>Assign To</Label>
-						<Select
-							value={taskData.assignee}
-							onChange={(e) =>
-								setTaskData({ ...taskData, assignee: e.target.value })
-							}>
-							<option value=''>Unassigned (assign later)</option>
-							{teamMembers
-								.filter((member) => member.role !== 'tenant')
-								.map((member) => (
-									<option
-										key={member.id}
-										value={`${member.firstName} ${member.lastName}`}>
-										{member.firstName} {member.lastName} - {member.title}
-									</option>
-								))}
-						</Select>
-						<Helper>
-							You can assign this task to a team member or leave unassigned
-						</Helper>
-					</FormGroup>
-
+				<FormRow>
 					<FormGroup>
 						<Label>
-							Task Notes <Required>*</Required>
+							Task Title <Required>*</Required>
 						</Label>
-						<Textarea
-							value={taskData.notes}
+						<Input
+							type='text'
+							value={taskData.title}
 							onChange={(e) =>
-								setTaskData({ ...taskData, notes: e.target.value })
+								setTaskData({ ...taskData, title: e.target.value })
 							}
-							placeholder='Add any additional notes or instructions for this task...'
-							rows={8}
+							placeholder='Enter task title'
+							required
+						/>
+					</FormGroup>
+				</FormRow>
+
+				<FormRow>
+					<FormGroup>
+						<Label>
+							Due Date <Required>*</Required>
+						</Label>
+						<Input
+							type='date'
+							value={taskData.dueDate}
+							onChange={(e) =>
+								setTaskData({ ...taskData, dueDate: e.target.value })
+							}
+							min={new Date().toISOString().split('T')[0]}
 							required
 						/>
 						<Helper>
-							Original request details are pre-filled. Add any additional
-							instructions.
+							Suggested based on {request.priority.toLowerCase()} priority
 						</Helper>
 					</FormGroup>
 
-					{request.files && request.files.length > 0 && (
-						<InfoBox>
-							<InfoIcon>📎</InfoIcon>
-							<InfoText>
-								<strong>{request.files.length} file(s)</strong> from the
-								maintenance request will be attached to this task.
-							</InfoText>
-						</InfoBox>
-					)}
+					<FormGroup>
+						<Label>Initial Status</Label>
+						<Select
+							value={taskData.status}
+							onChange={(e) =>
+								setTaskData({
+									...taskData,
+									status: e.target.value as TaskData['status'],
+								})
+							}>
+							<option value='Pending'>Pending</option>
+							<option value='In Progress'>In Progress</option>
+						</Select>
+					</FormGroup>
+				</FormRow>
 
-					<ButtonGroup>
-						<CancelButton type='button' onClick={onClose}>
-							Cancel
-						</CancelButton>
-						<SubmitButton type='submit'>Create Task</SubmitButton>
-					</ButtonGroup>
-				</Form>
-			</Modal>
-		</Overlay>
+				<FormGroup>
+					<Label>Assign To</Label>
+					<Select
+						value={taskData.assignee}
+						onChange={(e) =>
+							setTaskData({ ...taskData, assignee: e.target.value })
+						}>
+						<option value=''>Unassigned (assign later)</option>
+						{teamMembers
+							.filter((member) => member.role !== 'tenant')
+							.map((member) => (
+								<option
+									key={member.id}
+									value={`${member.firstName} ${member.lastName}`}>
+									{member.firstName} {member.lastName} - {member.title}
+								</option>
+							))}
+					</Select>
+					<Helper>
+						You can assign this task to a team member or leave unassigned
+					</Helper>
+				</FormGroup>
+
+				<FormGroup>
+					<Label>
+						Task Notes <Required>*</Required>
+					</Label>
+					<Textarea
+						value={taskData.notes}
+						onChange={(e) =>
+							setTaskData({ ...taskData, notes: e.target.value })
+						}
+						placeholder='Add any additional notes or instructions for this task...'
+						rows={8}
+						required
+					/>
+					<Helper>
+						Original request details are pre-filled. Add any additional
+						instructions.
+					</Helper>
+				</FormGroup>
+
+				{request.files && request.files.length > 0 && (
+					<InfoBox>
+						<InfoIcon>📎</InfoIcon>
+						<InfoText>
+							<strong>{request.files.length} file(s)</strong> from the
+							maintenance request will be attached to this task.
+						</InfoText>
+					</InfoBox>
+				)}
+			</div>
+		</GenericModal>
 	);
 };
 
 // Styled Components
-const Header = styled.div`
-	padding: 24px;
-	border-bottom: 2px solid #e0e0e0;
-	display: flex;
-	justify-content: space-between;
-	align-items: flex-start;
-	background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
-	color: white;
-	border-radius: 12px 12px 0 0;
-`;
-
-const Title = styled.h2`
-	margin: 0 0 4px 0;
-	font-size: 22px;
-	font-weight: 600;
-	color: white;
-`;
-
 const Subtitle = styled.div`
 	font-size: 13px;
 	opacity: 0.95;
-	color: white;
-`;
-
-const CloseButton = styled.button`
-	background: none;
-	border: none;
-	font-size: 32px;
-	color: white;
-	cursor: pointer;
-	line-height: 1;
-	padding: 0;
-	width: 32px;
-	height: 32px;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	opacity: 0.9;
-	transition: opacity 0.2s;
-
-	&:hover {
-		opacity: 1;
-	}
+	color: #666;
+	margin-bottom: 16px;
 `;
 
 const RequestSummary = styled.div`
@@ -343,10 +294,6 @@ const LocationBadge = styled.span`
 	border: 1px solid #22c55e;
 `;
 
-const Form = styled.form`
-	padding: 24px;
-`;
-
 const FormRow = styled.div`
 	display: grid;
 	grid-template-columns: 1fr 1fr;
@@ -390,53 +337,4 @@ const InfoText = styled.p`
 	font-size: 13px;
 	color: #2e7d32;
 	line-height: 1.5;
-`;
-
-const ButtonGroup = styled.div`
-	display: flex;
-	gap: 12px;
-	justify-content: flex-end;
-	padding-top: 8px;
-`;
-
-const CancelButton = styled.button`
-	padding: 10px 24px;
-	border: 1px solid #ddd;
-	background-color: white;
-	color: #333;
-	border-radius: 6px;
-	font-size: 14px;
-	font-weight: 500;
-	cursor: pointer;
-	transition: all 0.2s;
-
-	&:hover {
-		background-color: #f5f5f5;
-		border-color: #999;
-	}
-`;
-
-const SubmitButton = styled.button`
-	padding: 10px 24px;
-	border: none;
-	background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
-	color: white;
-	border-radius: 6px;
-	font-size: 14px;
-	font-weight: 500;
-	cursor: pointer;
-	transition:
-		transform 0.2s,
-		box-shadow 0.2s;
-
-	&:hover {
-		transform: translateY(-1px);
-		box-shadow: 0 4px 12px rgba(34, 197, 94, 0.4);
-	}
-
-	&:disabled {
-		background: #ccc;
-		cursor: not-allowed;
-		transform: none;
-	}
 `;

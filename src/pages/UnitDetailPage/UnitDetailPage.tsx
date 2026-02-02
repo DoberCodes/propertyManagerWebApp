@@ -5,7 +5,7 @@ import { useDetailPageData } from '../../Hooks/useDetailPageData';
 import {
 	DetailPageLayout,
 	TabContent,
-	TasksTable,
+	ReusableTable,
 } from '../../Components/Library';
 import { getDeviceName } from '../../utils/detailPageUtils';
 import { TabConfig } from '../../types/DetailPage.types';
@@ -211,9 +211,36 @@ export const UnitDetailPage: React.FC = () => {
 					<TabContent>
 						<SectionContainer>
 							<SectionHeader>Unit Tasks</SectionHeader>
-							<TasksTable
-								tasks={unitTasks}
-								emptyMessage='No tasks assigned to this unit'
+							<ReusableTable
+								rowData={unitTasks.map((task) => ({
+									...task,
+									assignedToNames: task.assignee || '',
+									propertyTitle: property?.title || '',
+								}))}
+								columns={[
+									{
+										header: 'Task',
+										accessor: 'title',
+									},
+									{
+										header: 'Assignee',
+										accessor: 'assignedToNames',
+									},
+									{
+										header: 'Due Date',
+										accessor: 'dueDate',
+									},
+									{
+										header: 'Status',
+										accessor: 'status',
+									},
+									{
+										header: 'Notes',
+										accessor: 'notes',
+									},
+								]}
+								onRowDoubleClick={(taskId) => navigate(`/task/${taskId}`)}
+								showCheckbox={false}
 							/>
 						</SectionContainer>
 					</TabContent>
