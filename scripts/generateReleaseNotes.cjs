@@ -22,7 +22,7 @@ const octokit = new Octokit({
 const owner = 'DoberCodes';
 const repo = 'propertyManagerWebApp';
 
-async function getCommitsFromPullRequests() {
+async function getCommitsFromPullRequests(latestTagDate) {
 	try {
 		const { data: pullRequests } = await octokit.pulls.list({
 			owner,
@@ -33,6 +33,9 @@ async function getCommitsFromPullRequests() {
 
 		return pullRequests
 			.filter((pr) => pr.merged_at !== null) // Only merged PRs
+			.filter((pr) =>
+				latestTagDate ? new Date(pr.merged_at) > latestTagDate : true,
+			)
 			.map((pr) => ({
 				sha: pr.merge_commit_sha,
 				message: pr.title, // Use PR title as the commit message
@@ -43,6 +46,31 @@ async function getCommitsFromPullRequests() {
 		console.error('Error fetching pull requests:', error);
 		return [];
 	}
+}
+
+async function getLatestTagDate() {
+	// Fetch the latest release tag
+	const { data: releases } = await octokit.repos.listTags({
+		owner,
+		repo,
+		per_page: 1,
+	});
+
+	if (releases.length === 0) {
+		console.error('No tags found in the repository.');
+		return null;
+	}
+
+	const latestTag = releases[0].name;
+
+	// Fetch the commit associated with the latest tag
+	const { data: tagCommit } = await octokit.repos.getCommit({
+		owner,
+		repo,
+		ref: latestTag,
+	});
+
+	return new Date(tagCommit.commit.author.date);
 }
 
 async function calculateNextVersion(currentVersion, commits) {
@@ -76,30 +104,11 @@ async function calculateNextVersion(currentVersion, commits) {
 	return `${newMajor}.${newMinor}.${newPatch}`;
 }
 
-async function getCommitsSinceLastTag() {
+async function getCommitsSinceLastTag(latestTagDate) {
 	try {
-		// Fetch the latest release tag
-		const { data: releases } = await octokit.repos.listTags({
-			owner,
-			repo,
-			per_page: 1,
-		});
-
-		if (releases.length === 0) {
-			console.error('No tags found in the repository.');
+		if (!latestTagDate) {
 			return [];
 		}
-
-		const latestTag = releases[0].name;
-
-		// Fetch the commit associated with the latest tag
-		const { data: tagCommit } = await octokit.repos.getCommit({
-			owner,
-			repo,
-			ref: latestTag,
-		});
-
-		const latestTagDate = new Date(tagCommit.commit.author.date);
 
 		// Fetch all commits since the latest tag using pagination
 		let page = 1;
@@ -145,22 +154,47 @@ async function getCommitsSinceLastTag() {
 }
 
 async function generateReleaseNotes() {
-	const commits = await getCommitsSinceLastTag();
+	const latestTagDate = await getLatestTagDate();
+	const [commits, prs] = await Promise.all([
+		getCommitsSinceLastTag(latestTagDate),
+		getCommitsFromPullRequests(latestTagDate),
+	]);
 
-	if (commits.length === 0) {
+	const combinedCommits = [...commits, ...prs]
+		.filter(
+			(commit) =>
+				commit.message && !commit.message.toLowerCase().startsWith('release:'),
+		)
+		.reduce((acc, commit) => {
+			const key = commit.sha || `${commit.message}-${commit.date}`;
+			if (!acc.has(key)) {
+				acc.set(key, commit);
+			}
+			return acc;
+		}, new Map())
+		.values();
+
+	const commitsList = Array.from(combinedCommits).sort(
+		(a, b) => new Date(a.date) - new Date(b.date),
+	);
+
+	if (commitsList.length === 0) {
 		console.log('No commits found since the last tag.');
 		return;
 	}
 
 	// Calculate the next version
-	const nextVersion = await calculateNextVersion(packageJson.version, commits);
+	const nextVersion = await calculateNextVersion(
+		packageJson.version,
+		commitsList,
+	);
 
 	// Categorize commits
 	const features = [];
 	const fixes = [];
 	const chores = [];
 
-	commits.forEach((commit) => {
+	commitsList.forEach((commit) => {
 		if (commit.message.toLowerCase().startsWith('feature:')) {
 			features.push(commit);
 		} else if (commit.message.toLowerCase().startsWith('fix:')) {
@@ -171,7 +205,7 @@ async function generateReleaseNotes() {
 	});
 
 	// Generate friendly release notes
-	const releaseNotes = formatReleaseNotes(commits, nextVersion);
+	const releaseNotes = formatReleaseNotes(commitsList, nextVersion);
 
 	// Output JSON with version and notes
 	console.log('JSON Output:');
