@@ -377,7 +377,7 @@ else
   cd ..
 
   # Verify APK was created
-  if [ ! -f "android/app/release/app-release.apk" ]; then
+  if [ ! -f "android/app/build/outputs/apk/release/app-release.apk" ]; then
     print_error "app-release.apk not found! Gradle build may have failed."
     send_slack_notification "APK build failed for v$NEW_VERSION" "error"
     exit 1
@@ -387,7 +387,7 @@ fi
 
 echo ""
 print_header "Step 4: Finalizing Build"
-cp android/app/release/app-release.apk public/PropertyManager.apk
+cp android/app/build/outputs/apk/release/app-release.apk public/PropertyManager.apk
 print_success "APK copied to public folder"
 ls -lh public/PropertyManager.apk
 
@@ -482,7 +482,7 @@ fi
 echo ""
 print_header "Step 9: Creating GitHub Release"
 RELEASE_NOTES_FILE="RELEASE_NOTES.txt"
-APK_FILE="android/app/release/app-release.apk"
+APK_FILE="android/app/build/outputs/apk/release/app-release.apk"
 APK_ASSET_NAME="PropertyManager.apk"
 APK_VERSIONED_NAME="PropertyManager-$NEW_VERSION.apk"
 REPO_NAME=${GITHUB_REPOSITORY:-$(gh repo view --json nameWithOwner -q .nameWithOwner)}
