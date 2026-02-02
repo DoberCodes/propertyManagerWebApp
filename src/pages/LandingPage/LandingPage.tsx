@@ -65,12 +65,13 @@ import {
 } from './LandingPage.styles';
 
 import packageJson from '../../../package.json';
-import { getAPKFileSize } from '../../utils/versionCheck';
+import { getAPKFileSize, getAPKDownloadURL } from '../../utils/versionCheck';
 import MissionSectionComponent from './components/MissionSection';
 import FeaturesSectionComponent from './components/FeaturesSection';
 
 const LandingPageComponent = () => {
 	const navigate = useNavigate();
+	const apkDownloadUrl = getAPKDownloadURL();
 	const [formData, setFormData] = useState({
 		name: '',
 		email: '',
@@ -305,9 +306,7 @@ const LandingPageComponent = () => {
 							Download the app and start managing your property maintenance with
 							ease. Available for Android devices.
 						</DownloadSubtext>
-						<DownloadButton
-							href='/propertyManagerWebApp/PropertyManager.apk'
-							download>
+						<DownloadButton href={apkDownloadUrl} download>
 							📱 Download APK
 						</DownloadButton>
 						<DownloadInfo>

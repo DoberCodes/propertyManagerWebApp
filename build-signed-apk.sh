@@ -166,8 +166,8 @@ if [[ "$RELEASE_ONLY" == "--release-only" ]]; then
     print_error "RELEASE_NOTES.txt not found. Cannot create release."
     exit 1
   fi
-  if [[ ! -f "public/PropertyManager.apk" ]]; then
-    print_error "public/PropertyManager.apk not found. Cannot create release."
+  if [[ ! -f "android/app/release/app-release.apk" ]]; then
+    print_error "android/app/release/app-release.apk not found. Cannot create release."
     exit 1
   fi
   NEW_VERSION=$(node -p "require('./package.json').version")
@@ -457,7 +457,9 @@ fi
 echo ""
 print_header "Step 9: Creating GitHub Release"
 RELEASE_NOTES_FILE="RELEASE_NOTES.txt"
-APK_FILE="public/PropertyManager.apk"
+APK_FILE="android/app/release/app-release.apk"
+APK_ASSET_NAME="PropertyManager.apk"
+APK_VERSIONED_NAME="PropertyManager-$NEW_VERSION.apk"
 REPO_NAME=${GITHUB_REPOSITORY:-$(gh repo view --json nameWithOwner -q .nameWithOwner)}
 
 if [ -f "$RELEASE_NOTES_FILE" ] && [ -f "$APK_FILE" ]; then
@@ -480,8 +482,11 @@ if [ -f "$RELEASE_NOTES_FILE" ] && [ -f "$APK_FILE" ]; then
   fi
 
   if [ -f "$APK_FILE" ]; then
-    if gh release upload "v$NEW_VERSION" "$APK_FILE" --repo "$REPO_NAME" --clobber; then
-      print_success "APK uploaded to GitHub release"
+    if gh release upload "v$NEW_VERSION" \
+      "${APK_FILE}#${APK_ASSET_NAME}" \
+      "${APK_FILE}#${APK_VERSIONED_NAME}" \
+      --repo "$REPO_NAME" --clobber; then
+      print_success "APK uploaded to GitHub release (latest + versioned)"
     else
       print_warning "Could not upload APK to release. You can upload it manually from GitHub."
     fi
@@ -514,7 +519,7 @@ echo ""
 print_header "Step 11: Verifying Release is Live"
 
 RELEASE_URL="https://github.com/DoberCodes/propertyManagerWebApp/releases/tag/v$NEW_VERSION"
-APK_URL="https://dobercodes.github.io/propertyManagerWebApp/PropertyManager.apk"
+APK_URL="https://github.com/DoberCodes/propertyManagerWebApp/releases/latest/download/PropertyManager.apk"
 PAGES_URL="https://dobercodes.github.io/propertyManagerWebApp/"
 
 print_info "Checking GitHub release..."
@@ -565,7 +570,7 @@ echo "Download link:"
 echo "  https://github.com/DoberCodes/propertyManagerWebApp/releases/tag/v$NEW_VERSION"
 echo ""
 echo "APK available at:"
-echo "  https://dobercodes.github.io/propertyManagerWebApp/PropertyManager.apk"
+echo "  https://github.com/DoberCodes/propertyManagerWebApp/releases/latest/download/PropertyManager.apk"
 echo ""
 
 # Send success notification

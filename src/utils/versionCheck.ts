@@ -143,7 +143,7 @@ export const resetUpdateNotification = (): void => {
 export const getAPKDownloadURL = (): string => {
 	return (
 		process.env.REACT_APP_APK_URL ||
-		'https://dobercodes.github.io/propertyManagerWebApp/PropertyManager.apk'
+		'https://github.com/DoberCodes/propertyManagerWebApp/releases/latest/download/PropertyManager.apk'
 	);
 };
 
