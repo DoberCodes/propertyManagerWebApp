@@ -482,14 +482,25 @@ if [ -f "$RELEASE_NOTES_FILE" ] && [ -f "$APK_FILE" ]; then
   fi
 
   if [ -f "$APK_FILE" ]; then
+    # Create temp files with desired asset names for upload
+    TMP_DIR="tmp"
+    LATEST_APK_PATH="$TMP_DIR/$APK_ASSET_NAME"
+    VERSIONED_APK_PATH="$TMP_DIR/$APK_VERSIONED_NAME"
+    mkdir -p "$TMP_DIR"
+    cp "$APK_FILE" "$LATEST_APK_PATH"
+    cp "$APK_FILE" "$VERSIONED_APK_PATH"
+
     if env -u GH_TOKEN -u GITHUB_TOKEN gh release upload "v$NEW_VERSION" \
-      "${APK_FILE}#${APK_ASSET_NAME}" \
-      "${APK_FILE}#${APK_VERSIONED_NAME}" \
+      "$LATEST_APK_PATH" \
+      "$VERSIONED_APK_PATH" \
       --repo "$REPO_NAME" --clobber; then
       print_success "APK uploaded to GitHub release (latest + versioned)"
     else
       print_warning "Could not upload APK to release. You can upload it manually from GitHub."
     fi
+
+    # Cleanup temp files
+    rm -f "$LATEST_APK_PATH" "$VERSIONED_APK_PATH"
   else
     print_warning "APK file not found. Cannot upload to release."
   fi
