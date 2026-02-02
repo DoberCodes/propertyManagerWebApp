@@ -19,7 +19,7 @@ export const requestLocationPermissions = async (): Promise<boolean> => {
 	try {
 		// Check current permission status
 		const status = await Geolocation.checkPermissions();
-		
+
 		if (status.location === 'granted' || status.location === 'denied') {
 			return status.location === 'granted';
 		}
@@ -37,32 +37,33 @@ export const requestLocationPermissions = async (): Promise<boolean> => {
  * Get the user's current location
  * Requests permissions if needed on native platforms
  */
-export const getCurrentLocation = async (): Promise<LocationCoordinates | null> => {
-	try {
-		// Request permissions first if on native platform
-		if (Capacitor.isNativePlatform()) {
-			const hasPermission = await requestLocationPermissions();
-			if (!hasPermission) {
-				console.warn('Location permissions not granted');
-				return null;
+export const getCurrentLocation =
+	async (): Promise<LocationCoordinates | null> => {
+		try {
+			// Request permissions first if on native platform
+			if (Capacitor.isNativePlatform()) {
+				const hasPermission = await requestLocationPermissions();
+				if (!hasPermission) {
+					console.warn('Location permissions not granted');
+					return null;
+				}
 			}
+
+			// Get current position
+			const position = await Geolocation.getCurrentPosition({
+				enableHighAccuracy: false,
+				timeout: 10000,
+			});
+
+			return {
+				latitude: position.coords.latitude,
+				longitude: position.coords.longitude,
+			};
+		} catch (error) {
+			console.warn('Failed to get current location:', error);
+			return null;
 		}
-
-		// Get current position
-		const position = await Geolocation.getCurrentPosition({
-			enableHighAccuracy: false,
-			timeout: 10000,
-		});
-
-		return {
-			latitude: position.coords.latitude,
-			longitude: position.coords.longitude,
-		};
-	} catch (error) {
-		console.warn('Failed to get current location:', error);
-		return null;
-	}
-};
+	};
 
 /**
  * Watch the user's location for changes

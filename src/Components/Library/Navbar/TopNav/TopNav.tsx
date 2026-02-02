@@ -45,6 +45,7 @@ export const TopNav = () => {
 	const isUserTenant = currentUser
 		? isTenant(currentUser.role as UserRole)
 		: false;
+	const isHomeowner = currentUser?.userType === 'homeowner';
 
 	const navigationItems = [
 		{ label: 'Dashboard', path: 'dashboard', visible: !isUserTenant },
@@ -56,7 +57,7 @@ export const TopNav = () => {
 		{
 			label: 'Team',
 			path: 'team',
-			visible: !isUserTenant && (canAccessTeam || canViewPages),
+			visible: !isUserTenant && !isHomeowner && (canAccessTeam || canViewPages),
 		},
 		{
 			label: 'Report',
