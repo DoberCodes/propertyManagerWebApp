@@ -158,6 +158,10 @@ export const SeasonalMaintenance = ({
 					locationData = await getUserLocation();
 				}
 
+				if (!locationData) {
+					throw new Error('Location permissions not granted.');
+				}
+
 				const weather = await fetchWeatherData(
 					locationData.latitude,
 					locationData.longitude,
