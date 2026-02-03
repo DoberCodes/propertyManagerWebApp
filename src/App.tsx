@@ -8,7 +8,7 @@ import { UpdateNotification } from './Components/Library/UpdateNotification/Upda
 import { checkForUpdates } from './utils/versionCheck';
 import styled from 'styled-components';
 import { Capacitor } from '@capacitor/core';
-// import { initializePushNotifications } from './services/pushNotifications';
+import { initializePushNotifications } from './services/pushNotifications';
 
 const LoadingContainer = styled.div`
 	display: flex;
@@ -40,22 +40,24 @@ const LoadingContainer = styled.div`
 export const App = () => {
 	const dispatch = useDispatch();
 	const authLoading = useSelector((state: any) => state.user.authLoading);
-	// const currentUser = useSelector((state: any) => state.user.currentUser);
+	const currentUser = useSelector((state: any) => state.user.currentUser);
 
-	// Register push notifications on native app startup (DISABLED: backend not ready)
-	// useEffect(() => {
-	// 	if (!Capacitor.isNativePlatform()) return;
-	// 	initializePushNotifications(
-	// 		(token) => {
-	// 			console.log('Push token received:', token);
-	// 		},
-	// 		(notification) => {
-	// 			// Optionally handle foreground notification
-	// 			console.log('Foreground push notification:', notification);
-	// 		},
-	// 		() => currentUser?.id || null,
-	// 	);
-	// }, [currentUser]);
+	// Register push notifications on native app startup
+	useEffect(() => {
+		if (!Capacitor.isNativePlatform()) return;
+		initializePushNotifications(
+			(token) => {
+				console.log('Push token received:', token);
+			},
+			(notification) => {
+				console.log('Foreground push notification:', notification);
+			},
+			() => currentUser?.id || null,
+			(action) => {
+				console.log('Push notification action:', action);
+			},
+		);
+	}, [currentUser]);
 
 	useEffect(() => {
 		// Set a timeout to ensure auth loading completes even if Firebase hangs

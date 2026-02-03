@@ -35,7 +35,10 @@ import {
 	RemoveTagButton,
 	TagInput,
 } from './PropertyDialog.styles';
-import { uploadToBase64, isValidImageFile } from '../../utils/base64Upload';
+import {
+	uploadPropertyImage,
+	isValidPropertyImageFile,
+} from '../../utils/propertyImageUpload';
 
 interface Device {
 	id: string; // Changed to string (Firebase)
@@ -315,8 +318,8 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 	const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
 		const file = e.target.files?.[0];
 		if (file) {
-			if (!isValidImageFile(file)) {
-				setImageError('Invalid file. Please upload an image under 700KB.');
+			if (!isValidPropertyImageFile(file)) {
+				setImageError('Invalid file. Please upload an image under 8MB.');
 				return;
 			}
 
@@ -324,7 +327,7 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 			setIsUploadingImage(true);
 
 			try {
-				const imageUrl = await uploadToBase64(file);
+				const imageUrl = await uploadPropertyImage(file);
 				handleInputChange('photo', imageUrl);
 				setIsUploadingImage(false);
 			} catch (error) {

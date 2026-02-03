@@ -31,7 +31,10 @@ import {
 import { UserRole } from '../../constants/roles';
 import { TeamMember } from '../../types/Team.types';
 import { useFavorites } from '../../Hooks/useFavorites';
-import { uploadToBase64, isValidImageFile } from '../../utils/base64Upload';
+import {
+	uploadPropertyImage,
+	isValidPropertyImageFile,
+} from '../../utils/propertyImageUpload';
 import { TaskCompletionModal } from '../../Components/TaskCompletionModal';
 import { MaintenanceRequestModal } from '../../Components/MaintenanceRequestModal';
 import { ConvertRequestToTaskModal } from '../../Components/ConvertRequestToTaskModal';
@@ -317,8 +320,8 @@ export const PropertyDetailPage = (props: PropertyDetailPageProps) => {
 	const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
 		const file = e.target.files?.[0];
 		if (file && property) {
-			if (!isValidImageFile(file)) {
-				setImageError('Invalid file. Please upload an image under 700KB.');
+			if (!isValidPropertyImageFile(file)) {
+				setImageError('Invalid file. Please upload an image under 8MB.');
 				return;
 			}
 
@@ -326,7 +329,7 @@ export const PropertyDetailPage = (props: PropertyDetailPageProps) => {
 			setIsUploadingImage(true);
 
 			try {
-				const imageUrl = await uploadToBase64(file);
+				const imageUrl = await uploadPropertyImage(file, property.id);
 				await updatePropertyMutation({
 					id: property.id,
 					updates: {
