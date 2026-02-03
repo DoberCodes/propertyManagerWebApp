@@ -12,6 +12,12 @@ export interface User {
 	phone?: string;
 	image?: string;
 	assignedPropertyId?: number;
+	subscription?: {
+		status: 'trial' | 'active' | 'cancelled' | 'expired' | 'past_due';
+		plan: string;
+		currentPeriodStart: number;
+		currentPeriodEnd: number;
+	};
 	createdAt?: string;
 	updatedAt?: string;
 }

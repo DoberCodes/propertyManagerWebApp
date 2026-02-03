@@ -27,6 +27,7 @@ import { TEAM_VIEW_ROLES, FULL_ACCESS_ROLES } from './constants/roles';
 import { isNativeApp } from './utils/platform';
 import HomeownerPropertyWrapper from './Components/PropertiesTab/HomeownerPropertyWrapper';
 import { useSelector } from 'react-redux';
+import PaywallPageIndex from './pages/PaywallPage';
 
 // Component to handle root route - redirects to login in mobile app
 const RootRoute = () => {
@@ -55,7 +56,17 @@ export const RouterComponent = () => {
 					}
 				/>
 				<Route path='registration' element={<RegistrationPage />} />
+				<Route path='register' element={<RegistrationPage />} />
 				<Route path='unauthorized' element={<UnauthorizedPage />} />
+				{/* Paywall - accessible to authenticated users */}
+				<Route
+					path='paywall'
+					element={
+						<ProtectedRoutes>
+							<PaywallPageIndex />
+						</ProtectedRoutes>
+					}
+				/>
 				{/* Feature Docs - public */}
 				<Route path='docs' element={<FeatureDocsPage />} />
 				<Route path='features' element={<FeatureDocsPage />} />

@@ -17,7 +17,6 @@ import {
 	ButtonGroup,
 	PasswordMatchText,
 } from './RegistrationCard.styles';
-import { useNavigate } from 'react-router-dom';
 import { faArrowCircleLeft } from '@fortawesome/free-solid-svg-icons';
 import { faEye, faEyeSlash } from '@fortawesome/free-regular-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -25,6 +24,8 @@ import { signUpWithEmail } from '../../services/authService';
 import { USER_ROLES } from '../../constants/roles';
 import { useDispatch } from 'react-redux';
 import { setCurrentUser } from '../../Redux/Slices/userSlice';
+import PaywallPage from '../../pages/PaywallPage/PaywallPage';
+import { useNavigate } from 'react-router-dom';
 
 export const RegistrationCard = () => {
 	const [step, setStep] = useState<number>(1);
@@ -42,8 +43,9 @@ export const RegistrationCard = () => {
 	const [showPasswordConfirm, setShowPasswordConfirm] =
 		useState<boolean>(false);
 	const [userType, setUserType] = useState<string>('');
-	const navigate = useNavigate();
+	const [selectedPlan, setSelectedPlan] = useState<string>('');
 	const dispatch = useDispatch();
+	const navigate = useNavigate();
 
 	const validateStep1 = () => {
 		if (!firstName.trim()) {
@@ -102,11 +104,15 @@ export const RegistrationCard = () => {
 
 	const handleSkip = () => {
 		setError('');
-		signup();
+		setStep(4);
 	};
 
 	const signup = async () => {
 		setError('');
+		if (!selectedPlan) {
+			setError('Please select a plan to continue.');
+			return;
+		}
 		setLoading(true);
 
 		try {
@@ -117,6 +123,7 @@ export const RegistrationCard = () => {
 				firstName.trim(),
 				lastName.trim(),
 				USER_ROLES.ADMIN,
+				selectedPlan,
 			);
 
 			// Update Redux store
@@ -131,7 +138,7 @@ export const RegistrationCard = () => {
 				}),
 			);
 
-			// Navigate to dashboard
+			setLoading(false);
 			navigate('/dashboard');
 		} catch (error: any) {
 			console.error('RegistrationCard: Registration error', error);
@@ -149,14 +156,15 @@ export const RegistrationCard = () => {
 	}, [password, passwordConfirm]);
 
 	return (
-		<Wrapper onSubmit={(e) => e.preventDefault()}>
+		<Wrapper $wide={step === 4} onSubmit={(e) => e.preventDefault()}>
 			<BackButton href='#/login'>
 				<FontAwesomeIcon icon={faArrowCircleLeft} />
 			</BackButton>
 			<Title>
-				{step === 1 && 'Create Account - Step 1 of 3'}
-				{step === 2 && 'Create Account - Step 2 of 3'}
-				{step === 3 && 'Create Account - Step 3 of 3'}
+				{step === 1 && 'Create Account - Step 1 of 4'}
+				{step === 2 && 'Create Account - Step 2 of 4'}
+				{step === 3 && 'Create Account - Step 3 of 4'}
+				{step === 4 && 'Choose Your Plan - Step 4 of 4'}
 			</Title>
 			{error && <ErrorMessage>{error}</ErrorMessage>}
 
@@ -370,15 +378,50 @@ export const RegistrationCard = () => {
 						</Submit>
 						<Submit type='button' onClick={handleSkip} disabled={loading}>
 							{loading && <LoadingSpinner />}
-							{loading ? 'Creating account...' : 'Skip & Complete'}
+							{loading ? 'Saving...' : 'Skip & Continue'}
+						</Submit>
+						<Submit
+							type='button'
+							onClick={() => setStep(4)}
+							disabled={loading}
+							style={{ backgroundColor: '#22c55e', color: 'white' }}>
+							Continue to Plans
+						</Submit>
+					</ButtonGroup>
+				</>
+			)}
+
+			{/* Step 4: Plan Selection */}
+			{step === 4 && (
+				<>
+					<SectionLabel>Choose a plan to continue</SectionLabel>
+					<PaywallPage
+						subscription={{
+							status: 'trial',
+							plan: selectedPlan || 'free',
+							currentPeriodStart: Math.floor(Date.now() / 1000),
+							currentPeriodEnd: Math.floor(Date.now() / 1000),
+						}}
+						currentPlan={selectedPlan}
+						layout='horizontal'
+						variant='embedded'
+						selectionOnly
+						onPlanSelect={(planId) => {
+							setSelectedPlan(planId);
+							setError('');
+						}}
+					/>
+					<ButtonGroup>
+						<Submit type='button' onClick={handleBack} disabled={loading}>
+							Back
 						</Submit>
 						<Submit
 							type='button'
 							onClick={signup}
-							disabled={loading}
+							disabled={loading || !selectedPlan}
 							style={{ backgroundColor: '#22c55e', color: 'white' }}>
 							{loading && <LoadingSpinner />}
-							{loading ? 'Creating account...' : 'Complete'}
+							{loading ? 'Creating account...' : 'Create Account'}
 						</Submit>
 					</ButtonGroup>
 				</>

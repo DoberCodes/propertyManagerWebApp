@@ -11,6 +11,7 @@ import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '../config/firebase';
 import { User } from '../Redux/Slices/userSlice';
 import { USER_ROLES } from '../constants/roles';
+import { createTrialSubscription } from '../utils/subscriptionUtils';
 
 /**
  * Sign in with email and password
@@ -42,6 +43,7 @@ export const signUpWithEmail = async (
 	firstName: string,
 	lastName: string,
 	role: string = USER_ROLES.ADMIN,
+	selectedPlan: string = 'free',
 ): Promise<User> => {
 	try {
 		// Create Firebase Auth user
@@ -67,10 +69,13 @@ export const signUpWithEmail = async (
 			image: `https://ui-avatars.com/api/?name=${firstName}+${lastName}&background=22c55e&color=fff`,
 		};
 
+		const subscription = createTrialSubscription(selectedPlan);
+
 		await setDoc(doc(db, 'users', userCredential.user.uid), {
 			...userProfile,
 			createdAt: serverTimestamp(),
 			updatedAt: serverTimestamp(),
+			subscription,
 		});
 
 		// Always create default groups for new users (see scripts/migrateDefaultGroups.cjs for batch logic)
@@ -94,7 +99,10 @@ export const signUpWithEmail = async (
 			updatedAt: serverTimestamp(),
 		});
 
-		return userProfile;
+		return {
+			...userProfile,
+			subscription,
+		};
 	} catch (error: any) {
 		console.error('Sign up error:', error);
 		throw new Error(getAuthErrorMessage(error.code));

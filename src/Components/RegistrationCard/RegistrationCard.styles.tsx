@@ -1,29 +1,33 @@
 import styled from 'styled-components';
 import { COLORS } from '../../constants/colors';
 
-export const Wrapper = styled.form`
+export const Wrapper = styled.form<{ $wide?: boolean }>`
 	display: grid;
 	justify-content: center;
 	align-items: center;
-	padding: 32px 24px;
+	padding: ${(props) => (props.$wide ? '28px 24px' : '32px 24px')};
 	border: none;
 	border-radius: 12px;
 	background-color: ${COLORS.bgWhite};
 	width: 100%;
-	max-width: 420px;
+	max-width: ${(props) => (props.$wide ? '1200px' : '420px')};
 	box-shadow: ${COLORS.shadowLg};
 	position: relative;
 	z-index: 10;
 
+	@media (max-width: 1024px) {
+		max-width: ${(props) => (props.$wide ? '980px' : '420px')};
+	}
+
 	@media (max-width: 768px) {
-		max-width: 380px;
-		padding: 28px 20px;
+		max-width: ${(props) => (props.$wide ? '100%' : '380px')};
+		padding: ${(props) => (props.$wide ? '22px 16px' : '28px 20px')};
 		border-radius: 10px;
 	}
 
 	@media (max-width: 480px) {
 		max-width: 100%;
-		padding: 20px 16px;
+		padding: ${(props) => (props.$wide ? '18px 12px' : '20px 16px')};
 		border-radius: 8px;
 		margin: 10px;
 	}

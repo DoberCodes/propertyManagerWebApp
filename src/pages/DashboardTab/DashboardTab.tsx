@@ -25,6 +25,8 @@ import { getDefaultTempUnit } from '../../utils/geolocationUtils';
 import { getCurrentLocation } from '../../utils/geolocation';
 import { TaskCompletionModal } from '../../Components/TaskCompletionModal';
 import { NotificationPanel } from '../../Components/Library';
+import { TrialWarningBanner } from '../../Components/TrialWarningBanner/TrialWarningBanner';
+import { getTrialDaysRemaining } from '../../utils/subscriptionUtils';
 import {
 	Wrapper,
 	TaskGridSection,
@@ -282,6 +284,13 @@ export const DashboardTab = () => {
 
 	return (
 		<Wrapper>
+			{/* Trial Warning Banner */}
+			{currentUser?.subscription?.status === 'trial' && (
+				<TrialWarningBanner
+					daysRemaining={getTrialDaysRemaining(currentUser.subscription as any)}
+					onUpgradeClick={() => navigate('/paywall')}
+				/>
+			)}
 			<PageHeaderSection>
 				<div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
 					{selectedRows.size > 0 && (
