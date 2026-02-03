@@ -44,8 +44,6 @@ export const SeasonalMaintenance = ({
 }: SeasonalMaintenanceProps) => {
 	const [currentTip, setCurrentTip] = useState<string>('');
 	const [tips, setTips] = useState<string[]>([]);
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	const [usedTips, setUsedTips] = useState<Set<number>>(new Set());
 
 	const [weatherData, setWeatherData] = useState<any>(null);
 	const [loading, setLoading] = useState<boolean>(false);
@@ -193,30 +191,19 @@ export const SeasonalMaintenance = ({
 			const generatedTips = getSeasonalRecommendations(weatherData);
 			setTips(generatedTips);
 			setCurrentTip(generatedTips[0]);
-			setUsedTips(new Set([0]));
 		}
 	}, [weatherData]);
 
 	useEffect(() => {
 		const interval = setInterval(() => {
 			if (tips.length > 0) {
-				setUsedTips((prevUsedTips) => {
+				setCurrentTip((prevTip) => {
 					let nextIndex;
 					do {
 						nextIndex = Math.floor(Math.random() * tips.length);
-					} while (
-						prevUsedTips.has(nextIndex) &&
-						prevUsedTips.size < tips.length
-					);
+					} while (prevTip === tips[nextIndex]);
 
-					const newUsedTips = new Set(prevUsedTips);
-					newUsedTips.add(nextIndex);
-					if (newUsedTips.size === tips.length) {
-						newUsedTips.clear(); // Reset when all tips have been used
-					}
-
-					setCurrentTip(tips[nextIndex]);
-					return newUsedTips;
+					return tips[nextIndex];
 				});
 			}
 		}, 5000); // Change tip every 5 seconds

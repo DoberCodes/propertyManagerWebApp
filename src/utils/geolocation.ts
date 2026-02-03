@@ -45,6 +45,7 @@ export const getCurrentLocation =
 				const hasPermission = await requestLocationPermissions();
 				if (!hasPermission) {
 					console.warn('Location permissions not granted');
+					// Allow app access even if permissions are denied
 					return null;
 				}
 			}
