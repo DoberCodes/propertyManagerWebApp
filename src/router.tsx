@@ -22,6 +22,7 @@ import { SuiteDetailPage } from './pages/SuiteDetailPage/SuiteDetailPage';
 import TeamPage from './pages/TeamPage';
 import { ReportPage } from './pages/ReportPage';
 import { UserProfile } from './pages/UserProfile';
+import { TenantProfilePage } from './pages/TenantProfilePage';
 import { TEAM_VIEW_ROLES, FULL_ACCESS_ROLES } from './constants/roles';
 import { isNativeApp } from './utils/platform';
 import HomeownerPropertyWrapper from './Components/PropertiesTab/HomeownerPropertyWrapper';
@@ -136,6 +137,16 @@ export const RouterComponent = () => {
 						element={
 							<ProtectedRoutes>
 								<UserProfile />
+							</ProtectedRoutes>
+						}
+					/>
+
+					{/* Tenant Profile - accessible to tenant users */}
+					<Route
+						path='tenant-profile'
+						element={
+							<ProtectedRoutes>
+								<TenantProfilePage />
 							</ProtectedRoutes>
 						}
 					/>

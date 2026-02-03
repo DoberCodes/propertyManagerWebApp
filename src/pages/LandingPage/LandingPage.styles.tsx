@@ -401,22 +401,20 @@ export const FeaturesTitle = styled.h2`
 	}
 `;
 
-export const FeaturesGrid = styled.div`
+export const FeaturesContent = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: 20px;
+	padding: 40px;
+	background-color: ${COLORS.bgWhite};
+`;
+
+export const FeatureGrid = styled.div`
 	display: grid;
-	grid-template-columns: repeat(3, 1fr);
-	gap: 30px;
-	max-width: 1200px;
-	margin: 0 auto;
-
-	@media (max-width: 1024px) {
-		grid-template-columns: repeat(2, 1fr);
-		gap: 25px;
-	}
-
-	@media (max-width: 768px) {
-		grid-template-columns: 1fr;
-		gap: 20px;
-	}
+	grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+	gap: 20px;
+	padding: 40px;
+	background-color: ${COLORS.bgWhite};
 `;
 
 export const FeatureCard = styled.div`
@@ -485,6 +483,20 @@ export const FeatureDescription = styled.p`
 	}
 `;
 
+export const FeatureList = styled.ul`
+	list-style: none;
+	padding: 0;
+	margin: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+`;
+
+export const FeatureItem = styled.li`
+	font-size: 16px;
+	color: ${COLORS.textPrimary};
+`;
+
 /* ============ BENEFITS SECTION ============ */
 
 export const BenefitsSection = styled.section`
@@ -537,6 +549,7 @@ export const BenefitImage = styled.div`
 	img {
 		width: 100%;
 		height: auto;
+		aspect-ratio: 5425 / 3557;
 		border-radius: 12px;
 		box-shadow: ${COLORS.shadowLg};
 		object-fit: cover;
@@ -1090,5 +1103,26 @@ export const InfoItem = styled.div`
 	span {
 		font-size: 14px;
 		color: rgba(255, 255, 255, 0.7);
+	}
+`;
+
+export const Section = styled.section`
+	width: 100%;
+	height: 600px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 40px;
+	background: ${COLORS.bgLight};
+	box-sizing: border-box;
+
+	@media (max-width: 768px) {
+		height: 500px;
+		padding: 30px;
+	}
+
+	@media (max-width: 480px) {
+		height: 400px;
+		padding: 20px;
 	}
 `;

@@ -306,18 +306,24 @@ const LoadingContainer = styled.div`
 `;
 
 const EmptyState = styled.div`
-	padding: 40px 20px;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
 	text-align: center;
-	color: #999999;
+	gap: 12px;
 
 	svg {
-		margin-bottom: 12px;
-		opacity: 0.5;
+		font-size: 48px;
+		opacity: 0.3;
+		margin-bottom: 8px;
 	}
 
 	p {
 		margin: 0;
 		font-size: 14px;
+		color: #999999;
+		font-weight: 500;
 	}
 `;
 

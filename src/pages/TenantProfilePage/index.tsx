@@ -1,0 +1,1 @@
+export { TenantProfilePage } from './TenantProfilePage';

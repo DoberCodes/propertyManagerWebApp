@@ -3,32 +3,14 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LandingNavbar } from '../../Components/Library/LandingNavbar';
 import HeroSection from './components/Hero';
+import MissionSectionComponent from './components/MissionSection';
+import FeaturesSectionComponent from './components/FeaturesSection';
 import {
 	Wrapper,
-	Hero,
-	HeroContent,
-	HeroTitle,
-	HeroSubtitle,
-	HeroCTA,
-	HeroImage,
 	StorySection,
 	StoryContent,
 	StoryTitle,
 	StoryText,
-	MissionSection,
-	MissionTitle,
-	MissionContent,
-	MissionCard,
-	MissionCardIcon,
-	MissionCardTitle,
-	MissionCardDescription,
-	FeaturesSection,
-	FeaturesTitle,
-	FeaturesGrid,
-	FeatureCard,
-	FeatureIcon,
-	FeatureTitle,
-	FeatureDescription,
 	BenefitsSection,
 	BenefitRow,
 	BenefitImage,
@@ -66,8 +48,6 @@ import {
 
 import packageJson from '../../../package.json';
 import { getAPKFileSize, getAPKDownloadURL } from '../../utils/versionCheck';
-import MissionSectionComponent from './components/MissionSection';
-import FeaturesSectionComponent from './components/FeaturesSection';
 
 const LandingPageComponent = () => {
 	const navigate = useNavigate();
@@ -136,21 +116,34 @@ const LandingPageComponent = () => {
 					<StoryContent>
 						<StoryTitle>How It All Started</StoryTitle>
 						<StoryText>
-							One of our founders was managing their parents' rental property
-							when a pipe burst. Between texts, emails, photos sent through
-							different apps, and a spreadsheet that was never
-							updated—everything fell apart. There had to be a better way.
+							We are a small-town company with a big heart. Our founder,
+							inspired by the challenges faced by local homeowners and small
+							business owners, is creating solutions that offer a helping hand
+							without breaking the bank.
 						</StoryText>
 						<StoryText>
-							We built the tool we wished existed: a simple, straightforward
-							place to track maintenance, keep everyone in the loop, and
-							actually know what's happening with your property. No complicated
-							workflows. No unnecessary features. Just what you need.
+							With a focus on simplicity and affordability, we provide tools
+							designed to bring peace of mind to those juggling property
+							management tasks. Whether you're a homeowner, a small landlord, or
+							a DIYer, our mission is to make your life easier, one step at a
+							time.
 						</StoryText>
 						<StoryText>
-							Now, homeowners and small landlords like you are using it to
-							manage their properties stress-free. We're just getting started,
-							and we're building this with you in mind.
+							Homeowners, small landlords, DIYers, and now vehicle and equipment
+							owners are using our platform to manage their assets stress-free.
+							We are continuously improving and building this with you in mind.
+						</StoryText>
+						<StoryText>
+							Our platform meets the needs of not just homeowners and landlords,
+							but also vehicle and equipment owners. Whether you're managing a
+							property, maintaining a car, or keeping your lawnmower in top
+							shape, we've got you covered.
+						</StoryText>
+						<StoryText>
+							We include tailored features for tracking vehicle maintenance,
+							scheduling equipment servicing, and ensuring everything you own is
+							in its best condition. We simplify your life, no matter what you
+							manage.
 						</StoryText>
 					</StoryContent>
 				</StorySection>
@@ -166,7 +159,7 @@ const LandingPageComponent = () => {
 					<BenefitRow>
 						<BenefitImage>
 							<img
-								src='https://images.unsplash.com/photo-1552664730-d307ca884978?w=500&h=400&fit=crop'
+								src={require('../../Assets/images/cabin_woods.jpg')}
 								alt='Time efficiency'
 							/>
 						</BenefitImage>
@@ -187,7 +180,7 @@ const LandingPageComponent = () => {
 					<BenefitRow reverse>
 						<BenefitImage>
 							<img
-								src='https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=500&h=400&fit=crop'
+								src={require('../../Assets/images/privacy.jpg')}
 								alt='Data security'
 							/>
 						</BenefitImage>
@@ -209,7 +202,7 @@ const LandingPageComponent = () => {
 					<BenefitRow>
 						<BenefitImage>
 							<img
-								src='https://images.unsplash.com/photo-1516321318423-f06f70504504?w=500&h=400&fit=crop'
+								src={require('../../Assets/images/camper in the woods.jpg')}
 								alt='Mobile access'
 							/>
 						</BenefitImage>
@@ -227,11 +220,33 @@ const LandingPageComponent = () => {
 							</BenefitList>
 						</BenefitContent>
 					</BenefitRow>
+
+					<BenefitRow>
+						<BenefitImage>
+							<img
+								src={require('../../Assets/images/more than property.jpg')}
+								alt='Equipment management'
+							/>
+						</BenefitImage>
+						<BenefitContent>
+							<BenefitTitle>Manage More Than Properties</BenefitTitle>
+							<BenefitDescription>
+								From vehicles to lawn equipment, our platform is evolving to
+								help you keep track of all your assets. Maintenance reminders,
+								service logs, and more are on the way.
+							</BenefitDescription>
+							<BenefitList>
+								<BenefitItem>🚗 Vehicle maintenance tracking</BenefitItem>
+								<BenefitItem>🛠️ Equipment servicing schedules</BenefitItem>
+								<BenefitItem>📊 Comprehensive asset overview</BenefitItem>
+							</BenefitList>
+						</BenefitContent>
+					</BenefitRow>
 				</BenefitsSection>
 
 				{/* Contact Us Section */}
 				<ContactSection id='Contact'>
-					<ContactTitle>Get In Touch</ContactTitle>
+					<ContactTitle>Get in Touch</ContactTitle>
 					<ContactContent>
 						<ContactForm onSubmit={handleSubmit}>
 							<FormGroup>
@@ -284,11 +299,13 @@ const LandingPageComponent = () => {
 					</ContactContent>
 				</ContactSection>
 				{/* CTA Section */}
-				<CTASection id='GetStarted'>
+				<CTASection>
 					<CTATitle>Stop Juggling Maintenance in Your Head</CTATitle>
 					<CTADescription>
-						Join homeowners and small landlords who are keeping their properties
-						in great shape—without the stress. Start tracking maintenance today.
+						Join our growing community of homeowners, small landlords, DIYers,
+						and vehicle or equipment owners who are keeping their assets in
+						tip-top shape—without the hassle. Start tracking maintenance today
+						and enjoy peace of mind.
 					</CTADescription>
 					<CTAButtons>
 						<CTAButton onClick={() => navigate('/register')}>
@@ -304,8 +321,9 @@ const LandingPageComponent = () => {
 					<DownloadContainer>
 						<DownloadHeading>Download the App</DownloadHeading>
 						<DownloadSubtext>
-							Download the app and start managing your property maintenance with
-							ease. Available for Android devices.
+							Get started with our app and make managing your property, vehicle,
+							and equipment maintenance a breeze. Available for Android
+							devices—download now and see the difference!
 						</DownloadSubtext>
 						<DownloadButton href={apkDownloadUrl} download>
 							📱 Download APK (Latest)
@@ -335,8 +353,8 @@ const LandingPageComponent = () => {
 						<div>
 							<h3>My Property Manager</h3>
 							<p>
-								Maintenance tracking made simple for homeowners and small
-								landlords.
+								Simple, friendly maintenance tracking for homeowners, small
+								landlords, and asset owners like you.
 							</p>
 						</div>
 						<FooterLinks>

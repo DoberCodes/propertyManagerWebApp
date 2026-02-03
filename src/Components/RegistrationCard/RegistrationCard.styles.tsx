@@ -142,6 +142,127 @@ export const Submit = styled.button`
 	}
 `;
 
+export const SectionLabel = styled.p`
+	margin: 16px 0 8px 0;
+	font-size: 14px;
+	color: ${COLORS.textSecondary};
+	text-align: left;
+
+	@media (max-width: 480px) {
+		font-size: 13px;
+		margin: 14px 0 6px 0;
+	}
+`;
+
+export const QuestionLabel = styled.label`
+	font-weight: 500;
+	font-size: 15px;
+	color: ${COLORS.textPrimary};
+	margin: 20px 0 12px 0;
+	display: block;
+	text-align: left;
+
+	@media (max-width: 480px) {
+		font-size: 14px;
+		margin: 16px 0 10px 0;
+	}
+`;
+
+export const RadioGrid = styled.div`
+	display: grid;
+	grid-template-columns: repeat(2, 1fr);
+	gap: 12px;
+	margin-top: 12px;
+
+	@media (max-width: 768px) {
+		gap: 10px;
+	}
+
+	@media (max-width: 480px) {
+		grid-template-columns: 1fr;
+		gap: 8px;
+	}
+`;
+
+export const RadioOption = styled.label`
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 12px 14px;
+	border: 1.5px solid ${COLORS.gray200};
+	border-radius: 6px;
+	background-color: ${COLORS.gray50};
+	cursor: pointer;
+	transition: all 0.2s ease;
+	font-size: 14px;
+	color: ${COLORS.textPrimary};
+
+	&:hover {
+		border-color: ${COLORS.primary};
+		background-color: ${COLORS.bgWhite};
+	}
+
+	input:checked + & {
+		border-color: ${COLORS.primary};
+		background-color: ${COLORS.primaryLight};
+		color: ${COLORS.primary};
+		font-weight: 500;
+	}
+
+	input {
+		accent-color: ${COLORS.primary};
+		width: 18px;
+		height: 18px;
+		margin: 0;
+		cursor: pointer;
+	}
+
+	@media (max-width: 768px) {
+		padding: 11px 13px;
+		font-size: 13px;
+
+		input {
+			width: 17px;
+			height: 17px;
+		}
+	}
+
+	@media (max-width: 480px) {
+		padding: 10px 12px;
+		font-size: 13px;
+
+		input {
+			width: 16px;
+			height: 16px;
+		}
+	}
+`;
+
+export const ButtonGroup = styled.div`
+	display: flex;
+	gap: 12px;
+	justify-content: center;
+	margin-top: 20px;
+
+	@media (max-width: 480px) {
+		gap: 10px;
+		margin-top: 16px;
+	}
+`;
+
+export const PasswordMatchText = styled.p<{ matched: boolean }>`
+	margin: 8px 0;
+	font-size: 13px;
+	color: ${(props) => (props.matched ? COLORS.success : COLORS.error)};
+	text-align: left;
+	font-weight: 500;
+
+	@media (max-width: 480px) {
+		font-size: 12px;
+		margin: 6px 0;
+	}
+`;
+
 export const RegisterWrapper = styled.div`
 	margin: 28px 0 0 0;
 	text-align: center;

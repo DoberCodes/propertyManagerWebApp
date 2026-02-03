@@ -296,22 +296,9 @@ export const DashboardTab = () => {
 			<TaskGridSection>
 				{filteredTasks.length === 0 ? (
 					<ZeroState
-						icon='📋'
-						title='No Tasks Yet'
-						description='Get started by creating a property and adding tasks to manage your properties effectively.'
-						actions={[
-							{
-								label: 'Go to Properties',
-								onClick: () => navigate('/properties'),
-								variant: 'primary',
-							},
-							{
-								label: 'Learn More',
-								onClick: () => navigate('/docs'),
-								variant: 'secondary',
-							},
-						]}
-					/>
+						title='No tasks yet'
+						description='No data available'
+						icon='📊'></ZeroState>
 				) : (
 					<ReusableTable
 						rowData={filteredTasks}
@@ -377,27 +364,34 @@ export const DashboardTab = () => {
 				<Section>
 					<SectionTitle>Efficiency Chart</SectionTitle>
 					<SectionContent>
-						<ResponsiveContainer width='100%' height={220}>
-							<PieChart>
-								<Pie
-									data={efficiencyData}
-									dataKey='value'
-									nameKey='name'
-									cx='50%'
-									cy='50%'
-									outerRadius={70}
-									label>
-									{efficiencyData.map((_, index) => (
-										<Cell
-											key={`cell-${index}`}
-											fill={COLORS[index % COLORS.length]}
-										/>
-									))}
-								</Pie>
-								<Tooltip />
-								<Legend />
-							</PieChart>
-						</ResponsiveContainer>
+						{efficiencyData.every((item) => item.value === 0) ? (
+							<ZeroState
+								title='No tasks yet'
+								description='No data available'
+								icon='📊'></ZeroState>
+						) : (
+							<ResponsiveContainer width='100%' height={220}>
+								<PieChart>
+									<Pie
+										data={efficiencyData}
+										dataKey='value'
+										nameKey='name'
+										cx='50%'
+										cy='50%'
+										outerRadius={70}
+										label>
+										{efficiencyData.map((_, index) => (
+											<Cell
+												key={`cell-${index}`}
+												fill={COLORS[index % COLORS.length]}
+											/>
+										))}
+									</Pie>
+									<Tooltip />
+									<Legend />
+								</PieChart>
+							</ResponsiveContainer>
+						)}
 					</SectionContent>
 				</Section>
 				<Section>

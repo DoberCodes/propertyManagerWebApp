@@ -35,7 +35,7 @@ const MissionSectionComponent = () => {
 					<MissionCardTitle>Affordable</MissionCardTitle>
 					<MissionCardDescription>
 						No enterprise pricing schemes. Fair rates for individuals and small
-						landlords.
+						landlords. Tenants and contractors can join for free.
 					</MissionCardDescription>
 				</MissionCard>
 				<MissionCard>

@@ -2,7 +2,7 @@ import React from 'react';
 import {
 	FeaturesSection,
 	FeaturesTitle,
-	FeaturesGrid,
+	FeatureGrid,
 	FeatureCard,
 	FeatureIcon,
 	FeatureTitle,
@@ -13,7 +13,7 @@ const FeaturesSectionComponent = () => {
 	return (
 		<FeaturesSection id='Features'>
 			<FeaturesTitle>Everything You Need</FeaturesTitle>
-			<FeaturesGrid>
+			<FeatureGrid>
 				<FeatureCard>
 					<FeatureIcon>🔧</FeatureIcon>
 					<FeatureTitle>Simple Maintenance Tracking</FeatureTitle>
@@ -62,7 +62,7 @@ const FeaturesSectionComponent = () => {
 						happens.
 					</FeatureDescription>
 				</FeatureCard>
-			</FeaturesGrid>
+			</FeatureGrid>
 		</FeaturesSection>
 	);
 };

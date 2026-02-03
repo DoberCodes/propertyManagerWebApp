@@ -4,7 +4,10 @@ import { getCurrentLocation } from '../utils/geolocation';
 import {
 	Container,
 	WeatherInfo,
+	WeatherInfoWrapper,
 	Recommendation,
+	TipText,
+	ZeroStateContainer,
 } from './SeasonalMaintenance.styles';
 
 const API_KEY = process.env.REACT_APP_WEATHER_API_KEY;
@@ -213,28 +216,30 @@ export const SeasonalMaintenance = ({
 
 	return (
 		<Container>
-			{loading && <p>Loading...</p>}
-			{error && <p>Error: {error}</p>}
-			{weatherData && (
+			{loading && (
+				<ZeroStateContainer>
+					<span>⏳</span>
+					<p>Loading recommendations...</p>
+				</ZeroStateContainer>
+			)}
+			{error && (
+				<ZeroStateContainer>
+					<span>⚠️</span>
+					<p>Unable to load recommendations</p>
+				</ZeroStateContainer>
+			)}
+			{!loading && !error && weatherData && (
 				<>
-					<div style={{ display: 'flex' }}>
-						<img
-							src={`http://openweathermap.org/img/wn/${weatherData.weather[0].icon}.png`}
-							alt='Weather Icon'
-						/>
-						<WeatherInfo>
-							<h3>Current Weather</h3>
-							<p>
-								Temperature: {convertTemp(weatherData.main.temp).toFixed(1)}°
-								{tempUnitState}
-							</p>
-							<p>Condition: {weatherData.weather[0].description}</p>
-						</WeatherInfo>
-					</div>
+					<Recommendation>Recommendation:</Recommendation>
+					{currentTip && <TipText>{currentTip}</TipText>}
 				</>
 			)}
-			<Recommendation>Recommendation:</Recommendation>
-			{currentTip && <p className='animated-tip'>{currentTip}</p>}
+			{!loading && !error && !weatherData && (
+				<ZeroStateContainer>
+					<span>🌡️</span>
+					<p>No weather data available</p>
+				</ZeroStateContainer>
+			)}
 		</Container>
 	);
 };

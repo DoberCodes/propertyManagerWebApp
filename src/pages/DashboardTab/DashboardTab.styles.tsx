@@ -207,24 +207,25 @@ export const BottomSectionsWrapper = styled.div`
 	grid-template-columns: repeat(3, 1fr);
 	gap: 20px;
 	flex-shrink: 0;
-	height: 400px;
+	min-height: 380px;
+	max-height: 380px;
 
 	@media (max-width: 1024px) {
 		grid-template-columns: repeat(2, 1fr);
 		gap: 16px;
-		height: 400px;
+		min-height: 380px;
+		max-height: 380px;
 	}
 
 	@media (max-width: 768px) {
 		grid-template-columns: 1fr;
 		gap: 14px;
-		height: auto;
-		min-height: 400px;
+		min-height: auto;
+		max-height: none;
 	}
 
 	@media (max-width: 480px) {
 		gap: 10px;
-		min-height: 350px;
 	}
 `;
 
@@ -237,15 +238,17 @@ export const Section = styled.div`
 	overflow: hidden;
 	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 	height: 100%;
+	min-height: 380px;
 
 	@media (max-width: 768px) {
 		border-radius: 6px;
-		height: 400px;
+		min-height: 300px;
+		height: auto;
 	}
 
 	@media (max-width: 480px) {
 		border-radius: 4px;
-		height: 350px;
+		min-height: 250px;
 	}
 `;
 
@@ -253,6 +256,7 @@ export const SectionTitle = styled.div`
 	display: flex;
 	justify-content: space-between;
 	align-items: center;
+	gap: 12px;
 	font-size: 16px;
 	font-weight: 600;
 	color: #1f2937;
@@ -261,22 +265,30 @@ export const SectionTitle = styled.div`
 	border-bottom: 1px solid #e0e0e0;
 	background: #f9fafb;
 	flex-shrink: 0;
+	height: 56px;
+	flex-wrap: nowrap;
+	white-space: nowrap;
 
 	h3 {
 		margin: 0;
 		font-size: inherit;
 		font-weight: inherit;
 		color: inherit;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
 	}
 
 	@media (max-width: 768px) {
 		font-size: 14px;
 		padding: 12px 16px;
+		height: 48px;
 	}
 
 	@media (max-width: 480px) {
 		font-size: 12px;
 		padding: 10px 12px;
+		height: 44px;
 	}
 `;
 export const TempToggle = styled.div`
@@ -286,18 +298,20 @@ export const TempToggle = styled.div`
 	border-radius: 20px;
 	padding: 3px;
 	gap: 0;
+	flex-shrink: 0;
 
 	button {
-		padding: 6px 14px;
+		padding: 4px 10px;
 		margin: 0;
 		background-color: transparent;
 		color: #6b7280;
 		border: none;
 		border-radius: 18px;
 		cursor: pointer;
-		font-size: 0.85rem;
+		font-size: 0.75rem;
 		font-weight: 500;
 		transition: all 0.3s ease;
+		white-space: nowrap;
 
 		&:hover {
 			color: #4b5563;
@@ -309,12 +323,23 @@ export const TempToggle = styled.div`
 			box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 		}
 	}
+
+	@media (max-width: 768px) {
+		padding: 2px;
+
+		button {
+			padding: 3px 8px;
+			font-size: 0.7rem;
+		}
+	}
 `;
 
 export const SectionContent = styled.div`
 	flex: 1;
 	display: flex;
 	flex-direction: column;
+	align-items: center;
+	justify-content: center;
 	padding: 16px 20px;
 	color: #999999;
 	font-size: 14px;
@@ -330,4 +355,46 @@ export const SectionContent = styled.div`
 		font-size: 11px;
 		padding: 10px 12px;
 	}
+`;
+
+export const ZeroState = styled.div`
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	text-align: center;
+	gap: 12px;
+	padding: 20px;
+
+	svg {
+		font-size: 48px;
+		opacity: 0.3;
+		margin-bottom: 8px;
+	}
+
+	p {
+		margin: 0;
+		font-size: 14px;
+		color: #999999;
+		font-weight: 500;
+	}
+
+	@media (max-width: 768px) {
+		padding: 16px;
+
+		svg {
+			font-size: 40px;
+		}
+
+		p {
+			font-size: 12px;
+		}
+	}
+
+	/* Center content */
+	width: 100%;
+	height: 100%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
 `;

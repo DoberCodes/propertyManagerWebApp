@@ -10,6 +10,12 @@ import {
 	LoadingSpinner,
 	PasswordInputWrapper,
 	PasswordToggleButton,
+	SectionLabel,
+	QuestionLabel,
+	RadioGrid,
+	RadioOption,
+	ButtonGroup,
+	PasswordMatchText,
 } from './RegistrationCard.styles';
 import { useNavigate } from 'react-router-dom';
 import { faArrowCircleLeft } from '@fortawesome/free-solid-svg-icons';
@@ -157,9 +163,7 @@ export const RegistrationCard = () => {
 			{/* Step 1: Basic Information */}
 			{step === 1 && (
 				<>
-					<p style={{ margin: '10px', fontSize: '14px', color: '#666' }}>
-						Let's start with your name
-					</p>
+					<SectionLabel>Let's start with your name</SectionLabel>
 					<Input
 						placeholder='First Name *'
 						type='text'
@@ -182,42 +186,81 @@ export const RegistrationCard = () => {
 						}}
 						required
 					/>
-					<div style={{ margin: '16px 0', fontSize: '15px', color: '#333' }}>
-						<label
-							style={{ fontWeight: 500, marginBottom: 8, display: 'block' }}>
-							Are you registering as a homeowner or a landlord?
-						</label>
-						<div style={{ display: 'flex', gap: '24px', marginTop: 8 }}>
-							<label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-								<input
-									type='radio'
-									name='userType'
-									value='homeowner'
-									checked={userType === 'homeowner'}
-									onChange={() => {
-										setUserType('homeowner');
-										setError('');
-									}}
-									required
-								/>
-								Homeowner
-							</label>
-							<label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-								<input
-									type='radio'
-									name='userType'
-									value='landlord'
-									checked={userType === 'landlord'}
-									onChange={() => {
-										setUserType('landlord');
-										setError('');
-									}}
-									required
-								/>
-								Landlord
-							</label>
-						</div>
-					</div>
+					<QuestionLabel>
+						Are you registering as a homeowner or a landlord?
+					</QuestionLabel>
+					<RadioGrid>
+						<RadioOption>
+							<input
+								type='radio'
+								name='userType'
+								value='homeowner'
+								checked={userType === 'homeowner'}
+								onChange={() => {
+									setUserType('homeowner');
+									setError('');
+								}}
+								required
+							/>
+							Homeowner
+						</RadioOption>
+						<RadioOption>
+							<input
+								type='radio'
+								name='userType'
+								value='landlord'
+								checked={userType === 'landlord'}
+								onChange={() => {
+									setUserType('landlord');
+									setError('');
+								}}
+								required
+							/>
+							Landlord
+						</RadioOption>
+						<RadioOption>
+							<input
+								type='radio'
+								name='userType'
+								value='vehicleOwner'
+								checked={userType === 'vehicleOwner'}
+								onChange={() => {
+									setUserType('vehicleOwner');
+									setError('');
+								}}
+								required
+							/>
+							Vehicle/Equipment Owner
+						</RadioOption>
+						<RadioOption>
+							<input
+								type='radio'
+								name='userType'
+								value='tenant'
+								checked={userType === 'tenant'}
+								onChange={() => {
+									setUserType('tenant');
+									setError('');
+								}}
+								required
+							/>
+							Tenant
+						</RadioOption>
+						<RadioOption>
+							<input
+								type='radio'
+								name='userType'
+								value='contractor'
+								checked={userType === 'contractor'}
+								onChange={() => {
+									setUserType('contractor');
+									setError('');
+								}}
+								required
+							/>
+							Contractor
+						</RadioOption>
+					</RadioGrid>
 					<Submit type='button' onClick={handleNext}>
 						Next
 					</Submit>
@@ -227,9 +270,7 @@ export const RegistrationCard = () => {
 			{/* Step 2: Account Credentials */}
 			{step === 2 && (
 				<>
-					<p style={{ margin: '10px', fontSize: '14px', color: '#666' }}>
-						Create your login credentials
-					</p>
+					<SectionLabel>Create your login credentials</SectionLabel>
 					<Input
 						placeholder='Email Address *'
 						type='email'
@@ -290,33 +331,25 @@ export const RegistrationCard = () => {
 						</PasswordToggleButton>
 					</PasswordInputWrapper>
 					{password && passwordConfirm && (
-						<p
-							style={{
-								margin: '5px 10px',
-								fontSize: '12px',
-								color: confirmed ? '#22c55e' : '#c33',
-							}}>
+						<PasswordMatchText matched={confirmed}>
 							{confirmed ? '✓ Passwords match' : '✗ Passwords do not match'}
-						</p>
+						</PasswordMatchText>
 					)}
-					<div
-						style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
+					<ButtonGroup>
 						<Submit type='button' onClick={handleBack}>
 							Back
 						</Submit>
 						<Submit type='button' onClick={handleNext}>
 							Next
 						</Submit>
-					</div>
+					</ButtonGroup>
 				</>
 			)}
 
 			{/* Step 3: Additional Information (Optional) */}
 			{step === 3 && (
 				<>
-					<p style={{ margin: '10px', fontSize: '14px', color: '#666' }}>
-						Additional information (optional)
-					</p>
+					<SectionLabel>Additional information (optional)</SectionLabel>
 					<Input
 						placeholder='Phone Number (optional)'
 						type='tel'
@@ -331,8 +364,7 @@ export const RegistrationCard = () => {
 						value={address}
 						onChange={(event) => setAddress(event.target.value)}
 					/>
-					<div
-						style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
+					<ButtonGroup>
 						<Submit type='button' onClick={handleBack} disabled={loading}>
 							Back
 						</Submit>
@@ -348,7 +380,7 @@ export const RegistrationCard = () => {
 							{loading && <LoadingSpinner />}
 							{loading ? 'Creating account...' : 'Complete'}
 						</Submit>
-					</div>
+					</ButtonGroup>
 				</>
 			)}
 

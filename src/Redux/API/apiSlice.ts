@@ -10,9 +10,11 @@ import {
 	updateDoc,
 	deleteDoc,
 	addDoc,
+	setDoc,
 } from 'firebase/firestore';
 import { db, auth } from '../../config/firebase';
 import { User } from '../Slices/userSlice';
+import { TenantProfile } from '../../types/TenantProfile.types';
 
 // Types
 export type SharePermission = 'admin' | 'viewer';
@@ -65,7 +67,8 @@ export interface Notification {
 		| 'team_group_deleted'
 		| 'maintenance_request'
 		| 'maintenance_request_created'
-		| 'other';
+		| 'other'
+		| 'property_shared';
 	title: string;
 	message: string;
 	data?: {
@@ -315,6 +318,7 @@ export const apiSlice = createApi({
 		'PropertyShares',
 		'UserInvitations',
 		'Notifications',
+		'TenantProfiles',
 	],
 	endpoints: (builder) => ({
 		// Property Group endpoints
@@ -2070,6 +2074,114 @@ export const apiSlice = createApi({
 				}
 			},
 		}),
+
+		// Tenant Profiles
+		getTenantProfile: builder.query<TenantProfile, string>({
+			async queryFn(userId) {
+				try {
+					const profileDoc = await getDoc(doc(db, 'tenantProfiles', userId));
+
+					if (!profileDoc.exists()) {
+						return { error: 'Tenant profile not found' };
+					}
+
+					return {
+						data: { id: profileDoc.id, ...profileDoc.data() } as TenantProfile,
+					};
+				} catch (error: any) {
+					return { error: error.message };
+				}
+			},
+			providesTags: ['TenantProfiles'],
+		}),
+
+		createTenantProfile: builder.mutation<
+			TenantProfile,
+			Partial<TenantProfile>
+		>({
+			async queryFn(profileData) {
+				try {
+					if (!profileData.userId) {
+						return { error: 'User ID is required' };
+					}
+
+					const now = new Date().toISOString();
+					const newProfile: Partial<TenantProfile> = {
+						...profileData,
+						createdAt: now,
+						updatedAt: now,
+						profileCompleteness: 0,
+					};
+
+					// Use userId as document ID for easy lookup
+					await setDoc(
+						doc(db, 'tenantProfiles', profileData.userId),
+						newProfile,
+					);
+
+					return {
+						data: { id: profileData.userId, ...newProfile } as TenantProfile,
+					};
+				} catch (error: any) {
+					return { error: error.message };
+				}
+			},
+			invalidatesTags: ['TenantProfiles'],
+		}),
+
+		updateTenantProfile: builder.mutation<
+			TenantProfile,
+			{ userId: string; updates: Partial<TenantProfile> }
+		>({
+			async queryFn({ userId, updates }) {
+				try {
+					const profileRef = doc(db, 'tenantProfiles', userId);
+					const profileSnap = await getDoc(profileRef);
+
+					if (!profileSnap.exists()) {
+						return { error: 'Tenant profile not found' };
+					}
+
+					const updatedData = {
+						...updates,
+						updatedAt: new Date().toISOString(),
+					};
+
+					await updateDoc(profileRef, updatedData);
+
+					const updatedProfile = {
+						id: userId,
+						...profileSnap.data(),
+						...updatedData,
+					} as TenantProfile;
+
+					return { data: updatedProfile };
+				} catch (error: any) {
+					return { error: error.message };
+				}
+			},
+			invalidatesTags: ['TenantProfiles'],
+		}),
+
+		getPublicTenantProfiles: builder.query<TenantProfile[], void>({
+			async queryFn() {
+				try {
+					const profilesRef = collection(db, 'tenantProfiles');
+					const q = query(profilesRef, where('isPublic', '==', true));
+					const snapshot = await getDocs(q);
+
+					const profiles: TenantProfile[] = snapshot.docs.map((doc) => ({
+						id: doc.id,
+						...doc.data(),
+					})) as TenantProfile[];
+
+					return { data: profiles };
+				} catch (error: any) {
+					return { error: error.message };
+				}
+			},
+			providesTags: ['TenantProfiles'],
+		}),
 	}),
 });
 
@@ -2154,4 +2266,9 @@ export const {
 	useGetUserByEmailQuery,
 	// App Version
 	useGetAppVersionQuery,
+	// Tenant Profiles
+	useGetTenantProfileQuery,
+	useCreateTenantProfileMutation,
+	useUpdateTenantProfileMutation,
+	useGetPublicTenantProfilesQuery,
 } = apiSlice;

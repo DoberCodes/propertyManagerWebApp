@@ -68,6 +68,14 @@ export const SideNav = () => {
 			path: 'report',
 			visible: !isUserTenant && (canAccessProperties || canViewPages),
 		},
+		{
+			label: 'Tenant Profile',
+			path: 'tenant-profile',
+			visible:
+				currentUser?.userType === 'tenant' ||
+				currentUser?.userType === 'Tenant' ||
+				currentUser?.userType === 'Shared Tenant',
+		},
 	];
 
 	return (
@@ -202,6 +210,14 @@ export const MobileNav = () => {
 			label: 'Report',
 			path: 'report',
 			visible: !isUserTenant && (canAccessProperties || canViewPages),
+		},
+		{
+			label: 'Tenant Profile',
+			path: 'tenant-profile',
+			visible:
+				currentUser?.userType === 'tenant' ||
+				currentUser?.userType === 'Tenant' ||
+				currentUser?.userType === 'Shared Tenant',
 		},
 	];
 
