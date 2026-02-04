@@ -8,6 +8,7 @@ import {
 	ContractorCategory,
 } from '../../../types/Contractor.types';
 import { ContractorForm } from './ContractorForm';
+import { DeleteConfirmationModal } from '../../../Components/Library/Modal/DeleteConfirmationModal';
 import styled from 'styled-components';
 
 interface ContractorsTabProps {
@@ -174,19 +175,41 @@ export const ContractorsTab: React.FC<ContractorsTabProps> = ({
 	const [editingContractor, setEditingContractor] = useState<Contractor | null>(
 		null,
 	);
+	const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+	const [contractorToDelete, setContractorToDelete] =
+		useState<Contractor | null>(null);
 
-	const { data: contractors = [], isLoading } =
-		useGetContractorsByPropertyQuery(propertyId);
-	const [deleteContractor] = useDeleteContractorMutation();
+	const {
+		data: contractors = [],
+		isLoading,
+		error,
+	} = useGetContractorsByPropertyQuery(propertyId, {
+		skip: !propertyId,
+	});
+	const [deleteContractor, { isLoading: isDeleting }] =
+		useDeleteContractorMutation();
 
-	const handleDelete = async (contractorId: string) => {
-		if (window.confirm('Are you sure you want to delete this contractor?')) {
-			try {
-				await deleteContractor(contractorId).unwrap();
-			} catch (error) {
-				console.error('Failed to delete contractor:', error);
-			}
+	const handleDeleteClick = (contractor: Contractor) => {
+		setContractorToDelete(contractor);
+		setIsDeleteModalOpen(true);
+	};
+
+	const handleDeleteConfirm = async () => {
+		if (!contractorToDelete) {
+			return;
 		}
+		try {
+			await deleteContractor(contractorToDelete.id).unwrap();
+			setIsDeleteModalOpen(false);
+			setContractorToDelete(null);
+		} catch (error) {
+			console.error('Failed to delete contractor:', error);
+		}
+	};
+
+	const handleDeleteCancel = () => {
+		setIsDeleteModalOpen(false);
+		setContractorToDelete(null);
 	};
 
 	const handleEdit = (contractor: Contractor) => {
@@ -204,12 +227,42 @@ export const ContractorsTab: React.FC<ContractorsTabProps> = ({
 		setEditingContractor(null);
 	};
 
+	if (!propertyId) {
+		return (
+			<EmptyState>
+				<p>Property not loaded yet.</p>
+				<p>Please try again in a moment.</p>
+			</EmptyState>
+		);
+	}
+
 	if (isLoading) {
 		return <LoadingSpinner>Loading contractors...</LoadingSpinner>;
 	}
 
+	if (error) {
+		return (
+			<EmptyState>
+				<p>Unable to load contractors.</p>
+				<p>Please try again in a moment.</p>
+			</EmptyState>
+		);
+	}
+
 	return (
 		<ContainerStyled>
+			<DeleteConfirmationModal
+				isOpen={isDeleteModalOpen}
+				itemName={
+					contractorToDelete
+						? `${contractorToDelete.company} - ${contractorToDelete.name}`
+						: 'this contractor'
+				}
+				itemType='contractor'
+				onConfirm={handleDeleteConfirm}
+				onCancel={handleDeleteCancel}
+				isLoading={isDeleting}
+			/>
 			<HeaderContainer>
 				<h2>Contractors & Vendors</h2>
 				<AddButton onClick={handleAddNew}>+ Add Contractor</AddButton>
@@ -266,7 +319,7 @@ export const ContractorsTab: React.FC<ContractorsTabProps> = ({
 											</button>
 											<button
 												className='delete'
-												onClick={() => handleDelete(contractor.id)}>
+												onClick={() => handleDeleteClick(contractor)}>
 												Delete
 											</button>
 										</ActionButtons>

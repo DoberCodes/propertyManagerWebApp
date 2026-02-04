@@ -956,7 +956,6 @@ export const apiSlice = createApi({
 					const contractorQuery = query(
 						collection(db, 'contractors'),
 						where('propertyId', '==', propertyId),
-						orderBy('createdAt', 'desc'),
 					);
 					const snapshot = await getDocs(contractorQuery);
 					const contractors = snapshot.docs.map((doc) => ({
