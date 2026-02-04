@@ -480,7 +480,6 @@ print_header "Step 9: Creating GitHub Release"
 RELEASE_NOTES_FILE="RELEASE_NOTES.txt"
 APK_FILE="android/app/build/outputs/apk/release/app-release.apk"
 APK_ASSET_NAME="PropertyManager.apk"
-APK_VERSIONED_NAME="PropertyManager-$NEW_VERSION.apk"
 REPO_NAME=${GITHUB_REPOSITORY:-$(gh repo view --json nameWithOwner -q .nameWithOwner)}
 
 if [ -f "$RELEASE_NOTES_FILE" ] && [ -f "$APK_FILE" ]; then
@@ -503,25 +502,22 @@ if [ -f "$RELEASE_NOTES_FILE" ] && [ -f "$APK_FILE" ]; then
   fi
 
   if [ -f "$APK_FILE" ]; then
-    # Create temp files with desired asset names for upload
+    # Create temp file with latest APK name for upload
     TMP_DIR="tmp"
     LATEST_APK_PATH="$TMP_DIR/$APK_ASSET_NAME"
-    VERSIONED_APK_PATH="$TMP_DIR/$APK_VERSIONED_NAME"
     mkdir -p "$TMP_DIR"
     cp "$APK_FILE" "$LATEST_APK_PATH"
-    cp "$APK_FILE" "$VERSIONED_APK_PATH"
 
     if run_gh_with_refresh gh release upload "v$NEW_VERSION" \
       "$LATEST_APK_PATH" \
-      "$VERSIONED_APK_PATH" \
       --repo "$REPO_NAME" --clobber; then
-      print_success "APK uploaded to GitHub release (latest + versioned)"
+      print_success "Latest APK uploaded to GitHub release"
     else
       print_warning "Could not upload APK to release. You can upload it manually from GitHub."
     fi
 
     # Cleanup temp files
-    rm -f "$LATEST_APK_PATH" "$VERSIONED_APK_PATH"
+    rm -f "$LATEST_APK_PATH"
   else
     print_warning "APK file not found. Cannot upload to release."
   fi
