@@ -116,34 +116,39 @@ const LandingPageComponent = () => {
 					<StoryContent>
 						<StoryTitle>How It All Started</StoryTitle>
 						<StoryText>
-							We are a small-town company with a big heart. Our founder,
-							inspired by the challenges faced by local homeowners and small
-							business owners, is creating solutions that offer a helping hand
-							without breaking the bank.
+							We’re a small-town company built on a simple idea: the people who
+							do the most don’t always have the biggest budgets—and they deserve
+							better tools.
 						</StoryText>
 						<StoryText>
-							With a focus on simplicity and affordability, we provide tools
-							designed to bring peace of mind to those juggling property
-							management tasks. Whether you're a homeowner, a small landlord, or
-							a DIYer, our mission is to make your life easier, one step at a
+							Our founder saw firsthand how local homeowners, small landlords,
+							and hands-on business owners were stretched thin, juggling
+							repairs, maintenance, and responsibilities with little help. So we
+							set out to create something different—solutions that feel like a
+							helping hand, not another expense.
+						</StoryText>
+						<StoryText>
+							We focus on keeping things simple, affordable, and genuinely
+							useful. No fluff. No over complication. Just tools that bring
+							peace of mind and help you stay on top of what matters.
+						</StoryText>
+						<StoryText>
+							Today, homeowners, small landlords, DIYers, and even vehicle and
+							equipment owners use our platform to manage what they own—without
+							the stress. From tracking property tasks to remembering vehicle
+							maintenance or keeping your lawn equipment in shape, everything
+							lives in one easy place.
+						</StoryText>
+						<StoryText>
+							Whether you’re managing a rental, taking care of your family car,
+							or making sure your tools are ready for the next job, we’re here
+							to make life a little easier—one task, one reminder, one win at a
 							time.
 						</StoryText>
 						<StoryText>
-							Homeowners, small landlords, DIYers, and now vehicle and equipment
-							owners are using our platform to manage their assets stress-free.
-							We are continuously improving and building this with you in mind.
-						</StoryText>
-						<StoryText>
-							Our platform meets the needs of not just homeowners and landlords,
-							but also vehicle and equipment owners. Whether you're managing a
-							property, maintaining a car, or keeping your lawnmower in top
-							shape, we've got you covered.
-						</StoryText>
-						<StoryText>
-							We include tailored features for tracking vehicle maintenance,
-							scheduling equipment servicing, and ensuring everything you own is
-							in its best condition. We simplify your life, no matter what you
-							manage.
+							And we’re not done. We’re constantly improving, listening, and
+							building alongside the people who use our platform—because this
+							was made for you.
 						</StoryText>
 					</StoryContent>
 				</StorySection>
