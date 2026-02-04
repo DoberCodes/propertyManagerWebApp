@@ -43,16 +43,31 @@ import {
 	DownloadButton,
 	DownloadInfo,
 	InfoItem,
+	VersionStatus,
 	FooterCopyright,
 } from './LandingPage.styles';
 
 import packageJson from '../../../package.json';
 import { getAPKFileSize, getAPKDownloadURL } from '../../utils/versionCheck';
 
+const formatBytes = (bytes: number) => {
+	var marker = 1024;
+	var decimal = 2;
+	var kiloBytes = marker;
+	var megaBytes = marker * marker;
+
+	if (bytes < kiloBytes) return bytes + ' Bytes';
+	else if (bytes < megaBytes)
+		return (bytes / kiloBytes).toFixed(decimal) + ' KB';
+	else return (bytes / megaBytes).toFixed(decimal) + ' MB';
+};
+
 const LandingPageComponent = () => {
 	const navigate = useNavigate();
 	const apkDownloadUrl = getAPKDownloadURL();
-	const versionedApkDownloadUrl = `https://github.com/DoberCodes/propertyManagerWebApp/releases/latest/download/PropertyManager-${packageJson.version}.apk`;
+	// Use previous version (1.7.3) for the versioned APK download
+	const previousVersion = '1.7.3';
+	const versionedApkDownloadUrl = `https://github.com/DoberCodes/propertyManagerWebApp/releases/download/v${previousVersion}/PropertyManager-${previousVersion}.apk`;
 	const [formData, setFormData] = useState({
 		name: '',
 		email: '',
@@ -64,13 +79,60 @@ const LandingPageComponent = () => {
 	>('idle');
 
 	const [apkFileSize, setApkFileSize] = useState('Unknown');
+	const [versionedApkFileSize, setVersionedApkFileSize] = useState('Unknown');
+	const [isCurrentVersionLatest, setIsCurrentVersionLatest] = useState(true);
 
 	useEffect(() => {
-		const fetchFileSize = async () => {
-			const size = await getAPKFileSize();
-			setApkFileSize(size);
+		const fetchFileSizesAndVersionInfo = async () => {
+			try {
+				// Fetch latest release info
+				const releaseResponse = await fetch(
+					'https://api.github.com/repos/DoberCodes/propertyManagerWebApp/releases/latest',
+				);
+				if (releaseResponse.ok) {
+					const release = await releaseResponse.json();
+					const latestVersion = release.tag_name.replace('v', '');
+					setIsCurrentVersionLatest(latestVersion === packageJson.version);
+
+					// Get file sizes for both APKs
+					const assets = release.assets || [];
+					const latestApk = assets.find(
+						(asset) => asset.name === 'PropertyManager.apk',
+					);
+
+					// For versioned APK, fetch the previous version release
+					const previousReleaseResponse = await fetch(
+						`https://api.github.com/repos/DoberCodes/propertyManagerWebApp/releases/tags/v${previousVersion}`,
+					);
+					let versionedApkSize = null;
+					if (previousReleaseResponse.ok) {
+						const previousRelease = await previousReleaseResponse.json();
+						const previousAssets = previousRelease.assets || [];
+						const versionedApk = previousAssets.find(
+							(asset) =>
+								asset.name === `PropertyManager-${previousVersion}.apk`,
+						);
+						if (versionedApk?.size) {
+							versionedApkSize = versionedApk.size;
+						}
+					}
+
+					if (latestApk?.size) {
+						setApkFileSize(formatBytes(latestApk.size));
+					}
+					if (versionedApkSize) {
+						setVersionedApkFileSize(formatBytes(versionedApkSize));
+					}
+				}
+			} catch (error) {
+				console.warn('Error fetching version info:', error);
+				// Fallback to basic file size fetching
+				const size = await getAPKFileSize();
+				setApkFileSize(size);
+				setVersionedApkFileSize(size);
+			}
 		};
-		fetchFileSize();
+		fetchFileSizesAndVersionInfo();
 	}, []);
 
 	const handleInputChange = (
@@ -333,10 +395,10 @@ const LandingPageComponent = () => {
 							Available on Android — download and get settled in.
 						</DownloadSubtext>
 						<DownloadButton href={apkDownloadUrl} download>
-							📱 Download APK (stable)
+							📱 Download Latest APK ({apkFileSize})
 						</DownloadButton>
 						<DownloadButton href={versionedApkDownloadUrl} download>
-							📦 Download APK v{packageJson.version}
+							📦 Download v{previousVersion} APK ({versionedApkFileSize})
 						</DownloadButton>
 						<DownloadInfo>
 							<InfoItem>
@@ -349,7 +411,7 @@ const LandingPageComponent = () => {
 							</InfoItem>
 							<InfoItem>
 								<strong>Version</strong>
-								<span>{packageJson.version}</span>
+								<span>{`${packageJson.version} (latest)`}</span>
 							</InfoItem>
 						</DownloadInfo>
 					</DownloadContainer>

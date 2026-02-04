@@ -1053,7 +1053,7 @@ export const DownloadButton = styled.a`
 	font-weight: 600;
 	border-radius: 8px;
 	text-decoration: none;
-	margin: 0 10px;
+	margin: 10px 10px;
 	transition: all 0.3s ease;
 	border: 2px solid white;
 	cursor: pointer;
@@ -1103,6 +1103,23 @@ export const InfoItem = styled.div`
 	span {
 		font-size: 14px;
 		color: rgba(255, 255, 255, 0.7);
+	}
+`;
+
+export const VersionStatus = styled.div`
+	margin-top: 20px;
+	padding: 12px 20px;
+	background: rgba(255, 255, 255, 0.1);
+	border-radius: 6px;
+	font-size: 14px;
+	color: rgba(255, 255, 255, 0.9);
+	text-align: center;
+	border: 1px solid rgba(255, 255, 255, 0.2);
+
+	@media (max-width: 768px) {
+		font-size: 13px;
+		padding: 10px 16px;
+		margin-top: 16px;
 	}
 `;
 

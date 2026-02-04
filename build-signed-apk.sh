@@ -312,14 +312,32 @@ fi
 print_success "React app built successfully"
 
 echo ""
-print_header "Step 2: Syncing Capacitor"
-npx cap sync || {
-  print_warning "Capacitor sync had warnings/errors, continuing anyway..."
-}
-print_success "Capacitor synced"
+print_header "Step 2.5: Updating Version Files Before Build"
+if [[ "$DRY_RUN" != "--dry-run" && "$DRY_RUN" != "-d" ]]; then
+  node scripts/updateAppVersion.cjs "$NEW_VERSION" "$RELEASE_NOTES"
+  print_success "Version updated to $NEW_VERSION in Firestore"
+  
+  # Update package.json version
+  node -e "const pkg = require('./package.json'); pkg.version = '$NEW_VERSION'; require('fs').writeFileSync('./package.json', JSON.stringify(pkg, null, '\t') + '\n');"
+  node -e "const pkg = require('./client/package.json'); pkg.version = '$NEW_VERSION'; require('fs').writeFileSync('./client/package.json', JSON.stringify(pkg, null, '\t') + '\n');"
+  print_success "Version updated to $NEW_VERSION in package.json"
+  
+  # Update the hardcoded version in versionCheck.ts
+  sed -i "s/const CURRENT_APP_VERSION = '[^']*';/const CURRENT_APP_VERSION = '$NEW_VERSION';/" src/utils/versionCheck.ts
+  print_success "Updated CURRENT_APP_VERSION in versionCheck.ts"
+  
+  # Update Android versionCode and versionName in build.gradle BEFORE building APK
+  CURRENT_VERSION_CODE=$(grep -oP 'versionCode \K\d+' android/app/build.gradle)
+  NEW_VERSION_CODE=$((CURRENT_VERSION_CODE + 1))
+  sed -i "s/versionCode $CURRENT_VERSION_CODE/versionCode $NEW_VERSION_CODE/" android/app/build.gradle
+  sed -i "s/versionName \"[^\"]*\"/versionName \"$NEW_VERSION\"/" android/app/build.gradle
+  print_success "Updated Android versionCode to $NEW_VERSION_CODE and versionName to $NEW_VERSION"
+else
+  print_warning "Skipping version update in dry-run mode"
+fi
 
 echo ""
-print_header "Step 3: Building Signed APK"
+print_header "Step 3: Syncing Capacitor"
 
 # Check keystore file
 if [ ! -f "my-release-key.keystore" ]; then
@@ -357,6 +375,9 @@ else
   KEY_PASSWORD="$KEYSTORE_KEY_PASSWORD"
 fi
 
+echo ""
+print_header "Step 4: Building Signed APK"
+
 # Build APK using Gradle (skip in dry-run)
 if [[ "$DRY_RUN" == "--dry-run" ]]; then
   print_success "APK build skipped (dry-run mode)"
@@ -392,32 +413,7 @@ print_success "APK copied to public folder"
 ls -lh public/PropertyManager.apk
 
 # ========== UPDATE VERSION FILES ==========
-# Version update happens AFTER successful build to prevent version bumps on build failures
-echo ""
-print_header "Step 4.5: Updating Version Files"
-if [[ "$DRY_RUN" != "--dry-run" && "$DRY_RUN" != "-d" ]]; then
-  node scripts/updateAppVersion.cjs "$NEW_VERSION" "$RELEASE_NOTES"
-  print_success "Version updated to $NEW_VERSION in Firestore"
-  
-  # Update package.json version
-  node -e "const pkg = require('./package.json'); pkg.version = '$NEW_VERSION'; require('fs').writeFileSync('./package.json', JSON.stringify(pkg, null, '\t') + '\n');"
-  node -e "const pkg = require('./client/package.json'); pkg.version = '$NEW_VERSION'; require('fs').writeFileSync('./client/package.json', JSON.stringify(pkg, null, '\t') + '\n');"
-  print_success "Version updated to $NEW_VERSION in package.json"
-  
-  # Update the hardcoded version in versionCheck.ts
-  sed -i "s/const CURRENT_APP_VERSION = '[^']*';/const CURRENT_APP_VERSION = '$NEW_VERSION';/" src/utils/versionCheck.ts
-  print_success "Updated CURRENT_APP_VERSION in versionCheck.ts"
-  
-  # Update Android versionCode and versionName in build.gradle
-  CURRENT_VERSION_CODE=$(grep -oP 'versionCode \K\d+' android/app/build.gradle)
-  NEW_VERSION_CODE=$((CURRENT_VERSION_CODE + 1))
-  sed -i "s/versionCode $CURRENT_VERSION_CODE/versionCode $NEW_VERSION_CODE/" android/app/build.gradle
-  sed -i "s/versionName \"[^\"]*\"/versionName \"$NEW_VERSION\"/" android/app/build.gradle
-  print_success "Updated Android versionCode to $NEW_VERSION_CODE and versionName to $NEW_VERSION"
-else
-  print_warning "Skipping version update in dry-run mode"
-fi
-
+# Version update moved to BEFORE APK build to ensure APK has correct version
 echo ""
 print_header "Step 5: Rebuilding for Web Deployment"
 
