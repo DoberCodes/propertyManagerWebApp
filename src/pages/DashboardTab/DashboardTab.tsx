@@ -14,8 +14,9 @@ import { PageHeaderSection } from '../../Components/Library/PageHeaders';
 import { ZeroState } from '../../Components/Library/ZeroState';
 import {
 	useGetTasksQuery,
-	useGetPropertySharesQuery,
 	useGetPropertiesQuery,
+	useGetSharedPropertiesForUserQuery,
+	useGetAllPropertySharesForUserQuery,
 	useUpdateTaskMutation,
 } from '../../Redux/API/apiSlice';
 import { UserRole } from '../../constants/roles';
@@ -50,7 +51,16 @@ export const DashboardTab = () => {
 
 	// Fetch tasks and properties from Firebase
 	const { data: allTasks = [] } = useGetTasksQuery();
-	const { data: allProperties = [] } = useGetPropertiesQuery();
+	const { data: ownedProperties = [] } = useGetPropertiesQuery();
+	const { data: sharedProperties = [] } = useGetSharedPropertiesForUserQuery(
+		currentUser?.id || '',
+		{ skip: !currentUser?.id },
+	);
+
+	// Combine owned and shared properties for task assignment
+	const allProperties = useMemo(() => {
+		return [...ownedProperties, ...sharedProperties];
+	}, [ownedProperties, sharedProperties]);
 
 	// Firebase mutations
 	const [updateTaskMutation] = useUpdateTaskMutation();
@@ -127,7 +137,7 @@ export const DashboardTab = () => {
 	console.info(tempUnit);
 
 	// Fetch all property shares for dropdown options
-	const { data: propertyShares = [] } = useGetPropertySharesQuery('all');
+	const { data: propertyShares = [] } = useGetAllPropertySharesForUserQuery();
 
 	const handleTempUnit = (unit: 'C' | 'F') => {
 		setTempUnit(unit);
@@ -181,11 +191,16 @@ export const DashboardTab = () => {
 
 			if (!taskProperty) return assignees;
 
+			// Get owner name from property or current user
+			const ownerName =
+				taskProperty.owner ||
+				`${currentUser?.firstName} ${currentUser?.lastName}`;
+
 			// For homeowners: owner + people shared with property
 			if (currentUserType === 'homeowner') {
 				// Add owner
-				if (currentUser?.firstName && currentUser?.lastName) {
-					assignees.push(`${currentUser.firstName} ${currentUser.lastName}`);
+				if (ownerName) {
+					assignees.push(ownerName);
 				}
 
 				// Add shared users for this property
@@ -193,15 +208,17 @@ export const DashboardTab = () => {
 					(share) => share.propertyId === taskProperty.id,
 				);
 				sharedUsers.forEach((share) => {
-					if (share.sharedWithEmail) {
-						assignees.push(share.sharedWithEmail.split('@')[0]);
-					}
+					const fullName =
+						share.sharedWithFirstName && share.sharedWithLastName
+							? `${share.sharedWithFirstName} ${share.sharedWithLastName}`
+							: share.sharedWithEmail?.split('@')[0] || 'Shared User';
+					assignees.push(fullName);
 				});
 			} else {
 				// For landlords: owner + people shared with property + team assigned to property
 				// Add owner
-				if (currentUser?.firstName && currentUser?.lastName) {
-					assignees.push(`${currentUser.firstName} ${currentUser.lastName}`);
+				if (ownerName) {
+					assignees.push(ownerName);
 				}
 
 				// Add shared users for this property
@@ -209,9 +226,11 @@ export const DashboardTab = () => {
 					(share) => share.propertyId === taskProperty.id,
 				);
 				sharedUsers.forEach((share) => {
-					if (share.sharedWithEmail) {
-						assignees.push(share.sharedWithEmail.split('@')[0]);
-					}
+					const fullName =
+						share.sharedWithFirstName && share.sharedWithLastName
+							? `${share.sharedWithFirstName} ${share.sharedWithLastName}`
+							: share.sharedWithEmail?.split('@')[0] || 'Shared User';
+					assignees.push(fullName);
 				});
 
 				// Add team members assigned to this property

@@ -656,3 +656,17 @@ export const InfoValue = styled.span`
 	color: #1f2937;
 	word-break: break-word;
 `;
+
+export const TabContentContainer = styled.div`
+	padding: 1.5rem;
+	flex: 1;
+	min-height: 0;
+
+	@media (max-width: 768px) {
+		padding: 1rem;
+	}
+
+	@media (max-width: 480px) {
+		padding: 0.75rem;
+	}
+`;

@@ -9,6 +9,7 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import { PropertyDetailPageProps } from '../../types/PropertyDetailPage.types';
 import { RootState } from '../../Redux/store/store';
+import { User } from '../../Redux/Slices/userSlice';
 import { useTaskHandlers } from './useTaskHandlers';
 import { usePropertyEditHandlers } from './usePropertyEditHandlers';
 import { useMaintenanceRequestHandlers } from './useMaintenanceRequestHandlers';
@@ -63,6 +64,7 @@ import {
 	EditableTitleInput,
 	PencilIcon,
 	TabControlsContainer,
+	TabContentContainer,
 } from './PropertyDetailPage.styles';
 import {
 	DetailsTab,
@@ -304,6 +306,58 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 		useGetMaintenanceHistoryByPropertyQuery(property?.id || '', {
 			skip: !property?.id,
 		});
+
+	// Get property shares for assignee options
+	const { data: currentPropertyShares = [] } = useGetPropertySharesQuery(
+		property?.id || '',
+		{ skip: !property?.id },
+	);
+
+	// Generate assignee options for task editing
+	const assigneeOptions = useMemo(() => {
+		const assignees: Array<{ label: string; value: string }> = [];
+
+		// Add property owner
+		const ownerName =
+			property?.owner || `${currentUser?.firstName} ${currentUser?.lastName}`;
+		if (ownerName) {
+			assignees.push({
+				label: ownerName,
+				value: currentUser?.id || '',
+			});
+		}
+
+		// Add shared users
+		currentPropertyShares.forEach((share) => {
+			const fullName =
+				share.sharedWithFirstName && share.sharedWithLastName
+					? `${share.sharedWithFirstName} ${share.sharedWithLastName}`
+					: share.sharedWithEmail?.split('@')[0] || 'Shared User';
+			assignees.push({
+				label: fullName,
+				value: share.sharedWithUserId || share.sharedWithEmail,
+			});
+		});
+
+		// Add team members
+		teamMembers
+			.filter((member): member is TeamMember => member !== undefined)
+			.forEach((member) => {
+				assignees.push({
+					label:
+						`${member.firstName || ''} ${member.lastName || ''} (${member.title || ''})`.trim(),
+					value: member.id,
+				});
+			});
+
+		// Remove duplicates based on value
+		const uniqueAssignees = assignees.filter(
+			(assignee, index, self) =>
+				index === self.findIndex((a) => a.value === assignee.value),
+		);
+
+		return uniqueAssignees;
+	}, [property, currentUser, currentPropertyShares, teamMembers]);
 
 	// Helper function for property field value - use util if not in edit mode
 	const getPropertyFieldValue = (field: string) => {
@@ -868,73 +922,76 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 				/>
 			</TabControlsContainer>
 
-			{/* Details Tab */}
-			{activeTab === 'details' && (
-				<DetailsTab
-					isEditMode={isEditMode}
-					setIsEditMode={setIsEditMode}
-					property={property}
-					getPropertyFieldValue={getPropertyFieldValue}
-					handlePropertyFieldChange={handlePropertyFieldChange}
-				/>
-			)}
+			{/* Tab Content Container */}
+			<TabContentContainer>
+				{/* Details Tab */}
+				{activeTab === 'details' && (
+					<DetailsTab
+						isEditMode={isEditMode}
+						setIsEditMode={setIsEditMode}
+						property={property}
+						getPropertyFieldValue={getPropertyFieldValue}
+						handlePropertyFieldChange={handlePropertyFieldChange}
+					/>
+				)}
 
-			{/* Suites Tab */}
-			{activeTab === 'suites' &&
-				property?.propertyType === 'Commercial' &&
-				property?.hasSuites && <SuitesTab property={property} />}
+				{/* Suites Tab */}
+				{activeTab === 'suites' &&
+					property?.propertyType === 'Commercial' &&
+					property?.hasSuites && <SuitesTab property={property} />}
 
-			{/* Tasks Tab */}
-			{activeTab === 'tasks' && (
-				<TasksTab
-					propertyTasks={propertyTasks}
-					selectedTasks={selectedTasks}
-					setSelectedTasks={setSelectedTasks}
-					handleTaskCheckbox={handleTaskCheckbox}
-					handleCreateTask={handleCreateTask}
-					handleEditTask={handleEditTask}
-					handleAssignTask={handleAssignTask}
-					handleCompleteTask={handleCompleteTask}
-					handleDeleteTask={handleDeleteTask}
-				/>
-			)}
+				{/* Tasks Tab */}
+				{activeTab === 'tasks' && (
+					<TasksTab
+						propertyTasks={propertyTasks}
+						selectedTasks={selectedTasks}
+						setSelectedTasks={setSelectedTasks}
+						handleTaskCheckbox={handleTaskCheckbox}
+						handleCreateTask={handleCreateTask}
+						handleEditTask={handleEditTask}
+						handleAssignTask={handleAssignTask}
+						handleCompleteTask={handleCompleteTask}
+						handleDeleteTask={handleDeleteTask}
+					/>
+				)}
 
-			{/* Maintenance History Tab */}
-			{activeTab === 'maintenance' && (
-				<MaintenanceTab
-					property={property}
-					maintenanceHistoryRecords={maintenanceHistoryRecords}
-				/>
-			)}
+				{/* Maintenance History Tab */}
+				{activeTab === 'maintenance' && (
+					<MaintenanceTab
+						property={property}
+						maintenanceHistoryRecords={maintenanceHistoryRecords}
+					/>
+				)}
 
-			{/* Tenants Tab */}
-			{activeTab === 'tenants' && !hasCommercialSuites && (
-				<TenantsTab
-					property={property}
-					currentUser={currentUser}
-					setShowAddTenantModal={setShowAddTenantModal}
-				/>
-			)}
+				{/* Tenants Tab */}
+				{activeTab === 'tenants' && !hasCommercialSuites && (
+					<TenantsTab
+						property={property}
+						currentUser={currentUser}
+						setShowAddTenantModal={setShowAddTenantModal}
+					/>
+				)}
 
-			{/* Units Tab */}
-			{activeTab === 'units' && property?.propertyType === 'Multi-Family' && (
-				<UnitsTab property={property} />
-			)}
+				{/* Units Tab */}
+				{activeTab === 'units' && property?.propertyType === 'Multi-Family' && (
+					<UnitsTab property={property} />
+				)}
 
-			{/* Maintenance Requests Tab */}
-			{activeTab === 'requests' && (
-				<RequestsTab
-					propertyMaintenanceRequests={propertyMaintenanceRequests}
-					currentUser={currentUser}
-					canApproveMaintenanceRequest={canApproveMaintenanceRequest}
-					handleConvertRequestToTask={handleConvertRequestToTask}
-				/>
-			)}
+				{/* Maintenance Requests Tab */}
+				{activeTab === 'requests' && (
+					<RequestsTab
+						propertyMaintenanceRequests={propertyMaintenanceRequests}
+						currentUser={currentUser}
+						canApproveMaintenanceRequest={canApproveMaintenanceRequest}
+						handleConvertRequestToTask={handleConvertRequestToTask}
+					/>
+				)}
 
-			{/* Contractors Tab */}
-			{activeTab === 'contractors' && (
-				<ContractorsTab propertyId={property?.id || ''} />
-			)}
+				{/* Contractors Tab */}
+				{activeTab === 'contractors' && (
+					<ContractorsTab propertyId={property?.id || ''} />
+				)}
+			</TabContentContainer>
 
 			{/* Add Device Dialog */}
 			{showDeviceDialog && (
@@ -1010,13 +1067,7 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 					'Rejected',
 				]}
 				priorityOptions={['Low', 'Medium', 'High', 'Urgent']}
-				assigneeOptions={teamMembers
-					.filter((member): member is TeamMember => member !== undefined)
-					.map((member) => ({
-						label:
-							`${member.firstName || ''} ${member.lastName || ''} (${member.title || ''})`.trim(),
-						value: member.id,
-					}))}
+				assigneeOptions={assigneeOptions}
 			/>
 
 			{/* Task Assignment Dialog */}
@@ -1041,12 +1092,51 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 								const filteredTeamMembers = teamMembers.filter(
 									(m): m is TeamMember => m !== undefined,
 								);
-								let found =
-									filteredTeamMembers.find((m) => m.id === selectedId) ||
-									sharedUsers.find((u) => u.id === selectedId) ||
-									(currentUser && currentUser.id === selectedId
-										? currentUser
-										: null);
+
+								// Check team members
+								let found:
+									| TeamMember
+									| User
+									| {
+											id: string;
+											firstName: string;
+											lastName: string;
+											email: string;
+									  }
+									| null =
+									filteredTeamMembers.find((m) => m.id === selectedId) || null;
+
+								// Check current user (property owner)
+								if (!found && currentUser && currentUser.id === selectedId) {
+									found = currentUser;
+								}
+
+								// Check shared users
+								if (!found) {
+									const sharedUser = currentPropertyShares.find(
+										(share) =>
+											(share.sharedWithUserId || share.sharedWithEmail) ===
+											selectedId,
+									);
+									if (sharedUser) {
+										const fullName =
+											sharedUser.sharedWithFirstName &&
+											sharedUser.sharedWithLastName
+												? `${sharedUser.sharedWithFirstName} ${sharedUser.sharedWithLastName}`
+												: sharedUser.sharedWithEmail?.split('@')[0] ||
+													'Shared User';
+										const nameParts = fullName.split(' ');
+										found = {
+											id:
+												sharedUser.sharedWithUserId ||
+												sharedUser.sharedWithEmail,
+											firstName: nameParts[0] || fullName,
+											lastName: nameParts.slice(1).join(' ') || '',
+											email: sharedUser.sharedWithEmail,
+										};
+									}
+								}
+
 								if (found) {
 									// Safely construct the name property
 									let name = '';
@@ -1081,6 +1171,32 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 								}
 							}}>
 							<option value=''>Select a user...</option>
+							{/* Property owner */}
+							{(() => {
+								const ownerName =
+									property?.owner ||
+									`${currentUser?.firstName} ${currentUser?.lastName}`;
+								const ownerId = currentUser?.id || '';
+								return ownerName ? (
+									<option key={ownerId} value={ownerId}>
+										{ownerName} (Owner)
+									</option>
+								) : null;
+							})()}
+							{/* Shared users */}
+							{currentPropertyShares.map((share) => {
+								const fullName =
+									share.sharedWithFirstName && share.sharedWithLastName
+										? `${share.sharedWithFirstName} ${share.sharedWithLastName}`
+										: share.sharedWithEmail?.split('@')[0] || 'Shared User';
+								return (
+									<option
+										key={share.sharedWithUserId || share.sharedWithEmail}
+										value={share.sharedWithUserId || share.sharedWithEmail}>
+										{fullName} (Shared User)
+									</option>
+								);
+							})}
 							{/* Team members */}
 							{teamMembers
 								.filter((m): m is TeamMember => m !== undefined)
@@ -1089,18 +1205,6 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 										{member.firstName} {member.lastName} ({member.title})
 									</option>
 								))}
-							{/* Shared users */}
-							{sharedUsers.map((user) => (
-								<option key={user.id} value={user.id}>
-									{user.firstName} {user.lastName} (Shared User)
-								</option>
-							))}
-							{/* Current user (self) */}
-							{currentUser && (
-								<option key={currentUser.id} value={currentUser.id}>
-									{currentUser.firstName} {currentUser.lastName} (You)
-								</option>
-							)}
 						</FormSelect>
 					</FormGroup>
 				</GenericModal>

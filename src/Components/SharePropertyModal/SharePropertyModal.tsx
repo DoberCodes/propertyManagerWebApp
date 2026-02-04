@@ -151,218 +151,225 @@ export const SharePropertyModal: React.FC<SharePropertyModalProps> = ({
 	if (!open) return null;
 
 	return (
-		<GenericModal
-			isOpen={open}
-			onClose={onClose}
-			title='Share Property'
-			secondaryButtonLabel='Close'
-			secondaryButtonAction={onClose}>
-			<PropertyTitle>{propertyTitle}</PropertyTitle>
+		<SharePropertyModalWrapper>
+			<GenericModal
+				isOpen={open}
+				onClose={onClose}
+				title='Share Property'
+				secondaryButtonLabel='Close'
+				secondaryButtonAction={onClose}>
+				<PropertyTitle>{propertyTitle}</PropertyTitle>
 
-			{error && (
-				<Alert type='error'>
-					{error}
-					<CloseAlertButton onClick={() => setError('')}>×</CloseAlertButton>
-				</Alert>
-			)}
+				{error && (
+					<Alert type='error'>
+						{error}
+						<CloseAlertButton onClick={() => setError('')}>×</CloseAlertButton>
+					</Alert>
+				)}
 
-			{success && (
-				<Alert type='success'>
-					{success}
-					<CloseAlertButton onClick={() => setSuccess('')}>×</CloseAlertButton>
-				</Alert>
-			)}
+				{success && (
+					<Alert type='success'>
+						{success}
+						<CloseAlertButton onClick={() => setSuccess('')}>
+							×
+						</CloseAlertButton>
+					</Alert>
+				)}
 
-			{/* Invite New User */}
-			<Section>
-				<SectionTitle>Invite User</SectionTitle>
-				<InviteForm>
-					<Input
-						type='email'
-						value={email}
-						onChange={(e) => setEmail(e.target.value)}
-						placeholder='user@example.com'
-					/>
-					<Select
-						value={permission}
-						onChange={(e) =>
-							setPermission(e.target.value as 'admin' | 'viewer')
-						}>
-						<option value={SHARE_PERMISSIONS.VIEWER}>
-							{getSharePermissionLabel(SHARE_PERMISSIONS.VIEWER)}
-						</option>
-						<option value={SHARE_PERMISSIONS.ADMIN}>
-							{getSharePermissionLabel(SHARE_PERMISSIONS.ADMIN)}
-						</option>
-					</Select>
-					<Button onClick={handleSendInvitation} disabled={isSending || !email}>
-						{isSending ? (
-							<FontAwesomeIcon icon={faSpinner} spin />
-						) : (
-							<>
-								<FontAwesomeIcon icon={faUserPlus} /> Invite
-							</>
-						)}
-					</Button>
-				</InviteForm>
-				<HelperText>
-					<strong>Admin:</strong> Can view and edit property details
-					<br />
-					<strong>Viewer:</strong> Can only view property details
-				</HelperText>
-			</Section>
+				{/* Invite New User */}
+				<Section>
+					<SectionTitle>Invite User</SectionTitle>
+					<InviteForm>
+						<Input
+							type='email'
+							value={email}
+							onChange={(e) => setEmail(e.target.value)}
+							placeholder='user@example.com'
+						/>
+						<Select
+							value={permission}
+							onChange={(e) =>
+								setPermission(e.target.value as 'admin' | 'viewer')
+							}>
+							<option value={SHARE_PERMISSIONS.VIEWER}>
+								{getSharePermissionLabel(SHARE_PERMISSIONS.VIEWER)}
+							</option>
+							<option value={SHARE_PERMISSIONS.ADMIN}>
+								{getSharePermissionLabel(SHARE_PERMISSIONS.ADMIN)}
+							</option>
+						</Select>
+						<Button
+							onClick={handleSendInvitation}
+							disabled={isSending || !email}>
+							{isSending ? (
+								<FontAwesomeIcon icon={faSpinner} spin />
+							) : (
+								<>
+									<FontAwesomeIcon icon={faUserPlus} /> Invite
+								</>
+							)}
+						</Button>
+					</InviteForm>
+					<HelperText>
+						<strong>Admin:</strong> Can view and edit property details
+						<br />
+						<strong>Viewer:</strong> Can only view property details
+					</HelperText>
+				</Section>
 
-			{/* Current Shares */}
-			<Section>
-				<SectionTitle>Shared With ({shares.length})</SectionTitle>
-				{isLoading ? (
-					<LoadingContainer>
-						<FontAwesomeIcon icon={faSpinner} spin size='2x' />
-					</LoadingContainer>
-				) : shares.length === 0 ? (
-					<EmptyState>
-						This property hasn't been shared with anyone yet.
-					</EmptyState>
-				) : (
-					<SharesList>
-						{shares.map((share: PropertyShare) => (
-							<ShareItem key={share.id}>
-								<ShareInfo>
-									<ShareEmail>{share.sharedWithEmail}</ShareEmail>
-									{editingShareId === share.id ? (
-										<div style={{ marginTop: '8px' }}>
-											<Select
-												value={share.permission}
-												onChange={(e) =>
-													handleUpdateShare(
-														share.id,
-														e.target.value as 'admin' | 'viewer',
-													)
-												}
+				{/* Current Shares */}
+				<Section>
+					<SectionTitle>Shared With ({shares.length})</SectionTitle>
+					{isLoading ? (
+						<LoadingContainer>
+							<FontAwesomeIcon icon={faSpinner} spin size='2x' />
+						</LoadingContainer>
+					) : shares.length === 0 ? (
+						<EmptyState>
+							This property hasn't been shared with anyone yet.
+						</EmptyState>
+					) : (
+						<SharesList>
+							{shares.map((share: PropertyShare) => (
+								<ShareItem key={share.id}>
+									<ShareInfo>
+										<ShareEmail>{share.sharedWithEmail}</ShareEmail>
+										{editingShareId === share.id ? (
+											<div style={{ marginTop: '4px' }}>
+												<Select
+													value={share.permission}
+													onChange={(e) =>
+														handleUpdateShare(
+															share.id,
+															e.target.value as 'admin' | 'viewer',
+														)
+													}
+													disabled={isUpdating}>
+													<option value={SHARE_PERMISSIONS.VIEWER}>
+														{getSharePermissionLabel(SHARE_PERMISSIONS.VIEWER)}
+													</option>
+													<option value={SHARE_PERMISSIONS.ADMIN}>
+														{getSharePermissionLabel(SHARE_PERMISSIONS.ADMIN)}
+													</option>
+												</Select>
+											</div>
+										) : (
+											<Badge
+												color={
+													share.permission === 'admin' ? 'primary' : 'default'
+												}>
+												{getSharePermissionLabel(share.permission)}
+											</Badge>
+										)}
+									</ShareInfo>
+									<ShareActions>
+										{editingShareId === share.id ? (
+											<SecondaryButton
+												onClick={() => setEditingShareId(null)}
 												disabled={isUpdating}>
-												<option value={SHARE_PERMISSIONS.VIEWER}>
-													{getSharePermissionLabel(SHARE_PERMISSIONS.VIEWER)}
-												</option>
-												<option value={SHARE_PERMISSIONS.ADMIN}>
-													{getSharePermissionLabel(SHARE_PERMISSIONS.ADMIN)}
-												</option>
-											</Select>
-										</div>
-									) : (
+												Cancel
+											</SecondaryButton>
+										) : (
+											<>
+												<IconButton
+													onClick={() => setEditingShareId(share.id)}
+													disabled={isDeleting}
+													title='Edit permission'>
+													<FontAwesomeIcon icon={faEdit} />
+												</IconButton>
+												<IconButton
+													onClick={() => handleDeleteShare(share.id)}
+													disabled={isDeleting}
+													title='Revoke access'
+													color='danger'>
+													<FontAwesomeIcon icon={faTrash} />
+												</IconButton>
+											</>
+										)}
+									</ShareActions>
+								</ShareItem>
+							))}
+						</SharesList>
+					)}
+				</Section>
+
+				{/* Invitations Sent */}
+				<Section>
+					<SectionTitle>Invitations ({allInvitations.length})</SectionTitle>
+					{isLoadingInvitations ? (
+						<LoadingContainer>
+							<FontAwesomeIcon icon={faSpinner} spin size='2x' />
+						</LoadingContainer>
+					) : allInvitations.length === 0 ? (
+						<EmptyState>No invitations sent.</EmptyState>
+					) : (
+						<SharesList>
+							{allInvitations.map((invitation: UserInvitation) => (
+								<ShareItem key={invitation.id}>
+									<ShareInfo>
+										<ShareEmail>{invitation.toEmail}</ShareEmail>
 										<Badge
 											color={
-												share.permission === 'admin' ? 'primary' : 'default'
+												invitation.status === 'accepted'
+													? 'success'
+													: invitation.permission === 'admin'
+														? 'primary'
+														: 'default'
 											}>
-											{getSharePermissionLabel(share.permission)}
+											{getSharePermissionLabel(invitation.permission)} •{' '}
+											{invitation.status === 'accepted' ? (
+												<>
+													<FontAwesomeIcon icon={faCheckCircle} /> Accepted
+												</>
+											) : (
+												'Pending'
+											)}
 										</Badge>
-									)}
-								</ShareInfo>
-								<ShareActions>
-									{editingShareId === share.id ? (
-										<SecondaryButton
-											onClick={() => setEditingShareId(null)}
-											disabled={isUpdating}>
-											Cancel
-										</SecondaryButton>
-									) : (
-										<>
+										<PendingText>
+											Sent:{' '}
+											{new Date(invitation.createdAt).toLocaleDateString()} •
+											{invitation.status === 'pending' && (
+												<>
+													Expires:{' '}
+													{new Date(invitation.expiresAt).toLocaleDateString()}
+												</>
+											)}
+										</PendingText>
+									</ShareInfo>
+									{invitation.status === 'pending' && (
+										<ShareActions>
 											<IconButton
-												onClick={() => setEditingShareId(share.id)}
-												disabled={isDeleting}
-												title='Edit permission'>
-												<FontAwesomeIcon icon={faEdit} />
-											</IconButton>
-											<IconButton
-												onClick={() => handleDeleteShare(share.id)}
-												disabled={isDeleting}
-												title='Revoke access'
-												color='danger'>
+												color='danger'
+												onClick={() => handleCancelInvitation(invitation.id)}
+												title='Cancel invitation'
+												disabled={isCanceling}>
 												<FontAwesomeIcon icon={faTrash} />
 											</IconButton>
-										</>
+										</ShareActions>
 									)}
-								</ShareActions>
-							</ShareItem>
-						))}
-					</SharesList>
-				)}
-			</Section>
-
-			{/* Invitations Sent */}
-			<Section>
-				<SectionTitle>Invitations ({allInvitations.length})</SectionTitle>
-				{isLoadingInvitations ? (
-					<LoadingContainer>
-						<FontAwesomeIcon icon={faSpinner} spin size='2x' />
-					</LoadingContainer>
-				) : allInvitations.length === 0 ? (
-					<EmptyState>No invitations sent.</EmptyState>
-				) : (
-					<SharesList>
-						{allInvitations.map((invitation: UserInvitation) => (
-							<ShareItem key={invitation.id}>
-								<ShareInfo>
-									<ShareEmail>{invitation.toEmail}</ShareEmail>
-									<Badge
-										color={
-											invitation.status === 'accepted'
-												? 'success'
-												: invitation.permission === 'admin'
-													? 'primary'
-													: 'default'
-										}>
-										{getSharePermissionLabel(invitation.permission)} •{' '}
-										{invitation.status === 'accepted' ? (
-											<>
-												<FontAwesomeIcon icon={faCheckCircle} /> Accepted
-											</>
-										) : (
-											'Pending'
-										)}
-									</Badge>
-									<PendingText>
-										Sent: {new Date(invitation.createdAt).toLocaleDateString()}{' '}
-										•
-										{invitation.status === 'pending' && (
-											<>
-												Expires:{' '}
-												{new Date(invitation.expiresAt).toLocaleDateString()}
-											</>
-										)}
-									</PendingText>
-								</ShareInfo>
-								{invitation.status === 'pending' && (
-									<ShareActions>
-										<IconButton
-											color='danger'
-											onClick={() => handleCancelInvitation(invitation.id)}
-											title='Cancel invitation'
-											disabled={isCanceling}>
-											<FontAwesomeIcon icon={faTrash} />
-										</IconButton>
-									</ShareActions>
-								)}
-							</ShareItem>
-						))}
-					</SharesList>
-				)}
-			</Section>
-		</GenericModal>
+								</ShareItem>
+							))}
+						</SharesList>
+					)}
+				</Section>
+			</GenericModal>
+		</SharePropertyModalWrapper>
 	);
 };
 
 // Styled Components
 
 const PropertyTitle = styled.div`
-	padding: 12px 24px;
-	font-size: 14px;
+	padding: 8px 16px;
+	font-size: 13px;
 	color: #666;
 	background-color: #f5f5f5;
+	border-bottom: 1px solid #e0e0e0;
 `;
 
 const Alert = styled.div<{ type: 'error' | 'success' }>`
-	margin: 16px 24px;
-	padding: 12px 40px 12px 16px;
+	margin: 12px 16px;
+	padding: 8px 32px 8px 12px;
 	border-radius: 4px;
 	position: relative;
 	background-color: ${(props) =>
@@ -392,7 +399,7 @@ const CloseAlertButton = styled.button`
 `;
 
 const Section = styled.div`
-	padding: 20px 24px;
+	padding: 16px;
 	border-bottom: 1px solid #e0e0e0;
 
 	&:last-of-type {
@@ -401,8 +408,8 @@ const Section = styled.div`
 `;
 
 const SectionTitle = styled.h3`
-	margin: 0 0 16px;
-	font-size: 18px;
+	margin: 0 0 12px;
+	font-size: 16px;
 	font-weight: 600;
 	color: #333;
 `;
@@ -410,7 +417,7 @@ const SectionTitle = styled.h3`
 const InviteForm = styled.div`
 	display: flex;
 	gap: 12px;
-	margin-bottom: 12px;
+	margin-bottom: 8px;
 
 	@media (max-width: 600px) {
 		flex-direction: column;
@@ -503,12 +510,12 @@ const HelperText = styled.div`
 const LoadingContainer = styled.div`
 	display: flex;
 	justify-content: center;
-	padding: 32px;
+	padding: 24px;
 	color: #2196f3;
 `;
 
 const EmptyState = styled.div`
-	padding: 32px 16px;
+	padding: 24px 12px;
 	text-align: center;
 	color: #999;
 	font-size: 14px;
@@ -517,14 +524,14 @@ const EmptyState = styled.div`
 const SharesList = styled.div`
 	display: flex;
 	flex-direction: column;
-	gap: 8px;
+	gap: 6px;
 `;
 
 const ShareItem = styled.div`
 	display: flex;
 	justify-content: space-between;
 	align-items: center;
-	padding: 12px;
+	padding: 10px;
 	border: 1px solid #e0e0e0;
 	border-radius: 4px;
 	gap: 12px;
@@ -543,7 +550,7 @@ const ShareEmail = styled.div`
 	font-size: 14px;
 	font-weight: 500;
 	color: #333;
-	margin-bottom: 8px;
+	margin-bottom: 6px;
 `;
 
 const Badge = styled.span<{ color: 'primary' | 'default' | 'success' }>`
@@ -593,5 +600,14 @@ const IconButton = styled.button<{ color?: 'danger' }>`
 	&:disabled {
 		opacity: 0.3;
 		cursor: not-allowed;
+	}
+`;
+
+const SharePropertyModalWrapper = styled.div`
+	/* Custom modal container with increased height for share property dialog */
+	> div > div {
+		height: 85vh !important;
+		max-height: 95vh !important;
+		min-height: 600px !important;
 	}
 `;

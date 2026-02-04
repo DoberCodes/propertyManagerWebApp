@@ -25,6 +25,8 @@ export interface PropertyShare {
 	ownerId: string; // User who owns the property
 	sharedWithUserId: string; // User who has access
 	sharedWithEmail: string; // Email of user who has access
+	sharedWithFirstName?: string; // First name of user who has access
+	sharedWithLastName?: string; // Last name of user who has access
 	permission: SharePermission; // 'admin' or 'viewer'
 	createdAt: string;
 	updatedAt: string;
@@ -672,22 +674,53 @@ export const apiSlice = createApi({
 					const groupsSnapshot = await getDocs(groupsQuery);
 					const groupIds = groupsSnapshot.docs.map((doc) => doc.id);
 
-					if (groupIds.length === 0) {
-						return { data: [] };
+					let ownedPropertyIds: string[] = [];
+					if (groupIds.length > 0) {
+						// Get all property IDs for these groups
+						for (let i = 0; i < groupIds.length; i += 10) {
+							const batch = groupIds.slice(i, i + 10);
+							const propertiesQuery = query(
+								collection(db, 'properties'),
+								where('groupId', 'in', batch),
+							);
+							const propertiesSnapshot = await getDocs(propertiesQuery);
+							propertiesSnapshot.docs.forEach((doc) => {
+								ownedPropertyIds.push(doc.id);
+							});
+						}
 					}
 
-					// Get all property IDs for these groups
-					const allPropertyIds: string[] = [];
-					for (let i = 0; i < groupIds.length; i += 10) {
-						const batch = groupIds.slice(i, i + 10);
-						const propertiesQuery = query(
-							collection(db, 'properties'),
-							where('groupId', 'in', batch),
-						);
-						const propertiesSnapshot = await getDocs(propertiesQuery);
-						propertiesSnapshot.docs.forEach((doc) => {
-							allPropertyIds.push(doc.id);
-						});
+					// Also get shared properties for this user
+					let sharedPropertyIds: string[] = [];
+					try {
+						// Get user's email first
+						const userDocRef = doc(db, 'users', userId);
+						const userDoc = await getDoc(userDocRef);
+						const userEmail = userDoc.data()?.email;
+
+						if (userEmail) {
+							// Find all shares where this user has access
+							const sharesQuery = query(
+								collection(db, 'propertyShares'),
+								where('sharedWithEmail', '==', userEmail),
+							);
+							const sharesSnapshot = await getDocs(sharesQuery);
+							sharedPropertyIds = sharesSnapshot.docs.map(
+								(doc) => doc.data().propertyId,
+							);
+						}
+					} catch (shareError) {
+						// If getting shared properties fails, continue with owned properties only
+						console.warn('Could not fetch shared properties:', shareError);
+					}
+
+					// Combine and deduplicate property IDs
+					const allPropertyIds = [
+						...new Set([...ownedPropertyIds, ...sharedPropertyIds]),
+					];
+
+					if (allPropertyIds.length === 0) {
+						return { data: [] };
 					}
 
 					if (allPropertyIds.length === 0) {
@@ -1632,6 +1665,91 @@ export const apiSlice = createApi({
 			providesTags: ['PropertyShares'],
 		}),
 
+		getAllPropertySharesForUser: builder.query<PropertyShare[], void>({
+			async queryFn() {
+				try {
+					// Get authenticated user from Firebase Auth
+					const currentUser = auth.currentUser;
+					if (!currentUser) {
+						return { error: 'User not authenticated' };
+					}
+					const userId = currentUser.uid;
+
+					// Get user's email first
+					const userDocRef = doc(db, 'users', userId);
+					const userDoc = await getDoc(userDocRef);
+					const userEmail = userDoc.data()?.email;
+
+					if (!userEmail) {
+						return { data: [] };
+					}
+
+					// Get all property groups for this user to find owned properties
+					const groupsQuery = query(
+						collection(db, 'propertyGroups'),
+						where('userId', '==', userId),
+					);
+					const groupsSnapshot = await getDocs(groupsQuery);
+					const groupIds = groupsSnapshot.docs.map((doc) => doc.id);
+
+					let ownedPropertyIds: string[] = [];
+					if (groupIds.length > 0) {
+						// Get all property IDs for these groups
+						for (let i = 0; i < groupIds.length; i += 10) {
+							const batch = groupIds.slice(i, i + 10);
+							const propertiesQuery = query(
+								collection(db, 'properties'),
+								where('groupId', 'in', batch),
+							);
+							const propertiesSnapshot = await getDocs(propertiesQuery);
+							propertiesSnapshot.docs.forEach((doc) => {
+								ownedPropertyIds.push(doc.id);
+							});
+						}
+					}
+
+					// Get all shares for owned properties (shares created by this user)
+					let allShares: PropertyShare[] = [];
+					for (let i = 0; i < ownedPropertyIds.length; i += 10) {
+						const batch = ownedPropertyIds.slice(i, i + 10);
+						const sharesQuery = query(
+							collection(db, 'propertyShares'),
+							where('propertyId', 'in', batch),
+						);
+						const sharesSnapshot = await getDocs(sharesQuery);
+						const shares = sharesSnapshot.docs.map((doc) => ({
+							id: doc.id,
+							...doc.data(),
+						})) as PropertyShare[];
+						allShares.push(...shares);
+					}
+
+					// Get all shares where this user is the recipient
+					const receivedSharesQuery = query(
+						collection(db, 'propertyShares'),
+						where('sharedWithEmail', '==', userEmail),
+					);
+					const receivedSharesSnapshot = await getDocs(receivedSharesQuery);
+					const receivedShares = receivedSharesSnapshot.docs.map((doc) => ({
+						id: doc.id,
+						...doc.data(),
+					})) as PropertyShare[];
+					allShares.push(...receivedShares);
+
+					// Remove duplicates
+					const uniqueShares = allShares.filter(
+						(share, index, self) =>
+							index === self.findIndex((s) => s.id === share.id),
+					);
+
+					return { data: uniqueShares };
+				} catch (error: any) {
+					return { error: error.message };
+				}
+			},
+			providesTags: ['PropertyShares'],
+		}),
+
 		getSharedPropertiesForUser: builder.query<Property[], string>({
 			async queryFn(userId: string) {
 				try {
@@ -1875,10 +1993,13 @@ export const apiSlice = createApi({
 						...invitationDoc.data(),
 					} as UserInvitation;
 
-					// Get user's email
+					// Get user's email and name
 					const userDocRef = doc(db, 'users', userId);
 					const userDoc = await getDoc(userDocRef);
-					const userEmail = userDoc.data()?.email;
+					const userData = userDoc.data();
+					const userEmail = userData?.email;
+					const userFirstName = userData?.firstName;
+					const userLastName = userData?.lastName;
 
 					if (!userEmail) {
 						return { error: 'User email not found' };
@@ -1891,6 +2012,8 @@ export const apiSlice = createApi({
 						ownerId: invitation.fromUserId,
 						sharedWithUserId: userId,
 						sharedWithEmail: userEmail,
+						sharedWithFirstName: userFirstName,
+						sharedWithLastName: userLastName,
 						permission: invitation.permission,
 						createdAt: now,
 						updatedAt: now,
@@ -2479,6 +2602,7 @@ export const {
 	useRemoveFavoriteMutation,
 	// Property Shares
 	useGetPropertySharesQuery,
+	useGetAllPropertySharesForUserQuery,
 	useGetSharedPropertiesForUserQuery,
 	useCreatePropertyShareMutation,
 	useUpdatePropertyShareMutation,
