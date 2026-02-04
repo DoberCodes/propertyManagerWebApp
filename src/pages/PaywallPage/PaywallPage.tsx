@@ -18,8 +18,16 @@ import {
 	PlanFeature,
 	SelectPlanButton,
 	CurrentPlanLabel,
-	ButtonGroup,
-	ContactSalesButton,
+	AdditionalOptionsContainer,
+	PromoSection,
+	PromoTitle,
+	PromoText,
+	PromoInput,
+	PromoButton,
+	ContactSalesSection,
+	ContactSalesTitle,
+	ContactSalesText,
+	ContactSalesButtonStyled,
 } from './PaywallPage.styles';
 import { SUBSCRIPTION_PLANS } from '../../constants/subscriptions';
 import { SubscriptionData } from '../../utils/subscriptionUtils';
@@ -57,15 +65,18 @@ export const PaywallPage: React.FC<PaywallPageProps> = ({
 	const navigate = useNavigate();
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+	const [promoCode, setPromoCode] = useState('');
+	const [promoLoading, setPromoLoading] = useState(false);
+	const [promoError, setPromoError] = useState<string | null>(null);
 	const isOnTrial = isTrialActive(subscription);
 	const daysRemaining = getTrialDaysRemaining(subscription);
 
 	const getPriceIdForPlan = (planId: string): string => {
 		const priceMap: Record<string, string> = {
-			Base: STRIPE_PLANS.FREE,
+			free: STRIPE_PLANS.FREE,
+			homeowner: STRIPE_PLANS.HOMEOWNER,
 			basic: STRIPE_PLANS.BASIC,
 			professional: STRIPE_PLANS.PROFESSIONAL,
-			enterprise: STRIPE_PLANS.ENTERPRISE,
 		};
 		return priceMap[planId] || '';
 	};
@@ -118,14 +129,56 @@ export const PaywallPage: React.FC<PaywallPageProps> = ({
 		}
 	};
 
+	const handlePromoCode = async () => {
+		if (!promoCode.trim()) {
+			setPromoError('Please enter a promo code');
+			return;
+		}
+
+		setPromoLoading(true);
+		setPromoError(null);
+
+		try {
+			// TODO: Implement promo code validation with backend
+			// For now, just show a placeholder message
+			console.log('Promo code submitted:', promoCode);
+			alert(
+				`Promo code "${promoCode}" submitted! This feature will be connected to the backend.`,
+			);
+			setPromoCode('');
+		} catch (err) {
+			console.error('Failed to apply promo code:', err);
+			setPromoError(
+				err instanceof Error
+					? err.message
+					: 'Failed to apply promo code. Please try again.',
+			);
+		} finally {
+			setPromoLoading(false);
+		}
+	};
+
 	const handleContactSales = () => {
+		// TODO: Implement contact sales form or mailto link
 		window.location.href =
-			'mailto:sales@mypropertymanager.com?subject=Enterprise Plan Inquiry';
+			'mailto:sales@propertymanager.com?subject=Custom Pricing Inquiry';
 	};
 
 	return (
 		<PaywallWrapper variant={variant}>
 			<PaywallContainer variant={variant}>
+				{!isOnTrial && (
+					<TrialBannerWrapper variant={variant}>
+						<TrialBannerTitle variant={variant}>
+							✨ Free 14-Day Trial Available on All Plans
+						</TrialBannerTitle>
+						<TrialBannerText variant={variant}>
+							No credit card required. Start your free trial and explore all
+							features.
+						</TrialBannerText>
+					</TrialBannerWrapper>
+				)}
+
 				{variant === 'full' && (
 					<>
 						<PaywallTitle variant={variant}>Choose Your Plan</PaywallTitle>
@@ -162,41 +215,44 @@ export const PaywallPage: React.FC<PaywallPageProps> = ({
 				)}
 
 				<PricingCardsGrid layout={layout}>
-					{/* Free Plan */}
-					<PricingCard isCurrentPlan={currentPlan === 'free'} layout={layout}>
-						<PlanName>{SUBSCRIPTION_PLANS.FREE.name}</PlanName>
-						<PlanPrice color={currentPlan === 'free' ? 'white' : 'black'}>
+					{/* Homeowner Plan */}
+					<PricingCard
+						isCurrentPlan={currentPlan === 'homeowner'}
+						layout={layout}>
+						<PlanName>{SUBSCRIPTION_PLANS.HOMEOWNER.name}</PlanName>
+						<PlanPrice color={currentPlan === 'homeowner' ? 'white' : 'black'}>
 							<div className='price'>
-								${SUBSCRIPTION_PLANS.FREE.priceMonthly}
+								${SUBSCRIPTION_PLANS.HOMEOWNER.priceMonthly}
 							</div>
-							<div className='period'>per month after 14-day trial</div>
+							<div className='period'>per month</div>
 						</PlanPrice>
 						<PlanFeatures>
-							{SUBSCRIPTION_PLANS.FREE.features.map((feature, idx) => (
+							{SUBSCRIPTION_PLANS.HOMEOWNER.features.map((feature, idx) => (
 								<PlanFeature
 									key={idx}
-									color={currentPlan === 'free' ? 'white' : 'black'}>
+									color={currentPlan === 'homeowner' ? 'white' : 'black'}>
 									{feature}
 								</PlanFeature>
 							))}
 						</PlanFeatures>
-						{currentPlan === 'free' && (
+						{currentPlan === 'homeowner' && (
 							<CurrentPlanLabel>Current Plan</CurrentPlanLabel>
 						)}
 						<SelectPlanButton
-							isCurrentPlan={currentPlan === 'free'}
+							isCurrentPlan={currentPlan === 'homeowner'}
 							disabled={
-								selectionOnly ? loading : currentPlan === 'free' || loading
+								selectionOnly ? loading : currentPlan === 'homeowner' || loading
 							}
-							onClick={() => handlePlanSelect('free')}>
-							{currentPlan === 'free'
+							onClick={() => handlePlanSelect('homeowner')}>
+							{currentPlan === 'homeowner'
 								? selectionOnly
 									? 'Selected'
 									: 'Current Plan'
-								: 'Select Plan'}
+								: selectionOnly
+									? 'Select Plan'
+									: 'Upgrade'}
 						</SelectPlanButton>
 					</PricingCard>
-
 					{/* Basic Plan */}
 					<PricingCard
 						isPopular
@@ -280,36 +336,44 @@ export const PaywallPage: React.FC<PaywallPageProps> = ({
 						</SelectPlanButton>
 					</PricingCard>
 
-					{/* Enterprise Plan */}
-					<PricingCard
-						isCurrentPlan={currentPlan === 'enterprise'}
-						layout={layout}>
-						<PlanName>{SUBSCRIPTION_PLANS.ENTERPRISE.name}</PlanName>
-						<PlanPrice color={currentPlan === 'enterprise' ? 'white' : 'black'}>
-							<div className='price' style={{ fontSize: '32px' }}>
-								Custom
-							</div>
-							<div className='period'>Contact us for pricing</div>
-						</PlanPrice>
-						<PlanFeatures>
-							{SUBSCRIPTION_PLANS.ENTERPRISE.features.map((feature, idx) => (
-								<PlanFeature
-									key={idx}
-									color={currentPlan === 'enterprise' ? 'white' : 'black'}>
-									{feature}
-								</PlanFeature>
-							))}
-						</PlanFeatures>
-						{currentPlan === 'enterprise' && (
-							<CurrentPlanLabel>Current Plan</CurrentPlanLabel>
-						)}
-						<ButtonGroup>
-							<ContactSalesButton onClick={handleContactSales}>
-								Contact Sales
-							</ContactSalesButton>
-						</ButtonGroup>
-					</PricingCard>
+					{/* Enterprise Plan - Removed */}
 				</PricingCardsGrid>
+
+				<AdditionalOptionsContainer layout={layout}>
+					<PromoSection layout={layout}>
+						<PromoTitle layout={layout}>Have a Promo Code?</PromoTitle>
+						<PromoText layout={layout}>
+							Enter your promo code to unlock special pricing or access the free
+							plan.
+						</PromoText>
+						<PromoInput layout={layout}
+							type='text'
+							placeholder='Enter promo code'
+							value={promoCode}
+							onChange={(e) => setPromoCode(e.target.value)}
+							onKeyPress={(e) => e.key === 'Enter' && handlePromoCode()}
+						/>
+						{promoError && (
+							<PromoText layout={layout} style={{ color: '#dc3545', marginBottom: '12px' }}>
+								{promoError}
+							</PromoText>
+						)}
+						<PromoButton onClick={handlePromoCode} disabled={promoLoading}>
+							{promoLoading ? 'Applying...' : 'Apply Code'}
+						</PromoButton>
+					</PromoSection>
+
+					<ContactSalesSection layout={layout}>
+						<ContactSalesTitle layout={layout}>Need More Properties?</ContactSalesTitle>
+						<ContactSalesText layout={layout}>
+							Managing more than 10 properties? Contact our sales team for
+							custom pricing tailored to your needs.
+						</ContactSalesText>
+						<ContactSalesButtonStyled layout={layout} onClick={handleContactSales}>
+							Contact Sales
+						</ContactSalesButtonStyled>
+					</ContactSalesSection>
+				</AdditionalOptionsContainer>
 			</PaywallContainer>
 		</PaywallWrapper>
 	);

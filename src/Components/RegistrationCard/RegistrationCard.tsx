@@ -371,7 +371,6 @@ export const RegistrationCard = () => {
 			{/* Step 4: Plan Selection */}
 			{step === 4 && (
 				<>
-					<SectionLabel>Choose a plan to continue</SectionLabel>
 					<PaywallPage
 						subscription={{
 							status: 'trial',

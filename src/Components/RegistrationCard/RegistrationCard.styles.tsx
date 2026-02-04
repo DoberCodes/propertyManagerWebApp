@@ -5,7 +5,7 @@ export const Wrapper = styled.form<{ $wide?: boolean }>`
 	display: grid;
 	justify-content: center;
 	align-items: center;
-	padding: ${(props) => (props.$wide ? '40px 36px' : '32px 24px')};
+	padding: ${(props) => (props.$wide ? '10px 36px' : '32px 24px')};
 	border: none;
 	border-radius: 12px;
 	background-color: ${COLORS.bgWhite};
@@ -17,18 +17,18 @@ export const Wrapper = styled.form<{ $wide?: boolean }>`
 
 	@media (max-width: 1024px) {
 		max-width: ${(props) => (props.$wide ? '980px' : '420px')};
-		padding: ${(props) => (props.$wide ? '36px 28px' : '32px 24px')};
+		padding: ${(props) => (props.$wide ? '20px 28px' : '32px 24px')};
 	}
 
 	@media (max-width: 768px) {
 		max-width: ${(props) => (props.$wide ? '100%' : '380px')};
-		padding: ${(props) => (props.$wide ? '32px 20px' : '28px 20px')};
+		padding: ${(props) => (props.$wide ? '20px 20px' : '28px 20px')};
 		border-radius: 10px;
 	}
 
 	@media (max-width: 480px) {
 		max-width: 100%;
-		padding: ${(props) => (props.$wide ? '24px 16px' : '20px 16px')};
+		padding: ${(props) => (props.$wide ? '20px 16px' : '20px 16px')};
 		border-radius: 8px;
 		margin: 10px;
 	}
@@ -36,6 +36,7 @@ export const Wrapper = styled.form<{ $wide?: boolean }>`
 
 export const BackButton = styled.a`
 	padding: 10px 0;
+	color: black;
 
 	@media (max-width: 480px) {
 		padding: 8px 0;

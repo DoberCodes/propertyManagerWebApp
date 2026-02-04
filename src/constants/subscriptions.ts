@@ -4,13 +4,19 @@ export const TRIAL_DURATION_DAYS = 14; // 14-day free trial
 export const SUBSCRIPTION_PLANS = {
 	FREE: {
 		id: 'free',
+		name: 'Free',
+		priceMonthly: 0,
+		features: ['Limited to 1 home', 'Basic features only'],
+	},
+	HOMEOWNER: {
+		id: 'homeowner',
 		name: 'Homeowner',
 		priceMonthly: 2,
 		features: ['1 home', 'Basic maintenance tracking'],
 	},
 	BASIC: {
 		id: 'basic',
-		name: 'Standard',
+		name: 'Basic',
 		priceMonthly: 9,
 		features: [
 			'Up to 5 homes',
@@ -30,18 +36,6 @@ export const SUBSCRIPTION_PLANS = {
 			'Mobile app access',
 			'Custom reporting',
 			'Priority support',
-		],
-	},
-	ENTERPRISE: {
-		id: 'enterprise',
-		name: 'Enterprise',
-		priceMonthly: 0,
-		features: [
-			'Everything in Professional',
-			'API access',
-			'Custom integrations',
-			'Dedicated support',
-			'Advanced analytics',
 		],
 	},
 };

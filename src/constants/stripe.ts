@@ -9,19 +9,19 @@ export const STRIPE_PUBLIC_KEY = process.env.REACT_APP_STRIPE_PUBLIC_KEY || '';
 // Stripe Plan IDs (from Stripe Dashboard)
 export const STRIPE_PLANS = {
 	FREE: 'price_free', // Free trial - no Stripe plan needed
+	HOMEOWNER:
+		process.env.REACT_APP_STRIPE_HOMEOWNER_PLAN_ID || 'price_homeowner',
 	BASIC: process.env.REACT_APP_STRIPE_BASIC_PLAN_ID || 'price_basic',
 	PROFESSIONAL:
 		process.env.REACT_APP_STRIPE_PROFESSIONAL_PLAN_ID || 'price_professional',
-	ENTERPRISE:
-		process.env.REACT_APP_STRIPE_ENTERPRISE_PLAN_ID || 'price_enterprise',
 };
 
 // Price mapping for display
 export const STRIPE_PRICES = {
-	FREE: 2,
+	FREE: 0,
+	HOMEOWNER: 2,
 	BASIC: 9,
 	PROFESSIONAL: 16,
-	ENTERPRISE: 0, // Custom pricing
 };
 
 // Billing intervals
