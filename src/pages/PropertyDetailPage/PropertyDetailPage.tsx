@@ -558,7 +558,7 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 
 				await createTaskMutation(newTask).unwrap();
 
-				// Create notification for task creation
+				// Create notification for task creation (to creator)
 				try {
 					await createNotification({
 						userId: currentUser!.id,
@@ -577,6 +577,35 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 					}).unwrap();
 				} catch (notifError) {
 					console.error('Notification failed:', notifError);
+				}
+
+				// Create notification for task assignment (to assignee if different from creator)
+				if (assignedTo && assignedTo.id !== currentUser!.id) {
+					try {
+						await createNotification({
+							userId: assignedTo.id,
+							type: 'task_assigned',
+							title: 'Task Assigned',
+							message: `You have been assigned to task "${taskFormData.title}"`,
+							data: {
+								taskId: newTask.id, // This will be set after creation
+								taskTitle: taskFormData.title,
+								assignedTo: {
+									id: assignedTo.id,
+									name: `${assignedTo.firstName || ''} ${assignedTo.lastName || ''}`.trim(),
+									email: assignedTo.email,
+								},
+								propertyId: property.id,
+								propertyTitle: property.title,
+							},
+							status: 'unread',
+							actionUrl: `/properties/${property.id}`,
+							createdAt: new Date().toISOString(),
+							updatedAt: new Date().toISOString(),
+						}).unwrap();
+					} catch (assignNotifError) {
+						console.error('Assignment notification failed:', assignNotifError);
+					}
 				}
 
 				// Create additional notification for recurring tasks

@@ -13,6 +13,8 @@ export interface User {
 	phone?: string;
 	image?: string;
 	assignedPropertyId?: number;
+	pushToken?: string; // Push notification token for FCM
+	pushTokenUpdatedAt?: string; // When push token was last updated
 	subscription?: {
 		status: 'trial' | 'active' | 'cancelled' | 'expired' | 'past_due';
 		plan: string;
