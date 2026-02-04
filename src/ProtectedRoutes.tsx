@@ -5,15 +5,20 @@ import type { RootState } from './Redux/store/store';
 import { logout } from './Redux/Slices/userSlice';
 import { LoadingState } from './Components/LoadingState';
 import type { UserRole } from './constants/roles';
+import { isSubscriptionActive } from './utils/subscriptionUtils';
 
 interface ProtectedRoutesProps {
 	children: React.ReactNode;
 	requiredRoles?: readonly UserRole[];
+	requireSubscription?: boolean;
+	subscriptionFeature?: string; // For future feature-specific checks
 }
 
 export const ProtectedRoutes = ({
 	children,
 	requiredRoles = [],
+	requireSubscription = false,
+	subscriptionFeature: _subscriptionFeature,
 }: ProtectedRoutesProps) => {
 	const dispatch = useDispatch();
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
@@ -55,6 +60,16 @@ export const ProtectedRoutes = ({
 		!requiredRoles.includes(currentUser.role as UserRole)
 	) {
 		return <Navigate to='/unauthorized' replace />;
+	}
+
+	// Check subscription requirements
+	if (requireSubscription && currentUser) {
+		if (
+			!currentUser.subscription ||
+			!isSubscriptionActive(currentUser.subscription)
+		) {
+			return <Navigate to='/paywall' replace />;
+		}
 	}
 
 	// Authenticated and authorized: render children

@@ -7,8 +7,8 @@ import {
 	Legend,
 	ResponsiveContainer,
 } from 'recharts';
-import { useNavigate } from 'react-router-dom';
-import { useSelector } from 'react-redux';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../../Redux/store/store';
 import { PageHeaderSection } from '../../Components/Library/PageHeaders';
 import { ZeroState } from '../../Components/Library/ZeroState';
@@ -29,6 +29,8 @@ import { TaskCompletionModal } from '../../Components/TaskCompletionModal';
 import { NotificationPanel } from '../../Components/Library';
 import { TrialWarningBanner } from '../../Components/TrialWarningBanner/TrialWarningBanner';
 import { getTrialDaysRemaining } from '../../utils/subscriptionUtils';
+import { handleCheckoutSuccess } from '../../services/stripeService';
+import { logout } from '../../Redux/Slices/userSlice';
 import {
 	Wrapper,
 	TaskGridSection,
@@ -43,6 +45,8 @@ import { ReusableTable } from '../../Components/Library/ReusableTable';
 
 export const DashboardTab = () => {
 	const navigate = useNavigate();
+	const location = useLocation();
+	const dispatch = useDispatch();
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
 	const teamMembers = useSelector((state: RootState) =>
 		state.team.groups
@@ -131,6 +135,34 @@ export const DashboardTab = () => {
 		};
 		getLocation();
 	}, []);
+
+	// Handle Stripe checkout success
+	useEffect(() => {
+		const urlParams = new URLSearchParams(location.search);
+		const sessionId = urlParams.get('session_id');
+
+		if (sessionId && currentUser) {
+			// Remove session_id from URL
+			const newUrl = new URL(window.location.href);
+			newUrl.searchParams.delete('session_id');
+			window.history.replaceState({}, '', newUrl.toString());
+
+			// Verify checkout session
+			handleCheckoutSuccess(sessionId)
+				.then((result) => {
+					console.log('Checkout success verified:', result);
+					// Force a logout/login to refresh user data with new subscription
+					dispatch(logout());
+					setTimeout(() => {
+						window.location.reload();
+					}, 1000);
+				})
+				.catch((error) => {
+					console.error('Checkout verification failed:', error);
+					// Could show an error toast here
+				});
+		}
+	}, [location.search, currentUser, dispatch]);
 
 	const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
 	const [showTaskCompletionModal, setShowTaskCompletionModal] = useState(false);

@@ -128,11 +128,13 @@ export const RouterComponent = () => {
 						/>
 					)}
 
-					{/* Reports - accessible to admin, PM, AM, ML */}
+					{/* Reports - accessible to admin, PM, AM, ML with active subscription */}
 					<Route
 						path='report'
 						element={
-							<ProtectedRoutes requiredRoles={FULL_ACCESS_ROLES}>
+							<ProtectedRoutes
+								requiredRoles={FULL_ACCESS_ROLES}
+								requireSubscription={true}>
 								<ReportPage />
 							</ProtectedRoutes>
 						}

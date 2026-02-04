@@ -5,6 +5,8 @@
 
 import { STRIPE_PUBLIC_KEY, STRIPE_CHECKOUT_CONFIG } from '../constants/stripe';
 import { loadStripe, Stripe } from '@stripe/stripe-js';
+import { httpsCallable } from 'firebase/functions';
+import { functions } from '../config/firebase';
 
 let stripeInstance: Stripe | null = null;
 
@@ -40,26 +42,21 @@ export const createCheckoutSession = async (
 	email: string,
 ): Promise<string> => {
 	try {
-		// Call backend function to create checkout session
-		const response = await fetch('/api/create-checkout-session', {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-			},
-			body: JSON.stringify({
-				priceId,
-				userId,
-				email,
-				successUrl: STRIPE_CHECKOUT_CONFIG.SUCCESS_URL,
-				cancelUrl: STRIPE_CHECKOUT_CONFIG.CANCEL_URL,
-			}),
+		// Call Firebase Cloud Function
+		const createCheckout = httpsCallable(functions, 'createCheckoutSession');
+		const result = await createCheckout({
+			priceId,
+			userId,
+			email,
+			successUrl: STRIPE_CHECKOUT_CONFIG.SUCCESS_URL,
+			cancelUrl: STRIPE_CHECKOUT_CONFIG.CANCEL_URL,
 		});
 
-		const { url } = await response.json();
-		if (!url) {
+		const data = result.data as { sessionId: string; url: string };
+		if (!data.url) {
 			throw new Error('Checkout session URL not returned');
 		}
-		return url;
+		return data.url;
 	} catch (error) {
 		console.error('Failed to create checkout session:', error);
 		throw error;
@@ -79,17 +76,11 @@ export const redirectToCheckout = (checkoutUrl: string) => {
  */
 export const handleCheckoutSuccess = async (sessionId: string) => {
 	try {
-		// Call backend to verify session and update subscription
-		const response = await fetch('/api/verify-checkout-session', {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-			},
-			body: JSON.stringify({ sessionId }),
-		});
+		// Call Firebase Cloud Function
+		const verifyCheckout = httpsCallable(functions, 'verifyCheckoutSession');
+		const result = await verifyCheckout({ sessionId });
 
-		const data = await response.json();
-		return data;
+		return result.data;
 	} catch (error) {
 		console.error('Failed to verify checkout session:', error);
 		throw error;

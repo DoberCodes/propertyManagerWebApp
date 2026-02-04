@@ -73,35 +73,25 @@ export const sendPushOnNotificationCreate = onDocumentCreated(
 
 		// Send the push notification via FCM
 		try {
-			const response = await admin.messaging().sendToDevice(pushToken, payload);
-			console.log(`Push sent successfully to user ${notification.userId}:`, {
-				successCount: response.successCount,
-				failureCount: response.failureCount,
-				results: response.results?.map((r) => ({
-					success: r.messageId ? true : false,
-					error: r.error?.message,
-				})),
-			});
+			const message = {
+				token: pushToken,
+				notification: {
+					title: notification.title || 'New Notification',
+					body: notification.message || '',
+				},
+				data: {
+					notificationId: event.params.notificationId,
+					...(notification.data && typeof notification.data === 'object'
+						? notification.data
+						: {}),
+				},
+			};
 
-			// Check for failures and handle them
-			if (response.failureCount > 0) {
-				console.error(
-					`Push notification failures for user ${notification.userId}:`,
-					response.results,
-				);
-
-				// Check if token is invalid/expired and cleanup
-				const hasInvalidToken = response.results?.some(
-					(result) =>
-						result.error?.code ===
-							'messaging/registration-token-not-registered' ||
-						result.error?.code === 'messaging/invalid-registration-token',
-				);
-
-				if (hasInvalidToken) {
-					await cleanupInvalidPushToken(notification.userId, pushToken);
-				}
-			}
+			const response = await admin.messaging().send(message);
+			console.log(
+				`Push sent successfully to user ${notification.userId}:`,
+				response,
+			);
 		} catch (err) {
 			console.error(
 				`Error sending push notification to user ${notification.userId}:`,

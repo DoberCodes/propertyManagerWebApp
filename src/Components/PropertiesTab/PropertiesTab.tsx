@@ -20,6 +20,11 @@ import {
 	useDeletePropertyGroupMutation,
 	useCreateNotificationMutation,
 } from '../../Redux/API/apiSlice';
+import {
+	canAddProperty,
+	getRemainingPropertySlots,
+	getSubscriptionPlanDetails,
+} from '../../utils/subscriptionUtils';
 import { canManageProperties } from '../../utils/permissions';
 import { filterPropertyGroupsByRole } from '../../utils/dataFilters';
 import { TeamMember } from '../../Redux/Slices/teamSlice';
@@ -209,20 +214,33 @@ export const Properties = () => {
 	};
 
 	const handleAddPropertyGlobalClick = () => {
-		// Restrict homeowners to one property
-		if (userType === 'homeowner' && totalProperties >= 1) {
-			alert('Homeowners can only add one property.');
+		// Check subscription limits
+		if (currentUser?.subscription) {
+			const canAdd = canAddProperty(currentUser.subscription, totalProperties);
+			if (!canAdd) {
+				const remainingSlots = getRemainingPropertySlots(
+					currentUser.subscription,
+					totalProperties,
+				);
+				const planDetails = getSubscriptionPlanDetails(
+					currentUser.subscription.plan,
+				);
+				const maxProperties = planDetails?.maxProperties || 1;
+
+				alert(
+					`Your ${planDetails?.name || 'current'} plan allows up to ${maxProperties} properties. ` +
+						`You currently have ${totalProperties} properties. ` +
+						`Please upgrade your plan to add more properties.`,
+				);
+				// TODO: Redirect to paywall/upgrade page
+				return;
+			}
+		} else {
+			// No subscription data - should not happen, but fallback
+			alert('Unable to verify subscription. Please contact support.');
 			return;
 		}
-		// For landlords, trigger billing options if needed
-		if (userType === 'landlord') {
-			// Example: Show billing modal or redirect (replace with your billing logic)
-			// if (totalProperties === 0) {
-			//     showBillingOptions();
-			//     return;
-			// }
-			// For now, just allow property add
-		}
+
 		setSelectedGroupForDialog(null);
 		setSelectedPropertyForEdit(null);
 		setDialogOpen(true);

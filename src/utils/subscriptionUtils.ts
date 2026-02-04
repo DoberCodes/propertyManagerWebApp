@@ -1,6 +1,7 @@
 // Subscription utilities and helpers
 import {
 	TRIAL_DURATION_DAYS,
+	SUBSCRIPTION_PLANS,
 	SUBSCRIPTION_STATUS,
 	SubscriptionStatus,
 } from '../constants/subscriptions';
@@ -82,27 +83,102 @@ export const createTrialSubscription = (
 };
 
 /**
- * Format subscription display text
+ * Get the maximum number of properties allowed for a subscription plan
  */
-export const getSubscriptionDisplayText = (
+export const getMaxPropertiesForPlan = (planId: string): number => {
+	const plan = Object.values(SUBSCRIPTION_PLANS).find((p) => p.id === planId);
+	return plan?.maxProperties || 1; // Default to 1 if plan not found
+};
+
+/**
+ * Check if user can add more properties based on their subscription
+ */
+export const canAddProperty = (
 	subscription: SubscriptionData,
-): string => {
-	if (subscription.status === SUBSCRIPTION_STATUS.TRIAL) {
-		const daysRemaining = getTrialDaysRemaining(subscription);
-		return `Free Trial - ${daysRemaining} days remaining`;
+	currentPropertyCount: number,
+): boolean => {
+	if (!isSubscriptionActive(subscription)) {
+		return false; // No active subscription
 	}
 
-	if (subscription.status === SUBSCRIPTION_STATUS.ACTIVE) {
-		return `Active - ${subscription.plan} plan`;
+	const maxProperties = getMaxPropertiesForPlan(subscription.plan);
+	return currentPropertyCount < maxProperties;
+};
+
+/**
+ * Get remaining property slots for a subscription
+ */
+export const getRemainingPropertySlots = (
+	subscription: SubscriptionData,
+	currentPropertyCount: number,
+): number => {
+	if (!isSubscriptionActive(subscription)) {
+		return 0;
 	}
 
-	if (subscription.status === SUBSCRIPTION_STATUS.CANCELLED) {
-		return 'Subscription Cancelled';
+	const maxProperties = getMaxPropertiesForPlan(subscription.plan);
+	return Math.max(0, maxProperties - currentPropertyCount);
+};
+
+/**
+ * Check if subscription plan allows team management
+ */
+export const canManageTeam = (subscription: SubscriptionData): boolean => {
+	if (!isSubscriptionActive(subscription)) {
+		return false;
 	}
 
-	if (subscription.status === SUBSCRIPTION_STATUS.EXPIRED) {
-		return 'Subscription Expired';
+	const plan = Object.values(SUBSCRIPTION_PLANS).find(
+		(p) => p.id === subscription.plan,
+	);
+	return plan?.permissions.canManageTeam || false;
+};
+
+/**
+ * Check if subscription plan allows viewing reports
+ */
+export const canViewReports = (subscription: SubscriptionData): boolean => {
+	if (!isSubscriptionActive(subscription)) {
+		return false;
 	}
 
-	return 'Inactive';
+	const plan = Object.values(SUBSCRIPTION_PLANS).find(
+		(p) => p.id === subscription.plan,
+	);
+	return plan?.permissions.canViewReports || false;
+};
+
+/**
+ * Check if subscription plan allows data export
+ */
+export const canExportData = (subscription: SubscriptionData): boolean => {
+	if (!isSubscriptionActive(subscription)) {
+		return false;
+	}
+
+	const plan = Object.values(SUBSCRIPTION_PLANS).find(
+		(p) => p.id === subscription.plan,
+	);
+	return plan?.permissions.canExportData || false;
+};
+
+/**
+ * Check if subscription plan includes priority support
+ */
+export const hasPrioritySupport = (subscription: SubscriptionData): boolean => {
+	if (!isSubscriptionActive(subscription)) {
+		return false;
+	}
+
+	const plan = Object.values(SUBSCRIPTION_PLANS).find(
+		(p) => p.id === subscription.plan,
+	);
+	return plan?.permissions.prioritySupport || false;
+};
+
+/**
+ * Get subscription plan details
+ */
+export const getSubscriptionPlanDetails = (planId: string) => {
+	return Object.values(SUBSCRIPTION_PLANS).find((p) => p.id === planId);
 };

@@ -4,6 +4,7 @@ import styled from 'styled-components';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState, AppDispatch } from '../../Redux/store';
 import { canManageTeamMembers } from '../../utils/permissions';
+import { canManageTeam } from '../../utils/subscriptionUtils';
 import { filterTeamMembersByRole } from '../../utils/dataFilters';
 import { UserRole } from '../../constants/roles';
 import {
@@ -156,10 +157,14 @@ export default function TeamPage() {
 	}, [teamGroupsCache]);
 
 	// Check if user can manage team members (add/edit/delete)
-	// All authenticated users can view the team page, but only managers can edit
-	const canManage = currentUser
+	// Must have both role permissions AND subscription permissions
+	const hasRolePermission = currentUser
 		? canManageTeamMembers(currentUser.role as UserRole)
 		: false;
+	const hasSubscriptionPermission = currentUser?.subscription
+		? canManageTeam(currentUser.subscription)
+		: false;
+	const canManage = hasRolePermission && hasSubscriptionPermission;
 	const canView = !!currentUser;
 
 	const [showTeamMemberDialog, setShowTeamMemberDialog] = useState(false);

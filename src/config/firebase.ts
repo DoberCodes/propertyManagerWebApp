@@ -7,6 +7,7 @@ import {
 	indexedDBLocalPersistence,
 } from 'firebase/auth';
 import { getStorage } from 'firebase/storage';
+import { getFunctions } from 'firebase/functions';
 import { Capacitor } from '@capacitor/core';
 
 // Firebase configuration
@@ -30,6 +31,7 @@ const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
 export const auth = getAuth(app);
 export const storage = getStorage(app);
+export const functions = getFunctions(app);
 
 // Set auth persistence based on platform
 // Prefer IndexedDB on native, but fall back to localStorage if unavailable

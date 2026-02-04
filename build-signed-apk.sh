@@ -300,19 +300,14 @@ fi
 
 if [[ "$goto_release_only" != "1" ]]; then
 # ========== BUILD STEPS ==========
-print_header "Step 1: Building React App"
-sed -i 's|"homepage": "https://dobercodes.github.io/propertyManagerWebApp"|"homepage": "./"|g' package.json client/package.json
-print_success "Homepage changed to relative path"
+# Order is critical for proper asset paths:
+# 1. Update versions first (so built app has correct version)
+# 2. Change homepage to relative paths for mobile build
+# 3. Build React app with mobile-optimized assets
+# 4. Sync Capacitor to copy mobile assets to Android project
+# 5. Build signed APK with embedded mobile assets
 
-if ! yarn build; then
-  print_error "Build failed!"
-  send_slack_notification "Build failed for v$NEW_VERSION" "error"
-  exit 1
-fi
-print_success "React app built successfully"
-
-echo ""
-print_header "Step 2.5: Updating Version Files Before Build"
+print_header "Step 1: Updating Version Files"
 if [[ "$DRY_RUN" != "--dry-run" && "$DRY_RUN" != "-d" ]]; then
   node scripts/updateAppVersion.cjs "$NEW_VERSION" "$RELEASE_NOTES"
   print_success "Version updated to $NEW_VERSION in Firestore"
@@ -335,6 +330,18 @@ if [[ "$DRY_RUN" != "--dry-run" && "$DRY_RUN" != "-d" ]]; then
 else
   print_warning "Skipping version update in dry-run mode"
 fi
+
+echo ""
+print_header "Step 2: Building React App"
+sed -i 's|"homepage": "https://dobercodes.github.io/propertyManagerWebApp"|"homepage": "./"|g' package.json client/package.json
+print_success "Homepage changed to relative path"
+
+if ! yarn build; then
+  print_error "Build failed!"
+  send_slack_notification "Build failed for v$NEW_VERSION" "error"
+  exit 1
+fi
+print_success "React app built successfully"
 
 echo ""
 print_header "Step 3: Syncing Capacitor"
@@ -483,13 +490,20 @@ APK_ASSET_NAME="PropertyManager.apk"
 REPO_NAME=${GITHUB_REPOSITORY:-$(gh repo view --json nameWithOwner -q .nameWithOwner)}
 
 if [ -f "$RELEASE_NOTES_FILE" ] && [ -f "$APK_FILE" ]; then
+  RELEASE_EXISTS=false
   if run_gh_with_refresh gh release view "v$NEW_VERSION" --repo "$REPO_NAME" >/dev/null 2>&1; then
-    print_warning "Release v$NEW_VERSION already exists. Uploading APK."
+    RELEASE_EXISTS=true
+    print_warning "Release v$NEW_VERSION already exists. Updating with new APK."
+  fi
+
+  if [ "$RELEASE_EXISTS" = true ]; then
+    # Update existing release notes (only if they changed)
     if ! run_gh_with_refresh gh release edit "v$NEW_VERSION" --repo "$REPO_NAME" --notes-file "$RELEASE_NOTES_FILE"; then
       print_warning "Failed to update GitHub release notes. Continuing with APK upload."
       send_slack_notification "Failed to update GitHub release notes for v$NEW_VERSION" "warning"
     fi
   else
+    # Create new release
     if ! run_gh_with_refresh gh release create "v$NEW_VERSION" \
       --repo "$REPO_NAME" \
       --title "Release v$NEW_VERSION" \
@@ -501,25 +515,19 @@ if [ -f "$RELEASE_NOTES_FILE" ] && [ -f "$APK_FILE" ]; then
     print_success "GitHub release v$NEW_VERSION created"
   fi
 
-  if [ -f "$APK_FILE" ]; then
-    # Create temp file with latest APK name for upload
-    TMP_DIR="tmp"
-    LATEST_APK_PATH="$TMP_DIR/$APK_ASSET_NAME"
-    mkdir -p "$TMP_DIR"
-    cp "$APK_FILE" "$LATEST_APK_PATH"
-
-    if run_gh_with_refresh gh release upload "v$NEW_VERSION" \
-      "$LATEST_APK_PATH" \
-      --repo "$REPO_NAME" --clobber; then
-      print_success "Latest APK uploaded to GitHub release"
+  # Upload/replace APK (use --clobber to overwrite existing assets with same name)
+  # This handles both new releases and APK replacements in existing releases
+  if run_gh_with_refresh gh release upload "v$NEW_VERSION" \
+    "$APK_FILE" \
+    --repo "$REPO_NAME" --clobber; then
+    if [ "$RELEASE_EXISTS" = true ]; then
+      print_success "APK replaced in existing GitHub release v$NEW_VERSION"
     else
-      print_warning "Could not upload APK to release. You can upload it manually from GitHub."
+      print_success "APK uploaded to new GitHub release v$NEW_VERSION"
     fi
-
-    # Cleanup temp files
-    rm -f "$LATEST_APK_PATH"
   else
-    print_warning "APK file not found. Cannot upload to release."
+    print_warning "Could not upload APK to release. You can upload it manually from GitHub."
+    send_slack_notification "Failed to upload APK for v$NEW_VERSION" "warning"
   fi
 else
   print_error "Missing release notes or APK file"
@@ -579,10 +587,18 @@ print_header "Release Complete!"
 echo ""
 echo "Summary:"
 print_success "Version bumped to $NEW_VERSION"
+print_success "React app built with relative paths for mobile"
+print_success "Capacitor synced with mobile-optimized assets"
 print_success "APK built and signed"
-print_success "Changes committed and pushed to main"
-print_success "Git tag v$NEW_VERSION created"
-print_success "GitHub release created with APK"
+if [[ "$SKIP_GIT_STEPS" != "1" ]]; then
+  print_success "Changes committed and pushed to main"
+  print_success "Git tag v$NEW_VERSION created"
+fi
+if [ "$RELEASE_EXISTS" = true ]; then
+  print_success "APK replaced in existing GitHub release v$NEW_VERSION"
+else
+  print_success "GitHub release v$NEW_VERSION created with APK"
+fi
 print_success "Website deployed to GitHub Pages"
 echo ""
 echo "Release notes for v$NEW_VERSION:"
@@ -602,7 +618,11 @@ echo "  https://github.com/DoberCodes/propertyManagerWebApp/releases/latest/down
 echo ""
 
 # Send success notification
-send_slack_notification "✅ Release v$NEW_VERSION completed successfully! APK deployed and website updated." "success"
+if [ "$RELEASE_EXISTS" = true ]; then
+  send_slack_notification "✅ Release v$NEW_VERSION updated! APK replaced and website updated." "success"
+else
+  send_slack_notification "✅ Release v$NEW_VERSION completed successfully! APK deployed and website updated." "success"
+fi
 
 echo ""
 echo "Done! Release v$NEW_VERSION is live! 🚀"

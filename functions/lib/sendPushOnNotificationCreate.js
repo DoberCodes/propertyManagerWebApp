@@ -38,17 +38,47 @@ const admin = __importStar(require("firebase-admin"));
 const firestore_1 = require("firebase-functions/v2/firestore");
 admin.initializeApp();
 const db = admin.firestore();
+/**
+ * Clean up invalid push tokens from user documents
+ */
+async function cleanupInvalidPushToken(userId, pushToken) {
+    try {
+        const userRef = db.collection('users').doc(userId);
+        const userDoc = await userRef.get();
+        if (userDoc.exists) {
+            const userData = userDoc.data();
+            if ((userData === null || userData === void 0 ? void 0 : userData.pushToken) === pushToken) {
+                // Remove the invalid token
+                await userRef.update({
+                    pushToken: admin.firestore.FieldValue.delete(),
+                    pushTokenUpdatedAt: admin.firestore.FieldValue.delete(),
+                });
+                console.log(`Cleaned up invalid push token for user ${userId}`);
+            }
+        }
+    }
+    catch (error) {
+        console.error(`Failed to cleanup push token for user ${userId}:`, error);
+    }
+}
 exports.sendPushOnNotificationCreate = (0, firestore_1.onDocumentCreated)('notifications/{notificationId}', async (event) => {
     var _a;
     const notification = (_a = event.data) === null || _a === void 0 ? void 0 : _a.data();
-    if (!notification || !notification.userId)
+    if (!notification || !notification.userId) {
+        console.log('Invalid notification document - missing userId');
         return;
+    }
+    console.log(`Processing notification ${event.params.notificationId} for user ${notification.userId}`);
     // Get the recipient user's push token
     const userDoc = await db.collection('users').doc(notification.userId).get();
     const user = userDoc.exists ? userDoc.data() : null;
-    const pushToken = user && user.pushToken;
+    if (!user) {
+        console.log(`User ${notification.userId} not found`);
+        return;
+    }
+    const pushToken = user.pushToken;
     if (!pushToken) {
-        console.log('No push token for user', notification.userId);
+        console.log(`No push token for user ${notification.userId}`);
         return;
     }
     // Compose the push notification
@@ -66,10 +96,23 @@ exports.sendPushOnNotificationCreate = (0, firestore_1.onDocumentCreated)('notif
     };
     // Send the push notification via FCM
     try {
-        const response = await admin.messaging().sendToDevice(pushToken, payload);
-        console.log('Push sent to', pushToken, response);
+        const message = {
+            token: pushToken,
+            notification: {
+                title: notification.title || 'New Notification',
+                body: notification.message || '',
+            },
+            data: {
+                notificationId: event.params.notificationId,
+                ...(notification.data && typeof notification.data === 'object'
+                    ? notification.data
+                    : {}),
+            },
+        };
+        const response = await admin.messaging().send(message);
+        console.log(`Push sent successfully to user ${notification.userId}:`, response);
     }
     catch (err) {
-        console.error('Error sending push notification:', err);
+        console.error(`Error sending push notification to user ${notification.userId}:`, err);
     }
 });

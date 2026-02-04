@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../Redux/store/store';
+import { canExportData } from '../../utils/subscriptionUtils';
 import {
 	useGetTasksQuery,
 	useGetPropertiesQuery,
@@ -275,6 +276,14 @@ export const ReportBuilder: React.FC = () => {
 			return;
 		}
 
+		// Check subscription permissions for export
+		if (currentUser?.subscription && !canExportData(currentUser.subscription)) {
+			alert(
+				'Your current plan does not include data export. Please upgrade to access this feature.',
+			);
+			return;
+		}
+
 		switch (reportType) {
 			case 'tasks':
 				generateTaskReport(previewData, selectedColumns);
@@ -466,8 +475,16 @@ export const ReportBuilder: React.FC = () => {
 						</Button>
 						<Button
 							onClick={handleDownload}
-							disabled={selectedColumns.length === 0}>
-							Download CSV
+							disabled={
+								selectedColumns.length === 0 ||
+								(currentUser?.subscription
+									? !canExportData(currentUser.subscription)
+									: false)
+							}>
+							{currentUser?.subscription &&
+							!canExportData(currentUser.subscription)
+								? 'Upgrade to Export'
+								: 'Download CSV'}
 						</Button>
 					</ActionButtons>
 				</PreviewSection>
