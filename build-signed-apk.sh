@@ -346,6 +346,14 @@ print_success "React app built successfully"
 echo ""
 print_header "Step 3: Syncing Capacitor"
 
+# Sync Capacitor to copy the built web assets to Android project
+if ! npx cap sync android; then
+  print_error "Capacitor sync failed!"
+  send_slack_notification "Capacitor sync failed for v$NEW_VERSION" "error"
+  exit 1
+fi
+print_success "Capacitor synced successfully - web assets copied to Android"
+
 # Check keystore file
 if [ ! -f "my-release-key.keystore" ]; then
   print_error "Keystore file (my-release-key.keystore) not found!"
