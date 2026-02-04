@@ -5,7 +5,7 @@ import { COLORS } from '../../../../constants/colors';
 
 export const Wrapper = styled.div`
 	border: none;
-	border-bottom: 2px solid ${COLORS.gray200};
+	border-bottom: 2px solid ${COLORS.primaryDark};
 	display: flex;
 	flex-flow: row;
 	align-items: center;
@@ -13,8 +13,8 @@ export const Wrapper = styled.div`
 	height: ${nav_height};
 	background: linear-gradient(
 		90deg,
-		${COLORS.bgWhite} 0%,
-		${COLORS.gray50} 100%
+		${COLORS.primary} 0%,
+		${COLORS.primaryDark} 100%
 	);
 	padding: 20px 20px;
 	padding-left: max(20px, env(safe-area-inset-left));
@@ -106,10 +106,7 @@ export const Title = styled.h1`
 	font-size: 20px;
 	margin: 0;
 	flex-shrink: 0;
-	background: ${COLORS.gradientPrimary};
-	-webkit-background-clip: text;
-	-webkit-text-fill-color: transparent;
-	background-clip: text;
+	color: ${COLORS.bgWhite};
 	font-weight: 700;
 
 	@media (max-width: 768px) {
@@ -142,7 +139,7 @@ export const NavItems = styled.div`
 
 export const NavItem = styled(Link)`
 	text-align: center;
-	color: ${COLORS.primary};
+	color: ${COLORS.bgWhite};
 	text-decoration: none;
 	cursor: pointer;
 	white-space: nowrap;
@@ -170,14 +167,14 @@ export const HamburgerButton = styled.button`
 	border: none;
 	cursor: pointer;
 	font-size: 24px;
-	color: ${COLORS.primary};
+	color: ${COLORS.bgWhite};
 	padding: 8px;
 	margin-right: 10px;
 	transition: all 0.2s ease;
 
 	&:hover {
 		transform: scale(1.1);
-		color: ${COLORS.primaryDark};
+		color: ${COLORS.primaryLight};
 	}
 
 	@media (max-width: 768px) {

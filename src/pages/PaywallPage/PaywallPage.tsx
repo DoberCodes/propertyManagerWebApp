@@ -18,7 +18,6 @@ import {
 	PlanFeature,
 	SelectPlanButton,
 	CurrentPlanLabel,
-	UpgradeMessage,
 	ButtonGroup,
 	ContactSalesButton,
 } from './PaywallPage.styles';
@@ -63,7 +62,7 @@ export const PaywallPage: React.FC<PaywallPageProps> = ({
 
 	const getPriceIdForPlan = (planId: string): string => {
 		const priceMap: Record<string, string> = {
-			free: STRIPE_PLANS.FREE,
+			Base: STRIPE_PLANS.FREE,
 			basic: STRIPE_PLANS.BASIC,
 			professional: STRIPE_PLANS.PROFESSIONAL,
 			enterprise: STRIPE_PLANS.ENTERPRISE,
@@ -160,13 +159,6 @@ export const PaywallPage: React.FC<PaywallPageProps> = ({
 							premium features.
 						</TrialBannerText>
 					</TrialBannerWrapper>
-				)}
-
-				{!isOnTrial && currentPlan !== 'free' && (
-					<UpgradeMessage>
-						You're currently on the {currentPlan} plan. Upgrade to access more
-						features.
-					</UpgradeMessage>
 				)}
 
 				<PricingCardsGrid layout={layout}>

@@ -102,11 +102,6 @@ export const RegistrationCard = () => {
 		}
 	};
 
-	const handleSkip = () => {
-		setError('');
-		setStep(4);
-	};
-
 	const signup = async () => {
 		setError('');
 		if (!selectedPlan) {
@@ -195,7 +190,7 @@ export const RegistrationCard = () => {
 						required
 					/>
 					<QuestionLabel>
-						Are you registering as a homeowner or a landlord?
+						Are you registering as a homeowner or a property manager?
 					</QuestionLabel>
 					<RadioGrid>
 						<RadioOption>
@@ -216,29 +211,15 @@ export const RegistrationCard = () => {
 							<input
 								type='radio'
 								name='userType'
-								value='landlord'
-								checked={userType === 'landlord'}
+								value='propertyManager'
+								checked={userType === 'propertyManager'}
 								onChange={() => {
-									setUserType('landlord');
+									setUserType('propertyManager');
 									setError('');
 								}}
 								required
 							/>
-							Landlord
-						</RadioOption>
-						<RadioOption>
-							<input
-								type='radio'
-								name='userType'
-								value='vehicleOwner'
-								checked={userType === 'vehicleOwner'}
-								onChange={() => {
-									setUserType('vehicleOwner');
-									setError('');
-								}}
-								required
-							/>
-							Vehicle/Equipment Owner
+							Property Manager
 						</RadioOption>
 						<RadioOption>
 							<input
@@ -376,10 +357,6 @@ export const RegistrationCard = () => {
 						<Submit type='button' onClick={handleBack} disabled={loading}>
 							Back
 						</Submit>
-						<Submit type='button' onClick={handleSkip} disabled={loading}>
-							{loading && <LoadingSpinner />}
-							{loading ? 'Saving...' : 'Skip & Continue'}
-						</Submit>
 						<Submit
 							type='button'
 							onClick={() => setStep(4)}
@@ -403,7 +380,7 @@ export const RegistrationCard = () => {
 							currentPeriodEnd: Math.floor(Date.now() / 1000),
 						}}
 						currentPlan={selectedPlan}
-						layout='horizontal'
+						layout={window.innerWidth > 768 ? 'horizontal' : 'grid'}
 						variant='embedded'
 						selectionOnly
 						onPlanSelect={(planId) => {

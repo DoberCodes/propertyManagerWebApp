@@ -1,6 +1,7 @@
 import styled from 'styled-components';
 import { font_main } from '../../../../global.styles';
 import { Link } from 'react-router-dom';
+import { COLORS } from '../../../../constants/colors';
 
 export const DesktopWrapper = styled.div`
 	background-color: #fefefe;
@@ -93,8 +94,12 @@ export const MobileBottomNav = styled.div`
 	bottom: 0;
 	left: 0;
 	right: 0;
-	background-color: #fefefe;
-	border-top: 1px solid #e5e7eb;
+	background: linear-gradient(
+		90deg,
+		${COLORS.primary} 0%,
+		${COLORS.primaryDark} 100%
+	);
+	border-top: 1px solid ${COLORS.primaryDark};
 	flex-direction: row;
 	justify-content: space-around;
 	padding: 20px 0;
@@ -121,8 +126,8 @@ export const MobileNavItem = styled(Link)`
 	gap: 4px;
 	padding: 8px 12px;
 	text-decoration: none;
-	color: #666666;
-	font-size: 11px;
+	color: ${COLORS.bgWhite};
+	font-size: 12px;
 	font-weight: 600;
 	text-align: center;
 	flex: 1;
@@ -131,14 +136,14 @@ export const MobileNavItem = styled(Link)`
 	white-space: nowrap;
 
 	&:hover {
-		color: #22c55e;
-		background-color: rgba(34, 197, 94, 0.05);
+		color: ${COLORS.bgWhite};
+		background-color: rgba(255, 255, 255, 0.15);
 	}
 
 	&.active {
-		color: #22c55e;
-		background-color: rgba(34, 197, 94, 0.1);
-		border-top: 3px solid #22c55e;
+		color: ${COLORS.bgWhite};
+		background-color: rgba(255, 255, 255, 0.25);
+		border-top: 3px solid ${COLORS.bgWhite};
 		padding-top: 5px;
 	}
 `;

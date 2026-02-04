@@ -5,7 +5,7 @@ export const Wrapper = styled.div`
 	display: grid;
 	justify-content: center;
 	align-items: center;
-	height: 100vh;
+	min-height: 100vh;
 	width: 100vw;
 	background: linear-gradient(
 		135deg,
@@ -13,6 +13,11 @@ export const Wrapper = styled.div`
 		${COLORS.gray100} 50%,
 		#e0f2fe 100%
 	);
+	padding: 20px 0;
+
+	@media (max-width: 480px) {
+		padding: 16px 0;
+	}
 	position: relative;
 	overflow: hidden;
 

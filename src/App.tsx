@@ -16,7 +16,7 @@ const LoadingContainer = styled.div`
 	justify-content: center;
 	align-items: center;
 	width: 100%;
-	height: 100vh;
+	min-height: 100vh;
 	background: linear-gradient(135deg, #065f46 0%, #047857 100%);
 	color: white;
 	font-size: 18px;

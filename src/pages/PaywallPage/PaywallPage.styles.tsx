@@ -105,9 +105,11 @@ export const PricingCardsGrid = styled.div<{ layout?: 'grid' | 'horizontal' }>`
 	padding-bottom: ${(props) => (props.layout === 'horizontal' ? '12px' : '0')};
 
 	@media (max-width: 768px) {
-		grid-template-columns: ${(props) =>
-			props.layout === 'horizontal' ? 'none' : '1fr'};
+		display: grid;
+		grid-template-columns: 1fr;
 		gap: 16px;
+		overflow-x: visible;
+		flex-wrap: wrap;
 	}
 `;
 

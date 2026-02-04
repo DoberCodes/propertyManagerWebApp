@@ -45,7 +45,7 @@ export const UserInfo = styled.div`
 export const UserName = styled.span`
 	font-size: 14px;
 	font-weight: 600;
-	color: black;
+	color: #f9fafb;
 	white-space: nowrap;
 	margin: 0;
 	line-height: 1.2;
@@ -57,7 +57,7 @@ export const UserName = styled.span`
 
 export const UserTitle = styled.span`
 	font-size: 12px;
-	color: #999999;
+	color: #e5e7eb;
 	white-space: nowrap;
 	margin: 0;
 	line-height: 1.2;
