@@ -319,6 +319,8 @@ export const apiSlice = createApi({
 		'UserInvitations',
 		'Notifications',
 		'TenantProfiles',
+		'MaintenanceHistory',
+		'Contractors',
 	],
 	endpoints: (builder) => ({
 		// Property Group endpoints
@@ -785,33 +787,52 @@ export const apiSlice = createApi({
 			}) {
 				try {
 					const docRef = doc(db, 'tasks', taskId);
-					// Build updates object, conditionally adding optional fields
-					// Homeowners can mark tasks as complete directly, others need approval
-					const updates: any = {
-						status:
-							userType === 'homeowner' ? 'Completed' : 'Awaiting Approval',
+					const taskSnapshot = await getDoc(docRef);
+					if (!taskSnapshot.exists()) {
+						return { error: 'Task not found' };
+					}
+					const taskData = taskSnapshot.data() as any;
+					const historyData = {
+						...taskData,
+						status: 'Completed',
 						completionDate,
 						completionFile,
 						completedBy,
+						completionNotes: completionNotes || taskData.completionNotes || '',
+						originalTaskId: taskId,
+						completedByUserType: userType,
+						userId: taskData.userId,
+						ownerId: taskData.userId,
+						propertyId: taskData.propertyId,
+						propertyTitle: taskData.propertyTitle || taskData.property,
 						updatedAt: new Date().toISOString(),
 					};
 
-					// Only add completionNotes if it has a value
-					if (completionNotes) {
-						updates.completionNotes = completionNotes;
-					}
+					// Remove any undefined fields (Firebase doesn't allow them)
+					Object.keys(historyData).forEach((key) => {
+						if (historyData[key] === undefined) {
+							delete historyData[key];
+						}
+					});
 
-					await updateDoc(docRef, updates);
+					await addDoc(collection(db, 'maintenanceHistory'), historyData);
+					await deleteDoc(docRef);
 
-					// TODO: Send notification to admin/maintenance lead
-					// This would typically trigger a cloud function or send an email
-
-					return { data: { id: taskId, ...updates } };
+					return {
+						data: {
+							id: taskId,
+							status: 'Completed',
+							completionDate,
+							completionFile,
+							completedBy,
+							completionNotes,
+						},
+					};
 				} catch (error: any) {
 					return { error: error.message };
 				}
 			},
-			invalidatesTags: ['Tasks'],
+			invalidatesTags: ['Tasks', 'MaintenanceHistory'],
 		}),
 
 		approveTask: builder.mutation<
@@ -821,6 +842,11 @@ export const apiSlice = createApi({
 			async queryFn({ taskId, approvedBy }) {
 				try {
 					const docRef = doc(db, 'tasks', taskId);
+					const taskSnapshot = await getDoc(docRef);
+					if (!taskSnapshot.exists()) {
+						return { error: 'Task not found' };
+					}
+					const taskData = taskSnapshot.data() as any;
 					const approvedAt = new Date().toISOString();
 					const updates = {
 						status: 'Completed' as const,
@@ -829,7 +855,21 @@ export const apiSlice = createApi({
 						updatedAt: approvedAt,
 					};
 
-					await updateDoc(docRef, updates);
+					const historyData = {
+						...taskData,
+						...updates,
+						originalTaskId: taskId,
+					};
+
+					// Remove any undefined fields (Firebase doesn't allow them)
+					Object.keys(historyData).forEach((key) => {
+						if (historyData[key] === undefined) {
+							delete historyData[key];
+						}
+					});
+
+					await addDoc(collection(db, 'maintenanceHistory'), historyData);
+					await deleteDoc(docRef);
 
 					// TODO: Send notification to the user who completed the task
 
@@ -838,7 +878,47 @@ export const apiSlice = createApi({
 					return { error: error.message };
 				}
 			},
-			invalidatesTags: ['Tasks'],
+			invalidatesTags: ['Tasks', 'MaintenanceHistory'],
+		}),
+
+		getMaintenanceHistoryByProperty: builder.query<any[], string>({
+			async queryFn(propertyId: string) {
+				try {
+					if (!propertyId) {
+						return { data: [] };
+					}
+					const records: any[] = [];
+					const primaryQuery = query(
+						collection(db, 'maintenanceHistory'),
+						where('propertyId', '==', propertyId),
+					);
+					const primarySnapshot = await getDocs(primaryQuery);
+					primarySnapshot.docs.forEach((doc) => {
+						records.push({ id: doc.id, ...doc.data() });
+					});
+
+					if (records.length === 0) {
+						// Fallback for legacy records missing propertyId
+						const propertyDoc = await getDoc(doc(db, 'properties', propertyId));
+						const propertyTitle = propertyDoc.data()?.title;
+						if (propertyTitle) {
+							const titleQuery = query(
+								collection(db, 'maintenanceHistory'),
+								where('propertyTitle', '==', propertyTitle),
+							);
+							const titleSnapshot = await getDocs(titleQuery);
+							titleSnapshot.docs.forEach((doc) => {
+								records.push({ id: doc.id, ...doc.data() });
+							});
+						}
+					}
+
+					return { data: records };
+				} catch (error: any) {
+					return { error: error.message };
+				}
+			},
+			providesTags: ['MaintenanceHistory'],
 		}),
 
 		rejectTask: builder.mutation<
@@ -864,6 +944,151 @@ export const apiSlice = createApi({
 				}
 			},
 			invalidatesTags: ['Tasks'],
+		}),
+
+		// Contractor endpoints
+		getContractorsByProperty: builder.query<any[], string>({
+			async queryFn(propertyId: string) {
+				try {
+					if (!propertyId) {
+						return { data: [] };
+					}
+					const contractorQuery = query(
+						collection(db, 'contractors'),
+						where('propertyId', '==', propertyId),
+						orderBy('createdAt', 'desc'),
+					);
+					const snapshot = await getDocs(contractorQuery);
+					const contractors = snapshot.docs.map((doc) => ({
+						id: doc.id,
+						...doc.data(),
+					}));
+					return { data: contractors };
+				} catch (error: any) {
+					return { error: error.message };
+				}
+			},
+			providesTags: ['Contractors'],
+		}),
+
+		createContractor: builder.mutation<
+			any,
+			{
+				propertyId: string;
+				name: string;
+				company: string;
+				category: string;
+				phone: string;
+				address?: string;
+				email?: string;
+				notes?: string;
+			}
+		>({
+			async queryFn({
+				propertyId,
+				name,
+				company,
+				category,
+				phone,
+				address,
+				email,
+				notes,
+			}) {
+				try {
+					const currentUser = auth.currentUser;
+					if (!currentUser) {
+						return { error: 'User not authenticated' };
+					}
+
+					const contractorData = {
+						propertyId,
+						name,
+						company,
+						category,
+						phone,
+						address: address || '',
+						email: email || '',
+						notes: notes || '',
+						userId: currentUser.uid,
+						createdAt: new Date().toISOString(),
+						updatedAt: new Date().toISOString(),
+					};
+
+					const docRef = await addDoc(
+						collection(db, 'contractors'),
+						contractorData,
+					);
+
+					return {
+						data: {
+							id: docRef.id,
+							...contractorData,
+						},
+					};
+				} catch (error: any) {
+					return { error: error.message };
+				}
+			},
+			invalidatesTags: ['Contractors'],
+		}),
+
+		updateContractor: builder.mutation<
+			any,
+			{
+				contractorId: string;
+				name?: string;
+				company?: string;
+				category?: string;
+				phone?: string;
+				address?: string;
+				email?: string;
+				notes?: string;
+			}
+		>({
+			async queryFn({
+				contractorId,
+				name,
+				company,
+				category,
+				phone,
+				address,
+				email,
+				notes,
+			}) {
+				try {
+					const docRef = doc(db, 'contractors', contractorId);
+					const updates: any = {
+						updatedAt: new Date().toISOString(),
+					};
+
+					if (name !== undefined) updates.name = name;
+					if (company !== undefined) updates.company = company;
+					if (category !== undefined) updates.category = category;
+					if (phone !== undefined) updates.phone = phone;
+					if (address !== undefined) updates.address = address;
+					if (email !== undefined) updates.email = email;
+					if (notes !== undefined) updates.notes = notes;
+
+					await updateDoc(docRef, updates);
+
+					return { data: { id: contractorId, ...updates } };
+				} catch (error: any) {
+					return { error: error.message };
+				}
+			},
+			invalidatesTags: ['Contractors'],
+		}),
+
+		deleteContractor: builder.mutation<void, string>({
+			async queryFn(contractorId: string) {
+				try {
+					await deleteDoc(doc(db, 'contractors', contractorId));
+					return { data: undefined };
+				} catch (error: any) {
+					return { error: error.message };
+				}
+			},
+			invalidatesTags: ['Contractors'],
 		}),
 
 		// User endpoints
@@ -1843,17 +2068,16 @@ export const apiSlice = createApi({
 		}),
 
 		// Notifications
-		getUserNotifications: builder.query<Notification[], void>({
-			async queryFn() {
+		getUserNotifications: builder.query<Notification[], string | undefined>({
+			async queryFn(userId) {
 				try {
-					const currentUser = auth.currentUser;
-					if (!currentUser) {
+					if (!userId) {
 						return { data: [] };
 					}
 
 					const q = query(
 						collection(db, 'notifications'),
-						where('userId', '==', currentUser.uid),
+						where('userId', '==', userId),
 						orderBy('createdAt', 'desc'),
 					);
 					const querySnapshot = await getDocs(q);
@@ -1877,9 +2101,15 @@ export const apiSlice = createApi({
 		>({
 			async queryFn(notificationData) {
 				try {
+					const resolvedUserId =
+						notificationData.userId || auth.currentUser?.uid;
+					if (!resolvedUserId) {
+						return { error: 'Notification userId is missing' };
+					}
 					const notificationRef = collection(db, 'notifications');
 					const docRef = await addDoc(notificationRef, {
 						...notificationData,
+						userId: resolvedUserId,
 						createdAt: new Date().toISOString(),
 						updatedAt: new Date().toISOString(),
 					});
@@ -1888,6 +2118,7 @@ export const apiSlice = createApi({
 						data: {
 							id: docRef.id,
 							...notificationData,
+							userId: resolvedUserId,
 							createdAt: new Date().toISOString(),
 							updatedAt: new Date().toISOString(),
 						} as Notification,
@@ -2206,6 +2437,13 @@ export const {
 	useSubmitTaskCompletionMutation,
 	useApproveTaskMutation,
 	useRejectTaskMutation,
+	// Maintenance History
+	useGetMaintenanceHistoryByPropertyQuery,
+	// Contractors
+	useGetContractorsByPropertyQuery,
+	useCreateContractorMutation,
+	useUpdateContractorMutation,
+	useDeleteContractorMutation,
 	// User
 	useUpdateUserMutation,
 	// Team Groups

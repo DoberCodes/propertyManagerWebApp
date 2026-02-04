@@ -23,6 +23,7 @@ import {
 	canViewAllPages,
 	isTenant,
 } from '../../../../utils/permissions';
+import { clearUserLocalStorage } from '../../../../utils/localStorageCleanup';
 
 export const TopNav = () => {
 	const navigate = useNavigate();
@@ -67,7 +68,7 @@ export const TopNav = () => {
 	];
 
 	const handleLogout = () => {
-		localStorage.removeItem('loggedUser');
+		clearUserLocalStorage(currentUser?.id);
 		dispatch(logout());
 		// Reset RTK Query cache to prevent stale data for next user
 		dispatch(apiSlice.util.resetApiState());

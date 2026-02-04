@@ -9,7 +9,8 @@ import {
 	useSubmitTaskCompletionMutation,
 	useCreateTaskMutation,
 } from '../../Redux/API/apiSlice';
-import { uploadToBase64 } from '../../utils/base64Upload';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { storage } from '../../config/firebase';
 import { GenericModal, FormGroup } from '../Library';
 import { calculateNextDueDate } from '../../utils/recurringTaskUtils';
 import { Task } from '../../types/Task.types';
@@ -58,13 +59,13 @@ export const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
 	const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const file = e.target.files?.[0];
 		if (file) {
-			// Validate file size (max 700KB for base64 encoding)
-			if (file.size > 700 * 1024) {
-				setErrors({ ...errors, file: 'File size must be less than 700KB' });
+			// Validate file size (max 25MB for Firebase Storage)
+			if (file.size > 25 * 1024 * 1024) {
+				setErrors({ ...errors, file: 'File size must be less than 25MB' });
 				return;
 			}
 
-			// Validate file type (images and PDFs for base64)
+			// Validate file type (images and PDFs for Firebase Storage)
 			const allowedTypes = [
 				'image/jpeg',
 				'image/png',
@@ -110,12 +111,16 @@ export const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
 		setErrors({});
 
 		try {
-			// Step 1: Convert file to base64
-			const base64Url = await uploadToBase64(selectedFile!);
-
+			// Step 1: Upload file to Firebase Storage
+			const fileRef = ref(
+				storage,
+				`task-completions/${currentUser!.id}/${taskId}/${Date.now()}-${selectedFile!.name}`,
+			);
+			await uploadBytes(fileRef, selectedFile!);
+			const downloadUrl = await getDownloadURL(fileRef);
 			const completionFileData: CompletionFile = {
 				name: selectedFile!.name,
-				url: base64Url,
+				url: downloadUrl,
 				size: selectedFile!.size,
 				type: selectedFile!.type,
 				uploadedAt: new Date().toISOString(),
@@ -134,21 +139,14 @@ export const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
 			);
 
 			// Step 3: Submit to Firebase
-			try {
-				await submitCompletion({
-					taskId: taskId.toString(),
-					completionDate,
-					completionNotes,
-					completionFile: completionFileData,
-					completedBy: currentUser!.id,
-					userType: currentUser!.userType,
-				}).unwrap();
-			} catch (firebaseError) {
-				console.warn(
-					'Firebase submission failed, but Redux state updated:',
-					firebaseError,
-				);
-			}
+			await submitCompletion({
+				taskId: taskId.toString(),
+				completionDate,
+				completionNotes,
+				completionFile: completionFileData,
+				completedBy: currentUser!.id,
+				userType: currentUser!.userType,
+			}).unwrap();
 
 			// Step 4: Create new recurring task if applicable
 			if (
@@ -300,7 +298,7 @@ export const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
 								Click to upload or drag and drop
 								<br />
 								<span style={{ fontSize: '0.85rem', color: '#666' }}>
-									JPG, PNG, GIF, WEBP (max 700KB)
+									JPG, PNG, GIF, WEBP, PDF (max 25MB)
 								</span>
 							</>
 						)}

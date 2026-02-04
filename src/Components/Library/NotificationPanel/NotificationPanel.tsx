@@ -24,16 +24,23 @@ interface NotificationPanelProps {
 export const NotificationPanel: React.FC<NotificationPanelProps> = () => {
 	const [error, setError] = useState('');
 	const [success, setSuccess] = useState('');
+	const currentUser = useSelector((state: any) => state.user.currentUser);
+	const notificationUserId = currentUser?.id || currentUser?.uid;
 
-	const { data: notifications = [], isLoading } =
-		useGetUserNotificationsQuery();
+	const {
+		data: notifications = [],
+		isLoading,
+		isError,
+		error: queryError,
+	} = useGetUserNotificationsQuery(notificationUserId, {
+		skip: !notificationUserId,
+	});
 	const [updateNotification, { isLoading: isUpdating }] =
 		useUpdateNotificationMutation();
 	const [deleteNotification, { isLoading: isDeleting }] =
 		useDeleteNotificationMutation();
 	const [acceptInvitation, { isLoading: isAccepting }] =
 		useAcceptInvitationMutation();
-	const currentUser = useSelector((state: any) => state.user.currentUser);
 
 	const handleAcceptInvitation = async (notification: Notification) => {
 		setError('');
@@ -159,6 +166,10 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = () => {
 	}
 
 	const unreadCount = notifications.filter((n) => n.status === 'unread').length;
+	const queryErrorMessage = isError
+		? String((queryError as any)?.message || queryError || '')
+		: '';
+	const errorMessage = error || queryErrorMessage;
 
 	return (
 		<Card>
@@ -169,10 +180,10 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = () => {
 				</h3>
 			</CardHeader>
 
-			{error && (
+			{errorMessage && (
 				<Alert type='error'>
-					{error}
-					<CloseButton onClick={() => setError('')}>×</CloseButton>
+					{errorMessage || 'Failed to load notifications'}
+					{error && <CloseButton onClick={() => setError('')}>×</CloseButton>}
 				</Alert>
 			)}
 
@@ -266,6 +277,9 @@ const Card = styled.div`
 	border-radius: 8px;
 	overflow: hidden;
 	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+	display: flex;
+	flex-direction: column;
+	min-height: 260px;
 `;
 
 const CardHeader = styled.div`
@@ -312,6 +326,8 @@ const EmptyState = styled.div`
 	justify-content: center;
 	text-align: center;
 	gap: 12px;
+	flex: 1;
+	padding: 24px 16px;
 
 	svg {
 		font-size: 48px;

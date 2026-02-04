@@ -24,7 +24,6 @@ import { signUpWithEmail } from '../../services/authService';
 import { USER_ROLES } from '../../constants/roles';
 import { useDispatch } from 'react-redux';
 import { setCurrentUser } from '../../Redux/Slices/userSlice';
-import PaywallPage from '../../pages/PaywallPage/PaywallPage';
 import { useNavigate } from 'react-router-dom';
 
 export const RegistrationCard = () => {
@@ -43,7 +42,7 @@ export const RegistrationCard = () => {
 	const [showPasswordConfirm, setShowPasswordConfirm] =
 		useState<boolean>(false);
 	const [userType, setUserType] = useState<string>('');
-	const [selectedPlan, setSelectedPlan] = useState<string>('');
+	const [selectedPlan] = useState<string>('free');
 	const dispatch = useDispatch();
 	const navigate = useNavigate();
 
@@ -104,10 +103,6 @@ export const RegistrationCard = () => {
 
 	const signup = async () => {
 		setError('');
-		if (!selectedPlan) {
-			setError('Please select a plan to continue.');
-			return;
-		}
 		setLoading(true);
 
 		try {
@@ -151,15 +146,14 @@ export const RegistrationCard = () => {
 	}, [password, passwordConfirm]);
 
 	return (
-		<Wrapper $wide={step === 4} onSubmit={(e) => e.preventDefault()}>
+		<Wrapper $wide={false} onSubmit={(e) => e.preventDefault()}>
 			<BackButton href='#/login'>
 				<FontAwesomeIcon icon={faArrowCircleLeft} />
 			</BackButton>
 			<Title>
-				{step === 1 && 'Create Account - Step 1 of 4'}
-				{step === 2 && 'Create Account - Step 2 of 4'}
-				{step === 3 && 'Create Account - Step 3 of 4'}
-				{step === 4 && 'Choose Your Plan - Step 4 of 4'}
+				{step === 1 && 'Create Account - Step 1 of 3'}
+				{step === 2 && 'Create Account - Step 2 of 3'}
+				{step === 3 && 'Create Account - Step 3 of 3'}
 			</Title>
 			{error && <ErrorMessage>{error}</ErrorMessage>}
 
@@ -359,42 +353,8 @@ export const RegistrationCard = () => {
 						</Submit>
 						<Submit
 							type='button'
-							onClick={() => setStep(4)}
-							disabled={loading}
-							style={{ backgroundColor: '#22c55e', color: 'white' }}>
-							Continue to Plans
-						</Submit>
-					</ButtonGroup>
-				</>
-			)}
-
-			{/* Step 4: Plan Selection */}
-			{step === 4 && (
-				<>
-					<PaywallPage
-						subscription={{
-							status: 'trial',
-							plan: selectedPlan || 'free',
-							currentPeriodStart: Math.floor(Date.now() / 1000),
-							currentPeriodEnd: Math.floor(Date.now() / 1000),
-						}}
-						currentPlan={selectedPlan}
-						layout={window.innerWidth > 768 ? 'horizontal' : 'grid'}
-						variant='embedded'
-						selectionOnly
-						onPlanSelect={(planId) => {
-							setSelectedPlan(planId);
-							setError('');
-						}}
-					/>
-					<ButtonGroup>
-						<Submit type='button' onClick={handleBack} disabled={loading}>
-							Back
-						</Submit>
-						<Submit
-							type='button'
 							onClick={signup}
-							disabled={loading || !selectedPlan}
+							disabled={loading}
 							style={{ backgroundColor: '#22c55e', color: 'white' }}>
 							{loading && <LoadingSpinner />}
 							{loading ? 'Creating account...' : 'Create Account'}

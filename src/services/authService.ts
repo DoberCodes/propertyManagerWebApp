@@ -9,6 +9,7 @@ import {
 } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '../config/firebase';
+import { clearUserLocalStorage } from '../utils/localStorageCleanup';
 import { User } from '../Redux/Slices/userSlice';
 import { USER_ROLES } from '../constants/roles';
 import { createTrialSubscription } from '../utils/subscriptionUtils';
@@ -114,8 +115,9 @@ export const signUpWithEmail = async (
  */
 export const signOutUser = async (): Promise<void> => {
 	try {
+		const userId = auth.currentUser?.uid;
 		await signOut(auth);
-		localStorage.removeItem('loggedUser');
+		clearUserLocalStorage(userId);
 	} catch (error: any) {
 		console.error('Sign out error:', error);
 		throw new Error('Failed to sign out');

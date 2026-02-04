@@ -13,17 +13,17 @@ import { getDeviceNameUtil } from '../PropertyDetailPage.utils';
 
 export const MaintenanceTab: React.FC<MaintenanceTabProps> = ({
 	property,
-	completedTasks = [],
+	maintenanceHistoryRecords = [],
 }) => {
 	const hasHistory =
 		property.maintenanceHistory && property.maintenanceHistory.length > 0;
-	const hasCompletedTasks = completedTasks.length > 0;
+	const hasMaintenanceRecords = maintenanceHistoryRecords.length > 0;
 
 	return (
 		<SectionContainer>
 			<SectionHeader>Maintenance History</SectionHeader>
 
-			{hasHistory || hasCompletedTasks ? (
+			{hasHistory || hasMaintenanceRecords ? (
 				<GridContainer>
 					<GridTable>
 						<thead>
@@ -36,29 +36,41 @@ export const MaintenanceTab: React.FC<MaintenanceTabProps> = ({
 							</tr>
 						</thead>
 						<tbody>
-							{/* Display completed tasks */}
-							{completedTasks.map((task: any) => (
-								<tr key={`task-${task.id}`}>
-									<td>{task.completionDate || task.dueDate || '-'}</td>
+							{/* Display maintenance history records */}
+							{maintenanceHistoryRecords.map((record: any) => (
+								<tr key={`history-${record.id || record.originalTaskId}`}>
 									<td>
-										<strong>{task.title}</strong>
-										{task.notes && (
+										{record.completionDate ||
+											record.approvedAt ||
+											record.dueDate ||
+											'-'}
+									</td>
+									<td>
+										<strong>
+											{record.title || record.taskTitle || 'Task'}
+										</strong>
+										{record.notes && (
 											<>
 												<br />
-												<small style={{ color: '#666' }}>{task.notes}</small>
+												<small style={{ color: '#666' }}>{record.notes}</small>
 											</>
 										)}
 									</td>
-									<td>{task.completedBy || task.assignee || '-'}</td>
-									<td>{task.completionNotes || '-'}</td>
 									<td>
-										{task.completionFile ? (
+										{record.completedBy ||
+											record.approvedBy ||
+											record.assignee ||
+											'-'}
+									</td>
+									<td>{record.completionNotes || '-'}</td>
+									<td>
+										{record.completionFile ? (
 											<a
-												href={task.completionFile.url}
+												href={record.completionFile.url}
 												target='_blank'
 												rel='noopener noreferrer'
 												style={{ color: '#22c55e' }}>
-												📎 {task.completionFile.name}
+												📎 {record.completionFile.name}
 											</a>
 										) : (
 											'-'

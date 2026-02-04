@@ -140,8 +140,9 @@ export const DashboardTab = () => {
 			teamMembers,
 			allProperties,
 		);
+		const activeTasks = filtered.filter((task) => task.status !== 'Completed');
 		// Enrich tasks with propertyTitle for display in table
-		return filtered.map((task) => {
+		return activeTasks.map((task) => {
 			const property = allProperties.find((p) => p.id === task.propertyId);
 			return {
 				...task,
@@ -270,10 +271,8 @@ export const DashboardTab = () => {
 	);
 
 	const handleTaskCompletion = (taskId: string) => {
-		if (selectedRows.size === 1) {
-			setCompletingTaskId(taskId);
-			setShowTaskCompletionModal(true);
-		}
+		setCompletingTaskId(taskId);
+		setShowTaskCompletionModal(true);
 	};
 
 	const handleTaskCompletionSuccess = () => {
@@ -291,15 +290,6 @@ export const DashboardTab = () => {
 					onUpgradeClick={() => navigate('/paywall')}
 				/>
 			)}
-			<PageHeaderSection>
-				<div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-					{selectedRows.size > 0 && (
-						<span style={{ fontSize: '14px', color: '#666', fontWeight: 600 }}>
-							{selectedRows.size} selected
-						</span>
-					)}
-				</div>
-			</PageHeaderSection>
 
 			{/* Task Grid Section */}
 			<TaskGridSection>
@@ -348,6 +338,12 @@ export const DashboardTab = () => {
 								};
 							}
 
+							// Handle logic for updated row, e.g., marking a task as completed
+							if (updatedRow.status === 'Completed') {
+								handleTaskCompletion(updatedRow.id);
+								return;
+							}
+
 							// Submit to Firebase if there are updates
 							if (Object.keys(updates).length > 0) {
 								updateTaskMutation({
@@ -356,11 +352,6 @@ export const DashboardTab = () => {
 								}).catch((error) => {
 									console.error('Failed to update task:', error);
 								});
-							}
-
-							// Handle logic for updated row, e.g., marking a task as completed
-							if (updatedRow.status === 'Completed') {
-								handleTaskCompletion(updatedRow.id);
 							}
 						}}
 					/>

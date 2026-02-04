@@ -23,6 +23,7 @@ import {
 	useUpdatePropertyMutation,
 	useCreateNotificationMutation,
 	useGetPropertySharesQuery,
+	useGetMaintenanceHistoryByPropertyQuery,
 } from '../../Redux/API/apiSlice';
 import {
 	canApproveMaintenanceRequest,
@@ -71,12 +72,14 @@ import {
 	UnitsTab,
 	SuitesTab,
 	RequestsTab,
+	ContractorsTab,
 } from './tabs';
 
-export const PropertyDetailPage = (props: PropertyDetailPageProps) => {
-	const { slug } = useParams<{ slug: string }>();
+export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
+	props,
+) => {
 	const navigate = useNavigate();
-
+	const { slug } = useParams<{ slug: string }>();
 	// Get current user
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
 
@@ -124,6 +127,7 @@ export const PropertyDetailPage = (props: PropertyDetailPageProps) => {
 		| 'requests'
 		| 'units'
 		| 'suites'
+		| 'contractors'
 	>('details');
 	const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
 	const [showShareModal, setShowShareModal] = useState(false);
@@ -296,15 +300,10 @@ export const PropertyDetailPage = (props: PropertyDetailPageProps) => {
 		return allPropertyTasks.filter((task) => task.status !== 'Completed');
 	}, [property, allTasks]);
 
-	// Get completed tasks for Maintenance History tab
-	const completedTasks = useMemo(() => {
-		if (!property) return [];
-		return allTasks.filter(
-			(task) =>
-				(task.propertyId === property.id || task.property === property.title) &&
-				task.status === 'Completed',
-		);
-	}, [property, allTasks]);
+	const { data: maintenanceHistoryRecords = [] } =
+		useGetMaintenanceHistoryByPropertyQuery(property?.id || '', {
+			skip: !property?.id,
+		});
 
 	// Helper function for property field value - use util if not in edit mode
 	const getPropertyFieldValue = (field: string) => {
@@ -902,7 +901,10 @@ export const PropertyDetailPage = (props: PropertyDetailPageProps) => {
 
 			{/* Maintenance History Tab */}
 			{activeTab === 'maintenance' && (
-				<MaintenanceTab property={property} completedTasks={completedTasks} />
+				<MaintenanceTab
+					property={property}
+					maintenanceHistoryRecords={maintenanceHistoryRecords}
+				/>
 			)}
 
 			{/* Tenants Tab */}
@@ -927,6 +929,11 @@ export const PropertyDetailPage = (props: PropertyDetailPageProps) => {
 					canApproveMaintenanceRequest={canApproveMaintenanceRequest}
 					handleConvertRequestToTask={handleConvertRequestToTask}
 				/>
+			)}
+
+			{/* Contractors Tab */}
+			{activeTab === 'contractors' && (
+				<ContractorsTab propertyId={property?.id || ''} />
 			)}
 
 			{/* Add Device Dialog */}

@@ -1,4 +1,5 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { clearUserLocalStorage } from '../../utils/localStorageCleanup';
 
 // User type matching Firebase Auth + Firestore user data
 export interface User {
@@ -60,10 +61,11 @@ const userSlice = createSlice({
 			state.authLoading = action.payload;
 		},
 		logout: (state) => {
+			const userId = state.currentUser?.id;
 			state.currentUser = null;
 			state.cred = null;
 			state.authLoading = false;
-			localStorage.removeItem('loggedUser');
+			clearUserLocalStorage(userId);
 		},
 	},
 });

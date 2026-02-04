@@ -6,6 +6,7 @@
 import { useMemo } from 'react';
 import { useSelector } from 'react-redux';
 import { RootState } from '../Redux/store/store';
+import { useGetMaintenanceHistoryByPropertyQuery } from '../Redux/API/apiSlice';
 import { Property } from '../types/Property.types';
 import { Task } from '../types/Task.types';
 import { MaintenanceRequestItem } from '../types/MaintenanceRequest.types';
@@ -107,24 +108,42 @@ export const useDetailPageData = ({
 		return [];
 	}, [allTasks, property, entity, entityType]);
 
+	const { data: maintenanceHistoryRecords = [] } =
+		useGetMaintenanceHistoryByPropertyQuery(property?.id || '', {
+			skip: !property?.id,
+		});
+
 	// Filter maintenance history for this entity
 	const maintenanceHistory = useMemo(() => {
 		if (!property) return [];
+		const legacyHistory = filterMaintenanceHistory(
+			property,
+			entity?.name,
+			entityType === 'property' ? undefined : (entityType as any),
+		);
+		const baseHistory = maintenanceHistoryRecords;
+		if (!baseHistory.length) {
+			return legacyHistory;
+		}
 
 		if (entityType === 'property') {
-			return filterMaintenanceHistory(property);
+			return baseHistory;
 		}
 
 		if (entityType === 'unit' && entity) {
-			return filterMaintenanceHistory(property, entity.name, 'unit');
+			return baseHistory.filter((record: any) => {
+				return record.unitId === entity.id || record.unit === entity.name;
+			});
 		}
 
 		if (entityType === 'suite' && entity) {
-			return filterMaintenanceHistory(property, entity.name, 'suite');
+			return baseHistory.filter((record: any) => {
+				return record.suiteId === entity.id || record.suite === entity.name;
+			});
 		}
 
-		return [];
-	}, [property, entity, entityType]);
+		return baseHistory;
+	}, [property, entity, entityType, maintenanceHistoryRecords]);
 
 	// Filter maintenance requests for this entity
 	const maintenanceRequests = useMemo(() => {

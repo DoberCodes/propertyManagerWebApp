@@ -257,11 +257,29 @@ export const SuiteDetailPage: React.FC = () => {
 										</thead>
 										<tbody>
 											{suiteMaintenanceHistory.map((record, idx) => (
-												<tr key={`${record.date}-${idx}`}>
-													<td>{record.date}</td>
-													<td>{record.description}</td>
+												<tr
+													key={`${record.originalTaskId || record.date || idx}`}>
 													<td>
-														{getDeviceName((record as any).deviceId, property)}
+														{record.completionDate ||
+															record.approvedAt ||
+															record.dueDate ||
+															record.date ||
+															'-'}
+													</td>
+													<td>
+														{record.title ||
+															record.taskTitle ||
+															record.description ||
+															'Task'}
+													</td>
+													<td>
+														{getDeviceName(
+															(record as any).deviceId ||
+																(Array.isArray((record as any).devices)
+																	? (record as any).devices[0]
+																	: undefined),
+															property,
+														)}
 													</td>
 												</tr>
 											))}

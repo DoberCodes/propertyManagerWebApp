@@ -31,12 +31,14 @@ const Tabs: React.FC<TabsProps> = ({
 		{ label: 'Details', value: 'details' },
 		{ label: 'Tasks', value: 'tasks' },
 		{ label: 'Maintenance History', value: 'maintenance' },
+		{ label: 'Contractors', value: 'contractors' },
 	];
 	const comercialTabs: tab[] = [
 		{ label: 'Details', value: 'details' },
 		{ label: 'Tasks', value: 'tasks' },
 		{ label: 'Maintenance History', value: 'maintenance' },
 		{ label: 'Suites', value: 'suites' },
+		{ label: 'Contractors', value: 'contractors' },
 	];
 	const landlordTabs: tab[] = [
 		{ label: 'Details', value: 'details' },
@@ -60,6 +62,7 @@ const Tabs: React.FC<TabsProps> = ({
 					canApproveMaintenanceRequest(currentUser.role),
 			).length,
 		},
+		{ label: 'Contractors', value: 'contractors' },
 	];
 
 	console.info(currentUser);

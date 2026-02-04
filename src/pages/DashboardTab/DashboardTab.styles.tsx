@@ -23,7 +23,7 @@ export const TaskGridSection = styled.div`
 	flex-direction: column;
 	gap: 15px;
 	flex: 1;
-	min-height: 400px;
+	min-height: clamp(240px, 35vh, 400px);
 
 	@media (max-width: 768px) {
 		min-height: 300px;
@@ -207,14 +207,12 @@ export const BottomSectionsWrapper = styled.div`
 	grid-template-columns: repeat(3, 1fr);
 	gap: 20px;
 	flex-shrink: 0;
-	min-height: 380px;
-	max-height: 380px;
+	min-height: clamp(240px, 30vh, 380px);
 
 	@media (max-width: 1024px) {
 		grid-template-columns: repeat(2, 1fr);
 		gap: 16px;
-		min-height: 380px;
-		max-height: 380px;
+		min-height: clamp(240px, 30vh, 380px);
 	}
 
 	@media (max-width: 768px) {
@@ -238,7 +236,7 @@ export const Section = styled.div`
 	overflow: hidden;
 	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 	height: 100%;
-	min-height: 380px;
+	min-height: clamp(240px, 30vh, 380px);
 
 	@media (max-width: 768px) {
 		border-radius: 6px;

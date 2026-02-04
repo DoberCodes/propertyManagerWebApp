@@ -79,6 +79,9 @@ export const SeasonalMaintenance = ({
 
 	const fetchWeatherData = async (latitude: number, longitude: number) => {
 		try {
+			if (!API_KEY) {
+				throw new Error('Missing weather API key');
+			}
 			const response = await axios.get(BASE_URL, {
 				params: {
 					lat: latitude,
@@ -107,7 +110,7 @@ export const SeasonalMaintenance = ({
 			season = 'winter';
 		}
 
-		const tips = seasonalTips[season];
+		const tips = [...seasonalTips[season]];
 
 		if (weather) {
 			if (weather.weather[0].main.toLowerCase().includes('rain')) {
@@ -194,6 +197,13 @@ export const SeasonalMaintenance = ({
 			const generatedTips = getSeasonalRecommendations(weatherData);
 			setTips(generatedTips);
 			setCurrentTip(generatedTips[0]);
+			return;
+		}
+
+		if (!weatherData) {
+			const baseTips = getSeasonalRecommendations(null);
+			setTips(baseTips);
+			setCurrentTip(baseTips[0]);
 		}
 	}, [weatherData]);
 
@@ -222,19 +232,19 @@ export const SeasonalMaintenance = ({
 					<p>Loading recommendations...</p>
 				</ZeroStateContainer>
 			)}
-			{error && (
+			{error && !tips.length && (
 				<ZeroStateContainer>
 					<span>⚠️</span>
 					<p>Unable to load recommendations</p>
 				</ZeroStateContainer>
 			)}
-			{!loading && !error && weatherData && (
+			{!loading && tips.length > 0 && (
 				<>
 					<Recommendation>Recommendation:</Recommendation>
 					{currentTip && <TipText>{currentTip}</TipText>}
 				</>
 			)}
-			{!loading && !error && !weatherData && (
+			{!loading && !error && !weatherData && !tips.length && (
 				<ZeroStateContainer>
 					<span>🌡️</span>
 					<p>No weather data available</p>

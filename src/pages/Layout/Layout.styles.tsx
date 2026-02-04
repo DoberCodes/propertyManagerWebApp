@@ -17,13 +17,15 @@ export const Wrapper = styled.div`
 export const Main = styled.div`
 	display: flex;
 	flex: 1;
-	height: calc(100vh - ${nav_height}); /* Adjust height to account for nav */
+	min-height: calc(
+		100vh - ${nav_height}
+	); /* Allow growth beyond viewport if needed */
 	overflow: hidden;
 	flex-direction: row;
 
 	@media (max-width: 768px) {
 		flex-direction: column;
-		height: calc(100vh - ${nav_height} - 70px);
+		min-height: calc(100vh - ${nav_height} - 70px);
 	}
 `;
 
@@ -49,7 +51,8 @@ export const Sidebar = styled.div`
 
 export const Content = styled.div`
 	flex: 1;
-	height: 100%; /* Match height with Sidebar */
+	display: flex;
+	flex-direction: column;
 	overflow-y: auto;
 	padding: 20px;
 	background-color: #ffffff;
