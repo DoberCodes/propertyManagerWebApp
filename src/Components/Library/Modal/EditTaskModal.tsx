@@ -85,9 +85,9 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
 	);
 	const hasSchedule = Boolean(
 		formData.recurrenceFrequency &&
-		formData.recurrenceInterval &&
-		(formData.recurrenceFrequency !== 'custom' ||
-			formData.recurrenceCustomUnit),
+		(formData.recurrenceFrequency === 'custom'
+			? formData.recurrenceInterval && formData.recurrenceCustomUnit
+			: true), // For non-custom frequencies, just need the frequency
 	);
 
 	useEffect(() => {
@@ -241,27 +241,23 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
 						</FormSelect>
 					</FormGroup>
 
-					<FormGroup>
-						<FormLabel>
-							{formData.recurrenceFrequency === 'custom'
-								? 'Interval *'
-								: 'Interval (# of periods) *'}
-						</FormLabel>
-						<FormInput
-							type='number'
-							name='recurrenceInterval'
-							value={formData.recurrenceInterval || 1}
-							onChange={onChange}
-							min='1'
-							max='365'
-							required={wantsRecurrence}
-							placeholder={
-								formData.recurrenceFrequency === 'custom'
-									? 'e.g., 3 for every 3 days'
-									: 'e.g., 2 for every 2 weeks'
-							}
-						/>
-					</FormGroup>
+					{formData.recurrenceFrequency === 'custom' && (
+						<FormGroup>
+							<FormLabel>Interval *</FormLabel>
+							<FormInput
+								type='number'
+								name='recurrenceInterval'
+								value={formData.recurrenceInterval || 1}
+								onChange={onChange}
+								min='1'
+								max='365'
+								required={
+									formData.recurrenceFrequency === 'custom' && wantsRecurrence
+								}
+								placeholder='e.g., 3 for every 3 days'
+							/>
+						</FormGroup>
+					)}
 
 					{formData.recurrenceFrequency === 'custom' && (
 						<FormGroup>

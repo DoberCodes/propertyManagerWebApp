@@ -77,10 +77,10 @@ export const useTaskHandlers = (props?: UseTaskHandlersProps): TaskHandlers => {
 			HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
 		>,
 	) => {
-		const { name, value } = e.target;
+		const { name, value, type, checked } = e.target as HTMLInputElement;
 		setTaskFormData((prev: any) => ({
 			...prev,
-			[name]: value,
+			[name]: type === 'checkbox' ? checked : value,
 		}));
 	};
 

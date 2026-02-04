@@ -15,34 +15,44 @@ import { RecurrenceFrequency, RecurrenceCustomUnit } from '../types/Task.types';
 export const calculateNextDueDate = (
 	completionDate: Date | string,
 	frequency: RecurrenceFrequency,
-	interval: number,
+	interval: number | string,
 	customUnit?: RecurrenceCustomUnit,
 ): string => {
-	const date =
-		typeof completionDate === 'string'
-			? new Date(completionDate)
-			: completionDate;
+	// Ensure interval is a number
+	const numericInterval =
+		typeof interval === 'string' ? parseInt(interval, 10) : interval;
+
+	// Handle date parsing to avoid timezone issues
+	let date: Date;
+	if (typeof completionDate === 'string') {
+		// Parse date string as local date to avoid timezone conversion issues
+		// Split YYYY-MM-DD and create date at local noon to avoid DST issues
+		const [year, month, day] = completionDate.split('-').map(Number);
+		date = new Date(year, month - 1, day, 12, 0, 0); // month is 0-indexed, noon time
+	} else {
+		date = completionDate;
+	}
 
 	const nextDate = new Date(date);
 
 	switch (frequency) {
 		case 'daily':
-			nextDate.setDate(nextDate.getDate() + interval);
+			nextDate.setDate(nextDate.getDate() + numericInterval);
 			break;
 		case 'weekly':
-			nextDate.setDate(nextDate.getDate() + interval * 7);
+			nextDate.setDate(nextDate.getDate() + numericInterval * 7);
 			break;
 		case 'biweekly':
-			nextDate.setDate(nextDate.getDate() + interval * 14);
+			nextDate.setDate(nextDate.getDate() + numericInterval * 14);
 			break;
 		case 'monthly':
-			nextDate.setMonth(nextDate.getMonth() + interval);
+			nextDate.setMonth(nextDate.getMonth() + numericInterval);
 			break;
 		case 'quarterly':
-			nextDate.setMonth(nextDate.getMonth() + interval * 3);
+			nextDate.setMonth(nextDate.getMonth() + numericInterval * 3);
 			break;
 		case 'yearly':
-			nextDate.setFullYear(nextDate.getFullYear() + interval);
+			nextDate.setFullYear(nextDate.getFullYear() + numericInterval);
 			break;
 		case 'custom':
 			if (!customUnit) {
@@ -50,16 +60,16 @@ export const calculateNextDueDate = (
 			}
 			switch (customUnit) {
 				case 'days':
-					nextDate.setDate(nextDate.getDate() + interval);
+					nextDate.setDate(nextDate.getDate() + numericInterval);
 					break;
 				case 'weeks':
-					nextDate.setDate(nextDate.getDate() + interval * 7);
+					nextDate.setDate(nextDate.getDate() + numericInterval * 7);
 					break;
 				case 'months':
-					nextDate.setMonth(nextDate.getMonth() + interval);
+					nextDate.setMonth(nextDate.getMonth() + numericInterval);
 					break;
 				case 'years':
-					nextDate.setFullYear(nextDate.getFullYear() + interval);
+					nextDate.setFullYear(nextDate.getFullYear() + numericInterval);
 					break;
 				default:
 					throw new Error(`Unknown custom unit: ${customUnit}`);
@@ -69,8 +79,15 @@ export const calculateNextDueDate = (
 			throw new Error(`Unknown recurrence frequency: ${frequency}`);
 	}
 
-	// Return as ISO string in format YYYY-MM-DD
-	return nextDate.toISOString().split('T')[0];
+	console.log('Final next date:', nextDate);
+
+	// Return as YYYY-MM-DD format, ensuring we get the correct date regardless of timezone
+	const year = nextDate.getFullYear();
+	const month = String(nextDate.getMonth() + 1).padStart(2, '0');
+	const day = String(nextDate.getDate()).padStart(2, '0');
+	const result = `${year}-${month}-${day}`;
+
+	return result;
 };
 
 /**
@@ -82,15 +99,18 @@ export const calculateNextDueDate = (
  */
 export const formatRecurrenceDisplay = (
 	frequency: RecurrenceFrequency,
-	interval: number,
+	interval: number | string,
 	customUnit?: RecurrenceCustomUnit,
 ): string => {
+	const numericInterval =
+		typeof interval === 'string' ? parseInt(interval, 10) : interval;
+
 	if (frequency === 'custom' && customUnit) {
-		const plural = interval === 1 ? customUnit.slice(0, -1) : customUnit;
-		return `Every ${interval} ${plural}`;
+		const plural = numericInterval === 1 ? customUnit.slice(0, -1) : customUnit;
+		return `Every ${numericInterval} ${plural}`;
 	}
 
-	const intervalText = interval === 1 ? '' : `${interval} `;
+	const intervalText = numericInterval === 1 ? '' : `${numericInterval} `;
 
 	const frequencyMap: Record<Exclude<RecurrenceFrequency, 'custom'>, string> = {
 		daily: 'day',
@@ -103,7 +123,7 @@ export const formatRecurrenceDisplay = (
 
 	const freq =
 		frequencyMap[frequency as Exclude<RecurrenceFrequency, 'custom'>];
-	const plural = interval === 1 ? freq : `${freq}s`;
+	const plural = numericInterval === 1 ? freq : `${freq}s`;
 
 	return `Every ${intervalText}${plural}`;
 };

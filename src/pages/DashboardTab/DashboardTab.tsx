@@ -17,6 +17,7 @@ import {
 	useGetPropertiesQuery,
 	useGetSharedPropertiesForUserQuery,
 	useGetAllPropertySharesForUserQuery,
+	useGetAllMaintenanceHistoryForUserQuery,
 	useUpdateTaskMutation,
 } from '../../Redux/API/apiSlice';
 import { UserRole } from '../../constants/roles';
@@ -56,6 +57,8 @@ export const DashboardTab = () => {
 		currentUser?.id || '',
 		{ skip: !currentUser?.id },
 	);
+	const { data: allMaintenanceHistory = [] } =
+		useGetAllMaintenanceHistoryForUserQuery();
 
 	// Combine owned and shared properties for task assignment
 	const allProperties = useMemo(() => {
@@ -68,31 +71,35 @@ export const DashboardTab = () => {
 	// Pie chart data for efficiency
 	const efficiencyData = useMemo(() => {
 		const now = new Date();
-		let completed = 0,
+		let completed = allMaintenanceHistory.length, // Count completed tasks from maintenance history
 			inProgress = 0,
 			overdue = 0;
+
+		// Count in-progress and overdue from active tasks (excluding completed)
 		allTasks.forEach((task) => {
-			if (task.status === 'Completed') {
-				completed++;
-			} else if (
-				task.dueDate &&
-				new Date(task.dueDate) < now &&
-				(task.status === 'Pending' ||
-					task.status === 'In Progress' ||
-					task.status === 'Awaiting Approval' ||
-					task.status === 'Rejected')
-			) {
-				overdue++;
-			} else {
-				inProgress++;
+			if (task.status !== 'Completed') {
+				// Skip completed tasks since they're in maintenance history
+				if (
+					task.dueDate &&
+					new Date(task.dueDate) < now &&
+					(task.status === 'Pending' ||
+						task.status === 'In Progress' ||
+						task.status === 'Awaiting Approval' ||
+						task.status === 'Rejected')
+				) {
+					overdue++;
+				} else {
+					inProgress++;
+				}
 			}
 		});
+
 		return [
 			{ name: 'Completed', value: completed },
 			{ name: 'In Progress', value: inProgress },
 			{ name: 'Overdue', value: overdue },
 		];
-	}, [allTasks]);
+	}, [allTasks, allMaintenanceHistory]);
 
 	const COLORS = ['#34d399', '#60a5fa', '#f87171'];
 

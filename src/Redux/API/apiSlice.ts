@@ -1750,6 +1750,96 @@ export const apiSlice = createApi({
 			providesTags: ['PropertyShares'],
 		}),
 
+		getAllMaintenanceHistoryForUser: builder.query<any[], void>({
+			async queryFn() {
+				try {
+					// Get authenticated user from Firebase Auth
+					const currentUser = auth.currentUser;
+					if (!currentUser) {
+						return { error: 'User not authenticated' };
+					}
+					const userId = currentUser.uid;
+
+					// Get user's email first
+					const userDocRef = doc(db, 'users', userId);
+					const userDoc = await getDoc(userDocRef);
+					const userEmail = userDoc.data()?.email;
+
+					if (!userEmail) {
+						return { data: [] };
+					}
+
+					// Get all property groups for this user to find owned properties
+					const groupsQuery = query(
+						collection(db, 'propertyGroups'),
+						where('userId', '==', userId),
+					);
+					const groupsSnapshot = await getDocs(groupsQuery);
+					const groupIds = groupsSnapshot.docs.map((doc) => doc.id);
+
+					let ownedPropertyIds: string[] = [];
+					if (groupIds.length > 0) {
+						// Get all property IDs for these groups
+						for (let i = 0; i < groupIds.length; i += 10) {
+							const batch = groupIds.slice(i, i + 10);
+							const propertiesQuery = query(
+								collection(db, 'properties'),
+								where('groupId', 'in', batch),
+							);
+							const propertiesSnapshot = await getDocs(propertiesQuery);
+							propertiesSnapshot.docs.forEach((doc) => {
+								ownedPropertyIds.push(doc.id);
+							});
+						}
+					}
+
+					// Get all shares where this user is the recipient
+					const receivedSharesQuery = query(
+						collection(db, 'propertyShares'),
+						where('sharedWithEmail', '==', userEmail),
+					);
+					const receivedSharesSnapshot = await getDocs(receivedSharesQuery);
+					const receivedShares = receivedSharesSnapshot.docs.map((doc) => ({
+						id: doc.id,
+						...doc.data(),
+					})) as PropertyShare[];
+					const sharedPropertyIds = receivedShares.map(
+						(share) => share.propertyId,
+					);
+
+					// Combine all property IDs the user has access to
+					const allPropertyIds = [...ownedPropertyIds, ...sharedPropertyIds];
+
+					// Get all maintenance history for these properties
+					let allMaintenanceHistory: any[] = [];
+					for (let i = 0; i < allPropertyIds.length; i += 10) {
+						const batch = allPropertyIds.slice(i, i + 10);
+						const maintenanceQuery = query(
+							collection(db, 'maintenanceHistory'),
+							where('propertyId', 'in', batch),
+						);
+						const maintenanceSnapshot = await getDocs(maintenanceQuery);
+						const maintenanceRecords = maintenanceSnapshot.docs.map((doc) => ({
+							id: doc.id,
+							...doc.data(),
+						}));
+						allMaintenanceHistory.push(...maintenanceRecords);
+					}
+
+					// Remove duplicates
+					const uniqueMaintenanceHistory = allMaintenanceHistory.filter(
+						(record, index, self) =>
+							index === self.findIndex((r) => r.id === record.id),
+					);
+
+					return { data: uniqueMaintenanceHistory };
+				} catch (error: any) {
+					return { error: error.message };
+				}
+			},
+			providesTags: ['MaintenanceHistory'],
+		}),
+
 		getSharedPropertiesForUser: builder.query<Property[], string>({
 			async queryFn(userId: string) {
 				try {
@@ -2603,6 +2693,7 @@ export const {
 	// Property Shares
 	useGetPropertySharesQuery,
 	useGetAllPropertySharesForUserQuery,
+	useGetAllMaintenanceHistoryForUserQuery,
 	useGetSharedPropertiesForUserQuery,
 	useCreatePropertyShareMutation,
 	useUpdatePropertyShareMutation,

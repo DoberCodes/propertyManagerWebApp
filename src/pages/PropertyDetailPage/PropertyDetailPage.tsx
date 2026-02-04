@@ -544,6 +544,10 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 
 				if (taskFormData.recurrenceFrequency) {
 					newTask.recurrenceFrequency = taskFormData.recurrenceFrequency;
+					// Set default interval of 1 for non-custom frequencies
+					if (taskFormData.recurrenceFrequency !== 'custom') {
+						newTask.recurrenceInterval = 1;
+					}
 				}
 				if (taskFormData.recurrenceInterval) {
 					newTask.recurrenceInterval = taskFormData.recurrenceInterval;
@@ -573,6 +577,56 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 					}).unwrap();
 				} catch (notifError) {
 					console.error('Notification failed:', notifError);
+				}
+
+				// Create additional notification for recurring tasks
+				if (taskFormData.isRecurring) {
+					console.log(
+						'Creating recurring task notification for:',
+						taskFormData.title,
+						'isRecurring:',
+						taskFormData.isRecurring,
+					);
+					try {
+						const recurrenceText =
+							taskFormData.recurrenceFrequency === 'custom'
+								? `every ${taskFormData.recurrenceInterval || 1} ${taskFormData.recurrenceCustomUnit}`
+								: `every ${taskFormData.recurrenceFrequency}`;
+
+						console.log('Recurrence text:', recurrenceText);
+						await createNotification({
+							userId: currentUser!.id,
+							type: 'task_created',
+							title: 'Recurring Task Created',
+							message: `Recurring task "${taskFormData.title}" has been created (${recurrenceText})`,
+							data: {
+								taskTitle: taskFormData.title,
+								propertyId: property.id,
+								propertyTitle: property.title,
+								isRecurring: true,
+								recurrenceFrequency: taskFormData.recurrenceFrequency,
+								recurrenceInterval:
+									taskFormData.recurrenceFrequency === 'custom'
+										? taskFormData.recurrenceInterval
+										: 1,
+							},
+							status: 'unread',
+							actionUrl: `/properties/${property.id}`,
+							createdAt: new Date().toISOString(),
+							updatedAt: new Date().toISOString(),
+						}).unwrap();
+						console.log('Recurring task notification created successfully');
+					} catch (recurringNotifError) {
+						console.error(
+							'Recurring task notification failed:',
+							recurringNotifError,
+						);
+					}
+				} else {
+					console.log(
+						'Task is not recurring, skipping recurring notification. isRecurring:',
+						taskFormData.isRecurring,
+					);
 				}
 			}
 			setShowTaskDialog(false);
