@@ -171,8 +171,10 @@ const LandingPageComponent = () => {
 						<BenefitContent>
 							<BenefitTitle>Finally, Peace of Mind</BenefitTitle>
 							<BenefitDescription>
-								Never miss a maintenance issue again. No more wondering if you
-								told the contractor about that leak. Everything's in one place.
+								Never miss a maintenance issue again. No more second-guessing
+								whether you told the contractor about that leak. Everything’s
+								organized, documented, and right where you need it — so you can
+								relax knowing nothing slips through the cracks.
 							</BenefitDescription>
 							<BenefitList>
 								<BenefitItem>⏰ Never forget a task</BenefitItem>
@@ -192,9 +194,9 @@ const LandingPageComponent = () => {
 						<BenefitContent>
 							<BenefitTitle>Your Privacy Matters</BenefitTitle>
 							<BenefitDescription>
-								We don't share your info with anyone. Your property details stay
-								between you and your team. Built on secure, trusted
-								infrastructure.
+								Privacy you don’t have to think about. Your property data is
+								never shared and always stays within your team. Built on secure,
+								reliable infrastructure you can trust.
 							</BenefitDescription>
 							<BenefitList>
 								<BenefitItem>🔒 Encrypted data</BenefitItem>
@@ -214,9 +216,9 @@ const LandingPageComponent = () => {
 						<BenefitContent>
 							<BenefitTitle>Check In Anytime, Anywhere</BenefitTitle>
 							<BenefitDescription>
-								On your way home? Check the status of a repair. At the office?
-								Upload photos from the contractor. Your phone is your access
-								key.
+								Life doesn’t stop — and neither should updates. Check a repair,
+								upload photos, and stay connected from anywhere. Your phone
+								keeps everything close at hand.
 							</BenefitDescription>
 							<BenefitList>
 								<BenefitItem>📱 Works on any device</BenefitItem>
@@ -236,9 +238,9 @@ const LandingPageComponent = () => {
 						<BenefitContent>
 							<BenefitTitle>Manage More Than Properties</BenefitTitle>
 							<BenefitDescription>
-								From vehicles to lawn equipment, our platform is evolving to
-								help you keep track of all your assets. Maintenance reminders,
-								service logs, and more are on the way.
+								From the truck in the driveway to the mower in the shed, we help
+								you keep track of the things you rely on. Maintenance reminders,
+								service history, and asset details — all in one place.
 							</BenefitDescription>
 							<BenefitList>
 								<BenefitItem>🚗 Vehicle maintenance tracking</BenefitItem>
@@ -306,11 +308,11 @@ const LandingPageComponent = () => {
 				{/* CTA Section */}
 				<CTASection>
 					<CTATitle>Stop Juggling Maintenance in Your Head</CTATitle>
+					<CTATitle>Keep everything in one simple place.</CTATitle>
 					<CTADescription>
-						Join our growing community of homeowners, small landlords, DIYers,
-						and vehicle or equipment owners who are keeping their assets in
-						tip-top shape—without the hassle. Start tracking maintenance today
-						and enjoy peace of mind.
+						Take care of what you own — without the hassle. Join homeowners,
+						landlords, and DIYers who track maintenance in one place and enjoy
+						peace of mind every day.
 					</CTADescription>
 					<CTAButtons>
 						<CTAButton onClick={() => navigate('/register')}>
@@ -326,12 +328,12 @@ const LandingPageComponent = () => {
 					<DownloadContainer>
 						<DownloadHeading>Download the App</DownloadHeading>
 						<DownloadSubtext>
-							Get started with our app and make managing your property, vehicle,
-							and equipment maintenance a breeze. Available for Android
-							devices—download now and see the difference!
+							Get started with maintenance that feels manageable. Keep track of
+							your property, vehicles, and equipment without the stress.
+							Available on Android — download and get settled in.
 						</DownloadSubtext>
 						<DownloadButton href={apkDownloadUrl} download>
-							📱 Download APK (Latest)
+							📱 Download APK (stable)
 						</DownloadButton>
 						<DownloadButton href={versionedApkDownloadUrl} download>
 							📦 Download APK v{packageJson.version}
@@ -359,7 +361,7 @@ const LandingPageComponent = () => {
 							<h3>My Property Manager</h3>
 							<p>
 								Simple, friendly maintenance tracking for homeowners, small
-								landlords, and asset owners like you.
+								landlords, and folks who like to take care of their own.
 							</p>
 						</div>
 						<FooterLinks>

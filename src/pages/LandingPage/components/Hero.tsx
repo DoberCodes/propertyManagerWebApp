@@ -17,9 +17,10 @@ const HeroSection = () => {
 			<HeroContent>
 				<HeroTitle>Your Maintenance, Simplified</HeroTitle>
 				<HeroSubtitle>
-					Whether you own one rental or manage a small portfolio, keeping track
-					of maintenance shouldn't feel like a second job. We help homeowners,
-					small landlords, and DIYers stay on top of it all—the simple way.
+					Whether you own a single home or manage a small portfolio, keeping up
+					with maintenance shouldn’t feel like a second job—or a second
+					mortgage. We offer simple, affordable tools that help homeowners,
+					small landlords, and DIYers stay on top of it all.
 				</HeroSubtitle>
 				<HeroCTA onClick={() => navigate('/register')}>
 					Get Started Free
