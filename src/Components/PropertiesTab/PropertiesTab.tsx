@@ -24,8 +24,8 @@ import {
 	canAddProperty,
 	getRemainingPropertySlots,
 	getSubscriptionPlanDetails,
+	canManageTeam,
 } from '../../utils/subscriptionUtils';
-import { canManageProperties } from '../../utils/permissions';
 import { filterPropertyGroupsByRole } from '../../utils/dataFilters';
 import { TeamMember } from '../../Redux/Slices/teamSlice';
 import {
@@ -76,9 +76,10 @@ export const Properties = () => {
 	const [deletePropertyGroup] = useDeletePropertyGroupMutation();
 	const [createNotification] = useCreateNotificationMutation();
 
-	// Check if user can manage properties (add/edit/delete)
-	const canManage = currentUser
-		? canManageProperties(currentUser.role as UserRole)
+	// Check if user can manage properties based on subscription plan
+	// All paid plans allow property management, free plan has limited access
+	const canManage = currentUser?.subscription
+		? currentUser.subscription.plan !== 'free'
 		: false;
 
 	// Combine groups with their properties

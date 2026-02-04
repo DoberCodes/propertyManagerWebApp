@@ -50,6 +50,8 @@ interface PaywallPageProps {
 	variant?: 'full' | 'embedded';
 	selectionOnly?: boolean;
 	onPlanSelect?: (planId: string) => void;
+	wide?: boolean;
+	onPromoCodeApplied?: (promoCode: string) => void;
 }
 
 export const PaywallPage: React.FC<PaywallPageProps> = ({
@@ -61,6 +63,8 @@ export const PaywallPage: React.FC<PaywallPageProps> = ({
 	variant = 'full',
 	selectionOnly = false,
 	onPlanSelect,
+	wide = false,
+	onPromoCodeApplied,
 }) => {
 	const navigate = useNavigate();
 	const [loading, setLoading] = useState(false);
@@ -139,13 +143,19 @@ export const PaywallPage: React.FC<PaywallPageProps> = ({
 		setPromoError(null);
 
 		try {
-			// TODO: Implement promo code validation with backend
-			// For now, just show a placeholder message
-			console.log('Promo code submitted:', promoCode);
-			alert(
-				`Promo code "${promoCode}" submitted! This feature will be connected to the backend.`,
-			);
-			setPromoCode('');
+			// Validate promo code
+			const trimmedPromoCode = promoCode.trim().toLowerCase();
+
+			// Check for valid promo codes
+			if (trimmedPromoCode === 'alpha1_free') {
+				// Valid promo code - call the callback
+				onPromoCodeApplied?.(trimmedPromoCode);
+				setPromoCode('');
+				setPromoError(null);
+			} else {
+				// Invalid promo code
+				setPromoError('Invalid promo code. Please try again.');
+			}
 		} catch (err) {
 			console.error('Failed to apply promo code:', err);
 			setPromoError(
@@ -165,8 +175,8 @@ export const PaywallPage: React.FC<PaywallPageProps> = ({
 	};
 
 	return (
-		<PaywallWrapper variant={variant}>
-			<PaywallContainer variant={variant}>
+		<PaywallWrapper variant={variant} wide={wide}>
+			<PaywallContainer variant={variant} wide={wide}>
 				{!isOnTrial && (
 					<TrialBannerWrapper variant={variant}>
 						<TrialBannerTitle variant={variant}>
@@ -214,7 +224,7 @@ export const PaywallPage: React.FC<PaywallPageProps> = ({
 					</TrialBannerWrapper>
 				)}
 
-				<PricingCardsGrid layout={layout}>
+				<PricingCardsGrid layout={wide ? 'horizontal' : layout}>
 					{/* Homeowner Plan */}
 					<PricingCard
 						isCurrentPlan={currentPlan === 'homeowner'}
@@ -346,7 +356,8 @@ export const PaywallPage: React.FC<PaywallPageProps> = ({
 							Enter your promo code to unlock special pricing or access the free
 							plan.
 						</PromoText>
-						<PromoInput layout={layout}
+						<PromoInput
+							layout={layout}
 							type='text'
 							placeholder='Enter promo code'
 							value={promoCode}
@@ -354,7 +365,9 @@ export const PaywallPage: React.FC<PaywallPageProps> = ({
 							onKeyPress={(e) => e.key === 'Enter' && handlePromoCode()}
 						/>
 						{promoError && (
-							<PromoText layout={layout} style={{ color: '#dc3545', marginBottom: '12px' }}>
+							<PromoText
+								layout={layout}
+								style={{ color: '#dc3545', marginBottom: '12px' }}>
 								{promoError}
 							</PromoText>
 						)}
@@ -364,12 +377,16 @@ export const PaywallPage: React.FC<PaywallPageProps> = ({
 					</PromoSection>
 
 					<ContactSalesSection layout={layout}>
-						<ContactSalesTitle layout={layout}>Need More Properties?</ContactSalesTitle>
+						<ContactSalesTitle layout={layout}>
+							Need More Properties?
+						</ContactSalesTitle>
 						<ContactSalesText layout={layout}>
 							Managing more than 10 properties? Contact our sales team for
 							custom pricing tailored to your needs.
 						</ContactSalesText>
-						<ContactSalesButtonStyled layout={layout} onClick={handleContactSales}>
+						<ContactSalesButtonStyled
+							layout={layout}
+							onClick={handleContactSales}>
 							Contact Sales
 						</ContactSalesButtonStyled>
 					</ContactSalesSection>

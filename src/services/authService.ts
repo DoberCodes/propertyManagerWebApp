@@ -45,6 +45,7 @@ export const signUpWithEmail = async (
 	lastName: string,
 	role: string = USER_ROLES.ADMIN,
 	selectedPlan: string = 'free',
+	promoCode?: string,
 ): Promise<User> => {
 	try {
 		// Create Firebase Auth user
@@ -70,7 +71,7 @@ export const signUpWithEmail = async (
 			image: `https://ui-avatars.com/api/?name=${firstName}+${lastName}&background=22c55e&color=fff`,
 		};
 
-		const subscription = createTrialSubscription(selectedPlan);
+		const subscription = createTrialSubscription(selectedPlan, promoCode);
 
 		await setDoc(doc(db, 'users', userCredential.user.uid), {
 			...userProfile,

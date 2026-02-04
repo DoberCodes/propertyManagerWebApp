@@ -25,6 +25,16 @@ import { USER_ROLES } from '../../constants/roles';
 import { useDispatch } from 'react-redux';
 import { setCurrentUser } from '../../Redux/Slices/userSlice';
 import { useNavigate } from 'react-router-dom';
+import { PaywallPage } from '../../pages/PaywallPage/PaywallPage';
+
+// Map user type selection to appropriate role
+const getRoleFromUserType = (userType: string): string => {
+	const roleMapping: { [key: string]: string } = {
+		homeowner: USER_ROLES.ADMIN, // Homeowners are admins of their properties
+		propertyManager: USER_ROLES.PROPERTY_MANAGER,
+	};
+	return roleMapping[userType] || USER_ROLES.ADMIN; // Default to admin
+};
 
 export const RegistrationCard = () => {
 	const [step, setStep] = useState<number>(1);
@@ -42,7 +52,8 @@ export const RegistrationCard = () => {
 	const [showPasswordConfirm, setShowPasswordConfirm] =
 		useState<boolean>(false);
 	const [userType, setUserType] = useState<string>('');
-	const [selectedPlan] = useState<string>('free');
+	const [selectedPlan, setSelectedPlan] = useState<string>('free');
+	const [promoCode, setPromoCode] = useState<string>('');
 	const dispatch = useDispatch();
 	const navigate = useNavigate();
 
@@ -59,6 +70,10 @@ export const RegistrationCard = () => {
 			setError(
 				'Please select if you are registering as a homeowner or a landlord',
 			);
+			return false;
+		}
+		if (!['homeowner', 'propertyManager'].includes(userType)) {
+			setError('Invalid user type selected');
 			return false;
 		}
 		return true;
@@ -85,12 +100,24 @@ export const RegistrationCard = () => {
 		return true;
 	};
 
+	const validateStep3 = () => {
+		// Plan selection is handled by the embedded paywall
+		// User must select a plan to proceed
+		if (!selectedPlan) {
+			setError('Please select a subscription plan');
+			return false;
+		}
+		return true;
+	};
+
 	const handleNext = () => {
 		setError('');
 		if (step === 1 && validateStep1()) {
 			setStep(2);
 		} else if (step === 2 && validateStep2()) {
 			setStep(3);
+		} else if (step === 3 && validateStep3()) {
+			setStep(4);
 		}
 	};
 
@@ -106,14 +133,18 @@ export const RegistrationCard = () => {
 		setLoading(true);
 
 		try {
-			// Register with Firebase - default role is admin, trim values
+			// Map userType to appropriate role
+			const userRole = getRoleFromUserType(userType);
+
+			// Register with Firebase - use mapped role, trim values
 			const user = await signUpWithEmail(
 				email.trim(),
 				password.trim(),
 				firstName.trim(),
 				lastName.trim(),
-				USER_ROLES.ADMIN,
+				userRole,
 				selectedPlan,
+				promoCode.trim() || undefined,
 			);
 
 			// Update Redux store
@@ -146,14 +177,15 @@ export const RegistrationCard = () => {
 	}, [password, passwordConfirm]);
 
 	return (
-		<Wrapper $wide={false} onSubmit={(e) => e.preventDefault()}>
+		<Wrapper $wide={step === 3} onSubmit={(e) => e.preventDefault()}>
 			<BackButton href='#/login'>
 				<FontAwesomeIcon icon={faArrowCircleLeft} />
 			</BackButton>
 			<Title>
-				{step === 1 && 'Create Account - Step 1 of 3'}
-				{step === 2 && 'Create Account - Step 2 of 3'}
-				{step === 3 && 'Create Account - Step 3 of 3'}
+				{step === 1 && 'Create Account - Step 1 of 4'}
+				{step === 2 && 'Create Account - Step 2 of 4'}
+				{step === 3 && 'Create Account - Step 3 of 4'}
+				{step === 4 && 'Create Account - Step 4 of 4'}
 			</Title>
 			{error && <ErrorMessage>{error}</ErrorMessage>}
 
@@ -215,7 +247,8 @@ export const RegistrationCard = () => {
 							/>
 							Property Manager
 						</RadioOption>
-						<RadioOption>
+						{/* Temporarily commented out - need to rework tenant/contractor flow */}
+						{/* <RadioOption>
 							<input
 								type='radio'
 								name='userType'
@@ -242,7 +275,7 @@ export const RegistrationCard = () => {
 								required
 							/>
 							Contractor
-						</RadioOption>
+						</RadioOption> */}
 					</RadioGrid>
 					<Submit type='button' onClick={handleNext}>
 						Next
@@ -329,8 +362,43 @@ export const RegistrationCard = () => {
 				</>
 			)}
 
-			{/* Step 3: Additional Information (Optional) */}
+			{/* Step 3: Plan Selection with Paywall */}
 			{step === 3 && (
+				<>
+					<PaywallPage
+						subscription={{
+							status: 'trial',
+							plan: 'free',
+							currentPeriodStart: Math.floor(Date.now() / 1000),
+							currentPeriodEnd:
+								Math.floor(Date.now() / 1000) + 14 * 24 * 60 * 60,
+							trialEndsAt: Math.floor(Date.now() / 1000) + 14 * 24 * 60 * 60,
+						}}
+						currentPlan='free'
+						variant='embedded'
+						selectionOnly={true}
+						wide={true}
+						onPlanSelect={(planId) => {
+							setSelectedPlan(planId);
+							setError('');
+							// Auto-advance to next step after plan selection
+							setTimeout(() => handleNext(), 500);
+						}}
+						onPromoCodeApplied={(appliedPromoCode) => {
+							setPromoCode(appliedPromoCode);
+							setError('');
+						}}
+					/>
+					<ButtonGroup>
+						<Submit type='button' onClick={handleBack}>
+							Back
+						</Submit>
+					</ButtonGroup>
+				</>
+			)}
+
+			{/* Step 4: Additional Information (Optional) */}
+			{step === 4 && (
 				<>
 					<SectionLabel>Additional information (optional)</SectionLabel>
 					<Input

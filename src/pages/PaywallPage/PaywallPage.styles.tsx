@@ -1,7 +1,10 @@
 import styled from 'styled-components';
 import { COLORS } from '../../constants/colors';
 
-export const PaywallWrapper = styled.div<{ variant?: 'full' | 'embedded' }>`
+export const PaywallWrapper = styled.div<{
+	variant?: 'full' | 'embedded';
+	wide?: boolean;
+}>`
 	width: 100%;
 	min-height: ${(props) => (props.variant === 'embedded' ? 'auto' : '100vh')};
 	padding: ${(props) =>
@@ -13,8 +16,16 @@ export const PaywallWrapper = styled.div<{ variant?: 'full' | 'embedded' }>`
 	margin-top: ${(props) => (props.variant === 'embedded' ? '0' : '80px')};
 `;
 
-export const PaywallContainer = styled.div<{ variant?: 'full' | 'embedded' }>`
-	max-width: ${(props) => (props.variant === 'embedded' ? '100%' : '1200px')};
+export const PaywallContainer = styled.div<{
+	variant?: 'full' | 'embedded';
+	wide?: boolean;
+}>`
+	max-width: ${(props) => {
+		if (props.variant === 'embedded') {
+			return props.wide ? '100%' : '100%';
+		}
+		return '1200px';
+	}};
 	margin: 0 auto;
 	padding: ${(props) => (props.variant === 'embedded' ? '0 10px' : '0 40px')};
 

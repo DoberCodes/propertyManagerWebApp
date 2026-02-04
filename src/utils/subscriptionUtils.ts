@@ -33,7 +33,8 @@ export const calculateTrialEndDate = (): number => {
  */
 export const isTrialActive = (subscription: SubscriptionData): boolean => {
 	if (subscription.status !== SUBSCRIPTION_STATUS.TRIAL) return false;
-	if (!subscription.trialEndsAt) return false;
+	// If trialEndsAt is undefined, it's an unlimited trial (always active)
+	if (!subscription.trialEndsAt) return true;
 	const now = Math.floor(Date.now() / 1000);
 	return now < subscription.trialEndsAt;
 };
@@ -69,15 +70,19 @@ export const getTrialDaysRemaining = (
  */
 export const createTrialSubscription = (
 	plan: string = 'free',
+	promoCode?: string,
 ): SubscriptionData => {
 	const now = Math.floor(Date.now() / 1000);
-	const trialEndsAt = calculateTrialEndDate();
+
+	// Check for unlimited trial promo code
+	const isUnlimitedTrial = promoCode === 'alpha1_free';
+	const trialEndsAt = isUnlimitedTrial ? undefined : calculateTrialEndDate();
 
 	return {
 		status: SUBSCRIPTION_STATUS.TRIAL,
 		plan,
 		currentPeriodStart: now,
-		currentPeriodEnd: trialEndsAt,
+		currentPeriodEnd: trialEndsAt || now + 365 * 24 * 60 * 60, // 1 year for unlimited
 		trialEndsAt,
 	};
 };

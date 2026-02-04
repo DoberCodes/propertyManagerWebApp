@@ -3,11 +3,10 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../../../Redux/store/store';
 import {
-	canManageTeamMembers,
-	canManageProperties,
-	canViewAllPages,
-	isTenant,
-} from '../../../../utils/permissions';
+	canManageTeam,
+	canViewReports,
+	canExportData,
+} from '../../../../utils/subscriptionUtils';
 import { useRecentlyViewed } from '../../../../Hooks/useRecentlyViewed';
 import { useFavorites } from '../../../../Hooks/useFavorites';
 import { UserRole } from '../../../../constants/roles';
@@ -31,19 +30,23 @@ export const SideNav = () => {
 	const { recentProperties } = useRecentlyViewed(currentUser!.id);
 	const { favorites } = useFavorites(currentUser!.id);
 
-	// Check permissions
-	const canAccessTeam = currentUser
-		? canManageTeamMembers(currentUser.role as UserRole)
+	// Check permissions based on subscription plan
+	const canAccessTeam = currentUser?.subscription
+		? canManageTeam(currentUser.subscription)
 		: false;
-	const canAccessProperties = currentUser
-		? canManageProperties(currentUser.role as UserRole)
+	const canAccessProperties = currentUser?.subscription
+		? currentUser.subscription.plan !== 'free'
 		: false;
-	const canViewPages = currentUser
-		? canViewAllPages(currentUser.role as UserRole)
+	const canViewReportsPermission = currentUser?.subscription
+		? canViewReports(currentUser.subscription)
 		: false;
-	const isUserTenant = currentUser
-		? isTenant(currentUser.role as UserRole)
+	const canExportDataPermission = currentUser?.subscription
+		? canExportData(currentUser.subscription)
 		: false;
+	const canViewPages = currentUser?.subscription
+		? currentUser.subscription.plan !== 'free'
+		: false;
+	const isUserTenant = currentUser ? currentUser.role === 'tenant' : false;
 	const isHomeowner = currentUser
 		? currentUser.userType === 'homeowner'
 		: false;
@@ -177,19 +180,23 @@ export const MobileNav = () => {
 	const location = useLocation();
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
 
-	// Check permissions
-	const canAccessTeam = currentUser
-		? canManageTeamMembers(currentUser.role as UserRole)
+	// Check permissions based on subscription plan
+	const canAccessTeam = currentUser?.subscription
+		? canManageTeam(currentUser.subscription)
 		: false;
-	const canAccessProperties = currentUser
-		? canManageProperties(currentUser.role as UserRole)
+	const canAccessProperties = currentUser?.subscription
+		? currentUser.subscription.plan !== 'free'
 		: false;
-	const canViewPages = currentUser
-		? canViewAllPages(currentUser.role as UserRole)
+	const canViewReportsPermission = currentUser?.subscription
+		? canViewReports(currentUser.subscription)
 		: false;
-	const isUserTenant = currentUser
-		? isTenant(currentUser.role as UserRole)
+	const canExportDataPermission = currentUser?.subscription
+		? canExportData(currentUser.subscription)
 		: false;
+	const canViewPages = currentUser?.subscription
+		? currentUser.subscription.plan !== 'free'
+		: false;
+	const isUserTenant = currentUser ? currentUser.role === 'tenant' : false;
 	const isHomeowner = currentUser
 		? currentUser.userType === 'homeowner'
 		: false;

@@ -17,12 +17,8 @@ import { useNavigate } from 'react-router-dom';
 import { useRecentlyViewed } from '../../../../Hooks/useRecentlyViewed';
 import { useFavorites } from '../../../../Hooks/useFavorites';
 import { UserRole } from '../../../../constants/roles';
-import {
-	canManageTeamMembers,
-	canManageProperties,
-	canViewAllPages,
-	isTenant,
-} from '../../../../utils/permissions';
+import { canViewAllPages, isTenant } from '../../../../utils/permissions';
+import { canManageTeam } from '../../../../utils/subscriptionUtils';
 import { clearUserLocalStorage } from '../../../../utils/localStorageCleanup';
 
 export const TopNav = () => {
@@ -33,12 +29,12 @@ export const TopNav = () => {
 	const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 	const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
 
-	// Check permissions for menu visibility
-	const canAccessTeam = currentUser
-		? canManageTeamMembers(currentUser.role as UserRole)
+	// Check permissions for menu visibility based on subscription plan
+	const canAccessTeam = currentUser?.subscription
+		? canManageTeam(currentUser.subscription)
 		: false;
-	const canAccessProperties = currentUser
-		? canManageProperties(currentUser.role as UserRole)
+	const canAccessProperties = currentUser?.subscription
+		? currentUser.subscription.plan !== 'free'
 		: false;
 	const canViewPages = currentUser
 		? canViewAllPages(currentUser.role as UserRole)
