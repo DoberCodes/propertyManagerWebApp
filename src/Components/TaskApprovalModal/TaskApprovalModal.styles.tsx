@@ -12,6 +12,12 @@ export const ModalOverlay = styled.div`
 	justify-content: center;
 	z-index: 1000;
 	padding: 1rem;
+
+	@media (max-width: 480px) {
+		padding: 0.5rem;
+		align-items: flex-start;
+		padding-top: 2rem;
+	}
 `;
 
 export const ModalContainer = styled.div`
@@ -22,6 +28,17 @@ export const ModalContainer = styled.div`
 	max-height: 90vh;
 	overflow-y: auto;
 	box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+
+	@media (max-width: 768px) {
+		max-width: 90%;
+	}
+
+	@media (max-width: 480px) {
+		max-width: 95%;
+		max-height: 85vh;
+		border-radius: 6px;
+		margin-top: 1rem;
+	}
 `;
 
 export const ModalHeader = styled.div`
@@ -31,6 +48,10 @@ export const ModalHeader = styled.div`
 	padding: 1.5rem;
 	border-bottom: 1px solid #e0e0e0;
 	background-color: #f8f9fa;
+
+	@media (max-width: 480px) {
+		padding: 1rem;
+	}
 `;
 
 export const ModalTitle = styled.h2`
@@ -62,6 +83,10 @@ export const CloseButton = styled.button`
 
 export const ModalBody = styled.div`
 	padding: 1.5rem;
+
+	@media (max-width: 480px) {
+		padding: 1rem;
+	}
 `;
 
 export const InfoSection = styled.div`
@@ -78,6 +103,11 @@ export const InfoRow = styled.div`
 	&:last-child {
 		margin-bottom: 0;
 	}
+
+	@media (max-width: 480px) {
+		flex-direction: column;
+		gap: 0.25rem;
+	}
 `;
 
 export const InfoLabel = styled.div`
@@ -85,6 +115,11 @@ export const InfoLabel = styled.div`
 	color: #555;
 	min-width: 150px;
 	flex-shrink: 0;
+
+	@media (max-width: 480px) {
+		min-width: auto;
+		font-size: 0.9rem;
+	}
 `;
 
 export const InfoValue = styled.div`

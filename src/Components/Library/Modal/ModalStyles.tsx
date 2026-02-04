@@ -28,6 +28,12 @@ export const ModalOverlay = styled.div`
 			opacity: 1;
 		}
 	}
+
+	@media (max-width: 480px) {
+		padding: 0.5rem;
+		align-items: flex-start;
+		padding-top: 2rem;
+	}
 `;
 
 export const ModalContainer = styled.div`
@@ -65,10 +71,11 @@ export const ModalContainer = styled.div`
 
 	@media (max-width: 480px) {
 		max-width: 95%;
-		height: 80vh;
+		height: auto;
 		max-height: 90vh;
-		min-height: 350px;
+		min-height: 300px;
 		border-radius: 10px;
+		margin-top: 1rem;
 	}
 `;
 
@@ -173,6 +180,15 @@ export const DialogHeader = styled.div`
 		margin: 0;
 		font-size: 1.5rem;
 	}
+
+	@media (max-width: 480px) {
+		padding: 1rem 1.5rem;
+		margin-bottom: 1rem;
+
+		h3 {
+			font-size: 1.25rem;
+		}
+	}
 `;
 
 export const CloseModalButton = styled.button`
@@ -221,6 +237,11 @@ export const DialogButtonGroup = styled.div`
 
 	@media (max-width: 480px) {
 		flex-direction: column-reverse;
+		padding: 1rem 1.5rem;
+		gap: 0.5rem;
+		position: relative;
+		border-top: none;
+		margin-top: 1rem;
 	}
 `;
 
@@ -433,6 +454,10 @@ export const ModalFormContent = styled.div`
 	min-height: 0;
 	display: flex;
 	flex-direction: column;
+
+	@media (max-width: 480px) {
+		padding: 0.5rem 1rem 5rem;
+	}
 `;
 
 export const WarningMessage = styled.div`

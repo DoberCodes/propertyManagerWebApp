@@ -526,7 +526,7 @@ if [ -f "$RELEASE_NOTES_FILE" ] && [ -f "$APK_FILE" ]; then
   # Upload/replace APK (use --clobber to overwrite existing assets with same name)
   # This handles both new releases and APK replacements in existing releases
   if run_gh_with_refresh gh release upload "v$NEW_VERSION" \
-    "$APK_FILE" \
+    "$APK_FILE#$APK_ASSET_NAME" \
     --repo "$REPO_NAME" --clobber; then
     if [ "$RELEASE_EXISTS" = true ]; then
       print_success "APK replaced in existing GitHub release v$NEW_VERSION"

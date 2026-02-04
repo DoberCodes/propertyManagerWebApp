@@ -610,4 +610,20 @@ const SharePropertyModalWrapper = styled.div`
 		max-height: 95vh !important;
 		min-height: 600px !important;
 	}
+
+	@media (max-width: 768px) {
+		> div > div {
+			height: 80vh !important;
+			max-height: 90vh !important;
+			min-height: 500px !important;
+		}
+	}
+
+	@media (max-width: 480px) {
+		> div > div {
+			height: auto !important;
+			max-height: 85vh !important;
+			min-height: 400px !important;
+		}
+	}
 `;

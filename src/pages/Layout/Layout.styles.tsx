@@ -17,22 +17,24 @@ export const Wrapper = styled.div`
 export const Main = styled.div`
 	display: flex;
 	flex: 1;
-	min-height: calc(
+	height: calc(
 		100vh - ${nav_height}
-	); /* Allow growth beyond viewport if needed */
+	); /* Use fixed height to ensure full viewport usage */
 	overflow: hidden;
 	flex-direction: row;
+	min-height: 0; /* Allow flex items to shrink below their minimum content size */
 
 	@media (max-width: 768px) {
 		flex-direction: column;
-		min-height: calc(100vh - ${nav_height} - 70px);
+		height: calc(100vh - ${nav_height} - 70px);
 	}
 `;
 
 export const Sidebar = styled.div`
 	width: 250px;
 	min-width: 250px;
-	height: 100%; /* Ensure sidebar spans full height */
+	height: 100vh; /* Ensure sidebar spans full height */
+	flex-shrink: 0; /* Prevent sidebar from shrinking */
 	overflow-y: auto;
 	border-right: 1px solid #e5e7eb;
 	background-color: #fefefe;

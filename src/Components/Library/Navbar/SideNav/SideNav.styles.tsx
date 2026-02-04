@@ -7,9 +7,10 @@ export const DesktopWrapper = styled.div`
 	background-color: #fefefe;
 	display: flex;
 	flex-direction: column;
-	gap: 12px;
-	min-height: 100%;
-	overflow: visible;
+	height: 100%; /* Take full available height */
+	flex: 1; /* Fill available space */
+	overflow-y: auto; /* Enable scrolling if content exceeds height */
+	overflow-x: hidden; /* Prevent horizontal scrolling */
 
 	@media (max-width: 768px) {
 		display: none;
@@ -154,7 +155,7 @@ export const MenuSection = styled.div`
 	gap: 12px;
 	padding: 20px;
 	border-bottom: 1px solid rgba(0, 0, 0, 0.1); /* Divider added back above Favorites */
-	flex: 0 0 auto;
+	flex-shrink: 0; /* Prevent shrinking */
 
 	@media (max-width: 768px) {
 		padding: 20px;
@@ -218,7 +219,7 @@ export const Section = styled.div`
 	gap: 10px;
 	padding: 20px;
 	border-bottom: 1px solid rgba(0, 0, 0, 0.1); /* Divider moved here */
-	flex: 0 0 auto;
+	flex-shrink: 0; /* Prevent shrinking */
 
 	&:last-of-type {
 		border-bottom: none;
@@ -258,21 +259,20 @@ export const SectionContent = styled.div`
 	gap: 12px;
 	font-size: ${font_main};
 	color: black;
-	height: 150px; /* Set fixed height for Favorites and Recently Viewed sections */
+	max-height: 200px; /* Allow more height on larger screens */
 	overflow-y: auto; /* Enable scrolling if content exceeds height */
+	flex-shrink: 0; /* Prevent shrinking */
 
 	@media (max-width: 768px) {
 		gap: 10px;
 		font-size: 13px;
-		height: auto;
-		max-height: 200px;
+		max-height: 150px;
 	}
 
 	@media (max-width: 480px) {
 		gap: 8px;
 		font-size: 12px;
-		height: auto;
-		max-height: 150px;
+		max-height: 120px;
 	}
 `;
 
@@ -282,6 +282,7 @@ export const BottomSections = styled.div`
 	flex-direction: column;
 	gap: 20px;
 	padding: 20px;
+	flex-shrink: 0; /* Prevent shrinking */
 
 	@media (max-width: 768px) {
 		padding: 20px;

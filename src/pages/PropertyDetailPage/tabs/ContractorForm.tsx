@@ -26,6 +26,12 @@ const Overlay = styled.div`
 	justify-content: center;
 	align-items: center;
 	z-index: 1000;
+
+	@media (max-width: 480px) {
+		padding: 0.5rem;
+		align-items: flex-start;
+		padding-top: 2rem;
+	}
 `;
 
 const FormContainer = styled.div`
@@ -35,12 +41,32 @@ const FormContainer = styled.div`
 	max-width: 500px;
 	width: 90%;
 	box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+	max-height: 90vh;
+	overflow-y: auto;
+
+	@media (max-width: 768px) {
+		max-width: 90%;
+		padding: 1.5rem;
+	}
+
+	@media (max-width: 480px) {
+		max-width: 95%;
+		padding: 1rem;
+		border-radius: 6px;
+		margin-top: 1rem;
+		max-height: 85vh;
+	}
 `;
 
 const Title = styled.h2`
 	margin: 0 0 1.5rem 0;
 	font-size: 1.5rem;
 	color: #333;
+
+	@media (max-width: 480px) {
+		font-size: 1.25rem;
+		margin-bottom: 1rem;
+	}
 `;
 
 const FormGroup = styled.div`
@@ -110,6 +136,11 @@ const ButtonGroup = styled.div`
 	gap: 1rem;
 	justify-content: flex-end;
 	margin-top: 2rem;
+
+	@media (max-width: 480px) {
+		flex-direction: column-reverse;
+		gap: 0.5rem;
+	}
 `;
 
 const Button = styled.button<{ variant?: 'primary' | 'secondary' }>`
@@ -133,6 +164,10 @@ const Button = styled.button<{ variant?: 'primary' | 'secondary' }>`
 	&:disabled {
 		background-color: #bdc3c7;
 		cursor: not-allowed;
+	}
+
+	@media (max-width: 480px) {
+		width: 100%;
 	}
 `;
 
