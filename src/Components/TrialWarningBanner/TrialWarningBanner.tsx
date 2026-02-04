@@ -13,8 +13,9 @@ export const TrialWarningBanner: React.FC<TrialWarningBannerProps> = ({
 	daysRemaining,
 	onUpgradeClick,
 }) => {
-	if (daysRemaining > 3) {
-		return null; // Don't show if more than 3 days
+	// Don't show banner for unlimited trials (-1) or trials with more than 3 days remaining
+	if (daysRemaining === -1 || daysRemaining > 3) {
+		return null;
 	}
 
 	return (

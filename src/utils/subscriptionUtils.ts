@@ -11,7 +11,7 @@ export interface SubscriptionData {
 	plan: string;
 	currentPeriodStart: number;
 	currentPeriodEnd: number;
-	trialEndsAt?: number;
+	trialEndsAt?: number | null;
 	canceledAt?: number;
 	stripeCustomerId?: string;
 	stripeSubscriptionId?: string;
@@ -33,7 +33,7 @@ export const calculateTrialEndDate = (): number => {
  */
 export const isTrialActive = (subscription: SubscriptionData): boolean => {
 	if (subscription.status !== SUBSCRIPTION_STATUS.TRIAL) return false;
-	// If trialEndsAt is undefined, it's an unlimited trial (always active)
+	// If trialEndsAt is null or undefined, it's an unlimited trial (always active)
 	if (!subscription.trialEndsAt) return true;
 	const now = Math.floor(Date.now() / 1000);
 	return now < subscription.trialEndsAt;
@@ -57,7 +57,8 @@ export const isSubscriptionActive = (
 export const getTrialDaysRemaining = (
 	subscription: SubscriptionData,
 ): number => {
-	if (!subscription.trialEndsAt) return 0;
+	// If trialEndsAt is null or undefined, it's an unlimited trial
+	if (!subscription.trialEndsAt) return -1; // Return -1 to indicate unlimited
 	const now = Math.floor(Date.now() / 1000);
 	const daysRemaining = Math.ceil(
 		(subscription.trialEndsAt - now) / (24 * 60 * 60),
@@ -75,8 +76,13 @@ export const createTrialSubscription = (
 	const now = Math.floor(Date.now() / 1000);
 
 	// Check for unlimited trial promo code
-	const isUnlimitedTrial = promoCode === process.env.UNLIMITED_TRIAL_PROMO_CODE;
-	const trialEndsAt = isUnlimitedTrial ? undefined : calculateTrialEndDate();
+	const envPromoCode = process.env.REACT_APP_UNLIMITED_TRIAL_PROMO_CODE;
+	const isUnlimitedTrial =
+		promoCode &&
+		envPromoCode &&
+		promoCode.toLowerCase() === envPromoCode.toLowerCase();
+
+	const trialEndsAt = isUnlimitedTrial ? null : calculateTrialEndDate();
 
 	return {
 		status: SUBSCRIPTION_STATUS.TRIAL,

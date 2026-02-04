@@ -331,7 +331,9 @@ const SettingsPage: React.FC = () => {
 				{isOnTrial && (
 					<TrialInfo>
 						<TrialText>
-							🎉 You have {trialDaysRemaining} days left in your free trial
+							{trialDaysRemaining === -1
+								? '🎉 You have unlimited access with your promo code'
+								: `🎉 You have ${trialDaysRemaining} days left in your free trial`}
 						</TrialText>
 					</TrialInfo>
 				)}

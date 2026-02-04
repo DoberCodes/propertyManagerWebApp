@@ -20,7 +20,7 @@ export interface User {
 		plan: string;
 		currentPeriodStart: number;
 		currentPeriodEnd: number;
-		trialEndsAt?: number;
+		trialEndsAt?: number | null;
 		canceledAt?: number;
 		stripeCustomerId?: string;
 		stripeSubscriptionId?: string;

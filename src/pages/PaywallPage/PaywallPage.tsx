@@ -72,6 +72,7 @@ export const PaywallPage: React.FC<PaywallPageProps> = ({
 	const [promoCode, setPromoCode] = useState('');
 	const [promoLoading, setPromoLoading] = useState(false);
 	const [promoError, setPromoError] = useState<string | null>(null);
+	const [appliedPromoCode, setAppliedPromoCode] = useState<string | null>(null);
 	const isOnTrial = isTrialActive(subscription);
 	const daysRemaining = getTrialDaysRemaining(subscription);
 
@@ -147,10 +148,15 @@ export const PaywallPage: React.FC<PaywallPageProps> = ({
 			const trimmedPromoCode = promoCode.trim().toLowerCase();
 
 			// Check for valid promo codes
-			if (trimmedPromoCode === 'alpha1_free') {
-				// Valid promo code - call the callback
+			const validPromoCodes = [
+				process.env.REACT_APP_UNLIMITED_TRIAL_PROMO_CODE?.toLowerCase(),
+			].filter(Boolean);
+
+			if (validPromoCodes.includes(trimmedPromoCode)) {
+				// Valid promo code - call the callback and track applied promo
+				setAppliedPromoCode(trimmedPromoCode);
 				onPromoCodeApplied?.(trimmedPromoCode);
-				setPromoCode('');
+				setPromoCode(''); // Clear input but keep applied state
 				setPromoError(null);
 			} else {
 				// Invalid promo code
@@ -174,6 +180,7 @@ export const PaywallPage: React.FC<PaywallPageProps> = ({
 			'mailto:sales@propertymanager.com?subject=Custom Pricing Inquiry';
 	};
 
+	console.info('Days remaining:', daysRemaining);
 	return (
 		<PaywallWrapper variant={variant} wide={wide}>
 			<PaywallContainer variant={variant} wide={wide}>
@@ -213,10 +220,23 @@ export const PaywallPage: React.FC<PaywallPageProps> = ({
 						<TrialBannerTitle variant={variant}>
 							🎉 You're on a Free Trial!
 						</TrialBannerTitle>
-						<TrialCountdown variant={variant}>{daysRemaining}</TrialCountdown>
-						<TrialBannerText variant={variant}>
-							days remaining in your free trial
-						</TrialBannerText>
+						{daysRemaining === -1 ? (
+							<>
+								<TrialCountdown variant={variant}>∞</TrialCountdown>
+								<TrialBannerText variant={variant}>
+									unlimited access
+								</TrialBannerText>
+							</>
+						) : (
+							<>
+								<TrialCountdown variant={variant}>
+									{daysRemaining}
+								</TrialCountdown>
+								<TrialBannerText variant={variant}>
+									days remaining in your free trial
+								</TrialBannerText>
+							</>
+						)}
 						<TrialBannerText variant={variant}>
 							Upgrade to a paid plan anytime to keep your data and enjoy all
 							premium features.
@@ -351,29 +371,44 @@ export const PaywallPage: React.FC<PaywallPageProps> = ({
 
 				<AdditionalOptionsContainer layout={layout}>
 					<PromoSection layout={layout}>
-						<PromoTitle layout={layout}>Have a Promo Code?</PromoTitle>
-						<PromoText layout={layout}>
-							Enter your promo code to unlock special pricing or access the free
-							plan.
-						</PromoText>
-						<PromoInput
-							layout={layout}
-							type='text'
-							placeholder='Enter promo code'
-							value={promoCode}
-							onChange={(e) => setPromoCode(e.target.value)}
-							onKeyPress={(e) => e.key === 'Enter' && handlePromoCode()}
-						/>
-						{promoError && (
+						<PromoTitle layout={layout}>
+							{appliedPromoCode
+								? 'Promo Code Applied ✅'
+								: 'Have a Promo Code?'}
+						</PromoTitle>
+						{appliedPromoCode ? (
 							<PromoText
 								layout={layout}
-								style={{ color: '#dc3545', marginBottom: '12px' }}>
-								{promoError}
+								style={{ color: '#22c55e', fontWeight: 'bold' }}>
+								Promo code "{appliedPromoCode.toUpperCase()}" has been applied!
+								You now have unlimited trial access.
 							</PromoText>
+						) : (
+							<>
+								<PromoText layout={layout}>
+									Enter your promo code to unlock special pricing or access the
+									free plan.
+								</PromoText>
+								<PromoInput
+									layout={layout}
+									type='text'
+									placeholder='Enter promo code'
+									value={promoCode}
+									onChange={(e) => setPromoCode(e.target.value)}
+									onKeyPress={(e) => e.key === 'Enter' && handlePromoCode()}
+								/>
+								{promoError && (
+									<PromoText
+										layout={layout}
+										style={{ color: '#dc3545', marginBottom: '12px' }}>
+										{promoError}
+									</PromoText>
+								)}
+								<PromoButton onClick={handlePromoCode} disabled={promoLoading}>
+									{promoLoading ? 'Applying...' : 'Apply Code'}
+								</PromoButton>
+							</>
 						)}
-						<PromoButton onClick={handlePromoCode} disabled={promoLoading}>
-							{promoLoading ? 'Applying...' : 'Apply Code'}
-						</PromoButton>
 					</PromoSection>
 
 					<ContactSalesSection layout={layout}>
