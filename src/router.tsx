@@ -25,7 +25,6 @@ import { UserProfile } from './pages/UserProfile';
 import { TenantProfilePage } from './pages/TenantProfilePage';
 import { TEAM_VIEW_ROLES, FULL_ACCESS_ROLES } from './constants/roles';
 import { isNativeApp } from './utils/platform';
-import HomeownerPropertyWrapper from './Components/PropertiesTab/HomeownerPropertyWrapper';
 import { useSelector } from 'react-redux';
 import PaywallPageIndex from './pages/PaywallPage';
 
@@ -38,9 +37,8 @@ const RootRoute = () => {
 };
 
 export const RouterComponent = () => {
-	const userType = useSelector(
-		(state: any) =>
-			state.user.currentUser?.userType || state.user.currentUser?.role,
+	const userSubscriptionPlan = useSelector(
+		(state: any) => state.user.currentUser?.subscription?.plan,
 	);
 	return (
 		<Router>
@@ -80,19 +78,15 @@ export const RouterComponent = () => {
 					}>
 					<Route path='dashboard' element={<DashboardTab />} />
 
-					{/* Properties management - accessible to admin, PM, AM, ML */}
-					{userType === 'homeowner' ? (
-						<Route path='properties' element={<HomeownerPropertyWrapper />} />
-					) : (
-						<Route
-							path='properties'
-							element={
-								<ProtectedRoutes requiredRoles={FULL_ACCESS_ROLES}>
-									<Properties />
-								</ProtectedRoutes>
-							}
-						/>
-					)}
+					{/* Properties management - accessible to all authenticated users */}
+					<Route
+						path='properties'
+						element={
+							<ProtectedRoutes>
+								<Properties />
+							</ProtectedRoutes>
+						}
+					/>
 					<Route
 						path='property/:slug'
 						element={
@@ -117,7 +111,7 @@ export const RouterComponent = () => {
 							</ProtectedRoutes>
 						}
 					/>
-					{userType !== 'homeowner' && (
+					{userSubscriptionPlan !== 'homeowner' && (
 						<Route
 							path='team'
 							element={

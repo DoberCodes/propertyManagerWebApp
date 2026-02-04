@@ -218,6 +218,7 @@ export const canDeleteProperty = (
  */
 export const getSharePermissionLabel = (permission: string): string => {
 	const labels: Record<string, string> = {
+		'co-owner': 'Co-Owner',
 		admin: 'Administrator',
 		viewer: 'Viewer',
 	};

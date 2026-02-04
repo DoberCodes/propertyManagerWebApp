@@ -240,25 +240,62 @@ export const AddPropertyButton = styled.button`
 	}
 `;
 
-export const PropertiesGrid = styled.div`
+export const PropertiesGrid = styled.div<{
+	$isHomeowner?: boolean;
+	$singleProperty?: boolean;
+}>`
 	display: grid;
 	grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
 	gap: 20px;
 	margin-top: 8px; /* space from header */
 
+	${({ $isHomeowner, $singleProperty }) =>
+		$isHomeowner && $singleProperty
+			? `
+		justify-items: center;
+		grid-template-columns: 250px;
+		max-width: 250px;
+		margin: 8px auto 0;
+	`
+			: ''}
+
 	@media (max-width: 1024px) {
 		grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
 		gap: 16px;
+
+		${({ $isHomeowner, $singleProperty }) =>
+			$isHomeowner && $singleProperty
+				? `
+			grid-template-columns: 200px;
+			max-width: 200px;
+		`
+				: ''}
 	}
 
 	@media (max-width: 768px) {
 		grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
 		gap: 14px;
+
+		${({ $isHomeowner, $singleProperty }) =>
+			$isHomeowner && $singleProperty
+				? `
+			grid-template-columns: 160px;
+			max-width: 160px;
+		`
+				: ''}
 	}
 
 	@media (max-width: 480px) {
 		grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
 		gap: 12px;
+
+		${({ $isHomeowner, $singleProperty }) =>
+			$isHomeowner && $singleProperty
+				? `
+			grid-template-columns: 140px;
+			max-width: 140px;
+		`
+				: ''}
 	}
 `;
 

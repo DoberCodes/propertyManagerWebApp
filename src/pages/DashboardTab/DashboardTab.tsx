@@ -223,7 +223,7 @@ export const DashboardTab = () => {
 	const getAssigneeOptions = useCallback(
 		(task: any): string[] => {
 			const assignees: string[] = [];
-			const currentUserType = currentUser?.userType || 'landlord';
+			const currentUserType = currentUser?.subscription?.plan || 'landlord';
 			const taskProperty = allProperties.find(
 				(p) => p.title === task.propertyTitle,
 			);

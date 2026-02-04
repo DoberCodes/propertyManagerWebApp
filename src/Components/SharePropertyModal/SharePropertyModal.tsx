@@ -41,7 +41,9 @@ export const SharePropertyModal: React.FC<SharePropertyModalProps> = ({
 	ownerEmail,
 }) => {
 	const [email, setEmail] = useState('');
-	const [permission, setPermission] = useState<'admin' | 'viewer'>('viewer');
+	const [permission, setPermission] = useState<'co-owner' | 'admin' | 'viewer'>(
+		'viewer',
+	);
 	const [editingShareId, setEditingShareId] = useState<string | null>(null);
 	const [error, setError] = useState('');
 	const [success, setSuccess] = useState('');
@@ -111,7 +113,7 @@ export const SharePropertyModal: React.FC<SharePropertyModalProps> = ({
 
 	const handleUpdateShare = async (
 		shareId: string,
-		newPermission: 'admin' | 'viewer',
+		newPermission: 'co-owner' | 'admin' | 'viewer',
 	) => {
 		setError('');
 		try {
@@ -189,13 +191,16 @@ export const SharePropertyModal: React.FC<SharePropertyModalProps> = ({
 						<Select
 							value={permission}
 							onChange={(e) =>
-								setPermission(e.target.value as 'admin' | 'viewer')
+								setPermission(e.target.value as 'co-owner' | 'admin' | 'viewer')
 							}>
-							<option value={SHARE_PERMISSIONS.VIEWER}>
-								{getSharePermissionLabel(SHARE_PERMISSIONS.VIEWER)}
+							<option value={SHARE_PERMISSIONS.CO_OWNER}>
+								{getSharePermissionLabel(SHARE_PERMISSIONS.CO_OWNER)}
 							</option>
 							<option value={SHARE_PERMISSIONS.ADMIN}>
 								{getSharePermissionLabel(SHARE_PERMISSIONS.ADMIN)}
+							</option>
+							<option value={SHARE_PERMISSIONS.VIEWER}>
+								{getSharePermissionLabel(SHARE_PERMISSIONS.VIEWER)}
 							</option>
 						</Select>
 						<Button
@@ -211,6 +216,9 @@ export const SharePropertyModal: React.FC<SharePropertyModalProps> = ({
 						</Button>
 					</InviteForm>
 					<HelperText>
+						<strong>Co-Owner:</strong> Full ownership rights, can edit and
+						manage property
+						<br />
 						<strong>Admin:</strong> Can view and edit property details
 						<br />
 						<strong>Viewer:</strong> Can only view property details

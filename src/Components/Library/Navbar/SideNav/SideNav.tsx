@@ -47,9 +47,7 @@ export const SideNav = () => {
 		? currentUser.subscription.plan !== 'free'
 		: false;
 	const isUserTenant = currentUser ? currentUser.role === 'tenant' : false;
-	const isHomeowner = currentUser
-		? currentUser.userType === 'homeowner'
-		: false;
+	const isHomeowner = currentUser?.subscription?.plan === 'homeowner';
 
 	const isActive = (path: string) => location.hash.includes(path);
 
@@ -197,9 +195,7 @@ export const MobileNav = () => {
 		? currentUser.subscription.plan !== 'free'
 		: false;
 	const isUserTenant = currentUser ? currentUser.role === 'tenant' : false;
-	const isHomeowner = currentUser
-		? currentUser.userType === 'homeowner'
-		: false;
+	const isHomeowner = currentUser?.subscription?.plan === 'homeowner';
 
 	const menuItems = [
 		{ label: 'Dashboard', path: 'dashboard', visible: !isUserTenant },

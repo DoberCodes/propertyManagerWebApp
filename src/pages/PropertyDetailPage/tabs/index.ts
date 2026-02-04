@@ -1,4 +1,5 @@
 export { DetailsTab } from './DetailsTab';
+export { DevicesTab } from './DevicesTab';
 export { TasksTab } from './TasksTab';
 export { MaintenanceTab } from './MaintenanceTab';
 export { TenantsTab } from './TenantsTab';

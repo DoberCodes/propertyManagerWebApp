@@ -86,6 +86,7 @@ export const PAGE_VIEW_ROLES = [
 
 // Property sharing permission levels
 export const SHARE_PERMISSIONS = {
+	CO_OWNER: 'co-owner', // Full ownership rights
 	ADMIN: 'admin', // Can edit property and invite others
 	VIEWER: 'viewer', // Can only view property, cannot edit
 } as const;

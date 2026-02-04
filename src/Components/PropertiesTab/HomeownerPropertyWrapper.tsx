@@ -30,7 +30,7 @@ const HomeownerPropertyWrapper: React.FC = () => {
 	);
 
 	// Only allow one property for homeowners
-	const isHomeowner = currentUser?.userType === 'homeowner';
+	const isHomeowner = currentUser?.subscription?.plan === 'homeowner';
 	console.info('HomeownerPropertyWrapper: checking homeowner access', {
 		isHomeowner,
 		propertiesCount: allProperties.length,

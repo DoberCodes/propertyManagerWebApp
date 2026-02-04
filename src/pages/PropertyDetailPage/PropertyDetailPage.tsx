@@ -69,6 +69,7 @@ import {
 import {
 	DetailsTab,
 	TasksTab,
+	DevicesTab,
 	MaintenanceTab,
 	TenantsTab,
 	UnitsTab,
@@ -123,6 +124,7 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 
 	const [activeTab, setActiveTab] = useState<
 		| 'details'
+		| 'devices'
 		| 'tasks'
 		| 'maintenance'
 		| 'tenants'
@@ -836,11 +838,16 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 									</button>
 								)}
 								{property &&
-									propertyGroups.some(
+									(propertyGroups.some(
 										(group) =>
 											group.id === property.groupId &&
 											group.userId === currentUser.id,
-									) && (
+									) ||
+										currentPropertyShares.some(
+											(share) =>
+												share.sharedWithUserId === currentUser.id &&
+												share.permission === 'co-owner',
+										)) && (
 										<button
 											onClick={() => {
 												setShowShareModal(true);
@@ -979,11 +986,16 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 						)}
 						{currentUser &&
 							property &&
-							propertyGroups.some(
+							(propertyGroups.some(
 								(group) =>
 									group.id === property.groupId &&
 									group.userId === currentUser.id,
-							) && (
+							) ||
+								currentPropertyShares.some(
+									(share) =>
+										share.sharedWithUserId === currentUser.id &&
+										share.permission === 'co-owner',
+								)) && (
 								<FavoriteButton onClick={() => setShowShareModal(true)}>
 									👥 Share Property
 								</FavoriteButton>
@@ -1017,6 +1029,9 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 						handlePropertyFieldChange={handlePropertyFieldChange}
 					/>
 				)}
+
+				{/* Devices Tab */}
+				{activeTab === 'devices' && <DevicesTab property={property} />}
 
 				{/* Suites Tab */}
 				{activeTab === 'suites' &&

@@ -17,7 +17,7 @@ import { User } from '../Slices/userSlice';
 import { TenantProfile } from '../../types/TenantProfile.types';
 
 // Types
-export type SharePermission = 'admin' | 'viewer';
+export type SharePermission = 'co-owner' | 'admin' | 'viewer';
 
 export interface PropertyShare {
 	id: string;
@@ -27,7 +27,7 @@ export interface PropertyShare {
 	sharedWithEmail: string; // Email of user who has access
 	sharedWithFirstName?: string; // First name of user who has access
 	sharedWithLastName?: string; // Last name of user who has access
-	permission: SharePermission; // 'admin' or 'viewer'
+	permission: SharePermission; // 'co-owner', 'admin' or 'viewer'
 	createdAt: string;
 	updatedAt: string;
 }
@@ -96,8 +96,9 @@ export interface Property {
 	slug: string;
 	image?: string;
 	owner?: string;
-	administrators?: string[];
-	viewers?: string[];
+	coOwners?: string[]; // Additional owners with full ownership rights
+	administrators?: string[]; // Property managers/helpers
+	viewers?: string[]; // Read-only access
 	address?: string;
 	propertyType?: 'Single Family' | 'Multi-Family' | 'Commercial';
 	bedrooms?: number;
@@ -356,6 +357,8 @@ export const apiSlice = createApi({
 						groups.map(async (group) => {
 							const isSharedGroup =
 								group.name?.toLowerCase() === 'shared properties';
+							const isMyPropertiesGroup =
+								group.name?.toLowerCase() === 'my properties';
 							// Get properties owned by user in this group
 							const propertiesQuery = query(
 								collection(db, 'properties'),
@@ -399,10 +402,26 @@ export const apiSlice = createApi({
 												...doc.data(),
 											}),
 										) as Property[];
-										// Include all shared properties in the Shared Properties group
-										const groupSharedProperties = isSharedGroup
-											? properties
-											: properties.filter((p) => p.groupId === group.id);
+
+										// Determine which properties should go in this group based on permission
+										const groupSharedProperties = properties.filter((prop) => {
+											const share = shares.find(
+												(s) => s.propertyId === prop.id,
+											);
+											const permission = share?.permission || 'viewer';
+
+											// Co-owners get properties in "My Properties", viewers/admins get them in "Shared Properties"
+											if (permission === 'co-owner' && isMyPropertiesGroup) {
+												return true;
+											} else if (
+												(permission === 'viewer' || permission === 'admin') &&
+												isSharedGroup
+											) {
+												return true;
+											}
+											return false;
+										});
+
 										sharedProperties.push(...groupSharedProperties);
 									}
 								}
@@ -421,7 +440,46 @@ export const apiSlice = createApi({
 						}),
 					);
 
-					return { data: groupsWithProperties };
+					// Check if we need to create a "Shared Properties" group
+					const hasSharedPropertiesGroup = groupsWithProperties.some(
+						(group) => group.name?.toLowerCase() === 'shared properties',
+					);
+
+					let finalGroups = [...groupsWithProperties];
+
+					// If no Shared Properties group exists, check if user has shared properties
+					if (!hasSharedPropertiesGroup && userEmail) {
+						const sharesQuery = query(
+							collection(db, 'propertyShares'),
+							where('sharedWithEmail', '==', userEmail),
+						);
+						const sharesSnapshot = await getDocs(sharesQuery);
+						if (!sharesSnapshot.empty) {
+							// User has shared properties, create the group
+							try {
+								const sharedGroupData = {
+									name: 'Shared Properties',
+									userId,
+									properties: [],
+									createdAt: new Date().toISOString(),
+									updatedAt: new Date().toISOString(),
+								};
+								const sharedGroupRef = await addDoc(
+									collection(db, 'propertyGroups'),
+									sharedGroupData,
+								);
+								finalGroups.push({
+									id: sharedGroupRef.id,
+									...sharedGroupData,
+								});
+								// Note: Properties will be loaded on next query refresh
+							} catch (error) {
+								console.error('Error creating Shared Properties group:', error);
+							}
+						}
+					}
+
+					return { data: finalGroups };
 				} catch (error: any) {
 					return { error: error.message };
 				}
@@ -517,7 +575,7 @@ export const apiSlice = createApi({
 					const groupsSnapshot = await getDocs(groupsQuery);
 					const groupIds = groupsSnapshot.docs.map((doc) => doc.id);
 
-					// Fetch all properties owned by this user
+					// Fetch all properties owned by this user or where user is administrator
 					const ownedProperties: Property[] = [];
 					if (groupIds.length > 0) {
 						// Process in batches of 10 (Firestore limitation)
@@ -536,8 +594,35 @@ export const apiSlice = createApi({
 						}
 					}
 
-					// Get shared properties
-					const sharedProperties: Property[] = [];
+					// Also fetch properties where user is a co-owner
+					const coOwnerPropertiesQuery = query(
+						collection(db, 'properties'),
+						where('coOwners', 'array-contains', userId),
+					);
+					const coOwnerPropertiesSnapshot = await getDocs(
+						coOwnerPropertiesQuery,
+					);
+					const coOwnerProperties = coOwnerPropertiesSnapshot.docs.map(
+						(doc) => ({
+							id: doc.id,
+							...doc.data(),
+						}),
+					) as Property[];
+
+					// Also fetch properties where user is an administrator
+					const adminPropertiesQuery = query(
+						collection(db, 'properties'),
+						where('administrators', 'array-contains', userId),
+					);
+					const adminPropertiesSnapshot = await getDocs(adminPropertiesQuery);
+					const adminProperties = adminPropertiesSnapshot.docs.map((doc) => ({
+						id: doc.id,
+						...doc.data(),
+					})) as Property[];
+
+					// Get shared properties - separate co-owners from regular shares
+					const coOwnerSharedProperties: Property[] = [];
+					const regularSharedProperties: Property[] = [];
 					if (userEmail) {
 						const sharesQuery = query(
 							collection(db, 'propertyShares'),
@@ -549,11 +634,21 @@ export const apiSlice = createApi({
 							...doc.data(),
 						})) as PropertyShare[];
 
-						const propertyIds = shares.map((share) => share.propertyId);
-						if (propertyIds.length > 0) {
+						const coOwnerShares = shares.filter(
+							(share) => share.permission === 'co-owner',
+						);
+						const regularShares = shares.filter(
+							(share) => share.permission !== 'co-owner',
+						);
+
+						// Process co-owner shares (treated as ownership)
+						const coOwnerPropertyIds = coOwnerShares.map(
+							(share) => share.propertyId,
+						);
+						if (coOwnerPropertyIds.length > 0) {
 							// Process in batches of 10
-							for (let i = 0; i < propertyIds.length; i += 10) {
-								const batch = propertyIds.slice(i, i + 10);
+							for (let i = 0; i < coOwnerPropertyIds.length; i += 10) {
+								const batch = coOwnerPropertyIds.slice(i, i + 10);
 								const propertiesQuery = query(
 									collection(db, 'properties'),
 									where('__name__', 'in', batch),
@@ -563,13 +658,40 @@ export const apiSlice = createApi({
 									id: doc.id,
 									...doc.data(),
 								})) as Property[];
-								sharedProperties.push(...properties);
+								coOwnerSharedProperties.push(...properties);
+							}
+						}
+
+						// Process regular shares
+						const regularPropertyIds = regularShares.map(
+							(share) => share.propertyId,
+						);
+						if (regularPropertyIds.length > 0) {
+							// Process in batches of 10
+							for (let i = 0; i < regularPropertyIds.length; i += 10) {
+								const batch = regularPropertyIds.slice(i, i + 10);
+								const propertiesQuery = query(
+									collection(db, 'properties'),
+									where('__name__', 'in', batch),
+								);
+								const propertiesSnapshot = await getDocs(propertiesQuery);
+								const properties = propertiesSnapshot.docs.map((doc) => ({
+									id: doc.id,
+									...doc.data(),
+								})) as Property[];
+								regularSharedProperties.push(...properties);
 							}
 						}
 					}
 
 					// Combine and deduplicate
-					const allProperties = [...ownedProperties, ...sharedProperties];
+					const allProperties = [
+						...ownedProperties,
+						...coOwnerProperties,
+						...coOwnerSharedProperties,
+						...adminProperties,
+						...regularSharedProperties,
+					];
 					const uniqueProperties = Array.from(
 						new Map(allProperties.map((p) => [p.id, p])).values(),
 					);

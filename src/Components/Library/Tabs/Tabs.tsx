@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { FormSelect } from '../Modal/ModalStyles';
 
 export interface TabsContextProps {
 	property: any;
@@ -27,14 +28,29 @@ const Tabs: React.FC<TabsProps> = ({
 	activeTab,
 	setActiveTab,
 }) => {
+	const [isMobile, setIsMobile] = useState(false);
+
+	useEffect(() => {
+		const checkIsMobile = () => {
+			setIsMobile(window.innerWidth <= 768);
+		};
+
+		checkIsMobile();
+		window.addEventListener('resize', checkIsMobile);
+
+		return () => window.removeEventListener('resize', checkIsMobile);
+	}, []);
+
 	const homeownerTabs: tab[] = [
 		{ label: 'Details', value: 'details' },
+		{ label: 'Devices', value: 'devices' },
 		{ label: 'Tasks', value: 'tasks' },
 		{ label: 'Maintenance History', value: 'maintenance' },
 		{ label: 'Contractors', value: 'contractors' },
 	];
 	const comercialTabs: tab[] = [
 		{ label: 'Details', value: 'details' },
+		{ label: 'Devices', value: 'devices' },
 		{ label: 'Tasks', value: 'tasks' },
 		{ label: 'Maintenance History', value: 'maintenance' },
 		{ label: 'Suites', value: 'suites' },
@@ -42,6 +58,7 @@ const Tabs: React.FC<TabsProps> = ({
 	];
 	const landlordTabs: tab[] = [
 		{ label: 'Details', value: 'details' },
+		{ label: 'Devices', value: 'devices' },
 		{ label: 'Tasks', value: 'tasks' },
 		{ label: 'Maintenance History', value: 'maintenance' },
 		{
@@ -69,7 +86,7 @@ const Tabs: React.FC<TabsProps> = ({
 
 	const tabOptions: tab[] = [];
 	const settabsOptions = () => {
-		if (currentUser.userType === 'homeowner') {
+		if (currentUser?.subscription?.plan === 'homeowner') {
 			tabOptions.push(...homeownerTabs);
 		} else if (hasCommercialSuites) {
 			tabOptions.push(...comercialTabs);
@@ -79,9 +96,57 @@ const Tabs: React.FC<TabsProps> = ({
 		return tabOptions;
 	};
 
+	const tabs = settabsOptions();
+
+	if (isMobile) {
+		return (
+			<div
+				style={{
+					width: '100%',
+					padding: '0 16px',
+					marginBottom: '8px',
+				}}>
+				<FormSelect
+					value={activeTab}
+					onChange={(e) => setActiveTab(e.target.value)}
+					style={{
+						width: '100%',
+						padding: '12px 16px',
+						border: '2px solid #e5e7eb',
+						borderRadius: '8px',
+						fontSize: '16px',
+						fontWeight: '500',
+						backgroundColor: '#ffffff',
+						color: '#374151',
+						cursor: 'pointer',
+						transition: 'all 0.2s ease',
+						boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
+						outline: 'none',
+					}}
+					onFocus={(e) => {
+						e.target.style.borderColor = '#10b981';
+						e.target.style.boxShadow = '0 0 0 3px rgba(16, 185, 129, 0.1)';
+					}}
+					onBlur={(e) => {
+						e.target.style.borderColor = '#e5e7eb';
+						e.target.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.1)';
+					}}>
+					{tabs.map((tab) => (
+						<option key={tab.value} value={tab.value}>
+							{tab.label}
+							{tab.badgeCount && tab.badgeCount > 0
+								? ` (${tab.badgeCount})`
+								: ''}
+						</option>
+					))}
+				</FormSelect>
+			</div>
+		);
+	}
+
 	return (
-		<div style={{ display: 'flex', gap: 8 }}>
-			{settabsOptions().map((tab) => (
+		<div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+			{tabs.map((tab) => (
 				<button
 					key={tab.value}
 					style={{
@@ -96,6 +161,7 @@ const Tabs: React.FC<TabsProps> = ({
 						fontWeight: activeTab === tab.value ? 600 : 400,
 						cursor: 'pointer',
 						position: 'relative',
+						whiteSpace: 'nowrap',
 					}}
 					onClick={() => setActiveTab(tab.value)}>
 					{tab.label}

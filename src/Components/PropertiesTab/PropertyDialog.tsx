@@ -21,10 +21,6 @@ import {
 	TextArea,
 	PhotoPreview,
 	PhotoPreviewImage,
-	DevicesSection,
-	DeviceRow,
-	RemoveDeviceButton,
-	AddDeviceButton,
 	MaintenanceHistoryBox,
 	HistoryItem,
 	FileUploadSection,
@@ -39,21 +35,7 @@ import {
 	uploadPropertyImage,
 	isValidPropertyImageFile,
 } from '../../utils/propertyImageUpload';
-
-interface Device {
-	id: string; // Changed to string (Firebase)
-	type: string;
-	brand: string;
-	model: string;
-	installationDate: string;
-	warrantyFile?: string;
-	location?: {
-		unit?: string; // For multi-family properties
-		suite?: string;
-	};
-	createdAt?: string; // Added (Firebase)
-	updatedAt?: string; // Added (Firebase)
-}
+import { useGetPropertySharesQuery } from '../../Redux/API/apiSlice';
 
 interface MaintenanceRecord {
 	date: string;
@@ -64,8 +46,6 @@ interface PropertyFormData {
 	photo?: string;
 	name: string;
 	owner: string;
-	administrators: string[];
-	viewers: string[];
 	address: string;
 	propertyType: 'Single Family' | 'Multi-Family' | 'Commercial';
 	units: string[]; // For multi-family properties
@@ -73,7 +53,6 @@ interface PropertyFormData {
 	suites: string[]; // For commercial properties with multiple suites
 	bedrooms?: number | null;
 	bathrooms?: number | null;
-	devices: Device[];
 	notes: string;
 	files?: string[];
 	maintenanceHistory?: MaintenanceRecord[];
@@ -88,6 +67,7 @@ interface PropertyDialogProps {
 	groups: Array<{ id: string; name: string }>;
 	selectedGroupId?: string | null;
 	onCreateGroup?: (name: string) => Promise<string>; // returns new group id
+	propertyId?: string; // For editing existing properties
 }
 
 export const PropertyDialog: React.FC<PropertyDialogProps> = ({
@@ -98,13 +78,12 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 	groups,
 	selectedGroupId,
 	onCreateGroup,
+	propertyId,
 }) => {
 	const [formData, setFormData] = useState<PropertyFormData>(
 		initialData || {
 			name: '',
 			owner: '',
-			administrators: [],
-			viewers: [],
 			address: '',
 			propertyType: 'Single Family',
 			units: [],
@@ -112,29 +91,26 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 			suites: [],
 			bedrooms: 0,
 			bathrooms: 0,
-			devices: [
-				{
-					id: `device-${Date.now()}`,
-					type: '',
-					brand: '',
-					model: '',
-					installationDate: '',
-				},
-			],
 			notes: '',
 			maintenanceHistory: [],
 			groupId: selectedGroupId ?? null,
 		},
 	);
 
-	const [adminInput, setAdminInput] = useState('');
-	const [viewerInput, setViewerInput] = useState('');
 	const [unitInput, setUnitInput] = useState('');
 	const [suiteInput, setSuiteInput] = useState('');
 
 	const [newGroupName, setNewGroupName] = useState('');
 	const [isUploadingImage, setIsUploadingImage] = useState(false);
 	const [imageError, setImageError] = useState<string | null>(null);
+
+	// Get co-owner shares for this property
+	const { data: coOwnerShares = [] } = useGetPropertySharesQuery(
+		propertyId || '',
+		{
+			skip: !propertyId,
+		},
+	);
 
 	// Reset form when dialog opens or initialData changes
 	useEffect(() => {
@@ -168,8 +144,6 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 				setFormData({
 					name: '',
 					owner: '',
-					administrators: [],
-					viewers: [],
 					address: '',
 					propertyType: 'Single Family',
 					units: [],
@@ -177,22 +151,11 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 					suites: [],
 					bedrooms: 0,
 					bathrooms: 0,
-					devices: [
-						{
-							id: `device-${Date.now()}`,
-							type: '',
-							brand: '',
-							model: '',
-							installationDate: '',
-						},
-					],
 					notes: '',
 					maintenanceHistory: [],
 					groupId: selectedGroupId ?? null,
 				});
 			}
-			setAdminInput('');
-			setViewerInput('');
 			setUnitInput('');
 			setSuiteInput('');
 			setNewGroupName('');
@@ -203,40 +166,6 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 
 	const handleInputChange = (field: keyof PropertyFormData, value: any) => {
 		setFormData((prev) => ({ ...prev, [field]: value }));
-	};
-
-	const handleAddAdmin = () => {
-		if (adminInput.trim()) {
-			setFormData((prev) => ({
-				...prev,
-				administrators: [...prev.administrators, adminInput.trim()],
-			}));
-			setAdminInput('');
-		}
-	};
-
-	const handleRemoveAdmin = (index: number) => {
-		setFormData((prev) => ({
-			...prev,
-			administrators: prev.administrators.filter((_, i) => i !== index),
-		}));
-	};
-
-	const handleAddViewer = () => {
-		if (viewerInput.trim()) {
-			setFormData((prev) => ({
-				...prev,
-				viewers: [...prev.viewers, viewerInput.trim()],
-			}));
-			setViewerInput('');
-		}
-	};
-
-	const handleRemoveViewer = (index: number) => {
-		setFormData((prev) => ({
-			...prev,
-			viewers: prev.viewers.filter((_, i) => i !== index),
-		}));
 	};
 
 	const handleAddUnit = () => {
@@ -270,42 +199,6 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 		setFormData((prev) => ({
 			...prev,
 			suites: (prev.suites || []).filter((_, i) => i !== index),
-		}));
-	};
-
-	const handleDeviceChange = (
-		deviceId: string,
-		field: keyof Device,
-		value: string,
-	) => {
-		setFormData((prev) => ({
-			...prev,
-			devices: prev.devices.map((device) =>
-				device.id === deviceId ? { ...device, [field]: value } : device,
-			),
-		}));
-	};
-
-	const handleAddDevice = () => {
-		setFormData((prev) => ({
-			...prev,
-			devices: [
-				...prev.devices,
-				{
-					id: `device-${Date.now()}`,
-					type: '',
-					brand: '',
-					model: '',
-					installationDate: '',
-				},
-			],
-		}));
-	};
-
-	const handleRemoveDevice = (deviceId: string) => {
-		setFormData((prev) => ({
-			...prev,
-			devices: prev.devices.filter((device) => device.id !== deviceId),
 		}));
 	};
 
@@ -666,48 +559,63 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 						</FormSection>
 					)}
 
+					{/* Co-Owners */}
+					<FormSection>
+						<SectionTitle>Co-Owners</SectionTitle>
+						<FormField>
+							<TagsContainer>
+								{coOwnerShares
+									.filter((share) => share.permission === 'co-owner')
+									.map((share) => (
+										<Tag key={share.id}>
+											{share.sharedWithFirstName && share.sharedWithLastName
+												? `${share.sharedWithFirstName} ${share.sharedWithLastName} (${share.sharedWithEmail})`
+												: share.sharedWithEmail}
+										</Tag>
+									))}
+							</TagsContainer>
+							{coOwnerShares.filter((share) => share.permission === 'co-owner')
+								.length === 0 && (
+								<div
+									style={{
+										color: '#666',
+										fontSize: '14px',
+										fontStyle: 'italic',
+									}}>
+									No co-owners assigned. Use the Share Property button to add
+									co-owners.
+								</div>
+							)}
+						</FormField>
+					</FormSection>
+
 					{/* Administrators */}
 					<FormSection>
 						<SectionTitle>Administrators</SectionTitle>
 						<FormField>
 							<TagsContainer>
-								{formData.administrators.map((admin, index) => (
-									<Tag key={index}>
-										{admin}
-										<RemoveTagButton onClick={() => handleRemoveAdmin(index)}>
-											×
-										</RemoveTagButton>
-									</Tag>
-								))}
+								{coOwnerShares
+									.filter((share) => share.permission === 'admin')
+									.map((share) => (
+										<Tag key={share.id}>
+											{share.sharedWithFirstName && share.sharedWithLastName
+												? `${share.sharedWithFirstName} ${share.sharedWithLastName} (${share.sharedWithEmail})`
+												: share.sharedWithEmail}
+										</Tag>
+									))}
 							</TagsContainer>
-							<FormRow>
-								<Input
-									type='text'
-									value={adminInput}
-									onChange={(e) => setAdminInput(e.target.value)}
-									onKeyPress={(e) => {
-										if (e.key === 'Enter') {
-											e.preventDefault();
-											handleAddAdmin();
-										}
-									}}
-									placeholder='Add administrator'
-									style={{ flex: 1 }}
-								/>
-								<button
-									onClick={handleAddAdmin}
+							{coOwnerShares.filter((share) => share.permission === 'admin')
+								.length === 0 && (
+								<div
 									style={{
-										padding: '8px 12px',
-										backgroundColor: '#22c55e',
-										color: 'white',
-										border: 'none',
-										borderRadius: '4px',
-										cursor: 'pointer',
+										color: '#666',
 										fontSize: '14px',
+										fontStyle: 'italic',
 									}}>
-									Add
-								</button>
-							</FormRow>
+									No administrators assigned. Use the Share Property button to
+									add administrators.
+								</div>
+							)}
 						</FormField>
 					</FormSection>
 
@@ -716,131 +624,30 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 						<SectionTitle>Viewers</SectionTitle>
 						<FormField>
 							<TagsContainer>
-								{formData.viewers.map((viewer, index) => (
-									<Tag key={index}>
-										{viewer}
-										<RemoveTagButton onClick={() => handleRemoveViewer(index)}>
-											×
-										</RemoveTagButton>
-									</Tag>
-								))}
+								{coOwnerShares
+									.filter((share) => share.permission === 'viewer')
+									.map((share) => (
+										<Tag key={share.id}>
+											{share.sharedWithFirstName && share.sharedWithLastName
+												? `${share.sharedWithFirstName} ${share.sharedWithLastName} (${share.sharedWithEmail})`
+												: share.sharedWithEmail}
+										</Tag>
+									))}
 							</TagsContainer>
-							<FormRow>
-								<Input
-									type='text'
-									value={viewerInput}
-									onChange={(e) => setViewerInput(e.target.value)}
-									onKeyPress={(e) => {
-										if (e.key === 'Enter') {
-											e.preventDefault();
-											handleAddViewer();
-										}
-									}}
-									placeholder='Add viewer'
-									style={{ flex: 1 }}
-								/>
-								<button
-									onClick={handleAddViewer}
+							{coOwnerShares.filter((share) => share.permission === 'viewer')
+								.length === 0 && (
+								<div
 									style={{
-										padding: '8px 12px',
-										backgroundColor: '#22c55e',
-										color: 'white',
-										border: 'none',
-										borderRadius: '4px',
-										cursor: 'pointer',
+										color: '#666',
 										fontSize: '14px',
+										fontStyle: 'italic',
 									}}>
-									Add
-								</button>
-							</FormRow>
+									No viewers assigned. Use the Share Property button to add
+									viewers.
+								</div>
+							)}
 						</FormField>
 					</FormSection>
-
-					{/* Household Devices */}
-					<DevicesSection>
-						<SectionTitle>Household Devices</SectionTitle>
-						{formData.devices.map((device) => (
-							<DeviceRow key={device.id}>
-								{/* Note: device.unit removed - Device interface uses location.unitId instead */}
-								<FormField>
-									<Label>Device Type</Label>
-									<Input
-										type='text'
-										value={device.type}
-										onChange={(e) =>
-											handleDeviceChange(device.id, 'type', e.target.value)
-										}
-										placeholder='e.g., Water Heater, Refrigerator'
-									/>
-								</FormField>
-								<FormField>
-									<Label>Brand</Label>
-									<Input
-										type='text'
-										value={device.brand}
-										onChange={(e) =>
-											handleDeviceChange(device.id, 'brand', e.target.value)
-										}
-										placeholder='Brand'
-									/>
-								</FormField>
-								<FormField>
-									<Label>Model</Label>
-									<Input
-										type='text'
-										value={device.model}
-										onChange={(e) =>
-											handleDeviceChange(device.id, 'model', e.target.value)
-										}
-										placeholder='Model'
-									/>
-								</FormField>
-								<FormField>
-									<Label>Installation Date</Label>
-									<Input
-										type='date'
-										value={device.installationDate || ''}
-										onChange={(e) =>
-											handleDeviceChange(
-												device.id,
-												'installationDate',
-												e.target.value,
-											)
-										}
-									/>
-								</FormField>
-								<FormField>
-									<Label>Warranty File</Label>
-									<FileLabel htmlFor={`warranty-${device.id}`}>
-										<FileInput
-											id={`warranty-${device.id}`}
-											type='file'
-											onChange={(e) => {
-												const file = e.target.files?.[0];
-												if (file) {
-													handleDeviceChange(
-														device.id,
-														'warrantyFile',
-														file.name,
-													);
-												}
-											}}
-										/>
-										{device.warrantyFile || 'Choose File'}
-									</FileLabel>
-								</FormField>
-								{formData.devices.length > 1 && (
-									<RemoveDeviceButton
-										onClick={() => handleRemoveDevice(device.id)}>
-										Remove
-									</RemoveDeviceButton>
-								)}
-							</DeviceRow>
-						))}
-						<AddDeviceButton onClick={handleAddDevice}>
-							+ Add Device
-						</AddDeviceButton>
-					</DevicesSection>
 
 					{/* Notes */}
 					<FormSection>

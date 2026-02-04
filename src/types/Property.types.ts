@@ -11,8 +11,9 @@ export interface Property {
 	slug: string;
 	image?: string;
 	owner?: string;
-	administrators?: string[];
-	viewers?: string[];
+	coOwners?: string[]; // Additional owners with full ownership rights
+	administrators?: string[]; // Property managers/helpers
+	viewers?: string[]; // Read-only access
 	address?: string;
 	propertyType?: 'Single Family' | 'Multi-Family' | 'Commercial';
 	bedrooms?: number;

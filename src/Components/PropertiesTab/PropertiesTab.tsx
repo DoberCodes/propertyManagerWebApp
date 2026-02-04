@@ -82,6 +82,13 @@ export const Properties = () => {
 		? currentUser.subscription.plan !== 'free'
 		: false;
 
+	// Check if user can create groups (basic and above plans only)
+	const canCreateGroups = currentUser?.subscription
+		? ['basic', 'professional', 'enterprise'].includes(
+				currentUser.subscription.plan,
+			)
+		: false;
+
 	// Combine groups with their properties
 	const groupsWithProperties = useMemo(() => {
 		return propertyGroups.map((group) => ({
@@ -94,23 +101,34 @@ export const Properties = () => {
 	// TODO: Make sure userType is persisted in user model after registration
 	const userType = (currentUser as any)?.userType || currentUser?.role;
 
-	// Count total properties for this user
-	const totalProperties = groupsWithProperties.reduce(
-		(acc, group) => acc + (group.properties?.length || 0),
-		0,
-	);
+	// Count total properties for this user (for homeowners, only count owned properties, not shared)
+	const totalProperties = groupsWithProperties.reduce((acc, group) => {
+		// For homeowners, only count properties in groups they own (exclude "Shared Properties")
+		if (currentUser?.subscription?.plan === 'homeowner') {
+			if (group.name?.toLowerCase() === 'shared properties') {
+				return acc; // Don't count shared properties for homeowner limits
+			}
+		}
+		return acc + (group.properties?.length || 0);
+	}, 0);
 
 	// Filter groups based on user role and assignments
 	// Note: Casting to any[] to handle type mismatch between Redux types (number IDs) and Firebase types (string IDs)
-	const filteredGroups = useMemo(
-		() =>
-			filterPropertyGroupsByRole(
-				groupsWithProperties as any[],
-				currentUser,
-				teamMembers?.filter((m): m is TeamMember => m !== undefined),
-			),
-		[groupsWithProperties, currentUser, teamMembers],
-	);
+	const filteredGroups = useMemo(() => {
+		const groups = filterPropertyGroupsByRole(
+			groupsWithProperties as any[],
+			currentUser,
+			teamMembers?.filter((m): m is TeamMember => m !== undefined),
+		);
+		// Sort groups so "My Properties" appears first
+		return groups.sort((a, b) => {
+			const aName = a.name?.toLowerCase() || '';
+			const bName = b.name?.toLowerCase() || '';
+			if (aName === 'my properties') return -1;
+			if (bName === 'my properties') return 1;
+			return 0;
+		});
+	}, [groupsWithProperties, currentUser, teamMembers]);
 
 	const [openDropdown, setOpenDropdown] = useState<string | null>(null);
 	const [dialogOpen, setDialogOpen] = useState(false);
@@ -214,7 +232,7 @@ export const Properties = () => {
 		}
 	};
 
-	const handleAddPropertyGlobalClick = () => {
+	const handleAddPropertyGlobalClick = async () => {
 		// Check subscription limits
 		if (currentUser?.subscription) {
 			const canAdd = canAddProperty(currentUser.subscription, totalProperties);
@@ -245,6 +263,25 @@ export const Properties = () => {
 		setSelectedGroupForDialog(null);
 		setSelectedPropertyForEdit(null);
 		setDialogOpen(true);
+
+		// For homeowners with no groups, automatically create "My Properties" group
+		if (
+			currentUser?.subscription?.plan === 'homeowner' &&
+			filteredGroups.length === 0
+		) {
+			try {
+				const result = await createPropertyGroup({
+					name: 'My Properties',
+					properties: [],
+					userId: currentUser.id,
+				});
+				if ('data' in result && result.data) {
+					setSelectedGroupForDialog((result.data as any).id);
+				}
+			} catch (error) {
+				console.error('Error creating My Properties group:', error);
+			}
+		}
 	};
 
 	const handleEditPropertyClick = (groupId: string, property: any) => {
@@ -351,7 +388,6 @@ export const Properties = () => {
 				? (formData.units || []).map((unitName: string) => ({
 						name: unitName,
 						occupants: [],
-						devices: [],
 					}))
 				: undefined;
 
@@ -361,7 +397,6 @@ export const Properties = () => {
 				? (formData.suites || []).map((suiteName: string) => ({
 						name: suiteName,
 						occupants: [],
-						devices: [],
 					}))
 				: undefined;
 
@@ -388,9 +423,7 @@ export const Properties = () => {
 								: undefined,
 						bedrooms: formData.bedrooms,
 						bathrooms: formData.bathrooms,
-						administrators: formData.administrators,
-						viewers: formData.viewers,
-						deviceIds: formData.devices.map((d) => d.id),
+
 						notes: formData.notes,
 						taskHistory: formData.maintenanceHistory || [],
 					},
@@ -447,7 +480,7 @@ export const Properties = () => {
 				propertyType: formData.propertyType,
 				bedrooms: formData.bedrooms,
 				bathrooms: formData.bathrooms,
-				administrators: formData.administrators,
+
 				taskHistory: formData.maintenanceHistory || [],
 			};
 
@@ -517,9 +550,11 @@ export const Properties = () => {
 				<StandardPageTitle>Properties</StandardPageTitle>
 				{canManage && (
 					<TopActions>
-						<AddGroupButton onClick={handleAddGroup}>
-							+ Add Group
-						</AddGroupButton>
+						{canCreateGroups && (
+							<AddGroupButton onClick={handleAddGroup}>
+								+ Add Group
+							</AddGroupButton>
+						)}
 						<AddPropertyButton onClick={handleAddPropertyGlobalClick}>
 							+ Add Property
 						</AddPropertyButton>
@@ -536,6 +571,7 @@ export const Properties = () => {
 				onSave={handleSaveProperty}
 				groups={filteredGroups.map((g) => ({ id: g.id, name: g.name }))}
 				selectedGroupId={selectedGroupForDialog}
+				propertyId={selectedPropertyForEdit?.id}
 				onCreateGroup={async (name: string) => {
 					// currentUser guaranteed to exist
 					const result = await createPropertyGroup({
@@ -554,8 +590,6 @@ export const Properties = () => {
 								name: selectedPropertyForEdit.title,
 								photo: selectedPropertyForEdit.image,
 								owner: selectedPropertyForEdit.owner || '',
-								administrators: selectedPropertyForEdit.administrators || [],
-								viewers: selectedPropertyForEdit.viewers || [],
 								address: selectedPropertyForEdit.address || '',
 								propertyType:
 									selectedPropertyForEdit.propertyType || 'Single Family',
@@ -568,15 +602,6 @@ export const Properties = () => {
 								),
 								bedrooms: selectedPropertyForEdit.bedrooms || 0,
 								bathrooms: selectedPropertyForEdit.bathrooms || 0,
-								devices: selectedPropertyForEdit.devices || [
-									{
-										id: Date.now(),
-										type: '',
-										brand: '',
-										model: '',
-										installationDate: '',
-									},
-								],
 								notes: selectedPropertyForEdit.notes || '',
 								maintenanceHistory:
 									selectedPropertyForEdit.maintenanceHistory || [],
@@ -623,7 +648,9 @@ export const Properties = () => {
 								)}
 							</HeaderRight>
 						</GroupHeader>
-						<PropertiesGrid>
+						<PropertiesGrid
+							$isHomeowner={currentUser?.subscription?.plan === 'homeowner'}
+							$singleProperty={(group.properties || []).length === 1}>
 							{(group.properties || []).map((property) => (
 								<PropertyTile
 									key={property.id}
