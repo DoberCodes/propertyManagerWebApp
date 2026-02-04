@@ -1,6 +1,6 @@
 {
   "files": {
-    "main.js": "/propertyManagerWebApp/static/js/main.b7633897.js",
+    "main.js": "/propertyManagerWebApp/static/js/main.f68e827d.js",
     "static/js/453.73efc4d5.chunk.js": "/propertyManagerWebApp/static/js/453.73efc4d5.chunk.js",
     "static/js/842.9df3c54a.chunk.js": "/propertyManagerWebApp/static/js/842.9df3c54a.chunk.js",
     "static/js/312.8d370a07.chunk.js": "/propertyManagerWebApp/static/js/312.8d370a07.chunk.js",
@@ -9,12 +9,12 @@
     "static/media/privacy.jpg": "/propertyManagerWebApp/static/media/privacy.c2d6ba008f359dc3cb32.jpg",
     "static/media/more than property.jpg": "/propertyManagerWebApp/static/media/more than property.c74ea7f65c888b208833.jpg",
     "index.html": "/propertyManagerWebApp/index.html",
-    "main.b7633897.js.map": "/propertyManagerWebApp/static/js/main.b7633897.js.map",
+    "main.f68e827d.js.map": "/propertyManagerWebApp/static/js/main.f68e827d.js.map",
     "453.73efc4d5.chunk.js.map": "/propertyManagerWebApp/static/js/453.73efc4d5.chunk.js.map",
     "842.9df3c54a.chunk.js.map": "/propertyManagerWebApp/static/js/842.9df3c54a.chunk.js.map",
     "312.8d370a07.chunk.js.map": "/propertyManagerWebApp/static/js/312.8d370a07.chunk.js.map"
   },
   "entrypoints": [
-    "static/js/main.b7633897.js"
+    "static/js/main.f68e827d.js"
   ]
 }
