@@ -75,7 +75,7 @@ export const createTrialSubscription = (
 	const now = Math.floor(Date.now() / 1000);
 
 	// Check for unlimited trial promo code
-	const isUnlimitedTrial = promoCode === 'alpha1_free';
+	const isUnlimitedTrial = promoCode === process.env.UNLIMITED_TRIAL_PROMO_CODE;
 	const trialEndsAt = isUnlimitedTrial ? undefined : calculateTrialEndDate();
 
 	return {
