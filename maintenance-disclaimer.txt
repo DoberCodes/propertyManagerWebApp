@@ -1,0 +1,9 @@
+﻿Maintenance Disclaimer (v1)
+
+
+“Maintley” is a maintenance tracking and reminder tool only.
+All maintenance tasks, schedules, and records in the app are created, defined, and managed by users. The app does not recommend, prescribe, or determine what maintenance should be performed, when it should be performed, or how it should be performed.
+Reminders and notifications are for informational use only and do not guarantee task completion, safety, performance, or compliance with laws, codes, warranties, or manufacturer requirements.
+Dober Family Ventures, LLC does not provide professional, mechanical, safety, legal, or maintenance advice. Users are solely responsible for evaluating their maintenance needs and consulting qualified professionals when appropriate.
+"Maintley" and Dober Family Ventures, LLC will not be liable for any damage to, misuse of, noncompliance with, or violation of any warranty, appliance, equipment, or item requiring maintenance within any property.
+Use of the app is at the user’s own risk.
