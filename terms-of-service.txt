@@ -55,9 +55,11 @@ ________________
 5. Subscriptions and Payments
 Some features of the Service require a paid subscription.
 By subscribing, you agree that:
-         * Fees are charged on a recurring basis as disclosed at signup
+         * Fees are charged on a recurring basis as disclosed at signup. This will be charged in 30 days cycles starting at the end of your 14 day free trial period. 
 
-         * You may cancel your subscription at any time
+         * After your 14 day free trial, you are required to submit your plan upgrade to a paid version. Failure to do so will remove access to the Service.
+
+         * You may cancel your subscription at any time, cancellation will take place at the end of the current cycle.
 
          * Access to paid features continues until the end of the billing period
 
