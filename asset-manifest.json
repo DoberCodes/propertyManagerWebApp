@@ -1,8 +1,7 @@
 {
   "files": {
-    "main.js": "/static/js/main.c4c5c20d.js",
+    "main.js": "/static/js/main.4b91bca2.js",
     "static/js/453.338b2f96.chunk.js": "/static/js/453.338b2f96.chunk.js",
-    "static/js/980.06ebbd45.chunk.js": "/static/js/980.06ebbd45.chunk.js",
     "static/js/842.48cf773b.chunk.js": "/static/js/842.48cf773b.chunk.js",
     "static/js/312.761579e9.chunk.js": "/static/js/312.761579e9.chunk.js",
     "static/media/camper in the woods.jpg": "/static/media/camper in the woods.c64fac4ea21ba3e0dd7e.jpg",
@@ -11,13 +10,12 @@
     "static/media/more than property.jpg": "/static/media/more than property.c74ea7f65c888b208833.jpg",
     "static/media/TitleName.png": "/static/media/TitleName.9503ca5a08e25913cbed.png",
     "index.html": "/index.html",
-    "main.c4c5c20d.js.map": "/static/js/main.c4c5c20d.js.map",
+    "main.4b91bca2.js.map": "/static/js/main.4b91bca2.js.map",
     "453.338b2f96.chunk.js.map": "/static/js/453.338b2f96.chunk.js.map",
-    "980.06ebbd45.chunk.js.map": "/static/js/980.06ebbd45.chunk.js.map",
     "842.48cf773b.chunk.js.map": "/static/js/842.48cf773b.chunk.js.map",
     "312.761579e9.chunk.js.map": "/static/js/312.761579e9.chunk.js.map"
   },
   "entrypoints": [
-    "static/js/main.c4c5c20d.js"
+    "static/js/main.4b91bca2.js"
   ]
 }
