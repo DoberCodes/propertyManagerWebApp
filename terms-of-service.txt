@@ -1,5 +1,5 @@
 ﻿Terms of Service
-Effective Date: February 08 2026
+Effective Date: February 23 2026
 These Terms of Service (“Terms”) govern your access to and use of the “Maintley” application, website, and related services (collectively, the “Service”). By creating an account or using the Service, you agree to these Terms.
 If you do not agree, do not use the Service.
 ________________
@@ -65,11 +65,27 @@ By subscribing, you agree that:
 
          * Fees are non-refundable except where required by law
 
+         * Maintley reserves the right to adjust tax calculations as required by applicable law. Any tax collected in excess of the legally required amount will be refunded to the customer in a timely manner.
+
 We may change pricing with reasonable notice.
 ________________
 
 
-6. Availability and Modifications
+6. Taxes
+
+Certain subscriptions or services may be subject to applicable federal, state, or local taxes depending on the customer’s jurisdiction.
+
+Maintley calculates and collects taxes based on the information provided at the time of purchase and applicable tax regulations. Customers are responsible for providing accurate billing information to ensure proper tax calculation.
+
+Maintley reserves the right to adjust tax calculations as required by applicable law.
+
+In the event that tax is collected in excess of the legally required amount, any overage will be refunded to the customer in a timely manner upon identification.
+
+Customers remain responsible for any taxes not collected due to incomplete or inaccurate information provided at checkout.
+________________
+
+
+7. Availability and Modifications
 We strive to keep the Service available, but availability is not guaranteed.
 We may:
             * Modify or discontinue features
@@ -82,14 +98,14 @@ We are not liable for downtime, data loss, or service interruptions.
 ________________
 
 
-7. Data and Content
+8. Data and Content
 You retain ownership of the data you enter into the Service.
 By using the Service, you grant us permission to store and process your data solely for the purpose of operating the Service.
 We do not guarantee data accuracy, completeness, or permanence.
 ________________
 
 
-8. Limitation of Liability
+9. Limitation of Liability
 To the maximum extent permitted by law:
                * The Service is provided “as is” and “as available”
 
@@ -111,7 +127,7 @@ Your use of the Service is at your own risk.
 ________________
 
 
-9. Indemnification
+10. Indemnification
 You agree to indemnify and hold harmless “Dober Family Ventures, LLC” from any claims, damages, or losses arising from:
                      * Your use of the Service
 
@@ -122,19 +138,19 @@ You agree to indemnify and hold harmless “Dober Family Ventures, LLC” from a
 ________________
 
 
-10. Termination
+11. Termination
 You may stop using the Service at any time.
 We may terminate or suspend access if you violate these Terms or misuse the Service.
 ________________
 
 
-11. Changes to These Terms
+12. Changes to These Terms
 We may update these Terms from time to time.
 Continued use of the Service after changes take effect constitutes acceptance of the updated Terms.
 ________________
 
 
-12. Contact Information
+13. Contact Information
 For questions about these Terms, contact:
 doberfamilyventures@gmail.com
 
@@ -145,25 +161,25 @@ ________________
 The following section explains Maintley’s role in tracking and logging maintenance, devices and contractor work, and clarifies the scope of liability and usage of exported data. 
 
 
-                        1. Maintenance History Disclaimer
+1. Maintenance History Disclaimer
 Maintley provides tools to record and track maintenance going forward. Users are responsible for entering accurate maintenance information. Maintley does not guarantee accuracy of past maintenance events that were not logged in the system.
 
 
-                        2. Contractor / Vendor Records
+2. Contractor / Vendor Records
 
 Records of contractors, vendors, and maintenance tasks are provided for tracking and organizational purposes only. Maintley is not responsible for the quality, safety, or legality of any maintenance performed. Users should verify all work independently.
 
 
-                           3. Export / Reporting Disclaimer
+3. Export / Reporting Disclaimer
 
 Exports of maintenance history (PDF, CSV, or other formats) are intended for informational purposes only. Maintley does not certify or guarantee these records for legal, insurance, resale, or regulatory purposes.
 
 
-                              4. Tenant Data / Access
+4. Tenant Data / Access
 
 Tenant access is limited to the properties or units they are authorized to view. Users and property managers are responsible for ensuring accurate data entry and proper management of tenant access. Maintley is not liable for errors or omissions in tenant-submitted information.
 
 
-                                 5. Limitation of Liability
+5. Limitation of Liability
 
 Maintley is a maintenance tracking tool and does not provide professional advice regarding home repairs, safety, or compliance. By using Maintley, users acknowledge that all maintenance decisions, safety precautions, and property management responsibilities remain with the user.
