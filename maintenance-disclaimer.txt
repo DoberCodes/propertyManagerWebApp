@@ -1,9 +1,81 @@
-﻿Maintenance Disclaimer (v1)
+﻿Maintley Maintenance Disclaimer
 
+Effective Date: February 26, 2026
 
-“Maintley” is a maintenance tracking and reminder tool only.
-All maintenance tasks, schedules, and records in the app are created, defined, and managed by users. The app does not recommend, prescribe, or determine what maintenance should be performed, when it should be performed, or how it should be performed.
-Reminders and notifications are for informational use only and do not guarantee task completion, safety, performance, or compliance with laws, codes, warranties, or manufacturer requirements.
-Dober Family Ventures, LLC does not provide professional, mechanical, safety, legal, or maintenance advice. Users are solely responsible for evaluating their maintenance needs and consulting qualified professionals when appropriate.
-"Maintley" and Dober Family Ventures, LLC will not be liable for any damage to, misuse of, noncompliance with, or violation of any warranty, appliance, equipment, or item requiring maintenance within any property.
-Use of the app is at the user’s own risk.
+“Maintley” is a digital maintenance tracking, reminder, and logging tool only. By using the Service, you acknowledge and agree to the following:
+
+1. User-Defined Tasks and Schedules
+
+All maintenance tasks, schedules, and records entered into Maintley are created, defined, and managed entirely by the user.
+
+Maintley does not recommend, prescribe, or determine what maintenance should be performed, when it should be performed, or how it should be performed.
+
+Users are solely responsible for the creation, scheduling, prioritization, and completion of maintenance tasks.
+
+2. Reminders and Notifications
+
+Reminders, alerts, and notifications are informational only.
+
+They do not guarantee that a task will be completed, performed safely, or comply with any law, code, warranty, or manufacturer requirement.
+
+Users should evaluate all reminders and determine the proper actions based on their own judgment or consultation with qualified professionals.
+
+3. No Professional Advice
+
+Maintley and Dober Family Ventures, LLC do not provide professional, mechanical, legal, safety, or maintenance advice.
+
+Users should consult qualified professionals for guidance regarding repairs, inspections, replacements, or any maintenance-related questions.
+
+4. Third-Party Contractors and Vendors
+
+Users may track contractors, vendors, or service providers within Maintley for organizational purposes.
+
+Maintley does not evaluate, recommend, or certify the quality, safety, or legality of work performed by any third-party service provider.
+
+Users are responsible for independently verifying qualifications, licenses, insurance, and quality of any work performed.
+
+5. Exported Data and Reporting
+
+Maintenance logs, reports, or exports (PDF, CSV, or other formats) are informational only.
+
+Maintley does not certify or guarantee these records for legal, insurance, resale, or regulatory purposes.
+
+Users are responsible for ensuring the accuracy, completeness, and proper use of exported data.
+
+6. Limitation of Liability
+
+Use of Maintley is at the user’s own risk.
+
+Maintley and Dober Family Ventures, LLC will not be liable for:
+
+Property damage, equipment failure, or appliance issues
+
+Injuries or safety incidents
+
+Missed, delayed, or incomplete maintenance tasks
+
+Violations of warranties, codes, laws, or regulations
+
+Misuse of the app or inaccurate data entry
+
+7. User Responsibility
+
+By using Maintley, users agree that they are responsible for:
+
+Evaluating their maintenance needs and determining proper procedures
+
+Consulting professionals when necessary
+
+Entering accurate and complete information
+
+Ensuring compliance with laws, regulations, codes, and warranties
+
+8. Acknowledgment
+
+By using Maintley, you acknowledge and accept that:
+
+The Service is a tool for organization and reminders only, not a substitute for professional judgment.
+
+You assume all responsibility for maintenance decisions, actions, and outcomes.
+
+Maintley and Dober Family Ventures, LLC disclaim any liability for losses, damages, or consequences arising from your use of the Service.

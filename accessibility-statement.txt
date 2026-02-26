@@ -1,0 +1,44 @@
+Accessibility Statement
+
+Last Updated: February 2026
+
+Maintley is committed to ensuring digital accessibility for all users, including individuals with disabilities. We are continuously working to improve the user experience for everyone and to apply relevant accessibility standards.
+
+Our Commitment
+
+We aim to follow the Web Content Accessibility Guidelines (WCAG) 2.1 Level AA standards wherever reasonably possible. These guidelines help make web content more accessible for people with a wide range of disabilities, including visual, auditory, motor, and cognitive impairments.
+
+Ongoing Efforts
+
+We are actively working to:
+
+Maintain clear navigation and consistent structure
+
+Support keyboard navigation
+
+Provide proper labeling for forms and interactive elements
+
+Maintain sufficient color contrast
+
+Improve compatibility with screen readers and assistive technologies
+
+Regularly review and test accessibility using automated and manual tools
+
+Accessibility is an ongoing effort, and we recognize that some areas may still need improvement.
+
+Feedback
+
+If you experience difficulty accessing any part of our website or application, or if you have suggestions for improvement, we want to hear from you.
+
+Please contact us at:
+maintleyapp@gmail.com
+
+When reaching out, please include:
+
+The page or feature you are having trouble with
+
+A brief description of the issue
+
+The device and browser you are using (if possible)
+
+We will make reasonable efforts to address concerns promptly.

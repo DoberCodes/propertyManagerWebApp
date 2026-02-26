@@ -1,152 +1,161 @@
-﻿Privacy Policy (v1 Draft)
-Effective Date: February 08 2026
-This Privacy Policy explains how Dober Family Ventures, LLC (“we,” “our,” or “us”) collects, uses, and protects information when you use “Maintley” (the “Service”).
-By using the Service, you agree to the collection and use of information as described in this policy.
-________________
+﻿Maintley Privacy Policy
 
+Effective Date: February 26, 2026
+
+This Privacy Policy explains how Dober Family Ventures, LLC (“we,” “our,” or “us”) collects, uses, stores, and protects information when you use Maintley (the “Service”). By using the Service, you agree to the practices described in this policy.
 
 1. Information We Collect
-Information You Provide
+a. Information You Provide
+
 We collect information you voluntarily provide, including:
-* Account information (name, email address, login credentials)
 
-* Property, asset, or unit information you enter
+Account information (name, email, login credentials)
 
-* Maintenance tasks, notes, dates, and uploaded files
+Property, unit, or asset information you enter
 
-* Communications you send to us (support requests, feedback)
+Maintenance tasks, notes, dates, and uploaded files
 
-* Team member information, or Tenant information you, or they, enter. 
-All data, including maintenance-related data, is user-generated.
-________________
+Team member or tenant information entered by you or them
 
+Communications with us (support requests, feedback, inquiries)
 
-Automatically Collected Information
-We collect limited technical information such as:
-   * Device type and operating system
+All data, including maintenance-related data, is user-generated. Maintley does not evaluate or verify user entries.
 
-   * App version
+b. Automatically Collected Information
 
-   * Log data (errors, crashes, performance metrics)
+We collect limited technical information automatically to operate the Service:
 
-   * Usage data
+Device type, operating system, and app version
 
+Log data (errors, crashes, performance metrics)
 
-This information is used solely to operate and improve the Service.
-________________
+Usage data (how the Service is used)
 
+This information is used solely to operate, maintain, and improve the Service.
 
 2. What We Do NOT Collect
-We do not:
-      * Monitor physical properties or equipment
 
-      * Verify maintenance completion
+Maintley does not:
 
-      * Collect real-time sensor data
+Monitor physical properties, appliances, or equipment in real time
 
-      * Track precise location
+Verify completion of maintenance tasks
 
-      * Sell personal data
+Collect sensor or telemetry data from your home
 
-________________
+Track precise user location
 
+Sell or rent your personal data
 
-3. How We Use Information
-We use collected information to:
-         * Provide and operate the Service
+3. How We Use Your Information
 
-         * Store and display user-entered data
+We use your information to:
 
-         * Send notifications and reminders you enable
+Provide, operate, and maintain the Service
 
-         * Process subscriptions and payments
+Store and display user-entered data
 
-         * Respond to support requests
+Send reminders and notifications you enable
 
-         * Improve performance and reliability
+Process subscriptions and payments
 
-We do not use your data to provide professional advice or recommendations.
-________________
+Respond to support requests
 
+Improve app performance and reliability
+
+We do not use your data to provide professional advice, maintenance recommendations, or other prescriptive guidance.
 
 4. Maintenance Data Disclaimer
-Maintenance tasks, schedules, and records are:
-            * Entered by users
 
-            * Stored as provided
+All maintenance tasks, schedules, and records are entered and defined by users.
 
-            * Displayed for organizational purposes only
+Maintley stores and displays this data as provided for organizational purposes.
 
-We do not evaluate, validate, or guarantee the accuracy, completeness, or suitability of maintenance data.
-________________
+Maintley does not evaluate, validate, or guarantee the accuracy, completeness, or suitability of maintenance information.
 
+Users remain solely responsible for maintenance decisions and actions.
 
 5. Data Sharing
-We do not sell or rent your personal information.
-We may share information only with:
-               * Service providers required to operate the app (hosting, payments)
 
-               * Legal authorities when required by law
+We do not sell, rent, or trade your personal information. We may share information only in the following circumstances:
 
-               * Successor entities in the event of a business transfer
+With service providers necessary to operate the Service (hosting, payment processing, analytics)
 
-We carefully select and review our third-party partners to ensure they meet our security standards. While we make a reasonable effort to protect your data through these services it is important to note that we rely on their security measures as well. We are committed to safeguarding your information and continuously monitoring and updating our security practices. All third parties are required to protect your information under applicable laws.
-________________
+When required by law, regulation, or legal process
 
+With successor entities in the event of a merger, acquisition, or sale of assets
+
+All third-party providers are required to protect your data under applicable laws. While we take reasonable steps to ensure the security of third-party services, Maintley cannot guarantee the security of information processed by them.
 
 6. Data Retention
+
 We retain your information:
-                  * While your account is active
 
-                  * As needed to operate the Service
+While your account is active
 
-                  * As required by law or for legitimate business purposes
+As necessary to operate the Service
 
-You may request deletion of your account and associated data, subject to legal or operational limitations.
-________________
+As required by law or for legitimate business purposes
 
+You may request deletion of your account and associated data, subject to legal or operational limitations. When deleted, your maintenance history and personal data will be removed permanently from our systems. Some data may persist temporarily in backups in compliance with applicable laws.
 
 7. Data Security
+
 We take reasonable measures to protect your information, including:
-                     * Secure authentication
 
-                     * Access controls
+Secure authentication and login practices
 
-                     * Industry-standard storage practices
+Role-based access controls
 
-We maintain organizational, technical, and administrative measures designed to protect the Personal Data covered by this Policy from unauthorized access, destruction, loss, alteration, or misuse. However, no system is completely secure, and we cannot guarantee absolute security. Maintley and Dober Family Ventures cannot be held liable for any data breaches, except as otherwise required by law. 
+Industry-standard storage practices
 
-We encourage you to assist us in protecting your Personal Data. If you hold a Maintley account, you can do so by using a strong password, safeguarding your password against unauthorized use, and avoiding using identical login credentials you use for other services or accounts. If you suspect that your interaction with us is no longer secure (for instance, you believe that your Maintley account's security has been compromised), please contact us immediately at maintleyapp@gmail.com
-________________
+While we implement robust security measures, no system is completely secure. Maintley and Dober Family Ventures, LLC cannot guarantee absolute security and are not liable for unauthorized access except as required by law.
 
+Users are encouraged to:
+
+Use strong, unique passwords
+
+Safeguard login credentials
+
+Notify us immediately if you suspect account compromise
 
 8. User Choices and Control
-You may:
-                        * Update or correct your account information
 
-                        * Control notification preferences
+You can:
 
-                        * Cancel your subscription
+Update or correct your account information
 
-                        * Request account deletion
+Control notification preferences
 
-Some data may persist in backups, or 3rd party systems for a limited time, compliant with applicable laws. We prioritize your privacy and data ownership. All maintenance history and user-input data are fully controlled by you, the property owner. When you choose to delete your account, all of your data stored in this app, including maintenance history, will be permanently and immediately removed from our systems. We do not retain any of your personal data beyond your account’s active period.
-________________
+Cancel subscriptions
 
+Request deletion of your account and associated data
+
+All maintenance history and user-input data are fully controlled by you. Once deleted, all associated data is removed permanently.
 
 9. Children’s Privacy
-The Service is not intended for persons under 18.
-We do not knowingly collect personal information from persons under 18 years of age. “Maintley” and Dober Family Ventures, LLC are not liable for unauthorized usage.
-________________
 
+The Service is not intended for persons under 18. We do not knowingly collect personal information from children under 18. Maintley and Dober Family Ventures, LLC are not liable for unauthorized use by minors.
 
-10. Changes to This Policy
-We may update this Privacy Policy as needed.
-If changes are material, we will provide notice through the Service’s notification system and usage of email.
-Continued use of the Service constitutes acceptance of the updated policy. If you do not agree to the updated policy, you may choose to discontinue use of the service. Continued use after the effective date will be considered acceptance of the new terms. If you do not accept the updated policy, your account may be closed or deactivated.
-________________
+10. International Users
 
+If you use the Service outside the United States:
 
-11. Contact Us
-If you have questions about this Privacy Policy or your data, contact us at:
-maintleyapp@gmail.com
+You agree that your information may be transferred to and processed in the United States
+
+You consent to such transfer, storage, and processing in accordance with this Privacy Policy
+
+11. Changes to This Policy
+
+We may update this Privacy Policy from time to time.
+
+Material changes will be communicated via email or in-app notification
+
+Continued use after changes constitutes acceptance
+
+If you do not agree with changes, you may discontinue use of the Service
+
+12. Contact Information
+
+For questions, concerns, or requests regarding this Privacy Policy or your data:
+Email: maintleyapp@gmail.com

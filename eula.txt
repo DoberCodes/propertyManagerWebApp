@@ -1,0 +1,35 @@
+End-User License Agreement (EULA)
+
+Effective Date: February 26, 2026
+
+1. License Grant
+Dober Family Ventures, LLC (“Maintley,” “we,” “us,” or “our”) grants you a non-exclusive, non-transferable, revocable license to download, install, and use the Maintley app (the “Software”) solely for your personal or internal business use in accordance with the Terms of Service.
+
+2. Restrictions
+You may not:
+
+Copy, modify, distribute, or create derivative works of the Software.
+
+Reverse engineer, decompile, or attempt to access the source code.
+
+Sell, sublicense, or transfer your license to third parties.
+
+Use the Software for illegal or unauthorized purposes.
+
+3. Ownership
+Maintley retains all rights, title, and interest in the Software, including all intellectual property rights. No rights are granted to you other than the limited license above.
+
+4. Updates and Support
+Maintley may provide updates, bug fixes, or enhancements. Your use of these updates is governed by this EULA unless accompanied by a separate agreement.
+
+5. Termination
+Your license terminates automatically if you violate this EULA or the Terms of Service. Upon termination, you must uninstall and delete all copies of the Software.
+
+6. Disclaimer of Warranties
+The Software is provided “as is” without warranties of any kind, express or implied, including fitness for a particular purpose.
+
+7. Limitation of Liability
+Maintley and Dober Family Ventures, LLC are not liable for any damages arising from the use or inability to use the Software, including data loss or property damage.
+
+8. Governing Law
+This EULA is governed by the laws of [insert state]. Disputes will be resolved in the courts located in [insert county, state].

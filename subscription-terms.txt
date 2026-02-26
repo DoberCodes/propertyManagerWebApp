@@ -1,0 +1,159 @@
+Subscription & Billing Terms
+
+Effective Date: 02/26/2026
+
+These Subscription & Billing Terms apply to all paid subscription plans for “Maintley” (the “Service”). By purchasing a subscription, you agree to these terms in addition to the Terms of Service.
+
+1. Subscription Plans
+
+Maintley offers subscription plans that provide access to certain features of the Service.
+
+Available plans, features, pricing, and billing intervals are disclosed at the time of purchase.
+
+Features vary depending on the subscription tier selected.
+
+You are responsible for selecting the plan that best meets your needs.
+
+Access to certain features may be limited based on your selected plan.
+
+We reserve the right to modify plan features at any time. If material changes affect paid features, we will provide reasonable notice when practicable.
+
+2. Billing & Payments
+
+All subscription fees:
+
+Are processed securely through Stripe.
+
+Are billed in U.S. Dollars (USD).
+
+Are charged on a recurring basis (monthly or annually, depending on your selection).
+
+By subscribing, you authorize Maintley to charge your payment method on a recurring basis in accordance with your selected billing interval.
+
+You agree to:
+
+Provide accurate billing information.
+
+Maintain a valid and current payment method.
+
+Update payment details promptly if they change.
+
+If a payment fails:
+
+Access to paid features may be suspended.
+
+We may retry the charge in accordance with Stripe’s retry policies.
+
+Continued non-payment may result in subscription cancellation.
+
+You are responsible for any fees charged by your financial institution.
+
+3. Automatic Renewal
+
+All subscriptions automatically renew at the end of each billing period unless canceled prior to the renewal date.
+
+By completing your subscription purchase, you acknowledge and agree that:
+
+Your subscription will automatically renew at the end of each billing cycle.
+
+Your payment method will be automatically charged at the then-current subscription rate.
+
+Renewal continues unless and until you cancel.
+
+You may cancel your subscription at any time through your account settings prior to the renewal date to avoid future charges.
+
+4. Free Trials (If Offered)
+
+If a free trial is offered:
+
+The trial begins on signup.
+
+The duration will be clearly disclosed at registration.
+
+No charges occur during the trial period unless converted to a paid subscription.
+
+If you do not cancel before the trial ends, your subscription will automatically convert to a paid plan and your payment method will be charged.
+
+You may cancel at any time during the trial period to avoid charges.
+
+5. Cancellation & Refunds
+
+You may cancel your subscription at any time through your account settings.
+
+Upon cancellation:
+
+Your subscription will remain active until the end of your current billing period.
+
+You will continue to have access to paid features for the remainder of that billing cycle.
+
+The cancellation will take effect at the conclusion of the current billing period.
+
+You will not be charged for any subsequent billing cycles.
+
+Unless required by applicable law:
+
+All subscription fees are non-refundable.
+
+We do not provide refunds or credits for partial billing periods or unused time.
+
+Downgrades take effect at the start of the next billing cycle unless otherwise stated.
+
+Cancellation of a subscription does not automatically delete your account or stored data. Account deletion must be requested separately.
+
+6. Pricing Changes
+
+We may update subscription pricing or plan structures at any time.
+
+If pricing changes:
+
+We will provide reasonable notice before the change takes effect.
+
+Changes apply only to future billing cycles.
+
+You may cancel your subscription before updated pricing takes effect.
+
+Continued use of the subscription after a pricing change constitutes acceptance of the updated pricing.
+
+7. Taxes
+
+You are responsible for any applicable sales, VAT, GST, or other taxes associated with your subscription.
+
+Taxes may be calculated and collected automatically by Stripe and added to the subscription fee where required by law.
+
+8. Chargebacks & Payment Disputes
+
+If you initiate a chargeback or payment dispute:
+
+We reserve the right to immediately suspend access to paid features.
+
+Repeated chargebacks may result in account termination.
+
+If you believe a charge was made in error, please contact us before filing a dispute so we can assist in resolving the issue.
+
+9. Subscription Disclaimer
+
+Payment for a subscription grants access to the Service and its features only.
+
+A subscription does not:
+
+Guarantee maintenance completion,
+
+Guarantee safety, compliance, or results,
+
+Constitute professional, legal, mechanical, or maintenance advice.
+
+Users remain solely responsible for all maintenance decisions and actions.
+
+10. Contact & Support
+
+For billing or subscription questions, contact:
+
+maintleyapp@gmail.com
+
+Please include:
+
+The email associated with your account
+
+A description of the issue
+
+Relevant billing details

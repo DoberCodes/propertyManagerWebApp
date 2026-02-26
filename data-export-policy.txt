@@ -1,0 +1,13 @@
+Data Export / Reporting Disclaimer – Maintley
+
+Effective Date: February 26, 2026
+
+Maintley allows users to export maintenance history, reports, and analytics in formats such as PDF or CSV. By using these features, you acknowledge:
+
+Exported data is informational only.
+
+Maintley does not certify the accuracy, completeness, or legality of exported data.
+
+Exported data cannot be relied upon for legal, insurance, regulatory, or resale purposes.
+
+Users are solely responsible for interpreting and using exported information.
