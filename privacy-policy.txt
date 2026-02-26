@@ -116,7 +116,7 @@ We take reasonable measures to protect your information, including:
 
 We maintain organizational, technical, and administrative measures designed to protect the Personal Data covered by this Policy from unauthorized access, destruction, loss, alteration, or misuse. However, no system is completely secure, and we cannot guarantee absolute security. Maintley and Dober Family Ventures cannot be held liable for any data breaches, except as otherwise required by law. 
 
-We encourage you to assist us in protecting your Personal Data. If you hold a Maintley account, you can do so by using a strong password, safeguarding your password against unauthorized use, and avoiding using identical login credentials you use for other services or accounts. If you suspect that your interaction with us is no longer secure (for instance, you believe that your Maintley account's security has been compromised), please contact us immediately at doberfamilyventures@gmail.com
+We encourage you to assist us in protecting your Personal Data. If you hold a Maintley account, you can do so by using a strong password, safeguarding your password against unauthorized use, and avoiding using identical login credentials you use for other services or accounts. If you suspect that your interaction with us is no longer secure (for instance, you believe that your Maintley account's security has been compromised), please contact us immediately at maintleyapp@gmail.com
 ________________
 
 
@@ -149,4 +149,4 @@ ________________
 
 11. Contact Us
 If you have questions about this Privacy Policy or your data, contact us at:
-doberfamilyventures@gmail.com
+maintleyapp@gmail.com
