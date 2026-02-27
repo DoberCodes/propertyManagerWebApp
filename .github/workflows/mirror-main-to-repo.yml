@@ -34,13 +34,35 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-      - name: Push branch to mirror repository
+      - name: Sync branch to mirror repository (excluding workflow files)
         env:
           MIRROR_OWNER: ${{ github.repository_owner }}
           MIRROR_REPOSITORY_NAME: ${{ secrets.MIRROR_REPOSITORY_NAME }}
           SOURCE_BRANCH: ${{ github.ref_name }}
           MIRROR_TOKEN: ${{ secrets.MIRROR_TOKEN }}
         run: |
-          git config --local --unset-all http.https://github.com/.extraheader || true
-          git remote add mirror "https://x-access-token:${MIRROR_TOKEN}@github.com/${MIRROR_OWNER}/${MIRROR_REPOSITORY_NAME}.git"
-          git push mirror "refs/heads/${SOURCE_BRANCH}:refs/heads/${SOURCE_BRANCH}" --force
+          MIRROR_URL="https://x-access-token:${MIRROR_TOKEN}@github.com/${MIRROR_OWNER}/${MIRROR_REPOSITORY_NAME}.git"
+          WORKDIR="${RUNNER_TEMP}/mirror-repo"
+
+          git clone "${MIRROR_URL}" "${WORKDIR}"
+          cd "${WORKDIR}"
+
+          if git ls-remote --heads origin "${SOURCE_BRANCH}" | grep -q "${SOURCE_BRANCH}"; then
+            git checkout "${SOURCE_BRANCH}"
+          else
+            git checkout -b "${SOURCE_BRANCH}"
+          fi
+
+          rsync -a --delete \
+            --exclude='.git/' \
+            --exclude='.github/workflows/' \
+            "${GITHUB_WORKSPACE}/" "${WORKDIR}/"
+
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes to mirror"
+            exit 0
+          fi
+
+          git commit -m "Mirror ${GITHUB_REPOSITORY}@${GITHUB_SHA} to ${SOURCE_BRANCH}"
+          git push origin "${SOURCE_BRANCH}"
