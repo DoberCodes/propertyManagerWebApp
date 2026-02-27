@@ -13,7 +13,10 @@ import { CompletionFile, Task } from '../../types/Task.types';
 import { apiSlice, docToData } from './apiSlice';
 import { auth, db } from '../../config/firebase';
 import { PropertyShare } from '../../types/Property.types';
-import { resolveTargetUserId } from './accountContext';
+import {
+	resolveAccessibleAccountIds,
+	resolveTargetUserId,
+} from './accountContext';
 
 export const taskSlice = apiSlice.injectEndpoints({
 	endpoints: (builder) => ({
@@ -26,29 +29,24 @@ export const taskSlice = apiSlice.injectEndpoints({
 						return { error: 'User not authenticated' };
 					}
 					const userId = currentUser.uid;
-					const targetUserId = await resolveTargetUserId();
+					const accessibleAccountIds = await resolveAccessibleAccountIds();
 
-					// Get all properties for this user's groups
-					const groupsQuery = query(
-						collection(db, 'propertyGroups'),
-						where('accountId', '==', targetUserId),
-					);
-					const groupsSnapshot = await getDocs(groupsQuery);
-					const groupIds = groupsSnapshot.docs.map((doc) => doc.id);
-
-					let ownedPropertyIds: string[] = [];
-					if (groupIds.length > 0) {
-						// Get all property IDs for these groups
-						for (let i = 0; i < groupIds.length; i += 10) {
-							const batch = groupIds.slice(i, i + 10);
+					const ownedPropertyIds: string[] = [];
+					for (const accountId of accessibleAccountIds) {
+						try {
 							const propertiesQuery = query(
 								collection(db, 'properties'),
-								where('groupId', 'in', batch),
+								where('accountId', '==', accountId),
 							);
 							const propertiesSnapshot = await getDocs(propertiesQuery);
-							propertiesSnapshot.docs.forEach((doc) => {
-								ownedPropertyIds.push(doc.id);
-							});
+							ownedPropertyIds.push(
+								...propertiesSnapshot.docs.map((propertyDoc) => propertyDoc.id),
+							);
+						} catch (ownedPropertiesError) {
+							console.warn(
+								'Could not fetch account-linked properties for tasks:',
+								ownedPropertiesError,
+							);
 						}
 					}
 
@@ -82,35 +80,42 @@ export const taskSlice = apiSlice.injectEndpoints({
 						...new Set([...ownedPropertyIds, ...sharedPropertyIds]),
 					];
 
-					const accountTasksQuery = query(
-						collection(db, 'tasks'),
-						where('accountId', '==', targetUserId),
-					);
-					const accountTasksSnapshot = await getDocs(accountTasksQuery);
-					const accountTasks = accountTasksSnapshot.docs
-						.map((doc) => docToData(doc) as Task)
-						.filter(Boolean) as Task[];
+					const accountTasks: Task[] = [];
+					for (const accountId of accessibleAccountIds) {
+						const accountTasksQuery = query(
+							collection(db, 'tasks'),
+							where('accountId', '==', accountId),
+						);
+						const accountTasksSnapshot = await getDocs(accountTasksQuery);
+						const accountTasksBatch = accountTasksSnapshot.docs
+							.map((doc) => docToData(doc) as Task)
+							.filter(Boolean) as Task[];
+						accountTasks.push(...accountTasksBatch);
+					}
 
 					// Fetch all tasks for these properties
 					const allTasks: Task[] = [];
 					if (allPropertyIds.length > 0) {
-						for (let i = 0; i < allPropertyIds.length; i += 10) {
-							const batch = allPropertyIds.slice(i, i + 10);
-							try {
-								const tasksQuery = query(
-									collection(db, 'tasks'),
-									where('propertyId', 'in', batch),
-								);
-								const tasksSnapshot = await getDocs(tasksQuery);
-								const tasks = tasksSnapshot.docs
-									.map((doc) => docToData(doc) as Task)
-									.filter(Boolean) as Task[];
-								allTasks.push(...tasks);
-							} catch (propertyTaskError) {
-								console.warn(
-									'Could not fetch property-linked tasks batch:',
-									propertyTaskError,
-								);
+						for (const accountId of accessibleAccountIds) {
+							for (let i = 0; i < allPropertyIds.length; i += 10) {
+								const batch = allPropertyIds.slice(i, i + 10);
+								try {
+									const tasksQuery = query(
+										collection(db, 'tasks'),
+										where('accountId', '==', accountId),
+										where('propertyId', 'in', batch),
+									);
+									const tasksSnapshot = await getDocs(tasksQuery);
+									const tasks = tasksSnapshot.docs
+										.map((doc) => docToData(doc) as Task)
+										.filter(Boolean) as Task[];
+									allTasks.push(...tasks);
+								} catch (propertyTaskError) {
+									console.warn(
+										'Could not fetch property-linked tasks batch:',
+										propertyTaskError,
+									);
+								}
 							}
 						}
 					}

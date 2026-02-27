@@ -13,7 +13,10 @@ import { auth } from '../../config/firebase';
 import { db } from '../../config/firebase';
 import { Device } from '../../types/Property.types';
 import { apiSlice, docToData } from './apiSlice';
-import { resolveTargetUserId } from './accountContext';
+import {
+	resolveAccessibleAccountIds,
+	resolveTargetUserId,
+} from './accountContext';
 
 const deviceSlice = apiSlice.injectEndpoints({
 	endpoints: (builder) => ({
@@ -22,15 +25,27 @@ const deviceSlice = apiSlice.injectEndpoints({
 		getDevices: builder.query<Device[], string>({
 			async queryFn(propertyId: string) {
 				try {
-					const q = query(
-						collection(db, 'devices'),
-						where('location.propertyId', '==', propertyId),
-					);
-					const querySnapshot = await getDocs(q);
-					const devices = querySnapshot.docs
-						.map((doc) => docToData(doc) as Device)
-						.filter(Boolean) as Device[];
-					return { data: devices };
+					if (!propertyId) {
+						return { data: [] };
+					}
+					const accessibleAccountIds = await resolveAccessibleAccountIds();
+					const devices: Device[] = [];
+					for (const accountId of accessibleAccountIds) {
+						const q = query(
+							collection(db, 'devices'),
+							where('accountId', '==', accountId),
+							where('location.propertyId', '==', propertyId),
+						);
+						const querySnapshot = await getDocs(q);
+						const batch = querySnapshot.docs
+							.map((doc) => docToData(doc) as Device)
+							.filter(Boolean) as Device[];
+						devices.push(...batch);
+					}
+					const uniqueDevices = Array.from(
+						new Map(devices.map((device) => [device.id, device])).values(),
+					) as Device[];
+					return { data: uniqueDevices };
 				} catch (error: any) {
 					return { error: error.message };
 				}
@@ -41,15 +56,27 @@ const deviceSlice = apiSlice.injectEndpoints({
 		getUnitDevices: builder.query<Device[], string>({
 			async queryFn(unitId: string) {
 				try {
-					const q = query(
-						collection(db, 'devices'),
-						where('location.unitId', '==', unitId),
-					);
-					const querySnapshot = await getDocs(q);
-					const devices = querySnapshot.docs
-						.map((doc) => docToData(doc) as Device)
-						.filter(Boolean) as Device[];
-					return { data: devices };
+					if (!unitId) {
+						return { data: [] };
+					}
+					const accessibleAccountIds = await resolveAccessibleAccountIds();
+					const devices: Device[] = [];
+					for (const accountId of accessibleAccountIds) {
+						const q = query(
+							collection(db, 'devices'),
+							where('accountId', '==', accountId),
+							where('location.unitId', '==', unitId),
+						);
+						const querySnapshot = await getDocs(q);
+						const batch = querySnapshot.docs
+							.map((doc) => docToData(doc) as Device)
+							.filter(Boolean) as Device[];
+						devices.push(...batch);
+					}
+					const uniqueDevices = Array.from(
+						new Map(devices.map((device) => [device.id, device])).values(),
+					) as Device[];
+					return { data: uniqueDevices };
 				} catch (error: any) {
 					return { error: error.message };
 				}
@@ -141,17 +168,23 @@ const deviceSlice = apiSlice.injectEndpoints({
 					if (!currentUser) {
 						return { error: 'User not authenticated' };
 					}
-					const targetUserId = await resolveTargetUserId();
-
-					const q = query(
-						collection(db, 'devices'),
-						where('accountId', '==', targetUserId),
-					);
-					const querySnapshot = await getDocs(q);
-					const devices = querySnapshot.docs
-						.map((doc) => docToData(doc) as Device)
-						.filter(Boolean) as Device[];
-					return { data: devices };
+					const accessibleAccountIds = await resolveAccessibleAccountIds();
+					const devices: Device[] = [];
+					for (const accountId of accessibleAccountIds) {
+						const q = query(
+							collection(db, 'devices'),
+							where('accountId', '==', accountId),
+						);
+						const querySnapshot = await getDocs(q);
+						const batch = querySnapshot.docs
+							.map((doc) => docToData(doc) as Device)
+							.filter(Boolean) as Device[];
+						devices.push(...batch);
+					}
+					const uniqueDevices = Array.from(
+						new Map(devices.map((device) => [device.id, device])).values(),
+					) as Device[];
+					return { data: uniqueDevices };
 				} catch (error: any) {
 					return { error: error.message };
 				}

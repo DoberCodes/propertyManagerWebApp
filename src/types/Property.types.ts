@@ -7,7 +7,7 @@ import { SharePermission } from '../constants/roles';
 
 export interface Property {
 	id: string;
-	groupId: string;
+	groupId?: string;
 	userId: string; // Owner of the property
 	title: string;
 	slug: string;
@@ -36,11 +36,22 @@ export interface Property {
 export interface PropertyGroup {
 	id: string;
 	userId: string;
+	accountId?: string;
 	name: string;
 	isEditingName?: boolean;
 	properties?: Property[];
 	createdAt?: string;
 	updatedAt?: string;
+}
+
+export interface PropertyGroupMembership {
+	id: string;
+	accountId: string;
+	groupId: string;
+	propertyId: string;
+	sortOrder: number;
+	createdAt: string;
+	updatedAt: string;
 }
 
 export interface PropertyShare {

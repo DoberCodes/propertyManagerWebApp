@@ -149,9 +149,109 @@ export const ReportBuilder: React.FC = () => {
 	const { data: allUnits = [] } = useGetAllUnitsQuery();
 
 	const { data: allDevices = [] } = useGetAllDevicesQuery();
+
+	const activeAccountId = String(currentUser?.accountId || currentUser?.id || '').trim();
+
+	const scopedProperties = useMemo(() => {
+		if (!activeAccountId) {
+			return [] as any[];
+		}
+		return properties.filter((property: any) => {
+			const propertyAccountId = String(property.accountId || '').trim();
+			const propertyUserId = String(property.userId || '').trim();
+			return (
+				(propertyAccountId && propertyAccountId === activeAccountId) ||
+				(!propertyAccountId && propertyUserId === activeAccountId)
+			);
+		});
+	}, [properties, activeAccountId]);
+
+	const allowedPropertyIdSet = useMemo(
+		() => new Set(scopedProperties.map((property: any) => property.id)),
+		[scopedProperties],
+	);
+
+	const scopedTasks = useMemo(() => {
+		return tasks.filter((task: any) => {
+			const taskAccountId = String(task.accountId || '').trim();
+			return (
+				(taskAccountId && taskAccountId === activeAccountId) ||
+				allowedPropertyIdSet.has(task.propertyId)
+			);
+		});
+	}, [tasks, activeAccountId, allowedPropertyIdSet]);
+
+	const scopedTeamMembers = useMemo(() => {
+		return firebaseTeamMembers.filter((member: any) => {
+			const memberAccountId = String(member.accountId || '').trim();
+			const memberUserId = String(member.userId || '').trim();
+			return (
+				(memberAccountId && memberAccountId === activeAccountId) ||
+				(!memberAccountId && memberUserId === activeAccountId)
+			);
+		});
+	}, [firebaseTeamMembers, activeAccountId]);
+
+	const scopedMaintenanceHistory = useMemo(() => {
+		return allMaintenanceHistory.filter((record: any) => {
+			const recordAccountId = String(record.accountId || '').trim();
+			return (
+				(recordAccountId && recordAccountId === activeAccountId) ||
+				allowedPropertyIdSet.has(record.propertyId)
+			);
+		});
+	}, [allMaintenanceHistory, activeAccountId, allowedPropertyIdSet]);
+
+	const scopedTenantProfiles = useMemo(() => {
+		return publicTenantProfiles.filter((profile: any) => {
+			const profileAccountId = String(profile.accountId || '').trim();
+			return (
+				(profileAccountId && profileAccountId === activeAccountId) ||
+				allowedPropertyIdSet.has(profile.propertyId)
+			);
+		});
+	}, [publicTenantProfiles, activeAccountId, allowedPropertyIdSet]);
+
+	const scopedPropertyShares = useMemo(() => {
+		return propertyShares.filter((share: any) => {
+			return allowedPropertyIdSet.has(share.propertyId);
+		});
+	}, [propertyShares, allowedPropertyIdSet]);
+
+	const scopedContractors = useMemo(() => {
+		return contractors.filter((contractor: any) => {
+			const contractorAccountId = String(contractor.accountId || '').trim();
+			return (
+				(contractorAccountId && contractorAccountId === activeAccountId) ||
+				allowedPropertyIdSet.has(contractor.propertyId)
+			);
+		});
+	}, [contractors, activeAccountId, allowedPropertyIdSet]);
+
+	const scopedUnits = useMemo(() => {
+		return allUnits.filter((unit: any) => {
+			const unitAccountId = String(unit.accountId || '').trim();
+			return (
+				(unitAccountId && unitAccountId === activeAccountId) ||
+				allowedPropertyIdSet.has(unit.propertyId)
+			);
+		});
+	}, [allUnits, activeAccountId, allowedPropertyIdSet]);
+
+	const scopedDevices = useMemo(() => {
+		return allDevices.filter((device: any) => {
+			const deviceAccountId = String(device.accountId || '').trim();
+			const propertyId = device.location?.propertyId;
+			return (
+				(deviceAccountId && deviceAccountId === activeAccountId) ||
+				allowedPropertyIdSet.has(propertyId)
+			);
+		});
+	}, [allDevices, activeAccountId, allowedPropertyIdSet]);
+
 	const suitesData = useMemo(() => {
 		const allSuites: any[] = [];
-		properties.forEach((property: any) => {
+		scopedProperties.forEach((property: any) => {
 			if (property.hasSuites && property.suites) {
 				property.suites.forEach((suite: any) => {
 					allSuites.push({
@@ -163,22 +263,22 @@ export const ReportBuilder: React.FC = () => {
 			}
 		});
 		return allSuites;
-	}, [properties]);
+	}, [scopedProperties]);
 
 	const unitsData = useMemo(() => {
-		return allUnits.map((unit: any) => {
-			const property = properties.find((p: any) => p.id === unit.propertyId);
+		return scopedUnits.map((unit: any) => {
+			const property = scopedProperties.find((p: any) => p.id === unit.propertyId);
 			return {
 				...unit,
 				propertyTitle: property?.title || 'Unknown Property',
 				propertyId: unit.propertyId,
 			};
 		});
-	}, [allUnits, properties]);
+	}, [scopedUnits, scopedProperties]);
 
 	const devicesData = useMemo(() => {
-		return allDevices.map((device: any) => {
-			const property = properties.find(
+		return scopedDevices.map((device: any) => {
+			const property = scopedProperties.find(
 				(p: any) => p.id === device.location?.propertyId,
 			);
 			return {
@@ -187,11 +287,11 @@ export const ReportBuilder: React.FC = () => {
 				propertyId: device.location?.propertyId,
 			};
 		});
-	}, [allDevices, properties]);
+	}, [scopedDevices, scopedProperties]);
 
 	const contractorsData = useMemo(() => {
-		return contractors.map((contractor: any) => {
-			const property = properties.find(
+		return scopedContractors.map((contractor: any) => {
+			const property = scopedProperties.find(
 				(p: any) => p.id === contractor.propertyId,
 			);
 			return {
@@ -199,10 +299,10 @@ export const ReportBuilder: React.FC = () => {
 				propertyTitle: property?.title || 'Unknown Property',
 			};
 		});
-	}, [contractors, properties]);
+	}, [scopedContractors, scopedProperties]);
 
 	// Filter tasks to get maintenance requests (tasks with specific properties)
-	const maintenanceRequests = tasks.filter(
+	const maintenanceRequests = scopedTasks.filter(
 		(t: any) =>
 			t.type === 'maintenance' ||
 			t.title?.toLowerCase().includes('maintenance'),
@@ -245,11 +345,11 @@ export const ReportBuilder: React.FC = () => {
 		let data: any[] = [];
 
 		if (reportType === 'tasks') {
-			data = tasks;
+			data = scopedTasks;
 		} else if (reportType === 'maintenance-requests') {
 			data = maintenanceRequests;
 		} else if (reportType === 'team') {
-			data = canAccessTeamReport ? firebaseTeamMembers : [];
+			data = canAccessTeamReport ? scopedTeamMembers : [];
 		} else if (reportType === 'contractors') {
 			data = contractorsData;
 		} else if (reportType === 'suites') {
@@ -259,13 +359,13 @@ export const ReportBuilder: React.FC = () => {
 		} else if (reportType === 'devices') {
 			data = devicesData;
 		} else if (reportType === 'maintenance-history') {
-			data = allMaintenanceHistory;
+			data = scopedMaintenanceHistory;
 		} else if (reportType === 'tenant-profiles') {
-			data = publicTenantProfiles;
+			data = scopedTenantProfiles;
 		} else if (reportType === 'property-shares') {
 			// Transform property shares data to include property titles
-			data = propertyShares.map((share: any) => {
-				const property = properties.find((p: any) => p.id === share.propertyId);
+			data = scopedPropertyShares.map((share: any) => {
+				const property = scopedProperties.find((p: any) => p.id === share.propertyId);
 				return {
 					...share,
 					propertyTitle: property?.title || 'Unknown Property',
@@ -276,8 +376,8 @@ export const ReportBuilder: React.FC = () => {
 			if (!canAccessTeamReport) {
 				data = [];
 			} else {
-				data = firebaseTeamMembers.map((member: any) => {
-					const memberTasks = tasks.filter(
+				data = scopedTeamMembers.map((member: any) => {
+					const memberTasks = scopedTasks.filter(
 						(t: any) => t.assignedTo === member.id,
 					);
 					const completed = memberTasks.filter(
@@ -324,8 +424,8 @@ export const ReportBuilder: React.FC = () => {
 			}
 		} else if (reportType === 'property-summary') {
 			// Calculate property summary metrics
-			data = properties.map((prop: any) => {
-				const propTasks = tasks.filter((t: any) => t.propertyId === prop.id);
+			data = scopedProperties.map((prop: any) => {
+				const propTasks = scopedTasks.filter((t: any) => t.propertyId === prop.id);
 				const propRequests = maintenanceRequests.filter(
 					(r: any) => r.propertyId === prop.id,
 				);
@@ -417,7 +517,7 @@ export const ReportBuilder: React.FC = () => {
 						item.propertyId;
 					if (!propId) return false; // exclude items not tied to a property
 
-					const prop = properties.find((p: any) => p.id === propId);
+					const prop = scopedProperties.find((p: any) => p.id === propId);
 					if (!prop) return false;
 					return isSingleFamilyProperty(prop.propertyType);
 				});
@@ -428,17 +528,19 @@ export const ReportBuilder: React.FC = () => {
 	}, [
 		reportType,
 		shouldShowPropertyFilter,
-		tasks,
+		canAccessTeamReport,
+		isHomeowner,
+		scopedTasks,
 		maintenanceRequests,
-		firebaseTeamMembers,
-		properties,
+		scopedTeamMembers,
+		scopedProperties,
 		contractorsData,
 		suitesData,
 		unitsData,
 		devicesData,
-		allMaintenanceHistory,
-		publicTenantProfiles,
-		propertyShares,
+		scopedMaintenanceHistory,
+		scopedTenantProfiles,
+		scopedPropertyShares,
 		filters,
 	]);
 
@@ -641,7 +743,7 @@ export const ReportBuilder: React.FC = () => {
 											setFilters({ ...filters, propertyId: e.target.value })
 										}>
 										<option value=''>All Properties</option>
-										{properties
+										{scopedProperties
 											.filter(
 												(prop) =>
 													!isHomeowner ||

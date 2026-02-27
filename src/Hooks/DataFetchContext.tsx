@@ -16,6 +16,7 @@ import {
 	useGetTeamGroupsQuery,
 	useGetTeamMembersQuery,
 } from '../Redux/API/teamSlice';
+import type { Property, PropertyGroup } from '../types/Property.types';
 
 interface DataFetchContextType {
 	isInitialLoadComplete: boolean;
@@ -50,18 +51,26 @@ export const DataFetchProvider: React.FC<DataFetchProviderProps> = ({
 	const [error, setError] = useState<string | null>(null);
 
 	// Fetch all data
-	const { data: propertyGroups = [], isLoading: groupsLoading } =
+	const {
+		data: propertyGroups = [],
+		isLoading: groupsLoading,
+		error: groupsError,
+	} =
 		useGetPropertyGroupsQuery(undefined, { skip: !currentUser });
-	const { isLoading: propertiesLoading } = useGetPropertiesQuery(undefined, {
+	const {
+		data: properties = [],
+		isLoading: propertiesLoading,
+		error: propertiesError,
+	} = useGetPropertiesQuery(undefined, {
 		skip: !currentUser,
 	});
-	const { data: tasks = [], isLoading: tasksLoading } = useGetTasksQuery(
+	const { data: tasks = [], isLoading: tasksLoading, error: tasksError } = useGetTasksQuery(
 		undefined,
 		{ skip: !currentUser },
 	);
-	const { data: teamGroups = [], isLoading: teamGroupsLoading } =
+	const { data: teamGroups = [], isLoading: teamGroupsLoading, error: teamGroupsError } =
 		useGetTeamGroupsQuery(undefined, { skip: !currentUser });
-	const { isLoading: teamMembersLoading } = useGetTeamMembersQuery(undefined, {
+	const { isLoading: teamMembersLoading, error: teamMembersError } = useGetTeamMembersQuery(undefined, {
 		skip: !currentUser,
 	});
 
@@ -79,28 +88,127 @@ export const DataFetchProvider: React.FC<DataFetchProviderProps> = ({
 			teamGroupsLoading ||
 			teamMembersLoading;
 
-		if (!isLoading && !isInitialLoadComplete) {
-			// Dispatch data to Redux slices for caching
-			dispatch(
-				setPropertyGroups(
-					propertyGroups.map((g) => ({
-						...g,
-						properties: g.properties || [],
-					})),
-				),
-			);
-			dispatch(setTasks(tasks)); // Make sure setTasks expects assignedTo as an object, not a string
-			dispatch(
-				setTeamGroups(
-					teamGroups.map((g) => ({
-						...g,
-						members: g.members || [],
-					})),
-				),
-			);
-			setIsInitialLoadComplete(true);
-			setError(null);
+		if (isLoading) {
+			return;
 		}
+
+		const queryErrors = [
+			{ key: 'propertyGroups', error: groupsError },
+			{ key: 'properties', error: propertiesError },
+			{ key: 'tasks', error: tasksError },
+			{ key: 'teamGroups', error: teamGroupsError },
+			{ key: 'teamMembers', error: teamMembersError },
+		].filter((entry) => Boolean(entry.error));
+
+		if (queryErrors.length > 0) {
+			const firstError = queryErrors[0] as any;
+			const firstErrorValue = firstError.error;
+			const message =
+				typeof firstErrorValue === 'string'
+					? firstErrorValue
+					: firstErrorValue?.data ||
+					  firstErrorValue?.error ||
+					  'Failed to fetch initial data';
+			setError(String(message));
+			console.warn(
+				'DataFetchContext query errors detected:',
+				queryErrors.map((entry: any) => ({
+					key: entry.key,
+					error:
+						typeof entry.error === 'string'
+							? entry.error
+							: entry.error?.data || entry.error?.error || entry.error,
+				})),
+			);
+		}
+
+		// Keep Redux cache in sync with the latest query data.
+		const normalizedGroups: PropertyGroup[] = propertyGroups.map((g) => ({
+			...g,
+			properties: (g.properties || []) as Property[],
+		}));
+
+		const allGroupPropertiesEmpty =
+			normalizedGroups.length > 0 &&
+			normalizedGroups.every((group) => (group.properties || []).length === 0);
+
+		const hydratedGroups: PropertyGroup[] =
+			allGroupPropertiesEmpty && properties.length > 0
+				? (() => {
+						const groupsClone: PropertyGroup[] = normalizedGroups.map((group) => ({
+							...group,
+							properties: [] as Property[],
+						}));
+
+						const hasAssignableGroupIds = properties.some(
+							(property: any) => !!property.groupId,
+						);
+
+						if (hasAssignableGroupIds) {
+							const groupById = new Map<string, PropertyGroup>(
+								groupsClone.map((group) => [group.id, group]),
+							);
+							for (const property of properties as Property[]) {
+								if (property.groupId && groupById.has(property.groupId)) {
+									const matchedGroup = groupById.get(property.groupId);
+									if (matchedGroup) {
+										matchedGroup.properties = [
+											...(matchedGroup.properties || []),
+											property,
+										];
+									}
+								}
+							}
+							return groupsClone;
+						}
+
+						const preferredGroup =
+							groupsClone.find(
+								(group) => group.name?.toLowerCase() === 'my properties',
+							) ||
+							groupsClone.find(
+								(group) => group.name?.toLowerCase() !== 'shared properties',
+							) ||
+							groupsClone[0];
+
+						if (preferredGroup) {
+							preferredGroup.properties = [...(properties as Property[])];
+						}
+
+						return groupsClone;
+				  })()
+				: normalizedGroups;
+
+		const groupsToDispatch =
+			hydratedGroups.length === 0 && properties.length > 0
+				? [
+						{
+							id: `virtual-${currentUser.id}-all-properties`,
+							name: 'My Properties',
+							userId: currentUser.id,
+							accountId: currentUser.accountId || currentUser.id,
+							properties,
+							createdAt: new Date().toISOString(),
+							updatedAt: new Date().toISOString(),
+						},
+				  ]
+				: hydratedGroups;
+
+		dispatch(setPropertyGroups(groupsToDispatch));
+		dispatch(setTasks(tasks)); // Make sure setTasks expects assignedTo as an object, not a string
+		dispatch(
+			setTeamGroups(
+				teamGroups.map((g) => ({
+					...g,
+					members: g.members || [],
+				})),
+			),
+		);
+
+		if (!isInitialLoadComplete) {
+			setIsInitialLoadComplete(true);
+		}
+		setError(null);
 	}, [
 		currentUser,
 		groupsLoading,
@@ -109,8 +217,14 @@ export const DataFetchProvider: React.FC<DataFetchProviderProps> = ({
 		teamGroupsLoading,
 		teamMembersLoading,
 		propertyGroups,
+		properties,
 		tasks,
 		teamGroups,
+		groupsError,
+		propertiesError,
+		tasksError,
+		teamGroupsError,
+		teamMembersError,
 		dispatch,
 		isInitialLoadComplete,
 	]);

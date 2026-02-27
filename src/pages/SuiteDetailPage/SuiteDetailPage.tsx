@@ -152,8 +152,15 @@ export const SuiteDetailPage: React.FC = () => {
 											</tr>
 										</thead>
 										<tbody>
-											{suite.occupants.map((occupant: any) => (
-												<tr key={occupant.id}>
+											{suite.occupants.map((occupant: any, idx: number) => (
+												<tr
+													key={
+														occupant.id ||
+														`${occupant.email || 'occupant'}-${
+															occupant.firstName || ''
+														}-${occupant.lastName || ''}-${idx}`
+													}
+												>
 													<td>
 														{occupant.firstName} {occupant.lastName}
 													</td>
@@ -188,8 +195,8 @@ export const SuiteDetailPage: React.FC = () => {
 											</tr>
 										</thead>
 										<tbody>
-											{suite.deviceIds.map((deviceId: string) => (
-												<tr key={deviceId}>
+											{suite.deviceIds.map((deviceId: string, idx: number) => (
+												<tr key={deviceId || `device-${idx}`}>
 													<td>{deviceId}</td>
 												</tr>
 											))}
@@ -258,10 +265,10 @@ export const SuiteDetailPage: React.FC = () => {
 											</tr>
 										</thead>
 										<tbody>
-											{suiteMaintenanceHistory.map((record, idx) => (
+											{suiteMaintenanceHistory.map((record) => (
 												<tr
 													key={`${
-														record.originalTaskId || record.date || idx
+														record.id || record.originalTaskId || record.date || 'history'
 													}`}>
 													<td>
 														{record.completionDate ||
@@ -316,8 +323,8 @@ export const SuiteDetailPage: React.FC = () => {
 											</tr>
 										</thead>
 										<tbody>
-											{suiteRequests.map((req) => (
-												<tr key={req.id}>
+											{suiteRequests.map((req, idx) => (
+												<tr key={req.id || `request-${idx}`}>
 													<td>{req.status}</td>
 													<td>
 														<strong>{req.title}</strong>

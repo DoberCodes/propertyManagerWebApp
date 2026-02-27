@@ -278,8 +278,15 @@ export const UnitDetailPage: React.FC = () => {
 											</tr>
 										</thead>
 										<tbody>
-											{unit.occupants.map((occupant: any) => (
-												<tr key={occupant.id}>
+											{unit.occupants.map((occupant: any, idx: number) => (
+												<tr
+													key={
+														occupant.id ||
+														`${occupant.email || 'occupant'}-${
+															occupant.firstName || ''
+														}-${occupant.lastName || ''}-${idx}`
+													}
+												>
 													<td>
 														{occupant.firstName} {occupant.lastName}
 													</td>
@@ -326,8 +333,8 @@ export const UnitDetailPage: React.FC = () => {
 											</tr>
 										</thead>
 										<tbody>
-											{unitDevices.map((device) => (
-												<tr key={device.id}>
+											{unitDevices.map((device, idx) => (
+												<tr key={device.id || `device-${idx}`}>
 													<td>{device.type}</td>
 													<td>{device.brand}</td>
 													<td>{device.model}</td>
@@ -431,8 +438,8 @@ export const UnitDetailPage: React.FC = () => {
 											{unitMaintenanceHistory.map((record, idx) => (
 												<tr
 													key={`${
-														record.originalTaskId || record.date || idx
-													}`}>
+														record.id || record.originalTaskId || record.date || 'history'
+													}-${idx}`}>
 													<td>
 														{record.completionDate ||
 															record.approvedAt ||
@@ -493,8 +500,8 @@ export const UnitDetailPage: React.FC = () => {
 											</tr>
 										</thead>
 										<tbody>
-											{unitRequests.map((req) => (
-												<tr key={req.id}>
+											{unitRequests.map((req, idx) => (
+												<tr key={req.id || `request-${idx}`}>
 													<td>{req.status}</td>
 													<td>
 														<strong>{req.title}</strong>

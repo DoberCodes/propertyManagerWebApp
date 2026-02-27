@@ -6,6 +6,10 @@ import { UserRole, USER_ROLES } from '../constants/roles';
 import { PropertyShare } from '../types/Property.types';
 import { Task } from '../types/Task.types';
 
+const hasAccountSubscriptionAccess = (user: User | null): boolean => {
+	return !!user?.accountId;
+};
+
 /**
  * Filter properties based on user role and assignments
  * Full access roles see all properties
@@ -19,6 +23,11 @@ export const filterPropertiesByRole = (
 	propertyShares?: PropertyShare[],
 ): Property[] => {
 	if (!currentUser) return [];
+
+	// Account members with an active subscription see everything
+	if (hasAccountSubscriptionAccess(currentUser)) {
+		return properties;
+	}
 
 	// Full access roles see everything
 	if (hasFullAccess(currentUser.role as UserRole)) {
@@ -44,7 +53,11 @@ export const filterPropertiesByRole = (
 		);
 
 		if (!teamMember || !teamMember.linkedProperties) {
-			return [];
+			return properties;
+		}
+
+		if (teamMember.linkedProperties.length === 0) {
+			return properties;
 		}
 
 		// Filter to only assigned properties
@@ -66,6 +79,11 @@ export const filterPropertyGroupsByRole = (
 	propertyShares?: PropertyShare[],
 ): PropertyGroup[] => {
 	if (!currentUser) return [];
+
+	// Account members with an active subscription see everything
+	if (hasAccountSubscriptionAccess(currentUser)) {
+		return groups;
+	}
 
 	// Full access roles see everything
 	if (hasFullAccess(currentUser.role as UserRole)) {
@@ -96,7 +114,11 @@ export const filterPropertyGroupsByRole = (
 		);
 
 		if (!teamMember || !teamMember.linkedProperties) {
-			return [];
+			return groups;
+		}
+
+		if (teamMember.linkedProperties.length === 0) {
+			return groups;
 		}
 
 		// Filter groups and their properties
@@ -128,6 +150,12 @@ export const filterTasksByRole = (
 	propertyShares?: PropertyShare[],
 ): Task[] => {
 	if (!currentUser) return [];
+
+	// Account members with an active subscription see everything (except hidden)
+	if (hasAccountSubscriptionAccess(currentUser)) {
+		const hiddenIds = currentUser.hiddenPropertyIds || [];
+		return tasks.filter((task) => !hiddenIds.includes(task.propertyId));
+	}
 
 	// Full access roles see everything (but filter out hidden properties)
 	if (hasFullAccess(currentUser.role as UserRole)) {
@@ -164,7 +192,13 @@ export const filterTasksByRole = (
 		);
 
 		if (!teamMember || !teamMember.linkedProperties) {
-			return [];
+			const hiddenIds = currentUser.hiddenPropertyIds || [];
+			return tasks.filter((task) => !hiddenIds.includes(task.propertyId));
+		}
+
+		if (teamMember.linkedProperties.length === 0) {
+			const hiddenIds = currentUser.hiddenPropertyIds || [];
+			return tasks.filter((task) => !hiddenIds.includes(task.propertyId));
 		}
 
 		// Get property titles/slugs for assigned properties

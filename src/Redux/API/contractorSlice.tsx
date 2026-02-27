@@ -13,7 +13,10 @@ import { db, auth } from '../../config/firebase';
 import { Contractor } from '../../types/Contractor.types';
 import { PropertyShare } from '../../types/Property.types';
 import { apiSlice, docToData } from './apiSlice';
-import { resolveTargetUserId } from './accountContext';
+import {
+	resolveAccessibleAccountIds,
+	resolveTargetUserId,
+} from './accountContext';
 
 const contractorSlice = apiSlice.injectEndpoints({
 	endpoints: (builder) => ({
@@ -24,16 +27,28 @@ const contractorSlice = apiSlice.injectEndpoints({
 					if (!propertyId) {
 						return { data: [] };
 					}
-					const contractorQuery = query(
-						collection(db, 'contractors'),
-						where('propertyId', '==', propertyId),
-					);
-					const snapshot = await getDocs(contractorQuery);
+					const accessibleAccountIds = await resolveAccessibleAccountIds();
+					const contractors: Contractor[] = [];
 
-					const contractors = snapshot.docs
-						.map((doc) => docToData(doc) as Contractor)
-						.filter(Boolean) as Contractor[];
-					return { data: contractors };
+					for (const accountId of accessibleAccountIds) {
+						const contractorQuery = query(
+							collection(db, 'contractors'),
+							where('accountId', '==', accountId),
+							where('propertyId', '==', propertyId),
+						);
+						const snapshot = await getDocs(contractorQuery);
+						const batch = snapshot.docs
+							.map((doc) => docToData(doc) as Contractor)
+							.filter(Boolean) as Contractor[];
+						contractors.push(...batch);
+					}
+
+					const uniqueContractors = Array.from(
+						new Map(contractors.map((contractor) => [contractor.id, contractor]))
+							.values(),
+					) as Contractor[];
+
+					return { data: uniqueContractors };
 				} catch (error: any) {
 					return { error: error.message };
 				}
@@ -172,30 +187,23 @@ const contractorSlice = apiSlice.injectEndpoints({
 						return { error: 'User not authenticated' };
 					}
 					const userId = currentUser.uid;
-					const targetUserId = await resolveTargetUserId();
+					const targetAccountId = await resolveTargetUserId();
 
-					// Get all properties for this user's groups
-					const groupsQuery = query(
-						collection(db, 'propertyGroups'),
-						where('accountId', '==', targetUserId),
-					);
-					const groupsSnapshot = await getDocs(groupsQuery);
-					const groupIds = groupsSnapshot.docs.map((doc) => doc.id);
-
-					let ownedPropertyIds: string[] = [];
-					if (groupIds.length > 0) {
-						// Get all property IDs for these groups
-						for (let i = 0; i < groupIds.length; i += 10) {
-							const batch = groupIds.slice(i, i + 10);
-							const propertiesQuery = query(
-								collection(db, 'properties'),
-								where('groupId', 'in', batch),
-							);
-							const propertiesSnapshot = await getDocs(propertiesQuery);
-							propertiesSnapshot.docs.forEach((doc) => {
-								ownedPropertyIds.push(doc.id);
-							});
-						}
+					const ownedPropertyIds: string[] = [];
+					try {
+						const propertiesQuery = query(
+							collection(db, 'properties'),
+							where('accountId', '==', targetAccountId),
+						);
+						const propertiesSnapshot = await getDocs(propertiesQuery);
+						ownedPropertyIds.push(
+							...propertiesSnapshot.docs.map((propertyDoc) => propertyDoc.id),
+						);
+					} catch (ownedPropertiesError) {
+						console.warn(
+							'Could not fetch account-linked properties for contractors:',
+							ownedPropertiesError,
+						);
 					}
 
 					// Also get shared properties for this user
@@ -224,13 +232,13 @@ const contractorSlice = apiSlice.injectEndpoints({
 					}
 
 					// Combine and deduplicate property IDs
-					const allPropertyIds = [
-						...new Set([...ownedPropertyIds, ...sharedPropertyIds]),
-					];
+					const allPropertyIds = Array.from(
+						new Set([...ownedPropertyIds, ...sharedPropertyIds]),
+					);
 
 					const accountContractorsQuery = query(
 						collection(db, 'contractors'),
-						where('accountId', '==', targetUserId),
+						where('accountId', '==', targetAccountId),
 					);
 					const accountContractorsSnapshot = await getDocs(
 						accountContractorsQuery,
@@ -247,6 +255,7 @@ const contractorSlice = apiSlice.injectEndpoints({
 							try {
 								const contractorsQuery = query(
 									collection(db, 'contractors'),
+									where('accountId', '==', targetAccountId),
 									where('propertyId', 'in', batch),
 								);
 								const contractorsSnapshot = await getDocs(contractorsQuery);

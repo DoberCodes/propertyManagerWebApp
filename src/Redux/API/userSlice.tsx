@@ -15,7 +15,9 @@ import { SharePermission } from '../../constants/roles';
 import { Property, PropertyShare } from '../../types/Property.types';
 import { Favorite, UserInvitation } from '../../types/User.types';
 import { User } from '../Slices/userSlice';
-import { resolveTargetUserId } from './accountContext';
+import {
+	resolveAccessibleAccountIds,
+} from './accountContext';
 
 const userSlice = apiSlice.injectEndpoints({
 	endpoints: (builder) => ({
@@ -191,29 +193,46 @@ const userSlice = apiSlice.injectEndpoints({
 						return { data: [] };
 					}
 
-					// Get all property groups for this user to find owned properties
-					const groupsQuery = query(
-						collection(db, 'propertyGroups'),
-						where('userId', '==', userId),
-					);
-					const groupsSnapshot = await getDocs(groupsQuery);
-					const groupIds = groupsSnapshot.docs.map((doc) => doc.id);
+					const accessibleAccountIds = await resolveAccessibleAccountIds();
+
+					// Get all property groups for accessible accounts to find owned properties
+					const groupIds: string[] = [];
+					for (const accountId of accessibleAccountIds) {
+						const groupsByAccountQuery = query(
+							collection(db, 'propertyGroups'),
+							where('accountId', '==', accountId),
+						);
+						const groupsByAccountSnapshot = await getDocs(groupsByAccountQuery);
+						groupIds.push(...groupsByAccountSnapshot.docs.map((groupDoc) => groupDoc.id));
+
+						// Legacy fallback: some groups may still use userId and no accountId
+						const groupsByUserQuery = query(
+							collection(db, 'propertyGroups'),
+							where('userId', '==', accountId),
+						);
+						const groupsByUserSnapshot = await getDocs(groupsByUserQuery);
+						groupIds.push(...groupsByUserSnapshot.docs.map((groupDoc) => groupDoc.id));
+					}
+
+					const uniqueGroupIds = Array.from(new Set(groupIds));
 
 					let ownedPropertyIds: string[] = [];
-					if (groupIds.length > 0) {
+					if (uniqueGroupIds.length > 0) {
 						// Get all property IDs for these groups
-						for (let i = 0; i < groupIds.length; i += 10) {
-							const batch = groupIds.slice(i, i + 10);
+						for (let i = 0; i < uniqueGroupIds.length; i += 10) {
+							const batch = uniqueGroupIds.slice(i, i + 10);
 							const propertiesQuery = query(
 								collection(db, 'properties'),
 								where('groupId', 'in', batch),
 							);
 							const propertiesSnapshot = await getDocs(propertiesQuery);
-							propertiesSnapshot.docs.forEach((doc) => {
-								ownedPropertyIds.push(doc.id);
-							});
+							ownedPropertyIds.push(
+								...propertiesSnapshot.docs.map((propertyDoc) => propertyDoc.id),
+							);
 						}
 					}
+
+					ownedPropertyIds = Array.from(new Set(ownedPropertyIds));
 
 					// Get all shares for owned properties (shares created by this user)
 					let allShares: PropertyShare[] = [];
@@ -270,19 +289,22 @@ const userSlice = apiSlice.injectEndpoints({
 					const userDoc = await getDoc(userDocRef);
 					const userData = userDoc.data();
 					const userEmail = userData?.email;
-					const targetUserId = await resolveTargetUserId();
+					const accessibleAccountIds = await resolveAccessibleAccountIds();
 
 					if (!userEmail) {
 						return { data: [] };
 					}
 
-					// Get all property groups for this user to find owned properties
-					const groupsQuery = query(
-						collection(db, 'propertyGroups'),
-						where('accountId', '==', targetUserId),
-					);
-					const groupsSnapshot = await getDocs(groupsQuery);
-					const groupIds = groupsSnapshot.docs.map((doc) => doc.id);
+					// Get all property groups for accessible accounts to find owned properties
+					const groupIds: string[] = [];
+					for (const accountId of accessibleAccountIds) {
+						const groupsQuery = query(
+							collection(db, 'propertyGroups'),
+							where('accountId', '==', accountId),
+						);
+						const groupsSnapshot = await getDocs(groupsQuery);
+						groupIds.push(...groupsSnapshot.docs.map((doc) => doc.id));
+					}
 
 					let ownedPropertyIds: string[] = [];
 					if (groupIds.length > 0) {
@@ -316,16 +338,20 @@ const userSlice = apiSlice.injectEndpoints({
 					// Combine all property IDs the user has access to
 					const allPropertyIds = [...ownedPropertyIds, ...sharedPropertyIds];
 
-					const accountMaintenanceQuery = query(
-						collection(db, 'maintenanceHistory'),
-						where('accountId', '==', targetUserId),
-					);
-					const accountMaintenanceSnapshot = await getDocs(
-						accountMaintenanceQuery,
-					);
-					const accountMaintenanceHistory = accountMaintenanceSnapshot.docs
-						.map((doc) => docToData(doc) as Record<string, unknown>)
-						.filter(Boolean) as Record<string, unknown>[];
+					const accountMaintenanceHistory: Record<string, unknown>[] = [];
+					for (const accountId of accessibleAccountIds) {
+						const accountMaintenanceQuery = query(
+							collection(db, 'maintenanceHistory'),
+							where('accountId', '==', accountId),
+						);
+						const accountMaintenanceSnapshot = await getDocs(
+							accountMaintenanceQuery,
+						);
+						const accountMaintenanceBatch = accountMaintenanceSnapshot.docs
+							.map((doc) => docToData(doc) as Record<string, unknown>)
+							.filter(Boolean) as Record<string, unknown>[];
+						accountMaintenanceHistory.push(...accountMaintenanceBatch);
+					}
 
 					// Get all maintenance history for these properties
 					let allMaintenanceHistory: any[] = [];

@@ -11,6 +11,10 @@ import {
 } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { apiSlice, docToData } from './apiSlice';
+import {
+	resolveAccessibleAccountIds,
+	resolveTargetUserId,
+} from './accountContext';
 
 const maintenanceSlice = apiSlice.injectEndpoints({
 	endpoints: (builder) => ({
@@ -21,35 +25,46 @@ const maintenanceSlice = apiSlice.injectEndpoints({
 					if (!propertyId) {
 						return { data: [] };
 					}
+					const accessibleAccountIds = await resolveAccessibleAccountIds();
 					const records: any[] = [];
-					const primaryQuery = query(
-						collection(db, 'maintenanceHistory'),
-						where('propertyId', '==', propertyId),
-					);
-					const primarySnapshot = await getDocs(primaryQuery);
-					primarySnapshot.docs.forEach((doc) => {
-						const data = docToData(doc);
-						if (data) records.push(data);
-					});
+					for (const accountId of accessibleAccountIds) {
+						const primaryQuery = query(
+							collection(db, 'maintenanceHistory'),
+							where('accountId', '==', accountId),
+							where('propertyId', '==', propertyId),
+						);
+						const primarySnapshot = await getDocs(primaryQuery);
+						primarySnapshot.docs.forEach((doc) => {
+							const data = docToData(doc);
+							if (data) records.push(data);
+						});
+					}
 
 					if (records.length === 0) {
 						// Fallback for legacy records missing propertyId
 						const propertyDoc = await getDoc(doc(db, 'properties', propertyId));
 						const propertyTitle = docToData(propertyDoc)?.title;
 						if (propertyTitle) {
-							const titleQuery = query(
-								collection(db, 'maintenanceHistory'),
-								where('propertyTitle', '==', propertyTitle),
-							);
-							const titleSnapshot = await getDocs(titleQuery);
-							titleSnapshot.docs.forEach((doc) => {
-								const data = docToData(doc);
-								if (data) records.push(data);
-							});
+							for (const accountId of accessibleAccountIds) {
+								const titleQuery = query(
+									collection(db, 'maintenanceHistory'),
+									where('accountId', '==', accountId),
+									where('propertyTitle', '==', propertyTitle),
+								);
+								const titleSnapshot = await getDocs(titleQuery);
+								titleSnapshot.docs.forEach((doc) => {
+									const data = docToData(doc);
+									if (data) records.push(data);
+								});
+							}
 						}
 					}
 
-					return { data: records };
+					const uniqueRecords = Array.from(
+						new Map(records.map((record) => [record.id, record])).values(),
+					);
+
+					return { data: uniqueRecords };
 				} catch (error: any) {
 					return { error: error.message };
 				}
@@ -87,6 +102,12 @@ const maintenanceSlice = apiSlice.injectEndpoints({
 				linkedTaskIds,
 			}) {
 				try {
+					const propertyDoc = await getDoc(doc(db, 'properties', propertyId));
+					const propertyData = docToData(propertyDoc) || {};
+					const accountId =
+						String(propertyData.accountId || '').trim() ||
+						(await resolveTargetUserId());
+
 					let completionFileData:
 						| { url: string; name: string; size: number; type: string }
 						| undefined = undefined;
@@ -103,6 +124,7 @@ const maintenanceSlice = apiSlice.injectEndpoints({
 					}
 
 					const historyData = {
+						accountId,
 						propertyId,
 						propertyTitle,
 						title,

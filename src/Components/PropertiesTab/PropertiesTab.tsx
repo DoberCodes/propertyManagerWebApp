@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { PropertyDialog } from './PropertyDialog';
@@ -153,6 +153,53 @@ export const Properties = () => {
 			return 0;
 		});
 	}, [groupsWithProperties, currentUser, teamMembers, propertyShares]);
+
+	useEffect(() => {
+		const currentTeamMember = teamMembers.find(
+			(member) => member?.email === currentUser?.email,
+		);
+
+		console.log('DEBUG PropertiesTab render pipeline:', {
+			user: currentUser
+				? {
+					id: currentUser.id,
+					email: currentUser.email,
+					role: currentUser.role,
+					accountId: currentUser.accountId,
+				}
+				: null,
+			teamMemberMatch: currentTeamMember
+				? {
+					id: currentTeamMember.id,
+					email: currentTeamMember.email,
+					linkedPropertiesCount:
+						currentTeamMember.linkedProperties?.length || 0,
+					linkedProperties: currentTeamMember.linkedProperties || [],
+				}
+				: null,
+			propertyGroupsCount: propertyGroups.length,
+			propertyGroups: propertyGroups.map((group) => ({
+				id: group.id,
+				name: group.name,
+				propertyCount: group.properties?.length || 0,
+				propertyIds: (group.properties || []).map((property) => property.id),
+			})),
+			groupsWithPropertiesCount: groupsWithProperties.length,
+			filteredGroupsCount: filteredGroups.length,
+			filteredGroups: filteredGroups.map((group) => ({
+				id: group.id,
+				name: group.name,
+				propertyCount: group.properties?.length || 0,
+				propertyIds: (group.properties || []).map((property) => property.id),
+			})),
+		});
+	}, [
+		currentUser,
+		teamMembers,
+		propertyGroups,
+		groupsWithProperties,
+		filteredGroups,
+	]);
 
 	const [openDropdown, setOpenDropdown] = useState<string | null>(null);
 	const [dialogOpen, setDialogOpen] = useState(false);
@@ -512,6 +559,7 @@ export const Properties = () => {
 				const updates = {
 					title: formData.name,
 					image: formData.photo || selectedPropertyForEdit.image,
+					groupId: formData.groupId || selectedGroupForDialog || undefined,
 					owner: formData.owner,
 					address: formData.address,
 					propertyType: effectivePropertyType,

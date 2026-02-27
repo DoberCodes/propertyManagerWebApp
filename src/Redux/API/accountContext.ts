@@ -10,6 +10,42 @@ import {
 } from 'firebase/firestore';
 import { auth, db } from '../../config/firebase';
 
+export const resolveAccessibleAccountIds = async (): Promise<string[]> => {
+	const currentUser = auth.currentUser;
+	if (!currentUser) {
+		throw new Error('User not authenticated');
+	}
+
+	const uid = currentUser.uid;
+	const accountIds = new Set<string>();
+
+	const membershipsQuery = query(
+		collection(db, 'accountMemberships'),
+		where('userId', '==', uid),
+	);
+	const membershipsSnapshot = await getDocs(membershipsQuery);
+
+	membershipsSnapshot.docs.forEach((membershipDoc) => {
+		const membershipData = membershipDoc.data() || {};
+		const status = String(membershipData.status || 'active').trim();
+		const accountId = String(membershipData.accountId || '').trim();
+		if (accountId && status !== 'disabled') {
+			accountIds.add(accountId);
+		}
+	});
+
+	const primaryAccountId = await resolveTargetUserId();
+	if (primaryAccountId) {
+		accountIds.add(primaryAccountId);
+	}
+
+	if (accountIds.size === 0) {
+		accountIds.add(uid);
+	}
+
+	return Array.from(accountIds);
+};
+
 export const resolveTargetUserId = async (): Promise<string> => {
 	const currentUser = auth.currentUser;
 	if (!currentUser) {

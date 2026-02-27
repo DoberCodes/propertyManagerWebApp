@@ -191,15 +191,9 @@ export const teamSlice = apiSlice.injectEndpoints({
 						where('accountId', '==', targetUserId),
 					);
 					const querySnapshot = await getDocs(q);
-					const groups = querySnapshot.docs.map((doc) => {
-						const data = docToData(doc);
-						return {
-							id: doc.id,
-							...data,
-							createdAt: data.createdAt?.toDate().toISOString(), // Convert Timestamp to ISO string
-							updatedAt: data.updatedAt?.toDate().toISOString(), // Handle other Timestamp fields
-						};
-					}) as TeamGroup[];
+					const groups = querySnapshot.docs
+						.map((groupDoc) => docToData(groupDoc) as TeamGroup)
+						.filter(Boolean) as TeamGroup[];
 					return { data: groups };
 				} catch (error: any) {
 					return { error: error.message };
@@ -286,7 +280,7 @@ export const teamSlice = apiSlice.injectEndpoints({
 					);
 					const membersSnapshot = await getDocs(membersQuery);
 					const members = membersSnapshot.docs
-						.map((doc) => ({ id: doc.id, ...doc.data() } as TeamMember))
+						.map((memberDoc) => docToData(memberDoc) as TeamMember)
 						.filter(Boolean) as TeamMember[];
 					return { data: members };
 				} catch (error: any) {
