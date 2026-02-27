@@ -1,0 +1,7 @@
+{
+  "projects": {
+    "default": "mypropertymanager-cda42",
+    "prod": "mypropertymanager-cda42",
+    "beta": "maintleybeta"
+  }
+}

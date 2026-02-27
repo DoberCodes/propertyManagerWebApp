@@ -1,0 +1,75 @@
+name: Deploy Firebase Environments
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate deploy secrets
+        shell: bash
+        env:
+          PROD_FIREBASE_PROJECT_ID: ${{ secrets.PROD_FIREBASE_PROJECT_ID }}
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+        run: |
+          missing=()
+          [[ -z "$PROD_FIREBASE_PROJECT_ID" ]] && missing+=("PROD_FIREBASE_PROJECT_ID")
+          [[ -z "$FIREBASE_TOKEN" ]] && missing+=("FIREBASE_TOKEN")
+
+          if (( ${#missing[@]} > 0 )); then
+            echo "Missing required deploy secrets: ${missing[*]}"
+            exit 1
+          fi
+
+      - name: Resolve target Firebase project
+        id: target
+        shell: bash
+        run: |
+          TARGET="prod"
+          PROJECT_ID="${{ secrets.PROD_FIREBASE_PROJECT_ID }}"
+
+          if [[ -z "$PROJECT_ID" ]]; then
+            echo "Missing Firebase project id secret for target: $TARGET"
+            exit 1
+          fi
+
+          echo "target=$TARGET" >> "$GITHUB_OUTPUT"
+          echo "project_id=$PROJECT_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'yarn'
+
+      - name: Install root dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Install functions dependencies
+        run: npm --prefix functions ci
+
+      - name: Build functions
+        run: npm --prefix functions run build
+
+      - name: Deploy Firestore rules and Functions
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+        run: |
+          if [[ -z "$FIREBASE_TOKEN" ]]; then
+            echo "FIREBASE_TOKEN secret is required"
+            exit 1
+          fi
+
+          npx firebase-tools deploy \
+            --project "${{ steps.target.outputs.project_id }}" \
+            --only firestore:rules,functions \
+            --non-interactive \
+            --force

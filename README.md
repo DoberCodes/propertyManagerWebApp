@@ -123,6 +123,51 @@ node scripts/migrateRemoveOrphanedData.cjs
 - Update notifications and APK download logic are in `UpdateNotification.tsx`
 - For custom branding, see `src/Assets/images/`
 
+## Beta Testing Environment (Separate Firebase)
+
+This repository supports an isolated beta environment driven by the `beta` branch.
+
+- `main` branch -> production Firebase project
+- `beta` branch -> testing Firebase project
+
+### 1) Configure Firebase project aliases
+
+Update `.firebaserc`:
+
+- `prod`: production Firebase project id
+- `beta`: testing Firebase project id
+
+### 2) Add GitHub repository secrets
+
+Add these secrets for branch-aware web builds:
+
+- `PROD_REACT_APP_FIREBASE_API_KEY`
+- `PROD_REACT_APP_FIREBASE_AUTH_DOMAIN`
+- `PROD_REACT_APP_FIREBASE_PROJECT_ID`
+- `PROD_REACT_APP_FIREBASE_STORAGE_BUCKET`
+- `PROD_REACT_APP_FIREBASE_MESSAGING_SENDER_ID`
+- `PROD_REACT_APP_FIREBASE_APP_ID`
+- `PROD_REACT_APP_STRIPE_PUBLIC_KEY`
+- `BETA_REACT_APP_FIREBASE_API_KEY`
+- `BETA_REACT_APP_FIREBASE_AUTH_DOMAIN`
+- `BETA_REACT_APP_FIREBASE_PROJECT_ID`
+- `BETA_REACT_APP_FIREBASE_STORAGE_BUCKET`
+- `BETA_REACT_APP_FIREBASE_MESSAGING_SENDER_ID`
+- `BETA_REACT_APP_FIREBASE_APP_ID`
+- `BETA_REACT_APP_STRIPE_PUBLIC_KEY`
+
+Add these secrets for Firebase deploy workflow:
+
+- `PROD_FIREBASE_PROJECT_ID`
+- `BETA_FIREBASE_PROJECT_ID`
+- `FIREBASE_TOKEN`
+
+### 3) Branch behavior
+
+- Build workflow automatically injects `BETA_*` secrets when targeting `beta`.
+- Firebase deploy workflow automatically deploys to beta on `beta` pushes and prod on `main` pushes.
+- You can also trigger deployment manually with `workflow_dispatch` and choose target (`beta` or `prod`).
+
 ---
 
 For more details, see the in-app documentation and comments throughout the codebase.
