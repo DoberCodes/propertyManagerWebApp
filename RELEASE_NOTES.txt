@@ -1,6 +1,15 @@
-🎉 **Release Notes for Version 1.11.8** 🎉
+🎉 **Release Notes for Version 1.11.9** 🎉
 
 
 ## 🐛 Bug Fixes
-- Fixing some playwright testing, fixing the landing page and modifying the legal document navigation
-- updating the legal document notification to include more required docs.
+- fixing the family accounts to be more scalable and more robust, added roles to each family memeber and also added resend for emails instead of sendgrid
+- adding changes to family and modifying the email features
+- fixing some action changes
+- adding new actions to ignore workflows on mirror.
+- Add editable family member flow and relax CI build warning strictness
+- fixing the mirror actions
+
+## 🔧 Improvements & Maintenance
+- breaking: overhaul of the property and account structure to improve scalability and provide a cleaner hierarchy.
+- adding come changes for the beta repo
+- modifying workflow
