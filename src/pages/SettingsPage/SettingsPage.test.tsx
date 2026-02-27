@@ -12,6 +12,7 @@ jest.mock('services/authService', () => ({
 	addFamilyMember: jest.fn(),
 	getFamilyMembers: jest.fn(),
 	removeFamilyMember: jest.fn(),
+	updateFamilyMember: jest.fn(),
 }));
 
 jest.mock('config/firebase', () => ({
@@ -63,12 +64,12 @@ const createMockStore = (initialState = {}) => {
 	});
 };
 
-// Family member features are hidden for now.
-describe.skip('SettingsPage Family Members', () => {
+describe('SettingsPage Family Members', () => {
 	let store: ReturnType<typeof createMockStore>;
 	let mockAddFamilyMember: jest.Mock;
 	let mockGetFamilyMembers: jest.Mock;
 	let mockRemoveFamilyMember: jest.Mock;
+	let mockUpdateFamilyMember: jest.Mock;
 
 	beforeEach(() => {
 		store = createMockStore();
@@ -77,10 +78,12 @@ describe.skip('SettingsPage Family Members', () => {
 		mockAddFamilyMember = require('services/authService').addFamilyMember;
 		mockGetFamilyMembers = require('services/authService').getFamilyMembers;
 		mockRemoveFamilyMember = require('services/authService').removeFamilyMember;
+		mockUpdateFamilyMember = require('services/authService').updateFamilyMember;
 
 		mockAddFamilyMember.mockClear();
 		mockGetFamilyMembers.mockClear();
 		mockRemoveFamilyMember.mockClear();
+		mockUpdateFamilyMember.mockClear();
 	});
 
 	const renderSettingsPage = () => {
@@ -203,6 +206,7 @@ describe.skip('SettingsPage Family Members', () => {
 					'member@example.com',
 					'New',
 					'Member',
+					'member',
 				);
 			});
 
@@ -255,8 +259,8 @@ describe.skip('SettingsPage Family Members', () => {
 		});
 
 		it('should hide add button when account is full', async () => {
-			// Mock 2 members (owner + 1 family member = full)
-			const familyMember = {
+			// Mock full seat usage: owner + 2 non-owner family members
+			const familyMemberOne = {
 				id: 'member-id',
 				email: 'member@example.com',
 				firstName: 'Family',
@@ -264,8 +268,20 @@ describe.skip('SettingsPage Family Members', () => {
 				accountId: 'test-user-id',
 				isAccountOwner: false,
 			};
+			const familyMemberTwo = {
+				id: 'member-id-2',
+				email: 'member2@example.com',
+				firstName: 'Family',
+				lastName: 'Member Two',
+				accountId: 'test-user-id',
+				isAccountOwner: false,
+			};
 
-			mockGetFamilyMembers.mockResolvedValue([mockUser, familyMember]);
+			mockGetFamilyMembers.mockResolvedValue([
+				mockUser,
+				familyMemberOne,
+				familyMemberTwo,
+			]);
 
 			renderSettingsPage();
 
@@ -429,6 +445,7 @@ describe.skip('SettingsPage Family Members', () => {
 					'test@example.com',
 					'Test',
 					'User',
+					'member',
 				);
 			});
 		});

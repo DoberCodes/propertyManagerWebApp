@@ -41,8 +41,7 @@ jest.mock('firebase/functions', () => ({
 	httpsCallable: jest.fn(),
 }));
 
-// Family member features are hidden for now.
-describe.skip('Family Account Functionality', () => {
+describe('Family Account Functionality', () => {
 	const mockAccountId = 'account-owner-id';
 	const mockFamilyMemberId = 'family-member-id';
 
@@ -51,8 +50,22 @@ describe.skip('Family Account Functionality', () => {
 		const mockFetchSignInMethodsForEmail =
 			require('firebase/auth').fetchSignInMethodsForEmail;
 		const mockGetDocs = require('firebase/firestore').getDocs;
+		const mockHttpsCallable = require('firebase/functions').httpsCallable;
 		mockFetchSignInMethodsForEmail.mockResolvedValue([]);
 		mockGetDocs.mockResolvedValue({ empty: true, docs: [] });
+		mockHttpsCallable.mockImplementation((_functions: unknown, name: string) => {
+			if (name === 'getFamilyAccountSummary') {
+				return jest.fn().mockResolvedValue({
+					data: { accountId: mockAccountId, subscription: null },
+				});
+			}
+			if (name === 'ensureFamilyAccount') {
+				return jest.fn().mockResolvedValue({
+					data: { success: true, accountId: mockAccountId },
+				});
+			}
+			return jest.fn().mockResolvedValue({ data: { success: true } });
+		});
 	});
 
 	describe('addFamilyMember', () => {
@@ -63,7 +76,7 @@ describe.skip('Family Account Functionality', () => {
 				jest.fn().mockResolvedValue({
 					data: {
 						success: true,
-						inviteId: 'invite-123',
+						userId: 'invite-123',
 						message: 'Invitation sent successfully',
 					},
 				}),
@@ -79,7 +92,7 @@ describe.skip('Family Account Functionality', () => {
 			);
 
 			expect(result).toEqual({
-				inviteId: 'invite-123',
+				userId: 'invite-123',
 				message: 'Invitation sent successfully',
 			});
 
@@ -250,7 +263,7 @@ describe.skip('Family Account Functionality', () => {
 					isAccountOwner: true,
 				}),
 			);
-			expect(mockSetDoc).toHaveBeenCalled(); // Should create family account
+			expect(mockSetDoc).not.toHaveBeenCalled();
 		});
 
 		it('should not migrate user that already has accountId', async () => {

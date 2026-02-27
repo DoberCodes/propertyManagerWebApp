@@ -747,6 +747,46 @@ export const removeFamilyMember = async (
 	}
 };
 
+export const updateFamilyMemberRole = async (
+	accountId: string,
+	memberId: string,
+	role: 'admin' | 'member',
+): Promise<void> => {
+	const updateRoleFunction = httpsCallable<
+		{ accountId: string; memberId: string; role: 'admin' | 'member' },
+		{ success: boolean; message?: string }
+	>(functions, 'updateFamilyMemberRole');
+
+	await updateRoleFunction({ accountId, memberId, role });
+};
+
+export const updateFamilyMember = async (
+	accountId: string,
+	memberId: string,
+	firstName: string,
+	lastName: string,
+	role: 'admin' | 'member',
+): Promise<void> => {
+	const updateFamilyMemberFunction = httpsCallable<
+		{
+			accountId: string;
+			memberId: string;
+			firstName: string;
+			lastName: string;
+			role: 'admin' | 'member';
+		},
+		{ success: boolean; message?: string }
+	>(functions, 'updateFamilyMember');
+
+	await updateFamilyMemberFunction({
+		accountId,
+		memberId,
+		firstName,
+		lastName,
+		role,
+	});
+};
+
 /**
  * Get family account members
  */

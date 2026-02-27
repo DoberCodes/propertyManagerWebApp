@@ -35,6 +35,7 @@ import {
 	removeFamilyMember,
 	getFamilyMembers,
 	resendPasswordReset,
+	updateFamilyMember,
 } from 'services/authService';
 import { NotificationPreferences } from 'Components/NotificationPreferences';
 
@@ -304,6 +305,8 @@ export const SettingsPage: React.FC = () => {
 	const [familyMembers, setFamilyMembers] = useState<any[]>([]);
 	const [showAddFamilyMemberModal, setShowAddFamilyMemberModal] =
 		useState(false);
+	const [showEditFamilyMemberModal, setShowEditFamilyMemberModal] =
+		useState(false);
 	const [isLoadingFamilyMembers, setIsLoadingFamilyMembers] = useState(false);
 	const [familyMemberForm, setFamilyMemberForm] = useState({
 		firstName: '',
@@ -311,7 +314,16 @@ export const SettingsPage: React.FC = () => {
 		email: '',
 		role: 'member' as 'owner' | 'admin' | 'member',
 	});
+	const [editFamilyMemberForm, setEditFamilyMemberForm] = useState({
+		id: '',
+		firstName: '',
+		lastName: '',
+		email: '',
+		role: 'member' as 'admin' | 'member',
+	});
 	const [isAddingFamilyMember, setIsAddingFamilyMember] = useState(false);
+	const [isSavingFamilyMemberEdit, setIsSavingFamilyMemberEdit] =
+		useState(false);
 	const [addFamilyMemberError, setAddFamilyMemberError] = useState('');
 	const [familyMemberSuccess, setFamilyMemberSuccess] = useState('');
 
@@ -455,6 +467,55 @@ export const SettingsPage: React.FC = () => {
 				error.message ||
 					'Failed to resend password setup email. Please try again.',
 			);
+		}
+	};
+
+	const handleOpenEditFamilyMember = (member: any) => {
+		setAddFamilyMemberError('');
+		setFamilyMemberSuccess('');
+		setEditFamilyMemberForm({
+			id: String(member.id || ''),
+			firstName: String(member.firstName || ''),
+			lastName: String(member.lastName || ''),
+			email: String(member.email || ''),
+			role: member.role === 'admin' ? 'admin' : 'member',
+		});
+		setShowEditFamilyMemberModal(true);
+	};
+
+	const handleSaveFamilyMemberEdit = async () => {
+		if (!currentUser?.accountId || !canManageFamilyRoles) {
+			return;
+		}
+		if (
+			!editFamilyMemberForm.id ||
+			!editFamilyMemberForm.firstName.trim() ||
+			!editFamilyMemberForm.lastName.trim()
+		) {
+			setAddFamilyMemberError('Please fill in first and last name');
+			return;
+		}
+
+		setAddFamilyMemberError('');
+		setFamilyMemberSuccess('');
+		setIsSavingFamilyMemberEdit(true);
+
+		try {
+			await updateFamilyMember(
+				currentUser.accountId,
+				editFamilyMemberForm.id,
+				editFamilyMemberForm.firstName.trim(),
+				editFamilyMemberForm.lastName.trim(),
+				editFamilyMemberForm.role,
+			);
+			const members = await getFamilyMembers(currentUser.accountId);
+			setFamilyMembers(members);
+			setShowEditFamilyMemberModal(false);
+			setFamilyMemberSuccess('Family member updated successfully.');
+		} catch (error: any) {
+			setAddFamilyMemberError(error.message || 'Failed to update family member');
+		} finally {
+			setIsSavingFamilyMemberEdit(false);
 		}
 	};
 
@@ -731,6 +792,22 @@ export const SettingsPage: React.FC = () => {
 											</span>
 										</div>
 										<div style={{ display: 'flex', gap: '8px' }}>
+											{member.id !== currentUser?.accountId && (
+												<button
+													type='button'
+													onClick={() => handleOpenEditFamilyMember(member)}
+													style={{
+														background: '#10b981',
+														color: 'white',
+														border: 'none',
+														borderRadius: '4px',
+														padding: '4px 8px',
+														fontSize: '12px',
+														cursor: 'pointer',
+													}}>
+													Edit
+												</button>
+											)}
 											<button
 												type='button'
 												onClick={() => handleResendPasswordSetup(member.id)}
@@ -1058,6 +1135,90 @@ export const SettingsPage: React.FC = () => {
 					Are you sure you want to cancel your subscription?
 				</p>
 			</GenericModal>
+
+			{canManageFamilyRoles && (
+				<GenericModal
+					isOpen={showEditFamilyMemberModal}
+					onClose={() => {
+						setShowEditFamilyMemberModal(false);
+						setAddFamilyMemberError('');
+					}}
+					title='Edit Family Member'
+					primaryButtonLabel={isSavingFamilyMemberEdit ? 'Saving...' : 'Save'}
+					primaryButtonAction={handleSaveFamilyMemberEdit}
+					secondaryButtonLabel='Cancel'
+					showActions={true}
+					primaryButtonDisabled={isSavingFamilyMemberEdit}>
+					<FormGroup>
+						<FormLabel>First Name</FormLabel>
+						<FormInput
+							type='text'
+							value={editFamilyMemberForm.firstName}
+							onChange={(e) =>
+								setEditFamilyMemberForm((prev) => ({
+									...prev,
+									firstName: e.target.value,
+								}))
+							}
+							placeholder='Enter first name'
+						/>
+					</FormGroup>
+
+					<FormGroup>
+						<FormLabel>Last Name</FormLabel>
+						<FormInput
+							type='text'
+							value={editFamilyMemberForm.lastName}
+							onChange={(e) =>
+								setEditFamilyMemberForm((prev) => ({
+									...prev,
+									lastName: e.target.value,
+								}))
+							}
+							placeholder='Enter last name'
+						/>
+					</FormGroup>
+
+					<FormGroup>
+						<FormLabel>Email Address</FormLabel>
+						<FormInput
+							type='email'
+							value={editFamilyMemberForm.email}
+							readOnly
+							disabled
+						/>
+					</FormGroup>
+
+					<FormGroup>
+						<FormLabel>Role</FormLabel>
+						<select
+							value={editFamilyMemberForm.role}
+							onChange={(e) =>
+								setEditFamilyMemberForm((prev) => ({
+									...prev,
+									role: e.target.value as 'admin' | 'member',
+								}))
+							}
+							style={{
+								width: '100%',
+								padding: '12px',
+								border: '1px solid #d1d5db',
+								borderRadius: '8px',
+								fontSize: '14px',
+								background: '#fff',
+							}}>
+							<option value='admin'>Admin</option>
+							<option value='member'>Member</option>
+						</select>
+					</FormGroup>
+
+					{addFamilyMemberError && (
+						<ErrorMessage style={{ marginTop: '16px' }}>
+							{addFamilyMemberError}
+						</ErrorMessage>
+					)}
+				</GenericModal>
+			)}
 
 			{canManageFamilyRoles && (
 				<GenericModal
