@@ -14,20 +14,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Validate deploy secrets
-        shell: bash
-        env:
-          PROD_FIREBASE_PROJECT_ID: ${{ secrets.PROD_FIREBASE_PROJECT_ID }}
-          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
-        run: |
-          missing=()
-          [[ -z "$PROD_FIREBASE_PROJECT_ID" ]] && missing+=("PROD_FIREBASE_PROJECT_ID")
-          [[ -z "$FIREBASE_TOKEN" ]] && missing+=("FIREBASE_TOKEN")
-
-          if (( ${#missing[@]} > 0 )); then
-            echo "Missing required deploy secrets: ${missing[*]}"
-            exit 1
-          fi
 
       - name: Resolve target Firebase project
         id: target
