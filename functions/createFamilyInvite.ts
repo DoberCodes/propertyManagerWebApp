@@ -84,7 +84,7 @@ export const createFamilyInvite = functions
 			? (accountData.memberIds as string[])
 			: [];
 
-		if (memberIds.length >= 2) {
+		if (memberIds.length >= 3) {
 			throw new functions.https.HttpsError(
 				'resource-exhausted',
 				'Family accounts are limited to 2 family members (plus the account owner)',

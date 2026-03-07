@@ -13,7 +13,6 @@ import {
 
 test.describe('Authentication', () => {
 	test('user can register a new account', async ({ page }) => {
-		// Generate a unique email for this test
 		const testEmail = generateTestEmail();
 		const testPassword = 'TestPassword123!';
 
@@ -21,10 +20,8 @@ test.describe('Authentication', () => {
 			submitFinalStep: false,
 		});
 
-		// Wait for the page to fully load and stabilize on final registration step
 		await page.waitForTimeout(1000);
 
-		// Verify the final step action button is present but not clicked
 		await expect(
 			page
 				.getByRole('button', {

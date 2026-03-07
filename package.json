@@ -81,7 +81,12 @@
 		"build:apk": "node scripts/initAppVersion.cjs && yarn build && npx cap sync android",
 		"build:signed": "bash build-signed-apk.sh",
 		"release:notes": "node scripts/generateReleaseNotes.cjs",
-		"testDeploy": "bash build-signed-apk.sh --dry-run"
+		"testDeploy": "bash build-signed-apk.sh --dry-run",
+		"test:stripe:sandbox": "npm --prefix functions run test:sandbox",
+		"test:stripe:cards:sandbox": "npm --prefix functions run test:cards:sandbox",
+		"test:stripe:e2e": "playwright test e2e/payment.spec.ts e2e/stripe-hosted-checkout.spec.ts --project=chromium",
+		"test:stripe:webhook:sandbox": "npm --prefix functions run test:webhook:sandbox",
+		"test:stripe:all": "npm run test:stripe:sandbox && npm run test:stripe:cards:sandbox && npm run test:stripe:webhook:sandbox && npm run test:stripe:e2e"
 	},
 	"browserslist": {
 		"production": [

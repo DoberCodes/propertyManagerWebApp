@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, Page } from '@playwright/test';
 import { loginWithDemoUser, waitForPageLoaded } from './auth.helper';
 
 /**
@@ -8,6 +8,44 @@ import { loginWithDemoUser, waitForPageLoaded } from './auth.helper';
  */
 
 test.describe('Payments & Subscriptions', () => {
+	const clickAnyCheckoutAction = async (page: Page): Promise<boolean> => {
+		const candidates = page.getByRole('button', {
+			name: /subscribe|upgrade|get started|select plan|keep/i,
+		});
+		const count = await candidates.count();
+
+		for (let index = 0; index < count; index += 1) {
+			const button = candidates.nth(index);
+			const text = (await button.textContent())?.toLowerCase() ?? '';
+
+			if (text.includes('current plan') || text.includes('scheduled')) {
+				continue;
+			}
+
+			const isVisible = await button
+				.isVisible({ timeout: 500 })
+				.catch(() => false);
+			const isEnabled = await button
+				.isEnabled({ timeout: 500 })
+				.catch(() => false);
+
+			if (isVisible && isEnabled) {
+				await button.click();
+				return true;
+			}
+		}
+
+		return false;
+	};
+
+	test.beforeAll(() => {
+		const stripePublicKey = process.env.REACT_APP_STRIPE_PUBLIC_KEY || '';
+		test.skip(
+			!stripePublicKey.startsWith('pk_test_'),
+			'Stripe payment tests require sandbox/test mode (REACT_APP_STRIPE_PUBLIC_KEY must start with pk_test_).',
+		);
+	});
+
 	test.beforeEach(async ({ page }) => {
 		await loginWithDemoUser(page);
 	});
@@ -31,14 +69,8 @@ test.describe('Payments & Subscriptions', () => {
 		await page.goto('/#/paywall', { waitUntil: 'domcontentloaded' });
 		await waitForPageLoaded(page);
 
-		// Click "Subscribe" or "Upgrade" button
-		const subscribeButton = page
-			.getByRole('button', {
-				name: /subscribe|upgrade|get started|select plan/i,
-			})
-			.first();
-		expect(await subscribeButton.isVisible()).toBeTruthy();
-		await subscribeButton.click();
+		// Click a valid checkout-triggering button for the current paywall state
+		expect(await clickAnyCheckoutAction(page)).toBeTruthy();
 
 		// Wait for either hosted Stripe redirect or embedded Stripe elements
 		await page.waitForTimeout(1500);
@@ -86,12 +118,8 @@ test.describe('Payments & Subscriptions', () => {
 		await page.goto('/#/paywall', { waitUntil: 'domcontentloaded' });
 		await waitForPageLoaded(page);
 
-		// Click "Subscribe" button
-		const subscribeButton = page
-			.getByRole('button', { name: /subscribe|upgrade|get started/i })
-			.first();
-		expect(await subscribeButton.isVisible()).toBeTruthy();
-		await subscribeButton.click();
+		// Click a valid checkout-triggering button for the current paywall state
+		expect(await clickAnyCheckoutAction(page)).toBeTruthy();
 
 		// Wait for either hosted Stripe redirect or embedded Stripe elements
 		await page.waitForTimeout(1500);

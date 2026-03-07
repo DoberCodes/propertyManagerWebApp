@@ -2,7 +2,8 @@ import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 import Stripe from 'stripe';
 import { defineSecret } from 'firebase-functions/params';
-const STRIPE_SECRET_KEY = defineSecret('STRIPE_SECRET_KEY');
+const STRIPE_SECRET_KEY = defineSecret(process.env.STRIPE_SECRET_KEY || 'STRIPE_SECRET_KEY');
+const STRIPE_WEBHOOK_SECRET = defineSecret('STRIPE_WEBHOOK_SECRET');
 
 if (!admin.apps.length) {
 	admin.initializeApp();
@@ -29,6 +30,18 @@ const resolveStripeSecretKey = (): string => {
 	const secretFromEnv = process.env.STRIPE_SECRET_KEY || '';
 
 	return secretFromManager || secretFromFunctionsConfig || secretFromEnv;
+};
+
+const resolveStripeWebhookSecret = (): string => {
+	let secretFromManager = '';
+	try {
+		secretFromManager = STRIPE_WEBHOOK_SECRET.value() || '';
+	} catch (error) {
+		console.warn('Unable to read STRIPE_WEBHOOK_SECRET from Secret Manager');
+	}
+
+	const secretFromEnv = process.env.STRIPE_WEBHOOK_SECRET || '';
+	return secretFromManager || secretFromEnv;
 };
 
 const getStripe = () => {
@@ -487,9 +500,16 @@ export const getSubscriptionDetails = functions
  * POST /stripe/webhook
  */
 export const stripeWebhook = functions
-	.runWith({ secrets: ['STRIPE_SECRET_KEY'] })
+	.runWith({ secrets: ['STRIPE_SECRET_KEY', 'STRIPE_WEBHOOK_SECRET'] })
 	.https.onRequest(async (req, res) => {
 		const sig = req.headers['stripe-signature'] as string;
+		const webhookSecret = resolveStripeWebhookSecret();
+
+		if (!webhookSecret) {
+			console.error('STRIPE_WEBHOOK_SECRET is not configured.');
+			res.status(500).send('Webhook secret not configured');
+			return;
+		}
 
 		try {
 			// Handle raw body for webhook signature verification
@@ -504,7 +524,7 @@ export const stripeWebhook = functions
 			const event = getStripe().webhooks.constructEvent(
 				rawBody,
 				sig,
-				process.env.STRIPE_WEBHOOK_SECRET!,
+				webhookSecret,
 			);
 
 			console.log('Received Stripe webhook event:', event.type);

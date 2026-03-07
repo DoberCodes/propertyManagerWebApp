@@ -160,6 +160,22 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = () => {
 		setSelectedDocument(null);
 	};
 
+	const allLegalDocumentsAccepted =
+		acceptedTerms &&
+		acceptedPrivacy &&
+		acceptedMaintenance &&
+		acceptedSubscriptionTerms &&
+		acceptedEula;
+
+	const handleToggleSelectAllLegal = (checked: boolean) => {
+		setAcceptedTerms(checked);
+		setAcceptedPrivacy(checked);
+		setAcceptedMaintenance(checked);
+		setAcceptedSubscriptionTerms(checked);
+		setAcceptedEula(checked);
+		setLegalError('');
+	};
+
 	const handleAcceptLegal = async () => {
 		setLegalError('');
 		if (!legalNotification || !currentUser) {
@@ -427,13 +443,7 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = () => {
 				secondaryButtonLabel='Cancel'
 				primaryButtonAction={handleAcceptLegal}
 				secondaryButtonAction={handleCloseLegalModal}
-				primaryButtonDisabled={
-					!acceptedTerms ||
-					!acceptedPrivacy ||
-					!acceptedMaintenance ||
-					!acceptedSubscriptionTerms ||
-					!acceptedEula
-				}
+				primaryButtonDisabled={!allLegalDocumentsAccepted}
 				isLoading={isUpdatingUser || isUpdating}
 				showActions>
 				<LegalNotice>
@@ -441,6 +451,19 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = () => {
 					interruption of service.
 				</LegalNotice>
 				{legalError && <LegalError>{legalError}</LegalError>}
+				<LegalSelectAllRow>
+					<LegalCheckbox
+						type='checkbox'
+						id='legal-select-all'
+						checked={allLegalDocumentsAccepted}
+						onChange={(event) =>
+							handleToggleSelectAllLegal(event.target.checked)
+						}
+					/>
+					<LegalSelectAllLabel htmlFor='legal-select-all'>
+						Select all legal documents
+					</LegalSelectAllLabel>
+				</LegalSelectAllRow>
 				<LegalSection>
 					<LegalCheckbox
 						type='checkbox'
@@ -765,6 +788,24 @@ const LegalSection = styled.div`
 	border-radius: 8px;
 	background: #f8fafc;
 	margin-bottom: 12px;
+`;
+
+const LegalSelectAllRow = styled.div`
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 10px 12px;
+	border: 1px solid #e2e8f0;
+	border-radius: 8px;
+	background: #ffffff;
+	margin-bottom: 12px;
+`;
+
+const LegalSelectAllLabel = styled.label`
+	font-size: 14px;
+	font-weight: 600;
+	color: #0f172a;
+	cursor: pointer;
 `;
 
 const LegalCheckbox = styled.input`

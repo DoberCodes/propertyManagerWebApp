@@ -351,9 +351,43 @@ export async function login(page: Page, email: string, password: string) {
 		.last();
 	await suppressDevServerOverlay(page);
 	await submitButton.click();
-	await page.waitForTimeout(2000);
+
+	const navigatedAfterLogin = await page
+		.waitForFunction(() => !window.location.hash.includes('/login'), {
+			timeout: 15000,
+		})
+		.then(() => true)
+		.catch(() => false);
+
+	if (!navigatedAfterLogin) {
+		const authError = await page
+			.locator('[role="alert"], [class*="error" i], [data-testid*="error" i]')
+			.first()
+			.textContent()
+			.catch(() => null);
+
+		throw new Error(
+			authError?.trim()
+				? `Login failed: ${authError.trim()}`
+				: 'Login failed: still on /#/login after submitting credentials. Verify E2E_DEMO_EMAIL/E2E_DEMO_PASSWORD.',
+		);
+	}
+
+	await page.waitForTimeout(500);
 
 	await dismissGuidedSetupIfPresent(page);
+
+	await page.goto('/#/dashboard', {
+		waitUntil: 'domcontentloaded',
+		timeout: 40000,
+	});
+	await waitForPageLoaded(page);
+
+	if (page.url().includes('/#/login')) {
+		throw new Error(
+			'Login failed: authenticated dashboard access was not established after login.',
+		);
+	}
 }
 
 export async function loginWithDemoUser(page: Page) {

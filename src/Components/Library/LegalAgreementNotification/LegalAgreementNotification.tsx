@@ -151,6 +151,24 @@ const LegalSection = styled.div`
 	}
 `;
 
+const SelectAllRow = styled.div`
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 12px 16px;
+	border: 1px solid #e2e8f0;
+	border-radius: 8px;
+	background: #ffffff;
+	margin-bottom: 16px;
+`;
+
+const SelectAllLabel = styled.label`
+	font-size: 14px;
+	font-weight: 600;
+	color: #0f172a;
+	cursor: pointer;
+`;
+
 const LegalCheckbox = styled.input`
 	margin-top: 4px;
 	flex-shrink: 0;
@@ -377,6 +395,15 @@ export const LegalAgreementNotification: React.FC<
 		}
 	};
 
+	const handleToggleSelectAll = (checked: boolean) => {
+		setAcceptedTerms(checked);
+		setAcceptedPrivacy(checked);
+		setAcceptedMaintenance(checked);
+		setAcceptedSubscriptionTerms(checked);
+		setAcceptedEula(checked);
+		setError('');
+	};
+
 	if (!show) {
 		return null;
 	}
@@ -408,6 +435,18 @@ export const LegalAgreementNotification: React.FC<
 					</WarningBox>
 
 					{error && <ErrorMessage>{error}</ErrorMessage>}
+
+					<SelectAllRow>
+						<LegalCheckbox
+							type='checkbox'
+							id='select-all-legal-docs'
+							checked={allAccepted}
+							onChange={(e) => handleToggleSelectAll(e.target.checked)}
+						/>
+						<SelectAllLabel htmlFor='select-all-legal-docs'>
+							Select all legal documents
+						</SelectAllLabel>
+					</SelectAllRow>
 
 					<LegalSection>
 						<LegalCheckbox

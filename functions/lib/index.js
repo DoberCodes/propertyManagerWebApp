@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ensureFamilyAccount = exports.acceptFamilyInvite = exports.revokeFamilyInvite = exports.listFamilyInvites = exports.createFamilyInvite = exports.getFamilyMembers = exports.resendFamilyMemberInvite = exports.deleteFamilyMemberAccount = exports.deleteUserAccount = exports.markTasksAsOverdue = exports.submitFeedback = exports.createTrialSubscription = exports.stripeWebhook = exports.getSubscriptionDetails = exports.cancelSubscription = exports.verifyCheckoutSession = exports.createCheckoutSession = exports.sendPushOnNotificationCreate = void 0;
+exports.ensureFamilyAccount = exports.updateFamilyMember = exports.updateFamilyMemberRole = exports.acceptFamilyInvite = exports.revokeFamilyInvite = exports.listFamilyInvites = exports.createFamilyInvite = exports.getFamilyMembers = exports.resendFamilyMemberInvite = exports.deleteFamilyMemberAccount = exports.deleteUserAccount = exports.markTasksAsOverdue = exports.submitFeedback = exports.createTrialSubscription = exports.stripeWebhook = exports.getSubscriptionDetails = exports.cancelSubscription = exports.verifyCheckoutSession = exports.createCheckoutSession = exports.sendPushOnNotificationCreate = void 0;
 var sendPushOnNotificationCreate_1 = require("./sendPushOnNotificationCreate");
 Object.defineProperty(exports, "sendPushOnNotificationCreate", { enumerable: true, get: function () { return sendPushOnNotificationCreate_1.sendPushOnNotificationCreate; } });
 var stripeFunctions_1 = require("./stripeFunctions");
@@ -31,6 +31,10 @@ var revokeFamilyInvite_1 = require("./revokeFamilyInvite");
 Object.defineProperty(exports, "revokeFamilyInvite", { enumerable: true, get: function () { return revokeFamilyInvite_1.revokeFamilyInvite; } });
 var acceptFamilyInvite_1 = require("./acceptFamilyInvite");
 Object.defineProperty(exports, "acceptFamilyInvite", { enumerable: true, get: function () { return acceptFamilyInvite_1.acceptFamilyInvite; } });
+var updateFamilyMemberRole_1 = require("./updateFamilyMemberRole");
+Object.defineProperty(exports, "updateFamilyMemberRole", { enumerable: true, get: function () { return updateFamilyMemberRole_1.updateFamilyMemberRole; } });
+var updateFamilyMember_1 = require("./updateFamilyMember");
+Object.defineProperty(exports, "updateFamilyMember", { enumerable: true, get: function () { return updateFamilyMember_1.updateFamilyMember; } });
 var ensureFamilyAccount_1 = require("./ensureFamilyAccount");
 Object.defineProperty(exports, "ensureFamilyAccount", { enumerable: true, get: function () { return ensureFamilyAccount_1.ensureFamilyAccount; } });
 // Temporarily disabled due to missing utils/taskNotificationScheduler module

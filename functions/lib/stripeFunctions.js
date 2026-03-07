@@ -41,7 +41,8 @@ const functions = __importStar(require("firebase-functions/v1"));
 const admin = __importStar(require("firebase-admin"));
 const stripe_1 = __importDefault(require("stripe"));
 const params_1 = require("firebase-functions/params");
-const STRIPE_SECRET_KEY = (0, params_1.defineSecret)('STRIPE_SECRET_KEY');
+const STRIPE_SECRET_KEY = (0, params_1.defineSecret)(process.env.STRIPE_SECRET_KEY || 'STRIPE_SECRET_KEY');
+const STRIPE_WEBHOOK_SECRET = (0, params_1.defineSecret)('STRIPE_WEBHOOK_SECRET');
 if (!admin.apps.length) {
     admin.initializeApp();
 }
@@ -66,6 +67,17 @@ const resolveStripeSecretKey = () => {
     }
     const secretFromEnv = process.env.STRIPE_SECRET_KEY || '';
     return secretFromManager || secretFromFunctionsConfig || secretFromEnv;
+};
+const resolveStripeWebhookSecret = () => {
+    let secretFromManager = '';
+    try {
+        secretFromManager = STRIPE_WEBHOOK_SECRET.value() || '';
+    }
+    catch (error) {
+        console.warn('Unable to read STRIPE_WEBHOOK_SECRET from Secret Manager');
+    }
+    const secretFromEnv = process.env.STRIPE_WEBHOOK_SECRET || '';
+    return secretFromManager || secretFromEnv;
 };
 const getStripe = () => {
     if (!stripe) {
@@ -385,9 +397,15 @@ exports.getSubscriptionDetails = functions
  * POST /stripe/webhook
  */
 exports.stripeWebhook = functions
-    .runWith({ secrets: ['STRIPE_SECRET_KEY'] })
+    .runWith({ secrets: ['STRIPE_SECRET_KEY', 'STRIPE_WEBHOOK_SECRET'] })
     .https.onRequest(async (req, res) => {
     const sig = req.headers['stripe-signature'];
+    const webhookSecret = resolveStripeWebhookSecret();
+    if (!webhookSecret) {
+        console.error('STRIPE_WEBHOOK_SECRET is not configured.');
+        res.status(500).send('Webhook secret not configured');
+        return;
+    }
     try {
         // Handle raw body for webhook signature verification
         let rawBody;
@@ -398,7 +416,7 @@ exports.stripeWebhook = functions
             // For newer Firebase Functions versions, reconstruct raw body
             rawBody = Buffer.from(JSON.stringify(req.body));
         }
-        const event = getStripe().webhooks.constructEvent(rawBody, sig, process.env.STRIPE_WEBHOOK_SECRET);
+        const event = getStripe().webhooks.constructEvent(rawBody, sig, webhookSecret);
         console.log('Received Stripe webhook event:', event.type);
         switch (event.type) {
             case 'customer.subscription.created':
