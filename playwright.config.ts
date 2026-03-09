@@ -1,5 +1,6 @@
 import { defineConfig, devices } from '@playwright/test';
 import dotenv from 'dotenv';
+import path from 'path';
 
 /**
  * Read environment variables from file.
@@ -7,6 +8,9 @@ import dotenv from 'dotenv';
  */
 dotenv.config({ path: '.env.local' });
 dotenv.config();
+
+const DEMO_AUTH_STATE_PATH = path.join('.auth', 'demo-user.json');
+const DESTRUCTIVE_GREP = /@destructive/;
 
 /**
  * See https://playwright.dev/docs/test-configuration.
@@ -42,28 +46,72 @@ export default defineConfig({
 	/* Configure projects for major browsers */
 	projects: [
 		{
+			name: 'setup',
+			testMatch: /auth\.setup\.ts/,
+		},
+		{
 			name: 'chromium',
-			use: { ...devices['Desktop Chrome'] },
+			use: {
+				...devices['Desktop Chrome'],
+				storageState: DEMO_AUTH_STATE_PATH,
+			},
+			grepInvert: DESTRUCTIVE_GREP,
+			dependencies: ['setup'],
 		},
 
 		{
 			name: 'firefox',
-			use: { ...devices['Desktop Firefox'] },
+			use: {
+				...devices['Desktop Firefox'],
+				storageState: DEMO_AUTH_STATE_PATH,
+			},
+			grepInvert: DESTRUCTIVE_GREP,
+			dependencies: ['setup'],
 		},
 
 		{
 			name: 'webkit',
-			use: { ...devices['Desktop Safari'] },
+			use: {
+				...devices['Desktop Safari'],
+				storageState: DEMO_AUTH_STATE_PATH,
+			},
+			grepInvert: DESTRUCTIVE_GREP,
+			dependencies: ['setup'],
 		},
 
 		/* Test against mobile viewports. */
 		{
 			name: 'Mobile Chrome',
-			use: { ...devices['Pixel 5'] },
+			use: {
+				...devices['Pixel 5'],
+				storageState: DEMO_AUTH_STATE_PATH,
+			},
+			grepInvert: DESTRUCTIVE_GREP,
+			dependencies: ['setup'],
 		},
 		{
 			name: 'Mobile Safari',
-			use: { ...devices['iPhone 12'] },
+			use: {
+				...devices['iPhone 12'],
+				storageState: DEMO_AUTH_STATE_PATH,
+			},
+			grepInvert: DESTRUCTIVE_GREP,
+			dependencies: ['setup'],
+		},
+		{
+			name: 'teardown',
+			use: {
+				...devices['Desktop Chrome'],
+				storageState: DEMO_AUTH_STATE_PATH,
+			},
+			grep: DESTRUCTIVE_GREP,
+			dependencies: [
+				'chromium',
+				'firefox',
+				'webkit',
+				'Mobile Chrome',
+				'Mobile Safari',
+			],
 		},
 
 		/* Test against branded browsers. */

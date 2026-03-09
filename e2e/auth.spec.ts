@@ -12,6 +12,9 @@ import {
  */
 
 test.describe('Authentication', () => {
+	test.describe('Registration Flow', () => {
+		test.use({ storageState: { cookies: [], origins: [] } });
+
 	test('user can register a new account', async ({ page }) => {
 		const testEmail = generateTestEmail();
 		const testPassword = 'TestPassword123!';
@@ -31,6 +34,9 @@ test.describe('Authentication', () => {
 		).toBeVisible();
 		console.log('✓ Reached final registration step without creating account');
 	});
+	});
+
+	test.describe('Demo Auth Flow', () => {
 
 	test('demo user can login and redirect to dashboard', async ({ page }) => {
 		await loginWithDemoUser(page);
@@ -52,5 +58,6 @@ test.describe('Authentication', () => {
 		expect(finalUrl).not.toMatch(/dashboard/i);
 		expect(finalUrl).toMatch(/login|signin|localhost:3000\/?(#\/)?$/i);
 		console.log('✓ Demo user login redirect and logout redirect verified');
+	});
 	});
 });

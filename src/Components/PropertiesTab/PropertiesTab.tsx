@@ -421,6 +421,9 @@ export const Properties = () => {
 			setPropertyToDelete(null);
 		} catch (error) {
 			console.error('Error deleting property:', error);
+			alert(
+				'Unable to delete this property with your current permissions. If this keeps happening, refresh and try again or contact the account owner/admin.',
+			);
 		} finally {
 			setIsDeletingProperty(false);
 			setOpenDropdown(null);
@@ -643,12 +646,38 @@ export const Properties = () => {
 				.replace(/\s+/g, '-')
 				.replace(/[^\w-]/g, '');
 
-			// Use groupId from formData (selected in dialog) or fall back to state
-			const groupId = formData.groupId || selectedGroupForDialog;
+			// Resolve groupId from form state, selected state, existing groups, or create a default group
+			let groupId =
+				typeof formData.groupId === 'string' && formData.groupId.trim()
+					? formData.groupId.trim()
+					: typeof selectedGroupForDialog === 'string' &&
+					  selectedGroupForDialog.trim()
+					? selectedGroupForDialog.trim()
+					: '';
 
-			// Validate that a group is selected
-			if (!groupId || groupId === '') {
-				alert('Please select a group for this property');
+			if (!groupId && filteredGroups.length > 0) {
+				groupId = filteredGroups[0].id;
+			}
+
+			if (!groupId) {
+				try {
+					const groupResult = await createPropertyGroup({
+						name: 'My Properties',
+						properties: [],
+						userId: currentUser!.id,
+					});
+
+					if ('data' in groupResult && groupResult.data) {
+						groupId = (groupResult.data as any).id;
+						setSelectedGroupForDialog(groupId);
+					}
+				} catch (groupError) {
+					console.error('Failed to auto-create default group:', groupError);
+				}
+			}
+
+			if (!groupId) {
+				alert('Please select or create a group for this property.');
 				throw new Error('No group selected');
 			}
 

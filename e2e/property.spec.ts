@@ -1,5 +1,9 @@
 import { test, expect } from '@playwright/test';
-import { loginWithDemoUser, waitForPageLoaded } from './auth.helper';
+import {
+	createPropertyForTest,
+	loginWithDemoUser,
+	waitForPageLoaded,
+} from './auth.helper';
 
 /**
  * Property management tests
@@ -12,226 +16,135 @@ test.describe('Property Management', () => {
 	});
 
 	test('user can create a new property', async ({ page }) => {
-		// Navigate to properties page
-		await page.goto('/#/properties');
-		await waitForPageLoaded(page);
-
-		// Dismiss any remaining modals/tours
-		const skipTourBtn = page.getByRole('button', { name: /skip tour/i });
-		for (let i = 0; i < 3; i++) {
-			if (await skipTourBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
-				await skipTourBtn.click({ force: true }).catch(() => {});
-				await page.waitForTimeout(500);
-			}
-		}
-
-		// Click "Add Property" or "Create Property" button
-		const createButton = page.getByRole('button', {
-			name: /add property|new property|create property/i,
+		const uniqueName = `My Test Property ${Date.now()}`;
+		const created = await createPropertyForTest(page, {
+			name: uniqueName,
+			address: '123 Main St, Springfield, IL 62701',
 		});
-		await page.waitForTimeout(500);
-		const canCreate = await createButton
-			.first()
-			.isVisible({ timeout: 5000 })
-			.catch(() => false);
-		if (!canCreate) {
-			test.skip(
-				true,
-				'Create property button not visible for current user state',
-			);
-		}
-		await createButton.first().click({ force: true });
 
-		// Wait for modal to appear
-		await page.waitForTimeout(800);
-
-		// Fill in property name first
-		const nameInput = page.locator(
-			'input[name*="name" i], input[placeholder*="property name" i]',
-		);
-		if (await nameInput.isVisible()) {
-			await nameInput.fill('My Test Property');
-		}
-		const nameFieldFilled = await nameInput
-			.inputValue()
-			.then((v) => v.length > 0)
-			.catch(() => false);
-
-		// Fill in address
-		await page.fill(
-			'input[placeholder*="address" i], input[name*="address" i]',
-			'123 Main St, Springfield, IL 62701',
-		);
-
-		// Fill in property type if available
-		const typeSelect = page.locator(
-			'select[name*="type" i], select[name*="propertyType" i]',
-		);
-		if (await typeSelect.isVisible()) {
-			const options = await typeSelect.locator('option').allTextContents();
-			const typeOption = options.find((opt) =>
-				/House|Apartment|Condo/i.test(opt),
-			);
-			if (typeOption) {
-				await typeSelect.selectOption({ label: typeOption });
-			}
-		}
-
-		// Submit the form
-		await page.waitForTimeout(500);
-		const submitButton = page
-			.getByRole('button', { name: /create|save|add/i })
-			.last();
-		await submitButton.scrollIntoViewIfNeeded().catch(() => {});
-		await submitButton.click();
-
-		// Wait for modal to close and property to appear in list
-		await page.waitForTimeout(2000);
-
-		// Verify property appears in the properties list
-		const propertyInList = page.getByText(
-			/123 Main St|My Test Property|Springfield/i,
-		);
-		const propertyVisible = await propertyInList
-			.isVisible({ timeout: 8000 })
-			.catch(() => false);
-		const anyPropertyCardVisible = await page
-			.locator(
-				'[data-testid*="property"], .property-card, a[href*="/property/"]',
-			)
-			.first()
-			.isVisible({ timeout: 3000 })
-			.catch(() => false);
-		const stillOnPropertiesPage = /properties/i.test(page.url());
-
-		expect(
-			propertyVisible ||
-				anyPropertyCardVisible ||
-				nameFieldFilled ||
-				stillOnPropertiesPage,
-		).toBeTruthy();
+		expect(created).toBeTruthy();
 	});
 
 	test('user can view property details', async ({ page }) => {
-		// Navigate to properties page
-		await page.goto('/#/properties');
+		const propertyName = `E2E View Property ${Date.now()}`;
+		expect(
+			await createPropertyForTest(page, {
+				name: propertyName,
+				address: '500 View Way, Springfield, IL 62701',
+			}),
+		).toBeTruthy();
+		await page.goto('/#/properties', { waitUntil: 'domcontentloaded' });
 		await waitForPageLoaded(page);
 
-		// Click on first property
-		const propertyCard = page
-			.locator(
-				'[data-testid*="property"], .property-card, a[href*="/property/"]',
-			)
-			.first();
-		const hasPropertyCard = await propertyCard
-			.isVisible({ timeout: 5000 })
-			.catch(() => false);
-		if (!hasPropertyCard) {
-			test.skip(true, 'No property card available to open details');
-		}
-		await propertyCard.click();
+		const propertyImage = page.locator(`img[alt="${propertyName}"]`).first();
+		await expect(propertyImage).toBeVisible({ timeout: 10000 });
+		await propertyImage.click({ force: true });
 
 		// Verify property details page loaded
-		await page.waitForTimeout(500);
-
-		// Check for property details
-		const detailsHeader = page.getByRole('heading');
-		await expect(detailsHeader.first()).toBeVisible();
+		await expect(page).toHaveURL(/#\/property\//i, { timeout: 10000 });
 	});
 
 	test('user can update property details', async ({ page }) => {
-		// Navigate to properties page
-		await page.goto('/#/properties');
+		const initialName = `E2E Update Property ${Date.now()}`;
+		expect(
+			await createPropertyForTest(page, {
+				name: initialName,
+				address: '600 Update Ave, Springfield, IL 62701',
+			}),
+		).toBeTruthy();
+		await page.goto('/#/properties', { waitUntil: 'domcontentloaded' });
 		await waitForPageLoaded(page);
 
-		// Click edit button on first property
-		const editButton = page
-			.getByRole('button', { name: /edit|modify/i })
+		const scopedOverflowToggle = page
+			.locator(`img[alt="${initialName}"]`)
+			.first()
+			.locator('xpath=ancestor::*[.//button[contains(normalize-space(),"⋮")]][1]')
+			.getByText('⋮')
 			.first();
-		const hasEditButton = await editButton
-			.isVisible({ timeout: 5000 })
-			.catch(() => false);
-		if (!hasEditButton) {
-			test.skip(true, 'No edit control available for property');
-		}
-		await editButton.click();
+		const overflowToggle = (await scopedOverflowToggle
+			.isVisible({ timeout: 2000 })
+			.catch(() => false))
+			? scopedOverflowToggle
+			: page.getByText('⋮').first();
+
+		await expect(overflowToggle).toBeVisible({ timeout: 10000 });
+		await overflowToggle.click({ force: true });
+		await page.getByText(/^Edit$/).first().click();
 
 		// Update property name
-		const nameInput = page.locator(
-			'input[name*="name" i], input[placeholder*="name" i]',
-		);
+		const updatedNameValue = `Updated Property ${Date.now()}`;
+		const nameInput = page.getByPlaceholder(/enter property name/i).first();
 		await nameInput.clear();
-		await nameInput.fill('Updated Property Name');
+		await nameInput.fill(updatedNameValue);
+		await expect(nameInput).toHaveValue(updatedNameValue);
 
 		// Save changes
-		const saveButton = page
-			.getByRole('button', { name: /save|update/i })
-			.last();
-		await saveButton.click();
+		const saveButton = page.getByRole('button', {
+			name: /save property|save|update/i,
+		});
+		await saveButton.last().click({ force: true });
 
 		// Verify update was successful
-		await page.waitForTimeout(1000);
-		const successMessage = page.getByText(/success|updated|saved/i);
-		const successVisible = await successMessage
-			.isVisible({ timeout: 5000 })
-			.catch(() => false);
-
-		// Verify updated name appears
-		const updatedName = page.getByText(/Updated Property Name/);
+		await page.waitForTimeout(1500);
+		const editHeading = page.getByRole('heading', { name: /edit property/i }).first();
+		if (await editHeading.isVisible({ timeout: 1500 }).catch(() => false)) {
+			await page.keyboard.press('Escape').catch(() => {});
+		}
+		const updatedName = page.getByText(new RegExp(updatedNameValue, 'i'));
 		const updatedVisible = await updatedName
-			.isVisible({ timeout: 5000 })
+			.first()
+			.isVisible({ timeout: 10000 })
 			.catch(() => false);
-		expect(successVisible || updatedVisible).toBeTruthy();
+		expect(updatedVisible).toBeTruthy();
 	});
 
-	test('user can delete a property', async ({ page }) => {
-		// Navigate to properties page
-		await page.goto('/#/properties');
+	test('user can delete a property @destructive', async ({ page }) => {
+		await page.goto('/#/properties', { waitUntil: 'domcontentloaded' });
 		await waitForPageLoaded(page);
 
-		// Get property count before deletion
-		const propertyItems = page.locator(
-			'[data-testid*="property"], .property-card',
-		);
-		const countBefore = await propertyItems.count();
+		const getOverflowCount = async () => {
+			await page.waitForTimeout(800);
+			return page.getByText('⋮').count();
+		};
 
-		// Click delete button on first property
-		const deleteButton = page
-			.getByRole('button', { name: /delete|remove/i })
-			.first();
-		const hasDeleteButton = await deleteButton
-			.isVisible({ timeout: 5000 })
-			.catch(() => false);
-		if (!hasDeleteButton) {
-			test.skip(true, 'No delete control available for property');
+		let countBefore = await getOverflowCount();
+
+		if (countBefore === 0) {
+			await page.reload({ waitUntil: 'domcontentloaded' });
+			await waitForPageLoaded(page);
+			countBefore = await getOverflowCount();
 		}
-		await deleteButton.click();
+
+		if (countBefore === 0) {
+			expect(
+				await createPropertyForTest(page, {
+					name: `E2E Delete Property ${Date.now()}`,
+					address: '700 Delete Rd, Springfield, IL 62701',
+				}),
+			).toBeTruthy();
+			await page.goto('/#/properties', { waitUntil: 'domcontentloaded' });
+			await waitForPageLoaded(page);
+			countBefore = await page.getByText('⋮').count();
+		}
+		expect(countBefore).toBeGreaterThan(0);
+
+		await page.getByText('⋮').first().click();
+		await page.getByText(/^Delete$/).first().click();
 
 		// Confirm deletion if prompted
-		const confirmButton = page.getByRole('button', {
-			name: /confirm|yes|delete|ok/i,
-		});
-		if (
-			await confirmButton
-				.first()
-				.isVisible()
-				.catch(() => false)
-		) {
-			await confirmButton.first().click();
+		const confirmMessage = page.getByText(
+			/are you sure you want to delete this property/i,
+		);
+		if (await confirmMessage.isVisible({ timeout: 3000 }).catch(() => false)) {
+			await page
+				.getByRole('button', { name: /^Delete$/i })
+				.last()
+				.click({ force: true });
 		}
 
 		// Verify deletion was successful
-		await page.waitForTimeout(1000);
-		const successMessage = page.getByText(/success|deleted|removed/i);
-		const successVisible = await successMessage
-			.isVisible({ timeout: 5000 })
-			.catch(() => false);
-
-		// Verify property count decreased
-		const propertyItemsAfter = page.locator(
-			'[data-testid*="property"], .property-card',
-		);
-		const countAfter = await propertyItemsAfter.count();
-		expect(successVisible || countAfter <= countBefore).toBeTruthy();
+		await page.waitForTimeout(2000);
+		const countAfter = await page.getByText('⋮').count();
+		expect(countAfter).toBeLessThanOrEqual(countBefore);
 	});
 });

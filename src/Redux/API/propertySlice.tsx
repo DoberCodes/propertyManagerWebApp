@@ -761,24 +761,53 @@ const propertySlice = apiSlice.injectEndpoints({
 		deleteProperty: builder.mutation<void, string>({
 			async queryFn(propertyId: string) {
 				try {
+					const currentUser = auth.currentUser;
+					if (!currentUser) {
+						return { error: 'User not authenticated' };
+					}
+
 					const propertyRef = doc(db, 'properties', propertyId);
 					const propertySnapshot = await getDoc(propertyRef);
+					if (!propertySnapshot.exists()) {
+						return { data: undefined };
+					}
+
 					const propertyData = propertySnapshot.data() || {};
 					const accountId = String(propertyData.accountId || '').trim() || undefined;
-
-					await deletePropertyGroupMemberships(propertyId, accountId);
 
 					// Delete the property
 					await deleteDoc(propertyRef);
 
-					// Delete all favorites for this property
+					// Best-effort cleanup: do not fail the mutation if non-critical cleanup
+					// lacks permissions in multi-user/shared scenarios.
+					if (accountId) {
+						try {
+							await deletePropertyGroupMemberships(propertyId, accountId);
+						} catch (membershipCleanupError) {
+							console.warn(
+								'Property deleted, but failed to clean up group memberships:',
+								membershipCleanupError,
+							);
+						}
+					}
+
+					// Delete only current user's favorites to respect Firestore security
+					// rules (users cannot delete other users' favorites from client).
 					const favoritesQuery = query(
 						collection(db, 'favorites'),
 						where('propertyId', '==', propertyId),
+						where('userId', '==', currentUser.uid),
 					);
-					const favoritesSnapshot = await getDocs(favoritesQuery);
-					for (const favDoc of favoritesSnapshot.docs) {
-						await deleteDoc(favDoc.ref);
+					try {
+						const favoritesSnapshot = await getDocs(favoritesQuery);
+						for (const favDoc of favoritesSnapshot.docs) {
+							await deleteDoc(favDoc.ref);
+						}
+					} catch (favoritesCleanupError) {
+						console.warn(
+							'Property deleted, but failed to clean up current-user favorites:',
+							favoritesCleanupError,
+						);
 					}
 
 					return { data: undefined };

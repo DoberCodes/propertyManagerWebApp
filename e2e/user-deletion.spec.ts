@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import {
+	createPropertyForTest,
 	registerNewAccount,
 	generateTestEmail,
 	loginWithDemoUser,
@@ -14,7 +15,7 @@ import {
  * Verifies properties, tasks, and accounts can be removed by the user
  */
 
-test.describe('User Account & Data Deletion', () => {
+test.describe('User Account & Data Deletion @destructive', () => {
 	test('user can delete all their properties through the UI', async ({
 		page,
 	}) => {
@@ -24,33 +25,18 @@ test.describe('User Account & Data Deletion', () => {
 
 		// Step 2: Create multiple properties
 		console.log('📦 Creating test properties...');
+		let createdPropertyCount = 0;
 		for (let i = 1; i <= 2; i++) {
-			await page.goto('/#/properties', { waitUntil: 'domcontentloaded' });
-			await waitForPageLoaded(page);
-
-			const createButton = page.getByRole('button', {
-				name: /add property|new property|create/i,
+			const created = await createPropertyForTest(page, {
+				name: `Deletion Property ${Date.now()} ${i}`,
+				address: `${100 + i} Delete Lane, Springfield, IL 62701`,
 			});
-			if (await createButton.isVisible({ timeout: 3000 }).catch(() => false)) {
-				await createButton.click();
-				await page.waitForTimeout(500);
-
-				const addressInput = page.locator(
-					'input[placeholder*="address" i], input[name*="address" i]',
-				);
-				if (
-					await addressInput.isVisible({ timeout: 2000 }).catch(() => false)
-				) {
-					await addressInput.fill(`Test Property ${i} for Deletion`);
-					const submitBtn = page
-						.getByRole('button', { name: /create|save|add/i })
-						.last();
-					await submitBtn.click();
-					await page.waitForTimeout(1000);
-					console.log(`   ✅ Created property ${i}`);
-				}
+			if (created) {
+				createdPropertyCount++;
+				console.log(`   ✅ Created property ${i}`);
 			}
 		}
+		expect(createdPropertyCount).toBeGreaterThan(0);
 
 		// Step 3: Navigate to properties and delete them
 		console.log('🗑️  Deleting properties...');
@@ -58,37 +44,36 @@ test.describe('User Account & Data Deletion', () => {
 		await waitForPageLoaded(page);
 
 		let propertyCount = 0;
-		let keepDeleting = true;
-
-		while (keepDeleting) {
-			const deleteButtons = page.getByRole('button', {
-				name: /delete|remove/i,
-			});
-			const firstDeleteBtn = deleteButtons.first();
-
-			if (
-				await firstDeleteBtn.isVisible({ timeout: 2000 }).catch(() => false)
-			) {
-				await firstDeleteBtn.click();
-				await page.waitForTimeout(500);
-
-				// Confirm deletion if prompted
-				const confirmBtn = page.getByRole('button', {
-					name: /confirm|yes|delete|ok/i,
-				});
-				if (await confirmBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-					await confirmBtn.click();
-					await page.waitForTimeout(1000);
-					propertyCount++;
-					console.log(`   ✅ Property ${propertyCount} deleted`);
-				}
-			} else {
-				keepDeleting = false;
+		const maxDeletes = 5;
+		for (let attempt = 0; attempt < maxDeletes; attempt++) {
+			const overflowToggle = page.getByText('⋮').first();
+			const hasToggle = await overflowToggle
+				.isVisible({ timeout: 2000 })
+				.catch(() => false);
+			if (!hasToggle) {
+				break;
 			}
+
+			await overflowToggle.click();
+			const deleteItem = page.getByText(/^Delete$/).first();
+			const hasDeleteItem = await deleteItem
+				.isVisible({ timeout: 2000 })
+				.catch(() => false);
+			if (!hasDeleteItem) {
+				break;
+			}
+
+			await deleteItem.click();
+			const confirmBtn = page.getByRole('button', { name: /^Delete$/i }).first();
+			await expect(confirmBtn).toBeVisible({ timeout: 3000 });
+			await confirmBtn.click();
+			await page.waitForTimeout(900);
+			propertyCount++;
+			console.log(`   ✅ Property ${propertyCount} deleted`);
 		}
 
 		console.log(`✅ Successfully deleted ${propertyCount} properties`);
-		expect(propertyCount).toBeGreaterThanOrEqual(0);
+		expect(propertyCount).toBeGreaterThan(0);
 	});
 
 	test('user can delete all their tasks through the UI', async ({ page }) => {
@@ -98,6 +83,7 @@ test.describe('User Account & Data Deletion', () => {
 
 		// Step 2: Create multiple tasks
 		console.log('📋 Creating test tasks...');
+		let createdTaskCount = 0;
 		for (let i = 1; i <= 2; i++) {
 			await page.goto('/#/tasks', { waitUntil: 'domcontentloaded' });
 			await waitForPageLoaded(page);
@@ -119,10 +105,12 @@ test.describe('User Account & Data Deletion', () => {
 						.last();
 					await submitBtn.click();
 					await page.waitForTimeout(1000);
+					createdTaskCount++;
 					console.log(`   ✅ Created task ${i}`);
 				}
 			}
 		}
+		expect(createdTaskCount).toBeGreaterThan(0);
 
 		// Step 3: Navigate to tasks and delete them
 		console.log('🗑️  Deleting tasks...');
@@ -164,7 +152,7 @@ test.describe('User Account & Data Deletion', () => {
 		}
 
 		console.log(`✅ Successfully deleted ${taskCount} tasks`);
-		expect(taskCount).toBeGreaterThanOrEqual(0);
+		expect(taskCount).toBeGreaterThan(0);
 	});
 
 	test('user can delete their account through the UI', async ({ page }) => {
@@ -314,6 +302,7 @@ test.describe('User Account & Data Deletion', () => {
 			name: /add property|new property|create/i,
 		});
 
+		let propertyCreated = false;
 		if (await createPropBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
 			await createPropBtn.click();
 			const addressInput = page.locator('input[placeholder*="address" i]');
@@ -323,6 +312,7 @@ test.describe('User Account & Data Deletion', () => {
 					.getByRole('button', { name: /create|save/i })
 					.last()
 					.click();
+				propertyCreated = true;
 				console.log('   ✅ Property created');
 			}
 		}
@@ -335,6 +325,6 @@ test.describe('User Account & Data Deletion', () => {
 		console.log(`   1. Manual UI deletion: Delete via Settings → Account`);
 		console.log(`   2. Restore demo data if needed for next run`);
 
-		expect(true).toBeTruthy();
+		expect(propertyCreated).toBeTruthy();
 	});
 });

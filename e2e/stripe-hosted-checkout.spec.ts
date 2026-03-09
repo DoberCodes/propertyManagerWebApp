@@ -1,6 +1,9 @@
 import { test, expect, Page, Frame } from '@playwright/test';
 import { loginWithDemoUser, waitForPageLoaded } from './auth.helper';
 
+const strictHostedCheckout =
+	String(process.env.E2E_STRIPE_STRICT_HOSTED || '').toLowerCase() === 'true';
+
 const clickAnyCheckoutAction = async (page: Page): Promise<boolean> => {
 	const candidates = page.getByRole('button', {
 		name: /subscribe|upgrade|get started|select plan|keep/i,
@@ -163,7 +166,14 @@ test.describe('Stripe Hosted Checkout Cards', () => {
 		page,
 	}) => {
 		const hostedReached = await openHostedCheckout(page);
-		test.skip(!hostedReached, 'Hosted Stripe Checkout not reached in this environment.');
+		if (!hostedReached) {
+			if (strictHostedCheckout) {
+				throw new Error(
+					'Hosted Stripe Checkout was not reached while E2E_STRIPE_STRICT_HOSTED=true.',
+				);
+			}
+			test.skip(true, 'Hosted Stripe Checkout not reached in this environment.');
+		}
 
 		await fillHostedCardForm(page, '4000000000000002');
 		await submitHostedCheckout(page);
@@ -184,7 +194,14 @@ test.describe('Stripe Hosted Checkout Cards', () => {
 		page,
 	}) => {
 		const hostedReached = await openHostedCheckout(page);
-		test.skip(!hostedReached, 'Hosted Stripe Checkout not reached in this environment.');
+		if (!hostedReached) {
+			if (strictHostedCheckout) {
+				throw new Error(
+					'Hosted Stripe Checkout was not reached while E2E_STRIPE_STRICT_HOSTED=true.',
+				);
+			}
+			test.skip(true, 'Hosted Stripe Checkout not reached in this environment.');
+		}
 
 		await fillHostedCardForm(page, '4242424242424242');
 		await submitHostedCheckout(page);
@@ -196,5 +213,14 @@ test.describe('Stripe Hosted Checkout Cards', () => {
 
 		expect(returnedToApp).toBeTruthy();
 		await expect(page).toHaveURL(/#\/dashboard/i);
+
+		await page.waitForTimeout(1500);
+		if (/\/#\/login/i.test(page.url())) {
+			await loginWithDemoUser(page);
+		}
+
+		await page.goto('/#/report', { waitUntil: 'domcontentloaded' });
+		await page.waitForTimeout(800);
+		expect(/#\/paywall/i.test(page.url())).toBeFalsy();
 	});
 });

@@ -1,5 +1,10 @@
 import { test, expect } from '@playwright/test';
-import { loginWithDemoUser, waitForPageLoaded } from './auth.helper';
+import {
+	createPropertyForTest,
+	createTaskForTest,
+	loginWithDemoUser,
+	waitForPageLoaded,
+} from './auth.helper';
 
 /**
  * Task management tests
@@ -12,6 +17,8 @@ test.describe('Task Management', () => {
 	});
 
 	test('user can create a new task', async ({ page }) => {
+		expect(await createPropertyForTest(page)).toBeTruthy();
+
 		// Navigate to tasks page
 		await page.goto('/#/tasks');
 		await waitForPageLoaded(page);
@@ -24,9 +31,7 @@ test.describe('Task Management', () => {
 			.first()
 			.isVisible({ timeout: 5000 })
 			.catch(() => false);
-		if (!canCreateTask) {
-			test.skip(true, 'Create task button not visible for current user state');
-		}
+		expect(canCreateTask).toBeTruthy();
 		await createButton.first().click();
 
 		// Wait for modal/form to appear
@@ -111,42 +116,34 @@ test.describe('Task Management', () => {
 	});
 
 	test('user can view task details', async ({ page }) => {
+		const taskTitle = `E2E View Task ${Date.now()}`;
+		expect(
+			await createTaskForTest(page, {
+				title: taskTitle,
+				ensureProperty: true,
+			}),
+		).toBeTruthy();
+
 		// Navigate to tasks page
 		await page.goto('/#/tasks');
 		await waitForPageLoaded(page);
 
-		// Click on first task
-		const taskCard = page
-			.locator('[data-testid*="task"], .task-card, [role="listitem"]')
-			.first();
-		const hasTaskCard = await taskCard
-			.isVisible({ timeout: 5000 })
+		const taskRow = page.getByText(new RegExp(taskTitle, 'i'));
+		const rowVisible = await taskRow
+			.first()
+			.isVisible({ timeout: 10000 })
 			.catch(() => false);
-		if (!hasTaskCard) {
-			test.skip(true, 'No task item available to open details');
-		}
-		await taskCard.click();
-
-		// Verify task details page/modal loaded
-		await page.waitForTimeout(500);
-
-		// Check for task details content
-		const taskContent = page.locator(
-			'[data-testid*="task-detail"], .task-details',
-		);
-		const detailsVisible = await taskContent
+		const tableVisible = await page
+			.getByText(/Title|Status|Priority|Due Date/i)
 			.first()
 			.isVisible({ timeout: 5000 })
 			.catch(() => false);
-		const headingVisible = await page
-			.getByRole('heading')
-			.first()
-			.isVisible({ timeout: 3000 })
-			.catch(() => false);
-		expect(detailsVisible || headingVisible).toBeTruthy();
+		expect(rowVisible && tableVisible).toBeTruthy();
 	});
 
 	test('user can update task details', async ({ page }) => {
+		expect(await createTaskForTest(page, { ensureProperty: true })).toBeTruthy();
+
 		// Navigate to tasks page
 		await page.goto('/#/tasks');
 		await waitForPageLoaded(page);
@@ -158,9 +155,7 @@ test.describe('Task Management', () => {
 		const hasEdit = await editButton
 			.isVisible({ timeout: 5000 })
 			.catch(() => false);
-		if (!hasEdit) {
-			test.skip(true, 'No edit button available for tasks');
-		}
+		expect(hasEdit).toBeTruthy();
 		await editButton.click();
 
 		// Wait for form to load
@@ -205,6 +200,8 @@ test.describe('Task Management', () => {
 	});
 
 	test('user can mark task as completed', async ({ page }) => {
+		expect(await createTaskForTest(page, { ensureProperty: true })).toBeTruthy();
+
 		// Navigate to tasks page
 		await page.goto('/#/tasks');
 		await waitForPageLoaded(page);
@@ -221,9 +218,12 @@ test.describe('Task Management', () => {
 
 		// Verify completion
 		await page.waitForTimeout(500);
+		expect(/tasks/i.test(page.url())).toBeTruthy();
 	});
 
-	test('user can delete a task', async ({ page }) => {
+	test('user can delete a task @destructive', async ({ page }) => {
+		expect(await createTaskForTest(page, { ensureProperty: true })).toBeTruthy();
+
 		// Navigate to tasks page
 		await page.goto('/#/tasks');
 		await waitForPageLoaded(page);
@@ -241,9 +241,7 @@ test.describe('Task Management', () => {
 		const hasDelete = await deleteButton
 			.isVisible({ timeout: 5000 })
 			.catch(() => false);
-		if (!hasDelete) {
-			test.skip(true, 'No delete button available for tasks');
-		}
+		expect(hasDelete).toBeTruthy();
 		await deleteButton.click();
 
 		// Confirm deletion if prompted
