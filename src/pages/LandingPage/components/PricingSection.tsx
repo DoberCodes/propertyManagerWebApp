@@ -45,14 +45,26 @@ const paidPlans = [
 ];
 
 const permissionComparisonRows = [
-	{ key: 'canExportData', label: 'Export reports' },
-	{ key: 'canManageMultiUnit', label: 'Multi-unit property support' },
-	{ key: 'canManageTenants', label: 'Maintenance request intake' },
-	{ key: 'canAdvancedAuditTrail', label: 'Advanced audit trail depth' },
-	{ key: 'canManageTenants', label: 'Tenant management' },
-	{ key: 'canManageTeam', label: 'Manage team members' },
-	{ key: 'canViewReports', label: 'Advanced reports' },
-	{ key: 'prioritySupport', label: 'Priority support' },
+	{ id: 'exportReports', key: 'canExportData', label: 'Export reports' },
+	{
+		id: 'multiUnitSupport',
+		key: 'canManageMultiUnit',
+		label: 'Multi-unit property support',
+	},
+	{
+		id: 'maintenanceRequestIntake',
+		key: 'canManageTenants',
+		label: 'Maintenance request intake',
+	},
+	{
+		id: 'advancedAuditTrail',
+		key: 'canAdvancedAuditTrail',
+		label: 'Advanced audit trail depth',
+	},
+	{ id: 'tenantManagement', key: 'canManageTenants', label: 'Tenant management' },
+	{ id: 'manageTeamMembers', key: 'canManageTeam', label: 'Manage team members' },
+	{ id: 'advancedReports', key: 'canViewReports', label: 'Advanced reports' },
+	{ id: 'prioritySupport', key: 'prioritySupport', label: 'Priority support' },
 ] as const;
 
 const coreFeatureComparisonRows = [
@@ -136,8 +148,8 @@ const PricingSectionComponent = () => {
 							))}
 						</PricingTableRow>
 					))}
-					{permissionComparisonRows.map(({ key, label }) => (
-						<PricingTableRow key={key}>
+					{permissionComparisonRows.map(({ id, key, label }) => (
+						<PricingTableRow key={id}>
 							<PricingTableCell>{label}</PricingTableCell>
 							{paidPlans.map((plan) => (
 								<PricingTableCell key={`${plan.id}-${key}`}>

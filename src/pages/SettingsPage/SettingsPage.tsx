@@ -211,11 +211,13 @@ const AccountActions = styled.div`
 const ResourceButtons = styled.div`
 	display: flex;
 	flex-direction: column;
+	align-items: flex-start;
 	gap: 12px;
 `;
 
 const AccountButton = styled.button<{ disabled?: boolean }>`
 	padding: 12px 24px;
+	width: fit-content;
 	background: #6366f1;
 	color: #fff;
 	border-radius: 8px;
@@ -281,6 +283,11 @@ export const SettingsPage: React.FC = () => {
 	const navigate = useNavigate();
 	const dispatch = useDispatch<AppDispatch>();
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
+	const isTenant = currentUser?.role === 'tenant';
+	const isPrimaryAccountHolder =
+		!!currentUser &&
+		(currentUser.isAccountOwner || currentUser.accountId === currentUser.id);
+	const canViewPlanSection = !isTenant && isPrimaryAccountHolder;
 	const [showPasswordModal, setShowPasswordModal] = useState(false);
 	const [showFeedbackModal, setShowFeedbackModal] = useState(false);
 	const [showDeleteAccountModal, setShowDeleteAccountModal] = useState(false);
@@ -679,7 +686,8 @@ export const SettingsPage: React.FC = () => {
 	return (
 		<Container>
 			<Title>Settings</Title>
-			{subscription?.hasScheduledSubscription &&
+			{canViewPlanSection &&
+				subscription?.hasScheduledSubscription &&
 				subscription?.scheduledPlan &&
 				subscription?.trialEndsAt && (
 					<ScheduledSubscriptionBanner
@@ -688,7 +696,7 @@ export const SettingsPage: React.FC = () => {
 						onManageClick={() => navigate('/paywall')}
 					/>
 				)}
-			{isTrialExpired(subscription) && (
+			{canViewPlanSection && isTrialExpired(subscription) && (
 				<ExpiredTrialBanner onUpgradeClick={() => navigate('/paywall')} />
 			)}
 			{subscriptionError && (
@@ -697,48 +705,50 @@ export const SettingsPage: React.FC = () => {
 				</ErrorMessage>
 			)}
 
-			<SubscriptionSection>
-				<SubscriptionHeader>
-					<PlanName>{planDetails?.name || 'Unknown Plan'}</PlanName>
-					<PlanStatus status={subscription.status}>
-						{subscription.status}
-					</PlanStatus>
-				</SubscriptionHeader>
+			{canViewPlanSection && (
+				<SubscriptionSection>
+					<SubscriptionHeader>
+						<PlanName>{planDetails?.name || 'Unknown Plan'}</PlanName>
+						<PlanStatus status={subscription.status}>
+							{subscription.status}
+						</PlanStatus>
+					</SubscriptionHeader>
 
-				{isOnTrial && (
-					<TrialInfo>
-						<TrialText>
-							{trialDaysRemaining === -1
-								? '🎉 You have unlimited access with your promo code'
-								: `🎉 You have ${trialDaysRemaining} days left in your free trial`}
-						</TrialText>
-					</TrialInfo>
-				)}
+					{isOnTrial && (
+						<TrialInfo>
+							<TrialText>
+								{trialDaysRemaining === -1
+									? '🎉 You have unlimited access with your promo code'
+									: `🎉 You have ${trialDaysRemaining} days left in your free trial`}
+							</TrialText>
+						</TrialInfo>
+					)}
 
-				<PlanDetails>
-					<PlanPrice>${planDetails?.priceMonthly || 0}/month</PlanPrice>
-					<PlanFeatures>
-						{planDetails?.features.map((feature, index) => (
-							<PlanFeature key={index}>{feature}</PlanFeature>
-						))}
-					</PlanFeatures>
-				</PlanDetails>
+					<PlanDetails>
+						<PlanPrice>${planDetails?.priceMonthly || 0}/month</PlanPrice>
+						<PlanFeatures>
+							{planDetails?.features.map((feature, index) => (
+								<PlanFeature key={index}>{feature}</PlanFeature>
+							))}
+						</PlanFeatures>
+					</PlanDetails>
 
-				<ButtonContainer>
-					<UpgradeButton onClick={() => navigate('/paywall')}>
-						{subscription.plan === 'free' ? 'Upgrade Plan' : 'Change Plan'}
-					</UpgradeButton>
-					{subscription.status === 'active' &&
-						subscription.stripeSubscriptionId && (
-							<CancelButton
-								onClick={() => setShowCancelSubscriptionModal(true)}>
-								Cancel Subscription
-							</CancelButton>
-						)}
-				</ButtonContainer>
-			</SubscriptionSection>
+					<ButtonContainer>
+						<UpgradeButton onClick={() => navigate('/paywall')}>
+							{subscription.plan === 'free' ? 'Upgrade Plan' : 'Change Plan'}
+						</UpgradeButton>
+						{subscription.status === 'active' &&
+							subscription.stripeSubscriptionId && (
+								<CancelButton
+									onClick={() => setShowCancelSubscriptionModal(true)}>
+									Cancel Subscription
+								</CancelButton>
+							)}
+					</ButtonContainer>
+				</SubscriptionSection>
+			)}
 
-			{canManageFamilyRoles && (
+			{!isTenant && canManageFamilyRoles && (
 				<>
 					<AccountSection>
 						<SectionTitle>Family Members</SectionTitle>
@@ -911,20 +921,22 @@ export const SettingsPage: React.FC = () => {
 				</AccountActions>
 			</AccountSection>
 
-			<NotificationPreferences currentUser={currentUser} />
+			{!isTenant && <NotificationPreferences currentUser={currentUser} />}
 
-			<AccountSection>
-				<SectionTitle>Getting Started</SectionTitle>
-				<p style={{ marginBottom: '16px', color: '#6b7280' }}>
-					Need a refresher on Maintley? Restart the guided tour to learn about
-					key features and get the most out of the app.
-				</p>
-				<AccountButton
-					disabled={isRestartingOnboarding}
-					onClick={handleRestartOnboarding}>
-					{isRestartingOnboarding ? 'Starting Tour...' : 'Start Guided Tour'}
-				</AccountButton>
-			</AccountSection>
+			{!isTenant && (
+				<AccountSection>
+					<SectionTitle>Getting Started</SectionTitle>
+					<p style={{ marginBottom: '16px', color: '#6b7280' }}>
+						Need a refresher on Maintley? Restart the guided tour to learn about
+						key features and get the most out of the app.
+					</p>
+					<AccountButton
+						disabled={isRestartingOnboarding}
+						onClick={handleRestartOnboarding}>
+						{isRestartingOnboarding ? 'Starting Tour...' : 'Start Guided Tour'}
+					</AccountButton>
+				</AccountSection>
+			)}
 
 			<AccountSection>
 				<SectionTitle>Feedback & Support</SectionTitle>
@@ -946,9 +958,6 @@ export const SettingsPage: React.FC = () => {
 				<ResourceButtons>
 					<AccountButton onClick={() => navigate('/help')}>
 						Open Help Center
-					</AccountButton>
-					<AccountButton onClick={() => navigate('/features')}>
-						View All Features
 					</AccountButton>
 				</ResourceButtons>
 			</AccountSection>

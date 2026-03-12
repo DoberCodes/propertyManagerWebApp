@@ -15,6 +15,7 @@ import {
 	faTrash,
 	faUserPlus,
 	faPlus,
+	faCheck,
 } from '@fortawesome/free-solid-svg-icons';
 import { Column, Action } from '../../Components/Library/ReusableTable';
 import { StatusBadge } from '../PropertyDetailPage/TabSystem/index.styles';
@@ -34,6 +35,7 @@ import {
 import { applyFilters } from '../../utils/tableFilters';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { COLORS } from '../../constants/colors';
+import { TaskCompletionModal } from '../../Components/TaskCompletionModal';
 
 export const TasksPage = () => {
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
@@ -317,6 +319,14 @@ export const TasksPage = () => {
 			},
 		},
 		{
+			label: 'Complete',
+			icon: faCheck,
+			onClick: (task: any) => {
+				handleTaskCompletion(task.id);
+			},
+			disabled: (task: any) => task.status === 'Completed',
+		},
+		{
 			label: 'Assign',
 			icon: faUserPlus,
 			onClick: (task: any) => {
@@ -597,6 +607,18 @@ export const TasksPage = () => {
 					propertyId={assigningTaskPropertyId}
 					selectedAssignee={null}
 					assigneeOptions={assigneeOptions}
+				/>
+			)}
+
+			{showTaskCompletionModal && completingTaskId && (
+				<TaskCompletionModal
+					taskId={completingTaskId}
+					taskTitle={
+						allTasks.find((t) => t.id === completingTaskId)?.title || ''
+					}
+					task={allTasks.find((t) => t.id === completingTaskId)}
+					onClose={() => setShowTaskCompletionModal(false)}
+					onSuccess={handleTaskCompletionSuccess}
 				/>
 			)}
 		</Wrapper>

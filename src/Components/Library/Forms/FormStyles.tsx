@@ -6,7 +6,7 @@ import React, { useState, useRef, useEffect } from 'react';
  * Provides consistent form field styling and layout
  */
 
-export const FormGroup = styled.form`
+export const FormGroup = styled.div`
 	margin-bottom: 1.25rem;
 	width: 100%;
 `;

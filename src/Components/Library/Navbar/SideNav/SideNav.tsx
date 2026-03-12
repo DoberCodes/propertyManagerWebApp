@@ -65,7 +65,7 @@ export const SideNav = () => {
 		{
 			label: 'Properties',
 			path: '/properties',
-			visible: !isUserTenant && (canAccessProperties || canViewPages),
+			visible: isUserTenant || canAccessProperties || canViewPages,
 		},
 		{
 			label: 'Team',
@@ -80,10 +80,7 @@ export const SideNav = () => {
 		{
 			label: 'Tenant Profile',
 			path: '/tenant-profile',
-			visible:
-				currentUser?.userType === 'tenant' ||
-				currentUser?.userType === 'Tenant' ||
-				currentUser?.userType === 'Shared Tenant',
+			visible: isUserTenant,
 		},
 	];
 
@@ -105,77 +102,81 @@ export const SideNav = () => {
 							))}
 					</MenuNav>
 				</Section>
-				{/* Favorites Section */}
-				<Section>
-					<SectionTitle>Favorites</SectionTitle>
-					<SectionContent>
-						{favorites.length > 0 ? (
-							<ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
-								{favorites.slice(0, 5).map((property) => (
-									<li
-										key={property.id}
-										style={{
-											padding: '8px 0',
-											fontSize: '13px',
-											color: '#666666',
-											cursor: 'pointer',
-											transition: 'color 0.2s ease',
-											borderBottom: '1px solid #f0f0f0',
-										}}
-										onClick={() => navigate(`/property/${property.slug}`)}
-										onMouseEnter={(e) =>
-											(e.currentTarget.style.color = '#22c55e')
-										}
-										onMouseLeave={(e) =>
-											(e.currentTarget.style.color = '#666666')
-										}>
-										{'★ ' + property.title}
-									</li>
-								))}
-							</ul>
-						) : (
-							<div style={{ fontSize: '12px', color: '#999999' }}>
-								No favorite properties
-							</div>
-						)}
-					</SectionContent>
-				</Section>
+				{!isUserTenant && (
+					<>
+						{/* Favorites Section */}
+						<Section>
+							<SectionTitle>Favorites</SectionTitle>
+							<SectionContent>
+								{favorites.length > 0 ? (
+									<ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+										{favorites.slice(0, 5).map((property) => (
+											<li
+												key={property.id}
+												style={{
+													padding: '8px 0',
+													fontSize: '13px',
+													color: '#666666',
+													cursor: 'pointer',
+													transition: 'color 0.2s ease',
+													borderBottom: '1px solid #f0f0f0',
+												}}
+												onClick={() => navigate(`/property/${property.slug}`)}
+												onMouseEnter={(e) =>
+													(e.currentTarget.style.color = '#22c55e')
+												}
+												onMouseLeave={(e) =>
+													(e.currentTarget.style.color = '#666666')
+												}>
+												{'★ ' + property.title}
+											</li>
+										))}
+									</ul>
+								) : (
+									<div style={{ fontSize: '12px', color: '#999999' }}>
+										No favorite properties
+									</div>
+								)}
+							</SectionContent>
+						</Section>
 
-				{/* Recently Viewed Properties Section */}
-				<Section>
-					<SectionTitle>Recently Viewed Properties</SectionTitle>
-					<SectionContent>
-						{recentProperties.length > 0 ? (
-							<ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
-								{recentProperties.slice(0, 5).map((property) => (
-									<li
-										key={property.id}
-										style={{
-											padding: '8px 0',
-											fontSize: '13px',
-											color: '#666666',
-											cursor: 'pointer',
-											transition: 'color 0.2s ease',
-											borderBottom: '1px solid #f0f0f0',
-										}}
-										onClick={() => navigate(`/property/${property.slug}`)}
-										onMouseEnter={(e) =>
-											(e.currentTarget.style.color = '#22c55e')
-										}
-										onMouseLeave={(e) =>
-											(e.currentTarget.style.color = '#666666')
-										}>
-										{property.title}
-									</li>
-								))}
-							</ul>
-						) : (
-							<div style={{ fontSize: '12px', color: '#999999' }}>
-								No recently viewed properties
-							</div>
-						)}
-					</SectionContent>
-				</Section>
+						{/* Recently Viewed Properties Section */}
+						<Section>
+							<SectionTitle>Recently Viewed Properties</SectionTitle>
+							<SectionContent>
+								{recentProperties.length > 0 ? (
+									<ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+										{recentProperties.slice(0, 5).map((property) => (
+											<li
+												key={property.id}
+												style={{
+													padding: '8px 0',
+													fontSize: '13px',
+													color: '#666666',
+													cursor: 'pointer',
+													transition: 'color 0.2s ease',
+													borderBottom: '1px solid #f0f0f0',
+												}}
+												onClick={() => navigate(`/property/${property.slug}`)}
+												onMouseEnter={(e) =>
+													(e.currentTarget.style.color = '#22c55e')
+												}
+												onMouseLeave={(e) =>
+													(e.currentTarget.style.color = '#666666')
+												}>
+												{property.title}
+											</li>
+										))}
+									</ul>
+								) : (
+									<div style={{ fontSize: '12px', color: '#999999' }}>
+										No recently viewed properties
+									</div>
+								)}
+							</SectionContent>
+						</Section>
+					</>
+				)}
 			</MenuSection>
 
 			<BottomSections>
@@ -183,19 +184,21 @@ export const SideNav = () => {
 				<Section>
 					<SectionTitle>Help & Resources</SectionTitle>
 					<SectionContent>
-						<div
-							style={{
-								padding: '8px 0',
-								fontSize: '13px',
-								color: '#666666',
-								cursor: 'pointer',
-								transition: 'color 0.2s ease',
-							}}
-							onClick={() => navigate('/features')}
-							onMouseEnter={(e) => (e.currentTarget.style.color = '#6366f1')}
-							onMouseLeave={(e) => (e.currentTarget.style.color = '#666666')}>
-							📋 View All Features
-						</div>
+						{!isUserTenant && (
+							<div
+								style={{
+									padding: '8px 0',
+									fontSize: '13px',
+									color: '#666666',
+									cursor: 'pointer',
+									transition: 'color 0.2s ease',
+								}}
+								onClick={() => navigate('/features')}
+								onMouseEnter={(e) => (e.currentTarget.style.color = '#6366f1')}
+								onMouseLeave={(e) => (e.currentTarget.style.color = '#666666')}>
+								📋 View All Features
+							</div>
+						)}
 					</SectionContent>
 
 					{/* Settings Navigation */}

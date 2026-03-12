@@ -24,6 +24,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { setCurrentUser } from '../../Redux/Slices/userSlice';
 import { signInWithEmail } from '../../services/authService';
+import { USER_ROLES } from '../../constants/roles';
 import { TRIAL_DURATION_DAYS } from '../../constants/subscriptions';
 
 export const LoginCard = () => {
@@ -84,8 +85,10 @@ export const LoginCard = () => {
 				}),
 			);
 
-			// Navigate to dashboard
-			navigate('/dashboard');
+			// Navigate based on role
+			navigate(
+				user.role === USER_ROLES.TENANT ? '/tenant-profile' : '/dashboard',
+			);
 		} catch (error: any) {
 			setError(error.message || 'Login failed. Please try again.');
 		} finally {

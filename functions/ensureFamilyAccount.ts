@@ -7,6 +7,30 @@ if (!admin.apps.length) {
 
 const db = admin.firestore();
 
+const deriveMembershipRoles = (
+	isAccountOwner: boolean,
+	userRole?: string,
+): string[] => {
+	const roles = new Set<string>(['member']);
+	const normalizedRole = String(userRole || '').trim().toLowerCase();
+
+	if (isAccountOwner) {
+		roles.add('family_owner');
+		roles.add('account_owner');
+		roles.add('admin');
+	}
+
+	if (normalizedRole === 'admin' || normalizedRole === 'property_manager') {
+		roles.add('admin');
+	}
+
+	if (normalizedRole === 'assistant_manager') {
+		roles.add('manager');
+	}
+
+	return Array.from(roles);
+};
+
 const serializeFirestoreValue = (value: unknown): unknown => {
 	if (value === null || value === undefined) return value;
 	if (Array.isArray(value))
@@ -61,9 +85,39 @@ export const ensureFamilyAccount = functions.https.onCall(
 			userData.id === uid;
 
 		const accountRef = db.collection('familyAccounts').doc(accountId);
+		const membershipRef = db
+			.collection('accountMemberships')
+			.doc(`${accountId}_${uid}`);
 
 		await db.runTransaction(async (transaction) => {
 			const accountDoc = await transaction.get(accountRef);
+			const membershipDoc = await transaction.get(membershipRef);
+			const desiredRoles = deriveMembershipRoles(isOwner, String(userData.role || ''));
+
+			if (!membershipDoc.exists) {
+				transaction.set(membershipRef, {
+					accountId,
+					userId: uid,
+					roles: desiredRoles,
+					status: 'active',
+					createdAt: admin.firestore.FieldValue.serverTimestamp(),
+					updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+				});
+			} else {
+				const existingMembership = membershipDoc.data() || {};
+				const existingRoles = Array.isArray(existingMembership.roles)
+					? (existingMembership.roles as string[])
+					: [];
+				const mergedRoles = Array.from(
+					new Set([...existingRoles, ...desiredRoles]),
+				);
+
+				transaction.update(membershipRef, {
+					roles: mergedRoles,
+					status: 'active',
+					updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+				});
+			}
 
 			if (!accountDoc.exists) {
 				if (!isOwner || accountId !== uid) {

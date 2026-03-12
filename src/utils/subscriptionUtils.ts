@@ -189,6 +189,20 @@ export const canManageTeam = (subscription: SubscriptionData): boolean => {
 };
 
 /**
+ * Check if subscription plan allows tenant management
+ */
+export const canManageTenants = (subscription: SubscriptionData): boolean => {
+	if (!isSubscriptionActive(subscription)) {
+		return false;
+	}
+
+	const plan = Object.values(SUBSCRIPTION_PLANS).find(
+		(p) => p.id === subscription.plan,
+	);
+	return plan?.permissions.canManageTenants || false;
+};
+
+/**
  * Check if subscription plan allows viewing reports
  */
 export const canViewReports = (subscription: SubscriptionData): boolean => {

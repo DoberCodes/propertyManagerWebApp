@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import styled from 'styled-components';
 import { useGetUnitsQuery } from '../../Redux/API/propertySlice';
 import {
@@ -38,6 +38,9 @@ export const AddTenantModal: React.FC<AddTenantModalProps> = ({
 	const [error, setError] = useState('');
 	const [success, setSuccess] = useState('');
 	const [isRegenerating, setIsRegenerating] = useState(false);
+	const [generatedInviteCode, setGeneratedInviteCode] = useState('');
+	const [codeCopied, setCodeCopied] = useState(false);
+	const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
 	const [addTenant, { isLoading }] = useAddTenantMutation();
 	const [updateTenant, { isLoading: isUpdating }] = useUpdateTenantMutation();
@@ -72,6 +75,8 @@ export const AddTenantModal: React.FC<AddTenantModalProps> = ({
 				leaseEnd: '',
 			});
 		}
+		setGeneratedInviteCode('');
+		setCodeCopied(false);
 	}, [mode, tenant, open]);
 
 	const buildPromoCode = () => {
@@ -148,7 +153,8 @@ export const AddTenantModal: React.FC<AddTenantModalProps> = ({
 				tenantInvitationCodeId: promoCodeId,
 			}).unwrap();
 
-			setSuccess('Tenant added successfully!');
+			setGeneratedInviteCode(promoCodeResult.code);
+			setSuccess('Tenant added! Share the invitation code below with your tenant.');
 			setFormData({
 				firstName: '',
 				lastName: '',
@@ -158,10 +164,7 @@ export const AddTenantModal: React.FC<AddTenantModalProps> = ({
 				leaseStart: '',
 				leaseEnd: '',
 			});
-
-			setTimeout(() => {
-				onClose();
-			}, 1000);
+			// Don't auto-close so user can copy the invitation code
 		} catch (err: any) {
 			setError(
 				err.message ||
@@ -226,12 +229,29 @@ export const AddTenantModal: React.FC<AddTenantModalProps> = ({
 				}).unwrap();
 			}
 
-			setSuccess(`New promo code created: ${promoCodeResult.code}`);
+			setGeneratedInviteCode(promoCodeResult.code);
+			setSuccess('New invitation code generated. Share it with your tenant.');
 		} catch (err: any) {
 			setError(err.message || 'Failed to regenerate promo code');
 		} finally {
 			setIsRegenerating(false);
 		}
+	};
+
+	const handleCopyCode = () => {
+		if (!generatedInviteCode) return;
+		navigator.clipboard.writeText(generatedInviteCode).catch(() => {
+			// Fallback for environments without clipboard API
+			const el = document.createElement('textarea');
+			el.value = generatedInviteCode;
+			document.body.appendChild(el);
+			el.select();
+			document.execCommand('copy');
+			document.body.removeChild(el);
+		});
+		setCodeCopied(true);
+		if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
+		copyTimeoutRef.current = setTimeout(() => setCodeCopied(false), 2000);
 	};
 
 	return (
@@ -255,7 +275,21 @@ export const AddTenantModal: React.FC<AddTenantModalProps> = ({
 			isLoading={isLoading || isUpdating}>
 			{error && <Alert type='error'>{error}</Alert>}
 			{success && <Alert type='success'>{success}</Alert>}
-
+			{generatedInviteCode && (
+				<InviteCodeBox>
+					<InviteCodeLabel>Tenant Invitation Code</InviteCodeLabel>
+					<InviteCodeRow>
+						<InviteCodeValue>{generatedInviteCode}</InviteCodeValue>
+						<CopyButton type='button' onClick={handleCopyCode}>
+							{codeCopied ? '✓ Copied' : 'Copy'}
+						</CopyButton>
+					</InviteCodeRow>
+					<InviteCodeHint>
+						Give this code to your tenant. They enter it when
+						registering to link to your property.
+					</InviteCodeHint>
+				</InviteCodeBox>
+			)}
 			<FormGroup>
 				<FormLabel>First Name *</FormLabel>
 				<FormInput
@@ -405,4 +439,54 @@ const RetryButton = styled.button`
 	border-radius: 6px;
 	font-size: 12px;
 	cursor: pointer;
+`;
+
+const InviteCodeBox = styled.div`
+	margin-bottom: 16px;
+	padding: 12px 16px;
+	border: 1px solid ${COLORS.primary};
+	border-radius: 6px;
+	background: #f0f4ff;
+`;
+
+const InviteCodeLabel = styled.p`
+	margin: 0 0 6px 0;
+	font-size: 12px;
+	font-weight: 600;
+	color: ${COLORS.textSecondary};
+	text-transform: uppercase;
+	letter-spacing: 0.5px;
+`;
+
+const InviteCodeRow = styled.div`
+	display: flex;
+	align-items: center;
+	gap: 10px;
+`;
+
+const InviteCodeValue = styled.span`
+	flex: 1;
+	font-size: 16px;
+	font-family: monospace;
+	font-weight: 700;
+	color: ${COLORS.primary};
+	letter-spacing: 1px;
+`;
+
+const CopyButton = styled.button`
+	border: 1px solid ${COLORS.primary};
+	background: ${COLORS.bgWhite};
+	color: ${COLORS.primary};
+	padding: 4px 10px;
+	border-radius: 4px;
+	font-size: 12px;
+	cursor: pointer;
+	white-space: nowrap;
+`;
+
+const InviteCodeHint = styled.p`
+	margin: 8px 0 0 0;
+	font-size: 11px;
+	color: ${COLORS.textSecondary};
+	line-style: italic;
 `;

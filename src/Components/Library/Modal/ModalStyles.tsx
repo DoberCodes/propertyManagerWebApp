@@ -46,6 +46,7 @@ export const ModalContainer = styled.div`
 	min-height: 500px;
 	display: flex;
 	flex-direction: column;
+	overflow: hidden;
 	box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
 	animation: slideUp 0.3s ease-in-out;
 	display: flex;
@@ -71,9 +72,9 @@ export const ModalContainer = styled.div`
 
 	@media (max-width: 480px) {
 		max-width: 95%;
-		height: auto;
+		height: 85vh;
 		max-height: 85vh;
-		min-height: 350px;
+		min-height: 0;
 		border-radius: 10px;
 	}
 `;
@@ -526,6 +527,7 @@ export const ModalFormContent = styled.div`
 	padding: 1rem 2rem 1rem;
 	flex: 1;
 	overflow-y: auto;
+	overflow-x: hidden;
 	min-height: 0;
 	display: flex;
 	flex-direction: column;
@@ -592,10 +594,22 @@ export const ModalTabContainer = styled.div`
 	border-bottom: 2px solid ${COLORS.gray200};
 	margin-bottom: 1rem;
 	gap: 0.5rem;
+	flex-wrap: wrap;
+	overflow-x: auto;
+	padding-bottom: 0.25rem;
+	position: sticky;
+	top: 0;
+	z-index: 2;
+	background: white;
+
+	@media (max-width: 768px) {
+		gap: 0.375rem;
+	}
 `;
 
 export const ModalTab = styled.button<{ $active: boolean }>`
 	padding: 0.75rem 1.5rem;
+	white-space: nowrap;
 	background: ${(props) =>
 		props.$active ? COLORS.primaryLight : 'transparent'};
 	color: ${(props) => (props.$active ? COLORS.primary : COLORS.gray600)};
@@ -617,6 +631,11 @@ export const ModalTab = styled.button<{ $active: boolean }>`
 	&:focus {
 		outline: none;
 		box-shadow: 0 0 0 2px ${COLORS.primaryLight};
+	}
+
+	@media (max-width: 768px) {
+		padding: 0.625rem 0.875rem;
+		font-size: 0.85rem;
 	}
 `;
 

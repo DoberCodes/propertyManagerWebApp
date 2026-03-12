@@ -27,6 +27,11 @@ import { ActionButton } from 'Components/Library/ReusableTable/ReusableTable.sty
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTrash, faEye } from '@fortawesome/free-solid-svg-icons';
 import { UnifiedMaintenanceHistory } from 'Components/UnifiedMaintenanceHistory';
+import {
+	formatCurrency,
+	getFinancialDisplayTotal,
+} from 'utils/financialUtils';
+import { TaskFinancials } from 'types/Task.types';
 
 export interface MaintenanceTabProps {
 	property: any;
@@ -47,6 +52,7 @@ export interface MaintenanceTabProps {
 		completionFile?: File;
 		recurringTaskId?: string;
 		linkedTaskIds?: string[];
+		financials?: TaskFinancials;
 	}) => void;
 	onUpdateMaintenanceHistory?: (id: string, updates: Partial<any>) => void;
 	onDeleteMaintenanceHistory?: (historyId: string) => void;
@@ -395,6 +401,15 @@ export const MaintenanceTab = ({
 		},
 		{ header: 'Title', key: 'title' },
 		{ header: 'Notes', key: 'notes' },
+		{
+			header: 'Cost',
+			key: 'financials',
+			render: (_unused, row) =>
+				formatCurrency(
+					getFinancialDisplayTotal(row.financials),
+					row.financials?.currency || 'USD',
+				),
+		},
 		{
 			header: 'Actions',
 			key: 'actions',

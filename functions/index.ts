@@ -1,6 +1,7 @@
 export { sendPushOnNotificationCreate } from './sendPushOnNotificationCreate';
 export {
 	createCheckoutSession,
+	validatePromotionCode,
 	verifyCheckoutSession,
 	cancelSubscription,
 	getSubscriptionDetails,
@@ -21,6 +22,19 @@ export { acceptFamilyInvite } from './acceptFamilyInvite';
 export { updateFamilyMemberRole } from './updateFamilyMemberRole';
 export { updateFamilyMember } from './updateFamilyMember';
 export { ensureFamilyAccount } from './ensureFamilyAccount';
+export {
+	createTeamMemberInvitationCode,
+	validateTeamMemberInvitationCode,
+	revokeTeamMemberInvitationCode,
+	redeemTeamMemberInvitationCode,
+} from './teamInviteFunctions';
+export {
+	validateTenantInvitationCode,
+	createTenantInvitationCode,
+	revokeTenantInvitationCode,
+	redeemTenantInvitationCode,
+	syncTenantAccessFromInvites,
+} from './tenantInviteFunctions';
 // Temporarily disabled due to missing utils/taskNotificationScheduler module
 // export {
 // 	scheduledTaskNotifications,

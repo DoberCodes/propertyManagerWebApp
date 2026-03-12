@@ -4,6 +4,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import type { RootState } from './Redux/store/store';
 import { logout } from './Redux/Slices/userSlice';
 import { LoadingState } from './Components/LoadingState';
+import { USER_ROLES } from './constants/roles';
 import type { UserRole } from './constants/roles';
 import { isSubscriptionActive } from './utils/subscriptionUtils';
 
@@ -50,7 +51,12 @@ export const ProtectedRoutes = ({
 
 	// If authenticated and on login page, redirect to dashboard
 	if (currentUser && isLoginRoute) {
-		return <Navigate to='/dashboard' replace />;
+		return (
+			<Navigate
+				to={currentUser.role === USER_ROLES.TENANT ? '/tenant-profile' : '/dashboard'}
+				replace
+			/>
+		);
 	}
 
 	// If not authenticated and not on login page, redirect to login

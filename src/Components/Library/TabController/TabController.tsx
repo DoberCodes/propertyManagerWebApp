@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../../Redux/store/store';
 import { DropdownButton } from '../DropdownButton/DropdownButton';
 import { useDispatch } from 'react-redux';
 import { setActiveTab } from '../../../Redux/Slices/appSlice';
+import { USER_ROLES } from '../../../constants/roles';
 
 export interface TabsContextProps {
 	property: any;
@@ -37,13 +38,17 @@ export const TabController: React.FC<TabsContextProps> = ({
 	// component remains pure/testable (tests pass `currentUser` directly)
 	const isHomeowner = currentUser?.subscription?.plan === 'homeowner';
 	const isPropertyManager = currentUser ? !isHomeowner : true;
+	const isTenant = currentUser?.role === USER_ROLES.TENANT;
+	const isContractor = currentUser?.role === USER_ROLES.CONTRACTOR;
 	// Build tabs dynamically based on property attributes and user type
-	const baseTabs: tab[] = [
-		{ label: 'Details', value: 'details' },
-		{ label: 'Devices', value: 'devices' },
-		{ label: 'Tasks', value: 'tasks' },
-		{ label: 'Maintenance History', value: 'maintenance' },
-	];
+	const baseTabs: tab[] = isTenant
+		? [{ label: 'Details', value: 'details' }]
+		: [
+				{ label: 'Details', value: 'details' },
+				{ label: 'Devices', value: 'devices' },
+				{ label: 'Tasks', value: 'tasks' },
+				{ label: 'Maintenance History', value: 'maintenance' },
+		  ];
 
 	const tabsForProperty: tab[] = [...baseTabs];
 
@@ -53,28 +58,42 @@ export const TabController: React.FC<TabsContextProps> = ({
 	// }
 
 	// Units for multi-family properties
-	if (property?.propertyType === 'Multi-Family') {
+	if (!isTenant && property?.propertyType === 'Multi-Family') {
 		tabsForProperty.push({ label: 'Units', value: 'units' });
 	}
 
 	// Tenants and Requests only for rental properties and non-homeowner users
-	if (property?.isRental && isPropertyManager) {
+	if (property?.isRental && isPropertyManager && !isTenant) {
 		tabsForProperty.push({ label: 'Tenants', value: 'tenants' });
+	}
+
+	if (property?.isRental && (isPropertyManager || isTenant)) {
 		tabsForProperty.push({
 			label: 'Requests',
 			value: 'requests',
-			badgeCount: propertyMaintenanceRequests.filter(
-				(request) =>
-					request.status === 'pending' &&
-					canApproveMaintenanceRequest(currentUser.role),
-			).length,
+			badgeCount:
+				isTenant || isContractor
+					? 0
+					: propertyMaintenanceRequests.filter(
+							(request) =>
+								request.status === 'pending' &&
+								canApproveMaintenanceRequest(currentUser.role),
+					  ).length,
 		});
 	}
 
 	// Contractors tab always available
-	tabsForProperty.push({ label: 'Contractors', value: 'contractors' });
+	if (!isTenant) {
+		tabsForProperty.push({ label: 'Contractors', value: 'contractors' });
+	}
 
 	const tabs = tabsForProperty;
+
+	useEffect(() => {
+		if (!tabs.some((tab) => tab.value === activeTab)) {
+			dispatch(setActiveTab('details'));
+		}
+	}, [tabs, activeTab, dispatch]);
 
 	const handleTabChange = (tab: string) => {
 		dispatch(setActiveTab(tab)); // Persist the active tab in Redux

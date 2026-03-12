@@ -23,12 +23,11 @@ export interface FamilyAccount {
 	updatedAt: string;
 }
 
-// User type matching Firebase Auth + Firestore user data
+// User model matching Firebase Auth + Firestore user data
 export interface User {
 	id: string;
 	email: string;
 	role: string;
-	userType?: string; // homeowner, landlord, etc.
 	firstName?: string;
 	lastName?: string;
 	title?: string;
@@ -147,13 +146,8 @@ const userSlice = createSlice({
 	reducers: {
 		setCurrentUser: (state, action: PayloadAction<User | null>) => {
 			if (action.payload) {
-				// Ensure userType is set if role is homeowner or landlord
-				const userWithType = {
-					...action.payload,
-					userType: action.payload.userType || action.payload.role,
-				};
-				state.currentUser = userWithType;
-				localStorage.setItem('loggedUser', JSON.stringify(userWithType));
+				state.currentUser = action.payload;
+				localStorage.setItem('loggedUser', JSON.stringify(action.payload));
 			} else {
 				state.currentUser = null;
 				localStorage.removeItem('loggedUser');

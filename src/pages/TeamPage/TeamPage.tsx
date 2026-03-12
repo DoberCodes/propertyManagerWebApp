@@ -3,7 +3,7 @@ import styled from 'styled-components';
 
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState, AppDispatch } from '../../Redux/store';
-import { selectCanAccessTeam } from '../../Redux/selectors/permissionSelectors';
+import { selectCanInviteTeamMembers } from '../../Redux/selectors/permissionSelectors';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { TeamMember } from '../../Redux/Slices/teamSlice';
@@ -195,7 +195,7 @@ export default function TeamPage() {
 	}, [teamGroups, teamMembers]);
 
 	// Check if user can manage team members based on subscription plan (selector)
-	const canManage = useSelector(selectCanAccessTeam);
+	const canManage = useSelector(selectCanInviteTeamMembers);
 	const canView = !!currentUser;
 
 	const [showTeamMemberDialog, setShowTeamMemberDialog] = useState(false);

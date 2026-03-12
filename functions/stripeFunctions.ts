@@ -12,6 +12,16 @@ if (!admin.apps.length) {
 // Initialize Stripe lazily to avoid accessing secrets at deployment time
 let stripe: Stripe | null = null;
 
+const sanitizeSecret = (value: string): string => {
+	return value
+		.replace(/[\u0000-\u001F\u007F]/g, '')
+		.trim();
+};
+
+const normalizePromoCode = (value: unknown): string => {
+	return sanitizeSecret(String(value || ''));
+};
+
 const resolveStripeSecretKey = (): string => {
 	let secretFromManager = '';
 	try {
@@ -29,7 +39,9 @@ const resolveStripeSecretKey = (): string => {
 	}
 	const secretFromEnv = process.env.STRIPE_SECRET_KEY || '';
 
-	return secretFromManager || secretFromFunctionsConfig || secretFromEnv;
+	return sanitizeSecret(
+		secretFromManager || secretFromFunctionsConfig || secretFromEnv,
+	);
 };
 
 const resolveStripeWebhookSecret = (): string => {
@@ -41,7 +53,7 @@ const resolveStripeWebhookSecret = (): string => {
 	}
 
 	const secretFromEnv = process.env.STRIPE_WEBHOOK_SECRET || '';
-	return secretFromManager || secretFromEnv;
+	return sanitizeSecret(secretFromManager || secretFromEnv);
 };
 
 const getStripe = () => {
@@ -59,6 +71,48 @@ const getStripe = () => {
 		console.log('Stripe key loaded: YES');
 	}
 	return stripe;
+};
+
+const resolvePriceIdForPlan = (planId: string): string => {
+	const normalizedPlan = String(planId || '').trim().toLowerCase();
+	const priceMap: Record<string, string> = {
+		homeowner:
+			sanitizeSecret(process.env.STRIPE_HOMEOWNER_PRICE_ID || '') ||
+			sanitizeSecret(process.env.REACT_APP_STRIPE_HOMEOWNER_PLAN_ID || ''),
+		basic:
+			sanitizeSecret(process.env.STRIPE_BASIC_PRICE_ID || '') ||
+			sanitizeSecret(process.env.REACT_APP_STRIPE_BASIC_PLAN_ID || ''),
+		professional:
+			sanitizeSecret(process.env.STRIPE_PROFESSIONAL_PRICE_ID || '') ||
+			sanitizeSecret(process.env.REACT_APP_STRIPE_PROFESSIONAL_PLAN_ID || ''),
+		free:
+			sanitizeSecret(process.env.STRIPE_FREE_PRICE_ID || '') ||
+			sanitizeSecret(process.env.REACT_APP_STRIPE_FREE_PLAN_ID || ''),
+		guest:
+			sanitizeSecret(process.env.STRIPE_FREE_PRICE_ID || '') ||
+			sanitizeSecret(process.env.REACT_APP_STRIPE_FREE_PLAN_ID || ''),
+		tenant:
+			sanitizeSecret(process.env.STRIPE_FREE_PRICE_ID || '') ||
+			sanitizeSecret(process.env.REACT_APP_STRIPE_FREE_PLAN_ID || ''),
+	};
+
+	return priceMap[normalizedPlan] || '';
+};
+
+const resolvePromotionCodeId = async (
+	promoCode: string,
+): Promise<string | null> => {
+	if (!promoCode) {
+		return null;
+	}
+
+	const promotionCodes = await getStripe().promotionCodes.list({
+		code: promoCode,
+		active: true,
+		limit: 1,
+	});
+
+	return promotionCodes.data[0]?.id || null;
 };
 
 const db = admin.firestore();
@@ -123,7 +177,14 @@ export const createCheckoutSession = functions
 			);
 		}
 
-		const { priceId, userId, email, successUrl, cancelUrl } = data;
+		const {
+			priceId,
+			userId,
+			email,
+			successUrl,
+			cancelUrl,
+			promoCode: requestedPromoCode,
+		} = data;
 
 		if (!priceId || !userId || !email) {
 			throw new functions.https.HttpsError(
@@ -145,6 +206,19 @@ export const createCheckoutSession = functions
 			const userDoc = await db.collection('users').doc(userId).get();
 			const userData = userDoc.data();
 			console.log('User data retrieved:', userData);
+
+			const accountPromoCode = normalizePromoCode(
+				requestedPromoCode || userData?.subscription?.promoCode,
+			);
+			let promotionCodeId: string | null = null;
+			if (accountPromoCode) {
+				promotionCodeId = await resolvePromotionCodeId(accountPromoCode);
+				if (!promotionCodeId) {
+					console.warn(
+						`Promo code '${accountPromoCode}' was provided but no active Stripe Promotion Code was found. Proceeding without discount.`,
+					);
+				}
+			}
 
 			let customerId = userData?.subscription?.stripeCustomerId;
 
@@ -178,8 +252,12 @@ export const createCheckoutSession = functions
 				mode: 'subscription',
 				success_url: successUrl,
 				cancel_url: cancelUrl,
+				...(promotionCodeId
+					? { discounts: [{ promotion_code: promotionCodeId }] }
+					: {}),
 				metadata: {
 					firebaseUID: userId,
+					...(accountPromoCode ? { promoCode: accountPromoCode } : {}),
 				},
 			});
 
@@ -219,6 +297,63 @@ export const createCheckoutSession = functions
 	});
 
 /**
+ * Validate Stripe Promotion Code
+ * Callable body: { promoCode }
+ */
+export const validatePromotionCode = functions
+	.runWith({ secrets: ['STRIPE_SECRET_KEY'] })
+	.https.onCall(async (data) => {
+		const normalizedPromoCode = normalizePromoCode(data?.promoCode).toLowerCase();
+
+		if (!normalizedPromoCode) {
+			throw new functions.https.HttpsError(
+				'invalid-argument',
+				'promoCode is required',
+			);
+		}
+
+		try {
+			const promotionCodes = await getStripe().promotionCodes.list({
+				code: normalizedPromoCode,
+				active: true,
+				limit: 1,
+			});
+
+			const match = promotionCodes.data[0];
+			const couponRef = match?.coupon;
+			const couponId =
+				typeof couponRef === 'string' ? couponRef : couponRef?.id || null;
+
+			return {
+				valid: Boolean(match),
+				code: normalizedPromoCode,
+				promotionCodeId: match?.id || null,
+				couponId,
+				message: match
+					? 'Promo code is valid.'
+					: 'Invalid or expired promo code.',
+			};
+		} catch (error) {
+			const stripeError = error as {
+				message?: string;
+				code?: string;
+				type?: string;
+			};
+
+			console.error('Error validating promotion code:', {
+				message: stripeError?.message,
+				code: stripeError?.code,
+				type: stripeError?.type,
+			});
+
+			throw new functions.https.HttpsError(
+				'internal',
+				stripeError?.message || 'Failed to validate promo code',
+			);
+		}
+	});
+
+/**
  * Create Trial Subscription in Stripe
  * POST /api/create-trial-subscription
  * Body: { priceId, userId, email, trialDays }
@@ -234,18 +369,31 @@ export const createTrialSubscription = functions
 			);
 		}
 
-		const { priceId, userId, email, trialDays = 30 } = data;
+		const {
+			priceId: legacyPriceId,
+			planId,
+			promoCode,
+			userId,
+			email,
+			trialDays = 30,
+		} = data;
+		const normalizedPromoCode = normalizePromoCode(promoCode);
+		const resolvedPriceId =
+			resolvePriceIdForPlan(String(planId || '')) ||
+			sanitizeSecret(String(legacyPriceId || ''));
 
-		if (!priceId || !userId || !email) {
+		if (!resolvedPriceId || !userId || !email) {
 			throw new functions.https.HttpsError(
 				'invalid-argument',
-				'Missing required parameters',
+				`Missing required Stripe configuration: no price ID resolved for plan '${String(planId || '')}'. Configure STRIPE_*_PRICE_ID in functions environment.`,
 			);
 		}
 
 		try {
 			console.log('Creating trial subscription with:', {
-				priceId,
+				planId,
+				priceId: resolvedPriceId,
+				promoCode: normalizedPromoCode || undefined,
 				userId,
 				email,
 				trialDays,
@@ -264,6 +412,9 @@ export const createTrialSubscription = functions
 					email: email,
 					metadata: {
 						firebaseUID: userId,
+						...(normalizedPromoCode
+							? { promoCode: normalizedPromoCode }
+							: {}),
 					},
 				});
 				customerId = customer.id;
@@ -280,12 +431,15 @@ export const createTrialSubscription = functions
 				customer: customerId,
 				items: [
 					{
-						price: priceId,
+						price: resolvedPriceId,
 					},
 				],
 				trial_period_days: trialDays,
 				metadata: {
 					firebaseUID: userId,
+					...(normalizedPromoCode
+						? { promoCode: normalizedPromoCode }
+						: {}),
 				},
 			});
 

@@ -1,6 +1,6 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { PropertyGroup } from '../../types/Property.types';
-import { Task, CompletionFile } from '../../types/Task.types';
+import { Task, CompletionFile, TaskFinancials } from '../../types/Task.types';
 
 // Re-export types for backward compatibility
 export type {
@@ -61,20 +61,24 @@ const propertyDataSlice = createSlice({
 				completionDate: string;
 				completionNotes?: string;
 				completionFile?: CompletionFile;
+				financials?: TaskFinancials;
 				completedBy: string;
-				userType?: string;
+				canSelfComplete?: boolean;
+				completedByPlan?: string;
 			}>,
 		) => {
 			const task = state.tasks.find((t) => t.id === action.payload.taskId);
 			if (task) {
-				// Homeowners can mark tasks as complete directly, others need approval
+				// Users with self-complete capability can mark complete directly,
+				// others enter awaiting approval.
 				task.status =
-					action.payload.userType === 'homeowner'
+					action.payload.canSelfComplete
 						? 'Completed'
 						: 'Awaiting Approval';
 				task.completionDate = action.payload.completionDate;
 				task.completionNotes = action.payload.completionNotes;
 				task.completionFile = action.payload.completionFile;
+				task.financials = action.payload.financials || task.financials;
 				task.completedBy = action.payload.completedBy;
 			}
 		},

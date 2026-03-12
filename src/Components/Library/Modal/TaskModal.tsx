@@ -14,7 +14,11 @@ import {
 	ModalTabContent,
 } from './ModalStyles';
 import { MultiSelect } from '../index';
-import { TaskNotification } from '../../../types/Task.types';
+import {
+	TaskNotification,
+	TaskFinancials,
+	CostBreakdown,
+} from '../../../types/Task.types';
 import {
 	getDefaultTaskNotifications,
 	getDefaultNotificationMessage,
@@ -31,6 +35,12 @@ import {
 } from '../../../Redux/API/propertySlice';
 import { useGetAllMaintenanceHistoryForUserQuery } from '../../../Redux/API/userSlice';
 import { addTask, updateTask } from '../../../Redux/Slices/propertyDataSlice';
+import {
+	calculateCostTotal,
+	hasCostData,
+	toNumberOrUndefined,
+	formatCurrency,
+} from '../../../utils/financialUtils';
 
 interface TaskFormData {
 	title: string;
@@ -50,6 +60,7 @@ interface TaskFormData {
 	// new optional fields for cross‑property/unit tasks
 	propertyId?: string;
 	unitId?: string;
+	financials?: TaskFinancials;
 }
 
 interface EditTaskModalProps {
@@ -115,6 +126,10 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 			linkedMaintenanceHistoryIds: [],
 			propertyId: propertyId || '',
 			unitId: unitId || '',
+			financials: {
+				currency: 'USD',
+				estimate: {},
+			},
 		}),
 		[propertyId, unitId],
 	);
@@ -239,6 +254,10 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 					propertyId ||
 					'',
 				unitId: (editingTask as any).unitId || unitId || '',
+				financials: (editingTask as any).financials || {
+					currency: 'USD',
+					estimate: {},
+				},
 			});
 			return;
 		}
@@ -266,6 +285,10 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 					propertyId ||
 					'',
 				unitId: (foundTask as any).unitId || unitId || '',
+				financials: (foundTask as any).financials || {
+					currency: 'USD',
+					estimate: {},
+				},
 			});
 			return;
 		}
@@ -305,7 +328,7 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 	const fd = formState;
 
 	const [activeTab, setActiveTab] = useState<
-		'details' | 'schedule' | 'notifications'
+		'details' | 'schedule' | 'notifications' | 'financial'
 	>('details');
 	const [showLinkHistoryModal, setShowLinkHistoryModal] = useState(false);
 	const [pendingLinkedHistoryIds, setPendingLinkedHistoryIds] = useState<
@@ -358,6 +381,43 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 		setShowLinkHistoryModal(false);
 	};
 
+	const handleFinancialEstimateChange = (
+		field: keyof CostBreakdown,
+		value: string,
+	) => {
+		setFormState((prev) => ({
+			...prev,
+			financials: {
+				...(prev.financials || {}),
+				currency: prev.financials?.currency || 'USD',
+				estimate: {
+					...(prev.financials?.estimate || {}),
+					[field]: toNumberOrUndefined(value),
+				},
+			},
+		}));
+	};
+
+	const sanitizeCostBreakdown = (
+		costs?: CostBreakdown,
+	): CostBreakdown | undefined => {
+		if (!costs) return undefined;
+		const sanitized: CostBreakdown = {};
+		if (costs.contractorCost !== undefined) {
+			sanitized.contractorCost = costs.contractorCost;
+		}
+		if (costs.materialsCost !== undefined) {
+			sanitized.materialsCost = costs.materialsCost;
+		}
+		if (costs.laborCost !== undefined) {
+			sanitized.laborCost = costs.laborCost;
+		}
+		if (costs.otherCost !== undefined) {
+			sanitized.otherCost = costs.otherCost;
+		}
+		return hasCostData(sanitized) ? sanitized : undefined;
+	};
+
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
 
@@ -367,6 +427,18 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 		}
 
 		try {
+			const estimatedCosts = sanitizeCostBreakdown(formState.financials?.estimate);
+			const actualCosts = sanitizeCostBreakdown(formState.financials?.actual);
+			const financialNotes = formState.financials?.notes?.trim();
+			const sanitizedFinancials =
+				estimatedCosts || actualCosts || financialNotes
+					? {
+						currency: formState.financials?.currency || 'USD',
+						...(estimatedCosts ? { estimate: estimatedCosts } : {}),
+						...(actualCosts ? { actual: actualCosts } : {}),
+						...(financialNotes ? { notes: financialNotes } : {}),
+					}
+					: undefined;
 			// Determine if this is an update operation
 			const taskId = editingTaskId || editingTask?.id;
 			const isUpdate = !!taskId;
@@ -377,7 +449,10 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 					alert('Unable to update task: missing task ID');
 					return;
 				}
-				let updatesRaw: any = { ...formState };
+				let updatesRaw: any = {
+					...formState,
+					financials: sanitizedFinancials,
+				};
 				// clean nested undefined in notifications to avoid Firestore errors
 				if (
 					updatesRaw.notifications &&
@@ -427,6 +502,7 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 			} else {
 				let newTaskRaw: any = {
 					...formState,
+					financials: sanitizedFinancials,
 					propertyId: formState.propertyId || propertyId || '',
 					userId: currentUser?.id || '',
 					property: '',
@@ -511,9 +587,22 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 						onClick={() => setActiveTab('notifications')}>
 						🔔 Notifications
 					</ModalTab>
+					<ModalTab
+						type='button'
+						$active={activeTab === 'financial'}
+						onClick={() => setActiveTab('financial')}>
+						💵 Financials
+					</ModalTab>
 				</ModalTabContainer>
 
-				<ModalTabContent $active={activeTab === 'details'}>
+				<div
+					style={{
+						flex: 1,
+						minHeight: 0,
+						overflowY: 'auto',
+						paddingBottom: '0.5rem',
+					}}>
+					<ModalTabContent $active={activeTab === 'details'}>
 					<FormGrid>
 						{propertyOptions.length > 0 && (
 							<FormGroup>
@@ -872,6 +961,95 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 						)}
 					</FormGrid>
 				</ModalTabContent>
+
+				<ModalTabContent $active={activeTab === 'financial'}>
+					<FormGrid>
+						<FormGroup>
+							<FormLabel>Contractor Cost</FormLabel>
+							<FormInput
+								type='number'
+								min='0'
+								step='0.01'
+								value={formState.financials?.estimate?.contractorCost ?? ''}
+								onChange={(e) =>
+									handleFinancialEstimateChange(
+											'contractorCost',
+											e.target.value,
+										)
+								}
+								placeholder='0.00'
+							/>
+						</FormGroup>
+
+						<FormGroup>
+							<FormLabel>Materials Cost</FormLabel>
+							<FormInput
+								type='number'
+								min='0'
+								step='0.01'
+								value={formState.financials?.estimate?.materialsCost ?? ''}
+								onChange={(e) =>
+									handleFinancialEstimateChange(
+											'materialsCost',
+											e.target.value,
+										)
+								}
+								placeholder='0.00'
+							/>
+						</FormGroup>
+
+						<FormGroup>
+							<FormLabel>Labor Cost</FormLabel>
+							<FormInput
+								type='number'
+								min='0'
+								step='0.01'
+								value={formState.financials?.estimate?.laborCost ?? ''}
+								onChange={(e) =>
+									handleFinancialEstimateChange('laborCost', e.target.value)
+								}
+								placeholder='0.00'
+							/>
+						</FormGroup>
+
+						<FormGroup>
+							<FormLabel>Other Cost</FormLabel>
+							<FormInput
+								type='number'
+								min='0'
+								step='0.01'
+								value={formState.financials?.estimate?.otherCost ?? ''}
+								onChange={(e) =>
+									handleFinancialEstimateChange('otherCost', e.target.value)
+								}
+								placeholder='0.00'
+							/>
+						</FormGroup>
+
+						<FormGroupFull>
+							<div
+								style={{
+									padding: '12px',
+									background: '#f9fafb',
+									border: '1px solid #e5e7eb',
+									borderRadius: '6px',
+								}}>
+								<div style={{ fontWeight: 600, marginBottom: '4px' }}>
+									Estimated Total:{' '}
+									{formatCurrency(
+										calculateCostTotal(formState.financials?.estimate),
+										formState.financials?.currency || 'USD',
+									)}
+								</div>
+								<small style={{ color: '#6b7280' }}>
+									Optional: add any combination of contractor, materials, labor,
+									or other costs.
+								</small>
+							</div>
+						</FormGroupFull>
+					</FormGrid>
+				</ModalTabContent>
+				</div>
 			</GenericModal>
 
 			{showLinkHistoryModal && (

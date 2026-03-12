@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
 	PaywallWrapper,
@@ -39,6 +39,7 @@ import {
 import {
 	createCheckoutSession,
 	redirectToCheckout,
+	validatePromotionCode,
 } from '../../services/stripeService';
 import { STRIPE_PLANS } from '../../constants/stripe';
 
@@ -74,8 +75,68 @@ export const PaywallPage: React.FC<PaywallPageProps> = ({
 	const [promoLoading, setPromoLoading] = useState(false);
 	const [promoError, setPromoError] = useState<string | null>(null);
 	const [appliedPromoCode, setAppliedPromoCode] = useState<string | null>(null);
+	const [isCheckingPromo, setIsCheckingPromo] = useState(false);
+	const [promoHint, setPromoHint] = useState<string | null>(null);
+	const [promoHintType, setPromoHintType] = useState<'success' | 'error' | null>(
+		null,
+	);
 	const isOnTrial = isTrialActive(subscription);
 	const daysRemaining = getTrialDaysRemaining(subscription);
+
+	useEffect(() => {
+		if (appliedPromoCode) {
+			setPromoHint(null);
+			setPromoHintType(null);
+			setIsCheckingPromo(false);
+			return;
+		}
+
+		const trimmedPromoCode = promoCode.trim().toLowerCase();
+		if (!trimmedPromoCode) {
+			setPromoHint(null);
+			setPromoHintType(null);
+			setIsCheckingPromo(false);
+			return;
+		}
+
+		const validPromoCodes = [
+			process.env.REACT_APP_UNLIMITED_TRIAL_PROMO_CODE?.toLowerCase(),
+			process.env.REACT_APP_EXPIRED_TRIAL_PROMO_CODE?.toLowerCase(),
+		].filter(Boolean);
+
+		if (validPromoCodes.includes(trimmedPromoCode)) {
+			setPromoHint('Valid promo code found. Click Apply Code to use it.');
+			setPromoHintType('success');
+			setIsCheckingPromo(false);
+			return;
+		}
+
+		setIsCheckingPromo(true);
+		setPromoHint(null);
+		setPromoHintType(null);
+
+		const timeoutId = window.setTimeout(async () => {
+			try {
+				const result = await validatePromotionCode(trimmedPromoCode);
+				if (result.valid) {
+					setPromoHint('Valid promo code found. Click Apply Code to use it.');
+					setPromoHintType('success');
+				} else {
+					setPromoHint(result.message || 'Invalid or expired promo code.');
+					setPromoHintType('error');
+				}
+			} catch (err) {
+				setPromoHint('Unable to validate promo code right now.');
+				setPromoHintType('error');
+			} finally {
+				setIsCheckingPromo(false);
+			}
+		}, 450);
+
+		return () => {
+			window.clearTimeout(timeoutId);
+		};
+	}, [promoCode, appliedPromoCode]);
 
 	const getPriceIdForPlan = (planId: string): string => {
 		const priceMap: Record<string, string> = {
@@ -134,6 +195,7 @@ export const PaywallPage: React.FC<PaywallPageProps> = ({
 				userId,
 				userEmail,
 				trialEnd,
+				appliedPromoCode || undefined,
 			);
 
 			// Redirect to Stripe hosted checkout URL
@@ -157,12 +219,14 @@ export const PaywallPage: React.FC<PaywallPageProps> = ({
 
 		setPromoLoading(true);
 		setPromoError(null);
+		setPromoHint(null);
+		setPromoHintType(null);
 
 		try {
 			// Validate promo code
 			const trimmedPromoCode = promoCode.trim().toLowerCase();
 
-			// Check for valid promo codes
+			// Keep local env promo codes for trial-testing behavior
 			const validPromoCodes = [
 				process.env.REACT_APP_UNLIMITED_TRIAL_PROMO_CODE?.toLowerCase(),
 				process.env.REACT_APP_EXPIRED_TRIAL_PROMO_CODE?.toLowerCase(),
@@ -174,9 +238,20 @@ export const PaywallPage: React.FC<PaywallPageProps> = ({
 				onPromoCodeApplied?.(trimmedPromoCode);
 				setPromoCode(''); // Clear input but keep applied state
 				setPromoError(null);
+				setPromoHint(null);
+				setPromoHintType(null);
 			} else {
-				// Invalid promo code
-				setPromoError('Invalid promo code. Please try again.');
+				const result = await validatePromotionCode(trimmedPromoCode);
+				if (result.valid) {
+					setAppliedPromoCode(result.code || trimmedPromoCode);
+					onPromoCodeApplied?.(result.code || trimmedPromoCode);
+					setPromoCode('');
+					setPromoError(null);
+					setPromoHint(null);
+					setPromoHintType(null);
+				} else {
+					setPromoError(result.message || 'Invalid promo code. Please try again.');
+				}
 			}
 		} catch (err) {
 			console.error('Failed to apply promo code:', err);
@@ -512,6 +587,22 @@ export const PaywallPage: React.FC<PaywallPageProps> = ({
 									onChange={(e) => setPromoCode(e.target.value)}
 									onKeyPress={(e) => e.key === 'Enter' && handlePromoCode()}
 								/>
+								{isCheckingPromo && (
+									<PromoText layout={layout} style={{ marginBottom: '12px' }}>
+										Checking promo code...
+									</PromoText>
+								)}
+								{promoHint && !promoError && (
+									<PromoText
+										layout={layout}
+										style={{
+											color:
+												promoHintType === 'success' ? '#22c55e' : '#dc3545',
+											marginBottom: '12px',
+										}}>
+										{promoHint}
+									</PromoText>
+								)}
 								{promoError && (
 									<PromoText
 										layout={layout}

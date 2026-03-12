@@ -26,6 +26,38 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/accountMemberships/$(callerMembershipId(accountId))).data;
     }
 
+    function callerUserDocPath() {
+      return /databases/$(database)/documents/users/$(request.auth.uid);
+    }
+
+    function callerUserDocExists() {
+      return exists(callerUserDocPath());
+    }
+
+    function callerUserData() {
+      return get(callerUserDocPath()).data;
+    }
+
+    function hasLegacyAccountLink(accountId) {
+      return isAuthenticated() &&
+        callerUserDocExists() &&
+        (
+          request.auth.uid == accountId ||
+          (
+            ('accountId' in callerUserData()) &&
+            callerUserData().accountId == accountId
+          )
+        );
+    }
+
+    function hasLegacyManageRole(accountId) {
+      return hasLegacyAccountLink(accountId) &&
+        (
+          (('isAccountOwner' in callerUserData()) && callerUserData().isAccountOwner == true) ||
+          (('role' in callerUserData()) && ['admin', 'property_manager', 'assistant_manager'].hasAny([callerUserData().role]))
+        );
+    }
+
     function isActiveMember(accountId) {
       return isAuthenticated() &&
         hasMembership(accountId) &&
@@ -41,19 +73,41 @@ service cloud.firestore {
     }
 
     function canReadAccount(accountId) {
-      return isActiveMember(accountId);
+      return isActiveMember(accountId) || hasLegacyAccountLink(accountId);
     }
 
     function canManageAccount(accountId) {
-      return hasAnyRole(accountId, ['account_owner', 'admin', 'manager']);
+      return hasAnyRole(accountId, ['account_owner', 'admin', 'manager']) ||
+        hasLegacyManageRole(accountId);
     }
 
-    function callerUserDocExists() {
-      return exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    function accountOwnerDocPath(accountId) {
+      return /databases/$(database)/documents/users/$(accountId);
     }
 
-    function callerUserData() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    function accountOwnerDocExists(accountId) {
+      return exists(accountOwnerDocPath(accountId));
+    }
+
+    function accountOwnerData(accountId) {
+      return get(accountOwnerDocPath(accountId)).data;
+    }
+
+    function hasActiveManagedInvitePlan(accountId) {
+      return accountOwnerDocExists(accountId) &&
+        ('subscription' in accountOwnerData(accountId)) &&
+        (
+          accountOwnerData(accountId).subscription.status == 'active' ||
+          (
+            accountOwnerData(accountId).subscription.status == 'trial' &&
+            (
+              !('trialEndsAt' in accountOwnerData(accountId).subscription) ||
+              accountOwnerData(accountId).subscription.trialEndsAt == null ||
+              accountOwnerData(accountId).subscription.trialEndsAt > (request.time.toMillis() / 1000)
+            )
+          )
+        ) &&
+        ['basic', 'professional'].hasAny([accountOwnerData(accountId).subscription.plan]);
     }
 
     function isAccountOwnerOrAdmin(accountId) {
@@ -279,14 +333,10 @@ service cloud.firestore {
     match /tenantInvitationCodes/{codeId} {
       allow read: if isAuthenticated() && (
         ('accountId' in resource.data && canReadAccount(resource.data.accountId)) ||
-        resource.data.email == getUserEmail()
+        (('tenantEmail' in resource.data) && resource.data.tenantEmail == getUserEmail()) ||
+        (('email' in resource.data) && resource.data.email == getUserEmail())
       );
-      allow create: if isAuthenticated() &&
-        ('accountId' in request.resource.data) &&
-        canManageAccount(request.resource.data.accountId);
-      allow update, delete: if isAuthenticated() &&
-        ('accountId' in resource.data) &&
-        canManageAccount(resource.data.accountId);
+      allow create, update, delete: if false;
     }
 
     match /tenantProfiles/{profileId} {
@@ -304,11 +354,13 @@ service cloud.firestore {
 
     match /teamMemberInvitationCodes/{codeId} {
       allow read: if isAuthenticated() && (
-        resource.data.createdBy == request.auth.uid ||
-        resource.data.email == getUserEmail()
+        (('accountId' in resource.data) && canReadAccount(resource.data.accountId)) ||
+        (('createdBy' in resource.data) && resource.data.createdBy == request.auth.uid) ||
+        (('createdByUserId' in resource.data) && resource.data.createdByUserId == request.auth.uid) ||
+        (('teamMemberEmail' in resource.data) && resource.data.teamMemberEmail == getUserEmail()) ||
+        (('email' in resource.data) && resource.data.email == getUserEmail())
       );
-      allow create: if isAuthenticated() && request.resource.data.createdBy == request.auth.uid;
-      allow update, delete: if isAuthenticated() && resource.data.createdBy == request.auth.uid;
+      allow create, update, delete: if false;
     }
 
     match /appConfig/{configId} {

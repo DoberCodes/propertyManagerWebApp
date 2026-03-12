@@ -36,7 +36,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.stripeWebhook = exports.getSubscriptionDetails = exports.cancelSubscription = exports.verifyCheckoutSession = exports.createTrialSubscription = exports.createCheckoutSession = void 0;
+exports.stripeWebhook = exports.getSubscriptionDetails = exports.cancelSubscription = exports.verifyCheckoutSession = exports.createTrialSubscription = exports.validatePromotionCode = exports.createCheckoutSession = void 0;
 const functions = __importStar(require("firebase-functions/v1"));
 const admin = __importStar(require("firebase-admin"));
 const stripe_1 = __importDefault(require("stripe"));
@@ -48,6 +48,14 @@ if (!admin.apps.length) {
 }
 // Initialize Stripe lazily to avoid accessing secrets at deployment time
 let stripe = null;
+const sanitizeSecret = (value) => {
+    return value
+        .replace(/[\u0000-\u001F\u007F]/g, '')
+        .trim();
+};
+const normalizePromoCode = (value) => {
+    return sanitizeSecret(String(value || ''));
+};
 const resolveStripeSecretKey = () => {
     var _a, _b, _c;
     let secretFromManager = '';
@@ -66,7 +74,7 @@ const resolveStripeSecretKey = () => {
         console.warn('Legacy functions.config() is unavailable in this runtime');
     }
     const secretFromEnv = process.env.STRIPE_SECRET_KEY || '';
-    return secretFromManager || secretFromFunctionsConfig || secretFromEnv;
+    return sanitizeSecret(secretFromManager || secretFromFunctionsConfig || secretFromEnv);
 };
 const resolveStripeWebhookSecret = () => {
     let secretFromManager = '';
@@ -77,7 +85,7 @@ const resolveStripeWebhookSecret = () => {
         console.warn('Unable to read STRIPE_WEBHOOK_SECRET from Secret Manager');
     }
     const secretFromEnv = process.env.STRIPE_WEBHOOK_SECRET || '';
-    return secretFromManager || secretFromEnv;
+    return sanitizeSecret(secretFromManager || secretFromEnv);
 };
 const getStripe = () => {
     if (!stripe) {
@@ -91,6 +99,36 @@ const getStripe = () => {
         console.log('Stripe key loaded: YES');
     }
     return stripe;
+};
+const resolvePriceIdForPlan = (planId) => {
+    const normalizedPlan = String(planId || '').trim().toLowerCase();
+    const priceMap = {
+        homeowner: sanitizeSecret(process.env.STRIPE_HOMEOWNER_PRICE_ID || '') ||
+            sanitizeSecret(process.env.REACT_APP_STRIPE_HOMEOWNER_PLAN_ID || ''),
+        basic: sanitizeSecret(process.env.STRIPE_BASIC_PRICE_ID || '') ||
+            sanitizeSecret(process.env.REACT_APP_STRIPE_BASIC_PLAN_ID || ''),
+        professional: sanitizeSecret(process.env.STRIPE_PROFESSIONAL_PRICE_ID || '') ||
+            sanitizeSecret(process.env.REACT_APP_STRIPE_PROFESSIONAL_PLAN_ID || ''),
+        free: sanitizeSecret(process.env.STRIPE_FREE_PRICE_ID || '') ||
+            sanitizeSecret(process.env.REACT_APP_STRIPE_FREE_PLAN_ID || ''),
+        guest: sanitizeSecret(process.env.STRIPE_FREE_PRICE_ID || '') ||
+            sanitizeSecret(process.env.REACT_APP_STRIPE_FREE_PLAN_ID || ''),
+        tenant: sanitizeSecret(process.env.STRIPE_FREE_PRICE_ID || '') ||
+            sanitizeSecret(process.env.REACT_APP_STRIPE_FREE_PLAN_ID || ''),
+    };
+    return priceMap[normalizedPlan] || '';
+};
+const resolvePromotionCodeId = async (promoCode) => {
+    var _a;
+    if (!promoCode) {
+        return null;
+    }
+    const promotionCodes = await getStripe().promotionCodes.list({
+        code: promoCode,
+        active: true,
+        limit: 1,
+    });
+    return ((_a = promotionCodes.data[0]) === null || _a === void 0 ? void 0 : _a.id) || null;
 };
 const db = admin.firestore();
 const removeUndefinedFields = (obj) => {
@@ -128,12 +166,12 @@ const syncFamilyAccountSubscription = async (userData, subscription) => {
 exports.createCheckoutSession = functions
     .runWith({ secrets: ['STRIPE_SECRET_KEY'] })
     .https.onCall(async (data, context) => {
-    var _a, _b, _c;
+    var _a, _b, _c, _d;
     // Verify user is authenticated
     if (!context.auth) {
         throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
     }
-    const { priceId, userId, email, successUrl, cancelUrl } = data;
+    const { priceId, userId, email, successUrl, cancelUrl, promoCode: requestedPromoCode, } = data;
     if (!priceId || !userId || !email) {
         throw new functions.https.HttpsError('invalid-argument', 'Missing required parameters');
     }
@@ -149,7 +187,15 @@ exports.createCheckoutSession = functions
         const userDoc = await db.collection('users').doc(userId).get();
         const userData = userDoc.data();
         console.log('User data retrieved:', userData);
-        let customerId = (_a = userData === null || userData === void 0 ? void 0 : userData.subscription) === null || _a === void 0 ? void 0 : _a.stripeCustomerId;
+        const accountPromoCode = normalizePromoCode(requestedPromoCode || ((_a = userData === null || userData === void 0 ? void 0 : userData.subscription) === null || _a === void 0 ? void 0 : _a.promoCode));
+        let promotionCodeId = null;
+        if (accountPromoCode) {
+            promotionCodeId = await resolvePromotionCodeId(accountPromoCode);
+            if (!promotionCodeId) {
+                console.warn(`Promo code '${accountPromoCode}' was provided but no active Stripe Promotion Code was found. Proceeding without discount.`);
+            }
+        }
+        let customerId = (_b = userData === null || userData === void 0 ? void 0 : userData.subscription) === null || _b === void 0 ? void 0 : _b.stripeCustomerId;
         // Create or retrieve Stripe customer
         if (!customerId) {
             const customer = await getStripe().customers.create({
@@ -178,8 +224,12 @@ exports.createCheckoutSession = functions
             mode: 'subscription',
             success_url: successUrl,
             cancel_url: cancelUrl,
+            ...(promotionCodeId
+                ? { discounts: [{ promotion_code: promotionCodeId }] }
+                : {}),
             metadata: {
                 firebaseUID: userId,
+                ...(accountPromoCode ? { promoCode: accountPromoCode } : {}),
             },
         });
         return { sessionId: session.id, url: session.url };
@@ -191,13 +241,53 @@ exports.createCheckoutSession = functions
             code: stripeError === null || stripeError === void 0 ? void 0 : stripeError.code,
             type: stripeError === null || stripeError === void 0 ? void 0 : stripeError.type,
         });
-        if ((_b = stripeError === null || stripeError === void 0 ? void 0 : stripeError.message) === null || _b === void 0 ? void 0 : _b.includes('No such price')) {
+        if ((_c = stripeError === null || stripeError === void 0 ? void 0 : stripeError.message) === null || _c === void 0 ? void 0 : _c.includes('No such price')) {
             throw new functions.https.HttpsError('failed-precondition', 'Stripe price ID is invalid. Verify REACT_APP_STRIPE_*_PLAN_ID values and deployed function config.');
         }
-        if ((_c = stripeError === null || stripeError === void 0 ? void 0 : stripeError.message) === null || _c === void 0 ? void 0 : _c.includes('Invalid API Key')) {
+        if ((_d = stripeError === null || stripeError === void 0 ? void 0 : stripeError.message) === null || _d === void 0 ? void 0 : _d.includes('Invalid API Key')) {
             throw new functions.https.HttpsError('failed-precondition', 'Stripe secret key is invalid or missing in backend configuration.');
         }
         throw new functions.https.HttpsError('internal', (stripeError === null || stripeError === void 0 ? void 0 : stripeError.message) || 'Failed to create checkout session');
+    }
+});
+/**
+ * Validate Stripe Promotion Code
+ * Callable body: { promoCode }
+ */
+exports.validatePromotionCode = functions
+    .runWith({ secrets: ['STRIPE_SECRET_KEY'] })
+    .https.onCall(async (data) => {
+    const normalizedPromoCode = normalizePromoCode(data === null || data === void 0 ? void 0 : data.promoCode).toLowerCase();
+    if (!normalizedPromoCode) {
+        throw new functions.https.HttpsError('invalid-argument', 'promoCode is required');
+    }
+    try {
+        const promotionCodes = await getStripe().promotionCodes.list({
+            code: normalizedPromoCode,
+            active: true,
+            limit: 1,
+        });
+        const match = promotionCodes.data[0];
+        const couponRef = match === null || match === void 0 ? void 0 : match.coupon;
+        const couponId = typeof couponRef === 'string' ? couponRef : (couponRef === null || couponRef === void 0 ? void 0 : couponRef.id) || null;
+        return {
+            valid: Boolean(match),
+            code: normalizedPromoCode,
+            promotionCodeId: (match === null || match === void 0 ? void 0 : match.id) || null,
+            couponId,
+            message: match
+                ? 'Promo code is valid.'
+                : 'Invalid or expired promo code.',
+        };
+    }
+    catch (error) {
+        const stripeError = error;
+        console.error('Error validating promotion code:', {
+            message: stripeError === null || stripeError === void 0 ? void 0 : stripeError.message,
+            code: stripeError === null || stripeError === void 0 ? void 0 : stripeError.code,
+            type: stripeError === null || stripeError === void 0 ? void 0 : stripeError.type,
+        });
+        throw new functions.https.HttpsError('internal', (stripeError === null || stripeError === void 0 ? void 0 : stripeError.message) || 'Failed to validate promo code');
     }
 });
 /**
@@ -213,13 +303,18 @@ exports.createTrialSubscription = functions
     if (!context.auth) {
         throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
     }
-    const { priceId, userId, email, trialDays = 30 } = data;
-    if (!priceId || !userId || !email) {
-        throw new functions.https.HttpsError('invalid-argument', 'Missing required parameters');
+    const { priceId: legacyPriceId, planId, promoCode, userId, email, trialDays = 30, } = data;
+    const normalizedPromoCode = normalizePromoCode(promoCode);
+    const resolvedPriceId = resolvePriceIdForPlan(String(planId || '')) ||
+        sanitizeSecret(String(legacyPriceId || ''));
+    if (!resolvedPriceId || !userId || !email) {
+        throw new functions.https.HttpsError('invalid-argument', `Missing required Stripe configuration: no price ID resolved for plan '${String(planId || '')}'. Configure STRIPE_*_PRICE_ID in functions environment.`);
     }
     try {
         console.log('Creating trial subscription with:', {
-            priceId,
+            planId,
+            priceId: resolvedPriceId,
+            promoCode: normalizedPromoCode || undefined,
             userId,
             email,
             trialDays,
@@ -235,6 +330,9 @@ exports.createTrialSubscription = functions
                 email: email,
                 metadata: {
                     firebaseUID: userId,
+                    ...(normalizedPromoCode
+                        ? { promoCode: normalizedPromoCode }
+                        : {}),
                 },
             });
             customerId = customer.id;
@@ -249,12 +347,15 @@ exports.createTrialSubscription = functions
             customer: customerId,
             items: [
                 {
-                    price: priceId,
+                    price: resolvedPriceId,
                 },
             ],
             trial_period_days: trialDays,
             metadata: {
                 firebaseUID: userId,
+                ...(normalizedPromoCode
+                    ? { promoCode: normalizedPromoCode }
+                    : {}),
             },
         });
         console.log('Trial subscription created:', subscription.id);

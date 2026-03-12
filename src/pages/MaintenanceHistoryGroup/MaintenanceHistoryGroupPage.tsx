@@ -18,6 +18,10 @@ import {
 	EmptyState,
 } from 'Components/Library/DataGrid/DataGridStyles';
 import { useGetTeamMembersQuery } from 'Redux/API/teamSlice';
+import {
+	formatCurrency,
+	getFinancialDisplayTotal,
+} from 'utils/financialUtils';
 
 export const MaintenanceHistoryGroupPage: React.FC = () => {
 	const { slug, groupId } = useParams<{ slug: string; groupId: string }>();
@@ -280,6 +284,7 @@ export const MaintenanceHistoryGroupPage: React.FC = () => {
 										<th>Date</th>
 										<th>Completed By</th>
 										<th>Notes</th>
+										<th>Cost</th>
 										<th>Attachments</th>
 									</tr>
 								</thead>
@@ -293,6 +298,12 @@ export const MaintenanceHistoryGroupPage: React.FC = () => {
 											</td>
 											<td>{getCompletedByDisplay(record)}</td>
 											<td>{record.completionNotes || record.notes || '-'}</td>
+											<td>
+												{formatCurrency(
+													getFinancialDisplayTotal(record.financials),
+													record.financials?.currency || 'USD',
+												)}
+											</td>
 											<td>
 												{record.completionFile?.url ? (
 													<a

@@ -36,9 +36,13 @@ import {
 	getSubscriptionPlanDetails,
 	isTrialExpired,
 } from '../../utils/subscriptionUtils';
-import { filterPropertyGroupsByRole } from '../../utils/dataFilters';
+import {
+	filterPropertyGroupsByRole,
+	getTenantAssignmentForProperty,
+} from '../../utils/dataFilters';
 import { canDeleteProperty } from '../../utils/permissions';
 import { TeamMember } from '../../Redux/Slices/teamSlice';
+import { USER_ROLES } from '../../constants/roles';
 import {
 	Wrapper,
 	TopActions,
@@ -68,6 +72,7 @@ export const Properties = () => {
 	const navigate = useNavigate();
 	const dispatch = useDispatch();
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
+	const isUserTenant = currentUser?.role === USER_ROLES.TENANT;
 	const canAccessProperties = useSelector(selectCanAccessProperties);
 	const isHomeowner = useSelector(selectIsHomeowner);
 	// Select team groups and derive members with memoization to avoid new references
@@ -390,6 +395,63 @@ export const Properties = () => {
 			setDeleteModalOpen(true);
 		}
 	};
+
+	const getTenantUnitRoute = useCallback(
+		(property: Property): string | null => {
+			if (!isUserTenant) {
+				return null;
+			}
+
+			const assignment = getTenantAssignmentForProperty(property, currentUser.email);
+			if (!assignment?.unit && !assignment?.unitId) {
+				return null;
+			}
+
+			const units = (((property as any).units as Array<any>) || []).filter(Boolean);
+			const matchedUnit = units.find(
+				(unit) =>
+					(assignment.unitId && unit?.id === assignment.unitId) ||
+					(assignment.unit && (unit?.id === assignment.unit || unit?.name === assignment.unit)),
+			);
+
+			const unitName =
+				typeof matchedUnit?.name === 'string' && matchedUnit.name.trim().length > 0
+					? matchedUnit.name
+					: assignment.unit;
+
+			if (!unitName) {
+				return null;
+			}
+
+			return `/property/${property.slug}/unit/${encodeURIComponent(unitName)}`;
+		},
+		[currentUser, isUserTenant],
+	);
+
+	const tenantAssignedProperties = useMemo(() => {
+		if (!isUserTenant || !currentUser?.email) {
+			return [] as Property[];
+		}
+
+		// Filter to only properties where the tenant has an actual assignment
+		return filteredGroups
+			.flatMap((group) => group.properties || [])
+			.filter((property) => getTenantAssignmentForProperty(property, currentUser.email) !== null);
+	}, [isUserTenant, filteredGroups, currentUser?.email]);
+
+	const tenantPrimaryProperty = tenantAssignedProperties[0] || null;
+
+	useEffect(() => {
+		if (!isUserTenant || !tenantPrimaryProperty) {
+			return;
+		}
+
+		const targetRoute =
+			getTenantUnitRoute(tenantPrimaryProperty) ||
+			`/property/${tenantPrimaryProperty.slug}`;
+
+		navigate(targetRoute, { replace: true });
+	}, [isUserTenant, tenantPrimaryProperty, getTenantUnitRoute, navigate]);
 
 	const handleConfirmDeleteProperty = async () => {
 		if (!propertyToDelete) return;
@@ -780,6 +842,32 @@ export const Properties = () => {
 		// Success - dialog will be closed by PropertyDialog after successful save
 	};
 
+	if (isUserTenant && !tenantPrimaryProperty) {
+		return (
+			<Wrapper>
+				<PageHeaderSection>
+					<StandardPageTitle>Properties</StandardPageTitle>
+				</PageHeaderSection>
+				<div style={{ padding: '16px', color: '#6b7280' }}>
+					No property assignment found for your tenant account yet.
+				</div>
+			</Wrapper>
+		);
+	}
+
+	if (isUserTenant) {
+		return (
+			<Wrapper>
+				<PageHeaderSection>
+					<StandardPageTitle>Properties</StandardPageTitle>
+				</PageHeaderSection>
+				<div style={{ padding: '16px', color: '#6b7280' }}>
+					Opening your assigned property...
+				</div>
+			</Wrapper>
+		);
+	}
+
 	return (
 		<Wrapper>
 			{/* Page Header: Title on left, actions on right */}
@@ -925,7 +1013,8 @@ export const Properties = () => {
 											title: property.title,
 											slug: property.slug,
 										});
-										navigate(`/property/${property.slug}`);
+										const tenantUnitRoute = getTenantUnitRoute(property);
+										navigate(tenantUnitRoute || `/property/${property.slug}`);
 									}}>
 									<PropertyImage src={property.image} alt={property.title} />
 									<FavoriteStar

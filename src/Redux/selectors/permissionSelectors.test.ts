@@ -3,6 +3,8 @@ import {
 	selectIsContractor,
 	selectIsHomeowner,
 	selectCanAccessTeam,
+	selectCanInviteTeamMembers,
+	selectCanManageTenants,
 	selectCanAccessProperties,
 	selectCanAccessReadOnlyFeatures,
 	selectCanViewAllPages,
@@ -125,6 +127,52 @@ describe('permission selectors', () => {
 
 			expect(selectCanAccessTeam(freeState)).toBe(false);
 			expect(selectCanAccessTeam(expiredState)).toBe(false);
+		});
+	});
+
+	describe('selectCanInviteTeamMembers', () => {
+		it('matches team invite capability for eligible plans', () => {
+			const state: any = {
+				user: {
+					currentUser: {
+						subscription: { status: SUBSCRIPTION_STATUS.ACTIVE, plan: 'basic' },
+					},
+				},
+			};
+			expect(selectCanInviteTeamMembers(state)).toBe(true);
+		});
+
+		it('returns false when user has no subscription', () => {
+			expect(
+				selectCanInviteTeamMembers({ user: { currentUser: null } } as any),
+			).toBe(false);
+		});
+	});
+
+	describe('selectCanManageTenants', () => {
+		it('returns true for active plan with tenant management capability', () => {
+			const state: any = {
+				user: {
+					currentUser: {
+						subscription: {
+							status: SUBSCRIPTION_STATUS.ACTIVE,
+							plan: 'professional',
+						},
+					},
+				},
+			};
+			expect(selectCanManageTenants(state)).toBe(true);
+		});
+
+		it('returns false for plans without tenant management capability', () => {
+			const state: any = {
+				user: {
+					currentUser: {
+						subscription: { status: SUBSCRIPTION_STATUS.ACTIVE, plan: 'homeowner' },
+					},
+				},
+			};
+			expect(selectCanManageTenants(state)).toBe(false);
 		});
 	});
 

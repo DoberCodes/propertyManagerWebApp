@@ -4,6 +4,7 @@
  */
 
 import { Property } from './Property.types';
+import { TaskFinancials } from './Task.types';
 
 // Main component props
 export interface PropertyDetailPageProps {
@@ -75,6 +76,7 @@ export interface MaintenanceTabProps {
 		completionFile?: File;
 		recurringTaskId?: string;
 		linkedTaskIds?: string[];
+		financials?: TaskFinancials;
 	}) => void;
 	onUpdateMaintenanceHistory?: (id: string, updates: Partial<any>) => void;
 	onDeleteMaintenanceHistory?: (historyId: string) => void;

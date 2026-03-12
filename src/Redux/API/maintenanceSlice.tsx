@@ -15,6 +15,7 @@ import {
 	resolveAccessibleAccountIds,
 	resolveTargetUserId,
 } from './accountContext';
+import { TaskFinancials } from '../../types/Task.types';
 
 const maintenanceSlice = apiSlice.injectEndpoints({
 	endpoints: (builder) => ({
@@ -86,6 +87,7 @@ const maintenanceSlice = apiSlice.injectEndpoints({
 				completionFile?: File;
 				recurringTaskId?: string; // ID of the recurring task this belongs to
 				linkedTaskIds?: string[]; // Additional task IDs linked to this history record
+				financials?: TaskFinancials;
 			}
 		>({
 			async queryFn({
@@ -100,6 +102,7 @@ const maintenanceSlice = apiSlice.injectEndpoints({
 				completionFile,
 				recurringTaskId,
 				linkedTaskIds,
+				financials,
 			}) {
 				try {
 					const propertyDoc = await getDoc(doc(db, 'properties', propertyId));
@@ -136,6 +139,7 @@ const maintenanceSlice = apiSlice.injectEndpoints({
 						completionFile: completionFileData,
 						recurringTaskId,
 						linkedTaskIds,
+						financials,
 						createdAt: new Date().toISOString(),
 						updatedAt: new Date().toISOString(),
 					};

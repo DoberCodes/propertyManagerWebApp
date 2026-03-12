@@ -23,13 +23,22 @@ import {
 	TenantPlanNote,
 	EmailStatusText,
 	TrialNotice,
+	InviteModePanel,
+	InviteModeTitle,
+	InviteModeDescription,
+	InviteModeActionButton,
 } from './RegistrationCard.styles';
 import { faArrowCircleLeft } from '@fortawesome/free-solid-svg-icons';
 import { faEye, faEyeSlash } from '@fortawesome/free-regular-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { signUpWithEmail, checkEmailExists } from '../../services/authService';
+import {
+	signUpWithEmail,
+	checkEmailExists,
+	validateTenantInviteForRegistration,
+	validateTeamInviteForRegistration,
+} from '../../services/authService';
 import { USER_ROLES } from '../../constants/roles';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { setCurrentUser } from '../../Redux/Slices/userSlice';
 import { PaywallPage } from '../../pages/PaywallPage/PaywallPage';
 import DocumentViewer from '../DocumentViewer';
@@ -39,19 +48,20 @@ import {
 	createLegalAgreementDocuments,
 } from '../../constants/legal';
 
-// Map user type selection to appropriate role
-const getRoleFromUserType = (userType: string): string => {
+// Map selected account type to appropriate role
+const getRoleFromAccountType = (accountType: string): string => {
 	const roleMapping: { [key: string]: string } = {
 		homeowner: USER_ROLES.ADMIN, // Homeowners are admins of their properties
 		propertyManager: USER_ROLES.PROPERTY_MANAGER,
-		tenant: USER_ROLES.TENANT,
-		propertyGuest: USER_ROLES.PROPERTY_GUEST,
+		tenant: USER_ROLES.TENANT, // Tenants are self-registered tenants
+		tenantInvite: USER_ROLES.TENANT,
 	};
-	return roleMapping[userType] || USER_ROLES.ADMIN; // Default to admin
+	return roleMapping[accountType] || USER_ROLES.ADMIN; // Default to admin
 };
 
 export const RegistrationCard = () => {
 	const navigate = useNavigate();
+	const location = useLocation();
 	const dispatch = useDispatch();
 	const [step, setStep] = useState<number>(1);
 	const [firstName, setFirstName] = useState<string>('');
@@ -69,9 +79,19 @@ export const RegistrationCard = () => {
 	const [showPassword, setShowPassword] = useState<boolean>(false);
 	const [showPasswordConfirm, setShowPasswordConfirm] =
 		useState<boolean>(false);
-	const [userType, setUserType] = useState<string>('');
+	const [accountType, setAccountType] = useState<string>('');
 	const [selectedPlan, setSelectedPlan] = useState<string>('');
 	const [promoCode, setPromoCode] = useState<string>('');
+	const [inviteCodeInput, setInviteCodeInput] = useState<string>('');
+	const [inviteMode, setInviteMode] = useState<boolean>(false);
+	const [inviteType, setInviteType] = useState<'tenant' | 'team'>('tenant');
+	const [inviteRole, setInviteRole] = useState<string | null>(null);
+	const [inviteEmailLocked, setInviteEmailLocked] = useState<boolean>(false);
+	const [inviteValidationState, setInviteValidationState] = useState<
+		'idle' | 'checking' | 'valid' | 'invalid'
+	>('idle');
+	const [inviteValidationMessage, setInviteValidationMessage] =
+		useState<string>('');
 	const [agreedToTerms, setAgreedToTerms] = useState<boolean>(false);
 	const [selectedDocument, setSelectedDocument] = useState<{
 		name: string;
@@ -85,6 +105,122 @@ export const RegistrationCard = () => {
 	const handleCloseDocumentViewer = () => {
 		setSelectedDocument(null);
 	};
+
+	// Tenants skip plan selection, invite mode skips plan selection
+	const isTenantSignup = accountType === 'tenant';
+	const skipsPlanSelection = inviteMode || isTenantSignup;
+	const totalSteps = skipsPlanSelection ? 3 : 4;
+	const displayStep = skipsPlanSelection && step === 4 ? 3 : step;
+
+	const enableInviteMode = () => {
+		setInviteMode(true);
+		setAccountType('tenantInvite');
+		setSelectedPlan('free');
+		setInviteType('tenant');
+		setInviteRole(null);
+		setInviteEmailLocked(false);
+		setInviteValidationState('idle');
+		setInviteValidationMessage('');
+		setError('');
+	};
+
+	const disableInviteMode = () => {
+		setInviteMode(false);
+		setInviteCodeInput('');
+		setInviteType('tenant');
+		setInviteRole(null);
+		setInviteValidationState('idle');
+		setInviteValidationMessage('');
+		setInviteEmailLocked(false);
+		setAccountType('');
+		setSelectedPlan('');
+		setPromoCode('');
+		setError('');
+	};
+
+	const validateInvite = async (
+		codeOverride?: string,
+		emailOverride?: string,
+	) => {
+		const codeToCheck = (codeOverride ?? inviteCodeInput).trim();
+		const emailToCheck = (emailOverride ?? email).trim().toLowerCase();
+
+		if (!inviteMode || !codeToCheck || !emailToCheck) {
+			setInviteValidationState('idle');
+			setInviteValidationMessage('');
+			return false;
+		}
+
+		setInviteValidationState('checking');
+		setInviteValidationMessage('Validating invitation code...');
+
+		const isTenantValid = await validateTenantInviteForRegistration(
+			codeToCheck,
+			emailToCheck,
+		);
+
+		if (isTenantValid) {
+			setInviteType('tenant');
+			setInviteRole(USER_ROLES.TENANT);
+			setSelectedPlan('tenant');
+			setInviteValidationState('valid');
+			setInviteValidationMessage('Invite code validated successfully.');
+			return true;
+		}
+
+		const teamInvite = await validateTeamInviteForRegistration(
+			codeToCheck,
+			emailToCheck,
+		);
+
+		if (teamInvite.valid) {
+			setInviteType('team');
+			setInviteRole(teamInvite.role || null);
+			setSelectedPlan('free');
+			setInviteValidationState('valid');
+			setInviteValidationMessage('Invite code validated successfully.');
+			return true;
+		}
+
+		setInviteValidationState('invalid');
+		setInviteValidationMessage(
+			'Invitation code is invalid, expired, or does not match this email.',
+		);
+		return false;
+	};
+
+	useEffect(() => {
+		const params = new URLSearchParams(location.search);
+		const inviteCodeParam = (params.get('invite') || params.get('code') || '')
+			.trim()
+			.toUpperCase();
+		const inviteTypeParam = (params.get('inviteType') || '')
+			.trim()
+			.toLowerCase();
+		const inviteEmailParam = (
+			params.get('email') ||
+			params.get('tenantEmail') ||
+			params.get('teamMemberEmail') ||
+			''
+		)
+			.trim()
+			.toLowerCase();
+
+		if (!inviteCodeParam) {
+			return;
+		}
+
+		setInviteMode(true);
+		setAccountType('tenantInvite');
+		setInviteType(inviteTypeParam === 'team' ? 'team' : 'tenant');
+		setSelectedPlan(inviteTypeParam === 'team' ? 'free' : 'tenant');
+		setInviteCodeInput(inviteCodeParam);
+
+		if (inviteEmailParam) {
+			setEmail(inviteEmailParam);
+			setInviteEmailLocked(true);
+		}
+	}, [location.search]);
 
 	const handleEmailBlur = async () => {
 		if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -100,6 +236,10 @@ export const RegistrationCard = () => {
 		} finally {
 			setEmailChecking(false);
 		}
+
+		if (inviteMode && inviteCodeInput.trim()) {
+			await validateInvite(inviteCodeInput, email);
+		}
 	};
 
 	const validateStep1 = () => {
@@ -111,20 +251,23 @@ export const RegistrationCard = () => {
 			setError('Please enter your last name');
 			return false;
 		}
-		if (!userType) {
+		if (inviteMode) {
+			return true;
+		}
+		if (!accountType) {
 			setError(
-				'Please select if you are registering as a homeowner or property manager',
+				'Please select your role as a homeowner, property manager, or tenant',
 			);
 			return false;
 		}
-		if (!['homeowner', 'propertyManager'].includes(userType)) {
-			setError('Invalid user type selected');
+		if (!['homeowner', 'propertyManager', 'tenant'].includes(accountType)) {
+			setError('Invalid account type selected');
 			return false;
 		}
 		return true;
 	};
 
-	const validateStep2 = () => {
+	const validateStep2 = async () => {
 		if (!email.trim()) {
 			setError('Please enter your email address');
 			return false;
@@ -154,21 +297,32 @@ export const RegistrationCard = () => {
 			);
 			return false;
 		}
+
+		if (inviteMode) {
+			if (!inviteCodeInput.trim()) {
+				setError('Invitation code is required for invite registration');
+				return false;
+			}
+
+			const inviteValid = await validateInvite();
+			if (!inviteValid) {
+				setError(
+					'This invitation is invalid or expired. Please verify the code and email.',
+				);
+				return false;
+			}
+		}
+
 		return true;
 	};
 
 	const validateStep3 = () => {
-		console.log(
-			`[VAL-STEP3] userType="${userType}", selectedPlan="${selectedPlan}", promoCode="${promoCode}"`,
-		);
-		if (userType === 'tenant') {
-			if (!promoCode.trim()) {
-				console.log('[VAL-STEP3] Tenant needs promo code');
-				setError('Tenant promo code is required');
-				return false;
-			}
+		if (inviteMode) {
 			return true;
 		}
+		console.log(
+			`[VAL-STEP3] accountType="${accountType}", selectedPlan="${selectedPlan}", promoCode="${promoCode}"`,
+		);
 		// Plan selection is handled by the embedded paywall
 		// User must select a plan to proceed
 		if (!selectedPlan) {
@@ -180,7 +334,7 @@ export const RegistrationCard = () => {
 		return true;
 	};
 
-	const handleNext = () => {
+	const handleNext = async () => {
 		setError('');
 		console.log(
 			`[RegistrationCard] handleNext called, step=${step}, selectedPlan="${selectedPlan}"`,
@@ -188,9 +342,14 @@ export const RegistrationCard = () => {
 		if (step === 1 && validateStep1()) {
 			console.log('[RegistrationCard] Step 1 validated, moving to step 2');
 			setStep(2);
-		} else if (step === 2 && validateStep2()) {
-			console.log('[RegistrationCard] Step 2 validated, moving to step 3');
-			setStep(3);
+		} else if (step === 2 && (await validateStep2())) {
+			console.log('[RegistrationCard] Step 2 validated, moving to next step');
+			if (inviteMode || isTenantSignup) {
+				setSelectedPlan(inviteMode && inviteType === 'tenant' ? 'tenant' : isTenantSignup ? 'tenant' : 'free');
+				setStep(4);
+			} else {
+				setStep(3);
+			}
 		} else if (step === 3 && validateStep3()) {
 			console.log('[RegistrationCard] Step 3 validated, moving to step 4');
 			setStep(4);
@@ -203,6 +362,10 @@ export const RegistrationCard = () => {
 
 	const handleBack = () => {
 		setError('');
+		if ((inviteMode || isTenantSignup) && step === 4) {
+			setStep(2);
+			return;
+		}
 		if (step > 1) {
 			setStep(step - 1);
 		}
@@ -213,10 +376,23 @@ export const RegistrationCard = () => {
 		setLoading(true);
 
 		try {
-			// Map userType to appropriate role
-			const userRole = getRoleFromUserType(userType);
+			// Map selected account type to appropriate role
+			const effectiveAccountType = inviteMode ? 'tenantInvite' : accountType;
+			const userRole = inviteMode
+				? inviteRole ||
+				  (inviteType === 'team'
+						? USER_ROLES.MAINTENANCE
+						: getRoleFromAccountType(effectiveAccountType))
+				: getRoleFromAccountType(effectiveAccountType);
 			const agreedAt = new Date().toISOString();
-			const signupPlan = selectedPlan;
+			const signupPlan = inviteMode
+				? inviteType === 'tenant'
+					? 'tenant'
+					: 'free'
+				: isTenantSignup ? 'tenant' : selectedPlan;
+			const effectivePromoCode = inviteMode
+				? inviteCodeInput.trim()
+				: isTenantSignup ? '' : promoCode.trim();
 
 			// Register with Firebase - use mapped role, trim values
 			const user = await signUpWithEmail(
@@ -226,7 +402,7 @@ export const RegistrationCard = () => {
 				lastName.trim(),
 				userRole,
 				signupPlan,
-				promoCode.trim() || undefined,
+				effectivePromoCode || undefined,
 				{
 					agreedToTerms: true,
 					agreedVersion: LEGAL_AGREEMENT_VERSION,
@@ -235,6 +411,7 @@ export const RegistrationCard = () => {
 						LEGAL_AGREEMENT_VERSION,
 					),
 				},
+				inviteMode ? inviteType : undefined,
 			);
 
 			// Store session in localStorage
@@ -250,7 +427,9 @@ export const RegistrationCard = () => {
 			dispatch(setCurrentUser(user));
 
 			setLoading(false);
-			navigate('/dashboard');
+			navigate(
+				user.role === USER_ROLES.TENANT ? '/tenant-profile' : '/dashboard',
+			);
 		} catch (error: any) {
 			console.error('RegistrationCard: Registration error', error);
 			setError(error.message || 'Registration failed. Please try again.');
@@ -268,19 +447,21 @@ export const RegistrationCard = () => {
 
 	return (
 		<Wrapper
-			$wide={step === 3 && userType !== 'tenant'}
+			$wide={step === 3}
 			onSubmit={(e) => e.preventDefault()}>
 			<BackButton href='#/login'>
 				<FontAwesomeIcon icon={faArrowCircleLeft} />
 			</BackButton>
 			<Title>
-				{step === 1 && 'Create Account - Step 1 of 4'}
-				{step === 2 && 'Create Account - Step 2 of 4'}
-				{step === 3 && 'Create Account - Step 3 of 4'}
-				{step === 4 && 'Create Account - Step 4 of 4'}
+				{step === 1 && `Create Account - Step ${displayStep} of ${totalSteps}`}
+				{step === 2 && `Create Account - Step ${displayStep} of ${totalSteps}`}
+				{step === 3 && `Create Account - Step ${displayStep} of ${totalSteps}`}
+				{step === 4 && `Create Account - Step ${displayStep} of ${totalSteps}`}
 			</Title>
 			<TrialNotice>
-				Start with a {TRIAL_DURATION_DAYS}-day free trial on any paid plan.
+				{inviteMode
+					? 'Complete your invited account setup.'
+					: `Start with a ${TRIAL_DURATION_DAYS}-day free trial on any paid plan.`}
 			</TrialNotice>
 			{error && <ErrorMessage>{error}</ErrorMessage>}
 
@@ -310,69 +491,86 @@ export const RegistrationCard = () => {
 						}}
 						required
 					/>
-					<QuestionLabel>
-						Are you registering as a homeowner or property manager?
-					</QuestionLabel>
-					<RadioGrid>
-						<RadioOption>
-							<input
-								type='radio'
-								name='userType'
-								value='homeowner'
-								checked={userType === 'homeowner'}
-								onChange={() => {
-									setUserType('homeowner');
-									setError('');
-								}}
-								required
-							/>
-							Homeowner
-						</RadioOption>
-						<RadioOption>
-							<input
-								type='radio'
-								name='userType'
-								value='propertyManager'
-								checked={userType === 'propertyManager'}
-								onChange={() => {
-									setUserType('propertyManager');
-									setError('');
-								}}
-								required
-							/>
-							Property Manager
-						</RadioOption>
-						{/* <RadioOption>
-							<input
-								type='radio'
-								name='userType'
-								value='tenant'
-								checked={userType === 'tenant'}
-								onChange={() => {
-									setUserType('tenant');
-									setPromoCode('');
-									setError('');
-								}}
-								required
-							/>
-							Tenant
-						</RadioOption>
-						<RadioOption>
-							<input
-								type='radio'
-								name='userType'
-								value='propertyGuest'
-								checked={userType === 'propertyGuest'}
-								onChange={() => {
-									setUserType('propertyGuest');
-									setPromoCode('');
-									setError('');
-								}}
-								required
-							/>
-							Property Guest
-						</RadioOption> */}
-					</RadioGrid>
+					{inviteMode ? (
+						<>
+							<QuestionLabel>You are joining via an invite.</QuestionLabel>
+						</>
+					) : (
+						<>
+							<QuestionLabel>
+								What best describes your account?
+							</QuestionLabel>
+							<RadioGrid>
+								<RadioOption>
+									<input
+										type='radio'
+										name='accountType'
+										value='homeowner'
+										checked={accountType === 'homeowner'}
+										onChange={() => {
+											setAccountType('homeowner');
+											setError('');
+										}}
+										required
+									/>
+									Homeowner
+								</RadioOption>
+								<RadioOption>
+									<input
+										type='radio'
+										name='accountType'
+										value='propertyManager'
+										checked={accountType === 'propertyManager'}
+										onChange={() => {
+											setAccountType('propertyManager');
+											setError('');
+										}}
+										required
+									/>
+									Property Manager
+								</RadioOption>
+								<RadioOption>
+									<input
+										type='radio'
+										name='accountType'
+										value='tenant'
+										checked={accountType === 'tenant'}
+										onChange={() => {
+											setAccountType('tenant');
+											setError('');
+										}}
+										required
+									/>
+									Tenant
+								</RadioOption>
+							</RadioGrid>
+						</>
+					)}
+					{inviteMode ? (
+						<InviteModePanel $active>
+							<InviteModeTitle>Invite Registration Enabled</InviteModeTitle>
+							<InviteModeDescription>
+								Use this flow if you were invited to join a property or team.
+							</InviteModeDescription>
+							<InviteModeActionButton
+								type='button'
+								$secondary
+								onClick={disableInviteMode}>
+								Switch to Standard Registration
+							</InviteModeActionButton>
+						</InviteModePanel>
+					) : (
+						<InviteModePanel>
+							<InviteModeTitle>Have an Invite Code?</InviteModeTitle>
+							<InviteModeDescription>
+								Use invite registration if you were invited as a tenant or team
+								member.
+							</InviteModeDescription>
+							<InviteModeActionButton type='button' onClick={enableInviteMode}>
+								Use Invite Registration
+							</InviteModeActionButton>
+						</InviteModePanel>
+					)}
 					<Submit type='button' onClick={handleNext}>
 						Next
 					</Submit>
@@ -383,15 +581,70 @@ export const RegistrationCard = () => {
 			{step === 2 && (
 				<>
 					<SectionLabel>Create your login credentials</SectionLabel>
+					{inviteMode ? (
+						<InviteModePanel $active>
+							<InviteModeTitle>Invite Registration Enabled</InviteModeTitle>
+							<InviteModeDescription>
+								Enter your invite code and complete account setup.
+							</InviteModeDescription>
+							<InviteModeActionButton
+								type='button'
+								$secondary
+								onClick={disableInviteMode}>
+								Switch to Standard Registration
+							</InviteModeActionButton>
+						</InviteModePanel>
+					) : (
+						<InviteModePanel>
+							<InviteModeTitle>Have an Invite Code?</InviteModeTitle>
+							<InviteModeDescription>
+								Use your invite code to register through the invite flow.
+							</InviteModeDescription>
+							<InviteModeActionButton type='button' onClick={enableInviteMode}>
+								Use Invite Registration
+							</InviteModeActionButton>
+						</InviteModePanel>
+					)}
+					{inviteMode && (
+						<>
+							<Input
+								placeholder='Invitation Code *'
+								type='text'
+								value={inviteCodeInput}
+								onChange={(event) => {
+									setInviteCodeInput(event.target.value.toUpperCase());
+									setInviteValidationState('idle');
+									setInviteValidationMessage('');
+									setError('');
+								}}
+								onBlur={() => {
+									if (inviteCodeInput.trim() && email.trim()) {
+										void validateInvite();
+									}
+								}}
+								required
+							/>
+							{inviteValidationMessage && (
+								<EmailStatusText error={inviteValidationState === 'invalid'}>
+									{inviteValidationMessage}
+								</EmailStatusText>
+							)}
+						</>
+					)}
 					<Input
 						placeholder='Email Address *'
 						type='email'
 						autoComplete='email'
 						value={email}
+						disabled={inviteEmailLocked}
 						onChange={(event) => {
 							setEmail(event.target.value);
 							setError('');
 							setEmailExists(false);
+							if (inviteMode) {
+								setInviteValidationState('idle');
+								setInviteValidationMessage('');
+							}
 						}}
 						onBlur={handleEmailBlur}
 						required
@@ -583,7 +836,7 @@ export const RegistrationCard = () => {
 			)}
 
 			{/* Step 3: Plan Selection with Paywall */}
-			{step === 3 && userType !== 'tenant' && (
+			{step === 3 && !skipsPlanSelection && (
 				<>
 					<PaywallPage
 						subscription={{
@@ -621,45 +874,14 @@ export const RegistrationCard = () => {
 				</>
 			)}
 
-			{/* Step 3: Tenant Plan + Promo Code */}
-			{step === 3 && userType === 'tenant' && (
-				<>
-					<SectionLabel>Tenant plan</SectionLabel>
-					<TenantPlanCard>
-						<TenantPlanTitle>Tenant Free</TenantPlanTitle>
-						<TenantPlanPrice>$0</TenantPlanPrice>
-						<TenantPlanNote>
-							Free tenant access with a one-time promo code from your property
-							manager.
-						</TenantPlanNote>
-					</TenantPlanCard>
-					<SectionLabel>Promo code</SectionLabel>
-					<Input
-						placeholder='Enter your promo code *'
-						type='text'
-						autoComplete='off'
-						value={promoCode}
-						onChange={(event) => {
-							setPromoCode(event.target.value);
-							setError('');
-						}}
-						required
-					/>
-					<ButtonGroup>
-						<Submit type='button' onClick={handleBack}>
-							Back
-						</Submit>
-						<Submit type='button' onClick={handleNext}>
-							Next
-						</Submit>
-					</ButtonGroup>
-				</>
-			)}
-
 			{/* Step 4: Additional Information (Optional) */}
 			{step === 4 && (
 				<>
-					<SectionLabel>Additional information (optional)</SectionLabel>
+					<SectionLabel>
+						{inviteMode || isTenantSignup
+							? 'Optional profile information'
+							: 'Additional information (optional)'}
+					</SectionLabel>
 					<Input
 						placeholder='Phone Number (optional)'
 						type='tel'

@@ -51,6 +51,7 @@ import { FileUploader } from 'Components/Library/FileUploader';
 import { ConvertRequestToTaskModal } from 'Components/ConvertRequestToTaskModal';
 import { SharePropertyModal } from 'Components/SharePropertyModal';
 import { AddTenantModal } from 'Components/AddTenantModal';
+import { MaintenanceRequestModal } from 'Components/MaintenanceRequestModal';
 import { DeleteConfirmationModal } from 'Components/Library/Modal/DeleteConfirmationModal';
 import {
 	Wrapper,
@@ -73,6 +74,7 @@ import {
 import { useGetTeamMembersQuery } from '../../Redux/API/teamSlice';
 import { TabSystem } from './TabSystem';
 import { UnitModal } from '../../Components/Library';
+import { TaskFinancials } from '../../types/Task.types';
 
 export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 	props,
@@ -180,9 +182,17 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 
 	// Find the property based on slug from Firebase data - move up to use in hooks
 	const property = useMemo(() => {
+		const propertiesFromGroups = propertyGroups.flatMap(
+			(group) => group.properties || [],
+		);
+		const normalizedSlug = (slug || '').trim();
+
 		const resolvedProperty = propertyOverride
 			? propertyOverride
-			: firebaseProperties.find((p: any) => p.slug === slug);
+			: firebaseProperties.find((p: any) => p.slug === normalizedSlug) ||
+			  propertiesFromGroups.find((p: any) => p.slug === normalizedSlug) ||
+			  firebaseProperties.find((p: any) => p.id === normalizedSlug) ||
+			  propertiesFromGroups.find((p: any) => p.id === normalizedSlug);
 
 		// DEBUG: Log what's happening
 		if (!resolvedProperty && firebaseProperties.length > 0) {
@@ -197,7 +207,54 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 		}
 
 		return resolvedProperty;
-	}, [slug, firebaseProperties, propertyOverride]);
+	}, [slug, firebaseProperties, propertyGroups, propertyOverride]);
+
+	const tenantAssignment = useMemo(() => {
+		if (!property || !currentUser?.email || !isUserTenant) {
+			return null;
+		}
+
+		const normalizedEmail = currentUser.email.trim().toLowerCase();
+		const tenants = ((property as any).tenants || []) as Array<any>;
+		return (
+			tenants.find(
+				(tenant) =>
+					typeof tenant?.email === 'string' &&
+					tenant.email.trim().toLowerCase() === normalizedEmail,
+			) || null
+		);
+	}, [property, currentUser?.email, isUserTenant]);
+
+	useEffect(() => {
+		if (!property || !currentUser?.email || !isUserTenant) {
+			return;
+		}
+
+		if (!tenantAssignment) {
+			navigate('/properties', { replace: true });
+			return;
+		}
+
+		const assignedUnit =
+			typeof tenantAssignment.unit === 'string'
+				? tenantAssignment.unit.trim()
+				: '';
+
+		if (!assignedUnit) {
+			return;
+		}
+
+		navigate(
+			`/property/${property.slug}/unit/${encodeURIComponent(assignedUnit)}`,
+			{ replace: true },
+		);
+	}, [
+		property,
+		currentUser?.email,
+		isUserTenant,
+		tenantAssignment,
+		navigate,
+	]);
 
 	const handleEditTenant = (tenant: any) => {
 		setEditingTenant(tenant);
@@ -341,6 +398,7 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 		completionFile?: File;
 		recurringTaskId?: string;
 		linkedTaskIds?: string[];
+		financials?: TaskFinancials;
 	}) => {
 		if (!property?.id) return;
 
@@ -393,11 +451,13 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 
 	// Destructure maintenance request handlers
 	const {
+		showMaintenanceRequestModal,
 		setShowMaintenanceRequestModal,
 		showConvertModal,
 		setShowConvertModal,
 		convertingRequest,
 		setConvertingRequest,
+		handleMaintenanceRequestSubmit,
 		handleConvertRequestToTask,
 		handleConvertToTask,
 	} = maintenanceHandlers;
@@ -700,7 +760,7 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 										{isFav ? '★ Favorited' : '☆ Add to Favorites'}
 									</button>
 								)}
-								{isUserTenant && (
+								{isUserTenant && property?.isRental && (
 									<button
 										onClick={() => {
 											setShowMaintenanceRequestModal(true);
@@ -864,7 +924,7 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 							}}>
 							{isFav ? '★ Favorited' : '☆ Add to Favorites'}
 						</FavoriteButton>
-						{currentUser && isUserTenant && (
+						{currentUser && isUserTenant && property?.isRental && (
 							<FavoriteButton
 								onClick={() => setShowMaintenanceRequestModal(true)}>
 								🔧 Request Maintenance
@@ -954,6 +1014,16 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 						teamMembers={teamMembers.filter(
 							(m): m is TeamMember => m !== undefined,
 						)}
+					/>
+				)}
+
+				{/* Maintenance Request Modal */}
+				{property && (
+					<MaintenanceRequestModal
+						isOpen={showMaintenanceRequestModal}
+						onClose={() => setShowMaintenanceRequestModal(false)}
+						onSubmit={handleMaintenanceRequestSubmit}
+						propertyTitle={property.title}
 					/>
 				)}
 

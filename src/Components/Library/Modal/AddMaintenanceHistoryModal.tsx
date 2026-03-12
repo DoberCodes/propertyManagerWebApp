@@ -1,6 +1,13 @@
 import React, { useState } from 'react';
 import { FileUploader } from '../FileUploader';
 import GenericModal from './GenericModal';
+import {
+	hasCostData,
+	toNumberOrUndefined,
+	calculateCostTotal,
+	formatCurrency,
+} from '../../../utils/financialUtils';
+import { TaskFinancials } from '../../../types/Task.types';
 
 // Add Maintenance History Modal Component
 interface AddMaintenanceHistoryModalProps {
@@ -16,6 +23,7 @@ interface AddMaintenanceHistoryModalProps {
 		completionFile?: File;
 		recurringTaskId?: string;
 		maintenanceGroupId?: string;
+		financials?: TaskFinancials;
 	}) => void;
 	property: any;
 	units: any[];
@@ -48,6 +56,10 @@ export const AddMaintenanceHistoryModal: React.FC<
 		completionNotes: '',
 		unitId: '',
 		completionFile: null as File | null,
+		contractorCost: '',
+		materialsCost: '',
+		laborCost: '',
+		otherCost: '',
 	});
 	const [completedByMode, setCompletedByMode] = useState<'dropdown' | 'custom'>(
 		'dropdown',
@@ -147,6 +159,19 @@ export const AddMaintenanceHistoryModal: React.FC<
 				: selectedGroupId || undefined;
 
 		const data = {
+			financials: (() => {
+				const actual = {
+					contractorCost: toNumberOrUndefined(formData.contractorCost),
+					materialsCost: toNumberOrUndefined(formData.materialsCost),
+					laborCost: toNumberOrUndefined(formData.laborCost),
+					otherCost: toNumberOrUndefined(formData.otherCost),
+				};
+				if (!hasCostData(actual)) return undefined;
+				return {
+					currency: 'USD',
+					actual,
+				};
+			})(),
 			title: formData.title,
 			completionDate: formData.completionDate,
 			completedBy:
@@ -170,6 +195,10 @@ export const AddMaintenanceHistoryModal: React.FC<
 			completionNotes: '',
 			unitId: '',
 			completionFile: null,
+			contractorCost: '',
+			materialsCost: '',
+			laborCost: '',
+			otherCost: '',
 		});
 		setCompletedByMode('dropdown');
 		setSelectedGroupId('');
@@ -211,6 +240,102 @@ export const AddMaintenanceHistoryModal: React.FC<
 						}}
 						required
 					/>
+				</div>
+
+				<div>
+					<label
+						style={{
+							display: 'block',
+							marginBottom: '4px',
+							fontWeight: 'bold',
+						}}>
+						Financials (optional)
+					</label>
+					<div
+						style={{
+							display: 'grid',
+							gridTemplateColumns: '1fr 1fr',
+							gap: '8px',
+						}}>
+						<input
+							type='number'
+							name='contractorCost'
+							min='0'
+							step='0.01'
+							value={formData.contractorCost}
+							onChange={handleChange}
+							placeholder='Contractor cost'
+							style={{
+								padding: '8px',
+								border: '1px solid #ccc',
+								borderRadius: '4px',
+								fontSize: '14px',
+							}}
+						/>
+						<input
+							type='number'
+							name='materialsCost'
+							min='0'
+							step='0.01'
+							value={formData.materialsCost}
+							onChange={handleChange}
+							placeholder='Materials cost'
+							style={{
+								padding: '8px',
+								border: '1px solid #ccc',
+								borderRadius: '4px',
+								fontSize: '14px',
+							}}
+						/>
+						<input
+							type='number'
+							name='laborCost'
+							min='0'
+							step='0.01'
+							value={formData.laborCost}
+							onChange={handleChange}
+							placeholder='Labor cost'
+							style={{
+								padding: '8px',
+								border: '1px solid #ccc',
+								borderRadius: '4px',
+								fontSize: '14px',
+							}}
+						/>
+						<input
+							type='number'
+							name='otherCost'
+							min='0'
+							step='0.01'
+							value={formData.otherCost}
+							onChange={handleChange}
+							placeholder='Other cost'
+							style={{
+								padding: '8px',
+								border: '1px solid #ccc',
+								borderRadius: '4px',
+								fontSize: '14px',
+							}}
+						/>
+					</div>
+					<small
+						style={{
+							color: '#6b7280',
+							fontSize: '12px',
+							marginTop: '4px',
+							display: 'block',
+						}}>
+						Total:{' '}
+						{formatCurrency(
+							calculateCostTotal({
+								contractorCost: toNumberOrUndefined(formData.contractorCost),
+								materialsCost: toNumberOrUndefined(formData.materialsCost),
+								laborCost: toNumberOrUndefined(formData.laborCost),
+								otherCost: toNumberOrUndefined(formData.otherCost),
+							}),
+							'USD',
+						)}
+					</small>
 				</div>
 
 				<div>

@@ -91,6 +91,7 @@ export const createCheckoutSession = async (
 	userId: string,
 	email: string,
 	trialEnd?: number,
+	promoCode?: string,
 ): Promise<string> => {
 	try {
 		// Call Firebase Cloud Function
@@ -102,6 +103,7 @@ export const createCheckoutSession = async (
 			successUrl: STRIPE_CHECKOUT_CONFIG.SUCCESS_URL,
 			cancelUrl: STRIPE_CHECKOUT_CONFIG.CANCEL_URL,
 			...(trialEnd && { trialEnd }),
+			...(promoCode && { promoCode }),
 		});
 
 		const data = result.data as { sessionId: string; url: string };
@@ -111,6 +113,36 @@ export const createCheckoutSession = async (
 		return data.url;
 	} catch (error) {
 		console.error('Failed to create checkout session:', error);
+		throw new Error(mapCheckoutErrorMessage(error));
+	}
+};
+
+export interface PromoValidationResult {
+	valid: boolean;
+	code: string;
+	message?: string;
+	promotionCodeId?: string | null;
+	couponId?: string | null;
+}
+
+export const validatePromotionCode = async (
+	promoCode: string,
+): Promise<PromoValidationResult> => {
+	const trimmedPromoCode = promoCode.trim().toLowerCase();
+	if (!trimmedPromoCode) {
+		return {
+			valid: false,
+			code: '',
+			message: 'Please enter a promo code',
+		};
+	}
+
+	try {
+		const validatePromo = httpsCallable(functions, 'validatePromotionCode');
+		const result = await validatePromo({ promoCode: trimmedPromoCode });
+		return result.data as PromoValidationResult;
+	} catch (error) {
+		console.error('Failed to validate promo code:', error);
 		throw new Error(mapCheckoutErrorMessage(error));
 	}
 };

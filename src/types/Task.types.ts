@@ -49,6 +49,20 @@ export interface TaskNotification {
 	customMessage?: string;
 }
 
+export interface CostBreakdown {
+	contractorCost?: number;
+	materialsCost?: number;
+	laborCost?: number;
+	otherCost?: number;
+}
+
+export interface TaskFinancials {
+	currency?: string;
+	estimate?: CostBreakdown;
+	actual?: CostBreakdown;
+	notes?: string;
+}
+
 export interface Task {
 	id: string;
 	userId: string; // Owner of the task
@@ -101,6 +115,7 @@ export interface Task {
 	approvedAt?: string;
 	rejectionReason?: string;
 	completionNotes?: string;
+	financials?: TaskFinancials;
 	maintenanceGroupId?: string;
 	createdAt?: string;
 	updatedAt?: string;
@@ -130,6 +145,7 @@ export interface TaskFormData {
 	enableNotifications?: boolean;
 	notifications?: TaskNotification[];
 	maintenanceGroupId?: string;
+	financials?: TaskFinancials;
 }
 
 export interface TaskHandlers {

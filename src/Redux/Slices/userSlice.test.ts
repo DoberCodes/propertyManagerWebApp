@@ -56,25 +56,10 @@ describe('userSlice', () => {
 			const actual = userReducer(initialState, setCurrentUser(mockUser as any));
 
 			expect(actual.currentUser).toMatchObject(mockUser);
-			expect(actual.currentUser?.userType).toBe('owner');
 			expect(actual.authLoading).toBe(false);
-			expect(localStorageMock.getItem('loggedUser')).toBeTruthy();
-		});
-
-		it('should set userType from role if not provided', () => {
-			const actual = userReducer(initialState, setCurrentUser(mockUser as any));
-
-			expect(actual.currentUser?.userType).toBe(mockUser.role);
-		});
-
-		it('should preserve existing userType if provided', () => {
-			const userWithType = { ...mockUser, userType: 'landlord' };
-			const actual = userReducer(
-				initialState,
-				setCurrentUser(userWithType as any),
+			expect(localStorageMock.getItem('loggedUser')).toBe(
+				JSON.stringify(mockUser),
 			);
-
-			expect(actual.currentUser?.userType).toBe('landlord');
 		});
 
 		it('should handle setCurrentUser with null', () => {

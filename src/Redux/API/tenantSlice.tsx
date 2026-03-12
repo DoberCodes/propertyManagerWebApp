@@ -1,5 +1,4 @@
 import {
-	addDoc,
 	collection,
 	doc,
 	getDoc,
@@ -10,8 +9,9 @@ import {
 	updateDoc,
 	where,
 } from 'firebase/firestore';
+import { httpsCallable } from 'firebase/functions';
 import { apiSlice } from './apiSlice';
-import { auth, db } from '../../config/firebase';
+import { db, functions } from '../../config/firebase';
 import { resolveTargetUserId } from './accountContext';
 import {
 	TenantInvitationCode,
@@ -218,40 +218,17 @@ const tenantSlice = apiSlice.injectEndpoints({
 		>({
 			async queryFn({ propertyId, tenantEmail, code }) {
 				try {
-					const currentUser = auth.currentUser;
-					if (!currentUser) {
-						return { error: 'User not authenticated' };
-					}
-					const targetUserId = await resolveTargetUserId();
-
-					const now = new Date().toISOString();
-					const promoData = {
-						code,
-						codeLower: code.toLowerCase(),
-						status: 'active' as const,
-						createdByUserId: currentUser.uid,
-						createdByEmail: currentUser.email || undefined,
-						accountId: targetUserId,
+					const createInvite = httpsCallable<
+						{ propertyId?: string; tenantEmail?: string; code: string },
+						TenantInvitationCode
+					>(functions, 'createTenantInvitationCode');
+					const result = await createInvite({
 						propertyId,
-						tenantEmail: tenantEmail?.toLowerCase() || undefined,
-						createdAt: now,
-						updatedAt: now,
-					};
-					const sanitizedPromoData = Object.fromEntries(
-						Object.entries(promoData).filter(
-							([, value]) => value !== undefined,
-						),
-					);
-
-					const docRef = await addDoc(
-						collection(db, 'tenantInvitationCodes'),
-						sanitizedPromoData,
-					);
+						tenantEmail,
+						code,
+					});
 					return {
-						data: {
-							id: docRef.id,
-							...sanitizedPromoData,
-						} as TenantInvitationCode,
+						data: result.data,
 					};
 				} catch (error: any) {
 					return { error: error.message };
@@ -266,24 +243,11 @@ const tenantSlice = apiSlice.injectEndpoints({
 		>({
 			async queryFn({ propertyId, tenantEmail }) {
 				try {
-					const clauses = [
-						where('tenantEmail', '==', tenantEmail.toLowerCase()),
-						where('status', '==', 'active'),
-					];
-					if (propertyId) {
-						clauses.push(where('propertyId', '==', propertyId));
-					}
-					const q = query(collection(db, 'tenantInvitationCodes'), ...clauses);
-					const snapshot = await getDocs(q);
-					const now = new Date().toISOString();
-					for (const docSnap of snapshot.docs) {
-						await updateDoc(docSnap.ref, {
-							status: 'revoked',
-							revokedAt: now,
-							updatedAt: now,
-						});
-					}
-
+					const revokeInvite = httpsCallable<
+						{ propertyId?: string; tenantEmail: string },
+						{ success: boolean; revokedCount: number }
+					>(functions, 'revokeTenantInvitationCode');
+					await revokeInvite({ propertyId, tenantEmail });
 					return { data: undefined };
 				} catch (error: any) {
 					return { error: error.message };
@@ -322,8 +286,10 @@ const tenantSlice = apiSlice.injectEndpoints({
 		>({
 			async queryFn(tenantEmail) {
 				try {
+					const targetUserId = await resolveTargetUserId();
 					const q = query(
 						collection(db, 'tenantInvitationCodes'),
+						where('accountId', '==', targetUserId),
 						where('tenantEmail', '==', tenantEmail.toLowerCase()),
 						orderBy('createdAt', 'desc'),
 					);

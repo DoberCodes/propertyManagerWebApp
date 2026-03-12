@@ -33,6 +33,7 @@ import { selectCanAccessTeam } from './Redux/selectors/permissionSelectors';
 import PaywallPageIndex from './pages/PaywallPage';
 import { MaintenanceHistoryGroupPage } from 'pages/MaintenanceHistoryGroup';
 import { SettingsPage } from 'pages/SettingsPage';
+import { USER_ROLES } from './constants/roles';
 
 // Component to handle root route - redirects to login in mobile app
 const RootRoute = () => {
@@ -47,6 +48,8 @@ export const RouterComponent = () => {
 	const canAccessTeam = useSelector(selectCanAccessTeam);
 	const shouldShowTeamRoute =
 		!!currentUser && (canAccessTeam || !!currentUser?.accountId);
+	const fallbackPath =
+		currentUser?.role === USER_ROLES.TENANT ? 'tenant-profile' : 'dashboard';
 	return (
 		<Router>
 			<Routes>
@@ -188,7 +191,7 @@ export const RouterComponent = () => {
 				</Route>
 
 				{/* Fallback redirect */}
-				<Route path='*' element={<Navigate to='dashboard' replace />} />
+				<Route path='*' element={<Navigate to={fallbackPath} replace />} />
 			</Routes>
 		</Router>
 	);

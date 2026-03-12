@@ -46,25 +46,31 @@ export const useRecentlyViewed = (userId?: string | number) => {
 		title: string;
 		slug: string;
 	}) => {
-		setRecentProperties((prev) => {
-			// Remove if already exists
-			const filtered = prev.filter((p) => p.id !== property.id);
+		const storageKey = userId
+			? getUserStorageKey(userId, STORAGE_KEY)
+			: STORAGE_KEY;
 
-			// Add new one at the beginning
-			const updated = [{ ...property, timestamp: Date.now() }, ...filtered];
+		// Compute new state from localStorage directly (avoids side effects inside setter)
+		const stored = localStorage.getItem(storageKey);
+		const current: RecentlyViewedProperty[] = stored
+			? (() => {
+					try {
+						return JSON.parse(stored);
+					} catch {
+						return [];
+					}
+			  })()
+			: [];
 
-			// Keep only the most recent MAX_ITEMS
-			const limited = updated.slice(0, MAX_ITEMS);
+		// Remove if already exists, add new one at the beginning
+		const filtered = current.filter((p) => p.id !== property.id);
+		const updated = [{ ...property, timestamp: Date.now() }, ...filtered];
+		const limited = updated.slice(0, MAX_ITEMS);
 
-			// Save to localStorage and notify listeners
-			const storageKey = userId
-				? getUserStorageKey(userId, STORAGE_KEY)
-				: STORAGE_KEY;
-			localStorage.setItem(storageKey, JSON.stringify(limited));
-			window.dispatchEvent(new Event(RECENTS_UPDATED_EVENT));
-
-			return limited;
-		});
+		// Persist and notify — outside of the state setter to avoid render-phase side effects
+		localStorage.setItem(storageKey, JSON.stringify(limited));
+		setRecentProperties(limited);
+		window.dispatchEvent(new Event(RECENTS_UPDATED_EVENT));
 	};
 
 	const clearRecentlyViewed = () => {

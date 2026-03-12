@@ -15,7 +15,6 @@ ehthumbs.db
 Desktop.ini
 
 # Build outputs
-lib/
 dist/
 
 /scripts/*

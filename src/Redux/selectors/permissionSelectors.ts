@@ -4,6 +4,7 @@ import { UserRole } from '../../constants/roles';
 import { isTenant, canViewAllPages } from '../../utils/permissions';
 import {
 	canManageTeam,
+	canManageTenants,
 	canAccessReadOnlyFeatures,
 } from '../../utils/subscriptionUtils';
 
@@ -24,6 +25,19 @@ export const selectIsHomeowner = createSelector([selectUser], (user) => {
 export const selectCanAccessTeam = createSelector([selectUser], (user) => {
 	if (!user || !user.subscription) return false;
 	return canManageTeam(user.subscription);
+});
+
+export const selectCanInviteTeamMembers = createSelector(
+	[selectUser],
+	(user) => {
+		if (!user || !user.subscription) return false;
+		return canManageTeam(user.subscription);
+	},
+);
+
+export const selectCanManageTenants = createSelector([selectUser], (user) => {
+	if (!user || !user.subscription) return false;
+	return canManageTenants(user.subscription);
 });
 
 export const selectCanAccessProperties = createSelector(

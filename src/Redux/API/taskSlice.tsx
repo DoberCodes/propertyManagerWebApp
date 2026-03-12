@@ -9,7 +9,7 @@ import {
 	updateDoc,
 	where,
 } from '@firebase/firestore';
-import { CompletionFile, Task } from '../../types/Task.types';
+import { CompletionFile, Task, TaskFinancials } from '../../types/Task.types';
 import { apiSlice, docToData } from './apiSlice';
 import { auth, db } from '../../config/firebase';
 import { PropertyShare } from '../../types/Property.types';
@@ -203,8 +203,10 @@ export const taskSlice = apiSlice.injectEndpoints({
 				completionDate: string;
 				completionNotes?: string;
 				completionFile: CompletionFile;
+				financials?: TaskFinancials;
 				completedBy: string;
-				userType?: string;
+				canSelfComplete?: boolean;
+				completedByPlan?: string;
 			}
 		>({
 			async queryFn({
@@ -212,8 +214,9 @@ export const taskSlice = apiSlice.injectEndpoints({
 				completionDate,
 				completionNotes,
 				completionFile,
+				financials,
 				completedBy,
-				userType,
+				completedByPlan,
 			}) {
 				try {
 					const docRef = doc(db, 'tasks', taskId);
@@ -223,6 +226,19 @@ export const taskSlice = apiSlice.injectEndpoints({
 					}
 					const taskData = taskSnapshot.data() as Task;
 					const targetUserId = await resolveTargetUserId();
+					const mergedFinancials = financials
+						? {
+								currency:
+									financials.currency || taskData.financials?.currency || 'USD',
+								estimate:
+									financials.estimate || taskData.financials?.estimate,
+								actual: financials.actual || taskData.financials?.actual,
+								notes:
+									financials.notes !== undefined
+										? financials.notes
+										: taskData.financials?.notes,
+						  }
+						: taskData.financials;
 					const historyData = {
 						...taskData,
 						status: 'Completed',
@@ -231,12 +247,13 @@ export const taskSlice = apiSlice.injectEndpoints({
 						completedBy,
 						completionNotes: completionNotes || taskData.completionNotes || '',
 						originalTaskId: taskId,
-						completedByUserType: userType,
+						completedByPlan,
 						userId: taskData.userId,
 						ownerId: taskData.userId,
 						propertyId: taskData.propertyId,
 						accountId: (taskData as any).accountId || targetUserId,
 						propertyTitle: taskData.propertyTitle || taskData.property,
+						financials: mergedFinancials,
 						// Link recurring tasks together
 						recurringTaskId: taskData.isRecurring
 							? taskData.parentTaskId || taskId
@@ -262,6 +279,7 @@ export const taskSlice = apiSlice.injectEndpoints({
 							completionFile,
 							completedBy,
 							completionNotes,
+							financials: mergedFinancials,
 						},
 					};
 				} catch (error: any) {

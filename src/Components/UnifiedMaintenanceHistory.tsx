@@ -1,5 +1,9 @@
 import React, { useState } from 'react';
 import { ActionButton } from 'Components/Library/ReusableTable/ReusableTable.styles';
+import {
+	formatCurrency,
+	getFinancialDisplayTotal,
+} from '../utils/financialUtils';
 
 interface UnifiedMaintenanceHistoryProps {
 	records: Array<any>;
@@ -56,6 +60,14 @@ export const UnifiedMaintenanceHistory: React.FC<
 						<p style={{ margin: '0', fontSize: '14px', color: '#6b7280' }}>
 							Latest:{' '}
 							{new Date(latestRecord.completionDate).toLocaleDateString()}
+							<span style={{ marginLeft: '8px' }}>
+								•
+								{' '}
+								{formatCurrency(
+									getFinancialDisplayTotal(latestRecord.financials),
+									latestRecord.financials?.currency || 'USD',
+								)}
+							</span>
 							{latestRecord.unitId && (
 								<span style={{ marginLeft: '8px', fontWeight: '500' }}>
 									• {getUnitName(latestRecord.unitId)}

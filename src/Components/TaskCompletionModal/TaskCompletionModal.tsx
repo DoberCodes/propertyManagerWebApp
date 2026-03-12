@@ -13,6 +13,12 @@ import { Task } from '../../types/Task.types';
 import { Label, Input, ErrorMessage } from './TaskCompletionModal.styles';
 import { FileUploader } from '../Library/FileUploader';
 import {
+	calculateCostTotal,
+	formatCurrency,
+	hasCostData,
+	toNumberOrUndefined,
+} from '../../utils/financialUtils';
+import {
 	useCreateTaskMutation,
 	useSubmitTaskCompletionMutation,
 } from '../../Redux/API/taskSlice';
@@ -37,6 +43,15 @@ export const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
 	const [completionDate, setCompletionDate] = useState('');
 	const [completionNotes, setCompletionNotes] = useState('');
+	const [financialNotes, setFinancialNotes] = useState(
+		task?.financials?.notes || '',
+	);
+	const [actualCosts, setActualCosts] = useState({
+		contractorCost: task?.financials?.actual?.contractorCost,
+		materialsCost: task?.financials?.actual?.materialsCost,
+		laborCost: task?.financials?.actual?.laborCost,
+		otherCost: task?.financials?.actual?.otherCost,
+	});
 	const [selectedFile, setSelectedFile] = useState<File | null>(null);
 	const [errors, setErrors] = useState<{
 		date?: string;
@@ -48,6 +63,9 @@ export const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
 	const [submitCompletion] = useSubmitTaskCompletionMutation();
 	const [createTask] = useCreateTaskMutation();
 	const [createNotification] = useCreateNotificationMutation();
+	const normalizedPlan =
+		currentUser?.subscription?.plan?.toString().toLowerCase() || '';
+	const canSelfComplete = normalizedPlan === 'homeowner';
 
 	// currentUser is guaranteed to exist in protected routes
 
@@ -75,6 +93,24 @@ export const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
 		setErrors({});
 
 		try {
+			const actualBreakdown = {
+				contractorCost: toNumberOrUndefined(actualCosts.contractorCost),
+				materialsCost: toNumberOrUndefined(actualCosts.materialsCost),
+				laborCost: toNumberOrUndefined(actualCosts.laborCost),
+				otherCost: toNumberOrUndefined(actualCosts.otherCost),
+			};
+			const hasActualCosts = hasCostData(actualBreakdown);
+			const estimateBreakdown = task?.financials?.estimate;
+			const financials =
+				hasActualCosts || estimateBreakdown || financialNotes
+					? {
+						currency: task?.financials?.currency || 'USD',
+						estimate: estimateBreakdown,
+						actual: hasActualCosts ? actualBreakdown : undefined,
+						notes: financialNotes || undefined,
+					}
+					: undefined;
+
 			// Step 1: Upload file to Firebase Storage
 			const fileRef = ref(
 				storage,
@@ -99,8 +135,10 @@ export const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
 					completionDate,
 					completionNotes,
 					completionFile: completionFileData,
+					financials,
 					completedBy: currentUser!.id,
-					userType: currentUser!.userType,
+					canSelfComplete,
+					completedByPlan: currentUser?.subscription?.plan,
 				}),
 			);
 
@@ -110,8 +148,10 @@ export const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
 				completionDate,
 				completionNotes,
 				completionFile: completionFileData,
+				financials,
 				completedBy: currentUser!.id,
-				userType: currentUser!.userType,
+				canSelfComplete,
+				completedByPlan: currentUser?.subscription?.plan,
 			}).unwrap();
 
 			if (
@@ -145,6 +185,7 @@ export const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
 					if (task.notes) recurringTaskData.notes = task.notes;
 					if (task.priority) recurringTaskData.priority = task.priority;
 					if (task.assignee) recurringTaskData.assignee = task.assignee;
+					if (task.financials) recurringTaskData.financials = task.financials;
 					if (task.recurrenceCustomUnit)
 						recurringTaskData.recurrenceCustomUnit = task.recurrenceCustomUnit;
 
@@ -218,7 +259,13 @@ export const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
 			showActions={true}
 			title='Mark Task as Complete'
 			primaryButtonLabel={
-				isSubmitting ? 'Submitting...' : 'Submit for Approval'
+				isSubmitting
+					? canSelfComplete
+						? 'Completing...'
+						: 'Submitting...'
+					: canSelfComplete
+					? 'Mark as Complete'
+					: 'Submit for Approval'
 			}
 			primaryButtonAction={handleSubmit}
 			primaryButtonDisabled={isSubmitting}
@@ -266,6 +313,105 @@ export const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
 				/>
 			</FormGroup>
 
+			<FormGroup>
+				<Label>Financials (Optional)</Label>
+				{task?.financials?.estimate && (
+					<p style={{ margin: '0 0 8px 0', color: '#4b5563', fontSize: '0.9rem' }}>
+						Estimated Total:{' '}
+						<strong>
+							{formatCurrency(
+								calculateCostTotal(task.financials.estimate),
+								task.financials.currency || 'USD',
+							)}
+						</strong>
+					</p>
+				)}
+				<div
+					style={{
+						display: 'grid',
+						gridTemplateColumns: '1fr 1fr',
+						gap: '8px',
+					}}>
+					<Input
+						type='number'
+						min='0'
+						step='0.01'
+						placeholder='Contractor cost'
+						value={actualCosts.contractorCost ?? ''}
+						onChange={(e) =>
+							setActualCosts((prev) => ({
+								...prev,
+								contractorCost: toNumberOrUndefined(e.target.value),
+							}))
+						}
+					/>
+					<Input
+						type='number'
+						min='0'
+						step='0.01'
+						placeholder='Materials cost'
+						value={actualCosts.materialsCost ?? ''}
+						onChange={(e) =>
+							setActualCosts((prev) => ({
+								...prev,
+								materialsCost: toNumberOrUndefined(e.target.value),
+							}))
+						}
+					/>
+					<Input
+						type='number'
+						min='0'
+						step='0.01'
+						placeholder='Labor cost'
+						value={actualCosts.laborCost ?? ''}
+						onChange={(e) =>
+							setActualCosts((prev) => ({
+								...prev,
+								laborCost: toNumberOrUndefined(e.target.value),
+							}))
+						}
+					/>
+					<Input
+						type='number'
+						min='0'
+						step='0.01'
+						placeholder='Other cost'
+						value={actualCosts.otherCost ?? ''}
+						onChange={(e) =>
+							setActualCosts((prev) => ({
+								...prev,
+								otherCost: toNumberOrUndefined(e.target.value),
+							}))
+						}
+					/>
+				</div>
+				<p style={{ margin: '8px 0', color: '#374151', fontSize: '0.9rem' }}>
+					Actual Total:{' '}
+					<strong>
+						{formatCurrency(
+							calculateCostTotal(actualCosts),
+							task?.financials?.currency || 'USD',
+						)}
+					</strong>
+				</p>
+				<textarea
+					id='financialNotes'
+					value={financialNotes}
+					onChange={(e) => setFinancialNotes(e.target.value)}
+					placeholder='Optional financial notes or variance explanation...'
+					rows={2}
+					style={{
+						width: '100%',
+						padding: '0.75rem',
+						border: '1px solid #ddd',
+						borderRadius: '4px',
+						fontSize: '0.95rem',
+						fontFamily: 'inherit',
+						resize: 'vertical',
+					}}
+				/>
+			</FormGroup>
+
 			<FileUploader
 				label='Upload Completion Document'
 				helperText='JPG, PNG, GIF, WEBP, PDF (max 25MB)'
@@ -292,18 +438,33 @@ export const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
 				</ErrorMessage>
 			)}
 
-			<p
-				style={{
-					fontSize: '0.9rem',
-					color: '#666',
-					marginTop: '1rem',
-					padding: '1rem',
-					backgroundColor: '#f8f9fa',
-					borderRadius: '4px',
-				}}>
-				<strong>Note:</strong> Once submitted, this task will be sent to an
-				admin or maintenance lead for final approval.
-			</p>
+			{canSelfComplete ? (
+				<p
+					style={{
+						fontSize: '0.9rem',
+						color: '#666',
+						marginTop: '1rem',
+						padding: '1rem',
+						backgroundColor: '#f8f9fa',
+						borderRadius: '4px',
+					}}>
+					<strong>Note:</strong> This will mark the task as completed and move it
+					to maintenance history.
+				</p>
+			) : (
+				<p
+					style={{
+						fontSize: '0.9rem',
+						color: '#666',
+						marginTop: '1rem',
+						padding: '1rem',
+						backgroundColor: '#f8f9fa',
+						borderRadius: '4px',
+					}}>
+					<strong>Note:</strong> Once submitted, this task will be sent to an
+					admin or maintenance lead for final approval.
+				</p>
+			)}
 		</GenericModal>
 	);
 };

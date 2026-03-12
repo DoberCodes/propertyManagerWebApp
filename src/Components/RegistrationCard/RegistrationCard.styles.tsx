@@ -177,6 +177,74 @@ export const SectionLabel = styled.p`
 	}
 `;
 
+export const InviteModeBanner = styled.div`
+	margin: 10px 0 14px 0;
+	padding: 10px 12px;
+	border-radius: 6px;
+	border: 1px solid ${COLORS.primary};
+	background: ${COLORS.primaryLight};
+	color: ${COLORS.primaryDark};
+	font-size: 13px;
+	font-weight: 600;
+	text-align: left;
+`;
+
+export const InviteModeToggle = styled.button`
+	margin: 6px 0 0 0;
+	padding: 0;
+	border: none;
+	background: none;
+	color: ${COLORS.primary};
+	font-size: 13px;
+	font-weight: 600;
+	text-align: left;
+	cursor: pointer;
+
+	&:hover {
+		text-decoration: underline;
+		color: ${COLORS.primaryDark};
+	}
+`;
+
+export const InviteModePanel = styled.div<{ $active?: boolean }>`
+	margin: 14px 0 10px 0;
+	padding: 12px;
+	border-radius: 8px;
+	border: 1px solid
+		${(props) => (props.$active ? COLORS.primary : COLORS.gray200)};
+	background: ${(props) => (props.$active ? COLORS.primaryLight : COLORS.gray50)};
+`;
+
+export const InviteModeTitle = styled.p`
+	margin: 0 0 4px 0;
+	font-size: 14px;
+	font-weight: 700;
+	color: ${COLORS.textPrimary};
+`;
+
+export const InviteModeDescription = styled.p`
+	margin: 0 0 10px 0;
+	font-size: 12px;
+	line-height: 1.4;
+	color: ${COLORS.textSecondary};
+`;
+
+export const InviteModeActionButton = styled.button<{ $secondary?: boolean }>`
+	padding: 8px 12px;
+	border-radius: 6px;
+	border: 1px solid
+		${(props) => (props.$secondary ? COLORS.gray300 : COLORS.primary)};
+	background: ${(props) => (props.$secondary ? COLORS.bgWhite : COLORS.primary)};
+	color: ${(props) => (props.$secondary ? COLORS.textPrimary : COLORS.bgWhite)};
+	font-size: 12px;
+	font-weight: 600;
+	cursor: pointer;
+
+	&:hover {
+		opacity: 0.92;
+	}
+`;
+
 export const TenantPlanCard = styled.div`
 	border: 1.5px solid ${COLORS.gray200};
 	border-radius: 8px;

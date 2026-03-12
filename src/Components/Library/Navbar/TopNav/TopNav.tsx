@@ -56,7 +56,7 @@ export const TopNav = () => {
 		{
 			label: 'Properties',
 			path: 'properties',
-			visible: !isUserTenant && (canAccessProperties || canViewPages),
+			visible: isUserTenant || canAccessProperties || canViewPages,
 		},
 		{
 			label: 'Team',
@@ -245,30 +245,32 @@ export const TopNav = () => {
 										}>
 										Settings
 									</button>
-									<button
-										onClick={() => {
-											navigate('/features');
-											setIsProfileDropdownOpen(false);
-										}}
-										style={{
-											width: '100%',
-											padding: '12px 16px',
-											border: 'none',
-											background: 'none',
-											textAlign: 'left',
-											cursor: 'pointer',
-											fontSize: '14px',
-											color: '#1a1a1a',
-											transition: 'background-color 0.2s ease',
-										}}
-										onMouseEnter={(e) =>
-											(e.currentTarget.style.backgroundColor = '#f3f4f6')
-										}
-										onMouseLeave={(e) =>
-											(e.currentTarget.style.backgroundColor = 'transparent')
-										}>
-										📋 Features
-									</button>
+									{!isUserTenant && (
+										<button
+											onClick={() => {
+												navigate('/features');
+												setIsProfileDropdownOpen(false);
+											}}
+											style={{
+												width: '100%',
+												padding: '12px 16px',
+												border: 'none',
+												background: 'none',
+												textAlign: 'left',
+												cursor: 'pointer',
+												fontSize: '14px',
+												color: '#1a1a1a',
+												transition: 'background-color 0.2s ease',
+											}}
+											onMouseEnter={(e) =>
+												(e.currentTarget.style.backgroundColor = '#f3f4f6')
+											}
+											onMouseLeave={(e) =>
+												(e.currentTarget.style.backgroundColor = 'transparent')
+											}>
+											📋 Features
+										</button>
+									)}
 									<button
 										onClick={() => {
 											handleLogout();
@@ -347,51 +349,52 @@ export const TopNav = () => {
 							))}
 					</ul>
 				</div>
-				{/* Favorites Section */}
-				<div style={{ padding: '20px', borderBottom: '1px solid #e5e7eb' }}>
-					<h3
-						style={{
-							margin: '0 0 12px 0',
-							fontSize: '12px',
-							fontWeight: '600',
-							color: '#999999',
-							textTransform: 'uppercase',
-						}}>
-						Favorites
-					</h3>
-					{favorites.length > 0 ? (
-						<ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
-							{favorites.slice(0, 10).map((property) => (
-								<li
-									key={property.id}
-									style={{
-										padding: '8px 0',
-										fontSize: '13px',
-										color: '#666666',
-										cursor: 'pointer',
-										transition: 'color 0.2s ease',
-										borderBottom: '1px solid #f0f0f0',
-									}}
-									onClick={() => {
-										navigate(`/property/${property.slug}`);
-										setIsSidebarOpen(false);
-									}}
-									onMouseEnter={(e) =>
-										(e.currentTarget.style.color = '#22c55e')
-									}
-									onMouseLeave={(e) =>
-										(e.currentTarget.style.color = '#666666')
-									}>
-									{'★ ' + property.title}
-								</li>
-							))}
-						</ul>
-					) : (
-						<div style={{ fontSize: '12px', color: '#999999' }}>
-							No favorite properties
-						</div>
-					)}
-				</div>
+				{!isUserTenant && (
+					<div style={{ padding: '20px', borderBottom: '1px solid #e5e7eb' }}>
+						<h3
+							style={{
+								margin: '0 0 12px 0',
+								fontSize: '12px',
+								fontWeight: '600',
+								color: '#999999',
+								textTransform: 'uppercase',
+							}}>
+							Favorites
+						</h3>
+						{favorites.length > 0 ? (
+							<ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+								{favorites.slice(0, 10).map((property) => (
+									<li
+										key={property.id}
+										style={{
+											padding: '8px 0',
+											fontSize: '13px',
+											color: '#666666',
+											cursor: 'pointer',
+											transition: 'color 0.2s ease',
+											borderBottom: '1px solid #f0f0f0',
+										}}
+										onClick={() => {
+											navigate(`/property/${property.slug}`);
+											setIsSidebarOpen(false);
+										}}
+										onMouseEnter={(e) =>
+											(e.currentTarget.style.color = '#22c55e')
+										}
+										onMouseLeave={(e) =>
+											(e.currentTarget.style.color = '#666666')
+										}>
+										{'★ ' + property.title}
+									</li>
+								))}
+							</ul>
+						) : (
+							<div style={{ fontSize: '12px', color: '#999999' }}>
+								No favorite properties
+							</div>
+						)}
+					</div>
+				)}
 			</MobileSidebar>
 
 			{/* Notification Modal */}

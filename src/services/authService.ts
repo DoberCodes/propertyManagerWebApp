@@ -72,6 +72,19 @@ const serializeFirestoreValue = (value: unknown): unknown => {
 	return value;
 };
 
+const isBlockedByClientError = (error: any): boolean => {
+	const rawMessage = String(error?.message || '').toLowerCase();
+	const rawCode = String(error?.code || '').toLowerCase();
+
+	return (
+		rawMessage.includes('err_blocked_by_client') ||
+		rawMessage.includes('blocked by client') ||
+		rawMessage.includes('firestore.googleapis.com') ||
+		rawMessage.includes('/listen/channel') ||
+		rawCode.includes('err_blocked_by_client')
+	);
+};
+
 /**
  * Sign in with email and password
  */
@@ -85,11 +98,27 @@ export const signInWithEmail = async (
 			email,
 			password,
 		);
+
+		try {
+			const syncTenantAccess = httpsCallable<
+				Record<string, never>,
+				{ success: boolean }
+			>(functions, 'syncTenantAccessFromInvites');
+			await syncTenantAccess({});
+		} catch (tenantSyncError) {
+			console.warn('Tenant access sync skipped:', tenantSyncError);
+		}
+
 		const user = await getUserProfile(userCredential.user.uid);
 		return user;
 	} catch (error: any) {
 		console.error('Sign in error:', error);
-		throw new Error(getAuthErrorMessage(error.code));
+		if (isBlockedByClientError(error)) {
+			throw new Error(
+				'Your browser blocked required login requests. Please disable ad/privacy blockers for this site (and firestore.googleapis.com), then try again.',
+			);
+		}
+		throw new Error(getAuthErrorMessage(error?.code));
 	}
 };
 
@@ -119,20 +148,83 @@ export const checkEmailExists = async (email: string): Promise<boolean> => {
 	}
 };
 
-const findActiveTenantPromoCode = async (promoCode: string) => {
-	const normalizedCode = promoCode.trim().toLowerCase();
-	const q = query(
-		collection(db, 'tenantInvitationCodes'),
-		where('codeLower', '==', normalizedCode),
-	);
-	const snapshot = await getDocs(q);
-	if (snapshot.empty) {
-		return null;
+const findActiveTenantPromoCode = async (promoCode: string, email: string) => {
+	const validateInvite = httpsCallable<
+		{ promoCode: string; tenantEmail: string },
+		{ valid: boolean }
+	>(functions, 'validateTenantInvitationCode');
+	const result = await validateInvite({
+		promoCode,
+		tenantEmail: email,
+	});
+	return result.data.valid ? { valid: true } : null;
+};
+
+const findActiveTeamMemberPromoCode = async (promoCode: string, email: string) => {
+	const validateInvite = httpsCallable<
+		{ promoCode: string; teamMemberEmail: string },
+		{
+			valid: boolean;
+			teamMemberId?: string | null;
+			accountId?: string | null;
+			role?: string | null;
+		}
+	>(functions, 'validateTeamMemberInvitationCode');
+
+	const result = await validateInvite({
+		promoCode,
+		teamMemberEmail: email,
+	});
+
+	return result.data.valid ? result.data : null;
+};
+
+export const validateTenantInviteForRegistration = async (
+	promoCode: string,
+	email: string,
+): Promise<boolean> => {
+	if (!promoCode?.trim() || !email?.trim()) {
+		return false;
 	}
-	const match = snapshot.docs.find(
-		(docSnap) => docSnap.data()?.status === 'active',
-	);
-	return match || null;
+
+	try {
+		const promoDoc = await findActiveTenantPromoCode(
+			promoCode.trim(),
+			email.trim().toLowerCase(),
+		);
+		return !!promoDoc;
+	} catch (error) {
+		console.error('Tenant invite validation failed:', error);
+		return false;
+	}
+};
+
+export const validateTeamInviteForRegistration = async (
+	promoCode: string,
+	email: string,
+): Promise<{ valid: boolean; role?: string | null }> => {
+	if (!promoCode?.trim() || !email?.trim()) {
+		return { valid: false };
+	}
+
+	try {
+		const inviteDoc = await findActiveTeamMemberPromoCode(
+			promoCode.trim(),
+			email.trim().toLowerCase(),
+		);
+
+		if (!inviteDoc) {
+			return { valid: false };
+		}
+
+		return {
+			valid: true,
+			role: inviteDoc.role || null,
+		};
+	} catch (error) {
+		console.error('Team invite validation failed:', error);
+		return { valid: false };
+	}
 };
 
 /**
@@ -156,16 +248,27 @@ const createUserSubscription = async (
 	userId: string,
 	email: string,
 ) => {
-	// Create Stripe trial subscription for all plans
-	try {
-		const priceId = getPriceIdForPlan(selectedPlan);
-		if (!priceId) {
-			throw new Error(`No price ID found for plan: ${selectedPlan}`);
-		}
+	const normalizedPromoCode = promoCode?.trim() || undefined;
+	const normalizedPlan = String(selectedPlan || '')
+		.trim()
+		.toLowerCase();
 
+	const isNonBillablePlan = ['free', 'guest', 'tenant'].includes(normalizedPlan);
+
+	if (isNonBillablePlan) {
+		const localSubscription = createTrialSubscription(selectedPlan, promoCode);
+		return {
+			...localSubscription,
+			...(normalizedPromoCode ? { promoCode: normalizedPromoCode } : {}),
+		};
+	}
+
+	// Create Stripe trial subscription for all plans (Stripe is source of truth)
+	try {
 		const createTrial = httpsCallable(functions, 'createTrialSubscription');
 		const result = await createTrial({
-			priceId,
+			planId: selectedPlan,
+			promoCode: normalizedPromoCode,
 			userId,
 			email,
 			trialDays: TRIAL_DURATION_DAYS,
@@ -188,11 +291,14 @@ const createUserSubscription = async (
 			trialEndsAt: data.trialEnd,
 			stripeCustomerId: data.customerId,
 			stripeSubscriptionId: data.subscriptionId,
+			...(normalizedPromoCode ? { promoCode: normalizedPromoCode } : {}),
 		};
-	} catch (error) {
+	} catch (error: any) {
 		console.error('Failed to create Stripe trial subscription:', error);
-		// Fallback to local subscription
-		return createTrialSubscription(selectedPlan, promoCode);
+		throw new Error(
+			error?.message ||
+				'Stripe trial setup failed. Verify Stripe plan IDs and key mode configuration.',
+		);
 	}
 };
 
@@ -243,28 +349,52 @@ export const signUpWithEmail = async (
 			};
 		};
 	},
+	inviteType?: 'tenant' | 'team',
 ): Promise<User> => {
 	try {
-		let promoDocRef: any = null;
-		if (role === USER_ROLES.TENANT) {
+		let shouldRedeemTenantInvite = false;
+		let shouldRedeemTeamInvite = false;
+		let resolvedRole = role;
+
+		// Handle tenant invite registration (requires promo code)
+		if (inviteType === 'tenant') {
 			if (!promoCode?.trim()) {
 				throw new Error('Tenant promo code is required');
 			}
-			const promoDoc = await findActiveTenantPromoCode(promoCode);
+			const promoDoc = await findActiveTenantPromoCode(promoCode, email);
 			if (!promoDoc) {
 				throw new Error('Invalid or expired tenant promo code');
 			}
-			promoDocRef = promoDoc.ref;
+			shouldRedeemTenantInvite = true;
+		}
+
+		// Handle team member invite registration (requires promo code)
+		if (inviteType === 'team') {
+			if (!promoCode?.trim()) {
+				throw new Error('Team invitation code is required');
+			}
+			const inviteDoc = await findActiveTeamMemberPromoCode(promoCode, email);
+			if (!inviteDoc) {
+				throw new Error('Invalid or expired team member invitation code');
+			}
+			if (inviteDoc.role) {
+				resolvedRole = inviteDoc.role;
+			}
+			shouldRedeemTeamInvite = true;
 		}
 
 		// For property guests, use a special "guest" plan
-		if (role === USER_ROLES.PROPERTY_GUEST) {
+		if (resolvedRole === USER_ROLES.PROPERTY_GUEST) {
 			selectedPlan = 'guest';
 		}
 
 		// For tenants, use a special "tenant" plan
-		if (role === USER_ROLES.TENANT) {
+		if (resolvedRole === USER_ROLES.TENANT) {
 			selectedPlan = 'tenant';
+		}
+
+		if (inviteType === 'team') {
+			selectedPlan = 'free';
 		}
 
 		// Create Firebase Auth user
@@ -285,18 +415,16 @@ export const signUpWithEmail = async (
 			firstName,
 			lastName,
 			email,
-			role: role as any,
-			title: getRoleTitleFromRole(role),
+			role: resolvedRole as any,
+			title: getRoleTitleFromRole(resolvedRole),
 			image: `https://ui-avatars.com/api/?name=${firstName}+${lastName}&background=22c55e&color=fff`,
 			accountId: userCredential.user.uid, // New users are account owners
 			isAccountOwner: true,
 		};
 
-		const subscription = await createUserSubscription(
+		const provisionalSubscription = createTrialSubscription(
 			selectedPlan,
 			promoCode,
-			userCredential.user.uid,
-			email,
 		);
 
 		// Prepare legal agreement data
@@ -354,7 +482,19 @@ export const signUpWithEmail = async (
 			...legalAgreementData,
 			createdAt: serverTimestamp(),
 			updatedAt: serverTimestamp(),
+			subscription: provisionalSubscription,
+		});
+
+		const subscription = await createUserSubscription(
+			selectedPlan,
+			promoCode,
+			userCredential.user.uid,
+			email,
+		);
+
+		await updateDoc(doc(db, 'users', userCredential.user.uid), {
 			subscription,
+			updatedAt: serverTimestamp(),
 		});
 
 		const ensureFamilyAccountCallable = httpsCallable<
@@ -376,20 +516,29 @@ export const signUpWithEmail = async (
 		});
 
 		// Auto-accept pending guest invitations for property guests
-		if (role === USER_ROLES.PROPERTY_GUEST) {
+		if (resolvedRole === USER_ROLES.PROPERTY_GUEST) {
 			await autoAcceptGuestInvitations(
 				userCredential.user.uid,
 				email.trim().toLowerCase(),
 			);
 		}
 
-		if (promoDocRef) {
-			await updateDoc(promoDocRef, {
-				status: 'redeemed',
-				redeemedByUserId: userCredential.user.uid,
-				redeemedByEmail: email.trim().toLowerCase(),
-				redeemedAt: serverTimestamp(),
-				updatedAt: serverTimestamp(),
+		if (shouldRedeemTenantInvite && promoCode?.trim()) {
+			const redeemTenantInvite = httpsCallable<
+				{ promoCode: string },
+				{ success: boolean }
+			>(functions, 'redeemTenantInvitationCode');
+			await redeemTenantInvite({ promoCode });
+		}
+
+		if (shouldRedeemTeamInvite && promoCode?.trim()) {
+			const redeemTeamInvite = httpsCallable<
+				{ promoCode: string; teamMemberEmail: string },
+				{ success: boolean }
+			>(functions, 'redeemTeamMemberInvitationCode');
+			await redeemTeamInvite({
+				promoCode,
+				teamMemberEmail: email.trim().toLowerCase(),
 			});
 		}
 
@@ -398,6 +547,7 @@ export const signUpWithEmail = async (
 			doc(db, 'propertyGroups', `${userCredential.user.uid}_my_properties`),
 			{
 				userId: userCredential.user.uid,
+				accountId: userCredential.user.uid,
 				name: 'My Properties',
 				properties: [],
 				createdAt: serverTimestamp(),
@@ -409,6 +559,7 @@ export const signUpWithEmail = async (
 			doc(db, 'propertyGroups', `${userCredential.user.uid}_shared_properties`),
 			{
 				userId: userCredential.user.uid,
+				accountId: userCredential.user.uid,
 				name: 'Shared Properties',
 				properties: [],
 				createdAt: serverTimestamp(),
@@ -420,6 +571,7 @@ export const signUpWithEmail = async (
 		const myTeamGroupRef = doc(db, 'teamGroups', myTeamGroupId);
 		await setDoc(myTeamGroupRef, {
 			userId: userCredential.user.uid,
+			accountId: userCredential.user.uid,
 			name: 'My Team',
 			linkedProperties: [],
 			createdAt: serverTimestamp(),
@@ -440,7 +592,11 @@ export const signUpWithEmail = async (
 		};
 	} catch (error: any) {
 		console.error('Sign up error:', error);
-		throw new Error(getAuthErrorMessage(error.code));
+		const authErrorMessage = getAuthErrorMessage(error?.code);
+		if (authErrorMessage !== 'Authentication failed. Please try again') {
+			throw new Error(authErrorMessage);
+		}
+		throw new Error(error?.message || 'Authentication failed. Please try again');
 	}
 };
 
@@ -463,7 +619,12 @@ export const signOutUser = async (): Promise<void> => {
  */
 export const getUserProfile = async (uid: string): Promise<User> => {
 	try {
-		const userDoc = await getDoc(doc(db, 'users', uid));
+		let userDoc = await getDoc(doc(db, 'users', uid));
+
+		if (!userDoc.exists()) {
+			await new Promise((resolve) => setTimeout(resolve, 400));
+			userDoc = await getDoc(doc(db, 'users', uid));
+		}
 
 		if (!userDoc.exists()) {
 			throw new Error('User profile not found');
@@ -915,7 +1076,7 @@ export const resetPassword = async (email: string): Promise<void> => {
 /**
  * Convert Firebase error codes to user-friendly messages
  */
-const getAuthErrorMessage = (errorCode: string): string => {
+const getAuthErrorMessage = (errorCode?: string): string => {
 	switch (errorCode) {
 		case 'auth/user-not-found':
 			return 'No account found with this email address';

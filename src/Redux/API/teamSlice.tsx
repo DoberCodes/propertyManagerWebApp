@@ -10,8 +10,9 @@ import {
 	updateDoc,
 	where,
 } from '@firebase/firestore';
+import { httpsCallable } from 'firebase/functions';
 import { apiSlice, docToData } from './apiSlice';
-import { auth, db } from '../../config/firebase';
+import { auth, db, functions } from '../../config/firebase';
 import {
 	TeamGroup,
 	TeamMember,
@@ -28,8 +29,10 @@ export const teamSlice = apiSlice.injectEndpoints({
 		>({
 			async queryFn(teamMemberEmail) {
 				try {
+					const targetUserId = await resolveTargetUserId();
 					const q = query(
 						collection(db, 'teamMemberInvitationCodes'),
+						where('accountId', '==', targetUserId),
 						where('teamMemberEmail', '==', teamMemberEmail.toLowerCase()),
 						orderBy('createdAt', 'desc'),
 					);
@@ -52,34 +55,17 @@ export const teamSlice = apiSlice.injectEndpoints({
 		>({
 			async queryFn({ teamMemberId, teamMemberEmail, code }) {
 				try {
-					const currentUser = auth.currentUser;
-					if (!currentUser) {
-						return { error: 'User not authenticated' };
-					}
-
-					const now = new Date().toISOString();
-					const expiresAt = new Date(
-						Date.now() + 7 * 24 * 60 * 60 * 1000,
-					).toISOString(); // 7 days from now
-					const promoData = {
+					const createInvite = httpsCallable<
+						{ teamMemberId: string; teamMemberEmail: string; code: string },
+						TeamMemberInvitationCode
+					>(functions, 'createTeamMemberInvitationCode');
+					const result = await createInvite({
+						teamMemberId,
+						teamMemberEmail,
 						code,
-						codeLower: code.toLowerCase(),
-						status: 'active' as const,
-						createdByUserId: currentUser.uid,
-						createdByEmail: currentUser.email || undefined,
-						teamMemberEmail: teamMemberEmail.toLowerCase(),
-						teamMemberId, // Associate with specific team member
-						createdAt: now,
-						updatedAt: now,
-						expiresAt,
-					};
-
-					const docRef = await addDoc(
-						collection(db, 'teamMemberInvitationCodes'),
-						promoData,
-					);
+					});
 					return {
-						data: { id: docRef.id, ...promoData } as TeamMemberInvitationCode,
+						data: result.data,
 					};
 				} catch (error: any) {
 					return { error: error.message };
@@ -94,25 +80,11 @@ export const teamSlice = apiSlice.injectEndpoints({
 		>({
 			async queryFn({ teamMemberId }) {
 				try {
-					const clauses = [
-						where('teamMemberId', '==', teamMemberId),
-						where('status', '==', 'active'),
-					];
-
-					const q = query(
-						collection(db, 'teamMemberInvitationCodes'),
-						...clauses,
-					);
-					const snapshot = await getDocs(q);
-					const now = new Date().toISOString();
-					for (const docSnap of snapshot.docs) {
-						await updateDoc(docSnap.ref, {
-							status: 'revoked',
-							revokedAt: now,
-							updatedAt: now,
-						});
-					}
-
+					const revokeInvite = httpsCallable<
+						{ teamMemberId: string },
+						{ success: boolean; revokedCount: number }
+					>(functions, 'revokeTeamMemberInvitationCode');
+					await revokeInvite({ teamMemberId });
 					return { data: undefined };
 				} catch (error: any) {
 					return { error: error.message };
@@ -127,47 +99,11 @@ export const teamSlice = apiSlice.injectEndpoints({
 		>({
 			async queryFn({ promoCode, teamMemberEmail }) {
 				try {
-					const currentUser = auth.currentUser;
-					if (!currentUser) {
-						return { error: 'User not authenticated' };
-					}
-
-					const normalizedCode = promoCode.trim().toLowerCase();
-					const q = query(
-						collection(db, 'teamMemberInvitationCodes'),
-						where('codeLower', '==', normalizedCode),
-						where('status', '==', 'active'),
-					);
-					const snapshot = await getDocs(q);
-
-					if (snapshot.empty) {
-						return { error: 'Invalid or expired promo code' };
-					}
-
-					const promoDoc = snapshot.docs[0];
-
-					// If a teamMemberEmail was provided, ensure the promo code is intended for that email.
-					const promoData: any = promoDoc.data();
-					if (
-						teamMemberEmail &&
-						promoData?.teamMemberEmail &&
-						promoData.teamMemberEmail.toLowerCase() !==
-							teamMemberEmail.toLowerCase()
-					) {
-						return { error: 'Promo code is not valid for this email' };
-					}
-
-					const now = new Date().toISOString();
-
-					await updateDoc(promoDoc.ref, {
-						status: 'redeemed',
-						redeemedByUserId: currentUser.uid,
-						redeemedByEmail: currentUser.email || undefined,
-						redeemedAt: now,
-						expiresAt: null, // Remove expiration for redeemed codes - team member keeps permanent access
-						updatedAt: now,
-					});
-
+					const redeemInvite = httpsCallable<
+						{ promoCode: string; teamMemberEmail: string },
+						{ success: boolean }
+					>(functions, 'redeemTeamMemberInvitationCode');
+					await redeemInvite({ promoCode, teamMemberEmail });
 					return { data: undefined };
 				} catch (error: any) {
 					return { error: error.message };

@@ -9,7 +9,8 @@ import {
 	updateDoc,
 	deleteDoc,
 } from 'firebase/firestore';
-import { auth, db } from '../../config/firebase';
+import { httpsCallable } from 'firebase/functions';
+import { auth, db, functions } from '../../config/firebase';
 import {
 	PropertyShare,
 	Suite,
@@ -66,11 +67,10 @@ const upsertPropertyGroupMembership = async (params: {
 	const membershipQuery = query(
 		collection(db, PROPERTY_GROUP_MEMBERSHIPS_COLLECTION),
 		where('propertyId', '==', propertyId),
+		where('accountId', '==', accountId),
 	);
 	const membershipSnapshot = await getDocs(membershipQuery);
-	const existingMembershipDoc = membershipSnapshot.docs.find(
-		(docSnapshot) => (docSnapshot.data()?.accountId || '') === accountId,
-	);
+	const existingMembershipDoc = membershipSnapshot.docs[0];
 
 	if (existingMembershipDoc) {
 		await updateDoc(existingMembershipDoc.ref, {
@@ -95,16 +95,22 @@ const deletePropertyGroupMemberships = async (
 	propertyId: string,
 	accountId?: string,
 ) => {
-	const membershipQuery = query(
+	let membershipQuery = query(
 		collection(db, PROPERTY_GROUP_MEMBERSHIPS_COLLECTION),
 		where('propertyId', '==', propertyId),
 	);
+
+	if (accountId) {
+		membershipQuery = query(
+			collection(db, PROPERTY_GROUP_MEMBERSHIPS_COLLECTION),
+			where('propertyId', '==', propertyId),
+			where('accountId', '==', accountId),
+		);
+	}
+
 	const membershipSnapshot = await getDocs(membershipQuery);
 	for (const membershipDoc of membershipSnapshot.docs) {
-		const membershipData = membershipDoc.data() || {};
-		if (!accountId || membershipData.accountId === accountId) {
-			await deleteDoc(membershipDoc.ref);
-		}
+		await deleteDoc(membershipDoc.ref);
 	}
 };
 
@@ -125,6 +131,21 @@ const propertySlice = apiSlice.injectEndpoints({
 					const userDoc = await getDoc(userDocRef);
 					const userData = userDoc.data();
 					const userEmail = userData?.email;
+
+					if (
+						String(userData?.role || '').trim().toLowerCase() === 'tenant'
+					) {
+						try {
+							const syncTenantAccess = httpsCallable<
+								Record<string, never>,
+								{ success: boolean }
+							>(functions, 'syncTenantAccessFromInvites');
+							await syncTenantAccess({});
+						} catch (syncError) {
+							console.warn('Tenant access sync in property query skipped:', syncError);
+						}
+					}
+
 					const accessibleAccountIds = await resolveAccessibleAccountIds();
 					const targetUserId = await resolveTargetUserId();
 
@@ -201,6 +222,8 @@ const propertySlice = apiSlice.injectEndpoints({
 						membershipProperties.map((property) => [property.id, property]),
 					);
 
+					const normalizedUserEmail = String(userEmail || '').trim().toLowerCase();
+
 					let shares: PropertyShare[] = [];
 					let coOwnerSharedProperties: Property[] = [];
 					let regularSharedProperties: Property[] = [];
@@ -230,6 +253,35 @@ const propertySlice = apiSlice.injectEndpoints({
 							);
 						} catch (sharesError) {
 							console.warn('Could not fetch shared property links:', sharesError);
+						}
+					}
+
+					let tenantInvitePropertyIds: string[] = [];
+					if (normalizedUserEmail) {
+						try {
+							const tenantInvitesQuery = query(
+								collection(db, 'tenantInvitationCodes'),
+								where('tenantEmail', '==', normalizedUserEmail),
+							);
+							const tenantInvitesSnapshot = await getDocs(tenantInvitesQuery);
+							const invitePropertyIds = tenantInvitesSnapshot.docs
+								.map((inviteDoc) => inviteDoc.data() as any)
+								.filter((invite) => {
+									const status = String(invite?.status || '').trim().toLowerCase();
+									return (
+										(status === 'active' || status === 'redeemed') &&
+										typeof invite?.propertyId === 'string' &&
+										invite.propertyId.trim().length > 0
+									);
+								})
+								.map((invite) => String(invite.propertyId).trim());
+
+							tenantInvitePropertyIds = Array.from(new Set(invitePropertyIds));
+						} catch (tenantInviteError) {
+							console.warn(
+								'Could not fetch tenant invitation code assignments:',
+								tenantInviteError,
+							);
 						}
 					}
 
@@ -323,8 +375,76 @@ const propertySlice = apiSlice.injectEndpoints({
 						}
 					}
 
+					if (String(userData?.role || '').trim().toLowerCase() === 'tenant') {
+						const tenantScopedIds = new Set<string>(tenantInvitePropertyIds);
+
+						if (normalizedUserEmail) {
+							for (const group of finalGroups) {
+								for (const property of group.properties || []) {
+									const tenants = (((property as any).tenants as any[]) || []).filter(
+										Boolean,
+									);
+									const hasTenantMatch = tenants.some(
+										(tenant) =>
+											String(tenant?.email || '').trim().toLowerCase() ===
+											normalizedUserEmail,
+									);
+									if (hasTenantMatch && property?.id) {
+										tenantScopedIds.add(property.id);
+									}
+								}
+							}
+						}
+
+						let tenantAssignedProperties = finalGroups
+							.flatMap((group) => group.properties || [])
+							.filter((property) => property?.id && tenantScopedIds.has(property.id));
+
+						if (tenantAssignedProperties.length === 0 && tenantScopedIds.size > 0) {
+							tenantAssignedProperties = await fetchPropertiesByIds(
+								Array.from(tenantScopedIds),
+							);
+						}
+
+						const uniqueTenantProperties = Array.from(
+							new Map(
+								tenantAssignedProperties.map((property) => [property.id, property]),
+							).values(),
+						);
+
+						if (uniqueTenantProperties.length > 0) {
+							const myPropertiesGroup = finalGroups.find(
+								(group) => group.name?.toLowerCase() === 'my properties',
+							);
+
+							if (myPropertiesGroup) {
+								myPropertiesGroup.properties = uniqueTenantProperties;
+								finalGroups = finalGroups
+									.filter((group) => group.id === myPropertiesGroup.id)
+									.map((group) => ({ ...group }));
+							} else {
+								finalGroups = [
+									{
+										id: `tenant-${targetUserId}-assigned-properties`,
+										name: 'My Properties',
+										userId: targetUserId,
+										accountId: targetUserId,
+										properties: uniqueTenantProperties,
+										createdAt: new Date().toISOString(),
+										updatedAt: new Date().toISOString(),
+									},
+								];
+							}
+						} else {
+							finalGroups = [];
+						}
+					}
+
+					const isTenantUser =
+						String(userData?.role || '').trim().toLowerCase() === 'tenant';
+
 					// Final fallback: if groups are missing but properties exist, expose a virtual group
-					if (finalGroups.length === 0) {
+					if (finalGroups.length === 0 && !isTenantUser) {
 						const fallbackProperties: Property[] = [];
 						for (const accountId of accessibleAccountIds) {
 							const accountPropertiesQuery = query(
@@ -462,7 +582,57 @@ const propertySlice = apiSlice.injectEndpoints({
 					const userDoc = await getDoc(userDocRef);
 					const userData = userDoc.data();
 					const userEmail = userData?.email;
+					const normalizedUserEmail = String(userEmail || '')
+						.trim()
+						.toLowerCase();
+
+					if (
+						String(userData?.role || '').trim().toLowerCase() === 'tenant'
+					) {
+						try {
+							const syncTenantAccess = httpsCallable<
+								Record<string, never>,
+								{ success: boolean }
+							>(functions, 'syncTenantAccessFromInvites');
+							await syncTenantAccess({});
+						} catch (syncError) {
+							console.warn('Tenant access sync in getProperties skipped:', syncError);
+						}
+					}
 					const accessibleAccountIds = await resolveAccessibleAccountIds();
+
+					let tenantInviteProperties: Property[] = [];
+					if (normalizedUserEmail) {
+						try {
+							const tenantInvitesQuery = query(
+								collection(db, 'tenantInvitationCodes'),
+								where('tenantEmail', '==', normalizedUserEmail),
+							);
+							const tenantInvitesSnapshot = await getDocs(tenantInvitesQuery);
+							const tenantInvitePropertyIds = tenantInvitesSnapshot.docs
+								.map((inviteDoc) => inviteDoc.data() as any)
+								.filter((invite) => {
+									const status = String(invite?.status || '').trim().toLowerCase();
+									return (
+										(status === 'active' || status === 'redeemed') &&
+										typeof invite?.propertyId === 'string' &&
+										invite.propertyId.trim().length > 0
+									);
+								})
+								.map((invite) => String(invite.propertyId).trim());
+
+							if (tenantInvitePropertyIds.length > 0) {
+								tenantInviteProperties = await fetchPropertiesByIds(
+									Array.from(new Set(tenantInvitePropertyIds)),
+								);
+							}
+						} catch (tenantInviteError) {
+							console.warn(
+								'Could not fetch tenant invite assigned properties:',
+								tenantInviteError,
+							);
+						}
+					}
 
 					const accountGroupIds = new Map<string, string[]>();
 					for (const accountId of accessibleAccountIds) {
@@ -637,6 +807,7 @@ const propertySlice = apiSlice.injectEndpoints({
 						...coOwnerSharedProperties,
 						...adminProperties,
 						...regularSharedProperties,
+						...tenantInviteProperties,
 					];
 					console.log('DEBUG getProperties: allProperties breakdown:', {
 						accountProperties: accountProperties.length,
@@ -691,6 +862,23 @@ const propertySlice = apiSlice.injectEndpoints({
 					}
 					const targetUserId = await resolveTargetUserId();
 
+					const ensureFamilyAccountCallable = httpsCallable<
+						{
+							accountId?: string;
+							syncSubscription?: boolean;
+							subscription?: Record<string, unknown>;
+						},
+						{
+							id: string;
+							subscription?: Record<string, unknown>;
+						}
+					>(functions, 'ensureFamilyAccount');
+
+					await ensureFamilyAccountCallable({
+						accountId: targetUserId,
+						syncSubscription: false,
+					});
+
 					const docRef = await addDoc(collection(db, 'properties'), {
 						...newProperty,
 						userId: targetUserId, // Ensure property is owned by account owner
@@ -700,12 +888,19 @@ const propertySlice = apiSlice.injectEndpoints({
 					});
 
 					if (newProperty.groupId) {
-						await upsertPropertyGroupMembership({
-							accountId: targetUserId,
-							groupId: newProperty.groupId,
-							propertyId: docRef.id,
-							sortOrder: Date.now(),
-						});
+						try {
+							await upsertPropertyGroupMembership({
+								accountId: targetUserId,
+								groupId: newProperty.groupId,
+								propertyId: docRef.id,
+								sortOrder: Date.now(),
+							});
+						} catch (membershipError) {
+							console.warn(
+								'Property created but group membership update failed:',
+								membershipError,
+							);
+						}
 					}
 
 					const savedSnapshot = await getDoc(doc(db, 'properties', docRef.id));

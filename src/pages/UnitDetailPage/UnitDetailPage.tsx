@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import styled from 'styled-components';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../../Redux/store';
@@ -8,11 +8,7 @@ import {
 	DetailPageLayout,
 	TabContent,
 	ReusableTable,
-	GenericModal,
-	FormGroup,
-	FormLabel,
-	FormInput,
-	FormTextarea,
+	TaskModal,
 	PrimaryButton,
 } from 'Components/Library';
 import { Toolbar } from 'pages/PropertyDetailPage/PropertyDetailPage.styles';
@@ -42,8 +38,10 @@ import {
 	GridTable,
 	EmptyState,
 } from '../../Components/Library/DataGrid/DataGridStyles';
-import { DeviceModal } from '../../Components/Library/Modal';
-import { useCreateTaskMutation } from '../../Redux/API/taskSlice';
+import {
+	formatCurrency,
+	getFinancialDisplayTotal,
+} from '../../utils/financialUtils';
 
 const Wrapper = styled.div`
 	display: flex;
@@ -63,7 +61,6 @@ const ContentContainer = styled.div`
 `;
 
 export const UnitDetailPage: React.FC = () => {
-	const navigate = useNavigate();
 	const { slug, unitName } = useParams<{ slug: string; unitName: string }>();
 	const [activeTab, setActiveTab] = React.useState<
 		| 'info'
@@ -79,11 +76,6 @@ export const UnitDetailPage: React.FC = () => {
 	const [showAddTenantModal, setShowAddTenantModal] = React.useState(false);
 	const [showAddDeviceModal, setShowAddDeviceModal] = React.useState(false);
 	const [showCreateTaskModal, setShowCreateTaskModal] = React.useState(false);
-	const [showLinkHistoryModal, setShowLinkHistoryModal] = React.useState(false);
-	const [linkedHistoryIds, setLinkedHistoryIds] = React.useState<string[]>([]);
-	const [pendingLinkedHistoryIds, setPendingLinkedHistoryIds] = React.useState<
-		string[]
-	>([]);
 	const [showMaintenanceRequestModal, setShowMaintenanceRequestModal] =
 		React.useState(false);
 
@@ -103,44 +95,9 @@ export const UnitDetailPage: React.FC = () => {
 
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
 	const dispatch = useDispatch();
-	const [createDevice] = useCreateDeviceMutation();
-	const [createTask] = useCreateTaskMutation();
 	const [updateMaintenanceHistory] = useUpdateMaintenanceHistoryMutation();
 	const { data: unitDevices = [], isLoading: devicesLoading } =
 		useGetUnitDevicesQuery(unit?.id || '', { skip: !unit?.id });
-
-	const maintenanceHistoryOptions = React.useMemo(() => {
-		return unitMaintenanceHistory.map((record: any) => {
-			const dateLabel = record.completionDate
-				? new Date(record.completionDate).toLocaleDateString()
-				: 'No date';
-			return {
-				label: `${
-					record.title || record.taskTitle || 'Maintenance'
-				} - ${dateLabel}`,
-				value: record.id,
-			};
-		});
-	}, [unitMaintenanceHistory]);
-
-	const handleOpenLinkHistoryModal = () => {
-		setPendingLinkedHistoryIds(linkedHistoryIds);
-		setShowLinkHistoryModal(true);
-	};
-
-	const handleToggleHistory = (historyId: string) => {
-		setPendingLinkedHistoryIds((prev) =>
-			prev.includes(historyId)
-				? prev.filter((id) => id !== historyId)
-				: [...prev, historyId],
-		);
-	};
-
-	const handleSaveLinkedHistory = (e: React.FormEvent) => {
-		e.preventDefault();
-		setLinkedHistoryIds(pendingLinkedHistoryIds);
-		setShowLinkHistoryModal(false);
-	};
 
 	const handleMaintenanceRequestSubmit = async (
 		request: MaintenanceRequest,
@@ -432,6 +389,7 @@ export const UnitDetailPage: React.FC = () => {
 												<th>Date</th>
 												<th>Description</th>
 												<th>Device</th>
+												<th>Cost</th>
 											</tr>
 										</thead>
 										<tbody>
@@ -460,6 +418,12 @@ export const UnitDetailPage: React.FC = () => {
 																	? (record as any).devices[0]
 																	: undefined),
 															property,
+														)}
+													</td>
+													<td>
+														{formatCurrency(
+															getFinancialDisplayTotal((record as any).financials),
+															(record as any).financials?.currency || 'USD',
 														)}
 													</td>
 												</tr>
@@ -549,132 +513,24 @@ export const UnitDetailPage: React.FC = () => {
 			)}
 
 			{showCreateTaskModal && (
-				<GenericModal
+				<TaskModal
 					isOpen={showCreateTaskModal}
 					onClose={() => setShowCreateTaskModal(false)}
-					title='Create Task'
-					showActions={true}
-					onSubmit={async (e) => {
-						e.preventDefault();
-						const formData = new FormData(e.target as HTMLFormElement);
-						const taskData = {
-							title: formData.get('title') as string,
-							dueDate: formData.get('dueDate') as string,
-							status: 'Pending' as const,
-							notes: formData.get('notes') as string,
-							userId: currentUser?.id || '',
-							property: property?.title || '',
-							propertyId: property?.id || '',
-							unitId: unit?.id || '',
-						};
-						try {
-							const createdTask = await createTask(taskData).unwrap();
-							if (linkedHistoryIds.length > 0) {
-								await syncTaskMaintenanceLinks(
-									createdTask.id,
-									linkedHistoryIds,
-								);
-							}
-							setShowCreateTaskModal(false);
-							setLinkedHistoryIds([]);
-						} catch (error) {
-							console.error('Failed to create task:', error);
+					isEditing={false}
+					editingTask={null}
+					propertyId={property?.id || ''}
+					unitId={unit?.id || ''}
+					currentUser={currentUser}
+					taskTitlePlaceholder='Enter task title'
+					onSaved={(createdTask) => {
+						const historyIds = createdTask?.linkedMaintenanceHistoryIds || [];
+						if (createdTask?.id && historyIds.length > 0) {
+							syncTaskMaintenanceLinks(createdTask.id, historyIds).catch((error) => {
+								console.error('Failed to sync maintenance links:', error);
+							});
 						}
 					}}
-					primaryButtonLabel='Create Task'
-					secondaryButtonLabel='Cancel'>
-					<div
-						style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-						<FormGroup>
-							<FormLabel>Task Title *</FormLabel>
-							<FormInput
-								type='text'
-								name='title'
-								placeholder='Enter task title'
-								required
-							/>
-						</FormGroup>
-
-						<FormGroup>
-							<FormLabel>Due Date</FormLabel>
-							<FormInput type='date' name='dueDate' />
-						</FormGroup>
-
-						<FormGroup>
-							<FormLabel>Notes</FormLabel>
-							<FormTextarea
-								name='notes'
-								placeholder='Enter task notes'
-								rows={3}
-							/>
-						</FormGroup>
-
-						{maintenanceHistoryOptions.length > 0 && (
-							<FormGroup>
-								<FormLabel>Maintenance History</FormLabel>
-								<div
-									style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-									<button
-										type='button'
-										onClick={handleOpenLinkHistoryModal}
-										style={{
-											padding: '8px 12px',
-											background: '#3b82f6',
-											color: 'white',
-											border: 'none',
-											borderRadius: '4px',
-											cursor: 'pointer',
-											fontSize: '14px',
-										}}>
-										🔗 Link Maintenance History ({linkedHistoryIds.length})
-									</button>
-									{linkedHistoryIds.length > 0 && (
-										<span style={{ fontSize: '12px', color: '#6b7280' }}>
-											{linkedHistoryIds.length} linked
-										</span>
-									)}
-								</div>
-							</FormGroup>
-						)}
-					</div>
-				</GenericModal>
-			)}
-
-			{showLinkHistoryModal && (
-				<GenericModal
-					isOpen={showLinkHistoryModal}
-					onClose={() => setShowLinkHistoryModal(false)}
-					onSubmit={handleSaveLinkedHistory}
-					title='Link Maintenance History'
-					showActions={true}
-					primaryButtonLabel='Link History'
-					secondaryButtonLabel='Cancel'>
-					<div style={{ maxHeight: '300px', overflowY: 'auto' }}>
-						{maintenanceHistoryOptions.length > 0 ? (
-							maintenanceHistoryOptions.map((option) => (
-								<label
-									key={option.value}
-									style={{
-										display: 'flex',
-										alignItems: 'center',
-										gap: '8px',
-										padding: '6px 0',
-									}}>
-									<input
-										type='checkbox'
-										checked={pendingLinkedHistoryIds.includes(option.value)}
-										onChange={() => handleToggleHistory(option.value)}
-									/>
-									<span>{option.label}</span>
-								</label>
-							))
-						) : (
-							<p style={{ margin: 0, color: '#6b7280' }}>
-								No maintenance history available for this unit.
-							</p>
-						)}
-					</div>
-				</GenericModal>
+				/>
 			)}
 
 			{showMaintenanceRequestModal && (

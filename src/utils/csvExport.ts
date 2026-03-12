@@ -3,6 +3,8 @@
  * Provides functions to generate CSV data from various entities
  */
 
+import { calculateCostTotal } from './financialUtils';
+
 export interface CSVExportOptions {
 	filename: string;
 	data: any[];
@@ -76,16 +78,51 @@ export const TASK_COLUMN_OPTIONS = {
 	completionDate: 'Completion Date',
 	completedBy: 'Completed By',
 	approvedBy: 'Approved By',
+	estimateContractorCost: 'Est. Contractor Cost',
+	estimateMaterialsCost: 'Est. Materials Cost',
+	estimateLaborCost: 'Est. Labor Cost',
+	estimateOtherCost: 'Est. Other Cost',
+	estimatedTotal: 'Estimated Total',
+	actualContractorCost: 'Actual Contractor Cost',
+	actualMaterialsCost: 'Actual Materials Cost',
+	actualLaborCost: 'Actual Labor Cost',
+	actualOtherCost: 'Actual Other Cost',
+	actualTotal: 'Actual Total',
+	finalTotal: 'Final Total',
+	financialNotes: 'Financial Notes',
 };
 
 export const generateTaskReport = (
 	tasks: any[],
 	selectedColumns: string[],
 ): void => {
+	const normalizedTasks = tasks.map((task) => {
+		const estimate = task.financials?.estimate;
+		const actual = task.financials?.actual;
+		const estimatedTotal = calculateCostTotal(estimate);
+		const actualTotal = calculateCostTotal(actual);
+
+		return {
+			...task,
+			estimateContractorCost: estimate?.contractorCost,
+			estimateMaterialsCost: estimate?.materialsCost,
+			estimateLaborCost: estimate?.laborCost,
+			estimateOtherCost: estimate?.otherCost,
+			estimatedTotal,
+			actualContractorCost: actual?.contractorCost,
+			actualMaterialsCost: actual?.materialsCost,
+			actualLaborCost: actual?.laborCost,
+			actualOtherCost: actual?.otherCost,
+			actualTotal,
+			finalTotal: actualTotal ?? estimatedTotal,
+			financialNotes: task.financials?.notes || '',
+		};
+	});
+
 	const filename = `task-report-${new Date().toISOString().split('T')[0]}.csv`;
 	exportToCSV({
 		filename,
-		data: tasks,
+		data: normalizedTasks,
 		columns: selectedColumns,
 	});
 };
@@ -319,18 +356,53 @@ export const MAINTENANCE_HISTORY_COLUMN_OPTIONS = {
 	completedBy: 'Completed By',
 	approvedBy: 'Approved By',
 	completionDate: 'Completion Date',
+	estimateContractorCost: 'Est. Contractor Cost',
+	estimateMaterialsCost: 'Est. Materials Cost',
+	estimateLaborCost: 'Est. Labor Cost',
+	estimateOtherCost: 'Est. Other Cost',
+	estimatedTotal: 'Estimated Total',
+	actualContractorCost: 'Actual Contractor Cost',
+	actualMaterialsCost: 'Actual Materials Cost',
+	actualLaborCost: 'Actual Labor Cost',
+	actualOtherCost: 'Actual Other Cost',
+	actualTotal: 'Actual Total',
+	finalTotal: 'Final Total',
+	financialNotes: 'Financial Notes',
 };
 
 export const generateMaintenanceHistoryReport = (
 	maintenanceRecords: any[],
 	selectedColumns: string[],
 ): void => {
+	const normalizedRecords = maintenanceRecords.map((record) => {
+		const estimate = record.financials?.estimate;
+		const actual = record.financials?.actual;
+		const estimatedTotal = calculateCostTotal(estimate);
+		const actualTotal = calculateCostTotal(actual);
+
+		return {
+			...record,
+			estimateContractorCost: estimate?.contractorCost,
+			estimateMaterialsCost: estimate?.materialsCost,
+			estimateLaborCost: estimate?.laborCost,
+			estimateOtherCost: estimate?.otherCost,
+			estimatedTotal,
+			actualContractorCost: actual?.contractorCost,
+			actualMaterialsCost: actual?.materialsCost,
+			actualLaborCost: actual?.laborCost,
+			actualOtherCost: actual?.otherCost,
+			actualTotal,
+			finalTotal: actualTotal ?? estimatedTotal,
+			financialNotes: record.financials?.notes || '',
+		};
+	});
+
 	const filename = `maintenance-history-${
 		new Date().toISOString().split('T')[0]
 	}.csv`;
 	exportToCSV({
 		filename,
-		data: maintenanceRecords,
+		data: normalizedRecords,
 		columns: selectedColumns,
 	});
 };
