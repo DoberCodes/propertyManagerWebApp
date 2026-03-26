@@ -1,15 +1,11 @@
-🎉 **Release Notes for Version 1.11.9** 🎉
+🎉 **Release Notes for Version 2.0.0** 🎉
 
 
 ## 🐛 Bug Fixes
-- fixing the family accounts to be more scalable and more robust, added roles to each family memeber and also added resend for emails instead of sendgrid
-- adding changes to family and modifying the email features
-- fixing some action changes
-- adding new actions to ignore workflows on mirror.
-- Add editable family member flow and relax CI build warning strictness
-- fixing the mirror actions
+- fixing the stripe testing to fully cover the subscribe process
+- fixing the playwright process and adding persistent login
+- fixing the tenant invite and updating the tenant view.
 
 ## 🔧 Improvements & Maintenance
-- breaking: overhaul of the property and account structure to improve scalability and provide a cleaner hierarchy.
-- adding come changes for the beta repo
-- modifying workflow
+- breaking: fixing the missed breaking change version control
+- adding stripe changes
