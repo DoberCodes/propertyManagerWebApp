@@ -41,7 +41,7 @@ const functions = __importStar(require("firebase-functions/v1"));
 const admin = __importStar(require("firebase-admin"));
 const stripe_1 = __importDefault(require("stripe"));
 const params_1 = require("firebase-functions/params");
-const STRIPE_SECRET_KEY = (0, params_1.defineSecret)(process.env.STRIPE_SECRET_KEY || 'STRIPE_SECRET_KEY');
+const STRIPE_SECRET_KEY = (0, params_1.defineSecret)('STRIPE_SECRET_KEY');
 const STRIPE_WEBHOOK_SECRET = (0, params_1.defineSecret)('STRIPE_WEBHOOK_SECRET');
 if (!admin.apps.length) {
     admin.initializeApp();
@@ -171,13 +171,16 @@ exports.createCheckoutSession = functions
     if (!context.auth) {
         throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
     }
-    const { priceId, userId, email, successUrl, cancelUrl, promoCode: requestedPromoCode, } = data;
-    if (!priceId || !userId || !email) {
-        throw new functions.https.HttpsError('invalid-argument', 'Missing required parameters');
+    const { priceId: legacyPriceId, planId, userId, email, successUrl, cancelUrl, promoCode: requestedPromoCode, } = data;
+    const resolvedPriceId = resolvePriceIdForPlan(String(planId || '')) ||
+        sanitizeSecret(String(legacyPriceId || ''));
+    if (!resolvedPriceId || !userId || !email) {
+        throw new functions.https.HttpsError('invalid-argument', `Missing required Stripe configuration: no price ID resolved for plan '${String(planId || '')}'. Configure STRIPE_*_PRICE_ID in functions environment.`);
     }
     try {
         console.log('Creating checkout session with:', {
-            priceId,
+            planId,
+            priceId: resolvedPriceId,
             userId,
             email,
             successUrl,
@@ -217,7 +220,7 @@ exports.createCheckoutSession = functions
             payment_method_types: ['card'],
             line_items: [
                 {
-                    price: priceId,
+                    price: resolvedPriceId,
                     quantity: 1,
                 },
             ],
@@ -500,24 +503,29 @@ exports.getSubscriptionDetails = functions
 exports.stripeWebhook = functions
     .runWith({ secrets: ['STRIPE_SECRET_KEY', 'STRIPE_WEBHOOK_SECRET'] })
     .https.onRequest(async (req, res) => {
-    const sig = req.headers['stripe-signature'];
+    const signatureHeader = req.headers['stripe-signature'];
+    const sig = Array.isArray(signatureHeader)
+        ? signatureHeader[0]
+        : signatureHeader;
     const webhookSecret = resolveStripeWebhookSecret();
     if (!webhookSecret) {
         console.error('STRIPE_WEBHOOK_SECRET is not configured.');
         res.status(500).send('Webhook secret not configured');
         return;
     }
+    if (!sig) {
+        res.status(400).send('Webhook Error: Missing stripe-signature header');
+        return;
+    }
+    if (!req.rawBody || req.rawBody.length === 0) {
+        console.error('Webhook Error: Missing raw request body for signature verification');
+        res
+            .status(400)
+            .send('Webhook Error: Missing raw request body for signature verification');
+        return;
+    }
     try {
-        // Handle raw body for webhook signature verification
-        let rawBody;
-        if (req.rawBody) {
-            rawBody = req.rawBody;
-        }
-        else {
-            // For newer Firebase Functions versions, reconstruct raw body
-            rawBody = Buffer.from(JSON.stringify(req.body));
-        }
-        const event = getStripe().webhooks.constructEvent(rawBody, sig, webhookSecret);
+        const event = getStripe().webhooks.constructEvent(req.rawBody, sig, webhookSecret);
         console.log('Received Stripe webhook event:', event.type);
         switch (event.type) {
             case 'customer.subscription.created':
@@ -571,8 +579,10 @@ exports.stripeWebhook = functions
         res.json({ received: true });
     }
     catch (error) {
-        console.error('Webhook error:', error);
-        res.status(400).send(`Webhook Error: ${error}`);
+        const webhookError = error;
+        const message = (webhookError === null || webhookError === void 0 ? void 0 : webhookError.message) || 'Unknown webhook error';
+        console.error('Webhook error:', message);
+        res.status(400).send(`Webhook Error: ${message}`);
     }
 });
 /**

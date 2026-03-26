@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { PieChart, Pie, Cell } from 'recharts';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useSelector, useDispatch } from 'react-redux';
+import { useSelector } from 'react-redux';
 import { RootState } from 'Redux/store/store';
 import { useGetPropertiesQuery } from 'Redux/API/propertySlice';
 import {
@@ -19,7 +19,6 @@ import { ExpiredTrialBanner } from 'Components/ExpiredTrialBanner/ExpiredTrialBa
 import { ScheduledSubscriptionBanner } from 'Components/ScheduledSubscriptionBanner/ScheduledSubscriptionBanner';
 import { getTrialDaysRemaining, isTrialExpired } from 'utils/subscriptionUtils';
 import { handleCheckoutSuccess } from 'services/stripeService';
-import { logout } from 'Redux/Slices/userSlice';
 import {
 	Wrapper,
 	TaskStatusBanners,
@@ -40,7 +39,6 @@ import { useGetTasksQuery, useUpdateTaskMutation } from 'Redux/API/taskSlice';
 export const DashboardTab = () => {
 	const navigate = useNavigate();
 	const location = useLocation();
-	const dispatch = useDispatch();
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
 	// Select team groups and derive members with memoization to avoid new references
 	const teamGroups = useSelector((state: RootState) => state.team.groups);
@@ -113,27 +111,24 @@ export const DashboardTab = () => {
 		const sessionId = urlParams.get('session_id');
 
 		if (sessionId && currentUser) {
-			// Remove session_id from URL
-			const newUrl = new URL(window.location.href);
-			newUrl.searchParams.delete('session_id');
-			window.history.replaceState({}, '', newUrl.toString());
+			const currentHash = window.location.hash;
+			const cleanHash = currentHash.replace(/[?&]session_id=[^&]*/, '');
+			window.history.replaceState(
+				{},
+				'',
+				window.location.pathname + window.location.search + cleanHash,
+			);
 
-			// Verify checkout session
 			handleCheckoutSuccess(sessionId)
 				.then((result) => {
 					console.info('Checkout verification result:', result);
-					// Force a logout/login to refresh user data with new subscription
-					dispatch(logout());
-					setTimeout(() => {
-						window.location.reload();
-					}, 1000);
+					window.location.reload();
 				})
 				.catch((error) => {
 					console.error('Checkout verification failed:', error);
-					// Could show an error toast here
 				});
 		}
-	}, [location.search, currentUser, dispatch]);
+	}, [location.search, currentUser]);
 
 	const [showTaskCompletionModal, setShowTaskCompletionModal] = useState(false);
 	const [completingTaskId, setCompletingTaskId] = useState<string | null>(null);

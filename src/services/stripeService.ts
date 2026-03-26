@@ -92,12 +92,14 @@ export const createCheckoutSession = async (
 	email: string,
 	trialEnd?: number,
 	promoCode?: string,
+	planId?: string,
 ): Promise<string> => {
 	try {
 		// Call Firebase Cloud Function
 		const createCheckout = httpsCallable(functions, 'createCheckoutSession');
 		const result = await createCheckout({
 			priceId,
+			...(planId ? { planId } : {}),
 			userId,
 			email,
 			successUrl: STRIPE_CHECKOUT_CONFIG.SUCCESS_URL,

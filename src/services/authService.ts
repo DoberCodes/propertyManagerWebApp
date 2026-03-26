@@ -32,6 +32,7 @@ import {
 } from '../constants/subscriptions';
 import { STRIPE_PLANS } from '../constants/stripe';
 import { createLegalAgreementDocuments } from '../constants/legal';
+import { createCheckoutSession } from './stripeService';
 
 export interface FamilyInvite {
 	id: string;
@@ -242,12 +243,35 @@ const getPriceIdForPlan = (planId: string): string => {
 	return priceMap[planId] || '';
 };
 
+const createPendingCheckoutSubscription = (
+	selectedPlan: string,
+	promoCode?: string,
+) => {
+	const now = Math.floor(Date.now() / 1000);
+	const normalizedPromoCode = promoCode?.trim() || undefined;
+
+	return {
+		status: SUBSCRIPTION_STATUS.CANCELLED,
+		plan: selectedPlan,
+		currentPeriodStart: now,
+		currentPeriodEnd: now,
+		...(normalizedPromoCode ? { promoCode: normalizedPromoCode } : {}),
+	};
+};
+
+type CreateUserSubscriptionResult = {
+	subscription: NonNullable<User['subscription']> & {
+		promoCode?: string;
+	};
+	checkoutUrl?: string;
+};
+
 const createUserSubscription = async (
 	selectedPlan: string,
 	promoCode: string | undefined,
 	userId: string,
 	email: string,
-) => {
+) : Promise<CreateUserSubscriptionResult> => {
 	const normalizedPromoCode = promoCode?.trim() || undefined;
 	const normalizedPlan = String(selectedPlan || '')
 		.trim()
@@ -258,8 +282,34 @@ const createUserSubscription = async (
 	if (isNonBillablePlan) {
 		const localSubscription = createTrialSubscription(selectedPlan, promoCode);
 		return {
-			...localSubscription,
-			...(normalizedPromoCode ? { promoCode: normalizedPromoCode } : {}),
+			subscription: {
+				...localSubscription,
+				...(normalizedPromoCode ? { promoCode: normalizedPromoCode } : {}),
+			},
+		};
+	}
+
+	if (normalizedPromoCode) {
+		const priceId = getPriceIdForPlan(selectedPlan);
+		if (!priceId) {
+			throw new Error(`No price ID found for plan: ${selectedPlan}`);
+		}
+
+		const checkoutUrl = await createCheckoutSession(
+			priceId,
+			userId,
+			email,
+			undefined,
+			normalizedPromoCode,
+			selectedPlan,
+		);
+
+		return {
+			subscription: createPendingCheckoutSubscription(
+				selectedPlan,
+				normalizedPromoCode,
+			),
+			checkoutUrl,
 		};
 	}
 
@@ -284,14 +334,16 @@ const createUserSubscription = async (
 		// Return subscription data that matches our local format
 		const now = Math.floor(Date.now() / 1000);
 		return {
-			status: SUBSCRIPTION_STATUS.TRIAL,
-			plan: selectedPlan,
-			currentPeriodStart: now,
-			currentPeriodEnd: data.trialEnd,
-			trialEndsAt: data.trialEnd,
-			stripeCustomerId: data.customerId,
-			stripeSubscriptionId: data.subscriptionId,
-			...(normalizedPromoCode ? { promoCode: normalizedPromoCode } : {}),
+			subscription: {
+				status: SUBSCRIPTION_STATUS.TRIAL,
+				plan: selectedPlan,
+				currentPeriodStart: now,
+				currentPeriodEnd: data.trialEnd,
+				trialEndsAt: data.trialEnd,
+				stripeCustomerId: data.customerId,
+				stripeSubscriptionId: data.subscriptionId,
+				...(normalizedPromoCode ? { promoCode: normalizedPromoCode } : {}),
+			},
 		};
 	} catch (error: any) {
 		console.error('Failed to create Stripe trial subscription:', error);
@@ -350,7 +402,7 @@ export const signUpWithEmail = async (
 		};
 	},
 	inviteType?: 'tenant' | 'team',
-): Promise<User> => {
+): Promise<{ user: User; checkoutUrl?: string }> => {
 	try {
 		let shouldRedeemTenantInvite = false;
 		let shouldRedeemTeamInvite = false;
@@ -422,10 +474,14 @@ export const signUpWithEmail = async (
 			isAccountOwner: true,
 		};
 
-		const provisionalSubscription = createTrialSubscription(
-			selectedPlan,
-			promoCode,
-		);
+		const normalizedPlan = String(selectedPlan || '')
+			.trim()
+			.toLowerCase();
+		const shouldSkipTrialForPromoCheckout =
+			!!promoCode?.trim() && !['free', 'guest', 'tenant'].includes(normalizedPlan);
+		const provisionalSubscription = shouldSkipTrialForPromoCheckout
+			? createPendingCheckoutSubscription(selectedPlan, promoCode)
+			: createTrialSubscription(selectedPlan, promoCode);
 
 		// Prepare legal agreement data
 		const agreedAt = new Date().toISOString();
@@ -485,17 +541,19 @@ export const signUpWithEmail = async (
 			subscription: provisionalSubscription,
 		});
 
-		const subscription = await createUserSubscription(
+		const { subscription, checkoutUrl } = await createUserSubscription(
 			selectedPlan,
 			promoCode,
 			userCredential.user.uid,
 			email,
 		);
 
-		await updateDoc(doc(db, 'users', userCredential.user.uid), {
-			subscription,
-			updatedAt: serverTimestamp(),
-		});
+		if (!checkoutUrl) {
+			await updateDoc(doc(db, 'users', userCredential.user.uid), {
+				subscription,
+				updatedAt: serverTimestamp(),
+			});
+		}
 
 		const ensureFamilyAccountCallable = httpsCallable<
 			{
@@ -579,16 +637,19 @@ export const signUpWithEmail = async (
 		});
 
 		return {
-			...userProfile,
-			subscription,
-			...(legalAgreement && {
-				legalAgreement: {
-					agreedToTerms: legalAgreement.agreedToTerms,
-					agreedAt,
-					agreedVersion: legalAgreement.agreedVersion,
-					documents: legalDocuments,
-				},
-			}),
+			user: {
+				...userProfile,
+				subscription,
+				...(legalAgreement && {
+					legalAgreement: {
+						agreedToTerms: legalAgreement.agreedToTerms,
+						agreedAt,
+						agreedVersion: legalAgreement.agreedVersion,
+						documents: legalDocuments,
+					},
+				}),
+			},
+			...(checkoutUrl ? { checkoutUrl } : {}),
 		};
 	} catch (error: any) {
 		console.error('Sign up error:', error);

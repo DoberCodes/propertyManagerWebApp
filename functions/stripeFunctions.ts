@@ -2,7 +2,7 @@ import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 import Stripe from 'stripe';
 import { defineSecret } from 'firebase-functions/params';
-const STRIPE_SECRET_KEY = defineSecret(process.env.STRIPE_SECRET_KEY || 'STRIPE_SECRET_KEY');
+const STRIPE_SECRET_KEY = defineSecret('STRIPE_SECRET_KEY');
 const STRIPE_WEBHOOK_SECRET = defineSecret('STRIPE_WEBHOOK_SECRET');
 
 if (!admin.apps.length) {
@@ -178,24 +178,29 @@ export const createCheckoutSession = functions
 		}
 
 		const {
-			priceId,
+			priceId: legacyPriceId,
+			planId,
 			userId,
 			email,
 			successUrl,
 			cancelUrl,
 			promoCode: requestedPromoCode,
 		} = data;
+		const resolvedPriceId =
+			resolvePriceIdForPlan(String(planId || '')) ||
+			sanitizeSecret(String(legacyPriceId || ''));
 
-		if (!priceId || !userId || !email) {
+		if (!resolvedPriceId || !userId || !email) {
 			throw new functions.https.HttpsError(
 				'invalid-argument',
-				'Missing required parameters',
+				`Missing required Stripe configuration: no price ID resolved for plan '${String(planId || '')}'. Configure STRIPE_*_PRICE_ID in functions environment.`,
 			);
 		}
 
 		try {
 			console.log('Creating checkout session with:', {
-				priceId,
+				planId,
+				priceId: resolvedPriceId,
 				userId,
 				email,
 				successUrl,
@@ -245,7 +250,7 @@ export const createCheckoutSession = functions
 				payment_method_types: ['card'],
 				line_items: [
 					{
-						price: priceId,
+						price: resolvedPriceId,
 						quantity: 1,
 					},
 				],
@@ -656,7 +661,10 @@ export const getSubscriptionDetails = functions
 export const stripeWebhook = functions
 	.runWith({ secrets: ['STRIPE_SECRET_KEY', 'STRIPE_WEBHOOK_SECRET'] })
 	.https.onRequest(async (req, res) => {
-		const sig = req.headers['stripe-signature'] as string;
+		const signatureHeader = req.headers['stripe-signature'];
+		const sig = Array.isArray(signatureHeader)
+			? signatureHeader[0]
+			: signatureHeader;
 		const webhookSecret = resolveStripeWebhookSecret();
 
 		if (!webhookSecret) {
@@ -665,18 +673,22 @@ export const stripeWebhook = functions
 			return;
 		}
 
-		try {
-			// Handle raw body for webhook signature verification
-			let rawBody: Buffer;
-			if (req.rawBody) {
-				rawBody = req.rawBody;
-			} else {
-				// For newer Firebase Functions versions, reconstruct raw body
-				rawBody = Buffer.from(JSON.stringify(req.body));
-			}
+		if (!sig) {
+			res.status(400).send('Webhook Error: Missing stripe-signature header');
+			return;
+		}
 
+		if (!req.rawBody || req.rawBody.length === 0) {
+			console.error('Webhook Error: Missing raw request body for signature verification');
+			res
+				.status(400)
+				.send('Webhook Error: Missing raw request body for signature verification');
+			return;
+		}
+
+		try {
 			const event = getStripe().webhooks.constructEvent(
-				rawBody,
+				req.rawBody,
 				sig,
 				webhookSecret,
 			);
@@ -735,8 +747,10 @@ export const stripeWebhook = functions
 
 			res.json({ received: true });
 		} catch (error) {
-			console.error('Webhook error:', error);
-			res.status(400).send(`Webhook Error: ${error}`);
+			const webhookError = error as { message?: string };
+			const message = webhookError?.message || 'Unknown webhook error';
+			console.error('Webhook error:', message);
+			res.status(400).send(`Webhook Error: ${message}`);
 		}
 	});
 

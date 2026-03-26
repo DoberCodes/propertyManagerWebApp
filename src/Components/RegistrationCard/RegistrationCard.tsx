@@ -37,6 +37,7 @@ import {
 	validateTenantInviteForRegistration,
 	validateTeamInviteForRegistration,
 } from '../../services/authService';
+import { redirectToCheckout } from '../../services/stripeService';
 import { USER_ROLES } from '../../constants/roles';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { setCurrentUser } from '../../Redux/Slices/userSlice';
@@ -395,7 +396,7 @@ export const RegistrationCard = () => {
 				: isTenantSignup ? '' : promoCode.trim();
 
 			// Register with Firebase - use mapped role, trim values
-			const user = await signUpWithEmail(
+			const { user, checkoutUrl } = await signUpWithEmail(
 				email.trim(),
 				password.trim(),
 				firstName.trim(),
@@ -425,6 +426,12 @@ export const RegistrationCard = () => {
 
 			// Update Redux store to mark user as logged in
 			dispatch(setCurrentUser(user));
+
+			if (checkoutUrl) {
+				setLoading(false);
+				redirectToCheckout(checkoutUrl);
+				return;
+			}
 
 			setLoading(false);
 			navigate(
