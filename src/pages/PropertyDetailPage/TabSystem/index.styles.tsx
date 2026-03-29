@@ -137,6 +137,13 @@ export const StatusBadge = styled.span<{ status: string }>`
 	font-size: 12px;
 	font-weight: 600;
 	width: fit-content;
+	border: 1px solid transparent;
+	${(props) =>
+		props.status === 'Overdue' &&
+		`
+		border-color: rgba(239, 68, 68, 0.4);
+		letter-spacing: 0.2px;
+	`}
 	background-color: ${(props) => {
 		switch (props.status) {
 			// Task statuses

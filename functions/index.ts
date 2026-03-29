@@ -11,6 +11,7 @@ export {
 // Centralized server-side feedback + email handling path.
 export { submitFeedback } from './submitFeedback';
 export { markTasksAsOverdue } from './markTasksAsOverdue';
+export { debugOverdueTasks } from './debugOverdueTasks';
 export { deleteUserAccount } from './deleteUserAccount';
 export { deleteFamilyMemberAccount } from './deleteFamilyMemberAccount';
 export { resendFamilyMemberInvite } from './resendFamilyMemberInvite';

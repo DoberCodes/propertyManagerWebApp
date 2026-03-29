@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { RootState } from 'Redux/store/store';
 import { ZeroState } from 'Components/Library/ZeroState';
@@ -33,6 +33,11 @@ import {
 	FilterValues,
 } from 'Components/Library/FilterBar';
 import { applyFilters } from '../../utils/tableFilters';
+import {
+	isTaskOverdueForDisplay,
+	matchesDateRangeOrIsOverdue,
+	updateOverdueTasks,
+} from '../../utils/taskUtils';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { COLORS } from '../../constants/colors';
 import { TaskCompletionModal } from '../../Components/TaskCompletionModal';
@@ -51,6 +56,13 @@ export const TasksPage = () => {
 
 	// Fetch tasks and properties from Firebase
 	const { data: allTasks = [] } = useGetTasksQuery();
+
+	// Locally promote past-due tasks to 'Overdue' status so the UI reflects reality
+	// even before the daily Firebase scheduled function runs.
+	const [processedTasks, setProcessedTasks] = useState(allTasks);
+	useEffect(() => {
+		updateOverdueTasks(allTasks).then(setProcessedTasks);
+	}, [allTasks]);
 	const { data: ownedProperties = [] } = useGetPropertiesQuery();
 	const { data: sharedProperties = [] } = useGetSharedPropertiesForUserQuery();
 
@@ -202,7 +214,7 @@ export const TasksPage = () => {
 	// Get active tasks for display
 	const filteredTasks = useMemo(() => {
 		const filtered = filterTasksByRole(
-			allTasks,
+			processedTasks,
 			currentUser,
 			teamMembers,
 			allProperties,
@@ -210,19 +222,12 @@ export const TasksPage = () => {
 		);
 		const activeTasks = filtered.filter((task) => task.status !== 'Completed');
 
-		// Filter tasks within the specified days
 		const now = new Date();
 		const daysInMs = taskDaysFilter * 24 * 60 * 60 * 1000;
 		const futureDate = new Date(now.getTime() + daysInMs);
 
-		const tasksWithinRange = activeTasks.filter((task) => {
-			if (!task.dueDate) return false;
-			const dueDate = new Date(task.dueDate);
-			return dueDate >= now && dueDate <= futureDate;
-		});
-
 		// Enrich tasks for display
-		const enriched = tasksWithinRange.map((task) => {
+		const enriched = activeTasks.map((task) => {
 			const property = allProperties.find((p) => p.id === task.propertyId);
 			return {
 				...task,
@@ -231,8 +236,8 @@ export const TasksPage = () => {
 			};
 		});
 
-		// apply filter bar criteria
-		const afterFilters = applyFilters(enriched, filters, {
+		// Apply text/select filters first, then apply due-date logic so overdue tasks are never hidden.
+		const afterNonDateFilters = applyFilters(enriched, filters, {
 			textFields: ['title', 'notes'],
 			selectFields: [
 				{ field: 'propertyId', filterKey: 'propertyId' },
@@ -247,12 +252,42 @@ export const TasksPage = () => {
 							: task.assignee,
 				},
 			],
-			dateRangeFields: [{ field: 'dueDate', filterKey: 'dueDate' }],
 		});
 
-		// Sort by due date then priority
+		const dueDateStart = filters.dueDate_start as string | undefined;
+		const dueDateEnd = filters.dueDate_end as string | undefined;
+
+		const afterDateAndTimeFilters = afterNonDateFilters.filter((task) => {
+			if (isTaskOverdueForDisplay(task as any)) {
+				return true;
+			}
+
+			if (!task.dueDate) {
+				return false;
+			}
+
+			const dueDate = new Date(task.dueDate);
+			const withinTimeframe = dueDate >= now && dueDate <= futureDate;
+			if (!withinTimeframe) {
+				return false;
+			}
+
+			return matchesDateRangeOrIsOverdue(
+				task as any,
+				dueDateStart,
+				dueDateEnd,
+			);
+		});
+
+		// Sort overdue tasks first, then due date and priority.
 		const priorityOrder = { Urgent: 4, High: 3, Medium: 2, Low: 1 };
-		return afterFilters.sort((a, b) => {
+		return afterDateAndTimeFilters.sort((a, b) => {
+			const overdueA = isTaskOverdueForDisplay(a as any);
+			const overdueB = isTaskOverdueForDisplay(b as any);
+			if (overdueA !== overdueB) {
+				return overdueA ? -1 : 1;
+			}
+
 			const dateA = a.dueDate ? new Date(a.dueDate).getTime() : Infinity;
 			const dateB = b.dueDate ? new Date(b.dueDate).getTime() : Infinity;
 			if (dateA !== dateB) {
@@ -265,7 +300,7 @@ export const TasksPage = () => {
 			return priorityB - priorityA;
 		});
 	}, [
-		allTasks,
+		processedTasks,
 		currentUser,
 		teamMembers,
 		allProperties,
@@ -277,14 +312,14 @@ export const TasksPage = () => {
 	// Count of active tasks (before timeframe filtering)
 	const activeTasksCount = useMemo(() => {
 		const filtered = filterTasksByRole(
-			allTasks,
+			processedTasks,
 			currentUser,
 			teamMembers,
 			allProperties,
 			propertyShares,
 		);
 		return filtered.filter((task) => task.status !== 'Completed').length;
-	}, [allTasks, currentUser, teamMembers, allProperties, propertyShares]);
+	}, [processedTasks, currentUser, teamMembers, allProperties, propertyShares]);
 
 	// Table columns definition
 	const columns: Column[] = [
@@ -351,7 +386,7 @@ export const TasksPage = () => {
 	// Get active tasks for carousel (without enrichment)
 	const carouselTasks = useMemo(() => {
 		const filtered = filterTasksByRole(
-			allTasks,
+			processedTasks,
 			currentUser,
 			teamMembers,
 			allProperties,
@@ -359,19 +394,19 @@ export const TasksPage = () => {
 		);
 		const activeTasks = filtered.filter((task) => task.status !== 'Completed');
 
-		// Filter to only show upcoming tasks (due in the future)
-		const now = new Date();
-		const upcomingTasks = activeTasks.filter((task) => {
-			if (!task.dueDate) return false;
-			const dueDate = new Date(task.dueDate);
-			return dueDate >= now;
-		});
-
 		// Sort by due date (ascending), then by priority (descending)
 		const priorityOrder = { Urgent: 4, High: 3, Medium: 2, Low: 1 };
 
-		const sorted = upcomingTasks.sort((a, b) => {
-			// Primary: Sort by due date (soonest first)
+		const sorted = activeTasks
+			.filter((task) => task.dueDate)
+			.sort((a, b) => {
+				const overdueA = isTaskOverdueForDisplay(a as any);
+				const overdueB = isTaskOverdueForDisplay(b as any);
+				if (overdueA !== overdueB) {
+					return overdueA ? -1 : 1;
+				}
+
+				// Primary (within overdue/non-overdue groups): Sort by due date (soonest first)
 			const dateA = new Date(a.dueDate!).getTime();
 			const dateB = new Date(b.dueDate!).getTime();
 			if (dateA !== dateB) {
@@ -384,10 +419,10 @@ export const TasksPage = () => {
 			const priorityB =
 				priorityOrder[b.priority as keyof typeof priorityOrder] || 0;
 			return priorityB - priorityA;
-		});
+			});
 
 		return sorted;
-	}, [allTasks, currentUser, teamMembers, allProperties, propertyShares]);
+	}, [processedTasks, currentUser, teamMembers, allProperties, propertyShares]);
 
 	const handleTaskCompletion = (taskId: string) => {
 		setCompletingTaskId(taskId);

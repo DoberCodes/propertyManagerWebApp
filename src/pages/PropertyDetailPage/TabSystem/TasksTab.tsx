@@ -18,7 +18,11 @@ import {
 	FilterValues,
 } from '../../../Components/Library/FilterBar';
 import { applyFilters } from '../../../utils/tableFilters';
-import { updateOverdueTasks } from '../../../utils/taskUtils';
+import {
+	isTaskOverdueForDisplay,
+	matchesDateRangeOrIsOverdue,
+	updateOverdueTasks,
+} from '../../../utils/taskUtils';
 import { isTrialExpired } from '../../../utils/subscriptionUtils';
 import { ReusableTable, TaskModal } from '../../../Components/Library';
 import { Column, Action } from '../../../Components/Library/ReusableTable';
@@ -280,11 +284,23 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 							: task.assignee,
 				},
 			],
-			dateRangeFields: [{ field: 'dueDate', filterKey: 'dueDate' }],
 		});
 
-		// Sort by due date, closest to today first (earliest dates first)
-		return filtered.sort((a, b) => {
+		const dueDateStart = filters.dueDate_start as string | undefined;
+		const dueDateEnd = filters.dueDate_end as string | undefined;
+
+		const afterDateFilter = filtered.filter((task) =>
+			matchesDateRangeOrIsOverdue(task as Task, dueDateStart, dueDateEnd),
+		);
+
+		// Sort overdue tasks first, then by due date.
+		return afterDateFilter.sort((a, b) => {
+			const overdueA = isTaskOverdueForDisplay(a as Task);
+			const overdueB = isTaskOverdueForDisplay(b as Task);
+			if (overdueA !== overdueB) {
+				return overdueA ? -1 : 1;
+			}
+
 			const dateA = a.dueDate ? new Date(a.dueDate).getTime() : Infinity;
 			const dateB = b.dueDate ? new Date(b.dueDate).getTime() : Infinity;
 			return dateA - dateB;

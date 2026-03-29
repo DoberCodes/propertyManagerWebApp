@@ -31,14 +31,20 @@ export const CarouselTrack = styled.div`
 	user-select: none;
 `;
 
-export const TaskCard = styled.div`
+export const TaskCard = styled.div<{ $overdue?: boolean }>`
 	min-width: 100%;
 	flex: 0 0 100%;
 	background: white;
-	border: 1px solid #e5e7eb;
+	border: 1px solid ${(props) => (props.$overdue ? 'rgba(239, 68, 68, 0.35)' : '#e5e7eb')};
+	border-left: ${(props) => (props.$overdue ? '4px solid #ef4444' : undefined)};
 	border-radius: 12px;
 	padding: 20px;
-	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+	box-shadow: ${(props) =>
+		props.$overdue
+			? '0 1px 3px rgba(239, 68, 68, 0.12)'
+			: '0 1px 3px rgba(0, 0, 0, 0.1)'};
+	background-color: ${(props) =>
+		props.$overdue ? 'rgba(239, 68, 68, 0.02)' : 'white'};
 	cursor: pointer;
 	transition: all 0.2s ease;
 	display: flex;
@@ -53,8 +59,11 @@ export const TaskCard = styled.div`
 	}
 
 	&:hover {
-		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-		border-color: #3b82f6;
+		box-shadow: ${(props) =>
+			props.$overdue
+				? '0 4px 12px rgba(239, 68, 68, 0.2)'
+				: '0 4px 12px rgba(0, 0, 0, 0.15)'};
+		border-color: ${(props) => (props.$overdue ? '#ef4444' : '#3b82f6')};
 	}
 
 	&:active {

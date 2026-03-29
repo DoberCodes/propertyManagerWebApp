@@ -178,7 +178,7 @@ export const MobileTaskCarousel: React.FC<MobileTaskCarouselProps> = ({
 							cursor: isDragging ? 'grabbing' : 'grab',
 						}}>
 						{tasks.map((task) => (
-							<TaskCard key={task.id} onClick={handleCardClick}>
+						<TaskCard key={task.id} $overdue={task.status === 'Overdue'} onClick={handleCardClick}>
 								<CardHeader>
 									<CardTitle>{task.title}</CardTitle>
 									<div
@@ -201,7 +201,14 @@ export const MobileTaskCarousel: React.FC<MobileTaskCarouselProps> = ({
 									<CardMeta>
 										<MetaItem>
 											<MetaLabel>Status</MetaLabel>
-											<MetaValue style={{ color: getStatusColor(task.status) }}>
+											<MetaValue
+												style={{
+													color:
+														task.status === 'Overdue'
+															? '#dc2626'
+															: getStatusColor(task.status),
+													fontWeight: task.status === 'Overdue' ? 700 : undefined,
+												}}>
 												{task.status || 'Pending'}
 											</MetaValue>
 										</MetaItem>
@@ -209,7 +216,11 @@ export const MobileTaskCarousel: React.FC<MobileTaskCarouselProps> = ({
 										{task.dueDate && (
 											<MetaItem>
 												<MetaLabel>Due</MetaLabel>
-												<MetaValue>
+												<MetaValue
+													style={{
+														color: task.status === 'Overdue' ? '#dc2626' : undefined,
+														fontWeight: task.status === 'Overdue' ? 700 : undefined,
+													}}>
 													{new Date(task.dueDate).toLocaleDateString('en-US', {
 														month: 'short',
 														day: 'numeric',

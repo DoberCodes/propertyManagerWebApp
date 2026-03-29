@@ -116,6 +116,7 @@ export const ReusableTable = <T extends { id: string }>({
 						{rowData.map((row, index) => (
 							<tr
 								key={index}
+								className={(row as any).status === 'Overdue' ? 'overdue-row' : undefined}
 								onDoubleClick={() =>
 									handleRowDoubleClick && onRowDoubleClick?.(row.id)
 								}>

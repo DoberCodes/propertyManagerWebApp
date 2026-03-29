@@ -76,6 +76,19 @@ export const StyledTable = styled.table`
 		background-color: #f9fafb;
 	}
 
+	tbody tr.overdue-row {
+		background-color: rgba(239, 68, 68, 0.04);
+		box-shadow: inset 3px 0 0 #ef4444;
+	}
+
+	tbody tr.overdue-row td {
+		background-color: rgba(239, 68, 68, 0.04);
+	}
+
+	tbody tr.overdue-row:hover td {
+		background-color: rgba(239, 68, 68, 0.08);
+	}
+
 	select {
 		width: auto;
 		max-width: 100%;
