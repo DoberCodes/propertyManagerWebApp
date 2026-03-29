@@ -1,24 +1,23 @@
 #!/usr/bin/env node
 
 /**
- * Migration script to remove all data not connected to current users
- * This cleans up orphaned data from deleted user accounts
+ * Migration script to remove all data not connected to current users or properties.
+ * Safe to run repeatedly — supports dry-run preview before applying changes.
  *
- * MAINTENANCE SCRIPT - Safe to run repeatedly as the app expands
+ * USAGE:
+ *   node scripts/migrateRemoveOrphanedData.cjs           (dry-run, safe preview)
+ *   node scripts/migrateRemoveOrphanedData.cjs --apply   (permanently delete orphans)
  *
  * HOW TO MAINTAIN AS APP EXPANDS:
  * ===============================
  * 1. Add new user-owned collections to COLLECTION_CONFIG.userOwned
  * 2. Add new property-related collections to COLLECTION_CONFIG.propertyRelated
  * 3. Add new shared user array fields to COLLECTION_CONFIG.sharedUserArrays
- * 4. Run the script: node scripts/migrateRemoveOrphanedData.cjs
  *
  * The script handles:
- * - Direct user ownership (documents with userId fields)
- * - Property relationships (documents referencing propertyId)
- * - Shared user references (arrays containing user IDs)
- *
- * Run with: node scripts/migrateRemoveOrphanedData.cjs
+ * - Phase 1: Direct user ownership (documents with userId field pointing to deleted user)
+ * - Phase 2: Property relationships (documents referencing a deleted propertyId)
+ * - Phase 3: Shared user references (arrays containing deleted user IDs)
  */
 
 const admin = require('firebase-admin');
@@ -31,45 +30,57 @@ admin.initializeApp({
 const db = admin.firestore();
 const auth = admin.auth();
 
+const isDryRun = !process.argv.includes('--apply');
+if (isDryRun) {
+	console.log('🔍 DRY RUN MODE — no data will be deleted.');
+	console.log('   Pass --apply to permanently remove orphaned documents.\n');
+} else {
+	console.log('⚠️  APPLY MODE — orphaned data will be permanently deleted.\n');
+}
+
 /**
- * Configuration for collections and their relationships
- * Add new collections here as the app expands
+ * Configuration for collections and their relationships.
+ * Add new collections here as the app expands.
  */
 const COLLECTION_CONFIG = {
-	// Collections with direct userId references
+	// Collections with direct userId references — orphaned when user is deleted
 	userOwned: [
 		'propertyGroups',
 		'teamGroups',
 		'teamMembers',
 		'favorites',
-		'tasks', // Tasks can be user-owned OR property-related
-		'users', // USER PROFILE DATA - CRITICAL!
-		'notifications', // User-specific notifications
-		'contractors', // User-related contractor data
-		// Future: 'userProfiles', 'userSettings', 'notificationPreferences'
+		'tasks', // Tasks can also be property-related (checked in Phase 2)
+		'users', // USER PROFILE DATA — CRITICAL
+		'notifications',
+		'contractors',
+		'tenantProfiles',     // Tenant profiles linked to deleted user accounts
+		'accountMemberships', // Family/account memberships for deleted users
 	],
 
-	// Collections that reference properties (cleaned based on owned properties)
+	// Collections that reference propertyId — orphaned when a property is deleted
+	// NOTE: this is the single source of truth. cleanPropertyRelatedCollections()
+	// uses this config directly — do NOT add a separate list elsewhere.
 	propertyRelated: [
 		{ name: 'tasks', field: 'propertyId' },
 		{ name: 'suites', field: 'propertyId' },
 		{ name: 'units', field: 'propertyId' },
-		{ name: 'devices', field: 'location.propertyId' }, // Nested field
+		{ name: 'devices', field: 'location.propertyId' }, // nested field
 		{ name: 'propertyShares', field: 'propertyId' },
 		{ name: 'userInvitations', field: 'propertyId' },
-		{ name: 'maintenanceHistory', field: 'propertyId' }, // Property-related maintenance
+		{ name: 'maintenanceHistory', field: 'propertyId' },
+		{ name: 'contractors', field: 'propertyId' },
+		{ name: 'favorites', field: 'propertyId' },
+		{ name: 'propertyGroupMemberships', field: 'propertyId' },
 		// Future: { name: 'propertyDocuments', field: 'propertyId' },
-		// Future: { name: 'propertyImages', field: 'propertyId' },
 	],
 
-	// Collections with shared user references (arrays of user IDs)
+	// Collections with shared user references (arrays of user IDs to prune)
 	sharedUserArrays: [
 		{
 			collection: 'properties',
 			fields: ['coOwners', 'administrators', 'viewers'],
 		},
 		// Future: { collection: 'teamGroups', fields: ['memberIds', 'managerIds'] },
-		// Future: { collection: 'projects', fields: ['collaboratorIds'] },
 	],
 };
 
@@ -96,6 +107,19 @@ async function getAllCurrentUserIds() {
 	}
 }
 
+/**
+ * Fetch all current property IDs by scanning the properties collection.
+ * Uses a full scan rather than a userId-filtered query to avoid the Firestore
+ * 'in' operator 30-element limit.
+ */
+async function getAllCurrentPropertyIds() {
+	console.log('Fetching all current property IDs...');
+	const snapshot = await db.collection('properties').get();
+	const ids = new Set(snapshot.docs.map((d) => d.id));
+	console.log(`Found ${ids.size} properties in Firestore`);
+	return ids;
+}
+
 async function cleanCollection(
 	collectionName,
 	userIds,
@@ -113,42 +137,38 @@ async function cleanCollection(
 		}
 
 		let orphanedCount = 0;
-		const batch = db.batch();
+		let batch = db.batch();
 		let batchSize = 0;
 
 		for (const doc of snapshot.docs) {
 			const data = doc.data();
 			const userId = data[userIdField];
 
-			// Skip documents without userId field (might be shared data)
-			if (!userId) {
-				continue;
-			}
+			if (!userId || userIds.has(userId)) continue;
 
-			// Check if user still exists
-			if (!userIds.has(userId)) {
-				console.log(
-					`   🗑️  Deleting orphaned document ${doc.id} (userId: ${userId})`,
-				);
+			console.log(
+				`   🗑️  ${isDryRun ? '[DRY RUN] Would delete' : 'Deleting'} ${doc.id} (${userIdField}: ${userId})`,
+			);
+			orphanedCount++;
+
+			if (!isDryRun) {
 				batch.delete(doc.ref);
-				orphanedCount++;
 				batchSize++;
 
-				// Commit batch every 500 operations to avoid limits
 				if (batchSize >= 500) {
 					await batch.commit();
+					batch = db.batch();
 					batchSize = 0;
 				}
 			}
 		}
 
-		// Commit remaining operations
-		if (batchSize > 0) {
+		if (!isDryRun && batchSize > 0) {
 			await batch.commit();
 		}
 
 		console.log(
-			`   ✅ Removed ${orphanedCount} orphaned documents from ${collectionName}`,
+			`   ✅ ${isDryRun ? 'Would remove' : 'Removed'} ${orphanedCount} orphaned documents from ${collectionName}`,
 		);
 		return orphanedCount;
 	} catch (error) {
@@ -157,38 +177,20 @@ async function cleanCollection(
 	}
 }
 
-async function cleanPropertyRelatedData(userIds) {
+/**
+ * Phase 2 — clean property-related collections.
+ * Uses a full property scan so there is no Firestore 'in' operator size limit.
+ * Reads cleanup targets from COLLECTION_CONFIG.propertyRelated.
+ */
+async function cleanPropertyRelatedData(propertyIds) {
 	console.log('\n🔍 Checking property-related collections...');
 
 	let totalRemoved = 0;
 
-	try {
-		// Get all properties owned by current users
-		const propertiesRef = db.collection('properties');
-		const ownedPropertiesSnapshot = await propertiesRef
-			.where('userId', 'in', Array.from(userIds))
-			.get();
-		const ownedPropertyIds = new Set(
-			ownedPropertiesSnapshot.docs.map((doc) => doc.id),
-		);
+	for (const { name, field } of COLLECTION_CONFIG.propertyRelated) {
+		console.log(`\n🔍 Checking ${name} for orphaned property references (${field})...`);
 
-		console.log(
-			`Found ${ownedPropertyIds.size} properties owned by current users`,
-		);
-
-		// Clean collections that reference properties
-		const propertyRelatedCollections = [
-			{ name: 'tasks', field: 'propertyId' },
-			{ name: 'suites', field: 'propertyId' },
-			{ name: 'units', field: 'propertyId' },
-			{ name: 'devices', field: 'location.propertyId' },
-			{ name: 'propertyShares', field: 'propertyId' },
-			{ name: 'userInvitations', field: 'propertyId' },
-		];
-
-		for (const { name, field } of propertyRelatedCollections) {
-			console.log(`\n🔍 Checking ${name} for orphaned property references...`);
-
+		try {
 			const collectionRef = db.collection(name);
 			const snapshot = await collectionRef.get();
 
@@ -198,14 +200,13 @@ async function cleanPropertyRelatedData(userIds) {
 			}
 
 			let orphanedCount = 0;
-			const batch = db.batch();
+			let batch = db.batch();
 			let batchSize = 0;
 
 			for (const doc of snapshot.docs) {
 				const data = doc.data();
 				let propertyId;
 
-				// Handle nested field path for devices
 				if (field.includes('.')) {
 					const [parent, child] = field.split('.');
 					propertyId = data[parent]?.[child];
@@ -213,36 +214,39 @@ async function cleanPropertyRelatedData(userIds) {
 					propertyId = data[field];
 				}
 
-				if (propertyId && !ownedPropertyIds.has(propertyId)) {
-					console.log(
-						`   🗑️  Deleting ${name} document ${doc.id} (orphaned propertyId: ${propertyId})`,
-					);
+				if (!propertyId || propertyIds.has(propertyId)) continue;
+
+				console.log(
+					`   🗑️  ${isDryRun ? '[DRY RUN] Would delete' : 'Deleting'} ${name}/${doc.id} (${field}: ${propertyId})`,
+				);
+				orphanedCount++;
+
+				if (!isDryRun) {
 					batch.delete(doc.ref);
-					orphanedCount++;
 					batchSize++;
 
 					if (batchSize >= 500) {
 						await batch.commit();
+						batch = db.batch();
 						batchSize = 0;
 					}
 				}
 			}
 
-			if (batchSize > 0) {
+			if (!isDryRun && batchSize > 0) {
 				await batch.commit();
 			}
 
 			console.log(
-				`   ✅ Removed ${orphanedCount} orphaned documents from ${name}`,
+				`   ✅ ${isDryRun ? 'Would remove' : 'Removed'} ${orphanedCount} orphaned documents from ${name}`,
 			);
 			totalRemoved += orphanedCount;
+		} catch (error) {
+			console.error(`   ❌ Error cleaning ${name}:`, error);
 		}
-
-		return totalRemoved;
-	} catch (error) {
-		console.error('   ❌ Error cleaning property-related data:', error);
-		return 0;
 	}
+
+	return totalRemoved;
 }
 
 async function cleanSharedUserReferences(userIds) {
@@ -264,7 +268,7 @@ async function cleanSharedUserReferences(userIds) {
 			}
 
 			let updatedCount = 0;
-			const batch = db.batch();
+			let batch = db.batch();
 			let batchSize = 0;
 
 			for (const doc of snapshot.docs) {
@@ -272,7 +276,6 @@ async function cleanSharedUserReferences(userIds) {
 				let needsUpdate = false;
 				const updates = {};
 
-				// Check each configured field
 				for (const field of fields) {
 					if (data[field] && Array.isArray(data[field])) {
 						const cleanedArray = data[field].filter((id) => userIds.has(id));
@@ -283,27 +286,31 @@ async function cleanSharedUserReferences(userIds) {
 					}
 				}
 
-				if (needsUpdate) {
-					console.log(
-						`      🧹 Cleaning shared user references in ${collection}/${doc.id}`,
-					);
+				if (!needsUpdate) continue;
+
+				console.log(
+					`      🧹 ${isDryRun ? '[DRY RUN] Would update' : 'Cleaning'} shared user references in ${collection}/${doc.id}`,
+				);
+				updatedCount++;
+
+				if (!isDryRun) {
 					batch.update(doc.ref, updates);
-					updatedCount++;
 					batchSize++;
 
 					if (batchSize >= 500) {
 						await batch.commit();
+						batch = db.batch();
 						batchSize = 0;
 					}
 				}
 			}
 
-			if (batchSize > 0) {
+			if (!isDryRun && batchSize > 0) {
 				await batch.commit();
 			}
 
 			console.log(
-				`      ✅ Cleaned ${updatedCount} documents in ${collection}`,
+				`      ✅ ${isDryRun ? 'Would update' : 'Cleaned'} ${updatedCount} documents in ${collection}`,
 			);
 			totalUpdated += updatedCount;
 		} catch (error) {
@@ -335,35 +342,37 @@ async function runMigration() {
 	try {
 		// Get all current user IDs
 		const userIds = await getAllCurrentUserIds();
+		// Get all current property IDs (full scan avoids Firestore 'in' limit)
+		const propertyIds = await getAllCurrentPropertyIds();
 
 		let totalRemoved = 0;
 
 		// Clean collections with direct userId references
-		console.log('🧹 Phase 1: Cleaning user-owned collections...');
+		console.log('\n🧹 Phase 1: Cleaning user-owned collections...');
 		for (const collectionName of COLLECTION_CONFIG.userOwned) {
 			const removed = await cleanCollection(collectionName, userIds);
 			totalRemoved += removed;
 		}
 
 		// Clean property-related orphaned data
-		console.log('🏠 Phase 2: Cleaning property-related collections...');
-		const propertyRelatedRemoved = await cleanPropertyRelatedData(userIds);
+		console.log('\n🏠 Phase 2: Cleaning property-related collections...');
+		const propertyRelatedRemoved = await cleanPropertyRelatedData(propertyIds);
 		totalRemoved += propertyRelatedRemoved;
 
 		// Clean shared user references
-		console.log('👥 Phase 3: Cleaning shared user references...');
+		console.log('\n👥 Phase 3: Cleaning shared user references...');
 		const sharedRefsCleaned = await cleanSharedUserReferences(userIds);
 
 		console.log('\n🎉 Migration completed successfully!');
-		console.log(`📊 Summary:`);
-		console.log(`   • Total orphaned documents removed: ${totalRemoved}`);
+		console.log(`📊 Summary (${isDryRun ? 'DRY RUN — no changes made' : 'APPLIED'}):`);
+		console.log(`   • Total orphaned documents ${isDryRun ? 'found' : 'removed'}: ${totalRemoved}`);
 		console.log(
 			`   • Properties with cleaned shared references: ${sharedRefsCleaned}`,
 		);
 		console.log(`   • Active users preserved: ${userIds.size}`);
-		console.log('\n💡 To add new collections as the app expands:');
-		console.log('   1. Add to COLLECTION_CONFIG at the top of this file');
-		console.log('   2. Run this script again');
+		if (isDryRun) {
+			console.log('\n   Run with --apply to permanently delete these documents.');
+		}
 
 		process.exit(0);
 	} catch (error) {

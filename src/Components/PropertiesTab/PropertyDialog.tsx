@@ -34,7 +34,7 @@ import {
 	uploadPropertyImage,
 	isValidPropertyImageFile,
 } from '../../utils/propertyImageUpload';
-import { useGetPropertySharesQuery } from '../../Redux/API/userSlice';
+import { DeleteConfirmationModal } from '../Library/Modal/DeleteConfirmationModal';
 
 interface MaintenanceRecord {
 	date: string;
@@ -62,6 +62,7 @@ interface PropertyDialogProps {
 	isOpen: boolean;
 	onClose: () => void;
 	onSave: (data: PropertyFormData) => Promise<void>;
+	onDeleteProperty?: () => Promise<void> | void;
 	forceSingleFamily?: boolean;
 	initialData?: PropertyFormData;
 	groups: Array<{ id: string; name: string }>;
@@ -78,6 +79,7 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 	isOpen,
 	onClose,
 	onSave,
+	onDeleteProperty,
 	forceSingleFamily = false,
 	initialData,
 	groups,
@@ -112,14 +114,11 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 	const [newGroupName, setNewGroupName] = useState('');
 	const [isUploadingImage, setIsUploadingImage] = useState(false);
 	const [imageError, setImageError] = useState<string | null>(null);
+	const [isDeletingProperty, setIsDeletingProperty] = useState(false);
+	const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
 
-	// Get co-owner shares for this property
-	const { data: coOwnerShares = [] } = useGetPropertySharesQuery(
-		propertyId || '',
-		{
-			skip: !propertyId,
-		},
-	);
+	// Shared properties feature retired.
+	const coOwnerShares: any[] = [];
 
 	// Reset form when dialog opens or initialData changes
 	useEffect(() => {
@@ -173,6 +172,7 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 			setUnitInput('');
 			setSuiteInput('');
 			setNewGroupName('');
+			setIsDeleteConfirmOpen(false);
 		}
 	}, [isOpen, initialData, selectedGroupId, forceSingleFamily]);
 
@@ -265,9 +265,34 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 		}
 	};
 
+	const handleDeletePropertyClick = async () => {
+		if (!onDeleteProperty || isDeletingProperty || isSubmitting) {
+			return;
+		}
+
+		setIsDeleteConfirmOpen(true);
+	};
+
+	const handleConfirmDeleteProperty = async () => {
+		if (!onDeleteProperty || isDeletingProperty || isSubmitting) {
+			return;
+		}
+
+		setIsDeletingProperty(true);
+		try {
+			await onDeleteProperty();
+			setIsDeleteConfirmOpen(false);
+		} catch (error) {
+			console.error('Error deleting property:', error);
+		} finally {
+			setIsDeletingProperty(false);
+		}
+	};
+
 	return (
-		<DialogOverlay onClick={onClose}>
-			<DialogContainer onClick={(e) => e.stopPropagation()}>
+		<>
+			<DialogOverlay onClick={onClose}>
+				<DialogContainer onClick={(e) => e.stopPropagation()}>
 				<DialogHeader>
 					<DialogTitle>
 						{initialData ? 'Edit Property' : 'Add New Property'}
@@ -278,7 +303,7 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 				<DialogContent>
 					{/* Group Assignment */}
 					<FormSection>
-						<SectionTitle>Assign to Group</SectionTitle>
+						<SectionTitle>Assign to Group (Optional)</SectionTitle>
 						<FormRow>
 							<FormField>
 								<Label>Group</Label>
@@ -295,7 +320,7 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 										borderRadius: '4px',
 										fontSize: '14px',
 									}}>
-									<option value=''>Select a group</option>
+									<option value=''>No group</option>
 									{groups.map((g) => (
 										<option key={g.id} value={g.id}>
 											{g.name}
@@ -762,6 +787,18 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 						gap: '10px',
 					}}>
 					<div style={{ display: 'flex', gap: '10px' }}>
+						{propertyId && onDeleteProperty && (
+							<SecondaryButton
+								onClick={handleDeletePropertyClick}
+								disabled={isDeletingProperty || isSubmitting}
+								style={{
+									backgroundColor: '#ef4444',
+									borderColor: '#ef4444',
+									color: 'white',
+								}}>
+								{isDeletingProperty ? 'Deleting...' : 'Delete Property'}
+							</SecondaryButton>
+						)}
 						{propertyId && onToggleHideFromDashboard && (
 							<SecondaryButton onClick={onToggleHideFromDashboard}>
 								{isHiddenFromDashboard
@@ -782,15 +819,29 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 						)}
 					</div>
 					<div style={{ display: 'flex', gap: '10px' }}>
-						<CancelButton onClick={onClose} disabled={isSubmitting}>
+						<CancelButton
+							onClick={onClose}
+							disabled={isSubmitting || isDeletingProperty}>
 							Cancel
 						</CancelButton>
-						<SaveButton onClick={handleSave} disabled={isSubmitting}>
+						<SaveButton
+							onClick={handleSave}
+							disabled={isSubmitting || isDeletingProperty}>
 							{isSubmitting ? 'Saving...' : 'Save Property'}
 						</SaveButton>
 					</div>
 				</DialogFooter>
-			</DialogContainer>
-		</DialogOverlay>
+				</DialogContainer>
+			</DialogOverlay>
+
+			<DeleteConfirmationModal
+				isOpen={isDeleteConfirmOpen}
+				itemName={formData.name || initialData?.name || 'this property'}
+				itemType='property'
+				onConfirm={handleConfirmDeleteProperty}
+				onCancel={() => setIsDeleteConfirmOpen(false)}
+				isLoading={isDeletingProperty}
+			/>
+		</>
 	);
 };

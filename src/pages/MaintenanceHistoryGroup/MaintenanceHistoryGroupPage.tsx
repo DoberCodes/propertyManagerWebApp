@@ -4,7 +4,6 @@ import { useSelector } from 'react-redux';
 import { useDetailPageData } from 'Hooks/useDetailPageData';
 import { useDeleteMaintenanceHistoryMutation } from 'Redux/API/maintenanceSlice';
 import { useGetContractorsByPropertyQuery } from 'Redux/API/contractorSlice';
-import { useGetPropertySharesQuery } from 'Redux/API/userSlice';
 import { RootState } from 'Redux/store/store';
 import { getFamilyMembers } from 'services/authService';
 import {
@@ -33,10 +32,6 @@ export const MaintenanceHistoryGroupPage: React.FC = () => {
 	});
 	const [deleteMaintenanceHistory] = useDeleteMaintenanceHistoryMutation();
 	const { data: teamMembers = [] } = useGetTeamMembersQuery();
-	const { data: propertyShares = [] } = useGetPropertySharesQuery(
-		property?.id || '',
-		{ skip: !property?.id },
-	);
 	const { data: propertyContractors = [] } = useGetContractorsByPropertyQuery(
 		property?.id || '',
 		{ skip: !property?.id },
@@ -127,16 +122,6 @@ export const MaintenanceHistoryGroupPage: React.FC = () => {
 	const completedByLookup = useMemo(() => {
 		const lookup = new Map<string, string>();
 
-		propertyShares
-			.filter((share: any) => share.sharedWithUserId)
-			.forEach((share: any) => {
-				const fullName =
-					share.sharedWithFirstName && share.sharedWithLastName
-						? `${share.sharedWithFirstName} ${share.sharedWithLastName}`
-						: share.sharedWithEmail?.split('@')[0] || 'Shared User';
-				lookup.set(share.sharedWithUserId, fullName);
-			});
-
 		teamMembers.forEach((member: any) => {
 			const name = `${member.firstName || ''} ${member.lastName || ''}`.trim();
 			if (name) {
@@ -157,7 +142,7 @@ export const MaintenanceHistoryGroupPage: React.FC = () => {
 		});
 
 		return lookup;
-	}, [propertyShares, teamMembers, propertyContractors, familyMembers]);
+	}, [teamMembers, propertyContractors, familyMembers]);
 
 	const getCompletedByDisplay = (record: any) => {
 		if (record.completedByName) return record.completedByName;

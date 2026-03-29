@@ -166,9 +166,6 @@ export const DataFetchProvider: React.FC<DataFetchProviderProps> = ({
 							groupsClone.find(
 								(group) => group.name?.toLowerCase() === 'my properties',
 							) ||
-							groupsClone.find(
-								(group) => group.name?.toLowerCase() !== 'shared properties',
-							) ||
 							groupsClone[0];
 
 						if (preferredGroup) {
@@ -179,8 +176,44 @@ export const DataFetchProvider: React.FC<DataFetchProviderProps> = ({
 				  })()
 				: normalizedGroups;
 
+		const groupedPropertyIds = new Set<string>(
+			hydratedGroups
+				.flatMap((group) => (group.properties || []).map((property) => property.id))
+				.filter(Boolean),
+		);
+		const ungroupedProperties = (properties as Property[]).filter(
+			(property) => !groupedPropertyIds.has(property.id),
+		);
+
+		let hydratedWithUngrouped = [...hydratedGroups];
+		if (ungroupedProperties.length > 0) {
+			const existingUngroupedGroup = hydratedWithUngrouped.find(
+				(group) => group.name?.toLowerCase() === 'ungrouped properties',
+			);
+
+			if (existingUngroupedGroup) {
+				existingUngroupedGroup.properties = [
+					...(existingUngroupedGroup.properties || []),
+					...ungroupedProperties,
+				];
+			} else {
+				hydratedWithUngrouped = [
+					...hydratedWithUngrouped,
+					{
+						id: `virtual-${currentUser.id}-ungrouped-properties`,
+						name: 'Ungrouped Properties',
+						userId: currentUser.id,
+						accountId: currentUser.accountId || currentUser.id,
+						properties: ungroupedProperties,
+						createdAt: new Date().toISOString(),
+						updatedAt: new Date().toISOString(),
+					},
+				];
+			}
+		}
+
 		const groupsToDispatch =
-			hydratedGroups.length === 0 && properties.length > 0
+			hydratedWithUngrouped.length === 0 && properties.length > 0
 				? [
 						{
 							id: `virtual-${currentUser.id}-all-properties`,
@@ -192,7 +225,7 @@ export const DataFetchProvider: React.FC<DataFetchProviderProps> = ({
 							updatedAt: new Date().toISOString(),
 						},
 				  ]
-				: hydratedGroups;
+				: hydratedWithUngrouped;
 
 		dispatch(setPropertyGroups(groupsToDispatch));
 		dispatch(setTasks(tasks)); // Make sure setTasks expects assignedTo as an object, not a string

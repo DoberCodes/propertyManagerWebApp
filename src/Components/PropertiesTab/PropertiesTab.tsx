@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { PropertyDialog } from './PropertyDialog';
 import {
@@ -7,6 +7,7 @@ import {
 	PageTitle as StandardPageTitle,
 } from '../Library/PageHeaders';
 import { DeleteConfirmationModal } from '../Library/Modal/DeleteConfirmationModal';
+import { ZeroState } from '../Library/ZeroState';
 import { useRecentlyViewed } from '../../Hooks/useRecentlyViewed';
 import { useFavorites } from '../../Hooks/useFavorites';
 import { RootState } from '../../Redux/store/store';
@@ -24,12 +25,8 @@ import {
 	useDeletePropertyGroupMutation,
 	useCreateUnitMutation,
 } from '../../Redux/API/propertySlice';
-import { useGetAllPropertySharesForUserQuery } from '../../Redux/API/userSlice';
-import { useDeletePropertyShareMutation } from '../../Redux/API/userSlice';
 import { useUpdateUserMutation } from '../../Redux/API/userSlice';
 import { useCreateNotificationMutation } from '../../Redux/API/notificationSlice';
-import { db } from '../../config/firebase';
-import { collection, query, where, getDocs } from 'firebase/firestore';
 import {
 	canAddProperty,
 	getRemainingPropertySlots,
@@ -99,10 +96,7 @@ export const Properties = () => {
 	const [deletePropertyGroup] = useDeletePropertyGroupMutation();
 	const [createUnit] = useCreateUnitMutation();
 	const [updateUser] = useUpdateUserMutation();
-	const [deletePropertyShare] = useDeletePropertyShareMutation();
 	const [createNotification] = useCreateNotificationMutation();
-
-	const { data: propertyShares = [] } = useGetAllPropertySharesForUserQuery();
 
 	// Check if user can manage properties based on subscription plan
 	// All paid plans allow property management, free plan has limited access
@@ -129,16 +123,10 @@ export const Properties = () => {
 		}));
 	}, [propertyGroups]);
 
-	// Count total properties for this user (for homeowners, only count owned properties, not shared)
-	const totalProperties = groupsWithProperties.reduce((acc, group) => {
-		// For homeowners, only count properties in groups they own (exclude "Shared Properties")
-		if (isHomeowner) {
-			if (group.name?.toLowerCase() === 'shared properties') {
-				return acc; // Don't count shared properties for homeowner limits
-			}
-		}
-		return acc + (group.properties?.length || 0);
-	}, 0);
+	const totalProperties = groupsWithProperties.reduce(
+		(acc, group) => acc + (group.properties?.length || 0),
+		0,
+	);
 
 	// Filter groups based on user role and assignments
 	// Note: Casting to any[] to handle type mismatch between Redux types (number IDs) and Firebase types (string IDs)
@@ -147,7 +135,6 @@ export const Properties = () => {
 			groupsWithProperties as any[],
 			currentUser,
 			teamMembers?.filter((m): m is TeamMember => m !== undefined),
-			propertyShares,
 		);
 		// Sort groups so "My Properties" appears first
 		return groups.sort((a, b) => {
@@ -157,7 +144,7 @@ export const Properties = () => {
 			if (bName === 'my properties') return 1;
 			return 0;
 		});
-	}, [groupsWithProperties, currentUser, teamMembers, propertyShares]);
+	}, [groupsWithProperties, currentUser, teamMembers]);
 
 	useEffect(() => {
 		const currentTeamMember = teamMembers.find(
@@ -353,22 +340,6 @@ export const Properties = () => {
 		setSelectedGroupForDialog(null);
 		setSelectedPropertyForEdit(null);
 		setDialogOpen(true);
-
-		// For homeowners with no groups, automatically create "My Properties" group
-		if (isHomeowner && filteredGroups.length === 0) {
-			try {
-				const result = await createPropertyGroup({
-					name: 'My Properties',
-					properties: [],
-					userId: currentUser.id,
-				});
-				if ('data' in result && result.data) {
-					setSelectedGroupForDialog((result.data as any).id);
-				}
-			} catch (error) {
-				console.error('Error creating My Properties group:', error);
-			}
-		}
 	};
 
 	const handleEditPropertyClick = (groupId: string, property: any) => {
@@ -394,6 +365,38 @@ export const Properties = () => {
 			});
 			setDeleteModalOpen(true);
 		}
+	};
+
+	const handleDeletePropertyFromDialog = async () => {
+		if (!selectedPropertyForEdit) {
+			return;
+		}
+
+		const deletingProperty = selectedPropertyForEdit;
+
+		await deleteProperty(deletingProperty.id).unwrap();
+
+		try {
+			await createNotification({
+				userId: currentUser!.id,
+				type: 'property_deleted',
+				title: 'Property Deleted',
+				message: `Property "${deletingProperty.title}" has been deleted`,
+				data: {
+					propertyId: deletingProperty.id,
+					propertyTitle: deletingProperty.title,
+				},
+				status: 'unread',
+				createdAt: new Date().toISOString(),
+				updatedAt: new Date().toISOString(),
+			}).unwrap();
+		} catch (notifError) {
+			console.error('Notification failed:', notifError);
+		}
+
+		setDialogOpen(false);
+		setSelectedGroupForDialog(null);
+		setSelectedPropertyForEdit(null);
 	};
 
 	const getTenantUnitRoute = useCallback(
@@ -439,19 +442,28 @@ export const Properties = () => {
 			.filter((property) => getTenantAssignmentForProperty(property, currentUser.email) !== null);
 	}, [isUserTenant, filteredGroups, currentUser?.email]);
 
-	const tenantPrimaryProperty = tenantAssignedProperties[0] || null;
+	const visibleProperties = useMemo(() => {
+		const source = isUserTenant
+			? tenantAssignedProperties
+			: filteredGroups.flatMap((group) => group.properties || []);
 
-	useEffect(() => {
-		if (!isUserTenant || !tenantPrimaryProperty) {
-			return;
-		}
+		return Array.from(new Map(source.map((property) => [property.id, property])).values());
+	}, [isUserTenant, tenantAssignedProperties, filteredGroups]);
 
-		const targetRoute =
-			getTenantUnitRoute(tenantPrimaryProperty) ||
-			`/property/${tenantPrimaryProperty.slug}`;
-
-		navigate(targetRoute, { replace: true });
-	}, [isUserTenant, tenantPrimaryProperty, getTenantUnitRoute, navigate]);
+	const singleVisibleProperty = visibleProperties.length === 1 ? visibleProperties[0] : null;
+	
+	// Only redirect to single property if user has NO remaining capacity on their plan
+	// This allows property managers to see the "Add Property" button when they have plan capacity
+	const hasRemainingCapacity = useMemo(() => {
+		if (!currentUser?.subscription) return false;
+		return getRemainingPropertySlots(currentUser.subscription, visibleProperties.length) > 0;
+	}, [currentUser, visibleProperties.length]);
+	
+	const singlePropertyRoute = 
+		singleVisibleProperty && !hasRemainingCapacity
+			? getTenantUnitRoute(singleVisibleProperty) ||
+			  `/property/${singleVisibleProperty.slug}`
+			: null;
 
 	const handleConfirmDeleteProperty = async () => {
 		if (!propertyToDelete) return;
@@ -559,46 +571,14 @@ export const Properties = () => {
 		}
 	};
 
-	const handleDetachFromProperty = async (propertyId: string) => {
-		if (!currentUser) return;
-
-		if (
-			!window.confirm(
-				'Are you sure you want to detach from this shared property? You will lose access to it.',
-			)
-		) {
-			return;
-		}
-
-		try {
-			// Find the property share for this user and property
-			const shareQuery = query(
-				collection(db, 'propertyShares'),
-				where('propertyId', '==', propertyId),
-				where('sharedWithUserId', '==', currentUser.id),
-			);
-
-			const shareSnapshot = await getDocs(shareQuery);
-
-			if (!shareSnapshot.empty) {
-				const shareId = shareSnapshot.docs[0].id;
-				await deletePropertyShare(shareId).unwrap();
-
-				setOpenDropdown(null);
-				alert('Successfully detached from property.');
-			} else {
-				alert('Could not find property share to remove.');
-			}
-		} catch (error) {
-			console.error('Failed to detach from property:', error);
-			alert('Failed to detach from property. Please try again.');
-		}
-	};
-
 	const handleSaveProperty = async (formData: any) => {
 		const effectivePropertyType = isHomeowner
 			? 'Single Family'
 			: formData.propertyType;
+		const normalizedGroupId =
+			typeof formData.groupId === 'string' && formData.groupId.trim().length > 0
+				? formData.groupId.trim()
+				: null;
 
 		// Prepare units data for Multi-Family properties
 		const unitsData =
@@ -624,7 +604,7 @@ export const Properties = () => {
 				const updates = {
 					title: formData.name,
 					image: formData.photo || selectedPropertyForEdit.image,
-					groupId: formData.groupId || selectedGroupForDialog || undefined,
+					groupId: normalizedGroupId,
 					owner: formData.owner,
 					address: formData.address,
 					propertyType: effectivePropertyType,
@@ -708,45 +688,10 @@ export const Properties = () => {
 				.replace(/\s+/g, '-')
 				.replace(/[^\w-]/g, '');
 
-			// Resolve groupId from form state, selected state, existing groups, or create a default group
-			let groupId =
-				typeof formData.groupId === 'string' && formData.groupId.trim()
-					? formData.groupId.trim()
-					: typeof selectedGroupForDialog === 'string' &&
-					  selectedGroupForDialog.trim()
-					? selectedGroupForDialog.trim()
-					: '';
-
-			if (!groupId && filteredGroups.length > 0) {
-				groupId = filteredGroups[0].id;
-			}
-
-			if (!groupId) {
-				try {
-					const groupResult = await createPropertyGroup({
-						name: 'My Properties',
-						properties: [],
-						userId: currentUser!.id,
-					});
-
-					if ('data' in groupResult && groupResult.data) {
-						groupId = (groupResult.data as any).id;
-						setSelectedGroupForDialog(groupId);
-					}
-				} catch (groupError) {
-					console.error('Failed to auto-create default group:', groupError);
-				}
-			}
-
-			if (!groupId) {
-				alert('Please select or create a group for this property.');
-				throw new Error('No group selected');
-			}
-
 			// Firebase doesn't accept undefined values
 			const newPropertyData: any = {
 				userId: currentUser!.id,
-				groupId: groupId,
+				...(normalizedGroupId && { groupId: normalizedGroupId }),
 				title: formData.name,
 				slug,
 				...(formData.photo && { image: formData.photo }),
@@ -842,28 +787,79 @@ export const Properties = () => {
 		// Success - dialog will be closed by PropertyDialog after successful save
 	};
 
-	if (isUserTenant && !tenantPrimaryProperty) {
-		return (
-			<Wrapper>
-				<PageHeaderSection>
-					<StandardPageTitle>Properties</StandardPageTitle>
-				</PageHeaderSection>
-				<div style={{ padding: '16px', color: '#6b7280' }}>
-					No property assignment found for your tenant account yet.
-				</div>
-			</Wrapper>
-		);
+	if (singlePropertyRoute) {
+		return <Navigate to={singlePropertyRoute} replace />;
 	}
 
-	if (isUserTenant) {
+	if (visibleProperties.length === 0) {
+		const zeroStateTitle = isUserTenant
+			? 'No Assigned Properties'
+			: 'No Properties Yet';
+		const zeroStateDescription = isUserTenant
+			? 'No property assignments were found for your account. Please contact your account owner or manager.'
+			: 'Add your first property to get started. You will use this screen to choose between properties once you have more than one.';
+		const zeroStateActions = !isUserTenant && canManage
+			? [
+					{
+						label: '+ Add Property',
+						onClick: handleAddPropertyGlobalClick,
+						variant: 'primary' as const,
+					},
+			  ]
+			: [];
+
 		return (
 			<Wrapper>
 				<PageHeaderSection>
 					<StandardPageTitle>Properties</StandardPageTitle>
+					{canManage && (
+						<TopActions>
+							{canManageGroups && (
+								<AddGroupButton onClick={handleAddGroup}>
+									+ Add Group
+								</AddGroupButton>
+							)}
+							<AddPropertyButton
+								disabled={handleDisabled()}
+								onClick={handleAddPropertyGlobalClick}>
+								+ Add Property
+							</AddPropertyButton>
+						</TopActions>
+					)}
 				</PageHeaderSection>
-				<div style={{ padding: '16px', color: '#6b7280' }}>
-					Opening your assigned property...
-				</div>
+				<ZeroState
+					icon={isUserTenant ? '🏠' : '📭'}
+					title={zeroStateTitle}
+					description={zeroStateDescription}
+					actions={zeroStateActions}
+				/>
+				<PropertyDialog
+					isOpen={dialogOpen}
+					onClose={() => {
+						setDialogOpen(false);
+						setSelectedGroupForDialog(null);
+						setSelectedPropertyForEdit(null);
+					}}
+					onSave={handleSaveProperty}
+					onDeleteProperty={
+						selectedPropertyForEdit ? handleDeletePropertyFromDialog : undefined
+					}
+					forceSingleFamily={isHomeowner}
+					groups={filteredGroups.map((g) => ({ id: g.id, name: g.name }))}
+					selectedGroupId={selectedGroupForDialog}
+					propertyId={selectedPropertyForEdit?.id}
+					onCreateGroup={async (name: string) => {
+						const result = await createPropertyGroup({
+							name,
+							properties: [],
+							userId: currentUser!.id,
+						});
+						if ('data' in result && result.data) {
+							return (result.data as any).id as string;
+						}
+						return '';
+					}}
+				/>
 			</Wrapper>
 		);
 	}
@@ -896,6 +892,9 @@ export const Properties = () => {
 					setSelectedPropertyForEdit(null);
 				}}
 				onSave={handleSaveProperty}
+				onDeleteProperty={
+					selectedPropertyForEdit ? handleDeletePropertyFromDialog : undefined
+				}
 				forceSingleFamily={isHomeowner}
 				groups={filteredGroups.map((g) => ({ id: g.id, name: g.name }))}
 				selectedGroupId={selectedGroupForDialog}
@@ -947,18 +946,6 @@ export const Properties = () => {
 				onToggleHideFromDashboard={
 					selectedPropertyForEdit
 						? () => handleToggleHideFromDashboard(selectedPropertyForEdit.id)
-						: undefined
-				}
-				isSharedProperty={
-					filteredGroups
-						.find((g) =>
-							g.properties?.some((p) => p.id === selectedPropertyForEdit?.id),
-						)
-						?.name?.toLowerCase() === 'shared properties'
-				}
-				onDetachFromProperty={
-					selectedPropertyForEdit
-						? () => handleDetachFromProperty(selectedPropertyForEdit.id)
 						: undefined
 				}
 			/>

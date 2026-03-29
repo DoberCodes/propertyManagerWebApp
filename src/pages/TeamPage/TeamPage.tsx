@@ -1,8 +1,7 @@
 import React, { useState, useMemo } from 'react';
-import styled from 'styled-components';
 
-import { useDispatch, useSelector } from 'react-redux';
-import { RootState, AppDispatch } from '../../Redux/store';
+import { useSelector } from 'react-redux';
+import { RootState } from '../../Redux/store';
 import { selectCanInviteTeamMembers } from '../../Redux/selectors/permissionSelectors';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../config/firebase';
@@ -74,7 +73,6 @@ import {
 	useDeleteTeamMemberMutation,
 	useGetTeamGroupsQuery,
 	useGetTeamMembersQuery,
-	useRedeemTeamMemberInvitationCodeMutation,
 	useRevokeTeamMemberInvitationCodeMutation,
 	useUpdateTeamGroupMutation,
 	useUpdateTeamMemberMutation,
@@ -88,13 +86,6 @@ const ROLE_OPTIONS = [
 	{ value: 'leasing', label: 'Leasing Agent' },
 	{ value: 'admin', label: 'Administrator' },
 ];
-
-// Styled info text for read-only property assignment message
-const InfoText = styled.div`
-	color: #888;
-	font-size: 0.95em;
-	margin-top: 8px;
-`;
 
 // Helper function to format expiration date
 const formatExpirationDate = (expiresAt: string) => {
@@ -148,8 +139,6 @@ export default function TeamPage() {
 	const [deleteTeamMemberApi] = useDeleteTeamMemberMutation();
 	const [createTeamMemberInvitationCode] =
 		useCreateTeamMemberInvitationCodeMutation();
-	const [redeemTeamMemberInvitationCode] =
-		useRedeemTeamMemberInvitationCodeMutation();
 	const [revokeTeamMemberInvitationCode] =
 		useRevokeTeamMemberInvitationCodeMutation();
 	const [createNotification] = useCreateNotificationMutation();
@@ -185,7 +174,7 @@ export default function TeamPage() {
 			allGroups.push({
 				id: 'orphan',
 				userId: '',
-				name: 'Other Team Members',
+				name: 'Ungrouped Team Members',
 				linkedProperties: [],
 				members: orphanMembers,
 			});
@@ -196,7 +185,6 @@ export default function TeamPage() {
 
 	// Check if user can manage team members based on subscription plan (selector)
 	const canManage = useSelector(selectCanInviteTeamMembers);
-	const canView = !!currentUser;
 
 	const [showTeamMemberDialog, setShowTeamMemberDialog] = useState(false);
 	const [currentGroupId, setCurrentGroupId] = useState<string | null>(null);
@@ -258,8 +246,8 @@ export default function TeamPage() {
 		members: (group.members || []).filter((member) => member.role !== 'tenant'),
 	}));
 
-	const handleAddTeamMember = (groupId: string) => {
-		setCurrentGroupId(groupId);
+	const handleAddTeamMember = (groupId?: string | null) => {
+		setCurrentGroupId(groupId || null);
 		setEditingMember(null);
 		setFormData({
 			firstName: '',
@@ -347,7 +335,6 @@ export default function TeamPage() {
 	};
 
 	const handleSaveTeamMember = async () => {
-		if (!currentGroupId) return;
 
 		let invitationCodeId: string | undefined;
 		let invitationCodeStatus: 'active' | 'revoked' | undefined;
@@ -394,7 +381,7 @@ export default function TeamPage() {
 		}
 
 		const memberData = {
-			groupId: currentGroupId,
+			...(currentGroupId && { groupId: currentGroupId }),
 			userId: currentUser!.id,
 			firstName: formData.firstName,
 			lastName: formData.lastName,
@@ -432,7 +419,7 @@ export default function TeamPage() {
 						data: {
 							memberId: editingMember.id,
 							memberName: `${formData.firstName} ${formData.lastName}`,
-							groupId: currentGroupId,
+							...(currentGroupId && { groupId: currentGroupId }),
 						},
 						status: 'unread',
 						actionUrl: `/team`,
@@ -476,7 +463,7 @@ export default function TeamPage() {
 						data: {
 							memberId: result.id,
 							memberName: `${formData.firstName} ${formData.lastName}`,
-							groupId: currentGroupId,
+							...(currentGroupId && { groupId: currentGroupId }),
 						},
 						status: 'unread',
 						actionUrl: `/team`,
@@ -494,8 +481,14 @@ export default function TeamPage() {
 		setShowTeamMemberDialog(false);
 	};
 
-	const handleEditTeamMember = (member: TeamMember, groupId: string) => {
-		setCurrentGroupId(groupId);
+	const handleEditTeamMember = (
+		member: TeamMember,
+		groupId?: string | null,
+	) => {
+		const resolvedGroupId =
+			(typeof member.groupId === 'string' && member.groupId.trim()) ||
+			(groupId && groupId !== 'orphan' ? groupId : null);
+		setCurrentGroupId(resolvedGroupId || null);
 		setEditingMember(member);
 		setFormData({
 			firstName: member.firstName,
@@ -748,16 +741,6 @@ export default function TeamPage() {
 		setWarningDialogOpen(true);
 	};
 
-	const handleTeamGroupNameChange = async (
-		groupId: string,
-		newName: string,
-	) => {
-		await updateTeamGroup({
-			id: groupId,
-			updates: { name: newName },
-		});
-	};
-
 	return (
 		<Wrapper>
 			<WarningDialog
@@ -772,6 +755,11 @@ export default function TeamPage() {
 			<PageHeaderSection>
 				<StandardPageTitle>Team Management</StandardPageTitle>
 				<div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+					{canManage && (
+						<AddTeamGroupButton onClick={() => handleAddTeamMember(null)}>
+							+ Add Team Member
+						</AddTeamGroupButton>
+					)}
 					{canManage && (
 						<AddTeamGroupButton onClick={handleAddTeamGroup}>
 							+ Add Team Group
@@ -890,7 +878,11 @@ export default function TeamPage() {
 
 							{canManage && (
 								<AddTeamMemberCard
-									onClick={() => handleAddTeamMember(group.id)}>
+									onClick={() =>
+										handleAddTeamMember(
+											group.id === 'orphan' ? null : group.id,
+										)
+									}>
 									<AddIcon>+</AddIcon>
 									<AddText>Add Team Member</AddText>
 								</AddTeamMemberCard>
@@ -995,6 +987,23 @@ export default function TeamPage() {
 										{ROLE_OPTIONS.map((role) => (
 											<option key={role.value} value={role.value}>
 												{role.label}
+											</option>
+										))}
+									</FormSelect>
+								</FormGroup>
+
+								<FormGroup>
+									<FormLabel>Team Group (Optional)</FormLabel>
+									<FormSelect
+										value={currentGroupId || ''}
+										onChange={(e) => {
+											const nextGroupId = e.target.value;
+											setCurrentGroupId(nextGroupId || null);
+										}}>
+										<option value=''>No group</option>
+										{teamGroups.map((group) => (
+											<option key={group.id} value={group.id}>
+												{group.name}
 											</option>
 										))}
 									</FormSelect>
@@ -1229,12 +1238,6 @@ export default function TeamPage() {
 									<SectionTitle>Assigned Properties</SectionTitle>
 									<PropertyMultiSelect>
 										{properties.map((property) => {
-											// If editing a member in the 'Shared Properties' group, make checkboxes read-only
-											const isSharedGroup =
-												currentGroupId &&
-												groupsWithMembers
-													.find((g) => g.id === currentGroupId)
-													?.name?.toLowerCase() === 'shared properties';
 											const isLinked = formData.linkedProperties.includes(
 												property.id,
 											);
@@ -1244,12 +1247,7 @@ export default function TeamPage() {
 														type='checkbox'
 														id={`property-${property.id}`}
 														checked={isLinked}
-														onChange={
-															isSharedGroup
-																? undefined
-																: () => handlePropertyToggle(property.id)
-														}
-														disabled={!!isSharedGroup}
+														onChange={() => handlePropertyToggle(property.id)}
 													/>
 													<label htmlFor={`property-${property.id}`}>
 														{property.title}
@@ -1258,16 +1256,6 @@ export default function TeamPage() {
 											);
 										})}
 									</PropertyMultiSelect>
-									{currentGroupId &&
-										groupsWithMembers
-											.find((g) => g.id === currentGroupId)
-											?.name?.toLowerCase() === 'shared properties' && (
-											<InfoText>
-												Assigned properties for shared team members cannot be
-												changed. To update, move the member to a different
-												group.
-											</InfoText>
-										)}
 								</FormGroup>
 
 								{/* File Upload */}

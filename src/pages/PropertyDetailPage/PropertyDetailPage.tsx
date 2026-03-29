@@ -16,10 +16,11 @@ import { useTaskHandlers } from 'pages/PropertyDetailPage/useTaskHandlers';
 import { useUnitHandlers } from 'pages/PropertyDetailPage/useUnitHandlers';
 import { usePropertyEditHandlers } from 'pages/PropertyDetailPage/usePropertyEditHandlers';
 import { useMaintenanceRequestHandlers } from 'pages/PropertyDetailPage/useMaintenanceRequestHandlers';
-import { useGetPropertySharesQuery } from 'Redux/API/userSlice';
 import {
 	useGetPropertiesQuery,
 	useUpdatePropertyMutation,
+	useDeletePropertyMutation,
+	useCreatePropertyGroupMutation,
 	useGetUnitsQuery,
 } from 'Redux/API/propertySlice';
 import { useGetContractorsByPropertyQuery } from '../../Redux/API/contractorSlice';
@@ -37,7 +38,12 @@ import {
 	useLazyGetTenantInvitationCodesByEmailQuery,
 } from '../../Redux/API/tenantSlice';
 import { canApproveMaintenanceRequest } from '../../utils/permissions';
-import { selectIsTenant } from '../../Redux/selectors/permissionSelectors';
+import {
+	selectCanAccessProperties,
+	selectIsHomeowner,
+	selectIsTenant,
+} from '../../Redux/selectors/permissionSelectors';
+import { isTrialExpired } from '../../utils/subscriptionUtils';
 import { TeamMember } from '../../types/Team.types';
 import { useFavorites } from '../../Hooks/useFavorites';
 import {
@@ -45,11 +51,11 @@ import {
 	isValidPropertyImageFile,
 } from '../../utils/propertyImageUpload';
 import { getFamilyMembers } from '../../services/authService';
+import { ZeroState } from '../../Components/Library/ZeroState/ZeroState';
 import { TaskCompletionModal } from 'Components/TaskCompletionModal';
 import { FileUploader } from 'Components/Library/FileUploader';
 
 import { ConvertRequestToTaskModal } from 'Components/ConvertRequestToTaskModal';
-import { SharePropertyModal } from 'Components/SharePropertyModal';
 import { AddTenantModal } from 'Components/AddTenantModal';
 import { MaintenanceRequestModal } from 'Components/MaintenanceRequestModal';
 import { DeleteConfirmationModal } from 'Components/Library/Modal/DeleteConfirmationModal';
@@ -75,6 +81,7 @@ import { useGetTeamMembersQuery } from '../../Redux/API/teamSlice';
 import { TabSystem } from './TabSystem';
 import { UnitModal } from '../../Components/Library';
 import { TaskFinancials } from '../../types/Task.types';
+import { PropertyDialog } from '../../Components/PropertiesTab/PropertyDialog';
 
 export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 	props,
@@ -92,6 +99,13 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 		};
 	}, [dispatch]);
 	const isUserTenant = useSelector(selectIsTenant);
+	const canAccessProperties = useSelector(selectCanAccessProperties);
+	const isHomeowner = useSelector(selectIsHomeowner);
+	const canManageProperties =
+		canAccessProperties &&
+		!!currentUser?.subscription &&
+		!isTrialExpired(currentUser.subscription) &&
+		!isUserTenant;
 
 	const { isFavorite, toggleFavorite } = useFavorites(currentUser!.id);
 
@@ -147,6 +161,8 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 
 	const [deleteTaskMutation] = useDeleteTaskMutation();
 	const [updatePropertyMutation] = useUpdatePropertyMutation();
+	const [deletePropertyMutation] = useDeletePropertyMutation();
+	const [createPropertyGroup] = useCreatePropertyGroupMutation();
 	const [addMaintenanceHistory] = useAddMaintenanceHistoryMutation();
 	const [deleteMaintenanceHistory] = useDeleteMaintenanceHistoryMutation();
 	const [createNotification] = useCreateNotificationMutation();
@@ -167,12 +183,12 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 		| 'contractors'
 	>('details');
 	const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
-	const [showShareModal, setShowShareModal] = useState(false);
 	const [showAddTenantModal, setShowAddTenantModal] = useState(false);
 	const [showEditTenantModal, setShowEditTenantModal] = useState(false);
 	const [editingTenant, setEditingTenant] = useState<any | null>(null);
 	const [showDeleteTenantModal, setShowDeleteTenantModal] = useState(false);
 	const [tenantToDelete, setTenantToDelete] = useState<any | null>(null);
+	const [isPropertyDialogOpen, setIsPropertyDialogOpen] = useState(false);
 	const [deleteTaskModalOpen, setDeleteTaskModalOpen] = useState(false);
 	const [taskToDelete, setTaskToDelete] = useState<{
 		id: string;
@@ -264,6 +280,121 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 	const handleDeleteTenant = (tenant: any) => {
 		setTenantToDelete(tenant);
 		setShowDeleteTenantModal(true);
+	};
+
+	const handleOpenPropertyDialog = () => {
+		setIsPropertyDialogOpen(true);
+		setIsActionMenuOpen(false);
+	};
+
+	const handleSaveProperty = async (formData: any) => {
+		if (!property?.id) {
+			return;
+		}
+
+		const effectivePropertyType = isHomeowner
+			? 'Single Family'
+			: formData.propertyType;
+		const normalizedGroupId =
+			typeof formData.groupId === 'string' && formData.groupId.trim().length > 0
+				? formData.groupId.trim()
+				: null;
+
+		const unitsData =
+			effectivePropertyType === 'Multi-Family'
+				? (formData.units || []).map((unitName: string) => ({
+						name: unitName,
+						occupants: [],
+				  }))
+				: undefined;
+
+		const suitesData =
+			effectivePropertyType === 'Commercial' && formData.hasSuites
+				? (formData.suites || []).map((suiteName: string) => ({
+						name: suiteName,
+						occupants: [],
+				  }))
+				: undefined;
+
+		const updates = {
+			title: formData.name,
+			image: formData.photo || property.image,
+			groupId: normalizedGroupId,
+			owner: formData.owner,
+			address: formData.address,
+			propertyType: effectivePropertyType,
+			units: effectivePropertyType === 'Multi-Family' ? unitsData : undefined,
+			hasSuites:
+				effectivePropertyType === 'Commercial'
+					? !!formData.hasSuites
+					: undefined,
+			suites:
+				effectivePropertyType === 'Commercial' && formData.hasSuites
+					? suitesData
+					: undefined,
+			bedrooms: formData.bedrooms,
+			bathrooms: formData.bathrooms,
+			notes: formData.notes,
+			isRental: !!formData.isRental,
+			taskHistory: formData.maintenanceHistory || [],
+		};
+
+		const sanitizedUpdates = Object.fromEntries(
+			Object.entries(updates).filter(([, value]) => value !== undefined),
+		);
+
+		await updatePropertyMutation({
+			id: property.id,
+			updates: sanitizedUpdates,
+		}).unwrap();
+
+		try {
+			await createNotification({
+				userId: currentUser!.id,
+				type: 'property_updated',
+				title: 'Property Updated',
+				message: `Property "${formData.name}" has been updated`,
+				data: {
+					propertyId: property.id,
+					propertyTitle: formData.name,
+				},
+				status: 'unread',
+				actionUrl: `/property/${property.slug}`,
+				createdAt: new Date().toISOString(),
+				updatedAt: new Date().toISOString(),
+			}).unwrap();
+		} catch (notifError) {
+			console.error('Notification failed:', notifError);
+		}
+	};
+
+	const handleDeletePropertyFromDialog = async () => {
+		if (!property?.id) {
+			return;
+		}
+
+		await deletePropertyMutation(property.id).unwrap();
+
+		try {
+			await createNotification({
+				userId: currentUser!.id,
+				type: 'property_deleted',
+				title: 'Property Deleted',
+				message: `Property "${property.title}" has been deleted`,
+				data: {
+					propertyId: property.id,
+					propertyTitle: property.title,
+				},
+				status: 'unread',
+				createdAt: new Date().toISOString(),
+				updatedAt: new Date().toISOString(),
+			}).unwrap();
+		} catch (notifError) {
+			console.error('Notification failed:', notifError);
+		}
+
+		setIsPropertyDialogOpen(false);
+		navigate('/properties', { replace: true });
 	};
 
 	const handleConfirmDeleteTenant = async () => {
@@ -518,12 +649,6 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 			skip: !property?.id,
 		});
 
-	// Get property shares for assignee options
-	const { data: currentPropertyShares = [] } = useGetPropertySharesQuery(
-		property?.id || '',
-		{ skip: !property?.id },
-	);
-
 	// Load family members if user has an account
 	useEffect(() => {
 		const loadFamilyMembers = async () => {
@@ -543,21 +668,6 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 	const assigneeOptions = useMemo(() => {
 		const assignees: Array<{ label: string; value: string; email?: string }> =
 			[];
-
-		// Add shared users (only those with user accounts for notifications)
-		currentPropertyShares
-			.filter((share) => share.sharedWithUserId) // Only include users with accounts
-			.forEach((share) => {
-				const fullName =
-					share.sharedWithFirstName && share.sharedWithLastName
-						? `${share.sharedWithFirstName} ${share.sharedWithLastName}`
-						: share.sharedWithEmail?.split('@')[0] || 'Shared User';
-				assignees.push({
-					label: fullName,
-					value: share.sharedWithUserId,
-					email: share.sharedWithEmail,
-				});
-			});
 
 		// Add team members
 		teamMembers
@@ -597,7 +707,7 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 		);
 
 		return uniqueAssignees;
-	}, [currentPropertyShares, teamMembers, propertyContractors, familyMembers]);
+	}, [teamMembers, propertyContractors, familyMembers]);
 
 	// Photo upload handler
 	const handlePhotoUpload = async (file: File | null) => {
@@ -662,23 +772,28 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 			console.log('DEBUG: Showing loading state');
 			return (
 				<Wrapper>
-					<EmptyState>
-						<h2>Loading property...</h2>
-						<p>Please wait while we fetch your property details.</p>
-					</EmptyState>
+					<ZeroState
+						icon='🏠'
+						title='Loading property...'
+						description='Please wait while we fetch your property details.'
+					/>
 				</Wrapper>
 			);
 		}
 		console.log('DEBUG: Showing property not found');
 		return (
 			<Wrapper>
-				<EmptyState>
-					<h2>Property not found</h2>
-					<p>The property you're looking for doesn't exist.</p>
-					<BackButton onClick={() => navigate('/properties')}>
-						<FontAwesomeIcon icon={faArrowLeft} /> Back to Properties
-					</BackButton>
-				</EmptyState>
+				<ZeroState
+					icon='🔍'
+					title='Property not found'
+					description="The property you're looking for doesn't exist or may have been deleted."
+					actions={[
+						{
+							label: 'Back to Properties',
+							onClick: () => navigate('/properties'),
+						},
+					]}
+				/>
 			</Wrapper>
 		);
 	}
@@ -760,6 +875,30 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 										{isFav ? '★ Favorited' : '☆ Add to Favorites'}
 									</button>
 								)}
+								{canManageProperties && (
+									<button
+										onClick={handleOpenPropertyDialog}
+										style={{
+											width: '100%',
+											padding: '12px 16px',
+											border: 'none',
+											background: 'none',
+											textAlign: 'left',
+											cursor: 'pointer',
+											fontSize: '14px',
+											color: '#1a1a1a',
+											transition: 'background-color 0.2s ease',
+											borderBottom: '1px solid #f0f0f0',
+										}}
+										onMouseEnter={(e) =>
+											(e.currentTarget.style.backgroundColor = '#f3f4f6')
+										}
+										onMouseLeave={(e) =>
+											(e.currentTarget.style.backgroundColor = 'transparent')
+										}>
+										Edit Property
+									</button>
+								)}
 								{isUserTenant && property?.isRental && (
 									<button
 										onClick={() => {
@@ -787,42 +926,6 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 										🔧 Request Maintenance
 									</button>
 								)}
-								{property &&
-									(propertyGroups.some(
-										(group) =>
-											group.id === property.groupId &&
-											group.userId === currentUser.id,
-									) ||
-										currentPropertyShares.some(
-											(share) =>
-												share.sharedWithUserId === currentUser.id &&
-												share.permission === 'co-owner',
-										)) && (
-										<button
-											onClick={() => {
-												setShowShareModal(true);
-												setIsActionMenuOpen(false);
-											}}
-											style={{
-												width: '100%',
-												padding: '12px 16px',
-												border: 'none',
-												background: 'none',
-												textAlign: 'left',
-												cursor: 'pointer',
-												fontSize: '14px',
-												color: '#1a1a1a',
-												transition: 'background-color 0.2s ease',
-											}}
-											onMouseEnter={(e) =>
-												(e.currentTarget.style.backgroundColor = '#f3f4f6')
-											}
-											onMouseLeave={(e) =>
-												(e.currentTarget.style.backgroundColor = 'transparent')
-											}>
-											👥 Share Property
-										</button>
-									)}
 								{!isUploadingImage && (
 									<label
 										htmlFor='header-photo-upload'
@@ -911,6 +1014,11 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 					</TitleContainer>
 
 					<div style={{ display: 'contents' }} className='desktop-actions'>
+						{canManageProperties && (
+							<FavoriteButton onClick={handleOpenPropertyDialog}>
+								✎ Edit Property
+							</FavoriteButton>
+						)}
 						<FavoriteButton
 							onClick={() =>
 								toggleFavorite({
@@ -930,22 +1038,6 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 								🔧 Request Maintenance
 							</FavoriteButton>
 						)}
-						{currentUser &&
-							property &&
-							(propertyGroups.some(
-								(group) =>
-									group.id === property.groupId &&
-									group.userId === currentUser.id,
-							) ||
-								currentPropertyShares.some(
-									(share) =>
-										share.sharedWithUserId === currentUser.id &&
-										share.permission === 'co-owner',
-								)) && (
-								<FavoriteButton onClick={() => setShowShareModal(true)}>
-									👥 Share Property
-								</FavoriteButton>
-							)}
 					</div>
 				</HeaderContent>
 			</Header>
@@ -1027,17 +1119,6 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 					/>
 				)}
 
-				{/* Share Property Modal */}
-				{property && (
-					<SharePropertyModal
-						open={showShareModal}
-						onClose={() => setShowShareModal(false)}
-						propertyId={property.id}
-						propertyTitle={property.title}
-						ownerId={currentUser!.id}
-						ownerEmail={currentUser!.email}
-					/>
-				)}
 
 				{/* Add Tenant Modal */}
 				{property && (
@@ -1100,6 +1181,62 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 						task={allTasks.find((t) => t.id === completingTaskId)}
 						onClose={() => setShowTaskCompletionModal(false)}
 						onSuccess={handleTaskCompletionSuccess}
+					/>
+				)}
+
+				{property && (
+					<PropertyDialog
+						isOpen={isPropertyDialogOpen}
+						onClose={() => setIsPropertyDialogOpen(false)}
+						onSave={handleSaveProperty}
+						onDeleteProperty={
+							canManageProperties ? handleDeletePropertyFromDialog : undefined
+						}
+						forceSingleFamily={isHomeowner}
+						groups={propertyGroups.map((group) => ({
+							id: group.id,
+							name: group.name,
+						}))}
+						selectedGroupId={(property as any).groupId || null}
+						propertyId={property.id}
+						onCreateGroup={
+							canManageProperties
+								? async (name: string) => {
+									const result = await createPropertyGroup({
+										name,
+										properties: [],
+										userId: currentUser!.id,
+									});
+									if ('data' in result && result.data) {
+										return (result.data as any).id as string;
+									}
+									return '';
+								}
+								: undefined
+						}
+						initialData={{
+							name: property.title,
+							photo: property.image,
+							owner: (property as any).owner || '',
+							address: (property as any).address || '',
+							propertyType:
+								((property as any).propertyType as
+									| 'Single Family'
+									| 'Multi-Family'
+									| 'Commercial') || 'Single Family',
+							units: (((property as any).units || []) as any[]).map((unit) =>
+								typeof unit === 'string' ? unit : unit?.name,
+							),
+							hasSuites: (property as any).hasSuites ?? false,
+							suites: (((property as any).suites || []) as any[]).map((suite) =>
+								typeof suite === 'string' ? suite : suite?.name,
+							),
+							bedrooms: (property as any).bedrooms || 0,
+							bathrooms: (property as any).bathrooms || 0,
+							notes: (property as any).notes || '',
+							isRental: (property as any).isRental ?? false,
+							maintenanceHistory: (property as any).maintenanceHistory || [],
+						}}
 					/>
 				)}
 			</ContentWrapper>

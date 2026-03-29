@@ -17,7 +17,6 @@ import {
 	doc,
 	getDoc,
 	setDoc,
-	addDoc,
 	serverTimestamp,
 } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
@@ -1186,6 +1185,7 @@ const autoAcceptGuestInvitations = async (
 	userId: string,
 	userEmail: string,
 ) => {
+	void userId;
 	try {
 		// Find all pending guest invitations for this email
 		const invitationsQuery = query(
@@ -1197,22 +1197,7 @@ const autoAcceptGuestInvitations = async (
 		const invitationsSnapshot = await getDocs(invitationsQuery);
 
 		for (const invitationDoc of invitationsSnapshot.docs) {
-			const invitation = invitationDoc.data() as any;
-
-			// Create property share
-			const now = new Date().toISOString();
-			const shareData = {
-				propertyId: invitation.propertyId,
-				ownerId: invitation.fromUserId,
-				sharedWithUserId: userId,
-				sharedWithEmail: userEmail,
-				sharedWithFirstName: '', // Will be updated when user profile is fetched
-				sharedWithLastName: '',
-				permission: invitation.permission,
-				createdAt: now,
-				updatedAt: now,
-			};
-			await addDoc(collection(db, 'propertyShares'), shareData);
+			// Shared properties feature retired: no propertyShares records are created.
 
 			// Update invitation status
 			await updateDoc(invitationDoc.ref, { status: 'accepted' });

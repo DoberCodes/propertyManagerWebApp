@@ -16,7 +16,6 @@ import { useGetContractorsQuery } from '../../Redux/API/contractorSlice';
 import { useGetAllDevicesQuery } from '../../Redux/API/deviceSlice';
 import {
 	useGetAllMaintenanceHistoryForUserQuery,
-	useGetAllPropertySharesForUserQuery,
 } from '../../Redux/API/userSlice';
 import {
 	FormGroup as LibraryFormGroup,
@@ -58,7 +57,6 @@ import {
 	DEVICE_COLUMN_OPTIONS,
 	MAINTENANCE_HISTORY_COLUMN_OPTIONS,
 	TENANT_PROFILE_COLUMN_OPTIONS,
-	PROPERTY_SHARE_COLUMN_OPTIONS,
 	generateTaskReport,
 	generateMaintenanceRequestReport,
 	generateTeamReport,
@@ -70,7 +68,6 @@ import {
 	generateDeviceReport,
 	generateMaintenanceHistoryReport,
 	generateTenantProfileReport,
-	generatePropertyShareReport,
 	EmployeeEfficiencyMetrics,
 	PropertySummaryMetrics,
 } from '../../utils/csvExport';
@@ -94,7 +91,6 @@ type ReportType =
 	| 'devices'
 	| 'maintenance-history'
 	| 'tenant-profiles'
-	| 'property-shares'
 	| '';
 
 export const ReportBuilder: React.FC = () => {
@@ -138,9 +134,6 @@ export const ReportBuilder: React.FC = () => {
 
 	const { data: publicTenantProfiles = [], isLoading: tenantProfilesLoading } =
 		useGetPublicTenantProfilesQuery();
-
-	const { data: propertyShares = [], isLoading: propertySharesLoading } =
-		useGetAllPropertySharesForUserQuery();
 
 	const { data: contractors = [], isLoading: contractorsLoading } =
 		useGetContractorsQuery();
@@ -211,12 +204,6 @@ export const ReportBuilder: React.FC = () => {
 			);
 		});
 	}, [publicTenantProfiles, activeAccountId, allowedPropertyIdSet]);
-
-	const scopedPropertyShares = useMemo(() => {
-		return propertyShares.filter((share: any) => {
-			return allowedPropertyIdSet.has(share.propertyId);
-		});
-	}, [propertyShares, allowedPropertyIdSet]);
 
 	const scopedContractors = useMemo(() => {
 		return contractors.filter((contractor: any) => {
@@ -322,7 +309,6 @@ export const ReportBuilder: React.FC = () => {
 			devices: DEVICE_COLUMN_OPTIONS,
 			'maintenance-history': MAINTENANCE_HISTORY_COLUMN_OPTIONS,
 			'tenant-profiles': TENANT_PROFILE_COLUMN_OPTIONS,
-			'property-shares': PROPERTY_SHARE_COLUMN_OPTIONS,
 			'': {},
 		};
 		return optionsMap[reportType];
@@ -337,7 +323,6 @@ export const ReportBuilder: React.FC = () => {
 		'units',
 		'devices',
 		'maintenance-history',
-		'property-shares',
 	].includes(reportType);
 
 	// Get preview data based on report type
@@ -362,15 +347,6 @@ export const ReportBuilder: React.FC = () => {
 			data = scopedMaintenanceHistory;
 		} else if (reportType === 'tenant-profiles') {
 			data = scopedTenantProfiles;
-		} else if (reportType === 'property-shares') {
-			// Transform property shares data to include property titles
-			data = scopedPropertyShares.map((share: any) => {
-				const property = scopedProperties.find((p: any) => p.id === share.propertyId);
-				return {
-					...share,
-					propertyTitle: property?.title || 'Unknown Property',
-				};
-			});
 		} else if (reportType === 'employee-efficiency') {
 			// Calculate employee efficiency metrics (restricted to users who can access team)
 			if (!canAccessTeamReport) {
@@ -494,7 +470,6 @@ export const ReportBuilder: React.FC = () => {
 				'units',
 				'devices',
 				'maintenance-history',
-				'property-shares',
 				'property-summary',
 			];
 
@@ -540,7 +515,6 @@ export const ReportBuilder: React.FC = () => {
 		devicesData,
 		scopedMaintenanceHistory,
 		scopedTenantProfiles,
-		scopedPropertyShares,
 		filters,
 	]);
 
@@ -636,9 +610,6 @@ export const ReportBuilder: React.FC = () => {
 			case 'tenant-profiles':
 				generateTenantProfileReport(previewData, selectedColumns);
 				break;
-			case 'property-shares':
-				generatePropertyShareReport(previewData, selectedColumns);
-				break;
 			case 'employee-efficiency':
 				generateEmployeeEfficiencyReport(previewData, selectedColumns);
 				break;
@@ -655,7 +626,6 @@ export const ReportBuilder: React.FC = () => {
 		teamLoading ||
 		maintenanceHistoryLoading ||
 		tenantProfilesLoading ||
-		propertySharesLoading ||
 		contractorsLoading;
 
 	return (
@@ -690,7 +660,6 @@ export const ReportBuilder: React.FC = () => {
 							<option value='devices'>Devices</option>
 							<option value='maintenance-history'>Maintenance History</option>
 							<option value='tenant-profiles'>Tenant Profiles</option>
-							<option value='property-shares'>Property Shares</option>
 							{canAccessTeamReport && (
 								<option value='employee-efficiency'>Employee Efficiency</option>
 							)}

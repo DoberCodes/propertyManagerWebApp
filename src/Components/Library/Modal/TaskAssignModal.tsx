@@ -5,7 +5,6 @@ import GenericModal from './GenericModal';
 import { FormGroup, FormLabel, FormSelect } from './ModalStyles';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-	useGetPropertySharesQuery,
 	useGetUserByIdQuery,
 } from '../../../Redux/API/userSlice';
 import { useGetPropertyQuery } from '../../../Redux/API/propertySlice';
@@ -27,9 +26,6 @@ export const TaskAssignModal = (props: TaskAssignModalProps) => {
 	const currentUser = useSelector((state: any) => state.user.currentUser);
 
 	const { data: contractors = [] } = useGetContractorsByPropertyQuery(
-		props.propertyId,
-	);
-	const { data: propertyShares = [] } = useGetPropertySharesQuery(
 		props.propertyId,
 	);
 	const { data: property } = useGetPropertyQuery(props.propertyId);
@@ -92,18 +88,6 @@ export const TaskAssignModal = (props: TaskAssignModalProps) => {
 				});
 			}
 
-			// Add users with access to this specific property
-			const propertyShareAssignees = propertyShares
-				.filter((share) => share.sharedWithUserId)
-				.map((share) => ({
-					id: share.sharedWithUserId!,
-					name:
-						share.sharedWithFirstName && share.sharedWithLastName
-							? `${share.sharedWithFirstName} ${share.sharedWithLastName}`
-							: share.sharedWithEmail?.split('@')[0] || 'Shared User',
-					email: share.sharedWithEmail || '',
-				}));
-
 			// Add contractors for the specific property
 			const contractorAssignees = contractors.map((contractor) => ({
 				id: contractor?.id,
@@ -115,7 +99,6 @@ export const TaskAssignModal = (props: TaskAssignModalProps) => {
 
 			const allAssignees = [
 				...formattedAssignees,
-				...propertyShareAssignees,
 				...contractorAssignees,
 			];
 
@@ -173,15 +156,6 @@ export const TaskAssignModal = (props: TaskAssignModalProps) => {
 					: member?.email,
 				email: member?.email,
 			})),
-			...propertyShares.map((share) => ({
-				id: share?.sharedWithUserId,
-				name: share?.sharedWithFirstName
-					? `${share?.sharedWithFirstName} ${
-							share?.sharedWithLastName || ''
-					  }`.trim()
-					: share?.sharedWithEmail,
-				email: share?.sharedWithEmail,
-			})),
 		];
 
 		const formattedAssignees = totalAssignees.filter(
@@ -202,7 +176,6 @@ export const TaskAssignModal = (props: TaskAssignModalProps) => {
 		familyMembers,
 		teamMembers,
 		contractors,
-		propertyShares,
 		props.selectedAssignee,
 		props.assigneeOptions,
 		property,

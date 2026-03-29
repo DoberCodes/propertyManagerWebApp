@@ -3,10 +3,6 @@ import { useSelector } from 'react-redux';
 import { RootState } from 'Redux/store/store';
 import { ZeroState } from 'Components/Library/ZeroState';
 import { useGetPropertiesQuery } from 'Redux/API/propertySlice';
-import {
-	useGetSharedPropertiesForUserQuery,
-	useGetAllPropertySharesForUserQuery,
-} from '../../Redux/API/userSlice';
 import { filterTasksByRole } from '../../utils/dataFilters';
 import { ReusableTable } from '../../Components/Library/ReusableTable';
 import { useTaskHandlers } from '../PropertyDetailPage/useTaskHandlers';
@@ -64,15 +60,14 @@ export const TasksPage = () => {
 		updateOverdueTasks(allTasks).then(setProcessedTasks);
 	}, [allTasks]);
 	const { data: ownedProperties = [] } = useGetPropertiesQuery();
-	const { data: sharedProperties = [] } = useGetSharedPropertiesForUserQuery();
 
-	// Combine owned and shared properties for task assignment
+	// Use account/family accessible properties only.
 	const allProperties = useMemo(() => {
-		const combined = [...ownedProperties, ...sharedProperties];
+		const combined = [...ownedProperties];
 		// Filter out properties hidden from dashboard
 		const hiddenIds = currentUser?.hiddenPropertyIds || [];
 		return combined.filter((property) => !hiddenIds.includes(property.id));
-	}, [ownedProperties, sharedProperties, currentUser?.hiddenPropertyIds]);
+	}, [ownedProperties, currentUser?.hiddenPropertyIds]);
 
 	// Firebase mutations
 	const [updateTaskMutation] = useUpdateTaskMutation();
@@ -107,9 +102,6 @@ export const TasksPage = () => {
 	};
 
 	const isMobile = useSelector((state: RootState) => state.app.isMobile);
-
-	// Fetch all property shares for task filtering
-	const { data: propertyShares = [] } = useGetAllPropertySharesForUserQuery();
 
 	// Generate assignee options for task editing
 	const assigneeOptions = useMemo(() => {
@@ -218,7 +210,6 @@ export const TasksPage = () => {
 			currentUser,
 			teamMembers,
 			allProperties,
-			propertyShares,
 		);
 		const activeTasks = filtered.filter((task) => task.status !== 'Completed');
 
@@ -305,7 +296,6 @@ export const TasksPage = () => {
 		teamMembers,
 		allProperties,
 		taskDaysFilter,
-		propertyShares,
 		filters,
 	]);
 
@@ -316,10 +306,9 @@ export const TasksPage = () => {
 			currentUser,
 			teamMembers,
 			allProperties,
-			propertyShares,
 		);
 		return filtered.filter((task) => task.status !== 'Completed').length;
-	}, [processedTasks, currentUser, teamMembers, allProperties, propertyShares]);
+	}, [processedTasks, currentUser, teamMembers, allProperties]);
 
 	// Table columns definition
 	const columns: Column[] = [
@@ -390,7 +379,6 @@ export const TasksPage = () => {
 			currentUser,
 			teamMembers,
 			allProperties,
-			propertyShares,
 		);
 		const activeTasks = filtered.filter((task) => task.status !== 'Completed');
 
@@ -422,7 +410,7 @@ export const TasksPage = () => {
 			});
 
 		return sorted;
-	}, [processedTasks, currentUser, teamMembers, allProperties, propertyShares]);
+	}, [processedTasks, currentUser, teamMembers, allProperties]);
 
 	const handleTaskCompletion = (taskId: string) => {
 		setCompletingTaskId(taskId);

@@ -5,7 +5,7 @@
 
 export interface TeamMember {
 	id: string;
-	groupId: string;
+	groupId?: string;
 	userId: string;
 	firstName: string;
 	lastName: string;

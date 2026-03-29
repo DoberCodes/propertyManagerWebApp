@@ -55,6 +55,50 @@ const fetchPropertiesByIds = async (propertyIds: string[]): Promise<Property[]> 
 	return properties;
 };
 
+const getReceivedPropertySharesForUser = async (
+	userId: string,
+	profileEmail?: string,
+	authEmail?: string | null,
+): Promise<PropertyShare[]> => {
+	void userId;
+	void profileEmail;
+	void authEmail;
+	// Shared properties feature retired.
+	return [];
+
+	/*
+	const shareMap = new Map<string, PropertyShare>();
+
+	const sharesByUserQuery = query(
+		collection(db, 'propertyShares'),
+		where('sharedWithUserId', '==', userId),
+	);
+	const sharesByUserSnapshot = await getDocs(sharesByUserQuery);
+	sharesByUserSnapshot.docs.forEach((shareDoc) => {
+		const share = docToData(shareDoc) as PropertyShare;
+		if (share?.id) {
+			shareMap.set(share.id, share);
+		}
+	});
+
+	for (const email of getShareRecipientEmailCandidates(profileEmail, authEmail)) {
+		const sharesByEmailQuery = query(
+			collection(db, 'propertyShares'),
+			where('sharedWithEmail', '==', email),
+		);
+		const sharesByEmailSnapshot = await getDocs(sharesByEmailQuery);
+		sharesByEmailSnapshot.docs.forEach((shareDoc) => {
+			const share = docToData(shareDoc) as PropertyShare;
+			if (share?.id) {
+				shareMap.set(share.id, share);
+			}
+		});
+	}
+
+	return Array.from(shareMap.values());
+	*/
+};
+
 const upsertPropertyGroupMembership = async (params: {
 	accountId: string;
 	groupId: string;
@@ -227,33 +271,28 @@ const propertySlice = apiSlice.injectEndpoints({
 					let shares: PropertyShare[] = [];
 					let coOwnerSharedProperties: Property[] = [];
 					let regularSharedProperties: Property[] = [];
-					if (userEmail) {
-						try {
-							const sharesQuery = query(
-								collection(db, 'propertyShares'),
-								where('sharedWithEmail', '==', userEmail),
-							);
-							const sharesSnapshot = await getDocs(sharesQuery);
-							shares = sharesSnapshot.docs
-								.map((doc) => docToData(doc) as PropertyShare)
-								.filter(Boolean) as PropertyShare[];
+					try {
+						shares = await getReceivedPropertySharesForUser(
+							userId,
+							userEmail,
+							currentUser.email,
+						);
 
-							const coOwnerShares = shares.filter(
-								(share) => share.permission === 'co-owner',
-							);
-							const regularShares = shares.filter(
-								(share) => share.permission !== 'co-owner',
-							);
+						const coOwnerShares = shares.filter(
+							(share) => share.permission === 'co-owner',
+						);
+						const regularShares = shares.filter(
+							(share) => share.permission !== 'co-owner',
+						);
 
-							coOwnerSharedProperties = await fetchPropertiesByIds(
-								coOwnerShares.map((share) => share.propertyId),
-							);
-							regularSharedProperties = await fetchPropertiesByIds(
-								regularShares.map((share) => share.propertyId),
-							);
-						} catch (sharesError) {
-							console.warn('Could not fetch shared property links:', sharesError);
-						}
+						coOwnerSharedProperties = await fetchPropertiesByIds(
+							coOwnerShares.map((share) => share.propertyId),
+						);
+						regularSharedProperties = await fetchPropertiesByIds(
+							regularShares.map((share) => share.propertyId),
+						);
+					} catch (sharesError) {
+						console.warn('Could not fetch shared property links:', sharesError);
 					}
 
 					let tenantInvitePropertyIds: string[] = [];
@@ -343,13 +382,13 @@ const propertySlice = apiSlice.injectEndpoints({
 					let finalGroups: PropertyGroup[] = [...groupsWithProperties];
 
 					// If no Shared Properties group exists, check if user has shared properties
-					if (!hasSharedPropertiesGroup && userEmail) {
-						const sharesQuery = query(
-							collection(db, 'propertyShares'),
-							where('sharedWithEmail', '==', userEmail),
+					if (!hasSharedPropertiesGroup) {
+						const receivedShares = await getReceivedPropertySharesForUser(
+							userId,
+							userEmail,
+							currentUser.email,
 						);
-						const sharesSnapshot = await getDocs(sharesQuery);
-						if (!sharesSnapshot.empty) {
+						if (receivedShares.length > 0) {
 							// User has shared properties, create the group
 							try {
 								const sharedGroupData = {
@@ -484,7 +523,7 @@ const propertySlice = apiSlice.injectEndpoints({
 					return { error: error.message };
 				}
 			},
-			providesTags: ['PropertyGroups', 'Properties', 'PropertyShares'],
+			providesTags: ['PropertyGroups', 'Properties'],
 		}),
 
 		getPropertyGroup: builder.query<PropertyGroup, string>({
@@ -734,23 +773,19 @@ const propertySlice = apiSlice.injectEndpoints({
 					// Get shared properties - separate co-owners from regular shares
 					const coOwnerSharedProperties: Property[] = [];
 					const regularSharedProperties: Property[] = [];
-					if (userEmail) {
-						try {
-							const sharesQuery = query(
-								collection(db, 'propertyShares'),
-								where('sharedWithEmail', '==', userEmail),
-							);
-							const sharesSnapshot = await getDocs(sharesQuery);
-							const shares = sharesSnapshot.docs
-								.map((doc) => docToData(doc) as PropertyShare)
-								.filter(Boolean) as PropertyShare[];
+					try {
+						const shares = await getReceivedPropertySharesForUser(
+							userId,
+							userEmail,
+							currentUser.email,
+						);
 
-							const coOwnerShares = shares.filter(
-								(share) => share.permission === 'co-owner',
-							);
-							const regularShares = shares.filter(
-								(share) => share.permission !== 'co-owner',
-							);
+						const coOwnerShares = shares.filter(
+							(share) => share.permission === 'co-owner',
+						);
+						const regularShares = shares.filter(
+							(share) => share.permission !== 'co-owner',
+						);
 
 							// Process co-owner shares (treated as ownership)
 							const coOwnerPropertyIds = coOwnerShares.map(
@@ -791,12 +826,11 @@ const propertySlice = apiSlice.injectEndpoints({
 									regularSharedProperties.push(...properties);
 								}
 							}
-						} catch (shareLookupError) {
-							console.warn(
-								'Could not fetch shared/co-owner properties:',
-								shareLookupError,
-							);
-						}
+					} catch (shareLookupError) {
+						console.warn(
+							'Could not fetch shared/co-owner properties:',
+							shareLookupError,
+						);
 					}
 
 					// Combine and deduplicate
@@ -836,7 +870,7 @@ const propertySlice = apiSlice.injectEndpoints({
 					return { error: error.message };
 				}
 			},
-			providesTags: ['Properties', 'PropertyShares'],
+			providesTags: ['Properties'],
 		}),
 
 		getProperty: builder.query<Property, string>({

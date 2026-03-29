@@ -73,7 +73,6 @@ export const apiSlice = createApi({
 		'Suites',
 		'Units',
 		'Favorites',
-		'PropertyShares',
 		'UserInvitations',
 		'Notifications',
 		'TenantProfiles',

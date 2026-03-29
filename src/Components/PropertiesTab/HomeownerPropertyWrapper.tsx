@@ -41,25 +41,16 @@ const HomeownerPropertyWrapper: React.FC = () => {
 	const handleSaveProperty = async (formData: any) => {
 		try {
 			const effectivePropertyType = 'Single Family';
-
-			// If no groups exist, create a default one
-			let groupId = propertyGroups[0]?.id;
-			if (!groupId) {
-				const groupResult = await createPropertyGroup({
-					name: 'My Properties',
-					properties: [],
-					userId: currentUser!.id,
-				});
-				if ('data' in groupResult && groupResult.data) {
-					groupId = (groupResult.data as any).id;
-				}
-			}
+			const normalizedGroupId =
+				typeof formData.groupId === 'string' && formData.groupId.trim().length > 0
+					? formData.groupId.trim()
+					: undefined;
 
 			// Create the property
-			const propertyResult = await createProperty({
+			await createProperty({
 				...formData,
 				propertyType: effectivePropertyType,
-				groupId,
+				...(normalizedGroupId && { groupId: normalizedGroupId }),
 				userId: currentUser!.id,
 			});
 

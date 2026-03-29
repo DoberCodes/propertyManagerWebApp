@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import styled from 'styled-components';
 import { useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
@@ -40,7 +40,7 @@ import {
 import { NotificationPreferences } from 'Components/NotificationPreferences';
 
 const Container = styled.div`
-	max-width: 100%;
+	width: 100%;
 	margin: 40px auto;
 	padding: 32px;
 	background: #fff;
@@ -279,7 +279,103 @@ const PasswordHelp = styled.div`
 	font-style: italic;
 `;
 
+const SettingsLayout = styled.div`
+	display: grid;
+	grid-template-columns: 240px minmax(0, 1fr);
+	gap: 20px;
+
+	@media (max-width: 1024px) {
+		display: block;
+	}
+`;
+
+const CategorySidebar = styled.aside`
+	position: sticky;
+	top: 16px;
+	height: fit-content;
+	background: #f8fafc;
+	border: 1px solid #e5e7eb;
+	border-radius: 10px;
+	padding: 10px;
+
+	@media (max-width: 1024px) {
+		display: none;
+	}
+`;
+
+const CategoryNavButton = styled.button<{ active?: boolean }>`
+	width: 100%;
+	text-align: left;
+	border: 0;
+	border-radius: 8px;
+	padding: 10px 12px;
+	margin-bottom: 4px;
+	background: ${({ active }) => (active ? '#4f46e5' : 'transparent')};
+	color: ${({ active }) => (active ? '#ffffff' : '#374151')};
+	font-weight: 600;
+	cursor: pointer;
+
+	&:hover {
+		background: ${({ active }) => (active ? '#4338ca' : '#e5e7eb')};
+	}
+
+	&:last-child {
+		margin-bottom: 0;
+	}
+`;
+
+const MobileCategoryPicker = styled.div`
+	display: none;
+	margin-bottom: 16px;
+
+	@media (max-width: 1024px) {
+		display: block;
+	}
+`;
+
+const CategorySelect = styled.select`
+	width: 100%;
+	padding: 10px 12px;
+	border: 1px solid #d1d5db;
+	border-radius: 8px;
+	background: #ffffff;
+	color: #1f2937;
+	font-weight: 600;
+`;
+
+const CategoryContent = styled.div`
+	min-width: 0;
+`;
+
+const CategoryPanel = styled.section`
+	min-height: 68vh;
+	max-height: 78vh;
+	overflow-y: auto;
+	padding-right: 6px;
+
+	/* Prevent extra trailing gap from section bottom margins */
+	& > *:last-child {
+		margin-bottom: 0;
+	}
+
+	@media (max-width: 1024px) {
+		min-height: 56vh;
+		max-height: none;
+		overflow-y: visible;
+		padding-right: 0;
+	}
+`;
+
 export const SettingsPage: React.FC = () => {
+	type SettingsCategoryKey =
+		| 'billing'
+		| 'family'
+		| 'account'
+		| 'notifications'
+		| 'getting-started'
+		| 'support'
+		| 'legal';
+
 	const navigate = useNavigate();
 	const dispatch = useDispatch<AppDispatch>();
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
@@ -333,6 +429,8 @@ export const SettingsPage: React.FC = () => {
 		useState(false);
 	const [addFamilyMemberError, setAddFamilyMemberError] = useState('');
 	const [familyMemberSuccess, setFamilyMemberSuccess] = useState('');
+	const [activeCategory, setActiveCategory] =
+		useState<SettingsCategoryKey>('account');
 
 	// Load family members
 	useEffect(() => {
@@ -353,7 +451,70 @@ export const SettingsPage: React.FC = () => {
 		loadFamilyData();
 	}, [currentUser?.accountId]);
 
-	if (!currentUser?.subscription) {
+	const subscription = currentUser?.subscription;
+	const nonOwnerFamilyMembers = familyMembers.filter(
+		(member) => member.id !== currentUser?.id,
+	);
+	const occupiedFamilySeats = nonOwnerFamilyMembers.length;
+	const canAddMoreFamilyMembers = occupiedFamilySeats < 2;
+	const canManageFamilyRoles =
+		currentUser?.isAccountOwner ||
+		currentUser?.accountId === currentUser?.id ||
+		currentUser?.role === 'admin';
+
+	const categoryOptions = useMemo(
+		() => [
+			{
+				key: 'billing' as SettingsCategoryKey,
+				label: 'Billing & Plan',
+				visible: canViewPlanSection,
+			},
+			{
+				key: 'family' as SettingsCategoryKey,
+				label: 'Family Members',
+				visible: !isTenant && canManageFamilyRoles,
+			},
+			{
+				key: 'account' as SettingsCategoryKey,
+				label: 'Account',
+				visible: true,
+			},
+			{
+				key: 'notifications' as SettingsCategoryKey,
+				label: 'Notifications',
+				visible: !isTenant,
+			},
+			{
+				key: 'getting-started' as SettingsCategoryKey,
+				label: 'Getting Started',
+				visible: !isTenant,
+			},
+			{
+				key: 'support' as SettingsCategoryKey,
+				label: 'Support',
+				visible: true,
+			},
+			{
+				key: 'legal' as SettingsCategoryKey,
+				label: 'Legal',
+				visible: true,
+			},
+		],
+		[canViewPlanSection, canManageFamilyRoles, isTenant],
+	);
+
+	const visibleCategories = useMemo(
+		() => categoryOptions.filter((category) => category.visible),
+		[categoryOptions],
+	);
+
+	useEffect(() => {
+		if (!visibleCategories.some((category) => category.key === activeCategory)) {
+			setActiveCategory(visibleCategories[0]?.key || 'account');
+		}
+	}, [activeCategory, visibleCategories]);
+
+	if (!subscription) {
 		return (
 			<Container>
 				<Title>Settings</Title>
@@ -362,19 +523,9 @@ export const SettingsPage: React.FC = () => {
 		);
 	}
 
-	const subscription = currentUser.subscription;
 	const planDetails = getSubscriptionPlanDetails(subscription.plan);
 	const isOnTrial = isTrialActive(subscription);
 	const trialDaysRemaining = getTrialDaysRemaining(subscription);
-	const nonOwnerFamilyMembers = familyMembers.filter(
-		(member) => member.id !== currentUser.id,
-	);
-	const occupiedFamilySeats = nonOwnerFamilyMembers.length;
-	const canAddMoreFamilyMembers = occupiedFamilySeats < 2;
-	const canManageFamilyRoles =
-		currentUser?.isAccountOwner ||
-		currentUser?.accountId === currentUser?.id ||
-		currentUser?.role === 'admin';
 
 	const handleAddFamilyMember = async () => {
 		if (!currentUser?.accountId || !canManageFamilyRoles) {
@@ -686,71 +837,97 @@ export const SettingsPage: React.FC = () => {
 	return (
 		<Container>
 			<Title>Settings</Title>
-			{canViewPlanSection &&
-				subscription?.hasScheduledSubscription &&
-				subscription?.scheduledPlan &&
-				subscription?.trialEndsAt && (
-					<ScheduledSubscriptionBanner
-						scheduledPlan={subscription.scheduledPlan}
-						trialEndsAt={subscription.trialEndsAt}
-						onManageClick={() => navigate('/paywall')}
-					/>
-				)}
-			{canViewPlanSection && isTrialExpired(subscription) && (
-				<ExpiredTrialBanner onUpgradeClick={() => navigate('/paywall')} />
-			)}
-			{subscriptionError && (
-				<ErrorMessage style={{ marginBottom: '16px' }}>
-					You must cancel your active subscription before deleting your account.
-				</ErrorMessage>
-			)}
+			<SettingsLayout>
+				<CategorySidebar>
+					{visibleCategories.map((category) => (
+						<CategoryNavButton
+							key={category.key}
+							type='button'
+							active={activeCategory === category.key}
+							onClick={() => setActiveCategory(category.key)}>
+							{category.label}
+						</CategoryNavButton>
+					))}
+				</CategorySidebar>
 
-			{canViewPlanSection && (
-				<SubscriptionSection>
-					<SubscriptionHeader>
-						<PlanName>{planDetails?.name || 'Unknown Plan'}</PlanName>
-						<PlanStatus status={subscription.status}>
-							{subscription.status}
-						</PlanStatus>
-					</SubscriptionHeader>
+				<CategoryContent>
+					<MobileCategoryPicker>
+						<CategorySelect
+							value={activeCategory}
+							onChange={(e) =>
+								setActiveCategory(e.target.value as SettingsCategoryKey)
+							}>
+							{visibleCategories.map((category) => (
+								<option key={category.key} value={category.key}>
+									{category.label}
+								</option>
+							))}
+						</CategorySelect>
+					</MobileCategoryPicker>
 
-					{isOnTrial && (
-						<TrialInfo>
-							<TrialText>
-								{trialDaysRemaining === -1
-									? '🎉 You have unlimited access with your promo code'
-									: `🎉 You have ${trialDaysRemaining} days left in your free trial`}
-							</TrialText>
-						</TrialInfo>
+					<CategoryPanel>
+
+					{activeCategory === 'billing' && canViewPlanSection && (
+						<>
+							{subscription?.hasScheduledSubscription &&
+								subscription?.scheduledPlan &&
+								subscription?.trialEndsAt && (
+									<ScheduledSubscriptionBanner
+										scheduledPlan={subscription.scheduledPlan}
+										trialEndsAt={subscription.trialEndsAt}
+										onManageClick={() => navigate('/paywall')}
+									/>
+								)}
+							{isTrialExpired(subscription) && (
+								<ExpiredTrialBanner onUpgradeClick={() => navigate('/paywall')} />
+							)}
+							<SubscriptionSection>
+								<SubscriptionHeader>
+									<PlanName>{planDetails?.name || 'Unknown Plan'}</PlanName>
+									<PlanStatus status={subscription.status}>
+										{subscription.status}
+									</PlanStatus>
+								</SubscriptionHeader>
+
+								{isOnTrial && (
+									<TrialInfo>
+										<TrialText>
+											{trialDaysRemaining === -1
+												? '🎉 You have unlimited access with your promo code'
+												: `🎉 You have ${trialDaysRemaining} days left in your free trial`}
+										</TrialText>
+									</TrialInfo>
+								)}
+
+								<PlanDetails>
+									<PlanPrice>${planDetails?.priceMonthly || 0}/month</PlanPrice>
+									<PlanFeatures>
+										{planDetails?.features.map((feature, index) => (
+											<PlanFeature key={index}>{feature}</PlanFeature>
+										))}
+									</PlanFeatures>
+								</PlanDetails>
+
+								<ButtonContainer>
+									<UpgradeButton onClick={() => navigate('/paywall')}>
+										{subscription.plan === 'free'
+											? 'Upgrade Plan'
+											: 'Change Plan'}
+									</UpgradeButton>
+									{subscription.status === 'active' &&
+										subscription.stripeSubscriptionId && (
+											<CancelButton
+												onClick={() => setShowCancelSubscriptionModal(true)}>
+												Cancel Subscription
+											</CancelButton>
+										)}
+								</ButtonContainer>
+							</SubscriptionSection>
+						</>
 					)}
 
-					<PlanDetails>
-						<PlanPrice>${planDetails?.priceMonthly || 0}/month</PlanPrice>
-						<PlanFeatures>
-							{planDetails?.features.map((feature, index) => (
-								<PlanFeature key={index}>{feature}</PlanFeature>
-							))}
-						</PlanFeatures>
-					</PlanDetails>
-
-					<ButtonContainer>
-						<UpgradeButton onClick={() => navigate('/paywall')}>
-							{subscription.plan === 'free' ? 'Upgrade Plan' : 'Change Plan'}
-						</UpgradeButton>
-						{subscription.status === 'active' &&
-							subscription.stripeSubscriptionId && (
-								<CancelButton
-									onClick={() => setShowCancelSubscriptionModal(true)}>
-									Cancel Subscription
-								</CancelButton>
-							)}
-					</ButtonContainer>
-				</SubscriptionSection>
-			)}
-
-			{!isTenant && canManageFamilyRoles && (
-				<>
-					<AccountSection>
+					{activeCategory === 'family' && !isTenant && canManageFamilyRoles && (
+						<AccountSection>
 						<SectionTitle>Family Members</SectionTitle>
 						<p style={{ marginBottom: '16px', color: '#6b7280' }}>
 							Add family members to share your subscription. They get full
@@ -881,50 +1058,59 @@ export const SettingsPage: React.FC = () => {
 							</p>
 						)}
 					</AccountSection>
-				</>
 			)}
 
-			<AccountSection>
-				<SectionTitle>Account Settings</SectionTitle>
-				<AccountActions>
-					<AccountButton onClick={() => navigate('/profile')}>
-						Edit Profile
-					</AccountButton>
-					<AccountButton onClick={() => setShowPasswordModal(true)}>
-						Change Password
-					</AccountButton>
-					<DeleteAccountButton
-						disabled={
-							subscription.status === 'active' ||
-							subscription.status === 'past_due'
-						}
-						onClick={() => {
-							// Allow deletion for trial and expired users
-							// Require cancellation for active and past_due subscriptions
-							if (
-								subscription.status === 'active' ||
-								subscription.status === 'past_due'
-							) {
-								setSubscriptionError(true);
-							} else if (
-								subscription.status === 'trial' ||
-								subscription.status === 'expired'
-							) {
-								setShowDeleteAccountModal(true);
-							} else {
-								// For other statuses (like cancelled), allow deletion
-								setShowDeleteAccountModal(true);
-							}
-						}}>
-						Delete Account
-					</DeleteAccountButton>
-				</AccountActions>
-			</AccountSection>
+					{activeCategory === 'account' && (
+						<AccountSection>
+							<SectionTitle>Account Settings</SectionTitle>
+							{subscriptionError && (
+								<ErrorMessage style={{ marginBottom: '16px' }}>
+									You must cancel your active subscription before deleting your
+									account.
+								</ErrorMessage>
+							)}
+							<AccountActions>
+								<AccountButton onClick={() => navigate('/profile')}>
+									Edit Profile
+								</AccountButton>
+								<AccountButton onClick={() => setShowPasswordModal(true)}>
+									Change Password
+								</AccountButton>
+								<DeleteAccountButton
+									disabled={
+										subscription.status === 'active' ||
+										subscription.status === 'past_due'
+									}
+									onClick={() => {
+										if (
+											subscription.status === 'active' ||
+											subscription.status === 'past_due'
+										) {
+											setSubscriptionError(true);
+										} else if (
+											subscription.status === 'trial' ||
+											subscription.status === 'expired'
+										) {
+											setShowDeleteAccountModal(true);
+										} else {
+											setShowDeleteAccountModal(true);
+										}
+									}}>
+									Delete Account
+								</DeleteAccountButton>
+							</AccountActions>
+						</AccountSection>
+					)}
 
-			{!isTenant && <NotificationPreferences currentUser={currentUser} />}
+					{activeCategory === 'notifications' && !isTenant && (
+						<NotificationPreferences
+							currentUser={currentUser}
+							defaultCollapsed={false}
+						/>
+					)}
 
-			{!isTenant && (
-				<AccountSection>
+					{activeCategory === 'getting-started' && !isTenant && (
+						<AccountSection>
 					<SectionTitle>Getting Started</SectionTitle>
 					<p style={{ marginBottom: '16px', color: '#6b7280' }}>
 						Need a refresher on Maintley? Restart the guided tour to learn about
@@ -936,41 +1122,50 @@ export const SettingsPage: React.FC = () => {
 						{isRestartingOnboarding ? 'Starting Tour...' : 'Start Guided Tour'}
 					</AccountButton>
 				</AccountSection>
-			)}
+					)}
 
-			<AccountSection>
-				<SectionTitle>Feedback & Support</SectionTitle>
-				<p style={{ marginBottom: '16px', color: '#6b7280' }}>
-					Help us improve Maintley by sharing your feedback, reporting bugs, or
-					requesting new features.
-				</p>
-				<AccountButton onClick={() => setShowFeedbackModal(true)}>
-					Submit Feedback
-				</AccountButton>
-			</AccountSection>
+					{activeCategory === 'support' && (
+						<>
+							<AccountSection>
+								<SectionTitle>Feedback & Support</SectionTitle>
+								<p style={{ marginBottom: '16px', color: '#6b7280' }}>
+									Help us improve Maintley by sharing your feedback, reporting bugs,
+									or requesting new features.
+								</p>
+								<AccountButton onClick={() => setShowFeedbackModal(true)}>
+									Submit Feedback
+								</AccountButton>
+							</AccountSection>
 
-			<AccountSection>
-				<SectionTitle>Help & Resources</SectionTitle>
-				<p style={{ marginBottom: '16px', color: '#6b7280' }}>
-					Learn about all the features available in Maintley and get help when
-					you need it.
-				</p>
-				<ResourceButtons>
-					<AccountButton onClick={() => navigate('/help')}>
-						Open Help Center
-					</AccountButton>
-				</ResourceButtons>
-			</AccountSection>
+							<AccountSection>
+								<SectionTitle>Help & Resources</SectionTitle>
+								<p style={{ marginBottom: '16px', color: '#6b7280' }}>
+									Learn about all the features available in Maintley and get help
+									when you need it.
+								</p>
+								<ResourceButtons>
+									<AccountButton onClick={() => navigate('/help')}>
+										Open Help Center
+									</AccountButton>
+								</ResourceButtons>
+							</AccountSection>
+						</>
+					)}
 
-			<AccountSection>
-				<SectionTitle>Legal</SectionTitle>
-				<p style={{ marginBottom: '16px', color: '#6b7280' }}>
-					Review our legal documents and terms of service.
-				</p>
-				<AccountButton onClick={() => navigate('/legal')}>
-					View Legal Documents
-				</AccountButton>
-			</AccountSection>
+					{activeCategory === 'legal' && (
+						<AccountSection>
+							<SectionTitle>Legal</SectionTitle>
+							<p style={{ marginBottom: '16px', color: '#6b7280' }}>
+								Review our legal documents and terms of service.
+							</p>
+							<AccountButton onClick={() => navigate('/legal')}>
+								View Legal Documents
+							</AccountButton>
+						</AccountSection>
+					)}
+					</CategoryPanel>
+				</CategoryContent>
+			</SettingsLayout>
 
 			{/* Password Change Modal */}
 			<GenericModal

@@ -18,6 +18,64 @@ import {
 	resolveTargetUserId,
 } from './accountContext';
 
+const getShareRecipientEmailCandidates = (
+	profileEmail?: string,
+	authEmail?: string | null,
+): string[] => {
+	const candidates = [
+		String(profileEmail || '').trim(),
+		String(profileEmail || '').trim().toLowerCase(),
+		String(authEmail || '').trim(),
+		String(authEmail || '').trim().toLowerCase(),
+	].filter(Boolean);
+
+	return Array.from(new Set(candidates));
+};
+
+const getSharedPropertyIdsForUser = async (
+	userId: string,
+	profileEmail?: string,
+	authEmail?: string | null,
+): Promise<string[]> => {
+	void userId;
+	void profileEmail;
+	void authEmail;
+	// Shared properties feature retired.
+	return [];
+
+	/*
+	const propertyIdSet = new Set<string>();
+
+	const sharesByUserQuery = query(
+		collection(db, 'propertyShares'),
+		where('sharedWithUserId', '==', userId),
+	);
+	const sharesByUserSnapshot = await getDocs(sharesByUserQuery);
+	sharesByUserSnapshot.docs.forEach((shareDoc) => {
+		const share = shareDoc.data() as PropertyShare;
+		if (share?.propertyId) {
+			propertyIdSet.add(share.propertyId);
+		}
+	});
+
+	for (const email of getShareRecipientEmailCandidates(profileEmail, authEmail)) {
+		const sharesByEmailQuery = query(
+			collection(db, 'propertyShares'),
+			where('sharedWithEmail', '==', email),
+		);
+		const sharesByEmailSnapshot = await getDocs(sharesByEmailQuery);
+		sharesByEmailSnapshot.docs.forEach((shareDoc) => {
+			const share = shareDoc.data() as PropertyShare;
+			if (share?.propertyId) {
+				propertyIdSet.add(share.propertyId);
+			}
+		});
+	}
+
+	return Array.from(propertyIdSet);
+	*/
+};
+
 export const taskSlice = apiSlice.injectEndpoints({
 	endpoints: (builder) => ({
 		// Task endpoints
@@ -57,19 +115,11 @@ export const taskSlice = apiSlice.injectEndpoints({
 						const userDocRef = doc(db, 'users', userId);
 						const userDoc = await getDoc(userDocRef);
 						const userEmail = userDoc.data()?.email;
-
-						if (userEmail) {
-							// Find all shares where this user has access
-							const sharesQuery = query(
-								collection(db, 'propertyShares'),
-								where('sharedWithEmail', '==', userEmail),
-							);
-							const sharesSnapshot = await getDocs(sharesQuery);
-							sharedPropertyIds = sharesSnapshot.docs
-								.map((doc) => doc.data() as PropertyShare)
-								.filter(Boolean)
-								.map((share) => share.propertyId);
-						}
+						sharedPropertyIds = await getSharedPropertyIdsForUser(
+							userId,
+							userEmail,
+							currentUser.email,
+						);
 					} catch (shareError) {
 						// If getting shared properties fails, continue with owned properties only
 						console.warn('Could not fetch shared properties:', shareError);

@@ -22,8 +22,31 @@ const NotificationSection = styled.div`
 const SectionTitle = styled.h3`
 	font-size: 1.25rem;
 	font-weight: 600;
-	margin-bottom: 16px;
+	margin: 0;
 	color: #1f2937;
+`;
+
+const SectionHeaderButton = styled.button`
+	width: 100%;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	background: transparent;
+	border: none;
+	padding: 0;
+	margin: 0;
+	cursor: pointer;
+	text-align: left;
+`;
+
+const SectionHeaderMeta = styled.span`
+	font-size: 14px;
+	font-weight: 600;
+	color: #4f46e5;
+`;
+
+const SectionBody = styled.div`
+	margin-top: 16px;
 `;
 
 const MasterToggle = styled.div`
@@ -141,15 +164,17 @@ const DisableAllButton = styled.button`
 
 interface NotificationPreferencesProps {
 	currentUser: any;
+	defaultCollapsed?: boolean;
 }
 
 export const NotificationPreferences: React.FC<
 	NotificationPreferencesProps
-> = ({ currentUser }) => {
+> = ({ currentUser, defaultCollapsed = false }) => {
 	const dispatch = useDispatch<AppDispatch>();
 	const [updateUser] = useUpdateUserMutation();
 	const [updateTaskMutation] = useUpdateTaskMutation();
 	const [showDisableAllConfirm, setShowDisableAllConfirm] = useState(false);
+	const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed);
 
 	// Get tasks with notifications enabled
 	const { data: allTasks = [] } = useGetTasksQuery();
@@ -363,100 +388,116 @@ export const NotificationPreferences: React.FC<
 
 	return (
 		<NotificationSection>
-			<SectionTitle>🔔 Notification Preferences</SectionTitle>
-			<p style={{ marginBottom: '24px', color: '#6b7280' }}>
-				Control which notifications you receive and manage your task reminders.
-			</p>
+			<SectionHeaderButton
+				type='button'
+				onClick={() => setIsCollapsed((prev) => !prev)}
+				aria-expanded={!isCollapsed}
+				aria-label={
+					isCollapsed
+						? 'Expand notification preferences section'
+						: 'Collapse notification preferences section'
+				}>
+				<SectionTitle>🔔 Notification Preferences</SectionTitle>
+				<SectionHeaderMeta>{isCollapsed ? 'Show' : 'Hide'}</SectionHeaderMeta>
+			</SectionHeaderButton>
 
-			<MasterToggle>
-				<input
-					type='checkbox'
-					id='master-notifications'
-					checked={preferences.enabled}
-					onChange={(e) => handleMasterToggle(e.target.checked)}
-				/>
-				<ToggleLabel htmlFor='master-notifications'>
-					Enable all notifications
-				</ToggleLabel>
-			</MasterToggle>
+			{!isCollapsed && (
+				<SectionBody>
+					<p style={{ marginBottom: '24px', color: '#6b7280' }}>
+						Control which notifications you receive and manage your task reminders.
+					</p>
 
-			{preferences.enabled && (
-				<>
-					<NotificationTypeGrid>
-						{notificationTypes.map((type) => (
-							<NotificationTypeCard key={type.key}>
-								<NotificationTypeHeader>
-									<input
-										type='checkbox'
-										id={`notification-${type.key}`}
-										checked={preferences.types[type.key]}
-										onChange={(e) =>
-											handleTypeToggle(type.key, e.target.checked)
-										}
-									/>
-									<NotificationTypeLabel htmlFor={`notification-${type.key}`}>
-										{type.label}
-									</NotificationTypeLabel>
-								</NotificationTypeHeader>
-								<NotificationTypeDescription>
-									{type.description}
-								</NotificationTypeDescription>
-							</NotificationTypeCard>
-						))}
-					</NotificationTypeGrid>
+					<MasterToggle>
+						<input
+							type='checkbox'
+							id='master-notifications'
+							checked={preferences.enabled}
+							onChange={(e) => handleMasterToggle(e.target.checked)}
+						/>
+						<ToggleLabel htmlFor='master-notifications'>
+							Enable all notifications
+						</ToggleLabel>
+					</MasterToggle>
 
-					<TasksWithNotifications>
-						<div
-							style={{
-								display: 'flex',
-								justifyContent: 'space-between',
-								alignItems: 'center',
-								marginBottom: '16px',
-							}}>
-							<h4
-								style={{
-									margin: 0,
-									fontSize: '16px',
-									fontWeight: '600',
-									color: '#374151',
-								}}>
-								Tasks with Notifications ({tasksWithNotifications.length})
-							</h4>
-							{tasksWithNotifications.length > 0 && (
-								<DisableAllButton onClick={handleDisableAllTaskNotifications}>
-									Disable All Task Notifications
-								</DisableAllButton>
-							)}
-						</div>
-
-						{tasksWithNotifications.length === 0 ? (
-							<p
-								style={{
-									color: '#6b7280',
-									fontStyle: 'italic',
-									textAlign: 'center',
-									padding: '24px',
-								}}>
-								No tasks have notifications enabled. Enable notifications on
-								individual tasks to see them here.
-							</p>
-						) : (
-							<TasksList>
-								{tasksWithNotifications.map((task: Task) => (
-									<TaskItem key={task.id}>
-										<TaskInfo>
-											<TaskTitle>{task.title}</TaskTitle>
-											<TaskDetails>
-												Due: {new Date(task.dueDate).toLocaleDateString()}
-												<TaskProperty>{task.property}</TaskProperty>
-											</TaskDetails>
-										</TaskInfo>
-									</TaskItem>
+					{preferences.enabled && (
+						<>
+							<NotificationTypeGrid>
+								{notificationTypes.map((type) => (
+									<NotificationTypeCard key={type.key}>
+										<NotificationTypeHeader>
+											<input
+												type='checkbox'
+												id={`notification-${type.key}`}
+												checked={preferences.types[type.key]}
+												onChange={(e) =>
+													handleTypeToggle(type.key, e.target.checked)
+												}
+											/>
+											<NotificationTypeLabel htmlFor={`notification-${type.key}`}>
+												{type.label}
+											</NotificationTypeLabel>
+										</NotificationTypeHeader>
+										<NotificationTypeDescription>
+											{type.description}
+										</NotificationTypeDescription>
+									</NotificationTypeCard>
 								))}
-							</TasksList>
-						)}
-					</TasksWithNotifications>
-				</>
+							</NotificationTypeGrid>
+
+							<TasksWithNotifications>
+								<div
+									style={{
+										display: 'flex',
+										justifyContent: 'space-between',
+										alignItems: 'center',
+										marginBottom: '16px',
+									}}>
+									<h4
+										style={{
+											margin: 0,
+											fontSize: '16px',
+											fontWeight: '600',
+											color: '#374151',
+										}}>
+										Tasks with Notifications ({tasksWithNotifications.length})
+									</h4>
+									{tasksWithNotifications.length > 0 && (
+										<DisableAllButton onClick={handleDisableAllTaskNotifications}>
+											Disable All Task Notifications
+										</DisableAllButton>
+									)}
+								</div>
+
+								{tasksWithNotifications.length === 0 ? (
+									<p
+										style={{
+											color: '#6b7280',
+											fontStyle: 'italic',
+											textAlign: 'center',
+											padding: '24px',
+										}}>
+										No tasks have notifications enabled. Enable notifications on
+										individual tasks to see them here.
+									</p>
+								) : (
+									<TasksList>
+										{tasksWithNotifications.map((task: Task) => (
+											<TaskItem key={task.id}>
+												<TaskInfo>
+													<TaskTitle>{task.title}</TaskTitle>
+													<TaskDetails>
+														Due: {new Date(task.dueDate).toLocaleDateString()}
+														<TaskProperty>{task.property}</TaskProperty>
+													</TaskDetails>
+												</TaskInfo>
+											</TaskItem>
+										))}
+									</TasksList>
+								)}
+							</TasksWithNotifications>
+						</>
+					)}
+				</SectionBody>
 			)}
 
 			{showDisableAllConfirm && (

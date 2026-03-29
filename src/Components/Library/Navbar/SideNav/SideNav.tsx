@@ -34,7 +34,7 @@ export const SideNav = () => {
 		(state: RootState) => state.navigation.activeRoute,
 	);
 	const { recentProperties } = useRecentlyViewed(currentUser!.id);
-	const { favorites } = useFavorites(currentUser!.id);
+	const { favorites, removeFavorite } = useFavorites(currentUser!.id);
 
 	// Update Redux when location changes
 	React.useEffect(() => {
@@ -119,6 +119,10 @@ export const SideNav = () => {
 													color: '#666666',
 													cursor: 'pointer',
 													transition: 'color 0.2s ease',
+													display: 'flex',
+													alignItems: 'center',
+													justifyContent: 'space-between',
+													gap: '8px',
 													borderBottom: '1px solid #f0f0f0',
 												}}
 												onClick={() => navigate(`/property/${property.slug}`)}
@@ -128,7 +132,36 @@ export const SideNav = () => {
 												onMouseLeave={(e) =>
 													(e.currentTarget.style.color = '#666666')
 												}>
-												{'★ ' + property.title}
+												<span
+													style={{
+														overflow: 'hidden',
+														textOverflow: 'ellipsis',
+														whiteSpace: 'nowrap',
+														flex: 1,
+													}}
+													title={property.title}>
+													{'★ ' + property.title}
+												</span>
+												<button
+													type='button'
+													onClick={(e) => {
+														e.stopPropagation();
+														void removeFavorite(property.id);
+													}}
+													title={`Remove ${property.title} from favorites`}
+													aria-label={`Remove ${property.title} from favorites`}
+													style={{
+														border: 'none',
+														background: 'transparent',
+														color: '#9ca3af',
+														cursor: 'pointer',
+														fontSize: '14px',
+														padding: '2px 4px',
+														lineHeight: 1,
+														borderRadius: '4px',
+													}}>
+													×
+												</button>
 											</li>
 										))}
 									</ul>

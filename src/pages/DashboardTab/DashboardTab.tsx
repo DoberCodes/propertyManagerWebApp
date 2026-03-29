@@ -5,8 +5,6 @@ import { useSelector } from 'react-redux';
 import { RootState } from 'Redux/store/store';
 import { useGetPropertiesQuery } from 'Redux/API/propertySlice';
 import {
-	useGetSharedPropertiesForUserQuery,
-	useGetAllPropertySharesForUserQuery,
 	useGetAllMaintenanceHistoryForUserQuery,
 } from 'Redux/API/userSlice';
 import { getTenantPropertySlug } from 'utils/permissions';
@@ -53,15 +51,14 @@ export const DashboardTab = () => {
 	// Fetch tasks and properties from Firebase
 	const { data: allTasks = [] } = useGetTasksQuery();
 	const { data: ownedProperties = [] } = useGetPropertiesQuery();
-	const { data: sharedProperties = [] } = useGetSharedPropertiesForUserQuery();
 	const { data: allMaintenanceHistory = [] } =
-		useGetAllMaintenanceHistoryForUserQuery(); // Combine owned and shared properties for task assignment
+		useGetAllMaintenanceHistoryForUserQuery();
 	const allProperties = useMemo(() => {
-		const combined = [...ownedProperties, ...sharedProperties];
+		const combined = [...ownedProperties];
 		// Filter out properties hidden from dashboard
 		const hiddenIds = currentUser?.hiddenPropertyIds || [];
 		return combined.filter((property) => !hiddenIds.includes(property.id));
-	}, [ownedProperties, sharedProperties, currentUser?.hiddenPropertyIds]);
+	}, [ownedProperties, currentUser?.hiddenPropertyIds]);
 
 	// Firebase mutations
 	const [updateTaskMutation] = useUpdateTaskMutation();
@@ -137,9 +134,6 @@ export const DashboardTab = () => {
 		longitude: number;
 	} | null>(null);
 
-	// Fetch all property shares for task filtering
-	const { data: propertyShares = [] } = useGetAllPropertySharesForUserQuery();
-
 	// Generate assignee options for task editing
 	const assigneeOptions = useMemo(() => {
 		const assignees: Array<{ label: string; value: string; email?: string }> =
@@ -168,7 +162,6 @@ export const DashboardTab = () => {
 			currentUser,
 			teamMembers,
 			allProperties,
-			propertyShares,
 		);
 
 		const now = new Date();
@@ -211,7 +204,6 @@ export const DashboardTab = () => {
 		currentUser,
 		teamMembers,
 		allProperties,
-		propertyShares,
 		allMaintenanceHistory,
 	]);
 

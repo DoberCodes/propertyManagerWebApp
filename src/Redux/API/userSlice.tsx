@@ -11,8 +11,6 @@ import {
 } from 'firebase/firestore';
 import { auth, db } from '../../config/firebase';
 import { apiSlice, docToData } from './apiSlice';
-import { SharePermission } from '../../constants/roles';
-import { Property, PropertyShare } from '../../types/Property.types';
 import { Favorite, UserInvitation } from '../../types/User.types';
 import { User } from '../Slices/userSlice';
 import {
@@ -154,126 +152,6 @@ const userSlice = apiSlice.injectEndpoints({
 			invalidatesTags: ['Favorites'],
 		}),
 
-		// Property Sharing endpoints
-		getPropertyShares: builder.query<PropertyShare[], string>({
-			async queryFn(propertyId: string) {
-				try {
-					const q = query(
-						collection(db, 'propertyShares'),
-						where('propertyId', '==', propertyId),
-					);
-					const querySnapshot = await getDocs(q);
-					const shares = querySnapshot.docs
-						.map((doc) => docToData(doc) as PropertyShare)
-						.filter(Boolean) as PropertyShare[];
-					return { data: shares };
-				} catch (error: any) {
-					return { error: error.message };
-				}
-			},
-			providesTags: ['PropertyShares'],
-		}),
-
-		getAllPropertySharesForUser: builder.query<PropertyShare[], void>({
-			async queryFn() {
-				try {
-					// Get authenticated user from Firebase Auth
-					const currentUser = auth.currentUser;
-					if (!currentUser) {
-						return { error: 'User not authenticated' };
-					}
-					const userId = currentUser.uid;
-
-					// Get user's email first
-					const userDocRef = doc(db, 'users', userId);
-					const userDoc = await getDoc(userDocRef);
-					const userEmail = userDoc.data()?.email;
-
-					if (!userEmail) {
-						return { data: [] };
-					}
-
-					const accessibleAccountIds = await resolveAccessibleAccountIds();
-
-					// Get all property groups for accessible accounts to find owned properties
-					const groupIds: string[] = [];
-					for (const accountId of accessibleAccountIds) {
-						const groupsByAccountQuery = query(
-							collection(db, 'propertyGroups'),
-							where('accountId', '==', accountId),
-						);
-						const groupsByAccountSnapshot = await getDocs(groupsByAccountQuery);
-						groupIds.push(...groupsByAccountSnapshot.docs.map((groupDoc) => groupDoc.id));
-
-						// Legacy fallback: some groups may still use userId and no accountId
-						const groupsByUserQuery = query(
-							collection(db, 'propertyGroups'),
-							where('userId', '==', accountId),
-						);
-						const groupsByUserSnapshot = await getDocs(groupsByUserQuery);
-						groupIds.push(...groupsByUserSnapshot.docs.map((groupDoc) => groupDoc.id));
-					}
-
-					const uniqueGroupIds = Array.from(new Set(groupIds));
-
-					let ownedPropertyIds: string[] = [];
-					if (uniqueGroupIds.length > 0) {
-						// Get all property IDs for these groups
-						for (let i = 0; i < uniqueGroupIds.length; i += 10) {
-							const batch = uniqueGroupIds.slice(i, i + 10);
-							const propertiesQuery = query(
-								collection(db, 'properties'),
-								where('groupId', 'in', batch),
-							);
-							const propertiesSnapshot = await getDocs(propertiesQuery);
-							ownedPropertyIds.push(
-								...propertiesSnapshot.docs.map((propertyDoc) => propertyDoc.id),
-							);
-						}
-					}
-
-					ownedPropertyIds = Array.from(new Set(ownedPropertyIds));
-
-					// Get all shares for owned properties (shares created by this user)
-					let allShares: PropertyShare[] = [];
-					for (let i = 0; i < ownedPropertyIds.length; i += 10) {
-						const batch = ownedPropertyIds.slice(i, i + 10);
-						const sharesQuery = query(
-							collection(db, 'propertyShares'),
-							where('propertyId', 'in', batch),
-						);
-						const sharesSnapshot = await getDocs(sharesQuery);
-						const shares = sharesSnapshot.docs
-							.map((doc) => docToData(doc) as PropertyShare)
-							.filter(Boolean) as PropertyShare[];
-						allShares.push(...shares);
-					}
-
-					// Get all shares where this user is the recipient
-					const receivedSharesQuery = query(
-						collection(db, 'propertyShares'),
-						where('sharedWithEmail', '==', userEmail),
-					);
-					const receivedSharesSnapshot = await getDocs(receivedSharesQuery);
-					const receivedShares = receivedSharesSnapshot.docs
-						.map((doc) => docToData(doc) as PropertyShare)
-						.filter(Boolean) as PropertyShare[];
-					allShares.push(...receivedShares);
-
-					// Remove duplicates
-					const uniqueShares = allShares.filter(
-						(share, index, self) =>
-							index === self.findIndex((s) => s.id === share.id),
-					);
-
-					return { data: uniqueShares };
-				} catch (error: any) {
-					return { error: error.message };
-				}
-			},
-			providesTags: ['PropertyShares'],
-		}),
-
 		getAllMaintenanceHistoryForUser: builder.query<any[], void>({
 			async queryFn() {
 				try {
@@ -282,18 +160,7 @@ const userSlice = apiSlice.injectEndpoints({
 					if (!currentUser) {
 						return { error: 'User not authenticated' };
 					}
-					const userId = currentUser.uid;
-
-					// Get user's email first
-					const userDocRef = doc(db, 'users', userId);
-					const userDoc = await getDoc(userDocRef);
-					const userData = userDoc.data();
-					const userEmail = userData?.email;
 					const accessibleAccountIds = await resolveAccessibleAccountIds();
-
-					if (!userEmail) {
-						return { data: [] };
-					}
 
 					// Get all property groups for accessible accounts to find owned properties
 					const groupIds: string[] = [];
@@ -322,21 +189,7 @@ const userSlice = apiSlice.injectEndpoints({
 						}
 					}
 
-					// Get all shares where this user is the recipient
-					const receivedSharesQuery = query(
-						collection(db, 'propertyShares'),
-						where('sharedWithEmail', '==', userEmail),
-					);
-					const receivedSharesSnapshot = await getDocs(receivedSharesQuery);
-					const receivedShares = receivedSharesSnapshot.docs
-						.map((doc) => docToData(doc) as PropertyShare)
-						.filter(Boolean) as PropertyShare[];
-					const sharedPropertyIds = receivedShares.map(
-						(share) => share.propertyId,
-					);
-
-					// Combine all property IDs the user has access to
-					const allPropertyIds = [...ownedPropertyIds, ...sharedPropertyIds];
+					const allPropertyIds = [...ownedPropertyIds];
 
 					const accountMaintenanceHistory: Record<string, unknown>[] = [];
 					for (const accountId of accessibleAccountIds) {
@@ -392,147 +245,6 @@ const userSlice = apiSlice.injectEndpoints({
 				}
 			},
 			providesTags: ['MaintenanceHistory'],
-		}),
-
-		getSharedPropertiesForUser: builder.query<Property[], void>({
-			async queryFn() {
-				try {
-					// Get authenticated user from Firebase Auth
-					const currentUser = auth.currentUser;
-					if (!currentUser) {
-						return { error: 'User not authenticated' };
-					}
-					const userId = currentUser.uid;
-
-					// Get user's email first
-					const userDocRef = doc(db, 'users', userId);
-					const userDoc = await getDoc(userDocRef);
-					const userEmail = userDoc.data()?.email;
-
-					if (!userEmail) {
-						return { data: [] };
-					}
-
-					// Find all shares where this user has access
-					const sharesQuery = query(
-						collection(db, 'propertyShares'),
-						where('sharedWithEmail', '==', userEmail),
-					);
-					const sharesSnapshot = await getDocs(sharesQuery);
-					const shares = sharesSnapshot.docs
-						.map((doc) => docToData(doc) as PropertyShare)
-						.filter(Boolean) as PropertyShare[];
-
-					// Get all shared properties
-					const propertyIds = shares.map((share) => share.propertyId);
-					if (propertyIds.length === 0) {
-						return { data: [] };
-					}
-
-					const allProperties: Property[] = [];
-					// Process in batches of 10 (Firestore limitation)
-					for (let i = 0; i < propertyIds.length; i += 10) {
-						const batch = propertyIds.slice(i, i + 10);
-						const propertiesQuery = query(
-							collection(db, 'properties'),
-							where('__name__', 'in', batch),
-						);
-						const propertiesSnapshot = await getDocs(propertiesQuery);
-						const properties = propertiesSnapshot.docs
-							.map((doc) => docToData(doc) as Property)
-							.filter(Boolean) as Property[];
-						allProperties.push(...properties);
-					}
-
-					return { data: allProperties };
-				} catch (error: any) {
-					return { error: error.message };
-				}
-			},
-			providesTags: ['PropertyShares', 'Properties'],
-		}),
-
-		createPropertyShare: builder.mutation<
-			PropertyShare,
-			Omit<PropertyShare, 'id' | 'createdAt' | 'updatedAt'>
-		>({
-			async queryFn(newShare) {
-				try {
-					const now = new Date().toISOString();
-					const shareData = {
-						...newShare,
-						createdAt: now,
-						updatedAt: now,
-					};
-					const docRef = await addDoc(
-						collection(db, 'propertyShares'),
-						shareData,
-					);
-					return { data: { id: docRef.id, ...shareData } };
-				} catch (error: any) {
-					return { error: error.message };
-				}
-			},
-			invalidatesTags: ['PropertyShares', 'Properties'],
-		}),
-
-		updatePropertyShare: builder.mutation<
-			PropertyShare,
-			{ id: string; permission: SharePermission }
-		>({
-			async queryFn({ id, permission }) {
-				try {
-					const docRef = doc(db, 'propertyShares', id);
-					await updateDoc(docRef, {
-						permission,
-						updatedAt: new Date().toISOString(),
-					});
-					const updatedDoc = await getDoc(docRef);
-					const data = updatedDoc.data() as PropertyShare;
-					return { data };
-				} catch (error: any) {
-					return { error: error.message };
-				}
-			},
-			invalidatesTags: ['PropertyShares'],
-		}),
-
-		deletePropertyShare: builder.mutation<void, string>({
-			async queryFn(shareId: string) {
-				try {
-					// Get the share document to find the associated invitation
-					const shareDoc = await getDoc(doc(db, 'propertyShares', shareId));
-					if (!shareDoc.exists()) {
-						return { error: 'Property share not found' };
-					}
-
-					const shareData = shareDoc.data();
-					const propertyId = shareData.propertyId;
-					const sharedWithEmail = shareData.sharedWithEmail;
-
-					// Delete the property share
-					await deleteDoc(doc(db, 'propertyShares', shareId));
-
-					// Find and delete the associated accepted invitation
-					const invitationQuery = query(
-						collection(db, 'userInvitations'),
-						where('propertyId', '==', propertyId),
-						where('toEmail', '==', sharedWithEmail),
-						where('status', '==', 'accepted'),
-					);
-					const invitationSnapshot = await getDocs(invitationQuery);
-					if (!invitationSnapshot.empty) {
-						for (const invDoc of invitationSnapshot.docs) {
-							await deleteDoc(invDoc.ref);
-						}
-					}
-
-					return { data: undefined };
-				} catch (error: any) {
-					return { error: error.message };
-				}
-			},
-			invalidatesTags: ['PropertyShares', 'Properties', 'UserInvitations'],
 		}),
 
 		// User Invitations endpoints
@@ -631,11 +343,16 @@ const userSlice = apiSlice.injectEndpoints({
 		}),
 
 		acceptInvitation: builder.mutation<
-			PropertyShare,
+			void,
 			{ invitationId: string; userId: string }
 		>({
 			async queryFn({ invitationId, userId }) {
 				try {
+					void invitationId;
+					void userId;
+					return { error: 'Shared properties feature has been removed.' };
+
+					/*
 					// Get the invitation
 					const invitationRef = doc(db, 'userInvitations', invitationId);
 					const invitationDoc = await getDoc(invitationRef);
@@ -751,14 +468,13 @@ const userSlice = apiSlice.injectEndpoints({
 					}
 
 					return { data: { id: shareRef.id, ...shareData } };
+					*/
 				} catch (error: any) {
 					return { error: error.message };
 				}
 			},
 			invalidatesTags: [
 				'UserInvitations',
-				'PropertyShares',
-				'Properties',
 				'TeamMembers',
 				'TeamGroups',
 			],
@@ -887,14 +603,7 @@ export const {
 	useGetFavoritesQuery,
 	useAddFavoriteMutation,
 	useRemoveFavoriteMutation,
-	// Property shares & invitations (moved into userSlice)
-	useGetPropertySharesQuery,
-	useGetAllPropertySharesForUserQuery,
 	useGetAllMaintenanceHistoryForUserQuery,
-	useGetSharedPropertiesForUserQuery,
-	useCreatePropertyShareMutation,
-	useUpdatePropertyShareMutation,
-	useDeletePropertyShareMutation,
 	useGetUserInvitationsQuery,
 	useSendInvitationMutation,
 	useAcceptInvitationMutation,
