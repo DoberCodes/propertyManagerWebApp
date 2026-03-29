@@ -1,11 +1,6 @@
-🎉 **Release Notes for Version 2.0.0** 🎉
+🎉 **Release Notes for Version 2.0.1** 🎉
 
 
 ## 🐛 Bug Fixes
-- fixing the stripe testing to fully cover the subscribe process
-- fixing the playwright process and adding persistent login
-- fixing the tenant invite and updating the tenant view.
-
-## 🔧 Improvements & Maintenance
-- breaking: fixing the missed breaking change version control
-- adding stripe changes
+- fixing the overdue styling for tasks.
+- fixing groups to make them optional, also modifying the settings page to have a better layout.
