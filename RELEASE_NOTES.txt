@@ -1,6 +1,8 @@
-🎉 **Release Notes for Version 2.0.1** 🎉
+🎉 **Release Notes for Version 2.1.0** 🎉
 
 
-## 🐛 Bug Fixes
-- fixing the overdue styling for tasks.
-- fixing groups to make them optional, also modifying the settings page to have a better layout.
+## ✨ Features
+- Adding new parts list for devices
+
+## 🔧 Improvements & Maintenance
+- Adding modification to marking tasks as completed and adding new parts tracking for home devices
