@@ -152,6 +152,7 @@ export const StatusBadge = styled.span<{ status: string }>`
 				return 'rgba(34, 197, 94, 0.1)';
 			case 'In Progress':
 				return 'rgba(59, 130, 246, 0.1)';
+				case 'Initiated':
 			case 'Pending':
 			case 'Medium':
 				return 'rgba(245, 158, 11, 0.1)';
@@ -180,6 +181,7 @@ export const StatusBadge = styled.span<{ status: string }>`
 				return '#22c55e';
 			case 'In Progress':
 				return '#3b82f6';
+				case 'Initiated':
 			case 'Pending':
 			case 'Medium':
 				return '#f59e0b';

@@ -39,7 +39,7 @@ export const matchesDateRangeOrIsOverdue = (
 	}
 
 	if (!task.dueDate) {
-		return false;
+		return !startDate && !endDate;
 	}
 
 	return filterDateRange(task.dueDate, startDate || '', endDate || '');

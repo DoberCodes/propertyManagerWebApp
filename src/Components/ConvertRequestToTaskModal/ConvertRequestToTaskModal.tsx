@@ -50,7 +50,7 @@ export const ConvertRequestToTaskModal: React.FC<
 	const [taskData, setTaskData] = useState<TaskData>({
 		title: request.title,
 		dueDate: getDefaultDueDate(request.priority),
-		status: 'Pending',
+		status: 'Initiated',
 		assignee: '',
 		notes: `Maintenance Request Details:
 ${request.description}
@@ -72,7 +72,7 @@ Submitted by: ${request.submittedByName} on ${
 			setTaskData({
 				title: request.title,
 				dueDate: getDefaultDueDate(request.priority),
-				status: 'Pending',
+				status: 'Initiated',
 				assignee: '',
 				notes: `Maintenance Request Details:
 ${request.description}
@@ -151,7 +151,7 @@ Submitted by: ${request.submittedByName} on ${
 				<FormRow>
 					<FormGroup>
 						<Label>
-							Due Date <Required>*</Required>
+							Due Date
 						</Label>
 						<Input
 							type='date'
@@ -160,10 +160,25 @@ Submitted by: ${request.submittedByName} on ${
 								setTaskData({ ...taskData, dueDate: e.target.value })
 							}
 							min={new Date().toISOString().split('T')[0]}
-							required
+							disabled={!taskData.dueDate}
 						/>
+						<AsapToggle>
+							<input
+								type='checkbox'
+								checked={!taskData.dueDate}
+								onChange={(e) =>
+									setTaskData((prev) => ({
+										...prev,
+										dueDate: e.target.checked ? '' : getDefaultDueDate(request.priority),
+									}))
+								}
+							/>
+							Set as ASAP (no due date)
+						</AsapToggle>
 						<Helper>
-							Suggested based on {request.priority.toLowerCase()} priority
+							{taskData.dueDate
+								? `Suggested based on ${request.priority.toLowerCase()} priority`
+								: 'Task will be created without a due date'}
 						</Helper>
 					</FormGroup>
 
@@ -177,6 +192,7 @@ Submitted by: ${request.submittedByName} on ${
 									status: e.target.value as TaskData['status'],
 								})
 							}>
+							<option value='Initiated'>Initiated</option>
 							<option value='Pending'>Pending</option>
 							<option value='In Progress'>In Progress</option>
 						</Select>
@@ -346,6 +362,16 @@ const Helper = styled.div`
 	font-size: 12px;
 	color: #666;
 	font-style: italic;
+`;
+
+const AsapToggle = styled.label`
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	margin-top: 8px;
+	font-size: 13px;
+	color: #4b5563;
+	cursor: pointer;
 `;
 
 const InfoBox = styled.div`

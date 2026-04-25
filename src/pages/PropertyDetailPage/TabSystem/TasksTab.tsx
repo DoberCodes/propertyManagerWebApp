@@ -10,7 +10,7 @@ import {
 	SectionContainer,
 	SectionHeader,
 } from '../../../Components/Library/InfoCards/InfoCardStyles';
-import { FormSelect } from '../../../Components/Library/Modal/ModalStyles';
+import { TaskSelect } from '../../../Components/Library/Select/TaskSelect';
 import { GridContainer } from './index.styles';
 import {
 	FilterBar,
@@ -132,6 +132,36 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 		}
 	};
 
+	const categoryFilterOptions = useMemo(() => {
+		const categories = processedTasks
+			.map((task) => task.category)
+			.filter(
+				(category): category is string =>
+					typeof category === 'string' && category.trim().length > 0,
+			)
+			.map((category) => category.trim());
+
+		return Array.from(new Set(categories)).map((category) => ({
+			value: category,
+			label: category,
+		}));
+	}, [processedTasks]);
+
+	const locationFilterOptions = useMemo(() => {
+		const locations = processedTasks
+			.map((task) => task.location)
+			.filter(
+				(location): location is string =>
+					typeof location === 'string' && location.trim().length > 0,
+			)
+			.map((location) => location.trim());
+
+		return Array.from(new Set(locations)).map((location) => ({
+			value: location,
+			label: location,
+		}));
+	}, [processedTasks]);
+
 	const columns: Column[] = [
 		{ header: 'Title', key: 'title' },
 		{
@@ -142,6 +172,8 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 			),
 		},
 		{ header: 'Priority', key: 'priority' },
+		{ header: 'Category', key: 'category' },
+		{ header: 'Location', key: 'location' },
 		{
 			header: 'Assigned To',
 			key: 'assignedTo',
@@ -150,7 +182,11 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 					? task.assignedTo.name
 					: task.assignedTo || 'Unassigned',
 		},
-		{ header: 'Due Date', key: 'dueDate' },
+		{
+			header: 'Due Date',
+			key: 'dueDate',
+			render: (_unused: any, task: any) => task.dueDate || 'ASAP',
+		},
 	];
 
 	const taskActions: Action<Task>[] = [
@@ -194,6 +230,7 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 			label: 'Status',
 			type: 'select',
 			options: [
+				{ value: 'Initiated', label: 'Initiated' },
 				{ value: 'Pending', label: 'Pending' },
 				{ value: 'In Progress', label: 'In Progress' },
 				{ value: 'Awaiting Approval', label: 'Awaiting Approval' },
@@ -262,6 +299,18 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 			],
 		},
 		{
+			key: 'category',
+			label: 'Category',
+			type: 'select',
+			options: categoryFilterOptions,
+		},
+		{
+			key: 'location',
+			label: 'Location',
+			type: 'select',
+			options: locationFilterOptions,
+		},
+		{
 			key: 'dueDate',
 			label: 'Due Date',
 			type: 'daterange',
@@ -275,6 +324,8 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 			selectFields: [
 				{ field: 'status', filterKey: 'status' },
 				{ field: 'priority', filterKey: 'priority' },
+				{ field: 'category', filterKey: 'category' },
+				{ field: 'location', filterKey: 'location' },
 				{
 					field: 'assignedTo',
 					filterKey: 'assignedTo',
@@ -326,18 +377,18 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 					+ Create Task
 				</ToolbarButton>
 				{unitOptions.length > 0 && (
-					<FormSelect
-						name='unitFilter'
-						value={selectedUnitId || ''}
-						onChange={(e) => onSelectUnit && onSelectUnit(e.target.value)}
-						style={{ marginLeft: '12px' }}>
-						<option value=''>All units</option>
-						{unitOptions.map((u) => (
-							<option key={u.value} value={u.value}>
-								{u.label}
-							</option>
-						))}
-					</FormSelect>
+					<div style={{ marginLeft: '12px', minWidth: '220px' }}>
+						<TaskSelect
+							name='unitFilter'
+							value={selectedUnitId || ''}
+							onChange={(value) => onSelectUnit && onSelectUnit(value)}
+							placeholder='All units'
+							options={[
+								{ value: '', label: 'All units' },
+								...unitOptions,
+							]}
+						/>
+					</div>
 				)}
 			</Toolbar>
 			<div
@@ -383,7 +434,11 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 				</button>
 			</div>
 			{showFilters && (
-				<FilterBar filters={taskFilters} onFiltersChange={setFilters} />
+				<FilterBar
+					filters={taskFilters}
+					onFiltersChange={setFilters}
+					useCustomSelect={true}
+				/>
 			)}
 
 			{filteredTasks.length > 0 ? (
@@ -434,17 +489,29 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 										</MobileTaskValue>
 									</MobileTaskRow>
 
-									{task.dueDate && (
-										<MobileTaskRow>
-											<MobileTaskLabel>Due Date</MobileTaskLabel>
-											<MobileTaskValue>{task.dueDate}</MobileTaskValue>
-										</MobileTaskRow>
-									)}
+									<MobileTaskRow>
+										<MobileTaskLabel>Due Date</MobileTaskLabel>
+										<MobileTaskValue>{task.dueDate || 'ASAP'}</MobileTaskValue>
+									</MobileTaskRow>
 
 									{task.priority && (
 										<MobileTaskRow>
 											<MobileTaskLabel>Priority</MobileTaskLabel>
 											<MobileTaskValue>{task.priority}</MobileTaskValue>
+										</MobileTaskRow>
+									)}
+
+									{task.category && (
+										<MobileTaskRow>
+											<MobileTaskLabel>Category</MobileTaskLabel>
+											<MobileTaskValue>{task.category}</MobileTaskValue>
+										</MobileTaskRow>
+									)}
+
+									{task.location && (
+										<MobileTaskRow>
+											<MobileTaskLabel>Location</MobileTaskLabel>
+											<MobileTaskValue>{task.location}</MobileTaskValue>
 										</MobileTaskRow>
 									)}
 								</MobileTaskMeta>

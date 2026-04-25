@@ -389,20 +389,24 @@ export const PaywallPage: React.FC<PaywallPageProps> = ({
 						<SelectPlanButton
 							isCurrentPlan={
 								currentPlan === 'homeowner' &&
-								isSubscriptionActive(subscription)
+								isSubscriptionActive(subscription) &&
+								subscription.status !== 'trial'
 							}
 							disabled={
 								selectionOnly
 									? loading
 									: (currentPlan === 'homeowner' &&
-											isSubscriptionActive(subscription)) ||
+											isSubscriptionActive(subscription) &&
+											subscription.status !== 'trial') ||
 									  loading
 							}
 							onClick={() => handlePlanSelect('homeowner')}>
 							{currentPlan === 'homeowner' && isSubscriptionActive(subscription)
 								? selectionOnly
 									? 'Selected'
-									: 'Current Plan'
+									: subscription.status !== 'trial'
+									? 'Current Plan'
+									: 'Upgrade Now'
 								: selectionOnly
 								? 'Select Plan'
 								: 'Upgrade'}
@@ -472,7 +476,7 @@ export const PaywallPage: React.FC<PaywallPageProps> = ({
 									? 'Selected'
 									: subscription.status !== 'trial'
 									? 'Current Plan'
-									: 'Keep'
+									: 'Upgrade Now'
 								: selectionOnly
 								? 'Select Plan'
 								: isOnTrial && subscription?.scheduledPlan === 'basic'
@@ -549,7 +553,7 @@ export const PaywallPage: React.FC<PaywallPageProps> = ({
 									? 'Selected'
 									: subscription.status !== 'trial'
 									? 'Current Plan'
-									: 'Keep'
+									: 'Upgrade Now'
 								: selectionOnly
 								? 'Select Plan'
 								: isOnTrial && subscription?.scheduledPlan === 'professional'

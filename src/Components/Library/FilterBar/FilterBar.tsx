@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
+import { TaskSelect } from '../Select/TaskSelect';
 
 export interface FilterConfig {
 	key: string;
@@ -18,6 +19,7 @@ interface FilterBarProps {
 	onFiltersChange: (filters: FilterValues) => void;
 	className?: string;
 	hideOnMobile?: boolean;
+	useCustomSelect?: boolean;
 }
 
 const FilterContainer = styled.div<{ hideOnMobile?: boolean }>`
@@ -128,6 +130,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
 	onFiltersChange,
 	className,
 	hideOnMobile = false,
+	useCustomSelect = false,
 }) => {
 	const [filterValues, setFilterValues] = useState<FilterValues>({});
 
@@ -177,19 +180,38 @@ export const FilterBar: React.FC<FilterBarProps> = ({
 							/>
 						)}
 						{filter.type === 'select' && (
-							<FilterSelect
-								id={`filter-${filter.key}`}
-								value={filterValues[filter.key] || ''}
-								onChange={(e) =>
-									handleFilterChange(filter.key, e.target.value)
-								}>
-								<option value=''>All {filter.label.toLowerCase()}</option>
-								{filter.options?.map((option) => (
-									<option key={option.value} value={option.value}>
-										{option.label}
-									</option>
-								))}
-							</FilterSelect>
+							<>
+								{useCustomSelect ? (
+									<TaskSelect
+										id={`filter-${filter.key}`}
+										name={filter.key}
+										value={filterValues[filter.key] || ''}
+										onChange={(value) => handleFilterChange(filter.key, value)}
+										placeholder={`All ${filter.label.toLowerCase()}`}
+										options={[
+											{
+												value: '',
+												label: `All ${filter.label.toLowerCase()}`,
+											},
+											...(filter.options || []),
+										]}
+									/>
+								) : (
+									<FilterSelect
+										id={`filter-${filter.key}`}
+										value={filterValues[filter.key] || ''}
+										onChange={(e) =>
+											handleFilterChange(filter.key, e.target.value)
+										}>
+										<option value=''>All {filter.label.toLowerCase()}</option>
+										{filter.options?.map((option) => (
+											<option key={option.value} value={option.value}>
+												{option.label}
+											</option>
+										))}
+									</FilterSelect>
+								)}
+							</>
 						)}
 						{filter.type === 'date' && (
 							<FilterInput

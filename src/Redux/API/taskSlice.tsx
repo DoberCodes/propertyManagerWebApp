@@ -252,7 +252,7 @@ export const taskSlice = apiSlice.injectEndpoints({
 				taskId: string;
 				completionDate: string;
 				completionNotes?: string;
-				completionFile: CompletionFile;
+				completionFile?: CompletionFile;
 				financials?: TaskFinancials;
 				completedBy: string;
 				canSelfComplete?: boolean;

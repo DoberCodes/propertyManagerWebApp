@@ -152,6 +152,36 @@ export const TasksPage = () => {
 		return allProperties.map((p) => ({ value: p.id, label: p.title }));
 	}, [allProperties]);
 
+	const categoryFilterOptions = useMemo(() => {
+		const categories = processedTasks
+			.map((task) => task.category)
+			.filter(
+				(category): category is string =>
+					typeof category === 'string' && category.trim().length > 0,
+			)
+			.map((category) => category.trim());
+
+		return Array.from(new Set(categories)).map((category) => ({
+			value: category,
+			label: category,
+		}));
+	}, [processedTasks]);
+
+	const locationFilterOptions = useMemo(() => {
+		const locations = processedTasks
+			.map((task) => task.location)
+			.filter(
+				(location): location is string =>
+					typeof location === 'string' && location.trim().length > 0,
+			)
+			.map((location) => location.trim());
+
+		return Array.from(new Set(locations)).map((location) => ({
+			value: location,
+			label: location,
+		}));
+	}, [processedTasks]);
+
 	const taskFilters: FilterConfig[] = [
 		{
 			key: 'propertyId',
@@ -167,6 +197,7 @@ export const TasksPage = () => {
 			label: 'Status',
 			type: 'select',
 			options: [
+				{ value: 'Initiated', label: 'Initiated' },
 				{ value: 'Pending', label: 'Pending' },
 				{ value: 'In Progress', label: 'In Progress' },
 				{ value: 'Awaiting Approval', label: 'Awaiting Approval' },
@@ -186,6 +217,18 @@ export const TasksPage = () => {
 				{ value: 'High', label: 'High' },
 				{ value: 'Urgent', label: 'Urgent' },
 			],
+		},
+		{
+			key: 'category',
+			label: 'Category',
+			type: 'select',
+			options: categoryFilterOptions,
+		},
+		{
+			key: 'location',
+			label: 'Location',
+			type: 'select',
+			options: locationFilterOptions,
 		},
 		{
 			key: 'assignedTo',
@@ -234,6 +277,8 @@ export const TasksPage = () => {
 				{ field: 'propertyId', filterKey: 'propertyId' },
 				{ field: 'status', filterKey: 'status' },
 				{ field: 'priority', filterKey: 'priority' },
+				{ field: 'category', filterKey: 'category' },
+				{ field: 'location', filterKey: 'location' },
 				{
 					field: 'assignedTo',
 					filterKey: 'assignedTo',
@@ -254,7 +299,7 @@ export const TasksPage = () => {
 			}
 
 			if (!task.dueDate) {
-				return false;
+				return !dueDateStart && !dueDateEnd;
 			}
 
 			const dueDate = new Date(task.dueDate);
@@ -321,6 +366,8 @@ export const TasksPage = () => {
 			),
 		},
 		{ header: 'Priority', key: 'priority' },
+		{ header: 'Category', key: 'category' },
+		{ header: 'Location', key: 'location' },
 		{
 			header: 'Assigned To',
 			key: 'assignedTo',
@@ -329,7 +376,11 @@ export const TasksPage = () => {
 					? task.assignedTo.name
 					: task.assignedTo || 'Unassigned',
 		},
-		{ header: 'Due Date', key: 'dueDate' },
+		{
+			header: 'Due Date',
+			key: 'dueDate',
+			render: (_unused: any, task: any) => task.dueDate || 'ASAP',
+		},
 		{ header: 'Property', key: 'propertyTitle' },
 	];
 
@@ -471,7 +522,11 @@ export const TasksPage = () => {
 				</div>
 				{showFilters && (
 					<>
-						<FilterBar filters={taskFilters} onFiltersChange={setFilters} />
+						<FilterBar
+							filters={taskFilters}
+							onFiltersChange={setFilters}
+							useCustomSelect={true}
+						/>
 						{/* desktop add button below filter bar */}
 					</>
 				)}

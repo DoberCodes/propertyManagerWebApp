@@ -21,7 +21,7 @@ import {
 } from '../../../Components/Library/InfoCards/InfoCardStyles';
 import { WarningDialog } from '../../../Components/Library/WarningDialog';
 import { DeviceModal } from '../../../Components/Library/Modal';
-import { Property } from '../../../types/Property.types';
+import { Property, DeviceServiceItem } from '../../../types/Property.types';
 import {
 	MobileCarouselContainer,
 	MobileCarouselViewport,
@@ -43,6 +43,8 @@ interface DeviceFormData {
 	type: string;
 	brand: string;
 	model: string;
+	serialNumber?: string;
+	serviceItems?: DeviceServiceItem[];
 	installationDate: string;
 	status: 'Active' | 'Maintenance' | 'Broken' | 'Decommissioned';
 	location: {
@@ -78,6 +80,8 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property }) => {
 		type: '',
 		brand: '',
 		model: '',
+		serialNumber: '',
+		serviceItems: [],
 		installationDate: '',
 		status: 'Active',
 		location: {
@@ -157,6 +161,8 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property }) => {
 			type: '',
 			brand: '',
 			model: '',
+			serialNumber: '',
+			serviceItems: [],
 			installationDate: '',
 			status: 'Active',
 			location: {
@@ -180,6 +186,8 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property }) => {
 			type: device.type || '',
 			brand: device.brand || '',
 			model: device.model || '',
+			serialNumber: device.serialNumber || '',
+			serviceItems: device.serviceItems || [],
 			installationDate: device.installationDate || '',
 			status: device.status || 'Active',
 			location: device.location || { propertyId: property.id },
@@ -418,6 +426,9 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property }) => {
 				deviceFormData={deviceFormData}
 				onFormChange={(e) =>
 					handleFormChange(e.currentTarget.name, e.currentTarget.value)
+				}
+				onServiceItemsChange={(items) =>
+					handleFormChange('serviceItems', items)
 				}
 				property={property}
 			/>

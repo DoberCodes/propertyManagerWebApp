@@ -2,30 +2,30 @@
   "cookies": [
     {
       "name": "m",
-      "value": "53c83d1e-e627-46d2-9e9c-66639207c53f2fb9cf",
+      "value": "cd851db1-7712-4237-8c2d-6e62a792ac0e562a75",
       "domain": "m.stripe.com",
       "path": "/",
-      "expires": 1807583380.428444,
+      "expires": 1809378451.517274,
       "httpOnly": true,
       "secure": true,
       "sameSite": "None"
     },
     {
       "name": "__stripe_mid",
-      "value": "aaaf654c-86c1-4aab-84d5-d845a779aa5f477234",
+      "value": "83e0a88b-c04c-46bb-8dcc-7e4734d39aaf8da842",
       "domain": "localhost",
       "path": "/",
-      "expires": 1804559377,
+      "expires": 1806354450,
       "httpOnly": false,
       "secure": false,
       "sameSite": "Strict"
     },
     {
       "name": "__stripe_sid",
-      "value": "a8d0ea8c-945c-4077-9a8c-1796571e050e76f9d3",
+      "value": "f5638724-5d6b-4a1d-a0fc-6a9096cefad0a5cadd",
       "domain": "localhost",
       "path": "/",
-      "expires": 1773025177,
+      "expires": 1774820250,
       "httpOnly": false,
       "secure": false,
       "sameSite": "Strict"
@@ -36,16 +36,12 @@
       "origin": "http://localhost:3000",
       "localStorage": [
         {
-          "name": "loggedUser",
-          "value": "{\"token\":\"firebase-token-pQKZHowbmkd8G1ITfzYqlthmwUG3\",\"user\":{\"email\":\"property@example.com\",\"role\":\"property_manager\",\"isAccountOwner\":true,\"createdAt\":\"2026-02-11T20:48:46.835Z\",\"title\":\"Property Manager\",\"id\":\"pQKZHowbmkd8G1ITfzYqlthmwUG3\",\"pushTokenUpdatedAt\":\"2026-02-14T07:06:36.864Z\",\"onboardingCompleted\":true,\"pushToken\":\"eAIGxFuZTriruLT4HERaoM:APA91bFYNjzfq0aCURgriN9LwqTYPjIPuaJ6ICwuaJgwVGlhH4czj9f7RusbEqhK2GuxrTC4Fy-HiGhiIVbcnoDD9pwNHKBCnwIIEGlqFWOZb0eYqwgXZ3A\",\"lastName\":\"Property\",\"updatedAt\":\"2026-02-27T03:25:37.066Z\",\"image\":\"https://ui-avatars.com/api/?name=Tom+Property&background=22c55e&color=fff\",\"accountId\":\"pQKZHowbmkd8G1ITfzYqlthmwUG3\",\"firstName\":\"Tom\",\"subscription\":{\"stripeCustomerId\":\"cus_U1tEbcy7O4xDO5\",\"status\":\"active\",\"plan\":\"professional\",\"stripeSubscriptionId\":\"sub_1T4wHxLuymaBaZS7EvbotZzK\",\"trialEndsAt\":null,\"currentPeriodEnd\":1772080501,\"currentPeriodStart\":1772080501,\"updatedAt\":\"2026-02-26T05:13:49.597Z\",\"createdAt\":\"2026-02-26T05:13:49.597Z\"},\"legalAgreement\":{\"agreedToTerms\":true,\"agreedVersion\":\"1.3\",\"agreedAt\":\"2026-02-26T17:48:15.217Z\",\"documents\":{\"privacyPolicy\":{\"accepted\":true,\"agreedAt\":\"2026-02-26T17:48:15.217Z\",\"agreedVersion\":\"1.3\",\"title\":\"Privacy Policy\",\"fileName\":\"privacy-policy\"},\"maintenanceDisclaimer\":{\"accepted\":true,\"agreedVersion\":\"1.3\",\"agreedAt\":\"2026-02-26T17:48:15.217Z\",\"title\":\"Maintenance Disclaimer\",\"fileName\":\"maintenance-disclaimer\"},\"eula\":{\"fileName\":\"eula\",\"title\":\"End User License Agreement (EULA)\",\"agreedVersion\":\"1.3\",\"agreedAt\":\"2026-02-26T17:48:15.217Z\",\"accepted\":true},\"subscriptionTerms\":{\"fileName\":\"subscription-terms\",\"title\":\"Subscription Terms\",\"agreedVersion\":\"1.3\",\"agreedAt\":\"2026-02-26T17:48:15.217Z\",\"accepted\":true},\"termsOfService\":{\"agreedVersion\":\"1.3\",\"agreedAt\":\"2026-02-26T17:48:15.217Z\",\"accepted\":true,\"fileName\":\"terms-of-service\",\"title\":\"Terms of Service\"}}},\"notificationPreferences\":{\"types\":{\"share_invitation_accepted\":true,\"task_created\":true,\"share_invitation\":true,\"team_member_updated\":true,\"task_assigned\":true,\"task_updated\":true,\"team_group_created\":true,\"property_updated\":true,\"team_group_updated\":true,\"property_group_updated\":true,\"team_group_deleted\":true,\"property_added\":true,\"property_group_deleted\":true,\"property_shared\":true,\"maintenance_request_created\":true,\"team_member_removed\":true,\"task_deleted\":true,\"legal_update\":true,\"property_deleted\":true,\"team_member_added\":true,\"task_overdue\":true,\"task_reminder\":true,\"maintenance_request\":true,\"property_group_created\":true},\"enabled\":true}}}"
-        },
-        {
           "name": "firebase:authUser:AIzaSyAspPUj4ErpPSjOteHsbRqFfCr4KtWx25k:[DEFAULT]",
-          "value": "{\"uid\":\"pQKZHowbmkd8G1ITfzYqlthmwUG3\",\"email\":\"property@example.com\",\"emailVerified\":false,\"displayName\":\"Tom Property\",\"isAnonymous\":false,\"providerData\":[{\"providerId\":\"password\",\"uid\":\"property@example.com\",\"displayName\":\"Tom Property\",\"email\":\"property@example.com\",\"phoneNumber\":null,\"photoURL\":null}],\"stsTokenManager\":{\"refreshToken\":\"AMf-vBzwfnxWyHj9_x1YcqXU7gpSuG4IFmPrV6LCG65R2SbQTRV9kSp2PiYIu-8sYlxRx_IVpLOMEkplVtt8L5Ko7DZ5gvh5TdbcymQgWc-gb33kRk3mXL0kEwBdcuj6f0hZ3Axv6gL4niRmdK6Pl5EA3JDb2CGk3bx-jXgQH4XzxGQTlwAH0CnC0vQuC8BQCSuhtvqpYySZ2aEOg0-m1tcXnFAJrXK5dgAoFmArapr1ejbSlno_vW26XQt3Rt0aGDYPUQPI8JJT\",\"accessToken\":\"eyJhbGciOiJSUzI1NiIsImtpZCI6IjJhYWM0MWY3NTA4OGZlOGUwOWEwN2Q0NDRjZmQ2YjhjZTQ4MTJhMzEiLCJ0eXAiOiJKV1QifQ.eyJuYW1lIjoiVG9tIFByb3BlcnR5IiwiaXNzIjoiaHR0cHM6Ly9zZWN1cmV0b2tlbi5nb29nbGUuY29tL215cHJvcGVydHltYW5hZ2VyLWNkYTQyIiwiYXVkIjoibXlwcm9wZXJ0eW1hbmFnZXItY2RhNDIiLCJhdXRoX3RpbWUiOjE3NzMwMjMzNzQsInVzZXJfaWQiOiJwUUtaSG93Ym1rZDhHMUlUZnpZcWx0aG13VUczIiwic3ViIjoicFFLWkhvd2Jta2Q4RzFJVGZ6WXFsdGhtd1VHMyIsImlhdCI6MTc3MzAyMzM3NCwiZXhwIjoxNzczMDI2OTc0LCJlbWFpbCI6InByb3BlcnR5QGV4YW1wbGUuY29tIiwiZW1haWxfdmVyaWZpZWQiOmZhbHNlLCJmaXJlYmFzZSI6eyJpZGVudGl0aWVzIjp7ImVtYWlsIjpbInByb3BlcnR5QGV4YW1wbGUuY29tIl19LCJzaWduX2luX3Byb3ZpZGVyIjoicGFzc3dvcmQifX0.b3epnXJImZPwmSR8lLJ0rcsZBEMOUsPw2BR77hfFxlSARpb2t4c-ArOMKNela8CrVyWUbaVwjaay_6-SpFV5sJvfYsrS0ZYbmtINmn9gULPzktOSm9ASmxyvzEOILquOB0PPn6mrkDjPYTsQ5UtxDhthjfW4ezcB3CZwZhNPQpd8NI_QJO4gNlNF0X6zEScMl4fjaZ7h4mme5Or1yHQ1vAlKGmAVVslWUB609kUM6zdYx3slV0i91AnX9vxtPZnVYxhMFsNlKq-J4YePjXNsdEwlDrm8aKa8tbIaG8Gq-e0B3Kop7SKpbxepEyhthxlzPX6Cl35JyqNorTXPx7V9Fw\",\"expirationTime\":1773026974268},\"createdAt\":\"1770842918825\",\"lastLoginAt\":\"1773023371036\",\"apiKey\":\"AIzaSyAspPUj4ErpPSjOteHsbRqFfCr4KtWx25k\",\"appName\":\"[DEFAULT]\"}"
+          "value": "{\"uid\":\"00ekpoy4rXSHJLBwaYWU3cH9tY12\",\"email\":\"austin.dober+testhome@gmail.com\",\"emailVerified\":false,\"displayName\":\"Austin Dober\",\"isAnonymous\":false,\"providerData\":[{\"providerId\":\"password\",\"uid\":\"austin.dober+testhome@gmail.com\",\"displayName\":\"Austin Dober\",\"email\":\"austin.dober+testhome@gmail.com\",\"phoneNumber\":null,\"photoURL\":null}],\"stsTokenManager\":{\"refreshToken\":\"AMf-vBx9hWQx0oRVnxOS3R_7503TO9nmqk8GE_b0e356SLj7FuW-w3Xr9GSJ8k2Mh375eHAN7wYO_Vg0iqngbUv3xQsz-DR7Bv56tdZZ4NC3XLzVHcl9MRcyZeANbNGuyjlysL9jndF4AcvFRG39zajIHNjQonBj-V39tsm-VVjZ0leM0lu4pb0WVdXriU6lu-k1KyqnngwwQNeAhYpkkvIsCta0iogWaCD06gRJR5PjqguwKE_BovYhgaNEl9R_9CxUQwKh25K5ttlR5rc-1wWy3KkUcaWo-Q\",\"accessToken\":\"eyJhbGciOiJSUzI1NiIsImtpZCI6IjM3MzAwNzY5YTA3ZTA1MTE2ZjdlNTEzOGZhOTA5MzY4NWVlYmMyNDAiLCJ0eXAiOiJKV1QifQ.eyJuYW1lIjoiQXVzdGluIERvYmVyIiwiaXNzIjoiaHR0cHM6Ly9zZWN1cmV0b2tlbi5nb29nbGUuY29tL215cHJvcGVydHltYW5hZ2VyLWNkYTQyIiwiYXVkIjoibXlwcm9wZXJ0eW1hbmFnZXItY2RhNDIiLCJhdXRoX3RpbWUiOjE3NzQ4MTg0NDEsInVzZXJfaWQiOiIwMGVrcG95NHJYU0hKTEJ3YVlXVTNjSDl0WTEyIiwic3ViIjoiMDBla3BveTRyWFNISkxCd2FZV1UzY0g5dFkxMiIsImlhdCI6MTc3NDgxODQ0MSwiZXhwIjoxNzc0ODIyMDQxLCJlbWFpbCI6ImF1c3Rpbi5kb2Jlcit0ZXN0aG9tZUBnbWFpbC5jb20iLCJlbWFpbF92ZXJpZmllZCI6ZmFsc2UsImZpcmViYXNlIjp7ImlkZW50aXRpZXMiOnsiZW1haWwiOlsiYXVzdGluLmRvYmVyK3Rlc3Rob21lQGdtYWlsLmNvbSJdfSwic2lnbl9pbl9wcm92aWRlciI6InBhc3N3b3JkIn19.oMWRG8IQchA2LFixI0w0qtEfiYWnXQgzM8vfUc8Z3T_fVj5fH4E2XE2hUzIKp4-qLqujQRfoOpbXIGFTkRkDohu0rUnsNeLDNF2cs49RVFsXLdR-LQBYI-wXd85jAgMekmu8WHPMIt8iKpR2UkAxxpNTSnobZmtfmQHTI0gGues11DfZkPy-GClr2KUF5tQ4AsbITdG8kf85XOlMPUBLLtHiMDS2Kqwuj68Y--Rt8rvLUmWM1tsN-KCNzEIHuneF79PT5YoOOwgrIkKUnZC7KedfYwFD3t70J1kQ0VFiYluOPWsxvxRqr39DvmZZ8yjZ3XfI1jVpWT_b7KPEQvivsA\",\"expirationTime\":1774822040278},\"createdAt\":\"1774807587563\",\"lastLoginAt\":\"1774818437655\",\"apiKey\":\"AIzaSyAspPUj4ErpPSjOteHsbRqFfCr4KtWx25k\",\"appName\":\"[DEFAULT]\"}"
         },
         {
-          "name": "user_pQKZHowbmkd8G1ITfzYqlthmwUG3_favoriteProperties",
-          "value": "[{\"id\":\"prop-commercial-1\",\"title\":\"Downtown Business Center\",\"slug\":\"downtown-business-center\",\"timestamp\":1770869037726},{\"id\":\"prop-single-1\",\"title\":\"Oakwood Estate\",\"slug\":\"oakwood-estate\",\"timestamp\":1770869036629},{\"id\":\"prop-residential-1\",\"title\":\"Sunset Gardens Apartments\",\"slug\":\"sunset-gardens-apartments\",\"timestamp\":1770869033878}]"
+          "name": "loggedUser",
+          "value": "{\"token\":\"firebase-token-00ekpoy4rXSHJLBwaYWU3cH9tY12\",\"user\":{\"firstName\":\"Austin\",\"title\":\"Administrator\",\"isAccountOwner\":true,\"updatedAt\":\"2026-03-29T18:08:21.745Z\",\"role\":\"admin\",\"subscription\":{\"status\":\"trial\",\"plan\":\"homeowner\",\"currentPeriodStart\":1774807594,\"currentPeriodEnd\":1776017195,\"trialEndsAt\":1776017195,\"stripeCustomerId\":\"cus_UErSQ31cppHa53\",\"stripeSubscriptionId\":\"sub_1TGNjLLuymaBaZS7XlKehvmL\"},\"email\":\"austin.dober+testhome@gmail.com\",\"image\":\"https://ui-avatars.com/api/?name=Austin+Dober&background=22c55e&color=fff\",\"createdAt\":\"2026-03-29T18:06:28.777Z\",\"legalAgreement\":{\"agreedAt\":\"2026-03-29T18:06:26.830Z\",\"agreedVersion\":\"1.3\",\"documents\":{\"termsOfService\":{\"title\":\"Terms of Service\",\"accepted\":true,\"agreedAt\":\"2026-03-29T18:06:26.830Z\",\"agreedVersion\":\"1.3\",\"fileName\":\"terms-of-service\"},\"eula\":{\"fileName\":\"eula\",\"agreedVersion\":\"1.3\",\"agreedAt\":\"2026-03-29T18:06:26.830Z\",\"accepted\":true,\"title\":\"End User License Agreement (EULA)\"},\"subscriptionTerms\":{\"accepted\":true,\"agreedAt\":\"2026-03-29T18:06:26.830Z\",\"fileName\":\"subscription-terms\",\"agreedVersion\":\"1.3\",\"title\":\"Subscription Terms\"},\"privacyPolicy\":{\"title\":\"Privacy Policy\",\"accepted\":true,\"agreedAt\":\"2026-03-29T18:06:26.830Z\",\"fileName\":\"privacy-policy\",\"agreedVersion\":\"1.3\"},\"maintenanceDisclaimer\":{\"agreedVersion\":\"1.3\",\"fileName\":\"maintenance-disclaimer\",\"agreedAt\":\"2026-03-29T18:06:26.830Z\",\"accepted\":true,\"title\":\"Maintenance Disclaimer\"}},\"agreedToTerms\":true},\"onboardingCompleted\":true,\"accountId\":\"00ekpoy4rXSHJLBwaYWU3cH9tY12\",\"id\":\"00ekpoy4rXSHJLBwaYWU3cH9tY12\",\"lastName\":\"Dober\"}}"
         }
       ]
     }

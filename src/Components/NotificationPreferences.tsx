@@ -486,7 +486,7 @@ export const NotificationPreferences: React.FC<
 												<TaskInfo>
 													<TaskTitle>{task.title}</TaskTitle>
 													<TaskDetails>
-														Due: {new Date(task.dueDate).toLocaleDateString()}
+															Due: {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'ASAP'}
 														<TaskProperty>{task.property}</TaskProperty>
 													</TaskDetails>
 												</TaskInfo>

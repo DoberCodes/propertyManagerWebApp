@@ -242,6 +242,94 @@ const AccountButton = styled.button<{ disabled?: boolean }>`
 	}
 `;
 
+const FamilyMembersList = styled.div`
+	margin-bottom: 16px;
+`;
+
+const FamilyMembersLabel = styled.h4`
+	margin-bottom: 8px;
+	font-size: 14px;
+	font-weight: 600;
+	color: #374151;
+`;
+
+const FamilyMemberCard = styled.div`
+	display: flex;
+	justify-content: space-between;
+	align-items: flex-start;
+	flex-wrap: wrap;
+	gap: 12px;
+	padding: 12px;
+	background: #ffffff;
+	border: 1px solid #e5e7eb;
+	border-radius: 10px;
+	margin-bottom: 10px;
+	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+`;
+
+const FamilyMemberInfo = styled.div`
+	flex: 1 1 260px;
+	min-width: 0;
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	row-gap: 4px;
+	column-gap: 8px;
+`;
+
+const FamilyMemberName = styled.span`
+	font-weight: 600;
+	color: #111827;
+`;
+
+const FamilyMemberEmail = styled.span`
+	color: #6b7280;
+	word-break: break-word;
+	overflow-wrap: anywhere;
+`;
+
+const FamilyMemberRole = styled.span`
+	color: #374151;
+	font-size: 12px;
+	font-weight: 700;
+	text-transform: uppercase;
+	padding: 2px 8px;
+	border-radius: 999px;
+	background: #eef2ff;
+`;
+
+const FamilyMemberActions = styled.div`
+	display: flex;
+	gap: 8px;
+	flex-wrap: wrap;
+	justify-content: flex-end;
+	flex: 1 1 240px;
+`;
+
+const FamilyMemberActionButton = styled.button<{ variant: 'edit' | 'reset' | 'remove' }>`
+	border: none;
+	border-radius: 6px;
+	padding: 6px 10px;
+	font-size: 12px;
+	font-weight: 600;
+	line-height: 1.2;
+	cursor: pointer;
+	white-space: normal;
+	color: #ffffff;
+	background: ${({ variant }) => {
+		switch (variant) {
+			case 'edit':
+				return '#10b981';
+			case 'reset':
+				return '#3b82f6';
+			case 'remove':
+				return '#ef4444';
+			default:
+				return '#3b82f6';
+		}
+	}};
+`;
+
 const DeleteAccountButton = styled(AccountButton)`
 	background: #dc2626;
 	&:hover:not(:disabled) {
@@ -938,95 +1026,44 @@ export const SettingsPage: React.FC = () => {
 						)}
 
 						{nonOwnerFamilyMembers.length > 0 && (
-							<div style={{ marginBottom: '16px' }}>
-								<h4
-									style={{
-										marginBottom: '8px',
-										fontSize: '14px',
-										fontWeight: '600',
-										color: '#374151',
-									}}>
-									Current Family Members:
-								</h4>
+							<FamilyMembersList>
+								<FamilyMembersLabel>Current Family Members:</FamilyMembersLabel>
 								{nonOwnerFamilyMembers.map((member) => (
-									<div
-										key={member.id}
-										style={{
-											display: 'flex',
-											justifyContent: 'space-between',
-											alignItems: 'center',
-											padding: '8px 12px',
-											background: '#f9fafb',
-											borderRadius: '6px',
-											marginBottom: '8px',
-										}}>
-										<div>
-											<span style={{ fontWeight: '500' }}>
+									<FamilyMemberCard key={member.id}>
+										<FamilyMemberInfo>
+											<FamilyMemberName>
 												{member.firstName} {member.lastName}
-											</span>
-											<span style={{ color: '#6b7280', marginLeft: '8px' }}>
-												{member.email}
-											</span>
-											<span
-												style={{
-													color: '#374151',
-													marginLeft: '8px',
-													fontSize: '12px',
-													fontWeight: 600,
-													textTransform: 'uppercase',
-												}}>
+											</FamilyMemberName>
+											<FamilyMemberEmail>{member.email}</FamilyMemberEmail>
+											<FamilyMemberRole>
 												{String(member.role || 'member')}
-											</span>
-										</div>
-										<div style={{ display: 'flex', gap: '8px' }}>
+											</FamilyMemberRole>
+										</FamilyMemberInfo>
+										<FamilyMemberActions>
 											{member.id !== currentUser?.accountId && (
-												<button
+												<FamilyMemberActionButton
 													type='button'
-													onClick={() => handleOpenEditFamilyMember(member)}
-													style={{
-														background: '#10b981',
-														color: 'white',
-														border: 'none',
-														borderRadius: '4px',
-														padding: '4px 8px',
-														fontSize: '12px',
-														cursor: 'pointer',
-													}}>
+													variant='edit'
+													onClick={() => handleOpenEditFamilyMember(member)}>
 													Edit
-												</button>
+												</FamilyMemberActionButton>
 											)}
-											<button
+											<FamilyMemberActionButton
 												type='button'
-												onClick={() => handleResendPasswordSetup(member.id)}
-												style={{
-													background: '#3b82f6',
-													color: 'white',
-													border: 'none',
-													borderRadius: '4px',
-													padding: '4px 8px',
-													fontSize: '12px',
-													cursor: 'pointer',
-												}}>
+												variant='reset'
+												onClick={() => handleResendPasswordSetup(member.id)}>
 												Resend Password Setup
-											</button>
-											<button
+											</FamilyMemberActionButton>
+											<FamilyMemberActionButton
 												type='button'
-												onClick={() => handleRemoveFamilyMember(member.id)}
-												style={{
-													background: '#ef4444',
-													color: 'white',
-													border: 'none',
-													borderRadius: '4px',
-													padding: '4px 8px',
-													fontSize: '12px',
-													cursor: 'pointer',
-												}}>
+												variant='remove'
+												onClick={() => handleRemoveFamilyMember(member.id)}>
 												Remove
-											</button>
-										</div>
-									</div>
+											</FamilyMemberActionButton>
+										</FamilyMemberActions>
+									</FamilyMemberCard>
 								))}
-							</div>
+							</FamilyMembersList>
 						)}
 
 						{canAddMoreFamilyMembers && (

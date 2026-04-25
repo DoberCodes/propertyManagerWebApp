@@ -117,6 +117,7 @@ export const MobileTaskCarousel: React.FC<MobileTaskCarouselProps> = ({
 				return '#10b981';
 			case 'in progress':
 				return '#3b82f6';
+			case 'initiated':
 			case 'pending':
 				return '#f59e0b';
 			case 'awaiting approval':
@@ -209,7 +210,7 @@ export const MobileTaskCarousel: React.FC<MobileTaskCarouselProps> = ({
 															: getStatusColor(task.status),
 													fontWeight: task.status === 'Overdue' ? 700 : undefined,
 												}}>
-												{task.status || 'Pending'}
+												{task.status || 'Initiated'}
 											</MetaValue>
 										</MetaItem>
 
@@ -323,6 +324,7 @@ export const MobileTaskCarousel: React.FC<MobileTaskCarouselProps> = ({
 						if (updated && onTaskUpdate) onTaskUpdate(updated.id, updated);
 					}}
 					statusOptions={[
+						'Initiated',
 						'Pending',
 						'In Progress',
 						'Awaiting Approval',

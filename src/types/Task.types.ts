@@ -5,6 +5,7 @@
 
 // Redux Task statuses (as defined in Redux store)
 export type ReduxTaskStatus =
+	| 'Initiated'
 	| 'Pending'
 	| 'In Progress'
 	| 'Awaiting Approval'
@@ -28,6 +29,7 @@ export type RecurrenceCustomUnit = 'days' | 'weeks' | 'months' | 'years';
 
 // Extended task statuses used throughout the app
 export type TaskStatus =
+	| 'Initiated'
 	| 'Pending'
 	| 'In Progress'
 	| 'Awaiting Approval'
@@ -67,6 +69,9 @@ export interface Task {
 	id: string;
 	userId: string; // Owner of the task
 	propertyId: string;
+	requiresWorkOrder?: boolean;
+	category?: string;
+	location?: string;
 	enableNotifications?: boolean;
 	notifications?: TaskNotification[];
 	description?: string;
@@ -76,6 +81,7 @@ export interface Task {
 	title: string;
 	dueDate: string;
 	status:
+		| 'Initiated'
 		| 'Pending'
 		| 'In Progress'
 		| 'Awaiting Approval'
@@ -133,7 +139,10 @@ export interface TaskFormData {
 	title: string;
 	dueDate: string;
 	status: TaskStatus;
+	requiresWorkOrder?: boolean;
 	notes: string;
+	category?: string;
+	location?: string;
 	priority?: TaskPriority;
 	assignee?: string;
 	assignedTo?: string;

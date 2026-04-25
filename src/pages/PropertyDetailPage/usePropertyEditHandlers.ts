@@ -12,6 +12,8 @@ export const usePropertyEditHandlers = (): PropertyEditHandlers => {
 		type: '',
 		brand: '',
 		model: '',
+		serialNumber: '',
+		serviceItems: [],
 		installationDate: '',
 	});
 	const [showDeviceDialog, setShowDeviceDialog] = useState(false);
@@ -24,7 +26,9 @@ export const usePropertyEditHandlers = (): PropertyEditHandlers => {
 	};
 
 	const handleDeviceFormChange = (
-		e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
+		e: React.ChangeEvent<
+			HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+		>,
 	) => {
 		const { name, value } = e.target;
 		setDeviceFormData((prev) => ({

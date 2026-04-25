@@ -2,8 +2,9 @@ import { useSelector } from 'react-redux';
 import { useMemo } from 'react';
 import { RootState } from '../../../Redux/store';
 import GenericModal from './GenericModal';
-import { FormGroup, FormLabel, FormSelect } from './ModalStyles';
+import { FormGroup, FormLabel } from './ModalStyles';
 import React, { useCallback, useEffect, useState } from 'react';
+import { TaskSelect } from '../Select/TaskSelect';
 import {
 	useGetUserByIdQuery,
 } from '../../../Redux/API/userSlice';
@@ -220,23 +221,24 @@ export const TaskAssignModal = (props: TaskAssignModalProps) => {
 			secondaryButtonLabel='Cancel'>
 			<FormGroup>
 				<FormLabel>Assign To</FormLabel>
-				<FormSelect
+				<TaskSelect
 					value={selectedAssignee?.id || ''}
-					onChange={(e) => {
-						const selectedId = e.target.value;
+					onChange={(selectedId) => {
 						setSelectedAssignee(
 							fetchAssignees().find(
 								(assignee) => assignee.id === selectedId,
 							) || { id: '', name: '', email: '' },
 						);
-					}}>
-					<option value=''>Select a user...</option>
-					{fetchAssignees().map((assignee) => (
-						<option key={assignee.id} value={assignee.id}>
-							{assignee.name}
-						</option>
-					))}
-				</FormSelect>
+					}}
+					placeholder='Select a user...'
+					options={[
+						{ value: '', label: 'Select a user...' },
+						...fetchAssignees().map((assignee) => ({
+							value: assignee.id,
+							label: assignee.name,
+						})),
+					]}
+				/>
 			</FormGroup>
 		</GenericModal>
 	);

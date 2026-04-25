@@ -32,7 +32,9 @@ export interface PropertyEditHandlers {
 	setShowDeviceDialog: (show: boolean) => void;
 	handlePropertyFieldChange: (field: string, value: string) => void;
 	handleDeviceFormChange: (
-		e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
+		e: React.ChangeEvent<
+			HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+		>,
 	) => void;
 	handleDeviceFormSubmit: (e: React.FormEvent) => void;
 	handleTitleEdit: (

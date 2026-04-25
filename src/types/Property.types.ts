@@ -121,6 +121,13 @@ export interface Suite {
 	createdAt?: string;
 	updatedAt?: string;
 }
+export interface DeviceServiceItem {
+	id: string;
+	category: string;
+	name: string;
+	details?: string;
+}
+
 export interface Device {
 	id: string;
 	userId: string; // Owner of the device
@@ -128,6 +135,10 @@ export interface Device {
 	brand?: string;
 	model?: string;
 	serialNumber?: string;
+	partNumber?: string;
+	filterSize?: string;
+	specNotes?: string;
+	serviceItems?: DeviceServiceItem[];
 	installationDate?: string;
 	location: {
 		propertyId: string;

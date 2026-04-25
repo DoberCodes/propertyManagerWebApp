@@ -1,12 +1,18 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, {
+	useState,
+	useEffect,
+	useCallback,
+	useMemo,
+	useRef,
+} from 'react';
 import { useDispatch } from 'react-redux';
+import styled from 'styled-components';
 import { GenericModal } from './GenericModal';
 import {
 	FormGroup,
 	FormGrid,
 	FormLabel,
 	FormInput,
-	FormSelect,
 	FormTextarea,
 	FormGroupFull,
 	ModalTabContainer,
@@ -14,6 +20,7 @@ import {
 	ModalTabContent,
 } from './ModalStyles';
 import { MultiSelect } from '../index';
+import { TaskSelect } from '../Select/TaskSelect';
 import {
 	TaskNotification,
 	TaskFinancials,
@@ -41,11 +48,142 @@ import {
 	toNumberOrUndefined,
 	formatCurrency,
 } from '../../../utils/financialUtils';
+import { COLORS } from '../../../constants/colors';
+import { Device } from '../../../types/Property.types';
+
+const LINKED_DEVICE_NOTES_START = '--- Linked Device Details ---';
+const LINKED_DEVICE_NOTES_END = '--- End Linked Device Details ---';
+
+const escapeForRegex = (value: string) =>
+	value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const stripLinkedDeviceNotes = (notes: string) => {
+	if (!notes) return '';
+	const markerPattern = new RegExp(
+		`${escapeForRegex(LINKED_DEVICE_NOTES_START)}[\\s\\S]*?${escapeForRegex(LINKED_DEVICE_NOTES_END)}`,
+		'g',
+	);
+	return notes.replace(markerPattern, '').trim();
+};
+
+const buildLinkedDeviceDetailsSection = (devices: Device[]) => {
+	if (!devices.length) return '';
+
+	const lines: string[] = [
+		LINKED_DEVICE_NOTES_START,
+		'Use these linked device details while performing this task:',
+		'',
+	];
+
+	devices.forEach((device, index) => {
+		const displayName =
+			(device.brand && device.model
+				? `${device.brand} ${device.model}`
+				: device.model || device.brand || device.type || `Device ${index + 1}`) +
+			(device.type ? ` (${device.type})` : '');
+		const serviceItems = device.serviceItems || [];
+
+		lines.push(`${index + 1}. ${displayName}`);
+		if (device.serialNumber) lines.push(`   Serial Number: ${device.serialNumber}`);
+
+		if (serviceItems.length > 0) {
+			serviceItems.forEach((item, itemIndex) => {
+				lines.push(
+					`   ${itemIndex + 1}) [${item.category}] ${item.name}${
+						item.details ? ` - ${item.details}` : ''
+					}`,
+				);
+			});
+		} else {
+			// Backward compatibility for older devices that still use scalar fields.
+			if (device.partNumber) lines.push(`   Part Number: ${device.partNumber}`);
+			if (device.filterSize) lines.push(`   Filter Size: ${device.filterSize}`);
+			if (device.specNotes) lines.push(`   Service Notes: ${device.specNotes}`);
+		}
+
+		if (
+			!device.serialNumber &&
+			serviceItems.length === 0 &&
+			!device.partNumber &&
+			!device.filterSize &&
+			!device.specNotes
+		) {
+			lines.push('   No additional device specs saved yet.');
+		}
+		lines.push('');
+	});
+
+	lines.push(LINKED_DEVICE_NOTES_END);
+	return lines.join('\n').trim();
+};
+
+const mergeNotesWithLinkedDeviceDetails = (
+	notes: string,
+	linkedDeviceSection: string,
+) => {
+	const baseNotes = stripLinkedDeviceNotes(notes || '');
+	if (!linkedDeviceSection) return baseNotes;
+	return baseNotes
+		? `${baseNotes}\n\n${linkedDeviceSection}`
+		: linkedDeviceSection;
+};
+
+const SuggestionInputWrap = styled.div`
+	position: relative;
+`;
+
+const SuggestionDropdown = styled.div`
+	position: absolute;
+	top: calc(100% + 6px);
+	left: 0;
+	right: 0;
+	background: #ffffff;
+	border: 1px solid ${COLORS.gray200};
+	border-radius: 10px;
+	box-shadow: 0 10px 30px rgba(15, 23, 42, 0.14);
+	max-height: 220px;
+	overflow-y: auto;
+	z-index: 30;
+`;
+
+const SuggestionItem = styled.button<{ $active?: boolean }>`
+	width: 100%;
+	text-align: left;
+	padding: 0.6rem 0.75rem;
+	border: none;
+	border-bottom: 1px solid ${COLORS.gray100};
+	background: ${(props) => (props.$active ? COLORS.primaryLight : '#ffffff')};
+	color: ${(props) => (props.$active ? COLORS.primary : COLORS.textPrimary)};
+	cursor: pointer;
+	font-size: 0.9rem;
+
+	&:last-child {
+		border-bottom: none;
+	}
+
+	&:hover {
+		background: ${COLORS.primaryLight};
+		color: ${COLORS.primary};
+	}
+`;
+
+const CheckboxRow = styled.label`
+	display: inline-flex;
+	align-items: center;
+	gap: 0.5rem;
+	margin-top: 0.45rem;
+	font-size: 0.88rem;
+	color: ${COLORS.textSecondary};
+	cursor: pointer;
+`;
 
 interface TaskFormData {
 	title: string;
 	dueDate: string;
 	status: string;
+	requiresWorkOrder?: boolean;
+	category?: string;
+	location?: string;
 	priority?: string;
 	notes: string;
 	assignedTo?: string;
@@ -95,6 +233,7 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 	onClose,
 	onSaved,
 	statusOptions = [
+		'Initiated',
 		'Pending',
 		'In Progress',
 		'Awaiting Approval',
@@ -113,8 +252,11 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 	const defaultForm: TaskFormData = useMemo(
 		() => ({
 			title: '',
-			dueDate: '',
-			status: 'Pending',
+			dueDate: new Date().toISOString().split('T')[0],
+			status: 'Initiated',
+			requiresWorkOrder: false,
+			category: '',
+			location: '',
 			notes: '',
 			devices: [],
 			isRecurring: false,
@@ -145,6 +287,11 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 	const [updateTaskApi] = useUpdateTaskMutation();
 
 	const [formState, setFormState] = useState<TaskFormData>(defaultForm);
+	const [activeSuggestion, setActiveSuggestion] = useState<
+		'category' | 'location' | null
+	>(null);
+	const categoryWrapRef = useRef<HTMLDivElement | null>(null);
+	const locationWrapRef = useRef<HTMLDivElement | null>(null);
 
 	const selectedPropertyId = formState.propertyId || propertyId || '';
 
@@ -167,6 +314,84 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 				value: unit.id,
 			}));
 	}, [unitOptions, allUnits, selectedPropertyId]);
+
+	const defaultCategoryOptions = useMemo(
+		() => [
+			'Kitchen',
+			'Bedroom',
+			'Living Room',
+			'Bathroom',
+			'Garage',
+			'Outside',
+			'Basement',
+			'Laundry Room',
+			'Hallway',
+			'Office',
+		],
+		[],
+	);
+
+	const defaultLocationSuggestions: Record<string, string[]> = useMemo(
+		() => ({
+			Kitchen: ['Sink', 'Dishwasher', 'Refrigerator', 'Stove'],
+			Bedroom: ['Closet', 'Window', 'Ceiling Fan', 'Door'],
+			'Living Room': ['Fireplace', 'Window', 'Entertainment Area', 'Ceiling'],
+			Bathroom: ['Sink', 'Toilet', 'Shower', 'Bathtub'],
+			Garage: ['Garage Door', 'Workbench', 'Water Heater', 'Storage Shelves'],
+			Outside: ['Front Yard', 'Backyard', 'Driveway', 'Patio'],
+			Basement: ['Sump Pump', 'Stairs', 'Storage Area', 'Foundation Wall'],
+			'Laundry Room': ['Washer', 'Dryer', 'Utility Sink', 'Vent'],
+			Hallway: ['Light Fixture', 'Closet', 'Flooring', 'Wall'],
+			Office: ['Desk Area', 'Window', 'Electrical Outlet', 'Door'],
+		}),
+		[],
+	);
+
+	const categoryOptions = useMemo(() => {
+		const existingCategories = allTasks
+			.map((task: any) => task.category)
+			.filter((category: any): category is string =>
+				typeof category === 'string' && category.trim().length > 0,
+			)
+			.map((category: string) => category.trim());
+
+		return Array.from(new Set([...defaultCategoryOptions, ...existingCategories]));
+	}, [allTasks, defaultCategoryOptions]);
+
+	const locationOptions = useMemo(() => {
+		const selectedCategory = formState.category?.trim();
+		const categorySuggestions = selectedCategory
+			? defaultLocationSuggestions[selectedCategory] || []
+			: [];
+		const existingLocations = allTasks
+			.filter((task: any) => {
+				if (!selectedCategory) return true;
+				return task.category === selectedCategory;
+			})
+			.map((task: any) => task.location)
+			.filter((location: any): location is string =>
+				typeof location === 'string' && location.trim().length > 0,
+			)
+			.map((location: string) => location.trim());
+
+		return Array.from(new Set([...categorySuggestions, ...existingLocations]));
+	}, [allTasks, defaultLocationSuggestions, formState.category]);
+
+	const filteredCategoryOptions = useMemo(() => {
+		const query = (formState.category || '').trim().toLowerCase();
+		if (!query) return categoryOptions;
+		return categoryOptions.filter((category) =>
+			category.toLowerCase().includes(query),
+		);
+	}, [categoryOptions, formState.category]);
+
+	const filteredLocationOptions = useMemo(() => {
+		const query = (formState.location || '').trim().toLowerCase();
+		if (!query) return locationOptions;
+		return locationOptions.filter((location) =>
+			location.toLowerCase().includes(query),
+		);
+	}, [locationOptions, formState.location]);
 
 	// Device options for task linking (property-scoped)
 	const internalDeviceOptions = React.useMemo(() => {
@@ -219,6 +444,23 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 		});
 	}, [allMaintenanceHistory, selectedPropertyId]);
 
+	const linkedDevices = useMemo(() => {
+		const linkedIds = formState.devices || [];
+		if (!linkedIds.length) return [] as Device[];
+
+		const byId = new Map(
+			allDevices.map((device: any) => [device.id, device as Device]),
+		);
+		return linkedIds
+			.map((id) => byId.get(id))
+			.filter((device): device is Device => Boolean(device));
+	}, [formState.devices, allDevices]);
+
+	const linkedDeviceDetailsSection = useMemo(
+		() => buildLinkedDeviceDetailsSection(linkedDevices),
+		[linkedDevices],
+	);
+
 	// Memoize the found task to prevent unnecessary re-renders
 	const foundTask = React.useMemo(() => {
 		if (editingTaskId && !editingTask) {
@@ -235,7 +477,10 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 			setFormState({
 				title: editingTask.title || '',
 				dueDate: editingTask.dueDate ? editingTask.dueDate.split('T')[0] : '',
-				status: editingTask.status || 'Pending',
+				status: editingTask.status || 'Initiated',
+				requiresWorkOrder: Boolean((editingTask as any).requiresWorkOrder),
+				category: editingTask.category || '',
+				location: editingTask.location || '',
 				notes: editingTask.notes || '',
 				priority: editingTask.priority,
 				assignedTo: editingTask.assignedTo?.id || editingTask.assignee || '',
@@ -266,7 +511,10 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 			setFormState({
 				title: foundTask.title || '',
 				dueDate: foundTask.dueDate ? foundTask.dueDate.split('T')[0] : '',
-				status: foundTask.status || 'Pending',
+				status: foundTask.status || 'Initiated',
+				requiresWorkOrder: Boolean((foundTask as any).requiresWorkOrder),
+				category: foundTask.category || '',
+				location: foundTask.location || '',
 				notes: foundTask.notes || '',
 				priority: foundTask.priority,
 				assignedTo: foundTask.assignedTo?.id || foundTask.assignee || '',
@@ -361,6 +609,22 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 		setPendingLinkedHistoryIds(formState.linkedMaintenanceHistoryIds || []);
 	}, [showLinkHistoryModal, formState.linkedMaintenanceHistoryIds]);
 
+	useEffect(() => {
+		const handleClickOutside = (event: MouseEvent) => {
+			const target = event.target as Node;
+			if (
+				categoryWrapRef.current?.contains(target) ||
+				locationWrapRef.current?.contains(target)
+			) {
+				return;
+			}
+			setActiveSuggestion(null);
+		};
+
+		document.addEventListener('mousedown', handleClickOutside);
+		return () => document.removeEventListener('mousedown', handleClickOutside);
+	}, []);
+
 	const handleToggleHistory = (historyId: string) => {
 		setPendingLinkedHistoryIds((prev) =>
 			prev.includes(historyId)
@@ -421,7 +685,7 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
 
-		if (!formState.title || !formState.dueDate) {
+		if (!formState.title) {
 			alert('Please fill in all required fields');
 			return;
 		}
@@ -430,6 +694,10 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 			const estimatedCosts = sanitizeCostBreakdown(formState.financials?.estimate);
 			const actualCosts = sanitizeCostBreakdown(formState.financials?.actual);
 			const financialNotes = formState.financials?.notes?.trim();
+			const mergedNotes = mergeNotesWithLinkedDeviceDetails(
+				formState.notes || '',
+				linkedDeviceDetailsSection,
+			);
 			const sanitizedFinancials =
 				estimatedCosts || actualCosts || financialNotes
 					? {
@@ -451,6 +719,8 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 				}
 				let updatesRaw: any = {
 					...formState,
+					dueDate: formState.dueDate?.trim() || '',
+					notes: mergedNotes,
 					financials: sanitizedFinancials,
 				};
 				// clean nested undefined in notifications to avoid Firestore errors
@@ -502,6 +772,8 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 			} else {
 				let newTaskRaw: any = {
 					...formState,
+					dueDate: formState.dueDate?.trim() || '',
+					notes: mergedNotes,
 					financials: sanitizedFinancials,
 					propertyId: formState.propertyId || propertyId || '',
 					userId: currentUser?.id || '',
@@ -607,18 +879,17 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 						{propertyOptions.length > 0 && (
 							<FormGroup>
 								<FormLabel>Property *</FormLabel>
-								<FormSelect
+								<TaskSelect
 									name='propertyId'
 									value={formState.propertyId || ''}
-									onChange={handleChange}
-									required>
-									<option value=''>Select a property...</option>
-									{propertyOptions.map((opt) => (
-										<option key={opt.value} value={opt.value}>
-											{opt.label}
-										</option>
-									))}
-								</FormSelect>
+									onChange={(value) =>
+										handleChange({
+											target: { name: 'propertyId', value, type: 'select-one' },
+										} as any)
+									}
+									placeholder='Select a property...'
+									options={propertyOptions}
+								/>
 							</FormGroup>
 						)}
 
@@ -635,80 +906,197 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 						</FormGroup>
 
 						<FormGroup>
-							<FormLabel>Due Date *</FormLabel>
+							<FormLabel>Due Date</FormLabel>
 							<FormInput
 								type='date'
 								name='dueDate'
 								value={formState.dueDate}
 								onChange={onChange}
-								required
+								disabled={!formState.dueDate}
 							/>
+							<CheckboxRow>
+								<input
+									type='checkbox'
+									checked={!formState.dueDate}
+									onChange={(e) =>
+										setFormState((prev) => ({
+											...prev,
+											dueDate: e.target.checked
+												? ''
+												: prev.dueDate || new Date().toISOString().split('T')[0],
+										}))
+									}
+								/>
+								Set as ASAP (no due date)
+							</CheckboxRow>
 						</FormGroup>
 
 						<FormGroup>
 							<FormLabel>Status *</FormLabel>
-							<FormSelect
+							<TaskSelect
 								name='status'
-								value={formState.status}
-								onChange={handleChange}>
-								<option value=''>Select a status...</option>
-								{statusOptions.map((status) => (
-									<option key={status} value={status}>
-										{status}
-									</option>
-								))}
-							</FormSelect>
+								value={formState.status || ''}
+								onChange={(value) =>
+									handleChange({
+										target: { name: 'status', value, type: 'select-one' },
+									} as any)
+								}
+								placeholder='Select a status...'
+								options={statusOptions.map((status) => ({
+									value: status,
+									label: status,
+								}))}
+							/>
+						</FormGroup>
+
+						<FormGroup>
+							<FormLabel>Completion Requirement</FormLabel>
+							<CheckboxRow>
+								<input
+									type='checkbox'
+									name='requiresWorkOrder'
+									checked={Boolean(formState.requiresWorkOrder)}
+									onChange={handleChange}
+								/>
+								Require completion form/work order when marking complete
+							</CheckboxRow>
 						</FormGroup>
 
 						<FormGroup>
 							<FormLabel>Priority *</FormLabel>
-							<FormSelect
+							<TaskSelect
 								name='priority'
-								value={formState.priority}
-								onChange={onChange}>
-								<option value=''>Select a priority...</option>
-								{priorityOptions.map((priority) => (
-									<option key={priority} value={priority}>
-										{priority}
-									</option>
-								))}
-							</FormSelect>
+								value={formState.priority || ''}
+								onChange={(value) =>
+									onChange({
+										target: { name: 'priority', value, type: 'select-one' },
+									} as any)
+								}
+								placeholder='Select a priority...'
+								options={priorityOptions.map((priority) => ({
+									value: priority,
+									label: priority,
+								}))}
+							/>
+						</FormGroup>
+
+						<FormGroup>
+							<FormLabel>Category</FormLabel>
+							<SuggestionInputWrap ref={categoryWrapRef}>
+								<FormInput
+									type='text'
+									name='category'
+									value={formState.category || ''}
+									onChange={handleChange}
+									onFocus={() => setActiveSuggestion('category')}
+									placeholder='e.g., Kitchen'
+								/>
+								{activeSuggestion === 'category' &&
+									filteredCategoryOptions.length > 0 && (
+										<SuggestionDropdown>
+											{filteredCategoryOptions.map((category) => (
+												<SuggestionItem
+													type='button'
+													key={category}
+													$active={
+														(formState.category || '').trim() === category
+													}
+													onMouseDown={(e) => e.preventDefault()}
+													onClick={() => {
+														setFormState((prev) => ({
+															...prev,
+															category,
+														}));
+														setActiveSuggestion(null);
+													}}>
+													{category}
+												</SuggestionItem>
+											))}
+										</SuggestionDropdown>
+									)}
+							</SuggestionInputWrap>
+						</FormGroup>
+
+						<FormGroup>
+							<FormLabel>Location</FormLabel>
+							<SuggestionInputWrap ref={locationWrapRef}>
+								<FormInput
+									type='text'
+									name='location'
+									value={formState.location || ''}
+									onChange={handleChange}
+									onFocus={() => setActiveSuggestion('location')}
+									placeholder='e.g., Sink'
+								/>
+								{activeSuggestion === 'location' &&
+									filteredLocationOptions.length > 0 && (
+										<SuggestionDropdown>
+											{filteredLocationOptions.map((location) => (
+												<SuggestionItem
+													type='button'
+													key={location}
+													$active={
+														(formState.location || '').trim() === location
+													}
+													onMouseDown={(e) => e.preventDefault()}
+													onClick={() => {
+														setFormState((prev) => ({
+															...prev,
+															location,
+														}));
+														setActiveSuggestion(null);
+													}}>
+													{location}
+												</SuggestionItem>
+											))}
+										</SuggestionDropdown>
+									)}
+							</SuggestionInputWrap>
 						</FormGroup>
 
 						{!isSingleFamily && filteredUnitOptions.length > 0 && (
 							<FormGroup>
 								<FormLabel>Unit</FormLabel>
-								<FormSelect
+								<TaskSelect
 									name='unitId'
 									value={formState.unitId || ''}
-									onChange={handleChange}>
-									<option value=''>(none)</option>
-									{filteredUnitOptions.map((opt) => (
-										<option key={opt.value} value={opt.value}>
-											{opt.label}
-										</option>
-									))}
-								</FormSelect>
+									onChange={(value) =>
+										handleChange({
+											target: { name: 'unitId', value, type: 'select-one' },
+										} as any)
+									}
+									placeholder='(none)'
+									options={[
+										{ value: '', label: '(none)' },
+										...filteredUnitOptions,
+									]}
+								/>
 							</FormGroup>
 						)}
 
 						{assigneeOptions.length > 0 && (
 							<FormGroup>
 								<FormLabel>Assigned To</FormLabel>
-								<FormSelect
+								<TaskSelect
 									name='assignedTo'
 									value={formState.assignedTo || ''}
-									onChange={onChange}>
-									<option value=''>Unassigned</option>
-									{currentUser && formState.assignedTo === currentUser.id && (
-										<option value=''>Unassign me</option>
-									)}
-									{assigneeOptions.map((option) => (
-										<option key={option.value} value={option.value}>
-											{option.label}
-										</option>
-									))}
-								</FormSelect>
+									onChange={(value) =>
+										onChange({
+											target: { name: 'assignedTo', value, type: 'select-one' },
+										} as any)
+									}
+									placeholder='Unassigned'
+									options={[
+										{
+											value: '',
+											label:
+												currentUser && formState.assignedTo === currentUser.id
+													? 'Unassign me'
+													: 'Unassigned',
+										},
+										...assigneeOptions,
+									]}
+								/>
 							</FormGroup>
 						)}
 
@@ -721,6 +1109,10 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 									onChange={handleDeviceChange}
 									placeholder='Select devices for this task...'
 								/>
+								<small style={{ color: '#6b7280' }}>
+									Linked device service items are automatically appended to task
+									notes when you save.
+								</small>
 							</FormGroup>
 						)}
 
@@ -769,20 +1161,29 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 					<FormGrid>
 						<FormGroup>
 							<FormLabel>Recurrence Frequency *</FormLabel>
-							<FormSelect
+							<TaskSelect
 								name='recurrenceFrequency'
 								value={formState.recurrenceFrequency || ''}
-								onChange={onChange}
-								required={wantsRecurrence}>
-								<option value=''>Select frequency...</option>
-								<option value='daily'>Daily</option>
-								<option value='weekly'>Weekly</option>
-								<option value='biweekly'>Every 2 Weeks</option>
-								<option value='monthly'>Monthly</option>
-								<option value='quarterly'>Every 3 Months</option>
-								<option value='yearly'>Yearly</option>
-								<option value='custom'>Custom</option>
-							</FormSelect>
+								onChange={(value) =>
+									onChange({
+										target: {
+											name: 'recurrenceFrequency',
+											value,
+											type: 'select-one',
+										},
+									} as any)
+								}
+								placeholder='Select frequency...'
+								options={[
+									{ value: 'daily', label: 'Daily' },
+									{ value: 'weekly', label: 'Weekly' },
+									{ value: 'biweekly', label: 'Every 2 Weeks' },
+									{ value: 'monthly', label: 'Monthly' },
+									{ value: 'quarterly', label: 'Every 3 Months' },
+									{ value: 'yearly', label: 'Yearly' },
+									{ value: 'custom', label: 'Custom' },
+								]}
+							/>
 						</FormGroup>
 
 						{formState.recurrenceFrequency === 'custom' && (
@@ -807,20 +1208,26 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 						{formState.recurrenceFrequency === 'custom' && (
 							<FormGroup>
 								<FormLabel>Time Unit *</FormLabel>
-								<FormSelect
+								<TaskSelect
 									name='recurrenceCustomUnit'
 									value={formState.recurrenceCustomUnit || ''}
-									onChange={onChange}
-									required={
-										formState.recurrenceFrequency === 'custom' &&
-										wantsRecurrence
-									}>
-									<option value=''>Select unit...</option>
-									<option value='days'>Days</option>
-									<option value='weeks'>Weeks</option>
-									<option value='months'>Months</option>
-									<option value='years'>Years</option>
-								</FormSelect>
+									onChange={(value) =>
+										onChange({
+											target: {
+												name: 'recurrenceCustomUnit',
+												value,
+												type: 'select-one',
+											},
+										} as any)
+									}
+									placeholder='Select unit...'
+									options={[
+										{ value: 'days', label: 'Days' },
+										{ value: 'weeks', label: 'Weeks' },
+										{ value: 'months', label: 'Months' },
+										{ value: 'years', label: 'Years' },
+									]}
+								/>
 							</FormGroup>
 						)}
 

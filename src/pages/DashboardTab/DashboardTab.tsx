@@ -180,6 +180,7 @@ export const DashboardTab = () => {
 				if (dueDate < now) {
 					// Overdue if past due and not completed
 					if (
+						task.status === 'Initiated' ||
 						task.status === 'Pending' ||
 						task.status === 'In Progress' ||
 						task.status === 'Awaiting Approval' ||

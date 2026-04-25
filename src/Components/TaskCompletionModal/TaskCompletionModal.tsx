@@ -66,6 +66,7 @@ export const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
 	const normalizedPlan =
 		currentUser?.subscription?.plan?.toString().toLowerCase() || '';
 	const canSelfComplete = normalizedPlan === 'homeowner';
+	const requiresWorkOrder = Boolean(task?.requiresWorkOrder);
 
 	// currentUser is guaranteed to exist in protected routes
 
@@ -76,7 +77,7 @@ export const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
 			newErrors.date = 'Completion date is required';
 		}
 
-		if (!selectedFile) {
+		if (requiresWorkOrder && !selectedFile) {
 			newErrors.file = 'Please upload a completion form or work order';
 		}
 
@@ -111,22 +112,23 @@ export const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
 					}
 					: undefined;
 
-			// Step 1: Upload file to Firebase Storage
-			const fileRef = ref(
-				storage,
-				`task-completions/${currentUser!.id}/${taskId}/${Date.now()}-${
-					selectedFile!.name
-				}`,
-			);
-			await uploadBytes(fileRef, selectedFile!);
-			const downloadUrl = await getDownloadURL(fileRef);
-			const completionFileData: CompletionFile = {
-				name: selectedFile!.name,
-				url: downloadUrl,
-				size: selectedFile!.size,
-				type: selectedFile!.type,
-				uploadedAt: new Date().toISOString(),
-			};
+			let completionFileData: CompletionFile | undefined;
+			if (selectedFile) {
+				// Only upload when a file is provided.
+				const fileRef = ref(
+					storage,
+					`task-completions/${currentUser!.id}/${taskId}/${Date.now()}-${selectedFile.name}`,
+				);
+				await uploadBytes(fileRef, selectedFile);
+				const downloadUrl = await getDownloadURL(fileRef);
+				completionFileData = {
+					name: selectedFile.name,
+					url: downloadUrl,
+					size: selectedFile.size,
+					type: selectedFile.type,
+					uploadedAt: new Date().toISOString(),
+				};
+			}
 
 			// Step 2: Submit task completion to Redux
 			dispatch(
@@ -172,7 +174,7 @@ export const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
 						propertyId: task.propertyId,
 						title: task.title,
 						dueDate: nextDueDate,
-						status: 'Pending',
+						status: 'Initiated',
 						isRecurring: true,
 						recurrenceFrequency: task.recurrenceFrequency,
 						recurrenceInterval: task.recurrenceInterval,
@@ -183,9 +185,12 @@ export const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
 
 					// Conditionally add optional fields only if they have values
 					if (task.notes) recurringTaskData.notes = task.notes;
+					if (task.category) recurringTaskData.category = task.category;
+					if (task.location) recurringTaskData.location = task.location;
 					if (task.priority) recurringTaskData.priority = task.priority;
 					if (task.assignee) recurringTaskData.assignee = task.assignee;
 					if (task.financials) recurringTaskData.financials = task.financials;
+					recurringTaskData.requiresWorkOrder = Boolean(task.requiresWorkOrder);
 					if (task.recurrenceCustomUnit)
 						recurringTaskData.recurrenceCustomUnit = task.recurrenceCustomUnit;
 
@@ -414,7 +419,11 @@ export const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
 
 			<FileUploader
 				label='Upload Completion Document'
-				helperText='JPG, PNG, GIF, WEBP, PDF (max 25MB)'
+				helperText={
+					requiresWorkOrder
+						? 'Required: JPG, PNG, GIF, WEBP, PDF (max 25MB)'
+						: 'Optional: JPG, PNG, GIF, WEBP, PDF (max 25MB)'
+				}
 				accept='image/jpeg,image/jpg,image/png,image/gif,image/webp,application/pdf'
 				allowedTypes={[
 					'image/jpeg',
@@ -425,12 +434,13 @@ export const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
 					'application/pdf',
 				]}
 				maxSizeBytes={25 * 1024 * 1024}
-				required={true}
+				required={requiresWorkOrder}
 				setFile={(file) => {
 					setSelectedFile(file);
 					setErrors({ ...errors, file: undefined });
 				}}
 			/>
+			{errors.file && <ErrorMessage>{errors.file}</ErrorMessage>}
 
 			{errors.general && (
 				<ErrorMessage style={{ marginBottom: '1rem' }}>
