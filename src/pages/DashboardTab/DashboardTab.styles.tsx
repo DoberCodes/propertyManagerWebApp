@@ -449,229 +449,559 @@ export const ZeroState = styled.div`
 	justify-content: center;
 `;
 
-export const TaskStatusBanners = styled.div`
+export const ActionFirstTopSection = styled.section`
 	display: grid;
-	grid-template-columns: repeat(2, 1fr);
-	gap: 16px;
-	margin-bottom: 20px;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 14px;
 
-	@media (max-width: 768px) {
-		gap: 12px;
-	}
-
-	@media (max-width: 480px) {
-		gap: 8px;
+	@media (max-width: 1024px) {
+		grid-template-columns: 1fr;
+		gap: 10px;
 	}
 `;
 
-export const TaskStatusBanner = styled.div<{
-	$type: 'overdue' | 'upcoming' | 'completed';
-}>`
-	background: white;
-	border-radius: 8px;
-	padding: 20px;
-	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-	border-left: 4px solid
-		${(props) => {
-			switch (props.$type) {
-				case 'overdue':
-					return '#ef4444';
-				case 'upcoming':
-					return '#f59e0b';
-				case 'completed':
-					return '#10b981';
-				default:
-					return '#6b7280';
-			}
-		}};
-	cursor: pointer;
-	transition: all 0.2s ease;
-
-	&:hover {
-		transform: translateY(-2px);
-		box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
-	}
-
-	@media (max-width: 480px) {
-		padding: 16px;
-	}
+const sharedCard = `
+	background: ${COLORS.bgWhite};
+	border: 1px solid ${COLORS.border};
+	border-radius: 14px;
+	box-shadow: ${COLORS.shadow};
+	padding: 16px;
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
 `;
 
-export const TaskStatusCount = styled.div<{
-	$type: 'overdue' | 'upcoming' | 'completed';
-}>`
-	font-size: 40px;
+export const TodayFocusCard = styled.article`
+	${sharedCard}
+	background: linear-gradient(135deg, ${COLORS.bgWhite} 0%, ${COLORS.primaryLight} 100%);
+`;
+
+export const PortfolioHealthCard = styled.article`
+	${sharedCard}
+`;
+
+export const HomeHealthCard = styled.article`
+	${sharedCard}
+`;
+
+export const CardEyebrow = styled.p`
+	margin: 0;
+	font-size: 0.75rem;
+	font-weight: 700;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: ${COLORS.textSecondary};
+`;
+
+export const CardTitle = styled.h3`
+	margin: 0;
+	font-size: 1.05rem;
+	font-weight: 700;
+	color: ${COLORS.textPrimary};
+`;
+
+export const TodayFocusMessage = styled.p`
+	margin: 0;
+	font-size: 0.95rem;
+	font-weight: 500;
+	line-height: 1.4;
+	color: ${COLORS.textPrimary};
+`;
+
+export const TodayFocusLead = styled.p`
+	margin: 0;
+	font-size: 1.15rem;
 	font-weight: 800;
-	color: ${(props) => {
-		switch (props.$type) {
-			case 'overdue':
-				return COLORS.errorDark || '#ef4444';
-			case 'upcoming':
-				return COLORS.warningDark || '#f59e0b';
-			case 'completed':
-				return COLORS.successDark || '#10b981';
+	line-height: 1.35;
+	color: ${COLORS.textPrimary};
+`;
+
+export const TodayFocusSupportingText = styled.p`
+	margin: 0;
+	font-size: 0.88rem;
+	font-weight: 600;
+	line-height: 1.45;
+	color: ${COLORS.textSecondary};
+`;
+
+export const TodayFocusTaskCard = styled.div`
+	border: 1px solid rgba(5, 150, 105, 0.18);
+	background: rgba(255, 255, 255, 0.72);
+	border-radius: 12px;
+	padding: 12px 14px;
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+`;
+
+export const TaskStatusBadge = styled.span<{ $status: string }>`
+	font-size: 0.72rem;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	padding: 3px 8px;
+	border-radius: 20px;
+	white-space: nowrap;
+	background: ${(props) => {
+		switch (props.$status) {
+			case 'In Progress':
+				return COLORS.secondaryLight;
+			case 'Overdue':
+				return COLORS.errorLight;
+			case 'Hold':
+				return COLORS.warningLight;
+			case 'Awaiting Approval':
+				return '#ede9fe';
 			default:
-				return COLORS.textPrimary || '#6b7280';
+				return COLORS.gray100;
 		}
 	}};
-	margin-bottom: 8px;
-
-	@media (max-width: 480px) {
-		font-size: 28px;
-	}
+	color: ${(props) => {
+		switch (props.$status) {
+			case 'In Progress':
+				return '#1d4ed8';
+			case 'Overdue':
+				return COLORS.errorDark;
+			case 'Hold':
+				return COLORS.warningDark;
+			case 'Awaiting Approval':
+				return '#6d28d9';
+			default:
+				return COLORS.textSecondary;
+		}
+	}};
 `;
 
-export const TaskStatusLabel = styled.div`
-	font-size: 14px;
-	font-weight: 500;
-	color: #6b7280;
-	text-transform: uppercase;
-	letter-spacing: 0.5px;
-	margin-bottom: 4px;
+export const TodayFocusTaskName = styled.p`
+	margin: 0;
+	font-size: 0.95rem;
+	font-weight: 800;
+	color: ${COLORS.textPrimary};
 `;
 
-export const TaskStatusText = styled.div`
-	font-size: 16px;
+export const TodayFocusTaskMeta = styled.p`
+	margin: 0;
+	font-size: 0.8rem;
 	font-weight: 600;
-	color: #1f2937;
+	color: ${COLORS.textSecondary};
+`;
+
+export const TodayFocusButtons = styled.div`
+	display: flex;
+	gap: 10px;
+	flex-wrap: wrap;
+`;
+
+export const FocusButton = styled.button<{ $variant?: 'primary' | 'secondary' | 'success' }>`
+	height: 42px;
+	padding: 0 14px;
+	border-radius: 10px;
+	font-size: 0.9rem;
+	font-weight: 700;
+	border: 1px solid
+		${(props) => {
+			if (props.$variant === 'secondary') return COLORS.secondaryDark;
+			if (props.$variant === 'success') return COLORS.primaryDark;
+			return COLORS.primaryDark;
+		}};
+	background: ${(props) => {
+		if (props.$variant === 'secondary') return COLORS.secondaryLight;
+		if (props.$variant === 'success') return COLORS.primaryLight;
+		return COLORS.primary;
+	}};
+	color: ${(props) => {
+		if (props.$variant === 'secondary') return COLORS.secondaryDark;
+		if (props.$variant === 'success') return COLORS.primaryDark;
+		return COLORS.textInverse;
+	}};
+	cursor: pointer;
+	transition: transform 0.15s ease, box-shadow 0.15s ease;
+
+	&:hover {
+		transform: translateY(-1px);
+		box-shadow: ${COLORS.shadowMd};
+	}
 
 	@media (max-width: 480px) {
-		font-size: 14px;
+		flex: 1 1 auto;
+		min-width: 130px;
+		height: 44px;
 	}
 `;
 
-export const PropertyScoreSection = styled.div`
-	background: white;
-	border-radius: 8px;
-	padding: 24px;
-	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-	margin-bottom: 20px;
+export const PortfolioMetrics = styled.div`
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 10px;
+
+	@media (max-width: 640px) {
+		grid-template-columns: 1fr;
+	}
+`;
+
+export const PortfolioHeaderText = styled.p`
+	margin: 0;
+	font-size: 0.82rem;
+	font-weight: 600;
+	color: ${COLORS.textSecondary};
+`;
+
+export const PortfolioMetric = styled.div`
+	border: 1px solid ${COLORS.border};
+	border-radius: 10px;
+	padding: 10px;
+	background: ${COLORS.gray50};
+`;
+
+export const PortfolioMetricLabel = styled.p`
+	margin: 0;
+	font-size: 0.75rem;
+	color: ${COLORS.textSecondary};
+`;
+
+export const PortfolioMetricValue = styled.p`
+	margin: 4px 0 0;
+	font-size: 1.35rem;
+	font-weight: 800;
+	color: ${COLORS.textPrimary};
+`;
+
+export const HomeHealthHeader = styled.div`
+	display: flex;
+	justify-content: space-between;
+	align-items: flex-start;
+	gap: 10px;
+`;
+
+export const HomeHealthStatusPill = styled.span<{
+	$status: 'Strong' | 'Stable' | 'At Risk';
+}>`
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	padding: 5px 10px;
+	margin-top: 8px;
+	border-radius: 999px;
+	font-size: 0.75rem;
+	font-weight: 800;
+	background: ${(props) => {
+		switch (props.$status) {
+			case 'Strong':
+				return COLORS.successLight;
+			case 'Stable':
+				return COLORS.infoLight;
+			default:
+				return COLORS.errorLight;
+		}
+	}};
+	color: ${(props) => {
+		switch (props.$status) {
+			case 'Strong':
+				return COLORS.successDark;
+			case 'Stable':
+				return COLORS.infoDark;
+			default:
+				return COLORS.errorDark;
+		}
+	}};
+`;
+
+export const HomeHealthScoreValue = styled.div`
+	font-size: 2rem;
+	font-weight: 900;
+	line-height: 1;
+	color: ${COLORS.primaryDark};
+`;
+
+export const HomeHealthTrend = styled.p`
+	margin: 0;
+	font-size: 0.85rem;
+	font-weight: 600;
+	color: ${COLORS.textSecondary};
+`;
+
+export const HomeHealthRecommendation = styled.p`
+	margin: 0;
+	padding: 10px 12px;
+	border-radius: 10px;
+	background: ${COLORS.primaryLight};
+	color: ${COLORS.primaryDark};
+	font-size: 0.84rem;
+	font-weight: 800;
+	line-height: 1.45;
+`;
+
+export const HomeHealthDrivers = styled.ul`
+	margin: 0;
+	padding-left: 18px;
 	display: flex;
 	flex-direction: column;
-	align-items: center;
-	gap: 16px;
+	gap: 6px;
+`;
+
+export const HomeHealthDriver = styled.li`
+	font-size: 0.83rem;
+	font-weight: 500;
+	color: ${COLORS.textPrimary};
+`;
+
+export const UrgentQueueSection = styled.section`
+	background: ${COLORS.bgWhite};
+	border: 1px solid ${COLORS.border};
+	border-radius: 14px;
+	box-shadow: ${COLORS.shadow};
+	padding: 16px;
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+`;
+
+export const UrgentQueueHeader = styled.div`
+	display: flex;
+	justify-content: space-between;
+	align-items: flex-start;
+	gap: 12px;
 
 	@media (max-width: 768px) {
-		padding: 20px;
-		margin-bottom: 16px;
-	}
-
-	@media (max-width: 480px) {
-		padding: 16px;
-		margin-bottom: 12px;
+		flex-direction: column;
 	}
 `;
 
-export const PropertyScoreTitle = styled.h3`
-	font-size: 18px;
-	font-weight: 600;
-	color: #1f2937;
-	margin: 0;
-	text-align: center;
-
-	@media (max-width: 480px) {
-		font-size: 16px;
-	}
-`;
-
-export const ScoreGaugeContainer = styled.div`
-	position: relative;
-	width: 200px;
+export const QueueHeaderActions = styled.div`
 	display: flex;
-	flex-direction: column;
-	justify-content: center;
 	align-items: center;
 	gap: 8px;
+`;
 
-	@media (max-width: 480px) {
-		width: 160px;
+export const QueueFilterPill = styled.span`
+	display: inline-flex;
+	align-items: center;
+	padding: 6px 10px;
+	border-radius: 999px;
+	background: ${COLORS.gray100};
+	color: ${COLORS.textSecondary};
+	font-size: 0.76rem;
+	font-weight: 700;
+`;
+
+export const UrgentQueueSubtitle = styled.p`
+	margin: 6px 0 0;
+	font-size: 0.8rem;
+	font-weight: 500;
+	color: ${COLORS.textSecondary};
+`;
+
+export const UrgentTaskList = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+`;
+
+export const UrgentTaskGroup = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+`;
+
+export const UrgentTaskGroupLabel = styled.p`
+	margin: 2px 0 0;
+	font-size: 0.78rem;
+	font-weight: 800;
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+	color: ${COLORS.textSecondary};
+`;
+
+export const UrgentTaskRow = styled.div`
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: 12px;
+	border: 1px solid ${COLORS.border};
+	border-radius: 12px;
+	padding: 12px;
+	background: ${COLORS.gray50};
+	cursor: pointer;
+	transition: transform 0.15s ease, box-shadow 0.15s ease,
+		border-color 0.15s ease;
+
+	&:hover {
+		transform: translateY(-1px);
+		border-color: ${COLORS.primary};
+		box-shadow: ${COLORS.shadowMd};
+	}
+
+	@media (max-width: 768px) {
+		flex-direction: column;
+		align-items: stretch;
 	}
 `;
 
-export const ScoreGauge = styled.div`
-	position: relative;
-	width: 180px;
-	height: 90px;
-	border-radius: 90px 90px 0 0;
-	background: conic-gradient(
-		from 270deg,
-		#ef4444 0deg 60deg,
-		#f59e0b 60deg 120deg,
-		#10b981 120deg 180deg
-	);
-	overflow: hidden;
+export const UrgentTaskMain = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+`;
 
-	&::before {
-		content: '';
-		position: absolute;
-		bottom: 0;
-		left: 0;
-		right: 0;
-		height: 45px;
-		background: white;
-	}
+export const UrgentTaskTitle = styled.h4`
+	margin: 0;
+	font-size: 0.95rem;
+	font-weight: 700;
+	color: ${COLORS.textPrimary};
+`;
 
-	@media (max-width: 480px) {
-		width: 144px;
-		height: 72px;
+export const TitleRow = styled.div`
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
+`;
 
-		&::before {
-			height: 36px;
+export const UrgentTaskContext = styled.div`
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
+`;
+
+export const UrgentTaskProperty = styled.span`
+	font-size: 0.8rem;
+	font-weight: 700;
+	color: ${COLORS.textPrimary};
+`;
+
+export const UrgentTaskAssignee = styled.span`
+	font-size: 0.78rem;
+	font-weight: 600;
+	color: ${COLORS.textSecondary};
+`;
+
+export const UrgentTaskMeta = styled.div`
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
+`;
+
+export const UrgentTaskDue = styled.span`
+	font-size: 0.82rem;
+	font-weight: 600;
+	color: ${COLORS.textSecondary};
+`;
+
+export const UrgentTaskPriority = styled.span<{ $priority: string }>`
+	font-size: 0.76rem;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	padding: 4px 8px;
+	border-radius: 20px;
+	background: ${(props) => {
+		switch (props.$priority) {
+			case 'Urgent':
+				return COLORS.errorLight;
+			case 'High':
+				return COLORS.warningLight;
+			case 'Medium':
+				return COLORS.secondaryLight;
+			default:
+				return COLORS.gray100;
 		}
-	}
-`;
-
-export const ScoreNeedle = styled.div<{ $score: number }>`
-	position: absolute;
-	bottom: 0;
-	left: 50%;
-	width: 2px;
-	height: 90px;
-	background: #1f2937;
-	z-index: 2;
-	transform-origin: bottom center;
-	transform: translateX(-50%)
-		rotate(
-			${(props) => {
-				// Convert score (0-100) to angle (-90deg to 90deg)
-				const angle = (props.$score / 100) * 180 - 90;
-				return `${angle}deg`;
-			}}
-		);
-
-	&::before {
-		content: '';
-		position: absolute;
-		bottom: -4px;
-		left: -4px;
-		width: 10px;
-		height: 10px;
-		background: #1f2937;
-		border-radius: 50%;
-	}
-
-	@media (max-width: 480px) {
-		height: 72px;
-		bottom: 0;
-
-		&::before {
-			bottom: -3px;
-			left: -3px;
-			width: 8px;
-			height: 8px;
+	}};
+	color: ${(props) => {
+		switch (props.$priority) {
+			case 'Urgent':
+				return COLORS.errorDark;
+			case 'High':
+				return COLORS.warningDark;
+			case 'Medium':
+				return COLORS.secondaryDark;
+			default:
+				return COLORS.textSecondary;
 		}
+	}};
+`;
+
+export const UrgentTaskActions = styled.div`
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
+
+	@media (max-width: 768px) {
+		width: 100%;
 	}
 `;
 
-export const ScoreValue = styled.div`
-	font-size: 64px;
-	font-weight: 900;
-	color: ${COLORS.gray900};
-	text-align: center;
-	margin-top: 8px;
+export const UrgentActionButton = styled.button<{
+	$variant?: 'default' | 'secondary' | 'success';
+}>`
+	height: 40px;
+	padding: 0 12px;
+	border-radius: 9px;
+	border: 1px solid
+		${(props) => {
+			switch (props.$variant) {
+				case 'secondary':
+					return COLORS.secondaryDark;
+				case 'success':
+					return COLORS.primaryDark;
+				default:
+					return COLORS.borderDark;
+			}
+		}};
+	background: ${(props) => {
+		switch (props.$variant) {
+			case 'secondary':
+				return COLORS.secondaryLight;
+			case 'success':
+				return COLORS.primaryLight;
+			default:
+				return COLORS.bgWhite;
+		}
+	}};
+	color: ${(props) => {
+		switch (props.$variant) {
+			case 'secondary':
+				return COLORS.secondaryDark;
+			case 'success':
+				return COLORS.primaryDark;
+			default:
+				return COLORS.textPrimary;
+		}
+	}};
+	font-size: 0.82rem;
+	font-weight: 700;
+	cursor: pointer;
+	transition: background-color 0.15s ease, border-color 0.15s ease,
+		color 0.15s ease;
 
-	@media (max-width: 480px) {
-		font-size: 48px;
-		margin-top: 6px;
+	&:hover {
+		background: ${(props) => {
+			switch (props.$variant) {
+				case 'secondary':
+					return COLORS.secondaryLight;
+				case 'success':
+					return COLORS.primary;
+				default:
+					return COLORS.gray50;
+			}
+		}};
+		color: ${(props) =>
+			props.$variant === 'success' ? COLORS.textInverse : undefined};
 	}
+
+	@media (max-width: 768px) {
+		flex: 1;
+		min-width: 84px;
+		height: 42px;
+	}
+`;
+
+export const UrgentQueueEmpty = styled.p`
+	margin: 0;
+	font-size: 0.9rem;
+	font-weight: 600;
+	color: ${COLORS.textSecondary};
+	padding: 6px 2px;
 `;

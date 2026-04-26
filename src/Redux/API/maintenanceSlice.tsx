@@ -198,6 +198,7 @@ const maintenanceSlice = apiSlice.injectEndpoints({
 
 export const {
 	useGetMaintenanceHistoryByPropertyQuery,
+	useLazyGetMaintenanceHistoryByPropertyQuery,
 	useAddMaintenanceHistoryMutation,
 	useDeleteMaintenanceHistoryMutation,
 	useUpdateMaintenanceHistoryMutation,

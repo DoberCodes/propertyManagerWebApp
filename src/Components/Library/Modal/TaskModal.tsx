@@ -207,7 +207,13 @@ interface EditTaskModalProps {
 	// optional: when editing inside a page you can pass the task id or the whole task
 	editingTaskId?: string | null;
 	editingTask?: any | null; // full task object for editing
-	initialTask?: Partial<TaskFormData> | null;
+	initialTask?:
+		| (Partial<TaskFormData> & {
+				propertyId?: string;
+				unitId?: string;
+				linkedMaintenanceHistoryIds?: string[];
+		  })
+		| null;
 	propertyId?: string | null;
 	// when the caller wants the user to choose a property/unit
 	propertyOptions?: { label: string; value: string }[];
@@ -248,6 +254,12 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 	unitId = null,
 	taskTitlePlaceholder = 'Task title',
 }) => {
+	const normalizeTaskTitle = (value?: string | null) =>
+		String(value || '')
+			.trim()
+			.toLowerCase()
+			.replace(/\s+/g, ' ');
+
 	// modal-owned form state (defaults)
 	const defaultForm: TaskFormData = useMemo(
 		() => ({
@@ -541,6 +553,45 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 			return;
 		}
 
+		if (initialTask) {
+			setFormState({
+				...defaultForm,
+				...initialTask,
+				title: initialTask.title || defaultForm.title,
+				dueDate: initialTask.dueDate || defaultForm.dueDate,
+				status: initialTask.status || defaultForm.status,
+				notes: initialTask.notes || defaultForm.notes,
+				category: initialTask.category || defaultForm.category,
+				location: initialTask.location || defaultForm.location,
+				priority: initialTask.priority || defaultForm.priority,
+				assignedTo: initialTask.assignedTo || defaultForm.assignedTo,
+				devices: initialTask.devices || defaultForm.devices,
+				isRecurring: initialTask.isRecurring || defaultForm.isRecurring,
+				recurrenceFrequency:
+					initialTask.recurrenceFrequency || defaultForm.recurrenceFrequency,
+				recurrenceInterval:
+					initialTask.recurrenceInterval || defaultForm.recurrenceInterval,
+				recurrenceCustomUnit:
+					initialTask.recurrenceCustomUnit ||
+					defaultForm.recurrenceCustomUnit,
+				enableNotifications:
+					initialTask.enableNotifications || defaultForm.enableNotifications,
+				notifications: initialTask.notifications || defaultForm.notifications,
+				linkedMaintenanceHistoryIds:
+					initialTask.linkedMaintenanceHistoryIds ||
+					defaultForm.linkedMaintenanceHistoryIds,
+				propertyId: initialTask.propertyId || defaultForm.propertyId,
+				unitId: initialTask.unitId || defaultForm.unitId,
+				financials: initialTask.financials
+					? {
+						...defaultForm.financials,
+						...initialTask.financials,
+					}
+					: defaultForm.financials,
+			});
+			return;
+		}
+
 		setFormState(defaultForm);
 	}, [isOpen, editingTaskId, editingTask, initialTask, foundTask, defaultForm]);
 
@@ -688,6 +739,25 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 		if (!formState.title) {
 			alert('Please fill in all required fields');
 			return;
+		}
+
+		const scopedPropertyId = formState.propertyId || propertyId || '';
+		const normalizedDraftTitle = normalizeTaskTitle(formState.title);
+		if (normalizedDraftTitle && scopedPropertyId && !isEditing) {
+			const duplicateTask = allTasks.find((task: any) => {
+				const taskPropertyId = String(task?.propertyId || task?.property?.id || '').trim();
+				const taskStatus = String(task?.status || '').trim();
+				return (
+					taskPropertyId === scopedPropertyId &&
+					taskStatus !== 'Completed' &&
+					normalizeTaskTitle(task?.title) === normalizedDraftTitle
+				);
+			});
+
+			if (duplicateTask) {
+				alert('A task with this title already exists for the selected property.');
+				return;
+			}
 		}
 
 		try {

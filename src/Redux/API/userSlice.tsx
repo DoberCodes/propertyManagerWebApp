@@ -174,6 +174,7 @@ const userSlice = apiSlice.injectEndpoints({
 					}
 
 					let ownedPropertyIds: string[] = [];
+					const ownedPropertyTitles = new Set<string>();
 					if (groupIds.length > 0) {
 						// Get all property IDs for these groups
 						for (let i = 0; i < groupIds.length; i += 10) {
@@ -184,7 +185,14 @@ const userSlice = apiSlice.injectEndpoints({
 							);
 							const propertiesSnapshot = await getDocs(propertiesQuery);
 							propertiesSnapshot.docs.forEach((doc) => {
+								const propertyData = docToData(doc) as
+									| Record<string, unknown>
+									| null;
 								ownedPropertyIds.push(doc.id);
+								const title = String(propertyData?.title || '').trim();
+								if (title) {
+									ownedPropertyTitles.add(title);
+								}
 							});
 						}
 					}
@@ -225,6 +233,33 @@ const userSlice = apiSlice.injectEndpoints({
 								'Could not fetch property-linked maintenance history batch:',
 								propertyHistoryError,
 							);
+						}
+					}
+
+					// Fallback for legacy records that only stored propertyTitle
+					const propertyTitleList = Array.from(ownedPropertyTitles);
+					for (const accountId of accessibleAccountIds) {
+						for (let i = 0; i < propertyTitleList.length; i += 10) {
+							const titleBatch = propertyTitleList.slice(i, i + 10);
+							try {
+								const titleMaintenanceQuery = query(
+									collection(db, 'maintenanceHistory'),
+									where('accountId', '==', accountId),
+									where('propertyTitle', 'in', titleBatch),
+								);
+								const titleMaintenanceSnapshot = await getDocs(
+									titleMaintenanceQuery,
+								);
+								const titleRecords = titleMaintenanceSnapshot.docs
+									.map((doc) => docToData(doc) as Record<string, unknown>)
+									.filter(Boolean) as Record<string, unknown>[];
+								allMaintenanceHistory.push(...titleRecords);
+							} catch (titleHistoryError) {
+								console.warn(
+									'Could not fetch legacy title-linked maintenance history batch:',
+									titleHistoryError,
+								);
+							}
 						}
 					}
 

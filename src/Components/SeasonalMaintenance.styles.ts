@@ -22,6 +22,7 @@ export const AnimatedTip = styled.p`
 export const Container = styled.div`
 	display: flex;
 	flex-direction: column;
+	width: 100%;
 	padding: 0;
 	display: flex;
 	flex-direction: column;
@@ -181,6 +182,32 @@ export const TipText = styled.p`
 	}
 `;
 
+export const SnoozedEmptyState = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	padding: 24px 20px;
+	text-align: center;
+	align-items: center;
+	p {
+		margin: 0;
+		font-size: 0.88rem;
+		color: ${COLORS.textSecondary};
+		line-height: 1.5;
+	}
+	button {
+		background: none;
+		border: none;
+		padding: 0;
+		font-size: 0.82rem;
+		font-weight: 700;
+		color: ${COLORS.primary};
+		cursor: pointer;
+		text-decoration: underline;
+		text-underline-offset: 2px;
+	}
+`;
+
 export const ZeroStateContainer = styled.div`
 	display: flex;
 	flex-direction: column;
@@ -202,20 +229,21 @@ export const ZeroStateContainer = styled.div`
 `;
 
 /* New card-based layout for seasonal tips */
-export const TipsContainer = styled.div`
+export const TipsContainer = styled.div<{ $compact?: boolean }>`
 	width: 100%;
+	align-self: stretch;
 	background: #ffffff;
 	border: 1px solid rgba(16, 24, 40, 0.04);
 	border-radius: 12px;
-	padding: 24px;
+	padding: ${({ $compact }) => ($compact ? '16px' : '24px')};
 	box-shadow: 0 10px 30px rgba(16, 24, 40, 0.06);
 	/* wider layout on large screens */
-	max-width: 1400px;
+	max-width: ${({ $compact }) => ($compact ? '100%' : '1400px')};
 	margin: 0 auto;
 
 	@media (min-width: 1600px) {
-		max-width: 1600px;
-		padding: 32px;
+		max-width: ${({ $compact }) => ($compact ? '100%' : '1600px')};
+		padding: ${({ $compact }) => ($compact ? '16px' : '32px')};
 	}
 `;
 
@@ -232,9 +260,10 @@ export const TipsHeader = styled.div`
 	padding-left: 14px;
 `;
 
-export const CardGrid = styled.div`
+export const CardGrid = styled.div<{ $compact?: boolean }>`
 	display: grid;
-	grid-template-columns: repeat(4, 1fr);
+	grid-template-columns: ${({ $compact }) =>
+		$compact ? 'minmax(0, 1fr)' : 'repeat(4, 1fr)'};
 	gap: 18px;
 	padding: 6px 0 0 0;
 
@@ -251,27 +280,230 @@ export const CardGrid = styled.div`
 	}
 `;
 
-export const Card = styled.div`
+export const Card = styled.div<{ $compact?: boolean }>`
 	background: #ffffff;
 	border: 1px solid rgba(16, 24, 40, 0.06);
 	border-radius: 12px;
 	overflow: hidden;
 	display: flex;
 	flex-direction: column;
-	min-height: 380px;
-	box-shadow: ${COLORS.shadowLg};
+	min-height: ${({ $compact }) => ($compact ? 'auto' : '380px')};
+	box-shadow: ${({ $compact }) => ($compact ? COLORS.shadow : COLORS.shadowLg)};
 	position: relative;
 	transition: transform 220ms ease, box-shadow 220ms ease;
 	&:hover {
-		transform: translateY(-8px);
-		box-shadow: 0 18px 40px rgba(16, 24, 40, 0.12);
+		transform: ${({ $compact }) => ($compact ? 'translateY(-2px)' : 'translateY(-8px)')};
+		box-shadow: ${({ $compact }) =>
+			$compact ? COLORS.shadowMd : '0 18px 40px rgba(16, 24, 40, 0.12)'};
 	}
 `;
 
-export const CardImageWrapper = styled.div`
+export const CompactTopRow = styled.div`
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 12px;
+	margin-bottom: 10px;
+
+	@media (max-width: 640px) {
+		flex-direction: column;
+		align-items: stretch;
+	}
+`;
+
+export const CompactSeasonTag = styled.span`
+	font-size: 0.78rem;
+	font-weight: 700;
+	color: ${COLORS.textSecondary};
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+`;
+
+export const CompactCardBody = styled.div<{ $compact?: boolean }>`
+	padding: ${({ $compact }) => ($compact ? '16px' : '18px 12px 12px 12px')};
+	flex: 1 1 auto;
+`;
+
+export const CompactTeaser = styled.div`
+	display: grid;
+	grid-template-columns: minmax(0, 1.45fr) minmax(180px, 0.55fr);
+	align-items: start;
+	gap: 24px;
+	padding: 16px 18px;
+	border: 1px solid rgba(16, 24, 40, 0.08);
+	border-radius: 14px;
+	background: ${COLORS.gray50};
+
+	@media (max-width: 900px) {
+		grid-template-columns: 1fr;
+		gap: 16px;
+	}
+`;
+
+export const CompactTeaserMain = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	min-width: 0;
+`;
+
+export const CompactTeaserSide = styled.div`
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 12px;
+	padding-left: 20px;
+	border-left: 1px solid rgba(16, 24, 40, 0.08);
+
+	@media (max-width: 900px) {
+		flex-direction: row;
+		align-items: center;
+		justify-content: flex-start;
+		flex-wrap: wrap;
+		padding-left: 0;
+		padding-top: 4px;
+		border-left: 0;
+		border-top: 1px solid rgba(16, 24, 40, 0.08);
+	}
+`;
+
+export const CompactTeaserTitle = styled.h4`
+	margin: 0;
+	font-size: 1rem;
+	font-weight: 800;
+	color: ${COLORS.textPrimary};
+`;
+
+export const CompactTeaserSummary = styled.p`
+	margin: 0;
+	font-size: 0.88rem;
+	font-weight: 600;
+	line-height: 1.45;
+	color: ${COLORS.textPrimary};
+`;
+
+export const CompactTeaserList = styled.ul`
+	margin: 0;
+	padding-left: 18px;
+	font-size: 0.82rem;
+	line-height: 1.5;
+	color: ${COLORS.textSecondary};
+
+	li + li {
+		margin-top: 6px;
+	}
+`;
+
+export const CompactTeaserMeta = styled.div<{ $urgency?: 'warning' | 'danger' }>`
+	font-size: 0.82rem;
+	font-weight: 600;
+	line-height: 1.45;
+	color: ${({ $urgency }) =>
+		$urgency === 'danger'
+			? COLORS.alertError
+			: $urgency === 'warning'
+			? COLORS.alertWarning
+			: COLORS.textSecondary};
+	${({ $urgency }) =>
+		$urgency
+			? `
+				background: ${$urgency === 'danger' ? COLORS.alertErrorBg : COLORS.alertWarningBg};
+				border-radius: 6px;
+				padding: 4px 8px;
+			`
+			: ''}
+`;
+
+export const CompactTeaserFooter = styled.div`
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 16px;
+	margin-top: 6px;
+	padding-top: 12px;
+	border-top: 1px solid rgba(16, 24, 40, 0.08);
+
+	@media (max-width: 900px) {
+		flex-direction: column;
+		align-items: flex-start;
+	}
+`;
+
+export const CompactPager = styled.div`
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	gap: 10px;
+	flex-wrap: wrap;
+
+	@media (max-width: 900px) {
+		justify-content: flex-start;
+	}
+`;
+
+export const CompactActionButton = styled.button`
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 38px;
+	padding: 0 14px;
+	border-radius: 10px;
+	border: 1px solid ${COLORS.primary};
+	background: ${COLORS.primary};
+	color: ${COLORS.bgWhite};
+	font-size: 0.82rem;
+	font-weight: 700;
+	cursor: pointer;
+	transition: background 180ms ease, border-color 180ms ease, opacity 180ms ease;
+
+	&:hover:not(:disabled) {
+		background: ${COLORS.primaryDark};
+		border-color: ${COLORS.primaryDark};
+	}
+
+	&:disabled {
+		cursor: not-allowed;
+		opacity: 0.55;
+		background: ${COLORS.gray300};
+		border-color: ${COLORS.gray300};
+		color: ${COLORS.gray700};
+	}
+`;
+
+export const CompactSideActions = styled.div`
+	display: flex;
+	flex-direction: row;
+	gap: 8px;
+	flex-wrap: wrap;
+	align-items: center;
+`;
+
+export const SnoozeButton = styled.button`
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 32px;
+	padding: 0 12px;
+	border-radius: 10px;
+	border: 1px solid ${COLORS.gray300};
+	background: transparent;
+	color: ${COLORS.textSecondary};
+	font-size: 0.78rem;
+	font-weight: 600;
+	cursor: pointer;
+	transition: background 180ms ease, border-color 180ms ease, color 180ms ease;
+
+	&:hover {
+		background: ${COLORS.gray100};
+		border-color: ${COLORS.gray400 ?? COLORS.gray300};
+		color: ${COLORS.textPrimary};
+	}
+`;
+
+export const CardImageWrapper = styled.div<{ $compact?: boolean }>`
 	position: relative;
 	width: 100%;
-	height: 300px;
+	height: ${({ $compact }) => ($compact ? '220px' : '300px')};
 	overflow: visible;
 	background: ${COLORS.gray100};
 	img {
@@ -385,9 +617,9 @@ export const PriorityPill = styled.span<{ level?: string; $season?: string }>`
 	box-shadow: none;
 `;
 
-export const CardTitle = styled.h4`
+export const CardTitle = styled.h4<{ $compact?: boolean }>`
 	margin: 0 0 12px 0;
-	font-size: 1.25rem;
+	font-size: ${({ $compact }) => ($compact ? '1.1rem' : '1.25rem')};
 	color: #0f172a;
 	text-align: center;
 	font-weight: 800;
@@ -403,10 +635,10 @@ export const CardTitle = styled.h4`
 	}
 `;
 
-export const CardList = styled.ul`
+export const CardList = styled.ul<{ $compact?: boolean }>`
 	margin: 0;
-	padding: 0 24px;
-	font-size: 14px;
+	padding: ${({ $compact }) => ($compact ? '0 18px' : '0 24px')};
+	font-size: ${({ $compact }) => ($compact ? '13px' : '14px')};
 	color: #111827;
 	line-height: 1.6;
 	li {
@@ -420,12 +652,12 @@ export const CardFooter = styled.div`
 	text-align: right;
 `;
 
-export const FooterRow = styled.div<{ $season?: string }>`
+export const FooterRow = styled.div<{ $season?: string; $compact?: boolean }>`
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	padding: 0 18px;
-	height: 64px;
+	padding: ${({ $compact }) => ($compact ? '10px 16px' : '0 18px')};
+	height: ${({ $compact }) => ($compact ? 'auto' : '64px')};
 	background: ${({ $season }) =>
 		$season === 'spring'
 			? `linear-gradient(90deg, ${COLORS.successLight})`
@@ -459,13 +691,14 @@ export const SmallBadge = styled.span`
 	letter-spacing: 0.2px;
 `;
 
-export const Controls = styled.div`
+export const Controls = styled.div<{ $compact?: boolean }>`
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	gap: 18px;
+	gap: ${({ $compact }) => ($compact ? '12px' : '18px')};
 	width: 100%;
-	margin-top: 18px;
+	margin-top: ${({ $compact }) => ($compact ? '12px' : '18px')};
+	flex-wrap: wrap;
 `;
 
 export const PageBadge = styled.div`
