@@ -1067,6 +1067,8 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 					handleViewTenantPromo={handleViewTenantPromo}
 					handleCreateTask={handleCreateTask}
 					handleEditTask={handleEditTask}
+					handleCreateDevice={() => setShowDeviceDialog(true)}
+					handleCreateRequest={() => setShowMaintenanceRequestModal(true)}
 					hasCommercialSuites={hasCommercialSuites}
 					handleCreateUnit={handleCreateUnit}
 					handleDeleteUnit={handleDeleteUnit}

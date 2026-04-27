@@ -1,9 +1,7 @@
 import React, { useEffect } from 'react';
-import { useSelector } from 'react-redux';
-import { RootState } from '../../../Redux/store/store';
-import { DropdownButton } from '../DropdownButton/DropdownButton';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { setActiveTab } from '../../../Redux/Slices/appSlice';
+import { RootState } from '../../../Redux/store/store';
 import { USER_ROLES } from '../../../constants/roles';
 
 export interface TabsContextProps {
@@ -11,7 +9,6 @@ export interface TabsContextProps {
 	currentUser: any;
 	propertyMaintenanceRequests: any[];
 	canApproveMaintenanceRequest: (role: any) => boolean;
-	// optional unit filtering support
 	unitOptions?: { label: string; value: string }[];
 	selectedUnitId?: string;
 	onSelectUnit?: (id: string) => void;
@@ -32,15 +29,13 @@ export const TabController: React.FC<TabsContextProps> = ({
 	const dispatch = useDispatch();
 	const isMobile = useSelector((state: RootState) => state.app.isMobile);
 	const activeTab =
-		useSelector((state: RootState) => state.app.activeTab) || 'details'; // Default to 'details' if no active tab is set
+		useSelector((state: RootState) => state.app.activeTab) || 'details';
 
-	// derive homeowner status from the passed-in `currentUser` prop so the
-	// component remains pure/testable (tests pass `currentUser` directly)
 	const isHomeowner = currentUser?.subscription?.plan === 'homeowner';
 	const isPropertyManager = currentUser ? !isHomeowner : true;
 	const isTenant = currentUser?.role === USER_ROLES.TENANT;
 	const isContractor = currentUser?.role === USER_ROLES.CONTRACTOR;
-	// Build tabs dynamically based on property attributes and user type
+
 	const baseTabs: tab[] = isTenant
 		? [{ label: 'Details', value: 'details' }]
 		: [
@@ -52,17 +47,10 @@ export const TabController: React.FC<TabsContextProps> = ({
 
 	const tabsForProperty: tab[] = [...baseTabs];
 
-	// Suites for commercial properties with suites enabled - temporarily hidden for commercial
-	// if (property?.propertyType === 'Commercial' && hasCommercialSuites) {
-	//     tabsForProperty.push({ label: 'Suites', value: 'suites' });
-	// }
-
-	// Units for multi-family properties
 	if (!isTenant && property?.propertyType === 'Multi-Family') {
 		tabsForProperty.push({ label: 'Units', value: 'units' });
 	}
 
-	// Tenants and Requests only for rental properties and non-homeowner users
 	if (property?.isRental && isPropertyManager && !isTenant) {
 		tabsForProperty.push({ label: 'Tenants', value: 'tenants' });
 	}
@@ -82,7 +70,6 @@ export const TabController: React.FC<TabsContextProps> = ({
 		});
 	}
 
-	// Contractors tab always available
 	if (!isTenant) {
 		tabsForProperty.push({ label: 'Contractors', value: 'contractors' });
 	}
@@ -95,23 +82,91 @@ export const TabController: React.FC<TabsContextProps> = ({
 		}
 	}, [tabs, activeTab, dispatch]);
 
-	const handleTabChange = (tab: string) => {
-		dispatch(setActiveTab(tab)); // Persist the active tab in Redux
+	const handleTabChange = (tabValue: string) => {
+		dispatch(setActiveTab(tabValue));
 	};
 
 	if (isMobile) {
 		return (
-			<div
-				style={{
-					width: '100%',
-					padding: '0 16px',
-					marginBottom: '8px',
-					overflowX: 'auto',
-				}}>
-				<DropdownButton
-					activeTab={activeTab}
-					SetActiveTab={handleTabChange}
-					availableTabs={tabs}
+			<div style={{ position: 'relative', width: '100%', marginBottom: '10px' }}>
+				<div
+					style={{
+						width: '100%',
+						padding: '0 8px',
+						overflowX: 'auto',
+						overflowY: 'hidden',
+						whiteSpace: 'nowrap',
+						scrollSnapType: 'x proximity',
+						WebkitOverflowScrolling: 'touch',
+					}}
+					aria-label='Property tabs'>
+					<div style={{ display: 'inline-flex', gap: 8, paddingBottom: 2 }}>
+						{tabs.map((tab) => (
+							<button
+								key={tab.value}
+								style={{
+									height: '38px',
+									padding: '0 12px',
+									borderRadius: '999px',
+									border:
+										activeTab === tab.value
+											? '1px solid #15803d'
+											: '1px solid #d1d5db',
+									background:
+										activeTab === tab.value
+											? 'linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%)'
+											: '#ffffff',
+									color: activeTab === tab.value ? '#15803d' : '#334155',
+									fontWeight: 700,
+									fontSize: '0.82rem',
+									cursor: 'pointer',
+									whiteSpace: 'nowrap',
+									position: 'relative',
+									scrollSnapAlign: 'start',
+								}}
+								onClick={() => handleTabChange(tab.value)}>
+								{tab.label}
+								{tab.badgeCount && tab.badgeCount > 0 && (
+									<span
+										style={{
+											backgroundColor: '#f59e0b',
+											color: 'white',
+											borderRadius: '999px',
+											padding: '1px 6px',
+											marginLeft: 6,
+											fontSize: 11,
+											fontWeight: 700,
+										}}>
+										{tab.badgeCount}
+									</span>
+								)}
+							</button>
+						))}
+					</div>
+				</div>
+				<div
+					style={{
+						position: 'absolute',
+						left: 0,
+						top: 0,
+						bottom: 0,
+						width: 14,
+						pointerEvents: 'none',
+						background:
+							'linear-gradient(to right, rgba(255,255,255,0.96), rgba(255,255,255,0))',
+					}}
+				/>
+				<div
+					style={{
+						position: 'absolute',
+						right: 0,
+						top: 0,
+						bottom: 0,
+						width: 14,
+						pointerEvents: 'none',
+						background:
+							'linear-gradient(to left, rgba(255,255,255,0.96), rgba(255,255,255,0))',
+					}}
 				/>
 			</div>
 		);

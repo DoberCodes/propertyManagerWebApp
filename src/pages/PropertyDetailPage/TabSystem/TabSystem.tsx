@@ -42,6 +42,8 @@ interface TabsProps {
 	handleConvertRequestToTask: (requestId: string) => void;
 	handleCreateTask: (task: any) => void;
 	handleEditTask: (task: any) => void;
+	handleCreateDevice?: () => void;
+	handleCreateRequest?: () => void;
 	hasCommercialSuites?: boolean;
 }
 
@@ -70,6 +72,9 @@ export const TabSystem = ({
 	handleCreateUnit,
 	handleDeleteUnit,
 	handleConvertRequestToTask,
+	handleCreateTask,
+	handleCreateDevice,
+	handleCreateRequest,
 	hasCommercialSuites,
 }: TabsProps) => {
 	const activeTab = useSelector((state: RootState) => state.app.activeTab); // Default to 'details' if no active tab is set
@@ -79,7 +84,17 @@ export const TabSystem = ({
 	const renderTabContent = () => {
 		switch (activeTab) {
 			case 'details':
-				return <DetailsTab property={property} teamMembers={[]} />;
+				return (
+					<DetailsTab
+						property={property}
+						teamMembers={[]}
+						propertyTasks={propertyTasks}
+						maintenanceHistoryRecords={maintenanceHistoryRecords}
+						onCreateTask={() => handleCreateTask(property)}
+						onCreateDevice={handleCreateDevice}
+						onCreateRequest={handleCreateRequest}
+					/>
+				);
 			case 'devices':
 				return <DevicesTab property={property} />;
 			case 'suites':

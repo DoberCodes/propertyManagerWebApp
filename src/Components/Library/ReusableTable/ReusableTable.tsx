@@ -11,9 +11,15 @@ import {
 export interface Column<T = any> {
 	header: string;
 	key: keyof T | string;
+	sortable?: boolean;
 	type?: 'text' | 'dropdown' | 'date';
 	options?: string[] | ((row: T) => string[]);
 	render?: (value: any, row: T, index: number) => React.ReactNode;
+}
+
+export interface SortState {
+	key: string;
+	direction: 'asc' | 'desc';
 }
 
 export interface Action<T = any> {
@@ -27,6 +33,9 @@ export interface Action<T = any> {
 export interface ReusableTableProps<T = any> {
 	columns: Column<T>[];
 	rowData: T[];
+	getRowClassName?: (row: T, index: number) => string | undefined;
+	sortState?: SortState | null;
+	onSort?: (key: string) => void;
 	onRowSelect?: (selectedRowIds: Set<string>) => void;
 	onRowEdit?: (rowIndex: number, updatedRow: T) => void;
 	handleRowDoubleClick?: boolean;
@@ -49,6 +58,9 @@ const getNestedValue = (obj: any, path: string) => {
 export const ReusableTable = <T extends { id: string }>({
 	columns,
 	rowData,
+	getRowClassName,
+	sortState,
+	onSort,
 	onRowSelect,
 	onRowEdit,
 	onRowDoubleClick,
@@ -106,17 +118,60 @@ export const ReusableTable = <T extends { id: string }>({
 									/>
 								</th>
 							)}
-							{columns.map((col, index) => (
-								<th key={index}>{col.header}</th>
-							))}
+							{columns.map((col, index) => {
+								const isActiveSort = sortState?.key === String(col.key);
+								const directionSymbol = isActiveSort
+									? sortState?.direction === 'asc'
+										? '↑'
+										: '↓'
+									: '';
+
+								return (
+									<th key={index}>
+										{col.sortable && onSort ? (
+											<button
+												type='button'
+												onClick={() => onSort(String(col.key))}
+												style={{
+													border: 'none',
+													background: 'transparent',
+													padding: 0,
+													cursor: 'pointer',
+													fontWeight: 700,
+													display: 'inline-flex',
+													alignItems: 'center',
+													gap: '4px',
+												}}
+												aria-label={`Sort by ${col.header}`}>
+												<span>{col.header}</span>
+												<span style={{ opacity: isActiveSort ? 1 : 0.35 }}>
+													{directionSymbol || '↕'}
+												</span>
+											</button>
+										) : (
+											col.header
+										)}
+									</th>
+								);
+							})}
 							{showActionsColumn && actions.length > 0 && <th>Actions</th>}
 						</tr>
 					</thead>
 					<tbody>
 						{rowData.map((row, index) => (
+							/* Merge default and page-specific row classes with de-duplication. */
 							<tr
 								key={index}
-								className={(row as any).status === 'Overdue' ? 'overdue-row' : undefined}
+								className={
+									Array.from(
+										new Set(
+											[
+												(row as any).status === 'Overdue' ? 'overdue-row' : '',
+												getRowClassName?.(row, index) || '',
+											].filter(Boolean),
+										),
+									).join(' ') || undefined
+								}
 								onDoubleClick={() =>
 									handleRowDoubleClick && onRowDoubleClick?.(row.id)
 								}>
@@ -191,9 +246,11 @@ export const ReusableTable = <T extends { id: string }>({
 												return (
 													<ActionButton
 														key={actionIndex}
+														type='button'
 														onClick={() => action.onClick(row, index)}
 														className={action.className}
 														disabled={isDisabled}
+														aria-label={action.label}
 														title={action.label}>
 														<FontAwesomeIcon icon={action.icon} />
 													</ActionButton>

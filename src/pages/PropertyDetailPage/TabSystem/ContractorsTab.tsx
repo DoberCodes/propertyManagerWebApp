@@ -27,6 +27,8 @@ import {
 	LoadingSpinner,
 	Toolbar,
 	ToolbarButton,
+	TabSummaryBar,
+	TabSummaryPill,
 	MobileContractorCard,
 	MobileContractorHeader,
 	MobileContractorTitle,
@@ -203,6 +205,12 @@ export const ContractorsTab: React.FC<ContractorsTabProps> = ({
 	return (
 		<SectionContainer>
 			<SectionHeader>Contractors & Vendors</SectionHeader>
+			<TabSummaryBar>
+				<TabSummaryPill>Total: {filteredContractors.length}</TabSummaryPill>
+				<TabSummaryPill>
+					Categories: {new Set(filteredContractors.map((c) => c.category)).size}
+				</TabSummaryPill>
+			</TabSummaryBar>
 			<Toolbar>
 				<ToolbarButton onClick={handleAddNew}>+ Add Contractor</ToolbarButton>
 			</Toolbar>

@@ -94,6 +94,26 @@ export const Toolbar = styled.div`
 	}
 `;
 
+export const TabSummaryBar = styled.div`
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin-bottom: 12px;
+`;
+
+export const TabSummaryPill = styled.div`
+	height: 30px;
+	display: inline-flex;
+	align-items: center;
+	padding: 0 10px;
+	border-radius: 999px;
+	background: #f8fafc;
+	border: 1px solid #e2e8f0;
+	font-size: 0.75rem;
+	font-weight: 700;
+	color: #334155;
+`;
+
 export const ToolbarButton = styled.button`
 	background-color: #22c55e;
 	color: white;
@@ -227,7 +247,8 @@ export const Overlay = styled.div`
 	left: 0;
 	right: 0;
 	bottom: 0;
-	background-color: rgba(0, 0, 0, 0.5);
+	background: rgba(15, 23, 42, 0.42);
+	backdrop-filter: blur(2px);
 	display: flex;
 	justify-content: center;
 	align-items: center;
@@ -241,12 +262,13 @@ export const Overlay = styled.div`
 `;
 
 export const FormContainer = styled.div`
-	background: white;
-	border-radius: 8px;
+	background: linear-gradient(180deg, #ffffff 0%, #fcfdfc 100%);
+	border-radius: 12px;
+	border: 1px solid #e5e7eb;
 	padding: 2rem;
-	max-width: 500px;
+	max-width: 620px;
 	width: 90%;
-	box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+	box-shadow: 0 20px 45px rgba(15, 23, 42, 0.18);
 	max-height: 90vh;
 	overflow-y: auto;
 
@@ -258,7 +280,7 @@ export const FormContainer = styled.div`
 	@media (max-width: 480px) {
 		max-width: 95%;
 		padding: 1rem;
-		border-radius: 6px;
+		border-radius: 10px;
 		margin-top: 1rem;
 		max-height: 85vh;
 	}
@@ -266,8 +288,8 @@ export const FormContainer = styled.div`
 
 export const Title = styled.h2`
 	margin: 0 0 1.5rem 0;
-	font-size: 1.5rem;
-	color: #333;
+	font-size: 1.65rem;
+	color: #0f172a;
 
 	@media (max-width: 480px) {
 		font-size: 1.25rem;
@@ -276,7 +298,7 @@ export const Title = styled.h2`
 `;
 
 export const FormGroup = styled.div`
-	margin-bottom: 1.25rem;
+	margin-bottom: 0.35rem;
 	display: flex;
 	flex-direction: column;
 `;
@@ -294,15 +316,15 @@ export const Label = styled.label`
 
 export const BaseInput = `
 	padding: 0.75rem;
-	border: 1px solid #ddd;
-	border-radius: 4px;
+	border: 1px solid #cbd5e1;
+	border-radius: 8px;
 	font-size: 1rem;
 	font-family: inherit;
 
 	&:focus {
 		outline: none;
-		border-color: #3498db;
-		box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+		border-color: #22c55e;
+		box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.14);
 	}
 `;
 
@@ -325,7 +347,9 @@ export const ButtonGroup = styled.div`
 	display: flex;
 	gap: 1rem;
 	justify-content: flex-end;
-	margin-top: 2rem;
+	margin-top: 1.6rem;
+	padding-top: 0.95rem;
+	border-top: 1px solid #e5e7eb;
 
 	@media (max-width: 480px) {
 		flex-direction: column-reverse;
@@ -378,6 +402,64 @@ export const SuccessMessage = styled.div`
 	border-radius: 4px;
 	margin-bottom: 1rem;
 	font-size: 0.9rem;
+`;
+
+export const FormIntroCard = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: 0.65rem;
+	margin-bottom: 1.1rem;
+	padding: 0.9rem 1rem;
+	border-radius: 10px;
+	border: 1px solid #bbf7d0;
+	background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf3 100%);
+`;
+
+export const FormIntroText = styled.p`
+	margin: 0;
+	font-size: 0.88rem;
+	line-height: 1.45;
+	color: #14532d;
+`;
+
+export const FormIntroPills = styled.div`
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5rem;
+`;
+
+export const FormIntroPill = styled.span<{ $tone?: 'success' | 'neutral' }>`
+	display: inline-flex;
+	align-items: center;
+	padding: 0.25rem 0.6rem;
+	border-radius: 999px;
+	font-size: 0.75rem;
+	font-weight: 700;
+	border: 1px solid
+		${(props) => (props.$tone === 'success' ? '#86efac' : '#d1d5db')};
+	background: ${(props) => (props.$tone === 'success' ? '#dcfce7' : '#ffffff')};
+	color: ${(props) => (props.$tone === 'success' ? '#166534' : '#334155')};
+`;
+
+export const FormGrid = styled.div`
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 0.95rem;
+
+	@media (max-width: 720px) {
+		grid-template-columns: 1fr;
+	}
+`;
+
+export const FormFullWidth = styled.div`
+	grid-column: 1 / -1;
+`;
+
+export const InlineError = styled.span`
+	font-size: 0.78rem;
+	font-weight: 600;
+	color: #b91c1c;
+	margin-top: 0.35rem;
 `;
 
 export const DesktopTableWrapper = styled.div`
@@ -642,6 +724,7 @@ export const MobileTaskCard = styled(BaseMobileCard)<{ $isSelected: boolean }>`
 
 	@media (max-width: 1024px) {
 		display: block;
+		padding: 12px;
 	}
 `;
 
@@ -678,14 +761,15 @@ export const MobileTaskCheckbox = styled.input.attrs({ type: 'checkbox' })`
 export const MobileTaskMeta = styled.div`
 	display: flex;
 	flex-direction: column;
-	gap: 8px;
-	margin-bottom: 12px;
+	gap: 6px;
+	margin-bottom: 10px;
 `;
 
 export const MobileTaskRow = styled.div`
 	display: flex;
 	justify-content: space-between;
 	align-items: center;
+	gap: 10px;
 `;
 
 export const MobileTaskLabel = styled.span`
@@ -700,6 +784,12 @@ export const MobileTaskValue = styled.span`
 	font-size: 14px;
 	color: #374151;
 	font-weight: 500;
+	margin-left: auto;
+	text-align: right;
+	min-width: 110px;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
 `;
 
 export const MobileTaskActions = styled.div`

@@ -40,9 +40,9 @@ export const ModalContainer = styled.div`
 	background: white;
 	border-radius: 12px;
 	width: 100%;
-	max-width: 750px;
-	height: 70vh;
-	max-height: 90vh;
+	max-width: 860px;
+	height: 78vh;
+	max-height: 92vh;
 	min-height: 500px;
 	display: flex;
 	flex-direction: column;
@@ -65,17 +65,17 @@ export const ModalContainer = styled.div`
 
 	@media (max-width: 1024px) {
 		max-width: 90%;
-		height: 75vh;
-		max-height: 85vh;
+		height: 82vh;
+		max-height: 90vh;
 		min-height: 400px;
 	}
 
 	@media (max-width: 480px) {
-		max-width: 95%;
-		height: 85vh;
-		max-height: 85vh;
+		max-width: 100%;
+		height: 100dvh;
+		max-height: 100dvh;
 		min-height: 0;
-		border-radius: 10px;
+		border-radius: 0;
 	}
 `;
 
@@ -189,11 +189,11 @@ export const DialogHeader = styled.div`
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
-	margin: 0 0 1.5rem 0;
+	margin: 0 0 1rem 0;
 	font-size: 1.5rem;
 	font-weight: 700;
 	color: ${COLORS.primaryDark};
-	padding: 2rem;
+	padding: 1.5rem 1.5rem 1.25rem;
 	border-bottom: 2px solid ${COLORS.primaryLight};
 
 	h3 {
@@ -202,8 +202,8 @@ export const DialogHeader = styled.div`
 	}
 
 	@media (max-width: 480px) {
-		padding: 1.5rem;
-		margin-bottom: 1.25rem;
+		padding: 1.25rem 1rem 1rem;
+		margin-bottom: 0.75rem;
 
 		h3 {
 			font-size: 1.375rem;
@@ -524,7 +524,7 @@ export const FormTextarea = styled.textarea`
 `;
 
 export const ModalFormContent = styled.div`
-	padding: 1rem 2rem 1rem;
+	padding: 0 1.5rem 1rem;
 	flex: 1;
 	overflow-y: auto;
 	overflow-x: hidden;
@@ -533,7 +533,7 @@ export const ModalFormContent = styled.div`
 	flex-direction: column;
 
 	@media (max-width: 480px) {
-		padding: 0.75rem 1.5rem 1rem;
+		padding: 0 1rem 1rem;
 	}
 `;
 
@@ -592,23 +592,21 @@ export const FormCheckbox = styled.input`
 export const ModalTabContainer = styled.div`
 	display: flex;
 	border-bottom: 2px solid ${COLORS.gray200};
-	margin-bottom: 1rem;
+	margin-bottom: 1.25rem;
 	gap: 0.5rem;
 	flex-wrap: wrap;
 	overflow-x: auto;
 	padding-bottom: 0.25rem;
-	position: sticky;
-	top: 0;
-	z-index: 2;
 	background: white;
 
 	@media (max-width: 768px) {
 		gap: 0.375rem;
+		margin-bottom: 1rem;
 	}
 `;
 
 export const ModalTab = styled.button<{ $active: boolean }>`
-	padding: 0.75rem 1.5rem;
+	padding: 0.7rem 1rem;
 	white-space: nowrap;
 	background: ${(props) =>
 		props.$active ? COLORS.primaryLight : 'transparent'};
@@ -634,7 +632,7 @@ export const ModalTab = styled.button<{ $active: boolean }>`
 	}
 
 	@media (max-width: 768px) {
-		padding: 0.625rem 0.875rem;
+		padding: 0.625rem 0.75rem;
 		font-size: 0.85rem;
 	}
 `;

@@ -5,15 +5,104 @@ import {
 	SectionContainer,
 	SectionHeader,
 } from '../../../Components/Library/InfoCards/InfoCardStyles';
+import { StatusBadge } from './index.styles';
+import { isTaskOverdueForDisplay } from '../../../utils/taskUtils';
 import { DetailsEditHeader } from '../PropertyDetailPage.styles';
 import { PropertyDetailSection } from '../PropertyDetailSection';
+import {
+	GlanceGrid,
+	GlanceCard,
+	GlanceLabel,
+	GlanceValue,
+	QuickActionsBar,
+	QuickActionButton,
+	PreviewGrid,
+	PreviewCard,
+	PreviewHeader,
+	PreviewList,
+	PreviewItem,
+	PreviewItemTitle,
+	PreviewItemMeta,
+} from './DetailsTab.styles';
 
 export const DetailsTab: React.FC<DetailsTabProps> = ({
 	property,
 	teamMembers,
+	propertyTasks = [],
+	maintenanceHistoryRecords = [],
+	onCreateTask,
+	onCreateDevice,
+	onCreateRequest,
 }) => {
+	const openTasksCount = propertyTasks.length;
+	const overdueTasksCount = propertyTasks.filter((task) =>
+		isTaskOverdueForDisplay(task as any),
+	).length;
+	const devicesCount =
+		Array.isArray((property as any)?.deviceIds)
+			? (property as any).deviceIds.length
+			: Array.isArray((property as any)?.devices)
+			? (property as any).devices.length
+			: 0;
+	const recentMaintenanceCount = maintenanceHistoryRecords.length;
+
+	const upcomingTasks = [...propertyTasks]
+		.sort((a, b) => {
+			const dueA = a?.dueDate ? new Date(a.dueDate).getTime() : Infinity;
+			const dueB = b?.dueDate ? new Date(b.dueDate).getTime() : Infinity;
+			return dueA - dueB;
+		})
+		.slice(0, 4);
+
+	const recentMaintenance = [...maintenanceHistoryRecords]
+		.sort((a, b) => {
+			const timeA = a?.completionDate
+				? new Date(a.completionDate).getTime()
+				: 0;
+			const timeB = b?.completionDate
+				? new Date(b.completionDate).getTime()
+				: 0;
+			return timeB - timeA;
+		})
+		.slice(0, 4);
+
 	return (
 		<>
+			<GlanceGrid>
+				<GlanceCard>
+					<GlanceLabel>Open Tasks</GlanceLabel>
+					<GlanceValue>{openTasksCount}</GlanceValue>
+				</GlanceCard>
+				<GlanceCard>
+					<GlanceLabel>Overdue</GlanceLabel>
+					<GlanceValue>{overdueTasksCount}</GlanceValue>
+				</GlanceCard>
+				<GlanceCard>
+					<GlanceLabel>Devices</GlanceLabel>
+					<GlanceValue>{devicesCount}</GlanceValue>
+				</GlanceCard>
+				<GlanceCard>
+					<GlanceLabel>History Records</GlanceLabel>
+					<GlanceValue>{recentMaintenanceCount}</GlanceValue>
+				</GlanceCard>
+			</GlanceGrid>
+
+			<QuickActionsBar>
+				<QuickActionButton onClick={() => onCreateTask?.()}>
+					+ Add Task
+				</QuickActionButton>
+				<QuickActionButton $variant='secondary' onClick={() => onCreateDevice?.()}>
+					+ Add Device
+				</QuickActionButton>
+				{property?.isRental && (
+					<QuickActionButton
+						$variant='secondary'
+						onClick={() => onCreateRequest?.()}>
+						+ Request Maintenance
+					</QuickActionButton>
+				)}
+			</QuickActionsBar>
+
 			{/* Edit Mode Header */}
 			<DetailsEditHeader>
 				<SectionHeader>Property Information</SectionHeader>
@@ -38,6 +127,59 @@ export const DetailsTab: React.FC<DetailsTabProps> = ({
 					</InfoCard>
 				</SectionContainer>
 			)}
+
+			<PreviewGrid>
+				<PreviewCard>
+					<PreviewHeader>Upcoming Tasks</PreviewHeader>
+					<PreviewList>
+						{upcomingTasks.length === 0 ? (
+							<PreviewItem>
+								<PreviewItemTitle>No open tasks</PreviewItemTitle>
+								<PreviewItemMeta>All clear</PreviewItemMeta>
+							</PreviewItem>
+						) : (
+							upcomingTasks.map((task) => (
+								<PreviewItem key={task.id}>
+									<div style={{ minWidth: 0 }}>
+										<PreviewItemTitle>{task.title}</PreviewItemTitle>
+									</div>
+									<div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+										<StatusBadge status={task.status}>{task.status}</StatusBadge>
+										<PreviewItemMeta>
+											{task.dueDate
+												? new Date(task.dueDate).toLocaleDateString()
+												: 'ASAP'}
+										</PreviewItemMeta>
+									</div>
+								</PreviewItem>
+							))
+						)}
+					</PreviewList>
+				</PreviewCard>
+
+				<PreviewCard>
+					<PreviewHeader>Recent Activity</PreviewHeader>
+					<PreviewList>
+						{recentMaintenance.length === 0 ? (
+							<PreviewItem>
+								<PreviewItemTitle>No maintenance history yet</PreviewItemTitle>
+								<PreviewItemMeta>Start tracking activity</PreviewItemMeta>
+							</PreviewItem>
+						) : (
+							recentMaintenance.map((record) => (
+								<PreviewItem key={record.id || `${record.title}-${record.completionDate}`}>
+									<PreviewItemTitle>{record.title || 'Maintenance item'}</PreviewItemTitle>
+									<PreviewItemMeta>
+										{record.completionDate
+											? new Date(record.completionDate).toLocaleDateString()
+											: 'Date unknown'}
+									</PreviewItemMeta>
+								</PreviewItem>
+							))
+						)}
+					</PreviewList>
+				</PreviewCard>
+			</PreviewGrid>
 		</>
 	);
 };

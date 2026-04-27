@@ -47,6 +47,11 @@ export interface PropertyEditHandlers {
 export interface DetailsTabProps {
 	property: Property;
 	teamMembers: any[];
+	propertyTasks?: any[];
+	maintenanceHistoryRecords?: any[];
+	onCreateTask?: () => void;
+	onCreateDevice?: () => void;
+	onCreateRequest?: () => void;
 }
 
 export interface TasksTabProps {

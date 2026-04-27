@@ -59,14 +59,16 @@ export const PageDescription = styled.p`
 
 export const ReportBuilderContainer = styled.div`
 	display: grid;
-	grid-template-columns: 1fr 1fr;
-	gap: 20px;
+	grid-template-columns: 350px 1fr;
+	gap: 24px;
 
-	@media (max-width: 1024px) {
-		grid-template-columns: 1fr;
+	@media (max-width: 1200px) {
+		grid-template-columns: 320px 1fr;
+		gap: 20px;
 	}
 
 	@media (max-width: 1024px) {
+		grid-template-columns: 1fr;
 		gap: 16px;
 	}
 
@@ -140,61 +142,63 @@ export const Input = styled.input`
 
 export const ColumnsGrid = styled.div`
 	display: grid;
-	grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-	gap: 12px;
+	grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+	gap: 8px;
 
 	@media (max-width: 1024px) {
-		grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-		gap: 10px;
+		grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+		gap: 8px;
 	}
 
 	@media (max-width: 480px) {
-		grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-		gap: 8px;
+		grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+		gap: 6px;
 	}
 `;
 
 export const CheckboxWrapper = styled.div`
 	display: flex;
 	align-items: center;
-	gap: 8px;
-	padding: 8px;
+	gap: 6px;
+	padding: 6px 8px;
 	border: 1px solid #e5e7eb;
-	border-radius: 6px;
+	border-radius: 5px;
 	cursor: pointer;
 	transition: background-color 0.2s ease;
+	background-color: white;
 
 	&:hover {
-		background-color: #f9fafb;
+		background-color: #f3f4f6;
 	}
 
 	@media (max-width: 480px) {
-		padding: 6px;
-		gap: 6px;
+		padding: 5px 6px;
+		gap: 4px;
 	}
 `;
 
 export const Checkbox = styled.input`
 	cursor: pointer;
-	width: 16px;
-	height: 16px;
+	width: 14px;
+	height: 14px;
 	accent-color: #22c55e;
+	flex-shrink: 0;
 
 	@media (max-width: 480px) {
-		width: 14px;
-		height: 14px;
+		width: 12px;
+		height: 12px;
 	}
 `;
 
 export const CheckboxLabel = styled.label`
-	font-size: 13px;
-	color: #4b5563;
+	font-size: 12px;
+	color: #374151;
 	cursor: pointer;
 	margin: 0;
-	flex: 1;
+	line-height: 1.2;
 
 	@media (max-width: 480px) {
-		font-size: 12px;
+		font-size: 11px;
 	}
 `;
 

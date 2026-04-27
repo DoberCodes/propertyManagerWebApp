@@ -13,6 +13,13 @@ import {
 	Title,
 	SuccessMessage,
 	ErrorMessage,
+	InlineError,
+	FormIntroCard,
+	FormIntroPills,
+	FormIntroPill,
+	FormIntroText,
+	FormGrid,
+	FormFullWidth,
 	FormGroup,
 	Input,
 	Label,
@@ -58,6 +65,7 @@ export const ContractorForm: React.FC<ContractorFormProps> = ({
 	});
 
 	const [errors, setErrors] = useState<Record<string, string>>({});
+	const [submitAttempted, setSubmitAttempted] = useState(false);
 	const [message, setMessage] = useState<{
 		type: 'success' | 'error';
 		text: string;
@@ -97,8 +105,16 @@ export const ContractorForm: React.FC<ContractorFormProps> = ({
 		return Object.keys(newErrors).length === 0;
 	};
 
+	const missingRequiredFields = [
+		!formData.company.trim() ? 'Company Name' : null,
+		!formData.name.trim() ? 'Contact Name' : null,
+		!formData.category ? 'Category' : null,
+		!formData.phone.trim() ? 'Phone Number' : null,
+	].filter(Boolean) as string[];
+
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
+		setSubmitAttempted(true);
 
 		if (!validateForm()) {
 			return;
@@ -159,6 +175,26 @@ export const ContractorForm: React.FC<ContractorFormProps> = ({
 			<FormContainer onClick={(e) => e.stopPropagation()}>
 				<Title>{contractor ? 'Edit Contractor' : 'Add New Contractor'}</Title>
 
+				<FormIntroCard>
+					<FormIntroText>
+						Add the required basics first, then include optional contact context like notes and address.
+					</FormIntroText>
+					<FormIntroPills>
+						<FormIntroPill
+							$tone={missingRequiredFields.length === 0 ? 'success' : 'neutral'}>
+							{4 - missingRequiredFields.length}/4 required complete
+						</FormIntroPill>
+						<FormIntroPill $tone='neutral'>
+							{contractor ? 'Editing existing contractor' : 'Creating new contractor'}
+						</FormIntroPill>
+					</FormIntroPills>
+					{submitAttempted && missingRequiredFields.length > 0 && (
+						<FormIntroText>
+							Still needed: {missingRequiredFields.join(', ')}
+						</FormIntroText>
+					)}
+				</FormIntroCard>
+
 				{message && (
 					<>
 						{message.type === 'success' ? (
@@ -170,6 +206,7 @@ export const ContractorForm: React.FC<ContractorFormProps> = ({
 				)}
 
 				<form onSubmit={handleSubmit}>
+					<FormGrid>
 					<FormGroup>
 						<Label htmlFor='company'>
 							Company Name <span>*</span>
@@ -182,11 +219,7 @@ export const ContractorForm: React.FC<ContractorFormProps> = ({
 							onChange={handleChange}
 							placeholder='e.g., ABC Landscaping'
 						/>
-						{errors.company && (
-							<ErrorMessage style={{ marginTop: '0.25rem' }}>
-								{errors.company}
-							</ErrorMessage>
-						)}
+						{errors.company && <InlineError>{errors.company}</InlineError>}
 					</FormGroup>
 
 					<FormGroup>
@@ -201,11 +234,7 @@ export const ContractorForm: React.FC<ContractorFormProps> = ({
 							onChange={handleChange}
 							placeholder='e.g., John Smith'
 						/>
-						{errors.name && (
-							<ErrorMessage style={{ marginTop: '0.25rem' }}>
-								{errors.name}
-							</ErrorMessage>
-						)}
+						{errors.name && <InlineError>{errors.name}</InlineError>}
 					</FormGroup>
 
 					<FormGroup>
@@ -223,11 +252,7 @@ export const ContractorForm: React.FC<ContractorFormProps> = ({
 								</option>
 							))}
 						</Select>
-						{errors.category && (
-							<ErrorMessage style={{ marginTop: '0.25rem' }}>
-								{errors.category}
-							</ErrorMessage>
-						)}
+						{errors.category && <InlineError>{errors.category}</InlineError>}
 					</FormGroup>
 
 					<FormGroup>
@@ -242,11 +267,7 @@ export const ContractorForm: React.FC<ContractorFormProps> = ({
 							onChange={handleChange}
 							placeholder='e.g., (555) 123-4567'
 						/>
-						{errors.phone && (
-							<ErrorMessage style={{ marginTop: '0.25rem' }}>
-								{errors.phone}
-							</ErrorMessage>
-						)}
+						{errors.phone && <InlineError>{errors.phone}</InlineError>}
 					</FormGroup>
 
 					<FormGroup>
@@ -273,6 +294,7 @@ export const ContractorForm: React.FC<ContractorFormProps> = ({
 						/>
 					</FormGroup>
 
+					<FormFullWidth>
 					<FormGroup>
 						<Label htmlFor='notes'>Notes</Label>
 						<Textarea
@@ -283,6 +305,8 @@ export const ContractorForm: React.FC<ContractorFormProps> = ({
 							placeholder='Add any special notes or contract details...'
 						/>
 					</FormGroup>
+					</FormFullWidth>
+					</FormGrid>
 
 					<ButtonGroup>
 						<Button
@@ -292,7 +316,9 @@ export const ContractorForm: React.FC<ContractorFormProps> = ({
 							disabled={isLoading}>
 							Cancel
 						</Button>
-						<Button type='submit' disabled={isLoading}>
+						<Button
+							type='submit'
+							disabled={isLoading || missingRequiredFields.length > 0}>
 							{isLoading
 								? 'Saving...'
 								: contractor

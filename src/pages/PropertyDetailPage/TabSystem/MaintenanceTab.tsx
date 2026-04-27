@@ -11,7 +11,13 @@ import {
 	SectionContainer,
 	SectionHeader,
 } from 'Components/Library/InfoCards/InfoCardStyles';
-import { Toolbar, ToolbarButton, ContentWrapper } from './index.styles';
+import {
+	Toolbar,
+	ToolbarButton,
+	ContentWrapper,
+	TabSummaryBar,
+	TabSummaryPill,
+} from './index.styles';
 import { getDeviceNameUtil } from '../PropertyDetailPage.utils';
 import {
 	FilterBar,
@@ -451,6 +457,23 @@ export const MaintenanceTab = ({
 				onCancel={() => setDeleteDialogOpen(false)}
 			/>
 			<SectionHeader>Maintenance History</SectionHeader>
+			<TabSummaryBar>
+				<TabSummaryPill>Total: {filteredRecords.length}</TabSummaryPill>
+				<TabSummaryPill>
+					This Month:{' '}
+					{
+						filteredRecords.filter((record) => {
+							if (!record.completionDate) return false;
+							const date = new Date(record.completionDate);
+							const now = new Date();
+							return (
+								date.getMonth() === now.getMonth() &&
+								date.getFullYear() === now.getFullYear()
+							);
+						}).length
+					}
+				</TabSummaryPill>
+			</TabSummaryBar>
 
 			{/* Toolbar with Add button */}
 			<Toolbar>

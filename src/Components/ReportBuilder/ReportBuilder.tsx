@@ -93,6 +93,122 @@ type ReportType =
 	| 'tenant-profiles'
 	| '';
 
+// Helper to determine which reports a user can access
+const getAccessibleReports = (
+	canAccessTeamReport: boolean,
+	scopedProperties: any[],
+): Array<{
+	value: ReportType;
+	label: string;
+	description: string;
+	requiresTeamAccess: boolean;
+	requiresMultiProperty?: boolean;
+}> => {
+	const allReports = [
+		{
+			value: 'tasks' as ReportType,
+			label: 'Task Report',
+			description: 'Overview of all tasks with details on status, assignments, and dates',
+			requiresTeamAccess: false,
+			requiresMultiProperty: false,
+		},
+		{
+			value: 'maintenance-requests' as ReportType,
+			label: 'Maintenance Requests',
+			description: 'Submitted maintenance requests with status and priority',
+			requiresTeamAccess: false,
+			requiresMultiProperty: false,
+		},
+		{
+			value: 'contractors' as ReportType,
+			label: 'Contractors',
+			description: 'List of contractors and their service history',
+			requiresTeamAccess: false,
+			requiresMultiProperty: false,
+		},
+		{
+			value: 'devices' as ReportType,
+			label: 'Devices',
+			description: 'Property devices with installation dates, status, and maintenance notes',
+			requiresTeamAccess: false,
+			requiresMultiProperty: false,
+		},
+		{
+			value: 'maintenance-history' as ReportType,
+			label: 'Maintenance History',
+			description: 'Historical record of all completed maintenance work',
+			requiresTeamAccess: false,
+			requiresMultiProperty: false,
+		},
+		{
+			value: 'property-summary' as ReportType,
+			label: 'Property Summary',
+			description: 'Overview metrics for each property including occupancy and tasks',
+			requiresTeamAccess: false,
+			requiresMultiProperty: false,
+		},
+		{
+			value: 'suites' as ReportType,
+			label: 'Suites',
+			description: 'Detailed suite information across properties',
+			requiresTeamAccess: false,
+			requiresMultiProperty: true,
+		},
+		{
+			value: 'units' as ReportType,
+			label: 'Units',
+			description: 'Individual unit details and occupancy information',
+			requiresTeamAccess: false,
+			requiresMultiProperty: false,
+		},
+		{
+			value: 'tenant-profiles' as ReportType,
+			label: 'Tenant Profiles',
+			description: 'Tenant contact information and lease details',
+			requiresTeamAccess: false,
+			requiresMultiProperty: false,
+		},
+		{
+			value: 'team' as ReportType,
+			label: 'Team Members',
+			description: 'Team member information and contact details (Team Management)',
+			requiresTeamAccess: true,
+			requiresMultiProperty: false,
+		},
+		{
+			value: 'employee-efficiency' as ReportType,
+			label: 'Employee Efficiency',
+			description: 'Performance metrics for team members (Team Management)',
+			requiresTeamAccess: true,
+			requiresMultiProperty: false,
+		},
+	];
+
+	// Filter reports based on user permissions
+	return allReports.filter((report) => {
+		// Team reports only for users with team access
+		if (report.requiresTeamAccess && !canAccessTeamReport) {
+			return false;
+		}
+
+		// Multi-property reports not applicable for homeowners or single-property users
+		if (report.requiresMultiProperty && scopedProperties.length <= 1) {
+			return false;
+		}
+
+		return true;
+	});
+};
+
+// Helper to get description for a report type
+const getReportDescription = (
+	reportType: ReportType,
+	accessibleReports: ReturnType<typeof getAccessibleReports>,
+): string => {
+	const report = accessibleReports.find((r) => r.value === reportType);
+	return report?.description || '';
+};
+
 export const ReportBuilder: React.FC = () => {
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
 	const canManageTeam = useSelector(selectCanAccessTeam);
@@ -628,6 +744,25 @@ export const ReportBuilder: React.FC = () => {
 		tenantProfilesLoading ||
 		contractorsLoading;
 
+	// Get accessible reports for this user
+	const accessibleReports = useMemo(
+		() => getAccessibleReports(canAccessTeamReport, scopedProperties),
+		[canAccessTeamReport, isHomeowner, scopedProperties],
+	);
+
+	// Validate that current report type is still accessible
+	const isCurrentReportAccessible = useMemo(
+		() =>
+			!reportType ||
+			accessibleReports.some((r) => r.value === reportType),
+		[reportType, accessibleReports],
+	);
+
+	const currentReportDescription = useMemo(
+		() => getReportDescription(reportType, accessibleReports),
+		[reportType, accessibleReports],
+	);
+
 	return (
 		<Wrapper>
 			<PageHeader>
@@ -649,23 +784,24 @@ export const ReportBuilder: React.FC = () => {
 						<Label>Select Report</Label>
 						<Select value={reportType} onChange={handleReportTypeChange}>
 							<option value=''>-- Choose a report type --</option>
-							<option value='tasks'>Task Report</option>
-							<option value='maintenance-requests'>Maintenance Requests</option>
-							{canAccessTeamReport && (
-								<option value='team'>Team Members</option>
-							)}
-							<option value='contractors'>Contractors</option>
-							<option value='suites'>Suites</option>
-							<option value='units'>Units</option>
-							<option value='devices'>Devices</option>
-							<option value='maintenance-history'>Maintenance History</option>
-							<option value='tenant-profiles'>Tenant Profiles</option>
-							{canAccessTeamReport && (
-								<option value='employee-efficiency'>Employee Efficiency</option>
-							)}
-							<option value='property-summary'>Property Summary</option>
+							{accessibleReports.map((report) => (
+								<option key={report.value} value={report.value}>
+									{report.label}
+									{report.requiresTeamAccess ? ' (Team Management)' : ''}
+								</option>
+							))}
 						</Select>
 					</FormGroup>
+					{reportType && currentReportDescription && (
+						<div style={{ fontSize: '13px', color: '#6b7280', marginTop: '8px' }}>
+							{currentReportDescription}
+						</div>
+					)}
+					{!isCurrentReportAccessible && reportType && (
+						<InfoMessage style={{ backgroundColor: '#fef3c7', color: '#92400e', marginTop: '12px' }}>
+							This report type is not available for your account.
+						</InfoMessage>
+					)}
 					{(shouldShowMaintenanceFilters || shouldShowPropertyFilter) && (
 						<FilterContainer>
 							<Label style={{ marginTop: '12px' }}>Filters</Label>

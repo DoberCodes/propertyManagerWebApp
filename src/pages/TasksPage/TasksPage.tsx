@@ -15,23 +15,34 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import { Column, Action } from '../../Components/Library/ReusableTable';
 import { StatusBadge } from '../PropertyDetailPage/TabSystem/index.styles';
-import { MobileTaskCarousel, TaskModal } from '../../Components/Library';
+import { TaskModal } from '../../Components/Library';
 import { TaskAssignModal } from '../../Components/Library/Modal/TaskAssignModal';
 import {
 	useGetTasksQuery,
+	useDeleteTaskMutation,
 	useUpdateTaskMutation,
 } from '../../Redux/API/taskSlice';
-import { Wrapper, TaskGridSection, CarouselSection } from './TasksPage.styles';
+import {
+	Wrapper,
+	TaskGridSection,
+	MobileListSection,
+	MobileTaskCard,
+	MobileTaskHeader,
+	MobileTaskTitle,
+	MobileTaskMetaGrid,
+	MobileMetaItem,
+	MobileMetaLabel,
+	MobileMetaValue,
+	MobileTaskActions,
+	MobileActionButton,
+	QuickFilterChips,
+	QuickFilterChip,
+	UndoToast,
+	UndoButton,
+} from './TasksPage.styles';
 
 import {
-	FilterBar,
-	FilterConfig,
-	FilterValues,
-} from 'Components/Library/FilterBar';
-import { applyFilters } from '../../utils/tableFilters';
-import {
 	isTaskOverdueForDisplay,
-	matchesDateRangeOrIsOverdue,
 	updateOverdueTasks,
 } from '../../utils/taskUtils';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -71,6 +82,7 @@ export const TasksPage = () => {
 
 	// Firebase mutations
 	const [updateTaskMutation] = useUpdateTaskMutation();
+	const [deleteTaskMutation] = useDeleteTaskMutation();
 
 	// Local task handlers
 	const taskHandlers = useTaskHandlers({ updateTaskMutation });
@@ -88,9 +100,21 @@ export const TasksPage = () => {
 	const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
 	const [showTaskCompletionModal, setShowTaskCompletionModal] = useState(false);
 	const [completingTaskId, setCompletingTaskId] = useState<string | null>(null);
-	const [taskDaysFilter, setTaskDaysFilter] = useState<number>(30);
-	const [filters, setFilters] = useState<FilterValues>({});
-	const [showFilters, setShowFilters] = useState(false);
+	const [searchTerm, setSearchTerm] = useState('');
+	const [quickFilter, setQuickFilter] = useState<
+		'all' | 'overdue' | 'in-progress' | 'unassigned' | 'due-this-week'
+	>('all');
+	const [sortState, setSortState] = useState<{
+		key: string;
+		direction: 'asc' | 'desc';
+	}>({ key: 'dueDate', direction: 'asc' });
+	const [undoToastMessage, setUndoToastMessage] = useState<string | null>(null);
+	const [pendingUndo, setPendingUndo] = useState<{
+		kind: 'complete' | 'delete';
+		taskId: string;
+		taskTitle: string;
+		timeoutId: number;
+	} | null>(null);
 	// track the property id for the task we're assigning so the modal can fetch contractors immediately
 	const [assigningTaskPropertyId, setAssigningTaskPropertyId] =
 		useState<string>('');
@@ -124,127 +148,23 @@ export const TasksPage = () => {
 		return assignees;
 	}, [teamMembers]);
 
-	// options used by the filter bar dropdown
-	const assigneeFilterOptions = useMemo(() => {
-		const map = new Map<string, string>();
-		allTasks.forEach((task) => {
-			let id: string | undefined;
-			let name: string | undefined;
-
-			if (task.assignedTo && typeof task.assignedTo === 'object') {
-				id = task.assignedTo.id;
-				name =
-					task.assignedTo.name || task.assignedTo.email || task.assignedTo.id;
-			} else if (task.assignee) {
-				id = task.assignee;
-				name = task.assignee;
-			}
-
-			if (id && name && !map.has(id)) {
-				map.set(id, name);
-			}
-		});
-		return Array.from(map, ([value, label]) => ({ value, label }));
-	}, [allTasks]);
-
 	// property options for filtering on the main tasks page
 	const propertyFilterOptions = useMemo(() => {
 		return allProperties.map((p) => ({ value: p.id, label: p.title }));
 	}, [allProperties]);
 
-	const categoryFilterOptions = useMemo(() => {
-		const categories = processedTasks
-			.map((task) => task.category)
-			.filter(
-				(category): category is string =>
-					typeof category === 'string' && category.trim().length > 0,
-			)
-			.map((category) => category.trim());
+	const handleSort = (key: string) => {
+		setSortState((prev) =>
+			prev.key === key
+				? { key, direction: prev.direction === 'asc' ? 'desc' : 'asc' }
+				: { key, direction: 'asc' },
+		);
+	};
 
-		return Array.from(new Set(categories)).map((category) => ({
-			value: category,
-			label: category,
-		}));
-	}, [processedTasks]);
-
-	const locationFilterOptions = useMemo(() => {
-		const locations = processedTasks
-			.map((task) => task.location)
-			.filter(
-				(location): location is string =>
-					typeof location === 'string' && location.trim().length > 0,
-			)
-			.map((location) => location.trim());
-
-		return Array.from(new Set(locations)).map((location) => ({
-			value: location,
-			label: location,
-		}));
-	}, [processedTasks]);
-
-	const taskFilters: FilterConfig[] = [
-		{
-			key: 'propertyId',
-			label: 'Property',
-			type: 'select',
-			options: [
-				{ value: '', label: 'All properties' },
-				...propertyFilterOptions,
-			],
-		},
-		{
-			key: 'status',
-			label: 'Status',
-			type: 'select',
-			options: [
-				{ value: 'Initiated', label: 'Initiated' },
-				{ value: 'Pending', label: 'Pending' },
-				{ value: 'In Progress', label: 'In Progress' },
-				{ value: 'Awaiting Approval', label: 'Awaiting Approval' },
-				{ value: 'Completed', label: 'Completed' },
-				{ value: 'Rejected', label: 'Rejected' },
-				{ value: 'Overdue', label: 'Overdue' },
-				{ value: 'Hold', label: 'Hold' },
-			],
-		},
-		{
-			key: 'priority',
-			label: 'Priority',
-			type: 'select',
-			options: [
-				{ value: 'Low', label: 'Low' },
-				{ value: 'Medium', label: 'Medium' },
-				{ value: 'High', label: 'High' },
-				{ value: 'Urgent', label: 'Urgent' },
-			],
-		},
-		{
-			key: 'category',
-			label: 'Category',
-			type: 'select',
-			options: categoryFilterOptions,
-		},
-		{
-			key: 'location',
-			label: 'Location',
-			type: 'select',
-			options: locationFilterOptions,
-		},
-		{
-			key: 'assignedTo',
-			label: 'Assigned To',
-			type: 'select',
-			options: [
-				{ value: 'unassigned', label: 'Unassigned' },
-				...assigneeFilterOptions,
-			],
-		},
-		{
-			key: 'dueDate',
-			label: 'Due Date',
-			type: 'daterange',
-		},
-	];
+	const clearTopFilters = () => {
+		setSearchTerm('');
+		setQuickFilter('all');
+	};
 
 	// Get active tasks for display
 	const filteredTasks = useMemo(() => {
@@ -257,8 +177,6 @@ export const TasksPage = () => {
 		const activeTasks = filtered.filter((task) => task.status !== 'Completed');
 
 		const now = new Date();
-		const daysInMs = taskDaysFilter * 24 * 60 * 60 * 1000;
-		const futureDate = new Date(now.getTime() + daysInMs);
 
 		// Enrich tasks for display
 		const enriched = activeTasks.map((task) => {
@@ -270,78 +188,90 @@ export const TasksPage = () => {
 			};
 		});
 
-		// Apply text/select filters first, then apply due-date logic so overdue tasks are never hidden.
-		const afterNonDateFilters = applyFilters(enriched, filters, {
-			textFields: ['title', 'notes'],
-			selectFields: [
-				{ field: 'propertyId', filterKey: 'propertyId' },
-				{ field: 'status', filterKey: 'status' },
-				{ field: 'priority', filterKey: 'priority' },
-				{ field: 'category', filterKey: 'category' },
-				{ field: 'location', filterKey: 'location' },
-				{
-					field: 'assignedTo',
-					filterKey: 'assignedTo',
-					valueGetter: (task: any) =>
-						task.assignedTo && typeof task.assignedTo === 'object'
-							? task.assignedTo.id
-							: task.assignee,
-				},
-			],
+		// Search over title and notes only.
+		const normalizedSearch = searchTerm.trim().toLowerCase();
+		const afterSearch = normalizedSearch
+			? enriched.filter((task) => {
+					const haystack = `${task.title || ''} ${task.notes || ''}`.toLowerCase();
+					return haystack.includes(normalizedSearch);
+			  })
+			: enriched;
+
+		const afterQuickFilter = afterSearch.filter((task) => {
+			if (quickFilter === 'all') return true;
+			if (quickFilter === 'overdue') return isTaskOverdueForDisplay(task as any);
+			if (quickFilter === 'in-progress') return task.status === 'In Progress';
+			if (quickFilter === 'unassigned') {
+				return !task.assignedTo && !task.assignee;
+			}
+			if (quickFilter === 'due-this-week') {
+				if (!task.dueDate) return false;
+				const dueDate = new Date(task.dueDate);
+				if (Number.isNaN(dueDate.getTime())) return false;
+				const weekOut = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+				return dueDate >= now && dueDate <= weekOut;
+			}
+			return true;
 		});
 
-		const dueDateStart = filters.dueDate_start as string | undefined;
-		const dueDateEnd = filters.dueDate_end as string | undefined;
-
-		const afterDateAndTimeFilters = afterNonDateFilters.filter((task) => {
-			if (isTaskOverdueForDisplay(task as any)) {
-				return true;
-			}
-
-			if (!task.dueDate) {
-				return !dueDateStart && !dueDateEnd;
-			}
-
-			const dueDate = new Date(task.dueDate);
-			const withinTimeframe = dueDate >= now && dueDate <= futureDate;
-			if (!withinTimeframe) {
-				return false;
-			}
-
-			return matchesDateRangeOrIsOverdue(
-				task as any,
-				dueDateStart,
-				dueDateEnd,
-			);
-		});
-
-		// Sort overdue tasks first, then due date and priority.
+		// Keep overdue first, then apply user-selected sort.
 		const priorityOrder = { Urgent: 4, High: 3, Medium: 2, Low: 1 };
-		return afterDateAndTimeFilters.sort((a, b) => {
+		return afterQuickFilter.sort((a, b) => {
 			const overdueA = isTaskOverdueForDisplay(a as any);
 			const overdueB = isTaskOverdueForDisplay(b as any);
 			if (overdueA !== overdueB) {
 				return overdueA ? -1 : 1;
 			}
 
-			const dateA = a.dueDate ? new Date(a.dueDate).getTime() : Infinity;
-			const dateB = b.dueDate ? new Date(b.dueDate).getTime() : Infinity;
-			if (dateA !== dateB) {
-				return dateA - dateB;
+			let baseCompare = 0;
+			if (sortState.key === 'dueDate') {
+				const dateA = a.dueDate ? new Date(a.dueDate).getTime() : Infinity;
+				const dateB = b.dueDate ? new Date(b.dueDate).getTime() : Infinity;
+				baseCompare = dateA - dateB;
+			} else if (sortState.key === 'priority') {
+				const priorityA =
+					priorityOrder[a.priority as keyof typeof priorityOrder] || 0;
+				const priorityB =
+					priorityOrder[b.priority as keyof typeof priorityOrder] || 0;
+				baseCompare = priorityA - priorityB;
+			} else if (sortState.key === 'status') {
+				baseCompare = (a.status || '').localeCompare(b.status || '');
+			} else if (sortState.key === 'title') {
+				baseCompare = (a.title || '').localeCompare(b.title || '');
+			} else if (sortState.key === 'assignedTo') {
+				const assigneeA =
+					typeof a.assignedTo === 'object'
+						? a.assignedTo?.name || ''
+						: a.assignedTo || a.assignee || '';
+				const assigneeB =
+					typeof b.assignedTo === 'object'
+						? b.assignedTo?.name || ''
+						: b.assignedTo || b.assignee || '';
+				baseCompare = assigneeA.localeCompare(assigneeB);
+			} else if (sortState.key === 'propertyTitle') {
+				baseCompare = (a.propertyTitle || a.property || '').localeCompare(
+					b.propertyTitle || b.property || '',
+				);
 			}
-			const priorityA =
-				priorityOrder[a.priority as keyof typeof priorityOrder] || 0;
-			const priorityB =
-				priorityOrder[b.priority as keyof typeof priorityOrder] || 0;
-			return priorityB - priorityA;
+
+			if (baseCompare === 0) {
+				const fallbackA =
+					priorityOrder[a.priority as keyof typeof priorityOrder] || 0;
+				const fallbackB =
+					priorityOrder[b.priority as keyof typeof priorityOrder] || 0;
+				baseCompare = fallbackB - fallbackA;
+			}
+
+			return sortState.direction === 'asc' ? baseCompare : -baseCompare;
 		});
 	}, [
 		processedTasks,
 		currentUser,
 		teamMembers,
 		allProperties,
-		taskDaysFilter,
-		filters,
+		searchTerm,
+		quickFilter,
+		sortState,
 	]);
 
 	// Count of active tasks (before timeframe filtering)
@@ -357,20 +287,22 @@ export const TasksPage = () => {
 
 	// Table columns definition
 	const columns: Column[] = [
-		{ header: 'Title', key: 'title' },
+		{ header: 'Title', key: 'title', sortable: true },
 		{
 			header: 'Status',
 			key: 'status',
+			sortable: true,
 			render: (status: string) => (
 				<StatusBadge status={status}>{status}</StatusBadge>
 			),
 		},
-		{ header: 'Priority', key: 'priority' },
+		{ header: 'Priority', key: 'priority', sortable: true },
 		{ header: 'Category', key: 'category' },
 		{ header: 'Location', key: 'location' },
 		{
 			header: 'Assigned To',
 			key: 'assignedTo',
+			sortable: true,
 			render: (_unused: any, task: any) =>
 				typeof task.assignedTo === 'object'
 					? task.assignedTo.name
@@ -379,89 +311,138 @@ export const TasksPage = () => {
 		{
 			header: 'Due Date',
 			key: 'dueDate',
+			sortable: true,
 			render: (_unused: any, task: any) => task.dueDate || 'ASAP',
 		},
-		{ header: 'Property', key: 'propertyTitle' },
+		{ header: 'Property', key: 'propertyTitle', sortable: true },
 	];
+
+	const handleEditTask = (task: any) => {
+		taskHandlers.setEditingTaskId(task.id);
+		taskHandlers.setShowTaskDialog(true);
+	};
+
+	const handleAssignTask = (task: any) => {
+		// Capture both id and property up front to avoid race condition
+		taskHandlers.setAssigningTaskId(task.id);
+		setAssigningTaskPropertyId(task.propertyId || '');
+		taskHandlers.setShowTaskAssignDialog(true);
+	};
+
+	const getAssigneeLabel = (task: any) =>
+		typeof task.assignedTo === 'object'
+			? task.assignedTo.name
+			: task.assignedTo || 'Unassigned';
+
+	const formatDueDate = (dueDate?: string) => {
+		if (!dueDate) return 'ASAP';
+		const parsed = new Date(dueDate);
+		if (Number.isNaN(parsed.getTime())) return dueDate;
+		return parsed.toLocaleDateString('en-US', {
+			month: 'short',
+			day: 'numeric',
+			year: 'numeric',
+		});
+	};
+
+	const executePendingAction = async (action: {
+		kind: 'complete' | 'delete';
+		taskId: string;
+		taskTitle: string;
+		timeoutId: number;
+	}) => {
+		if (action.kind === 'complete') {
+			handleTaskCompletion(action.taskId);
+			return;
+		}
+
+		try {
+			await deleteTaskMutation(action.taskId).unwrap();
+		} catch (error) {
+			console.error('Failed to delete task:', error);
+		}
+	};
+
+	const queueUndoableAction = (action: {
+		kind: 'complete' | 'delete';
+		taskId: string;
+		taskTitle: string;
+	}) => {
+		if (pendingUndo) {
+			window.clearTimeout(pendingUndo.timeoutId);
+			void executePendingAction(pendingUndo);
+		}
+
+		const timeoutId = window.setTimeout(() => {
+			setPendingUndo((current) => {
+				if (!current || current.taskId !== action.taskId || current.kind !== action.kind) {
+					return current;
+				}
+				void executePendingAction(current);
+				setUndoToastMessage(null);
+				return null;
+			});
+		}, 4500);
+
+		setPendingUndo({ ...action, timeoutId });
+		setUndoToastMessage(
+			action.kind === 'delete'
+				? `Deleting "${action.taskTitle}"...`
+				: `Completing "${action.taskTitle}"...`,
+		);
+	};
+
+	const handleUndoPendingAction = () => {
+		if (!pendingUndo) return;
+		window.clearTimeout(pendingUndo.timeoutId);
+		setPendingUndo(null);
+		setUndoToastMessage(null);
+	};
+
+	useEffect(() => {
+		return () => {
+			if (pendingUndo) {
+				window.clearTimeout(pendingUndo.timeoutId);
+			}
+		};
+	}, [pendingUndo]);
 
 	const taskActions: Action[] = [
 		{
 			label: 'Edit',
 			icon: faEdit,
-			onClick: (task: any) => {
-				taskHandlers.setEditingTaskId(task.id);
-				taskHandlers.setShowTaskDialog(true);
-			},
+			onClick: (task: any) => handleEditTask(task),
 		},
 		{
 			label: 'Complete',
 			icon: faCheck,
 			onClick: (task: any) => {
-				handleTaskCompletion(task.id);
+				queueUndoableAction({
+					kind: 'complete',
+					taskId: task.id,
+					taskTitle: task.title || 'Task',
+				});
 			},
 			disabled: (task: any) => task.status === 'Completed',
 		},
 		{
 			label: 'Assign',
 			icon: faUserPlus,
-			onClick: (task: any) => {
-				// capture both id and property up front to avoid race condition
-				taskHandlers.setAssigningTaskId(task.id);
-				setAssigningTaskPropertyId(task.propertyId || '');
-				taskHandlers.setShowTaskAssignDialog(true);
-			},
+			onClick: (task: any) => handleAssignTask(task),
 		},
 		{
 			label: 'Delete',
 			icon: faTrash,
-			onClick: (_task: any) => {
-				if (window.confirm('Are you sure you want to delete this task?')) {
-					// Handle delete logic here
-				}
+			onClick: (task: any) => {
+				queueUndoableAction({
+					kind: 'delete',
+					taskId: task.id,
+					taskTitle: task.title || 'Task',
+				});
 			},
 			className: 'delete',
 		},
 	];
-
-	// Get active tasks for carousel (without enrichment)
-	const carouselTasks = useMemo(() => {
-		const filtered = filterTasksByRole(
-			processedTasks,
-			currentUser,
-			teamMembers,
-			allProperties,
-		);
-		const activeTasks = filtered.filter((task) => task.status !== 'Completed');
-
-		// Sort by due date (ascending), then by priority (descending)
-		const priorityOrder = { Urgent: 4, High: 3, Medium: 2, Low: 1 };
-
-		const sorted = activeTasks
-			.filter((task) => task.dueDate)
-			.sort((a, b) => {
-				const overdueA = isTaskOverdueForDisplay(a as any);
-				const overdueB = isTaskOverdueForDisplay(b as any);
-				if (overdueA !== overdueB) {
-					return overdueA ? -1 : 1;
-				}
-
-				// Primary (within overdue/non-overdue groups): Sort by due date (soonest first)
-			const dateA = new Date(a.dueDate!).getTime();
-			const dateB = new Date(b.dueDate!).getTime();
-			if (dateA !== dateB) {
-				return dateA - dateB;
-			}
-
-			// Secondary: Sort by priority (highest first)
-			const priorityA =
-				priorityOrder[a.priority as keyof typeof priorityOrder] || 0;
-			const priorityB =
-				priorityOrder[b.priority as keyof typeof priorityOrder] || 0;
-			return priorityB - priorityA;
-			});
-
-		return sorted;
-	}, [processedTasks, currentUser, teamMembers, allProperties]);
 
 	const handleTaskCompletion = (taskId: string) => {
 		setCompletingTaskId(taskId);
@@ -483,18 +464,13 @@ export const TasksPage = () => {
 						display: 'flex',
 						alignItems: 'center',
 						gap: '8px',
-						marginBottom: showFilters ? '12px' : '0',
+						marginBottom: '0',
 					}}>
 					<input
 						type='text'
 						placeholder='Search history, notes...'
-						value={(filters.search as string) || ''}
-						onChange={(e) =>
-							setFilters((prev) => ({
-								...prev,
-								search: e.target.value,
-							}))
-						}
+						value={searchTerm}
+						onChange={(e) => setSearchTerm(e.target.value)}
 						style={{
 							flex: 1,
 							padding: '8px 12px',
@@ -503,35 +479,7 @@ export const TasksPage = () => {
 							fontSize: '14px',
 						}}
 					/>
-					<button
-						onClick={() => setShowFilters(!showFilters)}
-						style={{
-							padding: '8px 10px',
-							border: '1px solid #e5e7eb',
-							borderRadius: '4px',
-							background: '#f9fafb',
-							cursor: 'pointer',
-							display: 'flex',
-							alignItems: 'center',
-							justifyContent: 'center',
-							whiteSpace: 'nowrap',
-						}}
-						title={showFilters ? 'Hide filters' : 'Show filters'}>
-						{showFilters ? '▲ Hide Filters' : '▼ Filters'}
-					</button>
-				</div>
-				{showFilters && (
-					<>
-						<FilterBar
-							filters={taskFilters}
-							onFiltersChange={setFilters}
-							useCustomSelect={true}
-						/>
-						{/* desktop add button below filter bar */}
-					</>
-				)}
-				{!isMobile && (
-					<div style={{ marginTop: '12px', textAlign: 'right' }}>
+					{!isMobile && (
 						<button
 							onClick={handleCreateTask}
 							style={{
@@ -539,19 +487,60 @@ export const TasksPage = () => {
 								color: 'white',
 								border: 'none',
 								padding: '8px 12px',
-								borderRadius: '4px',
-								fontSize: '16px',
+								borderRadius: '6px',
+								fontSize: '0.85rem',
+								fontWeight: 700,
 								cursor: 'pointer',
+								whiteSpace: 'nowrap',
 							}}
 							title='Create new task'>
-							<FontAwesomeIcon icon={faPlus} />
+							+ Add Task
 						</button>
-					</div>
-				)}
+					)}
+				</div>
+				<QuickFilterChips>
+					<QuickFilterChip
+						$active={quickFilter === 'all'}
+						onClick={() => setQuickFilter('all')}>
+						All
+					</QuickFilterChip>
+					<QuickFilterChip
+						$active={quickFilter === 'overdue'}
+						onClick={() => setQuickFilter('overdue')}>
+						Overdue
+					</QuickFilterChip>
+					<QuickFilterChip
+						$active={quickFilter === 'in-progress'}
+						onClick={() => setQuickFilter('in-progress')}>
+						In Progress
+					</QuickFilterChip>
+					<QuickFilterChip
+						$active={quickFilter === 'unassigned'}
+						onClick={() => setQuickFilter('unassigned')}>
+						Unassigned
+					</QuickFilterChip>
+					<QuickFilterChip
+						$active={quickFilter === 'due-this-week'}
+						onClick={() => setQuickFilter('due-this-week')}>
+						Due This Week
+					</QuickFilterChip>
+					{(searchTerm.trim().length > 0 || quickFilter !== 'all') && (
+						<QuickFilterChip onClick={clearTopFilters}>Clear</QuickFilterChip>
+					)}
+				</QuickFilterChips>
+				<div
+					style={{
+						marginTop: '10px',
+						fontSize: '0.8rem',
+						fontWeight: 600,
+						color: '#6b7280',
+					}}>
+					Showing {filteredTasks.length} {filteredTasks.length === 1 ? 'task' : 'tasks'}
+				</div>
 			</div>
 
 			{isMobile ? (
-				<CarouselSection>
+				<MobileListSection>
 					{/* floating create button for mobile view */}
 					<button
 						onClick={handleCreateTask}
@@ -575,19 +564,94 @@ export const TasksPage = () => {
 						aria-label='Create task'>
 						<FontAwesomeIcon icon={faPlus} />
 					</button>
-					<MobileTaskCarousel
-						tasks={carouselTasks}
-						onTaskComplete={handleTaskCompletion}
-						onTaskUpdate={async (taskId, updates) => {
-							try {
-								await updateTaskMutation({ id: taskId, updates }).unwrap();
-							} catch (error) {
-								console.error('Failed to update task from carousel', error);
+					{filteredTasks.length === 0 ? (
+						<ZeroState
+							title={
+								allTasks.length === 0
+									? 'No tasks yet'
+									: activeTasksCount === 0
+									? 'No active tasks'
+									: 'No tasks match your search or filter'
 							}
-						}}
-						taskHandlers={taskHandlers}
-					/>
-				</CarouselSection>
+							description={
+								allTasks.length === 0
+									? 'Create your first task to get started'
+									: activeTasksCount === 0
+									? 'All your tasks are completed'
+									: 'Try a different search term or quick filter chip'
+							}
+							icon='📊'
+						/>
+					) : (
+						filteredTasks.map((task: any) => {
+							const isOverdue = isTaskOverdueForDisplay(task);
+							return (
+								<MobileTaskCard key={task.id} $overdue={isOverdue}>
+									<MobileTaskHeader>
+										<MobileTaskTitle>{task.title}</MobileTaskTitle>
+										<StatusBadge status={task.status}>
+											{task.status}
+										</StatusBadge>
+									</MobileTaskHeader>
+									<MobileTaskMetaGrid>
+										<MobileMetaItem>
+											<MobileMetaLabel>Due Date</MobileMetaLabel>
+											<MobileMetaValue>{formatDueDate(task.dueDate)}</MobileMetaValue>
+										</MobileMetaItem>
+										<MobileMetaItem>
+											<MobileMetaLabel>Priority</MobileMetaLabel>
+											<MobileMetaValue>{task.priority || 'Low'}</MobileMetaValue>
+										</MobileMetaItem>
+										<MobileMetaItem>
+											<MobileMetaLabel>Assigned To</MobileMetaLabel>
+											<MobileMetaValue>{getAssigneeLabel(task)}</MobileMetaValue>
+										</MobileMetaItem>
+										<MobileMetaItem>
+											<MobileMetaLabel>Property</MobileMetaLabel>
+											<MobileMetaValue>
+												{task.propertyTitle || task.property || 'Unknown Property'}
+											</MobileMetaValue>
+										</MobileMetaItem>
+									</MobileTaskMetaGrid>
+									<MobileTaskActions>
+										<MobileActionButton onClick={() => handleEditTask(task)}>
+											Edit
+										</MobileActionButton>
+										<MobileActionButton
+											$variant='secondary'
+											onClick={() => handleAssignTask(task)}>
+											Assign
+										</MobileActionButton>
+										{task.status !== 'Completed' && (
+											<MobileActionButton
+												$variant='success'
+												onClick={() =>
+													queueUndoableAction({
+														kind: 'complete',
+														taskId: task.id,
+														taskTitle: task.title || 'Task',
+													})
+												}>
+												Complete
+											</MobileActionButton>
+										)}
+										<MobileActionButton
+											$variant='secondary'
+											onClick={() =>
+												queueUndoableAction({
+													kind: 'delete',
+													taskId: task.id,
+													taskTitle: task.title || 'Task',
+												})
+											}>
+											Delete
+										</MobileActionButton>
+									</MobileTaskActions>
+								</MobileTaskCard>
+							);
+						})
+					)}
+				</MobileListSection>
 			) : (
 				<>
 					{/* Task Grid Section */}
@@ -599,14 +663,14 @@ export const TasksPage = () => {
 										? 'No tasks yet'
 										: activeTasksCount === 0
 										? 'No active tasks'
-										: 'No upcoming tasks in selected timeframe'
+										: 'No tasks match your search or filter'
 								}
 								description={
 									allTasks.length === 0
 										? 'Create your first task to get started'
 										: activeTasksCount === 0
 										? 'All your tasks are completed'
-										: `Try adjusting the time filter above or check tasks in other timeframes`
+										: 'Try a different search term or quick filter chip'
 								}
 								icon='📊'></ZeroState>
 						) : (
@@ -614,6 +678,11 @@ export const TasksPage = () => {
 								rowData={filteredTasks}
 								columns={columns}
 								actions={taskActions}
+								sortState={sortState}
+								onSort={handleSort}
+								getRowClassName={(row) =>
+									isTaskOverdueForDisplay(row as any) ? 'overdue-row' : undefined
+								}
 								onRowSelect={(selectedRows) => {
 									setSelectedRows(new Set(selectedRows));
 								}}
@@ -698,6 +767,15 @@ export const TasksPage = () => {
 					onClose={() => setShowTaskCompletionModal(false)}
 					onSuccess={handleTaskCompletionSuccess}
 				/>
+			)}
+
+			{undoToastMessage && pendingUndo && (
+				<UndoToast>
+					<span>{undoToastMessage}</span>
+					<UndoButton type='button' onClick={handleUndoPendingAction}>
+						Undo
+					</UndoButton>
+				</UndoToast>
 			)}
 		</Wrapper>
 	);

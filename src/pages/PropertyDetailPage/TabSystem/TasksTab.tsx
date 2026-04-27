@@ -40,6 +40,8 @@ import {
 	MobileActionButton,
 	Toolbar,
 	ToolbarButton,
+	TabSummaryBar,
+	TabSummaryPill,
 	StatusBadge,
 	EmptyState,
 	DesktopTableWrapper,
@@ -361,6 +363,17 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 	return (
 		<SectionContainer>
 			<SectionHeader>Associated Tasks</SectionHeader>
+			<TabSummaryBar>
+				<TabSummaryPill>Total: {filteredTasks.length}</TabSummaryPill>
+				<TabSummaryPill>
+					Overdue:{' '}
+					{filteredTasks.filter((task) => isTaskOverdueForDisplay(task as Task)).length}
+				</TabSummaryPill>
+				<TabSummaryPill>
+					In Progress:{' '}
+					{filteredTasks.filter((task) => task.status === 'In Progress').length}
+				</TabSummaryPill>
+			</TabSummaryBar>
 			<Toolbar>
 				<ToolbarButton
 					onClick={handleCreateTask}

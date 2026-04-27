@@ -47,9 +47,9 @@ export const Header = styled.div`
 	}
 
 	@media (max-width: 480px) {
-		height: 140px;
-		padding: 20px 12px 16px;
-		gap: 12px;
+		height: 120px;
+		padding: 12px 10px 12px;
+		gap: 8px;
 		border-radius: 0 0 16px 16px;
 	}
 `;
@@ -60,6 +60,11 @@ export const ContentWrapper = styled.div`
 	background-color: #ffffff;
 	border-radius: 12px;
 	height: calc(100% - 220px);
+
+	@media (max-width: 480px) {
+		padding: 12px;
+		border-radius: 10px;
+	}
 `;
 
 export const HeaderContent = styled.div`
@@ -281,7 +286,7 @@ export const PropertyTitle = styled.h1`
 	}
 
 	@media (max-width: 480px) {
-		font-size: 1.75rem;
+		font-size: 1.45rem;
 	}
 `;
 
@@ -844,8 +849,8 @@ export const InfoLabel = styled.label`
 	display: block;
 
 	@media (max-width: 480px) {
-		font-size: 13px;
-		margin-bottom: 6px;
+		font-size: 12px;
+		margin-bottom: 4px;
 	}
 `;
 
@@ -857,7 +862,7 @@ export const InfoValue = styled.span`
 	line-height: 1.4;
 
 	@media (max-width: 480px) {
-		font-size: 16px;
-		line-height: 1.5;
+		font-size: 15px;
+		line-height: 1.4;
 	}
 `;

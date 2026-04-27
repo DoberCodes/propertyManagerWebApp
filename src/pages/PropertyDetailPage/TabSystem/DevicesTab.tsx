@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
 	faPlus,
@@ -14,6 +14,7 @@ import {
 	useUpdateDeviceMutation,
 	useDeleteDeviceMutation,
 } from 'Redux/API/deviceSlice';
+import { useGetTasksQuery } from 'Redux/API/taskSlice';
 import { useGetUnitsQuery } from 'Redux/API/propertySlice';
 import {
 	SectionContainer,
@@ -22,6 +23,7 @@ import {
 import { WarningDialog } from '../../../Components/Library/WarningDialog';
 import { DeviceModal } from '../../../Components/Library/Modal';
 import { Property, DeviceServiceItem } from '../../../types/Property.types';
+import { uploadDeviceFile } from '../../../utils/deviceFileUpload';
 import {
 	MobileCarouselContainer,
 	MobileCarouselViewport,
@@ -32,6 +34,8 @@ import {
 	DesktopTableWrapper,
 	Toolbar,
 	ToolbarButton,
+	TabSummaryBar,
+	TabSummaryPill,
 	DeviceCard,
 	StatusBadge,
 	EmptyState,
@@ -69,6 +73,10 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property }) => {
 	const [editingDevice, setEditingDevice] = useState<any>(null);
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [selectedDevice, setSelectedDevice] = useState<any>(null);
+	const [pendingUploadFiles, setPendingUploadFiles] = useState<File[]>([]);
+	const [removedExistingFileUrls, setRemovedExistingFileUrls] = useState<
+		string[]
+	>([]);
 	// delete confirmation dialog state
 	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 	const [deleteDialogMessage, setDeleteDialogMessage] = useState('');
@@ -96,6 +104,73 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property }) => {
 
 	const { data: devices = [], isLoading } = useGetDevicesQuery(property.id);
 	const { data: units = [] } = useGetUnitsQuery(property.id);
+	const { data: allTasks = [] } = useGetTasksQuery();
+
+	const openPropertyTasks = useMemo(
+		() =>
+			allTasks.filter(
+				(task: any) => task.propertyId === property.id && task.status !== 'Completed',
+			),
+		[allTasks, property.id],
+	);
+
+	const linkedOpenTaskCountByDevice = useMemo(() => {
+		const counts = new Map<string, number>();
+
+		openPropertyTasks.forEach((task: any) => {
+			const linkedIds = new Set<string>();
+
+			if (Array.isArray(task.devices)) {
+				task.devices.forEach((deviceId: string | number) => {
+					if (deviceId !== undefined && deviceId !== null) {
+						linkedIds.add(String(deviceId));
+					}
+				});
+			}
+
+			if (task.deviceId !== undefined && task.deviceId !== null) {
+				linkedIds.add(String(task.deviceId));
+			}
+
+			linkedIds.forEach((deviceId) => {
+				counts.set(deviceId, (counts.get(deviceId) || 0) + 1);
+			});
+		});
+
+		return counts;
+	}, [openPropertyTasks]);
+
+	const needsAttentionDeviceCount = useMemo(
+		() =>
+			devices.filter((device: any) => {
+				const status = device.status || 'Active';
+				const linkedOpenTasks = linkedOpenTaskCountByDevice.get(String(device.id)) || 0;
+				return status === 'Broken' || status === 'Maintenance' || linkedOpenTasks > 0;
+			}).length,
+		[devices, linkedOpenTaskCountByDevice],
+	);
+
+	const linkedOpenTaskCount = useMemo(
+		() =>
+			Array.from(linkedOpenTaskCountByDevice.values()).reduce(
+				(total, count) => total + count,
+				0,
+			),
+		[linkedOpenTaskCountByDevice],
+	);
+
+	const getDeviceAttentionState = (device: any) => {
+		const status = device.status || 'Active';
+		const linkedOpenTasks = linkedOpenTaskCountByDevice.get(String(device.id)) || 0;
+		const needsAttention =
+			status === 'Broken' || status === 'Maintenance' || linkedOpenTasks > 0;
+
+		return {
+			status,
+			linkedOpenTasks,
+			needsAttention,
+		};
+	};
 
 	const columns: Column[] = [
 		{ header: 'Type', key: 'type' },
@@ -105,9 +180,28 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property }) => {
 		{
 			header: 'Status',
 			key: 'status',
-			render: (status: string) => (
-				<StatusBadge status={status}>{status}</StatusBadge>
-			),
+			render: (status: string, row: any) => {
+				const { status: resolvedStatus, linkedOpenTasks, needsAttention } =
+					getDeviceAttentionState({ ...row, status });
+
+				return (
+					<div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+						<StatusBadge status={resolvedStatus}>{resolvedStatus}</StatusBadge>
+						{needsAttention && (
+							<span
+								style={{
+									fontSize: 12,
+									fontWeight: 600,
+									color: '#b45309',
+								}}>
+								{linkedOpenTasks > 0
+									? `${linkedOpenTasks} open linked task${linkedOpenTasks === 1 ? '' : 's'}`
+									: 'Needs attention'}
+							</span>
+						)}
+					</div>
+				);
+			},
 		},
 		{
 			header: 'Location',
@@ -170,6 +264,8 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property }) => {
 			},
 			files: [],
 		});
+		setPendingUploadFiles([]);
+		setRemovedExistingFileUrls([]);
 		setEditingDevice(null);
 		if (fileInputRef.current) {
 			fileInputRef.current.value = '';
@@ -193,6 +289,7 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property }) => {
 			location: device.location || { propertyId: property.id },
 			files: device.files || [],
 		});
+		setRemovedExistingFileUrls([]);
 		setEditingDevice(device);
 		setShowDeviceModal(true);
 	};
@@ -226,8 +323,23 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property }) => {
 
 		setIsSubmitting(true);
 		try {
+			const persistedFiles = (deviceFormData.files || []).filter(
+				(file) => !removedExistingFileUrls.includes(file.url),
+			);
+			let uploadedFiles = persistedFiles;
+
+			if (pendingUploadFiles.length > 0) {
+				const uploaded = await Promise.all(
+					pendingUploadFiles.map((file) =>
+						uploadDeviceFile(file, property.id, editingDevice?.id),
+					),
+				);
+				uploadedFiles = [...persistedFiles, ...uploaded];
+			}
+
 			const deviceData = {
 				...deviceFormData,
+				files: uploadedFiles,
 				userId: currentUser!.id,
 			};
 
@@ -288,6 +400,18 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property }) => {
 				onCancel={() => setDeleteDialogOpen(false)}
 			/>
 			<SectionHeader>Household Devices</SectionHeader>
+			<TabSummaryBar>
+				<TabSummaryPill>Total: {devices.length}</TabSummaryPill>
+				<TabSummaryPill>
+					Active: {devices.filter((d) => (d.status || 'Active') === 'Active').length}
+				</TabSummaryPill>
+				<TabSummaryPill>
+					Needs Attention: {needsAttentionDeviceCount}
+				</TabSummaryPill>
+				<TabSummaryPill>
+					Open Device Tasks: {linkedOpenTaskCount}
+				</TabSummaryPill>
+			</TabSummaryBar>
 
 			<Toolbar>
 				<ToolbarButton onClick={handleOpenCreateModal}>
@@ -305,6 +429,11 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property }) => {
 								key={device.id}
 								$isSelected={selectedDevice === device}
 								onClick={() => setSelectedDevice(device)}>
+								{(() => {
+									const { linkedOpenTasks, needsAttention } =
+										getDeviceAttentionState(device);
+
+									return (
 								<div
 									style={{
 										display: 'flex',
@@ -312,10 +441,12 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property }) => {
 										alignItems: 'center',
 									}}>
 									<div style={{ fontWeight: 700 }}>{device.type}</div>
-									<div style={{ fontSize: 12, color: '#6b7280' }}>
-										{device.brand}
+									<div style={{ fontSize: 12, color: needsAttention ? '#b45309' : '#6b7280', fontWeight: needsAttention ? 700 : 400 }}>
+										{linkedOpenTasks > 0 ? `${linkedOpenTasks} open task${linkedOpenTasks === 1 ? '' : 's'}` : device.brand}
 									</div>
 								</div>
+									);
+								})()}
 								<DeviceRow>
 									<div style={{ fontSize: 14 }}>{device.model || '—'}</div>
 									<StatusBadge status={device.status || 'Active'}>
@@ -423,6 +554,23 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property }) => {
 				isOpen={showDeviceModal}
 				onClose={handleCloseModal}
 				onSubmit={handleSubmit}
+				isEditing={Boolean(editingDevice)}
+				pendingFiles={pendingUploadFiles}
+				onPendingFilesChange={setPendingUploadFiles}
+				removedExistingFileUrls={removedExistingFileUrls}
+				onRemoveExistingFile={(url) =>
+					setRemovedExistingFileUrls((prev) =>
+						prev.includes(url) ? prev : [...prev, url],
+					)
+				}
+				onRestoreExistingFile={(url) =>
+					setRemovedExistingFileUrls((prev) => prev.filter((item) => item !== url))
+				}
+				onRemovePendingFile={(fileKey) =>
+					setPendingUploadFiles((prev) =>
+						prev.filter((file) => `${file.name}-${file.size}` !== fileKey),
+					)
+				}
 				deviceFormData={deviceFormData}
 				onFormChange={(e) =>
 					handleFormChange(e.currentTarget.name, e.currentTarget.value)
@@ -431,6 +579,7 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property }) => {
 					handleFormChange('serviceItems', items)
 				}
 				property={property}
+				units={units}
 			/>
 		</SectionContainer>
 	);
