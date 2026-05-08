@@ -16,13 +16,16 @@ import { COLORS } from '../../../constants/colors';
 import { Property, DeviceServiceItem } from '../../../types/Property.types';
 import { FileUploader } from '../FileUploader';
 import { TaskSelect } from '../Select/TaskSelect';
-
-const SERVICE_ITEM_CATEGORY_OPTIONS = [
-	{ value: 'Part', label: 'Part' },
-	{ value: 'Fluid', label: 'Fluid' },
-	{ value: 'Filter', label: 'Filter' },
-	{ value: 'Other', label: 'Other' },
-];
+import {
+	DEVICE_SERVICE_ITEM_CATEGORY_OPTIONS,
+	DEVICE_SERVICE_ITEM_FIELDS_BY_CATEGORY,
+	buildDeviceServiceItemDetails,
+} from '../../../constants/deviceServiceItems';
+import {
+	parseDeviceBarcodePayload,
+	parsePartBarcodePayload,
+} from '../../../utils/barcodeScanParser';
+import { BarcodeScannerModal } from '../BarcodeScanner/BarcodeScannerModal';
 
 interface DeviceModalProps {
 	isOpen: boolean;
@@ -289,6 +292,21 @@ const AttachmentSection = styled.div`
 	border-top: 1px solid ${COLORS.gray200};
 `;
 
+const ScanButton = styled.button`
+	padding: 7px 12px;
+	border-radius: 8px;
+	border: 1px solid ${COLORS.primary};
+	background: #ffffff;
+	color: ${COLORS.primaryDark};
+	font-size: 0.82rem;
+	font-weight: 700;
+	cursor: pointer;
+
+	&:hover {
+		background: ${COLORS.primaryLight};
+	}
+`;
+
 const formatBytes = (value: number) => {
 	const kb = value / 1024;
 	if (kb < 1024) return `${kb.toFixed(1)} KB`;
@@ -297,24 +315,59 @@ const formatBytes = (value: number) => {
 
 export const DeviceModal = (props: DeviceModalProps) => {
 	const [submitAttempted, setSubmitAttempted] = useState(false);
+	const [isDeviceScanOpen, setIsDeviceScanOpen] = useState(false);
+	const [isPartScanOpen, setIsPartScanOpen] = useState(false);
 	const [activeTab, setActiveTab] = useState<'details' | 'service-items'>(
 		'details',
 	);
 	const [itemFilter, setItemFilter] = useState('');
-	const [newCategoryOption, setNewCategoryOption] = useState('Part');
+	const [newCategoryOption, setNewCategoryOption] = useState('part');
 	const [newCustomCategory, setNewCustomCategory] = useState('');
 	const [newItemName, setNewItemName] = useState('');
 	const [newItemDetails, setNewItemDetails] = useState('');
+	const [newItemPartNumber, setNewItemPartNumber] = useState('');
+	const [newItemSize, setNewItemSize] = useState('');
+	const [newItemManufacturer, setNewItemManufacturer] = useState('');
+	const [newItemMaterial, setNewItemMaterial] = useState('');
+	const [newItemVoltage, setNewItemVoltage] = useState('');
+	const [newItemMervRating, setNewItemMervRating] = useState('');
+	const [newItemCompatibility, setNewItemCompatibility] = useState('');
+	const [newItemReplacementInterval, setNewItemReplacementInterval] = useState('');
+	const [newItemNotes, setNewItemNotes] = useState('');
 
 	// Edit state
 	const [editingItemId, setEditingItemId] = useState<string | null>(null);
-	const [editCategoryOption, setEditCategoryOption] = useState('Part');
+	const [editCategoryOption, setEditCategoryOption] = useState('part');
 	const [editCustomCategory, setEditCustomCategory] = useState('');
 	const [editName, setEditName] = useState('');
 	const [editDetails, setEditDetails] = useState('');
+	const [editPartNumber, setEditPartNumber] = useState('');
+	const [editSize, setEditSize] = useState('');
+	const [editManufacturer, setEditManufacturer] = useState('');
+	const [editMaterial, setEditMaterial] = useState('');
+	const [editVoltage, setEditVoltage] = useState('');
+	const [editMervRating, setEditMervRating] = useState('');
+	const [editCompatibility, setEditCompatibility] = useState('');
+	const [editReplacementInterval, setEditReplacementInterval] = useState('');
+	const [editNotes, setEditNotes] = useState('');
 
-	const serviceItems = props.deviceFormData.serviceItems || [];
+	const serviceItems = useMemo(
+		() => props.deviceFormData.serviceItems || [],
+		[props.deviceFormData.serviceItems],
+	);
 	const selectedUnitId = props.deviceFormData.location?.unitId || '';
+	const newDynamicFields = useMemo(
+		() =>
+			DEVICE_SERVICE_ITEM_FIELDS_BY_CATEGORY[newCategoryOption] ||
+			DEVICE_SERVICE_ITEM_FIELDS_BY_CATEGORY.other,
+		[newCategoryOption],
+	);
+	const editDynamicFields = useMemo(
+		() =>
+			DEVICE_SERVICE_ITEM_FIELDS_BY_CATEGORY[editCategoryOption] ||
+			DEVICE_SERVICE_ITEM_FIELDS_BY_CATEGORY.other,
+		[editCategoryOption],
+	);
 
 	useEffect(() => {
 		if (props.isOpen) {
@@ -371,7 +424,7 @@ export const DeviceModal = (props: DeviceModalProps) => {
 		const query = itemFilter.trim().toLowerCase();
 		if (!query) return serviceItems;
 		return serviceItems.filter((item) => {
-			const haystack = `${item.category} ${item.name} ${item.details || ''}`
+			const haystack = `${item.category} ${item.name} ${item.details || ''} ${item.partNumber || ''} ${item.size || ''} ${item.notes || ''}`
 				.trim()
 				.toLowerCase();
 			return haystack.includes(query);
@@ -380,7 +433,7 @@ export const DeviceModal = (props: DeviceModalProps) => {
 
 	const handleAddServiceItem = () => {
 		const category =
-			newCategoryOption === 'Other'
+			newCategoryOption === 'other'
 				? newCustomCategory.trim()
 				: newCategoryOption.trim();
 		const name = newItemName.trim();
@@ -392,14 +445,46 @@ export const DeviceModal = (props: DeviceModalProps) => {
 			id: `svc-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
 			category,
 			name,
-			details: details || undefined,
+			details:
+				buildDeviceServiceItemDetails({
+					category,
+					name,
+					details,
+					partNumber: newItemPartNumber.trim(),
+					size: newItemSize.trim(),
+					manufacturer: newItemManufacturer.trim(),
+					material: newItemMaterial.trim(),
+					voltage: newItemVoltage.trim(),
+					mervRating: newItemMervRating.trim(),
+					compatibility: newItemCompatibility.trim(),
+					replacementInterval: newItemReplacementInterval.trim(),
+					notes: newItemNotes.trim(),
+				}) || undefined,
+			partNumber: newItemPartNumber.trim() || undefined,
+			size: newItemSize.trim() || undefined,
+			manufacturer: newItemManufacturer.trim() || undefined,
+			material: newItemMaterial.trim() || undefined,
+			voltage: newItemVoltage.trim() || undefined,
+			mervRating: newItemMervRating.trim() || undefined,
+			compatibility: newItemCompatibility.trim() || undefined,
+			replacementInterval: newItemReplacementInterval.trim() || undefined,
+			notes: newItemNotes.trim() || undefined,
 		};
 
 		updateServiceItems([...serviceItems, nextItem]);
-		setNewCategoryOption('Part');
+		setNewCategoryOption('part');
 		setNewCustomCategory('');
 		setNewItemName('');
 		setNewItemDetails('');
+		setNewItemPartNumber('');
+		setNewItemSize('');
+		setNewItemManufacturer('');
+		setNewItemMaterial('');
+		setNewItemVoltage('');
+		setNewItemMervRating('');
+		setNewItemCompatibility('');
+		setNewItemReplacementInterval('');
+		setNewItemNotes('');
 	};
 
 	const handleRemoveServiceItem = (id: string) => {
@@ -407,19 +492,28 @@ export const DeviceModal = (props: DeviceModalProps) => {
 	};
 
 	const handleStartEdit = (item: DeviceServiceItem) => {
-		const matchedCategory = SERVICE_ITEM_CATEGORY_OPTIONS.find(
-			(option) => option.value !== 'Other' && option.value === item.category,
+		const matchedCategory = DEVICE_SERVICE_ITEM_CATEGORY_OPTIONS.find(
+			(option) => option.value !== 'other' && option.value === item.category,
 		);
 		setEditingItemId(item.id);
-		setEditCategoryOption(matchedCategory ? matchedCategory.value : 'Other');
+		setEditCategoryOption(matchedCategory ? matchedCategory.value : 'other');
 		setEditCustomCategory(matchedCategory ? '' : item.category);
 		setEditName(item.name);
 		setEditDetails(item.details || '');
+		setEditPartNumber(item.partNumber || '');
+		setEditSize(item.size || '');
+		setEditManufacturer(item.manufacturer || '');
+		setEditMaterial(item.material || '');
+		setEditVoltage(item.voltage || '');
+		setEditMervRating(item.mervRating || '');
+		setEditCompatibility(item.compatibility || '');
+		setEditReplacementInterval(item.replacementInterval || '');
+		setEditNotes(item.notes || '');
 	};
 
 	const handleSaveEdit = () => {
 		const category =
-			editCategoryOption === 'Other'
+			editCategoryOption === 'other'
 				? editCustomCategory.trim()
 				: editCategoryOption.trim();
 		const name = editName.trim();
@@ -427,17 +521,105 @@ export const DeviceModal = (props: DeviceModalProps) => {
 		updateServiceItems(
 			serviceItems.map((item) =>
 				item.id === editingItemId
-					? { ...item, category, name, details: editDetails.trim() || undefined }
+					? {
+							...item,
+							category,
+							name,
+							details:
+								buildDeviceServiceItemDetails({
+									category,
+									name,
+									details: editDetails.trim(),
+									partNumber: editPartNumber.trim(),
+									size: editSize.trim(),
+									manufacturer: editManufacturer.trim(),
+									material: editMaterial.trim(),
+									voltage: editVoltage.trim(),
+									mervRating: editMervRating.trim(),
+									compatibility: editCompatibility.trim(),
+									replacementInterval: editReplacementInterval.trim(),
+									notes: editNotes.trim(),
+								}) || undefined,
+							partNumber: editPartNumber.trim() || undefined,
+							size: editSize.trim() || undefined,
+							manufacturer: editManufacturer.trim() || undefined,
+							material: editMaterial.trim() || undefined,
+							voltage: editVoltage.trim() || undefined,
+							mervRating: editMervRating.trim() || undefined,
+							compatibility: editCompatibility.trim() || undefined,
+							replacementInterval: editReplacementInterval.trim() || undefined,
+							notes: editNotes.trim() || undefined,
+						}
 					: item,
 			),
 		);
 		setEditingItemId(null);
 		setEditCustomCategory('');
+		setEditPartNumber('');
+		setEditSize('');
+		setEditManufacturer('');
+		setEditMaterial('');
+		setEditVoltage('');
+		setEditMervRating('');
+		setEditCompatibility('');
+		setEditReplacementInterval('');
+		setEditNotes('');
 	};
 
 	const handleCancelEdit = () => {
 		setEditingItemId(null);
 		setEditCustomCategory('');
+		setEditPartNumber('');
+		setEditSize('');
+		setEditManufacturer('');
+		setEditMaterial('');
+		setEditVoltage('');
+		setEditMervRating('');
+		setEditCompatibility('');
+		setEditReplacementInterval('');
+		setEditNotes('');
+	};
+
+	const handleDeviceBarcodeDetected = (rawValue: string) => {
+		const parsed = parseDeviceBarcodePayload(rawValue);
+		if (parsed.type) emitChange('type', parsed.type);
+		if (parsed.brand) emitChange('brand', parsed.brand);
+		if (parsed.model) emitChange('model', parsed.model);
+		if (parsed.serialNumber) emitChange('serialNumber', parsed.serialNumber);
+		if (parsed.partNumber) emitChange('partNumber', parsed.partNumber);
+		if (parsed.filterSize) emitChange('filterSize', parsed.filterSize);
+		if (parsed.specNotes) emitChange('specNotes', parsed.specNotes);
+	};
+
+	const handlePartBarcodeDetected = (rawValue: string) => {
+		const parsed = parsePartBarcodePayload(rawValue);
+		if (parsed.category) {
+			if (
+				DEVICE_SERVICE_ITEM_CATEGORY_OPTIONS.some(
+					(option) => option.value === parsed.category,
+				)
+			) {
+				setNewCategoryOption(parsed.category);
+				setNewCustomCategory('');
+			} else {
+				setNewCategoryOption('other');
+				setNewCustomCategory(parsed.category);
+			}
+		}
+
+		if (parsed.name) setNewItemName(parsed.name);
+		if (parsed.details) setNewItemDetails(parsed.details);
+		if (parsed.partNumber) setNewItemPartNumber(parsed.partNumber);
+		if (parsed.size) setNewItemSize(parsed.size);
+		if (parsed.manufacturer) setNewItemManufacturer(parsed.manufacturer);
+		if (parsed.material) setNewItemMaterial(parsed.material);
+		if (parsed.voltage) setNewItemVoltage(parsed.voltage);
+		if (parsed.mervRating) setNewItemMervRating(parsed.mervRating);
+		if (parsed.compatibility) setNewItemCompatibility(parsed.compatibility);
+		if (parsed.replacementInterval) {
+			setNewItemReplacementInterval(parsed.replacementInterval);
+		}
+		if (parsed.notes) setNewItemNotes(parsed.notes);
 	};
 
 	const removedSet = useMemo(
@@ -448,6 +630,7 @@ export const DeviceModal = (props: DeviceModalProps) => {
 	const pendingFiles = props.pendingFiles || [];
 
 	return (
+		<>
 		<GenericModal
 			isOpen={props.isOpen}
 			onClose={props.onClose}
@@ -515,6 +698,11 @@ export const DeviceModal = (props: DeviceModalProps) => {
 						Define the device identity first so it can be linked cleanly to tasks and maintenance history.
 					</SectionDescription>
 				</SectionHeader>
+				<div style={{ marginBottom: '12px' }}>
+					<ScanButton type='button' onClick={() => setIsDeviceScanOpen(true)}>
+						Scan Device Barcode
+					</ScanButton>
+				</div>
 
 				<FormGrid>
 				<FormGroup>
@@ -717,6 +905,11 @@ export const DeviceModal = (props: DeviceModalProps) => {
 						Track filters, fluids, and replacement parts so linked tasks can reuse the details later.
 					</SectionDescription>
 				</SectionHeader>
+				<div style={{ marginBottom: '12px' }}>
+					<ScanButton type='button' onClick={() => setIsPartScanOpen(true)}>
+						Scan Part Barcode
+					</ScanButton>
+				</div>
 				<PartsCard>
 					<p style={{ margin: '0 0 4px', fontWeight: 600, fontSize: '0.95rem', color: COLORS.gray900 }}>
 						Add Service Item
@@ -732,14 +925,14 @@ export const DeviceModal = (props: DeviceModalProps) => {
 								value={newCategoryOption}
 								onChange={(value) => {
 									setNewCategoryOption(value);
-									if (value !== 'Other') {
+									if (value !== 'other') {
 										setNewCustomCategory('');
 									}
 								}}
-								options={SERVICE_ITEM_CATEGORY_OPTIONS}
+								options={DEVICE_SERVICE_ITEM_CATEGORY_OPTIONS}
 								placeholder='Select category'
 							/>
-							{newCategoryOption === 'Other' && (
+							{newCategoryOption === 'other' && (
 								<FormInput
 									type='text'
 									value={newCustomCategory}
@@ -761,6 +954,46 @@ export const DeviceModal = (props: DeviceModalProps) => {
 							/>
 						</FormGroup>
 					</FormGrid>
+					<FormGrid>
+						{newDynamicFields.map((field) => (
+							<FormGroup key={String(field.key)}>
+								<FormLabel>{field.label}</FormLabel>
+								<FormInput
+									type={field.type || 'text'}
+									value={
+										field.key === 'partNumber'
+											? newItemPartNumber
+											: field.key === 'size'
+												? newItemSize
+												: field.key === 'manufacturer'
+													? newItemManufacturer
+													: field.key === 'material'
+														? newItemMaterial
+														: field.key === 'voltage'
+															? newItemVoltage
+															: field.key === 'mervRating'
+																? newItemMervRating
+																: field.key === 'compatibility'
+																	? newItemCompatibility
+																	: newItemReplacementInterval
+									}
+									onChange={(e) => {
+										const value = e.target.value;
+										if (field.key === 'partNumber') setNewItemPartNumber(value);
+										if (field.key === 'size') setNewItemSize(value);
+										if (field.key === 'manufacturer') setNewItemManufacturer(value);
+										if (field.key === 'material') setNewItemMaterial(value);
+										if (field.key === 'voltage') setNewItemVoltage(value);
+										if (field.key === 'mervRating') setNewItemMervRating(value);
+										if (field.key === 'compatibility') setNewItemCompatibility(value);
+										if (field.key === 'replacementInterval')
+											setNewItemReplacementInterval(value);
+									}}
+									placeholder={field.placeholder}
+								/>
+							</FormGroup>
+						))}
+					</FormGrid>
 					<FormGroup>
 						<FormLabel>
 							Details{' '}
@@ -772,11 +1005,19 @@ export const DeviceModal = (props: DeviceModalProps) => {
 							placeholder='Size, grade, part number, vendor info, etc.'
 						/>
 					</FormGroup>
+					<FormGroup>
+						<FormLabel>Notes</FormLabel>
+						<FormTextarea
+							value={newItemNotes}
+							onChange={(e) => setNewItemNotes(e.target.value)}
+							placeholder='Any extra install/service notes for this item.'
+						/>
+					</FormGroup>
 					<button
 						type='button'
 						onClick={handleAddServiceItem}
 						disabled={
-							newCategoryOption === 'Other'
+							newCategoryOption === 'other'
 								? !newCustomCategory.trim() || !newItemName.trim()
 								: !newCategoryOption.trim() || !newItemName.trim()
 						}
@@ -785,27 +1026,27 @@ export const DeviceModal = (props: DeviceModalProps) => {
 							border: 'none',
 							borderRadius: '6px',
 							background:
-								(newCategoryOption === 'Other'
+								(newCategoryOption === 'other'
 									? !newCustomCategory.trim() || !newItemName.trim()
 									: !newCategoryOption.trim() || !newItemName.trim())
 									? COLORS.gray200
 									: `linear-gradient(135deg, ${COLORS.primary} 0%, ${COLORS.primaryDark} 100%)`,
 							color:
-								(newCategoryOption === 'Other'
+								(newCategoryOption === 'other'
 									? !newCustomCategory.trim() || !newItemName.trim()
 									: !newCategoryOption.trim() || !newItemName.trim())
 									? COLORS.gray400
 									: 'white',
 							fontWeight: 600,
 							cursor:
-								(newCategoryOption === 'Other'
+								(newCategoryOption === 'other'
 									? !newCustomCategory.trim() || !newItemName.trim()
 									: !newCategoryOption.trim() || !newItemName.trim())
 									? 'not-allowed'
 									: 'pointer',
 							fontSize: '0.9rem',
 							boxShadow:
-								(newCategoryOption === 'Other'
+								(newCategoryOption === 'other'
 									? !newCustomCategory.trim() || !newItemName.trim()
 									: !newCategoryOption.trim() || !newItemName.trim())
 									? 'none'
@@ -883,14 +1124,14 @@ export const DeviceModal = (props: DeviceModalProps) => {
 												value={editCategoryOption}
 												onChange={(value) => {
 													setEditCategoryOption(value);
-													if (value !== 'Other') {
+														if (value !== 'other') {
 														setEditCustomCategory('');
 													}
 												}}
-												options={SERVICE_ITEM_CATEGORY_OPTIONS}
+													options={DEVICE_SERVICE_ITEM_CATEGORY_OPTIONS}
 												placeholder='Select category'
 											/>
-											{editCategoryOption === 'Other' && (
+												{editCategoryOption === 'other' && (
 												<FormInput
 													type='text'
 													value={editCustomCategory}
@@ -911,6 +1152,46 @@ export const DeviceModal = (props: DeviceModalProps) => {
 											/>
 										</FormGroup>
 									</FormGrid>
+									<FormGrid style={{ marginBottom: '8px' }}>
+										{editDynamicFields.map((field) => (
+											<FormGroup key={String(field.key)} style={{ marginBottom: 0 }}>
+												<FormLabel>{field.label}</FormLabel>
+												<FormInput
+													type={field.type || 'text'}
+													value={
+														field.key === 'partNumber'
+															? editPartNumber
+															: field.key === 'size'
+																? editSize
+																: field.key === 'manufacturer'
+																	? editManufacturer
+																	: field.key === 'material'
+																		? editMaterial
+																		: field.key === 'voltage'
+																			? editVoltage
+																			: field.key === 'mervRating'
+																				? editMervRating
+																				: field.key === 'compatibility'
+																					? editCompatibility
+																					: editReplacementInterval
+													}
+													onChange={(e) => {
+														const value = e.target.value;
+														if (field.key === 'partNumber') setEditPartNumber(value);
+														if (field.key === 'size') setEditSize(value);
+														if (field.key === 'manufacturer') setEditManufacturer(value);
+														if (field.key === 'material') setEditMaterial(value);
+														if (field.key === 'voltage') setEditVoltage(value);
+														if (field.key === 'mervRating') setEditMervRating(value);
+														if (field.key === 'compatibility') setEditCompatibility(value);
+														if (field.key === 'replacementInterval')
+															setEditReplacementInterval(value);
+													}}
+													placeholder={field.placeholder}
+												/>
+											</FormGroup>
+										))}
+									</FormGrid>
 									<FormGroup style={{ marginBottom: '10px' }}>
 										<FormLabel>Details</FormLabel>
 										<FormTextarea
@@ -919,12 +1200,20 @@ export const DeviceModal = (props: DeviceModalProps) => {
 											placeholder='Size, grade, part number, etc.'
 										/>
 									</FormGroup>
+									<FormGroup style={{ marginBottom: '10px' }}>
+										<FormLabel>Notes</FormLabel>
+										<FormTextarea
+											value={editNotes}
+											onChange={(e) => setEditNotes(e.target.value)}
+											placeholder='Any extra install/service notes for this item.'
+										/>
+									</FormGroup>
 									<div style={{ display: 'flex', gap: '8px' }}>
 										<button
 											type='button'
 											onClick={handleSaveEdit}
 											disabled={
-												editCategoryOption === 'Other'
+												editCategoryOption === 'other'
 													? !editCustomCategory.trim() || !editName.trim()
 													: !editCategoryOption.trim() || !editName.trim()
 											}
@@ -933,20 +1222,20 @@ export const DeviceModal = (props: DeviceModalProps) => {
 												border: 'none',
 												borderRadius: '6px',
 												background:
-													(editCategoryOption === 'Other'
+													(editCategoryOption === 'other'
 														? !editCustomCategory.trim() || !editName.trim()
 														: !editCategoryOption.trim() || !editName.trim())
 														? COLORS.gray200
 														: `linear-gradient(135deg, ${COLORS.primary} 0%, ${COLORS.primaryDark} 100%)`,
 												color:
-													(editCategoryOption === 'Other'
+													(editCategoryOption === 'other'
 														? !editCustomCategory.trim() || !editName.trim()
 														: !editCategoryOption.trim() || !editName.trim())
 														? COLORS.gray400
 														: 'white',
 												fontWeight: 600,
 												cursor:
-													(editCategoryOption === 'Other'
+													(editCategoryOption === 'other'
 														? !editCustomCategory.trim() || !editName.trim()
 														: !editCategoryOption.trim() || !editName.trim())
 														? 'not-allowed'
@@ -1059,5 +1348,18 @@ export const DeviceModal = (props: DeviceModalProps) => {
 			</ModalTabContent>
 			</ScrollBody>
 		</GenericModal>
+		<BarcodeScannerModal
+			isOpen={isDeviceScanOpen}
+			title='Scan Device Barcode'
+			onClose={() => setIsDeviceScanOpen(false)}
+			onDetected={handleDeviceBarcodeDetected}
+		/>
+		<BarcodeScannerModal
+			isOpen={isPartScanOpen}
+			title='Scan Part Barcode'
+			onClose={() => setIsPartScanOpen(false)}
+			onDetected={handlePartBarcodeDetected}
+		/>
+		</>
 	);
 };

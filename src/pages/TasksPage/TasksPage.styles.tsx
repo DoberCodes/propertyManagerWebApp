@@ -1,8 +1,11 @@
 import styled from 'styled-components';
+import { TableContainer } from '../../Components/Library/ReusableTable/ReusableTable.styles';
 
 export const Wrapper = styled.div`
 	display: flex;
 	flex-direction: column;
+	flex: 1;
+	min-height: 0;
 	gap: 20px;
 	padding: 20px;
 	height: 100%; /* Adjusted to prevent unnecessary scrolling */
@@ -10,10 +13,21 @@ export const Wrapper = styled.div`
 `;
 
 export const TaskGridSection = styled.div`
+	display: flex;
+	flex: 1;
+	flex-direction: column;
+	min-height: 0;
 	background: white;
 	border-radius: 8px;
 	padding: 20px;
 	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+
+	${TableContainer} {
+		flex: 1;
+		min-height: 0;
+		height: 100%;
+		max-height: none;
+	}
 `;
 
 export const FilterSection = styled.div`

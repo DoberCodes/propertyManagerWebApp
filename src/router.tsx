@@ -23,6 +23,7 @@ import { Properties } from './Components/PropertiesTab';
 import { PropertyDetailPage } from './pages/PropertyDetailPage';
 import { UnitDetailPage } from './pages/UnitDetailPage';
 import { SuiteDetailPage } from './pages/SuiteDetailPage/SuiteDetailPage';
+import { DeviceDetailPage } from './pages/DeviceDetailPage/DeviceDetailPage';
 import TeamPage from './pages/TeamPage';
 import { ReportPage } from './pages/ReportPage';
 import { UserProfile } from './pages/UserProfile';
@@ -131,6 +132,14 @@ export const RouterComponent = () => {
 						element={
 							<ProtectedRoutes>
 								<SuiteDetailPage />
+							</ProtectedRoutes>
+						}
+					/>
+					<Route
+						path='property/:slug/device/:deviceSlug'
+						element={
+							<ProtectedRoutes>
+								<DeviceDetailPage />
 							</ProtectedRoutes>
 						}
 					/>

@@ -2,10 +2,12 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
 	faPlus,
+	faEye,
 	faEdit,
 	faTrash,
 	faWrench,
 } from '@fortawesome/free-solid-svg-icons';
+import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { RootState } from 'Redux/store';
 import {
@@ -24,6 +26,7 @@ import { WarningDialog } from '../../../Components/Library/WarningDialog';
 import { DeviceModal } from '../../../Components/Library/Modal';
 import { Property, DeviceServiceItem } from '../../../types/Property.types';
 import { uploadDeviceFile } from '../../../utils/deviceFileUpload';
+import { buildDeviceSlug } from '../../../utils/deviceSlug';
 import {
 	MobileCarouselContainer,
 	MobileCarouselViewport,
@@ -69,6 +72,7 @@ interface DevicesTabProps {
 }
 
 export const DevicesTab: React.FC<DevicesTabProps> = ({ property }) => {
+	const navigate = useNavigate();
 	const [showDeviceModal, setShowDeviceModal] = useState(false);
 	const [editingDevice, setEditingDevice] = useState<any>(null);
 	const [isSubmitting, setIsSubmitting] = useState(false);
@@ -225,6 +229,19 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property }) => {
 	];
 
 	const deviceActions: Action[] = [
+		{
+			label: 'View',
+			icon: faEye,
+			onClick: (device: any) => {
+				const deviceSlug = buildDeviceSlug({
+					id: device.id,
+					type: device.type,
+					brand: device.brand,
+					model: device.model,
+				});
+				navigate(`/property/${property.slug}/device/${deviceSlug}`);
+			},
+		},
 		{
 			label: 'Edit',
 			icon: faEdit,
@@ -440,7 +457,29 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property }) => {
 										justifyContent: 'space-between',
 										alignItems: 'center',
 									}}>
-									<div style={{ fontWeight: 700 }}>{device.type}</div>
+									<button
+										onClick={(event) => {
+											event.stopPropagation();
+											const deviceSlug = buildDeviceSlug({
+												id: device.id,
+												type: device.type,
+												brand: device.brand,
+												model: device.model,
+											});
+											navigate(`/property/${property.slug}/device/${deviceSlug}`);
+										}}
+										style={{
+											fontWeight: 700,
+											fontSize: 14,
+											color: '#0f766e',
+											background: 'transparent',
+											border: 'none',
+											cursor: 'pointer',
+											padding: 0,
+											textAlign: 'left',
+										}}>
+										{device.type}
+									</button>
 									<div style={{ fontSize: 12, color: needsAttention ? '#b45309' : '#6b7280', fontWeight: needsAttention ? 700 : 400 }}>
 										{linkedOpenTasks > 0 ? `${linkedOpenTasks} open task${linkedOpenTasks === 1 ? '' : 's'}` : device.brand}
 									</div>
@@ -460,6 +499,31 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property }) => {
 											: 'N/A'}
 									</div>
 									<div style={{ display: 'flex', gap: 8 }}>
+										<button
+											onClick={(event) => {
+												event.stopPropagation();
+												const deviceSlug = buildDeviceSlug({
+													id: device.id,
+													type: device.type,
+													brand: device.brand,
+													model: device.model,
+												});
+												navigate(`/property/${property.slug}/device/${deviceSlug}`);
+											}}
+											style={{
+												background: 'transparent',
+												border: 'none',
+												cursor: 'pointer',
+												padding: '8px',
+												borderRadius: '4px',
+												display: 'flex',
+												alignItems: 'center',
+												justifyContent: 'center',
+												minWidth: '44px',
+												minHeight: '44px',
+											}}>
+											<FontAwesomeIcon icon={faEye} />
+										</button>
 										<button
 											onClick={() => handleOpenEditModal(device)}
 											style={{

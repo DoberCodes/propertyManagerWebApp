@@ -126,6 +126,15 @@ export interface DeviceServiceItem {
 	category: string;
 	name: string;
 	details?: string;
+	partNumber?: string;
+	size?: string;
+	manufacturer?: string;
+	material?: string;
+	voltage?: string;
+	mervRating?: string;
+	compatibility?: string;
+	replacementInterval?: string;
+	notes?: string;
 }
 
 export interface Device {

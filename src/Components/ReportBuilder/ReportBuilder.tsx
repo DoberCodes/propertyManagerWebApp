@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../Redux/store/store';
 import { canAccessReadOnlyFeatures } from '../../utils/subscriptionUtils';
@@ -96,14 +96,28 @@ type ReportType =
 // Helper to determine which reports a user can access
 const getAccessibleReports = (
 	canAccessTeamReport: boolean,
-	scopedProperties: any[],
+	options: {
+		scopedProperties: any[];
+		isHomeowner: boolean;
+		hasMultiFamilyProperties: boolean;
+		hasCommercialSuites: boolean;
+	},
 ): Array<{
 	value: ReportType;
 	label: string;
 	description: string;
 	requiresTeamAccess: boolean;
 	requiresMultiProperty?: boolean;
+	requiresMultiFamily?: boolean;
+	requiresCommercialSuites?: boolean;
 }> => {
+	const {
+		scopedProperties,
+		isHomeowner,
+		hasMultiFamilyProperties,
+		hasCommercialSuites,
+	} = options;
+
 	const allReports = [
 		{
 			value: 'tasks' as ReportType,
@@ -152,7 +166,8 @@ const getAccessibleReports = (
 			label: 'Suites',
 			description: 'Detailed suite information across properties',
 			requiresTeamAccess: false,
-			requiresMultiProperty: true,
+			requiresMultiProperty: false,
+			requiresCommercialSuites: true,
 		},
 		{
 			value: 'units' as ReportType,
@@ -160,6 +175,7 @@ const getAccessibleReports = (
 			description: 'Individual unit details and occupancy information',
 			requiresTeamAccess: false,
 			requiresMultiProperty: false,
+			requiresMultiFamily: true,
 		},
 		{
 			value: 'tenant-profiles' as ReportType,
@@ -186,6 +202,20 @@ const getAccessibleReports = (
 
 	// Filter reports based on user permissions
 	return allReports.filter((report) => {
+		if (isHomeowner) {
+			// Homeowner plans are restricted to single-family report options.
+			if (
+				report.value === 'maintenance-requests' ||
+				report.value === 'suites' ||
+				report.value === 'units' ||
+				report.value === 'tenant-profiles' ||
+				report.value === 'team' ||
+				report.value === 'employee-efficiency'
+			) {
+				return false;
+			}
+		}
+
 		// Team reports only for users with team access
 		if (report.requiresTeamAccess && !canAccessTeamReport) {
 			return false;
@@ -193,6 +223,14 @@ const getAccessibleReports = (
 
 		// Multi-property reports not applicable for homeowners or single-property users
 		if (report.requiresMultiProperty && scopedProperties.length <= 1) {
+			return false;
+		}
+
+		if (report.requiresMultiFamily && !hasMultiFamilyProperties) {
+			return false;
+		}
+
+		if (report.requiresCommercialSuites && !hasCommercialSuites) {
 			return false;
 		}
 
@@ -215,7 +253,9 @@ export const ReportBuilder: React.FC = () => {
 	const canViewPages = useSelector(selectCanViewAllPages);
 	const isHomeowner = useSelector(selectIsHomeowner);
 	const canAccessTeamReport =
-		!!currentUser && (canManageTeam || canViewPages || !!currentUser.accountId);
+		!!currentUser &&
+		!isHomeowner &&
+		(canManageTeam || canViewPages || !!currentUser.accountId);
 
 	// Helper: homeowners may only access Single Family properties in reports
 	const isSingleFamilyProperty = (ptype?: string) => {
@@ -368,6 +408,25 @@ export const ReportBuilder: React.FC = () => {
 		return allSuites;
 	}, [scopedProperties]);
 
+	const hasMultiFamilyProperties = useMemo(() => {
+		if (isHomeowner) return false;
+		return scopedProperties.some((property: any) => {
+			const ptype = String(property.propertyType || '').toLowerCase();
+			return ptype.includes('multi');
+		});
+	}, [scopedProperties, isHomeowner]);
+
+	const hasCommercialSuites = useMemo(() => {
+		if (isHomeowner) return false;
+		return scopedProperties.some((property: any) => {
+			const ptype = String(property.propertyType || '').toLowerCase();
+			const hasSuitesFlag = !!property.hasSuites;
+			const hasSuitesArray =
+				Array.isArray(property.suites) && property.suites.length > 0;
+			return ptype.includes('commercial') && (hasSuitesFlag || hasSuitesArray);
+		});
+	}, [scopedProperties, isHomeowner]);
+
 	const unitsData = useMemo(() => {
 		return scopedUnits.map((unit: any) => {
 			const property = scopedProperties.find((p: any) => p.id === unit.propertyId);
@@ -427,8 +486,30 @@ export const ReportBuilder: React.FC = () => {
 			'tenant-profiles': TENANT_PROFILE_COLUMN_OPTIONS,
 			'': {},
 		};
-		return optionsMap[reportType];
-	}, [reportType]);
+
+		const availableOptions = { ...(optionsMap[reportType] || {}) };
+
+		if (!hasMultiFamilyProperties) {
+			delete availableOptions.unit;
+		}
+
+		if (!hasCommercialSuites) {
+			delete availableOptions.suite;
+		}
+
+		if (isHomeowner && reportType === 'property-summary') {
+			delete availableOptions.totalUnits;
+			delete availableOptions.occupiedUnits;
+			delete availableOptions.totalTenants;
+		}
+
+		return availableOptions;
+	}, [
+		reportType,
+		hasMultiFamilyProperties,
+		hasCommercialSuites,
+		isHomeowner,
+	]);
 
 	// Determine which report types should show property filter
 	const shouldShowPropertyFilter = [
@@ -746,8 +827,20 @@ export const ReportBuilder: React.FC = () => {
 
 	// Get accessible reports for this user
 	const accessibleReports = useMemo(
-		() => getAccessibleReports(canAccessTeamReport, scopedProperties),
-		[canAccessTeamReport, isHomeowner, scopedProperties],
+		() =>
+			getAccessibleReports(canAccessTeamReport, {
+				scopedProperties,
+				isHomeowner,
+				hasMultiFamilyProperties,
+				hasCommercialSuites,
+			}),
+		[
+			canAccessTeamReport,
+			scopedProperties,
+			isHomeowner,
+			hasMultiFamilyProperties,
+			hasCommercialSuites,
+		],
 	);
 
 	// Validate that current report type is still accessible
@@ -762,6 +855,14 @@ export const ReportBuilder: React.FC = () => {
 		() => getReportDescription(reportType, accessibleReports),
 		[reportType, accessibleReports],
 	);
+
+	useEffect(() => {
+		// Keep selected columns in sync when available columns change.
+		const availableColumnKeys = new Set(Object.keys(columnOptions));
+		setSelectedColumns((prev) =>
+			prev.filter((column) => availableColumnKeys.has(column)),
+		);
+	}, [columnOptions]);
 
 	return (
 		<Wrapper>
