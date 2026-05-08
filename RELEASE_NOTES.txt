@@ -1,5 +1,5 @@
-🎉 **Release Notes for Version 2.2.0** 🎉
+🎉 **Release Notes for Version 2.2.1** 🎉
 
 
-## ✨ Features
-- Adding Device page and adding barcode scanning
+## 🐛 Bug Fixes
+- adding a fix for barcode scanning on mobile.
