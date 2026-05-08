@@ -144,6 +144,13 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 		() => typeof (window as any).BarcodeDetector !== 'undefined',
 		[],
 	);
+	const supportsCameraAccess = useMemo(
+		() =>
+			typeof navigator !== 'undefined' &&
+			!!navigator.mediaDevices &&
+			typeof navigator.mediaDevices.getUserMedia === 'function',
+		[],
+	);
 
 	const stopScanner = useCallback(() => {
 		if (rafRef.current) {
@@ -172,14 +179,19 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 			return;
 		}
 
-		if (!supportsBarcodeDetector) {
-			setError('Live camera scanning is not supported in this browser. Use manual paste below.');
+		if (!supportsCameraAccess) {
+			setError('Camera access is not available in this browser. Use manual paste below.');
 			return;
 		}
 
 		let cancelled = false;
 		const setup = async () => {
 			try {
+				setError(
+					supportsBarcodeDetector
+						? ''
+						: 'Camera access is available, but live barcode detection is not supported here. You can still use the camera preview and paste the scanned value manually if needed.',
+				);
 				const stream = await navigator.mediaDevices.getUserMedia({
 					video: { facingMode: 'environment' },
 					audio: false,
@@ -194,6 +206,10 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 				if (!video) return;
 				video.srcObject = stream;
 				await video.play();
+
+				if (!supportsBarcodeDetector) {
+					return;
+				}
 
 				const DetectorCtor = (window as any).BarcodeDetector;
 				const detector = new DetectorCtor({
@@ -234,7 +250,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 			cancelled = true;
 			stopScanner();
 		};
-	}, [commitValue, isOpen, stopScanner, supportsBarcodeDetector]);
+	}, [commitValue, isOpen, stopScanner, supportsBarcodeDetector, supportsCameraAccess]);
 
 	if (!isOpen) return null;
 
