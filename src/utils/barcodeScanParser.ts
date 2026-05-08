@@ -12,6 +12,31 @@ type ParsedDeviceFields = {
 
 type ParsedPartFields = Partial<Omit<DeviceServiceItem, 'id'>>;
 
+export type BarcodeAiSegment = {
+	ai: string;
+	value: string;
+	label?: string;
+};
+
+export type BarcodePayloadAnalysis = {
+	raw: string;
+	keyValuePairs: Record<string, string>;
+	gs1: {
+		gtin?: string;
+		serial?: string;
+		segments: BarcodeAiSegment[];
+	};
+	normalized: {
+		device: ParsedDeviceFields;
+		part: ParsedPartFields;
+	};
+	formatHints: {
+		hasPairs: boolean;
+		hasGs1Markers: boolean;
+		looksLikePlainCode: boolean;
+	};
+};
+
 const KEY_ALIASES: Record<string, string> = {
 	type: 'type',
 	device: 'type',
@@ -81,6 +106,34 @@ const parsePairs = (raw: string): Record<string, string> => {
 		}
 	}
 	return map;
+};
+
+const GS1_AI_LABELS: Record<string, string> = {
+	'01': 'GTIN',
+	'10': 'Batch/Lot',
+	'11': 'Production Date',
+	'15': 'Best Before Date',
+	'17': 'Expiration Date',
+	'21': 'Serial Number',
+};
+
+const parseGs1Segments = (raw: string): BarcodeAiSegment[] => {
+	const segments: BarcodeAiSegment[] = [];
+	const regex = /\((\d{2,4})\)([^()]+)/g;
+	let match: RegExpExecArray | null;
+
+	while ((match = regex.exec(raw)) !== null) {
+		const ai = match[1];
+		const value = match[2].trim();
+		if (!value) continue;
+		segments.push({
+			ai,
+			value,
+			label: GS1_AI_LABELS[ai],
+		});
+	}
+
+	return segments;
 };
 
 const parseGs1 = (raw: string): { gtin?: string; serial?: string } => {
@@ -162,4 +215,30 @@ export const parsePartBarcodePayload = (raw: string): ParsedPartFields => {
 	}
 
 	return parsed;
+};
+
+export const analyzeBarcodePayload = (raw: string): BarcodePayloadAnalysis => {
+	const text = raw.trim();
+	const pairs = parsePairs(text);
+	const gs1 = parseGs1(text);
+	const segments = parseGs1Segments(text);
+
+	return {
+		raw: text,
+		keyValuePairs: pairs,
+		gs1: {
+			gtin: gs1.gtin,
+			serial: gs1.serial,
+			segments,
+		},
+		normalized: {
+			device: parseDeviceBarcodePayload(text),
+			part: parsePartBarcodePayload(text),
+		},
+		formatHints: {
+			hasPairs: Object.keys(pairs).length > 0,
+			hasGs1Markers: /\(\d{2,4}\)/.test(text),
+			looksLikePlainCode: /^[A-Za-z0-9\-_.]{6,}$/.test(text),
+		},
+	};
 };
