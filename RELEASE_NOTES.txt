@@ -1,6 +1,5 @@
-🎉 **Release Notes for Version 2.1.1** 🎉
+🎉 **Release Notes for Version 2.2.0** 🎉
 
 
-## 🐛 Bug Fixes
-- fixing the dashboard to flow better with existing data.
-- fixing the dialog styling and cleaning up the UI of multiple pages
+## ✨ Features
+- Adding Device page and adding barcode scanning
