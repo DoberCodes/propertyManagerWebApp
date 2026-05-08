@@ -4,8 +4,10 @@ export const Wrapper = styled.div`
 	display: flex;
 	flex-direction: column;
 	width: 100%;
-	height: 100vh; /* Ensure full viewport height */
-	padding-bottom: env(safe-area-inset-bottom);
+	height: 100dvh;
+	min-height: 100dvh;
+	padding-bottom: 0;
+	background-color: #fafafa;
 
 	@media (max-width: 1024px) {
 		width: 100%;
@@ -55,15 +57,15 @@ export const Content = styled.div`
 	padding: 20px;
 	background-color: #fafafa; /* match TeamPage off-white */
 
-	padding-bottom: 70px;
+	padding-bottom: max(16px, calc(8px + env(safe-area-inset-bottom)));
 
 	@media (max-width: 1024px) {
 		padding: 15px;
-		padding-bottom: 85px;
+		padding-bottom: max(18px, calc(12px + env(safe-area-inset-bottom)));
 	}
 
 	@media (max-width: 480px) {
 		padding: 10px;
-		padding-bottom: 85px;
+		padding-bottom: max(18px, calc(12px + env(safe-area-inset-bottom)));
 	}
 `;

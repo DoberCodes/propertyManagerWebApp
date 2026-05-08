@@ -4,7 +4,11 @@ import styled from 'styled-components';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faEdit, faTrash } from '@fortawesome/free-solid-svg-icons';
 import { useGetPropertiesQuery, useGetUnitsQuery } from '../../Redux/API/propertySlice';
-import { useGetDeviceQuery, useUpdateDeviceMutation } from '../../Redux/API/deviceSlice';
+import {
+	useGetDeviceQuery,
+	useGetDevicesQuery,
+	useUpdateDeviceMutation,
+} from '../../Redux/API/deviceSlice';
 import { useGetTasksQuery } from '../../Redux/API/taskSlice';
 import { useGetMaintenanceHistoryByPropertyQuery } from '../../Redux/API/maintenanceSlice';
 import { DetailPageLayout, TabContent, ReusableTable } from '../../Components/Library';
@@ -441,10 +445,19 @@ export const DeviceDetailPage: React.FC = () => {
 	});
 
 	const { data: allTasks = [] } = useGetTasksQuery();
+	const { data: propertyDevices = [] } = useGetDevicesQuery(property?.id || '', {
+		skip: !property?.id,
+	});
 	const { data: propertyMaintenanceHistory = [] } =
 		useGetMaintenanceHistoryByPropertyQuery(property?.id || '', {
 			skip: !property?.id,
 		});
+
+	const normalizeIdentifier = (value?: string) =>
+		String(value || '')
+			.trim()
+			.toLowerCase()
+			.replace(/[^a-z0-9]/g, '');
 
 	const locationLabel = useMemo(() => {
 		if (!device || !property) return 'N/A';
@@ -638,14 +651,30 @@ export const DeviceDetailPage: React.FC = () => {
 		const parsed = parseDeviceBarcodePayload(rawValue);
 		const updates: any = {};
 
-		if (parsed.type) updates.type = parsed.type;
-		if (parsed.brand) updates.brand = parsed.brand;
-		if (parsed.model) updates.model = parsed.model;
+		const scannedSerial = normalizeIdentifier(parsed.serialNumber || rawValue);
+		const scannedPart = normalizeIdentifier(parsed.partNumber || rawValue);
+		const matchingDevice = propertyDevices.find((candidate: any) => {
+			if (!candidate || String(candidate.id) === String(device.id)) return false;
+			const candidateSerial = normalizeIdentifier(candidate.serialNumber);
+			const candidatePart = normalizeIdentifier(candidate.partNumber);
+			return (
+				(!!scannedSerial && !!candidateSerial && scannedSerial === candidateSerial) ||
+				(!!scannedPart && !!candidatePart && scannedPart === candidatePart)
+			);
+		});
+
+		if (parsed.type || matchingDevice?.type) updates.type = parsed.type || matchingDevice?.type;
+		if (parsed.brand || matchingDevice?.brand) updates.brand = parsed.brand || matchingDevice?.brand;
+		if (parsed.model || matchingDevice?.model) updates.model = parsed.model || matchingDevice?.model;
 		if (parsed.serialNumber) updates.serialNumber = parsed.serialNumber;
 		if (parsed.partNumber) updates.partNumber = parsed.partNumber;
-		if (parsed.filterSize) updates.filterSize = parsed.filterSize;
+		if (parsed.filterSize || matchingDevice?.filterSize) {
+			updates.filterSize = parsed.filterSize || matchingDevice?.filterSize;
+		}
 		if (parsed.specNotes) {
-			updates.specNotes = parsed.specNotes;
+			updates.specNotes = matchingDevice
+				? `${parsed.specNotes} | Matched existing device: ${matchingDevice.type || 'Device'} ${matchingDevice.brand || ''} ${matchingDevice.model || ''}`.trim()
+				: parsed.specNotes;
 			updates.notes = parsed.specNotes;
 		}
 

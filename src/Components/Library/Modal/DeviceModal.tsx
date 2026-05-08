@@ -26,6 +26,7 @@ import {
 	parsePartBarcodePayload,
 } from '../../../utils/barcodeScanParser';
 import { BarcodeScannerModal } from '../BarcodeScanner/BarcodeScannerModal';
+import { useGetDevicesQuery } from '../../../Redux/API/deviceSlice';
 
 interface DeviceModalProps {
 	isOpen: boolean;
@@ -321,6 +322,15 @@ export const DeviceModal = (props: DeviceModalProps) => {
 		'details',
 	);
 	const [itemFilter, setItemFilter] = useState('');
+	const { data: propertyDevices = [] } = useGetDevicesQuery(props.property.id || '', {
+		skip: !props.property?.id,
+	});
+
+	const normalizeIdentifier = (value?: string) =>
+		String(value || '')
+			.trim()
+			.toLowerCase()
+			.replace(/[^a-z0-9]/g, '');
 	const [newCategoryOption, setNewCategoryOption] = useState('part');
 	const [newCustomCategory, setNewCustomCategory] = useState('');
 	const [newItemName, setNewItemName] = useState('');
@@ -582,13 +592,37 @@ export const DeviceModal = (props: DeviceModalProps) => {
 
 	const handleDeviceBarcodeDetected = (rawValue: string) => {
 		const parsed = parseDeviceBarcodePayload(rawValue);
-		if (parsed.type) emitChange('type', parsed.type);
-		if (parsed.brand) emitChange('brand', parsed.brand);
-		if (parsed.model) emitChange('model', parsed.model);
+		const scannedSerial = normalizeIdentifier(parsed.serialNumber || rawValue);
+		const scannedPart = normalizeIdentifier(parsed.partNumber || rawValue);
+		const matchingDevice = propertyDevices.find((candidate: any) => {
+			const candidateSerial = normalizeIdentifier(candidate?.serialNumber);
+			const candidatePart = normalizeIdentifier(candidate?.partNumber);
+			return (
+				(!!scannedSerial && !!candidateSerial && scannedSerial === candidateSerial) ||
+				(!!scannedPart && !!candidatePart && scannedPart === candidatePart)
+			);
+		});
+
+		if (parsed.type || matchingDevice?.type) {
+			emitChange('type', parsed.type || matchingDevice?.type || '');
+		}
+		if (parsed.brand || matchingDevice?.brand) {
+			emitChange('brand', parsed.brand || matchingDevice?.brand || '');
+		}
+		if (parsed.model || matchingDevice?.model) {
+			emitChange('model', parsed.model || matchingDevice?.model || '');
+		}
 		if (parsed.serialNumber) emitChange('serialNumber', parsed.serialNumber);
 		if (parsed.partNumber) emitChange('partNumber', parsed.partNumber);
-		if (parsed.filterSize) emitChange('filterSize', parsed.filterSize);
-		if (parsed.specNotes) emitChange('specNotes', parsed.specNotes);
+		if (parsed.filterSize || matchingDevice?.filterSize) {
+			emitChange('filterSize', parsed.filterSize || matchingDevice?.filterSize || '');
+		}
+		if (parsed.specNotes) {
+			const enrichedNotes = matchingDevice
+				? `${parsed.specNotes} | Matched existing device: ${matchingDevice.type || 'Device'} ${matchingDevice.brand || ''} ${matchingDevice.model || ''}`.trim()
+				: parsed.specNotes;
+			emitChange('specNotes', enrichedNotes);
+		}
 	};
 
 	const handlePartBarcodeDetected = (rawValue: string) => {

@@ -40,17 +40,31 @@ export type BarcodePayloadAnalysis = {
 const KEY_ALIASES: Record<string, string> = {
 	type: 'type',
 	device: 'type',
+	devicetype: 'type',
+	equipmenttype: 'type',
 	brand: 'brand',
 	manufacturer: 'brand',
+	make: 'brand',
+	mfg: 'brand',
+	mfr: 'brand',
 	model: 'model',
+	modelnumber: 'model',
+	modelno: 'model',
 	serial: 'serialNumber',
 	serialnumber: 'serialNumber',
+	serialno: 'serialNumber',
 	sn: 'serialNumber',
 	part: 'partNumber',
 	partnumber: 'partNumber',
+	mpn: 'partNumber',
+	sku: 'partNumber',
+	upc: 'partNumber',
+	ean: 'partNumber',
+	gtin: 'partNumber',
 	pn: 'partNumber',
 	filtersize: 'filterSize',
 	size: 'filterSize',
+	tonnage: 'filterSize',
 	notes: 'specNotes',
 	spec: 'specNotes',
 	specnotes: 'specNotes',
@@ -59,12 +73,20 @@ const KEY_ALIASES: Record<string, string> = {
 const PART_KEY_ALIASES: Record<string, keyof ParsedPartFields> = {
 	name: 'name',
 	item: 'name',
+	product: 'name',
 	category: 'category',
 	part: 'partNumber',
 	partnumber: 'partNumber',
+	mpn: 'partNumber',
+	sku: 'partNumber',
+	upc: 'partNumber',
+	ean: 'partNumber',
+	gtin: 'partNumber',
 	pn: 'partNumber',
 	size: 'size',
 	manufacturer: 'manufacturer',
+	brand: 'manufacturer',
+	make: 'manufacturer',
 	material: 'material',
 	voltage: 'voltage',
 	merv: 'mervRating',
@@ -95,15 +117,54 @@ const normalizeCategory = (value?: string): string | undefined => {
 
 const parsePairs = (raw: string): Record<string, string> => {
 	const map: Record<string, string> = {};
-	const pairs = raw.split(/[\n;,]+/g);
-	for (const segment of pairs) {
-		const [rawKey, ...rest] = segment.split(':');
-		if (!rawKey || rest.length === 0) continue;
-		const key = rawKey.replace(/\s+/g, '').toLowerCase();
-		const value = rest.join(':').trim();
+	const pairs = raw.split(/[\n;,|]+/g);
+
+	const trySetPair = (rawKey: string, rawValue: string) => {
+		const key = rawKey.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+		const value = rawValue.trim();
 		if (key && value) {
 			map[key] = value;
 		}
+	};
+
+	if (raw.trim().startsWith('{') && raw.trim().endsWith('}')) {
+		try {
+			const parsed = JSON.parse(raw);
+			if (parsed && typeof parsed === 'object') {
+				Object.entries(parsed as Record<string, unknown>).forEach(([key, value]) => {
+					if (typeof value === 'string' || typeof value === 'number') {
+						trySetPair(key, String(value));
+					}
+				});
+			}
+		} catch {
+			// Ignore invalid JSON payloads and continue with delimiter parsing.
+		}
+	}
+
+	if (raw.includes('?') && raw.includes('=')) {
+		const queryString = raw.split('?')[1] || '';
+		const queryPart = queryString.split('#')[0];
+		const params = new URLSearchParams(queryPart);
+		params.forEach((value, key) => {
+			trySetPair(key, value);
+		});
+	}
+
+	for (const segment of pairs) {
+		const candidate = segment.trim();
+		if (!candidate) continue;
+		const delimiterIndex = (() => {
+			const colonIndex = candidate.indexOf(':');
+			const equalsIndex = candidate.indexOf('=');
+			if (colonIndex === -1) return equalsIndex;
+			if (equalsIndex === -1) return colonIndex;
+			return Math.min(colonIndex, equalsIndex);
+		})();
+		if (delimiterIndex <= 0) continue;
+		const rawKey = candidate.slice(0, delimiterIndex);
+		const rawValue = candidate.slice(delimiterIndex + 1);
+		trySetPair(rawKey, rawValue);
 	}
 	return map;
 };
