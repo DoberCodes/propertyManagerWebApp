@@ -1,5 +1,5 @@
-🎉 **Release Notes for Version 2.2.1** 🎉
+🎉 **Release Notes for Version 2.2.2** 🎉
 
 
 ## 🐛 Bug Fixes
-- adding a fix for barcode scanning on mobile.
+- fixing the barcode scanner to show what is scanned
