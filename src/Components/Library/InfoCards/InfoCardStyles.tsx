@@ -30,15 +30,16 @@ export const InfoGrid = styled.div`
  * Individual info card for displaying a single piece of information
  */
 export const InfoCard = styled.div`
-	background: #f9fafb;
-	border: 1px solid #e5e7eb;
-	border-radius: 8px;
+	background: #ffffff;
+	border: 1px solid #e2e8f0;
+	border-radius: 10px;
 	padding: 16px;
 	transition: all 0.2s ease;
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 
 	&:hover {
-		background: #f3f4f6;
-		border-color: #d1d5db;
+		border-color: #cbd5e1;
+		box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08);
 	}
 
 	@media (max-width: 1024px) {
@@ -46,7 +47,7 @@ export const InfoCard = styled.div`
 	}
 
 	@media (max-width: 480px) {
-		padding: 16px;
+		padding: 15px;
 	}
 `;
 
@@ -55,16 +56,16 @@ export const InfoCard = styled.div`
  */
 export const InfoLabel = styled.label`
 	display: block;
-	font-size: 12px;
-	font-weight: 600;
-	color: #6b7280;
+	font-size: 11px;
+	font-weight: 700;
+	color: #64748b;
 	text-transform: uppercase;
-	letter-spacing: 0.5px;
-	margin-bottom: 8px;
+	letter-spacing: 0.07em;
+	margin-bottom: 6px;
 
 	@media (max-width: 480px) {
-		font-size: 13px;
-		margin-bottom: 8px;
+		font-size: 11px;
+		margin-bottom: 6px;
 	}
 `;
 
@@ -73,17 +74,17 @@ export const InfoLabel = styled.label`
  */
 export const InfoValue = styled.p`
 	margin: 0;
-	font-size: 16px;
-	color: #1f2937;
-	font-weight: 500;
+	font-size: 15px;
+	color: #0f172a;
+	font-weight: 600;
 	word-break: break-word;
 
 	@media (max-width: 1024px) {
-		font-size: 16px;
+		font-size: 15px;
 	}
 
 	@media (max-width: 480px) {
-		font-size: 16px;
+		font-size: 15px;
 		line-height: 1.4;
 	}
 `;
@@ -108,18 +109,19 @@ export const SectionContainer = styled.div`
  * Section header/title
  */
 export const SectionHeader = styled.h2`
-	font-size: 18px;
-	font-weight: 600;
-	color: #1f2937;
+	font-size: 16px;
+	font-weight: 800;
+	color: #0f172a;
 	margin: 0 0 16px 0;
+	letter-spacing: -0.01em;
 
 	@media (max-width: 1024px) {
-		font-size: 18px;
+		font-size: 16px;
 		margin: 0 0 15px 0;
 	}
 
 	@media (max-width: 480px) {
-		font-size: 17px;
+		font-size: 16px;
 		margin: 0 0 14px 0;
 	}
 `;

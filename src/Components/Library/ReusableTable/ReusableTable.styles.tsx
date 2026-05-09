@@ -40,14 +40,15 @@ export const ActionButton = styled.button`
 
 export const TableContainer = styled.div`
 	overflow-x: auto;
-	overflow-y: auto; /* Enable vertical scrolling */
-	max-height: 400px; /* Set a maximum height for the table */
-	border: 1px solid #e0e0e0;
-	border-radius: 4px;
+	overflow-y: auto;
+	max-height: 400px;
+	border: 1px solid #e2e8f0;
+	border-radius: 8px;
 	background-color: #fff;
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 
 	@media (max-width: 768px) {
-		border-radius: 8px;
+		border-radius: 10px;
 	}
 `;
 
@@ -56,24 +57,51 @@ export const StyledTable = styled.table`
 	border-collapse: collapse;
 
 	thead {
-		background-color: #f3f4f6;
-	}
-
-	th,
-	td {
-		padding: 12px;
-		text-align: left;
-		border-bottom: 1px solid #e5e7eb;
+		background-color: #f8fafc;
+		border-bottom: 2px solid #e2e8f0;
+		position: sticky;
+		top: 0;
+		z-index: 1;
 	}
 
 	th {
 		text-align: left;
-		font-weight: 600;
+		font-weight: 700;
+		font-size: 12px;
+		text-transform: uppercase;
+		letter-spacing: 0.06em;
+		color: #64748b;
+		padding: 12px 14px;
+		white-space: nowrap;
+	}
+
+	td {
+		padding: 13px 14px;
+		text-align: left;
+		border-bottom: 1px solid #f1f5f9;
 		font-size: 14px;
+		color: #1e293b;
+		vertical-align: middle;
+	}
+
+	tbody tr {
+		transition: background-color 0.12s ease;
 	}
 
 	tbody tr:hover {
-		background-color: #f9fafb;
+		background-color: #f0fdf4;
+	}
+
+	tbody tr:hover td {
+		background-color: #f0fdf4;
+	}
+
+	tbody tr:last-child td {
+		border-bottom: none;
+	}
+
+	tbody tr.clickable-row {
+		cursor: pointer;
 	}
 
 	tbody tr.overdue-row {
@@ -85,8 +113,9 @@ export const StyledTable = styled.table`
 		background-color: rgba(239, 68, 68, 0.04);
 	}
 
+	tbody tr.overdue-row:hover,
 	tbody tr.overdue-row:hover td {
-		background-color: rgba(239, 68, 68, 0.08);
+		background-color: rgba(239, 68, 68, 0.09);
 	}
 
 	select {
@@ -98,7 +127,7 @@ export const StyledTable = styled.table`
 		font-size: 14px;
 		background-color: #fff;
 		cursor: pointer;
-		min-height: 36px; /* Better touch target */
+		min-height: 36px;
 
 		&:focus {
 			outline: none;
@@ -107,52 +136,59 @@ export const StyledTable = styled.table`
 		}
 
 		@media (max-width: 480px) {
-			font-size: 16px; /* Prevent iOS zoom */
+			font-size: 16px;
 			min-height: 44px;
 			padding: 8px 10px;
 		}
 	}
 
 	@media (max-width: 768px) {
-		th,
-		td {
-			padding: 10px 8px;
-			font-size: 14px;
+		th {
+			padding: 10px 10px;
+			font-size: 11px;
 		}
 
-		th {
-			font-size: 13px;
+		td {
+			padding: 12px 10px;
+			font-size: 14px;
 		}
 	}
 
 	@media (max-width: 480px) {
-		th,
-		td {
-			padding: 12px 10px;
-			font-size: 15px;
+		th {
+			font-size: 11px;
+			padding: 10px 10px;
 		}
 
-		th {
-			font-size: 14px;
+		td {
+			padding: 13px 10px;
+			font-size: 15px;
 		}
 	}
 `;
 
 export const EmptyState = styled.div`
 	text-align: center;
-	padding: 40px 20px;
-	color: #6b7280;
+	padding: 56px 24px;
+	color: #94a3b8;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 8px;
 
 	p {
 		margin: 0;
 		font-size: 14px;
+		color: #64748b;
+		max-width: 300px;
+		line-height: 1.5;
 	}
 
 	@media (max-width: 480px) {
-		padding: 50px 20px;
+		padding: 60px 20px;
 
 		p {
-			font-size: 16px;
+			font-size: 15px;
 		}
 	}
 `;

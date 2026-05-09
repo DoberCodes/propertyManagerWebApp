@@ -140,19 +140,21 @@ const ActionButtons = styled.div`
 `;
 
 const PrimaryButton = styled.button`
-	background: ${COLORS.primary};
+	background: #16a34a;
 	color: white;
 	border: none;
-	padding: 12px 24px;
+	padding: 12px 28px;
 	border-radius: 8px;
 	font-size: 16px;
-	font-weight: 600;
+	font-weight: 700;
 	cursor: pointer;
 	transition: all 0.2s ease;
+	box-shadow: 0 4px 12px rgba(22, 163, 74, 0.25);
 
 	&:hover {
-		background: #2563eb;
-		transform: translateY(-1px);
+		background: #15803d;
+		transform: translateY(-2px);
+		box-shadow: 0 8px 20px rgba(22, 163, 74, 0.3);
 	}
 
 	&:active {
@@ -388,7 +390,7 @@ const MinimizedWaitingActions = styled.div`
 `;
 
 const HelpButton = styled.button`
-	background: ${COLORS.primary};
+	background: #16a34a;
 	color: white;
 	border: none;
 	padding: 6px 12px;
@@ -399,8 +401,106 @@ const HelpButton = styled.button`
 	transition: all 0.2s ease;
 
 	&:hover {
-		background: #2563eb;
+		background: #15803d;
 		transform: translateY(-1px);
+	}
+`;
+
+// Role selection
+const RoleGrid = styled.div`
+	display: grid;
+	grid-template-columns: repeat(2, 1fr);
+	gap: 12px;
+	margin-top: 24px;
+
+	@media (max-width: 480px) {
+		grid-template-columns: 1fr;
+	}
+`;
+
+const RoleCard = styled.button<{ $selected?: boolean }>`
+	padding: 18px 16px;
+	border-radius: 12px;
+	border: 2px solid ${(p) => (p.$selected ? '#16a34a' : '#e2e8f0')};
+	background: ${(p) => (p.$selected ? '#f0fdf4' : '#f8fafc')};
+	cursor: pointer;
+	text-align: left;
+	transition: all 0.2s ease;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+
+	&:hover {
+		border-color: #16a34a;
+		background: #f0fdf4;
+		transform: translateY(-1px);
+	}
+`;
+
+const RoleCardEmoji = styled.div`
+	font-size: 26px;
+	margin-bottom: 2px;
+`;
+
+const RoleCardLabel = styled.div`
+	font-size: 15px;
+	font-weight: 700;
+	color: #0f172a;
+`;
+
+const RoleCardDesc = styled.div`
+	font-size: 12px;
+	color: #64748b;
+	line-height: 1.4;
+`;
+
+// Payoff preview card
+const PayoffPreview = styled.div`
+	background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%);
+	border: 1px solid rgba(22, 163, 74, 0.2);
+	border-radius: 12px;
+	padding: 18px;
+	margin-top: 20px;
+	text-align: left;
+`;
+
+const PayoffPreviewTitle = styled.div`
+	font-size: 12px;
+	font-weight: 800;
+	text-transform: uppercase;
+	letter-spacing: 0.07em;
+	color: #16a34a;
+	margin-bottom: 12px;
+`;
+
+const PayoffItems = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+`;
+
+const PayoffItem = styled.div`
+	display: flex;
+	align-items: flex-start;
+	gap: 10px;
+	font-size: 14px;
+	color: #1e293b;
+
+	.icon {
+		font-size: 16px;
+		margin-top: 1px;
+		flex-shrink: 0;
+	}
+
+	.text strong {
+		display: block;
+		font-weight: 700;
+		color: #0f172a;
+	}
+
+	.text span {
+		font-size: 12px;
+		color: #64748b;
 	}
 `;
 
@@ -438,6 +538,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
 	const [currentStepIndex, setCurrentStepIndex] = useState(0);
 	const [showCelebration, setShowCelebration] = useState(false);
 	const [showPageGuide, setShowPageGuide] = useState(false);
+	const [userPersona, setUserPersona] = useState<'homeowner' | 'landlord' | 'manager' | null>(null);
 	const [pageGuideContent, setPageGuideContent] = useState<{
 		title: string;
 		content: string;
@@ -469,47 +570,91 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
 
 	// Enhanced step definitions with validation and celebration logic
 	const getSteps = (): OnboardingStep[] => {
+		// Persona-aware copy
+		const welcomeHeadline =
+			userPersona === 'homeowner'
+				? 'Stop letting maintenance pile up.'
+				: userPersona === 'landlord'
+				? 'Stop managing properties from memory.'
+				: userPersona === 'manager'
+				? 'Bring order to multi-property maintenance.'
+				: 'Your property maintenance, finally organized.';
+
+		const welcomeSubtext =
+			userPersona === 'homeowner'
+				? "We'll help you stay ahead of repairs, track every service, and never forget an important maintenance task again."
+				: userPersona === 'landlord'
+				? "Track devices, repairs, contractors, and service history across all your properties in one place."
+				: userPersona === 'manager'
+				? "Manage tasks, tenants, contractors, and maintenance records across your entire portfolio."
+				: "Track devices, repairs, tasks, and service history in one place — so nothing falls through the cracks.";
+
 		const steps: OnboardingStep[] = [
+			// Step 0: Role selection
+			{
+				id: 'who_are_you',
+				type: 'instruction',
+				title: 'First — how are you using Maintley?',
+				description: 'This helps us frame the experience around what matters most to you.',
+				content: (
+					<RoleGrid>
+						{[
+							{ id: 'homeowner' as const, emoji: '🏡', label: 'Homeowner', desc: 'Keeping my home maintained and organized' },
+							{ id: 'landlord' as const, emoji: '🏘️', label: 'Landlord / Investor', desc: 'Managing 1–5 rental or investment properties' },
+							{ id: 'manager' as const, emoji: '🏢', label: 'Property Manager', desc: 'Managing portfolios and teams' },
+						].map((role) => (
+							<RoleCard
+								key={role.id}
+								type="button"
+								$selected={userPersona === role.id}
+								onClick={() => setUserPersona(role.id)}>
+								<RoleCardEmoji>{role.emoji}</RoleCardEmoji>
+								<RoleCardLabel>{role.label}</RoleCardLabel>
+								<RoleCardDesc>{role.desc}</RoleCardDesc>
+							</RoleCard>
+						))}
+					</RoleGrid>
+				),
+				actionLabel: userPersona ? 'Continue →' : undefined,
+				action: () => advanceToNextStep(),
+				skipLabel: 'Skip',
+			},
+
 			// Step 1: Welcome
 			{
 				id: 'welcome_beta',
 				type: 'instruction',
-				title: 'Welcome to Maintley Beta! 🎉',
-				description: `Thanks for being an early adopter! Your feedback during this beta phase is crucial to help us build the best property management tool possible. Let's get you started with a quick tour of the key features and how to make the most of Maintley.`,
+				title: welcomeHeadline,
+				description: welcomeSubtext,
 				content: (
-					<></>
-					// <div className='feature-list'>
-					// 	<ul>
-					// 		<li>🏠 Manage all your properties in one place</li>
-					// 		<li>🔧 Track maintenance tasks and schedules</li>
-					// 		{canManageTeam && <li>👥 Invite team members and tenants</li>}
-					// 		<li>📊 Get insights with reports and analytics</li>
-					// 		<li>🎯 Never miss important maintenance deadlines</li>
-					// 	</ul>
-					// </div>
+					<PayoffPreview>
+						<PayoffPreviewTitle>What you'll have by the end of setup</PayoffPreviewTitle>
+						<PayoffItems>
+							<PayoffItem>
+								<span className="icon">🏠</span>
+								<div className="text">
+									<strong>Your property, fully profiled</strong>
+									<span>All key info and history in one place</span>
+								</div>
+							</PayoffItem>
+							<PayoffItem>
+								<span className="icon">✅</span>
+								<div className="text">
+									<strong>Your first maintenance task live</strong>
+									<span>With reminders so nothing gets forgotten</span>
+								</div>
+							</PayoffItem>
+							<PayoffItem>
+								<span className="icon">📋</span>
+								<div className="text">
+									<strong>The foundation of your service history</strong>
+									<span>Every future repair adds to a record you'll actually use</span>
+								</div>
+							</PayoffItem>
+						</PayoffItems>
+					</PayoffPreview>
 				),
-				actionLabel: 'Happy to be here!',
-				action: () => advanceToNextStep(),
-				skipLabel: 'Skip Tour',
-			},
-			{
-				id: 'welcome2',
-				type: 'instruction',
-				title: 'Management Made Easy',
-				description: `Your property management journey starts here. With Maintley, managing your properties has never been easier.`,
-				content: (
-					<div className='feature-list'>
-						<ul>
-							<li>🏠 Manage all your properties in one place</li>
-							<li>🔧 Track maintenance tasks and schedules</li>
-							<li>👨‍👩‍👧‍👦 Invite family members to your plan</li>
-							{canManageTeam && <li>👥 Track your team members and tenants</li>}
-							<li>📊 Get insights with reports and analytics</li>
-							<li>🎯 Never miss important maintenance deadlines</li>
-						</ul>
-					</div>
-				),
-				actionLabel: 'Continue to Tour',
+				actionLabel: "Let's get started →",
 				action: () => advanceToNextStep(),
 				skipLabel: 'Skip Tour',
 			},
@@ -518,25 +663,24 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
 			{
 				id: 'create_property_instruction',
 				type: 'instruction',
-				title: 'Add Your First Property',
-				description: 'Lets get started by adding your first property.',
+				title: 'Start organizing your property maintenance.',
+				description: "Adding your property takes 2 minutes. Once it's in, you have a permanent home for every repair, device, and service record — no more scattered notes or forgotten history.",
 				content: (
 					<div style={{ textAlign: 'left', marginTop: '20px' }}>
-						<p style={{ marginBottom: '16px', fontWeight: '500' }}>
-							Click the "Add Property" button to get started. You'll need to
-							provide:
+						<p style={{ marginBottom: '12px', fontWeight: '600', color: '#0f172a', fontSize: '14px' }}>
+							You'll provide a few basics:
 						</p>
-						<ul style={{ paddingLeft: '20px', margin: '0' }}>
-							<li>Property address and details</li>
-							<li>Property type and size</li>
-							<li>Key contact information</li>
+						<ul style={{ paddingLeft: '20px', margin: '0', color: '#475569', fontSize: '14px', lineHeight: '2' }}>
+							<li>Property address</li>
+							<li>Property type (single family, rental, etc.)</li>
+							<li>Year built and square footage <em style={{ color: '#94a3b8' }}>(optional but useful)</em></li>
 						</ul>
 					</div>
 				),
-				actionLabel: 'Add Property',
+				actionLabel: 'Add My Property →',
 				action: () => {
 					navigate('/properties');
-					setCurrentStepIndex(currentStepIndex + 1); // Move to waiting step
+					setCurrentStepIndex(currentStepIndex + 1);
 				},
 				skipLabel: 'Skip This Step',
 			},
@@ -545,9 +689,9 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
 			{
 				id: 'wait_property_creation',
 				type: 'waiting',
-				title: 'Go Ahead and Add Your First Property!',
+				title: 'Go ahead and add your property.',
 				description:
-					"Take your time to fill in the details. I'll be here in the background watching for your progress and will celebrate with you when it's done!",
+					"Take your time. I'll be here in the background — and I'll pop back in to celebrate when your property is ready.",
 				waitCondition: () => properties.length > 0,
 				autoAdvance: true,
 			},
@@ -556,281 +700,227 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
 			{
 				id: 'property_celebration',
 				type: 'celebration',
-				title: 'Amazing! Property Added! 🎉',
+				title: 'Your first property is live. 🎉',
 				description:
-					"Congratulations on adding your first property! You're already making great progress.",
+					"You now have a permanent home for every repair, device, and service record for this property. That's the hard part done — it only gets more useful from here.",
 			},
 		];
 
-		// Add property navigation and detail page guidance for all users
+		// Navigation and detail page guidance
 		steps.push(
-			// Step 5: Click Property Tile Instruction (Waiting)
 			{
 				id: 'click_property_instruction',
 				type: 'waiting',
-				title: 'Explore Your Property Details',
+				title: "Let's explore what you just built.",
 				description:
-					"Now let's take a look at your property details page where you can manage everything. Click on your property tile when you're ready to explore!",
-				waitCondition: () => location.pathname.includes('/property/'), // Auto-advance when user navigates to property page
+					"Your property page is your maintenance command center. Click on your property tile to see it.",
+				waitCondition: () => location.pathname.includes('/property/'),
 				autoAdvance: true,
 			},
-
-			// Step 6: Property Detail Page Guide
 			{
 				id: 'property_detail_page_guide',
 				type: 'page_guide',
-				title: 'Property Details Page',
+				title: 'Your Property Command Center',
 				description:
-					'This is your property command center! Here you can manage everything related to this property.',
+					'Everything for this property lives here — tasks, devices, contractors, maintenance history, and more.',
 				content: (
-					<div style={{ textAlign: 'left', marginTop: '20px' }}>
-						<p style={{ marginBottom: '16px', fontWeight: '500' }}>
-							Key features to explore:
+					<div style={{ textAlign: 'left', marginTop: '16px' }}>
+						<p style={{ marginBottom: '12px', fontWeight: '600', color: '#0f172a', fontSize: '14px' }}>
+							Tabs to explore:
 						</p>
-						<ul style={{ paddingLeft: '20px', margin: '0' }}>
-							<li>View and edit property information</li>
-							<li>Manage maintenance tasks and schedules</li>
-							<li>Share property access with other users</li>
-							<li>View maintenance history</li>
-							<li>Manage contractors and vendors</li>
+						<ul style={{ paddingLeft: '20px', margin: '0', color: '#475569', fontSize: '14px', lineHeight: '2' }}>
+							<li><strong>Devices</strong> — your home systems, appliances, and components</li>
+							<li><strong>Tasks</strong> — scheduled work, overdue items, recurring reminders</li>
+							<li><strong>Maintenance History</strong> — a permanent record of every service</li>
+							<li><strong>Contractors</strong> — your trusted service providers</li>
 						</ul>
 					</div>
 				),
-				actionLabel: 'Sounds Great!',
+				actionLabel: 'Got it →',
 				action: () => {
-					setCurrentStepIndex(currentStepIndex + 1); // Move to waiting step
+					setCurrentStepIndex(currentStepIndex + 1);
 				},
 			},
 		);
 
-		// Add task creation steps
+		// Task creation steps
 		steps.push(
-			// Step 7: Create Task Instruction
 			{
 				id: 'create_task_instruction',
 				type: 'instruction',
-				title: 'Create Your First Task',
+				title: 'Stay ahead of maintenance before it becomes a problem.',
 				description:
-					'Tasks help you stay organized and never miss important maintenance work. They also build your maintenance history, which is helpful for tracking and as supporting documentation.',
+					"Tasks are how Maintley keeps you proactive. We'll help you remember important maintenance automatically — so it never turns into an expensive surprise.",
 				content: (
 					<div style={{ textAlign: 'left', marginTop: '20px' }}>
-						<p style={{ marginBottom: '16px', fontWeight: '500' }}>
-							With a maintenance task, you'll be able to:
+						<p style={{ marginBottom: '12px', fontWeight: '600', color: '#0f172a', fontSize: '14px' }}>
+							A task lets you:
 						</p>
-						<ul style={{ paddingLeft: '20px', margin: '0' }}>
-							<li>
-								Set task specifics, including uploading documents or valuable
-								notes
-							</li>
-							<li>Schedule due dates, reminders and recurrence schedules</li>
-							<li>
-								Assign tasks to the responsible party (ie: yourself, a family
-								member, or a service provider)
-							</li>
+						<ul style={{ paddingLeft: '20px', margin: '0', color: '#475569', fontSize: '14px', lineHeight: '2' }}>
+							<li>Set a due date with automatic reminders</li>
+							<li>Attach notes, photos, and documents</li>
+							<li>Schedule it to recur (HVAC filters, etc.)</li>
+							<li>Assign it to yourself, a family member, or a contractor</li>
 						</ul>
+						<div style={{ marginTop: '16px', padding: '12px', background: '#fffbeb', borderRadius: '8px', border: '1px solid #fcd34d', fontSize: '13px', color: '#92400e' }}>
+							💡 <strong>Tip:</strong> Start with something you know is coming up — a filter change, an inspection, or a seasonal check.
+						</div>
 					</div>
 				),
-				actionLabel: 'Understood',
+				actionLabel: 'Understood →',
 				action: () => {
 					setCurrentStepIndex(currentStepIndex + 1);
 				},
 				skipLabel: 'Skip Task Creation',
 			},
 
-			// Step 8: Wait for Task Creation
 			{
 				id: 'wait_task_creation',
 				type: 'waiting',
-				title: "Let's Create Your First Maintenance Task!",
+				title: "Create your first maintenance task.",
 				description:
-					"Feel free to explore all the property page has to offer. I'll stay out of your way when you minimize me and I'll pop back in to celebrate when you've created your first task!",
+					"I'll stay out of your way — minimize me and explore freely. I'll pop back in when your first task is created.",
 				waitCondition: () => tasks.length > 0,
 				autoAdvance: true,
 			},
 
-			// Step 9: Task Created Celebration
 			{
 				id: 'task_celebration',
 				type: 'celebration',
-				title: 'Task Created Successfully! 🎉',
+				title: 'Your maintenance system is taking shape. 🎯',
 				description:
-					"Excellent! You've created your first maintenance task. You're now ready to manage your properties like a pro.",
+					"Your first task is live. You'll be reminded automatically before it's due — and when it's done, it becomes a permanent entry in your service history.",
 			},
 		);
 
-		// Add advanced features explanation for property managers
+		// Advanced features
 		steps.push({
 			id: 'advanced_features',
 			type: 'instruction',
-			title: 'Advanced Features',
+			title: "There's more when you're ready.",
 			description:
-				'Here are some powerful features to help you manage your properties more effectively.',
+				"You've got the foundation set. Here are a few more tools that become valuable once you're up and running.",
 			content: (
 				<div style={{ textAlign: 'left', marginTop: '20px' }}>
-					<div style={{ marginBottom: '20px' }}>
-						<h4
-							style={{
-								color: COLORS.primary,
-								margin: '0 0 8px 0',
-								display: 'flex',
-								alignItems: 'center',
-							}}>
-							<span style={{ marginRight: '8px' }}>🔧</span>
-							Contractor Management
+					<div style={{ marginBottom: '18px' }}>
+						<h4 style={{ color: '#0f172a', margin: '0 0 6px 0', fontSize: '15px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px' }}>
+							<span>🔧</span>
+							Devices & Home Systems
 						</h4>
-						<p
-							style={{
-								margin: '0 0 8px 28px',
-								fontSize: '14px',
-								color: '#64748b',
-							}}>
-							Add trusted contractors to your network. Assign them tasks and
-							track their work for your records and future reference.
+						<p style={{ margin: '0 0 0 28px', fontSize: '14px', color: '#64748b', lineHeight: '1.5' }}>
+							Add your HVAC, appliances, and other systems. Track their service history, warranties, and schedule recurring maintenance — so you know exactly what's been serviced and when.
 						</p>
 					</div>
 
-					<div style={{ marginBottom: '20px' }}>
-						<h4
-							style={{
-								color: COLORS.primary,
-								margin: '0 0 8px 0',
-								display: 'flex',
-								alignItems: 'center',
-							}}>
-							<span style={{ marginRight: '8px' }}>📤</span>
+					<div style={{ marginBottom: '18px' }}>
+						<h4 style={{ color: '#0f172a', margin: '0 0 6px 0', fontSize: '15px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px' }}>
+							<span>📤</span>
 							Property Sharing
 						</h4>
-						<p
-							style={{
-								margin: '0 0 8px 28px',
-								fontSize: '14px',
-								color: '#64748b',
-							}}>
-							Share property access with co-owners, property managers, family
-							members, or other users who are helping you with your properties.
+						<p style={{ margin: '0 0 0 28px', fontSize: '14px', color: '#64748b', lineHeight: '1.5' }}>
+							Share access with co-owners, family members, or a property manager. Everyone sees the same records — no more repeated calls asking about service history.
 						</p>
 					</div>
+
 					<div>
-						<h4
-							style={{
-								color: COLORS.primary,
-								margin: '0 0 8px 0',
-								display: 'flex',
-								alignItems: 'center',
-							}}>
-							<span style={{ marginRight: '8px' }}>📊</span>
-							Reports & Analytics
+						<h4 style={{ color: '#0f172a', margin: '0 0 6px 0', fontSize: '15px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px' }}>
+							<span>📊</span>
+							Reports & Export
 						</h4>
-						<p
-							style={{
-								margin: '0 0 8px 28px',
-								fontSize: '14px',
-								color: '#64748b',
-							}}>
-							Run reports to get insights on your maintenance history, property
-							details, and more. Use this information to make informed decisions
-							and keep your properties in top shape, or share it as supporting
-							documentation when needed.
+						<p style={{ margin: '0 0 0 28px', fontSize: '14px', color: '#64748b', lineHeight: '1.5' }}>
+							Pull maintenance reports for insurance claims, tax records, or sale documentation. Your history is already being built — you can export it anytime.
 						</p>
 					</div>
 				</div>
 			),
-			actionLabel: 'Good to know!',
+			actionLabel: 'Good to know →',
 			action: () => {
 				setCurrentStepIndex(currentStepIndex + 1);
 			},
 		});
+
 		if (isPropertyManager) {
 			steps.push({
-				id: 'advanced_features',
+				id: 'advanced_features_manager',
 				type: 'instruction',
-				title: 'Advanced Features',
-				description:
-					'Here are some powerful features to help you manage your properties more effectively.',
+				title: 'Built for teams too.',
+				description: "Maintley scales with you. These tools become valuable as your portfolio grows.",
 				content: (
-					<div>
-						<div style={{ marginBottom: '20px' }}>
-							<h4
-								style={{
-									color: COLORS.primary,
-									margin: '0 0 8px 0',
-									display: 'flex',
-									alignItems: 'center',
-								}}>
-								Team management
+					<div style={{ textAlign: 'left', marginTop: '20px' }}>
+						<div style={{ marginBottom: '18px' }}>
+							<h4 style={{ color: '#0f172a', margin: '0 0 6px 0', fontSize: '15px', fontWeight: '700' }}>
+								👥 Team Management
 							</h4>
-							<p
-								style={{
-									margin: '0 0 8px 28px',
-									fontSize: '14px',
-									color: '#64748b',
-								}}>
-								Invite your team members to collaborate on property management.
-								Assign tasks, share property access, and keep detailed
-								maintenance history.
+							<p style={{ margin: '0 0 0 28px', fontSize: '14px', color: '#64748b', lineHeight: '1.5' }}>
+								Invite team members, assign tasks, and keep shared records. Everyone works from the same source of truth.
 							</p>
 						</div>
-						<div style={{ marginBottom: '20px' }}>
-							<h4
-								style={{
-									color: COLORS.primary,
-									margin: '0 0 8px 0',
-									display: 'flex',
-									alignItems: 'center',
-								}}>
-								<span style={{ marginRight: '8px' }}>👥</span>
-								Tenant Access
+						<div style={{ marginBottom: '18px' }}>
+							<h4 style={{ color: '#0f172a', margin: '0 0 6px 0', fontSize: '15px', fontWeight: '700' }}>
+								🏘️ Tenant Access
 							</h4>
-							<p
-								style={{
-									margin: '0 0 8px 28px',
-									fontSize: '14px',
-									color: '#64748b',
-								}}>
-								Invite tenants limited access to submit maintenance requests and
-								view some basic property information. This keeps everyone in the
-								loop and makes communication easier.
+							<p style={{ margin: '0 0 0 28px', fontSize: '14px', color: '#64748b', lineHeight: '1.5' }}>
+								Give tenants limited access to submit maintenance requests directly. Faster communication, automatic documentation.
 							</p>
 						</div>
 						<div>
-							<h4
-								style={{
-									color: COLORS.primary,
-									margin: '0 0 8px 0',
-									display: 'flex',
-									alignItems: 'center',
-								}}>
-								Unit Specific Management
+							<h4 style={{ color: '#0f172a', margin: '0 0 6px 0', fontSize: '15px', fontWeight: '700' }}>
+								🏢 Unit-Level Management
 							</h4>
-							<p
-								style={{
-									margin: '0 0 8px 28px',
-									fontSize: '14px',
-									color: '#64748b',
-								}}>
-								For multi-family properties, manage each unit separately. Assign
-								tasks, track maintenance, add unit specific devices, and store
-								information specific to each unit for better organization.
+							<p style={{ margin: '0 0 0 28px', fontSize: '14px', color: '#64748b', lineHeight: '1.5' }}>
+								For multi-family properties, manage each unit independently — separate devices, tasks, and history per unit.
 							</p>
 						</div>
 					</div>
 				),
-			});
-		} else {
-			steps.push({
-				id: 'homeowner_complete',
-				type: 'instruction',
-				title: "You're All Set! 🎉",
-				description:
-					'You now have the foundation to manage your property effectively. Continue exploring the app to discover more features.',
-				actionLabel: 'Start Using Maintley',
+				actionLabel: 'Got it →',
 				action: () => {
-					navigate('/dashboard');
-					onComplete();
+					setCurrentStepIndex(currentStepIndex + 1);
 				},
-				skipLabel: 'Finish Setup',
 			});
 		}
+
+		steps.push({
+			id: 'homeowner_complete',
+			type: 'instruction',
+			title: "You're already ahead of most property owners.",
+			description:
+				"Your property is set up. Your first task is live. Important service information is now stored in one place — and you won't need to remember any of it manually anymore.",
+			content: (
+				<PayoffPreview>
+					<PayoffPreviewTitle>What's waiting for you</PayoffPreviewTitle>
+					<PayoffItems>
+						<PayoffItem>
+							<span className="icon">✅</span>
+							<div className="text">
+								<strong>Your first task is active</strong>
+								<span>You'll be reminded automatically when it's due</span>
+							</div>
+						</PayoffItem>
+						<PayoffItem>
+							<span className="icon">🏠</span>
+							<div className="text">
+								<strong>Your property dashboard is ready</strong>
+								<span>Add devices, contractors, and history as you go</span>
+							</div>
+						</PayoffItem>
+						<PayoffItem>
+							<span className="icon">🛡️</span>
+							<div className="text">
+								<strong>Your maintenance record has started</strong>
+								<span>Every future repair adds to a history you'll actually use</span>
+							</div>
+						</PayoffItem>
+					</PayoffItems>
+				</PayoffPreview>
+			),
+			actionLabel: 'Take me to my property →',
+			action: () => {
+				navigate('/dashboard');
+				onComplete();
+			},
+			skipLabel: 'Finish Setup',
+		});
 
 		return steps;
 	};
@@ -920,8 +1010,11 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
 					<CelebrationIcon>✅</CelebrationIcon>
 					<CelebrationTitle>{currentStep.title}</CelebrationTitle>
 					<CelebrationMessage>{currentStep.description}</CelebrationMessage>
+					<div style={{ marginBottom: '24px', padding: '14px 18px', background: '#f0fdf4', borderRadius: '10px', border: '1px solid rgba(22,163,74,0.2)', fontSize: '14px', color: '#166534', textAlign: 'center' }}>
+						<strong>You're building your property history.</strong> Every step makes your records more complete and valuable.
+					</div>
 					<CelebrationActions>
-						<PrimaryButton onClick={advanceToNextStep}>Continue</PrimaryButton>
+						<PrimaryButton onClick={advanceToNextStep}>Keep going →</PrimaryButton>
 					</CelebrationActions>
 				</CelebrationContent>
 			</CelebrationModal>
@@ -982,9 +1075,9 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
 				<OnboardingOverlay>
 					<OnboardingModal>
 						<OnboardingHeader>
-							<h1>Guided Setup</h1>
+							<h1>Your maintenance system is taking shape.</h1>
 							<p>
-								Step {currentStepIndex + 1} of {steps.length}
+								{currentStepIndex + 1} of {steps.length} steps complete
 							</p>
 						</OnboardingHeader>
 
@@ -1046,9 +1139,15 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
 		<OnboardingOverlay>
 			<OnboardingModal>
 				<OnboardingHeader>
-					<h1>Guided Setup</h1>
+					<h1>
+						{currentStepIndex <= 1
+							? 'Welcome to Maintley'
+							: 'Your maintenance system is taking shape.'}
+					</h1>
 					<p>
-						Step {currentStepIndex + 1} of {steps.length}
+						{currentStepIndex <= 1
+							? 'A few quick questions to get you set up right.'
+							: `${currentStepIndex + 1} of ${steps.length} steps complete`}
 					</p>
 				</OnboardingHeader>
 

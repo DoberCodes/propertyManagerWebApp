@@ -88,33 +88,30 @@ export const TabController: React.FC<TabsContextProps> = ({
 
 	if (isMobile) {
 		return (
-			<div style={{ position: 'relative', width: '100%', marginBottom: '10px' }}>
+			<div style={{ width: '100%', marginBottom: '10px' }}>
 				<div
 					style={{
 						width: '100%',
-						padding: '0 8px',
-						overflowX: 'auto',
-						overflowY: 'hidden',
-						whiteSpace: 'nowrap',
-						scrollSnapType: 'x proximity',
-						WebkitOverflowScrolling: 'touch',
+						padding: '2px 4px',
+						display: 'grid',
+						gridTemplateColumns: 'repeat(auto-fit, minmax(92px, 1fr))',
+						gap: 8,
 					}}
 					aria-label='Property tabs'>
-					<div style={{ display: 'inline-flex', gap: 8, paddingBottom: 2 }}>
 						{tabs.map((tab) => (
 							<button
 								key={tab.value}
 								style={{
 									height: '38px',
 									padding: '0 12px',
-									borderRadius: '999px',
+									borderRadius: '10px',
 									border:
 										activeTab === tab.value
 											? '1px solid #15803d'
 											: '1px solid #d1d5db',
 									background:
 										activeTab === tab.value
-											? 'linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%)'
+											? '#dcfce7'
 											: '#ffffff',
 									color: activeTab === tab.value ? '#15803d' : '#334155',
 									fontWeight: 700,
@@ -122,10 +119,10 @@ export const TabController: React.FC<TabsContextProps> = ({
 									cursor: 'pointer',
 									whiteSpace: 'nowrap',
 									position: 'relative',
-									scrollSnapAlign: 'start',
+									minWidth: 0,
 								}}
 								onClick={() => handleTabChange(tab.value)}>
-								{tab.label}
+								{tab.label === 'Maintenance History' ? 'History' : tab.label}
 								{tab.badgeCount && tab.badgeCount > 0 && (
 									<span
 										style={{
@@ -142,32 +139,7 @@ export const TabController: React.FC<TabsContextProps> = ({
 								)}
 							</button>
 						))}
-					</div>
 				</div>
-				<div
-					style={{
-						position: 'absolute',
-						left: 0,
-						top: 0,
-						bottom: 0,
-						width: 14,
-						pointerEvents: 'none',
-						background:
-							'linear-gradient(to right, rgba(255,255,255,0.96), rgba(255,255,255,0))',
-					}}
-				/>
-				<div
-					style={{
-						position: 'absolute',
-						right: 0,
-						top: 0,
-						bottom: 0,
-						width: 14,
-						pointerEvents: 'none',
-						background:
-							'linear-gradient(to left, rgba(255,255,255,0.96), rgba(255,255,255,0))',
-					}}
-				/>
 			</div>
 		);
 	}
@@ -182,14 +154,15 @@ export const TabController: React.FC<TabsContextProps> = ({
 						border: 'none',
 						borderBottom:
 							activeTab === tab.value
-								? '2px solid #22c55e'
-								: '2px solid transparent',
-						background: 'none',
-						color: activeTab === tab.value ? '#22c55e' : '#333',
-						fontWeight: activeTab === tab.value ? 600 : 400,
-						cursor: 'pointer',
-						position: 'relative',
-						whiteSpace: 'nowrap',
+							? '2px solid #0f172a'
+							: '2px solid transparent',
+					background: 'none',
+					color: activeTab === tab.value ? '#0f172a' : '#64748b',
+					fontWeight: activeTab === tab.value ? 700 : 500,
+					cursor: 'pointer',
+					position: 'relative',
+					whiteSpace: 'nowrap',
+					fontSize: '14px',
 					}}
 					onClick={() => handleTabChange(tab.value)}>
 					{tab.label}

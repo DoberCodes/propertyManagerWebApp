@@ -47,8 +47,8 @@ export const Header = styled.div`
 	}
 
 	@media (max-width: 480px) {
-		height: 120px;
-		padding: 12px 10px 12px;
+		height: 104px;
+		padding: 10px 10px 10px;
 		gap: 8px;
 		border-radius: 0 0 16px 16px;
 	}
@@ -62,7 +62,7 @@ export const ContentWrapper = styled.div`
 	height: calc(100% - 220px);
 
 	@media (max-width: 480px) {
-		padding: 12px;
+		padding: 10px;
 		border-radius: 10px;
 	}
 `;

@@ -99,6 +99,18 @@ export const TabSummaryBar = styled.div`
 	flex-wrap: wrap;
 	gap: 8px;
 	margin-bottom: 12px;
+
+	@media (max-width: 480px) {
+		flex-wrap: nowrap;
+		overflow-x: auto;
+		overflow-y: hidden;
+		scrollbar-width: none;
+		ms-overflow-style: none;
+
+		&::-webkit-scrollbar {
+			display: none;
+		}
+	}
 `;
 
 export const TabSummaryPill = styled.div`
@@ -112,22 +124,27 @@ export const TabSummaryPill = styled.div`
 	font-size: 0.75rem;
 	font-weight: 700;
 	color: #334155;
+	white-space: nowrap;
+	flex-shrink: 0;
 `;
 
 export const ToolbarButton = styled.button`
-	background-color: #22c55e;
+	background-color: #16a34a;
 	color: white;
 	border: none;
-	padding: 8px 12px;
-	border-radius: 4px;
+	padding: 10px 14px;
+	border-radius: 8px;
 	font-size: 13px;
-	font-weight: 600;
+	font-weight: 700;
 	cursor: pointer;
-	transition: background-color 0.2s ease;
+	transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
 	white-space: nowrap;
+	min-height: 40px;
 
 	&:hover:not(:disabled) {
-		background-color: #16a34a;
+		background-color: #15803d;
+		transform: translateY(-1px);
+		box-shadow: 0 6px 14px rgba(21, 128, 61, 0.26);
 	}
 
 	&:disabled {
@@ -143,10 +160,37 @@ export const ToolbarButton = styled.button`
 		}
 	}
 
+	&.secondary-action {
+		background: #f8fafc;
+		color: #334155;
+		border: 1px solid #cbd5e1;
+
+		&:hover:not(:disabled) {
+			background: #f1f5f9;
+			box-shadow: none;
+			transform: none;
+		}
+	}
+
+	&.primary-action {
+		padding: 12px 20px;
+		font-size: 14px;
+		letter-spacing: 0.01em;
+		box-shadow: 0 4px 6px rgba(22, 163, 74, 0.2), 0 10px 24px rgba(22, 163, 74, 0.22);
+		&:hover:not(:disabled) {
+			box-shadow: 0 6px 10px rgba(21, 128, 61, 0.25), 0 14px 30px rgba(21, 128, 61, 0.28);
+			transform: translateY(-2px);
+		}
+	}
+
 	@media (max-width: 480px) {
 		padding: 12px 16px;
 		font-size: 16px;
 		min-height: 44px;
+
+		&.primary-action {
+			width: 100%;
+		}
 	}
 `;
 
@@ -226,12 +270,29 @@ export const StatusBadge = styled.span<{ status: string }>`
 
 export const EmptyState = styled.div`
 	text-align: center;
-	padding: 2rem;
-	color: #666;
+	padding: 3.5rem 2rem;
+	color: #64748b;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 0.5rem;
+	border: 2px dashed #e2e8f0;
+	border-radius: 12px;
+	background: #fafbfc;
 
 	p {
 		margin: 0 0 1rem 0;
-		font-size: 1rem;
+		font-size: 0.95rem;
+		max-width: 360px;
+		line-height: 1.5;
+		color: #64748b;
+	}
+
+	h3 {
+		margin: 0;
+		font-size: 1.1rem;
+		font-weight: 700;
+		color: #1e293b;
 	}
 `;
 
@@ -491,11 +552,11 @@ export const GridTable = styled.table`
 	th {
 		padding: 12px 16px;
 		text-align: left;
-		font-size: 12px;
-		font-weight: 600;
-		color: #374151;
+		font-size: 11px;
+		font-weight: 700;
+		color: #64748b;
 		text-transform: uppercase;
-		letter-spacing: 0.5px;
+		letter-spacing: 0.06em;
 
 		@media (max-width: 1024px) {
 			padding: 8px 12px;
@@ -525,8 +586,12 @@ export const GridTable = styled.table`
 		}
 	}
 
+	tbody tr {
+		transition: background-color 0.12s ease;
+	}
+
 	tbody tr:hover {
-		background-color: #f9fafb;
+		background-color: #f8fafc;
 	}
 
 	tbody tr:last-child td {
@@ -562,6 +627,7 @@ export const BaseMobileCard = styled.div<{ $isSelected?: boolean }>`
 	border: 1px solid #e5e7eb;
 	border-radius: 12px;
 	padding: 16px;
+	box-sizing: border-box;
 	margin-bottom: 12px;
 	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 	transition: all 0.2s ease;
@@ -570,9 +636,9 @@ export const BaseMobileCard = styled.div<{ $isSelected?: boolean }>`
 	${({ $isSelected }) =>
 		$isSelected &&
 		`
-        background: #f0fdf4;
-        border-color: #22c55e;
-        box-shadow: 0 2px 8px rgba(34, 197, 94, 0.15);
+        background: #eff6ff;
+        border-color: #3b82f6;
+        box-shadow: 0 2px 8px rgba(59, 130, 246, 0.15);
     `}
 
 	&:hover {
@@ -587,7 +653,7 @@ export const BaseMobileCard = styled.div<{ $isSelected?: boolean }>`
 `;
 
 export const DeviceCard = styled(BaseMobileCard)`
-	min-width: 100%;
+	width: 100%;
 	flex: 0 0 100%;
 	display: flex;
 	flex-direction: column;
@@ -599,6 +665,7 @@ export const DeviceRow = styled.div`
 	justify-content: space-between;
 	align-items: center;
 	gap: 8px;
+	flex-wrap: wrap;
 `;
 
 export const MobileDots = styled.div`
@@ -652,7 +719,8 @@ export const TabContentContainer = styled.div`
 	@media (max-width: 480px) {
 		display: flex;
 		flex-direction: column;
-		align-items: center;
+		align-items: stretch;
+		width: 100%;
 	}
 `;
 
@@ -677,19 +745,22 @@ export const TaskDetailRow = styled.div`
 `;
 
 export const TaskDetailLabel = styled.span`
-	font-weight: 600;
-	color: #374151;
-	font-size: 14px;
+	font-weight: 700;
+	color: #0f172a;
+	font-size: 13px;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
 
 	@media (min-width: 1025px) {
-		min-width: 100px;
-		font-size: 14px;
+		min-width: 110px;
+		font-size: 12px;
 	}
 `;
 
 export const TaskDetailValue = styled.span`
-	color: #6b7280;
+	color: #334155;
 	font-size: 14px;
+	font-weight: 500;
 	word-break: break-word;
 
 	@media (min-width: 1025px) {
@@ -736,16 +807,16 @@ export const MobileTaskHeader = styled.div`
 `;
 
 export const MobileTaskTitle = styled.h3`
-	font-size: 16px;
-	font-weight: 600;
-	color: #1f2937;
+	font-size: 17px;
+	font-weight: 700;
+	color: #0f172a;
 	margin: 0;
 	line-height: 1.3;
 	flex: 1;
 	margin-right: 12px;
 
 	@media (max-width: 480px) {
-		font-size: 15px;
+		font-size: 16px;
 	}
 `;
 
@@ -761,8 +832,8 @@ export const MobileTaskCheckbox = styled.input.attrs({ type: 'checkbox' })`
 export const MobileTaskMeta = styled.div`
 	display: flex;
 	flex-direction: column;
-	gap: 6px;
-	margin-bottom: 10px;
+	gap: 8px;
+	margin-bottom: 12px;
 `;
 
 export const MobileTaskRow = styled.div`
@@ -774,16 +845,19 @@ export const MobileTaskRow = styled.div`
 
 export const MobileTaskLabel = styled.span`
 	font-size: 12px;
-	font-weight: 600;
-	color: #6b7280;
+	font-weight: 700;
+	color: #64748b;
 	text-transform: uppercase;
 	letter-spacing: 0.5px;
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
 `;
 
 export const MobileTaskValue = styled.span`
 	font-size: 14px;
-	color: #374151;
-	font-weight: 500;
+	color: #1f2937;
+	font-weight: 600;
 	margin-left: auto;
 	text-align: right;
 	min-width: 110px;

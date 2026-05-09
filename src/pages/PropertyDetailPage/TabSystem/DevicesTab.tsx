@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import styled from 'styled-components';
 import {
 	faPlus,
 	faEye,
@@ -42,9 +43,61 @@ import {
 	DeviceCard,
 	StatusBadge,
 	EmptyState,
+	MobileTaskActions,
+	MobileActionButton,
 } from './index.styles';
 import { ReusableTable } from '../../../Components/Library';
 import { Column, Action } from '../../../Components/Library/ReusableTable';
+import {
+	CardMoreDetails,
+	CardMoreSummary,
+	CardMoreMenu,
+	CardMoreMenuItem,
+} from './mobileUiShared';
+
+const SectionLead = styled.p`
+	margin: -4px 0 14px;
+	color: #475569;
+	font-size: 0.92rem;
+	line-height: 1.5;
+`;
+
+const IntelligenceStrip = styled.div`
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 10px;
+	margin-bottom: 14px;
+
+	@media (max-width: 1024px) {
+		grid-template-columns: 1fr;
+	}
+`;
+
+const IntelligenceCard = styled.div<{ $tone?: 'warning' | 'neutral' | 'success' }>`
+	padding: 10px 12px;
+	border-radius: 10px;
+	border: 1px solid
+		${(props) =>
+			props.$tone === 'warning'
+				? '#fcd34d'
+				: props.$tone === 'success'
+					? '#86efac'
+					: '#cbd5e1'};
+	background: ${(props) =>
+		props.$tone === 'warning'
+			? '#fffbeb'
+			: props.$tone === 'success'
+				? '#f0fdf4'
+				: '#f8fafc'};
+	font-size: 0.84rem;
+	font-weight: 600;
+	color: ${(props) =>
+		props.$tone === 'warning'
+			? '#92400e'
+			: props.$tone === 'success'
+				? '#166534'
+				: '#334155'};
+`;
 
 interface DeviceFormData {
 	type: string;
@@ -144,6 +197,68 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property }) => {
 		return counts;
 	}, [openPropertyTasks]);
 
+	const linkedOverdueTaskCountByDevice = useMemo(() => {
+		const counts = new Map<string, number>();
+		const today = new Date();
+		today.setHours(0, 0, 0, 0);
+
+		openPropertyTasks.forEach((task: any) => {
+			if (!task?.dueDate) return;
+			const dueDate = new Date(task.dueDate);
+			if (Number.isNaN(dueDate.getTime())) return;
+			dueDate.setHours(0, 0, 0, 0);
+			if (dueDate >= today) return;
+
+			const linkedIds = new Set<string>();
+
+			if (Array.isArray(task.devices)) {
+				task.devices.forEach((deviceId: string | number) => {
+					if (deviceId !== undefined && deviceId !== null) {
+						linkedIds.add(String(deviceId));
+					}
+				});
+			}
+
+			if (task.deviceId !== undefined && task.deviceId !== null) {
+				linkedIds.add(String(task.deviceId));
+			}
+
+			linkedIds.forEach((deviceId) => {
+				counts.set(deviceId, (counts.get(deviceId) || 0) + 1);
+			});
+		});
+
+		return counts;
+	}, [openPropertyTasks]);
+
+	const recurringLinkedTaskCountByDevice = useMemo(() => {
+		const counts = new Map<string, number>();
+
+		openPropertyTasks.forEach((task: any) => {
+			if (!task?.isRecurring) return;
+
+			const linkedIds = new Set<string>();
+
+			if (Array.isArray(task.devices)) {
+				task.devices.forEach((deviceId: string | number) => {
+					if (deviceId !== undefined && deviceId !== null) {
+						linkedIds.add(String(deviceId));
+					}
+				});
+			}
+
+			if (task.deviceId !== undefined && task.deviceId !== null) {
+				linkedIds.add(String(task.deviceId));
+			}
+
+			linkedIds.forEach((deviceId) => {
+				counts.set(deviceId, (counts.get(deviceId) || 0) + 1);
+			});
+		});
+
+		return counts;
+	}, [openPropertyTasks]);
+
 	const needsAttentionDeviceCount = useMemo(
 		() =>
 			devices.filter((device: any) => {
@@ -163,15 +278,42 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property }) => {
 		[linkedOpenTaskCountByDevice],
 	);
 
+	const linkedOverdueTaskCount = useMemo(
+		() =>
+			Array.from(linkedOverdueTaskCountByDevice.values()).reduce(
+				(total, count) => total + count,
+				0,
+			),
+		[linkedOverdueTaskCountByDevice],
+	);
+
+	const devicesWithRecurringCareCount = useMemo(
+		() =>
+			devices.filter(
+				(device: any) =>
+					(recurringLinkedTaskCountByDevice.get(String(device.id)) || 0) > 0,
+			).length,
+		[devices, recurringLinkedTaskCountByDevice],
+	);
+
 	const getDeviceAttentionState = (device: any) => {
 		const status = device.status || 'Active';
 		const linkedOpenTasks = linkedOpenTaskCountByDevice.get(String(device.id)) || 0;
+		const overdueLinkedTasks =
+			linkedOverdueTaskCountByDevice.get(String(device.id)) || 0;
+		const recurringLinkedTasks =
+			recurringLinkedTaskCountByDevice.get(String(device.id)) || 0;
 		const needsAttention =
-			status === 'Broken' || status === 'Maintenance' || linkedOpenTasks > 0;
+			status === 'Broken' ||
+			status === 'Maintenance' ||
+			linkedOpenTasks > 0 ||
+			overdueLinkedTasks > 0;
 
 		return {
 			status,
 			linkedOpenTasks,
+			overdueLinkedTasks,
+			recurringLinkedTasks,
 			needsAttention,
 		};
 	};
@@ -185,12 +327,29 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property }) => {
 			header: 'Status',
 			key: 'status',
 			render: (status: string, row: any) => {
-				const { status: resolvedStatus, linkedOpenTasks, needsAttention } =
+				const {
+					status: resolvedStatus,
+					linkedOpenTasks,
+					overdueLinkedTasks,
+					recurringLinkedTasks,
+					needsAttention,
+				} =
 					getDeviceAttentionState({ ...row, status });
 
 				return (
 					<div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
 						<StatusBadge status={resolvedStatus}>{resolvedStatus}</StatusBadge>
+						{overdueLinkedTasks > 0 && (
+							<span
+								style={{
+									fontSize: 12,
+									fontWeight: 700,
+									color: '#b91c1c',
+								}}>
+								Overdue by {overdueLinkedTasks} task
+								{overdueLinkedTasks === 1 ? '' : 's'}
+							</span>
+						)}
 						{needsAttention && (
 							<span
 								style={{
@@ -201,6 +360,16 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property }) => {
 								{linkedOpenTasks > 0
 									? `${linkedOpenTasks} open linked task${linkedOpenTasks === 1 ? '' : 's'}`
 									: 'Needs attention'}
+							</span>
+						)}
+						{recurringLinkedTasks > 0 && (
+							<span
+								style={{
+									fontSize: 12,
+									fontWeight: 600,
+									color: '#0f766e',
+								}}>
+								Recurring care: {recurringLinkedTasks}
 							</span>
 						)}
 					</div>
@@ -266,6 +435,7 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property }) => {
 	const [updateDevice] = useUpdateDeviceMutation();
 	const [deleteDevice] = useDeleteDeviceMutation();
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
+	const isMobile = useSelector((state: RootState) => state.app.isMobile);
 
 	const resetForm = () => {
 		setDeviceFormData({
@@ -416,7 +586,11 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property }) => {
 				onConfirm={confirmDeleteDevice}
 				onCancel={() => setDeleteDialogOpen(false)}
 			/>
-			<SectionHeader>Household Devices</SectionHeader>
+			<SectionHeader>Home Systems</SectionHeader>
+			<SectionLead>
+				Track each system as the operational memory of this property, including
+				task context and service lifecycle history.
+			</SectionLead>
 			<TabSummaryBar>
 				<TabSummaryPill>Total: {devices.length}</TabSummaryPill>
 				<TabSummaryPill>
@@ -430,8 +604,28 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property }) => {
 				</TabSummaryPill>
 			</TabSummaryBar>
 
+			<IntelligenceStrip>
+				<IntelligenceCard $tone={linkedOverdueTaskCount > 0 ? 'warning' : 'success'}>
+					{linkedOverdueTaskCount > 0
+						? `${linkedOverdueTaskCount} linked task${linkedOverdueTaskCount === 1 ? '' : 's'} overdue`
+						: 'No overdue linked tasks'}
+				</IntelligenceCard>
+				<IntelligenceCard $tone='neutral'>
+					{devicesWithRecurringCareCount} device
+					{devicesWithRecurringCareCount === 1 ? '' : 's'} with recurring care
+				</IntelligenceCard>
+				<IntelligenceCard $tone={needsAttentionDeviceCount > 0 ? 'warning' : 'success'}>
+					{needsAttentionDeviceCount > 0
+						? `${needsAttentionDeviceCount} device${needsAttentionDeviceCount === 1 ? '' : 's'} need attention`
+						: 'All devices currently stable'}
+				</IntelligenceCard>
+			</IntelligenceStrip>
+
 			<Toolbar>
-				<ToolbarButton onClick={handleOpenCreateModal}>
+				<ToolbarButton
+					className='primary-action'
+					onClick={handleOpenCreateModal}
+					style={{ width: isMobile ? '100%' : undefined }}>
 					<FontAwesomeIcon icon={faPlus} style={{ marginRight: '8px' }} />
 					Add Device
 				</ToolbarButton>
@@ -445,9 +639,17 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property }) => {
 							<DeviceCard
 								key={device.id}
 								$isSelected={selectedDevice === device}
-								onClick={() => setSelectedDevice(device)}>
+								onClick={() => setSelectedDevice(device)}
+								style={{
+									borderLeft: `4px solid ${(device.status || 'Active') === 'Broken' ? '#ef4444' : (device.status || 'Active') === 'Maintenance' ? '#f59e0b' : '#22c55e'}`,
+								}}>
 								{(() => {
-									const { linkedOpenTasks, needsAttention } =
+									const {
+										linkedOpenTasks,
+										overdueLinkedTasks,
+										recurringLinkedTasks,
+										needsAttention,
+									} =
 										getDeviceAttentionState(device);
 
 									return (
@@ -480,8 +682,10 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property }) => {
 										}}>
 										{device.type}
 									</button>
-									<div style={{ fontSize: 12, color: needsAttention ? '#b45309' : '#6b7280', fontWeight: needsAttention ? 700 : 400 }}>
-										{linkedOpenTasks > 0 ? `${linkedOpenTasks} open task${linkedOpenTasks === 1 ? '' : 's'}` : device.brand}
+											<div style={{ fontSize: 12, color: needsAttention ? '#b45309' : '#6b7280', fontWeight: needsAttention ? 700 : 400 }}>
+												{linkedOpenTasks > 0
+													? `${linkedOpenTasks} open task${linkedOpenTasks === 1 ? '' : 's'}`
+													: device.brand}
 									</div>
 								</div>
 									);
@@ -498,67 +702,84 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property }) => {
 											? new Date(device.installationDate).toLocaleDateString()
 											: 'N/A'}
 									</div>
-									<div style={{ display: 'flex', gap: 8 }}>
-										<button
-											onClick={(event) => {
-												event.stopPropagation();
-												const deviceSlug = buildDeviceSlug({
-													id: device.id,
-													type: device.type,
-													brand: device.brand,
-													model: device.model,
-												});
-												navigate(`/property/${property.slug}/device/${deviceSlug}`);
-											}}
-											style={{
-												background: 'transparent',
-												border: 'none',
-												cursor: 'pointer',
-												padding: '8px',
-												borderRadius: '4px',
-												display: 'flex',
-												alignItems: 'center',
-												justifyContent: 'center',
-												minWidth: '44px',
-												minHeight: '44px',
-											}}>
-											<FontAwesomeIcon icon={faEye} />
-										</button>
-										<button
-											onClick={() => handleOpenEditModal(device)}
-											style={{
-												background: 'transparent',
-												border: 'none',
-												cursor: 'pointer',
-												padding: '8px',
-												borderRadius: '4px',
-												display: 'flex',
-												alignItems: 'center',
-												justifyContent: 'center',
-												minWidth: '44px',
-												minHeight: '44px',
-											}}>
-											<FontAwesomeIcon icon={faEdit} />
-										</button>
-										<button
-											onClick={() => handleDeleteDevice(device.id)}
-											style={{
-												background: 'transparent',
-												border: 'none',
-												cursor: 'pointer',
-												color: '#ef4444',
-												padding: '8px',
-												borderRadius: '4px',
-												display: 'flex',
-												alignItems: 'center',
-												justifyContent: 'center',
-												minWidth: '44px',
-												minHeight: '44px',
-											}}>
-											<FontAwesomeIcon icon={faTrash} />
-										</button>
-									</div>
 								</DeviceRow>
+								{(() => {
+									const { overdueLinkedTasks, recurringLinkedTasks } =
+										getDeviceAttentionState(device);
+									if (overdueLinkedTasks === 0 && recurringLinkedTasks === 0) return null;
+
+									return (
+										<div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 2 }}>
+											{overdueLinkedTasks > 0 && (
+												<span
+													style={{
+														background: '#fef2f2',
+														border: '1px solid #fecaca',
+														color: '#b91c1c',
+														padding: '2px 8px',
+														borderRadius: 999,
+														fontSize: 11,
+														fontWeight: 700,
+													}}>
+													Overdue {overdueLinkedTasks}
+												</span>
+											)}
+											{recurringLinkedTasks > 0 && (
+												<span
+													style={{
+														background: '#ecfeff',
+														border: '1px solid #99f6e4',
+														color: '#0f766e',
+														padding: '2px 8px',
+														borderRadius: 999,
+														fontSize: 11,
+														fontWeight: 700,
+													}}>
+													Recurring {recurringLinkedTasks}
+												</span>
+											)}
+										</div>
+									);
+								})()}
+								<MobileTaskActions>
+									<MobileActionButton
+										variant='danger'
+										onClick={(event) => {
+											event.stopPropagation();
+											handleDeleteDevice(device.id);
+										}}
+										style={{ flex: 1 }}>
+										Delete
+									</MobileActionButton>
+									<CardMoreDetails
+										onClick={(event) => {
+											event.stopPropagation();
+										}}>
+										<CardMoreSummary>More</CardMoreSummary>
+										<CardMoreMenu>
+											<CardMoreMenuItem
+												onClick={(event) => {
+													event.stopPropagation();
+													const deviceSlug = buildDeviceSlug({
+														id: device.id,
+														type: device.type,
+														brand: device.brand,
+														model: device.model,
+													});
+													navigate(`/property/${property.slug}/device/${deviceSlug}`);
+												}}>
+												View
+											</CardMoreMenuItem>
+											<CardMoreMenuItem
+												onClick={(event) => {
+													event.stopPropagation();
+													handleOpenEditModal(device);
+												}}>
+												Edit
+											</CardMoreMenuItem>
+										</CardMoreMenu>
+									</CardMoreDetails>
+								</MobileTaskActions>
 								{device.files && device.files.length > 0 ? (
 									<div
 										style={{

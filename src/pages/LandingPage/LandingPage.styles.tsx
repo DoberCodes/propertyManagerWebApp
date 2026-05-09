@@ -434,64 +434,110 @@ export const FeatureGrid = styled.div`
 	display: grid;
 	grid-template-columns: repeat(4, 1fr);
 	gap: 20px;
-	padding: 40px;
+	padding: 0 40px 40px;
 	background-color: ${COLORS.bgWhite};
 
-	@media (max-width: 1024px) {
+	@media (max-width: 1200px) {
 		grid-template-columns: repeat(2, 1fr);
-		gap: 25px;
+		gap: 24px;
 	}
 
-	@media (max-width: 1024px) {
+	@media (max-width: 640px) {
 		grid-template-columns: 1fr;
-		gap: 20px;
-		padding: 20px;
+		gap: 16px;
+		padding: 0 0 20px;
 	}
 `;
 
-export const FeatureCard = styled.div`
-	padding: 32px 24px;
-	background: ${COLORS.bgWhite};
-	border: 1.5px solid ${COLORS.gray100};
-	border-radius: 12px;
-	box-shadow: ${COLORS.shadow};
+export const FeatureCard = styled.div<{ $flagship?: boolean }>`
+	padding: ${(p) => (p.$flagship ? '36px 28px' : '28px 22px')};
+	background: ${(p) =>
+		p.$flagship
+			? 'linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%)'
+			: COLORS.bgWhite};
+	border: ${(p) =>
+		p.$flagship ? '2px solid rgba(16, 185, 129, 0.35)' : `1.5px solid ${COLORS.gray100}`};
+	border-radius: ${(p) => (p.$flagship ? '16px' : '12px')};
+	box-shadow: ${(p) =>
+		p.$flagship
+			? '0 8px 24px rgba(16, 185, 129, 0.12), 0 2px 8px rgba(0,0,0,0.04)'
+			: COLORS.shadow};
 	transition: all 0.3s ease;
-	text-align: center;
+	text-align: ${(p) => (p.$flagship ? 'left' : 'center')};
 	position: relative;
+	overflow: hidden;
 
-	&::before {
+	${(p) =>
+		p.$flagship &&
+		`
+		&::before {
+			content: 'CORE FEATURE';
+			position: absolute;
+			top: 14px;
+			right: 14px;
+			font-size: 10px;
+			font-weight: 800;
+			letter-spacing: 0.1em;
+			color: #059669;
+			background: rgba(16, 185, 129, 0.12);
+			padding: 3px 8px;
+			border-radius: 999px;
+			border: 1px solid rgba(16, 185, 129, 0.25);
+		}
+	`}
+
+	&::after {
 		content: '';
 		position: absolute;
 		top: 0;
 		left: 0;
 		right: 0;
-		height: 3px;
-		background: ${COLORS.gradientPrimary};
-		border-radius: 12px 12px 0 0;
-		opacity: 0;
+		height: ${(p) => (p.$flagship ? '4px' : '3px')};
+		background: ${(p) =>
+			p.$flagship
+				? COLORS.gradientPrimary
+				: COLORS.gradientPrimary};
+		border-radius: ${(p) =>
+			p.$flagship ? '16px 16px 0 0' : '12px 12px 0 0'};
+		opacity: ${(p) => (p.$flagship ? '1' : '0')};
 		transition: opacity 0.3s ease;
 	}
 
-	&:hover {
-		border-color: ${COLORS.primary};
-		box-shadow: ${COLORS.shadowLg};
-		transform: translateY(-5px);
+	&:hover::after {
+		opacity: 1;
+	}
 
-		&::before {
-			opacity: 1;
-		}
+	&:hover {
+		border-color: ${(p) => (p.$flagship ? 'rgba(16, 185, 129, 0.5)' : COLORS.primary)};
+		box-shadow: ${(p) =>
+			p.$flagship
+				? '0 12px 32px rgba(16, 185, 129, 0.18), 0 4px 12px rgba(0,0,0,0.06)'
+				: COLORS.shadowLg};
+		transform: translateY(-4px);
 	}
 
 	@media (max-width: 1024px) {
-		padding: 24px 20px;
+		padding: ${(p) => (p.$flagship ? '28px 22px' : '22px 18px')};
 	}
 `;
 
-export const FeatureIcon = styled.div`
-	font-size: 48px;
-	margin-bottom: 16px;
-	display: block;
+export const FeatureIcon = styled.div<{ $flagship?: boolean }>`
+	font-size: ${(p) => (p.$flagship ? '52px' : '44px')};
+	margin-bottom: ${(p) => (p.$flagship ? '20px' : '14px')};
+	display: ${(p) => (p.$flagship ? 'inline-flex' : 'block')};
 	line-height: 1;
+
+	${(p) =>
+		p.$flagship &&
+		`
+		width: 80px;
+		height: 80px;
+		align-items: center;
+		justify-content: center;
+		background: rgba(16, 185, 129, 0.1);
+		border-radius: 20px;
+		border: 2px solid rgba(16, 185, 129, 0.2);
+	`}
 
 	svg {
 		filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.12));
@@ -530,14 +576,15 @@ export const FeatureIcon = styled.div`
 	}
 `;
 
-export const FeatureTitle = styled.h3`
-	font-size: 20px;
-	font-weight: 700;
+export const FeatureTitle = styled.h3<{ $flagship?: boolean }>`
+	font-size: ${(p) => (p.$flagship ? '22px' : '18px')};
+	font-weight: ${(p) => (p.$flagship ? '800' : '700')};
 	margin: 0 0 12px 0;
-	color: ${COLORS.textPrimary};
+	color: ${(p) => (p.$flagship ? '#0f172a' : COLORS.textPrimary)};
+	letter-spacing: ${(p) => (p.$flagship ? '-0.01em' : '0')};
 
 	@media (max-width: 1024px) {
-		font-size: 18px;
+		font-size: ${(p) => (p.$flagship ? '20px' : '17px')};
 	}
 `;
 

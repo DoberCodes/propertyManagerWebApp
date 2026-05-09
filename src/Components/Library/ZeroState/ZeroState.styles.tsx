@@ -8,10 +8,23 @@ export const ZeroStateContainer = styled.div`
 	justify-content: center;
 	padding: 4rem 2rem;
 	text-align: center;
-	background-color: ${COLORS.gray50};
-	border-radius: 12px;
-	border: 2px dashed ${COLORS.border};
-	min-height: 300px;
+	background: linear-gradient(160deg, ${COLORS.gray50} 0%, #ffffff 100%);
+	border-radius: 16px;
+	border: 2px dashed ${COLORS.gray200};
+	min-height: 320px;
+	position: relative;
+	overflow: hidden;
+
+	&::before {
+		content: '';
+		position: absolute;
+		top: -40px;
+		right: -40px;
+		width: 180px;
+		height: 180px;
+		background: radial-gradient(circle, rgba(16, 185, 129, 0.07) 0%, transparent 70%);
+		pointer-events: none;
+	}
 
 	@media (max-width: 1024px) {
 		padding: 3.5rem 1.5rem;
@@ -20,57 +33,70 @@ export const ZeroStateContainer = styled.div`
 
 	@media (max-width: 480px) {
 		padding: 3rem 1.5rem;
-		min-height: 320px;
+		min-height: 300px;
 	}
 `;
 
 export const ZeroStateIcon = styled.div`
-	font-size: 48px;
+	width: 72px;
+	height: 72px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: 20px;
+	background: ${COLORS.primaryLight};
+	border: 2px solid rgba(16, 185, 129, 0.18);
+	font-size: 36px;
 	margin-bottom: 1.5rem;
-	opacity: 0.5;
+	box-shadow: 0 4px 12px rgba(16, 185, 129, 0.12);
 
 	@media (max-width: 1024px) {
-		font-size: 44px;
+		width: 64px;
+		height: 64px;
+		font-size: 32px;
 		margin-bottom: 1.25rem;
 	}
 
 	@media (max-width: 480px) {
-		font-size: 40px;
-		margin-bottom: 1.5rem;
+		width: 60px;
+		height: 60px;
+		font-size: 30px;
+		margin-bottom: 1.25rem;
 	}
 `;
 
 export const ZeroStateTitle = styled.h3`
-	font-size: 24px;
-	font-weight: 700;
-	color: ${COLORS.textPrimary};
-	margin: 0 0 0.75rem 0;
+	font-size: 22px;
+	font-weight: 800;
+	color: #0f172a;
+	margin: 0 0 0.6rem 0;
+	letter-spacing: -0.01em;
 
 	@media (max-width: 1024px) {
-		font-size: 22px;
+		font-size: 20px;
 	}
 
 	@media (max-width: 480px) {
-		font-size: 20px;
+		font-size: 19px;
 	}
 `;
 
 export const ZeroStateDescription = styled.p`
-	font-size: 16px;
-	color: ${COLORS.textSecondary};
+	font-size: 15px;
+	color: #64748b;
 	margin: 0 0 2rem 0;
-	max-width: 500px;
-	line-height: 1.6;
+	max-width: 440px;
+	line-height: 1.65;
 
 	@media (max-width: 1024px) {
-		font-size: 15px;
+		font-size: 14px;
 		margin-bottom: 1.75rem;
 	}
 
 	@media (max-width: 480px) {
-		font-size: 16px;
-		margin-bottom: 2rem;
-		line-height: 1.5;
+		font-size: 15px;
+		margin-bottom: 1.75rem;
+		line-height: 1.6;
 	}
 `;
 

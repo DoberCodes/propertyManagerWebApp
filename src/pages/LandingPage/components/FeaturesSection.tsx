@@ -25,15 +25,15 @@ const FeaturesSectionComponent = () => {
 		<FeaturesSection id='Features'>
 			<FeaturesTitle>Comprehensive Maintenance History Tools</FeaturesTitle>
 			<FeatureGrid>
-				<FeatureCard>
-					<FeatureIcon className='history'>
+				<FeatureCard $flagship>
+					<FeatureIcon className='history' $flagship>
 						<FontAwesomeIcon icon={faClipboardList} />
 					</FeatureIcon>
-					<FeatureTitle>Detailed Maintenance Records</FeatureTitle>
+					<FeatureTitle $flagship>Detailed Maintenance Records</FeatureTitle>
 					<FeatureDescription>
 						Create and maintain comprehensive maintenance history for every
 						property, unit, device, and component. Build records you can
-						reference and organize.
+						reference and organize — the foundation everything else is built on.
 					</FeatureDescription>
 				</FeatureCard>
 				<FeatureCard>

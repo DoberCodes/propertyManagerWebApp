@@ -31,12 +31,17 @@ import { ReusableTable, Column } from 'Components/Library/ReusableTable';
 // bring in the shared action button style used throughout tables
 import { ActionButton } from 'Components/Library/ReusableTable/ReusableTable.styles';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faTrash, faEye } from '@fortawesome/free-solid-svg-icons';
+import { faTrash, faEye, faArrowUpAZ } from '@fortawesome/free-solid-svg-icons';
 import { UnifiedMaintenanceHistory } from 'Components/UnifiedMaintenanceHistory';
 import {
 	formatCurrency,
 	getFinancialDisplayTotal,
 } from 'utils/financialUtils';
+import {
+	ActiveFilterChips,
+	ActiveFilterChip,
+	ActiveFilterChipClear,
+} from './mobileUiShared';
 import { TaskFinancials } from 'types/Task.types';
 
 export interface MaintenanceTabProps {
@@ -80,6 +85,7 @@ export const MaintenanceTab = ({
 	const [filters, setFilters] = useState<FilterValues>({});
 	const [showAddModal, setShowAddModal] = useState(false);
 	const [showFilters, setShowFilters] = useState(false);
+	const [sortBy, setSortBy] = useState<'dateDesc' | 'dateAsc' | 'title'>('dateDesc');
 	const [selectedRecordIds, setSelectedRecordIds] = useState<Set<string>>(
 		new Set(),
 	);
@@ -345,8 +351,62 @@ export const MaintenanceTab = ({
 			});
 		}
 
-		return records;
-	}, [allMaintenanceRecords, filters, property?.propertyType]);
+		return records.sort((a, b) => {
+			if (sortBy === 'title') {
+				return (a.title || '').localeCompare(b.title || '');
+			}
+
+			const timeA = a.completionDate ? new Date(a.completionDate).getTime() : 0;
+			const timeB = b.completionDate ? new Date(b.completionDate).getTime() : 0;
+			return sortBy === 'dateAsc' ? timeA - timeB : timeB - timeA;
+		});
+	}, [allMaintenanceRecords, filters, property?.propertyType, sortBy]);
+
+	const activeFilterChips = useMemo(() => {
+		const chips: Array<{ key: string; label: string; onRemove: () => void }> = [];
+		if (filters.search) {
+			chips.push({
+				key: 'search',
+				label: `Search: ${filters.search}`,
+				onRemove: () => setFilters((prev) => ({ ...prev, search: '' })),
+			});
+		}
+
+		if (filters.completedBy) {
+			chips.push({
+				key: 'completedBy',
+				label: `Completed By: ${filters.completedBy}`,
+				onRemove: () =>
+					setFilters((prev) => ({
+						...prev,
+						completedBy: '',
+					})),
+			});
+		}
+
+		if (filters.unit && filters.unit !== 'all') {
+			chips.push({
+				key: 'unit',
+				label: `Unit: ${filters.unit}`,
+				onRemove: () => setFilters((prev) => ({ ...prev, unit: 'all' })),
+			});
+		}
+
+		if (filters.completionDate_start || filters.completionDate_end) {
+			chips.push({
+				key: 'completionDate',
+				label: `Date: ${filters.completionDate_start || '...'} to ${filters.completionDate_end || '...'}`,
+				onRemove: () =>
+					setFilters((prev) => ({
+						...prev,
+						completionDate_start: '',
+						completionDate_end: '',
+					})),
+			});
+		}
+
+		return chips;
+	}, [filters]);
 
 	const getMaintenanceGroupId = (record: any): string | undefined => {
 		return record.maintenanceGroupId;
@@ -476,8 +536,14 @@ export const MaintenanceTab = ({
 			</TabSummaryBar>
 
 			{/* Toolbar with Add button */}
-			<Toolbar>
-				<ToolbarButton onClick={() => setShowAddModal(true)}>
+			<Toolbar
+				style={{
+					marginBottom: isMobile ? '12px' : undefined,
+					justifyContent: isMobile ? 'stretch' : undefined,
+				}}>
+				<ToolbarButton
+					onClick={() => setShowAddModal(true)}
+					style={{ width: isMobile ? '100%' : undefined }}>
 					+ Add History
 				</ToolbarButton>
 			</Toolbar>
@@ -538,12 +604,13 @@ export const MaintenanceTab = ({
 			)}
 
 			{/* Collapsable Filter Section */}
-			<div style={{ marginBottom: '16px' }}>
+			<div style={{ marginBottom: isMobile ? '12px' : '16px' }}>
 				<div
 					style={{
 						display: 'flex',
 						alignItems: 'center',
 						gap: '8px',
+						flexDirection: isMobile ? 'column' : 'row',
 						marginBottom: showFilters ? '12px' : '0',
 					}}>
 					<input
@@ -558,17 +625,35 @@ export const MaintenanceTab = ({
 						}
 						style={{
 							flex: 1,
+							width: isMobile ? '100%' : undefined,
 							padding: '8px 12px',
 							border: '1px solid #e5e7eb',
 							borderRadius: '4px',
 							fontSize: '14px',
 						}}
 					/>
+					<select
+						value={sortBy}
+						onChange={(event) =>
+							setSortBy(event.target.value as 'dateDesc' | 'dateAsc' | 'title')
+						}
+						style={{
+							padding: isMobile ? '10px 12px' : '8px 10px',
+							width: isMobile ? '100%' : '170px',
+							border: '1px solid #e5e7eb',
+							borderRadius: '4px',
+							background: '#ffffff',
+							fontWeight: 600,
+						}}>
+						<option value='dateDesc'>Sort: Newest</option>
+						<option value='dateAsc'>Sort: Oldest</option>
+						<option value='title'>Sort: Title</option>
+					</select>
 					<button
 						onClick={() => setShowFilters(!showFilters)}
 						style={{
 							padding: '8px 10px',
-
+							width: isMobile ? '100%' : undefined,
 							border: '1px solid #e5e7eb',
 							borderRadius: '4px',
 							background: '#f9fafb',
@@ -576,12 +661,26 @@ export const MaintenanceTab = ({
 							display: 'flex',
 							alignItems: 'center',
 							justifyContent: 'center',
+							gap: 6,
 							whiteSpace: 'nowrap',
 						}}
 						title={showFilters ? 'Hide filters' : 'Show filters'}>
-						{showFilters ? '▲ Hide Filters' : '▼ Filters'}
+						<FontAwesomeIcon icon={faArrowUpAZ} />
+						{showFilters ? 'Hide Filters' : 'Filters'}
 					</button>
 				</div>
+				{activeFilterChips.length > 0 && (
+					<ActiveFilterChips>
+						{activeFilterChips.map((chip) => (
+							<ActiveFilterChip key={chip.key} onClick={chip.onRemove}>
+								{chip.label} ×
+							</ActiveFilterChip>
+						))}
+						<ActiveFilterChipClear onClick={() => setFilters({})}>
+							Clear all
+						</ActiveFilterChipClear>
+					</ActiveFilterChips>
+				)}
 				{showFilters && (
 					<FilterBar
 						filters={maintenanceFilters}
@@ -589,29 +688,36 @@ export const MaintenanceTab = ({
 					/>
 				)}
 			</div>
-			<ContentWrapper>
-				{isMobile ? (
-					<div
-						style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-						{filteredRecords.map((record) => (
-							<div key={record.id}>
-								<UnifiedMaintenanceHistory
-									records={
-										record.groupId
-											? groupedRecords.groups[record.groupId] || [record]
-											: [record]
-									}
-									units={units}
-									onNavigate={handleNavigation}
-									onDelete={onDeleteMaintenanceHistory}
-									onDeleteGroup={
-										onDeleteMaintenanceHistory ? handleDeleteGroup : undefined
-									}
-								/>
-							</div>
-						))}
-					</div>
-				) : (
+			{isMobile ? (
+				<div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+					{Object.entries(groupedRecords.groups).map(([groupId, records]) => (
+						<UnifiedMaintenanceHistory
+							key={groupId}
+							records={records}
+							groupId={groupId}
+							units={units}
+							onNavigate={handleNavigation}
+							onDelete={onDeleteMaintenanceHistory}
+							onDeleteGroup={
+								onDeleteMaintenanceHistory ? handleDeleteGroup : undefined
+							}
+						/>
+					))}
+					{groupedRecords.ungrouped.map((record) => (
+						<UnifiedMaintenanceHistory
+							key={record.id}
+							records={[record]}
+							units={units}
+							onNavigate={handleNavigation}
+							onDelete={onDeleteMaintenanceHistory}
+							onDeleteGroup={
+								onDeleteMaintenanceHistory ? handleDeleteGroup : undefined
+							}
+						/>
+					))}
+				</div>
+			) : (
+				<ContentWrapper>
 					<ReusableTable
 						columns={columns}
 						rowData={maintenanceHistoryRecords}
@@ -619,8 +725,8 @@ export const MaintenanceTab = ({
 						onRowDoubleClick={handleNavigation}
 						showCheckbox={canBulkEdit}
 					/>
-				)}
-			</ContentWrapper>
+				</ContentWrapper>
+			)}
 			{/* Add Maintenance History Modal */}
 			{showAddModal && (
 				<AddMaintenanceHistoryModal

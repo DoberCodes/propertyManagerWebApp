@@ -22,6 +22,7 @@ import {
 	PreviewList,
 	PreviewItem,
 	PreviewItemTitle,
+	PreviewItemTrailing,
 	PreviewItemMeta,
 } from './DetailsTab.styles';
 
@@ -65,6 +66,23 @@ export const DetailsTab: React.FC<DetailsTabProps> = ({
 			return timeB - timeA;
 		})
 		.slice(0, 4);
+
+	const formatPreviewDate = (value?: string) => {
+		if (!value) {
+			return 'ASAP';
+		}
+
+		const date = new Date(value);
+		if (Number.isNaN(date.getTime())) {
+			return 'ASAP';
+		}
+
+		return date.toLocaleDateString(undefined, {
+			month: 'numeric',
+			day: 'numeric',
+			year: '2-digit',
+		});
+	};
 
 	return (
 		<>
@@ -143,14 +161,16 @@ export const DetailsTab: React.FC<DetailsTabProps> = ({
 									<div style={{ minWidth: 0 }}>
 										<PreviewItemTitle>{task.title}</PreviewItemTitle>
 									</div>
-									<div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-										<StatusBadge status={task.status}>{task.status}</StatusBadge>
+									<PreviewItemTrailing>
+										<StatusBadge
+											status={task.status}
+											style={{ padding: '3px 8px', fontSize: 11 }}>
+											{task.status}
+										</StatusBadge>
 										<PreviewItemMeta>
-											{task.dueDate
-												? new Date(task.dueDate).toLocaleDateString()
-												: 'ASAP'}
+											{formatPreviewDate(task.dueDate)}
 										</PreviewItemMeta>
-									</div>
+									</PreviewItemTrailing>
 								</PreviewItem>
 							))
 						)}
@@ -171,7 +191,7 @@ export const DetailsTab: React.FC<DetailsTabProps> = ({
 									<PreviewItemTitle>{record.title || 'Maintenance item'}</PreviewItemTitle>
 									<PreviewItemMeta>
 										{record.completionDate
-											? new Date(record.completionDate).toLocaleDateString()
+											? formatPreviewDate(record.completionDate)
 											: 'Date unknown'}
 									</PreviewItemMeta>
 								</PreviewItem>

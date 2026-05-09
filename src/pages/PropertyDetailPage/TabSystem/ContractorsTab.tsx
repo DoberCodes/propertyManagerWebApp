@@ -1,5 +1,7 @@
 import React, { useState, useMemo } from 'react';
-import { faEdit, faTrash } from '@fortawesome/free-solid-svg-icons';
+import { useSelector } from 'react-redux';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faEdit, faTrash, faArrowUpAZ } from '@fortawesome/free-solid-svg-icons';
 import {
 	useGetContractorsByPropertyQuery,
 	useDeleteContractorMutation,
@@ -37,10 +39,20 @@ import {
 	MobileContractorLabel,
 	MobileContractorValue,
 	MobileContractorActions,
+	MobileActionButton,
 	DesktopTableWrapper,
 	GridContainer,
 } from './index.styles';
 import { WarningDialog } from '../../../Components/Library/WarningDialog';
+import {
+	ActiveFilterChips,
+	ActiveFilterChip,
+	ActiveFilterChipClear,
+	CardMoreDetails,
+	CardMoreSummary,
+	CardMoreMenu,
+	CardMoreMenuItem,
+} from './mobileUiShared';
 
 interface ContractorsTabProps {
 	propertyId: string;
@@ -58,6 +70,8 @@ export const ContractorsTab: React.FC<ContractorsTabProps> = ({
 		useState<Contractor | null>(null);
 	const [filters, setFilters] = useState<FilterValues>({});
 	const [showFilters, setShowFilters] = useState(false);
+	const [sortBy, setSortBy] = useState<'company' | 'category'>('company');
+	const { isMobile } = useSelector((state: any) => state.app);
 
 	const {
 		data: contractors = [],
@@ -91,11 +105,18 @@ export const ContractorsTab: React.FC<ContractorsTabProps> = ({
 
 	// Apply filters to contractors
 	const filteredContractors = useMemo(() => {
-		return applyFilters(contractors, filters, {
+		const base = applyFilters(contractors, filters, {
 			textFields: ['company', 'name', 'email', 'phone', 'address'],
 			selectFields: [{ field: 'category', filterKey: 'category' }],
 		});
-	}, [contractors, filters]);
+
+		return [...base].sort((a, b) => {
+			if (sortBy === 'category') {
+				return (a.category || '').localeCompare(b.category || '');
+			}
+			return (a.company || a.name || '').localeCompare(b.company || b.name || '');
+		});
+	}, [contractors, filters, sortBy]);
 
 	const handleDeleteClick = (contractor: Contractor) => {
 		setContractorToDelete(contractor);
@@ -135,6 +156,27 @@ export const ContractorsTab: React.FC<ContractorsTabProps> = ({
 		setIsFormOpen(false);
 		setEditingContractor(null);
 	};
+
+	const activeFilterChips = useMemo(() => {
+		const chips: Array<{ key: string; label: string; onRemove: () => void }> = [];
+		if (filters.search) {
+			chips.push({
+				key: 'search',
+				label: `Search: ${filters.search}`,
+				onRemove: () => setFilters((prev) => ({ ...prev, search: '' })),
+			});
+		}
+
+		if (filters.category) {
+			chips.push({
+				key: 'category',
+				label: `Category: ${filters.category}`,
+				onRemove: () => setFilters((prev) => ({ ...prev, category: '' })),
+			});
+		}
+
+		return chips;
+	}, [filters]);
 
 	// Table configuration for contractors
 	const contractorColumns: Column[] = [
@@ -212,7 +254,11 @@ export const ContractorsTab: React.FC<ContractorsTabProps> = ({
 				</TabSummaryPill>
 			</TabSummaryBar>
 			<Toolbar>
-				<ToolbarButton onClick={handleAddNew}>+ Add Contractor</ToolbarButton>
+				<ToolbarButton
+					onClick={handleAddNew}
+					style={{ width: isMobile ? '100%' : undefined }}>
+					+ Add Contractor
+				</ToolbarButton>
 			</Toolbar>
 
 			{/* Collapsable Filter Section */}
@@ -222,6 +268,7 @@ export const ContractorsTab: React.FC<ContractorsTabProps> = ({
 						display: 'flex',
 						alignItems: 'center',
 						gap: '8px',
+						flexDirection: isMobile ? 'column' : 'row',
 						marginBottom: showFilters ? '12px' : '0',
 					}}>
 					<input
@@ -236,16 +283,32 @@ export const ContractorsTab: React.FC<ContractorsTabProps> = ({
 						}
 						style={{
 							flex: 1,
+							width: isMobile ? '100%' : undefined,
 							padding: '8px 12px',
 							border: '1px solid #e5e7eb',
 							borderRadius: '4px',
 							fontSize: '14px',
 						}}
 					/>
+					<select
+						value={sortBy}
+						onChange={(event) => setSortBy(event.target.value as 'company' | 'category')}
+						style={{
+							padding: isMobile ? '10px 12px' : '8px 10px',
+							width: isMobile ? '100%' : '170px',
+							border: '1px solid #e5e7eb',
+							borderRadius: '4px',
+							background: '#ffffff',
+							fontWeight: 600,
+						}}>
+						<option value='company'>Sort: Company</option>
+						<option value='category'>Sort: Category</option>
+					</select>
 					<button
 						onClick={() => setShowFilters(!showFilters)}
 						style={{
-							padding: '8px 10px',
+							padding: isMobile ? '10px 12px' : '8px 10px',
+							width: isMobile ? '100%' : undefined,
 							border: '1px solid #e5e7eb',
 							borderRadius: '4px',
 							background: '#f9fafb',
@@ -253,12 +316,26 @@ export const ContractorsTab: React.FC<ContractorsTabProps> = ({
 							display: 'flex',
 							alignItems: 'center',
 							justifyContent: 'center',
+							gap: 6,
 							whiteSpace: 'nowrap',
 						}}
 						title={showFilters ? 'Hide filters' : 'Show filters'}>
-						{showFilters ? '▲ Hide Filters' : '▼ Filters'}
+						<FontAwesomeIcon icon={faArrowUpAZ} />
+						{showFilters ? 'Hide Filters' : 'Filters'}
 					</button>
 				</div>
+				{activeFilterChips.length > 0 && (
+					<ActiveFilterChips>
+						{activeFilterChips.map((chip) => (
+							<ActiveFilterChip key={chip.key} onClick={chip.onRemove}>
+								{chip.label} ×
+							</ActiveFilterChip>
+						))}
+						<ActiveFilterChipClear onClick={() => setFilters({})}>
+							Clear all
+						</ActiveFilterChipClear>
+					</ActiveFilterChips>
+				)}
 				{showFilters && (
 					<FilterBar
 						filters={contractorFilters}
@@ -361,23 +438,30 @@ export const ContractorsTab: React.FC<ContractorsTabProps> = ({
 								</MobileContractorMeta>
 
 								<MobileContractorActions>
-									<ToolbarButton
-										onClick={(e) => {
-											e.stopPropagation();
-											handleEdit(contractor);
-										}}
-										style={{ flex: 1, padding: '0.5rem' }}>
-										Edit
-									</ToolbarButton>
-									<ToolbarButton
-										className='delete'
+									<MobileActionButton
+										variant='danger'
 										onClick={(e) => {
 											e.stopPropagation();
 											handleDeleteClick(contractor);
 										}}
-										style={{ flex: 1, padding: '0.5rem' }}>
+										style={{ flex: 1 }}>
 										Delete
-									</ToolbarButton>
+									</MobileActionButton>
+									<CardMoreDetails
+										onClick={(e) => {
+											e.stopPropagation();
+										}}>
+										<CardMoreSummary>More</CardMoreSummary>
+										<CardMoreMenu>
+											<CardMoreMenuItem
+												onClick={(e) => {
+													e.stopPropagation();
+													handleEdit(contractor);
+												}}>
+												Edit
+											</CardMoreMenuItem>
+										</CardMoreMenu>
+									</CardMoreDetails>
 								</MobileContractorActions>
 							</MobileContractorCard>
 						))}

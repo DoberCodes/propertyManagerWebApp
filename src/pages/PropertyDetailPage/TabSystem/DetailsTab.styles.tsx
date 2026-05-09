@@ -11,6 +11,10 @@ export const GlanceGrid = styled.div`
 	}
 
 	@media (max-width: 480px) {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+
+	@media (max-width: 360px) {
 		grid-template-columns: 1fr;
 	}
 `;
@@ -54,6 +58,10 @@ export const QuickActionsBar = styled.div`
 		border-radius: 10px;
 		border: 1px solid #e5e7eb;
 	}
+
+	@media (max-width: 480px) {
+		gap: 8px;
+	}
 `;
 
 export const QuickActionButton = styled.button<{ $variant?: 'primary' | 'secondary' }>`
@@ -67,6 +75,11 @@ export const QuickActionButton = styled.button<{ $variant?: 'primary' | 'seconda
 	font-size: 0.84rem;
 	font-weight: 700;
 	cursor: pointer;
+
+	@media (max-width: 480px) {
+		flex: 1 1 calc(50% - 4px);
+		min-width: 0;
+	}
 `;
 
 export const PreviewGrid = styled.div`
@@ -103,7 +116,6 @@ export const PreviewList = styled.div`
 
 export const PreviewItem = styled.div`
 	display: flex;
-	justify-content: space-between;
 	align-items: center;
 	gap: 8px;
 	padding: 8px 10px;
@@ -112,6 +124,19 @@ export const PreviewItem = styled.div`
 
 	@media (max-width: 480px) {
 		padding: 7px 8px;
+		gap: 6px;
+	}
+`;
+
+export const PreviewItemTrailing = styled.div`
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-left: auto;
+	flex-shrink: 0;
+	min-width: 0;
+
+	@media (max-width: 480px) {
 		gap: 6px;
 	}
 `;
@@ -131,7 +156,12 @@ export const PreviewItemMeta = styled.div`
 	font-size: 0.75rem;
 	font-weight: 600;
 	color: #64748b;
-	min-width: 78px;
+	min-width: 62px;
 	text-align: right;
 	white-space: nowrap;
+
+	@media (max-width: 480px) {
+		font-size: 0.72rem;
+		min-width: 0;
+	}
 `;

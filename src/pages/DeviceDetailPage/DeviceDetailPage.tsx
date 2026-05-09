@@ -378,6 +378,72 @@ const PhotoHelperText = styled.div`
 	color: #64748b;
 `;
 
+const SectionBlock = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	margin: 6px 0 14px;
+`;
+
+const SectionEyebrow = styled.span`
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: #64748b;
+`;
+
+const SectionTitleStrong = styled.h3`
+	margin: 0;
+	font-size: 1.08rem;
+	font-weight: 800;
+	color: #0f172a;
+`;
+
+const SectionDescription = styled.p`
+	margin: 0;
+	font-size: 0.9rem;
+	line-height: 1.5;
+	color: #475569;
+`;
+
+const IntelligenceStrip = styled.div`
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 10px;
+	margin-top: 2px;
+
+	@media (max-width: 1024px) {
+		grid-template-columns: 1fr;
+	}
+`;
+
+const IntelligencePill = styled.div<{ $tone?: 'warning' | 'neutral' | 'success' }>`
+	padding: 10px 12px;
+	border-radius: 10px;
+	border: 1px solid
+		${(props) =>
+			props.$tone === 'warning'
+				? '#fcd34d'
+				: props.$tone === 'success'
+					? '#86efac'
+					: '#cbd5e1'};
+	background: ${(props) =>
+		props.$tone === 'warning'
+			? '#fffbeb'
+			: props.$tone === 'success'
+				? '#f0fdf4'
+				: '#f8fafc'};
+	font-size: 0.84rem;
+	font-weight: 600;
+	color: ${(props) =>
+		props.$tone === 'warning'
+			? '#92400e'
+			: props.$tone === 'success'
+				? '#166534'
+				: '#334155'};
+`;
+
 const formatDate = (value?: string) => {
 	if (!value) return 'N/A';
 	const date = new Date(value);
@@ -542,6 +608,25 @@ export const DeviceDetailPage: React.FC = () => {
 			if (!dueDate || Number.isNaN(dueDate.getTime())) return false;
 			dueDate.setHours(0, 0, 0, 0);
 			return dueDate < today;
+		}).length;
+	}, [linkedTasks]);
+
+	const recurringTaskCount = useMemo(
+		() => linkedTasks.filter((task: any) => Boolean(task.isRecurring)).length,
+		[linkedTasks],
+	);
+
+	const upcomingDueSoonCount = useMemo(() => {
+		const today = new Date();
+		today.setHours(0, 0, 0, 0);
+		const maxDate = new Date(today);
+		maxDate.setDate(maxDate.getDate() + 30);
+
+		return linkedTasks.filter((task: any) => {
+			const dueDate = task?.dueDate ? new Date(task.dueDate) : null;
+			if (!dueDate || Number.isNaN(dueDate.getTime())) return false;
+			dueDate.setHours(0, 0, 0, 0);
+			return dueDate >= today && dueDate <= maxDate;
 		}).length;
 	}, [linkedTasks]);
 
@@ -816,10 +901,35 @@ export const DeviceDetailPage: React.FC = () => {
 					</SummaryCard>
 				</SummaryGrid>
 
+				<IntelligenceStrip>
+					<IntelligencePill $tone={overdueTasksCount > 0 ? 'warning' : 'success'}>
+						{overdueTasksCount > 0
+							? `Filter or service tasks overdue by ${overdueTasksCount} item${overdueTasksCount === 1 ? '' : 's'}`
+							: 'No overdue tasks linked to this device'}
+					</IntelligencePill>
+					<IntelligencePill $tone='neutral'>
+						{recurringTaskCount > 0
+							? `${recurringTaskCount} recurring maintenance workflow${recurringTaskCount === 1 ? '' : 's'} active`
+							: 'No recurring workflow configured yet'}
+					</IntelligencePill>
+					<IntelligencePill $tone={upcomingDueSoonCount > 0 ? 'warning' : 'success'}>
+						{upcomingDueSoonCount > 0
+							? `${upcomingDueSoonCount} task${upcomingDueSoonCount === 1 ? '' : 's'} due in the next 30 days`
+							: 'No tasks due in the next 30 days'}
+					</IntelligencePill>
+				</IntelligenceStrip>
+
 			{activeTab === 'info' && (
 				<TabContent>
 					<SurfaceCard>
 						<SectionContainer>
+						<SectionBlock>
+							<SectionEyebrow>Device Information</SectionEyebrow>
+							<SectionTitleStrong>Core Profile and Warranty Context</SectionTitleStrong>
+							<SectionDescription>
+								Keep this profile current so linked tasks, service records, and documents stay actionable.
+							</SectionDescription>
+						</SectionBlock>
 						<PhotoActions style={{ marginBottom: 14 }}>
 							<ScanButton type='button' onClick={() => setIsDeviceScanOpen(true)}>
 								Scan Device Barcode
@@ -937,6 +1047,13 @@ export const DeviceDetailPage: React.FC = () => {
 						{linkedTasks.length > 0 && (
 							<SurfaceCard>
 								<SectionContainer>
+								<SectionBlock>
+									<SectionEyebrow>Linked Tasks</SectionEyebrow>
+									<SectionTitleStrong>Open Work in Progress</SectionTitleStrong>
+									<SectionDescription>
+										Use this as your device-specific queue for assignments and completions.
+									</SectionDescription>
+								</SectionBlock>
 								<SectionHeader>Open Tasks ({linkedTasks.length})</SectionHeader>
 								<ReusableTable
 									rowData={linkedTasks}
@@ -956,6 +1073,13 @@ export const DeviceDetailPage: React.FC = () => {
 
 						<SurfaceCard>
 							<SectionContainer>
+							<SectionBlock>
+								<SectionEyebrow>Service History</SectionEyebrow>
+								<SectionTitleStrong>Maintenance Lifecycle Records</SectionTitleStrong>
+								<SectionDescription>
+									Every completed record adds to the long-term operational memory of this system.
+								</SectionDescription>
+							</SectionBlock>
 							<SectionHeader>Maintenance History ({relatedMaintenanceHistory.length})</SectionHeader>
 							{relatedMaintenanceHistory.length > 0 ? (
 								<GridContainer>
@@ -1010,6 +1134,13 @@ export const DeviceDetailPage: React.FC = () => {
 				<TabContent>
 					<SurfaceCard>
 						<SectionContainer>
+						<SectionBlock>
+							<SectionEyebrow>Warranty and Documents</SectionEyebrow>
+							<SectionTitleStrong>Parts, Filters, and Service Knowledge</SectionTitleStrong>
+							<SectionDescription>
+								Capture part numbers, specs, and service notes so replacements are fast in the field.
+							</SectionDescription>
+						</SectionBlock>
 						<SectionHeader>Parts & Service</SectionHeader>
 						<PhotoActions style={{ marginBottom: 10 }}>
 							<ScanButton type='button' onClick={() => setIsPartScanOpen(true)}>
