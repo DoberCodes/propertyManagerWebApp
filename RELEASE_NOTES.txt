@@ -1,6 +1,5 @@
-🎉 **Release Notes for Version 2.2.4** 🎉
+🎉 **Release Notes for Version 2.2.5** 🎉
 
 
 ## 🐛 Bug Fixes
-- fixing capacitor settings and build
-- fixing the bardcode scanner to also include an image reader
+- fixing styling and multiple UI issues to polish look and feel.
