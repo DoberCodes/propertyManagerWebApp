@@ -166,6 +166,30 @@ const parsePairs = (raw: string): Record<string, string> => {
 		const rawValue = candidate.slice(delimiterIndex + 1);
 		trySetPair(rawKey, rawValue);
 	}
+
+	// OCR sticker fallback: detect common "Label Value" lines without explicit separators.
+	const linePatterns: Array<{ key: string; pattern: RegExp }> = [
+		{ key: 'serialnumber', pattern: /(?:serial(?:\s*number)?|s\/n|sn)\s+([A-Z0-9\-_./]+)/i },
+		{ key: 'model', pattern: /(?:model(?:\s*(?:number|no))?)\s+([A-Z0-9\-_./]+)/i },
+		{ key: 'partnumber', pattern: /(?:part(?:\s*(?:number|no))?|p\/n|pn)\s+([A-Z0-9\-_./]+)/i },
+		{ key: 'brand', pattern: /(?:brand|manufacturer|mfg|mfr|make)\s+([A-Z0-9\-_.\s]+)/i },
+		{ key: 'type', pattern: /(?:type|equipment\s*type|device\s*type)\s+([A-Z0-9\-_.\s]+)/i },
+	];
+
+	raw
+		.split(/\n+/)
+		.map((line) => line.trim())
+		.filter(Boolean)
+		.forEach((line) => {
+			linePatterns.forEach(({ key, pattern }) => {
+				if (map[key]) return;
+				const match = line.match(pattern);
+				if (match && match[1]) {
+					map[key] = match[1].trim();
+				}
+			});
+		});
+
 	return map;
 };
 

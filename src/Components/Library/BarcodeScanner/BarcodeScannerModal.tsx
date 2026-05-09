@@ -121,6 +121,36 @@ const Input = styled.input`
 	flex: 1;
 `;
 
+const MethodTabs = styled.div`
+	display: flex;
+	gap: 8px;
+	flex-wrap: wrap;
+`;
+
+const MethodTabButton = styled.button<{ $active?: boolean }>`
+	padding: 8px 12px;
+	border-radius: 8px;
+	border: 1px solid ${(props) => (props.$active ? '#0f766e' : '#cbd5e1')};
+	background: ${(props) => (props.$active ? '#ecfeff' : '#ffffff')};
+	color: ${(props) => (props.$active ? '#0f766e' : '#334155')};
+	font-size: 12px;
+	font-weight: 700;
+	cursor: pointer;
+`;
+
+const HiddenFileInput = styled.input`
+	display: none;
+`;
+
+const PreviewImage = styled.img`
+	width: 100%;
+	max-height: 260px;
+	object-fit: contain;
+	border-radius: 8px;
+	border: 1px solid #cbd5e1;
+	background: #ffffff;
+`;
+
 const InspectorCard = styled.div`
 	border: 1px solid #e2e8f0;
 	border-radius: 10px;
@@ -240,6 +270,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 	onDetected,
 }) => {
 	const videoRef = useRef<HTMLVideoElement | null>(null);
+	const photoInputRef = useRef<HTMLInputElement | null>(null);
 	const streamRef = useRef<MediaStream | null>(null);
 	const rafRef = useRef<number | null>(null);
 	const [error, setError] = useState<string>('');
@@ -247,6 +278,11 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 	const [capturedValue, setCapturedValue] = useState('');
 	const [analysis, setAnalysis] = useState<BarcodePayloadAnalysis | null>(null);
 	const [relabelRows, setRelabelRows] = useState<RelabelRow[]>([]);
+	const [activeMethod, setActiveMethod] = useState<'barcode' | 'photo'>('barcode');
+	const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
+	const [selectedImagePreview, setSelectedImagePreview] = useState('');
+	const [isExtractingText, setIsExtractingText] = useState(false);
+	const [ocrError, setOcrError] = useState('');
 
 	const supportsBarcodeDetector = useMemo(
 		() => typeof (window as any).BarcodeDetector !== 'undefined',
@@ -349,6 +385,46 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 			.join('; ');
 	}, [capturedValue, relabelRows]);
 
+	const extractTextFromImage = useCallback(
+		async (file: File) => {
+			setOcrError('');
+			setIsExtractingText(true);
+			try {
+				const tesseractModule = await import('tesseract.js');
+				const worker = await (tesseractModule as any).createWorker('eng');
+				const result = await worker.recognize(file);
+				await worker.terminate();
+
+				const extractedText = String(result?.data?.text || '').trim();
+				if (!extractedText) {
+					setOcrError('No readable text was detected on this image. Try a clearer photo.');
+					return;
+				}
+
+				setManualValue(extractedText);
+				captureValue(extractedText);
+			} catch {
+				setOcrError('Unable to extract text from this image. Please try another photo.');
+			} finally {
+				setIsExtractingText(false);
+			}
+		},
+		[captureValue],
+	);
+
+	const handlePhotoSelected = (event: React.ChangeEvent<HTMLInputElement>) => {
+		const file = event.target.files?.[0];
+		if (!file) return;
+		setSelectedImageFile(file);
+		setOcrError('');
+
+		const reader = new FileReader();
+		reader.onload = () => {
+			setSelectedImagePreview(String(reader.result || ''));
+		};
+		reader.readAsDataURL(file);
+	};
+
 	useEffect(() => {
 		if (!isOpen) {
 			stopScanner();
@@ -357,6 +433,16 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 			setCapturedValue('');
 			setAnalysis(null);
 			setRelabelRows([]);
+			setActiveMethod('barcode');
+			setSelectedImageFile(null);
+			setSelectedImagePreview('');
+			setIsExtractingText(false);
+			setOcrError('');
+			return;
+		}
+
+		if (activeMethod !== 'barcode' || analysis) {
+			stopScanner();
 			return;
 		}
 
@@ -431,7 +517,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 			cancelled = true;
 			stopScanner();
 		};
-	}, [captureValue, isOpen, stopScanner, supportsBarcodeDetector, supportsCameraAccess]);
+	}, [activeMethod, analysis, captureValue, isOpen, stopScanner, supportsBarcodeDetector, supportsCameraAccess]);
 
 	if (!isOpen) return null;
 
@@ -450,14 +536,65 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 					</CloseButton>
 				</Header>
 				<Body>
-					{!analysis && (
+					<MethodTabs>
+						<MethodTabButton
+							type='button'
+							$active={activeMethod === 'barcode'}
+							onClick={() => setActiveMethod('barcode')}>
+							Barcode / QR Scan
+						</MethodTabButton>
+						<MethodTabButton
+							type='button'
+							$active={activeMethod === 'photo'}
+							onClick={() => setActiveMethod('photo')}>
+							Sticker Photo (OCR)
+						</MethodTabButton>
+					</MethodTabs>
+
+					{!analysis && activeMethod === 'barcode' && (
 						<>
 							<VideoWrap>
 								<Video ref={videoRef} playsInline muted />
 							</VideoWrap>
 							<Helper>
-								Point your camera at a barcode or QR code. If scanning does not work, paste the code below.
+								Scan label code for quick identifiers, then confirm mapped fields below.
 							</Helper>
+						</>
+					)}
+
+					{!analysis && activeMethod === 'photo' && (
+						<>
+							<Helper>
+								Take or upload a device sticker photo to extract text and map fields.
+							</Helper>
+							<Row>
+								<ActionButton
+									type='button'
+									onClick={() => photoInputRef.current?.click()}>
+									Choose Sticker Image
+								</ActionButton>
+								<GhostButton
+									type='button'
+									disabled={!selectedImageFile || isExtractingText}
+									onClick={() => {
+										if (selectedImageFile) {
+											void extractTextFromImage(selectedImageFile);
+										}
+									}}>
+									{isExtractingText ? 'Reading Text...' : 'Extract Text'}
+								</GhostButton>
+							</Row>
+							<HiddenFileInput
+								ref={photoInputRef}
+								type='file'
+								accept='image/*'
+								capture='environment'
+								onChange={handlePhotoSelected}
+							/>
+							{selectedImagePreview && (
+								<PreviewImage src={selectedImagePreview} alt='Sticker preview' />
+							)}
+							{ocrError && <ErrorText>{ocrError}</ErrorText>}
 						</>
 					)}
 					{error && <ErrorText>{error}</ErrorText>}
@@ -466,10 +603,10 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 							type='text'
 							value={manualValue}
 							onChange={(e) => setManualValue(e.target.value)}
-							placeholder='Paste barcode value'
+							placeholder='Paste barcode or extracted sticker text'
 						/>
 						<ActionButton type='button' onClick={() => captureValue(manualValue)}>
-							Inspect Value
+							Inspect Captured Text
 						</ActionButton>
 						<GhostButton
 							type='button'
