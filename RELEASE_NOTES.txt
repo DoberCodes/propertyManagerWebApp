@@ -1,11 +1,6 @@
-🎉 **Release Notes for Version 2.2.5** 🎉
+🎉 **Release Notes for Version 2.2.6** 🎉
 
-
-## ✨ Improvements
-- Expanded Dashboard system awareness with device-focused continuity metrics and recent maintenance activity.
-- Updated completion and approval messaging so completed work is clearly framed as maintenance history logging.
-- Standardized task-related UI language toward maintenance workflows across Dashboard, Global Tasks, and Property Workflows surfaces.
-- Improved workflow action wording (create, refine, assign, complete/log) for clearer maintenance lifecycle intent.
 
 ## 🐛 Bug Fixes
-- fixing styling and multiple UI issues to polish look and feel.
+- fixing overall feel of app and modifying device management
+- fixing the device view
