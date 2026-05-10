@@ -399,43 +399,6 @@ const QuickActionHint = styled.div`
 	color: #64748b;
 `;
 
-const AccrualGrid = styled.div`
-	display: grid;
-	grid-template-columns: repeat(4, minmax(0, 1fr));
-	gap: 12px;
-
-	@media (max-width: 1024px) {
-		grid-template-columns: repeat(2, minmax(0, 1fr));
-	}
-
-	@media (max-width: 640px) {
-		grid-template-columns: 1fr;
-	}
-`;
-
-const AccrualCard = styled.div`
-	border: 1px solid #e2e8f0;
-	background: #ffffff;
-	border-radius: 12px;
-	padding: 14px 16px;
-`;
-
-const AccrualLabel = styled.div`
-	font-size: 0.73rem;
-	font-weight: 700;
-	letter-spacing: 0.05em;
-	text-transform: uppercase;
-	color: #64748b;
-	margin-bottom: 8px;
-`;
-
-const AccrualValue = styled.div`
-	font-size: 1.35rem;
-	line-height: 1.2;
-	font-weight: 800;
-	color: #0f172a;
-`;
-
 const TimelineList = styled.div`
 	display: flex;
 	flex-direction: column;
@@ -630,7 +593,7 @@ const IntelligencePill = styled.div<{ $tone?: 'warning' | 'neutral' | 'success' 
 				: '#334155'};
 `;
 
-const UpcomingMaintenanceCard = styled.div`
+const UpcomingCareCard = styled.div`
 	background: #ffffff;
 	border: 1px solid #e5e7eb;
 	border-radius: 12px;
@@ -638,177 +601,66 @@ const UpcomingMaintenanceCard = styled.div`
 	margin-top: 12px;
 `;
 
-const UpcomingCategoryHeader = styled.div`
+const UpcomingCareHeader = styled.div`
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
-	margin-bottom: 8px;
-	padding-bottom: 8px;
-	border-bottom: 2px solid #e5e7eb;
+	margin-bottom: 10px;
 `;
 
-const UpcomingCategoryTitle = styled.h4`
+const UpcomingCareTitle = styled.h4`
 	margin: 0;
 	font-size: 0.95rem;
 	font-weight: 700;
 	color: #0f172a;
+`;
+
+const UpcomingCareLink = styled.button`
+	background: none;
+	border: none;
+	padding: 0;
+	cursor: pointer;
+	font-size: 0.85rem;
+	font-weight: 600;
+	color: #2563eb;
+	&:hover { text-decoration: underline; }
+`;
+
+const UpcomingCareRows = styled.div`
 	display: flex;
-	align-items: center;
+	flex-direction: column;
 	gap: 6px;
 `;
 
-const UpcomingCategoryBadge = styled.span<{ $tone?: 'error' | 'neutral' | 'warning' }>`
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	min-width: 24px;
-	height: 24px;
-	border-radius: 50%;
-	font-size: 0.75rem;
-	font-weight: 700;
-	background: ${(props) =>
-		props.$tone === 'error'
-			? '#fee2e2'
-			: props.$tone === 'warning'
-				? '#fef3c7'
-				: '#f1f5f9'};
-	color: ${(props) =>
-		props.$tone === 'error'
-			? '#dc2626'
-			: props.$tone === 'warning'
-				? '#d97706'
-				: '#64748b'};
-`;
-
-const UpcomingTasksList = styled.div`
-	display: flex;
-	flex-direction: column;
-	gap: 8px;
-	margin-bottom: 12px;
-`;
-
-const UpcomingTaskItem = styled.div<{ $isClickable?: boolean }>`
-	display: grid;
-	grid-template-columns: 70px 1fr auto;
-	gap: 12px;
-	align-items: center;
-	padding: 10px 12px;
-	border: 1px solid #e2e8f0;
-	border-radius: 8px;
-	background: #ffffff;
-	cursor: ${(props) => (props.$isClickable ? 'pointer' : 'default')};
-	transition: all 0.15s ease-in-out;
-
-	&:hover {
-		${(props) =>
-			props.$isClickable
-				? `
-			border-color: #cbd5e1;
-			background: #f8fafc;
-			transform: translateY(-1px);
-		`
-				: ''}
-	}
-
-	@media (max-width: 640px) {
-		grid-template-columns: 1fr;
-		gap: 8px;
-	}
-`;
-
-const UpcomingTaskDate = styled.div`
-	font-size: 0.8rem;
-	font-weight: 700;
-	color: #64748b;
-	white-space: nowrap;
-`;
-
-const UpcomingTaskInfo = styled.div`
-	display: flex;
-	flex-direction: column;
-	gap: 2px;
-`;
-
-const UpcomingTaskName = styled.div`
-	font-size: 0.9rem;
-	font-weight: 600;
-	color: #0f172a;
-`;
-
-const UpcomingTaskMeta = styled.div`
-	font-size: 0.8rem;
-	color: #64748b;
-`;
-
-const UpcomingTaskStatus = styled.span<{ $status?: string }>`
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	padding: 4px 8px;
-	border-radius: 6px;
-	font-size: 0.75rem;
-	font-weight: 600;
-	white-space: nowrap;
-	background: ${(props) =>
-		props.$status === 'overdue'
-			? '#fee2e2'
-			: props.$status === 'recurring'
-				? '#dbeafe'
-				: '#fef3c7'};
-	color: ${(props) =>
-		props.$status === 'overdue'
-			? '#991b1b'
-			: props.$status === 'recurring'
-				? '#1e40af'
-				: '#b45309'};
-`;
-
-const UpcomingEmptyState = styled.div`
-	padding: 12px 0;
-	text-align: center;
+const UpcomingCareRow = styled.div<{ $tone?: 'error' | 'success' | 'info' | 'neutral' }>`
 	font-size: 0.88rem;
-	color: #94a3b8;
-	font-style: italic;
+	padding: 6px 10px;
+	border-radius: 6px;
+	color: ${(props) =>
+		props.$tone === 'error'
+			? '#991b1b'
+			: props.$tone === 'success'
+				? '#166534'
+				: props.$tone === 'info'
+					? '#1e40af'
+					: '#475569'};
+	background: ${(props) =>
+		props.$tone === 'error'
+			? '#fee2e2'
+			: props.$tone === 'success'
+				? '#dcfce7'
+				: props.$tone === 'info'
+					? '#dbeafe'
+					: '#f8fafc'};
 `;
 
-const formatTaskDueDate = (dateString: string) => {
-	if (!dateString) return 'No due date';
-	const date = new Date(dateString);
-	if (Number.isNaN(date.getTime())) return 'Invalid date';
-	const today = new Date();
-	today.setHours(0, 0, 0, 0);
-	const daysUntil = Math.ceil((date.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 
-	if (daysUntil < 0) {
-		const daysOverdue = Math.abs(daysUntil);
-		return `${daysOverdue} day${daysOverdue === 1 ? '' : 's'} overdue`;
-	}
-	if (daysUntil === 0) return 'Due today';
-	return `Due in ${daysUntil} day${daysUntil === 1 ? '' : 's'}`;
-};
 
 const formatDate = (value?: string) => {
 	if (!value) return 'N/A';
 	const date = new Date(value);
 	if (Number.isNaN(date.getTime())) return value;
 	return date.toLocaleDateString();
-};
-
-const formatRelativeTime = (value?: string) => {
-	if (!value) return 'recently';
-	const date = new Date(value);
-	if (Number.isNaN(date.getTime())) return 'recently';
-	const diffMs = Date.now() - date.getTime();
-	const diffDays = Math.round(Math.abs(diffMs) / 86400000);
-	if (diffDays === 0) return diffMs >= 0 ? 'today' : 'later today';
-	if (diffDays === 1) return diffMs >= 0 ? 'yesterday' : 'tomorrow';
-	if (diffDays < 7) return diffMs >= 0 ? `${diffDays} days ago` : `in ${diffDays} days`;
-	if (diffDays < 30) {
-		const weeks = Math.max(1, Math.round(diffDays / 7));
-		return diffMs >= 0 ? `${weeks} weeks ago` : `in ${weeks} weeks`;
-	}
-	const months = Math.max(1, Math.round(diffDays / 30));
-	return diffMs >= 0 ? `${months} months ago` : `in ${months} months`;
 };
 
 const getTimelineTitle = (description?: string) => {
@@ -1089,35 +941,20 @@ export const DeviceDetailPage: React.FC = () => {
 		}).length;
 	}, [linkedTasks]);
 
-	// Organize linked tasks by category for the upcoming maintenance section
-	const overdueLinkedTasks = useMemo(() => {
+	// Compute earliest upcoming task for the compact care summary
+	const nextScheduledMaintenance = useMemo(() => {
 		const today = new Date();
 		today.setHours(0, 0, 0, 0);
-		return linkedTasks.filter((task: any) => {
-			const dueDate = task?.dueDate ? new Date(task.dueDate) : null;
-			if (!dueDate || Number.isNaN(dueDate.getTime())) return false;
-			dueDate.setHours(0, 0, 0, 0);
-			return dueDate < today;
-		});
-	}, [linkedTasks]);
-
-	const recurringLinkedTasks = useMemo(
-		() => linkedTasks.filter((task: any) => Boolean(task.isRecurring)),
-		[linkedTasks],
-	);
-
-	const dueInThirtyDaysLinkedTasks = useMemo(() => {
-		const today = new Date();
-		today.setHours(0, 0, 0, 0);
-		const maxDate = new Date(today);
-		maxDate.setDate(maxDate.getDate() + 30);
-
-		return linkedTasks.filter((task: any) => {
-			const dueDate = task?.dueDate ? new Date(task.dueDate) : null;
-			if (!dueDate || Number.isNaN(dueDate.getTime())) return false;
-			dueDate.setHours(0, 0, 0, 0);
-			return dueDate >= today && dueDate <= maxDate;
-		});
+		const upcoming = linkedTasks
+			.filter((task: any) => {
+				const dueDate = task?.dueDate ? new Date(task.dueDate) : null;
+				if (!dueDate || Number.isNaN(dueDate.getTime())) return false;
+				dueDate.setHours(0, 0, 0, 0);
+				return dueDate >= today;
+			})
+			.sort((a: any, b: any) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
+		if (!upcoming[0]?.dueDate) return null;
+		return new Date(upcoming[0].dueDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 	}, [linkedTasks]);
 
 	const documentCount = useMemo(
@@ -1304,12 +1141,13 @@ export const DeviceDetailPage: React.FC = () => {
 
 	const tabs: TabConfig[] = [
 		{ id: 'info' as any, label: 'Device Info' },
-		{ id: 'parts' as any, label: 'Parts & Service', count: serviceParts.length },
+		{ id: 'tasks' as any, label: 'Tasks & Maintenance', count: linkedTasks.length },
 		{
 			id: 'history' as any,
-			label: 'Tasks & History',
-			count: linkedTasks.length + relatedMaintenanceHistory.length,
+			label: 'History',
+			count: deviceTimelineEntries.length + relatedMaintenanceHistory.length,
 		},
+		{ id: 'parts' as any, label: 'Parts & Service', count: serviceParts.length },
 	];
 
 	const handleAddPart = async () => {
@@ -1575,185 +1413,51 @@ export const DeviceDetailPage: React.FC = () => {
 					</SummaryCard>
 				</SummaryGrid>
 
-				<QuickActionPanel>
-					<QuickActionHeader>
-						<h3>Quick Actions</h3>
-						<p>Keep this system moving with the next maintenance step.</p>
-					</QuickActionHeader>
-					<QuickActionGrid>
-						<QuickActionButton type='button' onClick={handleOpenEditDeviceModal}>
-							<strong>Edit Device</strong>
-							<span>Change the device profile, status, or location.</span>
-						</QuickActionButton>
-						<QuickActionButton type='button' onClick={openCreateTaskModal}>
-							<strong>Create Task</strong>
-							<span>Turn this device into a tracked maintenance job.</span>
-						</QuickActionButton>
-						<QuickActionButton type='button' onClick={openRecurringTaskModal}>
-							<strong>Add Recurring Maintenance</strong>
-							<span>Set ongoing care for filters, service, and inspections.</span>
-						</QuickActionButton>
-						<QuickActionButton type='button' onClick={() => documentInputRef.current?.click()}>
-							<strong>Upload Invoice / Document</strong>
-							<span>Store proof of service, receipts, or manuals here.</span>
-						</QuickActionButton>
-						<QuickActionButton type='button' onClick={() => openQuickLogModal('note')}>
-							<strong>Add Service Note</strong>
-							<span>Capture context that should travel with the system.</span>
-						</QuickActionButton>
-						<QuickActionButton type='button' onClick={() => openQuickLogModal('repair')}>
-							<strong>Log Repair</strong>
-							<span>Write a repair entry directly into the maintenance trail.</span>
-						</QuickActionButton>
-					</QuickActionGrid>
-					<QuickActionHint>
-						These actions all feed the same service history so the device becomes more useful over time.
-					</QuickActionHint>
-					<input
-						ref={documentInputRef}
-						type='file'
-						accept='image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt'
-						onChange={handleDocumentUpload}
-						style={{ display: 'none' }}
-					/>
-				</QuickActionPanel>
-
-				<IntelligenceStrip>
-					<IntelligencePill $tone={overdueTasksCount > 0 ? 'warning' : 'success'}>
-						{overdueTasksCount > 0
-							? `${overdueTasksCount} overdue maintenance item${overdueTasksCount === 1 ? '' : 's'} need attention`
-							: 'No overdue maintenance linked to this device'}
-					</IntelligencePill>
-					<IntelligencePill $tone='neutral'>
-						{recurringTaskCount > 0
-							? `${recurringTaskCount} recurring care workflow${recurringTaskCount === 1 ? '' : 's'} active`
-							: 'No recurring care configured yet'}
-					</IntelligencePill>
-					<IntelligencePill $tone={upcomingDueSoonCount > 0 ? 'warning' : 'success'}>
-						{upcomingDueSoonCount > 0
-							? `${upcomingDueSoonCount} upcoming service window${upcomingDueSoonCount === 1 ? '' : 's'} in the next 30 days`
-							: 'No upcoming service windows in the next 30 days'}
-					</IntelligencePill>
-				</IntelligenceStrip>
-
-			{/* Upcoming Maintenance Details Section */}
-			<UpcomingMaintenanceCard>
-				<SectionBlock>
-					<SectionEyebrow>Upcoming Maintenance</SectionEyebrow>
-					<SectionTitleStrong>Service windows and care workflows</SectionTitleStrong>
-				</SectionBlock>
-
-				{/* Overdue Section */}
-				<UpcomingCategoryHeader>
-					<UpcomingCategoryTitle>
-						🔴 Overdue
-						<UpcomingCategoryBadge $tone='error'>{overdueLinkedTasks.length}</UpcomingCategoryBadge>
-					</UpcomingCategoryTitle>
-				</UpcomingCategoryHeader>
-				{overdueLinkedTasks.length > 0 ? (
-					<UpcomingTasksList>
-						{overdueLinkedTasks.map((task: any) => (
-							<UpcomingTaskItem key={task.id} $isClickable>
-								<UpcomingTaskDate>{formatTaskDueDate(task.dueDate)}</UpcomingTaskDate>
-								<UpcomingTaskInfo>
-									<UpcomingTaskName>{task.title || 'Untitled task'}</UpcomingTaskName>
-									<UpcomingTaskMeta>
-										Linked to device • {task.status === 'Open' ? 'Not yet started' : task.status}
-									</UpcomingTaskMeta>
-								</UpcomingTaskInfo>
-								<UpcomingTaskStatus $status='overdue'>Overdue</UpcomingTaskStatus>
-							</UpcomingTaskItem>
-						))}
-					</UpcomingTasksList>
-				) : (
-					<UpcomingEmptyState>No overdue tasks—care is current</UpcomingEmptyState>
-				)}
-
-				{/* Recurring Section */}
-				<UpcomingCategoryHeader style={{ marginTop: 14 }}>
-					<UpcomingCategoryTitle>
-						🔵 Recurring Workflows
-						<UpcomingCategoryBadge $tone='neutral'>{recurringLinkedTasks.length}</UpcomingCategoryBadge>
-					</UpcomingCategoryTitle>
-				</UpcomingCategoryHeader>
-				{recurringLinkedTasks.length > 0 ? (
-					<UpcomingTasksList>
-						{recurringLinkedTasks.map((task: any) => (
-							<UpcomingTaskItem key={task.id} $isClickable>
-								<UpcomingTaskDate>{formatTaskDueDate(task.dueDate)}</UpcomingTaskDate>
-								<UpcomingTaskInfo>
-									<UpcomingTaskName>{task.title || 'Untitled task'}</UpcomingTaskName>
-									<UpcomingTaskMeta>
-										{task.recurringFrequency || 'Recurring'} • {task.status === 'Open' ? 'Next due' : task.status}
-									</UpcomingTaskMeta>
-								</UpcomingTaskInfo>
-								<UpcomingTaskStatus $status='recurring'>Recurring</UpcomingTaskStatus>
-							</UpcomingTaskItem>
-						))}
-					</UpcomingTasksList>
-				) : (
-					<UpcomingEmptyState>No recurring workflows yet—set up maintenance schedules</UpcomingEmptyState>
-				)}
-
-				{/* Due Soon Section */}
-				<UpcomingCategoryHeader style={{ marginTop: 14 }}>
-					<UpcomingCategoryTitle>
-						🟡 Due in Next 30 Days
-						<UpcomingCategoryBadge $tone='warning'>{dueInThirtyDaysLinkedTasks.length}</UpcomingCategoryBadge>
-					</UpcomingCategoryTitle>
-				</UpcomingCategoryHeader>
-				{dueInThirtyDaysLinkedTasks.length > 0 ? (
-					<UpcomingTasksList>
-						{dueInThirtyDaysLinkedTasks.map((task: any) => (
-							<UpcomingTaskItem key={task.id} $isClickable>
-								<UpcomingTaskDate>{formatTaskDueDate(task.dueDate)}</UpcomingTaskDate>
-								<UpcomingTaskInfo>
-									<UpcomingTaskName>{task.title || 'Untitled task'}</UpcomingTaskName>
-									<UpcomingTaskMeta>
-										Linked to device • {task.status === 'Open' ? 'Not yet started' : task.status}
-									</UpcomingTaskMeta>
-								</UpcomingTaskInfo>
-								<UpcomingTaskStatus $status='warning'>Due Soon</UpcomingTaskStatus>
-							</UpcomingTaskItem>
-						))}
-					</UpcomingTasksList>
-				) : (
-					<UpcomingEmptyState>No tasks due in the next 30 days</UpcomingEmptyState>
-				)}
-			</UpcomingMaintenanceCard>
-
-				<SurfaceCard>
-					<SectionContainer>
-						<SectionBlock>
-							<SectionEyebrow>Maintenance Timeline</SectionEyebrow>
-							<SectionTitleStrong>Chronological operational history</SectionTitleStrong>
-							<SectionDescription>
-								Every quick log, document upload, repair, and completed task becomes part of the device record.
-							</SectionDescription>
-						</SectionBlock>
-						{maintenanceTimelineEntries.length > 0 ? (
-							<TimelineList>
-								{maintenanceTimelineEntries.map((entry: any, index: number) => (
-									<TimelineItem key={`${entry.title}-${entry.date}-${index}`}>
-										<TimelineDate>{formatDate(entry.date)}</TimelineDate>
-										<div>
-											<TimelineTitle>{entry.title}</TimelineTitle>
-											<TimelineDescription>{entry.description}</TimelineDescription>
-											<TimelineMeta>{entry.type}</TimelineMeta>
-										</div>
-									</TimelineItem>
-								))}
-							</TimelineList>
-						) : (
-							<EmptyState>
-								<p>No maintenance timeline entries yet. Log a repair, note, or document upload to start it.</p>
-							</EmptyState>
-						)}
-					</SectionContainer>
-				</SurfaceCard>
-
 			{activeTab === 'info' && (
 				<TabContent>
+					<QuickActionPanel>
+						<QuickActionHeader>
+							<h3>Quick Actions</h3>
+							<p>Keep this system moving with the next maintenance step.</p>
+						</QuickActionHeader>
+						<QuickActionGrid>
+							<QuickActionButton type='button' onClick={handleOpenEditDeviceModal}>
+								<strong>Edit Device</strong>
+								<span>Change the device profile, status, or location.</span>
+							</QuickActionButton>
+							<QuickActionButton type='button' onClick={openCreateTaskModal}>
+								<strong>Create Task</strong>
+								<span>Turn this device into a tracked maintenance job.</span>
+							</QuickActionButton>
+							<QuickActionButton type='button' onClick={openRecurringTaskModal}>
+								<strong>Add Recurring Maintenance</strong>
+								<span>Set ongoing care for filters, service, and inspections.</span>
+							</QuickActionButton>
+							<QuickActionButton type='button' onClick={() => documentInputRef.current?.click()}>
+								<strong>Upload Invoice / Document</strong>
+								<span>Store proof of service, receipts, or manuals here.</span>
+							</QuickActionButton>
+							<QuickActionButton type='button' onClick={() => openQuickLogModal('note')}>
+								<strong>Add Service Note</strong>
+								<span>Capture context that should travel with the system.</span>
+							</QuickActionButton>
+							<QuickActionButton type='button' onClick={() => openQuickLogModal('repair')}>
+								<strong>Log Repair</strong>
+								<span>Write a repair entry directly into the maintenance trail.</span>
+							</QuickActionButton>
+						</QuickActionGrid>
+						<QuickActionHint>
+							These actions all feed the same service history so the device becomes more useful over time.
+						</QuickActionHint>
+						<input
+							ref={documentInputRef}
+							type='file'
+							accept='image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt'
+							onChange={handleDocumentUpload}
+							style={{ display: 'none' }}
+						/>
+					</QuickActionPanel>
+
 					<SurfaceCard>
 						<SectionContainer>
 						<SectionBlock>
@@ -1874,6 +1578,77 @@ export const DeviceDetailPage: React.FC = () => {
 				</TabContent>
 			)}
 
+			{activeTab === 'tasks' && (
+				<TabContent>
+					<IntelligenceStrip>
+						<IntelligencePill $tone={overdueTasksCount > 0 ? 'warning' : 'success'}>
+							{overdueTasksCount > 0
+								? `${overdueTasksCount} overdue maintenance item${overdueTasksCount === 1 ? '' : 's'} need attention`
+								: 'No overdue maintenance linked to this device'}
+						</IntelligencePill>
+						<IntelligencePill $tone='neutral'>
+							{recurringTaskCount > 0
+								? `${recurringTaskCount} recurring care workflow${recurringTaskCount === 1 ? '' : 's'} active`
+								: 'No recurring care configured yet'}
+						</IntelligencePill>
+						<IntelligencePill $tone={upcomingDueSoonCount > 0 ? 'warning' : 'success'}>
+							{upcomingDueSoonCount > 0
+								? `${upcomingDueSoonCount} upcoming service window${upcomingDueSoonCount === 1 ? '' : 's'} in the next 30 days`
+								: 'No upcoming service windows in the next 30 days'}
+						</IntelligencePill>
+					</IntelligenceStrip>
+
+					<UpcomingCareCard>
+						<UpcomingCareHeader>
+							<UpcomingCareTitle>Upcoming Care</UpcomingCareTitle>
+							<UpcomingCareLink onClick={() => setActiveTab('history')}>View Timeline →</UpcomingCareLink>
+						</UpcomingCareHeader>
+						<UpcomingCareRows>
+							<UpcomingCareRow $tone={overdueTasksCount > 0 ? 'error' : 'success'}>
+								{overdueTasksCount > 0
+									? `${overdueTasksCount} overdue maintenance item${overdueTasksCount === 1 ? '' : 's'}`
+									: 'No overdue items'}
+							</UpcomingCareRow>
+							<UpcomingCareRow $tone={recurringTaskCount > 0 ? 'info' : 'neutral'}>
+								{recurringTaskCount > 0
+									? `${recurringTaskCount} recurring workflow${recurringTaskCount === 1 ? '' : 's'} active`
+									: 'No recurring workflows configured'}
+							</UpcomingCareRow>
+							<UpcomingCareRow $tone='neutral'>
+								{nextScheduledMaintenance
+									? `Next scheduled maintenance: ${nextScheduledMaintenance}`
+									: 'No additional maintenance due in next 30 days'}
+							</UpcomingCareRow>
+						</UpcomingCareRows>
+					</UpcomingCareCard>
+
+					<SurfaceCard>
+						<SectionContainer>
+							<SectionBlock>
+								<SectionEyebrow>Linked Tasks</SectionEyebrow>
+								<SectionTitleStrong>Execution Queue</SectionTitleStrong>
+								<SectionDescription>
+									Use this as your device-specific queue for assignments and completions.
+								</SectionDescription>
+							</SectionBlock>
+							<SectionHeader>Open Tasks ({linkedTasks.length})</SectionHeader>
+							<ReusableTable
+								rowData={linkedTasks}
+								showCheckbox={false}
+								columns={[
+									{ header: 'Task', key: 'title' },
+									{ header: 'Status', key: 'status' },
+									{ header: 'Priority', key: 'priority' },
+									{ header: 'Due Date', key: 'dueDate' },
+									{ header: 'Assignee', key: 'assignee' },
+								]}
+								emptyMessage='No open tasks linked to this device'
+							/>
+						</SectionContainer>
+					</SurfaceCard>
+				</TabContent>
+			)}
+
 			{activeTab === 'history' && (
 				<TabContent>
 					<CombinedHistoryContainer>
@@ -1906,33 +1681,6 @@ export const DeviceDetailPage: React.FC = () => {
 								)}
 							</SectionContainer>
 						</SurfaceCard>
-
-						{linkedTasks.length > 0 && (
-							<SurfaceCard>
-								<SectionContainer>
-								<SectionBlock>
-									<SectionEyebrow>Linked Tasks</SectionEyebrow>
-									<SectionTitleStrong>Open Work in Progress</SectionTitleStrong>
-									<SectionDescription>
-										Use this as your device-specific queue for assignments and completions.
-									</SectionDescription>
-								</SectionBlock>
-								<SectionHeader>Open Tasks ({linkedTasks.length})</SectionHeader>
-								<ReusableTable
-									rowData={linkedTasks}
-									showCheckbox={false}
-									columns={[
-										{ header: 'Task', key: 'title' },
-										{ header: 'Status', key: 'status' },
-										{ header: 'Priority', key: 'priority' },
-										{ header: 'Due Date', key: 'dueDate' },
-										{ header: 'Assignee', key: 'assignee' },
-									]}
-									emptyMessage='No open tasks linked to this device'
-								/>
-								</SectionContainer>
-							</SurfaceCard>
-						)}
 
 						<SurfaceCard>
 							<SectionContainer>

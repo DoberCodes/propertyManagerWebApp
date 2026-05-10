@@ -77,6 +77,24 @@ const ContentContainer = styled.div<{ $contentMaxWidth: string }>`
 	margin: 0 auto;
 `;
 
+const StickyTabsShell = styled.div`
+	position: sticky;
+	top: 0;
+	z-index: 5;
+	margin: -6px -6px 12px;
+	padding: 6px;
+	border-radius: 12px;
+	background: rgba(250, 250, 250, 0.92);
+	backdrop-filter: blur(6px);
+
+	@supports not (backdrop-filter: blur(6px)) {
+		background: #fafafa;
+	}
+
+	box-shadow: 0 10px 24px -20px rgba(15, 23, 42, 0.5);
+	border: 1px solid #e2e8f0;
+`;
+
 interface DetailPageLayoutProps {
 	title: string;
 	subtitle?: string;
@@ -127,19 +145,21 @@ export const DetailPageLayout: React.FC<DetailPageLayoutProps> = ({
 			</HeaderShell>
 
 			<ContentContainer $contentMaxWidth={contentMaxWidth}>
-				<TabControlsContainer>
-					<TabButtonsWrapper>
-						{tabs.map((tab) => (
-							<TabButton
-								key={tab.id}
-								isActive={activeTab === tab.id}
-								onClick={() => onTabChange(tab.id)}>
-								{tab.label}
-								{tab.count !== undefined && ` (${tab.count})`}
-							</TabButton>
-						))}
-					</TabButtonsWrapper>
-				</TabControlsContainer>
+				<StickyTabsShell>
+					<TabControlsContainer>
+						<TabButtonsWrapper>
+							{tabs.map((tab) => (
+								<TabButton
+									key={tab.id}
+									isActive={activeTab === tab.id}
+									onClick={() => onTabChange(tab.id)}>
+									{tab.label}
+									{tab.count !== undefined && ` (${tab.count})`}
+								</TabButton>
+							))}
+						</TabButtonsWrapper>
+					</TabControlsContainer>
+				</StickyTabsShell>
 
 				{children}
 			</ContentContainer>

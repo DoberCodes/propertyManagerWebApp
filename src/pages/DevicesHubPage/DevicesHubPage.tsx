@@ -20,18 +20,6 @@ const SurfaceCard = styled.div`
 	padding: 14px;
 `;
 
-const RowLayout = styled.div`
-	display: grid;
-	grid-template-columns: minmax(0, 1.5fr) minmax(0, 1.15fr) minmax(0, 0.75fr) minmax(0, 0.95fr) minmax(0, 1.2fr) minmax(0, 1.3fr) minmax(0, 0.75fr);
-	gap: 12px;
-	align-items: center;
-
-	@media (max-width: 1120px) {
-		grid-template-columns: 1fr;
-		gap: 6px;
-	}
-`;
-
 const DevicePrimary = styled.div`
 	font-size: 1.04rem;
 	font-weight: 800;
@@ -314,7 +302,6 @@ const getLatestMaintenanceEntry = (device: Device): { date?: string; description
 };
 
 const buildFriendlyDeviceName = (device: Device, propertyName: string): string => {
-	const locationLabel = device.location?.unitId || device.location?.suiteId ? propertyName : '';
 	const deviceType = device.type?.trim() || 'Device';
 	if (device.location?.unitId || device.location?.suiteId) {
 		const location = device.location.unitId || device.location.suiteId;
