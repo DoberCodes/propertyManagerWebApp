@@ -176,12 +176,37 @@ export const EmptyState = styled.div`
 	align-items: center;
 	gap: 8px;
 
+	h3 {
+		margin: 0;
+		font-size: 1.05rem;
+		font-weight: 800;
+		color: #0f172a;
+	}
+
 	p {
 		margin: 0;
 		font-size: 14px;
 		color: #64748b;
 		max-width: 300px;
 		line-height: 1.5;
+	}
+
+	button {
+		margin-top: 6px;
+		border: none;
+		border-radius: 8px;
+		background: #16a34a;
+		color: #ffffff;
+		font-size: 13px;
+		font-weight: 700;
+		padding: 0.55rem 0.9rem;
+		cursor: pointer;
+		transition: background-color 0.15s ease, transform 0.15s ease;
+
+		&:hover {
+			background: #15803d;
+			transform: translateY(-1px);
+		}
 	}
 
 	@media (max-width: 480px) {

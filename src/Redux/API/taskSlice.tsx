@@ -218,16 +218,59 @@ export const taskSlice = apiSlice.injectEndpoints({
 			async queryFn({ id, updates }) {
 				try {
 					const docRef = doc(db, 'tasks', id);
+					const snapshot = await getDoc(docRef);
+					const existingTask = snapshot.exists()
+						? (snapshot.data() as Task)
+						: null;
+
 					await updateDoc(docRef, {
 						...updates,
 						updatedAt: new Date().toISOString(),
 					});
+
+					const transitioningToCompleted =
+						updates.status === 'Completed' &&
+						existingTask &&
+						existingTask.status !== 'Completed';
+
+					if (transitioningToCompleted && existingTask) {
+						const targetUserId = await resolveTargetUserId();
+						const completionDate =
+							(updates as any).completionDate || new Date().toISOString();
+						const completionNotes =
+							(updates as any).completionNotes ||
+							existingTask.completionNotes ||
+							'Completed from task workflow';
+
+						const historyData: any = {
+							...existingTask,
+							...updates,
+							status: 'Completed',
+							completionDate,
+							completionNotes,
+							originalTaskId: id,
+							ownerId: existingTask.userId,
+							accountId: (existingTask as any).accountId || targetUserId,
+							propertyTitle:
+								existingTask.propertyTitle || existingTask.property,
+							updatedAt: new Date().toISOString(),
+						};
+
+						Object.keys(historyData).forEach((key) => {
+							if (historyData[key] === undefined) {
+								delete historyData[key];
+							}
+						});
+
+						await addDoc(collection(db, 'maintenanceHistory'), historyData);
+					}
+
 					return { data: { id, ...updates } as Task };
 				} catch (error: any) {
 					return { error: error.message };
 				}
 			},
-			invalidatesTags: ['Tasks'],
+			invalidatesTags: ['Tasks', 'MaintenanceHistory'],
 		}),
 
 		deleteTask: builder.mutation<void, string>({

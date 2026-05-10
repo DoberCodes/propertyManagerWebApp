@@ -64,10 +64,12 @@ import {
 	GroupActionButton,
 } from './PropertiesTab.styles';
 import { Property } from '../../types/Property.types';
+import { useAppFeedback } from '../Library/AppFeedback/AppFeedbackProvider';
 
 export const Properties = () => {
 	const navigate = useNavigate();
 	const dispatch = useDispatch();
+	const feedback = useAppFeedback();
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
 	const isUserTenant = currentUser?.role === USER_ROLES.TENANT;
 	const canAccessProperties = useSelector(selectCanAccessProperties);
@@ -321,7 +323,7 @@ export const Properties = () => {
 				);
 				const maxProperties = planDetails?.maxProperties || 1;
 
-				alert(
+				feedback.notify(
 					`Your ${
 						planDetails?.name || 'current'
 					} plan allows up to ${maxProperties} properties. ` +
@@ -333,7 +335,7 @@ export const Properties = () => {
 			}
 		} else {
 			// No subscription data - should not happen, but fallback
-			alert('Unable to verify subscription. Please contact support.');
+			feedback.notify('Unable to verify subscription. Please contact support.');
 			return;
 		}
 
@@ -495,7 +497,7 @@ export const Properties = () => {
 			setPropertyToDelete(null);
 		} catch (error) {
 			console.error('Error deleting property:', error);
-			alert(
+			feedback.notify(
 				'Unable to delete this property with your current permissions. If this keeps happening, refresh and try again or contact the account owner/admin.',
 			);
 		} finally {
@@ -536,7 +538,7 @@ export const Properties = () => {
 			}
 		} catch (error) {
 			console.error('Failed to delete property group:', error);
-			alert('Failed to delete property group. Please try again.');
+			feedback.notify('Failed to delete property group. Please try again.');
 		}
 	};
 
@@ -567,7 +569,7 @@ export const Properties = () => {
 			setOpenDropdown(null);
 		} catch (error) {
 			console.error('Failed to update dashboard visibility:', error);
-			alert('Failed to update dashboard visibility. Please try again.');
+			feedback.notify('Failed to update dashboard visibility. Please try again.');
 		}
 	};
 
@@ -678,7 +680,7 @@ export const Properties = () => {
 				}
 			} catch (error) {
 				console.error('Error updating property:', error);
-				alert('Failed to update property. Please try again.');
+				feedback.notify('Failed to update property. Please try again.');
 				throw error; // Re-throw to let PropertyDialog know save failed
 			}
 		} else {
@@ -774,12 +776,12 @@ export const Properties = () => {
 					}
 				} else if ('error' in result) {
 					console.error('Failed to create property:', result.error);
-					alert('Failed to create property. Please try again.');
+					feedback.notify('Failed to create property. Please try again.');
 					throw new Error('Failed to create property');
 				}
 			} catch (error) {
 				console.error('Error creating property:', error);
-				alert('An error occurred while creating the property.');
+				feedback.notify('An error occurred while creating the property.');
 				throw error; // Re-throw to let PropertyDialog know save failed
 			}
 		}

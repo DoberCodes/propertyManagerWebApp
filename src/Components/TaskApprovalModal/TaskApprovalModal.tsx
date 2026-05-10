@@ -23,6 +23,7 @@ import {
 	ErrorMessage,
 } from './TaskApprovalModal.styles';
 import { useApproveTaskMutation } from '../../Redux/API/taskSlice';
+import { useAppFeedback } from '../Library/AppFeedback/AppFeedbackProvider';
 
 interface TaskApprovalModalProps {
 	isOpen: boolean;
@@ -52,6 +53,7 @@ export const TaskApprovalModal: React.FC<TaskApprovalModalProps> = ({
 
 	const [approveTask] = useApproveTaskMutation();
 	const [rejectTask] = useRejectTaskMutation();
+	const feedback = useAppFeedback();
 
 	// Check if current user has permission to approve tasks
 	// currentUser is guaranteed to exist in protected routes
@@ -104,6 +106,7 @@ export const TaskApprovalModal: React.FC<TaskApprovalModalProps> = ({
 			}
 
 			// Success!
+			feedback.notify('Approved. This completion is now part of maintenance history.');
 			onSuccess?.();
 			onClose();
 		} catch (error: any) {
@@ -145,6 +148,7 @@ export const TaskApprovalModal: React.FC<TaskApprovalModalProps> = ({
 			}
 
 			// Success!
+			feedback.notify('Completion rejected. The requester can revise and resubmit.');
 			onSuccess?.();
 			onClose();
 		} catch (error: any) {
@@ -166,7 +170,7 @@ export const TaskApprovalModal: React.FC<TaskApprovalModalProps> = ({
 		<GenericModal
 			isOpen={true}
 			onClose={onClose}
-			title='Review Task Completion'
+			title='Review and Log Completion'
 			primaryButtonLabel={
 				showRejectForm
 					? isSubmitting
@@ -174,7 +178,7 @@ export const TaskApprovalModal: React.FC<TaskApprovalModalProps> = ({
 						: 'Confirm Rejection'
 					: isSubmitting
 					? 'Approving...'
-					: 'Approve Task'
+					: 'Approve and Add to History'
 			}
 			primaryButtonAction={showRejectForm ? handleReject : handleApprove}
 			primaryButtonDisabled={isSubmitting}
@@ -236,11 +240,11 @@ export const TaskApprovalModal: React.FC<TaskApprovalModalProps> = ({
 			{showRejectForm && (
 				<RejectionSection>
 					<h3 style={{ marginTop: 0, color: '#e74c3c' }}>
-						Reject Task Completion
+						Reject Completion Submission
 					</h3>
 					<p style={{ color: '#666', fontSize: '0.95rem' }}>
-						Please provide a detailed reason for rejection. This will be sent to
-						the user who submitted the task.
+						Please provide a clear reason. The requester will receive this feedback
+						so they can correct the completion details and resubmit.
 					</p>
 					<TextArea
 						value={rejectionReason}

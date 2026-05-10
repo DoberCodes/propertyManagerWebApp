@@ -7,6 +7,7 @@ import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { TeamMember } from '../../Redux/Slices/teamSlice';
 import { useCreateNotificationMutation } from '../../Redux/API/notificationSlice';
+import { useAppFeedback } from '../../Components/Library/AppFeedback/AppFeedbackProvider';
 import {
 	PageHeaderSection,
 	PageTitle as StandardPageTitle,
@@ -116,6 +117,7 @@ const formatExpirationDate = (expiresAt: string) => {
 };
 
 export default function TeamPage() {
+	const feedback = useAppFeedback();
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
 
 	// Use RTK Query hooks directly instead of Redux cache to avoid synchronization issues
@@ -1178,7 +1180,7 @@ export default function TeamPage() {
 																			} as any,
 																		}).unwrap();
 
-																		alert(
+																				feedback.notify(
 																			'Invitation code regenerated successfully! New code expires in 7 days.',
 																		);
 																	} catch (error) {
@@ -1186,7 +1188,7 @@ export default function TeamPage() {
 																			'Failed to regenerate invitation code:',
 																			error,
 																		);
-																		alert(
+																				feedback.notify(
 																			'Failed to regenerate invitation code. Please try again.',
 																		);
 																	}

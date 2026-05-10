@@ -41,7 +41,7 @@ export const TabController: React.FC<TabsContextProps> = ({
 		: [
 				{ label: 'Details', value: 'details' },
 				{ label: 'Devices', value: 'devices' },
-				{ label: 'Tasks', value: 'tasks' },
+				{ label: 'Workflows', value: 'tasks' },
 				{ label: 'Maintenance History', value: 'maintenance' },
 		  ];
 

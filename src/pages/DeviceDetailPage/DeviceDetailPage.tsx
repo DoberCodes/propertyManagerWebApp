@@ -1,8 +1,10 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import styled from 'styled-components';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faEdit, faTrash } from '@fortawesome/free-solid-svg-icons';
+import { RootState } from '../../Redux/store/store';
 import { useGetPropertiesQuery, useGetUnitsQuery } from '../../Redux/API/propertySlice';
 import {
 	useGetDeviceQuery,
@@ -11,7 +13,9 @@ import {
 } from '../../Redux/API/deviceSlice';
 import { useGetTasksQuery } from '../../Redux/API/taskSlice';
 import { useGetMaintenanceHistoryByPropertyQuery } from '../../Redux/API/maintenanceSlice';
-import { DetailPageLayout, TabContent, ReusableTable } from '../../Components/Library';
+import { DetailPageLayout, TabContent, ReusableTable, GenericModal } from '../../Components/Library';
+import { DeviceModal } from '../../Components/Library/Modal';
+import { TaskModal } from '../../Components/Library/Modal/TaskModal';
 import { TabConfig } from '../../types/DetailPage.types';
 import {
 	InfoGrid,
@@ -48,6 +52,27 @@ import {
 import { BarcodeScannerModal } from '../../Components/Library/BarcodeScanner/BarcodeScannerModal';
 
 type PartFormState = Omit<DeviceServiceItem, 'id'>;
+
+type DeviceEditFormState = {
+	type: string;
+	brand: string;
+	model: string;
+	serialNumber?: string;
+	serviceItems?: DeviceServiceItem[];
+	installationDate: string;
+	status: 'Active' | 'Maintenance' | 'Broken' | 'Decommissioned';
+	location: {
+		propertyId: string;
+		unitId?: string;
+		suiteId?: string;
+	};
+	files?: Array<{
+		name: string;
+		url: string;
+		size: number;
+		type: string;
+	}>;
+};
 
 
 // Styled components for parts management
@@ -295,6 +320,167 @@ const SummaryValue = styled.div`
 	color: #0f172a;
 `;
 
+const QuickActionPanel = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	border: 1px solid #e2e8f0;
+	border-radius: 12px;
+	background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+	padding: 14px;
+`;
+
+const QuickActionHeader = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+
+	h3 {
+		margin: 0;
+		font-size: 1.02rem;
+		font-weight: 800;
+		color: #0f172a;
+	}
+
+	p {
+		margin: 0;
+		font-size: 0.86rem;
+		color: #64748b;
+	}
+`;
+
+const QuickActionGrid = styled.div`
+	display: grid;
+	grid-template-columns: repeat(5, minmax(0, 1fr));
+	gap: 10px;
+
+	@media (max-width: 1200px) {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+
+	@media (max-width: 640px) {
+		grid-template-columns: 1fr;
+	}
+`;
+
+const QuickActionButton = styled.button`
+	border: 1px solid #dbe3ea;
+	background: #ffffff;
+	border-radius: 10px;
+	padding: 12px 14px;
+	text-align: left;
+	cursor: pointer;
+	transition: border-color 0.15s ease, transform 0.15s ease, background-color 0.15s ease;
+
+	strong {
+		display: block;
+		font-size: 0.92rem;
+		font-weight: 800;
+		color: #0f172a;
+		margin-bottom: 4px;
+	}
+
+	span {
+		display: block;
+		font-size: 0.78rem;
+		line-height: 1.35;
+		color: #64748b;
+	}
+
+	&:hover {
+		border-color: #16a34a;
+		background: #f0fdf4;
+		transform: translateY(-1px);
+	}
+`;
+
+const QuickActionHint = styled.div`
+	font-size: 0.8rem;
+	color: #64748b;
+`;
+
+const AccrualGrid = styled.div`
+	display: grid;
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+	gap: 12px;
+
+	@media (max-width: 1024px) {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+
+	@media (max-width: 640px) {
+		grid-template-columns: 1fr;
+	}
+`;
+
+const AccrualCard = styled.div`
+	border: 1px solid #e2e8f0;
+	background: #ffffff;
+	border-radius: 12px;
+	padding: 14px 16px;
+`;
+
+const AccrualLabel = styled.div`
+	font-size: 0.73rem;
+	font-weight: 700;
+	letter-spacing: 0.05em;
+	text-transform: uppercase;
+	color: #64748b;
+	margin-bottom: 8px;
+`;
+
+const AccrualValue = styled.div`
+	font-size: 1.35rem;
+	line-height: 1.2;
+	font-weight: 800;
+	color: #0f172a;
+`;
+
+const TimelineList = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+`;
+
+const TimelineItem = styled.div`
+	display: grid;
+	grid-template-columns: 110px 1fr;
+	gap: 12px;
+	padding: 12px 14px;
+	border: 1px solid #e2e8f0;
+	border-radius: 12px;
+	background: #ffffff;
+
+	@media (max-width: 640px) {
+		grid-template-columns: 1fr;
+	}
+`;
+
+const TimelineDate = styled.div`
+	font-size: 0.8rem;
+	font-weight: 800;
+	color: #16a34a;
+`;
+
+const TimelineTitle = styled.div`
+	font-size: 0.95rem;
+	font-weight: 800;
+	color: #0f172a;
+	margin-bottom: 4px;
+`;
+
+const TimelineDescription = styled.div`
+	font-size: 0.88rem;
+	color: #475569;
+	line-height: 1.45;
+`;
+
+const TimelineMeta = styled.div`
+	margin-top: 6px;
+	font-size: 0.76rem;
+	color: #64748b;
+`;
+
 const SurfaceCard = styled.div`
 	background: #ffffff;
 	border: 1px solid #e5e7eb;
@@ -444,6 +630,163 @@ const IntelligencePill = styled.div<{ $tone?: 'warning' | 'neutral' | 'success' 
 				: '#334155'};
 `;
 
+const UpcomingMaintenanceCard = styled.div`
+	background: #ffffff;
+	border: 1px solid #e5e7eb;
+	border-radius: 12px;
+	padding: 14px 18px;
+	margin-top: 12px;
+`;
+
+const UpcomingCategoryHeader = styled.div`
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-bottom: 8px;
+	padding-bottom: 8px;
+	border-bottom: 2px solid #e5e7eb;
+`;
+
+const UpcomingCategoryTitle = styled.h4`
+	margin: 0;
+	font-size: 0.95rem;
+	font-weight: 700;
+	color: #0f172a;
+	display: flex;
+	align-items: center;
+	gap: 6px;
+`;
+
+const UpcomingCategoryBadge = styled.span<{ $tone?: 'error' | 'neutral' | 'warning' }>`
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 24px;
+	height: 24px;
+	border-radius: 50%;
+	font-size: 0.75rem;
+	font-weight: 700;
+	background: ${(props) =>
+		props.$tone === 'error'
+			? '#fee2e2'
+			: props.$tone === 'warning'
+				? '#fef3c7'
+				: '#f1f5f9'};
+	color: ${(props) =>
+		props.$tone === 'error'
+			? '#dc2626'
+			: props.$tone === 'warning'
+				? '#d97706'
+				: '#64748b'};
+`;
+
+const UpcomingTasksList = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	margin-bottom: 12px;
+`;
+
+const UpcomingTaskItem = styled.div<{ $isClickable?: boolean }>`
+	display: grid;
+	grid-template-columns: 70px 1fr auto;
+	gap: 12px;
+	align-items: center;
+	padding: 10px 12px;
+	border: 1px solid #e2e8f0;
+	border-radius: 8px;
+	background: #ffffff;
+	cursor: ${(props) => (props.$isClickable ? 'pointer' : 'default')};
+	transition: all 0.15s ease-in-out;
+
+	&:hover {
+		${(props) =>
+			props.$isClickable
+				? `
+			border-color: #cbd5e1;
+			background: #f8fafc;
+			transform: translateY(-1px);
+		`
+				: ''}
+	}
+
+	@media (max-width: 640px) {
+		grid-template-columns: 1fr;
+		gap: 8px;
+	}
+`;
+
+const UpcomingTaskDate = styled.div`
+	font-size: 0.8rem;
+	font-weight: 700;
+	color: #64748b;
+	white-space: nowrap;
+`;
+
+const UpcomingTaskInfo = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+`;
+
+const UpcomingTaskName = styled.div`
+	font-size: 0.9rem;
+	font-weight: 600;
+	color: #0f172a;
+`;
+
+const UpcomingTaskMeta = styled.div`
+	font-size: 0.8rem;
+	color: #64748b;
+`;
+
+const UpcomingTaskStatus = styled.span<{ $status?: string }>`
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	padding: 4px 8px;
+	border-radius: 6px;
+	font-size: 0.75rem;
+	font-weight: 600;
+	white-space: nowrap;
+	background: ${(props) =>
+		props.$status === 'overdue'
+			? '#fee2e2'
+			: props.$status === 'recurring'
+				? '#dbeafe'
+				: '#fef3c7'};
+	color: ${(props) =>
+		props.$status === 'overdue'
+			? '#991b1b'
+			: props.$status === 'recurring'
+				? '#1e40af'
+				: '#b45309'};
+`;
+
+const UpcomingEmptyState = styled.div`
+	padding: 12px 0;
+	text-align: center;
+	font-size: 0.88rem;
+	color: #94a3b8;
+	font-style: italic;
+`;
+
+const formatTaskDueDate = (dateString: string) => {
+	if (!dateString) return 'No due date';
+	const date = new Date(dateString);
+	if (Number.isNaN(date.getTime())) return 'Invalid date';
+	const today = new Date();
+	today.setHours(0, 0, 0, 0);
+	const daysUntil = Math.ceil((date.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+	if (daysUntil < 0) {
+		const daysOverdue = Math.abs(daysUntil);
+		return `${daysOverdue} day${daysOverdue === 1 ? '' : 's'} overdue`;
+	}
+	if (daysUntil === 0) return 'Due today';
+	return `Due in ${daysUntil} day${daysUntil === 1 ? '' : 's'}`;
+};
+
 const formatDate = (value?: string) => {
 	if (!value) return 'N/A';
 	const date = new Date(value);
@@ -451,10 +794,72 @@ const formatDate = (value?: string) => {
 	return date.toLocaleDateString();
 };
 
+const formatRelativeTime = (value?: string) => {
+	if (!value) return 'recently';
+	const date = new Date(value);
+	if (Number.isNaN(date.getTime())) return 'recently';
+	const diffMs = Date.now() - date.getTime();
+	const diffDays = Math.round(Math.abs(diffMs) / 86400000);
+	if (diffDays === 0) return diffMs >= 0 ? 'today' : 'later today';
+	if (diffDays === 1) return diffMs >= 0 ? 'yesterday' : 'tomorrow';
+	if (diffDays < 7) return diffMs >= 0 ? `${diffDays} days ago` : `in ${diffDays} days`;
+	if (diffDays < 30) {
+		const weeks = Math.max(1, Math.round(diffDays / 7));
+		return diffMs >= 0 ? `${weeks} weeks ago` : `in ${weeks} weeks`;
+	}
+	const months = Math.max(1, Math.round(diffDays / 30));
+	return diffMs >= 0 ? `${months} months ago` : `in ${months} months`;
+};
+
+const getTimelineTitle = (description?: string) => {
+	const raw = String(description || '').trim();
+	if (!raw) return 'Maintenance event';
+	if (raw.toLowerCase().startsWith('document uploaded:')) return 'Document uploaded';
+	if (raw.toLowerCase().startsWith('service note added:')) return 'Service note added';
+	if (raw.toLowerCase().startsWith('repair logged:')) return 'Repair logged';
+	if (raw.toLowerCase().startsWith('warranty uploaded:')) return 'Warranty uploaded';
+	if (raw.toLowerCase().startsWith('task completed:')) return 'Task completed';
+	return raw.split(':')[0] || 'Maintenance event';
+};
+
+const getTimelineDescription = (description?: string) => {
+	const raw = String(description || '').trim();
+	if (!raw) return 'Recorded in maintenance history';
+	const colonIndex = raw.indexOf(':');
+	if (colonIndex === -1) return raw;
+	return raw.slice(colonIndex + 1).trim() || raw;
+};
+
 export const DeviceDetailPage: React.FC = () => {
 	const { slug, deviceSlug } = useParams<{ slug: string; deviceSlug: string }>();
+	const currentUser = useSelector((state: RootState) => state.user.currentUser);
 	const photoInputRef = useRef<HTMLInputElement | null>(null);
+	const documentInputRef = useRef<HTMLInputElement | null>(null);
+	const [showDeviceEditModal, setShowDeviceEditModal] = useState(false);
+	const [editingDevice, setEditingDevice] = useState<any>(null);
+	const [deviceFormData, setDeviceFormData] = useState<DeviceEditFormState>({
+		type: '',
+		brand: '',
+		model: '',
+		serialNumber: '',
+		serviceItems: [],
+		installationDate: '',
+		status: 'Active',
+		location: {
+			propertyId: '',
+		},
+		files: [],
+	});
+	const [pendingDeviceFiles, setPendingDeviceFiles] = useState<File[]>([]);
+	const [removedExistingFileUrls, setRemovedExistingFileUrls] = useState<string[]>([]);
 	const [activeTab, setActiveTab] = useState<string>('info');
+	const [showTaskModal, setShowTaskModal] = useState(false);
+	const [showRecurringTaskModal, setShowRecurringTaskModal] = useState(false);
+	const [showQuickLogModal, setShowQuickLogModal] = useState(false);
+	const [quickLogMode, setQuickLogMode] = useState<'note' | 'repair'>('note');
+	const [quickLogDate, setQuickLogDate] = useState(new Date().toISOString().split('T')[0]);
+	const [quickLogDescription, setQuickLogDescription] = useState('');
+	const [isSavingQuickLog, setIsSavingQuickLog] = useState(false);
 	const [editingPartIndex, setEditingPartIndex] = useState<number | null>(null);
 	const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
 	const [isDeviceScanOpen, setIsDeviceScanOpen] = useState(false);
@@ -543,6 +948,36 @@ export const DeviceDetailPage: React.FC = () => {
 		return 'Property level';
 	}, [device, property, units]);
 
+	const deviceTaskTemplate = useMemo(() => {
+		if (!device || !property) return null;
+		const deviceName = [device.type, device.brand, device.model]
+			.filter(Boolean)
+			.join(' ')
+			.trim() || 'Device';
+		return {
+			title: `${deviceName} maintenance`,
+			dueDate: new Date().toISOString().split('T')[0],
+			status: 'Initiated',
+			propertyId: property.id,
+			unitId: device.location?.unitId || '',
+			location: locationLabel,
+			devices: [String(device.id)],
+			priority: 'Medium',
+			isRecurring: false,
+			notes: `${deviceName} maintenance task created from the device page.`,
+		};
+	}, [device, locationLabel, property]);
+
+	const recurringTaskTemplate = useMemo(() => {
+		if (!deviceTaskTemplate) return null;
+		return {
+			...deviceTaskTemplate,
+			title: `${deviceTaskTemplate.title} - recurring`,
+			isRecurring: true,
+			recurrenceFrequency: 'monthly',
+		};
+	}, [deviceTaskTemplate]);
+
 	const linkedTasks = useMemo(() => {
 		if (!device || !property) return [];
 		const deviceIdString = String(device.id);
@@ -585,6 +1020,30 @@ export const DeviceDetailPage: React.FC = () => {
 				return bDate - aDate;
 			});
 	}, [device, propertyMaintenanceHistory]);
+
+		const deviceTimelineEntries = useMemo(() => {
+			const deviceMaintenanceEntries = Array.isArray(device?.maintenanceHistory)
+				? device.maintenanceHistory.map((entry: any) => ({
+					date: entry.date,
+					title: getTimelineTitle(entry.description),
+					description: getTimelineDescription(entry.description),
+					type: 'Device Log',
+				}))
+				: [];
+
+			const propertyEntries = relatedMaintenanceHistory.map((record: any) => ({
+				date: record.completionDate || record.approvedAt || record.dueDate || record.date,
+				title: record.title || record.taskTitle || getTimelineTitle(record.description) || 'Task completed',
+				description: record.notes || getTimelineDescription(record.description) || record.description || 'Maintenance record',
+				type: record.status || 'Completed',
+			}));
+
+			return [...deviceMaintenanceEntries, ...propertyEntries].sort((a, b) => {
+				const aDate = new Date(a.date || 0).getTime() || 0;
+				const bDate = new Date(b.date || 0).getTime() || 0;
+				return bDate - aDate;
+			});
+		}, [device?.maintenanceHistory, relatedMaintenanceHistory]);
 
 	const deviceFiles = useMemo(() => device?.files || [], [device?.files]);
 	const devicePhotoFile = useMemo(
@@ -629,6 +1088,219 @@ export const DeviceDetailPage: React.FC = () => {
 			return dueDate >= today && dueDate <= maxDate;
 		}).length;
 	}, [linkedTasks]);
+
+	// Organize linked tasks by category for the upcoming maintenance section
+	const overdueLinkedTasks = useMemo(() => {
+		const today = new Date();
+		today.setHours(0, 0, 0, 0);
+		return linkedTasks.filter((task: any) => {
+			const dueDate = task?.dueDate ? new Date(task.dueDate) : null;
+			if (!dueDate || Number.isNaN(dueDate.getTime())) return false;
+			dueDate.setHours(0, 0, 0, 0);
+			return dueDate < today;
+		});
+	}, [linkedTasks]);
+
+	const recurringLinkedTasks = useMemo(
+		() => linkedTasks.filter((task: any) => Boolean(task.isRecurring)),
+		[linkedTasks],
+	);
+
+	const dueInThirtyDaysLinkedTasks = useMemo(() => {
+		const today = new Date();
+		today.setHours(0, 0, 0, 0);
+		const maxDate = new Date(today);
+		maxDate.setDate(maxDate.getDate() + 30);
+
+		return linkedTasks.filter((task: any) => {
+			const dueDate = task?.dueDate ? new Date(task.dueDate) : null;
+			if (!dueDate || Number.isNaN(dueDate.getTime())) return false;
+			dueDate.setHours(0, 0, 0, 0);
+			return dueDate >= today && dueDate <= maxDate;
+		});
+	}, [linkedTasks]);
+
+	const documentCount = useMemo(
+		() => deviceFiles.filter((file: any) => !String(file.type || '').startsWith('image/')).length,
+		[deviceFiles],
+	);
+
+	const repairCount = useMemo(
+		() =>
+			deviceTimelineEntries.filter((entry) =>
+				/repair|fixed|replace|replaced|serviced|service/i.test(
+					`${entry.title} ${entry.description}`,
+				),
+			).length,
+		[deviceTimelineEntries],
+	);
+
+	const lastServicedEntry = useMemo(() => deviceTimelineEntries[0] || null, [deviceTimelineEntries]);
+
+	const maintenanceEventCount = deviceTimelineEntries.length;
+	const maintenanceTimelineEntries = useMemo(() => deviceTimelineEntries.slice(0, 6), [deviceTimelineEntries]);
+
+	const openCreateTaskModal = () => {
+		if (!deviceTaskTemplate) return;
+		setShowRecurringTaskModal(false);
+		setShowTaskModal(true);
+	};
+
+	const openRecurringTaskModal = () => {
+		if (!recurringTaskTemplate) return;
+		setShowTaskModal(false);
+		setShowRecurringTaskModal(true);
+	};
+
+	const openQuickLogModal = (mode: 'note' | 'repair') => {
+		setQuickLogMode(mode);
+		setQuickLogDescription('');
+		setQuickLogDate(new Date().toISOString().split('T')[0]);
+		setShowQuickLogModal(true);
+	};
+
+	const handleSaveQuickLog = async () => {
+		if (!device || !quickLogDescription.trim()) return;
+		setIsSavingQuickLog(true);
+		try {
+			const descriptionPrefix = quickLogMode === 'repair' ? 'Repair logged:' : 'Service note added:';
+			const nextEntries = [
+				{
+					date: quickLogDate,
+					description: `${descriptionPrefix} ${quickLogDescription.trim()}`,
+				},
+				...(Array.isArray(device.maintenanceHistory) ? device.maintenanceHistory : []),
+			];
+			await updateDevice({
+				id: device.id,
+				updates: { maintenanceHistory: nextEntries },
+			}).unwrap();
+			setShowQuickLogModal(false);
+		} finally {
+			setIsSavingQuickLog(false);
+		}
+	};
+
+	const handleDocumentUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+		const file = event.target.files?.[0];
+		if (!file || !device || !property) return;
+		try {
+			const uploaded = await uploadDeviceFile(file, property.id, device.id);
+			const nextEntries = [
+				{
+					date: new Date().toISOString(),
+					description: `Document uploaded: ${file.name}`,
+				},
+				...(Array.isArray(device.maintenanceHistory) ? device.maintenanceHistory : []),
+			];
+			await updateDevice({
+				id: device.id,
+				updates: {
+					files: [uploaded, ...(device.files || [])],
+					maintenanceHistory: nextEntries,
+				},
+			}).unwrap();
+		} finally {
+			if (documentInputRef.current) {
+				documentInputRef.current.value = '';
+			}
+		}
+	};
+
+	const resetDeviceEditState = () => {
+		setEditingDevice(null);
+		setPendingDeviceFiles([]);
+		setRemovedExistingFileUrls([]);
+		setDeviceFormData({
+			type: device?.type || '',
+			brand: device?.brand || '',
+			model: device?.model || '',
+			serialNumber: device?.serialNumber || '',
+			serviceItems: device?.serviceItems || [],
+			installationDate: device?.installationDate || '',
+			status: device?.status || 'Active',
+			location: device?.location || { propertyId: property?.id || '' },
+			files: device?.files || [],
+		});
+	};
+
+	const handleOpenEditDeviceModal = () => {
+		if (!device || !property) return;
+		setEditingDevice(device);
+		setDeviceFormData({
+			type: device.type || '',
+			brand: device.brand || '',
+			model: device.model || '',
+			serialNumber: device.serialNumber || '',
+			serviceItems: device.serviceItems || [],
+			installationDate: device.installationDate || '',
+			status: device.status || 'Active',
+			location: device.location || { propertyId: property.id },
+			files: device.files || [],
+		});
+		setPendingDeviceFiles([]);
+		setRemovedExistingFileUrls([]);
+		setShowDeviceEditModal(true);
+	};
+
+	const handleCloseEditDeviceModal = () => {
+		setShowDeviceEditModal(false);
+		resetDeviceEditState();
+	};
+
+	const handleDeviceFormChange = (
+		event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>,
+	) => {
+		const { name, value } = event.target;
+
+		if (name.startsWith('location.')) {
+			const locationField = name.split('.')[1];
+			setDeviceFormData((prev) => ({
+				...prev,
+				location: {
+					...prev.location,
+					[locationField]: value,
+				},
+			}));
+			return;
+		}
+
+		setDeviceFormData((prev) => ({
+			...prev,
+			[name]: value,
+		}));
+	};
+
+	const handleSaveDeviceEdit = async () => {
+		if (!device || !property || !editingDevice) return;
+
+		try {
+			const persistedFiles = (deviceFormData.files || []).filter(
+				(file) => !removedExistingFileUrls.includes(file.url),
+			);
+			let uploadedFiles = persistedFiles;
+
+			if (pendingDeviceFiles.length > 0) {
+				const uploaded = await Promise.all(
+					pendingDeviceFiles.map((file) => uploadDeviceFile(file, property.id, editingDevice.id)),
+				);
+				uploadedFiles = [...persistedFiles, ...uploaded];
+			}
+
+			await updateDevice({
+				id: editingDevice.id,
+				updates: {
+					...deviceFormData,
+					files: uploadedFiles,
+				},
+			}).unwrap();
+
+			setShowDeviceEditModal(false);
+			resetDeviceEditState();
+		} catch (error) {
+			console.error('Failed to save device edits:', error);
+		}
+	};
 
 	const tabs: TabConfig[] = [
 		{ id: 'info' as any, label: 'Device Info' },
@@ -884,40 +1556,201 @@ export const DeviceDetailPage: React.FC = () => {
 			<PageStack>
 				<SummaryGrid>
 					<SummaryCard>
-						<SummaryLabel>Open Tasks</SummaryLabel>
-						<SummaryValue>{linkedTasks.length}</SummaryValue>
+						<SummaryLabel>Maintenance Events Recorded</SummaryLabel>
+						<SummaryValue>{maintenanceEventCount}</SummaryValue>
 					</SummaryCard>
 					<SummaryCard>
-						<SummaryLabel>Overdue</SummaryLabel>
-						<SummaryValue>{overdueTasksCount}</SummaryValue>
+						<SummaryLabel>Last Maintenance Event</SummaryLabel>
+						<SummaryValue style={{ fontSize: 18, lineHeight: 1.3 }}>
+							{lastServicedEntry ? formatDate(lastServicedEntry.date) : 'Not yet'}
+						</SummaryValue>
 					</SummaryCard>
 					<SummaryCard>
-						<SummaryLabel>Parts</SummaryLabel>
-						<SummaryValue>{serviceParts.length}</SummaryValue>
+						<SummaryLabel>Repairs Documented</SummaryLabel>
+						<SummaryValue>{repairCount}</SummaryValue>
 					</SummaryCard>
 					<SummaryCard>
-						<SummaryLabel>History Records</SummaryLabel>
-						<SummaryValue>{relatedMaintenanceHistory.length}</SummaryValue>
+						<SummaryLabel>Documents Stored</SummaryLabel>
+						<SummaryValue>{documentCount}</SummaryValue>
 					</SummaryCard>
 				</SummaryGrid>
+
+				<QuickActionPanel>
+					<QuickActionHeader>
+						<h3>Quick Actions</h3>
+						<p>Keep this system moving with the next maintenance step.</p>
+					</QuickActionHeader>
+					<QuickActionGrid>
+						<QuickActionButton type='button' onClick={handleOpenEditDeviceModal}>
+							<strong>Edit Device</strong>
+							<span>Change the device profile, status, or location.</span>
+						</QuickActionButton>
+						<QuickActionButton type='button' onClick={openCreateTaskModal}>
+							<strong>Create Task</strong>
+							<span>Turn this device into a tracked maintenance job.</span>
+						</QuickActionButton>
+						<QuickActionButton type='button' onClick={openRecurringTaskModal}>
+							<strong>Add Recurring Maintenance</strong>
+							<span>Set ongoing care for filters, service, and inspections.</span>
+						</QuickActionButton>
+						<QuickActionButton type='button' onClick={() => documentInputRef.current?.click()}>
+							<strong>Upload Invoice / Document</strong>
+							<span>Store proof of service, receipts, or manuals here.</span>
+						</QuickActionButton>
+						<QuickActionButton type='button' onClick={() => openQuickLogModal('note')}>
+							<strong>Add Service Note</strong>
+							<span>Capture context that should travel with the system.</span>
+						</QuickActionButton>
+						<QuickActionButton type='button' onClick={() => openQuickLogModal('repair')}>
+							<strong>Log Repair</strong>
+							<span>Write a repair entry directly into the maintenance trail.</span>
+						</QuickActionButton>
+					</QuickActionGrid>
+					<QuickActionHint>
+						These actions all feed the same service history so the device becomes more useful over time.
+					</QuickActionHint>
+					<input
+						ref={documentInputRef}
+						type='file'
+						accept='image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt'
+						onChange={handleDocumentUpload}
+						style={{ display: 'none' }}
+					/>
+				</QuickActionPanel>
 
 				<IntelligenceStrip>
 					<IntelligencePill $tone={overdueTasksCount > 0 ? 'warning' : 'success'}>
 						{overdueTasksCount > 0
-							? `Filter or service tasks overdue by ${overdueTasksCount} item${overdueTasksCount === 1 ? '' : 's'}`
-							: 'No overdue tasks linked to this device'}
+							? `${overdueTasksCount} overdue maintenance item${overdueTasksCount === 1 ? '' : 's'} need attention`
+							: 'No overdue maintenance linked to this device'}
 					</IntelligencePill>
 					<IntelligencePill $tone='neutral'>
 						{recurringTaskCount > 0
-							? `${recurringTaskCount} recurring maintenance workflow${recurringTaskCount === 1 ? '' : 's'} active`
-							: 'No recurring workflow configured yet'}
+							? `${recurringTaskCount} recurring care workflow${recurringTaskCount === 1 ? '' : 's'} active`
+							: 'No recurring care configured yet'}
 					</IntelligencePill>
 					<IntelligencePill $tone={upcomingDueSoonCount > 0 ? 'warning' : 'success'}>
 						{upcomingDueSoonCount > 0
-							? `${upcomingDueSoonCount} task${upcomingDueSoonCount === 1 ? '' : 's'} due in the next 30 days`
-							: 'No tasks due in the next 30 days'}
+							? `${upcomingDueSoonCount} upcoming service window${upcomingDueSoonCount === 1 ? '' : 's'} in the next 30 days`
+							: 'No upcoming service windows in the next 30 days'}
 					</IntelligencePill>
 				</IntelligenceStrip>
+
+			{/* Upcoming Maintenance Details Section */}
+			<UpcomingMaintenanceCard>
+				<SectionBlock>
+					<SectionEyebrow>Upcoming Maintenance</SectionEyebrow>
+					<SectionTitleStrong>Service windows and care workflows</SectionTitleStrong>
+				</SectionBlock>
+
+				{/* Overdue Section */}
+				<UpcomingCategoryHeader>
+					<UpcomingCategoryTitle>
+						🔴 Overdue
+						<UpcomingCategoryBadge $tone='error'>{overdueLinkedTasks.length}</UpcomingCategoryBadge>
+					</UpcomingCategoryTitle>
+				</UpcomingCategoryHeader>
+				{overdueLinkedTasks.length > 0 ? (
+					<UpcomingTasksList>
+						{overdueLinkedTasks.map((task: any) => (
+							<UpcomingTaskItem key={task.id} $isClickable>
+								<UpcomingTaskDate>{formatTaskDueDate(task.dueDate)}</UpcomingTaskDate>
+								<UpcomingTaskInfo>
+									<UpcomingTaskName>{task.title || 'Untitled task'}</UpcomingTaskName>
+									<UpcomingTaskMeta>
+										Linked to device • {task.status === 'Open' ? 'Not yet started' : task.status}
+									</UpcomingTaskMeta>
+								</UpcomingTaskInfo>
+								<UpcomingTaskStatus $status='overdue'>Overdue</UpcomingTaskStatus>
+							</UpcomingTaskItem>
+						))}
+					</UpcomingTasksList>
+				) : (
+					<UpcomingEmptyState>No overdue tasks—care is current</UpcomingEmptyState>
+				)}
+
+				{/* Recurring Section */}
+				<UpcomingCategoryHeader style={{ marginTop: 14 }}>
+					<UpcomingCategoryTitle>
+						🔵 Recurring Workflows
+						<UpcomingCategoryBadge $tone='neutral'>{recurringLinkedTasks.length}</UpcomingCategoryBadge>
+					</UpcomingCategoryTitle>
+				</UpcomingCategoryHeader>
+				{recurringLinkedTasks.length > 0 ? (
+					<UpcomingTasksList>
+						{recurringLinkedTasks.map((task: any) => (
+							<UpcomingTaskItem key={task.id} $isClickable>
+								<UpcomingTaskDate>{formatTaskDueDate(task.dueDate)}</UpcomingTaskDate>
+								<UpcomingTaskInfo>
+									<UpcomingTaskName>{task.title || 'Untitled task'}</UpcomingTaskName>
+									<UpcomingTaskMeta>
+										{task.recurringFrequency || 'Recurring'} • {task.status === 'Open' ? 'Next due' : task.status}
+									</UpcomingTaskMeta>
+								</UpcomingTaskInfo>
+								<UpcomingTaskStatus $status='recurring'>Recurring</UpcomingTaskStatus>
+							</UpcomingTaskItem>
+						))}
+					</UpcomingTasksList>
+				) : (
+					<UpcomingEmptyState>No recurring workflows yet—set up maintenance schedules</UpcomingEmptyState>
+				)}
+
+				{/* Due Soon Section */}
+				<UpcomingCategoryHeader style={{ marginTop: 14 }}>
+					<UpcomingCategoryTitle>
+						🟡 Due in Next 30 Days
+						<UpcomingCategoryBadge $tone='warning'>{dueInThirtyDaysLinkedTasks.length}</UpcomingCategoryBadge>
+					</UpcomingCategoryTitle>
+				</UpcomingCategoryHeader>
+				{dueInThirtyDaysLinkedTasks.length > 0 ? (
+					<UpcomingTasksList>
+						{dueInThirtyDaysLinkedTasks.map((task: any) => (
+							<UpcomingTaskItem key={task.id} $isClickable>
+								<UpcomingTaskDate>{formatTaskDueDate(task.dueDate)}</UpcomingTaskDate>
+								<UpcomingTaskInfo>
+									<UpcomingTaskName>{task.title || 'Untitled task'}</UpcomingTaskName>
+									<UpcomingTaskMeta>
+										Linked to device • {task.status === 'Open' ? 'Not yet started' : task.status}
+									</UpcomingTaskMeta>
+								</UpcomingTaskInfo>
+								<UpcomingTaskStatus $status='warning'>Due Soon</UpcomingTaskStatus>
+							</UpcomingTaskItem>
+						))}
+					</UpcomingTasksList>
+				) : (
+					<UpcomingEmptyState>No tasks due in the next 30 days</UpcomingEmptyState>
+				)}
+			</UpcomingMaintenanceCard>
+
+				<SurfaceCard>
+					<SectionContainer>
+						<SectionBlock>
+							<SectionEyebrow>Maintenance Timeline</SectionEyebrow>
+							<SectionTitleStrong>Chronological operational history</SectionTitleStrong>
+							<SectionDescription>
+								Every quick log, document upload, repair, and completed task becomes part of the device record.
+							</SectionDescription>
+						</SectionBlock>
+						{maintenanceTimelineEntries.length > 0 ? (
+							<TimelineList>
+								{maintenanceTimelineEntries.map((entry: any, index: number) => (
+									<TimelineItem key={`${entry.title}-${entry.date}-${index}`}>
+										<TimelineDate>{formatDate(entry.date)}</TimelineDate>
+										<div>
+											<TimelineTitle>{entry.title}</TimelineTitle>
+											<TimelineDescription>{entry.description}</TimelineDescription>
+											<TimelineMeta>{entry.type}</TimelineMeta>
+										</div>
+									</TimelineItem>
+								))}
+							</TimelineList>
+						) : (
+							<EmptyState>
+								<p>No maintenance timeline entries yet. Log a repair, note, or document upload to start it.</p>
+							</EmptyState>
+						)}
+					</SectionContainer>
+				</SurfaceCard>
 
 			{activeTab === 'info' && (
 				<TabContent>
@@ -1044,6 +1877,36 @@ export const DeviceDetailPage: React.FC = () => {
 			{activeTab === 'history' && (
 				<TabContent>
 					<CombinedHistoryContainer>
+						<SurfaceCard>
+							<SectionContainer>
+								<SectionBlock>
+									<SectionEyebrow>Timeline</SectionEyebrow>
+									<SectionTitleStrong>Maintenance Continuity</SectionTitleStrong>
+									<SectionDescription>
+										A simple chronological record of what has happened to this system.
+									</SectionDescription>
+								</SectionBlock>
+								{deviceTimelineEntries.length > 0 ? (
+									<TimelineList>
+										{deviceTimelineEntries.map((entry: any, index: number) => (
+											<TimelineItem key={`${entry.title}-${entry.date}-${index}`}>
+												<TimelineDate>{formatDate(entry.date)}</TimelineDate>
+												<div>
+													<TimelineTitle>{entry.title}</TimelineTitle>
+													<TimelineDescription>{entry.description}</TimelineDescription>
+													<TimelineMeta>{entry.type}</TimelineMeta>
+												</div>
+											</TimelineItem>
+										))}
+									</TimelineList>
+								) : (
+									<EmptyState>
+										<p>No timeline entries yet. Log a repair or complete a task to start the record.</p>
+									</EmptyState>
+								)}
+							</SectionContainer>
+						</SurfaceCard>
+
 						{linkedTasks.length > 0 && (
 							<SurfaceCard>
 								<SectionContainer>
@@ -1287,6 +2150,102 @@ export const DeviceDetailPage: React.FC = () => {
 						</SectionContainer>
 					</SurfaceCard>
 				</TabContent>
+			)}
+
+			<TaskModal
+				isOpen={showTaskModal}
+				isEditing={false}
+				editingTaskId={null}
+				initialTask={deviceTaskTemplate || undefined}
+				propertyId={property?.id || null}
+				onClose={() => setShowTaskModal(false)}
+				onSaved={() => setShowTaskModal(false)}
+				currentUser={currentUser || null}
+				unitId={device?.location?.unitId || null}
+			/>
+
+			<TaskModal
+				isOpen={showRecurringTaskModal}
+				isEditing={false}
+				editingTaskId={null}
+				initialTask={recurringTaskTemplate || undefined}
+				propertyId={property?.id || null}
+				onClose={() => setShowRecurringTaskModal(false)}
+				onSaved={() => setShowRecurringTaskModal(false)}
+				currentUser={currentUser || null}
+				unitId={device?.location?.unitId || null}
+			/>
+
+			<GenericModal
+				isOpen={showQuickLogModal}
+				title={quickLogMode === 'repair' ? 'Log Repair' : 'Add Service Note'}
+				onClose={() => setShowQuickLogModal(false)}
+				onSubmit={handleSaveQuickLog}
+				showActions={true}
+				primaryButtonLabel={isSavingQuickLog ? 'Saving...' : 'Save Entry'}
+				secondaryButtonLabel='Cancel'>
+				<PartsForm>
+					<FormRow style={{ gridTemplateColumns: '1fr 1fr' }}>
+						<FormField>
+							<FormLabel>Date</FormLabel>
+							<FormInput
+								type='date'
+								value={quickLogDate}
+								onChange={(e) => setQuickLogDate(e.target.value)}
+							/>
+						</FormField>
+						<FormField>
+							<FormLabel>Type</FormLabel>
+							<FormSelect
+								value={quickLogMode}
+								onChange={(e) => setQuickLogMode(e.target.value as 'note' | 'repair')}>
+								<option value='note'>Service Note</option>
+								<option value='repair'>Repair</option>
+							</FormSelect>
+						</FormField>
+					</FormRow>
+					<FormField>
+						<FormLabel>Description</FormLabel>
+						<FormTextarea
+							placeholder={
+								quickLogMode === 'repair'
+									? 'Describe the repair, parts used, and any follow-up.'
+									: 'Add a note that should stay with the maintenance record.'
+							}
+							value={quickLogDescription}
+							onChange={(e) => setQuickLogDescription(e.target.value)}
+						/>
+					</FormField>
+				</PartsForm>
+			</GenericModal>
+
+			{device && property && (
+				<DeviceModal
+					isOpen={showDeviceEditModal}
+					onClose={handleCloseEditDeviceModal}
+					onSubmit={handleSaveDeviceEdit}
+					property={property}
+					isEditing={true}
+					units={units}
+					pendingFiles={pendingDeviceFiles}
+					onPendingFilesChange={setPendingDeviceFiles}
+					removedExistingFileUrls={removedExistingFileUrls}
+					onRemoveExistingFile={(url) =>
+						setRemovedExistingFileUrls((prev) =>
+							prev.includes(url) ? prev : [...prev, url],
+						)
+					}
+					onRestoreExistingFile={(url) =>
+						setRemovedExistingFileUrls((prev) => prev.filter((item) => item !== url))
+					}
+					onRemovePendingFile={(fileKey) =>
+						setPendingDeviceFiles((prev) =>
+							prev.filter((file) => `${file.name}-${file.size}` !== fileKey),
+						)
+					}
+					deviceFormData={deviceFormData}
+					onFormChange={handleDeviceFormChange}
+				/>
 			)}
 			</PageStack>
 			<BarcodeScannerModal

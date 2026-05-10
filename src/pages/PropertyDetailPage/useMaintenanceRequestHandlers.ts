@@ -13,12 +13,14 @@ import {
 import { TaskData } from '../../types/Task.types';
 import { createMaintenanceRequestUtil } from './PropertyDetailPage.utils';
 import { uploadMaintenanceRequestFiles } from '../../utils/maintenanceRequestUpload';
+import { useAppFeedback } from '../../Components/Library/AppFeedback/AppFeedbackProvider';
 
 export const useMaintenanceRequestHandlers = (
 	property: any,
 	currentUser: any,
 ): MaintenanceRequestHandlers => {
 	const dispatch = useDispatch<AppDispatch>();
+	const feedback = useAppFeedback();
 	const [showMaintenanceRequestModal, setShowMaintenanceRequestModal] =
 		useState(false);
 	const [showConvertModal, setShowConvertModal] = useState(false);
@@ -50,7 +52,7 @@ export const useMaintenanceRequestHandlers = (
 			dispatch(addMaintenanceRequest(newRequest));
 		} catch (error) {
 			console.error('Failed to upload maintenance request files:', error);
-			alert('Failed to upload files. Please try again.');
+			feedback.notify('Failed to upload files. Please try again.');
 			return;
 		}
 
@@ -78,8 +80,8 @@ export const useMaintenanceRequestHandlers = (
 			console.error('Error creating notification:', error);
 		}
 
+		feedback.notify('Maintenance request submitted successfully!');
 		setShowMaintenanceRequestModal(false);
-		alert('Maintenance request submitted successfully!');
 	};
 
 	const handleConvertRequestToTask = (requestId: string) => {
@@ -100,10 +102,10 @@ export const useMaintenanceRequestHandlers = (
 
 			setShowConvertModal(false);
 			setConvertingRequest(null);
-			alert('Maintenance request converted to task successfully!');
+			feedback.notify('Maintenance request converted to task successfully!');
 		} catch (error) {
 			console.error('Error converting request:', error);
-			alert('Failed to convert maintenance request to task');
+			feedback.notify('Failed to convert maintenance request to task');
 		}
 	};
 

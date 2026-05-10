@@ -54,6 +54,11 @@ export const TopNav = () => {
 			visible: !isUserTenant && !isContractor,
 		},
 		{
+			label: 'Devices',
+			path: 'devices',
+			visible: !isUserTenant && (canAccessProperties || canViewPages),
+		},
+		{
 			label: 'Properties',
 			path: 'properties',
 			visible: isUserTenant || canAccessProperties || canViewPages,

@@ -23,6 +23,7 @@ import {
 	useSubmitTaskCompletionMutation,
 } from '../../Redux/API/taskSlice';
 import { useCreateNotificationMutation } from '../../Redux/API/notificationSlice';
+import { useAppFeedback } from '../Library/AppFeedback/AppFeedbackProvider';
 
 interface TaskCompletionModalProps {
 	taskId: string;
@@ -63,6 +64,7 @@ export const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
 	const [submitCompletion] = useSubmitTaskCompletionMutation();
 	const [createTask] = useCreateTaskMutation();
 	const [createNotification] = useCreateNotificationMutation();
+	const feedback = useAppFeedback();
 	const normalizedPlan =
 		currentUser?.subscription?.plan?.toString().toLowerCase() || '';
 	const canSelfComplete = normalizedPlan === 'homeowner';
@@ -244,6 +246,11 @@ export const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
 			}
 
 			// Success!
+			feedback.notify(
+				canSelfComplete
+					? 'Completed and added to maintenance history.'
+					: 'Completion submitted for approval. It will be added to maintenance history once approved.',
+			);
 			onSuccess?.();
 			onClose();
 		} catch (error: any) {
@@ -262,14 +269,14 @@ export const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
 			isOpen={true}
 			onClose={onClose}
 			showActions={true}
-			title='Mark Task as Complete'
+			title={canSelfComplete ? 'Complete and Log Task' : 'Submit Completion for Approval'}
 			primaryButtonLabel={
 				isSubmitting
 					? canSelfComplete
 						? 'Completing...'
 						: 'Submitting...'
 					: canSelfComplete
-					? 'Mark as Complete'
+					? 'Complete and Add to History'
 					: 'Submit for Approval'
 			}
 			primaryButtonAction={handleSubmit}
@@ -458,8 +465,8 @@ export const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
 						backgroundColor: '#f8f9fa',
 						borderRadius: '4px',
 					}}>
-					<strong>Note:</strong> This will mark the task as completed and move it
-					to maintenance history.
+					<strong>Note:</strong> Completing this task immediately writes an entry to
+					the maintenance history timeline.
 				</p>
 			) : (
 				<p
@@ -471,8 +478,8 @@ export const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
 						backgroundColor: '#f8f9fa',
 						borderRadius: '4px',
 					}}>
-					<strong>Note:</strong> Once submitted, this task will be sent to an
-					admin or maintenance lead for final approval.
+					<strong>Note:</strong> Once approved by an admin or maintenance lead,
+					the completed work is logged to maintenance history.
 				</p>
 			)}
 		</GenericModal>

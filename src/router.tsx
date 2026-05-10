@@ -26,6 +26,7 @@ import { SuiteDetailPage } from './pages/SuiteDetailPage/SuiteDetailPage';
 import { DeviceDetailPage } from './pages/DeviceDetailPage/DeviceDetailPage';
 import TeamPage from './pages/TeamPage';
 import { ReportPage } from './pages/ReportPage';
+import { DevicesHubPage } from './pages/DevicesHubPage/DevicesHubPage';
 import { UserProfile } from './pages/UserProfile';
 import { TenantProfilePage } from './pages/TenantProfilePage';
 import { isNativeApp } from './utils/platform';
@@ -101,6 +102,7 @@ export const RouterComponent = () => {
 					}>
 					<Route path='dashboard' element={<DashboardTab />} />
 					<Route path='tasks' element={<TasksPage />} />
+					<Route path='devices' element={<DevicesHubPage />} />
 
 					{/* Properties management - accessible to all authenticated users */}
 					<Route

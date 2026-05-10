@@ -21,8 +21,10 @@ import {
 	formatCurrency,
 	getFinancialDisplayTotal,
 } from 'utils/financialUtils';
+import { useAppFeedback } from 'Components/Library/AppFeedback/AppFeedbackProvider';
 
 export const MaintenanceHistoryGroupPage: React.FC = () => {
+	const feedback = useAppFeedback();
 	const { slug, groupId } = useParams<{ slug: string; groupId: string }>();
 	const navigate = useNavigate();
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
@@ -155,7 +157,7 @@ export const MaintenanceHistoryGroupPage: React.FC = () => {
 			(record: any) => !record.isLegacy && record.id,
 		);
 		if (!deletableRecords.length) {
-			window.alert(
+			feedback.notify(
 				'No deletable maintenance history records found in this group.',
 			);
 			return;

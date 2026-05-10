@@ -28,6 +28,7 @@ import {
 import { auth } from 'config/firebase';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from 'config/firebase';
+import { useAppFeedback } from 'Components/Library/AppFeedback/AppFeedbackProvider';
 import { useUpdateUserMutation } from 'Redux/API/userSlice';
 import { setCurrentUser } from 'Redux/Slices/userSlice';
 import {
@@ -466,6 +467,7 @@ export const SettingsPage: React.FC = () => {
 
 	const navigate = useNavigate();
 	const dispatch = useDispatch<AppDispatch>();
+	const feedback = useAppFeedback();
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
 	const isTenant = currentUser?.role === 'tenant';
 	const isPrimaryAccountHolder =
@@ -695,7 +697,7 @@ export const SettingsPage: React.FC = () => {
 			setFamilyMembers(members);
 		} catch (error: any) {
 			console.error('Failed to remove family member:', error);
-			alert('Failed to remove family member. Please try again.');
+			feedback.notify('Failed to remove family member. Please try again.');
 		}
 	};
 
@@ -706,10 +708,10 @@ export const SettingsPage: React.FC = () => {
 
 		try {
 			await resendPasswordReset(currentUser.accountId, memberId);
-			alert('Password setup email sent successfully!');
+			feedback.notify('Password setup email sent successfully!');
 		} catch (error: any) {
 			console.error('Failed to resend password setup email:', error);
-			alert(
+			feedback.notify(
 				error.message ||
 					'Failed to resend password setup email. Please try again.',
 			);

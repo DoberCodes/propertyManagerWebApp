@@ -15,7 +15,7 @@ import { resetActiveTab } from '../../Redux/Slices/appSlice';
 import { useTaskHandlers } from 'pages/PropertyDetailPage/useTaskHandlers';
 import { useUnitHandlers } from 'pages/PropertyDetailPage/useUnitHandlers';
 import { usePropertyEditHandlers } from 'pages/PropertyDetailPage/usePropertyEditHandlers';
-import { useMaintenanceRequestHandlers } from 'pages/PropertyDetailPage/useMaintenanceRequestHandlers';
+import { useMaintenanceRequestHandlers } from './useMaintenanceRequestHandlers';
 import {
 	useGetPropertiesQuery,
 	useUpdatePropertyMutation,
@@ -38,6 +38,7 @@ import {
 	useLazyGetTenantInvitationCodesByEmailQuery,
 } from '../../Redux/API/tenantSlice';
 import { canApproveMaintenanceRequest } from '../../utils/permissions';
+import { useAppFeedback } from '../../Components/Library/AppFeedback/AppFeedbackProvider';
 import {
 	selectCanAccessProperties,
 	selectIsHomeowner,
@@ -86,6 +87,7 @@ import { PropertyDialog } from '../../Components/PropertiesTab/PropertyDialog';
 export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 	props,
 ) => {
+	const feedback = useAppFeedback();
 	const navigate = useNavigate();
 	const { slug } = useParams<{ slug: string }>();
 	// Get current user
@@ -414,7 +416,7 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 
 	const handleViewTenantPromo = async (tenant: any) => {
 		if (!tenant?.email) {
-			alert('Tenant email is required to find promo code.');
+			feedback.notify('Tenant email is required to find promo code.');
 			return;
 		}
 
@@ -457,9 +459,9 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 					promoCode.revokedAt,
 				).toLocaleDateString()})`;
 			}
-			alert(`Promo Code: ${promoCode.code}\n${statusMessage}`);
+			feedback.notify(`Promo Code: ${promoCode.code}\n${statusMessage}`);
 		} else {
-			alert('No promo code found for this tenant.');
+			feedback.notify('No promo code found for this tenant.');
 		}
 	};
 
@@ -541,7 +543,7 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 			}).unwrap();
 		} catch (error) {
 			console.error('Failed to add maintenance history:', error);
-			alert('Failed to add maintenance history. Please try again.');
+			feedback.notify('Failed to add maintenance history. Please try again.');
 		}
 	};
 
@@ -558,7 +560,7 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 			await deleteMaintenanceHistory(historyId).unwrap();
 		} catch (error) {
 			console.error('Failed to delete maintenance history:', error);
-			alert('Failed to delete maintenance history. Please try again.');
+			feedback.notify('Failed to delete maintenance history. Please try again.');
 		}
 	};
 

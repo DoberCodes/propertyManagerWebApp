@@ -47,7 +47,10 @@ export interface ReusableTableProps<T = any> {
 	actions?: Action<T>[];
 	isEditable?: boolean;
 	showActionsColumn?: boolean;
+	emptyTitle?: string;
 	emptyMessage?: string;
+	emptyActionLabel?: string;
+	onEmptyAction?: () => void;
 }
 
 // Helper to get nested value
@@ -71,7 +74,10 @@ export const ReusableTable = <T extends { id: string }>({
 	handleRowDoubleClick = false,
 	actions = [],
 	showActionsColumn = true,
+	emptyTitle = 'Nothing here yet',
 	emptyMessage = 'No data available',
+	emptyActionLabel,
+	onEmptyAction,
 	isEditable = false,
 }: ReusableTableProps<T>) => {
 	const handleRowSelect = (rowId: string) => {
@@ -95,7 +101,13 @@ export const ReusableTable = <T extends { id: string }>({
 		<TableContainer>
 			{rowData.length === 0 ? (
 				<EmptyState>
+					<h3>{emptyTitle}</h3>
 					<p>{emptyMessage}</p>
+					{emptyActionLabel && onEmptyAction && (
+						<button type='button' onClick={onEmptyAction}>
+							{emptyActionLabel}
+						</button>
+					)}
 				</EmptyState>
 			) : (
 				<StyledTable>

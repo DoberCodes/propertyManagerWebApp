@@ -12,6 +12,7 @@ import { useGetPropertyQuery } from '../../../Redux/API/propertySlice';
 import { useGetContractorsByPropertyQuery } from '../../../Redux/API/contractorSlice';
 import { getFamilyMembers } from '../../../services/authService';
 import { useUpdateTaskMutation } from '../../../Redux/API/taskSlice';
+import { useAppFeedback } from '../AppFeedback/AppFeedbackProvider';
 
 interface TaskAssignModalProps {
 	isOpen: boolean;
@@ -24,6 +25,7 @@ interface TaskAssignModalProps {
 }
 
 export const TaskAssignModal = (props: TaskAssignModalProps) => {
+	const feedback = useAppFeedback();
 	const currentUser = useSelector((state: any) => state.user.currentUser);
 
 	const { data: contractors = [] } = useGetContractorsByPropertyQuery(
@@ -188,7 +190,7 @@ export const TaskAssignModal = (props: TaskAssignModalProps) => {
 	const handleSubmit = (event: React.FormEvent) => {
 		event.preventDefault();
 		if (!selectedAssignee?.id) {
-			alert('Please select an assignee');
+			feedback.notify('Please select an assignee');
 			return;
 		}
 

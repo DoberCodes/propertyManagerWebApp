@@ -34,6 +34,7 @@ import { isTrialExpired } from '../../../utils/subscriptionUtils';
 import { ReusableTable, TaskModal } from '../../../Components/Library';
 import { Column, Action } from '../../../Components/Library/ReusableTable';
 import { WarningDialog } from '../../../Components/Library/WarningDialog';
+import { useAppFeedback } from '../../../Components/Library/AppFeedback/AppFeedbackProvider';
 import {
 	MobileTaskCard,
 	MobileTaskHeader,
@@ -73,6 +74,7 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 	selectedUnitId,
 	onSelectUnit,
 }) => {
+	const feedback = useAppFeedback();
 	const [filters, setFilters] = useState<FilterValues>({});
 	const [showFilters, setShowFilters] = useState(false);
 	const [processedTasks, setProcessedTasks] = useState<any[]>([]);
@@ -126,9 +128,10 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 				await deleteTaskMutation(selectedTask.id);
 				setShowDeleteConfirmation(false);
 				setSelectedTask(null);
+				feedback.notify('Workflow removed. Your queue is now cleaner and easier to manage.');
 			} catch (error) {
 				console.error('Failed to delete task:', error);
-				alert('Failed to delete task. Please try again.');
+				feedback.notify('Failed to delete workflow. Please try again.');
 			}
 		}
 	};
@@ -142,6 +145,7 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 				});
 				setShowCompleteTaskConfirmation(false);
 				setSelectedTask(null);
+				feedback.notify('Great work. This workflow is complete and now part of your maintenance history.');
 			} catch (error) {
 				console.error('Failed to complete task:', error);
 			}
@@ -207,17 +211,17 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 
 	const taskActions: Action<Task>[] = [
 		{
-			label: 'Edit',
+			label: 'Refine Workflow',
 			icon: faEdit,
 			onClick: (task: Task) => handleEditTask(task),
 		},
 		{
-			label: 'Assign',
+			label: 'Assign Owner',
 			icon: faUserPlus,
 			onClick: (task: Task) => handleAssignTask(task),
 		},
 		{
-			label: 'Complete',
+			label: 'Complete and Log',
 			icon: faCheckCircle,
 			onClick: (task: Task) => handleCompleteTask(task),
 		},
@@ -482,7 +486,7 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 
 	return (
 		<SectionContainer>
-			<SectionHeader>Associated Tasks</SectionHeader>
+			<SectionHeader>Maintenance Workflows</SectionHeader>
 			<div
 				style={{
 					fontSize: 12,
@@ -507,7 +511,7 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 						color: quickView === 'all' ? '#065f46' : '#475569',
 						fontWeight: quickView === 'all' ? 800 : 700,
 					}}>
-					All Tasks: {totalTaskCount}
+					All Workflows: {totalTaskCount}
 				</TabSummaryPill>
 				<TabSummaryPill
 					as='button'
@@ -549,10 +553,10 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 					title={
 						currentUser?.subscription &&
 						isTrialExpired(currentUser.subscription)
-							? 'Upgrade your subscription to add new tasks'
+							? 'Upgrade your subscription to add new workflows'
 							: undefined
 					}>
-					+ Create Task
+					+ Create Workflow
 				</ToolbarButton>
 				{unitOptions.length > 0 && (
 					<div style={{ marginLeft: isMobile ? '0' : '12px', minWidth: isMobile ? '100%' : '220px', width: isMobile ? '100%' : undefined }}>
@@ -579,7 +583,7 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 				}}>
 				<input
 					type='text'
-					placeholder='Search tasks...'
+					placeholder='Search workflows...'
 					value={(filters.search as string) || ''}
 					onChange={(e) =>
 						setFilters((prev) => ({
@@ -607,7 +611,7 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 						background: '#ffffff',
 						fontWeight: 600,
 					}}
-					aria-label='Sort tasks'>
+					aria-label='Sort workflows'>
 					<option value='dueDate'>Sort: Due Date</option>
 					<option value='priority'>Sort: Priority</option>
 					<option value='title'>Sort: Title</option>
@@ -664,6 +668,10 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 								columns={columns}
 								rowData={filteredTasks}
 								actions={taskActions}
+								emptyTitle='No workflows yet'
+								emptyMessage='Start with one maintenance workflow to build your service timeline and reminders.'
+								emptyActionLabel='Add First Workflow'
+								onEmptyAction={handleCreateTask}
 								showCheckbox={false}
 							/>
 						</GridContainer>
@@ -743,7 +751,7 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 												handleCompleteTask(task);
 											}}
 											style={{ flex: 1 }}>
-											Complete
+											Complete and Log
 										</MobileActionButton>
 										<MobileActionButton
 											variant='secondary'
@@ -752,7 +760,7 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 												handleEditTask(task);
 											}}
 											style={{ flex: 1 }}>
-											Edit
+											Refine
 										</MobileActionButton>
 										<MobileActionButton
 											variant='danger'
@@ -771,7 +779,7 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 				</>
 			) : (
 				<EmptyState>
-					<p>No tasks associated with this property</p>
+					<p>No matching workflows yet. Create one to start your maintenance timeline and reminders.</p>
 				</EmptyState>
 			)}
 
@@ -805,8 +813,8 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 
 			<WarningDialog
 				open={showDeleteConfirmation}
-				title='Delete Task'
-				message={`Are you sure you want to delete the task "${selectedTask?.title}"? This action cannot be undone.`}
+				title='Delete Workflow'
+				message={`Are you sure you want to delete the workflow "${selectedTask?.title}"? This action cannot be undone.`}
 				confirmText='Delete'
 				cancelText='Cancel'
 				onConfirm={confirmDeleteTask}
@@ -815,9 +823,9 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 
 			<WarningDialog
 				open={showCompleteTaskConfirmation}
-				title='Complete Task'
-				message={`Are you sure you want to mark the task "${selectedTask?.title}" as completed?`}
-				confirmText='Complete'
+				title='Complete Workflow'
+				message={`Mark "${selectedTask?.title}" as complete and add it to your maintenance record?`}
+				confirmText='Complete and Log It'
 				cancelText='Cancel'
 				onConfirm={confirmCompleteTask}
 				onCancel={() => setShowCompleteTaskConfirmation(false)}

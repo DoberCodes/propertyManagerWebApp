@@ -25,6 +25,7 @@ import { addMaintenanceRequest } from '../../Redux/Slices/maintenanceRequestsSli
 import { createMaintenanceRequestUtil } from '../PropertyDetailPage/PropertyDetailPage.utils';
 import { MaintenanceRequest } from '../../types/MaintenanceRequest.types';
 import { uploadMaintenanceRequestFiles } from '../../utils/maintenanceRequestUpload';
+import { useAppFeedback } from '../../Components/Library/AppFeedback/AppFeedbackProvider';
 import {
 	InfoGrid,
 	InfoCard,
@@ -61,6 +62,7 @@ const ContentContainer = styled.div`
 `;
 
 export const UnitDetailPage: React.FC = () => {
+	const feedback = useAppFeedback();
 	const { slug, unitName } = useParams<{ slug: string; unitName: string }>();
 	const [activeTab, setActiveTab] = React.useState<
 		| 'info'
@@ -123,7 +125,7 @@ export const UnitDetailPage: React.FC = () => {
 			setShowMaintenanceRequestModal(false);
 		} catch (error) {
 			console.error('Failed to upload maintenance request files:', error);
-			alert('Failed to upload files. Please try again.');
+			feedback.notify('Failed to upload files. Please try again.');
 		}
 	};
 

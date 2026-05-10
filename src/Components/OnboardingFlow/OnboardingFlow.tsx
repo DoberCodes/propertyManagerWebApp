@@ -504,6 +504,60 @@ const PayoffItem = styled.div`
 	}
 `;
 
+const BridgeStatement = styled.div`
+	margin-top: 14px;
+	padding: 10px 12px;
+	border-radius: 8px;
+	background: #f8fafc;
+	border: 1px solid #e2e8f0;
+	font-size: 13px;
+	font-weight: 600;
+	color: #334155;
+	text-align: left;
+`;
+
+const VisualPayoffGrid = styled.div`
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 10px;
+	margin-top: 16px;
+
+	@media (max-width: 640px) {
+		grid-template-columns: 1fr;
+	}
+`;
+
+const VisualPayoffCard = styled.div`
+	background: #ffffff;
+	border: 1px solid #d1fae5;
+	border-radius: 10px;
+	padding: 12px;
+	text-align: left;
+	box-shadow: 0 4px 10px rgba(15, 23, 42, 0.06);
+
+	.header {
+		font-size: 12px;
+		font-weight: 800;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+		color: #16a34a;
+		margin-bottom: 8px;
+	}
+
+	.title {
+		font-size: 13px;
+		font-weight: 700;
+		color: #0f172a;
+		margin-bottom: 5px;
+	}
+
+	.meta {
+		font-size: 12px;
+		color: #64748b;
+		line-height: 1.35;
+	}
+`;
+
 // Enhanced interfaces
 interface OnboardingStep {
 	id: string;
@@ -595,7 +649,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
 				id: 'who_are_you',
 				type: 'instruction',
 				title: 'First — how are you using Maintley?',
-				description: 'This helps us frame the experience around what matters most to you.',
+				description: 'Pick your role so we can keep this relevant and fast.',
 				content: (
 					<RoleGrid>
 						{[
@@ -663,18 +717,21 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
 			{
 				id: 'create_property_instruction',
 				type: 'instruction',
-				title: 'Start organizing your property maintenance.',
-				description: "Adding your property takes 2 minutes. Once it's in, you have a permanent home for every repair, device, and service record — no more scattered notes or forgotten history.",
+				title: 'Add your first property.',
+				description: "This takes about 2 minutes and starts your long-term maintenance record.",
 				content: (
 					<div style={{ textAlign: 'left', marginTop: '20px' }}>
 						<p style={{ marginBottom: '12px', fontWeight: '600', color: '#0f172a', fontSize: '14px' }}>
-							You'll provide a few basics:
+							You only need:
 						</p>
 						<ul style={{ paddingLeft: '20px', margin: '0', color: '#475569', fontSize: '14px', lineHeight: '2' }}>
 							<li>Property address</li>
-							<li>Property type (single family, rental, etc.)</li>
-							<li>Year built and square footage <em style={{ color: '#94a3b8' }}>(optional but useful)</em></li>
+							<li>Property type</li>
+							<li>Optional details (year built, square footage)</li>
 						</ul>
+						<BridgeStatement>
+							Clear takeaway: this becomes the single place for future repairs, tasks, and service history.
+						</BridgeStatement>
 					</div>
 				),
 				actionLabel: 'Add My Property →',
@@ -691,7 +748,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
 				type: 'waiting',
 				title: 'Go ahead and add your property.',
 				description:
-					"Take your time. I'll be here in the background — and I'll pop back in to celebrate when your property is ready.",
+					"Take your time. I'll stay in the background and pop back in once it's ready.",
 				waitCondition: () => properties.length > 0,
 				autoAdvance: true,
 			},
@@ -702,7 +759,26 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
 				type: 'celebration',
 				title: 'Your first property is live. 🎉',
 				description:
-					"You now have a permanent home for every repair, device, and service record for this property. That's the hard part done — it only gets more useful from here.",
+					"You now have a permanent home for every repair and service record for this property.",
+				content: (
+					<VisualPayoffGrid>
+						<VisualPayoffCard>
+							<div className='header'>Record</div>
+							<div className='title'>123 Main St profile created</div>
+							<div className='meta'>History starts now and grows with every completed job.</div>
+						</VisualPayoffCard>
+						<VisualPayoffCard>
+							<div className='header'>Timeline</div>
+							<div className='title'>May 2026: Property added</div>
+							<div className='meta'>Next entries appear automatically as work gets logged.</div>
+						</VisualPayoffCard>
+						<VisualPayoffCard>
+							<div className='header'>Payoff</div>
+							<div className='title'>No more scattered records</div>
+							<div className='meta'>Everything is now attached to one property history.</div>
+						</VisualPayoffCard>
+					</VisualPayoffGrid>
+				),
 			},
 		];
 
@@ -711,9 +787,9 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
 			{
 				id: 'click_property_instruction',
 				type: 'waiting',
-				title: "Let's explore what you just built.",
+				title: 'Now that your property is set up, open it.',
 				description:
-					"Your property page is your maintenance command center. Click on your property tile to see it.",
+					"This is where systems, tasks, and maintenance continuity come together.",
 				waitCondition: () => location.pathname.includes('/property/'),
 				autoAdvance: true,
 			},
@@ -722,9 +798,13 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
 				type: 'page_guide',
 				title: 'Your Property Command Center',
 				description:
-					'Everything for this property lives here — tasks, devices, contractors, maintenance history, and more.',
+					'Everything for this property lives here: tasks, devices, contractors, and history.',
 				content: (
 					<div style={{ textAlign: 'left', marginTop: '16px' }}>
+						<BridgeStatement>
+							Bridge: now we move from property setup to the systems and work inside that property.
+						</BridgeStatement>
+
 						<p style={{ marginBottom: '12px', fontWeight: '600', color: '#0f172a', fontSize: '14px' }}>
 							Tabs to explore:
 						</p>
@@ -748,23 +828,25 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
 			{
 				id: 'create_task_instruction',
 				type: 'instruction',
-				title: 'Stay ahead of maintenance before it becomes a problem.',
+				title: 'Next, create one recurring task.',
 				description:
-					"Tasks are how Maintley keeps you proactive. We'll help you remember important maintenance automatically — so it never turns into an expensive surprise.",
+					'Tasks prevent missed maintenance and build continuity over time.',
 				content: (
 					<div style={{ textAlign: 'left', marginTop: '20px' }}>
 						<p style={{ marginBottom: '12px', fontWeight: '600', color: '#0f172a', fontSize: '14px' }}>
-							A task lets you:
+							One task gives you:
 						</p>
 						<ul style={{ paddingLeft: '20px', margin: '0', color: '#475569', fontSize: '14px', lineHeight: '2' }}>
-							<li>Set a due date with automatic reminders</li>
-							<li>Attach notes, photos, and documents</li>
-							<li>Schedule it to recur (HVAC filters, etc.)</li>
-							<li>Assign it to yourself, a family member, or a contractor</li>
+							<li>Automatic reminders before due dates</li>
+							<li>Recurring scheduling (HVAC filters, inspections)</li>
+							<li>A logged record once work is completed</li>
 						</ul>
 						<div style={{ marginTop: '16px', padding: '12px', background: '#fffbeb', borderRadius: '8px', border: '1px solid #fcd34d', fontSize: '13px', color: '#92400e' }}>
 							💡 <strong>Tip:</strong> Start with something you know is coming up — a filter change, an inspection, or a seasonal check.
 						</div>
+						<BridgeStatement>
+							Now that the property exists, we track the systems and work inside it.
+						</BridgeStatement>
 					</div>
 				),
 				actionLabel: 'Understood →',
@@ -789,7 +871,26 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
 				type: 'celebration',
 				title: 'Your maintenance system is taking shape. 🎯',
 				description:
-					"Your first task is live. You'll be reminded automatically before it's due — and when it's done, it becomes a permanent entry in your service history.",
+					"Your first task is live. Reminders are automatic, and completion becomes permanent history.",
+				content: (
+					<VisualPayoffGrid>
+						<VisualPayoffCard>
+							<div className='header'>Future Reminder</div>
+							<div className='title'>HVAC Filter Change</div>
+							<div className='meta'>Due in 90 days • Reminder 7 days before</div>
+						</VisualPayoffCard>
+						<VisualPayoffCard>
+							<div className='header'>Maintenance Timeline</div>
+							<div className='title'>May 2026: Task created</div>
+							<div className='meta'>Aug 2026: Completed and logged to history</div>
+						</VisualPayoffCard>
+						<VisualPayoffCard>
+							<div className='header'>Device History</div>
+							<div className='title'>HVAC service record</div>
+							<div className='meta'>Cost, notes, and docs stay attached over time</div>
+						</VisualPayoffCard>
+					</VisualPayoffGrid>
+				),
 			},
 		);
 
@@ -799,7 +900,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
 			type: 'instruction',
 			title: "There's more when you're ready.",
 			description:
-				"You've got the foundation set. Here are a few more tools that become valuable once you're up and running.",
+				'You have the core system. These tools increase continuity and visibility.',
 			content: (
 				<div style={{ textAlign: 'left', marginTop: '20px' }}>
 					<div style={{ marginBottom: '18px' }}>
@@ -808,7 +909,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
 							Devices & Home Systems
 						</h4>
 						<p style={{ margin: '0 0 0 28px', fontSize: '14px', color: '#64748b', lineHeight: '1.5' }}>
-							Add your HVAC, appliances, and other systems. Track their service history, warranties, and schedule recurring maintenance — so you know exactly what's been serviced and when.
+							Track system history, warranties, and recurring service in one timeline.
 						</p>
 					</div>
 
@@ -818,7 +919,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
 							Property Sharing
 						</h4>
 						<p style={{ margin: '0 0 0 28px', fontSize: '14px', color: '#64748b', lineHeight: '1.5' }}>
-							Share access with co-owners, family members, or a property manager. Everyone sees the same records — no more repeated calls asking about service history.
+							Keep everyone on the same records, without repeated calls or lost context.
 						</p>
 					</div>
 
@@ -828,7 +929,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
 							Reports & Export
 						</h4>
 						<p style={{ margin: '0 0 0 28px', fontSize: '14px', color: '#64748b', lineHeight: '1.5' }}>
-							Pull maintenance reports for insurance claims, tax records, or sale documentation. Your history is already being built — you can export it anytime.
+							Export a clean history for insurance, tax, and sale documentation.
 						</p>
 					</div>
 				</div>
@@ -844,7 +945,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
 				id: 'advanced_features_manager',
 				type: 'instruction',
 				title: 'Built for teams too.',
-				description: "Maintley scales with you. These tools become valuable as your portfolio grows.",
+				description: 'As your portfolio grows, continuity and accountability stay intact.',
 				content: (
 					<div style={{ textAlign: 'left', marginTop: '20px' }}>
 						<div style={{ marginBottom: '18px' }}>
@@ -885,8 +986,9 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
 			type: 'instruction',
 			title: "You're already ahead of most property owners.",
 			description:
-				"Your property is set up. Your first task is live. Important service information is now stored in one place — and you won't need to remember any of it manually anymore.",
+				'Your property and first task are live. From now on, your maintenance continuity builds automatically.',
 			content: (
+				<>
 				<PayoffPreview>
 					<PayoffPreviewTitle>What's waiting for you</PayoffPreviewTitle>
 					<PayoffItems>
@@ -913,6 +1015,24 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
 						</PayoffItem>
 					</PayoffItems>
 				</PayoffPreview>
+				<VisualPayoffGrid>
+					<VisualPayoffCard>
+						<div className='header'>30 Days</div>
+						<div className='title'>You complete your first recurring task</div>
+						<div className='meta'>Timeline grows with dates, notes, and files.</div>
+					</VisualPayoffCard>
+					<VisualPayoffCard>
+						<div className='header'>90 Days</div>
+						<div className='title'>Second reminder triggers automatically</div>
+						<div className='meta'>No memory burden. The system keeps continuity.</div>
+					</VisualPayoffCard>
+					<VisualPayoffCard>
+						<div className='header'>Anytime</div>
+						<div className='title'>Export clear maintenance history</div>
+						<div className='meta'>Useful for claims, taxes, resale, and team handoff.</div>
+					</VisualPayoffCard>
+				</VisualPayoffGrid>
+				</>
 			),
 			actionLabel: 'Take me to my property →',
 			action: () => {
@@ -1010,6 +1130,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
 					<CelebrationIcon>✅</CelebrationIcon>
 					<CelebrationTitle>{currentStep.title}</CelebrationTitle>
 					<CelebrationMessage>{currentStep.description}</CelebrationMessage>
+					{currentStep.content}
 					<div style={{ marginBottom: '24px', padding: '14px 18px', background: '#f0fdf4', borderRadius: '10px', border: '1px solid rgba(22,163,74,0.2)', fontSize: '14px', color: '#166534', textAlign: 'center' }}>
 						<strong>You're building your property history.</strong> Every step makes your records more complete and valuable.
 					</div>
@@ -1171,7 +1292,6 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
 					{currentStep.actionLabel && (
 						<PrimaryButton onClick={currentStep.action}>
 							{currentStep.actionLabel}
-							<span style={{ marginLeft: '8px' }}>→</span>
 						</PrimaryButton>
 					)}
 					<SkipButton onClick={skipOnboarding}>

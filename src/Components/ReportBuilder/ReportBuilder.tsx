@@ -73,6 +73,7 @@ import {
 } from '../../utils/csvExport';
 import { useGetTasksQuery } from '../../Redux/API/taskSlice';
 import { useGetTeamMembersQuery } from '../../Redux/API/teamSlice';
+import { useAppFeedback } from '../Library/AppFeedback/AppFeedbackProvider';
 
 // Alias Library components to match local naming convention
 const FormGroup = LibraryFormGroup;
@@ -256,6 +257,7 @@ export const ReportBuilder: React.FC = () => {
 		!!currentUser &&
 		!isHomeowner &&
 		(canManageTeam || canViewPages || !!currentUser.accountId);
+	const feedback = useAppFeedback();
 
 	// Helper: homeowners may only access Single Family properties in reports
 	const isSingleFamilyProperty = (ptype?: string) => {
@@ -748,7 +750,7 @@ export const ReportBuilder: React.FC = () => {
 
 	const handleDownload = () => {
 		if (!reportType || selectedColumns.length === 0) {
-			alert('Please select a report type and at least one column');
+			feedback.notify('Please select a report type and at least one column');
 			return;
 		}
 
@@ -757,8 +759,8 @@ export const ReportBuilder: React.FC = () => {
 			currentUser?.subscription &&
 			!canAccessReadOnlyFeatures(currentUser.subscription)
 		) {
-			alert(
-				'Your current plan does not include data export. Please upgrade to access this feature.',
+			feedback.notify(
+				'Your current plan does not include data export. Please upgrade to access this feature.'
 			);
 			return;
 		}
@@ -768,7 +770,7 @@ export const ReportBuilder: React.FC = () => {
 			(reportType === 'team' || reportType === 'employee-efficiency') &&
 			!canAccessTeamReport
 		) {
-			alert('You do not have permission to run this report.');
+			feedback.notify('You do not have permission to run this report.');
 			return;
 		}
 

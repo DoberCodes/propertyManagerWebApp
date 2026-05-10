@@ -28,6 +28,7 @@ import { DeviceModal } from '../../../Components/Library/Modal';
 import { Property, DeviceServiceItem } from '../../../types/Property.types';
 import { uploadDeviceFile } from '../../../utils/deviceFileUpload';
 import { buildDeviceSlug } from '../../../utils/deviceSlug';
+import { useAppFeedback } from '../../../Components/Library/AppFeedback/AppFeedbackProvider';
 import {
 	MobileCarouselContainer,
 	MobileCarouselViewport,
@@ -127,6 +128,7 @@ interface DevicesTabProps {
 export const DevicesTab: React.FC<DevicesTabProps> = ({ property }) => {
 	const navigate = useNavigate();
 	const [showDeviceModal, setShowDeviceModal] = useState(false);
+	const feedback = useAppFeedback();
 	const [editingDevice, setEditingDevice] = useState<any>(null);
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [selectedDevice, setSelectedDevice] = useState<any>(null);
@@ -560,7 +562,7 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property }) => {
 			setSelectedDevice(null);
 		} catch (error) {
 			console.error('Error deleting device:', error);
-			alert('Failed to delete device. Please try again.');
+			feedback.notify('Failed to delete device. Please try again.');
 		}
 		setDeleteDialogOpen(false);
 		setPendingDeleteDeviceId(null);

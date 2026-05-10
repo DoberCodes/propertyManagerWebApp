@@ -5,6 +5,7 @@ import React, {
 	useMemo,
 	useRef,
 } from 'react';
+import { useAppFeedback } from '../AppFeedback/AppFeedbackProvider';
 import { useDispatch } from 'react-redux';
 import styled from 'styled-components';
 import { doc, getDoc } from 'firebase/firestore';
@@ -348,6 +349,18 @@ const AdvancedStack = styled.div`
 	gap: 1rem;
 `;
 
+const MoreOptionsToggle = styled.button<{ $active?: boolean }>`
+	border: 1px solid ${(props) => (props.$active ? '#16a34a' : COLORS.gray200)};
+	background: ${(props) => (props.$active ? '#f0fdf4' : '#ffffff')};
+	color: ${(props) => (props.$active ? '#166534' : COLORS.textPrimary)};
+	border-radius: 8px;
+	padding: 0.55rem 0.85rem;
+	font-size: 0.84rem;
+	font-weight: 700;
+	cursor: pointer;
+	transition: background-color 0.15s ease, border-color 0.15s ease;
+`;
+
 interface TaskFormData {
 	title: string;
 	dueDate: string;
@@ -373,6 +386,14 @@ interface TaskFormData {
 }
 
 type ActiveTab = 'details' | 'advanced' | 'schedule' | 'notifications' | 'financial';
+
+type SmartScheduleSuggestion = {
+	label: string;
+	frequency: string;
+	interval?: number;
+	customUnit?: string;
+	daysUntilDue: number;
+};
 
 interface EditTaskModalProps {
 	isOpen: boolean;
@@ -427,6 +448,8 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 	unitId = null,
 	taskTitlePlaceholder = 'Task title',
 }) => {
+	const feedback = useAppFeedback();
+
 	const normalizeTaskTitle = (value?: string | null) =>
 		String(value || '')
 			.trim()
@@ -822,6 +845,7 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 	const fd = formState;
 
 	const [activeTab, setActiveTab] = useState<ActiveTab>('details');
+	const [showCreateMoreOptions, setShowCreateMoreOptions] = useState(false);
 	const [showLinkHistoryModal, setShowLinkHistoryModal] = useState(false);
 	const [pendingLinkedHistoryIds, setPendingLinkedHistoryIds] = useState<
 		string[]
@@ -842,8 +866,77 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 		if (isOpen) {
 			setActiveTab('details');
 			setSubmitAttempted(false);
+			setShowCreateMoreOptions(false);
 		}
 	}, [isOpen]);
+
+	const smartScheduleSuggestion = useMemo<SmartScheduleSuggestion | null>(() => {
+		const searchPool = `${formState.title || ''} ${formState.category || ''} ${formState.location || ''}`.toLowerCase();
+		if (!searchPool.trim()) return null;
+
+		if ((searchPool.includes('hvac') || searchPool.includes('air filter') || searchPool.includes('filter')) && !searchPool.includes('water')) {
+			return {
+				label: 'HVAC filters usually run on a 90-day cadence.',
+				frequency: 'quarterly',
+				daysUntilDue: 90,
+			};
+		}
+
+		if (searchPool.includes('inspection') || searchPool.includes('annual service')) {
+			return {
+				label: 'Annual inspections work best on a yearly schedule.',
+				frequency: 'yearly',
+				daysUntilDue: 365,
+			};
+		}
+
+		if (searchPool.includes('smoke') || searchPool.includes('detector battery')) {
+			return {
+				label: 'Smoke detector checks are commonly done every 6 months.',
+				frequency: 'custom',
+				interval: 6,
+				customUnit: 'months',
+				daysUntilDue: 180,
+			};
+		}
+
+		if (searchPool.includes('gutter')) {
+			return {
+				label: 'Gutter cleaning is often repeated every 6 months.',
+				frequency: 'custom',
+				interval: 6,
+				customUnit: 'months',
+				daysUntilDue: 180,
+			};
+		}
+
+		return null;
+	}, [formState.category, formState.location, formState.title]);
+
+	const hasAppliedSmartSchedule = Boolean(
+		formState.recurrenceFrequency ||
+		formState.recurrenceInterval ||
+		formState.recurrenceCustomUnit,
+	);
+
+	const applySmartSchedule = () => {
+		if (!smartScheduleSuggestion) return;
+
+		const suggestedDueDate = new Date();
+		suggestedDueDate.setDate(suggestedDueDate.getDate() + smartScheduleSuggestion.daysUntilDue);
+		const dueDateIso = suggestedDueDate.toISOString().split('T')[0];
+
+		setFormState((prev) => ({
+			...prev,
+			recurrenceFrequency: smartScheduleSuggestion.frequency,
+			recurrenceInterval: smartScheduleSuggestion.interval,
+			recurrenceCustomUnit: smartScheduleSuggestion.customUnit,
+			dueDate:
+				!prev.dueDate || prev.dueDate === new Date().toISOString().split('T')[0]
+					? dueDateIso
+					: prev.dueDate,
+		}));
+	};
 
 	useEffect(() => {
 		if (hasSchedule && !formState.isRecurring) {
@@ -1029,7 +1122,7 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 			});
 
 			if (duplicateTask) {
-				alert('A task with this title already exists for the selected property.');
+				feedback.notify('A task with this title already exists for the selected property.');
 				return;
 			}
 		}
@@ -1062,7 +1155,7 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 			if (isUpdate) {
 				if (!taskId) {
 					console.error('TaskModal: No task ID available for update');
-					alert('Unable to update task: missing task ID');
+					feedback.notify('Unable to update task: missing task ID');
 					return;
 				}
 				let updatesRaw: any = {
@@ -1174,7 +1267,7 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 			}
 		} catch (error) {
 			console.error('Error saving task:', error);
-			alert('Failed to save task. Please try again.');
+			feedback.notify('Failed to save task. Please try again.');
 		}
 	};
 
@@ -1182,11 +1275,11 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 		<>
 			<GenericModal
 				isOpen={isOpen}
-				title={isEditing ? 'Edit Task' : 'Create New Task'}
+				title={isEditing ? 'Refine Task' : 'Create Task'}
 				onClose={onClose}
 				onSubmit={handleSubmit}
 				showActions={true}
-				primaryButtonLabel={isEditing ? 'Update Task' : 'Create Task'}
+				primaryButtonLabel={isEditing ? 'Save Changes' : 'Create and Track Task'}
 				secondaryButtonLabel='Cancel'
 				primaryButtonDisabled={missingRequiredFields.length > 0}>
 				<ModalTabContainer>
@@ -1209,7 +1302,7 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 							$active={activeTab === 'advanced'}
 							onClick={() => setActiveTab('advanced')}>
 							<TabLabel>
-								Advanced Settings
+									More Options
 								<TabBadge>{advancedConfigured ? 'Configured' : 'Optional'}</TabBadge>
 							</TabLabel>
 						</ModalTab>
@@ -1390,6 +1483,37 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 								</>
 							)}
 						</FormGroup>
+
+						{isCreateMode && smartScheduleSuggestion && !hasAppliedSmartSchedule && (
+							<FormGroupFull>
+								<HelperBox>
+									<div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
+										<strong style={{ color: '#166534' }}>Smart default:</strong>
+										<span>{smartScheduleSuggestion.label}</span>
+										<MoreOptionsToggle type='button' onClick={applySmartSchedule}>
+											Apply Suggested Schedule
+										</MoreOptionsToggle>
+									</div>
+								</HelperBox>
+							</FormGroupFull>
+						)}
+
+						{isCreateMode && (
+							<FormGroupFull>
+								<MoreOptionsToggle
+									type='button'
+									$active={showCreateMoreOptions}
+									onClick={() => setShowCreateMoreOptions((prev) => !prev)}>
+									{showCreateMoreOptions ? 'Hide More Options' : 'Show More Options'}
+								</MoreOptionsToggle>
+								<FieldHint>
+									Keep this fast: title, priority, and due timing are enough to create the task.
+								</FieldHint>
+							</FormGroupFull>
+						)}
+
+						{(!isCreateMode || showCreateMoreOptions) && (
+							<>
 
 						<FormGroupFull>
 							<SectionHeader>
@@ -1617,6 +1741,8 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 								placeholder='Add any notes about this task...'
 							/>
 						</FormGroupFull>
+							</>
+						)}
 					</FormGrid>
 				</ModalTabContent>
 

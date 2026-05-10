@@ -37,6 +37,7 @@ import {
 	formatCurrency,
 	getFinancialDisplayTotal,
 } from 'utils/financialUtils';
+import { useAppFeedback } from 'Components/Library/AppFeedback/AppFeedbackProvider';
 import {
 	ActiveFilterChips,
 	ActiveFilterChip,
@@ -81,6 +82,7 @@ export const MaintenanceTab = ({
 	onUpdateMaintenanceHistory,
 	onDeleteMaintenanceHistory,
 }: MaintenanceTabProps) => {
+	const feedback = useAppFeedback();
 	const navigate = useNavigate();
 	const [filters, setFilters] = useState<FilterValues>({});
 	const [showAddModal, setShowAddModal] = useState(false);
@@ -166,7 +168,7 @@ export const MaintenanceTab = ({
 			(record) => !record.isLegacy && record.id,
 		);
 		if (deletableRecords.length === 0) {
-			window.alert(
+			feedback.notify(
 				'No deletable maintenance history records found in this group.',
 			);
 			return;

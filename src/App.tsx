@@ -10,6 +10,7 @@ import styled from 'styled-components';
 import { Capacitor } from '@capacitor/core';
 import { initializePushNotifications } from './services/pushNotifications';
 import { setIsMobile } from './Redux/Slices/appSlice';
+import { AppFeedbackProvider } from './Components/Library/AppFeedback/AppFeedbackProvider';
 
 const LoadingContainer = styled.div`
 	display: flex;
@@ -234,12 +235,14 @@ export const App = () => {
 
 	return (
 		<DataFetchProvider>
-			<RefreshSpinner $isVisible={isRefreshing}>
-				<div className='spinner'></div>
-				Refreshing...
-			</RefreshSpinner>
-			<RouterComponent />
-			<UpdateNotification />
+			<AppFeedbackProvider>
+				<RefreshSpinner $isVisible={isRefreshing}>
+					<div className='spinner'></div>
+					Refreshing...
+				</RefreshSpinner>
+				<RouterComponent />
+				<UpdateNotification />
+			</AppFeedbackProvider>
 		</DataFetchProvider>
 	);
 };

@@ -23,7 +23,6 @@ import {
 	TodayFocusCard,
 	CardEyebrow,
 	CardTitle,
-	TodayFocusMessage,
 	TodayFocusLead,
 	TodayFocusSupportingText,
 	TodayFocusTaskCard,
@@ -45,6 +44,16 @@ import {
 	HomeHealthRecommendation,
 	HomeHealthDrivers,
 	HomeHealthDriver,
+	RecentActivitySection,
+	RecentActivityHeader,
+	RecentActivitySubtitle,
+	RecentActivityList,
+	RecentActivityRow,
+	RecentActivityMain,
+	RecentActivityTitle,
+	RecentActivityMeta,
+	RecentActivityDate,
+	RecentActivityEmpty,
 	UrgentQueueSection,
 	UrgentQueueHeader,
 	QueueHeaderActions,
@@ -74,7 +83,23 @@ import { useTaskHandlers } from 'pages/PropertyDetailPage/useTaskHandlers';
 import { TaskModal } from 'Components/Library';
 import { TaskAssignModal } from 'Components/Library/Modal/TaskAssignModal';
 import { useGetTasksQuery, useUpdateTaskMutation } from 'Redux/API/taskSlice';
+import { useGetAllDevicesQuery } from 'Redux/API/deviceSlice';
 import { useLazyGetMaintenanceHistoryByPropertyQuery } from 'Redux/API/maintenanceSlice';
+
+const getLinkedDeviceIds = (task: Partial<Task> & { deviceId?: string | number }): Set<string> => {
+	const ids = new Set<string>();
+	if (Array.isArray(task.devices)) {
+		task.devices.forEach((deviceId) => {
+			if (deviceId !== undefined && deviceId !== null) {
+				ids.add(String(deviceId));
+			}
+		});
+	}
+	if (task.deviceId !== undefined && task.deviceId !== null) {
+		ids.add(String(task.deviceId));
+	}
+	return ids;
+};
 
 export const DashboardTab = () => {
 	const ACTIVE_TASK_STATUSES = useMemo(
@@ -114,6 +139,7 @@ export const DashboardTab = () => {
 
 	// Fetch tasks and properties from Firebase
 	const { data: allTasks = [] } = useGetTasksQuery();
+	const { data: allDevices = [] } = useGetAllDevicesQuery();
 	const { data: ownedProperties = [] } = useGetPropertiesQuery();
 	const { data: allMaintenanceHistory = [] } =
 		useGetAllMaintenanceHistoryForUserQuery(undefined, {
@@ -128,6 +154,19 @@ export const DashboardTab = () => {
 		const hiddenIds = currentUser?.hiddenPropertyIds || [];
 		return combined.filter((property) => !hiddenIds.includes(property.id));
 	}, [ownedProperties, currentUser?.hiddenPropertyIds]);
+
+	const visiblePropertyIds = useMemo(
+		() => new Set(allProperties.map((property) => String(property.id))),
+		[allProperties],
+	);
+
+	const visibleDevices = useMemo(
+		() =>
+			allDevices.filter((device: any) =>
+				visiblePropertyIds.has(String(device?.location?.propertyId || '')),
+			),
+		[allDevices, visiblePropertyIds],
+	);
 
 	// Firebase mutations
 	const [updateTaskMutation] = useUpdateTaskMutation();
@@ -424,6 +463,126 @@ export const DashboardTab = () => {
 		ACTIVE_TASK_STATUSES,
 	]);
 
+	const overdueDeviceIds = useMemo(() => {
+		const now = Date.now();
+		const ids = new Set<string>();
+
+		filteredTasks.forEach((task) => {
+			if (!task.dueDate || !ACTIVE_TASK_STATUSES.has(task.status)) {
+				return;
+			}
+
+			if (new Date(task.dueDate).getTime() >= now) {
+				return;
+			}
+
+			getLinkedDeviceIds(task).forEach((deviceId) => ids.add(deviceId));
+		});
+
+		return ids;
+	}, [filteredTasks, ACTIVE_TASK_STATUSES]);
+
+	const upcomingServiceWindowCount = useMemo(() => {
+		const now = new Date();
+		now.setHours(0, 0, 0, 0);
+		const maxDate = new Date(now);
+		maxDate.setDate(maxDate.getDate() + 30);
+		const dueSoonDeviceIds = new Set<string>();
+
+		filteredTasks.forEach((task) => {
+			if (!task.dueDate || !ACTIVE_TASK_STATUSES.has(task.status)) {
+				return;
+			}
+
+			const dueDate = new Date(task.dueDate);
+			if (Number.isNaN(dueDate.getTime())) {
+				return;
+			}
+			dueDate.setHours(0, 0, 0, 0);
+
+			if (dueDate < now || dueDate > maxDate) {
+				return;
+			}
+
+			getLinkedDeviceIds(task).forEach((deviceId) => dueSoonDeviceIds.add(deviceId));
+		});
+
+		return dueSoonDeviceIds.size;
+	}, [filteredTasks, ACTIVE_TASK_STATUSES]);
+
+	const systemsNeedingAttentionCount = useMemo(
+		() =>
+			visibleDevices.filter((device: any) => {
+				const status = String(device?.status || '');
+				return (
+					status === 'Broken' ||
+					status === 'Maintenance' ||
+					overdueDeviceIds.has(String(device.id))
+				);
+			}).length,
+		[visibleDevices, overdueDeviceIds],
+	);
+
+	const maintenanceEventsThisMonth = useMemo(() => {
+		const now = new Date();
+		const currentMonth = now.getMonth();
+		const currentYear = now.getFullYear();
+
+		return visibleDevices.reduce((total: number, device: any) => {
+			const history = Array.isArray(device?.maintenanceHistory)
+				? device.maintenanceHistory
+				: [];
+
+			return (
+				total +
+				history.filter((entry: any) => {
+					const eventDate = new Date(entry?.date || '');
+					return (
+						!Number.isNaN(eventDate.getTime()) &&
+						eventDate.getMonth() === currentMonth &&
+						eventDate.getFullYear() === currentYear
+					);
+				}).length
+			);
+		}, 0);
+	}, [visibleDevices]);
+
+	const recentMaintenanceActivity = useMemo(() => {
+		const activity = visibleDevices
+			.flatMap((device: any) => {
+				const history = Array.isArray(device?.maintenanceHistory)
+					? device.maintenanceHistory
+					: [];
+				const deviceName = [device?.type, device?.brand, device?.model]
+					.filter(Boolean)
+					.join(' ')
+					.trim() || 'Device';
+				const propertyId = String(device?.location?.propertyId || '').trim();
+				const propertyName = propertyLookup.get(propertyId)?.title || 'Property';
+
+				return history
+					.map((entry: any) => {
+						const timestamp = new Date(entry?.date || '');
+						if (Number.isNaN(timestamp.getTime())) {
+							return null;
+						}
+
+						return {
+							id: `${device.id}-${entry?.date || ''}-${entry?.description || ''}`,
+							timestamp,
+							description: String(entry?.description || 'Maintenance event logged').trim(),
+							deviceName,
+							propertyName,
+						};
+					})
+					.filter(Boolean);
+			})
+			.sort((a: any, b: any) => b.timestamp.getTime() - a.timestamp.getTime())
+			.slice(0, 8);
+
+		return activity;
+	}, [visibleDevices, propertyLookup]);
+
 	// Property score calculation (100 - penalty for overdue tasks)
 	const propertyScore = useMemo(() => {
 		const baseScore = 100;
@@ -465,7 +624,7 @@ export const DashboardTab = () => {
 	const todayFocusLead = useMemo(() => {
 		if (taskStatusCounts.overdue > 0 && nextUrgentTask) {
 			return `${taskStatusCounts.overdue} ${
-				taskStatusCounts.overdue === 1 ? 'task is' : 'tasks are'
+				taskStatusCounts.overdue === 1 ? 'workflow is' : 'workflows are'
 			} overdue. Start with ${nextUrgentTask.title}.`;
 		}
 
@@ -481,7 +640,7 @@ export const DashboardTab = () => {
 			const remainingUpcoming = Math.max(taskStatusCounts.upcoming - 1, 0);
 			if (remainingUpcoming > 0) {
 				return `${remainingUpcoming} more ${
-					remainingUpcoming === 1 ? 'task is' : 'tasks are'
+					remainingUpcoming === 1 ? 'workflow is' : 'workflows are'
 				} due soon after that.`;
 			}
 			return 'Clear this first to reduce the rest of today\'s pressure.';
@@ -491,7 +650,7 @@ export const DashboardTab = () => {
 			return 'Use this window to plan preventive maintenance before it becomes urgent.';
 		}
 
-		return 'Add the next planned task while the queue is clear.';
+		return 'Add the next planned maintenance workflow while the queue is clear.';
 	}, [nextUrgentTask, taskStatusCounts.upcoming, taskStatusCounts.completed]);
 
 	const homeHealthStatus = useMemo(() => {
@@ -503,33 +662,33 @@ export const DashboardTab = () => {
 	const homeHealthInterpretation = useMemo(() => {
 		if (taskStatusCounts.overdue > 0) {
 			return `${taskStatusCounts.overdue} overdue ${
-				taskStatusCounts.overdue === 1 ? 'item is' : 'items are'
+				taskStatusCounts.overdue === 1 ? 'service window is' : 'service windows are'
 			} pulling this down.`;
 		}
 		if (taskStatusCounts.upcoming > 0) {
 			return `${taskStatusCounts.upcoming} upcoming ${
-				taskStatusCounts.upcoming === 1 ? 'task is' : 'tasks are'
+				taskStatusCounts.upcoming === 1 ? 'service window is' : 'service windows are'
 			} creating near-term pressure.`;
 		}
-		return 'No urgent drag right now. Maintenance is in a healthy range.';
+		return 'No urgent drag right now. System care is in a healthy range.';
 	}, [taskStatusCounts.overdue, taskStatusCounts.upcoming]);
 
-	const openTasksCount = filteredTasks.length;
+	const trackedSystemsCount = visibleDevices.length;
 
 	const homeHealthPrimaryAction = useMemo(() => {
 		if (nextUrgentTask && taskStatusCounts.overdue > 0) {
-			return `Best next recovery: complete ${nextUrgentTask.title}.`;
+			return `Best next recovery: close the overdue work on ${nextUrgentTask.title}.`;
 		}
 
 		if (nextUrgentTask) {
-			return `Best next move: start ${nextUrgentTask.title} before it becomes overdue.`;
+			return `Best next move: start ${nextUrgentTask.title} before that service window slips.`;
 		}
 
 		if (completedThisMonthCount > 0) {
-			return 'Best next move: schedule one preventive task while the queue is clear.';
+			return 'Best next move: schedule one preventive service window while the queue is clear.';
 		}
 
-		return 'Best next move: add the next planned maintenance task.';
+		return 'Best next move: add the next planned maintenance workflow.';
 	}, [nextUrgentTask, taskStatusCounts.overdue, completedThisMonthCount]);
 
 	const homeHealthDrivers = useMemo(() => {
@@ -583,6 +742,13 @@ export const DashboardTab = () => {
 		}
 		return `Due in ${diffDays} days`;
 	};
+
+	const formatActivityDate = (value: Date) =>
+		value.toLocaleDateString(undefined, {
+			month: 'short',
+			day: 'numeric',
+			year: 'numeric',
+		});
 
 	const getUrgentTaskPropertyName = (task: Task) => {
 		return (
@@ -656,8 +822,8 @@ export const DashboardTab = () => {
 			if (allProperties.length > 1) {
 				return {
 					disabled: false,
-					label: 'Add as Task',
-					helperText: 'Choose the property in the task modal.',
+					label: 'Add Workflow',
+					helperText: 'Choose the property in the maintenance workflow modal.',
 				};
 			}
 
@@ -679,8 +845,8 @@ export const DashboardTab = () => {
 
 			return {
 				disabled: false,
-				label: 'Add as Task',
-				helperText: 'Create a prefilled task from this seasonal tip.',
+				label: 'Add Workflow',
+				helperText: 'Create a prefilled maintenance workflow from this seasonal tip.',
 			};
 		},
 		[allProperties, filteredTasks, ACTIVE_TASK_STATUSES, normalizeTaskTitle],
@@ -853,32 +1019,31 @@ export const DashboardTab = () => {
 				</TodayFocusCard>
 
 				<PortfolioHealthCard>
-					<CardEyebrow>Portfolio Health</CardEyebrow>
-					<CardTitle>Current maintenance load</CardTitle>
+					<CardEyebrow>System Awareness</CardEyebrow>
+					<CardTitle>Operational continuity</CardTitle>
 					<PortfolioHeaderText>
 						Across {allProperties.length}{' '}
-						{allProperties.length === 1 ? 'property' : 'properties'}.
+						{allProperties.length === 1 ? 'property' : 'properties'} and {trackedSystemsCount}{' '}
+						{trackedSystemsCount === 1 ? 'tracked system' : 'tracked systems'}.
 					</PortfolioHeaderText>
 					<PortfolioMetrics>
 						<PortfolioMetric>
 							<PortfolioMetricValue>
-								{openTasksCount}
+								{systemsNeedingAttentionCount}
 							</PortfolioMetricValue>
-							<PortfolioMetricLabel>Open Tasks</PortfolioMetricLabel>
+							<PortfolioMetricLabel>Systems Needing Attention</PortfolioMetricLabel>
 						</PortfolioMetric>
 						<PortfolioMetric>
 							<PortfolioMetricValue>
-								{taskStatusCounts.overdue}
+								{upcomingServiceWindowCount}
 							</PortfolioMetricValue>
-							<PortfolioMetricLabel>Overdue</PortfolioMetricLabel>
+							<PortfolioMetricLabel>Upcoming Service Windows</PortfolioMetricLabel>
 						</PortfolioMetric>
 						<PortfolioMetric>
 							<PortfolioMetricValue>
-								{completedThisMonthCount}
+								{maintenanceEventsThisMonth}
 							</PortfolioMetricValue>
-							<PortfolioMetricLabel>
-								Completed This Month
-							</PortfolioMetricLabel>
+							<PortfolioMetricLabel>Maintenance Events This Month</PortfolioMetricLabel>
 						</PortfolioMetric>
 					</PortfolioMetrics>
 				</PortfolioHealthCard>
@@ -905,13 +1070,44 @@ export const DashboardTab = () => {
 				</HomeHealthCard>
 			</ActionFirstTopSection>
 
+			<RecentActivitySection>
+				<RecentActivityHeader>
+					<div>
+						<CardEyebrow>Recent Maintenance Activity</CardEyebrow>
+						<CardTitle>Latest system events</CardTitle>
+						<RecentActivitySubtitle>
+							The most recent device-level maintenance updates across your active properties.
+						</RecentActivitySubtitle>
+					</div>
+				</RecentActivityHeader>
+				{recentMaintenanceActivity.length === 0 ? (
+					<RecentActivityEmpty>
+						No device maintenance events yet. Complete tasks or add logs from a device page to build continuity.
+					</RecentActivityEmpty>
+				) : (
+					<RecentActivityList>
+						{recentMaintenanceActivity.map((entry: any) => (
+							<RecentActivityRow key={entry.id}>
+								<RecentActivityMain>
+									<RecentActivityTitle>{entry.description}</RecentActivityTitle>
+									<RecentActivityMeta>
+										{entry.deviceName} • {entry.propertyName}
+									</RecentActivityMeta>
+								</RecentActivityMain>
+								<RecentActivityDate>{formatActivityDate(entry.timestamp)}</RecentActivityDate>
+							</RecentActivityRow>
+						))}
+					</RecentActivityList>
+				)}
+			</RecentActivitySection>
+
 			{/* Urgent queue */}
 			<UrgentQueueSection id='urgent-task-queue'>
 				<UrgentQueueHeader>
 					<div>
-						<CardTitle>Urgent Task Queue</CardTitle>
+							<CardTitle>Systems Needing Attention</CardTitle>
 						<UrgentQueueSubtitle>
-							Top 5 tasks grouped by overdue risk and due date.
+								The highest-risk maintenance work is surfaced first so you can reduce overdue pressure fast.
 						</UrgentQueueSubtitle>
 					</div>
 					<QueueHeaderActions>
@@ -920,6 +1116,11 @@ export const DashboardTab = () => {
 								? 'Single property view'
 								: `${allProperties.length} properties in view`}
 						</QueueFilterPill>
+						{overdueUrgentTasks.length > 0 && (
+							<QueueFilterPill $tone='urgent'>
+								{overdueUrgentTasks.length} overdue now
+							</QueueFilterPill>
+						)}
 					</QueueHeaderActions>
 				</UrgentQueueHeader>
 

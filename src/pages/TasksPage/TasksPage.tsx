@@ -387,8 +387,8 @@ export const TasksPage = () => {
 		setPendingUndo({ ...action, timeoutId });
 		setUndoToastMessage(
 			action.kind === 'delete'
-				? `Deleting "${action.taskTitle}"...`
-				: `Completing "${action.taskTitle}"...`,
+				? `Removing "${action.taskTitle}" from your active workflows...`
+				: `Completing "${action.taskTitle}" and logging history...`,
 		);
 	};
 
@@ -409,12 +409,12 @@ export const TasksPage = () => {
 
 	const taskActions: Action[] = [
 		{
-			label: 'Edit',
+			label: 'Refine Workflow',
 			icon: faEdit,
 			onClick: (task: any) => handleEditTask(task),
 		},
 		{
-			label: 'Complete',
+			label: 'Complete and Log',
 			icon: faCheck,
 			onClick: (task: any) => {
 				queueUndoableAction({
@@ -426,7 +426,7 @@ export const TasksPage = () => {
 			disabled: (task: any) => task.status === 'Completed',
 		},
 		{
-			label: 'Assign',
+			label: 'Assign Owner',
 			icon: faUserPlus,
 			onClick: (task: any) => handleAssignTask(task),
 		},
@@ -493,8 +493,8 @@ export const TasksPage = () => {
 								cursor: 'pointer',
 								whiteSpace: 'nowrap',
 							}}
-							title='Create new task'>
-							+ Add Task
+							title='Create maintenance workflow'>
+								+ Add Workflow
 						</button>
 					)}
 				</div>
@@ -535,7 +535,7 @@ export const TasksPage = () => {
 						fontWeight: 600,
 						color: '#6b7280',
 					}}>
-					Showing {filteredTasks.length} {filteredTasks.length === 1 ? 'task' : 'tasks'}
+					Showing {filteredTasks.length} {filteredTasks.length === 1 ? 'workflow' : 'workflows'}
 				</div>
 			</div>
 
@@ -561,23 +561,23 @@ export const TasksPage = () => {
 							alignItems: 'center',
 							justifyContent: 'center',
 						}}
-						aria-label='Create task'>
+						aria-label='Create maintenance workflow'>
 						<FontAwesomeIcon icon={faPlus} />
 					</button>
 					{filteredTasks.length === 0 ? (
 						<ZeroState
 							title={
 								allTasks.length === 0
-									? 'No tasks yet'
+									? 'No maintenance workflows yet'
 									: activeTasksCount === 0
-									? 'No active tasks'
-									: 'No tasks match your search or filter'
+									? 'No active maintenance workflows'
+									: 'No workflows match your search or filter'
 							}
 							description={
 								allTasks.length === 0
-									? 'Create your first task to get started'
+									? 'Create your first maintenance workflow to start building continuity'
 									: activeTasksCount === 0
-									? 'All your tasks are completed'
+									? 'All your maintenance workflows are complete'
 									: 'Try a different search term or quick filter chip'
 							}
 							icon='📊'
@@ -615,12 +615,12 @@ export const TasksPage = () => {
 									</MobileTaskMetaGrid>
 									<MobileTaskActions>
 										<MobileActionButton onClick={() => handleEditTask(task)}>
-											Edit
+											Refine
 										</MobileActionButton>
 										<MobileActionButton
 											$variant='secondary'
 											onClick={() => handleAssignTask(task)}>
-											Assign
+											Assign Owner
 										</MobileActionButton>
 										{task.status !== 'Completed' && (
 											<MobileActionButton
@@ -632,7 +632,7 @@ export const TasksPage = () => {
 														taskTitle: task.title || 'Task',
 													})
 												}>
-												Complete
+													Complete and Log
 											</MobileActionButton>
 										)}
 										<MobileActionButton
@@ -660,16 +660,16 @@ export const TasksPage = () => {
 							<ZeroState
 								title={
 									allTasks.length === 0
-										? 'No tasks yet'
+											? 'No maintenance workflows yet'
 										: activeTasksCount === 0
-										? 'No active tasks'
-										: 'No tasks match your search or filter'
+											? 'No active maintenance workflows'
+											: 'No workflows match your search or filter'
 								}
 								description={
 									allTasks.length === 0
-										? 'Create your first task to get started'
+											? 'Create your first maintenance workflow to start building continuity'
 										: activeTasksCount === 0
-										? 'All your tasks are completed'
+											? 'All your maintenance workflows are complete'
 										: 'Try a different search term or quick filter chip'
 								}
 								icon='📊'></ZeroState>

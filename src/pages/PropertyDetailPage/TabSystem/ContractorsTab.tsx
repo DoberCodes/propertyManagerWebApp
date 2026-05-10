@@ -53,6 +53,7 @@ import {
 	CardMoreMenu,
 	CardMoreMenuItem,
 } from './mobileUiShared';
+import { useAppFeedback } from '../../../Components/Library/AppFeedback/AppFeedbackProvider';
 
 interface ContractorsTabProps {
 	propertyId: string;
@@ -61,6 +62,7 @@ interface ContractorsTabProps {
 export const ContractorsTab: React.FC<ContractorsTabProps> = ({
 	propertyId,
 }) => {
+	const feedback = useAppFeedback();
 	const [isFormOpen, setIsFormOpen] = useState(false);
 	const [editingContractor, setEditingContractor] = useState<Contractor | null>(
 		null,
@@ -133,7 +135,7 @@ export const ContractorsTab: React.FC<ContractorsTabProps> = ({
 			setContractorToDelete(null);
 		} catch (error) {
 			console.error('Failed to delete contractor:', error);
-			alert('Failed to delete contractor. Please try again.');
+			feedback.notify('Failed to delete contractor. Please try again.');
 		}
 	};
 

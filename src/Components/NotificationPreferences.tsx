@@ -5,6 +5,7 @@ import { AppDispatch } from '../Redux/store/store';
 import { useUpdateUserMutation } from '../Redux/API/userSlice';
 import { setCurrentUser } from '../Redux/Slices/userSlice';
 import { Task } from '../types/Task.types';
+import { useAppFeedback } from './Library/AppFeedback/AppFeedbackProvider';
 import { GenericModal } from './Library';
 import {
 	useGetTasksQuery,
@@ -171,6 +172,7 @@ export const NotificationPreferences: React.FC<
 	NotificationPreferencesProps
 > = ({ currentUser, defaultCollapsed = false }) => {
 	const dispatch = useDispatch<AppDispatch>();
+	const feedback = useAppFeedback();
 	const [updateUser] = useUpdateUserMutation();
 	const [updateTaskMutation] = useUpdateTaskMutation();
 	const [showDisableAllConfirm, setShowDisableAllConfirm] = useState(false);
@@ -377,12 +379,12 @@ export const NotificationPreferences: React.FC<
 					update as { id: string; updates: Partial<Task> },
 				).unwrap();
 			}
-			alert(
+			feedback.notify(
 				'Task notifications disabled. Please refresh the page to see changes.',
 			);
 		} catch (error) {
 			console.error('Failed to disable task notifications:', error);
-			alert('Failed to disable task notifications. Please try again.');
+			feedback.notify('Failed to disable task notifications. Please try again.');
 		}
 	};
 

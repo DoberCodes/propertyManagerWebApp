@@ -745,6 +745,91 @@ export const HomeHealthDriver = styled.li`
 	color: ${COLORS.textPrimary};
 `;
 
+export const RecentActivitySection = styled.section`
+	background: ${COLORS.bgWhite};
+	border: 1px solid ${COLORS.border};
+	border-radius: 14px;
+	box-shadow: ${COLORS.shadow};
+	padding: 16px;
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+`;
+
+export const RecentActivityHeader = styled.div`
+	display: flex;
+	justify-content: space-between;
+	align-items: flex-start;
+	gap: 10px;
+
+	@media (max-width: 768px) {
+		flex-direction: column;
+	}
+`;
+
+export const RecentActivitySubtitle = styled.p`
+	margin: 6px 0 0;
+	font-size: 0.8rem;
+	font-weight: 500;
+	color: ${COLORS.textSecondary};
+`;
+
+export const RecentActivityList = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+`;
+
+export const RecentActivityRow = styled.div`
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: 12px;
+	border: 1px solid ${COLORS.border};
+	border-radius: 12px;
+	padding: 12px;
+	background: ${COLORS.gray50};
+
+	@media (max-width: 768px) {
+		flex-direction: column;
+		align-items: flex-start;
+	}
+`;
+
+export const RecentActivityMain = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+`;
+
+export const RecentActivityTitle = styled.h4`
+	margin: 0;
+	font-size: 0.92rem;
+	font-weight: 700;
+	color: ${COLORS.textPrimary};
+`;
+
+export const RecentActivityMeta = styled.p`
+	margin: 0;
+	font-size: 0.8rem;
+	font-weight: 600;
+	color: ${COLORS.textSecondary};
+`;
+
+export const RecentActivityDate = styled.span`
+	font-size: 0.78rem;
+	font-weight: 700;
+	color: ${COLORS.primaryDark};
+	white-space: nowrap;
+`;
+
+export const RecentActivityEmpty = styled.p`
+	margin: 0;
+	font-size: 0.85rem;
+	font-weight: 500;
+	color: ${COLORS.textSecondary};
+`;
+
 export const UrgentQueueSection = styled.section`
 	background: ${COLORS.bgWhite};
 	border: 1px solid ${COLORS.border};
@@ -773,13 +858,15 @@ export const QueueHeaderActions = styled.div`
 	gap: 8px;
 `;
 
-export const QueueFilterPill = styled.span`
+export const QueueFilterPill = styled.span<{ $tone?: 'neutral' | 'urgent' }>`
 	display: inline-flex;
 	align-items: center;
 	padding: 6px 10px;
 	border-radius: 999px;
-	background: ${COLORS.gray100};
-	color: ${COLORS.textSecondary};
+	background: ${(props) =>
+		props.$tone === 'urgent' ? COLORS.errorLight : COLORS.gray100};
+	color: ${(props) =>
+		props.$tone === 'urgent' ? COLORS.errorDark : COLORS.textSecondary};
 	font-size: 0.76rem;
 	font-weight: 700;
 `;
