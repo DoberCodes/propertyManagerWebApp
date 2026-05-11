@@ -18,6 +18,7 @@ import {
 	TabSummaryBar,
 	TabSummaryPill,
 } from './index.styles';
+import { buildDeviceSlug } from '../../../utils/deviceSlug';
 import { getDeviceNameUtil } from '../PropertyDetailPage.utils';
 import {
 	FilterBar,
@@ -37,6 +38,11 @@ import {
 	formatCurrency,
 	getFinancialDisplayTotal,
 } from 'utils/financialUtils';
+import {
+	getMaintenanceEventDate,
+	getMaintenanceEventTitle,
+	isContinuityEvent,
+} from 'utils/maintenanceEventUtils';
 import { useAppFeedback } from 'Components/Library/AppFeedback/AppFeedbackProvider';
 import {
 	ActiveFilterChips,
@@ -44,6 +50,32 @@ import {
 	ActiveFilterChipClear,
 } from './mobileUiShared';
 import { TaskFinancials } from 'types/Task.types';
+
+const maintenanceEventTypeLabels: Record<string, string> = {
+	task_completed: 'Task Completed',
+	task_approved: 'Task Approved',
+	repair_logged: 'Repair Logged',
+	inspection_completed: 'Inspection',
+	invoice_uploaded: 'Invoice',
+	document_uploaded: 'Document',
+	service_note_added: 'Service Note',
+	maintenance_recorded: 'Recorded',
+	Completed: 'Completed',
+	Approved: 'Approved',
+};
+
+const getMaintenanceEventType = (record: any) => {
+	if (record.eventType) {
+		return record.eventType;
+	}
+	if (record.approvedBy || record.approvedAt || record.status === 'Approved') {
+		return 'task_approved';
+	}
+	if (record.completedBy || record.completionDate || record.status === 'Completed') {
+		return 'task_completed';
+	}
+	return 'maintenance_recorded';
+};
 
 export interface MaintenanceTabProps {
 	property: any;
@@ -61,6 +93,7 @@ export interface MaintenanceTabProps {
 		completedByName?: string;
 		completionNotes?: string;
 		unitId?: string;
+		deviceIds?: string[];
 		completionFile?: File;
 		recurringTaskId?: string;
 		linkedTaskIds?: string[];
@@ -242,6 +275,122 @@ export const MaintenanceTab = ({
 		}
 	};
 
+	const deviceNameById = useMemo(() => {
+		const map = new Map<string, string>();
+		const propertyDevices = Array.isArray((property as any)?.devices)
+			? (property as any).devices
+			: [];
+
+		propertyDevices.forEach((device: any) => {
+			const id = String(device?.id || '').trim();
+			if (!id) return;
+			const label =
+				device?.name ||
+				[device?.type, device?.brand, device?.model]
+					.filter(Boolean)
+					.join(' ') ||
+				device?.serialNumber ||
+				`Device ${id}`;
+			map.set(id, label);
+		});
+
+		return map;
+	}, [property]);
+
+	const deviceById = useMemo(() => {
+		const map = new Map<string, any>();
+		const propertyDevices = Array.isArray((property as any)?.devices)
+			? (property as any).devices
+			: [];
+
+		propertyDevices.forEach((device: any) => {
+			const id = String(device?.id || '').trim();
+			if (!id) return;
+			map.set(id, device);
+		});
+
+		return map;
+	}, [property]);
+
+	const deviceFilterOptions = useMemo(
+		() =>
+			Array.from(deviceNameById.entries())
+				.map(([value, label]) => ({ value, label }))
+				.sort((a, b) => a.label.localeCompare(b.label)),
+		[deviceNameById],
+	);
+
+	const getLinkedDeviceIds = useCallback((record: any): string[] => {
+		const ids = Array.isArray(record?.deviceIds)
+			? record.deviceIds
+			: Array.isArray(record?.devices)
+				? record.devices
+				: record?.deviceId
+					? [record.deviceId]
+					: [];
+
+		return ids.map((id: any) => String(id)).filter(Boolean);
+	}, []);
+
+	const getLinkedDeviceLabel = useCallback(
+		(record: any) => {
+			const ids = getLinkedDeviceIds(record);
+
+			if (!ids.length) {
+				return '-';
+			}
+
+			const labels = ids
+				.map((id: any) => String(id))
+				.filter(Boolean)
+				.map((id: string) => deviceNameById.get(id) || `Device ${id}`);
+
+			if (labels.length === 0) {
+				return '-';
+			}
+
+			if (labels.length === 1) {
+				return labels[0];
+			}
+
+			return `${labels[0]} +${labels.length - 1}`;
+		},
+		[deviceNameById, getLinkedDeviceIds],
+	);
+
+	const getLinkedDeviceFullLabel = useCallback(
+		(record: any) => {
+			const labels = getLinkedDeviceIds(record).map(
+				(id: string) => deviceNameById.get(id) || `Device ${id}`,
+			);
+			return labels.join(', ');
+		},
+		[deviceNameById, getLinkedDeviceIds],
+	);
+
+	const getPrimaryLinkedDeviceHref = useCallback(
+		(record: any) => {
+			const propertySlug = String((property as any)?.slug || '').trim();
+			if (!propertySlug) return null;
+
+			const primaryId = getLinkedDeviceIds(record)[0];
+			if (!primaryId) return null;
+
+			const device = deviceById.get(primaryId);
+			if (!device) return null;
+
+			const deviceSlug = buildDeviceSlug({
+				id: String(device.id),
+				type: String(device.type || ''),
+				brand: String(device.brand || ''),
+				model: String(device.model || ''),
+			});
+
+			return `/property/${propertySlug}/device/${deviceSlug}`;
+		},
+		[property, getLinkedDeviceIds, deviceById],
+	);
+
 	// Filter configuration for maintenance history
 	const maintenanceFilters: FilterConfig[] = [
 		// Only show unit filter for Multi-Family properties
@@ -291,6 +440,28 @@ export const MaintenanceTab = ({
 			],
 		},
 		{
+			key: 'eventType',
+			label: 'Event Type',
+			type: 'select' as const,
+			options: [
+				{ value: 'all', label: 'All Event Types' },
+				...Object.entries(maintenanceEventTypeLabels).map(([value, label]) => ({
+					value,
+					label,
+				})),
+			],
+		},
+		...(deviceFilterOptions.length > 0
+			? [
+					{
+						key: 'linkedDevice',
+						label: 'Linked Device',
+						type: 'select' as const,
+						options: deviceFilterOptions,
+					},
+			  ]
+			: []),
+		{
 			key: 'completionDate',
 			label: 'Completion Date',
 			type: 'daterange' as const,
@@ -300,11 +471,12 @@ export const MaintenanceTab = ({
 	// Combine all maintenance records for filtering
 	const allMaintenanceRecords = useMemo(
 		() => [
-			...maintenanceHistoryRecords.map((record) => ({
+			...maintenanceHistoryRecords.filter(isContinuityEvent).map((record) => ({
 				...record,
-				completionDate:
-					record.completionDate || record.approvedAt || record.dueDate,
-				title: record.title || record.taskTitle || 'Task',
+				completionDate: getMaintenanceEventDate(record),
+				title: getMaintenanceEventTitle(record),
+				eventType: getMaintenanceEventType(record),
+				linkedDevices: getLinkedDeviceLabel(record),
 				completedBy: record.completedBy || record.approvedBy || record.assignee,
 				completedByName: resolveCompletedByName(record),
 				notes: record.completionNotes || record.notes,
@@ -316,6 +488,10 @@ export const MaintenanceTab = ({
 					id: `legacy-${index}`,
 					completionDate: record.date,
 					title: record.description,
+					linkedDevices:
+						record.deviceId !== undefined && record.deviceId !== null
+							? getDeviceNameUtil(record.deviceId, property)
+							: '-',
 					completedBy: getDeviceNameUtil(record.deviceId, property),
 					completedByName: getDeviceNameUtil(record.deviceId, property),
 					groupId: record.maintenanceGroupId || null, // Add groupId for legacy records
@@ -324,14 +500,26 @@ export const MaintenanceTab = ({
 				}),
 			),
 		],
-		[maintenanceHistoryRecords, property, resolveCompletedByName],
+		[
+			maintenanceHistoryRecords,
+			property,
+			resolveCompletedByName,
+			getLinkedDeviceLabel,
+		],
 	);
 
 	// Apply filters to maintenance records
 	const filteredRecords = useMemo(() => {
 		let records = applyFilters(allMaintenanceRecords, filters, {
 			textFields: ['title', 'notes'],
-			selectFields: [{ field: 'completedBy', filterKey: 'completedBy' }],
+			selectFields: [
+				{ field: 'completedBy', filterKey: 'completedBy' },
+				{
+					field: 'eventType',
+					filterKey: 'eventType',
+					valueGetter: (item) => getMaintenanceEventType(item),
+				},
+			],
 			dateRangeFields: [
 				{ field: 'completionDate', filterKey: 'completionDate' },
 			],
@@ -353,6 +541,12 @@ export const MaintenanceTab = ({
 			});
 		}
 
+		if (filters.linkedDevice) {
+			records = records.filter((record: any) =>
+				getLinkedDeviceIds(record).includes(String(filters.linkedDevice)),
+			);
+		}
+
 		return records.sort((a, b) => {
 			if (sortBy === 'title') {
 				return (a.title || '').localeCompare(b.title || '');
@@ -362,7 +556,13 @@ export const MaintenanceTab = ({
 			const timeB = b.completionDate ? new Date(b.completionDate).getTime() : 0;
 			return sortBy === 'dateAsc' ? timeA - timeB : timeB - timeA;
 		});
-	}, [allMaintenanceRecords, filters, property?.propertyType, sortBy]);
+	}, [
+		allMaintenanceRecords,
+		filters,
+		property?.propertyType,
+		sortBy,
+		getLinkedDeviceIds,
+	]);
 
 	const activeFilterChips = useMemo(() => {
 		const chips: Array<{ key: string; label: string; onRemove: () => void }> = [];
@@ -382,6 +582,33 @@ export const MaintenanceTab = ({
 					setFilters((prev) => ({
 						...prev,
 						completedBy: '',
+					})),
+			});
+		}
+
+		if (filters.eventType) {
+			chips.push({
+				key: 'eventType',
+				label: `Event Type: ${maintenanceEventTypeLabels[filters.eventType] || filters.eventType}`,
+				onRemove: () =>
+					setFilters((prev) => ({
+						...prev,
+						eventType: '',
+					})),
+			});
+		}
+
+		if (filters.linkedDevice) {
+			chips.push({
+				key: 'linkedDevice',
+				label: `Linked Device: ${
+					deviceNameById.get(String(filters.linkedDevice)) ||
+					String(filters.linkedDevice)
+				}`,
+				onRemove: () =>
+					setFilters((prev) => ({
+						...prev,
+						linkedDevice: '',
 					})),
 			});
 		}
@@ -408,7 +635,7 @@ export const MaintenanceTab = ({
 		}
 
 		return chips;
-	}, [filters]);
+	}, [filters, deviceNameById]);
 
 	const getMaintenanceGroupId = (record: any): string | undefined => {
 		return record.maintenanceGroupId;
@@ -468,6 +695,49 @@ export const MaintenanceTab = ({
 			render: (value) => (value ? new Date(value).toLocaleDateString() : '-'),
 		},
 		{ header: 'Title', key: 'title' },
+		{
+			header: 'Event Type',
+			key: 'eventType',
+			render: (value, row) => {
+				const eventType = value || row.status || 'Recorded';
+				return maintenanceEventTypeLabels[eventType] || eventType;
+			},
+		},
+		{
+			header: 'Linked Devices',
+			key: 'linkedDevices',
+			render: (value, row) => {
+				const fullLabel = getLinkedDeviceFullLabel(row);
+				const href = getPrimaryLinkedDeviceHref(row);
+
+				if (!href) {
+					return (
+						<span title={fullLabel || '-'} style={{ cursor: fullLabel ? 'help' : 'default' }}>
+							{value || '-'}
+						</span>
+					);
+				}
+
+				return (
+					<button
+						type='button'
+						title={`${fullLabel || value || '-'}\nClick to open device details`}
+						onClick={() => navigate(href)}
+						style={{
+							background: 'none',
+							border: 'none',
+							padding: 0,
+							margin: 0,
+							color: '#1d4ed8',
+							textDecoration: 'underline',
+							cursor: 'pointer',
+							font: 'inherit',
+						}}>
+						{value || '-'}
+					</button>
+				);
+			},
+		},
 		{ header: 'Notes', key: 'notes' },
 		{
 			header: 'Cost',
@@ -722,7 +992,7 @@ export const MaintenanceTab = ({
 				<ContentWrapper>
 					<ReusableTable
 						columns={columns}
-						rowData={maintenanceHistoryRecords}
+						rowData={filteredRecords}
 						emptyMessage='No maintenance history available.'
 						onRowDoubleClick={handleNavigation}
 						showCheckbox={canBulkEdit}
@@ -736,6 +1006,11 @@ export const MaintenanceTab = ({
 					onClose={() => setShowAddModal(false)}
 					onSubmit={onAddMaintenanceHistory}
 					property={property}
+					devices={Array.isArray((property as any)?.devices)
+						? (property as any).devices
+						: Array.isArray((property as any)?.deviceIds)
+							? (property as any).deviceIds.map((id: string) => ({ id }))
+							: []}
 					units={units}
 					teamMembers={teamMembers}
 					contractors={contractors}

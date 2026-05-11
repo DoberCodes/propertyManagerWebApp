@@ -1,10 +1,28 @@
-import React, { useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useMemo, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import {
+	faCircleCheck,
+	faClipboardCheck,
+	faClock,
+	faCommentDots,
+	faFileInvoiceDollar,
+	faFileLines,
+	faRepeat,
+	faScrewdriverWrench,
+	faShieldHalved,
+} from '@fortawesome/free-solid-svg-icons';
 import { useGetAllDevicesQuery } from '../../Redux/API/deviceSlice';
 import { useGetPropertiesQuery } from '../../Redux/API/propertySlice';
 import { useGetTasksQuery } from '../../Redux/API/taskSlice';
+import { useGetAllMaintenanceHistoryForUserQuery } from '../../Redux/API/userSlice';
 import { buildDeviceSlug } from '../../utils/deviceSlug';
+import {
+	getMaintenanceEventDate,
+	getMaintenanceEventTitle,
+	isContinuityEvent,
+} from '../../utils/maintenanceEventUtils';
 import { Device } from '../../types/Property.types';
 
 const Wrapper = styled.div`
@@ -21,17 +39,58 @@ const SurfaceCard = styled.div`
 `;
 
 const DevicePrimary = styled.div`
-	font-size: 1.04rem;
+	font-size: 1.05rem;
 	font-weight: 800;
 	color: #0f172a;
-	line-height: 1.2;
+	line-height: 1.22;
 `;
 
-const DeviceSecondary = styled.div`
+const IdentityTopRow = styled.div`
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 10px;
+`;
+
+const OpenProfileCue = styled.span`
+	flex-shrink: 0;
+	font-size: 0.75rem;
+	font-weight: 700;
+	letter-spacing: 0.03em;
+	color: #94a3b8;
+	transition: color 0.18s ease, transform 0.18s ease;
+`;
+
+const TechnicalSubtitle = styled.div`
 	margin-top: 4px;
+	font-size: 0.88rem;
+	font-weight: 700;
+	color: #334155;
+	line-height: 1.35;
+`;
+
+const ContextLinks = styled.div`
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-top: 8px;
+	flex-wrap: wrap;
+`;
+
+const ContextLink = styled(Link)`
 	font-size: 0.8rem;
-	color: #64748b;
-	line-height: 1.4;
+	font-weight: 600;
+	color: #2563eb;
+	text-decoration: none;
+
+	&:hover {
+		text-decoration: underline;
+	}
+`;
+
+const ContextArrow = styled.span`
+	font-size: 0.78rem;
+	color: #94a3b8;
 `;
 
 const StatusPill = styled.span<{ $status: string }>`
@@ -101,6 +160,26 @@ const ActivityItem = styled.div`
 	background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
 `;
 
+const ActivityHeaderRow = styled.div`
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-bottom: 3px;
+`;
+
+const ActivityIconBadge = styled.span<{ $color: string; $background: string }>`
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 22px;
+	height: 22px;
+	border-radius: 7px;
+	color: ${(props) => props.$color};
+	background: ${(props) => props.$background};
+	font-size: 0.72rem;
+	flex-shrink: 0;
+`;
+
 const ActivityMeta = styled.div`
 	font-size: 0.74rem;
 	font-weight: 700;
@@ -121,6 +200,166 @@ const ActivityDescription = styled.div`
 	font-size: 0.84rem;
 	color: #64748b;
 	line-height: 1.45;
+`;
+
+const ActivityContext = styled.div`
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	margin-top: 6px;
+	flex-wrap: wrap;
+`;
+
+const ActivityContextLink = styled(Link)`
+	font-size: 0.78rem;
+	font-weight: 600;
+	color: #2563eb;
+	text-decoration: none;
+
+	&:hover {
+		text-decoration: underline;
+	}
+`;
+
+const ActivityContextSep = styled.span`
+	font-size: 0.72rem;
+	color: #94a3b8;
+`;
+
+const AttentionPriorityBadge = styled.span<{ $color: string; $background: string; $border: string }>`
+	display: inline-flex;
+	align-items: center;
+	padding: 3px 8px;
+	border-radius: 999px;
+	font-size: 0.7rem;
+	font-weight: 800;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	color: ${(p) => p.$color};
+	background: ${(p) => p.$background};
+	border: 1px solid ${(p) => p.$border};
+`;
+
+const AttentionHeaderRow = styled.div`
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-bottom: 4px;
+`;
+
+const AttentionReason = styled.div`
+	font-size: 0.83rem;
+	color: #475569;
+	line-height: 1.4;
+	margin-bottom: 6px;
+`;
+
+const AttentionContext = styled.div`
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	flex-wrap: wrap;
+`;
+
+const AttentionContextLink = styled(Link)`
+	font-size: 0.78rem;
+	font-weight: 600;
+	color: #2563eb;
+	text-decoration: none;
+
+	&:hover {
+		text-decoration: underline;
+	}
+`;
+
+const AttentionContextSep = styled.span`
+	font-size: 0.72rem;
+	color: #94a3b8;
+`;
+
+const FilterBar = styled.div`
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	flex-wrap: wrap;
+`;
+
+const SearchInput = styled.input`
+	flex: 1;
+	min-width: 180px;
+	max-width: 320px;
+	height: 36px;
+	padding: 0 12px;
+	border: 1px solid #cbd5e1;
+	border-radius: 10px;
+	font-size: 0.88rem;
+	font-weight: 500;
+	color: #0f172a;
+	background: #ffffff;
+	outline: none;
+	transition: border-color 0.15s ease, box-shadow 0.15s ease;
+
+	&::placeholder {
+		color: #94a3b8;
+	}
+
+	&:focus {
+		border-color: #22c55e;
+		box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.12);
+	}
+`;
+
+const FilterGroup = styled.div`
+	display: flex;
+	align-items: center;
+	gap: 4px;
+`;
+
+const FilterButton = styled.button<{ $active: boolean }>`
+	height: 34px;
+	padding: 0 12px;
+	border-radius: 8px;
+	border: 1px solid ${(p) => (p.$active ? '#22c55e' : '#e2e8f0')};
+	background: ${(p) => (p.$active ? '#f0fdf4' : '#ffffff')};
+	color: ${(p) => (p.$active ? '#166534' : '#475569')};
+	font-size: 0.82rem;
+	font-weight: ${(p) => (p.$active ? 700 : 600)};
+	cursor: pointer;
+	transition: all 0.15s ease;
+	white-space: nowrap;
+
+	&:hover {
+		border-color: #22c55e;
+		color: #166534;
+		background: #f0fdf4;
+	}
+`;
+
+const PropertySelect = styled.select`
+	height: 36px;
+	padding: 0 10px;
+	border: 1px solid #cbd5e1;
+	border-radius: 10px;
+	font-size: 0.85rem;
+	font-weight: 500;
+	color: #334155;
+	background: #ffffff;
+	cursor: pointer;
+	outline: none;
+	max-width: 200px;
+	transition: border-color 0.15s ease;
+
+	&:focus {
+		border-color: #22c55e;
+	}
+`;
+
+const FilterResultCount = styled.span`
+	margin-left: auto;
+	font-size: 0.8rem;
+	font-weight: 600;
+	color: #64748b;
+	white-space: nowrap;
 `;
 
 const Header = styled.div`
@@ -185,30 +424,77 @@ const List = styled.div`
 	gap: 10px;
 `;
 
-const DeviceCard = styled(Link)`
+const DeviceCard = styled.div`
+	position: relative;
 	display: grid;
-	grid-template-columns: minmax(0, 1.5fr) minmax(0, 1.15fr) minmax(0, 0.75fr) minmax(0, 0.95fr) minmax(0, 1.2fr) minmax(0, 1.3fr) minmax(0, 0.75fr);
-	gap: 12px;
+	grid-template-columns: minmax(0, 1.9fr) minmax(0, 0.8fr) minmax(0, 0.95fr) minmax(0, 1.1fr) minmax(0, 1.2fr) minmax(0, 0.75fr);
+	gap: 16px;
 	align-items: center;
-	border: 1px solid #dbe3ea;
-	background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
-	border-radius: 14px;
-	padding: 14px 16px;
-	text-decoration: none;
+	border: 1px solid #d7e2ea;
+	background: linear-gradient(180deg, #ffffff 0%, #f8fbfd 100%);
+	border-radius: 16px;
+	padding: 18px 18px;
 	color: inherit;
-	transition: border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
-	box-shadow: 0 6px 18px rgba(15, 23, 42, 0.04);
+	cursor: pointer;
+	overflow: hidden;
+	transition: border-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
+	box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+
+	&::before {
+		content: '';
+		position: absolute;
+		left: 0;
+		top: 10px;
+		bottom: 10px;
+		width: 4px;
+		border-radius: 999px;
+		background: linear-gradient(180deg, #cbd5e1 0%, #e2e8f0 100%);
+		transition: background 0.18s ease, opacity 0.18s ease;
+		opacity: 0.9;
+	}
+
+	> div:not(:first-child) {
+		padding-left: 14px;
+		border-left: 1px solid #edf2f7;
+	}
 
 	&:hover {
-		border-color: #16a34a;
-		background: #f8fff8;
+		border-color: #22c55e;
+		background: linear-gradient(180deg, #ffffff 0%, #f6fff8 100%);
 		transform: translateY(-2px);
-		box-shadow: 0 14px 30px rgba(22, 163, 74, 0.12);
+		box-shadow: 0 18px 36px rgba(15, 23, 42, 0.1);
+
+		&::before {
+			background: linear-gradient(180deg, #22c55e 0%, #16a34a 100%);
+		}
+
+		${DevicePrimary} {
+			text-decoration: underline;
+			text-decoration-color: #22c55e;
+			text-underline-offset: 3px;
+		}
+
+		${OpenProfileCue} {
+			color: #16a34a;
+			transform: translateX(2px);
+		}
+	}
+
+	&:active {
+		transform: translateY(-1px);
 	}
 
 	@media (max-width: 1120px) {
 		grid-template-columns: 1fr;
-		gap: 6px;
+		gap: 8px;
+		padding: 16px;
+
+		> div:not(:first-child) {
+			padding-left: 0;
+			border-left: none;
+			padding-top: 8px;
+			border-top: 1px solid #edf2f7;
+		}
 	}
 `;
 
@@ -222,11 +508,11 @@ const Label = styled.div`
 	letter-spacing: 0.05em;
 	text-transform: uppercase;
 	color: #64748b;
-	margin-bottom: 3px;
+	margin-bottom: 5px;
 `;
 
 const Value = styled.div`
-	font-size: 0.88rem;
+	font-size: 0.89rem;
 	font-weight: 600;
 	color: #334155;
 	white-space: nowrap;
@@ -319,20 +605,23 @@ const buildTechnicalSubtitle = (device: Device): string => {
 };
 
 const buildRecentActivity = (entry?: { date?: string; description?: string } | null): string => {
-	if (!entry) return 'No maintenance activity recorded yet';
+	if (!entry) return 'No continuity activity recorded yet';
 	const rawDescription = String(entry.description || '').trim();
-	if (!rawDescription) return `Maintenance event ${formatRelativeTime(entry.date)}`;
+	if (!rawDescription) return `Continuity event ${formatRelativeTime(entry.date)}`;
 	return `${rawDescription} ${formatRelativeTime(entry.date)}`.trim();
 };
 
 const buildEventTitle = (entry?: { description?: string } | null): string => {
 	const description = String(entry?.description || '').trim();
-	if (!description) return 'Maintenance event';
+	if (!description) return 'Continuity event';
 	const prefixes = [
 		'Document uploaded:',
 		'Service note added:',
 		'Repair logged:',
 		'Warranty uploaded:',
+		'Invoice uploaded:',
+		'Recurring maintenance created:',
+		'Inspection completed:',
 		'Task completed:',
 	];
 	for (const prefix of prefixes) {
@@ -340,15 +629,62 @@ const buildEventTitle = (entry?: { description?: string } | null): string => {
 			return prefix.replace(':', '');
 		}
 	}
-	return description.split(':')[0] || 'Maintenance event';
+	return description.split(':')[0] || 'Continuity event';
 };
 
 const buildEventDetail = (entry?: { description?: string } | null): string => {
 	const description = String(entry?.description || '').trim();
-	if (!description) return 'Recorded in the maintenance timeline';
+	if (!description) return 'Recorded in the continuity timeline';
 	const colonIndex = description.indexOf(':');
 	if (colonIndex === -1) return description;
 	return description.slice(colonIndex + 1).trim() || description;
+};
+
+type ActivityEventCategory =
+	| 'repair'
+	| 'invoice'
+	| 'inspection'
+	| 'recurring'
+	| 'completed'
+	| 'warranty'
+	| 'document'
+	| 'note'
+	| 'default';
+
+const getActivityEventCategory = (description?: string): ActivityEventCategory => {
+	const text = String(description || '').toLowerCase();
+	if (text.includes('repair')) return 'repair';
+	if (text.includes('invoice')) return 'invoice';
+	if (text.includes('inspection')) return 'inspection';
+	if (text.includes('recurring')) return 'recurring';
+	if (text.includes('warranty')) return 'warranty';
+	if (text.includes('document') || text.includes('upload') || text.includes('file')) return 'document';
+	if (text.includes('note')) return 'note';
+	if (text.includes('complete') || text.includes('approved') || text.includes('done')) return 'completed';
+	return 'default';
+};
+
+const getActivityEventIcon = (category: ActivityEventCategory) => {
+	switch (category) {
+		case 'repair':
+			return { icon: faScrewdriverWrench, color: '#92400e', background: '#fef3c7' };
+		case 'invoice':
+			return { icon: faFileInvoiceDollar, color: '#1d4ed8', background: '#dbeafe' };
+		case 'inspection':
+			return { icon: faClipboardCheck, color: '#0f766e', background: '#ccfbf1' };
+		case 'recurring':
+			return { icon: faRepeat, color: '#7c3aed', background: '#ede9fe' };
+		case 'completed':
+			return { icon: faCircleCheck, color: '#166534', background: '#dcfce7' };
+		case 'warranty':
+			return { icon: faShieldHalved, color: '#1e3a8a', background: '#dbeafe' };
+		case 'document':
+			return { icon: faFileLines, color: '#334155', background: '#e2e8f0' };
+		case 'note':
+			return { icon: faCommentDots, color: '#0f766e', background: '#ccfbf1' };
+		default:
+			return { icon: faClock, color: '#475569', background: '#e2e8f0' };
+	}
 };
 
 const buildLocationLabel = (device: Device, propertyNameById: Map<string, string>, properties: any[]): string => {
@@ -380,9 +716,15 @@ const getUpcomingMaintenanceDate = (linkedOpenTasks: any[]): string | undefined 
 };
 
 export const DevicesHubPage: React.FC = () => {
+	const navigate = useNavigate();
 	const { data: devices = [], isLoading } = useGetAllDevicesQuery();
 	const { data: properties = [] } = useGetPropertiesQuery();
 	const { data: allTasks = [] } = useGetTasksQuery();
+	const { data: allMaintenanceHistory = [] } = useGetAllMaintenanceHistoryForUserQuery();
+
+	const [searchQuery, setSearchQuery] = useState('');
+	const [statusFilter, setStatusFilter] = useState<'All' | 'Active' | 'Maintenance' | 'Broken'>('All');
+	const [propertyFilter, setPropertyFilter] = useState('');
 
 	const propertyNameById = useMemo(() => {
 		const map = new Map<string, string>();
@@ -423,6 +765,25 @@ export const DevicesHubPage: React.FC = () => {
 		return map;
 	}, [openTasks]);
 
+	const continuityEventsByDevice = useMemo(() => {
+		const map = new Map<string, any[]>();
+		const filteredEvents = allMaintenanceHistory.filter(isContinuityEvent);
+		filteredEvents.forEach((event: any) => {
+			if (Array.isArray(event.deviceIds)) {
+				event.deviceIds.forEach((deviceId: string) => {
+					const id = String(deviceId);
+					if (!map.has(id)) map.set(id, []);
+					map.get(id)!.push(event);
+				});
+			} else if (event.deviceId) {
+				const id = String(event.deviceId);
+				if (!map.has(id)) map.set(id, []);
+				map.get(id)!.push(event);
+			}
+		});
+		return map;
+	}, [allMaintenanceHistory]);
+
 	const deviceRows = useMemo(() => {
 		return devices
 			.map((device) => {
@@ -461,18 +822,210 @@ export const DevicesHubPage: React.FC = () => {
 			});
 	}, [devices, linkedOpenTaskCountByDevice, linkedTasksByDevice, propertyById, propertyNameById]);
 
-	const recentActivityFeed = useMemo(
-		() =>
-			deviceRows
-				.filter((row) => row.recentActivity !== 'No maintenance activity recorded yet')
-				.slice(0, 6),
-		[deviceRows],
-	);
+	const filteredDeviceRows = useMemo(() => {
+		const query = searchQuery.trim().toLowerCase();
+		return deviceRows.filter((row) => {
+			if (statusFilter !== 'All' && row.status !== statusFilter) return false;
+			if (propertyFilter && row.propertyId !== propertyFilter) return false;
+			if (query) {
+				const haystack = [
+					row.friendlyName,
+					row.technicalSubtitle,
+					row.locationLabel,
+				].join(' ').toLowerCase();
+				if (!haystack.includes(query)) return false;
+			}
+			return true;
+		});
+	}, [deviceRows, searchQuery, statusFilter, propertyFilter]);
 
-	const devicesNeedingAttention = useMemo(
-		() => deviceRows.filter((row) => row.status === 'Broken' || row.status === 'Maintenance' || row.openTaskCount > 0).slice(0, 6),
-		[deviceRows],
-	);
+	const recentActivityFeed = useMemo(() => {
+		type FeedEntry = {
+			key: string;
+			deviceSlug: string;
+			friendlyName: string;
+			propertyName: string;
+			propertySlug: string;
+			locationLabel: string;
+			locationHref: string;
+			description?: string;
+			date?: string;
+		};
+
+		const entries: FeedEntry[] = [];
+		const filteredEvents = allMaintenanceHistory.filter(isContinuityEvent);
+
+		filteredEvents.forEach((event: any, eventIndex: number) => {
+			const deviceIds = Array.isArray(event.deviceIds) ? event.deviceIds : (event.deviceId ? [event.deviceId] : []);
+			
+			deviceIds.forEach((deviceId: any) => {
+				const device = devices.find((d) => String(d.id) === String(deviceId));
+				if (!device) return;
+
+				const property = propertyById.get(String(device.location?.propertyId || ''));
+				const propName = propertyNameById.get(String(device.location?.propertyId || '')) || 'Property';
+				const propSlug = property?.slug || '';
+				const locLabel = buildLocationLabel(device, propertyNameById, [property]);
+				const devFriendlyName = buildFriendlyDeviceName(device, locLabel);
+				const devSlug = buildDeviceSlug(device);
+				const locHref = device.location?.unitId
+					? `/property/${propSlug}/unit/${encodeURIComponent(locLabel)}`
+					: device.location?.suiteId
+						? `/property/${propSlug}/suite/${encodeURIComponent(locLabel)}`
+						: '';
+
+				entries.push({
+					key: `${eventIndex}-${deviceId}`,
+					deviceSlug: devSlug,
+					friendlyName: devFriendlyName,
+					propertyName: propName,
+					propertySlug: propSlug,
+					locationLabel: locLabel,
+					locationHref: locHref,
+					description: getMaintenanceEventTitle(event),
+					date: getMaintenanceEventDate(event),
+				});
+			});
+		});
+
+		return entries
+			.sort((a, b) => {
+				const left = toDate(a.date)?.getTime() || 0;
+				const right = toDate(b.date)?.getTime() || 0;
+				return right - left;
+			})
+			.slice(0, 10);
+	}, [allMaintenanceHistory, devices, propertyById, propertyNameById]);
+
+	const devicesNeedingAttention = useMemo(() => {
+		type PriorityTier = 1 | 2 | 3 | 4 | 5 | 6 | 7;
+		type AttentionEntry = {
+			id: string | number;
+			friendlyName: string;
+			propertyName: string;
+			propertySlug: string;
+			locationLabel: string;
+			locationHref: string;
+			deviceSlug: string;
+			priorityTier: PriorityTier;
+			priorityLabel: string;
+			priorityColor: string;
+			priorityBackground: string;
+			priorityBorder: string;
+			reasonDescription: string;
+		};
+
+		const now = new Date();
+		const fourteenDays = new Date(now);
+		fourteenDays.setDate(now.getDate() + 14);
+		const sixMonthsAgo = new Date(now);
+		sixMonthsAgo.setMonth(now.getMonth() - 6);
+
+		const entries: AttentionEntry[] = [];
+
+		deviceRows.forEach((row) => {
+			const property = propertyById.get(row.propertyId);
+			const propSlug = property?.slug || '';
+			const propName = propertyNameById.get(row.propertyId) || 'Property';
+			const devSlug = buildDeviceSlug(row.device);
+			const locHref = row.device.location?.unitId
+				? `/property/${propSlug}/unit/${encodeURIComponent(row.locationLabel)}`
+				: row.device.location?.suiteId
+					? `/property/${propSlug}/suite/${encodeURIComponent(row.locationLabel)}`
+					: '';
+
+			const linkedTasks = linkedTasksByDevice.get(String(row.id)) || [];
+			const overdueCount = linkedTasks.filter((t: any) => {
+				const due = toDate(t?.dueDate);
+				return due !== null && due < now;
+			}).length;
+			const dueSoon = toDate(row.upcomingMaintenance);
+			const lastServiced = toDate(row.lastServiced);
+			const continuityEvents = continuityEventsByDevice.get(String(row.id)) || [];
+			const hasNoHistory = continuityEvents.length === 0;
+			const isStale = lastServiced !== null && lastServiced < sixMonthsAgo;
+
+			let priorityTier: PriorityTier | null = null;
+			let priorityLabel = '';
+			let priorityColor = '';
+			let priorityBackground = '';
+			let priorityBorder = '';
+			let reasonDescription = '';
+
+			if (row.status === 'Broken') {
+				priorityTier = 1;
+				priorityLabel = 'Broken';
+				priorityColor = '#b91c1c';
+				priorityBackground = '#fef2f2';
+				priorityBorder = '#fecaca';
+				reasonDescription = 'Device is marked as broken and may need immediate service.';
+			} else if (overdueCount > 0) {
+				priorityTier = 2;
+				priorityLabel = 'Overdue';
+				priorityColor = '#c2410c';
+				priorityBackground = '#fff7ed';
+				priorityBorder = '#fed7aa';
+				reasonDescription = `${overdueCount} task${overdueCount === 1 ? '' : 's'} past due date.`;
+			} else if (dueSoon !== null && dueSoon <= fourteenDays) {
+				priorityTier = 3;
+				priorityLabel = 'Due Soon';
+				priorityColor = '#92400e';
+				priorityBackground = '#fffbeb';
+				priorityBorder = '#fcd34d';
+				reasonDescription = `Maintenance due ${formatRelativeTime(row.upcomingMaintenance)}.`;
+			} else if (row.openTaskCount > 0) {
+				priorityTier = 4;
+				priorityLabel = 'Open Work';
+				priorityColor = '#1d4ed8';
+				priorityBackground = '#eff6ff';
+				priorityBorder = '#bfdbfe';
+				reasonDescription = `${row.openTaskCount} open task${row.openTaskCount === 1 ? '' : 's'} pending.`;
+			} else if (row.status === 'Maintenance') {
+				priorityTier = 5;
+				priorityLabel = 'In Maintenance';
+				priorityColor = '#854d0e';
+				priorityBackground = '#fefce8';
+				priorityBorder = '#fef08a';
+				reasonDescription = 'Device is currently in a maintenance state.';
+			} else if (hasNoHistory) {
+				priorityTier = 6;
+				priorityLabel = 'Never Serviced';
+				priorityColor = '#475569';
+				priorityBackground = '#f1f5f9';
+				priorityBorder = '#cbd5e1';
+				reasonDescription = 'No maintenance history has been recorded for this device.';
+			} else if (isStale) {
+				priorityTier = 7;
+				priorityLabel = 'Stale';
+				priorityColor = '#475569';
+				priorityBackground = '#f1f5f9';
+				priorityBorder = '#cbd5e1';
+				reasonDescription = `Last service was over 6 months ago (${formatRelativeTime(row.lastServiced)}).`;
+			}
+
+			if (priorityTier !== null) {
+				entries.push({
+					id: row.id,
+					friendlyName: row.friendlyName,
+					propertyName: propName,
+					propertySlug: propSlug,
+					locationLabel: row.locationLabel,
+					locationHref: locHref,
+					deviceSlug: devSlug,
+					priorityTier,
+					priorityLabel,
+					priorityColor,
+					priorityBackground,
+					priorityBorder,
+					reasonDescription,
+				});
+			}
+		});
+
+		return entries
+			.sort((a, b) => a.priorityTier - b.priorityTier || a.friendlyName.localeCompare(b.friendlyName))
+			.slice(0, 8);
+	}, [deviceRows, propertyById, propertyNameById, linkedTasksByDevice, continuityEventsByDevice]);
 
 	const needsAttentionCount = useMemo(
 		() =>
@@ -499,7 +1052,7 @@ export const DevicesHubPage: React.FC = () => {
 		<Wrapper>
 			<Header>
 				<h1>Devices Hub</h1>
-				<p>Cross-property operational awareness for systems under care.</p>
+				<p>Cross-property continuity view for every system lifecycle.</p>
 			</Header>
 
 			<SummaryRow>
@@ -508,15 +1061,15 @@ export const DevicesHubPage: React.FC = () => {
 					<MetricValue>{devices.length}</MetricValue>
 				</MetricCard>
 				<MetricCard>
-					<MetricLabel>Need Attention</MetricLabel>
+					<MetricLabel>Continuity Risks</MetricLabel>
 					<MetricValue>{needsAttentionCount}</MetricValue>
 				</MetricCard>
 				<MetricCard>
-					<MetricLabel>Upcoming in 30 Days</MetricLabel>
+					<MetricLabel>Due in 30 Days</MetricLabel>
 					<MetricValue>{upcomingDueSoonCount}</MetricValue>
 				</MetricCard>
 				<MetricCard>
-					<MetricLabel>Open Device Tasks</MetricLabel>
+					<MetricLabel>Open Linked Tasks</MetricLabel>
 					<MetricValue>
 						{Array.from(linkedOpenTaskCountByDevice.values()).reduce(
 							(total, count) => total + count,
@@ -526,52 +1079,113 @@ export const DevicesHubPage: React.FC = () => {
 				</MetricCard>
 			</SummaryRow>
 
+			<FilterBar>
+				<SearchInput
+					type='text'
+					placeholder='Search systems, brands, or locations…'
+					value={searchQuery}
+					onChange={(e) => setSearchQuery(e.target.value)}
+				/>
+				<FilterGroup>
+					{(['All', 'Active', 'Maintenance', 'Broken'] as const).map((s) => (
+						<FilterButton key={s} $active={statusFilter === s} onClick={() => setStatusFilter(s)}>
+							{s}
+						</FilterButton>
+					))}
+				</FilterGroup>
+				{properties.length > 1 ? (
+					<PropertySelect
+						value={propertyFilter}
+						onChange={(e) => setPropertyFilter(e.target.value)}>
+						<option value=''>All properties</option>
+						{properties.map((p: any) => (
+							<option key={p.id} value={String(p.id)}>
+								{p.title || 'Untitled Property'}
+							</option>
+						))}
+					</PropertySelect>
+				) : null}
+				<FilterResultCount>
+					{filteredDeviceRows.length} of {deviceRows.length} device{deviceRows.length === 1 ? '' : 's'}
+				</FilterResultCount>
+			</FilterBar>
+
 			{!isLoading && deviceRows.length === 0 ? (
 				<EmptyState>
-					No devices yet. Add your first system from a property page to start building continuity.
+					No systems yet. Add your first system from a property page to begin continuity tracking.
 				</EmptyState>
+			) : !isLoading && filteredDeviceRows.length === 0 ? (
+				<EmptyState>No systems match your current filters.</EmptyState>
 			) : (
 				<List>
-					{deviceRows.map((row) => {
+					{filteredDeviceRows.map((row) => {
 						const propertyName =
 							propertyNameById.get(row.propertyId) || 'Unknown Property';
-						const propertySlug =
-							properties.find((p: any) => String(p.id) === row.propertyId)?.slug || '';
+						const property = properties.find((p: any) => String(p.id) === row.propertyId);
+						const propertySlug = property?.slug || '';
+						const locationHref = row.device.location?.unitId
+							? `/property/${propertySlug}/unit/${encodeURIComponent(row.locationLabel)}`
+							: row.device.location?.suiteId
+								? `/property/${propertySlug}/suite/${encodeURIComponent(row.locationLabel)}`
+								: '';
 						const deviceSlug = buildDeviceSlug(row.device);
 						const targetPath = propertySlug
 							? `/property/${propertySlug}/device/${deviceSlug}`
 							: '/properties';
 
 						return (
-							<DeviceCard key={row.id} to={targetPath}>
+							<DeviceCard
+								key={row.id}
+								role='link'
+								tabIndex={0}
+								onClick={() => navigate(targetPath)}
+								onKeyDown={(event) => {
+									if (event.key === 'Enter' || event.key === ' ') {
+										event.preventDefault();
+										navigate(targetPath);
+									}
+								}}>
 								<Field>
-									<Label>Friendly Name</Label>
-									<DevicePrimary>{row.friendlyName}</DevicePrimary>
-									<DeviceSecondary>{row.locationLabel}</DeviceSecondary>
-								</Field>
-								<Field>
-									<Label>Technical Subtitle</Label>
-									<DevicePrimary style={{ fontSize: '0.92rem' }}>{row.technicalSubtitle}</DevicePrimary>
-									<DeviceSecondary>{propertyName}</DeviceSecondary>
+									<Label>System Identity</Label>
+									<IdentityTopRow>
+										<DevicePrimary>{row.friendlyName}</DevicePrimary>
+										<OpenProfileCue>Open profile →</OpenProfileCue>
+									</IdentityTopRow>
+									<TechnicalSubtitle>{row.technicalSubtitle}</TechnicalSubtitle>
+									<ContextLinks>
+										<ContextLink
+											to={propertySlug ? `/property/${propertySlug}` : '/properties'}
+											onClick={(event) => event.stopPropagation()}>
+												{propertyName}
+										</ContextLink>
+										{locationHref ? (
+											<>
+												<ContextArrow>→</ContextArrow>
+												<ContextLink to={locationHref} onClick={(event) => event.stopPropagation()}>
+													{row.locationLabel}
+												</ContextLink>
+											</>
+										) : null}
+									</ContextLinks>
 								</Field>
 								<Field>
 									<Label>Status</Label>
 									<StatusPill $status={row.status}>{row.status}</StatusPill>
 								</Field>
 								<Field>
-									<Label>Last Maintenance Event</Label>
+									<Label>Last Continuity Event</Label>
 									<Value>{formatDate(row.lastServiced)}</Value>
 								</Field>
 								<Field>
-									<Label>Upcoming Maintenance</Label>
+									<Label>Next Planned Service</Label>
 									<Value>{formatDate(row.upcomingMaintenance)}</Value>
 								</Field>
 								<Field>
-									<Label>Recent Activity</Label>
+									<Label>Continuity Snapshot</Label>
 									<Value>{row.recentActivity}</Value>
 								</Field>
 								<Field>
-									<Label>Open Task Count</Label>
+									<Label>Open Linked Tasks</Label>
 									<Value>{row.openTaskCount}</Value>
 								</Field>
 							</DeviceCard>
@@ -582,48 +1196,107 @@ export const DevicesHubPage: React.FC = () => {
 
 			<HubFeedGrid>
 				<SurfaceCard>
-					<FeedSectionTitle>Recent System Activity</FeedSectionTitle>
+					<FeedSectionTitle>Continuity Activity Feed</FeedSectionTitle>
 					<FeedSectionText>
-						A running feed of the newest maintenance events across all devices.
+						A running feed of lifecycle updates across every connected system.
 					</FeedSectionText>
 					{recentActivityFeed.length > 0 ? (
 						<ActivityList>
-							{recentActivityFeed.map((row) => (
-								<ActivityItem key={`recent-${row.id}`}>
-									<ActivityMeta>{formatRelativeTime(row.lastServiced)}</ActivityMeta>
-									<ActivityTitle>{row.friendlyName}</ActivityTitle>
-									<ActivityDescription>
-										{buildEventTitle({ description: row.latestMaintenanceDescription })} - {buildEventDetail({ description: row.latestMaintenanceDescription })}
-									</ActivityDescription>
-								</ActivityItem>
-							))}
+							{recentActivityFeed.map((entry) => {
+								const iconData = getActivityEventIcon(
+									getActivityEventCategory(entry.description),
+								);
+								const deviceHref = entry.propertySlug && entry.deviceSlug
+									? `/property/${entry.propertySlug}/device/${entry.deviceSlug}`
+									: '/properties';
+								return (
+									<ActivityItem key={entry.key}>
+										<ActivityMeta>{formatRelativeTime(entry.date)}</ActivityMeta>
+										<ActivityHeaderRow>
+											<ActivityIconBadge $color={iconData.color} $background={iconData.background}>
+												<FontAwesomeIcon icon={iconData.icon} />
+											</ActivityIconBadge>
+											<ActivityTitle>{entry.friendlyName}</ActivityTitle>
+										</ActivityHeaderRow>
+										<ActivityDescription>
+											{buildEventTitle({ description: entry.description })} — {buildEventDetail({ description: entry.description })}
+										</ActivityDescription>
+										<ActivityContext>
+											<ActivityContextLink
+												to={entry.propertySlug ? `/property/${entry.propertySlug}` : '/properties'}
+												onClick={(e) => e.stopPropagation()}>
+												{entry.propertyName}
+											</ActivityContextLink>
+											{entry.locationHref ? (
+												<>
+													<ActivityContextSep>→</ActivityContextSep>
+													<ActivityContextLink to={entry.locationHref} onClick={(e) => e.stopPropagation()}>
+														{entry.locationLabel}
+													</ActivityContextLink>
+												</>
+											) : null}
+											<ActivityContextSep>·</ActivityContextSep>
+											<ActivityContextLink to={deviceHref} onClick={(e) => e.stopPropagation()}>
+												View device →
+											</ActivityContextLink>
+										</ActivityContext>
+									</ActivityItem>
+								);
+							})}
 						</ActivityList>
 					) : (
-						<EmptyState>No recent system activity yet.</EmptyState>
+						<EmptyState>No continuity activity yet.</EmptyState>
 					)}
 				</SurfaceCard>
 
 				<SurfaceCard>
-					<FeedSectionTitle>Devices Needing Attention</FeedSectionTitle>
+					<FeedSectionTitle>Systems Requiring Follow-Up</FeedSectionTitle>
 					<FeedSectionText>
-						The systems most likely to need a follow-up next.
+						Systems flagged for lifecycle risk, overdue work, stale records, or due-soon service.
 					</FeedSectionText>
 					{devicesNeedingAttention.length > 0 ? (
 						<ActivityList>
-							{devicesNeedingAttention.map((row) => (
-								<ActivityItem key={`attention-${row.id}`}>
-									<ActivityMeta>{row.status === 'Broken' ? 'Broken' : row.openTaskCount > 0 ? 'Open Work' : 'Maintenance'}</ActivityMeta>
-									<ActivityTitle>{row.friendlyName}</ActivityTitle>
-									<ActivityDescription>
-										{row.openTaskCount > 0
-											? `${row.openTaskCount} open task${row.openTaskCount === 1 ? '' : 's'}`
-											: `Status is ${row.status.toLowerCase()}`}
-									</ActivityDescription>
-								</ActivityItem>
-							))}
+							{devicesNeedingAttention.map((entry) => {
+								const deviceHref = entry.propertySlug && entry.deviceSlug
+									? `/property/${entry.propertySlug}/device/${entry.deviceSlug}`
+									: '/properties';
+								return (
+									<ActivityItem key={`attention-${entry.id}`}>
+										<AttentionHeaderRow>
+											<AttentionPriorityBadge
+												$color={entry.priorityColor}
+												$background={entry.priorityBackground}
+												$border={entry.priorityBorder}>
+												{entry.priorityLabel}
+											</AttentionPriorityBadge>
+											<ActivityTitle>{entry.friendlyName}</ActivityTitle>
+										</AttentionHeaderRow>
+										<AttentionReason>{entry.reasonDescription}</AttentionReason>
+										<AttentionContext>
+											<AttentionContextLink
+												to={entry.propertySlug ? `/property/${entry.propertySlug}` : '/properties'}
+												onClick={(e) => e.stopPropagation()}>
+												{entry.propertyName}
+											</AttentionContextLink>
+											{entry.locationHref ? (
+												<>
+													<AttentionContextSep>→</AttentionContextSep>
+													<AttentionContextLink to={entry.locationHref} onClick={(e) => e.stopPropagation()}>
+														{entry.locationLabel}
+													</AttentionContextLink>
+												</>
+											) : null}
+											<AttentionContextSep>·</AttentionContextSep>
+											<AttentionContextLink to={deviceHref} onClick={(e) => e.stopPropagation()}>
+												View device →
+											</AttentionContextLink>
+										</AttentionContext>
+									</ActivityItem>
+								);
+							})}
 						</ActivityList>
 					) : (
-						<EmptyState>No devices need attention right now.</EmptyState>
+						<EmptyState>No systems require follow-up right now.</EmptyState>
 					)}
 				</SurfaceCard>
 			</HubFeedGrid>

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { DetailsTabProps } from '../../../types/PropertyDetailPage.types';
 import {
 	InfoCard,
@@ -9,6 +9,11 @@ import { StatusBadge } from './index.styles';
 import { isTaskOverdueForDisplay } from '../../../utils/taskUtils';
 import { DetailsEditHeader } from '../PropertyDetailPage.styles';
 import { PropertyDetailSection } from '../PropertyDetailSection';
+import {
+	getMaintenanceEventDate,
+	getMaintenanceEventTitle,
+	isContinuityEvent,
+} from '../../../utils/maintenanceEventUtils';
 import {
 	GlanceGrid,
 	GlanceCard,
@@ -24,6 +29,12 @@ import {
 	PreviewItemTitle,
 	PreviewItemTrailing,
 	PreviewItemMeta,
+	TimelineList,
+	TimelineItem,
+	TimelineBadge,
+	TimelineBody,
+	TimelineTitle,
+	TimelineMeta,
 } from './DetailsTab.styles';
 
 export const DetailsTab: React.FC<DetailsTabProps> = ({
@@ -45,25 +56,13 @@ export const DetailsTab: React.FC<DetailsTabProps> = ({
 			: Array.isArray((property as any)?.devices)
 			? (property as any).devices.length
 			: 0;
-	const recentMaintenanceCount = maintenanceHistoryRecords.length;
+	const recentMaintenanceCount = maintenanceHistoryRecords.filter(isContinuityEvent).length;
 
 	const upcomingTasks = [...propertyTasks]
 		.sort((a, b) => {
 			const dueA = a?.dueDate ? new Date(a.dueDate).getTime() : Infinity;
 			const dueB = b?.dueDate ? new Date(b.dueDate).getTime() : Infinity;
 			return dueA - dueB;
-		})
-		.slice(0, 4);
-
-	const recentMaintenance = [...maintenanceHistoryRecords]
-		.sort((a, b) => {
-			const timeA = a?.completionDate
-				? new Date(a.completionDate).getTime()
-				: 0;
-			const timeB = b?.completionDate
-				? new Date(b.completionDate).getTime()
-				: 0;
-			return timeB - timeA;
 		})
 		.slice(0, 4);
 
@@ -84,6 +83,58 @@ export const DetailsTab: React.FC<DetailsTabProps> = ({
 		});
 	};
 
+	const formatRelativeTime = (value?: string) => {
+		if (!value) return 'date unknown';
+		const date = new Date(value);
+		if (Number.isNaN(date.getTime())) return 'date unknown';
+
+		const diffMs = Date.now() - date.getTime();
+		const diffDays = Math.round(Math.abs(diffMs) / 86400000);
+
+		if (diffDays === 0) return diffMs >= 0 ? 'today' : 'later today';
+		if (diffDays === 1) return diffMs >= 0 ? 'yesterday' : 'tomorrow';
+		if (diffDays < 7) return diffMs >= 0 ? `${diffDays} days ago` : `in ${diffDays} days`;
+		if (diffDays < 30) {
+			const weeks = Math.round(diffDays / 7);
+			return diffMs >= 0 ? `${weeks} weeks ago` : `in ${weeks} weeks`;
+		}
+		const months = Math.round(diffDays / 30);
+		return diffMs >= 0 ? `${months} months ago` : `in ${months} months`;
+	};
+
+	const propertyTimeline = useMemo(() => {
+		type TimelineEvent = {
+			key: string;
+			type: 'maintenance';
+			title: string;
+			meta: string;
+			date?: string;
+		};
+
+		const timelineEvents: TimelineEvent[] = [];
+
+		maintenanceHistoryRecords
+			.filter(isContinuityEvent)
+			.forEach((record) => {
+				const eventDate = getMaintenanceEventDate(record);
+				timelineEvents.push({
+					key: `maintenance-${record.id || `${record.title}-${eventDate}`}`,
+					type: 'maintenance',
+					title: getMaintenanceEventTitle(record) || 'Maintenance completed',
+					meta: `Logged ${formatRelativeTime(eventDate)}`,
+					date: eventDate,
+				});
+			});
+
+		return timelineEvents
+			.sort((a, b) => {
+				const left = a.date ? new Date(a.date).getTime() : 0;
+				const right = b.date ? new Date(b.date).getTime() : 0;
+				return right - left;
+			})
+			.slice(0, 8);
+	}, [maintenanceHistoryRecords]);
+
 	return (
 		<>
 			<GlanceGrid>
@@ -100,30 +151,30 @@ export const DetailsTab: React.FC<DetailsTabProps> = ({
 					<GlanceValue>{devicesCount}</GlanceValue>
 				</GlanceCard>
 				<GlanceCard>
-					<GlanceLabel>History Records</GlanceLabel>
+					<GlanceLabel>Continuity Records</GlanceLabel>
 					<GlanceValue>{recentMaintenanceCount}</GlanceValue>
 				</GlanceCard>
 			</GlanceGrid>
 
 			<QuickActionsBar>
 				<QuickActionButton onClick={() => onCreateTask?.()}>
-					+ Add Task
+					+ Add Continuity Task
 				</QuickActionButton>
 				<QuickActionButton $variant='secondary' onClick={() => onCreateDevice?.()}>
-					+ Add Device
+					+ Add System
 				</QuickActionButton>
 				{property?.isRental && (
 					<QuickActionButton
 						$variant='secondary'
 						onClick={() => onCreateRequest?.()}>
-						+ Request Maintenance
+						+ Start Maintenance Request
 					</QuickActionButton>
 				)}
 			</QuickActionsBar>
 
 			{/* Edit Mode Header */}
 			<DetailsEditHeader>
-				<SectionHeader>Property Information</SectionHeader>
+				<SectionHeader>Property Continuity Profile</SectionHeader>
 			</DetailsEditHeader>
 
 			<PropertyDetailSection property={property} teamMembers={teamMembers} />
@@ -148,12 +199,12 @@ export const DetailsTab: React.FC<DetailsTabProps> = ({
 
 			<PreviewGrid>
 				<PreviewCard>
-					<PreviewHeader>Upcoming Tasks</PreviewHeader>
+					<PreviewHeader>Upcoming Continuity Tasks</PreviewHeader>
 					<PreviewList>
 						{upcomingTasks.length === 0 ? (
 							<PreviewItem>
-								<PreviewItemTitle>No open tasks</PreviewItemTitle>
-								<PreviewItemMeta>All clear</PreviewItemMeta>
+								<PreviewItemTitle>No open continuity tasks</PreviewItemTitle>
+								<PreviewItemMeta>Flow is steady</PreviewItemMeta>
 							</PreviewItem>
 						) : (
 							upcomingTasks.map((task) => (
@@ -178,26 +229,27 @@ export const DetailsTab: React.FC<DetailsTabProps> = ({
 				</PreviewCard>
 
 				<PreviewCard>
-					<PreviewHeader>Recent Activity</PreviewHeader>
-					<PreviewList>
-						{recentMaintenance.length === 0 ? (
+					<PreviewHeader>Property Timeline</PreviewHeader>
+					<TimelineList>
+						{propertyTimeline.length === 0 ? (
 							<PreviewItem>
-								<PreviewItemTitle>No maintenance history yet</PreviewItemTitle>
-								<PreviewItemMeta>Start tracking activity</PreviewItemMeta>
+								<PreviewItemTitle>No continuity activity yet</PreviewItemTitle>
+								<PreviewItemMeta>Start by logging completed service events</PreviewItemMeta>
 							</PreviewItem>
 						) : (
-							recentMaintenance.map((record) => (
-								<PreviewItem key={record.id || `${record.title}-${record.completionDate}`}>
-									<PreviewItemTitle>{record.title || 'Maintenance item'}</PreviewItemTitle>
-									<PreviewItemMeta>
-										{record.completionDate
-											? formatPreviewDate(record.completionDate)
-											: 'Date unknown'}
-									</PreviewItemMeta>
-								</PreviewItem>
+							propertyTimeline.map((event) => (
+								<TimelineItem key={event.key}>
+									<TimelineBadge $type={event.type}>
+										Service
+									</TimelineBadge>
+									<TimelineBody>
+										<TimelineTitle>{event.title}</TimelineTitle>
+										<TimelineMeta>{event.meta}</TimelineMeta>
+									</TimelineBody>
+								</TimelineItem>
 							))
 						)}
-					</PreviewList>
+					</TimelineList>
 				</PreviewCard>
 			</PreviewGrid>
 		</>

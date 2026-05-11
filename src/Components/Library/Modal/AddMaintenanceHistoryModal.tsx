@@ -20,12 +20,14 @@ interface AddMaintenanceHistoryModalProps {
 		completedByName?: string;
 		completionNotes?: string;
 		unitId?: string;
+		deviceIds?: string[];
 		completionFile?: File;
 		recurringTaskId?: string;
 		maintenanceGroupId?: string;
 		financials?: TaskFinancials;
 	}) => void;
 	property: any;
+	devices?: any[];
 	units: any[];
 	teamMembers: any[];
 	contractors: any[];
@@ -41,6 +43,7 @@ export const AddMaintenanceHistoryModal: React.FC<
 	onClose,
 	onSubmit,
 	property,
+	devices = [],
 	units,
 	teamMembers,
 	contractors,
@@ -65,6 +68,7 @@ export const AddMaintenanceHistoryModal: React.FC<
 		'dropdown',
 	);
 	const [selectedGroupId, setSelectedGroupId] = useState<string>('');
+	const [selectedDeviceIds, setSelectedDeviceIds] = useState<string[]>([]);
 
 	// Generate completed by options from available data sources
 	const completedByOptions = React.useMemo(() => {
@@ -150,6 +154,11 @@ export const AddMaintenanceHistoryModal: React.FC<
 		setSelectedGroupId(e.target.value);
 	};
 
+	const handleDeviceChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+		const values = Array.from(e.target.selectedOptions, (option) => option.value);
+		setSelectedDeviceIds(values);
+	};
+
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
 
@@ -180,6 +189,7 @@ export const AddMaintenanceHistoryModal: React.FC<
 				completedByMode === 'custom' ? formData.completedByName : undefined,
 			completionNotes: formData.completionNotes,
 			unitId: formData.unitId,
+			deviceIds: selectedDeviceIds.length > 0 ? selectedDeviceIds : undefined,
 			completionFile: formData.completionFile || undefined,
 			maintenanceGroupId: groupId,
 		};
@@ -202,8 +212,20 @@ export const AddMaintenanceHistoryModal: React.FC<
 		});
 		setCompletedByMode('dropdown');
 		setSelectedGroupId('');
+		setSelectedDeviceIds([]);
 		onClose();
 	};
+
+	const deviceOptions = devices
+		.map((device: any) => ({
+			id: String(device.id),
+			label:
+				device.name ||
+				[device.type, device.brand, device.model].filter(Boolean).join(' ') ||
+				device.serialNumber ||
+				`Device ${device.id}`,
+		}))
+		.filter((device) => device.id);
 
 	return [
 		<GenericModal
@@ -391,6 +413,46 @@ export const AddMaintenanceHistoryModal: React.FC<
 								</option>
 							))}
 						</select>
+					</div>
+				)}
+
+				{deviceOptions.length > 0 && (
+					<div>
+						<label
+							style={{
+								display: 'block',
+								marginBottom: '4px',
+								fontWeight: 'bold',
+							}}>
+							Linked Devices
+						</label>
+						<select
+							multiple
+							value={selectedDeviceIds}
+							onChange={handleDeviceChange}
+							style={{
+								width: '100%',
+								minHeight: '120px',
+								padding: '8px',
+								border: '1px solid #ccc',
+								borderRadius: '4px',
+								fontSize: '14px',
+							}}>
+							{deviceOptions.map((device) => (
+								<option key={device.id} value={device.id}>
+									{device.label}
+								</option>
+							))}
+						</select>
+						<small
+							style={{
+								color: '#6b7280',
+								fontSize: '12px',
+								marginTop: '4px',
+								display: 'block',
+							}}>
+							Hold Ctrl/Command to select multiple devices.
+						</small>
 					</div>
 				)}
 

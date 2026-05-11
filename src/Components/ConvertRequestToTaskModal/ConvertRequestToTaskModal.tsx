@@ -102,18 +102,18 @@ Submitted by: ${request.submittedByName} on ${
 		<GenericModal
 			isOpen={isOpen}
 			onClose={onClose}
-			title='Convert Request to Task'
+			title='Convert Request to Continuity Task'
 			showActions={true}
 			onSubmit={handleFormSubmit}
-			primaryButtonLabel='Create Task'
+			primaryButtonLabel='Create Continuity Task'
 			secondaryButtonLabel='Cancel'>
 			<div>
 				<Subtitle>
-					Configure task details before creating from maintenance request
+					Capture continuity details before creating from this maintenance request
 				</Subtitle>
 
 				<RequestSummary>
-					<SummaryTitle>Original Request:</SummaryTitle>
+					<SummaryTitle>Incoming Request</SummaryTitle>
 					<SummaryDetail>
 						<strong>{request.title}</strong>
 					</SummaryDetail>
@@ -134,7 +134,7 @@ Submitted by: ${request.submittedByName} on ${
 				<FormRow>
 					<FormGroup>
 						<Label>
-							Task Title <Required>*</Required>
+							Continuity Task Title <Required>*</Required>
 						</Label>
 						<Input
 							type='text'
@@ -150,9 +150,7 @@ Submitted by: ${request.submittedByName} on ${
 
 				<FormRow>
 					<FormGroup>
-						<Label>
-							Due Date
-						</Label>
+						<Label>Due Timing</Label>
 						<Input
 							type='date'
 							value={taskData.dueDate}
@@ -177,8 +175,8 @@ Submitted by: ${request.submittedByName} on ${
 						</AsapToggle>
 						<Helper>
 							{taskData.dueDate
-								? `Suggested based on ${request.priority.toLowerCase()} priority`
-								: 'Task will be created without a due date'}
+								? `Suggested from ${request.priority.toLowerCase()} continuity priority`
+								: 'Continuity task will be created without a due date'}
 						</Helper>
 					</FormGroup>
 
@@ -200,7 +198,7 @@ Submitted by: ${request.submittedByName} on ${
 				</FormRow>
 
 				<FormGroup>
-					<Label>Assign To</Label>
+					<Label>Assign Owner</Label>
 					<Select
 						value={taskData.assignee}
 						onChange={(e) =>
@@ -218,25 +216,26 @@ Submitted by: ${request.submittedByName} on ${
 							))}
 					</Select>
 					<Helper>
-						You can assign this task to a team member or leave unassigned
+						Assign now or leave unassigned and route later in your continuity flow
 					</Helper>
 				</FormGroup>
 
 				{deviceOptions.length > 0 && (
 					<FormGroup>
-						<Label>Connected Devices</Label>
+						<Label>Connected Devices (Optional)</Label>
 						<MultiSelect
 							options={deviceOptions}
 							value={taskData.devices || []}
 							onChange={(devices) => setTaskData({ ...taskData, devices })}
 							placeholder='Select devices for this task...'
 						/>
+						<Helper>Leave blank if this request is not tied to a specific device.</Helper>
 					</FormGroup>
 				)}
 
 				<FormGroup>
 					<Label>
-						Task Notes <Required>*</Required>
+						Continuity Notes <Required>*</Required>
 					</Label>
 					<Textarea
 						value={taskData.notes}
@@ -248,8 +247,8 @@ Submitted by: ${request.submittedByName} on ${
 						required
 					/>
 					<Helper>
-						Original request details are pre-filled. Add any additional
-						instructions.
+						Request details are pre-filled. Add instructions that preserve context
+						for future follow-up.
 					</Helper>
 				</FormGroup>
 
@@ -258,7 +257,7 @@ Submitted by: ${request.submittedByName} on ${
 						<InfoIcon>📎</InfoIcon>
 						<InfoText>
 							<strong>{request.files.length} file(s)</strong> from the
-							maintenance request will be attached to this task.
+							maintenance request will carry into this continuity task.
 						</InfoText>
 					</InfoBox>
 				)}

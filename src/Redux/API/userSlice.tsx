@@ -199,87 +199,71 @@ const userSlice = apiSlice.injectEndpoints({
 
 					const allPropertyIds = [...ownedPropertyIds];
 
-					const accountMaintenanceHistory: Record<string, unknown>[] = [];
-					for (const accountId of accessibleAccountIds) {
-						const accountMaintenanceQuery = query(
-							collection(db, 'maintenanceHistory'),
-							where('accountId', '==', accountId),
-						);
-						const accountMaintenanceSnapshot = await getDocs(
-							accountMaintenanceQuery,
-						);
-						const accountMaintenanceBatch = accountMaintenanceSnapshot.docs
-							.map((doc) => docToData(doc) as Record<string, unknown>)
-							.filter(Boolean) as Record<string, unknown>[];
-						accountMaintenanceHistory.push(...accountMaintenanceBatch);
-					}
+				// Dual-read: maintenanceEvents (canonical) + maintenanceHistory (legacy)
+				const collectionsToQuery = ['maintenanceEvents', 'maintenanceHistory'];
+				const seenIds = new Set<string>();
+				const allRecords: Record<string, unknown>[] = [];
 
-					// Get all maintenance history for these properties
-					let allMaintenanceHistory: any[] = [];
+				const addUnique = (docs: any[]) => {
+					docs.forEach((d) => {
+						const data = docToData(d) as Record<string, unknown> | null;
+						if (data && !seenIds.has(data.id as string)) {
+							seenIds.add(data.id as string);
+							allRecords.push(data);
+						}
+					});
+				};
+
+				// Query by accountId across both collections
+				for (const col of collectionsToQuery) {
+					for (const accountId of accessibleAccountIds) {
+						const q = query(collection(db, col), where('accountId', '==', accountId));
+						const snap = await getDocs(q);
+						addUnique(snap.docs);
+					}
+				}
+
+				// Query by propertyId across both collections
+				for (const col of collectionsToQuery) {
 					for (let i = 0; i < allPropertyIds.length; i += 10) {
 						const batch = allPropertyIds.slice(i, i + 10);
 						try {
-							const maintenanceQuery = query(
-								collection(db, 'maintenanceHistory'),
-								where('propertyId', 'in', batch),
-							);
-							const maintenanceSnapshot = await getDocs(maintenanceQuery);
-							const maintenanceRecords = maintenanceSnapshot.docs
-								.map((doc) => docToData(doc) as Record<string, unknown>)
-								.filter(Boolean) as Record<string, unknown>[];
-							allMaintenanceHistory.push(...maintenanceRecords);
-						} catch (propertyHistoryError) {
-							console.warn(
-								'Could not fetch property-linked maintenance history batch:',
-								propertyHistoryError,
-							);
+							const q = query(collection(db, col), where('propertyId', 'in', batch));
+							const snap = await getDocs(q);
+							addUnique(snap.docs);
+						} catch (e) {
+							console.warn('Could not fetch property-linked maintenance batch:', e);
 						}
 					}
+				}
 
-					// Fallback for legacy records that only stored propertyTitle
-					const propertyTitleList = Array.from(ownedPropertyTitles);
+				// Fallback for legacy records that only stored propertyTitle
+				const propertyTitleList = Array.from(ownedPropertyTitles);
+				for (const col of collectionsToQuery) {
 					for (const accountId of accessibleAccountIds) {
 						for (let i = 0; i < propertyTitleList.length; i += 10) {
 							const titleBatch = propertyTitleList.slice(i, i + 10);
 							try {
-								const titleMaintenanceQuery = query(
-									collection(db, 'maintenanceHistory'),
+								const q = query(
+									collection(db, col),
 									where('accountId', '==', accountId),
 									where('propertyTitle', 'in', titleBatch),
 								);
-								const titleMaintenanceSnapshot = await getDocs(
-									titleMaintenanceQuery,
-								);
-								const titleRecords = titleMaintenanceSnapshot.docs
-									.map((doc) => docToData(doc) as Record<string, unknown>)
-									.filter(Boolean) as Record<string, unknown>[];
-								allMaintenanceHistory.push(...titleRecords);
-							} catch (titleHistoryError) {
-								console.warn(
-									'Could not fetch legacy title-linked maintenance history batch:',
-									titleHistoryError,
-								);
+								const snap = await getDocs(q);
+								addUnique(snap.docs);
+							} catch (e) {
+								console.warn('Could not fetch legacy title-linked maintenance batch:', e);
 							}
 						}
 					}
+				}
 
-					allMaintenanceHistory = [
-						...accountMaintenanceHistory,
-						...allMaintenanceHistory,
-					];
-
-					// Remove duplicates
-					const uniqueMaintenanceHistory = allMaintenanceHistory.filter(
-						(record, index, self) =>
-							index === self.findIndex((r) => r.id === record.id),
-					);
-
-					return { data: uniqueMaintenanceHistory };
+				return { data: allRecords };
 				} catch (error: any) {
 					return { error: error.message };
 				}
 			},
-			providesTags: ['MaintenanceHistory'],
+			providesTags: ['MaintenanceHistory', 'MaintenanceEvents'],
 		}),
 
 		// User Invitations endpoints

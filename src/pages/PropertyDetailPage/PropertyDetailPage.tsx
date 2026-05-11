@@ -528,6 +528,7 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 		completedByName?: string;
 		completionNotes?: string;
 		unitId?: string;
+		deviceIds?: string[];
 		completionFile?: File;
 		recurringTaskId?: string;
 		linkedTaskIds?: string[];

@@ -16,65 +16,75 @@ import {
 	resolveTargetUserId,
 } from './accountContext';
 import { TaskFinancials } from '../../types/Task.types';
+import { MaintenanceEvent } from '../../types/MaintenanceEvent.types';
 
 const maintenanceSlice = apiSlice.injectEndpoints({
 	endpoints: (builder) => ({
 		// Maintenance endpoints
-		getMaintenanceHistoryByProperty: builder.query<any[], string>({
+		getMaintenanceHistoryByProperty: builder.query<MaintenanceEvent[], string>({
 			async queryFn(propertyId: string) {
 				try {
 					if (!propertyId) {
 						return { data: [] };
 					}
 					const accessibleAccountIds = await resolveAccessibleAccountIds();
+					const seenIds = new Set<string>();
 					const records: any[] = [];
-					for (const accountId of accessibleAccountIds) {
-						const primaryQuery = query(
-							collection(db, 'maintenanceHistory'),
-							where('accountId', '==', accountId),
-							where('propertyId', '==', propertyId),
-						);
-						const primarySnapshot = await getDocs(primaryQuery);
-						primarySnapshot.docs.forEach((doc) => {
-							const data = docToData(doc);
-							if (data) records.push(data);
-						});
+
+					// Read from both collections; maintenanceEvents is canonical, maintenanceHistory is legacy.
+					for (const collectionName of ['maintenanceEvents', 'maintenanceHistory']) {
+						for (const accountId of accessibleAccountIds) {
+							const q = query(
+								collection(db, collectionName),
+								where('accountId', '==', accountId),
+								where('propertyId', '==', propertyId),
+							);
+							const snapshot = await getDocs(q);
+							snapshot.docs.forEach((d) => {
+								const data = docToData(d);
+								if (data && !seenIds.has(data.id)) {
+									seenIds.add(data.id);
+									records.push(data);
+								}
+							});
+						}
 					}
 
+					// Fallback by propertyTitle for old records that lack a propertyId field
 					if (records.length === 0) {
-						// Fallback for legacy records missing propertyId
 						const propertyDoc = await getDoc(doc(db, 'properties', propertyId));
 						const propertyTitle = docToData(propertyDoc)?.title;
 						if (propertyTitle) {
-							for (const accountId of accessibleAccountIds) {
-								const titleQuery = query(
-									collection(db, 'maintenanceHistory'),
-									where('accountId', '==', accountId),
-									where('propertyTitle', '==', propertyTitle),
-								);
-								const titleSnapshot = await getDocs(titleQuery);
-								titleSnapshot.docs.forEach((doc) => {
-									const data = docToData(doc);
-									if (data) records.push(data);
-								});
+							for (const collectionName of ['maintenanceEvents', 'maintenanceHistory']) {
+								for (const accountId of accessibleAccountIds) {
+									const titleQuery = query(
+										collection(db, collectionName),
+										where('accountId', '==', accountId),
+										where('propertyTitle', '==', propertyTitle),
+									);
+									const titleSnapshot = await getDocs(titleQuery);
+									titleSnapshot.docs.forEach((d) => {
+										const data = docToData(d);
+										if (data && !seenIds.has(data.id)) {
+											seenIds.add(data.id);
+											records.push(data);
+										}
+									});
+								}
 							}
 						}
 					}
 
-					const uniqueRecords = Array.from(
-						new Map(records.map((record) => [record.id, record])).values(),
-					);
-
-					return { data: uniqueRecords };
+					return { data: records };
 				} catch (error: any) {
 					return { error: error.message };
 				}
 			},
-			providesTags: ['MaintenanceHistory'],
+			providesTags: ['MaintenanceHistory', 'MaintenanceEvents'],
 		}),
 
 		addMaintenanceHistory: builder.mutation<
-			any,
+			MaintenanceEvent,
 			{
 				propertyId: string;
 				propertyTitle?: string;
@@ -84,6 +94,7 @@ const maintenanceSlice = apiSlice.injectEndpoints({
 				completedByName?: string;
 				completionNotes?: string;
 				unitId?: string;
+				deviceIds?: string[];
 				completionFile?: File;
 				recurringTaskId?: string; // ID of the recurring task this belongs to
 				linkedTaskIds?: string[]; // Additional task IDs linked to this history record
@@ -99,6 +110,7 @@ const maintenanceSlice = apiSlice.injectEndpoints({
 				completedByName,
 				completionNotes,
 				unitId,
+				deviceIds,
 				completionFile,
 				recurringTaskId,
 				linkedTaskIds,
@@ -130,12 +142,16 @@ const maintenanceSlice = apiSlice.injectEndpoints({
 						accountId,
 						propertyId,
 						propertyTitle,
+						eventType: 'maintenance_recorded' as const,
+						eventSource: 'manual_entry' as const,
 						title,
 						completionDate,
 						completedBy,
 						completedByName,
 						completionNotes,
 						unitId,
+						deviceIds,
+						maintenanceCycleId: recurringTaskId,
 						completionFile: completionFileData,
 						recurringTaskId,
 						linkedTaskIds,
@@ -152,7 +168,7 @@ const maintenanceSlice = apiSlice.injectEndpoints({
 					});
 
 					const docRef = await addDoc(
-						collection(db, 'maintenanceHistory'),
+						collection(db, 'maintenanceEvents'),
 						historyData,
 					);
 					return { data: { id: docRef.id, ...historyData } };
@@ -160,19 +176,26 @@ const maintenanceSlice = apiSlice.injectEndpoints({
 					return { error: error.message };
 				}
 			},
-			invalidatesTags: ['MaintenanceHistory'],
+			invalidatesTags: ['MaintenanceHistory', 'MaintenanceEvents'],
 		}),
 
 		deleteMaintenanceHistory: builder.mutation<void, string>({
 			async queryFn(historyId) {
 				try {
-					await deleteDoc(doc(db, 'maintenanceHistory', historyId));
+					// Try new collection first, then fall back to legacy
+					const newDocRef = doc(db, 'maintenanceEvents', historyId);
+					const newSnap = await getDoc(newDocRef);
+					if (newSnap.exists()) {
+						await deleteDoc(newDocRef);
+					} else {
+						await deleteDoc(doc(db, 'maintenanceHistory', historyId));
+					}
 					return { data: undefined };
 				} catch (error: any) {
 					return { error: error.message };
 				}
 			},
-			invalidatesTags: ['MaintenanceHistory'],
+			invalidatesTags: ['MaintenanceHistory', 'MaintenanceEvents'],
 		}),
 
 		updateMaintenanceHistory: builder.mutation<
@@ -181,17 +204,23 @@ const maintenanceSlice = apiSlice.injectEndpoints({
 		>({
 			async queryFn({ id, updates }) {
 				try {
-					const docRef = doc(db, 'maintenanceHistory', id);
-					await updateDoc(docRef, {
-						...updates,
-						updatedAt: new Date().toISOString(),
-					});
+					// Try new collection first, then fall back to legacy
+					const newDocRef = doc(db, 'maintenanceEvents', id);
+					const newSnap = await getDoc(newDocRef);
+					if (newSnap.exists()) {
+						await updateDoc(newDocRef, { ...updates, updatedAt: new Date().toISOString() });
+					} else {
+						await updateDoc(doc(db, 'maintenanceHistory', id), {
+							...updates,
+							updatedAt: new Date().toISOString(),
+						});
+					}
 					return { data: { id, ...updates } };
 				} catch (error: any) {
 					return { error: error.message };
 				}
 			},
-			invalidatesTags: ['MaintenanceHistory'],
+			invalidatesTags: ['MaintenanceHistory', 'MaintenanceEvents'],
 		}),
 	}),
 });

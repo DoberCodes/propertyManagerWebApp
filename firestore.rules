@@ -225,6 +225,18 @@ service cloud.firestore {
         canManageAccount(resource.data.accountId);
     }
 
+    match /maintenanceEvents/{eventId} {
+      allow read: if isAuthenticated() &&
+        ('accountId' in resource.data) &&
+        canReadAccount(resource.data.accountId);
+      allow create: if isAuthenticated() &&
+        ('accountId' in request.resource.data) &&
+        canManageAccount(request.resource.data.accountId);
+      allow update, delete: if isAuthenticated() &&
+        ('accountId' in resource.data) &&
+        canManageAccount(resource.data.accountId);
+    }
+
     match /teamGroups/{groupId} {
       allow read: if isAuthenticated() &&
         ('accountId' in resource.data) &&

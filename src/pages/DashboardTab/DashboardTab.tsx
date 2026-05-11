@@ -11,6 +11,10 @@ import { getTenantPropertySlug } from 'utils/permissions';
 import { selectIsTenant } from 'Redux/selectors/permissionSelectors';
 import { filterTasksByRole } from 'utils/dataFilters';
 import { getCurrentLocation } from 'utils/geolocation';
+import {
+	getMaintenanceEventDate,
+	isContinuityEvent,
+} from 'utils/maintenanceEventUtils';
 import { TaskCompletionModal } from 'Components/TaskCompletionModal';
 import { TrialWarningBanner } from 'Components/TrialWarningBanner/TrialWarningBanner';
 import { ExpiredTrialBanner } from 'Components/ExpiredTrialBanner/ExpiredTrialBanner';
@@ -357,7 +361,7 @@ export const DashboardTab = () => {
 
 	const completedTasksCount = useMemo(() => {
 		if (dashboardMaintenanceHistory.length > 0) {
-			return dashboardMaintenanceHistory.length;
+			return dashboardMaintenanceHistory.filter(isContinuityEvent).length;
 		}
 
 		const visiblePropertyIds = new Set(allProperties.map((property) => property.id));
@@ -367,29 +371,31 @@ export const DashboardTab = () => {
 				.filter(Boolean),
 		);
 
-		const scopedMaintenanceHistory = allMaintenanceHistory.filter((record: any) => {
-			const recordPropertyId = String(record?.propertyId || '').trim();
-			const recordPropertyTitle = String(record?.propertyTitle || '').trim();
-			const legacyPropertyField = String(record?.property || '').trim();
+		const scopedMaintenanceHistory = allMaintenanceHistory
+			.filter(isContinuityEvent)
+			.filter((record: any) => {
+				const recordPropertyId = String(record?.propertyId || '').trim();
+				const recordPropertyTitle = String(record?.propertyTitle || '').trim();
+				const legacyPropertyField = String(record?.property || '').trim();
 
-			if (recordPropertyId && visiblePropertyIds.has(recordPropertyId)) {
-				return true;
-			}
+				if (recordPropertyId && visiblePropertyIds.has(recordPropertyId)) {
+					return true;
+				}
 
-			if (recordPropertyTitle && visiblePropertyTitles.has(recordPropertyTitle)) {
-				return true;
-			}
+				if (recordPropertyTitle && visiblePropertyTitles.has(recordPropertyTitle)) {
+					return true;
+				}
 
-			if (
-				legacyPropertyField &&
-				(visiblePropertyTitles.has(legacyPropertyField) ||
-					visiblePropertyIds.has(legacyPropertyField))
-			) {
-				return true;
-			}
+				if (
+					legacyPropertyField &&
+					(visiblePropertyTitles.has(legacyPropertyField) ||
+						visiblePropertyIds.has(legacyPropertyField))
+				) {
+					return true;
+				}
 
-			return false;
-		});
+				return false;
+			});
 
 		if (scopedMaintenanceHistory.length > 0) {
 			return scopedMaintenanceHistory.length;
@@ -416,16 +422,18 @@ export const DashboardTab = () => {
 			? dashboardMaintenanceHistory
 			: allMaintenanceHistory;
 
-		return sourceRecords.filter((record: any) => {
-			const completionDate = new Date(
-				record?.completionDate || record?.date || record?.updatedAt || '',
-			);
-			return (
-				!Number.isNaN(completionDate.getTime()) &&
-				completionDate.getMonth() === currentMonth &&
-				completionDate.getFullYear() === currentYear
-			);
-		}).length;
+		return sourceRecords
+			.filter(isContinuityEvent)
+			.filter((record: any) => {
+				const completionDate = new Date(
+					getMaintenanceEventDate(record) || '',
+				);
+				return (
+					!Number.isNaN(completionDate.getTime()) &&
+					completionDate.getMonth() === currentMonth &&
+					completionDate.getFullYear() === currentYear
+				);
+			}).length;
 	}, [dashboardMaintenanceHistory, allMaintenanceHistory]);
 
 	const taskStatusCounts = useMemo(() => {

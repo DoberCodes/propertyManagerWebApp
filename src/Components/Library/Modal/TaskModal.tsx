@@ -1199,6 +1199,17 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 					delete updatesRaw.assignedTo;
 				}
 
+				// Keep device and history linking optional by omitting empty arrays.
+				if (Array.isArray(updatesRaw.devices) && updatesRaw.devices.length === 0) {
+					delete updatesRaw.devices;
+				}
+				if (
+					Array.isArray(updatesRaw.linkedMaintenanceHistoryIds) &&
+					updatesRaw.linkedMaintenanceHistoryIds.length === 0
+				) {
+					delete updatesRaw.linkedMaintenanceHistoryIds;
+				}
+
 				const updates = Object.fromEntries(
 					Object.entries(updatesRaw).filter(([, value]) => value !== undefined),
 				);
@@ -1255,6 +1266,17 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 					delete newTaskRaw.assignedTo;
 				}
 
+				// Keep device and history linking optional by omitting empty arrays.
+				if (Array.isArray(newTaskRaw.devices) && newTaskRaw.devices.length === 0) {
+					delete newTaskRaw.devices;
+				}
+				if (
+					Array.isArray(newTaskRaw.linkedMaintenanceHistoryIds) &&
+					newTaskRaw.linkedMaintenanceHistoryIds.length === 0
+				) {
+					delete newTaskRaw.linkedMaintenanceHistoryIds;
+				}
+
 				// Filter out undefined values to prevent Firestore errors
 				const newTask = Object.fromEntries(
 					Object.entries(newTaskRaw).filter(([, value]) => value !== undefined),
@@ -1275,11 +1297,11 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 		<>
 			<GenericModal
 				isOpen={isOpen}
-				title={isEditing ? 'Refine Task' : 'Create Task'}
+				title={isEditing ? 'Refine Continuity Task' : 'Create Continuity Task'}
 				onClose={onClose}
 				onSubmit={handleSubmit}
 				showActions={true}
-				primaryButtonLabel={isEditing ? 'Save Changes' : 'Create and Track Task'}
+				primaryButtonLabel={isEditing ? 'Save Changes' : 'Create and Track Continuity'}
 				secondaryButtonLabel='Cancel'
 				primaryButtonDisabled={missingRequiredFields.length > 0}>
 				<ModalTabContainer>
@@ -1288,7 +1310,7 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 						$active={activeTab === 'details'}
 						onClick={() => setActiveTab('details')}>
 						<TabLabel>
-							Task Details
+							Task + Continuity
 							<TabBadge $tone={detailsTabTone}>
 								{missingRequiredFields.length > 0
 									? `${missingRequiredFields.length} required`
@@ -1355,12 +1377,12 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 					<ModalTabContent $active={activeTab === 'details'}>
 					{isCreateMode && (
 						<SummaryBanner>
-							<SummaryTitle>Create the core task first, then add optional automation if needed.</SummaryTitle>
+							<SummaryTitle>Create the core continuity task first, then add optional automation if needed.</SummaryTitle>
 							<SummaryMeta>
 								<SummaryPill $tone={detailsTabTone}>
 									{completedBasics}/3 core items complete
 								</SummaryPill>
-								<SummaryPill $tone='neutral'>Status defaults to Initiated</SummaryPill>
+								<SummaryPill $tone='neutral'>Lifecycle status defaults to Initiated</SummaryPill>
 								<SummaryPill $tone={isAsap ? 'success' : 'neutral'}>
 									{isAsap ? 'ASAP task' : 'Scheduled task'}
 								</SummaryPill>
@@ -1368,22 +1390,22 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 							<RequiredList>
 								{missingRequiredFields.length > 0
 									? `Still needed: ${missingRequiredFields.join(', ')}`
-									: 'All required fields are complete. You can create the task now or continue with optional settings.'}
+									: 'All required fields are complete. You can create this continuity task now or continue with optional settings.'}
 							</RequiredList>
 						</SummaryBanner>
 					)}
 					<FormGrid>
 						<FormGroupFull>
 							<SectionHeader>
-								<SectionTitle>Basics</SectionTitle>
+								<SectionTitle>Core Setup</SectionTitle>
 								<SectionDescription>
-									Define what needs to be done, where it belongs, and how urgent it is.
+									Define what needs to be done, where it belongs, and how urgently continuity is at risk.
 								</SectionDescription>
 							</SectionHeader>
 						</FormGroupFull>
 
 						<FormGroup>
-							<FormLabel>Task Name *</FormLabel>
+							<FormLabel>Task Title *</FormLabel>
 							<FormInput
 								ref={titleInputRef}
 								type='text'
@@ -1394,7 +1416,7 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 								required
 							/>
 							{detailsError && !String(formState.title || '').trim() && (
-								<FieldError>Task name is required.</FieldError>
+								<FieldError>Task title is required.</FieldError>
 							)}
 						</FormGroup>
 
@@ -1435,7 +1457,7 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 								}))}
 							/>
 							{detailsError && !String(formState.priority || '').trim() && (
-								<FieldError>Select a priority to help schedule the work.</FieldError>
+									<FieldError>Select a priority to keep continuity planning clear.</FieldError>
 							)}
 						</FormGroup>
 
@@ -1467,7 +1489,7 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 							</DueDateModeGroup>
 							{isAsap ? (
 								<HelperBox>
-									This task will be created without a due date and can be handled as soon as capacity allows.
+									This task will be created without a due date and can be addressed as soon as continuity capacity allows.
 								</HelperBox>
 							) : (
 								<>
@@ -1478,7 +1500,7 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 										onChange={onChange}
 									/>
 									<FieldHint>
-										Pick a target date when the task should be completed.
+										Pick a target date when this continuity task should be completed.
 									</FieldHint>
 								</>
 							)}
@@ -1507,7 +1529,7 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 									{showCreateMoreOptions ? 'Hide More Options' : 'Show More Options'}
 								</MoreOptionsToggle>
 								<FieldHint>
-									Keep this fast: title, priority, and due timing are enough to create the task.
+									Keep this fast: title, priority, and due timing are enough to create the continuity task.
 								</FieldHint>
 							</FormGroupFull>
 						)}
@@ -1519,7 +1541,7 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 							<SectionHeader>
 								<SectionTitle>Assignment and context</SectionTitle>
 								<SectionDescription>
-									Add the people and operational context needed to complete the work.
+									Add people and system context so the work is repeatable and traceable.
 								</SectionDescription>
 							</SectionHeader>
 						</FormGroupFull>
@@ -1646,7 +1668,7 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 
 						{internalDeviceOptions.length > 0 && (
 							<FormGroup>
-								<FormLabel>Connected Devices</FormLabel>
+								<FormLabel>Connected Devices (Optional)</FormLabel>
 								<MultiSelect
 									options={internalDeviceOptions}
 									value={formState.devices || []}
@@ -1655,14 +1677,14 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 								/>
 								<small style={{ color: '#6b7280' }}>
 									Linked device service items are automatically appended to task
-									notes when you save.
+									notes when you save. Leave blank for non-device tasks.
 								</small>
 							</FormGroup>
 						)}
 
 						{internalMaintenanceHistoryOptions.length > 0 && (
 							<FormGroup>
-								<FormLabel>Maintenance History</FormLabel>
+								<FormLabel>Linked Continuity Records</FormLabel>
 								<div
 									style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
 									<button
@@ -1677,7 +1699,7 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 											cursor: 'pointer',
 											fontSize: '14px',
 										}}>
-										🔗 Link Maintenance History (
+										🔗 Link Continuity Records (
 										{formState.linkedMaintenanceHistoryIds?.length || 0})
 									</button>
 									{(formState.linkedMaintenanceHistoryIds?.length || 0) > 0 && (
@@ -1695,7 +1717,7 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 									<SectionHeader>
 										<SectionTitle>Workflow</SectionTitle>
 										<SectionDescription>
-											Adjust the task state and completion rules when editing an existing task.
+											Adjust lifecycle state and completion rules when editing an existing task.
 										</SectionDescription>
 									</SectionHeader>
 								</FormGroupFull>
@@ -1733,7 +1755,7 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 						)}
 
 						<FormGroupFull>
-							<FormLabel>Notes</FormLabel>
+							<FormLabel>Task Notes</FormLabel>
 							<FormTextarea
 								name='notes'
 								value={formState.notes}

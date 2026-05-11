@@ -10,6 +10,7 @@ import {
 	where,
 } from '@firebase/firestore';
 import { CompletionFile, Task, TaskFinancials } from '../../types/Task.types';
+import { MaintenanceEvent } from '../../types/MaintenanceEvent.types';
 import { apiSlice, docToData } from './apiSlice';
 import { auth, db } from '../../config/firebase';
 import { PropertyShare } from '../../types/Property.types';
@@ -74,6 +75,66 @@ const getSharedPropertyIdsForUser = async (
 
 	return Array.from(propertyIdSet);
 	*/
+};
+
+const sanitizeMaintenanceEvent = (event: Partial<MaintenanceEvent>) => {
+	const sanitized: Record<string, unknown> = {};
+	Object.entries(event).forEach(([key, value]) => {
+		if (value !== undefined) {
+			sanitized[key] = value;
+		}
+	});
+	return sanitized;
+};
+
+const buildMaintenanceEventFromTask = ({
+	task,
+	taskId,
+	accountId,
+	eventType,
+	eventSource,
+	completionDate,
+	completionNotes,
+	completionFile,
+	completedBy,
+	completedByName,
+	financials,
+}: {
+	task: Task;
+	taskId: string;
+	accountId: string;
+	eventType: MaintenanceEvent['eventType'];
+	eventSource: MaintenanceEvent['eventSource'];
+	completionDate: string;
+	completionNotes?: string;
+	completionFile?: CompletionFile;
+	completedBy?: string;
+	completedByName?: string;
+	financials?: TaskFinancials;
+}) => {
+	const now = new Date().toISOString();
+	return sanitizeMaintenanceEvent({
+		accountId,
+		propertyId: task.propertyId,
+		propertyTitle: task.propertyTitle || task.property,
+		unitId: task.unitId,
+		deviceIds: Array.isArray(task.devices) && task.devices.length > 0 ? task.devices : undefined,
+		title: task.title || 'Maintenance event',
+		completionDate,
+		completionNotes: completionNotes || task.completionNotes,
+		completedBy,
+		completedByName,
+		completionFile,
+		financials: financials || task.financials,
+		linkedTaskIds: [taskId],
+		originalTaskId: taskId,
+		recurringTaskId: task.isRecurring ? task.parentTaskId || taskId : undefined,
+		maintenanceCycleId: task.isRecurring ? task.parentTaskId || taskId : undefined,
+		eventType,
+		eventSource,
+		createdAt: now,
+		updatedAt: now,
+	});
 };
 
 export const taskSlice = apiSlice.injectEndpoints({
@@ -242,27 +303,21 @@ export const taskSlice = apiSlice.injectEndpoints({
 							existingTask.completionNotes ||
 							'Completed from task workflow';
 
-						const historyData: any = {
-							...existingTask,
-							...updates,
-							status: 'Completed',
+						const eventPayload = buildMaintenanceEventFromTask({
+							task: { ...existingTask, ...updates, status: 'Completed' },
+							taskId: id,
+							accountId: (existingTask as any).accountId || targetUserId,
+							eventType: 'task_completed',
+							eventSource: 'task_completion',
 							completionDate,
 							completionNotes,
-							originalTaskId: id,
-							ownerId: existingTask.userId,
-							accountId: (existingTask as any).accountId || targetUserId,
-							propertyTitle:
-								existingTask.propertyTitle || existingTask.property,
-							updatedAt: new Date().toISOString(),
-						};
-
-						Object.keys(historyData).forEach((key) => {
-							if (historyData[key] === undefined) {
-								delete historyData[key];
-							}
+							completedBy: (updates as any).completedBy || existingTask.completedBy,
+							completedByName: (updates as any).completedByName,
+							completionFile: (updates as any).completionFile,
+							financials: (updates as any).financials,
 						});
 
-						await addDoc(collection(db, 'maintenanceHistory'), historyData);
+						await addDoc(collection(db, 'maintenanceEvents'), eventPayload);
 					}
 
 					return { data: { id, ...updates } as Task };
@@ -270,7 +325,7 @@ export const taskSlice = apiSlice.injectEndpoints({
 					return { error: error.message };
 				}
 			},
-			invalidatesTags: ['Tasks', 'MaintenanceHistory'],
+			invalidatesTags: ['Tasks', 'MaintenanceHistory', 'MaintenanceEvents'],
 		}),
 
 		deleteTask: builder.mutation<void, string>({
@@ -332,36 +387,24 @@ export const taskSlice = apiSlice.injectEndpoints({
 										: taskData.financials?.notes,
 						  }
 						: taskData.financials;
-					const historyData = {
-						...taskData,
-						status: 'Completed',
+					const eventPayload = buildMaintenanceEventFromTask({
+						task: { ...taskData, status: 'Completed' },
+						taskId,
+						accountId: (taskData as any).accountId || targetUserId,
+						eventType: 'task_completed',
+						eventSource: 'task_completion',
 						completionDate,
+						completionNotes: completionNotes || taskData.completionNotes || '',
 						completionFile,
 						completedBy,
-						completionNotes: completionNotes || taskData.completionNotes || '',
-						originalTaskId: taskId,
-						completedByPlan,
-						userId: taskData.userId,
-						ownerId: taskData.userId,
-						propertyId: taskData.propertyId,
-						accountId: (taskData as any).accountId || targetUserId,
-						propertyTitle: taskData.propertyTitle || taskData.property,
+						completedByName: undefined,
 						financials: mergedFinancials,
-						// Link recurring tasks together
-						recurringTaskId: taskData.isRecurring
-							? taskData.parentTaskId || taskId
-							: undefined,
-						updatedAt: new Date().toISOString(),
-					};
-
-					// Remove any undefined fields (Firebase doesn't allow them)
-					Object.keys(historyData).forEach((key) => {
-						if (historyData[key] === undefined) {
-							delete historyData[key];
-						}
 					});
 
-					await addDoc(collection(db, 'maintenanceHistory'), historyData);
+					await addDoc(collection(db, 'maintenanceEvents'), {
+						...eventPayload,
+						completedByPlan,
+					});
 					await deleteDoc(docRef);
 
 					return {
@@ -379,7 +422,7 @@ export const taskSlice = apiSlice.injectEndpoints({
 					return { error: error.message };
 				}
 			},
-			invalidatesTags: ['Tasks', 'MaintenanceHistory'],
+			invalidatesTags: ['Tasks', 'MaintenanceHistory', 'MaintenanceEvents'],
 		}),
 
 		approveTask: builder.mutation<
@@ -399,29 +442,28 @@ export const taskSlice = apiSlice.injectEndpoints({
 					const updates = {
 						status: 'Completed' as const,
 						approvedBy,
-						approvedAt,
 						updatedAt: approvedAt,
 					};
 
-					const historyData = {
-						...taskData,
-						...updates,
+					const eventPayload = buildMaintenanceEventFromTask({
+						task: { ...taskData, ...updates },
+						taskId,
 						accountId: (taskData as any).accountId || targetUserId,
-						originalTaskId: taskId,
-						// Link recurring tasks together
-						recurringTaskId: taskData.isRecurring
-							? taskData.parentTaskId || taskId
-							: undefined,
-					};
-
-					// Remove any undefined fields (Firebase doesn't allow them)
-					Object.keys(historyData).forEach((key) => {
-						if (historyData[key] === undefined) {
-							delete historyData[key];
-						}
+						eventType: 'task_approved',
+						eventSource: 'task_approval',
+						completionDate: taskData.completionDate || approvedAt,
+						completionNotes: taskData.completionNotes,
+						completionFile: taskData.completionFile,
+						completedBy: taskData.completedBy,
+						completedByName: undefined,
+						financials: taskData.financials,
 					});
 
-					await addDoc(collection(db, 'maintenanceHistory'), historyData);
+					await addDoc(collection(db, 'maintenanceEvents'), {
+						...eventPayload,
+						approvedBy,
+						approvedAt,
+					});
 					await deleteDoc(docRef);
 
 					// TODO: Send notification to the user who completed the task
@@ -431,7 +473,7 @@ export const taskSlice = apiSlice.injectEndpoints({
 					return { error: error.message };
 				}
 			},
-			invalidatesTags: ['Tasks', 'MaintenanceHistory'],
+			invalidatesTags: ['Tasks', 'MaintenanceHistory', 'MaintenanceEvents'],
 		}),
 
 		rejectTask: builder.mutation<

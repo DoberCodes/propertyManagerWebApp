@@ -3,7 +3,19 @@ import { useParams } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import styled from 'styled-components';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faEdit, faTrash } from '@fortawesome/free-solid-svg-icons';
+import {
+	faCircleCheck,
+	faClipboardCheck,
+	faClock,
+	faCommentDots,
+	faEdit,
+	faFileInvoiceDollar,
+	faFileLines,
+	faRepeat,
+	faScrewdriverWrench,
+	faShieldHalved,
+	faTrash,
+} from '@fortawesome/free-solid-svg-icons';
 import { RootState } from '../../Redux/store/store';
 import { useGetPropertiesQuery, useGetUnitsQuery } from '../../Redux/API/propertySlice';
 import {
@@ -13,6 +25,11 @@ import {
 } from '../../Redux/API/deviceSlice';
 import { useGetTasksQuery } from '../../Redux/API/taskSlice';
 import { useGetMaintenanceHistoryByPropertyQuery } from '../../Redux/API/maintenanceSlice';
+import {
+	getMaintenanceEventDate,
+	getMaintenanceEventTitle,
+	isContinuityEvent,
+} from '../../utils/maintenanceEventUtils';
 import { DetailPageLayout, TabContent, ReusableTable, GenericModal } from '../../Components/Library';
 import { DeviceModal } from '../../Components/Library/Modal';
 import { TaskModal } from '../../Components/Library/Modal/TaskModal';
@@ -351,7 +368,7 @@ const QuickActionHeader = styled.div`
 
 const QuickActionGrid = styled.div`
 	display: grid;
-	grid-template-columns: repeat(5, minmax(0, 1fr));
+	grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
 	gap: 10px;
 
 	@media (max-width: 1200px) {
@@ -425,11 +442,58 @@ const TimelineDate = styled.div`
 	color: #16a34a;
 `;
 
+const TimelineDateSub = styled.div`
+	margin-top: 2px;
+	font-size: 0.72rem;
+	font-weight: 600;
+	color: #94a3b8;
+`;
+
+const TimelineContent = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+`;
+
+const TimelineTitleRow = styled.div`
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
+`;
+
+const TimelineIconBadge = styled.span<{ $color: string; $background: string }>`
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 24px;
+	height: 24px;
+	border-radius: 8px;
+	color: ${(props) => props.$color};
+	background: ${(props) => props.$background};
+	font-size: 0.75rem;
+	flex-shrink: 0;
+`;
+
 const TimelineTitle = styled.div`
 	font-size: 0.95rem;
 	font-weight: 800;
 	color: #0f172a;
 	margin-bottom: 4px;
+`;
+
+const TimelineEventBadge = styled.span`
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	padding: 3px 8px;
+	border-radius: 999px;
+	font-size: 0.7rem;
+	font-weight: 800;
+	letter-spacing: 0.03em;
+	text-transform: uppercase;
+	color: #334155;
+	background: #e2e8f0;
 `;
 
 const TimelineDescription = styled.div`
@@ -442,6 +506,76 @@ const TimelineMeta = styled.div`
 	margin-top: 6px;
 	font-size: 0.76rem;
 	color: #64748b;
+`;
+
+const TimelineExpandButton = styled.button`
+	margin-top: 8px;
+	align-self: flex-start;
+	border: 1px solid #cbd5e1;
+	background: #f8fafc;
+	color: #334155;
+	border-radius: 999px;
+	padding: 4px 10px;
+	font-size: 0.75rem;
+	font-weight: 700;
+	cursor: pointer;
+
+	&:hover {
+		background: #f1f5f9;
+		border-color: #94a3b8;
+	}
+`;
+
+const TimelineDetailsPanel = styled.div`
+	margin-top: 10px;
+	padding: 10px;
+	border-radius: 10px;
+	border: 1px solid #e2e8f0;
+	background: #f8fafc;
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 10px;
+
+	@media (max-width: 900px) {
+		grid-template-columns: 1fr;
+	}
+`;
+
+const TimelineDetailBlock = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+`;
+
+const TimelineDetailLabel = styled.div`
+	font-size: 0.7rem;
+	font-weight: 800;
+	letter-spacing: 0.05em;
+	text-transform: uppercase;
+	color: #64748b;
+`;
+
+const TimelineDetailValue = styled.div`
+	font-size: 0.82rem;
+	line-height: 1.45;
+	color: #334155;
+`;
+
+const TimelineAttachmentList = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+`;
+
+const TimelineAttachmentLink = styled.a`
+	font-size: 0.82rem;
+	line-height: 1.4;
+	color: #1d4ed8;
+	text-decoration: none;
+
+	&:hover {
+		text-decoration: underline;
+	}
 `;
 
 const SurfaceCard = styled.div`
@@ -663,6 +797,104 @@ const formatDate = (value?: string) => {
 	return date.toLocaleDateString();
 };
 
+const formatRelativeTime = (value?: string): string => {
+	if (!value) return 'recently';
+	const date = new Date(value);
+	if (Number.isNaN(date.getTime())) return 'recently';
+
+	const diffMs = Date.now() - date.getTime();
+	const diffDays = Math.round(Math.abs(diffMs) / 86400000);
+
+	if (diffDays === 0) return diffMs >= 0 ? 'today' : 'later today';
+	if (diffDays === 1) return diffMs >= 0 ? 'yesterday' : 'tomorrow';
+	if (diffDays < 7) return diffMs >= 0 ? `${diffDays} days ago` : `in ${diffDays} days`;
+	if (diffDays < 30) {
+		const weeks = Math.round(diffDays / 7);
+		return diffMs >= 0 ? `${weeks} weeks ago` : `in ${weeks} weeks`;
+	}
+	const months = Math.round(diffDays / 30);
+	return diffMs >= 0 ? `${months} months ago` : `in ${months} months`;
+};
+
+const getTimelineEntryKey = (entry: any, index: number): string => {
+	if (entry?.id) return String(entry.id);
+	if (entry?.raw?.id) return String(entry.raw.id);
+	if (entry?.raw?.originalTaskId) return `task-${entry.raw.originalTaskId}`;
+	return `${entry?.sourceType || 'timeline'}-${entry?.date || 'no-date'}-${entry?.title || 'event'}-${index}`;
+};
+
+const getTimelineAttachments = (entry: any): Array<{ name: string; url?: string }> => {
+	const raw = entry?.raw || {};
+	const files: Array<{ name: string; url?: string }> = [];
+
+	if (raw.completionFile?.name) {
+		files.push({
+			name: raw.completionFile.name,
+			url: raw.completionFile.url,
+		});
+	}
+
+	if (Array.isArray(raw.files)) {
+		raw.files.forEach((file: any) => {
+			if (!file?.name) return;
+			files.push({ name: file.name, url: file.url });
+		});
+	}
+
+	if (entry?.sourceType === 'device-log') {
+		const title = String(entry?.title || '').toLowerCase();
+		if (title.includes('document') || title.includes('invoice') || title.includes('warranty')) {
+			const detail = String(entry?.description || '').trim();
+			if (detail) files.push({ name: detail });
+		}
+	}
+
+	const deduped = new Map<string, { name: string; url?: string }>();
+	files.forEach((file) => {
+		const key = `${file.name}::${file.url || ''}`;
+		if (!deduped.has(key)) deduped.set(key, file);
+	});
+	return Array.from(deduped.values());
+};
+
+const getTimelineContractorLabel = (entry: any): string => {
+	const raw = entry?.raw || {};
+	if (raw.assignedTo?.name) return String(raw.assignedTo.name);
+	if (raw.assignee) return String(raw.assignee);
+	if (raw.completedByName) return String(raw.completedByName);
+	if (raw.completedBy) return String(raw.completedBy);
+	return 'Not recorded';
+};
+
+const getTimelinePartsUsed = (entry: any): string => {
+	const raw = entry?.raw || {};
+	const parts: string[] = [];
+
+	if (Array.isArray(raw.partsUsed)) {
+		raw.partsUsed.forEach((part: any) => {
+			if (typeof part === 'string' && part.trim()) parts.push(part.trim());
+			if (part && typeof part === 'object' && part.name) parts.push(String(part.name));
+		});
+	}
+
+	if (Array.isArray(raw.serviceItems)) {
+		raw.serviceItems.forEach((item: any) => {
+			if (item?.name) parts.push(String(item.name));
+		});
+	}
+
+	if (parts.length === 0) return 'Not documented';
+	return Array.from(new Set(parts)).join(', ');
+};
+
+const getTimelineNotes = (entry: any): string => {
+	const raw = entry?.raw || {};
+	if (raw.completionNotes) return String(raw.completionNotes);
+	if (raw.notes) return String(raw.notes);
+	if (raw.financials?.notes) return String(raw.financials.notes);
+	return 'No additional notes recorded';
+};
+
 const getTimelineTitle = (description?: string) => {
 	const raw = String(description || '').trim();
 	if (!raw) return 'Maintenance event';
@@ -670,6 +902,9 @@ const getTimelineTitle = (description?: string) => {
 	if (raw.toLowerCase().startsWith('service note added:')) return 'Service note added';
 	if (raw.toLowerCase().startsWith('repair logged:')) return 'Repair logged';
 	if (raw.toLowerCase().startsWith('warranty uploaded:')) return 'Warranty uploaded';
+	if (raw.toLowerCase().startsWith('invoice uploaded:')) return 'Invoice uploaded';
+	if (raw.toLowerCase().startsWith('recurring maintenance created:')) return 'Recurring maintenance created';
+	if (raw.toLowerCase().startsWith('inspection completed:')) return 'Inspection completed';
 	if (raw.toLowerCase().startsWith('task completed:')) return 'Task completed';
 	return raw.split(':')[0] || 'Maintenance event';
 };
@@ -680,6 +915,69 @@ const getTimelineDescription = (description?: string) => {
 	const colonIndex = raw.indexOf(':');
 	if (colonIndex === -1) return raw;
 	return raw.slice(colonIndex + 1).trim() || raw;
+};
+
+type TimelineEventCategory =
+	| 'repair'
+	| 'invoice'
+	| 'inspection'
+	| 'recurring'
+	| 'completed'
+	| 'warranty'
+	| 'document'
+	| 'note'
+	| 'default';
+
+const getTimelineEventCategory = (entry: { title?: string; description?: string; type?: string }): TimelineEventCategory => {
+	const text = `${String(entry.title || '')} ${String(entry.description || '')} ${String(entry.type || '')}`.toLowerCase();
+	if (text.includes('repair')) return 'repair';
+	if (text.includes('invoice')) return 'invoice';
+	if (text.includes('inspection')) return 'inspection';
+	if (text.includes('recurring')) return 'recurring';
+	if (text.includes('warranty')) return 'warranty';
+	if (text.includes('document') || text.includes('upload') || text.includes('file')) return 'document';
+	if (text.includes('note')) return 'note';
+	if (text.includes('complete') || text.includes('approved') || text.includes('done')) return 'completed';
+	return 'default';
+};
+
+const getTimelineEventIcon = (category: TimelineEventCategory) => {
+	switch (category) {
+		case 'repair':
+			return { icon: faScrewdriverWrench, color: '#92400e', background: '#fef3c7' };
+		case 'invoice':
+			return { icon: faFileInvoiceDollar, color: '#1d4ed8', background: '#dbeafe' };
+		case 'inspection':
+			return { icon: faClipboardCheck, color: '#0f766e', background: '#ccfbf1' };
+		case 'recurring':
+			return { icon: faRepeat, color: '#7c3aed', background: '#ede9fe' };
+		case 'completed':
+			return { icon: faCircleCheck, color: '#166534', background: '#dcfce7' };
+		case 'warranty':
+			return { icon: faShieldHalved, color: '#1e3a8a', background: '#dbeafe' };
+		case 'document':
+			return { icon: faFileLines, color: '#334155', background: '#e2e8f0' };
+		case 'note':
+			return { icon: faCommentDots, color: '#0f766e', background: '#ccfbf1' };
+		default:
+			return { icon: faClock, color: '#475569', background: '#e2e8f0' };
+	}
+};
+
+const getTimelineEventLabel = (entry: { type?: string; title?: string; description?: string }) => {
+	const eventType = String(entry.type || '').toLowerCase();
+	const text = `${String(entry.title || '')} ${String(entry.description || '')} ${String(entry.type || '')}`.toLowerCase();
+
+	if (eventType === 'task_completed') return 'Task Completed';
+	if (eventType === 'task_approved') return 'Task Approved';
+	if (eventType === 'repair_logged' || text.includes('repair')) return 'Repair Logged';
+	if (eventType === 'inspection_completed' || text.includes('inspection')) return 'Inspection';
+	if (eventType === 'invoice_uploaded' || text.includes('invoice')) return 'Invoice';
+	if (eventType === 'document_uploaded' || text.includes('document')) return 'Document';
+	if (eventType === 'service_note_added' || text.includes('note')) return 'Service Note';
+	if (eventType === 'maintenance_recorded' || text.includes('recorded')) return 'Recorded';
+	if (eventType === 'completed' || text.includes('complete') || text.includes('done')) return 'Completed';
+	return 'Event';
 };
 
 export const DeviceDetailPage: React.FC = () => {
@@ -708,7 +1006,7 @@ export const DeviceDetailPage: React.FC = () => {
 	const [showTaskModal, setShowTaskModal] = useState(false);
 	const [showRecurringTaskModal, setShowRecurringTaskModal] = useState(false);
 	const [showQuickLogModal, setShowQuickLogModal] = useState(false);
-	const [quickLogMode, setQuickLogMode] = useState<'note' | 'repair'>('note');
+	const [quickLogMode, setQuickLogMode] = useState<'note' | 'repair' | 'invoice' | 'inspection'>('note');
 	const [quickLogDate, setQuickLogDate] = useState(new Date().toISOString().split('T')[0]);
 	const [quickLogDescription, setQuickLogDescription] = useState('');
 	const [isSavingQuickLog, setIsSavingQuickLog] = useState(false);
@@ -716,6 +1014,7 @@ export const DeviceDetailPage: React.FC = () => {
 	const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
 	const [isDeviceScanOpen, setIsDeviceScanOpen] = useState(false);
 	const [isPartScanOpen, setIsPartScanOpen] = useState(false);
+	const [expandedTimelineEntries, setExpandedTimelineEntries] = useState<Record<string, boolean>>({});
 	const [partFormData, setPartFormData] = useState<PartFormState>({
 		name: '',
 		category: 'part',
@@ -852,7 +1151,13 @@ export const DeviceDetailPage: React.FC = () => {
 
 		return propertyMaintenanceHistory
 			.filter((record: any) => {
+				if (!isContinuityEvent(record)) return false;
 				if (String(record.deviceId || '') === deviceIdString) return true;
+				if (Array.isArray(record.deviceIds)) {
+					return record.deviceIds
+						.map((id: any) => String(id))
+						.includes(deviceIdString);
+				}
 				if (Array.isArray(record.devices)) {
 					return record.devices
 						.map((id: any) => String(id))
@@ -861,41 +1166,46 @@ export const DeviceDetailPage: React.FC = () => {
 				return false;
 			})
 			.sort((a: any, b: any) => {
-				const aDate =
-					new Date(
-						a.completionDate || a.approvedAt || a.dueDate || a.date || 0,
-					).getTime() || 0;
-				const bDate =
-					new Date(
-						b.completionDate || b.approvedAt || b.dueDate || b.date || 0,
-					).getTime() || 0;
+				const aDate = new Date(getMaintenanceEventDate(a) || 0).getTime() || 0;
+				const bDate = new Date(getMaintenanceEventDate(b) || 0).getTime() || 0;
 				return bDate - aDate;
 			});
 	}, [device, propertyMaintenanceHistory]);
 
-		const deviceTimelineEntries = useMemo(() => {
-			const deviceMaintenanceEntries = Array.isArray(device?.maintenanceHistory)
-				? device.maintenanceHistory.map((entry: any) => ({
-					date: entry.date,
-					title: getTimelineTitle(entry.description),
-					description: getTimelineDescription(entry.description),
-					type: 'Device Log',
-				}))
-				: [];
+	const deviceTimelineEntries = useMemo(() => {
+		const deviceMaintenanceEntries = Array.isArray(device?.maintenanceHistory)
+			? device.maintenanceHistory.map((entry: any, index: number) => ({
+				id: `device-log-${entry.date || 'no-date'}-${index}`,
+				sourceType: 'device-log',
+				date: entry.date,
+				title: getTimelineTitle(entry.description),
+				description: getTimelineDescription(entry.description),
+				type: 'Device Log',
+				raw: entry,
+			}))
+			: [];
 
-			const propertyEntries = relatedMaintenanceHistory.map((record: any) => ({
-				date: record.completionDate || record.approvedAt || record.dueDate || record.date,
-				title: record.title || record.taskTitle || getTimelineTitle(record.description) || 'Task completed',
-				description: record.notes || getTimelineDescription(record.description) || record.description || 'Maintenance record',
-				type: record.status || 'Completed',
-			}));
+		const propertyEntries = relatedMaintenanceHistory.map((record: any, index: number) => ({
+			id: record.id || record.originalTaskId || `maintenance-record-${index}`,
+			sourceType: 'maintenance-record',
+			date: getMaintenanceEventDate(record),
+			title: getMaintenanceEventTitle(record) || getTimelineTitle(record.description) || 'Continuity event',
+			description:
+				record.completionNotes ||
+				record.notes ||
+				getTimelineDescription(record.description) ||
+				record.description ||
+				'Continuity record',
+			type: record.eventType || record.status || 'Completed',
+			raw: record,
+		}));
 
-			return [...deviceMaintenanceEntries, ...propertyEntries].sort((a, b) => {
-				const aDate = new Date(a.date || 0).getTime() || 0;
-				const bDate = new Date(b.date || 0).getTime() || 0;
-				return bDate - aDate;
-			});
-		}, [device?.maintenanceHistory, relatedMaintenanceHistory]);
+		return [...deviceMaintenanceEntries, ...propertyEntries].sort((a, b) => {
+			const aDate = new Date(a.date || 0).getTime() || 0;
+			const bDate = new Date(b.date || 0).getTime() || 0;
+			return bDate - aDate;
+		});
+	}, [device?.maintenanceHistory, relatedMaintenanceHistory]);
 
 	const deviceFiles = useMemo(() => device?.files || [], [device?.files]);
 	const devicePhotoFile = useMemo(
@@ -975,7 +1285,13 @@ export const DeviceDetailPage: React.FC = () => {
 	const lastServicedEntry = useMemo(() => deviceTimelineEntries[0] || null, [deviceTimelineEntries]);
 
 	const maintenanceEventCount = deviceTimelineEntries.length;
-	const maintenanceTimelineEntries = useMemo(() => deviceTimelineEntries.slice(0, 6), [deviceTimelineEntries]);
+
+	const toggleTimelineDetails = (entryKey: string) => {
+		setExpandedTimelineEntries((prev) => ({
+			...prev,
+			[entryKey]: !prev[entryKey],
+		}));
+	};
 
 	const openCreateTaskModal = () => {
 		if (!deviceTaskTemplate) return;
@@ -989,7 +1305,7 @@ export const DeviceDetailPage: React.FC = () => {
 		setShowRecurringTaskModal(true);
 	};
 
-	const openQuickLogModal = (mode: 'note' | 'repair') => {
+	const openQuickLogModal = (mode: 'note' | 'repair' | 'invoice' | 'inspection') => {
 		setQuickLogMode(mode);
 		setQuickLogDescription('');
 		setQuickLogDate(new Date().toISOString().split('T')[0]);
@@ -1000,7 +1316,13 @@ export const DeviceDetailPage: React.FC = () => {
 		if (!device || !quickLogDescription.trim()) return;
 		setIsSavingQuickLog(true);
 		try {
-			const descriptionPrefix = quickLogMode === 'repair' ? 'Repair logged:' : 'Service note added:';
+			const prefixMap: Record<'note' | 'repair' | 'invoice' | 'inspection', string> = {
+				'repair': 'Repair logged:',
+				'note': 'Service note added:',
+				'invoice': 'Invoice uploaded:',
+				'inspection': 'Inspection completed:',
+			};
+			const descriptionPrefix = prefixMap[quickLogMode];
 			const nextEntries = [
 				{
 					date: quickLogDate,
@@ -1015,6 +1337,32 @@ export const DeviceDetailPage: React.FC = () => {
 			setShowQuickLogModal(false);
 		} finally {
 			setIsSavingQuickLog(false);
+		}
+	};
+
+	const handleRecurringTaskSaved = async () => {
+		if (!device) {
+			setShowRecurringTaskModal(false);
+			return;
+		}
+		try {
+			const deviceName = [device.type, device.brand, device.model]
+				.filter(Boolean)
+				.join(' ')
+				.trim() || 'Device';
+			const nextEntries = [
+				{
+					date: new Date().toISOString(),
+					description: `Recurring maintenance created: ${deviceName}`,
+				},
+				...(Array.isArray(device.maintenanceHistory) ? device.maintenanceHistory : []),
+			];
+			await updateDevice({
+				id: device.id,
+				updates: { maintenanceHistory: nextEntries },
+			}).unwrap();
+		} finally {
+			setShowRecurringTaskModal(false);
 		}
 	};
 
@@ -1445,6 +1793,14 @@ export const DeviceDetailPage: React.FC = () => {
 								<strong>Log Repair</strong>
 								<span>Write a repair entry directly into the maintenance trail.</span>
 							</QuickActionButton>
+							<QuickActionButton type='button' onClick={() => openQuickLogModal('invoice')}>
+								<strong>Log Invoice</strong>
+								<span>Record invoice details in the maintenance history.</span>
+							</QuickActionButton>
+							<QuickActionButton type='button' onClick={() => openQuickLogModal('inspection')}>
+								<strong>Log Inspection</strong>
+								<span>Document findings and recommendations from inspections.</span>
+							</QuickActionButton>
 						</QuickActionGrid>
 						<QuickActionHint>
 							These actions all feed the same service history so the device becomes more useful over time.
@@ -1664,13 +2020,89 @@ export const DeviceDetailPage: React.FC = () => {
 								{deviceTimelineEntries.length > 0 ? (
 									<TimelineList>
 										{deviceTimelineEntries.map((entry: any, index: number) => (
-											<TimelineItem key={`${entry.title}-${entry.date}-${index}`}>
-												<TimelineDate>{formatDate(entry.date)}</TimelineDate>
+											<TimelineItem key={getTimelineEntryKey(entry, index)}>
 												<div>
-													<TimelineTitle>{entry.title}</TimelineTitle>
+													<TimelineDate>{formatRelativeTime(entry.date)}</TimelineDate>
+													<TimelineDateSub>{formatDate(entry.date)}</TimelineDateSub>
+												</div>
+													<TimelineContent>
+														<TimelineTitleRow>
+															{(() => {
+																const iconData = getTimelineEventIcon(
+																	getTimelineEventCategory(entry),
+																);
+																return (
+																	<TimelineIconBadge
+																		$color={iconData.color}
+																		$background={iconData.background}>
+																		<FontAwesomeIcon icon={iconData.icon} />
+																	</TimelineIconBadge>
+																);
+															})()}
+															<TimelineTitle>{entry.title}</TimelineTitle>
+															<TimelineEventBadge>{getTimelineEventLabel(entry)}</TimelineEventBadge>
+														</TimelineTitleRow>
 													<TimelineDescription>{entry.description}</TimelineDescription>
 													<TimelineMeta>{entry.type}</TimelineMeta>
-												</div>
+													<TimelineExpandButton
+														type='button'
+														onClick={() => toggleTimelineDetails(getTimelineEntryKey(entry, index))}>
+														{expandedTimelineEntries[getTimelineEntryKey(entry, index)]
+															? 'Hide details'
+															: 'View details'}
+													</TimelineExpandButton>
+													{expandedTimelineEntries[getTimelineEntryKey(entry, index)] ? (
+														<TimelineDetailsPanel>
+															<TimelineDetailBlock>
+																<TimelineDetailLabel>Notes</TimelineDetailLabel>
+																<TimelineDetailValue>{getTimelineNotes(entry)}</TimelineDetailValue>
+															</TimelineDetailBlock>
+															<TimelineDetailBlock>
+																<TimelineDetailLabel>Contractor Info</TimelineDetailLabel>
+																<TimelineDetailValue>{getTimelineContractorLabel(entry)}</TimelineDetailValue>
+															</TimelineDetailBlock>
+															<TimelineDetailBlock>
+																<TimelineDetailLabel>Attachments, Photos, Invoices</TimelineDetailLabel>
+																{getTimelineAttachments(entry).length > 0 ? (
+																	<TimelineAttachmentList>
+																		{getTimelineAttachments(entry).map((file, fileIndex) =>
+																			file.url ? (
+																				<TimelineAttachmentLink
+																					key={`${file.name}-${file.url || 'no-url'}-${fileIndex}`}
+																					href={file.url}
+																					target='_blank'
+																					rel='noreferrer'>
+																					{file.name}
+																				</TimelineAttachmentLink>
+																			) : (
+																				<TimelineDetailValue key={`${file.name}-label-${fileIndex}`}>
+																					{file.name}
+																				</TimelineDetailValue>
+																			),
+																		)}
+																	</TimelineAttachmentList>
+																) : (
+																	<TimelineDetailValue>No files attached</TimelineDetailValue>
+																)}
+															</TimelineDetailBlock>
+															<TimelineDetailBlock>
+																<TimelineDetailLabel>Parts Used</TimelineDetailLabel>
+																<TimelineDetailValue>{getTimelinePartsUsed(entry)}</TimelineDetailValue>
+															</TimelineDetailBlock>
+															<TimelineDetailBlock>
+																<TimelineDetailLabel>Invoice / Cost</TimelineDetailLabel>
+																<TimelineDetailValue>
+																	{entry.raw?.financials
+																		? `${formatCurrency(
+																				getFinancialDisplayTotal(entry.raw.financials),
+																				entry.raw.financials.currency || 'USD',
+																		  )}${entry.raw.financials.notes ? ` • ${entry.raw.financials.notes}` : ''}`
+																		: 'No financials recorded'}
+																</TimelineDetailValue>
+															</TimelineDetailBlock>
+														</TimelineDetailsPanel>
+													) : null}
+													</TimelineContent>
 											</TimelineItem>
 										))}
 									</TimelineList>
@@ -1919,14 +2351,22 @@ export const DeviceDetailPage: React.FC = () => {
 				initialTask={recurringTaskTemplate || undefined}
 				propertyId={property?.id || null}
 				onClose={() => setShowRecurringTaskModal(false)}
-				onSaved={() => setShowRecurringTaskModal(false)}
+				onSaved={handleRecurringTaskSaved}
 				currentUser={currentUser || null}
 				unitId={device?.location?.unitId || null}
 			/>
 
 			<GenericModal
 				isOpen={showQuickLogModal}
-				title={quickLogMode === 'repair' ? 'Log Repair' : 'Add Service Note'}
+				title={
+					quickLogMode === 'repair'
+						? 'Log Repair'
+						: quickLogMode === 'invoice'
+							? 'Log Invoice'
+							: quickLogMode === 'inspection'
+								? 'Log Inspection'
+								: 'Add Service Note'
+				}
 				onClose={() => setShowQuickLogModal(false)}
 				onSubmit={handleSaveQuickLog}
 				showActions={true}
@@ -1946,9 +2386,11 @@ export const DeviceDetailPage: React.FC = () => {
 							<FormLabel>Type</FormLabel>
 							<FormSelect
 								value={quickLogMode}
-								onChange={(e) => setQuickLogMode(e.target.value as 'note' | 'repair')}>
+								onChange={(e) => setQuickLogMode(e.target.value as 'note' | 'repair' | 'invoice' | 'inspection')}>
 								<option value='note'>Service Note</option>
 								<option value='repair'>Repair</option>
+								<option value='invoice'>Invoice</option>
+								<option value='inspection'>Inspection</option>
 							</FormSelect>
 						</FormField>
 					</FormRow>
@@ -1958,7 +2400,11 @@ export const DeviceDetailPage: React.FC = () => {
 							placeholder={
 								quickLogMode === 'repair'
 									? 'Describe the repair, parts used, and any follow-up.'
-									: 'Add a note that should stay with the maintenance record.'
+									: quickLogMode === 'invoice'
+										? 'Invoice number, amount, and service details.'
+										: quickLogMode === 'inspection'
+											? 'Inspection findings, recommendations, and any issues noted.'
+											: 'Add a note that should stay with the maintenance record.'
 							}
 							value={quickLogDescription}
 							onChange={(e) => setQuickLogDescription(e.target.value)}

@@ -80,6 +80,7 @@ export const apiSlice = createApi({
 		'TeamMemberInvitationCodes',
 		'MaintenanceHistory',
 		'Contractors',
+		'MaintenanceEvents',
 	],
 	endpoints: (builder) => ({
 		// App Version

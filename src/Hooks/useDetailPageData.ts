@@ -16,6 +16,7 @@ import {
 	filterMaintenanceHistory,
 	filterMaintenanceRequests,
 } from '../utils/detailPageUtils';
+import { isContinuityEvent } from '../utils/maintenanceEventUtils';
 
 interface UseDetailPageDataParams {
 	propertySlug: string;
@@ -135,7 +136,7 @@ export const useDetailPageData = ({
 			entity?.name,
 			entityType === 'property' ? undefined : (entityType as any),
 		);
-		const baseHistory = maintenanceHistoryRecords;
+		const baseHistory = maintenanceHistoryRecords.filter(isContinuityEvent);
 		if (!baseHistory.length) {
 			return legacyHistory;
 		}
