@@ -75,6 +75,10 @@ const Menu = styled.div`
 	max-height: 260px;
 	overflow-y: auto;
 	z-index: 40;
+
+	@media (max-width: 480px) {
+		max-height: 180px;
+	}
 `;
 
 const MenuItem = styled.button<{ $active?: boolean }>`

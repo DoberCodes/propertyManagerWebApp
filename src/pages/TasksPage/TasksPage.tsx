@@ -5,7 +5,6 @@ import { ZeroState } from 'Components/Library/ZeroState';
 import { useGetPropertiesQuery } from 'Redux/API/propertySlice';
 import { filterTasksByRole } from '../../utils/dataFilters';
 import { ReusableTable } from '../../Components/Library/ReusableTable';
-import { HeaderlessFeedSurface } from '../../Components/Library/ReusableTable/ReusableTable.styles';
 import { useTaskHandlers } from '../PropertyDetailPage/useTaskHandlers';
 import {
 	faEdit,
@@ -47,6 +46,8 @@ import {
 	MobileMetaValue,
 	MobileTaskActions,
 	MobileActionButton,
+	MobileActionLinkRow,
+	MobileActionLinkButton,
 	QuickFilterChips,
 	QuickFilterChip,
 	UndoToast,
@@ -650,11 +651,7 @@ export const TasksPage = () => {
 			label: 'Complete and Log',
 			icon: faCheck,
 			onClick: (task: any) => {
-				queueUndoableAction({
-					kind: 'complete',
-					taskId: task.id,
-					taskTitle: task.title || 'Task',
-				});
+				handleTaskCompletion(task.id);
 			},
 			disabled: (task: any) => task.status === 'Completed',
 		},
@@ -810,67 +807,89 @@ export const TasksPage = () => {
 					) : (
 						filteredTasks.map((task: any) => {
 							const isOverdue = isTaskOverdueForDisplay(task);
+							const operationalLabel = isOverdue
+								? 'Overdue'
+								: task.status === 'In Progress'
+									? 'In Progress'
+									: 'On Track';
+							const operationalTone = isOverdue
+								? '#ef4444'
+								: task.status === 'In Progress'
+									? '#3b82f6'
+									: '#4ade80';
 							return (
 								<MobileTaskCard key={task.id} $overdue={isOverdue}>
 									<MobileTaskHeader>
 										<MobileTaskTitle>{task.title}</MobileTaskTitle>
-										<StatusBadge status={task.status}>
-											{task.status}
-										</StatusBadge>
+										<div
+											style={{
+												display: 'inline-flex',
+												alignItems: 'center',
+												gap: 6,
+												padding: '5px 10px',
+												borderRadius: 999,
+												border: `1px solid ${operationalTone}33`,
+												background: `${operationalTone}12`,
+												color: operationalTone,
+												fontSize: 12,
+												fontWeight: 800,
+												width: 'fit-content',
+											}}>
+											{operationalLabel}
+										</div>
 									</MobileTaskHeader>
 									<MobileTaskMetaGrid>
 										<MobileMetaItem>
-											<MobileMetaLabel>Due Date</MobileMetaLabel>
-											<MobileMetaValue>{formatDueDate(task.dueDate)}</MobileMetaValue>
-										</MobileMetaItem>
-										<MobileMetaItem>
-											<MobileMetaLabel>Priority</MobileMetaLabel>
-											<MobileMetaValue>{task.priority || 'Low'}</MobileMetaValue>
-										</MobileMetaItem>
-										<MobileMetaItem>
-											<MobileMetaLabel>Assigned To</MobileMetaLabel>
-											<MobileMetaValue>{getAssigneeLabel(task)}</MobileMetaValue>
-										</MobileMetaItem>
-										<MobileMetaItem>
-											<MobileMetaLabel>Property</MobileMetaLabel>
+											<MobileMetaLabel>Identity</MobileMetaLabel>
 											<MobileMetaValue>
-												{task.propertyTitle || task.property || 'Unknown Property'}
+												{task.category || 'General maintenance'}
+												{task.propertyTitle ? ` · ${task.propertyTitle}` : task.property ? ` · ${task.property}` : ''}
+											</MobileMetaValue>
+										</MobileMetaItem>
+										<MobileMetaItem>
+											<MobileMetaLabel>Continuity State</MobileMetaLabel>
+											<MobileMetaValue>
+												{isOverdue ? 'Maintenance continuity interrupted' : task.status === 'In Progress' ? 'Workflow is actively moving' : 'Queued for upcoming continuity work'}
+											</MobileMetaValue>
+										</MobileMetaItem>
+										<MobileMetaItem>
+											<MobileMetaLabel>Maintenance Context</MobileMetaLabel>
+											<MobileMetaValue>
+												<div>Assigned to {getAssigneeLabel(task)}</div>
+												<div style={{ marginTop: 2, fontSize: '0.8rem', color: '#64748b' }}>
+													{task.priority || 'Low'} priority · {formatDueDate(task.dueDate)}
+												</div>
 											</MobileMetaValue>
 										</MobileMetaItem>
 									</MobileTaskMetaGrid>
 									<MobileTaskActions>
-										<MobileActionButton onClick={() => handleEditTask(task)}>
-											Refine
+											<MobileActionButton onClick={() => handleEditTask(task)}>
+											Refine Workflow
 										</MobileActionButton>
-										<MobileActionButton
-											$variant='secondary'
-											onClick={() => handleAssignTask(task)}>
-											Assign Owner
-										</MobileActionButton>
-										{task.status !== 'Completed' && (
-											<MobileActionButton
-												$variant='success'
-												onClick={() =>
-													queueUndoableAction({
-														kind: 'complete',
-														taskId: task.id,
-														taskTitle: task.title || 'Task',
-													})
-												}>
-													Complete and Log
-											</MobileActionButton>
-										)}
-										<MobileActionButton
-											$variant='secondary'
-											onClick={() =>
-												queueUndoableAction({
-													kind: 'delete',
-													taskId: task.id,
-													taskTitle: task.title || 'Task',
-												})
-											}>
-											Delete
-										</MobileActionButton>
+											<MobileActionLinkRow>
+												<MobileActionLinkButton onClick={() => handleAssignTask(task)}>
+													Assign
+												</MobileActionLinkButton>
+												{task.status !== 'Completed' && (
+													<MobileActionLinkButton
+														onClick={() => handleTaskCompletion(task.id)}
+													>
+														Complete
+													</MobileActionLinkButton>
+												)}
+												<MobileActionLinkButton
+													$danger
+													onClick={() =>
+														queueUndoableAction({
+															kind: 'delete',
+															taskId: task.id,
+															taskTitle: task.title || 'Task',
+														})
+													}
+												>
+													Delete
+												</MobileActionLinkButton>
+											</MobileActionLinkRow>
 									</MobileTaskActions>
 								</MobileTaskCard>
 							);
@@ -899,27 +918,26 @@ export const TasksPage = () => {
 								}
 								icon='📊'></ZeroState>
 						) : (
-							<HeaderlessFeedSurface>
-								<ReusableTable
-									rowData={filteredTasks}
-									columns={columns}
-									actions={taskActions}
-									sortState={sortState}
-									onSort={handleSort}
-									getRowClassName={(row) =>
-										isTaskOverdueForDisplay(row as any) ? 'overdue-row' : undefined
-									}
-									emptyMessage='No workflows currently active. New continuity workflows will appear here.'
-									onRowSelect={(selectedRows) => {
-										setSelectedRows(new Set(selectedRows));
-									}}
-									selectedRows={selectedRows}
-									onSelectAll={(_, selectedRowIds) => {
-										setSelectedRows(new Set(selectedRowIds));
-									}}
-									showCheckbox={false}
-									hideHeader={true}
-									onRowUpdate={(updatedRow) => {
+							<ReusableTable
+								rowData={filteredTasks}
+								columns={columns}
+								actions={taskActions}
+								sortState={sortState}
+								onSort={handleSort}
+								getRowClassName={(row) =>
+									isTaskOverdueForDisplay(row as any) ? 'overdue-row' : undefined
+								}
+								emptyMessage='No workflows currently active. New continuity workflows will appear here.'
+								onRowSelect={(selectedRows) => {
+									setSelectedRows(new Set(selectedRows));
+								}}
+								selectedRows={selectedRows}
+								onSelectAll={(_, selectedRowIds) => {
+									setSelectedRows(new Set(selectedRowIds));
+								}}
+								showCheckbox={false}
+								hideHeader={true}
+								onRowUpdate={(updatedRow) => {
 									// Prepare updates for Firebase
 									const updates: any = {};
 
@@ -948,9 +966,8 @@ export const TasksPage = () => {
 											console.error('Failed to update task:', error);
 										});
 									}
-									}}
-								/>
-							</HeaderlessFeedSurface>
+								}}
+							/>
 						)}
 					</TaskGridSection>
 				</>

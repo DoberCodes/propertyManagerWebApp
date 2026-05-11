@@ -30,9 +30,9 @@ export const ModalOverlay = styled.div`
 	}
 
 	@media (max-width: 480px) {
-		padding: 0.5rem;
+		padding: 0.35rem;
 		align-items: center;
-		padding-top: 1rem;
+		padding-top: 0.75rem;
 	}
 `;
 
@@ -93,7 +93,7 @@ export const ModalHeader = styled.div`
 	flex-shrink: 0;
 
 	@media (max-width: 480px) {
-		padding: 1.25rem 1.5rem;
+		padding: 1rem 1.25rem;
 	}
 `;
 
@@ -141,7 +141,7 @@ export const ModalBody = styled.div`
 	overflow-y: auto;
 
 	@media (max-width: 480px) {
-		padding: 1.5rem;
+		padding: 1.25rem;
 	}
 `;
 
@@ -155,8 +155,8 @@ export const ModalFooter = styled.div`
 
 	@media (max-width: 480px) {
 		flex-direction: column-reverse;
-		padding: 1.25rem 1.5rem;
-		gap: 0.75rem;
+		padding: 1rem 1.25rem;
+		gap: 0.65rem;
 	}
 `;
 
@@ -176,9 +176,9 @@ export const ModalButton = styled.button`
 
 	@media (max-width: 480px) {
 		width: 100%;
-		padding: 1rem 1.5rem;
+		padding: 0.875rem 1.25rem;
 		font-size: 16px;
-		min-height: 48px; /* Larger touch target on mobile */
+		min-height: 44px; /* Larger touch target on mobile */
 	}
 `;
 
@@ -290,9 +290,9 @@ export const DialogCancelButton = styled.button`
 
 	@media (max-width: 480px) {
 		width: 100%;
-		padding: 1rem 1.5rem;
+		padding: 0.875rem 1.25rem;
 		font-size: 16px;
-		min-height: 48px; /* Larger touch target on mobile */
+		min-height: 44px; /* Larger touch target on mobile */
 	}
 `;
 
@@ -388,7 +388,7 @@ export const FormGroup = styled.div`
 	}
 
 	@media (max-width: 480px) {
-		margin-bottom: 1.25rem;
+		margin-bottom: 1rem;
 	}
 `;
 

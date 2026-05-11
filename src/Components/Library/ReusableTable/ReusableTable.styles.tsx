@@ -219,13 +219,13 @@ export const StyledTable = styled.table`
 
 	tbody tr.overdue-row td {
 		background-color: #ffffff;
-		border-top-color: #f3e8e7;
-		border-bottom-color: #f3e8e7;
+		border-top-color: #e8edf4;
+		border-bottom-color: #e8edf4;
 	}
 
 	tbody tr.overdue-row:hover,
 	tbody tr.overdue-row:hover td {
-		background-color: #fffdfc;
+		background-color: #f8fbff;
 	}
 
 	tbody tr.attention-row td:first-child::before {

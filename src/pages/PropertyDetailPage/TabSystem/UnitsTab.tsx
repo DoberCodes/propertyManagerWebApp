@@ -17,13 +17,14 @@ import {
 	Toolbar,
 	ToolbarButton,
 	DesktopTableWrapper,
-	MobileCarouselContainer,
-	MobileCarouselViewport,
-	MobileCarouselTrack,
 	DeviceCard,
-	DeviceRow,
-	MobileDots,
-	MobileDot,
+	MobileTaskActions,
+	MobileActionButton,
+	MobileActionLinkRow,
+	MobileActionLinkButton,
+	MobileFeedMeta,
+	MobileFeedLine,
+	MobileFeedLineMuted,
 } from './index.styles';
 import { SectionLead } from './index.styles';
 import {
@@ -49,16 +50,6 @@ export const UnitsTab: React.FC<UnitsTabProps> = ({
 	handleDeleteUnit,
 }) => {
 	const navigate = useNavigate();
-
-	// Mobile carousel index
-	const [carouselIndex, setCarouselIndex] = React.useState(0);
-
-	React.useEffect(() => {
-		if (carouselIndex > (units?.length || 0) - 1) {
-			setCarouselIndex(Math.max(0, (units?.length || 1) - 1));
-		}
-		if ((units?.length || 0) === 0) setCarouselIndex(0);
-	}, [units?.length, carouselIndex]);
 
 	const handleNavigate = (unit: any) => {
 		navigate(
@@ -172,81 +163,53 @@ export const UnitsTab: React.FC<UnitsTabProps> = ({
 				<ToolbarButton onClick={handleCreateUnit}>+ Create Unit</ToolbarButton>
 			</Toolbar>
 
-			{/* Mobile carousel (shows when viewport <= 1024px via CSS) */}
-			<MobileCarouselContainer>
-				<MobileCarouselViewport>
-					<MobileCarouselTrack index={carouselIndex}>
-						{(units || []).map((unit) => (
-							<DeviceCard key={unit.id} onClick={() => handleNavigate(unit)}>
-								<div
-									style={{ display: 'flex', justifyContent: 'space-between' }}>
-									<div style={{ fontWeight: 700 }}>{unit.name}</div>
-									<div style={{ fontSize: 12, color: '#6b7280' }}>
-										{(unit.occupants || []).length} occupant
-										{(unit.occupants || []).length === 1 ? '' : 's'}
+			<div style={{ display: 'flex', flexDirection: 'column', gap: 12, paddingBottom: 4 }}>
+				{(units || []).map((unit) => (
+					<DeviceCard key={unit.id} onClick={() => handleNavigate(unit)}>
+						<div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+							<div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start' }}>
+								<div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+									<div style={{ fontSize: 15, fontWeight: 800, color: '#0f172a' }}>{unit.name}</div>
+									<div style={{ fontSize: 12, color: '#64748b' }}>
+										{(unit.occupants || []).length} occupant{(unit.occupants || []).length === 1 ? '' : 's'}
 									</div>
 								</div>
-								<DeviceRow>
-									<div style={{ fontSize: 14 }}>
-										<small>Devices: </small>
-										<UnitDeviceCount unitId={unit.id} />
-									</div>
-									<div style={{ display: 'flex', gap: 8 }}>
-										<button
-											onClick={(e) => {
-												e.stopPropagation();
-												handleNavigate(unit);
-											}}
-											style={{
-												background: 'transparent',
-												border: 'none',
-												cursor: 'pointer',
-												padding: '8px',
-												borderRadius: '4px',
-												display: 'flex',
-												alignItems: 'center',
-												justifyContent: 'center',
-												minWidth: '44px',
-												minHeight: '44px',
-											}}>
-											View
-										</button>
-										<button
-											onClick={(e) => {
-												e.stopPropagation();
-												handleDeleteUnit(unit.id);
-											}}
-											style={{
-												background: 'transparent',
-												border: 'none',
-												cursor: 'pointer',
-												color: '#ef4444',
-												padding: '8px',
-												borderRadius: '4px',
-												display: 'flex',
-												alignItems: 'center',
-												justifyContent: 'center',
-												minWidth: '44px',
-												minHeight: '44px',
-											}}>
-											Delete
-										</button>
-									</div>
-								</DeviceRow>
-							</DeviceCard>
-						))}
-					</MobileCarouselTrack>
-				</MobileCarouselViewport>
-				<MobileDots>
-					{(units || []).map((_, i) => (
-						<MobileDot
-							key={i}
-							$active={i === carouselIndex}
-							onClick={() => setCarouselIndex(i)}
-						/>
-					))}
-				</MobileDots>
-			</MobileCarouselContainer>
+								<span style={{ fontSize: 12, fontWeight: 700, padding: '4px 10px', borderRadius: 999, background: '#ecfeff', color: '#0f766e', border: '1px solid #99f6e4', whiteSpace: 'nowrap' }}>
+									Unit
+								</span>
+							</div>
+							<MobileFeedMeta>
+								<MobileFeedLineMuted>
+									{(unit.occupants || []).length} occupant{(unit.occupants || []).length === 1 ? '' : 's'}
+								</MobileFeedLineMuted>
+								<MobileFeedLine>
+									Devices: <strong style={{ color: '#0f172a' }}><UnitDeviceCount unitId={unit.id} /></strong>
+								</MobileFeedLine>
+							</MobileFeedMeta>
+						</div>
+						<MobileTaskActions>
+							<MobileActionButton
+								variant='primary'
+								onClick={(e) => {
+									e.stopPropagation();
+									handleNavigate(unit);
+								}}>
+								View history
+							</MobileActionButton>
+							<MobileActionLinkRow>
+								<MobileActionLinkButton
+									$danger
+									onClick={(e) => {
+										e.stopPropagation();
+										handleDeleteUnit(unit.id);
+									}}>
+									Delete
+								</MobileActionLinkButton>
+							</MobileActionLinkRow>
+						</MobileTaskActions>
+					</DeviceCard>
+				))}
+			</div>
 
 			{/* Desktop table (hidden on mobile) */}
 			<DesktopTableWrapper>

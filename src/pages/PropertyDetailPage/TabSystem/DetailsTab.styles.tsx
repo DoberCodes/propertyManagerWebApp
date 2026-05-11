@@ -95,14 +95,19 @@ export const PreviewGrid = styled.div`
 
 export const PreviewCard = styled.div`
 	background: #ffffff;
-	border: 1px solid #e5e7eb;
-	border-radius: 12px;
-	padding: 14px;
-	box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05);
+	border: 1px solid #e8edf3;
+	border-radius: 14px;
+	padding: 16px;
+	box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
+
+	@media (max-width: 480px) {
+		padding: 14px;
+		border-radius: 13px;
+	}
 `;
 
 export const PreviewHeader = styled.h3`
-	margin: 0 0 10px 0;
+	margin: 0 0 12px 0;
 	font-size: 0.98rem;
 	font-weight: 700;
 	color: #111827;
@@ -111,20 +116,21 @@ export const PreviewHeader = styled.h3`
 export const PreviewList = styled.div`
 	display: flex;
 	flex-direction: column;
-	gap: 8px;
+	gap: 10px;
 `;
 
 export const PreviewItem = styled.div`
 	display: flex;
-	align-items: center;
+	align-items: flex-start;
 	gap: 8px;
-	padding: 8px 10px;
-	border-radius: 8px;
+	padding: 10px 12px;
+	border-radius: 10px;
 	background: #f8fafc;
+	border: 1px solid #edf2f7;
 
 	@media (max-width: 480px) {
-		padding: 7px 8px;
-		gap: 6px;
+		padding: 10px;
+		gap: 8px;
 	}
 `;
 
@@ -138,6 +144,9 @@ export const PreviewItemTrailing = styled.div`
 
 	@media (max-width: 480px) {
 		gap: 6px;
+		flex-direction: column;
+		align-items: flex-start;
+		margin-left: 0;
 	}
 `;
 
@@ -147,38 +156,45 @@ export const PreviewItemTitle = styled.div`
 	color: #1f2937;
 	flex: 1;
 	min-width: 0;
-	white-space: nowrap;
-	overflow: hidden;
-	text-overflow: ellipsis;
+	white-space: normal;
+	overflow: visible;
+	text-overflow: clip;
+	line-height: 1.4;
 `;
 
 export const PreviewItemMeta = styled.div`
 	font-size: 0.75rem;
 	font-weight: 600;
 	color: #64748b;
-	min-width: 62px;
+	min-width: 56px;
 	text-align: right;
 	white-space: nowrap;
 
 	@media (max-width: 480px) {
 		font-size: 0.72rem;
 		min-width: 0;
+		text-align: left;
 	}
 `;
 
 export const TimelineList = styled.div`
 	display: flex;
 	flex-direction: column;
-	gap: 8px;
+	gap: 10px;
 `;
 
 export const TimelineItem = styled.div`
 	display: flex;
 	align-items: flex-start;
-	gap: 8px;
-	padding: 9px 10px;
-	border-radius: 8px;
+	gap: 10px;
+	padding: 11px 12px;
+	border-radius: 10px;
 	background: #f8fafc;
+	border: 1px solid #edf2f7;
+
+	@media (max-width: 480px) {
+		padding: 10px;
+	}
 `;
 
 export const TimelineBadge = styled.span<{
@@ -225,9 +241,9 @@ export const TimelineTitle = styled.div`
 	font-weight: 700;
 	color: #1f2937;
 	line-height: 1.35;
-	white-space: nowrap;
-	overflow: hidden;
-	text-overflow: ellipsis;
+	white-space: normal;
+	overflow: visible;
+	text-overflow: clip;
 `;
 
 export const TimelineMeta = styled.div`

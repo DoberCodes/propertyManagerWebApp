@@ -13,10 +13,10 @@ export const Wrapper = styled.div`
 export const TaskGridSection = styled.div`
 	display: flex;
 	flex-direction: column;
-	background: white;
-	border-radius: 16px;
-	padding: 20px 20px 12px;
-	box-shadow: 0 16px 36px rgba(15, 23, 42, 0.08);
+	background: transparent;
+	border-radius: 0;
+	padding: 0;
+	box-shadow: none;
 	width: 100%;
 
 	${TableContainer} {
@@ -142,74 +142,87 @@ export const MobileTaskCard = styled.article<{ $overdue?: boolean }>`
 	background: #ffffff;
 	border-radius: 12px;
 	padding: 14px;
-	border: 1px solid ${(props) => (props.$overdue ? 'rgba(239, 68, 68, 0.35)' : '#e5e7eb')};
+	border: 1px solid ${(props) => (props.$overdue ? 'rgba(239, 68, 68, 0.22)' : '#ececec')};
 	box-shadow: ${(props) =>
 		props.$overdue
-			? '0 2px 6px rgba(239, 68, 68, 0.12)'
-			: '0 2px 6px rgba(15, 23, 42, 0.05)'};
+			? '0 2px 10px rgba(239, 68, 68, 0.09)'
+			: '0 2px 10px rgba(15, 23, 42, 0.07)'};
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
 `;
 
 export const MobileTaskHeader = styled.div`
 	display: flex;
-	justify-content: space-between;
+	flex-direction: column;
 	align-items: flex-start;
-	gap: 10px;
-	margin-bottom: 10px;
+	gap: 6px;
+	margin-bottom: 0;
 `;
 
 export const MobileTaskTitle = styled.h3`
 	margin: 0;
-	font-size: 1rem;
+	font-size: 1.1rem;
 	line-height: 1.35;
-	color: #1f2937;
+	color: #0f172a;
+	font-weight: 800;
+	width: 100%;
 `;
 
 export const MobileTaskMetaGrid = styled.div`
-	display: grid;
-	grid-template-columns: repeat(2, minmax(0, 1fr));
+	display: flex;
+	flex-direction: column;
 	gap: 8px;
 
 	@media (max-width: 480px) {
-		grid-template-columns: 1fr;
+		gap: 7px;
 	}
 `;
 
 export const MobileMetaItem = styled.div`
-	padding: 8px 10px;
-	border-radius: 8px;
-	background: #f9fafb;
+	padding: 8px 0;
+	border-top: 1px solid #eef2f7;
+	text-align: center;
+
+	&:first-child {
+		border-top: none;
+		padding-top: 0;
+	}
 `;
 
 export const MobileMetaLabel = styled.div`
-	font-size: 0.68rem;
-	font-weight: 700;
-	letter-spacing: 0.03em;
+	font-size: 0.6rem;
+	font-weight: 600;
+	letter-spacing: 0.04em;
 	text-transform: uppercase;
-	color: #6b7280;
-	margin-bottom: 4px;
+	color: #b0bec8;
+	opacity: 0.85;
+	margin-bottom: 2px;
+	text-align: center;
 `;
 
 export const MobileMetaValue = styled.div`
-	font-size: 0.86rem;
-	font-weight: 600;
-	color: #111827;
+	font-size: 0.84rem;
+	font-weight: 500;
+	color: #334155;
 	word-break: break-word;
+	text-align: center;
 `;
 
 export const MobileTaskActions = styled.div`
 	display: flex;
-	flex-wrap: wrap;
-	gap: 8px;
-	margin-top: 12px;
+	flex-direction: column;
+	gap: 10px;
+	margin-top: 0;
 `;
 
 export const MobileActionButton = styled.button<{ $variant?: 'primary' | 'secondary' | 'success' }>`
 	border: none;
-	border-radius: 8px;
-	padding: 8px 10px;
-	font-size: 0.82rem;
-	font-weight: 700;
-	min-height: 38px;
+	border-radius: 10px;
+	padding: 10px 14px;
+	font-size: 0.86rem;
+	font-weight: 800;
+	min-height: 42px;
 	cursor: pointer;
 	background: ${(props) => {
 		if (props.$variant === 'success') return '#dcfce7';
@@ -221,6 +234,41 @@ export const MobileActionButton = styled.button<{ $variant?: 'primary' | 'second
 		if (props.$variant === 'secondary') return '#4338ca';
 		return '#1d4ed8';
 	}};
+	width: 100%;
+
+	&:active {
+		transform: translateY(0);
+	}
+
+	@media (max-width: 480px) {
+		min-height: 44px;
+	}
+`;
+
+export const MobileActionLinkRow = styled.div`
+	display: flex;
+	flex-wrap: wrap;
+	gap: 14px;
+	align-items: center;
+	justify-content: center;
+	text-align: center;
+`;
+
+export const MobileActionLinkButton = styled.button<{ $danger?: boolean }>`
+	border: none;
+	background: transparent;
+	padding: 0;
+	font-size: 0.8rem;
+	font-weight: 650;
+	color: ${(props) => (props.$danger ? 'rgba(185, 28, 28, 0.72)' : '#526175')};
+	cursor: pointer;
+	text-decoration: none;
+	line-height: 1.4;
+
+	&:hover {
+		text-decoration: underline;
+		color: ${(props) => (props.$danger ? '#991b1b' : '#334155')};
+	}
 `;
 
 export const QuickFilterChips = styled.div`

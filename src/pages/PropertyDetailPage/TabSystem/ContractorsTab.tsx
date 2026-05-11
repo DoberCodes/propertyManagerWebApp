@@ -46,11 +46,12 @@ import {
 	MobileContractorHeader,
 	MobileContractorTitle,
 	MobileContractorMeta,
-	MobileContractorRow,
-	MobileContractorLabel,
-	MobileContractorValue,
 	MobileContractorActions,
 	MobileActionButton,
+	MobileActionLinkRow,
+	MobileActionLinkButton,
+	MobileFeedLine,
+	MobileFeedLineMuted,
 	DesktopTableWrapper,
 } from './index.styles';
 import { WarningDialog } from '../../../Components/Library/WarningDialog';
@@ -58,10 +59,6 @@ import {
 	ActiveFilterChips,
 	ActiveFilterChip,
 	ActiveFilterChipClear,
-	CardMoreDetails,
-	CardMoreSummary,
-	CardMoreMenu,
-	CardMoreMenuItem,
 } from './mobileUiShared';
 import { useAppFeedback } from '../../../Components/Library/AppFeedback/AppFeedbackProvider';
 
@@ -464,73 +461,47 @@ export const ContractorsTab: React.FC<ContractorsTabProps> = ({
 								</MobileContractorHeader>
 
 								<MobileContractorMeta>
-									{contractor.company &&
-										contractor.name !== contractor.company && (
-											<MobileContractorRow>
-												<MobileContractorLabel>Contact</MobileContractorLabel>
-												<MobileContractorValue>
-													{contractor.name}
-												</MobileContractorValue>
-											</MobileContractorRow>
-										)}
-
-									<MobileContractorRow>
-										<MobileContractorLabel>Phone</MobileContractorLabel>
-										<MobileContractorValue>
-											<a
-												href={`tel:${contractor.phone}`}
-												style={{ color: 'inherit', textDecoration: 'none' }}>
-												{contractor.phone}
-											</a>
-										</MobileContractorValue>
-									</MobileContractorRow>
-
-									{contractor.email && (
-										<MobileContractorRow>
-											<MobileContractorLabel>Email</MobileContractorLabel>
-											<MobileContractorValue>
-												{contractor.email}
-											</MobileContractorValue>
-										</MobileContractorRow>
+									{contractor.company && contractor.name !== contractor.company && (
+										<MobileFeedLine>Primary contact: {contractor.name}</MobileFeedLine>
 									)}
-
+									<MobileFeedLine>
+										{contractor.phone}
+										{contractor.email ? ` • ${contractor.email}` : ''}
+									</MobileFeedLine>
 									{contractor.category && (
-										<MobileContractorRow>
-											<MobileContractorLabel>Category</MobileContractorLabel>
-											<MobileContractorValue>
-												<CategoryBadge category={contractor.category}>
-													{contractor.category}
-												</CategoryBadge>
-											</MobileContractorValue>
-										</MobileContractorRow>
+										<MobileFeedLineMuted>
+											Service category: {contractor.category}
+										</MobileFeedLineMuted>
 									)}
 								</MobileContractorMeta>
 
 								<MobileContractorActions>
 									<MobileActionButton
-										variant='danger'
+										variant='primary'
+										onClick={(e) => {
+											e.stopPropagation();
+											handleEdit(contractor);
+										}}
+										style={{ flex: 1 }}>
+										Edit profile
+									</MobileActionButton>
+									<MobileActionLinkRow>
+										<MobileActionLinkButton
+											onClick={(e) => {
+												e.stopPropagation();
+												window.location.href = `tel:${contractor.phone}`;
+											}}>
+											Call
+										</MobileActionLinkButton>
+										<MobileActionLinkButton
+											$danger
 										onClick={(e) => {
 											e.stopPropagation();
 											handleDeleteClick(contractor);
-										}}
-										style={{ flex: 1 }}>
-										Delete
-									</MobileActionButton>
-									<CardMoreDetails
-										onClick={(e) => {
-											e.stopPropagation();
 										}}>
-										<CardMoreSummary>More</CardMoreSummary>
-										<CardMoreMenu>
-											<CardMoreMenuItem
-												onClick={(e) => {
-													e.stopPropagation();
-													handleEdit(contractor);
-												}}>
-												Edit
-											</CardMoreMenuItem>
-										</CardMoreMenu>
-									</CardMoreDetails>
+											Delete
+										</MobileActionLinkButton>
+									</MobileActionLinkRow>
 								</MobileContractorActions>
 							</MobileContractorCard>
 						))}

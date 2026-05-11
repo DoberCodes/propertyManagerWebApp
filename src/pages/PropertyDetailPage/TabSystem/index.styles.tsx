@@ -642,43 +642,55 @@ export const BaseMobileCard = styled.div<{ $isSelected?: boolean }>`
 	padding: 16px;
 	box-sizing: border-box;
 	margin-bottom: 12px;
-	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-	transition: all 0.2s ease;
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+	transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
 	cursor: pointer;
+	overflow: hidden;
+	position: relative;
+	border-left: 4px solid #dbe3ee;
 
 	${({ $isSelected }) =>
 		$isSelected &&
 		`
-        background: #eff6ff;
-        border-color: #3b82f6;
-        box-shadow: 0 2px 8px rgba(59, 130, 246, 0.15);
+        background: #f8fbff;
+        border-color: #93c5fd;
+        box-shadow: 0 6px 18px rgba(59, 130, 246, 0.12);
     `}
 
 	&:hover {
-		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+		box-shadow: 0 4px 12px rgba(15, 23, 42, 0.09);
 		transform: translateY(-1px);
 	}
 
 	@media (max-width: 480px) {
 		padding: 14px;
 		margin-bottom: 10px;
+		border-radius: 14px;
+		box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
 	}
 `;
 
 export const DeviceCard = styled(BaseMobileCard)`
 	width: 100%;
-	flex: 0 0 100%;
 	display: flex;
 	flex-direction: column;
-	gap: 8px;
+	gap: 10px;
+	min-height: 100%;
+
+	@media (max-width: 1024px) {
+		width: 100%;
+	}
 `;
 
 export const DeviceRow = styled.div`
 	display: flex;
-	justify-content: space-between;
-	align-items: center;
+	flex-direction: column;
+	align-items: flex-start;
 	gap: 8px;
-	flex-wrap: wrap;
+
+	@media (max-width: 480px) {
+		gap: 6px;
+	}
 `;
 
 export const MobileDots = styled.div`
@@ -808,28 +820,28 @@ export const MobileTaskCard = styled(BaseMobileCard)<{ $isSelected: boolean }>`
 
 	@media (max-width: 1024px) {
 		display: block;
-		padding: 12px;
+		padding: 14px;
 	}
 `;
 
 export const MobileTaskHeader = styled.div`
 	display: flex;
-	justify-content: space-between;
+	flex-direction: column;
 	align-items: flex-start;
-	margin-bottom: 12px;
+	gap: 8px;
+	margin-bottom: 14px;
 `;
 
 export const MobileTaskTitle = styled.h3`
-	font-size: 17px;
-	font-weight: 700;
+	font-size: 18px;
+	font-weight: 800;
 	color: #0f172a;
 	margin: 0;
 	line-height: 1.3;
-	flex: 1;
-	margin-right: 12px;
+	width: 100%;
 
 	@media (max-width: 480px) {
-		font-size: 16px;
+		font-size: 17px;
 	}
 `;
 
@@ -843,17 +855,24 @@ export const MobileTaskCheckbox = styled.input.attrs({ type: 'checkbox' })`
 `;
 
 export const MobileTaskMeta = styled.div`
-	display: flex;
-	flex-direction: column;
+	display: grid;
+	grid-template-columns: 1fr;
 	gap: 8px;
-	margin-bottom: 12px;
+	margin-bottom: 14px;
 `;
 
 export const MobileTaskRow = styled.div`
 	display: flex;
-	justify-content: space-between;
-	align-items: center;
-	gap: 10px;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 4px;
+	padding: 10px 0;
+	border-top: 1px solid #eef2f7;
+
+	&:first-child {
+		border-top: none;
+		padding-top: 0;
+	}
 `;
 
 export const MobileTaskLabel = styled.span`
@@ -871,68 +890,120 @@ export const MobileTaskValue = styled.span`
 	font-size: 14px;
 	color: #1f2937;
 	font-weight: 600;
-	margin-left: auto;
-	text-align: right;
-	min-width: 110px;
-	white-space: nowrap;
-	overflow: hidden;
-	text-overflow: ellipsis;
+	width: 100%;
+	text-align: left;
+	white-space: normal;
+	overflow: visible;
+	text-overflow: clip;
 `;
 
 export const MobileTaskActions = styled.div`
 	display: flex;
-	gap: 8px;
-	flex-wrap: wrap;
-	padding-top: 8px;
+	flex-direction: column;
+	gap: 10px;
+	padding-top: 10px;
 	border-top: 1px solid #f3f4f6;
+`;
+
+export const MobileFeedMeta = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	margin-bottom: 12px;
+`;
+
+export const MobileFeedLine = styled.div`
+	font-size: 0.84rem;
+	font-weight: 600;
+	color: #334155;
+	line-height: 1.45;
+	word-break: break-word;
+`;
+
+export const MobileFeedLineMuted = styled.div`
+	font-size: 0.8rem;
+	font-weight: 500;
+	color: #64748b;
+	line-height: 1.4;
+	word-break: break-word;
+`;
+
+export const MobileActionLinkRow = styled.div`
+	display: flex;
+	flex-wrap: wrap;
+	gap: 14px;
+	align-items: center;
+	justify-content: flex-start;
+	text-align: left;
+`;
+
+export const MobileActionLinkButton = styled.button<{ $danger?: boolean }>`
+	border: none;
+	background: transparent;
+	padding: 0;
+	font-size: 0.8rem;
+	font-weight: 650;
+	color: ${(props) => (props.$danger ? 'rgba(185, 28, 28, 0.72)' : '#526175')};
+	cursor: pointer;
+	text-decoration: none;
+	line-height: 1.4;
+
+	&:hover {
+		text-decoration: underline;
+		color: ${(props) => (props.$danger ? '#991b1b' : '#334155')};
+	}
 `;
 
 export const MobileActionButton = styled.button<{
 	variant?: 'primary' | 'secondary' | 'danger';
 }>`
-	padding: 8px 12px;
-	border-radius: 6px;
-	font-size: 13px;
-	font-weight: 500;
+	padding: 10px 14px;
+	border-radius: 10px;
+	font-size: 0.86rem;
+	font-weight: 800;
 	cursor: pointer;
 	transition: all 0.2s ease;
 	border: 1px solid transparent;
-	min-width: fit-content;
+	min-height: 42px;
+	width: 100%;
 
 	${({ variant }) => {
 		switch (variant) {
 			case 'primary':
 				return `
-                    background: #22c55e;
-                    color: white;
+                    background: #eff6ff;
+                    color: #1d4ed8;
+                    border-color: #bfdbfe;
                     &:hover {
-                        background: #16a34a;
+                        background: #dbeafe;
                     }
                 `;
 			case 'danger':
 				return `
-                    background: #ef4444;
-                    color: white;
+                    background: #fff1f2;
+                    color: #be123c;
+                    border-color: #fecdd3;
                     &:hover {
-                        background: #dc2626;
+                        background: #ffe4e6;
                     }
                 `;
 			default:
 				return `
-                    background: #f3f4f6;
-                    color: #374151;
-                    border-color: #d1d5db;
+                    background: #f8fafc;
+                    color: #334155;
+                    border-color: #e2e8f0;
                     &:hover {
-                        background: #e5e7eb;
+                        background: #f1f5f9;
                     }
                 `;
 		}
 	}}
 
 	@media (max-width: 480px) {
-		padding: 12px 16px;
-		font-size: 16px;
+		padding: 10px 14px;
+		font-size: 15px;
 		min-height: 44px;
+		width: 100%;
 	}
 `;
 
@@ -941,48 +1012,65 @@ export const MobileContractorCard = styled(BaseMobileCard)`
 
 	@media (max-width: 1024px) {
 		display: block;
+		padding: 14px;
 	}
 `;
 
 export const MobileContractorHeader = styled.div`
 	display: flex;
-	justify-content: space-between;
+	flex-direction: column;
 	align-items: flex-start;
+	gap: 6px;
 	margin-bottom: 12px;
 `;
 
 export const MobileContractorTitle = styled.h3`
 	margin: 0;
-	font-size: 16px;
-	font-weight: 600;
+	font-size: 17px;
+	font-weight: 800;
 	color: #1f2937;
+	line-height: 1.3;
 `;
 
 export const MobileContractorMeta = styled.div`
-	display: flex;
-	flex-direction: column;
+	display: grid;
+	grid-template-columns: 1fr;
 	gap: 8px;
 `;
 
 export const MobileContractorRow = styled.div`
 	display: flex;
-	justify-content: space-between;
-	align-items: center;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 4px;
+	padding: 8px 0;
+	border-top: 1px solid #eef2f7;
+
+	&:first-child {
+		border-top: none;
+		padding-top: 0;
+	}
 `;
 
 export const MobileContractorLabel = styled.span`
-	font-size: 14px;
-	font-weight: 500;
-	color: #6b7280;
+	font-size: 12px;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: #64748b;
 `;
 
 export const MobileContractorValue = styled.span`
 	font-size: 14px;
+	font-weight: 600;
 	color: #1f2937;
+	width: 100%;
+	word-break: break-word;
 `;
 
 export const MobileContractorActions = styled.div`
 	display: flex;
+	flex-direction: column;
 	gap: 8px;
 	margin-top: 12px;
 	padding-top: 12px;

@@ -38,11 +38,7 @@ import { buildDeviceSlug } from '../../../utils/deviceSlug';
 import { useAppFeedback } from '../../../Components/Library/AppFeedback/AppFeedbackProvider';
 import {
 	MobileCarouselContainer,
-	MobileCarouselViewport,
-	MobileCarouselTrack,
 	DeviceRow,
-	MobileDots,
-	MobileDot,
 	DesktopTableWrapper,
 	Toolbar,
 	ToolbarButton,
@@ -53,6 +49,11 @@ import {
 	EmptyState,
 	MobileTaskActions,
 	MobileActionButton,
+	MobileActionLinkRow,
+	MobileActionLinkButton,
+	MobileFeedMeta,
+	MobileFeedLine,
+	MobileFeedLineMuted,
 } from './index.styles';
 import { ReusableTable } from '../../../Components/Library';
 import { Column, Action } from '../../../Components/Library/ReusableTable';
@@ -127,9 +128,6 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property }) => {
 		files: [],
 	});
 	const fileInputRef = useRef<HTMLInputElement>(null);
-
-	// Mobile carousel index
-	const [carouselIndex, setCarouselIndex] = useState(0);
 
 	const { data: devices = [], isLoading } = useGetDevicesQuery(property.id);
 	const { data: units = [] } = useGetUnitsQuery(property.id);
@@ -537,13 +535,6 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property }) => {
 		},
 	];
 
-	// Reset/ clamp carousel index when device list changes
-	useEffect(() => {
-		if (carouselIndex > devices.length - 1) {
-			setCarouselIndex(Math.max(0, devices.length - 1));
-		}
-		if (devices.length === 0) setCarouselIndex(0);
-	}, [devices.length, carouselIndex]);
 	const [createDevice] = useCreateDeviceMutation();
 	const [updateDevice] = useUpdateDeviceMutation();
 	const [deleteDevice] = useDeleteDeviceMutation();
@@ -727,179 +718,81 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property }) => {
 				</ToolbarButton>
 			</Toolbar>
 
-			{/* Mobile carousel (shows when viewport <= 1024px) */}
-			<MobileCarouselContainer>
-				<MobileCarouselViewport>
-					<MobileCarouselTrack index={carouselIndex}>
-						{devices.map((device) => (
-							<DeviceCard
-								key={device.id}
-								$isSelected={selectedDevice === device}
-								onClick={() => setSelectedDevice(device)}
-								style={{
-									borderLeft: `4px solid ${(device.status || 'Active') === 'Broken' ? '#ef4444' : (device.status || 'Active') === 'Maintenance' ? '#f59e0b' : '#22c55e'}`,
-								}}>
-								{(() => {
-									const {
-										linkedOpenTasks,
-										needsAttention,
-									} =
-										getDeviceAttentionState(device);
-
-									return (
-								<div
-									style={{
-										display: 'flex',
-										justifyContent: 'space-between',
-										alignItems: 'center',
-									}}>
-									<button
-										onClick={(event) => {
-											event.stopPropagation();
-											navigate(getDeviceDetailPath(device));
-										}}
-										style={{
-											fontWeight: 700,
-											fontSize: 14,
-											color: '#0f766e',
-											background: 'transparent',
-											border: 'none',
-											cursor: 'pointer',
-											padding: 0,
-											textAlign: 'left',
-										}}>
-										{device.type}
-									</button>
-											<div style={{ fontSize: 12, color: needsAttention ? '#b45309' : '#6b7280', fontWeight: needsAttention ? 700 : 400 }}>
-												{linkedOpenTasks > 0
-													? `${linkedOpenTasks} open task${linkedOpenTasks === 1 ? '' : 's'}`
-													: device.brand}
-									</div>
-								</div>
-									);
-								})()}
-								<DeviceRow>
-									<div style={{ fontSize: 14 }}>{device.model || '—'}</div>
-									<StatusBadge status={device.status || 'Active'}>
-										{device.status || 'Active'}
-									</StatusBadge>
-								</DeviceRow>
-								<DeviceRow>
-									<div style={{ fontSize: 12, color: '#6b7280' }}>
-										{device.installationDate
-											? new Date(device.installationDate).toLocaleDateString()
-											: 'N/A'}
-									</div>
-								</DeviceRow>
-								{(() => {
-									const { overdueLinkedTasks, recurringLinkedTasks } =
-										getDeviceAttentionState(device);
-									if (overdueLinkedTasks === 0 && recurringLinkedTasks === 0) return null;
-
-									return (
-										<div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 2 }}>
-											{overdueLinkedTasks > 0 && (
-												<span
-													style={{
-														background: '#fef2f2',
-														border: '1px solid #fecaca',
-														color: '#b91c1c',
-														padding: '2px 8px',
-														borderRadius: 999,
-														fontSize: 11,
-														fontWeight: 700,
-													}}>
-													Overdue {overdueLinkedTasks}
-												</span>
-											)}
-											{recurringLinkedTasks > 0 && (
-												<span
-													style={{
-														background: '#ecfeff',
-														border: '1px solid #99f6e4',
-														color: '#0f766e',
-														padding: '2px 8px',
-														borderRadius: 999,
-														fontSize: 11,
-														fontWeight: 700,
-													}}>
-													Recurring {recurringLinkedTasks}
-												</span>
-											)}
+			<div style={{ display: 'flex', flexDirection: 'column', gap: 12, paddingBottom: 4 }}>
+				{devices.map((device) => {
+					const { linkedOpenTasks, overdueLinkedTasks, recurringLinkedTasks, needsAttention } = getDeviceAttentionState(device);
+					const stateTone = needsAttention ? '#f59e0b' : '#22c55e';
+					return (
+						<DeviceCard
+							key={device.id}
+							$isSelected={selectedDevice === device}
+							onClick={() => setSelectedDevice(device)}
+							style={{
+								borderLeftColor: (device.status || 'Active') === 'Broken' ? '#ef4444' : (device.status || 'Active') === 'Maintenance' ? '#f59e0b' : '#22c55e',
+							}}>
+							<div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+								<div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
+									<div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+										<button
+											onClick={(event) => {
+												event.stopPropagation();
+												navigate(getDeviceDetailPath(device));
+											}}
+											style={{
+												fontWeight: 800,
+												fontSize: 15,
+												color: '#0f172a',
+												background: 'transparent',
+												border: 'none',
+												cursor: 'pointer',
+												padding: 0,
+												textAlign: 'left',
+												lineHeight: 1.3,
+											}}>
+											{device.type}
+										</button>
+										<div style={{ fontSize: 12, color: '#64748b', fontWeight: 600 }}>
+											{device.brand || 'No brand'}
 										</div>
-									);
-								})()}
-								<MobileTaskActions>
-									<MobileActionButton
-										variant='danger'
-										onClick={(event) => {
-											event.stopPropagation();
-											handleDeleteDevice(device.id);
-										}}
-										style={{ flex: 1 }}>
-										Delete
-									</MobileActionButton>
-									<CardMoreDetails
-										onClick={(event) => {
-											event.stopPropagation();
-										}}>
-										<CardMoreSummary>More</CardMoreSummary>
-										<CardMoreMenu>
-											<CardMoreMenuItem
-												onClick={(event) => {
-													event.stopPropagation();
-													navigate(getDeviceDetailPath(device));
-												}}>
-												View
-											</CardMoreMenuItem>
-											<CardMoreMenuItem
-												onClick={(event) => {
-													event.stopPropagation();
-													handleOpenEditModal(device);
-												}}>
-												Edit
-											</CardMoreMenuItem>
-										</CardMoreMenu>
-									</CardMoreDetails>
-								</MobileTaskActions>
-								{device.files && device.files.length > 0 ? (
-									<div
-										style={{
-											marginTop: 8,
-											display: 'flex',
-											gap: 8,
-											flexWrap: 'wrap',
-										}}>
-										{device.files.map((file, i) => (
-											<a
-												key={i}
-												href={file.url}
-												target='_blank'
-												rel='noopener noreferrer'
-												style={{
-													fontSize: 12,
-													color: '#2563eb',
-													textDecoration: 'none',
-												}}>
-												{file.name}
-											</a>
-										))}
 									</div>
-								) : null}
-							</DeviceCard>
-						))}
-					</MobileCarouselTrack>
-				</MobileCarouselViewport>
-				<MobileDots>
-					{devices.map((_, i) => (
-						<MobileDot
-							key={i}
-							$active={i === carouselIndex}
-							onClick={() => setCarouselIndex(i)}
-						/>
-					))}
-				</MobileDots>
-			</MobileCarouselContainer>
+									<span style={{ fontSize: 12, fontWeight: 700, padding: '4px 10px', borderRadius: 999, background: `${stateTone}14`, color: stateTone, border: `1px solid ${stateTone}33`, whiteSpace: 'nowrap' }}>
+										{needsAttention ? 'Needs Attention' : 'Active'}
+									</span>
+								</div>
+								<MobileFeedMeta>
+									<MobileFeedLine>{device.model || 'No model details yet'}</MobileFeedLine>
+									<MobileFeedLineMuted>
+										Installed {device.installationDate ? new Date(device.installationDate).toLocaleDateString() : 'N/A'}
+									</MobileFeedLineMuted>
+									<MobileFeedLineMuted>
+										{linkedOpenTasks} open task{linkedOpenTasks === 1 ? '' : 's'}
+										{recurringLinkedTasks > 0 ? ' • Recurring care active' : ''}
+									</MobileFeedLineMuted>
+									{overdueLinkedTasks > 0 && (
+										<MobileFeedLineMuted style={{ color: '#b91c1c', fontWeight: 700 }}>
+											Overdue by {overdueLinkedTasks} task{overdueLinkedTasks === 1 ? '' : 's'}
+										</MobileFeedLineMuted>
+									)}
+								</MobileFeedMeta>
+							</div>
+							<MobileTaskActions>
+								<MobileActionButton variant='primary' onClick={(event) => { event.stopPropagation(); navigate(getDeviceDetailPath(device)); }}>View history</MobileActionButton>
+								<MobileActionLinkRow>
+									<MobileActionLinkButton onClick={(event) => { event.stopPropagation(); handleOpenEditModal(device); }}>Edit</MobileActionLinkButton>
+									<MobileActionLinkButton $danger onClick={(event) => { event.stopPropagation(); handleDeleteDevice(device.id); }}>Delete</MobileActionLinkButton>
+								</MobileActionLinkRow>
+							</MobileTaskActions>
+							{device.files && device.files.length > 0 ? (
+								<div style={{ marginTop: 4, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+									{device.files.map((file, i) => (
+										<a key={i} href={file.url} target='_blank' rel='noopener noreferrer' style={{ fontSize: 12, color: '#2563eb', textDecoration: 'none' }}>{file.name}</a>
+									))}
+								</div>
+							) : null}
+						</DeviceCard>
+					);
+				})}
+			</div>
 
 			{devices.length === 0 ? (
 				<EmptyState>

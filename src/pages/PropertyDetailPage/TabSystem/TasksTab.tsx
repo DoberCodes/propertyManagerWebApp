@@ -6,9 +6,6 @@ import {
 	faTrash,
 	faUserPlus,
 	faCheckCircle,
-	faCalendarDays,
-	faFlag,
-	faUser,
 	faArrowUpAZ,
 	faFan,
 	faSnowflake,
@@ -43,12 +40,13 @@ import {
 	MobileTaskCard,
 	MobileTaskHeader,
 	MobileTaskTitle,
-	MobileTaskMeta,
-	MobileTaskRow,
-	MobileTaskLabel,
-	MobileTaskValue,
+	MobileFeedMeta,
+	MobileFeedLine,
+	MobileFeedLineMuted,
 	MobileTaskActions,
 	MobileActionButton,
+	MobileActionLinkRow,
+	MobileActionLinkButton,
 	Toolbar,
 	ToolbarButton,
 	TabSummaryBar,
@@ -839,7 +837,7 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 					alignItems: 'center',
 					gap: '8px',
 					flexDirection: isMobile ? 'column' : 'row',
-					marginBottom: showFilters ? '12px' : '0',
+					marginBottom: isMobile ? (showFilters ? '12px' : '10px') : showFilters ? '12px' : '0',
 				}}>
 				<input
 					type='text'
@@ -960,79 +958,68 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 										<StatusBadge status={task.status}>{task.status}</StatusBadge>
 									</MobileTaskHeader>
 
-									<MobileTaskMeta>
-										<MobileTaskRow>
-											<MobileTaskLabel>
-												<FontAwesomeIcon icon={faUser} /> Assigned To
-											</MobileTaskLabel>
-											<MobileTaskValue>
-												{typeof task.assignedTo === 'object'
-													? task.assignedTo.name
-													: task.assignedTo || 'Unassigned'}
-											</MobileTaskValue>
-										</MobileTaskRow>
-
-										<MobileTaskRow>
-											<MobileTaskLabel>
-												<FontAwesomeIcon icon={faCalendarDays} /> Due Date
-											</MobileTaskLabel>
-											<MobileTaskValue>{task.dueDate || 'ASAP'}</MobileTaskValue>
-										</MobileTaskRow>
-
-										{task.priority && (
-											<MobileTaskRow>
-												<MobileTaskLabel>
-													<FontAwesomeIcon icon={faFlag} /> Priority
-												</MobileTaskLabel>
-												<MobileTaskValue style={{ color: getPriorityTone(task.priority) }}>
-													{task.priority}
-												</MobileTaskValue>
-											</MobileTaskRow>
+									<MobileFeedMeta>
+										<MobileFeedLine>
+											{task.category || 'General maintenance'}
+											{task.location ? ` • ${task.location}` : ''}
+										</MobileFeedLine>
+										<MobileFeedLine>
+											{task.status === 'Overdue'
+												? 'Maintenance continuity interrupted'
+												: task.status === 'In Progress'
+												? 'Workflow is actively moving'
+												: 'Queued for upcoming continuity work'}
+										</MobileFeedLine>
+										<MobileFeedLineMuted>
+											Assigned to{' '}
+											{typeof task.assignedTo === 'object'
+												? task.assignedTo.name
+												: task.assignedTo || 'Unassigned'}
+										</MobileFeedLineMuted>
+										<MobileFeedLineMuted>
+											{task.priority || 'Low'} priority • {task.dueDate || 'ASAP'}
+										</MobileFeedLineMuted>
+										{task.isRecurring && (
+											<MobileFeedLineMuted>
+												Recurring {task.recurrenceFrequency || 'schedule'}
+											</MobileFeedLineMuted>
 										)}
-
-										{task.category && (
-											<MobileTaskRow>
-												<MobileTaskLabel>Category</MobileTaskLabel>
-												<MobileTaskValue>{task.category}</MobileTaskValue>
-											</MobileTaskRow>
-										)}
-
-										{task.location && (
-											<MobileTaskRow>
-												<MobileTaskLabel>Location</MobileTaskLabel>
-												<MobileTaskValue>{task.location}</MobileTaskValue>
-											</MobileTaskRow>
-										)}
-									</MobileTaskMeta>
+									</MobileFeedMeta>
 
 									<MobileTaskActions>
 										<MobileActionButton
-											variant='secondary'
-											onClick={(e) => {
-												e.stopPropagation();
-												handleCompleteTask(task);
-											}}
-											style={{ flex: 1 }}>
-											Complete and Log
-										</MobileActionButton>
-										<MobileActionButton
-											variant='secondary'
+											variant='primary'
 											onClick={(e) => {
 												e.stopPropagation();
 												handleEditTask(task);
 											}}
 											style={{ flex: 1 }}>
-											Refine
+											Refine Workflow
 										</MobileActionButton>
-										<MobileActionButton
-											variant='danger'
+										<MobileActionLinkRow>
+											<MobileActionLinkButton
+												onClick={(e) => {
+													e.stopPropagation();
+													handleAssignTask(task);
+												}}>
+												Assign
+											</MobileActionLinkButton>
+											<MobileActionLinkButton
+											onClick={(e) => {
+												e.stopPropagation();
+												handleCompleteTask(task);
+											}}>
+												Complete
+											</MobileActionLinkButton>
+											<MobileActionLinkButton
+												$danger
 											onClick={(e) => {
 												e.stopPropagation();
 												handleDeleteTask(task);
-											}}
-											style={{ flex: 1 }}>
-											Delete
-										</MobileActionButton>
+											}}>
+												Delete
+											</MobileActionLinkButton>
+										</MobileActionLinkRow>
 									</MobileTaskActions>
 								</MobileTaskCard>
 							);
