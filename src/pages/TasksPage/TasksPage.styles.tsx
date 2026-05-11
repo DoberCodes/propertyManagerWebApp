@@ -4,30 +4,97 @@ import { TableContainer } from '../../Components/Library/ReusableTable/ReusableT
 export const Wrapper = styled.div`
 	display: flex;
 	flex-direction: column;
-	flex: 1;
-	min-height: 0;
 	gap: 20px;
 	padding: 20px;
-	height: 100%; /* Adjusted to prevent unnecessary scrolling */
+	width: 100%;
 	background-color: #f8f9fa;
 `;
 
 export const TaskGridSection = styled.div`
 	display: flex;
-	flex: 1;
 	flex-direction: column;
-	min-height: 0;
 	background: white;
-	border-radius: 8px;
-	padding: 20px;
-	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+	border-radius: 16px;
+	padding: 20px 20px 12px;
+	box-shadow: 0 16px 36px rgba(15, 23, 42, 0.08);
+	width: 100%;
 
 	${TableContainer} {
-		flex: 1;
-		min-height: 0;
-		height: 100%;
+		height: auto;
 		max-height: none;
+		overflow: visible;
 	}
+`;
+
+export const WorkflowControlPanel = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	padding: 16px;
+	border-radius: 16px;
+	border: 1px solid #e2e8f0;
+	background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+	box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06);
+`;
+
+export const WorkflowControlRow = styled.div`
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	flex-wrap: wrap;
+
+	@media (max-width: 640px) {
+		flex-direction: column;
+		align-items: stretch;
+	}
+`;
+
+export const WorkflowSearchInput = styled.input`
+	flex: 1;
+	min-width: 240px;
+	padding: 11px 14px;
+	border: 1px solid #dbe3ee;
+	border-radius: 12px;
+	font-size: 14px;
+	background: #ffffff;
+	box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+
+	&:focus {
+		outline: none;
+		border-color: #93c5fd;
+		box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.12);
+	}
+
+	@media (max-width: 640px) {
+		min-width: 100%;
+	}
+`;
+
+export const WorkflowSortSelect = styled.select`
+	padding: 11px 14px;
+	border: 1px solid #dbe3ee;
+	border-radius: 12px;
+	font-size: 14px;
+	font-weight: 700;
+	background: #ffffff;
+	color: #334155;
+	min-width: 220px;
+
+	&:focus {
+		outline: none;
+		border-color: #93c5fd;
+		box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.12);
+	}
+
+	@media (max-width: 640px) {
+		min-width: 100%;
+	}
+`;
+
+export const WorkflowResultCount = styled.div`
+	font-size: 12px;
+	font-weight: 700;
+	color: #64748b;
 `;
 
 export const FilterSection = styled.div`

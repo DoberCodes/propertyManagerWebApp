@@ -1,6 +1,7 @@
 import React from 'react';
 import { SuitesTabProps } from '../../../types/PropertyDetailPage.types';
 import { useNavigate } from 'react-router-dom';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
 	SectionContainer,
 	SectionHeader,
@@ -10,8 +11,14 @@ import {
 	Column,
 	Action,
 } from '../../../Components/Library/ReusableTable';
-import { EmptyState } from './index.styles';
-import { faExternalLinkAlt } from '@fortawesome/free-solid-svg-icons';
+import { EmptyState, SectionLead } from './index.styles';
+import {
+	faExternalLinkAlt,
+	faBuilding,
+	faUsers,
+	faScrewdriverWrench,
+	faClockRotateLeft,
+} from '@fortawesome/free-solid-svg-icons';
 
 export const SuitesTab: React.FC<SuitesTabProps> = ({ property }) => {
 	const navigate = useNavigate();
@@ -22,25 +29,84 @@ export const SuitesTab: React.FC<SuitesTabProps> = ({ property }) => {
 
 	const columns: Column[] = [
 		{
-			header: 'Suite Name',
+			header: 'Suite Profile',
 			key: 'name',
-			render: (value: string) => <strong>{value}</strong>,
+			render: (value: string, row: any) => (
+				<div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 250 }}>
+					<div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+						<span
+							style={{
+								display: 'inline-flex',
+								alignItems: 'center',
+								justifyContent: 'center',
+								width: 24,
+								height: 24,
+								borderRadius: 8,
+								background: '#ecfeff',
+								color: '#0f766e',
+							}}>
+							<FontAwesomeIcon icon={faBuilding} />
+						</span>
+						<strong>{value}</strong>
+					</div>
+					<div style={{ fontSize: 12, color: '#64748b' }}>
+						Commercial continuity scope for this suite
+					</div>
+					<button
+						type='button'
+						onClick={() =>
+							navigate(
+								`/property/${property.slug}/suite/${row.name
+									.replace(/\s+/g, '-')
+									.toLowerCase()}`,
+							)
+						}
+						style={{
+							border: 'none',
+							background: 'transparent',
+							color: '#1d4ed8',
+							fontWeight: 700,
+							cursor: 'pointer',
+							padding: 0,
+							textAlign: 'left',
+							fontSize: 12,
+						}}>
+						View history
+					</button>
+				</div>
+			),
 		},
 		{
-			header: 'Tenants',
+			header: 'Occupancy',
 			key: 'tenants',
-			render: (value: any[]) => (value || []).length,
+			render: (value: any[]) => (
+				<div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+					<FontAwesomeIcon icon={faUsers} color='#0f766e' />
+					<span style={{ fontWeight: 700 }}>{(value || []).length}</span>
+				</div>
+			),
 		},
 		{
-			header: 'Devices',
+			header: 'Continuity Activity',
 			key: 'deviceIds',
-			render: (value: any[]) => (value || []).length || 0,
+			render: (value: any[]) => (
+				<div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+					<div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700, color: '#0f172a' }}>
+						<FontAwesomeIcon icon={faScrewdriverWrench} color='#0f766e' />
+						{(value || []).length} linked system{(value || []).length === 1 ? '' : 's'}
+					</div>
+					<div style={{ fontSize: 12, color: '#64748b', display: 'flex', alignItems: 'center', gap: 6 }}>
+						<FontAwesomeIcon icon={faClockRotateLeft} />
+						Timeline updates appear as suite tasks are completed.
+					</div>
+				</div>
+			),
 		},
 	];
 
 	const actions: Action[] = [
 		{
-			label: 'View',
+			label: 'View History',
 			icon: faExternalLinkAlt,
 			onClick: (suite: any) =>
 				navigate(
@@ -54,12 +120,19 @@ export const SuitesTab: React.FC<SuitesTabProps> = ({ property }) => {
 	return (
 		<SectionContainer>
 			<SectionHeader>Commercial Suites</SectionHeader>
+			<SectionLead>
+				Keep commercial spaces aligned with occupancy and system coverage.
+			</SectionLead>
 			{property?.suites && property.suites.length > 0 ? (
 				<ReusableTable
 					columns={columns}
 					rowData={property.suites}
+					getRowClassName={(row: any) =>
+						((row.deviceIds || []).length === 0 ? 'attention-row' : undefined)
+					}
 					actions={actions}
-					emptyMessage='No suites added to this property'
+					hideHeader={true}
+					emptyMessage='No suites yet. Add a suite to begin commercial continuity tracking.'
 				/>
 			) : (
 				<EmptyState>

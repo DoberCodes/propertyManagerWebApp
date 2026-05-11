@@ -1,12 +1,20 @@
 import React from 'react';
 import { useParams } from 'react-router-dom';
 import styled from 'styled-components';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import {
+	faScrewdriverWrench,
+	faClock,
+	faCircleCheck,
+	faTriangleExclamation,
+} from '@fortawesome/free-solid-svg-icons';
 import { useDetailPageData } from '../../Hooks/useDetailPageData';
 import {
 	DetailPageLayout,
 	TabContent,
 	ReusableTable,
 } from '../../Components/Library';
+import { HeaderlessFeedSurface } from '../../Components/Library/ReusableTable/ReusableTable.styles';
 import { getDeviceName } from '../../utils/detailPageUtils';
 import { TabConfig } from '../../types/DetailPage.types';
 import {
@@ -216,36 +224,80 @@ export const SuiteDetailPage: React.FC = () => {
 					<TabContent>
 						<SectionContainer>
 							<SectionHeader>Suite Tasks</SectionHeader>
-							<ReusableTable
-								rowData={suiteTasks.map((task) => ({
-									...task,
-									assignedToNames: task.assignee || '',
-									propertyTitle: property?.title || '',
-								}))}
-								columns={[
+							<HeaderlessFeedSurface>
+								<ReusableTable
+									rowData={suiteTasks.map((task) => ({
+										...task,
+										assignedToNames: task.assignee || '',
+										propertyTitle: property?.title || '',
+									}))}
+									columns={[
 									{
-										header: 'Task',
+										header: 'Workflow Summary',
 										key: 'title',
+										render: (value: string, row: any) => (
+											<div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 280 }}>
+												<div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+													<span
+														style={{
+															display: 'inline-flex',
+															alignItems: 'center',
+															justifyContent: 'center',
+															width: 24,
+															height: 24,
+															borderRadius: 8,
+															background: '#ecfeff',
+															color: '#0f766e',
+														}}>
+														<FontAwesomeIcon icon={faScrewdriverWrench} />
+													</span>
+													<strong>{value}</strong>
+												</div>
+												<div style={{ fontSize: 12, color: '#64748b' }}>
+													Maintenance Lead: {row.assignedToNames || 'Unassigned'}
+												</div>
+											</div>
+										),
 									},
 									{
-										header: 'Assignee',
-										key: 'assignedToNames',
-									},
-									{
-										header: 'Due Date',
+										header: 'Continuity Activity',
 										key: 'dueDate',
+										render: (value: string, row: any) => {
+											const overdue = row.status === 'Overdue';
+											return (
+												<div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+													<div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>
+														{overdue
+															? 'Maintenance continuity interrupted'
+															: 'Continuity workflow active'}
+													</div>
+													<div style={{ fontSize: 12, color: '#64748b', display: 'flex', gap: 6, alignItems: 'center' }}>
+														<FontAwesomeIcon icon={faClock} />
+														Due: {value || 'No due date set'}
+													</div>
+												</div>
+											);
+										},
 									},
 									{
 										header: 'Status',
 										key: 'status',
+										render: (value: string) => (
+											<div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+												<FontAwesomeIcon
+													icon={value === 'Overdue' ? faTriangleExclamation : faCircleCheck}
+													color={value === 'Overdue' ? '#b91c1c' : '#166534'}
+												/>
+												<span style={{ fontWeight: 700 }}>{value || 'Pending'}</span>
+											</div>
+										),
 									},
-									{
-										header: 'Notes',
-										key: 'notes',
-									},
-								]}
-								showCheckbox={false}
-							/>
+									]}
+									showCheckbox={false}
+									hideHeader={true}
+									emptyMessage='No suite workflows yet. Add one to keep suite continuity active.'
+								/>
+							</HeaderlessFeedSurface>
 						</SectionContainer>
 					</TabContent>
 				)}

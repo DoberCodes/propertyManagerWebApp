@@ -34,6 +34,7 @@ import {
 	isContinuityEvent,
 } from '../../utils/maintenanceEventUtils';
 import { DetailPageLayout, TabContent, ReusableTable, GenericModal } from '../../Components/Library';
+import { HeaderlessFeedSurface } from '../../Components/Library/ReusableTable/ReusableTable.styles';
 import { DeviceModal } from '../../Components/Library/Modal';
 import { TaskModal } from '../../Components/Library/Modal/TaskModal';
 import { TabConfig } from '../../types/DetailPage.types';
@@ -2074,18 +2075,76 @@ export const DeviceDetailPage: React.FC = () => {
 								</SectionDescription>
 							</SectionBlock>
 							<SectionHeader>Open Tasks ({linkedTasks.length})</SectionHeader>
-							<ReusableTable
-								rowData={linkedTasks}
-								showCheckbox={false}
-								columns={[
-									{ header: 'Task', key: 'title' },
-									{ header: 'Status', key: 'status' },
-									{ header: 'Priority', key: 'priority' },
-									{ header: 'Due Date', key: 'dueDate' },
-									{ header: 'Assignee', key: 'assignee' },
-								]}
-								emptyMessage='No open tasks linked to this device'
-							/>
+							<HeaderlessFeedSurface>
+								<ReusableTable
+									rowData={linkedTasks}
+									showCheckbox={false}
+									columns={[
+									{
+										header: 'Workflow Summary',
+										key: 'title',
+										render: (value: string, row: any) => (
+											<div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 300 }}>
+												<div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+													<span
+														style={{
+															display: 'inline-flex',
+															alignItems: 'center',
+															justifyContent: 'center',
+															width: 24,
+															height: 24,
+															borderRadius: 8,
+															background: '#ecfeff',
+															color: '#0f766e',
+														}}>
+														<FontAwesomeIcon icon={faScrewdriverWrench} />
+													</span>
+													<strong>{value}</strong>
+												</div>
+												<div style={{ fontSize: 12, color: '#64748b' }}>
+													Maintenance Lead: {row.assignee || 'Unassigned'}
+												</div>
+											</div>
+										),
+									},
+									{
+										header: 'Status',
+										key: 'status',
+										render: (value: string) => (
+											<div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+												<FontAwesomeIcon
+													icon={value === 'Overdue' ? faClock : faCircleCheck}
+													color={value === 'Overdue' ? '#b91c1c' : '#166534'}
+												/>
+												<span style={{ fontWeight: 700 }}>{value || 'Pending'}</span>
+											</div>
+										),
+									},
+									{
+										header: 'Continuity Activity',
+										key: 'dueDate',
+										render: (value: string, row: any) => (
+											<div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+												<div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>
+													{row.status === 'Overdue'
+														? 'Maintenance continuity interrupted'
+														: 'Continuity workflow active'}
+												</div>
+												<div style={{ fontSize: 12, color: '#64748b', display: 'flex', gap: 6, alignItems: 'center' }}>
+													<FontAwesomeIcon icon={faClock} />
+													Due: {value || 'No due date set'}
+												</div>
+												<div style={{ fontSize: 12, color: '#64748b' }}>
+													Priority: {row.priority || 'Low'}
+												</div>
+											</div>
+										),
+									},
+									]}
+									hideHeader={true}
+									emptyMessage='No open tasks linked to this device. New continuity workflows will appear here.'
+								/>
+							</HeaderlessFeedSurface>
 						</SectionContainer>
 					</SurfaceCard>
 				</TabContent>

@@ -23,14 +23,15 @@ interface FilterBarProps {
 }
 
 const FilterContainer = styled.div<{ hideOnMobile?: boolean }>`
-	background-color: #f9fafb;
-	border: 1px solid #e5e7eb;
+	background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+	border: 1px solid #e2e8f0;
 	width: 100%;
-	border-radius: 8px;
+	border-radius: 14px;
 	padding: 1rem;
 	margin-bottom: 1rem;
 	gap: 1rem;
 	align-items: center;
+	box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
 
 	@media (max-width: 1024px) {
 		padding: 0.75rem;
@@ -49,17 +50,18 @@ const FilterGroup = styled.div`
 	}
 
 	label {
-		font-size: 0.875rem;
-		font-weight: 500;
-		color: #374151;
+		font-size: 0.8rem;
+		font-weight: 700;
+		color: #64748b;
+		letter-spacing: 0.02em;
 		margin-bottom: 0.25rem;
 	}
 `;
 
 const FilterInput = styled.input`
 	padding: 0.5rem 0.75rem;
-	border: 1px solid #d1d5db;
-	border-radius: 4px;
+	border: 1px solid #dbe3ee;
+	border-radius: 10px;
 	font-size: 0.875rem;
 	background-color: white;
 
@@ -76,8 +78,8 @@ const FilterInput = styled.input`
 
 const FilterSelect = styled.select`
 	padding: 0.5rem 0.75rem;
-	border: 1px solid #d1d5db;
-	border-radius: 4px;
+	border: 1px solid #dbe3ee;
+	border-radius: 10px;
 	font-size: 0.875rem;
 	background-color: white;
 
@@ -106,17 +108,18 @@ const DateRangeContainer = styled.div`
 `;
 
 const ClearButton = styled.button`
-	background-color: #6b7280;
-	color: white;
-	border: none;
+	background: #eef2f7;
+	color: #334155;
+	border: 1px solid #cbd5e1;
 	padding: 0.5rem 1rem;
-	border-radius: 4px;
+	border-radius: 10px;
 	font-size: 0.875rem;
+	font-weight: 700;
 	cursor: pointer;
 	white-space: nowrap;
 
 	&:hover {
-		background-color: #4b5563;
+		background-color: #e2e8f0;
 	}
 
 	@media (max-width: 1024px) {

@@ -14,11 +14,10 @@ import {
 import {
 	Toolbar,
 	ToolbarButton,
-	ContentWrapper,
 	TabSummaryBar,
 	TabSummaryPill,
+	SectionLead,
 } from './index.styles';
-import { buildDeviceSlug } from '../../../utils/deviceSlug';
 import { getDeviceNameUtil } from '../PropertyDetailPage.utils';
 import {
 	FilterBar,
@@ -32,7 +31,19 @@ import { ReusableTable, Column } from 'Components/Library/ReusableTable';
 // bring in the shared action button style used throughout tables
 import { ActionButton } from 'Components/Library/ReusableTable/ReusableTable.styles';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faTrash, faEye, faArrowUpAZ } from '@fortawesome/free-solid-svg-icons';
+import {
+	faTrash,
+	faEye,
+	faArrowUpAZ,
+	faScrewdriverWrench,
+	faClipboardCheck,
+	faFileInvoiceDollar,
+	faFileLines,
+	faCommentDots,
+	faCircleCheck,
+	faShieldHalved,
+	faClockRotateLeft,
+} from '@fortawesome/free-solid-svg-icons';
 import { UnifiedMaintenanceHistory } from 'Components/UnifiedMaintenanceHistory';
 import {
 	formatCurrency,
@@ -75,6 +86,140 @@ const getMaintenanceEventType = (record: any) => {
 		return 'task_completed';
 	}
 	return 'maintenance_recorded';
+};
+
+const formatRelativeTime = (value?: string): string => {
+	if (!value) return 'No activity recorded yet';
+	const target = new Date(value).getTime();
+	if (Number.isNaN(target)) return 'No activity recorded yet';
+
+	const now = Date.now();
+	const diffMs = now - target;
+	const absDays = Math.floor(Math.abs(diffMs) / (1000 * 60 * 60 * 24));
+
+	if (absDays === 0) return diffMs >= 0 ? 'Today' : 'Later today';
+	if (absDays === 1) return diffMs >= 0 ? 'Yesterday' : 'Tomorrow';
+	if (absDays < 7) return diffMs >= 0 ? `${absDays} days ago` : `In ${absDays} days`;
+	if (absDays < 30) {
+		const weeks = Math.floor(absDays / 7);
+		return diffMs >= 0 ? `${weeks} week${weeks === 1 ? '' : 's'} ago` : `In ${weeks} week${weeks === 1 ? '' : 's'}`;
+	}
+	if (absDays < 365) {
+		const months = Math.floor(absDays / 30);
+		return diffMs >= 0 ? `${months} month${months === 1 ? '' : 's'} ago` : `In ${months} month${months === 1 ? '' : 's'}`;
+	}
+
+	const years = Math.floor(absDays / 365);
+	return diffMs >= 0 ? `${years} year${years === 1 ? '' : 's'} ago` : `In ${years} year${years === 1 ? '' : 's'}`;
+};
+
+const getEventVisual = (eventType: string) => {
+	switch (eventType) {
+		case 'repair_logged':
+			return {
+				label: 'Repair Logged',
+				icon: faScrewdriverWrench,
+				color: '#b45309',
+				background: '#fef3c7',
+			};
+		case 'inspection_completed':
+			return {
+				label: 'Inspection',
+				icon: faClipboardCheck,
+				color: '#1d4ed8',
+				background: '#dbeafe',
+			};
+		case 'invoice_uploaded':
+			return {
+				label: 'Invoice',
+				icon: faFileInvoiceDollar,
+				color: '#0369a1',
+				background: '#e0f2fe',
+			};
+		case 'document_uploaded':
+			return {
+				label: 'Document',
+				icon: faFileLines,
+				color: '#475569',
+				background: '#f1f5f9',
+			};
+		case 'service_note_added':
+			return {
+				label: 'Service Note',
+				icon: faCommentDots,
+				color: '#047857',
+				background: '#d1fae5',
+			};
+		case 'warranty_added':
+			return {
+				label: 'Warranty',
+				icon: faShieldHalved,
+				color: '#7c3aed',
+				background: '#ede9fe',
+			};
+		case 'task_completed':
+		case 'task_approved':
+			return {
+				label: 'Task Completed',
+				icon: faCircleCheck,
+				color: '#166534',
+				background: '#dcfce7',
+			};
+		default:
+			return {
+				label: maintenanceEventTypeLabels[eventType] || 'Recorded',
+				icon: faClockRotateLeft,
+				color: '#475569',
+				background: '#f1f5f9',
+			};
+	}
+};
+
+const getOperationalStatus = (record: any) => {
+	const eventType = getMaintenanceEventType(record);
+	const completionDate = record.completionDate;
+	const date = completionDate ? new Date(completionDate).getTime() : NaN;
+	const ageDays = Number.isNaN(date)
+		? Number.POSITIVE_INFINITY
+		: Math.floor((Date.now() - date) / (1000 * 60 * 60 * 24));
+
+	if (!completionDate || Number.isNaN(date)) {
+		return { label: 'No Activity', color: '#64748b', background: '#f8fafc', border: '#e2e8f0' };
+	}
+
+	if (eventType === 'repair_logged') {
+		return {
+			label: 'Needs Attention',
+			color: '#b45309',
+			background: '#fffbeb',
+			border: '#fcd34d',
+		};
+	}
+
+	if (ageDays <= 30) {
+		return {
+			label: 'Recently Serviced',
+			color: '#166534',
+			background: '#f0fdf4',
+			border: '#86efac',
+		};
+	}
+
+	if (ageDays > 180) {
+		return {
+			label: 'Attention',
+			color: '#92400e',
+			background: '#fffbeb',
+			border: '#fcd34d',
+		};
+	}
+
+	return {
+		label: 'Healthy',
+		color: '#065f46',
+		background: '#ecfdf5',
+		border: '#6ee7b7',
+	};
 };
 
 export interface MaintenanceTabProps {
@@ -297,21 +442,6 @@ export const MaintenanceTab = ({
 		return map;
 	}, [property]);
 
-	const deviceById = useMemo(() => {
-		const map = new Map<string, any>();
-		const propertyDevices = Array.isArray((property as any)?.devices)
-			? (property as any).devices
-			: [];
-
-		propertyDevices.forEach((device: any) => {
-			const id = String(device?.id || '').trim();
-			if (!id) return;
-			map.set(id, device);
-		});
-
-		return map;
-	}, [property]);
-
 	const deviceFilterOptions = useMemo(
 		() =>
 			Array.from(deviceNameById.entries())
@@ -356,39 +486,6 @@ export const MaintenanceTab = ({
 			return `${labels[0]} +${labels.length - 1}`;
 		},
 		[deviceNameById, getLinkedDeviceIds],
-	);
-
-	const getLinkedDeviceFullLabel = useCallback(
-		(record: any) => {
-			const labels = getLinkedDeviceIds(record).map(
-				(id: string) => deviceNameById.get(id) || `Device ${id}`,
-			);
-			return labels.join(', ');
-		},
-		[deviceNameById, getLinkedDeviceIds],
-	);
-
-	const getPrimaryLinkedDeviceHref = useCallback(
-		(record: any) => {
-			const propertySlug = String((property as any)?.slug || '').trim();
-			if (!propertySlug) return null;
-
-			const primaryId = getLinkedDeviceIds(record)[0];
-			if (!primaryId) return null;
-
-			const device = deviceById.get(primaryId);
-			if (!device) return null;
-
-			const deviceSlug = buildDeviceSlug({
-				id: String(device.id),
-				type: String(device.type || ''),
-				brand: String(device.brand || ''),
-				model: String(device.model || ''),
-			});
-
-			return `/property/${propertySlug}/device/${deviceSlug}`;
-		},
-		[property, getLinkedDeviceIds, deviceById],
 	);
 
 	// Filter configuration for maintenance history
@@ -688,85 +785,152 @@ export const MaintenanceTab = ({
 		[groupedRecords.groups],
 	);
 
-	const debugCounts = useMemo(
-		() => ({
-			rawFetched: maintenanceHistoryRecords.length,
-			continuityFromFetch: maintenanceHistoryRecords.filter(isContinuityEvent)
-				.length,
-			legacyInline: (property.maintenanceHistory || []).length,
-			combinedBeforeFilters: allMaintenanceRecords.length,
-			afterFilters: filteredRecords.length,
-		}),
-		[
-			maintenanceHistoryRecords,
-			property,
-			allMaintenanceRecords,
-			filteredRecords,
-		],
-	);
-
 	const columns: Column<any>[] = [
 		{
-			header: 'Date',
-			key: 'completionDate',
-			render: (value) => (value ? new Date(value).toLocaleDateString() : '-'),
-		},
-		{ header: 'Title', key: 'title' },
-		{
-			header: 'Event Type',
-			key: 'eventType',
-			render: (value, row) => {
-				const eventType = value || row.status || 'Recorded';
-				return maintenanceEventTypeLabels[eventType] || eventType;
+			header: 'Record',
+			key: 'title',
+			render: (_value, row) => {
+				const eventType = getMaintenanceEventType(row);
+				const eventVisual = getEventVisual(eventType);
+				const eventDate = row.completionDate;
+				const relative = formatRelativeTime(eventDate);
+				const notesPreview = String(row.notes || '').trim();
+
+				return (
+					<div style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: 280 }}>
+						<div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+							<span
+								style={{
+									display: 'inline-flex',
+									alignItems: 'center',
+									justifyContent: 'center',
+									width: 24,
+									height: 24,
+									borderRadius: 8,
+									color: eventVisual.color,
+									background: eventVisual.background,
+									flexShrink: 0,
+								}}>
+								<FontAwesomeIcon icon={eventVisual.icon} />
+							</span>
+							<span style={{ fontWeight: 800, color: '#0f172a', lineHeight: 1.35 }}>
+								{row.title || 'Maintenance Record'}
+							</span>
+						</div>
+						<div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', color: '#475569', fontSize: 12, fontWeight: 700 }}>
+							<span>{eventVisual.label}</span>
+							<span>•</span>
+							<span>{row.linkedDevices || 'No linked device'}</span>
+							<span>•</span>
+							<span>{relative}</span>
+						</div>
+						<div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+							{[
+								row.completionDate ? `Recorded ${relative}` : 'Awaiting recorded history',
+								row.financials
+									? `Cost ${formatCurrency(getFinancialDisplayTotal(row.financials), row.financials?.currency || 'USD')}`
+									: 'No cost recorded',
+								row.groupId ? 'Grouped continuity record' : 'Standalone continuity record',
+							].map((signal, signalIndex) => (
+								<span
+									key={`${row.id || row.groupId || row.title}-signal-${signalIndex}`}
+									style={{
+										display: 'inline-flex',
+										alignItems: 'center',
+										padding: '4px 9px',
+										borderRadius: 999,
+										fontSize: 11,
+										fontWeight: 700,
+										color: '#475569',
+										background: '#f8fafc',
+										border: '1px solid #e2e8f0',
+									}}>
+									{signal}
+								</span>
+							))}
+						</div>
+						{notesPreview ? (
+							<div style={{ color: '#64748b', fontSize: 13, lineHeight: 1.45 }}>
+								{notesPreview.length > 110 ? `${notesPreview.slice(0, 110)}...` : notesPreview}
+							</div>
+						) : (
+							<div style={{ color: '#94a3b8', fontSize: 13, lineHeight: 1.45 }}>
+								No additional notes recorded.
+							</div>
+						)}
+					</div>
+				);
 			},
 		},
 		{
-			header: 'Linked Devices',
-			key: 'linkedDevices',
-			render: (value, row) => {
-				const fullLabel = getLinkedDeviceFullLabel(row);
-				const href = getPrimaryLinkedDeviceHref(row);
-
-				if (!href) {
-					return (
-						<span title={fullLabel || '-'} style={{ cursor: fullLabel ? 'help' : 'default' }}>
-							{value || '-'}
+			header: 'Continuity',
+			key: 'completionDate',
+			render: (_value, row) => {
+				const status = getOperationalStatus(row);
+				return (
+					<div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+						<span
+							style={{
+								display: 'inline-flex',
+								alignItems: 'center',
+								padding: '6px 10px',
+								borderRadius: 999,
+								fontSize: 12,
+								fontWeight: 800,
+								letterSpacing: '0.02em',
+								color: status.color,
+								background: status.background,
+								border: `1px solid ${status.border}`,
+								whiteSpace: 'nowrap',
+								width: 'fit-content',
+							}}>
+							{status.label}
 						</span>
+						<div style={{ fontSize: 12, color: '#64748b' }}>
+							{row.completionDate
+								? `Last recorded ${formatRelativeTime(row.completionDate)}`
+								: 'Waiting for the first recorded maintenance event.'}
+						</div>
+						<div style={{ fontSize: 12, color: '#64748b' }}>
+							{row.groupId ? 'Part of a grouped maintenance sequence.' : 'Single maintenance record.'}
+						</div>
+					</div>
+				);
+			},
+		},
+		{
+			header: 'State',
+			key: 'completionDate',
+			render: (value, row) => {
+				if (!value) {
+					return (
+						<div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+							<span style={{ fontWeight: 700, color: '#64748b' }}>No activity yet</span>
+							<span style={{ fontSize: 12, color: '#94a3b8' }}>
+								History will appear as maintenance is completed.
+							</span>
+						</div>
 					);
 				}
 
 				return (
-					<button
-						type='button'
-						title={`${fullLabel || value || '-'}\nClick to open device details`}
-						onClick={() => navigate(href)}
-						style={{
-							background: 'none',
-							border: 'none',
-							padding: 0,
-							margin: 0,
-							color: '#1d4ed8',
-							textDecoration: 'underline',
-							cursor: 'pointer',
-							font: 'inherit',
-						}}>
-						{value || '-'}
-					</button>
+					<div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+						<span style={{ fontWeight: 700, color: '#0f172a' }}>{formatRelativeTime(value)}</span>
+						<span style={{ fontSize: 12, color: '#64748b' }}>
+							{new Date(value).toLocaleDateString()}
+						</span>
+						<span style={{ fontSize: 12, color: '#64748b' }}>
+							{formatCurrency(
+								getFinancialDisplayTotal(row.financials),
+								row.financials?.currency || 'USD',
+							)}
+						</span>
+					</div>
 				);
 			},
 		},
-		{ header: 'Notes', key: 'notes' },
 		{
-			header: 'Cost',
-			key: 'financials',
-			render: (_unused, row) =>
-				formatCurrency(
-					getFinancialDisplayTotal(row.financials),
-					row.financials?.currency || 'USD',
-				),
-		},
-		{
-			header: 'Actions',
+			header: 'Next Step',
 			key: 'actions',
 			render: (_, row) => (
 				<div style={{ display: 'flex', gap: '8px' }}>
@@ -806,6 +970,9 @@ export const MaintenanceTab = ({
 				onCancel={() => setDeleteDialogOpen(false)}
 			/>
 			<SectionHeader>Maintenance History</SectionHeader>
+			<SectionLead>
+				Review completed work and keep the property history easy to trace.
+			</SectionLead>
 			<TabSummaryBar>
 				<TabSummaryPill>Total: {filteredRecords.length}</TabSummaryPill>
 				<TabSummaryPill>
@@ -823,23 +990,6 @@ export const MaintenanceTab = ({
 					}
 				</TabSummaryPill>
 			</TabSummaryBar>
-			{process.env.NODE_ENV !== 'production' && (
-				<div
-					style={{
-						margin: '8px 0 12px',
-						padding: '8px 10px',
-						border: '1px dashed #94a3b8',
-						borderRadius: '8px',
-						fontSize: '12px',
-						background: '#f8fafc',
-						color: '#334155',
-					}}>
-					Maintenance Debug: fetched {debugCounts.rawFetched} | continuity{' '}
-					{debugCounts.continuityFromFetch} | legacy inline{' '}
-					{debugCounts.legacyInline} | combined {debugCounts.combinedBeforeFilters}{' '}
-					| after filters {debugCounts.afterFilters}
-				</div>
-			)}
 
 			{/* Toolbar with Add button */}
 			<Toolbar
@@ -1023,15 +1173,20 @@ export const MaintenanceTab = ({
 					))}
 				</div>
 			) : (
-				<ContentWrapper>
-					<ReusableTable
-						columns={columns}
-						rowData={filteredRecords}
-						emptyMessage='No maintenance history available.'
-						onRowDoubleClick={handleNavigation}
-						showCheckbox={canBulkEdit}
-					/>
-				</ContentWrapper>
+				<ReusableTable
+					columns={columns}
+					rowData={filteredRecords}
+					emptyMessage='No maintenance activity recorded yet. History will appear as maintenance is completed.'
+					hideHeader={true}
+					getRowClassName={(row) => {
+						const status = getOperationalStatus(row);
+						return status.label === 'Needs Attention' || status.label === 'Attention'
+							? 'attention-row'
+							: undefined;
+					}}
+					onRowDoubleClick={handleNavigation}
+					showCheckbox={canBulkEdit}
+				/>
 			)}
 			{/* Add Maintenance History Modal */}
 			{showAddModal && (

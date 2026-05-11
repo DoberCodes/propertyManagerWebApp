@@ -4,7 +4,9 @@ export const Wrapper = styled.div`
 	display: flex;
 	flex-direction: column;
 	gap: 0;
-	height: 100%;
+	width: 100%;
+	height: auto;
+	min-height: 100%;
 	background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
 `;
 
@@ -55,11 +57,14 @@ export const Header = styled.div`
 `;
 
 export const ContentWrapper = styled.div`
-	flex: 1;
+	flex: 0 0 auto;
 	padding: 20px;
 	background-color: #ffffff;
 	border-radius: 12px;
-	height: calc(100% - 220px);
+	width: 100%;
+	height: auto;
+	min-height: calc(100% - 220px);
+	overflow: visible;
 
 	@media (max-width: 480px) {
 		padding: 10px;

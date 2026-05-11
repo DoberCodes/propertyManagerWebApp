@@ -128,6 +128,19 @@ export const TabSummaryPill = styled.div`
 	flex-shrink: 0;
 `;
 
+export const SectionLead = styled.p`
+	margin: -4px 0 14px;
+	color: #475569;
+	font-size: 0.92rem;
+	line-height: 1.5;
+	max-width: 760px;
+
+	@media (max-width: 480px) {
+		font-size: 0.9rem;
+		margin-bottom: 12px;
+	}
+`;
+
 export const ToolbarButton = styled.button`
 	background-color: #16a34a;
 	color: white;

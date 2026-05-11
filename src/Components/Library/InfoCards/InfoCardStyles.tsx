@@ -94,7 +94,9 @@ export const InfoValue = styled.p`
  */
 export const SectionContainer = styled.div`
 	padding: 16px 0;
-	height: 100%; /* Ensure it takes full height of parent */
+	width: 100%;
+	height: auto;
+	min-height: 100%;
 
 	@media (max-width: 1024px) {
 		padding: 14px 0;

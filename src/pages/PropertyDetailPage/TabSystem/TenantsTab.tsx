@@ -1,5 +1,14 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { faEdit, faEnvelope, faTrash } from '@fortawesome/free-solid-svg-icons';
+import {
+	faEdit,
+	faEnvelope,
+	faTrash,
+	faUserGroup,
+	faClockRotateLeft,
+	faCircleCheck,
+	faTriangleExclamation,
+} from '@fortawesome/free-solid-svg-icons';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { TenantsTabProps } from '../../../types/PropertyDetailPage.types';
 import {
 	SectionContainer,
@@ -9,6 +18,7 @@ import { FormSelect } from '../../../Components/Library/Modal/ModalStyles';
 import { ReusableTable } from '../../../Components/Library/ReusableTable';
 import { useSelector } from 'react-redux';
 import { selectCanManageTenants } from '../../../Redux/selectors/permissionSelectors';
+import { SectionLead } from './index.styles';
 import {
 	FilterBar,
 	FilterConfig,
@@ -220,31 +230,108 @@ export const TenantsTab: React.FC<TenantsTabProps> = ({
 	const canManageTenantsByPlan = useSelector(selectCanManageTenants);
 	const canManageTenants = !!currentUser && canManageTenantsByPlan;
 
+	const getLeaseContinuity = (tenant: any) => {
+		const now = Date.now();
+		const start = tenant.leaseStart ? new Date(tenant.leaseStart).getTime() : NaN;
+		const end = tenant.leaseEnd ? new Date(tenant.leaseEnd).getTime() : NaN;
+
+		if (!Number.isNaN(end) && end < now) {
+			return { label: 'Expired', tone: '#991b1b', bg: '#fee2e2', icon: faTriangleExclamation };
+		}
+		if (!Number.isNaN(start) && start > now) {
+			return { label: 'Upcoming', tone: '#1d4ed8', bg: '#dbeafe', icon: faClockRotateLeft };
+		}
+		if (!Number.isNaN(start) || !Number.isNaN(end)) {
+			return { label: 'Active Lease', tone: '#166534', bg: '#dcfce7', icon: faCircleCheck };
+		}
+		return { label: 'No Lease Dates', tone: '#475569', bg: '#f1f5f9', icon: faClockRotateLeft };
+	};
+
 	// Table configuration
 	const columns = [
 		{
-			header: 'Name',
+			header: 'Tenant Profile',
 			key: 'fullName',
+			render: (value: string, row: any) => (
+				<div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 260 }}>
+					<div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+						<span
+							style={{
+								display: 'inline-flex',
+								alignItems: 'center',
+								justifyContent: 'center',
+								width: 24,
+								height: 24,
+								borderRadius: 8,
+								background: '#ecfeff',
+								color: '#0f766e',
+							}}>
+							<FontAwesomeIcon icon={faUserGroup} />
+						</span>
+						<strong>{value}</strong>
+					</div>
+					<div style={{ fontSize: 12, color: '#64748b' }}>
+						{row.unitDisplay || 'No unit assigned'} • {row.email || 'No email on file'}
+					</div>
+					{canManageTenants && (
+						<button
+							type='button'
+							onClick={() => onEditTenant(row)}
+							style={{
+								border: 'none',
+								background: 'transparent',
+								color: '#1d4ed8',
+								fontWeight: 700,
+								cursor: 'pointer',
+								padding: 0,
+								textAlign: 'left',
+								fontSize: 12,
+							}}>
+							View history
+						</button>
+					)}
+				</div>
+			),
 		},
 		{
-			header: 'Unit',
-			key: 'unitDisplay',
-		},
-		{
-			header: 'Email',
-			key: 'email',
-		},
-		{
-			header: 'Phone',
-			key: 'phone',
-		},
-		{
-			header: 'Lease Start',
-			key: 'leaseStartDisplay',
-		},
-		{
-			header: 'Lease End',
+			header: 'Lease Continuity',
 			key: 'leaseEndDisplay',
+			render: (_value: any, row: any) => {
+				const continuity = getLeaseContinuity(row);
+				return (
+					<div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+						<span
+							style={{
+								display: 'inline-flex',
+								alignItems: 'center',
+								gap: 6,
+								padding: '4px 10px',
+								borderRadius: 999,
+								fontSize: 12,
+								fontWeight: 700,
+								color: continuity.tone,
+								background: continuity.bg,
+								width: 'fit-content',
+							}}>
+							<FontAwesomeIcon icon={continuity.icon} />
+							{continuity.label}
+						</span>
+						<div style={{ fontSize: 12, color: '#64748b' }}>
+							Start: {row.leaseStartDisplay || 'N/A'} • End: {row.leaseEndDisplay || 'N/A'}
+						</div>
+					</div>
+				);
+			},
+		},
+		{
+			header: 'Contact',
+			key: 'phone',
+			render: (value: string, row: any) => (
+				<div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12 }}>
+					<span style={{ color: '#0f172a', fontWeight: 700 }}>{row.email || 'No email'}</span>
+					<span style={{ color: '#64748b' }}>{value || 'No phone on file'}</span>
+				</div>
+			),
 		},
 		{
 			header: 'Invite Status',
@@ -326,81 +413,102 @@ export const TenantsTab: React.FC<TenantsTabProps> = ({
 	return (
 		<SectionContainer>
 			<SectionHeader>Property Tenants</SectionHeader>
-			{canManageTenants && (
-				<Toolbar>
-					<ToolbarButton onClick={() => setShowAddTenantModal(true)}>
-						+ Add Tenant
-					</ToolbarButton>
-				</Toolbar>
-			)}
-
-			{unitOptions.length > 0 && (
-				<FormSelect
-					name='unitFilter'
-					value={selectedUnitId || ''}
-					onChange={(e) => onSelectUnit && onSelectUnit(e.target.value)}
-					style={{ marginLeft: '12px' }}>
-					<option value=''>All units</option>
-					{unitOptions.map((u) => (
-						<option key={u.value} value={u.value}>
-							{u.label}
-						</option>
-					))}
-				</FormSelect>
-			)}
+			<SectionLead>
+				Track occupancy, lease timing, and resident continuity across the property.
+			</SectionLead>
 			<div
 				style={{
 					display: 'flex',
-					alignItems: 'center',
-					gap: '8px',
-					marginBottom: showFilters ? '12px' : '0',
+					flexDirection: 'column',
+					gap: 12,
+					padding: 16,
+					marginBottom: 16,
+					borderRadius: 16,
+					border: '1px solid #e2e8f0',
+					background: 'linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)',
+					boxShadow: '0 12px 28px rgba(15, 23, 42, 0.06)',
 				}}>
-				<input
-					type='text'
-					placeholder='Search tenants...'
-					value={(filters.search as string) || ''}
-					onChange={(e) =>
-						setFilters((prev) => ({
-							...prev,
-							search: e.target.value,
-						}))
-					}
+				{canManageTenants && (
+					<Toolbar style={{ marginBottom: 0 }}>
+						<ToolbarButton onClick={() => setShowAddTenantModal(true)}>
+							+ Add Tenant
+						</ToolbarButton>
+					</Toolbar>
+				)}
+
+				{unitOptions.length > 0 && (
+					<FormSelect
+						name='unitFilter'
+						value={selectedUnitId || ''}
+						onChange={(e) => onSelectUnit && onSelectUnit(e.target.value)}
+						style={{ marginLeft: 0 }}>
+						<option value=''>All units</option>
+						{unitOptions.map((u) => (
+							<option key={u.value} value={u.value}>
+								{u.label}
+							</option>
+						))}
+					</FormSelect>
+				)}
+				<div
 					style={{
-						flex: 1,
-						padding: '8px 12px',
-						border: '1px solid #e5e7eb',
-						borderRadius: '4px',
-						fontSize: '14px',
-					}}
-				/>
-				<button
-					onClick={() => setShowFilters(!showFilters)}
-					style={{
-						padding: '8px 10px',
-						border: '1px solid #e5e7eb',
-						borderRadius: '4px',
-						background: '#f9fafb',
-						cursor: 'pointer',
 						display: 'flex',
 						alignItems: 'center',
-						justifyContent: 'center',
-						whiteSpace: 'nowrap',
-					}}
-					title={showFilters ? 'Hide filters' : 'Show filters'}>
-					{showFilters ? '▲ Hide Filters' : '▼ Filters'}
-				</button>
+						gap: '8px',
+						marginBottom: showFilters ? '12px' : '0',
+					}}>
+					<input
+						type='text'
+						placeholder='Search tenants...'
+						value={(filters.search as string) || ''}
+						onChange={(e) =>
+							setFilters((prev) => ({
+								...prev,
+								search: e.target.value,
+							}))
+						}
+						style={{
+							flex: 1,
+							padding: '8px 12px',
+							border: '1px solid #e5e7eb',
+							borderRadius: '4px',
+							fontSize: '14px',
+						}}
+					/>
+					<button
+						onClick={() => setShowFilters(!showFilters)}
+						style={{
+							padding: '8px 10px',
+							border: '1px solid #e5e7eb',
+							borderRadius: '4px',
+							background: '#f9fafb',
+							cursor: 'pointer',
+							display: 'flex',
+							alignItems: 'center',
+							justifyContent: 'center',
+							whiteSpace: 'nowrap',
+						}}
+						title={showFilters ? 'Hide filters' : 'Show filters'}>
+						{showFilters ? '▲ Hide Filters' : '▼ Filters'}
+					</button>
+				</div>
+				{showFilters && (
+					<FilterBar filters={tenantFilters} onFiltersChange={setFilters} />
+				)}
 			</div>
-			{showFilters && (
-				<FilterBar filters={tenantFilters} onFiltersChange={setFilters} />
-			)}
 
 			{filteredTenants && filteredTenants.length > 0 ? (
 				<GridContainer>
 					<ReusableTable
 						columns={columns}
 						rowData={tableData}
+						getRowClassName={(row: any) =>
+							getLeaseContinuity(row).label === 'Expired' ? 'attention-row' : undefined
+						}
 						actions={actions}
 						showCheckbox={false}
+						hideHeader={true}
+						emptyMessage='No tenant records yet. Add tenants to establish occupancy continuity.'
 					/>
 				</GridContainer>
 			) : (

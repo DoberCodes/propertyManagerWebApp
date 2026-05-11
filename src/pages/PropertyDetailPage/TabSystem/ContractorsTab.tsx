@@ -1,7 +1,17 @@
 import React, { useState, useMemo } from 'react';
 import { useSelector } from 'react-redux';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faEdit, faTrash, faArrowUpAZ } from '@fortawesome/free-solid-svg-icons';
+import {
+	faEdit,
+	faTrash,
+	faArrowUpAZ,
+	faWrench,
+	faFan,
+	faBolt,
+	faTree,
+	faDroplet,
+	faClockRotateLeft,
+} from '@fortawesome/free-solid-svg-icons';
 import {
 	useGetContractorsByPropertyQuery,
 	useDeleteContractorMutation,
@@ -31,6 +41,7 @@ import {
 	ToolbarButton,
 	TabSummaryBar,
 	TabSummaryPill,
+	SectionLead,
 	MobileContractorCard,
 	MobileContractorHeader,
 	MobileContractorTitle,
@@ -41,7 +52,6 @@ import {
 	MobileContractorActions,
 	MobileActionButton,
 	DesktopTableWrapper,
-	GridContainer,
 } from './index.styles';
 import { WarningDialog } from '../../../Components/Library/WarningDialog';
 import {
@@ -180,33 +190,82 @@ export const ContractorsTab: React.FC<ContractorsTabProps> = ({
 		return chips;
 	}, [filters]);
 
+	const getContractorIcon = (contractor: any) => {
+		const category = String(contractor.category || '').toLowerCase();
+		if (category.includes('hvac')) {
+			return { icon: faFan, color: '#0f766e', background: '#ecfeff' };
+		}
+		if (category.includes('elect')) {
+			return { icon: faBolt, color: '#7c3aed', background: '#f3e8ff' };
+		}
+		if (category.includes('land')) {
+			return { icon: faTree, color: '#166534', background: '#dcfce7' };
+		}
+		if (category.includes('plumb')) {
+			return { icon: faDroplet, color: '#0369a1', background: '#e0f2fe' };
+		}
+		return { icon: faWrench, color: '#475569', background: '#f1f5f9' };
+	};
+
 	// Table configuration for contractors
 	const contractorColumns: Column[] = [
 		{
 			key: 'company',
-			header: 'Company',
-			render: (value: string) => <strong>{value}</strong>,
+			header: 'Service Partner',
+			render: (value: string, contractor: any) => {
+				const iconStyle = getContractorIcon(contractor);
+				return (
+					<div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 260 }}>
+						<div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+							<span
+								style={{
+									display: 'inline-flex',
+									alignItems: 'center',
+									justifyContent: 'center',
+									width: 24,
+									height: 24,
+									borderRadius: 8,
+									color: iconStyle.color,
+									background: iconStyle.background,
+								}}>
+								<FontAwesomeIcon icon={iconStyle.icon} />
+							</span>
+							<strong>{value || contractor.name}</strong>
+						</div>
+						<div style={{ fontSize: 12, color: '#64748b' }}>
+							{contractor.category || 'General'} continuity support
+						</div>
+					</div>
+				);
+			},
 		},
 		{
 			key: 'name',
-			header: 'Contact Name',
-		},
-		{
-			key: 'phone',
-			header: 'Phone',
-			render: (value: string) => <a href={`tel:${value}`}>{value}</a>,
+			header: 'Maintenance Lead',
+			render: (value: string) => value || 'No primary contact',
 		},
 		{
 			key: 'category',
-			header: 'Category',
+			header: 'Continuity Role',
 			render: (value: string, contractor: any) => (
-				<CategoryBadge category={contractor.category}>{value}</CategoryBadge>
+				<div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+					<CategoryBadge category={contractor.category}>{value}</CategoryBadge>
+					<div style={{ fontSize: 12, color: '#64748b', display: 'flex', alignItems: 'center', gap: 6 }}>
+						<FontAwesomeIcon icon={faClockRotateLeft} />
+						Service continuity references: {contractor.phone || 'No phone yet'}
+					</div>
+				</div>
 			),
 		},
 		{
-			key: 'address',
-			header: 'Address',
-			render: (value: string) => value || '—',
+			key: 'phone',
+			header: 'Contact',
+			render: (value: string, contractor: any) => (
+				<div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12 }}>
+					{value ? <a href={`tel:${value}`}>{value}</a> : <span style={{ color: '#94a3b8' }}>No phone</span>}
+					<span style={{ color: '#64748b' }}>{contractor.email || 'No email on file'}</span>
+				</div>
+			),
 		},
 	];
 
@@ -249,6 +308,9 @@ export const ContractorsTab: React.FC<ContractorsTabProps> = ({
 	return (
 		<SectionContainer>
 			<SectionHeader>Contractors & Vendors</SectionHeader>
+			<SectionLead>
+				Keep service partners, contact details, and coverage ready when issues arise.
+			</SectionLead>
 			<TabSummaryBar>
 				<TabSummaryPill>Total: {filteredContractors.length}</TabSummaryPill>
 				<TabSummaryPill>
@@ -263,15 +325,15 @@ export const ContractorsTab: React.FC<ContractorsTabProps> = ({
 				</ToolbarButton>
 			</Toolbar>
 
-			{/* Collapsable Filter Section */}
-			<div style={{ marginBottom: '16px' }}>
+			<div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16 }}>
 				<div
 					style={{
 						display: 'flex',
 						alignItems: 'center',
-						gap: '8px',
+						gap: '12px',
 						flexDirection: isMobile ? 'column' : 'row',
 						marginBottom: showFilters ? '12px' : '0',
+						flexWrap: 'wrap',
 					}}>
 					<input
 						type='text'
@@ -286,6 +348,7 @@ export const ContractorsTab: React.FC<ContractorsTabProps> = ({
 						style={{
 							flex: 1,
 							width: isMobile ? '100%' : undefined,
+							minWidth: isMobile ? '100%' : '240px',
 							padding: '8px 12px',
 							border: '1px solid #e5e7eb',
 							borderRadius: '4px',
@@ -311,6 +374,7 @@ export const ContractorsTab: React.FC<ContractorsTabProps> = ({
 						style={{
 							padding: isMobile ? '10px 12px' : '8px 10px',
 							width: isMobile ? '100%' : undefined,
+							minWidth: isMobile ? '100%' : '120px',
 							border: '1px solid #e5e7eb',
 							borderRadius: '4px',
 							background: '#f9fafb',
@@ -374,14 +438,17 @@ export const ContractorsTab: React.FC<ContractorsTabProps> = ({
 						onCancel={handleDeleteCancel}
 					/>
 					<DesktopTableWrapper>
-						<GridContainer>
-							<ReusableTable
-								rowData={filteredContractors}
-								columns={contractorColumns}
-								actions={contractorActions}
-								emptyMessage='No contractors found'
-							/>
-						</GridContainer>
+						<ReusableTable
+							rowData={filteredContractors}
+							columns={contractorColumns}
+							getRowClassName={(row: any) =>
+								!row.phone && !row.email ? 'attention-row' : undefined
+							}
+							actions={contractorActions}
+							showCheckbox={false}
+							hideHeader={true}
+							emptyMessage='No service partners found. Add one to strengthen maintenance continuity coverage.'
+						/>
 					</DesktopTableWrapper>
 
 					{/* Mobile Contractor Cards */}

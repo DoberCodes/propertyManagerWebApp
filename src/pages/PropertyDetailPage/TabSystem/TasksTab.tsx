@@ -9,8 +9,13 @@ import {
 	faCalendarDays,
 	faFlag,
 	faUser,
-	faPlus,
 	faArrowUpAZ,
+	faFan,
+	faSnowflake,
+	faClipboardCheck,
+	faHouse,
+	faScrewdriverWrench,
+	faClockRotateLeft,
 } from '@fortawesome/free-solid-svg-icons';
 import { TasksTabProps } from '../../../types/PropertyDetailPage.types';
 import {
@@ -18,7 +23,6 @@ import {
 	SectionHeader,
 } from '../../../Components/Library/InfoCards/InfoCardStyles';
 import { TaskSelect } from '../../../Components/Library/Select/TaskSelect';
-import { GridContainer } from './index.styles';
 import {
 	FilterBar,
 	FilterConfig,
@@ -49,6 +53,7 @@ import {
 	ToolbarButton,
 	TabSummaryBar,
 	TabSummaryPill,
+	SectionLead,
 	StatusBadge,
 	EmptyState,
 	DesktopTableWrapper,
@@ -182,30 +187,308 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 		}));
 	}, [processedTasks]);
 
+	const getPriorityTone = (priority?: string) => {
+		switch (priority) {
+			case 'Urgent':
+			case 'High':
+				return '#b91c1c';
+			case 'Medium':
+				return '#b45309';
+			case 'Low':
+				return '#166534';
+			default:
+				return '#475569';
+		}
+	};
+
+	const formatRelativeTime = (value?: string): string => {
+		if (!value) return 'No due date set';
+		const target = new Date(value).getTime();
+		if (Number.isNaN(target)) return 'No due date set';
+
+		const now = Date.now();
+		const diffMs = target - now;
+		const absDays = Math.floor(Math.abs(diffMs) / (1000 * 60 * 60 * 24));
+
+		if (absDays === 0) return diffMs < 0 ? 'Due today (late)' : 'Due today';
+		if (absDays === 1) return diffMs < 0 ? 'Overdue by 1 day' : 'Due tomorrow';
+		if (absDays < 7) return diffMs < 0 ? `Overdue by ${absDays} days` : `Due in ${absDays} days`;
+		if (absDays < 30) {
+			const weeks = Math.floor(absDays / 7);
+			return diffMs < 0
+				? `Overdue by ${weeks} week${weeks === 1 ? '' : 's'}`
+				: `Due in ${weeks} week${weeks === 1 ? '' : 's'}`;
+		}
+
+		const months = Math.floor(absDays / 30);
+		return diffMs < 0
+			? `Overdue by ${months} month${months === 1 ? '' : 's'}`
+			: `Due in ${months} month${months === 1 ? '' : 's'}`;
+	};
+
+	const getTaskOperationalStatus = (task: any) => {
+		const overdue = isTaskOverdueForDisplay(task as Task);
+		if (overdue) {
+			return {
+				label: 'Overdue',
+				color: '#991b1b',
+				background: '#fee2e2',
+				border: '#fca5a5',
+			};
+		}
+
+		if (task.status === 'In Progress') {
+			return {
+				label: 'In Progress',
+				color: '#1e3a8a',
+				background: '#dbeafe',
+				border: '#93c5fd',
+			};
+		}
+
+		if (task.status === 'Completed') {
+			return {
+				label: 'Recently Serviced',
+				color: '#166534',
+				background: '#dcfce7',
+				border: '#86efac',
+			};
+		}
+
+		if (task.status === 'Pending' || task.status === 'Awaiting Approval') {
+			return {
+				label: 'Needs Action',
+				color: '#92400e',
+				background: '#fffbeb',
+				border: '#fcd34d',
+			};
+		}
+
+		return {
+			label: 'Healthy Queue',
+			color: '#065f46',
+			background: '#ecfdf5',
+			border: '#6ee7b7',
+		};
+	};
+
+	const getWorkflowIcon = (task: any) => {
+		const context = `${task.title || ''} ${task.category || ''} ${task.location || ''}`.toLowerCase();
+		if (context.includes('hvac') || context.includes('heat') || context.includes('cool')) {
+			return { icon: faFan, color: '#0f766e', background: '#ecfeff' };
+		}
+		if (context.includes('season') || context.includes('winter') || context.includes('summer')) {
+			return { icon: faSnowflake, color: '#1d4ed8', background: '#dbeafe' };
+		}
+		if (context.includes('inspect') || context.includes('audit')) {
+			return { icon: faClipboardCheck, color: '#0369a1', background: '#e0f2fe' };
+		}
+		if (context.includes('exterior') || context.includes('roof') || context.includes('yard') || context.includes('home')) {
+			return { icon: faHouse, color: '#7c2d12', background: '#ffedd5' };
+		}
+		if (task.status === 'Completed') {
+			return { icon: faClockRotateLeft, color: '#166534', background: '#ecfdf5' };
+		}
+		return { icon: faScrewdriverWrench, color: '#475569', background: '#f1f5f9' };
+	};
+
+	const formatRelativePast = (value?: string) => {
+		if (!value) return 'No recorded activity yet';
+		const target = new Date(value).getTime();
+		if (Number.isNaN(target)) return 'No recorded activity yet';
+		const diffMs = Date.now() - target;
+		const absDays = Math.floor(Math.abs(diffMs) / (1000 * 60 * 60 * 24));
+		if (absDays === 0) return 'Today';
+		if (absDays === 1) return '1 day ago';
+		if (absDays < 7) return `${absDays} days ago`;
+		if (absDays < 30) {
+			const weeks = Math.floor(absDays / 7);
+			return `${weeks} week${weeks === 1 ? '' : 's'} ago`;
+		}
+		const months = Math.floor(absDays / 30);
+		return `${months} month${months === 1 ? '' : 's'} ago`;
+	};
+
+	const formatMonthYear = (value?: string) => {
+		if (!value) return null;
+		const target = new Date(value);
+		if (Number.isNaN(target.getTime())) return null;
+		return target.toLocaleDateString('en-US', {
+			month: 'short',
+			year: 'numeric',
+		});
+	};
+
+	const getContinuitySignals = (task: any) => {
+		const signals: string[] = [];
+		const recurringSince = formatMonthYear(task.createdAt || task.lastRecurrenceDate);
+
+		if (task.isRecurring) {
+			signals.push(
+				task.recurrenceFrequency
+					? `Recurring ${task.recurrenceFrequency}`
+					: 'Recurring workflow',
+			);
+		}
+
+		if (recurringSince && task.isRecurring) {
+			signals.push(`Recurring since ${recurringSince}`);
+		}
+
+		if (task.completionDate) {
+			signals.push(`Last completed ${formatRelativePast(task.completionDate)}`);
+		} else if (task.updatedAt) {
+			signals.push(`Last updated ${formatRelativePast(task.updatedAt)}`);
+		} else if (task.createdAt) {
+			signals.push(`Opened ${formatRelativePast(task.createdAt)}`);
+		}
+
+		if (signals.length === 0) {
+			signals.push('Awaiting first recorded continuity event');
+		}
+
+		return signals.slice(0, 3);
+	};
+
 	const columns: Column[] = [
-		{ header: 'Title', key: 'title' },
 		{
-			header: 'Status',
+			header: 'Workflow',
+			key: 'title',
+			render: (_value: any, task: any) => {
+				const assignee =
+					typeof task.assignedTo === 'object'
+						? task.assignedTo.name
+						: task.assignedTo || 'Unassigned';
+				const overdue = isTaskOverdueForDisplay(task as Task);
+				const iconStyle = getWorkflowIcon(task);
+
+				return (
+					<div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 280 }}>
+						<div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+							<span
+								style={{
+									display: 'inline-flex',
+									alignItems: 'center',
+									justifyContent: 'center',
+									width: 24,
+									height: 24,
+									borderRadius: 8,
+									color: iconStyle.color,
+									background: iconStyle.background,
+									flexShrink: 0,
+								}}>
+								<FontAwesomeIcon icon={iconStyle.icon} />
+							</span>
+							<div style={{ fontWeight: 800, color: '#0f172a', lineHeight: 1.3 }}>
+								{task.title}
+							</div>
+						</div>
+						<div style={{ fontSize: 13, fontWeight: 700, color: '#334155', lineHeight: 1.4 }}>
+							{task.category || 'General maintenance'}
+							{task.location ? ` • ${task.location}` : ''}
+						</div>
+						<div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, fontSize: 12, color: '#64748b' }}>
+							<span>Assigned To: {assignee}</span>
+							<span>•</span>
+							<span style={{ color: overdue ? '#b91c1c' : '#64748b', fontWeight: overdue ? 700 : 500 }}>
+								{formatRelativeTime(task.dueDate)}
+							</span>
+							{task.priority && (
+								<>
+									<span>•</span>
+									<span style={{ color: getPriorityTone(task.priority), fontWeight: 700 }}>
+										Priority: {task.priority}
+									</span>
+								</>
+							)}
+						</div>
+						<div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 12 }}>
+							<button
+								type='button'
+								onClick={() => handleEditTask(task)}
+								style={{
+									border: 'none',
+									background: 'transparent',
+									color: '#1d4ed8',
+									fontWeight: 700,
+									cursor: 'pointer',
+									padding: 0,
+								}}>
+								View history
+							</button>
+						</div>
+					</div>
+				);
+			},
+		},
+		{
+			header: 'Continuity',
+			key: 'updatedAt',
+			render: (_value: string, task: any) => {
+						const continuitySignals = getContinuitySignals(task);
+				const recurringSummary = task.isRecurring
+					? task.recurrenceFrequency
+						? `Recurring ${task.recurrenceFrequency}`
+						: 'Recurring workflow active'
+					: task.completionDate
+						? 'Workflow has recorded maintenance history'
+						: 'First continuity event still pending';
+				return (
+					<div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+						<div style={{ fontSize: 13, fontWeight: 800, color: '#0f172a' }}>
+							{recurringSummary}
+						</div>
+						{continuitySignals.slice(1).map((signal, signalIndex) => (
+							<div key={`${task.id}-continuity-${signalIndex}`} style={{ fontSize: 12, color: '#64748b' }}>
+								{signal}
+							</div>
+						))}
+					</div>
+				);
+			},
+		},
+		{
+			header: 'State',
 			key: 'status',
-			render: (status: string) => (
-				<StatusBadge status={status}>{status}</StatusBadge>
-			),
-		},
-		{ header: 'Priority', key: 'priority' },
-		{ header: 'Category', key: 'category' },
-		{ header: 'Location', key: 'location' },
-		{
-			header: 'Assigned To',
-			key: 'assignedTo',
-			render: (_unused: any, task: any) =>
-				typeof task.assignedTo === 'object'
-					? task.assignedTo.name
-					: task.assignedTo || 'Unassigned',
-		},
-		{
-			header: 'Due Date',
-			key: 'dueDate',
-			render: (_unused: any, task: any) => task.dueDate || 'ASAP',
+			render: (_unused: any, task: any) => {
+				const chip = getTaskOperationalStatus(task);
+				const overdue = isTaskOverdueForDisplay(task as Task);
+				const activityText =
+					task.status === 'Completed'
+						? 'Recorded in maintenance continuity'
+						: task.status === 'In Progress'
+							? 'Maintenance continuity in progress'
+							: overdue
+								? 'Maintenance continuity interrupted'
+								: task.status === 'Pending' || task.status === 'Awaiting Approval'
+									? 'Waiting to preserve continuity'
+									: 'Queued for upcoming continuity work';
+
+				return (
+					<div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+						<span
+							style={{
+								display: 'inline-flex',
+								alignItems: 'center',
+								padding: '6px 10px',
+								borderRadius: 999,
+								fontSize: 12,
+								fontWeight: 800,
+								letterSpacing: '0.02em',
+								color: chip.color,
+								background: chip.background,
+								border: `1px solid ${chip.border}`,
+								width: 'fit-content',
+							}}>
+							{chip.label}
+						</span>
+						<div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{activityText}</div>
+						<div style={{ fontSize: 12, color: overdue ? '#b91c1c' : '#64748b', fontWeight: overdue ? 700 : 500 }}>
+							{formatRelativeTime(task.dueDate)}
+						</div>
+					</div>
+				);
+			},
 		},
 	];
 
@@ -407,7 +690,6 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 			return dateA - dateB;
 		});
 	}, [processedTasks, filters, quickView, sortBy]);
-
 	const totalTaskCount = processedTasks.length;
 	const overdueTaskCount = processedTasks.filter((task) =>
 		isTaskOverdueForDisplay(task as Task),
@@ -470,34 +752,12 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 		return chips;
 	}, [filters, quickView]);
 
-	const getPriorityTone = (priority?: string) => {
-		switch (priority) {
-			case 'Urgent':
-			case 'High':
-				return '#b91c1c';
-			case 'Medium':
-				return '#b45309';
-			case 'Low':
-				return '#166534';
-			default:
-				return '#475569';
-		}
-	};
-
 	return (
 		<SectionContainer>
 			<SectionHeader>Maintenance Workflows</SectionHeader>
-			<div
-				style={{
-					fontSize: 12,
-					fontWeight: 700,
-					letterSpacing: '0.06em',
-					textTransform: 'uppercase',
-					color: '#64748b',
-					marginBottom: 6,
-				}}>
-				Quick Filters
-			</div>
+			<SectionLead>
+				Manage recurring workflows, due dates, and overdue continuity in one place.
+			</SectionLead>
 			<TabSummaryBar>
 				<TabSummaryPill
 					as='button'
@@ -542,7 +802,7 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 					In Progress: {inProgressTaskCount}
 				</TabSummaryPill>
 			</TabSummaryBar>
-			<Toolbar>
+			<Toolbar style={{ marginBottom: 12 }}>
 				<ToolbarButton
 					onClick={handleCreateTask}
 					style={{ width: isMobile ? '100%' : undefined }}
@@ -635,8 +895,8 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 					<FontAwesomeIcon icon={faArrowUpAZ} />
 					{showFilters ? 'Hide Filters' : 'Filters'}
 				</button>
-			</div>
-			{activeFilterChips.length > 0 && (
+				</div>
+				{activeFilterChips.length > 0 && (
 				<ActiveFilterChips>
 					{activeFilterChips.map((chip) => (
 						<ActiveFilterChip key={chip.key} onClick={chip.onRemove}>
@@ -651,30 +911,32 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 						Clear all
 					</ActiveFilterChipClear>
 				</ActiveFilterChips>
-			)}
-			{showFilters && (
+				)}
+				{showFilters && (
 				<FilterBar
 					filters={taskFilters}
 					onFiltersChange={setFilters}
 					useCustomSelect={true}
 				/>
-			)}
+				)}
 
 			{filteredTasks.length > 0 ? (
 				<>
 					<DesktopTableWrapper>
-						<GridContainer>
-							<ReusableTable
-								columns={columns}
-								rowData={filteredTasks}
-								actions={taskActions}
-								emptyTitle='No workflows yet'
-								emptyMessage='Start with one maintenance workflow to build your service timeline and reminders.'
-								emptyActionLabel='Add First Workflow'
-								onEmptyAction={handleCreateTask}
-								showCheckbox={false}
-							/>
-						</GridContainer>
+						<ReusableTable
+							columns={columns}
+							rowData={filteredTasks}
+							getRowClassName={(task: any) =>
+								isTaskOverdueForDisplay(task as Task) ? 'overdue-row' : undefined
+							}
+							actions={taskActions}
+							emptyTitle='No workflows yet'
+							emptyMessage='Start with one maintenance workflow to build your service timeline and reminders.'
+							emptyActionLabel='Add First Workflow'
+							onEmptyAction={handleCreateTask}
+							showCheckbox={false}
+							hideHeader={true}
+						/>
 					</DesktopTableWrapper>
 
 					{/* Mobile Task Cards */}

@@ -5,6 +5,7 @@ import { ZeroState } from 'Components/Library/ZeroState';
 import { useGetPropertiesQuery } from 'Redux/API/propertySlice';
 import { filterTasksByRole } from '../../utils/dataFilters';
 import { ReusableTable } from '../../Components/Library/ReusableTable';
+import { HeaderlessFeedSurface } from '../../Components/Library/ReusableTable/ReusableTable.styles';
 import { useTaskHandlers } from '../PropertyDetailPage/useTaskHandlers';
 import {
 	faEdit,
@@ -12,6 +13,12 @@ import {
 	faUserPlus,
 	faPlus,
 	faCheck,
+	faFan,
+	faSnowflake,
+	faClipboardCheck,
+	faHouse,
+	faScrewdriverWrench,
+	faClockRotateLeft,
 } from '@fortawesome/free-solid-svg-icons';
 import { Column, Action } from '../../Components/Library/ReusableTable';
 import { StatusBadge } from '../PropertyDetailPage/TabSystem/index.styles';
@@ -25,6 +32,11 @@ import {
 import {
 	Wrapper,
 	TaskGridSection,
+	WorkflowControlPanel,
+	WorkflowControlRow,
+	WorkflowSearchInput,
+	WorkflowSortSelect,
+	WorkflowResultCount,
 	MobileListSection,
 	MobileTaskCard,
 	MobileTaskHeader,
@@ -166,6 +178,11 @@ export const TasksPage = () => {
 		setQuickFilter('all');
 	};
 
+	const handleSortOptionChange = (value: string) => {
+		const [key, direction] = value.split(':') as [string, 'asc' | 'desc'];
+		setSortState({ key, direction });
+	};
+
 	// Get active tasks for display
 	const filteredTasks = useMemo(() => {
 		const filtered = filterTasksByRole(
@@ -285,36 +302,252 @@ export const TasksPage = () => {
 		return filtered.filter((task) => task.status !== 'Completed').length;
 	}, [processedTasks, currentUser, teamMembers, allProperties]);
 
+	const getTaskOperationalStatus = (task: any) => {
+		const overdue = isTaskOverdueForDisplay(task);
+		if (overdue) {
+			return {
+				label: 'Overdue',
+				color: '#991b1b',
+				background: '#fee2e2',
+				border: '#fca5a5',
+			};
+		}
+
+		if (task.status === 'In Progress') {
+			return {
+				label: 'In Progress',
+				color: '#1e3a8a',
+				background: '#dbeafe',
+				border: '#93c5fd',
+			};
+		}
+
+		return {
+			label: 'On Track',
+			color: '#166534',
+			background: '#dcfce7',
+			border: '#86efac',
+		};
+	};
+
+	const formatRelativeDue = (value?: string) => {
+		if (!value) return 'No due date set';
+		const target = new Date(value).getTime();
+		if (Number.isNaN(target)) return 'No due date set';
+		const diffMs = target - Date.now();
+		const absDays = Math.floor(Math.abs(diffMs) / (1000 * 60 * 60 * 24));
+		if (absDays === 0) return diffMs < 0 ? 'Due today (late)' : 'Due today';
+		if (absDays === 1) return diffMs < 0 ? 'Overdue by 1 day' : 'Due tomorrow';
+		return diffMs < 0 ? `Overdue by ${absDays} days` : `Due in ${absDays} days`;
+	};
+
+	const getTaskIcon = (task: any) => {
+		const context = `${task.title || ''} ${task.category || ''} ${task.location || ''}`.toLowerCase();
+		if (context.includes('hvac') || context.includes('heat') || context.includes('cool')) {
+			return { icon: faFan, color: '#0f766e', background: '#ecfeff' };
+		}
+		if (context.includes('season') || context.includes('winter') || context.includes('summer')) {
+			return { icon: faSnowflake, color: '#1d4ed8', background: '#dbeafe' };
+		}
+		if (context.includes('inspect') || context.includes('audit')) {
+			return { icon: faClipboardCheck, color: '#0369a1', background: '#e0f2fe' };
+		}
+		if (context.includes('exterior') || context.includes('roof') || context.includes('yard')) {
+			return { icon: faHouse, color: '#9a3412', background: '#ffedd5' };
+		}
+		if (task.status === 'Completed') {
+			return { icon: faClockRotateLeft, color: '#166534', background: '#ecfdf5' };
+		}
+		return { icon: faScrewdriverWrench, color: '#475569', background: '#f1f5f9' };
+	};
+
+		const formatRelativePast = (value?: string) => {
+			if (!value) return 'No recorded activity yet';
+			const target = new Date(value).getTime();
+			if (Number.isNaN(target)) return 'No recorded activity yet';
+			const diffMs = Date.now() - target;
+			const absDays = Math.floor(Math.abs(diffMs) / (1000 * 60 * 60 * 24));
+			if (absDays === 0) return 'Today';
+			if (absDays === 1) return '1 day ago';
+			if (absDays < 7) return `${absDays} days ago`;
+			if (absDays < 30) {
+				const weeks = Math.floor(absDays / 7);
+				return `${weeks} week${weeks === 1 ? '' : 's'} ago`;
+			}
+			const months = Math.floor(absDays / 30);
+			return `${months} month${months === 1 ? '' : 's'} ago`;
+		};
+
+		const formatMonthYear = (value?: string) => {
+			if (!value) return null;
+			const target = new Date(value);
+			if (Number.isNaN(target.getTime())) return null;
+			return target.toLocaleDateString('en-US', {
+				month: 'short',
+				year: 'numeric',
+			});
+		};
+
+		const getContinuitySignals = (task: any) => {
+			const signals: string[] = [];
+			const recurringSince = formatMonthYear(task.createdAt || task.lastRecurrenceDate);
+
+			if (task.isRecurring) {
+				signals.push(
+					task.recurrenceFrequency
+						? `Recurring ${task.recurrenceFrequency}`
+						: 'Recurring workflow',
+				);
+			}
+
+			if (recurringSince && task.isRecurring) {
+				signals.push(`Recurring since ${recurringSince}`);
+			}
+
+			if (task.completionDate) {
+				signals.push(`Last completed ${formatRelativePast(task.completionDate)}`);
+			} else if (task.updatedAt) {
+				signals.push(`Last updated ${formatRelativePast(task.updatedAt)}`);
+			} else if (task.createdAt) {
+				signals.push(`Opened ${formatRelativePast(task.createdAt)}`);
+			}
+
+			if (signals.length === 0) {
+				signals.push('Awaiting first recorded continuity event');
+			}
+
+			return signals.slice(0, 3);
+		};
+
 	// Table columns definition
 	const columns: Column[] = [
-		{ header: 'Title', key: 'title', sortable: true },
 		{
-			header: 'Status',
+				header: 'Workflow',
+			key: 'title',
+			sortable: true,
+			render: (value: string, task: any) => {
+				const iconStyle = getTaskIcon(task);
+				const overdue = isTaskOverdueForDisplay(task);
+				const priorityColor = task.priority === 'High' ? '#b91c1c' : task.priority === 'Medium' ? '#92400e' : '#475569';
+				return (
+					<div style={{ display: 'flex', flexDirection: 'column', gap: 5, minWidth: 280 }}>
+						<div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+							<span
+								style={{
+									display: 'inline-flex',
+									alignItems: 'center',
+									justifyContent: 'center',
+									width: 24,
+									height: 24,
+									borderRadius: 8,
+									color: iconStyle.color,
+									background: iconStyle.background,
+									flexShrink: 0,
+								}}>
+								<FontAwesomeIcon icon={iconStyle.icon} />
+							</span>
+							<strong style={{ fontSize: 14 }}>{value}</strong>
+						</div>
+						<div style={{ fontSize: 12, color: '#64748b' }}>
+							{task.category || 'General maintenance'}
+							{task.location ? ` · ${task.location}` : ''}
+						</div>
+						<div style={{ fontSize: 12, color: '#64748b', display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+							<span>{getAssigneeLabel(task)}</span>
+							<span style={{ color: '#cbd5e1' }}>·</span>
+							<span style={{ color: overdue ? '#b91c1c' : '#64748b', fontWeight: overdue ? 700 : 400 }}>
+								{formatRelativeDue(task.dueDate)}
+							</span>
+							{task.priority && (
+								<>
+									<span style={{ color: '#cbd5e1' }}>·</span>
+									<span style={{ color: priorityColor, fontWeight: 600 }}>Priority: {task.priority}</span>
+								</>
+							)}
+						</div>
+						<button
+							type='button'
+							onClick={() => handleEditTask(task)}
+							style={{
+								border: 'none',
+								background: 'transparent',
+								color: '#1d4ed8',
+								fontWeight: 600,
+								cursor: 'pointer',
+								padding: 0,
+								textAlign: 'left',
+								fontSize: 12,
+							}}>
+							View history
+						</button>
+					</div>
+				);
+			},
+		},
+		{
+			header: 'Continuity',
+			key: 'updatedAt',
+			sortable: true,
+			render: (_value: string, task: any) => {
+				const continuitySignals = getContinuitySignals(task);
+				const recurringSummary = task.isRecurring
+					? task.recurrenceFrequency
+						? `Recurring ${task.recurrenceFrequency}`
+						: 'Recurring workflow active'
+					: task.completionDate
+						? 'Workflow has recorded maintenance history'
+						: 'First continuity event still pending';
+				return (
+					<div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+						<div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>
+							{recurringSummary}
+						</div>
+						{continuitySignals.slice(1).map((signal, signalIndex) => (
+							<div key={`${task.id}-continuity-${signalIndex}`} style={{ fontSize: 12, color: '#64748b' }}>
+								{signal}
+							</div>
+						))}
+					</div>
+				);
+			},
+		},
+		{
+			header: 'State',
 			key: 'status',
 			sortable: true,
-			render: (status: string) => (
-				<StatusBadge status={status}>{status}</StatusBadge>
-			),
+			render: (_status: string, task: any) => {
+				const operational = getTaskOperationalStatus(task);
+				const overdue = isTaskOverdueForDisplay(task);
+				const activityText = overdue
+					? 'Maintenance continuity interrupted'
+					: task.status === 'In Progress'
+						? 'Maintenance continuity in progress'
+						: 'Queued for upcoming continuity work';
+				return (
+					<div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+						<span
+							style={{
+								display: 'inline-flex',
+								alignItems: 'center',
+								padding: '5px 10px',
+								borderRadius: 999,
+								fontSize: 12,
+								fontWeight: 700,
+								color: operational.color,
+								background: operational.background,
+								border: `1px solid ${operational.border}`,
+								width: 'fit-content',
+							}}>
+							{operational.label}
+						</span>
+						<div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>{activityText}</div>
+						<div style={{ fontSize: 12, color: overdue ? '#b91c1c' : '#64748b', fontWeight: overdue ? 600 : 400 }}>
+							{formatRelativeDue(task.dueDate)}
+						</div>
+					</div>
+				);
+			},
 		},
-		{ header: 'Priority', key: 'priority', sortable: true },
-		{ header: 'Category', key: 'category' },
-		{ header: 'Location', key: 'location' },
-		{
-			header: 'Assigned To',
-			key: 'assignedTo',
-			sortable: true,
-			render: (_unused: any, task: any) =>
-				typeof task.assignedTo === 'object'
-					? task.assignedTo.name
-					: task.assignedTo || 'Unassigned',
-		},
-		{
-			header: 'Due Date',
-			key: 'dueDate',
-			sortable: true,
-			render: (_unused: any, task: any) => task.dueDate || 'ASAP',
-		},
-		{ header: 'Property', key: 'propertyTitle', sortable: true },
 	];
 
 	const handleEditTask = (task: any) => {
@@ -458,27 +691,25 @@ export const TasksPage = () => {
 	return (
 		<Wrapper>
 			{/* Task Filter Section */}
-			<div style={{ marginBottom: '16px' }}>
-				<div
-					style={{
-						display: 'flex',
-						alignItems: 'center',
-						gap: '8px',
-						marginBottom: '0',
-					}}>
-					<input
+			<WorkflowControlPanel>
+				<WorkflowControlRow>
+					<WorkflowSearchInput
 						type='text'
 						placeholder='Search history, notes...'
 						value={searchTerm}
 						onChange={(e) => setSearchTerm(e.target.value)}
-						style={{
-							flex: 1,
-							padding: '8px 12px',
-							border: '1px solid #e5e7eb',
-							borderRadius: '4px',
-							fontSize: '14px',
-						}}
 					/>
+					<WorkflowSortSelect
+						value={`${sortState.key}:${sortState.direction}`}
+						onChange={(e) => handleSortOptionChange(e.target.value)}
+						aria-label='Organize workflows'>
+						<option value='dueDate:asc'>Sort: Due soonest</option>
+						<option value='dueDate:desc'>Sort: Due latest</option>
+						<option value='priority:desc'>Sort: Priority first</option>
+						<option value='title:asc'>Sort: Title A-Z</option>
+						<option value='propertyTitle:asc'>Sort: Property A-Z</option>
+						<option value='status:asc'>Sort: Status</option>
+					</WorkflowSortSelect>
 					{!isMobile && (
 						<button
 							onClick={handleCreateTask}
@@ -497,7 +728,7 @@ export const TasksPage = () => {
 								+ Add Workflow
 						</button>
 					)}
-				</div>
+				</WorkflowControlRow>
 				<QuickFilterChips>
 					<QuickFilterChip
 						$active={quickFilter === 'all'}
@@ -528,16 +759,10 @@ export const TasksPage = () => {
 						<QuickFilterChip onClick={clearTopFilters}>Clear</QuickFilterChip>
 					)}
 				</QuickFilterChips>
-				<div
-					style={{
-						marginTop: '10px',
-						fontSize: '0.8rem',
-						fontWeight: 600,
-						color: '#6b7280',
-					}}>
+				<WorkflowResultCount>
 					Showing {filteredTasks.length} {filteredTasks.length === 1 ? 'workflow' : 'workflows'}
-				</div>
-			</div>
+				</WorkflowResultCount>
+			</WorkflowControlPanel>
 
 			{isMobile ? (
 				<MobileListSection>
@@ -674,24 +899,27 @@ export const TasksPage = () => {
 								}
 								icon='📊'></ZeroState>
 						) : (
-							<ReusableTable
-								rowData={filteredTasks}
-								columns={columns}
-								actions={taskActions}
-								sortState={sortState}
-								onSort={handleSort}
-								getRowClassName={(row) =>
-									isTaskOverdueForDisplay(row as any) ? 'overdue-row' : undefined
-								}
-								onRowSelect={(selectedRows) => {
-									setSelectedRows(new Set(selectedRows));
-								}}
-								selectedRows={selectedRows}
-								onSelectAll={(_, selectedRowIds) => {
-									setSelectedRows(new Set(selectedRowIds));
-								}}
-								showCheckbox={false}
-								onRowUpdate={(updatedRow) => {
+							<HeaderlessFeedSurface>
+								<ReusableTable
+									rowData={filteredTasks}
+									columns={columns}
+									actions={taskActions}
+									sortState={sortState}
+									onSort={handleSort}
+									getRowClassName={(row) =>
+										isTaskOverdueForDisplay(row as any) ? 'overdue-row' : undefined
+									}
+									emptyMessage='No workflows currently active. New continuity workflows will appear here.'
+									onRowSelect={(selectedRows) => {
+										setSelectedRows(new Set(selectedRows));
+									}}
+									selectedRows={selectedRows}
+									onSelectAll={(_, selectedRowIds) => {
+										setSelectedRows(new Set(selectedRowIds));
+									}}
+									showCheckbox={false}
+									hideHeader={true}
+									onRowUpdate={(updatedRow) => {
 									// Prepare updates for Firebase
 									const updates: any = {};
 
@@ -720,8 +948,9 @@ export const TasksPage = () => {
 											console.error('Failed to update task:', error);
 										});
 									}
-								}}
-							/>
+									}}
+								/>
+							</HeaderlessFeedSurface>
 						)}
 					</TaskGridSection>
 				</>

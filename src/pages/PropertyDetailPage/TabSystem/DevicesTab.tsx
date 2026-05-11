@@ -7,6 +7,13 @@ import {
 	faEdit,
 	faTrash,
 	faWrench,
+	faCircleCheck,
+	faTriangleExclamation,
+	faFan,
+	faSnowflake,
+	faClipboardCheck,
+	faHouse,
+	faPlug,
 } from '@fortawesome/free-solid-svg-icons';
 import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
@@ -61,43 +68,6 @@ const SectionLead = styled.p`
 	color: #475569;
 	font-size: 0.92rem;
 	line-height: 1.5;
-`;
-
-const IntelligenceStrip = styled.div`
-	display: grid;
-	grid-template-columns: repeat(3, minmax(0, 1fr));
-	gap: 10px;
-	margin-bottom: 14px;
-
-	@media (max-width: 1024px) {
-		grid-template-columns: 1fr;
-	}
-`;
-
-const IntelligenceCard = styled.div<{ $tone?: 'warning' | 'neutral' | 'success' }>`
-	padding: 10px 12px;
-	border-radius: 10px;
-	border: 1px solid
-		${(props) =>
-			props.$tone === 'warning'
-				? '#fcd34d'
-				: props.$tone === 'success'
-					? '#86efac'
-					: '#cbd5e1'};
-	background: ${(props) =>
-		props.$tone === 'warning'
-			? '#fffbeb'
-			: props.$tone === 'success'
-				? '#f0fdf4'
-				: '#f8fafc'};
-	font-size: 0.84rem;
-	font-weight: 600;
-	color: ${(props) =>
-		props.$tone === 'warning'
-			? '#92400e'
-			: props.$tone === 'success'
-				? '#166534'
-				: '#334155'};
 `;
 
 interface DeviceFormData {
@@ -320,26 +290,177 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property }) => {
 		};
 	};
 
+	const formatRelativeTime = (value?: string): string => {
+		if (!value) return 'No activity recorded yet';
+		const target = new Date(value).getTime();
+		if (Number.isNaN(target)) return 'No activity recorded yet';
+
+		const now = Date.now();
+		const diffMs = now - target;
+		const absDays = Math.floor(Math.abs(diffMs) / (1000 * 60 * 60 * 24));
+
+		if (absDays === 0) return diffMs >= 0 ? 'Today' : 'Later today';
+		if (absDays === 1) return diffMs >= 0 ? 'Yesterday' : 'Tomorrow';
+		if (absDays < 7) return diffMs >= 0 ? `${absDays} days ago` : `In ${absDays} days`;
+		if (absDays < 30) {
+			const weeks = Math.floor(absDays / 7);
+			return diffMs >= 0
+				? `${weeks} week${weeks === 1 ? '' : 's'} ago`
+				: `In ${weeks} week${weeks === 1 ? '' : 's'}`;
+		}
+
+		const months = Math.floor(absDays / 30);
+		return diffMs >= 0
+			? `${months} month${months === 1 ? '' : 's'} ago`
+			: `In ${months} month${months === 1 ? '' : 's'}`;
+	};
+
+	const getDeviceDetailPath = (device: any) => {
+		const deviceSlug = buildDeviceSlug({
+			id: device.id,
+			type: device.type,
+			brand: device.brand,
+			model: device.model,
+		});
+		return `/property/${property.slug}/device/${deviceSlug}`;
+	};
+
+	const getDeviceOperationalIcon = (device: any) => {
+		const context = `${device.type || ''} ${device.brand || ''} ${device.model || ''}`.toLowerCase();
+		if (context.includes('hvac') || context.includes('heat') || context.includes('cool')) {
+			return { icon: faFan, color: '#0f766e', background: '#ecfeff' };
+		}
+		if (context.includes('season') || context.includes('winter') || context.includes('summer')) {
+			return { icon: faSnowflake, color: '#1d4ed8', background: '#dbeafe' };
+		}
+		if (context.includes('inspect')) {
+			return { icon: faClipboardCheck, color: '#0369a1', background: '#e0f2fe' };
+		}
+		if (context.includes('exterior') || context.includes('roof') || context.includes('garage')) {
+			return { icon: faHouse, color: '#7c2d12', background: '#ffedd5' };
+		}
+		if (context.includes('electric') || context.includes('panel') || context.includes('outlet')) {
+			return { icon: faPlug, color: '#7c3aed', background: '#f3e8ff' };
+		}
+		return { icon: faWrench, color: '#475569', background: '#f1f5f9' };
+	};
+
 	const columns: Column[] = [
-		{ header: 'Type', key: 'type' },
-		{ header: 'Brand', key: 'brand' },
-		{ header: 'Model', key: 'model' },
-		{ header: 'Installation Date', key: 'installationDate', type: 'date' },
+		{
+			header: 'System Profile',
+			key: 'type',
+			render: (_value: string, row: any) => {
+				const locationName = row.location?.unitId
+					? units.find((u) => u.id === row.location.unitId)?.name || 'Unit'
+					: 'Property level';
+				const technical = [row.brand, row.model].filter(Boolean).join(' ');
+				const { linkedOpenTasks, recurringLinkedTasks } = getDeviceAttentionState(row);
+				const iconStyle = getDeviceOperationalIcon(row);
+
+				return (
+					<div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 270 }}>
+						<div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+							<span
+								style={{
+									display: 'inline-flex',
+									alignItems: 'center',
+									justifyContent: 'center',
+									width: 24,
+									height: 24,
+									borderRadius: 8,
+									color: iconStyle.color,
+									background: iconStyle.background,
+									flexShrink: 0,
+								}}>
+								<FontAwesomeIcon icon={iconStyle.icon} />
+							</span>
+							<div style={{ fontWeight: 800, color: '#0f172a', lineHeight: 1.3 }}>
+								{row.type || 'Device'}
+							</div>
+						</div>
+						<div style={{ fontSize: 13, fontWeight: 700, color: '#334155', lineHeight: 1.4 }}>
+							{technical || 'No model details yet'}
+						</div>
+						<div style={{ fontSize: 12, color: '#64748b', lineHeight: 1.4 }}>
+							Location: {locationName}
+						</div>
+						<div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', fontSize: 12, color: '#64748b' }}>
+							<span>Installed {formatRelativeTime(row.installationDate)}</span>
+							{linkedOpenTasks > 0 && (
+								<span style={{ color: '#b45309', fontWeight: 700 }}>
+									{linkedOpenTasks} open task{linkedOpenTasks === 1 ? '' : 's'}
+								</span>
+							)}
+							{recurringLinkedTasks > 0 && (
+								<span style={{ color: '#0f766e', fontWeight: 700 }}>
+									Recurring care active
+								</span>
+							)}
+						</div>
+						<div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 12 }}>
+							<button
+								type='button'
+								onClick={() => navigate(getDeviceDetailPath(row))}
+								style={{
+									border: 'none',
+									background: 'transparent',
+									color: '#1d4ed8',
+									fontWeight: 700,
+									cursor: 'pointer',
+									padding: 0,
+								}}>
+								View history
+							</button>
+							<span style={{ color: '#94a3b8' }}>Lifecycle timeline and service records</span>
+						</div>
+					</div>
+				);
+			},
+		},
 		{
 			header: 'Status',
 			key: 'status',
 			render: (status: string, row: any) => {
 				const {
 					status: resolvedStatus,
-					linkedOpenTasks,
 					overdueLinkedTasks,
-					recurringLinkedTasks,
 					needsAttention,
 				} =
 					getDeviceAttentionState({ ...row, status });
 
+				const chip = needsAttention
+					? {
+						label: 'Needs Attention',
+						color: '#92400e',
+						background: '#fffbeb',
+						border: '#fcd34d',
+					  }
+					: {
+						label: 'Healthy',
+						color: '#166534',
+						background: '#f0fdf4',
+						border: '#86efac',
+					  };
+
 				return (
-					<div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+					<div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+						<div
+							style={{
+								display: 'inline-flex',
+								alignItems: 'center',
+								gap: 6,
+								padding: '6px 10px',
+								borderRadius: 999,
+								border: `1px solid ${chip.border}`,
+								background: chip.background,
+								color: chip.color,
+								fontSize: 12,
+								fontWeight: 800,
+								width: 'fit-content',
+							}}>
+							<FontAwesomeIcon icon={needsAttention ? faTriangleExclamation : faCircleCheck} />
+							{chip.label}
+						</div>
 						<StatusBadge status={resolvedStatus}>{resolvedStatus}</StatusBadge>
 						{overdueLinkedTasks > 0 && (
 							<span
@@ -352,50 +473,46 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property }) => {
 								{overdueLinkedTasks === 1 ? '' : 's'}
 							</span>
 						)}
-						{needsAttention && (
-							<span
-								style={{
-									fontSize: 12,
-									fontWeight: 600,
-									color: '#b45309',
-								}}>
-								{linkedOpenTasks > 0
-									? `${linkedOpenTasks} open linked task${linkedOpenTasks === 1 ? '' : 's'}`
-									: 'Needs attention'}
-							</span>
-						)}
-						{recurringLinkedTasks > 0 && (
-							<span
-								style={{
-									fontSize: 12,
-									fontWeight: 600,
-									color: '#0f766e',
-								}}>
-								Recurring care: {recurringLinkedTasks}
-							</span>
-						)}
 					</div>
 				);
 			},
 		},
 		{
-			header: 'Location',
-			key: 'location.unitId',
-			type: 'dropdown',
-			options: (row) => {
-				const unit = units.find((u) => u.id === row.location.unitId);
-				return unit ? [unit.name] : [];
-			},
-			render: (value: string) => {
-				const unit = units.find((u) => u.id === value);
-				return unit ? unit.name : 'Property';
+			header: 'Activity',
+			key: 'installationDate',
+			render: (_value: string, row: any) => {
+				const { linkedOpenTasks, overdueLinkedTasks, recurringLinkedTasks } =
+					getDeviceAttentionState(row);
+				const activityText =
+					overdueLinkedTasks > 0
+						? `Maintenance continuity interrupted on ${overdueLinkedTasks} task${overdueLinkedTasks === 1 ? '' : 's'}`
+						: linkedOpenTasks > 0
+							? `${linkedOpenTasks} continuity workflow${linkedOpenTasks === 1 ? '' : 's'} in progress`
+							: recurringLinkedTasks > 0
+								? 'Recurring maintenance continuity active'
+								: 'No active continuity workflows';
+
+				return (
+					<div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+						<div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{activityText}</div>
+						<div style={{ fontSize: 12, color: '#64748b' }}>
+							Last lifecycle update: {formatRelativeTime(row.installationDate)}
+						</div>
+					</div>
+				);
 			},
 		},
 		{
-			header: 'Files',
+			header: 'Files & Docs',
 			key: 'files',
-			render: (files: any[]) =>
-				files && files.length > 0 ? `${files.length} file(s)` : 'None',
+			render: (files: any[]) => {
+				const count = Array.isArray(files) ? files.length : 0;
+				return (
+					<span style={{ color: count > 0 ? '#0f766e' : '#94a3b8', fontWeight: count > 0 ? 700 : 500 }}>
+						{count > 0 ? `${count} record${count === 1 ? '' : 's'} stored` : 'No documents yet'}
+					</span>
+				);
+			},
 		},
 	];
 
@@ -404,13 +521,7 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property }) => {
 			label: 'View',
 			icon: faEye,
 			onClick: (device: any) => {
-				const deviceSlug = buildDeviceSlug({
-					id: device.id,
-					type: device.type,
-					brand: device.brand,
-					model: device.model,
-				});
-				navigate(`/property/${property.slug}/device/${deviceSlug}`);
+				navigate(getDeviceDetailPath(device));
 			},
 		},
 		{
@@ -606,23 +717,6 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property }) => {
 				</TabSummaryPill>
 			</TabSummaryBar>
 
-			<IntelligenceStrip>
-				<IntelligenceCard $tone={linkedOverdueTaskCount > 0 ? 'warning' : 'success'}>
-					{linkedOverdueTaskCount > 0
-						? `${linkedOverdueTaskCount} linked task${linkedOverdueTaskCount === 1 ? '' : 's'} overdue`
-						: 'No overdue linked tasks'}
-				</IntelligenceCard>
-				<IntelligenceCard $tone='neutral'>
-					{devicesWithRecurringCareCount} device
-					{devicesWithRecurringCareCount === 1 ? '' : 's'} with recurring care
-				</IntelligenceCard>
-				<IntelligenceCard $tone={needsAttentionDeviceCount > 0 ? 'warning' : 'success'}>
-					{needsAttentionDeviceCount > 0
-						? `${needsAttentionDeviceCount} device${needsAttentionDeviceCount === 1 ? '' : 's'} need attention`
-						: 'All devices currently stable'}
-				</IntelligenceCard>
-			</IntelligenceStrip>
-
 			<Toolbar>
 				<ToolbarButton
 					className='primary-action'
@@ -648,8 +742,6 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property }) => {
 								{(() => {
 									const {
 										linkedOpenTasks,
-										overdueLinkedTasks,
-										recurringLinkedTasks,
 										needsAttention,
 									} =
 										getDeviceAttentionState(device);
@@ -664,13 +756,7 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property }) => {
 									<button
 										onClick={(event) => {
 											event.stopPropagation();
-											const deviceSlug = buildDeviceSlug({
-												id: device.id,
-												type: device.type,
-												brand: device.brand,
-												model: device.model,
-											});
-											navigate(`/property/${property.slug}/device/${deviceSlug}`);
+											navigate(getDeviceDetailPath(device));
 										}}
 										style={{
 											fontWeight: 700,
@@ -762,13 +848,7 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property }) => {
 											<CardMoreMenuItem
 												onClick={(event) => {
 													event.stopPropagation();
-													const deviceSlug = buildDeviceSlug({
-														id: device.id,
-														type: device.type,
-														brand: device.brand,
-														model: device.model,
-													});
-													navigate(`/property/${property.slug}/device/${deviceSlug}`);
+													navigate(getDeviceDetailPath(device));
 												}}>
 												View
 											</CardMoreMenuItem>
@@ -832,7 +912,13 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property }) => {
 					<ReusableTable
 						columns={columns}
 						rowData={devices}
+						getRowClassName={(row: any) =>
+							getDeviceAttentionState(row).needsAttention ? 'attention-row' : undefined
+						}
 						actions={deviceActions}
+						showCheckbox={false}
+						hideHeader={true}
+						emptyMessage='No systems have been recorded yet. Add your first device to start operational history.'
 					/>
 				</DesktopTableWrapper>
 			)}

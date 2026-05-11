@@ -5,6 +5,7 @@ import {
 	TableContainer,
 	StyledTable,
 	ActionButton,
+	ActionGroup,
 	EmptyState,
 } from './ReusableTable.styles';
 
@@ -47,6 +48,7 @@ export interface ReusableTableProps<T = any> {
 	actions?: Action<T>[];
 	isEditable?: boolean;
 	showActionsColumn?: boolean;
+	hideHeader?: boolean;
 	emptyTitle?: string;
 	emptyMessage?: string;
 	emptyActionLabel?: string;
@@ -74,6 +76,7 @@ export const ReusableTable = <T extends { id: string }>({
 	handleRowDoubleClick = false,
 	actions = [],
 	showActionsColumn = true,
+	hideHeader = false,
 	emptyTitle = 'Nothing here yet',
 	emptyMessage = 'No data available',
 	emptyActionLabel,
@@ -98,7 +101,7 @@ export const ReusableTable = <T extends { id: string }>({
 	};
 
 	return (
-		<TableContainer>
+		<TableContainer $headerless={hideHeader}>
 			{rowData.length === 0 ? (
 				<EmptyState>
 					<h3>{emptyTitle}</h3>
@@ -110,7 +113,7 @@ export const ReusableTable = <T extends { id: string }>({
 					)}
 				</EmptyState>
 			) : (
-				<StyledTable>
+				<StyledTable className={hideHeader ? 'headerless-table' : undefined}>
 					<thead>
 						<tr>
 							{showCheckbox && (
@@ -149,7 +152,9 @@ export const ReusableTable = <T extends { id: string }>({
 													background: 'transparent',
 													padding: 0,
 													cursor: 'pointer',
-													fontWeight: 700,
+													fontWeight: 600,
+													fontSize: 'inherit',
+													color: 'inherit',
 													display: 'inline-flex',
 													alignItems: 'center',
 													gap: '4px',
@@ -166,7 +171,7 @@ export const ReusableTable = <T extends { id: string }>({
 									</th>
 								);
 							})}
-							{showActionsColumn && actions.length > 0 && <th>Actions</th>}
+							{showActionsColumn && actions.length > 0 && <th>Next Step</th>}
 						</tr>
 					</thead>
 					<tbody>
@@ -252,23 +257,30 @@ export const ReusableTable = <T extends { id: string }>({
 								})}
 								{showActionsColumn && actions.length > 0 && (
 									<td>
-										<div style={{ display: 'flex', gap: '8px' }}>
+										<ActionGroup>
 											{actions.map((action, actionIndex) => {
 												const isDisabled = action.disabled?.(row) || false;
+												const classNames = [
+													action.className,
+													actionIndex === 0 ? 'primary-action' : '',
+												]
+													.filter(Boolean)
+													.join(' ');
 												return (
 													<ActionButton
 														key={actionIndex}
 														type='button'
 														onClick={() => action.onClick(row, index)}
-														className={action.className}
+														className={classNames}
 														disabled={isDisabled}
 														aria-label={action.label}
 														title={action.label}>
+														{actionIndex === 0 && <span className='action-label'>{action.label}</span>}
 														<FontAwesomeIcon icon={action.icon} />
 													</ActionButton>
 												);
 											})}
-										</div>
+										</ActionGroup>
 									</td>
 								)}
 							</tr>
