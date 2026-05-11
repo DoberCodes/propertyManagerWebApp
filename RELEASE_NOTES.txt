@@ -1,9 +1,5 @@
-🎉 **Release Notes for Version 2.2.7** 🎉
+🎉 **Release Notes for Version 2.2.8** 🎉
 
 
 ## 🐛 Bug Fixes
-- fixing the history and device/property details formatting
-- cleaning up the styling of the property page
-
-## 🔧 Improvements & Maintenance
-- adding adjustments to the maintenance history
+- fixing the mobile views and the mobile cards to look better with our new style
