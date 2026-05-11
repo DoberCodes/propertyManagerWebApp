@@ -5,11 +5,11 @@ import {
 	getDocs,
 	getDoc,
 	doc,
-	addDoc,
 	deleteDoc,
 	updateDoc,
 } from 'firebase/firestore';
-import { db } from '../../config/firebase';
+import { httpsCallable } from 'firebase/functions';
+import { db, functions as cloudFunctions } from '../../config/firebase';
 import { apiSlice, docToData } from './apiSlice';
 import {
 	resolveAccessibleAccountIds,
@@ -27,26 +27,80 @@ const maintenanceSlice = apiSlice.injectEndpoints({
 					if (!propertyId) {
 						return { data: [] };
 					}
-					const accessibleAccountIds = await resolveAccessibleAccountIds();
+					let accessibleAccountIds: string[] = [];
+					try {
+						accessibleAccountIds = await resolveAccessibleAccountIds();
+					} catch (accountContextError) {
+						console.warn(
+							'Could not resolve accessible account IDs for maintenance history query. Falling back to property-scoped reads.',
+							accountContextError,
+						);
+					}
 					const seenIds = new Set<string>();
 					const records: any[] = [];
+					const debugCounts = {
+						accountScoped: { maintenanceEvents: 0, maintenanceHistory: 0 },
+						propertyScoped: { maintenanceEvents: 0, maintenanceHistory: 0 },
+						titleFallback: { maintenanceEvents: 0, maintenanceHistory: 0 },
+					};
 
 					// Read from both collections; maintenanceEvents is canonical, maintenanceHistory is legacy.
 					for (const collectionName of ['maintenanceEvents', 'maintenanceHistory']) {
 						for (const accountId of accessibleAccountIds) {
-							const q = query(
-								collection(db, collectionName),
-								where('accountId', '==', accountId),
-								where('propertyId', '==', propertyId),
-							);
-							const snapshot = await getDocs(q);
-							snapshot.docs.forEach((d) => {
-								const data = docToData(d);
-								if (data && !seenIds.has(data.id)) {
-									seenIds.add(data.id);
-									records.push(data);
-								}
-							});
+							try {
+								const q = query(
+									collection(db, collectionName),
+									where('accountId', '==', accountId),
+									where('propertyId', '==', propertyId),
+								);
+								const snapshot = await getDocs(q);
+								snapshot.docs.forEach((d) => {
+									const data = docToData(d);
+									if (data && !seenIds.has(data.id)) {
+										if (collectionName === 'maintenanceEvents') {
+											debugCounts.accountScoped.maintenanceEvents += 1;
+										} else {
+											debugCounts.accountScoped.maintenanceHistory += 1;
+										}
+										seenIds.add(data.id);
+										records.push(data);
+									}
+								});
+							} catch (error) {
+								console.warn(
+									`Maintenance history query failed for ${collectionName} (${accountId}).`,
+									error,
+								);
+							}
+						}
+					}
+
+					// Fallback by propertyTitle for old records that lack a propertyId field
+					if (records.length === 0) {
+						// Secondary pass: query by propertyId without account filter.
+						// This helps when account resolver data is stale/missing while rules still allow reads.
+						for (const collectionName of ['maintenanceEvents', 'maintenanceHistory']) {
+							try {
+								const propertyQuery = query(
+									collection(db, collectionName),
+									where('propertyId', '==', propertyId),
+								);
+								const propertySnapshot = await getDocs(propertyQuery);
+								propertySnapshot.docs.forEach((d) => {
+									const data = docToData(d);
+									if (data && !seenIds.has(data.id)) {
+										if (collectionName === 'maintenanceEvents') {
+											debugCounts.propertyScoped.maintenanceEvents += 1;
+										} else {
+											debugCounts.propertyScoped.maintenanceHistory += 1;
+										}
+										seenIds.add(data.id);
+										records.push(data);
+									}
+								});
+							} catch {
+								// Continue to next fallback path if this query isn't allowed by rules.
+							}
 						}
 					}
 
@@ -57,22 +111,43 @@ const maintenanceSlice = apiSlice.injectEndpoints({
 						if (propertyTitle) {
 							for (const collectionName of ['maintenanceEvents', 'maintenanceHistory']) {
 								for (const accountId of accessibleAccountIds) {
-									const titleQuery = query(
-										collection(db, collectionName),
-										where('accountId', '==', accountId),
-										where('propertyTitle', '==', propertyTitle),
-									);
-									const titleSnapshot = await getDocs(titleQuery);
-									titleSnapshot.docs.forEach((d) => {
-										const data = docToData(d);
-										if (data && !seenIds.has(data.id)) {
-											seenIds.add(data.id);
-											records.push(data);
-										}
-									});
+									try {
+										const titleQuery = query(
+											collection(db, collectionName),
+											where('accountId', '==', accountId),
+											where('propertyTitle', '==', propertyTitle),
+										);
+										const titleSnapshot = await getDocs(titleQuery);
+										titleSnapshot.docs.forEach((d) => {
+											const data = docToData(d);
+											if (data && !seenIds.has(data.id)) {
+												if (collectionName === 'maintenanceEvents') {
+													debugCounts.titleFallback.maintenanceEvents += 1;
+												} else {
+													debugCounts.titleFallback.maintenanceHistory += 1;
+												}
+												seenIds.add(data.id);
+												records.push(data);
+											}
+										});
+									} catch (error) {
+										console.warn(
+											`Maintenance title fallback query failed for ${collectionName} (${accountId}).`,
+											error,
+										);
+									}
 								}
 							}
 						}
+					}
+
+					if (process.env.NODE_ENV !== 'production') {
+						console.info('[maintenance-history] query summary', {
+							propertyId,
+							accessibleAccountIds,
+							debugCounts,
+							totalReturned: records.length,
+						});
 					}
 
 					return { data: records };
@@ -96,9 +171,28 @@ const maintenanceSlice = apiSlice.injectEndpoints({
 				unitId?: string;
 				deviceIds?: string[];
 				completionFile?: File;
+				completionFileData?: {
+					url: string;
+					name: string;
+					size: number;
+					type: string;
+					uploadedAt?: string;
+				};
 				recurringTaskId?: string; // ID of the recurring task this belongs to
 				linkedTaskIds?: string[]; // Additional task IDs linked to this history record
 				financials?: TaskFinancials;
+				eventType?:
+					| MaintenanceEvent['eventType']
+					| 'warranty_added'
+					| 'contractor_visit_logged'
+					| 'recurring_maintenance_completed';
+				eventSource?:
+					| MaintenanceEvent['eventSource']
+					| 'note_entry'
+					| 'document_upload'
+					| 'contractor_entry';
+				description?: string;
+				tags?: string[];
 			}
 		>({
 			async queryFn({
@@ -112,9 +206,14 @@ const maintenanceSlice = apiSlice.injectEndpoints({
 				unitId,
 				deviceIds,
 				completionFile,
+				completionFileData,
 				recurringTaskId,
 				linkedTaskIds,
 				financials,
+				eventType,
+				eventSource,
+				description,
+				tags,
 			}) {
 				try {
 					const propertyDoc = await getDoc(doc(db, 'properties', propertyId));
@@ -123,55 +222,64 @@ const maintenanceSlice = apiSlice.injectEndpoints({
 						String(propertyData.accountId || '').trim() ||
 						(await resolveTargetUserId());
 
-					let completionFileData:
+					let resolvedCompletionFileData:
 						| { url: string; name: string; size: number; type: string }
-						| undefined = undefined;
+						| undefined = completionFileData;
 
 					// Upload file if provided
-					if (completionFile) {
+					if (!resolvedCompletionFileData && completionFile) {
 						const { uploadMaintenanceFile } = await import(
 							'../../utils/maintenanceFileUpload'
 						);
-						completionFileData = await uploadMaintenanceFile(
+						resolvedCompletionFileData = await uploadMaintenanceFile(
 							completionFile,
 							propertyId,
 						);
 					}
 
+					const createMaintenanceEvent = httpsCallable<
+						{
+							event: Record<string, unknown>;
+						},
+						{ success: boolean; id: string }
+					>(cloudFunctions, 'createMaintenanceEvent');
+
 					const historyData = {
 						accountId,
 						propertyId,
 						propertyTitle,
-						eventType: 'maintenance_recorded' as const,
-						eventSource: 'manual_entry' as const,
+						eventType: eventType || ('maintenance_recorded' as const),
+						eventSource: eventSource || ('manual_entry' as const),
 						title,
+						description,
 						completionDate,
 						completedBy,
 						completedByName,
 						completionNotes,
 						unitId,
 						deviceIds,
+						tags,
 						maintenanceCycleId: recurringTaskId,
-						completionFile: completionFileData,
+						attachments: resolvedCompletionFileData
+							? [
+									{
+										id: `file_${Date.now()}`,
+										fileName: resolvedCompletionFileData.name,
+										fileSize: resolvedCompletionFileData.size,
+										mimeType: resolvedCompletionFileData.type,
+										url: resolvedCompletionFileData.url,
+										uploadedAt: new Date().toISOString(),
+										description: 'Completion file',
+									},
+							  ]
+							: undefined,
 						recurringTaskId,
 						linkedTaskIds,
 						financials,
-						createdAt: new Date().toISOString(),
-						updatedAt: new Date().toISOString(),
 					};
 
-					// Remove any undefined fields (Firebase doesn't allow them)
-					Object.keys(historyData).forEach((key) => {
-						if (historyData[key] === undefined) {
-							delete historyData[key];
-						}
-					});
-
-					const docRef = await addDoc(
-						collection(db, 'maintenanceEvents'),
-						historyData,
-					);
-					return { data: { id: docRef.id, ...historyData } };
+					const result = await createMaintenanceEvent({ event: historyData });
+					return { data: { id: result.data.id, ...(historyData as any) } };
 				} catch (error: any) {
 					return { error: error.message };
 				}

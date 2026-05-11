@@ -9,10 +9,11 @@ import {
 	updateDoc,
 	where,
 } from '@firebase/firestore';
+import { httpsCallable } from 'firebase/functions';
 import { CompletionFile, Task, TaskFinancials } from '../../types/Task.types';
 import { MaintenanceEvent } from '../../types/MaintenanceEvent.types';
 import { apiSlice, docToData } from './apiSlice';
-import { auth, db } from '../../config/firebase';
+import { auth, db, functions as cloudFunctions } from '../../config/firebase';
 import { PropertyShare } from '../../types/Property.types';
 import {
 	resolveAccessibleAccountIds,
@@ -135,6 +136,17 @@ const buildMaintenanceEventFromTask = ({
 		createdAt: now,
 		updatedAt: now,
 	});
+};
+
+const writeMaintenanceEvent = async (
+	event: Record<string, unknown>,
+): Promise<void> => {
+	const createMaintenanceEvent = httpsCallable<
+		{ event: Record<string, unknown> },
+		{ success: boolean; id: string }
+	>(cloudFunctions, 'createMaintenanceEvent');
+
+	await createMaintenanceEvent({ event });
 };
 
 export const taskSlice = apiSlice.injectEndpoints({
@@ -317,7 +329,7 @@ export const taskSlice = apiSlice.injectEndpoints({
 							financials: (updates as any).financials,
 						});
 
-						await addDoc(collection(db, 'maintenanceEvents'), eventPayload);
+						await writeMaintenanceEvent(eventPayload as Record<string, unknown>);
 					}
 
 					return { data: { id, ...updates } as Task };
@@ -401,9 +413,11 @@ export const taskSlice = apiSlice.injectEndpoints({
 						financials: mergedFinancials,
 					});
 
-					await addDoc(collection(db, 'maintenanceEvents'), {
+					await writeMaintenanceEvent({
 						...eventPayload,
-						completedByPlan,
+						data: {
+							completedByPlan,
+						},
 					});
 					await deleteDoc(docRef);
 
@@ -459,10 +473,12 @@ export const taskSlice = apiSlice.injectEndpoints({
 						financials: taskData.financials,
 					});
 
-					await addDoc(collection(db, 'maintenanceEvents'), {
+					await writeMaintenanceEvent({
 						...eventPayload,
-						approvedBy,
-						approvedAt,
+						data: {
+							approvedBy,
+							approvedAt,
+						},
 					});
 					await deleteDoc(docRef);
 

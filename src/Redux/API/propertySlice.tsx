@@ -31,7 +31,7 @@ const fetchPropertiesByIds = async (propertyIds: string[]): Promise<Property[]> 
 		return [];
 	}
 
-	const properties: Property[] = [];
+	const propertiesById = new Map<string, Property>();
 	for (let i = 0; i < propertyIds.length; i += 10) {
 		const batch = propertyIds.slice(i, i + 10);
 		try {
@@ -43,16 +43,37 @@ const fetchPropertiesByIds = async (propertyIds: string[]): Promise<Property[]> 
 			const batchProperties = propertiesSnapshot.docs
 				.map((propertyDoc) => docToData(propertyDoc) as Property)
 				.filter(Boolean) as Property[];
-			properties.push(...batchProperties);
+			batchProperties.forEach((property) => {
+				if (property?.id) {
+					propertiesById.set(property.id, property);
+				}
+			});
 		} catch (error) {
 			console.warn('Could not fetch property batch by ids:', {
 				batchSize: batch.length,
 				error,
 			});
+
+			// Fallback to per-document reads so one unauthorized document does not
+			// fail the entire batch and hide authorized properties.
+			for (const propertyId of batch) {
+				try {
+					const propertyDoc = await getDoc(doc(db, 'properties', propertyId));
+					const property = docToData(propertyDoc) as Property;
+					if (property?.id) {
+						propertiesById.set(property.id, property);
+					}
+				} catch (singleError) {
+					console.warn('Could not fetch property by id fallback:', {
+						propertyId,
+						error: singleError,
+					});
+				}
+			}
 		}
 	}
 
-	return properties;
+	return Array.from(propertiesById.values());
 };
 
 const getReceivedPropertySharesForUser = async (

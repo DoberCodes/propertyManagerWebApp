@@ -61,7 +61,7 @@ exports.markTasksAsOverdue = functions.pubsub
         const tasksRef = db.collection('tasks');
         const overdueTasksQuery = tasksRef
             .where('dueDate', '<', today.toISOString().split('T')[0]) // Compare date part only
-            .where('status', 'in', ['Pending', 'In Progress', 'Awaiting Approval']);
+            .where('status', 'in', ['Initiated', 'Pending', 'In Progress', 'Awaiting Approval']);
         const snapshot = await overdueTasksQuery.get();
         if (snapshot.empty) {
             functionsLogger.info('No tasks found that need to be marked as overdue.');

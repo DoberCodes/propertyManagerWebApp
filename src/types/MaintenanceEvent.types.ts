@@ -8,14 +8,20 @@ export type MaintenanceEventType =
 	| 'invoice_uploaded'
 	| 'document_uploaded'
 	| 'service_note_added'
-	| 'maintenance_recorded';
+	| 'maintenance_recorded'
+	| 'warranty_added'
+	| 'contractor_visit_logged'
+	| 'recurring_maintenance_completed';
 
 export type MaintenanceEventSource =
 	| 'task_completion'
 	| 'task_approval'
 	| 'manual_entry'
 	| 'device_log'
-	| 'system';
+	| 'system'
+	| 'note_entry'
+	| 'document_upload'
+	| 'contractor_entry';
 
 export interface MaintenanceEvent {
 	id: string;

@@ -24,6 +24,10 @@ export { updateFamilyMemberRole } from './updateFamilyMemberRole';
 export { updateFamilyMember } from './updateFamilyMember';
 export { ensureFamilyAccount } from './ensureFamilyAccount';
 export {
+	createMaintenanceEvent,
+	createMaintenanceEventsBatch,
+} from './maintenanceEvents';
+export {
 	createTeamMemberInvitationCode,
 	validateTeamMemberInvitationCode,
 	revokeTeamMemberInvitationCode,

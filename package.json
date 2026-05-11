@@ -78,6 +78,8 @@
 		"migrate:property-memberships:cleanup": "node scripts/migratePropertyGroupMemberships.cjs --apply --cleanup-orphans",
 		"migrate:report-account-integrity": "node scripts/migrateFixReportAccountIntegrity.cjs",
 		"migrate:report-account-integrity:apply": "node scripts/migrateFixReportAccountIntegrity.cjs --apply",
+		"migrate:maintenance-events": "node scripts/migrateMaintenanceHistoryToEvents.cjs",
+		"migrate:maintenance-events:apply": "node scripts/migrateMaintenanceHistoryToEvents.cjs --apply",
 		"migrate:orphaned-data": "node scripts/migrateRemoveOrphanedData.cjs",
 		"migrate:orphaned-data:apply": "node scripts/migrateRemoveOrphanedData.cjs --apply",
 		"init:firestore": "node scripts/initFirestore.cjs",

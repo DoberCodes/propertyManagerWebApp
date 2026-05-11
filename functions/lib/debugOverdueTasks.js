@@ -58,7 +58,7 @@ exports.debugOverdueTasks = functions.https.onRequest(async (req, res) => {
         const snapshot = await db
             .collection('tasks')
             .where('dueDate', '<', todayDateString)
-            .where('status', 'in', ['Pending', 'In Progress', 'Awaiting Approval'])
+            .where('status', 'in', ['Initiated', 'Pending', 'In Progress', 'Awaiting Approval'])
             .get();
         const found = [];
         snapshot.forEach((doc) => {

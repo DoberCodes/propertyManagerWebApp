@@ -650,6 +650,7 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 	const { data: maintenanceHistoryRecords = [] } =
 		useGetMaintenanceHistoryByPropertyQuery(property?.id || '', {
 			skip: !property?.id,
+			refetchOnMountOrArgChange: true,
 		});
 
 	// Load family members if user has an account

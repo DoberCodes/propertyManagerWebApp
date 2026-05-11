@@ -688,6 +688,23 @@ export const MaintenanceTab = ({
 		[groupedRecords.groups],
 	);
 
+	const debugCounts = useMemo(
+		() => ({
+			rawFetched: maintenanceHistoryRecords.length,
+			continuityFromFetch: maintenanceHistoryRecords.filter(isContinuityEvent)
+				.length,
+			legacyInline: (property.maintenanceHistory || []).length,
+			combinedBeforeFilters: allMaintenanceRecords.length,
+			afterFilters: filteredRecords.length,
+		}),
+		[
+			maintenanceHistoryRecords,
+			property,
+			allMaintenanceRecords,
+			filteredRecords,
+		],
+	);
+
 	const columns: Column<any>[] = [
 		{
 			header: 'Date',
@@ -806,6 +823,23 @@ export const MaintenanceTab = ({
 					}
 				</TabSummaryPill>
 			</TabSummaryBar>
+			{process.env.NODE_ENV !== 'production' && (
+				<div
+					style={{
+						margin: '8px 0 12px',
+						padding: '8px 10px',
+						border: '1px dashed #94a3b8',
+						borderRadius: '8px',
+						fontSize: '12px',
+						background: '#f8fafc',
+						color: '#334155',
+					}}>
+					Maintenance Debug: fetched {debugCounts.rawFetched} | continuity{' '}
+					{debugCounts.continuityFromFetch} | legacy inline{' '}
+					{debugCounts.legacyInline} | combined {debugCounts.combinedBeforeFilters}{' '}
+					| after filters {debugCounts.afterFilters}
+				</div>
+			)}
 
 			{/* Toolbar with Add button */}
 			<Toolbar

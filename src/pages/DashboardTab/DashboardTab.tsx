@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { RootState } from 'Redux/store/store';
@@ -147,7 +147,7 @@ export const DashboardTab = () => {
 	const { data: ownedProperties = [] } = useGetPropertiesQuery();
 	const { data: allMaintenanceHistory = [] } =
 		useGetAllMaintenanceHistoryForUserQuery(undefined, {
-			skip: !currentUser?.id,
+			skip: !currentUser?.id && !(currentUser as any)?.uid,
 			refetchOnMountOrArgChange: true,
 		});
 	const [fetchMaintenanceHistoryByProperty] =
@@ -249,6 +249,7 @@ export const DashboardTab = () => {
 	const [dashboardMaintenanceHistory, setDashboardMaintenanceHistory] = useState<
 		any[]
 	>([]);
+	const dashboardHistoryLoadedKeyRef = useRef<string>('');
 	const [userLocation, setUserLocation] = useState<{
 		latitude: number;
 		longitude: number;
@@ -261,61 +262,6 @@ export const DashboardTab = () => {
 		  })
 		| null
 	>(null);
-
-	useEffect(() => {
-		let isCancelled = false;
-
-		const loadDashboardMaintenanceHistory = async () => {
-			if (!allProperties.length) {
-				if (!isCancelled) {
-					setDashboardMaintenanceHistory([]);
-				}
-				return;
-			}
-
-			try {
-				const propertyHistories = await Promise.all(
-					allProperties.map(async (property) => {
-						if (!property?.id) {
-							return [];
-						}
-						try {
-							return await fetchMaintenanceHistoryByProperty(property.id).unwrap();
-						} catch (error) {
-							console.warn(
-								'Could not load maintenance history for dashboard property:',
-								property.id,
-								error,
-							);
-							return [];
-						}
-					}),
-				);
-
-				const uniqueHistory = propertyHistories
-					.flat()
-					.filter(
-						(record, index, self) =>
-							index === self.findIndex((entry: any) => entry.id === record.id),
-					);
-
-				if (!isCancelled) {
-					setDashboardMaintenanceHistory(uniqueHistory);
-				}
-			} catch (error) {
-				console.warn('Could not build dashboard maintenance history aggregate:', error);
-				if (!isCancelled) {
-					setDashboardMaintenanceHistory([]);
-				}
-			}
-		};
-
-		void loadDashboardMaintenanceHistory();
-
-		return () => {
-			isCancelled = true;
-		};
-	}, [allProperties, fetchMaintenanceHistoryByProperty]);
 
 	// Generate assignee options for task editing
 	const assigneeOptions = useMemo(() => {
@@ -359,11 +305,94 @@ export const DashboardTab = () => {
 		[allProperties],
 	);
 
-	const completedTasksCount = useMemo(() => {
-		if (dashboardMaintenanceHistory.length > 0) {
-			return dashboardMaintenanceHistory.filter(isContinuityEvent).length;
+	const visiblePropertyIdList = useMemo(
+		() =>
+			allProperties
+				.map((property) => String(property?.id || '').trim())
+				.filter(Boolean)
+				.sort(),
+		[allProperties],
+	);
+
+	const visiblePropertyIdsKey = useMemo(
+		() => visiblePropertyIdList.join('|'),
+		[visiblePropertyIdList],
+	);
+
+	useEffect(() => {
+		let isCancelled = false;
+
+		if (!visiblePropertyIdsKey) {
+			dashboardHistoryLoadedKeyRef.current = '';
+			setDashboardMaintenanceHistory([]);
+			return;
 		}
 
+		if (dashboardHistoryLoadedKeyRef.current === visiblePropertyIdsKey) {
+			return;
+		}
+
+		const loadDashboardMaintenanceHistory = async () => {
+			try {
+				const propertyHistories = await Promise.all(
+					visiblePropertyIdList.map(async (propertyId) => {
+						try {
+							return await fetchMaintenanceHistoryByProperty(propertyId).unwrap();
+						} catch (error) {
+							console.warn(
+								'Could not load dashboard maintenance history for property:',
+								propertyId,
+								error,
+							);
+							return [];
+						}
+					}),
+				);
+
+				const uniqueHistory = propertyHistories
+					.flat()
+					.filter(
+						(record, index, self) =>
+							index === self.findIndex((entry: any) => entry.id === record.id),
+					);
+
+				if (!isCancelled) {
+					setDashboardMaintenanceHistory(uniqueHistory);
+					dashboardHistoryLoadedKeyRef.current = visiblePropertyIdsKey;
+				}
+			} catch (error) {
+				console.warn('Could not build dashboard maintenance history aggregate:', error);
+				if (!isCancelled) {
+					setDashboardMaintenanceHistory([]);
+					dashboardHistoryLoadedKeyRef.current = visiblePropertyIdsKey;
+				}
+			}
+		};
+
+		void loadDashboardMaintenanceHistory();
+
+		return () => {
+			isCancelled = true;
+		};
+	}, [visiblePropertyIdsKey]);
+
+	const deviceLookup = useMemo(
+		() =>
+			new Map(
+				visibleDevices.map((device: any) => {
+					const id = String(device?.id || '').trim();
+					const name =
+						[device?.type, device?.brand, device?.model]
+							.filter(Boolean)
+							.join(' ')
+							.trim() || 'Device';
+					return [id, name];
+				}),
+			),
+		[visibleDevices],
+	);
+
+	const scopedMaintenanceHistory = useMemo(() => {
 		const visiblePropertyIds = new Set(allProperties.map((property) => property.id));
 		const visiblePropertyTitles = new Set(
 			allProperties
@@ -371,7 +400,7 @@ export const DashboardTab = () => {
 				.filter(Boolean),
 		);
 
-		const scopedMaintenanceHistory = allMaintenanceHistory
+		return allMaintenanceHistory
 			.filter(isContinuityEvent)
 			.filter((record: any) => {
 				const recordPropertyId = String(record?.propertyId || '').trim();
@@ -396,6 +425,12 @@ export const DashboardTab = () => {
 
 				return false;
 			});
+	}, [allMaintenanceHistory, allProperties]);
+
+	const completedTasksCount = useMemo(() => {
+		if (dashboardMaintenanceHistory.length > 0) {
+			return dashboardMaintenanceHistory.filter(isContinuityEvent).length;
+		}
 
 		if (scopedMaintenanceHistory.length > 0) {
 			return scopedMaintenanceHistory.length;
@@ -411,20 +446,18 @@ export const DashboardTab = () => {
 				: 0;
 			return total + Math.max(taskHistoryCount, maintenanceHistoryCount);
 		}, 0);
-	}, [dashboardMaintenanceHistory, allMaintenanceHistory, allProperties]);
+	}, [dashboardMaintenanceHistory, scopedMaintenanceHistory, allProperties]);
 
 	const completedThisMonthCount = useMemo(() => {
 		const now = new Date();
 		const currentMonth = now.getMonth();
 		const currentYear = now.getFullYear();
 
-		const sourceRecords = dashboardMaintenanceHistory.length
-			? dashboardMaintenanceHistory
-			: allMaintenanceHistory;
+		const sourceRecords = scopedMaintenanceHistory.length
+			? scopedMaintenanceHistory
+			: allMaintenanceHistory.filter(isContinuityEvent);
 
-		return sourceRecords
-			.filter(isContinuityEvent)
-			.filter((record: any) => {
+		return sourceRecords.filter((record: any) => {
 				const completionDate = new Date(
 					getMaintenanceEventDate(record) || '',
 				);
@@ -434,7 +467,7 @@ export const DashboardTab = () => {
 					completionDate.getFullYear() === currentYear
 				);
 			}).length;
-	}, [dashboardMaintenanceHistory, allMaintenanceHistory]);
+	}, [scopedMaintenanceHistory, allMaintenanceHistory]);
 
 	const taskStatusCounts = useMemo(() => {
 		const now = new Date();
@@ -536,60 +569,84 @@ export const DashboardTab = () => {
 		const currentMonth = now.getMonth();
 		const currentYear = now.getFullYear();
 
-		return visibleDevices.reduce((total: number, device: any) => {
-			const history = Array.isArray(device?.maintenanceHistory)
-				? device.maintenanceHistory
-				: [];
+		const sourceRecords = dashboardMaintenanceHistory.length
+			? dashboardMaintenanceHistory
+			: scopedMaintenanceHistory.length
+				? scopedMaintenanceHistory
+				: allMaintenanceHistory.filter(isContinuityEvent);
 
+		return sourceRecords.filter((record: any) => {
+			const eventDate = new Date(getMaintenanceEventDate(record) || '');
 			return (
-				total +
-				history.filter((entry: any) => {
-					const eventDate = new Date(entry?.date || '');
-					return (
-						!Number.isNaN(eventDate.getTime()) &&
-						eventDate.getMonth() === currentMonth &&
-						eventDate.getFullYear() === currentYear
-					);
-				}).length
+				!Number.isNaN(eventDate.getTime()) &&
+				eventDate.getMonth() === currentMonth &&
+				eventDate.getFullYear() === currentYear
 			);
-		}, 0);
-	}, [visibleDevices]);
+		}).length;
+	}, [dashboardMaintenanceHistory, scopedMaintenanceHistory, allMaintenanceHistory]);
 
 	const recentMaintenanceActivity = useMemo(() => {
-		const activity = visibleDevices
-			.flatMap((device: any) => {
-				const history = Array.isArray(device?.maintenanceHistory)
-					? device.maintenanceHistory
-					: [];
-				const deviceName = [device?.type, device?.brand, device?.model]
-					.filter(Boolean)
-					.join(' ')
-					.trim() || 'Device';
-				const propertyId = String(device?.location?.propertyId || '').trim();
-				const propertyName = propertyLookup.get(propertyId)?.title || 'Property';
+		const sourceRecords = dashboardMaintenanceHistory.length
+			? dashboardMaintenanceHistory
+			: scopedMaintenanceHistory.length
+				? scopedMaintenanceHistory
+				: allMaintenanceHistory.filter(isContinuityEvent);
 
-				return history
-					.map((entry: any) => {
-						const timestamp = new Date(entry?.date || '');
-						if (Number.isNaN(timestamp.getTime())) {
-							return null;
-						}
+		const activity = sourceRecords
+			.map((record: any) => {
+				const timestamp = new Date(getMaintenanceEventDate(record) || '');
+				if (Number.isNaN(timestamp.getTime())) {
+					return null;
+				}
 
-						return {
-							id: `${device.id}-${entry?.date || ''}-${entry?.description || ''}`,
-							timestamp,
-							description: String(entry?.description || 'Maintenance event logged').trim(),
-							deviceName,
-							propertyName,
-						};
-					})
+				const recordPropertyId = String(record?.propertyId || '').trim();
+				const propertyName =
+					propertyLookup.get(recordPropertyId)?.title ||
+					String(record?.propertyTitle || '').trim() ||
+					'Property';
+
+				const rawDeviceIds = Array.isArray(record?.deviceIds)
+					? record.deviceIds
+					: Array.isArray(record?.devices)
+						? record.devices
+						: record?.deviceId
+							? [record.deviceId]
+							: [];
+				const normalizedDeviceIds = rawDeviceIds
+					.map((id: any) => String(id).trim())
 					.filter(Boolean);
+
+				const deviceName = normalizedDeviceIds.length
+					? deviceLookup.get(normalizedDeviceIds[0]) || 'Device'
+					: 'Property-level';
+
+				return {
+					id:
+						String(record?.id || '').trim() ||
+						`${recordPropertyId}-${String(record?.completionDate || '')}-${String(record?.title || '')}`,
+					timestamp,
+					description: String(
+						record?.title ||
+						record?.description ||
+						record?.completionNotes ||
+						'Maintenance event logged',
+					).trim(),
+					deviceName,
+					propertyName,
+				};
 			})
+			.filter(Boolean)
 			.sort((a: any, b: any) => b.timestamp.getTime() - a.timestamp.getTime())
 			.slice(0, 8);
 
 		return activity;
-	}, [visibleDevices, propertyLookup]);
+	}, [
+		dashboardMaintenanceHistory,
+		scopedMaintenanceHistory,
+		allMaintenanceHistory,
+		propertyLookup,
+		deviceLookup,
+	]);
 
 	// Property score calculation (100 - penalty for overdue tasks)
 	const propertyScore = useMemo(() => {

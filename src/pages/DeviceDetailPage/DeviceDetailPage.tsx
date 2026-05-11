@@ -24,7 +24,10 @@ import {
 	useUpdateDeviceMutation,
 } from '../../Redux/API/deviceSlice';
 import { useGetTasksQuery } from '../../Redux/API/taskSlice';
-import { useGetMaintenanceHistoryByPropertyQuery } from '../../Redux/API/maintenanceSlice';
+import {
+	useAddMaintenanceHistoryMutation,
+	useGetMaintenanceHistoryByPropertyQuery,
+} from '../../Redux/API/maintenanceSlice';
 import {
 	getMaintenanceEventDate,
 	getMaintenanceEventTitle,
@@ -1006,7 +1009,9 @@ export const DeviceDetailPage: React.FC = () => {
 	const [showTaskModal, setShowTaskModal] = useState(false);
 	const [showRecurringTaskModal, setShowRecurringTaskModal] = useState(false);
 	const [showQuickLogModal, setShowQuickLogModal] = useState(false);
-	const [quickLogMode, setQuickLogMode] = useState<'note' | 'repair' | 'invoice' | 'inspection'>('note');
+	const [quickLogMode, setQuickLogMode] = useState<
+		'note' | 'repair' | 'invoice' | 'inspection' | 'warranty' | 'contractor'
+	>('note');
 	const [quickLogDate, setQuickLogDate] = useState(new Date().toISOString().split('T')[0]);
 	const [quickLogDescription, setQuickLogDescription] = useState('');
 	const [isSavingQuickLog, setIsSavingQuickLog] = useState(false);
@@ -1031,6 +1036,7 @@ export const DeviceDetailPage: React.FC = () => {
 	});
 
 	const [updateDevice] = useUpdateDeviceMutation();
+	const [addMaintenanceHistory] = useAddMaintenanceHistoryMutation();
 
 	const resetPartForm = () => {
 		setPartFormData({
@@ -1073,6 +1079,7 @@ export const DeviceDetailPage: React.FC = () => {
 	const { data: propertyMaintenanceHistory = [] } =
 		useGetMaintenanceHistoryByPropertyQuery(property?.id || '', {
 			skip: !property?.id,
+			refetchOnMountOrArgChange: true,
 		});
 
 	const normalizeIdentifier = (value?: string) =>
@@ -1305,7 +1312,9 @@ export const DeviceDetailPage: React.FC = () => {
 		setShowRecurringTaskModal(true);
 	};
 
-	const openQuickLogModal = (mode: 'note' | 'repair' | 'invoice' | 'inspection') => {
+	const openQuickLogModal = (
+		mode: 'note' | 'repair' | 'invoice' | 'inspection' | 'warranty' | 'contractor',
+	) => {
 		setQuickLogMode(mode);
 		setQuickLogDescription('');
 		setQuickLogDate(new Date().toISOString().split('T')[0]);
@@ -1313,20 +1322,68 @@ export const DeviceDetailPage: React.FC = () => {
 	};
 
 	const handleSaveQuickLog = async () => {
-		if (!device || !quickLogDescription.trim()) return;
+		if (!device || !property || !quickLogDescription.trim()) return;
 		setIsSavingQuickLog(true);
 		try {
-			const prefixMap: Record<'note' | 'repair' | 'invoice' | 'inspection', string> = {
+			const prefixMap: Record<
+				'note' | 'repair' | 'invoice' | 'inspection' | 'warranty' | 'contractor',
+				string
+			> = {
 				'repair': 'Repair logged:',
 				'note': 'Service note added:',
 				'invoice': 'Invoice uploaded:',
 				'inspection': 'Inspection completed:',
+				'warranty': 'Warranty added:',
+				'contractor': 'Contractor visit logged:',
+			};
+			const eventMap: Record<
+				'note' | 'repair' | 'invoice' | 'inspection' | 'warranty' | 'contractor',
+				| 'maintenance_recorded'
+				| 'service_note_added'
+				| 'repair_logged'
+				| 'invoice_uploaded'
+				| 'inspection_completed'
+				| 'warranty_added'
+				| 'contractor_visit_logged'
+			> = {
+				'repair': 'repair_logged',
+				'note': 'service_note_added',
+				'invoice': 'invoice_uploaded',
+				'inspection': 'inspection_completed',
+				'warranty': 'warranty_added',
+				'contractor': 'contractor_visit_logged',
+			};
+			const sourceMap: Record<
+				'note' | 'repair' | 'invoice' | 'inspection' | 'warranty' | 'contractor',
+				'device_log' | 'manual_entry' | 'contractor_entry'
+			> = {
+				'repair': 'device_log',
+				'note': 'device_log',
+				'invoice': 'device_log',
+				'inspection': 'device_log',
+				'warranty': 'manual_entry',
+				'contractor': 'contractor_entry',
 			};
 			const descriptionPrefix = prefixMap[quickLogMode];
+			const descriptionText = quickLogDescription.trim();
+
+			await addMaintenanceHistory({
+				propertyId: property.id,
+				propertyTitle: property.title,
+				title: `${descriptionPrefix} ${descriptionText}`,
+				description: descriptionText,
+				completionDate: new Date(quickLogDate).toISOString(),
+				unitId: device.location?.unitId,
+				deviceIds: [device.id],
+				eventType: eventMap[quickLogMode],
+				eventSource: sourceMap[quickLogMode],
+				tags: ['device', quickLogMode],
+			}).unwrap();
+
 			const nextEntries = [
 				{
 					date: quickLogDate,
-					description: `${descriptionPrefix} ${quickLogDescription.trim()}`,
+					description: `${descriptionPrefix} ${descriptionText}`,
 				},
 				...(Array.isArray(device.maintenanceHistory) ? device.maintenanceHistory : []),
 			];
@@ -1371,6 +1428,27 @@ export const DeviceDetailPage: React.FC = () => {
 		if (!file || !device || !property) return;
 		try {
 			const uploaded = await uploadDeviceFile(file, property.id, device.id);
+
+			await addMaintenanceHistory({
+				propertyId: property.id,
+				propertyTitle: property.title,
+				title: /warranty|guarantee/i.test(file.name)
+					? `Warranty added: ${file.name}`
+					: `Document uploaded: ${file.name}`,
+				description: file.name,
+				completionDate: new Date().toISOString(),
+				unitId: device.location?.unitId,
+				deviceIds: [device.id],
+				eventType: /warranty|guarantee/i.test(file.name)
+					? 'warranty_added'
+					: 'document_uploaded',
+				eventSource: 'document_upload',
+				completionFileData: uploaded,
+				tags: /warranty|guarantee/i.test(file.name)
+					? ['device', 'document', 'warranty']
+					: ['device', 'document'],
+			}).unwrap();
+
 			const nextEntries = [
 				{
 					date: new Date().toISOString(),
@@ -1800,6 +1878,14 @@ export const DeviceDetailPage: React.FC = () => {
 							<QuickActionButton type='button' onClick={() => openQuickLogModal('inspection')}>
 								<strong>Log Inspection</strong>
 								<span>Document findings and recommendations from inspections.</span>
+							</QuickActionButton>
+							<QuickActionButton type='button' onClick={() => openQuickLogModal('warranty')}>
+								<strong>Log Warranty</strong>
+								<span>Capture coverage terms and warranty lifecycle notes.</span>
+							</QuickActionButton>
+							<QuickActionButton type='button' onClick={() => openQuickLogModal('contractor')}>
+								<strong>Log Contractor Visit</strong>
+								<span>Document who visited, what they found, and next steps.</span>
 							</QuickActionButton>
 						</QuickActionGrid>
 						<QuickActionHint>
@@ -2365,7 +2451,11 @@ export const DeviceDetailPage: React.FC = () => {
 							? 'Log Invoice'
 							: quickLogMode === 'inspection'
 								? 'Log Inspection'
-								: 'Add Service Note'
+								: quickLogMode === 'warranty'
+									? 'Log Warranty'
+									: quickLogMode === 'contractor'
+										? 'Log Contractor Visit'
+										: 'Add Service Note'
 				}
 				onClose={() => setShowQuickLogModal(false)}
 				onSubmit={handleSaveQuickLog}
@@ -2386,11 +2476,23 @@ export const DeviceDetailPage: React.FC = () => {
 							<FormLabel>Type</FormLabel>
 							<FormSelect
 								value={quickLogMode}
-								onChange={(e) => setQuickLogMode(e.target.value as 'note' | 'repair' | 'invoice' | 'inspection')}>
+								onChange={(e) =>
+									setQuickLogMode(
+										e.target.value as
+											| 'note'
+											| 'repair'
+											| 'invoice'
+											| 'inspection'
+											| 'warranty'
+												| 'contractor'
+										)
+								}>
 								<option value='note'>Service Note</option>
 								<option value='repair'>Repair</option>
 								<option value='invoice'>Invoice</option>
 								<option value='inspection'>Inspection</option>
+								<option value='warranty'>Warranty</option>
+								<option value='contractor'>Contractor Visit</option>
 							</FormSelect>
 						</FormField>
 					</FormRow>
@@ -2404,7 +2506,11 @@ export const DeviceDetailPage: React.FC = () => {
 										? 'Invoice number, amount, and service details.'
 										: quickLogMode === 'inspection'
 											? 'Inspection findings, recommendations, and any issues noted.'
-											: 'Add a note that should stay with the maintenance record.'
+											: quickLogMode === 'warranty'
+												? 'Warranty provider, coverage details, and expiration notes.'
+												: quickLogMode === 'contractor'
+													? 'Contractor name, scope of visit, and recommended follow-up.'
+													: 'Add a note that should stay with the maintenance record.'
 							}
 							value={quickLogDescription}
 							onChange={(e) => setQuickLogDescription(e.target.value)}
