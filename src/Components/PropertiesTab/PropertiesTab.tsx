@@ -685,6 +685,28 @@ export const Properties = () => {
 			}
 		} else {
 			// Add new property
+			if (!currentUser?.subscription) {
+				feedback.notify('Unable to verify subscription. Please contact support.');
+				throw new Error('Missing subscription data');
+			}
+
+			if (
+				!canAddProperty(
+					currentUser.subscription,
+					totalProperties,
+					currentUser.role,
+				)
+			) {
+				const planDetails = getSubscriptionPlanDetails(currentUser.subscription.plan);
+				const maxProperties = planDetails?.maxProperties || 1;
+				feedback.notify(
+					`Your ${planDetails?.name || 'current'} plan allows up to ${maxProperties} properties. ` +
+						`You currently have ${totalProperties} properties. ` +
+						`Please upgrade your plan to add more properties.`,
+				);
+				throw new Error('Property limit reached');
+			}
+
 			const slug = formData.name
 				.toLowerCase()
 				.replace(/\s+/g, '-')

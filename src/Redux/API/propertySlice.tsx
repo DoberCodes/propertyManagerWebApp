@@ -8,6 +8,7 @@ import {
 	addDoc,
 	updateDoc,
 	deleteDoc,
+	runTransaction,
 } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { auth, db, functions } from '../../config/firebase';
@@ -23,6 +24,7 @@ import {
 	resolveAccessibleAccountIds,
 	resolveTargetUserId,
 } from './accountContext';
+import { getMaxPropertiesForPlan } from '../../utils/subscriptionUtils';
 
 const PROPERTY_GROUP_MEMBERSHIPS_COLLECTION = 'propertyGroupMemberships';
 
@@ -934,12 +936,41 @@ const propertySlice = apiSlice.injectEndpoints({
 						syncSubscription: false,
 					});
 
-					const docRef = await addDoc(collection(db, 'properties'), {
-						...newProperty,
-						userId: targetUserId, // Ensure property is owned by account owner
-						accountId: targetUserId,
-						createdAt: new Date().toISOString(),
-						updatedAt: new Date().toISOString(),
+					const accountRef = doc(db, 'familyAccounts', targetUserId);
+					const propertyRef = doc(collection(db, 'properties'));
+
+					await runTransaction(db, async (transaction) => {
+						const userSnapshot = await transaction.get(
+							doc(db, 'users', targetUserId),
+						);
+						const userData = userSnapshot.data() || {};
+						const subscription = userData.subscription || {};
+						const planId = subscription.plan || 'home';
+						const maxProperties = getMaxPropertiesForPlan(planId);
+
+						const accountSnapshot = await transaction.get(accountRef);
+						const accountData = accountSnapshot.data() || {};
+						const currentPropertyCount = Number(accountData.propertyCount || 0);
+
+						if (currentPropertyCount >= maxProperties) {
+							throw new Error(
+								`Property limit reached for current plan (${maxProperties} max).`,
+							);
+						}
+
+						const nowIso = new Date().toISOString();
+						transaction.set(propertyRef, {
+							...newProperty,
+							userId: targetUserId,
+							accountId: targetUserId,
+							createdAt: nowIso,
+							updatedAt: nowIso,
+						});
+
+						transaction.update(accountRef, {
+							propertyCount: currentPropertyCount + 1,
+							updatedAt: nowIso,
+						});
 					});
 
 					if (newProperty.groupId) {
@@ -947,7 +978,7 @@ const propertySlice = apiSlice.injectEndpoints({
 							await upsertPropertyGroupMembership({
 								accountId: targetUserId,
 								groupId: newProperty.groupId,
-								propertyId: docRef.id,
+								propertyId: propertyRef.id,
 								sortOrder: Date.now(),
 							});
 						} catch (membershipError) {
@@ -958,7 +989,7 @@ const propertySlice = apiSlice.injectEndpoints({
 						}
 					}
 
-					const savedSnapshot = await getDoc(doc(db, 'properties', docRef.id));
+					const savedSnapshot = await getDoc(doc(db, 'properties', propertyRef.id));
 					const savedData = docToData(savedSnapshot) as Property;
 					return { data: savedData };
 				} catch (error: any) {
@@ -1025,8 +1056,23 @@ const propertySlice = apiSlice.injectEndpoints({
 					const propertyData = propertySnapshot.data() || {};
 					const accountId = String(propertyData.accountId || '').trim() || undefined;
 
-					// Delete the property
-					await deleteDoc(propertyRef);
+					if (accountId) {
+						const accountRef = doc(db, 'familyAccounts', accountId);
+						await runTransaction(db, async (transaction) => {
+							const accountSnapshot = await transaction.get(accountRef);
+							const accountData = accountSnapshot.data() || {};
+							const currentPropertyCount = Number(accountData.propertyCount || 0);
+							const nowIso = new Date().toISOString();
+
+							transaction.delete(propertyRef);
+							transaction.update(accountRef, {
+								propertyCount: Math.max(0, currentPropertyCount - 1),
+								updatedAt: nowIso,
+							});
+						});
+					} else {
+						await deleteDoc(propertyRef);
+					}
 
 					// Best-effort cleanup: do not fail the mutation if non-critical cleanup
 					// lacks permissions in multi-user/shared scenarios.

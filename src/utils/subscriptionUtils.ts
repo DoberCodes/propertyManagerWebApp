@@ -19,6 +19,22 @@ export interface SubscriptionData {
 	scheduledPlan?: string;
 }
 
+const LEGACY_PLAN_ALIASES: Record<string, string> = {
+	free: 'home',
+	homeowner: 'home',
+	basic: 'property',
+	professional: 'portfolio',
+};
+
+const resolvePlanId = (planId: string): string => {
+	return LEGACY_PLAN_ALIASES[planId] || planId;
+};
+
+const getPlanById = (planId: string) => {
+	const normalizedPlanId = resolvePlanId(planId);
+	return Object.values(SUBSCRIPTION_PLANS).find((p) => p.id === normalizedPlanId);
+};
+
 /**
  * Calculate trial end date
  */
@@ -134,8 +150,16 @@ export const createTrialSubscription = (
  * Get the maximum number of properties allowed for a subscription plan
  */
 export const getMaxPropertiesForPlan = (planId: string): number => {
-	const plan = Object.values(SUBSCRIPTION_PLANS).find((p) => p.id === planId);
+	const plan = getPlanById(planId);
 	return plan?.maxProperties || 1; // Default to 1 if plan not found
+};
+
+/**
+ * Get the maximum number of devices allowed for a subscription plan
+ */
+export const getMaxDevicesForPlan = (planId: string): number => {
+	const plan = getPlanById(planId);
+	return plan?.maxDevices || 8; // Default to Home tier if plan not found
 };
 
 /**
@@ -172,6 +196,36 @@ export const getRemainingPropertySlots = (
 
 	const maxProperties = getMaxPropertiesForPlan(subscription.plan);
 	return Math.max(0, maxProperties - currentPropertyCount);
+};
+
+/**
+ * Check if user can add more devices based on their subscription
+ */
+export const canAddDevice = (
+	subscription: SubscriptionData,
+	currentDeviceCount: number,
+): boolean => {
+	if (!isSubscriptionActive(subscription)) {
+		return false;
+	}
+
+	const maxDevices = getMaxDevicesForPlan(subscription.plan);
+	return currentDeviceCount < maxDevices;
+};
+
+/**
+ * Get remaining device slots for a subscription
+ */
+export const getRemainingDeviceSlots = (
+	subscription: SubscriptionData,
+	currentDeviceCount: number,
+): number => {
+	if (!isSubscriptionActive(subscription)) {
+		return 0;
+	}
+
+	const maxDevices = getMaxDevicesForPlan(subscription.plan);
+	return Math.max(0, maxDevices - currentDeviceCount);
 };
 
 /**
@@ -278,5 +332,5 @@ export const canViewTenantInfo = (subscription: SubscriptionData): boolean => {
  * Get subscription plan details
  */
 export const getSubscriptionPlanDetails = (planId: string) => {
-	return Object.values(SUBSCRIPTION_PLANS).find((p) => p.id === planId);
+	return getPlanById(planId);
 };

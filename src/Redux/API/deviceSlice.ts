@@ -8,6 +8,7 @@ import {
 	addDoc,
 	updateDoc,
 	deleteDoc,
+	runTransaction,
 } from 'firebase/firestore';
 import { auth } from '../../config/firebase';
 import { db } from '../../config/firebase';
@@ -17,6 +18,7 @@ import {
 	resolveAccessibleAccountIds,
 	resolveTargetUserId,
 } from './accountContext';
+import { getMaxDevicesForPlan } from '../../utils/subscriptionUtils';
 
 const deviceSlice = apiSlice.injectEndpoints({
 	endpoints: (builder) => ({
@@ -106,16 +108,46 @@ const deviceSlice = apiSlice.injectEndpoints({
 						return { error: 'User not authenticated' };
 					}
 					const targetUserId = await resolveTargetUserId();
-					const docRef = await addDoc(collection(db, 'devices'), {
-						...newDevice,
-						userId: targetUserId,
-						accountId: targetUserId,
-						createdAt: new Date().toISOString(),
-						updatedAt: new Date().toISOString(),
+
+					const accountRef = doc(db, 'familyAccounts', targetUserId);
+					const deviceRef = doc(collection(db, 'devices'));
+
+					await runTransaction(db, async (transaction) => {
+						const userSnapshot = await transaction.get(
+							doc(db, 'users', targetUserId),
+						);
+						const userData = userSnapshot.data() || {};
+						const subscription = userData.subscription || {};
+						const planId = subscription.plan || 'home';
+						const maxDevices = getMaxDevicesForPlan(planId);
+
+						const accountSnapshot = await transaction.get(accountRef);
+						const accountData = accountSnapshot.data() || {};
+						const currentDeviceCount = Number(accountData.deviceCount || 0);
+
+						if (currentDeviceCount >= maxDevices) {
+							throw new Error(
+								`Device limit reached for current plan (${maxDevices} max).`,
+							);
+						}
+
+						const nowIso = new Date().toISOString();
+						transaction.set(deviceRef, {
+							...newDevice,
+							userId: targetUserId,
+							accountId: targetUserId,
+							createdAt: nowIso,
+							updatedAt: nowIso,
+						});
+
+						transaction.update(accountRef, {
+							deviceCount: currentDeviceCount + 1,
+							updatedAt: nowIso,
+						});
 					});
 					return {
 						data: {
-							id: docRef.id,
+							id: deviceRef.id,
 							...newDevice,
 							userId: targetUserId,
 							accountId: targetUserId,
@@ -150,7 +182,28 @@ const deviceSlice = apiSlice.injectEndpoints({
 		deleteDevice: builder.mutation<void, string>({
 			async queryFn(deviceId: string) {
 				try {
-					await deleteDoc(doc(db, 'devices', deviceId));
+					const deviceRef = doc(db, 'devices', deviceId);
+					const deviceSnapshot = await getDoc(deviceRef);
+					const deviceData = deviceSnapshot.data() || {};
+					const accountId = String(deviceData.accountId || '').trim() || undefined;
+
+					if (accountId) {
+						const accountRef = doc(db, 'familyAccounts', accountId);
+						await runTransaction(db, async (transaction) => {
+							const accountSnapshot = await transaction.get(accountRef);
+							const accountData = accountSnapshot.data() || {};
+							const currentDeviceCount = Number(accountData.deviceCount || 0);
+							const nowIso = new Date().toISOString();
+
+							transaction.delete(deviceRef);
+							transaction.update(accountRef, {
+								deviceCount: Math.max(0, currentDeviceCount - 1),
+								updatedAt: nowIso,
+							});
+						});
+					} else {
+						await deleteDoc(deviceRef);
+					}
 					return { data: undefined };
 				} catch (error: any) {
 					return { error: error.message };

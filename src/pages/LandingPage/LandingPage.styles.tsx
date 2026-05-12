@@ -6,13 +6,15 @@ export const Wrapper = styled.div`
 	width: 100%;
 	background-color: ${COLORS.bgWhite};
 	margin-top: 80px;
+	padding-top: max(env(safe-area-inset-top), 0px);
 
 	@media (max-width: 1024px) {
 		margin-top: 70px;
 	}
 
 	@media (max-width: 480px) {
-		margin-top: 140px;
+		margin-top: 128px;
+		padding-top: max(env(safe-area-inset-top), 8px);
 	}
 `;
 
@@ -20,12 +22,12 @@ export const Wrapper = styled.div`
 
 export const Hero = styled.section`
 	width: 100%;
-	min-height: 100vh;
+	min-height: 84vh;
 	display: flex;
 	align-items: center;
 	justify-content: center;
 	gap: 60px;
-	padding: 160px 40px 80px 40px;
+	padding: 128px 40px 64px 40px;
 	background: linear-gradient(
 		135deg,
 		${COLORS.bgLight} 0%,
@@ -50,17 +52,17 @@ export const Hero = styled.section`
 	@media (max-width: 1024px) {
 		flex-direction: column;
 		gap: 40px;
-		padding: 140px 30px 60px 30px;
+		padding: 108px 30px 46px 30px;
 	}
 
 	@media (max-width: 1024px) {
-		padding: 120px 20px 40px 20px;
+		padding: 94px 20px 34px 20px;
 		min-height: auto;
 		gap: 30px;
 	}
 
 	@media (max-width: 480px) {
-		padding: 180px 16px 30px 16px;
+		padding: 126px 16px 20px 16px;
 	}
 `;
 
@@ -257,6 +259,408 @@ export const StoryText = styled.p`
 		font-size: 14px;
 		margin-bottom: 16px;
 	}
+`;
+
+export const WhySection = styled.section`
+	width: 100%;
+	padding: 92px 40px;
+	background: linear-gradient(180deg, ${COLORS.bgLight} 0%, #f8fbff 100%);
+	position: relative;
+
+	@media (max-width: 1024px) {
+		padding: 60px 20px;
+	}
+
+	@media (max-width: 480px) {
+		padding: 44px 16px;
+	}
+`;
+
+export const WhySectionInner = styled.div`
+	max-width: 1200px;
+	margin: 0 auto;
+`;
+
+export const WhyTitle = styled.h2`
+	font-size: 46px;
+	font-weight: 800;
+	text-align: center;
+	margin: 0 0 16px 0;
+	background: ${COLORS.gradientPrimary};
+	-webkit-background-clip: text;
+	-webkit-text-fill-color: transparent;
+	background-clip: text;
+
+	@media (max-width: 1024px) {
+		font-size: 34px;
+	}
+
+	@media (max-width: 480px) {
+		font-size: 28px;
+	}
+`;
+
+export const WhyIntro = styled.p`
+	max-width: 820px;
+	margin: 0 auto 28px auto;
+	text-align: center;
+	font-size: 17px;
+	line-height: 1.65;
+	color: ${COLORS.textSecondary};
+
+	@media (max-width: 1024px) {
+		font-size: 15px;
+	}
+
+	@media (max-width: 480px) {
+		font-size: 14px;
+		margin-bottom: 20px;
+	}
+`;
+
+export const WhyGrid = styled.div`
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 16px;
+	margin-bottom: 18px;
+
+	@media (max-width: 1024px) {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+
+	@media (max-width: 640px) {
+		grid-template-columns: 1fr;
+	}
+`;
+
+export const WhyCard = styled.div`
+	background: ${COLORS.bgWhite};
+	border: 1px solid #e8edf3;
+	border-radius: 14px;
+	padding: 22px 20px;
+	box-shadow: ${COLORS.shadow};
+
+	@media (max-width: 480px) {
+		padding: 18px 16px;
+	}
+`;
+
+export const WhyCardTitle = styled.h3`
+	font-size: 18px;
+	font-weight: 800;
+	margin: 0 0 10px 0;
+	color: ${COLORS.textPrimary};
+`;
+
+export const WhyCardText = styled.p`
+	font-size: 15px;
+	line-height: 1.6;
+	color: ${COLORS.textSecondary};
+	margin: 0;
+`;
+
+export const WhyCallout = styled.div`
+	max-width: 880px;
+	margin: 0 auto;
+	padding: 18px 20px;
+	border-radius: 14px;
+	border: 1px solid rgba(34, 197, 94, 0.2);
+	background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%);
+	box-shadow: 0 8px 22px rgba(16, 185, 129, 0.08);
+	font-size: 15px;
+	line-height: 1.7;
+	color: #14532d;
+
+	@media (max-width: 480px) {
+		padding: 16px;
+		font-size: 14px;
+	}
+`;
+
+export const TimelineSection = styled.section`
+	width: 100%;
+	padding: 92px 40px;
+	background: ${COLORS.bgWhite};
+
+	@media (max-width: 1024px) {
+		padding: 60px 20px;
+	}
+
+	@media (max-width: 480px) {
+		padding: 44px 16px;
+	}
+`;
+
+export const TimelineShell = styled.div`
+	max-width: 1100px;
+	margin: 0 auto;
+`;
+
+export const TimelineHeader = styled.h2`
+	font-size: 42px;
+	font-weight: 800;
+	text-align: center;
+	margin: 0 0 14px 0;
+	background: ${COLORS.gradientPrimary};
+	-webkit-background-clip: text;
+	-webkit-text-fill-color: transparent;
+	background-clip: text;
+
+	@media (max-width: 1024px) {
+		font-size: 32px;
+	}
+
+	@media (max-width: 480px) {
+		font-size: 26px;
+	}
+`;
+
+export const TimelineIntro = styled.p`
+	max-width: 760px;
+	margin: 0 auto 28px auto;
+	text-align: center;
+	font-size: 16px;
+	line-height: 1.65;
+	color: ${COLORS.textSecondary};
+
+	@media (max-width: 480px) {
+		font-size: 14px;
+		margin-bottom: 22px;
+	}
+`;
+
+export const TimelineCard = styled.div`
+	background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+	border: 1px solid #e8edf3;
+	border-radius: 18px;
+	padding: 18px;
+	box-shadow: ${COLORS.shadow};
+`;
+
+export const TimelineList = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+`;
+
+export const TimelineRow = styled.div`
+	display: flex;
+	align-items: flex-start;
+	gap: 14px;
+	padding: 10px 2px;
+
+	@media (max-width: 480px) {
+		gap: 10px;
+		padding: 8px 0;
+	}
+`;
+
+export const TimelineRail = styled.div`
+	position: relative;
+	width: 18px;
+	flex-shrink: 0;
+	display: flex;
+	justify-content: center;
+
+	&::before {
+		content: '';
+		position: absolute;
+		top: 0;
+		bottom: -18px;
+		width: 2px;
+		border-radius: 999px;
+		background: linear-gradient(180deg, rgba(34, 197, 94, 0.9), rgba(59, 130, 246, 0.22));
+	}
+
+	&::after {
+		content: '';
+		position: relative;
+		width: 10px;
+		height: 10px;
+		margin-top: 2px;
+		border-radius: 999px;
+		background: ${COLORS.gradientPrimary};
+		box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.12);
+	}
+`;
+
+export const TimelineContent = styled.div`
+	flex: 1;
+	min-width: 0;
+`;
+
+export const TimelineTitle = styled.div`
+	font-size: 0.92rem;
+	font-weight: 700;
+	color: ${COLORS.textPrimary};
+	line-height: 1.45;
+`;
+
+export const TimelineMeta = styled.div`
+	font-size: 0.8rem;
+	font-weight: 500;
+	color: ${COLORS.textSecondary};
+	margin-top: 4px;
+`;
+
+export const OwnershipSection = styled.section`
+	width: 100%;
+	padding: 84px 40px;
+	background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
+
+	@media (max-width: 1024px) {
+		padding: 56px 20px;
+	}
+
+	@media (max-width: 480px) {
+		padding: 40px 16px;
+	}
+`;
+
+export const OwnershipShell = styled.div`
+	max-width: 1120px;
+	margin: 0 auto;
+`;
+
+export const OwnershipHeader = styled.h2`
+	font-size: 42px;
+	font-weight: 800;
+	text-align: center;
+	margin: 0 0 14px 0;
+	background: ${COLORS.gradientPrimary};
+	-webkit-background-clip: text;
+	-webkit-text-fill-color: transparent;
+	background-clip: text;
+
+	@media (max-width: 1024px) {
+		font-size: 32px;
+	}
+
+	@media (max-width: 480px) {
+		font-size: 26px;
+	}
+`;
+
+export const OwnershipIntro = styled.p`
+	max-width: 780px;
+	margin: 0 auto 26px auto;
+	text-align: center;
+	font-size: 16px;
+	line-height: 1.65;
+	color: ${COLORS.textSecondary};
+
+	@media (max-width: 480px) {
+		font-size: 14px;
+		margin-bottom: 20px;
+	}
+`;
+
+export const OwnershipGrid = styled.div`
+	display: grid;
+	grid-template-columns: 1.1fr 1fr;
+	gap: 18px;
+
+	@media (max-width: 1024px) {
+		grid-template-columns: 1fr;
+	}
+`;
+
+export const OwnershipListCard = styled.div`
+	background: ${COLORS.bgWhite};
+	border: 1px solid #e8edf3;
+	border-radius: 16px;
+	padding: 18px;
+	box-shadow: ${COLORS.shadow};
+`;
+
+export const OwnershipList = styled.ul`
+	list-style: none;
+	padding: 0;
+	margin: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+`;
+
+export const OwnershipListItem = styled.li`
+	font-size: 0.92rem;
+	line-height: 1.5;
+	color: ${COLORS.textPrimary};
+	padding: 10px 12px;
+	border-radius: 10px;
+	background: #f8fafc;
+	border: 1px solid #edf2f7;
+`;
+
+export const OwnershipVisualCard = styled.div`
+	background: linear-gradient(180deg, #ffffff 0%, #f9fbff 100%);
+	border: 1px solid #dbe7f6;
+	border-radius: 16px;
+	padding: 18px;
+	box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
+`;
+
+export const OwnershipDeviceHeader = styled.div`
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 12px;
+	padding-bottom: 12px;
+	border-bottom: 1px solid #edf2f7;
+`;
+
+export const OwnershipDeviceTitle = styled.h3`
+	margin: 0;
+	font-size: 1.05rem;
+	font-weight: 800;
+	color: ${COLORS.textPrimary};
+`;
+
+export const OwnershipDeviceMeta = styled.div`
+	font-size: 0.78rem;
+	font-weight: 600;
+	color: ${COLORS.textSecondary};
+	margin-top: 4px;
+`;
+
+export const OwnershipDeviceBadge = styled.span`
+	display: inline-flex;
+	align-items: center;
+	padding: 4px 10px;
+	border-radius: 999px;
+	font-size: 0.72rem;
+	font-weight: 700;
+	color: #1d4ed8;
+	background: #eff6ff;
+	border: 1px solid #bfdbfe;
+	white-space: nowrap;
+`;
+
+export const OwnershipEventList = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	margin-top: 12px;
+`;
+
+export const OwnershipEventItem = styled.div`
+	padding: 10px 12px;
+	border-radius: 10px;
+	background: #f8fafc;
+	border: 1px solid #edf2f7;
+`;
+
+export const OwnershipEventTitle = styled.div`
+	font-size: 0.85rem;
+	font-weight: 700;
+	color: ${COLORS.textPrimary};
+`;
+
+export const OwnershipEventMeta = styled.div`
+	font-size: 0.76rem;
+	font-weight: 500;
+	color: ${COLORS.textSecondary};
+	margin-top: 3px;
 `;
 
 /* ============ OUR MISSION SECTION ============ */
@@ -848,6 +1252,140 @@ export const PricingActionLink = styled.button`
 	color: ${COLORS.secondaryDark};
 	cursor: pointer;
 	text-decoration: underline;
+`;
+
+/* ============ SCREENSHOT FLOW SECTION ============ */
+
+export const JourneySection = styled.section`
+	width: 100%;
+	padding: 92px 40px;
+	background: ${COLORS.bgWhite};
+
+	@media (max-width: 1024px) {
+		padding: 60px 20px;
+	}
+
+	@media (max-width: 480px) {
+		padding: 44px 16px;
+	}
+`;
+
+export const JourneyShell = styled.div`
+	max-width: 1200px;
+	margin: 0 auto;
+`;
+
+export const JourneyHeader = styled.h2`
+	font-size: 40px;
+	font-weight: 800;
+	text-align: center;
+	margin: 0 0 12px 0;
+	background: ${COLORS.gradientPrimary};
+	-webkit-background-clip: text;
+	-webkit-text-fill-color: transparent;
+	background-clip: text;
+
+	@media (max-width: 1024px) {
+		font-size: 32px;
+	}
+
+	@media (max-width: 480px) {
+		font-size: 26px;
+	}
+`;
+
+export const JourneyIntro = styled.p`
+	max-width: 760px;
+	margin: 0 auto 28px auto;
+	text-align: center;
+	font-size: 16px;
+	line-height: 1.65;
+	color: ${COLORS.textSecondary};
+
+	@media (max-width: 480px) {
+		font-size: 14px;
+		margin-bottom: 22px;
+	}
+`;
+
+export const JourneyGrid = styled.div`
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 18px;
+
+	@media (max-width: 1024px) {
+		grid-template-columns: 1fr;
+	}
+`;
+
+export const JourneyCard = styled.article<{ $visible?: boolean }>`
+	border-radius: 16px;
+	border: 1px solid #e8edf3;
+	background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+	overflow: hidden;
+	box-shadow: ${COLORS.shadow};
+	opacity: ${(p) => (p.$visible ? 1 : 0)};
+	transform: ${(p) => (p.$visible ? 'translateY(0)' : 'translateY(18px)')};
+	transition: opacity 0.55s ease, transform 0.55s ease;
+
+	&:nth-child(2) {
+		transition-delay: 0.1s;
+	}
+
+	&:nth-child(3) {
+		transition-delay: 0.18s;
+	}
+
+	@media (max-width: 480px) {
+		transition: opacity 0.35s ease, transform 0.35s ease;
+
+		&:nth-child(2) {
+			transition-delay: 0.06s;
+		}
+
+		&:nth-child(3) {
+			transition-delay: 0.11s;
+		}
+	}
+`;
+
+export const JourneyStep = styled.div`
+	display: inline-flex;
+	align-items: center;
+	padding: 4px 10px;
+	border-radius: 999px;
+	border: 1px solid #bfdbfe;
+	background: #eff6ff;
+	font-size: 0.72rem;
+	font-weight: 700;
+	color: #1d4ed8;
+	margin-bottom: 10px;
+`;
+
+export const JourneyImage = styled.img`
+	width: 100%;
+	height: auto;
+	display: block;
+	border-bottom: 1px solid #e8edf3;
+	object-fit: cover;
+`;
+
+export const JourneyCardBody = styled.div`
+	padding: 14px 14px 16px 14px;
+`;
+
+export const JourneyCardTitle = styled.h3`
+	margin: 0 0 6px 0;
+	font-size: 1rem;
+	font-weight: 800;
+	color: ${COLORS.textPrimary};
+`;
+
+export const JourneyCardText = styled.p`
+	margin: 0;
+	font-size: 0.86rem;
+	line-height: 1.55;
+	color: ${COLORS.textSecondary};
 `;
 
 /* ============ BENEFITS SECTION ============ */

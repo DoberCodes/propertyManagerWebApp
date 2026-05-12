@@ -185,16 +185,16 @@ export async function registerNewAccount(
 	await lastNameInput.waitFor({ state: 'visible', timeout: 10000 });
 	await lastNameInput.fill('User');
 
-	// Select homeowner radio button
-	const homeownerRadio = page
-		.getByRole('radio', { name: /homeowner/i })
+	// Select home radio button
+	const homeRadio = page
+		.getByRole('radio', { name: /home/i })
 		.first();
-	const isHomeownerVisible = await homeownerRadio
+	const isHomeVisible = await homeRadio
 		.isVisible({ timeout: 5000 })
 		.catch(() => false);
-	if (isHomeownerVisible) {
+	if (isHomeVisible) {
 		await suppressDevServerOverlay(page);
-		await homeownerRadio.click();
+		await homeRadio.click();
 		await page.waitForTimeout(300);
 	}
 

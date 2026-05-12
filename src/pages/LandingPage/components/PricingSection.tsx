@@ -39,44 +39,72 @@ import {
 } from '../LandingPage.styles';
 
 const paidPlans = [
-	SUBSCRIPTION_PLANS.HOMEOWNER,
-	SUBSCRIPTION_PLANS.BASIC,
-	SUBSCRIPTION_PLANS.PROFESSIONAL,
+	SUBSCRIPTION_PLANS.HOME,
+	SUBSCRIPTION_PLANS.PROPERTY,
+	SUBSCRIPTION_PLANS.PORTFOLIO,
 ];
 
-const permissionComparisonRows = [
-	{ id: 'exportReports', key: 'canExportData', label: 'Export reports' },
-	{
-		id: 'multiUnitSupport',
-		key: 'canManageMultiUnit',
-		label: 'Multi-unit property support',
-	},
-	{
-		id: 'maintenanceRequestIntake',
-		key: 'canManageTenants',
-		label: 'Maintenance request intake',
-	},
-	{
-		id: 'advancedAuditTrail',
-		key: 'canAdvancedAuditTrail',
-		label: 'Advanced audit trail depth',
-	},
-	{ id: 'tenantManagement', key: 'canManageTenants', label: 'Tenant management' },
-	{ id: 'manageTeamMembers', key: 'canManageTeam', label: 'Manage team members' },
-	{ id: 'advancedReports', key: 'canViewReports', label: 'Advanced reports' },
-	{ id: 'prioritySupport', key: 'prioritySupport', label: 'Priority support' },
-] as const;
+const cardFeatureHighlights: Record<string, string[]> = {
+	home: [
+		'1 property included',
+		'Up to 8 devices & systems',
+		'Maintenance history tracking',
+		'Recurring maintenance scheduling',
+	],
+	property: [
+		'Up to 3 properties included',
+		'Unlimited devices & systems',
+		'Advanced search & retrieval',
+		'Property reports & exports',
+	],
+	portfolio: [
+		'Up to 15 properties included',
+		'Team collaboration',
+		'Tenant maintenance requests',
+		'Role-based access',
+	],
+};
 
-const coreFeatureComparisonRows = [
-	{ label: 'Maintenance history', values: [true, true, true] },
-	{ label: 'Task management', values: [true, true, true] },
-	{ label: 'Device management', values: [true, true, true] },
-	{ label: 'Contractor tracking', values: [true, true, true] },
-	{ label: 'Photo & document uploads', values: [true, true, true] },
+const quickComparisonRows = [
+	{ label: 'Properties included', values: ['1', 'Up to 3', 'Up to 15'] },
+	{ label: 'Devices & systems', values: ['Up to 8', 'Unlimited', 'Unlimited'] },
+	{ label: 'Maintenance history tracking', values: [true, true, true] },
+	{ label: 'Recurring maintenance scheduling', values: [true, true, true] },
+	{ label: 'Document & photo storage', values: [true, true, true] },
+	{ label: 'Advanced search & retrieval', values: [false, true, true] },
+	{ label: 'Property reports & exports', values: [false, true, true] },
+	{ label: 'Warranty tracking', values: [false, true, true] },
+	{ label: 'Linked parts & supplies', values: [false, true, true] },
+	{ label: 'Team collaboration', values: [false, false, true] },
+	{ label: 'Tenant maintenance requests', values: [false, false, true] },
+	{ label: 'Role-based access', values: [false, false, true] },
+	{ label: 'Property groups', values: [false, false, true] },
+	{ label: 'Advanced analytics', values: [false, false, true] },
+	{ label: 'Priority support', values: [false, false, true] },
 ] as const;
 
 const PricingSectionComponent = () => {
 	const navigate = useNavigate();
+
+	const renderComparisonValue = (value: boolean | string) => {
+		if (typeof value === 'boolean') {
+			return value ? (
+				<PricingCheck>
+					<FontAwesomeIcon icon={faCheck} />
+				</PricingCheck>
+			) : (
+				<PricingX>
+					<FontAwesomeIcon icon={faTimes} />
+				</PricingX>
+			);
+		}
+
+		return value;
+	};
+
+	const getCardHighlights = (planId: string, fallbackFeatures: string[]) => {
+		return cardFeatureHighlights[planId] || fallbackFeatures.slice(0, 4);
+	};
 
 	return (
 		<PricingSection id='Pricing'>
@@ -103,7 +131,7 @@ const PricingSectionComponent = () => {
 							{plan.maxProperties === 1 ? 'property' : 'properties'}
 						</PricingMeta>
 						<PricingFeatureList>
-							{plan.features.slice(0, 4).map((feature) => (
+							{getCardHighlights(plan.id, plan.features).map((feature) => (
 								<PricingFeatureItem key={feature}>{feature}</PricingFeatureItem>
 							))}
 						</PricingFeatureList>
@@ -116,52 +144,16 @@ const PricingSectionComponent = () => {
 				<PricingTable>
 					<PricingTableHead>
 						<PricingTableCell className='head-cell'>Feature</PricingTableCell>
-						<PricingTableCell className='head-cell'>Homeowner</PricingTableCell>
-						<PricingTableCell className='head-cell'>Basic</PricingTableCell>
-						<PricingTableCell className='head-cell'>
-							Professional
-						</PricingTableCell>
+						<PricingTableCell className='head-cell'>Home</PricingTableCell>
+						<PricingTableCell className='head-cell'>Property</PricingTableCell>
+						<PricingTableCell className='head-cell'>Portfolio</PricingTableCell>
 					</PricingTableHead>
-					<PricingTableRow>
-						<PricingTableCell>Properties included</PricingTableCell>
-						{paidPlans.map((plan) => (
-							<PricingTableCell key={`${plan.id}-maxProperties`}>
-								{plan.maxProperties}
-							</PricingTableCell>
-						))}
-					</PricingTableRow>
-					{coreFeatureComparisonRows.map(({ label, values }) => (
+					{quickComparisonRows.map(({ label, values }) => (
 						<PricingTableRow key={label}>
 							<PricingTableCell>{label}</PricingTableCell>
-							{values.map((enabled, index) => (
+							{values.map((value, index) => (
 								<PricingTableCell key={`${label}-${paidPlans[index].id}`}>
-									{enabled ? (
-										<PricingCheck>
-											<FontAwesomeIcon icon={faCheck} />
-										</PricingCheck>
-									) : (
-										<PricingX>
-											<FontAwesomeIcon icon={faTimes} />
-										</PricingX>
-									)}
-								</PricingTableCell>
-							))}
-						</PricingTableRow>
-					))}
-					{permissionComparisonRows.map(({ id, key, label }) => (
-						<PricingTableRow key={id}>
-							<PricingTableCell>{label}</PricingTableCell>
-							{paidPlans.map((plan) => (
-								<PricingTableCell key={`${plan.id}-${key}`}>
-									{plan.permissions[key] ? (
-										<PricingCheck>
-											<FontAwesomeIcon icon={faCheck} />
-										</PricingCheck>
-									) : (
-										<PricingX>
-											<FontAwesomeIcon icon={faTimes} />
-										</PricingX>
-									)}
+									{renderComparisonValue(value)}
 								</PricingTableCell>
 							))}
 						</PricingTableRow>

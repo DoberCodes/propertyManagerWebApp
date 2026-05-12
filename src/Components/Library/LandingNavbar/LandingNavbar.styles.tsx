@@ -9,10 +9,12 @@ export const NavWrapper = styled.div`
 	background: linear-gradient(135deg, #065f46 0%, #047857 100%);
 	align-items: center;
 	justify-content: space-between;
-	padding: 0 20px;
+	padding: 0 max(20px, env(safe-area-inset-left)) max(20px, env(safe-area-inset-right)) 0;
 	margin: 0 auto;
 	position: fixed;
 	top: 0;
+	left: 0;
+	right: 0;
 	flex-wrap: wrap;
 	gap: 10px;
 	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
@@ -20,7 +22,7 @@ export const NavWrapper = styled.div`
 
 	@media (max-width: 1024px) {
 		height: 90px;
-		padding: 10px 12px;
+		padding: 10px max(12px, env(safe-area-inset-left)) 10px max(12px, env(safe-area-inset-right));
 		gap: 8px;
 		flex-direction: row;
 		flex-wrap: nowrap;
@@ -31,7 +33,7 @@ export const NavWrapper = styled.div`
 		min-height: 128px;
 		flex-direction: column;
 		justify-content: center;
-		padding: 8px 8px 24px 8px;
+		padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-left)) 24px max(8px, env(safe-area-inset-right));
 		gap: 4px;
 		flex-wrap: nowrap;
 	}

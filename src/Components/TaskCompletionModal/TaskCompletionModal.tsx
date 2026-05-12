@@ -67,7 +67,7 @@ export const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
 	const feedback = useAppFeedback();
 	const normalizedPlan =
 		currentUser?.subscription?.plan?.toString().toLowerCase() || '';
-	const canSelfComplete = normalizedPlan === 'homeowner';
+	const canSelfComplete = normalizedPlan === 'home';
 	const requiresWorkOrder = Boolean(task?.requiresWorkOrder);
 
 	// currentUser is guaranteed to exist in protected routes

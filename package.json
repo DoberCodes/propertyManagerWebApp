@@ -82,6 +82,8 @@
 		"migrate:maintenance-events:apply": "node scripts/migrateMaintenanceHistoryToEvents.cjs --apply",
 		"migrate:orphaned-data": "node scripts/migrateRemoveOrphanedData.cjs",
 		"migrate:orphaned-data:apply": "node scripts/migrateRemoveOrphanedData.cjs --apply",
+		"migrate:prune-inactive-user-data": "node scripts/migratePruneInactiveUserData.cjs",
+		"migrate:prune-inactive-user-data:apply": "node scripts/migratePruneInactiveUserData.cjs --apply",
 		"init:firestore": "node scripts/initFirestore.cjs",
 		"test:rules": "node scripts/testFirebaseRules.cjs",
 		"test:storage": "node scripts/testStorageRules.cjs",

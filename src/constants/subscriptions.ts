@@ -2,12 +2,24 @@
 export const TRIAL_DURATION_DAYS = 14; // 14-day free trial
 
 export const SUBSCRIPTION_PLANS = {
-	FREE: {
-		id: 'free',
-		name: 'Free',
+	// ========== CORE SUBSCRIPTION TIERS ==========
+	HOME: {
+		id: 'home',
+		name: 'Home',
 		priceMonthly: 0,
+		priceYearly: 0,
 		maxProperties: 1,
-		features: ['Limited to 1 home', 'Basic features only'],
+		maxDevices: 8,
+		features: [
+			'1 Property',
+			'Up to 8 Devices & Systems',
+			'Maintenance History Tracking',
+			'Recurring Maintenance Scheduling',
+			'Document & Photo Storage',
+			'Maintenance Timeline',
+			'Basic Search',
+			'Notifications & Reminders',
+		],
 		permissions: {
 			canManageTeam: false,
 			canManageTenants: false,
@@ -15,18 +27,105 @@ export const SUBSCRIPTION_PLANS = {
 			canExportData: false,
 			canAdvancedAuditTrail: false,
 			canManageMultiUnit: false,
+			canTrackWarranties: false,
+			canLinkParts: false,
+			canPortfolioReporting: false,
+			canAdvancedAnalytics: false,
+			canPropertyGroups: false,
 			prioritySupport: false,
-			canCreateProperties: true, // Can create properties
-			canManageProperties: true, // Can manage properties
-			canSubmitMaintenanceRequests: false, // Cannot submit maintenance requests
-			canViewTenantInfo: false, // Cannot view tenant info
+			canCreateProperties: true,
+			canManageProperties: true,
+			canSubmitMaintenanceRequests: false,
+			canViewTenantInfo: false,
 		},
 	},
+	PROPERTY: {
+		id: 'property',
+		name: 'Property',
+		priceMonthly: 9,
+		priceYearly: 89,
+		maxProperties: 3, // 2-3 included
+		maxDevices: 999, // Unlimited
+		features: [
+			'Everything in Home, plus:',
+			'Unlimited Devices & Systems',
+			'Unlimited Maintenance Records',
+			'Linked Parts & Supplies',
+			'Advanced Document Storage',
+			'Service History Timelines',
+			'Recurring Care Automation',
+			'Advanced Search & Retrieval',
+			'Property Reports & Exports',
+			'Warranty Tracking',
+			'Expanded Storage',
+			'Multiple Properties (2–3 Included)',
+		],
+		permissions: {
+			canManageTeam: false,
+			canManageTenants: false,
+			canViewReports: true,
+			canExportData: true,
+			canAdvancedAuditTrail: true,
+			canManageMultiUnit: false,
+			canTrackWarranties: true,
+			canLinkParts: true,
+			canPortfolioReporting: false,
+			canAdvancedAnalytics: false,
+			canPropertyGroups: false,
+			prioritySupport: false,
+			canCreateProperties: true,
+			canManageProperties: true,
+			canSubmitMaintenanceRequests: false,
+			canViewTenantInfo: false,
+		},
+	},
+	PORTFOLIO: {
+		id: 'portfolio',
+		name: 'Portfolio',
+		priceMonthly: 24,
+		priceYearly: 249,
+		maxProperties: 15,
+		maxDevices: 999, // Unlimited
+		features: [
+			'Everything in Property, plus:',
+			'Up to 15 Properties',
+			'Team Collaboration',
+			'Tenant Maintenance Requests',
+			'Role-Based Access',
+			'Maintenance Assignment Workflows',
+			'Portfolio-Level Reporting',
+			'Advanced Maintenance Analytics',
+			'Property Groups',
+			'Expanded Storage & History Retention',
+		],
+		permissions: {
+			canManageTeam: true,
+			canManageTenants: true,
+			canViewReports: true,
+			canExportData: true,
+			canAdvancedAuditTrail: true,
+			canManageMultiUnit: true,
+			canTrackWarranties: true,
+			canLinkParts: true,
+			canPortfolioReporting: true,
+			canAdvancedAnalytics: true,
+			canPropertyGroups: true,
+			prioritySupport: true,
+			canCreateProperties: true,
+			canManageProperties: true,
+			canSubmitMaintenanceRequests: false,
+			canViewTenantInfo: false,
+		},
+	},
+
+	// ========== SPECIAL ROLES (Not subscription tiers) ==========
 	GUEST: {
 		id: 'guest',
 		name: 'Guest',
 		priceMonthly: 0,
+		priceYearly: 0,
 		maxProperties: 0, // Cannot create properties, only access shared ones
+		maxDevices: 0,
 		features: [
 			'Access to shared properties only',
 			'Cannot create new properties',
@@ -39,18 +138,25 @@ export const SUBSCRIPTION_PLANS = {
 			canExportData: false,
 			canAdvancedAuditTrail: false,
 			canManageMultiUnit: false,
+			canTrackWarranties: false,
+			canLinkParts: false,
+			canPortfolioReporting: false,
+			canAdvancedAnalytics: false,
+			canPropertyGroups: false,
 			prioritySupport: false,
-			canCreateProperties: false, // Cannot create properties
-			canManageProperties: false, // Cannot manage properties
-			canSubmitMaintenanceRequests: false, // Cannot submit maintenance requests
-			canViewTenantInfo: false, // Cannot view tenant info
+			canCreateProperties: false,
+			canManageProperties: false,
+			canSubmitMaintenanceRequests: false,
+			canViewTenantInfo: false,
 		},
 	},
 	TENANT: {
 		id: 'tenant',
 		name: 'Tenant',
 		priceMonthly: 0,
+		priceYearly: 0,
 		maxProperties: 0, // Cannot create properties, only access assigned property/unit
+		maxDevices: 0,
 		features: [
 			'Access to assigned property/unit only',
 			'Cannot create or manage properties',
@@ -64,90 +170,16 @@ export const SUBSCRIPTION_PLANS = {
 			canExportData: false,
 			canAdvancedAuditTrail: false,
 			canManageMultiUnit: false,
+			canTrackWarranties: false,
+			canLinkParts: false,
+			canPortfolioReporting: false,
+			canAdvancedAnalytics: false,
+			canPropertyGroups: false,
 			prioritySupport: false,
-			canCreateProperties: false, // Explicitly cannot create properties
-			canManageProperties: false, // Cannot manage properties
-			canSubmitMaintenanceRequests: true, // Can submit maintenance requests
-			canViewTenantInfo: true, // Can view their own tenant information
-		},
-	},
-	HOMEOWNER: {
-		id: 'homeowner',
-		name: 'Homeowner',
-		priceMonthly: 1.99,
-		maxProperties: 1,
-		features: [
-			'Single-family homes only',
-			'Continuous service record for properties',
-			'Unlimited maintenance tracking for devices and their maintenance history',
-			'Maintain a complete record of contractor/vendor work',
-			'Attach documents and photos to create a full property audit trail',
-			'Export reports as reference/supporting documentation for insurance or resale',
-		],
-		permissions: {
-			canManageTeam: false,
-			canManageTenants: false,
-			canViewReports: false,
-			canExportData: true,
-			canAdvancedAuditTrail: false,
-			canManageMultiUnit: false,
-			prioritySupport: false,
-			canCreateProperties: true, // Can create properties
-			canManageProperties: true, // Can manage properties
-			canSubmitMaintenanceRequests: false, // Cannot submit maintenance requests
-			canViewTenantInfo: false, // Cannot view tenant info
-		},
-	},
-	BASIC: {
-		id: 'basic',
-		name: 'Basic',
-		priceMonthly: 8.99,
-		maxProperties: 5,
-		features: [
-			'All of Homeowner features, plus:',
-			'Track maintenance for up to 5 properties',
-			'Maintain per unit device history for each property',
-			'Add team members to keep maintenance organized and well documented',
-			'Invite tenants to submit maintenance requests directly into the propery history',
-			'Tenant-requested maintenance becomes part of the property audit trail',
-		],
-		permissions: {
-			canManageTeam: true,
-			canManageTenants: true,
-			canViewReports: false,
-			canExportData: true,
-			canAdvancedAuditTrail: true,
-			canManageMultiUnit: true,
-			prioritySupport: false,
-			canCreateProperties: true, // Can create properties
-			canManageProperties: true, // Can manage properties
-			canSubmitMaintenanceRequests: false, // Cannot submit maintenance requests
-			canViewTenantInfo: false, // Cannot view tenant info
-		},
-	},
-	PROFESSIONAL: {
-		id: 'professional',
-		name: 'Professional',
-		priceMonthly: 15.99,
-		maxProperties: 10,
-		features: [
-			'Everything in Basic, plus:',
-			'Track maintenance for up to 10 properties',
-			'Advanced reporting & export (PDF/CSV) for insurance, resale, or audits as reference/supporting documentation',
-			'Full audit trail for each property and unit',
-		],
-		permissions: {
-			canManageTeam: true,
-			canManageTenants: true,
-			canViewReports: true,
-			canExportData: true,
-			canAdvancedAuditTrail: true,
-			canManageMultiUnit: true,
-			prioritySupport: true,
-			canCreateProperties: true, // Can create properties
-			canManageProperties: true, // Can manage properties
-			canSubmitMaintenanceRequests: false, // Cannot submit maintenance requests
-			canViewTenantInfo: false, // Cannot view tenant info
+			canCreateProperties: false,
+			canManageProperties: false,
+			canSubmitMaintenanceRequests: true,
+			canViewTenantInfo: true,
 		},
 	},
 };

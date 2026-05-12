@@ -43,23 +43,23 @@ if "%STRIPE_SECRET_KEY%"=="" (
 )
 
 REM Prompt for price IDs
-set /p HOMEOWNER_PRICE_ID="Enter Homeowner Plan Price ID (price_...): "
-if "%HOMEOWNER_PRICE_ID%"=="" (
-    echo ❌ Homeowner Price ID is required
+set /p HOME_PRICE_ID="Enter Home Plan Price ID (price_...): "
+if "%HOME_PRICE_ID%"=="" (
+    echo ❌ Home Price ID is required
     pause
     exit /b 1
 )
 
-set /p BASIC_PRICE_ID="Enter Basic Plan Price ID (price_...): "
-if "%BASIC_PRICE_ID%"=="" (
-    echo ❌ Basic Price ID is required
+set /p PROPERTY_PRICE_ID="Enter Property Plan Price ID (price_...): "
+if "%PROPERTY_PRICE_ID%"=="" (
+    echo ❌ Property Price ID is required
     pause
     exit /b 1
 )
 
-set /p PROFESSIONAL_PRICE_ID="Enter Professional Plan Price ID (price_...): "
-if "%PROFESSIONAL_PRICE_ID%"=="" (
-    echo ❌ Professional Price ID is required
+set /p PORTFOLIO_PRICE_ID="Enter Portfolio Plan Price ID (price_...): "
+if "%PORTFOLIO_PRICE_ID%"=="" (
+    echo ❌ Portfolio Price ID is required
     pause
     exit /b 1
 )
@@ -68,7 +68,7 @@ echo.
 echo 🚀 Setting Firebase Functions environment variables...
 
 REM Set the environment variables
-firebase functions:config:set stripe.secret_key="%STRIPE_SECRET_KEY%" stripe.homeowner_price_id="%HOMEOWNER_PRICE_ID%" stripe.basic_price_id="%BASIC_PRICE_ID%" stripe.professional_price_id="%PROFESSIONAL_PRICE_ID%"
+firebase functions:config:set stripe.secret_key="%STRIPE_SECRET_KEY%" stripe.home_price_id="%HOME_PRICE_ID%" stripe.property_price_id="%PROPERTY_PRICE_ID%" stripe.portfolio_price_id="%PORTFOLIO_PRICE_ID%"
 
 if %errorlevel% equ 0 (
     echo.

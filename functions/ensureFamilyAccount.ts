@@ -136,6 +136,8 @@ export const ensureFamilyAccount = functions.https.onCall(
 					id: accountId,
 					ownerId: uid,
 					memberIds: [uid],
+					propertyCount: 0,
+					deviceCount: 0,
 					subscription: subscriptionToStore,
 					createdAt: admin.firestore.FieldValue.serverTimestamp(),
 					updatedAt: admin.firestore.FieldValue.serverTimestamp(),

@@ -93,6 +93,84 @@ service cloud.firestore {
       return get(accountOwnerDocPath(accountId)).data;
     }
 
+    function familyAccountDocPath(accountId) {
+      return /databases/$(database)/documents/familyAccounts/$(accountId);
+    }
+
+    function familyAccountExists(accountId) {
+      return exists(familyAccountDocPath(accountId));
+    }
+
+    function familyAccountData(accountId) {
+      return get(familyAccountDocPath(accountId)).data;
+    }
+
+    function familyAccountDataAfter(accountId) {
+      return getAfter(familyAccountDocPath(accountId)).data;
+    }
+
+    function currentPropertyCount(accountId) {
+      return familyAccountExists(accountId) && ('propertyCount' in familyAccountData(accountId))
+        ? familyAccountData(accountId).propertyCount
+        : 0;
+    }
+
+    function currentDeviceCount(accountId) {
+      return familyAccountExists(accountId) && ('deviceCount' in familyAccountData(accountId))
+        ? familyAccountData(accountId).deviceCount
+        : 0;
+    }
+
+    function maxPropertiesForPlan(plan) {
+      return (plan == 'home' || plan == 'homeowner')
+        ? 1
+        : ((plan == 'property' || plan == 'basic')
+          ? 3
+          : ((plan == 'portfolio' || plan == 'professional') ? 15 : 0));
+    }
+
+    function maxDevicesForPlan(plan) {
+      return (plan == 'home' || plan == 'homeowner')
+        ? 8
+        : ((plan == 'property' || plan == 'basic' || plan == 'portfolio' || plan == 'professional')
+          ? 999
+          : 0);
+    }
+
+    function maxPropertiesForAccount(accountId) {
+      return maxPropertiesForPlan(accountOwnerData(accountId).subscription.plan);
+    }
+
+    function maxDevicesForAccount(accountId) {
+      return maxDevicesForPlan(accountOwnerData(accountId).subscription.plan);
+    }
+
+    function hasPropertyCounterCreateIncrement(accountId) {
+      return familyAccountExists(accountId) &&
+        familyAccountDataAfter(accountId).propertyCount == currentPropertyCount(accountId) + 1 &&
+        familyAccountDataAfter(accountId).propertyCount <= maxPropertiesForAccount(accountId);
+    }
+
+    function hasPropertyCounterDeleteDecrement(accountId) {
+      return familyAccountExists(accountId) &&
+        familyAccountDataAfter(accountId).propertyCount == (currentPropertyCount(accountId) > 0
+          ? currentPropertyCount(accountId) - 1
+          : 0);
+    }
+
+    function hasDeviceCounterCreateIncrement(accountId) {
+      return familyAccountExists(accountId) &&
+        familyAccountDataAfter(accountId).deviceCount == currentDeviceCount(accountId) + 1 &&
+        familyAccountDataAfter(accountId).deviceCount <= maxDevicesForAccount(accountId);
+    }
+
+    function hasDeviceCounterDeleteDecrement(accountId) {
+      return familyAccountExists(accountId) &&
+        familyAccountDataAfter(accountId).deviceCount == (currentDeviceCount(accountId) > 0
+          ? currentDeviceCount(accountId) - 1
+          : 0);
+    }
+
     function hasActiveManagedInvitePlan(accountId) {
       return accountOwnerDocExists(accountId) &&
         ('subscription' in accountOwnerData(accountId)) &&
@@ -107,7 +185,29 @@ service cloud.firestore {
             )
           )
         ) &&
-        ['basic', 'professional'].hasAny([accountOwnerData(accountId).subscription.plan]);
+        ['property', 'portfolio'].hasAny([accountOwnerData(accountId).subscription.plan]);
+    }
+
+    function hasActiveCoreSubscription(accountId) {
+      return accountOwnerDocExists(accountId) &&
+        ('subscription' in accountOwnerData(accountId)) &&
+        (
+          accountOwnerData(accountId).subscription.status == 'active' ||
+          (
+            accountOwnerData(accountId).subscription.status == 'trial' &&
+            (
+              !('trialEndsAt' in accountOwnerData(accountId).subscription) ||
+              accountOwnerData(accountId).subscription.trialEndsAt == null ||
+              accountOwnerData(accountId).subscription.trialEndsAt > (request.time.toMillis() / 1000)
+            )
+          )
+        );
+    }
+
+    function hasCorePlanForResources(accountId) {
+      return hasActiveCoreSubscription(accountId) &&
+        ['home', 'property', 'portfolio', 'homeowner', 'basic', 'professional']
+          .hasAny([accountOwnerData(accountId).subscription.plan]);
     }
 
     function isAccountOwnerOrAdmin(accountId) {
@@ -157,10 +257,17 @@ service cloud.firestore {
         canReadAccount(resource.data.accountId);
       allow create: if isAuthenticated() &&
         ('accountId' in request.resource.data) &&
-        canManageAccount(request.resource.data.accountId);
-      allow update, delete: if isAuthenticated() &&
+        canManageAccount(request.resource.data.accountId) &&
+        hasCorePlanForResources(request.resource.data.accountId) &&
+        currentPropertyCount(request.resource.data.accountId) < maxPropertiesForAccount(request.resource.data.accountId) &&
+        hasPropertyCounterCreateIncrement(request.resource.data.accountId);
+      allow update: if isAuthenticated() &&
         ('accountId' in resource.data) &&
         canManageAccount(resource.data.accountId);
+      allow delete: if isAuthenticated() &&
+        ('accountId' in resource.data) &&
+        canManageAccount(resource.data.accountId) &&
+        hasPropertyCounterDeleteDecrement(resource.data.accountId);
     }
 
     match /propertyGroupMemberships/{membershipId} {
@@ -267,10 +374,17 @@ service cloud.firestore {
         canReadAccount(resource.data.accountId);
       allow create: if isAuthenticated() &&
         ('accountId' in request.resource.data) &&
-        canManageAccount(request.resource.data.accountId);
-      allow update, delete: if isAuthenticated() &&
+        canManageAccount(request.resource.data.accountId) &&
+        hasCorePlanForResources(request.resource.data.accountId) &&
+        currentDeviceCount(request.resource.data.accountId) < maxDevicesForAccount(request.resource.data.accountId) &&
+        hasDeviceCounterCreateIncrement(request.resource.data.accountId);
+      allow update: if isAuthenticated() &&
         ('accountId' in resource.data) &&
         canManageAccount(resource.data.accountId);
+      allow delete: if isAuthenticated() &&
+        ('accountId' in resource.data) &&
+        canManageAccount(resource.data.accountId) &&
+        hasDeviceCounterDeleteDecrement(resource.data.accountId);
     }
 
     match /suites/{suiteId} {
@@ -323,10 +437,42 @@ service cloud.firestore {
     }
 
     // Family account records: client read-only for members/owners.
-    // All writes handled by Cloud Functions callables.
+    // Counter updates are allowed only for account managers and only with
+    // tightly constrained field changes.
     match /familyAccounts/{accountId} {
       allow read: if canReadAccount(accountId);
-      allow create, update, delete: if false;
+      allow create, delete: if false;
+      allow update: if isAuthenticated() &&
+        canManageAccount(accountId) &&
+        request.resource.data.diff(resource.data).changedKeys().hasOnly([
+          'propertyCount',
+          'deviceCount',
+          'updatedAt'
+        ]) &&
+        request.resource.data.propertyCount >= 0 &&
+        request.resource.data.deviceCount >= 0 &&
+        (
+          // Property create increment
+          (
+            request.resource.data.propertyCount == (('propertyCount' in resource.data) ? resource.data.propertyCount : 0) + 1 &&
+            request.resource.data.deviceCount == (('deviceCount' in resource.data) ? resource.data.deviceCount : 0)
+          ) ||
+          // Property delete decrement
+          (
+            request.resource.data.propertyCount == ((('propertyCount' in resource.data) ? resource.data.propertyCount : 0) > 0 ? (('propertyCount' in resource.data) ? resource.data.propertyCount : 0) - 1 : 0) &&
+            request.resource.data.deviceCount == (('deviceCount' in resource.data) ? resource.data.deviceCount : 0)
+          ) ||
+          // Device create increment
+          (
+            request.resource.data.deviceCount == (('deviceCount' in resource.data) ? resource.data.deviceCount : 0) + 1 &&
+            request.resource.data.propertyCount == (('propertyCount' in resource.data) ? resource.data.propertyCount : 0)
+          ) ||
+          // Device delete decrement
+          (
+            request.resource.data.deviceCount == ((('deviceCount' in resource.data) ? resource.data.deviceCount : 0) > 0 ? (('deviceCount' in resource.data) ? resource.data.deviceCount : 0) - 1 : 0) &&
+            request.resource.data.propertyCount == (('propertyCount' in resource.data) ? resource.data.propertyCount : 0)
+          )
+        );
     }
 
     match /accountMemberships/{membershipId} {

@@ -235,9 +235,13 @@ const getPriceIdForPlan = (planId: string): string => {
 		free: STRIPE_PLANS.FREE,
 		guest: STRIPE_PLANS.FREE, // Guests use free plan (no charge)
 		tenant: STRIPE_PLANS.FREE, // Tenants use free plan (no charge)
-		homeowner: STRIPE_PLANS.HOMEOWNER,
-		basic: STRIPE_PLANS.BASIC,
-		professional: STRIPE_PLANS.PROFESSIONAL,
+		home: STRIPE_PLANS.HOME,
+		property: STRIPE_PLANS.PROPERTY,
+		portfolio: STRIPE_PLANS.PORTFOLIO,
+		// Backward compatibility for legacy plan names
+		homeowner: STRIPE_PLANS.HOME,
+		basic: STRIPE_PLANS.PROPERTY,
+		professional: STRIPE_PLANS.PORTFOLIO,
 	};
 	return priceMap[planId] || '';
 };

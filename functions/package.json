@@ -14,6 +14,7 @@
 		"test:cards:sandbox": "npx ts-node test-stripe-card-scenarios-sandbox.ts",
 		"test:webhook:sandbox": "npx ts-node test-stripe-webhook-sandbox.ts",
 		"migrate:account-rbac": "npm run build && node lib/scripts/migrate-account-rbac.js",
+		"migrate:account-counters": "npm run build && node lib/scripts/backfill-account-counters.js",
 		"check-resend": "node scripts/check-resend.cjs",
 		"stripe:webhook": "stripe listen --forward-to localhost:3000/webhook",
 		"stripe:webhook:auto": "bash listen-and-update-webhook-secret.sh"

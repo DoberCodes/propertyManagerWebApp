@@ -39,21 +39,21 @@ if [ -z "$STRIPE_SECRET_KEY" ]; then
 fi
 
 # Prompt for price IDs
-read -p "Enter Homeowner Plan Price ID (price_...): " HOMEOWNER_PRICE_ID
-if [ -z "$HOMEOWNER_PRICE_ID" ]; then
-    echo "❌ Homeowner Price ID is required"
+read -p "Enter Home Plan Price ID (price_...): " HOME_PRICE_ID
+if [ -z "$HOME_PRICE_ID" ]; then
+    echo "❌ Home Price ID is required"
     exit 1
 fi
 
-read -p "Enter Basic Plan Price ID (price_...): " BASIC_PRICE_ID
-if [ -z "$BASIC_PRICE_ID" ]; then
-    echo "❌ Basic Price ID is required"
+read -p "Enter Property Plan Price ID (price_...): " PROPERTY_PRICE_ID
+if [ -z "$PROPERTY_PRICE_ID" ]; then
+    echo "❌ Property Price ID is required"
     exit 1
 fi
 
-read -p "Enter Professional Plan Price ID (price_...): " PROFESSIONAL_PRICE_ID
-if [ -z "$PROFESSIONAL_PRICE_ID" ]; then
-    echo "❌ Professional Price ID is required"
+read -p "Enter Portfolio Plan Price ID (price_...): " PORTFOLIO_PRICE_ID
+if [ -z "$PORTFOLIO_PRICE_ID" ]; then
+    echo "❌ Portfolio Price ID is required"
     exit 1
 fi
 
@@ -63,9 +63,9 @@ echo "🚀 Setting Firebase Functions environment variables..."
 # Set the environment variables
 firebase functions:config:set \
     stripe.secret_key="$STRIPE_SECRET_KEY" \
-    stripe.homeowner_price_id="$HOMEOWNER_PRICE_ID" \
-    stripe.basic_price_id="$BASIC_PRICE_ID" \
-    stripe.professional_price_id="$PROFESSIONAL_PRICE_ID"
+    stripe.home_price_id="$HOME_PRICE_ID" \
+    stripe.property_price_id="$PROPERTY_PRICE_ID" \
+    stripe.portfolio_price_id="$PORTFOLIO_PRICE_ID"
 
 if [ $? -eq 0 ]; then
     echo ""

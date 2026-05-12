@@ -15,12 +15,11 @@ const HeroSection = () => {
 	return (
 		<Hero>
 			<HeroContent>
-				<HeroTitle>Never Lose Track of Your Maintenance History</HeroTitle>
+				<HeroTitle>Keep the Full Maintenance History of Your Home Organized</HeroTitle>
 				<HeroSubtitle>
-					Your maintenance records are your peace of mind. Whether managing
-					properties, vehicles, or equipment, keep every repair, service, and
-					update documented in one reliable place. You handle the logging—we
-					provide the history you can trust.
+					Maintley keeps systems, service history, recurring care, documents,
+					and replacements connected in one place so nothing gets lost over
+					time.
 				</HeroSubtitle>
 				<HeroCTA onClick={() => navigate('/register')}>
 					Get Started Free
@@ -29,7 +28,7 @@ const HeroSection = () => {
 			<HeroImage>
 				<img
 					src='https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=600&h=400&fit=crop'
-					alt='Property management dashboard'
+					alt='Organized home maintenance history view'
 				/>
 			</HeroImage>
 		</Hero>

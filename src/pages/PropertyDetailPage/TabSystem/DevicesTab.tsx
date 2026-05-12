@@ -20,6 +20,7 @@ import { useSelector } from 'react-redux';
 import { RootState } from 'Redux/store';
 import {
 	useGetDevicesQuery,
+	useGetAllDevicesQuery,
 	useCreateDeviceMutation,
 	useUpdateDeviceMutation,
 	useDeleteDeviceMutation,
@@ -63,6 +64,11 @@ import {
 	CardMoreMenu,
 	CardMoreMenuItem,
 } from './mobileUiShared';
+import {
+	canAddDevice,
+	getRemainingDeviceSlots,
+	getSubscriptionPlanDetails,
+} from '../../../utils/subscriptionUtils';
 
 const SectionLead = styled.p`
 	margin: -4px 0 14px;
@@ -130,6 +136,7 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property }) => {
 	const fileInputRef = useRef<HTMLInputElement>(null);
 
 	const { data: devices = [], isLoading } = useGetDevicesQuery(property.id);
+	const { data: allDevices = [] } = useGetAllDevicesQuery();
 	const { data: units = [] } = useGetUnitsQuery(property.id);
 	const { data: allTasks = [] } = useGetTasksQuery();
 
@@ -563,7 +570,28 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property }) => {
 		}
 	};
 
+	const remainingDeviceSlots = useMemo(() => {
+		if (!currentUser?.subscription) return 0;
+		return getRemainingDeviceSlots(currentUser.subscription, allDevices.length);
+	}, [allDevices.length, currentUser?.subscription]);
+
 	const handleOpenCreateModal = () => {
+		if (!currentUser?.subscription) {
+			feedback.notify('Unable to verify subscription. Please contact support.');
+			return;
+		}
+
+		if (!canAddDevice(currentUser.subscription, allDevices.length)) {
+			const planDetails = getSubscriptionPlanDetails(currentUser.subscription.plan);
+			const maxDevices = planDetails?.maxDevices || 8;
+			feedback.notify(
+				`Your ${planDetails?.name || 'current'} plan allows up to ${maxDevices} devices. ` +
+					`You currently have ${allDevices.length} devices. ` +
+					`Please upgrade your plan to add more devices.`,
+			);
+			return;
+		}
+
 		resetForm();
 		setShowDeviceModal(true);
 	};
@@ -711,10 +739,11 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property }) => {
 			<Toolbar>
 				<ToolbarButton
 					className='primary-action'
+					disabled={remainingDeviceSlots <= 0}
 					onClick={handleOpenCreateModal}
 					style={{ width: isMobile ? '100%' : undefined }}>
 					<FontAwesomeIcon icon={faPlus} style={{ marginRight: '8px' }} />
-					Add Device
+					{remainingDeviceSlots <= 0 ? 'Device Limit Reached' : 'Add Device'}
 				</ToolbarButton>
 			</Toolbar>
 
