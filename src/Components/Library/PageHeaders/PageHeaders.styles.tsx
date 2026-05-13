@@ -25,12 +25,7 @@ const PageHeaderSection = styled.div`
 	justify-content: space-between;
 	align-items: center;
 	gap: 24px;
-	border-radius: 8px;
-	padding: 24px;
-	background-color: ${COLORS.bgWhite};
-	border-bottom: 2px solid ${COLORS.border};
 	flex-wrap: wrap;
-	box-shadow: ${COLORS.shadow};
 
 	@media (max-width: 1024px) {
 		gap: 16px;

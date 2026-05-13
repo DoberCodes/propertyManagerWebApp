@@ -93,6 +93,7 @@ export const createCheckoutSession = async (
 	trialEnd?: number,
 	promoCode?: string,
 	planId?: string,
+	billingCycle: 'month' | 'year' = 'month',
 ): Promise<string> => {
 	try {
 		// Call Firebase Cloud Function
@@ -100,6 +101,7 @@ export const createCheckoutSession = async (
 		const result = await createCheckout({
 			priceId,
 			...(planId ? { planId } : {}),
+			billingCycle,
 			userId,
 			email,
 			successUrl: STRIPE_CHECKOUT_CONFIG.SUCCESS_URL,
@@ -197,6 +199,17 @@ export const getSubscriptionDetails = async (subscriptionId: string) => {
 		return result.data;
 	} catch (error) {
 		console.error('Failed to get subscription details:', error);
+		throw error;
+	}
+};
+
+export const syncSubscriptionFromStripe = async () => {
+	try {
+		const syncSubscription = httpsCallable(functions, 'syncSubscriptionFromStripe');
+		const result = await syncSubscription({});
+		return result.data;
+	} catch (error) {
+		console.error('Failed to sync subscription from Stripe:', error);
 		throw error;
 	}
 };

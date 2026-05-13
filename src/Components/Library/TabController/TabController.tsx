@@ -31,7 +31,8 @@ export const TabController: React.FC<TabsContextProps> = ({
 	const activeTab =
 		useSelector((state: RootState) => state.app.activeTab) || 'details';
 
-	const isHomeowner = currentUser?.subscription?.plan === 'homeowner';
+	const normalizedPlan = String(currentUser?.subscription?.plan || '').toLowerCase();
+	const isHomeowner = normalizedPlan === 'home' || normalizedPlan === 'homeowner';
 	const isPropertyManager = currentUser ? !isHomeowner : true;
 	const isTenant = currentUser?.role === USER_ROLES.TENANT;
 	const isContractor = currentUser?.role === USER_ROLES.CONTRACTOR;

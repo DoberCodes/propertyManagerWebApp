@@ -27,6 +27,9 @@ import {
 	ContactSalesTitle,
 	ContactSalesText,
 	ContactSalesButtonStyled,
+	BillingToggle,
+	BillingToggleButton,
+	BillingToggleHint,
 } from './PaywallPage.styles';
 import { SUBSCRIPTION_PLANS } from '../../constants/subscriptions';
 import { SubscriptionData } from '../../utils/subscriptionUtils';
@@ -41,7 +44,10 @@ import {
 	redirectToCheckout,
 	validatePromotionCode,
 } from '../../services/stripeService';
-import { STRIPE_PLANS } from '../../constants/stripe';
+import {
+	BillingCycle,
+	getStripePriceIdForPlan,
+} from '../../constants/stripe';
 
 interface PaywallPageProps {
 	subscription: SubscriptionData;
@@ -80,6 +86,7 @@ export const PaywallPage: React.FC<PaywallPageProps> = ({
 	const [promoHintType, setPromoHintType] = useState<'success' | 'error' | null>(
 		null,
 	);
+	const [billingCycle, setBillingCycle] = useState<BillingCycle>('month');
 	const isOnTrial = isTrialActive(subscription);
 	const daysRemaining = getTrialDaysRemaining(subscription);
 
@@ -139,17 +146,19 @@ export const PaywallPage: React.FC<PaywallPageProps> = ({
 	}, [promoCode, appliedPromoCode]);
 
 	const getPriceIdForPlan = (planId: string): string => {
-		const priceMap: Record<string, string> = {
-			free: STRIPE_PLANS.FREE,
-			home: STRIPE_PLANS.HOME,
-			property: STRIPE_PLANS.PROPERTY,
-			portfolio: STRIPE_PLANS.PORTFOLIO,
-			// Backward compatibility
-			homeowner: STRIPE_PLANS.HOME,
-			basic: STRIPE_PLANS.PROPERTY,
-			professional: STRIPE_PLANS.PORTFOLIO,
-		};
-		return priceMap[planId] || '';
+		return getStripePriceIdForPlan(planId, billingCycle);
+	};
+
+	const getPlanDisplayPrice = (planId: 'home' | 'property' | 'portfolio') => {
+		if (planId === 'home') return SUBSCRIPTION_PLANS.HOME.priceMonthly;
+		if (planId === 'property') {
+			return billingCycle === 'year'
+				? SUBSCRIPTION_PLANS.PROPERTY.priceYearly
+				: SUBSCRIPTION_PLANS.PROPERTY.priceMonthly;
+		}
+		return billingCycle === 'year'
+			? SUBSCRIPTION_PLANS.PORTFOLIO.priceYearly
+			: SUBSCRIPTION_PLANS.PORTFOLIO.priceMonthly;
 	};
 
 	const handlePlanSelect = async (planId: string) => {
@@ -200,6 +209,8 @@ export const PaywallPage: React.FC<PaywallPageProps> = ({
 				userEmail,
 				trialEnd,
 				appliedPromoCode || undefined,
+				planId,
+				billingCycle,
 			);
 
 			// Redirect to Stripe hosted checkout URL
@@ -352,6 +363,24 @@ export const PaywallPage: React.FC<PaywallPageProps> = ({
 						</TrialBannerWrapper>
 					)}
 
+					<BillingToggle>
+						<BillingToggleButton
+							type='button'
+							$active={billingCycle === 'month'}
+							onClick={() => setBillingCycle('month')}>
+							Monthly
+						</BillingToggleButton>
+						<BillingToggleButton
+							type='button'
+							$active={billingCycle === 'year'}
+							onClick={() => setBillingCycle('year')}>
+							Annual
+						</BillingToggleButton>
+					</BillingToggle>
+					{billingCycle === 'year' && (
+						<BillingToggleHint>Annual billing selected</BillingToggleHint>
+					)}
+
 				<PricingCardsGrid layout={wide ? 'horizontal' : layout}>
 					{/* Home Plan */}
 					<PricingCard
@@ -368,9 +397,11 @@ export const PaywallPage: React.FC<PaywallPageProps> = ({
 									: 'black'
 							}>
 							<div className='price'>
-								${SUBSCRIPTION_PLANS.HOME.priceMonthly}
+								${getPlanDisplayPrice('home')}
 							</div>
-							<div className='period'>per month</div>
+							<div className='period'>
+								{billingCycle === 'year' ? 'per year' : 'per month'}
+							</div>
 						</PlanPrice>
 						<PlanFeatures>
 							{SUBSCRIPTION_PLANS.HOME.features.map((feature, idx) => (
@@ -432,9 +463,11 @@ export const PaywallPage: React.FC<PaywallPageProps> = ({
 									: 'black'
 							}>
 							<div className='price'>
-								${SUBSCRIPTION_PLANS.PROPERTY.priceMonthly}
+								${getPlanDisplayPrice('property')}
 							</div>
-							<div className='period'>per month</div>
+							<div className='period'>
+								{billingCycle === 'year' ? 'per year' : 'per month'}
+							</div>
 						</PlanPrice>
 						<PlanFeatures>
 							{SUBSCRIPTION_PLANS.PROPERTY.features.map((feature, idx) => (
@@ -505,9 +538,11 @@ export const PaywallPage: React.FC<PaywallPageProps> = ({
 									: 'black'
 							}>
 							<div className='price'>
-								${SUBSCRIPTION_PLANS.PORTFOLIO.priceMonthly}
+								${getPlanDisplayPrice('portfolio')}
 							</div>
-							<div className='period'>per month</div>
+							<div className='period'>
+								{billingCycle === 'year' ? 'per year' : 'per month'}
+							</div>
 						</PlanPrice>
 						<PlanFeatures>
 							{SUBSCRIPTION_PLANS.PORTFOLIO.features.map((feature, idx) => (

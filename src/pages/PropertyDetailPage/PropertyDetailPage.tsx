@@ -10,7 +10,10 @@ import {
 import { PropertyDetailPageProps } from '../../types/PropertyDetailPage.types';
 import { RootState } from '../../Redux/store/store';
 import { User } from '../../Redux/Slices/userSlice';
-import { resetActiveTab } from '../../Redux/Slices/appSlice';
+import {
+	resetActiveTab,
+	setActiveTab as setAppActiveTab,
+} from '../../Redux/Slices/appSlice';
 
 import { useTaskHandlers } from 'pages/PropertyDetailPage/useTaskHandlers';
 import { useUnitHandlers } from 'pages/PropertyDetailPage/useUnitHandlers';
@@ -191,6 +194,7 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 	const [showDeleteTenantModal, setShowDeleteTenantModal] = useState(false);
 	const [tenantToDelete, setTenantToDelete] = useState<any | null>(null);
 	const [isPropertyDialogOpen, setIsPropertyDialogOpen] = useState(false);
+	const [openCreateWorkflowToken, setOpenCreateWorkflowToken] = useState(0);
 	const [deleteTaskModalOpen, setDeleteTaskModalOpen] = useState(false);
 	const [taskToDelete, setTaskToDelete] = useState<{
 		id: string;
@@ -289,6 +293,11 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 		setIsActionMenuOpen(false);
 	};
 
+	const handleOpenCreateWorkflowDialog = () => {
+		dispatch(setAppActiveTab('tasks'));
+		setOpenCreateWorkflowToken((currentToken) => currentToken + 1);
+	};
+
 	const handleSaveProperty = async (formData: any) => {
 		if (!property?.id) {
 			return;
@@ -317,6 +326,11 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 						occupants: [],
 				  }))
 				: undefined;
+		const sharingData = {
+			coOwners: formData.coOwners || [],
+			administrators: formData.administrators || [],
+			viewers: formData.viewers || [],
+		};
 
 		const updates = {
 			title: formData.name,
@@ -339,6 +353,7 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 			notes: formData.notes,
 			isRental: !!formData.isRental,
 			taskHistory: formData.maintenanceHistory || [],
+			...sharingData,
 		};
 
 		const sanitizedUpdates = Object.fromEntries(
@@ -616,9 +631,9 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 
 	useEffect(() => {
 		if (hasCommercialSuites && activeTab === 'tenants') {
-			setActiveTab('suites');
+			dispatch(setAppActiveTab('suites'));
 		}
-	}, [hasCommercialSuites, activeTab]);
+	}, [hasCommercialSuites, activeTab, dispatch]);
 
 	// --- UNIT FILTER SUPPORT ------------------------------------------------
 	// compute options from property units (multifamily)
@@ -1069,7 +1084,7 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 					handleEditTenant={handleEditTenant}
 					handleDeleteTenant={handleDeleteTenant}
 					handleViewTenantPromo={handleViewTenantPromo}
-					handleCreateTask={handleCreateTask}
+					handleCreateTask={handleOpenCreateWorkflowDialog}
 					handleEditTask={handleEditTask}
 					handleCreateDevice={() => setShowDeviceDialog(true)}
 					handleCreateRequest={() => setShowMaintenanceRequestModal(true)}
@@ -1077,6 +1092,7 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 					handleCreateUnit={handleCreateUnit}
 					handleDeleteUnit={handleDeleteUnit}
 					handleConvertRequestToTask={handleConvertRequestToTask}
+					openCreateWorkflowToken={openCreateWorkflowToken}
 				/>
 
 				{/* Add Device Dialog */}
@@ -1242,6 +1258,9 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 							notes: (property as any).notes || '',
 							isRental: (property as any).isRental ?? false,
 							maintenanceHistory: (property as any).maintenanceHistory || [],
+							coOwners: (property as any).coOwners || [],
+							administrators: (property as any).administrators || [],
+							viewers: (property as any).viewers || [],
 						}}
 					/>
 				)}

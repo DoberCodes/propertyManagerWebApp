@@ -136,7 +136,6 @@ export const ModalCloseButton = styled.button`
 `;
 
 export const ModalBody = styled.div`
-	padding: 2rem;
 	flex: 1;
 	overflow-y: auto;
 

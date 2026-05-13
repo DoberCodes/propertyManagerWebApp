@@ -133,6 +133,42 @@ export const TrialCountdown = styled.div<{ variant?: 'full' | 'embedded' }>`
 	}
 `;
 
+export const BillingToggle = styled.div`
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	background: ${COLORS.bgWhite};
+	border: 1.5px solid ${COLORS.gray200};
+	border-radius: 999px;
+	padding: 4px;
+	margin: 0 auto 12px auto;
+	box-shadow: ${COLORS.shadow};
+`;
+
+export const BillingToggleButton = styled.button<{ $active?: boolean }>`
+	border: none;
+	background: ${(props) => (props.$active ? COLORS.primary : 'transparent')};
+	color: ${(props) => (props.$active ? '#fff' : COLORS.textSecondary)};
+	font-size: 14px;
+	font-weight: 700;
+	padding: 8px 16px;
+	border-radius: 999px;
+	cursor: pointer;
+	transition: all 0.2s ease;
+
+	&:hover {
+		opacity: 0.92;
+	}
+`;
+
+export const BillingToggleHint = styled.p`
+	text-align: center;
+	font-size: 12px;
+	font-weight: 600;
+	color: ${COLORS.textSecondary};
+	margin: 0 0 12px 0;
+`;
+
 export const PricingCardsGrid = styled.div<{ layout?: 'grid' | 'horizontal' }>`
 	display: ${(props) => (props.layout === 'horizontal' ? 'flex' : 'grid')};
 	grid-template-columns: ${(props) =>

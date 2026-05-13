@@ -365,6 +365,273 @@ export const RemoveDeviceButton = styled.button`
 	}
 `;
 
+export const WizardShell = styled.div`
+	display: grid;
+	grid-template-columns: 220px minmax(0, 1fr);
+	gap: 0;
+	flex: 1;
+	height: 100%;
+	min-height: 0;
+	align-self: stretch;
+	overflow: hidden;
+	background: transparent;
+
+	@media (max-width: 900px) {
+		grid-template-columns: 1fr;
+	}
+`;
+
+export const WizardSidebar = styled.div`
+	height: 100%;
+	padding: 20px 18px;
+	background: transparent;
+	display: flex;
+	flex-direction: column;
+	gap: 18px;
+
+	@media (max-width: 900px) {
+		padding-bottom: 12px;
+	}
+`;
+
+export const WizardStep = styled.button<{ $active?: boolean; $complete?: boolean }>`
+	display: grid;
+	grid-template-columns: 28px minmax(0, 1fr);
+	gap: 12px;
+	align-items: flex-start;
+	padding: 0;
+	border: none;
+	background: transparent;
+	text-align: left;
+	cursor: pointer;
+	color: ${({ $active }) => ($active ? '#166534' : '#334155')};
+`;
+
+export const WizardStepDot = styled.span<{ $active?: boolean; $complete?: boolean }>`
+	width: 28px;
+	height: 28px;
+	border-radius: 999px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 12px;
+	font-weight: 700;
+	border: 1px solid
+		${({ $active, $complete }) =>
+			$complete || $active ? '#16a34a' : '#d1d5db'};
+	background: ${({ $active, $complete }) =>
+		$complete || $active ? '#16a34a' : '#f8fafc'};
+	color: ${({ $active, $complete }) =>
+		$complete || $active ? '#ffffff' : '#64748b'};
+`;
+
+export const WizardStepText = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	padding-top: 3px;
+`;
+
+export const WizardStepTitle = styled.span`
+	font-size: 13px;
+	font-weight: 700;
+`;
+
+export const WizardStepHint = styled.span`
+	font-size: 11px;
+	line-height: 1.45;
+	color: #64748b;
+`;
+
+export const WizardContent = styled.div`
+	min-height: 0;
+	height: 100%;
+	box-sizing: border-box;
+	padding: 22px;
+	display: flex;
+	flex-direction: column;
+	gap: 20px;
+	overflow-y: auto;
+
+	@media (max-width: 480px) {
+		padding: 16px;
+	}
+`;
+
+export const WizardPanel = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: 18px;
+`;
+
+export const WizardPanelHeader = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+`;
+
+export const WizardPanelTitle = styled.h3`
+	font-size: 20px;
+	font-weight: 700;
+	margin: 0;
+	color: #0f172a;
+`;
+
+export const WizardPanelHint = styled.p`
+	font-size: 13px;
+	line-height: 1.5;
+	margin: 0;
+	color: #64748b;
+`;
+
+export const SelectField = styled.select`
+	padding: 10px 12px;
+	border: 1px solid #d1d5db;
+	border-radius: 8px;
+	font-size: 14px;
+	font-family: inherit;
+	background: #ffffff;
+	width: 100%;
+
+	&:focus {
+		outline: none;
+		border-color: #22c55e;
+		box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.12);
+	}
+`;
+
+export const UploadDropzone = styled.div`
+	border: 1px dashed #cbd5e1;
+	border-radius: 12px;
+	padding: 18px;
+	background: #f8fafc;
+`;
+
+export const SharingSection = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	padding: 14px;
+	border: 1px solid #e5e7eb;
+	border-radius: 12px;
+	background: #ffffff;
+`;
+
+export const SharingHeader = styled.div`
+	display: flex;
+	justify-content: space-between;
+	align-items: flex-start;
+	gap: 12px;
+`;
+
+export const SharingTitleWrap = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+`;
+
+export const SharingTitle = styled.h4`
+	font-size: 14px;
+	font-weight: 700;
+	margin: 0;
+	color: #0f172a;
+`;
+
+export const SharingHint = styled.p`
+	font-size: 12px;
+	line-height: 1.45;
+	color: #64748b;
+	margin: 0;
+`;
+
+export const ShareControls = styled.div`
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	gap: 10px;
+
+	@media (max-width: 640px) {
+		grid-template-columns: 1fr;
+	}
+`;
+
+export const MemberList = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+`;
+
+export const MemberCard = styled.div`
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: 12px;
+	padding: 10px 12px;
+	border: 1px solid #e5e7eb;
+	border-radius: 10px;
+	background: #ffffff;
+`;
+
+export const MemberCardInfo = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+`;
+
+export const MemberName = styled.span`
+	font-size: 13px;
+	font-weight: 700;
+	color: #0f172a;
+`;
+
+export const MemberMeta = styled.span`
+	font-size: 12px;
+	color: #64748b;
+`;
+
+export const EmptySharingState = styled.div`
+	padding: 12px;
+	border: 1px dashed #d1d5db;
+	border-radius: 10px;
+	font-size: 12px;
+	color: #64748b;
+	background: #f8fafc;
+`;
+
+export const ReviewGrid = styled.div`
+	display: grid;
+	grid-template-columns: 180px minmax(0, 1fr);
+	border: 1px solid #e5e7eb;
+	border-radius: 12px;
+	overflow: hidden;
+
+	@media (max-width: 640px) {
+		grid-template-columns: 1fr;
+	}
+`;
+
+export const ReviewLabel = styled.div`
+	padding: 12px 14px;
+	font-size: 12px;
+	font-weight: 700;
+	color: #64748b;
+	background: #f8fafc;
+	border-bottom: 1px solid #e5e7eb;
+`;
+
+export const ReviewValue = styled.div`
+	padding: 12px 14px;
+	font-size: 13px;
+	color: #0f172a;
+	border-bottom: 1px solid #e5e7eb;
+
+	img {
+		width: 88px;
+		height: 52px;
+		object-fit: cover;
+		border-radius: 8px;
+	}
+`;
+
 export const AddDeviceButton = styled.button`
 	background-color: #22c55e;
 	color: white;

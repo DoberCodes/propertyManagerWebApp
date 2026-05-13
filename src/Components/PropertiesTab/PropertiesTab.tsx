@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { PropertyDialog } from './PropertyDialog';
@@ -25,6 +25,8 @@ import {
 	useDeletePropertyGroupMutation,
 	useCreateUnitMutation,
 } from '../../Redux/API/propertySlice';
+import { useGetTasksQuery } from '../../Redux/API/taskSlice';
+import { useGetAllDevicesQuery } from '../../Redux/API/deviceSlice';
 import { useUpdateUserMutation } from '../../Redux/API/userSlice';
 import { useCreateNotificationMutation } from '../../Redux/API/notificationSlice';
 import {
@@ -43,28 +45,76 @@ import { USER_ROLES } from '../../constants/roles';
 import {
 	Wrapper,
 	TopActions,
+	SummaryStatsGrid,
+	SummaryCard,
+	SummaryIcon,
+	SummaryValue,
+	SummaryLabel,
 	GroupsContainer,
 	GroupSection,
 	GroupHeader,
 	GroupName,
+	GroupCountBadge,
 	GroupNameInput,
 	HeaderRight,
 	AddPropertyButton,
-	AddGroupButton,
 	PropertiesGrid,
+	AddPropertyTile,
+	AddPropertyTileIcon,
+	AddPropertyTileTitle,
+	AddPropertyTileHint,
 	PropertyTile,
+	PropertyImageWrap,
 	PropertyImage,
-	PropertyOverlay,
+	PropertyTopBadge,
+	PropertyTopMenu,
+	PropertyBody,
 	PropertyTitle,
+	PropertyAddress,
+	PropertyLabelBadge,
+	PropertyMetaRow,
+	PropertyMetaItem,
+	PropertyMetaText,
 	DropdownMenu,
 	DropdownItem,
 	DropdownToggle,
-	FavoriteStar,
 	GroupActions,
-	GroupActionButton,
+	GroupActionMenu,
+	PageSubtitle,
+	SearchBar,
+	FilterSortContainer,
+	FilterButton,
+	SortButton,
+	CollapseToggle,
+	SummarySubtitle,
+	HeaderMenuWrap,
+	HeaderMenuButton,
+	HeaderDropdownMenu,
+	HeaderDropdownItem,
+	HeaderDropdownIcon,
+	HeaderDropdownTitle,
+	HeaderDropdownHint,
 } from './PropertiesTab.styles';
 import { Property } from '../../types/Property.types';
 import { useAppFeedback } from '../Library/AppFeedback/AppFeedbackProvider';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import {
+	faHouse,
+	faWrench,
+	faCalendarDays,
+	faFileLines,
+	faChevronUp,
+	faChevronDown,
+	faEllipsis,
+	faEllipsisVertical,
+	faFolderPlus,
+	faUsers,
+	faMinimize,
+	faGear,
+	faLocationDot,
+	faMicrochip,
+	faClock,
+} from '@fortawesome/free-solid-svg-icons';
 
 export const Properties = () => {
 	const navigate = useNavigate();
@@ -99,6 +149,8 @@ export const Properties = () => {
 	const [createUnit] = useCreateUnitMutation();
 	const [updateUser] = useUpdateUserMutation();
 	const [createNotification] = useCreateNotificationMutation();
+	const { data: allTasks = [] } = useGetTasksQuery();
+	const { data: allDevices = [] } = useGetAllDevicesQuery();
 
 	// Check if user can manage properties based on subscription plan
 	// All paid plans allow property management, free plan has limited access
@@ -147,6 +199,150 @@ export const Properties = () => {
 			return 0;
 		});
 	}, [groupsWithProperties, currentUser, teamMembers]);
+
+	const propertyAggregates = useMemo(() => {
+		const taskByProperty = new Map<
+			string,
+			{ overdue: number; next7: number; next30: number; documents: number }
+		>();
+		const deviceByProperty = new Map<string, { systems: number; documents: number }>();
+
+		const today = new Date();
+		today.setHours(0, 0, 0, 0);
+		const sevenDaysFromNow = new Date(today);
+		sevenDaysFromNow.setDate(today.getDate() + 7);
+		const thirtyDaysFromNow = new Date(today);
+		thirtyDaysFromNow.setDate(today.getDate() + 30);
+
+		allTasks.forEach((task: any) => {
+			if (!task?.propertyId) {
+				return;
+			}
+
+			const status = String(task.status || '').toLowerCase();
+			if (status === 'completed' || status === 'rejected') {
+				return;
+			}
+
+			const propertyId = String(task.propertyId);
+			const current = taskByProperty.get(propertyId) || {
+				overdue: 0,
+				next7: 0,
+				next30: 0,
+				documents: 0,
+			};
+
+			if (task.completionFile?.url) {
+				current.documents += 1;
+			}
+
+			if (!task.dueDate) {
+				taskByProperty.set(propertyId, current);
+				return;
+			}
+
+			const dueDate = new Date(task.dueDate);
+			if (Number.isNaN(dueDate.getTime())) {
+				taskByProperty.set(propertyId, current);
+				return;
+			}
+
+			dueDate.setHours(0, 0, 0, 0);
+			if (dueDate < today) {
+				current.overdue += 1;
+			}
+			if (dueDate >= today && dueDate <= sevenDaysFromNow) {
+				current.next7 += 1;
+			}
+			if (dueDate >= today && dueDate <= thirtyDaysFromNow) {
+				current.next30 += 1;
+			}
+
+			taskByProperty.set(propertyId, current);
+		});
+
+		allDevices.forEach((device: any) => {
+			const propertyId = String(device?.location?.propertyId || '');
+			if (!propertyId) {
+				return;
+			}
+
+			const current = deviceByProperty.get(propertyId) || {
+				systems: 0,
+				documents: 0,
+			};
+			current.systems += 1;
+			current.documents += Array.isArray(device.files) ? device.files.length : 0;
+			deviceByProperty.set(propertyId, current);
+		});
+
+		return { taskByProperty, deviceByProperty };
+	}, [allTasks, allDevices]);
+
+	const summaryCards = useMemo(() => {
+		const uniqueProperties = Array.from(
+			new Map(
+				filteredGroups
+					.flatMap((group) => group.properties || [])
+					.map((property) => [property.id, property]),
+			).values(),
+		);
+
+		const maintenanceDue = uniqueProperties.reduce((count, property: any) => {
+			const propertyId = String(property.id);
+			const taskSummary = propertyAggregates.taskByProperty.get(propertyId);
+			return count + (taskSummary?.overdue || 0) + (taskSummary?.next30 || 0);
+		}, 0);
+
+		const scheduled = uniqueProperties.reduce((count, property: any) => {
+			const propertyId = String(property.id);
+			return count + (propertyAggregates.taskByProperty.get(propertyId)?.next7 || 0);
+		}, 0);
+
+		const documents = uniqueProperties.reduce((count, property: any) => {
+			const propertyId = String(property.id);
+			const taskDocuments =
+				propertyAggregates.taskByProperty.get(propertyId)?.documents || 0;
+			const deviceDocuments =
+				propertyAggregates.deviceByProperty.get(propertyId)?.documents || 0;
+			const propertyPhotoDocument = property.image ? 1 : 0;
+			return count + taskDocuments + deviceDocuments + propertyPhotoDocument;
+		}, 0);
+
+		return [
+			{
+				value: uniqueProperties.length,
+				label: 'Total Properties',
+				icon: faHouse,
+				bg: '#ecfdf3',
+				color: '#0f9f6e',
+			},
+			{
+				value: maintenanceDue,
+				label: 'Maintenance Due',
+				subtitle: 'In the next 30 days',
+				icon: faWrench,
+				bg: '#fff7ed',
+				color: '#ea580c',
+			},
+			{
+				value: scheduled,
+				label: 'Scheduled',
+				subtitle: 'In the next 7 days',
+				icon: faCalendarDays,
+				bg: '#eff6ff',
+				color: '#2563eb',
+			},
+			{
+				value: documents,
+				label: 'Documents',
+				subtitle: 'Across all properties',
+				icon: faFileLines,
+				bg: '#f5f3ff',
+				color: '#7c3aed',
+			},
+		];
+	}, [filteredGroups, propertyAggregates]);
 
 	useEffect(() => {
 		const currentTeamMember = teamMembers.find(
@@ -211,6 +407,27 @@ export const Properties = () => {
 		name: string;
 	} | null>(null);
 	const [isDeletingProperty, setIsDeletingProperty] = useState(false);
+	const [searchQuery, setSearchQuery] = useState<string>('');
+	const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+	const [sortBy, setSortBy] = useState<'name' | 'recent' | 'updated'>('name');
+	const [filterBy, setFilterBy] = useState<'all' | 'rental' | 'residential'>('all');
+	const [isHeaderMenuOpen, setIsHeaderMenuOpen] = useState(false);
+	const [openGroupMenuId, setOpenGroupMenuId] = useState<string | null>(null);
+	const headerMenuRef = useRef<HTMLDivElement | null>(null);
+
+	useEffect(() => {
+		const handleClickOutside = (event: MouseEvent) => {
+			if (
+				headerMenuRef.current &&
+				!headerMenuRef.current.contains(event.target as Node)
+			) {
+				setIsHeaderMenuOpen(false);
+			}
+		};
+
+		document.addEventListener('mousedown', handleClickOutside);
+		return () => document.removeEventListener('mousedown', handleClickOutside);
+	}, []);
 
 	const handleAddGroup = async () => {
 		if (!currentUser) {
@@ -353,6 +570,47 @@ export const Properties = () => {
 			slug: property.slug,
 		});
 		setDialogOpen(true);
+	};
+
+	const handleAddPropertyToGroup = (groupId: string) => {
+		setSelectedGroupForDialog(groupId);
+		setSelectedPropertyForEdit(null);
+		setDialogOpen(true);
+	};
+
+	const handleToggleCollapse = (groupId: string) => {
+		const newCollapsed = new Set(collapsedGroups);
+		if (newCollapsed.has(groupId)) {
+			newCollapsed.delete(groupId);
+		} else {
+			newCollapsed.add(groupId);
+		}
+		setCollapsedGroups(newCollapsed);
+	};
+
+	const handleCollapseAllGroups = () => {
+		setCollapsedGroups(new Set(filteredGroups.map((group) => group.id as string)));
+		setIsHeaderMenuOpen(false);
+	};
+
+	const handleHeaderCreateGroup = async () => {
+		setIsHeaderMenuOpen(false);
+		await handleAddGroup();
+	};
+
+	const handleHeaderManageGroups = () => {
+		setIsHeaderMenuOpen(false);
+		feedback.notify('Use the edit and delete icons next to each group to manage groups.');
+	};
+
+	const handleHeaderGroupSettings = () => {
+		setIsHeaderMenuOpen(false);
+		feedback.notify('Group settings are coming soon.');
+	};
+
+	const handleGroupSettings = () => {
+		setOpenGroupMenuId(null);
+		feedback.notify('Group settings are coming soon.');
 	};
 
 	const handleDeleteProperty = async (propertyId: string) => {
@@ -542,6 +800,71 @@ export const Properties = () => {
 		}
 	};
 
+	const getPropertyAddress = useCallback((property: Property) => {
+		const rawAddress = property.address?.trim();
+		if (!rawAddress) {
+			return {
+				primary: property.title,
+				secondary: 'Address not set',
+			};
+		}
+
+		const parts = rawAddress.split(',').map((part) => part.trim()).filter(Boolean);
+		return {
+			primary: parts[0] || rawAddress,
+			secondary: parts.slice(1).join(', '),
+		};
+	}, []);
+
+	const getPropertyPillLabel = useCallback((property: Property) => {
+		if (property.isRental) {
+			return 'Rental';
+		}
+
+		if (property.propertyType === 'Commercial') {
+			return 'Commercial';
+		}
+
+		if (property.propertyType === 'Multi-Family') {
+			return 'Multi-Unit';
+		}
+
+		return 'Primary Home';
+	}, []);
+
+	const getPropertyMetrics = useCallback((property: Property) => {
+		const propertyId = String(property.id);
+		const overdueCount =
+			propertyAggregates.taskByProperty.get(propertyId)?.overdue || 0;
+		const dueSoonCount =
+			propertyAggregates.taskByProperty.get(propertyId)?.next7 || 0;
+		const systemsCount =
+			propertyAggregates.deviceByProperty.get(propertyId)?.systems ||
+			property.deviceIds?.length ||
+			0;
+
+		return [
+			{
+				icon: faWrench,
+				value: overdueCount,
+				label: overdueCount === 1 ? 'Overdue' : 'Overdue',
+				color: overdueCount > 0 ? '#ef4444' : '#6b7280',
+			},
+			{
+				icon: faClock,
+				value: dueSoonCount,
+				label: 'Due Soon',
+				color: '#6b7280',
+			},
+			{
+				icon: faMicrochip,
+				value: systemsCount,
+				label: systemsCount === 1 ? 'System' : 'Systems',
+				color: '#6b7280',
+			},
+		];
+	}, [propertyAggregates]);
+
 	const handleToggleHideFromDashboard = async (propertyId: string) => {
 		if (!currentUser) return;
 
@@ -599,6 +922,11 @@ export const Properties = () => {
 						occupants: [],
 				  }))
 				: undefined;
+		const sharingData = {
+			coOwners: formData.coOwners || [],
+			administrators: formData.administrators || [],
+			viewers: formData.viewers || [],
+		};
 
 		if (selectedPropertyForEdit) {
 			// Edit existing property
@@ -625,6 +953,7 @@ export const Properties = () => {
 					notes: formData.notes,
 					isRental: !!formData.isRental,
 					taskHistory: formData.maintenanceHistory || [],
+					...sharingData,
 				};
 				const sanitizedUpdates = Object.fromEntries(
 					Object.entries(updates).filter(([, value]) => value !== undefined),
@@ -725,8 +1054,8 @@ export const Properties = () => {
 				bedrooms: formData.bedrooms,
 				bathrooms: formData.bathrooms,
 				isRental: !!formData.isRental,
-
 				taskHistory: formData.maintenanceHistory || [],
+				...sharingData,
 			};
 
 			// Only add type-specific fields if they have values
@@ -838,16 +1167,58 @@ export const Properties = () => {
 					<StandardPageTitle>Properties</StandardPageTitle>
 					{canManage && (
 						<TopActions>
-							{canManageGroups && (
-								<AddGroupButton onClick={handleAddGroup}>
-									+ Add Group
-								</AddGroupButton>
-							)}
 							<AddPropertyButton
 								disabled={handleDisabled()}
 								onClick={handleAddPropertyGlobalClick}>
 								+ Add Property
 							</AddPropertyButton>
+							{canManageGroups && (
+								<HeaderMenuWrap ref={headerMenuRef}>
+									<HeaderMenuButton
+										onClick={() => setIsHeaderMenuOpen((prev) => !prev)}
+										aria-label='Open group options'>
+										...
+									</HeaderMenuButton>
+									{isHeaderMenuOpen && (
+										<HeaderDropdownMenu>
+											<HeaderDropdownItem onClick={handleHeaderCreateGroup}>
+												<HeaderDropdownIcon>
+													<FontAwesomeIcon icon={faFolderPlus} />
+												</HeaderDropdownIcon>
+												<div>
+													<HeaderDropdownTitle>Create Group</HeaderDropdownTitle>
+												</div>
+											</HeaderDropdownItem>
+											<HeaderDropdownItem onClick={handleHeaderManageGroups}>
+												<HeaderDropdownIcon>
+													<FontAwesomeIcon icon={faUsers} />
+												</HeaderDropdownIcon>
+												<div>
+													<HeaderDropdownTitle>Manage Groups</HeaderDropdownTitle>
+													<HeaderDropdownHint>Rename, reorder, or delete groups</HeaderDropdownHint>
+												</div>
+											</HeaderDropdownItem>
+											<HeaderDropdownItem onClick={handleCollapseAllGroups}>
+												<HeaderDropdownIcon>
+													<FontAwesomeIcon icon={faMinimize} />
+												</HeaderDropdownIcon>
+												<div>
+													<HeaderDropdownTitle>Collapse All Groups</HeaderDropdownTitle>
+												</div>
+											</HeaderDropdownItem>
+											<HeaderDropdownItem onClick={handleHeaderGroupSettings}>
+												<HeaderDropdownIcon>
+													<FontAwesomeIcon icon={faGear} />
+												</HeaderDropdownIcon>
+												<div>
+													<HeaderDropdownTitle>Group Settings</HeaderDropdownTitle>
+													<HeaderDropdownHint>Default group for new properties</HeaderDropdownHint>
+												</div>
+											</HeaderDropdownItem>
+										</HeaderDropdownMenu>
+									)}
+								</HeaderMenuWrap>
+							)}
 						</TopActions>
 					)}
 				</PageHeaderSection>
@@ -890,24 +1261,98 @@ export const Properties = () => {
 
 	return (
 		<Wrapper>
-			{/* Page Header: Title on left, actions on right */}
 			<PageHeaderSection>
-				<StandardPageTitle>Properties</StandardPageTitle>
-				{canManage && (
-					<TopActions>
-						{canManageGroups && (
-							<AddGroupButton onClick={handleAddGroup}>
-								+ Add Group
-							</AddGroupButton>
-						)}
-						<AddPropertyButton
-							disabled={handleDisabled()}
-							onClick={handleAddPropertyGlobalClick}>
-							+ Add Property
-						</AddPropertyButton>
-					</TopActions>
-				)}
+				<div>
+					<StandardPageTitle>Properties</StandardPageTitle>
+					<PageSubtitle>Organize and manage all of your properties in one place.</PageSubtitle>
+				</div>
+				<TopActions>
+					<SearchBar
+						type='text'
+						placeholder='Search properties...'
+						value={searchQuery}
+						onChange={(e) => setSearchQuery(e.target.value)}
+					/>
+					<FilterSortContainer>
+						<FilterButton $isActive={filterBy !== 'all'} onClick={() => setFilterBy(filterBy === 'all' ? 'rental' : 'all')}>
+							Filters
+						</FilterButton>
+						<SortButton onClick={() => setSortBy(sortBy === 'name' ? 'updated' : 'name')}>
+							Sort
+						</SortButton>
+					</FilterSortContainer>
+					{canManage && (
+						<>
+							<AddPropertyButton
+								disabled={handleDisabled()}
+								onClick={handleAddPropertyGlobalClick}>
+								+ Add Property
+							</AddPropertyButton>
+							{canManageGroups && (
+								<HeaderMenuWrap ref={headerMenuRef}>
+									<HeaderMenuButton
+										onClick={() => setIsHeaderMenuOpen((prev) => !prev)}
+										aria-label='Open group options'>
+										...
+									</HeaderMenuButton>
+									{isHeaderMenuOpen && (
+										<HeaderDropdownMenu>
+											<HeaderDropdownItem onClick={handleHeaderCreateGroup}>
+												<HeaderDropdownIcon>
+													<FontAwesomeIcon icon={faFolderPlus} />
+												</HeaderDropdownIcon>
+												<div>
+													<HeaderDropdownTitle>Create Group</HeaderDropdownTitle>
+												</div>
+											</HeaderDropdownItem>
+											<HeaderDropdownItem onClick={handleHeaderManageGroups}>
+												<HeaderDropdownIcon>
+													<FontAwesomeIcon icon={faUsers} />
+												</HeaderDropdownIcon>
+												<div>
+													<HeaderDropdownTitle>Manage Groups</HeaderDropdownTitle>
+													<HeaderDropdownHint>Rename, reorder, or delete groups</HeaderDropdownHint>
+												</div>
+											</HeaderDropdownItem>
+											<HeaderDropdownItem onClick={handleCollapseAllGroups}>
+												<HeaderDropdownIcon>
+													<FontAwesomeIcon icon={faMinimize} />
+												</HeaderDropdownIcon>
+												<div>
+													<HeaderDropdownTitle>Collapse All Groups</HeaderDropdownTitle>
+												</div>
+											</HeaderDropdownItem>
+											<HeaderDropdownItem onClick={handleHeaderGroupSettings}>
+												<HeaderDropdownIcon>
+													<FontAwesomeIcon icon={faGear} />
+												</HeaderDropdownIcon>
+												<div>
+													<HeaderDropdownTitle>Group Settings</HeaderDropdownTitle>
+													<HeaderDropdownHint>Default group for new properties</HeaderDropdownHint>
+												</div>
+											</HeaderDropdownItem>
+										</HeaderDropdownMenu>
+									)}
+								</HeaderMenuWrap>
+							)}
+						</>
+					)}
+				</TopActions>
 			</PageHeaderSection>
+			<SummaryStatsGrid>
+				{summaryCards.map((card) => (
+					<SummaryCard key={card.label}>
+						<SummaryIcon $bg={card.bg} $color={card.color}>
+							<FontAwesomeIcon icon={card.icon} />
+						</SummaryIcon>
+						<div>
+							<SummaryValue>{card.value}</SummaryValue>
+							<SummaryLabel>{card.label}</SummaryLabel>
+							{(card as any).subtitle && <SummarySubtitle>{(card as any).subtitle}</SummarySubtitle>}
+						</div>
+					</SummaryCard>
+				))}
+			</SummaryStatsGrid>
 			<PropertyDialog
 				isOpen={dialogOpen}
 				onClose={() => {
@@ -957,6 +1402,9 @@ export const Properties = () => {
 								isRental: selectedPropertyForEdit.isRental ?? false,
 								maintenanceHistory:
 									selectedPropertyForEdit.maintenanceHistory || [],
+								coOwners: selectedPropertyForEdit.coOwners || [],
+								administrators: selectedPropertyForEdit.administrators || [],
+								viewers: selectedPropertyForEdit.viewers || [],
 						  }
 						: undefined
 				}
@@ -977,7 +1425,12 @@ export const Properties = () => {
 				{filteredGroups.map((group) => (
 					<GroupSection key={group.id}>
 						<GroupHeader>
-							<div>
+							<div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
+								<CollapseToggle
+									onClick={() => handleToggleCollapse(group.id as any)}
+									title={collapsedGroups.has(group.id as any) ? 'Expand group' : 'Collapse group'}>
+									<FontAwesomeIcon icon={collapsedGroups.has(group.id as any) ? faChevronDown : faChevronUp} />
+								</CollapseToggle>
 								{editingGroupId === group.id ? (
 									<GroupNameInput
 										type='text'
@@ -992,30 +1445,64 @@ export const Properties = () => {
 										autoFocus
 									/>
 								) : (
-									<GroupName>{group.name}</GroupName>
+									<GroupName>
+										{group.name}
+										<GroupCountBadge>
+											{(group.properties || []).length}
+										</GroupCountBadge>
+									</GroupName>
 								)}
 							</div>
 							<HeaderRight>
 								{canManageGroups && (
 									<GroupActions>
-										<GroupActionButton
-											title='Edit group'
-											onClick={() => handleToggleEditName(group.id as any)}>
-											✎
-										</GroupActionButton>
-										<GroupActionButton
-											title='Delete group'
-											onClick={() => handleDeleteGroup(group.id as any)}>
-											🗑
-										</GroupActionButton>
+										<GroupActionMenu
+											title='Group actions'
+											onClick={() =>
+												setOpenGroupMenuId(
+													openGroupMenuId === group.id ? null : (group.id as string),
+												)
+											}>
+											<FontAwesomeIcon icon={faEllipsisVertical} />
+										</GroupActionMenu>
+										{openGroupMenuId === group.id && (
+											<DropdownMenu
+												onClick={(e) => e.stopPropagation()}
+												style={{ top: '36px', right: '0' }}>
+												<DropdownItem
+													onClick={() => {
+														handleToggleEditName(group.id as any);
+														setOpenGroupMenuId(null);
+													}}>
+													Edit Group
+												</DropdownItem>
+												<DropdownItem onClick={handleGroupSettings}>
+													Group Settings
+												</DropdownItem>
+												<DropdownItem
+													onClick={() => {
+														handleDeleteGroup(group.id as any);
+														setOpenGroupMenuId(null);
+													}}
+													style={{ color: '#ef4444' }}>
+													Delete Group
+												</DropdownItem>
+											</DropdownMenu>
+										)}
 									</GroupActions>
 								)}
 							</HeaderRight>
 						</GroupHeader>
-						<PropertiesGrid
-							$isHomeowner={isHomeowner}
-							$singleProperty={(group.properties || []).length === 1}>
-							{(group.properties || []).map((property: Property) => (
+							{!collapsedGroups.has(group.id as any) && (
+								<PropertiesGrid
+									$isHomeowner={isHomeowner}
+									$singleProperty={(group.properties || []).length === 1}>
+									{(group.properties || []).map((property: Property) => {
+										const address = getPropertyAddress(property);
+										const metrics = getPropertyMetrics(property);
+										const propertyPillLabel = getPropertyPillLabel(property);
+
+										return (
 								<PropertyTile
 									key={property.id}
 									onClick={() => {
@@ -1027,47 +1514,65 @@ export const Properties = () => {
 										const tenantUnitRoute = getTenantUnitRoute(property);
 										navigate(tenantUnitRoute || `/property/${property.slug}`);
 									}}>
-									<PropertyImage src={property.image} alt={property.title} />
-									<FavoriteStar
-										onClick={(e) => {
-											e.preventDefault();
-											e.stopPropagation();
-											toggleFavorite({
-												id: property.id as any,
-												title: property.title,
-												slug: property.slug,
-											});
-										}}
-										title={
-											isFavorite(property.id as any)
-												? 'Remove from favorites'
-												: 'Add to favorites'
-										}>
-										{isFavorite(property.id as any) ? '★' : '☆'}
-									</FavoriteStar>
-									<PropertyOverlay>
-										<PropertyTitle
-											onClick={(e) => {
-												e.stopPropagation();
-												addRecentlyViewed({
-													id: property.id as any,
-													title: property.title,
-													slug: property.slug,
-												});
-											}}>
-											{property.title}
-										</PropertyTitle>
-										<DropdownToggle
-											onClick={(e) => {
-												e.stopPropagation();
-												setOpenDropdown(
-													openDropdown === `${group.id}-${property.id}`
-														? null
-														: `${group.id}-${property.id}`,
-												);
-											}}>
-											⋮
-										</DropdownToggle>
+										<PropertyImageWrap>
+											<PropertyImage src={property.image} alt={property.title} />
+											<PropertyTopBadge
+												onClick={(e) => {
+													e.preventDefault();
+													e.stopPropagation();
+													toggleFavorite({
+														id: property.id as any,
+														title: property.title,
+														slug: property.slug,
+													});
+												}}
+												title={isFavorite(property.id as any) ? 'Remove from favorites' : 'Add to favorites'}>
+												<FontAwesomeIcon icon={faHouse} />
+											</PropertyTopBadge>
+											<PropertyTopMenu>
+												<DropdownToggle
+													onClick={(e) => {
+														e.stopPropagation();
+														setOpenDropdown(
+															openDropdown === `${group.id}-${property.id}`
+																? null
+																: `${group.id}-${property.id}`,
+														);
+													}}>
+													<FontAwesomeIcon icon={faEllipsis} />
+												</DropdownToggle>
+											</PropertyTopMenu>
+										</PropertyImageWrap>
+										<PropertyBody>
+											<div>
+												<PropertyTitle
+													onClick={(e) => {
+														e.stopPropagation();
+														addRecentlyViewed({
+															id: property.id as any,
+															title: property.title,
+															slug: property.slug,
+														});
+													}}>
+													{address.primary}
+												</PropertyTitle>
+												<PropertyAddress>
+													<FontAwesomeIcon icon={faLocationDot} />
+													<span>{address.secondary || property.title}</span>
+												</PropertyAddress>
+											</div>
+											<PropertyLabelBadge>{propertyPillLabel}</PropertyLabelBadge>
+										</PropertyBody>
+										<PropertyMetaRow>
+											{metrics.map((metric) => (
+												<PropertyMetaItem key={`${property.id}-${metric.label}`} $color={metric.color}>
+													<FontAwesomeIcon icon={metric.icon} />
+													<PropertyMetaText>
+														<strong>{metric.value}</strong> {metric.label}
+													</PropertyMetaText>
+												</PropertyMetaItem>
+											))}
+										</PropertyMetaRow>
 										{openDropdown === `${group.id}-${property.id}` &&
 											canManage && (
 												<DropdownMenu onClick={(e) => e.stopPropagation()}>
@@ -1088,10 +1593,22 @@ export const Properties = () => {
 													)}
 												</DropdownMenu>
 											)}
-									</PropertyOverlay>
 								</PropertyTile>
-							))}
-						</PropertiesGrid>
+										);
+									})}
+									{canManage && (
+										<AddPropertyTile
+											type='button'
+											onClick={() => handleAddPropertyToGroup(group.id as any)}>
+											<AddPropertyTileIcon>+</AddPropertyTileIcon>
+											<AddPropertyTileTitle>Add Property</AddPropertyTileTitle>
+											<AddPropertyTileHint>
+												Add another property to this group
+											</AddPropertyTileHint>
+										</AddPropertyTile>
+									)}
+								</PropertiesGrid>
+							)}
 					</GroupSection>
 				))}
 			</GroupsContainer>

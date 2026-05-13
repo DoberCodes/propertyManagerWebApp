@@ -249,6 +249,120 @@ export const MenuItem = styled(Link)`
 	}
 `;
 
+export const MenuItemContent = styled.span`
+	display: inline-flex;
+	align-items: center;
+	gap: 10px;
+`;
+
+export const MenuItemIcon = styled.span`
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 16px;
+	font-size: 13px;
+	color: inherit;
+`;
+
+export const SimpleList = styled.ul`
+	list-style: none;
+	margin: 0;
+	padding: 0;
+`;
+
+export const SimpleListItem = styled.li`
+	padding: 8px 0;
+	font-size: 13px;
+	color: #666666;
+	cursor: pointer;
+	transition: color 0.2s ease;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	border-bottom: 1px solid #f0f0f0;
+
+	&:hover {
+		color: #22c55e;
+	}
+`;
+
+export const ItemText = styled.span`
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	flex: 1;
+`;
+
+export const RemoveItemButton = styled.button`
+	border: none;
+	background: transparent;
+	color: #9ca3af;
+	cursor: pointer;
+	font-size: 14px;
+	padding: 2px 4px;
+	line-height: 1;
+	border-radius: 4px;
+`;
+
+export const PortfolioCard = styled.div`
+	border: 1px solid #dbe4ea;
+	border-radius: 10px;
+	padding: 12px;
+	background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+`;
+
+export const PortfolioTop = styled.div`
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: 8px;
+`;
+
+export const PortfolioPlan = styled.div`
+	font-size: 12px;
+	font-weight: 700;
+	color: #111827;
+`;
+
+export const PortfolioUsage = styled.div`
+	font-size: 12px;
+	color: #4b5563;
+`;
+
+export const ProgressTrack = styled.div`
+	height: 6px;
+	border-radius: 999px;
+	background: #e5e7eb;
+	overflow: hidden;
+`;
+
+export const ProgressFill = styled.div<{ $percent: number }>`
+	height: 100%;
+	width: ${({ $percent }) => `${$percent}%`};
+	background: linear-gradient(90deg, #10b981 0%, #22c55e 100%);
+	transition: width 0.2s ease;
+`;
+
+export const ManagePlanButton = styled.button`
+	border: 1px solid #d1d5db;
+	background: white;
+	color: #0f172a;
+	font-size: 12px;
+	font-weight: 600;
+	border-radius: 8px;
+	padding: 8px 10px;
+	cursor: pointer;
+	text-align: center;
+
+	&:hover {
+		background: #f8fafc;
+	}
+`;
+
 export const Section = styled.div`
 	display: flex;
 	flex-direction: column;

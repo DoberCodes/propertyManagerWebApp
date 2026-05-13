@@ -20,7 +20,10 @@ import { TrialWarningBanner } from 'Components/TrialWarningBanner/TrialWarningBa
 import { ExpiredTrialBanner } from 'Components/ExpiredTrialBanner/ExpiredTrialBanner';
 import { ScheduledSubscriptionBanner } from 'Components/ScheduledSubscriptionBanner/ScheduledSubscriptionBanner';
 import { getTrialDaysRemaining, isTrialExpired } from 'utils/subscriptionUtils';
-import { handleCheckoutSuccess } from 'services/stripeService';
+import {
+	handleCheckoutSuccess,
+	syncSubscriptionFromStripe,
+} from 'services/stripeService';
 import {
 	Wrapper,
 	ActionFirstTopSection,
@@ -244,6 +247,23 @@ export const DashboardTab = () => {
 	}, [location.search, currentUser]);
 
 	const [showTaskCompletionModal, setShowTaskCompletionModal] = useState(false);
+	const hasAttemptedSubscriptionSyncRef = useRef(false);
+
+	useEffect(() => {
+		if (hasAttemptedSubscriptionSyncRef.current) {
+			return;
+		}
+
+		if (!currentUser?.subscription?.stripeCustomerId) {
+			return;
+		}
+
+		hasAttemptedSubscriptionSyncRef.current = true;
+		syncSubscriptionFromStripe().catch((error) => {
+			console.warn('Background Stripe subscription sync skipped:', error);
+		});
+	}, [currentUser?.subscription?.stripeCustomerId]);
+
 	const [completingTaskId, setCompletingTaskId] = useState<string | null>(null);
 	const [startingTaskId, setStartingTaskId] = useState<string | null>(null);
 	const [dashboardMaintenanceHistory, setDashboardMaintenanceHistory] = useState<

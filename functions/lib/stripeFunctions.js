@@ -36,7 +36,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.stripeWebhook = exports.getSubscriptionDetails = exports.cancelSubscription = exports.verifyCheckoutSession = exports.createTrialSubscription = exports.validatePromotionCode = exports.createCheckoutSession = void 0;
+exports.stripeWebhook = exports.syncSubscriptionFromStripe = exports.getSubscriptionDetails = exports.cancelSubscription = exports.verifyCheckoutSession = exports.createTrialSubscription = exports.validatePromotionCode = exports.createCheckoutSession = void 0;
 const functions = __importStar(require("firebase-functions/v1"));
 const admin = __importStar(require("firebase-admin"));
 const stripe_1 = __importDefault(require("stripe"));
@@ -52,6 +52,16 @@ const sanitizeSecret = (value) => {
     return value
         .replace(/[\u0000-\u001F\u007F]/g, '')
         .trim();
+};
+const getLegacyStripeConfig = () => {
+    var _a, _b;
+    try {
+        const legacyConfig = (_b = (_a = functions).config) === null || _b === void 0 ? void 0 : _b.call(_a);
+        return ((legacyConfig === null || legacyConfig === void 0 ? void 0 : legacyConfig.stripe) || {});
+    }
+    catch (error) {
+        return {};
+    }
 };
 const normalizePromoCode = (value) => {
     return sanitizeSecret(String(value || ''));
@@ -100,23 +110,82 @@ const getStripe = () => {
     }
     return stripe;
 };
-const resolvePriceIdForPlan = (planId) => {
+const resolvePriceIdForPlan = (planId, billingCycle = 'month') => {
     const normalizedPlan = String(planId || '').trim().toLowerCase();
-    const priceMap = {
-        homeowner: sanitizeSecret(process.env.STRIPE_HOMEOWNER_PRICE_ID || '') ||
-            sanitizeSecret(process.env.REACT_APP_STRIPE_HOMEOWNER_PLAN_ID || ''),
-        basic: sanitizeSecret(process.env.STRIPE_BASIC_PRICE_ID || '') ||
-            sanitizeSecret(process.env.REACT_APP_STRIPE_BASIC_PLAN_ID || ''),
-        professional: sanitizeSecret(process.env.STRIPE_PROFESSIONAL_PRICE_ID || '') ||
-            sanitizeSecret(process.env.REACT_APP_STRIPE_PROFESSIONAL_PLAN_ID || ''),
-        free: sanitizeSecret(process.env.STRIPE_FREE_PRICE_ID || '') ||
-            sanitizeSecret(process.env.REACT_APP_STRIPE_FREE_PLAN_ID || ''),
-        guest: sanitizeSecret(process.env.STRIPE_FREE_PRICE_ID || '') ||
-            sanitizeSecret(process.env.REACT_APP_STRIPE_FREE_PLAN_ID || ''),
-        tenant: sanitizeSecret(process.env.STRIPE_FREE_PRICE_ID || '') ||
-            sanitizeSecret(process.env.REACT_APP_STRIPE_FREE_PLAN_ID || ''),
+    const normalizedCycle = billingCycle === 'year' ? 'year' : 'month';
+    const legacyStripe = getLegacyStripeConfig();
+    const homePriceId = sanitizeSecret(process.env.STRIPE_HOME_MONTHLY_PRICE_ID || '') ||
+        sanitizeSecret(process.env.STRIPE_HOME_PRICE_ID || '') ||
+        sanitizeSecret(legacyStripe.home_monthly_price_id || '') ||
+        sanitizeSecret(legacyStripe.home_price_id || '') ||
+        sanitizeSecret(process.env.REACT_APP_STRIPE_HOME_PLAN_ID || '') ||
+        sanitizeSecret(process.env.STRIPE_HOMEOWNER_PRICE_ID || '') ||
+        sanitizeSecret(legacyStripe.homeowner_price_id || '') ||
+        sanitizeSecret(process.env.REACT_APP_STRIPE_HOMEOWNER_PLAN_ID || '');
+    const homeAnnualPriceId = sanitizeSecret(process.env.STRIPE_HOME_ANNUAL_PRICE_ID || '') ||
+        sanitizeSecret(legacyStripe.home_annual_price_id || '') ||
+        sanitizeSecret(process.env.REACT_APP_STRIPE_HOME_ANNUAL_PLAN_ID || '');
+    const homeownerLegacyPriceId = sanitizeSecret(process.env.STRIPE_HOMEOWNER_PRICE_ID || '') ||
+        sanitizeSecret(legacyStripe.homeowner_price_id || '') ||
+        sanitizeSecret(process.env.REACT_APP_STRIPE_HOMEOWNER_PLAN_ID || '');
+    const propertyPriceId = sanitizeSecret(process.env.STRIPE_PROPERTY_MONTHLY_PRICE_ID || '') ||
+        sanitizeSecret(process.env.STRIPE_PROPERTY_PRICE_ID || '') ||
+        sanitizeSecret(legacyStripe.property_monthly_price_id || '') ||
+        sanitizeSecret(legacyStripe.property_price_id || '') ||
+        sanitizeSecret(process.env.REACT_APP_STRIPE_PROPERTY_PLAN_ID || '') ||
+        sanitizeSecret(process.env.STRIPE_BASIC_PRICE_ID || '') ||
+        sanitizeSecret(legacyStripe.basic_price_id || '') ||
+        sanitizeSecret(process.env.REACT_APP_STRIPE_BASIC_PLAN_ID || '');
+    const propertyAnnualPriceId = sanitizeSecret(process.env.STRIPE_PROPERTY_ANNUAL_PRICE_ID || '') ||
+        sanitizeSecret(legacyStripe.property_annual_price_id || '') ||
+        sanitizeSecret(process.env.REACT_APP_STRIPE_PROPERTY_ANNUAL_PLAN_ID || '');
+    const basicLegacyPriceId = sanitizeSecret(process.env.STRIPE_BASIC_PRICE_ID || '') ||
+        sanitizeSecret(legacyStripe.basic_price_id || '') ||
+        sanitizeSecret(process.env.REACT_APP_STRIPE_BASIC_PLAN_ID || '');
+    const portfolioPriceId = sanitizeSecret(process.env.STRIPE_PORTFOLIO_MONTHLY_PRICE_ID || '') ||
+        sanitizeSecret(process.env.STRIPE_PORTFOLIO_PRICE_ID || '') ||
+        sanitizeSecret(legacyStripe.portfolio_monthly_price_id || '') ||
+        sanitizeSecret(legacyStripe.portfolio_price_id || '') ||
+        sanitizeSecret(process.env.REACT_APP_STRIPE_PORTFOLIO_PLAN_ID || '') ||
+        sanitizeSecret(process.env.STRIPE_PROFESSIONAL_PRICE_ID || '') ||
+        sanitizeSecret(legacyStripe.professional_price_id || '') ||
+        sanitizeSecret(process.env.REACT_APP_STRIPE_PROFESSIONAL_PLAN_ID || '');
+    const portfolioAnnualPriceId = sanitizeSecret(process.env.STRIPE_PORTFOLIO_ANNUAL_PRICE_ID || '') ||
+        sanitizeSecret(legacyStripe.portfolio_annual_price_id || '') ||
+        sanitizeSecret(process.env.REACT_APP_STRIPE_PORTFOLIO_ANNUAL_PLAN_ID || '');
+    const professionalLegacyPriceId = sanitizeSecret(process.env.STRIPE_PROFESSIONAL_PRICE_ID || '') ||
+        sanitizeSecret(legacyStripe.professional_price_id || '') ||
+        sanitizeSecret(process.env.REACT_APP_STRIPE_PROFESSIONAL_PLAN_ID || '');
+    const freePriceId = sanitizeSecret(process.env.STRIPE_FREE_PRICE_ID || '') ||
+        sanitizeSecret(legacyStripe.free_price_id || '') ||
+        sanitizeSecret(process.env.REACT_APP_STRIPE_FREE_PLAN_ID || '');
+    const monthlyPriceMap = {
+        home: homePriceId,
+        property: propertyPriceId,
+        portfolio: portfolioPriceId,
+        // Legacy aliases
+        homeowner: homePriceId || homeownerLegacyPriceId,
+        basic: propertyPriceId || basicLegacyPriceId,
+        professional: portfolioPriceId || professionalLegacyPriceId,
+        free: freePriceId,
+        guest: freePriceId,
+        tenant: freePriceId,
     };
-    return priceMap[normalizedPlan] || '';
+    const annualPriceMap = {
+        home: homeAnnualPriceId || homePriceId,
+        property: propertyAnnualPriceId || propertyPriceId,
+        portfolio: portfolioAnnualPriceId || portfolioPriceId,
+        // Legacy aliases
+        homeowner: homeAnnualPriceId || homePriceId || homeownerLegacyPriceId,
+        basic: propertyAnnualPriceId || propertyPriceId || basicLegacyPriceId,
+        professional: portfolioAnnualPriceId ||
+            portfolioPriceId ||
+            professionalLegacyPriceId,
+        free: freePriceId,
+        guest: freePriceId,
+        tenant: freePriceId,
+    };
+    return ((normalizedCycle === 'year' ? annualPriceMap : monthlyPriceMap)[normalizedPlan] || '');
 };
 const resolvePromotionCodeId = async (promoCode) => {
     var _a;
@@ -171,15 +240,19 @@ exports.createCheckoutSession = functions
     if (!context.auth) {
         throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
     }
-    const { priceId: legacyPriceId, planId, userId, email, successUrl, cancelUrl, promoCode: requestedPromoCode, } = data;
-    const resolvedPriceId = resolvePriceIdForPlan(String(planId || '')) ||
-        sanitizeSecret(String(legacyPriceId || ''));
+    const { priceId: legacyPriceId, planId, billingCycle, userId, email, successUrl, cancelUrl, promoCode: requestedPromoCode, } = data;
+    const normalizedPlanId = String(planId || '').trim().toLowerCase();
+    const resolvedPlanPriceId = resolvePriceIdForPlan(normalizedPlanId, String(billingCycle || '').toLowerCase() === 'year' ? 'year' : 'month');
+    const resolvedPriceId = normalizedPlanId
+        ? resolvedPlanPriceId
+        : sanitizeSecret(String(legacyPriceId || ''));
     if (!resolvedPriceId || !userId || !email) {
         throw new functions.https.HttpsError('invalid-argument', `Missing required Stripe configuration: no price ID resolved for plan '${String(planId || '')}'. Configure STRIPE_*_PRICE_ID in functions environment.`);
     }
     try {
         console.log('Creating checkout session with:', {
             planId,
+            billingCycle,
             priceId: resolvedPriceId,
             userId,
             email,
@@ -393,8 +466,10 @@ exports.verifyCheckoutSession = functions
     try {
         // Retrieve session from Stripe
         const session = await getStripe().checkout.sessions.retrieve(sessionId);
-        if (session.payment_status !== 'paid') {
-            throw new functions.https.HttpsError('failed-precondition', 'Payment not completed');
+        const normalizedPaymentStatus = String(session.payment_status || '').toLowerCase();
+        const acceptablePaymentStatuses = ['paid', 'no_payment_required'];
+        if (!acceptablePaymentStatuses.includes(normalizedPaymentStatus)) {
+            throw new functions.https.HttpsError('failed-precondition', `Payment not completed (status: ${normalizedPaymentStatus || 'unknown'})`);
         }
         const firebaseUID = (_a = session.metadata) === null || _a === void 0 ? void 0 : _a.firebaseUID;
         if (!firebaseUID) {
@@ -495,6 +570,95 @@ exports.getSubscriptionDetails = functions
         console.error('Error getting subscription details:', error);
         throw new functions.https.HttpsError('internal', 'Failed to get subscription details');
     }
+});
+/**
+ * Sync current authenticated user's subscription from Stripe.
+ * Backstop for missed webhook deliveries or manual Stripe dashboard edits.
+ */
+exports.syncSubscriptionFromStripe = functions
+    .runWith({ secrets: ['STRIPE_SECRET_KEY'] })
+    .https.onCall(async (_data, context) => {
+    var _a, _b, _c;
+    if (!((_a = context.auth) === null || _a === void 0 ? void 0 : _a.uid)) {
+        throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
+    }
+    const userId = context.auth.uid;
+    const userRef = db.collection('users').doc(userId);
+    const userDoc = await userRef.get();
+    if (!userDoc.exists) {
+        throw new functions.https.HttpsError('not-found', 'User not found');
+    }
+    const userData = userDoc.data() || {};
+    const existingSubscription = (userData.subscription || {});
+    const stripeCustomerId = String(existingSubscription.stripeCustomerId || '');
+    const existingStripeSubscriptionId = String(existingSubscription.stripeSubscriptionId || '');
+    if (!stripeCustomerId && !existingStripeSubscriptionId) {
+        return {
+            success: false,
+            reason: 'No Stripe customer/subscription IDs found for user',
+        };
+    }
+    let stripeSubscription = null;
+    if (existingStripeSubscriptionId &&
+        existingStripeSubscriptionId !== 'YOUR_SUBSCRIPTION_ID_HERE') {
+        try {
+            stripeSubscription = await getStripe().subscriptions.retrieve(existingStripeSubscriptionId);
+        }
+        catch (error) {
+            console.warn(`Unable to retrieve Stripe subscription ${existingStripeSubscriptionId}; falling back to customer listing.`);
+        }
+    }
+    if (!stripeSubscription && stripeCustomerId) {
+        const subscriptions = await getStripe().subscriptions.list({
+            customer: stripeCustomerId,
+            status: 'all',
+            limit: 10,
+        });
+        stripeSubscription =
+            subscriptions.data.find((sub) => ['active', 'trialing', 'past_due', 'unpaid'].includes(sub.status)) || subscriptions.data[0] || null;
+    }
+    if (!stripeSubscription) {
+        return {
+            success: false,
+            reason: 'No Stripe subscription found for this user',
+        };
+    }
+    const localStatus = stripeSubscription.status === 'active'
+        ? 'active'
+        : stripeSubscription.status === 'trialing'
+            ? 'trial'
+            : stripeSubscription.status === 'past_due'
+                ? 'past_due'
+                : stripeSubscription.status === 'canceled'
+                    ? 'cancelled'
+                    : String(stripeSubscription.status || 'expired');
+    const currentPriceId = ((_c = (_b = stripeSubscription.items.data[0]) === null || _b === void 0 ? void 0 : _b.price) === null || _c === void 0 ? void 0 : _c.id) ||
+        existingSubscription.currentPriceId ||
+        '';
+    const subscriptionPatch = removeUndefinedFields({
+        status: localStatus,
+        plan: getPlanFromPriceId(String(currentPriceId), String(existingSubscription.plan || 'free')),
+        currentPeriodStart: stripeSubscription.current_period_start,
+        currentPeriodEnd: stripeSubscription.current_period_end,
+        trialEndsAt: stripeSubscription.trial_end,
+        stripeCustomerId: String(stripeSubscription.customer || stripeCustomerId),
+        stripeSubscriptionId: stripeSubscription.id,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        ...(stripeSubscription.status === 'canceled'
+            ? { canceledAt: stripeSubscription.canceled_at }
+            : {}),
+    });
+    const mergedSubscription = buildMergedSubscription(existingSubscription, subscriptionPatch);
+    await userRef.update({
+        subscription: mergedSubscription,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+    await syncFamilyAccountSubscription(userData, mergedSubscription);
+    return {
+        success: true,
+        source: 'stripe-sync-fallback',
+        subscription: subscriptionPatch,
+    };
 });
 /**
  * Handle Stripe Webhook Events
@@ -989,24 +1153,93 @@ const handleDiscountDeleted = async (discount) => {
  * Helper function to map Stripe price ID to plan name
  */
 function getPlanFromPriceId(priceId, fallbackPlan = 'free') {
+    const homePriceIds = [
+        process.env.STRIPE_HOME_MONTHLY_PRICE_ID,
+        process.env.STRIPE_HOME_ANNUAL_PRICE_ID,
+        process.env.REACT_APP_STRIPE_HOME_ANNUAL_PLAN_ID,
+        process.env.STRIPE_HOME_PRICE_ID,
+        process.env.REACT_APP_STRIPE_HOME_PLAN_ID,
+        process.env.STRIPE_HOMEOWNER_PRICE_ID,
+        process.env.REACT_APP_STRIPE_HOMEOWNER_PLAN_ID,
+        'price_home',
+        'price_homeowner',
+    ].filter(Boolean);
+    const propertyPriceIds = [
+        process.env.STRIPE_PROPERTY_MONTHLY_PRICE_ID,
+        process.env.STRIPE_PROPERTY_ANNUAL_PRICE_ID,
+        process.env.REACT_APP_STRIPE_PROPERTY_MONTHLY_PLAN_ID,
+        process.env.REACT_APP_STRIPE_PROPERTY_ANNUAL_PLAN_ID,
+        process.env.STRIPE_PROPERTY_PRICE_ID,
+        process.env.REACT_APP_STRIPE_PROPERTY_PLAN_ID,
+        process.env.STRIPE_BASIC_PRICE_ID,
+        process.env.REACT_APP_STRIPE_BASIC_PLAN_ID,
+        'price_property',
+        'price_property_annual',
+        'price_basic',
+    ].filter(Boolean);
+    const portfolioPriceIds = [
+        process.env.STRIPE_PORTFOLIO_MONTHLY_PRICE_ID,
+        process.env.STRIPE_PORTFOLIO_ANNUAL_PRICE_ID,
+        process.env.REACT_APP_STRIPE_PORTFOLIO_MONTHLY_PLAN_ID,
+        process.env.REACT_APP_STRIPE_PORTFOLIO_ANNUAL_PLAN_ID,
+        process.env.STRIPE_PORTFOLIO_PRICE_ID,
+        process.env.REACT_APP_STRIPE_PORTFOLIO_PLAN_ID,
+        process.env.STRIPE_PROFESSIONAL_PRICE_ID,
+        process.env.REACT_APP_STRIPE_PROFESSIONAL_PLAN_ID,
+        'price_portfolio',
+        'price_portfolio_annual',
+        'price_professional',
+    ].filter(Boolean);
     const priceMap = {
-        [process.env.STRIPE_HOMEOWNER_PRICE_ID || 'price_homeowner']: 'homeowner',
-        [process.env.REACT_APP_STRIPE_HOMEOWNER_PLAN_ID || 'price_homeowner']: 'homeowner',
-        [process.env.STRIPE_BASIC_PRICE_ID || 'price_basic']: 'basic',
-        [process.env.REACT_APP_STRIPE_BASIC_PLAN_ID || 'price_basic']: 'basic',
-        [process.env.STRIPE_PROFESSIONAL_PRICE_ID || 'price_professional']: 'professional',
-        [process.env.REACT_APP_STRIPE_PROFESSIONAL_PLAN_ID || 'price_professional']: 'professional',
+        ...Object.fromEntries(homePriceIds.map((id) => [id, 'home'])),
+        ...Object.fromEntries(propertyPriceIds.map((id) => [id, 'property'])),
+        ...Object.fromEntries(portfolioPriceIds.map((id) => [id, 'portfolio'])),
     };
     return priceMap[priceId] || fallbackPlan;
 }
 /**
  * Helper function to map plan name to Stripe price ID
  */
-function getPriceIdFromPlan(plan) {
-    const planMap = {
-        homeowner: process.env.STRIPE_HOMEOWNER_PRICE_ID || 'price_homeowner',
-        basic: process.env.STRIPE_BASIC_PRICE_ID || 'price_basic',
-        professional: process.env.STRIPE_PROFESSIONAL_PRICE_ID || 'price_professional',
+function getPriceIdFromPlan(plan, billingCycle = 'month') {
+    const normalizedCycle = billingCycle === 'year' ? 'year' : 'month';
+    const homePriceId = process.env.STRIPE_HOME_MONTHLY_PRICE_ID ||
+        process.env.STRIPE_HOME_PRICE_ID ||
+        process.env.STRIPE_HOMEOWNER_PRICE_ID ||
+        'price_home';
+    const homeAnnualPriceId = process.env.STRIPE_HOME_ANNUAL_PRICE_ID ||
+        process.env.REACT_APP_STRIPE_HOME_ANNUAL_PLAN_ID ||
+        homePriceId;
+    const propertyPriceId = process.env.STRIPE_PROPERTY_MONTHLY_PRICE_ID ||
+        process.env.STRIPE_PROPERTY_PRICE_ID ||
+        process.env.STRIPE_BASIC_PRICE_ID ||
+        'price_property';
+    const propertyAnnualPriceId = process.env.STRIPE_PROPERTY_ANNUAL_PRICE_ID ||
+        process.env.REACT_APP_STRIPE_PROPERTY_ANNUAL_PLAN_ID ||
+        propertyPriceId;
+    const portfolioPriceId = process.env.STRIPE_PORTFOLIO_MONTHLY_PRICE_ID ||
+        process.env.STRIPE_PORTFOLIO_PRICE_ID ||
+        process.env.STRIPE_PROFESSIONAL_PRICE_ID ||
+        'price_portfolio';
+    const portfolioAnnualPriceId = process.env.STRIPE_PORTFOLIO_ANNUAL_PRICE_ID ||
+        process.env.REACT_APP_STRIPE_PORTFOLIO_ANNUAL_PLAN_ID ||
+        portfolioPriceId;
+    const monthlyPlanMap = {
+        home: homePriceId,
+        property: propertyPriceId,
+        portfolio: portfolioPriceId,
+        // Legacy aliases
+        homeowner: homePriceId,
+        basic: propertyPriceId,
+        professional: portfolioPriceId,
     };
-    return planMap[plan] || 'price_homeowner'; // Default to homeowner
+    const annualPlanMap = {
+        home: homeAnnualPriceId,
+        property: propertyAnnualPriceId,
+        portfolio: portfolioAnnualPriceId,
+        // Legacy aliases
+        homeowner: homeAnnualPriceId,
+        basic: propertyAnnualPriceId,
+        professional: portfolioAnnualPriceId,
+    };
+    return (normalizedCycle === 'year' ? annualPlanMap : monthlyPlanMap)[plan] || homePriceId;
 }

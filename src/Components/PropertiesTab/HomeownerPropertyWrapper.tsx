@@ -50,6 +50,9 @@ const HomeownerPropertyWrapper: React.FC = () => {
 			await createProperty({
 				...formData,
 				propertyType: effectivePropertyType,
+				coOwners: formData.coOwners || [],
+				administrators: formData.administrators || [],
+				viewers: formData.viewers || [],
 				...(normalizedGroupId && { groupId: normalizedGroupId }),
 				userId: currentUser!.id,
 			});

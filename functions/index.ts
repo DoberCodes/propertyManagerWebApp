@@ -5,6 +5,7 @@ export {
 	verifyCheckoutSession,
 	cancelSubscription,
 	getSubscriptionDetails,
+	syncSubscriptionFromStripe,
 	stripeWebhook,
 	createTrialSubscription,
 } from './stripeFunctions';

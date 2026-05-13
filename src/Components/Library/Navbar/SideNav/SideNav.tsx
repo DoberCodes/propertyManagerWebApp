@@ -11,8 +11,21 @@ import {
 	SectionTitle,
 	MenuNav,
 	MenuItem,
+	MenuItemContent,
+	MenuItemIcon,
 	Section,
 	SectionContent,
+	SimpleList,
+	SimpleListItem,
+	ItemText,
+	RemoveItemButton,
+	PortfolioCard,
+	PortfolioTop,
+	PortfolioPlan,
+	PortfolioUsage,
+	ProgressTrack,
+	ProgressFill,
+	ManagePlanButton,
 	BottomSections,
 } from './SideNav.styles';
 import {
@@ -23,7 +36,21 @@ import {
 	selectIsContractor,
 } from '../../../../Redux/selectors/permissionSelectors';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faCog } from '@fortawesome/free-solid-svg-icons';
+import {
+	faBookOpen,
+	faChartBar,
+	faCog,
+	faHome,
+	faIdCard,
+	faMicrochip,
+	faTachometerAlt,
+	faTasks,
+	faUsers,
+} from '@fortawesome/free-solid-svg-icons';
+import {
+	getRemainingPropertySlots,
+	getSubscriptionPlanDetails,
+} from '../../../../utils/subscriptionUtils';
 
 export const SideNav = () => {
 	const location = useLocation();
@@ -35,6 +62,9 @@ export const SideNav = () => {
 	);
 	const { recentProperties } = useRecentlyViewed(currentUser!.id);
 	const { favorites, removeFavorite } = useFavorites(currentUser!.id);
+	const propertyGroups = useSelector(
+		(state: RootState) => state.propertyData.groups,
+	);
 
 	// Update Redux when location changes
 	React.useEffect(() => {
@@ -53,38 +83,70 @@ export const SideNav = () => {
 	const canViewPages = useSelector(selectCanAccessProperties); // Restored variable
 
 	const isActive = (path: string) => activeRoute === path;
+	const totalProperties = React.useMemo(
+		() =>
+			Array.from(
+				new Set(
+					propertyGroups
+						.flatMap((group) => group.properties || [])
+						.map((property) => property.id),
+				),
+			).length,
+		[propertyGroups],
+	);
+
+	const planDetails = getSubscriptionPlanDetails(
+		currentUser?.subscription?.plan || 'home',
+	);
+	const maxProperties = planDetails?.maxProperties || 1;
+	const remainingSlots = currentUser?.subscription
+		? getRemainingPropertySlots(currentUser.subscription, totalProperties)
+		: 0;
+	const usedProperties = Math.max(0, maxProperties - remainingSlots);
+	const usagePercent = maxProperties > 0 ? (usedProperties / maxProperties) * 100 : 0;
 
 	// Desktop nav items
 	const desktopMenuItems = [
-		{ label: 'Dashboard', path: '/dashboard', visible: !isUserTenant },
+		{
+			label: 'Dashboard',
+			path: '/dashboard',
+			icon: faTachometerAlt,
+			visible: !isUserTenant,
+		},
 		{
 			label: 'Tasks',
 			path: '/tasks',
+			icon: faTasks,
 			visible: !isUserTenant && !isContractor,
 		},
 		{
 			label: 'Devices',
 			path: '/devices',
+			icon: faMicrochip,
 			visible: !isUserTenant && (canAccessProperties || canViewPages),
 		},
 		{
 			label: 'Properties',
 			path: '/properties',
+			icon: faHome,
 			visible: isUserTenant || canAccessProperties || canViewPages,
 		},
 		{
 			label: 'Team',
 			path: '/team',
+			icon: faUsers,
 			visible: !isUserTenant && !isHomeowner && (canAccessTeam || canViewPages),
 		},
 		{
 			label: 'Report',
 			path: '/report',
+			icon: faChartBar,
 			visible: !isUserTenant && (canAccessProperties || canViewPages),
 		},
 		{
 			label: 'Tenant Profile',
 			path: '/tenant-profile',
+			icon: faIdCard,
 			visible: isUserTenant,
 		},
 	];
@@ -102,7 +164,12 @@ export const SideNav = () => {
 									key={item.label}
 									to={item.path}
 									className={isActive(item.path) ? 'active' : ''}>
-									{item.label}
+									<MenuItemContent>
+										<MenuItemIcon>
+											<FontAwesomeIcon icon={item.icon} />
+										</MenuItemIcon>
+										<span>{item.label}</span>
+									</MenuItemContent>
 								</MenuItem>
 							))}
 					</MenuNav>
@@ -114,62 +181,25 @@ export const SideNav = () => {
 							<SectionTitle>Favorites</SectionTitle>
 							<SectionContent>
 								{favorites.length > 0 ? (
-									<ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+										<SimpleList>
 										{favorites.slice(0, 5).map((property) => (
-											<li
+												<SimpleListItem
 												key={property.id}
-												style={{
-													padding: '8px 0',
-													fontSize: '13px',
-													color: '#666666',
-													cursor: 'pointer',
-													transition: 'color 0.2s ease',
-													display: 'flex',
-													alignItems: 'center',
-													justifyContent: 'space-between',
-													gap: '8px',
-													borderBottom: '1px solid #f0f0f0',
-												}}
-												onClick={() => navigate(`/property/${property.slug}`)}
-												onMouseEnter={(e) =>
-													(e.currentTarget.style.color = '#22c55e')
-												}
-												onMouseLeave={(e) =>
-													(e.currentTarget.style.color = '#666666')
-												}>
-												<span
-													style={{
-														overflow: 'hidden',
-														textOverflow: 'ellipsis',
-														whiteSpace: 'nowrap',
-														flex: 1,
-													}}
-													title={property.title}>
-													{'★ ' + property.title}
-												</span>
-												<button
+													onClick={() => navigate(`/property/${property.slug}`)}>
+													<ItemText title={property.title}>{property.title}</ItemText>
+													<RemoveItemButton
 													type='button'
 													onClick={(e) => {
 														e.stopPropagation();
 														void removeFavorite(property.id);
 													}}
 													title={`Remove ${property.title} from favorites`}
-													aria-label={`Remove ${property.title} from favorites`}
-													style={{
-														border: 'none',
-														background: 'transparent',
-														color: '#9ca3af',
-														cursor: 'pointer',
-														fontSize: '14px',
-														padding: '2px 4px',
-														lineHeight: 1,
-														borderRadius: '4px',
-													}}>
+														aria-label={`Remove ${property.title} from favorites`}>
 													×
-												</button>
-											</li>
+													</RemoveItemButton>
+												</SimpleListItem>
 										))}
-									</ul>
+										</SimpleList>
 								) : (
 									<div style={{ fontSize: '12px', color: '#999999' }}>
 										No favorite properties
@@ -183,34 +213,47 @@ export const SideNav = () => {
 							<SectionTitle>Recently Viewed Properties</SectionTitle>
 							<SectionContent>
 								{recentProperties.length > 0 ? (
-									<ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+									<SimpleList>
 										{recentProperties.slice(0, 5).map((property) => (
-											<li
+											<SimpleListItem
 												key={property.id}
-												style={{
-													padding: '8px 0',
-													fontSize: '13px',
-													color: '#666666',
-													cursor: 'pointer',
-													transition: 'color 0.2s ease',
-													borderBottom: '1px solid #f0f0f0',
-												}}
-												onClick={() => navigate(`/property/${property.slug}`)}
-												onMouseEnter={(e) =>
-													(e.currentTarget.style.color = '#22c55e')
-												}
-												onMouseLeave={(e) =>
-													(e.currentTarget.style.color = '#666666')
-												}>
-												{property.title}
-											</li>
+												onClick={() => navigate(`/property/${property.slug}`)}>
+												<ItemText title={property.title}>{property.title}</ItemText>
+											</SimpleListItem>
 										))}
-									</ul>
+									</SimpleList>
 								) : (
 									<div style={{ fontSize: '12px', color: '#999999' }}>
 										No recently viewed properties
 									</div>
 								)}
+							</SectionContent>
+						</Section>
+
+						<Section>
+							<SectionTitle>Property Portfolio</SectionTitle>
+							<SectionContent>
+								<PortfolioCard>
+									<PortfolioTop>
+										<PortfolioPlan>
+											{planDetails?.name || 'Home'} Plan
+										</PortfolioPlan>
+										<PortfolioUsage>
+											{usedProperties} of {maxProperties}
+										</PortfolioUsage>
+									</PortfolioTop>
+									<ProgressTrack>
+										<ProgressFill $percent={Math.min(100, usagePercent)} />
+									</ProgressTrack>
+									<PortfolioUsage>
+										{remainingSlots} property slots available
+									</PortfolioUsage>
+									<ManagePlanButton
+										type='button'
+										onClick={() => navigate('/paywall')}>
+										Manage Plan
+									</ManagePlanButton>
+								</PortfolioCard>
 							</SectionContent>
 						</Section>
 					</>
@@ -225,6 +268,9 @@ export const SideNav = () => {
 						{!isUserTenant && (
 							<div
 								style={{
+									display: 'flex',
+									alignItems: 'center',
+									gap: '8px',
 									padding: '8px 0',
 									fontSize: '13px',
 									color: '#666666',
@@ -234,7 +280,8 @@ export const SideNav = () => {
 								onClick={() => navigate('/features')}
 								onMouseEnter={(e) => (e.currentTarget.style.color = '#6366f1')}
 								onMouseLeave={(e) => (e.currentTarget.style.color = '#666666')}>
-								📋 View All Features
+								<FontAwesomeIcon icon={faBookOpen} size='sm' />
+								<span>View All Features</span>
 							</div>
 						)}
 					</SectionContent>

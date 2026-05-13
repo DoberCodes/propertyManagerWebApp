@@ -12,8 +12,11 @@ export const PropertyDetailSection = (props: PropertyDetailSectionProps) => {
 	// Helper function to get user name from ID
 	const getUserName = (userId: string) => {
 		const user = props.teamMembers.find((member) => member.id === userId);
-		return user ? `${user.firstName} ${user.lastName}` : 'Unknown User';
+		return user ? `${user.firstName} ${user.lastName}` : userId;
 	};
+
+	const getResolvedNames = (userIds: string[] = []) =>
+		userIds.map((userId) => getUserName(userId));
 
 	// Get all owners (main owner + co-owners)
 	const getAllOwners = () => {
@@ -24,7 +27,7 @@ export const PropertyDetailSection = (props: PropertyDetailSectionProps) => {
 		const coOwners = props.property?.coOwners || [];
 		coOwners.forEach((coOwnerId) => {
 			const coOwnerName = getUserName(coOwnerId);
-			if (coOwnerName !== 'Unknown User') owners.push(coOwnerName);
+			owners.push(coOwnerName);
 		});
 
 		return owners;
@@ -94,7 +97,7 @@ export const PropertyDetailSection = (props: PropertyDetailSectionProps) => {
 
 					<InfoValue>
 						{(props.property?.administrators?.length || 0) > 0
-							? props.property?.administrators?.join(', ')
+							? getResolvedNames(props.property?.administrators).join(', ')
 							: 'None'}
 					</InfoValue>
 				</InfoCard>
@@ -103,7 +106,7 @@ export const PropertyDetailSection = (props: PropertyDetailSectionProps) => {
 
 					<InfoValue>
 						{(props.property?.viewers?.length || 0) > 0
-							? props.property?.viewers?.join(', ')
+							? getResolvedNames(props.property?.viewers).join(', ')
 							: 'None'}
 					</InfoValue>
 				</InfoCard>

@@ -42,7 +42,7 @@ export const SUBSCRIPTION_PLANS = {
 	PROPERTY: {
 		id: 'property',
 		name: 'Property',
-		priceMonthly: 9,
+		priceMonthly: 8.99,
 		priceYearly: 89,
 		maxProperties: 3, // 2-3 included
 		maxDevices: 999, // Unlimited
@@ -82,7 +82,7 @@ export const SUBSCRIPTION_PLANS = {
 	PORTFOLIO: {
 		id: 'portfolio',
 		name: 'Portfolio',
-		priceMonthly: 24,
+		priceMonthly: 23.99,
 		priceYearly: 249,
 		maxProperties: 15,
 		maxDevices: 999, // Unlimited

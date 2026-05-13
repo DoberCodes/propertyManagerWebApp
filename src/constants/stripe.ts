@@ -7,6 +7,8 @@
 // Stripe Public Key - from environment variables
 export const STRIPE_PUBLIC_KEY = process.env.REACT_APP_STRIPE_PUBLIC_KEY || '';
 
+export type BillingCycle = 'month' | 'year';
+
 // Stripe Plan IDs (from Stripe Dashboard)
 export const STRIPE_PLANS = {
 	FREE: process.env.REACT_APP_STRIPE_FREE_PLAN_ID || 'price_free',
@@ -21,16 +23,73 @@ export const STRIPE_PLANS = {
 		process.env.REACT_APP_STRIPE_PORTFOLIO_PLAN_ID || 'price_portfolio',
 };
 
+const STRIPE_PLAN_PRICE_IDS = {
+	free: {
+		month: process.env.REACT_APP_STRIPE_FREE_PLAN_ID || 'price_free',
+		year: process.env.REACT_APP_STRIPE_FREE_PLAN_ID || 'price_free',
+	},
+	home: {
+		month: process.env.REACT_APP_STRIPE_HOME_PLAN_ID || 'price_home',
+		year: process.env.REACT_APP_STRIPE_HOME_ANNUAL_PLAN_ID || '',
+	},
+	property: {
+		month:
+			process.env.REACT_APP_STRIPE_PROPERTY_MONTHLY_PLAN_ID ||
+			process.env.REACT_APP_STRIPE_PROPERTY_PLAN_ID ||
+			'price_property',
+		year:
+			process.env.REACT_APP_STRIPE_PROPERTY_ANNUAL_PLAN_ID || 'price_property_annual',
+	},
+	portfolio: {
+		month:
+			process.env.REACT_APP_STRIPE_PORTFOLIO_MONTHLY_PLAN_ID ||
+			process.env.REACT_APP_STRIPE_PORTFOLIO_PLAN_ID ||
+			'price_portfolio',
+		year:
+			process.env.REACT_APP_STRIPE_PORTFOLIO_ANNUAL_PLAN_ID ||
+			'price_portfolio_annual',
+	},
+};
+
+export const getStripePriceIdForPlan = (
+	planId: string,
+	billingCycle: BillingCycle = 'month',
+): string => {
+	const normalizedPlan = String(planId || '').trim().toLowerCase();
+	const normalizedCycle = billingCycle === 'year' ? 'year' : 'month';
+
+	const planAliases: Record<string, keyof typeof STRIPE_PLAN_PRICE_IDS> = {
+		free: 'free',
+		guest: 'free',
+		tenant: 'free',
+		home: 'home',
+		homeowner: 'home',
+		property: 'property',
+		basic: 'property',
+		portfolio: 'portfolio',
+		professional: 'portfolio',
+	};
+
+	const resolvedPlan = planAliases[normalizedPlan];
+	if (!resolvedPlan) return '';
+
+	return (
+		STRIPE_PLAN_PRICE_IDS[resolvedPlan][normalizedCycle] ||
+		STRIPE_PLAN_PRICE_IDS[resolvedPlan].month ||
+		''
+	);
+};
+
 // Price mapping for display
 export const STRIPE_PRICES = {
 	FREE: 0,
-	HOME: 9,
-	PROPERTY: 9,
-	PORTFOLIO: 24,
+	HOME: 0,
+	PROPERTY: 8.99,
+	PORTFOLIO: 23.99,
 	// Backward compatibility
-	HOMEOWNER: 9,
-	BASIC: 9,
-	PROFESSIONAL: 24,
+	HOMEOWNER: 0,
+	BASIC: 8.99,
+	PROFESSIONAL: 23.99,
 };
 
 // Billing intervals

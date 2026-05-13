@@ -50,16 +50,30 @@ if "%HOME_PRICE_ID%"=="" (
     exit /b 1
 )
 
-set /p PROPERTY_PRICE_ID="Enter Property Plan Price ID (price_...): "
-if "%PROPERTY_PRICE_ID%"=="" (
-    echo ❌ Property Price ID is required
+set /p PROPERTY_MONTHLY_PRICE_ID="Enter Property Monthly Price ID (price_...): "
+if "%PROPERTY_MONTHLY_PRICE_ID%"=="" (
+    echo ❌ Property Monthly Price ID is required
     pause
     exit /b 1
 )
 
-set /p PORTFOLIO_PRICE_ID="Enter Portfolio Plan Price ID (price_...): "
-if "%PORTFOLIO_PRICE_ID%"=="" (
-    echo ❌ Portfolio Price ID is required
+set /p PROPERTY_ANNUAL_PRICE_ID="Enter Property Annual Price ID (price_...): "
+if "%PROPERTY_ANNUAL_PRICE_ID%"=="" (
+    echo ❌ Property Annual Price ID is required
+    pause
+    exit /b 1
+)
+
+set /p PORTFOLIO_MONTHLY_PRICE_ID="Enter Portfolio Monthly Price ID (price_...): "
+if "%PORTFOLIO_MONTHLY_PRICE_ID%"=="" (
+    echo ❌ Portfolio Monthly Price ID is required
+    pause
+    exit /b 1
+)
+
+set /p PORTFOLIO_ANNUAL_PRICE_ID="Enter Portfolio Annual Price ID (price_...): "
+if "%PORTFOLIO_ANNUAL_PRICE_ID%"=="" (
+    echo ❌ Portfolio Annual Price ID is required
     pause
     exit /b 1
 )
@@ -68,7 +82,7 @@ echo.
 echo 🚀 Setting Firebase Functions environment variables...
 
 REM Set the environment variables
-firebase functions:config:set stripe.secret_key="%STRIPE_SECRET_KEY%" stripe.home_price_id="%HOME_PRICE_ID%" stripe.property_price_id="%PROPERTY_PRICE_ID%" stripe.portfolio_price_id="%PORTFOLIO_PRICE_ID%"
+firebase functions:config:set stripe.secret_key="%STRIPE_SECRET_KEY%" stripe.home_price_id="%HOME_PRICE_ID%" stripe.property_price_id="%PROPERTY_MONTHLY_PRICE_ID%" stripe.property_monthly_price_id="%PROPERTY_MONTHLY_PRICE_ID%" stripe.property_annual_price_id="%PROPERTY_ANNUAL_PRICE_ID%" stripe.portfolio_price_id="%PORTFOLIO_MONTHLY_PRICE_ID%" stripe.portfolio_monthly_price_id="%PORTFOLIO_MONTHLY_PRICE_ID%" stripe.portfolio_annual_price_id="%PORTFOLIO_ANNUAL_PRICE_ID%"
 
 if %errorlevel% equ 0 (
     echo.

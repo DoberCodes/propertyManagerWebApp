@@ -19,7 +19,8 @@ export const selectIsContractor = createSelector([selectUser], (user) => {
 });
 
 export const selectIsHomeowner = createSelector([selectUser], (user) => {
-	return !!user && user.subscription?.plan === 'homeowner';
+	const plan = String(user?.subscription?.plan || '').toLowerCase();
+	return !!user && (plan === 'home' || plan === 'homeowner');
 });
 
 export const selectCanAccessTeam = createSelector([selectUser], (user) => {

@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useSelector } from 'react-redux';
 import {
 	ModalOverlay as DialogOverlay,
 	ModalContainer as DialogContainer,
@@ -14,7 +15,6 @@ import {
 } from '../Library';
 import {
 	FormSection,
-	SectionTitle,
 	FormRow,
 	FormField,
 	Label,
@@ -22,12 +22,39 @@ import {
 	TextArea,
 	PhotoPreview,
 	PhotoPreviewImage,
-	MaintenanceHistoryBox,
-	HistoryItem,
 	TagsContainer,
 	Tag,
 	RemoveTagButton,
 	TagInput,
+	WizardShell,
+	WizardSidebar,
+	WizardStep,
+	WizardStepDot,
+	WizardStepText,
+	WizardStepTitle,
+	WizardStepHint,
+	WizardContent,
+	WizardPanel,
+	WizardPanelHeader,
+	WizardPanelTitle,
+	WizardPanelHint,
+	SelectField,
+	UploadDropzone,
+	SharingSection,
+	SharingHeader,
+	SharingTitleWrap,
+	SharingTitle,
+	SharingHint,
+	ShareControls,
+	MemberList,
+	MemberCard,
+	MemberCardInfo,
+	MemberName,
+	MemberMeta,
+	EmptySharingState,
+	ReviewGrid,
+	ReviewLabel,
+	ReviewValue,
 } from './PropertyDialog.styles';
 import { FileUploader } from '../Library/FileUploader';
 import {
@@ -35,27 +62,34 @@ import {
 	isValidPropertyImageFile,
 } from '../../utils/propertyImageUpload';
 import { DeleteConfirmationModal } from '../Library/Modal/DeleteConfirmationModal';
+import { RootState } from '../../Redux/store/store';
+import { TeamMember } from '../../types/Team.types';
+import { User } from '../../Redux/Slices/userSlice';
+import { getFamilyMembers } from '../../services/authService';
 
 interface MaintenanceRecord {
 	date: string;
 	description: string;
 }
 
-interface PropertyFormData {
+export interface PropertyFormData {
 	photo?: string;
 	name: string;
 	owner: string;
 	address: string;
 	propertyType: 'Single Family' | 'Multi-Family' | 'Commercial';
 	isRental?: boolean;
-	units: string[]; // For multi-family properties
-	hasSuites?: boolean; // For commercial properties
-	suites: string[]; // For commercial properties with multiple suites
+	units: string[];
+	hasSuites?: boolean;
+	suites: string[];
 	bedrooms?: number | null;
 	bathrooms?: number | null;
 	notes: string;
 	maintenanceHistory?: MaintenanceRecord[];
 	groupId?: string | null;
+	coOwners?: string[];
+	administrators?: string[];
+	viewers?: string[];
 }
 
 interface PropertyDialogProps {
@@ -67,13 +101,40 @@ interface PropertyDialogProps {
 	initialData?: PropertyFormData;
 	groups: Array<{ id: string; name: string }>;
 	selectedGroupId?: string | null;
-	onCreateGroup?: (name: string) => Promise<string>; // returns new group id
-	propertyId?: string; // For editing existing properties
+	onCreateGroup?: (name: string) => Promise<string>;
+	propertyId?: string;
 	isHiddenFromDashboard?: boolean;
 	onToggleHideFromDashboard?: () => void;
 	isSharedProperty?: boolean;
 	onDetachFromProperty?: () => void;
 }
+
+interface ShareMemberOption {
+	id: string;
+	displayName: string;
+	email: string;
+	meta: string;
+	source: 'team' | 'family';
+}
+
+const STEPS = [
+	{
+		title: 'Basic Details',
+		hint: 'Address, group, and property information',
+	},
+	{
+		title: 'Property Profile',
+		hint: 'Additional details about your property',
+	},
+	{
+		title: 'Access & Sharing',
+		hint: 'Add people who can access this property',
+	},
+	{
+		title: 'Review',
+		hint: 'Confirm and save your property',
+	},
+] as const;
 
 export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 	isOpen,
@@ -91,23 +152,33 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 	isSharedProperty,
 	onDetachFromProperty,
 }) => {
-	const [formData, setFormData] = useState<PropertyFormData>(
-		initialData || {
-			name: '',
-			owner: '',
-			address: '',
-			propertyType: 'Single Family',
-			units: [],
-			hasSuites: false,
-			suites: [],
-			bedrooms: 0,
-			bathrooms: 0,
-			notes: '',
-			maintenanceHistory: [],
-			groupId: selectedGroupId ?? null,
-		},
+	const currentUser = useSelector((state: RootState) => state.user.currentUser);
+	const teamGroups = useSelector((state: RootState) => state.team.groups);
+
+	const teamMembers = useMemo(
+		() => teamGroups.flatMap((group) => group.members || []),
+		[teamGroups],
 	);
 
+	const [formData, setFormData] = useState<PropertyFormData>({
+		name: '',
+		owner: '',
+		address: '',
+		propertyType: 'Single Family',
+		isRental: false,
+		units: [],
+		hasSuites: false,
+		suites: [],
+		bedrooms: 0,
+		bathrooms: 0,
+		notes: '',
+		maintenanceHistory: [],
+		groupId: selectedGroupId ?? null,
+		coOwners: [],
+		administrators: [],
+		viewers: [],
+	});
+	const [stepIndex, setStepIndex] = useState(0);
 	const [unitInput, setUnitInput] = useState('');
 	const [suiteInput, setSuiteInput] = useState('');
 	const [isSubmitting, setIsSubmitting] = useState(false);
@@ -116,109 +187,206 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 	const [imageError, setImageError] = useState<string | null>(null);
 	const [isDeletingProperty, setIsDeletingProperty] = useState(false);
 	const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+	const [familyMembers, setFamilyMembers] = useState<User[]>([]);
+	const [isLoadingFamilyMembers, setIsLoadingFamilyMembers] = useState(false);
+	const [pendingShares, setPendingShares] = useState<{
+		coOwners: string;
+		administrators: string;
+		viewers: string;
+	}>({
+		coOwners: '',
+		administrators: '',
+		viewers: '',
+	});
 
-	// Shared properties feature retired.
-	const coOwnerShares: any[] = [];
-
-	// Reset form when dialog opens or initialData changes
 	useEffect(() => {
-		if (isOpen) {
-			if (initialData) {
-				// Convert units from Unit[] objects back to string[] for editing
-				const unitStrings =
-					initialData.units && Array.isArray(initialData.units)
-						? (initialData.units as any[]).map((u) =>
-								typeof u === 'string' ? u : u.name,
-						  )
-						: [];
-
-				// Convert suites from Suite[] objects back to string[] for editing
-				const suiteStrings =
-					(initialData as any).suites &&
-					Array.isArray((initialData as any).suites)
-						? ((initialData as any).suites as any[]).map((s) =>
-								typeof s === 'string' ? s : s.name,
-						  )
-						: [];
-
-				setFormData({
-					...initialData,
-					propertyType: forceSingleFamily
-						? 'Single Family'
-						: initialData.propertyType,
-					units: unitStrings,
-					suites: suiteStrings,
-					hasSuites: initialData.hasSuites ?? false,
-					isRental: initialData.isRental ?? false,
-					groupId: selectedGroupId ?? null,
-				});
-			} else {
-				setFormData({
-					name: '',
-					owner: '',
-					address: '',
-					propertyType: 'Single Family',
-					isRental: false,
-					units: [],
-					hasSuites: false,
-					suites: [],
-					bedrooms: 0,
-					bathrooms: 0,
-					notes: '',
-					maintenanceHistory: [],
-					groupId: selectedGroupId ?? null,
-				});
-			}
-			setUnitInput('');
-			setSuiteInput('');
-			setNewGroupName('');
-			setIsDeleteConfirmOpen(false);
+		if (!isOpen) {
+			return;
 		}
-	}, [isOpen, initialData, selectedGroupId, forceSingleFamily]);
 
-	if (!isOpen) return null;
+		if (initialData) {
+			const unitStrings =
+				initialData.units && Array.isArray(initialData.units)
+					? (initialData.units as any[]).map((unit) =>
+							typeof unit === 'string' ? unit : unit.name,
+					  )
+					: [];
+			const suiteStrings =
+				initialData.suites && Array.isArray(initialData.suites)
+					? (initialData.suites as any[]).map((suite) =>
+							typeof suite === 'string' ? suite : suite.name,
+					  )
+					: [];
+
+			setFormData({
+				...initialData,
+				propertyType: forceSingleFamily ? 'Single Family' : initialData.propertyType,
+				units: unitStrings,
+				suites: suiteStrings,
+				hasSuites: initialData.hasSuites ?? false,
+				isRental: initialData.isRental ?? false,
+				groupId: initialData.groupId ?? selectedGroupId ?? null,
+				coOwners: initialData.coOwners || [],
+				administrators: initialData.administrators || [],
+				viewers: initialData.viewers || [],
+			});
+		} else {
+			setFormData({
+				name: '',
+				owner: currentUser
+					? `${currentUser.firstName || ''} ${currentUser.lastName || ''}`.trim()
+					: '',
+				address: '',
+				propertyType: 'Single Family',
+				isRental: false,
+				units: [],
+				hasSuites: false,
+				suites: [],
+				bedrooms: 0,
+				bathrooms: 0,
+				notes: '',
+				maintenanceHistory: [],
+				groupId: selectedGroupId ?? null,
+				coOwners: [],
+				administrators: [],
+				viewers: [],
+			});
+		}
+
+		setStepIndex(0);
+		setUnitInput('');
+		setSuiteInput('');
+		setNewGroupName('');
+		setPendingShares({ coOwners: '', administrators: '', viewers: '' });
+		setImageError(null);
+		setIsDeleteConfirmOpen(false);
+	}, [isOpen, initialData, selectedGroupId, forceSingleFamily, currentUser]);
+
+	useEffect(() => {
+		let isCancelled = false;
+
+		const loadFamilyMembers = async () => {
+			if (!isOpen || !currentUser?.accountId) {
+				if (!isCancelled) {
+					setFamilyMembers([]);
+					setIsLoadingFamilyMembers(false);
+				}
+				return;
+			}
+
+			setIsLoadingFamilyMembers(true);
+			try {
+				const members = await getFamilyMembers(currentUser.accountId);
+				if (!isCancelled) {
+					setFamilyMembers(members);
+				}
+			} catch (error) {
+				console.error('Error loading family members:', error);
+				if (!isCancelled) {
+					setFamilyMembers([]);
+				}
+			} finally {
+				if (!isCancelled) {
+					setIsLoadingFamilyMembers(false);
+				}
+			}
+		};
+
+		loadFamilyMembers();
+
+		return () => {
+			isCancelled = true;
+		};
+	}, [isOpen, currentUser?.accountId]);
+
+	const availableMembers = useMemo<ShareMemberOption[]>(() => {
+		const allMembers: ShareMemberOption[] = [];
+		const seen = new Set<string>();
+
+		teamMembers.forEach((member: TeamMember) => {
+			if (!member?.id || member.id === currentUser?.id) {
+				return;
+			}
+			if (seen.has(member.id)) {
+				return;
+			}
+			seen.add(member.id);
+			allMembers.push({
+				id: member.id,
+				displayName: `${member.firstName} ${member.lastName}`.trim() || member.email,
+				email: member.email,
+				meta: member.title || member.role || 'Team member',
+				source: 'team',
+			});
+		});
+
+		familyMembers.forEach((member: User) => {
+			if (!member?.id || member.id === currentUser?.id) {
+				return;
+			}
+			if (seen.has(member.id)) {
+				return;
+			}
+			seen.add(member.id);
+			allMembers.push({
+				id: member.id,
+				displayName:
+					`${member.firstName || ''} ${member.lastName || ''}`.trim() ||
+					member.email,
+				email: member.email,
+				meta: member.role || 'Family member',
+				source: 'family',
+			});
+		});
+
+		return allMembers.sort((left, right) =>
+			left.displayName.localeCompare(right.displayName),
+		);
+	}, [teamMembers, familyMembers, currentUser?.id]);
+
+	const availableMemberMap = useMemo(
+		() => new Map(availableMembers.map((member) => [member.id, member])),
+		[availableMembers],
+	);
 
 	const handleInputChange = (field: keyof PropertyFormData, value: any) => {
 		setFormData((prev) => ({ ...prev, [field]: value }));
 	};
 
 	const handleAddUnit = () => {
-		if (unitInput.trim()) {
-			setFormData((prev) => ({
-				...prev,
-				units: [...prev.units, unitInput.trim()],
-			}));
-			setUnitInput('');
-		}
+		if (!unitInput.trim()) return;
+		setFormData((prev) => ({
+			...prev,
+			units: [...prev.units, unitInput.trim()],
+		}));
+		setUnitInput('');
 	};
 
 	const handleRemoveUnit = (index: number) => {
 		setFormData((prev) => ({
 			...prev,
-			units: prev.units.filter((_, i) => i !== index),
+			units: prev.units.filter((_, unitIndex) => unitIndex !== index),
 		}));
 	};
 
 	const handleAddSuite = () => {
-		if (suiteInput.trim()) {
-			setFormData((prev) => ({
-				...prev,
-				suites: [...(prev.suites || []), suiteInput.trim()],
-			}));
-			setSuiteInput('');
-		}
+		if (!suiteInput.trim()) return;
+		setFormData((prev) => ({
+			...prev,
+			suites: [...prev.suites, suiteInput.trim()],
+		}));
+		setSuiteInput('');
 	};
 
 	const handleRemoveSuite = (index: number) => {
 		setFormData((prev) => ({
 			...prev,
-			suites: (prev.suites || []).filter((_, i) => i !== index),
+			suites: prev.suites.filter((_, suiteIndex) => suiteIndex !== index),
 		}));
 	};
 
 	const handlePhotoUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-		const url = e.target.value;
-		handleInputChange('photo', url || undefined);
+		handleInputChange('photo', e.target.value || undefined);
 		setImageError(null);
 	};
 
@@ -231,53 +399,99 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 
 		setImageError(null);
 		setIsUploadingImage(true);
-
 		try {
 			const imageUrl = await uploadPropertyImage(file);
 			handleInputChange('photo', imageUrl);
-			setIsUploadingImage(false);
 		} catch (error) {
-			const errorMessage =
-				error instanceof Error ? error.message : 'Failed to upload image';
-			setImageError(errorMessage);
+			setImageError(
+				error instanceof Error ? error.message : 'Failed to upload image',
+			);
+		} finally {
 			setIsUploadingImage(false);
 		}
 	};
 
+	const addShareMember = (
+		field: 'coOwners' | 'administrators' | 'viewers',
+		memberId: string,
+	) => {
+		if (!memberId) return;
+
+		setFormData((prev) => {
+			const nextCoOwners = prev.coOwners?.filter((id) => id !== memberId) || [];
+			const nextAdministrators =
+				prev.administrators?.filter((id) => id !== memberId) || [];
+			const nextViewers = prev.viewers?.filter((id) => id !== memberId) || [];
+
+			return {
+				...prev,
+				coOwners:
+					field === 'coOwners' ? [...nextCoOwners, memberId] : nextCoOwners,
+				administrators:
+					field === 'administrators'
+						? [...nextAdministrators, memberId]
+						: nextAdministrators,
+				viewers: field === 'viewers' ? [...nextViewers, memberId] : nextViewers,
+			};
+		});
+
+		setPendingShares((prev) => ({ ...prev, [field]: '' }));
+	};
+
+	const removeShareMember = (
+		field: 'coOwners' | 'administrators' | 'viewers',
+		memberId: string,
+	) => {
+		setFormData((prev) => ({
+			...prev,
+			[field]: (prev[field] || []).filter((id) => id !== memberId),
+		}));
+	};
+
+	const canContinue = useMemo(() => {
+		if (stepIndex === 0) {
+			return true;
+		}
+		if (stepIndex === 1) {
+			return Boolean(formData.name.trim() && formData.address.trim());
+		}
+		return true;
+	}, [stepIndex, formData.name, formData.address]);
+
+	const handleNext = () => {
+		if (!canContinue) {
+			return;
+		}
+		setStepIndex((prev) => Math.min(prev + 1, STEPS.length - 1));
+	};
+
+	const handleBack = () => {
+		setStepIndex((prev) => Math.max(prev - 1, 0));
+	};
+
 	const handleSave = async () => {
 		if (isSubmitting) return;
-
 		setIsSubmitting(true);
 		try {
 			await onSave({
 				...formData,
-				propertyType: forceSingleFamily
-					? 'Single Family'
-					: formData.propertyType,
+				propertyType: forceSingleFamily ? 'Single Family' : formData.propertyType,
 			});
-			// Close dialog on successful save
 			onClose();
 		} catch (error) {
 			console.error('Error saving property:', error);
-			// Don't close dialog on error so user can retry
 		} finally {
 			setIsSubmitting(false);
 		}
 	};
 
 	const handleDeletePropertyClick = async () => {
-		if (!onDeleteProperty || isDeletingProperty || isSubmitting) {
-			return;
-		}
-
+		if (!onDeleteProperty || isDeletingProperty || isSubmitting) return;
 		setIsDeleteConfirmOpen(true);
 	};
 
 	const handleConfirmDeleteProperty = async () => {
-		if (!onDeleteProperty || isDeletingProperty || isSubmitting) {
-			return;
-		}
-
+		if (!onDeleteProperty || isDeletingProperty || isSubmitting) return;
 		setIsDeletingProperty(true);
 		try {
 			await onDeleteProperty();
@@ -289,136 +503,184 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 		}
 	};
 
-	return (
-		<>
-			<DialogOverlay onClick={onClose}>
-				<DialogContainer onClick={(e) => e.stopPropagation()}>
-				<DialogHeader>
-					<DialogTitle>
-						{initialData ? 'Edit Property' : 'Add New Property'}
-					</DialogTitle>
-					<CloseButton onClick={onClose}>×</CloseButton>
-				</DialogHeader>
+	const getShareMembers = (ids: string[] = []) =>
+		ids
+			.map((id) => availableMemberMap.get(id))
+			.filter(Boolean) as ShareMemberOption[];
 
-				<DialogContent>
-					{/* Group Assignment */}
+	const renderShareSection = (
+		field: 'coOwners' | 'administrators' | 'viewers',
+		title: string,
+		hint: string,
+		buttonLabel: string,
+	) => {
+		const selectedIds = formData[field] || [];
+		const selectedMembers = getShareMembers(selectedIds);
+		const availableOptions = availableMembers.filter(
+			(member) => !selectedIds.includes(member.id),
+		);
+
+		return (
+			<SharingSection>
+				<SharingHeader>
+					<SharingTitleWrap>
+						<SharingTitle>{title}</SharingTitle>
+						<SharingHint>{hint}</SharingHint>
+					</SharingTitleWrap>
+				</SharingHeader>
+				<ShareControls>
+					<SelectField
+						value={pendingShares[field]}
+						onChange={(e) =>
+							setPendingShares((prev) => ({
+								...prev,
+								[field]: e.target.value,
+							}))
+						}>
+						<option value=''>Select member</option>
+						{availableOptions.map((member) => (
+							<option key={`${field}-${member.id}`} value={member.id}>
+								{member.displayName} ({member.email})
+							</option>
+						))}
+					</SelectField>
+					<AddButton
+						onClick={() => addShareMember(field, pendingShares[field])}
+						disabled={!pendingShares[field]}>
+						{buttonLabel}
+					</AddButton>
+				</ShareControls>
+				<MemberList>
+					{selectedMembers.length > 0 ? (
+						selectedMembers.map((member) => (
+							<MemberCard key={`${field}-${member.id}`}>
+								<MemberCardInfo>
+									<MemberName>{member.displayName}</MemberName>
+									<MemberMeta>
+										{member.email} • {member.meta}
+									</MemberMeta>
+								</MemberCardInfo>
+								<SecondaryButton onClick={() => removeShareMember(field, member.id)}>
+									Remove
+								</SecondaryButton>
+							</MemberCard>
+						))
+					) : (
+						<EmptySharingState>
+							No one added yet. Only existing team or family members in the system can be assigned here.
+						</EmptySharingState>
+					)}
+				</MemberList>
+			</SharingSection>
+		);
+	};
+
+	const renderStepContent = () => {
+		if (stepIndex === 0) {
+			return (
+				<WizardPanel>
+					<WizardPanelHeader>
+						<WizardPanelTitle>Assign to Group</WizardPanelTitle>
+						<WizardPanelHint>
+							Organize your property by assigning it to an existing group or creating a new one.
+						</WizardPanelHint>
+					</WizardPanelHeader>
 					<FormSection>
-						<SectionTitle>Assign to Group (Optional)</SectionTitle>
 						<FormRow>
 							<FormField>
-								<Label>Group</Label>
-								<select
+								<Label>Select existing group</Label>
+								<SelectField
 									value={formData.groupId ?? ''}
-									onChange={(e) => {
-										const v = e.target.value;
-
-										handleInputChange('groupId', v || null);
-									}}
-									style={{
-										padding: '10px 12px',
-										border: '1px solid #d1d5db',
-										borderRadius: '4px',
-										fontSize: '14px',
-									}}>
+									onChange={(e) => handleInputChange('groupId', e.target.value || null)}>
 									<option value=''>No group</option>
-									{groups.map((g) => (
-										<option key={g.id} value={g.id}>
-											{g.name}
+									{groups.map((group) => (
+										<option key={group.id} value={group.id}>
+											{group.name}
 										</option>
 									))}
-								</select>
+								</SelectField>
 							</FormField>
-
 							<FormField>
-								<Label>Or create new group</Label>
-								<div style={{ display: 'flex', gap: 8 }}>
+								<Label>Create new group</Label>
+								<div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 10 }}>
 									<Input
 										value={newGroupName}
 										onChange={(e) => setNewGroupName(e.target.value)}
 										placeholder='New group name'
-										style={{ flex: 1 }}
 									/>
-									<button
+									<AddButton
 										onClick={async () => {
-											if (onCreateGroup && newGroupName.trim()) {
-												const id = await onCreateGroup(newGroupName.trim());
-												setNewGroupName('');
-												handleInputChange('groupId', id || null);
-											}
+											if (!onCreateGroup || !newGroupName.trim()) return;
+											const id = await onCreateGroup(newGroupName.trim());
+											setNewGroupName('');
+											handleInputChange('groupId', id || null);
 										}}
-										style={{
-											padding: '8px 12px',
-											backgroundColor: '#22c55e',
-											color: 'white',
-											border: 'none',
-											borderRadius: '4px',
-											cursor: 'pointer',
-											fontSize: '14px',
-										}}>
+										disabled={!newGroupName.trim()}>
 										Create
-									</button>
+									</AddButton>
 								</div>
 							</FormField>
 						</FormRow>
 					</FormSection>
-					{/* Photo Section */}
+
 					<FormSection>
-						<SectionTitle>Photo</SectionTitle>
+						<WizardPanelHeader>
+							<WizardPanelTitle>Property Photo</WizardPanelTitle>
+							<WizardPanelHint>
+								Add a photo to easily identify your property.
+							</WizardPanelHint>
+						</WizardPanelHeader>
 						{imageError && (
-							<div
-								style={{
-									color: '#dc2626',
-									fontSize: '14px',
-									marginBottom: '12px',
-									padding: '8px 12px',
-									backgroundColor: '#fee2e2',
-									borderRadius: '4px',
-								}}>
-								{imageError}
-							</div>
+							<div style={{ color: '#dc2626', fontSize: 13 }}>{imageError}</div>
 						)}
-						<FormRow>
-							<FormField>
-								<Input
-									type='text'
-									value={formData.photo || ''}
-									onChange={handlePhotoUrlChange}
-									placeholder='Enter image URL or upload a file below'
-									disabled={isUploadingImage}
-								/>
-							</FormField>
-						</FormRow>
-						{isUploadingImage ? (
-							<div
-								style={{
-									padding: '12px',
-									textAlign: 'center',
-									color: '#6b7280',
-									fontSize: '14px',
-								}}>
-								Processing image...
-							</div>
-						) : (
-							<FileUploader
-								label='Upload Image File'
-								helperText='JPG, PNG, GIF, WEBP (max 8MB)'
-								accept='image/*'
-								allowedTypes={['image/*']}
-								maxSizeBytes={8 * 1024 * 1024}
-								setFile={handlePhotoUpload}
-								showSelectedFiles={false}
+						<FormField>
+							<Label>Photo URL</Label>
+							<Input
+								type='text'
+								value={formData.photo || ''}
+								onChange={handlePhotoUrlChange}
+								placeholder='Enter image URL or upload a file below'
+								disabled={isUploadingImage}
 							/>
-						)}
+						</FormField>
+						<UploadDropzone>
+							{isUploadingImage ? (
+								<div style={{ padding: 12, textAlign: 'center', color: '#64748b' }}>
+									Processing image...
+								</div>
+							) : (
+								<FileUploader
+									label='Upload Image File'
+									helperText='JPG, PNG, GIF, WEBP (max 8MB)'
+									accept='image/*'
+									allowedTypes={['image/*']}
+									maxSizeBytes={8 * 1024 * 1024}
+									setFile={handlePhotoUpload}
+									showSelectedFiles={false}
+								/>
+							)}
+						</UploadDropzone>
 						{formData.photo && (
 							<PhotoPreview>
 								<PhotoPreviewImage src={formData.photo} alt='Property' />
 							</PhotoPreview>
 						)}
 					</FormSection>
+				</WizardPanel>
+			);
+		}
 
-					{/* Basic Info */}
+		if (stepIndex === 1) {
+			return (
+				<WizardPanel>
+					<WizardPanelHeader>
+						<WizardPanelTitle>Property Details</WizardPanelTitle>
+						<WizardPanelHint>
+							The basic information about your property.
+						</WizardPanelHint>
+					</WizardPanelHeader>
+
 					<FormSection>
-						<SectionTitle>Basic Information</SectionTitle>
 						<FormField>
 							<Label>Property Name</Label>
 							<Input
@@ -440,7 +702,7 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 						<FormRow>
 							<FormField>
 								<Label>Property Type</Label>
-								<select
+								<SelectField
 									value={formData.propertyType}
 									disabled={forceSingleFamily}
 									onChange={(e) =>
@@ -448,56 +710,12 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 											'propertyType',
 											e.target.value as PropertyFormData['propertyType'],
 										)
-									}
-									style={{
-										padding: '10px 12px',
-										border: '1px solid #d1d5db',
-										borderRadius: '4px',
-										fontSize: '14px',
-										width: '100%',
-									}}>
+									}>
 									<option value='Single Family'>Single Family</option>
-									{!forceSingleFamily && (
-										<>
-											<option value='Multi-Family'>Multi-Family</option>
-											<option value='Commercial'>Commercial</option>
-										</>
-									)}
-								</select>
-								{forceSingleFamily && (
-									<div
-										style={{
-											marginTop: '6px',
-											fontSize: '12px',
-											color: '#6b7280',
-										}}>
-										Homeowner plans are limited to Single Family homes.
-									</div>
-								)}
+									{!forceSingleFamily && <option value='Multi-Family'>Multi-Family</option>}
+									{!forceSingleFamily && <option value='Commercial'>Commercial</option>}
+								</SelectField>
 							</FormField>
-							{formData.propertyType === 'Commercial' && (
-								<FormField>
-									<Label>Has multiple suites?</Label>
-									<div
-										style={{
-											display: 'flex',
-											alignItems: 'center',
-											gap: '8px',
-										}}>
-										<input
-											type='checkbox'
-											checked={!!formData.hasSuites}
-											onChange={(e) =>
-												handleInputChange('hasSuites', e.target.checked)
-											}
-											style={{ width: '16px', height: '16px' }}
-										/>
-										<span style={{ color: '#4b5563', fontSize: '14px' }}>
-											Enable suite-level management
-										</span>
-									</div>
-								</FormField>
-							)}
 							<FormField>
 								<Label>Owner</Label>
 								<Input
@@ -514,21 +732,13 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 									<Label>Bedrooms</Label>
 									<Input
 										type='number'
-										value={
-											formData.bedrooms !== null &&
-											formData.bedrooms !== undefined
-												? formData.bedrooms
-												: ''
-										}
+										value={formData.bedrooms ?? ''}
 										onChange={(e) =>
 											handleInputChange(
 												'bedrooms',
-												e.target.value === ''
-													? null
-													: parseInt(e.target.value, 10),
+												e.target.value === '' ? null : parseInt(e.target.value, 10),
 											)
 										}
-										placeholder='0'
 									/>
 								</FormField>
 								<FormField>
@@ -536,301 +746,287 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 									<Input
 										type='number'
 										step='0.5'
-										value={
-											formData.bathrooms !== null &&
-											formData.bathrooms !== undefined
-												? formData.bathrooms
-												: ''
-										}
+										value={formData.bathrooms ?? ''}
 										onChange={(e) =>
 											handleInputChange(
 												'bathrooms',
-												e.target.value === ''
-													? null
-													: parseFloat(e.target.value),
+												e.target.value === '' ? null : parseFloat(e.target.value),
 											)
 										}
-										placeholder='0'
 									/>
 								</FormField>
 							</FormRow>
 						)}
+						<FormField>
+							<Label>Rental Settings</Label>
+							<label style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#475569' }}>
+								<input
+									type='checkbox'
+									checked={!!formData.isRental}
+									onChange={(e) => handleInputChange('isRental', e.target.checked)}
+								/>
+								Yes, this property is a rental
+							</label>
+						</FormField>
 					</FormSection>
 
-					{/* Rental Settings */}
-					<FormSection>
-						<SectionTitle>Rental Settings</SectionTitle>
-						<FormRow>
-							<FormField>
-								<Label>Is Rental?</Label>
-								<div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-									<input
-										type='checkbox'
-										checked={!!formData.isRental}
-										onChange={(e) =>
-											handleInputChange('isRental', e.target.checked)
-										}
-										style={{ width: '16px', height: '16px' }}
-									/>
-									<span style={{ color: '#4b5563', fontSize: '14px' }}>
-										This property is a rental and will enable tenant & request
-										management.
-									</span>
-								</div>
-							</FormField>
-						</FormRow>
-					</FormSection>
-
-					{/* Units Section - Only for Multi-Family */}
 					{formData.propertyType === 'Multi-Family' && (
 						<FormSection>
-							<SectionTitle>Units/Apartments</SectionTitle>
-							<FormField>
-								<TagsContainer>
-									{formData.units.map((unit, index) => (
-										<Tag key={index}>
-											{unit}
-											<RemoveTagButton onClick={() => handleRemoveUnit(index)}>
-												×
-											</RemoveTagButton>
-										</Tag>
-									))}
-								</TagsContainer>
-								<TagInput>
-									<Input
-										type='text'
-										value={unitInput}
-										onChange={(e) => setUnitInput(e.target.value)}
-										onKeyPress={(e) => {
-											if (e.key === 'Enter') {
-												e.preventDefault();
-												handleAddUnit();
-											}
-										}}
-										placeholder='Add unit (e.g., "Unit 101", "Apt 2A")'
-									/>
-									<AddButton onClick={handleAddUnit}>Add Unit</AddButton>
-								</TagInput>
-							</FormField>
+							<Label>Units</Label>
+							<TagsContainer>
+								{formData.units.map((unit, index) => (
+									<Tag key={`${unit}-${index}`}>
+										{unit}
+										<RemoveTagButton onClick={() => handleRemoveUnit(index)}>×</RemoveTagButton>
+									</Tag>
+								))}
+							</TagsContainer>
+							<TagInput>
+								<Input
+									type='text'
+									value={unitInput}
+									onChange={(e) => setUnitInput(e.target.value)}
+									placeholder='Add unit name'
+								/>
+								<AddButton onClick={handleAddUnit}>Add Unit</AddButton>
+							</TagInput>
 						</FormSection>
 					)}
 
-					{/* Suites Section - Only for Commercial with suites enabled */}
-					{formData.propertyType === 'Commercial' && formData.hasSuites && (
+					{formData.propertyType === 'Commercial' && (
 						<FormSection>
-							<SectionTitle>Suites</SectionTitle>
-							<FormField>
-								<TagsContainer>
-									{(formData.suites || []).map((suite, index) => (
-										<Tag key={index}>
-											{suite}
-											<RemoveTagButton onClick={() => handleRemoveSuite(index)}>
-												×
-											</RemoveTagButton>
-										</Tag>
-									))}
-								</TagsContainer>
-								<TagInput>
-									<Input
-										type='text'
-										value={suiteInput}
-										onChange={(e) => setSuiteInput(e.target.value)}
-										onKeyPress={(e) => {
-											if (e.key === 'Enter') {
-												e.preventDefault();
-												handleAddSuite();
-											}
-										}}
-										placeholder='Add suite (e.g., "Suite 100", "Suite A")'
-									/>
-									<AddButton onClick={handleAddSuite}>Add Suite</AddButton>
-								</TagInput>
-							</FormField>
+							<Label>Suites</Label>
+							<label style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#475569' }}>
+								<input
+									type='checkbox'
+									checked={!!formData.hasSuites}
+									onChange={(e) => handleInputChange('hasSuites', e.target.checked)}
+								/>
+								Enable suite-level management
+							</label>
+							{formData.hasSuites && (
+								<>
+									<TagsContainer>
+										{formData.suites.map((suite, index) => (
+											<Tag key={`${suite}-${index}`}>
+												{suite}
+												<RemoveTagButton onClick={() => handleRemoveSuite(index)}>×</RemoveTagButton>
+											</Tag>
+										))}
+									</TagsContainer>
+									<TagInput>
+										<Input
+											type='text'
+											value={suiteInput}
+											onChange={(e) => setSuiteInput(e.target.value)}
+											placeholder='Add suite name'
+										/>
+										<AddButton onClick={handleAddSuite}>Add Suite</AddButton>
+									</TagInput>
+								</>
+							)}
 						</FormSection>
 					)}
 
-					{/* Co-Owners */}
 					<FormSection>
-						<SectionTitle>Co-Owners</SectionTitle>
-						<FormField>
-							<TagsContainer>
-								{coOwnerShares
-									.filter((share) => share.permission === 'co-owner')
-									.map((share) => (
-										<Tag key={share.id}>
-											{share.sharedWithFirstName && share.sharedWithLastName
-												? `${share.sharedWithFirstName} ${share.sharedWithLastName} (${share.sharedWithEmail})`
-												: share.sharedWithEmail}
-										</Tag>
-									))}
-							</TagsContainer>
-							{coOwnerShares.filter((share) => share.permission === 'co-owner')
-								.length === 0 && (
-								<div
-									style={{
-										color: '#666',
-										fontSize: '14px',
-										fontStyle: 'italic',
-									}}>
-									No co-owners assigned. Use the Share Property button to add
-									co-owners.
-								</div>
-							)}
-						</FormField>
-					</FormSection>
-
-					{/* Administrators */}
-					<FormSection>
-						<SectionTitle>Administrators</SectionTitle>
-						<FormField>
-							<TagsContainer>
-								{coOwnerShares
-									.filter((share) => share.permission === 'admin')
-									.map((share) => (
-										<Tag key={share.id}>
-											{share.sharedWithFirstName && share.sharedWithLastName
-												? `${share.sharedWithFirstName} ${share.sharedWithLastName} (${share.sharedWithEmail})`
-												: share.sharedWithEmail}
-										</Tag>
-									))}
-							</TagsContainer>
-							{coOwnerShares.filter((share) => share.permission === 'admin')
-								.length === 0 && (
-								<div
-									style={{
-										color: '#666',
-										fontSize: '14px',
-										fontStyle: 'italic',
-									}}>
-									No administrators assigned. Use the Share Property button to
-									add administrators.
-								</div>
-							)}
-						</FormField>
-					</FormSection>
-
-					{/* Viewers */}
-					<FormSection>
-						<SectionTitle>Viewers</SectionTitle>
-						<FormField>
-							<TagsContainer>
-								{coOwnerShares
-									.filter((share) => share.permission === 'viewer')
-									.map((share) => (
-										<Tag key={share.id}>
-											{share.sharedWithFirstName && share.sharedWithLastName
-												? `${share.sharedWithFirstName} ${share.sharedWithLastName} (${share.sharedWithEmail})`
-												: share.sharedWithEmail}
-										</Tag>
-									))}
-							</TagsContainer>
-							{coOwnerShares.filter((share) => share.permission === 'viewer')
-								.length === 0 && (
-								<div
-									style={{
-										color: '#666',
-										fontSize: '14px',
-										fontStyle: 'italic',
-									}}>
-									No viewers assigned. Use the Share Property button to add
-									viewers.
-								</div>
-							)}
-						</FormField>
-					</FormSection>
-
-					{/* Notes */}
-					<FormSection>
-						<SectionTitle>Notes</SectionTitle>
+						<Label>Notes</Label>
 						<TextArea
 							value={formData.notes}
 							onChange={(e) => handleInputChange('notes', e.target.value)}
 							placeholder='Add any notes about this property...'
 						/>
 					</FormSection>
+				</WizardPanel>
+			);
+		}
 
-					{/* Maintenance History */}
-					<FormSection>
-						<SectionTitle>Recent Maintenance History</SectionTitle>
-						<MaintenanceHistoryBox>
-							{formData.maintenanceHistory &&
-							formData.maintenanceHistory.length > 0 ? (
-								formData.maintenanceHistory.map((record, index) => (
-									<HistoryItem key={index}>
-										<div
-											style={{
-												fontWeight: 600,
-												fontSize: '12px',
-												color: '#999999',
-											}}>
-											{record.date}
-										</div>
-										<div style={{ fontSize: '14px', color: 'black' }}>
-											{record.description}
-										</div>
-									</HistoryItem>
-								))
-							) : (
-								<div style={{ color: '#999999', padding: '16px' }}>
-									No maintenance history
-								</div>
+		if (stepIndex === 2) {
+			return (
+				<WizardPanel>
+					<WizardPanelHeader>
+						<WizardPanelTitle>Access & Sharing</WizardPanelTitle>
+						<WizardPanelHint>
+							Add people already in your system. Team members and family members are available here; arbitrary email entry is intentionally disabled.
+						</WizardPanelHint>
+					</WizardPanelHeader>
+					{isLoadingFamilyMembers && (
+						<div style={{ fontSize: 12, color: '#64748b' }}>Loading family members...</div>
+					)}
+					{availableMembers.length === 0 && !isLoadingFamilyMembers && (
+						<EmptySharingState>
+							No eligible members were found in your account yet. Add team or family members first if you want to share this property.
+						</EmptySharingState>
+					)}
+					{renderShareSection(
+						'coOwners',
+						'Co-Owners',
+						'Co-owners can view and manage the property details.',
+						'Add Co-Owner',
+					)}
+					{renderShareSection(
+						'administrators',
+						'Administrators',
+						'Administrators have full access to manage this property.',
+						'Add Administrator',
+					)}
+					{renderShareSection(
+						'viewers',
+						'Viewers',
+						'Viewers can see the property details but cannot make changes.',
+						'Add Viewer',
+					)}
+				</WizardPanel>
+			);
+		}
+
+		const reviewRows: Array<[string, React.ReactNode]> = [
+			['Group', groups.find((group) => group.id === formData.groupId)?.name || 'No group'],
+			['Property Photo', formData.photo ? <img src={formData.photo} alt='Property preview' /> : 'No photo'],
+			['Property Name', formData.name || 'Not set'],
+			['Address', formData.address || 'Not set'],
+			['Property Type', formData.propertyType],
+			['Owner', formData.owner || 'Not set'],
+			['Bedrooms / Bathrooms', `${formData.bedrooms ?? 0} / ${formData.bathrooms ?? 0}`],
+			['Rental Property', formData.isRental ? 'Yes' : 'No'],
+			[
+				'Co-Owners',
+				getShareMembers(formData.coOwners).map((member) => member.displayName).join(', ') || 'None',
+			],
+			[
+				'Administrators',
+				getShareMembers(formData.administrators).map((member) => member.displayName).join(', ') || 'None',
+			],
+			[
+				'Viewers',
+				getShareMembers(formData.viewers).map((member) => member.displayName).join(', ') || 'None',
+			],
+		];
+
+		return (
+			<WizardPanel>
+				<WizardPanelHeader>
+					<WizardPanelTitle>Review Your Property</WizardPanelTitle>
+					<WizardPanelHint>
+						Please review the information below before saving.
+					</WizardPanelHint>
+				</WizardPanelHeader>
+				<ReviewGrid>
+					{reviewRows.map(([label, value]) => (
+						<React.Fragment key={label}>
+							<ReviewLabel>{label}</ReviewLabel>
+							<ReviewValue>{value}</ReviewValue>
+						</React.Fragment>
+					))}
+				</ReviewGrid>
+			</WizardPanel>
+		);
+	};
+
+	if (!isOpen) return null;
+
+	return (
+		<>
+			<DialogOverlay onClick={onClose}>
+				<DialogContainer onClick={(e) => e.stopPropagation()}>
+					<DialogHeader>
+						<div>
+							<DialogTitle>{initialData ? 'Edit Property' : 'Add New Property'}</DialogTitle>
+							<div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>
+								Add the details of your property to get started.
+							</div>
+						</div>
+						<CloseButton onClick={onClose}>×</CloseButton>
+					</DialogHeader>
+
+					<DialogContent
+						style={{
+							padding: 0,
+							display: 'flex',
+							flex: 1,
+							height: '100%',
+							minHeight: 0,
+							overflow: 'hidden',
+						}}>
+						<WizardShell>
+							<WizardSidebar>
+								{STEPS.map((step, index) => (
+									<WizardStep
+										key={step.title}
+										type='button'
+										$active={stepIndex === index}
+										$complete={stepIndex > index}
+										onClick={() => setStepIndex(index)}>
+										<WizardStepDot $active={stepIndex === index} $complete={stepIndex > index}>
+											{stepIndex > index ? '✓' : index + 1}
+										</WizardStepDot>
+										<WizardStepText>
+											<WizardStepTitle>{step.title}</WizardStepTitle>
+											<WizardStepHint>{step.hint}</WizardStepHint>
+										</WizardStepText>
+									</WizardStep>
+								))}
+							</WizardSidebar>
+							<WizardContent>{renderStepContent()}</WizardContent>
+						</WizardShell>
+					</DialogContent>
+
+					<DialogFooter
+						style={{
+							display: 'flex',
+							justifyContent: 'space-between',
+							alignItems: 'center',
+							gap: '10px',
+						}}>
+						<div style={{ display: 'flex', gap: '10px' }}>
+							{propertyId && onDeleteProperty && (
+								<SecondaryButton
+									onClick={handleDeletePropertyClick}
+									disabled={isDeletingProperty || isSubmitting}
+									style={{
+										backgroundColor: '#ef4444',
+										borderColor: '#ef4444',
+										color: 'white',
+									}}>
+									{isDeletingProperty ? 'Deleting...' : 'Delete Property'}
+								</SecondaryButton>
 							)}
-						</MaintenanceHistoryBox>
-					</FormSection>
-				</DialogContent>
-
-				<DialogFooter
-					style={{
-						display: 'flex',
-						justifyContent: 'space-between',
-						alignItems: 'center',
-						gap: '10px',
-					}}>
-					<div style={{ display: 'flex', gap: '10px' }}>
-						{propertyId && onDeleteProperty && (
-							<SecondaryButton
-								onClick={handleDeletePropertyClick}
-								disabled={isDeletingProperty || isSubmitting}
-								style={{
-									backgroundColor: '#ef4444',
-									borderColor: '#ef4444',
-									color: 'white',
-								}}>
-								{isDeletingProperty ? 'Deleting...' : 'Delete Property'}
-							</SecondaryButton>
-						)}
-						{propertyId && onToggleHideFromDashboard && (
-							<SecondaryButton onClick={onToggleHideFromDashboard}>
-								{isHiddenFromDashboard
-									? 'Show on Dashboard'
-									: 'Hide from Dashboard'}
-							</SecondaryButton>
-						)}
-						{propertyId && isSharedProperty && onDetachFromProperty && (
-							<SecondaryButton
-								onClick={onDetachFromProperty}
-								style={{
-									backgroundColor: '#f59e0b',
-									borderColor: '#f59e0b',
-									color: 'white',
-								}}>
-								Detach from Property
-							</SecondaryButton>
-						)}
-					</div>
-					<div style={{ display: 'flex', gap: '10px' }}>
-						<CancelButton
-							onClick={onClose}
-							disabled={isSubmitting || isDeletingProperty}>
-							Cancel
-						</CancelButton>
-						<SaveButton
-							onClick={handleSave}
-							disabled={isSubmitting || isDeletingProperty}>
-							{isSubmitting ? 'Saving...' : 'Save Property'}
-						</SaveButton>
-					</div>
-				</DialogFooter>
+							{propertyId && onToggleHideFromDashboard && stepIndex === STEPS.length - 1 && (
+								<SecondaryButton onClick={onToggleHideFromDashboard}>
+									{isHiddenFromDashboard ? 'Show on Dashboard' : 'Hide from Dashboard'}
+								</SecondaryButton>
+							)}
+							{propertyId && isSharedProperty && onDetachFromProperty && stepIndex === STEPS.length - 1 && (
+								<SecondaryButton
+									onClick={onDetachFromProperty}
+									style={{
+										backgroundColor: '#f59e0b',
+										borderColor: '#f59e0b',
+										color: 'white',
+									}}>
+									Detach from Property
+								</SecondaryButton>
+							)}
+						</div>
+						<div style={{ display: 'flex', gap: '10px' }}>
+							<CancelButton onClick={onClose} disabled={isSubmitting || isDeletingProperty}>
+								Cancel
+							</CancelButton>
+							{stepIndex > 0 && (
+								<CancelButton onClick={handleBack} disabled={isSubmitting || isDeletingProperty}>
+									Back
+								</CancelButton>
+							)}
+							{stepIndex < STEPS.length - 1 ? (
+								<SaveButton onClick={handleNext} disabled={!canContinue || isSubmitting || isDeletingProperty}>
+									Next
+								</SaveButton>
+							) : (
+								<SaveButton onClick={handleSave} disabled={isSubmitting || isDeletingProperty}>
+									{isSubmitting ? 'Saving...' : 'Save Property'}
+								</SaveButton>
+							)}
+						</div>
+					</DialogFooter>
 				</DialogContainer>
 			</DialogOverlay>
 

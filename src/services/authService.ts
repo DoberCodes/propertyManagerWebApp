@@ -10,14 +10,14 @@ import {
 } from 'firebase/auth';
 import {
 	collection,
-	query,
-	where,
-	getDocs,
-	updateDoc,
 	doc,
 	getDoc,
-	setDoc,
+	getDocs,
+	query,
 	serverTimestamp,
+	setDoc,
+	updateDoc,
+	where,
 } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { auth, db, functions } from '../config/firebase';
@@ -29,7 +29,7 @@ import {
 	SUBSCRIPTION_STATUS,
 	TRIAL_DURATION_DAYS,
 } from '../constants/subscriptions';
-import { STRIPE_PLANS } from '../constants/stripe';
+import { getStripePriceIdForPlan } from '../constants/stripe';
 import { createLegalAgreementDocuments } from '../constants/legal';
 import { createCheckoutSession } from './stripeService';
 
@@ -231,19 +231,7 @@ export const validateTeamInviteForRegistration = async (
  * Create subscription for new user - local trial for all users
  */
 const getPriceIdForPlan = (planId: string): string => {
-	const priceMap: Record<string, string> = {
-		free: STRIPE_PLANS.FREE,
-		guest: STRIPE_PLANS.FREE, // Guests use free plan (no charge)
-		tenant: STRIPE_PLANS.FREE, // Tenants use free plan (no charge)
-		home: STRIPE_PLANS.HOME,
-		property: STRIPE_PLANS.PROPERTY,
-		portfolio: STRIPE_PLANS.PORTFOLIO,
-		// Backward compatibility for legacy plan names
-		homeowner: STRIPE_PLANS.HOME,
-		basic: STRIPE_PLANS.PROPERTY,
-		professional: STRIPE_PLANS.PORTFOLIO,
-	};
-	return priceMap[planId] || '';
+	return getStripePriceIdForPlan(planId, 'month');
 };
 
 const createPendingCheckoutSubscription = (
@@ -305,6 +293,7 @@ const createUserSubscription = async (
 			undefined,
 			normalizedPromoCode,
 			selectedPlan,
+			'month', // Keep registration checkout monthly
 		);
 
 		return {

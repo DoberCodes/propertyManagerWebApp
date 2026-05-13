@@ -22,10 +22,18 @@ describe('PropertyDialog', () => {
 			</Provider>,
 		);
 
+		await user.click(screen.getByRole('button', { name: /property profile/i }));
+
+		await user.type(screen.getByLabelText(/property name/i), 'Test Property');
+		await user.type(screen.getByLabelText(/address/i), '123 Main Street');
+
 		const checkbox = screen.getByRole('checkbox');
 		await user.click(checkbox);
 
-		const saveButton = screen.getByText(/Save Property|Add Property/i);
+		await user.click(screen.getByRole('button', { name: /^next$/i }));
+		await user.click(screen.getByRole('button', { name: /^next$/i }));
+
+		const saveButton = screen.getByRole('button', { name: /save property/i });
 		await user.click(saveButton);
 
 		expect(onSave).toHaveBeenCalled();

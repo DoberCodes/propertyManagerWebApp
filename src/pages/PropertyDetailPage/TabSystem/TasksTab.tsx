@@ -76,6 +76,7 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 	unitOptions = [],
 	selectedUnitId,
 	onSelectUnit,
+	openCreateWorkflowToken = 0,
 }) => {
 	const feedback = useAppFeedback();
 	const [filters, setFilters] = useState<FilterValues>({});
@@ -523,6 +524,12 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 
 		processTasks();
 	}, [propertyTasks]);
+
+	useEffect(() => {
+		if (openCreateWorkflowToken > 0) {
+			handleCreateTask();
+		}
+	}, [openCreateWorkflowToken]);
 
 	// Filter configuration for tasks
 	const taskFilters: FilterConfig[] = [

@@ -45,15 +45,27 @@ if [ -z "$HOME_PRICE_ID" ]; then
     exit 1
 fi
 
-read -p "Enter Property Plan Price ID (price_...): " PROPERTY_PRICE_ID
-if [ -z "$PROPERTY_PRICE_ID" ]; then
-    echo "❌ Property Price ID is required"
+read -p "Enter Property Monthly Price ID (price_...): " PROPERTY_MONTHLY_PRICE_ID
+if [ -z "$PROPERTY_MONTHLY_PRICE_ID" ]; then
+    echo "❌ Property Monthly Price ID is required"
     exit 1
 fi
 
-read -p "Enter Portfolio Plan Price ID (price_...): " PORTFOLIO_PRICE_ID
-if [ -z "$PORTFOLIO_PRICE_ID" ]; then
-    echo "❌ Portfolio Price ID is required"
+read -p "Enter Property Annual Price ID (price_...): " PROPERTY_ANNUAL_PRICE_ID
+if [ -z "$PROPERTY_ANNUAL_PRICE_ID" ]; then
+    echo "❌ Property Annual Price ID is required"
+    exit 1
+fi
+
+read -p "Enter Portfolio Monthly Price ID (price_...): " PORTFOLIO_MONTHLY_PRICE_ID
+if [ -z "$PORTFOLIO_MONTHLY_PRICE_ID" ]; then
+    echo "❌ Portfolio Monthly Price ID is required"
+    exit 1
+fi
+
+read -p "Enter Portfolio Annual Price ID (price_...): " PORTFOLIO_ANNUAL_PRICE_ID
+if [ -z "$PORTFOLIO_ANNUAL_PRICE_ID" ]; then
+    echo "❌ Portfolio Annual Price ID is required"
     exit 1
 fi
 
@@ -64,8 +76,12 @@ echo "🚀 Setting Firebase Functions environment variables..."
 firebase functions:config:set \
     stripe.secret_key="$STRIPE_SECRET_KEY" \
     stripe.home_price_id="$HOME_PRICE_ID" \
-    stripe.property_price_id="$PROPERTY_PRICE_ID" \
-    stripe.portfolio_price_id="$PORTFOLIO_PRICE_ID"
+    stripe.property_price_id="$PROPERTY_MONTHLY_PRICE_ID" \
+    stripe.property_monthly_price_id="$PROPERTY_MONTHLY_PRICE_ID" \
+    stripe.property_annual_price_id="$PROPERTY_ANNUAL_PRICE_ID" \
+    stripe.portfolio_price_id="$PORTFOLIO_MONTHLY_PRICE_ID" \
+    stripe.portfolio_monthly_price_id="$PORTFOLIO_MONTHLY_PRICE_ID" \
+    stripe.portfolio_annual_price_id="$PORTFOLIO_ANNUAL_PRICE_ID"
 
 if [ $? -eq 0 ]; then
     echo ""
