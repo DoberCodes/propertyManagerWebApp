@@ -131,7 +131,7 @@ export const DetailPageLayout: React.FC<DetailPageLayoutProps> = ({
 							<HeaderTopRow>
 								{badge && <HeaderBadge>{badge}</HeaderBadge>}
 								<HeaderBackButton onClick={() => navigate(backPath)}>
-									 {backLabel}
+									{backLabel}
 								</HeaderBackButton>
 							</HeaderTopRow>
 							<HeaderTitle>{title}</HeaderTitle>

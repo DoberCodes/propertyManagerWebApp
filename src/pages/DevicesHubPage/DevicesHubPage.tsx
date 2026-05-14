@@ -587,13 +587,17 @@ const getLatestMaintenanceEntry = (device: Device): { date?: string; description
 	return history[0] || null;
 };
 
-const buildFriendlyDeviceName = (device: Device, propertyName: string): string => {
-	const deviceType = device.type?.trim() || 'Device';
-	if (device.location?.unitId || device.location?.suiteId) {
-		const location = device.location.unitId || device.location.suiteId;
-		return `${location ? String(location) : propertyName} ${deviceType}`.trim();
-	}
-	return deviceType;
+const buildFriendlyDeviceName = (device: Device): string => {
+	const deviceType = device.type?.trim();
+	if (deviceType) return deviceType;
+
+	const fallback = [device.brand, device.model]
+		.filter((value): value is string => Boolean(value && value.trim()))
+		.map((value) => value.trim())
+		.join(' ')
+		.trim();
+
+	return fallback || 'Device';
 };
 
 const buildTechnicalSubtitle = (device: Device): string => {
@@ -795,7 +799,7 @@ export const DevicesHubPage: React.FC = () => {
 				);
 				const property = propertyById.get(String(device.location?.propertyId || ''));
 				const locationLabel = buildLocationLabel(device, propertyNameById, [property]);
-				const friendlyName = buildFriendlyDeviceName(device, locationLabel);
+				const friendlyName = buildFriendlyDeviceName(device);
 				const technicalSubtitle = buildTechnicalSubtitle(device);
 				const recentActivity = buildRecentActivity(latestMaintenance);
 
@@ -866,7 +870,7 @@ export const DevicesHubPage: React.FC = () => {
 				const propName = propertyNameById.get(String(device.location?.propertyId || '')) || 'Property';
 				const propSlug = property?.slug || '';
 				const locLabel = buildLocationLabel(device, propertyNameById, [property]);
-				const devFriendlyName = buildFriendlyDeviceName(device, locLabel);
+				const devFriendlyName = buildFriendlyDeviceName(device);
 				const devSlug = buildDeviceSlug(device);
 				const locHref = device.location?.unitId
 					? `/property/${propSlug}/unit/${encodeURIComponent(locLabel)}`

@@ -1233,10 +1233,13 @@ const propertySlice = apiSlice.injectEndpoints({
 						);
 						units.push(...batch);
 					}
-					const uniqueUnits = Array.from(
+
+					// First pass: de-dup exact records by document id.
+					const uniqueById = Array.from(
 						new Map(units.map((unit) => [unit.id, unit])).values(),
 					) as Unit[];
-					return { data: uniqueUnits };
+
+					return { data: uniqueById };
 				} catch (error) {
 					return { error: (error as Error).message };
 				}

@@ -974,7 +974,21 @@ export const Properties = () => {
 					unitsData.length > 0
 				) {
 					try {
-						for (const unit of unitsData) {
+						const existingUnitNames = new Set(
+							(selectedPropertyForEdit.units || [])
+								.map((unit: any) =>
+									typeof unit === 'string' ? unit : unit?.name,
+								)
+								.filter((name: string | undefined) => Boolean(name && name.trim()))
+								.map((name: string) => name.trim().toLowerCase()),
+						);
+
+						const newUnits = unitsData.filter((unit) => {
+							const normalizedName = String(unit.name || '').trim().toLowerCase();
+							return normalizedName.length > 0 && !existingUnitNames.has(normalizedName);
+						});
+
+						for (const unit of newUnits) {
 							await createUnit({
 								userId: currentUser!.id,
 								propertyId: selectedPropertyForEdit.id,

@@ -17,7 +17,7 @@ import {
 	faTrash,
 } from '@fortawesome/free-solid-svg-icons';
 import { RootState } from '../../Redux/store/store';
-import { useGetPropertiesQuery, useGetUnitsQuery } from '../../Redux/API/propertySlice';
+import { useGetPropertiesQuery, useGetUnitQuery, useGetUnitsQuery } from '../../Redux/API/propertySlice';
 import {
 	useGetDeviceQuery,
 	useGetDevicesQuery,
@@ -1087,6 +1087,9 @@ export const DeviceDetailPage: React.FC = () => {
 	const { data: units = [] } = useGetUnitsQuery(property?.id || '', {
 		skip: !property?.id,
 	});
+	const { data: unitById } = useGetUnitQuery(device?.location?.unitId || '', {
+		skip: !device?.location?.unitId,
+	});
 
 	const { data: allTasks = [] } = useGetTasksQuery();
 	const { data: propertyDevices = [] } = useGetDevicesQuery(property?.id || '', {
@@ -1108,8 +1111,15 @@ export const DeviceDetailPage: React.FC = () => {
 		if (!device || !property) return 'N/A';
 
 		if (device.location?.unitId) {
-			const unit = units.find((item: any) => item.id === device.location.unitId);
-			return unit?.name || `Unit (${device.location.unitId})`;
+			const unit = units.find(
+				(item: any) => String(item.id || '') === String(device.location?.unitId || ''),
+			);
+			const unitName =
+				unit?.name ||
+				(unit as any)?.unitName ||
+				(unitById as any)?.name ||
+				(unitById as any)?.unitName;
+			return unitName || `Unit (${device.location.unitId})`;
 		}
 
 		if (device.location?.suiteId) {
@@ -1120,7 +1130,7 @@ export const DeviceDetailPage: React.FC = () => {
 		}
 
 		return 'Property level';
-	}, [device, property, units]);
+	}, [device, property, unitById, units]);
 
 	const deviceTaskTemplate = useMemo(() => {
 		if (!device || !property) return null;
