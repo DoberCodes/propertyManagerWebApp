@@ -45,7 +45,9 @@ export const selectCanAccessProperties = createSelector(
 	[selectUser],
 	(user) => {
 		if (!user || !user.subscription) return false;
-		return user.subscription.plan !== 'free';
+		const plan = user.subscription.plan;
+		// 'free' and 'homeowner' are legacy plan IDs that map to 'home' — all get property access
+		return !!plan && plan !== '';
 	},
 );
 

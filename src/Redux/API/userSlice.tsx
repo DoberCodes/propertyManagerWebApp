@@ -17,6 +17,8 @@ import {
 	resolveAccessibleAccountIds,
 } from './accountContext';
 
+const MAX_FAVORITES = 5;
+
 const userSlice = apiSlice.injectEndpoints({
 	endpoints: (builder) => ({
 		// User endpoints
@@ -55,12 +57,28 @@ const userSlice = apiSlice.injectEndpoints({
 						where('userId', '==', userId),
 					);
 					const querySnapshot = await getDocs(q);
-					const favorites = querySnapshot.docs
-						.map((doc) => doc.data() as Favorite)
+					const favoriteEntries = querySnapshot.docs
+						.map((docSnapshot) => {
+							const data = docSnapshot.data() as Favorite;
+							return {
+								...data,
+								id: docSnapshot.id,
+							};
+						})
 						.filter(Boolean) as Favorite[];
-					// Sort by timestamp descending (most recent first)
-					favorites.sort((a, b) => b.timestamp - a.timestamp);
-					return { data: favorites };
+
+					favoriteEntries.sort((a, b) => b.timestamp - a.timestamp);
+
+					if (favoriteEntries.length > MAX_FAVORITES) {
+						const overflow = favoriteEntries.slice(MAX_FAVORITES);
+						await Promise.all(
+							overflow.map((favorite) =>
+								deleteDoc(doc(db, 'favorites', favorite.id)),
+							),
+						);
+					}
+
+					return { data: favoriteEntries.slice(0, MAX_FAVORITES) };
 				} catch (error: any) {
 					return { error: error.message };
 				}
@@ -98,6 +116,26 @@ const userSlice = apiSlice.injectEndpoints({
 								...existing.data(),
 							} as Favorite,
 						};
+					}
+
+					const userFavoritesSnapshot = await getDocs(
+						query(collection(db, 'favorites'), where('userId', '==', userId)),
+					);
+					const userFavorites = userFavoritesSnapshot.docs
+						.map((docSnapshot) => ({
+							...(docSnapshot.data() as Favorite),
+							id: docSnapshot.id,
+						}))
+						.sort((a, b) => a.timestamp - b.timestamp);
+
+					if (userFavorites.length >= MAX_FAVORITES) {
+						const deleteCount = userFavorites.length - MAX_FAVORITES + 1;
+						const overflow = userFavorites.slice(0, deleteCount);
+						await Promise.all(
+							overflow.map((favorite) =>
+								deleteDoc(doc(db, 'favorites', favorite.id)),
+							),
+						);
 					}
 
 					// Create new favorite

@@ -3,6 +3,10 @@ import { Navigate, useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { PropertyDialog } from './PropertyDialog';
 import {
+	getPropertyImageSrc,
+	isPropertyImageFallback,
+} from '../../utils/propertyImagePlaceholder';
+import {
 	PageHeaderSection,
 	PageTitle as StandardPageTitle,
 } from '../Library/PageHeaders';
@@ -1501,6 +1505,8 @@ export const Properties = () => {
 										const address = getPropertyAddress(property);
 										const metrics = getPropertyMetrics(property);
 										const propertyPillLabel = getPropertyPillLabel(property);
+										const propertyImageSrc = getPropertyImageSrc(property.image);
+										const isFallbackImage = isPropertyImageFallback(property.image);
 
 										return (
 								<PropertyTile
@@ -1515,7 +1521,11 @@ export const Properties = () => {
 										navigate(tenantUnitRoute || `/property/${property.slug}`);
 									}}>
 										<PropertyImageWrap>
-											<PropertyImage src={property.image} alt={property.title} />
+											<PropertyImage
+												$isFallback={isFallbackImage}
+												src={propertyImageSrc}
+												alt={property.title}
+											/>
 											<PropertyTopBadge
 												onClick={(e) => {
 													e.preventDefault();

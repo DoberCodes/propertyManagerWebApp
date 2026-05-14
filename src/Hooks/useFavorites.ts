@@ -15,6 +15,7 @@ interface FavoriteProperty {
 
 const STORAGE_KEY = 'favoriteProperties';
 const FAVORITES_UPDATED_EVENT = 'favorites-updated';
+const MAX_ITEMS = 5;
 
 export const useFavorites = (userId?: string | number) => {
 	const [favorites, setFavorites] = useState<FavoriteProperty[]>([]);
@@ -29,12 +30,15 @@ export const useFavorites = (userId?: string | number) => {
 	// Sync Firebase data to local state and localStorage
 	useEffect(() => {
 		if (firebaseFavorites.length > 0) {
-			const formattedFavorites = firebaseFavorites.map((fav) => ({
-				id: fav.propertyId,
-				title: fav.title,
-				slug: fav.slug,
-				timestamp: fav.timestamp,
-			}));
+			const formattedFavorites = firebaseFavorites
+				.map((fav) => ({
+					id: fav.propertyId,
+					title: fav.title,
+					slug: fav.slug,
+					timestamp: fav.timestamp,
+				}))
+				.sort((a, b) => b.timestamp - a.timestamp)
+				.slice(0, MAX_ITEMS);
 			setFavorites(formattedFavorites);
 
 			// Update localStorage cache
@@ -57,7 +61,12 @@ export const useFavorites = (userId?: string | number) => {
 			const stored = localStorage.getItem(storageKey);
 			if (stored) {
 				try {
-					setFavorites(JSON.parse(stored));
+					const parsed = JSON.parse(stored) as FavoriteProperty[];
+					const limited = parsed.slice(0, MAX_ITEMS);
+					setFavorites(limited);
+					if (limited.length !== parsed.length) {
+						localStorage.setItem(storageKey, JSON.stringify(limited));
+					}
 				} catch (error) {
 					console.error('Error parsing favorite properties:', error);
 				}
@@ -90,7 +99,10 @@ export const useFavorites = (userId?: string | number) => {
 			}
 
 			// Add new favorite
-			const updated = [{ ...property, timestamp: Date.now() }, ...prev];
+			const updated = [{ ...property, timestamp: Date.now() }, ...prev].slice(
+				0,
+				MAX_ITEMS,
+			);
 
 			// Save to localStorage
 			const storageKey = userId

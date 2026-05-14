@@ -64,6 +64,10 @@ import {
 	parseDeviceBarcodePayload,
 	parsePartBarcodePayload,
 } from '../../utils/barcodeScanParser';
+import {
+	canLinkParts,
+	canTrackWarranties,
+} from '../../utils/subscriptionUtils';
 import { DeviceServiceItem } from '../../types/Property.types';
 import {
 	DEVICE_SERVICE_ITEM_CATEGORY_OPTIONS,
@@ -412,6 +416,14 @@ const QuickActionButton = styled.button`
 		border-color: #16a34a;
 		background: #f0fdf4;
 		transform: translateY(-1px);
+	}
+
+	&:disabled {
+		cursor: not-allowed;
+		opacity: 0.65;
+		border-color: #e2e8f0;
+		background: #f8fafc;
+		transform: none;
 	}
 `;
 
@@ -987,6 +999,9 @@ const getTimelineEventLabel = (entry: { type?: string; title?: string; descripti
 export const DeviceDetailPage: React.FC = () => {
 	const { slug, deviceSlug } = useParams<{ slug: string; deviceSlug: string }>();
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
+	const canAccessParts = !!currentUser?.subscription && canLinkParts(currentUser.subscription);
+	const canAccessWarranty =
+		!!currentUser?.subscription && canTrackWarranties(currentUser.subscription);
 	const photoInputRef = useRef<HTMLInputElement | null>(null);
 	const documentInputRef = useRef<HTMLInputElement | null>(null);
 	const [showDeviceEditModal, setShowDeviceEditModal] = useState(false);
@@ -1316,6 +1331,9 @@ export const DeviceDetailPage: React.FC = () => {
 	const openQuickLogModal = (
 		mode: 'note' | 'repair' | 'invoice' | 'inspection' | 'warranty' | 'contractor',
 	) => {
+		if (mode === 'warranty' && !canAccessWarranty) {
+			return;
+		}
 		setQuickLogMode(mode);
 		setQuickLogDescription('');
 		setQuickLogDate(new Date().toISOString().split('T')[0]);
@@ -1324,6 +1342,7 @@ export const DeviceDetailPage: React.FC = () => {
 
 	const handleSaveQuickLog = async () => {
 		if (!device || !property || !quickLogDescription.trim()) return;
+		if (quickLogMode === 'warranty' && !canAccessWarranty) return;
 		setIsSavingQuickLog(true);
 		try {
 			const prefixMap: Record<
@@ -1429,23 +1448,24 @@ export const DeviceDetailPage: React.FC = () => {
 		if (!file || !device || !property) return;
 		try {
 			const uploaded = await uploadDeviceFile(file, property.id, device.id);
+			const isWarrantyDocument = /warranty|guarantee/i.test(file.name) && canAccessWarranty;
 
 			await addMaintenanceHistory({
 				propertyId: property.id,
 				propertyTitle: property.title,
-				title: /warranty|guarantee/i.test(file.name)
+				title: isWarrantyDocument
 					? `Warranty added: ${file.name}`
 					: `Document uploaded: ${file.name}`,
 				description: file.name,
 				completionDate: new Date().toISOString(),
 				unitId: device.location?.unitId,
 				deviceIds: [device.id],
-				eventType: /warranty|guarantee/i.test(file.name)
+				eventType: isWarrantyDocument
 					? 'warranty_added'
 					: 'document_uploaded',
 				eventSource: 'document_upload',
 				completionFileData: uploaded,
-				tags: /warranty|guarantee/i.test(file.name)
+				tags: isWarrantyDocument
 					? ['device', 'document', 'warranty']
 					: ['device', 'document'],
 			}).unwrap();
@@ -1574,10 +1594,13 @@ export const DeviceDetailPage: React.FC = () => {
 			label: 'History',
 			count: deviceTimelineEntries.length + relatedMaintenanceHistory.length,
 		},
-		{ id: 'parts' as any, label: 'Parts & Service', count: serviceParts.length },
+		...(canAccessParts
+			? [{ id: 'parts' as any, label: 'Parts & Service', count: serviceParts.length }]
+			: []),
 	];
 
 	const handleAddPart = async () => {
+		if (!canAccessParts) return;
 		if (!device || !partFormData.name.trim()) return;
 
 		const newPart: DeviceServiceItem = {
@@ -1606,6 +1629,7 @@ export const DeviceDetailPage: React.FC = () => {
 	};
 
 	const handleUpdatePart = async () => {
+		if (!canAccessParts) return;
 		if (!device || editingPartIndex === null || !partFormData.name.trim()) return;
 
 		const updatedParts = [...serviceParts];
@@ -1635,6 +1659,7 @@ export const DeviceDetailPage: React.FC = () => {
 	};
 
 	const handleDeletePart = async (index: number) => {
+		if (!canAccessParts) return;
 		if (!device) return;
 
 		const updatedParts = serviceParts.filter((_: any, i: number) => i !== index);
@@ -1645,6 +1670,7 @@ export const DeviceDetailPage: React.FC = () => {
 	};
 
 	const handleEditPart = (index: number) => {
+		if (!canAccessParts) return;
 		const part = serviceParts[index];
 		setPartFormData({
 			name: part.name || '',
@@ -1705,6 +1731,7 @@ export const DeviceDetailPage: React.FC = () => {
 	};
 
 	const handlePartBarcodeDetected = (rawValue: string) => {
+		if (!canAccessParts) return;
 		const parsed = parsePartBarcodePayload(rawValue);
 		setPartFormData((prev) => ({
 			...prev,
@@ -1807,6 +1834,14 @@ export const DeviceDetailPage: React.FC = () => {
 		model: device.model,
 	});
 
+	const handleTabChange = (tab: string) => {
+		if (tab === 'parts' && !canAccessParts) {
+			setActiveTab('info');
+			return;
+		}
+		setActiveTab(tab);
+	};
+
 	return (
 		<DetailPageLayout
 			title={device.type || 'Device'}
@@ -1817,7 +1852,7 @@ export const DeviceDetailPage: React.FC = () => {
 			contentMaxWidth='100%'
 			tabs={tabs}
 			activeTab={activeTab}
-			onTabChange={(tab) => setActiveTab(tab)}>
+			onTabChange={handleTabChange}>
 			<PageStack>
 				<SummaryGrid>
 					<SummaryCard>
@@ -1880,9 +1915,21 @@ export const DeviceDetailPage: React.FC = () => {
 								<strong>Log Inspection</strong>
 								<span>Document findings and recommendations from inspections.</span>
 							</QuickActionButton>
-							<QuickActionButton type='button' onClick={() => openQuickLogModal('warranty')}>
+							<QuickActionButton
+								type='button'
+								onClick={() => openQuickLogModal('warranty')}
+								disabled={!canAccessWarranty}
+								title={
+									canAccessWarranty
+										? undefined
+										: 'Warranty tracking requires the Property plan or higher'
+								}>
 								<strong>Log Warranty</strong>
-								<span>Capture coverage terms and warranty lifecycle notes.</span>
+								<span>
+									{canAccessWarranty
+										? 'Capture coverage terms and warranty lifecycle notes.'
+										: 'Upgrade to Property or Portfolio to track warranties.'}
+								</span>
 							</QuickActionButton>
 							<QuickActionButton type='button' onClick={() => openQuickLogModal('contractor')}>
 								<strong>Log Contractor Visit</strong>
@@ -2550,7 +2597,9 @@ export const DeviceDetailPage: React.FC = () => {
 								<option value='repair'>Repair</option>
 								<option value='invoice'>Invoice</option>
 								<option value='inspection'>Inspection</option>
-								<option value='warranty'>Warranty</option>
+								<option value='warranty' disabled={!canAccessWarranty}>
+									Warranty{canAccessWarranty ? '' : ' (Property+)'}
+								</option>
 								<option value='contractor'>Contractor Visit</option>
 							</FormSelect>
 						</FormField>

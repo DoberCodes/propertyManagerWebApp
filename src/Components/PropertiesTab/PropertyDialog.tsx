@@ -61,6 +61,7 @@ import {
 	uploadPropertyImage,
 	isValidPropertyImageFile,
 } from '../../utils/propertyImageUpload';
+import { PROPERTY_IMAGE_PLACEHOLDER } from '../../utils/propertyImagePlaceholder';
 import { DeleteConfirmationModal } from '../Library/Modal/DeleteConfirmationModal';
 import { RootState } from '../../Redux/store/store';
 import { TeamMember } from '../../types/Team.types';
@@ -390,6 +391,11 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 		setImageError(null);
 	};
 
+	const handleUseFallbackPhoto = () => {
+		handleInputChange('photo', PROPERTY_IMAGE_PLACEHOLDER);
+		setImageError(null);
+	};
+
 	const handlePhotoUpload = async (file: File | null) => {
 		if (!file) return;
 		if (!isValidPropertyImageFile(file)) {
@@ -642,6 +648,17 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 								placeholder='Enter image URL or upload a file below'
 								disabled={isUploadingImage}
 							/>
+							<div style={{ marginTop: 8, fontSize: 12, color: '#64748b' }}>
+								Default fallback image: {PROPERTY_IMAGE_PLACEHOLDER}
+								<div style={{ marginTop: 6 }}>
+									<SecondaryButton
+										type='button'
+										onClick={handleUseFallbackPhoto}
+										disabled={isUploadingImage}>
+										Use Default House Image
+									</SecondaryButton>
+								</div>
+							</div>
 						</FormField>
 						<UploadDropzone>
 							{isUploadingImage ? (

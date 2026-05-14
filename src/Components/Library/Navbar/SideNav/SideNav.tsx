@@ -22,7 +22,9 @@ import {
 	PortfolioCard,
 	PortfolioTop,
 	PortfolioPlan,
+	PortfolioPlanSub,
 	PortfolioUsage,
+	PortfolioUsageBadge,
 	ProgressTrack,
 	ProgressFill,
 	ManagePlanButton,
@@ -231,17 +233,19 @@ export const SideNav = () => {
 						</Section>
 
 						<Section>
-							<SectionTitle>Property Portfolio</SectionTitle>
-							<SectionContent>
+							<SectionContent $scrollable={false}>
 								<PortfolioCard>
 									<PortfolioTop>
 										<PortfolioPlan>
-											{planDetails?.name || 'Home'} Plan
+											Property Plan
 										</PortfolioPlan>
-										<PortfolioUsage>
+										<PortfolioUsageBadge>
 											{usedProperties} of {maxProperties}
-										</PortfolioUsage>
+										</PortfolioUsageBadge>
 									</PortfolioTop>
+									<PortfolioPlanSub>
+										Current plan: {planDetails?.name || 'Home'}
+									</PortfolioPlanSub>
 									<ProgressTrack>
 										<ProgressFill $percent={Math.min(100, usagePercent)} />
 									</ProgressTrack>

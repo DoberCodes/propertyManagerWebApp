@@ -1,6 +1,8 @@
 import React from 'react';
 import { UnitsTabProps } from 'types/PropertyDetailPage.types';
 import { useNavigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
+import { RootState } from 'Redux/store';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
 	SectionContainer,
@@ -50,6 +52,7 @@ export const UnitsTab: React.FC<UnitsTabProps> = ({
 	handleDeleteUnit,
 }) => {
 	const navigate = useNavigate();
+	const isMobile = useSelector((state: RootState) => state.app.isMobile);
 
 	const handleNavigate = (unit: any) => {
 		navigate(
@@ -163,53 +166,61 @@ export const UnitsTab: React.FC<UnitsTabProps> = ({
 				<ToolbarButton onClick={handleCreateUnit}>+ Create Unit</ToolbarButton>
 			</Toolbar>
 
-			<div style={{ display: 'flex', flexDirection: 'column', gap: 12, paddingBottom: 4 }}>
-				{(units || []).map((unit) => (
-					<DeviceCard key={unit.id} onClick={() => handleNavigate(unit)}>
-						<div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-							<div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start' }}>
-								<div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-									<div style={{ fontSize: 15, fontWeight: 800, color: '#0f172a' }}>{unit.name}</div>
-									<div style={{ fontSize: 12, color: '#64748b' }}>
-										{(unit.occupants || []).length} occupant{(unit.occupants || []).length === 1 ? '' : 's'}
+			{isMobile && (
+				<div style={{ display: 'flex', flexDirection: 'column', gap: 12, paddingBottom: 4 }}>
+					{units && units.length > 0 ? (
+						(units || []).map((unit) => (
+							<DeviceCard key={unit.id} onClick={() => handleNavigate(unit)}>
+								<div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+									<div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start' }}>
+										<div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+											<div style={{ fontSize: 15, fontWeight: 800, color: '#0f172a' }}>{unit.name}</div>
+											<div style={{ fontSize: 12, color: '#64748b' }}>
+												{(unit.occupants || []).length} occupant{(unit.occupants || []).length === 1 ? '' : 's'}
+											</div>
+										</div>
+										<span style={{ fontSize: 12, fontWeight: 700, padding: '4px 10px', borderRadius: 999, background: '#ecfeff', color: '#0f766e', border: '1px solid #99f6e4', whiteSpace: 'nowrap' }}>
+											Unit
+										</span>
 									</div>
+									<MobileFeedMeta>
+										<MobileFeedLineMuted>
+											{(unit.occupants || []).length} occupant{(unit.occupants || []).length === 1 ? '' : 's'}
+										</MobileFeedLineMuted>
+										<MobileFeedLine>
+											Devices: <strong style={{ color: '#0f172a' }}><UnitDeviceCount unitId={unit.id} /></strong>
+										</MobileFeedLine>
+									</MobileFeedMeta>
 								</div>
-								<span style={{ fontSize: 12, fontWeight: 700, padding: '4px 10px', borderRadius: 999, background: '#ecfeff', color: '#0f766e', border: '1px solid #99f6e4', whiteSpace: 'nowrap' }}>
-									Unit
-								</span>
-							</div>
-							<MobileFeedMeta>
-								<MobileFeedLineMuted>
-									{(unit.occupants || []).length} occupant{(unit.occupants || []).length === 1 ? '' : 's'}
-								</MobileFeedLineMuted>
-								<MobileFeedLine>
-									Devices: <strong style={{ color: '#0f172a' }}><UnitDeviceCount unitId={unit.id} /></strong>
-								</MobileFeedLine>
-							</MobileFeedMeta>
-						</div>
-						<MobileTaskActions>
-							<MobileActionButton
-								variant='primary'
-								onClick={(e) => {
-									e.stopPropagation();
-									handleNavigate(unit);
-								}}>
-								View history
-							</MobileActionButton>
-							<MobileActionLinkRow>
-								<MobileActionLinkButton
-									$danger
-									onClick={(e) => {
-										e.stopPropagation();
-										handleDeleteUnit(unit.id);
-									}}>
-									Delete
-								</MobileActionLinkButton>
-							</MobileActionLinkRow>
-						</MobileTaskActions>
-					</DeviceCard>
-				))}
-			</div>
+								<MobileTaskActions>
+									<MobileActionButton
+										variant='primary'
+										onClick={(e) => {
+											e.stopPropagation();
+											handleNavigate(unit);
+										}}>
+										View history
+									</MobileActionButton>
+									<MobileActionLinkRow>
+										<MobileActionLinkButton
+											$danger
+											onClick={(e) => {
+												e.stopPropagation();
+												handleDeleteUnit(unit.id);
+											}}>
+											Delete
+										</MobileActionLinkButton>
+									</MobileActionLinkRow>
+								</MobileTaskActions>
+							</DeviceCard>
+						))
+					) : (
+						<EmptyState>
+							<p>No units added to this property</p>
+						</EmptyState>
+					)}
+				</div>
+			)}
 
 			{/* Desktop table (hidden on mobile) */}
 			<DesktopTableWrapper>

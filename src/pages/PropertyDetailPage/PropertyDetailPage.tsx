@@ -55,6 +55,10 @@ import {
 	isValidPropertyImageFile,
 } from '../../utils/propertyImageUpload';
 import { getFamilyMembers } from '../../services/authService';
+import {
+	getPropertyImageSrc,
+	isPropertyImageFallback,
+} from '../../utils/propertyImagePlaceholder';
 import { ZeroState } from '../../Components/Library/ZeroState/ZeroState';
 import { TaskCompletionModal } from 'Components/TaskCompletionModal';
 import { FileUploader } from 'Components/Library/FileUploader';
@@ -818,10 +822,18 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 	}
 
 	const isFav = isFavorite(property.id);
+	const headerImageSrc = getPropertyImageSrc(property.image);
+	const isHeaderFallbackImage = isPropertyImageFallback(property.image);
 
 	return (
 		<Wrapper>
-			<Header style={{ backgroundImage: `url(${property.image})` }}>
+			<Header
+				style={{
+					backgroundImage: `url(${headerImageSrc})`,
+					backgroundSize: isHeaderFallbackImage ? '360px auto' : 'cover',
+					backgroundRepeat: 'no-repeat',
+					backgroundPosition: 'center',
+				}}>
 				<BackButton onClick={() => navigate('/properties')}></BackButton>
 				{/* 3-dot menu for mobile */}
 				{currentUser && (

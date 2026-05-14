@@ -4,7 +4,7 @@
  */
 
 // Layout Components
-export { DetailPageLayout } from './DetailPageLayout';
+export * from './DetailPageLayout/DetailPageLayout';
 export { Breadcrumb } from './Breadcrumb';
 
 // Data Display

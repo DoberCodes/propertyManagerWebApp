@@ -466,10 +466,12 @@ export const PropertyImageWrap = styled.div`
 	}
 `;
 
-export const PropertyImage = styled.img`
+export const PropertyImage = styled.img<{ $isFallback?: boolean }>`
 	width: 100%;
 	height: 100%;
-	object-fit: cover;
+	object-fit: ${({ $isFallback }) => ($isFallback ? 'contain' : 'cover')};
+	padding: ${({ $isFallback }) => ($isFallback ? '4px' : '0')};
+	background: ${({ $isFallback }) => ($isFallback ? '#f3f6f9' : 'transparent')};
 `;
 
 export const PropertyTopBadge = styled.button`

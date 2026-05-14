@@ -1,8 +1,3 @@
-/**
- * Shared DetailPageLayout component
- * Provides consistent layout for Property, Unit, and Suite detail pages
- */
-
 import React from 'react';
 import styled from 'styled-components';
 import { useNavigate } from 'react-router-dom';
@@ -101,6 +96,7 @@ interface DetailPageLayoutProps {
 	breadcrumbs?: BreadcrumbItem[];
 	badge?: string;
 	backPath: string;
+	backLabel?: string;
 	headerImageUrl?: string;
 	headerTheme?: 'green' | 'slate';
 	contentMaxWidth?: string;
@@ -115,6 +111,7 @@ export const DetailPageLayout: React.FC<DetailPageLayoutProps> = ({
 	subtitle,
 	badge,
 	backPath,
+	backLabel = 'Back to Property',
 	headerImageUrl,
 	headerTheme = 'green',
 	contentMaxWidth = '1200px',
@@ -134,7 +131,7 @@ export const DetailPageLayout: React.FC<DetailPageLayoutProps> = ({
 							<HeaderTopRow>
 								{badge && <HeaderBadge>{badge}</HeaderBadge>}
 								<HeaderBackButton onClick={() => navigate(backPath)}>
-									← Back to Property
+									 {backLabel}
 								</HeaderBackButton>
 							</HeaderTopRow>
 							<HeaderTitle>{title}</HeaderTitle>

@@ -1,1 +1,1 @@
-export { DetailPageLayout } from './DetailPageLayout';
+export * from './DetailPageLayout';

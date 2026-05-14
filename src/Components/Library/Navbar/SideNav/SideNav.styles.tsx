@@ -13,7 +13,7 @@ export const DesktopWrapper = styled.div`
 		100vh - ${TOP_NAV_HEIGHT}
 	); /* Prevent overflow beyond viewport minus TopNav */
 	flex: 1; /* Fill available space */
-	overflow-y: auto; /* Enable scrolling if content exceeds height */
+	overflow-y: auto; /* Single natural sidebar scroll */
 	overflow-x: hidden; /* Prevent horizontal scrolling */
 
 	@media (max-width: 1024px) {
@@ -185,9 +185,9 @@ export const MobileNavItem = styled(Link)`
 export const MenuSection = styled.div`
 	display: flex;
 	flex-direction: column;
-	gap: 8px; /* Reduced gap to minimize spacing */
-	padding: 20px;
-	flex-shrink: 0; /* Prevent shrinking */
+	gap: 6px;
+	padding: 14px 16px;
+	flex-shrink: 0;
 
 	@media (max-width: 1024px) {
 		padding: 20px;
@@ -207,7 +207,7 @@ export const MenuSection = styled.div`
 export const MenuNav = styled.div`
 	display: flex;
 	flex-direction: column;
-	gap: 12px;
+	gap: 8px;
 
 	@media (max-width: 1024px) {
 		gap: 8px;
@@ -219,7 +219,7 @@ export const MenuItem = styled(Link)`
 	text-decoration: none;
 	font-size: ${font_main};
 	font-weight: 500;
-	padding: 10px 12px;
+	padding: 8px 10px;
 	border-radius: 4px;
 	transition: all 0.2s ease;
 	cursor: pointer;
@@ -271,7 +271,7 @@ export const SimpleList = styled.ul`
 `;
 
 export const SimpleListItem = styled.li`
-	padding: 8px 0;
+	padding: 6px 0;
 	font-size: 13px;
 	color: #666666;
 	cursor: pointer;
@@ -306,37 +306,59 @@ export const RemoveItemButton = styled.button`
 `;
 
 export const PortfolioCard = styled.div`
-	border: 1px solid #dbe4ea;
-	border-radius: 10px;
+	border: 1px solid #cfdbe5;
+	border-radius: 12px;
 	padding: 12px;
-	background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+	background: linear-gradient(180deg, #f4f8fb 0%, #ffffff 100%);
 	display: flex;
 	flex-direction: column;
-	gap: 10px;
+	gap: 8px;
 `;
 
 export const PortfolioTop = styled.div`
 	display: flex;
 	justify-content: space-between;
-	align-items: center;
+	align-items: flex-start;
 	gap: 8px;
 `;
 
 export const PortfolioPlan = styled.div`
-	font-size: 12px;
-	font-weight: 700;
+	font-size: 15px;
+	font-weight: 800;
+	line-height: 1.2;
 	color: #111827;
 `;
 
+export const PortfolioPlanSub = styled.div`
+	font-size: 13px;
+	font-weight: 600;
+	line-height: 1.35;
+	color: #475569;
+`;
+
 export const PortfolioUsage = styled.div`
+	font-size: 13px;
+	font-weight: 500;
+	color: #475569;
+	line-height: 1.4;
+`;
+
+export const PortfolioUsageBadge = styled.div`
 	font-size: 12px;
-	color: #4b5563;
+	font-weight: 700;
+	color: #334155;
+	line-height: 1.2;
+	background: #e8eef3;
+	border: 1px solid #d6e0e8;
+	border-radius: 999px;
+	padding: 4px 10px;
+	white-space: nowrap;
 `;
 
 export const ProgressTrack = styled.div`
-	height: 6px;
+	height: 7px;
 	border-radius: 999px;
-	background: #e5e7eb;
+	background: #dfe7ee;
 	overflow: hidden;
 `;
 
@@ -348,26 +370,33 @@ export const ProgressFill = styled.div<{ $percent: number }>`
 `;
 
 export const ManagePlanButton = styled.button`
-	border: 1px solid #d1d5db;
-	background: white;
+	border: 1px solid #cfd8e3;
+	background: #ffffff;
 	color: #0f172a;
-	font-size: 12px;
+	font-size: 13px;
 	font-weight: 600;
-	border-radius: 8px;
+	border-radius: 10px;
 	padding: 8px 10px;
 	cursor: pointer;
 	text-align: center;
+	width: 100%;
+	transition:
+		background-color 0.2s ease,
+		border-color 0.2s ease,
+		transform 0.2s ease;
 
 	&:hover {
 		background: #f8fafc;
+		border-color: #b9c8d6;
+		transform: translateY(-1px);
 	}
 `;
 
 export const Section = styled.div`
 	display: flex;
 	flex-direction: column;
-	gap: 10px;
-	padding: 20px;
+	gap: 8px;
+	padding: 14px 16px;
 	flex-shrink: 0; /* Prevent shrinking */
 	border-bottom: 1px solid rgba(0, 0, 0, 0.1);
 
@@ -394,7 +423,7 @@ export const SectionTitle = styled.h3`
 	font-weight: 600;
 	text-transform: uppercase;
 	color: #999999;
-	margin: 0 0 4px 0;
+	margin: 0 0 2px 0;
 	letter-spacing: 0.5px;
 
 	@media (max-width: 480px) {
@@ -403,35 +432,35 @@ export const SectionTitle = styled.h3`
 	}
 `;
 
-export const SectionContent = styled.div`
+export const SectionContent = styled.div<{ $scrollable?: boolean }>`
 	display: flex;
 	flex-direction: column;
-	gap: 12px;
+	gap: 8px;
 	font-size: ${font_main};
 	color: black;
-	max-height: 200px; /* Allow more height on larger screens */
-	overflow-y: auto; /* Enable scrolling if content exceeds height */
+	max-height: ${({ $scrollable = true }) => ($scrollable ? '200px' : 'none')};
+	overflow-y: ${({ $scrollable = true }) => ($scrollable ? 'auto' : 'visible')};
 	flex-shrink: 0; /* Prevent shrinking */
 
 	@media (max-width: 1024px) {
 		gap: 10px;
 		font-size: 13px;
-		max-height: 150px;
+		max-height: ${({ $scrollable = true }) => ($scrollable ? '150px' : 'none')};
 	}
 
 	@media (max-width: 480px) {
 		gap: 8px;
 		font-size: 12px;
-		max-height: 120px;
+		max-height: ${({ $scrollable = true }) => ($scrollable ? '120px' : 'none')};
 	}
 `;
 
 export const BottomSections = styled.div`
 	display: flex;
 	flex-direction: column;
-	gap: 20px;
-	margin-top: auto; /* Push to bottom */
-	padding: 20px;
+	gap: 10px;
+	margin-top: 0;
+	padding: 12px 16px 16px;
 	flex-shrink: 0; /* Prevent shrinking */
 
 	@media (max-width: 1024px) {

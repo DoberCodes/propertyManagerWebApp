@@ -8,6 +8,17 @@ import {
 	faClock,
 	faCircleCheck,
 	faTriangleExclamation,
+	faHome,
+	faLocationDot,
+	faUsers,
+	faMicrochip,
+	faListCheck,
+	faFileLines,
+	faCircleExclamation,
+	faPenToSquare,
+	faUserPlus,
+	faPlus,
+	faWrench,
 } from '@fortawesome/free-solid-svg-icons';
 import { RootState } from '../../Redux/store';
 import { useDetailPageData } from 'Hooks/useDetailPageData';
@@ -35,10 +46,6 @@ import { MaintenanceRequest } from '../../types/MaintenanceRequest.types';
 import { uploadMaintenanceRequestFiles } from '../../utils/maintenanceRequestUpload';
 import { useAppFeedback } from '../../Components/Library/AppFeedback/AppFeedbackProvider';
 import {
-	InfoGrid,
-	InfoCard,
-	InfoLabel,
-	InfoValue,
 	SectionContainer,
 	SectionHeader,
 } from '../../Components/Library/InfoCards/InfoCardStyles';
@@ -51,6 +58,7 @@ import {
 	formatCurrency,
 	getFinancialDisplayTotal,
 } from '../../utils/financialUtils';
+import { getPropertyImageSrc, isPropertyImageFallback } from '../../utils/propertyImagePlaceholder';
 
 const Wrapper = styled.div`
 	display: flex;
@@ -67,6 +75,172 @@ const ContentContainer = styled.div`
 	max-width: 1200px;
 	width: 100%;
 	margin: 0 auto;
+`;
+
+const InfoLayoutGrid = styled.div`
+	display: grid;
+	grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+	gap: 16px;
+
+	@media (max-width: 1024px) {
+		grid-template-columns: 1fr;
+	}
+`;
+
+const SurfaceCard = styled.div`
+	background: #ffffff;
+	border: 1px solid #e5e7eb;
+	border-radius: 12px;
+	overflow: hidden;
+	box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+`;
+
+const SurfaceHeader = styled.div`
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 12px 14px;
+	border-bottom: 1px solid #eef2f7;
+
+	h3 {
+		margin: 0;
+		font-size: 16px;
+		font-weight: 700;
+		color: #0f172a;
+	}
+`;
+
+const GhostAction = styled.button`
+	border: 1px solid #dbe3ec;
+	background: #f8fafc;
+	color: #334155;
+	font-size: 12px;
+	font-weight: 700;
+	padding: 6px 10px;
+	border-radius: 8px;
+	cursor: pointer;
+`;
+
+const DetailRows = styled.div`
+	display: flex;
+	flex-direction: column;
+`;
+
+const DetailRow = styled.div`
+	display: grid;
+	grid-template-columns: 220px minmax(0, 1fr);
+	align-items: center;
+	padding: 10px 14px;
+	border-bottom: 1px solid #f1f5f9;
+	gap: 10px;
+
+	&:last-child {
+		border-bottom: none;
+	}
+
+	@media (max-width: 640px) {
+		grid-template-columns: 1fr;
+		gap: 6px;
+	}
+`;
+
+const DetailLabel = styled.div`
+	font-size: 13px;
+	font-weight: 600;
+	color: #64748b;
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+`;
+
+const DetailValue = styled.div`
+	font-size: 14px;
+	font-weight: 600;
+	color: #0f172a;
+`;
+
+const PhotoBody = styled.div`
+	padding: 12px;
+`;
+
+const PhotoPreview = styled.img`
+	width: 100%;
+	height: 200px;
+	object-fit: cover;
+	border-radius: 10px;
+	border: 1px solid #dbe3ec;
+`;
+
+const StatGrid = styled.div`
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 10px;
+	padding: 12px;
+
+	@media (max-width: 640px) {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+`;
+
+const StatCard = styled.div<{ $tone?: 'danger' | 'default' }>`
+	border: 1px solid ${({ $tone }) => ($tone === 'danger' ? '#fecaca' : '#e5e7eb')};
+	background: ${({ $tone }) => ($tone === 'danger' ? '#fef2f2' : '#f8fafc')};
+	border-radius: 10px;
+	padding: 10px;
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+`;
+
+const StatValue = styled.div`
+	font-size: 20px;
+	font-weight: 800;
+	color: #0f172a;
+`;
+
+const StatLabel = styled.div`
+	font-size: 12px;
+	font-weight: 600;
+	color: #64748b;
+`;
+
+const ActionList = styled.div`
+	display: flex;
+	flex-direction: column;
+	padding: 4px 10px 10px;
+`;
+
+const ActionItem = styled.button<{ $danger?: boolean }>`
+	border: none;
+	background: transparent;
+	text-align: left;
+	padding: 10px;
+	border-radius: 8px;
+	cursor: pointer;
+	display: flex;
+	align-items: flex-start;
+	gap: 10px;
+	color: ${({ $danger }) => ($danger ? '#dc2626' : '#0f172a')};
+
+	&:hover {
+		background: ${({ $danger }) => ($danger ? '#fef2f2' : '#f8fafc')};
+	}
+`;
+
+const ActionText = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+
+	strong {
+		font-size: 14px;
+		font-weight: 700;
+	}
+
+	span {
+		font-size: 12px;
+		color: #64748b;
+	}
 `;
 
 export const UnitDetailPage: React.FC = () => {
@@ -108,6 +282,21 @@ export const UnitDetailPage: React.FC = () => {
 	const [updateMaintenanceHistory] = useUpdateMaintenanceHistoryMutation();
 	const { data: unitDevices = [], isLoading: devicesLoading } =
 		useGetUnitDevicesQuery(unit?.id || '', { skip: !unit?.id });
+
+	const propertyImageSrc = getPropertyImageSrc(property?.image);
+	const unitOverdueTasksCount = React.useMemo(() => {
+		const today = new Date();
+		today.setHours(0, 0, 0, 0);
+		return unitTasks.filter((task: any) => {
+			if (task.status === 'Completed') return false;
+			if (task.status === 'Overdue') return true;
+			if (!task.dueDate) return false;
+			const dueDate = new Date(task.dueDate);
+			if (Number.isNaN(dueDate.getTime())) return false;
+			dueDate.setHours(0, 0, 0, 0);
+			return dueDate < today;
+		}).length;
+	}, [unitTasks]);
 
 	const handleMaintenanceRequestSubmit = async (
 		request: MaintenanceRequest,
@@ -185,46 +374,157 @@ export const UnitDetailPage: React.FC = () => {
 	return (
 		<DetailPageLayout
 			title={unit.name}
-			subtitle={property.title}
-			badge={`${property.slug} / ${unit.name
-				.replace(/\s+/g, '-')
-				.toLowerCase()}`}
+			subtitle={property.address || property.title}
+			badge={`${property.slug.toUpperCase()} / ${unit.name.toUpperCase()}`}
 			backPath={`/property/${property.slug}`}
+			backLabel='← Back to Property'
+			headerImageUrl={isPropertyImageFallback(propertyImageSrc) ? undefined : propertyImageSrc}
 			tabs={tabsConfig}
 			activeTab={activeTab}
 			onTabChange={(tab) => setActiveTab(tab as any)}>
-			<ContentContainer>
-				{activeTab === 'info' && (
-					<TabContent>
-						<SectionContainer>
-							<SectionHeader>Unit Information</SectionHeader>
-							<InfoGrid>
-								<InfoCard>
-									<InfoLabel>Unit Name</InfoLabel>
-									<InfoValue>{unit.name}</InfoValue>
-								</InfoCard>
-								<InfoCard>
-									<InfoLabel>Property</InfoLabel>
-									<InfoValue>{property.title}</InfoValue>
-								</InfoCard>
-								<InfoCard>
-									<InfoLabel>Property Address</InfoLabel>
-									<InfoValue>{property.address || 'N/A'}</InfoValue>
-								</InfoCard>
-							</InfoGrid>
-							{unit.notes && (
-								<InfoCard>
-									<InfoLabel>Notes</InfoLabel>
-									<InfoValue>{unit.notes}</InfoValue>
-								</InfoCard>
-							)}
-						</SectionContainer>
-					</TabContent>
+			{activeTab === 'info' && (
+					<div>
+						<InfoLayoutGrid>
+							<div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+								<SurfaceCard>
+									<SurfaceHeader>
+										<h3>Unit Details</h3>
+										<GhostAction onClick={() => setActiveTab('tasks')}>Manage</GhostAction>
+									</SurfaceHeader>
+									<DetailRows>
+										<DetailRow>
+											<DetailLabel><FontAwesomeIcon icon={faHome} /> Unit Name</DetailLabel>
+											<DetailValue>{unit.name}</DetailValue>
+										</DetailRow>
+										<DetailRow>
+											<DetailLabel><FontAwesomeIcon icon={faLocationDot} /> Property</DetailLabel>
+											<DetailValue>{property.title}</DetailValue>
+										</DetailRow>
+										<DetailRow>
+											<DetailLabel><FontAwesomeIcon icon={faLocationDot} /> Address</DetailLabel>
+											<DetailValue>{property.address || 'N/A'}</DetailValue>
+										</DetailRow>
+										<DetailRow>
+											<DetailLabel><FontAwesomeIcon icon={faUsers} /> Occupants</DetailLabel>
+											<DetailValue>{(unit.occupants || []).length}</DetailValue>
+										</DetailRow>
+										{unit.notes && (
+											<DetailRow>
+												<DetailLabel><FontAwesomeIcon icon={faFileLines} /> Notes</DetailLabel>
+												<DetailValue>{unit.notes}</DetailValue>
+											</DetailRow>
+										)}
+									</DetailRows>
+								</SurfaceCard>
+
+								<SurfaceCard>
+									<SurfaceHeader>
+										<h3>Important Information</h3>
+										<GhostAction onClick={() => setActiveTab('info')}>Edit</GhostAction>
+									</SurfaceHeader>
+									<DetailRows>
+										<DetailRow>
+											<DetailLabel>Property Type</DetailLabel>
+											<DetailValue>{property.propertyType || 'N/A'}</DetailValue>
+										</DetailRow>
+										<DetailRow>
+											<DetailLabel>Bedrooms / Bathrooms</DetailLabel>
+											<DetailValue>{property.bedrooms ?? '-'} / {property.bathrooms ?? '-'}</DetailValue>
+										</DetailRow>
+										<DetailRow>
+											<DetailLabel>Rental Status</DetailLabel>
+											<DetailValue>{property.isRental ? 'Rental' : 'Owner Occupied'}</DetailValue>
+										</DetailRow>
+									</DetailRows>
+								</SurfaceCard>
+							</div>
+
+							<div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+								<SurfaceCard>
+									<SurfaceHeader>
+										<h3>Property Photo</h3>
+										<GhostAction onClick={() => setActiveTab('devices')}>Edit</GhostAction>
+									</SurfaceHeader>
+									<PhotoBody>
+										<PhotoPreview src={propertyImageSrc} alt={property.title} />
+									</PhotoBody>
+								</SurfaceCard>
+
+								<SurfaceCard>
+									<SurfaceHeader>
+										<h3>Details at a Glance</h3>
+									</SurfaceHeader>
+									<StatGrid>
+										<StatCard>
+											<StatValue>{unitDevices.length}</StatValue>
+											<StatLabel>Devices</StatLabel>
+										</StatCard>
+										<StatCard>
+											<StatValue>{unitTasks.length}</StatValue>
+											<StatLabel>Tasks</StatLabel>
+										</StatCard>
+										<StatCard>
+											<StatValue>{unitMaintenanceHistory.length}</StatValue>
+											<StatLabel>Maintenance Records</StatLabel>
+										</StatCard>
+										<StatCard>
+											<StatValue>{unitRequests.length}</StatValue>
+											<StatLabel>Open Requests</StatLabel>
+										</StatCard>
+										<StatCard>
+											<StatValue>{(unit.occupants || []).length}</StatValue>
+											<StatLabel>Occupants</StatLabel>
+										</StatCard>
+										<StatCard $tone={unitOverdueTasksCount > 0 ? 'danger' : 'default'}>
+											<StatValue>{unitOverdueTasksCount}</StatValue>
+											<StatLabel>Overdue Tasks</StatLabel>
+										</StatCard>
+									</StatGrid>
+								</SurfaceCard>
+
+								<SurfaceCard>
+									<SurfaceHeader>
+										<h3>Unit Actions</h3>
+									</SurfaceHeader>
+									<ActionList>
+										<ActionItem onClick={() => setActiveTab('info')}>
+											<FontAwesomeIcon icon={faPenToSquare} />
+											<ActionText>
+												<strong>Edit Unit Details</strong>
+												<span>Update unit profile information.</span>
+											</ActionText>
+										</ActionItem>
+										<ActionItem onClick={() => setShowAddTenantModal(true)}>
+											<FontAwesomeIcon icon={faUserPlus} />
+											<ActionText>
+												<strong>Add Occupant</strong>
+												<span>Assign a tenant or resident to this unit.</span>
+											</ActionText>
+										</ActionItem>
+										<ActionItem onClick={() => setShowCreateTaskModal(true)}>
+											<FontAwesomeIcon icon={faWrench} />
+											<ActionText>
+												<strong>Create Workflow</strong>
+												<span>Start maintenance continuity for this unit.</span>
+											</ActionText>
+										</ActionItem>
+										<ActionItem $danger onClick={() => setActiveTab('tasks')}>
+											<FontAwesomeIcon icon={faCircleExclamation} />
+											<ActionText>
+												<strong>Review Overdue Tasks</strong>
+												<span>Jump to unit tasks and clear blockers.</span>
+											</ActionText>
+										</ActionItem>
+									</ActionList>
+								</SurfaceCard>
+							</div>
+						</InfoLayoutGrid>
+					</div>
 				)}
 
 				{/* Occupants Tab */}
 				{activeTab === 'occupants' && (
-					<TabContent>
+					<div>
 						<SectionContainer>
 							<SectionHeader>Unit Occupants</SectionHeader>
 							<Toolbar>
@@ -272,12 +572,12 @@ export const UnitDetailPage: React.FC = () => {
 								</EmptyState>
 							)}
 						</SectionContainer>
-					</TabContent>
+					</div>
 				)}
 
 				{/* Devices Tab */}
 				{activeTab === 'devices' && (
-					<TabContent>
+					<div>
 						<SectionContainer>
 							<SectionHeader>Unit Devices</SectionHeader>
 							<Toolbar>
@@ -339,12 +639,12 @@ export const UnitDetailPage: React.FC = () => {
 								</EmptyState>
 							)}
 						</SectionContainer>
-					</TabContent>
+					</div>
 				)}
 
 				{/* Tasks Tab */}
 				{activeTab === 'tasks' && (
-					<TabContent>
+					<div>
 						<SectionContainer>
 							<SectionHeader>Unit Tasks</SectionHeader>
 							<Toolbar>
@@ -427,12 +727,12 @@ export const UnitDetailPage: React.FC = () => {
 								/>
 							</HeaderlessFeedSurface>
 						</SectionContainer>
-					</TabContent>
+					</div>
 				)}
 
 				{/* Maintenance History Tab */}
 				{activeTab === 'history' && (
-					<TabContent>
+					<div>
 						<SectionContainer>
 							<SectionHeader>Unit Maintenance History</SectionHeader>
 							{unitMaintenanceHistory.length > 0 ? (
@@ -491,12 +791,12 @@ export const UnitDetailPage: React.FC = () => {
 								</EmptyState>
 							)}
 						</SectionContainer>
-					</TabContent>
+					</div>
 				)}
 
 				{/* Maintenance Requests Tab */}
 				{activeTab === 'requests' && (
-					<TabContent>
+					<div>
 						<SectionContainer>
 							<SectionHeader>Unit Maintenance Requests</SectionHeader>
 							<Toolbar>
@@ -542,9 +842,8 @@ export const UnitDetailPage: React.FC = () => {
 								</EmptyState>
 							)}
 						</SectionContainer>
-					</TabContent>
+					</div>
 				)}
-			</ContentContainer>
 
 			{/* Modals */}
 			{showAddTenantModal && (

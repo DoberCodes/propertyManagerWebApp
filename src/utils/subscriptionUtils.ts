@@ -236,9 +236,7 @@ export const canManageTeam = (subscription: SubscriptionData): boolean => {
 		return false;
 	}
 
-	const plan = Object.values(SUBSCRIPTION_PLANS).find(
-		(p) => p.id === subscription.plan,
-	);
+	const plan = getPlanById(subscription.plan);
 	return plan?.permissions.canManageTeam || false;
 };
 
@@ -250,9 +248,7 @@ export const canManageTenants = (subscription: SubscriptionData): boolean => {
 		return false;
 	}
 
-	const plan = Object.values(SUBSCRIPTION_PLANS).find(
-		(p) => p.id === subscription.plan,
-	);
+	const plan = getPlanById(subscription.plan);
 	return plan?.permissions.canManageTenants || false;
 };
 
@@ -264,9 +260,7 @@ export const canViewReports = (subscription: SubscriptionData): boolean => {
 		return false;
 	}
 
-	const plan = Object.values(SUBSCRIPTION_PLANS).find(
-		(p) => p.id === subscription.plan,
-	);
+	const plan = getPlanById(subscription.plan);
 	return plan?.permissions.canViewReports || false;
 };
 
@@ -278,9 +272,7 @@ export const canExportData = (subscription: SubscriptionData): boolean => {
 		return false;
 	}
 
-	const plan = Object.values(SUBSCRIPTION_PLANS).find(
-		(p) => p.id === subscription.plan,
-	);
+	const plan = getPlanById(subscription.plan);
 	return plan?.permissions.canExportData || false;
 };
 
@@ -292,9 +284,7 @@ export const hasPrioritySupport = (subscription: SubscriptionData): boolean => {
 		return false;
 	}
 
-	const plan = Object.values(SUBSCRIPTION_PLANS).find(
-		(p) => p.id === subscription.plan,
-	);
+	const plan = getPlanById(subscription.plan);
 	return plan?.permissions.prioritySupport || false;
 };
 
@@ -308,9 +298,7 @@ export const canSubmitMaintenanceRequests = (
 		return false;
 	}
 
-	const plan = Object.values(SUBSCRIPTION_PLANS).find(
-		(p) => p.id === subscription.plan,
-	);
+	const plan = getPlanById(subscription.plan);
 	return plan?.permissions.canSubmitMaintenanceRequests || false;
 };
 
@@ -322,10 +310,92 @@ export const canViewTenantInfo = (subscription: SubscriptionData): boolean => {
 		return false;
 	}
 
-	const plan = Object.values(SUBSCRIPTION_PLANS).find(
-		(p) => p.id === subscription.plan,
-	);
+	const plan = getPlanById(subscription.plan);
 	return plan?.permissions.canViewTenantInfo || false;
+};
+
+/**
+ * Check if subscription plan allows linked parts & supplies
+ */
+export const canLinkParts = (subscription: SubscriptionData): boolean => {
+	if (!isSubscriptionActive(subscription)) {
+		return false;
+	}
+
+	const plan = getPlanById(subscription.plan);
+	return plan?.permissions.canLinkParts || false;
+};
+
+/**
+ * Check if subscription plan allows warranty tracking
+ */
+export const canTrackWarranties = (subscription: SubscriptionData): boolean => {
+	if (!isSubscriptionActive(subscription)) {
+		return false;
+	}
+
+	const plan = getPlanById(subscription.plan);
+	return plan?.permissions.canTrackWarranties || false;
+};
+
+/**
+ * Check if subscription plan allows advanced audit trail
+ */
+export const canAdvancedAuditTrail = (subscription: SubscriptionData): boolean => {
+	if (!isSubscriptionActive(subscription)) {
+		return false;
+	}
+
+	const plan = getPlanById(subscription.plan);
+	return plan?.permissions.canAdvancedAuditTrail || false;
+};
+
+/**
+ * Check if subscription plan allows multi-unit management
+ */
+export const canManageMultiUnit = (subscription: SubscriptionData): boolean => {
+	if (!isSubscriptionActive(subscription)) {
+		return false;
+	}
+
+	const plan = getPlanById(subscription.plan);
+	return plan?.permissions.canManageMultiUnit || false;
+};
+
+/**
+ * Check if subscription plan allows portfolio-level reporting
+ */
+export const canPortfolioReporting = (subscription: SubscriptionData): boolean => {
+	if (!isSubscriptionActive(subscription)) {
+		return false;
+	}
+
+	const plan = getPlanById(subscription.plan);
+	return plan?.permissions.canPortfolioReporting || false;
+};
+
+/**
+ * Check if subscription plan allows advanced analytics
+ */
+export const canAdvancedAnalytics = (subscription: SubscriptionData): boolean => {
+	if (!isSubscriptionActive(subscription)) {
+		return false;
+	}
+
+	const plan = getPlanById(subscription.plan);
+	return plan?.permissions.canAdvancedAnalytics || false;
+};
+
+/**
+ * Check if subscription plan allows property groups
+ */
+export const canPropertyGroups = (subscription: SubscriptionData): boolean => {
+	if (!isSubscriptionActive(subscription)) {
+		return false;
+	}
+
+	const plan = getPlanById(subscription.plan);
+	return plan?.permissions.canPropertyGroups || false;
 };
 
 /**
