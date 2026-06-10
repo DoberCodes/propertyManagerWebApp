@@ -61,6 +61,20 @@ async function cleanupInvalidPushToken(userId, pushToken) {
         console.error(`Failed to cleanup push token for user ${userId}:`, error);
     }
 }
+function toMessageData(notificationId, data) {
+    const messageData = { notificationId };
+    if (!data || typeof data !== 'object' || Array.isArray(data)) {
+        return messageData;
+    }
+    for (const [key, value] of Object.entries(data)) {
+        if (value === undefined || value === null) {
+            continue;
+        }
+        messageData[key] =
+            typeof value === 'string' ? value : JSON.stringify(value);
+    }
+    return messageData;
+}
 exports.sendPushOnNotificationCreate = (0, firestore_1.onDocumentCreated)('notifications/{notificationId}', async (event) => {
     var _a, _b;
     const notification = (_a = event.data) === null || _a === void 0 ? void 0 : _a.data();
@@ -81,38 +95,28 @@ exports.sendPushOnNotificationCreate = (0, firestore_1.onDocumentCreated)('notif
         console.log(`No push token for user ${notification.userId}`);
         return;
     }
-    // Check user notification preferences
+    // Check user notification preferences. The app stores preferences on the
+    // user doc; keep the old userPreferences doc as a backward-compatible fallback.
     const userPreferencesDoc = await db
         .collection('userPreferences')
         .doc(notification.userId)
         .get();
     const userPreferences = userPreferencesDoc.exists
-        ? userPreferencesDoc.data()
+        ? (_b = userPreferencesDoc.data()) === null || _b === void 0 ? void 0 : _b.notificationPreferences
         : null;
-    if (!userPreferences || !((_b = userPreferences.notificationPreferences) === null || _b === void 0 ? void 0 : _b.enabled)) {
+    const notificationPreferences = user.notificationPreferences || userPreferences || null;
+    if ((notificationPreferences === null || notificationPreferences === void 0 ? void 0 : notificationPreferences.enabled) === false) {
         console.log(`Notifications are disabled for user ${notification.userId}`);
         return;
     }
     const notificationType = notification.type; // Assuming notification.type exists
     if (notificationType &&
-        userPreferences.notificationPreferences.types &&
-        userPreferences.notificationPreferences.types[notificationType] === false) {
+        (notificationPreferences === null || notificationPreferences === void 0 ? void 0 : notificationPreferences.types) &&
+        notificationPreferences.types[notificationType] === false) {
         console.log(`Notification type '${notificationType}' is disabled for user ${notification.userId}`);
         return;
     }
-    // Compose the push notification
-    const payload = {
-        notification: {
-            title: notification.title || 'New Notification',
-            body: notification.message || '',
-        },
-        data: {
-            notificationId: event.params.notificationId,
-            ...(notification.data && typeof notification.data === 'object'
-                ? notification.data
-                : {}),
-        },
-    };
+    const messageData = toMessageData(event.params.notificationId, notification.data);
     // Send the push notification via FCM
     try {
         const message = {
@@ -121,17 +125,17 @@ exports.sendPushOnNotificationCreate = (0, firestore_1.onDocumentCreated)('notif
                 title: notification.title || 'New Notification',
                 body: notification.message || '',
             },
-            data: {
-                notificationId: event.params.notificationId,
-                ...(notification.data && typeof notification.data === 'object'
-                    ? notification.data
-                    : {}),
-            },
+            data: messageData,
         };
         const response = await admin.messaging().send(message);
         console.log(`Push sent successfully to user ${notification.userId}:`, response);
     }
     catch (err) {
         console.error(`Error sending push notification to user ${notification.userId}:`, err);
+        const errorCode = String((err === null || err === void 0 ? void 0 : err.code) || '');
+        if (errorCode === 'messaging/registration-token-not-registered' ||
+            errorCode === 'messaging/invalid-registration-token') {
+            await cleanupInvalidPushToken(notification.userId, pushToken);
+        }
     }
 });

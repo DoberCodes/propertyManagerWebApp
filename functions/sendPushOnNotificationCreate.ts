@@ -29,6 +29,27 @@ async function cleanupInvalidPushToken(userId: string, pushToken: string) {
 	}
 }
 
+function toMessageData(
+	notificationId: string,
+	data: unknown,
+): Record<string, string> {
+	const messageData: Record<string, string> = { notificationId };
+
+	if (!data || typeof data !== 'object' || Array.isArray(data)) {
+		return messageData;
+	}
+
+	for (const [key, value] of Object.entries(data as Record<string, unknown>)) {
+		if (value === undefined || value === null) {
+			continue;
+		}
+		messageData[key] =
+			typeof value === 'string' ? value : JSON.stringify(value);
+	}
+
+	return messageData;
+}
+
 export const sendPushOnNotificationCreate = onDocumentCreated(
 	'notifications/{notificationId}',
 	async (event) => {
@@ -57,16 +78,19 @@ export const sendPushOnNotificationCreate = onDocumentCreated(
 			return;
 		}
 
-		// Check user notification preferences
+		// Check user notification preferences. The app stores preferences on the
+		// user doc; keep the old userPreferences doc as a backward-compatible fallback.
 		const userPreferencesDoc = await db
 			.collection('userPreferences')
 			.doc(notification.userId)
 			.get();
 		const userPreferences = userPreferencesDoc.exists
-			? userPreferencesDoc.data()
+			? userPreferencesDoc.data()?.notificationPreferences
 			: null;
+		const notificationPreferences =
+			user.notificationPreferences || userPreferences || null;
 
-		if (!userPreferences || !userPreferences.notificationPreferences?.enabled) {
+		if (notificationPreferences?.enabled === false) {
 			console.log(`Notifications are disabled for user ${notification.userId}`);
 			return;
 		}
@@ -74,8 +98,8 @@ export const sendPushOnNotificationCreate = onDocumentCreated(
 		const notificationType = notification.type; // Assuming notification.type exists
 		if (
 			notificationType &&
-			userPreferences.notificationPreferences.types &&
-			userPreferences.notificationPreferences.types[notificationType] === false
+			notificationPreferences?.types &&
+			notificationPreferences.types[notificationType] === false
 		) {
 			console.log(
 				`Notification type '${notificationType}' is disabled for user ${notification.userId}`,
@@ -83,19 +107,10 @@ export const sendPushOnNotificationCreate = onDocumentCreated(
 			return;
 		}
 
-		// Compose the push notification
-		const payload: admin.messaging.MessagingPayload = {
-			notification: {
-				title: notification.title || 'New Notification',
-				body: notification.message || '',
-			},
-			data: {
-				notificationId: event.params.notificationId,
-				...(notification.data && typeof notification.data === 'object'
-					? notification.data
-					: {}),
-			},
-		};
+		const messageData = toMessageData(
+			event.params.notificationId,
+			notification.data,
+		);
 
 		// Send the push notification via FCM
 		try {
@@ -105,12 +120,7 @@ export const sendPushOnNotificationCreate = onDocumentCreated(
 					title: notification.title || 'New Notification',
 					body: notification.message || '',
 				},
-				data: {
-					notificationId: event.params.notificationId,
-					...(notification.data && typeof notification.data === 'object'
-						? notification.data
-						: {}),
-				},
+				data: messageData,
 			};
 
 			const response = await admin.messaging().send(message);
@@ -123,6 +133,13 @@ export const sendPushOnNotificationCreate = onDocumentCreated(
 				`Error sending push notification to user ${notification.userId}:`,
 				err,
 			);
+			const errorCode = String((err as { code?: unknown })?.code || '');
+			if (
+				errorCode === 'messaging/registration-token-not-registered' ||
+				errorCode === 'messaging/invalid-registration-token'
+			) {
+				await cleanupInvalidPushToken(notification.userId, pushToken);
+			}
 		}
 	},
 );

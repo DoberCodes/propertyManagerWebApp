@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { setCurrentUser, setAuthLoading } from './Redux/Slices/userSlice';
 import { RouterComponent } from './router';
@@ -80,10 +80,19 @@ export const App = () => {
 	const authLoading = useSelector((state: any) => state.user.authLoading);
 	const currentUser = useSelector((state: any) => state.user.currentUser);
 	const [isRefreshing, setIsRefreshing] = useState(false);
+	const currentUserIdRef = useRef<string | null>(null);
+	const pushNotificationsInitializedRef = useRef(false);
+
+	useEffect(() => {
+		currentUserIdRef.current = currentUser?.id || null;
+	}, [currentUser?.id]);
 
 	// Register push notifications on native app startup
 	useEffect(() => {
 		if (!Capacitor.isNativePlatform()) return;
+		if (!currentUser?.id || pushNotificationsInitializedRef.current) return;
+
+		pushNotificationsInitializedRef.current = true;
 		initializePushNotifications(
 			(token) => {
 				console.log('Push token received:', token);
@@ -91,12 +100,12 @@ export const App = () => {
 			(notification) => {
 				console.log('Foreground push notification:', notification);
 			},
-			() => currentUser?.id || null,
+			() => currentUserIdRef.current,
 			(action) => {
 				console.log('Push notification action:', action);
 			},
 		);
-	}, [currentUser]);
+	}, [currentUser?.id]);
 
 	useEffect(() => {
 		// Set a timeout to ensure auth loading completes even if Firebase hangs
