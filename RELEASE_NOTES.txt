@@ -1,5 +1,5 @@
-🎉 **Release Notes for Version 2.2.12** 🎉
+🎉 **Release Notes for Version 2.2.13** 🎉
 
 
 ## 🐛 Bug Fixes
-- fixing auth issue and revamping team member changes. Modifying the role based access to be more team specific.
+- fixing app push notifications
