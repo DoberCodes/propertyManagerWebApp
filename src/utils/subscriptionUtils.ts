@@ -25,6 +25,7 @@ const LEGACY_PLAN_ALIASES: Record<string, string> = {
 	basic: 'property',
 	professional: 'portfolio',
 };
+const UNLIMITED_DEVICE_LIMIT_SENTINEL = 999;
 
 const resolvePlanId = (planId: string): string => {
 	return LEGACY_PLAN_ALIASES[planId] || planId;
@@ -34,6 +35,25 @@ const getPlanById = (planId: string) => {
 	const normalizedPlanId = resolvePlanId(planId);
 	return Object.values(SUBSCRIPTION_PLANS).find((p) => p.id === normalizedPlanId);
 };
+
+export const getEffectiveSubscriptionPlanId = (
+	subscription?: Pick<
+		SubscriptionData,
+		'plan' | 'hasScheduledSubscription' | 'scheduledPlan'
+	> | null,
+	fallbackPlanId = 'home',
+): string => {
+	const scheduledPlan = String(subscription?.scheduledPlan || '').trim();
+	const planId =
+		subscription?.hasScheduledSubscription && scheduledPlan
+			? scheduledPlan
+			: String(subscription?.plan || fallbackPlanId).trim();
+	return resolvePlanId(planId || fallbackPlanId);
+};
+
+export const isUnlimitedDeviceLimit = (maxDevices?: number): boolean =>
+	!Number.isFinite(maxDevices || 0) ||
+	(maxDevices || 0) >= UNLIMITED_DEVICE_LIMIT_SENTINEL;
 
 /**
  * Calculate trial end date
@@ -159,7 +179,8 @@ export const getMaxPropertiesForPlan = (planId: string): number => {
  */
 export const getMaxDevicesForPlan = (planId: string): number => {
 	const plan = getPlanById(planId);
-	return plan?.maxDevices || 8; // Default to Home tier if plan not found
+	const maxDevices = plan?.maxDevices || 8; // Default to Home tier if plan not found
+	return isUnlimitedDeviceLimit(maxDevices) ? Number.POSITIVE_INFINITY : maxDevices;
 };
 
 /**
@@ -179,7 +200,9 @@ export const canAddProperty = (
 		return false; // No active subscription
 	}
 
-	const maxProperties = getMaxPropertiesForPlan(subscription.plan);
+	const maxProperties = getMaxPropertiesForPlan(
+		getEffectiveSubscriptionPlanId(subscription),
+	);
 	return currentPropertyCount < maxProperties;
 };
 
@@ -194,7 +217,9 @@ export const getRemainingPropertySlots = (
 		return 0;
 	}
 
-	const maxProperties = getMaxPropertiesForPlan(subscription.plan);
+	const maxProperties = getMaxPropertiesForPlan(
+		getEffectiveSubscriptionPlanId(subscription),
+	);
 	return Math.max(0, maxProperties - currentPropertyCount);
 };
 
@@ -209,7 +234,9 @@ export const canAddDevice = (
 		return false;
 	}
 
-	const maxDevices = getMaxDevicesForPlan(subscription.plan);
+	const maxDevices = getMaxDevicesForPlan(
+		getEffectiveSubscriptionPlanId(subscription),
+	);
 	return currentDeviceCount < maxDevices;
 };
 
@@ -224,7 +251,12 @@ export const getRemainingDeviceSlots = (
 		return 0;
 	}
 
-	const maxDevices = getMaxDevicesForPlan(subscription.plan);
+	const maxDevices = getMaxDevicesForPlan(
+		getEffectiveSubscriptionPlanId(subscription),
+	);
+	if (isUnlimitedDeviceLimit(maxDevices)) {
+		return Number.POSITIVE_INFINITY;
+	}
 	return Math.max(0, maxDevices - currentDeviceCount);
 };
 

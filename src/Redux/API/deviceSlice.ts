@@ -18,7 +18,10 @@ import {
 	resolveAccessibleAccountIds,
 	resolveTargetUserId,
 } from './accountContext';
-import { getMaxDevicesForPlan } from '../../utils/subscriptionUtils';
+import {
+	getEffectiveSubscriptionPlanId,
+	getMaxDevicesForPlan,
+} from '../../utils/subscriptionUtils';
 
 const deviceSlice = apiSlice.injectEndpoints({
 	endpoints: (builder) => ({
@@ -118,7 +121,7 @@ const deviceSlice = apiSlice.injectEndpoints({
 						);
 						const userData = userSnapshot.data() || {};
 						const subscription = userData.subscription || {};
-						const planId = subscription.plan || 'home';
+						const planId = getEffectiveSubscriptionPlanId(subscription);
 						const maxDevices = getMaxDevicesForPlan(planId);
 
 						const accountSnapshot = await transaction.get(accountRef);

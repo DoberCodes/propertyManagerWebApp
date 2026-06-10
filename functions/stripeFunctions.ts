@@ -219,6 +219,48 @@ const buildMergedSubscription = (
 	});
 };
 
+const toLocalSubscriptionStatus = (stripeStatus: string): string => {
+	if (stripeStatus === 'active') return 'active';
+	if (stripeStatus === 'trialing') return 'trial';
+	if (stripeStatus === 'canceled') return 'cancelled';
+	return stripeStatus || 'expired';
+};
+
+const findReusableSubscription = async (
+	customerId: string,
+	existingSubscriptionId?: string,
+): Promise<Stripe.Subscription | null> => {
+	const reusableStatuses = new Set(['active', 'trialing', 'past_due', 'incomplete']);
+
+	if (existingSubscriptionId) {
+		try {
+			const subscription = await getStripe().subscriptions.retrieve(
+				existingSubscriptionId,
+			);
+			if (reusableStatuses.has(subscription.status)) {
+				return subscription;
+			}
+		} catch (error) {
+			console.warn(
+				`Unable to retrieve existing Stripe subscription ${existingSubscriptionId}; falling back to customer subscription lookup.`,
+				error,
+			);
+		}
+	}
+
+	const subscriptions = await getStripe().subscriptions.list({
+		customer: customerId,
+		status: 'all',
+		limit: 10,
+	});
+
+	return (
+		subscriptions.data.find((subscription) =>
+			reusableStatuses.has(subscription.status),
+		) || null
+	);
+};
+
 const syncFamilyAccountSubscription = async (
 	userData: Record<string, any> | undefined,
 	subscription: Record<string, any>,
@@ -301,7 +343,8 @@ export const createCheckoutSession = functions
 			});
 
 			// Get user data to check current subscription
-			const userDoc = await db.collection('users').doc(userId).get();
+			const userRef = db.collection('users').doc(userId);
+			const userDoc = await userRef.get();
 			const userData = userDoc.data();
 			console.log('User data retrieved:', userData);
 
@@ -331,10 +374,88 @@ export const createCheckoutSession = functions
 				customerId = customer.id;
 
 				// Update user with customer ID
-				await db.collection('users').doc(userId).update({
+				await userRef.update({
 					'subscription.stripeCustomerId': customerId,
 					updatedAt: admin.firestore.FieldValue.serverTimestamp(),
 				});
+			}
+
+			const existingSubscription = await findReusableSubscription(
+				customerId,
+				sanitizeSecret(
+					String(userData?.subscription?.stripeSubscriptionId || ''),
+				),
+			);
+
+			if (existingSubscription) {
+				const subscriptionItem = existingSubscription.items.data[0];
+				if (!subscriptionItem?.id) {
+					throw new functions.https.HttpsError(
+						'failed-precondition',
+						'Existing Stripe subscription has no subscription item to update.',
+					);
+				}
+
+				console.log('Updating existing Stripe subscription instead of creating a new one:', {
+					subscriptionId: existingSubscription.id,
+					subscriptionItemId: subscriptionItem.id,
+					currentPriceId: subscriptionItem.price?.id,
+					newPriceId: resolvedPriceId,
+				});
+
+				const updatedSubscription = await getStripe().subscriptions.update(
+					existingSubscription.id,
+					{
+						items: [
+							{
+								id: subscriptionItem.id,
+								price: resolvedPriceId,
+								quantity: subscriptionItem.quantity || 1,
+							},
+						],
+						proration_behavior: 'create_prorations',
+						metadata: {
+							...(existingSubscription.metadata || {}),
+							firebaseUID: userId,
+							...(accountPromoCode ? { promoCode: accountPromoCode } : {}),
+						},
+					},
+				);
+
+				const updatedPriceId = updatedSubscription.items.data[0]?.price?.id || resolvedPriceId;
+				const subscriptionData = removeUndefinedFields({
+					status: toLocalSubscriptionStatus(updatedSubscription.status),
+					plan: getPlanFromPriceId(
+						updatedPriceId,
+						normalizedPlanId || userData?.subscription?.plan || 'home',
+					),
+					currentPeriodStart: updatedSubscription.current_period_start,
+					currentPeriodEnd: updatedSubscription.current_period_end,
+					trialEndsAt: updatedSubscription.trial_end,
+					stripeCustomerId: String(updatedSubscription.customer || customerId),
+					stripeSubscriptionId: updatedSubscription.id,
+					hasScheduledSubscription: false,
+					scheduledPlan: null,
+					...(accountPromoCode ? { promoCode: accountPromoCode } : {}),
+				});
+
+				const mergedSubscription = buildMergedSubscription(
+					userData?.subscription,
+					subscriptionData,
+				);
+
+				await userRef.update({
+					subscription: mergedSubscription,
+					updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+				});
+
+				await syncFamilyAccountSubscription(userData, mergedSubscription);
+
+				return {
+					subscriptionUpdated: true,
+					subscriptionId: updatedSubscription.id,
+					subscription: mergedSubscription,
+				};
 			}
 
 			// Create checkout session

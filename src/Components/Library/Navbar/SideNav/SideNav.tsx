@@ -53,6 +53,8 @@ import {
 	getRemainingPropertySlots,
 	getSubscriptionPlanDetails,
 } from '../../../../utils/subscriptionUtils';
+import { filterPropertyGroupsByRole } from '../../../../utils/dataFilters';
+import { TeamMember } from '../../../../Redux/Slices/teamSlice';
 
 export const SideNav = () => {
 	const location = useLocation();
@@ -66,6 +68,11 @@ export const SideNav = () => {
 	const { favorites, removeFavorite } = useFavorites(currentUser!.id);
 	const propertyGroups = useSelector(
 		(state: RootState) => state.propertyData.groups,
+	);
+	const teamGroups = useSelector((state: RootState) => state.team.groups);
+	const teamMembers = React.useMemo(
+		() => teamGroups.flatMap((group) => group.members || []),
+		[teamGroups],
 	);
 
 	// Update Redux when location changes
@@ -85,27 +92,58 @@ export const SideNav = () => {
 	const canViewPages = useSelector(selectCanAccessProperties); // Restored variable
 
 	const isActive = (path: string) => activeRoute === path;
+	const filteredPropertyGroups = React.useMemo(
+		() =>
+			filterPropertyGroupsByRole(
+				propertyGroups.map((group) => ({
+					...group,
+					properties: group.properties || [],
+				})) as any[],
+				currentUser,
+				teamMembers.filter((member): member is TeamMember => member !== undefined),
+			),
+		[propertyGroups, currentUser, teamMembers],
+	);
 	const totalProperties = React.useMemo(
 		() =>
 			Array.from(
 				new Set(
-					propertyGroups
+					filteredPropertyGroups
 						.flatMap((group) => group.properties || [])
 						.map((property) => property.id),
 				),
 			).length,
-		[propertyGroups],
+		[filteredPropertyGroups],
 	);
 
-	const planDetails = getSubscriptionPlanDetails(
-		currentUser?.subscription?.plan || 'home',
-	);
-	const maxProperties = planDetails?.maxProperties || 1;
-	const remainingSlots = currentUser?.subscription
-		? getRemainingPropertySlots(currentUser.subscription, totalProperties)
+	const effectivePlanId =
+		currentUser?.subscription?.hasScheduledSubscription &&
+		currentUser.subscription.scheduledPlan
+			? currentUser.subscription.scheduledPlan
+			: currentUser?.subscription?.plan || 'home';
+	const planDetails = getSubscriptionPlanDetails(effectivePlanId);
+	const maxProperties = planDetails?.maxProperties ?? 1;
+	const effectiveSubscription = currentUser?.subscription
+		? { ...currentUser.subscription, plan: effectivePlanId }
+		: undefined;
+	const remainingSlots = effectiveSubscription
+		? getRemainingPropertySlots(effectiveSubscription, totalProperties)
 		: 0;
-	const usedProperties = Math.max(0, maxProperties - remainingSlots);
-	const usagePercent = maxProperties > 0 ? (usedProperties / maxProperties) * 100 : 0;
+	const usagePercent = maxProperties > 0 ? (totalProperties / maxProperties) * 100 : 0;
+	const hasPropertyCapacity = maxProperties > 0;
+	const planUsageLabel = hasPropertyCapacity
+		? `${totalProperties} of ${maxProperties}`
+		: `${totalProperties}`;
+	const planSlotLabel = !hasPropertyCapacity
+		? 'Property creation is not included'
+		: remainingSlots === 0 && totalProperties > maxProperties
+			? `${totalProperties - maxProperties} over plan limit`
+			: `${remainingSlots} property slot${remainingSlots === 1 ? '' : 's'} available`;
+	const planSubtitle =
+		currentUser?.subscription?.hasScheduledSubscription &&
+		currentUser.subscription.scheduledPlan
+			? `Scheduled plan: ${planDetails?.name || 'Home'}`
+			: `Current plan: ${planDetails?.name || 'Home'}`;
 
 	// Desktop nav items
 	const desktopMenuItems = [
@@ -240,17 +278,17 @@ export const SideNav = () => {
 											Property Plan
 										</PortfolioPlan>
 										<PortfolioUsageBadge>
-											{usedProperties} of {maxProperties}
+											{planUsageLabel}
 										</PortfolioUsageBadge>
 									</PortfolioTop>
 									<PortfolioPlanSub>
-										Current plan: {planDetails?.name || 'Home'}
+										{planSubtitle}
 									</PortfolioPlanSub>
 									<ProgressTrack>
 										<ProgressFill $percent={Math.min(100, usagePercent)} />
 									</ProgressTrack>
 									<PortfolioUsage>
-										{remainingSlots} property slots available
+										{planSlotLabel}
 									</PortfolioUsage>
 									<ManagePlanButton
 										type='button'

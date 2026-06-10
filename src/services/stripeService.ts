@@ -110,7 +110,14 @@ export const createCheckoutSession = async (
 			...(promoCode && { promoCode }),
 		});
 
-		const data = result.data as { sessionId: string; url: string };
+		const data = result.data as {
+			sessionId?: string;
+			url?: string;
+			subscriptionUpdated?: boolean;
+		};
+		if (data.subscriptionUpdated) {
+			return '';
+		}
 		if (!data.url) {
 			throw new Error('Checkout session URL not returned');
 		}

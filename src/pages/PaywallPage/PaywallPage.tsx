@@ -213,8 +213,13 @@ export const PaywallPage: React.FC<PaywallPageProps> = ({
 				billingCycle,
 			);
 
-			// Redirect to Stripe hosted checkout URL
-			redirectToCheckout(checkoutUrl);
+			if (checkoutUrl) {
+				// Redirect to Stripe hosted checkout URL for first-time subscription setup.
+				redirectToCheckout(checkoutUrl);
+				return;
+			}
+
+			navigate('/dashboard');
 		} catch (err) {
 			console.error('Failed to process payment:', err);
 			setError(

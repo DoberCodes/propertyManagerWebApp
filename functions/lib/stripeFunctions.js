@@ -209,6 +209,35 @@ const buildMergedSubscription = (existingSubscription, patch) => {
         ...patch,
     });
 };
+const toLocalSubscriptionStatus = (stripeStatus) => {
+    if (stripeStatus === 'active')
+        return 'active';
+    if (stripeStatus === 'trialing')
+        return 'trial';
+    if (stripeStatus === 'canceled')
+        return 'cancelled';
+    return stripeStatus || 'expired';
+};
+const findReusableSubscription = async (customerId, existingSubscriptionId) => {
+    const reusableStatuses = new Set(['active', 'trialing', 'past_due', 'incomplete']);
+    if (existingSubscriptionId) {
+        try {
+            const subscription = await getStripe().subscriptions.retrieve(existingSubscriptionId);
+            if (reusableStatuses.has(subscription.status)) {
+                return subscription;
+            }
+        }
+        catch (error) {
+            console.warn(`Unable to retrieve existing Stripe subscription ${existingSubscriptionId}; falling back to customer subscription lookup.`, error);
+        }
+    }
+    const subscriptions = await getStripe().subscriptions.list({
+        customer: customerId,
+        status: 'all',
+        limit: 10,
+    });
+    return (subscriptions.data.find((subscription) => reusableStatuses.has(subscription.status)) || null);
+};
 const syncFamilyAccountSubscription = async (userData, subscription) => {
     const accountId = userData === null || userData === void 0 ? void 0 : userData.accountId;
     if (!accountId) {
@@ -235,7 +264,7 @@ const syncFamilyAccountSubscription = async (userData, subscription) => {
 exports.createCheckoutSession = functions
     .runWith({ secrets: ['STRIPE_SECRET_KEY'] })
     .https.onCall(async (data, context) => {
-    var _a, _b, _c, _d;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _j;
     // Verify user is authenticated
     if (!context.auth) {
         throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
@@ -260,7 +289,8 @@ exports.createCheckoutSession = functions
             cancelUrl,
         });
         // Get user data to check current subscription
-        const userDoc = await db.collection('users').doc(userId).get();
+        const userRef = db.collection('users').doc(userId);
+        const userDoc = await userRef.get();
         const userData = userDoc.data();
         console.log('User data retrieved:', userData);
         const accountPromoCode = normalizePromoCode(requestedPromoCode || ((_a = userData === null || userData === void 0 ? void 0 : userData.subscription) === null || _a === void 0 ? void 0 : _a.promoCode));
@@ -282,10 +312,62 @@ exports.createCheckoutSession = functions
             });
             customerId = customer.id;
             // Update user with customer ID
-            await db.collection('users').doc(userId).update({
+            await userRef.update({
                 'subscription.stripeCustomerId': customerId,
                 updatedAt: admin.firestore.FieldValue.serverTimestamp(),
             });
+        }
+        const existingSubscription = await findReusableSubscription(customerId, sanitizeSecret(String(((_c = userData === null || userData === void 0 ? void 0 : userData.subscription) === null || _c === void 0 ? void 0 : _c.stripeSubscriptionId) || '')));
+        if (existingSubscription) {
+            const subscriptionItem = existingSubscription.items.data[0];
+            if (!(subscriptionItem === null || subscriptionItem === void 0 ? void 0 : subscriptionItem.id)) {
+                throw new functions.https.HttpsError('failed-precondition', 'Existing Stripe subscription has no subscription item to update.');
+            }
+            console.log('Updating existing Stripe subscription instead of creating a new one:', {
+                subscriptionId: existingSubscription.id,
+                subscriptionItemId: subscriptionItem.id,
+                currentPriceId: (_d = subscriptionItem.price) === null || _d === void 0 ? void 0 : _d.id,
+                newPriceId: resolvedPriceId,
+            });
+            const updatedSubscription = await getStripe().subscriptions.update(existingSubscription.id, {
+                items: [
+                    {
+                        id: subscriptionItem.id,
+                        price: resolvedPriceId,
+                        quantity: subscriptionItem.quantity || 1,
+                    },
+                ],
+                proration_behavior: 'create_prorations',
+                metadata: {
+                    ...(existingSubscription.metadata || {}),
+                    firebaseUID: userId,
+                    ...(accountPromoCode ? { promoCode: accountPromoCode } : {}),
+                },
+            });
+            const updatedPriceId = ((_f = (_e = updatedSubscription.items.data[0]) === null || _e === void 0 ? void 0 : _e.price) === null || _f === void 0 ? void 0 : _f.id) || resolvedPriceId;
+            const subscriptionData = removeUndefinedFields({
+                status: toLocalSubscriptionStatus(updatedSubscription.status),
+                plan: getPlanFromPriceId(updatedPriceId, normalizedPlanId || ((_g = userData === null || userData === void 0 ? void 0 : userData.subscription) === null || _g === void 0 ? void 0 : _g.plan) || 'home'),
+                currentPeriodStart: updatedSubscription.current_period_start,
+                currentPeriodEnd: updatedSubscription.current_period_end,
+                trialEndsAt: updatedSubscription.trial_end,
+                stripeCustomerId: String(updatedSubscription.customer || customerId),
+                stripeSubscriptionId: updatedSubscription.id,
+                hasScheduledSubscription: false,
+                scheduledPlan: null,
+                ...(accountPromoCode ? { promoCode: accountPromoCode } : {}),
+            });
+            const mergedSubscription = buildMergedSubscription(userData === null || userData === void 0 ? void 0 : userData.subscription, subscriptionData);
+            await userRef.update({
+                subscription: mergedSubscription,
+                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            });
+            await syncFamilyAccountSubscription(userData, mergedSubscription);
+            return {
+                subscriptionUpdated: true,
+                subscriptionId: updatedSubscription.id,
+                subscription: mergedSubscription,
+            };
         }
         // Create checkout session
         const session = await getStripe().checkout.sessions.create({
@@ -317,10 +399,10 @@ exports.createCheckoutSession = functions
             code: stripeError === null || stripeError === void 0 ? void 0 : stripeError.code,
             type: stripeError === null || stripeError === void 0 ? void 0 : stripeError.type,
         });
-        if ((_c = stripeError === null || stripeError === void 0 ? void 0 : stripeError.message) === null || _c === void 0 ? void 0 : _c.includes('No such price')) {
+        if ((_h = stripeError === null || stripeError === void 0 ? void 0 : stripeError.message) === null || _h === void 0 ? void 0 : _h.includes('No such price')) {
             throw new functions.https.HttpsError('failed-precondition', 'Stripe price ID is invalid. Verify REACT_APP_STRIPE_*_PLAN_ID values and deployed function config.');
         }
-        if ((_d = stripeError === null || stripeError === void 0 ? void 0 : stripeError.message) === null || _d === void 0 ? void 0 : _d.includes('Invalid API Key')) {
+        if ((_j = stripeError === null || stripeError === void 0 ? void 0 : stripeError.message) === null || _j === void 0 ? void 0 : _j.includes('Invalid API Key')) {
             throw new functions.https.HttpsError('failed-precondition', 'Stripe secret key is invalid or missing in backend configuration.');
         }
         throw new functions.https.HttpsError('internal', (stripeError === null || stripeError === void 0 ? void 0 : stripeError.message) || 'Failed to create checkout session');
