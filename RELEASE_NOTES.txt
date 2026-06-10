@@ -1,5 +1,5 @@
-🎉 **Release Notes for Version 2.2.13** 🎉
+🎉 **Release Notes for Version 2.2.14** 🎉
 
 
 ## 🐛 Bug Fixes
-- fixing app push notifications
+- fixing notifications and small minor issues
