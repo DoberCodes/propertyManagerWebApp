@@ -8,6 +8,63 @@ if (!admin.apps.length) {
 
 const db = admin.firestore();
 
+const upsertTeamMemberAccess = async (params: {
+	uid: string;
+	email: string;
+	accountId: string;
+	teamMemberId?: string;
+	role?: string | null;
+}) => {
+	const now = new Date().toISOString();
+	const normalizedEmail = String(params.email || '').trim().toLowerCase();
+	const accountId = String(params.accountId || '').trim();
+
+	if (!normalizedEmail || !accountId) {
+		return;
+	}
+
+	await db.collection('users').doc(params.uid).set(
+		{
+			accountId,
+			isAccountOwner: false,
+			isTeamMemberAccount: true,
+			...(params.teamMemberId ? { teamMemberId: params.teamMemberId } : {}),
+			updatedAt: now,
+		},
+		{ merge: true },
+	);
+
+	await db
+		.collection('accountMemberships')
+		.doc(`${accountId}_${params.uid}`)
+		.set(
+			{
+				accountId,
+				userId: params.uid,
+				email: normalizedEmail,
+				role: 'team_member',
+				roles: ['team_member'],
+				...(params.role ? { appRole: params.role } : {}),
+				status: 'active',
+				updatedAt: now,
+				createdAt: admin.firestore.FieldValue.serverTimestamp(),
+			},
+			{ merge: true },
+		);
+
+	if (params.teamMemberId) {
+		await db.collection('teamMembers').doc(params.teamMemberId).set(
+			{
+				userAccountId: params.uid,
+				redeemedByUserId: params.uid,
+				redeemedAt: now,
+				updatedAt: now,
+			},
+			{ merge: true },
+		);
+	}
+};
+
 interface CreateTeamMemberInviteRequest {
 	teamMemberId: string;
 	teamMemberEmail: string;
@@ -165,7 +222,7 @@ export const revokeTeamMemberInvitationCode = functions.https.onCall(
 			.collection('teamMemberInvitationCodes')
 			.where('accountId', '==', accountId)
 			.where('teamMemberId', '==', teamMemberId)
-			.where('status', '==', 'active')
+			.where('status', 'in', ['active', 'redeemed'])
 			.get();
 
 		const now = new Date().toISOString();
@@ -177,6 +234,50 @@ export const revokeTeamMemberInvitationCode = functions.https.onCall(
 				updatedAt: now,
 			});
 		});
+
+		const teamMemberRef = db.collection('teamMembers').doc(teamMemberId);
+		const teamMemberDoc = await teamMemberRef.get();
+		const teamMemberData = teamMemberDoc.data() || {};
+		const linkedUserId = String(
+			teamMemberData.userAccountId || teamMemberData.redeemedByUserId || '',
+		).trim();
+
+		if (linkedUserId) {
+			const membershipRef = db
+				.collection('accountMemberships')
+				.doc(`${accountId}_${linkedUserId}`);
+			batch.set(
+				membershipRef,
+				{
+					status: 'disabled',
+					disabledAt: now,
+					updatedAt: now,
+				},
+				{ merge: true },
+			);
+
+			batch.set(
+				db.collection('users').doc(linkedUserId),
+				{
+					accountId: admin.firestore.FieldValue.delete(),
+					isAccountOwner: false,
+					isTeamMemberAccount: false,
+					teamMemberId: admin.firestore.FieldValue.delete(),
+					updatedAt: now,
+				},
+				{ merge: true },
+			);
+		}
+
+		batch.set(
+			teamMemberRef,
+			{
+				invitationCodeStatus: 'revoked',
+				updatedAt: now,
+			},
+			{ merge: true },
+		);
+
 		await batch.commit();
 
 		return { success: true, revokedCount: snapshot.size };
@@ -235,6 +336,10 @@ export const redeemTeamMemberInvitationCode = functions.https.onCall(
 		}
 
 		const promoDoc = snapshot.docs[0];
+		const inviteData = promoDoc.data() as {
+			accountId?: string;
+			teamMemberId?: string;
+		};
 		const now = new Date().toISOString();
 		await promoDoc.ref.update({
 			status: 'redeemed',
@@ -245,6 +350,32 @@ export const redeemTeamMemberInvitationCode = functions.https.onCall(
 			updatedAt: now,
 		});
 
-		return { success: true };
+		let teamMemberRole: string | null = null;
+		if (inviteData.teamMemberId) {
+			const teamMemberDoc = await db
+				.collection('teamMembers')
+				.doc(inviteData.teamMemberId)
+				.get();
+			if (teamMemberDoc.exists) {
+				const teamMemberData = teamMemberDoc.data() as { role?: string };
+				teamMemberRole = teamMemberData?.role || null;
+			}
+		}
+
+		if (inviteData.accountId) {
+			await upsertTeamMemberAccess({
+				uid: context.auth.uid,
+				email: callerEmail,
+				accountId: inviteData.accountId,
+				teamMemberId: inviteData.teamMemberId,
+				role: teamMemberRole,
+			});
+		}
+
+		return {
+			success: true,
+			accountId: inviteData.accountId || null,
+			teamMemberId: inviteData.teamMemberId || null,
+		};
 	},
 );

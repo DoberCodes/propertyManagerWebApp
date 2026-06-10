@@ -12,6 +12,12 @@ export const TabControlsContainer = styled.div`
 	background-color: white;
 	border-bottom: 2px solid #e5e7eb;
 	border-radius: 8px 8px 0 0;
+
+	@media (max-width: 640px) {
+		border-bottom: none;
+		border-radius: 12px;
+		background: transparent;
+	}
 `;
 
 export const TabButtonsWrapper = styled.div`
@@ -31,6 +37,14 @@ export const TabButtonsWrapper = styled.div`
 
 	&::-webkit-scrollbar-track {
 		background: transparent;
+	}
+
+	@media (max-width: 640px) {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 12px;
+		overflow-x: visible;
+		width: 100%;
 	}
 `;
 
@@ -66,12 +80,23 @@ export const TabButton = styled.button<TabButtonProps>`
 		font-size: 13px;
 	}
 
-	@media (max-width: 480px) {
-		padding: 14px 16px;
-		font-size: 16px;
-		min-height: 48px;
+	@media (max-width: 640px) {
+		padding: 14px 12px;
+		font-size: 15px;
+		font-weight: 800;
+		min-height: 58px;
 		display: flex;
 		align-items: center;
+		justify-content: center;
+		text-align: center;
+		white-space: normal;
+		line-height: 1.2;
+		border: 1px solid ${(props) => (props.isActive ? '#16a34a' : '#cbd5e1')};
+		border-bottom: 1px solid ${(props) => (props.isActive ? '#16a34a' : '#cbd5e1')};
+		border-radius: 14px;
+		background: ${(props) => (props.isActive ? '#dcfce7' : '#ffffff')};
+		color: ${(props) => (props.isActive ? '#15803d' : '#0f172a')};
+		box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
 	}
 `;
 

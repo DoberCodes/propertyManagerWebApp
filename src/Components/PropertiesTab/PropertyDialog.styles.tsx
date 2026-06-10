@@ -390,7 +390,18 @@ export const WizardSidebar = styled.div`
 	gap: 18px;
 
 	@media (max-width: 900px) {
-		padding-bottom: 12px;
+		height: auto;
+		padding: 10px 12px;
+		flex-direction: row;
+		align-items: center;
+		gap: 8px;
+		border-bottom: 1px solid #e5e7eb;
+		overflow: hidden;
+	}
+
+	@media (max-width: 640px) {
+		padding: 8px 10px;
+		gap: 6px;
 	}
 `;
 
@@ -405,6 +416,29 @@ export const WizardStep = styled.button<{ $active?: boolean; $complete?: boolean
 	text-align: left;
 	cursor: pointer;
 	color: ${({ $active }) => ($active ? '#166534' : '#334155')};
+
+	@media (max-width: 900px) {
+		grid-template-columns: ${({ $active }) =>
+			$active ? '22px minmax(0, 1fr)' : '22px'};
+		justify-items: center;
+		align-items: center;
+		gap: ${({ $active }) => ($active ? '7px' : '0')};
+		padding: ${({ $active }) => ($active ? '6px 10px' : '6px')};
+		border: 1px solid ${({ $active }) => ($active ? '#16a34a' : '#dbe3ea')};
+		border-radius: 999px;
+		background: ${({ $active }) => ($active ? '#dcfce7' : '#ffffff')};
+		text-align: center;
+		min-width: 0;
+		height: 36px;
+		flex: ${({ $active }) => ($active ? '1 1 auto' : '0 0 36px')};
+		max-width: ${({ $active }) => ($active ? '190px' : '36px')};
+	}
+
+	@media (max-width: 640px) {
+		height: 34px;
+		flex-basis: ${({ $active }) => ($active ? 'auto' : '34px')};
+		max-width: ${({ $active }) => ($active ? '160px' : '34px')};
+	}
 `;
 
 export const WizardStepDot = styled.span<{ $active?: boolean; $complete?: boolean }>`
@@ -423,24 +457,50 @@ export const WizardStepDot = styled.span<{ $active?: boolean; $complete?: boolea
 		$complete || $active ? '#16a34a' : '#f8fafc'};
 	color: ${({ $active, $complete }) =>
 		$complete || $active ? '#ffffff' : '#64748b'};
+
+	@media (max-width: 900px) {
+		width: 22px;
+		height: 22px;
+		font-size: 11px;
+	}
 `;
 
-export const WizardStepText = styled.div`
+export const WizardStepText = styled.div<{ $active?: boolean }>`
 	display: flex;
 	flex-direction: column;
 	gap: 2px;
 	padding-top: 3px;
+
+	@media (max-width: 900px) {
+		display: ${({ $active }) => ($active ? 'flex' : 'none')};
+		padding-top: 0;
+		align-items: center;
+		min-width: 0;
+	}
 `;
 
 export const WizardStepTitle = styled.span`
 	font-size: 13px;
 	font-weight: 700;
+
+	@media (max-width: 640px) {
+		font-size: 12px;
+		line-height: 1.2;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		max-width: 100%;
+	}
 `;
 
 export const WizardStepHint = styled.span`
 	font-size: 11px;
 	line-height: 1.45;
 	color: #64748b;
+
+	@media (max-width: 900px) {
+		display: none;
+	}
 `;
 
 export const WizardContent = styled.div`
@@ -454,7 +514,7 @@ export const WizardContent = styled.div`
 	overflow-y: auto;
 
 	@media (max-width: 480px) {
-		padding: 16px;
+		padding: 14px 12px;
 	}
 `;
 
@@ -522,6 +582,10 @@ export const SharingHeader = styled.div`
 	justify-content: space-between;
 	align-items: flex-start;
 	gap: 12px;
+
+	@media (max-width: 640px) {
+		flex-direction: column;
+	}
 `;
 
 export const SharingTitleWrap = styled.div`
@@ -569,6 +633,10 @@ export const MemberCard = styled.div`
 	border: 1px solid #e5e7eb;
 	border-radius: 10px;
 	background: #ffffff;
+
+	@media (max-width: 640px) {
+		align-items: flex-start;
+	}
 `;
 
 export const MemberCardInfo = styled.div`
@@ -788,11 +856,13 @@ export const FileUploadSection = styled.div`
 
 export const DialogFooter = styled.div`
 	display: flex;
-	justify-content: flex-end;
+	justify-content: space-between;
+	align-items: center;
 	gap: 12px;
 	padding: 16px 24px;
 	border-top: 1px solid #e0e0e0;
 	background-color: #fafafa;
+	flex-shrink: 0;
 
 	@media (max-width: 1024px) {
 		padding: 12px 20px;
@@ -800,9 +870,81 @@ export const DialogFooter = styled.div`
 	}
 
 	@media (max-width: 480px) {
-		padding: 10px 16px;
+		padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
 		gap: 8px;
-		flex-direction: column;
+		flex-direction: column-reverse;
+		align-items: stretch;
+	}
+`;
+
+export const FooterActionGroup = styled.div`
+	display: flex;
+	gap: 10px;
+	align-items: center;
+	flex-wrap: wrap;
+
+	&:last-child {
+		justify-content: flex-end;
+	}
+
+	@media (max-width: 480px) {
+		width: 100%;
+		align-items: stretch;
+		gap: 8px;
+
+		&:last-child {
+			flex-direction: row;
+			flex-wrap: nowrap;
+			justify-content: flex-end;
+		}
+
+		&:last-child > button:first-child {
+			flex: 0 0 auto;
+			width: auto;
+			min-width: 72px;
+		}
+
+		&:last-child > button:last-child {
+			flex: 1 1 auto;
+			width: auto;
+		}
+	}
+`;
+
+export const FooterTextAction = styled.button<{ $tone?: 'danger' | 'warning' }>`
+	border: none;
+	background: transparent;
+	padding: 8px 4px;
+	color: ${({ $tone }) =>
+		$tone === 'danger'
+			? '#b91c1c'
+			: $tone === 'warning'
+				? '#b45309'
+				: '#64748b'};
+	font-size: 13px;
+	font-weight: 700;
+	cursor: pointer;
+	text-decoration: underline;
+	text-underline-offset: 3px;
+
+	&:hover:not(:disabled) {
+		color: ${({ $tone }) =>
+			$tone === 'danger'
+				? '#991b1b'
+				: $tone === 'warning'
+					? '#92400e'
+					: '#334155'};
+	}
+
+	&:disabled {
+		cursor: not-allowed;
+		opacity: 0.5;
+	}
+
+	@media (max-width: 480px) {
+		width: 100%;
+		min-height: 36px;
+		text-align: center;
 	}
 `;
 

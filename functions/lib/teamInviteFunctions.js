@@ -41,6 +41,43 @@ if (!admin.apps.length) {
     admin.initializeApp();
 }
 const db = admin.firestore();
+const upsertTeamMemberAccess = async (params) => {
+    const now = new Date().toISOString();
+    const normalizedEmail = String(params.email || '').trim().toLowerCase();
+    const accountId = String(params.accountId || '').trim();
+    if (!normalizedEmail || !accountId) {
+        return;
+    }
+    await db.collection('users').doc(params.uid).set({
+        accountId,
+        isAccountOwner: false,
+        isTeamMemberAccount: true,
+        ...(params.teamMemberId ? { teamMemberId: params.teamMemberId } : {}),
+        updatedAt: now,
+    }, { merge: true });
+    await db
+        .collection('accountMemberships')
+        .doc(`${accountId}_${params.uid}`)
+        .set({
+        accountId,
+        userId: params.uid,
+        email: normalizedEmail,
+        role: 'team_member',
+        roles: ['team_member'],
+        ...(params.role ? { appRole: params.role } : {}),
+        status: 'active',
+        updatedAt: now,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
+    if (params.teamMemberId) {
+        await db.collection('teamMembers').doc(params.teamMemberId).set({
+            userAccountId: params.uid,
+            redeemedByUserId: params.uid,
+            redeemedAt: now,
+            updatedAt: now,
+        }, { merge: true });
+    }
+};
 exports.validateTeamMemberInvitationCode = functions.https.onCall(async (data) => {
     const promoCode = String((data === null || data === void 0 ? void 0 : data.promoCode) || '').trim().toLowerCase();
     const teamMemberEmail = String((data === null || data === void 0 ? void 0 : data.teamMemberEmail) || '')
@@ -136,7 +173,7 @@ exports.revokeTeamMemberInvitationCode = functions.https.onCall(async (data, con
         .collection('teamMemberInvitationCodes')
         .where('accountId', '==', accountId)
         .where('teamMemberId', '==', teamMemberId)
-        .where('status', '==', 'active')
+        .where('status', 'in', ['active', 'redeemed'])
         .get();
     const now = new Date().toISOString();
     const batch = db.batch();
@@ -147,6 +184,31 @@ exports.revokeTeamMemberInvitationCode = functions.https.onCall(async (data, con
             updatedAt: now,
         });
     });
+    const teamMemberRef = db.collection('teamMembers').doc(teamMemberId);
+    const teamMemberDoc = await teamMemberRef.get();
+    const teamMemberData = teamMemberDoc.data() || {};
+    const linkedUserId = String(teamMemberData.userAccountId || teamMemberData.redeemedByUserId || '').trim();
+    if (linkedUserId) {
+        const membershipRef = db
+            .collection('accountMemberships')
+            .doc(`${accountId}_${linkedUserId}`);
+        batch.set(membershipRef, {
+            status: 'disabled',
+            disabledAt: now,
+            updatedAt: now,
+        }, { merge: true });
+        batch.set(db.collection('users').doc(linkedUserId), {
+            accountId: admin.firestore.FieldValue.delete(),
+            isAccountOwner: false,
+            isTeamMemberAccount: false,
+            teamMemberId: admin.firestore.FieldValue.delete(),
+            updatedAt: now,
+        }, { merge: true });
+    }
+    batch.set(teamMemberRef, {
+        invitationCodeStatus: 'revoked',
+        updatedAt: now,
+    }, { merge: true });
     await batch.commit();
     return { success: true, revokedCount: snapshot.size };
 });
@@ -179,6 +241,7 @@ exports.redeemTeamMemberInvitationCode = functions.https.onCall(async (data, con
         throw new functions.https.HttpsError('not-found', 'Invalid or expired promo code');
     }
     const promoDoc = snapshot.docs[0];
+    const inviteData = promoDoc.data();
     const now = new Date().toISOString();
     await promoDoc.ref.update({
         status: 'redeemed',
@@ -188,5 +251,29 @@ exports.redeemTeamMemberInvitationCode = functions.https.onCall(async (data, con
         expiresAt: null,
         updatedAt: now,
     });
-    return { success: true };
+    let teamMemberRole = null;
+    if (inviteData.teamMemberId) {
+        const teamMemberDoc = await db
+            .collection('teamMembers')
+            .doc(inviteData.teamMemberId)
+            .get();
+        if (teamMemberDoc.exists) {
+            const teamMemberData = teamMemberDoc.data();
+            teamMemberRole = (teamMemberData === null || teamMemberData === void 0 ? void 0 : teamMemberData.role) || null;
+        }
+    }
+    if (inviteData.accountId) {
+        await upsertTeamMemberAccess({
+            uid: context.auth.uid,
+            email: callerEmail,
+            accountId: inviteData.accountId,
+            teamMemberId: inviteData.teamMemberId,
+            role: teamMemberRole,
+        });
+    }
+    return {
+        success: true,
+        accountId: inviteData.accountId || null,
+        teamMemberId: inviteData.teamMemberId || null,
+    };
 });

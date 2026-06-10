@@ -15,6 +15,8 @@ export const usePropertyEditHandlers = (): PropertyEditHandlers => {
 		serialNumber: '',
 		serviceItems: [],
 		installationDate: '',
+		decommissionDate: '',
+		status: 'Active',
 	});
 	const [showDeviceDialog, setShowDeviceDialog] = useState(false);
 
@@ -31,10 +33,28 @@ export const usePropertyEditHandlers = (): PropertyEditHandlers => {
 		>,
 	) => {
 		const { name, value } = e.target;
-		setDeviceFormData((prev) => ({
-			...prev,
-			[name]: value,
-		}));
+		setDeviceFormData((prev) => {
+			if (name === 'decommissionDate') {
+				return {
+					...prev,
+					decommissionDate: value,
+					status: value ? 'Decommissioned' : prev.status === 'Decommissioned' ? 'Active' : prev.status,
+				};
+			}
+
+			if (name === 'status' && value !== 'Decommissioned') {
+				return {
+					...prev,
+					status: value,
+					decommissionDate: '',
+				};
+			}
+
+			return {
+				...prev,
+				[name]: value,
+			};
+		});
 	};
 
 	const handleDeviceFormSubmit = (e: React.FormEvent) => {

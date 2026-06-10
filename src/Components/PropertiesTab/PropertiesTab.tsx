@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
-import { PropertyDialog } from './PropertyDialog';
+import { PropertyDialog, PropertyFormData } from './PropertyDialog';
 import {
 	getPropertyImageSrc,
 	isPropertyImageFallback,
@@ -28,8 +28,11 @@ import {
 	useUpdatePropertyGroupMutation,
 	useDeletePropertyGroupMutation,
 } from '../../Redux/API/propertySlice';
-import { useGetTasksQuery } from '../../Redux/API/taskSlice';
-import { useGetAllDevicesQuery } from '../../Redux/API/deviceSlice';
+import { useCreateTaskMutation, useGetTasksQuery } from '../../Redux/API/taskSlice';
+import {
+	useCreateDeviceMutation,
+	useGetAllDevicesQuery,
+} from '../../Redux/API/deviceSlice';
 import { useUpdateUserMutation } from '../../Redux/API/userSlice';
 import { useCreateNotificationMutation } from '../../Redux/API/notificationSlice';
 import {
@@ -43,6 +46,7 @@ import { LockedFeatureCallout } from '../Library/LockedFeatureCallout';
 import {
 	filterPropertyGroupsByRole,
 	getTenantAssignmentForProperty,
+	isTeamMemberScopedAccount,
 } from '../../utils/dataFilters';
 import { canDeleteProperty } from '../../utils/permissions';
 import { TeamMember } from '../../Redux/Slices/teamSlice';
@@ -121,6 +125,31 @@ import {
 	faClock,
 } from '@fortawesome/free-solid-svg-icons';
 
+const ACTIVE_TASK_STATUSES = new Set([
+	'Initiated',
+	'Pending',
+	'In Progress',
+	'Awaiting Approval',
+	'Overdue',
+	'Hold',
+]);
+
+const stripUndefinedValues = (value: any): any => {
+	if (Array.isArray(value)) {
+		return value.map(stripUndefinedValues);
+	}
+
+	if (value && typeof value === 'object') {
+		return Object.fromEntries(
+			Object.entries(value)
+				.filter(([, entryValue]) => entryValue !== undefined)
+				.map(([key, entryValue]) => [key, stripUndefinedValues(entryValue)]),
+		);
+	}
+
+	return value;
+};
+
 export const Properties = () => {
 	const navigate = useNavigate();
 	const dispatch = useDispatch();
@@ -134,6 +163,10 @@ export const Properties = () => {
 	const teamMembers = useMemo(
 		() => teamGroups.flatMap((group) => group.members || []),
 		[teamGroups],
+	);
+	const isTeamMemberAccount = isTeamMemberScopedAccount(
+		currentUser,
+		teamMembers.filter((member): member is TeamMember => member !== undefined),
 	);
 
 	// Read property groups from Redux store (populated by DataLoader)
@@ -153,6 +186,8 @@ export const Properties = () => {
 	const [deletePropertyGroup] = useDeletePropertyGroupMutation();
 	const [updateUser] = useUpdateUserMutation();
 	const [createNotification] = useCreateNotificationMutation();
+	const [createTask] = useCreateTaskMutation();
+	const [createDevice] = useCreateDeviceMutation();
 	const { data: allTasks = [] } = useGetTasksQuery();
 	const { data: allDevices = [] } = useGetAllDevicesQuery();
 
@@ -160,6 +195,7 @@ export const Properties = () => {
 	// All paid plans allow property management, free plan has limited access
 	// Expired users cannot add new properties
 	const canManage =
+		!isTeamMemberAccount &&
 		canAccessProperties &&
 		(currentUser?.subscription
 			? !isTrialExpired(currentUser.subscription)
@@ -168,7 +204,8 @@ export const Properties = () => {
 	// Check if user can create/edit/delete groups (basic and above plans only, not homeowner)
 	// Expired users cannot manage groups
 	const canManageGroups = currentUser?.subscription
-		? canPropertyGroups(currentUser.subscription) &&
+		? !isTeamMemberAccount &&
+		  canPropertyGroups(currentUser.subscription) &&
 		  !isTrialExpired(currentUser.subscription)
 		: false;
 
@@ -347,53 +384,6 @@ export const Properties = () => {
 		];
 	}, [filteredGroups, propertyAggregates]);
 
-	useEffect(() => {
-		const currentTeamMember = teamMembers.find(
-			(member) => member?.email === currentUser?.email,
-		);
-
-		console.log('DEBUG PropertiesTab render pipeline:', {
-			user: currentUser
-				? {
-					id: currentUser.id,
-					email: currentUser.email,
-					role: currentUser.role,
-					accountId: currentUser.accountId,
-				}
-				: null,
-			teamMemberMatch: currentTeamMember
-				? {
-					id: currentTeamMember.id,
-					email: currentTeamMember.email,
-					linkedPropertiesCount:
-						currentTeamMember.linkedProperties?.length || 0,
-					linkedProperties: currentTeamMember.linkedProperties || [],
-				}
-				: null,
-			propertyGroupsCount: propertyGroups.length,
-			propertyGroups: propertyGroups.map((group) => ({
-				id: group.id,
-				name: group.name,
-				propertyCount: group.properties?.length || 0,
-				propertyIds: (group.properties || []).map((property) => property.id),
-			})),
-			groupsWithPropertiesCount: groupsWithProperties.length,
-			filteredGroupsCount: filteredGroups.length,
-			filteredGroups: filteredGroups.map((group) => ({
-				id: group.id,
-				name: group.name,
-				propertyCount: group.properties?.length || 0,
-				propertyIds: (group.properties || []).map((property) => property.id),
-			})),
-		});
-	}, [
-		currentUser,
-		teamMembers,
-		propertyGroups,
-		groupsWithProperties,
-		filteredGroups,
-	]);
-
 	const [openDropdown, setOpenDropdown] = useState<string | null>(null);
 	const [dialogOpen, setDialogOpen] = useState(false);
 	const [selectedGroupForDialog, setSelectedGroupForDialog] = useState<
@@ -402,6 +392,9 @@ export const Properties = () => {
 	const [selectedPropertyForEdit, setSelectedPropertyForEdit] = useState<
 		any | null
 	>(null);
+	const [propertyToDuplicate, setPropertyToDuplicate] = useState<any | null>(null);
+	const [copyTasksOnDuplicate, setCopyTasksOnDuplicate] = useState(false);
+	const [copyAppliancesOnDuplicate, setCopyAppliancesOnDuplicate] = useState(true);
 	const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
 	const [editingGroupName, setEditingGroupName] = useState<string>('');
 	const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -431,6 +424,61 @@ export const Properties = () => {
 		document.addEventListener('mousedown', handleClickOutside);
 		return () => document.removeEventListener('mousedown', handleClickOutside);
 	}, []);
+
+	const duplicateSourceTasks = useMemo(() => {
+		if (!propertyToDuplicate?.id) {
+			return [];
+		}
+
+		return allTasks.filter((task: any) => {
+			const status = String(task?.status || 'Pending');
+			return (
+				String(task?.propertyId || '') === String(propertyToDuplicate.id) &&
+				ACTIVE_TASK_STATUSES.has(status)
+			);
+		});
+	}, [allTasks, propertyToDuplicate]);
+
+	const duplicateSourceDevices = useMemo(() => {
+		if (!propertyToDuplicate?.id) {
+			return [];
+		}
+
+		return allDevices.filter(
+			(device: any) =>
+				String(device?.location?.propertyId || '') ===
+				String(propertyToDuplicate.id),
+		);
+	}, [allDevices, propertyToDuplicate]);
+
+	const duplicateInitialData = useMemo<PropertyFormData | undefined>(() => {
+		if (!propertyToDuplicate) {
+			return undefined;
+		}
+
+		return {
+			name: propertyToDuplicate.title || '',
+			photo: propertyToDuplicate.image,
+			owner: propertyToDuplicate.owner || '',
+			address: propertyToDuplicate.address || '',
+			propertyType: propertyToDuplicate.propertyType || 'Single Family',
+			units: [],
+			hasSuites: false,
+			suites: [],
+			bedrooms: propertyToDuplicate.bedrooms ?? 0,
+			bathrooms: propertyToDuplicate.bathrooms ?? 0,
+			notes: propertyToDuplicate.notes || '',
+			isRental: propertyToDuplicate.isRental ?? false,
+			maintenanceHistory: [],
+			groupId:
+				selectedGroupForDialog ||
+				propertyToDuplicate.groupId ||
+				null,
+			coOwners: [],
+			administrators: [],
+			viewers: [],
+		};
+	}, [propertyToDuplicate, selectedGroupForDialog]);
 
 	const handleAddGroup = async () => {
 		if (!currentUser) {
@@ -561,12 +609,18 @@ export const Properties = () => {
 
 		setSelectedGroupForDialog(null);
 		setSelectedPropertyForEdit(null);
+		setPropertyToDuplicate(null);
+		setCopyTasksOnDuplicate(false);
+		setCopyAppliancesOnDuplicate(true);
 		setDialogOpen(true);
 	};
 
 	const handleEditPropertyClick = (groupId: string, property: any) => {
 		setSelectedGroupForDialog(groupId);
 		setSelectedPropertyForEdit(property);
+		setPropertyToDuplicate(null);
+		setCopyTasksOnDuplicate(false);
+		setCopyAppliancesOnDuplicate(true);
 		addRecentlyViewed({
 			id: property.id,
 			title: property.title,
@@ -575,10 +629,54 @@ export const Properties = () => {
 		setDialogOpen(true);
 	};
 
+	const handleDuplicatePropertyClick = (groupId: string, property: any) => {
+		if (!currentUser?.subscription) {
+			feedback.notify('Unable to verify subscription. Please contact support.');
+			return;
+		}
+
+		const canAdd = canAddProperty(
+			currentUser.subscription,
+			totalProperties,
+			currentUser.role,
+		);
+		if (!canAdd) {
+			const planDetails = getSubscriptionPlanDetails(currentUser.subscription.plan);
+			const maxProperties = planDetails?.maxProperties || 1;
+			feedback.notify(
+				`Your ${planDetails?.name || 'current'} plan allows up to ${maxProperties} properties. ` +
+					`You currently have ${totalProperties} properties. ` +
+					`Please upgrade your plan to duplicate this property.`,
+			);
+			setOpenDropdown(null);
+			return;
+		}
+
+		setSelectedGroupForDialog(groupId);
+		setSelectedPropertyForEdit(null);
+		setPropertyToDuplicate(property);
+		setCopyTasksOnDuplicate(false);
+		setCopyAppliancesOnDuplicate(true);
+		setOpenDropdown(null);
+		setDialogOpen(true);
+	};
+
 	const handleAddPropertyToGroup = (groupId: string) => {
 		setSelectedGroupForDialog(groupId);
 		setSelectedPropertyForEdit(null);
+		setPropertyToDuplicate(null);
+		setCopyTasksOnDuplicate(false);
+		setCopyAppliancesOnDuplicate(true);
 		setDialogOpen(true);
+	};
+
+	const handleClosePropertyDialog = () => {
+		setDialogOpen(false);
+		setSelectedGroupForDialog(null);
+		setSelectedPropertyForEdit(null);
+		setPropertyToDuplicate(null);
+		setCopyTasksOnDuplicate(false);
+		setCopyAppliancesOnDuplicate(true);
 	};
 
 	const handleToggleCollapse = (groupId: string) => {
@@ -905,7 +1003,127 @@ export const Properties = () => {
 		}
 	};
 
+	const cloneDuplicateAppliances = async (newProperty: any) => {
+		const deviceIdMap = new Map<string, string>();
+
+		for (const sourceDevice of duplicateSourceDevices) {
+			const {
+				id,
+				createdAt,
+				updatedAt,
+				accountId,
+				location,
+				maintenanceHistory,
+				...deviceFields
+			} = sourceDevice as any;
+			void createdAt;
+			void updatedAt;
+			void accountId;
+			void location;
+			void maintenanceHistory;
+
+			const clonedDevice = stripUndefinedValues({
+				...deviceFields,
+				userId: currentUser!.id,
+				location: {
+					propertyId: newProperty.id,
+				},
+				maintenanceHistory: [],
+			});
+
+			const createdDevice = await createDevice(clonedDevice).unwrap();
+			if (id && createdDevice?.id) {
+				deviceIdMap.set(String(id), String(createdDevice.id));
+			}
+		}
+
+		return deviceIdMap;
+	};
+
+	const cloneDuplicateTasks = async (
+		newProperty: any,
+		deviceIdMap: Map<string, string>,
+	) => {
+		let copiedTaskCount = 0;
+
+		for (const sourceTask of duplicateSourceTasks) {
+			const {
+				id,
+				createdAt,
+				updatedAt,
+				accountId,
+				propertyId,
+				property,
+				propertyTitle,
+				unitId,
+				suiteId,
+				devices,
+				completionDate,
+				completionFile,
+				completedBy,
+				approvedBy,
+				approvedAt,
+				rejectionReason,
+				completionNotes,
+				parentTaskId,
+				lastRecurrenceDate,
+				linkedMaintenanceHistoryIds,
+				maintenanceGroupId,
+				...taskFields
+			} = sourceTask as any;
+			void id;
+			void createdAt;
+			void updatedAt;
+			void accountId;
+			void propertyId;
+			void property;
+			void propertyTitle;
+			void unitId;
+			void suiteId;
+			void completionDate;
+			void completionFile;
+			void completedBy;
+			void approvedBy;
+			void approvedAt;
+			void rejectionReason;
+			void completionNotes;
+			void parentTaskId;
+			void lastRecurrenceDate;
+			void linkedMaintenanceHistoryIds;
+			void maintenanceGroupId;
+
+			const mappedDeviceIds = Array.isArray(devices)
+				? devices
+						.map((deviceId: string) => deviceIdMap.get(String(deviceId)))
+						.filter(Boolean)
+				: [];
+
+			const clonedTask = stripUndefinedValues({
+				...taskFields,
+				userId: currentUser!.id,
+				propertyId: newProperty.id,
+				property: newProperty.title,
+				propertyTitle: newProperty.title,
+				...(mappedDeviceIds.length > 0 ? { devices: mappedDeviceIds } : {}),
+			});
+
+			await createTask(clonedTask).unwrap();
+			copiedTaskCount += 1;
+		}
+
+		return copiedTaskCount;
+	};
+
 	const handleSaveProperty = async (formData: any) => {
+		if (
+			propertyToDuplicate &&
+			formData.name.trim().toLowerCase() ===
+				String(propertyToDuplicate.title || '').trim().toLowerCase()
+		) {
+			feedback.notify('Please choose a new name for the duplicated property.');
+			throw new Error('Duplicate property name must be changed');
+		}
+
 		const effectivePropertyType = isHomeowner
 			? 'Single Family'
 			: formData.propertyType;
@@ -1038,6 +1256,57 @@ export const Properties = () => {
 						slug: result.data.slug,
 					});
 
+					if (propertyToDuplicate) {
+						let copiedApplianceCount = 0;
+						let copiedTaskCount = 0;
+						let deviceIdMap = new Map<string, string>();
+
+						if (copyAppliancesOnDuplicate && duplicateSourceDevices.length > 0) {
+							try {
+								deviceIdMap = await cloneDuplicateAppliances(result.data);
+								copiedApplianceCount = deviceIdMap.size;
+							} catch (applianceCopyError) {
+								console.error('Failed to copy appliances:', applianceCopyError);
+								feedback.notify(
+									'Property was duplicated, but appliances could not all be copied.',
+								);
+							}
+						}
+
+						if (copyTasksOnDuplicate && duplicateSourceTasks.length > 0) {
+							try {
+								copiedTaskCount = await cloneDuplicateTasks(
+									result.data,
+									deviceIdMap,
+								);
+							} catch (taskCopyError) {
+								console.error('Failed to copy tasks:', taskCopyError);
+								feedback.notify(
+									'Property was duplicated, but tasks could not all be copied.',
+								);
+							}
+						}
+
+						const copiedDetails = [
+							copiedApplianceCount > 0
+								? `${copiedApplianceCount} ${
+										copiedApplianceCount === 1 ? 'appliance' : 'appliances'
+								  }`
+								: null,
+							copiedTaskCount > 0
+								? `${copiedTaskCount} ${
+										copiedTaskCount === 1 ? 'task' : 'tasks'
+								  }`
+								: null,
+						].filter(Boolean);
+
+						feedback.notify(
+							copiedDetails.length > 0
+								? `Duplicated ${formData.name} with ${copiedDetails.join(' and ')}.`
+								: `Duplicated ${formData.name}.`,
+						);
+					}
+
 					// Create notification for property added
 					try {
 						await createNotification({
@@ -1079,13 +1348,13 @@ export const Properties = () => {
 	}
 
 	if (visibleProperties.length === 0) {
-		const zeroStateTitle = isUserTenant
+		const zeroStateTitle = isUserTenant || isTeamMemberAccount
 			? 'No Assigned Properties'
 			: 'No Properties Yet';
-		const zeroStateDescription = isUserTenant
+		const zeroStateDescription = isUserTenant || isTeamMemberAccount
 			? 'No property assignments were found for your account. Please contact your account owner or manager.'
 			: 'Add your first property to get started. You will use this screen to choose between properties once you have more than one.';
-		const zeroStateActions = !isUserTenant && canManage
+		const zeroStateActions = !isUserTenant && !isTeamMemberAccount && canManage
 			? [
 					{
 						label: '+ Add Property',
@@ -1172,11 +1441,7 @@ export const Properties = () => {
 				/>
 				<PropertyDialog
 					isOpen={dialogOpen}
-					onClose={() => {
-						setDialogOpen(false);
-						setSelectedGroupForDialog(null);
-						setSelectedPropertyForEdit(null);
-					}}
+					onClose={handleClosePropertyDialog}
 					onSave={handleSaveProperty}
 					onDeleteProperty={
 						selectedPropertyForEdit ? handleDeletePropertyFromDialog : undefined
@@ -1305,11 +1570,7 @@ export const Properties = () => {
 			</SummaryStatsGrid>
 			<PropertyDialog
 				isOpen={dialogOpen}
-				onClose={() => {
-					setDialogOpen(false);
-					setSelectedGroupForDialog(null);
-					setSelectedPropertyForEdit(null);
-				}}
+				onClose={handleClosePropertyDialog}
 				onSave={handleSaveProperty}
 				onDeleteProperty={
 					selectedPropertyForEdit ? handleDeletePropertyFromDialog : undefined
@@ -1331,7 +1592,9 @@ export const Properties = () => {
 					return '';
 				}}
 				initialData={
-					selectedPropertyForEdit
+					propertyToDuplicate
+						? duplicateInitialData
+						: selectedPropertyForEdit
 						? {
 								name: selectedPropertyForEdit.title,
 								photo: selectedPropertyForEdit.image,
@@ -1358,6 +1621,14 @@ export const Properties = () => {
 						  }
 						: undefined
 				}
+				isDuplicate={!!propertyToDuplicate}
+				duplicateSourceName={propertyToDuplicate?.title}
+				duplicateTaskCount={duplicateSourceTasks.length}
+				duplicateApplianceCount={duplicateSourceDevices.length}
+				copyTasksOnDuplicate={copyTasksOnDuplicate}
+				copyAppliancesOnDuplicate={copyAppliancesOnDuplicate}
+				onCopyTasksOnDuplicateChange={setCopyTasksOnDuplicate}
+				onCopyAppliancesOnDuplicateChange={setCopyAppliancesOnDuplicate}
 				isHiddenFromDashboard={
 					selectedPropertyForEdit
 						? currentUser?.hiddenPropertyIds?.includes(
@@ -1537,6 +1808,12 @@ export const Properties = () => {
 															handleEditPropertyClick(group.id as any, property)
 														}>
 														Edit
+													</DropdownItem>
+													<DropdownItem
+														onClick={() =>
+															handleDuplicatePropertyClick(group.id as any, property)
+														}>
+														Duplicate
 													</DropdownItem>
 													{canDeleteProperty(currentUser!.id, property) && (
 														<DropdownItem

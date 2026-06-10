@@ -153,9 +153,15 @@ export const ModalFooter = styled.div`
 	justify-content: flex-end;
 
 	@media (max-width: 480px) {
-		flex-direction: column-reverse;
+		flex-direction: row;
+		align-items: center;
+		justify-content: flex-end;
 		padding: 1rem 1.25rem;
 		gap: 0.65rem;
+
+		> button:last-child {
+			flex: 1 1 auto;
+		}
 	}
 `;
 
@@ -258,7 +264,9 @@ export const DialogButtonGroup = styled.div`
 	border-top: 1px solid ${COLORS.gray200};
 
 	@media (max-width: 480px) {
-		flex-direction: column-reverse;
+		flex-direction: row;
+		align-items: center;
+		flex-wrap: nowrap;
 		padding: 1.25rem 1.5rem;
 		gap: 0.75rem;
 		margin-top: 1.5rem;
@@ -288,10 +296,25 @@ export const DialogCancelButton = styled.button`
 	}
 
 	@media (max-width: 480px) {
-		width: 100%;
-		padding: 0.875rem 1.25rem;
-		font-size: 16px;
-		min-height: 44px; /* Larger touch target on mobile */
+		width: auto;
+		flex: 0 0 auto;
+		min-width: 72px;
+		padding: 0.75rem 0.35rem;
+		border-color: transparent;
+		background: transparent;
+		color: ${COLORS.gray600};
+		font-size: 15px;
+		text-decoration: underline;
+		text-underline-offset: 3px;
+		min-height: 44px;
+	}
+
+	@media (max-width: 480px) {
+		&:hover {
+			background-color: transparent;
+			border-color: transparent;
+			color: ${COLORS.gray700};
+		}
 	}
 `;
 
@@ -334,7 +357,8 @@ export const DialogSubmitButton = styled.button`
 	}
 
 	@media (max-width: 480px) {
-		width: 100%;
+		width: auto;
+		flex: 1 1 auto;
 		padding: 1rem 1.5rem;
 		font-size: 16px;
 		min-height: 48px; /* Larger touch target on mobile */
@@ -361,6 +385,11 @@ export const ModalPrimaryButton = styled(ModalButton)`
 		box-shadow: none;
 		transform: none;
 	}
+
+	@media (max-width: 480px) {
+		flex: 1 1 auto;
+		width: auto;
+	}
 `;
 
 export const ModalSecondaryButton = styled(ModalButton)`
@@ -374,6 +403,23 @@ export const ModalSecondaryButton = styled(ModalButton)`
 	&:disabled {
 		background: #f3f4f6;
 		cursor: not-allowed;
+	}
+
+	@media (max-width: 480px) {
+		flex: 0 0 auto;
+		width: auto;
+		min-width: 72px;
+		padding: 0.75rem 0.35rem;
+		border: none;
+		background: transparent;
+		color: ${COLORS.gray600};
+		text-decoration: underline;
+		text-underline-offset: 3px;
+
+		&:hover {
+			background: transparent;
+			color: ${COLORS.gray800};
+		}
 	}
 `;
 
@@ -602,6 +648,13 @@ export const ModalTabContainer = styled.div`
 		gap: 0.375rem;
 		margin-bottom: 1rem;
 	}
+
+	@media (max-width: 480px) {
+		flex-wrap: nowrap;
+		gap: 0.35rem;
+		margin-bottom: 0.75rem;
+		padding-bottom: 0.2rem;
+	}
 `;
 
 export const ModalTab = styled.button<{ $active: boolean }>`
@@ -633,6 +686,12 @@ export const ModalTab = styled.button<{ $active: boolean }>`
 	@media (max-width: 768px) {
 		padding: 0.625rem 0.75rem;
 		font-size: 0.85rem;
+	}
+
+	@media (max-width: 480px) {
+		flex: 0 0 auto;
+		padding: 0.55rem 0.7rem;
+		font-size: 0.82rem;
 	}
 `;
 

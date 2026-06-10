@@ -85,6 +85,7 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 	const navigate = useNavigate();
 	const { slug } = useParams<{ slug: string }>();
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
+	const isTeamMemberAccount = currentUser?.isTeamMemberAccount === true;
 	const dispatch = useDispatch();
 
 	useEffect(() => {
@@ -546,6 +547,11 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 
 	useEffect(() => {
 		const loadFamilyMembers = async () => {
+			if (isTeamMemberAccount) {
+				setFamilyMembers([]);
+				return;
+			}
+
 			if (currentUser?.accountId) {
 				try {
 					const members = await getFamilyMembers(currentUser.accountId);
@@ -556,7 +562,7 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 			}
 		};
 		loadFamilyMembers();
-	}, [currentUser?.accountId]);
+	}, [currentUser?.accountId, isTeamMemberAccount]);
 
 	const assigneeOptions = useMemo(() => {
 		const assignees: Array<{ label: string; value: string; email?: string }> =

@@ -84,6 +84,7 @@ interface DeviceFormData {
 	serialNumber?: string;
 	serviceItems?: DeviceServiceItem[];
 	installationDate: string;
+	decommissionDate?: string;
 	status: 'Active' | 'Maintenance' | 'Broken' | 'Decommissioned';
 	location: {
 		propertyId: string;
@@ -127,6 +128,7 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property }) => {
 		serialNumber: '',
 		serviceItems: [],
 		installationDate: '',
+		decommissionDate: '',
 		status: 'Active',
 		location: {
 			propertyId: property.id,
@@ -236,10 +238,30 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property }) => {
 		return counts;
 	}, [openPropertyTasks]);
 
+	const getResolvedDeviceStatus = (device: any) =>
+		device?.decommissionDate ? 'Decommissioned' : device?.status || 'Active';
+
+	const hasApplianceDetails = (device: any) => {
+		const serviceItems = Array.isArray(device?.serviceItems) ? device.serviceItems : [];
+		const files = Array.isArray(device?.files) ? device.files : [];
+		return Boolean(
+			String(device?.brand || '').trim() ||
+				String(device?.model || '').trim() ||
+				String(device?.serialNumber || '').trim() ||
+				String(device?.partNumber || '').trim() ||
+				String(device?.filterSize || '').trim() ||
+				String(device?.specNotes || '').trim() ||
+				String(device?.installationDate || '').trim() ||
+				String(device?.decommissionDate || '').trim() ||
+				serviceItems.length > 0 ||
+				files.length > 0,
+		);
+	};
+
 	const needsAttentionDeviceCount = useMemo(
 		() =>
 			devices.filter((device: any) => {
-				const status = device.status || 'Active';
+				const status = getResolvedDeviceStatus(device);
 				const linkedOpenTasks = linkedOpenTaskCountByDevice.get(String(device.id)) || 0;
 				return status === 'Broken' || status === 'Maintenance' || linkedOpenTasks > 0;
 			}).length,
@@ -274,7 +296,7 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property }) => {
 	);
 
 	const getDeviceAttentionState = (device: any) => {
-		const status = device.status || 'Active';
+		const status = getResolvedDeviceStatus(device);
 		const linkedOpenTasks = linkedOpenTaskCountByDevice.get(String(device.id)) || 0;
 		const overdueLinkedTasks =
 			linkedOverdueTaskCountByDevice.get(String(device.id)) || 0;
@@ -361,6 +383,7 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property }) => {
 				const technical = [row.brand, row.model].filter(Boolean).join(' ');
 				const { linkedOpenTasks, recurringLinkedTasks } = getDeviceAttentionState(row);
 				const iconStyle = getDeviceOperationalIcon(row);
+				const detailsMissing = !hasApplianceDetails(row);
 
 				return (
 					<div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 270 }}>
@@ -382,6 +405,21 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property }) => {
 							<div style={{ fontWeight: 800, color: '#0f172a', lineHeight: 1.3 }}>
 								{row.type || 'Appliance'}
 							</div>
+							{detailsMissing && (
+								<span
+									style={{
+										border: '1px solid #facc15',
+										background: '#fefce8',
+										color: '#854d0e',
+										borderRadius: 999,
+										padding: '2px 7px',
+										fontSize: 11,
+										fontWeight: 800,
+										whiteSpace: 'nowrap',
+									}}>
+									No details added
+								</span>
+							)}
 						</div>
 						<div style={{ fontSize: 13, fontWeight: 700, color: '#334155', lineHeight: 1.4 }}>
 							{technical || 'No model details yet'}
@@ -391,6 +429,11 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property }) => {
 						</div>
 						<div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', fontSize: 12, color: '#64748b' }}>
 							<span>Installed {formatRelativeTime(row.installationDate)}</span>
+							{row.decommissionDate && (
+								<span style={{ color: '#64748b', fontWeight: 700 }}>
+									Decommissioned {formatRelativeTime(row.decommissionDate)}
+								</span>
+							)}
 							{linkedOpenTasks > 0 && (
 								<span style={{ color: '#b45309', fontWeight: 700 }}>
 									{linkedOpenTasks} open task{linkedOpenTasks === 1 ? '' : 's'}
@@ -501,7 +544,7 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property }) => {
 					<div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
 						<div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{activityText}</div>
 						<div style={{ fontSize: 12, color: '#64748b' }}>
-							Last lifecycle update: {formatRelativeTime(row.installationDate)}
+							Last lifecycle update: {formatRelativeTime(row.decommissionDate || row.installationDate)}
 						</div>
 					</div>
 				);
@@ -556,6 +599,7 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property }) => {
 			serialNumber: '',
 			serviceItems: [],
 			installationDate: '',
+			decommissionDate: '',
 			status: 'Active',
 			location: {
 				propertyId: property.id,
@@ -604,7 +648,8 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property }) => {
 			serialNumber: device.serialNumber || '',
 			serviceItems: device.serviceItems || [],
 			installationDate: device.installationDate || '',
-			status: device.status || 'Active',
+			decommissionDate: device.decommissionDate || '',
+			status: getResolvedDeviceStatus(device),
 			location: device.location || { propertyId: property.id },
 			files: device.files || [],
 		});
@@ -629,12 +674,31 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property }) => {
 					[locationField]: value,
 				},
 			}));
-		} else {
-			setDeviceFormData((prev) => ({
+			return;
+		}
+
+		setDeviceFormData((prev) => {
+			if (field === 'decommissionDate') {
+				return {
+					...prev,
+					decommissionDate: value,
+					status: value ? 'Decommissioned' : prev.status === 'Decommissioned' ? 'Active' : prev.status,
+				};
+			}
+
+			if (field === 'status' && value !== 'Decommissioned') {
+				return {
+					...prev,
+					status: value,
+					decommissionDate: '',
+				};
+			}
+
+			return {
 				...prev,
 				[field]: value,
-			}));
-		}
+			};
+		});
 	};
 
 	const handleSubmit = async () => {
@@ -658,6 +722,11 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property }) => {
 
 			const deviceData = {
 				...deviceFormData,
+				type: deviceFormData.type.trim(),
+				brand: deviceFormData.brand.trim(),
+				model: deviceFormData.model.trim(),
+				serialNumber: deviceFormData.serialNumber?.trim() || '',
+				status: deviceFormData.decommissionDate ? 'Decommissioned' : deviceFormData.status,
 				files: uploadedFiles,
 				userId: currentUser!.id,
 			};
@@ -726,7 +795,7 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property }) => {
 			<TabSummaryBar>
 				<TabSummaryPill>Total: {devices.length}</TabSummaryPill>
 				<TabSummaryPill>
-					Active: {devices.filter((d) => (d.status || 'Active') === 'Active').length}
+					Active: {devices.filter((d) => getResolvedDeviceStatus(d) === 'Active').length}
 				</TabSummaryPill>
 				<TabSummaryPill>
 					Needs Attention: {needsAttentionDeviceCount}
@@ -751,14 +820,16 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property }) => {
 				<div style={{ display: 'flex', flexDirection: 'column', gap: 12, paddingBottom: 4 }}>
 					{devices.map((device) => {
 						const { linkedOpenTasks, overdueLinkedTasks, recurringLinkedTasks, needsAttention } = getDeviceAttentionState(device);
-						const stateTone = needsAttention ? '#f59e0b' : '#22c55e';
+						const resolvedStatus = getResolvedDeviceStatus(device);
+						const stateTone = needsAttention ? '#f59e0b' : resolvedStatus === 'Decommissioned' ? '#64748b' : '#22c55e';
+						const detailsMissing = !hasApplianceDetails(device);
 						return (
 							<DeviceCard
 								key={device.id}
 								$isSelected={selectedDevice === device}
 								onClick={() => setSelectedDevice(device)}
 								style={{
-									borderLeftColor: (device.status || 'Active') === 'Broken' ? '#ef4444' : (device.status || 'Active') === 'Maintenance' ? '#f59e0b' : '#22c55e',
+									borderLeftColor: resolvedStatus === 'Broken' ? '#ef4444' : resolvedStatus === 'Maintenance' ? '#f59e0b' : resolvedStatus === 'Decommissioned' ? '#64748b' : '#22c55e',
 								}}>
 								<div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
 									<div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
@@ -779,20 +850,28 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property }) => {
 													textAlign: 'left',
 													lineHeight: 1.3,
 												}}>
-												{device.type}
+												{device.type || 'Appliance'}
 											</button>
+											{detailsMissing && (
+												<div style={{ fontSize: 12, color: '#854d0e', fontWeight: 800 }}>
+													No details added
+												</div>
+											)}
 											<div style={{ fontSize: 12, color: '#64748b', fontWeight: 600 }}>
 												{device.brand || 'No brand'}
 											</div>
 										</div>
 										<span style={{ fontSize: 12, fontWeight: 700, padding: '4px 10px', borderRadius: 999, background: `${stateTone}14`, color: stateTone, border: `1px solid ${stateTone}33`, whiteSpace: 'nowrap' }}>
-											{needsAttention ? 'Needs Attention' : 'Active'}
+											{needsAttention ? 'Needs Attention' : resolvedStatus}
 										</span>
 									</div>
 									<MobileFeedMeta>
 										<MobileFeedLine>{device.model || 'No model details yet'}</MobileFeedLine>
 										<MobileFeedLineMuted>
-											Installed {device.installationDate ? new Date(device.installationDate).toLocaleDateString() : 'N/A'}
+											Installed {device.installationDate ? new Date(device.installationDate).toLocaleDateString() : 'Not set'}
+											{device.decommissionDate
+												? ` | Decommissioned ${new Date(device.decommissionDate).toLocaleDateString()}`
+												: ''}
 										</MobileFeedLineMuted>
 										<MobileFeedLineMuted>
 											{linkedOpenTasks} open task{linkedOpenTasks === 1 ? '' : 's'}

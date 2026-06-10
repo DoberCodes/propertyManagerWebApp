@@ -28,6 +28,7 @@ export const MaintenanceHistoryGroupPage: React.FC = () => {
 	const { slug, groupId } = useParams<{ slug: string; groupId: string }>();
 	const navigate = useNavigate();
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
+	const isTeamMemberAccount = currentUser?.isTeamMemberAccount === true;
 	const { property, tasks, maintenanceHistory } = useDetailPageData({
 		propertySlug: slug || '',
 		entityType: 'property',
@@ -47,6 +48,11 @@ export const MaintenanceHistoryGroupPage: React.FC = () => {
 
 	useEffect(() => {
 		const loadFamilyMembers = async () => {
+			if (isTeamMemberAccount) {
+				setFamilyMembers([]);
+				return;
+			}
+
 			if (!currentUser?.accountId) return;
 			try {
 				const members = await getFamilyMembers(currentUser.accountId);
@@ -56,7 +62,7 @@ export const MaintenanceHistoryGroupPage: React.FC = () => {
 			}
 		};
 		loadFamilyMembers();
-	}, [currentUser?.accountId]);
+	}, [currentUser?.accountId, isTeamMemberAccount]);
 
 	const groupRecords = useMemo(() => {
 		if (!groupId) return [];

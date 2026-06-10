@@ -7,6 +7,7 @@ import {
 	FormGrid,
 	FormInput,
 	FormLabel,
+	FormSelect,
 	FormTextarea,
 	ModalTab,
 	ModalTabContainer,
@@ -51,6 +52,7 @@ interface DeviceModalProps {
 		specNotes?: string;
 		serviceItems?: DeviceServiceItem[];
 		installationDate: string;
+		decommissionDate?: string;
 		status?: 'Active' | 'Maintenance' | 'Broken' | 'Decommissioned';
 		location?: {
 			propertyId: string;
@@ -76,6 +78,11 @@ const TabLabel = styled.span`
 	display: inline-flex;
 	align-items: center;
 	gap: 0.5rem;
+
+	@media (max-width: 480px) {
+		gap: 0.35rem;
+		white-space: nowrap;
+	}
 `;
 
 const TabBadge = styled.span<{ $tone?: 'neutral' | 'success' }>`
@@ -389,21 +396,11 @@ export const DeviceModal = (props: DeviceModalProps) => {
 
 	const missingRequiredFields = useMemo(() => {
 		const missing: string[] = [];
-		if (!props.deviceFormData.type.trim()) missing.push('Appliance Type');
-		if (!props.deviceFormData.brand.trim()) missing.push('Brand');
-		if (!props.deviceFormData.model.trim()) missing.push('Model');
-		if (!props.deviceFormData.installationDate.trim()) {
-			missing.push('Installation Date');
-		}
+		if (!props.deviceFormData.type.trim()) missing.push('Name');
 		return missing;
-	}, [
-		props.deviceFormData.brand,
-		props.deviceFormData.installationDate,
-		props.deviceFormData.model,
-		props.deviceFormData.type,
-	]);
+	}, [props.deviceFormData.type]);
 
-	const completedBasics = 4 - missingRequiredFields.length;
+	const completedBasics = missingRequiredFields.length === 0 ? 1 : 0;
 	const partsConfigured = serviceItems.length > 0;
 	const detailsError = submitAttempted && missingRequiredFields.length > 0;
 
@@ -681,9 +678,11 @@ export const DeviceModal = (props: DeviceModalProps) => {
 					onClick={() => setActiveTab('details')}>
 					<TabLabel>
 						Appliance Details
-						<TabBadge $tone={missingRequiredFields.length === 0 ? 'success' : 'neutral'}>
-							{missingRequiredFields.length === 0 ? 'Ready' : `${missingRequiredFields.length} required`}
-						</TabBadge>
+						{missingRequiredFields.length > 0 && (
+							<TabBadge $tone='neutral'>
+								{`${missingRequiredFields.length} required`}
+							</TabBadge>
+						)}
 					</TabLabel>
 				</ModalTab>
 				<ModalTab
@@ -692,9 +691,6 @@ export const DeviceModal = (props: DeviceModalProps) => {
 					onClick={() => setActiveTab('service-items')}>
 					<TabLabel>
 						Parts & Supplies
-						<TabBadge $tone={partsConfigured ? 'success' : 'neutral'}>
-							{partsConfigured ? 'Configured' : 'Optional'}
-						</TabBadge>
 					</TabLabel>
 				</ModalTab>
 			</ModalTabContainer>
@@ -705,7 +701,7 @@ export const DeviceModal = (props: DeviceModalProps) => {
 					<SummaryTitle>Capture the appliance basics first, then optionally document recurring parts and supplies.</SummaryTitle>
 					<SummaryMeta>
 						<SummaryPill $tone={missingRequiredFields.length === 0 ? 'success' : 'neutral'}>
-							{completedBasics}/4 core items complete
+							{completedBasics}/1 required item complete
 						</SummaryPill>
 						<SummaryPill $tone={partsConfigured ? 'success' : 'neutral'}>
 							{serviceItems.length} part{serviceItems.length === 1 ? '' : 's'} tracked
@@ -714,14 +710,14 @@ export const DeviceModal = (props: DeviceModalProps) => {
 					<RequiredList>
 						{missingRequiredFields.length > 0
 							? `Still needed: ${missingRequiredFields.join(', ')}`
-							: 'All required appliance details are complete. You can save now or continue adding parts and supplies.'}
+							: 'The required name is set. Add more details now, or save and come back later.'}
 					</RequiredList>
 				</SummaryBanner>
 
 				<SectionHeader>
 					<SectionTitle>Core Appliance Details</SectionTitle>
 					<SectionDescription>
-						Define the appliance identity first so it can be linked cleanly to tasks and maintenance history.
+						Name the appliance now. Brand, model, lifecycle dates, and parts can be filled in whenever they are known.
 					</SectionDescription>
 				</SectionHeader>
 				<div style={{ marginBottom: '12px' }}>
@@ -732,48 +728,40 @@ export const DeviceModal = (props: DeviceModalProps) => {
 
 				<FormGrid>
 				<FormGroup>
-					<FormLabel>Appliance Type *</FormLabel>
+					<FormLabel>Name *</FormLabel>
 					<FormInput
 						type='text'
 						name='type'
 						value={props.deviceFormData.type}
 						onChange={props.onFormChange}
-						placeholder='e.g., HVAC System, Water Heater'
+						placeholder='e.g., Upstairs HVAC, Water Heater'
 						required
 					/>
 					{detailsError && !props.deviceFormData.type.trim() && (
-						<FieldError>Appliance type is required.</FieldError>
+						<FieldError>Appliance name is required.</FieldError>
 					)}
 				</FormGroup>
 
 				<FormGroup>
-					<FormLabel>Brand *</FormLabel>
+					<FormLabel>Brand</FormLabel>
 					<FormInput
 						type='text'
 						name='brand'
 						value={props.deviceFormData.brand}
 						onChange={props.onFormChange}
 						placeholder='e.g., Carrier, Rheem'
-						required
 					/>
-					{detailsError && !props.deviceFormData.brand.trim() && (
-						<FieldError>Brand is required.</FieldError>
-					)}
 				</FormGroup>
 
 				<FormGroup>
-					<FormLabel>Model *</FormLabel>
+					<FormLabel>Model</FormLabel>
 					<FormInput
 						type='text'
 						name='model'
 						value={props.deviceFormData.model}
 						onChange={props.onFormChange}
 						placeholder='e.g., AquaEdge, Prestige'
-						required
 					/>
-					{detailsError && !props.deviceFormData.model.trim() && (
-						<FieldError>Model is required.</FieldError>
-					)}
 				</FormGroup>
 
 				<FormGroup>
@@ -788,17 +776,39 @@ export const DeviceModal = (props: DeviceModalProps) => {
 				</FormGroup>
 
 				<FormGroup>
-					<FormLabel>Installation Date *</FormLabel>
+					<FormLabel>Status</FormLabel>
+					<FormSelect
+						name='status'
+						value={props.deviceFormData.status || 'Active'}
+						onChange={props.onFormChange}>
+						<option value='Active'>Active</option>
+						<option value='Maintenance'>Maintenance</option>
+						<option value='Broken'>Broken</option>
+						<option value='Decommissioned'>Decommissioned</option>
+					</FormSelect>
+				</FormGroup>
+
+				<FormGroup>
+					<FormLabel>Installation Date</FormLabel>
 					<FormInput
 						type='date'
 						name='installationDate'
 						value={props.deviceFormData.installationDate}
 						onChange={props.onFormChange}
-						required
 					/>
-					{detailsError && !props.deviceFormData.installationDate.trim() && (
-						<FieldError>Installation date is required.</FieldError>
-					)}
+				</FormGroup>
+
+				<FormGroup>
+					<FormLabel>Decommission Date</FormLabel>
+					<FormInput
+						type='date'
+						name='decommissionDate'
+						value={props.deviceFormData.decommissionDate || ''}
+						onChange={props.onFormChange}
+					/>
+					<FieldHint>
+						Setting this date marks the appliance as decommissioned.
+					</FieldHint>
 				</FormGroup>
 				{/* Units are temporarily hidden from the app flow. */}
 				<FormGroupFull>

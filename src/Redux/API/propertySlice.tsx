@@ -122,6 +122,162 @@ const getReceivedPropertySharesForUser = async (
 	*/
 };
 
+const getTeamMemberForAccountUser = async (
+	accountIds: string[],
+	userData: any,
+	userId: string,
+	authEmail?: string | null,
+): Promise<TeamMemberAccess | null> => {
+	const normalizedEmail = String(userData?.email || authEmail || '')
+		.trim()
+		.toLowerCase();
+	const teamMemberId = String(userData?.teamMemberId || '').trim();
+
+	for (const accountId of accountIds) {
+		try {
+			let membersSnapshot;
+			if (teamMemberId) {
+				const memberDoc = await getDoc(doc(db, 'teamMembers', teamMemberId));
+				if (memberDoc.exists()) {
+					const member = docToData(memberDoc) as TeamMemberAccess;
+					if (member?.accountId === accountId || !member?.accountId) {
+						return member;
+					}
+				}
+			}
+
+			if (normalizedEmail) {
+				const membersQuery = query(
+					collection(db, 'teamMembers'),
+					where('accountId', '==', accountId),
+					where('email', '==', normalizedEmail),
+				);
+				membersSnapshot = await getDocs(membersQuery);
+				if (!membersSnapshot.empty) {
+					return docToData(membersSnapshot.docs[0]) as TeamMemberAccess;
+				}
+
+				const accountMembersQuery = query(
+					collection(db, 'teamMembers'),
+					where('accountId', '==', accountId),
+				);
+				membersSnapshot = await getDocs(accountMembersQuery);
+				const emailMatch = membersSnapshot.docs
+					.map((memberDoc) => docToData(memberDoc) as TeamMemberAccess)
+					.find(
+						(member) =>
+							String(member?.email || '').trim().toLowerCase() ===
+							normalizedEmail,
+					);
+				if (emailMatch) {
+					return emailMatch;
+				}
+			}
+
+			const userAccountQuery = query(
+				collection(db, 'teamMembers'),
+				where('accountId', '==', accountId),
+				where('userAccountId', '==', userId),
+			);
+			membersSnapshot = await getDocs(userAccountQuery);
+			if (!membersSnapshot.empty) {
+				return docToData(membersSnapshot.docs[0]) as TeamMemberAccess;
+			}
+		} catch (error) {
+			console.warn('Could not resolve team member access:', error);
+		}
+	}
+
+	return null;
+};
+
+type TeamMemberAccess = {
+	id?: string;
+	accountId?: string;
+	email?: string;
+	userAccountId?: string;
+	linkedProperties?: string[];
+};
+
+const isTeamMemberScopedProfile = (
+	userData: any,
+	teamMember: TeamMemberAccess | null,
+): boolean => {
+	if (
+		String(userData?.subscription?.promoCode || '')
+			.trim()
+			.toUpperCase()
+			.startsWith('TEAM-')
+	) {
+		return true;
+	}
+
+	if (userData?.isAccountOwner === true) {
+		return false;
+	}
+
+	return userData?.isTeamMemberAccount === true || !!teamMember;
+};
+
+const getLinkedPropertyIdSet = (teamMember: TeamMemberAccess | null) =>
+	new Set((teamMember?.linkedProperties || []).filter(Boolean));
+
+const scopePropertiesToTeamMember = (
+	properties: Property[],
+	teamMember: TeamMemberAccess | null,
+): Property[] => {
+	const linkedPropertyIds = getLinkedPropertyIdSet(teamMember);
+	if (linkedPropertyIds.size === 0) {
+		return [];
+	}
+
+	return properties.filter((property) => linkedPropertyIds.has(property.id));
+};
+
+const scopeGroupsToTeamMember = async (
+	groups: PropertyGroup[],
+	teamMember: TeamMemberAccess | null,
+	targetUserId: string,
+): Promise<PropertyGroup[]> => {
+	const linkedPropertyIds = getLinkedPropertyIdSet(teamMember);
+	if (linkedPropertyIds.size === 0) {
+		return [];
+	}
+
+	const scopedGroups = groups
+		.map((group) => ({
+			...group,
+			properties:
+				group.properties?.filter((property) =>
+					linkedPropertyIds.has(property.id),
+				) || [],
+		}))
+		.filter((group) => group.properties && group.properties.length > 0);
+
+	if (scopedGroups.length > 0) {
+		return scopedGroups;
+	}
+
+	const assignedProperties = await fetchPropertiesByIds(
+		Array.from(linkedPropertyIds),
+	);
+	if (assignedProperties.length === 0) {
+		return [];
+	}
+
+	return [
+		{
+			id: `team-${targetUserId}-assigned-properties`,
+			name: 'Assigned Properties',
+			userId: targetUserId,
+			accountId: targetUserId,
+			properties: assignedProperties,
+			createdAt: new Date().toISOString(),
+			updatedAt: new Date().toISOString(),
+		},
+	];
+};
+
 const upsertPropertyGroupMembership = async (params: {
 	accountId: string;
 	groupId: string;
@@ -215,6 +371,16 @@ const propertySlice = apiSlice.injectEndpoints({
 
 					const accessibleAccountIds = await resolveAccessibleAccountIds();
 					const targetUserId = await resolveTargetUserId();
+					const currentTeamMember = await getTeamMemberForAccountUser(
+						accessibleAccountIds,
+						userData,
+						userId,
+						currentUser.email,
+					);
+					const isTeamMemberScoped = isTeamMemberScopedProfile(
+						userData,
+						currentTeamMember,
+					);
 
 					// Get property groups
 					const groupDocs = [] as any[];
@@ -505,8 +671,16 @@ const propertySlice = apiSlice.injectEndpoints({
 					const isTenantUser =
 						String(userData?.role || '').trim().toLowerCase() === 'tenant';
 
+					if (isTeamMemberScoped && !isTenantUser) {
+						finalGroups = await scopeGroupsToTeamMember(
+							finalGroups,
+							currentTeamMember,
+							targetUserId,
+						);
+					}
+
 					// Final fallback: if groups are missing but properties exist, expose a virtual group
-					if (finalGroups.length === 0 && !isTenantUser) {
+					if (finalGroups.length === 0 && !isTenantUser && !isTeamMemberScoped) {
 						const fallbackProperties: Property[] = [];
 						for (const accountId of accessibleAccountIds) {
 							const accountPropertiesQuery = query(
@@ -574,6 +748,20 @@ const propertySlice = apiSlice.injectEndpoints({
 						return { error: 'User not authenticated' };
 					}
 					const targetUserId = await resolveTargetUserId();
+					const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
+					const userData = userDoc.data() || {};
+					const currentTeamMember = await getTeamMemberForAccountUser(
+						[targetUserId],
+						userData,
+						currentUser.uid,
+					);
+
+					if (isTeamMemberScopedProfile(userData, currentTeamMember)) {
+						return {
+							error:
+								'Team member accounts cannot create property groups. Ask the account owner to manage property groups.',
+						};
+					}
 
 					const docRef = await addDoc(collection(db, 'propertyGroups'), {
 						...newGroup,
@@ -662,6 +850,16 @@ const propertySlice = apiSlice.injectEndpoints({
 						}
 					}
 					const accessibleAccountIds = await resolveAccessibleAccountIds();
+					const currentTeamMember = await getTeamMemberForAccountUser(
+						accessibleAccountIds,
+						userData,
+						userId,
+						currentUser.email,
+					);
+					const isTeamMemberScoped = isTeamMemberScopedProfile(
+						userData,
+						currentTeamMember,
+					);
 
 					let tenantInviteProperties: Property[] = [];
 					if (normalizedUserEmail) {
@@ -866,30 +1064,16 @@ const propertySlice = apiSlice.injectEndpoints({
 						...regularSharedProperties,
 						...tenantInviteProperties,
 					];
-					console.log('DEBUG getProperties: allProperties breakdown:', {
-						accountProperties: accountProperties.length,
-						ownedProperties: ownedProperties.length,
-						coOwnerProperties: coOwnerProperties.length,
-						coOwnerSharedProperties: coOwnerSharedProperties.length,
-						adminProperties: adminProperties.length,
-						regularSharedProperties: regularSharedProperties.length,
-						total: allProperties.length,
-					});
 					const uniqueProperties = Array.from(
 						new Map(allProperties.map((p) => [p.id, p])).values(),
 					);
-					console.log(
-						'DEBUG getProperties: uniqueProperties:',
-						uniqueProperties.length,
-					);
-					console.log(
-						'DEBUG getProperties: returning properties:',
-						uniqueProperties.map((p: any) => ({ id: p.id, slug: p.slug })),
-					);
+					const returnedProperties = isTeamMemberScoped
+						? scopePropertiesToTeamMember(uniqueProperties, currentTeamMember)
+						: uniqueProperties;
 
-					return { data: uniqueProperties };
+					return { data: returnedProperties };
 				} catch (error: any) {
-					console.error('DEBUG getProperties: ERROR:', error.message, error);
+					console.error('Error fetching properties:', error.message, error);
 					return { error: error.message };
 				}
 			},
@@ -918,6 +1102,20 @@ const propertySlice = apiSlice.injectEndpoints({
 						return { error: 'User not authenticated' };
 					}
 					const targetUserId = await resolveTargetUserId();
+					const currentUserDoc = await getDoc(doc(db, 'users', currentUser.uid));
+					const currentUserData = currentUserDoc.data() || {};
+					const currentTeamMember = await getTeamMemberForAccountUser(
+						[targetUserId],
+						currentUserData,
+						currentUser.uid,
+					);
+
+					if (isTeamMemberScopedProfile(currentUserData, currentTeamMember)) {
+						return {
+							error:
+								'Team member accounts cannot create properties. Ask the account owner to add properties and assign access.',
+						};
+					}
 
 					const ensureFamilyAccountCallable = httpsCallable<
 						{

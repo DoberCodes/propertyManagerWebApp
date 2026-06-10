@@ -149,6 +149,7 @@ export interface Device {
 	specNotes?: string;
 	serviceItems?: DeviceServiceItem[];
 	installationDate?: string;
+	decommissionDate?: string;
 	location: {
 		propertyId: string;
 		unitId?: string; // Optional: for device in a specific unit

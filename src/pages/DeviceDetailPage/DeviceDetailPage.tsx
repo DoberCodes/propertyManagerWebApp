@@ -86,6 +86,7 @@ type DeviceEditFormState = {
 	serialNumber?: string;
 	serviceItems?: DeviceServiceItem[];
 	installationDate: string;
+	decommissionDate?: string;
 	status: 'Active' | 'Maintenance' | 'Broken' | 'Decommissioned';
 	location: {
 		propertyId: string;
@@ -1044,6 +1045,7 @@ export const DeviceDetailPage: React.FC = () => {
 		serialNumber: '',
 		serviceItems: [],
 		installationDate: '',
+		decommissionDate: '',
 		status: 'Active',
 		location: {
 			propertyId: '',
@@ -1339,6 +1341,25 @@ export const DeviceDetailPage: React.FC = () => {
 		[deviceFiles],
 	);
 	const serviceParts = device?.serviceItems || [];
+	const resolvedDeviceStatus = device?.decommissionDate
+		? 'Decommissioned'
+		: device?.status || 'Active';
+	const hasApplianceDetails = useMemo(() => {
+		const serviceItems = Array.isArray(device?.serviceItems) ? device.serviceItems : [];
+		const files = Array.isArray(device?.files) ? device.files : [];
+		return Boolean(
+			String(device?.brand || '').trim() ||
+				String(device?.model || '').trim() ||
+				String(device?.serialNumber || '').trim() ||
+				String(device?.partNumber || '').trim() ||
+				String(device?.filterSize || '').trim() ||
+				String(device?.specNotes || '').trim() ||
+				String(device?.installationDate || '').trim() ||
+				String(device?.decommissionDate || '').trim() ||
+				serviceItems.length > 0 ||
+				files.length > 0,
+		);
+	}, [device]);
 	const activePartFields = useMemo(
 		() =>
 			DEVICE_SERVICE_ITEM_FIELDS_BY_CATEGORY[partFormData.category] ||
@@ -1605,7 +1626,8 @@ export const DeviceDetailPage: React.FC = () => {
 			serialNumber: device?.serialNumber || '',
 			serviceItems: device?.serviceItems || [],
 			installationDate: device?.installationDate || '',
-			status: device?.status || 'Active',
+			decommissionDate: device?.decommissionDate || '',
+			status: device?.decommissionDate ? 'Decommissioned' : device?.status || 'Active',
 			location: device?.location || { propertyId: property?.id || '' },
 			files: device?.files || [],
 		});
@@ -1621,7 +1643,8 @@ export const DeviceDetailPage: React.FC = () => {
 			serialNumber: device.serialNumber || '',
 			serviceItems: device.serviceItems || [],
 			installationDate: device.installationDate || '',
-			status: device.status || 'Active',
+			decommissionDate: device.decommissionDate || '',
+			status: device.decommissionDate ? 'Decommissioned' : device.status || 'Active',
 			location: device.location || { propertyId: property.id },
 			files: device.files || [],
 		});
@@ -1652,10 +1675,28 @@ export const DeviceDetailPage: React.FC = () => {
 			return;
 		}
 
-		setDeviceFormData((prev) => ({
-			...prev,
-			[name]: value,
-		}));
+		setDeviceFormData((prev) => {
+			if (name === 'decommissionDate') {
+				return {
+					...prev,
+					decommissionDate: value,
+					status: value ? 'Decommissioned' : prev.status === 'Decommissioned' ? 'Active' : prev.status,
+				};
+			}
+
+			if (name === 'status' && value !== 'Decommissioned') {
+				return {
+					...prev,
+					status: value as DeviceEditFormState['status'],
+					decommissionDate: '',
+				};
+			}
+
+			return {
+				...prev,
+				[name]: value,
+			};
+		});
 	};
 
 	const handleSaveDeviceEdit = async () => {
@@ -1678,6 +1719,13 @@ export const DeviceDetailPage: React.FC = () => {
 				id: editingDevice.id,
 				updates: {
 					...deviceFormData,
+					type: deviceFormData.type.trim(),
+					brand: deviceFormData.brand.trim(),
+					model: deviceFormData.model.trim(),
+					serialNumber: deviceFormData.serialNumber?.trim() || '',
+					status: deviceFormData.decommissionDate
+						? 'Decommissioned'
+						: deviceFormData.status,
 					files: uploadedFiles,
 				},
 			}).unwrap();
@@ -1690,14 +1738,14 @@ export const DeviceDetailPage: React.FC = () => {
 	};
 
 	const tabs: TabConfig[] = [
-		{ id: 'info' as any, label: 'Appliance Info' },
-		{ id: 'tasks' as any, label: 'Tasks & Maintenance', count: linkedTasks.length },
+		{ id: 'info' as any, label: 'Details' },
+		{ id: 'tasks' as any, label: 'Tasks', count: linkedTasks.length },
 		{
 			id: 'history' as any,
 			label: 'History',
 			count: deviceTimelineEntries.length + relatedMaintenanceHistory.length,
 		},
-		{ id: 'parts' as any, label: 'Parts & Service', count: serviceParts.length },
+		{ id: 'parts' as any, label: 'Parts', count: serviceParts.length },
 	];
 
 	const handleAddPart = async () => {
@@ -2117,9 +2165,17 @@ export const DeviceDetailPage: React.FC = () => {
 						</PhotoSection>
 
 						<SectionHeader>Appliance Information</SectionHeader>
+						{!hasApplianceDetails && (
+							<InfoCard style={{ borderColor: '#fde68a', background: '#fefce8' }}>
+								<InfoLabel>Profile Details</InfoLabel>
+								<InfoValue style={{ color: '#854d0e' }}>
+									No details added yet. This appliance can still be linked to tasks now and filled in later.
+								</InfoValue>
+							</InfoCard>
+						)}
 						<InfoGrid>
 							<InfoCard>
-								<InfoLabel>Type</InfoLabel>
+								<InfoLabel>Name</InfoLabel>
 								<InfoValue>{device.type || 'N/A'}</InfoValue>
 							</InfoCard>
 							<InfoCard>
@@ -2136,11 +2192,15 @@ export const DeviceDetailPage: React.FC = () => {
 							</InfoCard>
 							<InfoCard>
 								<InfoLabel>Status</InfoLabel>
-								<InfoValue>{device.status || 'Active'}</InfoValue>
+								<InfoValue>{resolvedDeviceStatus}</InfoValue>
 							</InfoCard>
 							<InfoCard>
 								<InfoLabel>Installed</InfoLabel>
 								<InfoValue>{formatDate(device.installationDate)}</InfoValue>
+							</InfoCard>
+							<InfoCard>
+								<InfoLabel>Decommissioned</InfoLabel>
+								<InfoValue>{formatDate(device.decommissionDate)}</InfoValue>
 							</InfoCard>
 							<InfoCard>
 								<InfoLabel>Location</InfoLabel>

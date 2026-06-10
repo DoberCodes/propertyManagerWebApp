@@ -49,12 +49,17 @@ const HeroShell = styled.div<{
 	}
 
 	@media (max-width: 1024px) {
-		min-height: 180px;
+		min-height: 220px;
 		border-radius: 0 0 20px 20px;
 	}
 
+	@media (max-width: 768px) {
+		min-height: 300px;
+		border-radius: 0 0 18px 18px;
+	}
+
 	@media (max-width: 480px) {
-		min-height: 140px;
+		min-height: 320px;
 		border-radius: 0 0 16px 16px;
 	}
 `;
@@ -79,9 +84,14 @@ export const HeroBackButton = styled.button`
 	}
 
 	@media (max-width: 480px) {
-		padding: 12px 16px;
-		font-size: 16px;
+		top: 12px;
+		left: 12px;
+		max-width: calc(100% - 72px);
+		padding: 10px 12px;
+		font-size: 15px;
 		min-height: 44px;
+		text-align: left;
+		white-space: normal;
 	}
 `;
 
@@ -93,6 +103,11 @@ const TopRight = styled.div`
 	display: flex;
 	align-items: center;
 	gap: 8px;
+
+	@media (max-width: 480px) {
+		top: 12px;
+		right: 12px;
+	}
 `;
 
 const BottomContent = styled.div`
@@ -111,11 +126,17 @@ const BottomContent = styled.div`
 		align-items: center;
 	}
 
-	@media (max-width: 480px) {
-		padding: 0 10px 16px;
+	@media (max-width: 768px) {
+		padding: 96px 14px 18px;
 		flex-direction: column;
 		align-items: flex-start;
-		gap: 8px;
+		justify-content: flex-end;
+		gap: 12px;
+	}
+
+	@media (max-width: 480px) {
+		padding: 88px 12px 16px;
+		gap: 10px;
 	}
 `;
 
@@ -124,6 +145,10 @@ const TitleGroup = styled.div`
 	flex-direction: column;
 	gap: 4px;
 	min-width: 0;
+
+	@media (max-width: 768px) {
+		width: 100%;
+	}
 `;
 
 export const HeroTitle = styled.h1`
@@ -139,6 +164,11 @@ export const HeroTitle = styled.h1`
 		font-size: 2rem;
 	}
 
+	@media (max-width: 768px) {
+		font-size: 1.75rem;
+		overflow-wrap: anywhere;
+	}
+
 	@media (max-width: 480px) {
 		font-size: 1.45rem;
 	}
@@ -152,6 +182,7 @@ export const HeroSubtitle = styled.p`
 
 	@media (max-width: 480px) {
 		font-size: 13px;
+		overflow-wrap: anywhere;
 	}
 `;
 
@@ -178,12 +209,19 @@ export const HeroActionButton = styled.button`
 		transform: scale(0.98);
 	}
 
+	@media (max-width: 768px) {
+		width: 100%;
+		text-align: center;
+		white-space: normal;
+	}
+
 	@media (max-width: 480px) {
 		padding: 12px 16px;
 		font-size: 16px;
 		min-height: 44px;
 		width: 100%;
 		text-align: center;
+		white-space: normal;
 	}
 `;
 
@@ -197,6 +235,13 @@ const ActionsGroup = styled.div`
 
 	@media (max-width: 480px) {
 		width: 100%;
+	}
+
+	@media (max-width: 768px) {
+		width: 100%;
+		flex-direction: column;
+		align-items: stretch;
+		gap: 8px;
 	}
 `;
 

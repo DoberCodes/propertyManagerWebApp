@@ -55,6 +55,8 @@ export const HeaderTopRow = styled.div`
  * Badge for displaying status/type information in headers
  */
 export const HeaderBadge = styled.span`
+	display: inline-flex;
+	max-width: 100%;
 	background: #ecfdf3;
 	color: #16a34a;
 	border: 1px solid #bbf7d0;
@@ -64,8 +66,12 @@ export const HeaderBadge = styled.span`
 	font-weight: 700;
 	letter-spacing: 0.5px;
 	text-transform: uppercase;
+	white-space: normal;
+	overflow-wrap: anywhere;
+	line-height: 1.2;
 
 	@media (max-width: 480px) {
+		max-width: 42vw;
 		padding: 4px 8px;
 		font-size: 10px;
 	}

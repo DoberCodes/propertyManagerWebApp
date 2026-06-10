@@ -7,9 +7,7 @@ import {
 	ModalTitle as DialogTitle,
 	ModalCloseButton as CloseButton,
 	ModalBody as DialogContent,
-	ModalFooter as DialogFooter,
 	PrimaryButton as SaveButton,
-	SecondaryButton as CancelButton,
 	SecondaryButton,
 	SmallButton as AddButton,
 } from '../Library';
@@ -51,6 +49,9 @@ import {
 	ReviewGrid,
 	ReviewLabel,
 	ReviewValue,
+	DialogFooter,
+	FooterActionGroup,
+	FooterTextAction,
 } from './PropertyDialog.styles';
 import { FileUploader } from '../Library/FileUploader';
 import {
@@ -96,6 +97,14 @@ interface PropertyDialogProps {
 	onDeleteProperty?: () => Promise<void> | void;
 	forceSingleFamily?: boolean;
 	initialData?: PropertyFormData;
+	isDuplicate?: boolean;
+	duplicateSourceName?: string;
+	duplicateTaskCount?: number;
+	duplicateApplianceCount?: number;
+	copyTasksOnDuplicate?: boolean;
+	copyAppliancesOnDuplicate?: boolean;
+	onCopyTasksOnDuplicateChange?: (value: boolean) => void;
+	onCopyAppliancesOnDuplicateChange?: (value: boolean) => void;
 	groups: Array<{ id: string; name: string }>;
 	selectedGroupId?: string | null;
 	onCreateGroup?: (name: string) => Promise<string>;
@@ -140,6 +149,14 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 	onDeleteProperty,
 	forceSingleFamily = false,
 	initialData,
+	isDuplicate = false,
+	duplicateSourceName,
+	duplicateTaskCount = 0,
+	duplicateApplianceCount = 0,
+	copyTasksOnDuplicate = false,
+	copyAppliancesOnDuplicate = false,
+	onCopyTasksOnDuplicateChange,
+	onCopyAppliancesOnDuplicateChange,
 	groups,
 	selectedGroupId,
 	onCreateGroup,
@@ -150,6 +167,7 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 	onDetachFromProperty,
 }) => {
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
+	const isTeamMemberAccount = currentUser?.isTeamMemberAccount === true;
 	const teamGroups = useSelector((state: RootState) => state.team.groups);
 
 	const teamMembers = useMemo(
@@ -195,6 +213,12 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 		administrators: '',
 		viewers: '',
 	});
+
+	const duplicateNameUnchanged =
+		isDuplicate &&
+		Boolean(duplicateSourceName?.trim()) &&
+		formData.name.trim().toLowerCase() ===
+			duplicateSourceName!.trim().toLowerCase();
 
 	useEffect(() => {
 		if (!isOpen) {
@@ -250,7 +274,11 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 		let isCancelled = false;
 
 		const loadFamilyMembers = async () => {
-			if (!isOpen || !currentUser?.accountId) {
+			if (
+				!isOpen ||
+				!currentUser?.accountId ||
+				isTeamMemberAccount
+			) {
 				if (!isCancelled) {
 					setFamilyMembers([]);
 					setIsLoadingFamilyMembers(false);
@@ -281,7 +309,7 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 		return () => {
 			isCancelled = true;
 		};
-	}, [isOpen, currentUser?.accountId]);
+	}, [isOpen, currentUser?.accountId, isTeamMemberAccount]);
 
 	const availableMembers = useMemo<ShareMemberOption[]>(() => {
 		const allMembers: ShareMemberOption[] = [];
@@ -427,10 +455,14 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 			return true;
 		}
 		if (stepIndex === 1) {
-			return Boolean(formData.name.trim() && formData.address.trim());
+			return Boolean(
+				formData.name.trim() &&
+					formData.address.trim() &&
+					!duplicateNameUnchanged,
+			);
 		}
 		return true;
-	}, [stepIndex, formData.name, formData.address]);
+	}, [stepIndex, formData.name, formData.address, duplicateNameUnchanged]);
 
 	const handleNext = () => {
 		if (!canContinue) {
@@ -445,6 +477,10 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 
 	const handleSave = async () => {
 		if (isSubmitting) return;
+		if (duplicateNameUnchanged) {
+			setStepIndex(1);
+			return;
+		}
 		setIsSubmitting(true);
 		try {
 			await onSave({
@@ -674,6 +710,11 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 								onChange={(e) => handleInputChange('name', e.target.value)}
 								placeholder='Enter property name'
 							/>
+							{duplicateNameUnchanged && (
+								<div style={{ fontSize: 12, color: '#b45309', marginTop: 6 }}>
+									Choose a new name before creating the duplicate property.
+								</div>
+							)}
 						</FormField>
 						<FormField>
 							<Label>Address</Label>
@@ -761,6 +802,71 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 								Yes, this property is a rental
 							</label>
 						</FormField>
+						{isDuplicate && (
+							<FormField>
+								<Label>Duplicate Options</Label>
+								<label
+									style={{
+										display: 'flex',
+										alignItems: 'flex-start',
+										gap: 8,
+										color: duplicateApplianceCount > 0 ? '#475569' : '#94a3b8',
+										lineHeight: 1.4,
+									}}>
+									<input
+										type='checkbox'
+										checked={
+											duplicateApplianceCount > 0 &&
+											!!copyAppliancesOnDuplicate
+										}
+										disabled={duplicateApplianceCount === 0}
+										onChange={(e) =>
+											onCopyAppliancesOnDuplicateChange?.(e.target.checked)
+										}
+									/>
+									<span>
+										Copy appliance records
+										{duplicateApplianceCount > 0
+											? ` (${duplicateApplianceCount} ${
+													duplicateApplianceCount === 1
+														? 'appliance'
+														: 'appliances'
+											  })`
+											: ' (no appliances found)'}
+									</span>
+								</label>
+								<label
+									style={{
+										display: 'flex',
+										alignItems: 'flex-start',
+										gap: 8,
+										color: duplicateTaskCount > 0 ? '#475569' : '#94a3b8',
+										lineHeight: 1.4,
+									}}>
+									<input
+										type='checkbox'
+										checked={!!copyTasksOnDuplicate}
+										disabled={duplicateTaskCount === 0}
+										onChange={(e) =>
+											onCopyTasksOnDuplicateChange?.(e.target.checked)
+										}
+									/>
+									<span>
+										Copy current tasks
+										{duplicateTaskCount > 0
+											? ` (${duplicateTaskCount} active ${
+													duplicateTaskCount === 1 ? 'task' : 'tasks'
+											  })`
+											: ' (no active tasks found)'}
+									</span>
+								</label>
+								<div style={{ fontSize: 12, color: '#64748b', lineHeight: 1.45 }}>
+									Appliances are created as new records on the duplicate property.
+									Task schedules and assignments can be copied too; unit links stay
+									with the original property.
+								</div>
+							</FormField>
+						)}
 					</FormSection>
 
 						{/* Units are temporarily hidden from the app flow.
@@ -934,9 +1040,17 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 				<DialogContainer onClick={(e) => e.stopPropagation()}>
 					<DialogHeader>
 						<div>
-							<DialogTitle>{initialData ? 'Edit Property' : 'Add New Property'}</DialogTitle>
+							<DialogTitle>
+								{isDuplicate
+									? 'Duplicate Property'
+									: initialData
+										? 'Edit Property'
+										: 'Add New Property'}
+							</DialogTitle>
 							<div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>
-								Add the details of your property to get started.
+								{isDuplicate
+									? 'Start with the existing details, then rename the new property.'
+									: 'Add the details of your property to get started.'}
 							</div>
 						</div>
 						<CloseButton onClick={onClose}>×</CloseButton>
@@ -963,7 +1077,7 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 										<WizardStepDot $active={stepIndex === index} $complete={stepIndex > index}>
 											{stepIndex > index ? '✓' : index + 1}
 										</WizardStepDot>
-										<WizardStepText>
+										<WizardStepText $active={stepIndex === index}>
 											<WizardStepTitle>{step.title}</WizardStepTitle>
 											<WizardStepHint>{step.hint}</WizardStepHint>
 										</WizardStepText>
@@ -974,51 +1088,40 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 						</WizardShell>
 					</DialogContent>
 
-					<DialogFooter
-						style={{
-							display: 'flex',
-							justifyContent: 'space-between',
-							alignItems: 'center',
-							gap: '10px',
-						}}>
-						<div style={{ display: 'flex', gap: '10px' }}>
+					<DialogFooter>
+						<FooterActionGroup>
 							{propertyId && onDeleteProperty && (
-								<SecondaryButton
+								<FooterTextAction
+									type='button'
+									$tone='danger'
 									onClick={handleDeletePropertyClick}
-									disabled={isDeletingProperty || isSubmitting}
-									style={{
-										backgroundColor: '#ef4444',
-										borderColor: '#ef4444',
-										color: 'white',
-									}}>
+									disabled={isDeletingProperty || isSubmitting}>
 									{isDeletingProperty ? 'Deleting...' : 'Delete Property'}
-								</SecondaryButton>
+								</FooterTextAction>
 							)}
 							{propertyId && onToggleHideFromDashboard && stepIndex === STEPS.length - 1 && (
-								<SecondaryButton onClick={onToggleHideFromDashboard}>
+								<FooterTextAction type='button' onClick={onToggleHideFromDashboard}>
 									{isHiddenFromDashboard ? 'Show on Dashboard' : 'Hide from Dashboard'}
-								</SecondaryButton>
+								</FooterTextAction>
 							)}
 							{propertyId && isSharedProperty && onDetachFromProperty && stepIndex === STEPS.length - 1 && (
-								<SecondaryButton
+								<FooterTextAction
+									type='button'
+									$tone='warning'
 									onClick={onDetachFromProperty}
-									style={{
-										backgroundColor: '#f59e0b',
-										borderColor: '#f59e0b',
-										color: 'white',
-									}}>
+									disabled={isSubmitting || isDeletingProperty}>
 									Detach from Property
-								</SecondaryButton>
+								</FooterTextAction>
 							)}
-						</div>
-						<div style={{ display: 'flex', gap: '10px' }}>
-							<CancelButton onClick={onClose} disabled={isSubmitting || isDeletingProperty}>
-								Cancel
-							</CancelButton>
+						</FooterActionGroup>
+						<FooterActionGroup>
 							{stepIndex > 0 && (
-								<CancelButton onClick={handleBack} disabled={isSubmitting || isDeletingProperty}>
+								<FooterTextAction
+									type='button'
+									onClick={handleBack}
+									disabled={isSubmitting || isDeletingProperty}>
 									Back
-								</CancelButton>
+								</FooterTextAction>
 							)}
 							{stepIndex < STEPS.length - 1 ? (
 								<SaveButton onClick={handleNext} disabled={!canContinue || isSubmitting || isDeletingProperty}>
@@ -1026,10 +1129,14 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 								</SaveButton>
 							) : (
 								<SaveButton onClick={handleSave} disabled={isSubmitting || isDeletingProperty}>
-									{isSubmitting ? 'Saving...' : 'Save Property'}
+									{isSubmitting
+										? 'Saving...'
+										: isDuplicate
+											? 'Create Duplicate'
+											: 'Save Property'}
 								</SaveButton>
 							)}
-						</div>
+						</FooterActionGroup>
 					</DialogFooter>
 				</DialogContainer>
 			</DialogOverlay>

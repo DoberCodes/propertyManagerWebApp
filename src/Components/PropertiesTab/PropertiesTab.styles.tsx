@@ -13,11 +13,12 @@ export const Wrapper = styled.div`
 	@media (max-width: 1024px) {
 		padding: 15px;
 		gap: 15px;
+		margin: 0;
 	}
 
 	@media (max-width: 480px) {
-		padding: 10px;
-		gap: 10px;
+		padding: 8px;
+		gap: 12px;
 	}
 `;
 
@@ -60,10 +61,15 @@ export const TopActions = styled.div`
 	gap: 10px;
 	flex-wrap: wrap;
 
-	@media (max-width: 480px) {
-		gap: 6px;
+	@media (max-width: 768px) {
 		width: 100%;
-		justify-content: center;
+		align-items: stretch;
+		justify-content: flex-start;
+		gap: 10px;
+	}
+
+	@media (max-width: 480px) {
+		gap: 8px;
 	}
 `;
 
@@ -133,7 +139,7 @@ export const GroupsContainer = styled.div`
 
 	@media (max-width: 480px) {
 		gap: 20px;
-		align-items: center;
+		align-items: stretch;
 	}
 `;
 
@@ -151,9 +157,9 @@ export const GroupSection = styled.div`
 
 	@media (max-width: 480px) {
 		gap: 15px;
-		align-items: center;
+		align-items: stretch;
 		width: 100%;
-		max-width: 320px;
+		max-width: none;
 		margin: 0 auto;
 	}
 `;
@@ -170,6 +176,10 @@ export const GroupHeader = styled.div`
 	box-shadow: none;
 	margin-bottom: 0;
 
+	> div:first-child {
+		min-width: 0;
+	}
+
 	@media (max-width: 1024px) {
 		padding: 12px 16px;
 		gap: 12px;
@@ -178,7 +188,9 @@ export const GroupHeader = styled.div`
 	@media (max-width: 480px) {
 		padding: 10px;
 		gap: 10px;
-		justify-content: center;
+		justify-content: space-between;
+		align-items: center;
+		flex-wrap: nowrap;
 		width: 100%;
 	}
 `;
@@ -199,7 +211,8 @@ export const GroupName = styled.h2`
 
 	@media (max-width: 480px) {
 		font-size: 14px;
-		padding: 6px 10px;
+		padding: 0;
+		min-width: 0;
 	}
 `;
 
@@ -246,8 +259,10 @@ export const HeaderRight = styled.div`
 
 	@media (max-width: 480px) {
 		gap: 5px;
-		width: 100%;
-		justify-content: center;
+		width: auto;
+		margin-left: auto;
+		flex: 0 0 auto;
+		justify-content: flex-end;
 	}
 `;
 
@@ -326,6 +341,15 @@ export const AddPropertyButton = styled.button<{ disabled?: boolean }>`
 		font-size: 12px;
 		flex: 1;
 	}
+
+	@media (max-width: 768px) {
+		order: 2;
+		flex: 1 0 100%;
+		width: 100%;
+		min-height: 44px;
+		border-radius: 8px;
+		font-size: 14px;
+	}
 `;
 
 export const PropertiesGrid = styled.div<{
@@ -365,9 +389,9 @@ export const PropertiesGrid = styled.div<{
 	@media (max-width: 600px) {
 		grid-template-columns: 1fr;
 		gap: 14px;
-		justify-items: center;
+		justify-items: stretch;
 		align-items: start;
-		padding: 0 8px;
+		padding: 0;
 
 		${({ $isHomeowner, $singleProperty }) =>
 			$isHomeowner && $singleProperty
@@ -451,7 +475,8 @@ export const PropertyTile = styled.div`
 	}
 
 	@media (max-width: 600px) {
-		width: min(90vw, 340px);
+		width: 100%;
+		max-width: 360px;
 		min-height: 220px;
 	}
 `;
@@ -697,6 +722,11 @@ export const PageSubtitle = styled.p`
 	color: #6b7280;
 	margin: 4px 0 0 0;
 	font-weight: 400;
+	line-height: 1.45;
+
+	@media (max-width: 768px) {
+		max-width: 32rem;
+	}
 `;
 
 export const SearchBar = styled.input`
@@ -716,7 +746,12 @@ export const SearchBar = styled.input`
 	}
 
 	@media (max-width: 768px) {
-		max-width: 200px;
+		order: 1;
+		flex: 1 0 100%;
+		width: 100%;
+		max-width: none;
+		min-height: 44px;
+		font-size: 16px;
 	}
 
 	@media (max-width: 480px) {
@@ -728,6 +763,15 @@ export const FilterSortContainer = styled.div`
 	display: flex;
 	gap: 8px;
 	align-items: center;
+
+	@media (max-width: 768px) {
+		order: 3;
+		flex: 1 1 0;
+		min-width: 0;
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		align-items: stretch;
+	}
 `;
 
 export const FilterButton = styled.button<{ $isActive?: boolean }>`
@@ -749,6 +793,13 @@ export const FilterButton = styled.button<{ $isActive?: boolean }>`
 	@media (max-width: 480px) {
 		padding: 6px 10px;
 		font-size: 12px;
+	}
+
+	@media (max-width: 768px) {
+		width: 100%;
+		min-height: 44px;
+		border-radius: 8px;
+		font-size: 14px;
 	}
 `;
 
@@ -774,6 +825,14 @@ export const SortButton = styled.button`
 	@media (max-width: 480px) {
 		padding: 6px 10px;
 		font-size: 12px;
+	}
+
+	@media (max-width: 768px) {
+		width: 100%;
+		min-height: 44px;
+		justify-content: center;
+		border-radius: 8px;
+		font-size: 14px;
 	}
 `;
 
@@ -849,6 +908,12 @@ export const GroupActionMenu = styled.button`
 	&:hover {
 		color: #22c55e;
 	}
+
+	@media (max-width: 480px) {
+		width: 36px;
+		height: 36px;
+		padding: 0;
+	}
 `;
 
 export const CollapseToggle = styled.button`
@@ -884,6 +949,12 @@ export const HeaderMenuWrap = styled.div`
 	position: relative;
 	display: flex;
 	align-items: center;
+
+	@media (max-width: 768px) {
+		order: 4;
+		flex: 0 0 48px;
+		align-self: stretch;
+	}
 `;
 
 export const HeaderMenuButton = styled.button`
@@ -904,6 +975,12 @@ export const HeaderMenuButton = styled.button`
 		background: #f8fafc;
 		color: #1f2937;
 	}
+
+	@media (max-width: 768px) {
+		width: 100%;
+		height: 44px;
+		border-radius: 8px;
+	}
 `;
 
 export const HeaderDropdownMenu = styled.div`
@@ -917,6 +994,11 @@ export const HeaderDropdownMenu = styled.div`
 	box-shadow: 0 10px 24px rgba(15, 23, 42, 0.14);
 	overflow: hidden;
 	z-index: 220;
+
+	@media (max-width: 480px) {
+		right: 0;
+		width: min(280px, calc(100vw - 32px));
+	}
 `;
 
 export const HeaderDropdownItem = styled.button`

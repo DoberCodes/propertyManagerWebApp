@@ -47,11 +47,32 @@ const Container = styled.div`
 	background: #fff;
 	border-radius: 12px;
 	box-shadow: 0 4px 24px rgba(0, 0, 0, 0.07);
+	overflow-x: hidden;
+
+	&, * {
+		box-sizing: border-box;
+	}
+
+	@media (max-width: 768px) {
+		margin: 0;
+		padding: 18px;
+		border-radius: 0;
+		box-shadow: none;
+	}
+
+	@media (max-width: 480px) {
+		padding: 14px;
+	}
 `;
 
 const Title = styled.h2`
 	font-size: 2rem;
 	margin-bottom: 24px;
+
+	@media (max-width: 768px) {
+		font-size: 1.6rem;
+		margin-bottom: 18px;
+	}
 `;
 
 const SubscriptionSection = styled.div`
@@ -60,13 +81,31 @@ const SubscriptionSection = styled.div`
 	padding: 24px;
 	margin-bottom: 24px;
 	background: #f9fafb;
+	min-width: 0;
+	overflow: hidden;
+
+	@media (max-width: 768px) {
+		padding: 16px;
+		margin-bottom: 16px;
+	}
+
+	@media (max-width: 480px) {
+		padding: 14px;
+	}
 `;
 
 const SubscriptionHeader = styled.div`
 	display: flex;
 	justify-content: space-between;
 	align-items: center;
+	gap: 12px;
+	flex-wrap: wrap;
 	margin-bottom: 16px;
+
+	@media (max-width: 640px) {
+		align-items: flex-start;
+		flex-direction: column;
+	}
 `;
 
 const PlanName = styled.h3`
@@ -74,9 +113,16 @@ const PlanName = styled.h3`
 	font-weight: 600;
 	margin: 0;
 	color: #1f2937;
+	min-width: 0;
+
+	@media (max-width: 640px) {
+		font-size: 1.25rem;
+	}
 `;
 
 const PlanStatus = styled.span<{ status: string }>`
+	display: inline-flex;
+	max-width: 100%;
 	padding: 4px 12px;
 	border-radius: 20px;
 	font-size: 0.875rem;
@@ -129,6 +175,7 @@ const PlanFeature = styled.li`
 	font-size: 0.875rem;
 	color: #6b7280;
 	margin-bottom: 4px;
+	overflow-wrap: anywhere;
 	&::before {
 		content: '✓';
 		color: #059669;
@@ -148,6 +195,7 @@ const TrialText = styled.p`
 	margin: 0;
 	color: #92400e;
 	font-size: 0.875rem;
+	overflow-wrap: anywhere;
 `;
 
 const LinkButton = styled.button`
@@ -162,8 +210,16 @@ const LinkButton = styled.button`
 	transition: background 0.2s;
 	border: none;
 	cursor: pointer;
+	white-space: normal;
+	text-align: center;
 	&:hover {
 		background: #4f46e5;
+	}
+
+	@media (max-width: 640px) {
+		width: 100%;
+		margin: 8px 0 0;
+		padding: 12px 14px;
 	}
 `;
 
@@ -179,6 +235,11 @@ const ButtonContainer = styled.div`
 	gap: 12px;
 	flex-wrap: wrap;
 	margin-top: 16px;
+
+	@media (max-width: 640px) {
+		flex-direction: column;
+		gap: 8px;
+	}
 `;
 
 const CancelButton = styled(LinkButton)`
@@ -194,6 +255,17 @@ const AccountSection = styled.div`
 	padding: 24px;
 	margin-bottom: 24px;
 	background: #f9fafb;
+	min-width: 0;
+	overflow: hidden;
+
+	@media (max-width: 768px) {
+		padding: 16px;
+		margin-bottom: 16px;
+	}
+
+	@media (max-width: 480px) {
+		padding: 14px;
+	}
 `;
 
 const SectionTitle = styled.h3`
@@ -201,12 +273,22 @@ const SectionTitle = styled.h3`
 	font-weight: 600;
 	margin: 0 0 16px 0;
 	color: #1f2937;
+	overflow-wrap: anywhere;
+
+	@media (max-width: 640px) {
+		font-size: 1.1rem;
+	}
 `;
 
 const AccountActions = styled.div`
 	display: flex;
 	gap: 12px;
 	flex-wrap: wrap;
+
+	@media (max-width: 640px) {
+		flex-direction: column;
+		gap: 8px;
+	}
 `;
 
 const ResourceButtons = styled.div`
@@ -214,6 +296,10 @@ const ResourceButtons = styled.div`
 	flex-direction: column;
 	align-items: flex-start;
 	gap: 12px;
+
+	@media (max-width: 640px) {
+		align-items: stretch;
+	}
 `;
 
 const AccountButton = styled.button<{ disabled?: boolean }>`
@@ -227,6 +313,9 @@ const AccountButton = styled.button<{ disabled?: boolean }>`
 	transition: background 0.2s;
 	border: none;
 	cursor: pointer;
+	white-space: normal;
+	text-align: center;
+	min-width: 0;
 
 	&:hover {
 		background: #4f46e5;
@@ -240,6 +329,11 @@ const AccountButton = styled.button<{ disabled?: boolean }>`
 		&:hover {
 			background: #9ca3af;
 		}
+	}
+
+	@media (max-width: 640px) {
+		width: 100%;
+		padding: 12px 14px;
 	}
 `;
 
@@ -266,6 +360,11 @@ const FamilyMemberCard = styled.div`
 	border-radius: 10px;
 	margin-bottom: 10px;
 	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+
+	@media (max-width: 640px) {
+		flex-direction: column;
+		align-items: stretch;
+	}
 `;
 
 const FamilyMemberInfo = styled.div`
@@ -276,6 +375,12 @@ const FamilyMemberInfo = styled.div`
 	align-items: center;
 	row-gap: 4px;
 	column-gap: 8px;
+
+	@media (max-width: 640px) {
+		flex: 1 1 auto;
+		flex-direction: column;
+		align-items: flex-start;
+	}
 `;
 
 const FamilyMemberName = styled.span`
@@ -305,6 +410,13 @@ const FamilyMemberActions = styled.div`
 	flex-wrap: wrap;
 	justify-content: flex-end;
 	flex: 1 1 240px;
+
+	@media (max-width: 640px) {
+		width: 100%;
+		flex: 1 1 auto;
+		flex-direction: column;
+		justify-content: flex-start;
+	}
 `;
 
 const FamilyMemberActionButton = styled.button<{ variant: 'edit' | 'reset' | 'remove' }>`
@@ -329,6 +441,11 @@ const FamilyMemberActionButton = styled.button<{ variant: 'edit' | 'reset' | 're
 				return '#3b82f6';
 		}
 	}};
+
+	@media (max-width: 640px) {
+		width: 100%;
+		padding: 10px 12px;
+	}
 `;
 
 const DeleteAccountButton = styled(AccountButton)`
@@ -349,6 +466,7 @@ const ErrorMessage = styled.div`
 	margin-bottom: 16px;
 	font-size: 14px;
 	border-left: 4px solid #dc2626;
+	overflow-wrap: anywhere;
 `;
 
 const SuccessMessage = styled.div`
@@ -359,6 +477,7 @@ const SuccessMessage = styled.div`
 	margin-bottom: 16px;
 	font-size: 14px;
 	border-left: 4px solid #065f46;
+	overflow-wrap: anywhere;
 `;
 
 const PasswordHelp = styled.div`
@@ -372,6 +491,7 @@ const SettingsLayout = styled.div`
 	display: grid;
 	grid-template-columns: 240px minmax(0, 1fr);
 	gap: 20px;
+	min-width: 0;
 
 	@media (max-width: 1024px) {
 		display: block;
@@ -420,6 +540,10 @@ const MobileCategoryPicker = styled.div`
 	@media (max-width: 1024px) {
 		display: block;
 	}
+
+	@media (max-width: 640px) {
+		margin-bottom: 12px;
+	}
 `;
 
 const CategorySelect = styled.select`
@@ -430,16 +554,25 @@ const CategorySelect = styled.select`
 	background: #ffffff;
 	color: #1f2937;
 	font-weight: 600;
+	min-width: 0;
+
+	@media (max-width: 640px) {
+		font-size: 16px;
+		min-height: 44px;
+	}
 `;
 
 const CategoryContent = styled.div`
 	min-width: 0;
+	width: 100%;
+	overflow-x: hidden;
 `;
 
 const CategoryPanel = styled.section`
 	min-height: 68vh;
 	max-height: 78vh;
 	overflow-y: auto;
+	overflow-x: hidden;
 	padding-right: 6px;
 
 	/* Prevent extra trailing gap from section bottom margins */
@@ -452,6 +585,10 @@ const CategoryPanel = styled.section`
 		max-height: none;
 		overflow-y: visible;
 		padding-right: 0;
+	}
+
+	@media (max-width: 640px) {
+		min-height: 0;
 	}
 `;
 

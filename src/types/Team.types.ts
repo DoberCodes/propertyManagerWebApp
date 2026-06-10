@@ -25,6 +25,13 @@ export interface TeamMember {
 		type?: string;
 		id?: string;
 	}>;
+	invitationCode?: string;
+	invitationCodeId?: string;
+	invitationCodeStatus?: 'active' | 'revoked' | 'redeemed';
+	invitationCodeExpiresAt?: string;
+	userAccountId?: string;
+	redeemedByUserId?: string;
+	redeemedAt?: string;
 	createdAt?: string;
 	updatedAt?: string;
 }

@@ -15,6 +15,7 @@ export interface SubscriptionData {
 	canceledAt?: number;
 	stripeCustomerId?: string;
 	stripeSubscriptionId?: string;
+	promoCode?: string;
 	hasScheduledSubscription?: boolean;
 	scheduledPlan?: string;
 }
@@ -192,7 +193,11 @@ export const canAddProperty = (
 	userRole?: string,
 ): boolean => {
 	// Property guests cannot create their own properties
-	if (userRole === 'property_guest') {
+	if (
+		userRole === 'property_guest' ||
+		userRole === 'team_member' ||
+		userRole === 'tenant'
+	) {
 		return false;
 	}
 

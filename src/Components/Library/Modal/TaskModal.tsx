@@ -183,6 +183,11 @@ const TabLabel = styled.span`
 	display: inline-flex;
 	align-items: center;
 	gap: 0.5rem;
+
+	@media (max-width: 480px) {
+		gap: 0.35rem;
+		white-space: nowrap;
+	}
 `;
 
 const TabBadge = styled.span<{ $tone?: 'optional' | 'warning' | 'success' }>`
@@ -1042,13 +1047,6 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 		}, [formState.priority, formState.propertyId, formState.title, requiresPropertySelection]);
 
 		const detailsTabTone = missingRequiredFields.length > 0 ? 'warning' : 'success';
-		const advancedConfigured = Boolean(
-			formState.status !== 'Initiated' ||
-			formState.requiresWorkOrder ||
-			formState.enableNotifications ||
-			hasSchedule ||
-			hasCostData(formState.financials?.estimate),
-		);
 
 		const detailsError = submitAttempted && missingRequiredFields.length > 0;
 
@@ -1320,11 +1318,11 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 						onClick={() => setActiveTab('details')}>
 						<TabLabel>
 							Task Details
-							<TabBadge $tone={detailsTabTone}>
-								{missingRequiredFields.length > 0
-									? `${missingRequiredFields.length} required`
-									: 'Ready'}
-							</TabBadge>
+							{missingRequiredFields.length > 0 && (
+								<TabBadge $tone={detailsTabTone}>
+									{`${missingRequiredFields.length} required`}
+								</TabBadge>
+							)}
 						</TabLabel>
 					</ModalTab>
 					{isCreateMode ? (
@@ -1333,8 +1331,7 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 							$active={activeTab === 'advanced'}
 							onClick={() => setActiveTab('advanced')}>
 							<TabLabel>
-									More Options
-								<TabBadge>{advancedConfigured ? 'Configured' : 'Optional'}</TabBadge>
+								More Options
 							</TabLabel>
 						</ModalTab>
 					) : (
@@ -1345,7 +1342,6 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 								onClick={() => setActiveTab('schedule')}>
 								<TabLabel>
 									Recurrence
-									<TabBadge>{hasSchedule ? 'Configured' : 'Optional'}</TabBadge>
 								</TabLabel>
 							</ModalTab>
 							<ModalTab
@@ -1354,9 +1350,6 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 								onClick={() => setActiveTab('notifications')}>
 								<TabLabel>
 									Notifications
-									<TabBadge>
-										{formState.enableNotifications ? 'Configured' : 'Optional'}
-									</TabBadge>
 								</TabLabel>
 							</ModalTab>
 							<ModalTab
@@ -1365,11 +1358,6 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 								onClick={() => setActiveTab('financial')}>
 								<TabLabel>
 									Financials
-									<TabBadge>
-										{hasCostData(formState.financials?.estimate)
-											? 'Configured'
-											: 'Optional'}
-									</TabBadge>
 								</TabLabel>
 							</ModalTab>
 						</>
@@ -1537,9 +1525,6 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 									onClick={() => setShowCreateMoreOptions((prev) => !prev)}>
 									{showCreateMoreOptions ? 'Hide More Options' : 'Show More Options'}
 								</MoreOptionsToggle>
-								<FieldHint>
-									Keep this fast: title, priority, and due timing are enough to create the maintenance task.
-								</FieldHint>
 							</FormGroupFull>
 						)}
 

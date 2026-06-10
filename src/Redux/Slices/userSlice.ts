@@ -15,6 +15,7 @@ export interface FamilyAccount {
 		canceledAt?: number;
 		stripeCustomerId?: string;
 		stripeSubscriptionId?: string;
+		promoCode?: string;
 		updatedAt?: string;
 		hasScheduledSubscription?: boolean;
 		scheduledPlan?: string;
@@ -39,6 +40,8 @@ export interface User {
 	pushTokenUpdatedAt?: string; // When push token was last updated
 	accountId?: string; // Family account ID for shared subscriptions
 	isAccountOwner?: boolean; // Whether this user owns the account/subscription
+	isTeamMemberAccount?: boolean; // Invited team members are scoped to assigned properties
+	teamMemberId?: string; // Team member record that granted access
 	subscription?: {
 		status: 'trial' | 'active' | 'cancelled' | 'expired' | 'past_due';
 		plan: string;

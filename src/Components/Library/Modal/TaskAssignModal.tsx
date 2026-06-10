@@ -56,6 +56,11 @@ export const TaskAssignModal = (props: TaskAssignModalProps) => {
 
 	useEffect(() => {
 		const fetchFamilyMembers = async () => {
+			if (currentUser?.isTeamMemberAccount) {
+				setFamilyMembers([]);
+				return;
+			}
+
 			if (currentUser?.accountId) {
 				try {
 					const members = await getFamilyMembers(currentUser.accountId);
@@ -68,7 +73,7 @@ export const TaskAssignModal = (props: TaskAssignModalProps) => {
 		};
 
 		fetchFamilyMembers();
-	}, [currentUser?.accountId]);
+	}, [currentUser?.accountId, currentUser?.isTeamMemberAccount]);
 
 	const fetchAssignees = useCallback(() => {
 		// If assigneeOptions are provided, use them as base and add property-specific assignees

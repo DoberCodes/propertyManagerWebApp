@@ -18,6 +18,17 @@ const NotificationSection = styled.div`
 	padding: 24px;
 	margin-bottom: 24px;
 	background: #f9fafb;
+	min-width: 0;
+	overflow: hidden;
+
+	@media (max-width: 768px) {
+		padding: 16px;
+		margin-bottom: 16px;
+	}
+
+	@media (max-width: 480px) {
+		padding: 14px;
+	}
 `;
 
 const SectionTitle = styled.h3`
@@ -25,6 +36,12 @@ const SectionTitle = styled.h3`
 	font-weight: 600;
 	margin: 0;
 	color: #1f2937;
+	min-width: 0;
+	overflow-wrap: anywhere;
+
+	@media (max-width: 640px) {
+		font-size: 1.1rem;
+	}
 `;
 
 const SectionHeaderButton = styled.button`
@@ -32,18 +49,24 @@ const SectionHeaderButton = styled.button`
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
+	gap: 12px;
 	background: transparent;
 	border: none;
 	padding: 0;
 	margin: 0;
 	cursor: pointer;
 	text-align: left;
+
+	@media (max-width: 480px) {
+		align-items: flex-start;
+	}
 `;
 
 const SectionHeaderMeta = styled.span`
 	font-size: 14px;
 	font-weight: 600;
 	color: #4f46e5;
+	flex: 0 0 auto;
 `;
 
 const SectionBody = styled.div`
@@ -59,12 +82,19 @@ const MasterToggle = styled.div`
 	background: white;
 	border-radius: 6px;
 	border: 1px solid #e5e7eb;
+
+	@media (max-width: 480px) {
+		align-items: flex-start;
+		padding: 12px;
+	}
 `;
 
 const ToggleLabel = styled.label`
 	font-weight: 500;
 	color: #374151;
 	cursor: pointer;
+	min-width: 0;
+	overflow-wrap: anywhere;
 `;
 
 const NotificationTypeGrid = styled.div`
@@ -72,6 +102,12 @@ const NotificationTypeGrid = styled.div`
 	grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
 	gap: 16px;
 	margin-bottom: 24px;
+
+	@media (max-width: 640px) {
+		grid-template-columns: minmax(0, 1fr);
+		gap: 12px;
+		margin-bottom: 16px;
+	}
 `;
 
 const NotificationTypeCard = styled.div`
@@ -79,6 +115,11 @@ const NotificationTypeCard = styled.div`
 	border: 1px solid #e5e7eb;
 	border-radius: 6px;
 	padding: 16px;
+	min-width: 0;
+
+	@media (max-width: 480px) {
+		padding: 12px;
+	}
 `;
 
 const NotificationTypeHeader = styled.div`
@@ -86,6 +127,14 @@ const NotificationTypeHeader = styled.div`
 	align-items: center;
 	gap: 12px;
 	margin-bottom: 8px;
+
+	input {
+		flex: 0 0 auto;
+	}
+
+	@media (max-width: 480px) {
+		align-items: flex-start;
+	}
 `;
 
 const NotificationTypeLabel = styled.label`
@@ -93,12 +142,15 @@ const NotificationTypeLabel = styled.label`
 	color: #374151;
 	cursor: pointer;
 	flex: 1;
+	min-width: 0;
+	overflow-wrap: anywhere;
 `;
 
 const NotificationTypeDescription = styled.p`
 	font-size: 14px;
 	color: #6b7280;
 	margin: 0;
+	overflow-wrap: anywhere;
 `;
 
 const TasksWithNotifications = styled.div`
@@ -106,6 +158,21 @@ const TasksWithNotifications = styled.div`
 	border: 1px solid #e5e7eb;
 	border-radius: 6px;
 	padding: 16px;
+	min-width: 0;
+
+	> div:first-child {
+		min-width: 0;
+		gap: 12px;
+	}
+
+	@media (max-width: 640px) {
+		padding: 12px;
+
+		> div:first-child {
+			flex-direction: column;
+			align-items: stretch !important;
+		}
+	}
 `;
 
 const TasksList = styled.div`
@@ -122,21 +189,31 @@ const TaskItem = styled.div`
 	&:last-child {
 		border-bottom: none;
 	}
+
+	@media (max-width: 640px) {
+		align-items: flex-start;
+		flex-direction: column;
+		gap: 8px;
+		padding: 12px 0;
+	}
 `;
 
 const TaskInfo = styled.div`
 	flex: 1;
+	min-width: 0;
 `;
 
 const TaskTitle = styled.div`
 	font-weight: 500;
 	color: #374151;
 	margin-bottom: 4px;
+	overflow-wrap: anywhere;
 `;
 
 const TaskDetails = styled.div`
 	font-size: 14px;
 	color: #6b7280;
+	overflow-wrap: anywhere;
 `;
 
 const TaskProperty = styled.span`
@@ -147,6 +224,14 @@ const TaskProperty = styled.span`
 	border-radius: 12px;
 	font-size: 12px;
 	margin-left: 8px;
+	max-width: 100%;
+	overflow-wrap: anywhere;
+
+	@media (max-width: 640px) {
+		display: block;
+		width: fit-content;
+		margin: 6px 0 0;
+	}
 `;
 
 const DisableAllButton = styled.button`
@@ -158,8 +243,15 @@ const DisableAllButton = styled.button`
 	font-size: 14px;
 	font-weight: 500;
 	cursor: pointer;
+	white-space: normal;
+	text-align: center;
 	&:hover {
 		background: #b91c1c;
+	}
+
+	@media (max-width: 640px) {
+		width: 100%;
+		padding: 10px 12px;
 	}
 `;
 

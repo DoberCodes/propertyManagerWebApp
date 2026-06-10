@@ -49,7 +49,7 @@ export const QuickActionsBar = styled.div`
 	margin-bottom: 20px;
 
 	@media (max-width: 1024px) {
-		position: sticky;
+		/* position: sticky; */
 		top: 8px;
 		z-index: 20;
 		background: rgba(255, 255, 255, 0.96);

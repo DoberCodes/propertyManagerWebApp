@@ -1,4 +1,5 @@
 import styled from 'styled-components';
+import { DialogContent as BaseDialogContent } from '../../Components/Library';
 
 export const Wrapper = styled.div`
 	display: flex;
@@ -201,9 +202,9 @@ export const TeamMembersGrid = styled.div`
 		gap: 12px;
 	}
 
-	@media (max-width: 480px) {
-		grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-		gap: 10px;
+	@media (max-width: 640px) {
+		grid-template-columns: 1fr;
+		gap: 12px;
 		padding: 0;
 	}
 `;
@@ -234,8 +235,9 @@ export const TeamMemberCard = styled.div`
 	}
 
 	@media (max-width: 480px) {
-		padding: 10px;
-		gap: 6px;
+		align-items: stretch;
+		padding: 14px;
+		gap: 10px;
 	}
 `;
 
@@ -348,6 +350,175 @@ export const TeamMemberTitle = styled.p`
 	text-align: center;
 `;
 
+export const TeamMemberProperties = styled.div`
+	width: 100%;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	margin-top: 2px;
+`;
+
+export const TeamMemberPropertiesLabel = styled.div`
+	font-size: 10px;
+	font-weight: 700;
+	color: #64748b;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	text-align: center;
+`;
+
+export const TeamMemberPropertyList = styled.div`
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	justify-content: center;
+
+	@media (max-width: 480px) {
+		justify-content: flex-start;
+	}
+`;
+
+export const TeamMemberPropertyChip = styled.span<{ $muted?: boolean }>`
+	max-width: 100%;
+	padding: 4px 8px;
+	border-radius: 999px;
+	background: ${({ $muted }) => ($muted ? '#f8fafc' : '#ecfdf3')};
+	border: 1px solid ${({ $muted }) => ($muted ? '#e2e8f0' : '#bbf7d0')};
+	color: ${({ $muted }) => ($muted ? '#64748b' : '#047857')};
+	font-size: 11px;
+	font-weight: 700;
+	line-height: 1.2;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+`;
+
+export const TeamMemberInviteToken = styled.div`
+	width: 100%;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 4px;
+	padding: 8px;
+	border-radius: 6px;
+	background: #f8fafc;
+	border: 1px solid #e2e8f0;
+	font-size: 11px;
+	color: #475569;
+	text-align: center;
+`;
+
+export const TeamMemberInviteCode = styled.code`
+	font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+	font-size: 12px;
+	font-weight: 800;
+	color: #0f172a;
+	word-break: break-all;
+`;
+
+export const TeamMemberInviteCopyButton = styled.button`
+	border: 1px solid transparent;
+	background: transparent;
+	color: #0f766e;
+	font-size: 11px;
+	font-weight: 800;
+	cursor: pointer;
+	padding: 4px 0;
+	border-radius: 4px;
+	text-align: center;
+	line-height: 1.25;
+
+	&:hover {
+		text-decoration: underline;
+	}
+`;
+
+export const AccessControlToggle = styled.label`
+	display: flex;
+	align-items: flex-start;
+	gap: 8px;
+	margin-bottom: 12px;
+	font-size: 13px;
+	line-height: 1.35;
+	color: #374151;
+
+	input {
+		margin-top: 2px;
+		flex: 0 0 auto;
+	}
+`;
+
+export const AccessControlPanel = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	margin-top: 8px;
+`;
+
+export const AccessStatusRow = styled.div`
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	flex-wrap: wrap;
+`;
+
+export const AccessStatusBadge = styled.div<{ $status: 'active' | 'revoked' }>`
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 8px 12px;
+	border-radius: 6px;
+	font-size: 13px;
+	font-weight: 700;
+	color: ${({ $status }) => ($status === 'active' ? '#047857' : '#b91c1c')};
+	background-color: ${({ $status }) =>
+		$status === 'active' ? '#d1fae5' : '#fee2e2'};
+`;
+
+export const AccessStatusMeta = styled.div`
+	font-size: 12px;
+	color: #64748b;
+	line-height: 1.35;
+`;
+
+export const AccessActionRow = styled.div`
+	display: flex;
+	align-items: stretch;
+	gap: 10px;
+	flex-wrap: wrap;
+`;
+
+export const AccessActionButton = styled.button<{
+	$variant?: 'primary' | 'danger' | 'ghost';
+}>`
+	border: ${({ $variant }) =>
+		$variant === 'ghost' ? '1px solid #ccfbf1' : 'none'};
+	background: ${({ $variant }) => {
+		if ($variant === 'danger') return '#dc3545';
+		if ($variant === 'ghost') return '#f0fdfa';
+		return '#007bff';
+	}};
+	color: ${({ $variant }) => ($variant === 'ghost' ? '#0f766e' : 'white')};
+	padding: 8px 12px;
+	border-radius: 6px;
+	font-size: 12px;
+	font-weight: 700;
+	cursor: pointer;
+	transition: background-color 0.2s ease, border-color 0.2s ease;
+
+	&:hover {
+		background: ${({ $variant }) => {
+			if ($variant === 'danger') return '#b91c1c';
+			if ($variant === 'ghost') return '#ccfbf1';
+			return '#0056b3';
+		}};
+	}
+
+	@media (max-width: 480px) {
+		width: 100%;
+	}
+`;
+
 export const AddTeamMemberCard = styled.div`
 	display: flex;
 	flex-direction: column;
@@ -366,6 +537,12 @@ export const AddTeamMemberCard = styled.div`
 		border-color: #22c55e;
 		color: #22c55e;
 	}
+
+	@media (max-width: 640px) {
+		min-height: 120px;
+		padding: 18px 14px;
+		width: 100%;
+	}
 `;
 
 export const AddIcon = styled.div`
@@ -382,6 +559,23 @@ export const AddText = styled.p`
 `;
 
 // Keep TeamPage-specific Dialog components that differ from Library
+export const TeamDialogContent = styled(BaseDialogContent)`
+	@media (max-width: 1024px) {
+		width: min(94vw, 720px);
+		max-width: 94vw;
+		height: 88dvh;
+		min-height: 0;
+	}
+
+	@media (max-width: 640px) {
+		width: 100vw;
+		max-width: 100vw;
+		height: 100dvh;
+		max-height: 100dvh;
+		border-radius: 0;
+	}
+`;
+
 export const DialogTitle = styled.h2`
 	font-size: 20px;
 	font-weight: 700;
@@ -421,18 +615,22 @@ export const DialogBody = styled.div`
 	gap: 30px;
 	padding: 24px;
 	overflow-y: auto;
+	overflow-x: hidden;
 	flex: 1;
+	min-height: 0;
 
 	@media (max-width: 1024px) {
 		grid-template-columns: 1fr;
 		gap: 20px;
 		padding: 16px;
+		align-content: start;
 	}
 
-	@media (max-width: 480px) {
+	@media (max-width: 640px) {
 		grid-template-columns: 1fr;
 		gap: 15px;
 		padding: 12px;
+		-webkit-overflow-scrolling: touch;
 	}
 `;
 
@@ -454,12 +652,14 @@ export const RightColumn = styled.div`
 	max-height: calc(90vh - 200px);
 
 	@media (max-width: 1024px) {
-		max-height: calc(85vh - 200px);
+		max-height: none;
+		overflow: visible;
 		gap: 15px;
 	}
 
-	@media (max-width: 480px) {
-		max-height: calc(95vh - 200px);
+	@media (max-width: 640px) {
+		max-height: none;
+		overflow: visible;
 		gap: 15px;
 	}
 
@@ -533,6 +733,15 @@ export const PropertyMultiSelect = styled.div`
 	overflow-y: auto;
 	background-color: white;
 
+	@media (max-width: 1024px) {
+		max-height: 240px;
+	}
+
+	@media (max-width: 640px) {
+		max-height: none;
+		overflow: visible;
+	}
+
 	&::-webkit-scrollbar {
 		width: 6px;
 	}
@@ -558,10 +767,19 @@ export const PropertyCheckbox = styled.div`
 	gap: 8px;
 	padding: 8px 4px;
 
+	@media (max-width: 640px) {
+		padding: 10px 4px;
+	}
+
 	input[type='checkbox'] {
 		cursor: pointer;
 		width: 16px;
 		height: 16px;
+
+		@media (max-width: 640px) {
+			width: 20px;
+			height: 20px;
+		}
 	}
 
 	label {
@@ -570,6 +788,10 @@ export const PropertyCheckbox = styled.div`
 		color: #374151;
 		margin: 0;
 		flex: 1;
+
+		@media (max-width: 640px) {
+			font-size: 14px;
+		}
 	}
 `;
 
@@ -678,6 +900,15 @@ export const DialogFooter = styled.div`
 	justify-content: flex-end;
 	gap: 12px;
 	flex-shrink: 0;
+
+	@media (max-width: 640px) {
+		padding: 12px;
+		gap: 8px;
+		background: #fff;
+		position: sticky;
+		bottom: 0;
+		flex-wrap: nowrap;
+	}
 `;
 
 export const DialogButton = styled.button`
@@ -693,6 +924,12 @@ export const DialogButton = styled.button`
 		opacity: 0.5;
 		cursor: not-allowed;
 	}
+
+	@media (max-width: 640px) {
+		flex: 1;
+		min-height: 44px;
+		padding: 10px 12px;
+	}
 `;
 
 export const CancelButton = styled(DialogButton)`
@@ -702,6 +939,21 @@ export const CancelButton = styled(DialogButton)`
 	&:hover:not(:disabled) {
 		background-color: #d1d5db;
 	}
+
+	@media (max-width: 640px) {
+		flex: 0 0 auto;
+		min-width: 72px;
+		border: none;
+		background: transparent;
+		color: #64748b;
+		text-decoration: underline;
+		text-underline-offset: 3px;
+
+		&:hover:not(:disabled) {
+			background: transparent;
+			color: #374151;
+		}
+	}
 `;
 
 export const SaveButton = styled(DialogButton)`
@@ -710,6 +962,10 @@ export const SaveButton = styled(DialogButton)`
 
 	&:hover:not(:disabled) {
 		background-color: #16a34a;
+	}
+
+	@media (max-width: 640px) {
+		flex: 1 1 auto;
 	}
 `;
 

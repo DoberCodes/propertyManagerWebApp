@@ -10,6 +10,18 @@ import {
 
 const selectUser = (state: RootState) => state.user.currentUser;
 
+const hasTeamInvitePromoCode = (user: ReturnType<typeof selectUser>): boolean =>
+	String((user as any)?.subscription?.promoCode || '')
+		.trim()
+		.toUpperCase()
+		.startsWith('TEAM-');
+
+const isTeamMemberAccount = (user: ReturnType<typeof selectUser>): boolean =>
+	!!user &&
+	(hasTeamInvitePromoCode(user) ||
+		(user.isAccountOwner !== true &&
+			(user as any).isTeamMemberAccount === true));
+
 export const selectIsTenant = createSelector([selectUser], (user) => {
 	return !!user && isTenant(user.role as UserRole);
 });
@@ -24,6 +36,7 @@ export const selectIsHomeowner = createSelector([selectUser], (user) => {
 });
 
 export const selectCanAccessTeam = createSelector([selectUser], (user) => {
+	if (isTeamMemberAccount(user)) return false;
 	if (!user || !user.subscription) return false;
 	return canManageTeam(user.subscription);
 });
@@ -31,12 +44,14 @@ export const selectCanAccessTeam = createSelector([selectUser], (user) => {
 export const selectCanInviteTeamMembers = createSelector(
 	[selectUser],
 	(user) => {
+		if (isTeamMemberAccount(user)) return false;
 		if (!user || !user.subscription) return false;
 		return canManageTeam(user.subscription);
 	},
 );
 
 export const selectCanManageTenants = createSelector([selectUser], (user) => {
+	if (isTeamMemberAccount(user)) return false;
 	if (!user || !user.subscription) return false;
 	return canManageTenants(user.subscription);
 });
@@ -44,6 +59,7 @@ export const selectCanManageTenants = createSelector([selectUser], (user) => {
 export const selectCanAccessProperties = createSelector(
 	[selectUser],
 	(user) => {
+		if (isTeamMemberAccount(user)) return true;
 		if (!user || !user.subscription) return false;
 		const plan = user.subscription.plan;
 		// 'free' and 'homeowner' are legacy plan IDs that map to 'home' — all get property access

@@ -108,18 +108,24 @@ const StatusPill = styled.span<{ $status: string }>`
 				? '#fecaca'
 				: p.$status === 'Maintenance'
 					? '#fcd34d'
+					: p.$status === 'Decommissioned'
+						? '#cbd5e1'
 					: '#86efac'};
 	background: ${(p) =>
 		p.$status === 'Broken'
 			? '#fef2f2'
 			: p.$status === 'Maintenance'
 				? '#fffbeb'
+				: p.$status === 'Decommissioned'
+					? '#f8fafc'
 				: '#f0fdf4'};
 	color: ${(p) =>
 		p.$status === 'Broken'
 			? '#b91c1c'
 			: p.$status === 'Maintenance'
 				? '#92400e'
+				: p.$status === 'Decommissioned'
+					? '#475569'
 				: '#166534'};
 `;
 
@@ -639,6 +645,27 @@ const buildTechnicalSubtitle = (device: Device): string => {
 	return pieces.join(' • ');
 };
 
+const getResolvedDeviceStatus = (device: Device): 'Active' | 'Maintenance' | 'Broken' | 'Decommissioned' => {
+	return device.decommissionDate ? 'Decommissioned' : device.status || 'Active';
+};
+
+const hasApplianceDetails = (device: Device): boolean => {
+	const serviceItems = Array.isArray(device.serviceItems) ? device.serviceItems : [];
+	const files = Array.isArray(device.files) ? device.files : [];
+	return Boolean(
+		String(device.brand || '').trim() ||
+			String(device.model || '').trim() ||
+			String(device.serialNumber || '').trim() ||
+			String(device.partNumber || '').trim() ||
+			String(device.filterSize || '').trim() ||
+			String(device.specNotes || '').trim() ||
+			String(device.installationDate || '').trim() ||
+			String(device.decommissionDate || '').trim() ||
+			serviceItems.length > 0 ||
+			files.length > 0,
+	);
+};
+
 const buildRecentActivity = (entry?: { date?: string; description?: string } | null): string => {
 	if (!entry) return 'No maintenance activity recorded yet';
 	const rawDescription = String(entry.description || '').trim();
@@ -760,7 +787,7 @@ export const DevicesHubPage: React.FC = () => {
 	const { data: allMaintenanceHistory = [] } = useGetAllMaintenanceHistoryForUserQuery();
 
 	const [searchQuery, setSearchQuery] = useState('');
-	const [statusFilter, setStatusFilter] = useState<'All' | 'Active' | 'Maintenance' | 'Broken'>('All');
+	const [statusFilter, setStatusFilter] = useState<'All' | 'Active' | 'Maintenance' | 'Broken' | 'Decommissioned'>('All');
 	const [propertyFilter, setPropertyFilter] = useState('');
 
 	const propertyNameById = useMemo(() => {
@@ -841,9 +868,10 @@ export const DevicesHubPage: React.FC = () => {
 					id: device.id,
 					friendlyName,
 					technicalSubtitle,
+					detailsMissing: !hasApplianceDetails(device),
 					locationLabel,
 					propertyId: String(device.location?.propertyId || ''),
-					status: device.status || 'Active',
+					status: getResolvedDeviceStatus(device),
 					lastServiced: latestMaintenance?.date,
 					latestMaintenanceDescription: latestMaintenance?.description,
 					upcomingMaintenance,
@@ -1175,7 +1203,7 @@ export const DevicesHubPage: React.FC = () => {
 					onChange={(e) => setSearchQuery(e.target.value)}
 				/>
 				<FilterGroup>
-					{(['All', 'Active', 'Maintenance', 'Broken'] as const).map((s) => (
+					{(['All', 'Active', 'Maintenance', 'Broken', 'Decommissioned'] as const).map((s) => (
 						<FilterButton key={s} $active={statusFilter === s} onClick={() => setStatusFilter(s)}>
 							{s}
 						</FilterButton>
@@ -1251,6 +1279,11 @@ export const DevicesHubPage: React.FC = () => {
 										<DevicePrimary>{row.friendlyName}</DevicePrimary>
 										<OpenProfileCue>Open profile →</OpenProfileCue>
 									</IdentityTopRow>
+									{row.detailsMissing && (
+										<div style={{ marginTop: 4, color: '#854d0e', fontSize: '0.75rem', fontWeight: 800 }}>
+											No details added
+										</div>
+									)}
 									<TechnicalSubtitle>{row.technicalSubtitle}</TechnicalSubtitle>
 									<ContextLinks>
 										<ContextLink

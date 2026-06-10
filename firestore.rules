@@ -52,6 +52,7 @@ service cloud.firestore {
 
     function hasLegacyManageRole(accountId) {
       return hasLegacyAccountLink(accountId) &&
+        !((('isTeamMemberAccount' in callerUserData()) && callerUserData().isTeamMemberAccount == true)) &&
         (
           (('isAccountOwner' in callerUserData()) && callerUserData().isAccountOwner == true) ||
           (('role' in callerUserData()) && ['admin', 'property_manager', 'assistant_manager'].hasAny([callerUserData().role]))

@@ -25,10 +25,14 @@ const ContentContainer = styled.div<{ $contentMaxWidth: string }>`
 	max-width: ${(props) => props.$contentMaxWidth};
 	width: 100%;
 	margin: 0 auto;
+
+	@media (max-width: 640px) {
+		padding: 12px;
+	}
 `;
 
 const StickyTabsShell = styled.div`
-	position: sticky;
+	/* position: sticky; */
 	top: 0;
 	z-index: 5;
 	margin: -6px -6px 12px;
@@ -43,6 +47,14 @@ const StickyTabsShell = styled.div`
 
 	box-shadow: 0 10px 24px -20px rgba(15, 23, 42, 0.5);
 	border: 1px solid #e2e8f0;
+
+	@media (max-width: 640px) {
+		margin: 0 0 14px;
+		padding: 10px;
+		border-radius: 16px;
+		box-shadow: none;
+		background: #ffffff;
+	}
 `;
 
 interface DetailPageLayoutProps {

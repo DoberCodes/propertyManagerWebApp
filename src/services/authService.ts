@@ -406,6 +406,8 @@ export const signUpWithEmail = async (
 		let shouldRedeemTenantInvite = false;
 		let shouldRedeemTeamInvite = false;
 		let resolvedRole = role;
+		let teamInviteAccountId: string | null = null;
+		let teamInviteMemberId: string | null = null;
 
 		// Handle tenant invite registration (requires promo code)
 		if (inviteType === 'tenant') {
@@ -431,6 +433,8 @@ export const signUpWithEmail = async (
 			if (inviteDoc.role) {
 				resolvedRole = inviteDoc.role;
 			}
+			teamInviteAccountId = inviteDoc.accountId || null;
+			teamInviteMemberId = inviteDoc.teamMemberId || null;
 			shouldRedeemTeamInvite = true;
 		}
 
@@ -461,6 +465,7 @@ export const signUpWithEmail = async (
 		});
 
 		// Create user profile in Firestore
+		const isTeamInviteSignup = inviteType === 'team';
 		const userProfile: User = {
 			id: userCredential.user.uid,
 			firstName,
@@ -469,8 +474,14 @@ export const signUpWithEmail = async (
 			role: resolvedRole as any,
 			title: getRoleTitleFromRole(resolvedRole),
 			image: `https://ui-avatars.com/api/?name=${firstName}+${lastName}&background=22c55e&color=fff`,
-			accountId: userCredential.user.uid, // New users are account owners
-			isAccountOwner: true,
+			...(teamInviteAccountId
+				? { accountId: teamInviteAccountId }
+				: { accountId: userCredential.user.uid }),
+			isAccountOwner: !isTeamInviteSignup,
+			...(isTeamInviteSignup && {
+				isTeamMemberAccount: true,
+				...(teamInviteMemberId ? { teamMemberId: teamInviteMemberId } : {}),
+			}),
 		};
 
 		const normalizedPlan = String(selectedPlan || '')
@@ -566,11 +577,13 @@ export const signUpWithEmail = async (
 			}
 		>(functions, 'ensureFamilyAccount');
 
-		await ensureFamilyAccountCallable({
-			accountId: userCredential.user.uid,
-			syncSubscription: true,
-			subscription: subscription as unknown as Record<string, unknown>,
-		});
+		if (!isTeamInviteSignup) {
+			await ensureFamilyAccountCallable({
+				accountId: userCredential.user.uid,
+				syncSubscription: true,
+				subscription: subscription as unknown as Record<string, unknown>,
+			});
+		}
 
 		// Auto-accept pending guest invitations for property guests
 		if (resolvedRole === USER_ROLES.PROPERTY_GUEST) {
@@ -599,41 +612,43 @@ export const signUpWithEmail = async (
 			});
 		}
 
-		// Always create default groups for new users
-		await setDoc(
-			doc(db, 'propertyGroups', `${userCredential.user.uid}_my_properties`),
-			{
+		if (!isTeamInviteSignup) {
+			// Always create default groups for new account owners.
+			await setDoc(
+				doc(db, 'propertyGroups', `${userCredential.user.uid}_my_properties`),
+				{
+					userId: userCredential.user.uid,
+					accountId: userCredential.user.uid,
+					name: 'My Properties',
+					properties: [],
+					createdAt: serverTimestamp(),
+					updatedAt: serverTimestamp(),
+				},
+			);
+
+			await setDoc(
+				doc(db, 'propertyGroups', `${userCredential.user.uid}_shared_properties`),
+				{
+					userId: userCredential.user.uid,
+					accountId: userCredential.user.uid,
+					name: 'Shared Properties',
+					properties: [],
+					createdAt: serverTimestamp(),
+					updatedAt: serverTimestamp(),
+				},
+			);
+
+			const myTeamGroupId = `${userCredential.user.uid}_default`;
+			const myTeamGroupRef = doc(db, 'teamGroups', myTeamGroupId);
+			await setDoc(myTeamGroupRef, {
 				userId: userCredential.user.uid,
 				accountId: userCredential.user.uid,
-				name: 'My Properties',
-				properties: [],
+				name: 'My Team',
+				linkedProperties: [],
 				createdAt: serverTimestamp(),
 				updatedAt: serverTimestamp(),
-			},
-		);
-
-		await setDoc(
-			doc(db, 'propertyGroups', `${userCredential.user.uid}_shared_properties`),
-			{
-				userId: userCredential.user.uid,
-				accountId: userCredential.user.uid,
-				name: 'Shared Properties',
-				properties: [],
-				createdAt: serverTimestamp(),
-				updatedAt: serverTimestamp(),
-			},
-		);
-
-		const myTeamGroupId = `${userCredential.user.uid}_default`;
-		const myTeamGroupRef = doc(db, 'teamGroups', myTeamGroupId);
-		await setDoc(myTeamGroupRef, {
-			userId: userCredential.user.uid,
-			accountId: userCredential.user.uid,
-			name: 'My Team',
-			linkedProperties: [],
-			createdAt: serverTimestamp(),
-			updatedAt: serverTimestamp(),
-		});
+			});
+		}
 
 		return {
 			user: {

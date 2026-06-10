@@ -13,6 +13,54 @@ const hasAccountSubscriptionAccess = (user: User | null): boolean => {
 const normalizeEmail = (email?: string | null): string =>
 	(email || '').trim().toLowerCase();
 
+export const findTeamMemberForUser = (
+	teamMembers: TeamMember[] | undefined,
+	currentUser: User | null,
+): TeamMember | undefined => {
+	if (!currentUser || !teamMembers) return undefined;
+
+	const email = normalizeEmail(currentUser.email);
+	const userId = String(currentUser.id || (currentUser as any).uid || '').trim();
+	const teamMemberId = String((currentUser as any).teamMemberId || '').trim();
+
+	return teamMembers.find((member) => {
+		if (!member) return false;
+		if (teamMemberId && member.id === teamMemberId) return true;
+		if (userId && (member as any).userAccountId === userId) return true;
+		return email.length > 0 && normalizeEmail(member.email) === email;
+	});
+};
+
+export const isTeamMemberScopedAccount = (
+	currentUser: User | null,
+	teamMembers?: TeamMember[],
+): boolean => {
+	if (!currentUser) return false;
+	if (
+		String((currentUser as any).subscription?.promoCode || '')
+			.trim()
+			.toUpperCase()
+			.startsWith('TEAM-')
+	) {
+		return true;
+	}
+	if (currentUser.isAccountOwner === true) return false;
+	if ((currentUser as any).isTeamMemberAccount === true) return true;
+	return !!findTeamMemberForUser(teamMembers, currentUser);
+};
+
+const filterPropertiesForTeamMember = (
+	properties: Property[],
+	teamMember?: TeamMember,
+): Property[] => {
+	const linkedPropertyIds = new Set(teamMember?.linkedProperties || []);
+	if (linkedPropertyIds.size === 0) {
+		return [];
+	}
+
+	return properties.filter((property) => linkedPropertyIds.has(property.id));
+};
+
 type TenantAssignment = {
 	unit?: string;
 	unitId?: string;
@@ -97,9 +145,12 @@ export const filterPropertiesByRole = (
 ): Property[] => {
 	if (!currentUser) return [];
 
-	// Account members with an active subscription see everything
-	if (hasAccountSubscriptionAccess(currentUser)) {
-		return properties;
+	const currentTeamMember = findTeamMemberForUser(teamMembers, currentUser);
+	if (isTeamMemberScopedAccount(currentUser, teamMembers)) {
+		if (!currentTeamMember) {
+			return properties;
+		}
+		return filterPropertiesForTeamMember(properties, currentTeamMember);
 	}
 
 	// Full access roles see everything
@@ -125,22 +176,12 @@ export const filterPropertiesByRole = (
 	// Limited access roles only see assigned properties
 	if (hasLimitedAccess(currentUser.role as UserRole) && teamMembers) {
 		// Find the team member record for this user
-		const teamMember = teamMembers.find(
-			(member) => member.email === currentUser.email,
-		);
+		return filterPropertiesForTeamMember(properties, currentTeamMember);
+	}
 
-		if (!teamMember || !teamMember.linkedProperties) {
-			return properties;
-		}
-
-		if (teamMember.linkedProperties.length === 0) {
-			return properties;
-		}
-
-		// Filter to only assigned properties
-		return properties.filter((property) =>
-			teamMember.linkedProperties.includes(property.id),
-		);
+	// Account owners or non-team account members with an account link see account data.
+	if (hasAccountSubscriptionAccess(currentUser)) {
+		return properties;
 	}
 
 	return [];
@@ -157,9 +198,26 @@ export const filterPropertyGroupsByRole = (
 ): PropertyGroup[] => {
 	if (!currentUser) return [];
 
-	// Account members with an active subscription see everything
-	if (hasAccountSubscriptionAccess(currentUser)) {
-		return groups;
+	const currentTeamMember = findTeamMemberForUser(teamMembers, currentUser);
+	if (isTeamMemberScopedAccount(currentUser, teamMembers)) {
+		if (!currentTeamMember) {
+			return groups;
+		}
+
+		const linkedPropertyIds = new Set(currentTeamMember?.linkedProperties || []);
+		if (linkedPropertyIds.size === 0) {
+			return [];
+		}
+
+		return groups
+			.map((group) => ({
+				...group,
+				properties:
+					group.properties?.filter((property) =>
+						linkedPropertyIds.has(property.id),
+					) || [],
+			}))
+			.filter((group) => group.properties && group.properties.length > 0);
 	}
 
 	// Full access roles see everything
@@ -214,16 +272,9 @@ export const filterPropertyGroupsByRole = (
 
 	// Limited access roles only see groups with assigned properties
 	if (hasLimitedAccess(currentUser.role as UserRole) && teamMembers) {
-		const teamMember = teamMembers.find(
-			(member) => member.email === currentUser.email,
-		);
-
-		if (!teamMember || !teamMember.linkedProperties) {
-			return groups;
-		}
-
-		if (teamMember.linkedProperties.length === 0) {
-			return groups;
+		const linkedPropertyIds = new Set(currentTeamMember?.linkedProperties || []);
+		if (linkedPropertyIds.size === 0) {
+			return [];
 		}
 
 		// Filter groups and their properties
@@ -232,10 +283,15 @@ export const filterPropertyGroupsByRole = (
 				...group,
 				properties:
 					group.properties?.filter((property) =>
-						teamMember.linkedProperties.includes(property.id),
+						linkedPropertyIds.has(property.id),
 					) || [],
 			}))
 			.filter((group) => group.properties && group.properties.length > 0); // Only include groups with visible properties
+	}
+
+	// Account owners or non-team account members with an account link see account data.
+	if (hasAccountSubscriptionAccess(currentUser)) {
+		return groups;
 	}
 
 	return [];
@@ -255,6 +311,27 @@ export const filterTasksByRole = (
 	propertyShares?: PropertyShare[],
 ): Task[] => {
 	if (!currentUser) return [];
+
+	const currentTeamMember = findTeamMemberForUser(teamMembers, currentUser);
+	if (isTeamMemberScopedAccount(currentUser, teamMembers)) {
+		if (!currentTeamMember) {
+			if (allProperties && allProperties.length > 0) {
+				const visiblePropertyIds = new Set(
+					allProperties.map((property) => property.id),
+				);
+				return tasks.filter((task) => visiblePropertyIds.has(task.propertyId));
+			}
+
+			return tasks;
+		}
+
+		const linkedPropertyIds = new Set(currentTeamMember?.linkedProperties || []);
+		if (linkedPropertyIds.size === 0) {
+			return [];
+		}
+
+		return tasks.filter((task) => linkedPropertyIds.has(task.propertyId));
+	}
 
 	// Account members with an active subscription see everything (except hidden)
 	if (hasAccountSubscriptionAccess(currentUser)) {
@@ -343,23 +420,13 @@ export const filterTasksByRole = (
 		teamMembers &&
 		allProperties
 	) {
-		const teamMember = teamMembers.find(
-			(member) => member.email === currentUser.email,
-		);
-
-		if (!teamMember || !teamMember.linkedProperties) {
-			const hiddenIds = currentUser.hiddenPropertyIds || [];
-			return tasks.filter((task) => !hiddenIds.includes(task.propertyId));
-		}
-
-		if (teamMember.linkedProperties.length === 0) {
-			const hiddenIds = currentUser.hiddenPropertyIds || [];
-			return tasks.filter((task) => !hiddenIds.includes(task.propertyId));
+		if (!currentTeamMember || !currentTeamMember.linkedProperties?.length) {
+			return [];
 		}
 
 		// Get property titles/slugs for assigned properties
 		const assignedPropertyNames = allProperties
-			.filter((property) => teamMember.linkedProperties.includes(property.id))
+			.filter((property) => currentTeamMember.linkedProperties.includes(property.id))
 			.map((property) => property.title);
 
 		// Filter tasks by property name

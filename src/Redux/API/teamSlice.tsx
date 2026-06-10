@@ -101,7 +101,11 @@ export const teamSlice = apiSlice.injectEndpoints({
 				try {
 					const redeemInvite = httpsCallable<
 						{ promoCode: string; teamMemberEmail: string },
-						{ success: boolean }
+						{
+							success: boolean;
+							accountId?: string | null;
+							teamMemberId?: string | null;
+						}
 					>(functions, 'redeemTeamMemberInvitationCode');
 					await redeemInvite({ promoCode, teamMemberEmail });
 					return { data: undefined };
@@ -278,6 +282,7 @@ export const teamSlice = apiSlice.injectEndpoints({
 		deleteTeamMember: builder.mutation<void, string>({
 			async queryFn(memberId: string) {
 				try {
+					const targetUserId = await resolveTargetUserId();
 					// Get the team member's email
 					const memberDoc = await getDoc(doc(db, 'teamMembers', memberId));
 					if (!memberDoc.exists()) {
@@ -289,6 +294,7 @@ export const teamSlice = apiSlice.injectEndpoints({
 					// Check for shared properties with this email
 					const sharesQuery = query(
 						collection(db, 'propertyShares'),
+						where('ownerId', '==', targetUserId),
 						where('sharedWithEmail', '==', memberEmail),
 					);
 					const sharesSnapshot = await getDocs(sharesQuery);

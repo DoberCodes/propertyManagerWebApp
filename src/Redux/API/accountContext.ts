@@ -10,6 +10,48 @@ import {
 } from 'firebase/firestore';
 import { auth, db } from '../../config/firebase';
 
+const getTeamInviteAccountId = async (
+	email?: string,
+	promoCode?: string,
+): Promise<{ accountId: string; teamMemberId?: string } | null> => {
+	const normalizedEmail = String(email || '').trim().toLowerCase();
+	const normalizedCode = String(promoCode || '').trim().toLowerCase();
+
+	if (!normalizedEmail) {
+		return null;
+	}
+
+	const inviteQuery = normalizedCode.startsWith('team-')
+		? query(
+				collection(db, 'teamMemberInvitationCodes'),
+				where('teamMemberEmail', '==', normalizedEmail),
+				where('codeLower', '==', normalizedCode),
+		  )
+		: query(
+				collection(db, 'teamMemberInvitationCodes'),
+				where('teamMemberEmail', '==', normalizedEmail),
+		  );
+	const inviteSnapshot = await getDocs(inviteQuery);
+
+	for (const inviteDoc of inviteSnapshot.docs) {
+		const inviteData = inviteDoc.data() || {};
+		const status = String(inviteData.status || '').trim().toLowerCase();
+		if (status && status !== 'active' && status !== 'redeemed') {
+			continue;
+		}
+
+		const accountId = String(inviteData.accountId || '').trim();
+		if (accountId) {
+			return {
+				accountId,
+				teamMemberId: String(inviteData.teamMemberId || '').trim() || undefined,
+			};
+		}
+	}
+
+	return null;
+};
+
 export const resolveAccessibleAccountIds = async (): Promise<string[]> => {
 	const currentUser = auth.currentUser;
 	if (!currentUser) {
@@ -59,6 +101,27 @@ export const resolveTargetUserId = async (): Promise<string> => {
 
 	const accountId = String(userData.accountId || '').trim();
 	const isAccountOwner = userData.isAccountOwner === true;
+	const teamInviteAccess = await getTeamInviteAccountId(
+		userData.email || currentUser.email || undefined,
+		userData.subscription?.promoCode,
+	);
+
+	if (teamInviteAccess?.accountId) {
+		try {
+			await updateDoc(userRef, {
+				accountId: teamInviteAccess.accountId,
+				isAccountOwner: false,
+				isTeamMemberAccount: true,
+				...(teamInviteAccess.teamMemberId
+					? { teamMemberId: teamInviteAccess.teamMemberId }
+					: {}),
+				updatedAt: new Date().toISOString(),
+			});
+		} catch (error) {
+			console.warn('Could not backfill team member account link:', error);
+		}
+		return teamInviteAccess.accountId;
+	}
 
 	if (accountId) {
 		return isAccountOwner ? accountId || uid : accountId;

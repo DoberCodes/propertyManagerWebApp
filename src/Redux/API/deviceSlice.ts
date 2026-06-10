@@ -23,6 +23,105 @@ import {
 	getMaxDevicesForPlan,
 } from '../../utils/subscriptionUtils';
 
+type TeamMemberAccess = {
+	id?: string;
+	accountId?: string;
+	email?: string;
+	userAccountId?: string;
+	linkedProperties?: string[];
+};
+
+const getTeamMemberAccessForCurrentUser = async (
+	accountIds: string[],
+): Promise<{ isScoped: boolean; linkedPropertyIds: Set<string> }> => {
+	const currentUser = auth.currentUser;
+	if (!currentUser) {
+		return { isScoped: false, linkedPropertyIds: new Set() };
+	}
+
+	const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
+	const userData = userDoc.data() || {};
+	const isScoped = userData?.isTeamMemberAccount === true;
+	if (!isScoped) {
+		return { isScoped: false, linkedPropertyIds: new Set() };
+	}
+
+	const normalizedEmail = String(userData?.email || currentUser.email || '')
+		.trim()
+		.toLowerCase();
+	const teamMemberId = String(userData?.teamMemberId || '').trim();
+
+	for (const accountId of accountIds) {
+		if (teamMemberId) {
+			const memberDoc = await getDoc(doc(db, 'teamMembers', teamMemberId));
+			if (memberDoc.exists()) {
+				const member = docToData(memberDoc) as TeamMemberAccess;
+				if (!member.accountId || member.accountId === accountId) {
+					return {
+						isScoped: true,
+						linkedPropertyIds: new Set(member.linkedProperties || []),
+					};
+				}
+			}
+		}
+
+		const byUserQuery = query(
+			collection(db, 'teamMembers'),
+			where('accountId', '==', accountId),
+			where('userAccountId', '==', currentUser.uid),
+		);
+		const byUserSnapshot = await getDocs(byUserQuery);
+		if (!byUserSnapshot.empty) {
+			const member = docToData(byUserSnapshot.docs[0]) as TeamMemberAccess;
+			return {
+				isScoped: true,
+				linkedPropertyIds: new Set(member.linkedProperties || []),
+			};
+		}
+
+		if (normalizedEmail) {
+			const accountMembersQuery = query(
+				collection(db, 'teamMembers'),
+				where('accountId', '==', accountId),
+			);
+			const accountMembersSnapshot = await getDocs(accountMembersQuery);
+			const emailMatch = accountMembersSnapshot.docs
+				.map((memberDoc) => docToData(memberDoc) as TeamMemberAccess)
+				.find(
+					(member) =>
+						String(member?.email || '').trim().toLowerCase() ===
+						normalizedEmail,
+				);
+			if (emailMatch) {
+				return {
+					isScoped: true,
+					linkedPropertyIds: new Set(emailMatch.linkedProperties || []),
+				};
+			}
+		}
+	}
+
+	return { isScoped: true, linkedPropertyIds: new Set() };
+};
+
+const filterDevicesByAllowedProperties = (
+	devices: Device[],
+	isScoped: boolean,
+	linkedPropertyIds: Set<string>,
+) => {
+	if (!isScoped) {
+		return devices;
+	}
+
+	if (linkedPropertyIds.size === 0) {
+		return [];
+	}
+
+	return devices.filter((device) =>
+		linkedPropertyIds.has(String(device.location?.propertyId || '')),
+	);
+};
+
 const deviceSlice = apiSlice.injectEndpoints({
 	endpoints: (builder) => ({
 		// Device endpoints
@@ -34,6 +133,12 @@ const deviceSlice = apiSlice.injectEndpoints({
 						return { data: [] };
 					}
 					const accessibleAccountIds = await resolveAccessibleAccountIds();
+					const { isScoped, linkedPropertyIds } =
+						await getTeamMemberAccessForCurrentUser(accessibleAccountIds);
+					if (isScoped && !linkedPropertyIds.has(propertyId)) {
+						return { data: [] };
+					}
+
 					const devices: Device[] = [];
 					for (const accountId of accessibleAccountIds) {
 						const q = query(
@@ -50,7 +155,13 @@ const deviceSlice = apiSlice.injectEndpoints({
 					const uniqueDevices = Array.from(
 						new Map(devices.map((device) => [device.id, device])).values(),
 					) as Device[];
-					return { data: uniqueDevices };
+					return {
+						data: filterDevicesByAllowedProperties(
+							uniqueDevices,
+							isScoped,
+							linkedPropertyIds,
+						),
+					};
 				} catch (error: any) {
 					return { error: error.message };
 				}
@@ -65,6 +176,8 @@ const deviceSlice = apiSlice.injectEndpoints({
 						return { data: [] };
 					}
 					const accessibleAccountIds = await resolveAccessibleAccountIds();
+					const { isScoped, linkedPropertyIds } =
+						await getTeamMemberAccessForCurrentUser(accessibleAccountIds);
 					const devices: Device[] = [];
 					for (const accountId of accessibleAccountIds) {
 						const q = query(
@@ -81,7 +194,13 @@ const deviceSlice = apiSlice.injectEndpoints({
 					const uniqueDevices = Array.from(
 						new Map(devices.map((device) => [device.id, device])).values(),
 					) as Device[];
-					return { data: uniqueDevices };
+					return {
+						data: filterDevicesByAllowedProperties(
+							uniqueDevices,
+							isScoped,
+							linkedPropertyIds,
+						),
+					};
 				} catch (error: any) {
 					return { error: error.message };
 				}
@@ -95,6 +214,15 @@ const deviceSlice = apiSlice.injectEndpoints({
 					const docRef = doc(db, 'devices', deviceId);
 					const docSnapshot = await getDoc(docRef);
 					const data = docToData(docSnapshot) as Device;
+					const accessibleAccountIds = await resolveAccessibleAccountIds();
+					const { isScoped, linkedPropertyIds } =
+						await getTeamMemberAccessForCurrentUser(accessibleAccountIds);
+					if (
+						isScoped &&
+						!linkedPropertyIds.has(String(data.location?.propertyId || ''))
+					) {
+						return { error: 'Not authorized to view this appliance' };
+					}
 					return { data: data as Device };
 				} catch (error: any) {
 					return { error: error.message };
@@ -225,6 +353,8 @@ const deviceSlice = apiSlice.injectEndpoints({
 						return { error: 'User not authenticated' };
 					}
 					const accessibleAccountIds = await resolveAccessibleAccountIds();
+					const { isScoped, linkedPropertyIds } =
+						await getTeamMemberAccessForCurrentUser(accessibleAccountIds);
 					const devices: Device[] = [];
 					for (const accountId of accessibleAccountIds) {
 						const q = query(
@@ -240,7 +370,13 @@ const deviceSlice = apiSlice.injectEndpoints({
 					const uniqueDevices = Array.from(
 						new Map(devices.map((device) => [device.id, device])).values(),
 					) as Device[];
-					return { data: uniqueDevices };
+					return {
+						data: filterDevicesByAllowedProperties(
+							uniqueDevices,
+							isScoped,
+							linkedPropertyIds,
+						),
+					};
 				} catch (error: any) {
 					return { error: error.message };
 				}
