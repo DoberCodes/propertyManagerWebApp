@@ -305,6 +305,8 @@ export const NotificationPreferences: React.FC<
 				currentUser?.notificationPreferences?.types?.task_updated ?? true,
 			task_deleted:
 				currentUser?.notificationPreferences?.types?.task_deleted ?? true,
+			task_completed:
+				currentUser?.notificationPreferences?.types?.task_completed ?? true,
 			task_reminder:
 				currentUser?.notificationPreferences?.types?.task_reminder ?? true,
 			task_overdue:
@@ -371,6 +373,11 @@ export const NotificationPreferences: React.FC<
 			key: 'task_updated' as const,
 			label: 'Task Status Changed',
 			description: 'When task status or details are updated',
+		},
+		{
+			key: 'task_completed' as const,
+			label: 'Task Completed',
+			description: 'When completed tasks are added to maintenance history',
 		},
 		{
 			key: 'task_reminder' as const,

@@ -16,6 +16,7 @@ export interface Notification {
 		| 'task_assigned'
 		| 'task_updated'
 		| 'task_deleted'
+		| 'task_completed'
 		| 'task_reminder'
 		| 'task_overdue'
 		| 'team_member_added'

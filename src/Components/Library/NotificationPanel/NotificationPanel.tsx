@@ -273,6 +273,8 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = () => {
 				return '✅';
 			case 'property_added':
 				return '🏠';
+			case 'task_completed':
+				return '✅';
 			case 'task_assigned':
 				return '📋';
 			case 'maintenance_request':
@@ -292,6 +294,8 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = () => {
 				return '#4caf50';
 			case 'property_added':
 				return '#4caf50';
+			case 'task_completed':
+				return '#16a34a';
 			case 'task_assigned':
 				return '#ff9800';
 			case 'maintenance_request':

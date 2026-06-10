@@ -111,6 +111,7 @@ export interface User {
 			task_assigned: boolean;
 			task_updated: boolean;
 			task_deleted: boolean;
+			task_completed: boolean;
 			task_reminder: boolean;
 			task_overdue: boolean;
 			team_member_added: boolean;

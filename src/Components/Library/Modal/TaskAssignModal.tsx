@@ -10,9 +10,16 @@ import {
 } from '../../../Redux/API/userSlice';
 import { useGetPropertyQuery } from '../../../Redux/API/propertySlice';
 import { useGetContractorsByPropertyQuery } from '../../../Redux/API/contractorSlice';
+import { useGetTeamMembersQuery } from '../../../Redux/API/teamSlice';
 import { getFamilyMembers } from '../../../services/authService';
 import { useUpdateTaskMutation } from '../../../Redux/API/taskSlice';
 import { useAppFeedback } from '../AppFeedback/AppFeedbackProvider';
+
+type AssigneeOption = {
+	id: string;
+	name: string;
+	email?: string;
+};
 
 interface TaskAssignModalProps {
 	isOpen: boolean;
@@ -35,6 +42,7 @@ export const TaskAssignModal = (props: TaskAssignModalProps) => {
 	const { data: propertyOwner } = useGetUserByIdQuery(property?.userId || '', {
 		skip: !property?.userId,
 	});
+	const { data: firebaseTeamMembers = [] } = useGetTeamMembersQuery();
 
 	const [selectedAssignee, setSelectedAssignee] = useState<any>(
 		props.selectedAssignee ?? { id: '', name: '', email: '' },
@@ -47,9 +55,15 @@ export const TaskAssignModal = (props: TaskAssignModalProps) => {
 	}, [props.selectedAssignee]);
 	// Select team groups and memoize derived members to avoid returning new references
 	const teamGroups = useSelector((state: RootState) => state.team.groups);
-	const teamMembers = useMemo(
+	const reduxTeamMembers = useMemo(
 		() => teamGroups.flatMap((group) => group.members || []),
 		[teamGroups],
+	);
+	const teamMembers = useMemo(
+		() =>
+			(firebaseTeamMembers.length > 0 ? firebaseTeamMembers : reduxTeamMembers)
+				.filter(Boolean),
+		[firebaseTeamMembers, reduxTeamMembers],
 	);
 
 	const [familyMembers, setFamilyMembers] = useState<any[]>([]);
@@ -75,119 +89,80 @@ export const TaskAssignModal = (props: TaskAssignModalProps) => {
 		fetchFamilyMembers();
 	}, [currentUser?.accountId, currentUser?.isTeamMemberAccount]);
 
-	const fetchAssignees = useCallback(() => {
-		// If assigneeOptions are provided, use them as base and add property-specific assignees
-		if (props.assigneeOptions && props.assigneeOptions.length > 0) {
-			const formattedAssignees = props.assigneeOptions.map((option) => ({
+	const fetchAssignees = useCallback((): AssigneeOption[] => {
+		const assignees: AssigneeOption[] = [];
+		const addAssignee = (assignee?: Partial<AssigneeOption> | null) => {
+			const id = String(assignee?.id || '').trim();
+			const name = String(assignee?.name || assignee?.email || '').trim();
+			if (!id || !name) return;
+			if (assignees.some((item) => item.id === id)) return;
+			assignees.push({
+				id,
+				name,
+				email: assignee?.email,
+			});
+		};
+
+		(props.assigneeOptions || []).forEach((option) =>
+			addAssignee({
 				id: option.value,
 				name: option.label,
 				email: option.email,
-			}));
+			}),
+		);
 
-			// Add property owner if different from current user
-			if (propertyOwner && propertyOwner.id !== currentUser?.id) {
-				formattedAssignees.push({
-					id: propertyOwner.id,
-					name:
-						propertyOwner.firstName && propertyOwner.lastName
-							? `${propertyOwner.firstName} ${propertyOwner.lastName}`
-							: propertyOwner.email?.split('@')[0] || 'Property Owner',
-					email: propertyOwner.email || '',
-				});
-			}
-
-			// Add contractors for the specific property
-			const contractorAssignees = contractors.map((contractor) => ({
-				id: contractor?.id,
-				name: contractor?.name
-					? `${contractor?.name} (${contractor?.category})`
-					: contractor?.email,
-				email: contractor?.email,
-			}));
-
-			const allAssignees = [
-				...formattedAssignees,
-				...contractorAssignees,
-			];
-
-			// Remove duplicates based on ID
-			const uniqueAssignees = allAssignees.filter(
-				(assignee, index, self) =>
-					index === self.findIndex((a) => a.id === assignee.id),
-			);
-
-			// If there's a currently selected assignee that's not in the list, add them
-			if (
-				props.selectedAssignee?.id &&
-				!uniqueAssignees.find((a) => a.id === props.selectedAssignee.id)
-			) {
-				uniqueAssignees.push(props.selectedAssignee);
-			}
-
-			return uniqueAssignees;
+		if (propertyOwner && propertyOwner.id !== currentUser?.id) {
+			addAssignee({
+				id: propertyOwner.id,
+				name:
+					propertyOwner.firstName && propertyOwner.lastName
+						? `${propertyOwner.firstName} ${propertyOwner.lastName}`
+						: propertyOwner.email?.split('@')[0] || 'Property Owner',
+				email: propertyOwner.email || '',
+			});
 		}
 
-		// Fallback: build assignee options from various sources
-		const family = familyMembers;
-		const totalAssignees = [
-			// Add property owner if different from current user
-			...(propertyOwner && propertyOwner.id !== currentUser?.id
-				? [
-						{
-							id: propertyOwner.id,
-							name:
-								propertyOwner.firstName && propertyOwner.lastName
-									? `${propertyOwner.firstName} ${propertyOwner.lastName}`
-									: propertyOwner.email?.split('@')[0] || 'Property Owner',
-							email: propertyOwner.email || '',
-						},
-				  ]
-				: []),
-			...teamMembers.map((member) => ({
+		teamMembers.forEach((member) =>
+			addAssignee({
 				id: member?.id,
 				name: member?.firstName
 					? `${member?.firstName} ${member?.lastName || ''}`.trim()
 					: member?.email,
 				email: member?.email,
-			})),
-			...contractors.map((contractor) => ({
+			}),
+		);
+
+		contractors.forEach((contractor) =>
+			addAssignee({
 				id: contractor?.id,
 				name: contractor?.name
 					? `${contractor?.name} (${contractor?.category})`
 					: contractor?.email,
 				email: contractor?.email,
-			})),
-			...family.map((member) => ({
+			}),
+		);
+
+		familyMembers.forEach((member) =>
+			addAssignee({
 				id: member?.id,
 				name: member?.firstName
 					? `${member?.firstName} ${member?.lastName || ''}`.trim()
 					: member?.email,
 				email: member?.email,
-			})),
-		];
+			}),
+		);
 
-		const formattedAssignees = totalAssignees.filter(
-			(assignee, index, self) =>
-				index === self.findIndex((a) => a.id === assignee.id),
-		); // Remove duplicates based on ID
+		addAssignee(props.selectedAssignee);
 
-		// If there's a currently selected assignee that's not in the list, add them
-		if (
-			props.selectedAssignee?.id &&
-			!formattedAssignees.find((a) => a.id === props.selectedAssignee.id)
-		) {
-			formattedAssignees.push(props.selectedAssignee);
-		}
-
-		return formattedAssignees;
+		return assignees;
 	}, [
 		familyMembers,
 		teamMembers,
 		contractors,
 		props.selectedAssignee,
 		props.assigneeOptions,
-		property,
-		currentUser,
+		propertyOwner,
+		currentUser?.id,
 	]);
 
 	const [assignTask] = useUpdateTaskMutation();

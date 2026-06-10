@@ -28,6 +28,7 @@ import {
 	useDeleteTaskMutation,
 	useUpdateTaskMutation,
 } from '../../Redux/API/taskSlice';
+import { useGetTeamMembersQuery } from '../../Redux/API/teamSlice';
 import {
 	Wrapper,
 	TaskGridSection,
@@ -73,12 +74,19 @@ export const TasksPage = () => {
 	const canCreateTasks = roleCapabilities.canCreateTasks;
 	// Select groups from state and derive team members with useMemo
 	const teamGroups = useSelector((state: RootState) => state.team.groups);
-	const teamMembers = useMemo(
+	const { data: firebaseTeamMembers = [] } = useGetTeamMembersQuery();
+	const reduxTeamMembers = useMemo(
 		() =>
 			teamGroups
 				.flatMap((group) => group.members || [])
 				.filter((member): member is typeof member => member !== undefined),
 		[teamGroups],
+	);
+	const teamMembers = useMemo(
+		() =>
+			(firebaseTeamMembers.length > 0 ? firebaseTeamMembers : reduxTeamMembers)
+				.filter((member): member is typeof member => member !== undefined),
+		[firebaseTeamMembers, reduxTeamMembers],
 	);
 
 	// Fetch tasks and properties from Firebase

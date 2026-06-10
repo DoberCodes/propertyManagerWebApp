@@ -27,6 +27,7 @@ export { ensureFamilyAccount } from './ensureFamilyAccount';
 export {
 	createMaintenanceEvent,
 	createMaintenanceEventsBatch,
+	notifyTaskCompletion,
 } from './maintenanceEvents';
 export {
 	createTeamMemberInvitationCode,

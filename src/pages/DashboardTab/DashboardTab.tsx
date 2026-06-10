@@ -97,6 +97,7 @@ import { TaskAssignModal } from 'Components/Library/Modal/TaskAssignModal';
 import { useGetTasksQuery, useUpdateTaskMutation } from 'Redux/API/taskSlice';
 import { useGetAllDevicesQuery } from 'Redux/API/deviceSlice';
 import { useLazyGetMaintenanceHistoryByPropertyQuery } from 'Redux/API/maintenanceSlice';
+import { useGetTeamMembersQuery } from 'Redux/API/teamSlice';
 
 const getLinkedDeviceIds = (task: Partial<Task> & { deviceId?: string | number }): Set<string> => {
 	const ids = new Set<string>();
@@ -141,12 +142,19 @@ export const DashboardTab = () => {
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
 	// Select team groups and derive members with memoization to avoid new references
 	const teamGroups = useSelector((state: RootState) => state.team.groups);
-	const teamMembers = useMemo(
+	const { data: firebaseTeamMembers = [] } = useGetTeamMembersQuery();
+	const reduxTeamMembers = useMemo(
 		() =>
 			teamGroups
 				.flatMap((group) => group.members || [])
 				.filter((member): member is typeof member => member !== undefined),
 		[teamGroups],
+	);
+	const teamMembers = useMemo(
+		() =>
+			(firebaseTeamMembers.length > 0 ? firebaseTeamMembers : reduxTeamMembers)
+				.filter((member): member is typeof member => member !== undefined),
+		[firebaseTeamMembers, reduxTeamMembers],
 	);
 
 	// Fetch tasks and properties from Firebase

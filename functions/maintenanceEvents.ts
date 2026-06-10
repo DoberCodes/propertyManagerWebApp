@@ -305,6 +305,64 @@ const buildEventDoc = (
 	return payload;
 };
 
+export const notifyTaskCompletion = functions
+	.region('us-central1')
+	.firestore.document('maintenanceEvents/{eventId}')
+	.onCreate(async (snapshot, context) => {
+		const event = (snapshot.data() || {}) as Record<string, unknown>;
+		const eventType = toString(event.eventType);
+
+		if (eventType !== 'task_completed') {
+			return;
+		}
+
+		const accountId = toString(event.accountId);
+		if (!accountId) {
+			console.warn('Task completion event missing accountId', {
+				eventId: context.params.eventId,
+			});
+			return;
+		}
+
+		const title = toString(event.title) || 'Maintenance task';
+		const propertyId = toString(event.propertyId);
+		const propertyTitle = toString(event.propertyTitle);
+		const completionDate = toString(event.completionDate || event.createdAt);
+		const eventData = (event.data || {}) as Record<string, unknown>;
+		const linkedTaskIds = Array.isArray(event.linkedTaskIds)
+			? event.linkedTaskIds.map((id) => toString(id)).filter(Boolean)
+			: [];
+		const nowIso = new Date().toISOString();
+
+		const notification = stripUndefinedDeep({
+			userId: accountId,
+			type: 'task_completed',
+			title: 'Task Completed',
+			message: propertyTitle
+				? `${title} was completed at ${propertyTitle}.`
+				: `${title} was completed.`,
+			data: {
+				eventId: context.params.eventId,
+				propertyId: propertyId || undefined,
+				propertyTitle: propertyTitle || undefined,
+				taskTitle: title,
+				completionDate: completionDate || undefined,
+				completedBy:
+					toString(eventData.completedBy) ||
+					toString(event.createdBy) ||
+					undefined,
+				originalTaskId:
+					toString(event.originalTaskId) || linkedTaskIds[0] || undefined,
+			},
+			status: 'unread',
+			actionUrl: propertyId ? `/properties/${propertyId}` : undefined,
+			createdAt: nowIso,
+			updatedAt: nowIso,
+		}) as Record<string, unknown>;
+
+		await db.collection('notifications').add(notification);
+	});
+
 const writeMaintenanceEvent = async (
 	event: MaintenanceEventInput,
 	uid: string,
