@@ -5,6 +5,8 @@ export const USER_ROLES = {
 	ASSISTANT_MANAGER: 'assistant_manager',
 	MAINTENANCE_LEAD: 'maintenance_lead',
 	MAINTENANCE: 'maintenance',
+	ACCOUNTING: 'accounting',
+	LEASING: 'leasing',
 	CONTRACTOR: 'contractor',
 	TENANT: 'tenant',
 	PROPERTY_GUEST: 'property_guest',
@@ -19,6 +21,8 @@ export const ROLE_HIERARCHY = {
 	[USER_ROLES.MAINTENANCE_LEAD]: 70,
 	[USER_ROLES.ASSISTANT_MANAGER]: 60,
 	[USER_ROLES.MAINTENANCE]: 40,
+	[USER_ROLES.ACCOUNTING]: 35,
+	[USER_ROLES.LEASING]: 35,
 	[USER_ROLES.CONTRACTOR]: 30,
 	[USER_ROLES.TENANT]: 10,
 	[USER_ROLES.PROPERTY_GUEST]: 5,
@@ -51,6 +55,8 @@ export const TEAM_VIEW_ROLES = [
 	USER_ROLES.ASSISTANT_MANAGER,
 	USER_ROLES.MAINTENANCE_LEAD,
 	USER_ROLES.MAINTENANCE,
+	USER_ROLES.ACCOUNTING,
+	USER_ROLES.LEASING,
 ] as const;
 
 // Roles that can see all data (not restricted to assigned properties)
@@ -64,6 +70,8 @@ export const FULL_ACCESS_ROLES = [
 // Roles that are restricted to only their assigned properties
 export const LIMITED_ACCESS_ROLES = [
 	USER_ROLES.MAINTENANCE,
+	USER_ROLES.ACCOUNTING,
+	USER_ROLES.LEASING,
 	USER_ROLES.CONTRACTOR,
 	USER_ROLES.TENANT,
 	USER_ROLES.PROPERTY_GUEST,
@@ -85,6 +93,8 @@ export const PAGE_VIEW_ROLES = [
 	USER_ROLES.ASSISTANT_MANAGER,
 	USER_ROLES.MAINTENANCE_LEAD,
 	USER_ROLES.MAINTENANCE,
+	USER_ROLES.ACCOUNTING,
+	USER_ROLES.LEASING,
 ] as const;
 
 // Property sharing permission levels

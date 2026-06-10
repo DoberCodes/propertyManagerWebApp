@@ -14,6 +14,12 @@ const upsertTeamMemberAccess = async (params: {
 	accountId: string;
 	teamMemberId?: string;
 	role?: string | null;
+	firstName?: string | null;
+	lastName?: string | null;
+	title?: string | null;
+	phone?: string | null;
+	address?: string | null;
+	image?: string | null;
 }) => {
 	const now = new Date().toISOString();
 	const normalizedEmail = String(params.email || '').trim().toLowerCase();
@@ -29,6 +35,27 @@ const upsertTeamMemberAccess = async (params: {
 			isAccountOwner: false,
 			isTeamMemberAccount: true,
 			...(params.teamMemberId ? { teamMemberId: params.teamMemberId } : {}),
+			...(params.role !== undefined && params.role !== null
+				? { role: params.role }
+				: {}),
+			...(params.firstName !== undefined && params.firstName !== null
+				? { firstName: params.firstName }
+				: {}),
+			...(params.lastName !== undefined && params.lastName !== null
+				? { lastName: params.lastName }
+				: {}),
+			...(params.title !== undefined && params.title !== null
+				? { title: params.title }
+				: {}),
+			...(params.phone !== undefined && params.phone !== null
+				? { phone: params.phone }
+				: {}),
+			...(params.address !== undefined && params.address !== null
+				? { address: params.address }
+				: {}),
+			...(params.image !== undefined && params.image !== null
+				? { image: params.image }
+				: {}),
 			updatedAt: now,
 		},
 		{ merge: true },
@@ -58,11 +85,65 @@ const upsertTeamMemberAccess = async (params: {
 				userAccountId: params.uid,
 				redeemedByUserId: params.uid,
 				redeemedAt: now,
+				invitationCodeStatus: 'redeemed',
 				updatedAt: now,
 			},
 			{ merge: true },
 		);
 	}
+};
+
+const findLinkedTeamMemberId = async (
+	accountId: string,
+	linkedUserId: string,
+): Promise<string | null> => {
+	const userAccountSnapshot = await db
+		.collection('teamMembers')
+		.where('accountId', '==', accountId)
+		.where('userAccountId', '==', linkedUserId)
+		.limit(1)
+		.get();
+
+	if (!userAccountSnapshot.empty) {
+		return userAccountSnapshot.docs[0].id;
+	}
+
+	const redeemedBySnapshot = await db
+		.collection('teamMembers')
+		.where('accountId', '==', accountId)
+		.where('redeemedByUserId', '==', linkedUserId)
+		.limit(1)
+		.get();
+
+	return redeemedBySnapshot.empty ? null : redeemedBySnapshot.docs[0].id;
+};
+
+const findNextActiveTeamMembership = async (
+	currentAccountId: string,
+	linkedUserId: string,
+): Promise<admin.firestore.QueryDocumentSnapshot | null> => {
+	const membershipSnapshot = await db
+		.collection('accountMemberships')
+		.where('userId', '==', linkedUserId)
+		.get();
+
+	return (
+		membershipSnapshot.docs.find((membershipDoc) => {
+			const membership = membershipDoc.data() || {};
+			const accountId = String(membership.accountId || '').trim();
+			const status = String(membership.status || 'active').trim().toLowerCase();
+			const roles = Array.isArray(membership.roles) ? membership.roles : [];
+			const role = String(membership.role || '').trim();
+
+			return (
+				accountId &&
+				accountId !== currentAccountId &&
+				status !== 'disabled' &&
+				status !== 'revoked' &&
+				(role === 'team_member' || roles.includes('team_member'))
+			);
+		}) || null
+	);
 };
 
 interface CreateTeamMemberInviteRequest {
@@ -241,8 +322,13 @@ export const revokeTeamMemberInvitationCode = functions.https.onCall(
 		const linkedUserId = String(
 			teamMemberData.userAccountId || teamMemberData.redeemedByUserId || '',
 		).trim();
+		let shouldDeleteLinkedAccount = false;
 
 		if (linkedUserId) {
+			const nextMembership = await findNextActiveTeamMembership(
+				accountId,
+				linkedUserId,
+			);
 			const membershipRef = db
 				.collection('accountMemberships')
 				.doc(`${accountId}_${linkedUserId}`);
@@ -256,23 +342,38 @@ export const revokeTeamMemberInvitationCode = functions.https.onCall(
 				{ merge: true },
 			);
 
-			batch.set(
-				db.collection('users').doc(linkedUserId),
-				{
-					accountId: admin.firestore.FieldValue.delete(),
-					isAccountOwner: false,
-					isTeamMemberAccount: false,
-					teamMemberId: admin.firestore.FieldValue.delete(),
-					updatedAt: now,
-				},
-				{ merge: true },
-			);
+			if (nextMembership) {
+				const nextMembershipData = nextMembership.data() || {};
+				const nextAccountId = String(nextMembershipData.accountId || '').trim();
+				const nextTeamMemberId = nextAccountId
+					? await findLinkedTeamMemberId(nextAccountId, linkedUserId)
+					: null;
+
+				batch.set(
+					db.collection('users').doc(linkedUserId),
+					{
+						accountId: nextAccountId,
+						isAccountOwner: false,
+						isTeamMemberAccount: true,
+						teamMemberId:
+							nextTeamMemberId || admin.firestore.FieldValue.delete(),
+						updatedAt: now,
+					},
+					{ merge: true },
+				);
+			} else {
+				shouldDeleteLinkedAccount = true;
+				batch.delete(db.collection('users').doc(linkedUserId));
+			}
 		}
 
 		batch.set(
 			teamMemberRef,
 			{
 				invitationCodeStatus: 'revoked',
+				userAccountId: admin.firestore.FieldValue.delete(),
+				redeemedByUserId: admin.firestore.FieldValue.delete(),
+				redeemedAt: admin.firestore.FieldValue.delete(),
 				updatedAt: now,
 			},
 			{ merge: true },
@@ -280,7 +381,21 @@ export const revokeTeamMemberInvitationCode = functions.https.onCall(
 
 		await batch.commit();
 
-		return { success: true, revokedCount: snapshot.size };
+		if (linkedUserId && shouldDeleteLinkedAccount) {
+			try {
+				await admin.auth().deleteUser(linkedUserId);
+			} catch (authError: any) {
+				if (authError?.code !== 'auth/user-not-found') {
+					console.error('Failed to delete revoked team member auth user:', authError);
+				}
+			}
+		}
+
+		return {
+			success: true,
+			revokedCount: snapshot.size,
+			accountDeleted: shouldDeleteLinkedAccount,
+		};
 	},
 );
 
@@ -350,15 +465,30 @@ export const redeemTeamMemberInvitationCode = functions.https.onCall(
 			updatedAt: now,
 		});
 
-		let teamMemberRole: string | null = null;
+		let teamMemberProfile: {
+			role?: string;
+			firstName?: string;
+			lastName?: string;
+			title?: string;
+			phone?: string;
+			address?: string;
+			image?: string;
+		} | null = null;
 		if (inviteData.teamMemberId) {
 			const teamMemberDoc = await db
 				.collection('teamMembers')
 				.doc(inviteData.teamMemberId)
 				.get();
 			if (teamMemberDoc.exists) {
-				const teamMemberData = teamMemberDoc.data() as { role?: string };
-				teamMemberRole = teamMemberData?.role || null;
+				teamMemberProfile = teamMemberDoc.data() as {
+					role?: string;
+					firstName?: string;
+					lastName?: string;
+					title?: string;
+					phone?: string;
+					address?: string;
+					image?: string;
+				};
 			}
 		}
 
@@ -368,7 +498,13 @@ export const redeemTeamMemberInvitationCode = functions.https.onCall(
 				email: callerEmail,
 				accountId: inviteData.accountId,
 				teamMemberId: inviteData.teamMemberId,
-				role: teamMemberRole,
+				role: teamMemberProfile?.role || null,
+				firstName: teamMemberProfile?.firstName || null,
+				lastName: teamMemberProfile?.lastName || null,
+				title: teamMemberProfile?.title || null,
+				phone: teamMemberProfile?.phone || null,
+				address: teamMemberProfile?.address || null,
+				image: teamMemberProfile?.image || null,
 			});
 		}
 

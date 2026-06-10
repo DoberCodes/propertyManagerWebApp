@@ -700,6 +700,44 @@ export const ReviewValue = styled.div`
 	}
 `;
 
+export const DashboardVisibilityCard = styled.label`
+	display: flex;
+	align-items: flex-start;
+	gap: 12px;
+	padding: 14px;
+	border: 1px solid #e5e7eb;
+	border-radius: 12px;
+	background: #ffffff;
+	cursor: pointer;
+
+	input {
+		flex: 0 0 auto;
+		width: 18px;
+		height: 18px;
+		margin-top: 2px;
+		accent-color: #16a34a;
+	}
+`;
+
+export const DashboardVisibilityText = styled.span`
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+	min-width: 0;
+`;
+
+export const DashboardVisibilityTitle = styled.span`
+	font-size: 14px;
+	font-weight: 700;
+	color: #0f172a;
+`;
+
+export const DashboardVisibilityHint = styled.span`
+	font-size: 12px;
+	line-height: 1.45;
+	color: #64748b;
+`;
+
 export const AddDeviceButton = styled.button`
 	background-color: #22c55e;
 	color: white;

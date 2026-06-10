@@ -75,6 +75,10 @@ export const ProtectedRoutes = ({
 
 	// Check subscription requirements
 	if (requireSubscription && currentUser) {
+		if (currentUser.isTeamMemberAccount === true) {
+			return <>{children}</>;
+		}
+
 		if (!currentUser.subscription) {
 			return <Navigate to='/paywall' replace />;
 		}

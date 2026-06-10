@@ -62,6 +62,7 @@ import {
 	ActiveFilterChipClear,
 } from './mobileUiShared';
 import { TaskFinancials } from 'types/Task.types';
+import { RoleCapabilities } from 'utils/permissions';
 
 const maintenanceEventTypeLabels: Record<string, string> = {
 	task_completed: 'Task Completed',
@@ -176,6 +177,49 @@ const getEventVisual = (eventType: string) => {
 	}
 };
 
+const getMaintenanceAttachments = (
+	record: any,
+): Array<{ name: string; url?: string }> => {
+	const files: Array<{ name: string; url?: string }> = [];
+
+	if (record?.completionFile?.name) {
+		files.push({
+			name: record.completionFile.name,
+			url: record.completionFile.url,
+		});
+	}
+
+	if (record?.completionFileData?.name) {
+		files.push({
+			name: record.completionFileData.name,
+			url: record.completionFileData.url,
+		});
+	}
+
+	if (Array.isArray(record?.attachments)) {
+		record.attachments.forEach((attachment: any) => {
+			const name = attachment?.fileName || attachment?.name;
+			if (!name) return;
+			files.push({ name, url: attachment?.url });
+		});
+	}
+
+	if (Array.isArray(record?.files)) {
+		record.files.forEach((file: any) => {
+			if (!file?.name) return;
+			files.push({ name: file.name, url: file.url });
+		});
+	}
+
+	const deduped = new Map<string, { name: string; url?: string }>();
+	files.forEach((file) => {
+		const key = `${file.name}::${file.url || ''}`;
+		if (!deduped.has(key)) deduped.set(key, file);
+	});
+
+	return Array.from(deduped.values());
+};
+
 const getOperationalStatus = (record: any) => {
 	const eventType = getMaintenanceEventType(record);
 	const completionDate = record.completionDate;
@@ -247,6 +291,7 @@ export interface MaintenanceTabProps {
 	}) => void;
 	onUpdateMaintenanceHistory?: (id: string, updates: Partial<any>) => void;
 	onDeleteMaintenanceHistory?: (historyId: string) => void;
+	permissions?: RoleCapabilities;
 }
 
 export const MaintenanceTab = ({
@@ -260,6 +305,7 @@ export const MaintenanceTab = ({
 	onAddMaintenanceHistory,
 	onUpdateMaintenanceHistory,
 	onDeleteMaintenanceHistory,
+	permissions,
 }: MaintenanceTabProps) => {
 	const feedback = useAppFeedback();
 	const navigate = useNavigate();
@@ -277,7 +323,11 @@ export const MaintenanceTab = ({
 	const [pendingDeleteAction, setPendingDeleteAction] = useState<
 		() => Promise<void>
 	>(() => async () => {});
-	const canBulkEdit = Boolean(onUpdateMaintenanceHistory);
+	const canManageMaintenanceHistory =
+		permissions?.canManageMaintenanceHistory ?? Boolean(onAddMaintenanceHistory);
+	const canBulkEdit = canManageMaintenanceHistory && Boolean(onUpdateMaintenanceHistory);
+	const canDeleteHistory =
+		canManageMaintenanceHistory && Boolean(onDeleteMaintenanceHistory);
 
 	const { isMobile } = useSelector((state: any) => state.app);
 
@@ -325,7 +375,7 @@ export const MaintenanceTab = ({
 
 			// Update all selected records with the maintenanceGroupId
 			for (const record of selectedRecords) {
-				if (onUpdateMaintenanceHistory) {
+				if (canManageMaintenanceHistory && onUpdateMaintenanceHistory) {
 					await onUpdateMaintenanceHistory(record.id, {
 						maintenanceGroupId: groupId,
 					});
@@ -341,7 +391,7 @@ export const MaintenanceTab = ({
 	};
 
 	const handleDeleteGroup = async (records: any[]) => {
-		if (!onDeleteMaintenanceHistory) return;
+		if (!canDeleteHistory || !onDeleteMaintenanceHistory) return;
 
 		const deletableRecords = records.filter(
 			(record) => !record.isLegacy && record.id,
@@ -932,11 +982,49 @@ export const MaintenanceTab = ({
 			},
 		},
 		{
+			header: 'Documents',
+			key: 'attachments',
+			render: (_value, row) => {
+				const attachments = getMaintenanceAttachments(row);
+				if (attachments.length === 0) {
+					return <span style={{ color: '#94a3b8', fontSize: 13 }}>None</span>;
+				}
+
+				return (
+					<div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+						{attachments.map((file, index) =>
+							file.url ? (
+								<a
+									key={`${file.name}-${file.url}-${index}`}
+									href={file.url}
+									target='_blank'
+									rel='noreferrer'
+									style={{
+										color: '#0f766e',
+										fontSize: 13,
+										fontWeight: 700,
+										textDecoration: 'underline',
+									}}>
+									{file.name}
+								</a>
+							) : (
+								<span
+									key={`${file.name}-${index}`}
+									style={{ color: '#475569', fontSize: 13 }}>
+									{file.name}
+								</span>
+							),
+						)}
+					</div>
+				);
+			},
+		},
+		{
 			header: 'Next Step',
 			key: 'actions',
 			render: (_, row) => (
 				<div style={{ display: 'flex', gap: '8px' }}>
-					{onDeleteMaintenanceHistory && (
+					{canDeleteHistory && (
 						<ActionButton
 							className='delete'
 							onClick={() => {
@@ -994,17 +1082,19 @@ export const MaintenanceTab = ({
 			</TabSummaryBar>
 
 			{/* Toolbar with Add button */}
-			<Toolbar
-				style={{
-					marginBottom: isMobile ? '12px' : undefined,
-					justifyContent: isMobile ? 'stretch' : undefined,
-				}}>
-				<ToolbarButton
-					onClick={() => setShowAddModal(true)}
-					style={{ width: isMobile ? '100%' : undefined }}>
-					+ Add History
-				</ToolbarButton>
-			</Toolbar>
+			{canManageMaintenanceHistory && (
+				<Toolbar
+					style={{
+						marginBottom: isMobile ? '12px' : undefined,
+						justifyContent: isMobile ? 'stretch' : undefined,
+					}}>
+					<ToolbarButton
+						onClick={() => setShowAddModal(true)}
+						style={{ width: isMobile ? '100%' : undefined }}>
+						+ Add History
+					</ToolbarButton>
+				</Toolbar>
+			)}
 
 			{/* Bulk Action Toolbar */}
 			{canBulkEdit && selectedRecordIds.size > 0 && (
@@ -1152,9 +1242,11 @@ export const MaintenanceTab = ({
 						<EmptyState>
 							<h3>No maintenance activity yet</h3>
 							<p>Add a completed service note when something happens, or create a task to plan the next maintenance step.</p>
-							<ToolbarButton type='button' onClick={() => setShowAddModal(true)}>
-								Add Maintenance Record
-							</ToolbarButton>
+							{canManageMaintenanceHistory && (
+								<ToolbarButton type='button' onClick={() => setShowAddModal(true)}>
+									Add Maintenance Record
+								</ToolbarButton>
+							)}
 						</EmptyState>
 					) : (
 						<>
@@ -1165,9 +1257,9 @@ export const MaintenanceTab = ({
 									groupId={groupId}
 									units={units}
 									onNavigate={handleNavigation}
-									onDelete={onDeleteMaintenanceHistory}
+									onDelete={canDeleteHistory ? onDeleteMaintenanceHistory : undefined}
 									onDeleteGroup={
-										onDeleteMaintenanceHistory ? handleDeleteGroup : undefined
+										canDeleteHistory ? handleDeleteGroup : undefined
 									}
 								/>
 							))}
@@ -1177,9 +1269,9 @@ export const MaintenanceTab = ({
 									records={[record]}
 									units={units}
 									onNavigate={handleNavigation}
-									onDelete={onDeleteMaintenanceHistory}
+									onDelete={canDeleteHistory ? onDeleteMaintenanceHistory : undefined}
 									onDeleteGroup={
-										onDeleteMaintenanceHistory ? handleDeleteGroup : undefined
+										canDeleteHistory ? handleDeleteGroup : undefined
 									}
 								/>
 							))}
@@ -1192,8 +1284,10 @@ export const MaintenanceTab = ({
 					rowData={filteredRecords}
 					emptyTitle='No maintenance activity yet'
 					emptyMessage='No maintenance activity recorded yet. History will appear as maintenance is completed.'
-					emptyActionLabel='Add Maintenance Record'
-					onEmptyAction={() => setShowAddModal(true)}
+					emptyActionLabel={canManageMaintenanceHistory ? 'Add Maintenance Record' : undefined}
+					onEmptyAction={
+						canManageMaintenanceHistory ? () => setShowAddModal(true) : undefined
+					}
 					hideHeader={true}
 					getRowClassName={(row) => {
 						const status = getOperationalStatus(row);
@@ -1206,7 +1300,7 @@ export const MaintenanceTab = ({
 				/>
 			)}
 			{/* Add Maintenance History Modal */}
-			{showAddModal && (
+			{canManageMaintenanceHistory && showAddModal && (
 				<AddMaintenanceHistoryModal
 					isOpen={showAddModal}
 					onClose={() => setShowAddModal(false)}

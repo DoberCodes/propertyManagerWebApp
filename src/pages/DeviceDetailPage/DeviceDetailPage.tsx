@@ -68,6 +68,7 @@ import {
 	canLinkParts,
 	canTrackWarranties,
 } from '../../utils/subscriptionUtils';
+import { getRoleCapabilities } from '../../utils/permissions';
 import { LockedFeatureCallout } from '../../Components/Library/LockedFeatureCallout';
 import { DeviceServiceItem } from '../../types/Property.types';
 import {
@@ -98,6 +99,7 @@ type DeviceEditFormState = {
 		url: string;
 		size: number;
 		type: string;
+		usage?: 'appliance_photo' | 'document';
 	}>;
 };
 
@@ -882,6 +884,21 @@ const getTimelineAttachments = (entry: any): Array<{ name: string; url?: string 
 		});
 	}
 
+	if (raw.completionFileData?.name) {
+		files.push({
+			name: raw.completionFileData.name,
+			url: raw.completionFileData.url,
+		});
+	}
+
+	if (Array.isArray(raw.attachments)) {
+		raw.attachments.forEach((attachment: any) => {
+			const name = attachment?.fileName || attachment?.name;
+			if (!name) return;
+			files.push({ name, url: attachment?.url });
+		});
+	}
+
 	if (Array.isArray(raw.files)) {
 		raw.files.forEach((file: any) => {
 			if (!file?.name) return;
@@ -1031,7 +1048,22 @@ const getTimelineEventLabel = (entry: { type?: string; title?: string; descripti
 export const DeviceDetailPage: React.FC = () => {
 	const { slug, deviceSlug } = useParams<{ slug: string; deviceSlug: string }>();
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
-	const canAccessParts = !!currentUser?.subscription && canLinkParts(currentUser.subscription);
+	const roleCapabilities = useMemo(
+		() => getRoleCapabilities(currentUser?.role),
+		[currentUser?.role],
+	);
+	const isTeamMemberAccount = currentUser?.isTeamMemberAccount === true;
+	const canManageApplianceActions =
+		!isTeamMemberAccount || roleCapabilities.canManageAppliances;
+	const canCreateTaskActions =
+		!isTeamMemberAccount || roleCapabilities.canCreateTasks;
+	const canLogMaintenanceActions =
+		!isTeamMemberAccount || roleCapabilities.canManageMaintenanceHistory;
+	const canUploadDocumentActions = canLogMaintenanceActions;
+	const canAccessParts =
+		canManageApplianceActions &&
+		!!currentUser?.subscription &&
+		canLinkParts(currentUser.subscription);
 	const canAccessWarranty =
 		!!currentUser?.subscription && canTrackWarranties(currentUser.subscription);
 	const photoInputRef = useRef<HTMLInputElement | null>(null);
@@ -1337,8 +1369,20 @@ export const DeviceDetailPage: React.FC = () => {
 
 	const deviceFiles = useMemo(() => device?.files || [], [device?.files]);
 	const devicePhotoFile = useMemo(
-		() => deviceFiles.find((file: any) => String(file.type || '').startsWith('image/')),
+		() =>
+			deviceFiles.find((file: any) => file?.usage === 'appliance_photo') ||
+			deviceFiles.find(
+				(file: any) =>
+					!file?.usage && String(file.type || '').startsWith('image/'),
+			),
 		[deviceFiles],
+	);
+	const deviceDocumentFiles = useMemo(
+		() =>
+			deviceFiles.filter(
+				(file: any) => !devicePhotoFile || file.url !== devicePhotoFile.url,
+			),
+		[deviceFiles, devicePhotoFile],
 	);
 	const serviceParts = device?.serviceItems || [];
 	const resolvedDeviceStatus = device?.decommissionDate
@@ -1415,8 +1459,8 @@ export const DeviceDetailPage: React.FC = () => {
 	}, [linkedTasks]);
 
 	const documentCount = useMemo(
-		() => deviceFiles.filter((file: any) => !String(file.type || '').startsWith('image/')).length,
-		[deviceFiles],
+		() => deviceDocumentFiles.length,
+		[deviceDocumentFiles],
 	);
 
 	const repairCount = useMemo(
@@ -1441,12 +1485,14 @@ export const DeviceDetailPage: React.FC = () => {
 	};
 
 	const openCreateTaskModal = () => {
+		if (!canCreateTaskActions) return;
 		if (!deviceTaskTemplate) return;
 		setShowRecurringTaskModal(false);
 		setShowTaskModal(true);
 	};
 
 	const openRecurringTaskModal = () => {
+		if (!canCreateTaskActions) return;
 		if (!recurringTaskTemplate) return;
 		setShowTaskModal(false);
 		setShowRecurringTaskModal(true);
@@ -1455,6 +1501,9 @@ export const DeviceDetailPage: React.FC = () => {
 	const openQuickLogModal = (
 		mode: 'note' | 'repair' | 'invoice' | 'inspection' | 'warranty' | 'contractor',
 	) => {
+		if (!canLogMaintenanceActions) {
+			return;
+		}
 		if (mode === 'warranty' && !canAccessWarranty) {
 			return;
 		}
@@ -1465,6 +1514,7 @@ export const DeviceDetailPage: React.FC = () => {
 	};
 
 	const handleSaveQuickLog = async () => {
+		if (!canLogMaintenanceActions) return;
 		if (!device || !property || !quickLogDescription.trim()) return;
 		if (quickLogMode === 'warranty' && !canAccessWarranty) return;
 		setIsSavingQuickLog(true);
@@ -1542,6 +1592,10 @@ export const DeviceDetailPage: React.FC = () => {
 	};
 
 	const handleRecurringTaskSaved = async () => {
+		if (!canCreateTaskActions) {
+			setShowRecurringTaskModal(false);
+			return;
+		}
 		if (!device) {
 			setShowRecurringTaskModal(false);
 			return;
@@ -1569,9 +1623,19 @@ export const DeviceDetailPage: React.FC = () => {
 
 	const handleDocumentUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
 		const file = event.target.files?.[0];
+		if (!canUploadDocumentActions) {
+			if (documentInputRef.current) {
+				documentInputRef.current.value = '';
+			}
+			return;
+		}
 		if (!file || !device || !property) return;
 		try {
 			const uploaded = await uploadDeviceFile(file, property.id, device.id);
+			const documentFile = {
+				...uploaded,
+				usage: 'document' as const,
+			};
 			const isWarrantyDocument = /warranty|guarantee/i.test(file.name) && canAccessWarranty;
 
 			await addMaintenanceHistory({
@@ -1588,7 +1652,7 @@ export const DeviceDetailPage: React.FC = () => {
 					? 'warranty_added'
 					: 'document_uploaded',
 				eventSource: 'document_upload',
-				completionFileData: uploaded,
+				completionFileData: documentFile,
 				tags: isWarrantyDocument
 					? ['device', 'document', 'warranty']
 					: ['device', 'document'],
@@ -1604,7 +1668,7 @@ export const DeviceDetailPage: React.FC = () => {
 			await updateDevice({
 				id: device.id,
 				updates: {
-					files: [uploaded, ...(device.files || [])],
+					files: [documentFile, ...(device.files || [])],
 					maintenanceHistory: nextEntries,
 				},
 			}).unwrap();
@@ -1629,11 +1693,12 @@ export const DeviceDetailPage: React.FC = () => {
 			decommissionDate: device?.decommissionDate || '',
 			status: device?.decommissionDate ? 'Decommissioned' : device?.status || 'Active',
 			location: device?.location || { propertyId: property?.id || '' },
-			files: device?.files || [],
+			files: deviceDocumentFiles,
 		});
 	};
 
 	const handleOpenEditDeviceModal = () => {
+		if (!canManageApplianceActions) return;
 		if (!device || !property) return;
 		setEditingDevice(device);
 		setDeviceFormData({
@@ -1646,7 +1711,7 @@ export const DeviceDetailPage: React.FC = () => {
 			decommissionDate: device.decommissionDate || '',
 			status: device.decommissionDate ? 'Decommissioned' : device.status || 'Active',
 			location: device.location || { propertyId: property.id },
-			files: device.files || [],
+			files: deviceDocumentFiles,
 		});
 		setPendingDeviceFiles([]);
 		setRemovedExistingFileUrls([]);
@@ -1700,6 +1765,7 @@ export const DeviceDetailPage: React.FC = () => {
 	};
 
 	const handleSaveDeviceEdit = async () => {
+		if (!canManageApplianceActions) return;
 		if (!device || !property || !editingDevice) return;
 
 		try {
@@ -1712,8 +1778,17 @@ export const DeviceDetailPage: React.FC = () => {
 				const uploaded = await Promise.all(
 					pendingDeviceFiles.map((file) => uploadDeviceFile(file, property.id, editingDevice.id)),
 				);
-				uploadedFiles = [...persistedFiles, ...uploaded];
+				uploadedFiles = [
+					...persistedFiles,
+					...uploaded.map((file) => ({
+						...file,
+						usage: 'document' as const,
+					})),
+				];
 			}
+			const nextFiles = devicePhotoFile
+				? [devicePhotoFile, ...uploadedFiles]
+				: uploadedFiles;
 
 			await updateDevice({
 				id: editingDevice.id,
@@ -1726,7 +1801,7 @@ export const DeviceDetailPage: React.FC = () => {
 					status: deviceFormData.decommissionDate
 						? 'Decommissioned'
 						: deviceFormData.status,
-					files: uploadedFiles,
+					files: nextFiles,
 				},
 			}).unwrap();
 
@@ -1749,7 +1824,7 @@ export const DeviceDetailPage: React.FC = () => {
 	];
 
 	const handleAddPart = async () => {
-		if (!canAccessParts) return;
+		if (!canManageApplianceActions || !canAccessParts) return;
 		if (!device || !partFormData.name.trim()) return;
 
 		const newPart: DeviceServiceItem = {
@@ -1778,7 +1853,7 @@ export const DeviceDetailPage: React.FC = () => {
 	};
 
 	const handleUpdatePart = async () => {
-		if (!canAccessParts) return;
+		if (!canManageApplianceActions || !canAccessParts) return;
 		if (!device || editingPartIndex === null || !partFormData.name.trim()) return;
 
 		const updatedParts = [...serviceParts];
@@ -1808,7 +1883,7 @@ export const DeviceDetailPage: React.FC = () => {
 	};
 
 	const handleDeletePart = async (index: number) => {
-		if (!canAccessParts) return;
+		if (!canManageApplianceActions || !canAccessParts) return;
 		if (!device) return;
 
 		const updatedParts = serviceParts.filter((_: any, i: number) => i !== index);
@@ -1819,7 +1894,7 @@ export const DeviceDetailPage: React.FC = () => {
 	};
 
 	const handleEditPart = (index: number) => {
-		if (!canAccessParts) return;
+		if (!canManageApplianceActions || !canAccessParts) return;
 		const part = serviceParts[index];
 		setPartFormData({
 			name: part.name || '',
@@ -1844,6 +1919,7 @@ export const DeviceDetailPage: React.FC = () => {
 	};
 
 	const handleDeviceBarcodeDetected = async (rawValue: string) => {
+		if (!canManageApplianceActions) return;
 		if (!device) return;
 		const parsed = parseDeviceBarcodePayload(rawValue);
 		const updates: any = {};
@@ -1880,7 +1956,7 @@ export const DeviceDetailPage: React.FC = () => {
 	};
 
 	const handlePartBarcodeDetected = (rawValue: string) => {
-		if (!canAccessParts) return;
+		if (!canManageApplianceActions || !canAccessParts) return;
 		const parsed = parsePartBarcodePayload(rawValue);
 		setPartFormData((prev) => ({
 			...prev,
@@ -1900,23 +1976,35 @@ export const DeviceDetailPage: React.FC = () => {
 	};
 
 	const handleSelectPhotoClick = () => {
+		if (!canManageApplianceActions) return;
 		photoInputRef.current?.click();
 	};
 
 	const handlePhotoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
 		const file = event.target.files?.[0];
+		if (!canManageApplianceActions) {
+			if (photoInputRef.current) {
+				photoInputRef.current.value = '';
+			}
+			return;
+		}
 		if (!file || !device || !property) return;
 		if (!String(file.type || '').startsWith('image/')) return;
 
 		try {
 			setIsUploadingPhoto(true);
 			const uploaded = await uploadDeviceFile(file, property.id, device.id);
-			const nonImageFiles = (device.files || []).filter(
-				(existing: any) => !String(existing.type || '').startsWith('image/'),
+			const photoFile = {
+				...uploaded,
+				usage: 'appliance_photo' as const,
+			};
+			const filesWithoutPreviousPhoto = (device.files || []).filter(
+				(existing: any) =>
+					!devicePhotoFile || existing.url !== devicePhotoFile.url,
 			);
 			await updateDevice({
 				id: device.id,
-				updates: { files: [uploaded, ...nonImageFiles] },
+				updates: { files: [photoFile, ...filesWithoutPreviousPhoto] },
 			});
 		} finally {
 			setIsUploadingPhoto(false);
@@ -1927,6 +2015,7 @@ export const DeviceDetailPage: React.FC = () => {
 	};
 
 	const handleRemovePhoto = async () => {
+		if (!canManageApplianceActions) return;
 		if (!device || !devicePhotoFile) return;
 		const nextFiles = (device.files || []).filter(
 			(file: any) => file.url !== devicePhotoFile.url,
@@ -2020,89 +2109,112 @@ export const DeviceDetailPage: React.FC = () => {
 					</SummaryCard>
 				</SummaryGrid>
 
-				<QuickActionPanel id='appliance-quick-actions'>
-					<QuickActionHeader>
-						<div>
-							<h3>Quick Actions</h3>
-							<p>Keep this appliance moving with the next maintenance step.</p>
-						</div>
-						<ViewActionsButton
+				{(canManageApplianceActions ||
+					canCreateTaskActions ||
+					canUploadDocumentActions ||
+					canLogMaintenanceActions) && (
+					<QuickActionPanel id='appliance-quick-actions'>
+						<QuickActionHeader>
+							<div>
+								<h3>Quick Actions</h3>
+								<p>Keep this appliance moving with the next maintenance step.</p>
+							</div>
+							<ViewActionsButton
+								type='button'
+								aria-expanded={areQuickActionsOpen}
+								aria-controls='appliance-quick-action-list'
+								onClick={() => setAreQuickActionsOpen((isOpen) => !isOpen)}>
+								{areQuickActionsOpen ? 'Hide Actions' : 'View Actions'}
+							</ViewActionsButton>
+						</QuickActionHeader>
+						{areQuickActionsOpen && (
+							<>
+								<QuickActionGrid id='appliance-quick-action-list'>
+									{canManageApplianceActions && (
+										<QuickActionButton type='button' onClick={handleOpenEditDeviceModal}>
+											<strong>Edit Appliance</strong>
+											<span>Change the appliance profile, status, or location.</span>
+										</QuickActionButton>
+									)}
+									{canCreateTaskActions && (
+										<>
+											<QuickActionButton type='button' onClick={openCreateTaskModal}>
+												<strong>Create Task</strong>
+												<span>Turn this appliance into a tracked maintenance job.</span>
+											</QuickActionButton>
+											<QuickActionButton type='button' onClick={openRecurringTaskModal}>
+												<strong>Add Recurring Maintenance</strong>
+												<span>Set ongoing care for filters, service, and inspections.</span>
+											</QuickActionButton>
+										</>
+									)}
+									{canUploadDocumentActions && (
+										<QuickActionButton type='button' onClick={() => documentInputRef.current?.click()}>
+											<strong>Upload Invoice / Document</strong>
+											<span>Store proof of service, receipts, or manuals here.</span>
+										</QuickActionButton>
+									)}
+									{canLogMaintenanceActions && (
+										<>
+											<QuickActionButton type='button' onClick={() => openQuickLogModal('note')}>
+												<strong>Add Service Note</strong>
+												<span>Capture context that should travel with the system.</span>
+											</QuickActionButton>
+											<QuickActionButton type='button' onClick={() => openQuickLogModal('repair')}>
+												<strong>Log Repair</strong>
+												<span>Write a repair entry directly into the maintenance trail.</span>
+											</QuickActionButton>
+											<QuickActionButton type='button' onClick={() => openQuickLogModal('invoice')}>
+												<strong>Log Invoice</strong>
+												<span>Record invoice details in the maintenance history.</span>
+											</QuickActionButton>
+											<QuickActionButton type='button' onClick={() => openQuickLogModal('inspection')}>
+												<strong>Log Inspection</strong>
+												<span>Document findings and recommendations from inspections.</span>
+											</QuickActionButton>
+						<QuickActionButton
 							type='button'
-							aria-expanded={areQuickActionsOpen}
-							aria-controls='appliance-quick-action-list'
-							onClick={() => setAreQuickActionsOpen((isOpen) => !isOpen)}>
-							{areQuickActionsOpen ? 'Hide Actions' : 'View Actions'}
-						</ViewActionsButton>
-					</QuickActionHeader>
-					{areQuickActionsOpen && (
-						<>
-							<QuickActionGrid id='appliance-quick-action-list'>
-								<QuickActionButton type='button' onClick={handleOpenEditDeviceModal}>
-									<strong>Edit Appliance</strong>
-									<span>Change the appliance profile, status, or location.</span>
-								</QuickActionButton>
-								<QuickActionButton type='button' onClick={openCreateTaskModal}>
-									<strong>Create Task</strong>
-									<span>Turn this appliance into a tracked maintenance job.</span>
-								</QuickActionButton>
-								<QuickActionButton type='button' onClick={openRecurringTaskModal}>
-									<strong>Add Recurring Maintenance</strong>
-									<span>Set ongoing care for filters, service, and inspections.</span>
-								</QuickActionButton>
-								<QuickActionButton type='button' onClick={() => documentInputRef.current?.click()}>
-									<strong>Upload Invoice / Document</strong>
-									<span>Store proof of service, receipts, or manuals here.</span>
-								</QuickActionButton>
-								<QuickActionButton type='button' onClick={() => openQuickLogModal('note')}>
-									<strong>Add Service Note</strong>
-									<span>Capture context that should travel with the system.</span>
-								</QuickActionButton>
-								<QuickActionButton type='button' onClick={() => openQuickLogModal('repair')}>
-									<strong>Log Repair</strong>
-									<span>Write a repair entry directly into the maintenance trail.</span>
-								</QuickActionButton>
-								<QuickActionButton type='button' onClick={() => openQuickLogModal('invoice')}>
-									<strong>Log Invoice</strong>
-									<span>Record invoice details in the maintenance history.</span>
-								</QuickActionButton>
-								<QuickActionButton type='button' onClick={() => openQuickLogModal('inspection')}>
-									<strong>Log Inspection</strong>
-									<span>Document findings and recommendations from inspections.</span>
-								</QuickActionButton>
-								<QuickActionButton
-									type='button'
-									onClick={() => openQuickLogModal('warranty')}
-									disabled={!canAccessWarranty}
-									title={
-										canAccessWarranty
-											? undefined
-											: 'Warranty tracking requires the Property plan or higher'
-									}>
-									<strong>Log Warranty</strong>
-									<span>
-										{canAccessWarranty
-											? 'Capture coverage terms and warranty lifecycle notes.'
-											: 'Upgrade to Property or Portfolio to track warranties.'}
-									</span>
-								</QuickActionButton>
-								<QuickActionButton type='button' onClick={() => openQuickLogModal('contractor')}>
-									<strong>Log Contractor Visit</strong>
-									<span>Document who visited, what they found, and next steps.</span>
-								</QuickActionButton>
-							</QuickActionGrid>
-							<QuickActionHint>
-								These actions all feed the same service history so the appliance becomes more useful over time.
-							</QuickActionHint>
-						</>
-					)}
-				</QuickActionPanel>
-				<input
-					ref={documentInputRef}
-					type='file'
-					accept='image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt'
-					onChange={handleDocumentUpload}
-					style={{ display: 'none' }}
-				/>
+							onClick={() => openQuickLogModal('warranty')}
+							disabled={!canAccessWarranty}
+							title={
+								canAccessWarranty
+									? undefined
+									: isTeamMemberAccount
+										? 'Warranty tracking is controlled by your assigned role.'
+										: 'Warranty tracking requires the Property plan or higher'
+							}>
+							<strong>Log Warranty</strong>
+							<span>
+								{canAccessWarranty
+									? 'Capture coverage terms and warranty lifecycle notes.'
+									: isTeamMemberAccount
+										? 'Ask the account holder to adjust your role if you need this access.'
+										: 'Upgrade to Property or Portfolio to track warranties.'}
+							</span>
+						</QuickActionButton>
+											<QuickActionButton type='button' onClick={() => openQuickLogModal('contractor')}>
+												<strong>Log Contractor Visit</strong>
+												<span>Document who visited, what they found, and next steps.</span>
+											</QuickActionButton>
+										</>
+									)}
+								</QuickActionGrid>
+								<QuickActionHint>
+									These actions all feed the same service history so the appliance becomes more useful over time.
+								</QuickActionHint>
+							</>
+						)}
+					</QuickActionPanel>
+				)}
+				{canUploadDocumentActions && (
+					<input
+						ref={documentInputRef}
+						type='file'
+						accept='image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt'
+						onChange={handleDocumentUpload}
+						style={{ display: 'none' }}
+					/>
+				)}
 
 			{activeTab === 'info' && (
 				<TabContent>
@@ -2115,14 +2227,16 @@ export const DeviceDetailPage: React.FC = () => {
 								Keep this profile current so linked tasks, service records, and documents stay actionable.
 							</SectionDescription>
 						</SectionBlock>
-						<PhotoActions style={{ marginBottom: 14 }}>
-							<ScanButton type='button' onClick={() => setIsDeviceScanOpen(true)}>
-								Scan Appliance Barcode
-							</ScanButton>
-							<PhotoHelperText>
-								Use barcode/QR scan to auto-fill appliance type, brand, model, and serial when available.
-							</PhotoHelperText>
-						</PhotoActions>
+						{canManageApplianceActions && (
+							<PhotoActions style={{ marginBottom: 14 }}>
+								<ScanButton type='button' onClick={() => setIsDeviceScanOpen(true)}>
+									Scan Appliance Barcode
+								</ScanButton>
+								<PhotoHelperText>
+									Use barcode/QR scan to auto-fill appliance type, brand, model, and serial when available.
+								</PhotoHelperText>
+							</PhotoActions>
+						)}
 
 						<PhotoSection>
 							<DevicePhotoCard>
@@ -2217,9 +2331,9 @@ export const DeviceDetailPage: React.FC = () => {
 
 						<InfoCard>
 							<InfoLabel>Attached Files</InfoLabel>
-							{deviceFiles.length > 0 ? (
+							{deviceDocumentFiles.length > 0 ? (
 								<div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-									{deviceFiles.map((file: any) => (
+									{deviceDocumentFiles.map((file: any) => (
 										<a
 											key={`${file.url}-${file.name}`}
 											href={file.url}
@@ -2361,8 +2475,8 @@ export const DeviceDetailPage: React.FC = () => {
 									hideHeader={true}
 									emptyTitle='No open tasks linked yet'
 									emptyMessage='No open tasks linked to this appliance. New maintenance tasks will appear here.'
-									emptyActionLabel='Add Task'
-									onEmptyAction={openCreateTaskModal}
+									emptyActionLabel={canCreateTaskActions ? 'Add Task' : undefined}
+									onEmptyAction={canCreateTaskActions ? openCreateTaskModal : undefined}
 								/>
 							</HeaderlessFeedSurface>
 						</SectionContainer>
@@ -2476,14 +2590,20 @@ export const DeviceDetailPage: React.FC = () => {
 										<p>
 											No timeline entries yet. Tasks and quick service notes create the record for this appliance.
 										</p>
-										<ButtonGroup>
-											<SubmitButton type='button' onClick={openCreateTaskModal}>
-												Add Task
-											</SubmitButton>
-											<ScanButton type='button' onClick={() => openQuickLogModal('note')}>
-												Add Service Note
-											</ScanButton>
-										</ButtonGroup>
+										{(canCreateTaskActions || canLogMaintenanceActions) && (
+											<ButtonGroup>
+												{canCreateTaskActions && (
+													<SubmitButton type='button' onClick={openCreateTaskModal}>
+														Add Task
+													</SubmitButton>
+												)}
+												{canLogMaintenanceActions && (
+													<ScanButton type='button' onClick={() => openQuickLogModal('note')}>
+														Add Service Note
+													</ScanButton>
+												)}
+											</ButtonGroup>
+										)}
 									</EmptyState>
 								)}
 							</SectionContainer>
@@ -2507,31 +2627,58 @@ export const DeviceDetailPage: React.FC = () => {
 												<th>Date</th>
 												<th>Description</th>
 												<th>Status</th>
+												<th>Documents</th>
 												<th>Cost</th>
 											</tr>
 										</thead>
 										<tbody>
-											{applianceMaintenanceFeedRecords.map((record: any, index: number) => (
-												<tr
-													key={`${record.id || record.originalTaskId || 'history'}-${index}`}>
-													<td>
-														{formatDate(
-															getMaintenanceEventDate(record) ||
-																record.date,
-														)}
-													</td>
-													<td>
-														{record.title || record.taskTitle || record.description || 'Task'}
-													</td>
-													<td>{record.status || 'Completed'}</td>
-													<td>
-														{formatCurrency(
-															getFinancialDisplayTotal(record.financials),
-															record.financials?.currency || 'USD',
-														)}
-													</td>
-												</tr>
-											))}
+											{applianceMaintenanceFeedRecords.map((record: any, index: number) => {
+												const attachments = getTimelineAttachments({ raw: record });
+												return (
+													<tr
+														key={`${record.id || record.originalTaskId || 'history'}-${index}`}>
+														<td>
+															{formatDate(
+																getMaintenanceEventDate(record) ||
+																	record.date,
+															)}
+														</td>
+														<td>
+															{record.title || record.taskTitle || record.description || 'Task'}
+														</td>
+														<td>{record.status || 'Completed'}</td>
+														<td>
+															{attachments.length > 0 ? (
+																<TimelineAttachmentList>
+																	{attachments.map((file, fileIndex) =>
+																		file.url ? (
+																			<TimelineAttachmentLink
+																				key={`${file.name}-${file.url}-${fileIndex}`}
+																				href={file.url}
+																				target='_blank'
+																				rel='noreferrer'>
+																				{file.name}
+																			</TimelineAttachmentLink>
+																		) : (
+																			<span key={`${file.name}-${fileIndex}`}>
+																				{file.name}
+																			</span>
+																		),
+																	)}
+																</TimelineAttachmentList>
+															) : (
+																'-'
+															)}
+														</td>
+														<td>
+															{formatCurrency(
+																getFinancialDisplayTotal(record.financials),
+																record.financials?.currency || 'USD',
+															)}
+														</td>
+													</tr>
+												);
+											})}
 										</tbody>
 									</GridTable>
 								</GridContainer>
@@ -2540,9 +2687,11 @@ export const DeviceDetailPage: React.FC = () => {
 									<p>
 										No maintenance history linked to this appliance yet. Completed tasks will appear here as the service record grows.
 									</p>
-									<SubmitButton type='button' onClick={openCreateTaskModal}>
-										Add Task
-									</SubmitButton>
+									{canCreateTaskActions && (
+										<SubmitButton type='button' onClick={openCreateTaskModal}>
+											Add Task
+										</SubmitButton>
+									)}
 								</EmptyState>
 							)}
 							</SectionContainer>
@@ -2557,9 +2706,18 @@ export const DeviceDetailPage: React.FC = () => {
 						<SectionContainer>
 						{!canAccessParts && (
 							<LockedFeatureCallout
-								title='Parts & Service is locked on your current plan'
-								description='Track part inventory, filter specs, and service component history by upgrading to the Property plan or higher.'
+								title={
+									isTeamMemberAccount
+										? 'Parts & Service is limited by your assigned role'
+										: 'Parts & Service is locked on your current plan'
+								}
+								description={
+									isTeamMemberAccount
+										? 'Your account access is controlled by the account holder.'
+										: 'Track part inventory, filter specs, and service component history by upgrading to the Property plan or higher.'
+								}
 								upgradeLabel='Upgrade for Parts'
+								showUpgradeAction={!isTeamMemberAccount}
 								compact
 							/>
 						)}
@@ -2802,7 +2960,7 @@ export const DeviceDetailPage: React.FC = () => {
 								<option value='invoice'>Invoice</option>
 								<option value='inspection'>Inspection</option>
 								<option value='warranty' disabled={!canAccessWarranty}>
-									Warranty{canAccessWarranty ? '' : ' (Property+)'}
+									Warranty{canAccessWarranty || isTeamMemberAccount ? '' : ' (Property+)'}
 								</option>
 								<option value='contractor'>Contractor Visit</option>
 							</FormSelect>

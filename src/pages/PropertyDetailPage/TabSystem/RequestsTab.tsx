@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { useSelector } from 'react-redux';
 import { RequestsTabProps } from '../../../types/PropertyDetailPage.types';
 import {
 	SectionContainer,
@@ -10,7 +11,19 @@ import {
 	Action,
 } from '../../../Components/Library/ReusableTable';
 import { StatusBadge, EmptyState } from './index.styles';
-import { SectionLead, ToolbarButton } from './index.styles';
+import {
+	DesktopTableWrapper,
+	MobileActionButton,
+	MobileFeedLine,
+	MobileFeedLineMuted,
+	MobileFeedMeta,
+	MobileTaskActions,
+	MobileTaskCard,
+	MobileTaskHeader,
+	MobileTaskTitle,
+	SectionLead,
+	ToolbarButton,
+} from './index.styles';
 import {
 	faExchangeAlt,
 	faArrowUpAZ,
@@ -41,9 +54,12 @@ export const RequestsTab: React.FC<RequestsTabProps> = ({
 	canApproveMaintenanceRequest,
 	handleConvertRequestToTask,
 	onCreateTask,
+	permissions,
 }) => {
 	const [search, setSearch] = useState('');
 	const [sortBy, setSortBy] = useState<'dateDesc' | 'priority' | 'status'>('dateDesc');
+	const { isMobile } = useSelector((state: any) => state.app);
+	const isTeamMemberAccount = currentUser?.isTeamMemberAccount === true;
 
 	const formatRelativePast = (value?: string) => {
 		if (!value) return 'No activity yet';
@@ -203,8 +219,10 @@ export const RequestsTab: React.FC<RequestsTabProps> = ({
 		},
 	];
 
-	const canManageRequestTasks =
+	const planAllowsRequestTasks =
 		!!currentUser?.subscription && canManageTenantsForPlan(currentUser.subscription as any);
+	const canManageRequestTasks =
+		planAllowsRequestTasks && (permissions?.canApproveMaintenanceRequests ?? true);
 
 	const filteredRequests = useMemo(() => {
 		// Units are temporarily hidden from the app flow; do not apply unit scoping.
@@ -255,9 +273,18 @@ export const RequestsTab: React.FC<RequestsTabProps> = ({
 			</SectionLead>
 			{!canManageRequestTasks && (
 				<LockedFeatureCallout
-					title='Request task conversion is locked on your current plan'
-					description='You can review requests, but converting them into managed tasks requires the Portfolio plan.'
+					title={
+						planAllowsRequestTasks || isTeamMemberAccount
+							? 'Task conversion is read-only for your role'
+							: 'Request task conversion is locked on your current plan'
+					}
+					description={
+						planAllowsRequestTasks || isTeamMemberAccount
+							? 'You can review requests, but converting them into active maintenance tasks requires a maintenance or manager role.'
+							: 'You can review requests, but converting them into managed tasks requires the Portfolio plan.'
+					}
 					upgradeLabel='Upgrade for Request Tasks'
+					showUpgradeAction={!planAllowsRequestTasks && !isTeamMemberAccount}
 					compact
 				/>
 			)}
@@ -271,6 +298,7 @@ export const RequestsTab: React.FC<RequestsTabProps> = ({
 					style={{
 						flex: 1,
 						minWidth: 180,
+						width: isMobile ? '100%' : undefined,
 						padding: '8px 12px',
 						border: '1px solid #e5e7eb',
 						borderRadius: '4px',
@@ -284,6 +312,7 @@ export const RequestsTab: React.FC<RequestsTabProps> = ({
 					}
 					style={{
 						padding: '8px 10px',
+						width: isMobile ? '100%' : undefined,
 						border: '1px solid #e5e7eb',
 						borderRadius: '4px',
 						background: '#ffffff',
@@ -343,6 +372,8 @@ export const RequestsTab: React.FC<RequestsTabProps> = ({
 			</div>
 
 			{filteredRequests.length > 0 ? (
+				<>
+					<DesktopTableWrapper>
 					<ReusableTable
 						columns={columns}
 						rowData={filteredRequests}
@@ -356,6 +387,82 @@ export const RequestsTab: React.FC<RequestsTabProps> = ({
 						hideHeader={true}
 						emptyMessage='No maintenance requests right now. New requests will appear here for review.'
 					/>
+					</DesktopTableWrapper>
+
+					<div>
+						{filteredRequests.map((request: any) => {
+							const icon = getRequestIcon(request);
+							const canConvert =
+								canManageRequestTasks &&
+								request.status === 'Pending' &&
+								currentUser &&
+								canApproveMaintenanceRequest(currentUser.role as UserRole);
+							const cardAccent =
+								request.status === 'Pending' && ['Urgent', 'High'].includes(request.priority)
+									? '#ef4444'
+									: request.status === 'Pending'
+									? '#f59e0b'
+									: '#94a3b8';
+
+							return (
+								<MobileTaskCard
+									key={request.id}
+									$isSelected={false}
+									style={{ borderLeft: `4px solid ${cardAccent}` }}>
+									<MobileTaskHeader>
+										<div style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%' }}>
+											<span
+												style={{
+													display: 'inline-flex',
+													alignItems: 'center',
+													justifyContent: 'center',
+													width: 28,
+													height: 28,
+													borderRadius: 8,
+													color: icon.color,
+													background: icon.background,
+													flexShrink: 0,
+												}}>
+												<FontAwesomeIcon icon={icon.icon} />
+											</span>
+											<MobileTaskTitle>{request.title || 'Maintenance Request'}</MobileTaskTitle>
+										</div>
+										<StatusBadge status={getRequestStatusUtil(request.status)}>
+											{request.status || 'Pending'}
+										</StatusBadge>
+									</MobileTaskHeader>
+
+									<MobileFeedMeta>
+										<MobileFeedLine>
+											{request.description
+												? `${request.description.slice(0, 110)}${request.description.length > 110 ? '...' : ''}`
+												: 'No request description provided.'}
+										</MobileFeedLine>
+										<MobileFeedLineMuted>
+											{request.category || 'General'} - {request.priority || 'Low'} priority
+										</MobileFeedLineMuted>
+										<MobileFeedLineMuted>
+											Submitted by {request.submittedByName || 'Unknown requester'}
+										</MobileFeedLineMuted>
+										<MobileFeedLineMuted>
+											{formatDateUtil(request.submittedAt)} - {formatRelativePast(request.submittedAt)}
+										</MobileFeedLineMuted>
+									</MobileFeedMeta>
+
+									{canConvert && (
+										<MobileTaskActions>
+											<MobileActionButton
+												variant='primary'
+												onClick={() => handleConvertRequestToTask(request.id)}>
+												Convert to Task
+											</MobileActionButton>
+										</MobileTaskActions>
+									)}
+								</MobileTaskCard>
+							);
+						})}
+					</div>
+				</>
 			) : (
 				<EmptyState>
 					<h3>

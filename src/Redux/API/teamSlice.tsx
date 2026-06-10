@@ -267,10 +267,58 @@ export const teamSlice = apiSlice.injectEndpoints({
 			async queryFn({ id, updates }) {
 				try {
 					const docRef = doc(db, 'teamMembers', id);
+					let existingMember: Partial<TeamMember> = {};
+					try {
+						const existingSnapshot = await getDoc(docRef);
+						existingMember = existingSnapshot.exists()
+							? (existingSnapshot.data() as Partial<TeamMember>)
+							: {};
+					} catch (existingMemberError) {
+						console.warn(
+							'Could not read existing team member before update:',
+							existingMemberError,
+						);
+					}
+
 					await updateDoc(docRef, {
 						...updates,
 						updatedAt: new Date().toISOString(),
 					});
+
+					const linkedUserId =
+						String(
+							(updates as any).userAccountId ||
+								(updates as any).redeemedByUserId ||
+								(existingMember as any).userAccountId ||
+								(existingMember as any).redeemedByUserId ||
+								'',
+						).trim();
+					if (linkedUserId) {
+						const linkedUserUpdates: Record<string, any> = {};
+						(['firstName', 'lastName', 'title', 'phone', 'address', 'image', 'role'] as const).forEach(
+							(field) => {
+								const value = (updates as any)[field];
+								if (value !== undefined) {
+									linkedUserUpdates[field] = value;
+								}
+							},
+						);
+
+						if (Object.keys(linkedUserUpdates).length > 0) {
+							try {
+								await updateDoc(doc(db, 'users', linkedUserId), {
+									...linkedUserUpdates,
+									updatedAt: new Date().toISOString(),
+								});
+							} catch (linkedUserError) {
+								console.warn(
+									'Team member saved, but linked user profile sync failed:',
+									linkedUserError,
+								);
+							}
+						}
+					}
+
 					return { data: { id, ...updates } as TeamMember };
 				} catch (error: any) {
 					return { error: error.message };

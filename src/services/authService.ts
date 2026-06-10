@@ -650,19 +650,24 @@ export const signUpWithEmail = async (
 			});
 		}
 
+		const finalUser =
+			shouldRedeemTeamInvite && teamInviteMemberId
+				? await getUserProfile(userCredential.user.uid)
+				: ({
+						...userProfile,
+						subscription,
+						...(legalAgreement && {
+							legalAgreement: {
+								agreedToTerms: legalAgreement.agreedToTerms,
+								agreedAt,
+								agreedVersion: legalAgreement.agreedVersion,
+								documents: legalDocuments,
+							},
+						}),
+				  } as User);
+
 		return {
-			user: {
-				...userProfile,
-				subscription,
-				...(legalAgreement && {
-					legalAgreement: {
-						agreedToTerms: legalAgreement.agreedToTerms,
-						agreedAt,
-						agreedVersion: legalAgreement.agreedVersion,
-						documents: legalDocuments,
-					},
-				}),
-			},
+			user: finalUser,
 			...(checkoutUrl ? { checkoutUrl } : {}),
 		};
 	} catch (error: any) {
@@ -735,10 +740,75 @@ export const getUserProfile = async (uid: string): Promise<User> => {
 		}
 
 		const rawData: any = userDoc.data();
+		const hasAccountLink = !!String(rawData.accountId || '').trim();
+		const isExplicitNonOwner = rawData.isAccountOwner === false;
+		const isExplicitNonTeamAccount = rawData.isTeamMemberAccount === false;
+		const isTeamAccountWithoutAccess =
+			(
+				!hasAccountLink &&
+				(rawData.isTeamMemberAccount === true ||
+					(isExplicitNonOwner && isExplicitNonTeamAccount))
+			) ||
+			(
+				String(rawData.accountId || '').trim() === uid &&
+				isExplicitNonOwner &&
+				isExplicitNonTeamAccount
+			);
+
+		if (isTeamAccountWithoutAccess) {
+			throw new Error('This team member account no longer has active access.');
+		}
+
 		const serializedData: any = {
 			...(serializeFirestoreValue(rawData) as Record<string, unknown>),
 			id: uid,
 		};
+
+		if (
+			rawData.isTeamMemberAccount === true &&
+			String(rawData.teamMemberId || '').trim()
+		) {
+			try {
+				const teamMemberSnapshot = await getDoc(
+					doc(db, 'teamMembers', String(rawData.teamMemberId).trim()),
+				);
+				if (teamMemberSnapshot.exists()) {
+					const teamMemberData = serializeFirestoreValue(
+						teamMemberSnapshot.data(),
+					) as Record<string, unknown>;
+					const linkedProfileUpdates: Record<string, unknown> = {};
+					(['firstName', 'lastName', 'title', 'phone', 'address', 'image', 'role'] as const).forEach(
+						(field) => {
+							if (teamMemberData[field] !== undefined) {
+								serializedData[field] = teamMemberData[field];
+								if (rawData[field] !== teamMemberData[field]) {
+									linkedProfileUpdates[field] = teamMemberData[field];
+								}
+							}
+						},
+					);
+
+					if (Object.keys(linkedProfileUpdates).length > 0) {
+						try {
+							await updateDoc(doc(db, 'users', uid), {
+								...linkedProfileUpdates,
+								updatedAt: serverTimestamp(),
+							});
+						} catch (linkedProfileSyncError) {
+							console.warn(
+								'Failed to sync linked team member profile fields:',
+								linkedProfileSyncError,
+							);
+						}
+					}
+				}
+			} catch (teamMemberProfileError) {
+				console.warn(
+					'Failed to load linked team member profile:',
+					teamMemberProfileError,
+				);
+			}
+		}
 
 		// Use family account subscription when available, but prefer user subscription
 		// if family data appears stale (e.g., family shows expired but user is active).
@@ -878,11 +948,13 @@ export const getUserProfile = async (uid: string): Promise<User> => {
 
 		// Migrate existing users to have accountId and isAccountOwner
 		let needsUpdate = false;
-		if (!rawData.accountId) {
+		const canBackfillOwnerAccount =
+			rawData.isAccountOwner !== false && rawData.isTeamMemberAccount !== true;
+		if (!rawData.accountId && canBackfillOwnerAccount) {
 			serializedData.accountId = uid;
 			needsUpdate = true;
 		}
-		if (rawData.isAccountOwner === undefined) {
+		if (rawData.isAccountOwner === undefined && canBackfillOwnerAccount) {
 			serializedData.isAccountOwner = true; // Existing users are account owners
 			needsUpdate = true;
 		}

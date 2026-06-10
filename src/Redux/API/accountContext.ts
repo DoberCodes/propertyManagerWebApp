@@ -101,6 +101,15 @@ export const resolveTargetUserId = async (): Promise<string> => {
 
 	const accountId = String(userData.accountId || '').trim();
 	const isAccountOwner = userData.isAccountOwner === true;
+
+	if (isAccountOwner) {
+		return accountId || uid;
+	}
+
+	if (accountId && userData.isTeamMemberAccount !== true) {
+		return accountId;
+	}
+
 	const teamInviteAccess = await getTeamInviteAccountId(
 		userData.email || currentUser.email || undefined,
 		userData.subscription?.promoCode,
@@ -124,7 +133,7 @@ export const resolveTargetUserId = async (): Promise<string> => {
 	}
 
 	if (accountId) {
-		return isAccountOwner ? accountId || uid : accountId;
+		return accountId;
 	}
 
 	const familyQuery = query(

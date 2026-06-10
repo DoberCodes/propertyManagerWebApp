@@ -36,6 +36,7 @@ import {
 	selectCanAccessProperties,
 	selectIsHomeowner,
 	selectIsContractor,
+	selectIsTeamMemberAccount,
 } from '../../../../Redux/selectors/permissionSelectors';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
@@ -89,6 +90,7 @@ export const SideNav = () => {
 	const canAccessProperties = useSelector(selectCanAccessProperties);
 	const isHomeowner = useSelector(selectIsHomeowner);
 	const isContractor = useSelector(selectIsContractor);
+	const isTeamMemberAccount = useSelector(selectIsTeamMemberAccount);
 	const canViewPages = useSelector(selectCanAccessProperties); // Restored variable
 
 	const isActive = (path: string) => activeRoute === path;
@@ -270,34 +272,36 @@ export const SideNav = () => {
 							</SectionContent>
 						</Section>
 
-						<Section>
-							<SectionContent $scrollable={false}>
-								<PortfolioCard>
-									<PortfolioTop>
-										<PortfolioPlan>
-											Property Plan
-										</PortfolioPlan>
-										<PortfolioUsageBadge>
-											{planUsageLabel}
-										</PortfolioUsageBadge>
-									</PortfolioTop>
-									<PortfolioPlanSub>
-										{planSubtitle}
-									</PortfolioPlanSub>
-									<ProgressTrack>
-										<ProgressFill $percent={Math.min(100, usagePercent)} />
-									</ProgressTrack>
-									<PortfolioUsage>
-										{planSlotLabel}
-									</PortfolioUsage>
-									<ManagePlanButton
-										type='button'
-										onClick={() => navigate('/paywall')}>
-										Manage Plan
-									</ManagePlanButton>
-								</PortfolioCard>
-							</SectionContent>
-						</Section>
+						{!isTeamMemberAccount && (
+							<Section>
+								<SectionContent $scrollable={false}>
+									<PortfolioCard>
+										<PortfolioTop>
+											<PortfolioPlan>
+												Property Plan
+											</PortfolioPlan>
+											<PortfolioUsageBadge>
+												{planUsageLabel}
+											</PortfolioUsageBadge>
+										</PortfolioTop>
+										<PortfolioPlanSub>
+											{planSubtitle}
+										</PortfolioPlanSub>
+										<ProgressTrack>
+											<ProgressFill $percent={Math.min(100, usagePercent)} />
+										</ProgressTrack>
+										<PortfolioUsage>
+											{planSlotLabel}
+										</PortfolioUsage>
+										<ManagePlanButton
+											type='button'
+											onClick={() => navigate('/paywall')}>
+											Manage Plan
+										</ManagePlanButton>
+									</PortfolioCard>
+								</SectionContent>
+							</Section>
+						)}
 					</>
 				)}
 			</MenuSection>

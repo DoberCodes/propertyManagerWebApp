@@ -64,6 +64,7 @@ interface DeviceModalProps {
 			url: string;
 			size: number;
 			type: string;
+			usage?: 'appliance_photo' | 'document';
 		}>;
 	};
 	onFormChange: (

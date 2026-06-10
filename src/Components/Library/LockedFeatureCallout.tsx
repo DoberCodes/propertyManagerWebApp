@@ -5,6 +5,7 @@ type LockedFeatureCalloutProps = {
 	title: string;
 	description: string;
 	upgradeLabel?: string;
+	showUpgradeAction?: boolean;
 	compact?: boolean;
 };
 
@@ -12,6 +13,7 @@ export const LockedFeatureCallout: React.FC<LockedFeatureCalloutProps> = ({
 	title,
 	description,
 	upgradeLabel = 'Upgrade to unlock',
+	showUpgradeAction = true,
 	compact = false,
 }) => {
 	const navigate = useNavigate();
@@ -35,22 +37,24 @@ export const LockedFeatureCallout: React.FC<LockedFeatureCalloutProps> = ({
 					{description}
 				</span>
 			</div>
-			<button
-				type='button'
-				onClick={() => navigate('/paywall')}
-				style={{
-					border: '1px solid #f59e0b',
-					background: '#f59e0b',
-					color: '#fff',
-					borderRadius: 999,
-					padding: compact ? '6px 10px' : '8px 12px',
-					fontSize: compact ? 12 : 13,
-					fontWeight: 700,
-					cursor: 'pointer',
-					whiteSpace: 'nowrap',
-				}}>
-				{upgradeLabel}
-			</button>
+			{showUpgradeAction && (
+				<button
+					type='button'
+					onClick={() => navigate('/paywall')}
+					style={{
+						border: '1px solid #f59e0b',
+						background: '#f59e0b',
+						color: '#fff',
+						borderRadius: 999,
+						padding: compact ? '6px 10px' : '8px 12px',
+						fontSize: compact ? 12 : 13,
+						fontWeight: 700,
+						cursor: 'pointer',
+						whiteSpace: 'nowrap',
+					}}>
+					{upgradeLabel}
+				</button>
+			)}
 		</div>
 	);
 };

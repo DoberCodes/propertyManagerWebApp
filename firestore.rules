@@ -220,7 +220,59 @@ service cloud.firestore {
         userId != request.auth.uid &&
         exists(/databases/$(database)/documents/users/$(userId)) &&
         canManageAccount(get(/databases/$(database)/documents/users/$(userId)).data.accountId) &&
-        request.resource.data.diff(resource.data).changedKeys().hasOnly(['role', 'updatedAt']);
+        request.resource.data.diff(resource.data).changedKeys().hasOnly([
+          'firstName',
+          'lastName',
+          'title',
+          'phone',
+          'address',
+          'image',
+          'role',
+          'updatedAt'
+        ]);
+    }
+
+    function canManageLinkedTeamMemberProfile(userId) {
+      return isAuthenticated() &&
+        userId != request.auth.uid &&
+        exists(/databases/$(database)/documents/users/$(userId)) &&
+        ('teamMemberId' in get(/databases/$(database)/documents/users/$(userId)).data) &&
+        exists(/databases/$(database)/documents/teamMembers/$(get(/databases/$(database)/documents/users/$(userId)).data.teamMemberId)) &&
+        (
+          (
+            'accountId' in get(/databases/$(database)/documents/teamMembers/$(get(/databases/$(database)/documents/users/$(userId)).data.teamMemberId)).data &&
+            canManageAccount(get(/databases/$(database)/documents/teamMembers/$(get(/databases/$(database)/documents/users/$(userId)).data.teamMemberId)).data.accountId)
+          ) ||
+          (
+            'userId' in get(/databases/$(database)/documents/teamMembers/$(get(/databases/$(database)/documents/users/$(userId)).data.teamMemberId)).data &&
+            canManageAccount(get(/databases/$(database)/documents/teamMembers/$(get(/databases/$(database)/documents/users/$(userId)).data.teamMemberId)).data.userId)
+          )
+        ) &&
+        request.resource.data.diff(resource.data).changedKeys().hasOnly([
+          'firstName',
+          'lastName',
+          'title',
+          'phone',
+          'address',
+          'image',
+          'role',
+          'updatedAt'
+        ]);
+    }
+
+    function canReadTeamMemberResource() {
+      return ('accountId' in resource.data && canReadAccount(resource.data.accountId)) ||
+        ('userId' in resource.data && canReadAccount(resource.data.userId));
+    }
+
+    function canManageTeamMemberResource() {
+      return ('accountId' in resource.data && canManageAccount(resource.data.accountId)) ||
+        ('userId' in resource.data && canManageAccount(resource.data.userId));
+    }
+
+    function canCreateTeamMemberResource() {
+      return ('accountId' in request.resource.data && canManageAccount(request.resource.data.accountId)) ||
+        ('userId' in request.resource.data && canManageAccount(request.resource.data.userId));
     }
 
     // Family membership helper for read-only access paths.
@@ -235,7 +287,9 @@ service cloud.firestore {
 
     match /users/{userId} {
       allow read: if isOwner(userId);
-      allow update: if isOwner(userId) || canManageFamilyMemberRole(userId);
+      allow update: if isOwner(userId) ||
+        canManageFamilyMemberRole(userId) ||
+        canManageLinkedTeamMemberProfile(userId);
       allow delete: if isOwner(userId);
       allow create: if isAuthenticated() && request.auth.uid == userId;
     }
@@ -358,15 +412,9 @@ service cloud.firestore {
     }
 
     match /teamMembers/{memberId} {
-      allow read: if isAuthenticated() &&
-        ('accountId' in resource.data) &&
-        canReadAccount(resource.data.accountId);
-      allow create: if isAuthenticated() &&
-        ('accountId' in request.resource.data) &&
-        canManageAccount(request.resource.data.accountId);
-      allow update, delete: if isAuthenticated() &&
-        ('accountId' in resource.data) &&
-        canManageAccount(resource.data.accountId);
+      allow read: if isAuthenticated() && canReadTeamMemberResource();
+      allow create: if isAuthenticated() && canCreateTeamMemberResource();
+      allow update, delete: if isAuthenticated() && canManageTeamMemberResource();
     }
 
     match /devices/{deviceId} {

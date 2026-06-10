@@ -35,11 +35,14 @@ export const UserProfile: React.FC = () => {
 	const navigate = useNavigate();
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
 	const [updateUser] = useUpdateUserMutation();
+	const isTeamMemberAccount = currentUser?.isTeamMemberAccount === true;
 
 	const [formData, setFormData] = useState({
 		firstName: '',
 		lastName: '',
 		title: '',
+		phone: '',
+		address: '',
 		image: '',
 	});
 
@@ -56,6 +59,8 @@ export const UserProfile: React.FC = () => {
 				firstName: currentUser.firstName || '',
 				lastName: currentUser.lastName || '',
 				title: currentUser.title || '',
+				phone: currentUser.phone || '',
+				address: currentUser.address || '',
 				image: currentUser.image || '',
 			});
 		} else {
@@ -66,6 +71,7 @@ export const UserProfile: React.FC = () => {
 	const handleInputChange = (
 		e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
 	) => {
+		if (isTeamMemberAccount) return;
 		const { name, value } = e.target;
 		setFormData((prev) => ({
 			...prev,
@@ -76,6 +82,10 @@ export const UserProfile: React.FC = () => {
 
 	const handlePhotoUpload = async (file: File | null) => {
 		if (!file || !currentUser) return;
+		if (isTeamMemberAccount) {
+			setImageError('Your profile is managed by the account owner.');
+			return;
+		}
 
 		setImageError(null);
 		setIsUploadingImage(true);
@@ -94,6 +104,10 @@ export const UserProfile: React.FC = () => {
 	};
 
 	const handleSave = async () => {
+		if (isTeamMemberAccount) {
+			setError('Your profile is managed by the account owner.');
+			return;
+		}
 		// currentUser guaranteed to exist
 
 		// Validation
@@ -114,6 +128,8 @@ export const UserProfile: React.FC = () => {
 					firstName: formData.firstName,
 					lastName: formData.lastName,
 					title: formData.title,
+					phone: formData.phone,
+					address: formData.address,
 					image: formData.image,
 				},
 			}).unwrap();
@@ -147,14 +163,18 @@ export const UserProfile: React.FC = () => {
 	return (
 		<Wrapper>
 			<PageHeaderSection>
-				<StandardPageTitle>Edit Profile</StandardPageTitle>
+				<StandardPageTitle>
+					{isTeamMemberAccount ? 'Profile' : 'Edit Profile'}
+				</StandardPageTitle>
 				<ButtonGroup>
 					<CancelButton onClick={handleCancel} disabled={isLoading}>
-						Cancel
+						{isTeamMemberAccount ? 'Back' : 'Cancel'}
 					</CancelButton>
-					<SaveButton onClick={handleSave} disabled={isLoading}>
-						{isLoading ? 'Saving...' : 'Save Changes'}
-					</SaveButton>
+					{!isTeamMemberAccount && (
+						<SaveButton onClick={handleSave} disabled={isLoading}>
+							{isLoading ? 'Saving...' : 'Save Changes'}
+						</SaveButton>
+					)}
 				</ButtonGroup>
 			</PageHeaderSection>
 
@@ -163,6 +183,12 @@ export const UserProfile: React.FC = () => {
 				<FormContentWrapper>
 					{error && <ErrorMessage>{error}</ErrorMessage>}
 					{success && <SuccessMessage>{success}</SuccessMessage>}
+					{isTeamMemberAccount && (
+						<SuccessMessage>
+							This profile is managed by the account owner or administrator.
+							Ask them to update your name, role, or access details.
+						</SuccessMessage>
+					)}
 
 					<FormSection>
 						{/* Profile Image */}
@@ -171,16 +197,18 @@ export const UserProfile: React.FC = () => {
 							{formData.image && (
 								<ImagePreview src={formData.image} alt='Profile' />
 							)}
-							<FileUploader
-								label='Choose Photo'
-								helperText='JPG, PNG, GIF, WEBP (max 8MB)'
-								accept='image/*'
-								allowedTypes={['image/*']}
-								maxSizeBytes={8 * 1024 * 1024}
-								setFile={handlePhotoUpload}
-								disabled={isUploadingImage || isLoading}
-								showSelectedFiles={false}
-							/>
+							{!isTeamMemberAccount && (
+								<FileUploader
+									label='Choose Photo'
+									helperText='JPG, PNG, GIF, WEBP (max 8MB)'
+									accept='image/*'
+									allowedTypes={['image/*']}
+									maxSizeBytes={8 * 1024 * 1024}
+									setFile={handlePhotoUpload}
+									disabled={isUploadingImage || isLoading}
+									showSelectedFiles={false}
+								/>
+							)}
 							{imageError && <ErrorMessage>{imageError}</ErrorMessage>}
 						</ImageUploadSection>
 
@@ -194,7 +222,7 @@ export const UserProfile: React.FC = () => {
 								value={formData.firstName}
 								onChange={handleInputChange}
 								placeholder='Enter first name'
-								disabled={isLoading}
+								disabled={isLoading || isTeamMemberAccount}
 							/>
 						</FormGroup>
 
@@ -208,7 +236,7 @@ export const UserProfile: React.FC = () => {
 								value={formData.lastName}
 								onChange={handleInputChange}
 								placeholder='Enter last name'
-								disabled={isLoading}
+								disabled={isLoading || isTeamMemberAccount}
 							/>
 						</FormGroup>
 
@@ -222,7 +250,35 @@ export const UserProfile: React.FC = () => {
 								value={formData.title}
 								onChange={handleInputChange}
 								placeholder='e.g., Property Manager, Administrator'
-								disabled={isLoading}
+								disabled={isLoading || isTeamMemberAccount}
+							/>
+						</FormGroup>
+
+						{/* Phone */}
+						<FormGroup>
+							<FormLabel htmlFor='phone'>Phone Number</FormLabel>
+							<FormInput
+								id='phone'
+								name='phone'
+								type='tel'
+								value={formData.phone}
+								onChange={handleInputChange}
+								placeholder='Enter phone number'
+								disabled={isLoading || isTeamMemberAccount}
+							/>
+						</FormGroup>
+
+						{/* Address */}
+						<FormGroup>
+							<FormLabel htmlFor='address'>Mailing Address</FormLabel>
+							<FormInput
+								id='address'
+								name='address'
+								type='text'
+								value={formData.address}
+								onChange={handleInputChange}
+								placeholder='Enter mailing address'
+								disabled={isLoading || isTeamMemberAccount}
 							/>
 						</FormGroup>
 

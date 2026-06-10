@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { setActiveTab } from '../../../Redux/Slices/appSlice';
 import { RootState } from '../../../Redux/store/store';
 import { USER_ROLES } from '../../../constants/roles';
+import { RoleCapabilities } from '../../../utils/permissions';
 
 export interface TabsContextProps {
 	property: any;
@@ -12,6 +13,7 @@ export interface TabsContextProps {
 	unitOptions?: { label: string; value: string }[];
 	selectedUnitId?: string;
 	onSelectUnit?: (id: string) => void;
+	permissions?: RoleCapabilities;
 }
 
 export interface tab {
@@ -23,8 +25,7 @@ export interface tab {
 export const TabController: React.FC<TabsContextProps> = ({
 	property,
 	currentUser,
-	propertyMaintenanceRequests,
-	canApproveMaintenanceRequest,
+	permissions,
 }) => {
 	const dispatch = useDispatch();
 	const isMobile = useSelector((state: RootState) => state.app.isMobile);
@@ -36,14 +37,41 @@ export const TabController: React.FC<TabsContextProps> = ({
 	const isPropertyManager = currentUser ? !isHomeowner : true;
 	const isTenant = currentUser?.role === USER_ROLES.TENANT;
 	const isContractor = currentUser?.role === USER_ROLES.CONTRACTOR;
+	const canViewMaintenanceTabs =
+		permissions?.canManageTasks ||
+		permissions?.canManageMaintenanceHistory ||
+		permissions?.canManageAppliances ||
+		(!isTenant && !isContractor);
+	const canViewTenantTabs =
+		property?.isRental &&
+		!isTenant &&
+		(permissions?.canManageTenants ||
+			permissions?.canManageProperties ||
+			permissions?.canManageFinancials);
+	const canViewRequestTab =
+		property?.isRental &&
+		(isTenant ||
+			permissions?.canCreateMaintenanceRequests ||
+			permissions?.canApproveMaintenanceRequests ||
+			(isPropertyManager && !isContractor));
+	const canViewContractors =
+		!isTenant &&
+		(permissions?.canManageContractors ||
+			permissions?.canManageTasks ||
+			permissions?.canManageTenants ||
+			isPropertyManager);
 
 	const baseTabs: tab[] = isTenant
 		? [{ label: 'Details', value: 'details' }]
 		: [
 				{ label: 'Details', value: 'details' },
-				{ label: 'Appliances', value: 'devices' },
-				{ label: 'Tasks', value: 'tasks' },
-				{ label: 'Maintenance History', value: 'maintenance' },
+				...(canViewMaintenanceTabs
+					? [
+							{ label: 'Appliances', value: 'devices' },
+							{ label: 'Tasks', value: 'tasks' },
+							{ label: 'Maintenance History', value: 'maintenance' },
+					  ]
+					: []),
 		  ];
 
 	const tabsForProperty: tab[] = [...baseTabs];
@@ -53,26 +81,18 @@ export const TabController: React.FC<TabsContextProps> = ({
 	// 	tabsForProperty.push({ label: 'Units', value: 'units' });
 	// }
 
-	if (property?.isRental && isPropertyManager && !isTenant) {
+	if (canViewTenantTabs) {
 		tabsForProperty.push({ label: 'Tenants', value: 'tenants' });
 	}
 
-	if (property?.isRental && (isPropertyManager || isTenant)) {
+	if (canViewRequestTab) {
 		tabsForProperty.push({
 			label: 'Requests',
 			value: 'requests',
-			badgeCount:
-				isTenant || isContractor
-					? 0
-					: propertyMaintenanceRequests.filter(
-							(request) =>
-								request.status === 'pending' &&
-								canApproveMaintenanceRequest(currentUser.role),
-					  ).length,
 		});
 	}
 
-	if (!isTenant) {
+	if (canViewContractors) {
 		tabsForProperty.push({ label: 'Contractors', value: 'contractors' });
 	}
 

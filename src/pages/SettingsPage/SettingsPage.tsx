@@ -607,6 +607,7 @@ export const SettingsPage: React.FC = () => {
 	const feedback = useAppFeedback();
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
 	const isTenant = currentUser?.role === 'tenant';
+	const isTeamMemberAccount = currentUser?.isTeamMemberAccount === true;
 	const isPrimaryAccountHolder =
 		!!currentUser &&
 		(currentUser.isAccountOwner || currentUser.accountId === currentUser.id);
@@ -1247,7 +1248,7 @@ export const SettingsPage: React.FC = () => {
 							)}
 							<AccountActions>
 								<AccountButton onClick={() => navigate('/profile')}>
-									Edit Profile
+									{isTeamMemberAccount ? 'View Profile' : 'Edit Profile'}
 								</AccountButton>
 								<AccountButton onClick={() => setShowPasswordModal(true)}>
 									Change Password

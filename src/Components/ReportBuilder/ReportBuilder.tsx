@@ -10,6 +10,7 @@ import {
 	selectCanAccessTeam,
 	selectCanViewAllPages,
 	selectIsHomeowner,
+	selectIsTeamMemberAccount,
 } from '../../Redux/selectors/permissionSelectors';
 import {
 	useGetPropertiesQuery,
@@ -267,6 +268,7 @@ export const ReportBuilder: React.FC = () => {
 	const canManageTeam = useSelector(selectCanAccessTeam);
 	const canViewPages = useSelector(selectCanViewAllPages);
 	const isHomeowner = useSelector(selectIsHomeowner);
+	const isTeamMemberAccount = useSelector(selectIsTeamMemberAccount);
 	const canAccessTeamReport =
 		!!currentUser &&
 		!isHomeowner &&
@@ -733,7 +735,11 @@ export const ReportBuilder: React.FC = () => {
 
 	const handleReportTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
 		if (!canAccessReports) {
-			feedback.notify('Report access is locked on your current plan.');
+			feedback.notify(
+				isTeamMemberAccount
+					? 'Report access is controlled by your assigned role.'
+					: 'Report access is locked on your current plan.',
+			);
 			return;
 		}
 		setReportType(e.target.value as ReportType);
@@ -774,7 +780,9 @@ export const ReportBuilder: React.FC = () => {
 
 		if (!canAccessReports) {
 			feedback.notify(
-				'Your current plan does not include report access. Please upgrade to continue.',
+				isTeamMemberAccount
+					? 'Report access is controlled by your assigned role.'
+					: 'Your current plan does not include report access. Please upgrade to continue.',
 			);
 			return;
 		}
@@ -782,7 +790,9 @@ export const ReportBuilder: React.FC = () => {
 		// Check subscription permissions for export - allow expired users to export
 		if (!canExportReports) {
 			feedback.notify(
-				'Your current plan does not include data export. Please upgrade to access this feature.'
+				isTeamMemberAccount
+					? 'Data export is controlled by your assigned role.'
+					: 'Your current plan does not include data export. Please upgrade to access this feature.',
 			);
 			return;
 		}
@@ -919,9 +929,18 @@ export const ReportBuilder: React.FC = () => {
 			<ReportBuilderContainer>
 				{!canAccessReports && (
 					<LockedFeatureCallout
-						title='Reports are locked on your current plan'
-						description='You can preview available report types below. Upgrade to Property or Portfolio to generate and review reports.'
+						title={
+							isTeamMemberAccount
+								? 'Reports are limited by your assigned role'
+								: 'Reports are locked on your current plan'
+						}
+						description={
+							isTeamMemberAccount
+								? 'Ask the account holder to adjust your role if you need report access.'
+								: 'You can preview available report types below. Upgrade to Property or Portfolio to generate and review reports.'
+						}
 						upgradeLabel='Upgrade for Reports'
+						showUpgradeAction={!isTeamMemberAccount}
 						compact
 					/>
 				)}
@@ -941,7 +960,11 @@ export const ReportBuilder: React.FC = () => {
 								<option key={report.value} value={report.value} disabled={!isAccessible}>
 									{report.label}
 									{report.requiresTeamAccess ? ' (Team Management)' : ''}
-									{!isAccessible ? ' - Upgrade required' : ''}
+									{!isAccessible
+										? isTeamMemberAccount
+											? ' - Role restricted'
+											: ' - Upgrade required'
+										: ''}
 								</option>
 								);
 							})}
@@ -1108,7 +1131,9 @@ export const ReportBuilder: React.FC = () => {
 								!canExportReports
 							}>
 							{!canExportReports
-								? 'Upgrade to Export'
+								? isTeamMemberAccount
+									? 'Export Restricted'
+									: 'Upgrade to Export'
 								: 'Download CSV'}
 						</Button>
 					</ActionButtons>

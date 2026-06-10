@@ -61,13 +61,16 @@ import {
 	ActiveFilterChipClear,
 } from './mobileUiShared';
 import { useAppFeedback } from '../../../Components/Library/AppFeedback/AppFeedbackProvider';
+import { RoleCapabilities } from '../../../utils/permissions';
 
 interface ContractorsTabProps {
 	propertyId: string;
+	permissions?: RoleCapabilities;
 }
 
 export const ContractorsTab: React.FC<ContractorsTabProps> = ({
 	propertyId,
+	permissions,
 }) => {
 	const feedback = useAppFeedback();
 	const [isFormOpen, setIsFormOpen] = useState(false);
@@ -81,6 +84,7 @@ export const ContractorsTab: React.FC<ContractorsTabProps> = ({
 	const [showFilters, setShowFilters] = useState(false);
 	const [sortBy, setSortBy] = useState<'company' | 'category'>('company');
 	const { isMobile } = useSelector((state: any) => state.app);
+	const canManageContractors = permissions?.canManageContractors ?? true;
 
 	const {
 		data: contractors = [],
@@ -128,6 +132,10 @@ export const ContractorsTab: React.FC<ContractorsTabProps> = ({
 	}, [contractors, filters, sortBy]);
 
 	const handleDeleteClick = (contractor: Contractor) => {
+		if (!canManageContractors) {
+			feedback.notify('Your role can view contractors but cannot delete them.');
+			return;
+		}
 		setContractorToDelete(contractor);
 		setIsDeleteModalOpen(true);
 	};
@@ -152,11 +160,19 @@ export const ContractorsTab: React.FC<ContractorsTabProps> = ({
 	};
 
 	const handleEdit = (contractor: Contractor) => {
+		if (!canManageContractors) {
+			feedback.notify('Your role can view contractors but cannot edit them.');
+			return;
+		}
 		setEditingContractor(contractor);
 		setIsFormOpen(true);
 	};
 
 	const handleAddNew = () => {
+		if (!canManageContractors) {
+			feedback.notify('Your role can view contractors but cannot add them.');
+			return;
+		}
 		setEditingContractor(null);
 		setIsFormOpen(true);
 	};
@@ -266,7 +282,7 @@ export const ContractorsTab: React.FC<ContractorsTabProps> = ({
 		},
 	];
 
-	const contractorActions: Action[] = [
+	const contractorActions: Action[] = canManageContractors ? [
 		{
 			label: 'Edit',
 			icon: faEdit,
@@ -278,7 +294,7 @@ export const ContractorsTab: React.FC<ContractorsTabProps> = ({
 			onClick: (contractor: any) => handleDeleteClick(contractor),
 			className: 'delete',
 		},
-	];
+	] : [];
 
 	if (!propertyId) {
 		return (
@@ -314,13 +330,15 @@ export const ContractorsTab: React.FC<ContractorsTabProps> = ({
 					Categories: {new Set(filteredContractors.map((c) => c.category)).size}
 				</TabSummaryPill>
 			</TabSummaryBar>
-			<Toolbar>
-				<ToolbarButton
-					onClick={handleAddNew}
-					style={{ width: isMobile ? '100%' : undefined }}>
-					+ Add Contractor
-				</ToolbarButton>
-			</Toolbar>
+			{canManageContractors && (
+				<Toolbar>
+					<ToolbarButton
+						onClick={handleAddNew}
+						style={{ width: isMobile ? '100%' : undefined }}>
+						+ Add Contractor
+					</ToolbarButton>
+				</Toolbar>
+			)}
 
 			<div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16 }}>
 				<div
@@ -408,7 +426,7 @@ export const ContractorsTab: React.FC<ContractorsTabProps> = ({
 				)}
 			</div>
 
-			{isFormOpen && (
+			{canManageContractors && isFormOpen && (
 				<ContractorForm
 					propertyId={propertyId}
 					contractor={editingContractor}
@@ -423,9 +441,11 @@ export const ContractorsTab: React.FC<ContractorsTabProps> = ({
 							? 'Add a trusted service partner when you want contractor details close to the maintenance record.'
 							: 'Try clearing filters, or add a contractor if this is a new service relationship.'}
 					</p>
-					<ToolbarButton type='button' onClick={handleAddNew}>
-						Add Contractor
-					</ToolbarButton>
+					{canManageContractors && (
+						<ToolbarButton type='button' onClick={handleAddNew}>
+							Add Contractor
+						</ToolbarButton>
+					)}
 				</EmptyState>
 			) : (
 				<>
@@ -460,7 +480,11 @@ export const ContractorsTab: React.FC<ContractorsTabProps> = ({
 						{filteredContractors.map((contractor) => (
 							<MobileContractorCard
 								key={contractor.id}
-								onClick={() => handleEdit(contractor)}>
+								onClick={() => {
+									if (canManageContractors) {
+										handleEdit(contractor);
+									}
+								}}>
 								<MobileContractorHeader>
 									<MobileContractorTitle>
 										{contractor.company || contractor.name}
@@ -483,15 +507,17 @@ export const ContractorsTab: React.FC<ContractorsTabProps> = ({
 								</MobileContractorMeta>
 
 								<MobileContractorActions>
-									<MobileActionButton
-										variant='primary'
-										onClick={(e) => {
-											e.stopPropagation();
-											handleEdit(contractor);
-										}}
-										style={{ flex: 1 }}>
-										Edit profile
-									</MobileActionButton>
+									{canManageContractors && (
+										<MobileActionButton
+											variant='primary'
+											onClick={(e) => {
+												e.stopPropagation();
+												handleEdit(contractor);
+											}}
+											style={{ flex: 1 }}>
+											Edit profile
+										</MobileActionButton>
+									)}
 									<MobileActionLinkRow>
 										<MobileActionLinkButton
 											onClick={(e) => {
@@ -500,14 +526,16 @@ export const ContractorsTab: React.FC<ContractorsTabProps> = ({
 											}}>
 											Call
 										</MobileActionLinkButton>
-										<MobileActionLinkButton
-											$danger
-										onClick={(e) => {
-											e.stopPropagation();
-											handleDeleteClick(contractor);
-										}}>
-											Delete
-										</MobileActionLinkButton>
+										{canManageContractors && (
+											<MobileActionLinkButton
+												$danger
+											onClick={(e) => {
+												e.stopPropagation();
+												handleDeleteClick(contractor);
+											}}>
+												Delete
+											</MobileActionLinkButton>
+										)}
 									</MobileActionLinkRow>
 								</MobileContractorActions>
 							</MobileContractorCard>

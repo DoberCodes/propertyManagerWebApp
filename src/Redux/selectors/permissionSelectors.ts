@@ -22,6 +22,10 @@ const isTeamMemberAccount = (user: ReturnType<typeof selectUser>): boolean =>
 		(user.isAccountOwner !== true &&
 			(user as any).isTeamMemberAccount === true));
 
+export const selectIsTeamMemberAccount = createSelector([selectUser], (user) =>
+	isTeamMemberAccount(user),
+);
+
 export const selectIsTenant = createSelector([selectUser], (user) => {
 	return !!user && isTenant(user.role as UserRole);
 });

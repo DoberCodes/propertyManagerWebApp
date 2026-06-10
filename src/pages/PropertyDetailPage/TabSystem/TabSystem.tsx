@@ -11,6 +11,7 @@ import { TabController } from 'Components/Library';
 import { Task } from 'types/Task.types';
 import { RootState } from 'Redux/store/store';
 import { useSelector } from 'react-redux';
+import { RoleCapabilities } from 'utils/permissions';
 
 interface TabsProps {
 	property: any;
@@ -41,6 +42,7 @@ interface TabsProps {
 	handleEditTask: (task: any) => void;
 	handleCreateDevice?: () => void;
 	handleCreateRequest?: () => void;
+	permissions?: RoleCapabilities;
 }
 
 export const TabSystem = ({
@@ -70,6 +72,7 @@ export const TabSystem = ({
 	handleCreateTask,
 	handleCreateDevice,
 	handleCreateRequest,
+	permissions,
 }: TabsProps) => {
 	const activeTab = useSelector((state: RootState) => state.app.activeTab); // Default to 'details' if no active tab is set
 
@@ -87,10 +90,11 @@ export const TabSystem = ({
 						onCreateTask={() => handleCreateTask(property)}
 						onCreateDevice={handleCreateDevice}
 						onCreateRequest={handleCreateRequest}
+						permissions={permissions}
 					/>
 				);
 			case 'devices':
-				return <DevicesTab property={property} />;
+				return <DevicesTab property={property} permissions={permissions} />;
 			case 'suites':
 				return null;
 			case 'tasks':
@@ -103,6 +107,7 @@ export const TabSystem = ({
 						selectedUnitId={selectedUnitId}
 						onSelectUnit={onSelectUnit}
 						openCreateTaskToken={openCreateTaskToken}
+						permissions={permissions}
 					/>
 				);
 			case 'maintenance':
@@ -117,6 +122,7 @@ export const TabSystem = ({
 						tasks={allTasks}
 						onAddMaintenanceHistory={handleAddMaintenanceHistory}
 						onDeleteMaintenanceHistory={handleDeleteMaintenanceHistory}
+						permissions={permissions}
 					/>
 				);
 			case 'tenants':
@@ -132,6 +138,7 @@ export const TabSystem = ({
 							onEditTenant={handleEditTenant}
 							onDeleteTenant={handleDeleteTenant}
 							onViewTenantPromo={handleViewTenantPromo}
+							permissions={permissions}
 						/>
 					)
 				);
@@ -149,11 +156,12 @@ export const TabSystem = ({
 							canApproveMaintenanceRequest={canApproveMaintenanceRequest}
 							handleConvertRequestToTask={handleConvertRequestToTask}
 							onCreateTask={() => handleCreateTask(property)}
+							permissions={permissions}
 						/>
 					)
 				);
 			case 'contractors':
-				return <ContractorsTab propertyId={property?.id || ''} />;
+				return <ContractorsTab propertyId={property?.id || ''} permissions={permissions} />;
 			default:
 				return null;
 		}
@@ -170,6 +178,7 @@ export const TabSystem = ({
 					onSelectUnit={onSelectUnit}
 					propertyMaintenanceRequests={propertyMaintenanceRequests}
 					canApproveMaintenanceRequest={canApproveMaintenanceRequest}
+					permissions={permissions}
 				/>
 			</TabControlsContainer>
 

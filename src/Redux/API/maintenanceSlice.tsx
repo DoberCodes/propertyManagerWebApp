@@ -171,6 +171,7 @@ const maintenanceSlice = apiSlice.injectEndpoints({
 					name: string;
 					size: number;
 					type: string;
+					usage?: 'appliance_photo' | 'document';
 					uploadedAt?: string;
 				};
 				recurringTaskId?: string; // ID of the recurring task this belongs to

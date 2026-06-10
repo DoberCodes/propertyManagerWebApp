@@ -53,6 +53,27 @@ const upsertTeamMemberAccess = async (params) => {
         isAccountOwner: false,
         isTeamMemberAccount: true,
         ...(params.teamMemberId ? { teamMemberId: params.teamMemberId } : {}),
+        ...(params.role !== undefined && params.role !== null
+            ? { role: params.role }
+            : {}),
+        ...(params.firstName !== undefined && params.firstName !== null
+            ? { firstName: params.firstName }
+            : {}),
+        ...(params.lastName !== undefined && params.lastName !== null
+            ? { lastName: params.lastName }
+            : {}),
+        ...(params.title !== undefined && params.title !== null
+            ? { title: params.title }
+            : {}),
+        ...(params.phone !== undefined && params.phone !== null
+            ? { phone: params.phone }
+            : {}),
+        ...(params.address !== undefined && params.address !== null
+            ? { address: params.address }
+            : {}),
+        ...(params.image !== undefined && params.image !== null
+            ? { image: params.image }
+            : {}),
         updatedAt: now,
     }, { merge: true });
     await db
@@ -74,9 +95,46 @@ const upsertTeamMemberAccess = async (params) => {
             userAccountId: params.uid,
             redeemedByUserId: params.uid,
             redeemedAt: now,
+            invitationCodeStatus: 'redeemed',
             updatedAt: now,
         }, { merge: true });
     }
+};
+const findLinkedTeamMemberId = async (accountId, linkedUserId) => {
+    const userAccountSnapshot = await db
+        .collection('teamMembers')
+        .where('accountId', '==', accountId)
+        .where('userAccountId', '==', linkedUserId)
+        .limit(1)
+        .get();
+    if (!userAccountSnapshot.empty) {
+        return userAccountSnapshot.docs[0].id;
+    }
+    const redeemedBySnapshot = await db
+        .collection('teamMembers')
+        .where('accountId', '==', accountId)
+        .where('redeemedByUserId', '==', linkedUserId)
+        .limit(1)
+        .get();
+    return redeemedBySnapshot.empty ? null : redeemedBySnapshot.docs[0].id;
+};
+const findNextActiveTeamMembership = async (currentAccountId, linkedUserId) => {
+    const membershipSnapshot = await db
+        .collection('accountMemberships')
+        .where('userId', '==', linkedUserId)
+        .get();
+    return (membershipSnapshot.docs.find((membershipDoc) => {
+        const membership = membershipDoc.data() || {};
+        const accountId = String(membership.accountId || '').trim();
+        const status = String(membership.status || 'active').trim().toLowerCase();
+        const roles = Array.isArray(membership.roles) ? membership.roles : [];
+        const role = String(membership.role || '').trim();
+        return (accountId &&
+            accountId !== currentAccountId &&
+            status !== 'disabled' &&
+            status !== 'revoked' &&
+            (role === 'team_member' || roles.includes('team_member')));
+    }) || null);
 };
 exports.validateTeamMemberInvitationCode = functions.https.onCall(async (data) => {
     const promoCode = String((data === null || data === void 0 ? void 0 : data.promoCode) || '').trim().toLowerCase();
@@ -188,7 +246,9 @@ exports.revokeTeamMemberInvitationCode = functions.https.onCall(async (data, con
     const teamMemberDoc = await teamMemberRef.get();
     const teamMemberData = teamMemberDoc.data() || {};
     const linkedUserId = String(teamMemberData.userAccountId || teamMemberData.redeemedByUserId || '').trim();
+    let shouldDeleteLinkedAccount = false;
     if (linkedUserId) {
+        const nextMembership = await findNextActiveTeamMembership(accountId, linkedUserId);
         const membershipRef = db
             .collection('accountMemberships')
             .doc(`${accountId}_${linkedUserId}`);
@@ -197,20 +257,48 @@ exports.revokeTeamMemberInvitationCode = functions.https.onCall(async (data, con
             disabledAt: now,
             updatedAt: now,
         }, { merge: true });
-        batch.set(db.collection('users').doc(linkedUserId), {
-            accountId: admin.firestore.FieldValue.delete(),
-            isAccountOwner: false,
-            isTeamMemberAccount: false,
-            teamMemberId: admin.firestore.FieldValue.delete(),
-            updatedAt: now,
-        }, { merge: true });
+        if (nextMembership) {
+            const nextMembershipData = nextMembership.data() || {};
+            const nextAccountId = String(nextMembershipData.accountId || '').trim();
+            const nextTeamMemberId = nextAccountId
+                ? await findLinkedTeamMemberId(nextAccountId, linkedUserId)
+                : null;
+            batch.set(db.collection('users').doc(linkedUserId), {
+                accountId: nextAccountId,
+                isAccountOwner: false,
+                isTeamMemberAccount: true,
+                teamMemberId: nextTeamMemberId || admin.firestore.FieldValue.delete(),
+                updatedAt: now,
+            }, { merge: true });
+        }
+        else {
+            shouldDeleteLinkedAccount = true;
+            batch.delete(db.collection('users').doc(linkedUserId));
+        }
     }
     batch.set(teamMemberRef, {
         invitationCodeStatus: 'revoked',
+        userAccountId: admin.firestore.FieldValue.delete(),
+        redeemedByUserId: admin.firestore.FieldValue.delete(),
+        redeemedAt: admin.firestore.FieldValue.delete(),
         updatedAt: now,
     }, { merge: true });
     await batch.commit();
-    return { success: true, revokedCount: snapshot.size };
+    if (linkedUserId && shouldDeleteLinkedAccount) {
+        try {
+            await admin.auth().deleteUser(linkedUserId);
+        }
+        catch (authError) {
+            if ((authError === null || authError === void 0 ? void 0 : authError.code) !== 'auth/user-not-found') {
+                console.error('Failed to delete revoked team member auth user:', authError);
+            }
+        }
+    }
+    return {
+        success: true,
+        revokedCount: snapshot.size,
+        accountDeleted: shouldDeleteLinkedAccount,
+    };
 });
 exports.redeemTeamMemberInvitationCode = functions.https.onCall(async (data, context) => {
     if (!context.auth) {
@@ -251,15 +339,14 @@ exports.redeemTeamMemberInvitationCode = functions.https.onCall(async (data, con
         expiresAt: null,
         updatedAt: now,
     });
-    let teamMemberRole = null;
+    let teamMemberProfile = null;
     if (inviteData.teamMemberId) {
         const teamMemberDoc = await db
             .collection('teamMembers')
             .doc(inviteData.teamMemberId)
             .get();
         if (teamMemberDoc.exists) {
-            const teamMemberData = teamMemberDoc.data();
-            teamMemberRole = (teamMemberData === null || teamMemberData === void 0 ? void 0 : teamMemberData.role) || null;
+            teamMemberProfile = teamMemberDoc.data();
         }
     }
     if (inviteData.accountId) {
@@ -268,7 +355,13 @@ exports.redeemTeamMemberInvitationCode = functions.https.onCall(async (data, con
             email: callerEmail,
             accountId: inviteData.accountId,
             teamMemberId: inviteData.teamMemberId,
-            role: teamMemberRole,
+            role: (teamMemberProfile === null || teamMemberProfile === void 0 ? void 0 : teamMemberProfile.role) || null,
+            firstName: (teamMemberProfile === null || teamMemberProfile === void 0 ? void 0 : teamMemberProfile.firstName) || null,
+            lastName: (teamMemberProfile === null || teamMemberProfile === void 0 ? void 0 : teamMemberProfile.lastName) || null,
+            title: (teamMemberProfile === null || teamMemberProfile === void 0 ? void 0 : teamMemberProfile.title) || null,
+            phone: (teamMemberProfile === null || teamMemberProfile === void 0 ? void 0 : teamMemberProfile.phone) || null,
+            address: (teamMemberProfile === null || teamMemberProfile === void 0 ? void 0 : teamMemberProfile.address) || null,
+            image: (teamMemberProfile === null || teamMemberProfile === void 0 ? void 0 : teamMemberProfile.image) || null,
         });
     }
     return {

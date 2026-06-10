@@ -46,6 +46,7 @@ export const DetailsTab: React.FC<DetailsTabProps> = ({
 	onCreateTask,
 	onCreateDevice,
 	onCreateRequest,
+	permissions,
 }) => {
 	const openTasksCount = propertyTasks.length;
 	const overdueTasksCount = propertyTasks.filter((task) =>
@@ -157,21 +158,31 @@ export const DetailsTab: React.FC<DetailsTabProps> = ({
 				</GlanceCard>
 			</GlanceGrid>
 
-			<QuickActionsBar>
-				<QuickActionButton onClick={() => onCreateTask?.()}>
-					+ Add Maintenance Task
-				</QuickActionButton>
-				<QuickActionButton $variant='secondary' onClick={() => onCreateDevice?.()}>
-					+ Add System
-				</QuickActionButton>
-				{property?.isRental && (
+			{(permissions?.canCreateTasks ||
+				permissions?.canManageAppliances ||
+				permissions?.canCreateMaintenanceRequests) && (
+				<QuickActionsBar>
+					{permissions?.canCreateTasks && onCreateTask && (
+						<QuickActionButton onClick={() => onCreateTask()}>
+							+ Add Maintenance Task
+						</QuickActionButton>
+					)}
+					{permissions?.canManageAppliances && onCreateDevice && (
+						<QuickActionButton $variant='secondary' onClick={() => onCreateDevice()}>
+							+ Add Appliance
+						</QuickActionButton>
+					)}
+					{property?.isRental &&
+						permissions?.canCreateMaintenanceRequests &&
+						onCreateRequest && (
 					<QuickActionButton
 						$variant='secondary'
-						onClick={() => onCreateRequest?.()}>
+						onClick={() => onCreateRequest()}>
 						+ Start Maintenance Request
 					</QuickActionButton>
-				)}
-			</QuickActionsBar>
+					)}
+				</QuickActionsBar>
+			)}
 
 			{/* Edit Mode Header */}
 			<DetailsEditHeader>
@@ -209,9 +220,11 @@ export const DetailsTab: React.FC<DetailsTabProps> = ({
 									<PreviewItemMeta style={{ textAlign: 'left' }}>
 										Future work will appear here once tasks are scheduled.
 									</PreviewItemMeta>
-									<PreviewEmptyAction type='button' onClick={() => onCreateTask?.()}>
-										Add Task
-									</PreviewEmptyAction>
+									{permissions?.canCreateTasks && onCreateTask && (
+										<PreviewEmptyAction type='button' onClick={() => onCreateTask()}>
+											Add Task
+										</PreviewEmptyAction>
+									)}
 								</div>
 							</PreviewItem>
 						) : (

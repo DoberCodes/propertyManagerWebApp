@@ -32,7 +32,10 @@ import {
 	useLazyGetTenantInvitationCodeQuery,
 	useLazyGetTenantInvitationCodesByEmailQuery,
 } from '../../Redux/API/tenantSlice';
-import { canApproveMaintenanceRequest } from '../../utils/permissions';
+import {
+	canApproveMaintenanceRequest,
+	getRoleCapabilities,
+} from '../../utils/permissions';
 import { useAppFeedback } from '../../Components/Library/AppFeedback/AppFeedbackProvider';
 import {
 	selectCanAccessProperties,
@@ -97,11 +100,16 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 	const isUserTenant = useSelector(selectIsTenant);
 	const canAccessProperties = useSelector(selectCanAccessProperties);
 	const isHomeowner = useSelector(selectIsHomeowner);
+	const roleCapabilities = useMemo(
+		() => getRoleCapabilities(currentUser?.role),
+		[currentUser?.role],
+	);
 	const canManageProperties =
 		canAccessProperties &&
 		!!currentUser?.subscription &&
 		!isTrialExpired(currentUser.subscription) &&
-		!isUserTenant;
+		!isUserTenant &&
+		roleCapabilities.canManageProperties;
 
 	const { isFavorite, toggleFavorite } = useFavorites(currentUser!.id);
 
@@ -229,27 +237,47 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 	}, [property, currentUser?.email, isUserTenant, tenantAssignment, navigate]);
 
 	const handleEditTenant = (tenant: any) => {
+		if (!roleCapabilities.canManageTenants) {
+			feedback.notify('Your role can view tenants but cannot edit tenant records.');
+			return;
+		}
 		setEditingTenant(tenant);
 		setShowEditTenantModal(true);
 	};
 
 	const handleDeleteTenant = (tenant: any) => {
+		if (!roleCapabilities.canManageTenants) {
+			feedback.notify('Your role can view tenants but cannot delete tenant records.');
+			return;
+		}
 		setTenantToDelete(tenant);
 		setShowDeleteTenantModal(true);
 	};
 
 	const handleOpenPropertyDialog = () => {
+		if (!canManageProperties) {
+			feedback.notify('Your role can view this property but cannot edit property details.');
+			return;
+		}
 		setIsPropertyDialogOpen(true);
 		setIsActionMenuOpen(false);
 	};
 
 	const handleOpenCreateTaskDialog = () => {
+		if (!roleCapabilities.canCreateTasks) {
+			feedback.notify('Your role can request maintenance but cannot create tasks directly.');
+			return;
+		}
 		dispatch(setAppActiveTab('tasks'));
 		setOpenCreateTaskToken((currentToken) => currentToken + 1);
 	};
 
 	const handleSaveProperty = async (formData: any) => {
 		if (!property?.id) {
+			return;
+		}
+		if (!canManageProperties) {
+			feedback.notify('Your role can view this property but cannot edit property details.');
 			return;
 		}
 
@@ -321,6 +349,10 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 
 	const handleDeletePropertyFromDialog = async () => {
 		if (!property?.id) {
+			return;
+		}
+		if (!canManageProperties) {
+			feedback.notify('Your role can view this property but cannot delete it.');
 			return;
 		}
 
@@ -460,6 +492,10 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 		financials?: TaskFinancials;
 	}) => {
 		if (!property?.id) return;
+		if (!roleCapabilities.canManageMaintenanceHistory) {
+			feedback.notify('Your role can view maintenance history but cannot add records.');
+			return;
+		}
 
 		try {
 			await addMaintenanceHistory({
@@ -474,6 +510,11 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 	};
 
 	const handleDeleteMaintenanceHistory = async (historyId: string) => {
+		if (!roleCapabilities.canManageMaintenanceHistory) {
+			feedback.notify('Your role can view maintenance history but cannot delete records.');
+			return;
+		}
+
 		if (
 			!window.confirm(
 				'Are you sure you want to delete this maintenance history record?',
@@ -603,6 +644,10 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 	}, [teamMembers, propertyContractors, familyMembers]);
 
 	const handlePhotoUpload = async (file: File | null) => {
+		if (!canManageProperties) {
+			setImageError('Your role can view this property but cannot change property photos.');
+			return;
+		}
 		if (file && property) {
 			if (!isValidPropertyImageFile(file)) {
 				setImageError('Invalid file. Please upload an image under 8MB.');
@@ -682,6 +727,20 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 	const isFav = isFavorite(property.id);
 	const headerImageSrc = getPropertyImageSrc(property.image);
 	const isHeaderFallbackImage = isPropertyImageFallback(property.image);
+	const handleGuardedMaintenanceRequestSubmit = (request: any) => {
+		if (!(roleCapabilities.canCreateMaintenanceRequests || isUserTenant)) {
+			feedback.notify('Your role can view requests but cannot submit new maintenance requests.');
+			return;
+		}
+		handleMaintenanceRequestSubmit(request);
+	};
+	const handleGuardedConvertRequestToTask = (requestId: string) => {
+		if (!roleCapabilities.canApproveMaintenanceRequests) {
+			feedback.notify('Your role can review requests but cannot convert them into tasks.');
+			return;
+		}
+		handleConvertRequestToTask(requestId);
+	};
 
 	return (
 		<Wrapper>
@@ -782,7 +841,7 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 										🔧 Request Maintenance
 									</button>
 								)}
-								{!isUploadingImage && (
+								{canManageProperties && !isUploadingImage && (
 									<label
 										htmlFor='header-photo-upload'
 										style={{
@@ -871,15 +930,17 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 						Uploading image...
 					</div>
 				)}
-				<FileUploader
-					id='header-photo-upload'
-					accept='image/*'
-					allowedTypes={['image/*']}
-					maxSizeBytes={8 * 1024 * 1024}
-					setFile={handlePhotoUpload}
-					variant='hidden'
-					onError={(message) => setImageError(message)}
-				/>
+				{canManageProperties && (
+					<FileUploader
+						id='header-photo-upload'
+						accept='image/*'
+						allowedTypes={['image/*']}
+						maxSizeBytes={8 * 1024 * 1024}
+						setFile={handlePhotoUpload}
+						variant='hidden'
+						onError={(message) => setImageError(message)}
+					/>
+				)}
 			</PageHero>
 			<ContentWrapper>
 				<TabSystem
@@ -904,21 +965,32 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 					handleViewTenantPromo={handleViewTenantPromo}
 					handleCreateTask={handleOpenCreateTaskDialog}
 					handleEditTask={handleEditTask}
-					handleCreateDevice={() => setShowDeviceDialog(true)}
-					handleCreateRequest={() => setShowMaintenanceRequestModal(true)}
-					handleConvertRequestToTask={handleConvertRequestToTask}
+					handleCreateDevice={
+						roleCapabilities.canManageAppliances
+							? () => setShowDeviceDialog(true)
+							: undefined
+					}
+					handleCreateRequest={
+						roleCapabilities.canCreateMaintenanceRequests || isUserTenant
+							? () => setShowMaintenanceRequestModal(true)
+							: undefined
+					}
+					handleConvertRequestToTask={handleGuardedConvertRequestToTask}
 					openCreateTaskToken={openCreateTaskToken}
+					permissions={roleCapabilities}
 				/>
 
-				<DeviceModal
-					isOpen={showDeviceDialog}
-					property={property}
-					onClose={() => setShowDeviceDialog(false)}
-					onSubmit={handleDeviceFormSubmit}
-					onFormChange={handleDeviceFormChange}
-					deviceFormData={deviceFormData}
-					units={propertyUnits}
-				/>
+				{roleCapabilities.canManageAppliances && (
+					<DeviceModal
+						isOpen={showDeviceDialog}
+						property={property}
+						onClose={() => setShowDeviceDialog(false)}
+						onSubmit={handleDeviceFormSubmit}
+						onFormChange={handleDeviceFormChange}
+						deviceFormData={deviceFormData}
+						units={propertyUnits}
+					/>
+				)}
 
 				{convertingRequest && (
 					<ConvertRequestToTaskModal
@@ -939,7 +1011,7 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 					<MaintenanceRequestModal
 						isOpen={showMaintenanceRequestModal}
 						onClose={() => setShowMaintenanceRequestModal(false)}
-						onSubmit={handleMaintenanceRequestSubmit}
+						onSubmit={handleGuardedMaintenanceRequestSubmit}
 						propertyTitle={property.title}
 					/>
 				)}

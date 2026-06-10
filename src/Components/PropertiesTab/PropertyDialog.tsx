@@ -49,6 +49,10 @@ import {
 	ReviewGrid,
 	ReviewLabel,
 	ReviewValue,
+	DashboardVisibilityCard,
+	DashboardVisibilityText,
+	DashboardVisibilityTitle,
+	DashboardVisibilityHint,
 	DialogFooter,
 	FooterActionGroup,
 	FooterTextAction,
@@ -88,6 +92,7 @@ export interface PropertyFormData {
 	coOwners?: string[];
 	administrators?: string[];
 	viewers?: string[];
+	showOnDashboard?: boolean;
 }
 
 interface PropertyDialogProps {
@@ -110,7 +115,6 @@ interface PropertyDialogProps {
 	onCreateGroup?: (name: string) => Promise<string>;
 	propertyId?: string;
 	isHiddenFromDashboard?: boolean;
-	onToggleHideFromDashboard?: () => void;
 	isSharedProperty?: boolean;
 	onDetachFromProperty?: () => void;
 }
@@ -162,7 +166,6 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 	onCreateGroup,
 	propertyId,
 	isHiddenFromDashboard,
-	onToggleHideFromDashboard,
 	isSharedProperty,
 	onDetachFromProperty,
 }) => {
@@ -192,6 +195,7 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 		coOwners: [],
 		administrators: [],
 		viewers: [],
+		showOnDashboard: true,
 	});
 	const [stepIndex, setStepIndex] = useState(0);
 	// Units are temporarily hidden from the app flow.
@@ -237,6 +241,7 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 				coOwners: initialData.coOwners || [],
 				administrators: initialData.administrators || [],
 				viewers: initialData.viewers || [],
+				showOnDashboard: !isHiddenFromDashboard,
 			});
 		} else {
 			setFormData({
@@ -258,6 +263,7 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 				coOwners: [],
 				administrators: [],
 				viewers: [],
+				showOnDashboard: true,
 			});
 		}
 
@@ -268,7 +274,7 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 		setPendingShares({ coOwners: '', administrators: '', viewers: '' });
 		setImageError(null);
 		setIsDeleteConfirmOpen(false);
-	}, [isOpen, initialData, selectedGroupId, forceSingleFamily, currentUser]);
+	}, [isOpen, initialData, selectedGroupId, forceSingleFamily, currentUser, isHiddenFromDashboard]);
 
 	useEffect(() => {
 		let isCancelled = false;
@@ -1028,6 +1034,23 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 						</React.Fragment>
 					))}
 				</ReviewGrid>
+				<DashboardVisibilityCard>
+					<input
+						type='checkbox'
+						checked={formData.showOnDashboard ?? true}
+						onChange={(event) =>
+							handleInputChange('showOnDashboard', event.target.checked)
+						}
+					/>
+					<DashboardVisibilityText>
+						<DashboardVisibilityTitle>
+							Show this property on the dashboard
+						</DashboardVisibilityTitle>
+						<DashboardVisibilityHint>
+							Keep this on for active properties you want included in dashboard summaries. Turn it off for archived or less-used properties.
+						</DashboardVisibilityHint>
+					</DashboardVisibilityText>
+				</DashboardVisibilityCard>
 			</WizardPanel>
 		);
 	};
@@ -1099,11 +1122,7 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 									{isDeletingProperty ? 'Deleting...' : 'Delete Property'}
 								</FooterTextAction>
 							)}
-							{propertyId && onToggleHideFromDashboard && stepIndex === STEPS.length - 1 && (
-								<FooterTextAction type='button' onClick={onToggleHideFromDashboard}>
-									{isHiddenFromDashboard ? 'Show on Dashboard' : 'Hide from Dashboard'}
-								</FooterTextAction>
-							)}
+							
 							{propertyId && isSharedProperty && onDetachFromProperty && stepIndex === STEPS.length - 1 && (
 								<FooterTextAction
 									type='button'

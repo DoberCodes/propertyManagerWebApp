@@ -61,9 +61,16 @@ import {
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { COLORS } from '../../constants/colors';
 import { TaskCompletionModal } from '../../Components/TaskCompletionModal';
+import { getRoleCapabilities } from '../../utils/permissions';
 
 export const TasksPage = () => {
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
+	const roleCapabilities = useMemo(
+		() => getRoleCapabilities(currentUser?.role),
+		[currentUser?.role],
+	);
+	const canManageTasks = roleCapabilities.canManageTasks;
+	const canCreateTasks = roleCapabilities.canCreateTasks;
 	// Select groups from state and derive team members with useMemo
 	const teamGroups = useSelector((state: RootState) => state.team.groups);
 	const teamMembers = useMemo(
@@ -134,6 +141,7 @@ export const TasksPage = () => {
 
 	// create task handler used by buttons
 	const handleCreateTask = () => {
+		if (!canCreateTasks) return;
 		taskHandlers.setEditingTaskId('');
 		taskHandlers.setShowTaskDialog(true);
 	};
@@ -552,11 +560,13 @@ export const TasksPage = () => {
 	];
 
 	const handleEditTask = (task: any) => {
+		if (!canManageTasks) return;
 		taskHandlers.setEditingTaskId(task.id);
 		taskHandlers.setShowTaskDialog(true);
 	};
 
 	const handleAssignTask = (task: any) => {
+		if (!canManageTasks) return;
 		// Capture both id and property up front to avoid race condition
 		taskHandlers.setAssigningTaskId(task.id);
 		setAssigningTaskPropertyId(task.propertyId || '');
@@ -602,6 +612,7 @@ export const TasksPage = () => {
 		taskId: string;
 		taskTitle: string;
 	}) => {
+		if (!canManageTasks) return;
 		if (pendingUndo) {
 			window.clearTimeout(pendingUndo.timeoutId);
 			void executePendingAction(pendingUndo);
@@ -641,7 +652,7 @@ export const TasksPage = () => {
 		};
 	}, [pendingUndo]);
 
-	const taskActions: Action[] = [
+	const taskActions: Action[] = canManageTasks ? [
 		{
 			label: 'Refine Task',
 			icon: faEdit,
@@ -672,7 +683,7 @@ export const TasksPage = () => {
 			},
 			className: 'delete',
 		},
-	];
+	] : [];
 
 	const handleTaskCompletion = (taskId: string) => {
 		setCompletingTaskId(taskId);
@@ -707,7 +718,7 @@ export const TasksPage = () => {
 						<option value='propertyTitle:asc'>Sort: Property A-Z</option>
 						<option value='status:asc'>Sort: Status</option>
 					</TaskSortSelect>
-					{!isMobile && (
+					{!isMobile && canCreateTasks && (
 						<button
 							onClick={handleCreateTask}
 							style={{
@@ -764,6 +775,7 @@ export const TasksPage = () => {
 			{isMobile ? (
 				<MobileListSection>
 					{/* floating create button for mobile view */}
+					{canCreateTasks && (
 					<button
 						onClick={handleCreateTask}
 						style={{
@@ -786,6 +798,7 @@ export const TasksPage = () => {
 						aria-label='Create maintenance task'>
 						<FontAwesomeIcon icon={faPlus} />
 					</button>
+					)}
 					{filteredTasks.length === 0 ? (
 						<ZeroState
 							title={
@@ -873,35 +886,37 @@ export const TasksPage = () => {
 											</MobileMetaValue>
 										</MobileMetaItem>
 									</MobileTaskMetaGrid>
-									<MobileTaskActions>
-											<MobileActionButton onClick={() => handleEditTask(task)}>
-											Refine Task
-										</MobileActionButton>
-											<MobileActionLinkRow>
-												<MobileActionLinkButton onClick={() => handleAssignTask(task)}>
-													Assign
-												</MobileActionLinkButton>
-												{task.status !== 'Completed' && (
-													<MobileActionLinkButton
-														onClick={() => handleTaskCompletion(task.id)}
-													>
-														Complete
+									{canManageTasks && (
+										<MobileTaskActions>
+												<MobileActionButton onClick={() => handleEditTask(task)}>
+												Refine Task
+											</MobileActionButton>
+												<MobileActionLinkRow>
+													<MobileActionLinkButton onClick={() => handleAssignTask(task)}>
+														Assign
 													</MobileActionLinkButton>
-												)}
-												<MobileActionLinkButton
-													$danger
-													onClick={() =>
-														queueUndoableAction({
-															kind: 'delete',
-															taskId: task.id,
-															taskTitle: task.title || 'Task',
-														})
-													}
-												>
-													Delete
-												</MobileActionLinkButton>
-											</MobileActionLinkRow>
-									</MobileTaskActions>
+													{task.status !== 'Completed' && (
+														<MobileActionLinkButton
+															onClick={() => handleTaskCompletion(task.id)}
+														>
+															Complete
+														</MobileActionLinkButton>
+													)}
+													<MobileActionLinkButton
+														$danger
+														onClick={() =>
+															queueUndoableAction({
+																kind: 'delete',
+																taskId: task.id,
+																taskTitle: task.title || 'Task',
+															})
+														}
+													>
+														Delete
+													</MobileActionLinkButton>
+												</MobileActionLinkRow>
+										</MobileTaskActions>
+									)}
 								</MobileTaskCard>
 							);
 						})
@@ -959,7 +974,7 @@ export const TasksPage = () => {
 								}}
 								showCheckbox={false}
 								hideHeader={true}
-								onRowUpdate={(updatedRow) => {
+								onRowUpdate={canManageTasks ? (updatedRow) => {
 									// Prepare updates for Firebase
 									const updates: any = {};
 
@@ -988,14 +1003,14 @@ export const TasksPage = () => {
 											console.error('Failed to update task:', error);
 										});
 									}
-								}}
+								} : undefined}
 							/>
 						)}
 					</TaskGridSection>
 				</>
 			)}
 			{/* Task Modals */}
-			{showTaskDialog && (
+			{showTaskDialog && (canManageTasks || canCreateTasks) && (
 				<TaskModal
 					isOpen={showTaskDialog}
 					onClose={() => setShowTaskDialog(false)}
@@ -1010,7 +1025,7 @@ export const TasksPage = () => {
 				/>
 			)}
 
-			{showTaskAssignDialog && (
+			{showTaskAssignDialog && canManageTasks && (
 				<TaskAssignModal
 					isOpen={showTaskAssignDialog}
 					onClose={() => setShowTaskAssignDialog(false)}
@@ -1025,7 +1040,7 @@ export const TasksPage = () => {
 				/>
 			)}
 
-			{showTaskCompletionModal && completingTaskId && (
+			{showTaskCompletionModal && completingTaskId && canManageTasks && (
 				<TaskCompletionModal
 					taskId={completingTaskId}
 					taskTitle={

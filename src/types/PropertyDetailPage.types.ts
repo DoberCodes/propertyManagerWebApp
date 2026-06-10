@@ -5,6 +5,7 @@
 
 import { Property } from './Property.types';
 import { TaskFinancials } from './Task.types';
+import { RoleCapabilities } from '../utils/permissions';
 
 // Main component props
 export interface PropertyDetailPageProps {
@@ -52,6 +53,7 @@ export interface DetailsTabProps {
 	onCreateTask?: () => void;
 	onCreateDevice?: () => void;
 	onCreateRequest?: () => void;
+	permissions?: RoleCapabilities;
 }
 
 export interface TasksTabProps {
@@ -63,6 +65,7 @@ export interface TasksTabProps {
 	selectedUnitId?: string;
 	onSelectUnit?: (unitId: string) => void;
 	openCreateTaskToken?: number;
+	permissions?: RoleCapabilities;
 }
 
 export interface MaintenanceTabProps {
@@ -88,6 +91,7 @@ export interface MaintenanceTabProps {
 	}) => void;
 	onUpdateMaintenanceHistory?: (id: string, updates: Partial<any>) => void;
 	onDeleteMaintenanceHistory?: (historyId: string) => void;
+	permissions?: RoleCapabilities;
 }
 
 export interface TenantsTabProps {
@@ -100,6 +104,7 @@ export interface TenantsTabProps {
 	onEditTenant: (tenant: any) => void;
 	onDeleteTenant: (tenant: any) => void;
 	onViewTenantPromo: (tenant: any) => void;
+	permissions?: RoleCapabilities;
 }
 
 export interface UnitsTabProps {
@@ -122,6 +127,7 @@ export interface RequestsTabProps {
 	canApproveMaintenanceRequest: (role: any) => boolean;
 	handleConvertRequestToTask: (requestId: string) => void;
 	onCreateTask?: () => void;
+	permissions?: RoleCapabilities;
 }
 
 // Property Detail Section Props

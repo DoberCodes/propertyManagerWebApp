@@ -33,6 +33,7 @@ export interface User {
 	lastName?: string;
 	title?: string;
 	phone?: string;
+	address?: string;
 	image?: string;
 	assignedPropertyId?: number;
 	hiddenPropertyIds?: string[]; // Properties hidden from dashboard

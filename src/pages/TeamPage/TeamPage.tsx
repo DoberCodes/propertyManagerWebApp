@@ -2,7 +2,10 @@ import React, { useState, useMemo } from 'react';
 
 import { useSelector } from 'react-redux';
 import { RootState } from '../../Redux/store';
-import { selectCanInviteTeamMembers } from '../../Redux/selectors/permissionSelectors';
+import {
+	selectCanInviteTeamMembers,
+	selectIsTeamMemberAccount,
+} from '../../Redux/selectors/permissionSelectors';
 import { TeamMember } from '../../Redux/Slices/teamSlice';
 import { useCreateNotificationMutation } from '../../Redux/API/notificationSlice';
 import { useAppFeedback } from '../../Components/Library/AppFeedback/AppFeedbackProvider';
@@ -95,14 +98,15 @@ import {
 	useUpdateTeamMemberMutation,
 } from '../../Redux/API/teamSlice';
 import { useGetPropertiesQuery } from '../../Redux/API/propertySlice';
+import { USER_ROLES } from '../../constants/roles';
 
 const ROLE_OPTIONS = [
-	{ value: 'property_manager', label: 'Property Manager' },
-	{ value: 'assistant_manager', label: 'Assistant Manager' },
-	{ value: 'maintenance', label: 'Maintenance' },
-	{ value: 'accounting', label: 'Accounting' },
-	{ value: 'leasing', label: 'Leasing Agent' },
-	{ value: 'admin', label: 'Administrator' },
+	{ value: USER_ROLES.PROPERTY_MANAGER, label: 'Property Manager' },
+	{ value: USER_ROLES.ASSISTANT_MANAGER, label: 'Assistant Manager' },
+	{ value: USER_ROLES.MAINTENANCE, label: 'Maintenance' },
+	{ value: USER_ROLES.ACCOUNTING, label: 'Accounting' },
+	{ value: USER_ROLES.LEASING, label: 'Leasing Agent' },
+	{ value: USER_ROLES.ADMIN, label: 'Administrator' },
 ];
 
 const generateTeamInvitationCode = (firstName: string, lastName: string) => {
@@ -302,6 +306,7 @@ export default function TeamPage() {
 
 	// Check if user can manage team members based on subscription plan (selector)
 	const canManage = useSelector(selectCanInviteTeamMembers);
+	const isTeamMemberAccount = useSelector(selectIsTeamMemberAccount);
 
 	const [showTeamMemberDialog, setShowTeamMemberDialog] = useState(false);
 	const [currentGroupId, setCurrentGroupId] = useState<string | null>(null);
@@ -319,6 +324,7 @@ export default function TeamPage() {
 		email: '',
 		phone: '',
 		role: 'property_manager',
+		title: '',
 		address: '',
 		mailingCity: '',
 		mailingState: '',
@@ -331,6 +337,8 @@ export default function TeamPage() {
 	const [generatedInvitationCode, setGeneratedInvitationCode] =
 		useState<string>('');
 	const [invitationCodeByMemberId, setInvitationCodeByMemberId] = useState<Record<string, string>>({});
+	const editingMemberAccessState = getTeamMemberAccessState(editingMember);
+	const isEditingAcceptedMember = editingMemberAccessState === 'accepted';
 
 	const getVisibleInvitationCode = (member: TeamMember) =>
 		(member as any).invitationCode || invitationCodeByMemberId[member.id] || '';
@@ -427,6 +435,7 @@ export default function TeamPage() {
 			email: '',
 			phone: '',
 			role: 'property_manager',
+			title: '',
 			address: '',
 			mailingCity: '',
 			mailingState: '',
@@ -539,10 +548,8 @@ export default function TeamPage() {
 			userId: currentUser!.id,
 			firstName: formData.firstName,
 			lastName: formData.lastName,
-			title: `${
-				ROLE_OPTIONS.find((r) => r.value === formData.role)?.label || ''
-			}`,
-			email: formData.email,
+			title: formData.title.trim(),
+			email: isEditingAcceptedMember ? editingMember!.email : formData.email,
 			phone: formData.phone,
 			role: formData.role,
 			address: buildMailingAddress({
@@ -665,6 +672,7 @@ export default function TeamPage() {
 			email: member.email,
 			phone: member.phone,
 			role: member.role,
+			title: member.title || '',
 			address: mailingAddress.street,
 			mailingCity: mailingAddress.city,
 			mailingState: mailingAddress.state,
@@ -742,6 +750,12 @@ export default function TeamPage() {
 					id: member.id,
 					updates: {
 						invitationCodeStatus: 'revoked',
+						invitationCodeId: null,
+						invitationCode: null,
+						invitationCodeExpiresAt: null,
+						userAccountId: null,
+						redeemedByUserId: null,
+						redeemedAt: null,
 					} as any,
 				}).unwrap();
 
@@ -750,7 +764,12 @@ export default function TeamPage() {
 						? ({
 								...current,
 								invitationCodeStatus: 'revoked',
-								invitationCodeExpiresAt: undefined,
+								invitationCodeId: null,
+								invitationCode: null,
+								invitationCodeExpiresAt: null,
+								userAccountId: null,
+								redeemedByUserId: null,
+								redeemedAt: null,
 						  } as any)
 						: current,
 				);
@@ -960,9 +979,18 @@ export default function TeamPage() {
 
 			{!canManage && (
 				<LockedFeatureCallout
-					title='Team collaboration is locked on your current plan'
-					description='You can review current team assignments in read-only mode. Upgrade to Portfolio to invite, manage, and group team members.'
+					title={
+						isTeamMemberAccount
+							? 'Team management is managed by the account holder'
+							: 'Team collaboration is locked on your current plan'
+					}
+					description={
+						isTeamMemberAccount
+							? 'Your account access is controlled by your assigned role and property access.'
+							: 'You can review current team assignments in read-only mode. Upgrade to Portfolio to invite, manage, and group team members.'
+					}
 					upgradeLabel='Upgrade for Team Access'
+					showUpgradeAction={!isTeamMemberAccount}
 				/>
 			)}
 
@@ -1229,7 +1257,19 @@ export default function TeamPage() {
 										placeholder='Email address'
 										value={formData.email}
 										onChange={(e) => handleFormChange('email', e.target.value)}
+										disabled={isEditingAcceptedMember}
 									/>
+									{isEditingAcceptedMember && (
+										<div
+											style={{
+												fontSize: '0.75em',
+												color: '#6c757d',
+												marginTop: 4,
+											}}>
+											Email is tied to this team member's login and cannot be
+											changed after the invite is accepted.
+										</div>
+									)}
 								</FormGroup>
 
 								<FormGroup>
@@ -1301,6 +1341,16 @@ export default function TeamPage() {
 											</option>
 										))}
 									</FormSelect>
+								</FormGroup>
+
+								<FormGroup>
+									<FormLabel>Job Title</FormLabel>
+									<FormInput
+										type='text'
+										placeholder='e.g., Leasing Coordinator, Maintenance Lead'
+										value={formData.title}
+										onChange={(e) => handleFormChange('title', e.target.value)}
+									/>
 								</FormGroup>
 
 								<FormGroup>
@@ -1465,6 +1515,9 @@ export default function TeamPage() {
 																			invitationCode: result.code,
 																			invitationCodeStatus: 'active',
 																			invitationCodeExpiresAt: result.expiresAt,
+																			userAccountId: null,
+																			redeemedByUserId: null,
+																			redeemedAt: null,
 																		} as any);
 
 																		// Update the team member record in the database
@@ -1476,6 +1529,9 @@ export default function TeamPage() {
 																				invitationCodeStatus: 'active',
 																				invitationCodeExpiresAt:
 																					result.expiresAt,
+																				userAccountId: null,
+																				redeemedByUserId: null,
+																				redeemedAt: null,
 																			} as any,
 																		}).unwrap();
 

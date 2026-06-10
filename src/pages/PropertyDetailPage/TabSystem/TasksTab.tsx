@@ -73,6 +73,7 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 	currentUser,
 	assigneeOptions = [],
 	openCreateTaskToken = 0,
+	permissions,
 }) => {
 	const feedback = useAppFeedback();
 	const [filters, setFilters] = useState<FilterValues>({});
@@ -89,33 +90,55 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 
 	const [isEditing, setIsEditing] = useState(false);
 	const { isMobile } = useSelector((state: any) => state.app);
+	const canManageTasks = permissions?.canManageTasks ?? true;
+	const canCreateTasks = permissions?.canCreateTasks ?? canManageTasks;
 
 	// Task mutations
 	const [deleteTaskMutation] = useDeleteTaskMutation();
 
 	// Wrapper functions for table actions
 	const handleCreateTask = () => {
+		if (!canCreateTasks) {
+			feedback.notify('Your role can view tasks but cannot create maintenance tasks.');
+			return;
+		}
 		setIsEditing(false);
 		setShowTaskModal(true);
 	};
 
 	const handleEditTask = (task: Task) => {
+		if (!canManageTasks) {
+			feedback.notify('Your role can view tasks but cannot edit maintenance tasks.');
+			return;
+		}
 		setSelectedTask(task);
 		setIsEditing(true);
 		setShowTaskModal(true);
 	};
 
 	const handleDeleteTask = (task: Task) => {
+		if (!canManageTasks) {
+			feedback.notify('Your role can view tasks but cannot delete maintenance tasks.');
+			return;
+		}
 		setSelectedTask(task);
 		setShowDeleteConfirmation(true);
 	};
 
 	const handleAssignTask = (task: Task) => {
+		if (!canManageTasks) {
+			feedback.notify('Your role can view tasks but cannot assign maintenance tasks.');
+			return;
+		}
 		setSelectedTask(task);
 		setShowAssignModal(true);
 	};
 
 	const handleCompleteTask = (task: Task) => {
+		if (!canManageTasks) {
+			feedback.notify('Your role can view tasks but cannot complete maintenance tasks.');
+			return;
+		}
 		setSelectedTask(task);
 		setShowTaskCompletionModal(true);
 	};
@@ -385,19 +408,21 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 							)}
 						</div>
 						<div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 12 }}>
-							<button
-								type='button'
-								onClick={() => handleEditTask(task)}
-								style={{
-									border: 'none',
-									background: 'transparent',
-									color: '#1d4ed8',
-									fontWeight: 700,
-									cursor: 'pointer',
-									padding: 0,
-								}}>
-								View history
-							</button>
+							{canManageTasks && (
+								<button
+									type='button'
+									onClick={() => handleEditTask(task)}
+									style={{
+										border: 'none',
+										background: 'transparent',
+										color: '#1d4ed8',
+										fontWeight: 700,
+										cursor: 'pointer',
+										padding: 0,
+									}}>
+									View history
+								</button>
+							)}
 						</div>
 					</div>
 				);
@@ -474,7 +499,7 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 		},
 	];
 
-	const taskActions: Action<Task>[] = [
+	const taskActions: Action<Task>[] = canManageTasks ? [
 		{
 			label: 'Refine Task',
 			icon: faEdit,
@@ -496,7 +521,7 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 			onClick: (task: Task) => handleDeleteTask(task),
 			className: 'delete',
 		},
-	];
+	] : [];
 
 	// Process tasks to mark overdue ones
 	useEffect(() => {
@@ -509,10 +534,10 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 	}, [propertyTasks]);
 
 	useEffect(() => {
-		if (openCreateTaskToken > 0) {
+		if (openCreateTaskToken > 0 && canCreateTasks) {
 			handleCreateTask();
 		}
-	}, [openCreateTaskToken]);
+	}, [openCreateTaskToken, canCreateTasks]);
 
 	// Filter configuration for tasks
 	const taskFilters: FilterConfig[] = [
@@ -794,21 +819,23 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 				</TabSummaryPill>
 			</TabSummaryBar>
 			<Toolbar style={{ marginBottom: 12 }}>
-				<ToolbarButton
-					onClick={handleCreateTask}
-					style={{ width: isMobile ? '100%' : undefined }}
-					disabled={
-						currentUser?.subscription &&
-						isTrialExpired(currentUser.subscription)
-					}
-					title={
-						currentUser?.subscription &&
-						isTrialExpired(currentUser.subscription)
-							? 'Upgrade your subscription to add new tasks'
-							: undefined
-					}>
-					+ Create Task
-				</ToolbarButton>
+				{canCreateTasks && (
+					<ToolbarButton
+						onClick={handleCreateTask}
+						style={{ width: isMobile ? '100%' : undefined }}
+						disabled={
+							currentUser?.subscription &&
+							isTrialExpired(currentUser.subscription)
+						}
+						title={
+							currentUser?.subscription &&
+							isTrialExpired(currentUser.subscription)
+								? 'Upgrade your subscription to add new tasks'
+								: undefined
+						}>
+						+ Create Task
+					</ToolbarButton>
+				)}
 				{/* Units are temporarily hidden from the app flow.
 				{unitOptions.length > 0 && (
 					<div style={{ marginLeft: isMobile ? '0' : '12px', minWidth: isMobile ? '100%' : '220px', width: isMobile ? '100%' : undefined }}>
@@ -981,41 +1008,43 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 										)}
 									</MobileFeedMeta>
 
-									<MobileTaskActions>
-										<MobileActionButton
-											variant='primary'
-											onClick={(e) => {
-												e.stopPropagation();
-												handleEditTask(task);
-											}}
-											style={{ flex: 1 }}>
-											Refine Task
-										</MobileActionButton>
-										<MobileActionLinkRow>
-											<MobileActionLinkButton
+									{canManageTasks && (
+										<MobileTaskActions>
+											<MobileActionButton
+												variant='primary'
 												onClick={(e) => {
 													e.stopPropagation();
-													handleAssignTask(task);
+													handleEditTask(task);
+												}}
+												style={{ flex: 1 }}>
+												Refine Task
+											</MobileActionButton>
+											<MobileActionLinkRow>
+												<MobileActionLinkButton
+													onClick={(e) => {
+														e.stopPropagation();
+														handleAssignTask(task);
+													}}>
+													Assign
+												</MobileActionLinkButton>
+												<MobileActionLinkButton
+												onClick={(e) => {
+													e.stopPropagation();
+													handleCompleteTask(task);
 												}}>
-												Assign
-											</MobileActionLinkButton>
-											<MobileActionLinkButton
-											onClick={(e) => {
-												e.stopPropagation();
-												handleCompleteTask(task);
-											}}>
-												Complete
-											</MobileActionLinkButton>
-											<MobileActionLinkButton
-												$danger
-											onClick={(e) => {
-												e.stopPropagation();
-												handleDeleteTask(task);
-											}}>
-												Delete
-											</MobileActionLinkButton>
-										</MobileActionLinkRow>
-									</MobileTaskActions>
+													Complete
+												</MobileActionLinkButton>
+												<MobileActionLinkButton
+													$danger
+												onClick={(e) => {
+													e.stopPropagation();
+													handleDeleteTask(task);
+												}}>
+													Delete
+												</MobileActionLinkButton>
+											</MobileActionLinkRow>
+										</MobileTaskActions>
+									)}
 								</MobileTaskCard>
 							);
 						})}
@@ -1024,38 +1053,44 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 			) : (
 				<EmptyState>
 					<p>No matching tasks yet. Create one to start your maintenance timeline and reminders.</p>
-					<ToolbarButton type='button' onClick={handleCreateTask}>
-						Add Task
-					</ToolbarButton>
+					{canCreateTasks && (
+						<ToolbarButton type='button' onClick={handleCreateTask}>
+							Add Task
+						</ToolbarButton>
+					)}
 				</EmptyState>
 			)}
 
 
 
-			<TaskAssignModal
-				isOpen={showAssignModal}
-				task={selectedTask}
-				propertyId={''}
-				onClose={() => setShowAssignModal(false)}
-				selectedAssignee={selectedTask?.assignedTo}
-			/>
+			{canManageTasks && (
+				<TaskAssignModal
+					isOpen={showAssignModal}
+					task={selectedTask}
+					propertyId={''}
+					onClose={() => setShowAssignModal(false)}
+					selectedAssignee={selectedTask?.assignedTo}
+				/>
+			)}
 
-			<TaskModal
-				isOpen={showTaskModal}
-				onClose={() => setShowTaskModal(false)}
-				editingTask={isEditing ? selectedTask : undefined}
-				editingTaskId={isEditing ? selectedTask?.id : undefined}
-				isEditing={isEditing}
-				propertyId={property?.id || ''}
-				unitId=''
-				assigneeOptions={assigneeOptions}
-				currentUser={currentUser}
-				onSaved={(updatedTask) => {
-					if (updatedTask) {
-						setSelectedTask(updatedTask);
-					}
-				}}
-			/>
+			{(canManageTasks || canCreateTasks) && (
+				<TaskModal
+					isOpen={showTaskModal}
+					onClose={() => setShowTaskModal(false)}
+					editingTask={isEditing ? selectedTask : undefined}
+					editingTaskId={isEditing ? selectedTask?.id : undefined}
+					isEditing={isEditing}
+					propertyId={property?.id || ''}
+					unitId=''
+					assigneeOptions={assigneeOptions}
+					currentUser={currentUser}
+					onSaved={(updatedTask) => {
+						if (updatedTask) {
+							setSelectedTask(updatedTask);
+						}
+					}}
+				/>
+			)}
 
 			<WarningDialog
 				open={showDeleteConfirmation}

@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useSelector } from 'react-redux';
 import {
 	faEdit,
 	faEnvelope,
@@ -23,8 +24,19 @@ import {
 } from '../../../Components/Library/FilterBar';
 import { applyFilters } from '../../../utils/tableFilters';
 import {
+	DesktopTableWrapper,
 	EmptyState,
 	GridContainer,
+	MobileActionButton,
+	MobileActionLinkButton,
+	MobileActionLinkRow,
+	MobileFeedLine,
+	MobileFeedLineMuted,
+	MobileFeedMeta,
+	MobileTaskActions,
+	MobileTaskCard,
+	MobileTaskHeader,
+	MobileTaskTitle,
 	Toolbar,
 	ToolbarButton,
 } from './index.styles';
@@ -42,6 +54,7 @@ export const TenantsTab: React.FC<TenantsTabProps> = ({
 	setShowAddTenantModal,
 	onEditTenant,
 	onDeleteTenant,
+	permissions,
 }) => {
 	const [filters, setFilters] = useState<FilterValues>({});
 	const [showFilters, setShowFilters] = useState(false);
@@ -58,6 +71,8 @@ export const TenantsTab: React.FC<TenantsTabProps> = ({
 			}
 		>
 	>({});
+	const { isMobile } = useSelector((state: any) => state.app);
+	const isTeamMemberAccount = currentUser?.isTeamMemberAccount === true;
 	const [getTenantInvitationCode] = useLazyGetTenantInvitationCodeQuery();
 	const [getTenantInvitationCodesByEmail] =
 		useLazyGetTenantInvitationCodesByEmailQuery();
@@ -219,8 +234,10 @@ export const TenantsTab: React.FC<TenantsTabProps> = ({
 			],
 		});
 	}, [property.tenants, filters]);
-	const canManageTenants =
+	const planAllowsTenantManagement =
 		!!currentUser?.subscription && canManageTenantsForPlan(currentUser.subscription as any);
+	const canManageTenants =
+		planAllowsTenantManagement && (permissions?.canManageTenants ?? true);
 
 	const getLeaseContinuity = (tenant: any) => {
 		const now = Date.now();
@@ -410,9 +427,18 @@ export const TenantsTab: React.FC<TenantsTabProps> = ({
 			</SectionLead>
 			{!canManageTenants && (
 				<LockedFeatureCallout
-					title='Tenant management is locked on your current plan'
-					description='View tenant occupancy details in read-only mode. Upgrade to Portfolio to add, invite, or edit tenants.'
+					title={
+						planAllowsTenantManagement || isTeamMemberAccount
+							? 'Tenant management is read-only for your role'
+							: 'Tenant management is locked on your current plan'
+					}
+					description={
+						planAllowsTenantManagement || isTeamMemberAccount
+							? 'You can review tenant occupancy details, but adding, inviting, or editing tenants requires a leasing or manager role.'
+							: 'View tenant occupancy details in read-only mode. Upgrade to Portfolio to add, invite, or edit tenants.'
+					}
 					upgradeLabel='Upgrade for Tenant Tools'
+					showUpgradeAction={!planAllowsTenantManagement && !isTeamMemberAccount}
 					compact
 				/>
 			)}
@@ -457,6 +483,7 @@ export const TenantsTab: React.FC<TenantsTabProps> = ({
 						display: 'flex',
 						alignItems: 'center',
 						gap: '8px',
+						flexDirection: isMobile ? 'column' : 'row',
 						marginBottom: showFilters ? '12px' : '0',
 					}}>
 					<input
@@ -471,6 +498,7 @@ export const TenantsTab: React.FC<TenantsTabProps> = ({
 						}
 						style={{
 							flex: 1,
+							width: isMobile ? '100%' : undefined,
 							padding: '8px 12px',
 							border: '1px solid #e5e7eb',
 							borderRadius: '4px',
@@ -481,6 +509,7 @@ export const TenantsTab: React.FC<TenantsTabProps> = ({
 						onClick={() => setShowFilters(!showFilters)}
 						style={{
 							padding: '8px 10px',
+							width: isMobile ? '100%' : undefined,
 							border: '1px solid #e5e7eb',
 							borderRadius: '4px',
 							background: '#f9fafb',
@@ -500,19 +529,120 @@ export const TenantsTab: React.FC<TenantsTabProps> = ({
 			</div>
 
 			{filteredTenants && filteredTenants.length > 0 ? (
-				<GridContainer>
-					<ReusableTable
-						columns={columns}
-						rowData={tableData}
-						getRowClassName={(row: any) =>
-							getLeaseContinuity(row).label === 'Expired' ? 'attention-row' : undefined
-						}
-						actions={actions}
-						showCheckbox={false}
-						hideHeader={true}
-						emptyMessage='No tenant records yet. Add tenants to establish occupancy history.'
-					/>
-				</GridContainer>
+				<>
+					<DesktopTableWrapper>
+						<GridContainer>
+							<ReusableTable
+								columns={columns}
+								rowData={tableData}
+								getRowClassName={(row: any) =>
+									getLeaseContinuity(row).label === 'Expired' ? 'attention-row' : undefined
+								}
+								actions={actions}
+								showCheckbox={false}
+								hideHeader={true}
+								emptyMessage='No tenant records yet. Add tenants to establish occupancy history.'
+							/>
+						</GridContainer>
+					</DesktopTableWrapper>
+
+					<div>
+						{tableData.map((tenant: any) => {
+							const continuity = getLeaseContinuity(tenant);
+							const inviteCode = inviteCodeByTenantId[tenant.id]?.code;
+							const cardAccent =
+								continuity.label === 'Expired'
+									? '#ef4444'
+									: continuity.label === 'Upcoming'
+									? '#3b82f6'
+									: continuity.label === 'Active Lease'
+									? '#22c55e'
+									: '#94a3b8';
+
+							return (
+								<MobileTaskCard
+									key={tenant.id}
+									$isSelected={false}
+									style={{ borderLeft: `4px solid ${cardAccent}` }}>
+									<MobileTaskHeader>
+										<div style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%' }}>
+											<span
+												style={{
+													display: 'inline-flex',
+													alignItems: 'center',
+													justifyContent: 'center',
+													width: 28,
+													height: 28,
+													borderRadius: 8,
+													color: continuity.tone,
+													background: continuity.bg,
+													flexShrink: 0,
+												}}>
+												<FontAwesomeIcon icon={continuity.icon} />
+											</span>
+											<MobileTaskTitle>
+												{tenant.fullName.trim() || 'Unnamed Tenant'}
+											</MobileTaskTitle>
+										</div>
+										<span
+											style={{
+												display: 'inline-flex',
+												alignItems: 'center',
+												gap: 6,
+												padding: '4px 10px',
+												borderRadius: 999,
+												fontSize: 12,
+												fontWeight: 700,
+												color: continuity.tone,
+												background: continuity.bg,
+												width: 'fit-content',
+											}}>
+											<FontAwesomeIcon icon={continuity.icon} />
+											{continuity.label}
+										</span>
+									</MobileTaskHeader>
+
+									<MobileFeedMeta>
+										<MobileFeedLine>{tenant.email || 'No email on file'}</MobileFeedLine>
+										<MobileFeedLineMuted>{tenant.phone || 'No phone on file'}</MobileFeedLineMuted>
+										<MobileFeedLineMuted>
+											Lease: {tenant.leaseStartDisplay || 'N/A'} to {tenant.leaseEndDisplay || 'N/A'}
+										</MobileFeedLineMuted>
+										<MobileFeedLineMuted>
+											Invite: {tenant.inviteStatusDisplay || 'No Invite'} - {tenant.inviteStatusDetails}
+										</MobileFeedLineMuted>
+									</MobileFeedMeta>
+
+									{canManageTenants && (
+										<MobileTaskActions>
+											<MobileActionButton
+												variant='primary'
+												onClick={() => onEditTenant(tenant)}>
+												Edit Tenant
+											</MobileActionButton>
+											<MobileActionLinkRow>
+												<MobileActionLinkButton onClick={() => setInviteModalTenant(tenant)}>
+													Invite Options
+												</MobileActionLinkButton>
+												{inviteCode && (
+													<MobileActionLinkButton
+														onClick={() => handleCopyInviteCode(tenant.id, inviteCode)}>
+														{copiedTenantId === tenant.id ? 'Copied' : 'Copy Code'}
+													</MobileActionLinkButton>
+												)}
+												<MobileActionLinkButton
+													$danger
+													onClick={() => onDeleteTenant(tenant)}>
+													Delete
+												</MobileActionLinkButton>
+											</MobileActionLinkRow>
+										</MobileTaskActions>
+									)}
+								</MobileTaskCard>
+							);
+						})}
+					</div>
+				</>
 			) : (
 				<EmptyState>
 					<h3>{(property?.tenants || []).length === 0 ? 'No tenants yet' : 'No tenants match your filters'}</h3>

@@ -8,7 +8,10 @@ import {
 	useGetAllMaintenanceHistoryForUserQuery,
 } from 'Redux/API/userSlice';
 import { getTenantPropertySlug } from 'utils/permissions';
-import { selectIsTenant } from 'Redux/selectors/permissionSelectors';
+import {
+	selectIsTeamMemberAccount,
+	selectIsTenant,
+} from 'Redux/selectors/permissionSelectors';
 import { filterTasksByRole } from 'utils/dataFilters';
 import { getCurrentLocation } from 'utils/geolocation';
 import {
@@ -199,6 +202,7 @@ export const DashboardTab = () => {
 
 	// Redirect tenants to their assigned property
 	const isUserTenant = useSelector(selectIsTenant);
+	const isTeamMemberAccount = useSelector(selectIsTeamMemberAccount);
 
 	useEffect(() => {
 		if (currentUser && isUserTenant) {
@@ -1015,7 +1019,8 @@ export const DashboardTab = () => {
 	return (
 		<Wrapper>
 			{/* Scheduled Subscription Banner */}
-			{currentUser?.subscription?.hasScheduledSubscription &&
+			{!isTeamMemberAccount &&
+				currentUser?.subscription?.hasScheduledSubscription &&
 				currentUser?.subscription?.scheduledPlan &&
 				currentUser?.subscription?.trialEndsAt && (
 					<ScheduledSubscriptionBanner
@@ -1026,7 +1031,8 @@ export const DashboardTab = () => {
 				)}
 
 			{/* Trial/Expired Warning Banner */}
-			{currentUser?.subscription?.status === 'trial' &&
+			{!isTeamMemberAccount &&
+				currentUser?.subscription?.status === 'trial' &&
 				!currentUser?.subscription?.hasScheduledSubscription && (
 					<TrialWarningBanner
 						daysRemaining={getTrialDaysRemaining(
@@ -1035,7 +1041,8 @@ export const DashboardTab = () => {
 						onUpgradeClick={() => navigate('/paywall')}
 					/>
 				)}
-			{currentUser?.subscription &&
+			{!isTeamMemberAccount &&
+				currentUser?.subscription &&
 				isTrialExpired(currentUser.subscription) && (
 					<ExpiredTrialBanner onUpgradeClick={() => navigate('/paywall')} />
 				)}

@@ -34,7 +34,13 @@ export const uploadDeviceFile = async (
 	file: File,
 	propertyId: string,
 	deviceId?: string,
-): Promise<{ url: string; name: string; size: number; type: string }> => {
+): Promise<{
+	url: string;
+	name: string;
+	size: number;
+	type: string;
+	usage?: 'appliance_photo' | 'document';
+}> => {
 	if (!isValidDeviceFile(file)) {
 		throw new Error('Invalid file. Please use a valid file type under 10MB.');
 	}

@@ -69,6 +69,7 @@ import {
 	getRemainingDeviceSlots,
 	getSubscriptionPlanDetails,
 } from '../../../utils/subscriptionUtils';
+import { RoleCapabilities } from '../../../utils/permissions';
 
 const SectionLead = styled.p`
 	margin: -4px 0 14px;
@@ -101,9 +102,10 @@ interface DeviceFormData {
 
 interface DevicesTabProps {
 	property: Property;
+	permissions?: RoleCapabilities;
 }
 
-export const DevicesTab: React.FC<DevicesTabProps> = ({ property }) => {
+export const DevicesTab: React.FC<DevicesTabProps> = ({ property, permissions }) => {
 	const navigate = useNavigate();
 	const [showDeviceModal, setShowDeviceModal] = useState(false);
 	const feedback = useAppFeedback();
@@ -564,6 +566,14 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property }) => {
 		},
 	];
 
+	const [createDevice] = useCreateDeviceMutation();
+	const [updateDevice] = useUpdateDeviceMutation();
+	const [deleteDevice] = useDeleteDeviceMutation();
+	const currentUser = useSelector((state: RootState) => state.user.currentUser);
+	const isMobile = useSelector((state: RootState) => state.app.isMobile);
+	const isTeamMemberAccount = currentUser?.isTeamMemberAccount === true;
+	const canManageAppliances = permissions?.canManageAppliances ?? true;
+
 	const deviceActions: Action[] = [
 		{
 			label: 'View',
@@ -572,24 +582,22 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property }) => {
 				navigate(getDeviceDetailPath(device));
 			},
 		},
-		{
-			label: 'Edit',
-			icon: faEdit,
-			onClick: (device: any) => handleOpenEditModal(device),
-		},
-		{
-			label: 'Delete',
-			icon: faTrash,
-			onClick: (device: any) => handleDeleteDevice(device.id),
-			className: 'delete',
-		},
+		...(canManageAppliances
+			? [
+					{
+						label: 'Edit',
+						icon: faEdit,
+						onClick: (device: any) => handleOpenEditModal(device),
+					},
+					{
+						label: 'Delete',
+						icon: faTrash,
+						onClick: (device: any) => handleDeleteDevice(device.id),
+						className: 'delete',
+					},
+			  ]
+			: []),
 	];
-
-	const [createDevice] = useCreateDeviceMutation();
-	const [updateDevice] = useUpdateDeviceMutation();
-	const [deleteDevice] = useDeleteDeviceMutation();
-	const currentUser = useSelector((state: RootState) => state.user.currentUser);
-	const isMobile = useSelector((state: RootState) => state.app.isMobile);
 
 	const resetForm = () => {
 		setDeviceFormData({
@@ -620,6 +628,10 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property }) => {
 	}, [allDevices.length, currentUser?.subscription]);
 
 	const handleOpenCreateModal = () => {
+		if (!canManageAppliances) {
+			feedback.notify('Your role can view appliances but cannot add or edit them.');
+			return;
+		}
 		if (!currentUser?.subscription) {
 			feedback.notify('Unable to verify subscription. Please contact support.');
 			return;
@@ -628,11 +640,17 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property }) => {
 		if (!canAddDevice(currentUser.subscription, allDevices.length)) {
 			const planDetails = getSubscriptionPlanDetails(currentUser.subscription.plan);
 			const maxDevices = planDetails?.maxDevices || 8;
-			feedback.notify(
-				`Your ${planDetails?.name || 'current'} plan allows up to ${maxDevices} appliances. ` +
-					`You currently have ${allDevices.length} appliances. ` +
-					`Please upgrade your plan to add more appliances.`,
-			);
+			if (isTeamMemberAccount) {
+				feedback.notify(
+					`This account has reached its appliance limit of ${maxDevices}. Ask the account holder to adjust the account or remove unused appliances.`,
+				);
+			} else {
+				feedback.notify(
+					`Your ${planDetails?.name || 'current'} plan allows up to ${maxDevices} appliances. ` +
+						`You currently have ${allDevices.length} appliances. ` +
+						`Please upgrade your plan to add more appliances.`,
+				);
+			}
 			return;
 		}
 
@@ -641,6 +659,10 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property }) => {
 	};
 
 	const handleOpenEditModal = (device: any) => {
+		if (!canManageAppliances) {
+			feedback.notify('Your role can view appliances but cannot edit them.');
+			return;
+		}
 		setDeviceFormData({
 			type: device.type || '',
 			brand: device.brand || '',
@@ -703,6 +725,10 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property }) => {
 
 	const handleSubmit = async () => {
 		if (isSubmitting) return;
+		if (!canManageAppliances) {
+			feedback.notify('Your role can view appliances but cannot save appliance changes.');
+			return;
+		}
 
 		setIsSubmitting(true);
 		try {
@@ -749,6 +775,10 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property }) => {
 	};
 
 	const handleDeleteDevice = (deviceId: string) => {
+		if (!canManageAppliances) {
+			feedback.notify('Your role can view appliances but cannot delete them.');
+			return;
+		}
 		setDeleteDialogMessage('Are you sure you want to delete this appliance?');
 		setPendingDeleteDeviceId(deviceId);
 		setDeleteDialogOpen(true);
@@ -805,16 +835,18 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property }) => {
 				</TabSummaryPill>
 			</TabSummaryBar>
 
-			<Toolbar>
-				<ToolbarButton
-					className='primary-action'
-					disabled={remainingDeviceSlots <= 0}
-					onClick={handleOpenCreateModal}
-					style={{ width: isMobile ? '100%' : undefined }}>
-					<FontAwesomeIcon icon={faPlus} style={{ marginRight: '8px' }} />
-					{remainingDeviceSlots <= 0 ? 'Appliance Limit Reached' : 'Add Appliance'}
-				</ToolbarButton>
-			</Toolbar>
+			{canManageAppliances && (
+				<Toolbar>
+					<ToolbarButton
+						className='primary-action'
+						disabled={remainingDeviceSlots <= 0}
+						onClick={handleOpenCreateModal}
+						style={{ width: isMobile ? '100%' : undefined }}>
+						<FontAwesomeIcon icon={faPlus} style={{ marginRight: '8px' }} />
+						{remainingDeviceSlots <= 0 ? 'Appliance Limit Reached' : 'Add Appliance'}
+					</ToolbarButton>
+				</Toolbar>
+			)}
 
 			{isMobile && (
 				<div style={{ display: 'flex', flexDirection: 'column', gap: 12, paddingBottom: 4 }}>
@@ -886,10 +918,12 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property }) => {
 								</div>
 								<MobileTaskActions>
 									<MobileActionButton variant='primary' onClick={(event) => { event.stopPropagation(); navigate(getDeviceDetailPath(device)); }}>View history</MobileActionButton>
-									<MobileActionLinkRow>
-										<MobileActionLinkButton onClick={(event) => { event.stopPropagation(); handleOpenEditModal(device); }}>Edit</MobileActionLinkButton>
-										<MobileActionLinkButton $danger onClick={(event) => { event.stopPropagation(); handleDeleteDevice(device.id); }}>Delete</MobileActionLinkButton>
-									</MobileActionLinkRow>
+									{canManageAppliances && (
+										<MobileActionLinkRow>
+											<MobileActionLinkButton onClick={(event) => { event.stopPropagation(); handleOpenEditModal(device); }}>Edit</MobileActionLinkButton>
+											<MobileActionLinkButton $danger onClick={(event) => { event.stopPropagation(); handleDeleteDevice(device.id); }}>Delete</MobileActionLinkButton>
+										</MobileActionLinkRow>
+									)}
 								</MobileTaskActions>
 								{device.files && device.files.length > 0 ? (
 									<div style={{ marginTop: 4, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -909,12 +943,14 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property }) => {
 					<FontAwesomeIcon icon={faWrench} size='3x' color='#ccc' />
 					<p>No appliances added yet</p>
 					<p>Add one appliance or system when you are ready to start building service history.</p>
-					<ToolbarButton
-						type='button'
-						onClick={handleOpenCreateModal}
-						disabled={remainingDeviceSlots <= 0}>
-						{remainingDeviceSlots <= 0 ? 'Appliance Limit Reached' : 'Add Appliance'}
-					</ToolbarButton>
+					{canManageAppliances && (
+						<ToolbarButton
+							type='button'
+							onClick={handleOpenCreateModal}
+							disabled={remainingDeviceSlots <= 0}>
+							{remainingDeviceSlots <= 0 ? 'Appliance Limit Reached' : 'Add Appliance'}
+						</ToolbarButton>
+					)}
 				</EmptyState>
 			) : (
 				<DesktopTableWrapper>
@@ -932,37 +968,39 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property }) => {
 				</DesktopTableWrapper>
 			)}
 			{/* Device Modal */}
-			<DeviceModal
-				isOpen={showDeviceModal}
-				onClose={handleCloseModal}
-				onSubmit={handleSubmit}
-				isEditing={Boolean(editingDevice)}
-				pendingFiles={pendingUploadFiles}
-				onPendingFilesChange={setPendingUploadFiles}
-				removedExistingFileUrls={removedExistingFileUrls}
-				onRemoveExistingFile={(url) =>
-					setRemovedExistingFileUrls((prev) =>
-						prev.includes(url) ? prev : [...prev, url],
-					)
-				}
-				onRestoreExistingFile={(url) =>
-					setRemovedExistingFileUrls((prev) => prev.filter((item) => item !== url))
-				}
-				onRemovePendingFile={(fileKey) =>
-					setPendingUploadFiles((prev) =>
-						prev.filter((file) => `${file.name}-${file.size}` !== fileKey),
-					)
-				}
-				deviceFormData={deviceFormData}
-				onFormChange={(e) =>
-					handleFormChange(e.currentTarget.name, e.currentTarget.value)
-				}
-				onServiceItemsChange={(items) =>
-					handleFormChange('serviceItems', items)
-				}
-				property={property}
-				units={units}
-			/>
+			{canManageAppliances && (
+				<DeviceModal
+					isOpen={showDeviceModal}
+					onClose={handleCloseModal}
+					onSubmit={handleSubmit}
+					isEditing={Boolean(editingDevice)}
+					pendingFiles={pendingUploadFiles}
+					onPendingFilesChange={setPendingUploadFiles}
+					removedExistingFileUrls={removedExistingFileUrls}
+					onRemoveExistingFile={(url) =>
+						setRemovedExistingFileUrls((prev) =>
+							prev.includes(url) ? prev : [...prev, url],
+						)
+					}
+					onRestoreExistingFile={(url) =>
+						setRemovedExistingFileUrls((prev) => prev.filter((item) => item !== url))
+					}
+					onRemovePendingFile={(fileKey) =>
+						setPendingUploadFiles((prev) =>
+							prev.filter((file) => `${file.name}-${file.size}` !== fileKey),
+						)
+					}
+					deviceFormData={deviceFormData}
+					onFormChange={(e) =>
+						handleFormChange(e.currentTarget.name, e.currentTarget.value)
+					}
+					onServiceItemsChange={(items) =>
+						handleFormChange('serviceItems', items)
+					}
+					property={property}
+					units={units}
+				/>
+			)}
 		</SectionContainer>
 	);
 };

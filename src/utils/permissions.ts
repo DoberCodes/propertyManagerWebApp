@@ -16,6 +16,115 @@ import {
 } from './subscriptionUtils';
 import { User } from '../Redux/Slices/userSlice';
 
+export interface RoleCapabilities {
+	canManageProperties: boolean;
+	canManageTasks: boolean;
+	canCreateTasks: boolean;
+	canCompleteTasks: boolean;
+	canManageMaintenanceHistory: boolean;
+	canCreateMaintenanceRequests: boolean;
+	canApproveMaintenanceRequests: boolean;
+	canManageAppliances: boolean;
+	canManageContractors: boolean;
+	canManageTenants: boolean;
+	canManageFinancials: boolean;
+	canManageTeam: boolean;
+}
+
+const createCapabilities = (
+	overrides: Partial<RoleCapabilities>,
+): RoleCapabilities => ({
+	canManageProperties: false,
+	canManageTasks: false,
+	canCreateTasks: false,
+	canCompleteTasks: false,
+	canManageMaintenanceHistory: false,
+	canCreateMaintenanceRequests: false,
+	canApproveMaintenanceRequests: false,
+	canManageAppliances: false,
+	canManageContractors: false,
+	canManageTenants: false,
+	canManageFinancials: false,
+	canManageTeam: false,
+	...overrides,
+});
+
+const FULL_MANAGER_CAPABILITIES = createCapabilities({
+	canManageProperties: true,
+	canManageTasks: true,
+	canCreateTasks: true,
+	canCompleteTasks: true,
+	canManageMaintenanceHistory: true,
+	canCreateMaintenanceRequests: true,
+	canApproveMaintenanceRequests: true,
+	canManageAppliances: true,
+	canManageContractors: true,
+	canManageTenants: true,
+	canManageFinancials: true,
+	canManageTeam: true,
+});
+
+export const getRoleCapabilities = (role?: string | null): RoleCapabilities => {
+	switch (role) {
+		case USER_ROLES.ADMIN:
+		case USER_ROLES.PROPERTY_MANAGER:
+		case USER_ROLES.ASSISTANT_MANAGER:
+			return FULL_MANAGER_CAPABILITIES;
+		case USER_ROLES.MAINTENANCE_LEAD:
+		case USER_ROLES.MAINTENANCE:
+			return createCapabilities({
+				canManageTasks: true,
+				canCreateTasks: true,
+				canCompleteTasks: true,
+				canManageMaintenanceHistory: true,
+				canApproveMaintenanceRequests: true,
+				canManageAppliances: true,
+				canManageContractors: true,
+			});
+		case USER_ROLES.LEASING:
+			return createCapabilities({
+				canCreateMaintenanceRequests: true,
+				canManageContractors: true,
+				canManageTenants: true,
+			});
+		case USER_ROLES.ACCOUNTING:
+			return createCapabilities({
+				canManageFinancials: true,
+			});
+		case USER_ROLES.TENANT:
+		case USER_ROLES.CONTRACTOR:
+		case USER_ROLES.PROPERTY_GUEST:
+			return createCapabilities({
+				canCreateMaintenanceRequests: true,
+			});
+		default:
+			return createCapabilities({});
+	}
+};
+
+export const canRoleManageTasks = (role?: string | null): boolean =>
+	getRoleCapabilities(role).canManageTasks;
+
+export const canRoleCreateTasks = (role?: string | null): boolean =>
+	getRoleCapabilities(role).canCreateTasks;
+
+export const canRoleManageMaintenanceHistory = (
+	role?: string | null,
+): boolean => getRoleCapabilities(role).canManageMaintenanceHistory;
+
+export const canRoleManageAppliances = (role?: string | null): boolean =>
+	getRoleCapabilities(role).canManageAppliances;
+
+export const canRoleManageContractors = (role?: string | null): boolean =>
+	getRoleCapabilities(role).canManageContractors;
+
+export const canRoleManageTenants = (role?: string | null): boolean =>
+	getRoleCapabilities(role).canManageTenants;
+
+export const canRoleCreateMaintenanceRequests = (
+	role?: string | null,
+): boolean => getRoleCapabilities(role).canCreateMaintenanceRequests;
+
 /**
  * Check if a user role can approve task completions
  */
@@ -64,6 +173,8 @@ export const getRoleDisplayName = (role: UserRole): string => {
 		[USER_ROLES.ASSISTANT_MANAGER]: 'Assistant Manager',
 		[USER_ROLES.MAINTENANCE_LEAD]: 'Maintenance Lead',
 		[USER_ROLES.MAINTENANCE]: 'Maintenance Technician',
+		[USER_ROLES.ACCOUNTING]: 'Accounting',
+		[USER_ROLES.LEASING]: 'Leasing Agent',
 		[USER_ROLES.CONTRACTOR]: 'Contractor',
 		[USER_ROLES.TENANT]: 'Tenant',
 		[USER_ROLES.PROPERTY_GUEST]: 'Property Guest',
@@ -81,6 +192,8 @@ export const getRoleColor = (role: UserRole): string => {
 		[USER_ROLES.ASSISTANT_MANAGER]: '#5dade2',
 		[USER_ROLES.MAINTENANCE_LEAD]: '#f39c12',
 		[USER_ROLES.MAINTENANCE]: '#f8c471',
+		[USER_ROLES.ACCOUNTING]: '#6366f1',
+		[USER_ROLES.LEASING]: '#10b981',
 		[USER_ROLES.CONTRACTOR]: '#95a5a6',
 		[USER_ROLES.TENANT]: '#7f8c8d',
 		[USER_ROLES.PROPERTY_GUEST]: '#bdc3c7',
@@ -109,7 +222,10 @@ export const hasLimitedAccess = (role: UserRole): boolean => {
  * Admin, Property Manager, Assistant Manager, and Maintenance Lead can edit tasks
  */
 export const canEditTasks = (role: UserRole): boolean => {
-	return (TASK_EDIT_ROLES as readonly string[]).includes(role);
+	return (
+		(TASK_EDIT_ROLES as readonly string[]).includes(role) ||
+		getRoleCapabilities(role).canManageTasks
+	);
 };
 
 /**
@@ -117,7 +233,7 @@ export const canEditTasks = (role: UserRole): boolean => {
  * Limited access users can create requests, but they need approval from Maintenance Lead minimum
  */
 export const canCreateMaintenanceRequest = (role: UserRole): boolean => {
-	return hasLimitedAccess(role);
+	return getRoleCapabilities(role).canCreateMaintenanceRequests;
 };
 
 /**
@@ -130,6 +246,7 @@ export const canApproveMaintenanceRequest = (role: UserRole): boolean => {
 		USER_ROLES.PROPERTY_MANAGER,
 		USER_ROLES.ASSISTANT_MANAGER,
 		USER_ROLES.MAINTENANCE_LEAD,
+		USER_ROLES.MAINTENANCE,
 	] as const;
 	return (approvalRoles as readonly string[]).includes(role);
 };

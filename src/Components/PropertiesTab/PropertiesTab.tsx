@@ -48,7 +48,7 @@ import {
 	getTenantAssignmentForProperty,
 	isTeamMemberScopedAccount,
 } from '../../utils/dataFilters';
-import { canDeleteProperty } from '../../utils/permissions';
+import { canDeleteProperty, getRoleCapabilities } from '../../utils/permissions';
 import { TeamMember } from '../../Redux/Slices/teamSlice';
 import { USER_ROLES } from '../../constants/roles';
 import {
@@ -194,8 +194,12 @@ export const Properties = () => {
 	// Check if user can manage properties based on subscription plan
 	// All paid plans allow property management, free plan has limited access
 	// Expired users cannot add new properties
+	const roleCapabilities = useMemo(
+		() => getRoleCapabilities(currentUser?.role),
+		[currentUser?.role],
+	);
 	const canManage =
-		!isTeamMemberAccount &&
+		roleCapabilities.canManageProperties &&
 		canAccessProperties &&
 		(currentUser?.subscription
 			? !isTrialExpired(currentUser.subscription)
@@ -204,7 +208,7 @@ export const Properties = () => {
 	// Check if user can create/edit/delete groups (basic and above plans only, not homeowner)
 	// Expired users cannot manage groups
 	const canManageGroups = currentUser?.subscription
-		? !isTeamMemberAccount &&
+		? roleCapabilities.canManageProperties &&
 		  canPropertyGroups(currentUser.subscription) &&
 		  !isTrialExpired(currentUser.subscription)
 		: false;
@@ -972,35 +976,33 @@ export const Properties = () => {
 		];
 	}, [propertyAggregates]);
 
-	const handleToggleHideFromDashboard = async (propertyId: string) => {
+	const applyDashboardVisibilityPreference = async (
+		propertyId: string,
+		showOnDashboard: boolean = true,
+	) => {
 		if (!currentUser) return;
 
-		try {
-			const hiddenIds = currentUser.hiddenPropertyIds || [];
-			const isCurrentlyHidden = hiddenIds.includes(propertyId);
+		const hiddenIds = currentUser.hiddenPropertyIds || [];
+		const isCurrentlyHidden = hiddenIds.includes(propertyId);
 
-			const updatedHiddenIds = isCurrentlyHidden
-				? hiddenIds.filter((id) => id !== propertyId)
-				: [...hiddenIds, propertyId];
+		if (showOnDashboard && !isCurrentlyHidden) return;
+		if (!showOnDashboard && isCurrentlyHidden) return;
 
-			await updateUser({
-				id: currentUser.id,
-				updates: { hiddenPropertyIds: updatedHiddenIds },
-			}).unwrap();
+		const updatedHiddenIds = showOnDashboard
+			? hiddenIds.filter((id) => id !== propertyId)
+			: [...hiddenIds, propertyId];
 
-			// Update the Redux store with the new user data
-			dispatch(
-				setCurrentUser({
-					...currentUser,
-					hiddenPropertyIds: updatedHiddenIds,
-				}),
-			);
+		await updateUser({
+			id: currentUser.id,
+			updates: { hiddenPropertyIds: updatedHiddenIds },
+		}).unwrap();
 
-			setOpenDropdown(null);
-		} catch (error) {
-			console.error('Failed to update dashboard visibility:', error);
-			feedback.notify('Failed to update dashboard visibility. Please try again.');
-		}
+		dispatch(
+			setCurrentUser({
+				...currentUser,
+				hiddenPropertyIds: updatedHiddenIds,
+			}),
+		);
 	};
 
 	const cloneDuplicateAppliances = async (newProperty: any) => {
@@ -1171,6 +1173,18 @@ export const Properties = () => {
 					updates: sanitizedUpdates,
 				}).unwrap();
 
+				try {
+					await applyDashboardVisibilityPreference(
+						selectedPropertyForEdit.id,
+						formData.showOnDashboard ?? true,
+					);
+				} catch (visibilityError) {
+					console.error('Failed to update dashboard visibility:', visibilityError);
+					feedback.notify(
+						'Property saved, but dashboard visibility could not be updated. Please try again.',
+					);
+				}
+
 				// Create notification for property update
 				try {
 					await createNotification({
@@ -1250,6 +1264,18 @@ export const Properties = () => {
 				const result = await createProperty(newPropertyData);
 
 				if ('data' in result) {
+					try {
+						await applyDashboardVisibilityPreference(
+							result.data.id,
+							formData.showOnDashboard ?? true,
+						);
+					} catch (visibilityError) {
+						console.error('Failed to update dashboard visibility:', visibilityError);
+						feedback.notify(
+							'Property was created, but dashboard visibility could not be updated. Please try again.',
+						);
+					}
+
 					addRecentlyViewed({
 						id: result.data.id as any, // Firebase uses string IDs
 						title: result.data.title,
@@ -1425,7 +1451,7 @@ export const Properties = () => {
 						</TopActions>
 					)}
 				</PageHeaderSection>
-				{!canManageGroups && (
+				{!isTeamMemberAccount && !canManageGroups && (
 					<LockedFeatureCallout
 						title='Property Groups are locked on your current plan'
 						description='You can still manage individual properties. Upgrade to Portfolio to create, organize, and manage property groups.'
@@ -1546,7 +1572,7 @@ export const Properties = () => {
 					)}
 				</TopActions>
 			</PageHeaderSection>
-			{!canManageGroups && (
+			{!isTeamMemberAccount && !canManageGroups && (
 				<LockedFeatureCallout
 					title='Property Groups are locked on your current plan'
 					description='Browse your properties normally. Upgrade to Portfolio to build grouped property workspaces.'
@@ -1635,11 +1661,6 @@ export const Properties = () => {
 								selectedPropertyForEdit.id,
 						  )
 						: false
-				}
-				onToggleHideFromDashboard={
-					selectedPropertyForEdit
-						? () => handleToggleHideFromDashboard(selectedPropertyForEdit.id)
-						: undefined
 				}
 			/>
 			<GroupsContainer>
