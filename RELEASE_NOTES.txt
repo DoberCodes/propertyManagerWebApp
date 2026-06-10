@@ -1,9 +1,5 @@
-🎉 **Release Notes for Version 2.2.11** 🎉
+🎉 **Release Notes for Version 2.2.12** 🎉
 
 
 ## 🐛 Bug Fixes
-- fixing some issues with devices and zero states
-- Overhaul on teammember invite, update the mobile styling and adding duplicate property
-
-## 🔧 Improvements & Maintenance
-- fixing stripe subscription issues.
+- fixing auth issue and revamping team member changes. Modifying the role based access to be more team specific.
