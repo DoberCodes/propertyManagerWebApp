@@ -1,8 +1,5 @@
-🎉 **Release Notes for Version 2.2.9** 🎉
+🎉 **Release Notes for Version 2.2.10** 🎉
 
 
 ## 🐛 Bug Fixes
-- fixing the paywall and pricing model. Also modifying the features available.
-- fixing the properties page and paywall pricing
-- fixing the hero section on devices/units. Adding adjustments to the side nav to prevent cut off and modifing underlying issues with the plan swap.
-- fixing the duplicate unit on property edit issue
+- fixing multiple bug issues also modifying verbiage to make process more clear.
