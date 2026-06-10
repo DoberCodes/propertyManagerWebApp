@@ -17,6 +17,7 @@ import {
 	TabSummaryBar,
 	TabSummaryPill,
 	SectionLead,
+	EmptyState,
 } from './index.styles';
 import { getDeviceNameUtil } from '../PropertyDetailPage.utils';
 import {
@@ -1147,37 +1148,52 @@ export const MaintenanceTab = ({
 			</div>
 			{isMobile ? (
 				<div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-					{Object.entries(groupedRecords.groups).map(([groupId, records]) => (
-						<UnifiedMaintenanceHistory
-							key={groupId}
-							records={records}
-							groupId={groupId}
-							units={units}
-							onNavigate={handleNavigation}
-							onDelete={onDeleteMaintenanceHistory}
-							onDeleteGroup={
-								onDeleteMaintenanceHistory ? handleDeleteGroup : undefined
-							}
-						/>
-					))}
-					{groupedRecords.ungrouped.map((record) => (
-						<UnifiedMaintenanceHistory
-							key={record.id}
-							records={[record]}
-							units={units}
-							onNavigate={handleNavigation}
-							onDelete={onDeleteMaintenanceHistory}
-							onDeleteGroup={
-								onDeleteMaintenanceHistory ? handleDeleteGroup : undefined
-							}
-						/>
-					))}
+					{filteredRecords.length === 0 ? (
+						<EmptyState>
+							<h3>No maintenance activity yet</h3>
+							<p>Add a completed service note when something happens, or create a task to plan the next maintenance step.</p>
+							<ToolbarButton type='button' onClick={() => setShowAddModal(true)}>
+								Add Maintenance Record
+							</ToolbarButton>
+						</EmptyState>
+					) : (
+						<>
+							{Object.entries(groupedRecords.groups).map(([groupId, records]) => (
+								<UnifiedMaintenanceHistory
+									key={groupId}
+									records={records}
+									groupId={groupId}
+									units={units}
+									onNavigate={handleNavigation}
+									onDelete={onDeleteMaintenanceHistory}
+									onDeleteGroup={
+										onDeleteMaintenanceHistory ? handleDeleteGroup : undefined
+									}
+								/>
+							))}
+							{groupedRecords.ungrouped.map((record) => (
+								<UnifiedMaintenanceHistory
+									key={record.id}
+									records={[record]}
+									units={units}
+									onNavigate={handleNavigation}
+									onDelete={onDeleteMaintenanceHistory}
+									onDeleteGroup={
+										onDeleteMaintenanceHistory ? handleDeleteGroup : undefined
+									}
+								/>
+							))}
+						</>
+					)}
 				</div>
 			) : (
 				<ReusableTable
 					columns={columns}
 					rowData={filteredRecords}
+					emptyTitle='No maintenance activity yet'
 					emptyMessage='No maintenance activity recorded yet. History will appear as maintenance is completed.'
+					emptyActionLabel='Add Maintenance Record'
+					onEmptyAction={() => setShowAddModal(true)}
 					hideHeader={true}
 					getRowClassName={(row) => {
 						const status = getOperationalStatus(row);

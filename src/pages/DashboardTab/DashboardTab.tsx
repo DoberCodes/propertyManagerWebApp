@@ -83,6 +83,8 @@ import {
 	UrgentTaskActions,
 	UrgentActionButton,
 	UrgentQueueEmpty,
+	EmptyDashboardState,
+	EmptyDashboardCard,
 } from './DashboardTab.styles';
 import { SeasonalMaintenance } from 'Components/SeasonalMaintenance';
 import { SeasonalCard } from 'data/seasonalTipCards';
@@ -147,7 +149,8 @@ export const DashboardTab = () => {
 	// Fetch tasks and properties from Firebase
 	const { data: allTasks = [] } = useGetTasksQuery();
 	const { data: allDevices = [] } = useGetAllDevicesQuery();
-	const { data: ownedProperties = [] } = useGetPropertiesQuery();
+	const { data: ownedProperties = [], isLoading: isLoadingProperties } =
+		useGetPropertiesQuery();
 	const { data: allMaintenanceHistory = [] } =
 		useGetAllMaintenanceHistoryForUserQuery(undefined, {
 			skip: !currentUser?.id && !(currentUser as any)?.uid,
@@ -991,6 +994,24 @@ export const DashboardTab = () => {
 		setCompletingTaskId(null);
 	};
 
+	if (!isUserTenant && !isLoadingProperties && allProperties.length === 0) {
+		return (
+			<Wrapper>
+				<EmptyDashboardState>
+					<EmptyDashboardCard>
+						<h1>No property added yet</h1>
+						<p>
+							Add your first property to turn on the dashboard. Tasks, appliances, maintenance history, and alerts will start organizing around it.
+						</p>
+						<button type='button' onClick={() => navigate('/properties')}>
+							Add Property
+						</button>
+					</EmptyDashboardCard>
+				</EmptyDashboardState>
+			</Wrapper>
+		);
+	}
+
 	return (
 		<Wrapper>
 			{/* Scheduled Subscription Banner */}
@@ -1095,8 +1116,7 @@ export const DashboardTab = () => {
 				</TodayFocusCard>
 
 				<PortfolioHealthCard>
-					<CardEyebrow>Maintenance Overview</CardEyebrow>
-					<CardTitle>Maintenance Status</CardTitle>
+					<CardEyebrow>{allProperties.length === 1 ? 'Home Overview' : 'Portfolio Overview'}</CardEyebrow>
 					<PortfolioHeaderText>
 						Current maintenance picture across {allProperties.length}{' '}
 						{allProperties.length === 1 ? 'property' : 'properties'} and {trackedSystemsCount}{' '}
@@ -1157,7 +1177,16 @@ export const DashboardTab = () => {
 				</RecentActivityHeader>
 				{recentMaintenanceActivity.length === 0 ? (
 					<RecentActivityEmpty>
-						No appliance maintenance events yet. Complete tasks or add logs from an appliance page to build the service history.
+						<p>No appliance maintenance events yet. Complete tasks or add logs from an appliance page to build the service history.</p>
+						<FocusButton
+							type='button'
+							onClick={() => {
+								setSeasonalTaskDraft(null);
+								setEditingTaskId(null);
+								setShowTaskDialog(true);
+							}}>
+							Add Task
+						</FocusButton>
 					</RecentActivityEmpty>
 				) : (
 					<RecentActivityList>

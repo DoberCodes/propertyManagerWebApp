@@ -362,6 +362,10 @@ export const EmptyMessage = styled.div`
 	padding: 40px 20px;
 	color: #9ca3af;
 	font-size: 14px;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 12px;
 
 	@media (max-width: 480px) {
 		padding: 30px 15px;

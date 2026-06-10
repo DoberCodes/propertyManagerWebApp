@@ -29,6 +29,7 @@ import {
 	PreviewItemTitle,
 	PreviewItemTrailing,
 	PreviewItemMeta,
+	PreviewEmptyAction,
 	TimelineList,
 	TimelineItem,
 	TimelineBadge,
@@ -203,8 +204,15 @@ export const DetailsTab: React.FC<DetailsTabProps> = ({
 					<PreviewList>
 						{upcomingTasks.length === 0 ? (
 							<PreviewItem>
-								<PreviewItemTitle>No open maintenance tasks</PreviewItemTitle>
-								<PreviewItemMeta>Maintenance is up to date</PreviewItemMeta>
+								<div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+									<PreviewItemTitle>No open maintenance tasks</PreviewItemTitle>
+									<PreviewItemMeta style={{ textAlign: 'left' }}>
+										Future work will appear here once tasks are scheduled.
+									</PreviewItemMeta>
+									<PreviewEmptyAction type='button' onClick={() => onCreateTask?.()}>
+										Add Task
+									</PreviewEmptyAction>
+								</div>
 							</PreviewItem>
 						) : (
 							upcomingTasks.map((task) => (
@@ -233,8 +241,15 @@ export const DetailsTab: React.FC<DetailsTabProps> = ({
 					<TimelineList>
 						{propertyTimeline.length === 0 ? (
 							<PreviewItem>
-								<PreviewItemTitle>No maintenance activity yet</PreviewItemTitle>
-								<PreviewItemMeta>Start by logging completed service events</PreviewItemMeta>
+								<div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+									<PreviewItemTitle>No maintenance activity yet</PreviewItemTitle>
+									<PreviewItemMeta style={{ textAlign: 'left' }}>
+										Completed tasks and service records build this timeline.
+									</PreviewItemMeta>
+									<PreviewEmptyAction type='button' onClick={() => onCreateTask?.()}>
+										Add Task
+									</PreviewEmptyAction>
+								</div>
 							</PreviewItem>
 						) : (
 							propertyTimeline.map((event) => (

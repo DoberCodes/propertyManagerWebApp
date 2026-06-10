@@ -75,67 +75,62 @@ const maintenanceSlice = apiSlice.injectEndpoints({
 						}
 					}
 
-					// Fallback by propertyTitle for old records that lack a propertyId field
-					if (records.length === 0) {
-						// Secondary pass: query by propertyId without account filter.
-						// This helps when account resolver data is stale/missing while rules still allow reads.
-						for (const collectionName of ['maintenanceEvents', 'maintenanceHistory']) {
-							try {
-								const propertyQuery = query(
-									collection(db, collectionName),
-									where('propertyId', '==', propertyId),
-								);
-								const propertySnapshot = await getDocs(propertyQuery);
-								propertySnapshot.docs.forEach((d) => {
-									const data = docToData(d);
-									if (data && !seenIds.has(data.id)) {
-										if (collectionName === 'maintenanceEvents') {
-											debugCounts.propertyScoped.maintenanceEvents += 1;
-										} else {
-											debugCounts.propertyScoped.maintenanceHistory += 1;
-										}
-										seenIds.add(data.id);
-										records.push(data);
+					// Secondary pass: query by propertyId without account filter.
+					// This fills gaps when account context changed but rules still allow the property read.
+					for (const collectionName of ['maintenanceEvents', 'maintenanceHistory']) {
+						try {
+							const propertyQuery = query(
+								collection(db, collectionName),
+								where('propertyId', '==', propertyId),
+							);
+							const propertySnapshot = await getDocs(propertyQuery);
+							propertySnapshot.docs.forEach((d) => {
+								const data = docToData(d);
+								if (data && !seenIds.has(data.id)) {
+									if (collectionName === 'maintenanceEvents') {
+										debugCounts.propertyScoped.maintenanceEvents += 1;
+									} else {
+										debugCounts.propertyScoped.maintenanceHistory += 1;
 									}
-								});
-							} catch {
-								// Continue to next fallback path if this query isn't allowed by rules.
-							}
+									seenIds.add(data.id);
+									records.push(data);
+								}
+							});
+						} catch {
+							// Continue to next fallback path if this query isn't allowed by rules.
 						}
 					}
 
 					// Fallback by propertyTitle for old records that lack a propertyId field
-					if (records.length === 0) {
-						const propertyDoc = await getDoc(doc(db, 'properties', propertyId));
-						const propertyTitle = docToData(propertyDoc)?.title;
-						if (propertyTitle) {
-							for (const collectionName of ['maintenanceEvents', 'maintenanceHistory']) {
-								for (const accountId of accessibleAccountIds) {
-									try {
-										const titleQuery = query(
-											collection(db, collectionName),
-											where('accountId', '==', accountId),
-											where('propertyTitle', '==', propertyTitle),
-										);
-										const titleSnapshot = await getDocs(titleQuery);
-										titleSnapshot.docs.forEach((d) => {
-											const data = docToData(d);
-											if (data && !seenIds.has(data.id)) {
-												if (collectionName === 'maintenanceEvents') {
-													debugCounts.titleFallback.maintenanceEvents += 1;
-												} else {
-													debugCounts.titleFallback.maintenanceHistory += 1;
-												}
-												seenIds.add(data.id);
-												records.push(data);
+					const propertyDoc = await getDoc(doc(db, 'properties', propertyId));
+					const propertyTitle = docToData(propertyDoc)?.title;
+					if (propertyTitle) {
+						for (const collectionName of ['maintenanceEvents', 'maintenanceHistory']) {
+							for (const accountId of accessibleAccountIds) {
+								try {
+									const titleQuery = query(
+										collection(db, collectionName),
+										where('accountId', '==', accountId),
+										where('propertyTitle', '==', propertyTitle),
+									);
+									const titleSnapshot = await getDocs(titleQuery);
+									titleSnapshot.docs.forEach((d) => {
+										const data = docToData(d);
+										if (data && !seenIds.has(data.id)) {
+											if (collectionName === 'maintenanceEvents') {
+												debugCounts.titleFallback.maintenanceEvents += 1;
+											} else {
+												debugCounts.titleFallback.maintenanceHistory += 1;
 											}
-										});
-									} catch (error) {
-										console.warn(
-											`Maintenance title fallback query failed for ${collectionName} (${accountId}).`,
-											error,
-										);
-									}
+											seenIds.add(data.id);
+											records.push(data);
+										}
+									});
+								} catch (error) {
+									console.warn(
+										`Maintenance title fallback query failed for ${collectionName} (${accountId}).`,
+										error,
+									);
 								}
 							}
 						}

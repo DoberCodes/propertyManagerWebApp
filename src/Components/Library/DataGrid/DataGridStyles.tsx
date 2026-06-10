@@ -43,9 +43,36 @@ export const EmptyState = styled.div`
 	text-align: center;
 	padding: 40px 20px;
 	color: #6b7280;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 10px;
 
 	p {
 		margin: 0;
 		font-size: 14px;
+		line-height: 1.5;
+		max-width: 360px;
+	}
+
+	button {
+		border: none;
+		border-radius: 8px;
+		background: #16a34a;
+		color: #ffffff;
+		font-size: 13px;
+		font-weight: 700;
+		padding: 0.55rem 0.9rem;
+		cursor: pointer;
+	}
+
+	button:hover:not(:disabled) {
+		background: #15803d;
+	}
+
+	button:disabled {
+		background: #9ca3af;
+		cursor: not-allowed;
+		opacity: 0.75;
 	}
 `;

@@ -829,7 +829,13 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property }) => {
 				<EmptyState>
 					<FontAwesomeIcon icon={faWrench} size='3x' color='#ccc' />
 					<p>No appliances added yet</p>
-					<p>Click "Add Appliance" to get started</p>
+					<p>Add one appliance or system when you are ready to start building service history.</p>
+					<ToolbarButton
+						type='button'
+						onClick={handleOpenCreateModal}
+						disabled={remainingDeviceSlots <= 0}>
+						{remainingDeviceSlots <= 0 ? 'Appliance Limit Reached' : 'Add Appliance'}
+					</ToolbarButton>
 				</EmptyState>
 			) : (
 				<DesktopTableWrapper>

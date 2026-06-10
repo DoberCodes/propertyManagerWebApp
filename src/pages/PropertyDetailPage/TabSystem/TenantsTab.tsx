@@ -515,7 +515,17 @@ export const TenantsTab: React.FC<TenantsTabProps> = ({
 				</GridContainer>
 			) : (
 				<EmptyState>
-					<p>No tenants assigned to this property</p>
+					<h3>{(property?.tenants || []).length === 0 ? 'No tenants yet' : 'No tenants match your filters'}</h3>
+					<p>
+						{(property?.tenants || []).length === 0
+							? 'Add tenants here when this rental has an occupant or lease contact to track.'
+							: 'Try clearing filters, or add a tenant if this is a new occupancy record.'}
+					</p>
+					{canManageTenants && (
+						<ToolbarButton type='button' onClick={() => setShowAddTenantModal(true)}>
+							Add Tenant
+						</ToolbarButton>
+					)}
 				</EmptyState>
 			)}
 

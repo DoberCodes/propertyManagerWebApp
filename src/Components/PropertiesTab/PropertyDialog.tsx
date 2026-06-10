@@ -22,10 +22,6 @@ import {
 	TextArea,
 	PhotoPreview,
 	PhotoPreviewImage,
-	TagsContainer,
-	Tag,
-	RemoveTagButton,
-	TagInput,
 	WizardShell,
 	WizardSidebar,
 	WizardStep,
@@ -67,8 +63,6 @@ import { RootState } from '../../Redux/store/store';
 import { TeamMember } from '../../types/Team.types';
 import { User } from '../../Redux/Slices/userSlice';
 import { getFamilyMembers } from '../../services/authService';
-import { canManageMultiUnit } from '../../utils/subscriptionUtils';
-import { LockedFeatureCallout } from '../Library/LockedFeatureCallout';
 
 interface MaintenanceRecord {
 	date: string;
@@ -157,8 +151,6 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 }) => {
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
 	const teamGroups = useSelector((state: RootState) => state.team.groups);
-	const canUseMultiUnitManagement =
-		!!currentUser?.subscription && canManageMultiUnit(currentUser.subscription as any);
 
 	const teamMembers = useMemo(
 		() => teamGroups.flatMap((group) => group.members || []),
@@ -186,7 +178,6 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 	const [stepIndex, setStepIndex] = useState(0);
 	// Units are temporarily hidden from the app flow.
 	// const [unitInput, setUnitInput] = useState('');
-	const [suiteInput, setSuiteInput] = useState('');
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [newGroupName, setNewGroupName] = useState('');
 	const [isUploadingImage, setIsUploadingImage] = useState(false);
@@ -211,25 +202,12 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 		}
 
 		if (initialData) {
-			const unitStrings =
-				initialData.units && Array.isArray(initialData.units)
-					? (initialData.units as any[]).map((unit) =>
-							typeof unit === 'string' ? unit : unit.name,
-					  )
-					: [];
-			const suiteStrings =
-				initialData.suites && Array.isArray(initialData.suites)
-					? (initialData.suites as any[]).map((suite) =>
-							typeof suite === 'string' ? suite : suite.name,
-					  )
-					: [];
-
 			setFormData({
 				...initialData,
 				propertyType: forceSingleFamily ? 'Single Family' : initialData.propertyType,
-				units: unitStrings,
-				suites: suiteStrings,
-				hasSuites: initialData.hasSuites ?? false,
+				units: [],
+				suites: [],
+				hasSuites: false,
 				isRental: initialData.isRental ?? false,
 				groupId: initialData.groupId ?? selectedGroupId ?? null,
 				coOwners: initialData.coOwners || [],
@@ -262,7 +240,6 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 		setStepIndex(0);
 		// Units are temporarily hidden from the app flow.
 		// setUnitInput('');
-		setSuiteInput('');
 		setNewGroupName('');
 		setPendingShares({ coOwners: '', administrators: '', viewers: '' });
 		setImageError(null);
@@ -376,22 +353,6 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 	// 		units: prev.units.filter((_, unitIndex) => unitIndex !== index),
 	// 	}));
 	// };
-
-	const handleAddSuite = () => {
-		if (!suiteInput.trim()) return;
-		setFormData((prev) => ({
-			...prev,
-			suites: [...prev.suites, suiteInput.trim()],
-		}));
-		setSuiteInput('');
-	};
-
-	const handleRemoveSuite = (index: number) => {
-		setFormData((prev) => ({
-			...prev,
-			suites: prev.suites.filter((_, suiteIndex) => suiteIndex !== index),
-		}));
-	};
 
 	const handlePhotoUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		handleInputChange('photo', e.target.value || undefined);
@@ -736,16 +697,14 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 										)
 									}>
 									<option value='Single Family'>Single Family</option>
-									{/* Units are temporarily hidden from the app flow.
 									{!forceSingleFamily && (
-										<option value='Multi-Family' disabled={!canUseMultiUnitManagement}>
-											Multi-Family{canUseMultiUnitManagement ? '' : ' (Portfolio)'}
+										<option value='Multi-Family'>
+											Multi-Family
 										</option>
 									)}
-									*/}
 									{!forceSingleFamily && (
-										<option value='Commercial' disabled={!canUseMultiUnitManagement}>
-											Commercial{canUseMultiUnitManagement ? '' : ' (Portfolio)'}
+										<option value='Commercial'>
+											Commercial
 										</option>
 									)}
 								</SelectField>
@@ -760,14 +719,6 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 								/>
 							</FormField>
 						</FormRow>
-						{!forceSingleFamily && !canUseMultiUnitManagement && (
-							<LockedFeatureCallout
-								title='Portfolio property management is locked on your current plan'
-								description='Create and manage Commercial properties by upgrading to the Portfolio plan.'
-								upgradeLabel='Upgrade for Portfolio'
-								compact
-							/>
-						)}
 						{formData.propertyType !== 'Commercial' && (
 							<FormRow>
 								<FormField>
@@ -840,6 +791,7 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 						)}
 						*/}
 
+					{/* Suites are temporarily hidden from the app flow.
 					{formData.propertyType === 'Commercial' && (
 						<FormSection>
 							<Label>Suites</Label>
@@ -878,6 +830,7 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 							)}
 						</FormSection>
 					)}
+					*/}
 
 					<FormSection>
 						<Label>Notes</Label>

@@ -526,6 +526,22 @@ const EmptyState = styled.div`
 	padding: 36px 20px;
 	text-align: center;
 	color: #64748b;
+
+	button {
+		margin-top: 12px;
+		border: none;
+		border-radius: 8px;
+		background: #0f766e;
+		color: #ffffff;
+		font-size: 13px;
+		font-weight: 700;
+		padding: 0.55rem 0.9rem;
+		cursor: pointer;
+	}
+
+	button:hover {
+		background: #115e59;
+	}
 `;
 
 const toDate = (value?: string): Date | null => {
@@ -574,17 +590,32 @@ const getLinkedDeviceIds = (task: any): Set<string> => {
 	return ids;
 };
 
-const getLatestMaintenanceEntry = (device: Device): { date?: string; description?: string } | null => {
+const getLatestMaintenanceEntry = (
+	device: Device,
+	linkedEvents: any[] = [],
+): { date?: string; description?: string } | null => {
 	const history = Array.isArray(device.maintenanceHistory)
-		? [...device.maintenanceHistory]
+		? device.maintenanceHistory.map((entry: any) => ({
+				date: entry?.date,
+				description: entry?.description,
+		  }))
 		: [];
-	if (history.length === 0) return null;
-	history.sort((a, b) => {
+	const eventEntries = linkedEvents.map((event: any) => ({
+		date: getMaintenanceEventDate(event),
+		description:
+			getMaintenanceEventTitle(event) ||
+			String(event?.description || event?.completionNotes || '').trim(),
+	}));
+	const combinedHistory = [...history, ...eventEntries].filter((entry) =>
+		Boolean(entry.date || entry.description),
+	);
+	if (combinedHistory.length === 0) return null;
+	combinedHistory.sort((a, b) => {
 		const left = toDate(a?.date)?.getTime() || 0;
 		const right = toDate(b?.date)?.getTime() || 0;
 		return right - left;
 	});
-	return history[0] || null;
+	return combinedHistory[0] || null;
 };
 
 const buildFriendlyDeviceName = (device: Device): string => {
@@ -693,17 +724,19 @@ const getActivityEventIcon = (category: ActivityEventCategory) => {
 
 const buildLocationLabel = (device: Device, propertyNameById: Map<string, string>, properties: any[]): string => {
 	const propertyName = propertyNameById.get(String(device.location?.propertyId || '')) || 'Property';
+	const scopedProperties = properties.filter(Boolean);
 	if (device.location?.unitId) {
 		const unitLabel = properties
-			.flatMap((property: any) => property.units || [])
+			.filter(Boolean)
+			.flatMap((property: any) => (Array.isArray(property.units) ? property.units : []))
 			.find((unit: any) => String(unit.id) === String(device.location?.unitId));
-		return unitLabel?.name || `Unit ${device.location.unitId}`;
+		return unitLabel?.name || propertyName;
 	}
 	if (device.location?.suiteId) {
-		const suiteLabel = properties
-			.flatMap((property: any) => property.suites || [])
+		const suiteLabel = scopedProperties
+			.flatMap((property: any) => (Array.isArray(property.suites) ? property.suites : []))
 			.find((suite: any) => String(suite.id) === String(device.location?.suiteId));
-		return suiteLabel?.name || `Suite ${device.location.suiteId}`;
+		return suiteLabel?.name || propertyName;
 	}
 	return propertyName;
 };
@@ -793,7 +826,8 @@ export const DevicesHubPage: React.FC = () => {
 			.map((device) => {
 				const deviceId = String(device.id);
 				const linkedOpenTasksForDevice = linkedTasksByDevice.get(deviceId) || [];
-				const latestMaintenance = getLatestMaintenanceEntry(device);
+				const continuityEvents = continuityEventsByDevice.get(deviceId) || [];
+				const latestMaintenance = getLatestMaintenanceEntry(device, continuityEvents);
 				const upcomingMaintenance = getUpcomingMaintenanceDate(
 					linkedOpenTasksForDevice,
 				);
@@ -824,7 +858,14 @@ export const DevicesHubPage: React.FC = () => {
 				}
 				return a.friendlyName.localeCompare(b.friendlyName);
 			});
-	}, [devices, linkedOpenTaskCountByDevice, linkedTasksByDevice, propertyById, propertyNameById]);
+	}, [
+		devices,
+		linkedOpenTaskCountByDevice,
+		linkedTasksByDevice,
+		continuityEventsByDevice,
+		propertyById,
+		propertyNameById,
+	]);
 
 	const filteredDeviceRows = useMemo(() => {
 		const query = searchQuery.trim().toLowerCase();
@@ -857,6 +898,48 @@ export const DevicesHubPage: React.FC = () => {
 		};
 
 		const entries: FeedEntry[] = [];
+		const seenEntryKeys = new Set<string>();
+		const addFeedEntry = ({
+			device,
+			description,
+			date,
+			keyPrefix,
+		}: {
+			device: Device;
+			description?: string;
+			date?: string;
+			keyPrefix: string;
+		}) => {
+			const property = propertyById.get(String(device.location?.propertyId || ''));
+			const propName = propertyNameById.get(String(device.location?.propertyId || '')) || 'Property';
+			const propSlug = property?.slug || '';
+			const locLabel = buildLocationLabel(device, propertyNameById, [property]);
+			const devFriendlyName = buildFriendlyDeviceName(device);
+			const devSlug = buildDeviceSlug(device);
+			const locHref = device.location?.suiteId
+				? `/property/${propSlug}/suite/${encodeURIComponent(locLabel)}`
+				: '';
+			const dedupeKey = [
+				String(device.id),
+				String(date || '').split('T')[0],
+				String(description || '').trim().toLowerCase(),
+			].join('|');
+
+			if (seenEntryKeys.has(dedupeKey)) return;
+			seenEntryKeys.add(dedupeKey);
+
+			entries.push({
+				key: `${keyPrefix}-${device.id}-${date || 'no-date'}`,
+				deviceSlug: devSlug,
+				friendlyName: devFriendlyName,
+				propertyName: propName,
+				propertySlug: propSlug,
+				locationLabel: locLabel,
+				locationHref: locHref,
+				description,
+				date,
+			});
+		};
 		const filteredEvents = allMaintenanceHistory.filter(isContinuityEvent);
 
 		filteredEvents.forEach((event: any, eventIndex: number) => {
@@ -866,26 +949,23 @@ export const DevicesHubPage: React.FC = () => {
 				const device = devices.find((d) => String(d.id) === String(deviceId));
 				if (!device) return;
 
-				const property = propertyById.get(String(device.location?.propertyId || ''));
-				const propName = propertyNameById.get(String(device.location?.propertyId || '')) || 'Property';
-				const propSlug = property?.slug || '';
-				const locLabel = buildLocationLabel(device, propertyNameById, [property]);
-				const devFriendlyName = buildFriendlyDeviceName(device);
-				const devSlug = buildDeviceSlug(device);
-				const locHref = device.location?.suiteId
-						? `/property/${propSlug}/suite/${encodeURIComponent(locLabel)}`
-						: '';
-
-				entries.push({
-					key: `${eventIndex}-${deviceId}`,
-					deviceSlug: devSlug,
-					friendlyName: devFriendlyName,
-					propertyName: propName,
-					propertySlug: propSlug,
-					locationLabel: locLabel,
-					locationHref: locHref,
+				addFeedEntry({
+					device,
 					description: getMaintenanceEventTitle(event),
 					date: getMaintenanceEventDate(event),
+					keyPrefix: `event-${eventIndex}`,
+				});
+			});
+		});
+
+		devices.forEach((device: any) => {
+			if (!Array.isArray(device.maintenanceHistory)) return;
+			device.maintenanceHistory.forEach((entry: any, entryIndex: number) => {
+				addFeedEntry({
+					device,
+					description: entry?.description,
+					date: entry?.date,
+					keyPrefix: `appliance-log-${entryIndex}`,
 				});
 			});
 		});
@@ -1048,6 +1128,14 @@ export const DevicesHubPage: React.FC = () => {
 		}).length;
 	}, [deviceRows]);
 
+	const firstDeviceTargetPath = useMemo(() => {
+		const row = deviceRows[0];
+		if (!row) return '/properties';
+		const property = properties.find((item: any) => String(item.id) === row.propertyId);
+		if (!property?.slug) return '/properties';
+		return `/property/${property.slug}/device/${buildDeviceSlug(row.device)}`;
+	}, [deviceRows, properties]);
+
 	return (
 		<Wrapper>
 			<Header>
@@ -1112,10 +1200,24 @@ export const DevicesHubPage: React.FC = () => {
 
 			{!isLoading && deviceRows.length === 0 ? (
 				<EmptyState>
-					No systems yet. Add your first system from a property page to begin maintenance tracking.
+					<div>No appliances yet. Add your first appliance from a property page to begin maintenance tracking.</div>
+					<button type='button' onClick={() => navigate('/properties')}>
+						Open Properties
+					</button>
 				</EmptyState>
 			) : !isLoading && filteredDeviceRows.length === 0 ? (
-				<EmptyState>No systems match your current filters.</EmptyState>
+				<EmptyState>
+					<div>No appliances match your current filters.</div>
+					<button
+						type='button'
+						onClick={() => {
+							setSearchQuery('');
+							setStatusFilter('All');
+							setPropertyFilter('');
+						}}>
+						Clear Filters
+					</button>
+				</EmptyState>
 			) : (
 				<List>
 					{filteredDeviceRows.map((row) => {
@@ -1243,7 +1345,14 @@ export const DevicesHubPage: React.FC = () => {
 							})}
 						</ActivityList>
 					) : (
-						<EmptyState>No maintenance activity yet.</EmptyState>
+						<EmptyState>
+							<div>
+								No maintenance activity yet. Completed tasks and service notes will create this feed.
+							</div>
+							<button type='button' onClick={() => navigate(firstDeviceTargetPath)}>
+								{deviceRows.length > 0 ? 'Open an Appliance' : 'Open Properties'}
+							</button>
+						</EmptyState>
 					)}
 				</SurfaceCard>
 
@@ -1294,7 +1403,14 @@ export const DevicesHubPage: React.FC = () => {
 							})}
 						</ActivityList>
 					) : (
-						<EmptyState>No systems require follow-up right now.</EmptyState>
+						<EmptyState>
+							<div>
+								No systems require follow-up right now. Appliances will show here when maintenance is overdue, stale, or due soon.
+							</div>
+							<button type='button' onClick={() => navigate(firstDeviceTargetPath)}>
+								{deviceRows.length > 0 ? 'View Appliances' : 'Open Properties'}
+							</button>
+						</EmptyState>
 					)}
 				</SurfaceCard>
 			</HubFeedGrid>

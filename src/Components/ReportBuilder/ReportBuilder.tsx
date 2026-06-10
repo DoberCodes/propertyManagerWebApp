@@ -1117,7 +1117,12 @@ export const ReportBuilder: React.FC = () => {
 
 			{reportType && previewData.length === 0 && (
 				<PreviewSection>
-					<EmptyMessage>No data available for this report type</EmptyMessage>
+					<EmptyMessage>
+						<div>No data available for this report type yet.</div>
+						<Button variant='secondary' onClick={() => setReportType('')}>
+							Choose Another Report
+						</Button>
+					</EmptyMessage>
 				</PreviewSection>
 			)}
 		</Wrapper>

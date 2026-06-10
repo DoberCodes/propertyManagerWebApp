@@ -417,8 +417,15 @@ export const ContractorsTab: React.FC<ContractorsTabProps> = ({
 			)}
 			{filteredContractors.length === 0 ? (
 				<EmptyState>
-					<p>No contractors found matching your filters.</p>
-					<p>Try adjusting your search criteria.</p>
+					<h3>{contractors.length === 0 ? 'No contractors yet' : 'No contractors match your filters'}</h3>
+					<p>
+						{contractors.length === 0
+							? 'Add a trusted service partner when you want contractor details close to the maintenance record.'
+							: 'Try clearing filters, or add a contractor if this is a new service relationship.'}
+					</p>
+					<ToolbarButton type='button' onClick={handleAddNew}>
+						Add Contractor
+					</ToolbarButton>
 				</EmptyState>
 			) : (
 				<>

@@ -27,7 +27,6 @@ import {
 	useCreatePropertyGroupMutation,
 	useUpdatePropertyGroupMutation,
 	useDeletePropertyGroupMutation,
-	useCreateUnitMutation,
 } from '../../Redux/API/propertySlice';
 import { useGetTasksQuery } from '../../Redux/API/taskSlice';
 import { useGetAllDevicesQuery } from '../../Redux/API/deviceSlice';
@@ -152,7 +151,6 @@ export const Properties = () => {
 	const [createPropertyGroup] = useCreatePropertyGroupMutation();
 	const [updatePropertyGroup] = useUpdatePropertyGroupMutation();
 	const [deletePropertyGroup] = useDeletePropertyGroupMutation();
-	const [createUnit] = useCreateUnitMutation();
 	const [updateUser] = useUpdateUserMutation();
 	const [createNotification] = useCreateNotificationMutation();
 	const { data: allTasks = [] } = useGetTasksQuery();
@@ -916,23 +914,6 @@ export const Properties = () => {
 				? formData.groupId.trim()
 				: null;
 
-		// Prepare units data for Multi-Family properties
-		const unitsData =
-			effectivePropertyType === 'Multi-Family'
-				? (formData.units || []).map((unitName: string) => ({
-						name: unitName,
-						occupants: [],
-				  }))
-				: undefined;
-
-		// Prepare suites data for Commercial properties
-		const suitesData =
-			effectivePropertyType === 'Commercial' && formData.hasSuites
-				? (formData.suites || []).map((suiteName: string) => ({
-						name: suiteName,
-						occupants: [],
-				  }))
-				: undefined;
 		const sharingData = {
 			coOwners: formData.coOwners || [],
 			administrators: formData.administrators || [],
@@ -949,15 +930,13 @@ export const Properties = () => {
 					owner: formData.owner,
 					address: formData.address,
 					propertyType: effectivePropertyType,
-					units:
-						effectivePropertyType === 'Multi-Family' ? unitsData : undefined,
 					hasSuites:
 						effectivePropertyType === 'Commercial'
-							? !!formData.hasSuites
+							? false
 							: undefined,
 					suites:
-						effectivePropertyType === 'Commercial' && formData.hasSuites
-							? suitesData
+						effectivePropertyType === 'Commercial'
+							? []
 							: undefined,
 					bedrooms: formData.bedrooms,
 					bathrooms: formData.bathrooms,
@@ -973,45 +952,6 @@ export const Properties = () => {
 					id: selectedPropertyForEdit.id,
 					updates: sanitizedUpdates,
 				}).unwrap();
-
-				// Create units for Multi-Family properties if units were added
-				if (
-					effectivePropertyType === 'Multi-Family' &&
-					unitsData &&
-					unitsData.length > 0
-				) {
-					try {
-						const existingUnitNames = new Set(
-							(selectedPropertyForEdit.units || [])
-								.map((unit: any) =>
-									typeof unit === 'string' ? unit : unit?.name,
-								)
-								.filter((name: string | undefined) => Boolean(name && name.trim()))
-								.map((name: string) => name.trim().toLowerCase()),
-						);
-
-						const newUnits = unitsData.filter((unit) => {
-							const normalizedName = String(unit.name || '').trim().toLowerCase();
-							return normalizedName.length > 0 && !existingUnitNames.has(normalizedName);
-						});
-
-						for (const unit of newUnits) {
-							await createUnit({
-								userId: currentUser!.id,
-								propertyId: selectedPropertyForEdit.id,
-								name: unit.name,
-								floor: 1, // Default floor
-								area: 1000, // Default area
-								isOccupied: false,
-								deviceIds: [],
-								occupants: unit.occupants || [],
-							}).unwrap();
-						}
-					} catch (unitError) {
-						console.error('Failed to create units:', unitError);
-						// Don't fail property update if unit creation fails
-					}
-				}
 
 				// Create notification for property update
 				try {
@@ -1083,46 +1023,15 @@ export const Properties = () => {
 				...sharingData,
 			};
 
-			// Only add type-specific fields if they have values
-			if (effectivePropertyType === 'Multi-Family' && unitsData) {
-				newPropertyData.units = unitsData;
-			}
 			if (effectivePropertyType === 'Commercial') {
-				newPropertyData.hasSuites = !!formData.hasSuites;
-				if (formData.hasSuites && suitesData) {
-					newPropertyData.suites = suitesData;
-				}
+				newPropertyData.hasSuites = false;
+				newPropertyData.suites = [];
 			}
 
 			try {
 				const result = await createProperty(newPropertyData);
 
 				if ('data' in result) {
-					// Create units for Multi-Family properties
-					if (
-						effectivePropertyType === 'Multi-Family' &&
-						unitsData &&
-						unitsData.length > 0
-					) {
-						try {
-							for (const unit of unitsData) {
-								await createUnit({
-									userId: currentUser!.id,
-									propertyId: result.data.id,
-									name: unit.name,
-									floor: 1, // Default floor
-									area: 1000, // Default area
-									isOccupied: false,
-									deviceIds: [],
-									occupants: unit.occupants || [],
-								}).unwrap();
-							}
-						} catch (unitError) {
-							console.error('Failed to create units:', unitError);
-							// Don't fail property creation if unit creation fails
-						}
-					}
-
 					addRecentlyViewed({
 						id: result.data.id as any, // Firebase uses string IDs
 						title: result.data.title,

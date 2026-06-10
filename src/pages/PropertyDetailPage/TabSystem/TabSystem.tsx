@@ -1,13 +1,11 @@
 import React from 'react';
 import { DetailsTab } from './DetailsTab';
 import { DevicesTab } from './DevicesTab';
-import { SuitesTab } from './SuitesTab';
 import { TasksTab } from './TasksTab';
 import { MaintenanceTab } from './MaintenanceTab';
 import { ContractorsTab } from './ContractorsTab';
 import { RequestsTab } from './RequestsTab';
 import { TenantsTab } from './TenantsTab';
-import { UnitsTab } from './UnitsTab';
 import { TabContentContainer, TabControlsContainer } from './index.styles';
 import { TabController } from 'Components/Library';
 import { Task } from 'types/Task.types';
@@ -38,14 +36,11 @@ interface TabsProps {
 	handleEditTenant: (tenant: any) => void;
 	handleDeleteTenant: (tenantId: string) => void;
 	handleViewTenantPromo: (tenantId: string) => void;
-	handleCreateUnit: () => void;
-	handleDeleteUnit: (unitId: string) => void;
 	handleConvertRequestToTask: (requestId: string) => void;
 	handleCreateTask: (task: any) => void;
 	handleEditTask: (task: any) => void;
 	handleCreateDevice?: () => void;
 	handleCreateRequest?: () => void;
-	hasCommercialSuites?: boolean;
 }
 
 export const TabSystem = ({
@@ -71,13 +66,10 @@ export const TabSystem = ({
 	handleEditTenant,
 	handleDeleteTenant,
 	handleViewTenantPromo,
-	handleCreateUnit,
-	handleDeleteUnit,
 	handleConvertRequestToTask,
 	handleCreateTask,
 	handleCreateDevice,
 	handleCreateRequest,
-	hasCommercialSuites,
 }: TabsProps) => {
 	const activeTab = useSelector((state: RootState) => state.app.activeTab); // Default to 'details' if no active tab is set
 
@@ -100,10 +92,7 @@ export const TabSystem = ({
 			case 'devices':
 				return <DevicesTab property={property} />;
 			case 'suites':
-				return (
-					property?.propertyType !== 'Commercial' &&
-					property?.hasSuites && <SuitesTab property={property} />
-				);
+				return null;
 			case 'tasks':
 				return (
 					<TasksTab
@@ -132,8 +121,7 @@ export const TabSystem = ({
 				);
 			case 'tenants':
 				return (
-					property?.isRental &&
-					!hasCommercialSuites && (
+					property?.isRental && (
 						<TenantsTab
 							property={property}
 							currentUser={currentUser}
@@ -148,16 +136,7 @@ export const TabSystem = ({
 					)
 				);
 			case 'units':
-				return (
-					property?.propertyType === 'Multi-Family' && (
-						<UnitsTab
-							property={property}
-							units={propertyUnits}
-							handleCreateUnit={handleCreateUnit}
-							handleDeleteUnit={handleDeleteUnit}
-						/>
-					)
-				);
+				return null;
 			case 'requests':
 				return (
 					property?.isRental && (
@@ -169,6 +148,7 @@ export const TabSystem = ({
 							onSelectUnit={onSelectUnit}
 							canApproveMaintenanceRequest={canApproveMaintenanceRequest}
 							handleConvertRequestToTask={handleConvertRequestToTask}
+							onCreateTask={() => handleCreateTask(property)}
 						/>
 					)
 				);

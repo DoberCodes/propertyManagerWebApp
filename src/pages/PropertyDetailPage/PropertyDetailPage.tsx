@@ -12,7 +12,6 @@ import {
 } from '../../Redux/Slices/appSlice';
 
 import { useTaskHandlers } from 'pages/PropertyDetailPage/useTaskHandlers';
-import { useUnitHandlers } from 'pages/PropertyDetailPage/useUnitHandlers';
 import { usePropertyEditHandlers } from 'pages/PropertyDetailPage/usePropertyEditHandlers';
 import { useMaintenanceRequestHandlers } from './useMaintenanceRequestHandlers';
 import {
@@ -20,7 +19,6 @@ import {
 	useUpdatePropertyMutation,
 	useDeletePropertyMutation,
 	useCreatePropertyGroupMutation,
-	useGetUnitsQuery,
 } from 'Redux/API/propertySlice';
 import { useGetContractorsByPropertyQuery } from '../../Redux/API/contractorSlice';
 import {
@@ -77,7 +75,6 @@ import {
 } from '../../Redux/API/taskSlice';
 import { useGetTeamMembersQuery } from '../../Redux/API/teamSlice';
 import { TabSystem } from './TabSystem';
-import { UnitModal } from '../../Components/Library';
 import { TaskFinancials } from '../../types/Task.types';
 import { PropertyDialog } from '../../Components/PropertiesTab/PropertyDialog';
 
@@ -158,17 +155,6 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 	const [getTenantInvitationCodesByEmail] =
 		useLazyGetTenantInvitationCodesByEmailQuery();
 
-	const [activeTab, setActiveTab] = useState<
-		| 'details'
-		| 'devices'
-		| 'tasks'
-		| 'maintenance'
-		| 'tenants'
-		| 'requests'
-		| 'units'
-		| 'suites'
-		| 'contractors'
-	>('details');
 	const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
 	const [showAddTenantModal, setShowAddTenantModal] = useState(false);
 	const [showEditTenantModal, setShowEditTenantModal] = useState(false);
@@ -274,21 +260,6 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 				? formData.groupId.trim()
 				: null;
 
-		const unitsData =
-			effectivePropertyType === 'Multi-Family'
-				? (formData.units || []).map((unitName: string) => ({
-						name: unitName,
-						occupants: [],
-				  }))
-				: undefined;
-
-		const suitesData =
-			effectivePropertyType === 'Commercial' && formData.hasSuites
-				? (formData.suites || []).map((suiteName: string) => ({
-						name: suiteName,
-						occupants: [],
-				  }))
-				: undefined;
 		const sharingData = {
 			coOwners: formData.coOwners || [],
 			administrators: formData.administrators || [],
@@ -302,14 +273,13 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 			owner: formData.owner,
 			address: formData.address,
 			propertyType: effectivePropertyType,
-			units: effectivePropertyType === 'Multi-Family' ? unitsData : undefined,
 			hasSuites:
 				effectivePropertyType === 'Commercial'
-					? !!formData.hasSuites
+					? false
 					: undefined,
 			suites:
-				effectivePropertyType === 'Commercial' && formData.hasSuites
-					? suitesData
+				effectivePropertyType === 'Commercial'
+					? []
 					: undefined,
 			bedrooms: formData.bedrooms,
 			bathrooms: formData.bathrooms,
@@ -453,7 +423,6 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 		onDeleteClick: handleTaskDeleteClick,
 		deleteTaskMutation,
 	});
-	const unitHandlers = useUnitHandlers(property?.id || '');
 	const propertyHandlers = usePropertyEditHandlers();
 	const maintenanceHandlers = useMaintenanceRequestHandlers(
 		property,
@@ -465,29 +434,16 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 		{ skip: !property?.id },
 	);
 
-	const { data: propertyUnits = [] } = useGetUnitsQuery(property?.id || '', {
-		skip: !property?.id,
-	});
+	const propertyUnits = useMemo<any[]>(() => [], []);
 
 	const {
 		showTaskCompletionModal,
 		setShowTaskCompletionModal,
 		completingTaskId,
-		handleCreateTask,
 		handleEditTask,
 		handleTaskCompletionSuccess,
 		confirmDeleteTask,
 	} = taskHandlers;
-
-	const {
-		showUnitDialog,
-		setShowUnitDialog,
-		unitFormData,
-		handleCreateUnit,
-		handleUnitFormChange,
-		handleUnitFormSubmit,
-		handleDeleteUnit,
-	} = unitHandlers;
 
 	const handleAddMaintenanceHistory = async (data: {
 		title: string;
@@ -562,12 +518,6 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 		handleConvertToTask,
 	} = maintenanceHandlers;
 
-	const hasCommercialSuites =
-		property?.propertyType === 'Commercial' &&
-		(((property as any)?.hasSuites ?? false) ||
-			(Array.isArray((property as any)?.suites) &&
-				(property as any).suites.length > 0));
-
 	const allMaintenanceRequests = useSelector(
 		(state: RootState) => state.maintenanceRequests.requests,
 		(a, b) => a.length === b.length && a.every((item, idx) => item === b[idx]),
@@ -577,37 +527,16 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 		return allMaintenanceRequests.filter((req) => req.propertyId === property.id);
 	}, [property, allMaintenanceRequests]);
 
-	useEffect(() => {
-		if (hasCommercialSuites && activeTab === 'tenants') {
-			dispatch(setAppActiveTab('suites'));
-		}
-	}, [hasCommercialSuites, activeTab, dispatch]);
-
-	const unitOptions = useMemo(() => {
-		if (!propertyUnits || propertyUnits.length === 0) return [];
-		return propertyUnits
-			.filter((u: any) => u.id)
-			.map((u: any) => ({
-				label: u.name || u.unitName || u.title || u.id,
-				value: u.id,
-			}));
-	}, [propertyUnits]);
-
-	const [selectedUnitId, setSelectedUnitId] = useState<string>('');
+	const unitOptions = useMemo<{ label: string; value: string }[]>(() => [], []);
 
 	const propertyTasks = useMemo(() => {
 		if (!property) return [];
-		let allPropertyTasks = allTasks.filter(
+		const allPropertyTasks = allTasks.filter(
 			(task) =>
 				task.propertyId === property.id || task.property === property.title,
 		);
-		if (selectedUnitId) {
-			allPropertyTasks = allPropertyTasks.filter(
-				(task) => task.unitId === selectedUnitId,
-			);
-		}
 		return allPropertyTasks.filter((task) => task.status !== 'Completed');
-	}, [property, allTasks, selectedUnitId]);
+	}, [property, allTasks]);
 
 	const { data: maintenanceHistoryRecords = [] } =
 		useGetMaintenanceHistoryByPropertyQuery(property?.id || '', {
@@ -954,8 +883,6 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 					canApproveMaintenanceRequest={canApproveMaintenanceRequest}
 					propertyTasks={propertyTasks}
 					unitOptions={unitOptions}
-					selectedUnitId={selectedUnitId}
-					onSelectUnit={setSelectedUnitId}
 					maintenanceHistoryRecords={maintenanceHistoryRecords}
 					propertyUnits={propertyUnits}
 					propertyContractors={propertyContractors}
@@ -973,9 +900,6 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 					handleEditTask={handleEditTask}
 					handleCreateDevice={() => setShowDeviceDialog(true)}
 					handleCreateRequest={() => setShowMaintenanceRequestModal(true)}
-					hasCommercialSuites={hasCommercialSuites}
-					handleCreateUnit={handleCreateUnit}
-					handleDeleteUnit={handleDeleteUnit}
 					handleConvertRequestToTask={handleConvertRequestToTask}
 					openCreateTaskToken={openCreateTaskToken}
 				/>
@@ -988,14 +912,6 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 					onFormChange={handleDeviceFormChange}
 					deviceFormData={deviceFormData}
 					units={propertyUnits}
-				/>
-
-				<UnitModal
-					isOpen={showUnitDialog}
-					formData={unitFormData}
-					onClose={() => setShowUnitDialog(false)}
-					onSubmit={handleUnitFormSubmit}
-					onChange={handleUnitFormChange}
 				/>
 
 				{convertingRequest && (

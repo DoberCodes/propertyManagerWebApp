@@ -213,6 +213,19 @@ const userSlice = apiSlice.injectEndpoints({
 
 					let ownedPropertyIds: string[] = [];
 					const ownedPropertyTitles = new Set<string>();
+					const addOwnedProperty = (propertyDoc: any) => {
+						const propertyData = docToData(propertyDoc) as
+							| Record<string, unknown>
+							| null;
+						if (!propertyData?.id) {
+							return;
+						}
+						ownedPropertyIds.push(String(propertyData.id));
+						const title = String(propertyData.title || '').trim();
+						if (title) {
+							ownedPropertyTitles.add(title);
+						}
+					};
 					if (groupIds.length > 0) {
 						// Get all property IDs for these groups
 						for (let i = 0; i < groupIds.length; i += 10) {
@@ -222,20 +235,46 @@ const userSlice = apiSlice.injectEndpoints({
 								where('groupId', 'in', batch),
 							);
 							const propertiesSnapshot = await getDocs(propertiesQuery);
-							propertiesSnapshot.docs.forEach((doc) => {
-								const propertyData = docToData(doc) as
-									| Record<string, unknown>
-									| null;
-								ownedPropertyIds.push(doc.id);
-								const title = String(propertyData?.title || '').trim();
-								if (title) {
-									ownedPropertyTitles.add(title);
-								}
-							});
+							propertiesSnapshot.docs.forEach(addOwnedProperty);
 						}
 					}
 
-					const allPropertyIds = [...ownedPropertyIds];
+					for (const accountId of accessibleAccountIds) {
+						try {
+							const accountPropertiesQuery = query(
+								collection(db, 'properties'),
+								where('accountId', '==', accountId),
+							);
+							const accountPropertiesSnapshot = await getDocs(accountPropertiesQuery);
+							accountPropertiesSnapshot.docs.forEach(addOwnedProperty);
+						} catch (error) {
+							console.warn('Could not fetch account-linked properties for maintenance history:', error);
+						}
+					}
+
+					try {
+						const userPropertiesQuery = query(
+							collection(db, 'properties'),
+							where('userId', '==', currentUser.uid),
+						);
+						const userPropertiesSnapshot = await getDocs(userPropertiesQuery);
+						userPropertiesSnapshot.docs.forEach(addOwnedProperty);
+					} catch (error) {
+						console.warn('Could not fetch user-linked properties for maintenance history:', error);
+					}
+
+					try {
+						const ownerPropertiesQuery = query(
+							collection(db, 'properties'),
+							where('ownerId', '==', currentUser.uid),
+						);
+						const ownerPropertiesSnapshot = await getDocs(ownerPropertiesQuery);
+						ownerPropertiesSnapshot.docs.forEach(addOwnedProperty);
+					} catch (error) {
+						console.warn('Could not fetch owner-linked properties for maintenance history:', error);
+					}
+
+					const allPropertyIds = Array.from(new Set(ownedPropertyIds));
 
 				// Dual-read: maintenanceEvents (canonical) + maintenanceHistory (legacy)
 				const collectionsToQuery = ['maintenanceEvents', 'maintenanceHistory'];

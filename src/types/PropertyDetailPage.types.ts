@@ -121,6 +121,7 @@ export interface RequestsTabProps {
 	onSelectUnit?: (unitId: string) => void;
 	canApproveMaintenanceRequest: (role: any) => boolean;
 	handleConvertRequestToTask: (requestId: string) => void;
+	onCreateTask?: () => void;
 }
 
 // Property Detail Section Props

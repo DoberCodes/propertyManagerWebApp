@@ -220,7 +220,14 @@ export const MaintenanceHistoryGroupPage: React.FC = () => {
 
 			{groupRecords.length === 0 ? (
 				<EmptyState>
-					<p>No maintenance history found for this group</p>
+					<p>
+						No maintenance history found for this group. Return to the property to add tasks or maintenance records.
+					</p>
+					<button
+						type='button'
+						onClick={() => navigate(`/property/${property.slug || slug}`)}>
+						Back to Property
+					</button>
 				</EmptyState>
 			) : (
 				<>

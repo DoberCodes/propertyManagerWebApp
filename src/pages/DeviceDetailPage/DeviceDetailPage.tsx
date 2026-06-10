@@ -356,10 +356,40 @@ const QuickActionPanel = styled.div`
 	padding: 14px;
 `;
 
+const ViewActionsButton = styled.button`
+	border: 1px solid #0f766e;
+	background: #ffffff;
+	color: #0f766e;
+	border-radius: 999px;
+	padding: 8px 12px;
+	font-size: 12px;
+	font-weight: 800;
+	cursor: pointer;
+	transition: background-color 0.15s ease, border-color 0.15s ease;
+
+	&:hover {
+		background: #ecfeff;
+		border-color: #115e59;
+	}
+
+	@media (max-width: 480px) {
+		padding: 8px 10px;
+		font-size: 11px;
+	}
+`;
+
 const QuickActionHeader = styled.div`
 	display: flex;
-	flex-direction: column;
-	gap: 4px;
+	justify-content: space-between;
+	align-items: center;
+	gap: 12px;
+	flex-wrap: wrap;
+
+	div {
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
+	}
 
 	h3 {
 		margin: 0;
@@ -1023,6 +1053,7 @@ export const DeviceDetailPage: React.FC = () => {
 	const [pendingDeviceFiles, setPendingDeviceFiles] = useState<File[]>([]);
 	const [removedExistingFileUrls, setRemovedExistingFileUrls] = useState<string[]>([]);
 	const [activeTab, setActiveTab] = useState<string>('info');
+	const [areQuickActionsOpen, setAreQuickActionsOpen] = useState(false);
 	const [showTaskModal, setShowTaskModal] = useState(false);
 	const [showRecurringTaskModal, setShowRecurringTaskModal] = useState(false);
 	const [showQuickLogModal, setShowQuickLogModal] = useState(false);
@@ -1120,14 +1151,14 @@ export const DeviceDetailPage: React.FC = () => {
 				(unit as any)?.unitName ||
 				(unitById as any)?.name ||
 				(unitById as any)?.unitName;
-			return unitName || `Unit (${device.location.unitId})`;
+			return unitName || 'Property level';
 		}
 
 		if (device.location?.suiteId) {
-			const suite = (property.suites || []).find(
+			const suite = (Array.isArray(property.suites) ? property.suites : []).find(
 				(item: any) => item.id === device.location.suiteId,
 			);
-			return suite?.name || `Suite (${device.location.suiteId})`;
+			return suite?.name || 'Property level';
 		}
 
 		return 'Property level';
@@ -1247,6 +1278,57 @@ export const DeviceDetailPage: React.FC = () => {
 		return [...deviceMaintenanceEntries, ...propertyEntries].sort((a, b) => {
 			const aDate = new Date(a.date || 0).getTime() || 0;
 			const bDate = new Date(b.date || 0).getTime() || 0;
+			return bDate - aDate;
+		});
+	}, [device?.maintenanceHistory, relatedMaintenanceHistory]);
+
+	const applianceMaintenanceFeedRecords = useMemo(() => {
+		const records: any[] = [];
+		const seenKeys = new Set<string>();
+
+		const getRecordKey = (record: any) => {
+			const rawDate = getMaintenanceEventDate(record) || record?.date || '';
+			const dateKey = String(rawDate).split('T')[0];
+			const textKey = String(
+				record?.title ||
+					record?.taskTitle ||
+					record?.description ||
+					record?.completionNotes ||
+					'',
+			)
+				.trim()
+				.toLowerCase();
+			return `${dateKey}|${textKey}`;
+		};
+
+		relatedMaintenanceHistory.forEach((record: any) => {
+			const key = getRecordKey(record);
+			if (seenKeys.has(key)) return;
+			seenKeys.add(key);
+			records.push(record);
+		});
+
+		if (Array.isArray(device?.maintenanceHistory)) {
+			device.maintenanceHistory.forEach((entry: any, index: number) => {
+				const record = {
+					id: `appliance-log-${entry.date || 'no-date'}-${index}`,
+					date: entry.date,
+					completionDate: entry.date,
+					title: getTimelineTitle(entry.description),
+					description: getTimelineDescription(entry.description),
+					status: 'Logged',
+					sourceType: 'appliance-log',
+				};
+				const key = getRecordKey(record);
+				if (seenKeys.has(key)) return;
+				seenKeys.add(key);
+				records.push(record);
+			});
+		}
+
+		return records.sort((a, b) => {
+			const aDate = new Date(getMaintenanceEventDate(a) || a?.date || 0).getTime() || 0;
+			const bDate = new Date(getMaintenanceEventDate(b) || b?.date || 0).getTime() || 0;
 			return bDate - aDate;
 		});
 	}, [device?.maintenanceHistory, relatedMaintenanceHistory]);
@@ -1890,76 +1972,89 @@ export const DeviceDetailPage: React.FC = () => {
 					</SummaryCard>
 				</SummaryGrid>
 
-				<QuickActionPanel>
+				<QuickActionPanel id='appliance-quick-actions'>
 					<QuickActionHeader>
-						<h3>Quick Actions</h3>
-						<p>Keep this system moving with the next maintenance step.</p>
-					</QuickActionHeader>
-					<QuickActionGrid>
-						<QuickActionButton type='button' onClick={handleOpenEditDeviceModal}>
-							<strong>Edit Appliance</strong>
-							<span>Change the appliance profile, status, or location.</span>
-						</QuickActionButton>
-						<QuickActionButton type='button' onClick={openCreateTaskModal}>
-							<strong>Create Task</strong>
-							<span>Turn this appliance into a tracked maintenance job.</span>
-						</QuickActionButton>
-						<QuickActionButton type='button' onClick={openRecurringTaskModal}>
-							<strong>Add Recurring Maintenance</strong>
-							<span>Set ongoing care for filters, service, and inspections.</span>
-						</QuickActionButton>
-						<QuickActionButton type='button' onClick={() => documentInputRef.current?.click()}>
-							<strong>Upload Invoice / Document</strong>
-							<span>Store proof of service, receipts, or manuals here.</span>
-						</QuickActionButton>
-						<QuickActionButton type='button' onClick={() => openQuickLogModal('note')}>
-							<strong>Add Service Note</strong>
-							<span>Capture context that should travel with the system.</span>
-						</QuickActionButton>
-						<QuickActionButton type='button' onClick={() => openQuickLogModal('repair')}>
-							<strong>Log Repair</strong>
-							<span>Write a repair entry directly into the maintenance trail.</span>
-						</QuickActionButton>
-						<QuickActionButton type='button' onClick={() => openQuickLogModal('invoice')}>
-							<strong>Log Invoice</strong>
-							<span>Record invoice details in the maintenance history.</span>
-						</QuickActionButton>
-						<QuickActionButton type='button' onClick={() => openQuickLogModal('inspection')}>
-							<strong>Log Inspection</strong>
-							<span>Document findings and recommendations from inspections.</span>
-						</QuickActionButton>
-						<QuickActionButton
+						<div>
+							<h3>Quick Actions</h3>
+							<p>Keep this appliance moving with the next maintenance step.</p>
+						</div>
+						<ViewActionsButton
 							type='button'
-							onClick={() => openQuickLogModal('warranty')}
-							disabled={!canAccessWarranty}
-							title={
-								canAccessWarranty
-									? undefined
-									: 'Warranty tracking requires the Property plan or higher'
-							}>
-							<strong>Log Warranty</strong>
-							<span>
-								{canAccessWarranty
-									? 'Capture coverage terms and warranty lifecycle notes.'
-									: 'Upgrade to Property or Portfolio to track warranties.'}
-							</span>
-						</QuickActionButton>
-						<QuickActionButton type='button' onClick={() => openQuickLogModal('contractor')}>
-							<strong>Log Contractor Visit</strong>
-							<span>Document who visited, what they found, and next steps.</span>
-						</QuickActionButton>
-					</QuickActionGrid>
-					<QuickActionHint>
-						These actions all feed the same service history so the appliance becomes more useful over time.
-					</QuickActionHint>
-					<input
-						ref={documentInputRef}
-						type='file'
-						accept='image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt'
-						onChange={handleDocumentUpload}
-						style={{ display: 'none' }}
-					/>
+							aria-expanded={areQuickActionsOpen}
+							aria-controls='appliance-quick-action-list'
+							onClick={() => setAreQuickActionsOpen((isOpen) => !isOpen)}>
+							{areQuickActionsOpen ? 'Hide Actions' : 'View Actions'}
+						</ViewActionsButton>
+					</QuickActionHeader>
+					{areQuickActionsOpen && (
+						<>
+							<QuickActionGrid id='appliance-quick-action-list'>
+								<QuickActionButton type='button' onClick={handleOpenEditDeviceModal}>
+									<strong>Edit Appliance</strong>
+									<span>Change the appliance profile, status, or location.</span>
+								</QuickActionButton>
+								<QuickActionButton type='button' onClick={openCreateTaskModal}>
+									<strong>Create Task</strong>
+									<span>Turn this appliance into a tracked maintenance job.</span>
+								</QuickActionButton>
+								<QuickActionButton type='button' onClick={openRecurringTaskModal}>
+									<strong>Add Recurring Maintenance</strong>
+									<span>Set ongoing care for filters, service, and inspections.</span>
+								</QuickActionButton>
+								<QuickActionButton type='button' onClick={() => documentInputRef.current?.click()}>
+									<strong>Upload Invoice / Document</strong>
+									<span>Store proof of service, receipts, or manuals here.</span>
+								</QuickActionButton>
+								<QuickActionButton type='button' onClick={() => openQuickLogModal('note')}>
+									<strong>Add Service Note</strong>
+									<span>Capture context that should travel with the system.</span>
+								</QuickActionButton>
+								<QuickActionButton type='button' onClick={() => openQuickLogModal('repair')}>
+									<strong>Log Repair</strong>
+									<span>Write a repair entry directly into the maintenance trail.</span>
+								</QuickActionButton>
+								<QuickActionButton type='button' onClick={() => openQuickLogModal('invoice')}>
+									<strong>Log Invoice</strong>
+									<span>Record invoice details in the maintenance history.</span>
+								</QuickActionButton>
+								<QuickActionButton type='button' onClick={() => openQuickLogModal('inspection')}>
+									<strong>Log Inspection</strong>
+									<span>Document findings and recommendations from inspections.</span>
+								</QuickActionButton>
+								<QuickActionButton
+									type='button'
+									onClick={() => openQuickLogModal('warranty')}
+									disabled={!canAccessWarranty}
+									title={
+										canAccessWarranty
+											? undefined
+											: 'Warranty tracking requires the Property plan or higher'
+									}>
+									<strong>Log Warranty</strong>
+									<span>
+										{canAccessWarranty
+											? 'Capture coverage terms and warranty lifecycle notes.'
+											: 'Upgrade to Property or Portfolio to track warranties.'}
+									</span>
+								</QuickActionButton>
+								<QuickActionButton type='button' onClick={() => openQuickLogModal('contractor')}>
+									<strong>Log Contractor Visit</strong>
+									<span>Document who visited, what they found, and next steps.</span>
+								</QuickActionButton>
+							</QuickActionGrid>
+							<QuickActionHint>
+								These actions all feed the same service history so the appliance becomes more useful over time.
+							</QuickActionHint>
+						</>
+					)}
 				</QuickActionPanel>
+				<input
+					ref={documentInputRef}
+					type='file'
+					accept='image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt'
+					onChange={handleDocumentUpload}
+					style={{ display: 'none' }}
+				/>
 
 			{activeTab === 'info' && (
 				<TabContent>
@@ -2204,7 +2299,10 @@ export const DeviceDetailPage: React.FC = () => {
 									},
 									]}
 									hideHeader={true}
+									emptyTitle='No open tasks linked yet'
 									emptyMessage='No open tasks linked to this appliance. New maintenance tasks will appear here.'
+									emptyActionLabel='Add Task'
+									onEmptyAction={openCreateTaskModal}
 								/>
 							</HeaderlessFeedSurface>
 						</SectionContainer>
@@ -2315,7 +2413,17 @@ export const DeviceDetailPage: React.FC = () => {
 									</TimelineList>
 								) : (
 									<EmptyState>
-										<p>No timeline entries yet. Log a repair or complete a task to start the record.</p>
+										<p>
+											No timeline entries yet. Tasks and quick service notes create the record for this appliance.
+										</p>
+										<ButtonGroup>
+											<SubmitButton type='button' onClick={openCreateTaskModal}>
+												Add Task
+											</SubmitButton>
+											<ScanButton type='button' onClick={() => openQuickLogModal('note')}>
+												Add Service Note
+											</ScanButton>
+										</ButtonGroup>
 									</EmptyState>
 								)}
 							</SectionContainer>
@@ -2330,8 +2438,8 @@ export const DeviceDetailPage: React.FC = () => {
 									Every completed record adds to the long-term operational memory of this system.
 								</SectionDescription>
 							</SectionBlock>
-							<SectionHeader>Maintenance History ({relatedMaintenanceHistory.length})</SectionHeader>
-							{relatedMaintenanceHistory.length > 0 ? (
+							<SectionHeader>Maintenance History ({applianceMaintenanceFeedRecords.length})</SectionHeader>
+							{applianceMaintenanceFeedRecords.length > 0 ? (
 								<GridContainer>
 									<GridTable>
 										<thead>
@@ -2343,14 +2451,12 @@ export const DeviceDetailPage: React.FC = () => {
 											</tr>
 										</thead>
 										<tbody>
-											{relatedMaintenanceHistory.map((record: any, index: number) => (
+											{applianceMaintenanceFeedRecords.map((record: any, index: number) => (
 												<tr
 													key={`${record.id || record.originalTaskId || 'history'}-${index}`}>
 													<td>
 														{formatDate(
-															record.completionDate ||
-																record.approvedAt ||
-																record.dueDate ||
+															getMaintenanceEventDate(record) ||
 																record.date,
 														)}
 													</td>
@@ -2371,7 +2477,12 @@ export const DeviceDetailPage: React.FC = () => {
 								</GridContainer>
 							) : (
 								<EmptyState>
-									<p>No maintenance history linked to this appliance</p>
+									<p>
+										No maintenance history linked to this appliance yet. Completed tasks will appear here as the service record grows.
+									</p>
+									<SubmitButton type='button' onClick={openCreateTaskModal}>
+										Add Task
+									</SubmitButton>
 								</EmptyState>
 							)}
 							</SectionContainer>

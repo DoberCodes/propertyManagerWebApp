@@ -1024,6 +1024,9 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 			) : (
 				<EmptyState>
 					<p>No matching tasks yet. Create one to start your maintenance timeline and reminders.</p>
+					<ToolbarButton type='button' onClick={handleCreateTask}>
+						Add Task
+					</ToolbarButton>
 				</EmptyState>
 			)}
 

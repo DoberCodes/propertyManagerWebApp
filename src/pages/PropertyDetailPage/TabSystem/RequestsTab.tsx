@@ -10,7 +10,7 @@ import {
 	Action,
 } from '../../../Components/Library/ReusableTable';
 import { StatusBadge, EmptyState } from './index.styles';
-import { SectionLead } from './index.styles';
+import { SectionLead, ToolbarButton } from './index.styles';
 import {
 	faExchangeAlt,
 	faArrowUpAZ,
@@ -40,6 +40,7 @@ export const RequestsTab: React.FC<RequestsTabProps> = ({
 	currentUser,
 	canApproveMaintenanceRequest,
 	handleConvertRequestToTask,
+	onCreateTask,
 }) => {
 	const [search, setSearch] = useState('');
 	const [sortBy, setSortBy] = useState<'dateDesc' | 'priority' | 'status'>('dateDesc');
@@ -357,7 +358,30 @@ export const RequestsTab: React.FC<RequestsTabProps> = ({
 					/>
 			) : (
 				<EmptyState>
-					<p>No maintenance requests for this property</p>
+					<h3>
+						{propertyMaintenanceRequests.length === 0
+							? 'No maintenance requests yet'
+							: 'No requests match your filters'}
+					</h3>
+					<p>
+						{propertyMaintenanceRequests.length === 0
+							? 'Tenant requests will appear here. If you already know the work that needs attention, start it as a task.'
+							: 'Adjust the search to bring requests back into view.'}
+					</p>
+					{propertyMaintenanceRequests.length === 0 ? (
+						onCreateTask && (
+							<ToolbarButton type='button' onClick={onCreateTask}>
+								Add Task
+							</ToolbarButton>
+						)
+					) : (
+						<ToolbarButton
+							type='button'
+							className='secondary-action'
+							onClick={() => setSearch('')}>
+							Clear Search
+						</ToolbarButton>
+					)}
 				</EmptyState>
 			)}
 		</SectionContainer>

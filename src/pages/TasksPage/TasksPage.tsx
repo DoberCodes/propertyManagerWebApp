@@ -803,6 +803,17 @@ export const TasksPage = () => {
 									: 'Try a different search term or quick filter chip'
 							}
 							icon='📊'
+							actions={
+								allTasks.length === 0 || activeTasksCount === 0
+									? [{ label: 'Add Task', onClick: handleCreateTask }]
+									: [{
+											label: 'Clear Filters',
+											onClick: () => {
+												setSearchTerm('');
+												setQuickFilter('all');
+											},
+									  }]
+							}
 						/>
 					) : (
 						filteredTasks.map((task: any) => {
@@ -916,7 +927,18 @@ export const TasksPage = () => {
 											? 'All your maintenance tasks are complete'
 										: 'Try a different search term or quick filter chip'
 								}
-								icon='📊'></ZeroState>
+								icon='📊'
+								actions={
+									allTasks.length === 0 || activeTasksCount === 0
+										? [{ label: 'Add Task', onClick: handleCreateTask }]
+										: [{
+												label: 'Clear Filters',
+												onClick: () => {
+													setSearchTerm('');
+													setQuickFilter('all');
+												},
+										  }]
+								}></ZeroState>
 						) : (
 							<ReusableTable
 								rowData={filteredTasks}

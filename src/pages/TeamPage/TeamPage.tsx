@@ -63,6 +63,7 @@ import {
 	FileItem,
 	DialogFooter,
 	CancelButton,
+	EmptyState,
 	SaveButton,
 } from './TeamPage.styles';
 import { WarningDialog } from '../../Components/Library/WarningDialog';
@@ -780,7 +781,17 @@ export default function TeamPage() {
 			)}
 
 			<TeamGroupSection>
-				{filteredTeamGroups.map((group) => (
+				{filteredTeamGroups.length === 0 ? (
+					<EmptyState>
+						<p>No team members yet.</p>
+						<p>Add your first team member or group to start assigning maintenance work.</p>
+						{canManage && (
+							<AddTeamGroupButton onClick={() => handleAddTeamMember(null)}>
+								Add Team Member
+							</AddTeamGroupButton>
+						)}
+					</EmptyState>
+				) : filteredTeamGroups.map((group) => (
 					<div key={group.id}>
 						<TeamGroupHeader>
 							{editingGroupId === group.id ? (

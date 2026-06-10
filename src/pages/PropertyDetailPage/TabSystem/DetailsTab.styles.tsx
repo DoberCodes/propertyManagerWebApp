@@ -177,6 +177,22 @@ export const PreviewItemMeta = styled.div`
 	}
 `;
 
+export const PreviewEmptyAction = styled.button`
+	align-self: flex-start;
+	border: 1px solid #cbd5e1;
+	border-radius: 8px;
+	background: #ffffff;
+	color: #334155;
+	font-size: 0.78rem;
+	font-weight: 700;
+	padding: 0.45rem 0.7rem;
+	cursor: pointer;
+
+	&:hover {
+		background: #f1f5f9;
+	}
+`;
+
 export const TimelineList = styled.div`
 	display: flex;
 	flex-direction: column;

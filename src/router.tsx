@@ -23,7 +23,8 @@ import { Properties } from './Components/PropertiesTab';
 import { PropertyDetailPage } from './pages/PropertyDetailPage/PropertyDetailPage';
 // Units are temporarily hidden from the app flow; keep the page code for the later relaunch.
 // import { UnitDetailPage } from './pages/UnitDetailPage';
-import { SuiteDetailPage } from './pages/SuiteDetailPage/SuiteDetailPage';
+// Suites are temporarily hidden from the app flow; keep the page code for the later relaunch.
+// import { SuiteDetailPage } from './pages/SuiteDetailPage/SuiteDetailPage';
 import { DeviceDetailPage } from './pages/DeviceDetailPage/DeviceDetailPage';
 import TeamPage from './pages/TeamPage';
 import { ReportPage } from './pages/ReportPage';
@@ -131,6 +132,7 @@ export const RouterComponent = () => {
 						}
 					/>
 					*/}
+					{/* Suites are temporarily hidden from the app flow.
 					<Route
 						path='property/:slug/suite/:suiteName'
 						element={
@@ -139,6 +141,7 @@ export const RouterComponent = () => {
 							</ProtectedRoutes>
 						}
 					/>
+					*/}
 					<Route
 						path='property/:slug/device/:deviceSlug'
 						element={

@@ -460,6 +460,61 @@ export const ActionFirstTopSection = styled.section`
 	}
 `;
 
+export const EmptyDashboardState = styled.section`
+	min-height: min(620px, calc(100vh - 180px));
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 32px 16px;
+`;
+
+export const EmptyDashboardCard = styled.div`
+	width: min(100%, 520px);
+	background: ${COLORS.bgWhite};
+	border: 1px solid ${COLORS.border};
+	border-radius: 14px;
+	box-shadow: ${COLORS.shadow};
+	padding: 32px;
+	text-align: center;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 12px;
+
+	h1 {
+		margin: 0;
+		font-size: 1.35rem;
+		font-weight: 800;
+		color: ${COLORS.textPrimary};
+	}
+
+	p {
+		margin: 0;
+		max-width: 420px;
+		color: ${COLORS.textSecondary};
+		font-size: 0.95rem;
+		line-height: 1.55;
+	}
+
+	button {
+		margin-top: 8px;
+		border: none;
+		border-radius: 9px;
+		background: #16a34a;
+		color: #ffffff;
+		font-size: 0.9rem;
+		font-weight: 800;
+		padding: 0.7rem 1rem;
+		cursor: pointer;
+		transition: background-color 0.15s ease, transform 0.15s ease;
+	}
+
+	button:hover {
+		background: #15803d;
+		transform: translateY(-1px);
+	}
+`;
+
 const sharedCard = `
 	background: ${COLORS.bgWhite};
 	border: 1px solid ${COLORS.border};
@@ -823,11 +878,20 @@ export const RecentActivityDate = styled.span`
 	white-space: nowrap;
 `;
 
-export const RecentActivityEmpty = styled.p`
+export const RecentActivityEmpty = styled.div`
 	margin: 0;
 	font-size: 0.85rem;
 	font-weight: 500;
 	color: ${COLORS.textSecondary};
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 10px;
+
+	p {
+		margin: 0;
+		line-height: 1.5;
+	}
 `;
 
 export const UrgentQueueSection = styled.section`
