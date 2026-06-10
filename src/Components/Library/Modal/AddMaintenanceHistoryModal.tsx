@@ -42,9 +42,7 @@ export const AddMaintenanceHistoryModal: React.FC<
 	isOpen,
 	onClose,
 	onSubmit,
-	property,
 	devices = [],
-	units,
 	teamMembers,
 	contractors,
 	familyMembers,
@@ -223,7 +221,7 @@ export const AddMaintenanceHistoryModal: React.FC<
 				device.name ||
 				[device.type, device.brand, device.model].filter(Boolean).join(' ') ||
 				device.serialNumber ||
-				`Device ${device.id}`,
+				`Appliance ${device.id}`,
 		}))
 		.filter((device) => device.id);
 
@@ -385,6 +383,7 @@ export const AddMaintenanceHistoryModal: React.FC<
 					/>
 				</div>
 
+				{/* Units are temporarily hidden from the app flow.
 				{property?.propertyType === 'Multi-Family' && units.length > 0 && (
 					<div>
 						<label
@@ -415,6 +414,7 @@ export const AddMaintenanceHistoryModal: React.FC<
 						</select>
 					</div>
 				)}
+				*/}
 
 				{deviceOptions.length > 0 && (
 					<div>
@@ -424,7 +424,7 @@ export const AddMaintenanceHistoryModal: React.FC<
 								marginBottom: '4px',
 								fontWeight: 'bold',
 							}}>
-							Linked Devices
+							Linked Appliances
 						</label>
 						<select
 							multiple
@@ -451,7 +451,7 @@ export const AddMaintenanceHistoryModal: React.FC<
 								marginTop: '4px',
 								display: 'block',
 							}}>
-							Hold Ctrl/Command to select multiple devices.
+							Hold Ctrl/Command to select multiple appliances.
 						</small>
 					</div>
 				)}

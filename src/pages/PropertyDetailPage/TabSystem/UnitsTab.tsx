@@ -9,6 +9,7 @@ import {
 	SectionHeader,
 } from 'Components/Library/InfoCards/InfoCardStyles';
 import { useGetUnitDevicesQuery } from 'Redux/API/deviceSlice';
+import { useGetPropertyQuery } from 'Redux/API/propertySlice';
 import {
 	ReusableTable,
 	Column,
@@ -37,6 +38,7 @@ import {
 	faScrewdriverWrench,
 	faClockRotateLeft,
 } from '@fortawesome/free-solid-svg-icons';
+import { resolveUnitOccupants } from '../../../utils/unitOccupants';
 
 const UnitDeviceCount: React.FC<{ unitId: string }> = ({ unitId }) => {
 	const { data: unitDevices = [] } = useGetUnitDevicesQuery(unitId, {
@@ -53,6 +55,43 @@ export const UnitsTab: React.FC<UnitsTabProps> = ({
 }) => {
 	const navigate = useNavigate();
 	const isMobile = useSelector((state: RootState) => state.app.isMobile);
+	const { data: liveProperty } = useGetPropertyQuery(property?.id || '', {
+		skip: !property?.id,
+	});
+
+	const displayUnits = React.useMemo(() => {
+		const normalize = (value: unknown) => String(value || '').trim().toLowerCase();
+		const mergedTenantsByKey = new Map<string, any>();
+		const tenantSources = [
+			Array.isArray((liveProperty as any)?.tenants)
+				? ((liveProperty as any).tenants as any[])
+				: [],
+			Array.isArray((property as any)?.tenants)
+				? ((property as any).tenants as any[])
+				: [],
+		];
+		for (const source of tenantSources) {
+			for (const tenant of source) {
+				const key =
+					String(tenant?.id || '').trim() ||
+					normalize(tenant?.email) ||
+					`${normalize(tenant?.firstName)}_${normalize(tenant?.lastName)}`;
+				if (key) {
+					mergedTenantsByKey.set(key, tenant);
+				}
+			}
+		}
+		const propertyTenants = Array.from(mergedTenantsByKey.values());
+
+		return (units || []).map((unit: any) => {
+			const occupantsResolved = resolveUnitOccupants({ unit, propertyTenants });
+			return {
+				...unit,
+				occupantsResolved,
+				occupantCountResolved: occupantsResolved.length,
+			};
+		});
+	}, [liveProperty, property, units]);
 
 	const handleNavigate = (unit: any) => {
 		navigate(
@@ -70,7 +109,7 @@ export const UnitsTab: React.FC<UnitsTabProps> = ({
 			header: 'Unit Profile',
 			key: 'name',
 			render: (value: string, row: any) => {
-				const occupantCount = (row.occupants || []).length;
+				const occupantCount = row.occupantCountResolved ?? (row.occupants || []).length;
 				return (
 					<div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 250 }}>
 						<div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -113,7 +152,7 @@ export const UnitsTab: React.FC<UnitsTabProps> = ({
 		},
 		{
 			header: 'Occupancy',
-			key: 'occupants',
+			key: 'occupantsResolved',
 			render: (value: any[]) => {
 				const count = (value || []).length;
 				return (
@@ -168,15 +207,15 @@ export const UnitsTab: React.FC<UnitsTabProps> = ({
 
 			{isMobile && (
 				<div style={{ display: 'flex', flexDirection: 'column', gap: 12, paddingBottom: 4 }}>
-					{units && units.length > 0 ? (
-						(units || []).map((unit) => (
+					{displayUnits && displayUnits.length > 0 ? (
+						(displayUnits || []).map((unit) => (
 							<DeviceCard key={unit.id} onClick={() => handleNavigate(unit)}>
 								<div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
 									<div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start' }}>
 										<div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
 											<div style={{ fontSize: 15, fontWeight: 800, color: '#0f172a' }}>{unit.name}</div>
 											<div style={{ fontSize: 12, color: '#64748b' }}>
-												{(unit.occupants || []).length} occupant{(unit.occupants || []).length === 1 ? '' : 's'}
+												{unit.occupantCountResolved} occupant{unit.occupantCountResolved === 1 ? '' : 's'}
 											</div>
 										</div>
 										<span style={{ fontSize: 12, fontWeight: 700, padding: '4px 10px', borderRadius: 999, background: '#ecfeff', color: '#0f766e', border: '1px solid #99f6e4', whiteSpace: 'nowrap' }}>
@@ -185,10 +224,10 @@ export const UnitsTab: React.FC<UnitsTabProps> = ({
 									</div>
 									<MobileFeedMeta>
 										<MobileFeedLineMuted>
-											{(unit.occupants || []).length} occupant{(unit.occupants || []).length === 1 ? '' : 's'}
+											{unit.occupantCountResolved} occupant{unit.occupantCountResolved === 1 ? '' : 's'}
 										</MobileFeedLineMuted>
 										<MobileFeedLine>
-											Devices: <strong style={{ color: '#0f172a' }}><UnitDeviceCount unitId={unit.id} /></strong>
+											Appliances: <strong style={{ color: '#0f172a' }}><UnitDeviceCount unitId={unit.id} /></strong>
 										</MobileFeedLine>
 									</MobileFeedMeta>
 								</div>
@@ -224,13 +263,10 @@ export const UnitsTab: React.FC<UnitsTabProps> = ({
 
 			{/* Desktop table (hidden on mobile) */}
 			<DesktopTableWrapper>
-				{units && units.length > 0 ? (
+				{displayUnits && displayUnits.length > 0 ? (
 					<ReusableTable
 						columns={columns}
-						rowData={units}
-						getRowClassName={(row: any) =>
-							((row.occupants || []).length === 0 ? 'attention-row' : undefined)
-						}
+						rowData={displayUnits}
 						actions={actions}
 						hideHeader={true}
 						emptyMessage='No units yet. Add your first unit to begin occupancy continuity tracking.'

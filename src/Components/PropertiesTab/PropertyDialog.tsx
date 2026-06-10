@@ -67,6 +67,8 @@ import { RootState } from '../../Redux/store/store';
 import { TeamMember } from '../../types/Team.types';
 import { User } from '../../Redux/Slices/userSlice';
 import { getFamilyMembers } from '../../services/authService';
+import { canManageMultiUnit } from '../../utils/subscriptionUtils';
+import { LockedFeatureCallout } from '../Library/LockedFeatureCallout';
 
 interface MaintenanceRecord {
 	date: string;
@@ -155,6 +157,8 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 }) => {
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
 	const teamGroups = useSelector((state: RootState) => state.team.groups);
+	const canUseMultiUnitManagement =
+		!!currentUser?.subscription && canManageMultiUnit(currentUser.subscription as any);
 
 	const teamMembers = useMemo(
 		() => teamGroups.flatMap((group) => group.members || []),
@@ -180,7 +184,8 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 		viewers: [],
 	});
 	const [stepIndex, setStepIndex] = useState(0);
-	const [unitInput, setUnitInput] = useState('');
+	// Units are temporarily hidden from the app flow.
+	// const [unitInput, setUnitInput] = useState('');
 	const [suiteInput, setSuiteInput] = useState('');
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [newGroupName, setNewGroupName] = useState('');
@@ -255,7 +260,8 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 		}
 
 		setStepIndex(0);
-		setUnitInput('');
+		// Units are temporarily hidden from the app flow.
+		// setUnitInput('');
 		setSuiteInput('');
 		setNewGroupName('');
 		setPendingShares({ coOwners: '', administrators: '', viewers: '' });
@@ -354,21 +360,22 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 		setFormData((prev) => ({ ...prev, [field]: value }));
 	};
 
-	const handleAddUnit = () => {
-		if (!unitInput.trim()) return;
-		setFormData((prev) => ({
-			...prev,
-			units: [...prev.units, unitInput.trim()],
-		}));
-		setUnitInput('');
-	};
+	// Units are temporarily hidden from the app flow.
+	// const handleAddUnit = () => {
+	// 	if (!unitInput.trim()) return;
+	// 	setFormData((prev) => ({
+	// 		...prev,
+	// 		units: [...prev.units, unitInput.trim()],
+	// 	}));
+	// 	setUnitInput('');
+	// };
 
-	const handleRemoveUnit = (index: number) => {
-		setFormData((prev) => ({
-			...prev,
-			units: prev.units.filter((_, unitIndex) => unitIndex !== index),
-		}));
-	};
+	// const handleRemoveUnit = (index: number) => {
+	// 	setFormData((prev) => ({
+	// 		...prev,
+	// 		units: prev.units.filter((_, unitIndex) => unitIndex !== index),
+	// 	}));
+	// };
 
 	const handleAddSuite = () => {
 		if (!suiteInput.trim()) return;
@@ -729,8 +736,18 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 										)
 									}>
 									<option value='Single Family'>Single Family</option>
-									{!forceSingleFamily && <option value='Multi-Family'>Multi-Family</option>}
-									{!forceSingleFamily && <option value='Commercial'>Commercial</option>}
+									{/* Units are temporarily hidden from the app flow.
+									{!forceSingleFamily && (
+										<option value='Multi-Family' disabled={!canUseMultiUnitManagement}>
+											Multi-Family{canUseMultiUnitManagement ? '' : ' (Portfolio)'}
+										</option>
+									)}
+									*/}
+									{!forceSingleFamily && (
+										<option value='Commercial' disabled={!canUseMultiUnitManagement}>
+											Commercial{canUseMultiUnitManagement ? '' : ' (Portfolio)'}
+										</option>
+									)}
 								</SelectField>
 							</FormField>
 							<FormField>
@@ -743,6 +760,14 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 								/>
 							</FormField>
 						</FormRow>
+						{!forceSingleFamily && !canUseMultiUnitManagement && (
+							<LockedFeatureCallout
+								title='Portfolio property management is locked on your current plan'
+								description='Create and manage Commercial properties by upgrading to the Portfolio plan.'
+								upgradeLabel='Upgrade for Portfolio'
+								compact
+							/>
+						)}
 						{formData.propertyType !== 'Commercial' && (
 							<FormRow>
 								<FormField>
@@ -787,10 +812,11 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 						</FormField>
 					</FormSection>
 
-					{formData.propertyType === 'Multi-Family' && (
-						<FormSection>
-							<Label>Units</Label>
-							<TagsContainer>
+						{/* Units are temporarily hidden from the app flow.
+						{formData.propertyType === 'Multi-Family' && (
+							<FormSection>
+								<Label>Units</Label>
+								<TagsContainer>
 								{formData.units.map((unit, index) => (
 									<Tag key={`${unit}-${index}`}>
 										{unit}
@@ -802,13 +828,17 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 								<Input
 									type='text'
 									value={unitInput}
+									disabled={!canUseMultiUnitManagement}
 									onChange={(e) => setUnitInput(e.target.value)}
 									placeholder='Add unit name'
 								/>
-								<AddButton onClick={handleAddUnit}>Add Unit</AddButton>
-							</TagInput>
-						</FormSection>
-					)}
+								<AddButton onClick={handleAddUnit} disabled={!canUseMultiUnitManagement}>
+									Add Unit
+								</AddButton>
+								</TagInput>
+							</FormSection>
+						)}
+						*/}
 
 					{formData.propertyType === 'Commercial' && (
 						<FormSection>
@@ -817,6 +847,7 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 								<input
 									type='checkbox'
 									checked={!!formData.hasSuites}
+									disabled={!canUseMultiUnitManagement}
 									onChange={(e) => handleInputChange('hasSuites', e.target.checked)}
 								/>
 								Enable suite-level management
@@ -835,10 +866,13 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 										<Input
 											type='text'
 											value={suiteInput}
+											disabled={!canUseMultiUnitManagement}
 											onChange={(e) => setSuiteInput(e.target.value)}
 											placeholder='Add suite name'
 										/>
-										<AddButton onClick={handleAddSuite}>Add Suite</AddButton>
+										<AddButton onClick={handleAddSuite} disabled={!canUseMultiUnitManagement}>
+											Add Suite
+										</AddButton>
 									</TagInput>
 								</>
 							)}

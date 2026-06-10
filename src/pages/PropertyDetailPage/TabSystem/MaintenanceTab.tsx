@@ -435,7 +435,7 @@ export const MaintenanceTab = ({
 					.filter(Boolean)
 					.join(' ') ||
 				device?.serialNumber ||
-				`Device ${id}`;
+				`Appliance ${id}`;
 			map.set(id, label);
 		});
 
@@ -473,7 +473,7 @@ export const MaintenanceTab = ({
 			const labels = ids
 				.map((id: any) => String(id))
 				.filter(Boolean)
-				.map((id: string) => deviceNameById.get(id) || `Device ${id}`);
+				.map((id: string) => deviceNameById.get(id) || `Appliance ${id}`);
 
 			if (labels.length === 0) {
 				return '-';
@@ -490,23 +490,23 @@ export const MaintenanceTab = ({
 
 	// Filter configuration for maintenance history
 	const maintenanceFilters: FilterConfig[] = [
-		// Only show unit filter for Multi-Family properties
-		...(property?.propertyType === 'Multi-Family'
-			? [
-					{
-						key: 'unit',
-						label: 'Unit',
-						type: 'select' as const,
-						options: [
-							{ value: 'all', label: 'All Units' },
-							...units.map((unit) => ({
-								value: unit.id,
-								label: unit.unitNumber || unit.address || `Unit ${unit.id}`,
-							})),
-						],
-					},
-			  ]
-			: []),
+		// Units are temporarily hidden from the app flow.
+		// ...(property?.propertyType === 'Multi-Family'
+		// 	? [
+		// 			{
+		// 				key: 'unit',
+		// 				label: 'Unit',
+		// 				type: 'select' as const,
+		// 				options: [
+		// 					{ value: 'all', label: 'All Units' },
+		// 					...units.map((unit) => ({
+		// 						value: unit.id,
+		// 						label: unit.unitNumber || unit.address || `Unit ${unit.id}`,
+		// 					})),
+		// 				],
+		// 			},
+		// 	  ]
+		// 	: []),
 		{
 			key: 'completedBy',
 			label: 'Completed By',
@@ -552,7 +552,7 @@ export const MaintenanceTab = ({
 			? [
 					{
 						key: 'linkedDevice',
-						label: 'Linked Device',
+						label: 'Linked Appliance',
 						type: 'select' as const,
 						options: deviceFilterOptions,
 					},
@@ -698,7 +698,7 @@ export const MaintenanceTab = ({
 		if (filters.linkedDevice) {
 			chips.push({
 				key: 'linkedDevice',
-				label: `Linked Device: ${
+				label: `Linked Appliance: ${
 					deviceNameById.get(String(filters.linkedDevice)) ||
 					String(filters.linkedDevice)
 				}`,
@@ -710,13 +710,14 @@ export const MaintenanceTab = ({
 			});
 		}
 
-		if (filters.unit && filters.unit !== 'all') {
-			chips.push({
-				key: 'unit',
-				label: `Unit: ${filters.unit}`,
-				onRemove: () => setFilters((prev) => ({ ...prev, unit: 'all' })),
-			});
-		}
+		// Units are temporarily hidden from the app flow.
+		// if (filters.unit && filters.unit !== 'all') {
+		// 	chips.push({
+		// 		key: 'unit',
+		// 		label: `Unit: ${filters.unit}`,
+		// 		onRemove: () => setFilters((prev) => ({ ...prev, unit: 'all' })),
+		// 	});
+		// }
 
 		if (filters.completionDate_start || filters.completionDate_end) {
 			chips.push({
@@ -820,7 +821,7 @@ export const MaintenanceTab = ({
 						<div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', color: '#475569', fontSize: 12, fontWeight: 700 }}>
 							<span>{eventVisual.label}</span>
 							<span>•</span>
-							<span>{row.linkedDevices || 'No linked device'}</span>
+							<span>{row.linkedDevices || 'No linked appliance'}</span>
 							<span>•</span>
 							<span>{relative}</span>
 						</div>
@@ -830,7 +831,7 @@ export const MaintenanceTab = ({
 								row.financials
 									? `Cost ${formatCurrency(getFinancialDisplayTotal(row.financials), row.financials?.currency || 'USD')}`
 									: 'No cost recorded',
-								row.groupId ? 'Grouped continuity record' : 'Standalone continuity record',
+								row.groupId ? 'Grouped maintenance record' : 'Standalone maintenance record',
 							].map((signal, signalIndex) => (
 								<span
 									key={`${row.id || row.groupId || row.title}-signal-${signalIndex}`}
@@ -863,7 +864,7 @@ export const MaintenanceTab = ({
 			},
 		},
 		{
-			header: 'Continuity',
+			header: 'Maintenance Status',
 			key: 'completionDate',
 			render: (_value, row) => {
 				const status = getOperationalStatus(row);

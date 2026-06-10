@@ -4,7 +4,6 @@ import {
 	SectionContainer,
 	SectionHeader,
 } from '../../../Components/Library/InfoCards/InfoCardStyles';
-import { FormSelect } from '../../../Components/Library/Modal/ModalStyles';
 import {
 	ReusableTable,
 	Column,
@@ -33,13 +32,12 @@ import {
 	ActiveFilterChip,
 	ActiveFilterChipClear,
 } from './mobileUiShared';
+import { LockedFeatureCallout } from '../../../Components/Library/LockedFeatureCallout';
+import { canManageTenants as canManageTenantsForPlan } from '../../../utils/subscriptionUtils';
 
 export const RequestsTab: React.FC<RequestsTabProps> = ({
 	propertyMaintenanceRequests,
 	currentUser,
-	unitOptions = [],
-	selectedUnitId,
-	onSelectUnit,
 	canApproveMaintenanceRequest,
 	handleConvertRequestToTask,
 }) => {
@@ -65,9 +63,7 @@ export const RequestsTab: React.FC<RequestsTabProps> = ({
 
 	const getRequestContinuitySignals = (request: any) => {
 		const signals: string[] = [`Submitted ${formatRelativePast(request.submittedAt)}`];
-		if (request.unit || request.unitId) {
-			signals.push(`Scoped to ${request.unit || request.unitId}`);
-		}
+		// Units are temporarily hidden from the app flow.
 		if (request.priority) {
 			signals.push(`${request.priority} priority`);
 		}
@@ -117,8 +113,7 @@ export const RequestsTab: React.FC<RequestsTabProps> = ({
 					<div style={{ fontSize: 12, color: '#64748b', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
 						<span>{request.category || 'General'}</span>
 						<span>•</span>
-						<span>{request.unit || 'Property level'}</span>
-						<span>•</span>
+						{/* Units are temporarily hidden from the app flow. */}
 						<span>{request.submittedByName || 'Tenant request'}</span>
 					</div>
 					<div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
@@ -144,20 +139,20 @@ export const RequestsTab: React.FC<RequestsTabProps> = ({
 			),
 		},
 		{
-			header: 'Continuity',
+			header: 'Request Status',
 			key: 'submittedAt',
 			render: (date: any, request: any) => (
 				<div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
 					<div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700, color: '#0f172a' }}>
 						<FontAwesomeIcon icon={faClockRotateLeft} color='#64748b' />
 						{request.status === 'Pending'
-							? 'Pending conversion into maintenance workflow'
-							: 'Request continuity has been advanced'}
+							? 'Pending conversion into maintenance task'
+							: 'Request has moved forward'}
 					</div>
 					<div style={{ fontSize: 12, color: '#64748b' }}>{formatDateUtil(date)}</div>
 					<div style={{ fontSize: 12, color: '#64748b' }}>
 						{request.status === 'Pending'
-							? 'Waiting for approval and workflow conversion.'
+							? 'Waiting for approval and task conversion.'
 							: 'Already moved forward in the maintenance process.'}
 					</div>
 				</div>
@@ -194,11 +189,12 @@ export const RequestsTab: React.FC<RequestsTabProps> = ({
 
 	const actions: Action[] = [
 		{
-			label: 'Convert to Workflow',
+			label: 'Convert to Task',
 			icon: faExchangeAlt,
 			onClick: (request: any) => handleConvertRequestToTask(request.id),
 			disabled: (request: any) =>
 				!(
+					canManageRequestTasks &&
 					request.status === 'Pending' &&
 					currentUser &&
 					canApproveMaintenanceRequest(currentUser.role as UserRole)
@@ -206,12 +202,12 @@ export const RequestsTab: React.FC<RequestsTabProps> = ({
 		},
 	];
 
+	const canManageRequestTasks =
+		!!currentUser?.subscription && canManageTenantsForPlan(currentUser.subscription as any);
+
 	const filteredRequests = useMemo(() => {
-		const byUnit = !selectedUnitId
-			? propertyMaintenanceRequests
-			: propertyMaintenanceRequests.filter(
-					(req) => req.unit === selectedUnitId || req.unitId === selectedUnitId,
-			  );
+		// Units are temporarily hidden from the app flow; do not apply unit scoping.
+		const byUnit = propertyMaintenanceRequests;
 
 		const bySearch = byUnit.filter((req) => {
 			const haystack = `${req.title || ''} ${req.description || ''} ${req.category || ''}`.toLowerCase();
@@ -236,7 +232,7 @@ export const RequestsTab: React.FC<RequestsTabProps> = ({
 			const timeB = b.submittedAt ? new Date(b.submittedAt).getTime() : 0;
 			return timeB - timeA;
 		});
-	}, [propertyMaintenanceRequests, search, selectedUnitId, sortBy]);
+	}, [propertyMaintenanceRequests, search, sortBy]);
 
 	const activeFilterChips = useMemo(() => {
 		const chips: Array<{ key: string; label: string; onRemove: () => void }> = [];
@@ -247,22 +243,23 @@ export const RequestsTab: React.FC<RequestsTabProps> = ({
 				onRemove: () => setSearch(''),
 			});
 		}
-		if (selectedUnitId) {
-			chips.push({
-				key: 'unit',
-				label: `Unit: ${selectedUnitId}`,
-				onRemove: () => onSelectUnit && onSelectUnit(''),
-			});
-		}
 		return chips;
-	}, [search, selectedUnitId, onSelectUnit]);
+	}, [search]);
 
 	return (
 		<SectionContainer>
 			<SectionHeader>Maintenance Requests</SectionHeader>
 			<SectionLead>
-				Review incoming maintenance requests before they become active workflows.
+				Review incoming maintenance requests before they become active tasks.
 			</SectionLead>
+			{!canManageRequestTasks && (
+				<LockedFeatureCallout
+					title='Request task conversion is locked on your current plan'
+					description='You can review requests, but converting them into managed tasks requires the Portfolio plan.'
+					upgradeLabel='Upgrade for Request Tasks'
+					compact
+				/>
+			)}
 			<div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16 }}>
 				<div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
 				<input
@@ -310,6 +307,7 @@ export const RequestsTab: React.FC<RequestsTabProps> = ({
 				</div>
 				</div>
 
+			{/* Units are temporarily hidden from the app flow.
 			{unitOptions.length > 0 && (
 				<FormSelect
 					name='unitFilter'
@@ -324,6 +322,7 @@ export const RequestsTab: React.FC<RequestsTabProps> = ({
 					))}
 				</FormSelect>
 			)}
+			*/}
 
 			{activeFilterChips.length > 0 && (
 				<ActiveFilterChips>
@@ -335,7 +334,6 @@ export const RequestsTab: React.FC<RequestsTabProps> = ({
 					<ActiveFilterChipClear
 						onClick={() => {
 							setSearch('');
-							onSelectUnit && onSelectUnit('');
 						}}>
 						Clear all
 					</ActiveFilterChipClear>
@@ -355,7 +353,7 @@ export const RequestsTab: React.FC<RequestsTabProps> = ({
 						}
 						actions={actions}
 						hideHeader={true}
-						emptyMessage='No maintenance requests right now. New requests will appear here for continuity triage.'
+						emptyMessage='No maintenance requests right now. New requests will appear here for review.'
 					/>
 			) : (
 				<EmptyState>

@@ -54,7 +54,6 @@ export const ConvertRequestToTaskModal: React.FC<
 		assignee: '',
 		notes: `Maintenance Request Details:
 ${request.description}
-${request.unit ? `\nUnit: ${request.unit}` : ''}
 Category: ${request.category}
 Priority: ${request.priority}
 Submitted by: ${request.submittedByName} on ${
@@ -76,7 +75,6 @@ Submitted by: ${request.submittedByName} on ${
 				assignee: '',
 				notes: `Maintenance Request Details:
 ${request.description}
-${request.unit ? `\nUnit: ${request.unit}` : ''}
 Category: ${request.category}
 Priority: ${request.priority}
 Submitted by: ${request.submittedByName} on ${
@@ -102,14 +100,14 @@ Submitted by: ${request.submittedByName} on ${
 		<GenericModal
 			isOpen={isOpen}
 			onClose={onClose}
-			title='Convert Request to Continuity Task'
+			title='Convert Request to Maintenance Task'
 			showActions={true}
 			onSubmit={handleFormSubmit}
-			primaryButtonLabel='Create Continuity Task'
+			primaryButtonLabel='Create Maintenance Task'
 			secondaryButtonLabel='Cancel'>
 			<div>
 				<Subtitle>
-					Capture continuity details before creating from this maintenance request
+					Capture task details before creating from this maintenance request
 				</Subtitle>
 
 				<RequestSummary>
@@ -122,7 +120,7 @@ Submitted by: ${request.submittedByName} on ${
 							{request.priority} Priority
 						</PriorityBadge>
 						<CategoryBadge>{request.category}</CategoryBadge>
-						{request.unit && <LocationBadge>📍 {request.unit}</LocationBadge>}
+						{/* Units are temporarily hidden from the app flow. */}
 					</SummaryDetail>
 					<SummaryDetail style={{ fontSize: '13px', color: '#666' }}>
 						Submitted by {request.submittedByName} •{' '}
@@ -134,7 +132,7 @@ Submitted by: ${request.submittedByName} on ${
 				<FormRow>
 					<FormGroup>
 						<Label>
-							Continuity Task Title <Required>*</Required>
+							Maintenance Task Title <Required>*</Required>
 						</Label>
 						<Input
 							type='text'
@@ -175,8 +173,8 @@ Submitted by: ${request.submittedByName} on ${
 						</AsapToggle>
 						<Helper>
 							{taskData.dueDate
-								? `Suggested from ${request.priority.toLowerCase()} continuity priority`
-								: 'Continuity task will be created without a due date'}
+								? `Suggested from ${request.priority.toLowerCase()} request priority`
+								: 'Maintenance task will be created without a due date'}
 						</Helper>
 					</FormGroup>
 
@@ -216,26 +214,26 @@ Submitted by: ${request.submittedByName} on ${
 							))}
 					</Select>
 					<Helper>
-						Assign now or leave unassigned and route later in your continuity flow
+						Assign now or leave unassigned and route later in your maintenance workflow
 					</Helper>
 				</FormGroup>
 
 				{deviceOptions.length > 0 && (
 					<FormGroup>
-						<Label>Connected Devices (Optional)</Label>
+						<Label>Connected Appliances (Optional)</Label>
 						<MultiSelect
 							options={deviceOptions}
 							value={taskData.devices || []}
 							onChange={(devices) => setTaskData({ ...taskData, devices })}
-							placeholder='Select devices for this task...'
+							placeholder='Select appliances for this task...'
 						/>
-						<Helper>Leave blank if this request is not tied to a specific device.</Helper>
+						<Helper>Leave blank if this request is not tied to a specific appliance.</Helper>
 					</FormGroup>
 				)}
 
 				<FormGroup>
 					<Label>
-						Continuity Notes <Required>*</Required>
+						Maintenance Notes <Required>*</Required>
 					</Label>
 					<Textarea
 						value={taskData.notes}
@@ -257,7 +255,7 @@ Submitted by: ${request.submittedByName} on ${
 						<InfoIcon>📎</InfoIcon>
 						<InfoText>
 							<strong>{request.files.length} file(s)</strong> from the
-							maintenance request will carry into this continuity task.
+							maintenance request will carry into this maintenance task.
 						</InfoText>
 					</InfoBox>
 				)}
@@ -330,16 +328,7 @@ const CategoryBadge = styled.span`
 	color: #3f51b5;
 `;
 
-const LocationBadge = styled.span`
-	display: inline-block;
-	padding: 4px 12px;
-	border-radius: 12px;
-	font-size: 12px;
-	font-weight: 500;
-	background-color: #dcfce7;
-	color: #16a34a;
-	border: 1px solid #22c55e;
-`;
+// Units are temporarily hidden from the app flow.
 
 const FormRow = styled.div`
 	display: grid;

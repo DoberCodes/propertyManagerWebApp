@@ -1,5 +1,5 @@
 import React from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import styled from 'styled-components';
 import { useSelector, useDispatch } from 'react-redux';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -8,10 +8,18 @@ import {
 	faClock,
 	faCircleCheck,
 	faTriangleExclamation,
+	faEye,
+	faPen,
+	faTrash,
 	faHome,
 	faLocationDot,
 	faUsers,
 	faMicrochip,
+	faFan,
+	faSnowflake,
+	faClipboardCheck,
+	faHouse,
+	faPlug,
 	faListCheck,
 	faFileLines,
 	faCircleExclamation,
@@ -35,16 +43,29 @@ import { AddTenantModal } from '../../Components/AddTenantModal';
 import { MaintenanceRequestModal } from '../../Components/MaintenanceRequestModal';
 import {
 	useCreateDeviceMutation,
+	useDeleteDeviceMutation,
 	useGetUnitDevicesQuery,
+	useUpdateDeviceMutation,
 } from '../../Redux/API/deviceSlice';
-import { useUpdateMaintenanceHistoryMutation } from '../../Redux/API/maintenanceSlice';
+import {
+	useAddMaintenanceHistoryMutation,
+	useDeleteMaintenanceHistoryMutation,
+	useUpdateMaintenanceHistoryMutation,
+} from '../../Redux/API/maintenanceSlice';
+import { useDeleteTaskMutation } from '../../Redux/API/taskSlice';
+import { useRemoveTenantMutation } from '../../Redux/API/tenantSlice';
 import { getDeviceName } from '../../utils/detailPageUtils';
 import { TabConfig } from '../../types/DetailPage.types';
 import { addMaintenanceRequest } from '../../Redux/Slices/maintenanceRequestsSlice';
+import {
+	deleteMaintenanceRequest,
+	updateMaintenanceRequest,
+} from '../../Redux/Slices/maintenanceRequestsSlice';
 import { createMaintenanceRequestUtil } from '../PropertyDetailPage/PropertyDetailPage.utils';
 import { MaintenanceRequest } from '../../types/MaintenanceRequest.types';
 import { uploadMaintenanceRequestFiles } from '../../utils/maintenanceRequestUpload';
 import { useAppFeedback } from '../../Components/Library/AppFeedback/AppFeedbackProvider';
+import { buildDeviceSlug } from '../../utils/deviceSlug';
 import {
 	SectionContainer,
 	SectionHeader,
@@ -59,6 +80,7 @@ import {
 	getFinancialDisplayTotal,
 } from '../../utils/financialUtils';
 import { getPropertyImageSrc, isPropertyImageFallback } from '../../utils/propertyImagePlaceholder';
+import { resolveUnitOccupants } from '../../utils/unitOccupants';
 
 const Wrapper = styled.div`
 	display: flex;
@@ -243,8 +265,322 @@ const ActionText = styled.div`
 	}
 `;
 
+const SectionLead = styled.p`
+	margin: -4px 0 14px;
+	color: #475569;
+	font-size: 0.92rem;
+	line-height: 1.5;
+	max-width: 760px;
+`;
+
+const SummaryBar = styled.div`
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin-bottom: 12px;
+`;
+
+const SummaryPill = styled.div`
+	height: 30px;
+	display: inline-flex;
+	align-items: center;
+	padding: 0 10px;
+	border-radius: 999px;
+	background: #f8fafc;
+	border: 1px solid #e2e8f0;
+	font-size: 0.75rem;
+	font-weight: 700;
+	color: #334155;
+	white-space: nowrap;
+`;
+
+const PrimaryActionButton = styled.button`
+	background-color: #16a34a;
+	color: #fff;
+	border: none;
+	padding: 12px 20px;
+	border-radius: 8px;
+	font-size: 14px;
+	font-weight: 700;
+	letter-spacing: 0.01em;
+	cursor: pointer;
+	min-height: 40px;
+	box-shadow: 0 4px 6px rgba(22, 163, 74, 0.2), 0 10px 24px rgba(22, 163, 74, 0.22);
+	transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+
+	&:hover {
+		background-color: #15803d;
+		box-shadow: 0 6px 10px rgba(21, 128, 61, 0.25), 0 14px 30px rgba(21, 128, 61, 0.28);
+		transform: translateY(-2px);
+	}
+`;
+
+const OccupantsList = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+`;
+
+const OccupantCard = styled.div`
+	border: 1px solid #dbe3ec;
+	border-radius: 14px;
+	background: #fff;
+	padding: 14px 16px;
+	display: grid;
+	grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 0.9fr) auto;
+	gap: 18px;
+	align-items: center;
+
+	@media (max-width: 980px) {
+		grid-template-columns: 1fr;
+		gap: 10px;
+	}
+`;
+
+const OccupantName = styled.div`
+	font-size: 1.05rem;
+	font-weight: 800;
+	color: #0f172a;
+`;
+
+const OccupantMeta = styled.div`
+	font-size: 0.86rem;
+	font-weight: 600;
+	color: #64748b;
+	margin-top: 4px;
+`;
+
+const OccupantInfoStack = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+
+	strong {
+		font-size: 0.9rem;
+		color: #0f172a;
+	}
+
+	span {
+		font-size: 0.82rem;
+		color: #64748b;
+	}
+`;
+
+const OccupantActionRow = styled.div`
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	justify-self: end;
+
+	@media (max-width: 980px) {
+		justify-self: start;
+	}
+`;
+
+const OccupantActionButton = styled.button<{ $danger?: boolean }>`
+	border: 1px solid ${({ $danger }) => ($danger ? '#fecaca' : '#dbe3ec')};
+	background: ${({ $danger }) => ($danger ? '#fef2f2' : '#f8fafc')};
+	color: ${({ $danger }) => ($danger ? '#dc2626' : '#0f172a')};
+	border-radius: 999px;
+	padding: 8px 12px;
+	font-size: 0.82rem;
+	font-weight: 700;
+	cursor: pointer;
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+`;
+
+const DeviceSystemsList = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+`;
+
+const DeviceSystemRow = styled.div`
+	border: 1px solid #dbe3ec;
+	border-radius: 14px;
+	background: #fff;
+	padding: 16px;
+	display: grid;
+	grid-template-columns: minmax(260px, 1.2fr) minmax(180px, 0.7fr) minmax(220px, 0.9fr) minmax(180px, 0.6fr) auto;
+	gap: 16px;
+	align-items: center;
+
+	@media (max-width: 1200px) {
+		grid-template-columns: minmax(240px, 1fr) minmax(180px, 0.8fr) minmax(180px, 0.8fr) auto;
+	}
+
+	@media (max-width: 980px) {
+		grid-template-columns: 1fr;
+		gap: 12px;
+	}
+`;
+
+const DeviceProfile = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+`;
+
+const DeviceTitleRow = styled.div`
+	display: flex;
+	align-items: center;
+	gap: 8px;
+`;
+
+const DeviceIcon = styled.span<{ $color: string; $bg: string }>`
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 24px;
+	height: 24px;
+	border-radius: 8px;
+	color: ${({ $color }) => $color};
+	background: ${({ $bg }) => $bg};
+	flex-shrink: 0;
+`;
+
+const DeviceTitle = styled.div`
+	font-size: 1.05rem;
+	font-weight: 800;
+	color: #0f172a;
+	line-height: 1.3;
+`;
+
+const DeviceSubTitle = styled.div`
+	font-size: 0.9rem;
+	font-weight: 700;
+	color: #334155;
+`;
+
+const DeviceMetaLine = styled.div`
+	font-size: 0.82rem;
+	color: #64748b;
+`;
+
+const DeviceStatusCol = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+`;
+
+const HealthChip = styled.span<{ $attention?: boolean }>`
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 6px 10px;
+	border-radius: 999px;
+	border: 1px solid ${({ $attention }) => ($attention ? '#fcd34d' : '#86efac')};
+	background: ${({ $attention }) => ($attention ? '#fffbeb' : '#f0fdf4')};
+	color: ${({ $attention }) => ($attention ? '#92400e' : '#166534')};
+	font-size: 0.78rem;
+	font-weight: 800;
+	width: fit-content;
+`;
+
+const DeviceStatePill = styled.span<{ $status: string }>`
+	display: inline-flex;
+	align-items: center;
+	padding: 4px 10px;
+	border-radius: 6px;
+	font-size: 0.8rem;
+	font-weight: 700;
+	width: fit-content;
+	background: ${({ $status }) => {
+		switch ($status) {
+			case 'Active':
+				return 'rgba(34, 197, 94, 0.1)';
+			case 'Maintenance':
+				return 'rgba(245, 158, 11, 0.1)';
+			case 'Broken':
+				return 'rgba(239, 68, 68, 0.1)';
+			default:
+				return 'rgba(107, 114, 128, 0.12)';
+		}
+	}};
+	color: ${({ $status }) => {
+		switch ($status) {
+			case 'Active':
+				return '#22c55e';
+			case 'Maintenance':
+				return '#f59e0b';
+			case 'Broken':
+				return '#ef4444';
+			default:
+				return '#6b7280';
+		}
+	}};
+`;
+
+const DeviceActivityCol = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+
+	strong {
+		font-size: 0.95rem;
+		font-weight: 800;
+		color: #0f172a;
+	}
+
+	span {
+		font-size: 0.82rem;
+		color: #64748b;
+	}
+`;
+
+const DeviceDocsCol = styled.div`
+	font-size: 0.95rem;
+	font-weight: 700;
+	color: #94a3b8;
+`;
+
+const DeviceActionsCol = styled.div`
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 3px;
+	border: 1px solid #dbe3ec;
+	border-radius: 999px;
+	background: #f8fafc;
+	justify-self: end;
+
+	@media (max-width: 980px) {
+		justify-self: start;
+	}
+`;
+
+const ViewAction = styled.button`
+	border: 1px solid #a7f3d0;
+	background: #ecfdf5;
+	color: #0f766e;
+	padding: 7px 12px;
+	font-size: 0.82rem;
+	font-weight: 700;
+	border-radius: 999px;
+	cursor: pointer;
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+`;
+
+const IconAction = styled.button<{ $danger?: boolean }>`
+	border: none;
+	background: transparent;
+	width: 32px;
+	height: 32px;
+	border-radius: 8px;
+	cursor: pointer;
+	color: ${({ $danger }) => ($danger ? '#ef4444' : '#64748b')};
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+`;
+
 export const UnitDetailPage: React.FC = () => {
 	const feedback = useAppFeedback();
+	const navigate = useNavigate();
 	const { slug, unitName } = useParams<{ slug: string; unitName: string }>();
 	const [activeTab, setActiveTab] = React.useState<
 		| 'info'
@@ -262,6 +598,10 @@ export const UnitDetailPage: React.FC = () => {
 	const [showCreateTaskModal, setShowCreateTaskModal] = React.useState(false);
 	const [showMaintenanceRequestModal, setShowMaintenanceRequestModal] =
 		React.useState(false);
+	const [showEditTenantModal, setShowEditTenantModal] = React.useState(false);
+	const [editingTenant, setEditingTenant] = React.useState<any | null>(null);
+	const [editingTask, setEditingTask] = React.useState<any | null>(null);
+	const [taskModalMode, setTaskModalMode] = React.useState<'create' | 'edit'>('create');
 
 	// Use the generic data hook
 	const {
@@ -279,6 +619,13 @@ export const UnitDetailPage: React.FC = () => {
 
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
 	const dispatch = useDispatch();
+	const [createDevice] = useCreateDeviceMutation();
+	const [updateDevice] = useUpdateDeviceMutation();
+	const [deleteDevice] = useDeleteDeviceMutation();
+	const [removeTenant] = useRemoveTenantMutation();
+	const [deleteTask] = useDeleteTaskMutation();
+	const [addMaintenanceHistory] = useAddMaintenanceHistoryMutation();
+	const [deleteMaintenanceHistory] = useDeleteMaintenanceHistoryMutation();
 	const [updateMaintenanceHistory] = useUpdateMaintenanceHistoryMutation();
 	const { data: unitDevices = [], isLoading: devicesLoading } =
 		useGetUnitDevicesQuery(unit?.id || '', { skip: !unit?.id });
@@ -297,6 +644,148 @@ export const UnitDetailPage: React.FC = () => {
 			return dueDate < today;
 		}).length;
 	}, [unitTasks]);
+
+	const unitOccupants = React.useMemo(() => {
+		if (!unit) return [];
+		const propertyTenants = Array.isArray((property as any)?.tenants)
+			? ((property as any).tenants as any[])
+			: [];
+		return resolveUnitOccupants({ unit, propertyTenants });
+	}, [property, unit]);
+
+	const occupantsWithEmailCount = React.useMemo(
+		() => unitOccupants.filter((occupant: any) => Boolean(occupant?.email)).length,
+		[unitOccupants],
+	);
+
+	const occupantsWithPhoneCount = React.useMemo(
+		() => unitOccupants.filter((occupant: any) => Boolean(occupant?.phone)).length,
+		[unitOccupants],
+	);
+
+	const occupantsWithLeaseCount = React.useMemo(
+		() =>
+			unitOccupants.filter(
+				(occupant: any) => Boolean(occupant?.leaseStart) || Boolean(occupant?.leaseEnd),
+			).length,
+		[unitOccupants],
+	);
+
+	const tabsConfig: TabConfig[] = [
+		{ id: 'info', label: 'Unit Info' },
+		{ id: 'occupants', label: `Occupants (${unitOccupants.length})` },
+		{ id: 'devices', label: `Appliances (${unitDevices.length})` },
+		{ id: 'tasks', label: `Tasks (${unitTasks.length})` },
+		{ id: 'history', label: `Maintenance History (${unitMaintenanceHistory.length})` },
+		{ id: 'requests', label: `Requests (${unitRequests.length})` },
+	];
+
+	const openUnitTasks = React.useMemo(
+		() => unitTasks.filter((task: any) => task.status !== 'Completed'),
+		[unitTasks],
+	);
+
+	const linkedOpenTaskCountByDevice = React.useMemo(() => {
+		const counts = new Map<string, number>();
+
+		openUnitTasks.forEach((task: any) => {
+			const linkedIds = new Set<string>();
+
+			if (Array.isArray(task.devices)) {
+				task.devices.forEach((deviceId: string | number) => {
+					if (deviceId !== undefined && deviceId !== null) {
+						linkedIds.add(String(deviceId));
+					}
+				});
+			}
+
+			if (task.deviceId !== undefined && task.deviceId !== null) {
+				linkedIds.add(String(task.deviceId));
+			}
+
+			linkedIds.forEach((deviceId) => {
+				counts.set(deviceId, (counts.get(deviceId) || 0) + 1);
+			});
+		});
+
+		return counts;
+	}, [openUnitTasks]);
+
+	const linkedOpenTaskCount = React.useMemo(
+		() =>
+			Array.from(linkedOpenTaskCountByDevice.values()).reduce(
+				(total, count) => total + count,
+				0,
+			),
+		[linkedOpenTaskCountByDevice],
+	);
+
+	const needsAttentionDeviceCount = React.useMemo(
+		() =>
+			unitDevices.filter((device: any) => {
+				const status = device.status || 'Active';
+				const linkedOpenTasks = linkedOpenTaskCountByDevice.get(String(device.id)) || 0;
+				return status === 'Broken' || status === 'Maintenance' || linkedOpenTasks > 0;
+			}).length,
+		[unitDevices, linkedOpenTaskCountByDevice],
+	);
+
+	const formatRelativeTime = (value?: string): string => {
+		if (!value) return 'No activity recorded yet';
+		const target = new Date(value).getTime();
+		if (Number.isNaN(target)) return 'No activity recorded yet';
+
+		const now = Date.now();
+		const diffMs = now - target;
+		const absDays = Math.floor(Math.abs(diffMs) / (1000 * 60 * 60 * 24));
+
+		if (absDays === 0) return diffMs >= 0 ? 'Today' : 'Later today';
+		if (absDays === 1) return diffMs >= 0 ? 'Yesterday' : 'Tomorrow';
+		if (absDays < 7) return diffMs >= 0 ? `${absDays} days ago` : `In ${absDays} days`;
+
+		const weeks = Math.floor(absDays / 7);
+		if (weeks < 5) {
+			return diffMs >= 0
+				? `${weeks} week${weeks === 1 ? '' : 's'} ago`
+				: `In ${weeks} week${weeks === 1 ? '' : 's'}`;
+		}
+
+		const months = Math.floor(absDays / 30);
+		return diffMs >= 0
+			? `${months} month${months === 1 ? '' : 's'} ago`
+			: `In ${months} month${months === 1 ? '' : 's'}`;
+	};
+
+	const getDeviceDetailPath = (device: any) => {
+		if (!property?.slug) return '#';
+		const deviceSlug = buildDeviceSlug({
+			id: device.id,
+			type: device.type,
+			brand: device.brand,
+			model: device.model,
+		});
+		return `/property/${property.slug}/device/${deviceSlug}`;
+	};
+
+	const getDeviceOperationalIcon = (device: any) => {
+		const context = `${device.type || ''} ${device.brand || ''} ${device.model || ''}`.toLowerCase();
+		if (context.includes('hvac') || context.includes('heat') || context.includes('cool')) {
+			return { icon: faFan, color: '#0f766e', background: '#ecfeff' };
+		}
+		if (context.includes('season') || context.includes('winter') || context.includes('summer')) {
+			return { icon: faSnowflake, color: '#1d4ed8', background: '#dbeafe' };
+		}
+		if (context.includes('inspect')) {
+			return { icon: faClipboardCheck, color: '#0369a1', background: '#e0f2fe' };
+		}
+		if (context.includes('exterior') || context.includes('roof') || context.includes('garage')) {
+			return { icon: faHouse, color: '#7c2d12', background: '#ffedd5' };
+		}
+		if (context.includes('electric') || context.includes('panel') || context.includes('outlet')) {
+			return { icon: faPlug, color: '#7c3aed', background: '#f3e8ff' };
+		}
+		return { icon: faWrench, color: '#475569', background: '#f1f5f9' };
+	};
 
 	const handleMaintenanceRequestSubmit = async (
 		request: MaintenanceRequest,
@@ -346,18 +835,179 @@ export const UnitDetailPage: React.FC = () => {
 		}
 	};
 
-	// Tab configuration
-	const tabsConfig: TabConfig[] = [
-		{ id: 'info', label: 'Unit Info' },
-		{ id: 'occupants', label: `Occupants (${(unit?.occupants || []).length})` },
-		{ id: 'devices', label: `Devices (${unitDevices.length})` },
-		{ id: 'tasks', label: `Tasks (${unitTasks.length})` },
-		{
-			id: 'history',
-			label: `Maintenance History (${unitMaintenanceHistory.length})`,
-		},
-		{ id: 'requests', label: `Requests (${unitRequests.length})` },
-	];
+	const handleEditOccupant = (occupant: any) => {
+		const tenants = Array.isArray((property as any)?.tenants)
+			? ((property as any).tenants as any[])
+			: [];
+		const matchingTenant = tenants.find((t) => t.id === occupant.id);
+		if (!matchingTenant) {
+			feedback.notify('Could not locate full tenant profile for editing.');
+			return;
+		}
+		setEditingTenant(matchingTenant);
+		setShowEditTenantModal(true);
+	};
+
+	const handleDeleteOccupant = async (occupant: any) => {
+		if (!property?.id || !occupant?.id) return;
+		if (!window.confirm(`Delete occupant ${occupant.firstName || ''} ${occupant.lastName || ''}?`)) {
+			return;
+		}
+		try {
+			await removeTenant({ propertyId: property.id, tenantId: occupant.id }).unwrap();
+			feedback.notify('Occupant deleted');
+		} catch (error) {
+			console.error('Failed to delete occupant:', error);
+			feedback.notify('Failed to delete occupant');
+		}
+	};
+
+	const handleCreateDeviceQuick = async () => {
+		if (!property?.id || !unit?.id) return;
+		const type = window.prompt('Appliance type (required):', 'HVAC') || '';
+		if (!type.trim()) return;
+		const brand = window.prompt('Brand (required):', 'Unknown') || '';
+		if (!brand.trim()) return;
+		const model = window.prompt('Model (required):', 'N/A') || '';
+		if (!model.trim()) return;
+
+		try {
+			await createDevice({
+				type,
+				brand,
+				model,
+				installationDate: new Date().toISOString().split('T')[0],
+				status: 'Active',
+				location: { propertyId: property.id, unitId: unit.id },
+			} as any).unwrap();
+			feedback.notify('Appliance created');
+		} catch (error) {
+			console.error('Failed to create appliance:', error);
+			feedback.notify('Failed to create appliance');
+		}
+	};
+
+	const handleEditDeviceQuick = async (device: any) => {
+		const nextStatus = window.prompt(
+			'Update appliance status (Active, Maintenance, Broken, Decommissioned):',
+			device.status || 'Active',
+		);
+		if (!nextStatus) return;
+		try {
+			await updateDevice({ id: device.id, updates: { status: nextStatus as any } }).unwrap();
+			feedback.notify('Appliance updated');
+		} catch (error) {
+			console.error('Failed to update appliance:', error);
+			feedback.notify('Failed to update appliance');
+		}
+	};
+
+	const handleDeleteDeviceQuick = async (device: any) => {
+		if (!device?.id) return;
+		if (!window.confirm(`Delete appliance ${device.type || ''} ${device.model || ''}?`)) {
+			return;
+		}
+		try {
+			await deleteDevice(device.id).unwrap();
+			feedback.notify('Appliance deleted');
+		} catch (error) {
+			console.error('Failed to delete appliance:', error);
+			feedback.notify('Failed to delete appliance');
+		}
+	};
+
+	const handleCreateTaskFromUnit = () => {
+		setTaskModalMode('create');
+		setEditingTask(null);
+		setShowCreateTaskModal(true);
+	};
+
+	const handleEditTaskFromUnit = (task: any) => {
+		setTaskModalMode('edit');
+		setEditingTask(task);
+		setShowCreateTaskModal(true);
+	};
+
+	const handleDeleteTaskFromUnit = async (task: any) => {
+		if (!task?.id) return;
+		if (!window.confirm(`Delete task "${task.title || 'Untitled'}"?`)) {
+			return;
+		}
+		try {
+			await deleteTask(task.id).unwrap();
+			feedback.notify('Task deleted');
+		} catch (error) {
+			console.error('Failed to delete task:', error);
+			feedback.notify('Failed to delete task');
+		}
+	};
+
+	const handleCreateMaintenanceHistoryQuick = async () => {
+		if (!property?.id || !unit?.id) return;
+		const title = window.prompt('Maintenance title (required):', 'Maintenance performed') || '';
+		if (!title.trim()) return;
+		const completionDate = window.prompt('Completion date (YYYY-MM-DD):', new Date().toISOString().split('T')[0]) || '';
+		if (!completionDate.trim()) return;
+		try {
+			await addMaintenanceHistory({
+				propertyId: property.id,
+				propertyTitle: property.title,
+				title,
+				completionDate,
+				unitId: unit.id,
+				completionNotes: '',
+			}).unwrap();
+			feedback.notify('Maintenance history added');
+		} catch (error) {
+			console.error('Failed to add maintenance history:', error);
+			feedback.notify('Failed to add maintenance history');
+		}
+	};
+
+	const handleEditMaintenanceHistoryQuick = async (record: any) => {
+		const title = window.prompt('Update title:', record.title || record.taskTitle || 'Maintenance') || '';
+		if (!title.trim()) return;
+		try {
+			await updateMaintenanceHistory({
+				id: record.id,
+				updates: { title },
+			}).unwrap();
+			feedback.notify('Maintenance history updated');
+		} catch (error) {
+			console.error('Failed to update maintenance history:', error);
+			feedback.notify('Failed to update maintenance history');
+		}
+	};
+
+	const handleDeleteMaintenanceHistoryQuick = async (record: any) => {
+		if (!record?.id) return;
+		if (!window.confirm('Delete this maintenance history record?')) {
+			return;
+		}
+		try {
+			await deleteMaintenanceHistory(record.id).unwrap();
+			feedback.notify('Maintenance history deleted');
+		} catch (error) {
+			console.error('Failed to delete maintenance history:', error);
+			feedback.notify('Failed to delete maintenance history');
+		}
+	};
+
+	const handleEditRequestQuick = (request: any) => {
+		const nextTitle = window.prompt('Update request title:', request.title || '') || '';
+		if (!nextTitle.trim()) return;
+		dispatch(updateMaintenanceRequest({ ...request, title: nextTitle }));
+		feedback.notify('Request updated');
+	};
+
+	const handleDeleteRequestQuick = (request: any) => {
+		if (!request?.id) return;
+		if (!window.confirm('Delete this maintenance request?')) {
+			return;
+		}
+		dispatch(deleteMaintenanceRequest(request.id));
+		feedback.notify('Request deleted');
+	};
 
 	if (!property || !unit) {
 		return (
@@ -406,7 +1056,7 @@ export const UnitDetailPage: React.FC = () => {
 										</DetailRow>
 										<DetailRow>
 											<DetailLabel><FontAwesomeIcon icon={faUsers} /> Occupants</DetailLabel>
-											<DetailValue>{(unit.occupants || []).length}</DetailValue>
+											<DetailValue>{unitOccupants.length}</DetailValue>
 										</DetailRow>
 										{unit.notes && (
 											<DetailRow>
@@ -457,7 +1107,7 @@ export const UnitDetailPage: React.FC = () => {
 									<StatGrid>
 										<StatCard>
 											<StatValue>{unitDevices.length}</StatValue>
-											<StatLabel>Devices</StatLabel>
+											<StatLabel>Appliances</StatLabel>
 										</StatCard>
 										<StatCard>
 											<StatValue>{unitTasks.length}</StatValue>
@@ -472,7 +1122,7 @@ export const UnitDetailPage: React.FC = () => {
 											<StatLabel>Open Requests</StatLabel>
 										</StatCard>
 										<StatCard>
-											<StatValue>{(unit.occupants || []).length}</StatValue>
+											<StatValue>{unitOccupants.length}</StatValue>
 											<StatLabel>Occupants</StatLabel>
 										</StatCard>
 										<StatCard $tone={unitOverdueTasksCount > 0 ? 'danger' : 'default'}>
@@ -504,7 +1154,7 @@ export const UnitDetailPage: React.FC = () => {
 										<ActionItem onClick={() => setShowCreateTaskModal(true)}>
 											<FontAwesomeIcon icon={faWrench} />
 											<ActionText>
-												<strong>Create Workflow</strong>
+												<strong>Create Task</strong>
 												<span>Start maintenance continuity for this unit.</span>
 											</ActionText>
 										</ActionItem>
@@ -527,45 +1177,59 @@ export const UnitDetailPage: React.FC = () => {
 					<div>
 						<SectionContainer>
 							<SectionHeader>Unit Occupants</SectionHeader>
+							<SectionLead>
+								Track each resident as part of this unit&apos;s operating profile, including
+								lease context and direct contact details.
+							</SectionLead>
+							<SummaryBar>
+								<SummaryPill>Total: {unitOccupants.length}</SummaryPill>
+								<SummaryPill>With Email: {occupantsWithEmailCount}</SummaryPill>
+								<SummaryPill>With Phone: {occupantsWithPhoneCount}</SummaryPill>
+								<SummaryPill>Lease Details: {occupantsWithLeaseCount}</SummaryPill>
+							</SummaryBar>
 							<Toolbar>
-								<PrimaryButton onClick={() => setShowAddTenantModal(true)}>
+								<PrimaryActionButton onClick={() => setShowAddTenantModal(true)}>
+									<FontAwesomeIcon icon={faPlus} style={{ marginRight: 8 }} />
 									Add Occupant
-								</PrimaryButton>
+								</PrimaryActionButton>
 							</Toolbar>
-							{unit.occupants && unit.occupants.length > 0 ? (
-								<GridContainer>
-									<GridTable>
-										<thead>
-											<tr>
-												<th>Name</th>
-												<th>Email</th>
-												<th>Phone</th>
-												<th>Lease Start</th>
-												<th>Lease End</th>
-											</tr>
-										</thead>
-										<tbody>
-											{unit.occupants.map((occupant: any, idx: number) => (
-												<tr
-													key={
-														occupant.id ||
-														`${occupant.email || 'occupant'}-${
-															occupant.firstName || ''
-														}-${occupant.lastName || ''}-${idx}`
-													}
-												>
-													<td>
-														{occupant.firstName} {occupant.lastName}
-													</td>
-													<td>{occupant.email}</td>
-													<td>{occupant.phone}</td>
-													<td>{occupant.leaseStart || 'N/A'}</td>
-													<td>{occupant.leaseEnd || 'N/A'}</td>
-												</tr>
-											))}
-										</tbody>
-									</GridTable>
-								</GridContainer>
+							{unitOccupants.length > 0 ? (
+								<OccupantsList>
+									{unitOccupants.map((occupant: any, idx: number) => (
+										<OccupantCard
+											key={
+												occupant.id ||
+												`${occupant.email || 'occupant'}-${occupant.firstName || ''}-${occupant.lastName || ''}-${idx}`
+											}>
+											<div>
+												<OccupantName>
+													{[occupant.firstName, occupant.lastName].filter(Boolean).join(' ') || 'Unnamed Occupant'}
+												</OccupantName>
+												<OccupantMeta>
+													{occupant.email || 'No email on file'}
+												</OccupantMeta>
+											</div>
+											<OccupantInfoStack>
+												<strong>Phone</strong>
+												<span>{occupant.phone || 'Not provided'}</span>
+											</OccupantInfoStack>
+											<OccupantInfoStack>
+												<strong>Lease Window</strong>
+												<span>
+													{occupant.leaseStart || 'N/A'} - {occupant.leaseEnd || 'N/A'}
+												</span>
+											</OccupantInfoStack>
+											<OccupantActionRow>
+												<OccupantActionButton type='button' onClick={() => handleEditOccupant(occupant)}>
+													<FontAwesomeIcon icon={faPen} /> Edit
+												</OccupantActionButton>
+												<OccupantActionButton $danger type='button' onClick={() => handleDeleteOccupant(occupant)}>
+													<FontAwesomeIcon icon={faTrash} /> Delete
+												</OccupantActionButton>
+											</OccupantActionRow>
+										</OccupantCard>
+									))}
+								</OccupantsList>
 							) : (
 								<EmptyState>
 									<p>No occupants assigned to this unit</p>
@@ -575,67 +1239,126 @@ export const UnitDetailPage: React.FC = () => {
 					</div>
 				)}
 
-				{/* Devices Tab */}
+				{/* Appliances Tab */}
 				{activeTab === 'devices' && (
 					<div>
 						<SectionContainer>
-							<SectionHeader>Unit Devices</SectionHeader>
+							<SectionHeader>Home Systems</SectionHeader>
+							<SectionLead>
+								Track each system as the operational memory of this property, including task context and service lifecycle history.
+							</SectionLead>
+							<SummaryBar>
+								<SummaryPill>Total: {unitDevices.length}</SummaryPill>
+								<SummaryPill>
+									Active: {unitDevices.filter((d: any) => (d.status || 'Active') === 'Active').length}
+								</SummaryPill>
+								<SummaryPill>Needs Attention: {needsAttentionDeviceCount}</SummaryPill>
+								<SummaryPill>Open Appliance Tasks: {linkedOpenTaskCount}</SummaryPill>
+							</SummaryBar>
 							<Toolbar>
-								<PrimaryButton onClick={() => setShowAddDeviceModal(true)}>
-									Add Device
-								</PrimaryButton>
+								<PrimaryActionButton onClick={handleCreateDeviceQuick}>
+									<FontAwesomeIcon icon={faPlus} style={{ marginRight: 8 }} />
+									Add Appliance
+								</PrimaryActionButton>
 							</Toolbar>
 							{devicesLoading ? (
-								<div>Loading devices...</div>
+								<div>Loading appliances...</div>
 							) : unitDevices.length > 0 ? (
-								<GridContainer>
-									<GridTable>
-										<thead>
-											<tr>
-												<th>Type</th>
-												<th>Brand</th>
-												<th>Model</th>
-												<th>Status</th>
-												<th>Installation Date</th>
-											</tr>
-										</thead>
-										<tbody>
-											{unitDevices.map((device, idx) => (
-												<tr key={device.id || `device-${idx}`}>
-													<td>{device.type}</td>
-													<td>{device.brand}</td>
-													<td>{device.model}</td>
-													<td>
-														<span
+								<DeviceSystemsList>
+									{unitDevices.map((device: any, idx: number) => {
+										const status = device.status || 'Active';
+										const linkedOpenTasks = linkedOpenTaskCountByDevice.get(String(device.id)) || 0;
+										const needsAttention =
+											status === 'Broken' || status === 'Maintenance' || linkedOpenTasks > 0;
+										const iconStyle = getDeviceOperationalIcon(device);
+
+										return (
+											<DeviceSystemRow key={device.id || `device-${idx}`}>
+												<DeviceProfile>
+													<DeviceTitleRow>
+														<DeviceIcon $color={iconStyle.color} $bg={iconStyle.background}>
+															<FontAwesomeIcon icon={iconStyle.icon} />
+														</DeviceIcon>
+														<DeviceTitle>
+															{getDeviceName(device.id, { devices: unitDevices }) || device.type || 'Appliance'}
+														</DeviceTitle>
+													</DeviceTitleRow>
+													<DeviceSubTitle>
+														{[device.brand, device.model].filter(Boolean).join(' ') || 'No model details yet'}
+													</DeviceSubTitle>
+													<DeviceMetaLine>
+														Location: {typeof device.location === 'string' ? device.location : unit?.name || 'Unit'}
+													</DeviceMetaLine>
+													<DeviceMetaLine>
+														Installed {formatRelativeTime(device.installationDate)}
+													</DeviceMetaLine>
+													<div style={{ marginTop: 4, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+														<button
+															type='button'
+															onClick={() => navigate(getDeviceDetailPath(device))}
 															style={{
-																color:
-																	device.status === 'Active'
-																		? '#22c55e'
-																		: device.status === 'Maintenance'
-																		? '#f59e0b'
-																		: device.status === 'Broken'
-																		? '#ef4444'
-																		: '#6b7280',
-																fontWeight: 'bold',
+																background: 'transparent',
+																border: 'none',
+																padding: 0,
+																margin: 0,
+																cursor: 'pointer',
+																color: '#1d4ed8',
+																fontWeight: 700,
+																fontSize: '0.82rem',
 															}}>
-															{device.status || 'Active'}
+															View history
+														</button>
+														<span style={{ fontSize: '0.82rem', color: '#94a3b8' }}>
+															Lifecycle timeline and service records
 														</span>
-													</td>
-													<td>
-														{device.installationDate
-															? new Date(
-																	device.installationDate,
-															  ).toLocaleDateString()
-															: 'N/A'}
-													</td>
-												</tr>
-											))}
-										</tbody>
-									</GridTable>
-								</GridContainer>
+													</div>
+												</DeviceProfile>
+
+												<DeviceStatusCol>
+													<HealthChip $attention={needsAttention}>
+														<FontAwesomeIcon icon={needsAttention ? faTriangleExclamation : faCircleCheck} />
+														{needsAttention ? 'Needs Attention' : 'Healthy'}
+													</HealthChip>
+													<DeviceStatePill $status={status}>{status}</DeviceStatePill>
+												</DeviceStatusCol>
+
+												<DeviceActivityCol>
+													<strong>
+														{linkedOpenTasks > 0
+															? `${linkedOpenTasks} active continuity task${linkedOpenTasks === 1 ? '' : 's'}`
+															: 'No active continuity tasks'}
+													</strong>
+													<span>
+														Last lifecycle update: {formatRelativeTime(device.installationDate)}
+													</span>
+												</DeviceActivityCol>
+
+												<DeviceDocsCol>
+													{Array.isArray(device.files) && device.files.length > 0
+														? `${device.files.length} document${device.files.length === 1 ? '' : 's'} stored`
+														: 'No documents yet'}
+												</DeviceDocsCol>
+
+												<DeviceActionsCol>
+													<ViewAction
+														type='button'
+														onClick={() => navigate(getDeviceDetailPath(device))}>
+														View <FontAwesomeIcon icon={faEye} />
+													</ViewAction>
+													<IconAction type='button' onClick={() => handleEditDeviceQuick(device)}>
+														<FontAwesomeIcon icon={faPen} />
+													</IconAction>
+													<IconAction $danger type='button' onClick={() => handleDeleteDeviceQuick(device)}>
+														<FontAwesomeIcon icon={faTrash} />
+													</IconAction>
+												</DeviceActionsCol>
+											</DeviceSystemRow>
+										);
+									})}
+								</DeviceSystemsList>
 							) : (
 								<EmptyState>
-									<p>No devices assigned to this unit</p>
+									<p>No systems have been recorded yet. Add your first appliance to start operational history.</p>
 								</EmptyState>
 							)}
 						</SectionContainer>
@@ -648,7 +1371,7 @@ export const UnitDetailPage: React.FC = () => {
 						<SectionContainer>
 							<SectionHeader>Unit Tasks</SectionHeader>
 							<Toolbar>
-								<PrimaryButton onClick={() => setShowCreateTaskModal(true)}>
+								<PrimaryButton onClick={handleCreateTaskFromUnit}>
 									Add Task
 								</PrimaryButton>
 							</Toolbar>
@@ -661,7 +1384,7 @@ export const UnitDetailPage: React.FC = () => {
 									}))}
 									columns={[
 									{
-										header: 'Workflow Summary',
+										header: 'Task Summary',
 										key: 'title',
 										render: (value: string, row: any) => (
 											<div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 280 }}>
@@ -697,7 +1420,7 @@ export const UnitDetailPage: React.FC = () => {
 													<div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>
 														{overdue
 															? 'Maintenance continuity interrupted'
-															: 'Continuity workflow active'}
+															: 'Continuity task active'}
 													</div>
 													<div style={{ fontSize: 12, color: '#64748b', display: 'flex', gap: 6, alignItems: 'center' }}>
 														<FontAwesomeIcon icon={faClock} />
@@ -721,9 +1444,22 @@ export const UnitDetailPage: React.FC = () => {
 										),
 									},
 									]}
+									actions={[
+										{
+											label: 'Edit',
+											icon: faPen,
+											onClick: (task: any) => handleEditTaskFromUnit(task),
+										},
+										{
+											label: 'Delete',
+											icon: faTrash,
+											onClick: (task: any) => handleDeleteTaskFromUnit(task),
+											className: 'delete',
+										},
+									]}
 									showCheckbox={false}
 									hideHeader={true}
-									emptyMessage='No unit workflows yet. Add one to keep unit continuity active.'
+									emptyMessage='No unit tasks yet. Add one to keep unit continuity active.'
 								/>
 							</HeaderlessFeedSurface>
 						</SectionContainer>
@@ -735,6 +1471,11 @@ export const UnitDetailPage: React.FC = () => {
 					<div>
 						<SectionContainer>
 							<SectionHeader>Unit Maintenance History</SectionHeader>
+							<Toolbar>
+								<PrimaryButton onClick={handleCreateMaintenanceHistoryQuick}>
+									Add History
+								</PrimaryButton>
+							</Toolbar>
 							{unitMaintenanceHistory.length > 0 ? (
 								<GridContainer>
 									<GridTable>
@@ -742,8 +1483,9 @@ export const UnitDetailPage: React.FC = () => {
 											<tr>
 												<th>Date</th>
 												<th>Description</th>
-												<th>Device</th>
+												<th>Appliance</th>
 												<th>Cost</th>
+												<th>Actions</th>
 											</tr>
 										</thead>
 										<tbody>
@@ -780,6 +1522,12 @@ export const UnitDetailPage: React.FC = () => {
 															(record as any).financials?.currency || 'USD',
 														)}
 													</td>
+													<td>
+														<div style={{ display: 'flex', gap: 8 }}>
+															<button type='button' onClick={() => handleEditMaintenanceHistoryQuick(record)}>Edit</button>
+															<button type='button' onClick={() => handleDeleteMaintenanceHistoryQuick(record)}>Delete</button>
+														</div>
+													</td>
 												</tr>
 											))}
 										</tbody>
@@ -815,6 +1563,7 @@ export const UnitDetailPage: React.FC = () => {
 												<th>Priority</th>
 												<th>Submitted By</th>
 												<th>Date</th>
+												<th>Actions</th>
 											</tr>
 										</thead>
 										<tbody>
@@ -830,6 +1579,12 @@ export const UnitDetailPage: React.FC = () => {
 														{req.submittedAt
 															? new Date(req.submittedAt).toLocaleDateString()
 															: 'N/A'}
+													</td>
+													<td>
+														<div style={{ display: 'flex', gap: 8 }}>
+															<button type='button' onClick={() => handleEditRequestQuick(req)}>Edit</button>
+															<button type='button' onClick={() => handleDeleteRequestQuick(req)}>Delete</button>
+														</div>
 													</td>
 												</tr>
 											))}
@@ -851,6 +1606,21 @@ export const UnitDetailPage: React.FC = () => {
 					open={showAddTenantModal}
 					onClose={() => setShowAddTenantModal(false)}
 					propertyId={property?.id || ''}
+					defaultUnit={unit?.name}
+				/>
+			)}
+
+			{showEditTenantModal && editingTenant && (
+				<AddTenantModal
+					open={showEditTenantModal}
+					onClose={() => {
+						setShowEditTenantModal(false);
+						setEditingTenant(null);
+					}}
+					propertyId={property?.id || ''}
+					mode='edit'
+					tenant={editingTenant}
+					defaultUnit={unit?.name}
 				/>
 			)}
 
@@ -869,8 +1639,8 @@ export const UnitDetailPage: React.FC = () => {
 				<TaskModal
 					isOpen={showCreateTaskModal}
 					onClose={() => setShowCreateTaskModal(false)}
-					isEditing={false}
-					editingTask={null}
+					isEditing={taskModalMode === 'edit'}
+					editingTask={editingTask}
 					propertyId={property?.id || ''}
 					unitId={unit?.id || ''}
 					currentUser={currentUser}

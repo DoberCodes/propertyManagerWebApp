@@ -57,6 +57,7 @@ export const PropertyDetailSection = (props: PropertyDetailSectionProps) => {
 
 					<InfoValue>{props.property?.address}</InfoValue>
 				</InfoCard>
+				{/* Units are temporarily hidden from the app flow.
 				{props.property?.propertyType === 'Multi-Family' && (
 					<InfoCard>
 						<InfoLabel>Units</InfoLabel>
@@ -66,6 +67,7 @@ export const PropertyDetailSection = (props: PropertyDetailSectionProps) => {
 						</InfoValue>
 					</InfoCard>
 				)}
+				*/}
 				{props.property?.propertyType === 'Commercial' &&
 					props.property?.hasSuites && (
 						<InfoCard>

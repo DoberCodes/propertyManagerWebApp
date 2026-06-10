@@ -19,7 +19,6 @@ import {
 	SectionContainer,
 	SectionHeader,
 } from '../../../Components/Library/InfoCards/InfoCardStyles';
-import { TaskSelect } from '../../../Components/Library/Select/TaskSelect';
 import {
 	FilterBar,
 	FilterConfig,
@@ -57,6 +56,7 @@ import {
 	DesktopTableWrapper,
 } from './index.styles';
 import { TaskAssignModal } from '../../../Components/Library/Modal/TaskAssignModal';
+import { TaskCompletionModal } from '../../../Components/TaskCompletionModal/TaskCompletionModal';
 import {
 	ActiveFilterChips,
 	ActiveFilterChip,
@@ -65,7 +65,6 @@ import {
 import { Task } from '../../../types/Task.types';
 import {
 	useDeleteTaskMutation,
-	useUpdateTaskMutation,
 } from '../../../Redux/API/taskSlice';
 
 export const TasksTab: React.FC<TasksTabProps> = ({
@@ -73,10 +72,7 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 	property,
 	currentUser,
 	assigneeOptions = [],
-	unitOptions = [],
-	selectedUnitId,
-	onSelectUnit,
-	openCreateWorkflowToken = 0,
+	openCreateTaskToken = 0,
 }) => {
 	const feedback = useAppFeedback();
 	const [filters, setFilters] = useState<FilterValues>({});
@@ -88,8 +84,7 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 
 	const [showAssignModal, setShowAssignModal] = useState(false);
 	const [showTaskModal, setShowTaskModal] = useState(false);
-	const [showCompleteTaskConfirmation, setShowCompleteTaskConfirmation] =
-		useState(false);
+	const [showTaskCompletionModal, setShowTaskCompletionModal] = useState(false);
 	const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
 
 	const [isEditing, setIsEditing] = useState(false);
@@ -97,7 +92,6 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 
 	// Task mutations
 	const [deleteTaskMutation] = useDeleteTaskMutation();
-	const [updateTaskMutation] = useUpdateTaskMutation();
 
 	// Wrapper functions for table actions
 	const handleCreateTask = () => {
@@ -123,7 +117,7 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 
 	const handleCompleteTask = (task: Task) => {
 		setSelectedTask(task);
-		setShowCompleteTaskConfirmation(true);
+		setShowTaskCompletionModal(true);
 	};
 
 	const confirmDeleteTask = async () => {
@@ -132,28 +126,17 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 				await deleteTaskMutation(selectedTask.id);
 				setShowDeleteConfirmation(false);
 				setSelectedTask(null);
-				feedback.notify('Workflow removed. Your queue is now cleaner and easier to manage.');
+				feedback.notify('Task removed. Your queue is now cleaner and easier to manage.');
 			} catch (error) {
 				console.error('Failed to delete task:', error);
-				feedback.notify('Failed to delete workflow. Please try again.');
+				feedback.notify('Failed to delete task. Please try again.');
 			}
 		}
 	};
 
-	const confirmCompleteTask = async () => {
-		if (selectedTask) {
-			try {
-				await updateTaskMutation({
-					id: selectedTask.id,
-					updates: { status: 'Completed' },
-				});
-				setShowCompleteTaskConfirmation(false);
-				setSelectedTask(null);
-				feedback.notify('Great work. This workflow is complete and now part of your maintenance history.');
-			} catch (error) {
-				console.error('Failed to complete task:', error);
-			}
-		}
+	const handleTaskCompletionSuccess = () => {
+		setShowTaskCompletionModal(false);
+		setSelectedTask(null);
 	};
 
 	const categoryFilterOptions = useMemo(() => {
@@ -271,7 +254,7 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 		};
 	};
 
-	const getWorkflowIcon = (task: any) => {
+	const getTaskIcon = (task: any) => {
 		const context = `${task.title || ''} ${task.category || ''} ${task.location || ''}`.toLowerCase();
 		if (context.includes('hvac') || context.includes('heat') || context.includes('cool')) {
 			return { icon: faFan, color: '#0f766e', background: '#ecfeff' };
@@ -326,7 +309,7 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 			signals.push(
 				task.recurrenceFrequency
 					? `Recurring ${task.recurrenceFrequency}`
-					: 'Recurring workflow',
+					: 'Recurring task',
 			);
 		}
 
@@ -343,7 +326,7 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 		}
 
 		if (signals.length === 0) {
-			signals.push('Awaiting first recorded continuity event');
+			signals.push('Awaiting first recorded maintenance event');
 		}
 
 		return signals.slice(0, 3);
@@ -351,7 +334,7 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 
 	const columns: Column[] = [
 		{
-			header: 'Workflow',
+			header: 'Task',
 			key: 'title',
 			render: (_value: any, task: any) => {
 				const assignee =
@@ -359,7 +342,7 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 						? task.assignedTo.name
 						: task.assignedTo || 'Unassigned';
 				const overdue = isTaskOverdueForDisplay(task as Task);
-				const iconStyle = getWorkflowIcon(task);
+				const iconStyle = getTaskIcon(task);
 
 				return (
 					<div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 280 }}>
@@ -421,17 +404,17 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 			},
 		},
 		{
-			header: 'Continuity',
+			header: 'Maintenance Status',
 			key: 'updatedAt',
 			render: (_value: string, task: any) => {
 						const continuitySignals = getContinuitySignals(task);
 				const recurringSummary = task.isRecurring
 					? task.recurrenceFrequency
 						? `Recurring ${task.recurrenceFrequency}`
-						: 'Recurring workflow active'
+						: 'Recurring task active'
 					: task.completionDate
-						? 'Workflow has recorded maintenance history'
-						: 'First continuity event still pending';
+						? 'Task has recorded maintenance history'
+						: 'First maintenance event still pending';
 				return (
 					<div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
 						<div style={{ fontSize: 13, fontWeight: 800, color: '#0f172a' }}>
@@ -454,14 +437,14 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 				const overdue = isTaskOverdueForDisplay(task as Task);
 				const activityText =
 					task.status === 'Completed'
-						? 'Recorded in maintenance continuity'
+						? 'Recorded in maintenance history'
 						: task.status === 'In Progress'
-							? 'Maintenance continuity in progress'
+							? 'Maintenance in progress'
 							: overdue
-								? 'Maintenance continuity interrupted'
+								? 'Maintenance is overdue'
 								: task.status === 'Pending' || task.status === 'Awaiting Approval'
-									? 'Waiting to preserve continuity'
-									: 'Queued for upcoming continuity work';
+									? 'Waiting for approval'
+									: 'Queued for upcoming maintenance';
 
 				return (
 					<div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -493,7 +476,7 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 
 	const taskActions: Action<Task>[] = [
 		{
-			label: 'Refine Workflow',
+			label: 'Refine Task',
 			icon: faEdit,
 			onClick: (task: Task) => handleEditTask(task),
 		},
@@ -526,10 +509,10 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 	}, [propertyTasks]);
 
 	useEffect(() => {
-		if (openCreateWorkflowToken > 0) {
+		if (openCreateTaskToken > 0) {
 			handleCreateTask();
 		}
-	}, [openCreateWorkflowToken]);
+	}, [openCreateTaskToken]);
 
 	// Filter configuration for tasks
 	const taskFilters: FilterConfig[] = [
@@ -627,7 +610,10 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 
 	// Apply filters to tasks
 	const filteredTasks = useMemo(() => {
-		const filtered = applyFilters(processedTasks, filters, {
+		// Units are temporarily hidden from the app flow; do not apply unit scoping.
+		const unitFiltered = processedTasks;
+
+		const filtered = applyFilters(unitFiltered, filters, {
 			textFields: ['title', 'notes'],
 			selectFields: [
 				{ field: 'status', filterKey: 'status' },
@@ -759,9 +745,9 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 
 	return (
 		<SectionContainer>
-			<SectionHeader>Maintenance Workflows</SectionHeader>
+			<SectionHeader>Maintenance Tasks</SectionHeader>
 			<SectionLead>
-				Manage recurring workflows, due dates, and overdue continuity in one place.
+				Manage recurring tasks, due dates, and overdue maintenance in one place.
 			</SectionLead>
 			<TabSummaryBar>
 				<TabSummaryPill
@@ -776,7 +762,7 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 						color: quickView === 'all' ? '#065f46' : '#475569',
 						fontWeight: quickView === 'all' ? 800 : 700,
 					}}>
-					All Workflows: {totalTaskCount}
+					All Tasks: {totalTaskCount}
 				</TabSummaryPill>
 				<TabSummaryPill
 					as='button'
@@ -818,11 +804,12 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 					title={
 						currentUser?.subscription &&
 						isTrialExpired(currentUser.subscription)
-							? 'Upgrade your subscription to add new workflows'
+							? 'Upgrade your subscription to add new tasks'
 							: undefined
 					}>
-					+ Create Workflow
+					+ Create Task
 				</ToolbarButton>
+				{/* Units are temporarily hidden from the app flow.
 				{unitOptions.length > 0 && (
 					<div style={{ marginLeft: isMobile ? '0' : '12px', minWidth: isMobile ? '100%' : '220px', width: isMobile ? '100%' : undefined }}>
 						<TaskSelect
@@ -837,6 +824,7 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 						/>
 					</div>
 				)}
+				*/}
 			</Toolbar>
 			<div
 				style={{
@@ -848,7 +836,7 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 				}}>
 				<input
 					type='text'
-					placeholder='Search workflows...'
+					placeholder='Search tasks...'
 					value={(filters.search as string) || ''}
 					onChange={(e) =>
 						setFilters((prev) => ({
@@ -876,7 +864,7 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 						background: '#ffffff',
 						fontWeight: 600,
 					}}
-					aria-label='Sort workflows'>
+					aria-label='Sort tasks'>
 					<option value='dueDate'>Sort: Due Date</option>
 					<option value='priority'>Sort: Priority</option>
 					<option value='title'>Sort: Title</option>
@@ -935,9 +923,9 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 								isTaskOverdueForDisplay(task as Task) ? 'overdue-row' : undefined
 							}
 							actions={taskActions}
-							emptyTitle='No workflows yet'
-							emptyMessage='Start with one maintenance workflow to build your service timeline and reminders.'
-							emptyActionLabel='Add First Workflow'
+							emptyTitle='No tasks yet'
+							emptyMessage='Start with one maintenance task to build your service timeline and reminders.'
+							emptyActionLabel='Add First Task'
 							onEmptyAction={handleCreateTask}
 							showCheckbox={false}
 							hideHeader={true}
@@ -972,10 +960,10 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 										</MobileFeedLine>
 										<MobileFeedLine>
 											{task.status === 'Overdue'
-												? 'Maintenance continuity interrupted'
+												? 'Maintenance is overdue'
 												: task.status === 'In Progress'
-												? 'Workflow is actively moving'
-												: 'Queued for upcoming continuity work'}
+													? 'Task is actively moving'
+												: 'Queued for upcoming maintenance'}
 										</MobileFeedLine>
 										<MobileFeedLineMuted>
 											Assigned to{' '}
@@ -1001,7 +989,7 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 												handleEditTask(task);
 											}}
 											style={{ flex: 1 }}>
-											Refine Workflow
+											Refine Task
 										</MobileActionButton>
 										<MobileActionLinkRow>
 											<MobileActionLinkButton
@@ -1035,7 +1023,7 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 				</>
 			) : (
 				<EmptyState>
-					<p>No matching workflows yet. Create one to start your maintenance timeline and reminders.</p>
+					<p>No matching tasks yet. Create one to start your maintenance timeline and reminders.</p>
 				</EmptyState>
 			)}
 
@@ -1056,8 +1044,7 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 				editingTaskId={isEditing ? selectedTask?.id : undefined}
 				isEditing={isEditing}
 				propertyId={property?.id || ''}
-				unitId={selectedUnitId}
-				unitOptions={unitOptions}
+				unitId=''
 				assigneeOptions={assigneeOptions}
 				currentUser={currentUser}
 				onSaved={(updatedTask) => {
@@ -1069,23 +1056,23 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 
 			<WarningDialog
 				open={showDeleteConfirmation}
-				title='Delete Workflow'
-				message={`Are you sure you want to delete the workflow "${selectedTask?.title}"? This action cannot be undone.`}
+				title='Delete Task'
+				message={`Are you sure you want to delete the task "${selectedTask?.title}"? This action cannot be undone.`}
 				confirmText='Delete'
 				cancelText='Cancel'
 				onConfirm={confirmDeleteTask}
 				onCancel={() => setShowDeleteConfirmation(false)}
 			/>
 
-			<WarningDialog
-				open={showCompleteTaskConfirmation}
-				title='Complete Workflow'
-				message={`Mark "${selectedTask?.title}" as complete and add it to your maintenance record?`}
-				confirmText='Complete and Log It'
-				cancelText='Cancel'
-				onConfirm={confirmCompleteTask}
-				onCancel={() => setShowCompleteTaskConfirmation(false)}
-			/>
+			{showTaskCompletionModal && selectedTask && (
+				<TaskCompletionModal
+					taskId={selectedTask.id}
+					taskTitle={selectedTask.title || ''}
+					task={selectedTask}
+					onClose={() => setShowTaskCompletionModal(false)}
+					onSuccess={handleTaskCompletionSuccess}
+				/>
+			)}
 		</SectionContainer>
 	);
 };

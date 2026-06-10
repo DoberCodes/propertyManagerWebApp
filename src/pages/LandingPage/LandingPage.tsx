@@ -147,7 +147,7 @@ const LandingPageComponent = () => {
 		url: 'https://maintleyapp.com/',
 		image: `${window.location.origin}/Favicon.png`,
 		keywords:
-			'home maintenance history, property records, recurring maintenance, device service history',
+			'home maintenance history, property records, recurring maintenance, appliance service history',
 		structuredData: {
 			'@context': 'https://schema.org',
 			'@type': 'WebSite',
@@ -183,7 +183,7 @@ const LandingPageComponent = () => {
 		{ title: 'Filter replaced', meta: 'Recurring care logged for the next reminder' },
 		{ title: 'Water heater serviced', meta: 'Service history preserved with the system' },
 		{ title: 'Roof inspected', meta: 'Inspection notes and photos attached' },
-		{ title: 'Warranty uploaded', meta: 'Document stored alongside the device history' },
+		{ title: 'Warranty uploaded', meta: 'Document stored alongside the appliance history' },
 	];
 
 	const ownershipMemoryItems = [
@@ -197,7 +197,7 @@ const LandingPageComponent = () => {
 	const deviceHistoryEvents = [
 		{ title: 'Filter size logged', meta: '16x25x1 • changed every 3 months' },
 		{ title: 'Seasonal service completed', meta: 'Logged with technician notes and invoice' },
-		{ title: 'Capacitor replaced', meta: 'Part linked to the device history' },
+		{ title: 'Capacitor replaced', meta: 'Part linked to the appliance history' },
 		{ title: 'Next service scheduled', meta: 'Recurring reminder set for early spring' },
 	];
 
@@ -212,9 +212,9 @@ const LandingPageComponent = () => {
 		{
 			step: 'Step 2',
 			title: 'Link It to the Right System',
-			text: 'Tie service events, parts, and reminders to devices so context stays with the home.',
+			text: 'Tie service events, parts, and reminders to appliances so context stays with the home.',
 			image: '/screenshots/devicemanagement.png',
-			alt: 'Device management screen with linked maintenance details',
+			alt: 'Appliance management screen with linked maintenance details',
 		},
 		{
 			step: 'Step 3',

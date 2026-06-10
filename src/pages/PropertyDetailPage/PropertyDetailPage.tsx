@@ -2,11 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import {
-	faArrowLeft,
-	faEllipsisV,
-	faCamera,
-} from '@fortawesome/free-solid-svg-icons';
+import { faEllipsisV, faCamera } from '@fortawesome/free-solid-svg-icons';
 import { PropertyDetailPageProps } from '../../types/PropertyDetailPage.types';
 import { RootState } from '../../Redux/store/store';
 import { User } from '../../Redux/Slices/userSlice';
@@ -33,8 +29,6 @@ import {
 	useDeleteMaintenanceHistoryMutation,
 } from '../../Redux/API/maintenanceSlice';
 import { useCreateNotificationMutation } from '../../Redux/API/notificationSlice';
-
-// Tenant APIs moved to tenantSlice
 import {
 	useRemoveTenantMutation,
 	useLazyGetTenantInvitationCodeQuery,
@@ -62,24 +56,20 @@ import {
 import { ZeroState } from '../../Components/Library/ZeroState/ZeroState';
 import { TaskCompletionModal } from 'Components/TaskCompletionModal';
 import { FileUploader } from 'Components/Library/FileUploader';
-
 import { ConvertRequestToTaskModal } from 'Components/ConvertRequestToTaskModal';
 import { AddTenantModal } from 'Components/AddTenantModal';
 import { MaintenanceRequestModal } from 'Components/MaintenanceRequestModal';
 import { DeleteConfirmationModal } from 'Components/Library/Modal/DeleteConfirmationModal';
 import {
+	PageHero,
+	HeroActionButton,
+	HeroTitle,
+} from '../../Components/Library/PageHero/PageHero';
+import {
 	Wrapper,
-	Header,
-	HeaderContent,
-	PropertyTitle,
-	FavoriteButton,
-	BackButton,
-	EmptyState,
-	TitleContainer,
 	EditableTitleInput,
 	ContentWrapper,
 } from './PropertyDetailPage.styles';
-
 import { DeviceModal } from '../../Components/Library/Modal';
 import {
 	useDeleteTaskMutation,
@@ -97,16 +87,15 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 	const feedback = useAppFeedback();
 	const navigate = useNavigate();
 	const { slug } = useParams<{ slug: string }>();
-	// Get current user
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
 	const dispatch = useDispatch();
 
-	// Reset active tab when leaving PropertyDetailPage
 	useEffect(() => {
 		return () => {
 			dispatch(resetActiveTab());
 		};
 	}, [dispatch]);
+
 	const isUserTenant = useSelector(selectIsTenant);
 	const canAccessProperties = useSelector(selectCanAccessProperties);
 	const isHomeowner = useSelector(selectIsHomeowner);
@@ -118,11 +107,9 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 
 	const { isFavorite, toggleFavorite } = useFavorites(currentUser!.id);
 
-	// Fetch properties from Firebase
 	const { data: firebaseProperties = [], isLoading: isLoadingProperties } =
 		useGetPropertiesQuery();
 
-	// DEBUG: Log properties immediately after query
 	if (firebaseProperties && firebaseProperties.length > 0) {
 		console.log(
 			'DEBUG: useGetPropertiesQuery returned properties:',
@@ -139,15 +126,12 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 		);
 	}
 
-	// Get property groups from Redux (populated by DataLoader)
 	const propertyGroups = useSelector(
 		(state: RootState) => state.propertyData.groups,
 	);
 
-	// Fetch team members from Firebase
 	const { data: firebaseTeamMembers = [] } = useGetTeamMembersQuery();
 
-	// For backwards compatibility, also get from Redux - memoize to prevent rerenders
 	const reduxTeamMembers = useSelector(
 		(state: RootState) => {
 			const members = state.team.groups.flatMap((group) => group.members);
@@ -156,17 +140,11 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 		(a, b) => JSON.stringify(a) === JSON.stringify(b),
 	);
 
-	// Use Firebase team members if available, otherwise fallback to Redux
 	const teamMembers =
 		firebaseTeamMembers.length > 0 ? firebaseTeamMembers : reduxTeamMembers;
 
-	// Family members state
 	const [familyMembers, setFamilyMembers] = useState<User[]>([]);
-
-	// Fetch tasks from Firebase
 	const { data: allTasks = [] } = useGetTasksQuery();
-
-	// Firebase mutations for updating tasks and properties
 
 	const [deleteTaskMutation] = useDeleteTaskMutation();
 	const [updatePropertyMutation] = useUpdatePropertyMutation();
@@ -198,7 +176,7 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 	const [showDeleteTenantModal, setShowDeleteTenantModal] = useState(false);
 	const [tenantToDelete, setTenantToDelete] = useState<any | null>(null);
 	const [isPropertyDialogOpen, setIsPropertyDialogOpen] = useState(false);
-	const [openCreateWorkflowToken, setOpenCreateWorkflowToken] = useState(0);
+	const [openCreateTaskToken, setOpenCreateTaskToken] = useState(0);
 	const [deleteTaskModalOpen, setDeleteTaskModalOpen] = useState(false);
 	const [taskToDelete, setTaskToDelete] = useState<{
 		id: string;
@@ -206,7 +184,6 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 	} | null>(null);
 	const propertyOverride = props.property;
 
-	// Find the property based on slug from Firebase data - move up to use in hooks
 	const property = useMemo(() => {
 		const propertiesFromGroups = propertyGroups.flatMap(
 			(group) => group.properties || [],
@@ -216,11 +193,10 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 		const resolvedProperty = propertyOverride
 			? propertyOverride
 			: firebaseProperties.find((p: any) => p.slug === normalizedSlug) ||
-			  propertiesFromGroups.find((p: any) => p.slug === normalizedSlug) ||
-			  firebaseProperties.find((p: any) => p.id === normalizedSlug) ||
-			  propertiesFromGroups.find((p: any) => p.id === normalizedSlug);
+				propertiesFromGroups.find((p: any) => p.slug === normalizedSlug) ||
+				firebaseProperties.find((p: any) => p.id === normalizedSlug) ||
+				propertiesFromGroups.find((p: any) => p.id === normalizedSlug);
 
-		// DEBUG: Log what's happening
 		if (!resolvedProperty && firebaseProperties.length > 0) {
 			console.log('DEBUG: Property not found! slug:', slug);
 			console.log(
@@ -261,26 +237,9 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 			return;
 		}
 
-		const assignedUnit =
-			typeof tenantAssignment.unit === 'string'
-				? tenantAssignment.unit.trim()
-				: '';
-
-		if (!assignedUnit) {
-			return;
-		}
-
-		navigate(
-			`/property/${property.slug}/unit/${encodeURIComponent(assignedUnit)}`,
-			{ replace: true },
-		);
-	}, [
-		property,
-		currentUser?.email,
-		isUserTenant,
-		tenantAssignment,
-		navigate,
-	]);
+		// Units are temporarily hidden from the app flow; keep tenant users on
+		// the property surface instead of redirecting into a unit detail page.
+	}, [property, currentUser?.email, isUserTenant, tenantAssignment, navigate]);
 
 	const handleEditTenant = (tenant: any) => {
 		setEditingTenant(tenant);
@@ -297,9 +256,9 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 		setIsActionMenuOpen(false);
 	};
 
-	const handleOpenCreateWorkflowDialog = () => {
+	const handleOpenCreateTaskDialog = () => {
 		dispatch(setAppActiveTab('tasks'));
-		setOpenCreateWorkflowToken((currentToken) => currentToken + 1);
+		setOpenCreateTaskToken((currentToken) => currentToken + 1);
 	};
 
 	const handleSaveProperty = async (formData: any) => {
@@ -441,7 +400,6 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 
 		let promoCode: any = null;
 
-		// First try to get promo code by direct ID if available
 		if (tenant.tenantInvitationCodeId) {
 			try {
 				promoCode = await getTenantInvitationCode(
@@ -452,14 +410,12 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 			}
 		}
 
-		// If no promo code found by ID, search by email
 		if (!promoCode) {
 			try {
 				const promoCodes = await getTenantInvitationCodesByEmail(
 					tenant.email,
 				).unwrap();
 				if (promoCodes && promoCodes.length > 0) {
-					// Get the most recent promo code
 					promoCode = promoCodes[0];
 				}
 			} catch (error) {
@@ -484,7 +440,6 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 		}
 	};
 
-	// Handle task deletion with confirmation
 	const handleTaskDeleteClick = (taskIds: string[]) => {
 		if (taskIds.length === 0) return;
 		const task = allTasks.find((t) => t.id === taskIds[0]);
@@ -494,7 +449,6 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 		}
 	};
 
-	// Import handlers from custom hooks
 	const taskHandlers = useTaskHandlers({
 		onDeleteClick: handleTaskDeleteClick,
 		deleteTaskMutation,
@@ -506,18 +460,15 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 		currentUser,
 	);
 
-	// Fetch contractors for this property
 	const { data: propertyContractors = [] } = useGetContractorsByPropertyQuery(
 		property?.id || '',
 		{ skip: !property?.id },
 	);
 
-	// Fetch units for this property
 	const { data: propertyUnits = [] } = useGetUnitsQuery(property?.id || '', {
 		skip: !property?.id,
 	});
 
-	// Destructure task handlers
 	const {
 		showTaskCompletionModal,
 		setShowTaskCompletionModal,
@@ -528,7 +479,6 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 		confirmDeleteTask,
 	} = taskHandlers;
 
-	// Destructure unit handlers
 	const {
 		showUnitDialog,
 		setShowUnitDialog,
@@ -539,7 +489,6 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 		handleDeleteUnit,
 	} = unitHandlers;
 
-	// Maintenance history handlers
 	const handleAddMaintenanceHistory = async (data: {
 		title: string;
 		completionDate: string;
@@ -584,7 +533,6 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 		}
 	};
 
-	// Destructure property edit handlers
 	const {
 		isEditingTitle,
 		setIsEditingTitle,
@@ -602,7 +550,6 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 		handleTitleSave,
 	} = propertyHandlers;
 
-	// Destructure maintenance request handlers
 	const {
 		showMaintenanceRequestModal,
 		setShowMaintenanceRequestModal,
@@ -621,16 +568,13 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 			(Array.isArray((property as any)?.suites) &&
 				(property as any).suites.length > 0));
 
-	// Get maintenance requests for this property - memoize selector
 	const allMaintenanceRequests = useSelector(
 		(state: RootState) => state.maintenanceRequests.requests,
 		(a, b) => a.length === b.length && a.every((item, idx) => item === b[idx]),
 	);
 	const propertyMaintenanceRequests = useMemo(() => {
 		if (!property) return [];
-		return allMaintenanceRequests.filter(
-			(req) => req.propertyId === property.id,
-		);
+		return allMaintenanceRequests.filter((req) => req.propertyId === property.id);
 	}, [property, allMaintenanceRequests]);
 
 	useEffect(() => {
@@ -639,20 +583,20 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 		}
 	}, [hasCommercialSuites, activeTab, dispatch]);
 
-	// --- UNIT FILTER SUPPORT ------------------------------------------------
-	// compute options from property units (multifamily)
 	const unitOptions = useMemo(() => {
-		if (!property?.units) return [];
-		return property.units.map((u: any) => ({ label: u.name, value: u.id }));
-	}, [property]);
+		if (!propertyUnits || propertyUnits.length === 0) return [];
+		return propertyUnits
+			.filter((u: any) => u.id)
+			.map((u: any) => ({
+				label: u.name || u.unitName || u.title || u.id,
+				value: u.id,
+			}));
+	}, [propertyUnits]);
 
-	// track currently selected unit for filtering tasks
 	const [selectedUnitId, setSelectedUnitId] = useState<string>('');
 
-	// Filter tasks for this property (and optionally unit)
 	const propertyTasks = useMemo(() => {
 		if (!property) return [];
-		// Match by property ID if it exists, otherwise try matching by title
 		let allPropertyTasks = allTasks.filter(
 			(task) =>
 				task.propertyId === property.id || task.property === property.title,
@@ -662,7 +606,6 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 				(task) => task.unitId === selectedUnitId,
 			);
 		}
-		// Filter out completed tasks - they should show in Maintenance History instead
 		return allPropertyTasks.filter((task) => task.status !== 'Completed');
 	}, [property, allTasks, selectedUnitId]);
 
@@ -672,7 +615,6 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 			refetchOnMountOrArgChange: true,
 		});
 
-	// Load family members if user has an account
 	useEffect(() => {
 		const loadFamilyMembers = async () => {
 			if (currentUser?.accountId) {
@@ -687,25 +629,20 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 		loadFamilyMembers();
 	}, [currentUser?.accountId]);
 
-	// Generate assignee options for task editing
 	const assigneeOptions = useMemo(() => {
 		const assignees: Array<{ label: string; value: string; email?: string }> =
 			[];
 
-		// Add team members
 		teamMembers
 			.filter((member): member is TeamMember => member !== undefined)
 			.forEach((member) => {
 				assignees.push({
-					label: `${member.firstName || ''} ${member.lastName || ''} (${
-						member.title || ''
-					})`.trim(),
+					label: `${member.firstName || ''} ${member.lastName || ''} (${member.title || ''})`.trim(),
 					value: member.id,
 					email: member.email,
 				});
 			});
 
-		// Add contractors
 		propertyContractors.forEach((contractor) => {
 			assignees.push({
 				label: `${contractor.name} (${contractor.category})`,
@@ -714,7 +651,6 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 			});
 		});
 
-		// Add family members
 		familyMembers.forEach((member) => {
 			assignees.push({
 				label: `${member.firstName} ${member.lastName}`,
@@ -723,7 +659,6 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 			});
 		});
 
-		// Remove duplicates based on value
 		const uniqueAssignees = assignees.filter(
 			(assignee, index, self) =>
 				index === self.findIndex((a) => a.value === assignee.value),
@@ -732,7 +667,6 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 		return uniqueAssignees;
 	}, [teamMembers, propertyContractors, familyMembers]);
 
-	// Photo upload handler
 	const handlePhotoUpload = async (file: File | null) => {
 		if (file && property) {
 			if (!isValidPropertyImageFile(file)) {
@@ -752,7 +686,6 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 					},
 				}).unwrap();
 
-				// Create notification for property image update
 				try {
 					await createNotification({
 						userId: currentUser!.id,
@@ -782,17 +715,8 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 		}
 	};
 
-	// Task handling is now managed by EditTaskModal component
-
 	if (!property) {
-		console.log(
-			'DEBUG: No property found. isLoadingProperties:',
-			isLoadingProperties,
-		);
-		console.log('DEBUG: firebaseProperties array:', firebaseProperties);
-		console.log('DEBUG: slug:', slug);
 		if (isLoadingProperties) {
-			console.log('DEBUG: Showing loading state');
 			return (
 				<Wrapper>
 					<ZeroState
@@ -803,7 +727,6 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 				</Wrapper>
 			);
 		}
-		console.log('DEBUG: Showing property not found');
 		return (
 			<Wrapper>
 				<ZeroState
@@ -827,25 +750,13 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 
 	return (
 		<Wrapper>
-			<Header
-				style={{
-					backgroundImage: `url(${headerImageSrc})`,
-					backgroundSize: isHeaderFallbackImage ? '360px auto' : 'cover',
-					backgroundRepeat: 'no-repeat',
-					backgroundPosition: 'center',
-				}}>
-				<BackButton onClick={() => navigate('/properties')}></BackButton>
-				{/* 3-dot menu for mobile */}
-				{currentUser && (
-					<div
-						style={{
-							position: 'absolute',
-							top: '20px',
-							right: '20px',
-							display: 'none',
-							zIndex: 100,
-						}}
-						className='mobile-action-menu'>
+			<PageHero
+				headerImageUrl={headerImageSrc}
+				backgroundSize={isHeaderFallbackImage ? '360px auto' : 'cover'}
+				backLabel='← Back to Properties'
+				onBack={() => navigate('/properties')}
+				topRight={currentUser ? (
+					<div style={{ display: 'none' }} className='mobile-action-menu'>
 						<button
 							onClick={() => setIsActionMenuOpen(!isActionMenuOpen)}
 							style={{
@@ -870,7 +781,7 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 									background: '#ffffff',
 									border: '1px solid #e5e7eb',
 									borderRadius: '6px',
-									boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+									boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
 									minWidth: '220px',
 									zIndex: 1002,
 									overflow: 'hidden',
@@ -887,22 +798,15 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 										}}
 										style={{
 											width: '100%',
-											padding: '12px 16px',
-											border: 'none',
 											background: 'none',
+											border: 'none',
+											padding: '12px 16px',
 											textAlign: 'left',
+											fontSize: '16px',
+											color: '#222',
 											cursor: 'pointer',
-											fontSize: '14px',
-											color: '#1a1a1a',
-											transition: 'background-color 0.2s ease',
-											borderBottom: '1px solid #f0f0f0',
-										}}
-										onMouseEnter={(e) =>
-											(e.currentTarget.style.backgroundColor = '#f3f4f6')
-										}
-										onMouseLeave={(e) =>
-											(e.currentTarget.style.backgroundColor = 'transparent')
-										}>
+											borderBottom: '1px solid #f3f4f6',
+										}}>
 										{isFav ? '★ Favorited' : '☆ Add to Favorites'}
 									</button>
 								)}
@@ -911,22 +815,15 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 										onClick={handleOpenPropertyDialog}
 										style={{
 											width: '100%',
-											padding: '12px 16px',
-											border: 'none',
 											background: 'none',
+											border: 'none',
+											padding: '12px 16px',
 											textAlign: 'left',
+											fontSize: '16px',
+											color: '#222',
 											cursor: 'pointer',
-											fontSize: '14px',
-											color: '#1a1a1a',
-											transition: 'background-color 0.2s ease',
-											borderBottom: '1px solid #f0f0f0',
-										}}
-										onMouseEnter={(e) =>
-											(e.currentTarget.style.backgroundColor = '#f3f4f6')
-										}
-										onMouseLeave={(e) =>
-											(e.currentTarget.style.backgroundColor = 'transparent')
-										}>
+											borderBottom: '1px solid #f3f4f6',
+										}}>
 										Edit Property
 									</button>
 								)}
@@ -938,22 +835,15 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 										}}
 										style={{
 											width: '100%',
-											padding: '12px 16px',
-											border: 'none',
 											background: 'none',
+											border: 'none',
+											padding: '12px 16px',
 											textAlign: 'left',
+											fontSize: '16px',
+											color: '#222',
 											cursor: 'pointer',
-											fontSize: '14px',
-											color: '#1a1a1a',
-											transition: 'background-color 0.2s ease',
-											borderBottom: '1px solid #f0f0f0',
-										}}
-										onMouseEnter={(e) =>
-											(e.currentTarget.style.backgroundColor = '#f3f4f6')
-										}
-										onMouseLeave={(e) =>
-											(e.currentTarget.style.backgroundColor = 'transparent')
-										}>
+											borderBottom: '1px solid #f3f4f6',
+										}}>
 										🔧 Request Maintenance
 									</button>
 								)}
@@ -962,39 +852,69 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 										htmlFor='header-photo-upload'
 										style={{
 											width: '100%',
-											padding: '12px 16px',
-											border: 'none',
+											display: 'flex',
+											alignItems: 'center',
 											background: 'none',
-											textAlign: 'left',
+											border: 'none',
+											padding: '12px 16px',
+											fontSize: '16px',
+											color: '#222',
 											cursor: 'pointer',
-											fontSize: '14px',
-											color: '#1a1a1a',
-											transition: 'background-color 0.2s ease',
-											display: 'block',
 										}}
-										onMouseEnter={(e) =>
-											(e.currentTarget.style.backgroundColor = '#f3f4f6')
-										}
-										onMouseLeave={(e) =>
-											(e.currentTarget.style.backgroundColor = 'transparent')
-										}
 										title='Click to upload property image'>
-										<FontAwesomeIcon
-											icon={faCamera}
-											style={{ marginRight: '8px' }}
-										/>
+										<FontAwesomeIcon icon={faCamera} style={{ marginRight: '8px' }} />
 										Change Photo
 									</label>
 								)}
 							</div>
 						)}
 					</div>
-				)}
+				) : undefined}
+				title={
+					isEditingTitle ? (
+						<EditableTitleInput
+							value={editedTitle}
+							onChange={(e) => setEditedTitle(e.target.value)}
+							onBlur={handleTitleSave}
+							onKeyDown={(e) => {
+								if (e.key === 'Enter') handleTitleSave();
+								if (e.key === 'Escape') setIsEditingTitle(false);
+							}}
+							autoFocus
+						/>
+					) : (
+						<HeroTitle>{property.title}</HeroTitle>
+					)
+				}
+				actions={
+					<>
+						{canManageProperties && (
+							<HeroActionButton onClick={handleOpenPropertyDialog}>
+								✎ Edit Property
+							</HeroActionButton>
+						)}
+						{currentUser && !isUserTenant && (
+							<HeroActionButton
+								onClick={() =>
+									toggleFavorite({
+										id: property.id,
+										title: property.title,
+										slug: property.slug,
+									})
+								}>
+								{isFav ? '★ Favorited' : '☆ Add to Favorites'}
+							</HeroActionButton>
+						)}
+						{currentUser && isUserTenant && property?.isRental && (
+							<HeroActionButton onClick={() => setShowMaintenanceRequestModal(true)}>
+								🔧 Request Maintenance
+							</HeroActionButton>
+						)}
+					</>
+				}>
 				{imageError && (
 					<div
 						style={{
-							position: 'relative',
-							zIndex: 10,
 							color: '#dc2626',
 							fontSize: '14px',
 							padding: '8px 12px',
@@ -1005,18 +925,17 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 						{imageError}
 					</div>
 				)}
-				{isUploadingImage ? (
+				{isUploadingImage && (
 					<div
 						style={{
-							position: 'relative',
-							zIndex: 10,
 							textAlign: 'center',
 							color: 'white',
 							fontSize: '14px',
+							padding: '0 20px',
 						}}>
 						Uploading image...
 					</div>
-				) : null}
+				)}
 				<FileUploader
 					id='header-photo-upload'
 					accept='image/*'
@@ -1026,54 +945,8 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 					variant='hidden'
 					onError={(message) => setImageError(message)}
 				/>
-				<HeaderContent>
-					<TitleContainer>
-						{isEditingTitle ? (
-							<EditableTitleInput
-								value={editedTitle}
-								onChange={(e) => setEditedTitle(e.target.value)}
-								onBlur={handleTitleSave}
-								onKeyDown={(e) => {
-									if (e.key === 'Enter') handleTitleSave();
-									if (e.key === 'Escape') setIsEditingTitle(false);
-								}}
-								autoFocus
-							/>
-						) : (
-							<PropertyTitle>{property.title}</PropertyTitle>
-						)}
-					</TitleContainer>
-
-					<div style={{ display: 'contents' }} className='desktop-actions'>
-						{canManageProperties && (
-							<FavoriteButton onClick={handleOpenPropertyDialog}>
-								✎ Edit Property
-							</FavoriteButton>
-						)}
-						<FavoriteButton
-							onClick={() =>
-								toggleFavorite({
-									id: property.id,
-									title: property.title,
-									slug: property.slug,
-								})
-							}
-							style={{
-								display: currentUser && !isUserTenant ? 'block' : 'none',
-							}}>
-							{isFav ? '★ Favorited' : '☆ Add to Favorites'}
-						</FavoriteButton>
-						{currentUser && isUserTenant && property?.isRental && (
-							<FavoriteButton
-								onClick={() => setShowMaintenanceRequestModal(true)}>
-								🔧 Request Maintenance
-							</FavoriteButton>
-						)}
-					</div>
-				</HeaderContent>
-			</Header>
+			</PageHero>
 			<ContentWrapper>
-				{/* Tab Navigation */}
 				<TabSystem
 					property={property}
 					currentUser={currentUser}
@@ -1096,7 +969,7 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 					handleEditTenant={handleEditTenant}
 					handleDeleteTenant={handleDeleteTenant}
 					handleViewTenantPromo={handleViewTenantPromo}
-					handleCreateTask={handleOpenCreateWorkflowDialog}
+					handleCreateTask={handleOpenCreateTaskDialog}
 					handleEditTask={handleEditTask}
 					handleCreateDevice={() => setShowDeviceDialog(true)}
 					handleCreateRequest={() => setShowMaintenanceRequestModal(true)}
@@ -1104,10 +977,9 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 					handleCreateUnit={handleCreateUnit}
 					handleDeleteUnit={handleDeleteUnit}
 					handleConvertRequestToTask={handleConvertRequestToTask}
-					openCreateWorkflowToken={openCreateWorkflowToken}
+					openCreateTaskToken={openCreateTaskToken}
 				/>
 
-				{/* Add Device Dialog */}
 				<DeviceModal
 					isOpen={showDeviceDialog}
 					property={property}
@@ -1118,7 +990,6 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 					units={propertyUnits}
 				/>
 
-				{/* Unit Create Dialog */}
 				<UnitModal
 					isOpen={showUnitDialog}
 					formData={unitFormData}
@@ -1127,7 +998,6 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 					onChange={handleUnitFormChange}
 				/>
 
-				{/* Convert Request to Task Modal */}
 				{convertingRequest && (
 					<ConvertRequestToTaskModal
 						isOpen={showConvertModal}
@@ -1143,7 +1013,6 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 					/>
 				)}
 
-				{/* Maintenance Request Modal */}
 				{property && (
 					<MaintenanceRequestModal
 						isOpen={showMaintenanceRequestModal}
@@ -1153,8 +1022,6 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 					/>
 				)}
 
-
-				{/* Add Tenant Modal */}
 				{property && (
 					<AddTenantModal
 						open={showAddTenantModal}
@@ -1163,7 +1030,6 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 					/>
 				)}
 
-				{/* Edit Tenant Modal */}
 				{property && editingTenant && (
 					<AddTenantModal
 						open={showEditTenantModal}
@@ -1177,7 +1043,6 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 					/>
 				)}
 
-				{/* Delete Task Confirmation Modal */}
 				<DeleteConfirmationModal
 					isOpen={deleteTaskModalOpen}
 					itemName={taskToDelete?.title || ''}
@@ -1193,7 +1058,6 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 					}}
 				/>
 
-				{/* Delete Tenant Confirmation Modal */}
 				<DeleteConfirmationModal
 					isOpen={showDeleteTenantModal}
 					itemName={tenantToDelete?.email || ''}
@@ -1205,7 +1069,6 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 					}}
 				/>
 
-				{/* Task Completion Modal */}
 				{showTaskCompletionModal && completingTaskId && (
 					<TaskCompletionModal
 						taskId={completingTaskId}
@@ -1236,16 +1099,16 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 						onCreateGroup={
 							canManageProperties
 								? async (name: string) => {
-									const result = await createPropertyGroup({
-										name,
-										properties: [],
-										userId: currentUser!.id,
-									});
-									if ('data' in result && result.data) {
-										return (result.data as any).id as string;
-									}
-									return '';
-								}
+										const result = await createPropertyGroup({
+											name,
+											properties: [],
+											userId: currentUser!.id,
+										});
+										if ('data' in result && result.data) {
+											return (result.data as any).id as string;
+										}
+										return '';
+								  }
 								: undefined
 						}
 						initialData={{

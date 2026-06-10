@@ -164,14 +164,16 @@ export const filterTasksForEntity = (
 	if (!property) return [];
 
 	return allTasks.filter((task) => {
-		const matchesProperty = task.property === property.title;
+		const matchesProperty =
+			task.property === property.title ||
+			(task as any).propertyId === property.id;
 		if (!entityId || !entityType) return matchesProperty;
 
 		if (entityType === 'unit') {
-			return matchesProperty && task.unitId === entityId;
+			return matchesProperty && (task as any).unitId === entityId;
 		}
 		if (entityType === 'suite') {
-			return matchesProperty && task.suiteId === entityId;
+			return matchesProperty && (task as any).suiteId === entityId;
 		}
 		return matchesProperty;
 	});

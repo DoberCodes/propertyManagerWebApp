@@ -257,6 +257,17 @@ type CreateUserSubscriptionResult = {
 	checkoutUrl?: string;
 };
 
+const NON_BILLABLE_SIGNUP_PLANS = new Set([
+	'free',
+	'home',
+	'homeowner',
+	'guest',
+	'tenant',
+]);
+
+const isNonBillableSignupPlan = (plan: string): boolean =>
+	NON_BILLABLE_SIGNUP_PLANS.has(String(plan || '').trim().toLowerCase());
+
 const createUserSubscription = async (
 	selectedPlan: string,
 	promoCode: string | undefined,
@@ -264,11 +275,7 @@ const createUserSubscription = async (
 	email: string,
 ) : Promise<CreateUserSubscriptionResult> => {
 	const normalizedPromoCode = promoCode?.trim() || undefined;
-	const normalizedPlan = String(selectedPlan || '')
-		.trim()
-		.toLowerCase();
-
-	const isNonBillablePlan = ['free', 'guest', 'tenant'].includes(normalizedPlan);
+	const isNonBillablePlan = isNonBillableSignupPlan(selectedPlan);
 
 	if (isNonBillablePlan) {
 		const localSubscription = createTrialSubscription(selectedPlan, promoCode);
@@ -470,7 +477,7 @@ export const signUpWithEmail = async (
 			.trim()
 			.toLowerCase();
 		const shouldSkipTrialForPromoCheckout =
-			!!promoCode?.trim() && !['free', 'guest', 'tenant'].includes(normalizedPlan);
+			!!promoCode?.trim() && !isNonBillableSignupPlan(normalizedPlan);
 		const provisionalSubscription = shouldSkipTrialForPromoCheckout
 			? createPendingCheckoutSubscription(selectedPlan, promoCode)
 			: createTrialSubscription(selectedPlan, promoCode);

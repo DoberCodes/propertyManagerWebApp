@@ -193,13 +193,13 @@ export const SuiteDetailPage: React.FC = () => {
 				{activeTab === 'devices' && (
 					<TabContent>
 						<SectionContainer>
-							<SectionHeader>Suite Devices</SectionHeader>
+							<SectionHeader>Suite Appliances</SectionHeader>
 							{suite.deviceIds && suite.deviceIds.length > 0 ? (
 								<GridContainer>
 									<GridTable>
 										<thead>
 											<tr>
-												<th>Device ID</th>
+												<th>Appliance ID</th>
 											</tr>
 										</thead>
 										<tbody>
@@ -213,7 +213,7 @@ export const SuiteDetailPage: React.FC = () => {
 								</GridContainer>
 							) : (
 								<EmptyState>
-									<p>No devices assigned to this suite</p>
+									<p>No appliances assigned to this suite</p>
 								</EmptyState>
 							)}
 						</SectionContainer>
@@ -233,7 +233,7 @@ export const SuiteDetailPage: React.FC = () => {
 									}))}
 									columns={[
 									{
-										header: 'Workflow Summary',
+										header: 'Task Summary',
 										key: 'title',
 										render: (value: string, row: any) => (
 											<div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 280 }}>
@@ -260,7 +260,7 @@ export const SuiteDetailPage: React.FC = () => {
 										),
 									},
 									{
-										header: 'Continuity Activity',
+										header: 'Maintenance Activity',
 										key: 'dueDate',
 										render: (value: string, row: any) => {
 											const overdue = row.status === 'Overdue';
@@ -268,8 +268,8 @@ export const SuiteDetailPage: React.FC = () => {
 												<div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
 													<div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>
 														{overdue
-															? 'Maintenance continuity interrupted'
-															: 'Continuity workflow active'}
+															? 'Maintenance is overdue'
+															: 'Maintenance task active'}
 													</div>
 													<div style={{ fontSize: 12, color: '#64748b', display: 'flex', gap: 6, alignItems: 'center' }}>
 														<FontAwesomeIcon icon={faClock} />
@@ -295,7 +295,7 @@ export const SuiteDetailPage: React.FC = () => {
 									]}
 									showCheckbox={false}
 									hideHeader={true}
-									emptyMessage='No suite workflows yet. Add one to keep suite continuity active.'
+									emptyMessage='No suite tasks yet. Add one to keep suite maintenance active.'
 								/>
 							</HeaderlessFeedSurface>
 						</SectionContainer>
@@ -313,7 +313,7 @@ export const SuiteDetailPage: React.FC = () => {
 											<tr>
 												<th>Date</th>
 												<th>Description</th>
-												<th>Device</th>
+												<th>Appliance</th>
 											</tr>
 										</thead>
 										<tbody>

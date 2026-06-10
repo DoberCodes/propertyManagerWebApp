@@ -1,4 +1,5 @@
 import * as admin from 'firebase-admin';
+import * as functions from 'firebase-functions/v1';
 
 if (!admin.apps.length) {
 	admin.initializeApp();
@@ -36,21 +37,35 @@ export const getMembership = async (
 	accountId: string,
 	uid: string,
 ): Promise<AccountMembership | null> => {
-	const membershipId = `${accountId}_${uid}`;
-	const membershipDoc = await db
-		.collection('accountMemberships')
-		.doc(membershipId)
-		.get();
+	const membershipIds = [`${accountId}_${uid}`, `${uid}_${accountId}`];
+	let membershipDoc: FirebaseFirestore.DocumentSnapshot<FirebaseFirestore.DocumentData> | null = null;
 
-	if (!membershipDoc.exists) {
+	for (const membershipId of membershipIds) {
+		const candidate = await db
+			.collection('accountMemberships')
+			.doc(membershipId)
+			.get();
+		if (candidate.exists) {
+			membershipDoc = candidate;
+			break;
+		}
+	}
+
+	if (!membershipDoc || !membershipDoc.exists) {
 		return null;
 	}
 
 	const data = membershipDoc.data() || {};
+	const normalizedRoles = Array.isArray(data.roles)
+		? (data.roles as string[])
+		: typeof data.role === 'string' && data.role.trim().length > 0
+			? [String(data.role).trim()]
+			: [];
+
 	return {
 		accountId: String(data.accountId || accountId),
 		userId: String(data.userId || uid),
-		roles: Array.isArray(data.roles) ? (data.roles as string[]) : [],
+		roles: normalizedRoles,
 		status: (data.status as 'active' | 'disabled') || 'active',
 	};
 };
@@ -70,7 +85,35 @@ export const assertAccountRole = async (
 	roles: string[],
 ): Promise<void> => {
 	const membership = await getMembership(accountId, uid);
-	if (!hasAnyRole(membership, roles)) {
-		throw new Error('permission-denied');
+	if (hasAnyRole(membership, roles)) {
+		return;
 	}
+
+	// Legacy fallback: infer owner/admin role from user profile when membership records
+	// are missing or stale.
+	const userDoc = await db.collection('users').doc(uid).get();
+	const userData = userDoc.data() || {};
+	const normalizedUserRole = String(userData.role || '').trim().toLowerCase();
+	const isAccountOwner =
+		userData.isAccountOwner === true || String(accountId).trim() === String(uid).trim();
+
+	const inferredRoles = new Set<string>();
+	if (isAccountOwner) {
+		inferredRoles.add('account_owner');
+	}
+	if (normalizedUserRole === 'admin') {
+		inferredRoles.add('admin');
+	}
+	if (normalizedUserRole === 'manager') {
+		inferredRoles.add('manager');
+	}
+
+	if (roles.some((role) => inferredRoles.has(role))) {
+		return;
+	}
+
+	throw new functions.https.HttpsError(
+		'permission-denied',
+		'You do not have permission for this account action',
+	);
 };

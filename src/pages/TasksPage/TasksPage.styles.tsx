@@ -26,7 +26,7 @@ export const TaskGridSection = styled.div`
 	}
 `;
 
-export const WorkflowControlPanel = styled.div`
+export const TaskControlPanel = styled.div`
 	display: flex;
 	flex-direction: column;
 	gap: 12px;
@@ -37,7 +37,7 @@ export const WorkflowControlPanel = styled.div`
 	box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06);
 `;
 
-export const WorkflowControlRow = styled.div`
+export const TaskControlRow = styled.div`
 	display: flex;
 	align-items: center;
 	gap: 10px;
@@ -49,7 +49,7 @@ export const WorkflowControlRow = styled.div`
 	}
 `;
 
-export const WorkflowSearchInput = styled.input`
+export const TaskSearchInput = styled.input`
 	flex: 1;
 	min-width: 240px;
 	padding: 11px 14px;
@@ -70,7 +70,7 @@ export const WorkflowSearchInput = styled.input`
 	}
 `;
 
-export const WorkflowSortSelect = styled.select`
+export const TaskSortSelect = styled.select`
 	padding: 11px 14px;
 	border: 1px solid #dbe3ee;
 	border-radius: 12px;
@@ -91,7 +91,7 @@ export const WorkflowSortSelect = styled.select`
 	}
 `;
 
-export const WorkflowResultCount = styled.div`
+export const TaskResultCount = styled.div`
 	font-size: 12px;
 	font-weight: 700;
 	color: #64748b;

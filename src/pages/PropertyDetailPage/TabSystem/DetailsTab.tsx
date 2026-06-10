@@ -147,18 +147,18 @@ export const DetailsTab: React.FC<DetailsTabProps> = ({
 					<GlanceValue>{overdueTasksCount}</GlanceValue>
 				</GlanceCard>
 				<GlanceCard>
-					<GlanceLabel>Devices</GlanceLabel>
+					<GlanceLabel>Appliances</GlanceLabel>
 					<GlanceValue>{devicesCount}</GlanceValue>
 				</GlanceCard>
 				<GlanceCard>
-					<GlanceLabel>Continuity Records</GlanceLabel>
+					<GlanceLabel>Maintenance Records</GlanceLabel>
 					<GlanceValue>{recentMaintenanceCount}</GlanceValue>
 				</GlanceCard>
 			</GlanceGrid>
 
 			<QuickActionsBar>
 				<QuickActionButton onClick={() => onCreateTask?.()}>
-					+ Add Continuity Task
+					+ Add Maintenance Task
 				</QuickActionButton>
 				<QuickActionButton $variant='secondary' onClick={() => onCreateDevice?.()}>
 					+ Add System
@@ -174,7 +174,7 @@ export const DetailsTab: React.FC<DetailsTabProps> = ({
 
 			{/* Edit Mode Header */}
 			<DetailsEditHeader>
-				<SectionHeader>Property Continuity Profile</SectionHeader>
+				<SectionHeader>Property Maintenance Profile</SectionHeader>
 			</DetailsEditHeader>
 
 			<PropertyDetailSection property={property} teamMembers={teamMembers} />
@@ -199,12 +199,12 @@ export const DetailsTab: React.FC<DetailsTabProps> = ({
 
 			<PreviewGrid>
 				<PreviewCard>
-					<PreviewHeader>Upcoming Continuity Tasks</PreviewHeader>
+					<PreviewHeader>Upcoming Maintenance Tasks</PreviewHeader>
 					<PreviewList>
 						{upcomingTasks.length === 0 ? (
 							<PreviewItem>
-								<PreviewItemTitle>No open continuity tasks</PreviewItemTitle>
-								<PreviewItemMeta>Flow is steady</PreviewItemMeta>
+								<PreviewItemTitle>No open maintenance tasks</PreviewItemTitle>
+								<PreviewItemMeta>Maintenance is up to date</PreviewItemMeta>
 							</PreviewItem>
 						) : (
 							upcomingTasks.map((task) => (
@@ -233,7 +233,7 @@ export const DetailsTab: React.FC<DetailsTabProps> = ({
 					<TimelineList>
 						{propertyTimeline.length === 0 ? (
 							<PreviewItem>
-								<PreviewItemTitle>No continuity activity yet</PreviewItemTitle>
+								<PreviewItemTitle>No maintenance activity yet</PreviewItemTitle>
 								<PreviewItemMeta>Start by logging completed service events</PreviewItemMeta>
 							</PreviewItem>
 						) : (

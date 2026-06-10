@@ -20,8 +20,9 @@ import { Layout } from './pages/Layout';
 import { DashboardTab } from './pages/DashboardTab';
 import { TasksPage } from './pages/TasksPage/TasksPage';
 import { Properties } from './Components/PropertiesTab';
-import { PropertyDetailPage } from './pages/PropertyDetailPage';
-import { UnitDetailPage } from './pages/UnitDetailPage';
+import { PropertyDetailPage } from './pages/PropertyDetailPage/PropertyDetailPage';
+// Units are temporarily hidden from the app flow; keep the page code for the later relaunch.
+// import { UnitDetailPage } from './pages/UnitDetailPage';
 import { SuiteDetailPage } from './pages/SuiteDetailPage/SuiteDetailPage';
 import { DeviceDetailPage } from './pages/DeviceDetailPage/DeviceDetailPage';
 import TeamPage from './pages/TeamPage';
@@ -48,8 +49,7 @@ const RootRoute = () => {
 export const RouterComponent = () => {
 	const currentUser = useSelector((state: any) => state.user.currentUser);
 	const canAccessTeam = useSelector(selectCanAccessTeam);
-	const shouldShowTeamRoute =
-		!!currentUser && (canAccessTeam || !!currentUser?.accountId);
+	const shouldShowTeamRoute = !!currentUser && canAccessTeam;
 	const fallbackPath =
 		currentUser?.role === USER_ROLES.TENANT ? 'tenant-profile' : 'dashboard';
 	return (
@@ -121,6 +121,7 @@ export const RouterComponent = () => {
 							</ProtectedRoutes>
 						}
 					/>
+					{/* Units are temporarily hidden from the app flow.
 					<Route
 						path='property/:slug/unit/:unitName'
 						element={
@@ -129,6 +130,7 @@ export const RouterComponent = () => {
 							</ProtectedRoutes>
 						}
 					/>
+					*/}
 					<Route
 						path='property/:slug/suite/:suiteName'
 						element={

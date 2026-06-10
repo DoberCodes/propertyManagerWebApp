@@ -122,7 +122,7 @@ export const SideNav = () => {
 			visible: !isUserTenant && !isContractor,
 		},
 		{
-			label: 'Devices',
+			label: 'Appliances',
 			path: '/devices',
 			icon: faMicrochip,
 			visible: !isUserTenant && (canAccessProperties || canViewPages),
@@ -137,7 +137,7 @@ export const SideNav = () => {
 			label: 'Team',
 			path: '/team',
 			icon: faUsers,
-			visible: !isUserTenant && !isHomeowner && (canAccessTeam || canViewPages),
+			visible: !isUserTenant && !isHomeowner && canAccessTeam,
 		},
 		{
 			label: 'Report',

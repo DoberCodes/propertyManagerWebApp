@@ -50,7 +50,7 @@ export const SuitesTab: React.FC<SuitesTabProps> = ({ property }) => {
 						<strong>{value}</strong>
 					</div>
 					<div style={{ fontSize: 12, color: '#64748b' }}>
-						Commercial continuity scope for this suite
+						Commercial maintenance scope for this suite
 					</div>
 					<button
 						type='button'
@@ -87,7 +87,7 @@ export const SuitesTab: React.FC<SuitesTabProps> = ({ property }) => {
 			),
 		},
 		{
-			header: 'Continuity Activity',
+			header: 'Maintenance Activity',
 			key: 'deviceIds',
 			render: (value: any[]) => (
 				<div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -132,7 +132,7 @@ export const SuitesTab: React.FC<SuitesTabProps> = ({ property }) => {
 					}
 					actions={actions}
 					hideHeader={true}
-					emptyMessage='No suites yet. Add a suite to begin commercial continuity tracking.'
+					emptyMessage='No suites yet. Add a suite to begin commercial maintenance tracking.'
 				/>
 			) : (
 				<EmptyState>

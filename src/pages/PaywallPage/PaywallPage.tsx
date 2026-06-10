@@ -666,7 +666,7 @@ export const PaywallPage: React.FC<PaywallPageProps> = ({
 						</ContactSalesTitle>
 						<ContactSalesText layout={layout}>
 							Managing more than 10 properties? Get a customized plan with
-							per-unit pricing, advanced reporting and priority support.
+							portfolio pricing, advanced reporting and priority support.
 						</ContactSalesText>
 						<ContactSalesButtonStyled
 							layout={layout}

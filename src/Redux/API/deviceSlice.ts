@@ -127,7 +127,7 @@ const deviceSlice = apiSlice.injectEndpoints({
 
 						if (currentDeviceCount >= maxDevices) {
 							throw new Error(
-								`Device limit reached for current plan (${maxDevices} max).`,
+								`Appliance limit reached for current plan (${maxDevices} max).`,
 							);
 						}
 

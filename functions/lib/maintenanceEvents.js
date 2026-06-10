@@ -69,6 +69,24 @@ const ALLOWED_EVENT_SOURCES = new Set([
 ]);
 const WRITER_ROLES = ['owner', 'admin', 'manager', 'editor', 'member'];
 const toString = (value) => String(value || '').trim();
+const stripUndefinedDeep = (value) => {
+    if (Array.isArray(value)) {
+        return value
+            .map((item) => stripUndefinedDeep(item))
+            .filter((item) => item !== undefined);
+    }
+    if (value && typeof value === 'object') {
+        const cleaned = {};
+        for (const [key, nestedValue] of Object.entries(value)) {
+            const normalized = stripUndefinedDeep(nestedValue);
+            if (normalized !== undefined) {
+                cleaned[key] = normalized;
+            }
+        }
+        return cleaned;
+    }
+    return value === undefined ? undefined : value;
+};
 const dedupeStringArray = (value) => {
     if (!Array.isArray(value))
         return [];
@@ -207,7 +225,7 @@ const writeMaintenanceEvent = async (event, uid) => {
     await assertPropertyBelongsToAccount(propertyId, accountId, uid);
     const nowIso = new Date().toISOString();
     const ref = db.collection('maintenanceEvents').doc();
-    const payload = buildEventDoc(event, uid, accountId, nowIso);
+    const payload = stripUndefinedDeep(buildEventDoc(event, uid, accountId, nowIso));
     await ref.set({
         id: ref.id,
         ...payload,
@@ -221,13 +239,23 @@ const writeMaintenanceEvent = async (event, uid) => {
 exports.createMaintenanceEvent = functions
     .region('us-central1')
     .https.onCall(async (data, context) => {
-    const uid = assertAuthenticated(context);
-    const event = ((data === null || data === void 0 ? void 0 : data.event) || {});
-    const result = await writeMaintenanceEvent(event, uid);
-    return {
-        success: true,
-        ...result,
-    };
+    try {
+        const uid = assertAuthenticated(context);
+        const event = ((data === null || data === void 0 ? void 0 : data.event) || {});
+        const result = await writeMaintenanceEvent(event, uid);
+        return {
+            success: true,
+            ...result,
+        };
+    }
+    catch (err) {
+        // Re-throw HttpsErrors as-is so the client gets proper error codes
+        if (err instanceof functions.https.HttpsError)
+            throw err;
+        // Wrap unexpected errors so client sees the message instead of a generic 500
+        console.error('createMaintenanceEvent unexpected error:', err);
+        throw new functions.https.HttpsError('internal', (err === null || err === void 0 ? void 0 : err.message) || 'Unexpected error in createMaintenanceEvent');
+    }
 });
 exports.createMaintenanceEventsBatch = functions
     .region('us-central1')

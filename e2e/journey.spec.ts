@@ -8,11 +8,11 @@ import {
 
 /**
  * Complete user journey test
- * Tests the full workflow: Login → Create Property → Create Task → Complete Task
+ * Tests the full task journey: Login → Create Property → Create Task → Complete Task
  */
 
 test.describe('Complete User Journey', () => {
-	test('user can complete full workflow: login > create property > create task > mark complete', async ({
+	test('user can complete full task journey: login > create property > create task > mark complete', async ({
 		page,
 	}) => {
 		// Step 1: Login with demo account

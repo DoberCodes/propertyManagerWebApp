@@ -597,7 +597,7 @@ const buildFriendlyDeviceName = (device: Device): string => {
 		.join(' ')
 		.trim();
 
-	return fallback || 'Device';
+	return fallback || 'Appliance';
 };
 
 const buildTechnicalSubtitle = (device: Device): string => {
@@ -609,15 +609,15 @@ const buildTechnicalSubtitle = (device: Device): string => {
 };
 
 const buildRecentActivity = (entry?: { date?: string; description?: string } | null): string => {
-	if (!entry) return 'No continuity activity recorded yet';
+	if (!entry) return 'No maintenance activity recorded yet';
 	const rawDescription = String(entry.description || '').trim();
-	if (!rawDescription) return `Continuity event ${formatRelativeTime(entry.date)}`;
+	if (!rawDescription) return `Maintenance event ${formatRelativeTime(entry.date)}`;
 	return `${rawDescription} ${formatRelativeTime(entry.date)}`.trim();
 };
 
 const buildEventTitle = (entry?: { description?: string } | null): string => {
 	const description = String(entry?.description || '').trim();
-	if (!description) return 'Continuity event';
+	if (!description) return 'Maintenance event';
 	const prefixes = [
 		'Document uploaded:',
 		'Service note added:',
@@ -633,12 +633,12 @@ const buildEventTitle = (entry?: { description?: string } | null): string => {
 			return prefix.replace(':', '');
 		}
 	}
-	return description.split(':')[0] || 'Continuity event';
+	return description.split(':')[0] || 'Maintenance event';
 };
 
 const buildEventDetail = (entry?: { description?: string } | null): string => {
 	const description = String(entry?.description || '').trim();
-	if (!description) return 'Recorded in the continuity timeline';
+	if (!description) return 'Recorded in the maintenance timeline';
 	const colonIndex = description.indexOf(':');
 	if (colonIndex === -1) return description;
 	return description.slice(colonIndex + 1).trim() || description;
@@ -872,9 +872,7 @@ export const DevicesHubPage: React.FC = () => {
 				const locLabel = buildLocationLabel(device, propertyNameById, [property]);
 				const devFriendlyName = buildFriendlyDeviceName(device);
 				const devSlug = buildDeviceSlug(device);
-				const locHref = device.location?.unitId
-					? `/property/${propSlug}/unit/${encodeURIComponent(locLabel)}`
-					: device.location?.suiteId
+				const locHref = device.location?.suiteId
 						? `/property/${propSlug}/suite/${encodeURIComponent(locLabel)}`
 						: '';
 
@@ -932,9 +930,7 @@ export const DevicesHubPage: React.FC = () => {
 			const propSlug = property?.slug || '';
 			const propName = propertyNameById.get(row.propertyId) || 'Property';
 			const devSlug = buildDeviceSlug(row.device);
-			const locHref = row.device.location?.unitId
-				? `/property/${propSlug}/unit/${encodeURIComponent(row.locationLabel)}`
-				: row.device.location?.suiteId
+			const locHref = row.device.location?.suiteId
 					? `/property/${propSlug}/suite/${encodeURIComponent(row.locationLabel)}`
 					: '';
 
@@ -962,7 +958,7 @@ export const DevicesHubPage: React.FC = () => {
 				priorityColor = '#b91c1c';
 				priorityBackground = '#fef2f2';
 				priorityBorder = '#fecaca';
-				reasonDescription = 'Device is marked as broken and may need immediate service.';
+				reasonDescription = 'Appliance is marked as broken and may need immediate service.';
 			} else if (overdueCount > 0) {
 				priorityTier = 2;
 				priorityLabel = 'Overdue';
@@ -990,14 +986,14 @@ export const DevicesHubPage: React.FC = () => {
 				priorityColor = '#854d0e';
 				priorityBackground = '#fefce8';
 				priorityBorder = '#fef08a';
-				reasonDescription = 'Device is currently in a maintenance state.';
+				reasonDescription = 'Appliance is currently in a maintenance state.';
 			} else if (hasNoHistory) {
 				priorityTier = 6;
 				priorityLabel = 'Never Serviced';
 				priorityColor = '#475569';
 				priorityBackground = '#f1f5f9';
 				priorityBorder = '#cbd5e1';
-				reasonDescription = 'No maintenance history has been recorded for this device.';
+				reasonDescription = 'No maintenance history has been recorded for this appliance.';
 			} else if (isStale) {
 				priorityTier = 7;
 				priorityLabel = 'Stale';
@@ -1055,17 +1051,17 @@ export const DevicesHubPage: React.FC = () => {
 	return (
 		<Wrapper>
 			<Header>
-				<h1>Devices Hub</h1>
-				<p>Cross-property continuity view for every system lifecycle.</p>
+				<h1>Appliances & Systems Hub</h1>
+				<p>Cross-property maintenance status for every appliance and system.</p>
 			</Header>
 
 			<SummaryRow>
 				<MetricCard>
-					<MetricLabel>Total Devices</MetricLabel>
+					<MetricLabel>Total Appliances</MetricLabel>
 					<MetricValue>{devices.length}</MetricValue>
 				</MetricCard>
 				<MetricCard>
-					<MetricLabel>Continuity Risks</MetricLabel>
+					<MetricLabel>Maintenance Risks</MetricLabel>
 					<MetricValue>{needsAttentionCount}</MetricValue>
 				</MetricCard>
 				<MetricCard>
@@ -1110,13 +1106,13 @@ export const DevicesHubPage: React.FC = () => {
 					</PropertySelect>
 				) : null}
 				<FilterResultCount>
-					{filteredDeviceRows.length} of {deviceRows.length} device{deviceRows.length === 1 ? '' : 's'}
+					{filteredDeviceRows.length} of {deviceRows.length} appliance{deviceRows.length === 1 ? '' : 's'}
 				</FilterResultCount>
 			</FilterBar>
 
 			{!isLoading && deviceRows.length === 0 ? (
 				<EmptyState>
-					No systems yet. Add your first system from a property page to begin continuity tracking.
+					No systems yet. Add your first system from a property page to begin maintenance tracking.
 				</EmptyState>
 			) : !isLoading && filteredDeviceRows.length === 0 ? (
 				<EmptyState>No systems match your current filters.</EmptyState>
@@ -1127,9 +1123,7 @@ export const DevicesHubPage: React.FC = () => {
 							propertyNameById.get(row.propertyId) || 'Unknown Property';
 						const property = properties.find((p: any) => String(p.id) === row.propertyId);
 						const propertySlug = property?.slug || '';
-						const locationHref = row.device.location?.unitId
-							? `/property/${propertySlug}/unit/${encodeURIComponent(row.locationLabel)}`
-							: row.device.location?.suiteId
+						const locationHref = row.device.location?.suiteId
 								? `/property/${propertySlug}/suite/${encodeURIComponent(row.locationLabel)}`
 								: '';
 						const deviceSlug = buildDeviceSlug(row.device);
@@ -1177,7 +1171,7 @@ export const DevicesHubPage: React.FC = () => {
 									<StatusPill $status={row.status}>{row.status}</StatusPill>
 								</Field>
 								<Field>
-									<Label>Last Continuity Event</Label>
+									<Label>Last Maintenance Event</Label>
 									<Value>{formatDate(row.lastServiced)}</Value>
 								</Field>
 								<Field>
@@ -1185,7 +1179,7 @@ export const DevicesHubPage: React.FC = () => {
 									<Value>{formatDate(row.upcomingMaintenance)}</Value>
 								</Field>
 								<Field>
-									<Label>Continuity Snapshot</Label>
+									<Label>Maintenance Snapshot</Label>
 									<Value>{row.recentActivity}</Value>
 								</Field>
 								<Field>
@@ -1200,7 +1194,7 @@ export const DevicesHubPage: React.FC = () => {
 
 			<HubFeedGrid>
 				<SurfaceCard>
-					<FeedSectionTitle>Continuity Activity Feed</FeedSectionTitle>
+					<FeedSectionTitle>Maintenance Activity Feed</FeedSectionTitle>
 					<FeedSectionText>
 						A running feed of lifecycle updates across every connected system.
 					</FeedSectionText>
@@ -1241,7 +1235,7 @@ export const DevicesHubPage: React.FC = () => {
 											) : null}
 											<ActivityContextSep>·</ActivityContextSep>
 											<ActivityContextLink to={deviceHref} onClick={(e) => e.stopPropagation()}>
-												View device →
+												View appliance →
 											</ActivityContextLink>
 										</ActivityContext>
 									</ActivityItem>
@@ -1249,7 +1243,7 @@ export const DevicesHubPage: React.FC = () => {
 							})}
 						</ActivityList>
 					) : (
-						<EmptyState>No continuity activity yet.</EmptyState>
+						<EmptyState>No maintenance activity yet.</EmptyState>
 					)}
 				</SurfaceCard>
 
@@ -1292,7 +1286,7 @@ export const DevicesHubPage: React.FC = () => {
 											) : null}
 											<AttentionContextSep>·</AttentionContextSep>
 											<AttentionContextLink to={deviceHref} onClick={(e) => e.stopPropagation()}>
-												View device →
+												View appliance →
 											</AttentionContextLink>
 										</AttentionContext>
 									</ActivityItem>

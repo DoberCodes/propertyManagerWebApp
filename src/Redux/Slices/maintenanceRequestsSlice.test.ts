@@ -260,7 +260,7 @@ describe('maintenanceRequestsSlice', () => {
 		});
 
 		describe('complex scenarios', () => {
-			it('should handle full workflow: add, update, convert, delete', () => {
+			it('should handle full task: add, update, convert, delete', () => {
 				let state: any = initialState;
 				// Add request
 				state = maintenanceRequestsReducer(

@@ -41,16 +41,17 @@ export const TabController: React.FC<TabsContextProps> = ({
 		? [{ label: 'Details', value: 'details' }]
 		: [
 				{ label: 'Details', value: 'details' },
-				{ label: 'Devices', value: 'devices' },
-				{ label: 'Workflows', value: 'tasks' },
+				{ label: 'Appliances', value: 'devices' },
+				{ label: 'Tasks', value: 'tasks' },
 				{ label: 'Maintenance History', value: 'maintenance' },
 		  ];
 
 	const tabsForProperty: tab[] = [...baseTabs];
 
-	if (!isTenant && property?.propertyType === 'Multi-Family') {
-		tabsForProperty.push({ label: 'Units', value: 'units' });
-	}
+	// Units are temporarily hidden from the app flow while the core loop is simplified.
+	// if (!isTenant && property?.propertyType === 'Multi-Family') {
+	// 	tabsForProperty.push({ label: 'Units', value: 'units' });
+	// }
 
 	if (property?.isRental && isPropertyManager && !isTenant) {
 		tabsForProperty.push({ label: 'Tenants', value: 'tenants' });

@@ -179,14 +179,13 @@ export const FeatureDocsPage: React.FC = () => {
 		`${window.location.origin}/screenshots/reporting.png`,
 		`${window.location.origin}/screenshots/taskpage.png`,
 		`${window.location.origin}/screenshots/teampage.png`,
-		`${window.location.origin}/screenshots/unitmanagement.png`,
 	];
 	return (
 		<React.Fragment>
 			<Container>
 				<SEO
 					title='Features — Maintley'
-					description='Feature overview: property & unit management, tasks, reporting, team collaboration and mobile access.'
+					description='Feature overview: property management, tasks, reporting, team collaboration and mobile access.'
 					url={`${window.location.origin}/features`}
 					image={screenshots[0]}
 					keywords='property maintenance, features, maintenance history, property manager'
@@ -218,17 +217,17 @@ export const FeatureDocsPage: React.FC = () => {
 
 					<FeatureCard>
 						<SubTitle>
-							<FeatureIcon>🏢</FeatureIcon>Property & Unit Management
+							<FeatureIcon>🏢</FeatureIcon>Property Management
 						</SubTitle>
 						<Paragraph>
-							Comprehensive property management with detailed unit and suite
-							tracking. Create and manage multiple properties with complete
-							organizational structure.
+							Comprehensive property management with detailed suite tracking.
+							Create and manage multiple properties with complete organizational
+							structure.
 						</Paragraph>
 						<FeatureList>
 							<FeatureItem>Add, edit, and delete properties</FeatureItem>
 							<FeatureItem>
-								Manage units and suites within properties
+								Manage suites within commercial properties
 							</FeatureItem>
 							<FeatureItem>
 								Detailed property information and history
@@ -244,7 +243,7 @@ export const FeatureDocsPage: React.FC = () => {
 						</SubTitle>
 						<Paragraph>
 							Complete task tracking and management system with status updates,
-							assignments, and approval workflows.
+							assignments, and approval tasks.
 						</Paragraph>
 						<FeatureList>
 							<FeatureItem>Create and assign tasks to team members</FeatureItem>
@@ -400,7 +399,7 @@ export const FeatureDocsPage: React.FC = () => {
 						</Paragraph>
 						<FeatureList>
 							<FeatureItem>
-								Detailed maintenance records for all properties and units
+								Detailed maintenance records for all properties
 							</FeatureItem>
 							<FeatureItem>Photo and document attachments</FeatureItem>
 							<FeatureItem>Contractor work history tracking</FeatureItem>

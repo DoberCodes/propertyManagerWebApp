@@ -638,10 +638,10 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
 			userPersona === 'homeowner'
 				? "We'll help you stay ahead of repairs, track every service, and never forget an important maintenance task again."
 				: userPersona === 'landlord'
-				? "Track devices, repairs, contractors, and service history across all your properties in one place."
+				? "Track appliances, repairs, contractors, and service history across all your properties in one place."
 				: userPersona === 'manager'
 				? "Manage tasks, tenants, contractors, and maintenance records across your entire portfolio."
-				: "Track devices, repairs, tasks, and service history in one place — so nothing falls through the cracks.";
+				: "Track appliances, repairs, tasks, and service history in one place — so nothing falls through the cracks.";
 
 		const steps: OnboardingStep[] = [
 			// Step 0: Role selection
@@ -789,7 +789,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
 				type: 'waiting',
 				title: 'Now that your property is set up, open it.',
 				description:
-					"This is where systems, tasks, and maintenance continuity come together.",
+					'This is where appliances, tasks, and maintenance history come together.',
 				waitCondition: () => location.pathname.includes('/property/'),
 				autoAdvance: true,
 			},
@@ -798,7 +798,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
 				type: 'page_guide',
 				title: 'Your Property Command Center',
 				description:
-					'Everything for this property lives here: tasks, devices, contractors, and history.',
+					'Everything for this property lives here: tasks, appliances, contractors, and history.',
 				content: (
 					<div style={{ textAlign: 'left', marginTop: '16px' }}>
 						<BridgeStatement>
@@ -809,7 +809,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
 							Tabs to explore:
 						</p>
 						<ul style={{ paddingLeft: '20px', margin: '0', color: '#475569', fontSize: '14px', lineHeight: '2' }}>
-							<li><strong>Devices</strong> — your home systems, appliances, and components</li>
+							<li><strong>Appliances</strong> — your home systems, appliances, and components</li>
 							<li><strong>Tasks</strong> — scheduled work, overdue items, recurring reminders</li>
 							<li><strong>Maintenance History</strong> — a permanent record of every service</li>
 							<li><strong>Contractors</strong> — your trusted service providers</li>
@@ -830,7 +830,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
 				type: 'instruction',
 				title: 'Next, create one recurring task.',
 				description:
-					'Tasks prevent missed maintenance and build continuity over time.',
+					'Tasks prevent missed maintenance and build a reliable service history over time.',
 				content: (
 					<div style={{ textAlign: 'left', marginTop: '20px' }}>
 						<p style={{ marginBottom: '12px', fontWeight: '600', color: '#0f172a', fontSize: '14px' }}>
@@ -885,7 +885,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
 							<div className='meta'>Aug 2026: Completed and logged to history</div>
 						</VisualPayoffCard>
 						<VisualPayoffCard>
-							<div className='header'>Device History</div>
+							<div className='header'>Appliance History</div>
 							<div className='title'>HVAC service record</div>
 							<div className='meta'>Cost, notes, and docs stay attached over time</div>
 						</VisualPayoffCard>
@@ -900,13 +900,13 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
 			type: 'instruction',
 			title: "There's more when you're ready.",
 			description:
-				'You have the core system. These tools increase continuity and visibility.',
+				'You have the core system. These tools increase clarity and visibility.',
 			content: (
 				<div style={{ textAlign: 'left', marginTop: '20px' }}>
 					<div style={{ marginBottom: '18px' }}>
 						<h4 style={{ color: '#0f172a', margin: '0 0 6px 0', fontSize: '15px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px' }}>
 							<span>🔧</span>
-							Devices & Home Systems
+							Appliances & Home Systems
 						</h4>
 						<p style={{ margin: '0 0 0 28px', fontSize: '14px', color: '#64748b', lineHeight: '1.5' }}>
 							Track system history, warranties, and recurring service in one timeline.
@@ -945,7 +945,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
 				id: 'advanced_features_manager',
 				type: 'instruction',
 				title: 'Built for teams too.',
-				description: 'As your portfolio grows, continuity and accountability stay intact.',
+				description: 'As your portfolio grows, maintenance history and accountability stay intact.',
 				content: (
 					<div style={{ textAlign: 'left', marginTop: '20px' }}>
 						<div style={{ marginBottom: '18px' }}>
@@ -966,10 +966,10 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
 						</div>
 						<div>
 							<h4 style={{ color: '#0f172a', margin: '0 0 6px 0', fontSize: '15px', fontWeight: '700' }}>
-								🏢 Unit-Level Management
+								🏢 Property-Level Management
 							</h4>
 							<p style={{ margin: '0 0 0 28px', fontSize: '14px', color: '#64748b', lineHeight: '1.5' }}>
-								For multi-family properties, manage each unit independently — separate devices, tasks, and history per unit.
+								Manage appliances, tasks, and history from a single property record.
 							</p>
 						</div>
 					</div>
@@ -986,7 +986,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
 			type: 'instruction',
 			title: "You're already ahead of most property owners.",
 			description:
-				'Your property and first task are live. From now on, your maintenance continuity builds automatically.',
+				'Your property and first task are live. From now on, your maintenance record builds automatically.',
 			content: (
 				<>
 				<PayoffPreview>
@@ -1003,7 +1003,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
 							<span className="icon">🏠</span>
 							<div className="text">
 								<strong>Your property dashboard is ready</strong>
-								<span>Add devices, contractors, and history as you go</span>
+								<span>Add appliances, contractors, and history as you go</span>
 							</div>
 						</PayoffItem>
 						<PayoffItem>
@@ -1024,7 +1024,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
 					<VisualPayoffCard>
 						<div className='header'>90 Days</div>
 						<div className='title'>Second reminder triggers automatically</div>
-						<div className='meta'>No memory burden. The system keeps continuity.</div>
+						<div className='meta'>No memory burden. The system keeps the service history organized.</div>
 					</VisualPayoffCard>
 					<VisualPayoffCard>
 						<div className='header'>Anytime</div>
@@ -1087,7 +1087,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
 			setPageGuideContent({
 				title: 'Property Details Page',
 				content:
-					'This is your property command center! Here you can manage units, tenants, tasks, and all property-related information. Click "Add Task" to create your first maintenance task.',
+					'This is your property command center! Here you can manage tenants, tasks, and all property-related information. Click "Add Task" to create your first maintenance task.',
 				actionLabel: 'Create Task',
 				onAction: () => {
 					setShowPageGuide(false);

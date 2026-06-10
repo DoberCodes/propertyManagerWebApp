@@ -36,7 +36,7 @@ const MissionSectionComponent = () => {
 					<MissionCardIcon className='unit'>
 						<FontAwesomeIcon icon={faBuilding} />
 					</MissionCardIcon>
-					<MissionCardTitle>Systems & Devices</MissionCardTitle>
+					<MissionCardTitle>Appliances & Systems</MissionCardTitle>
 					<MissionCardDescription>
 						Track HVAC, appliances, filters, linked parts, and equipment history
 						with the context that keeps them useful.

@@ -38,9 +38,9 @@ const FeaturesSectionComponent = () => {
 					<FeatureIcon className='unit'>
 						<FontAwesomeIcon icon={faBuilding} />
 					</FeatureIcon>
-					<FeatureTitle>Systems & Devices</FeatureTitle>
+					<FeatureTitle>Appliances & Systems</FeatureTitle>
 					<FeatureDescription>
-						Follow HVAC, appliances, filters, linked parts, and device history in
+						Follow HVAC, appliances, filters, linked parts, and appliance history in
 						one connected place.
 					</FeatureDescription>
 				</FeatureCard>

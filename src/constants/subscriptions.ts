@@ -12,7 +12,7 @@ export const SUBSCRIPTION_PLANS = {
 		maxDevices: 8,
 		features: [
 			'1 Property',
-			'Up to 8 Devices & Systems',
+			'Up to 8 Appliances & Systems',
 			'Maintenance History Tracking',
 			'Recurring Maintenance Scheduling',
 			'Document & Photo Storage',
@@ -48,7 +48,7 @@ export const SUBSCRIPTION_PLANS = {
 		maxDevices: 999, // Unlimited
 		features: [
 			'Everything in Home, plus:',
-			'Unlimited Devices & Systems',
+			'Unlimited Appliances & Systems',
 			'Unlimited Maintenance Records',
 			'Linked Parts & Supplies',
 			'Advanced Document Storage',
@@ -92,7 +92,7 @@ export const SUBSCRIPTION_PLANS = {
 			'Team Collaboration',
 			'Tenant Maintenance Requests',
 			'Role-Based Access',
-			'Maintenance Assignment Workflows',
+			'Maintenance Assignment Tasks',
 			'Portfolio-Level Reporting',
 			'Advanced Maintenance Analytics',
 			'Property Groups',
@@ -155,10 +155,10 @@ export const SUBSCRIPTION_PLANS = {
 		name: 'Tenant',
 		priceMonthly: 0,
 		priceYearly: 0,
-		maxProperties: 0, // Cannot create properties, only access assigned property/unit
+		maxProperties: 0, // Cannot create properties, only access assigned property
 		maxDevices: 0,
 		features: [
-			'Access to assigned property/unit only',
+			'Access to assigned property only',
 			'Cannot create or manage properties',
 			'Submit maintenance requests',
 			'View tenant information (read-only)',

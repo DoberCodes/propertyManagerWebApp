@@ -62,7 +62,7 @@ export interface TasksTabProps {
 	unitOptions?: { label: string; value: string }[];
 	selectedUnitId?: string;
 	onSelectUnit?: (unitId: string) => void;
-	openCreateWorkflowToken?: number;
+	openCreateTaskToken?: number;
 }
 
 export interface MaintenanceTabProps {

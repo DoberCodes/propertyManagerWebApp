@@ -35,10 +35,12 @@ import { useUpdateUserMutation } from '../../Redux/API/userSlice';
 import { useCreateNotificationMutation } from '../../Redux/API/notificationSlice';
 import {
 	canAddProperty,
+	canPropertyGroups,
 	getRemainingPropertySlots,
 	getSubscriptionPlanDetails,
 	isTrialExpired,
 } from '../../utils/subscriptionUtils';
+import { LockedFeatureCallout } from '../Library/LockedFeatureCallout';
 import {
 	filterPropertyGroupsByRole,
 	getTenantAssignmentForProperty,
@@ -168,9 +170,8 @@ export const Properties = () => {
 	// Check if user can create/edit/delete groups (basic and above plans only, not homeowner)
 	// Expired users cannot manage groups
 	const canManageGroups = currentUser?.subscription
-		? ['basic', 'professional', 'enterprise'].includes(
-				currentUser.subscription.plan,
-		  ) && !isTrialExpired(currentUser.subscription)
+		? canPropertyGroups(currentUser.subscription) &&
+		  !isTrialExpired(currentUser.subscription)
 		: false;
 
 	// Combine groups with their properties
@@ -665,6 +666,11 @@ export const Properties = () => {
 
 	const getTenantUnitRoute = useCallback(
 		(property: Property): string | null => {
+			// Units are temporarily hidden from the app flow; tenant cards should open
+			// the property page until unit-level surfaces return.
+			return property.slug ? `/property/${property.slug}` : null;
+
+			/*
 			if (!isUserTenant) {
 				return null;
 			}
@@ -691,8 +697,9 @@ export const Properties = () => {
 			}
 
 			return `/property/${property.slug}/unit/${encodeURIComponent(unitName)}`;
+			*/
 		},
-		[currentUser, isUserTenant],
+		[],
 	);
 
 	const tenantAssignedProperties = useMemo(() => {
@@ -830,7 +837,7 @@ export const Properties = () => {
 		}
 
 		if (property.propertyType === 'Multi-Family') {
-			return 'Multi-Unit';
+			return 'Portfolio';
 		}
 
 		return 'Primary Home';
@@ -1240,6 +1247,14 @@ export const Properties = () => {
 						</TopActions>
 					)}
 				</PageHeaderSection>
+				{!canManageGroups && (
+					<LockedFeatureCallout
+						title='Property Groups are locked on your current plan'
+						description='You can still manage individual properties. Upgrade to Portfolio to create, organize, and manage property groups.'
+						upgradeLabel='Upgrade for Groups'
+						compact
+					/>
+				)}
 				<ZeroState
 					icon={isUserTenant ? '🏠' : '📭'}
 					title={zeroStateTitle}
@@ -1357,6 +1372,14 @@ export const Properties = () => {
 					)}
 				</TopActions>
 			</PageHeaderSection>
+			{!canManageGroups && (
+				<LockedFeatureCallout
+					title='Property Groups are locked on your current plan'
+					description='Browse your properties normally. Upgrade to Portfolio to build grouped property workspaces.'
+					upgradeLabel='Upgrade for Groups'
+					compact
+				/>
+			)}
 			<SummaryStatsGrid>
 				{summaryCards.map((card) => (
 					<SummaryCard key={card.label}>

@@ -289,9 +289,9 @@ test.describe('User Account & Data Deletion @destructive', () => {
 		}
 	});
 
-	test('complete user data cleanup workflow', async ({ page }) => {
+	test('complete user data cleanup task', async ({ page }) => {
 		// Step 1: Login with demo account
-		console.log(`\n📝 Test: Complete User Cleanup Workflow (Demo User)`);
+		console.log(`\n📝 Test: Complete User Cleanup Task (Demo User)`);
 		await loginWithDemoUser(page);
 
 		// Step 2: Create test data

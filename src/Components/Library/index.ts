@@ -4,6 +4,7 @@
  */
 
 // Layout Components
+export * from './PageHero/PageHero';
 export * from './DetailPageLayout/DetailPageLayout';
 export { Breadcrumb } from './Breadcrumb';
 

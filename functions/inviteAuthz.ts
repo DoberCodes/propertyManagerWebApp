@@ -9,8 +9,9 @@ if (!admin.apps.length) {
 const db = admin.firestore();
 
 const PLAN_CAPABILITIES = {
-	team: new Set(['basic', 'professional']),
-	tenant: new Set(['basic', 'professional']),
+	// Support both current plan IDs and legacy aliases.
+	team: new Set(['portfolio', 'professional']),
+	tenant: new Set(['property', 'portfolio', 'professional']),
 } as const;
 
 type InviteCapability = keyof typeof PLAN_CAPABILITIES;

@@ -70,6 +70,29 @@ export const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
 	const canSelfComplete = normalizedPlan === 'home';
 	const requiresWorkOrder = Boolean(task?.requiresWorkOrder);
 
+	const getReadableErrorMessage = (error: any): string => {
+		if (!error) return 'Failed to submit task completion. Please try again.';
+		if (typeof error === 'string') return error;
+		if (typeof error.message === 'string' && error.message.trim()) {
+			return error.message;
+		}
+		if (typeof error.error === 'string' && error.error.trim()) {
+			return error.error;
+		}
+		if (error.error && typeof error.error === 'object') {
+			const nested =
+				error.error.message || error.error.details || error.error.code;
+			if (typeof nested === 'string' && nested.trim()) {
+				return nested;
+			}
+		}
+		try {
+			return JSON.stringify(error);
+		} catch {
+			return 'Failed to submit task completion. Please try again.';
+		}
+	};
+
 	// currentUser is guaranteed to exist in protected routes
 
 	const validateForm = (): boolean => {
@@ -107,11 +130,11 @@ export const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
 			const financials =
 				hasActualCosts || estimateBreakdown || financialNotes
 					? {
-						currency: task?.financials?.currency || 'USD',
-						estimate: estimateBreakdown,
-						actual: hasActualCosts ? actualBreakdown : undefined,
-						notes: financialNotes || undefined,
-					}
+							currency: task?.financials?.currency || 'USD',
+							estimate: estimateBreakdown,
+							actual: hasActualCosts ? actualBreakdown : undefined,
+							notes: financialNotes || undefined,
+						}
 					: undefined;
 
 			let completionFileData: CompletionFile | undefined;
@@ -255,9 +278,7 @@ export const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
 			onClose();
 		} catch (error: any) {
 			setErrors({
-				general:
-					error.message ||
-					'Failed to submit task completion. Please try again.',
+				general: getReadableErrorMessage(error),
 			});
 		} finally {
 			setIsSubmitting(false);

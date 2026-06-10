@@ -191,7 +191,6 @@ export const DashboardTab = () => {
 		setShowTaskAssignDialog,
 		assigningTaskId,
 		handleAssignTask,
-		handleCreateTask,
 		handleEditTask,
 	} = taskHandlers;
 
@@ -405,7 +404,7 @@ export const DashboardTab = () => {
 						[device?.type, device?.brand, device?.model]
 							.filter(Boolean)
 							.join(' ')
-							.trim() || 'Device';
+							.trim() || 'Appliance';
 					return [id, name];
 				}),
 			),
@@ -637,7 +636,7 @@ export const DashboardTab = () => {
 					.filter(Boolean);
 
 				const deviceName = normalizedDeviceIds.length
-					? deviceLookup.get(normalizedDeviceIds[0]) || 'Device'
+					? deviceLookup.get(normalizedDeviceIds[0]) || 'Appliance'
 					: 'Property-level';
 
 				return {
@@ -657,7 +656,7 @@ export const DashboardTab = () => {
 			})
 			.filter(Boolean)
 			.sort((a: any, b: any) => b.timestamp.getTime() - a.timestamp.getTime())
-			.slice(0, 8);
+			.slice(0, 5);
 
 		return activity;
 	}, [
@@ -709,7 +708,7 @@ export const DashboardTab = () => {
 	const todayFocusLead = useMemo(() => {
 		if (taskStatusCounts.overdue > 0 && nextUrgentTask) {
 			return `${taskStatusCounts.overdue} ${
-				taskStatusCounts.overdue === 1 ? 'workflow is' : 'workflows are'
+				taskStatusCounts.overdue === 1 ? 'task is' : 'tasks are'
 			} overdue. Start with ${nextUrgentTask.title}.`;
 		}
 
@@ -725,7 +724,7 @@ export const DashboardTab = () => {
 			const remainingUpcoming = Math.max(taskStatusCounts.upcoming - 1, 0);
 			if (remainingUpcoming > 0) {
 				return `${remainingUpcoming} more ${
-					remainingUpcoming === 1 ? 'workflow is' : 'workflows are'
+					remainingUpcoming === 1 ? 'task is' : 'tasks are'
 				} due soon after that.`;
 			}
 			return 'Clear this first to reduce the rest of today\'s pressure.';
@@ -735,7 +734,7 @@ export const DashboardTab = () => {
 			return 'Use this window to plan preventive maintenance before it becomes urgent.';
 		}
 
-		return 'Add the next planned maintenance workflow while the queue is clear.';
+		return 'Add the next planned maintenance task while the queue is clear.';
 	}, [nextUrgentTask, taskStatusCounts.upcoming, taskStatusCounts.completed]);
 
 	const homeHealthStatus = useMemo(() => {
@@ -773,7 +772,7 @@ export const DashboardTab = () => {
 			return 'Best next move: schedule one preventive service window while the queue is clear.';
 		}
 
-		return 'Best next move: add the next planned maintenance workflow.';
+		return 'Best next move: add the next planned maintenance task.';
 	}, [nextUrgentTask, taskStatusCounts.overdue, completedThisMonthCount]);
 
 	const homeHealthDrivers = useMemo(() => {
@@ -907,8 +906,8 @@ export const DashboardTab = () => {
 			if (allProperties.length > 1) {
 				return {
 					disabled: false,
-					label: 'Add Workflow',
-					helperText: 'Choose the property in the maintenance workflow modal.',
+					label: 'Add Task',
+					helperText: 'Choose the property in the maintenance task modal.',
 				};
 			}
 
@@ -930,17 +929,12 @@ export const DashboardTab = () => {
 
 			return {
 				disabled: false,
-				label: 'Add Workflow',
-				helperText: 'Create a prefilled maintenance workflow from this seasonal tip.',
+				label: 'Add Task',
+				helperText: 'Create a prefilled maintenance task from this seasonal tip.',
 			};
 		},
 		[allProperties, filteredTasks, ACTIVE_TASK_STATUSES, normalizeTaskTitle],
 	);
-
-	const handleOpenBlankTaskModal = () => {
-		setSeasonalTaskDraft(null);
-		handleCreateTask();
-	};
 
 	const handleAddSeasonalTipTask = useCallback(
 		(card: SeasonalCard) => {
@@ -1065,10 +1059,7 @@ export const DashboardTab = () => {
 									: nextUrgentTask.status === 'In Progress'
 									? 'Open Task'
 									: 'Start Now'
-								: 'Open Urgent Queue'}
-						</FocusButton>
-						<FocusButton $variant='secondary' onClick={handleOpenBlankTaskModal}>
-							Add Task
+								: 'Open Task List'}
 						</FocusButton>
 						{nextUrgentTask && (
 							<FocusButton
@@ -1104,10 +1095,10 @@ export const DashboardTab = () => {
 				</TodayFocusCard>
 
 				<PortfolioHealthCard>
-					<CardEyebrow>System Awareness</CardEyebrow>
-					<CardTitle>Operational continuity</CardTitle>
+					<CardEyebrow>Maintenance Overview</CardEyebrow>
+					<CardTitle>Maintenance Status</CardTitle>
 					<PortfolioHeaderText>
-						Across {allProperties.length}{' '}
+						Current maintenance picture across {allProperties.length}{' '}
 						{allProperties.length === 1 ? 'property' : 'properties'} and {trackedSystemsCount}{' '}
 						{trackedSystemsCount === 1 ? 'tracked system' : 'tracked systems'}.
 					</PortfolioHeaderText>
@@ -1116,19 +1107,19 @@ export const DashboardTab = () => {
 							<PortfolioMetricValue>
 								{systemsNeedingAttentionCount}
 							</PortfolioMetricValue>
-							<PortfolioMetricLabel>Systems Needing Attention</PortfolioMetricLabel>
+							<PortfolioMetricLabel>Needs Attention</PortfolioMetricLabel>
 						</PortfolioMetric>
 						<PortfolioMetric>
 							<PortfolioMetricValue>
 								{upcomingServiceWindowCount}
 							</PortfolioMetricValue>
-							<PortfolioMetricLabel>Upcoming Service Windows</PortfolioMetricLabel>
+							<PortfolioMetricLabel>Upcoming Service</PortfolioMetricLabel>
 						</PortfolioMetric>
 						<PortfolioMetric>
 							<PortfolioMetricValue>
 								{maintenanceEventsThisMonth}
 							</PortfolioMetricValue>
-							<PortfolioMetricLabel>Maintenance Events This Month</PortfolioMetricLabel>
+							<PortfolioMetricLabel>Logged This Month</PortfolioMetricLabel>
 						</PortfolioMetric>
 					</PortfolioMetrics>
 				</PortfolioHealthCard>
@@ -1159,7 +1150,6 @@ export const DashboardTab = () => {
 				<RecentActivityHeader>
 					<div>
 						<CardEyebrow>Recent Maintenance Activity</CardEyebrow>
-						<CardTitle>Latest system events</CardTitle>
 						<RecentActivitySubtitle>
 							The most recent device-level maintenance updates across your active properties.
 						</RecentActivitySubtitle>
@@ -1167,7 +1157,7 @@ export const DashboardTab = () => {
 				</RecentActivityHeader>
 				{recentMaintenanceActivity.length === 0 ? (
 					<RecentActivityEmpty>
-						No device maintenance events yet. Complete tasks or add logs from a device page to build continuity.
+						No appliance maintenance events yet. Complete tasks or add logs from an appliance page to build the service history.
 					</RecentActivityEmpty>
 				) : (
 					<RecentActivityList>
@@ -1190,7 +1180,7 @@ export const DashboardTab = () => {
 			<UrgentQueueSection id='urgent-task-queue'>
 				<UrgentQueueHeader>
 					<div>
-							<CardTitle>Systems Needing Attention</CardTitle>
+							<CardTitle>Needing Attention</CardTitle>
 						<UrgentQueueSubtitle>
 								The highest-risk maintenance work is surfaced first so you can reduce overdue pressure fast.
 						</UrgentQueueSubtitle>

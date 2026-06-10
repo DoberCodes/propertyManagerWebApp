@@ -31,11 +31,11 @@ import {
 import {
 	Wrapper,
 	TaskGridSection,
-	WorkflowControlPanel,
-	WorkflowControlRow,
-	WorkflowSearchInput,
-	WorkflowSortSelect,
-	WorkflowResultCount,
+	TaskControlPanel,
+	TaskControlRow,
+	TaskSearchInput,
+	TaskSortSelect,
+	TaskResultCount,
 	MobileListSection,
 	MobileTaskCard,
 	MobileTaskHeader,
@@ -397,7 +397,7 @@ export const TasksPage = () => {
 				signals.push(
 					task.recurrenceFrequency
 						? `Recurring ${task.recurrenceFrequency}`
-						: 'Recurring workflow',
+						: 'Recurring task',
 				);
 			}
 
@@ -414,7 +414,7 @@ export const TasksPage = () => {
 			}
 
 			if (signals.length === 0) {
-				signals.push('Awaiting first recorded continuity event');
+				signals.push('Awaiting first recorded maintenance event');
 			}
 
 			return signals.slice(0, 3);
@@ -423,7 +423,7 @@ export const TasksPage = () => {
 	// Table columns definition
 	const columns: Column[] = [
 		{
-				header: 'Workflow',
+				header: 'Task',
 			key: 'title',
 			sortable: true,
 			render: (value: string, task: any) => {
@@ -486,7 +486,7 @@ export const TasksPage = () => {
 			},
 		},
 		{
-			header: 'Continuity',
+			header: 'Maintenance Status',
 			key: 'updatedAt',
 			sortable: true,
 			render: (_value: string, task: any) => {
@@ -494,10 +494,10 @@ export const TasksPage = () => {
 				const recurringSummary = task.isRecurring
 					? task.recurrenceFrequency
 						? `Recurring ${task.recurrenceFrequency}`
-						: 'Recurring workflow active'
+						: 'Recurring task active'
 					: task.completionDate
-						? 'Workflow has recorded maintenance history'
-						: 'First continuity event still pending';
+						? 'Task has recorded maintenance history'
+						: 'First maintenance event still pending';
 				return (
 					<div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
 						<div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>
@@ -520,10 +520,10 @@ export const TasksPage = () => {
 				const operational = getTaskOperationalStatus(task);
 				const overdue = isTaskOverdueForDisplay(task);
 				const activityText = overdue
-					? 'Maintenance continuity interrupted'
+					? 'Maintenance is overdue'
 					: task.status === 'In Progress'
-						? 'Maintenance continuity in progress'
-						: 'Queued for upcoming continuity work';
+						? 'Maintenance in progress'
+						: 'Queued for upcoming maintenance';
 				return (
 					<div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
 						<span
@@ -621,7 +621,7 @@ export const TasksPage = () => {
 		setPendingUndo({ ...action, timeoutId });
 		setUndoToastMessage(
 			action.kind === 'delete'
-				? `Removing "${action.taskTitle}" from your active workflows...`
+				? `Removing "${action.taskTitle}" from your active tasks...`
 				: `Completing "${action.taskTitle}" and logging history...`,
 		);
 	};
@@ -643,7 +643,7 @@ export const TasksPage = () => {
 
 	const taskActions: Action[] = [
 		{
-			label: 'Refine Workflow',
+			label: 'Refine Task',
 			icon: faEdit,
 			onClick: (task: any) => handleEditTask(task),
 		},
@@ -688,25 +688,25 @@ export const TasksPage = () => {
 	return (
 		<Wrapper>
 			{/* Task Filter Section */}
-			<WorkflowControlPanel>
-				<WorkflowControlRow>
-					<WorkflowSearchInput
+			<TaskControlPanel>
+				<TaskControlRow>
+					<TaskSearchInput
 						type='text'
 						placeholder='Search history, notes...'
 						value={searchTerm}
 						onChange={(e) => setSearchTerm(e.target.value)}
 					/>
-					<WorkflowSortSelect
+					<TaskSortSelect
 						value={`${sortState.key}:${sortState.direction}`}
 						onChange={(e) => handleSortOptionChange(e.target.value)}
-						aria-label='Organize workflows'>
+						aria-label='Organize tasks'>
 						<option value='dueDate:asc'>Sort: Due soonest</option>
 						<option value='dueDate:desc'>Sort: Due latest</option>
 						<option value='priority:desc'>Sort: Priority first</option>
 						<option value='title:asc'>Sort: Title A-Z</option>
 						<option value='propertyTitle:asc'>Sort: Property A-Z</option>
 						<option value='status:asc'>Sort: Status</option>
-					</WorkflowSortSelect>
+					</TaskSortSelect>
 					{!isMobile && (
 						<button
 							onClick={handleCreateTask}
@@ -721,11 +721,11 @@ export const TasksPage = () => {
 								cursor: 'pointer',
 								whiteSpace: 'nowrap',
 							}}
-							title='Create maintenance workflow'>
-								+ Add Workflow
+							title='Create maintenance task'>
+								+ Add Task
 						</button>
 					)}
-				</WorkflowControlRow>
+				</TaskControlRow>
 				<QuickFilterChips>
 					<QuickFilterChip
 						$active={quickFilter === 'all'}
@@ -756,10 +756,10 @@ export const TasksPage = () => {
 						<QuickFilterChip onClick={clearTopFilters}>Clear</QuickFilterChip>
 					)}
 				</QuickFilterChips>
-				<WorkflowResultCount>
-					Showing {filteredTasks.length} {filteredTasks.length === 1 ? 'workflow' : 'workflows'}
-				</WorkflowResultCount>
-			</WorkflowControlPanel>
+				<TaskResultCount>
+					Showing {filteredTasks.length} {filteredTasks.length === 1 ? 'task' : 'tasks'}
+				</TaskResultCount>
+			</TaskControlPanel>
 
 			{isMobile ? (
 				<MobileListSection>
@@ -783,23 +783,23 @@ export const TasksPage = () => {
 							alignItems: 'center',
 							justifyContent: 'center',
 						}}
-						aria-label='Create maintenance workflow'>
+						aria-label='Create maintenance task'>
 						<FontAwesomeIcon icon={faPlus} />
 					</button>
 					{filteredTasks.length === 0 ? (
 						<ZeroState
 							title={
 								allTasks.length === 0
-									? 'No maintenance workflows yet'
+									? 'No maintenance tasks yet'
 									: activeTasksCount === 0
-									? 'No active maintenance workflows'
-									: 'No workflows match your search or filter'
+									? 'No active maintenance tasks'
+									: 'No tasks match your search or filter'
 							}
 							description={
 								allTasks.length === 0
-									? 'Create your first maintenance workflow to start building continuity'
+									? 'Create your first maintenance task to start building service history'
 									: activeTasksCount === 0
-									? 'All your maintenance workflows are complete'
+									? 'All your maintenance tasks are complete'
 									: 'Try a different search term or quick filter chip'
 							}
 							icon='📊'
@@ -847,9 +847,9 @@ export const TasksPage = () => {
 											</MobileMetaValue>
 										</MobileMetaItem>
 										<MobileMetaItem>
-											<MobileMetaLabel>Continuity State</MobileMetaLabel>
+											<MobileMetaLabel>Maintenance Status</MobileMetaLabel>
 											<MobileMetaValue>
-												{isOverdue ? 'Maintenance continuity interrupted' : task.status === 'In Progress' ? 'Workflow is actively moving' : 'Queued for upcoming continuity work'}
+												{isOverdue ? 'Maintenance is overdue' : task.status === 'In Progress' ? 'Task is actively moving' : 'Queued for upcoming maintenance'}
 											</MobileMetaValue>
 										</MobileMetaItem>
 										<MobileMetaItem>
@@ -864,7 +864,7 @@ export const TasksPage = () => {
 									</MobileTaskMetaGrid>
 									<MobileTaskActions>
 											<MobileActionButton onClick={() => handleEditTask(task)}>
-											Refine Workflow
+											Refine Task
 										</MobileActionButton>
 											<MobileActionLinkRow>
 												<MobileActionLinkButton onClick={() => handleAssignTask(task)}>
@@ -904,16 +904,16 @@ export const TasksPage = () => {
 							<ZeroState
 								title={
 									allTasks.length === 0
-											? 'No maintenance workflows yet'
+											? 'No maintenance tasks yet'
 										: activeTasksCount === 0
-											? 'No active maintenance workflows'
-											: 'No workflows match your search or filter'
+											? 'No active maintenance tasks'
+											: 'No tasks match your search or filter'
 								}
 								description={
 									allTasks.length === 0
-											? 'Create your first maintenance workflow to start building continuity'
+											? 'Create your first maintenance task to start building service history'
 										: activeTasksCount === 0
-											? 'All your maintenance workflows are complete'
+											? 'All your maintenance tasks are complete'
 										: 'Try a different search term or quick filter chip'
 								}
 								icon='📊'></ZeroState>
@@ -927,7 +927,7 @@ export const TasksPage = () => {
 								getRowClassName={(row) =>
 									isTaskOverdueForDisplay(row as any) ? 'overdue-row' : undefined
 								}
-								emptyMessage='No workflows currently active. New continuity workflows will appear here.'
+								emptyMessage='No tasks currently active. New maintenance tasks will appear here.'
 								onRowSelect={(selectedRows) => {
 									setSelectedRows(new Set(selectedRows));
 								}}

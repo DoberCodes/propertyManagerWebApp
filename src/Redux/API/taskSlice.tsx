@@ -313,7 +313,7 @@ export const taskSlice = apiSlice.injectEndpoints({
 						const completionNotes =
 							(updates as any).completionNotes ||
 							existingTask.completionNotes ||
-							'Completed from task workflow';
+							'Completed from task';
 
 						const eventPayload = buildMaintenanceEventFromTask({
 							task: { ...existingTask, ...updates, status: 'Completed' },
@@ -352,7 +352,7 @@ export const taskSlice = apiSlice.injectEndpoints({
 			invalidatesTags: ['Tasks'],
 		}),
 
-		// Task completion workflow endpoints
+		// Task completion endpoints
 		// Note: File upload now uses base64 encoding on the client side
 		// See TaskCompletionModal.tsx for implementation
 
@@ -419,7 +419,12 @@ export const taskSlice = apiSlice.injectEndpoints({
 							completedByPlan,
 						},
 					});
-					await deleteDoc(docRef);
+
+					try {
+						await deleteDoc(docRef);
+					} catch (cleanupError) {
+						console.warn('Task completion history was written, but task cleanup failed:', cleanupError);
+					}
 
 					return {
 						data: {

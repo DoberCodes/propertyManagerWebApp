@@ -365,7 +365,6 @@ export const DeviceModal = (props: DeviceModalProps) => {
 		() => props.deviceFormData.serviceItems || [],
 		[props.deviceFormData.serviceItems],
 	);
-	const selectedUnitId = props.deviceFormData.location?.unitId || '';
 	const newDynamicFields = useMemo(
 		() =>
 			DEVICE_SERVICE_ITEM_FIELDS_BY_CATEGORY[newCategoryOption] ||
@@ -386,18 +385,11 @@ export const DeviceModal = (props: DeviceModalProps) => {
 		}
 	}, [props.isOpen]);
 
-	const unitOptions = useMemo(
-		() =>
-			(props.units || []).map((unit: any) => ({
-				value: unit.id,
-				label: unit.unitName || unit.name || unit.title || 'Unit',
-			})),
-		[props.units],
-	);
+	// Units are temporarily hidden from the app flow.
 
 	const missingRequiredFields = useMemo(() => {
 		const missing: string[] = [];
-		if (!props.deviceFormData.type.trim()) missing.push('Device Type');
+		if (!props.deviceFormData.type.trim()) missing.push('Appliance Type');
 		if (!props.deviceFormData.brand.trim()) missing.push('Brand');
 		if (!props.deviceFormData.model.trim()) missing.push('Model');
 		if (!props.deviceFormData.installationDate.trim()) {
@@ -619,7 +611,7 @@ export const DeviceModal = (props: DeviceModalProps) => {
 		}
 		if (parsed.specNotes) {
 			const enrichedNotes = matchingDevice
-				? `${parsed.specNotes} | Matched existing device: ${matchingDevice.type || 'Device'} ${matchingDevice.brand || ''} ${matchingDevice.model || ''}`.trim()
+				? `${parsed.specNotes} | Matched existing appliance: ${matchingDevice.type || 'Appliance'} ${matchingDevice.brand || ''} ${matchingDevice.model || ''}`.trim()
 				: parsed.specNotes;
 			emitChange('specNotes', enrichedNotes);
 		}
@@ -668,7 +660,7 @@ export const DeviceModal = (props: DeviceModalProps) => {
 		<GenericModal
 			isOpen={props.isOpen}
 			onClose={props.onClose}
-			title={props.isEditing ? 'Edit Household Device' : 'Add New Household Device'}
+			title={props.isEditing ? 'Edit Household Appliance' : 'Add New Household Appliance'}
 			onSubmit={(event) => {
 				setSubmitAttempted(true);
 				if (missingRequiredFields.length > 0) {
@@ -679,7 +671,7 @@ export const DeviceModal = (props: DeviceModalProps) => {
 				props.onSubmit(event);
 			}}
 			showActions={true}
-			primaryButtonLabel={props.isEditing ? 'Save Device' : 'Add Device'}
+			primaryButtonLabel={props.isEditing ? 'Save Appliance' : 'Add Appliance'}
 			secondaryButtonLabel='Cancel'
 			primaryButtonDisabled={missingRequiredFields.length > 0}>
 			<ModalTabContainer>
@@ -688,7 +680,7 @@ export const DeviceModal = (props: DeviceModalProps) => {
 					$active={activeTab === 'details'}
 					onClick={() => setActiveTab('details')}>
 					<TabLabel>
-						Device Details
+						Appliance Details
 						<TabBadge $tone={missingRequiredFields.length === 0 ? 'success' : 'neutral'}>
 							{missingRequiredFields.length === 0 ? 'Ready' : `${missingRequiredFields.length} required`}
 						</TabBadge>
@@ -710,7 +702,7 @@ export const DeviceModal = (props: DeviceModalProps) => {
 			<ScrollBody>
 			<ModalTabContent $active={activeTab === 'details'}>
 				<SummaryBanner>
-					<SummaryTitle>Capture the device basics first, then optionally document recurring parts and supplies.</SummaryTitle>
+					<SummaryTitle>Capture the appliance basics first, then optionally document recurring parts and supplies.</SummaryTitle>
 					<SummaryMeta>
 						<SummaryPill $tone={missingRequiredFields.length === 0 ? 'success' : 'neutral'}>
 							{completedBasics}/4 core items complete
@@ -722,25 +714,25 @@ export const DeviceModal = (props: DeviceModalProps) => {
 					<RequiredList>
 						{missingRequiredFields.length > 0
 							? `Still needed: ${missingRequiredFields.join(', ')}`
-							: 'All required device details are complete. You can save now or continue adding parts and supplies.'}
+							: 'All required appliance details are complete. You can save now or continue adding parts and supplies.'}
 					</RequiredList>
 				</SummaryBanner>
 
 				<SectionHeader>
-					<SectionTitle>Core Device Details</SectionTitle>
+					<SectionTitle>Core Appliance Details</SectionTitle>
 					<SectionDescription>
-						Define the device identity first so it can be linked cleanly to tasks and maintenance history.
+						Define the appliance identity first so it can be linked cleanly to tasks and maintenance history.
 					</SectionDescription>
 				</SectionHeader>
 				<div style={{ marginBottom: '12px' }}>
 					<ScanButton type='button' onClick={() => setIsDeviceScanOpen(true)}>
-						Scan Device Barcode
+						Scan Appliance Barcode
 					</ScanButton>
 				</div>
 
 				<FormGrid>
 				<FormGroup>
-					<FormLabel>Device Type *</FormLabel>
+					<FormLabel>Appliance Type *</FormLabel>
 					<FormInput
 						type='text'
 						name='type'
@@ -750,7 +742,7 @@ export const DeviceModal = (props: DeviceModalProps) => {
 						required
 					/>
 					{detailsError && !props.deviceFormData.type.trim() && (
-						<FieldError>Device type is required.</FieldError>
+						<FieldError>Appliance type is required.</FieldError>
 					)}
 				</FormGroup>
 
@@ -808,32 +800,7 @@ export const DeviceModal = (props: DeviceModalProps) => {
 						<FieldError>Installation date is required.</FieldError>
 					)}
 				</FormGroup>
-				{props.property.propertyType === 'Multi-Family' && (
-					<FormGroup>
-						<FormLabel>Associated Unit</FormLabel>
-						{unitOptions.length > 0 ? (
-							<>
-								<TaskSelect
-									value={selectedUnitId}
-									onChange={(value) => emitChange('location.unitId', value)}
-									placeholder='(none)'
-									options={[{ value: '', label: '(none)' }, ...unitOptions]}
-								/>
-								<FieldHint>
-									Choose a unit if this device belongs to a specific residence.
-								</FieldHint>
-							</>
-						) : (
-							<FormInput
-								type='text'
-								name='location.unitId'
-								value={selectedUnitId}
-								onChange={props.onFormChange}
-								placeholder='Unit ID'
-							/>
-						)}
-					</FormGroup>
-				)}
+				{/* Units are temporarily hidden from the app flow. */}
 				<FormGroupFull>
 					<SectionHeader>
 						<SectionTitle>Attachments</SectionTitle>
@@ -1384,7 +1351,7 @@ export const DeviceModal = (props: DeviceModalProps) => {
 		</GenericModal>
 		<BarcodeScannerModal
 			isOpen={isDeviceScanOpen}
-			title='Scan Device Barcode'
+			title='Scan Appliance Barcode'
 			onClose={() => setIsDeviceScanOpen(false)}
 			onDetected={handleDeviceBarcodeDetected}
 		/>

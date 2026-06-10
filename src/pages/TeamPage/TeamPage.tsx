@@ -66,6 +66,7 @@ import {
 	SaveButton,
 } from './TeamPage.styles';
 import { WarningDialog } from '../../Components/Library/WarningDialog';
+import { LockedFeatureCallout } from '../../Components/Library/LockedFeatureCallout';
 import {
 	useCreateTeamGroupMutation,
 	useCreateTeamMemberInvitationCodeMutation,
@@ -769,6 +770,14 @@ export default function TeamPage() {
 					)}
 				</div>
 			</PageHeaderSection>
+
+			{!canManage && (
+				<LockedFeatureCallout
+					title='Team collaboration is locked on your current plan'
+					description='You can review current team assignments in read-only mode. Upgrade to Portfolio to invite, manage, and group team members.'
+					upgradeLabel='Upgrade for Team Access'
+				/>
+			)}
 
 			<TeamGroupSection>
 				{filteredTeamGroups.map((group) => (

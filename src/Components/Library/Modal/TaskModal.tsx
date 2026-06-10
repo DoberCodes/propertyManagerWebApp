@@ -39,7 +39,6 @@ import {
 } from '../../../Redux/API/taskSlice';
 import { useGetAllDevicesQuery } from '../../../Redux/API/deviceSlice';
 import {
-	useGetAllUnitsQuery,
 	useGetPropertiesQuery,
 } from '../../../Redux/API/propertySlice';
 import { useGetAllMaintenanceHistoryForUserQuery } from '../../../Redux/API/userSlice';
@@ -54,8 +53,8 @@ import { db } from '../../../config/firebase';
 import { COLORS } from '../../../constants/colors';
 import { Device } from '../../../types/Property.types';
 
-const LINKED_DEVICE_NOTES_START = '--- Linked Device Details ---';
-const LINKED_DEVICE_NOTES_END = '--- End Linked Device Details ---';
+const LINKED_DEVICE_NOTES_START = '--- Linked Appliance Details ---';
+const LINKED_DEVICE_NOTES_END = '--- End Linked Appliance Details ---';
 
 const escapeForRegex = (value: string) =>
 	value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -74,7 +73,7 @@ const buildLinkedDeviceDetailsSection = (devices: Device[]) => {
 
 	const lines: string[] = [
 		LINKED_DEVICE_NOTES_START,
-		'Use these linked device details while performing this task:',
+		'Use these linked appliance details while performing this task:',
 		'',
 	];
 
@@ -82,7 +81,7 @@ const buildLinkedDeviceDetailsSection = (devices: Device[]) => {
 		const displayName =
 			(device.brand && device.model
 				? `${device.brand} ${device.model}`
-				: device.model || device.brand || device.type || `Device ${index + 1}`) +
+				: device.model || device.brand || device.type || `Appliance ${index + 1}`) +
 			(device.type ? ` (${device.type})` : '');
 		const serviceItems = device.serviceItems || [];
 
@@ -98,7 +97,7 @@ const buildLinkedDeviceDetailsSection = (devices: Device[]) => {
 				);
 			});
 		} else {
-			// Backward compatibility for older devices that still use scalar fields.
+			// Backward compatibility for older appliances that still use scalar fields.
 			if (device.partNumber) lines.push(`   Part Number: ${device.partNumber}`);
 			if (device.filterSize) lines.push(`   Filter Size: ${device.filterSize}`);
 			if (device.specNotes) lines.push(`   Service Notes: ${device.specNotes}`);
@@ -111,7 +110,7 @@ const buildLinkedDeviceDetailsSection = (devices: Device[]) => {
 			!device.filterSize &&
 			!device.specNotes
 		) {
-			lines.push('   No additional device specs saved yet.');
+			lines.push('   No additional appliance specs saved yet.');
 		}
 		lines.push('');
 	});
@@ -444,7 +443,6 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 	assigneeOptions = [],
 	currentUser = null,
 	propertyOptions = [],
-	unitOptions = [],
 	unitId = null,
 	taskTitlePlaceholder = 'Task title',
 }) => {
@@ -487,7 +485,6 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 	const dispatch = useDispatch();
 	const { data: allTasks = [] } = useGetTasksQuery();
 	const { data: allDevices = [] } = useGetAllDevicesQuery();
-	const { data: allUnits = [] } = useGetAllUnitsQuery();
 	const { data: allProperties = [] } = useGetPropertiesQuery();
 	const { data: allMaintenanceHistory = [] } =
 		useGetAllMaintenanceHistoryForUserQuery();
@@ -502,6 +499,7 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 	const categoryWrapRef = useRef<HTMLDivElement | null>(null);
 	const locationWrapRef = useRef<HTMLDivElement | null>(null);
 	const titleInputRef = useRef<HTMLInputElement | null>(null);
+	const hasInitializedFormForOpen = useRef(false);
 
 	const selectedPropertyId = formState.propertyId || propertyId || '';
 
@@ -511,19 +509,7 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 		return allProperties.find((p: any) => p.id === selectedPropertyId);
 	}, [selectedPropertyId, allProperties]);
 
-	const isSingleFamily = selectedProperty?.propertyType === 'Single Family';
-
-	const filteredUnitOptions = useMemo(() => {
-		if (unitOptions.length > 0) return unitOptions;
-		if (!selectedPropertyId) return [];
-
-		return allUnits
-			.filter((unit: any) => unit.propertyId === selectedPropertyId)
-			.map((unit: any) => ({
-				label: unit.unitName || unit.name || unit.title || 'Unit',
-				value: unit.id,
-			}));
-	}, [unitOptions, allUnits, selectedPropertyId]);
+	// Units are temporarily hidden from the app flow.
 
 	const defaultCategoryOptions = useMemo(
 		() => [
@@ -620,7 +606,7 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 			const displayName =
 				device.brand && device.model
 					? `${device.brand} ${device.model}`
-					: device.type || 'Unknown Device';
+					: device.type || 'Unknown Appliance';
 			return {
 				label: `${displayName} (${device.type || 'Unknown Type'})`,
 				value: device.id,
@@ -701,7 +687,22 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 
 	// initialize form when modal opens or when editingTaskId/initialTask changes
 	useEffect(() => {
-		if (!isOpen) return;
+		if (!isOpen) {
+			hasInitializedFormForOpen.current = false;
+			return;
+		}
+
+		// In create mode, initialize once per modal open so user edits (like unit changes)
+		// are not overwritten by parent re-renders that recreate initialTask/defaultForm objects.
+		if (
+			hasInitializedFormForOpen.current &&
+			!isEditing &&
+			!editingTaskId &&
+			!editingTask
+		) {
+			return;
+		}
+		hasInitializedFormForOpen.current = true;
 
 		if (editingTask) {
 			setFormState({
@@ -811,7 +812,15 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 		}
 
 		setFormState(defaultForm);
-	}, [isOpen, editingTaskId, editingTask, initialTask, foundTask, defaultForm]);
+	}, [
+		isOpen,
+		isEditing,
+		editingTaskId,
+		editingTask,
+		initialTask,
+		foundTask,
+		defaultForm,
+	]);
 
 	const handleChange = (e: React.ChangeEvent<any>) => {
 		const { name, value, type, checked } = e.target as any;
@@ -1086,7 +1095,7 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 						...(deviceSnapshot.data() as Omit<Device, 'id'>),
 					} as Device;
 				} catch (error) {
-					console.warn('Failed to load full linked device details for task notes', {
+					console.warn('Failed to load full linked appliance details for task notes', {
 						deviceId,
 						error,
 					});
@@ -1199,7 +1208,7 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 					delete updatesRaw.assignedTo;
 				}
 
-				// Keep device and history linking optional by omitting empty arrays.
+				// Keep appliance and history linking optional by omitting empty arrays.
 				if (Array.isArray(updatesRaw.devices) && updatesRaw.devices.length === 0) {
 					delete updatesRaw.devices;
 				}
@@ -1229,7 +1238,7 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 					financials: sanitizedFinancials,
 					propertyId: formState.propertyId || propertyId || '',
 					userId: currentUser?.id || '',
-					property: '',
+					property: selectedProperty?.title || '',
 				};
 				// sanitize notifications objects
 				if (
@@ -1266,7 +1275,7 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 					delete newTaskRaw.assignedTo;
 				}
 
-				// Keep device and history linking optional by omitting empty arrays.
+				// Keep appliance and history linking optional by omitting empty arrays.
 				if (Array.isArray(newTaskRaw.devices) && newTaskRaw.devices.length === 0) {
 					delete newTaskRaw.devices;
 				}
@@ -1297,11 +1306,11 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 		<>
 			<GenericModal
 				isOpen={isOpen}
-				title={isEditing ? 'Refine Continuity Task' : 'Create Continuity Task'}
+				title={isEditing ? 'Refine Maintenance Task' : 'Create Maintenance Task'}
 				onClose={onClose}
 				onSubmit={handleSubmit}
 				showActions={true}
-				primaryButtonLabel={isEditing ? 'Save Changes' : 'Create and Track Continuity'}
+				primaryButtonLabel={isEditing ? 'Save Changes' : 'Create Maintenance Task'}
 				secondaryButtonLabel='Cancel'
 				primaryButtonDisabled={missingRequiredFields.length > 0}>
 				<ModalTabContainer>
@@ -1310,7 +1319,7 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 						$active={activeTab === 'details'}
 						onClick={() => setActiveTab('details')}>
 						<TabLabel>
-							Task + Continuity
+							Task Details
 							<TabBadge $tone={detailsTabTone}>
 								{missingRequiredFields.length > 0
 									? `${missingRequiredFields.length} required`
@@ -1377,7 +1386,7 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 					<ModalTabContent $active={activeTab === 'details'}>
 					{isCreateMode && (
 						<SummaryBanner>
-							<SummaryTitle>Create the core continuity task first, then add optional automation if needed.</SummaryTitle>
+							<SummaryTitle>Create the maintenance task first, then add optional automation if needed.</SummaryTitle>
 							<SummaryMeta>
 								<SummaryPill $tone={detailsTabTone}>
 									{completedBasics}/3 core items complete
@@ -1390,7 +1399,7 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 							<RequiredList>
 								{missingRequiredFields.length > 0
 									? `Still needed: ${missingRequiredFields.join(', ')}`
-									: 'All required fields are complete. You can create this continuity task now or continue with optional settings.'}
+									: 'All required fields are complete. You can create this maintenance task now or continue with optional settings.'}
 							</RequiredList>
 						</SummaryBanner>
 					)}
@@ -1399,7 +1408,7 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 							<SectionHeader>
 								<SectionTitle>Core Setup</SectionTitle>
 								<SectionDescription>
-									Define what needs to be done, where it belongs, and how urgently continuity is at risk.
+									Define what needs to be done, where it belongs, and how urgent it is.
 								</SectionDescription>
 							</SectionHeader>
 						</FormGroupFull>
@@ -1457,7 +1466,7 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 								}))}
 							/>
 							{detailsError && !String(formState.priority || '').trim() && (
-									<FieldError>Select a priority to keep continuity planning clear.</FieldError>
+									<FieldError>Select a priority to keep maintenance planning clear.</FieldError>
 							)}
 						</FormGroup>
 
@@ -1489,7 +1498,7 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 							</DueDateModeGroup>
 							{isAsap ? (
 								<HelperBox>
-									This task will be created without a due date and can be addressed as soon as continuity capacity allows.
+									This task will be created without a due date and can be addressed as soon as capacity allows.
 								</HelperBox>
 							) : (
 								<>
@@ -1500,7 +1509,7 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 										onChange={onChange}
 									/>
 									<FieldHint>
-										Pick a target date when this continuity task should be completed.
+										Pick a target date when this maintenance task should be completed.
 									</FieldHint>
 								</>
 							)}
@@ -1529,7 +1538,7 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 									{showCreateMoreOptions ? 'Hide More Options' : 'Show More Options'}
 								</MoreOptionsToggle>
 								<FieldHint>
-									Keep this fast: title, priority, and due timing are enough to create the continuity task.
+									Keep this fast: title, priority, and due timing are enough to create the maintenance task.
 								</FieldHint>
 							</FormGroupFull>
 						)}
@@ -1620,25 +1629,27 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 							</SuggestionInputWrap>
 						</FormGroup>
 
-						{!isSingleFamily && filteredUnitOptions.length > 0 && (
-							<FormGroup>
-								<FormLabel>Unit</FormLabel>
-								<TaskSelect
-									name='unitId'
-									value={formState.unitId || ''}
-									onChange={(value) =>
-										handleChange({
-											target: { name: 'unitId', value, type: 'select-one' },
-										} as any)
-									}
-									placeholder='(none)'
-									options={[
-										{ value: '', label: '(none)' },
-										...filteredUnitOptions,
-									]}
-								/>
-							</FormGroup>
-						)}
+								{/* Units are temporarily hidden from the app flow.
+								{filteredUnitOptions.length > 0 && (
+									<FormGroup>
+										<FormLabel>Unit</FormLabel>
+										<TaskSelect
+											name='unitId'
+											value={formState.unitId || ''}
+											onChange={(value) =>
+												handleChange({
+													target: { name: 'unitId', value, type: 'select-one' },
+												} as any)
+											}
+											placeholder='(none)'
+											options={[
+												{ value: '', label: '(none)' },
+												...filteredUnitOptions,
+											]}
+										/>
+									</FormGroup>
+								)}
+								*/}
 
 						{assigneeOptions.length > 0 && (
 							<FormGroup>
@@ -1668,23 +1679,23 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 
 						{internalDeviceOptions.length > 0 && (
 							<FormGroup>
-								<FormLabel>Connected Devices (Optional)</FormLabel>
+								<FormLabel>Connected Appliances (Optional)</FormLabel>
 								<MultiSelect
 									options={internalDeviceOptions}
 									value={formState.devices || []}
 									onChange={handleDeviceChange}
-									placeholder='Select devices for this task...'
+									placeholder='Select appliances for this task...'
 								/>
 								<small style={{ color: '#6b7280' }}>
-									Linked device service items are automatically appended to task
-									notes when you save. Leave blank for non-device tasks.
+									Linked appliance service items are automatically appended to task
+									notes when you save. Leave blank for non-appliance tasks.
 								</small>
 							</FormGroup>
 						)}
 
 						{internalMaintenanceHistoryOptions.length > 0 && (
 							<FormGroup>
-								<FormLabel>Linked Continuity Records</FormLabel>
+								<FormLabel>Linked Maintenance Records</FormLabel>
 								<div
 									style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
 									<button
@@ -1699,7 +1710,7 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 											cursor: 'pointer',
 											fontSize: '14px',
 										}}>
-										🔗 Link Continuity Records (
+										🔗 Link Maintenance Records (
 										{formState.linkedMaintenanceHistoryIds?.length || 0})
 									</button>
 									{(formState.linkedMaintenanceHistoryIds?.length || 0) > 0 && (
@@ -1715,7 +1726,7 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 							<>
 								<FormGroupFull>
 									<SectionHeader>
-										<SectionTitle>Workflow</SectionTitle>
+										<SectionTitle>Task</SectionTitle>
 										<SectionDescription>
 											Adjust lifecycle state and completion rules when editing an existing task.
 										</SectionDescription>
@@ -1772,7 +1783,7 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 					<AdvancedStack>
 						<SectionCard>
 							<SectionHeader>
-								<SectionTitle>Workflow defaults</SectionTitle>
+								<SectionTitle>Task defaults</SectionTitle>
 								<SectionDescription>
 									These settings are optional during creation. You can keep the defaults and update them later.
 								</SectionDescription>

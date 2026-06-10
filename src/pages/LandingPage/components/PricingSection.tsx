@@ -47,13 +47,13 @@ const paidPlans = [
 const cardFeatureHighlights: Record<string, string[]> = {
 	home: [
 		'1 property included',
-		'Up to 8 devices & systems',
+		'Up to 8 appliances & systems',
 		'Maintenance history tracking',
 		'Recurring maintenance scheduling',
 	],
 	property: [
 		'Up to 3 properties included',
-		'Unlimited devices & systems',
+		'Unlimited appliances & systems',
 		'Advanced search & retrieval',
 		'Property reports & exports',
 	],
@@ -67,7 +67,7 @@ const cardFeatureHighlights: Record<string, string[]> = {
 
 const quickComparisonRows = [
 	{ label: 'Properties included', values: ['1', 'Up to 3', 'Up to 15'] },
-	{ label: 'Devices & systems', values: ['Up to 8', 'Unlimited', 'Unlimited'] },
+	{ label: 'Appliances & systems', values: ['Up to 8', 'Unlimited', 'Unlimited'] },
 	{ label: 'Maintenance history tracking', values: [true, true, true] },
 	{ label: 'Recurring maintenance scheduling', values: [true, true, true] },
 	{ label: 'Document & photo storage', values: [true, true, true] },

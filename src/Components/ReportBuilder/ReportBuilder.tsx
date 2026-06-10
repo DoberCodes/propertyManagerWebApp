@@ -1,7 +1,11 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../Redux/store/store';
-import { canAccessReadOnlyFeatures } from '../../utils/subscriptionUtils';
+import {
+	canAccessReadOnlyFeatures,
+	canExportData,
+	canViewReports,
+} from '../../utils/subscriptionUtils';
 import {
 	selectCanAccessTeam,
 	selectCanViewAllPages,
@@ -74,6 +78,7 @@ import {
 import { useGetTasksQuery } from '../../Redux/API/taskSlice';
 import { useGetTeamMembersQuery } from '../../Redux/API/teamSlice';
 import { useAppFeedback } from '../Library/AppFeedback/AppFeedbackProvider';
+import { LockedFeatureCallout } from '../Library/LockedFeatureCallout';
 
 // Alias Library components to match local naming convention
 const FormGroup = LibraryFormGroup;
@@ -94,6 +99,16 @@ type ReportType =
 	| 'tenant-profiles'
 	| '';
 
+type ReportOption = {
+	value: ReportType;
+	label: string;
+	description: string;
+	requiresTeamAccess: boolean;
+	requiresMultiProperty?: boolean;
+	requiresMultiFamily?: boolean;
+	requiresCommercialSuites?: boolean;
+};
+
 // Helper to determine which reports a user can access
 const getAccessibleReports = (
 	canAccessTeamReport: boolean,
@@ -103,15 +118,7 @@ const getAccessibleReports = (
 		hasMultiFamilyProperties: boolean;
 		hasCommercialSuites: boolean;
 	},
-): Array<{
-	value: ReportType;
-	label: string;
-	description: string;
-	requiresTeamAccess: boolean;
-	requiresMultiProperty?: boolean;
-	requiresMultiFamily?: boolean;
-	requiresCommercialSuites?: boolean;
-}> => {
+): ReportOption[] => {
 	const {
 		scopedProperties,
 		isHomeowner,
@@ -119,7 +126,7 @@ const getAccessibleReports = (
 		hasCommercialSuites,
 	} = options;
 
-	const allReports = [
+	const allReports: ReportOption[] = [
 		{
 			value: 'tasks' as ReportType,
 			label: 'Task Report',
@@ -143,8 +150,8 @@ const getAccessibleReports = (
 		},
 		{
 			value: 'devices' as ReportType,
-			label: 'Devices',
-			description: 'Property devices with installation dates, status, and maintenance notes',
+			label: 'Appliances',
+			description: 'Property appliances with installation dates, status, and maintenance notes',
 			requiresTeamAccess: false,
 			requiresMultiProperty: false,
 		},
@@ -170,14 +177,15 @@ const getAccessibleReports = (
 			requiresMultiProperty: false,
 			requiresCommercialSuites: true,
 		},
-		{
-			value: 'units' as ReportType,
-			label: 'Units',
-			description: 'Individual unit details and occupancy information',
-			requiresTeamAccess: false,
-			requiresMultiProperty: false,
-			requiresMultiFamily: true,
-		},
+		// Units are temporarily hidden from the app flow while the core loop is simplified.
+		// {
+		// 	value: 'units' as ReportType,
+		// 	label: 'Units',
+		// 	description: 'Individual unit details and occupancy information',
+		// 	requiresTeamAccess: false,
+		// 	requiresMultiProperty: false,
+		// 	requiresMultiFamily: true,
+		// },
 		{
 			value: 'tenant-profiles' as ReportType,
 			label: 'Tenant Profiles',
@@ -250,6 +258,12 @@ const getReportDescription = (
 
 export const ReportBuilder: React.FC = () => {
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
+	const canAccessReports =
+		!!currentUser?.subscription && canViewReports(currentUser.subscription as any);
+	const canExportReports =
+		!!currentUser?.subscription &&
+		canAccessReadOnlyFeatures(currentUser.subscription as any) &&
+		canExportData(currentUser.subscription as any);
 	const canManageTeam = useSelector(selectCanAccessTeam);
 	const canViewPages = useSelector(selectCanViewAllPages);
 	const isHomeowner = useSelector(selectIsHomeowner);
@@ -296,7 +310,7 @@ export const ReportBuilder: React.FC = () => {
 	const { data: contractors = [], isLoading: contractorsLoading } =
 		useGetContractorsQuery();
 
-	// Get all units and devices across all properties
+	// Get all units and appliances across all properties
 	const { data: allUnits = [] } = useGetAllUnitsQuery();
 
 	const { data: allDevices = [] } = useGetAllDevicesQuery();
@@ -718,6 +732,10 @@ export const ReportBuilder: React.FC = () => {
 	]);
 
 	const handleReportTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+		if (!canAccessReports) {
+			feedback.notify('Report access is locked on your current plan.');
+			return;
+		}
 		setReportType(e.target.value as ReportType);
 		setSelectedColumns([]);
 		setFilters({
@@ -754,11 +772,15 @@ export const ReportBuilder: React.FC = () => {
 			return;
 		}
 
+		if (!canAccessReports) {
+			feedback.notify(
+				'Your current plan does not include report access. Please upgrade to continue.',
+			);
+			return;
+		}
+
 		// Check subscription permissions for export - allow expired users to export
-		if (
-			currentUser?.subscription &&
-			!canAccessReadOnlyFeatures(currentUser.subscription)
-		) {
+		if (!canExportReports) {
 			feedback.notify(
 				'Your current plan does not include data export. Please upgrade to access this feature.'
 			);
@@ -845,6 +867,22 @@ export const ReportBuilder: React.FC = () => {
 		],
 	);
 
+	const discoverableReports = useMemo(
+		() =>
+			getAccessibleReports(true, {
+				scopedProperties,
+				isHomeowner,
+				hasMultiFamilyProperties,
+				hasCommercialSuites,
+			}),
+		[
+			scopedProperties,
+			isHomeowner,
+			hasMultiFamilyProperties,
+			hasCommercialSuites,
+		],
+	);
+
 	// Validate that current report type is still accessible
 	const isCurrentReportAccessible = useMemo(
 		() =>
@@ -879,20 +917,34 @@ export const ReportBuilder: React.FC = () => {
 
 			{isLoading && <InfoMessage>Loading data...</InfoMessage>}
 			<ReportBuilderContainer>
+				{!canAccessReports && (
+					<LockedFeatureCallout
+						title='Reports are locked on your current plan'
+						description='You can preview available report types below. Upgrade to Property or Portfolio to generate and review reports.'
+						upgradeLabel='Upgrade for Reports'
+						compact
+					/>
+				)}
 				{/* Report Type Selection */}
 				<Section>
 					{' '}
 					<SectionTitle>Report Type</SectionTitle>
 					<FormGroup>
 						<Label>Select Report</Label>
-						<Select value={reportType} onChange={handleReportTypeChange}>
+						<Select value={reportType} onChange={handleReportTypeChange} disabled={!canAccessReports}>
 							<option value=''>-- Choose a report type --</option>
-							{accessibleReports.map((report) => (
-								<option key={report.value} value={report.value}>
+							{discoverableReports.map((report) => {
+								const isAccessible =
+									canAccessReports &&
+									accessibleReports.some((item) => item.value === report.value);
+								return (
+								<option key={report.value} value={report.value} disabled={!isAccessible}>
 									{report.label}
 									{report.requiresTeamAccess ? ' (Team Management)' : ''}
+									{!isAccessible ? ' - Upgrade required' : ''}
 								</option>
-							))}
+								);
+							})}
 						</Select>
 					</FormGroup>
 					{reportType && currentReportDescription && (
@@ -1053,12 +1105,9 @@ export const ReportBuilder: React.FC = () => {
 							onClick={handleDownload}
 							disabled={
 								selectedColumns.length === 0 ||
-								(currentUser?.subscription
-									? !canAccessReadOnlyFeatures(currentUser.subscription)
-									: false)
+								!canExportReports
 							}>
-							{currentUser?.subscription &&
-							!canAccessReadOnlyFeatures(currentUser.subscription)
+							{!canExportReports
 								? 'Upgrade to Export'
 								: 'Download CSV'}
 						</Button>

@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
 import styled from 'styled-components';
-import { useGetUnitsQuery } from '../../Redux/API/propertySlice';
 import {
 	useAddTenantMutation,
 	useCreateTenantInvitationCodeMutation,
@@ -16,6 +15,8 @@ interface AddTenantModalProps {
 	propertyId: string;
 	mode?: 'create' | 'edit';
 	tenant?: any;
+	/** Pre-fill and lock the unit field (e.g. when opened from a unit detail page) */
+	defaultUnit?: string;
 }
 
 export const AddTenantModal: React.FC<AddTenantModalProps> = ({
@@ -24,13 +25,41 @@ export const AddTenantModal: React.FC<AddTenantModalProps> = ({
 	propertyId,
 	mode = 'create',
 	tenant,
+	defaultUnit,
 }) => {
+	const resolveMutationErrorMessage = (
+		error: any,
+		fallback: string,
+	): string => {
+		if (typeof error === 'string' && error.trim()) {
+			return error;
+		}
+
+		const dataMessage =
+			typeof error?.data === 'string'
+				? error.data
+				: typeof error?.data?.message === 'string'
+					? error.data.message
+					: '';
+		if (dataMessage.trim()) {
+			return dataMessage;
+		}
+
+		const directMessage =
+			typeof error?.message === 'string' ? error.message : '';
+		if (directMessage.trim()) {
+			return directMessage;
+		}
+
+		return fallback;
+	};
+
 	const [formData, setFormData] = useState({
 		firstName: '',
 		lastName: '',
 		email: '',
 		phone: '',
-		unit: '',
+		unit: defaultUnit || '',
 		leaseStart: '',
 		leaseEnd: '',
 	});
@@ -48,10 +77,7 @@ export const AddTenantModal: React.FC<AddTenantModalProps> = ({
 	const [revokeTenantInvitationCode, { isLoading: isRevoking }] =
 		useRevokeTenantInvitationCodeMutation();
 
-	// Fetch units for this property
-	const { data: units = [] } = useGetUnitsQuery(propertyId, {
-		skip: !propertyId,
-	});
+	// Units are temporarily hidden from the app flow.
 
 	useEffect(() => {
 		if (mode === 'edit' && tenant) {
@@ -160,17 +186,17 @@ export const AddTenantModal: React.FC<AddTenantModalProps> = ({
 				lastName: '',
 				email: '',
 				phone: '',
-				unit: '',
+				unit: defaultUnit || '',
 				leaseStart: '',
 				leaseEnd: '',
 			});
 			// Don't auto-close so user can copy the invitation code
 		} catch (err: any) {
 			setError(
-				err.message ||
-					(mode === 'edit'
-						? 'Failed to update tenant'
-						: 'Failed to add tenant'),
+				resolveMutationErrorMessage(
+					err,
+					mode === 'edit' ? 'Failed to update tenant' : 'Failed to add tenant',
+				),
 			);
 		}
 	};
@@ -189,7 +215,7 @@ export const AddTenantModal: React.FC<AddTenantModalProps> = ({
 			}).unwrap();
 			setSuccess('Invitation code revoked.');
 		} catch (err: any) {
-			setError(err.message || 'Failed to revoke promo code');
+			setError(resolveMutationErrorMessage(err, 'Failed to revoke promo code'));
 		}
 	};
 
@@ -232,7 +258,7 @@ export const AddTenantModal: React.FC<AddTenantModalProps> = ({
 			setGeneratedInviteCode(promoCodeResult.code);
 			setSuccess('New invitation code generated. Share it with your tenant.');
 		} catch (err: any) {
-			setError(err.message || 'Failed to regenerate promo code');
+			setError(resolveMutationErrorMessage(err, 'Failed to regenerate promo code'));
 		} finally {
 			setIsRegenerating(false);
 		}
@@ -337,28 +363,39 @@ export const AddTenantModal: React.FC<AddTenantModalProps> = ({
 				/>
 			</FormGroup>
 
+			{/* Units are temporarily hidden from the app flow.
 			<FormGroup>
 				<FormLabel>Unit</FormLabel>
-				<select
-					name='unit'
-					value={formData.unit}
-					onChange={handleChange}
-					style={{
-						width: '100%',
-						padding: '8px 12px',
-						border: '1px solid #d1d5db',
-						borderRadius: '6px',
-						fontSize: '14px',
-						backgroundColor: 'white',
-					}}>
-					<option value=''>Select a unit</option>
-					{units.map((unit: any) => (
-						<option key={unit.id} value={unit.name}>
-							{unit.name}
-						</option>
-					))}
-				</select>
+				{defaultUnit ? (
+					<FormInput
+						name='unit'
+						value={formData.unit}
+						readOnly
+						style={{ backgroundColor: '#f3f4f6', cursor: 'not-allowed' }}
+					/>
+				) : (
+					<select
+						name='unit'
+						value={formData.unit}
+						onChange={handleChange}
+						style={{
+							width: '100%',
+							padding: '8px 12px',
+							border: '1px solid #d1d5db',
+							borderRadius: '6px',
+							fontSize: '14px',
+							backgroundColor: 'white',
+						}}>
+						<option value=''>Select a unit</option>
+						{units.map((unit: any) => (
+							<option key={unit.id} value={unit.name}>
+								{unit.name}
+							</option>
+						))}
+					</select>
+				)}
 			</FormGroup>
+			*/}
 
 			<FormGroup>
 				<FormLabel>Lease Start Date</FormLabel>

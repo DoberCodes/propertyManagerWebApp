@@ -565,7 +565,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 					{!analysis && activeMethod === 'photo' && (
 						<>
 							<Helper>
-								Take or upload a device sticker photo to extract text and map fields.
+								Take or upload a appliance sticker photo to extract text and map fields.
 							</Helper>
 							<Row>
 								<ActionButton
@@ -620,7 +620,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 						<InspectorCard>
 							<InspectorTitle>Scanned Data Inspector</InspectorTitle>
 							<InspectorHint>
-								Standardized structure: raw value, detected key-value pairs, GS1 segments, and normalized device/part mappings.
+								Standardized structure: raw value, detected key-value pairs, GS1 segments, and normalized appliance/part mappings.
 							</InspectorHint>
 							<PillRow>
 								{analysis.formatHints.hasPairs && <Pill>Key/Value</Pill>}

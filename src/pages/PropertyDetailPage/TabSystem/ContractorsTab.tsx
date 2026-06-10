@@ -230,7 +230,7 @@ export const ContractorsTab: React.FC<ContractorsTabProps> = ({
 							<strong>{value || contractor.name}</strong>
 						</div>
 						<div style={{ fontSize: 12, color: '#64748b' }}>
-							{contractor.category || 'General'} continuity support
+							{contractor.category || 'General'} maintenance support
 						</div>
 					</div>
 				);
@@ -243,13 +243,13 @@ export const ContractorsTab: React.FC<ContractorsTabProps> = ({
 		},
 		{
 			key: 'category',
-			header: 'Continuity Role',
+			header: 'Maintenance Role',
 			render: (value: string, contractor: any) => (
 				<div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
 					<CategoryBadge category={contractor.category}>{value}</CategoryBadge>
 					<div style={{ fontSize: 12, color: '#64748b', display: 'flex', alignItems: 'center', gap: 6 }}>
 						<FontAwesomeIcon icon={faClockRotateLeft} />
-						Service continuity references: {contractor.phone || 'No phone yet'}
+						Service contact: {contractor.phone || 'No phone yet'}
 					</div>
 				</div>
 			),
@@ -444,7 +444,7 @@ export const ContractorsTab: React.FC<ContractorsTabProps> = ({
 							actions={contractorActions}
 							showCheckbox={false}
 							hideHeader={true}
-							emptyMessage='No service partners found. Add one to strengthen maintenance continuity coverage.'
+							emptyMessage='No service partners found. Add one to strengthen maintenance coverage.'
 						/>
 					</DesktopTableWrapper>
 

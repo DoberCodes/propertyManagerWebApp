@@ -57,7 +57,7 @@ export const seasonalTipCards: SeasonalCard[] = [
 		bullets: [
 			'Monitor water bills for unusual increases',
 			'Inspect under sinks and around toilets for moisture',
-			'Consider installing leak detection devices',
+			'Consider installing leak detection sensors',
 		],
 		season: 'spring',
 		serviceLevel: 'basic',

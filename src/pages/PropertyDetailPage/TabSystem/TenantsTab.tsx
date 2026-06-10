@@ -14,10 +14,7 @@ import {
 	SectionContainer,
 	SectionHeader,
 } from '../../../Components/Library/InfoCards/InfoCardStyles';
-import { FormSelect } from '../../../Components/Library/Modal/ModalStyles';
 import { ReusableTable } from '../../../Components/Library/ReusableTable';
-import { useSelector } from 'react-redux';
-import { selectCanManageTenants } from '../../../Redux/selectors/permissionSelectors';
 import { SectionLead } from './index.styles';
 import {
 	FilterBar,
@@ -32,6 +29,8 @@ import {
 	ToolbarButton,
 } from './index.styles';
 import { GenericModal } from '../../../Components/Library';
+import { LockedFeatureCallout } from '../../../Components/Library/LockedFeatureCallout';
+import { canManageTenants as canManageTenantsForPlan } from '../../../utils/subscriptionUtils';
 import {
 	useLazyGetTenantInvitationCodeQuery,
 	useLazyGetTenantInvitationCodesByEmailQuery,
@@ -40,9 +39,6 @@ import {
 export const TenantsTab: React.FC<TenantsTabProps> = ({
 	property,
 	currentUser,
-	unitOptions = [],
-	selectedUnitId,
-	onSelectUnit,
 	setShowAddTenantModal,
 	onEditTenant,
 	onDeleteTenant,
@@ -214,11 +210,7 @@ export const TenantsTab: React.FC<TenantsTabProps> = ({
 	const filteredTenants = useMemo(() => {
 		if (!property.tenants) return [];
 		let tenants = property.tenants;
-		if (selectedUnitId) {
-			tenants = tenants.filter(
-				(t: any) => t.unit === selectedUnitId || t.unitId === selectedUnitId,
-			);
-		}
+		// Units are temporarily hidden from the app flow; do not apply unit scoping.
 		return applyFilters(tenants, filters, {
 			textFields: ['firstName', 'lastName', 'email', 'phone', 'unit'],
 			dateRangeFields: [
@@ -226,9 +218,9 @@ export const TenantsTab: React.FC<TenantsTabProps> = ({
 				{ field: 'leaseEnd', filterKey: 'leaseDate' },
 			],
 		});
-	}, [property.tenants, filters, selectedUnitId]);
-	const canManageTenantsByPlan = useSelector(selectCanManageTenants);
-	const canManageTenants = !!currentUser && canManageTenantsByPlan;
+	}, [property.tenants, filters]);
+	const canManageTenants =
+		!!currentUser?.subscription && canManageTenantsForPlan(currentUser.subscription as any);
 
 	const getLeaseContinuity = (tenant: any) => {
 		const now = Date.now();
@@ -271,7 +263,7 @@ export const TenantsTab: React.FC<TenantsTabProps> = ({
 						<strong>{value}</strong>
 					</div>
 					<div style={{ fontSize: 12, color: '#64748b' }}>
-						{row.unitDisplay || 'No unit assigned'} • {row.email || 'No email on file'}
+						{row.email || 'No email on file'}
 					</div>
 					{canManageTenants && (
 						<button
@@ -294,7 +286,7 @@ export const TenantsTab: React.FC<TenantsTabProps> = ({
 			),
 		},
 		{
-			header: 'Lease Continuity',
+			header: 'Lease Status',
 			key: 'leaseEndDisplay',
 			render: (_value: any, row: any) => {
 				const continuity = getLeaseContinuity(row);
@@ -414,8 +406,16 @@ export const TenantsTab: React.FC<TenantsTabProps> = ({
 		<SectionContainer>
 			<SectionHeader>Property Tenants</SectionHeader>
 			<SectionLead>
-				Track occupancy, lease timing, and resident continuity across the property.
+				Track occupancy, lease timing, and resident status across the property.
 			</SectionLead>
+			{!canManageTenants && (
+				<LockedFeatureCallout
+					title='Tenant management is locked on your current plan'
+					description='View tenant occupancy details in read-only mode. Upgrade to Portfolio to add, invite, or edit tenants.'
+					upgradeLabel='Upgrade for Tenant Tools'
+					compact
+				/>
+			)}
 			<div
 				style={{
 					display: 'flex',
@@ -436,6 +436,7 @@ export const TenantsTab: React.FC<TenantsTabProps> = ({
 					</Toolbar>
 				)}
 
+				{/* Units are temporarily hidden from the app flow.
 				{unitOptions.length > 0 && (
 					<FormSelect
 						name='unitFilter'
@@ -443,13 +444,14 @@ export const TenantsTab: React.FC<TenantsTabProps> = ({
 						onChange={(e) => onSelectUnit && onSelectUnit(e.target.value)}
 						style={{ marginLeft: 0 }}>
 						<option value=''>All units</option>
-						{unitOptions.map((u) => (
-							<option key={u.value} value={u.value}>
+						{unitOptions.map((u, idx) => (
+							<option key={u.value ?? `unit-${idx}`} value={u.value}>
 								{u.label}
 							</option>
 						))}
 					</FormSelect>
 				)}
+				*/}
 				<div
 					style={{
 						display: 'flex',
@@ -508,7 +510,7 @@ export const TenantsTab: React.FC<TenantsTabProps> = ({
 						actions={actions}
 						showCheckbox={false}
 						hideHeader={true}
-						emptyMessage='No tenant records yet. Add tenants to establish occupancy continuity.'
+						emptyMessage='No tenant records yet. Add tenants to establish occupancy history.'
 					/>
 				</GridContainer>
 			) : (

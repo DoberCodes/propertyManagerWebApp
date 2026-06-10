@@ -31,7 +31,7 @@ interface TabsProps {
 	selectedUnitId?: string;
 	onSelectUnit?: (id: string) => void;
 	assigneeOptions?: { label: string; value: string; email?: string }[];
-	openCreateWorkflowToken?: number;
+	openCreateTaskToken?: number;
 	handleAddMaintenanceHistory: (history: any) => void;
 	handleDeleteMaintenanceHistory: (historyId: string) => void;
 	setShowAddTenantModal: (show: boolean) => void;
@@ -63,7 +63,7 @@ export const TabSystem = ({
 	unitOptions = [],
 	selectedUnitId,
 	onSelectUnit,
-	openCreateWorkflowToken = 0,
+	openCreateTaskToken = 0,
 	// assigneeOptions intentionally not used here
 	handleAddMaintenanceHistory,
 	handleDeleteMaintenanceHistory,
@@ -113,7 +113,7 @@ export const TabSystem = ({
 						unitOptions={unitOptions}
 						selectedUnitId={selectedUnitId}
 						onSelectUnit={onSelectUnit}
-						openCreateWorkflowToken={openCreateWorkflowToken}
+						openCreateTaskToken={openCreateTaskToken}
 					/>
 				);
 			case 'maintenance':

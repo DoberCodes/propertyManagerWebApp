@@ -380,7 +380,7 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property }) => {
 								<FontAwesomeIcon icon={iconStyle.icon} />
 							</span>
 							<div style={{ fontWeight: 800, color: '#0f172a', lineHeight: 1.3 }}>
-								{row.type || 'Device'}
+								{row.type || 'Appliance'}
 							</div>
 						</div>
 						<div style={{ fontSize: 13, fontWeight: 700, color: '#334155', lineHeight: 1.4 }}>
@@ -490,12 +490,12 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property }) => {
 					getDeviceAttentionState(row);
 				const activityText =
 					overdueLinkedTasks > 0
-						? `Maintenance continuity interrupted on ${overdueLinkedTasks} task${overdueLinkedTasks === 1 ? '' : 's'}`
+						? `Maintenance overdue on ${overdueLinkedTasks} task${overdueLinkedTasks === 1 ? '' : 's'}`
 						: linkedOpenTasks > 0
-							? `${linkedOpenTasks} continuity workflow${linkedOpenTasks === 1 ? '' : 's'} in progress`
+							? `${linkedOpenTasks} maintenance task${linkedOpenTasks === 1 ? '' : 's'} in progress`
 							: recurringLinkedTasks > 0
-								? 'Recurring maintenance continuity active'
-								: 'No active continuity workflows';
+								? 'Recurring maintenance active'
+								: 'No active maintenance tasks';
 
 				return (
 					<div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -585,9 +585,9 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property }) => {
 			const planDetails = getSubscriptionPlanDetails(currentUser.subscription.plan);
 			const maxDevices = planDetails?.maxDevices || 8;
 			feedback.notify(
-				`Your ${planDetails?.name || 'current'} plan allows up to ${maxDevices} devices. ` +
-					`You currently have ${allDevices.length} devices. ` +
-					`Please upgrade your plan to add more devices.`,
+				`Your ${planDetails?.name || 'current'} plan allows up to ${maxDevices} appliances. ` +
+					`You currently have ${allDevices.length} appliances. ` +
+					`Please upgrade your plan to add more appliances.`,
 			);
 			return;
 		}
@@ -673,14 +673,14 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property }) => {
 
 			handleCloseModal();
 		} catch (error) {
-			console.error('Error saving device:', error);
+			console.error('Error saving appliance:', error);
 		} finally {
 			setIsSubmitting(false);
 		}
 	};
 
 	const handleDeleteDevice = (deviceId: string) => {
-		setDeleteDialogMessage('Are you sure you want to delete this device?');
+		setDeleteDialogMessage('Are you sure you want to delete this appliance?');
 		setPendingDeleteDeviceId(deviceId);
 		setDeleteDialogOpen(true);
 	};
@@ -691,8 +691,8 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property }) => {
 			await deleteDevice(pendingDeleteDeviceId);
 			setSelectedDevice(null);
 		} catch (error) {
-			console.error('Error deleting device:', error);
-			feedback.notify('Failed to delete device. Please try again.');
+			console.error('Error deleting appliance:', error);
+			feedback.notify('Failed to delete appliance. Please try again.');
 		}
 		setDeleteDialogOpen(false);
 		setPendingDeleteDeviceId(null);
@@ -701,8 +701,8 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property }) => {
 	if (isLoading) {
 		return (
 			<SectionContainer>
-				<SectionHeader>Household Devices</SectionHeader>
-				<div>Loading devices...</div>
+				<SectionHeader>Household Appliances</SectionHeader>
+				<div>Loading appliances...</div>
 			</SectionContainer>
 		);
 	}
@@ -732,7 +732,7 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property }) => {
 					Needs Attention: {needsAttentionDeviceCount}
 				</TabSummaryPill>
 				<TabSummaryPill>
-					Open Device Tasks: {linkedOpenTaskCount}
+					Open Appliance Tasks: {linkedOpenTaskCount}
 				</TabSummaryPill>
 			</TabSummaryBar>
 
@@ -743,7 +743,7 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property }) => {
 					onClick={handleOpenCreateModal}
 					style={{ width: isMobile ? '100%' : undefined }}>
 					<FontAwesomeIcon icon={faPlus} style={{ marginRight: '8px' }} />
-					{remainingDeviceSlots <= 0 ? 'Device Limit Reached' : 'Add Device'}
+					{remainingDeviceSlots <= 0 ? 'Appliance Limit Reached' : 'Add Appliance'}
 				</ToolbarButton>
 			</Toolbar>
 
@@ -828,8 +828,8 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property }) => {
 			{devices.length === 0 ? (
 				<EmptyState>
 					<FontAwesomeIcon icon={faWrench} size='3x' color='#ccc' />
-					<p>No devices added yet</p>
-					<p>Click "Add Device" to get started</p>
+					<p>No appliances added yet</p>
+					<p>Click "Add Appliance" to get started</p>
 				</EmptyState>
 			) : (
 				<DesktopTableWrapper>
@@ -842,7 +842,7 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property }) => {
 						actions={deviceActions}
 						showCheckbox={false}
 						hideHeader={true}
-						emptyMessage='No systems have been recorded yet. Add your first device to start operational history.'
+						emptyMessage='No systems have been recorded yet. Add your first appliance to start operational history.'
 					/>
 				</DesktopTableWrapper>
 			)}
