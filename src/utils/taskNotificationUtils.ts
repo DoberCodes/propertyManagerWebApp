@@ -11,13 +11,14 @@ import { TaskNotification } from '../types/Task.types';
  * - 30 days before due date
  * - 7 days before due date
  * - 1 day before due date
+ * - Due date day (today)
  * - Every week for 4 weeks after due date (overdue)
  */
 export const getDefaultTaskNotifications = (): TaskNotification[] => {
 	const notifications: TaskNotification[] = [];
 
 	// Reminder notifications (before due date)
-	const reminderDays = [30, 7, 1];
+	const reminderDays = [30, 7, 1, 0];
 	reminderDays.forEach((days) => {
 		notifications.push({
 			id: `reminder-${days}`,
@@ -56,6 +57,8 @@ export const getDefaultNotificationMessage = (
 			return `Reminder: "${taskTitle}" is due in 7 days`;
 		} else if (daysBeforeDue === 1) {
 			return `Reminder: "${taskTitle}" is due tomorrow`;
+		} else if (daysBeforeDue === 0) {
+			return `Due today: "${taskTitle}" is due today`;
 		} else {
 			return `Reminder: "${taskTitle}" is due in ${daysBeforeDue} days`;
 		}

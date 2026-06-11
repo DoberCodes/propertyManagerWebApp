@@ -181,6 +181,34 @@ export const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
 				completedByPlan: currentUser?.subscription?.plan,
 			}).unwrap();
 
+			if (!canSelfComplete) {
+				try {
+					const approvalRecipientId =
+						currentUser?.accountId && currentUser.accountId !== currentUser.id
+							? currentUser.accountId
+							: currentUser!.id;
+
+					await createNotification({
+						userId: approvalRecipientId,
+						type: 'task_approval_required',
+						title: 'Task Approval Needed',
+						message: `"${taskTitle}" was submitted and needs approval before it is finalized.`,
+						data: {
+							taskId,
+							taskTitle,
+							propertyId: task?.propertyId,
+							submittedBy: currentUser!.id,
+						},
+						status: 'unread',
+						actionUrl: task?.propertyId ? `/properties/${task.propertyId}` : undefined,
+						createdAt: new Date().toISOString(),
+						updatedAt: new Date().toISOString(),
+					}).unwrap();
+				} catch (notifError) {
+					console.warn('Failed to create approval-required notification:', notifError);
+				}
+			}
+
 			if (
 				task?.isRecurring &&
 				task?.recurrenceFrequency &&
@@ -264,6 +292,30 @@ export const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
 						stack: recurringError.stack,
 						taskData: task,
 					});
+					try {
+						await createNotification({
+							userId: currentUser!.id,
+							type: 'task_recurring_generation_failed',
+							title: 'Recurring Task Generation Failed',
+							message: `Automatic recurring task creation failed for "${task.title}". Please review and create the next task manually.`,
+							data: {
+								taskId: task.id,
+								taskTitle: task.title,
+								propertyId: task.propertyId,
+								recurrenceFrequency: task.recurrenceFrequency,
+								recurrenceInterval: task.recurrenceInterval,
+							},
+							status: 'unread',
+							actionUrl: task.propertyId ? `/properties/${task.propertyId}` : undefined,
+							createdAt: new Date().toISOString(),
+							updatedAt: new Date().toISOString(),
+						}).unwrap();
+					} catch (notifError) {
+						console.warn(
+							'Failed to create recurring generation failure notification:',
+							notifError,
+						);
+					}
 					// Don't fail the completion if recurring creation fails
 				}
 			}

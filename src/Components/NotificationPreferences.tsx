@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import styled from 'styled-components';
 import { useDispatch } from 'react-redux';
 import { AppDispatch } from '../Redux/store/store';
@@ -11,6 +11,9 @@ import {
 	useGetTasksQuery,
 	useUpdateTaskMutation,
 } from '../Redux/API/taskSlice';
+import {
+	mergeNotificationPreferences,
+} from '../utils/notificationPreferences';
 
 const NotificationSection = styled.div`
 	border: 1px solid #e5e7eb;
@@ -71,6 +74,28 @@ const SectionHeaderMeta = styled.span`
 
 const SectionBody = styled.div`
 	margin-top: 16px;
+`;
+
+const PresetActions = styled.div`
+	display: flex;
+	justify-content: flex-start;
+	margin-bottom: 16px;
+`;
+
+const PresetButton = styled.button`
+	background: #ffffff;
+	color: #0f172a;
+	border: 1px solid #cbd5e1;
+	padding: 8px 12px;
+	border-radius: 6px;
+	font-size: 13px;
+	font-weight: 600;
+	cursor: pointer;
+
+	&:hover {
+		background: #f8fafc;
+		border-color: #94a3b8;
+	}
 `;
 
 const MasterToggle = styled.div`
@@ -269,6 +294,9 @@ export const NotificationPreferences: React.FC<
 	const [updateTaskMutation] = useUpdateTaskMutation();
 	const [showDisableAllConfirm, setShowDisableAllConfirm] = useState(false);
 	const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed);
+	const resolvedPreferences = mergeNotificationPreferences(
+		currentUser?.notificationPreferences,
+	);
 
 	// Get tasks with notifications enabled
 	const { data: allTasks = [] } = useGetTasksQuery();
@@ -279,69 +307,11 @@ export const NotificationPreferences: React.FC<
 			task.notifications.length > 0,
 	);
 
-	const [preferences, setPreferences] = useState(() => ({
-		enabled: currentUser?.notificationPreferences?.enabled ?? true,
-		types: {
-			property_added:
-				currentUser?.notificationPreferences?.types?.property_added ?? true,
-			property_updated:
-				currentUser?.notificationPreferences?.types?.property_updated ?? true,
-			property_deleted:
-				currentUser?.notificationPreferences?.types?.property_deleted ?? true,
-			property_group_created:
-				currentUser?.notificationPreferences?.types?.property_group_created ??
-				true,
-			property_group_updated:
-				currentUser?.notificationPreferences?.types?.property_group_updated ??
-				true,
-			property_group_deleted:
-				currentUser?.notificationPreferences?.types?.property_group_deleted ??
-				true,
-			task_created:
-				currentUser?.notificationPreferences?.types?.task_created ?? true,
-			task_assigned:
-				currentUser?.notificationPreferences?.types?.task_assigned ?? true,
-			task_updated:
-				currentUser?.notificationPreferences?.types?.task_updated ?? true,
-			task_deleted:
-				currentUser?.notificationPreferences?.types?.task_deleted ?? true,
-			task_completed:
-				currentUser?.notificationPreferences?.types?.task_completed ?? true,
-			task_reminder:
-				currentUser?.notificationPreferences?.types?.task_reminder ?? true,
-			task_overdue:
-				currentUser?.notificationPreferences?.types?.task_overdue ?? true,
-			team_member_added:
-				currentUser?.notificationPreferences?.types?.team_member_added ?? true,
-			team_member_updated:
-				currentUser?.notificationPreferences?.types?.team_member_updated ??
-				true,
-			team_member_removed:
-				currentUser?.notificationPreferences?.types?.team_member_removed ??
-				true,
-			team_group_created:
-				currentUser?.notificationPreferences?.types?.team_group_created ?? true,
-			team_group_updated:
-				currentUser?.notificationPreferences?.types?.team_group_updated ?? true,
-			team_group_deleted:
-				currentUser?.notificationPreferences?.types?.team_group_deleted ?? true,
-			maintenance_request:
-				currentUser?.notificationPreferences?.types?.maintenance_request ??
-				true,
-			maintenance_request_created:
-				currentUser?.notificationPreferences?.types
-					?.maintenance_request_created ?? true,
-			legal_update:
-				currentUser?.notificationPreferences?.types?.legal_update ?? true,
-			property_shared:
-				currentUser?.notificationPreferences?.types?.property_shared ?? true,
-			share_invitation:
-				currentUser?.notificationPreferences?.types?.share_invitation ?? true,
-			share_invitation_accepted:
-				currentUser?.notificationPreferences?.types
-					?.share_invitation_accepted ?? true,
-		},
-	}));
+	const [preferences, setPreferences] = useState(() => resolvedPreferences);
+
+	useEffect(() => {
+		setPreferences(resolvedPreferences);
+	}, [resolvedPreferences]);
 
 	const notificationTypes = [
 		{
@@ -385,9 +355,30 @@ export const NotificationPreferences: React.FC<
 			description: 'Upcoming task due date reminders',
 		},
 		{
+			key: 'task_due_today' as const,
+			label: 'Tasks Due Today',
+			description: 'When a task reaches its due date today',
+		},
+		{
 			key: 'task_overdue' as const,
 			label: 'Overdue Tasks',
 			description: 'When tasks become overdue',
+		},
+		{
+			key: 'task_unassigned_critical' as const,
+			label: 'Critical Tasks Without Assignee',
+			description: 'When high/urgent tasks are created without an owner',
+		},
+		{
+			key: 'task_approval_required' as const,
+			label: 'Task Approval Needed',
+			description: 'When a completion is submitted and needs approval',
+		},
+		{
+			key: 'task_recurring_generation_failed' as const,
+			label: 'Recurring Task Generation Issues',
+			description:
+				'When automatic recurring task creation fails and needs attention',
 		},
 		{
 			key: 'team_member_added' as const,
@@ -398,11 +389,6 @@ export const NotificationPreferences: React.FC<
 			key: 'maintenance_request' as const,
 			label: 'Maintenance Requests',
 			description: 'Maintenance request notifications',
-		},
-		{
-			key: 'property_shared' as const,
-			label: 'Property Sharing',
-			description: 'When properties are shared with others',
 		},
 	];
 
@@ -462,6 +448,30 @@ export const NotificationPreferences: React.FC<
 		setShowDisableAllConfirm(true);
 	};
 
+	const handleApplyActionDefaults = async () => {
+		const actionDefaults = mergeNotificationPreferences(undefined);
+		setPreferences(actionDefaults);
+
+		try {
+			await updateUser({
+				id: currentUser.id,
+				updates: { notificationPreferences: actionDefaults },
+			}).unwrap();
+
+			dispatch(
+				setCurrentUser({
+					...currentUser,
+					notificationPreferences: actionDefaults,
+				}),
+			);
+			feedback.notify('Action-based notification defaults applied.');
+		} catch (error) {
+			console.error('Failed to apply action-based defaults:', error);
+			setPreferences(resolvedPreferences);
+			feedback.notify('Failed to apply action-based defaults. Please try again.');
+		}
+	};
+
 	const confirmDisableAllTaskNotifications = async () => {
 		setShowDisableAllConfirm(false);
 
@@ -508,6 +518,12 @@ export const NotificationPreferences: React.FC<
 						Control which notifications you receive and manage your task reminders.
 					</p>
 
+					<PresetActions>
+						<PresetButton type='button' onClick={handleApplyActionDefaults}>
+							Use Action-Based Defaults
+						</PresetButton>
+					</PresetActions>
+
 					<MasterToggle>
 						<input
 							type='checkbox'
@@ -516,7 +532,7 @@ export const NotificationPreferences: React.FC<
 							onChange={(e) => handleMasterToggle(e.target.checked)}
 						/>
 						<ToggleLabel htmlFor='master-notifications'>
-							Enable all notifications
+							Enable notifications
 						</ToggleLabel>
 					</MasterToggle>
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import styled from 'styled-components';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { AppDispatch, RootState } from 'Redux/store/store';
 import {
@@ -232,20 +232,35 @@ const UpgradeButton = styled(LinkButton)`
 
 const ButtonContainer = styled.div`
 	display: flex;
-	gap: 12px;
-	flex-wrap: wrap;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 8px;
 	margin-top: 16px;
 
 	@media (max-width: 640px) {
-		flex-direction: column;
+		align-items: stretch;
 		gap: 8px;
 	}
 `;
 
 const CancelButton = styled(LinkButton)`
-	background: #dc2626;
+	background: transparent;
+	color: #b91c1c;
+	margin: 0;
+	padding: 0;
+	text-decoration: underline;
+	text-underline-offset: 2px;
+	font-size: 0.9rem;
 	&:hover {
-		background: #b91c1c;
+		background: transparent;
+		color: #991b1b;
+	}
+
+	@media (max-width: 640px) {
+		width: auto;
+		padding: 0;
+		margin: 0;
+		text-align: left;
 	}
 `;
 
@@ -406,45 +421,61 @@ const FamilyMemberRole = styled.span`
 
 const FamilyMemberActions = styled.div`
 	display: flex;
-	gap: 8px;
-	flex-wrap: wrap;
-	justify-content: flex-end;
+	flex-direction: column;
+	align-items: flex-end;
+	gap: 6px;
 	flex: 1 1 240px;
 
 	@media (max-width: 640px) {
 		width: 100%;
 		flex: 1 1 auto;
-		flex-direction: column;
-		justify-content: flex-start;
+		align-items: stretch;
+	}
+`;
+
+const FamilyMemberSupportActions = styled.div`
+	display: flex;
+	align-items: center;
+	gap: 12px;
+
+	@media (max-width: 640px) {
+		justify-content: center;
+		flex-wrap: wrap;
 	}
 `;
 
 const FamilyMemberActionButton = styled.button<{ variant: 'edit' | 'reset' | 'remove' }>`
 	border: none;
 	border-radius: 6px;
-	padding: 6px 10px;
+	padding: ${({ variant }) => (variant === 'edit' ? '8px 14px' : '0')};
 	font-size: 12px;
 	font-weight: 600;
 	line-height: 1.2;
 	cursor: pointer;
 	white-space: normal;
-	color: #ffffff;
-	background: ${({ variant }) => {
+	color: ${({ variant }) => {
 		switch (variant) {
 			case 'edit':
-				return '#10b981';
+				return '#ffffff';
 			case 'reset':
-				return '#3b82f6';
+				return '#2563eb';
 			case 'remove':
-				return '#ef4444';
+				return '#dc2626';
 			default:
-				return '#3b82f6';
+				return '#2563eb';
 		}
 	}};
+	background: ${({ variant }) => (variant === 'edit' ? '#10b981' : 'transparent')};
+	text-decoration: ${({ variant }) => (variant === 'edit' ? 'none' : 'underline')};
+	text-underline-offset: ${({ variant }) => (variant === 'edit' ? '0' : '2px')};
+
+	&:hover {
+		opacity: 0.9;
+	}
 
 	@media (max-width: 640px) {
-		width: 100%;
-		padding: 10px 12px;
+		width: ${({ variant }) => (variant === 'edit' ? '100%' : 'auto')};
+		padding: ${({ variant }) => (variant === 'edit' ? '10px 12px' : '0')};
 	}
 `;
 
@@ -659,6 +690,7 @@ export const SettingsPage: React.FC = () => {
 	const [familyMemberSuccess, setFamilyMemberSuccess] = useState('');
 	const [activeCategory, setActiveCategory] =
 		useState<SettingsCategoryKey>('account');
+	const [searchParams, setSearchParams] = useSearchParams();
 
 	// Load family members
 	useEffect(() => {
@@ -735,6 +767,27 @@ export const SettingsPage: React.FC = () => {
 		() => categoryOptions.filter((category) => category.visible),
 		[categoryOptions],
 	);
+
+	useEffect(() => {
+		const category = searchParams.get('category');
+		if (!category) {
+			return;
+		}
+
+		const isValidCategory = categoryOptions.some(
+			(option) => option.key === category,
+		);
+		if (!isValidCategory) {
+			return;
+		}
+
+		setActiveCategory(category as SettingsCategoryKey);
+		setSearchParams((prev) => {
+			const next = new URLSearchParams(prev);
+			next.delete('category');
+			return next;
+		}, { replace: true });
+	}, [categoryOptions, searchParams, setSearchParams]);
 
 	useEffect(() => {
 		if (!visibleCategories.some((category) => category.key === activeCategory)) {
@@ -1188,18 +1241,20 @@ export const SettingsPage: React.FC = () => {
 													Edit
 												</FamilyMemberActionButton>
 											)}
-											<FamilyMemberActionButton
-												type='button'
-												variant='reset'
-												onClick={() => handleResendPasswordSetup(member.id)}>
-												Resend Password Setup
-											</FamilyMemberActionButton>
-											<FamilyMemberActionButton
-												type='button'
-												variant='remove'
-												onClick={() => handleRemoveFamilyMember(member.id)}>
-												Remove
-											</FamilyMemberActionButton>
+											<FamilyMemberSupportActions>
+												<FamilyMemberActionButton
+													type='button'
+													variant='reset'
+													onClick={() => handleResendPasswordSetup(member.id)}>
+													Resend Password Setup
+												</FamilyMemberActionButton>
+												<FamilyMemberActionButton
+													type='button'
+													variant='remove'
+													onClick={() => handleRemoveFamilyMember(member.id)}>
+													Remove
+												</FamilyMemberActionButton>
+											</FamilyMemberSupportActions>
 										</FamilyMemberActions>
 									</FamilyMemberCard>
 								))}

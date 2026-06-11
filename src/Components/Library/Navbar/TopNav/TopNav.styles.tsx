@@ -11,6 +11,8 @@ export const Wrapper = styled.div`
 	align-items: center;
 	justify-content: space-between;
 	height: ${nav_height};
+	min-height: ${nav_height};
+	flex-shrink: 0;
 	background: linear-gradient(90deg, #065f46 0%, #047857 100%);
 	padding: 40px 20px;
 	padding-top: max(40px, env(safe-area-inset-top));

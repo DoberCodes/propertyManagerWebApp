@@ -463,7 +463,12 @@ export const TopNav = () => {
 				onClose={() => setIsNotificationModalOpen(false)}
 				title='Notifications'
 				showActions={false}>
-				<NotificationPanel />
+				<NotificationPanel
+					onOpenSettings={() => {
+						setIsNotificationModalOpen(false);
+						navigate('/settings?category=notifications');
+					}}
+				/>
 			</GenericModal>
 		</>
 	);

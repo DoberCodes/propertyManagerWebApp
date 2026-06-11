@@ -113,7 +113,11 @@ export interface User {
 			task_deleted: boolean;
 			task_completed: boolean;
 			task_reminder: boolean;
+			task_due_today: boolean;
 			task_overdue: boolean;
+			task_unassigned_critical: boolean;
+			task_approval_required: boolean;
+			task_recurring_generation_failed: boolean;
 			team_member_added: boolean;
 			team_member_updated: boolean;
 			team_member_removed: boolean;

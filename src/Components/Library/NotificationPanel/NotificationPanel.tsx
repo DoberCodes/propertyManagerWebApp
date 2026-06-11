@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import styled from 'styled-components';
+import { useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
 	faCheckCircle,
@@ -27,9 +28,12 @@ import {
 
 interface NotificationPanelProps {
 	userId?: string;
+	onOpenSettings?: () => void;
 }
 
-export const NotificationPanel: React.FC<NotificationPanelProps> = () => {
+export const NotificationPanel: React.FC<NotificationPanelProps> = ({
+	onOpenSettings,
+}) => {
 	const [error, setError] = useState('');
 	const [success, setSuccess] = useState('');
 	const [legalError, setLegalError] = useState('');
@@ -48,7 +52,17 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = () => {
 	} | null>(null);
 	const currentUser = useSelector((state: any) => state.user.currentUser);
 	const dispatch = useDispatch();
+	const navigate = useNavigate();
 	const notificationUserId = currentUser?.id || currentUser?.uid;
+
+	const handleOpenNotificationSettings = () => {
+		if (onOpenSettings) {
+			onOpenSettings();
+			return;
+		}
+
+		navigate('/settings?category=notifications');
+	};
 
 	const {
 		data: notifications = [],
@@ -277,6 +291,14 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = () => {
 				return '✅';
 			case 'task_assigned':
 				return '📋';
+			case 'task_due_today':
+				return '⏰';
+			case 'task_unassigned_critical':
+				return '⚠️';
+			case 'task_approval_required':
+				return '🛠️';
+			case 'task_recurring_generation_failed':
+				return '🔁';
 			case 'maintenance_request':
 				return '🔧';
 			default:
@@ -298,6 +320,14 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = () => {
 				return '#16a34a';
 			case 'task_assigned':
 				return '#ff9800';
+			case 'task_due_today':
+				return '#f59e0b';
+			case 'task_unassigned_critical':
+				return '#dc2626';
+			case 'task_approval_required':
+				return '#0ea5e9';
+			case 'task_recurring_generation_failed':
+				return '#b45309';
 			case 'maintenance_request':
 				return '#f44336';
 			default:
@@ -335,6 +365,12 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = () => {
 					<CloseButton onClick={() => setSuccess('')}>×</CloseButton>
 				</Alert>
 			)}
+
+			<HeaderActions>
+				<SettingsShortcutButton onClick={handleOpenNotificationSettings}>
+					Notification Settings
+				</SettingsShortcutButton>
+			</HeaderActions>
 
 			{notifications.length === 0 ? (
 				<EmptyState>
@@ -643,6 +679,33 @@ const EmptyState = styled.div`
 const NotificationsList = styled.div`
 	display: flex;
 	flex-direction: column;
+`;
+
+const HeaderActions = styled.div`
+	padding: 0 20px 12px;
+	display: flex;
+	justify-content: flex-end;
+
+	@media (max-width: 480px) {
+		padding: 0 16px 10px;
+	}
+`;
+
+const SettingsShortcutButton = styled.button`
+	border: 1px solid #cbd5e1;
+	background: #ffffff;
+	color: #0f172a;
+	border-radius: 999px;
+	padding: 7px 12px;
+	font-size: 12px;
+	font-weight: 600;
+	cursor: pointer;
+	transition: all 0.2s ease;
+
+	&:hover {
+		border-color: #94a3b8;
+		background: #f8fafc;
+	}
 `;
 
 const Divider = styled.hr`

@@ -32,6 +32,7 @@ import {
 import { getStripePriceIdForPlan } from '../constants/stripe';
 import { createLegalAgreementDocuments } from '../constants/legal';
 import { createCheckoutSession } from './stripeService';
+import { DEFAULT_NOTIFICATION_PREFERENCES } from '../utils/notificationPreferences';
 
 export interface FamilyInvite {
 	id: string;
@@ -482,6 +483,7 @@ export const signUpWithEmail = async (
 				isTeamMemberAccount: true,
 				...(teamInviteMemberId ? { teamMemberId: teamInviteMemberId } : {}),
 			}),
+			notificationPreferences: DEFAULT_NOTIFICATION_PREFERENCES,
 		};
 
 		const normalizedPlan = String(selectedPlan || '')

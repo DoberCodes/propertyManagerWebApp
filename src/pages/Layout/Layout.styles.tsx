@@ -6,8 +6,14 @@ export const Wrapper = styled.div`
 	width: 100%;
 	height: 100vh;
 	min-height: 100vh;
+	overflow: hidden;
 	padding-bottom: 0;
 	background-color: #fafafa;
+
+	@supports (height: 100dvh) {
+		height: 100dvh;
+		min-height: 100dvh;
+	}
 
 	@media (max-width: 1024px) {
 		width: 100%;
@@ -18,6 +24,7 @@ export const Main = styled.div`
 	display: flex;
 	flex: 1;
 	height: 100%; /* Use full height of Wrapper */
+	min-height: 0;
 	overflow: hidden;
 	flex-direction: row;
 
@@ -53,6 +60,7 @@ export const Content = styled.div`
 	display: flex;
 	flex-direction: column;
 	height: 100%; /* Match height of Main */
+	min-height: 0;
 	overflow-y: auto;
 	padding: 20px;
 	background-color: #fafafa; /* match TeamPage off-white */

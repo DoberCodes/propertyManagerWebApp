@@ -95,7 +95,7 @@ const checkExistingNotification = async (
 
 		const notificationsQuery = query(
 			collection(db, 'notifications'),
-			where('type', 'in', ['task_reminder', 'task_overdue']),
+			where('type', 'in', ['task_reminder', 'task_due_today', 'task_overdue']),
 			where('data.taskId', '==', taskId),
 			where('data.notificationId', '==', notificationId),
 			where('createdAt', '>=', Timestamp.fromDate(today)),
@@ -119,8 +119,13 @@ const createTaskNotification = async (
 	currentDate: Date,
 ): Promise<void> => {
 	try {
-		const notificationType =
-			notification.type === 'reminder' ? 'task_reminder' : 'task_overdue';
+		const isDueTodayReminder =
+			notification.type === 'reminder' && (notification.daysBeforeDue || 0) === 0;
+		const notificationType = isDueTodayReminder
+			? 'task_due_today'
+			: notification.type === 'reminder'
+				? 'task_reminder'
+				: 'task_overdue';
 		const message =
 			notification.customMessage ||
 			getDefaultNotificationMessage(notification, task.title);
@@ -150,8 +155,11 @@ const createTaskNotification = async (
 		const notificationData = {
 			userId: recipientId,
 			type: notificationType,
-			title:
-				notification.type === 'reminder' ? 'Task Reminder' : 'Task Overdue',
+			title: isDueTodayReminder
+				? 'Task Due Today'
+				: notification.type === 'reminder'
+					? 'Task Reminder'
+					: 'Task Overdue',
 			message,
 			data: {
 				taskId: task.id,
