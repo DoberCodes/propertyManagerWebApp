@@ -1,5 +1,5 @@
-🎉 **Release Notes for Version 2.2.15** 🎉
+🎉 **Release Notes for Version 2.2.16** 🎉
 
 
 ## 🐛 Bug Fixes
-- fixing the cramped header on mobile view, also fixing the hero action buttons showing on mobile.
+- fixing top nav issues and fixing notifications to use action based defaults
