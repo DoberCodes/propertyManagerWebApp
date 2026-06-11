@@ -140,6 +140,7 @@ export const TopNav = () => {
 				<RightSection>
 					{/* Notification Icon */}
 					<NotificationIcon
+						className='desktop-notification'
 						onClick={() => setIsNotificationModalOpen(true)}
 						$hasUnread={hasUnreadNotifications}
 						$unreadCount={unreadCount}>
@@ -176,18 +177,48 @@ export const TopNav = () => {
 								cursor: 'pointer',
 								position: 'relative',
 							}}>
-							<img
-								src={currentUser.image || 'https://via.placeholder.com/40'}
-								alt={`${currentUser.firstName} ${currentUser.lastName}`}
+							<div
 								onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
 								style={{
+									position: 'relative',
 									width: '40px',
 									height: '40px',
-									borderRadius: '50%',
-									border: '2px solid #22c55e',
-									objectFit: 'cover',
-								}}
-							/>
+								}}>
+								<img
+									src={currentUser.image || 'https://via.placeholder.com/40'}
+									alt={`${currentUser.firstName} ${currentUser.lastName}`}
+									style={{
+										width: '40px',
+										height: '40px',
+										borderRadius: '50%',
+										border: '2px solid #22c55e',
+										objectFit: 'cover',
+									}}
+								/>
+								{hasUnreadNotifications && unreadCount > 0 && (
+									<div
+										style={{
+											position: 'absolute',
+											top: '-4px',
+											right: '-4px',
+											minWidth: '18px',
+											height: '18px',
+											padding: '0 5px',
+											borderRadius: '999px',
+											background: '#ef4444',
+											color: '#ffffff',
+											border: '2px solid #047857',
+											fontSize: '10px',
+											fontWeight: 700,
+											display: 'flex',
+											alignItems: 'center',
+											justifyContent: 'center',
+											boxSizing: 'border-box',
+										}}>
+										{unreadCount > 99 ? '99+' : unreadCount}
+									</div>
+								)}
+							</div>
 							{isProfileDropdownOpen && (
 								<div
 									style={{
@@ -250,6 +281,30 @@ export const TopNav = () => {
 										}>
 										Settings
 									</button>
+										<button
+											onClick={() => {
+												setIsNotificationModalOpen(true);
+												setIsProfileDropdownOpen(false);
+											}}
+											style={{
+												width: '100%',
+												padding: '12px 16px',
+												border: 'none',
+												background: 'none',
+												textAlign: 'left',
+												cursor: 'pointer',
+												fontSize: '14px',
+												color: '#1a1a1a',
+												transition: 'background-color 0.2s ease',
+											}}
+											onMouseEnter={(e) =>
+												(e.currentTarget.style.backgroundColor = '#f3f4f6')
+											}
+											onMouseLeave={(e) =>
+												(e.currentTarget.style.backgroundColor = 'transparent')
+											}>
+											Notifications
+										</button>
 									{!isUserTenant && (
 										<button
 											onClick={() => {

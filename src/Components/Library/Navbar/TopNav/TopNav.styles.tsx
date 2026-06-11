@@ -118,6 +118,10 @@ export const RightSection = styled.div`
 		display: none;
 	}
 
+	.desktop-notification {
+		display: flex;
+	}
+
 	@media (max-width: 1024px) {
 		flex-wrap: nowrap;
 		justify-content: flex-end;
@@ -132,6 +136,10 @@ export const RightSection = styled.div`
 		}
 
 		.desktop-title {
+			display: none;
+		}
+
+		.desktop-notification {
 			display: none;
 		}
 	}

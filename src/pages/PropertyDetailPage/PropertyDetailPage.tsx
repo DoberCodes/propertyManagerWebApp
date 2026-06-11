@@ -70,6 +70,7 @@ import {
 	Wrapper,
 	EditableTitleInput,
 	ContentWrapper,
+	DesktopHeroActions,
 } from './PropertyDetailPage.styles';
 import { DeviceModal } from '../../Components/Library/Modal';
 import {
@@ -881,7 +882,7 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 					)
 				}
 				actions={
-					<>
+					<DesktopHeroActions>
 						{canManageProperties && (
 							<HeroActionButton onClick={handleOpenPropertyDialog}>
 								✎ Edit Property
@@ -904,7 +905,7 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 								🔧 Request Maintenance
 							</HeroActionButton>
 						)}
-					</>
+					</DesktopHeroActions>
 				}>
 				{imageError && (
 					<div

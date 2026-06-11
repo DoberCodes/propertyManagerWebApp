@@ -1060,7 +1060,11 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 	return (
 		<>
 			<DialogOverlay onClick={onClose}>
-				<DialogContainer onClick={(e) => e.stopPropagation()}>
+				<DialogContainer
+					onClick={(e) => e.stopPropagation()}
+					style={{
+						height: 'min(90vh, calc(100dvh - 1.5rem))',
+					}}>
 					<DialogHeader>
 						<div>
 							<DialogTitle>

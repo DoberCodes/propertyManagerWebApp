@@ -185,7 +185,7 @@ const TabLabel = styled.span`
 	gap: 0.5rem;
 
 	@media (max-width: 480px) {
-		gap: 0.35rem;
+		gap: 0.28rem;
 		white-space: nowrap;
 	}
 `;
@@ -211,6 +211,25 @@ const TabBadge = styled.span<{ $tone?: 'optional' | 'warning' | 'success' }>`
 			: props.$tone === 'success'
 				? '#166534'
 				: COLORS.textSecondary};
+
+	@media (max-width: 480px) {
+		font-size: 0.64rem;
+		padding: 0.12rem 0.35rem;
+	}
+`;
+
+const StickyTabRail = styled.div`
+	position: sticky;
+	top: 0;
+	z-index: 12;
+	background: #ffffff;
+`;
+
+const TabContentScrollArea = styled.div`
+	flex: 1;
+	min-height: 0;
+	overflow-y: auto;
+	padding-bottom: 0.5rem;
 `;
 
 const SummaryBanner = styled.div`
@@ -224,10 +243,42 @@ const SummaryBanner = styled.div`
 	background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf3 100%);
 `;
 
+const SummaryBannerHeader = styled.div`
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.65rem;
+	flex-wrap: wrap;
+`;
+
+const SummaryToggleButton = styled.button`
+	border: none;
+	background: transparent;
+	color: ${COLORS.primary};
+	font-size: 0.82rem;
+	font-weight: 700;
+	cursor: pointer;
+	padding: 0.2rem 0;
+	text-decoration: underline;
+	text-underline-offset: 2px;
+
+	&:hover {
+		color: ${COLORS.primaryDark};
+	}
+
+	@media (max-width: 480px) {
+		font-size: 0.76rem;
+	}
+`;
+
 const SummaryTitle = styled.div`
 	font-size: 0.95rem;
 	font-weight: 700;
 	color: ${COLORS.textPrimary};
+
+	@media (max-width: 480px) {
+		font-size: 0.88rem;
+	}
 `;
 
 const SummaryMeta = styled.div`
@@ -292,6 +343,10 @@ const SectionTitle = styled.h4`
 	font-size: 1rem;
 	font-weight: 700;
 	color: ${COLORS.textPrimary};
+
+	@media (max-width: 480px) {
+		font-size: 0.94rem;
+	}
 `;
 
 const SectionDescription = styled.p`
@@ -299,6 +354,10 @@ const SectionDescription = styled.p`
 	font-size: 0.87rem;
 	color: ${COLORS.textSecondary};
 	line-height: 1.5;
+
+	@media (max-width: 480px) {
+		font-size: 0.82rem;
+	}
 `;
 
 const FieldHint = styled.div`
@@ -860,6 +919,7 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 
 	const [activeTab, setActiveTab] = useState<ActiveTab>('details');
 	const [showCreateMoreOptions, setShowCreateMoreOptions] = useState(false);
+	const [isCoreSummaryExpanded, setIsCoreSummaryExpanded] = useState(false);
 	const [showLinkHistoryModal, setShowLinkHistoryModal] = useState(false);
 	const [pendingLinkedHistoryIds, setPendingLinkedHistoryIds] = useState<
 		string[]
@@ -881,6 +941,7 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 			setActiveTab('details');
 			setSubmitAttempted(false);
 			setShowCreateMoreOptions(false);
+			setIsCoreSummaryExpanded(false);
 		}
 	}, [isOpen]);
 
@@ -1311,6 +1372,7 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 				primaryButtonLabel={isEditing ? 'Save Changes' : 'Create Maintenance Task'}
 				secondaryButtonLabel='Cancel'
 				primaryButtonDisabled={missingRequiredFields.length > 0}>
+				<StickyTabRail>
 				<ModalTabContainer>
 					<ModalTab
 						type='button'
@@ -1363,32 +1425,40 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 						</>
 					)}
 				</ModalTabContainer>
+				</StickyTabRail>
 
-				<div
-					style={{
-						flex: 1,
-						minHeight: 0,
-						overflowY: 'auto',
-						paddingBottom: '0.5rem',
-					}}>
+				<TabContentScrollArea>
 					<ModalTabContent $active={activeTab === 'details'}>
 					{isCreateMode && (
 						<SummaryBanner>
-							<SummaryTitle>Create the maintenance task first, then add optional automation if needed.</SummaryTitle>
-							<SummaryMeta>
+							<SummaryBannerHeader>
 								<SummaryPill $tone={detailsTabTone}>
 									{completedBasics}/3 core items complete
 								</SummaryPill>
-								<SummaryPill $tone='neutral'>Lifecycle status defaults to Initiated</SummaryPill>
-								<SummaryPill $tone={isAsap ? 'success' : 'neutral'}>
-									{isAsap ? 'ASAP task' : 'Scheduled task'}
-								</SummaryPill>
-							</SummaryMeta>
-							<RequiredList>
-								{missingRequiredFields.length > 0
-									? `Still needed: ${missingRequiredFields.join(', ')}`
-									: 'All required fields are complete. You can create this maintenance task now or continue with optional settings.'}
-							</RequiredList>
+								<SummaryToggleButton
+									type='button'
+									onClick={() =>
+										setIsCoreSummaryExpanded((prev) => !prev)
+									}>
+									{isCoreSummaryExpanded ? 'Hide details' : 'Show details'}
+								</SummaryToggleButton>
+							</SummaryBannerHeader>
+							{isCoreSummaryExpanded && (
+								<>
+									<SummaryTitle>Create the maintenance task first, then add optional automation if needed.</SummaryTitle>
+									<SummaryMeta>
+										<SummaryPill $tone='neutral'>Lifecycle status defaults to Initiated</SummaryPill>
+										<SummaryPill $tone={isAsap ? 'success' : 'neutral'}>
+											{isAsap ? 'ASAP task' : 'Scheduled task'}
+										</SummaryPill>
+									</SummaryMeta>
+									<RequiredList>
+										{missingRequiredFields.length > 0
+											? `Still needed: ${missingRequiredFields.join(', ')}`
+											: 'All required fields are complete. You can create this maintenance task now or continue with optional settings.'}
+									</RequiredList>
+								</>
+							)}
 						</SummaryBanner>
 					)}
 					<FormGrid>
@@ -2309,7 +2379,7 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 						</FormGroupFull>
 					</FormGrid>
 				</ModalTabContent>
-				</div>
+				</TabContentScrollArea>
 			</GenericModal>
 
 			{showLinkHistoryModal && (

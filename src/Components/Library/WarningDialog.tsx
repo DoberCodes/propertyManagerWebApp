@@ -12,6 +12,14 @@ const Overlay = styled.div`
 	align-items: center;
 	justify-content: center;
 	z-index: 2000; /* Increased from 1000 to be above modals */
+	padding: 1rem;
+
+	@media (max-width: 480px) {
+		padding-top: max(0.75rem, env(safe-area-inset-top));
+		padding-right: max(0.75rem, env(safe-area-inset-right));
+		padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+		padding-left: max(0.75rem, env(safe-area-inset-left));
+	}
 `;
 
 const Dialog = styled.div`
@@ -19,8 +27,14 @@ const Dialog = styled.div`
 	border-radius: 8px;
 	box-shadow: 0 2px 16px rgba(0, 0, 0, 0.2);
 	padding: 32px 24px;
-	min-width: 320px;
+	min-width: min(320px, calc(100vw - 2rem));
 	max-width: 90vw;
+
+	@media (max-width: 480px) {
+		width: 100%;
+		max-width: calc(100vw - 1.5rem);
+		padding: 24px 16px;
+	}
 `;
 
 const Title = styled.h2`

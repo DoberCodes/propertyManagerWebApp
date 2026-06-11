@@ -72,6 +72,16 @@ export const ContentWrapper = styled.div`
 	}
 `;
 
+export const DesktopHeroActions = styled.div`
+	display: inline-flex;
+	gap: 12px;
+	flex-wrap: wrap;
+
+	@media (max-width: 768px) {
+		display: none;
+	}
+`;
+
 export const HeaderContent = styled.div`
 	position: relative;
 	z-index: 2;

@@ -30,9 +30,12 @@ export const ModalOverlay = styled.div`
 	}
 
 	@media (max-width: 480px) {
-		padding: 0.35rem;
+		padding: 0.75rem;
 		align-items: center;
-		padding-top: 0.75rem;
+		padding-top: max(0.75rem, env(safe-area-inset-top));
+		padding-right: max(0.75rem, env(safe-area-inset-right));
+		padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+		padding-left: max(0.75rem, env(safe-area-inset-left));
 	}
 `;
 
@@ -71,11 +74,11 @@ export const ModalContainer = styled.div`
 	}
 
 	@media (max-width: 480px) {
-		max-width: 100%;
-		height: 100dvh;
-		max-height: 100dvh;
+		max-width: calc(100vw - 1.5rem);
+		height: auto;
+		max-height: calc(100dvh - 1.5rem);
 		min-height: 0;
-		border-radius: 0;
+		border-radius: 12px;
 	}
 `;
 
@@ -207,11 +210,11 @@ export const DialogHeader = styled.div`
 	}
 
 	@media (max-width: 480px) {
-		padding: 1.25rem 1rem 1rem;
+		padding: 1.1rem 0.875rem 0.95rem;
 		margin-bottom: 0.75rem;
 
 		h3 {
-			font-size: 1.375rem;
+			font-size: 1.2rem;
 		}
 	}
 `;
@@ -267,9 +270,9 @@ export const DialogButtonGroup = styled.div`
 		flex-direction: row;
 		align-items: center;
 		flex-wrap: nowrap;
-		padding: 1.25rem 1.5rem;
-		gap: 0.75rem;
-		margin-top: 1.5rem;
+		padding: 0.85rem 1rem;
+		gap: 0.625rem;
+		margin-top: 1rem;
 	}
 `;
 
@@ -359,9 +362,9 @@ export const DialogSubmitButton = styled.button`
 	@media (max-width: 480px) {
 		width: auto;
 		flex: 1 1 auto;
-		padding: 1rem 1.5rem;
-		font-size: 16px;
-		min-height: 48px; /* Larger touch target on mobile */
+		padding: 0.8rem 1.1rem;
+		font-size: 15px;
+		min-height: 44px;
 	}
 `;
 
@@ -652,8 +655,9 @@ export const ModalTabContainer = styled.div`
 	@media (max-width: 480px) {
 		flex-wrap: nowrap;
 		gap: 0.35rem;
-		margin-bottom: 0.75rem;
-		padding-bottom: 0.2rem;
+		margin-bottom: 1rem;
+		padding-top: 0.15rem;
+		padding-bottom: 0.35rem;
 	}
 `;
 
@@ -690,8 +694,8 @@ export const ModalTab = styled.button<{ $active: boolean }>`
 
 	@media (max-width: 480px) {
 		flex: 0 0 auto;
-		padding: 0.55rem 0.7rem;
-		font-size: 0.82rem;
+		padding: 0.58rem 0.62rem;
+		font-size: 0.78rem;
 	}
 `;
 
