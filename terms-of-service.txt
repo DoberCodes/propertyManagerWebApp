@@ -54,9 +54,9 @@ We may suspend or terminate accounts for violations of these Terms.
 
 Some features require a paid subscription. By subscribing:
 
-Fees are charged as disclosed at signup and recur in 30-day cycles after a 14-day free trial.
+Fees are charged as disclosed at signup and recur according to the billing cycle shown at checkout.
 
-Access requires completion of the subscription process at the end of the trial; otherwise, access will be removed.
+Free-tier access remains subject to the limits shown in the app. Paid subscription features require an active subscription.
 
 You may cancel at any time; access continues until the end of the billing period.
 
