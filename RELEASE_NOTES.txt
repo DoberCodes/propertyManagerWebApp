@@ -1,8 +1,8 @@
-🎉 **Release Notes for Version 2.2.17** 🎉
+🎉 **Release Notes for Version 2.3.0** 🎉
 
 
 ## 🐛 Bug Fixes
-- fixing onboarding flow
+- fixing the plan structure also modifying the free trial wording since a free account is available. Mobile view cleanup.
 
 ## 🔧 Improvements & Maintenance
-- Adding changes to the property creation and adding suggested maintenance and improved onboarding with systems and tasks.
+- feat: adding new property setup assistant
