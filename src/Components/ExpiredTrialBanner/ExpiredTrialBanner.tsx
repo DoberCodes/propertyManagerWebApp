@@ -1,8 +1,8 @@
 import React from 'react';
 
 /**
- * Expired Trial Warning Banner
- * Shows when trial has expired
+ * Expired Access Warning Banner
+ * Shows when a legacy access period has expired
  */
 interface ExpiredTrialBannerProps {
 	onUpgradeClick?: () => void;
@@ -26,9 +26,9 @@ export const ExpiredTrialBanner: React.FC<ExpiredTrialBannerProps> = ({
 				fontWeight: '500',
 			}}>
 			<span>
-				⚠️ Your trial has expired. You can still view and export your data, but
-				you cannot add new information. Upgrade now to continue using all
-				features.
+				Your current access period has ended. You can still view and export
+				your data, but you cannot add new information. Upgrade to continue
+				using premium features.
 			</span>
 			{onUpgradeClick && (
 				<button

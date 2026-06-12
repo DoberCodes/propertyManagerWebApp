@@ -3,7 +3,7 @@ import { SUBSCRIPTION_PLANS } from '../../constants/subscriptions';
 
 /**
  * Scheduled Subscription Banner
- * Shows when user has pre-scheduled a subscription to start after trial ends
+ * Shows when user has pre-scheduled a subscription to start after a current access period ends
  */
 interface ScheduledSubscriptionBannerProps {
 	scheduledPlan: string;
@@ -18,7 +18,7 @@ export const ScheduledSubscriptionBanner: React.FC<
 		Object.values(SUBSCRIPTION_PLANS).find((p) => p.id === scheduledPlan)
 			?.name || scheduledPlan;
 
-	const trialEndDate = new Date(trialEndsAt * 1000).toLocaleDateString(
+	const accessEndDate = new Date(trialEndsAt * 1000).toLocaleDateString(
 		'en-US',
 		{
 			month: 'long',
@@ -43,8 +43,8 @@ export const ScheduledSubscriptionBanner: React.FC<
 			}}>
 			<span>
 				✅ You're all set! Your <strong>{planName}</strong> subscription will
-				automatically start on {trialEndDate} when your trial ends. No
-				interruption to your service!
+				automatically start on {accessEndDate} when your current access period
+				ends. No interruption to your service!
 			</span>
 			{onManageClick && (
 				<button

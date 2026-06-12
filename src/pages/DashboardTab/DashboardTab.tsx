@@ -1038,7 +1038,7 @@ export const DashboardTab = () => {
 					/>
 				)}
 
-			{/* Trial/Expired Warning Banner */}
+			{/* Legacy access-period warning banner */}
 			{!isTeamMemberAccount &&
 				currentUser?.subscription?.status === 'trial' &&
 				!currentUser?.subscription?.hasScheduledSubscription && (

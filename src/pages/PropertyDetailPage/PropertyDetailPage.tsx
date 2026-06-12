@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faEllipsisV, faCamera } from '@fortawesome/free-solid-svg-icons';
@@ -90,6 +90,7 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 	const feedback = useAppFeedback();
 	const navigate = useNavigate();
 	const { slug } = useParams<{ slug: string }>();
+	const [searchParams, setSearchParams] = useSearchParams();
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
 	const isTeamMemberAccount = currentUser?.isTeamMemberAccount === true;
 	const dispatch = useDispatch();
@@ -113,6 +114,19 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 		!isTrialExpired(currentUser.subscription) &&
 		!isUserTenant &&
 		roleCapabilities.canManageProperties;
+	const shouldOpenPropertySetup = searchParams.get('setup') === '1';
+	const handlePropertySetupOpened = useMemo(
+		() => () => {
+			if (!shouldOpenPropertySetup) {
+				return;
+			}
+
+			const nextParams = new URLSearchParams(searchParams);
+			nextParams.delete('setup');
+			setSearchParams(nextParams, { replace: true });
+		},
+		[searchParams, setSearchParams, shouldOpenPropertySetup],
+	);
 
 	const { isFavorite, toggleFavorite } = useFavorites(currentUser!.id);
 
@@ -960,6 +974,8 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 						roleCapabilities.canCreateTasks &&
 						!isUserTenant
 					}
+					initiallyOpen={shouldOpenPropertySetup}
+					onInitialOpenHandled={handlePropertySetupOpened}
 				/>
 				<TabSystem
 					property={property}

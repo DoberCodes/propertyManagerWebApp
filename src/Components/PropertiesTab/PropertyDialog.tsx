@@ -50,25 +50,6 @@ import {
 	MemberName,
 	MemberMeta,
 	EmptySharingState,
-	SuggestionCard,
-	SuggestionCardMeta,
-	SuggestionCardTitle,
-	SuggestionGrid,
-	SuggestionMoreButton,
-	SuggestionNotice,
-	SuggestionToggle,
-	SuggestionToggleHint,
-	SuggestionToggleText,
-	SuggestedTaskGroup,
-	SuggestedTaskGroupAction,
-	SuggestedTaskGroupHeader,
-	SuggestedTaskGroupMeta,
-	SuggestedTaskGroupTitle,
-	SuggestedTaskInterval,
-	SuggestedTaskList,
-	SuggestedTaskNote,
-	SuggestedTaskRow,
-	SuggestedTaskText,
 	ReviewGrid,
 	ReviewLabel,
 	ReviewValue,
@@ -76,6 +57,11 @@ import {
 	DashboardVisibilityText,
 	DashboardVisibilityTitle,
 	DashboardVisibilityHint,
+	DialogSavingCard,
+	DialogSavingOverlay,
+	DialogSavingSpinner,
+	DialogSavingText,
+	DialogSavingTitle,
 	DialogFooter,
 	FooterActionGroup,
 	FooterTextAction,
@@ -91,15 +77,6 @@ import { RootState } from '../../Redux/store/store';
 import { TeamMember } from '../../types/Team.types';
 import { User } from '../../Redux/Slices/userSlice';
 import { getFamilyMembers } from '../../services/authService';
-import {
-	SUGGESTED_MAINTENANCE_DISCLAIMER,
-	SUGGESTED_SYSTEMS,
-	SUGGESTED_TASKS,
-	SuggestedSystemId,
-	getDefaultSuggestedSystemIds,
-	getSuggestedTaskIdsForSystems,
-} from '../../utils/suggestedMaintenance';
-
 interface MaintenanceRecord {
 	date: string;
 	description: string;
@@ -124,9 +101,7 @@ export interface PropertyFormData {
 	administrators?: string[];
 	viewers?: string[];
 	showOnDashboard?: boolean;
-	addSuggestedMaintenance?: boolean;
-	selectedSuggestedSystemIds?: SuggestedSystemId[];
-	selectedSuggestedTaskIds?: string[];
+	openSetupAfterCreate?: boolean;
 }
 
 interface PropertyDialogProps {
@@ -180,18 +155,6 @@ const STEPS = [
 		title: 'Property Profile',
 		navTitle: 'Profile',
 		hint: 'Type, owner, and notes',
-	},
-	{
-		key: 'systems',
-		title: 'Appliances & Systems',
-		navTitle: 'Systems',
-		hint: 'Choose what exists in this property',
-	},
-	{
-		key: 'maintenance',
-		title: 'Suggested Maintenance',
-		navTitle: 'Tasks',
-		hint: 'Start with common tasks',
 	},
 	{
 		key: 'sharing',
@@ -257,11 +220,7 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 		administrators: [],
 		viewers: [],
 		showOnDashboard: true,
-		addSuggestedMaintenance: true,
-		selectedSuggestedSystemIds: getDefaultSuggestedSystemIds(),
-		selectedSuggestedTaskIds: getSuggestedTaskIdsForSystems(
-			getDefaultSuggestedSystemIds(),
-		),
+		openSetupAfterCreate: true,
 	});
 	const [stepIndex, setStepIndex] = useState(0);
 	const wizardContentRef = useRef<HTMLDivElement | null>(null);
@@ -277,10 +236,6 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 	const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
 	const [familyMembers, setFamilyMembers] = useState<User[]>([]);
 	const [isLoadingFamilyMembers, setIsLoadingFamilyMembers] = useState(false);
-	const [showMoreSuggestedSystems, setShowMoreSuggestedSystems] = useState(false);
-	const [expandedSuggestedTaskGroups, setExpandedSuggestedTaskGroups] = useState<
-		SuggestedSystemId[]
-	>([]);
 	const [pendingShares, setPendingShares] = useState<{
 		coOwners: string;
 		administrators: string;
@@ -303,16 +258,7 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 			formData.address.trim() &&
 			!duplicateNameUnchanged,
 	);
-	const shouldShowSuggestedMaintenance = !initialData && !isDuplicate;
-	const steps = useMemo(
-		() =>
-			shouldShowSuggestedMaintenance
-				? STEPS
-				: STEPS.filter(
-						(step) => step.key !== 'systems' && step.key !== 'maintenance',
-				  ),
-		[shouldShowSuggestedMaintenance],
-	);
+	const steps = STEPS;
 
 	useEffect(() => {
 		if (!isOpen) {
@@ -332,12 +278,9 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 				administrators: initialData.administrators || [],
 				viewers: initialData.viewers || [],
 				showOnDashboard: !isHiddenFromDashboard,
-				addSuggestedMaintenance: false,
-				selectedSuggestedSystemIds: [],
-				selectedSuggestedTaskIds: [],
+				openSetupAfterCreate: false,
 			});
 		} else {
-			const defaultSystemIds = getDefaultSuggestedSystemIds();
 			setFormData({
 				name: '',
 				owner: currentUser
@@ -358,9 +301,7 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 				administrators: [],
 				viewers: [],
 				showOnDashboard: true,
-				addSuggestedMaintenance: true,
-				selectedSuggestedSystemIds: defaultSystemIds,
-				selectedSuggestedTaskIds: getSuggestedTaskIdsForSystems(defaultSystemIds),
+				openSetupAfterCreate: true,
 			});
 		}
 
@@ -373,8 +314,6 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 		setPendingShares({ coOwners: '', administrators: '', viewers: '' });
 		setImageError(null);
 		setIsDeleteConfirmOpen(false);
-		setShowMoreSuggestedSystems(false);
-		setExpandedSuggestedTaskGroups([]);
 	}, [isOpen, initialData, selectedGroupId, forceSingleFamily, currentUser, isHiddenFromDashboard]);
 
 	useEffect(() => {
@@ -570,21 +509,10 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 		if (stepKey === 'details') {
 			return true;
 		}
-		if (stepKey === 'systems') {
-			return !formData.addSuggestedMaintenance ||
-				(formData.selectedSuggestedSystemIds || []).length > 0;
-		}
-		if (stepKey === 'maintenance') {
-			return !formData.addSuggestedMaintenance ||
-				(formData.selectedSuggestedTaskIds || []).length > 0;
-		}
 		return true;
 	}, [
 		steps,
 		stepIndex,
-		formData.addSuggestedMaintenance,
-		formData.selectedSuggestedSystemIds,
-		formData.selectedSuggestedTaskIds,
 		requiredPropertyBasicsComplete,
 	]);
 
@@ -621,8 +549,6 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 			await onSave({
 				...formData,
 				propertyType: forceSingleFamily ? 'Single Family' : formData.propertyType,
-				addSuggestedMaintenance:
-					shouldShowSuggestedMaintenance && !!formData.addSuggestedMaintenance,
 			});
 			onClose();
 		} catch (error) {
@@ -654,49 +580,6 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 		ids
 			.map((id) => availableMemberMap.get(id))
 			.filter(Boolean) as ShareMemberOption[];
-
-	const toggleSuggestedSystem = (systemId: SuggestedSystemId) => {
-		setFormData((prev) => {
-			const currentSystemIds = prev.selectedSuggestedSystemIds || [];
-			const nextSystemIds = currentSystemIds.includes(systemId)
-				? currentSystemIds.filter((id) => id !== systemId)
-				: [...currentSystemIds, systemId];
-			const allowedTaskIds = new Set(getSuggestedTaskIdsForSystems(nextSystemIds));
-			const currentTaskIds = prev.selectedSuggestedTaskIds || [];
-			const nextTaskIds = [
-				...currentTaskIds.filter((taskId) => allowedTaskIds.has(taskId)),
-				...Array.from(allowedTaskIds).filter(
-					(taskId) => !currentTaskIds.includes(taskId),
-				),
-			];
-
-			return {
-				...prev,
-				selectedSuggestedSystemIds: nextSystemIds,
-				selectedSuggestedTaskIds: nextTaskIds,
-			};
-		});
-	};
-
-	const toggleSuggestedTask = (taskId: string) => {
-		setFormData((prev) => {
-			const currentTaskIds = prev.selectedSuggestedTaskIds || [];
-			return {
-				...prev,
-				selectedSuggestedTaskIds: currentTaskIds.includes(taskId)
-					? currentTaskIds.filter((id) => id !== taskId)
-					: [...currentTaskIds, taskId],
-			};
-		});
-	};
-
-	const toggleSuggestedTaskGroup = (systemId: SuggestedSystemId) => {
-		setExpandedSuggestedTaskGroups((current) =>
-			current.includes(systemId)
-				? current.filter((id) => id !== systemId)
-				: [...current, systemId],
-		);
-	};
 
 	const renderShareSection = (
 		field: 'coOwners' | 'administrators' | 'viewers',
@@ -1153,191 +1036,6 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 			);
 		}
 
-		if (stepKey === 'systems') {
-			const selectedSystemIds = formData.selectedSuggestedSystemIds || [];
-			const suggestedTaskCount = getSuggestedTaskIdsForSystems(selectedSystemIds).length;
-			const commonSystems = SUGGESTED_SYSTEMS.filter(
-				(system) => system.tier === 'common',
-			);
-			const additionalSystems = SUGGESTED_SYSTEMS.filter(
-				(system) => system.tier === 'more',
-			);
-			const selectedAdditionalSystemCount = additionalSystems.filter((system) =>
-				selectedSystemIds.includes(system.id),
-			).length;
-			const renderSystemCard = (system: (typeof SUGGESTED_SYSTEMS)[number]) => {
-				const selected = selectedSystemIds.includes(system.id);
-				return (
-					<SuggestionCard key={system.id} $selected={selected}>
-						<input
-							type='checkbox'
-							checked={selected}
-							onChange={() => toggleSuggestedSystem(system.id)}
-						/>
-						<span>
-							<SuggestionCardTitle>{system.label}</SuggestionCardTitle>
-							<SuggestionCardMeta>{system.category}</SuggestionCardMeta>
-						</span>
-					</SuggestionCard>
-				);
-			};
-
-			return (
-				<WizardPanel>
-					<WizardPanelHeader>
-						<WizardPanelTitle>Appliances & Systems</WizardPanelTitle>
-						<WizardPanelHint>
-							Select what exists in this property. Maintley can use these to create starter appliance records and suggested maintenance tasks.
-						</WizardPanelHint>
-					</WizardPanelHeader>
-					<FormSection>
-						<SuggestionToggle>
-							<input
-								type='checkbox'
-								checked={!!formData.addSuggestedMaintenance}
-								onChange={(event) =>
-									handleInputChange(
-										'addSuggestedMaintenance',
-										event.target.checked,
-									)
-								}
-							/>
-							<SuggestionToggleText>
-								<strong>Show maintenance suggestions for selected systems</strong>
-								<SuggestionToggleHint>
-									Keep this on to review optional tasks next. Turning it off still lets you create starter appliance and system records.
-								</SuggestionToggleHint>
-							</SuggestionToggleText>
-						</SuggestionToggle>
-					</FormSection>
-
-					<SuggestionGrid>
-						{commonSystems.map(renderSystemCard)}
-					</SuggestionGrid>
-					<SuggestionMoreButton
-						type='button'
-						onClick={() =>
-							setShowMoreSuggestedSystems((current) => !current)
-						}>
-						{showMoreSuggestedSystems
-							? 'Hide additional systems'
-							: `Show more systems${
-									selectedAdditionalSystemCount > 0
-										? ` (${selectedAdditionalSystemCount} selected)`
-										: ''
-							  }`}
-					</SuggestionMoreButton>
-					{showMoreSuggestedSystems && (
-						<SuggestionGrid>
-							{additionalSystems.map(renderSystemCard)}
-						</SuggestionGrid>
-					)}
-					<SuggestionNotice>
-						{selectedSystemIds.length > 0
-							? formData.addSuggestedMaintenance
-								? `Based on the selected appliances and systems, Maintley found ${suggestedTaskCount} suggested maintenance tasks.`
-								: `${selectedSystemIds.length} starter appliance/system records will be created without suggested tasks.`
-							: 'Select at least one appliance or system to create starter records or see suggested maintenance tasks.'}
-					</SuggestionNotice>
-				</WizardPanel>
-			);
-		}
-
-		if (stepKey === 'maintenance') {
-			if (!formData.addSuggestedMaintenance) {
-				return (
-					<WizardPanel>
-						<WizardPanelHeader>
-							<WizardPanelTitle>Suggested Maintenance Tasks</WizardPanelTitle>
-							<WizardPanelHint>
-								Maintenance suggestions are turned off for this property. You can add tasks later.
-							</WizardPanelHint>
-						</WizardPanelHeader>
-						<SuggestionNotice>
-							Skipped. Maintley will create any selected starter appliance/system records without suggested tasks.
-						</SuggestionNotice>
-					</WizardPanel>
-				);
-			}
-
-			const selectedSystemIds = formData.selectedSuggestedSystemIds || [];
-			const selectedTaskIds = formData.selectedSuggestedTaskIds || [];
-			const tasksBySystem = SUGGESTED_SYSTEMS.filter((system) =>
-				selectedSystemIds.includes(system.id),
-			).map((system) => ({
-				system,
-				tasks: SUGGESTED_TASKS.filter((task) => task.systemId === system.id),
-			}));
-
-			return (
-				<WizardPanel>
-					<WizardPanelHeader>
-						<WizardPanelTitle>Suggested Maintenance Tasks</WizardPanelTitle>
-						<WizardPanelHint>
-							Choose the common maintenance tasks you want Maintley to create for this property. You can edit dates, assignments, and details later.
-						</WizardPanelHint>
-					</WizardPanelHeader>
-					<SuggestionNotice>
-						{SUGGESTED_MAINTENANCE_DISCLAIMER}
-					</SuggestionNotice>
-					{tasksBySystem.length === 0 ? (
-						<EmptySharingState>
-							No appliances or systems selected yet. Go back to select what exists in this property.
-						</EmptySharingState>
-					) : (
-						tasksBySystem.map(({ system, tasks }) => {
-							const isExpanded = expandedSuggestedTaskGroups.includes(system.id);
-							const selectedTaskCount = tasks.filter((task) =>
-								selectedTaskIds.includes(task.id),
-							).length;
-
-							return (
-								<SuggestedTaskGroup key={system.id}>
-									<SuggestedTaskGroupHeader
-										type='button'
-										onClick={() => toggleSuggestedTaskGroup(system.id)}>
-										<span>
-											<SuggestedTaskGroupTitle>{system.label}</SuggestedTaskGroupTitle>
-											<SuggestedTaskGroupMeta>
-												{selectedTaskCount} of {tasks.length} selected
-											</SuggestedTaskGroupMeta>
-										</span>
-										<SuggestedTaskGroupAction>
-											{isExpanded ? 'Collapse' : 'Review'}
-										</SuggestedTaskGroupAction>
-									</SuggestedTaskGroupHeader>
-									{isExpanded && (
-										<SuggestedTaskList>
-											{tasks.map((task) => (
-												<SuggestedTaskRow key={task.id}>
-													<input
-														type='checkbox'
-														checked={selectedTaskIds.includes(task.id)}
-														onChange={() => toggleSuggestedTask(task.id)}
-													/>
-													<SuggestedTaskText>
-														<span>
-															<strong>{task.title}</strong>{' '}
-															<SuggestedTaskInterval>
-																({task.intervalLabel})
-															</SuggestedTaskInterval>
-														</span>
-														{task.notes && (
-															<SuggestedTaskNote>{task.notes}</SuggestedTaskNote>
-														)}
-													</SuggestedTaskText>
-												</SuggestedTaskRow>
-											))}
-										</SuggestedTaskList>
-									)}
-								</SuggestedTaskGroup>
-							);
-						})
-					)}
-				</WizardPanel>
-			);
-		}
-
 		if (stepKey === 'sharing') {
 			return (
 				<WizardPanel>
@@ -1400,24 +1098,6 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 			],
 		];
 
-		if (shouldShowSuggestedMaintenance) {
-			const selectedSystems = SUGGESTED_SYSTEMS.filter((system) =>
-				(formData.selectedSuggestedSystemIds || []).includes(system.id),
-			);
-			reviewRows.splice(
-				8,
-				0,
-				[
-					'Suggested Maintenance',
-					formData.addSuggestedMaintenance
-						? `${selectedSystems.length} appliances/systems and ${
-								(formData.selectedSuggestedTaskIds || []).length
-						  } tasks selected`
-						: 'Skipped',
-				],
-			);
-		}
-
 		return (
 			<WizardPanel>
 				<WizardPanelHeader>
@@ -1451,18 +1131,48 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 						</DashboardVisibilityHint>
 					</DashboardVisibilityText>
 				</DashboardVisibilityCard>
+				{!initialData && !isDuplicate && (
+					<DashboardVisibilityCard>
+						<input
+							type='checkbox'
+							checked={formData.openSetupAfterCreate ?? true}
+							onChange={(event) =>
+								handleInputChange('openSetupAfterCreate', event.target.checked)
+							}
+						/>
+						<DashboardVisibilityText>
+							<DashboardVisibilityTitle>
+								Open Property Setup Assistant after creating
+							</DashboardVisibilityTitle>
+							<DashboardVisibilityHint>
+								Jump into the property-level assistant next so you can review appliances and maintenance tasks there.
+							</DashboardVisibilityHint>
+						</DashboardVisibilityText>
+					</DashboardVisibilityCard>
+				)}
 			</WizardPanel>
 		);
 	};
 
 	if (!isOpen) return null;
 
+	const savingTitle = isDuplicate
+		? 'Creating duplicate property...'
+		: initialData
+			? 'Saving property changes...'
+			: 'Creating your property...';
+	const savingText =
+		!initialData && !isDuplicate && formData.openSetupAfterCreate !== false
+			? 'Please wait while we create the property page. Next, we will open the Property Setup Assistant.'
+			: 'Please wait while we save this property.';
+
 	return (
 		<>
-			<DialogOverlay onClick={onClose}>
+			<DialogOverlay onClick={isSubmitting ? undefined : onClose}>
 				<DialogContainer
 					onClick={(e) => e.stopPropagation()}
 					style={{
+						position: 'relative',
 						height: 'min(90vh, calc(100dvh - 1.5rem))',
 					}}>
 					<DialogHeader>
@@ -1566,6 +1276,15 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 							)}
 						</FooterActionGroup>
 					</DialogFooter>
+					{isSubmitting && (
+						<DialogSavingOverlay aria-live='polite' aria-busy='true'>
+							<DialogSavingCard>
+								<DialogSavingSpinner />
+								<DialogSavingTitle>{savingTitle}</DialogSavingTitle>
+								<DialogSavingText>{savingText}</DialogSavingText>
+							</DialogSavingCard>
+						</DialogSavingOverlay>
+					)}
 				</DialogContainer>
 			</DialogOverlay>
 

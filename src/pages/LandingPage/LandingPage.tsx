@@ -117,7 +117,6 @@ import {
 import packageJson from '../../../package.json';
 import { getAPKFileSize, getAPKDownloadURL } from '../../utils/versionCheck';
 import SEO from 'Components/SEO/SEO';
-import { TRIAL_DURATION_DAYS } from '../../constants/subscriptions';
 import { legalDocuments } from '../LegalPage/legalDocuments';
 
 const formatBytes = (bytes: number) => {
@@ -724,12 +723,11 @@ const LandingPageComponent = () => {
 					<CTADescription>
 						Start now and build a clear maintenance history you can rely on for
 						years. Keep systems, service events, documents, and recurring care
-						connected from day one. Start with a {TRIAL_DURATION_DAYS}-day free
-						trial on any paid plan.
+						connected from day one.
 					</CTADescription>
 					<CTAButtons>
 						<CTAButton onClick={() => navigate('/register')}>
-							Start {TRIAL_DURATION_DAYS}-Day Free Trial
+							Get Started
 						</CTAButton>
 						<CTASecondary onClick={() => navigate('/login')}>
 							Sign In

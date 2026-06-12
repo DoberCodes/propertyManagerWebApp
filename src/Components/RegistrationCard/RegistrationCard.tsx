@@ -468,7 +468,7 @@ export const RegistrationCard = () => {
 			<TrialNotice>
 				{inviteMode
 					? 'Complete your invited account setup.'
-					: `Start with a ${TRIAL_DURATION_DAYS}-day free trial on any paid plan.`}
+					: 'Start with the free plan, or choose the paid plan that fits your property.'}
 			</TrialNotice>
 			{error && <ErrorMessage>{error}</ErrorMessage>}
 
@@ -861,6 +861,9 @@ export const RegistrationCard = () => {
 						variant='embedded'
 						selectionOnly={true}
 						wide={true}
+						initialPlanAudience={
+							accountType === 'propertyManager' ? 'business' : 'personal'
+						}
 						onPlanSelect={(planId) => {
 							setSelectedPlan(planId);
 							setError('');

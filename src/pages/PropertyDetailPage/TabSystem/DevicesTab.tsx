@@ -639,7 +639,7 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property, permissions })
 
 		if (!canAddDevice(currentUser.subscription, allDevices.length)) {
 			const planDetails = getSubscriptionPlanDetails(currentUser.subscription.plan);
-			const maxDevices = planDetails?.maxDevices || 8;
+			const maxDevices = planDetails?.maxDevices || 15;
 			if (isTeamMemberAccount) {
 				feedback.notify(
 					`This account has reached its appliance limit of ${maxDevices}. Ask the account holder to adjust the account or remove unused appliances.`,

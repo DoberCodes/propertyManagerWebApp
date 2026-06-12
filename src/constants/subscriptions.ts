@@ -1,24 +1,24 @@
-// Subscription plans and trial settings
-export const TRIAL_DURATION_DAYS = 14; // 14-day free trial
+// Subscription plans and legacy access-period settings
+export const TRIAL_DURATION_DAYS = 14; // Legacy access-period duration
 
 export const SUBSCRIPTION_PLANS = {
 	// ========== CORE SUBSCRIPTION TIERS ==========
-	HOME: {
-		id: 'home',
-		name: 'Home',
+	HOMEOWNER: {
+		id: 'homeowner',
+		name: 'Homeowner',
 		priceMonthly: 0,
 		priceYearly: 0,
 		maxProperties: 1,
-		maxDevices: 8,
+		maxDevices: 15,
 		features: [
 			'1 Property',
-			'Up to 8 Appliances & Systems',
+			'Up to 15 Appliances & Systems',
+			'Property Setup Assistant',
+			'Manual Maintenance Tasks',
 			'Maintenance History Tracking',
-			'Recurring Maintenance Scheduling',
-			'Document & Photo Storage',
+			'1 Starter Maintenance Package',
 			'Maintenance Timeline',
 			'Basic Search',
-			'Notifications & Reminders',
 		],
 		permissions: {
 			canManageTeam: false,
@@ -37,6 +37,50 @@ export const SUBSCRIPTION_PLANS = {
 			canManageProperties: true,
 			canSubmitMaintenanceRequests: false,
 			canViewTenantInfo: false,
+			canUseSuggestedMaintenancePackages: false,
+			suggestedMaintenancePackageLimit: 1,
+			canUseRecurringTasks: false,
+			canUseNotifications: false,
+		},
+	},
+	HOMEOWNER_PLUS: {
+		id: 'homeowner_plus',
+		name: 'Homeowner+',
+		priceMonthly: 3.99,
+		priceYearly: 39.99,
+		maxProperties: 1,
+		maxDevices: 999, // Unlimited
+		features: [
+			'Everything in Home, plus:',
+			'Unlimited Appliances & Systems',
+			'All Suggested Maintenance Packages',
+			'Recurring Maintenance Tasks',
+			'Notifications & Reminders',
+			'Document & Photo Storage',
+			'Maintenance Exports',
+			'Warranty Tracking',
+		],
+		permissions: {
+			canManageTeam: false,
+			canManageTenants: false,
+			canViewReports: true,
+			canExportData: true,
+			canAdvancedAuditTrail: false,
+			canManageMultiUnit: false,
+			canTrackWarranties: true,
+			canLinkParts: true,
+			canPortfolioReporting: false,
+			canAdvancedAnalytics: false,
+			canPropertyGroups: false,
+			prioritySupport: false,
+			canCreateProperties: true,
+			canManageProperties: true,
+			canSubmitMaintenanceRequests: false,
+			canViewTenantInfo: false,
+			canUseSuggestedMaintenancePackages: true,
+			suggestedMaintenancePackageLimit: 999,
+			canUseRecurringTasks: true,
+			canUseNotifications: true,
 		},
 	},
 	PROPERTY: {
@@ -47,8 +91,11 @@ export const SUBSCRIPTION_PLANS = {
 		maxProperties: 3, // 2-3 included
 		maxDevices: 999, // Unlimited
 		features: [
-			'Everything in Home, plus:',
+			'Everything in Homeowner+, plus:',
 			'Unlimited Appliances & Systems',
+			'All Suggested Maintenance Packages',
+			'Recurring Maintenance Tasks',
+			'Notifications & Reminders',
 			'Unlimited Maintenance Records',
 			'Linked Parts & Supplies',
 			'Advanced Document Storage',
@@ -77,6 +124,10 @@ export const SUBSCRIPTION_PLANS = {
 			canManageProperties: true,
 			canSubmitMaintenanceRequests: false,
 			canViewTenantInfo: false,
+			canUseSuggestedMaintenancePackages: true,
+			suggestedMaintenancePackageLimit: 999,
+			canUseRecurringTasks: true,
+			canUseNotifications: true,
 		},
 	},
 	PORTFOLIO: {
@@ -115,6 +166,10 @@ export const SUBSCRIPTION_PLANS = {
 			canManageProperties: true,
 			canSubmitMaintenanceRequests: false,
 			canViewTenantInfo: false,
+			canUseSuggestedMaintenancePackages: true,
+			suggestedMaintenancePackageLimit: 999,
+			canUseRecurringTasks: true,
+			canUseNotifications: true,
 		},
 	},
 
@@ -148,6 +203,10 @@ export const SUBSCRIPTION_PLANS = {
 			canManageProperties: false,
 			canSubmitMaintenanceRequests: false,
 			canViewTenantInfo: false,
+			canUseSuggestedMaintenancePackages: false,
+			suggestedMaintenancePackageLimit: 0,
+			canUseRecurringTasks: false,
+			canUseNotifications: false,
 		},
 	},
 	TENANT: {
@@ -180,6 +239,10 @@ export const SUBSCRIPTION_PLANS = {
 			canManageProperties: false,
 			canSubmitMaintenanceRequests: true,
 			canViewTenantInfo: true,
+			canUseSuggestedMaintenancePackages: false,
+			suggestedMaintenancePackageLimit: 0,
+			canUseRecurringTasks: false,
+			canUseNotifications: false,
 		},
 	},
 };

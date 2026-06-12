@@ -537,7 +537,7 @@ export const LegalAgreementNotification: React.FC<
 							<LegalTitle>Subscription Terms</LegalTitle>
 							<LegalDescription>
 								I acknowledge and agree to the subscription terms, including
-								billing cycles, trial period details, and cancellation policy.
+								billing cycles, payment terms, and cancellation policy.
 							</LegalDescription>
 							<ViewLink
 								onClick={() =>

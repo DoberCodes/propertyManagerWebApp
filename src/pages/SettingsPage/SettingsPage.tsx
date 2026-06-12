@@ -1175,7 +1175,7 @@ export const SettingsPage: React.FC = () => {
 										<TrialText>
 											{trialDaysRemaining === -1
 												? '🎉 You have unlimited access with your promo code'
-												: `🎉 You have ${trialDaysRemaining} days left in your free trial`}
+												: `You have ${trialDaysRemaining} days left in your current access period`}
 										</TrialText>
 									</TrialInfo>
 								)}

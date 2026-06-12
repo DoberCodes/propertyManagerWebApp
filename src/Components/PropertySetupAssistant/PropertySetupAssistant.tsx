@@ -28,6 +28,11 @@ import {
 	getSuggestedTaskIdsForSystems,
 	getSuggestedTasksForSystems,
 } from '../../utils/suggestedMaintenance';
+import {
+	canUseSuggestedMaintenancePackages,
+	canUseUnlimitedSuggestedMaintenancePackages,
+	getSuggestedMaintenancePackageLimit,
+} from '../../utils/subscriptionUtils';
 
 interface PropertySetupAssistantProps {
 	property: Property;
@@ -35,6 +40,8 @@ interface PropertySetupAssistantProps {
 	devices: Device[];
 	tasks: Task[];
 	canUseAssistant: boolean;
+	initiallyOpen?: boolean;
+	onInitialOpenHandled?: () => void;
 }
 
 const stripUndefinedValues = (value: any): any => {
@@ -81,6 +88,8 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 	devices,
 	tasks,
 	canUseAssistant,
+	initiallyOpen = false,
+	onInitialOpenHandled,
 }) => {
 	const feedback = useAppFeedback();
 	const [updateProperty] = useUpdatePropertyMutation();
@@ -104,6 +113,15 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 	const areaPanelRef = useRef<HTMLDivElement | null>(null);
 	const [isSavingAssistant, setIsSavingAssistant] = useState(false);
 	const [isSaveComplete, setIsSaveComplete] = useState(false);
+	const suggestedMaintenancePackageLimit = currentUser?.subscription
+		? getSuggestedMaintenancePackageLimit(currentUser.subscription)
+		: 0;
+	const hasPaidSuggestedMaintenancePackages = currentUser?.subscription
+		? canUseSuggestedMaintenancePackages(currentUser.subscription)
+		: false;
+	const hasUnlimitedSuggestedMaintenancePackages = currentUser?.subscription
+		? canUseUnlimitedSuggestedMaintenancePackages(currentUser.subscription)
+		: false;
 
 	const propertyDevices = useMemo(
 		() =>
@@ -120,6 +138,15 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 			setDraftItems(property.setupAssistant?.items || {});
 		}
 	}, [property.id, property.setupAssistant, isOpen]);
+
+	useEffect(() => {
+		if (!initiallyOpen || !canUseAssistant) {
+			return;
+		}
+
+		setIsOpen(true);
+		onInitialOpenHandled?.();
+	}, [initiallyOpen, canUseAssistant, onInitialOpenHandled]);
 
 	useEffect(() => {
 		areaPanelRef.current?.scrollTo({
@@ -373,6 +400,60 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 			tasks.some((task) => String(task.id || '') === String(taskId)),
 		);
 
+	const getAllowedSuggestedPackageItemIds = (
+		sourceItems: NonNullable<PropertySetupAssistantState['items']> = draftItems,
+	) => {
+		const allowedItemIds = new Set<SuggestedSystemId>();
+		if (hasUnlimitedSuggestedMaintenancePackages) {
+			PROPERTY_SETUP_ITEM_ORDER.forEach((itemId) => {
+				const state = sourceItems[itemId];
+				if (
+					state?.status === 'present' &&
+					getSelectedSuggestedTaskIds(itemId, state).length > 0
+				) {
+					allowedItemIds.add(itemId);
+				}
+			});
+			return allowedItemIds;
+		}
+
+		if (suggestedMaintenancePackageLimit <= 0) {
+			return allowedItemIds;
+		}
+
+		PROPERTY_SETUP_ITEM_ORDER.forEach((itemId) => {
+			const savedState = setupAssistant.items?.[itemId];
+			if (
+				savedState?.status === 'present' &&
+				getLiveCreatedTaskIds(savedState.taskIds).length > 0 &&
+				allowedItemIds.size < suggestedMaintenancePackageLimit
+			) {
+				allowedItemIds.add(itemId);
+			}
+		});
+
+		PROPERTY_SETUP_ITEM_ORDER.forEach((itemId) => {
+			if (allowedItemIds.size >= suggestedMaintenancePackageLimit) {
+				return;
+			}
+
+			const state = sourceItems[itemId];
+			if (
+				state?.status === 'present' &&
+				getSelectedSuggestedTaskIds(itemId, state).length > 0
+			) {
+				allowedItemIds.add(itemId);
+			}
+		});
+
+		return allowedItemIds;
+	};
+
+	const canGenerateSuggestedPackageForItem = (
+		itemId: SuggestedSystemId,
+		sourceItems: NonNullable<PropertySetupAssistantState['items']> = draftItems,
+	) => getAllowedSuggestedPackageItemIds(sourceItems).has(itemId);
+
 	const handleSetStatus = (
 		itemId: SuggestedSystemId,
 		status: PropertySetupAssistantItemStatus,
@@ -508,10 +589,11 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 
 				if (itemState.status === 'present') {
 					const device = await ensureDeviceForItem(itemId, nextItems);
-					const selectedSuggestedTaskIds = getSelectedSuggestedTaskIds(
-						itemId,
-						itemState,
-					);
+					const canGenerateSuggestedPackage =
+						canGenerateSuggestedPackageForItem(itemId, draftItems);
+					const selectedSuggestedTaskIds = canGenerateSuggestedPackage
+						? getSelectedSuggestedTaskIds(itemId, itemState)
+						: [];
 					const liveCreatedTaskIds = getLiveCreatedTaskIds(itemState.taskIds);
 					const wasAlreadyReviewed = Boolean(itemState.reviewedAt);
 					const recreateSuggestedTaskIds = (
@@ -536,16 +618,21 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 						);
 					}
 
-					nextItems[itemId] = {
+					const nextItemState: PropertySetupAssistantItemState = {
 						...itemState,
 						status: 'present',
 						deviceId: device?.id,
 						taskIds,
-						selectedSuggestedTaskIds,
 						recreateSuggestedTaskIds: [],
 						reviewedAt: itemState.reviewedAt || nowIso,
 						updatedAt: nowIso,
 					};
+					if (canGenerateSuggestedPackage) {
+						nextItemState.selectedSuggestedTaskIds = selectedSuggestedTaskIds;
+					} else {
+						delete nextItemState.selectedSuggestedTaskIds;
+					}
+					nextItems[itemId] = nextItemState;
 					continue;
 				}
 
@@ -747,6 +834,18 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 												[itemId],
 												selectedSuggestedTaskIds,
 											);
+										const allSuggestedTasks = getSuggestedTasksForSystems(
+											[itemId],
+											getSuggestedTaskIdsForSystems([itemId]),
+										);
+										const canGenerateSuggestedPackage =
+											canGenerateSuggestedPackageForItem(itemId);
+										const isSuggestedPackageLocked =
+											!canGenerateSuggestedPackage &&
+											allSuggestedTasks.length > 0;
+										const visibleSuggestedTasks = isSuggestedPackageLocked
+											? allSuggestedTasks
+											: selectedSuggestedTasks;
 										const wasAlreadyReviewed = Boolean(
 											state?.reviewedAt && status === 'present',
 										);
@@ -801,15 +900,24 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 												{status === 'present' && (
 													<TaskPreview>
 														<TaskPreviewTitle>
-															{hasCreatedSuggestedTasks
+															{isSuggestedPackageLocked
+																? 'Suggested Maintenance Available'
+																: hasCreatedSuggestedTasks
 																? 'Recurring tasks already added'
 																: wasAlreadyReviewed
 																	? 'Recurring task review'
 																	: 'Suggested recurring tasks'}
 														</TaskPreviewTitle>
+														{isSuggestedPackageLocked && (
+															<TaskPreviewNotice>
+																{hasPaidSuggestedMaintenancePackages
+																	? 'Your current package allowance is already used for this property.'
+																	: 'Homeowner+ feature. You can still add this appliance now.'}
+															</TaskPreviewNotice>
+														)}
 														<TaskPreviewList>
-															{selectedSuggestedTasks.length > 0 ? (
-																selectedSuggestedTasks.map((suggestedTask) => {
+															{visibleSuggestedTasks.length > 0 ? (
+																visibleSuggestedTasks.map((suggestedTask) => {
 																	const existingSuggestedTask =
 																		findExistingSuggestedTask(
 																			suggestedTask,
@@ -831,7 +939,11 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 																				<TaskInterval>
 																					{suggestedTask.intervalLabel}
 																				</TaskInterval>
-																				{isMissingReviewedTask ? (
+																				{isSuggestedPackageLocked ? (
+																					<TaskStatusText>
+																						Homeowner+ Feature
+																					</TaskStatusText>
+																				) : isMissingReviewedTask ? (
 																					isQueuedForRecreate ? (
 																						<TaskStatusText>
 																							Will recreate
@@ -1406,6 +1518,18 @@ const TaskPreviewTitle = styled.div`
 	font-size: 12px;
 	font-weight: 900;
 	color: #1e3a8a;
+`;
+
+const TaskPreviewNotice = styled.div`
+	margin-bottom: 8px;
+	padding: 8px 10px;
+	border-radius: 8px;
+	background: #fffbeb;
+	border: 1px solid #fde68a;
+	color: #92400e;
+	font-size: 12px;
+	font-weight: 700;
+	line-height: 1.4;
 `;
 
 const TaskPreviewList = styled.div`

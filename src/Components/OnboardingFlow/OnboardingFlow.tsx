@@ -5,12 +5,11 @@ import { RootState } from '../../Redux/store/store';
 import styled from 'styled-components';
 import { COLORS } from '../../constants/colors';
 import { useGetPropertiesQuery } from '../../Redux/API/propertySlice';
-import { useGetTasksQuery } from '../../Redux/API/taskSlice';
 import {
 	selectIsHomeowner,
 	selectCanAccessProperties,
-	selectCanAccessTeam,
 } from '../../Redux/selectors/permissionSelectors';
+import { getPropertySetupProgress } from '../../utils/propertySetupAssistant';
 
 const OnboardingOverlay = styled.div`
 	position: fixed;
@@ -277,6 +276,7 @@ const PageGuideModal = styled.div`
 	padding: 24px;
 	max-width: 350px;
 	width: 100%;
+	box-sizing: border-box;
 	box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
 	z-index: 1001;
 	animation: slideIn 0.4s ease;
@@ -295,10 +295,22 @@ const PageGuideModal = styled.div`
 	@media (max-width: 1024px) {
 		position: fixed;
 		top: auto;
-		bottom: 20px;
-		right: 20px;
-		left: 20px;
+		bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+		right: 16px;
+		left: 16px;
+		width: auto;
 		max-width: none;
+		max-height: calc(100vh - 40px - env(safe-area-inset-bottom, 0px));
+		overflow-y: auto;
+		padding: 24px;
+	}
+
+	@media (max-width: 480px) {
+		right: 12px;
+		left: 12px;
+		bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+		padding: 20px;
+		border-radius: 14px;
 	}
 `;
 
@@ -341,6 +353,14 @@ const PageGuideActions = styled.div`
 	display: flex;
 	gap: 12px;
 	justify-content: flex-end;
+
+	@media (max-width: 480px) {
+		justify-content: stretch;
+
+		${PrimaryButton} {
+			width: 100%;
+		}
+	}
 `;
 
 // Minimized Waiting Modal (non-blocking)
@@ -587,7 +607,6 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
 
 	// Fetch data for real-time validation
 	const { data: properties = [] } = useGetPropertiesQuery();
-	const { data: tasks = [] } = useGetTasksQuery();
 
 	const [currentStepIndex, setCurrentStepIndex] = useState(0);
 	const [showCelebration, setShowCelebration] = useState(false);
@@ -620,7 +639,11 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
 	const canAccessProperties = useSelector(selectCanAccessProperties);
 	const isPropertyManager =
 		!!currentUser && canAccessProperties && !isHomeowner;
-	const canManageTeam = useSelector(selectCanAccessTeam);
+	const hasSetupAssistantProgress = properties.some(
+		(property: any) =>
+			getPropertySetupProgress(property.setupAssistant).reviewed > 0 ||
+			Boolean(property.setupAssistant?.completedAt),
+	);
 
 	// Enhanced step definitions with validation and celebration logic
 	const getSteps = (): OnboardingStep[] => {
@@ -823,71 +846,68 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
 			},
 		);
 
-		// Task creation steps
+		// Property setup assistant steps
 		steps.push(
 			{
-				id: 'create_task_instruction',
+				id: 'setup_assistant_instruction',
 				type: 'instruction',
-				title: 'Next, create one recurring task.',
+				title: 'Let Maintley help build your starting schedule.',
 				description:
-					'Tasks prevent missed maintenance and build a reliable service history over time.',
+					'The Property Setup Assistant helps you review typical appliances and choose maintenance tasks that many homeowners track.',
 				content: (
 					<div style={{ textAlign: 'left', marginTop: '20px' }}>
 						<p style={{ marginBottom: '12px', fontWeight: '600', color: '#0f172a', fontSize: '14px' }}>
-							One task gives you:
+							What happens next:
 						</p>
 						<ul style={{ paddingLeft: '20px', margin: '0', color: '#475569', fontSize: '14px', lineHeight: '2' }}>
-							<li>Automatic reminders before due dates</li>
-							<li>Recurring scheduling (HVAC filters, inspections)</li>
-							<li>A logged record once work is completed</li>
+							<li>Review what exists in the property</li>
+							<li>Choose maintenance tasks many homeowners track</li>
+							<li>Maintley creates starter appliances and tasks</li>
 						</ul>
-						<div style={{ marginTop: '16px', padding: '12px', background: '#fffbeb', borderRadius: '8px', border: '1px solid #fcd34d', fontSize: '13px', color: '#92400e' }}>
-							💡 <strong>Tip:</strong> Start with something you know is coming up — a filter change, an inspection, or a seasonal check.
-						</div>
 						<BridgeStatement>
-							Now that the property exists, we track the systems and work inside it.
+							You can skip anything you are unsure about and come back later.
 						</BridgeStatement>
 					</div>
 				),
-				actionLabel: 'Understood →',
+				actionLabel: 'Show me where it is',
 				action: () => {
 					setCurrentStepIndex(currentStepIndex + 1);
 				},
-				skipLabel: 'Skip Task Creation',
+				skipLabel: 'Skip Assistant',
 			},
 
 			{
-				id: 'wait_task_creation',
+				id: 'wait_setup_assistant',
 				type: 'waiting',
-				title: "Create your first maintenance task.",
+				title: 'Open the Property Setup Assistant.',
 				description:
-					"I'll stay out of your way — minimize me and explore freely. I'll pop back in when your first task is created.",
-				waitCondition: () => tasks.length > 0,
+					"Use the setup card near the top of the property page. Save any section when you are ready, and I'll come back when your setup has started.",
+				waitCondition: () => hasSetupAssistantProgress,
 				autoAdvance: true,
 			},
 
 			{
-				id: 'task_celebration',
+				id: 'setup_assistant_celebration',
 				type: 'celebration',
-				title: 'Your maintenance system is taking shape. 🎯',
+				title: 'Your maintenance schedule has a starting point.',
 				description:
-					"Your first task is live. Reminders are automatic, and completion becomes permanent history.",
+					'Maintley now has a better picture of this property. You can adjust appliances, dates, and task details anytime.',
 				content: (
 					<VisualPayoffGrid>
 						<VisualPayoffCard>
-							<div className='header'>Future Reminder</div>
-							<div className='title'>HVAC Filter Change</div>
-							<div className='meta'>Due in 90 days • Reminder 7 days before</div>
+							<div className='header'>Appliances</div>
+							<div className='title'>Starter records created</div>
+							<div className='meta'>Add model numbers, photos, and notes when you have them.</div>
 						</VisualPayoffCard>
 						<VisualPayoffCard>
-							<div className='header'>Maintenance Timeline</div>
-							<div className='title'>May 2026: Task created</div>
-							<div className='meta'>Aug 2026: Completed and logged to history</div>
+							<div className='header'>Tasks</div>
+							<div className='title'>Suggested work is scheduled</div>
+							<div className='meta'>Dates are starter suggestions. Change anything that does not fit.</div>
 						</VisualPayoffCard>
 						<VisualPayoffCard>
-							<div className='header'>Appliance History</div>
-							<div className='title'>HVAC service record</div>
-							<div className='meta'>Cost, notes, and docs stay attached over time</div>
+							<div className='header'>History</div>
+							<div className='title'>Future service has a place to land</div>
+							<div className='meta'>Completed work becomes part of the property record.</div>
 						</VisualPayoffCard>
 					</VisualPayoffGrid>
 				),
@@ -986,7 +1006,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
 			type: 'instruction',
 			title: "You're already ahead of most property owners.",
 			description:
-				'Your property and first task are live. From now on, your maintenance record builds automatically.',
+				'Your property setup has started. Maintley can now connect appliances, tasks, and future maintenance history.',
 			content: (
 				<>
 				<PayoffPreview>
@@ -995,36 +1015,36 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
 						<PayoffItem>
 							<span className="icon">✅</span>
 							<div className="text">
-								<strong>Your first task is active</strong>
-								<span>You'll be reminded automatically when it's due</span>
+								<strong>Your property setup is underway</strong>
+								<span>Appliances and suggested tasks now have a starting point</span>
 							</div>
 						</PayoffItem>
 						<PayoffItem>
 							<span className="icon">🏠</span>
 							<div className="text">
 								<strong>Your property dashboard is ready</strong>
-								<span>Add appliances, contractors, and history as you go</span>
+								<span>Review appliances, tasks, and history as you go</span>
 							</div>
 						</PayoffItem>
 						<PayoffItem>
 							<span className="icon">🛡️</span>
 							<div className="text">
 								<strong>Your maintenance record has started</strong>
-								<span>Every future repair adds to a history you'll actually use</span>
+								<span>Every completed task adds to a history you'll actually use</span>
 							</div>
 						</PayoffItem>
 					</PayoffItems>
 				</PayoffPreview>
 				<VisualPayoffGrid>
 					<VisualPayoffCard>
-						<div className='header'>30 Days</div>
-						<div className='title'>You complete your first recurring task</div>
-						<div className='meta'>Timeline grows with dates, notes, and files.</div>
+						<div className='header'>Next</div>
+						<div className='title'>Review starter tasks</div>
+						<div className='meta'>Adjust due dates, assignments, and notes as needed.</div>
 					</VisualPayoffCard>
 					<VisualPayoffCard>
-						<div className='header'>90 Days</div>
-						<div className='title'>Second reminder triggers automatically</div>
-						<div className='meta'>No memory burden. The system keeps the service history organized.</div>
+						<div className='header'>Later</div>
+						<div className='title'>Complete maintenance tasks</div>
+						<div className='meta'>Finished work becomes property history.</div>
 					</VisualPayoffCard>
 					<VisualPayoffCard>
 						<div className='header'>Anytime</div>
@@ -1067,7 +1087,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
 				advanceToNextStep();
 			}
 		}
-	}, [properties, tasks, location.pathname, currentStep, advanceToNextStep]);
+	}, [properties, hasSetupAssistantProgress, location.pathname, currentStep, advanceToNextStep]);
 
 	// Handle celebration steps
 	useEffect(() => {
@@ -1082,13 +1102,13 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
 	useEffect(() => {
 		if (
 			currentStep?.type === 'page_guide' &&
-			location.pathname.includes('/properties/')
+			location.pathname.includes('/property/')
 		) {
 			setPageGuideContent({
-				title: 'Property Details Page',
+				title: 'Property Setup Assistant',
 				content:
-					'This is your property command center! Here you can manage tenants, tasks, and all property-related information. Click "Add Task" to create your first maintenance task.',
-				actionLabel: 'Create Task',
+					'Start with the Property Setup Assistant near the top of this page. It helps you review typical appliances and create maintenance tasks many homeowners track.',
+				actionLabel: 'Continue',
 				onAction: () => {
 					setShowPageGuide(false);
 					setCurrentStepIndex(currentStepIndex + 1);
@@ -1120,7 +1140,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
 				clearTimeout(minimizeTimer);
 			}
 		};
-	}, [currentStepIndex]);
+	}, [currentStepIndex, currentStep?.type]);
 
 	// Render different modal types
 	if (showCelebration) {
@@ -1219,7 +1239,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
 						</StepContent>
 
 						<ActionButtons>
-							{currentStep.id === 'wait_task_creation' && tasks.length > 0 ? (
+							{currentStep.id === 'wait_setup_assistant' && hasSetupAssistantProgress ? (
 								<PrimaryButton onClick={advanceToNextStep}>
 									Continue
 								</PrimaryButton>

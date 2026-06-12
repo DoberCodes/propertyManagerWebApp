@@ -25,7 +25,6 @@ import { useNavigate } from 'react-router-dom';
 import { setCurrentUser } from '../../Redux/Slices/userSlice';
 import { signInWithEmail } from '../../services/authService';
 import { USER_ROLES } from '../../constants/roles';
-import { TRIAL_DURATION_DAYS } from '../../constants/subscriptions';
 
 export const LoginCard = () => {
 	const navigate = useNavigate();
@@ -102,9 +101,7 @@ export const LoginCard = () => {
 				<FontAwesomeIcon icon={faArrowAltCircleLeft} />
 			</BackButton>
 			<Title>Login</Title>
-			<TrialNotice>
-				New here? Start with a {TRIAL_DURATION_DAYS}-day free trial.
-			</TrialNotice>
+			<TrialNotice>New here? Start with the free plan.</TrialNotice>
 			{error && <ErrorMessage>{error}</ErrorMessage>}
 			<Input
 				placeholder='Email Address'

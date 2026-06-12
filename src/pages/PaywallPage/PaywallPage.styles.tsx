@@ -133,40 +133,98 @@ export const TrialCountdown = styled.div<{ variant?: 'full' | 'embedded' }>`
 	}
 `;
 
-export const BillingToggle = styled.div`
-	display: inline-flex;
+export const PlanAudienceControls = styled.div<{ variant?: 'full' | 'embedded' }>`
+	display: flex;
 	align-items: center;
 	justify-content: center;
+	width: fit-content;
 	background: ${COLORS.bgWhite};
 	border: 1.5px solid ${COLORS.gray200};
 	border-radius: 999px;
 	padding: 4px;
-	margin: 0 auto 12px auto;
+	margin: 0 auto ${(props) => (props.variant === 'embedded' ? '12px' : '18px')} auto;
 	box-shadow: ${COLORS.shadow};
+
+	@media (max-width: 640px) {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		width: 100%;
+	}
 `;
 
-export const BillingToggleButton = styled.button<{ $active?: boolean }>`
+export const PlanAudienceButton = styled.button<{ $active?: boolean }>`
 	border: none;
 	background: ${(props) => (props.$active ? COLORS.primary : 'transparent')};
 	color: ${(props) => (props.$active ? '#fff' : COLORS.textSecondary)};
 	font-size: 14px;
 	font-weight: 700;
-	padding: 8px 16px;
+	padding: 9px 22px;
 	border-radius: 999px;
 	cursor: pointer;
 	transition: all 0.2s ease;
+	white-space: nowrap;
 
 	&:hover {
 		opacity: 0.92;
 	}
 `;
 
-export const BillingToggleHint = styled.p`
+export const PlanGroupIntro = styled.p<{ variant?: 'full' | 'embedded' }>`
 	text-align: center;
-	font-size: 12px;
-	font-weight: 600;
+	font-size: ${(props) => (props.variant === 'embedded' ? '12px' : '14px')};
+	line-height: 1.5;
 	color: ${COLORS.textSecondary};
-	margin: 0 0 12px 0;
+	margin: 0 auto ${(props) => (props.variant === 'embedded' ? '12px' : '22px')} auto;
+	max-width: 640px;
+`;
+
+export const CardHeaderRow = styled.div`
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	flex-wrap: wrap;
+	gap: 12px;
+	margin-bottom: 16px;
+`;
+
+export const CardBillingToggle = styled.div`
+	display: inline-flex;
+	align-items: center;
+	background: ${COLORS.bgLight};
+	border: 1px solid ${COLORS.gray200};
+	border-radius: 999px;
+	padding: 3px;
+	flex-shrink: 0;
+`;
+
+export const CardBillingButton = styled.button<{ $active?: boolean }>`
+	border: none;
+	border-radius: 999px;
+	background: ${(props) => (props.$active ? COLORS.primary : 'transparent')};
+	color: ${(props) => (props.$active ? '#fff' : COLORS.textSecondary)};
+	font-size: 11px;
+	font-weight: 800;
+	padding: 6px 9px;
+	cursor: pointer;
+	transition: all 0.2s ease;
+	white-space: nowrap;
+
+	&:hover {
+		opacity: 0.9;
+	}
+`;
+
+export const FreePlanBadge = styled.span`
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: 999px;
+	padding: 7px 12px;
+	background: ${COLORS.bgLight};
+	color: ${COLORS.primary};
+	font-size: 12px;
+	font-weight: 800;
+	border: 1px solid rgba(16, 185, 129, 0.18);
 `;
 
 export const PricingCardsGrid = styled.div<{ layout?: 'grid' | 'horizontal' }>`
@@ -174,11 +232,11 @@ export const PricingCardsGrid = styled.div<{ layout?: 'grid' | 'horizontal' }>`
 	grid-template-columns: ${(props) =>
 		props.layout === 'horizontal'
 			? 'none'
-			: 'repeat(auto-fit, minmax(280px, 1fr))'};
+			: 'repeat(2, minmax(280px, 1fr))'};
 	gap: ${(props) => (props.layout === 'horizontal' ? '16px' : '24px')};
 	margin-bottom: ${(props) =>
 		props.layout === 'horizontal' ? '20px' : '40px'};
-	margin-top: ${(props) => (props.layout === 'horizontal' ? '10px' : '40px')};
+	margin-top: ${(props) => (props.layout === 'horizontal' ? '10px' : '22px')};
 	align-items: stretch;
 	justify-content: center;
 	flex-wrap: ${(props) => (props.layout === 'horizontal' ? 'nowrap' : 'wrap')};
@@ -193,7 +251,7 @@ export const PricingCardsGrid = styled.div<{ layout?: 'grid' | 'horizontal' }>`
 		gap: 12px;
 		overflow-x: visible;
 		flex-wrap: wrap;
-		margin-top: ${(props) => (props.layout === 'horizontal' ? '10px' : '40px')};
+		margin-top: ${(props) => (props.layout === 'horizontal' ? '10px' : '18px')};
 		margin-bottom: 16px;
 	}
 `;
@@ -207,11 +265,11 @@ export const PricingCard = styled.div<{
 		props.isCurrentPlan ? COLORS.primary : COLORS.bgWhite};
 	border: ${(props) =>
 		props.isPopular
-			? `3px solid ${COLORS.primary}`
+			? `2px solid ${COLORS.primary}`
 			: `1.5px solid ${COLORS.gray200}`};
-	border-radius: ${(props) => (props.layout === 'horizontal' ? '8px' : '12px')};
+	border-radius: ${(props) => (props.layout === 'horizontal' ? '8px' : '10px')};
 	padding: ${(props) =>
-		props.layout === 'horizontal' ? '20px 16px' : '40px 30px'};
+		props.layout === 'horizontal' ? '18px 16px' : '28px 26px'};
 	position: relative;
 	transition: all 0.3s ease;
 	display: flex;
@@ -222,7 +280,7 @@ export const PricingCard = styled.div<{
 	flex: ${(props) =>
 		props.layout === 'horizontal' ? '0 0 280px' : '1 1 auto'};
 	overflow: visible;
-	margin-top: 20px;
+	margin-top: 12px;
 
 	&:hover {
 		transform: translateY(-5px);
@@ -232,19 +290,18 @@ export const PricingCard = styled.div<{
 
 	@media (max-width: 1024px) {
 		padding: ${(props) =>
-			props.layout === 'horizontal' ? '16px 12px' : '30px 20px'};
+			props.layout === 'horizontal' ? '16px 12px' : '22px 18px'};
 		margin-top: 0;
 	}
 `;
 
 export const PopularBadge = styled.span<{ variant?: 'full' | 'embedded' }>`
 	position: absolute;
-	top: -15px;
-	left: 50%;
-	transform: translateX(-50%);
+	top: -13px;
+	left: 18px;
 	background: ${COLORS.primary};
 	color: white;
-	padding: 6px 16px;
+	padding: 5px 12px;
 	border-radius: 20px;
 	font-size: 12px;
 	font-weight: 700;
@@ -255,9 +312,9 @@ export const PopularBadge = styled.span<{ variant?: 'full' | 'embedded' }>`
 `;
 
 export const PlanName = styled.h3<{ color?: 'white' | 'black' }>`
-	font-size: 24px;
+	font-size: 23px;
 	font-weight: 800;
-	margin: 0 0 15px 0;
+	margin: 0;
 	color: ${(props) => (props.color === 'white' ? 'white' : 'inherit')};
 `;
 
@@ -287,13 +344,13 @@ export const PlanPrice = styled.div<{ color?: 'white' | 'black' }>`
 export const PlanFeatures = styled.ul`
 	list-style: none;
 	padding: 0;
-	margin: 30px 0;
+	margin: 22px 0;
 	flex-grow: 1;
 `;
 
 export const PlanFeature = styled.li<{ color?: 'white' | 'black' }>`
-	font-size: 15px;
-	padding: 12px 0;
+	font-size: 14px;
+	padding: 9px 0;
 	color: ${(props) =>
 		props.color === 'white' ? 'rgba(255, 255, 255, 0.9)' : COLORS.textPrimary};
 	display: flex;
@@ -393,11 +450,14 @@ export const ContactSalesButton = styled.button`
 
 export const AdditionalOptionsContainer = styled.div<{
 	layout?: 'grid' | 'horizontal';
+	$single?: boolean;
 }>`
 	display: grid;
-	grid-template-columns: 1fr 1fr;
+	grid-template-columns: ${(props) =>
+		props.$single ? 'minmax(0, 560px)' : '1fr 1fr'};
 	gap: ${(props) => (props.layout === 'horizontal' ? '16px' : '24px')};
 	margin-top: ${(props) => (props.layout === 'horizontal' ? '20px' : '40px')};
+	justify-content: center;
 
 	@media (max-width: 1024px) {
 		grid-template-columns: 1fr;

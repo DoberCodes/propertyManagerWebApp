@@ -1,8 +1,8 @@
 import React from 'react';
 
 /**
- * Trial Expiration Warning Banner
- * Shows when trial is about to expire (3 days or less)
+ * Access Expiration Warning Banner
+ * Shows when a legacy access period is about to expire (3 days or less)
  */
 interface TrialWarningBannerProps {
 	daysRemaining: number;
@@ -13,7 +13,7 @@ export const TrialWarningBanner: React.FC<TrialWarningBannerProps> = ({
 	daysRemaining,
 	onUpgradeClick,
 }) => {
-	// Don't show banner for unlimited trials (-1) or trials with more than 3 days remaining
+	// Don't show banner for unlimited access (-1) or access periods with more than 3 days remaining
 	if (daysRemaining === -1 || daysRemaining > 3) {
 		return null;
 	}
@@ -34,8 +34,8 @@ export const TrialWarningBanner: React.FC<TrialWarningBannerProps> = ({
 			}}>
 			<span>
 				{daysRemaining === 0
-					? '⚠️ Your trial has expired. Upgrade now to continue using all features.'
-					: `⏰ Your free trial expires in ${daysRemaining} day${daysRemaining !== 1 ? 's' : ''}. Upgrade now to avoid interruption.`}
+					? 'Your current access period has ended. Upgrade to continue using premium features.'
+					: `Your current access period ends in ${daysRemaining} day${daysRemaining !== 1 ? 's' : ''}. Upgrade to avoid interruption.`}
 			</span>
 			{onUpgradeClick && (
 				<button

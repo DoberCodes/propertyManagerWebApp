@@ -229,7 +229,7 @@ export const validateTeamInviteForRegistration = async (
 };
 
 /**
- * Create subscription for new user - local trial for all users
+ * Create subscription for new user
  */
 const getPriceIdForPlan = (planId: string): string => {
 	return getStripePriceIdForPlan(planId, 'month');
@@ -313,7 +313,7 @@ const createUserSubscription = async (
 		};
 	}
 
-	// Create Stripe trial subscription for all plans (Stripe is source of truth)
+	// Create Stripe subscription setup for paid plans (Stripe is source of truth)
 	try {
 		const createTrial = httpsCallable(functions, 'createTrialSubscription');
 		const result = await createTrial({
@@ -346,10 +346,10 @@ const createUserSubscription = async (
 			},
 		};
 	} catch (error: any) {
-		console.error('Failed to create Stripe trial subscription:', error);
+		console.error('Failed to create Stripe subscription setup:', error);
 		throw new Error(
 			error?.message ||
-				'Stripe trial setup failed. Verify Stripe plan IDs and key mode configuration.',
+				'Stripe subscription setup failed. Verify Stripe price IDs and key mode configuration.',
 		);
 	}
 };

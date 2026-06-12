@@ -161,8 +161,8 @@ const faqItems = [
 		a: 'Team access depends on your account role and permissions. Owners/admin roles can access team management features.',
 	},
 	{
-		q: 'How do subscriptions and trial periods work?',
-		a: 'Maintley provides a trial period for paid plans. You can review billing details under the Paywall/Subscription area in the app.',
+		q: 'How do subscriptions work?',
+		a: 'Maintley includes a free tier and optional paid plans. You can review billing details under the Subscription area in the app.',
 	},
 	{
 		q: 'Can I invite family members to my account?',

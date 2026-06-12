@@ -15,6 +15,7 @@ export const DialogOverlay = styled.div`
 `;
 
 export const DialogContainer = styled.div`
+	position: relative;
 	background-color: white;
 	border-radius: 8px;
 	width: 90%;
@@ -180,6 +181,62 @@ export const Label = styled.label`
 	@media (max-width: 480px) {
 		font-size: 12px;
 	}
+`;
+
+export const DialogSavingOverlay = styled.div`
+	position: absolute;
+	inset: 0;
+	z-index: 5;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 24px;
+	background: rgba(255, 255, 255, 0.92);
+	backdrop-filter: blur(2px);
+`;
+
+export const DialogSavingCard = styled.div`
+	width: min(100%, 420px);
+	border: 1px solid #bbf7d0;
+	border-radius: 14px;
+	background: #f0fdf4;
+	padding: 24px;
+	text-align: center;
+	box-shadow: 0 20px 45px rgba(15, 23, 42, 0.18);
+
+	@media (max-width: 480px) {
+		padding: 20px;
+	}
+`;
+
+export const DialogSavingSpinner = styled.div`
+	width: 34px;
+	height: 34px;
+	margin: 0 auto 16px;
+	border-radius: 999px;
+	border: 3px solid #bbf7d0;
+	border-top-color: #16a34a;
+	animation: property-dialog-spin 800ms linear infinite;
+
+	@keyframes property-dialog-spin {
+		to {
+			transform: rotate(360deg);
+		}
+	}
+`;
+
+export const DialogSavingTitle = styled.h3`
+	margin: 0 0 8px;
+	font-size: 18px;
+	font-weight: 800;
+	color: #14532d;
+`;
+
+export const DialogSavingText = styled.p`
+	margin: 0;
+	font-size: 14px;
+	line-height: 1.5;
+	color: #166534;
 `;
 
 export const ValidationMessage = styled.div`

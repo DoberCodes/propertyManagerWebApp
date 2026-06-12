@@ -107,6 +107,18 @@ const resolvePriceIdForPlan = (
 		sanitizeSecret(process.env.STRIPE_HOMEOWNER_PRICE_ID || '') ||
 		sanitizeSecret(legacyStripe.homeowner_price_id || '') ||
 		sanitizeSecret(process.env.REACT_APP_STRIPE_HOMEOWNER_PLAN_ID || '');
+	const homeownerPlusPriceId =
+		sanitizeSecret(process.env.STRIPE_HOMEOWNER_PLUS_MONTHLY_PRICE_ID || '') ||
+		sanitizeSecret(process.env.STRIPE_HOMEOWNER_PLUS_PRICE_ID || '') ||
+		sanitizeSecret(
+			process.env.REACT_APP_STRIPE_HOMEOWNER_PLUS_MONTHLY_PLAN_ID || '',
+		) ||
+		sanitizeSecret(process.env.REACT_APP_STRIPE_HOMEOWNER_PLUS_PLAN_ID || '');
+	const homeownerPlusAnnualPriceId =
+		sanitizeSecret(process.env.STRIPE_HOMEOWNER_PLUS_ANNUAL_PRICE_ID || '') ||
+		sanitizeSecret(
+			process.env.REACT_APP_STRIPE_HOMEOWNER_PLUS_ANNUAL_PLAN_ID || '',
+		);
 
 	const propertyPriceId =
 		sanitizeSecret(process.env.STRIPE_PROPERTY_MONTHLY_PRICE_ID || '') ||
@@ -151,10 +163,13 @@ const resolvePriceIdForPlan = (
 
 	const monthlyPriceMap: Record<string, string> = {
 		home: homePriceId,
+		homeowner_plus: homeownerPlusPriceId,
 		property: propertyPriceId,
 		portfolio: portfolioPriceId,
 		// Legacy aliases
 		homeowner: homePriceId || homeownerLegacyPriceId,
+		homeownerplus: homeownerPlusPriceId,
+		'homeowner+': homeownerPlusPriceId,
 		basic: propertyPriceId || basicLegacyPriceId,
 		professional: portfolioPriceId || professionalLegacyPriceId,
 		free: freePriceId,
@@ -164,10 +179,13 @@ const resolvePriceIdForPlan = (
 
 	const annualPriceMap: Record<string, string> = {
 		home: homeAnnualPriceId || homePriceId,
+		homeowner_plus: homeownerPlusAnnualPriceId || homeownerPlusPriceId,
 		property: propertyAnnualPriceId || propertyPriceId,
 		portfolio: portfolioAnnualPriceId || portfolioPriceId,
 		// Legacy aliases
 		homeowner: homeAnnualPriceId || homePriceId || homeownerLegacyPriceId,
+		homeownerplus: homeownerPlusAnnualPriceId || homeownerPlusPriceId,
+		'homeowner+': homeownerPlusAnnualPriceId || homeownerPlusPriceId,
 		basic: propertyAnnualPriceId || propertyPriceId || basicLegacyPriceId,
 		professional:
 			portfolioAnnualPriceId ||
@@ -1628,6 +1646,17 @@ function getPlanFromPriceId(
 		'price_homeowner',
 	].filter(Boolean) as string[];
 
+	const homeownerPlusPriceIds = [
+		process.env.STRIPE_HOMEOWNER_PLUS_MONTHLY_PRICE_ID,
+		process.env.STRIPE_HOMEOWNER_PLUS_ANNUAL_PRICE_ID,
+		process.env.REACT_APP_STRIPE_HOMEOWNER_PLUS_MONTHLY_PLAN_ID,
+		process.env.REACT_APP_STRIPE_HOMEOWNER_PLUS_ANNUAL_PLAN_ID,
+		process.env.STRIPE_HOMEOWNER_PLUS_PRICE_ID,
+		process.env.REACT_APP_STRIPE_HOMEOWNER_PLUS_PLAN_ID,
+		'price_homeowner_plus',
+		'price_homeowner_plus_annual',
+	].filter(Boolean) as string[];
+
 	const propertyPriceIds = [
 		process.env.STRIPE_PROPERTY_MONTHLY_PRICE_ID,
 		process.env.STRIPE_PROPERTY_ANNUAL_PRICE_ID,
@@ -1658,6 +1687,9 @@ function getPlanFromPriceId(
 
 	const priceMap: Record<string, string> = {
 		...Object.fromEntries(homePriceIds.map((id) => [id, 'home'])),
+		...Object.fromEntries(
+			homeownerPlusPriceIds.map((id) => [id, 'homeowner_plus']),
+		),
 		...Object.fromEntries(propertyPriceIds.map((id) => [id, 'property'])),
 		...Object.fromEntries(portfolioPriceIds.map((id) => [id, 'portfolio'])),
 	};
@@ -1682,6 +1714,16 @@ function getPriceIdFromPlan(
 		process.env.STRIPE_HOME_ANNUAL_PRICE_ID ||
 		process.env.REACT_APP_STRIPE_HOME_ANNUAL_PLAN_ID ||
 		homePriceId;
+	const homeownerPlusPriceId =
+		process.env.STRIPE_HOMEOWNER_PLUS_MONTHLY_PRICE_ID ||
+		process.env.STRIPE_HOMEOWNER_PLUS_PRICE_ID ||
+		process.env.REACT_APP_STRIPE_HOMEOWNER_PLUS_MONTHLY_PLAN_ID ||
+		process.env.REACT_APP_STRIPE_HOMEOWNER_PLUS_PLAN_ID ||
+		'price_homeowner_plus';
+	const homeownerPlusAnnualPriceId =
+		process.env.STRIPE_HOMEOWNER_PLUS_ANNUAL_PRICE_ID ||
+		process.env.REACT_APP_STRIPE_HOMEOWNER_PLUS_ANNUAL_PLAN_ID ||
+		homeownerPlusPriceId;
 	const propertyPriceId =
 		process.env.STRIPE_PROPERTY_MONTHLY_PRICE_ID ||
 		process.env.STRIPE_PROPERTY_PRICE_ID ||
@@ -1703,20 +1745,26 @@ function getPriceIdFromPlan(
 
 	const monthlyPlanMap: Record<string, string> = {
 		home: homePriceId,
+		homeowner_plus: homeownerPlusPriceId,
 		property: propertyPriceId,
 		portfolio: portfolioPriceId,
 		// Legacy aliases
 		homeowner: homePriceId,
+		homeownerplus: homeownerPlusPriceId,
+		'homeowner+': homeownerPlusPriceId,
 		basic: propertyPriceId,
 		professional: portfolioPriceId,
 	};
 
 	const annualPlanMap: Record<string, string> = {
 		home: homeAnnualPriceId,
+		homeowner_plus: homeownerPlusAnnualPriceId,
 		property: propertyAnnualPriceId,
 		portfolio: portfolioAnnualPriceId,
 		// Legacy aliases
 		homeowner: homeAnnualPriceId,
+		homeownerplus: homeownerPlusAnnualPriceId,
+		'homeowner+': homeownerPlusAnnualPriceId,
 		basic: propertyAnnualPriceId,
 		professional: portfolioAnnualPriceId,
 	};
