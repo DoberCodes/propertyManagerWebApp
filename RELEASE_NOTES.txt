@@ -1,5 +1,8 @@
-🎉 **Release Notes for Version 2.2.16** 🎉
+🎉 **Release Notes for Version 2.2.17** 🎉
 
 
 ## 🐛 Bug Fixes
-- fixing top nav issues and fixing notifications to use action based defaults
+- fixing onboarding flow
+
+## 🔧 Improvements & Maintenance
+- Adding changes to the property creation and adding suggested maintenance and improved onboarding with systems and tasks.
