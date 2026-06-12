@@ -182,6 +182,12 @@ export const Label = styled.label`
 	}
 `;
 
+export const ValidationMessage = styled.div`
+	font-size: 12px;
+	line-height: 1.4;
+	color: #b91c1c;
+`;
+
 export const Input = styled.input`
 	padding: 10px 12px;
 	border: 1px solid #d1d5db;
@@ -400,8 +406,8 @@ export const WizardSidebar = styled.div`
 	}
 
 	@media (max-width: 640px) {
-		padding: 8px 10px;
-		gap: 6px;
+		padding: 8px;
+		gap: 5px;
 	}
 `;
 
@@ -416,6 +422,11 @@ export const WizardStep = styled.button<{ $active?: boolean; $complete?: boolean
 	text-align: left;
 	cursor: pointer;
 	color: ${({ $active }) => ($active ? '#166534' : '#334155')};
+
+	&:disabled {
+		cursor: not-allowed;
+		opacity: 0.45;
+	}
 
 	@media (max-width: 900px) {
 		grid-template-columns: ${({ $active }) =>
@@ -437,7 +448,8 @@ export const WizardStep = styled.button<{ $active?: boolean; $complete?: boolean
 	@media (max-width: 640px) {
 		height: 34px;
 		flex-basis: ${({ $active }) => ($active ? 'auto' : '34px')};
-		max-width: ${({ $active }) => ($active ? '160px' : '34px')};
+		max-width: ${({ $active }) => ($active ? '128px' : '34px')};
+		padding: ${({ $active }) => ($active ? '6px 8px' : '6px')};
 	}
 `;
 
@@ -484,7 +496,7 @@ export const WizardStepTitle = styled.span`
 	font-weight: 700;
 
 	@media (max-width: 640px) {
-		font-size: 12px;
+		font-size: 11px;
 		line-height: 1.2;
 		overflow: hidden;
 		text-overflow: ellipsis;
@@ -565,6 +577,48 @@ export const UploadDropzone = styled.div`
 	border-radius: 12px;
 	padding: 18px;
 	background: #f8fafc;
+
+	@media (max-width: 640px) {
+		padding: 12px;
+	}
+`;
+
+export const CompactActionRow = styled.div`
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px;
+	align-items: center;
+
+	@media (max-width: 640px) {
+		display: grid;
+		grid-template-columns: 1fr;
+	}
+`;
+
+export const InlineDisclosureButton = styled.button`
+	align-self: flex-start;
+	border: none;
+	background: transparent;
+	color: #047857;
+	font-size: 13px;
+	font-weight: 800;
+	padding: 0;
+	cursor: pointer;
+	text-align: left;
+
+	&:hover {
+		text-decoration: underline;
+	}
+`;
+
+export const CompactCreateRow = styled.div`
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	gap: 10px;
+
+	@media (max-width: 640px) {
+		grid-template-columns: 1fr;
+	}
 `;
 
 export const SharingSection = styled.div`
@@ -663,6 +717,255 @@ export const EmptySharingState = styled.div`
 	font-size: 12px;
 	color: #64748b;
 	background: #f8fafc;
+`;
+
+export const SuggestionNotice = styled.div`
+	padding: 12px 14px;
+	border: 1px solid #bfdbfe;
+	border-radius: 12px;
+	background: #eff6ff;
+	color: #1e3a8a;
+	font-size: 13px;
+	line-height: 1.5;
+
+	@media (max-width: 640px) {
+		padding: 10px 12px;
+		font-size: 12px;
+	}
+`;
+
+export const SuggestionToggle = styled.label`
+	display: flex;
+	align-items: flex-start;
+	gap: 10px;
+	padding: 12px;
+	border: 1px solid #dbe3ea;
+	border-radius: 12px;
+	background: #ffffff;
+	color: #334155;
+	line-height: 1.45;
+	cursor: pointer;
+
+	input {
+		margin-top: 2px;
+		width: 18px;
+		height: 18px;
+		flex: 0 0 auto;
+	}
+
+	@media (max-width: 640px) {
+		padding: 10px;
+	}
+`;
+
+export const SuggestionToggleText = styled.span`
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	min-width: 0;
+`;
+
+export const SuggestionToggleHint = styled.span`
+	color: #64748b;
+	font-size: 13px;
+
+	@media (max-width: 640px) {
+		font-size: 12px;
+	}
+`;
+
+export const SuggestionGrid = styled.div`
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+	gap: 10px;
+
+	@media (max-width: 640px) {
+		grid-template-columns: 1fr;
+		gap: 8px;
+	}
+`;
+
+export const SuggestionCard = styled.label<{ $selected?: boolean }>`
+	display: flex;
+	align-items: flex-start;
+	gap: 10px;
+	padding: 12px;
+	border: 1px solid ${({ $selected }) => ($selected ? '#16a34a' : '#e2e8f0')};
+	border-radius: 12px;
+	background: ${({ $selected }) => ($selected ? '#f0fdf4' : '#ffffff')};
+	color: #0f172a;
+	cursor: pointer;
+	min-width: 0;
+
+	input {
+		margin-top: 1px;
+		width: 18px;
+		height: 18px;
+		flex: 0 0 auto;
+	}
+
+	@media (max-width: 640px) {
+		align-items: center;
+		padding: 10px 12px;
+		border-radius: 10px;
+	}
+`;
+
+export const SuggestionCardTitle = styled.span`
+	display: block;
+	font-size: 14px;
+	font-weight: 700;
+	color: #0f172a;
+`;
+
+export const SuggestionCardMeta = styled.span`
+	display: block;
+	font-size: 12px;
+	color: #64748b;
+	margin-top: 2px;
+`;
+
+export const SuggestionMoreButton = styled.button`
+	align-self: flex-start;
+	border: 1px solid #cbd5e1;
+	background: #ffffff;
+	color: #0f172a;
+	border-radius: 10px;
+	padding: 9px 12px;
+	font-size: 13px;
+	font-weight: 700;
+	cursor: pointer;
+
+	&:hover {
+		background: #f8fafc;
+	}
+
+	@media (max-width: 640px) {
+		width: 100%;
+		padding: 11px 12px;
+		text-align: center;
+	}
+`;
+
+export const SuggestedTaskGroup = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: 0;
+	padding: 0;
+	border: 1px solid #e2e8f0;
+	border-radius: 12px;
+	background: #ffffff;
+	overflow: hidden;
+
+	@media (max-width: 640px) {
+		border-radius: 10px;
+	}
+`;
+
+export const SuggestedTaskGroupHeader = styled.button`
+	width: 100%;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 14px;
+	border: none;
+	background: #ffffff;
+	color: #0f172a;
+	text-align: left;
+	cursor: pointer;
+
+	&:hover {
+		background: #f8fafc;
+	}
+
+	@media (max-width: 640px) {
+		padding: 12px;
+		align-items: flex-start;
+	}
+`;
+
+export const SuggestedTaskGroupTitle = styled.span`
+	margin: 0;
+	font-size: 14px;
+	font-weight: 800;
+	color: #0f172a;
+`;
+
+export const SuggestedTaskGroupMeta = styled.span`
+	display: block;
+	margin-top: 3px;
+	font-size: 12px;
+	font-weight: 600;
+	color: #64748b;
+`;
+
+export const SuggestedTaskGroupAction = styled.span`
+	flex: 0 0 auto;
+	font-size: 12px;
+	font-weight: 800;
+	color: #166534;
+`;
+
+export const SuggestedTaskList = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	padding: 0 14px 14px;
+
+	@media (max-width: 640px) {
+		gap: 0;
+		padding: 0 12px 12px;
+	}
+`;
+
+export const SuggestedTaskRow = styled.label`
+	display: flex;
+	align-items: flex-start;
+	gap: 10px;
+	font-size: 13px;
+	line-height: 1.45;
+	color: #334155;
+	cursor: pointer;
+
+	input {
+		margin-top: 1px;
+		width: 18px;
+		height: 18px;
+		flex: 0 0 auto;
+	}
+
+	@media (max-width: 640px) {
+		padding: 9px 0;
+		border-top: 1px solid #f1f5f9;
+
+		&:first-of-type {
+			border-top: none;
+		}
+	}
+`;
+
+export const SuggestedTaskText = styled.span`
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	min-width: 0;
+`;
+
+export const SuggestedTaskInterval = styled.span`
+	color: #64748b;
+	font-size: 12px;
+
+	@media (max-width: 640px) {
+		display: block;
+		margin-top: 2px;
+	}
+`;
+
+export const SuggestedTaskNote = styled.span`
+	color: #64748b;
+	font-size: 12px;
+	line-height: 1.45;
 `;
 
 export const ReviewGrid = styled.div`

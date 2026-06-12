@@ -5,6 +5,15 @@
 
 ## Project Hygiene & Onboarding
 
+- **Documentation:**
+	- Start with `docs/README.md` for the current documentation map.
+	- Product direction lives in `docs/PRODUCT_DIRECTION.md` and `docs/UX_LANGUAGE_GUIDE.md`.
+	- Mobile UX guidance lives in `docs/MOBILE_UX_GUIDE.md`; review it before changing responsive layouts, dialogs, wizards, uploads, tables, or navigation.
+	- Technical references live in `docs/TECHNICAL_ARCHITECTURE.md`, `docs/DATA_MODEL.md`, `docs/FIREBASE_STRUCTURE.md`, and `docs/PERMISSIONS.md`.
+	- Refactoring guidance lives in `docs/REFACTORING_GUIDE.md`.
+	- Product and architecture decisions live in `docs/DECISIONS/`.
+	- Historical docs should be archived under `docs/archive/` with an `-archive` suffix rather than deleted.
+
 - **Environment Variables:**
 	- Copy `.env.example` to `.env.local` and fill in your secrets and config values. Never commit real secrets to git.
 	- The project’s `.gitignore` ensures all `.env*` files (except `.env.example`) are ignored for security.

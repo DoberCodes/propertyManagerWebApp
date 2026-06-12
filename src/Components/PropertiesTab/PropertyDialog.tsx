@@ -16,10 +16,14 @@ import {
 	FormRow,
 	FormField,
 	Label,
+	ValidationMessage,
 	Input,
 	TextArea,
 	PhotoPreview,
 	PhotoPreviewImage,
+	CompactActionRow,
+	InlineDisclosureButton,
+	CompactCreateRow,
 	WizardShell,
 	WizardSidebar,
 	WizardStep,
@@ -46,6 +50,25 @@ import {
 	MemberName,
 	MemberMeta,
 	EmptySharingState,
+	SuggestionCard,
+	SuggestionCardMeta,
+	SuggestionCardTitle,
+	SuggestionGrid,
+	SuggestionMoreButton,
+	SuggestionNotice,
+	SuggestionToggle,
+	SuggestionToggleHint,
+	SuggestionToggleText,
+	SuggestedTaskGroup,
+	SuggestedTaskGroupAction,
+	SuggestedTaskGroupHeader,
+	SuggestedTaskGroupMeta,
+	SuggestedTaskGroupTitle,
+	SuggestedTaskInterval,
+	SuggestedTaskList,
+	SuggestedTaskNote,
+	SuggestedTaskRow,
+	SuggestedTaskText,
 	ReviewGrid,
 	ReviewLabel,
 	ReviewValue,
@@ -68,6 +91,14 @@ import { RootState } from '../../Redux/store/store';
 import { TeamMember } from '../../types/Team.types';
 import { User } from '../../Redux/Slices/userSlice';
 import { getFamilyMembers } from '../../services/authService';
+import {
+	SUGGESTED_MAINTENANCE_DISCLAIMER,
+	SUGGESTED_SYSTEMS,
+	SUGGESTED_TASKS,
+	SuggestedSystemId,
+	getDefaultSuggestedSystemIds,
+	getSuggestedTaskIdsForSystems,
+} from '../../utils/suggestedMaintenance';
 
 interface MaintenanceRecord {
 	date: string;
@@ -93,6 +124,9 @@ export interface PropertyFormData {
 	administrators?: string[];
 	viewers?: string[];
 	showOnDashboard?: boolean;
+	addSuggestedMaintenance?: boolean;
+	selectedSuggestedSystemIds?: SuggestedSystemId[];
+	selectedSuggestedTaskIds?: string[];
 }
 
 interface PropertyDialogProps {
@@ -127,21 +161,48 @@ interface ShareMemberOption {
 	source: 'team' | 'family';
 }
 
+const buildPropertySlug = (value: string) =>
+	value
+		.toLowerCase()
+		.trim()
+		.replace(/\s+/g, '-')
+		.replace(/[^\w-]/g, '');
+
 const STEPS = [
 	{
+		key: 'group',
 		title: 'Basic Details',
-		hint: 'Address, group, and property information',
+		navTitle: 'Basics',
+		hint: 'Name, address, group, and photo',
 	},
 	{
+		key: 'details',
 		title: 'Property Profile',
-		hint: 'Additional details about your property',
+		navTitle: 'Profile',
+		hint: 'Type, owner, and notes',
 	},
 	{
+		key: 'systems',
+		title: 'Appliances & Systems',
+		navTitle: 'Systems',
+		hint: 'Choose what exists in this property',
+	},
+	{
+		key: 'maintenance',
+		title: 'Suggested Maintenance',
+		navTitle: 'Tasks',
+		hint: 'Start with common tasks',
+	},
+	{
+		key: 'sharing',
 		title: 'Access & Sharing',
+		navTitle: 'Access',
 		hint: 'Add people who can access this property',
 	},
 	{
+		key: 'review',
 		title: 'Review',
+		navTitle: 'Review',
 		hint: 'Confirm and save your property',
 	},
 ] as const;
@@ -196,18 +257,29 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 		administrators: [],
 		viewers: [],
 		showOnDashboard: true,
+		addSuggestedMaintenance: true,
+		selectedSuggestedSystemIds: getDefaultSuggestedSystemIds(),
+		selectedSuggestedTaskIds: getSuggestedTaskIdsForSystems(
+			getDefaultSuggestedSystemIds(),
+		),
 	});
 	const [stepIndex, setStepIndex] = useState(0);
 	// Units are temporarily hidden from the app flow.
 	// const [unitInput, setUnitInput] = useState('');
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [newGroupName, setNewGroupName] = useState('');
+	const [isCreateGroupOpen, setIsCreateGroupOpen] = useState(false);
+	const [isPhotoUploadOpen, setIsPhotoUploadOpen] = useState(false);
 	const [isUploadingImage, setIsUploadingImage] = useState(false);
 	const [imageError, setImageError] = useState<string | null>(null);
 	const [isDeletingProperty, setIsDeletingProperty] = useState(false);
 	const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
 	const [familyMembers, setFamilyMembers] = useState<User[]>([]);
 	const [isLoadingFamilyMembers, setIsLoadingFamilyMembers] = useState(false);
+	const [showMoreSuggestedSystems, setShowMoreSuggestedSystems] = useState(false);
+	const [expandedSuggestedTaskGroups, setExpandedSuggestedTaskGroups] = useState<
+		SuggestedSystemId[]
+	>([]);
 	const [pendingShares, setPendingShares] = useState<{
 		coOwners: string;
 		administrators: string;
@@ -223,6 +295,23 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 		Boolean(duplicateSourceName?.trim()) &&
 		formData.name.trim().toLowerCase() ===
 			duplicateSourceName!.trim().toLowerCase();
+	const propertyNameCreatesSlug = buildPropertySlug(formData.name).length > 0;
+	const requiredPropertyBasicsComplete = Boolean(
+		formData.name.trim() &&
+			propertyNameCreatesSlug &&
+			formData.address.trim() &&
+			!duplicateNameUnchanged,
+	);
+	const shouldShowSuggestedMaintenance = !initialData && !isDuplicate;
+	const steps = useMemo(
+		() =>
+			shouldShowSuggestedMaintenance
+				? STEPS
+				: STEPS.filter(
+						(step) => step.key !== 'systems' && step.key !== 'maintenance',
+				  ),
+		[shouldShowSuggestedMaintenance],
+	);
 
 	useEffect(() => {
 		if (!isOpen) {
@@ -242,8 +331,12 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 				administrators: initialData.administrators || [],
 				viewers: initialData.viewers || [],
 				showOnDashboard: !isHiddenFromDashboard,
+				addSuggestedMaintenance: false,
+				selectedSuggestedSystemIds: [],
+				selectedSuggestedTaskIds: [],
 			});
 		} else {
+			const defaultSystemIds = getDefaultSuggestedSystemIds();
 			setFormData({
 				name: '',
 				owner: currentUser
@@ -264,6 +357,9 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 				administrators: [],
 				viewers: [],
 				showOnDashboard: true,
+				addSuggestedMaintenance: true,
+				selectedSuggestedSystemIds: defaultSystemIds,
+				selectedSuggestedTaskIds: getSuggestedTaskIdsForSystems(defaultSystemIds),
 			});
 		}
 
@@ -271,9 +367,13 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 		// Units are temporarily hidden from the app flow.
 		// setUnitInput('');
 		setNewGroupName('');
+		setIsCreateGroupOpen(false);
+		setIsPhotoUploadOpen(false);
 		setPendingShares({ coOwners: '', administrators: '', viewers: '' });
 		setImageError(null);
 		setIsDeleteConfirmOpen(false);
+		setShowMoreSuggestedSystems(false);
+		setExpandedSuggestedTaskGroups([]);
 	}, [isOpen, initialData, selectedGroupId, forceSingleFamily, currentUser, isHiddenFromDashboard]);
 
 	useEffect(() => {
@@ -388,11 +488,6 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 	// 	}));
 	// };
 
-	const handlePhotoUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-		handleInputChange('photo', e.target.value || undefined);
-		setImageError(null);
-	};
-
 	const handleUseFallbackPhoto = () => {
 		handleInputChange('photo', PROPERTY_IMAGE_PLACEHOLDER);
 		setImageError(null);
@@ -410,6 +505,7 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 		try {
 			const imageUrl = await uploadPropertyImage(file);
 			handleInputChange('photo', imageUrl);
+			setIsPhotoUploadOpen(false);
 		} catch (error) {
 			setImageError(
 				error instanceof Error ? error.message : 'Failed to upload image',
@@ -457,24 +553,46 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 	};
 
 	const canContinue = useMemo(() => {
-		if (stepIndex === 0) {
+		const stepKey = steps[stepIndex]?.key;
+		if (stepKey === 'group') {
+			return requiredPropertyBasicsComplete;
+		}
+		if (stepKey === 'details') {
 			return true;
 		}
-		if (stepIndex === 1) {
-			return Boolean(
-				formData.name.trim() &&
-					formData.address.trim() &&
-					!duplicateNameUnchanged,
-			);
+		if (stepKey === 'systems') {
+			return !formData.addSuggestedMaintenance ||
+				(formData.selectedSuggestedSystemIds || []).length > 0;
+		}
+		if (stepKey === 'maintenance') {
+			return !formData.addSuggestedMaintenance ||
+				(formData.selectedSuggestedTaskIds || []).length > 0;
 		}
 		return true;
-	}, [stepIndex, formData.name, formData.address, duplicateNameUnchanged]);
+	}, [
+		steps,
+		stepIndex,
+		formData.addSuggestedMaintenance,
+		formData.selectedSuggestedSystemIds,
+		formData.selectedSuggestedTaskIds,
+		requiredPropertyBasicsComplete,
+	]);
 
 	const handleNext = () => {
 		if (!canContinue) {
 			return;
 		}
-		setStepIndex((prev) => Math.min(prev + 1, STEPS.length - 1));
+		setStepIndex((prev) => Math.min(prev + 1, steps.length - 1));
+	};
+
+	const canVisitStep = (index: number) => {
+		const basicsStepIndex = steps.findIndex((step) => step.key === 'group');
+		return (
+			index <= stepIndex ||
+			basicsStepIndex === -1 ||
+			index <= basicsStepIndex ||
+			requiredPropertyBasicsComplete
+		);
 	};
 
 	const handleBack = () => {
@@ -483,8 +601,9 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 
 	const handleSave = async () => {
 		if (isSubmitting) return;
-		if (duplicateNameUnchanged) {
-			setStepIndex(1);
+		if (!requiredPropertyBasicsComplete) {
+			const basicsStepIndex = steps.findIndex((step) => step.key === 'group');
+			setStepIndex(basicsStepIndex >= 0 ? basicsStepIndex : 0);
 			return;
 		}
 		setIsSubmitting(true);
@@ -492,6 +611,8 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 			await onSave({
 				...formData,
 				propertyType: forceSingleFamily ? 'Single Family' : formData.propertyType,
+				addSuggestedMaintenance:
+					shouldShowSuggestedMaintenance && !!formData.addSuggestedMaintenance,
 			});
 			onClose();
 		} catch (error) {
@@ -523,6 +644,49 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 		ids
 			.map((id) => availableMemberMap.get(id))
 			.filter(Boolean) as ShareMemberOption[];
+
+	const toggleSuggestedSystem = (systemId: SuggestedSystemId) => {
+		setFormData((prev) => {
+			const currentSystemIds = prev.selectedSuggestedSystemIds || [];
+			const nextSystemIds = currentSystemIds.includes(systemId)
+				? currentSystemIds.filter((id) => id !== systemId)
+				: [...currentSystemIds, systemId];
+			const allowedTaskIds = new Set(getSuggestedTaskIdsForSystems(nextSystemIds));
+			const currentTaskIds = prev.selectedSuggestedTaskIds || [];
+			const nextTaskIds = [
+				...currentTaskIds.filter((taskId) => allowedTaskIds.has(taskId)),
+				...Array.from(allowedTaskIds).filter(
+					(taskId) => !currentTaskIds.includes(taskId),
+				),
+			];
+
+			return {
+				...prev,
+				selectedSuggestedSystemIds: nextSystemIds,
+				selectedSuggestedTaskIds: nextTaskIds,
+			};
+		});
+	};
+
+	const toggleSuggestedTask = (taskId: string) => {
+		setFormData((prev) => {
+			const currentTaskIds = prev.selectedSuggestedTaskIds || [];
+			return {
+				...prev,
+				selectedSuggestedTaskIds: currentTaskIds.includes(taskId)
+					? currentTaskIds.filter((id) => id !== taskId)
+					: [...currentTaskIds, taskId],
+			};
+		});
+	};
+
+	const toggleSuggestedTaskGroup = (systemId: SuggestedSystemId) => {
+		setExpandedSuggestedTaskGroups((current) =>
+			current.includes(systemId)
+				? current.filter((id) => id !== systemId)
+				: [...current, systemId],
+		);
+	};
 
 	const renderShareSection = (
 		field: 'coOwners' | 'administrators' | 'viewers',
@@ -592,101 +756,147 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 	};
 
 	const renderStepContent = () => {
-		if (stepIndex === 0) {
+		const stepKey = steps[stepIndex]?.key || 'review';
+
+		if (stepKey === 'group') {
 			return (
 				<WizardPanel>
 					<WizardPanelHeader>
-						<WizardPanelTitle>Assign to Group</WizardPanelTitle>
+						<WizardPanelTitle>Property Basics</WizardPanelTitle>
 						<WizardPanelHint>
-							Organize your property by assigning it to an existing group or creating a new one.
+							Start with the essentials. You can add more details after this.
 						</WizardPanelHint>
 					</WizardPanelHeader>
 					<FormSection>
 						<FormRow>
 							<FormField>
-								<Label>Select existing group</Label>
-								<SelectField
-									value={formData.groupId ?? ''}
-									onChange={(e) => handleInputChange('groupId', e.target.value || null)}>
-									<option value=''>No group</option>
-									{groups.map((group) => (
-										<option key={group.id} value={group.id}>
-											{group.name}
-										</option>
-									))}
-								</SelectField>
+								<Label>Property Name</Label>
+								<Input
+									type='text'
+									value={formData.name}
+									onChange={(e) => handleInputChange('name', e.target.value)}
+									placeholder='Enter property name'
+									required
+								/>
+								{!formData.name.trim() && (
+									<ValidationMessage>
+										Property name is required so Maintley can create a property page.
+									</ValidationMessage>
+								)}
+								{formData.name.trim() && !propertyNameCreatesSlug && (
+									<ValidationMessage>
+										Use at least one letter or number so Maintley can create a valid property link.
+									</ValidationMessage>
+								)}
+								{duplicateNameUnchanged && (
+									<ValidationMessage>
+										Choose a new name before creating the duplicate property.
+									</ValidationMessage>
+								)}
 							</FormField>
 							<FormField>
-								<Label>Create new group</Label>
-								<div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 10 }}>
-									<Input
-										value={newGroupName}
-										onChange={(e) => setNewGroupName(e.target.value)}
-										placeholder='New group name'
-									/>
-									<AddButton
-										onClick={async () => {
-											if (!onCreateGroup || !newGroupName.trim()) return;
-											const id = await onCreateGroup(newGroupName.trim());
-											setNewGroupName('');
-											handleInputChange('groupId', id || null);
-										}}
-										disabled={!newGroupName.trim()}>
-										Create
-									</AddButton>
-								</div>
+								<Label>Address</Label>
+								<Input
+									type='text'
+									value={formData.address}
+									onChange={(e) => handleInputChange('address', e.target.value)}
+									placeholder='Enter address'
+									required
+								/>
+								{!formData.address.trim() && (
+									<ValidationMessage>
+										Address is required so the property has enough context across the app.
+									</ValidationMessage>
+								)}
 							</FormField>
 						</FormRow>
 					</FormSection>
 
 					<FormSection>
-						<WizardPanelHeader>
-							<WizardPanelTitle>Property Photo</WizardPanelTitle>
-							<WizardPanelHint>
-								Add a photo to easily identify your property.
-							</WizardPanelHint>
-						</WizardPanelHeader>
-						{imageError && (
-							<div style={{ color: '#dc2626', fontSize: 13 }}>{imageError}</div>
-						)}
 						<FormField>
-							<Label>Photo URL</Label>
-							<Input
-								type='text'
-								value={formData.photo || ''}
-								onChange={handlePhotoUrlChange}
-								placeholder='Enter image URL or upload a file below'
-								disabled={isUploadingImage}
-							/>
-							<div style={{ marginTop: 8, fontSize: 12, color: '#64748b' }}>
-								Default fallback image: {PROPERTY_IMAGE_PLACEHOLDER}
-								<div style={{ marginTop: 6 }}>
-									<SecondaryButton
-										type='button'
-										onClick={handleUseFallbackPhoto}
-										disabled={isUploadingImage}>
-										Use Default House Image
-									</SecondaryButton>
-								</div>
-							</div>
+							<Label>Group</Label>
+							<SelectField
+								value={formData.groupId ?? ''}
+								onChange={(e) => handleInputChange('groupId', e.target.value || null)}>
+								<option value=''>No group</option>
+								{groups.map((group) => (
+									<option key={group.id} value={group.id}>
+										{group.name}
+									</option>
+								))}
+							</SelectField>
 						</FormField>
-						<UploadDropzone>
-							{isUploadingImage ? (
-								<div style={{ padding: 12, textAlign: 'center', color: '#64748b' }}>
-									Processing image...
-								</div>
-							) : (
-								<FileUploader
-									label='Upload Image File'
-									helperText='JPG, PNG, GIF, WEBP (max 8MB)'
-									accept='image/*'
-									allowedTypes={['image/*']}
-									maxSizeBytes={8 * 1024 * 1024}
-									setFile={handlePhotoUpload}
-									showSelectedFiles={false}
-								/>
-							)}
-						</UploadDropzone>
+						{onCreateGroup && (
+							<>
+								<InlineDisclosureButton
+									type='button'
+									onClick={() => setIsCreateGroupOpen((current) => !current)}>
+									{isCreateGroupOpen ? 'Cancel new group' : '+ Create New Group'}
+								</InlineDisclosureButton>
+								{isCreateGroupOpen && (
+									<CompactCreateRow>
+										<Input
+											value={newGroupName}
+											onChange={(e) => setNewGroupName(e.target.value)}
+											placeholder='New group name'
+										/>
+										<AddButton
+											onClick={async () => {
+												if (!onCreateGroup || !newGroupName.trim()) return;
+												const id = await onCreateGroup(newGroupName.trim());
+												setNewGroupName('');
+												setIsCreateGroupOpen(false);
+												handleInputChange('groupId', id || null);
+											}}
+											disabled={!newGroupName.trim()}>
+											Create
+										</AddButton>
+									</CompactCreateRow>
+								)}
+							</>
+						)}
+					</FormSection>
+
+					<FormSection>
+						<FormField>
+							<Label>Property Photo (Optional)</Label>
+							<CompactActionRow>
+								<SecondaryButton
+									type='button'
+									onClick={() => setIsPhotoUploadOpen((current) => !current)}
+									disabled={isUploadingImage}>
+									{isPhotoUploadOpen || formData.photo ? 'Change Photo' : 'Upload Photo'}
+								</SecondaryButton>
+								<SecondaryButton
+									type='button'
+									onClick={handleUseFallbackPhoto}
+									disabled={isUploadingImage}>
+									Use Default
+								</SecondaryButton>
+							</CompactActionRow>
+						</FormField>
+						{imageError && (
+							<ValidationMessage>{imageError}</ValidationMessage>
+						)}
+						{isPhotoUploadOpen && (
+							<UploadDropzone>
+								{isUploadingImage ? (
+									<div style={{ padding: 12, textAlign: 'center', color: '#64748b' }}>
+										Processing image...
+									</div>
+								) : (
+									<FileUploader
+										label='Upload Image File'
+										helperText='JPG, PNG, GIF, WEBP (max 8MB)'
+										accept='image/*'
+										allowedTypes={['image/*']}
+										maxSizeBytes={8 * 1024 * 1024}
+										setFile={handlePhotoUpload}
+										showSelectedFiles={false}
+									/>
+								)}
+							</UploadDropzone>
+						)}
 						{formData.photo && (
 							<PhotoPreview>
 								<PhotoPreviewImage src={formData.photo} alt='Property' />
@@ -697,7 +907,7 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 			);
 		}
 
-		if (stepIndex === 1) {
+		if (stepKey === 'details') {
 			return (
 				<WizardPanel>
 					<WizardPanelHeader>
@@ -708,29 +918,6 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 					</WizardPanelHeader>
 
 					<FormSection>
-						<FormField>
-							<Label>Property Name</Label>
-							<Input
-								type='text'
-								value={formData.name}
-								onChange={(e) => handleInputChange('name', e.target.value)}
-								placeholder='Enter property name'
-							/>
-							{duplicateNameUnchanged && (
-								<div style={{ fontSize: 12, color: '#b45309', marginTop: 6 }}>
-									Choose a new name before creating the duplicate property.
-								</div>
-							)}
-						</FormField>
-						<FormField>
-							<Label>Address</Label>
-							<Input
-								type='text'
-								value={formData.address}
-								onChange={(e) => handleInputChange('address', e.target.value)}
-								placeholder='Enter address'
-							/>
-						</FormField>
 						<FormRow>
 							<FormField>
 								<Label>Property Type</Label>
@@ -956,7 +1143,192 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 			);
 		}
 
-		if (stepIndex === 2) {
+		if (stepKey === 'systems') {
+			const selectedSystemIds = formData.selectedSuggestedSystemIds || [];
+			const suggestedTaskCount = getSuggestedTaskIdsForSystems(selectedSystemIds).length;
+			const commonSystems = SUGGESTED_SYSTEMS.filter(
+				(system) => system.tier === 'common',
+			);
+			const additionalSystems = SUGGESTED_SYSTEMS.filter(
+				(system) => system.tier === 'more',
+			);
+			const selectedAdditionalSystemCount = additionalSystems.filter((system) =>
+				selectedSystemIds.includes(system.id),
+			).length;
+			const renderSystemCard = (system: (typeof SUGGESTED_SYSTEMS)[number]) => {
+				const selected = selectedSystemIds.includes(system.id);
+				return (
+					<SuggestionCard key={system.id} $selected={selected}>
+						<input
+							type='checkbox'
+							checked={selected}
+							onChange={() => toggleSuggestedSystem(system.id)}
+						/>
+						<span>
+							<SuggestionCardTitle>{system.label}</SuggestionCardTitle>
+							<SuggestionCardMeta>{system.category}</SuggestionCardMeta>
+						</span>
+					</SuggestionCard>
+				);
+			};
+
+			return (
+				<WizardPanel>
+					<WizardPanelHeader>
+						<WizardPanelTitle>Appliances & Systems</WizardPanelTitle>
+						<WizardPanelHint>
+							Select what exists in this property. Maintley can use these to create starter appliance records and suggested maintenance tasks.
+						</WizardPanelHint>
+					</WizardPanelHeader>
+					<FormSection>
+						<SuggestionToggle>
+							<input
+								type='checkbox'
+								checked={!!formData.addSuggestedMaintenance}
+								onChange={(event) =>
+									handleInputChange(
+										'addSuggestedMaintenance',
+										event.target.checked,
+									)
+								}
+							/>
+							<SuggestionToggleText>
+								<strong>Show maintenance suggestions for selected systems</strong>
+								<SuggestionToggleHint>
+									Keep this on to review optional tasks next. Turning it off still lets you create starter appliance and system records.
+								</SuggestionToggleHint>
+							</SuggestionToggleText>
+						</SuggestionToggle>
+					</FormSection>
+
+					<SuggestionGrid>
+						{commonSystems.map(renderSystemCard)}
+					</SuggestionGrid>
+					<SuggestionMoreButton
+						type='button'
+						onClick={() =>
+							setShowMoreSuggestedSystems((current) => !current)
+						}>
+						{showMoreSuggestedSystems
+							? 'Hide additional systems'
+							: `Show more systems${
+									selectedAdditionalSystemCount > 0
+										? ` (${selectedAdditionalSystemCount} selected)`
+										: ''
+							  }`}
+					</SuggestionMoreButton>
+					{showMoreSuggestedSystems && (
+						<SuggestionGrid>
+							{additionalSystems.map(renderSystemCard)}
+						</SuggestionGrid>
+					)}
+					<SuggestionNotice>
+						{selectedSystemIds.length > 0
+							? formData.addSuggestedMaintenance
+								? `Based on the selected appliances and systems, Maintley found ${suggestedTaskCount} suggested maintenance tasks.`
+								: `${selectedSystemIds.length} starter appliance/system records will be created without suggested tasks.`
+							: 'Select at least one appliance or system to create starter records or see suggested maintenance tasks.'}
+					</SuggestionNotice>
+				</WizardPanel>
+			);
+		}
+
+		if (stepKey === 'maintenance') {
+			if (!formData.addSuggestedMaintenance) {
+				return (
+					<WizardPanel>
+						<WizardPanelHeader>
+							<WizardPanelTitle>Suggested Maintenance Tasks</WizardPanelTitle>
+							<WizardPanelHint>
+								Maintenance suggestions are turned off for this property. You can add tasks later.
+							</WizardPanelHint>
+						</WizardPanelHeader>
+						<SuggestionNotice>
+							Skipped. Maintley will create any selected starter appliance/system records without suggested tasks.
+						</SuggestionNotice>
+					</WizardPanel>
+				);
+			}
+
+			const selectedSystemIds = formData.selectedSuggestedSystemIds || [];
+			const selectedTaskIds = formData.selectedSuggestedTaskIds || [];
+			const tasksBySystem = SUGGESTED_SYSTEMS.filter((system) =>
+				selectedSystemIds.includes(system.id),
+			).map((system) => ({
+				system,
+				tasks: SUGGESTED_TASKS.filter((task) => task.systemId === system.id),
+			}));
+
+			return (
+				<WizardPanel>
+					<WizardPanelHeader>
+						<WizardPanelTitle>Suggested Maintenance Tasks</WizardPanelTitle>
+						<WizardPanelHint>
+							Choose the common maintenance tasks you want Maintley to create for this property. You can edit dates, assignments, and details later.
+						</WizardPanelHint>
+					</WizardPanelHeader>
+					<SuggestionNotice>
+						{SUGGESTED_MAINTENANCE_DISCLAIMER}
+					</SuggestionNotice>
+					{tasksBySystem.length === 0 ? (
+						<EmptySharingState>
+							No appliances or systems selected yet. Go back to select what exists in this property.
+						</EmptySharingState>
+					) : (
+						tasksBySystem.map(({ system, tasks }) => {
+							const isExpanded = expandedSuggestedTaskGroups.includes(system.id);
+							const selectedTaskCount = tasks.filter((task) =>
+								selectedTaskIds.includes(task.id),
+							).length;
+
+							return (
+								<SuggestedTaskGroup key={system.id}>
+									<SuggestedTaskGroupHeader
+										type='button'
+										onClick={() => toggleSuggestedTaskGroup(system.id)}>
+										<span>
+											<SuggestedTaskGroupTitle>{system.label}</SuggestedTaskGroupTitle>
+											<SuggestedTaskGroupMeta>
+												{selectedTaskCount} of {tasks.length} selected
+											</SuggestedTaskGroupMeta>
+										</span>
+										<SuggestedTaskGroupAction>
+											{isExpanded ? 'Collapse' : 'Review'}
+										</SuggestedTaskGroupAction>
+									</SuggestedTaskGroupHeader>
+									{isExpanded && (
+										<SuggestedTaskList>
+											{tasks.map((task) => (
+												<SuggestedTaskRow key={task.id}>
+													<input
+														type='checkbox'
+														checked={selectedTaskIds.includes(task.id)}
+														onChange={() => toggleSuggestedTask(task.id)}
+													/>
+													<SuggestedTaskText>
+														<span>
+															<strong>{task.title}</strong>{' '}
+															<SuggestedTaskInterval>
+																({task.intervalLabel})
+															</SuggestedTaskInterval>
+														</span>
+														{task.notes && (
+															<SuggestedTaskNote>{task.notes}</SuggestedTaskNote>
+														)}
+													</SuggestedTaskText>
+												</SuggestedTaskRow>
+											))}
+										</SuggestedTaskList>
+									)}
+								</SuggestedTaskGroup>
+							);
+						})
+					)}
+				</WizardPanel>
+			);
+		}
+
+		if (stepKey === 'sharing') {
 			return (
 				<WizardPanel>
 					<WizardPanelHeader>
@@ -1017,6 +1389,24 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 				getShareMembers(formData.viewers).map((member) => member.displayName).join(', ') || 'None',
 			],
 		];
+
+		if (shouldShowSuggestedMaintenance) {
+			const selectedSystems = SUGGESTED_SYSTEMS.filter((system) =>
+				(formData.selectedSuggestedSystemIds || []).includes(system.id),
+			);
+			reviewRows.splice(
+				8,
+				0,
+				[
+					'Suggested Maintenance',
+					formData.addSuggestedMaintenance
+						? `${selectedSystems.length} appliances/systems and ${
+								(formData.selectedSuggestedTaskIds || []).length
+						  } tasks selected`
+						: 'Skipped',
+				],
+			);
+		}
 
 		return (
 			<WizardPanel>
@@ -1094,18 +1484,23 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 						}}>
 						<WizardShell>
 							<WizardSidebar>
-								{STEPS.map((step, index) => (
+								{steps.map((step, index) => (
 									<WizardStep
 										key={step.title}
 										type='button'
 										$active={stepIndex === index}
 										$complete={stepIndex > index}
-										onClick={() => setStepIndex(index)}>
+										disabled={!canVisitStep(index)}
+										onClick={() => {
+											if (canVisitStep(index)) {
+												setStepIndex(index);
+											}
+										}}>
 										<WizardStepDot $active={stepIndex === index} $complete={stepIndex > index}>
 											{stepIndex > index ? '✓' : index + 1}
 										</WizardStepDot>
 										<WizardStepText $active={stepIndex === index}>
-											<WizardStepTitle>{step.title}</WizardStepTitle>
+											<WizardStepTitle>{step.navTitle}</WizardStepTitle>
 											<WizardStepHint>{step.hint}</WizardStepHint>
 										</WizardStepText>
 									</WizardStep>
@@ -1127,7 +1522,7 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 								</FooterTextAction>
 							)}
 							
-							{propertyId && isSharedProperty && onDetachFromProperty && stepIndex === STEPS.length - 1 && (
+							{propertyId && isSharedProperty && onDetachFromProperty && stepIndex === steps.length - 1 && (
 								<FooterTextAction
 									type='button'
 									$tone='warning'
@@ -1146,7 +1541,7 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 									Back
 								</FooterTextAction>
 							)}
-							{stepIndex < STEPS.length - 1 ? (
+							{stepIndex < steps.length - 1 ? (
 								<SaveButton onClick={handleNext} disabled={!canContinue || isSubmitting || isDeletingProperty}>
 									Next
 								</SaveButton>

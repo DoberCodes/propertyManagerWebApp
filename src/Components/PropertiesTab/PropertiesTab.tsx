@@ -105,6 +105,13 @@ import {
 	HeaderDropdownHint,
 } from './PropertiesTab.styles';
 import { Property } from '../../types/Property.types';
+import {
+	SUGGESTED_MAINTENANCE_DISCLAIMER,
+	SUGGESTED_SYSTEMS,
+	SuggestedSystemId,
+	getSuggestedTaskDueDate,
+	getSuggestedTasksForSystems,
+} from '../../utils/suggestedMaintenance';
 import { useAppFeedback } from '../Library/AppFeedback/AppFeedbackProvider';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
@@ -1116,10 +1123,117 @@ export const Properties = () => {
 		return copiedTaskCount;
 	};
 
+	const createSuggestedMaintenanceForProperty = async (
+		newProperty: Property,
+		formData: PropertyFormData,
+	) => {
+		const selectedSystemIds = formData.selectedSuggestedSystemIds || [];
+		if (selectedSystemIds.length === 0) {
+			return { createdDeviceCount: 0, failedDeviceCount: 0, createdTaskCount: 0 };
+		}
+
+		const selectedTasks = getSuggestedTasksForSystems(
+			selectedSystemIds,
+			formData.selectedSuggestedTaskIds || [],
+		);
+		const selectedSystemIdSet = new Set(selectedSystemIds);
+		const selectedSystems = SUGGESTED_SYSTEMS.filter((system) =>
+			selectedSystemIdSet.has(system.id),
+		);
+		const deviceIdMap = new Map<SuggestedSystemId, string>();
+		let createdDeviceCount = 0;
+		let failedDeviceCount = 0;
+		let createdTaskCount = 0;
+
+		for (const system of selectedSystems) {
+			try {
+				const createdDevice = await createDevice(
+						stripUndefinedValues({
+							userId: currentUser!.id,
+							type: system.deviceType,
+							name: system.label,
+							brand: '',
+							model: '',
+						serialNumber: '',
+						installationDate: '',
+						status: 'Active',
+						location: {
+							propertyId: newProperty.id,
+						},
+						notes: 'Created from suggested maintenance setup.',
+						maintenanceHistory: [],
+					}),
+				).unwrap();
+
+				if (createdDevice?.id) {
+					deviceIdMap.set(system.id, createdDevice.id as string);
+					createdDeviceCount += 1;
+				}
+			} catch (error) {
+				failedDeviceCount += 1;
+				console.warn('Failed to create suggested appliance/system:', {
+					system,
+					error,
+				});
+			}
+		}
+
+		if (!formData.addSuggestedMaintenance) {
+			return { createdDeviceCount, failedDeviceCount, createdTaskCount };
+		}
+
+		for (const task of selectedTasks) {
+			try {
+				const linkedDeviceId = deviceIdMap.get(task.systemId);
+				await createTask(
+					stripUndefinedValues({
+						userId: currentUser!.id,
+						propertyId: newProperty.id,
+						property: newProperty.title,
+						propertyTitle: newProperty.title,
+						title: task.title,
+						dueDate: getSuggestedTaskDueDate(task),
+						status: 'Initiated',
+						priority: task.priority || 'Medium',
+						category: 'Suggested Maintenance',
+						notes: [
+							`${task.title} was added from Suggested Maintenance Tasks.`,
+							task.notes,
+							SUGGESTED_MAINTENANCE_DISCLAIMER,
+						].filter(Boolean).join(' '),
+						isRecurring: true,
+						recurrenceFrequency: task.recurrenceFrequency,
+						recurrenceInterval: task.recurrenceInterval,
+						recurrenceCustomUnit: task.recurrenceCustomUnit,
+						enableNotifications: false,
+						...(linkedDeviceId ? { devices: [linkedDeviceId] } : {}),
+					}),
+				).unwrap();
+				createdTaskCount += 1;
+			} catch (error) {
+				console.warn('Failed to create suggested maintenance task:', {
+					task,
+					error,
+				});
+			}
+		}
+
+		return { createdDeviceCount, failedDeviceCount, createdTaskCount };
+	};
+
 	const handleSaveProperty = async (formData: any) => {
+		const normalizedName = String(formData.name || '').trim();
+		const normalizedAddress = String(formData.address || '').trim();
+		const buildPropertySlug = (value: string) =>
+			value
+				.toLowerCase()
+				.trim()
+				.replace(/\s+/g, '-')
+				.replace(/[^\w-]/g, '');
+
 		if (
 			propertyToDuplicate &&
-			formData.name.trim().toLowerCase() ===
+			normalizedName.toLowerCase() ===
 				String(propertyToDuplicate.title || '').trim().toLowerCase()
 		) {
 			feedback.notify('Please choose a new name for the duplicated property.');
@@ -1211,6 +1325,16 @@ export const Properties = () => {
 			}
 		} else {
 			// Add new property
+			const slug = buildPropertySlug(normalizedName);
+			if (!normalizedName || !slug) {
+				feedback.notify('Please add a property name before saving.');
+				throw new Error('Property name is required');
+			}
+			if (!normalizedAddress) {
+				feedback.notify('Please add a property address before saving.');
+				throw new Error('Property address is required');
+			}
+
 			if (!currentUser?.subscription) {
 				feedback.notify('Unable to verify subscription. Please contact support.');
 				throw new Error('Missing subscription data');
@@ -1233,20 +1357,15 @@ export const Properties = () => {
 				throw new Error('Property limit reached');
 			}
 
-			const slug = formData.name
-				.toLowerCase()
-				.replace(/\s+/g, '-')
-				.replace(/[^\w-]/g, '');
-
 			// Firebase doesn't accept undefined values
 			const newPropertyData: any = {
 				userId: currentUser!.id,
 				...(normalizedGroupId && { groupId: normalizedGroupId }),
-				title: formData.name,
+				title: normalizedName,
 				slug,
 				...(formData.photo && { image: formData.photo }),
 				owner: formData.owner,
-				address: formData.address,
+				address: normalizedAddress,
 				propertyType: effectivePropertyType,
 				bedrooms: formData.bedrooms,
 				bathrooms: formData.bathrooms,
@@ -1281,6 +1400,49 @@ export const Properties = () => {
 						title: result.data.title,
 						slug: result.data.slug,
 					});
+
+					if (
+						!propertyToDuplicate &&
+						(formData.selectedSuggestedSystemIds || []).length > 0
+					) {
+						try {
+							const suggestedResult =
+								await createSuggestedMaintenanceForProperty(
+									result.data,
+									formData,
+								);
+							if (
+								suggestedResult.createdDeviceCount > 0 ||
+								suggestedResult.createdTaskCount > 0
+							) {
+								const createdDetails = [
+									suggestedResult.createdDeviceCount > 0
+										? `${suggestedResult.createdDeviceCount} appliances/systems`
+										: null,
+									suggestedResult.createdTaskCount > 0
+										? `${suggestedResult.createdTaskCount} suggested tasks`
+										: null,
+								].filter(Boolean);
+
+								feedback.notify(
+									`Created ${formData.name} with ${createdDetails.join(' and ')}.`,
+								);
+							}
+							if (suggestedResult.failedDeviceCount > 0) {
+								feedback.notify(
+									'Some appliance records could not be created, but the suggested tasks were still added.',
+								);
+							}
+						} catch (suggestedError) {
+							console.error(
+								'Failed to create suggested maintenance setup:',
+								suggestedError,
+							);
+							feedback.notify(
+								'Property was created, but suggested maintenance could not be fully added.',
+							);
+						}
+					}
 
 					if (propertyToDuplicate) {
 						let copiedApplianceCount = 0;
