@@ -918,6 +918,7 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 	const fd = formState;
 
 	const [activeTab, setActiveTab] = useState<ActiveTab>('details');
+	const tabContentScrollRef = useRef<HTMLDivElement | null>(null);
 	const [showCreateMoreOptions, setShowCreateMoreOptions] = useState(false);
 	const [isCoreSummaryExpanded, setIsCoreSummaryExpanded] = useState(false);
 	const [showLinkHistoryModal, setShowLinkHistoryModal] = useState(false);
@@ -944,6 +945,15 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 			setIsCoreSummaryExpanded(false);
 		}
 	}, [isOpen]);
+
+	useEffect(() => {
+		if (!isOpen) return;
+		tabContentScrollRef.current?.scrollTo({
+			top: 0,
+			left: 0,
+			behavior: 'auto',
+		});
+	}, [isOpen, activeTab]);
 
 	const smartScheduleSuggestion = useMemo<SmartScheduleSuggestion | null>(() => {
 		const searchPool = `${formState.title || ''} ${formState.category || ''} ${formState.location || ''}`.toLowerCase();
@@ -1427,7 +1437,7 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 				</ModalTabContainer>
 				</StickyTabRail>
 
-				<TabContentScrollArea>
+				<TabContentScrollArea ref={tabContentScrollRef}>
 					<ModalTabContent $active={activeTab === 'details'}>
 					{isCreateMode && (
 						<SummaryBanner>

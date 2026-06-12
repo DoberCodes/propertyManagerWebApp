@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useSelector } from 'react-redux';
 import {
 	ModalOverlay as DialogOverlay,
@@ -264,6 +264,7 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 		),
 	});
 	const [stepIndex, setStepIndex] = useState(0);
+	const wizardContentRef = useRef<HTMLDivElement | null>(null);
 	// Units are temporarily hidden from the app flow.
 	// const [unitInput, setUnitInput] = useState('');
 	const [isSubmitting, setIsSubmitting] = useState(false);
@@ -375,6 +376,15 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 		setShowMoreSuggestedSystems(false);
 		setExpandedSuggestedTaskGroups([]);
 	}, [isOpen, initialData, selectedGroupId, forceSingleFamily, currentUser, isHiddenFromDashboard]);
+
+	useEffect(() => {
+		if (!isOpen) return;
+		wizardContentRef.current?.scrollTo({
+			top: 0,
+			left: 0,
+			behavior: 'auto',
+		});
+	}, [isOpen, stepIndex]);
 
 	useEffect(() => {
 		let isCancelled = false;
@@ -1506,7 +1516,7 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 									</WizardStep>
 								))}
 							</WizardSidebar>
-							<WizardContent>{renderStepContent()}</WizardContent>
+							<WizardContent ref={wizardContentRef}>{renderStepContent()}</WizardContent>
 						</WizardShell>
 					</DialogContent>
 

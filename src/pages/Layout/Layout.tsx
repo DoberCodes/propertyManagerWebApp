@@ -9,7 +9,7 @@ import { DataLoader } from '../../Components/DataLoader';
 import { OnboardingFlow } from '../../Components/OnboardingFlow';
 import LegalAgreementNotification from '../../Components/Library/LegalAgreementNotification';
 import { Wrapper, Main, Sidebar, Content } from './Layout.styles';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import { useGetPropertiesQuery } from '../../Redux/API/propertySlice';
 import { useUpdateUserMutation } from '../../Redux/API/userSlice';
 import { logout, setCurrentUser } from '../../Redux/Slices/userSlice';
@@ -20,10 +20,13 @@ import { signOut } from 'firebase/auth';
 
 export const Layout = () => {
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
+	const activeTab = useSelector((state: RootState) => state.app.activeTab);
 	const dispatch = useDispatch<AppDispatch>();
 	const [showOnboarding, setShowOnboarding] = useState<boolean>(false);
 	const [updateUser] = useUpdateUserMutation();
 	const currentUserRef = useRef(currentUser);
+	const contentRef = useRef<HTMLDivElement | null>(null);
+	const location = useLocation();
 
 	// Fetch properties to check if user has any
 	const { data: ownedProperties = [] } = useGetPropertiesQuery();
@@ -31,6 +34,11 @@ export const Layout = () => {
 	useEffect(() => {
 		currentUserRef.current = currentUser;
 	}, [currentUser]);
+
+	useEffect(() => {
+		contentRef.current?.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+		window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+	}, [location.pathname, location.search, activeTab]);
 
 	useEffect(() => {
 		if (!currentUser?.id) {
@@ -218,7 +226,7 @@ export const Layout = () => {
 					<Sidebar>
 						<SideNav />
 					</Sidebar>
-					<Content>
+					<Content ref={contentRef} data-app-scroll-container='true'>
 						<Outlet />
 					</Content>
 				</Main>

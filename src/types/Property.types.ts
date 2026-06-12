@@ -4,6 +4,31 @@
  */
 
 import { SharePermission } from '../constants/roles';
+import { SuggestedSystemId } from '../utils/suggestedMaintenance';
+
+export type PropertySetupAssistantItemStatus =
+	| 'present'
+	| 'not_present'
+	| 'unknown';
+
+export interface PropertySetupAssistantItemState {
+	status: PropertySetupAssistantItemStatus;
+	deviceId?: string;
+	taskIds?: string[];
+	selectedSuggestedTaskIds?: string[];
+	recreateSuggestedTaskIds?: string[];
+	reviewedAt?: string;
+	updatedAt?: string;
+}
+
+export interface PropertySetupAssistantState {
+	items?: Partial<
+		Record<SuggestedSystemId, PropertySetupAssistantItemState>
+	>;
+	dismissedAt?: string;
+	completedAt?: string;
+	updatedAt?: string;
+}
 
 export interface Property {
 	id: string;
@@ -29,6 +54,7 @@ export interface Property {
 	maintenanceHistory?: Array<{ date: string; description: string }>; // Alias for taskHistory
 	isRental?: boolean;
 	isFavorite?: boolean;
+	setupAssistant?: PropertySetupAssistantState;
 	createdAt?: string;
 	updatedAt?: string;
 }

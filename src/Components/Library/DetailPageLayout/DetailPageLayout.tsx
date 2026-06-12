@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import styled from 'styled-components';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { PageHero } from '../PageHero/PageHero';
 import { HeaderBadge } from '../Headers/HeaderStyles';
 import {
@@ -88,9 +88,19 @@ export const DetailPageLayout: React.FC<DetailPageLayoutProps> = ({
 	children,
 }) => {
 	const navigate = useNavigate();
+	const location = useLocation();
+	const wrapperRef = useRef<HTMLDivElement | null>(null);
+
+	useEffect(() => {
+		wrapperRef.current?.scrollTo({
+			top: 0,
+			left: 0,
+			behavior: 'auto',
+		});
+	}, [location.pathname, location.search, activeTab]);
 
 	return (
-		<Wrapper>
+		<Wrapper ref={wrapperRef}>
 			<PageHero
 				headerImageUrl={headerImageUrl}
 				headerTheme={headerTheme}

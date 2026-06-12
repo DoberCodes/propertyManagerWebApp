@@ -469,7 +469,7 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 								? 'Maintenance is overdue'
 								: task.status === 'Pending' || task.status === 'Awaiting Approval'
 									? 'Waiting for approval'
-									: 'Queued for upcoming maintenance';
+									: 'Upcoming maintenance';
 
 				return (
 					<div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -990,7 +990,7 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 												? 'Maintenance is overdue'
 												: task.status === 'In Progress'
 													? 'Task is actively moving'
-												: 'Queued for upcoming maintenance'}
+												: 'Upcoming maintenance'}
 										</MobileFeedLine>
 										<MobileFeedLineMuted>
 											Assigned to{' '}

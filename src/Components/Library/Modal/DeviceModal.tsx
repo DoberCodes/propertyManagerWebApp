@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import styled from 'styled-components';
 import GenericModal from './GenericModal';
 import {
@@ -329,6 +329,7 @@ export const DeviceModal = (props: DeviceModalProps) => {
 	const [activeTab, setActiveTab] = useState<'details' | 'service-items'>(
 		'details',
 	);
+	const scrollBodyRef = useRef<HTMLDivElement | null>(null);
 	const [itemFilter, setItemFilter] = useState('');
 	const { data: propertyDevices = [] } = useGetDevicesQuery(props.property.id || '', {
 		skip: !props.property?.id,
@@ -392,6 +393,15 @@ export const DeviceModal = (props: DeviceModalProps) => {
 			setSubmitAttempted(false);
 		}
 	}, [props.isOpen]);
+
+	useEffect(() => {
+		if (!props.isOpen) return;
+		scrollBodyRef.current?.scrollTo({
+			top: 0,
+			left: 0,
+			behavior: 'auto',
+		});
+	}, [props.isOpen, activeTab]);
 
 	// Units are temporarily hidden from the app flow.
 
@@ -696,7 +706,7 @@ export const DeviceModal = (props: DeviceModalProps) => {
 				</ModalTab>
 			</ModalTabContainer>
 
-			<ScrollBody>
+			<ScrollBody ref={scrollBodyRef}>
 			<ModalTabContent $active={activeTab === 'details'}>
 				<SummaryBanner>
 					<SummaryTitle>Capture the appliance basics first, then optionally document recurring parts and supplies.</SummaryTitle>

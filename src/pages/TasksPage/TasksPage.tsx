@@ -539,7 +539,7 @@ export const TasksPage = () => {
 					? 'Maintenance is overdue'
 					: task.status === 'In Progress'
 						? 'Maintenance in progress'
-						: 'Queued for upcoming maintenance';
+						: 'Upcoming maintenance';
 				return (
 					<div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
 						<span
@@ -881,7 +881,7 @@ export const TasksPage = () => {
 										<MobileMetaItem>
 											<MobileMetaLabel>Maintenance Status</MobileMetaLabel>
 											<MobileMetaValue>
-												{isOverdue ? 'Maintenance is overdue' : task.status === 'In Progress' ? 'Task is actively moving' : 'Queued for upcoming maintenance'}
+												{isOverdue ? 'Maintenance is overdue' : task.status === 'In Progress' ? 'Task is actively moving' : 'Upcoming maintenance'}
 											</MobileMetaValue>
 										</MobileMetaItem>
 										<MobileMetaItem>

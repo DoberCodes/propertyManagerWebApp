@@ -77,10 +77,12 @@ import {
 	useDeleteTaskMutation,
 	useGetTasksQuery,
 } from '../../Redux/API/taskSlice';
+import { useGetDevicesQuery } from '../../Redux/API/deviceSlice';
 import { useGetTeamMembersQuery } from '../../Redux/API/teamSlice';
 import { TabSystem } from './TabSystem';
 import { TaskFinancials } from '../../types/Task.types';
 import { PropertyDialog } from '../../Components/PropertiesTab/PropertyDialog';
+import { PropertySetupAssistant } from '../../Components/PropertySetupAssistant/PropertySetupAssistant';
 
 export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 	props,
@@ -586,6 +588,9 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 			skip: !property?.id,
 			refetchOnMountOrArgChange: true,
 		});
+	const { data: propertyDevices = [] } = useGetDevicesQuery(property?.id || '', {
+		skip: !property?.id,
+	});
 
 	useEffect(() => {
 		const loadFamilyMembers = async () => {
@@ -944,6 +949,18 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 				)}
 			</PageHero>
 			<ContentWrapper>
+				<PropertySetupAssistant
+					property={property}
+					currentUser={currentUser}
+					devices={propertyDevices}
+					tasks={propertyTasks}
+					canUseAssistant={
+						canManageProperties &&
+						roleCapabilities.canManageAppliances &&
+						roleCapabilities.canCreateTasks &&
+						!isUserTenant
+					}
+				/>
 				<TabSystem
 					property={property}
 					currentUser={currentUser}
