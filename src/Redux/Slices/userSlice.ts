@@ -137,6 +137,12 @@ export interface User {
 		taskReminders: boolean;
 		propertyInsights: boolean;
 		seasonalGuidance: boolean;
+		monthlyDigestFamilyRecipients?: boolean;
+		teamMemberReports?: {
+			enabled: boolean;
+			frequency: 'weekly' | 'biweekly' | 'monthly';
+			teamMemberIds: string[];
+		};
 	};
 	onboardingCompleted?: boolean;
 	createdAt?: string;

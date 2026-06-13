@@ -25,6 +25,7 @@ export {
 	sendSeasonalGuidanceEmailTest,
 } from './seasonalGuidanceEmails';
 export { sendTaskReminderEmails } from './taskReminderEmails';
+export { sendTeamMemberTaskReports } from './teamMemberTaskReports';
 export { debugOverdueTasks } from './debugOverdueTasks';
 export { enforceEmailPreferences } from './enforceEmailPreferences';
 export { deleteUserAccount } from './deleteUserAccount';

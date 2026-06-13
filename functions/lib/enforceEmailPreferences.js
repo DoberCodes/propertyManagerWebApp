@@ -62,6 +62,7 @@ const PROPERTY_INSIGHTS_PLANS = new Set([
     'property',
     'portfolio',
 ]);
+const TEAM_MEMBER_REPORT_PLANS = new Set(['portfolio']);
 const normalizePlanId = (planId) => {
     const normalized = String(planId || '').trim().toLowerCase();
     return PLAN_ALIASES[normalized] || normalized;
@@ -77,25 +78,32 @@ const getEffectivePlanId = (subscription) => {
 exports.enforceEmailPreferences = functions.firestore
     .document('users/{userId}')
     .onWrite(async (change, context) => {
-    var _a, _b;
+    var _a, _b, _c, _d;
     if (!change.after.exists) {
         return null;
     }
     const afterData = change.after.data();
     const taskRemindersEnabled = !!((_a = afterData.emailPreferences) === null || _a === void 0 ? void 0 : _a.taskReminders);
     const propertyInsightsEnabled = !!((_b = afterData.emailPreferences) === null || _b === void 0 ? void 0 : _b.propertyInsights);
-    if (!taskRemindersEnabled && !propertyInsightsEnabled) {
+    const teamMemberReportsEnabled = !!((_d = (_c = afterData.emailPreferences) === null || _c === void 0 ? void 0 : _c.teamMemberReports) === null || _d === void 0 ? void 0 : _d.enabled);
+    if (!taskRemindersEnabled &&
+        !propertyInsightsEnabled &&
+        !teamMemberReportsEnabled) {
         return null;
     }
     const effectivePlan = getEffectivePlanId(afterData.subscription);
     const canUseTaskReminderEmails = PAID_TASK_REMINDER_EMAIL_PLANS.has(effectivePlan);
     const canUsePropertyInsights = PROPERTY_INSIGHTS_PLANS.has(effectivePlan);
+    const canUseTeamMemberReports = TEAM_MEMBER_REPORT_PLANS.has(effectivePlan);
     const updates = {};
     if (taskRemindersEnabled && !canUseTaskReminderEmails) {
         updates['emailPreferences.taskReminders'] = false;
     }
     if (propertyInsightsEnabled && !canUsePropertyInsights) {
         updates['emailPreferences.propertyInsights'] = false;
+    }
+    if (teamMemberReportsEnabled && !canUseTeamMemberReports) {
+        updates['emailPreferences.teamMemberReports.enabled'] = false;
     }
     if (Object.keys(updates).length === 0) {
         return null;

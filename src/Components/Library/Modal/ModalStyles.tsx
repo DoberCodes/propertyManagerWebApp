@@ -40,14 +40,14 @@ export const ModalOverlay = styled.div`
 	}
 `;
 
-export const ModalContainer = styled.div`
+export const ModalContainer = styled.div<{ $compact?: boolean }>`
 	background: white;
 	border-radius: 12px;
 	width: 100%;
-	max-width: 860px;
-	height: 78vh;
-	max-height: 92vh;
-	min-height: 500px;
+	max-width: ${(props) => (props.$compact ? '520px' : '860px')};
+	height: ${(props) => (props.$compact ? 'auto' : '78vh')};
+	max-height: ${(props) => (props.$compact ? 'calc(100vh - 2rem)' : '92vh')};
+	min-height: ${(props) => (props.$compact ? '0' : '500px')};
 	display: flex;
 	flex-direction: column;
 	overflow: hidden;
@@ -68,15 +68,15 @@ export const ModalContainer = styled.div`
 	}
 
 	@media (max-width: 1024px) {
-		max-width: 90%;
-		height: 82vh;
-		max-height: 90vh;
-		min-height: 400px;
+		max-width: ${(props) => (props.$compact ? 'min(520px, 90%)' : '90%')};
+		height: ${(props) => (props.$compact ? 'auto' : '82vh')};
+		max-height: ${(props) => (props.$compact ? 'calc(100vh - 2rem)' : '90vh')};
+		min-height: ${(props) => (props.$compact ? '0' : '400px')};
 	}
 
 	@media (max-width: 480px) {
 		max-width: calc(100vw - 1.5rem);
-		height: min(92dvh, 760px);
+		height: ${(props) => (props.$compact ? 'auto' : 'min(92dvh, 760px)')};
 		max-height: calc(100dvh - 1.5rem);
 		min-height: 0;
 		border-radius: 12px;
@@ -253,7 +253,7 @@ export const DialogForm = styled.form`
 	flex: 1;
 	min-height: 0;
 	position: relative;
-	height: 100%;
+	height: auto;
 `;
 
 export const DialogButtonGroup = styled.div`
@@ -580,6 +580,7 @@ export const ModalFormContent = styled.div`
 	min-height: 0;
 	display: flex;
 	flex-direction: column;
+	line-height: 1.5;
 
 	@media (max-width: 480px) {
 		padding: 0 1rem 1rem;

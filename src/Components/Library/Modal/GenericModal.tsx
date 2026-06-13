@@ -24,6 +24,7 @@ interface GenericModalProps {
 	isLoading?: boolean;
 	onSubmit?: (e: React.FormEvent<HTMLFormElement>) => void | Promise<void>;
 	showActions?: boolean;
+	compact?: boolean;
 }
 
 export const GenericModal: React.FC<GenericModalProps> = ({
@@ -39,6 +40,7 @@ export const GenericModal: React.FC<GenericModalProps> = ({
 	isLoading,
 	onSubmit,
 	showActions,
+	compact,
 }) => {
 	if (!isOpen) return null;
 
@@ -66,7 +68,7 @@ export const GenericModal: React.FC<GenericModalProps> = ({
 					onClose();
 				}
 			}}>
-			<DialogContent onClick={(e) => e.stopPropagation()}>
+			<DialogContent $compact={compact} onClick={(e) => e.stopPropagation()}>
 				<DialogHeader>
 					<h3>{title}</h3>
 					<CloseModalButton onClick={onClose} title='Close modal'>

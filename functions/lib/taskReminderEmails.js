@@ -136,8 +136,34 @@ const getDisplayName = (user) => {
     const name = (user.firstName || user.displayName || '').trim();
     return name || 'there';
 };
-const getTaskReminderHtml = ({ name, message, task, appUrl, }) => {
-    const propertyLabel = task.propertyTitle || task.property || 'Property';
+const isUsefulPropertyLabel = (value) => {
+    const label = String(value || '').trim();
+    return !!label && label.toLowerCase() !== 'property';
+};
+const resolvePropertyLabel = async (task) => {
+    if (isUsefulPropertyLabel(task.propertyTitle)) {
+        return String(task.propertyTitle).trim();
+    }
+    if (isUsefulPropertyLabel(task.property)) {
+        return String(task.property).trim();
+    }
+    const propertyId = String(task.propertyId || '').trim();
+    if (!propertyId) {
+        return 'Property not labeled';
+    }
+    const propertyDoc = await db.collection('properties').doc(propertyId).get();
+    if (!propertyDoc.exists) {
+        return 'Property not labeled';
+    }
+    const property = propertyDoc.data();
+    const title = String((property === null || property === void 0 ? void 0 : property.title) || '').trim();
+    if (title) {
+        return title;
+    }
+    const address = String((property === null || property === void 0 ? void 0 : property.address) || '').trim();
+    return address || 'Property not labeled';
+};
+const getTaskReminderHtml = ({ name, message, task, propertyLabel, appUrl, }) => {
     const displayStatus = (0, taskDisplayStatus_1.getTaskDisplayStatus)(task);
     const taskUrl = task.propertyId
         ? `${appUrl.replace(/\/$/, '')}/properties/${encodeURIComponent(task.propertyId)}`
@@ -249,6 +275,7 @@ const sendTaskReminderEmail = async (task, notification, currentDate, appUrl) =>
     }
     const message = String(notification.customMessage || '').trim() ||
         getDefaultNotificationMessage(notification, taskTitle);
+    const propertyLabel = await resolvePropertyLabel(task);
     await (0, emailService_1.sendMaintleyEmail)(resend, {
         to: email,
         subject: getNotificationSubject(notification, taskTitle),
@@ -256,6 +283,7 @@ const sendTaskReminderEmail = async (task, notification, currentDate, appUrl) =>
             name: getDisplayName(user),
             message,
             task,
+            propertyLabel,
             appUrl,
         }),
     });

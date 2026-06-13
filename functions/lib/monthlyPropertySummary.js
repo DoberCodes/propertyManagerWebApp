@@ -64,6 +64,57 @@ const getDisplayName = (user) => {
     return name || 'there';
 };
 const getAccountId = (userId, user) => String(user.accountId || '').trim() || userId;
+const getRecipientKey = (accountId, email) => `${accountId}:${email.trim().toLowerCase()}`;
+const getMonthlyDigestRecipients = async (userId, user, accountId) => {
+    var _a;
+    const recipients = new Map();
+    const ownerEmail = (user.email || '').trim();
+    if (ownerEmail) {
+        recipients.set(ownerEmail.toLowerCase(), {
+            email: ownerEmail,
+            name: getDisplayName(user),
+            type: 'owner',
+            userId,
+        });
+    }
+    if (((_a = user.emailPreferences) === null || _a === void 0 ? void 0 : _a.monthlyDigestFamilyRecipients) !== true) {
+        return Array.from(recipients.values());
+    }
+    const accountDoc = await db.collection('familyAccounts').doc(accountId).get();
+    if (!accountDoc.exists) {
+        return Array.from(recipients.values());
+    }
+    const accountData = accountDoc.data() || {};
+    const ownerId = String(accountData.ownerId || '').trim();
+    if (ownerId && ownerId !== userId) {
+        return Array.from(recipients.values());
+    }
+    const memberIds = Array.isArray(accountData.memberIds)
+        ? Array.from(new Set(accountData.memberIds.filter(Boolean)))
+        : [];
+    if (memberIds.length === 0) {
+        return Array.from(recipients.values());
+    }
+    const memberDocs = await Promise.all(memberIds.map((memberId) => db.collection('users').doc(memberId).get()));
+    memberDocs.forEach((memberDoc) => {
+        var _a;
+        if (!memberDoc.exists)
+            return;
+        const member = memberDoc.data();
+        if (((_a = member.emailPreferences) === null || _a === void 0 ? void 0 : _a.monthlyDigest) === false)
+            return;
+        const email = String(member.email || '').trim();
+        if (!email)
+            return;
+        recipients.set(email.toLowerCase(), {
+            email,
+            name: getDisplayName(member),
+            type: 'family',
+            userId: memberDoc.id,
+        });
+    });
+    return Array.from(recipients.values());
+};
 const getDateOnly = (date) => new Date(date.getFullYear(), date.getMonth(), date.getDate());
 const parseDate = (value) => {
     if (!value)
@@ -243,7 +294,7 @@ const getMonthlyDigestHtml = ({ name, counts, upcomingTasks, overdueTasks, recen
 		</div>
 	`;
 };
-const sendDigestForUser = async (userId, appUrl) => {
+const sendDigestForUser = async (userId, appUrl, deliveredRecipients) => {
     var _a;
     const userDoc = await db.collection('users').doc(userId).get();
     if (!userDoc.exists) {
@@ -253,8 +304,12 @@ const sendDigestForUser = async (userId, appUrl) => {
     if (((_a = user.emailPreferences) === null || _a === void 0 ? void 0 : _a.monthlyDigest) === false) {
         return { sent: false, skipped: true, reason: 'monthly_digest_opted_out' };
     }
-    const email = (user.email || '').trim();
-    if (!email) {
+    const accountId = getAccountId(userId, user);
+    const recipients = await getMonthlyDigestRecipients(userId, user, accountId);
+    const unsentRecipients = deliveredRecipients
+        ? recipients.filter((recipient) => !deliveredRecipients.has(getRecipientKey(accountId, recipient.email)))
+        : recipients;
+    if (unsentRecipients.length === 0) {
         return { sent: false, skipped: true, reason: 'missing_email' };
     }
     const resendApiKey = RESEND_API_KEY.value();
@@ -262,7 +317,6 @@ const sendDigestForUser = async (userId, appUrl) => {
     if (!resend) {
         throw new Error('Resend client is not configured');
     }
-    const accountId = getAccountId(userId, user);
     const now = new Date();
     const [properties, tasks, devices, events] = await Promise.all([
         getDocsByAccount('properties', accountId, userId),
@@ -274,26 +328,30 @@ const sendDigestForUser = async (userId, appUrl) => {
     const upcomingTasks = getUpcomingTasks(tasks, now);
     const overdueTasks = getOverdueTasks(tasks, now);
     const recentlyCompleted = getRecentlyCompletedEvents(events, now);
-    await (0, emailService_1.sendMaintleyEmail)(resend, {
-        to: email,
-        subject: 'Your Monthly Property Summary from Maintley',
-        html: getMonthlyDigestHtml({
-            name: getDisplayName(user),
-            counts: {
-                propertyCount: properties.length,
-                deviceCount: devices.length,
-                upcomingTaskCount: upcomingTasks.length,
-                overdueTaskCount: overdueTasks.length,
-                recentlyCompletedCount: recentlyCompleted.length,
-            },
-            upcomingTasks,
-            overdueTasks,
-            recentlyCompleted,
-            propertyById,
-            appUrl,
-        }),
-    });
-    return { sent: true, skipped: false };
+    const counts = {
+        propertyCount: properties.length,
+        deviceCount: devices.length,
+        upcomingTaskCount: upcomingTasks.length,
+        overdueTaskCount: overdueTasks.length,
+        recentlyCompletedCount: recentlyCompleted.length,
+    };
+    for (const recipient of unsentRecipients) {
+        await (0, emailService_1.sendMaintleyEmail)(resend, {
+            to: recipient.email,
+            subject: 'Your Monthly Property Summary from Maintley',
+            html: getMonthlyDigestHtml({
+                name: recipient.name,
+                counts,
+                upcomingTasks,
+                overdueTasks,
+                recentlyCompleted,
+                propertyById,
+                appUrl,
+            }),
+        });
+        deliveredRecipients === null || deliveredRecipients === void 0 ? void 0 : deliveredRecipients.add(getRecipientKey(accountId, recipient.email));
+    }
+    return { sent: true, skipped: false, sentCount: unsentRecipients.length };
 };
 exports.sendMonthlyPropertySummaries = functions
     .runWith({ secrets: ['RESEND_API_KEY'], timeoutSeconds: 540, memory: '256MB' })
@@ -310,11 +368,12 @@ exports.sendMonthlyPropertySummaries = functions
     let sent = 0;
     let skipped = 0;
     let failed = 0;
+    const deliveredRecipients = new Set();
     for (const userDoc of usersSnapshot.docs) {
         try {
-            const result = await sendDigestForUser(userDoc.id, appUrl);
+            const result = await sendDigestForUser(userDoc.id, appUrl, deliveredRecipients);
             if (result.sent) {
-                sent++;
+                sent += result.sentCount || 1;
             }
             else {
                 skipped++;

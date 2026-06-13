@@ -32,6 +32,8 @@ const PROPERTY_INSIGHTS_PLANS = new Set([
 	'portfolio',
 ]);
 
+const TEAM_MEMBER_REPORT_PLANS = new Set(['portfolio']);
+
 interface UserSubscriptionLike {
 	plan?: string;
 	hasScheduledSubscription?: boolean;
@@ -41,6 +43,9 @@ interface UserSubscriptionLike {
 interface UserEmailPreferencesLike {
 	taskReminders?: boolean;
 	propertyInsights?: boolean;
+	teamMemberReports?: {
+		enabled?: boolean;
+	};
 }
 
 interface UserLike {
@@ -73,7 +78,13 @@ export const enforceEmailPreferences = functions.firestore
 		const afterData = change.after.data() as UserLike;
 		const taskRemindersEnabled = !!afterData.emailPreferences?.taskReminders;
 		const propertyInsightsEnabled = !!afterData.emailPreferences?.propertyInsights;
-		if (!taskRemindersEnabled && !propertyInsightsEnabled) {
+		const teamMemberReportsEnabled =
+			!!afterData.emailPreferences?.teamMemberReports?.enabled;
+		if (
+			!taskRemindersEnabled &&
+			!propertyInsightsEnabled &&
+			!teamMemberReportsEnabled
+		) {
 			return null;
 		}
 
@@ -82,6 +93,7 @@ export const enforceEmailPreferences = functions.firestore
 			effectivePlan,
 		);
 		const canUsePropertyInsights = PROPERTY_INSIGHTS_PLANS.has(effectivePlan);
+		const canUseTeamMemberReports = TEAM_MEMBER_REPORT_PLANS.has(effectivePlan);
 
 		const updates: Record<string, unknown> = {};
 		if (taskRemindersEnabled && !canUseTaskReminderEmails) {
@@ -89,6 +101,9 @@ export const enforceEmailPreferences = functions.firestore
 		}
 		if (propertyInsightsEnabled && !canUsePropertyInsights) {
 			updates['emailPreferences.propertyInsights'] = false;
+		}
+		if (teamMemberReportsEnabled && !canUseTeamMemberReports) {
+			updates['emailPreferences.teamMemberReports.enabled'] = false;
 		}
 
 		if (Object.keys(updates).length === 0) {

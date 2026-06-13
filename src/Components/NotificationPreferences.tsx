@@ -6,16 +6,24 @@ import { useUpdateUserMutation } from '../Redux/API/userSlice';
 import { setCurrentUser } from '../Redux/Slices/userSlice';
 import { Task } from '../types/Task.types';
 import { useAppFeedback } from './Library/AppFeedback/AppFeedbackProvider';
-import { GenericModal } from './Library';
+import {
+	FormGroup,
+	FormLabel as Label,
+	FormSelect as Select,
+	GenericModal,
+} from './Library';
 import {
 	useGetTasksQuery,
 	useUpdateTaskMutation,
 } from '../Redux/API/taskSlice';
+import { useGetTeamMembersQuery } from '../Redux/API/teamSlice';
+import { getFamilyMembers } from '../services/authService';
 import {
 	mergeNotificationPreferences,
 } from '../utils/notificationPreferences';
 import { mergeEmailPreferences } from '../utils/emailPreferences';
 import {
+	canManageTeam,
 	canUsePropertyInsights,
 	canUseTaskReminderEmails,
 } from '../utils/subscriptionUtils';
@@ -163,6 +171,45 @@ const EmailPreferencesGrid = styled.div`
 	display: grid;
 	grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
 	gap: 12px;
+`;
+
+const EmailPreferencePanel = styled.div`
+	grid-column: 1 / -1;
+	border: 1px solid #e5e7eb;
+	border-radius: 8px;
+	padding: 14px;
+	background: #f9fafb;
+	min-width: 0;
+`;
+
+const NestedEmailControls = styled.div`
+	margin-top: 12px;
+	display: grid;
+	gap: 12px;
+`;
+
+const RecipientGrid = styled.div`
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+	gap: 10px;
+
+	@media (max-width: 640px) {
+		grid-template-columns: minmax(0, 1fr);
+	}
+`;
+
+const RecipientOption = styled.label`
+	display: flex;
+	align-items: flex-start;
+	gap: 10px;
+	padding: 10px;
+	border: 1px solid #e5e7eb;
+	border-radius: 6px;
+	background: #ffffff;
+	font-size: 14px;
+	color: #374151;
+	cursor: pointer;
+	min-width: 0;
 `;
 
 const EmailPreferenceOption = styled.label`
@@ -374,9 +421,22 @@ export const NotificationPreferences: React.FC<
 	const propertyInsightsEnabledByPlan = canUsePropertyInsights(
 		currentUser?.subscription,
 	);
+	const accountId = String(currentUser?.accountId || currentUser?.id || '').trim();
+	const isAccountOwner =
+		!!currentUser &&
+		currentUser?.isTeamMemberAccount !== true &&
+		(currentUser?.isAccountOwner === true || accountId === currentUser?.id);
+	const canConfigureFamilyReportRecipients = isAccountOwner;
+	const canConfigureTeamMemberReports =
+		isAccountOwner &&
+		!!currentUser?.subscription &&
+		canManageTeam(currentUser.subscription);
 
 	// Get tasks with notifications enabled
 	const { data: allTasks = [] } = useGetTasksQuery();
+	const { data: teamMembers = [] } = useGetTeamMembersQuery(undefined, {
+		skip: !canConfigureTeamMemberReports,
+	});
 	const tasksWithNotifications = allTasks.filter(
 		(task: Task) =>
 			task.enableNotifications &&
@@ -388,6 +448,7 @@ export const NotificationPreferences: React.FC<
 	const [emailPreferences, setEmailPreferences] = useState(
 		() => resolvedEmailPreferences,
 	);
+	const [familyMembers, setFamilyMembers] = useState<any[]>([]);
 
 	useEffect(() => {
 		const nextSerialized = JSON.stringify(resolvedPreferences);
@@ -404,6 +465,34 @@ export const NotificationPreferences: React.FC<
 			setEmailPreferences(resolvedEmailPreferences);
 		}
 	}, [resolvedEmailPreferences, emailPreferences]);
+
+	useEffect(() => {
+		let isMounted = true;
+		if (!accountId || !isAccountOwner) {
+			setFamilyMembers([]);
+			return () => {
+				isMounted = false;
+			};
+		}
+
+		getFamilyMembers(accountId).then((members) => {
+			if (isMounted) {
+				setFamilyMembers(
+					members.filter((member: any) => String(member?.id || '') !== currentUser?.id),
+				);
+			}
+		});
+
+		return () => {
+			isMounted = false;
+		};
+	}, [accountId, currentUser?.id, isAccountOwner]);
+
+	const emailEnabledTeamMembers = useMemo(
+		() =>
+			teamMembers.filter((member: any) => String(member?.email || '').trim()),
+		[teamMembers],
+	);
 
 	const notificationTypes = [
 		{
@@ -510,23 +599,11 @@ export const NotificationPreferences: React.FC<
 		setShowDisableAllConfirm(true);
 	};
 
-	const handleEmailPreferenceToggle = async (
-		key: keyof typeof emailPreferences,
-		enabled: boolean,
+	const saveEmailPreferences = async (
+		nextEmailPreferences: typeof emailPreferences,
+		successMessage?: string,
 	) => {
-		if (key === 'taskReminders' && !taskReminderEmailsEnabledByPlan) {
-			feedback.notify('Task reminder emails are available on Homeowner+ and higher plans.');
-			return;
-		}
-		if (key === 'propertyInsights' && !propertyInsightsEnabledByPlan) {
-			feedback.notify('Property Insights are available on Homeowner+ and higher plans.');
-			return;
-		}
-
-		const nextEmailPreferences = {
-			...emailPreferences,
-			[key]: enabled,
-		};
+		const previousEmailPreferences = emailPreferences;
 		setEmailPreferences(nextEmailPreferences);
 
 		try {
@@ -541,10 +618,106 @@ export const NotificationPreferences: React.FC<
 					emailPreferences: nextEmailPreferences,
 				}),
 			);
+			if (successMessage) {
+				feedback.notify(successMessage);
+			}
 		} catch (error) {
 			console.error('Failed to update email preferences:', error);
-			setEmailPreferences(emailPreferences);
+			setEmailPreferences(previousEmailPreferences);
+			feedback.notify('Failed to update email preferences. Please try again.');
 		}
+	};
+
+	const handleEmailPreferenceToggle = async (
+		key: keyof typeof emailPreferences,
+		enabled: boolean,
+	) => {
+		if (key === 'taskReminders' && !taskReminderEmailsEnabledByPlan) {
+			feedback.notify('Task reminder emails are available on Homeowner+ and higher plans.');
+			return;
+		}
+		if (key === 'propertyInsights' && !propertyInsightsEnabledByPlan) {
+			feedback.notify('Property Insights are available on Homeowner+ and higher plans.');
+			return;
+		}
+
+		await saveEmailPreferences({
+			...emailPreferences,
+			[key]: enabled,
+		});
+	};
+
+	const handleMonthlyDigestFamilyToggle = async (enabled: boolean) => {
+		if (!canConfigureFamilyReportRecipients) {
+			feedback.notify('Only the account owner can send monthly summaries to family.');
+			return;
+		}
+
+		await saveEmailPreferences({
+			...emailPreferences,
+			monthlyDigestFamilyRecipients: enabled,
+		});
+	};
+
+	const handleTeamMemberReportsToggle = async (enabled: boolean) => {
+		if (!canConfigureTeamMemberReports) {
+			feedback.notify('Team member reports are available on plans with team access.');
+			return;
+		}
+
+		const selectedIds = emailPreferences.teamMemberReports?.teamMemberIds || [];
+		const defaultIds =
+			selectedIds.length > 0
+				? selectedIds
+				: emailEnabledTeamMembers.map((member: any) => member.id);
+
+		await saveEmailPreferences({
+			...emailPreferences,
+			teamMemberReports: {
+				...(emailPreferences.teamMemberReports || {
+					frequency: 'weekly' as const,
+					teamMemberIds: [],
+				}),
+				enabled,
+				teamMemberIds: defaultIds,
+			},
+		});
+	};
+
+	const handleTeamMemberReportFrequencyChange = async (
+		frequency: 'weekly' | 'biweekly' | 'monthly',
+	) => {
+		await saveEmailPreferences({
+			...emailPreferences,
+			teamMemberReports: {
+				...(emailPreferences.teamMemberReports || {
+					enabled: false,
+					teamMemberIds: [],
+				}),
+				frequency,
+			},
+		});
+	};
+
+	const handleTeamMemberReportRecipientToggle = async (
+		memberId: string,
+		enabled: boolean,
+	) => {
+		const selectedIds = emailPreferences.teamMemberReports?.teamMemberIds || [];
+		const nextIds = enabled
+			? Array.from(new Set([...selectedIds, memberId]))
+			: selectedIds.filter((id) => id !== memberId);
+
+		await saveEmailPreferences({
+			...emailPreferences,
+			teamMemberReports: {
+				...(emailPreferences.teamMemberReports || {
+					enabled: false,
+					frequency: 'weekly' as const,
+				}),
+				teamMemberIds: nextIds,
+			},
+		});
 	};
 
 	const handleApplyActionDefaults = async () => {
@@ -692,6 +865,30 @@ export const NotificationPreferences: React.FC<
 							<EmailPreferenceOption>
 								<input
 									type='checkbox'
+									checked={!!emailPreferences.monthlyDigestFamilyRecipients}
+									disabled={
+										!canConfigureFamilyReportRecipients ||
+										familyMembers.length === 0
+									}
+									onChange={(e) =>
+										handleMonthlyDigestFamilyToggle(e.target.checked)
+									}
+								/>
+								<EmailPreferenceText>
+									<strong>Send Monthly Summary to Family</strong>
+									<span>
+										Include family members on the monthly property summary.
+										{!canConfigureFamilyReportRecipients
+											? ' Only the account owner can enable this.'
+											: familyMembers.length === 0
+											? ' Add a family member before enabling.'
+											: ''}
+									</span>
+								</EmailPreferenceText>
+							</EmailPreferenceOption>
+							<EmailPreferenceOption>
+								<input
+									type='checkbox'
 									checked={emailPreferences.taskReminders}
 									disabled={!taskReminderEmailsEnabledByPlan}
 									onChange={(e) =>
@@ -740,6 +937,93 @@ export const NotificationPreferences: React.FC<
 									<span>Seasonal property care notes sent around season changes.</span>
 								</EmailPreferenceText>
 							</EmailPreferenceOption>
+							<EmailPreferencePanel>
+								<EmailPreferenceOption>
+									<input
+										type='checkbox'
+										checked={!!emailPreferences.teamMemberReports?.enabled}
+										disabled={!canConfigureTeamMemberReports}
+										onChange={(e) =>
+											handleTeamMemberReportsToggle(e.target.checked)
+										}
+									/>
+									<EmailPreferenceText>
+										<strong>Team Member Task Reports</strong>
+										<span>
+											Send team members a plain update on upcoming, completed, and overdue tasks.
+											{!canConfigureTeamMemberReports
+												? ' Available on plans with team access.'
+												: ''}
+										</span>
+									</EmailPreferenceText>
+								</EmailPreferenceOption>
+
+								{canConfigureTeamMemberReports &&
+									emailPreferences.teamMemberReports?.enabled && (
+										<NestedEmailControls>
+											<FormGroup>
+												<Label>Send</Label>
+												<Select
+													value={
+														emailPreferences.teamMemberReports.frequency ||
+														'weekly'
+													}
+													onChange={(e) =>
+														handleTeamMemberReportFrequencyChange(
+															e.target.value as
+																| 'weekly'
+																| 'biweekly'
+																| 'monthly',
+														)
+													}>
+													<option value='weekly'>Weekly</option>
+													<option value='biweekly'>Every 2 weeks</option>
+													<option value='monthly'>Monthly</option>
+												</Select>
+											</FormGroup>
+
+											<div>
+												<Label>Team members</Label>
+												{emailEnabledTeamMembers.length === 0 ? (
+													<p
+														style={{
+															margin: '8px 0 0 0',
+															color: '#6b7280',
+															fontSize: '14px',
+														}}>
+														Add a team member with an email address before sending reports.
+													</p>
+												) : (
+													<RecipientGrid>
+														{emailEnabledTeamMembers.map((member: any) => {
+															const memberName = `${member.firstName || ''} ${member.lastName || ''}`.trim();
+															const selectedIds =
+																emailPreferences.teamMemberReports?.teamMemberIds || [];
+															return (
+																<RecipientOption key={member.id}>
+																	<input
+																		type='checkbox'
+																		checked={selectedIds.includes(member.id)}
+																		onChange={(e) =>
+																			handleTeamMemberReportRecipientToggle(
+																				member.id,
+																				e.target.checked,
+																			)
+																		}
+																	/>
+																	<EmailPreferenceText>
+																		<strong>{memberName || member.email}</strong>
+																		<span>{member.email}</span>
+																	</EmailPreferenceText>
+																</RecipientOption>
+															);
+														})}
+													</RecipientGrid>
+												)}
+											</div>
+										</NestedEmailControls>
+									)}
+							</EmailPreferencePanel>
 						</EmailPreferencesGrid>
 					</EmailPreferencesSection>
 
@@ -840,10 +1124,12 @@ export const NotificationPreferences: React.FC<
 					primaryButtonLabel='Disable All'
 					primaryButtonAction={confirmDisableAllTaskNotifications}
 					secondaryButtonLabel='Cancel'
-					secondaryButtonAction={() => setShowDisableAllConfirm(false)}>
+					secondaryButtonAction={() => setShowDisableAllConfirm(false)}
+					showActions
+					compact>
 					<p>
-						Are you sure you want to disable notifications for all tasks? This
-						will turn off all task-specific reminders.
+						This will turn off reminders for every task that currently has
+						notifications enabled.
 					</p>
 				</GenericModal>
 			)}
