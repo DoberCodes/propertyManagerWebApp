@@ -1,8 +1,5 @@
-🎉 **Release Notes for Version 2.3.0** 🎉
+🎉 **Release Notes for Version 2.4.0** 🎉
 
-
-## 🐛 Bug Fixes
-- fixing the plan structure also modifying the free trial wording since a free account is available. Mobile view cleanup.
 
 ## 🔧 Improvements & Maintenance
-- feat: adding new property setup assistant
+- feat:adding email notifications and large refactors of processes.
