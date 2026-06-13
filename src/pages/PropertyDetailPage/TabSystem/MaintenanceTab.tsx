@@ -35,6 +35,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
 	faTrash,
 	faEye,
+	faPenToSquare,
 	faArrowUpAZ,
 	faScrewdriverWrench,
 	faClipboardCheck,
@@ -317,6 +318,7 @@ export const MaintenanceTab = ({
 		new Set(),
 	);
 	const [showBulkGroupModal, setShowBulkGroupModal] = useState(false);
+	const [editingHistoryRecord, setEditingHistoryRecord] = useState<any | null>(null);
 	// dialog for deletions
 	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 	const [deleteDialogMessage, setDeleteDialogMessage] = useState('');
@@ -414,6 +416,59 @@ export const MaintenanceTab = ({
 			navigate(`/property/${property?.slug || ''}`);
 		});
 		setDeleteDialogOpen(true);
+	};
+
+	const openAddHistoryModal = () => {
+		setEditingHistoryRecord(null);
+		setShowAddModal(true);
+	};
+
+	const openEditHistoryModal = (record: any) => {
+		if (!canManageMaintenanceHistory || !onUpdateMaintenanceHistory || !record?.id) return;
+		setEditingHistoryRecord(record);
+		setShowAddModal(true);
+	};
+
+	const handleHistoryModalSubmit = async (data: {
+		title: string;
+		completionDate: string;
+		completedBy?: string;
+		completedByName?: string;
+		completionNotes?: string;
+		unitId?: string;
+		deviceIds?: string[];
+		completionFile?: File;
+		maintenanceGroupId?: string;
+		financials?: TaskFinancials;
+	}) => {
+		if (editingHistoryRecord?.id && onUpdateMaintenanceHistory) {
+			const updates: Record<string, any> = {
+				title: data.title,
+				completionDate: data.completionDate,
+				completedBy: data.completedBy,
+				completedByName: data.completedByName,
+				completionNotes: data.completionNotes,
+				unitId: data.unitId,
+				deviceIds: data.deviceIds,
+				maintenanceGroupId: data.maintenanceGroupId,
+				financials: data.financials,
+			};
+			Object.keys(updates).forEach((key) => {
+				if (updates[key] === undefined || updates[key] === '') {
+					delete updates[key];
+				}
+			});
+			await onUpdateMaintenanceHistory(editingHistoryRecord.id, updates);
+			feedback.notify('Maintenance history updated');
+			setEditingHistoryRecord(null);
+			setShowAddModal(false);
+			return;
+		}
+
+		if (!onAddMaintenanceHistory) return;
+		await onAddMaintenanceHistory(data);
+		setEditingHistoryRecord(null);
+		setShowAddModal(false);
 	};
 
 	const completedByLookup = useMemo(() => {
@@ -1024,6 +1079,14 @@ export const MaintenanceTab = ({
 			key: 'actions',
 			render: (_, row) => (
 				<div style={{ display: 'flex', gap: '8px' }}>
+						{canBulkEdit && onUpdateMaintenanceHistory && row?.id && (
+							<ActionButton
+								onClick={() => {
+									openEditHistoryModal(row);
+								}}>
+								<FontAwesomeIcon icon={faPenToSquare} />
+							</ActionButton>
+						)}
 					{canDeleteHistory && (
 						<ActionButton
 							className='delete'
@@ -1089,7 +1152,7 @@ export const MaintenanceTab = ({
 						justifyContent: isMobile ? 'stretch' : undefined,
 					}}>
 					<ToolbarButton
-						onClick={() => setShowAddModal(true)}
+						onClick={openAddHistoryModal}
 						style={{ width: isMobile ? '100%' : undefined }}>
 						+ Add History
 					</ToolbarButton>
@@ -1243,7 +1306,7 @@ export const MaintenanceTab = ({
 							<h3>No maintenance activity yet</h3>
 							<p>Add a completed service note when something happens, or create a task to plan the next maintenance step.</p>
 							{canManageMaintenanceHistory && (
-								<ToolbarButton type='button' onClick={() => setShowAddModal(true)}>
+								<ToolbarButton type='button' onClick={openAddHistoryModal}>
 									Add Maintenance Record
 								</ToolbarButton>
 							)}
@@ -1257,6 +1320,7 @@ export const MaintenanceTab = ({
 									groupId={groupId}
 									units={units}
 									onNavigate={handleNavigation}
+									onEdit={canManageMaintenanceHistory ? openEditHistoryModal : undefined}
 									onDelete={canDeleteHistory ? onDeleteMaintenanceHistory : undefined}
 									onDeleteGroup={
 										canDeleteHistory ? handleDeleteGroup : undefined
@@ -1269,6 +1333,7 @@ export const MaintenanceTab = ({
 									records={[record]}
 									units={units}
 									onNavigate={handleNavigation}
+									onEdit={canManageMaintenanceHistory ? openEditHistoryModal : undefined}
 									onDelete={canDeleteHistory ? onDeleteMaintenanceHistory : undefined}
 									onDeleteGroup={
 										canDeleteHistory ? handleDeleteGroup : undefined
@@ -1286,7 +1351,7 @@ export const MaintenanceTab = ({
 					emptyMessage='No maintenance activity recorded yet. History will appear as maintenance is completed.'
 					emptyActionLabel={canManageMaintenanceHistory ? 'Add Maintenance Record' : undefined}
 					onEmptyAction={
-						canManageMaintenanceHistory ? () => setShowAddModal(true) : undefined
+						canManageMaintenanceHistory ? openAddHistoryModal : undefined
 					}
 					hideHeader={true}
 					getRowClassName={(row) => {
@@ -1303,8 +1368,15 @@ export const MaintenanceTab = ({
 			{canManageMaintenanceHistory && showAddModal && (
 				<AddMaintenanceHistoryModal
 					isOpen={showAddModal}
-					onClose={() => setShowAddModal(false)}
-					onSubmit={onAddMaintenanceHistory}
+					onClose={() => {
+						setShowAddModal(false);
+						setEditingHistoryRecord(null);
+					}}
+					title={editingHistoryRecord ? 'Edit Maintenance History' : 'Add Maintenance History'}
+					primaryButtonLabel={editingHistoryRecord ? 'Save Changes' : 'Add History'}
+					hideAttachmentField={Boolean(editingHistoryRecord)}
+					initialData={editingHistoryRecord || undefined}
+					onSubmit={handleHistoryModalSubmit}
 					property={property}
 					devices={Array.isArray((property as any)?.devices)
 						? (property as any).devices

@@ -8,6 +8,7 @@ interface UnifiedMaintenanceHistoryProps {
 	records: Array<any>;
 	units: Array<any>;
 	onNavigate?: (record: any) => void;
+	onEdit?: (record: any) => void;
 	/*onDelete?: (record: any) => void;*/ // Commented out since individual delete is not currently used
 	onDelete?: (record: any) => void;
 	groupId?: string;
@@ -16,7 +17,7 @@ interface UnifiedMaintenanceHistoryProps {
 
 export const UnifiedMaintenanceHistory: React.FC<
 	UnifiedMaintenanceHistoryProps
-> = ({ records, units, onNavigate, /*onDelete,*/ groupId, onDeleteGroup }) => {
+> = ({ records, units, onNavigate, onEdit, /*onDelete,*/ groupId, onDeleteGroup }) => {
 	const [isExpanded, setIsExpanded] = useState(false);
 	const latestRecord = records[0]; // Records are sorted by date, newest first
 
@@ -133,6 +134,16 @@ export const UnifiedMaintenanceHistory: React.FC<
 						</p>
 					</div>
 					<div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+						{onEdit && (
+							<button
+								onClick={(e) => {
+									e.stopPropagation();
+									onEdit(latestRecord);
+								}}
+								style={secondaryActionStyle}>
+								Edit group
+							</button>
+						)}
 						<button
 							onClick={(e) => {
 								e.stopPropagation();
@@ -148,6 +159,16 @@ export const UnifiedMaintenanceHistory: React.FC<
 							style={{ position: 'relative' }}>
 							<summary style={moreSummaryStyle}>More</summary>
 							<div style={moreMenuStyle}>
+									{onEdit && (
+										<button
+											onClick={(e) => {
+												e.stopPropagation();
+												onEdit(latestRecord);
+											}}
+											style={moreMenuItemStyle}>
+											Edit group
+										</button>
+									)}
 								<button
 									onClick={(e) => {
 										e.stopPropagation();
@@ -180,6 +201,16 @@ export const UnifiedMaintenanceHistory: React.FC<
 							</p>
 							{/* Additional record details */}
 							<div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+								{onEdit && (
+									<button
+										onClick={(e) => {
+											e.stopPropagation();
+											onEdit(record);
+										}}
+										style={secondaryActionStyle}>
+										Edit record
+									</button>
+								)}
 								<button
 									onClick={(e) => {
 										e.stopPropagation();
@@ -195,6 +226,16 @@ export const UnifiedMaintenanceHistory: React.FC<
 									style={{ position: 'relative' }}>
 									<summary style={moreSummaryStyle}>More</summary>
 									<div style={moreMenuStyle}>
+										{onEdit && (
+											<button
+												onClick={(e) => {
+													e.stopPropagation();
+													onEdit(record);
+												}}
+												style={moreMenuItemStyle}>
+												Edit record
+											</button>
+										)}
 										<button
 											onClick={(e) => {
 												e.stopPropagation();

@@ -3,6 +3,7 @@ import { DetailsTab } from './DetailsTab';
 import { DevicesTab } from './DevicesTab';
 import { TasksTab } from './TasksTab';
 import { MaintenanceTab } from './MaintenanceTab';
+import { DocumentsTab } from './DocumentsTab';
 import { ContractorsTab } from './ContractorsTab';
 import { RequestsTab } from './RequestsTab';
 import { TenantsTab } from './TenantsTab';
@@ -43,6 +44,7 @@ interface TabsProps {
 	handleEditTask: (task: any) => void;
 	handleCreateDevice?: () => void;
 	handleCreateRequest?: () => void;
+	handleUpdateMaintenanceHistory?: (historyId: string, updates: Partial<any>) => void;
 	permissions?: RoleCapabilities;
 }
 
@@ -74,6 +76,7 @@ export const TabSystem = ({
 	handleCreateTask,
 	handleCreateDevice,
 	handleCreateRequest,
+		handleUpdateMaintenanceHistory,
 	permissions,
 }: TabsProps) => {
 	const activeTab = useSelector((state: RootState) => state.app.activeTab); // Default to 'details' if no active tab is set
@@ -124,8 +127,17 @@ export const TabSystem = ({
 						familyMembers={familyMembers}
 						tasks={allTasks}
 						onAddMaintenanceHistory={handleAddMaintenanceHistory}
+						onUpdateMaintenanceHistory={handleUpdateMaintenanceHistory}
 						onDeleteMaintenanceHistory={handleDeleteMaintenanceHistory}
 						permissions={permissions}
+					/>
+				);
+			case 'documents':
+				return (
+					<DocumentsTab
+						property={property}
+						propertyDevices={propertyDevices}
+						maintenanceHistoryRecords={maintenanceHistoryRecords}
 					/>
 				);
 			case 'tenants':

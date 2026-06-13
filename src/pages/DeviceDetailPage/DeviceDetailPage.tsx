@@ -29,6 +29,10 @@ import {
 	useGetMaintenanceHistoryByPropertyQuery,
 } from '../../Redux/API/maintenanceSlice';
 import {
+	useCreateContractorMutation,
+	useGetContractorsByPropertyQuery,
+} from '../../Redux/API/contractorSlice';
+import {
 	getMaintenanceEventDate,
 	getMaintenanceEventTitle,
 	isContinuityEvent,
@@ -52,8 +56,11 @@ import {
 	EmptyState,
 } from '../../Components/Library/DataGrid/DataGridStyles';
 import {
+	calculateCostTotal,
 	formatCurrency,
 	getFinancialDisplayTotal,
+	hasCostData,
+	toNumberOrUndefined,
 } from '../../utils/financialUtils';
 import { uploadDeviceFile } from '../../utils/deviceFileUpload';
 import {
@@ -1099,6 +1106,25 @@ export const DeviceDetailPage: React.FC = () => {
 	>('note');
 	const [quickLogDate, setQuickLogDate] = useState(new Date().toISOString().split('T')[0]);
 	const [quickLogDescription, setQuickLogDescription] = useState('');
+	const [quickLogAttachment, setQuickLogAttachment] = useState<File | null>(null);
+	const [quickLogWarrantyExpiration, setQuickLogWarrantyExpiration] = useState('');
+	const [quickLogFinancials, setQuickLogFinancials] = useState({
+		contractorCost: '',
+		materialsCost: '',
+		laborCost: '',
+		otherCost: '',
+	});
+	const [quickLogSelectedContractorId, setQuickLogSelectedContractorId] =
+		useState('');
+	const [quickLogCreateContractor, setQuickLogCreateContractor] = useState(false);
+	const [quickLogNewContractor, setQuickLogNewContractor] = useState({
+		name: '',
+		company: '',
+		category: 'General',
+		phone: '',
+		email: '',
+		notes: '',
+	});
 	const [isSavingQuickLog, setIsSavingQuickLog] = useState(false);
 	const [editingPartIndex, setEditingPartIndex] = useState<number | null>(null);
 	const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
@@ -1122,6 +1148,8 @@ export const DeviceDetailPage: React.FC = () => {
 
 	const [updateDevice] = useUpdateDeviceMutation();
 	const [addMaintenanceHistory] = useAddMaintenanceHistoryMutation();
+	const [createContractor, { isLoading: isCreatingContractor }] =
+		useCreateContractorMutation();
 
 	const resetPartForm = () => {
 		setPartFormData({
@@ -1164,6 +1192,12 @@ export const DeviceDetailPage: React.FC = () => {
 	const { data: propertyDevices = [] } = useGetDevicesQuery(property?.id || '', {
 		skip: !property?.id,
 	});
+	const { data: propertyContractors = [] } = useGetContractorsByPropertyQuery(
+		property?.id || '',
+		{
+			skip: !property?.id,
+		},
+	);
 	const { data: propertyMaintenanceHistory = [] } =
 		useGetMaintenanceHistoryByPropertyQuery(property?.id || '', {
 			skip: !property?.id,
@@ -1465,9 +1499,69 @@ export const DeviceDetailPage: React.FC = () => {
 		return new Date(upcoming[0].dueDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 	}, [linkedTasks]);
 
+	const applianceAssignedDocumentEntries = useMemo(() => {
+		const all = new Map<
+			string,
+			{
+				name: string;
+				url?: string;
+				type?: string;
+				size?: number;
+				date?: string;
+				source: 'appliance' | 'maintenance';
+				sourceLabel?: string;
+			}
+		>();
+
+		deviceDocumentFiles.forEach((file: any) => {
+			if (!file?.name) return;
+			const key = `${file.name}::${file.url || ''}`;
+			if (!all.has(key)) {
+				all.set(key, {
+					name: file.name,
+					url: file.url,
+					type: file.type,
+					size: file.size,
+					date: file.uploadedAt || file.createdAt,
+					source: 'appliance',
+				});
+			}
+		});
+
+		relatedMaintenanceHistory.forEach((record: any) => {
+			const sourceLabel =
+				record?.title || record?.taskTitle || record?.description || 'Maintenance record';
+			const date = getMaintenanceEventDate(record) || record?.date;
+			const attachments = getTimelineAttachments({
+				raw: record,
+				sourceType: 'maintenance-record',
+			});
+
+			attachments.forEach((file) => {
+				if (!file?.name) return;
+				const key = `${file.name}::${file.url || ''}`;
+				if (!all.has(key)) {
+					all.set(key, {
+						name: file.name,
+						url: file.url,
+						date,
+						source: 'maintenance',
+						sourceLabel,
+					});
+				}
+			});
+		});
+
+		return Array.from(all.values()).sort((a, b) => {
+			const aTime = new Date(a.date || 0).getTime() || 0;
+			const bTime = new Date(b.date || 0).getTime() || 0;
+			return bTime - aTime;
+		});
+	}, [deviceDocumentFiles, relatedMaintenanceHistory]);
+
 	const documentCount = useMemo(
-		() => deviceDocumentFiles.length,
-		[deviceDocumentFiles],
+		() => applianceAssignedDocumentEntries.length,
+		[applianceAssignedDocumentEntries],
 	);
 
 	const repairCount = useMemo(
@@ -1512,19 +1606,33 @@ export const DeviceDetailPage: React.FC = () => {
 		if (!canLogMaintenanceActions) {
 			return;
 		}
-		if (mode === 'warranty' && !canAccessWarranty) {
-			return;
-		}
 		setQuickLogMode(mode);
 		setQuickLogDescription('');
 		setQuickLogDate(new Date().toISOString().split('T')[0]);
+		setQuickLogAttachment(null);
+		setQuickLogWarrantyExpiration('');
+		setQuickLogFinancials({
+			contractorCost: '',
+			materialsCost: '',
+			laborCost: '',
+			otherCost: '',
+		});
+		setQuickLogSelectedContractorId('');
+		setQuickLogCreateContractor(false);
+		setQuickLogNewContractor({
+			name: '',
+			company: '',
+			category: 'General',
+			phone: '',
+			email: '',
+			notes: '',
+		});
 		setShowQuickLogModal(true);
 	};
 
 	const handleSaveQuickLog = async () => {
 		if (!canLogMaintenanceActions) return;
 		if (!device || !property || !quickLogDescription.trim()) return;
-		if (quickLogMode === 'warranty' && !canAccessWarranty) return;
 		setIsSavingQuickLog(true);
 		try {
 			const prefixMap: Record<
@@ -1567,25 +1675,101 @@ export const DeviceDetailPage: React.FC = () => {
 				'contractor': 'contractor_entry',
 			};
 			const descriptionPrefix = prefixMap[quickLogMode];
-			const descriptionText = quickLogDescription.trim();
+			const summaryDescription = quickLogDescription.trim();
+			let descriptionText = summaryDescription;
+
+			const shouldCaptureFinancials =
+				quickLogMode === 'repair' ||
+				quickLogMode === 'invoice' ||
+				quickLogMode === 'inspection';
+			const financialActual = {
+				contractorCost: toNumberOrUndefined(quickLogFinancials.contractorCost),
+				materialsCost: toNumberOrUndefined(quickLogFinancials.materialsCost),
+				laborCost: toNumberOrUndefined(quickLogFinancials.laborCost),
+				otherCost: toNumberOrUndefined(quickLogFinancials.otherCost),
+			};
+			const financials =
+				shouldCaptureFinancials && hasCostData(financialActual)
+					? {
+						currency: 'USD',
+						actual: financialActual,
+					}
+					: undefined;
+
+			let completedBy: string | undefined;
+			let completedByName: string | undefined;
+
+			if (quickLogMode === 'contractor') {
+				const selectedContractor = propertyContractors.find(
+					(contractor: any) => contractor.id === quickLogSelectedContractorId,
+				);
+
+				if (quickLogCreateContractor) {
+					const contractorName = quickLogNewContractor.name.trim();
+					if (!contractorName) {
+						setIsSavingQuickLog(false);
+						return;
+					}
+
+					const createdContractor = await createContractor({
+						propertyId: property.id,
+						name: contractorName,
+						company: quickLogNewContractor.company.trim() || contractorName,
+						category: quickLogNewContractor.category.trim() || 'General',
+						phone: quickLogNewContractor.phone.trim() || 'Not provided',
+						email: quickLogNewContractor.email.trim(),
+						notes: quickLogNewContractor.notes.trim(),
+					}).unwrap();
+
+					completedBy = createdContractor?.id;
+					completedByName = createdContractor?.name || contractorName;
+				} else if (selectedContractor) {
+					completedBy = selectedContractor.id;
+					completedByName = selectedContractor.name;
+				}
+
+				if (completedByName) {
+					descriptionText = `${descriptionText}\n\nContractor: ${completedByName}`;
+				}
+			}
+
+			if (quickLogMode === 'warranty' && quickLogWarrantyExpiration) {
+				descriptionText = `${descriptionText}\n\nWarranty expiration: ${quickLogWarrantyExpiration}`;
+			}
+
+			const supportsAttachment =
+				quickLogMode === 'note' ||
+				quickLogMode === 'contractor' ||
+				(quickLogMode === 'warranty' && canAccessWarranty);
 
 			await addMaintenanceHistory({
 				propertyId: property.id,
 				propertyTitle: property.title,
-				title: `${descriptionPrefix} ${descriptionText}`,
+				title: `${descriptionPrefix} ${summaryDescription}`,
 				description: descriptionText,
 				completionDate: new Date(quickLogDate).toISOString(),
+				completedBy,
+				completedByName,
 				unitId: device.location?.unitId,
 				deviceIds: [device.id],
+				completionFile: supportsAttachment ? quickLogAttachment || undefined : undefined,
+				financials,
 				eventType: eventMap[quickLogMode],
 				eventSource: sourceMap[quickLogMode],
-				tags: ['device', quickLogMode],
+				tags: [
+					'device',
+					quickLogMode,
+					...(completedBy ? ['contractor-linked'] : []),
+					...(quickLogMode === 'warranty' && quickLogWarrantyExpiration
+						? ['warranty-expiration']
+						: []),
+				],
 			}).unwrap();
 
 			const nextEntries = [
 				{
 					date: quickLogDate,
-					description: `${descriptionPrefix} ${descriptionText}`,
+					description: `${descriptionPrefix} ${summaryDescription}`,
 				},
 				...(Array.isArray(device.maintenanceHistory) ? device.maintenanceHistory : []),
 			];
@@ -1828,6 +2012,7 @@ export const DeviceDetailPage: React.FC = () => {
 			label: 'History',
 			count: deviceTimelineEntries.length + relatedMaintenanceHistory.length,
 		},
+		{ id: 'documents' as any, label: 'Documents', count: documentCount },
 		{ id: 'parts' as any, label: 'Parts', count: serviceParts.length },
 	];
 
@@ -2190,21 +2375,14 @@ export const DeviceDetailPage: React.FC = () => {
 						<QuickActionButton
 							type='button'
 							onClick={() => openQuickLogModal('warranty')}
-							disabled={!canAccessWarranty}
-							title={
-								canAccessWarranty
-									? undefined
-									: isTeamMemberAccount
-										? 'Warranty tracking is controlled by your assigned role.'
-										: 'Warranty tracking requires the Property plan or higher'
-							}>
+										title={undefined}>
 							<strong>Log Warranty</strong>
 							<span>
 								{canAccessWarranty
-									? 'Capture coverage terms and warranty lifecycle notes.'
+												? 'Capture coverage terms, expiration details, and warranty documents.'
 									: isTeamMemberAccount
-										? 'Ask the account holder to adjust your role if you need this access.'
-										: 'Upgrade to Property or Portfolio to track warranties.'}
+													? 'Capture warranty dates and notes. Document uploads depend on your role.'
+													: 'Capture expiration dates and notes. Upgrade to attach warranty documents.'}
 							</span>
 						</QuickActionButton>
 											<QuickActionButton type='button' onClick={() => openQuickLogModal('contractor')}>
@@ -2344,24 +2522,59 @@ export const DeviceDetailPage: React.FC = () => {
 							</InfoCard>
 						)}
 
-						<InfoCard>
-							<InfoLabel>Attached Files</InfoLabel>
-							{deviceDocumentFiles.length > 0 ? (
-								<div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-									{deviceDocumentFiles.map((file: any) => (
-										<a
-											key={`${file.url}-${file.name}`}
-											href={file.url}
-											target='_blank'
-											rel='noopener noreferrer'>
-											{file.name}
-										</a>
+						</SectionContainer>
+					</SurfaceCard>
+				</TabContent>
+			)}
+
+			{activeTab === 'documents' && (
+				<TabContent>
+					<SurfaceCard>
+						<SectionContainer>
+							<SectionHeader>Appliance Documents ({documentCount})</SectionHeader>
+							<InfoCard style={{ marginBottom: 12 }}>
+								<InfoLabel>Appliance-Assigned Files</InfoLabel>
+								<InfoValue>
+									This tab shows documents directly assigned to this appliance or system.
+								</InfoValue>
+							</InfoCard>
+							{applianceAssignedDocumentEntries.length > 0 ? (
+								<div style={{ display: 'grid', gap: 10 }}>
+									{applianceAssignedDocumentEntries.map((file: any, index: number) => (
+										<div
+											key={`${file.name}-${file.url || 'no-url'}-${index}`}
+											style={{
+												background: '#ffffff',
+												border: '1px solid #e2e8f0',
+												borderRadius: 10,
+												padding: '12px 14px',
+												display: 'grid',
+												gap: 6,
+											}}>
+											{file.url ? (
+												<a href={file.url} target='_blank' rel='noopener noreferrer'>
+													{file.name}
+												</a>
+											) : (
+												<div style={{ fontWeight: 600, color: '#1f2937' }}>{file.name}</div>
+											)}
+											<div style={{ fontSize: 12, color: '#64748b' }}>
+												{file.source === 'maintenance'
+													? file.sourceLabel || 'Maintenance record'
+													: file.type || 'Appliance file'}
+												{typeof file.size === 'number' ? ` • ${(file.size / 1024).toFixed(1)} KB` : ''}
+												{file.date
+													? ` • ${formatDate(file.date)}`
+													: ''}
+											</div>
+										</div>
 									))}
 								</div>
 							) : (
-								<InfoValue>No files attached</InfoValue>
+								<EmptyState>
+									<p>No documents assigned to this appliance yet.</p>
+								</EmptyState>
 							)}
-						</InfoCard>
 						</SectionContainer>
 					</SurfaceCard>
 				</TabContent>
@@ -2943,7 +3156,9 @@ export const DeviceDetailPage: React.FC = () => {
 				onClose={() => setShowQuickLogModal(false)}
 				onSubmit={handleSaveQuickLog}
 				showActions={true}
-				primaryButtonLabel={isSavingQuickLog ? 'Saving...' : 'Save Entry'}
+				primaryButtonLabel={
+					isSavingQuickLog || isCreatingContractor ? 'Saving...' : 'Save Entry'
+				}
 				secondaryButtonLabel='Cancel'>
 				<PartsForm>
 					<FormRow style={{ gridTemplateColumns: '1fr 1fr' }}>
@@ -2974,8 +3189,8 @@ export const DeviceDetailPage: React.FC = () => {
 								<option value='repair'>Repair</option>
 								<option value='invoice'>Invoice</option>
 								<option value='inspection'>Inspection</option>
-								<option value='warranty' disabled={!canAccessWarranty}>
-									Warranty{canAccessWarranty || isTeamMemberAccount ? '' : ' (Property+)'}
+								<option value='warranty'>
+									Warranty{canAccessWarranty || isTeamMemberAccount ? '' : ' (docs on Property+)'}
 								</option>
 								<option value='contractor'>Contractor Visit</option>
 							</FormSelect>
@@ -3001,6 +3216,243 @@ export const DeviceDetailPage: React.FC = () => {
 							onChange={(e) => setQuickLogDescription(e.target.value)}
 						/>
 					</FormField>
+
+					{(quickLogMode === 'repair' ||
+						quickLogMode === 'invoice' ||
+						quickLogMode === 'inspection') && (
+						<>
+							<FormLabel>Financial Details</FormLabel>
+							<FormRow style={{ gridTemplateColumns: '1fr 1fr' }}>
+								<FormField>
+									<FormInput
+										type='number'
+										min='0'
+										step='0.01'
+										placeholder='Contractor cost'
+										value={quickLogFinancials.contractorCost}
+										onChange={(e) =>
+											setQuickLogFinancials((prev) => ({
+												...prev,
+												contractorCost: e.target.value,
+											}))
+										}
+									/>
+								</FormField>
+								<FormField>
+									<FormInput
+										type='number'
+										min='0'
+										step='0.01'
+										placeholder='Materials cost'
+										value={quickLogFinancials.materialsCost}
+										onChange={(e) =>
+											setQuickLogFinancials((prev) => ({
+												...prev,
+												materialsCost: e.target.value,
+											}))
+										}
+									/>
+								</FormField>
+							</FormRow>
+							<FormRow style={{ gridTemplateColumns: '1fr 1fr' }}>
+								<FormField>
+									<FormInput
+										type='number'
+										min='0'
+										step='0.01'
+										placeholder='Labor cost'
+										value={quickLogFinancials.laborCost}
+										onChange={(e) =>
+											setQuickLogFinancials((prev) => ({
+												...prev,
+												laborCost: e.target.value,
+											}))
+										}
+									/>
+								</FormField>
+								<FormField>
+									<FormInput
+										type='number'
+										min='0'
+										step='0.01'
+										placeholder='Other cost'
+										value={quickLogFinancials.otherCost}
+										onChange={(e) =>
+											setQuickLogFinancials((prev) => ({
+												...prev,
+												otherCost: e.target.value,
+											}))
+										}
+									/>
+								</FormField>
+							</FormRow>
+							<div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600 }}>
+								Total:{' '}
+								{formatCurrency(
+									calculateCostTotal({
+										contractorCost: toNumberOrUndefined(quickLogFinancials.contractorCost),
+										materialsCost: toNumberOrUndefined(quickLogFinancials.materialsCost),
+										laborCost: toNumberOrUndefined(quickLogFinancials.laborCost),
+										otherCost: toNumberOrUndefined(quickLogFinancials.otherCost),
+									}),
+								)}
+							</div>
+						</>
+					)}
+
+					{quickLogMode === 'warranty' && (
+						<>
+							<FormField>
+								<FormLabel>Warranty Expiration (Optional)</FormLabel>
+								<FormInput
+									type='date'
+									value={quickLogWarrantyExpiration}
+									onChange={(e) => setQuickLogWarrantyExpiration(e.target.value)}
+								/>
+							</FormField>
+							{canAccessWarranty ? (
+								<FormField>
+									<FormLabel>Warranty Document (Optional)</FormLabel>
+									<FormInput
+										type='file'
+										onChange={(e) =>
+											setQuickLogAttachment(e.target.files?.[0] || null)
+										}
+									/>
+								</FormField>
+							) : (
+								<div style={{ fontSize: '12px', color: '#64748b' }}>
+									Document upload for warranty records is available on Property and Portfolio plans.
+								</div>
+							)}
+						</>
+					)}
+
+					{quickLogMode === 'contractor' && (
+						<>
+							<FormField>
+								<FormLabel>Existing Contractor (Optional)</FormLabel>
+								<FormSelect
+									value={quickLogSelectedContractorId}
+									onChange={(e) => setQuickLogSelectedContractorId(e.target.value)}>
+									<option value=''>No linked contractor</option>
+									{propertyContractors.map((contractor: any) => (
+										<option key={contractor.id} value={contractor.id}>
+											{contractor.name}
+											{contractor.category ? ` (${contractor.category})` : ''}
+										</option>
+									))}
+								</FormSelect>
+							</FormField>
+							<label
+								style={{
+									display: 'inline-flex',
+									alignItems: 'center',
+									gap: 8,
+									fontSize: '13px',
+									color: '#334155',
+								}}>
+								<input
+									type='checkbox'
+									checked={quickLogCreateContractor}
+									onChange={(e) => setQuickLogCreateContractor(e.target.checked)}
+								/>
+								Create new contractor for this visit
+							</label>
+							{quickLogCreateContractor && (
+								<>
+									<FormRow style={{ gridTemplateColumns: '1fr 1fr' }}>
+										<FormField>
+											<FormInput
+												placeholder='Contractor name'
+												value={quickLogNewContractor.name}
+												onChange={(e) =>
+													setQuickLogNewContractor((prev) => ({
+														...prev,
+														name: e.target.value,
+													}))
+												}
+											/>
+										</FormField>
+										<FormField>
+											<FormInput
+												placeholder='Company'
+												value={quickLogNewContractor.company}
+												onChange={(e) =>
+													setQuickLogNewContractor((prev) => ({
+														...prev,
+														company: e.target.value,
+													}))
+												}
+											/>
+										</FormField>
+									</FormRow>
+									<FormRow style={{ gridTemplateColumns: '1fr 1fr' }}>
+										<FormField>
+											<FormInput
+												placeholder='Category'
+												value={quickLogNewContractor.category}
+												onChange={(e) =>
+													setQuickLogNewContractor((prev) => ({
+														...prev,
+														category: e.target.value,
+													}))
+												}
+											/>
+										</FormField>
+										<FormField>
+											<FormInput
+												placeholder='Phone'
+												value={quickLogNewContractor.phone}
+												onChange={(e) =>
+													setQuickLogNewContractor((prev) => ({
+														...prev,
+														phone: e.target.value,
+													}))
+												}
+											/>
+										</FormField>
+									</FormRow>
+									<FormField>
+										<FormInput
+											type='email'
+											placeholder='Email (optional)'
+											value={quickLogNewContractor.email}
+											onChange={(e) =>
+												setQuickLogNewContractor((prev) => ({
+													...prev,
+													email: e.target.value,
+												}))
+											}
+										/>
+									</FormField>
+								</>
+							)}
+							<FormField>
+								<FormLabel>Visit Document (Optional)</FormLabel>
+								<FormInput
+									type='file'
+									onChange={(e) => setQuickLogAttachment(e.target.files?.[0] || null)}
+								/>
+							</FormField>
+						</>
+					)}
+
+					{quickLogMode === 'note' && (
+						<FormField>
+							<FormLabel>Attach Document (Optional)</FormLabel>
+							<FormInput
+								type='file'
+								onChange={(e) => setQuickLogAttachment(e.target.files?.[0] || null)}
+							/>
+						</FormField>
+					)}
+
+					{quickLogAttachment && (
+						<div style={{ fontSize: '12px', color: '#64748b' }}>
+							Attached: {quickLogAttachment.name}
+						</div>
+					)}
 				</PartsForm>
 			</GenericModal>
 

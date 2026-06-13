@@ -25,6 +25,7 @@ import {
 	useGetMaintenanceHistoryByPropertyQuery,
 	useAddMaintenanceHistoryMutation,
 	useDeleteMaintenanceHistoryMutation,
+	useUpdateMaintenanceHistoryMutation,
 } from '../../Redux/API/maintenanceSlice';
 import { useCreateNotificationMutation } from '../../Redux/API/notificationSlice';
 import {
@@ -175,6 +176,7 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 	const [createPropertyGroup] = useCreatePropertyGroupMutation();
 	const [addMaintenanceHistory] = useAddMaintenanceHistoryMutation();
 	const [deleteMaintenanceHistory] = useDeleteMaintenanceHistoryMutation();
+	const [updateMaintenanceHistory] = useUpdateMaintenanceHistoryMutation();
 	const [createNotification] = useCreateNotificationMutation();
 	const [removeTenant] = useRemoveTenantMutation();
 	const [getTenantInvitationCode] = useLazyGetTenantInvitationCodeQuery();
@@ -545,6 +547,26 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 		} catch (error) {
 			console.error('Failed to delete maintenance history:', error);
 			feedback.notify('Failed to delete maintenance history. Please try again.');
+		}
+	};
+
+	const handleUpdateMaintenanceHistory = async (
+		historyId: string,
+		updates: Partial<any>,
+	) => {
+		if (!roleCapabilities.canManageMaintenanceHistory) {
+			feedback.notify('Your role can view maintenance history but cannot edit records.');
+			return;
+		}
+
+		try {
+			await updateMaintenanceHistory({
+				id: historyId,
+				updates,
+			}).unwrap();
+		} catch (error) {
+			console.error('Failed to update maintenance history:', error);
+			feedback.notify('Failed to update maintenance history. Please try again.');
 		}
 	};
 
@@ -993,6 +1015,7 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 					assigneeOptions={assigneeOptions}
 					allTasks={[]}
 					handleAddMaintenanceHistory={handleAddMaintenanceHistory}
+					handleUpdateMaintenanceHistory={handleUpdateMaintenanceHistory}
 					handleDeleteMaintenanceHistory={handleDeleteMaintenanceHistory}
 					setShowAddTenantModal={setShowAddTenantModal}
 					handleEditTenant={handleEditTenant}

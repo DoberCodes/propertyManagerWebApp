@@ -13,6 +13,20 @@ import { TaskFinancials } from '../../../types/Task.types';
 interface AddMaintenanceHistoryModalProps {
 	isOpen: boolean;
 	onClose: () => void;
+	title?: string;
+	primaryButtonLabel?: string;
+	hideAttachmentField?: boolean;
+	initialData?: {
+		title?: string;
+		completionDate?: string;
+		completedBy?: string;
+		completedByName?: string;
+		completionNotes?: string;
+		unitId?: string;
+		deviceIds?: string[];
+		maintenanceGroupId?: string;
+		financials?: TaskFinancials;
+	};
 	onSubmit?: (data: {
 		title: string;
 		completionDate: string;
@@ -48,6 +62,10 @@ export const AddMaintenanceHistoryModal: React.FC<
 	familyMembers,
 	groupOptions,
 	onCreateGroupId,
+	title = 'Add Maintenance History',
+	primaryButtonLabel = 'Add History',
+	hideAttachmentField = false,
+	initialData,
 }) => {
 	const [formData, setFormData] = useState({
 		title: '',
@@ -67,6 +85,47 @@ export const AddMaintenanceHistoryModal: React.FC<
 	);
 	const [selectedGroupId, setSelectedGroupId] = useState<string>('');
 	const [selectedDeviceIds, setSelectedDeviceIds] = useState<string[]>([]);
+
+	React.useEffect(() => {
+		if (!isOpen) return;
+
+		if (initialData) {
+			setFormData({
+				title: initialData.title || '',
+				completionDate: initialData.completionDate || '',
+				completedBy: initialData.completedBy || '',
+				completedByName: initialData.completedByName || '',
+				completionNotes: initialData.completionNotes || '',
+				unitId: initialData.unitId || '',
+				completionFile: null,
+				contractorCost: initialData.financials?.actual?.contractorCost?.toString?.() || '',
+				materialsCost: initialData.financials?.actual?.materialsCost?.toString?.() || '',
+				laborCost: initialData.financials?.actual?.laborCost?.toString?.() || '',
+				otherCost: initialData.financials?.actual?.otherCost?.toString?.() || '',
+			});
+			setCompletedByMode(initialData.completedByName ? 'custom' : 'dropdown');
+			setSelectedGroupId(initialData.maintenanceGroupId || '');
+			setSelectedDeviceIds(initialData.deviceIds || []);
+			return;
+		}
+
+		setFormData({
+			title: '',
+			completionDate: '',
+			completedBy: '',
+			completedByName: '',
+			completionNotes: '',
+			unitId: '',
+			completionFile: null,
+			contractorCost: '',
+			materialsCost: '',
+			laborCost: '',
+			otherCost: '',
+		});
+		setCompletedByMode('dropdown');
+		setSelectedGroupId('');
+		setSelectedDeviceIds([]);
+	}, [initialData, isOpen]);
 
 	// Generate completed by options from available data sources
 	const completedByOptions = React.useMemo(() => {
@@ -192,7 +251,7 @@ export const AddMaintenanceHistoryModal: React.FC<
 			maintenanceGroupId: groupId,
 		};
 
-		onSubmit?.(data);
+		await onSubmit?.(data);
 
 		// Reset form
 		setFormData({
@@ -225,14 +284,13 @@ export const AddMaintenanceHistoryModal: React.FC<
 		}))
 		.filter((device) => device.id);
 
-	return [
+	return (
 		<GenericModal
-			key='main-modal'
 			isOpen={isOpen}
-			title='Add Maintenance History'
+			title={title}
 			onClose={onClose}
 			showActions={true}
-			primaryButtonLabel='Add History'
+			primaryButtonLabel={primaryButtonLabel}
 			secondaryButtonLabel='Cancel'
 			onSubmit={handleSubmit}>
 			<div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -613,47 +671,49 @@ export const AddMaintenanceHistoryModal: React.FC<
 					/>
 				</div>
 
-				<div>
-					<label
-						style={{
-							display: 'block',
-							marginBottom: '4px',
-							fontWeight: 'bold',
-						}}>
-						Attachment (optional)
-					</label>
-					<FileUploader
-						label='Attach File'
-						helperText='Images, PDF, Word, Excel, Text (max 10MB)'
-						accept='image/*,.pdf,.doc,.docx,.txt,.xls,.xlsx'
-						allowedTypes={[
-							'image/jpeg',
-							'image/png',
-							'image/jpg',
-							'image/gif',
-							'image/webp',
-							'application/pdf',
-							'application/msword',
-							'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-							'text/plain',
-							'application/vnd.ms-excel',
-							'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-						]}
-						maxSizeBytes={10 * 1024 * 1024}
-						setFile={handleFileChange}
-						showSelectedFiles={false}
-					/>
-					<small style={{ color: '#6b7280', fontSize: '12px' }}>
-						Supported formats: Images, PDF, Word, Excel, Text (max 10MB)
-					</small>
-					{formData.completionFile && (
-						<div
-							style={{ marginTop: '4px', fontSize: '14px', color: '#059669' }}>
-							Selected: {formData.completionFile.name}
-						</div>
-					)}
-				</div>
+				{!hideAttachmentField && (
+					<div>
+						<label
+							style={{
+								display: 'block',
+								marginBottom: '4px',
+								fontWeight: 'bold',
+							}}>
+							Attachment (optional)
+						</label>
+						<FileUploader
+							label='Attach File'
+							helperText='Images, PDF, Word, Excel, Text (max 10MB)'
+							accept='image/*,.pdf,.doc,.docx,.txt,.xls,.xlsx'
+							allowedTypes={[
+								'image/jpeg',
+								'image/png',
+								'image/jpg',
+								'image/gif',
+								'image/webp',
+								'application/pdf',
+								'application/msword',
+								'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+								'text/plain',
+								'application/vnd.ms-excel',
+								'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+							]}
+							maxSizeBytes={10 * 1024 * 1024}
+							setFile={handleFileChange}
+							showSelectedFiles={false}
+						/>
+						<small style={{ color: '#6b7280', fontSize: '12px' }}>
+							Supported formats: Images, PDF, Word, Excel, Text (max 10MB)
+						</small>
+						{formData.completionFile && (
+							<div
+								style={{ marginTop: '4px', fontSize: '14px', color: '#059669' }}>
+								Selected: {formData.completionFile.name}
+							</div>
+						)}
+					</div>
+				)}
 			</div>
-		</GenericModal>,
-	];
+		</GenericModal>
+	);
 };

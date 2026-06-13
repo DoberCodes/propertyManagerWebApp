@@ -25,6 +25,7 @@ import {
 import { useCreateNotificationMutation } from '../../Redux/API/notificationSlice';
 import { useAppFeedback } from '../Library/AppFeedback/AppFeedbackProvider';
 import { assertStorageQuotaForFiles } from '../../utils/storageQuota';
+import { signalStorageUsageUpdated } from '../../utils/storageUsageEvents';
 
 interface TaskCompletionModalProps {
 	taskId: string;
@@ -150,6 +151,7 @@ export const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
 				);
 				await uploadBytes(fileRef, selectedFile);
 				const downloadUrl = await getDownloadURL(fileRef);
+				signalStorageUsageUpdated();
 				completionFileData = {
 					name: selectedFile.name,
 					url: downloadUrl,

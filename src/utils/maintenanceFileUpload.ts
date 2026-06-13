@@ -1,6 +1,7 @@
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { storage } from '../config/firebase';
 import { assertStorageQuotaForFiles } from './storageQuota';
+import { signalStorageUsageUpdated } from './storageUsageEvents';
 
 const MAX_MAINTENANCE_FILE_BYTES = 10 * 1024 * 1024; // 10MB
 
@@ -46,6 +47,7 @@ export const uploadMaintenanceFile = async (
 
 	await uploadBytes(storageRef, file, { contentType: file.type });
 	const url = await getDownloadURL(storageRef);
+	signalStorageUsageUpdated();
 
 	return {
 		url,

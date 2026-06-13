@@ -1,55 +1,48 @@
-import { useEffect, useState } from 'react';
-import { getStorageUsageForAccount, StorageUsage } from '../utils/storageQuota';
+import { useEffect } from 'react';
+import { skipToken } from '@reduxjs/toolkit/query';
 import { getEffectiveSubscriptionPlanId } from '../utils/subscriptionUtils';
+import { useGetStorageUsageQuery } from '../Redux/API/storageUsageSlice';
+import { STORAGE_USAGE_REFRESH_EVENT } from '../utils/storageUsageEvents';
 
 export const useStorageUsage = (currentUser: any, enabled = true) => {
-	const [usage, setUsage] = useState<StorageUsage | null>(null);
-	const [isLoading, setIsLoading] = useState(false);
-	const [error, setError] = useState<string | null>(null);
-
 	const accountId = String(currentUser?.accountId || currentUser?.id || '').trim();
 	const planId = getEffectiveSubscriptionPlanId(
 		currentUser?.subscription,
 		'homeowner',
 	);
 
-	useEffect(() => {
-		let isMounted = true;
+	const queryArgs = enabled && accountId ? { accountId, planId } : skipToken;
+	const {
+		data: usage = null,
+		isLoading,
+		error,
+		refetch,
+	} = useGetStorageUsageQuery(queryArgs, {
+		refetchOnFocus: true,
+		refetchOnReconnect: true,
+	});
 
-		if (!enabled || !accountId) {
-			setUsage(null);
-			setIsLoading(false);
-			setError(null);
+	useEffect(() => {
+		if (!enabled || !accountId || typeof window === 'undefined') {
 			return;
 		}
 
-		setIsLoading(true);
-		setError(null);
-
-		getStorageUsageForAccount(accountId, planId)
-			.then((nextUsage) => {
-				if (!isMounted) return;
-				setUsage(nextUsage);
-			})
-			.catch((storageError) => {
-				if (!isMounted) return;
-				setError(
-					storageError instanceof Error
-						? storageError.message
-						: 'Unable to load storage usage.',
-				);
-				setUsage(null);
-			})
-			.finally(() => {
-				if (isMounted) {
-					setIsLoading(false);
-				}
-			});
-
-		return () => {
-			isMounted = false;
+		const handleRefresh = () => {
+			void refetch();
 		};
-	}, [accountId, enabled, planId]);
 
-	return { usage, isLoading, error };
+		window.addEventListener(STORAGE_USAGE_REFRESH_EVENT, handleRefresh);
+		return () => {
+			window.removeEventListener(STORAGE_USAGE_REFRESH_EVENT, handleRefresh);
+		};
+	}, [enabled, accountId, refetch]);
+
+	const errorMessage =
+		error && typeof error === 'object' && 'message' in error
+			? String((error as { message?: string }).message || 'Unable to load storage usage.')
+			: error
+				? 'Unable to load storage usage.'
+				: null;
+
+	return { usage, isLoading, error: errorMessage, refetch };
 };

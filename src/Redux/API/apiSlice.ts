@@ -81,6 +81,7 @@ export const apiSlice = createApi({
 		'MaintenanceHistory',
 		'Contractors',
 		'MaintenanceEvents',
+			'StorageUsage',
 	],
 	endpoints: (builder) => ({
 		// App Version

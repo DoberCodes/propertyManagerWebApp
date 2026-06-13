@@ -1,6 +1,7 @@
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { storage } from '../config/firebase';
 import { assertStorageQuotaForFiles } from './storageQuota';
+import { signalStorageUsageUpdated } from './storageUsageEvents';
 
 const MAX_TEAM_MEMBER_IMAGE_BYTES = 8 * 1024 * 1024; // 8MB
 const MAX_TEAM_MEMBER_FILE_BYTES = 10 * 1024 * 1024; // 10MB
@@ -51,7 +52,9 @@ export const uploadTeamMemberImage = async (
 	const storageRef = ref(storage, `${folder}/${fileName}`);
 
 	await uploadBytes(storageRef, file, { contentType: file.type });
-	return getDownloadURL(storageRef);
+	const downloadUrl = await getDownloadURL(storageRef);
+	signalStorageUsageUpdated();
+	return downloadUrl;
 };
 
 export const isValidTeamMemberFile = (file: File): boolean => {
@@ -85,6 +88,7 @@ export const uploadTeamMemberFile = async (
 
 	await uploadBytes(storageRef, file, { contentType: file.type });
 	const url = await getDownloadURL(storageRef);
+	signalStorageUsageUpdated();
 
 	return {
 		url,

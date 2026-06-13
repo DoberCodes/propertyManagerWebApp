@@ -1,6 +1,7 @@
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { storage } from '../config/firebase';
 import { assertStorageQuotaForFiles } from './storageQuota';
+import { signalStorageUsageUpdated } from './storageUsageEvents';
 
 const MAX_PROFILE_IMAGE_BYTES = 8 * 1024 * 1024; // 8MB
 
@@ -33,5 +34,7 @@ export const uploadUserProfileImage = async (
 	const storageRef = ref(storage, `${folder}/${fileName}`);
 
 	await uploadBytes(storageRef, file, { contentType: file.type });
-	return getDownloadURL(storageRef);
+	const downloadUrl = await getDownloadURL(storageRef);
+	signalStorageUsageUpdated();
+	return downloadUrl;
 };

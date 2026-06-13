@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../../../../Redux/store/store';
 import { logout } from '../../../../Redux/Slices/userSlice';
@@ -63,8 +63,20 @@ export const TopNav = () => {
 	const canViewPages = useSelector(selectCanViewAllPages);
 	const isContractor = useSelector(selectIsContractor);
 	const isTeamMemberAccount = useSelector(selectIsTeamMemberAccount);
-	const { usage: storageUsage, isLoading: isStorageUsageLoading } =
+	const {
+		usage: storageUsage,
+		isLoading: isStorageUsageLoading,
+		refetch: refetchStorageUsage,
+	} =
 		useStorageUsage(currentUser, !isUserTenant && !isTeamMemberAccount);
+
+	useEffect(() => {
+		if (!isSidebarOpen || isUserTenant || isTeamMemberAccount) {
+			return;
+		}
+
+		void refetchStorageUsage();
+	}, [isSidebarOpen, isUserTenant, isTeamMemberAccount, refetchStorageUsage]);
 	const filteredPropertyGroups = React.useMemo(
 		() =>
 			filterPropertyGroupsByRole(
