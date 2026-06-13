@@ -192,6 +192,36 @@ export const getMaxDevicesForPlan = (planId: string): number => {
 	return isUnlimitedDeviceLimit(maxDevices) ? Number.POSITIVE_INFINITY : maxDevices;
 };
 
+export const getMaxFilesForPlan = (planId: string): number => {
+	const plan = getPlanById(planId);
+	return Number(plan?.maxFiles || 0);
+};
+
+export const getMaxStorageGbForPlan = (planId: string): number => {
+	const plan = getPlanById(planId);
+	return Number(plan?.maxStorageGb || 0);
+};
+
+export const canUseTaskReminderEmails = (
+	subscription?: Pick<
+		SubscriptionData,
+		'plan' | 'hasScheduledSubscription' | 'scheduledPlan'
+	> | null,
+): boolean => {
+	const effectivePlan = getEffectiveSubscriptionPlanId(subscription, 'homeowner');
+	return ['homeowner_plus', 'property', 'portfolio'].includes(effectivePlan);
+};
+
+export const canUsePropertyInsights = (
+	subscription?: Pick<
+		SubscriptionData,
+		'plan' | 'hasScheduledSubscription' | 'scheduledPlan'
+	> | null,
+): boolean => {
+	const effectivePlan = getEffectiveSubscriptionPlanId(subscription, 'homeowner');
+	return ['homeowner_plus', 'property', 'portfolio'].includes(effectivePlan);
+};
+
 /**
  * Check if user can add more properties based on their subscription and role
  */

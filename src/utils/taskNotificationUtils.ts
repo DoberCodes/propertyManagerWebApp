@@ -10,15 +10,14 @@ import { TaskNotification } from '../types/Task.types';
  * Returns an array of default notifications:
  * - 30 days before due date
  * - 7 days before due date
- * - 1 day before due date
  * - Due date day (today)
- * - Every week for 4 weeks after due date (overdue)
+ * - 1 week after due date
  */
 export const getDefaultTaskNotifications = (): TaskNotification[] => {
 	const notifications: TaskNotification[] = [];
 
 	// Reminder notifications (before due date)
-	const reminderDays = [30, 7, 1, 0];
+	const reminderDays = [30, 7, 0];
 	reminderDays.forEach((days) => {
 		notifications.push({
 			id: `reminder-${days}`,
@@ -28,15 +27,13 @@ export const getDefaultTaskNotifications = (): TaskNotification[] => {
 		});
 	});
 
-	// Overdue notifications (after due date, weekly for 4 weeks)
-	for (let week = 1; week <= 4; week++) {
-		notifications.push({
-			id: `overdue-${week}`,
-			type: 'overdue',
-			daysBeforeDue: -week * 7, // Negative for after due date
-			enabled: true,
-		});
-	}
+	// One overdue follow-up. Negative values mean after the due date.
+	notifications.push({
+		id: 'overdue-1',
+		type: 'overdue',
+		daysBeforeDue: -7,
+		enabled: true,
+	});
 
 	return notifications;
 };
@@ -55,19 +52,19 @@ export const getDefaultNotificationMessage = (
 			return `Reminder: "${taskTitle}" is due in 30 days`;
 		} else if (daysBeforeDue === 7) {
 			return `Reminder: "${taskTitle}" is due in 7 days`;
-		} else if (daysBeforeDue === 1) {
-			return `Reminder: "${taskTitle}" is due tomorrow`;
 		} else if (daysBeforeDue === 0) {
 			return `Due today: "${taskTitle}" is due today`;
+		} else if (daysBeforeDue === 1) {
+			return `Reminder: "${taskTitle}" is due tomorrow`;
 		} else {
 			return `Reminder: "${taskTitle}" is due in ${daysBeforeDue} days`;
 		}
 	} else if (type === 'overdue') {
 		const weeksOverdue = Math.abs(daysBeforeDue) / 7;
 		if (weeksOverdue === 1) {
-			return `Overdue: "${taskTitle}" is 1 week past due`;
+			return `Follow-up: "${taskTitle}" was due 1 week ago`;
 		} else {
-			return `Overdue: "${taskTitle}" is ${weeksOverdue} weeks past due`;
+			return `Follow-up: "${taskTitle}" was due ${weeksOverdue} weeks ago`;
 		}
 	}
 

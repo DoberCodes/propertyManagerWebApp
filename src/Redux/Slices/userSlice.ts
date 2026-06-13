@@ -132,6 +132,12 @@ export interface User {
 			share_invitation_accepted: boolean;
 		};
 	};
+	emailPreferences?: {
+		monthlyDigest: boolean;
+		taskReminders: boolean;
+		propertyInsights: boolean;
+		seasonalGuidance: boolean;
+	};
 	onboardingCompleted?: boolean;
 	createdAt?: string;
 	updatedAt?: string;

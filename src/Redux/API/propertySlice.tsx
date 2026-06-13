@@ -807,13 +807,17 @@ const propertySlice = apiSlice.injectEndpoints({
 		deletePropertyGroup: builder.mutation<void, string>({
 			async queryFn(groupId: string) {
 				try {
-					await deleteDoc(doc(db, 'propertyGroups', groupId));
+					const deletePropertyGroupCascade = httpsCallable<
+						{ groupId: string },
+						{ success: boolean }
+					>(functions, 'deletePropertyGroupCascade');
+					await deletePropertyGroupCascade({ groupId });
 					return { data: undefined };
 				} catch (error: any) {
 					return { error: error.message };
 				}
 			},
-			invalidatesTags: ['PropertyGroups'],
+			invalidatesTags: ['PropertyGroups', 'Properties'],
 		}),
 
 		// Property endpoints
@@ -1245,71 +1249,29 @@ const propertySlice = apiSlice.injectEndpoints({
 						return { error: 'User not authenticated' };
 					}
 
-					const propertyRef = doc(db, 'properties', propertyId);
-					const propertySnapshot = await getDoc(propertyRef);
-					if (!propertySnapshot.exists()) {
-						return { data: undefined };
-					}
-
-					const propertyData = propertySnapshot.data() || {};
-					const accountId = String(propertyData.accountId || '').trim() || undefined;
-
-					if (accountId) {
-						const accountRef = doc(db, 'familyAccounts', accountId);
-						await runTransaction(db, async (transaction) => {
-							const accountSnapshot = await transaction.get(accountRef);
-							const accountData = accountSnapshot.data() || {};
-							const currentPropertyCount = Number(accountData.propertyCount || 0);
-							const nowIso = new Date().toISOString();
-
-							transaction.delete(propertyRef);
-							transaction.update(accountRef, {
-								propertyCount: Math.max(0, currentPropertyCount - 1),
-								updatedAt: nowIso,
-							});
-						});
-					} else {
-						await deleteDoc(propertyRef);
-					}
-
-					// Best-effort cleanup: do not fail the mutation if non-critical cleanup
-					// lacks permissions in multi-user/shared scenarios.
-					if (accountId) {
-						try {
-							await deletePropertyGroupMemberships(propertyId, accountId);
-						} catch (membershipCleanupError) {
-							console.warn(
-								'Property deleted, but failed to clean up group memberships:',
-								membershipCleanupError,
-							);
-						}
-					}
-
-					// Delete only current user's favorites to respect Firestore security
-					// rules (users cannot delete other users' favorites from client).
-					const favoritesQuery = query(
-						collection(db, 'favorites'),
-						where('propertyId', '==', propertyId),
-						where('userId', '==', currentUser.uid),
-					);
-					try {
-						const favoritesSnapshot = await getDocs(favoritesQuery);
-						for (const favDoc of favoritesSnapshot.docs) {
-							await deleteDoc(favDoc.ref);
-						}
-					} catch (favoritesCleanupError) {
-						console.warn(
-							'Property deleted, but failed to clean up current-user favorites:',
-							favoritesCleanupError,
-						);
-					}
+					const deletePropertyCascade = httpsCallable<
+						{ propertyId: string },
+						{ success: boolean }
+					>(functions, 'deletePropertyCascade');
+					await deletePropertyCascade({ propertyId });
 
 					return { data: undefined };
 				} catch (error: any) {
 					return { error: error.message };
 				}
 			},
-			invalidatesTags: ['Properties', 'PropertyGroups', 'Favorites'],
+			invalidatesTags: [
+				'Properties',
+				'PropertyGroups',
+				'Favorites',
+				'Tasks',
+				'Devices',
+				'Suites',
+				'Units',
+				'Contractors',
+				'MaintenanceHistory',
+				'MaintenanceEvents',
+			],
 		}),
 
 		// Suites endpoints

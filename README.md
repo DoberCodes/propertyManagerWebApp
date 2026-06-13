@@ -11,6 +11,7 @@
 	- Product direction lives in `docs/PRODUCT_DIRECTION.md` and `docs/UX_LANGUAGE_GUIDE.md`.
 	- Mobile UX guidance lives in `docs/MOBILE_UX_GUIDE.md`; review it before changing responsive layouts, dialogs, wizards, uploads, tables, or navigation.
 	- Technical references live in `docs/TECHNICAL_ARCHITECTURE.md`, `docs/DATA_MODEL.md`, `docs/FIREBASE_STRUCTURE.md`, and `docs/PERMISSIONS.md`.
+	- Email notification behavior lives in `docs/EMAIL_NOTIFICATIONS.md`; keep Monthly Property Summary and Property Insights separate.
 	- Refactoring guidance lives in `docs/REFACTORING_GUIDE.md`.
 	- Product and architecture decisions live in `docs/DECISIONS/`.
 	- Historical docs should be archived under `docs/archive/` with an `-archive` suffix rather than deleted.

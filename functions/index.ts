@@ -12,9 +12,25 @@ export {
 // Centralized server-side feedback + email handling path.
 export { submitFeedback } from './submitFeedback';
 export { markTasksAsOverdue } from './markTasksAsOverdue';
+export {
+	sendMonthlyPropertySummaries,
+	sendMonthlyPropertySummaryTest,
+} from './monthlyPropertySummary';
+export {
+	sendMonthlyPropertyInsights,
+	sendMonthlyPropertyInsightsTest,
+} from './propertyInsightEmails';
+export {
+	sendSeasonalGuidanceEmails,
+	sendSeasonalGuidanceEmailTest,
+} from './seasonalGuidanceEmails';
+export { sendTaskReminderEmails } from './taskReminderEmails';
 export { debugOverdueTasks } from './debugOverdueTasks';
+export { enforceEmailPreferences } from './enforceEmailPreferences';
 export { deleteUserAccount } from './deleteUserAccount';
 export { deleteFamilyMemberAccount } from './deleteFamilyMemberAccount';
+export { deletePropertyCascade } from './deletePropertyCascade';
+export { deletePropertyGroupCascade } from './deletePropertyGroupCascade';
 export { resendFamilyMemberInvite } from './resendFamilyMemberInvite';
 export { getFamilyMembers } from './getFamilyMembers';
 export { createFamilyInvite } from './createFamilyInvite';

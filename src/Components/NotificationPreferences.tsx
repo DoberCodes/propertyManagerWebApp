@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import styled from 'styled-components';
 import { useDispatch } from 'react-redux';
 import { AppDispatch } from '../Redux/store/store';
@@ -14,6 +14,11 @@ import {
 import {
 	mergeNotificationPreferences,
 } from '../utils/notificationPreferences';
+import { mergeEmailPreferences } from '../utils/emailPreferences';
+import {
+	canUsePropertyInsights,
+	canUseTaskReminderEmails,
+} from '../utils/subscriptionUtils';
 
 const NotificationSection = styled.div`
 	border: 1px solid #e5e7eb;
@@ -98,6 +103,26 @@ const PresetButton = styled.button`
 	}
 `;
 
+// const SecondaryActionButton = styled.button`
+// 	background: #ffffff;
+// 	color: #1f2937;
+// 	border: 1px solid #d1d5db;
+// 	padding: 8px 12px;
+// 	border-radius: 6px;
+// 	font-size: 13px;
+// 	font-weight: 600;
+// 	cursor: pointer;
+
+// 	&:hover:not(:disabled) {
+// 		background: #f9fafb;
+// 	}
+
+// 	&:disabled {
+// 		opacity: 0.6;
+// 		cursor: not-allowed;
+// 	}
+// `;
+
 const MasterToggle = styled.div`
 	display: flex;
 	align-items: center;
@@ -112,6 +137,47 @@ const MasterToggle = styled.div`
 		align-items: flex-start;
 		padding: 12px;
 	}
+`;
+
+const EmailPreferencesSection = styled.div`
+	margin-top: 18px;
+	margin-bottom: 24px;
+	padding: 16px;
+	border: 1px solid #e5e7eb;
+	border-radius: 8px;
+	background: #ffffff;
+`;
+
+// const EmailTestActions = styled.div`
+// 	display: flex;
+// 	flex-wrap: wrap;
+// 	gap: 10px;
+// 	margin-bottom: 12px;
+
+// 	@media (max-width: 640px) {
+// 		flex-direction: column;
+// 	}
+// `;
+
+const EmailPreferencesGrid = styled.div`
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+	gap: 12px;
+`;
+
+const EmailPreferenceOption = styled.label`
+	display: flex;
+	align-items: flex-start;
+	gap: 10px;
+	font-size: 14px;
+	color: #374151;
+	cursor: pointer;
+`;
+
+const EmailPreferenceText = styled.span`
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
 `;
 
 const ToggleLabel = styled.label`
@@ -294,8 +360,19 @@ export const NotificationPreferences: React.FC<
 	const [updateTaskMutation] = useUpdateTaskMutation();
 	const [showDisableAllConfirm, setShowDisableAllConfirm] = useState(false);
 	const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed);
-	const resolvedPreferences = mergeNotificationPreferences(
-		currentUser?.notificationPreferences,
+	const resolvedPreferences = useMemo(
+		() => mergeNotificationPreferences(currentUser?.notificationPreferences),
+		[currentUser?.notificationPreferences],
+	);
+	const resolvedEmailPreferences = useMemo(
+		() => mergeEmailPreferences(currentUser?.emailPreferences),
+		[currentUser?.emailPreferences],
+	);
+	const taskReminderEmailsEnabledByPlan = canUseTaskReminderEmails(
+		currentUser?.subscription,
+	);
+	const propertyInsightsEnabledByPlan = canUsePropertyInsights(
+		currentUser?.subscription,
 	);
 
 	// Get tasks with notifications enabled
@@ -308,10 +385,25 @@ export const NotificationPreferences: React.FC<
 	);
 
 	const [preferences, setPreferences] = useState(() => resolvedPreferences);
+	const [emailPreferences, setEmailPreferences] = useState(
+		() => resolvedEmailPreferences,
+	);
 
 	useEffect(() => {
-		setPreferences(resolvedPreferences);
-	}, [resolvedPreferences]);
+		const nextSerialized = JSON.stringify(resolvedPreferences);
+		const currentSerialized = JSON.stringify(preferences);
+		if (nextSerialized !== currentSerialized) {
+			setPreferences(resolvedPreferences);
+		}
+	}, [resolvedPreferences, preferences]);
+
+	useEffect(() => {
+		const nextSerialized = JSON.stringify(resolvedEmailPreferences);
+		const currentSerialized = JSON.stringify(emailPreferences);
+		if (nextSerialized !== currentSerialized) {
+			setEmailPreferences(resolvedEmailPreferences);
+		}
+	}, [resolvedEmailPreferences, emailPreferences]);
 
 	const notificationTypes = [
 		{
@@ -330,49 +422,19 @@ export const NotificationPreferences: React.FC<
 			description: 'When a property is removed from your account',
 		},
 		{
-			key: 'task_created' as const,
-			label: 'Task Created',
-			description: 'When new tasks are created',
-		},
-		{
 			key: 'task_assigned' as const,
 			label: 'Task Assigned',
 			description: 'When tasks are assigned to you or team members',
 		},
 		{
-			key: 'task_updated' as const,
-			label: 'Task Status Changed',
-			description: 'When task status or details are updated',
-		},
-		{
-			key: 'task_completed' as const,
-			label: 'Task Completed',
-			description: 'When completed tasks are added to maintenance history',
-		},
-		{
-			key: 'task_reminder' as const,
-			label: 'Task Reminders',
-			description: 'Upcoming task due date reminders',
-		},
-		{
-			key: 'task_due_today' as const,
-			label: 'Tasks Due Today',
-			description: 'When a task reaches its due date today',
-		},
-		{
-			key: 'task_overdue' as const,
-			label: 'Overdue Tasks',
-			description: 'When tasks become overdue',
+			key: 'task_approval_required' as const,
+			label: 'Task Approval Needed',
+			description: 'When a completion is submitted and needs approval',
 		},
 		{
 			key: 'task_unassigned_critical' as const,
 			label: 'Critical Tasks Without Assignee',
 			description: 'When high/urgent tasks are created without an owner',
-		},
-		{
-			key: 'task_approval_required' as const,
-			label: 'Task Approval Needed',
-			description: 'When a completion is submitted and needs approval',
 		},
 		{
 			key: 'task_recurring_generation_failed' as const,
@@ -448,6 +510,43 @@ export const NotificationPreferences: React.FC<
 		setShowDisableAllConfirm(true);
 	};
 
+	const handleEmailPreferenceToggle = async (
+		key: keyof typeof emailPreferences,
+		enabled: boolean,
+	) => {
+		if (key === 'taskReminders' && !taskReminderEmailsEnabledByPlan) {
+			feedback.notify('Task reminder emails are available on Homeowner+ and higher plans.');
+			return;
+		}
+		if (key === 'propertyInsights' && !propertyInsightsEnabledByPlan) {
+			feedback.notify('Property Insights are available on Homeowner+ and higher plans.');
+			return;
+		}
+
+		const nextEmailPreferences = {
+			...emailPreferences,
+			[key]: enabled,
+		};
+		setEmailPreferences(nextEmailPreferences);
+
+		try {
+			await updateUser({
+				id: currentUser.id,
+				updates: { emailPreferences: nextEmailPreferences },
+			}).unwrap();
+
+			dispatch(
+				setCurrentUser({
+					...currentUser,
+					emailPreferences: nextEmailPreferences,
+				}),
+			);
+		} catch (error) {
+			console.error('Failed to update email preferences:', error);
+			setEmailPreferences(emailPreferences);
+		}
+	};
+
 	const handleApplyActionDefaults = async () => {
 		const actionDefaults = mergeNotificationPreferences(undefined);
 		setPreferences(actionDefaults);
@@ -471,6 +570,7 @@ export const NotificationPreferences: React.FC<
 			feedback.notify('Failed to apply action-based defaults. Please try again.');
 		}
 	};
+
 
 	const confirmDisableAllTaskNotifications = async () => {
 		setShowDisableAllConfirm(false);
@@ -536,6 +636,113 @@ export const NotificationPreferences: React.FC<
 						</ToggleLabel>
 					</MasterToggle>
 
+					<EmailPreferencesSection>
+						<h4
+							style={{
+								margin: '0 0 8px 0',
+								fontSize: '16px',
+								fontWeight: 600,
+								color: '#1f2937',
+							}}>
+							Email Preferences
+						</h4>
+						<p style={{ margin: '0 0 12px 0', color: '#6b7280', fontSize: '14px' }}>
+							Choose which email digests and guidance messages you receive.
+						</p>
+						{/* <EmailTestActions>
+							<SecondaryActionButton
+								type='button'
+								onClick={handleSendDigestTest}
+								disabled={isSendingDigestTest}>
+								{isSendingDigestTest
+									? 'Sending Test Digest...'
+									: 'Send Test Monthly Digest (Temporary)'}
+							</SecondaryActionButton>
+							<SecondaryActionButton
+								type='button'
+								onClick={handleSendInsightsTest}
+								disabled={isSendingInsightsTest || !propertyInsightsEnabledByPlan}>
+								{isSendingInsightsTest
+									? 'Sending Insights Test...'
+									: 'Send Test Property Insights'}
+							</SecondaryActionButton>
+							<SecondaryActionButton
+								type='button'
+								onClick={handleSendSeasonalTest}
+								disabled={isSendingSeasonalTest}>
+								{isSendingSeasonalTest
+									? 'Sending Seasonal Test...'
+									: 'Send Test Seasonal Guidance'}
+							</SecondaryActionButton>
+						</EmailTestActions> */}
+						<EmailPreferencesGrid>
+							<EmailPreferenceOption>
+								<input
+									type='checkbox'
+									checked={emailPreferences.monthlyDigest}
+									onChange={(e) =>
+										handleEmailPreferenceToggle('monthlyDigest', e.target.checked)
+									}
+								/>
+								<EmailPreferenceText>
+									<strong>Monthly Property Summary</strong>
+									<span>Monthly factual summary of what is currently recorded in Maintley.</span>
+								</EmailPreferenceText>
+							</EmailPreferenceOption>
+							<EmailPreferenceOption>
+								<input
+									type='checkbox'
+									checked={emailPreferences.taskReminders}
+									disabled={!taskReminderEmailsEnabledByPlan}
+									onChange={(e) =>
+										handleEmailPreferenceToggle('taskReminders', e.target.checked)
+									}
+								/>
+								<EmailPreferenceText>
+									<strong>Task Reminder Emails</strong>
+									<span>
+										Due soon, due today, overdue, and assigned task emails.
+										{!taskReminderEmailsEnabledByPlan
+											? ' Upgrade to Homeowner+ or higher to enable.'
+											: ''}
+									</span>
+								</EmailPreferenceText>
+							</EmailPreferenceOption>
+							<EmailPreferenceOption>
+								<input
+									type='checkbox'
+									checked={emailPreferences.propertyInsights}
+									disabled={!propertyInsightsEnabledByPlan}
+									onChange={(e) =>
+										handleEmailPreferenceToggle('propertyInsights', e.target.checked)
+									}
+								/>
+								<EmailPreferenceText>
+									<strong>Property Insights</strong>
+									<span>
+										Optional record observations for documented appliances and maintenance history.
+										{!propertyInsightsEnabledByPlan
+											? ' Upgrade to Homeowner+ or higher to enable.'
+											: ''}
+									</span>
+								</EmailPreferenceText>
+							</EmailPreferenceOption>
+							<EmailPreferenceOption>
+								<input
+									type='checkbox'
+									checked={emailPreferences.seasonalGuidance}
+									onChange={(e) =>
+										handleEmailPreferenceToggle('seasonalGuidance', e.target.checked)
+									}
+								/>
+								<EmailPreferenceText>
+									<strong>Seasonal Guidance</strong>
+									<span>Seasonal property care notes sent around season changes.</span>
+								</EmailPreferenceText>
+							</EmailPreferenceOption>
+						</EmailPreferencesGrid>
+					</EmailPreferencesSection>
+
 					{preferences.enabled && (
 						<>
 							<NotificationTypeGrid>
@@ -578,6 +785,14 @@ export const NotificationPreferences: React.FC<
 										}}>
 										Tasks with Notifications ({tasksWithNotifications.length})
 									</h4>
+									<p
+										style={{
+											margin: '6px 0 0 0',
+											fontSize: '12px',
+											color: '#6b7280',
+										}}>
+										Task reminders (due soon, due today, overdue) are managed per task below.
+									</p>
 									{tasksWithNotifications.length > 0 && (
 										<DisableAllButton onClick={handleDisableAllTaskNotifications}>
 											Disable All Task Notifications

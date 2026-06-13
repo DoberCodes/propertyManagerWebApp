@@ -10,6 +10,8 @@ export const SUBSCRIPTION_PLANS = {
 		priceYearly: 0,
 		maxProperties: 1,
 		maxDevices: 15,
+		maxFiles: 10,
+		maxStorageGb: 1,
 		features: [
 			'1 Property',
 			'Up to 15 Appliances & Systems',
@@ -50,6 +52,8 @@ export const SUBSCRIPTION_PLANS = {
 		priceYearly: 39.99,
 		maxProperties: 1,
 		maxDevices: 999, // Unlimited
+		maxFiles: 250,
+		maxStorageGb: 5,
 		features: [
 			'Everything in Home, plus:',
 			'Unlimited Appliances & Systems',
@@ -90,6 +94,8 @@ export const SUBSCRIPTION_PLANS = {
 		priceYearly: 89,
 		maxProperties: 3, // 2-3 included
 		maxDevices: 999, // Unlimited
+		maxFiles: 1000,
+		maxStorageGb: 10,
 		features: [
 			'Everything in Homeowner+, plus:',
 			'Unlimited Appliances & Systems',
@@ -137,6 +143,8 @@ export const SUBSCRIPTION_PLANS = {
 		priceYearly: 249,
 		maxProperties: 15,
 		maxDevices: 999, // Unlimited
+		maxFiles: 5000,
+		maxStorageGb: 25,
 		features: [
 			'Everything in Property, plus:',
 			'Up to 15 Properties',
@@ -181,6 +189,8 @@ export const SUBSCRIPTION_PLANS = {
 		priceYearly: 0,
 		maxProperties: 0, // Cannot create properties, only access shared ones
 		maxDevices: 0,
+		maxFiles: 0,
+		maxStorageGb: 0,
 		features: [
 			'Access to shared properties only',
 			'Cannot create new properties',
@@ -216,6 +226,8 @@ export const SUBSCRIPTION_PLANS = {
 		priceYearly: 0,
 		maxProperties: 0, // Cannot create properties, only access assigned property
 		maxDevices: 0,
+		maxFiles: 0,
+		maxStorageGb: 0,
 		features: [
 			'Access to assigned property only',
 			'Cannot create or manage properties',

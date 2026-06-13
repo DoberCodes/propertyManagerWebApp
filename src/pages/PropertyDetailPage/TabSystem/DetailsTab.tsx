@@ -164,21 +164,22 @@ export const DetailsTab: React.FC<DetailsTabProps> = ({
 				<QuickActionsBar>
 					{permissions?.canCreateTasks && onCreateTask && (
 						<QuickActionButton onClick={() => onCreateTask()}>
-							+ Add Maintenance Task
+							Add Maintenance Task
 						</QuickActionButton>
 					)}
 					{permissions?.canManageAppliances && onCreateDevice && (
 						<QuickActionButton $variant='secondary' onClick={() => onCreateDevice()}>
-							+ Add Appliance
+							Add Appliance
 						</QuickActionButton>
 					)}
 					{property?.isRental &&
+						!permissions?.canCreateTasks &&
 						permissions?.canCreateMaintenanceRequests &&
 						onCreateRequest && (
 					<QuickActionButton
 						$variant='secondary'
 						onClick={() => onCreateRequest()}>
-						+ Start Maintenance Request
+						Start Maintenance Request
 					</QuickActionButton>
 					)}
 				</QuickActionsBar>

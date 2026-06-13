@@ -18,6 +18,7 @@ import {
 	resolveAccessibleAccountIds,
 	resolveTargetUserId,
 } from './accountContext';
+import { getDefaultTaskNotifications } from '../../utils/taskNotificationUtils';
 
 const getSharedPropertyIdsForUser = async (
 	userId: string,
@@ -234,6 +235,30 @@ const writeMaintenanceEvent = async (
 	await createMaintenanceEvent({ event });
 };
 
+const withDefaultTaskNotificationSchedule = (
+	task: Omit<Task, 'id'>,
+): Omit<Task, 'id'> => {
+	if (task.enableNotifications === false) {
+		return task;
+	}
+
+	if (Array.isArray(task.notifications) && task.notifications.length > 0) {
+		return {
+			...task,
+			enableNotifications:
+				typeof task.enableNotifications === 'boolean'
+					? task.enableNotifications
+					: true,
+		};
+	}
+
+	return {
+		...task,
+		enableNotifications: true,
+		notifications: getDefaultTaskNotifications(),
+	};
+};
+
 export const taskSlice = apiSlice.injectEndpoints({
 	endpoints: (builder) => ({
 		// Task endpoints
@@ -365,10 +390,11 @@ export const taskSlice = apiSlice.injectEndpoints({
 					if (!currentUser) {
 						return { error: 'User not authenticated' };
 					}
+					const preparedTask = withDefaultTaskNotificationSchedule(newTask);
 					const targetUserId = await resolveTargetUserId();
 					const docRef = await addDoc(collection(db, 'tasks'), {
-						...newTask,
-						userId: newTask.userId || targetUserId,
+						...preparedTask,
+						userId: preparedTask.userId || targetUserId,
 						accountId: targetUserId,
 						createdAt: new Date().toISOString(),
 						updatedAt: new Date().toISOString(),
@@ -376,8 +402,8 @@ export const taskSlice = apiSlice.injectEndpoints({
 					return {
 						data: {
 							id: docRef.id,
-							...newTask,
-							userId: newTask.userId || targetUserId,
+							...preparedTask,
+							userId: preparedTask.userId || targetUserId,
 							accountId: targetUserId,
 						} as Task,
 					};

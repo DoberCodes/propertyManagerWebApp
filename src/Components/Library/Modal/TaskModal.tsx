@@ -533,8 +533,8 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 			recurrenceFrequency: undefined,
 			recurrenceInterval: undefined,
 			recurrenceCustomUnit: undefined,
-			enableNotifications: false,
-			notifications: [],
+			enableNotifications: true,
+			notifications: getDefaultTaskNotifications(),
 			linkedMaintenanceHistoryIds: [],
 			propertyId: propertyId || '',
 			unitId: unitId || '',
@@ -858,8 +858,8 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 					initialTask.recurrenceCustomUnit ||
 					defaultForm.recurrenceCustomUnit,
 				enableNotifications:
-					initialTask.enableNotifications || defaultForm.enableNotifications,
-				notifications: initialTask.notifications || defaultForm.notifications,
+					initialTask.enableNotifications ?? defaultForm.enableNotifications,
+				notifications: initialTask.notifications ?? defaultForm.notifications,
 				linkedMaintenanceHistoryIds:
 					initialTask.linkedMaintenanceHistoryIds ||
 					defaultForm.linkedMaintenanceHistoryIds,
@@ -2269,13 +2269,21 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 														<div
 															style={{ fontWeight: '500', color: '#374151' }}>
 															{notification.type === 'reminder'
-																? notification.daysBeforeDue === 1
+																? notification.daysBeforeDue === 0
+																	? 'Due date'
+																	: notification.daysBeforeDue === 1
 																	? '1 day before due'
 																	: `${notification.daysBeforeDue} days before due`
-																: `Week ${
+																: `${
 																		Math.abs(notification.daysBeforeDue || 0) /
 																		7
-																  } overdue`}
+																  } ${
+																		Math.abs(notification.daysBeforeDue || 0) /
+																			7 ===
+																		1
+																			? 'week'
+																			: 'weeks'
+																  } after due`}
 														</div>
 														<div style={{ fontSize: '14px', color: '#6b7280' }}>
 															{getDefaultNotificationMessage(
@@ -2292,9 +2300,9 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 
 								<FormGroupFull>
 									<small style={{ color: '#6b7280' }}>
-										💡 Default schedule: 30 days, 7 days, and 1 day before due
-										date, plus weekly reminders for 4 weeks when overdue. You
-										can customize these settings after creating the task.
+										Default schedule: 30 days before, 7 days before, due date,
+										and 1 week after due. You can customize these settings after
+										creating the task.
 									</small>
 								</FormGroupFull>
 							</>
