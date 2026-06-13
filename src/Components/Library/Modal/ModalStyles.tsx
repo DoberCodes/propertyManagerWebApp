@@ -640,29 +640,35 @@ export const FormCheckbox = styled.input`
 export const ModalTabContainer = styled.div`
 	display: flex;
 	border-bottom: 2px solid ${COLORS.gray200};
-	margin-bottom: 1.25rem;
+	margin-bottom: 1rem;
 	gap: 0.5rem;
 	flex-wrap: wrap;
 	overflow-x: auto;
-	padding-bottom: 0.25rem;
+	overflow-y: hidden;
+	padding: 0.35rem 0 0.25rem;
 	background: white;
+	scrollbar-width: none;
+	-webkit-overflow-scrolling: touch;
+
+	&::-webkit-scrollbar {
+		display: none;
+	}
 
 	@media (max-width: 768px) {
 		gap: 0.375rem;
-		margin-bottom: 1rem;
+		margin-bottom: 0.85rem;
 	}
 
 	@media (max-width: 480px) {
 		flex-wrap: nowrap;
-		gap: 0.35rem;
-		margin-bottom: 1rem;
-		padding-top: 0.15rem;
-		padding-bottom: 0.35rem;
+		gap: 0.45rem;
+		margin-bottom: 0.75rem;
+		padding: 0.4rem 0 0.3rem;
 	}
 `;
 
 export const ModalTab = styled.button<{ $active: boolean }>`
-	padding: 0.7rem 1rem;
+	padding: 0.68rem 1rem;
 	white-space: nowrap;
 	background: ${(props) =>
 		props.$active ? COLORS.primaryLight : 'transparent'};
@@ -672,9 +678,14 @@ export const ModalTab = styled.button<{ $active: boolean }>`
 		${(props) => (props.$active ? COLORS.primary : 'transparent')};
 	font-weight: ${(props) => (props.$active ? '600' : '500')};
 	font-size: 0.95rem;
+	line-height: 1.2;
 	cursor: pointer;
 	transition: all 0.2s;
 	border-radius: 0.375rem 0.375rem 0 0;
+	min-height: 40px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
 
 	&:hover {
 		background: ${(props) =>
@@ -694,8 +705,9 @@ export const ModalTab = styled.button<{ $active: boolean }>`
 
 	@media (max-width: 480px) {
 		flex: 0 0 auto;
-		padding: 0.58rem 0.62rem;
-		font-size: 0.78rem;
+		padding: 0.6rem 0.7rem;
+		font-size: 0.8rem;
+		min-height: 38px;
 	}
 `;
 

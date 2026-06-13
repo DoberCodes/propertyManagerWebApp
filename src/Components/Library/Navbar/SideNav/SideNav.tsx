@@ -54,6 +54,8 @@ import {
 	getRemainingPropertySlots,
 	getSubscriptionPlanDetails,
 } from '../../../../utils/subscriptionUtils';
+import { useStorageUsage } from '../../../../Hooks/useStorageUsage';
+import { formatStorageBytes } from '../../../../utils/storageQuota';
 import { filterPropertyGroupsByRole } from '../../../../utils/dataFilters';
 import { TeamMember } from '../../../../Redux/Slices/teamSlice';
 
@@ -92,6 +94,8 @@ export const SideNav = () => {
 	const isContractor = useSelector(selectIsContractor);
 	const isTeamMemberAccount = useSelector(selectIsTeamMemberAccount);
 	const canViewPages = useSelector(selectCanAccessProperties); // Restored variable
+	const { usage: storageUsage, isLoading: isStorageUsageLoading } =
+		useStorageUsage(currentUser, !isUserTenant && !isTeamMemberAccount);
 
 	const isActive = (path: string) => activeRoute === path;
 	const filteredPropertyGroups = React.useMemo(
@@ -146,6 +150,17 @@ export const SideNav = () => {
 		currentUser.subscription.scheduledPlan
 			? `Scheduled plan: ${planDetails?.name || 'Home'}`
 			: `Current plan: ${planDetails?.name || 'Home'}`;
+	const storageUsagePercent = Math.min(100, storageUsage?.usagePercent || 0);
+	const storageUsageLabel = isStorageUsageLoading
+		? 'Loading storage...'
+		: storageUsage && storageUsage.maxBytes > 0
+			? `${formatStorageBytes(storageUsage.usedBytes)} of ${formatStorageBytes(
+					storageUsage.maxBytes,
+			  )}`
+			: 'Storage not included';
+	const storageFileLabel = storageUsage
+		? `${storageUsage.fileCount} of ${storageUsage.maxFiles} files`
+		: '';
 
 	// Desktop nav items
 	const desktopMenuItems = [
@@ -292,6 +307,20 @@ export const SideNav = () => {
 										</ProgressTrack>
 										<PortfolioUsage>
 											{planSlotLabel}
+										</PortfolioUsage>
+										<PortfolioTop>
+											<PortfolioPlanSub>
+												Storage
+											</PortfolioPlanSub>
+											<PortfolioUsageBadge>
+												{storageFileLabel || 'Files'}
+											</PortfolioUsageBadge>
+										</PortfolioTop>
+										<ProgressTrack>
+											<ProgressFill $percent={storageUsagePercent} />
+										</ProgressTrack>
+										<PortfolioUsage>
+											{storageUsageLabel}
 										</PortfolioUsage>
 										<ManagePlanButton
 											type='button'

@@ -38,6 +38,7 @@ const functions = __importStar(require("firebase-functions/v1"));
 const admin = __importStar(require("firebase-admin"));
 const params_1 = require("firebase-functions/params");
 const emailService_1 = require("./emailService");
+const taskDisplayStatus_1 = require("./taskDisplayStatus");
 const RESEND_API_KEY = (0, params_1.defineSecret)(process.env.RESEND_API_KEY_SECRET_NAME || 'RESEND_API_KEY');
 if (!admin.apps.length) {
     admin.initializeApp();
@@ -104,7 +105,7 @@ const getUpcomingTasks = (tasks, now) => {
     windowEnd.setDate(windowEnd.getDate() + 30);
     return tasks
         .filter((task) => ACTIVE_TASK_STATUSES.has(String(task.status || '')))
-        .filter((task) => String(task.status || '') !== 'Overdue')
+        .filter((task) => (0, taskDisplayStatus_1.getTaskDisplayStatus)(task).label !== 'Overdue')
         .filter((task) => {
         const dueDate = parseDate(task.dueDate);
         if (!dueDate)
@@ -119,12 +120,7 @@ const getUpcomingTasks = (tasks, now) => {
 };
 const getOverdueTasks = (tasks, now) => tasks
     .filter((task) => ACTIVE_TASK_STATUSES.has(String(task.status || '')))
-    .filter((task) => {
-    if (String(task.status || '') === 'Overdue')
-        return true;
-    const dueDate = parseDate(task.dueDate);
-    return !!dueDate && getDateOnly(dueDate).getTime() < getDateOnly(now).getTime();
-})
+    .filter((task) => (0, taskDisplayStatus_1.getTaskDisplayStatus)(task).isOverdue)
     .sort((a, b) => {
     var _a, _b;
     return (((_a = parseDate(a.dueDate)) === null || _a === void 0 ? void 0 : _a.getTime()) || 0) -

@@ -16,6 +16,7 @@ import { RoleCapabilities } from 'utils/permissions';
 interface TabsProps {
 	property: any;
 	propertyTasks: Task[];
+	propertyDevices?: any[];
 	currentUser: any;
 	propertyMaintenanceRequests: any[];
 	canApproveMaintenanceRequest: (role: any) => boolean;
@@ -51,6 +52,7 @@ export const TabSystem = ({
 	propertyMaintenanceRequests,
 	canApproveMaintenanceRequest,
 	propertyTasks,
+	propertyDevices = [],
 	maintenanceHistoryRecords,
 	propertyUnits,
 	teamMembers,
@@ -86,6 +88,7 @@ export const TabSystem = ({
 						property={property}
 						teamMembers={[]}
 						propertyTasks={propertyTasks}
+						propertyDevices={propertyDevices}
 						maintenanceHistoryRecords={maintenanceHistoryRecords}
 						onCreateTask={() => handleCreateTask(property)}
 						onCreateDevice={handleCreateDevice}

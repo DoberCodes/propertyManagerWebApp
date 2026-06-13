@@ -189,8 +189,7 @@ Submitted by: ${request.submittedByName} on ${
 								})
 							}>
 							<option value='Initiated'>Initiated</option>
-							<option value='Pending'>Pending</option>
-							<option value='In Progress'>In Progress</option>
+							<option value='Completed'>Completed</option>
 						</Select>
 					</FormGroup>
 				</FormRow>

@@ -7,6 +7,7 @@ import {
 } from '../../../Components/Library/InfoCards/InfoCardStyles';
 import { StatusBadge } from './index.styles';
 import { isTaskOverdueForDisplay } from '../../../utils/taskUtils';
+import { getTaskDisplayStatus } from '../../../utils/taskDisplayStatus';
 import { DetailsEditHeader } from '../PropertyDetailPage.styles';
 import { PropertyDetailSection } from '../PropertyDetailSection';
 import {
@@ -42,6 +43,7 @@ export const DetailsTab: React.FC<DetailsTabProps> = ({
 	property,
 	teamMembers,
 	propertyTasks = [],
+	propertyDevices = [],
 	maintenanceHistoryRecords = [],
 	onCreateTask,
 	onCreateDevice,
@@ -53,7 +55,9 @@ export const DetailsTab: React.FC<DetailsTabProps> = ({
 		isTaskOverdueForDisplay(task as any),
 	).length;
 	const devicesCount =
-		Array.isArray((property as any)?.deviceIds)
+		Array.isArray(propertyDevices)
+			? propertyDevices.length
+			: Array.isArray((property as any)?.deviceIds)
 			? (property as any).deviceIds.length
 			: Array.isArray((property as any)?.devices)
 			? (property as any).devices.length
@@ -229,23 +233,26 @@ export const DetailsTab: React.FC<DetailsTabProps> = ({
 								</div>
 							</PreviewItem>
 						) : (
-							upcomingTasks.map((task) => (
-								<PreviewItem key={task.id}>
-									<div style={{ minWidth: 0 }}>
-										<PreviewItemTitle>{task.title}</PreviewItemTitle>
-									</div>
-									<PreviewItemTrailing>
-										<StatusBadge
-											status={task.status}
-											style={{ padding: '3px 8px', fontSize: 11 }}>
-											{task.status}
-										</StatusBadge>
-										<PreviewItemMeta>
-											{formatPreviewDate(task.dueDate)}
-										</PreviewItemMeta>
-									</PreviewItemTrailing>
-								</PreviewItem>
-							))
+							upcomingTasks.map((task) => {
+								const displayStatus = getTaskDisplayStatus(task);
+								return (
+									<PreviewItem key={task.id}>
+										<div style={{ minWidth: 0 }}>
+											<PreviewItemTitle>{task.title}</PreviewItemTitle>
+										</div>
+										<PreviewItemTrailing>
+											<StatusBadge
+												status={displayStatus.label}
+												style={{ padding: '3px 8px', fontSize: 11 }}>
+												{displayStatus.label}
+											</StatusBadge>
+											<PreviewItemMeta>
+												{formatPreviewDate(task.dueDate)}
+											</PreviewItemMeta>
+										</PreviewItemTrailing>
+									</PreviewItem>
+								);
+							})
 						)}
 					</PreviewList>
 				</PreviewCard>

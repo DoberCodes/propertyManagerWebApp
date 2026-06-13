@@ -49,6 +49,7 @@ export interface DetailsTabProps {
 	property: Property;
 	teamMembers: any[];
 	propertyTasks?: any[];
+	propertyDevices?: any[];
 	maintenanceHistoryRecords?: any[];
 	onCreateTask?: () => void;
 	onCreateDevice?: () => void;

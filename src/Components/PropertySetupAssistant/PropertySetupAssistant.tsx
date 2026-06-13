@@ -28,6 +28,7 @@ import {
 	getSuggestedTaskIdsForSystems,
 	getSuggestedTasksForSystems,
 } from '../../utils/suggestedMaintenance';
+import { getDefaultTaskNotifications } from '../../utils/taskNotificationUtils';
 import {
 	canUseSuggestedMaintenancePackages,
 	canUseUnlimitedSuggestedMaintenancePackages,
@@ -356,11 +357,16 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 						]
 							.filter(Boolean)
 							.join(' '),
-						isRecurring: true,
-						recurrenceFrequency: suggestedTask.recurrenceFrequency,
-						recurrenceInterval: suggestedTask.recurrenceInterval,
-						recurrenceCustomUnit: suggestedTask.recurrenceCustomUnit,
-						enableNotifications: false,
+						...(hasPaidSuggestedMaintenancePackages
+							? {
+									isRecurring: true,
+									recurrenceFrequency: suggestedTask.recurrenceFrequency,
+									recurrenceInterval: suggestedTask.recurrenceInterval,
+									recurrenceCustomUnit: suggestedTask.recurrenceCustomUnit,
+							  }
+							: { isRecurring: false }),
+						enableNotifications: true,
+						notifications: getDefaultTaskNotifications(),
 						...(deviceId ? { devices: [deviceId] } : {}),
 					}) as any,
 				).unwrap();

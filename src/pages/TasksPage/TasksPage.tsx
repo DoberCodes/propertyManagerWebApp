@@ -18,9 +18,9 @@ import {
 	faHouse,
 	faScrewdriverWrench,
 	faClockRotateLeft,
+	faBell,
 } from '@fortawesome/free-solid-svg-icons';
 import { Column, Action } from '../../Components/Library/ReusableTable';
-import { StatusBadge } from '../PropertyDetailPage/TabSystem/index.styles';
 import { TaskModal } from '../../Components/Library';
 import { TaskAssignModal } from '../../Components/Library/Modal/TaskAssignModal';
 import {
@@ -59,6 +59,10 @@ import {
 	isTaskOverdueForDisplay,
 	updateOverdueTasks,
 } from '../../utils/taskUtils';
+import {
+	getTaskDisplayStatus,
+	isTaskDueWithinDays,
+} from '../../utils/taskDisplayStatus';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { COLORS } from '../../constants/colors';
 import { TaskCompletionModal } from '../../Components/TaskCompletionModal';
@@ -130,7 +134,7 @@ export const TasksPage = () => {
 	const [completingTaskId, setCompletingTaskId] = useState<string | null>(null);
 	const [searchTerm, setSearchTerm] = useState('');
 	const [quickFilter, setQuickFilter] = useState<
-		'all' | 'overdue' | 'in-progress' | 'unassigned' | 'due-this-week'
+		'all' | 'overdue' | 'due-soon' | 'due-next-30' | 'unassigned'
 	>('all');
 	const [sortState, setSortState] = useState<{
 		key: string;
@@ -195,6 +199,11 @@ export const TasksPage = () => {
 		setQuickFilter('all');
 	};
 
+	const hasEnabledTaskNotifications = (task: any) =>
+		task?.enableNotifications === true &&
+		Array.isArray(task?.notifications) &&
+		task.notifications.length > 0;
+
 	const handleSortOptionChange = (value: string) => {
 		const [key, direction] = value.split(':') as [string, 'asc' | 'desc'];
 		setSortState({ key, direction });
@@ -209,8 +218,6 @@ export const TasksPage = () => {
 			allProperties,
 		);
 		const activeTasks = filtered.filter((task) => task.status !== 'Completed');
-
-		const now = new Date();
 
 		// Enrich tasks for display
 		const enriched = activeTasks.map((task) => {
@@ -234,16 +241,10 @@ export const TasksPage = () => {
 		const afterQuickFilter = afterSearch.filter((task) => {
 			if (quickFilter === 'all') return true;
 			if (quickFilter === 'overdue') return isTaskOverdueForDisplay(task as any);
-			if (quickFilter === 'in-progress') return task.status === 'In Progress';
+			if (quickFilter === 'due-soon') return getTaskDisplayStatus(task).isDueSoon;
+			if (quickFilter === 'due-next-30') return isTaskDueWithinDays(task, 30);
 			if (quickFilter === 'unassigned') {
 				return !task.assignedTo && !task.assignee;
-			}
-			if (quickFilter === 'due-this-week') {
-				if (!task.dueDate) return false;
-				const dueDate = new Date(task.dueDate);
-				if (Number.isNaN(dueDate.getTime())) return false;
-				const weekOut = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-				return dueDate >= now && dueDate <= weekOut;
 			}
 			return true;
 		});
@@ -320,31 +321,7 @@ export const TasksPage = () => {
 	}, [processedTasks, currentUser, teamMembers, allProperties]);
 
 	const getTaskOperationalStatus = (task: any) => {
-		const overdue = isTaskOverdueForDisplay(task);
-		if (overdue) {
-			return {
-				label: 'Overdue',
-				color: '#991b1b',
-				background: '#fee2e2',
-				border: '#fca5a5',
-			};
-		}
-
-		if (task.status === 'In Progress') {
-			return {
-				label: 'In Progress',
-				color: '#1e3a8a',
-				background: '#dbeafe',
-				border: '#93c5fd',
-			};
-		}
-
-		return {
-			label: 'On Track',
-			color: '#166534',
-			background: '#dcfce7',
-			border: '#86efac',
-		};
+		return getTaskDisplayStatus(task);
 	};
 
 	const formatRelativeDue = (value?: string) => {
@@ -446,6 +423,7 @@ export const TasksPage = () => {
 				const iconStyle = getTaskIcon(task);
 				const overdue = isTaskOverdueForDisplay(task);
 				const priorityColor = task.priority === 'High' ? '#b91c1c' : task.priority === 'Medium' ? '#92400e' : '#475569';
+				const hasTaskNotifications = hasEnabledTaskNotifications(task);
 				return (
 					<div style={{ display: 'flex', flexDirection: 'column', gap: 5, minWidth: 280 }}>
 						<div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -464,6 +442,25 @@ export const TasksPage = () => {
 								<FontAwesomeIcon icon={iconStyle.icon} />
 							</span>
 							<strong style={{ fontSize: 14 }}>{value}</strong>
+							{hasTaskNotifications && (
+								<span
+									title='Task reminders enabled'
+									style={{
+										display: 'inline-flex',
+										alignItems: 'center',
+										justifyContent: 'center',
+										width: 22,
+										height: 22,
+										marginLeft: 'auto',
+										borderRadius: 999,
+										fontSize: 12,
+										color: '#a16207',
+										background: '#fef9c3',
+										border: '1px solid #facc15',
+									}}>
+									<FontAwesomeIcon icon={faBell} />
+								</span>
+							)}
 						</div>
 						<div style={{ fontSize: 12, color: '#64748b' }}>
 							{task.category || 'General maintenance'}
@@ -534,12 +531,16 @@ export const TasksPage = () => {
 			sortable: true,
 			render: (_status: string, task: any) => {
 				const operational = getTaskOperationalStatus(task);
-				const overdue = isTaskOverdueForDisplay(task);
-				const activityText = overdue
-					? 'Maintenance is overdue'
-					: task.status === 'In Progress'
-						? 'Maintenance in progress'
-						: 'Upcoming maintenance';
+				const activityText =
+					operational.label === 'Completed'
+						? 'Maintenance completed'
+						: operational.label === 'Overdue'
+							? 'Maintenance is overdue'
+							: operational.label === 'Due Soon'
+								? 'Maintenance is coming due soon'
+								: operational.label === 'Initiated'
+									? 'Ready to schedule or review'
+									: 'Upcoming maintenance';
 				return (
 					<div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
 						<span
@@ -558,7 +559,7 @@ export const TasksPage = () => {
 							{operational.label}
 						</span>
 						<div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>{activityText}</div>
-						<div style={{ fontSize: 12, color: overdue ? '#b91c1c' : '#64748b', fontWeight: overdue ? 600 : 400 }}>
+						<div style={{ fontSize: 12, color: operational.isOverdue ? '#b91c1c' : '#64748b', fontWeight: operational.isOverdue ? 600 : 400 }}>
 							{formatRelativeDue(task.dueDate)}
 						</div>
 					</div>
@@ -757,19 +758,19 @@ export const TasksPage = () => {
 						Overdue
 					</QuickFilterChip>
 					<QuickFilterChip
-						$active={quickFilter === 'in-progress'}
-						onClick={() => setQuickFilter('in-progress')}>
-						In Progress
+						$active={quickFilter === 'due-soon'}
+						onClick={() => setQuickFilter('due-soon')}>
+						Due Soon
+					</QuickFilterChip>
+					<QuickFilterChip
+						$active={quickFilter === 'due-next-30'}
+						onClick={() => setQuickFilter('due-next-30')}>
+						Next 30 Days
 					</QuickFilterChip>
 					<QuickFilterChip
 						$active={quickFilter === 'unassigned'}
 						onClick={() => setQuickFilter('unassigned')}>
 						Unassigned
-					</QuickFilterChip>
-					<QuickFilterChip
-						$active={quickFilter === 'due-this-week'}
-						onClick={() => setQuickFilter('due-this-week')}>
-						Due This Week
 					</QuickFilterChip>
 					{(searchTerm.trim().length > 0 || quickFilter !== 'all') && (
 						<QuickFilterChip onClick={clearTopFilters}>Clear</QuickFilterChip>
@@ -838,21 +839,51 @@ export const TasksPage = () => {
 						/>
 					) : (
 						filteredTasks.map((task: any) => {
-							const isOverdue = isTaskOverdueForDisplay(task);
-							const operationalLabel = isOverdue
-								? 'Overdue'
-								: task.status === 'In Progress'
-									? 'In Progress'
-									: 'On Track';
-							const operationalTone = isOverdue
-								? '#ef4444'
-								: task.status === 'In Progress'
-									? '#3b82f6'
-									: '#4ade80';
+							const operational = getTaskDisplayStatus(task);
+							const isOverdue = operational.isOverdue;
+							const operationalLabel = operational.label;
+							const operationalTone = operational.color;
+							const maintenanceStatusText =
+								operational.label === 'Completed'
+									? 'Maintenance completed'
+									: operational.label === 'Overdue'
+										? 'Maintenance is overdue'
+										: operational.label === 'Due Soon'
+											? 'Maintenance is coming due soon'
+											: operational.label === 'Initiated'
+												? 'Ready to schedule or review'
+												: 'Upcoming maintenance';
+							const hasTaskNotifications = hasEnabledTaskNotifications(task);
 							return (
 								<MobileTaskCard key={task.id} $overdue={isOverdue}>
 									<MobileTaskHeader>
-										<MobileTaskTitle>{task.title}</MobileTaskTitle>
+										<div
+											style={{
+												display: 'flex',
+												alignItems: 'center',
+												width: '100%',
+												gap: 8,
+											}}>
+											<MobileTaskTitle style={{ margin: 0 }}>{task.title}</MobileTaskTitle>
+										{hasTaskNotifications && (
+											<div
+												style={{
+													display: 'inline-flex',
+													alignItems: 'center',
+													justifyContent: 'center',
+													width: 24,
+													height: 24,
+													marginLeft: 'auto',
+													borderRadius: 999,
+													fontSize: 12,
+													color: '#a16207',
+													background: '#fef9c3',
+													border: '1px solid #facc15',
+												}}>
+												<FontAwesomeIcon icon={faBell} />
+											</div>
+										)}
+										</div>
 										<div
 											style={{
 												display: 'inline-flex',
@@ -881,7 +912,7 @@ export const TasksPage = () => {
 										<MobileMetaItem>
 											<MobileMetaLabel>Maintenance Status</MobileMetaLabel>
 											<MobileMetaValue>
-												{isOverdue ? 'Maintenance is overdue' : task.status === 'In Progress' ? 'Task is actively moving' : 'Upcoming maintenance'}
+												{maintenanceStatusText}
 											</MobileMetaValue>
 										</MobileMetaItem>
 										<MobileMetaItem>

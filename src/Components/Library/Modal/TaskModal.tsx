@@ -6,7 +6,7 @@ import React, {
 	useRef,
 } from 'react';
 import { useAppFeedback } from '../AppFeedback/AppFeedbackProvider';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import styled from 'styled-components';
 import { doc, getDoc } from 'firebase/firestore';
 import { GenericModal } from './GenericModal';
@@ -52,6 +52,8 @@ import {
 import { db } from '../../../config/firebase';
 import { COLORS } from '../../../constants/colors';
 import { Device } from '../../../types/Property.types';
+import { RootState } from '../../../Redux/store/store';
+import { canUseRecurringTasks } from '../../../utils/subscriptionUtils';
 
 const LINKED_DEVICE_NOTES_START = '--- Linked Appliance Details ---';
 const LINKED_DEVICE_NOTES_END = '--- End Linked Appliance Details ---';
@@ -223,6 +225,8 @@ const StickyTabRail = styled.div`
 	top: 0;
 	z-index: 12;
 	background: #ffffff;
+	flex-shrink: 0;
+	padding-top: 0.15rem;
 `;
 
 const TabContentScrollArea = styled.div`
@@ -481,7 +485,7 @@ interface EditTaskModalProps {
 	statusOptions?: string[];
 	priorityOptions?: string[];
 	assigneeOptions?: { label: string; value: string; email?: string }[];
-	currentUser?: { id: string; firstName?: string; lastName?: string } | null;
+	currentUser?: any | null;
 	// new/optional callbacks and placeholders
 	taskTitlePlaceholder?: string;
 }
@@ -495,14 +499,7 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 	propertyId = null,
 	onClose,
 	onSaved,
-	statusOptions = [
-		'Initiated',
-		'Pending',
-		'In Progress',
-		'Awaiting Approval',
-		'Completed',
-		'Rejected',
-	],
+	statusOptions = ['Initiated', 'Completed'],
 	priorityOptions = ['Low', 'Medium', 'High', 'Urgent'],
 	assigneeOptions = [],
 	currentUser = null,
@@ -511,6 +508,14 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 	taskTitlePlaceholder = 'Task title',
 }) => {
 	const feedback = useAppFeedback();
+	const storeCurrentUser = useSelector(
+		(state: RootState) => state.user.currentUser,
+	);
+	const effectiveCurrentUser = currentUser || storeCurrentUser;
+	const canUseRecurringTaskFeature = Boolean(
+		effectiveCurrentUser?.subscription &&
+			canUseRecurringTasks(effectiveCurrentUser.subscription as any),
+	);
 
 	const normalizeTaskTitle = (value?: string | null) =>
 		String(value || '')
@@ -926,12 +931,14 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 		string[]
 	>(fd.linkedMaintenanceHistoryIds || []);
 	const wantsRecurrence = Boolean(
-		formState.recurrenceFrequency ||
-			formState.recurrenceInterval ||
-			formState.recurrenceCustomUnit,
+		canUseRecurringTaskFeature &&
+			(formState.recurrenceFrequency ||
+				formState.recurrenceInterval ||
+				formState.recurrenceCustomUnit),
 	);
 	const hasSchedule = Boolean(
-		formState.recurrenceFrequency &&
+		canUseRecurringTaskFeature &&
+			formState.recurrenceFrequency &&
 			(formState.recurrenceFrequency === 'custom'
 				? formState.recurrenceInterval && formState.recurrenceCustomUnit
 				: true), // For non-custom frequencies, just need the frequency
@@ -1006,6 +1013,10 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 
 	const applySmartSchedule = () => {
 		if (!smartScheduleSuggestion) return;
+		if (!canUseRecurringTaskFeature) {
+			feedback.notify('Recurring tasks are a Homeowner+ feature.');
+			return;
+		}
 
 		const suggestedDueDate = new Date();
 		suggestedDueDate.setDate(suggestedDueDate.getDate() + smartScheduleSuggestion.daysUntilDue);
@@ -1022,6 +1033,48 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 					: prev.dueDate,
 		}));
 	};
+
+	const stripRecurringFieldsForPlan = useCallback(
+		(taskData: any) => {
+			if (canUseRecurringTaskFeature) {
+				return taskData;
+			}
+
+			const nextTask = { ...taskData };
+			nextTask.isRecurring = false;
+			delete nextTask.recurrenceFrequency;
+			delete nextTask.recurrenceInterval;
+			delete nextTask.recurrenceCustomUnit;
+			delete nextTask.parentTaskId;
+			delete nextTask.lastRecurrenceDate;
+			return nextTask;
+		},
+		[canUseRecurringTaskFeature],
+	);
+
+	useEffect(() => {
+		if (canUseRecurringTaskFeature) return;
+		if (
+			formState.isRecurring ||
+			formState.recurrenceFrequency ||
+			formState.recurrenceInterval ||
+			formState.recurrenceCustomUnit
+		) {
+			setFormState((prev) => ({
+				...prev,
+				isRecurring: false,
+				recurrenceFrequency: undefined,
+				recurrenceInterval: undefined,
+				recurrenceCustomUnit: undefined,
+			}));
+		}
+	}, [
+		canUseRecurringTaskFeature,
+		formState.isRecurring,
+		formState.recurrenceCustomUnit,
+		formState.recurrenceFrequency,
+		formState.recurrenceInterval,
+	]);
 
 	useEffect(() => {
 		if (hasSchedule && !formState.isRecurring) {
@@ -1289,7 +1342,9 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 				}
 
 				const updates = Object.fromEntries(
-					Object.entries(updatesRaw).filter(([, value]) => value !== undefined),
+					Object.entries(stripRecurringFieldsForPlan(updatesRaw)).filter(
+						([, value]) => value !== undefined,
+					),
 				);
 
 				const updated = await updateTaskApi({
@@ -1306,7 +1361,7 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 					notes: mergedNotes,
 					financials: sanitizedFinancials,
 					propertyId: formState.propertyId || propertyId || '',
-					userId: currentUser?.id || '',
+					userId: effectiveCurrentUser?.id || '',
 					property: selectedProperty?.title || '',
 				};
 				// sanitize notifications objects
@@ -1357,7 +1412,9 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 
 				// Filter out undefined values to prevent Firestore errors
 				const newTask = Object.fromEntries(
-					Object.entries(newTaskRaw).filter(([, value]) => value !== undefined),
+					Object.entries(stripRecurringFieldsForPlan(newTaskRaw)).filter(
+						([, value]) => value !== undefined,
+					),
 				) as any;
 
 				const created = await createTask(newTask).unwrap();
@@ -1892,9 +1949,13 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 
 						<SectionCard>
 							<SectionHeader>
-								<SectionTitle>Recurrence</SectionTitle>
+								<SectionTitle>
+									Recurrence {!canUseRecurringTaskFeature && <TabBadge>Homeowner+</TabBadge>}
+								</SectionTitle>
 								<SectionDescription>
-									Only configure this if the task should regenerate after completion.
+									{canUseRecurringTaskFeature
+										? 'Only configure this if the task should regenerate after completion.'
+										: 'Recurring task schedules are available with Homeowner+.'}
 								</SectionDescription>
 							</SectionHeader>
 							<FormGrid>
@@ -1913,6 +1974,7 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 											} as any)
 										}
 										placeholder='No recurrence'
+										disabled={!canUseRecurringTaskFeature}
 										options={[
 											{ value: 'daily', label: 'Daily' },
 											{ value: 'weekly', label: 'Weekly' },
@@ -1968,7 +2030,9 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 
 								<FormGroupFull>
 									<FieldHint>
-										When recurrence is enabled, completing the task creates the next occurrence automatically.
+										{canUseRecurringTaskFeature
+											? 'When recurrence is enabled, completing the task creates the next occurrence automatically.'
+											: 'You can still create a one-time task and update it manually when needed.'}
 									</FieldHint>
 								</FormGroupFull>
 							</FormGrid>
@@ -2093,7 +2157,9 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 				<ModalTabContent $active={activeTab === 'schedule'}>
 					<FormGrid>
 						<FormGroup>
-							<FormLabel>Recurrence Frequency *</FormLabel>
+							<FormLabel>
+								Recurrence Frequency {!canUseRecurringTaskFeature && <TabBadge>Homeowner+</TabBadge>}
+							</FormLabel>
 							<TaskSelect
 								name='recurrenceFrequency'
 								value={formState.recurrenceFrequency || ''}
@@ -2107,6 +2173,7 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 									} as any)
 								}
 								placeholder='Select frequency...'
+								disabled={!canUseRecurringTaskFeature}
 								options={[
 									{ value: 'daily', label: 'Daily' },
 									{ value: 'weekly', label: 'Weekly' },
@@ -2165,10 +2232,18 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 						)}
 
 						<FormGroupFull>
+							{canUseRecurringTaskFeature && (
 							<small style={{ color: '#6b7280' }}>
 								📋 This task will automatically create a new copy with an
 								updated due date each time it is marked as completed.
 							</small>
+							)}
+							{!canUseRecurringTaskFeature && (
+								<FieldHint>
+									Recurring tasks are a Homeowner+ feature. This task can still
+									be saved as a one-time task.
+								</FieldHint>
+							)}
 						</FormGroupFull>
 					</FormGrid>
 				</ModalTabContent>

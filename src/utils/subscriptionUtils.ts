@@ -21,8 +21,9 @@ export interface SubscriptionData {
 }
 
 const LEGACY_PLAN_ALIASES: Record<string, string> = {
-	free: 'home',
-	homeowner: 'home',
+	free: 'homeowner',
+	home: 'homeowner',
+	homeowner: 'homeowner',
 	homeowner_plus: 'homeowner_plus',
 	homeownerplus: 'homeowner_plus',
 	'homeowner+': 'homeowner_plus',

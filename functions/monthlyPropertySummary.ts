@@ -6,6 +6,7 @@ import {
 	getResendClient,
 	sendMaintleyEmail,
 } from './emailService';
+import { getTaskDisplayStatus } from './taskDisplayStatus';
 
 const RESEND_API_KEY = defineSecret(
 	process.env.RESEND_API_KEY_SECRET_NAME || 'RESEND_API_KEY',
@@ -154,7 +155,7 @@ const getUpcomingTasks = (tasks: SummaryTask[], now: Date): SummaryTask[] => {
 
 	return tasks
 		.filter((task) => ACTIVE_TASK_STATUSES.has(String(task.status || '')))
-		.filter((task) => String(task.status || '') !== 'Overdue')
+		.filter((task) => getTaskDisplayStatus(task).label !== 'Overdue')
 		.filter((task) => {
 			const dueDate = parseDate(task.dueDate);
 			if (!dueDate) return false;
@@ -170,11 +171,7 @@ const getUpcomingTasks = (tasks: SummaryTask[], now: Date): SummaryTask[] => {
 const getOverdueTasks = (tasks: SummaryTask[], now: Date): SummaryTask[] =>
 	tasks
 		.filter((task) => ACTIVE_TASK_STATUSES.has(String(task.status || '')))
-		.filter((task) => {
-			if (String(task.status || '') === 'Overdue') return true;
-			const dueDate = parseDate(task.dueDate);
-			return !!dueDate && getDateOnly(dueDate).getTime() < getDateOnly(now).getTime();
-		})
+		.filter((task) => getTaskDisplayStatus(task).isOverdue)
 		.sort(
 			(a, b) =>
 				(parseDate(a.dueDate)?.getTime() || 0) -

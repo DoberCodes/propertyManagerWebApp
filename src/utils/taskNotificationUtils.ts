@@ -49,22 +49,22 @@ export const getDefaultNotificationMessage = (
 
 	if (type === 'reminder') {
 		if (daysBeforeDue === 30) {
-			return `Reminder: "${taskTitle}" is due in 30 days`;
+			return `Upcoming maintenance: "${taskTitle}" is coming up in 30 days`;
 		} else if (daysBeforeDue === 7) {
-			return `Reminder: "${taskTitle}" is due in 7 days`;
+			return `Due soon: "${taskTitle}" is due soon`;
 		} else if (daysBeforeDue === 0) {
 			return `Due today: "${taskTitle}" is due today`;
 		} else if (daysBeforeDue === 1) {
-			return `Reminder: "${taskTitle}" is due tomorrow`;
+			return `Due soon: "${taskTitle}" is due tomorrow`;
 		} else {
-			return `Reminder: "${taskTitle}" is due in ${daysBeforeDue} days`;
+			return `Upcoming maintenance: "${taskTitle}" is coming up in ${daysBeforeDue} days`;
 		}
 	} else if (type === 'overdue') {
 		const weeksOverdue = Math.abs(daysBeforeDue) / 7;
 		if (weeksOverdue === 1) {
-			return `Follow-up: "${taskTitle}" was due 1 week ago`;
+			return `Overdue maintenance: "${taskTitle}" was due 1 week ago`;
 		} else {
-			return `Follow-up: "${taskTitle}" was due ${weeksOverdue} weeks ago`;
+			return `Overdue maintenance: "${taskTitle}" was due ${weeksOverdue} weeks ago`;
 		}
 	}
 

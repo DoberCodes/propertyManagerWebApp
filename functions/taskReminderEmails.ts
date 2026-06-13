@@ -6,6 +6,7 @@ import {
 	getResendClient,
 	sendMaintleyEmail,
 } from './emailService';
+import { getTaskDisplayStatus } from './taskDisplayStatus';
 
 const RESEND_API_KEY = defineSecret(
 	process.env.RESEND_API_KEY_SECRET_NAME || 'RESEND_API_KEY',
@@ -157,11 +158,11 @@ const getDefaultNotificationMessage = (
 	const daysBeforeDue = Number(notification.daysBeforeDue || 0);
 
 	if (type === 'reminder') {
-		if (daysBeforeDue === 30) return `"${taskTitle}" is due in 30 days.`;
-		if (daysBeforeDue === 7) return `"${taskTitle}" is due in 7 days.`;
+		if (daysBeforeDue === 30) return `"${taskTitle}" is coming up in 30 days.`;
+		if (daysBeforeDue === 7) return `"${taskTitle}" is due soon.`;
 		if (daysBeforeDue === 1) return `"${taskTitle}" is due tomorrow.`;
 		if (daysBeforeDue === 0) return `"${taskTitle}" is due today.`;
-		return `"${taskTitle}" is due in ${daysBeforeDue} days.`;
+		return `"${taskTitle}" is coming up in ${daysBeforeDue} days.`;
 	}
 
 	const weeksOverdue = Math.abs(daysBeforeDue) / 7;
@@ -174,14 +175,14 @@ const getNotificationSubject = (
 	taskTitle: string,
 ): string => {
 	if (notification.type === 'overdue') {
-		return `Overdue task: ${taskTitle}`;
+		return `Overdue maintenance: ${taskTitle}`;
 	}
 
 	if (Number(notification.daysBeforeDue || 0) === 0) {
-		return `Task due today: ${taskTitle}`;
+		return `Maintenance due today: ${taskTitle}`;
 	}
 
-	return `Task reminder: ${taskTitle}`;
+	return `Upcoming maintenance: ${taskTitle}`;
 };
 
 const getDisplayName = (user: UserLike): string => {
@@ -201,6 +202,7 @@ const getTaskReminderHtml = ({
 	appUrl: string;
 }): string => {
 	const propertyLabel = task.propertyTitle || task.property || 'Property';
+	const displayStatus = getTaskDisplayStatus(task);
 	const taskUrl = task.propertyId
 		? `${appUrl.replace(/\/$/, '')}/properties/${encodeURIComponent(task.propertyId)}`
 		: appUrl;
@@ -212,14 +214,15 @@ const getTaskReminderHtml = ({
 					<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px; width:100%; background:#ffffff; border-radius:12px; overflow:hidden; border:1px solid #e5e7eb;">
 						<tr><td style="background:#16a34a; color:#ffffff; padding:20px 24px; font-size:24px; font-weight:700;">Maintley</td></tr>
 						<tr><td style="padding:24px;">
-							<h2 style="margin:0 0 12px 0; font-size:22px; color:#111827;">Task Reminder</h2>
+							<h2 style="margin:0 0 12px 0; font-size:22px; color:#111827;">Maintenance Reminder</h2>
 							<p style="margin:0 0 16px 0; font-size:15px; line-height:1.6; color:#374151;">Hi ${escapeHtml(name)}, ${escapeHtml(message)}</p>
 							<div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:16px; margin:0 0 16px 0;">
 								<p style="margin:0 0 8px 0; font-size:14px; color:#0f172a;"><strong>Task:</strong> ${escapeHtml(task.title || 'Maintenance task')}</p>
 								<p style="margin:0 0 8px 0; font-size:14px; color:#0f172a;"><strong>Property:</strong> ${escapeHtml(propertyLabel)}</p>
+								<p style="margin:0 0 8px 0; font-size:14px; color:#0f172a;"><strong>Status:</strong> ${escapeHtml(displayStatus.label)}</p>
 								<p style="margin:0; font-size:14px; color:#0f172a;"><strong>Due:</strong> ${escapeHtml(task.dueDate || 'Not set')}</p>
 							</div>
-							<a href="${escapeHtml(taskUrl)}" style="display:inline-block; background:#16a34a; color:#ffffff; text-decoration:none; padding:11px 18px; border-radius:8px; font-size:14px; font-weight:600;">Open task</a>
+							<a href="${escapeHtml(taskUrl)}" style="display:inline-block; background:#16a34a; color:#ffffff; text-decoration:none; padding:11px 18px; border-radius:8px; font-size:14px; font-weight:600;">Open maintenance task</a>
 						</td></tr>
 						<tr><td style="padding:16px 24px; border-top:1px solid #e5e7eb; font-size:12px; line-height:1.5; color:#6b7280;">This email follows the notification schedule saved on this task. You can update email preferences anytime in Settings.</td></tr>
 					</table>

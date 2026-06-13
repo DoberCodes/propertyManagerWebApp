@@ -66,6 +66,7 @@ import {
 } from '../../utils/barcodeScanParser';
 import {
 	canLinkParts,
+	canUseRecurringTasks,
 	canTrackWarranties,
 } from '../../utils/subscriptionUtils';
 import { getRoleCapabilities } from '../../utils/permissions';
@@ -1066,6 +1067,8 @@ export const DeviceDetailPage: React.FC = () => {
 		canLinkParts(currentUser.subscription);
 	const canAccessWarranty =
 		!!currentUser?.subscription && canTrackWarranties(currentUser.subscription);
+	const canAccessRecurringTasks =
+		!!currentUser?.subscription && canUseRecurringTasks(currentUser.subscription as any);
 	const photoInputRef = useRef<HTMLInputElement | null>(null);
 	const documentInputRef = useRef<HTMLInputElement | null>(null);
 	const [showDeviceEditModal, setShowDeviceEditModal] = useState(false);
@@ -1223,10 +1226,14 @@ export const DeviceDetailPage: React.FC = () => {
 		return {
 			...deviceTaskTemplate,
 			title: `${deviceTaskTemplate.title} - recurring`,
-			isRecurring: true,
-			recurrenceFrequency: 'monthly',
+			...(canAccessRecurringTasks
+				? {
+						isRecurring: true,
+						recurrenceFrequency: 'monthly',
+				  }
+				: { isRecurring: false }),
 		};
-	}, [deviceTaskTemplate]);
+	}, [canAccessRecurringTasks, deviceTaskTemplate]);
 
 	const taskUnitOptions = useMemo(() => {
 	       console.log('[DeviceDetailPage] units:', units);
@@ -1493,6 +1500,7 @@ export const DeviceDetailPage: React.FC = () => {
 
 	const openRecurringTaskModal = () => {
 		if (!canCreateTaskActions) return;
+		if (!canAccessRecurringTasks) return;
 		if (!recurringTaskTemplate) return;
 		setShowTaskModal(false);
 		setShowRecurringTaskModal(true);
@@ -2142,9 +2150,16 @@ export const DeviceDetailPage: React.FC = () => {
 												<strong>Create Task</strong>
 												<span>Turn this appliance into a tracked maintenance job.</span>
 											</QuickActionButton>
-											<QuickActionButton type='button' onClick={openRecurringTaskModal}>
+											<QuickActionButton
+												type='button'
+												onClick={openRecurringTaskModal}
+												disabled={!canAccessRecurringTasks}>
 												<strong>Add Recurring Maintenance</strong>
-												<span>Set ongoing care for filters, service, and inspections.</span>
+												<span>
+													{canAccessRecurringTasks
+														? 'Set ongoing care for filters, service, and inspections.'
+														: 'Homeowner+ feature for ongoing care schedules.'}
+												</span>
 											</QuickActionButton>
 										</>
 									)}

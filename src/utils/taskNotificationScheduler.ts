@@ -15,7 +15,6 @@ import { db } from '../config/firebase';
 import { Task, TaskNotification } from '../types/Task.types';
 import {
 	getDefaultNotificationMessage,
-	getNotificationTriggerDate,
 	shouldTriggerNotification,
 } from './taskNotificationUtils';
 
@@ -40,8 +39,6 @@ export const processTaskNotifications = async (): Promise<void> => {
 
 
 		const currentDate = new Date();
-		let notificationsCreated = 0;
-
 		for (const task of tasks) {
 			if (!task.notifications || task.notifications.length === 0) continue;
 
@@ -68,7 +65,6 @@ export const processTaskNotifications = async (): Promise<void> => {
 
 					if (!existingNotification) {
 						await createTaskNotification(task, notification, currentDate);
-						notificationsCreated++;
 					}
 				}
 			}
@@ -156,10 +152,10 @@ const createTaskNotification = async (
 			userId: recipientId,
 			type: notificationType,
 			title: isDueTodayReminder
-				? 'Task Due Today'
+				? 'Maintenance Due Today'
 				: notification.type === 'reminder'
-					? 'Task Reminder'
-					: 'Task Overdue',
+					? 'Upcoming Maintenance'
+					: 'Overdue Maintenance',
 			message,
 			data: {
 				taskId: task.id,

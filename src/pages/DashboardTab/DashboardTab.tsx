@@ -14,6 +14,7 @@ import {
 } from 'Redux/selectors/permissionSelectors';
 import { filterTasksByRole } from 'utils/dataFilters';
 import { getCurrentLocation } from 'utils/geolocation';
+import { getTaskDisplayStatus } from 'utils/taskDisplayStatus';
 import {
 	getMaintenanceEventDate,
 	isContinuityEvent,
@@ -279,7 +280,6 @@ export const DashboardTab = () => {
 	}, [currentUser?.subscription?.stripeCustomerId]);
 
 	const [completingTaskId, setCompletingTaskId] = useState<string | null>(null);
-	const [startingTaskId, setStartingTaskId] = useState<string | null>(null);
 	const [dashboardMaintenanceHistory, setDashboardMaintenanceHistory] = useState<
 		any[]
 	>([]);
@@ -977,23 +977,7 @@ export const DashboardTab = () => {
 		if (!task?.id) {
 			return;
 		}
-
-		if (task.status === 'In Progress') {
-			handleOpenTask(task.id);
-			return;
-		}
-
-		try {
-			setStartingTaskId(task.id);
-			await updateTaskMutation({
-				id: task.id,
-				updates: { status: 'In Progress' },
-			}).unwrap();
-		} catch (error) {
-			console.error('Failed to start task from dashboard:', error);
-		} finally {
-			setStartingTaskId(null);
-		}
+		handleOpenTask(task.id);
 	};
 
 	const handleCompleteTask = (taskId: string) => {
@@ -1068,8 +1052,8 @@ export const DashboardTab = () => {
 						<TodayFocusTaskCard>
 							<TitleRow>
 								<TodayFocusTaskName>{nextUrgentTask.title}</TodayFocusTaskName>
-								<TaskStatusBadge $status={nextUrgentTask.status}>
-									{nextUrgentTask.status}
+								<TaskStatusBadge $status={getTaskDisplayStatus(nextUrgentTask).label}>
+									{getTaskDisplayStatus(nextUrgentTask).label}
 								</TaskStatusBadge>
 							</TitleRow>
 							<TodayFocusTaskMeta>
@@ -1081,7 +1065,6 @@ export const DashboardTab = () => {
 					)}
 					<TodayFocusButtons>
 						<FocusButton
-							disabled={startingTaskId === nextUrgentTask?.id}
 							onClick={() => {
 								if (nextUrgentTask) {
 									void handleStartTask(nextUrgentTask);
@@ -1089,13 +1072,7 @@ export const DashboardTab = () => {
 								}
 								navigate('/tasks');
 							}}>
-							{nextUrgentTask
-								? startingTaskId === nextUrgentTask.id
-									? 'Starting...'
-									: nextUrgentTask.status === 'In Progress'
-									? 'Open Task'
-									: 'Start Now'
-								: 'Open Task List'}
+							{nextUrgentTask ? 'Open Task' : 'Open Task List'}
 						</FocusButton>
 						{nextUrgentTask && (
 							<FocusButton
@@ -1257,7 +1234,9 @@ export const DashboardTab = () => {
 										<UrgentTaskMain>
 											<TitleRow>
 								<UrgentTaskTitle>{task.title}</UrgentTaskTitle>
-								<TaskStatusBadge $status={task.status}>{task.status}</TaskStatusBadge>
+								<TaskStatusBadge $status={getTaskDisplayStatus(task).label}>
+									{getTaskDisplayStatus(task).label}
+								</TaskStatusBadge>
 							</TitleRow>
 											<UrgentTaskContext>
 												<UrgentTaskProperty>
@@ -1306,7 +1285,9 @@ export const DashboardTab = () => {
 										<UrgentTaskMain>
 											<TitleRow>
 								<UrgentTaskTitle>{task.title}</UrgentTaskTitle>
-								<TaskStatusBadge $status={task.status}>{task.status}</TaskStatusBadge>
+								<TaskStatusBadge $status={getTaskDisplayStatus(task).label}>
+									{getTaskDisplayStatus(task).label}
+								</TaskStatusBadge>
 							</TitleRow>
 											<UrgentTaskContext>
 												<UrgentTaskProperty>

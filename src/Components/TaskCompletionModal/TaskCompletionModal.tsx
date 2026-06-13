@@ -24,6 +24,7 @@ import {
 } from '../../Redux/API/taskSlice';
 import { useCreateNotificationMutation } from '../../Redux/API/notificationSlice';
 import { useAppFeedback } from '../Library/AppFeedback/AppFeedbackProvider';
+import { assertStorageQuotaForFiles } from '../../utils/storageQuota';
 
 interface TaskCompletionModalProps {
 	taskId: string;
@@ -140,6 +141,9 @@ export const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
 			let completionFileData: CompletionFile | undefined;
 			if (selectedFile) {
 				// Only upload when a file is provided.
+				await assertStorageQuotaForFiles(selectedFile, {
+					propertyId: task?.propertyId,
+				});
 				const fileRef = ref(
 					storage,
 					`task-completions/${currentUser!.id}/${taskId}/${Date.now()}-${selectedFile.name}`,

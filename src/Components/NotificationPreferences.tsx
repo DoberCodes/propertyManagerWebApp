@@ -699,9 +699,9 @@ export const NotificationPreferences: React.FC<
 									}
 								/>
 								<EmailPreferenceText>
-									<strong>Task Reminder Emails</strong>
+									<strong>Maintenance Reminder Emails</strong>
 									<span>
-										Due soon, due today, overdue, and assigned task emails.
+										Due soon, due today, overdue, and assigned maintenance emails.
 										{!taskReminderEmailsEnabledByPlan
 											? ' Upgrade to Homeowner+ or higher to enable.'
 											: ''}

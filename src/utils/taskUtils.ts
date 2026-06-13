@@ -1,4 +1,5 @@
 import { Task, TaskStatus } from '../types/Task.types';
+import { getTaskDisplayStatus } from './taskDisplayStatus';
 import { filterDateRange } from './tableFilters';
 
 /**
@@ -23,7 +24,7 @@ export const isTaskOverdue = (task: Task): boolean => {
  * Includes tasks already marked as Overdue by server-side jobs.
  */
 export const isTaskOverdueForDisplay = (task: Task): boolean => {
-	return task.status === 'Overdue' || isTaskOverdue(task);
+	return getTaskDisplayStatus(task).isOverdue;
 };
 
 /**
@@ -46,22 +47,10 @@ export const matchesDateRangeOrIsOverdue = (
 };
 
 /**
- * Updates tasks that are overdue in the provided array
- * This is a client-side utility that can be called when tasks are loaded
+ * Compatibility utility retained for existing callers.
+ * Overdue is now derived from the due date for display instead of mutating
+ * task status in memory or Firestore.
  */
 export const updateOverdueTasks = async (tasks: Task[]): Promise<Task[]> => {
-	const overdueTasks = tasks.filter(isTaskOverdue);
-
-	if (overdueTasks.length === 0) return tasks;
-
-	// In a real implementation, you would update these in the database
-	// For now, we'll just return the updated tasks array
-	// The scheduled Firebase function will handle the actual database updates
-
-	return tasks.map((task) => {
-		if (isTaskOverdue(task)) {
-			return { ...task, status: 'Overdue' as TaskStatus };
-		}
-		return task;
-	});
+	return tasks;
 };

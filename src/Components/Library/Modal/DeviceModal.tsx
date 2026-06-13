@@ -214,6 +214,20 @@ const ScrollBody = styled.div`
 	padding-bottom: 0.5rem;
 `;
 
+const StickyTabRail = styled.div`
+	position: sticky;
+	top: 0;
+	z-index: 12;
+	background: #ffffff;
+	flex-shrink: 0;
+	padding-top: 0.15rem;
+
+	@media (max-width: 480px) {
+		margin-left: -0.1rem;
+		margin-right: -0.1rem;
+	}
+`;
+
 const AttachmentList = styled.div`
 	margin-top: 0.75rem;
 	display: flex;
@@ -682,29 +696,31 @@ export const DeviceModal = (props: DeviceModalProps) => {
 			primaryButtonLabel={props.isEditing ? 'Save Appliance' : 'Add Appliance'}
 			secondaryButtonLabel='Cancel'
 			primaryButtonDisabled={missingRequiredFields.length > 0}>
-			<ModalTabContainer>
-				<ModalTab
-					type='button'
-					$active={activeTab === 'details'}
-					onClick={() => setActiveTab('details')}>
-					<TabLabel>
-						Appliance Details
-						{missingRequiredFields.length > 0 && (
-							<TabBadge $tone='neutral'>
-								{`${missingRequiredFields.length} required`}
-							</TabBadge>
-						)}
-					</TabLabel>
-				</ModalTab>
-				<ModalTab
-					type='button'
-					$active={activeTab === 'service-items'}
-					onClick={() => setActiveTab('service-items')}>
-					<TabLabel>
-						Parts & Supplies
-					</TabLabel>
-				</ModalTab>
-			</ModalTabContainer>
+			<StickyTabRail>
+				<ModalTabContainer>
+					<ModalTab
+						type='button'
+						$active={activeTab === 'details'}
+						onClick={() => setActiveTab('details')}>
+						<TabLabel>
+							Appliance Details
+							{missingRequiredFields.length > 0 && (
+								<TabBadge $tone='neutral'>
+									{`${missingRequiredFields.length} required`}
+								</TabBadge>
+							)}
+						</TabLabel>
+					</ModalTab>
+					<ModalTab
+						type='button'
+						$active={activeTab === 'service-items'}
+						onClick={() => setActiveTab('service-items')}>
+						<TabLabel>
+							Parts & Supplies
+						</TabLabel>
+					</ModalTab>
+				</ModalTabContainer>
+			</StickyTabRail>
 
 			<ScrollBody ref={scrollBodyRef}>
 			<ModalTabContent $active={activeTab === 'details'}>

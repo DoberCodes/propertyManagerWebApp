@@ -22,6 +22,7 @@ import {
 } from './MobileTaskCarousel.styles';
 
 import { Task, TaskHandlers } from '../../../types/Task.types';
+import { getTaskDisplayStatus } from '../../../utils/taskDisplayStatus';
 import { TaskModal } from '../Modal';
 
 interface MobileTaskCarouselProps {
@@ -111,24 +112,6 @@ export const MobileTaskCarousel: React.FC<MobileTaskCarouselProps> = ({
 		}
 	};
 
-	const getStatusColor = (status?: string) => {
-		switch (status?.toLowerCase()) {
-			case 'completed':
-				return '#10b981';
-			case 'in progress':
-				return '#3b82f6';
-			case 'initiated':
-			case 'pending':
-				return '#f59e0b';
-			case 'awaiting approval':
-				return '#8b5cf6';
-			case 'rejected':
-				return '#ef4444';
-			default:
-				return '#6b7280';
-		}
-	};
-
 	const handleCardClick = () => {
 		setSelectedTask(currentTask);
 	};
@@ -178,8 +161,10 @@ export const MobileTaskCarousel: React.FC<MobileTaskCarouselProps> = ({
 							transform: `translateX(calc(-${currentIndex} * (100% + 16px)))`,
 							cursor: isDragging ? 'grabbing' : 'grab',
 						}}>
-						{tasks.map((task) => (
-						<TaskCard key={task.id} $overdue={task.status === 'Overdue'} onClick={handleCardClick}>
+						{tasks.map((task) => {
+							const displayStatus = getTaskDisplayStatus(task);
+							return (
+						<TaskCard key={task.id} $overdue={displayStatus.isOverdue} onClick={handleCardClick}>
 								<CardHeader>
 									<CardTitle>{task.title}</CardTitle>
 									<div
@@ -204,13 +189,10 @@ export const MobileTaskCarousel: React.FC<MobileTaskCarouselProps> = ({
 											<MetaLabel>Status</MetaLabel>
 											<MetaValue
 												style={{
-													color:
-														task.status === 'Overdue'
-															? '#dc2626'
-															: getStatusColor(task.status),
-													fontWeight: task.status === 'Overdue' ? 700 : undefined,
+													color: displayStatus.color,
+													fontWeight: displayStatus.isOverdue ? 700 : undefined,
 												}}>
-												{task.status || 'Initiated'}
+												{displayStatus.label}
 											</MetaValue>
 										</MetaItem>
 
@@ -219,8 +201,8 @@ export const MobileTaskCarousel: React.FC<MobileTaskCarouselProps> = ({
 												<MetaLabel>Due</MetaLabel>
 												<MetaValue
 													style={{
-														color: task.status === 'Overdue' ? '#dc2626' : undefined,
-														fontWeight: task.status === 'Overdue' ? 700 : undefined,
+														color: displayStatus.isOverdue ? '#dc2626' : undefined,
+														fontWeight: displayStatus.isOverdue ? 700 : undefined,
 													}}>
 													{new Date(task.dueDate).toLocaleDateString('en-US', {
 														month: 'short',
@@ -288,7 +270,8 @@ export const MobileTaskCarousel: React.FC<MobileTaskCarouselProps> = ({
 									</ActionButton>
 								</CardActions>
 							</TaskCard>
-						))}
+							);
+						})}
 					</CarouselTrack>
 				</CarouselViewport>
 
@@ -323,14 +306,7 @@ export const MobileTaskCarousel: React.FC<MobileTaskCarouselProps> = ({
 						handleDetailModalClose();
 						if (updated && onTaskUpdate) onTaskUpdate(updated.id, updated);
 					}}
-					statusOptions={[
-						'Initiated',
-						'Pending',
-						'In Progress',
-						'Awaiting Approval',
-						'Completed',
-						'Rejected',
-					]}
+					statusOptions={['Initiated', 'Completed']}
 				/>
 			)}
 		</>

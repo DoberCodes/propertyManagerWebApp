@@ -599,6 +599,12 @@ export const TaskStatusBadge = styled.span<{ $status: string }>`
 	white-space: nowrap;
 	background: ${(props) => {
 		switch (props.$status) {
+			case 'Upcoming':
+				return COLORS.successLight;
+			case 'Due Soon':
+				return COLORS.warningLight;
+			case 'Initiated':
+				return COLORS.gray100;
 			case 'In Progress':
 				return COLORS.secondaryLight;
 			case 'Overdue':
@@ -613,6 +619,12 @@ export const TaskStatusBadge = styled.span<{ $status: string }>`
 	}};
 	color: ${(props) => {
 		switch (props.$status) {
+			case 'Upcoming':
+				return COLORS.successDark;
+			case 'Due Soon':
+				return COLORS.warningDark;
+			case 'Initiated':
+				return COLORS.textSecondary;
 			case 'In Progress':
 				return '#1d4ed8';
 			case 'Overdue':

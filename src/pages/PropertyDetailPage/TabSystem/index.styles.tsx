@@ -227,10 +227,13 @@ export const StatusBadge = styled.span<{ status: string }>`
 			case 'Completed':
 			case 'Low':
 				return 'rgba(34, 197, 94, 0.1)';
+			case 'Upcoming':
+				return 'rgba(16, 185, 129, 0.1)';
 			case 'In Progress':
 				return 'rgba(59, 130, 246, 0.1)';
 				case 'Initiated':
 			case 'Pending':
+			case 'Due Soon':
 			case 'Medium':
 				return 'rgba(245, 158, 11, 0.1)';
 			case 'Overdue':
@@ -256,10 +259,13 @@ export const StatusBadge = styled.span<{ status: string }>`
 			case 'Completed':
 			case 'Low':
 				return '#22c55e';
+			case 'Upcoming':
+				return '#065f46';
 			case 'In Progress':
 				return '#3b82f6';
 				case 'Initiated':
 			case 'Pending':
+			case 'Due Soon':
 			case 'Medium':
 				return '#f59e0b';
 			case 'Overdue':

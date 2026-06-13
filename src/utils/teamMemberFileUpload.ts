@@ -1,5 +1,6 @@
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { storage } from '../config/firebase';
+import { assertStorageQuotaForFiles } from './storageQuota';
 
 const MAX_TEAM_MEMBER_IMAGE_BYTES = 8 * 1024 * 1024; // 8MB
 const MAX_TEAM_MEMBER_FILE_BYTES = 10 * 1024 * 1024; // 10MB
@@ -41,6 +42,7 @@ export const uploadTeamMemberImage = async (
 	if (!isValidTeamMemberImageFile(file)) {
 		throw new Error('Invalid image. Please use an image under 8MB.');
 	}
+	await assertStorageQuotaForFiles(file, { accountId: userId });
 
 	const fileName = buildFileName(file);
 	const folder = memberId
@@ -73,6 +75,7 @@ export const uploadTeamMemberFile = async (
 	if (!isValidTeamMemberFile(file)) {
 		throw new Error('Invalid file. Please use a valid file type under 10MB.');
 	}
+	await assertStorageQuotaForFiles(file, { accountId: userId });
 
 	const fileName = buildFileName(file);
 	const folder = memberId

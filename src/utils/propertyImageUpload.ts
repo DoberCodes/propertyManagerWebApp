@@ -1,5 +1,6 @@
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { storage } from '../config/firebase';
+import { assertStorageQuotaForFiles } from './storageQuota';
 
 const MAX_PROPERTY_IMAGE_BYTES = 8 * 1024 * 1024; // 8MB
 
@@ -25,6 +26,7 @@ export const uploadPropertyImage = async (
 	if (!isValidPropertyImageFile(file)) {
 		throw new Error('Invalid image. Please use an image under 8MB.');
 	}
+	await assertStorageQuotaForFiles(file, { propertyId });
 
 	const fileName = buildFileName(file);
 	const folder = propertyId

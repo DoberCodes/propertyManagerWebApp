@@ -13,6 +13,7 @@ import {
 	faHouse,
 	faScrewdriverWrench,
 	faClockRotateLeft,
+	faBell,
 } from '@fortawesome/free-solid-svg-icons';
 import { TasksTabProps } from '../../../types/PropertyDetailPage.types';
 import {
@@ -30,6 +31,10 @@ import {
 	matchesDateRangeOrIsOverdue,
 	updateOverdueTasks,
 } from '../../../utils/taskUtils';
+import {
+	getTaskDisplayStatus,
+	isTaskDueWithinDays,
+} from '../../../utils/taskDisplayStatus';
 import { isTrialExpired } from '../../../utils/subscriptionUtils';
 import { ReusableTable, TaskModal } from '../../../Components/Library';
 import { Column, Action } from '../../../Components/Library/ReusableTable';
@@ -80,7 +85,9 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 	const [showFilters, setShowFilters] = useState(false);
 	const [processedTasks, setProcessedTasks] = useState<any[]>([]);
 	const [selectedTask, setSelectedTask] = useState<Task | null>(null);
-	const [quickView, setQuickView] = useState<'all' | 'overdue' | 'inProgress'>('all');
+	const [quickView, setQuickView] = useState<
+		'all' | 'overdue' | 'dueSoon' | 'next30'
+	>('all');
 	const [sortBy, setSortBy] = useState<'dueDate' | 'priority' | 'title'>('dueDate');
 
 	const [showAssignModal, setShowAssignModal] = useState(false);
@@ -206,6 +213,11 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 		}
 	};
 
+	const hasEnabledTaskNotifications = (task: any) =>
+		task?.enableNotifications === true &&
+		Array.isArray(task?.notifications) &&
+		task.notifications.length > 0;
+
 	const formatRelativeTime = (value?: string): string => {
 		if (!value) return 'No due date set';
 		const target = new Date(value).getTime();
@@ -232,49 +244,7 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 	};
 
 	const getTaskOperationalStatus = (task: any) => {
-		const overdue = isTaskOverdueForDisplay(task as Task);
-		if (overdue) {
-			return {
-				label: 'Overdue',
-				color: '#991b1b',
-				background: '#fee2e2',
-				border: '#fca5a5',
-			};
-		}
-
-		if (task.status === 'In Progress') {
-			return {
-				label: 'In Progress',
-				color: '#1e3a8a',
-				background: '#dbeafe',
-				border: '#93c5fd',
-			};
-		}
-
-		if (task.status === 'Completed') {
-			return {
-				label: 'Recently Serviced',
-				color: '#166534',
-				background: '#dcfce7',
-				border: '#86efac',
-			};
-		}
-
-		if (task.status === 'Pending' || task.status === 'Awaiting Approval') {
-			return {
-				label: 'Needs Action',
-				color: '#92400e',
-				background: '#fffbeb',
-				border: '#fcd34d',
-			};
-		}
-
-		return {
-			label: 'Healthy Queue',
-			color: '#065f46',
-			background: '#ecfdf5',
-			border: '#6ee7b7',
-		};
+		return getTaskDisplayStatus(task);
 	};
 
 	const getTaskIcon = (task: any) => {
@@ -366,6 +336,7 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 						: task.assignedTo || 'Unassigned';
 				const overdue = isTaskOverdueForDisplay(task as Task);
 				const iconStyle = getTaskIcon(task);
+				const hasTaskNotifications = hasEnabledTaskNotifications(task);
 
 				return (
 					<div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 280 }}>
@@ -387,6 +358,25 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 							<div style={{ fontWeight: 800, color: '#0f172a', lineHeight: 1.3 }}>
 								{task.title}
 							</div>
+							{hasTaskNotifications && (
+								<span
+									title='Task reminders enabled'
+									style={{
+										display: 'inline-flex',
+										alignItems: 'center',
+										justifyContent: 'center',
+										width: 22,
+										height: 22,
+										marginLeft: 'auto',
+										borderRadius: 999,
+										fontSize: 12,
+										color: '#a16207',
+										background: '#fef9c3',
+										border: '1px solid #facc15',
+									}}>
+									<FontAwesomeIcon icon={faBell} />
+								</span>
+							)}
 						</div>
 						<div style={{ fontSize: 13, fontWeight: 700, color: '#334155', lineHeight: 1.4 }}>
 							{task.category || 'General maintenance'}
@@ -459,16 +449,15 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 			key: 'status',
 			render: (_unused: any, task: any) => {
 				const chip = getTaskOperationalStatus(task);
-				const overdue = isTaskOverdueForDisplay(task as Task);
 				const activityText =
-					task.status === 'Completed'
+					chip.label === 'Completed'
 						? 'Recorded in maintenance history'
-						: task.status === 'In Progress'
-							? 'Maintenance in progress'
-							: overdue
+						: chip.label === 'Overdue'
 								? 'Maintenance is overdue'
-								: task.status === 'Pending' || task.status === 'Awaiting Approval'
-									? 'Waiting for approval'
+							: chip.label === 'Due Soon'
+								? 'Maintenance is coming due soon'
+								: chip.label === 'Initiated'
+									? 'Ready to schedule or review'
 									: 'Upcoming maintenance';
 
 				return (
@@ -490,7 +479,7 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 							{chip.label}
 						</span>
 						<div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{activityText}</div>
-						<div style={{ fontSize: 12, color: overdue ? '#b91c1c' : '#64748b', fontWeight: overdue ? 700 : 500 }}>
+						<div style={{ fontSize: 12, color: chip.isOverdue ? '#b91c1c' : '#64748b', fontWeight: chip.isOverdue ? 700 : 500 }}>
 							{formatRelativeTime(task.dueDate)}
 						</div>
 					</div>
@@ -543,17 +532,12 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 	const taskFilters: FilterConfig[] = [
 		{
 			key: 'status',
-			label: 'Status',
+			label: 'Lifecycle Status',
 			type: 'select',
 			options: [
 				{ value: 'Initiated', label: 'Initiated' },
-				{ value: 'Pending', label: 'Pending' },
-				{ value: 'In Progress', label: 'In Progress' },
-				{ value: 'Awaiting Approval', label: 'Awaiting Approval' },
 				{ value: 'Completed', label: 'Completed' },
-				{ value: 'Rejected', label: 'Rejected' },
 				{ value: 'Overdue', label: 'Overdue' },
-				{ value: 'Hold', label: 'Hold' },
 			],
 		},
 		{
@@ -668,8 +652,12 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 				return isTaskOverdueForDisplay(task as Task);
 			}
 
-			if (quickView === 'inProgress') {
-				return task.status === 'In Progress';
+			if (quickView === 'dueSoon') {
+				return getTaskDisplayStatus(task).isDueSoon;
+			}
+
+			if (quickView === 'next30') {
+				return isTaskDueWithinDays(task, 30);
 			}
 
 			return true;
@@ -710,8 +698,11 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 	const overdueTaskCount = processedTasks.filter((task) =>
 		isTaskOverdueForDisplay(task as Task),
 	).length;
-	const inProgressTaskCount = processedTasks.filter(
-		(task) => task.status === 'In Progress',
+	const dueSoonTaskCount = processedTasks.filter(
+		(task) => getTaskDisplayStatus(task).isDueSoon,
+	).length;
+	const next30TaskCount = processedTasks.filter((task) =>
+		isTaskDueWithinDays(task, 30),
 	).length;
 
 	const activeFilterChips = useMemo(() => {
@@ -760,7 +751,12 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 		if (quickView !== 'all') {
 			chips.push({
 				key: 'quickView',
-				label: quickView === 'overdue' ? 'Quick: Overdue' : 'Quick: In Progress',
+				label:
+					quickView === 'overdue'
+						? 'Quick: Overdue'
+						: quickView === 'next30'
+							? 'Quick: Next 30 Days'
+							: 'Quick: Due Soon',
 				onRemove: () => setQuickView('all'),
 			});
 		}
@@ -805,17 +801,31 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 				</TabSummaryPill>
 				<TabSummaryPill
 					as='button'
-					onClick={() => setQuickView('inProgress')}
+					onClick={() => setQuickView('dueSoon')}
 					style={{
 						cursor: 'pointer',
 						borderRadius: 8,
 						padding: '0 12px',
-						background: quickView === 'inProgress' ? '#dbeafe' : '#f8fafc',
-						borderColor: quickView === 'inProgress' ? '#60a5fa' : '#e2e8f0',
-						color: quickView === 'inProgress' ? '#1e3a8a' : '#475569',
-						fontWeight: quickView === 'inProgress' ? 800 : 700,
+						background: quickView === 'dueSoon' ? '#fffbeb' : '#f8fafc',
+						borderColor: quickView === 'dueSoon' ? '#fcd34d' : '#e2e8f0',
+						color: quickView === 'dueSoon' ? '#92400e' : '#475569',
+						fontWeight: quickView === 'dueSoon' ? 800 : 700,
 					}}>
-					In Progress: {inProgressTaskCount}
+					Due Soon: {dueSoonTaskCount}
+				</TabSummaryPill>
+				<TabSummaryPill
+					as='button'
+					onClick={() => setQuickView('next30')}
+					style={{
+						cursor: 'pointer',
+						borderRadius: 8,
+						padding: '0 12px',
+						background: quickView === 'next30' ? '#dbeafe' : '#f8fafc',
+						borderColor: quickView === 'next30' ? '#60a5fa' : '#e2e8f0',
+						color: quickView === 'next30' ? '#1e3a8a' : '#475569',
+						fontWeight: quickView === 'next30' ? 800 : 700,
+					}}>
+					Next 30 Days: {next30TaskCount}
 				</TabSummaryPill>
 			</TabSummaryBar>
 			<Toolbar style={{ marginBottom: 12 }}>
@@ -962,12 +972,19 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 					{/* Mobile Task Cards */}
 					<div>
 						{filteredTasks.map((task) => {
-							const cardAccent =
-								task.status === 'Overdue'
-									? '#ef4444'
-									: task.status === 'In Progress'
-									? '#3b82f6'
-									: '#94a3b8';
+							const displayStatus = getTaskDisplayStatus(task);
+							const cardAccent = displayStatus.color;
+							const mobileStatusText =
+								displayStatus.label === 'Completed'
+									? 'Maintenance completed'
+									: displayStatus.label === 'Overdue'
+										? 'Maintenance is overdue'
+										: displayStatus.label === 'Due Soon'
+											? 'Maintenance is coming due soon'
+											: displayStatus.label === 'Initiated'
+												? 'Ready to schedule or review'
+												: 'Upcoming maintenance';
+							const hasTaskNotifications = hasEnabledTaskNotifications(task);
 
 							return (
 								<MobileTaskCard
@@ -976,8 +993,34 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 									onClick={() => setSelectedTask(task)}
 									style={{ borderLeft: `4px solid ${cardAccent}` }}>
 									<MobileTaskHeader>
-										<MobileTaskTitle>{task.title}</MobileTaskTitle>
-										<StatusBadge status={task.status}>{task.status}</StatusBadge>
+										<div
+											style={{
+												display: 'flex',
+												alignItems: 'center',
+												width: '100%',
+												gap: 8,
+											}}>
+											<MobileTaskTitle style={{ margin: 0 }}>{task.title}</MobileTaskTitle>
+										{hasTaskNotifications && (
+											<div
+												style={{
+													display: 'inline-flex',
+													alignItems: 'center',
+													justifyContent: 'center',
+													width: 24,
+													height: 24,
+													marginLeft: 'auto',
+													borderRadius: 999,
+													fontSize: 12,
+													color: '#a16207',
+													background: '#fef9c3',
+													border: '1px solid #facc15',
+												}}>
+												<FontAwesomeIcon icon={faBell} />
+											</div>
+										)}
+										</div>
+										<StatusBadge status={displayStatus.label}>{displayStatus.label}</StatusBadge>
 									</MobileTaskHeader>
 
 									<MobileFeedMeta>
@@ -986,11 +1029,7 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 											{task.location ? ` • ${task.location}` : ''}
 										</MobileFeedLine>
 										<MobileFeedLine>
-											{task.status === 'Overdue'
-												? 'Maintenance is overdue'
-												: task.status === 'In Progress'
-													? 'Task is actively moving'
-												: 'Upcoming maintenance'}
+											{mobileStatusText}
 										</MobileFeedLine>
 										<MobileFeedLineMuted>
 											Assigned to{' '}

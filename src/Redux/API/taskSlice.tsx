@@ -19,6 +19,7 @@ import {
 	resolveTargetUserId,
 } from './accountContext';
 import { getDefaultTaskNotifications } from '../../utils/taskNotificationUtils';
+import { canUseRecurringTasks } from '../../utils/subscriptionUtils';
 
 const getSharedPropertyIdsForUser = async (
 	userId: string,
@@ -259,6 +260,33 @@ const withDefaultTaskNotificationSchedule = (
 	};
 };
 
+const canAccountUseRecurringTasks = async (accountId: string): Promise<boolean> => {
+	const accountUserSnapshot = await getDoc(doc(db, 'users', accountId));
+	const accountUserData = accountUserSnapshot.data() || {};
+	return Boolean(
+		accountUserData.subscription &&
+			canUseRecurringTasks(accountUserData.subscription as any),
+	);
+};
+
+const removeRecurringFieldsForPlan = <T extends Record<string, any>>(
+	taskData: T,
+	canUseRecurringTaskFeature: boolean,
+): T => {
+	if (canUseRecurringTaskFeature) {
+		return taskData;
+	}
+
+	const nextTaskData: Record<string, any> = { ...taskData };
+	nextTaskData.isRecurring = false;
+	delete nextTaskData.recurrenceFrequency;
+	delete nextTaskData.recurrenceInterval;
+	delete nextTaskData.recurrenceCustomUnit;
+	delete nextTaskData.parentTaskId;
+	delete nextTaskData.lastRecurrenceDate;
+	return nextTaskData as T;
+};
+
 export const taskSlice = apiSlice.injectEndpoints({
 	endpoints: (builder) => ({
 		// Task endpoints
@@ -390,8 +418,15 @@ export const taskSlice = apiSlice.injectEndpoints({
 					if (!currentUser) {
 						return { error: 'User not authenticated' };
 					}
-					const preparedTask = withDefaultTaskNotificationSchedule(newTask);
 					const targetUserId = await resolveTargetUserId();
+					const canUseRecurringTaskFeature =
+						await canAccountUseRecurringTasks(targetUserId);
+					const preparedTask = withDefaultTaskNotificationSchedule(
+						removeRecurringFieldsForPlan(
+							newTask as Record<string, any>,
+							canUseRecurringTaskFeature,
+						) as Omit<Task, 'id'>,
+					);
 					const docRef = await addDoc(collection(db, 'tasks'), {
 						...preparedTask,
 						userId: preparedTask.userId || targetUserId,
@@ -423,43 +458,50 @@ export const taskSlice = apiSlice.injectEndpoints({
 						? (snapshot.data() as Task)
 						: null;
 
+					const targetUserId = await resolveTargetUserId();
+					const canUseRecurringTaskFeature =
+						await canAccountUseRecurringTasks(targetUserId);
+					const preparedUpdates = removeRecurringFieldsForPlan(
+						updates as Record<string, any>,
+						canUseRecurringTaskFeature,
+					) as Partial<Task>;
+
 					await updateDoc(docRef, {
-						...updates,
+						...preparedUpdates,
 						updatedAt: new Date().toISOString(),
 					});
 
 					const transitioningToCompleted =
-						updates.status === 'Completed' &&
+						preparedUpdates.status === 'Completed' &&
 						existingTask &&
 						existingTask.status !== 'Completed';
 
 					if (transitioningToCompleted && existingTask) {
-						const targetUserId = await resolveTargetUserId();
 						const completionDate =
-							(updates as any).completionDate || new Date().toISOString();
+							(preparedUpdates as any).completionDate || new Date().toISOString();
 						const completionNotes =
-							(updates as any).completionNotes ||
+							(preparedUpdates as any).completionNotes ||
 							existingTask.completionNotes ||
 							'Completed from task';
 
 						const eventPayload = buildMaintenanceEventFromTask({
-							task: { ...existingTask, ...updates, status: 'Completed' },
+							task: { ...existingTask, ...preparedUpdates, status: 'Completed' },
 							taskId: id,
 							accountId: (existingTask as any).accountId || targetUserId,
 							eventType: 'task_completed',
 							eventSource: 'task_completion',
 							completionDate,
 							completionNotes,
-							completedBy: (updates as any).completedBy || existingTask.completedBy,
-							completedByName: (updates as any).completedByName,
-							completionFile: (updates as any).completionFile,
-							financials: (updates as any).financials,
+							completedBy: (preparedUpdates as any).completedBy || existingTask.completedBy,
+							completedByName: (preparedUpdates as any).completedByName,
+							completionFile: (preparedUpdates as any).completionFile,
+							financials: (preparedUpdates as any).financials,
 						});
 
 						await writeMaintenanceEvent(eventPayload as Record<string, unknown>);
 					}
 
-					return { data: { id, ...updates } as Task };
+					return { data: { id, ...preparedUpdates } as Task };
 				} catch (error: any) {
 					return { error: error.message };
 				}

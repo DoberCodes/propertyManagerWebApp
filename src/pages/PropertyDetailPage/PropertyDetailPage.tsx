@@ -983,6 +983,7 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 					propertyMaintenanceRequests={propertyMaintenanceRequests}
 					canApproveMaintenanceRequest={canApproveMaintenanceRequest}
 					propertyTasks={propertyTasks}
+					propertyDevices={propertyDevices}
 					unitOptions={unitOptions}
 					maintenanceHistoryRecords={maintenanceHistoryRecords}
 					propertyUnits={propertyUnits}
