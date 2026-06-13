@@ -5,6 +5,8 @@
 
 import {
 	collection,
+	doc,
+	getDoc,
 	query,
 	where,
 	getDocs,
@@ -13,6 +15,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { Task, TaskNotification } from '../types/Task.types';
+import { shouldCreateNotification } from './notificationPreferences';
 import {
 	getDefaultNotificationMessage,
 	shouldTriggerNotification,
@@ -144,6 +147,18 @@ const createTaskNotification = async (
 		if (!recipientId) {
 			console.warn(
 				`⚠️ No recipient found for task notification: ${task.title}`,
+			);
+			return;
+		}
+
+		const recipientDoc = await getDoc(doc(db, 'users', recipientId));
+		const recipientPreferences = recipientDoc.exists()
+			? recipientDoc.data()?.notificationPreferences
+			: undefined;
+
+		if (!shouldCreateNotification(recipientPreferences, notificationType)) {
+			console.log(
+				`🔕 Skipping ${notificationType} notification for user ${recipientId} because preferences are disabled`,
 			);
 			return;
 		}

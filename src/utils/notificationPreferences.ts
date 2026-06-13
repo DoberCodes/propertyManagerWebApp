@@ -61,3 +61,11 @@ export const isLegacyAllEnabledNotificationPreferences = (
 	const merged = mergeNotificationPreferences(preferences);
 	return Object.values(merged.types).every(Boolean);
 };
+
+export const shouldCreateNotification = (
+	preferences: User['notificationPreferences'] | undefined,
+	type: string,
+): boolean => {
+	const merged = mergeNotificationPreferences(preferences);
+	return merged.enabled && merged.types[type as keyof typeof merged.types] !== false;
+};

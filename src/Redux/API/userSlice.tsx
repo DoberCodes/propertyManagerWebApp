@@ -16,6 +16,7 @@ import { User } from '../Slices/userSlice';
 import {
 	resolveAccessibleAccountIds,
 } from './accountContext';
+import { shouldCreateNotification } from '../../utils/notificationPreferences';
 
 const MAX_FAVORITES = 5;
 
@@ -402,9 +403,16 @@ const userSlice = apiSlice.injectEndpoints({
 					const recipientDoc = userSnapshot.docs[0];
 
 					if (recipientDoc) {
+						const recipientPreferences =
+							recipientDoc.data()?.notificationPreferences;
+						const notificationType = 'share_invitation';
+						if (!shouldCreateNotification(recipientPreferences, notificationType)) {
+							return { data: { id: docRef.id, ...invitationData } };
+						}
+
 						const notificationData = {
 							userId: recipientDoc.id,
-							type: 'share_invitation',
+							type: notificationType,
 							title: 'Property Invitation',
 							message: `${invitation.fromUserEmail} invited you to access "${invitation.propertyTitle}"`,
 							data: {

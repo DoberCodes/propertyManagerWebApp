@@ -13,6 +13,8 @@ import {
 import { Notification } from '../../types/Notification.types';
 import { apiSlice, docToData } from './apiSlice';
 import { auth, db } from '../../config/firebase';
+import { doc as firestoreDoc } from 'firebase/firestore';
+import { shouldCreateNotification } from '../../utils/notificationPreferences';
 
 const NotificationSlice = apiSlice.injectEndpoints({
 	endpoints: (builder) => ({
@@ -53,6 +55,23 @@ const NotificationSlice = apiSlice.injectEndpoints({
 						notificationData.userId || auth.currentUser?.uid;
 					if (!resolvedUserId) {
 						return { error: 'Notification userId is missing' };
+					}
+
+					const userDoc = await getDoc(firestoreDoc(db, 'users', resolvedUserId));
+					if (
+						userDoc.exists() &&
+						!shouldCreateNotification(
+							userDoc.data()?.notificationPreferences,
+							notificationData.type,
+						)
+					) {
+						return {
+							data: {
+								id: 'skipped-by-preferences',
+								...notificationData,
+								userId: resolvedUserId,
+							} as Notification,
+						};
 					}
 					const notificationRef = collection(db, 'notifications');
 					const docRef = await addDoc(notificationRef, {

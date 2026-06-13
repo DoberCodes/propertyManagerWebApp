@@ -16,6 +16,7 @@ export const ModalOverlay = styled.div`
 	display: flex;
 	align-items: center;
 	justify-content: center;
+	overflow-y: auto;
 	z-index: 1000;
 	padding: 1rem;
 	animation: fadeIn 0.2s ease-in-out;
@@ -31,7 +32,7 @@ export const ModalOverlay = styled.div`
 
 	@media (max-width: 480px) {
 		padding: 0.75rem;
-		align-items: center;
+		align-items: flex-start;
 		padding-top: max(0.75rem, env(safe-area-inset-top));
 		padding-right: max(0.75rem, env(safe-area-inset-right));
 		padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
@@ -75,7 +76,7 @@ export const ModalContainer = styled.div`
 
 	@media (max-width: 480px) {
 		max-width: calc(100vw - 1.5rem);
-		height: auto;
+		height: min(92dvh, 760px);
 		max-height: calc(100dvh - 1.5rem);
 		min-height: 0;
 		border-radius: 12px;

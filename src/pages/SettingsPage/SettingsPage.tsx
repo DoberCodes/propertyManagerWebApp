@@ -5,6 +5,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import { AppDispatch, RootState } from 'Redux/store/store';
 import {
 	getSubscriptionPlanDetails,
+	getEffectiveSubscriptionPlanId,
 	isTrialActive,
 	getTrialDaysRemaining,
 	isTrialExpired,
@@ -130,6 +131,11 @@ const PlanStatus = styled.span<{ status: string }>`
 	text-transform: uppercase;
 	${({ status }) => {
 		switch (status) {
+			case 'free':
+				return `
+						background: #d1fae5;
+						color: #065f46;
+					`;
 			case 'trial':
 				return `
 						background: #fef3c7;
@@ -196,6 +202,15 @@ const TrialText = styled.p`
 	color: #92400e;
 	font-size: 0.875rem;
 	overflow-wrap: anywhere;
+`;
+
+const FreePlanInfo = styled(TrialInfo)`
+	background: #ecfdf5;
+	border: 1px solid #34d399;
+`;
+
+const FreePlanText = styled(TrialText)`
+	color: #065f46;
 `;
 
 const LinkButton = styled.button`
@@ -805,8 +820,15 @@ export const SettingsPage: React.FC = () => {
 	}
 
 	const planDetails = getSubscriptionPlanDetails(subscription.plan);
+	const effectivePlanId = getEffectiveSubscriptionPlanId(subscription, 'homeowner');
+	const isFreePlan = effectivePlanId === 'homeowner';
 	const isOnTrial = isTrialActive(subscription);
+	const shouldShowTrialInfo = isOnTrial && !isFreePlan;
 	const trialDaysRemaining = getTrialDaysRemaining(subscription);
+	const planStatusDisplay =
+		isFreePlan && subscription.status === 'trial'
+			? 'free'
+			: subscription.status;
 
 	const handleAddFamilyMember = async () => {
 		if (!currentUser?.accountId || !canManageFamilyRoles) {
@@ -1165,12 +1187,12 @@ export const SettingsPage: React.FC = () => {
 							<SubscriptionSection>
 								<SubscriptionHeader>
 									<PlanName>{planDetails?.name || 'Unknown Plan'}</PlanName>
-									<PlanStatus status={subscription.status}>
-										{subscription.status}
+									<PlanStatus status={planStatusDisplay}>
+										{planStatusDisplay}
 									</PlanStatus>
 								</SubscriptionHeader>
 
-								{isOnTrial && (
+								{shouldShowTrialInfo && (
 									<TrialInfo>
 										<TrialText>
 											{trialDaysRemaining === -1
@@ -1178,6 +1200,14 @@ export const SettingsPage: React.FC = () => {
 												: `You have ${trialDaysRemaining} days left in your current access period`}
 										</TrialText>
 									</TrialInfo>
+								)}
+
+								{isFreePlan && (
+									<FreePlanInfo>
+										<FreePlanText>
+											Your free plan remains available for as long as your account stays on the free tier.
+										</FreePlanText>
+									</FreePlanInfo>
 								)}
 
 								<PlanDetails>
@@ -1191,7 +1221,7 @@ export const SettingsPage: React.FC = () => {
 
 								<ButtonContainer>
 									<UpgradeButton onClick={() => navigate('/paywall')}>
-										{subscription.plan === 'free'
+										{isFreePlan
 											? 'Upgrade Plan'
 											: 'Change Plan'}
 									</UpgradeButton>
