@@ -1,5 +1,7 @@
-🎉 **Release Notes for Version 2.4.0** 🎉
+🎉 **Release Notes for Version 2.4.1** 🎉
 
 
-## 🔧 Improvements & Maintenance
-- feat:adding email notifications and large refactors of processes.
+## 🐛 Bug Fixes
+- fixing multiple styling issues and showing more info for storage space limits
+- adding style changes and mobile view improvements.
+- fixing mobile views
