@@ -336,8 +336,9 @@ export const Overlay = styled.div`
 
 	@media (max-width: 480px) {
 		padding: 0.5rem;
-		align-items: flex-start;
-		padding-top: 2rem;
+		align-items: center;
+		padding-top: max(0.5rem, env(safe-area-inset-top));
+		padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
 	}
 `;
 
@@ -361,8 +362,7 @@ export const FormContainer = styled.div`
 		max-width: 95%;
 		padding: 1rem;
 		border-radius: 10px;
-		margin-top: 1rem;
-		max-height: 85vh;
+		max-height: calc(100dvh - 1rem);
 	}
 `;
 
