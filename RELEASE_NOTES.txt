@@ -1,5 +1,8 @@
-🎉 **Release Notes for Version 2.4.2** 🎉
+🎉 **Release Notes for Version 2.4.3** 🎉
 
 
 ## 🐛 Bug Fixes
-- fixing the dialog cut off issue, also updating email preferences
+- fixing plan issues and fixing stripe not allowing checkout along with multiple styling issues that arose.
+
+## 🔧 Improvements & Maintenance
+- styling update
