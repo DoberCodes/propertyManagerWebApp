@@ -17,19 +17,6 @@ if (!admin.apps.length) {
 
 const db = admin.firestore();
 
-const PLAN_ALIASES: Record<string, string> = {
-	home: 'homeowner',
-	homeowner: 'homeowner',
-	homeowner_plus: 'homeowner_plus',
-	homeownerplus: 'homeowner_plus',
-	'homeowner+': 'homeowner_plus',
-	property: 'property',
-	portfolio: 'portfolio',
-	free: 'homeowner',
-	basic: 'property',
-	professional: 'portfolio',
-};
-
 const PROPERTY_INSIGHTS_PLANS = new Set([
 	'homeowner_plus',
 	'property',
@@ -111,8 +98,7 @@ interface InsightSummary {
 const MAX_EMAIL_OBSERVATIONS = 5;
 
 const normalizePlanId = (planId?: string): string => {
-	const normalized = String(planId || '').trim().toLowerCase();
-	return PLAN_ALIASES[normalized] || normalized;
+	return String(planId || '').trim().toLowerCase();
 };
 
 const getEffectivePlanId = (subscription?: UserSubscriptionLike): string => {

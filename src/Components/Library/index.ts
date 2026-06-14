@@ -23,6 +23,8 @@ export {
 } from './InfoCards/InfoCardStyles';
 
 // Zero State
+export { AppZeroState, getAppZeroStateCopy } from './AppZeroState';
+export type { AppZeroStateAction, AppZeroStateKind } from './AppZeroState';
 export { ZeroState } from './ZeroState';
 
 // Forms & Inputs

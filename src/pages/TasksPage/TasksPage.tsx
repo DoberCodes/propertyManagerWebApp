@@ -1,8 +1,13 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useSelector } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
 import { RootState } from 'Redux/store/store';
-import { ZeroState } from 'Components/Library/ZeroState';
+import { AppZeroState } from 'Components/Library/AppZeroState';
 import { useGetPropertiesQuery } from 'Redux/API/propertySlice';
+import {
+	selectIsTeamMemberAccount,
+	selectIsTenant,
+} from 'Redux/selectors/permissionSelectors';
 import { filterTasksByRole } from '../../utils/dataFilters';
 import { ReusableTable } from '../../Components/Library/ReusableTable';
 import { useTaskHandlers } from '../PropertyDetailPage/useTaskHandlers';
@@ -69,7 +74,10 @@ import { TaskCompletionModal } from '../../Components/TaskCompletionModal';
 import { getRoleCapabilities } from '../../utils/permissions';
 
 export const TasksPage = () => {
+	const navigate = useNavigate();
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
+	const isUserTenant = useSelector(selectIsTenant);
+	const isTeamMemberAccount = useSelector(selectIsTeamMemberAccount);
 	const roleCapabilities = useMemo(
 		() => getRoleCapabilities(currentUser?.role),
 		[currentUser?.role],
@@ -102,7 +110,8 @@ export const TasksPage = () => {
 	useEffect(() => {
 		updateOverdueTasks(allTasks).then(setProcessedTasks);
 	}, [allTasks]);
-	const { data: ownedProperties = [] } = useGetPropertiesQuery();
+	const { data: ownedProperties = [], isLoading: isLoadingProperties } =
+		useGetPropertiesQuery();
 
 	// Use account/family accessible properties only.
 	const allProperties = useMemo(() => {
@@ -319,6 +328,33 @@ export const TasksPage = () => {
 		);
 		return filtered.filter((task) => task.status !== 'Completed').length;
 	}, [processedTasks, currentUser, teamMembers, allProperties]);
+
+	const accessibleTasksCount = useMemo(() => {
+		return filterTasksByRole(
+			processedTasks,
+			currentUser,
+			teamMembers,
+			allProperties,
+		).length;
+	}, [processedTasks, currentUser, teamMembers, allProperties]);
+
+	const getTaskZeroStateConfig = () => {
+		const hasNoTasks = accessibleTasksCount === 0;
+		const hasNoActiveTasks = !hasNoTasks && activeTasksCount === 0;
+		const kind: 'noTasks' | 'noActiveTasks' | 'noTaskMatches' = hasNoTasks
+			? 'noTasks'
+			: hasNoActiveTasks
+				? 'noActiveTasks'
+				: 'noTaskMatches';
+		const actions =
+			kind === 'noTaskMatches'
+				? [{ label: 'Clear Filters', onClick: clearTopFilters }]
+				: canCreateTasks
+					? [{ label: 'Add Task', onClick: handleCreateTask }]
+					: [];
+
+		return { kind, actions };
+	};
 
 	const getTaskOperationalStatus = (task: any) => {
 		return getTaskDisplayStatus(task);
@@ -705,6 +741,31 @@ export const TasksPage = () => {
 		setSelectedRows(new Set());
 	};
 
+	if (!isLoadingProperties && ownedProperties.length === 0) {
+		return (
+			<AppZeroState
+				kind={isUserTenant || isTeamMemberAccount ? 'noAssignedProperties' : 'noProperties'}
+				actions={
+					!isUserTenant && !isTeamMemberAccount
+						? [{ label: 'Add Property', onClick: () => navigate('/properties?openCreate=1') }]
+						: []
+				}
+				fullPage
+			/>
+		);
+	}
+
+	if (filteredTasks.length === 0) {
+		const taskZeroState = getTaskZeroStateConfig();
+		return (
+			<AppZeroState
+				kind={taskZeroState.kind}
+				actions={taskZeroState.actions}
+				fullPage
+			/>
+		);
+	}
+
 	return (
 		<Wrapper>
 			{/* Task Filter Section */}
@@ -808,37 +869,7 @@ export const TasksPage = () => {
 						<FontAwesomeIcon icon={faPlus} />
 					</button>
 					)}
-					{filteredTasks.length === 0 ? (
-						<ZeroState
-							title={
-								allTasks.length === 0
-									? 'No maintenance tasks yet'
-									: activeTasksCount === 0
-									? 'No active maintenance tasks'
-									: 'No tasks match your search or filter'
-							}
-							description={
-								allTasks.length === 0
-									? 'Create your first maintenance task to start building service history'
-									: activeTasksCount === 0
-									? 'All your maintenance tasks are complete'
-									: 'Try a different search term or quick filter chip'
-							}
-							icon='📊'
-							actions={
-								allTasks.length === 0 || activeTasksCount === 0
-									? [{ label: 'Add Task', onClick: handleCreateTask }]
-									: [{
-											label: 'Clear Filters',
-											onClick: () => {
-												setSearchTerm('');
-												setQuickFilter('all');
-											},
-									  }]
-							}
-						/>
-					) : (
-						filteredTasks.map((task: any) => {
+					{filteredTasks.map((task: any) => {
 							const operational = getTaskDisplayStatus(task);
 							const isOverdue = operational.isOverdue;
 							const operationalLabel = operational.label;
@@ -958,93 +989,62 @@ export const TasksPage = () => {
 									)}
 								</MobileTaskCard>
 							);
-						})
-					)}
+						})}
 				</MobileListSection>
 			) : (
 				<>
 					{/* Task Grid Section */}
 					<TaskGridSection>
-						{filteredTasks.length === 0 ? (
-							<ZeroState
-								title={
-									allTasks.length === 0
-											? 'No maintenance tasks yet'
-										: activeTasksCount === 0
-											? 'No active maintenance tasks'
-											: 'No tasks match your search or filter'
+						<ReusableTable
+							rowData={filteredTasks}
+							columns={columns}
+							actions={taskActions}
+							sortState={sortState}
+							onSort={handleSort}
+							getRowClassName={(row) =>
+								isTaskOverdueForDisplay(row as any) ? 'overdue-row' : undefined
+							}
+							emptyMessage='No tasks currently active. New maintenance tasks will appear here.'
+							onRowSelect={(selectedRows) => {
+								setSelectedRows(new Set(selectedRows));
+							}}
+							selectedRows={selectedRows}
+							onSelectAll={(_, selectedRowIds) => {
+								setSelectedRows(new Set(selectedRowIds));
+							}}
+							showCheckbox={false}
+							hideHeader={true}
+							onRowUpdate={canManageTasks ? (updatedRow) => {
+								// Prepare updates for Firebase
+								const updates: any = {};
+
+								// Update status if changed
+								if (updatedRow.status) {
+									updates.status = updatedRow.status;
 								}
-								description={
-									allTasks.length === 0
-											? 'Create your first maintenance task to start building service history'
-										: activeTasksCount === 0
-											? 'All your maintenance tasks are complete'
-										: 'Try a different search term or quick filter chip'
+
+								// Update priority if changed
+								if (updatedRow.priority) {
+									updates.priority = updatedRow.priority;
 								}
-								icon='📊'
-								actions={
-									allTasks.length === 0 || activeTasksCount === 0
-										? [{ label: 'Add Task', onClick: handleCreateTask }]
-										: [{
-												label: 'Clear Filters',
-												onClick: () => {
-													setSearchTerm('');
-													setQuickFilter('all');
-												},
-										  }]
-								}></ZeroState>
-						) : (
-							<ReusableTable
-								rowData={filteredTasks}
-								columns={columns}
-								actions={taskActions}
-								sortState={sortState}
-								onSort={handleSort}
-								getRowClassName={(row) =>
-									isTaskOverdueForDisplay(row as any) ? 'overdue-row' : undefined
+
+								// Handle logic for updated row, e.g., marking a task as completed
+								if (updatedRow.status === 'Completed') {
+									handleTaskCompletion(updatedRow.id);
+									return;
 								}
-								emptyMessage='No tasks currently active. New maintenance tasks will appear here.'
-								onRowSelect={(selectedRows) => {
-									setSelectedRows(new Set(selectedRows));
-								}}
-								selectedRows={selectedRows}
-								onSelectAll={(_, selectedRowIds) => {
-									setSelectedRows(new Set(selectedRowIds));
-								}}
-								showCheckbox={false}
-								hideHeader={true}
-								onRowUpdate={canManageTasks ? (updatedRow) => {
-									// Prepare updates for Firebase
-									const updates: any = {};
 
-									// Update status if changed
-									if (updatedRow.status) {
-										updates.status = updatedRow.status;
-									}
-
-									// Update priority if changed
-									if (updatedRow.priority) {
-										updates.priority = updatedRow.priority;
-									}
-
-									// Handle logic for updated row, e.g., marking a task as completed
-									if (updatedRow.status === 'Completed') {
-										handleTaskCompletion(updatedRow.id);
-										return;
-									}
-
-									// Submit to Firebase if there are updates
-									if (Object.keys(updates).length > 0) {
-										updateTaskMutation({
-											id: updatedRow.id,
-											updates,
-										}).catch((error) => {
-											console.error('Failed to update task:', error);
-										});
-									}
-								} : undefined}
-							/>
-						)}
+								// Submit to Firebase if there are updates
+								if (Object.keys(updates).length > 0) {
+									updateTaskMutation({
+										id: updatedRow.id,
+										updates,
+									}).catch((error) => {
+										console.error('Failed to update task:', error);
+									});
+								}
+							} : undefined}
+						/>
 					</TaskGridSection>
 				</>
 			)}

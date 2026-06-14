@@ -10,6 +10,7 @@ const db = admin.firestore();
 
 const PROPERTY_GROUP_DELETE_ROLES = ['account_owner', 'admin', 'manager'];
 const BATCH_LIMIT = 450;
+const PROPERTY_GROUP_PLANS = new Set(['property', 'portfolio']);
 
 type DeletePropertyGroupRequest = {
 	groupId?: string;
@@ -24,6 +25,39 @@ type DeletePropertyGroupResult = {
 };
 
 const toString = (value: unknown): string => String(value || '').trim();
+
+const normalizePlanId = (value: unknown): string => {
+	return toString(value).toLowerCase();
+};
+
+const isTrialActive = (subscription: any): boolean => {
+	if (subscription?.status !== 'trial') {
+		return false;
+	}
+
+	if (!subscription.trialEndsAt) {
+		return true;
+	}
+
+	return subscription.trialEndsAt > Date.now() / 1000;
+};
+
+const canUsePropertyGroups = (subscription: any): boolean => {
+	if (!subscription) {
+		return false;
+	}
+
+	if (subscription.status !== 'active' && !isTrialActive(subscription)) {
+		return false;
+	}
+
+	const scheduledPlan = normalizePlanId(subscription.scheduledPlan);
+	const plan =
+		subscription.hasScheduledSubscription && scheduledPlan
+			? scheduledPlan
+			: normalizePlanId(subscription.plan);
+	return PROPERTY_GROUP_PLANS.has(plan);
+};
 
 const chunk = <T>(items: T[], size: number): T[][] => {
 	const chunks: T[][] = [];
@@ -113,6 +147,13 @@ export const deletePropertyGroupCascade = functions
 			}
 
 			await assertAccountRole(uid, accountId, PROPERTY_GROUP_DELETE_ROLES);
+			const accountOwnerDoc = await db.collection('users').doc(accountId).get();
+			if (!canUsePropertyGroups(accountOwnerDoc.data()?.subscription)) {
+				throw new functions.https.HttpsError(
+					'permission-denied',
+					'Property groups are available on Property and Portfolio plans.',
+				);
+			}
 
 			const deleted: Record<string, number> = {};
 			const updated: Record<string, number> = {};

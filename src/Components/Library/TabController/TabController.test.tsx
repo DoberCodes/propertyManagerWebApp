@@ -7,7 +7,7 @@ import { TabController } from './TabController';
 const makeProps = (overrides: any = {}) => ({
 	property: overrides.property || {},
 	currentUser: overrides.currentUser || {
-		subscription: { plan: 'basic' },
+		subscription: { plan: 'property' },
 		role: 'manager',
 	},
 	propertyMaintenanceRequests: overrides.propertyMaintenanceRequests || [],

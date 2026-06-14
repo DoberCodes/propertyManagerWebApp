@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { PropertyDialog, PropertyFormData } from './PropertyDialog';
 import {
@@ -11,7 +11,7 @@ import {
 	PageTitle as StandardPageTitle,
 } from '../Library/PageHeaders';
 import { DeleteConfirmationModal } from '../Library/Modal/DeleteConfirmationModal';
-import { ZeroState } from '../Library/ZeroState';
+import { AppZeroState } from '../Library/AppZeroState';
 import { useRecentlyViewed } from '../../Hooks/useRecentlyViewed';
 import { useFavorites } from '../../Hooks/useFavorites';
 import { RootState } from '../../Redux/store/store';
@@ -38,6 +38,8 @@ import { useCreateNotificationMutation } from '../../Redux/API/notificationSlice
 import {
 	canAddProperty,
 	canPropertyGroups,
+	getEffectiveSubscriptionPlanId,
+	getMaxPropertiesForPlan,
 	getRemainingPropertySlots,
 	getSubscriptionPlanDetails,
 	isTrialExpired,
@@ -152,6 +154,7 @@ const stripUndefinedValues = (value: any): any => {
 
 export const Properties = () => {
 	const navigate = useNavigate();
+	const location = useLocation();
 	const dispatch = useDispatch();
 	const feedback = useAppFeedback();
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
@@ -212,6 +215,14 @@ export const Properties = () => {
 		  canPropertyGroups(currentUser.subscription) &&
 		  !isTrialExpired(currentUser.subscription)
 		: false;
+	const effectivePlanId = getEffectiveSubscriptionPlanId(
+		currentUser?.subscription,
+		'homeowner',
+	);
+	const showPropertyGroupUpsell =
+		!isTeamMemberAccount &&
+		!canManageGroups &&
+		getMaxPropertiesForPlan(effectivePlanId) > 1;
 
 	// Combine groups with their properties
 	const groupsWithProperties = useMemo(() => {
@@ -591,7 +602,7 @@ export const Properties = () => {
 			);
 			if (!canAdd) {
 				const planDetails = getSubscriptionPlanDetails(
-					currentUser.subscription.plan,
+					getEffectiveSubscriptionPlanId(currentUser.subscription),
 				);
 				const maxProperties = planDetails?.maxProperties || 1;
 
@@ -619,6 +630,33 @@ export const Properties = () => {
 		setDialogOpen(true);
 	};
 
+	useEffect(() => {
+		const params = new URLSearchParams(location.search);
+		if (params.get('openCreate') !== '1') {
+			return;
+		}
+
+		if (!canManage) {
+			return;
+		}
+
+		setSelectedGroupForDialog(null);
+		setSelectedPropertyForEdit(null);
+		setPropertyToDuplicate(null);
+		setCopyTasksOnDuplicate(false);
+		setCopyAppliancesOnDuplicate(true);
+		setDialogOpen(true);
+
+		params.delete('openCreate');
+		navigate(
+			{
+				pathname: location.pathname,
+				search: params.toString() ? `?${params.toString()}` : '',
+			},
+			{ replace: true },
+		);
+	}, [location.pathname, location.search, navigate, canManage]);
+
 	const handleEditPropertyClick = (groupId: string, property: any) => {
 		setSelectedGroupForDialog(groupId);
 		setSelectedPropertyForEdit(property);
@@ -645,7 +683,9 @@ export const Properties = () => {
 			currentUser.role,
 		);
 		if (!canAdd) {
-			const planDetails = getSubscriptionPlanDetails(currentUser.subscription.plan);
+			const planDetails = getSubscriptionPlanDetails(
+				getEffectiveSubscriptionPlanId(currentUser.subscription),
+			);
 			const maxProperties = planDetails?.maxProperties || 1;
 			feedback.notify(
 				`Your ${planDetails?.name || 'current'} plan allows up to ${maxProperties} properties. ` +
@@ -1242,7 +1282,9 @@ export const Properties = () => {
 					currentUser.role,
 				)
 			) {
-				const planDetails = getSubscriptionPlanDetails(currentUser.subscription.plan);
+				const planDetails = getSubscriptionPlanDetails(
+					getEffectiveSubscriptionPlanId(currentUser.subscription),
+				);
 				const maxProperties = planDetails?.maxProperties || 1;
 				feedback.notify(
 					`Your ${planDetails?.name || 'current'} plan allows up to ${maxProperties} properties. ` +
@@ -1396,16 +1438,13 @@ export const Properties = () => {
 	}
 
 	if (visibleProperties.length === 0) {
-		const zeroStateTitle = isUserTenant || isTeamMemberAccount
-			? 'No Assigned Properties'
-			: 'No Properties Yet';
-		const zeroStateDescription = isUserTenant || isTeamMemberAccount
-			? 'No property assignments were found for your account. Please contact your account owner or manager.'
-			: 'Add your first property to get started. You will use this screen to choose between properties once you have more than one.';
+		const zeroStateKind = isUserTenant || isTeamMemberAccount
+			? 'noAssignedProperties'
+			: 'noProperties';
 		const zeroStateActions = !isUserTenant && !isTeamMemberAccount && canManage
 			? [
 					{
-						label: '+ Add Property',
+						label: 'Add Property',
 						onClick: handleAddPropertyGlobalClick,
 						variant: 'primary' as const,
 					},
@@ -1413,79 +1452,11 @@ export const Properties = () => {
 			: [];
 
 		return (
-			<Wrapper>
-				<PageHeaderSection>
-					<StandardPageTitle>Properties</StandardPageTitle>
-					{canManage && (
-						<TopActions>
-							<AddPropertyButton
-								disabled={handleDisabled()}
-								onClick={handleAddPropertyGlobalClick}>
-								+ Add Property
-							</AddPropertyButton>
-							{canManageGroups && (
-								<HeaderMenuWrap ref={headerMenuRef}>
-									<HeaderMenuButton
-										onClick={() => setIsHeaderMenuOpen((prev) => !prev)}
-										aria-label='Open group options'>
-										...
-									</HeaderMenuButton>
-									{isHeaderMenuOpen && (
-										<HeaderDropdownMenu>
-											<HeaderDropdownItem onClick={handleHeaderCreateGroup}>
-												<HeaderDropdownIcon>
-													<FontAwesomeIcon icon={faFolderPlus} />
-												</HeaderDropdownIcon>
-												<div>
-													<HeaderDropdownTitle>Create Group</HeaderDropdownTitle>
-												</div>
-											</HeaderDropdownItem>
-											<HeaderDropdownItem onClick={handleHeaderManageGroups}>
-												<HeaderDropdownIcon>
-													<FontAwesomeIcon icon={faUsers} />
-												</HeaderDropdownIcon>
-												<div>
-													<HeaderDropdownTitle>Manage Groups</HeaderDropdownTitle>
-													<HeaderDropdownHint>Rename, reorder, or delete groups</HeaderDropdownHint>
-												</div>
-											</HeaderDropdownItem>
-											<HeaderDropdownItem onClick={handleCollapseAllGroups}>
-												<HeaderDropdownIcon>
-													<FontAwesomeIcon icon={faMinimize} />
-												</HeaderDropdownIcon>
-												<div>
-													<HeaderDropdownTitle>Collapse All Groups</HeaderDropdownTitle>
-												</div>
-											</HeaderDropdownItem>
-											<HeaderDropdownItem onClick={handleHeaderGroupSettings}>
-												<HeaderDropdownIcon>
-													<FontAwesomeIcon icon={faGear} />
-												</HeaderDropdownIcon>
-												<div>
-													<HeaderDropdownTitle>Group Settings</HeaderDropdownTitle>
-													<HeaderDropdownHint>Default group for new properties</HeaderDropdownHint>
-												</div>
-											</HeaderDropdownItem>
-										</HeaderDropdownMenu>
-									)}
-								</HeaderMenuWrap>
-							)}
-						</TopActions>
-					)}
-				</PageHeaderSection>
-				{!isTeamMemberAccount && !canManageGroups && (
-					<LockedFeatureCallout
-						title='Property Groups are locked on your current plan'
-						description='You can still manage individual properties. Upgrade to Portfolio to create, organize, and manage property groups.'
-						upgradeLabel='Upgrade for Groups'
-						compact
-					/>
-				)}
-				<ZeroState
-					icon={isUserTenant ? '🏠' : '📭'}
-					title={zeroStateTitle}
-					description={zeroStateDescription}
+			<>
+				<AppZeroState
+					kind={zeroStateKind}
 					actions={zeroStateActions}
+					fullPage
 				/>
 				<PropertyDialog
 					isOpen={dialogOpen}
@@ -1510,7 +1481,7 @@ export const Properties = () => {
 						return '';
 					}}
 				/>
-			</Wrapper>
+			</>
 		);
 	}
 
@@ -1594,7 +1565,7 @@ export const Properties = () => {
 					)}
 				</TopActions>
 			</PageHeaderSection>
-			{!isTeamMemberAccount && !canManageGroups && (
+			{showPropertyGroupUpsell && (
 				<LockedFeatureCallout
 					title='Property Groups are locked on your current plan'
 					description='Browse your properties normally. Upgrade to Portfolio to build grouped property workspaces.'
@@ -1904,3 +1875,4 @@ export const Properties = () => {
 		</Wrapper>
 	);
 };
+

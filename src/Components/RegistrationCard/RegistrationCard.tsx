@@ -116,7 +116,7 @@ export const RegistrationCard = () => {
 	const enableInviteMode = () => {
 		setInviteMode(true);
 		setAccountType('tenantInvite');
-		setSelectedPlan('free');
+		setSelectedPlan('tenant');
 		setInviteType('tenant');
 		setInviteRole(null);
 		setInviteEmailLocked(false);
@@ -177,7 +177,7 @@ export const RegistrationCard = () => {
 		if (teamInvite.valid) {
 			setInviteType('team');
 			setInviteRole(teamInvite.role || null);
-			setSelectedPlan('free');
+			setSelectedPlan('team');
 			setInviteValidationState('valid');
 			setInviteValidationMessage('Invite code validated successfully.');
 			return true;
@@ -214,7 +214,7 @@ export const RegistrationCard = () => {
 		setInviteMode(true);
 		setAccountType('tenantInvite');
 		setInviteType(inviteTypeParam === 'team' ? 'team' : 'tenant');
-		setSelectedPlan(inviteTypeParam === 'team' ? 'free' : 'tenant');
+		setSelectedPlan(inviteTypeParam === 'team' ? 'team' : 'tenant');
 		setInviteCodeInput(inviteCodeParam);
 
 		if (inviteEmailParam) {
@@ -346,7 +346,7 @@ export const RegistrationCard = () => {
 		} else if (step === 2 && (await validateStep2())) {
 			console.log('[RegistrationCard] Step 2 validated, moving to next step');
 			if (inviteMode || isTenantSignup) {
-				setSelectedPlan(inviteMode && inviteType === 'tenant' ? 'tenant' : isTenantSignup ? 'tenant' : 'free');
+				setSelectedPlan(inviteMode && inviteType === 'tenant' ? 'tenant' : isTenantSignup ? 'tenant' : 'team');
 				setStep(4);
 			} else {
 				setStep(3);
@@ -389,7 +389,7 @@ export const RegistrationCard = () => {
 			const signupPlan = inviteMode
 				? inviteType === 'tenant'
 					? 'tenant'
-					: 'free'
+					: 'team'
 				: isTenantSignup ? 'tenant' : selectedPlan;
 			const effectivePromoCode = inviteMode
 				? inviteCodeInput.trim()

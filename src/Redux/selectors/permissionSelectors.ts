@@ -6,6 +6,7 @@ import {
 	canManageTeam,
 	canManageTenants,
 	canAccessReadOnlyFeatures,
+	getEffectiveSubscriptionPlanId,
 } from '../../utils/subscriptionUtils';
 
 const selectUser = (state: RootState) => state.user.currentUser;
@@ -35,8 +36,8 @@ export const selectIsContractor = createSelector([selectUser], (user) => {
 });
 
 export const selectIsHomeowner = createSelector([selectUser], (user) => {
-	const plan = String(user?.subscription?.plan || '').toLowerCase();
-	return !!user && (plan === 'home' || plan === 'homeowner');
+	const plan = getEffectiveSubscriptionPlanId(user?.subscription, 'homeowner');
+	return !!user && (plan === 'homeowner' || plan === 'homeowner_plus');
 });
 
 export const selectCanAccessTeam = createSelector([selectUser], (user) => {
@@ -65,9 +66,7 @@ export const selectCanAccessProperties = createSelector(
 	(user) => {
 		if (isTeamMemberAccount(user)) return true;
 		if (!user || !user.subscription) return false;
-		const plan = user.subscription.plan;
-		// 'free' and 'homeowner' are legacy plan IDs that map to 'home' — all get property access
-		return !!plan && plan !== '';
+		return !!getEffectiveSubscriptionPlanId(user.subscription, 'homeowner');
 	},
 );
 
@@ -83,3 +82,4 @@ export const selectCanViewAllPages = createSelector([selectUser], (user) => {
 	if (!user) return false;
 	return canViewAllPages(user.role as UserRole);
 });
+

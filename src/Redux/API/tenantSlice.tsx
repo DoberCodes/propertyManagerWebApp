@@ -17,6 +17,7 @@ import {
 	TenantInvitationCode,
 	TenantProfile,
 } from '../../types/TenantProfile.types';
+import { assertCanManageTenants } from './inviteCapabilities';
 
 const mapCallableErrorMessage = (
 	error: any,
@@ -78,6 +79,8 @@ const tenantSlice = apiSlice.injectEndpoints({
 		>({
 			async queryFn(tenantData) {
 				try {
+					const targetUserId = await resolveTargetUserId();
+					await assertCanManageTenants(targetUserId);
 					const propertyRef = doc(db, 'properties', tenantData.propertyId);
 					const propertySnap = await getDoc(propertyRef);
 
@@ -171,6 +174,8 @@ const tenantSlice = apiSlice.injectEndpoints({
 		>({
 			async queryFn({ propertyId, tenantId, updates }) {
 				try {
+					const targetUserId = await resolveTargetUserId();
+					await assertCanManageTenants(targetUserId);
 					const propertyRef = doc(db, 'properties', propertyId);
 					const propertySnap = await getDoc(propertyRef);
 
@@ -388,6 +393,8 @@ const tenantSlice = apiSlice.injectEndpoints({
 		>({
 			async queryFn({ propertyId, tenantId }) {
 				try {
+					const targetUserId = await resolveTargetUserId();
+					await assertCanManageTenants(targetUserId);
 					const propertyRef = doc(db, 'properties', propertyId);
 					const propertySnap = await getDoc(propertyRef);
 

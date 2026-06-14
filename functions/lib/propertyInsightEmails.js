@@ -43,18 +43,6 @@ if (!admin.apps.length) {
     admin.initializeApp();
 }
 const db = admin.firestore();
-const PLAN_ALIASES = {
-    home: 'homeowner',
-    homeowner: 'homeowner',
-    homeowner_plus: 'homeowner_plus',
-    homeownerplus: 'homeowner_plus',
-    'homeowner+': 'homeowner_plus',
-    property: 'property',
-    portfolio: 'portfolio',
-    free: 'homeowner',
-    basic: 'property',
-    professional: 'portfolio',
-};
 const PROPERTY_INSIGHTS_PLANS = new Set([
     'homeowner_plus',
     'property',
@@ -62,8 +50,7 @@ const PROPERTY_INSIGHTS_PLANS = new Set([
 ]);
 const MAX_EMAIL_OBSERVATIONS = 5;
 const normalizePlanId = (planId) => {
-    const normalized = String(planId || '').trim().toLowerCase();
-    return PLAN_ALIASES[normalized] || normalized;
+    return String(planId || '').trim().toLowerCase();
 };
 const getEffectivePlanId = (subscription) => {
     const scheduledPlan = normalizePlanId(subscription === null || subscription === void 0 ? void 0 : subscription.scheduledPlan);

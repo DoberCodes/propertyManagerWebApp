@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useSelector } from 'react-redux';
 import { Navigate } from 'react-router-dom';
 import { RootState } from '../../Redux/store/store';
-import { ZeroState } from '../Library/ZeroState';
+import { AppZeroState } from '../Library/AppZeroState';
 import { PropertyDialog } from './PropertyDialog';
 import { selectIsHomeowner } from '../../Redux/selectors/permissionSelectors';
 import {
@@ -67,19 +67,17 @@ const HomeownerPropertyWrapper: React.FC = () => {
 		// No property: show zero-state
 		return (
 			<>
-				<ZeroState
-					icon='🏠'
-					title='No Property Yet'
-					description="Welcome! Let's get started by adding your property. This will help you manage all your property details and tasks in one place."
+				<AppZeroState
+					kind='noProperties'
 					actions={[
 						{
-							label: '+ Add Your Property',
+							label: 'Add Property',
 							onClick: () => setDialogOpen(true),
 							variant: 'primary',
 						},
 					]}
+					fullPage
 				/>
-
 				<PropertyDialog
 					isOpen={dialogOpen}
 					onClose={() => setDialogOpen(false)}
@@ -110,3 +108,4 @@ const HomeownerPropertyWrapper: React.FC = () => {
 };
 
 export default HomeownerPropertyWrapper;
+

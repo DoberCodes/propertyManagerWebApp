@@ -5,6 +5,50 @@ import { onDocumentCreated } from 'firebase-functions/v2/firestore';
 admin.initializeApp();
 const db = admin.firestore();
 
+const PUSH_NOTIFICATION_PLANS = new Set([
+	'homeowner_plus',
+	'property',
+	'portfolio',
+]);
+
+const isTrialActive = (subscription?: {
+	status?: string;
+	trialEndsAt?: number | null;
+}): boolean => {
+	if (subscription?.status !== 'trial') {
+		return false;
+	}
+
+	if (!subscription.trialEndsAt) {
+		return true;
+	}
+
+	return subscription.trialEndsAt > Date.now() / 1000;
+};
+
+const canUsePushNotifications = (subscription?: {
+	status?: string;
+	plan?: string;
+	hasScheduledSubscription?: boolean;
+	scheduledPlan?: string;
+	trialEndsAt?: number | null;
+}): boolean => {
+	if (!subscription) {
+		return false;
+	}
+
+	if (subscription.status !== 'active' && !isTrialActive(subscription)) {
+		return false;
+	}
+
+	const scheduledPlan = String(subscription.scheduledPlan || '').trim().toLowerCase();
+	const rawPlan =
+		subscription.hasScheduledSubscription && scheduledPlan
+			? scheduledPlan
+			: String(subscription.plan || '').trim().toLowerCase();
+	return PUSH_NOTIFICATION_PLANS.has(rawPlan);
+};
+
 /**
  * Clean up invalid push tokens from user documents
  */
@@ -75,6 +119,13 @@ export const sendPushOnNotificationCreate = onDocumentCreated(
 		const pushToken = user.pushToken;
 		if (!pushToken) {
 			console.log(`No push token for user ${notification.userId}`);
+			return;
+		}
+
+		if (!canUsePushNotifications(user.subscription)) {
+			console.log(
+				`Push skipped for user ${notification.userId}: plan does not include push notifications`,
+			);
 			return;
 		}
 

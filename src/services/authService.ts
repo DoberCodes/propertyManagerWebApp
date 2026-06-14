@@ -24,11 +24,7 @@ import { auth, db, functions } from '../config/firebase';
 import { clearUserLocalStorage } from '../utils/localStorageCleanup';
 import { User } from '../Redux/Slices/userSlice';
 import { USER_ROLES } from '../constants/roles';
-import { createTrialSubscription } from '../utils/subscriptionUtils';
-import {
-	SUBSCRIPTION_STATUS,
-	TRIAL_DURATION_DAYS,
-} from '../constants/subscriptions';
+import { SUBSCRIPTION_STATUS } from '../constants/subscriptions';
 import { getStripePriceIdForPlan } from '../constants/stripe';
 import { createLegalAgreementDocuments } from '../constants/legal';
 import { createCheckoutSession } from './stripeService';
@@ -252,6 +248,20 @@ const createPendingCheckoutSubscription = (
 	};
 };
 
+const createFreeSubscription = (
+	plan: string = 'homeowner',
+): NonNullable<User['subscription']> => {
+	const now = Math.floor(Date.now() / 1000);
+
+	return {
+		status: SUBSCRIPTION_STATUS.ACTIVE,
+		plan,
+		currentPeriodStart: now,
+		currentPeriodEnd: now + 365 * 24 * 60 * 60,
+		trialEndsAt: null,
+	};
+};
+
 type CreateUserSubscriptionResult = {
 	subscription: NonNullable<User['subscription']> & {
 		promoCode?: string;
@@ -260,10 +270,9 @@ type CreateUserSubscriptionResult = {
 };
 
 const NON_BILLABLE_SIGNUP_PLANS = new Set([
-	'free',
-	'home',
 	'homeowner',
 	'guest',
+	'team',
 	'tenant',
 ]);
 
@@ -278,81 +287,40 @@ const createUserSubscription = async (
 ) : Promise<CreateUserSubscriptionResult> => {
 	const normalizedPromoCode = promoCode?.trim() || undefined;
 	const isNonBillablePlan = isNonBillableSignupPlan(selectedPlan);
+	const priceId = getPriceIdForPlan(selectedPlan);
 
 	if (isNonBillablePlan) {
-		const localSubscription = createTrialSubscription(selectedPlan, promoCode);
 		return {
 			subscription: {
-				...localSubscription,
+				...createFreeSubscription(selectedPlan),
 				...(normalizedPromoCode ? { promoCode: normalizedPromoCode } : {}),
 			},
 		};
 	}
 
-	if (normalizedPromoCode) {
-		const priceId = getPriceIdForPlan(selectedPlan);
-		if (!priceId) {
-			throw new Error(`No price ID found for plan: ${selectedPlan}`);
-		}
+	const checkoutUrl = await createCheckoutSession(
+		priceId,
+		userId,
+		email,
+		undefined,
+		normalizedPromoCode,
+		selectedPlan,
+		'month', // Keep registration checkout monthly
+	);
 
-		const checkoutUrl = await createCheckoutSession(
-			priceId,
-			userId,
-			email,
-			undefined,
-			normalizedPromoCode,
-			selectedPlan,
-			'month', // Keep registration checkout monthly
-		);
-
-		return {
-			subscription: createPendingCheckoutSubscription(
-				selectedPlan,
-				normalizedPromoCode,
-			),
-			checkoutUrl,
-		};
-	}
-
-	// Create Stripe subscription setup for paid plans (Stripe is source of truth)
-	try {
-		const createTrial = httpsCallable(functions, 'createTrialSubscription');
-		const result = await createTrial({
-			planId: selectedPlan,
-			promoCode: normalizedPromoCode,
-			userId,
-			email,
-			trialDays: TRIAL_DURATION_DAYS,
-		});
-
-		const data = result.data as {
-			subscriptionId: string;
-			customerId: string;
-			status: string;
-			trialEnd: number;
-		};
-
-		// Return subscription data that matches our local format
-		const now = Math.floor(Date.now() / 1000);
-		return {
-			subscription: {
-				status: SUBSCRIPTION_STATUS.TRIAL,
-				plan: selectedPlan,
-				currentPeriodStart: now,
-				currentPeriodEnd: data.trialEnd,
-				trialEndsAt: data.trialEnd,
-				stripeCustomerId: data.customerId,
-				stripeSubscriptionId: data.subscriptionId,
-				...(normalizedPromoCode ? { promoCode: normalizedPromoCode } : {}),
-			},
-		};
-	} catch (error: any) {
-		console.error('Failed to create Stripe subscription setup:', error);
+	if (!checkoutUrl) {
 		throw new Error(
-			error?.message ||
-				'Stripe subscription setup failed. Verify Stripe price IDs and key mode configuration.',
+			'Unable to start checkout for this plan. Please try again or contact support.',
 		);
 	}
+
+	return {
+		subscription: createPendingCheckoutSubscription(
+			selectedPlan,
+			normalizedPromoCode,
+		),
+		checkoutUrl,
+	};
 };
 
 /**
@@ -451,7 +419,7 @@ export const signUpWithEmail = async (
 		}
 
 		if (inviteType === 'team') {
-			selectedPlan = 'free';
+			selectedPlan = 'team';
 		}
 
 		// Create Firebase Auth user
@@ -491,11 +459,9 @@ export const signUpWithEmail = async (
 		const normalizedPlan = String(selectedPlan || '')
 			.trim()
 			.toLowerCase();
-		const shouldSkipTrialForPromoCheckout =
-			!!promoCode?.trim() && !isNonBillableSignupPlan(normalizedPlan);
-		const provisionalSubscription = shouldSkipTrialForPromoCheckout
-			? createPendingCheckoutSubscription(selectedPlan, promoCode)
-			: createTrialSubscription(selectedPlan, promoCode);
+		const provisionalSubscription = isNonBillableSignupPlan(normalizedPlan)
+			? createFreeSubscription(selectedPlan)
+			: createPendingCheckoutSubscription(selectedPlan, promoCode);
 
 		// Prepare legal agreement data
 		const agreedAt = new Date().toISOString();
@@ -871,9 +837,11 @@ export const getUserProfile = async (uid: string): Promise<User> => {
 		const familyHasStripeSubscription =
 			!!familySubscription?.stripeSubscriptionId;
 		const userHasPaidPlan =
-			!!userSubscription?.plan && userSubscription.plan !== 'free';
+			!!userSubscription?.plan &&
+			!['homeowner', 'guest', 'team', 'tenant'].includes(userSubscription.plan);
 		const familyHasPaidPlan =
-			!!familySubscription?.plan && familySubscription.plan !== 'free';
+			!!familySubscription?.plan &&
+			!['homeowner', 'guest', 'team', 'tenant'].includes(familySubscription.plan);
 
 		const shouldPreferUserSubscription =
 			!!userStatus &&
@@ -930,7 +898,7 @@ export const getUserProfile = async (uid: string): Promise<User> => {
 			const now = Math.floor(Date.now() / 1000);
 			serializedData.subscription = {
 				status: SUBSCRIPTION_STATUS.ACTIVE,
-				plan: 'free',
+				plan: 'homeowner',
 				currentPeriodStart: now,
 				currentPeriodEnd: now + 365 * 24 * 60 * 60, // 1 year
 				trialEndsAt: null,

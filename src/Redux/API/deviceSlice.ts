@@ -27,6 +27,7 @@ type TeamMemberAccess = {
 	id?: string;
 	accountId?: string;
 	email?: string;
+	role?: string;
 	userAccountId?: string;
 	linkedProperties?: string[];
 };
@@ -41,6 +42,9 @@ const getTeamMemberAccessForCurrentUser = async (
 
 	const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
 	const userData = userDoc.data() || {};
+	if (String(userData?.role || '').trim().toLowerCase() === 'admin') {
+		return { isScoped: false, linkedPropertyIds: new Set() };
+	}
 	const isScoped = userData?.isTeamMemberAccount === true;
 	if (!isScoped) {
 		return { isScoped: false, linkedPropertyIds: new Set() };
@@ -57,6 +61,9 @@ const getTeamMemberAccessForCurrentUser = async (
 			if (memberDoc.exists()) {
 				const member = docToData(memberDoc) as TeamMemberAccess;
 				if (!member.accountId || member.accountId === accountId) {
+					if (String(member.role || '').trim().toLowerCase() === 'admin') {
+						return { isScoped: false, linkedPropertyIds: new Set() };
+					}
 					return {
 						isScoped: true,
 						linkedPropertyIds: new Set(member.linkedProperties || []),
@@ -73,6 +80,9 @@ const getTeamMemberAccessForCurrentUser = async (
 		const byUserSnapshot = await getDocs(byUserQuery);
 		if (!byUserSnapshot.empty) {
 			const member = docToData(byUserSnapshot.docs[0]) as TeamMemberAccess;
+			if (String(member.role || '').trim().toLowerCase() === 'admin') {
+				return { isScoped: false, linkedPropertyIds: new Set() };
+			}
 			return {
 				isScoped: true,
 				linkedPropertyIds: new Set(member.linkedProperties || []),
@@ -91,8 +101,11 @@ const getTeamMemberAccessForCurrentUser = async (
 					(member) =>
 						String(member?.email || '').trim().toLowerCase() ===
 						normalizedEmail,
-				);
+			);
 			if (emailMatch) {
+				if (String(emailMatch.role || '').trim().toLowerCase() === 'admin') {
+					return { isScoped: false, linkedPropertyIds: new Set() };
+				}
 				return {
 					isScoped: true,
 					linkedPropertyIds: new Set(emailMatch.linkedProperties || []),

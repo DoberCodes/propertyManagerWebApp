@@ -244,15 +244,15 @@ export const PaywallPage: React.FC<PaywallPageProps> = ({
 		setError(null);
 
 		try {
-			// For free plan, just navigate to dashboard
-			if (planId === 'free') {
+			// Homeowner is the free local plan and does not go through Stripe.
+			if (planId === 'homeowner') {
 				navigate('/dashboard');
 				return;
 			}
 
 			// Create checkout session for paid plans
 			const priceId = getPriceIdForPlan(planId);
-			if (!priceId || !userId || !userEmail) {
+			if (!userId || !userEmail) {
 				setError('Unable to process payment. Please ensure you are logged in.');
 				setLoading(false);
 				return;

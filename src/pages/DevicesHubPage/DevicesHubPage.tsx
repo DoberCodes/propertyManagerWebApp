@@ -17,6 +17,7 @@ import { useGetAllDevicesQuery } from '../../Redux/API/deviceSlice';
 import { useGetPropertiesQuery } from '../../Redux/API/propertySlice';
 import { useGetTasksQuery } from '../../Redux/API/taskSlice';
 import { useGetAllMaintenanceHistoryForUserQuery } from '../../Redux/API/userSlice';
+import { AppZeroState } from '../../Components/Library/AppZeroState';
 import { buildDeviceSlug } from '../../utils/deviceSlug';
 import {
 	getMaintenanceEventDate,
@@ -782,7 +783,8 @@ const getUpcomingMaintenanceDate = (linkedOpenTasks: any[]): string | undefined 
 export const DevicesHubPage: React.FC = () => {
 	const navigate = useNavigate();
 	const { data: devices = [], isLoading } = useGetAllDevicesQuery();
-	const { data: properties = [] } = useGetPropertiesQuery();
+	const { data: properties = [], isLoading: isLoadingProperties } =
+		useGetPropertiesQuery();
 	const { data: allTasks = [] } = useGetTasksQuery();
 	const { data: allMaintenanceHistory = [] } = useGetAllMaintenanceHistoryForUserQuery();
 
@@ -1164,6 +1166,26 @@ export const DevicesHubPage: React.FC = () => {
 		return `/property/${property.slug}/device/${buildDeviceSlug(row.device)}`;
 	}, [deviceRows, properties]);
 
+	if (!isLoadingProperties && properties.length === 0) {
+		return (
+			<AppZeroState
+				kind='noProperties'
+				actions={[{ label: 'Add Property', onClick: () => navigate('/properties?openCreate=1') }]}
+				fullPage
+			/>
+		);
+	}
+
+	if (!isLoading && deviceRows.length === 0) {
+		return (
+			<AppZeroState
+				kind='noAppliances'
+				actions={[{ label: 'Open Properties', onClick: () => navigate('/properties') }]}
+				fullPage
+			/>
+		);
+	}
+
 	return (
 		<Wrapper>
 			<Header>
@@ -1226,26 +1248,20 @@ export const DevicesHubPage: React.FC = () => {
 				</FilterResultCount>
 			</FilterBar>
 
-			{!isLoading && deviceRows.length === 0 ? (
-				<EmptyState>
-					<div>No appliances yet. Add your first appliance from a property page to begin maintenance tracking.</div>
-					<button type='button' onClick={() => navigate('/properties')}>
-						Open Properties
-					</button>
-				</EmptyState>
-			) : !isLoading && filteredDeviceRows.length === 0 ? (
-				<EmptyState>
-					<div>No appliances match your current filters.</div>
-					<button
-						type='button'
-						onClick={() => {
-							setSearchQuery('');
-							setStatusFilter('All');
-							setPropertyFilter('');
-						}}>
-						Clear Filters
-					</button>
-				</EmptyState>
+			{!isLoading && filteredDeviceRows.length === 0 ? (
+				<AppZeroState
+					kind='noApplianceMatches'
+					actions={[
+						{
+							label: 'Clear Filters',
+							onClick: () => {
+								setSearchQuery('');
+								setStatusFilter('All');
+								setPropertyFilter('');
+							},
+						},
+					]}
+				/>
 			) : (
 				<List>
 					{filteredDeviceRows.map((row) => {

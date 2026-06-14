@@ -42,9 +42,8 @@ if (!admin.apps.length) {
 }
 const db = admin.firestore();
 const PLAN_CAPABILITIES = {
-    // Support both current plan IDs and legacy aliases.
-    team: new Set(['portfolio', 'professional']),
-    tenant: new Set(['property', 'portfolio', 'professional']),
+    team: new Set(['property', 'portfolio']),
+    tenant: new Set(['property', 'portfolio']),
 };
 const isTrialActive = (subscription) => {
     if (subscription.status !== 'trial') {

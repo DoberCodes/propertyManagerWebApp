@@ -87,9 +87,8 @@ import {
 	UrgentTaskActions,
 	UrgentActionButton,
 	UrgentQueueEmpty,
-	EmptyDashboardState,
-	EmptyDashboardCard,
 } from './DashboardTab.styles';
+import { AppZeroState } from 'Components/Library/AppZeroState';
 import { SeasonalMaintenance } from 'Components/SeasonalMaintenance';
 import { SeasonalCard } from 'data/seasonalTipCards';
 import { useTaskHandlers } from 'pages/PropertyDetailPage/useTaskHandlers';
@@ -992,19 +991,11 @@ export const DashboardTab = () => {
 
 	if (!isUserTenant && !isLoadingProperties && allProperties.length === 0) {
 		return (
-			<Wrapper>
-				<EmptyDashboardState>
-					<EmptyDashboardCard>
-						<h1>No property added yet</h1>
-						<p>
-							Add your first property to turn on the dashboard. Tasks, appliances, maintenance history, and alerts will start organizing around it.
-						</p>
-						<button type='button' onClick={() => navigate('/properties')}>
-							Add Property
-						</button>
-					</EmptyDashboardCard>
-				</EmptyDashboardState>
-			</Wrapper>
+			<AppZeroState
+				kind='noProperties'
+				actions={[{ label: 'Add Property', onClick: () => navigate('/properties?openCreate=1') }]}
+				fullPage
+			/>
 		);
 	}
 
@@ -1221,7 +1212,23 @@ export const DashboardTab = () => {
 				</UrgentQueueHeader>
 
 				{urgentTasks.length === 0 ? (
-					<UrgentQueueEmpty>Nothing urgent right now. Great job.</UrgentQueueEmpty>
+					filteredTasks.length === 0 ? (
+						<AppZeroState
+							kind='noTasks'
+							actions={[
+								{
+									label: 'Add Task',
+									onClick: () => {
+										setSeasonalTaskDraft(null);
+										setEditingTaskId(null);
+										setShowTaskDialog(true);
+									},
+								},
+							]}
+						/>
+					) : (
+						<UrgentQueueEmpty>Nothing urgent right now. Great job.</UrgentQueueEmpty>
+					)
 				) : (
 					<UrgentTaskList>
 						{overdueUrgentTasks.length > 0 && (

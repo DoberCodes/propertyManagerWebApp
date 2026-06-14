@@ -43,6 +43,22 @@ const stripe_1 = __importDefault(require("stripe"));
 const params_1 = require("firebase-functions/params");
 const STRIPE_SECRET_KEY = (0, params_1.defineSecret)('STRIPE_SECRET_KEY');
 const STRIPE_WEBHOOK_SECRET = (0, params_1.defineSecret)('STRIPE_WEBHOOK_SECRET');
+const FUNCTIONS_CONFIG_EXPORT = (0, params_1.defineJsonSecret)('FUNCTIONS_CONFIG_EXPORT');
+const STRIPE_FUNCTION_SECRETS = [STRIPE_SECRET_KEY, FUNCTIONS_CONFIG_EXPORT];
+const STRIPE_WEBHOOK_SECRETS = [
+    STRIPE_SECRET_KEY,
+    STRIPE_WEBHOOK_SECRET,
+    FUNCTIONS_CONFIG_EXPORT,
+];
+const optionalStringParam = (name) => (0, params_1.defineString)(name, { default: '' });
+const STRIPE_PRICE_PARAMS = {
+    homeownerPlusMonthlyPriceId: optionalStringParam('STRIPE_HOMEOWNER_PLUS_MONTHLY_PRICE_ID'),
+    homeownerPlusAnnualPriceId: optionalStringParam('STRIPE_HOMEOWNER_PLUS_ANNUAL_PRICE_ID'),
+    propertyMonthlyPriceId: optionalStringParam('STRIPE_PROPERTY_MONTHLY_PRICE_ID'),
+    propertyAnnualPriceId: optionalStringParam('STRIPE_PROPERTY_ANNUAL_PRICE_ID'),
+    portfolioMonthlyPriceId: optionalStringParam('STRIPE_PORTFOLIO_MONTHLY_PRICE_ID'),
+    portfolioAnnualPriceId: optionalStringParam('STRIPE_PORTFOLIO_ANNUAL_PRICE_ID'),
+};
 if (!admin.apps.length) {
     admin.initializeApp();
 }
@@ -53,21 +69,48 @@ const sanitizeSecret = (value) => {
         .replace(/[\u0000-\u001F\u007F]/g, '')
         .trim();
 };
-const getLegacyStripeConfig = () => {
-    var _a, _b;
+const readStringParam = (param) => {
     try {
-        const legacyConfig = (_b = (_a = functions).config) === null || _b === void 0 ? void 0 : _b.call(_a);
-        return ((legacyConfig === null || legacyConfig === void 0 ? void 0 : legacyConfig.stripe) || {});
+        return sanitizeSecret(param.value() || process.env[param.name] || '');
     }
     catch (error) {
+        return sanitizeSecret(process.env[param.name] || '');
+    }
+};
+const readEnv = (name) => sanitizeSecret(process.env[name] || '');
+let exportedFunctionsConfigCache;
+const getExportedFunctionsConfig = () => {
+    if (exportedFunctionsConfigCache !== undefined) {
+        return exportedFunctionsConfigCache || {};
+    }
+    try {
+        exportedFunctionsConfigCache = FUNCTIONS_CONFIG_EXPORT.value() || {};
+        return exportedFunctionsConfigCache;
+    }
+    catch (error) {
+        const rawExport = readEnv('FUNCTIONS_CONFIG_EXPORT');
+        if (rawExport) {
+            try {
+                exportedFunctionsConfigCache = JSON.parse(rawExport);
+                return exportedFunctionsConfigCache || {};
+            }
+            catch (parseError) {
+                console.warn('Unable to parse FUNCTIONS_CONFIG_EXPORT as JSON.');
+            }
+        }
+        exportedFunctionsConfigCache = null;
         return {};
     }
+};
+const readExportedStripeConfig = (key) => {
+    var _a;
+    const exportedConfig = getExportedFunctionsConfig();
+    return sanitizeSecret(((_a = exportedConfig === null || exportedConfig === void 0 ? void 0 : exportedConfig.stripe) === null || _a === void 0 ? void 0 : _a[key]) || '');
 };
 const normalizePromoCode = (value) => {
     return sanitizeSecret(String(value || ''));
 };
 const resolveStripeSecretKey = () => {
-    var _a, _b, _c;
     let secretFromManager = '';
     try {
         secretFromManager = STRIPE_SECRET_KEY.value() || '';
@@ -75,16 +118,9 @@ const resolveStripeSecretKey = () => {
     catch (error) {
         console.warn('Unable to read STRIPE_SECRET_KEY from Secret Manager');
     }
-    let secretFromFunctionsConfig = '';
-    try {
-        const legacyConfig = (_b = (_a = functions).config) === null || _b === void 0 ? void 0 : _b.call(_a);
-        secretFromFunctionsConfig = ((_c = legacyConfig === null || legacyConfig === void 0 ? void 0 : legacyConfig.stripe) === null || _c === void 0 ? void 0 : _c.secret_key) || '';
-    }
-    catch (error) {
-        console.warn('Legacy functions.config() is unavailable in this runtime');
-    }
     const secretFromEnv = process.env.STRIPE_SECRET_KEY || '';
-    return sanitizeSecret(secretFromManager || secretFromFunctionsConfig || secretFromEnv);
+    const secretFromExportedConfig = readExportedStripeConfig('secret_key');
+    return sanitizeSecret(secretFromManager || secretFromEnv || secretFromExportedConfig);
 };
 const resolveStripeWebhookSecret = () => {
     let secretFromManager = '';
@@ -95,13 +131,14 @@ const resolveStripeWebhookSecret = () => {
         console.warn('Unable to read STRIPE_WEBHOOK_SECRET from Secret Manager');
     }
     const secretFromEnv = process.env.STRIPE_WEBHOOK_SECRET || '';
-    return sanitizeSecret(secretFromManager || secretFromEnv);
+    const secretFromExportedConfig = readExportedStripeConfig('webhook_secret');
+    return sanitizeSecret(secretFromManager || secretFromEnv || secretFromExportedConfig);
 };
 const getStripe = () => {
     if (!stripe) {
         const stripeSecretKey = resolveStripeSecretKey();
         if (!stripeSecretKey) {
-            throw new Error('Stripe secret key is not configured. Set STRIPE_SECRET_KEY (Secret Manager) or stripe.secret_key (functions config).');
+            throw new Error('Stripe secret key is not configured. Set STRIPE_SECRET_KEY in Secret Manager or the functions environment.');
         }
         stripe = new stripe_1.default(stripeSecretKey, {
             apiVersion: '2023-10-16',
@@ -113,89 +150,40 @@ const getStripe = () => {
 const resolvePriceIdForPlan = (planId, billingCycle = 'month') => {
     const normalizedPlan = String(planId || '').trim().toLowerCase();
     const normalizedCycle = billingCycle === 'year' ? 'year' : 'month';
-    const legacyStripe = getLegacyStripeConfig();
-    const homePriceId = sanitizeSecret(process.env.STRIPE_HOME_MONTHLY_PRICE_ID || '') ||
-        sanitizeSecret(process.env.STRIPE_HOME_PRICE_ID || '') ||
-        sanitizeSecret(legacyStripe.home_monthly_price_id || '') ||
-        sanitizeSecret(legacyStripe.home_price_id || '') ||
-        sanitizeSecret(process.env.REACT_APP_STRIPE_HOME_PLAN_ID || '') ||
-        sanitizeSecret(process.env.STRIPE_HOMEOWNER_PRICE_ID || '') ||
-        sanitizeSecret(legacyStripe.homeowner_price_id || '') ||
-        sanitizeSecret(process.env.REACT_APP_STRIPE_HOMEOWNER_PLAN_ID || '');
-    const homeAnnualPriceId = sanitizeSecret(process.env.STRIPE_HOME_ANNUAL_PRICE_ID || '') ||
-        sanitizeSecret(legacyStripe.home_annual_price_id || '') ||
-        sanitizeSecret(process.env.REACT_APP_STRIPE_HOME_ANNUAL_PLAN_ID || '');
-    const homeownerLegacyPriceId = sanitizeSecret(process.env.STRIPE_HOMEOWNER_PRICE_ID || '') ||
-        sanitizeSecret(legacyStripe.homeowner_price_id || '') ||
-        sanitizeSecret(process.env.REACT_APP_STRIPE_HOMEOWNER_PLAN_ID || '');
-    const homeownerPlusPriceId = sanitizeSecret(process.env.STRIPE_HOMEOWNER_PLUS_MONTHLY_PRICE_ID || '') ||
-        sanitizeSecret(process.env.STRIPE_HOMEOWNER_PLUS_PRICE_ID || '') ||
-        sanitizeSecret(process.env.REACT_APP_STRIPE_HOMEOWNER_PLUS_MONTHLY_PLAN_ID || '') ||
-        sanitizeSecret(process.env.REACT_APP_STRIPE_HOMEOWNER_PLUS_PLAN_ID || '');
-    const homeownerPlusAnnualPriceId = sanitizeSecret(process.env.STRIPE_HOMEOWNER_PLUS_ANNUAL_PRICE_ID || '') ||
-        sanitizeSecret(process.env.REACT_APP_STRIPE_HOMEOWNER_PLUS_ANNUAL_PLAN_ID || '');
-    const propertyPriceId = sanitizeSecret(process.env.STRIPE_PROPERTY_MONTHLY_PRICE_ID || '') ||
-        sanitizeSecret(process.env.STRIPE_PROPERTY_PRICE_ID || '') ||
-        sanitizeSecret(legacyStripe.property_monthly_price_id || '') ||
-        sanitizeSecret(legacyStripe.property_price_id || '') ||
-        sanitizeSecret(process.env.REACT_APP_STRIPE_PROPERTY_PLAN_ID || '') ||
-        sanitizeSecret(process.env.STRIPE_BASIC_PRICE_ID || '') ||
-        sanitizeSecret(legacyStripe.basic_price_id || '') ||
-        sanitizeSecret(process.env.REACT_APP_STRIPE_BASIC_PLAN_ID || '');
-    const propertyAnnualPriceId = sanitizeSecret(process.env.STRIPE_PROPERTY_ANNUAL_PRICE_ID || '') ||
-        sanitizeSecret(legacyStripe.property_annual_price_id || '') ||
-        sanitizeSecret(process.env.REACT_APP_STRIPE_PROPERTY_ANNUAL_PLAN_ID || '');
-    const basicLegacyPriceId = sanitizeSecret(process.env.STRIPE_BASIC_PRICE_ID || '') ||
-        sanitizeSecret(legacyStripe.basic_price_id || '') ||
-        sanitizeSecret(process.env.REACT_APP_STRIPE_BASIC_PLAN_ID || '');
-    const portfolioPriceId = sanitizeSecret(process.env.STRIPE_PORTFOLIO_MONTHLY_PRICE_ID || '') ||
-        sanitizeSecret(process.env.STRIPE_PORTFOLIO_PRICE_ID || '') ||
-        sanitizeSecret(legacyStripe.portfolio_monthly_price_id || '') ||
-        sanitizeSecret(legacyStripe.portfolio_price_id || '') ||
-        sanitizeSecret(process.env.REACT_APP_STRIPE_PORTFOLIO_PLAN_ID || '') ||
-        sanitizeSecret(process.env.STRIPE_PROFESSIONAL_PRICE_ID || '') ||
-        sanitizeSecret(legacyStripe.professional_price_id || '') ||
-        sanitizeSecret(process.env.REACT_APP_STRIPE_PROFESSIONAL_PLAN_ID || '');
-    const portfolioAnnualPriceId = sanitizeSecret(process.env.STRIPE_PORTFOLIO_ANNUAL_PRICE_ID || '') ||
-        sanitizeSecret(legacyStripe.portfolio_annual_price_id || '') ||
-        sanitizeSecret(process.env.REACT_APP_STRIPE_PORTFOLIO_ANNUAL_PLAN_ID || '');
-    const professionalLegacyPriceId = sanitizeSecret(process.env.STRIPE_PROFESSIONAL_PRICE_ID || '') ||
-        sanitizeSecret(legacyStripe.professional_price_id || '') ||
-        sanitizeSecret(process.env.REACT_APP_STRIPE_PROFESSIONAL_PLAN_ID || '');
-    const freePriceId = sanitizeSecret(process.env.STRIPE_FREE_PRICE_ID || '') ||
-        sanitizeSecret(legacyStripe.free_price_id || '') ||
-        sanitizeSecret(process.env.REACT_APP_STRIPE_FREE_PLAN_ID || '');
+    const homeownerPlusPriceId = readStringParam(STRIPE_PRICE_PARAMS.homeownerPlusMonthlyPriceId) ||
+        readEnv('STRIPE_HOMEOWNER_PLUS_PRICE_ID') ||
+        readExportedStripeConfig('homeowner_plus_monthly_price_id') ||
+        readExportedStripeConfig('homeowner_plus_price_id') ||
+        readEnv('REACT_APP_STRIPE_HOMEOWNER_PLUS_MONTHLY_PLAN_ID') ||
+        readEnv('REACT_APP_STRIPE_HOMEOWNER_PLUS_PLAN_ID');
+    const homeownerPlusAnnualPriceId = readStringParam(STRIPE_PRICE_PARAMS.homeownerPlusAnnualPriceId) ||
+        readExportedStripeConfig('homeowner_plus_annual_price_id') ||
+        readEnv('REACT_APP_STRIPE_HOMEOWNER_PLUS_ANNUAL_PLAN_ID');
+    const propertyPriceId = readStringParam(STRIPE_PRICE_PARAMS.propertyMonthlyPriceId) ||
+        readEnv('STRIPE_PROPERTY_PRICE_ID') ||
+        readExportedStripeConfig('property_monthly_price_id') ||
+        readExportedStripeConfig('property_price_id') ||
+        readEnv('REACT_APP_STRIPE_PROPERTY_PLAN_ID');
+    const propertyAnnualPriceId = readStringParam(STRIPE_PRICE_PARAMS.propertyAnnualPriceId) ||
+        readExportedStripeConfig('property_annual_price_id') ||
+        readEnv('REACT_APP_STRIPE_PROPERTY_ANNUAL_PLAN_ID');
+    const portfolioPriceId = readStringParam(STRIPE_PRICE_PARAMS.portfolioMonthlyPriceId) ||
+        readEnv('STRIPE_PORTFOLIO_PRICE_ID') ||
+        readExportedStripeConfig('portfolio_monthly_price_id') ||
+        readExportedStripeConfig('portfolio_price_id') ||
+        readEnv('REACT_APP_STRIPE_PORTFOLIO_PLAN_ID');
+    const portfolioAnnualPriceId = readStringParam(STRIPE_PRICE_PARAMS.portfolioAnnualPriceId) ||
+        readExportedStripeConfig('portfolio_annual_price_id') ||
+        readEnv('REACT_APP_STRIPE_PORTFOLIO_ANNUAL_PLAN_ID');
     const monthlyPriceMap = {
-        home: homePriceId,
         homeowner_plus: homeownerPlusPriceId,
         property: propertyPriceId,
         portfolio: portfolioPriceId,
-        // Legacy aliases
-        homeowner: homePriceId || homeownerLegacyPriceId,
-        homeownerplus: homeownerPlusPriceId,
-        'homeowner+': homeownerPlusPriceId,
-        basic: propertyPriceId || basicLegacyPriceId,
-        professional: portfolioPriceId || professionalLegacyPriceId,
-        free: freePriceId,
-        guest: freePriceId,
-        tenant: freePriceId,
     };
     const annualPriceMap = {
-        home: homeAnnualPriceId || homePriceId,
         homeowner_plus: homeownerPlusAnnualPriceId || homeownerPlusPriceId,
         property: propertyAnnualPriceId || propertyPriceId,
         portfolio: portfolioAnnualPriceId || portfolioPriceId,
-        // Legacy aliases
-        homeowner: homeAnnualPriceId || homePriceId || homeownerLegacyPriceId,
-        homeownerplus: homeownerPlusAnnualPriceId || homeownerPlusPriceId,
-        'homeowner+': homeownerPlusAnnualPriceId || homeownerPlusPriceId,
-        basic: propertyAnnualPriceId || propertyPriceId || basicLegacyPriceId,
-        professional: portfolioAnnualPriceId ||
-            portfolioPriceId ||
-            professionalLegacyPriceId,
-        free: freePriceId,
-        guest: freePriceId,
-        tenant: freePriceId,
     };
     return ((normalizedCycle === 'year' ? annualPriceMap : monthlyPriceMap)[normalizedPlan] || '');
 };
@@ -231,7 +219,7 @@ const toLocalSubscriptionStatus = (stripeStatus) => {
     return stripeStatus || 'expired';
 };
 const findReusableSubscription = async (customerId, existingSubscriptionId) => {
-    const reusableStatuses = new Set(['active', 'trialing', 'past_due', 'incomplete']);
+    const reusableStatuses = new Set(['active', 'trialing', 'past_due']);
     if (existingSubscriptionId) {
         try {
             const subscription = await getStripe().subscriptions.retrieve(existingSubscriptionId);
@@ -274,21 +262,22 @@ const syncFamilyAccountSubscription = async (userData, subscription) => {
  * Body: { priceId, userId, email, successUrl, cancelUrl }
  */
 exports.createCheckoutSession = functions
-    .runWith({ secrets: ['STRIPE_SECRET_KEY'] })
+    .runWith({ secrets: STRIPE_FUNCTION_SECRETS })
     .https.onCall(async (data, context) => {
     var _a, _b, _c, _d, _e, _f, _g, _h, _j;
     // Verify user is authenticated
     if (!context.auth) {
         throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
     }
-    const { priceId: legacyPriceId, planId, billingCycle, userId, email, successUrl, cancelUrl, promoCode: requestedPromoCode, } = data;
+    const { priceId: requestedPriceId, planId, billingCycle, userId, email, successUrl, cancelUrl, promoCode: requestedPromoCode, } = data;
     const normalizedPlanId = String(planId || '').trim().toLowerCase();
     const resolvedPlanPriceId = resolvePriceIdForPlan(normalizedPlanId, String(billingCycle || '').toLowerCase() === 'year' ? 'year' : 'month');
+    const resolvedRequestedPriceId = sanitizeSecret(String(requestedPriceId || ''));
     const resolvedPriceId = normalizedPlanId
-        ? resolvedPlanPriceId
-        : sanitizeSecret(String(legacyPriceId || ''));
+        ? resolvedPlanPriceId || resolvedRequestedPriceId
+        : resolvedRequestedPriceId;
     if (!resolvedPriceId || !userId || !email) {
-        throw new functions.https.HttpsError('invalid-argument', `Missing required Stripe configuration: no price ID resolved for plan '${String(planId || '')}'. Configure STRIPE_*_PRICE_ID in functions environment.`);
+        throw new functions.https.HttpsError('invalid-argument', `Missing required Stripe configuration: no price ID resolved for plan '${String(planId || '')}'. Provide a valid price ID in the client request or configure STRIPE_*_PRICE_ID in functions environment.`);
     }
     try {
         console.log('Creating checkout session with:', {
@@ -359,7 +348,7 @@ exports.createCheckoutSession = functions
             const updatedPriceId = ((_f = (_e = updatedSubscription.items.data[0]) === null || _e === void 0 ? void 0 : _e.price) === null || _f === void 0 ? void 0 : _f.id) || resolvedPriceId;
             const subscriptionData = removeUndefinedFields({
                 status: toLocalSubscriptionStatus(updatedSubscription.status),
-                plan: getPlanFromPriceId(updatedPriceId, normalizedPlanId || ((_g = userData === null || userData === void 0 ? void 0 : userData.subscription) === null || _g === void 0 ? void 0 : _g.plan) || 'home'),
+                plan: getPlanFromPriceId(updatedPriceId, normalizedPlanId || ((_g = userData === null || userData === void 0 ? void 0 : userData.subscription) === null || _g === void 0 ? void 0 : _g.plan) || 'homeowner'),
                 currentPeriodStart: updatedSubscription.current_period_start,
                 currentPeriodEnd: updatedSubscription.current_period_end,
                 trialEndsAt: updatedSubscription.trial_end,
@@ -425,7 +414,7 @@ exports.createCheckoutSession = functions
  * Callable body: { promoCode }
  */
 exports.validatePromotionCode = functions
-    .runWith({ secrets: ['STRIPE_SECRET_KEY'] })
+    .runWith({ secrets: STRIPE_FUNCTION_SECRETS })
     .https.onCall(async (data) => {
     const normalizedPromoCode = normalizePromoCode(data === null || data === void 0 ? void 0 : data.promoCode).toLowerCase();
     if (!normalizedPromoCode) {
@@ -466,17 +455,17 @@ exports.validatePromotionCode = functions
  * Body: { priceId, userId, email, trialDays }
  */
 exports.createTrialSubscription = functions
-    .runWith({ secrets: ['STRIPE_SECRET_KEY'] })
+    .runWith({ secrets: STRIPE_FUNCTION_SECRETS })
     .https.onCall(async (data, context) => {
     var _a;
     // Verify user is authenticated
     if (!context.auth) {
         throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
     }
-    const { priceId: legacyPriceId, planId, promoCode, userId, email, trialDays = 30, } = data;
+    const { priceId: requestedPriceId, planId, promoCode, userId, email, trialDays = 30, } = data;
     const normalizedPromoCode = normalizePromoCode(promoCode);
     const resolvedPriceId = resolvePriceIdForPlan(String(planId || '')) ||
-        sanitizeSecret(String(legacyPriceId || ''));
+        sanitizeSecret(String(requestedPriceId || ''));
     if (!resolvedPriceId || !userId || !email) {
         throw new functions.https.HttpsError('invalid-argument', `Missing required Stripe configuration: no price ID resolved for plan '${String(planId || '')}'. Configure STRIPE_*_PRICE_ID in functions environment.`);
     }
@@ -547,7 +536,7 @@ exports.createTrialSubscription = functions
  * Body: { sessionId }
  */
 exports.verifyCheckoutSession = functions
-    .runWith({ secrets: ['STRIPE_SECRET_KEY'] })
+    .runWith({ secrets: STRIPE_FUNCTION_SECRETS })
     .https.onCall(async (data, context) => {
     var _a;
     if (!context.auth) {
@@ -603,7 +592,7 @@ exports.verifyCheckoutSession = functions
  * Body: { subscriptionId }
  */
 exports.cancelSubscription = functions
-    .runWith({ secrets: ['STRIPE_SECRET_KEY'] })
+    .runWith({ secrets: STRIPE_FUNCTION_SECRETS })
     .https.onCall(async (data, context) => {
     if (!context.auth) {
         throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
@@ -647,7 +636,7 @@ exports.cancelSubscription = functions
  * GET /api/subscription-details/:subscriptionId
  */
 exports.getSubscriptionDetails = functions
-    .runWith({ secrets: ['STRIPE_SECRET_KEY'] })
+    .runWith({ secrets: STRIPE_FUNCTION_SECRETS })
     .https.onCall(async (data, context) => {
     if (!context.auth) {
         throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
@@ -670,7 +659,7 @@ exports.getSubscriptionDetails = functions
  * Backstop for missed webhook deliveries or manual Stripe dashboard edits.
  */
 exports.syncSubscriptionFromStripe = functions
-    .runWith({ secrets: ['STRIPE_SECRET_KEY'] })
+    .runWith({ secrets: STRIPE_FUNCTION_SECRETS })
     .https.onCall(async (_data, context) => {
     var _a, _b, _c;
     if (!((_a = context.auth) === null || _a === void 0 ? void 0 : _a.uid)) {
@@ -731,7 +720,7 @@ exports.syncSubscriptionFromStripe = functions
         '';
     const subscriptionPatch = removeUndefinedFields({
         status: localStatus,
-        plan: getPlanFromPriceId(String(currentPriceId), String(existingSubscription.plan || 'free')),
+        plan: getPlanFromPriceId(String(currentPriceId), String(existingSubscription.plan || 'homeowner')),
         currentPeriodStart: stripeSubscription.current_period_start,
         currentPeriodEnd: stripeSubscription.current_period_end,
         trialEndsAt: stripeSubscription.trial_end,
@@ -759,7 +748,7 @@ exports.syncSubscriptionFromStripe = functions
  * POST /stripe/webhook
  */
 exports.stripeWebhook = functions
-    .runWith({ secrets: ['STRIPE_SECRET_KEY', 'STRIPE_WEBHOOK_SECRET'] })
+    .runWith({ secrets: STRIPE_WEBHOOK_SECRETS })
     .https.onRequest(async (req, res) => {
     const signatureHeader = req.headers['stripe-signature'];
     const sig = Array.isArray(signatureHeader)
@@ -864,7 +853,7 @@ const handleSubscriptionUpdate = async (subscription) => {
                     : subscription.status === 'trialing'
                         ? 'trial'
                         : subscription.status,
-                plan: getPlanFromPriceId(subscription.items.data[0].price.id, ((_a = userData === null || userData === void 0 ? void 0 : userData.subscription) === null || _a === void 0 ? void 0 : _a.plan) || 'free'),
+                plan: getPlanFromPriceId(subscription.items.data[0].price.id, ((_a = userData === null || userData === void 0 ? void 0 : userData.subscription) === null || _a === void 0 ? void 0 : _a.plan) || 'homeowner'),
                 currentPeriodStart: subscription.current_period_start,
                 currentPeriodEnd: subscription.current_period_end,
                 trialEndsAt: subscription.trial_end,
@@ -1005,7 +994,7 @@ const handleSubscriptionCreated = async (subscription) => {
                     : subscription.status === 'trialing'
                         ? 'trial'
                         : subscription.status,
-                plan: getPlanFromPriceId(subscription.items.data[0].price.id, ((_a = userData === null || userData === void 0 ? void 0 : userData.subscription) === null || _a === void 0 ? void 0 : _a.plan) || 'free'),
+                plan: getPlanFromPriceId(subscription.items.data[0].price.id, ((_a = userData === null || userData === void 0 ? void 0 : userData.subscription) === null || _a === void 0 ? void 0 : _a.plan) || 'homeowner'),
                 currentPeriodStart: subscription.current_period_start,
                 currentPeriodEnd: subscription.current_period_end,
                 trialEndsAt: subscription.trial_end,
@@ -1246,56 +1235,32 @@ const handleDiscountDeleted = async (discount) => {
 /**
  * Helper function to map Stripe price ID to plan name
  */
-function getPlanFromPriceId(priceId, fallbackPlan = 'free') {
-    const homePriceIds = [
-        process.env.STRIPE_HOME_MONTHLY_PRICE_ID,
-        process.env.STRIPE_HOME_ANNUAL_PRICE_ID,
-        process.env.REACT_APP_STRIPE_HOME_ANNUAL_PLAN_ID,
-        process.env.STRIPE_HOME_PRICE_ID,
-        process.env.REACT_APP_STRIPE_HOME_PLAN_ID,
-        process.env.STRIPE_HOMEOWNER_PRICE_ID,
-        process.env.REACT_APP_STRIPE_HOMEOWNER_PLAN_ID,
-        'price_home',
-        'price_homeowner',
-    ].filter(Boolean);
+function getPlanFromPriceId(priceId, fallbackPlan = 'homeowner') {
     const homeownerPlusPriceIds = [
-        process.env.STRIPE_HOMEOWNER_PLUS_MONTHLY_PRICE_ID,
-        process.env.STRIPE_HOMEOWNER_PLUS_ANNUAL_PRICE_ID,
-        process.env.REACT_APP_STRIPE_HOMEOWNER_PLUS_MONTHLY_PLAN_ID,
-        process.env.REACT_APP_STRIPE_HOMEOWNER_PLUS_ANNUAL_PLAN_ID,
-        process.env.STRIPE_HOMEOWNER_PLUS_PRICE_ID,
-        process.env.REACT_APP_STRIPE_HOMEOWNER_PLUS_PLAN_ID,
-        'price_homeowner_plus',
-        'price_homeowner_plus_annual',
+        readStringParam(STRIPE_PRICE_PARAMS.homeownerPlusMonthlyPriceId),
+        readStringParam(STRIPE_PRICE_PARAMS.homeownerPlusAnnualPriceId),
+        readEnv('REACT_APP_STRIPE_HOMEOWNER_PLUS_MONTHLY_PLAN_ID'),
+        readEnv('REACT_APP_STRIPE_HOMEOWNER_PLUS_ANNUAL_PLAN_ID'),
+        readEnv('STRIPE_HOMEOWNER_PLUS_PRICE_ID'),
+        readEnv('REACT_APP_STRIPE_HOMEOWNER_PLUS_PLAN_ID'),
     ].filter(Boolean);
     const propertyPriceIds = [
-        process.env.STRIPE_PROPERTY_MONTHLY_PRICE_ID,
-        process.env.STRIPE_PROPERTY_ANNUAL_PRICE_ID,
-        process.env.REACT_APP_STRIPE_PROPERTY_MONTHLY_PLAN_ID,
-        process.env.REACT_APP_STRIPE_PROPERTY_ANNUAL_PLAN_ID,
-        process.env.STRIPE_PROPERTY_PRICE_ID,
-        process.env.REACT_APP_STRIPE_PROPERTY_PLAN_ID,
-        process.env.STRIPE_BASIC_PRICE_ID,
-        process.env.REACT_APP_STRIPE_BASIC_PLAN_ID,
-        'price_property',
-        'price_property_annual',
-        'price_basic',
+        readStringParam(STRIPE_PRICE_PARAMS.propertyMonthlyPriceId),
+        readStringParam(STRIPE_PRICE_PARAMS.propertyAnnualPriceId),
+        readEnv('REACT_APP_STRIPE_PROPERTY_MONTHLY_PLAN_ID'),
+        readEnv('REACT_APP_STRIPE_PROPERTY_ANNUAL_PLAN_ID'),
+        readEnv('STRIPE_PROPERTY_PRICE_ID'),
+        readEnv('REACT_APP_STRIPE_PROPERTY_PLAN_ID'),
     ].filter(Boolean);
     const portfolioPriceIds = [
-        process.env.STRIPE_PORTFOLIO_MONTHLY_PRICE_ID,
-        process.env.STRIPE_PORTFOLIO_ANNUAL_PRICE_ID,
-        process.env.REACT_APP_STRIPE_PORTFOLIO_MONTHLY_PLAN_ID,
-        process.env.REACT_APP_STRIPE_PORTFOLIO_ANNUAL_PLAN_ID,
-        process.env.STRIPE_PORTFOLIO_PRICE_ID,
-        process.env.REACT_APP_STRIPE_PORTFOLIO_PLAN_ID,
-        process.env.STRIPE_PROFESSIONAL_PRICE_ID,
-        process.env.REACT_APP_STRIPE_PROFESSIONAL_PLAN_ID,
-        'price_portfolio',
-        'price_portfolio_annual',
-        'price_professional',
+        readStringParam(STRIPE_PRICE_PARAMS.portfolioMonthlyPriceId),
+        readStringParam(STRIPE_PRICE_PARAMS.portfolioAnnualPriceId),
+        readEnv('REACT_APP_STRIPE_PORTFOLIO_MONTHLY_PLAN_ID'),
+        readEnv('REACT_APP_STRIPE_PORTFOLIO_ANNUAL_PLAN_ID'),
+        readEnv('STRIPE_PORTFOLIO_PRICE_ID'),
+        readEnv('REACT_APP_STRIPE_PORTFOLIO_PLAN_ID'),
     ].filter(Boolean);
     const priceMap = {
-        ...Object.fromEntries(homePriceIds.map((id) => [id, 'home'])),
         ...Object.fromEntries(homeownerPlusPriceIds.map((id) => [id, 'homeowner_plus'])),
         ...Object.fromEntries(propertyPriceIds.map((id) => [id, 'property'])),
         ...Object.fromEntries(portfolioPriceIds.map((id) => [id, 'portfolio'])),
@@ -1307,58 +1272,35 @@ function getPlanFromPriceId(priceId, fallbackPlan = 'free') {
  */
 function getPriceIdFromPlan(plan, billingCycle = 'month') {
     const normalizedCycle = billingCycle === 'year' ? 'year' : 'month';
-    const homePriceId = process.env.STRIPE_HOME_MONTHLY_PRICE_ID ||
-        process.env.STRIPE_HOME_PRICE_ID ||
-        process.env.STRIPE_HOMEOWNER_PRICE_ID ||
-        'price_home';
-    const homeAnnualPriceId = process.env.STRIPE_HOME_ANNUAL_PRICE_ID ||
-        process.env.REACT_APP_STRIPE_HOME_ANNUAL_PLAN_ID ||
-        homePriceId;
-    const homeownerPlusPriceId = process.env.STRIPE_HOMEOWNER_PLUS_MONTHLY_PRICE_ID ||
-        process.env.STRIPE_HOMEOWNER_PLUS_PRICE_ID ||
-        process.env.REACT_APP_STRIPE_HOMEOWNER_PLUS_MONTHLY_PLAN_ID ||
-        process.env.REACT_APP_STRIPE_HOMEOWNER_PLUS_PLAN_ID ||
-        'price_homeowner_plus';
-    const homeownerPlusAnnualPriceId = process.env.STRIPE_HOMEOWNER_PLUS_ANNUAL_PRICE_ID ||
-        process.env.REACT_APP_STRIPE_HOMEOWNER_PLUS_ANNUAL_PLAN_ID ||
+    const homeownerPlusPriceId = readStringParam(STRIPE_PRICE_PARAMS.homeownerPlusMonthlyPriceId) ||
+        readEnv('STRIPE_HOMEOWNER_PLUS_PRICE_ID') ||
+        readEnv('REACT_APP_STRIPE_HOMEOWNER_PLUS_MONTHLY_PLAN_ID') ||
+        readEnv('REACT_APP_STRIPE_HOMEOWNER_PLUS_PLAN_ID') ||
+        '';
+    const homeownerPlusAnnualPriceId = readStringParam(STRIPE_PRICE_PARAMS.homeownerPlusAnnualPriceId) ||
+        readEnv('REACT_APP_STRIPE_HOMEOWNER_PLUS_ANNUAL_PLAN_ID') ||
         homeownerPlusPriceId;
-    const propertyPriceId = process.env.STRIPE_PROPERTY_MONTHLY_PRICE_ID ||
-        process.env.STRIPE_PROPERTY_PRICE_ID ||
-        process.env.STRIPE_BASIC_PRICE_ID ||
-        'price_property';
-    const propertyAnnualPriceId = process.env.STRIPE_PROPERTY_ANNUAL_PRICE_ID ||
-        process.env.REACT_APP_STRIPE_PROPERTY_ANNUAL_PLAN_ID ||
+    const propertyPriceId = readStringParam(STRIPE_PRICE_PARAMS.propertyMonthlyPriceId) ||
+        readEnv('STRIPE_PROPERTY_PRICE_ID') ||
+        '';
+    const propertyAnnualPriceId = readStringParam(STRIPE_PRICE_PARAMS.propertyAnnualPriceId) ||
+        readEnv('REACT_APP_STRIPE_PROPERTY_ANNUAL_PLAN_ID') ||
         propertyPriceId;
-    const portfolioPriceId = process.env.STRIPE_PORTFOLIO_MONTHLY_PRICE_ID ||
-        process.env.STRIPE_PORTFOLIO_PRICE_ID ||
-        process.env.STRIPE_PROFESSIONAL_PRICE_ID ||
-        'price_portfolio';
-    const portfolioAnnualPriceId = process.env.STRIPE_PORTFOLIO_ANNUAL_PRICE_ID ||
-        process.env.REACT_APP_STRIPE_PORTFOLIO_ANNUAL_PLAN_ID ||
+    const portfolioPriceId = readStringParam(STRIPE_PRICE_PARAMS.portfolioMonthlyPriceId) ||
+        readEnv('STRIPE_PORTFOLIO_PRICE_ID') ||
+        '';
+    const portfolioAnnualPriceId = readStringParam(STRIPE_PRICE_PARAMS.portfolioAnnualPriceId) ||
+        readEnv('REACT_APP_STRIPE_PORTFOLIO_ANNUAL_PLAN_ID') ||
         portfolioPriceId;
     const monthlyPlanMap = {
-        home: homePriceId,
         homeowner_plus: homeownerPlusPriceId,
         property: propertyPriceId,
         portfolio: portfolioPriceId,
-        // Legacy aliases
-        homeowner: homePriceId,
-        homeownerplus: homeownerPlusPriceId,
-        'homeowner+': homeownerPlusPriceId,
-        basic: propertyPriceId,
-        professional: portfolioPriceId,
     };
     const annualPlanMap = {
-        home: homeAnnualPriceId,
         homeowner_plus: homeownerPlusAnnualPriceId,
         property: propertyAnnualPriceId,
         portfolio: portfolioAnnualPriceId,
-        // Legacy aliases
-        homeowner: homeAnnualPriceId,
-        homeownerplus: homeownerPlusAnnualPriceId,
-        'homeowner+': homeownerPlusAnnualPriceId,
-        basic: propertyAnnualPriceId,
-        professional: portfolioAnnualPriceId,
     };
-    return (normalizedCycle === 'year' ? annualPlanMap : monthlyPlanMap)[plan] || homePriceId;
+    return (normalizedCycle === 'year' ? annualPlanMap : monthlyPlanMap)[plan] || '';
 }

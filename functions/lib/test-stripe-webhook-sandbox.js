@@ -60,8 +60,9 @@ const run = async () => {
                         {
                             price: {
                                 id: process.env.STRIPE_TEST_PRICE_ID ||
-                                    process.env.REACT_APP_STRIPE_HOMEOWNER_PLAN_ID ||
-                                    'price_homeowner',
+                                    process.env.REACT_APP_STRIPE_HOMEOWNER_PLUS_MONTHLY_PLAN_ID ||
+                                    process.env.REACT_APP_STRIPE_HOMEOWNER_PLUS_MONTHLY_PRICE_ID ||
+                                    'price_test_homeowner_plus',
                             },
                         },
                     ],

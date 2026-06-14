@@ -71,6 +71,40 @@ describe('stripeService', () => {
 		);
 	});
 
+	it('can request checkout by plan id when the frontend price id is empty', async () => {
+		const callableMock = jest.fn().mockResolvedValue({
+			data: {
+				sessionId: 'cs_test_homeowner_plus',
+				url: 'https://checkout.stripe.com/c/pay/cs_test_homeowner_plus',
+			},
+		});
+
+		(httpsCallable as jest.Mock).mockReturnValue(callableMock);
+
+		const result = await createCheckoutSession(
+			'',
+			'user_homeowner_plus',
+			'plus@example.com',
+			undefined,
+			undefined,
+			'homeowner_plus',
+			'month',
+		);
+
+		expect(callableMock).toHaveBeenCalledWith(
+			expect.objectContaining({
+				priceId: '',
+				planId: 'homeowner_plus',
+				billingCycle: 'month',
+				userId: 'user_homeowner_plus',
+				email: 'plus@example.com',
+			}),
+		);
+		expect(result).toBe(
+			'https://checkout.stripe.com/c/pay/cs_test_homeowner_plus',
+		);
+	});
+
 	it('verifies checkout success via verifyCheckoutSession callable', async () => {
 		const verifyResult = {
 			success: true,

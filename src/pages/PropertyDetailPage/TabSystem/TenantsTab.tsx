@@ -435,7 +435,7 @@ export const TenantsTab: React.FC<TenantsTabProps> = ({
 					description={
 						planAllowsTenantManagement || isTeamMemberAccount
 							? 'You can review tenant occupancy details, but adding, inviting, or editing tenants requires a leasing or manager role.'
-							: 'View tenant occupancy details in read-only mode. Upgrade to Portfolio to add, invite, or edit tenants.'
+							: 'View tenant occupancy details in read-only mode. Upgrade to Property to add, invite, or edit tenants.'
 					}
 					upgradeLabel='Upgrade for Tenant Tools'
 					showUpgradeAction={!planAllowsTenantManagement && !isTeamMemberAccount}

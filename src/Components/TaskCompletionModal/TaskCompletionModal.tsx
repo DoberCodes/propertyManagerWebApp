@@ -26,6 +26,7 @@ import { useCreateNotificationMutation } from '../../Redux/API/notificationSlice
 import { useAppFeedback } from '../Library/AppFeedback/AppFeedbackProvider';
 import { assertStorageQuotaForFiles } from '../../utils/storageQuota';
 import { signalStorageUsageUpdated } from '../../utils/storageUsageEvents';
+import { getEffectiveSubscriptionPlanId } from '../../utils/subscriptionUtils';
 
 interface TaskCompletionModalProps {
 	taskId: string;
@@ -67,9 +68,12 @@ export const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
 	const [createTask] = useCreateTaskMutation();
 	const [createNotification] = useCreateNotificationMutation();
 	const feedback = useAppFeedback();
-	const normalizedPlan =
-		currentUser?.subscription?.plan?.toString().toLowerCase() || '';
-	const canSelfComplete = normalizedPlan === 'home';
+	const effectivePlan = getEffectiveSubscriptionPlanId(
+		currentUser?.subscription,
+		'homeowner',
+	);
+	const canSelfComplete =
+		effectivePlan === 'homeowner' || effectivePlan === 'homeowner_plus';
 	const requiresWorkOrder = Boolean(task?.requiresWorkOrder);
 
 	const getReadableErrorMessage = (error: any): string => {

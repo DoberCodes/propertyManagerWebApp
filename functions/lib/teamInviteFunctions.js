@@ -41,6 +41,25 @@ if (!admin.apps.length) {
     admin.initializeApp();
 }
 const db = admin.firestore();
+const normalizePlanId = (plan) => {
+    return String(plan || '').trim().toLowerCase();
+};
+const isPropertySimpleTeamPlan = (plan) => normalizePlanId(plan) === 'property';
+const assertSimpleTeamProfileAllowed = (plan, teamMemberData) => {
+    if (!isPropertySimpleTeamPlan(plan)) {
+        return;
+    }
+    const role = String((teamMemberData === null || teamMemberData === void 0 ? void 0 : teamMemberData.role) || '').trim();
+    const linkedProperties = Array.isArray(teamMemberData === null || teamMemberData === void 0 ? void 0 : teamMemberData.linkedProperties)
+        ? teamMemberData === null || teamMemberData === void 0 ? void 0 : teamMemberData.linkedProperties
+        : [];
+    const groupId = String((teamMemberData === null || teamMemberData === void 0 ? void 0 : teamMemberData.groupId) || '').trim();
+    if ((role && role !== 'admin') ||
+        linkedProperties.length > 0 ||
+        groupId) {
+        throw new functions.https.HttpsError('permission-denied', 'Property plans only support admin team members with access to all properties.');
+    }
+};
 const upsertTeamMemberAccess = async (params) => {
     const now = new Date().toISOString();
     const normalizedEmail = String(params.email || '').trim().toLowerCase();
@@ -76,6 +95,7 @@ const upsertTeamMemberAccess = async (params) => {
             : {}),
         updatedAt: now,
     }, { merge: true });
+    const isAdminTeamMember = String(params.role || '').trim().toLowerCase() === 'admin';
     await db
         .collection('accountMemberships')
         .doc(`${accountId}_${params.uid}`)
@@ -83,8 +103,8 @@ const upsertTeamMemberAccess = async (params) => {
         accountId,
         userId: params.uid,
         email: normalizedEmail,
-        role: 'team_member',
-        roles: ['team_member'],
+        role: isAdminTeamMember ? 'admin' : 'team_member',
+        roles: isAdminTeamMember ? ['team_member', 'admin'] : ['team_member'],
         ...(params.role ? { appRole: params.role } : {}),
         status: 'active',
         updatedAt: now,
@@ -192,7 +212,12 @@ exports.createTeamMemberInvitationCode = functions.https.onCall(async (data, con
     if (!teamMemberId || !teamMemberEmail || !code) {
         throw new functions.https.HttpsError('invalid-argument', 'teamMemberId, teamMemberEmail, and code are required');
     }
-    const { accountId } = await (0, inviteAuthz_1.assertInviteCapability)(context.auth.uid, 'team');
+    const { accountId, subscription } = await (0, inviteAuthz_1.assertInviteCapability)(context.auth.uid, 'team');
+    const teamMemberDoc = await db
+        .collection('teamMembers')
+        .doc(teamMemberId)
+        .get();
+    assertSimpleTeamProfileAllowed(subscription.plan, teamMemberDoc.data());
     const now = new Date().toISOString();
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
     const invitationCode = {
@@ -301,6 +326,7 @@ exports.revokeTeamMemberInvitationCode = functions.https.onCall(async (data, con
     };
 });
 exports.redeemTeamMemberInvitationCode = functions.https.onCall(async (data, context) => {
+    var _a;
     if (!context.auth) {
         throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
     }
@@ -350,6 +376,12 @@ exports.redeemTeamMemberInvitationCode = functions.https.onCall(async (data, con
         }
     }
     if (inviteData.accountId) {
+        const accountOwnerDoc = await db
+            .collection('users')
+            .doc(inviteData.accountId)
+            .get();
+        const accountOwnerSubscription = ((_a = accountOwnerDoc.data()) === null || _a === void 0 ? void 0 : _a.subscription) || {};
+        assertSimpleTeamProfileAllowed(accountOwnerSubscription.plan, teamMemberProfile || undefined);
         await upsertTeamMemberAccess({
             uid: context.auth.uid,
             email: callerEmail,

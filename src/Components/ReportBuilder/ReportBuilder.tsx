@@ -4,6 +4,7 @@ import { RootState } from '../../Redux/store/store';
 import {
 	canAccessReadOnlyFeatures,
 	canExportData,
+	canUseAdvancedTeamManagement,
 	canViewReports,
 } from '../../utils/subscriptionUtils';
 import {
@@ -108,11 +109,13 @@ type ReportOption = {
 	requiresMultiProperty?: boolean;
 	requiresMultiFamily?: boolean;
 	requiresCommercialSuites?: boolean;
+	requiresAdvancedTeamAccess?: boolean;
 };
 
 // Helper to determine which reports a user can access
 const getAccessibleReports = (
 	canAccessTeamReport: boolean,
+	canAccessAdvancedTeamReport: boolean,
 	options: {
 		scopedProperties: any[];
 		isHomeowner: boolean;
@@ -206,6 +209,7 @@ const getAccessibleReports = (
 			label: 'Employee Efficiency',
 			description: 'Performance metrics for team members (Team Management)',
 			requiresTeamAccess: true,
+			requiresAdvancedTeamAccess: true,
 			requiresMultiProperty: false,
 		},
 	];
@@ -228,6 +232,9 @@ const getAccessibleReports = (
 
 		// Team reports only for users with team access
 		if (report.requiresTeamAccess && !canAccessTeamReport) {
+			return false;
+		}
+		if (report.requiresAdvancedTeamAccess && !canAccessAdvancedTeamReport) {
 			return false;
 		}
 
@@ -273,6 +280,9 @@ export const ReportBuilder: React.FC = () => {
 		!!currentUser &&
 		!isHomeowner &&
 		(canManageTeam || canViewPages || !!currentUser.accountId);
+	const canAccessAdvancedTeamReport =
+		!!currentUser?.subscription &&
+		canUseAdvancedTeamManagement(currentUser.subscription as any);
 	const feedback = useAppFeedback();
 
 	// Helper: homeowners may only access Single Family properties in reports
@@ -805,6 +815,10 @@ export const ReportBuilder: React.FC = () => {
 			feedback.notify('You do not have permission to run this report.');
 			return;
 		}
+		if (reportType === 'employee-efficiency' && !canAccessAdvancedTeamReport) {
+			feedback.notify('Employee efficiency reports require Portfolio.');
+			return;
+		}
 
 		switch (reportType) {
 			case 'tasks':
@@ -862,7 +876,7 @@ export const ReportBuilder: React.FC = () => {
 	// Get accessible reports for this user
 	const accessibleReports = useMemo(
 		() =>
-			getAccessibleReports(canAccessTeamReport, {
+			getAccessibleReports(canAccessTeamReport, canAccessAdvancedTeamReport, {
 				scopedProperties,
 				isHomeowner,
 				hasMultiFamilyProperties,
@@ -870,6 +884,7 @@ export const ReportBuilder: React.FC = () => {
 			}),
 		[
 			canAccessTeamReport,
+			canAccessAdvancedTeamReport,
 			scopedProperties,
 			isHomeowner,
 			hasMultiFamilyProperties,
@@ -879,7 +894,7 @@ export const ReportBuilder: React.FC = () => {
 
 	const discoverableReports = useMemo(
 		() =>
-			getAccessibleReports(true, {
+			getAccessibleReports(true, true, {
 				scopedProperties,
 				isHomeowner,
 				hasMultiFamilyProperties,

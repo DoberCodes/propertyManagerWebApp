@@ -99,6 +99,7 @@ import {
 } from '../../Redux/API/teamSlice';
 import { useGetPropertiesQuery } from '../../Redux/API/propertySlice';
 import { USER_ROLES } from '../../constants/roles';
+import { canUseAdvancedTeamManagement } from '../../utils/subscriptionUtils';
 
 const ROLE_OPTIONS = [
 	{ value: USER_ROLES.PROPERTY_MANAGER, label: 'Property Manager' },
@@ -307,6 +308,9 @@ export default function TeamPage() {
 	// Check if user can manage team members based on subscription plan (selector)
 	const canManage = useSelector(selectCanInviteTeamMembers);
 	const isTeamMemberAccount = useSelector(selectIsTeamMemberAccount);
+	const isAdvancedTeamManagement =
+		!!currentUser?.subscription &&
+		canUseAdvancedTeamManagement(currentUser.subscription);
 
 	const [showTeamMemberDialog, setShowTeamMemberDialog] = useState(false);
 	const [currentGroupId, setCurrentGroupId] = useState<string | null>(null);
@@ -425,16 +429,32 @@ export default function TeamPage() {
 		...group,
 		members: (group.members || []).filter((member) => member.role !== 'tenant'),
 	}));
+	const simpleTeamMembers = teamMembers.filter((member) => member.role !== 'tenant');
+	const visibleTeamGroups = isAdvancedTeamManagement
+		? filteredTeamGroups
+		: simpleTeamMembers.length > 0
+			? [
+					{
+						id: 'simple-team',
+						userId: '',
+						name: 'Team Members',
+						linkedProperties: [],
+						members: simpleTeamMembers,
+					},
+			  ]
+			: [];
 
 	const handleAddTeamMember = (groupId?: string | null) => {
-		setCurrentGroupId(groupId || null);
+		setCurrentGroupId(isAdvancedTeamManagement ? groupId || null : null);
 		setEditingMember(null);
 		setFormData({
 			firstName: '',
 			lastName: '',
 			email: '',
 			phone: '',
-			role: 'property_manager',
+			role: isAdvancedTeamManagement
+				? USER_ROLES.PROPERTY_MANAGER
+				: USER_ROLES.ADMIN,
 			title: '',
 			address: '',
 			mailingCity: '',
@@ -510,6 +530,7 @@ export default function TeamPage() {
 	};
 
 	const handlePropertyToggle = (propertyId: string) => {
+		if (!isAdvancedTeamManagement) return;
 		setFormData((prev) => ({
 			...prev,
 			linkedProperties: prev.linkedProperties.includes(propertyId)
@@ -544,14 +565,14 @@ export default function TeamPage() {
 				: {};
 
 		const memberData = {
-			...(currentGroupId && { groupId: currentGroupId }),
+			...(isAdvancedTeamManagement && currentGroupId && { groupId: currentGroupId }),
 			userId: currentUser!.id,
 			firstName: formData.firstName,
 			lastName: formData.lastName,
 			title: formData.title.trim(),
 			email: isEditingAcceptedMember ? editingMember!.email : formData.email,
 			phone: formData.phone,
-			role: formData.role,
+			role: isAdvancedTeamManagement ? formData.role : USER_ROLES.ADMIN,
 			address: buildMailingAddress({
 				street: formData.address,
 				city: formData.mailingCity,
@@ -560,7 +581,7 @@ export default function TeamPage() {
 			}),
 			image: imagePreview || editingMember?.image || '',
 			notes: formData.notes,
-			linkedProperties: formData.linkedProperties,
+			linkedProperties: isAdvancedTeamManagement ? formData.linkedProperties : [],
 			taskHistory: editingMember?.taskHistory || [],
 			files: uploadedFiles,
 			...invitationFields,
@@ -661,8 +682,10 @@ export default function TeamPage() {
 		groupId?: string | null,
 	) => {
 		const resolvedGroupId =
-			(typeof member.groupId === 'string' && member.groupId.trim()) ||
-			(groupId && groupId !== 'orphan' ? groupId : null);
+			isAdvancedTeamManagement
+				? (typeof member.groupId === 'string' && member.groupId.trim()) ||
+				  (groupId && groupId !== 'orphan' ? groupId : null)
+				: null;
 		setCurrentGroupId(resolvedGroupId || null);
 		setEditingMember(member);
 		const mailingAddress = parseMailingAddress(member.address);
@@ -671,14 +694,14 @@ export default function TeamPage() {
 			lastName: member.lastName,
 			email: member.email,
 			phone: member.phone,
-			role: member.role,
+			role: isAdvancedTeamManagement ? member.role : USER_ROLES.ADMIN,
 			title: member.title || '',
 			address: mailingAddress.street,
 			mailingCity: mailingAddress.city,
 			mailingState: mailingAddress.state,
 			mailingZip: mailingAddress.zip,
 			notes: member.notes,
-			linkedProperties: member.linkedProperties,
+			linkedProperties: isAdvancedTeamManagement ? member.linkedProperties : [],
 			enableInvitationCode: !!(member as any).invitationCodeId, // Enable if they already have an invitation code
 		});
 		setImagePreview(member.image || null);
@@ -969,7 +992,7 @@ export default function TeamPage() {
 							+ Add Team Member
 						</AddTeamGroupButton>
 					)}
-					{canManage && (
+					{canManage && isAdvancedTeamManagement && (
 						<AddTeamGroupButton onClick={handleAddTeamGroup}>
 							+ Add Team Group
 						</AddTeamGroupButton>
@@ -987,7 +1010,7 @@ export default function TeamPage() {
 					description={
 						isTeamMemberAccount
 							? 'Your account access is controlled by your assigned role and property access.'
-							: 'You can review current team assignments in read-only mode. Upgrade to Portfolio to invite, manage, and group team members.'
+							: 'You can review current team assignments in read-only mode. Upgrade to Property to invite team members.'
 					}
 					upgradeLabel='Upgrade for Team Access'
 					showUpgradeAction={!isTeamMemberAccount}
@@ -995,17 +1018,17 @@ export default function TeamPage() {
 			)}
 
 			<TeamGroupSection>
-				{filteredTeamGroups.length === 0 ? (
+				{visibleTeamGroups.length === 0 ? (
 					<EmptyState>
 						<p>No team members yet.</p>
-						<p>Add your first team member or group to start assigning maintenance work.</p>
+						<p>Add your first team member to start sharing maintenance work.</p>
 						{canManage && (
 							<AddTeamGroupButton onClick={() => handleAddTeamMember(null)}>
 								Add Team Member
 							</AddTeamGroupButton>
 						)}
 					</EmptyState>
-				) : filteredTeamGroups.map((group) => (
+				) : visibleTeamGroups.map((group) => (
 					<div key={group.id}>
 						<TeamGroupHeader>
 							{editingGroupId === group.id ? (
@@ -1027,7 +1050,7 @@ export default function TeamPage() {
 							) : (
 								<TeamGroupTitle>{group.name}</TeamGroupTitle>
 							)}
-							{canManage && (
+							{canManage && isAdvancedTeamManagement && group.id !== 'simple-team' && (
 								<TeamGroupActions>
 									<TeamGroupActionButton
 										title='Edit group'
@@ -1048,6 +1071,8 @@ export default function TeamPage() {
 								const assignedPropertyTitles = (member.linkedProperties || [])
 									.map((propertyId) => propertyTitleById.get(propertyId))
 									.filter((title): title is string => Boolean(title));
+								const simpleTeamAssignedProperties =
+									!isAdvancedTeamManagement && member.role !== 'tenant';
 								const visibleAssignedProperties = assignedPropertyTitles.slice(0, 3);
 								const hiddenAssignedPropertyCount =
 									assignedPropertyTitles.length - visibleAssignedProperties.length;
@@ -1105,7 +1130,9 @@ export default function TeamPage() {
 											Assigned Properties
 										</TeamMemberPropertiesLabel>
 										<TeamMemberPropertyList>
-											{visibleAssignedProperties.length > 0 ? (
+											{simpleTeamAssignedProperties ? (
+												<TeamMemberPropertyChip>All properties</TeamMemberPropertyChip>
+											) : visibleAssignedProperties.length > 0 ? (
 												<>
 													{visibleAssignedProperties.map((propertyTitle) => (
 														<TeamMemberPropertyChip key={propertyTitle} title={propertyTitle}>
@@ -1171,7 +1198,9 @@ export default function TeamPage() {
 								<AddTeamMemberCard
 									onClick={() =>
 										handleAddTeamMember(
-											group.id === 'orphan' ? null : group.id,
+											isAdvancedTeamManagement && group.id !== 'orphan'
+												? group.id
+												: null,
 										)
 									}>
 									<AddIcon>+</AddIcon>
@@ -1330,18 +1359,25 @@ export default function TeamPage() {
 									</FormGroup>
 								</FormRow>
 
-								<FormGroup>
-									<FormLabel>Role *</FormLabel>
-									<FormSelect
-										value={formData.role}
-										onChange={(e) => handleFormChange('role', e.target.value)}>
-										{ROLE_OPTIONS.map((role) => (
-											<option key={role.value} value={role.value}>
-												{role.label}
-											</option>
-										))}
-									</FormSelect>
-								</FormGroup>
+								{isAdvancedTeamManagement ? (
+									<FormGroup>
+										<FormLabel>Role *</FormLabel>
+										<FormSelect
+											value={formData.role}
+											onChange={(e) => handleFormChange('role', e.target.value)}>
+											{ROLE_OPTIONS.map((role) => (
+												<option key={role.value} value={role.value}>
+													{role.label}
+												</option>
+											))}
+										</FormSelect>
+									</FormGroup>
+								) : (
+									<FormGroup>
+										<FormLabel>Role</FormLabel>
+										<FormInput value='Administrator' disabled />
+									</FormGroup>
+								)}
 
 								<FormGroup>
 									<FormLabel>Job Title</FormLabel>
@@ -1353,22 +1389,24 @@ export default function TeamPage() {
 									/>
 								</FormGroup>
 
-								<FormGroup>
-									<FormLabel>Team Group (Optional)</FormLabel>
-									<FormSelect
-										value={currentGroupId || ''}
-										onChange={(e) => {
-											const nextGroupId = e.target.value;
-											setCurrentGroupId(nextGroupId || null);
-										}}>
-										<option value=''>No group</option>
-										{teamGroups.map((group) => (
-											<option key={group.id} value={group.id}>
-												{group.name}
-											</option>
-										))}
-									</FormSelect>
-								</FormGroup>
+								{isAdvancedTeamManagement && (
+									<FormGroup>
+										<FormLabel>Team Group (Optional)</FormLabel>
+										<FormSelect
+											value={currentGroupId || ''}
+											onChange={(e) => {
+												const nextGroupId = e.target.value;
+												setCurrentGroupId(nextGroupId || null);
+											}}>
+											<option value=''>No group</option>
+											{teamGroups.map((group) => (
+												<option key={group.id} value={group.id}>
+													{group.name}
+												</option>
+											))}
+										</FormSelect>
+									</FormGroup>
+								)}
 
 								{/* Promo Code Section */}
 								{canManage && (
@@ -1581,27 +1619,33 @@ export default function TeamPage() {
 
 								{/* Assigned Properties */}
 								<FormGroup>
-									<SectionTitle>Assigned Properties</SectionTitle>
-									<PropertyMultiSelect>
-										{properties.map((property) => {
-											const isLinked = formData.linkedProperties.includes(
-												property.id,
-											);
-											return (
-												<PropertyCheckbox key={property.id}>
-													<input
-														type='checkbox'
-														id={`property-${property.id}`}
-														checked={isLinked}
-														onChange={() => handlePropertyToggle(property.id)}
-													/>
-													<label htmlFor={`property-${property.id}`}>
-														{property.title}
-													</label>
-												</PropertyCheckbox>
-											);
-										})}
-									</PropertyMultiSelect>
+									<SectionTitle>Property Access</SectionTitle>
+									{isAdvancedTeamManagement ? (
+										<PropertyMultiSelect>
+											{properties.map((property) => {
+												const isLinked = formData.linkedProperties.includes(
+													property.id,
+												);
+												return (
+													<PropertyCheckbox key={property.id}>
+														<input
+															type='checkbox'
+															id={`property-${property.id}`}
+															checked={isLinked}
+															onChange={() => handlePropertyToggle(property.id)}
+														/>
+														<label htmlFor={`property-${property.id}`}>
+															{property.title}
+														</label>
+													</PropertyCheckbox>
+												);
+											})}
+										</PropertyMultiSelect>
+									) : (
+										<TeamMemberPropertyList>
+											<TeamMemberPropertyChip>All properties</TeamMemberPropertyChip>
+										</TeamMemberPropertyList>
+									)}
 								</FormGroup>
 
 								{/* File Upload */}

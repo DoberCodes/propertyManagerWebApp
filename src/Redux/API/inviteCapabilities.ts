@@ -1,10 +1,11 @@
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import {
+	canUseAdvancedTeamManagement,
 	canManageTeam,
 	canManageTenants,
-	SubscriptionData,
 } from '../../utils/subscriptionUtils';
+import type { SubscriptionData } from '../../utils/subscriptionUtils';
 
 const getAccountSubscription = async (
 	accountId: string,
@@ -20,24 +21,46 @@ const getAccountSubscription = async (
 	return subscription || null;
 };
 
-export const assertCanInviteTeamMembers = async (
+export const assertCanManageTeamMembers = async (
 	accountId: string,
 ): Promise<void> => {
 	const subscription = await getAccountSubscription(accountId);
 	if (!subscription || !canManageTeam(subscription)) {
 		throw new Error(
-			'Your current subscription plan does not allow inviting team members.',
+			'Your current subscription plan does not allow managing team members.',
 		);
 	}
 };
 
-export const assertCanInviteTenants = async (
+export const assertCanInviteTeamMembers = assertCanManageTeamMembers;
+
+export const assertCanManageAdvancedTeamSettings = async (
+	accountId: string,
+): Promise<void> => {
+	const subscription = await getAccountSubscription(accountId);
+	if (!subscription || !canUseAdvancedTeamManagement(subscription)) {
+		throw new Error(
+			'Advanced team roles, groups, and property assignments require Portfolio.',
+		);
+	}
+};
+
+export const canManageAdvancedTeamSettings = async (
+	accountId: string,
+): Promise<boolean> => {
+	const subscription = await getAccountSubscription(accountId);
+	return !!subscription && canUseAdvancedTeamManagement(subscription);
+};
+
+export const assertCanManageTenants = async (
 	accountId: string,
 ): Promise<void> => {
 	const subscription = await getAccountSubscription(accountId);
 	if (!subscription || !canManageTenants(subscription)) {
 		throw new Error(
-			'Your current subscription plan does not allow inviting tenants.',
+			'Your current subscription plan does not allow managing tenants.',
 		);
 	}
 };
+
+export const assertCanInviteTenants = assertCanManageTenants;

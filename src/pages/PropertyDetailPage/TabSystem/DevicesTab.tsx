@@ -47,7 +47,6 @@ import {
 	TabSummaryPill,
 	DeviceCard,
 	StatusBadge,
-	EmptyState,
 	MobileTaskActions,
 	MobileActionButton,
 	MobileActionLinkRow,
@@ -56,7 +55,7 @@ import {
 	MobileFeedLine,
 	MobileFeedLineMuted,
 } from './index.styles';
-import { ReusableTable } from '../../../Components/Library';
+import { AppZeroState, ReusableTable } from '../../../Components/Library';
 import { Column, Action } from '../../../Components/Library/ReusableTable';
 import {
 	CardMoreDetails,
@@ -66,6 +65,7 @@ import {
 } from './mobileUiShared';
 import {
 	canAddDevice,
+	getEffectiveSubscriptionPlanId,
 	getRemainingDeviceSlots,
 	getSubscriptionPlanDetails,
 } from '../../../utils/subscriptionUtils';
@@ -638,7 +638,9 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property, permissions })
 		}
 
 		if (!canAddDevice(currentUser.subscription, allDevices.length)) {
-			const planDetails = getSubscriptionPlanDetails(currentUser.subscription.plan);
+			const planDetails = getSubscriptionPlanDetails(
+				getEffectiveSubscriptionPlanId(currentUser.subscription),
+			);
 			const maxDevices = planDetails?.maxDevices || 15;
 			if (isTeamMemberAccount) {
 				feedback.notify(
@@ -939,19 +941,23 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property, permissions })
 			)}
 
 			{devices.length === 0 ? (
-				<EmptyState>
-					<FontAwesomeIcon icon={faWrench} size='3x' color='#ccc' />
-					<p>No appliances added yet</p>
-					<p>Add one appliance or system when you are ready to start building service history.</p>
-					{canManageAppliances && (
-						<ToolbarButton
-							type='button'
-							onClick={handleOpenCreateModal}
-							disabled={remainingDeviceSlots <= 0}>
-							{remainingDeviceSlots <= 0 ? 'Appliance Limit Reached' : 'Add Appliance'}
-						</ToolbarButton>
-					)}
-				</EmptyState>
+				<AppZeroState
+					kind='noAppliances'
+					actions={
+						canManageAppliances
+							? [
+									{
+										label:
+											remainingDeviceSlots <= 0
+												? 'Appliance Limit Reached'
+												: 'Add Appliance',
+										onClick: handleOpenCreateModal,
+										disabled: remainingDeviceSlots <= 0,
+									},
+							  ]
+							: []
+					}
+				/>
 			) : (
 				<DesktopTableWrapper>
 					<ReusableTable

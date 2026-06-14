@@ -24,9 +24,25 @@ import {
 	resolveAccessibleAccountIds,
 	resolveTargetUserId,
 } from './accountContext';
-import { getMaxPropertiesForPlan } from '../../utils/subscriptionUtils';
+import {
+	canPropertyGroups,
+	getMaxPropertiesForPlan,
+} from '../../utils/subscriptionUtils';
+import type { SubscriptionData } from '../../utils/subscriptionUtils';
 
 const PROPERTY_GROUP_MEMBERSHIPS_COLLECTION = 'propertyGroupMemberships';
+
+const assertCanManagePropertyGroups = async (accountId: string) => {
+	const accountOwnerDoc = await getDoc(doc(db, 'users', accountId));
+	const accountOwnerData = accountOwnerDoc.data() || {};
+	const subscription = accountOwnerData.subscription as SubscriptionData | undefined;
+
+	if (!subscription || !canPropertyGroups(subscription)) {
+		throw new Error(
+			'Property groups are available on Property and Portfolio plans.',
+		);
+	}
+};
 
 const fetchPropertiesByIds = async (propertyIds: string[]): Promise<Property[]> => {
 	if (propertyIds.length === 0) {
@@ -195,6 +211,7 @@ type TeamMemberAccess = {
 	id?: string;
 	accountId?: string;
 	email?: string;
+	role?: string;
 	userAccountId?: string;
 	linkedProperties?: string[];
 };
@@ -203,6 +220,17 @@ const isTeamMemberScopedProfile = (
 	userData: any,
 	teamMember: TeamMemberAccess | null,
 ): boolean => {
+	if (userData?.isAccountOwner === true) {
+		return false;
+	}
+
+	if (
+		String(userData?.role || '').trim().toLowerCase() === 'admin' ||
+		String(teamMember?.role || '').trim().toLowerCase() === 'admin'
+	) {
+		return false;
+	}
+
 	if (
 		String(userData?.subscription?.promoCode || '')
 			.trim()
@@ -210,10 +238,6 @@ const isTeamMemberScopedProfile = (
 			.startsWith('TEAM-')
 	) {
 		return true;
-	}
-
-	if (userData?.isAccountOwner === true) {
-		return false;
 	}
 
 	return userData?.isTeamMemberAccount === true || !!teamMember;
@@ -748,6 +772,7 @@ const propertySlice = apiSlice.injectEndpoints({
 						return { error: 'User not authenticated' };
 					}
 					const targetUserId = await resolveTargetUserId();
+					await assertCanManagePropertyGroups(targetUserId);
 					const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
 					const userData = userDoc.data() || {};
 					const currentTeamMember = await getTeamMemberForAccountUser(
@@ -792,6 +817,11 @@ const propertySlice = apiSlice.injectEndpoints({
 			async queryFn({ id, updates }) {
 				try {
 					const docRef = doc(db, 'propertyGroups', id);
+					const groupSnapshot = await getDoc(docRef);
+					const accountId = String(groupSnapshot.data()?.accountId || '').trim();
+					if (accountId) {
+						await assertCanManagePropertyGroups(accountId);
+					}
 					await updateDoc(docRef, {
 						...updates,
 						updatedAt: new Date().toISOString(),
@@ -807,6 +837,11 @@ const propertySlice = apiSlice.injectEndpoints({
 		deletePropertyGroup: builder.mutation<void, string>({
 			async queryFn(groupId: string) {
 				try {
+					const groupSnapshot = await getDoc(doc(db, 'propertyGroups', groupId));
+					const accountId = String(groupSnapshot.data()?.accountId || '').trim();
+					if (accountId) {
+						await assertCanManagePropertyGroups(accountId);
+					}
 					const deletePropertyGroupCascade = httpsCallable<
 						{ groupId: string },
 						{ success: boolean }

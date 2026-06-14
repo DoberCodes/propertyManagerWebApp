@@ -819,8 +819,8 @@ export const SettingsPage: React.FC = () => {
 		);
 	}
 
-	const planDetails = getSubscriptionPlanDetails(subscription.plan);
 	const effectivePlanId = getEffectiveSubscriptionPlanId(subscription, 'homeowner');
+	const planDetails = getSubscriptionPlanDetails(effectivePlanId);
 	const isFreePlan = effectivePlanId === 'homeowner';
 	const isOnTrial = isTrialActive(subscription);
 	const shouldShowTrialInfo = isOnTrial && !isFreePlan;

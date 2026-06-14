@@ -54,6 +54,7 @@ service cloud.firestore {
       return hasLegacyAccountLink(accountId) &&
         !((('isTeamMemberAccount' in callerUserData()) && callerUserData().isTeamMemberAccount == true)) &&
         (
+          request.auth.uid == accountId ||
           (('isAccountOwner' in callerUserData()) && callerUserData().isAccountOwner == true) ||
           (('role' in callerUserData()) && ['admin', 'property_manager', 'assistant_manager'].hasAny([callerUserData().role]))
         );
@@ -123,17 +124,17 @@ service cloud.firestore {
     }
 
     function maxPropertiesForPlan(plan) {
-      return (plan == 'home' || plan == 'homeowner')
+      return ['homeowner', 'homeowner_plus'].hasAny([plan])
         ? 1
-        : ((plan == 'property' || plan == 'basic')
-          ? 3
-          : ((plan == 'portfolio' || plan == 'professional') ? 15 : 0));
+        : (plan == 'property'
+          ? 7
+          : (plan == 'portfolio' ? 15 : 0));
     }
 
     function maxDevicesForPlan(plan) {
-      return (plan == 'home' || plan == 'homeowner')
-        ? 8
-        : ((plan == 'property' || plan == 'basic' || plan == 'portfolio' || plan == 'professional')
+      return plan == 'homeowner'
+        ? 15
+        : (['homeowner_plus', 'property', 'portfolio'].hasAny([plan])
           ? 999
           : 0);
     }
@@ -172,6 +173,7 @@ service cloud.firestore {
           : 0);
     }
 
+    // Resident/tenant access and maintenance requests start on Property.
     function hasActiveManagedInvitePlan(accountId) {
       return accountOwnerDocExists(accountId) &&
         ('subscription' in accountOwnerData(accountId)) &&
@@ -207,8 +209,61 @@ service cloud.firestore {
 
     function hasCorePlanForResources(accountId) {
       return hasActiveCoreSubscription(accountId) &&
-        ['home', 'property', 'portfolio', 'homeowner', 'basic', 'professional']
+        ['homeowner', 'homeowner_plus', 'property', 'portfolio']
           .hasAny([accountOwnerData(accountId).subscription.plan]);
+    }
+
+    // Plan gates mirror PLAN_FEATURE_MATRIX.md: property groups start at Property.
+    function canUsePropertyGroups(accountId) {
+      return hasActiveCoreSubscription(accountId) &&
+        ['property', 'portfolio']
+          .hasAny([accountOwnerData(accountId).subscription.plan]);
+    }
+
+    // Property has simple team management; Portfolio has advanced team roles and property assignments.
+    function canUseSimpleTeam(accountId) {
+      return hasActiveCoreSubscription(accountId) &&
+        ['property', 'portfolio']
+          .hasAny([accountOwnerData(accountId).subscription.plan]);
+    }
+
+    function canUseAdvancedTeam(accountId) {
+      return hasActiveCoreSubscription(accountId) &&
+        ['portfolio']
+          .hasAny([accountOwnerData(accountId).subscription.plan]);
+    }
+
+    function isSimpleTeamMemberData(data) {
+      return (!('role' in data) || data.role == 'admin') &&
+        (!('linkedProperties' in data) || data.linkedProperties.size() == 0) &&
+        (!('groupId' in data) || data.groupId == null || data.groupId == '');
+    }
+
+    function canWriteTeamMemberData(accountId, data) {
+      return canUseSimpleTeam(accountId) &&
+        (canUseAdvancedTeam(accountId) || isSimpleTeamMemberData(data));
+    }
+
+    function propertyWriteRespectsResidentPlan(accountId) {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(['tenants']) ||
+        hasActiveManagedInvitePlan(accountId);
+    }
+
+    function propertyCreateRespectsResidentPlan(accountId) {
+      return !('tenants' in request.resource.data) ||
+        request.resource.data.tenants.size() == 0 ||
+        hasActiveManagedInvitePlan(accountId);
+    }
+
+    function unitWriteRespectsResidentPlan(accountId) {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(['occupants']) ||
+        hasActiveManagedInvitePlan(accountId);
+    }
+
+    function unitCreateRespectsResidentPlan(accountId) {
+      return !('occupants' in request.resource.data) ||
+        request.resource.data.occupants.size() == 0 ||
+        hasActiveManagedInvitePlan(accountId);
     }
 
     function isAccountOwnerOrAdmin(accountId) {
@@ -271,8 +326,16 @@ service cloud.firestore {
     }
 
     function canCreateTeamMemberResource() {
-      return ('accountId' in request.resource.data && canManageAccount(request.resource.data.accountId)) ||
-        ('userId' in request.resource.data && canManageAccount(request.resource.data.userId));
+      return (
+        ('accountId' in request.resource.data) &&
+        canManageAccount(request.resource.data.accountId) &&
+        canWriteTeamMemberData(request.resource.data.accountId, request.resource.data)
+      ) ||
+        (
+          ('userId' in request.resource.data) &&
+          canManageAccount(request.resource.data.userId) &&
+          canWriteTeamMemberData(request.resource.data.userId, request.resource.data)
+        );
     }
 
     // Family membership helper for read-only access paths.
@@ -300,10 +363,12 @@ service cloud.firestore {
         canReadAccount(resource.data.accountId);
       allow create: if isAuthenticated() &&
         ('accountId' in request.resource.data) &&
-        canManageAccount(request.resource.data.accountId);
+        canManageAccount(request.resource.data.accountId) &&
+        canUsePropertyGroups(request.resource.data.accountId);
       allow update, delete: if isAuthenticated() &&
         ('accountId' in resource.data) &&
-        canManageAccount(resource.data.accountId);
+        canManageAccount(resource.data.accountId) &&
+        canUsePropertyGroups(resource.data.accountId);
     }
 
     match /properties/{propertyId} {
@@ -314,11 +379,13 @@ service cloud.firestore {
         ('accountId' in request.resource.data) &&
         canManageAccount(request.resource.data.accountId) &&
         hasCorePlanForResources(request.resource.data.accountId) &&
+        propertyCreateRespectsResidentPlan(request.resource.data.accountId) &&
         currentPropertyCount(request.resource.data.accountId) < maxPropertiesForAccount(request.resource.data.accountId) &&
         hasPropertyCounterCreateIncrement(request.resource.data.accountId);
       allow update: if isAuthenticated() &&
         ('accountId' in resource.data) &&
-        canManageAccount(resource.data.accountId);
+        canManageAccount(resource.data.accountId) &&
+        propertyWriteRespectsResidentPlan(resource.data.accountId);
       allow delete: if isAuthenticated() &&
         ('accountId' in resource.data) &&
         canManageAccount(resource.data.accountId) &&
@@ -331,10 +398,12 @@ service cloud.firestore {
         canReadAccount(resource.data.accountId);
       allow create: if isAuthenticated() &&
         ('accountId' in request.resource.data) &&
-        canManageAccount(request.resource.data.accountId);
+        canManageAccount(request.resource.data.accountId) &&
+        canUsePropertyGroups(request.resource.data.accountId);
       allow update, delete: if isAuthenticated() &&
         ('accountId' in resource.data) &&
-        canManageAccount(resource.data.accountId);
+        canManageAccount(resource.data.accountId) &&
+        canUsePropertyGroups(resource.data.accountId);
     }
 
     match /propertyShares/{shareId} {
@@ -369,8 +438,13 @@ service cloud.firestore {
         canReadAccount(resource.data.accountId);
       allow create: if isAuthenticated() &&
         ('accountId' in request.resource.data) &&
-        canManageAccount(request.resource.data.accountId);
-      allow update, delete: if isAuthenticated() &&
+        canManageAccount(request.resource.data.accountId) &&
+        unitCreateRespectsResidentPlan(request.resource.data.accountId);
+      allow update: if isAuthenticated() &&
+        ('accountId' in resource.data) &&
+        canManageAccount(resource.data.accountId) &&
+        unitWriteRespectsResidentPlan(resource.data.accountId);
+      allow delete: if isAuthenticated() &&
         ('accountId' in resource.data) &&
         canManageAccount(resource.data.accountId);
     }
@@ -405,16 +479,27 @@ service cloud.firestore {
         canReadAccount(resource.data.accountId);
       allow create: if isAuthenticated() &&
         ('accountId' in request.resource.data) &&
-        canManageAccount(request.resource.data.accountId);
+        canManageAccount(request.resource.data.accountId) &&
+        canUseAdvancedTeam(request.resource.data.accountId);
       allow update, delete: if isAuthenticated() &&
         ('accountId' in resource.data) &&
-        canManageAccount(resource.data.accountId);
+        canManageAccount(resource.data.accountId) &&
+        canUseAdvancedTeam(resource.data.accountId);
     }
 
     match /teamMembers/{memberId} {
       allow read: if isAuthenticated() && canReadTeamMemberResource();
       allow create: if isAuthenticated() && canCreateTeamMemberResource();
-      allow update, delete: if isAuthenticated() && canManageTeamMemberResource();
+      allow update: if isAuthenticated() && canManageTeamMemberResource() &&
+        (
+          (('accountId' in resource.data) && canWriteTeamMemberData(resource.data.accountId, request.resource.data)) ||
+          (('userId' in resource.data) && canWriteTeamMemberData(resource.data.userId, request.resource.data))
+        );
+      allow delete: if isAuthenticated() && canManageTeamMemberResource() &&
+        (
+          (('accountId' in resource.data) && canUseSimpleTeam(resource.data.accountId)) ||
+          (('userId' in resource.data) && canUseSimpleTeam(resource.data.userId))
+        );
     }
 
     match /devices/{deviceId} {
@@ -454,8 +539,13 @@ service cloud.firestore {
         canReadAccount(resource.data.accountId);
       allow create: if isAuthenticated() &&
         ('accountId' in request.resource.data) &&
-        canManageAccount(request.resource.data.accountId);
-      allow update, delete: if isAuthenticated() &&
+        canManageAccount(request.resource.data.accountId) &&
+        unitCreateRespectsResidentPlan(request.resource.data.accountId);
+      allow update: if isAuthenticated() &&
+        ('accountId' in resource.data) &&
+        canManageAccount(resource.data.accountId) &&
+        unitWriteRespectsResidentPlan(resource.data.accountId);
+      allow delete: if isAuthenticated() &&
         ('accountId' in resource.data) &&
         canManageAccount(resource.data.accountId);
     }
@@ -498,28 +588,28 @@ service cloud.firestore {
           'deviceCount',
           'updatedAt'
         ]) &&
-        request.resource.data.propertyCount >= 0 &&
-        request.resource.data.deviceCount >= 0 &&
+        (('propertyCount' in request.resource.data) ? request.resource.data.propertyCount : 0) >= 0 &&
+        (('deviceCount' in request.resource.data) ? request.resource.data.deviceCount : 0) >= 0 &&
         (
           // Property create increment
           (
-            request.resource.data.propertyCount == (('propertyCount' in resource.data) ? resource.data.propertyCount : 0) + 1 &&
-            request.resource.data.deviceCount == (('deviceCount' in resource.data) ? resource.data.deviceCount : 0)
+            (('propertyCount' in request.resource.data) ? request.resource.data.propertyCount : 0) == (('propertyCount' in resource.data) ? resource.data.propertyCount : 0) + 1 &&
+            (('deviceCount' in request.resource.data) ? request.resource.data.deviceCount : 0) == (('deviceCount' in resource.data) ? resource.data.deviceCount : 0)
           ) ||
           // Property delete decrement
           (
-            request.resource.data.propertyCount == ((('propertyCount' in resource.data) ? resource.data.propertyCount : 0) > 0 ? (('propertyCount' in resource.data) ? resource.data.propertyCount : 0) - 1 : 0) &&
-            request.resource.data.deviceCount == (('deviceCount' in resource.data) ? resource.data.deviceCount : 0)
+            (('propertyCount' in request.resource.data) ? request.resource.data.propertyCount : 0) == ((('propertyCount' in resource.data) ? resource.data.propertyCount : 0) > 0 ? (('propertyCount' in resource.data) ? resource.data.propertyCount : 0) - 1 : 0) &&
+            (('deviceCount' in request.resource.data) ? request.resource.data.deviceCount : 0) == (('deviceCount' in resource.data) ? resource.data.deviceCount : 0)
           ) ||
           // Device create increment
           (
-            request.resource.data.deviceCount == (('deviceCount' in resource.data) ? resource.data.deviceCount : 0) + 1 &&
-            request.resource.data.propertyCount == (('propertyCount' in resource.data) ? resource.data.propertyCount : 0)
+            (('deviceCount' in request.resource.data) ? request.resource.data.deviceCount : 0) == (('deviceCount' in resource.data) ? resource.data.deviceCount : 0) + 1 &&
+            (('propertyCount' in request.resource.data) ? request.resource.data.propertyCount : 0) == (('propertyCount' in resource.data) ? resource.data.propertyCount : 0)
           ) ||
           // Device delete decrement
           (
-            request.resource.data.deviceCount == ((('deviceCount' in resource.data) ? resource.data.deviceCount : 0) > 0 ? (('deviceCount' in resource.data) ? resource.data.deviceCount : 0) - 1 : 0) &&
-            request.resource.data.propertyCount == (('propertyCount' in resource.data) ? resource.data.propertyCount : 0)
+            (('deviceCount' in request.resource.data) ? request.resource.data.deviceCount : 0) == ((('deviceCount' in resource.data) ? resource.data.deviceCount : 0) > 0 ? (('deviceCount' in resource.data) ? resource.data.deviceCount : 0) - 1 : 0) &&
+            (('propertyCount' in request.resource.data) ? request.resource.data.propertyCount : 0) == (('propertyCount' in resource.data) ? resource.data.propertyCount : 0)
           )
         );
     }
@@ -549,13 +639,31 @@ service cloud.firestore {
     match /tenantProfiles/{profileId} {
       allow read: if isAuthenticated() && (
         ('accountId' in resource.data && canReadAccount(resource.data.accountId)) ||
-        resource.data.tenantId == request.auth.uid
+        resource.data.tenantId == request.auth.uid ||
+        resource.data.userId == request.auth.uid
       );
       allow create: if isAuthenticated() &&
         ('accountId' in request.resource.data) &&
-        canManageAccount(request.resource.data.accountId);
-      allow update, delete: if isAuthenticated() &&
+        hasActiveManagedInvitePlan(request.resource.data.accountId) &&
+        (
+          canManageAccount(request.resource.data.accountId) ||
+          (
+            profileId == request.auth.uid &&
+            ('userId' in request.resource.data) &&
+            request.resource.data.userId == request.auth.uid
+          )
+        );
+      allow update: if isAuthenticated() &&
         ('accountId' in resource.data) &&
+        hasActiveManagedInvitePlan(resource.data.accountId) &&
+        (
+          canManageAccount(resource.data.accountId) ||
+          resource.data.tenantId == request.auth.uid ||
+          resource.data.userId == request.auth.uid
+        );
+      allow delete: if isAuthenticated() &&
+        ('accountId' in resource.data) &&
+        hasActiveManagedInvitePlan(resource.data.accountId) &&
         canManageAccount(resource.data.accountId);
     }
 

@@ -20,21 +20,21 @@ export interface SubscriptionData {
 	scheduledPlan?: string;
 }
 
-const LEGACY_PLAN_ALIASES: Record<string, string> = {
-	free: 'homeowner',
-	home: 'homeowner',
-	homeowner: 'homeowner',
-	homeowner_plus: 'homeowner_plus',
-	homeownerplus: 'homeowner_plus',
-	'homeowner+': 'homeowner_plus',
-	basic: 'property',
-	professional: 'portfolio',
-};
+const CURRENT_PLAN_IDS = new Set([
+	'homeowner',
+	'homeowner_plus',
+	'property',
+	'portfolio',
+	'guest',
+	'team',
+	'tenant',
+]);
 const UNLIMITED_DEVICE_LIMIT_SENTINEL = 999;
 const UNLIMITED_FEATURE_LIMIT_SENTINEL = 999;
 
 const resolvePlanId = (planId: string): string => {
-	return LEGACY_PLAN_ALIASES[planId] || planId;
+	const normalizedPlanId = String(planId || '').trim().toLowerCase();
+	return CURRENT_PLAN_IDS.has(normalizedPlanId) ? normalizedPlanId : 'homeowner';
 };
 
 const getPlanById = (planId: string) => {
@@ -42,12 +42,15 @@ const getPlanById = (planId: string) => {
 	return Object.values(SUBSCRIPTION_PLANS).find((p) => p.id === normalizedPlanId);
 };
 
+const getEffectivePlan = (subscription: SubscriptionData) =>
+	getPlanById(getEffectiveSubscriptionPlanId(subscription));
+
 export const getEffectiveSubscriptionPlanId = (
 	subscription?: Pick<
 		SubscriptionData,
 		'plan' | 'hasScheduledSubscription' | 'scheduledPlan'
 	> | null,
-	fallbackPlanId = 'home',
+	fallbackPlanId = 'homeowner',
 ): string => {
 	const scheduledPlan = String(subscription?.scheduledPlan || '').trim();
 	const planId =
@@ -134,7 +137,7 @@ export const getTrialDaysRemaining = (
  * Create initial subscription data for legacy access-period flows
  */
 export const createTrialSubscription = (
-	plan: string = 'free',
+	plan: string = 'homeowner',
 	promoCode?: string,
 ): SubscriptionData => {
 	const now = Math.floor(Date.now() / 1000);
@@ -181,7 +184,7 @@ export const createTrialSubscription = (
  */
 export const getMaxPropertiesForPlan = (planId: string): number => {
 	const plan = getPlanById(planId);
-	return plan?.maxProperties || 1; // Default to 1 if plan not found
+	return plan?.maxProperties ?? 1; // Default to Homeowner if plan not found
 };
 
 /**
@@ -189,18 +192,18 @@ export const getMaxPropertiesForPlan = (planId: string): number => {
  */
 export const getMaxDevicesForPlan = (planId: string): number => {
 	const plan = getPlanById(planId);
-	const maxDevices = plan?.maxDevices || 15; // Default to Home tier if plan not found
+	const maxDevices = plan?.maxDevices ?? 15; // Default to Homeowner if plan not found
 	return isUnlimitedDeviceLimit(maxDevices) ? Number.POSITIVE_INFINITY : maxDevices;
 };
 
 export const getMaxFilesForPlan = (planId: string): number => {
 	const plan = getPlanById(planId);
-	return Number(plan?.maxFiles || 0);
+	return Number(plan?.maxFiles ?? 0);
 };
 
 export const getMaxStorageGbForPlan = (planId: string): number => {
 	const plan = getPlanById(planId);
-	return Number(plan?.maxStorageGb || 0);
+	return Number(plan?.maxStorageGb ?? 0);
 };
 
 export const canUseTaskReminderEmails = (
@@ -312,8 +315,26 @@ export const canManageTeam = (subscription: SubscriptionData): boolean => {
 		return false;
 	}
 
-	const plan = getPlanById(subscription.plan);
+	const plan = getEffectivePlan(subscription);
 	return plan?.permissions.canManageTeam || false;
+};
+
+/**
+ * Property and Portfolio can invite team members. Portfolio adds roles,
+ * permissions, groups, and property-specific access.
+ */
+export const canUseSimpleTeamManagement = (
+	subscription: SubscriptionData,
+): boolean => canManageTeam(subscription);
+
+export const canUseAdvancedTeamManagement = (
+	subscription: SubscriptionData,
+): boolean => {
+	if (!isSubscriptionActive(subscription)) {
+		return false;
+	}
+
+	return getEffectiveSubscriptionPlanId(subscription) === 'portfolio';
 };
 
 /**
@@ -324,7 +345,7 @@ export const canManageTenants = (subscription: SubscriptionData): boolean => {
 		return false;
 	}
 
-	const plan = getPlanById(subscription.plan);
+	const plan = getEffectivePlan(subscription);
 	return plan?.permissions.canManageTenants || false;
 };
 
@@ -336,7 +357,7 @@ export const canViewReports = (subscription: SubscriptionData): boolean => {
 		return false;
 	}
 
-	const plan = getPlanById(subscription.plan);
+	const plan = getEffectivePlan(subscription);
 	return plan?.permissions.canViewReports || false;
 };
 
@@ -348,7 +369,7 @@ export const canExportData = (subscription: SubscriptionData): boolean => {
 		return false;
 	}
 
-	const plan = getPlanById(subscription.plan);
+	const plan = getEffectivePlan(subscription);
 	return plan?.permissions.canExportData || false;
 };
 
@@ -360,7 +381,7 @@ export const hasPrioritySupport = (subscription: SubscriptionData): boolean => {
 		return false;
 	}
 
-	const plan = getPlanById(subscription.plan);
+	const plan = getEffectivePlan(subscription);
 	return plan?.permissions.prioritySupport || false;
 };
 
@@ -374,7 +395,7 @@ export const canSubmitMaintenanceRequests = (
 		return false;
 	}
 
-	const plan = getPlanById(subscription.plan);
+	const plan = getEffectivePlan(subscription);
 	return plan?.permissions.canSubmitMaintenanceRequests || false;
 };
 
@@ -386,7 +407,7 @@ export const canViewTenantInfo = (subscription: SubscriptionData): boolean => {
 		return false;
 	}
 
-	const plan = getPlanById(subscription.plan);
+	const plan = getEffectivePlan(subscription);
 	return plan?.permissions.canViewTenantInfo || false;
 };
 
@@ -398,7 +419,7 @@ export const canLinkParts = (subscription: SubscriptionData): boolean => {
 		return false;
 	}
 
-	const plan = getPlanById(subscription.plan);
+	const plan = getEffectivePlan(subscription);
 	return plan?.permissions.canLinkParts || false;
 };
 
@@ -410,7 +431,7 @@ export const canTrackWarranties = (subscription: SubscriptionData): boolean => {
 		return false;
 	}
 
-	const plan = getPlanById(subscription.plan);
+	const plan = getEffectivePlan(subscription);
 	return plan?.permissions.canTrackWarranties || false;
 };
 
@@ -478,7 +499,7 @@ export const canAdvancedAuditTrail = (subscription: SubscriptionData): boolean =
 		return false;
 	}
 
-	const plan = getPlanById(subscription.plan);
+	const plan = getEffectivePlan(subscription);
 	return plan?.permissions.canAdvancedAuditTrail || false;
 };
 
@@ -490,7 +511,7 @@ export const canManageMultiUnit = (subscription: SubscriptionData): boolean => {
 		return false;
 	}
 
-	const plan = getPlanById(subscription.plan);
+	const plan = getEffectivePlan(subscription);
 	return plan?.permissions.canManageMultiUnit || false;
 };
 
@@ -502,7 +523,7 @@ export const canPortfolioReporting = (subscription: SubscriptionData): boolean =
 		return false;
 	}
 
-	const plan = getPlanById(subscription.plan);
+	const plan = getEffectivePlan(subscription);
 	return plan?.permissions.canPortfolioReporting || false;
 };
 
@@ -514,7 +535,7 @@ export const canAdvancedAnalytics = (subscription: SubscriptionData): boolean =>
 		return false;
 	}
 
-	const plan = getPlanById(subscription.plan);
+	const plan = getEffectivePlan(subscription);
 	return plan?.permissions.canAdvancedAnalytics || false;
 };
 
@@ -526,7 +547,7 @@ export const canPropertyGroups = (subscription: SubscriptionData): boolean => {
 		return false;
 	}
 
-	const plan = getPlanById(subscription.plan);
+	const plan = getEffectivePlan(subscription);
 	return plan?.permissions.canPropertyGroups || false;
 };
 

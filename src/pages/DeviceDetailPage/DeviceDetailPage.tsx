@@ -3190,7 +3190,7 @@ export const DeviceDetailPage: React.FC = () => {
 								<option value='invoice'>Invoice</option>
 								<option value='inspection'>Inspection</option>
 								<option value='warranty'>
-									Warranty{canAccessWarranty || isTeamMemberAccount ? '' : ' (docs on Property+)'}
+									Warranty{canAccessWarranty || isTeamMemberAccount ? '' : ' (details available)'}
 								</option>
 								<option value='contractor'>Contractor Visit</option>
 							</FormSelect>
@@ -3322,7 +3322,7 @@ export const DeviceDetailPage: React.FC = () => {
 								</FormField>
 							) : (
 								<div style={{ fontSize: '12px', color: '#64748b' }}>
-									Document upload for warranty records is available on Property and Portfolio plans.
+									Document upload for warranty records follows your plan's storage limits.
 								</div>
 							)}
 						</>

@@ -26,19 +26,6 @@ const ACTIVE_TASK_STATUSES = new Set([
 	'Overdue',
 ]);
 
-const PLAN_ALIASES: Record<string, string> = {
-	home: 'homeowner',
-	homeowner: 'homeowner',
-	homeowner_plus: 'homeowner_plus',
-	homeownerplus: 'homeowner_plus',
-	'homeowner+': 'homeowner_plus',
-	property: 'property',
-	portfolio: 'portfolio',
-	free: 'homeowner',
-	basic: 'property',
-	professional: 'portfolio',
-};
-
 const PAID_TASK_REMINDER_EMAIL_PLANS = new Set([
 	'homeowner_plus',
 	'property',
@@ -103,8 +90,7 @@ interface DeliveryResult {
 }
 
 const normalizePlanId = (planId?: string): string => {
-	const normalized = String(planId || '').trim().toLowerCase();
-	return PLAN_ALIASES[normalized] || normalized;
+	return String(planId || '').trim().toLowerCase();
 };
 
 const getEffectivePlanId = (subscription?: UserSubscriptionLike): string => {

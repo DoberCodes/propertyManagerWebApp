@@ -32,7 +32,7 @@ export const ModalOverlay = styled.div`
 
 	@media (max-width: 480px) {
 		padding: 0.75rem;
-		align-items: flex-start;
+		align-items: center;
 		padding-top: max(0.75rem, env(safe-area-inset-top));
 		padding-right: max(0.75rem, env(safe-area-inset-right));
 		padding-bottom: max(0.75rem, env(safe-area-inset-bottom));

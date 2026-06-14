@@ -11,6 +11,7 @@ import { Capacitor } from '@capacitor/core';
 import { initializePushNotifications } from './services/pushNotifications';
 import { setIsMobile } from './Redux/Slices/appSlice';
 import { AppFeedbackProvider } from './Components/Library/AppFeedback/AppFeedbackProvider';
+import { canUseNotifications } from './utils/subscriptionUtils';
 
 const LoadingContainer = styled.div`
 	display: flex;
@@ -218,6 +219,12 @@ export const App = () => {
 	useEffect(() => {
 		if (!Capacitor.isNativePlatform()) return;
 		if (!currentUser?.id || pushNotificationsInitializedRef.current) return;
+		if (
+			!currentUser?.subscription ||
+			!canUseNotifications(currentUser.subscription)
+		) {
+			return;
+		}
 
 		pushNotificationsInitializedRef.current = true;
 		initializePushNotifications(
@@ -232,7 +239,7 @@ export const App = () => {
 				console.log('Push notification action:', action);
 			},
 		);
-	}, [currentUser?.id]);
+	}, [currentUser?.id, currentUser?.subscription]);
 
 	useEffect(() => {
 		// Set a timeout to ensure auth loading completes even if Firebase hangs

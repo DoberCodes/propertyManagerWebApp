@@ -19,6 +19,31 @@ import {
 	TeamMemberInvitationCode,
 } from '../../types/Team.types';
 import { resolveTargetUserId } from './accountContext';
+import {
+	assertCanManageAdvancedTeamSettings,
+	assertCanManageTeamMembers,
+	canManageAdvancedTeamSettings,
+} from './inviteCapabilities';
+import { USER_ROLES } from '../../constants/roles';
+
+const normalizeTeamMemberForPlan = async <T extends Partial<TeamMember>>(
+	accountId: string,
+	member: T,
+): Promise<T> => {
+	if (await canManageAdvancedTeamSettings(accountId)) {
+		return member;
+	}
+
+	const rest = { ...(member as any) };
+	delete rest.groupId;
+	delete rest.linkedProperties;
+	delete rest.role;
+	return {
+		...rest,
+		role: USER_ROLES.ADMIN,
+		linkedProperties: [],
+	} as T;
+};
 
 export const teamSlice = apiSlice.injectEndpoints({
 	endpoints: (builder) => ({
@@ -150,6 +175,7 @@ export const teamSlice = apiSlice.injectEndpoints({
 						return { error: 'User not authenticated' };
 					}
 					const targetUserId = await resolveTargetUserId();
+					await assertCanManageAdvancedTeamSettings(targetUserId);
 					const docRef = await addDoc(collection(db, 'teamGroups'), {
 						...newGroup,
 						userId: targetUserId,
@@ -178,6 +204,8 @@ export const teamSlice = apiSlice.injectEndpoints({
 		>({
 			async queryFn({ id, updates }) {
 				try {
+					const targetUserId = await resolveTargetUserId();
+					await assertCanManageAdvancedTeamSettings(targetUserId);
 					const docRef = doc(db, 'teamGroups', id);
 					await updateDoc(docRef, {
 						...updates,
@@ -194,6 +222,8 @@ export const teamSlice = apiSlice.injectEndpoints({
 		deleteTeamGroup: builder.mutation<void, string>({
 			async queryFn(groupId: string) {
 				try {
+					const targetUserId = await resolveTargetUserId();
+					await assertCanManageAdvancedTeamSettings(targetUserId);
 					await deleteDoc(doc(db, 'teamGroups', groupId));
 					return { data: undefined };
 				} catch (error: any) {
@@ -238,8 +268,13 @@ export const teamSlice = apiSlice.injectEndpoints({
 						return { error: 'User not authenticated' };
 					}
 					const targetUserId = await resolveTargetUserId();
+					await assertCanManageTeamMembers(targetUserId);
+					const memberForPlan = await normalizeTeamMemberForPlan(
+						targetUserId,
+						newMember,
+					);
 					const docRef = await addDoc(collection(db, 'teamMembers'), {
-						...newMember,
+						...memberForPlan,
 						userId: targetUserId,
 						accountId: targetUserId,
 						createdAt: new Date().toISOString(),
@@ -248,7 +283,7 @@ export const teamSlice = apiSlice.injectEndpoints({
 					return {
 						data: {
 							id: docRef.id,
-							...newMember,
+							...memberForPlan,
 							userId: targetUserId,
 							accountId: targetUserId,
 						} as TeamMember,
@@ -266,7 +301,13 @@ export const teamSlice = apiSlice.injectEndpoints({
 		>({
 			async queryFn({ id, updates }) {
 				try {
+					const targetUserId = await resolveTargetUserId();
+					await assertCanManageTeamMembers(targetUserId);
 					const docRef = doc(db, 'teamMembers', id);
+					const updatesForPlan = await normalizeTeamMemberForPlan(
+						targetUserId,
+						updates,
+					);
 					let existingMember: Partial<TeamMember> = {};
 					try {
 						const existingSnapshot = await getDoc(docRef);
@@ -281,14 +322,14 @@ export const teamSlice = apiSlice.injectEndpoints({
 					}
 
 					await updateDoc(docRef, {
-						...updates,
+						...updatesForPlan,
 						updatedAt: new Date().toISOString(),
 					});
 
 					const linkedUserId =
 						String(
-							(updates as any).userAccountId ||
-								(updates as any).redeemedByUserId ||
+							(updatesForPlan as any).userAccountId ||
+								(updatesForPlan as any).redeemedByUserId ||
 								(existingMember as any).userAccountId ||
 								(existingMember as any).redeemedByUserId ||
 								'',
@@ -297,7 +338,7 @@ export const teamSlice = apiSlice.injectEndpoints({
 						const linkedUserUpdates: Record<string, any> = {};
 						(['firstName', 'lastName', 'title', 'phone', 'address', 'image', 'role'] as const).forEach(
 							(field) => {
-								const value = (updates as any)[field];
+								const value = (updatesForPlan as any)[field];
 								if (value !== undefined) {
 									linkedUserUpdates[field] = value;
 								}
@@ -319,7 +360,7 @@ export const teamSlice = apiSlice.injectEndpoints({
 						}
 					}
 
-					return { data: { id, ...updates } as TeamMember };
+					return { data: { id, ...updatesForPlan } as TeamMember };
 				} catch (error: any) {
 					return { error: error.message };
 				}
@@ -331,6 +372,7 @@ export const teamSlice = apiSlice.injectEndpoints({
 			async queryFn(memberId: string) {
 				try {
 					const targetUserId = await resolveTargetUserId();
+					await assertCanManageTeamMembers(targetUserId);
 					// Get the team member's email
 					const memberDoc = await getDoc(doc(db, 'teamMembers', memberId));
 					if (!memberDoc.exists()) {

@@ -43,7 +43,33 @@ if (!admin.apps.length) {
 const db = admin.firestore();
 const PROPERTY_GROUP_DELETE_ROLES = ['account_owner', 'admin', 'manager'];
 const BATCH_LIMIT = 450;
+const PROPERTY_GROUP_PLANS = new Set(['property', 'portfolio']);
 const toString = (value) => String(value || '').trim();
+const normalizePlanId = (value) => {
+    return toString(value).toLowerCase();
+};
+const isTrialActive = (subscription) => {
+    if ((subscription === null || subscription === void 0 ? void 0 : subscription.status) !== 'trial') {
+        return false;
+    }
+    if (!subscription.trialEndsAt) {
+        return true;
+    }
+    return subscription.trialEndsAt > Date.now() / 1000;
+};
+const canUsePropertyGroups = (subscription) => {
+    if (!subscription) {
+        return false;
+    }
+    if (subscription.status !== 'active' && !isTrialActive(subscription)) {
+        return false;
+    }
+    const scheduledPlan = normalizePlanId(subscription.scheduledPlan);
+    const plan = subscription.hasScheduledSubscription && scheduledPlan
+        ? scheduledPlan
+        : normalizePlanId(subscription.plan);
+    return PROPERTY_GROUP_PLANS.has(plan);
+};
 const chunk = (items, size) => {
     const chunks = [];
     for (let index = 0; index < items.length; index += size) {
@@ -79,7 +105,7 @@ const updateDocs = async (docs, updated, label) => {
 exports.deletePropertyGroupCascade = functions
     .region('us-central1')
     .https.onCall(async (data, context) => {
-    var _a;
+    var _a, _b;
     const uid = toString((_a = context.auth) === null || _a === void 0 ? void 0 : _a.uid);
     if (!uid) {
         throw new functions.https.HttpsError('unauthenticated', 'You must be signed in to delete a property group.');
@@ -105,6 +131,10 @@ exports.deletePropertyGroupCascade = functions
         throw new functions.https.HttpsError('failed-precondition', 'Property group is missing account ownership data.');
     }
     await (0, accountAuthz_1.assertAccountRole)(uid, accountId, PROPERTY_GROUP_DELETE_ROLES);
+    const accountOwnerDoc = await db.collection('users').doc(accountId).get();
+    if (!canUsePropertyGroups((_b = accountOwnerDoc.data()) === null || _b === void 0 ? void 0 : _b.subscription)) {
+        throw new functions.https.HttpsError('permission-denied', 'Property groups are available on Property and Portfolio plans.');
+    }
     const deleted = {};
     const updated = {};
     const membershipsSnapshot = await db

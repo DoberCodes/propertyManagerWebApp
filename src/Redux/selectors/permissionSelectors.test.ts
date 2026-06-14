@@ -53,12 +53,22 @@ describe('permission selectors', () => {
 	});
 
 	describe('selectIsHomeowner', () => {
-		it('returns true when subscription.plan is homeowner', () => {
+		it('returns true when subscription.plan is a homeowner plan', () => {
 			expect(
 				selectIsHomeowner({
 					user: { currentUser: { subscription: { plan: 'homeowner' } } },
 				} as any),
 			).toBe(true);
+			expect(
+				selectIsHomeowner({
+					user: { currentUser: { subscription: { plan: 'homeowner_plus' } } },
+				} as any),
+			).toBe(true);
+			expect(
+				selectIsHomeowner({
+					user: { currentUser: { subscription: { plan: 'team' } } },
+				} as any),
+			).toBe(false);
 		});
 
 		it('returns false when no subscription or different plan', () => {
@@ -67,27 +77,27 @@ describe('permission selectors', () => {
 			);
 			expect(
 				selectIsHomeowner({
-					user: { currentUser: { subscription: { plan: 'free' } } },
+					user: { currentUser: { subscription: { plan: 'property' } } },
 				} as any),
 			).toBe(false);
 		});
 	});
 
 	describe('selectCanAccessProperties', () => {
-		it('returns true for non-free subscription plan', () => {
-			expect(
-				selectCanAccessProperties({
-					user: { currentUser: { subscription: { plan: 'basic' } } },
-				} as any),
-			).toBe(true);
-		});
+	it('returns true for current subscription plans', () => {
+		expect(
+			selectCanAccessProperties({
+				user: { currentUser: { subscription: { plan: 'property' } } },
+			} as any),
+		).toBe(true);
+	});
 
-		it('returns false for free plan or missing subscription', () => {
-			expect(
-				selectCanAccessProperties({
-					user: { currentUser: { subscription: { plan: 'free' } } },
-				} as any),
-			).toBe(false);
+	it('returns true for local Homeowner plan and false for missing subscription', () => {
+		expect(
+			selectCanAccessProperties({
+				user: { currentUser: { subscription: { plan: 'homeowner' } } },
+			} as any),
+		).toBe(true);
 			expect(
 				selectCanAccessProperties({ user: { currentUser: null } } as any),
 			).toBe(false);
@@ -95,31 +105,45 @@ describe('permission selectors', () => {
 	});
 
 	describe('selectCanAccessTeam', () => {
-		it('returns true for active subscription with team permission (basic)', () => {
+		it('returns true for active Property and Portfolio team permissions', () => {
 			const state: any = {
 				user: {
 					currentUser: {
-						subscription: { status: SUBSCRIPTION_STATUS.ACTIVE, plan: 'basic' },
+						subscription: {
+							status: SUBSCRIPTION_STATUS.ACTIVE,
+							plan: 'portfolio',
+						},
+					},
+				},
+			};
+			const propertyState: any = {
+				user: {
+					currentUser: {
+						subscription: {
+							status: SUBSCRIPTION_STATUS.ACTIVE,
+							plan: 'property',
+						},
 					},
 				},
 			};
 			expect(selectCanAccessTeam(state)).toBe(true);
+			expect(selectCanAccessTeam(propertyState)).toBe(true);
 		});
 
-		it('returns false for free plan or inactive subscription', () => {
-			const freeState: any = {
-				user: {
-					currentUser: {
-						subscription: { status: SUBSCRIPTION_STATUS.ACTIVE, plan: 'free' },
-					},
+	it('returns false for Homeowner plan or inactive subscription', () => {
+		const freeState: any = {
+			user: {
+				currentUser: {
+					subscription: { status: SUBSCRIPTION_STATUS.ACTIVE, plan: 'homeowner' },
 				},
-			};
+			},
+		};
 			const expiredState: any = {
 				user: {
 					currentUser: {
 						subscription: {
 							status: SUBSCRIPTION_STATUS.EXPIRED,
-							plan: 'basic',
+							plan: 'property',
 						},
 					},
 				},
@@ -131,15 +155,29 @@ describe('permission selectors', () => {
 	});
 
 	describe('selectCanInviteTeamMembers', () => {
-		it('matches team invite capability for eligible plans', () => {
+		it('matches team invite capability for Property and Portfolio', () => {
 			const state: any = {
 				user: {
 					currentUser: {
-						subscription: { status: SUBSCRIPTION_STATUS.ACTIVE, plan: 'basic' },
+						subscription: {
+							status: SUBSCRIPTION_STATUS.ACTIVE,
+							plan: 'portfolio',
+						},
+					},
+				},
+			};
+			const propertyState: any = {
+				user: {
+					currentUser: {
+						subscription: {
+							status: SUBSCRIPTION_STATUS.ACTIVE,
+							plan: 'property',
+						},
 					},
 				},
 			};
 			expect(selectCanInviteTeamMembers(state)).toBe(true);
+			expect(selectCanInviteTeamMembers(propertyState)).toBe(true);
 		});
 
 		it('returns false when user has no subscription', () => {
@@ -150,18 +188,29 @@ describe('permission selectors', () => {
 	});
 
 	describe('selectCanManageTenants', () => {
-		it('returns true for active plan with tenant management capability', () => {
+		it('returns true for active Property and Portfolio tenant management capability', () => {
 			const state: any = {
 				user: {
 					currentUser: {
 						subscription: {
 							status: SUBSCRIPTION_STATUS.ACTIVE,
-							plan: 'professional',
+							plan: 'portfolio',
+						},
+					},
+				},
+			};
+			const propertyState: any = {
+				user: {
+					currentUser: {
+						subscription: {
+							status: SUBSCRIPTION_STATUS.ACTIVE,
+							plan: 'property',
 						},
 					},
 				},
 			};
 			expect(selectCanManageTenants(state)).toBe(true);
+			expect(selectCanManageTenants(propertyState)).toBe(true);
 		});
 
 		it('returns false for plans without tenant management capability', () => {
@@ -183,7 +232,7 @@ describe('permission selectors', () => {
 					currentUser: {
 						subscription: {
 							status: SUBSCRIPTION_STATUS.ACTIVE,
-							plan: 'professional',
+							plan: 'portfolio',
 						},
 					},
 				},
@@ -197,7 +246,7 @@ describe('permission selectors', () => {
 					currentUser: {
 						subscription: {
 							status: SUBSCRIPTION_STATUS.EXPIRED,
-							plan: 'professional',
+							plan: 'portfolio',
 						},
 					},
 				},

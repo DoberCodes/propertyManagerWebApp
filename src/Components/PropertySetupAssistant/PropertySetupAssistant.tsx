@@ -1235,7 +1235,7 @@ const ModalOverlay = styled.div`
 	background: rgba(15, 23, 42, 0.55);
 
 	@media (max-width: 640px) {
-		align-items: stretch;
+		align-items: center;
 		padding: max(20px, calc(16px + env(safe-area-inset-top))) 10px
 			max(16px, calc(12px + env(safe-area-inset-bottom)));
 	}

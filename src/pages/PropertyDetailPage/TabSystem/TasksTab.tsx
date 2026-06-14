@@ -36,7 +36,7 @@ import {
 	isTaskDueWithinDays,
 } from '../../../utils/taskDisplayStatus';
 import { isTrialExpired } from '../../../utils/subscriptionUtils';
-import { ReusableTable, TaskModal } from '../../../Components/Library';
+import { AppZeroState, ReusableTable, TaskModal } from '../../../Components/Library';
 import { Column, Action } from '../../../Components/Library/ReusableTable';
 import { WarningDialog } from '../../../Components/Library/WarningDialog';
 import { useAppFeedback } from '../../../Components/Library/AppFeedback/AppFeedbackProvider';
@@ -57,7 +57,6 @@ import {
 	TabSummaryPill,
 	SectionLead,
 	StatusBadge,
-	EmptyState,
 	DesktopTableWrapper,
 } from './index.styles';
 import { TaskAssignModal } from '../../../Components/Library/Modal/TaskAssignModal';
@@ -1090,14 +1089,24 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 					</div>
 				</>
 			) : (
-				<EmptyState>
-					<p>No matching tasks yet. Create one to start your maintenance timeline and reminders.</p>
-					{canCreateTasks && (
-						<ToolbarButton type='button' onClick={handleCreateTask}>
-							Add Task
-						</ToolbarButton>
-					)}
-				</EmptyState>
+				<AppZeroState
+					kind={processedTasks.length === 0 ? 'noTasks' : 'noTaskMatches'}
+					actions={
+						processedTasks.length === 0 && canCreateTasks
+							? [{ label: 'Add Task', onClick: handleCreateTask }]
+							: processedTasks.length > 0
+								? [
+										{
+											label: 'Clear Filters',
+											onClick: () => {
+												setFilters({});
+												setQuickView('all');
+											},
+										},
+								  ]
+								: []
+					}
+				/>
 			)}
 
 

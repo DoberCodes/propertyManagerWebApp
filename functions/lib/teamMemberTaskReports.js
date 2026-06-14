@@ -59,12 +59,9 @@ const COMPLETED_EVENT_TYPES = new Set([
     'inspection_completed',
     'recurring_maintenance_completed',
 ]);
-const TEAM_REPORT_PLANS = new Set(['portfolio', 'professional']);
+const TEAM_REPORT_PLANS = new Set(['property', 'portfolio']);
 const normalizePlanId = (value) => {
-    const plan = String(value || '').trim().toLowerCase();
-    if (plan === 'professional')
-        return 'portfolio';
-    return plan;
+    return String(value || '').trim().toLowerCase();
 };
 const canUseTeamReports = (user) => {
     var _a, _b, _c;
