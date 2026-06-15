@@ -386,10 +386,12 @@ export const TopNav = () => {
 												padding: '12px 16px',
 												border: 'none',
 												background: 'none',
-												textAlign: 'left',
 												cursor: 'pointer',
 												fontSize: '14px',
 												color: '#1a1a1a',
+												display: 'flex',
+												alignItems: 'center',
+												justifyContent: 'space-between',
 												transition: 'background-color 0.2s ease',
 											}}
 											onMouseEnter={(e) =>
@@ -398,7 +400,26 @@ export const TopNav = () => {
 											onMouseLeave={(e) =>
 												(e.currentTarget.style.backgroundColor = 'transparent')
 											}>
-											Notifications
+											<span>Notifications</span>
+											{unreadCount > 0 && (
+												<span
+													style={{
+														minWidth: '24px',
+														height: '20px',
+														padding: '0 8px',
+														borderRadius: '999px',
+														background: '#fee2e2',
+														color: '#b91c1c',
+														fontSize: '12px',
+														fontWeight: 700,
+														display: 'inline-flex',
+														alignItems: 'center',
+														justifyContent: 'center',
+														whiteSpace: 'nowrap',
+													}}>
+													{unreadCount > 99 ? '99+' : unreadCount}
+												</span>
+											)}
 										</button>
 									{!isUserTenant && (
 										<button
