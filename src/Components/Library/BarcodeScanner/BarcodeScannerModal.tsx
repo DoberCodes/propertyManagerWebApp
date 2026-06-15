@@ -1,5 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import styled from 'styled-components';
+import { BrowserMultiFormatReader } from '@zxing/browser';
+import {
+	BarcodeFormat,
+	DecodeHintType,
+	NotFoundException,
+} from '@zxing/library';
 import {
 	analyzeBarcodePayload,
 	BarcodePayloadAnalysis,
@@ -77,6 +83,12 @@ const Video = styled.video`
 const Helper = styled.div`
 	font-size: 12px;
 	color: #64748b;
+`;
+
+const EngineHint = styled.div`
+	font-size: 11px;
+	font-weight: 600;
+	color: #0f766e;
 `;
 
 const ErrorText = styled.div`
@@ -206,6 +218,35 @@ const Pill = styled.span`
 	color: #166534;
 `;
 
+const ConfidenceBadge = styled.span<{ $tone: 'high' | 'medium' | 'low' }>`
+	padding: 2px 7px;
+	border-radius: 999px;
+	font-size: 10px;
+	font-weight: 700;
+	background: ${(props) =>
+		props.$tone === 'high'
+			? '#dcfce7'
+			: props.$tone === 'medium'
+			? '#fef9c3'
+			: '#fee2e2'};
+	color: ${(props) =>
+		props.$tone === 'high'
+			? '#166534'
+			: props.$tone === 'medium'
+			? '#854d0e'
+			: '#991b1b'};
+`;
+
+const GuidanceCard = styled.div`
+	border: 1px solid #cbd5e1;
+	border-radius: 10px;
+	background: #f8fafc;
+	padding: 10px;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+`;
+
 const RelabelGrid = styled.div`
 	display: flex;
 	flex-direction: column;
@@ -256,16 +297,23 @@ type RelabelRow = {
 	selected: boolean;
 };
 
+type ScannerMethod = 'barcode' | 'photo';
+type CaptureIntent = 'appliance' | 'part' | 'generic';
+
 interface BarcodeScannerModalProps {
 	isOpen: boolean;
 	title?: string;
+	defaultMethod?: ScannerMethod;
+	captureIntent?: CaptureIntent;
 	onClose: () => void;
 	onDetected: (value: string) => void;
 }
 
 export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 	isOpen,
-	title = 'Scan Barcode',
+	title = 'Capture Assistant',
+	defaultMethod = 'barcode',
+	captureIntent = 'generic',
 	onClose,
 	onDetected,
 }) => {
@@ -273,16 +321,19 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 	const photoInputRef = useRef<HTMLInputElement | null>(null);
 	const streamRef = useRef<MediaStream | null>(null);
 	const rafRef = useRef<number | null>(null);
+	const zxingReaderRef = useRef<BrowserMultiFormatReader | null>(null);
+	const zxingStopRef = useRef<(() => void) | null>(null);
 	const [error, setError] = useState<string>('');
 	const [manualValue, setManualValue] = useState('');
 	const [capturedValue, setCapturedValue] = useState('');
 	const [analysis, setAnalysis] = useState<BarcodePayloadAnalysis | null>(null);
 	const [relabelRows, setRelabelRows] = useState<RelabelRow[]>([]);
-	const [activeMethod, setActiveMethod] = useState<'barcode' | 'photo'>('barcode');
+	const [activeMethod, setActiveMethod] = useState<ScannerMethod>(defaultMethod);
 	const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
 	const [selectedImagePreview, setSelectedImagePreview] = useState('');
 	const [isExtractingText, setIsExtractingText] = useState(false);
 	const [ocrError, setOcrError] = useState('');
+	const [captureEngineLabel, setCaptureEngineLabel] = useState('');
 
 	const supportsBarcodeDetector = useMemo(
 		() => typeof (window as any).BarcodeDetector !== 'undefined',
@@ -296,6 +347,26 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 		[],
 	);
 
+	const confidenceFromField = useCallback(
+		(sourceKey: string, targetKey: string, value: string): 'high' | 'medium' | 'low' => {
+			const normalizedKey = `${sourceKey} ${targetKey}`.toLowerCase();
+			const cleanedValue = value.trim();
+			if (!cleanedValue || cleanedValue.length < 2) return 'low';
+
+			const isIdentifierField = /(serial|model|part|gtin|upc|ean|pn|sn)/i.test(
+				normalizedKey,
+			);
+			const isDescriptorField = /(brand|manufacturer|type|size|material|notes|details)/i.test(
+				normalizedKey,
+			);
+
+			if (isIdentifierField && /^[A-Za-z0-9._/-]{5,}$/.test(cleanedValue)) return 'high';
+			if (isIdentifierField || isDescriptorField) return 'medium';
+			return 'low';
+		},
+		[],
+	);
+
 	const stopScanner = useCallback(() => {
 		if (rafRef.current) {
 			cancelAnimationFrame(rafRef.current);
@@ -305,6 +376,28 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 			streamRef.current.getTracks().forEach((track) => track.stop());
 			streamRef.current = null;
 		}
+		if (zxingStopRef.current) {
+			zxingStopRef.current();
+			zxingStopRef.current = null;
+		}
+	}, []);
+
+	const getZxingReader = useCallback(() => {
+		if (!zxingReaderRef.current) {
+			const hints = new Map();
+			hints.set(DecodeHintType.POSSIBLE_FORMATS, [
+				BarcodeFormat.CODE_128,
+				BarcodeFormat.CODE_39,
+				BarcodeFormat.EAN_13,
+				BarcodeFormat.EAN_8,
+				BarcodeFormat.UPC_A,
+				BarcodeFormat.UPC_E,
+				BarcodeFormat.QR_CODE,
+				BarcodeFormat.DATA_MATRIX,
+			]);
+			zxingReaderRef.current = new BrowserMultiFormatReader(hints);
+		}
+		return zxingReaderRef.current;
 	}, []);
 
 	const commitValue = useCallback((value: string) => {
@@ -390,6 +483,23 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 			setOcrError('');
 			setIsExtractingText(true);
 			try {
+				const zxingReader = getZxingReader();
+				const imageUrl = URL.createObjectURL(file);
+				try {
+					const decodedBarcode = await zxingReader.decodeFromImageUrl(imageUrl);
+					const decodedValue = decodedBarcode.getText().trim();
+					if (decodedValue) {
+						setCaptureEngineLabel('ZXing barcode decode from image');
+						setManualValue(decodedValue);
+						captureValue(decodedValue);
+						return;
+					}
+				} catch {
+					// Fall through to OCR extraction when no machine-readable barcode is found.
+				} finally {
+					URL.revokeObjectURL(imageUrl);
+				}
+
 				const tesseractModule = await import('tesseract.js');
 				const worker = await (tesseractModule as any).createWorker('eng');
 				const result = await worker.recognize(file);
@@ -401,6 +511,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 					return;
 				}
 
+				setCaptureEngineLabel('OCR text extraction');
 				setManualValue(extractedText);
 				captureValue(extractedText);
 			} catch {
@@ -409,7 +520,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 				setIsExtractingText(false);
 			}
 		},
-		[captureValue],
+		[captureValue, getZxingReader],
 	);
 
 	const handlePhotoSelected = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -433,11 +544,12 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 			setCapturedValue('');
 			setAnalysis(null);
 			setRelabelRows([]);
-			setActiveMethod('barcode');
+			setActiveMethod(defaultMethod);
 			setSelectedImageFile(null);
 			setSelectedImagePreview('');
 			setIsExtractingText(false);
 			setOcrError('');
+			setCaptureEngineLabel('');
 			return;
 		}
 
@@ -457,7 +569,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 				setError(
 					supportsBarcodeDetector
 						? ''
-						: 'Camera access is available, but live barcode detection is not supported here. You can still use the camera preview and paste the scanned value manually if needed.',
+						: 'Native browser barcode detection is unavailable. Maintley will use ZXing decoding instead.',
 				);
 				const stream = await navigator.mediaDevices.getUserMedia({
 					video: { facingMode: 'environment' },
@@ -475,37 +587,68 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 				await video.play();
 
 				if (!supportsBarcodeDetector) {
-					return;
+					setCaptureEngineLabel('ZXing live decode');
 				}
 
-				const DetectorCtor = (window as any).BarcodeDetector;
-				const detector = new DetectorCtor({
-					formats: [
-						'code_128',
-						'code_39',
-						'ean_13',
-						'ean_8',
-						'upc_a',
-						'upc_e',
-						'qr_code',
-					],
-				});
-
-				const tick = async () => {
-					if (!videoRef.current) return;
-					try {
-						const results = (await detector.detect(videoRef.current)) as BarcodeScanResult[];
-						if (results.length > 0 && results[0].rawValue) {
-							captureValue(results[0].rawValue);
-							return;
-						}
-					} catch {
-						// Keep scanning even if one frame errors.
-					}
-					rafRef.current = requestAnimationFrame(tick);
+				let captured = false;
+				const handleCapture = (value: string, engine: string) => {
+					if (captured || cancelled) return;
+					captured = true;
+					setCaptureEngineLabel(engine);
+					captureValue(value);
 				};
 
-				rafRef.current = requestAnimationFrame(tick);
+				if (supportsBarcodeDetector) {
+					const DetectorCtor = (window as any).BarcodeDetector;
+					const detector = new DetectorCtor({
+						formats: [
+							'code_128',
+							'code_39',
+							'ean_13',
+							'ean_8',
+							'upc_a',
+							'upc_e',
+							'qr_code',
+						],
+					});
+
+					const tick = async () => {
+						if (!videoRef.current || captured || cancelled) return;
+						try {
+							const results = (await detector.detect(videoRef.current)) as BarcodeScanResult[];
+							if (results.length > 0 && results[0].rawValue) {
+								handleCapture(results[0].rawValue, 'Native browser barcode detector');
+								return;
+							}
+						} catch {
+							// Keep scanning even if one frame errors.
+						}
+						rafRef.current = requestAnimationFrame(tick);
+					};
+
+					rafRef.current = requestAnimationFrame(tick);
+				}
+
+				const zxingReader = getZxingReader();
+				const zxingControls = await zxingReader.decodeFromStream(
+					stream,
+					video,
+					(result, decodeError) => {
+						if (captured || cancelled) return;
+						if (result?.getText()) {
+							handleCapture(result.getText(), 'ZXing live decode');
+							return;
+						}
+						if (
+							decodeError &&
+							!(decodeError instanceof NotFoundException) &&
+							!supportsBarcodeDetector
+						) {
+							setError('ZXing could not decode the current frame. Try better lighting or move closer.');
+						}
+					},
+				);
+				zxingStopRef.current = () => zxingControls.stop();
 			} catch {
 				setError('Unable to access camera. Check browser permissions and try again.');
 			}
@@ -517,7 +660,31 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 			cancelled = true;
 			stopScanner();
 		};
-	}, [activeMethod, analysis, captureValue, isOpen, stopScanner, supportsBarcodeDetector, supportsCameraAccess]);
+	}, [
+		activeMethod,
+		analysis,
+		captureValue,
+		defaultMethod,
+		getZxingReader,
+		isOpen,
+		stopScanner,
+		supportsBarcodeDetector,
+		supportsCameraAccess,
+	]);
+
+	const tabLabels = useMemo(() => {
+		if (captureIntent === 'appliance') {
+			return {
+				barcode: 'Barcode Scan (Helper)',
+				photo: 'Label Scan (Recommended)',
+			};
+		}
+
+		return {
+			barcode: 'Barcode / QR Scan',
+			photo: 'Label Photo (OCR)',
+		};
+	}, [captureIntent]);
 
 	if (!isOpen) return null;
 
@@ -536,18 +703,24 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 					</CloseButton>
 				</Header>
 				<Body>
+					<GuidanceCard>
+						<InspectorTitle style={{ fontSize: '12px' }}>Capture assistant flow</InspectorTitle>
+						<Helper>
+							Capture first, then confirm what should be applied. Nothing is saved until you tap an Apply button.
+						</Helper>
+					</GuidanceCard>
 					<MethodTabs>
 						<MethodTabButton
 							type='button'
 							$active={activeMethod === 'barcode'}
 							onClick={() => setActiveMethod('barcode')}>
-							Barcode / QR Scan
+							{tabLabels.barcode}
 						</MethodTabButton>
 						<MethodTabButton
 							type='button'
 							$active={activeMethod === 'photo'}
 							onClick={() => setActiveMethod('photo')}>
-							Sticker Photo (OCR)
+							{tabLabels.photo}
 						</MethodTabButton>
 					</MethodTabs>
 
@@ -557,15 +730,19 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 								<Video ref={videoRef} playsInline muted />
 							</VideoWrap>
 							<Helper>
-								Scan label code for quick identifiers, then confirm mapped fields below.
+								Use this when the label has a UPC/EAN/QR code. Appliance barcodes may not include full make/model/serial data.
 							</Helper>
+							<EngineHint>Engines: Native BarcodeDetector + ZXing fallback</EngineHint>
 						</>
 					)}
 
 					{!analysis && activeMethod === 'photo' && (
 						<>
 							<Helper>
-								Take or upload a appliance sticker photo to extract text and map fields.
+								Take or upload the equipment sticker. This path usually finds model and serial details more reliably.
+							</Helper>
+							<Helper>
+								Tip: fill the frame with the label, reduce glare, and keep text horizontal for best OCR results.
 							</Helper>
 							<Row>
 								<ActionButton
@@ -620,8 +797,9 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 						<InspectorCard>
 							<InspectorTitle>Scanned Data Inspector</InspectorTitle>
 							<InspectorHint>
-								Standardized structure: raw value, detected key-value pairs, GS1 segments, and normalized appliance/part mappings.
+								Standardized structure: raw value, detected key-value pairs, GS1 segments, and normalized appliance/part mappings. Review before applying.
 							</InspectorHint>
+							{captureEngineLabel && <EngineHint>Captured via: {captureEngineLabel}</EngineHint>}
 							<PillRow>
 								{analysis.formatHints.hasPairs && <Pill>Key/Value</Pill>}
 								{analysis.formatHints.hasGs1Markers && <Pill>GS1</Pill>}
@@ -684,6 +862,21 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 											/>
 											<div>
 												<TinyLabel>Detected Key</TinyLabel>
+												<PillRow>
+													<ConfidenceBadge
+														$tone={confidenceFromField(
+															row.sourceKey,
+															row.targetKey,
+															row.value,
+														)}>
+														{confidenceFromField(
+															row.sourceKey,
+															row.targetKey,
+															row.value,
+														)}
+														confidence
+													</ConfidenceBadge>
+												</PillRow>
 												<MiniInput value={row.sourceKey} disabled />
 											</div>
 											<div>

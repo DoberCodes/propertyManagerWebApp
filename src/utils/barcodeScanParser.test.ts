@@ -42,6 +42,18 @@ describe('barcodeScanParser', () => {
 		expect(parsed.serialNumber).toBe('4A12345678');
 	});
 
+	it('handles common OCR key misreads from sticker photos', () => {
+		const parsed = parseDeviceBarcodePayload(`
+			M0DEL N0: AZF31X16
+			S1N 49A8BC123
+			P1N AB-4455
+		`);
+
+		expect(parsed.model).toBe('AZF31X16');
+		expect(parsed.serialNumber).toBe('49A8BC123');
+		expect(parsed.partNumber).toBe('AB-4455');
+	});
+
 	it('extracts part fields from filter packaging text', () => {
 		const parsed = parsePartBarcodePayload(`
 			Brand: Filtrete

@@ -54,12 +54,18 @@ const KEY_ALIASES: Record<string, string> = {
 	model: 'model',
 	modelnumber: 'model',
 	modelno: 'model',
+	modeln0: 'model',
 	modelnum: 'model',
 	modeln: 'model',
 	modelnumberno: 'model',
+	m0deln0: 'model',
+	m0del: 'model',
 	mod: 'model',
 	mdl: 'model',
 	mn: 'model',
+	m1n: 'model',
+	min: 'model',
+	mln: 'model',
 	serial: 'serialNumber',
 	serialnumber: 'serialNumber',
 	serialno: 'serialNumber',
@@ -68,6 +74,9 @@ const KEY_ALIASES: Record<string, string> = {
 	serno: 'serialNumber',
 	ser: 'serialNumber',
 	sn: 'serialNumber',
+	s1n: 'serialNumber',
+	sin: 'serialNumber',
+	sln: 'serialNumber',
 	part: 'partNumber',
 	partnumber: 'partNumber',
 	mpn: 'partNumber',
@@ -76,6 +85,9 @@ const KEY_ALIASES: Record<string, string> = {
 	ean: 'partNumber',
 	gtin: 'partNumber',
 	pn: 'partNumber',
+	p1n: 'partNumber',
+	pin: 'partNumber',
+	pln: 'partNumber',
 	partno: 'partNumber',
 	partnum: 'partNumber',
 	itemno: 'partNumber',
@@ -107,6 +119,9 @@ const PART_KEY_ALIASES: Record<string, keyof ParsedPartFields> = {
 	ean: 'partNumber',
 	gtin: 'partNumber',
 	pn: 'partNumber',
+	p1n: 'partNumber',
+	pin: 'partNumber',
+	pln: 'partNumber',
 	partno: 'partNumber',
 	itemno: 'partNumber',
 	itemnumber: 'partNumber',
@@ -163,7 +178,7 @@ const normalizeKey = (rawKey: string): string =>
 
 const cleanCapturedValue = (value: string): string => {
 	const knownLabel =
-		/(?:model(?:\s*(?:number|no\.?|num|#))?|m\s*[/\\.-]?\s*n|mdl|serial(?:\s*(?:number|no\.?|num|#))?|ser(?:ial)?\s*(?:no\.?|#)?|s\s*[/\\.-]?\s*n|brand|manufacturer|manufactured\s*by|mfg(?:\s*by)?|mfr|make|part(?:\s*(?:number|no\.?|num|#))?|p\s*[/\\.-]?\s*n|item(?:\s*(?:number|no\.?|#))?|product(?:\s*(?:number|no\.?|#))?|filter\s*size|filter|size|type|equipment\s*type|device\s*type|appliance\s*type|voltage|merv(?:\s*rating)?|material|compatibility|replacement\s*interval|details|notes)\b/i;
+		/(?:m(?:odel|0del)(?:\s*(?:number|n[o0]\.?|num|#))?|m\s*[/\\.\-il1]?\s*n|mdl|serial(?:\s*(?:number|n[o0]\.?|num|#))?|ser(?:ial|[i1l]al)?\s*(?:n[o0]\.?|#)?|s\s*[/\\.\-il1]?\s*n|brand|manufacturer|manufactured\s*by|mfg(?:\s*by)?|mfr|make|part(?:\s*(?:number|n[o0]\.?|num|#))?|p\s*[/\\.\-il1]?\s*n|item(?:\s*(?:number|n[o0]\.?|#))?|product(?:\s*(?:number|n[o0]\.?|#))?|filter\s*size|filter|size|type|equipment\s*type|device\s*type|appliance\s*type|voltage|merv(?:\s*rating)?|material|compatibility|replacement\s*interval|details|notes)\b/i;
 	const stopped = value.split(knownLabel)[0] || value;
 	return stopped
 		.replace(/^[\s:;=#.-]+/, '')
@@ -182,18 +197,18 @@ const labelDefinitions: Array<{
 }> = [
 	{
 		key: 'serialnumber',
-		pattern: /(?:serial\s*(?:number|no\.?|num|#)|serial|ser(?:ial)?\s*(?:no\.?|#)?|s\s*[/\\.-]?\s*n)\s*(?:[:=#.-]|\s)\s*([A-Z0-9][A-Z0-9\-_./ ]{1,})/i,
-		labelOnly: /^(?:serial\s*(?:number|no\.?|num|#)|serial|ser(?:ial)?\s*(?:no\.?|#)?|s\s*[/\\.-]?\s*n)\s*[:=#.-]?\s*$/i,
+		pattern: /(?:serial\s*(?:number|n[o0]\.?|num|#)|serial|ser(?:ial|[i1l]al)?\s*(?:n[o0]\.?|#)?|s\s*[/\\.\-il1]?\s*n)\s*(?:[:=#.-]|\s)\s*([A-Z0-9][A-Z0-9\-_./ ]{1,})/i,
+		labelOnly: /^(?:serial\s*(?:number|n[o0]\.?|num|#)|serial|ser(?:ial|[i1l]al)?\s*(?:n[o0]\.?|#)?|s\s*[/\\.\-il1]?\s*n)\s*[:=#.-]?\s*$/i,
 	},
 	{
 		key: 'model',
-		pattern: /(?:model\s*(?:number|no\.?|num|#)|model|m\s*[/\\.-]?\s*n|mdl)\s*(?:[:=#.-]|\s)\s*([A-Z0-9][A-Z0-9\-_./ ]{1,})/i,
-		labelOnly: /^(?:model\s*(?:number|no\.?|num|#)|model|m\s*[/\\.-]?\s*n|mdl)\s*[:=#.-]?\s*$/i,
+		pattern: /(?:m(?:odel|0del)\s*(?:number|n[o0]\.?|num|#)?|m\s*[/\\.\-il1]?\s*n|mdl)\s*(?:[:=#.-]|\s)\s*([A-Z0-9][A-Z0-9\-_./ ]{1,})/i,
+		labelOnly: /^(?:m(?:odel|0del)\s*(?:number|n[o0]\.?|num|#)?|m\s*[/\\.\-il1]?\s*n|mdl)\s*[:=#.-]?\s*$/i,
 	},
 	{
 		key: 'partnumber',
-		pattern: /(?:part\s*(?:number|no\.?|num|#)|part|p\s*[/\\.-]?\s*n|item\s*(?:number|no\.?|#)|item|product\s*(?:number|no\.?|#)|product)\s*(?:[:=#.-]|\s)\s*([A-Z0-9][A-Z0-9\-_./ ]{1,})/i,
-		labelOnly: /^(?:part\s*(?:number|no\.?|num|#)|part|p\s*[/\\.-]?\s*n|item\s*(?:number|no\.?|#)|item|product\s*(?:number|no\.?|#)|product)\s*[:=#.-]?\s*$/i,
+		pattern: /(?:part\s*(?:number|n[o0]\.?|num|#)|part|p\s*[/\\.\-il1]?\s*n|item\s*(?:number|n[o0]\.?|#)|item|product\s*(?:number|n[o0]\.?|#)|product)\s*(?:[:=#.-]|\s)\s*([A-Z0-9][A-Z0-9\-_./ ]{1,})/i,
+		labelOnly: /^(?:part\s*(?:number|n[o0]\.?|num|#)|part|p\s*[/\\.\-il1]?\s*n|item\s*(?:number|n[o0]\.?|#)|item|product\s*(?:number|n[o0]\.?|#)|product)\s*[:=#.-]?\s*$/i,
 	},
 	{
 		key: 'brand',

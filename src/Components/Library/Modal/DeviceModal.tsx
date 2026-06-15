@@ -761,7 +761,7 @@ export const DeviceModal = (props: DeviceModalProps) => {
 				</SectionHeader>
 				<div style={{ marginBottom: '12px' }}>
 					<ScanButton type='button' onClick={() => setIsDeviceScanOpen(true)}>
-						Scan Appliance Barcode
+						Capture Appliance Label
 					</ScanButton>
 				</div>
 
@@ -969,7 +969,7 @@ export const DeviceModal = (props: DeviceModalProps) => {
 				</SectionHeader>
 				<div style={{ marginBottom: '12px' }}>
 					<ScanButton type='button' onClick={() => setIsPartScanOpen(true)}>
-						Scan Part Barcode
+						Capture Part Label or Barcode
 					</ScanButton>
 				</div>
 				<PartsCard>
@@ -1412,13 +1412,17 @@ export const DeviceModal = (props: DeviceModalProps) => {
 		</GenericModal>
 		<BarcodeScannerModal
 			isOpen={isDeviceScanOpen}
-			title='Scan Appliance Barcode'
+			title='Appliance Capture Assistant'
+			defaultMethod='photo'
+			captureIntent='appliance'
 			onClose={() => setIsDeviceScanOpen(false)}
 			onDetected={handleDeviceBarcodeDetected}
 		/>
 		<BarcodeScannerModal
 			isOpen={isPartScanOpen}
-			title='Scan Part Barcode'
+			title='Part Capture Assistant'
+			defaultMethod='barcode'
+			captureIntent='part'
 			onClose={() => setIsPartScanOpen(false)}
 			onDetected={handlePartBarcodeDetected}
 		/>
