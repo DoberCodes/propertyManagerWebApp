@@ -33,6 +33,8 @@ interface TabsProps {
 	onSelectUnit?: (id: string) => void;
 	assigneeOptions?: { label: string; value: string; email?: string }[];
 	openCreateTaskToken?: number;
+	openCreateDeviceToken?: number;
+	openDocumentsUploadToken?: number;
 	handleAddMaintenanceHistory: (history: any) => void;
 	handleDeleteMaintenanceHistory: (historyId: string) => void;
 	setShowAddTenantModal: (show: boolean) => void;
@@ -65,6 +67,8 @@ export const TabSystem = ({
 	selectedUnitId,
 	onSelectUnit,
 	openCreateTaskToken = 0,
+	openCreateDeviceToken = 0,
+	openDocumentsUploadToken = 0,
 	// assigneeOptions intentionally not used here
 	handleAddMaintenanceHistory,
 	handleDeleteMaintenanceHistory,
@@ -76,7 +80,7 @@ export const TabSystem = ({
 	handleCreateTask,
 	handleCreateDevice,
 	handleCreateRequest,
-		handleUpdateMaintenanceHistory,
+	handleUpdateMaintenanceHistory,
 	permissions,
 }: TabsProps) => {
 	const activeTab = useSelector((state: RootState) => state.app.activeTab); // Default to 'details' if no active tab is set
@@ -100,7 +104,13 @@ export const TabSystem = ({
 					/>
 				);
 			case 'devices':
-				return <DevicesTab property={property} permissions={permissions} />;
+				return (
+					<DevicesTab
+						property={property}
+						permissions={permissions}
+						openCreateDeviceToken={openCreateDeviceToken}
+					/>
+				);
 			case 'suites':
 				return null;
 			case 'tasks':
@@ -137,7 +147,10 @@ export const TabSystem = ({
 					<DocumentsTab
 						property={property}
 						propertyDevices={propertyDevices}
+						propertyTasks={propertyTasks}
 						maintenanceHistoryRecords={maintenanceHistoryRecords}
+						permissions={permissions}
+						openUploadToken={openDocumentsUploadToken}
 					/>
 				);
 			case 'tenants':

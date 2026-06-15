@@ -101,6 +101,7 @@ export const PROPERTY_SETUP_AREAS: PropertySetupAssistantArea[] = [
 			'smoke-detectors',
 			'carbon-monoxide-detectors',
 			'fireplace-chimney',
+			'radon-mitigation-system',
 		],
 	},
 ];

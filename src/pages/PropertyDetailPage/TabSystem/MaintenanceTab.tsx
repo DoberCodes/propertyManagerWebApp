@@ -63,6 +63,7 @@ import {
 	ActiveFilterChipClear,
 } from './mobileUiShared';
 import { TaskFinancials } from 'types/Task.types';
+import { PropertyDocument } from 'types/Property.types';
 import { RoleCapabilities } from 'utils/permissions';
 
 const maintenanceEventTypeLabels: Record<string, string> = {
@@ -180,6 +181,7 @@ const getEventVisual = (eventType: string) => {
 
 const getMaintenanceAttachments = (
 	record: any,
+	propertyDocuments: PropertyDocument[] = [],
 ): Array<{ name: string; url?: string }> => {
 	const files: Array<{ name: string; url?: string }> = [];
 
@@ -209,6 +211,29 @@ const getMaintenanceAttachments = (
 		record.files.forEach((file: any) => {
 			if (!file?.name) return;
 			files.push({ name: file.name, url: file.url });
+		});
+	}
+
+	const taskIds = new Set<string>();
+	[
+		record?.taskId,
+		record?.originalTaskId,
+		record?.recurringTaskId,
+		record?.data?.taskId,
+		record?.data?.originalTaskId,
+	].forEach((taskId) => {
+		if (taskId) taskIds.add(String(taskId));
+	});
+	if (Array.isArray(record?.linkedTaskIds)) {
+		record.linkedTaskIds.forEach((taskId: string) => {
+			if (taskId) taskIds.add(String(taskId));
+		});
+	}
+	if (taskIds.size > 0) {
+		propertyDocuments.forEach((document) => {
+			if (!document?.name || !document.assignedTaskId) return;
+			if (!taskIds.has(String(document.assignedTaskId))) return;
+			files.push({ name: document.name, url: document.url });
 		});
 	}
 
@@ -330,6 +355,10 @@ export const MaintenanceTab = ({
 	const canBulkEdit = canManageMaintenanceHistory && Boolean(onUpdateMaintenanceHistory);
 	const canDeleteHistory =
 		canManageMaintenanceHistory && Boolean(onDeleteMaintenanceHistory);
+	const propertyDocuments = useMemo<PropertyDocument[]>(
+		() => (Array.isArray(property?.documents) ? property.documents : []),
+		[property?.documents],
+	);
 
 	const { isMobile } = useSelector((state: any) => state.app);
 
@@ -1040,7 +1069,7 @@ export const MaintenanceTab = ({
 			header: 'Documents',
 			key: 'attachments',
 			render: (_value, row) => {
-				const attachments = getMaintenanceAttachments(row);
+				const attachments = getMaintenanceAttachments(row, propertyDocuments);
 				if (attachments.length === 0) {
 					return <span style={{ color: '#94a3b8', fontSize: 13 }}>None</span>;
 				}
@@ -1389,6 +1418,11 @@ export const MaintenanceTab = ({
 					familyMembers={familyMembers}
 					groupOptions={maintenanceGroupOptions}
 					onCreateGroupId={createMaintenanceGroupId}
+					relatedDocuments={
+						editingHistoryRecord
+							? getMaintenanceAttachments(editingHistoryRecord, propertyDocuments)
+							: []
+					}
 				/>
 			)}
 

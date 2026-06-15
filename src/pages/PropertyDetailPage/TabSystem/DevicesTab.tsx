@@ -26,15 +26,23 @@ import {
 	useDeleteDeviceMutation,
 } from 'Redux/API/deviceSlice';
 import { useGetTasksQuery } from 'Redux/API/taskSlice';
-import { useGetUnitsQuery } from 'Redux/API/propertySlice';
+import {
+	useGetUnitsQuery,
+	useUpdatePropertyMutation,
+} from 'Redux/API/propertySlice';
 import {
 	SectionContainer,
 	SectionHeader,
 } from '../../../Components/Library/InfoCards/InfoCardStyles';
 import { WarningDialog } from '../../../Components/Library/WarningDialog';
 import { DeviceModal } from '../../../Components/Library/Modal';
-import { Property, DeviceServiceItem } from '../../../types/Property.types';
+import {
+	Property,
+	DeviceServiceItem,
+	PropertyDocumentCategory,
+} from '../../../types/Property.types';
 import { uploadDeviceFile } from '../../../utils/deviceFileUpload';
+import { uploadPropertyDocument } from '../../../utils/propertyDocumentUpload';
 import { buildDeviceSlug } from '../../../utils/deviceSlug';
 import { useAppFeedback } from '../../../Components/Library/AppFeedback/AppFeedbackProvider';
 import {
@@ -103,9 +111,14 @@ interface DeviceFormData {
 interface DevicesTabProps {
 	property: Property;
 	permissions?: RoleCapabilities;
+	openCreateDeviceToken?: number;
 }
 
-export const DevicesTab: React.FC<DevicesTabProps> = ({ property, permissions }) => {
+export const DevicesTab: React.FC<DevicesTabProps> = ({
+	property,
+	permissions,
+	openCreateDeviceToken = 0,
+}) => {
 	const navigate = useNavigate();
 	const [showDeviceModal, setShowDeviceModal] = useState(false);
 	const feedback = useAppFeedback();
@@ -113,6 +126,10 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property, permissions })
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [selectedDevice, setSelectedDevice] = useState<any>(null);
 	const [pendingUploadFiles, setPendingUploadFiles] = useState<File[]>([]);
+	const [pendingPropertyDocumentFiles, setPendingPropertyDocumentFiles] =
+		useState<File[]>([]);
+	const [pendingPropertyDocumentCategory, setPendingPropertyDocumentCategory] =
+		useState<PropertyDocumentCategory>('other');
 	const [removedExistingFileUrls, setRemovedExistingFileUrls] = useState<
 		string[]
 	>([]);
@@ -138,6 +155,8 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property, permissions })
 		files: [],
 	});
 	const fileInputRef = useRef<HTMLInputElement>(null);
+	const lastOpenCreateTokenRef = useRef(0);
+	const openCreateModalRef = useRef<() => void>(() => undefined);
 
 	const { data: devices = [], isLoading } = useGetDevicesQuery(property.id);
 	const { data: allDevices = [] } = useGetAllDevicesQuery();
@@ -374,6 +393,19 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property, permissions })
 		return { icon: faWrench, color: '#475569', background: '#f1f5f9' };
 	};
 
+	const propertyAssignedDocumentsByDevice = useMemo(() => {
+		const map = new Map<string, any[]>();
+		const documents = Array.isArray((property as any)?.documents)
+			? (property as any).documents
+			: [];
+		documents.forEach((document: any) => {
+			if (!document?.assignedDeviceId) return;
+			const deviceId = String(document.assignedDeviceId);
+			map.set(deviceId, [...(map.get(deviceId) || []), document]);
+		});
+		return map;
+	}, [property]);
+
 	const columns: Column[] = [
 		{
 			header: 'System Profile',
@@ -555,8 +587,11 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property, permissions })
 		{
 			header: 'Files & Docs',
 			key: 'files',
-			render: (files: any[]) => {
-				const count = Array.isArray(files) ? files.length : 0;
+			render: (files: any[], row: any) => {
+				const directCount = Array.isArray(files) ? files.length : 0;
+				const assignedCount =
+					propertyAssignedDocumentsByDevice.get(String(row.id))?.length || 0;
+				const count = directCount + assignedCount;
 				return (
 					<span style={{ color: count > 0 ? '#0f766e' : '#94a3b8', fontWeight: count > 0 ? 700 : 500 }}>
 						{count > 0 ? `${count} record${count === 1 ? '' : 's'} stored` : 'No documents yet'}
@@ -568,6 +603,7 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property, permissions })
 
 	const [createDevice] = useCreateDeviceMutation();
 	const [updateDevice] = useUpdateDeviceMutation();
+	const [updateProperty] = useUpdatePropertyMutation();
 	const [deleteDevice] = useDeleteDeviceMutation();
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
 	const isMobile = useSelector((state: RootState) => state.app.isMobile);
@@ -615,6 +651,8 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property, permissions })
 			files: [],
 		});
 		setPendingUploadFiles([]);
+		setPendingPropertyDocumentFiles([]);
+		setPendingPropertyDocumentCategory('other');
 		setRemovedExistingFileUrls([]);
 		setEditingDevice(null);
 		if (fileInputRef.current) {
@@ -659,6 +697,20 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property, permissions })
 		resetForm();
 		setShowDeviceModal(true);
 	};
+
+	openCreateModalRef.current = handleOpenCreateModal;
+
+	useEffect(() => {
+		if (
+			!openCreateDeviceToken ||
+			lastOpenCreateTokenRef.current === openCreateDeviceToken
+		) {
+			return;
+		}
+
+		lastOpenCreateTokenRef.current = openCreateDeviceToken;
+		openCreateModalRef.current();
+	}, [openCreateDeviceToken]);
 
 	const handleOpenEditModal = (device: any) => {
 		if (!canManageAppliances) {
@@ -759,13 +811,44 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property, permissions })
 				userId: currentUser!.id,
 			};
 
+			let savedDevice: any;
 			if (editingDevice) {
-				await updateDevice({
+				savedDevice = await updateDevice({
 					id: editingDevice.id,
 					updates: deviceData,
-				});
+				}).unwrap();
 			} else {
-				await createDevice(deviceData);
+				savedDevice = await createDevice(deviceData).unwrap();
+			}
+
+			const savedDeviceId = savedDevice?.id || editingDevice?.id;
+			if (savedDeviceId && pendingPropertyDocumentFiles.length > 0) {
+				const propertyDocuments = Array.isArray((property as any)?.documents)
+					? (property as any).documents
+					: [];
+				const uploadedDocuments = await Promise.all(
+					pendingPropertyDocumentFiles.map((file) =>
+						uploadPropertyDocument(
+							file,
+							property.id,
+							pendingPropertyDocumentCategory,
+						),
+					),
+				);
+				await updateProperty({
+					id: property.id,
+					updates: {
+						documents: [
+							...propertyDocuments,
+							...uploadedDocuments.map((document) => ({
+								...document,
+								assignedDeviceId: savedDeviceId,
+							})),
+						],
+					},
+				}).unwrap();
+				setPendingPropertyDocumentFiles([]);
+				setPendingPropertyDocumentCategory('other');
 			}
 
 			handleCloseModal();
@@ -857,6 +940,8 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property, permissions })
 						const resolvedStatus = getResolvedDeviceStatus(device);
 						const stateTone = needsAttention ? '#f59e0b' : resolvedStatus === 'Decommissioned' ? '#64748b' : '#22c55e';
 						const detailsMissing = !hasApplianceDetails(device);
+						const assignedPropertyDocuments =
+							propertyAssignedDocumentsByDevice.get(String(device.id)) || [];
 						return (
 							<DeviceCard
 								key={device.id}
@@ -927,10 +1012,21 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property, permissions })
 										</MobileActionLinkRow>
 									)}
 								</MobileTaskActions>
-								{device.files && device.files.length > 0 ? (
+								{(device.files && device.files.length > 0) ||
+								assignedPropertyDocuments.length > 0 ? (
 									<div style={{ marginTop: 4, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-										{device.files.map((file, i) => (
+										{(device.files || []).map((file, i) => (
 											<a key={i} href={file.url} target='_blank' rel='noopener noreferrer' style={{ fontSize: 12, color: '#2563eb', textDecoration: 'none' }}>{file.name}</a>
+										))}
+										{assignedPropertyDocuments.map((file, i) => (
+											<a
+												key={`assigned-${file.id || i}`}
+												href={file.url}
+												target='_blank'
+												rel='noopener noreferrer'
+												style={{ fontSize: 12, color: '#0f766e', textDecoration: 'none' }}>
+												{file.name}
+											</a>
 										))}
 									</div>
 								) : null}
@@ -1004,7 +1100,14 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ property, permissions })
 						handleFormChange('serviceItems', items)
 					}
 					property={property}
+					deviceId={editingDevice?.id}
 					units={units}
+					pendingPropertyDocumentFiles={pendingPropertyDocumentFiles}
+					onPendingPropertyDocumentFilesChange={setPendingPropertyDocumentFiles}
+					pendingPropertyDocumentCategory={pendingPropertyDocumentCategory}
+					onPendingPropertyDocumentCategoryChange={
+						setPendingPropertyDocumentCategory
+					}
 				/>
 			)}
 		</SectionContainer>

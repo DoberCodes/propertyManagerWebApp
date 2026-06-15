@@ -125,6 +125,17 @@ export const getStorageUsageForAccount = async (
 		addFiles(data.files, seen, totals, `device-${deviceDoc.id}`);
 	});
 
+	const propertiesSnapshot = await getDocs(
+		query(
+			collection(db, 'properties'),
+			where('accountId', '==', resolvedAccountId),
+		),
+	);
+	propertiesSnapshot.docs.forEach((propertyDoc) => {
+		const data = propertyDoc.data() || {};
+		addFiles(data.documents, seen, totals, `property-${propertyDoc.id}`);
+	});
+
 	for (const collectionName of ['maintenanceEvents', 'maintenanceHistory']) {
 		const snapshot = await getDocs(
 			query(

@@ -23,6 +23,7 @@ export type SuggestedSystemId =
 	| 'irrigation-system'
 	| 'pool-spa'
 	| 'fireplace-chimney'
+	| 'radon-mitigation-system'
 	| 'generator'
 	| 'roof'
 	| 'windows-doors'
@@ -243,6 +244,14 @@ export const SUGGESTED_SYSTEMS: SuggestedSystemTemplate[] = [
 		id: 'fireplace-chimney',
 		label: 'Fireplace/Chimney',
 		deviceType: 'Fireplace/Chimney',
+		category: 'Safety',
+		defaultSelected: false,
+		tier: 'more',
+	},
+	{
+		id: 'radon-mitigation-system',
+		label: 'Radon Mitigation System',
+		deviceType: 'Radon Mitigation System',
 		category: 'Safety',
 		defaultSelected: false,
 		tier: 'more',
@@ -650,6 +659,15 @@ export const SUGGESTED_TASKS: SuggestedTaskTemplate[] = [
 		intervalLabel: 'Yearly',
 		recurrenceFrequency: 'yearly',
 		priority: 'Low',
+	},
+	{
+		id: 'radon-mitigation-system-inspection',
+		systemId: 'radon-mitigation-system',
+		title: 'Inspect Radon Mitigation System',
+		intervalLabel: 'Yearly',
+		recurrenceFrequency: 'yearly',
+		priority: 'High',
+		notes: 'Check that the fan, venting, and monitor indicator look normal, and follow manufacturer or local guidance for radon retesting.',
 	},
 	{
 		id: 'generator-test',

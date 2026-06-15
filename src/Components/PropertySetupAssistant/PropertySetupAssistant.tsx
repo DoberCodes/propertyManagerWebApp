@@ -43,7 +43,22 @@ interface PropertySetupAssistantProps {
 	canUseAssistant: boolean;
 	initiallyOpen?: boolean;
 	onInitialOpenHandled?: () => void;
+	onAddMoreAppliances?: () => void;
+	onUploadDocuments?: () => void;
 }
+
+type SetupCompletionSummary = {
+	applianceLabels: string[];
+	applianceCount: number;
+	createdApplianceCount: number;
+	taskCount: number;
+	createdTaskCount: number;
+};
+
+type SuggestedTaskCreateResult = {
+	taskIds: string[];
+	createdTaskIds: string[];
+};
 
 const stripUndefinedValues = (value: any): any => {
 	if (Array.isArray(value)) {
@@ -91,6 +106,8 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 	canUseAssistant,
 	initiallyOpen = false,
 	onInitialOpenHandled,
+	onAddMoreAppliances,
+	onUploadDocuments,
 }) => {
 	const feedback = useAppFeedback();
 	const [updateProperty] = useUpdatePropertyMutation();
@@ -114,6 +131,8 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 	const areaPanelRef = useRef<HTMLDivElement | null>(null);
 	const [isSavingAssistant, setIsSavingAssistant] = useState(false);
 	const [isSaveComplete, setIsSaveComplete] = useState(false);
+	const [completionSummary, setCompletionSummary] =
+		useState<SetupCompletionSummary | null>(null);
 	const suggestedMaintenancePackageLimit = currentUser?.subscription
 		? getSuggestedMaintenancePackageLimit(currentUser.subscription)
 		: 0;
@@ -167,6 +186,7 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 		setHasUserDraftChanges(false);
 		setIsCloseConfirmOpen(false);
 		setIsSaveComplete(false);
+		setCompletionSummary(null);
 		setSelectedAreaId(getFirstIncompleteSetupAreaId({ items: nextDraftItems }));
 		setIsOpen(true);
 	};
@@ -302,9 +322,10 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 		itemId: SuggestedSystemId,
 		deviceId?: string,
 		selectedTaskIds = getSuggestedTaskIdsForSystems([itemId]),
-	) => {
+	): Promise<SuggestedTaskCreateResult> => {
 		const suggestedTasks = getSuggestedTasksForSystems([itemId], selectedTaskIds);
 		const taskIds: string[] = [];
+		const createdTaskIds: string[] = [];
 		const systemOrderIndex = Math.max(
 			PROPERTY_SETUP_ITEM_ORDER.indexOf(itemId),
 			0,
@@ -372,6 +393,7 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 				).unwrap();
 				if (createdTask?.id) {
 					taskIds.push(createdTask.id);
+					createdTaskIds.push(createdTask.id);
 				}
 			} catch (error) {
 				console.warn('Property setup assistant could not create task:', {
@@ -382,7 +404,7 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 			}
 		}
 
-		return taskIds;
+		return { taskIds, createdTaskIds };
 	};
 
 	const findExistingSuggestedTask = (
@@ -558,6 +580,7 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 	const closeAssistant = () => {
 		setIsCloseConfirmOpen(false);
 		setIsSaveComplete(false);
+		setCompletionSummary(null);
 		setIsOpen(false);
 		setHasUserDraftChanges(false);
 		setDraftItems(setupAssistant.items || {});
@@ -565,7 +588,22 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 
 	const handleSaveCompleteOk = () => {
 		setIsSaveComplete(false);
+		setCompletionSummary(null);
 		setIsOpen(false);
+	};
+
+	const handleAddMoreAppliances = () => {
+		setIsSaveComplete(false);
+		setCompletionSummary(null);
+		setIsOpen(false);
+		onAddMoreAppliances?.();
+	};
+
+	const handleUploadDocuments = () => {
+		setIsSaveComplete(false);
+		setCompletionSummary(null);
+		setIsOpen(false);
+		onUploadDocuments?.();
 	};
 
 	const requestCloseAssistant = () => {
@@ -586,6 +624,10 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 			...(setupAssistant.items || {}),
 			...draftItems,
 		};
+		const applianceLabelSet = new Set<string>();
+		const linkedTaskIdSet = new Set<string>();
+		let createdApplianceCount = 0;
+		let createdTaskCount = 0;
 
 		try {
 			for (const [itemId, itemState] of Object.entries(draftItems) as Array<
@@ -594,7 +636,17 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 				if (!itemState?.status) continue;
 
 				if (itemState.status === 'present') {
+					const item = getPropertySetupItem(itemId);
+					const hadExistingDevice = Boolean(
+						(itemState.deviceId &&
+							propertyDevices.some((device) => device.id === itemState.deviceId)) ||
+							findExistingDevice(itemId),
+					);
 					const device = await ensureDeviceForItem(itemId, nextItems);
+					if (device?.id && !hadExistingDevice) {
+						createdApplianceCount += 1;
+					}
+					applianceLabelSet.add(item?.system.label || device?.type || itemId);
 					const canGenerateSuggestedPackage =
 						canGenerateSuggestedPackageForItem(itemId, draftItems);
 					const selectedSuggestedTaskIds = canGenerateSuggestedPackage
@@ -608,21 +660,25 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 					let taskIds = liveCreatedTaskIds;
 
 					if (!wasAlreadyReviewed && liveCreatedTaskIds.length === 0) {
-						taskIds = await ensureSuggestedTasksForItem(
+						const taskResult = await ensureSuggestedTasksForItem(
 							itemId,
 							device?.id,
 							selectedSuggestedTaskIds,
 						);
+						taskIds = taskResult.taskIds;
+						createdTaskCount += taskResult.createdTaskIds.length;
 					} else if (recreateSuggestedTaskIds.length > 0) {
-						const recreatedTaskIds = await ensureSuggestedTasksForItem(
+						const recreatedTaskResult = await ensureSuggestedTasksForItem(
 							itemId,
 							device?.id,
 							recreateSuggestedTaskIds,
 						);
 						taskIds = Array.from(
-							new Set([...liveCreatedTaskIds, ...recreatedTaskIds]),
+							new Set([...liveCreatedTaskIds, ...recreatedTaskResult.taskIds]),
 						);
+						createdTaskCount += recreatedTaskResult.createdTaskIds.length;
 					}
+					taskIds.forEach((taskId) => linkedTaskIdSet.add(taskId));
 
 					const nextItemState: PropertySetupAssistantItemState = {
 						...itemState,
@@ -675,6 +731,13 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 			setDraftItems(nextItems);
 			setHasUserDraftChanges(false);
 			setIsCloseConfirmOpen(false);
+			setCompletionSummary({
+				applianceLabels: Array.from(applianceLabelSet),
+				applianceCount: applianceLabelSet.size,
+				createdApplianceCount,
+				taskCount: linkedTaskIdSet.size,
+				createdTaskCount,
+			});
 			setIsSaveComplete(true);
 		} catch (error) {
 			await waitForMinimumDuration(saveStartedAt);
@@ -1054,16 +1117,52 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 							<SavingCard>
 								{isSaveComplete ? (
 									<>
-										<SavingCompleteIcon aria-hidden='true'>✓</SavingCompleteIcon>
-										<SavingTitle>Your home schedule is ready</SavingTitle>
-										<SavingList>
-											<li>Review created appliances</li>
-											<li>Adjust task dates if needed</li>
-											<li>Add missing details over time</li>
-										</SavingList>
-										<SavingOkButton type='button' onClick={handleSaveCompleteOk}>
-											OK
-										</SavingOkButton>
+										<SavingCompleteIcon aria-hidden='true'>OK</SavingCompleteIcon>
+										<SavingTitle>Quick setup review</SavingTitle>
+										<ReviewText>
+											Here is what was saved for {property.title || 'this property'}.
+										</ReviewText>
+										<ReviewStats>
+											<ReviewStat>
+												<strong>{completionSummary?.applianceCount || 0}</strong>
+												<span>appliance/system records</span>
+											</ReviewStat>
+											<ReviewStat>
+												<strong>{completionSummary?.taskCount || 0}</strong>
+												<span>suggested tasks linked</span>
+											</ReviewStat>
+										</ReviewStats>
+										<ReviewMeta>
+											{completionSummary?.createdApplianceCount || 0} new appliance
+											{(completionSummary?.createdApplianceCount || 0) === 1 ? '' : 's'} and{' '}
+											{completionSummary?.createdTaskCount || 0} new task
+											{(completionSummary?.createdTaskCount || 0) === 1 ? '' : 's'} created.
+										</ReviewMeta>
+										{completionSummary?.applianceLabels?.length ? (
+											<ReviewList>
+												{completionSummary.applianceLabels.slice(0, 5).map((label) => (
+													<li key={label}>{label}</li>
+												))}
+												{completionSummary.applianceLabels.length > 5 && (
+													<li>
+														+{completionSummary.applianceLabels.length - 5} more
+													</li>
+												)}
+											</ReviewList>
+										) : null}
+										<ReviewActions>
+											<SavingOkButton type='button' onClick={handleAddMoreAppliances}>
+												Add more appliances
+											</SavingOkButton>
+											<ReviewSecondaryButton
+												type='button'
+												onClick={handleUploadDocuments}>
+												Upload manuals or warranties
+											</ReviewSecondaryButton>
+											<ReviewLinkButton type='button' onClick={handleSaveCompleteOk}>
+												Done
+											</ReviewLinkButton>
+										</ReviewActions>
 									</>
 								) : (
 									<>
@@ -1892,4 +1991,110 @@ const SavingOkButton = styled.button`
 	&:hover {
 		background: #15803d;
 	}
+`;
+
+const ReviewText = styled.p`
+	margin: 8px 0 0;
+	color: #475569;
+	font-size: 14px;
+	line-height: 1.5;
+	text-align: center;
+`;
+
+const ReviewStats = styled.div`
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 10px;
+	margin-top: 16px;
+
+	@media (max-width: 420px) {
+		grid-template-columns: 1fr;
+	}
+`;
+
+const ReviewStat = styled.div`
+	padding: 12px;
+	border: 1px solid #dcfce7;
+	border-radius: 12px;
+	background: #f0fdf4;
+	text-align: center;
+
+	strong {
+		display: block;
+		color: #0f172a;
+		font-size: 22px;
+		line-height: 1;
+	}
+
+	span {
+		display: block;
+		margin-top: 6px;
+		color: #475569;
+		font-size: 12px;
+		font-weight: 800;
+		line-height: 1.3;
+	}
+`;
+
+const ReviewMeta = styled.div`
+	margin-top: 12px;
+	color: #64748b;
+	font-size: 12px;
+	font-weight: 700;
+	line-height: 1.4;
+	text-align: center;
+`;
+
+const ReviewList = styled.ul`
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: center;
+	gap: 8px;
+	margin: 14px 0 0;
+	padding: 0;
+	list-style: none;
+
+	li {
+		border: 1px solid #e2e8f0;
+		border-radius: 999px;
+		background: #f8fafc;
+		color: #334155;
+		font-size: 12px;
+		font-weight: 800;
+		line-height: 1.2;
+		padding: 6px 10px;
+	}
+`;
+
+const ReviewActions = styled.div`
+	display: grid;
+	gap: 10px;
+	margin-top: 18px;
+
+	${SavingOkButton} {
+		margin-top: 0;
+	}
+`;
+
+const ReviewSecondaryButton = styled(SavingOkButton)`
+	margin-top: 0;
+	border: 1px solid #bbf7d0;
+	background: #ecfdf5;
+	color: #047857;
+
+	&:hover {
+		background: #d1fae5;
+	}
+`;
+
+const ReviewLinkButton = styled.button`
+	border: none;
+	background: transparent;
+	color: #475569;
+	font-size: 14px;
+	font-weight: 800;
+	padding: 8px 12px;
+	cursor: pointer;
+	text-decoration: underline;
+	text-underline-offset: 3px;
 `;

@@ -78,7 +78,7 @@ import {
 } from '../../utils/subscriptionUtils';
 import { getRoleCapabilities } from '../../utils/permissions';
 import { LockedFeatureCallout } from '../../Components/Library/LockedFeatureCallout';
-import { DeviceServiceItem } from '../../types/Property.types';
+import { DeviceServiceItem, PropertyDocument } from '../../types/Property.types';
 import {
 	DEVICE_SERVICE_ITEM_CATEGORY_OPTIONS,
 	DEVICE_SERVICE_ITEM_FIELDS_BY_CATEGORY,
@@ -1508,7 +1508,7 @@ export const DeviceDetailPage: React.FC = () => {
 				type?: string;
 				size?: number;
 				date?: string;
-				source: 'appliance' | 'maintenance';
+				source: 'appliance' | 'maintenance' | 'property';
 				sourceLabel?: string;
 			}
 		>();
@@ -1524,6 +1524,31 @@ export const DeviceDetailPage: React.FC = () => {
 					size: file.size,
 					date: file.uploadedAt || file.createdAt,
 					source: 'appliance',
+				});
+			}
+		});
+
+		const propertyDocuments = Array.isArray((property as any)?.documents)
+			? ((property as any).documents as PropertyDocument[])
+			: [];
+		propertyDocuments.forEach((document) => {
+			if (!document?.name || !document.assignedDeviceId) return;
+			if (String(document.assignedDeviceId) !== String(device?.id || '')) return;
+			const key = `${document.name}::${document.url || ''}`;
+			if (!all.has(key)) {
+				all.set(key, {
+					name: document.name,
+					url: document.url,
+					type:
+						document.category === 'manual'
+							? 'Manual'
+							: document.category === 'warranty'
+								? 'Warranty'
+								: 'Property document',
+					size: document.size,
+					date: document.uploadedAt,
+					source: 'property',
+					sourceLabel: 'Property document',
 				});
 			}
 		});
@@ -1557,7 +1582,7 @@ export const DeviceDetailPage: React.FC = () => {
 			const bTime = new Date(b.date || 0).getTime() || 0;
 			return bTime - aTime;
 		});
-	}, [deviceDocumentFiles, relatedMaintenanceHistory]);
+	}, [device?.id, deviceDocumentFiles, property, relatedMaintenanceHistory]);
 
 	const documentCount = useMemo(
 		() => applianceAssignedDocumentEntries.length,
@@ -3462,6 +3487,7 @@ export const DeviceDetailPage: React.FC = () => {
 					onClose={handleCloseEditDeviceModal}
 					onSubmit={handleSaveDeviceEdit}
 					property={property}
+					deviceId={editingDevice?.id}
 					isEditing={true}
 					units={units}
 					pendingFiles={pendingDeviceFiles}

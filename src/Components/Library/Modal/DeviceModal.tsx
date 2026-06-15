@@ -14,7 +14,11 @@ import {
 	ModalTabContent,
 } from './ModalStyles';
 import { COLORS } from '../../../constants/colors';
-import { Property, DeviceServiceItem } from '../../../types/Property.types';
+import {
+	Property,
+	DeviceServiceItem,
+	PropertyDocumentCategory,
+} from '../../../types/Property.types';
 import { FileUploader } from '../FileUploader';
 import { TaskSelect } from '../Select/TaskSelect';
 import {
@@ -28,16 +32,24 @@ import {
 } from '../../../utils/barcodeScanParser';
 import { BarcodeScannerModal } from '../BarcodeScanner/BarcodeScannerModal';
 import { useGetDevicesQuery } from '../../../Redux/API/deviceSlice';
+import { ApplianceDocumentsPanel } from '../../ApplianceDocumentsPanel/ApplianceDocumentsPanel';
 
 interface DeviceModalProps {
 	isOpen: boolean;
 	onClose: () => void;
 	onSubmit: (event: React.FormEvent) => void;
 	property: Property;
+	deviceId?: string;
 	isEditing?: boolean;
 	units?: any[];
 	pendingFiles?: File[];
 	onPendingFilesChange?: (files: File[]) => void;
+	pendingPropertyDocumentFiles?: File[];
+	onPendingPropertyDocumentFilesChange?: (files: File[]) => void;
+	pendingPropertyDocumentCategory?: PropertyDocumentCategory;
+	onPendingPropertyDocumentCategoryChange?: (
+		category: PropertyDocumentCategory,
+	) => void;
 	removedExistingFileUrls?: string[];
 	onRemoveExistingFile?: (url: string) => void;
 	onRestoreExistingFile?: (url: string) => void;
@@ -931,6 +943,18 @@ export const DeviceModal = (props: DeviceModalProps) => {
 								(props.deviceFormData.files?.length || 0) === 1 ? '' : 's'
 							}. Add new files to upload on save.`}
 					</FieldHint>
+				</FormGroupFull>
+				<FormGroupFull>
+					<ApplianceDocumentsPanel
+						property={props.property}
+						propertyId={props.property.id}
+						deviceId={props.deviceId}
+						canUpload={Boolean(props.property.id)}
+						pendingFiles={props.pendingPropertyDocumentFiles}
+						onPendingFilesChange={props.onPendingPropertyDocumentFilesChange}
+						pendingCategory={props.pendingPropertyDocumentCategory}
+						onPendingCategoryChange={props.onPendingPropertyDocumentCategoryChange}
+					/>
 				</FormGroupFull>
 				</FormGrid>
 			</ModalTabContent>

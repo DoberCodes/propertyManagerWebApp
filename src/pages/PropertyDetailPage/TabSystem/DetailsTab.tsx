@@ -46,8 +46,8 @@ export const DetailsTab: React.FC<DetailsTabProps> = ({
 	propertyDevices = [],
 	maintenanceHistoryRecords = [],
 	onCreateTask,
-	onCreateDevice,
-	onCreateRequest,
+	// onCreateDevice,
+	// onCreateRequest,
 	permissions,
 }) => {
 	const openTasksCount = propertyTasks.length;
@@ -162,7 +162,7 @@ export const DetailsTab: React.FC<DetailsTabProps> = ({
 				</GlanceCard>
 			</GlanceGrid>
 
-			{(permissions?.canCreateTasks ||
+			{/* {(permissions?.canCreateTasks ||
 				permissions?.canManageAppliances ||
 				permissions?.canCreateMaintenanceRequests) && (
 				<QuickActionsBar>
@@ -187,7 +187,7 @@ export const DetailsTab: React.FC<DetailsTabProps> = ({
 					</QuickActionButton>
 					)}
 				</QuickActionsBar>
-			)}
+			)} */}
 
 			{/* Edit Mode Header */}
 			<DetailsEditHeader>

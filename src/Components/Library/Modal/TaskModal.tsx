@@ -40,6 +40,7 @@ import {
 import { useGetAllDevicesQuery } from '../../../Redux/API/deviceSlice';
 import {
 	useGetPropertiesQuery,
+	useUpdatePropertyMutation,
 } from '../../../Redux/API/propertySlice';
 import { useGetAllMaintenanceHistoryForUserQuery } from '../../../Redux/API/userSlice';
 import { addTask, updateTask } from '../../../Redux/Slices/propertyDataSlice';
@@ -51,9 +52,11 @@ import {
 } from '../../../utils/financialUtils';
 import { db } from '../../../config/firebase';
 import { COLORS } from '../../../constants/colors';
-import { Device } from '../../../types/Property.types';
+import { Device, PropertyDocumentCategory } from '../../../types/Property.types';
 import { RootState } from '../../../Redux/store/store';
 import { canUseRecurringTasks } from '../../../utils/subscriptionUtils';
+import { TaskDocumentsPanel } from '../../TaskDocumentsPanel/TaskDocumentsPanel';
+import { uploadPropertyDocument } from '../../../utils/propertyDocumentUpload';
 
 const LINKED_DEVICE_NOTES_START = '--- Linked Appliance Details ---';
 const LINKED_DEVICE_NOTES_END = '--- End Linked Appliance Details ---';
@@ -559,8 +562,14 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 		useGetAllMaintenanceHistoryForUserQuery();
 	const [createTask] = useCreateTaskMutation();
 	const [updateTaskApi] = useUpdateTaskMutation();
+	const [updateProperty] = useUpdatePropertyMutation();
 
 	const [formState, setFormState] = useState<TaskFormData>(defaultForm);
+	const [pendingTaskDocumentFiles, setPendingTaskDocumentFiles] = useState<File[]>(
+		[],
+	);
+	const [pendingTaskDocumentCategory, setPendingTaskDocumentCategory] =
+		useState<PropertyDocumentCategory>('other');
 	const [submitAttempted, setSubmitAttempted] = useState(false);
 	const [activeSuggestion, setActiveSuggestion] = useState<
 		'category' | 'location' | null
@@ -950,6 +959,8 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 			setSubmitAttempted(false);
 			setShowCreateMoreOptions(false);
 			setIsCoreSummaryExpanded(false);
+			setPendingTaskDocumentFiles([]);
+			setPendingTaskDocumentCategory('other');
 		}
 	}, [isOpen]);
 
@@ -1229,6 +1240,49 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 		return fetchedDevices.filter((device): device is Device => Boolean(device));
 	}, [allDevices, formState.devices]);
 
+	const uploadPendingTaskDocuments = async (
+		savedTaskId: string,
+		scopedPropertyId: string,
+		savedTaskStatus?: string,
+	) => {
+		if (!savedTaskId || !scopedPropertyId || pendingTaskDocumentFiles.length === 0) {
+			return;
+		}
+
+		const propertyForDocuments =
+			allProperties.find((property: any) => property.id === scopedPropertyId) ||
+			selectedProperty;
+		if (!propertyForDocuments) {
+			feedback.notify('Task saved, but property details were still loading so documents were not uploaded.');
+			return;
+		}
+		const propertyDocuments = Array.isArray(propertyForDocuments?.documents)
+			? propertyForDocuments.documents
+			: [];
+		const uploadedDocuments = await Promise.all(
+			pendingTaskDocumentFiles.map((file) =>
+				uploadPropertyDocument(file, scopedPropertyId, pendingTaskDocumentCategory),
+			),
+		);
+
+		await updateProperty({
+			id: scopedPropertyId,
+			updates: {
+				documents: [
+					...propertyDocuments,
+					...uploadedDocuments.map((document) => ({
+						...document,
+						assignedTaskId: savedTaskId,
+						assignedTaskStatus:
+							savedTaskStatus === 'Completed' ? 'Completed' : 'Pending',
+					})),
+				],
+			},
+		}).unwrap();
+		setPendingTaskDocumentFiles([]);
+		setPendingTaskDocumentCategory('other');
+	};
+
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
 		setSubmitAttempted(true);
@@ -1351,6 +1405,11 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 					id: taskId,
 					updates,
 				}).unwrap();
+				await uploadPendingTaskDocuments(
+					taskId,
+					String(updates.propertyId || formState.propertyId || propertyId || ''),
+					String(updates.status || formState.status || ''),
+				);
 				dispatch(updateTask(updated));
 				onSaved?.(updated);
 				onClose();
@@ -1418,6 +1477,11 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 				) as any;
 
 				const created = await createTask(newTask).unwrap();
+				await uploadPendingTaskDocuments(
+					created.id,
+					created.propertyId || newTask.propertyId || '',
+					created.status || newTask.status,
+				);
 				dispatch(addTask(created));
 				onSaved?.(created);
 				onClose();
@@ -1843,6 +1907,20 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 								</div>
 							</FormGroup>
 						)}
+
+						<FormGroupFull>
+							<TaskDocumentsPanel
+								property={selectedProperty}
+								propertyId={selectedPropertyId}
+								taskId={editingTaskId || editingTask?.id || foundTask?.id}
+								taskStatus={formState.status}
+								canUpload={Boolean(selectedPropertyId)}
+								pendingFiles={pendingTaskDocumentFiles}
+								onPendingFilesChange={setPendingTaskDocumentFiles}
+								pendingCategory={pendingTaskDocumentCategory}
+								onPendingCategoryChange={setPendingTaskDocumentCategory}
+							/>
+						</FormGroupFull>
 
 						{!isCreateMode && (
 							<>

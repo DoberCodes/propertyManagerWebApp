@@ -48,6 +48,7 @@ interface AddMaintenanceHistoryModalProps {
 	familyMembers: any[];
 	groupOptions: Array<{ value: string; label: string }>;
 	onCreateGroupId: () => string;
+	relatedDocuments?: Array<{ name: string; url?: string }>;
 }
 
 export const AddMaintenanceHistoryModal: React.FC<
@@ -66,6 +67,7 @@ export const AddMaintenanceHistoryModal: React.FC<
 	primaryButtonLabel = 'Add History',
 	hideAttachmentField = false,
 	initialData,
+	relatedDocuments = [],
 }) => {
 	const [formData, setFormData] = useState({
 		title: '',
@@ -711,6 +713,44 @@ export const AddMaintenanceHistoryModal: React.FC<
 								Selected: {formData.completionFile.name}
 							</div>
 						)}
+					</div>
+				)}
+
+				{relatedDocuments.length > 0 && (
+					<div>
+						<label
+							style={{
+								display: 'block',
+								marginBottom: '4px',
+								fontWeight: 'bold',
+							}}>
+							Related Task Documents
+						</label>
+						<div style={{ display: 'grid', gap: '8px' }}>
+							{relatedDocuments.map((document, index) =>
+								document.url ? (
+									<a
+										key={`${document.name}-${document.url}-${index}`}
+										href={document.url}
+										target='_blank'
+										rel='noreferrer'
+										style={{
+											color: '#0f766e',
+											fontSize: '14px',
+											fontWeight: 700,
+											textDecoration: 'underline',
+										}}>
+										{document.name}
+									</a>
+								) : (
+									<span
+										key={`${document.name}-${index}`}
+										style={{ color: '#475569', fontSize: '14px' }}>
+										{document.name}
+									</span>
+								),
+							)}
+						</div>
 					</div>
 				)}
 			</div>

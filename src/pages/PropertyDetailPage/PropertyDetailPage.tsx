@@ -191,6 +191,8 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 	const [tenantToDelete, setTenantToDelete] = useState<any | null>(null);
 	const [isPropertyDialogOpen, setIsPropertyDialogOpen] = useState(false);
 	const [openCreateTaskToken, setOpenCreateTaskToken] = useState(0);
+	const [openCreateDeviceToken, setOpenCreateDeviceToken] = useState(0);
+	const [openDocumentsUploadToken, setOpenDocumentsUploadToken] = useState(0);
 	const [deleteTaskModalOpen, setDeleteTaskModalOpen] = useState(false);
 	const [taskToDelete, setTaskToDelete] = useState<{
 		id: string;
@@ -289,6 +291,16 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 		}
 		dispatch(setAppActiveTab('tasks'));
 		setOpenCreateTaskToken((currentToken) => currentToken + 1);
+	};
+
+	const handleSetupAddMoreAppliances = () => {
+		dispatch(setAppActiveTab('devices'));
+		setOpenCreateDeviceToken((currentToken) => currentToken + 1);
+	};
+
+	const handleSetupUploadDocuments = () => {
+		dispatch(setAppActiveTab('documents'));
+		setOpenDocumentsUploadToken((currentToken) => currentToken + 1);
 	};
 
 	const handleSaveProperty = async (formData: any) => {
@@ -998,6 +1010,8 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 					}
 					initiallyOpen={shouldOpenPropertySetup}
 					onInitialOpenHandled={handlePropertySetupOpened}
+					onAddMoreAppliances={handleSetupAddMoreAppliances}
+					onUploadDocuments={handleSetupUploadDocuments}
 				/>
 				<TabSystem
 					property={property}
@@ -1035,6 +1049,8 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 					}
 					handleConvertRequestToTask={handleGuardedConvertRequestToTask}
 					openCreateTaskToken={openCreateTaskToken}
+					openCreateDeviceToken={openCreateDeviceToken}
+					openDocumentsUploadToken={openDocumentsUploadToken}
 					permissions={roleCapabilities}
 				/>
 

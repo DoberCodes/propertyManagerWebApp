@@ -22,11 +22,13 @@ import {
 	useCreateTaskMutation,
 	useSubmitTaskCompletionMutation,
 } from '../../Redux/API/taskSlice';
+import { useGetPropertiesQuery } from '../../Redux/API/propertySlice';
 import { useCreateNotificationMutation } from '../../Redux/API/notificationSlice';
 import { useAppFeedback } from '../Library/AppFeedback/AppFeedbackProvider';
 import { assertStorageQuotaForFiles } from '../../utils/storageQuota';
 import { signalStorageUsageUpdated } from '../../utils/storageUsageEvents';
 import { getEffectiveSubscriptionPlanId } from '../../utils/subscriptionUtils';
+import { TaskDocumentsPanel } from '../TaskDocumentsPanel/TaskDocumentsPanel';
 
 interface TaskCompletionModalProps {
 	taskId: string;
@@ -67,6 +69,7 @@ export const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
 	const [submitCompletion] = useSubmitTaskCompletionMutation();
 	const [createTask] = useCreateTaskMutation();
 	const [createNotification] = useCreateNotificationMutation();
+	const { data: allProperties = [] } = useGetPropertiesQuery();
 	const feedback = useAppFeedback();
 	const effectivePlan = getEffectiveSubscriptionPlanId(
 		currentUser?.subscription,
@@ -75,6 +78,9 @@ export const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
 	const canSelfComplete =
 		effectivePlan === 'homeowner' || effectivePlan === 'homeowner_plus';
 	const requiresWorkOrder = Boolean(task?.requiresWorkOrder);
+	const taskProperty = allProperties.find(
+		(property: any) => String(property.id || '') === String(task?.propertyId || ''),
+	);
 
 	const getReadableErrorMessage = (error: any): string => {
 		if (!error) return 'Failed to submit task completion. Please try again.';
@@ -531,6 +537,18 @@ export const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
 				}}
 			/>
 			{errors.file && <ErrorMessage>{errors.file}</ErrorMessage>}
+
+			{task?.propertyId && (
+				<FormGroup>
+					<TaskDocumentsPanel
+						property={taskProperty}
+						propertyId={task.propertyId}
+						taskId={taskId}
+						taskStatus={task.status}
+						canUpload
+					/>
+				</FormGroup>
+			)}
 
 			{errors.general && (
 				<ErrorMessage style={{ marginBottom: '1rem' }}>

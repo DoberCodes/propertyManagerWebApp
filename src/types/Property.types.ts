@@ -30,6 +30,22 @@ export interface PropertySetupAssistantState {
 	updatedAt?: string;
 }
 
+export type PropertyDocumentCategory = 'manual' | 'warranty' | 'other';
+
+export interface PropertyDocument {
+	id: string;
+	name: string;
+	url: string;
+	size: number;
+	type: string;
+	category: PropertyDocumentCategory;
+	assignedDeviceId?: string;
+	assignedTaskId?: string;
+	assignedTaskStatus?: string;
+	uploadedAt: string;
+	storagePath?: string;
+}
+
 export interface Property {
 	id: string;
 	groupId?: string;
@@ -55,6 +71,7 @@ export interface Property {
 	isRental?: boolean;
 	isFavorite?: boolean;
 	setupAssistant?: PropertySetupAssistantState;
+	documents?: PropertyDocument[];
 	createdAt?: string;
 	updatedAt?: string;
 }

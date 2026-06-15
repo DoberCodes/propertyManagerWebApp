@@ -137,6 +137,8 @@ export const DashboardTab = () => {
 		[],
 	);
 
+	const DASHBOARD_DUE_WINDOW_DAYS = 90;
+
 	const navigate = useNavigate();
 	const location = useLocation();
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
@@ -504,6 +506,8 @@ export const DashboardTab = () => {
 
 	const taskStatusCounts = useMemo(() => {
 		const now = new Date();
+		const maxDueDate = new Date(now);
+		maxDueDate.setDate(maxDueDate.getDate() + DASHBOARD_DUE_WINDOW_DAYS);
 		let overdue = 0;
 		let upcoming = 0;
 		let completed = completedTasksCount;
@@ -521,7 +525,7 @@ export const DashboardTab = () => {
 			const dueDate = new Date(task.dueDate);
 			if (dueDate < now) {
 				overdue++;
-			} else {
+			} else if (dueDate <= maxDueDate) {
 				upcoming++;
 			}
 		});
@@ -535,6 +539,7 @@ export const DashboardTab = () => {
 		filteredTasks,
 		completedTasksCount,
 		ACTIVE_TASK_STATUSES,
+		DASHBOARD_DUE_WINDOW_DAYS,
 	]);
 
 	const overdueDeviceIds = useMemo(() => {
@@ -694,12 +699,21 @@ export const DashboardTab = () => {
 
 	const urgentTasks = useMemo(() => {
 		const now = new Date();
+		const maxDueDate = new Date(now);
+		maxDueDate.setDate(maxDueDate.getDate() + DASHBOARD_DUE_WINDOW_DAYS);
 		return filteredTasks
 			.filter(
 				(task): task is Task =>
 					Boolean(task.dueDate) &&
 					ACTIVE_TASK_STATUSES.has(task.status) &&
-					task.status !== 'Completed',
+					task.status !== 'Completed' &&
+					(() => {
+						const dueDate = new Date(task.dueDate);
+						if (Number.isNaN(dueDate.getTime())) {
+							return false;
+						}
+						return dueDate < now || dueDate <= maxDueDate;
+					})(),
 			)
 			.sort((a, b) => {
 				const aDue = new Date(a.dueDate).getTime();
@@ -715,7 +729,7 @@ export const DashboardTab = () => {
 				return bPriority - aPriority;
 			})
 			.slice(0, 5);
-	}, [filteredTasks, ACTIVE_TASK_STATUSES, PRIORITY_RANK]);
+	}, [filteredTasks, ACTIVE_TASK_STATUSES, PRIORITY_RANK, DASHBOARD_DUE_WINDOW_DAYS]);
 
 	const nextUrgentTask = urgentTasks[0] || null;
 
@@ -1227,7 +1241,7 @@ export const DashboardTab = () => {
 							]}
 						/>
 					) : (
-						<UrgentQueueEmpty>Nothing urgent right now. Great job.</UrgentQueueEmpty>
+						<UrgentQueueEmpty>Nothing needing attention right now. Great job.</UrgentQueueEmpty>
 					)
 				) : (
 					<UrgentTaskList>
