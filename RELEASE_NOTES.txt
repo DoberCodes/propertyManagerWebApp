@@ -1,8 +1,6 @@
-🎉 **Release Notes for Version 2.4.3** 🎉
+🎉 **Release Notes for Version 2.4.4** 🎉
 
 
 ## 🐛 Bug Fixes
-- fixing plan issues and fixing stripe not allowing checkout along with multiple styling issues that arose.
-
-## 🔧 Improvements & Maintenance
-- styling update
+- fixing the document upload and also adding review section with more actions to the property setup assistant.
+- fixing barcode scanner
