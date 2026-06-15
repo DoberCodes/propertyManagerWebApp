@@ -362,11 +362,30 @@ export const MaintenanceTab = ({
 
 	const { isMobile } = useSelector((state: any) => state.app);
 
-	const handleGroupID = (record: any) => {
-		const getMaintenanceGroupId = (record: any): string | undefined => {
+	const getMaintenanceGroupId = (record: any): string | undefined => {
+		if (record?.maintenanceGroupId) {
 			return record.maintenanceGroupId;
-		};
+		}
 
+		if (record?.recurringTaskId) {
+			return record.recurringTaskId;
+		}
+
+		if (Array.isArray(record?.linkedTaskIds)) {
+			const normalizedTaskIds = record.linkedTaskIds
+				.map((taskId: string) => String(taskId || '').trim())
+				.filter(Boolean)
+				.sort();
+
+			if (normalizedTaskIds.length > 0) {
+				return `linked-${normalizedTaskIds.join(',')}`;
+			}
+		}
+
+		return undefined;
+	};
+
+	const handleGroupID = (record: any) => {
 		return getMaintenanceGroupId(record) || record.id;
 	};
 	const handleSelectionLink = (record) => {
@@ -870,10 +889,6 @@ export const MaintenanceTab = ({
 		return chips;
 	}, [filters, deviceNameById]);
 
-	const getMaintenanceGroupId = (record: any): string | undefined => {
-		return record.maintenanceGroupId;
-	};
-
 	// Group maintenance records by maintenance group ID
 	const groupedRecords = useMemo(() => {
 		const groups: { [key: string]: any[] } = {};
@@ -1348,6 +1363,19 @@ export const MaintenanceTab = ({
 									records={records}
 									groupId={groupId}
 									units={units}
+									canSelect={canBulkEdit}
+									selectedRecordIds={selectedRecordIds}
+									onToggleSelect={(recordId) => {
+										setSelectedRecordIds((prev) => {
+											const next = new Set(prev);
+											if (next.has(recordId)) {
+												next.delete(recordId);
+											} else {
+												next.add(recordId);
+											}
+											return next;
+										});
+									}}
 									onNavigate={handleNavigation}
 									onEdit={canManageMaintenanceHistory ? openEditHistoryModal : undefined}
 									onDelete={canDeleteHistory ? onDeleteMaintenanceHistory : undefined}
@@ -1361,6 +1389,19 @@ export const MaintenanceTab = ({
 									key={record.id}
 									records={[record]}
 									units={units}
+									canSelect={canBulkEdit}
+									selectedRecordIds={selectedRecordIds}
+									onToggleSelect={(recordId) => {
+										setSelectedRecordIds((prev) => {
+											const next = new Set(prev);
+											if (next.has(recordId)) {
+												next.delete(recordId);
+											} else {
+												next.add(recordId);
+											}
+											return next;
+										});
+									}}
 									onNavigate={handleNavigation}
 									onEdit={canManageMaintenanceHistory ? openEditHistoryModal : undefined}
 									onDelete={canDeleteHistory ? onDeleteMaintenanceHistory : undefined}
@@ -1383,6 +1424,11 @@ export const MaintenanceTab = ({
 						canManageMaintenanceHistory ? openAddHistoryModal : undefined
 					}
 					hideHeader={true}
+					selectedRows={selectedRecordIds}
+					onRowSelect={(nextSelection) => setSelectedRecordIds(new Set(nextSelection))}
+					onSelectAll={(_checked, selectedRowIds) =>
+						setSelectedRecordIds(new Set(selectedRowIds))
+					}
 					getRowClassName={(row) => {
 						const status = getOperationalStatus(row);
 						return status.label === 'Needs Attention' || status.label === 'Attention'

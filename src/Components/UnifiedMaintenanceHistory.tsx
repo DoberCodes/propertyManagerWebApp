@@ -13,11 +13,25 @@ interface UnifiedMaintenanceHistoryProps {
 	onDelete?: (record: any) => void;
 	groupId?: string;
 	onDeleteGroup?: (records: Array<any>) => void;
+	canSelect?: boolean;
+	selectedRecordIds?: Set<string>;
+	onToggleSelect?: (recordId: string) => void;
 }
 
 export const UnifiedMaintenanceHistory: React.FC<
 	UnifiedMaintenanceHistoryProps
-> = ({ records, units, onNavigate, onEdit, /*onDelete,*/ groupId, onDeleteGroup }) => {
+> = ({
+	records,
+	units,
+	onNavigate,
+	onEdit,
+	onDelete,
+	groupId,
+	onDeleteGroup,
+	canSelect = false,
+	selectedRecordIds = new Set(),
+	onToggleSelect,
+}) => {
 	const [isExpanded, setIsExpanded] = useState(false);
 	const latestRecord = records[0]; // Records are sorted by date, newest first
 
@@ -25,7 +39,7 @@ export const UnifiedMaintenanceHistory: React.FC<
 		padding: '8px 12px',
 		borderRadius: '6px',
 		fontSize: '13px',
-		fontWeight: 500,
+		fontWeight: 700,
 		border: '1px solid transparent',
 		cursor: 'pointer',
 	};
@@ -37,45 +51,115 @@ export const UnifiedMaintenanceHistory: React.FC<
 		borderColor: '#d1d5db',
 	};
 
-	const dangerActionStyle: React.CSSProperties = {
+	const primaryActionStyle: React.CSSProperties = {
 		...actionButtonBase,
-		background: '#ef4444',
-		color: '#ffffff',
+		background: '#ecfeff',
+		color: '#0f766e',
+		borderColor: '#99f6e4',
 	};
 
-	const moreSummaryStyle: React.CSSProperties = {
+	const cardMetaRowStyle: React.CSSProperties = {
+		display: 'flex',
+		flexWrap: 'wrap',
+		gap: '6px',
+	};
+
+	const cardMetaPillStyle: React.CSSProperties = {
+		padding: '4px 8px',
+		borderRadius: '999px',
+		fontSize: '11px',
+		fontWeight: 700,
+		background: '#f8fafc',
+		color: '#475569',
+		border: '1px solid #e2e8f0',
+	};
+
+	const recordCardStyle: React.CSSProperties = {
+		display: 'grid',
+		gap: '8px',
+		padding: '12px',
+		border: '1px solid #e5e7eb',
+		borderRadius: '10px',
+		background: '#f8fafc',
+	};
+
+	const notesPreviewStyle: React.CSSProperties = {
+		margin: 0,
+		fontSize: '13px',
+		lineHeight: 1.45,
+		color: '#475569',
+	};
+
+	const actionRowStyle: React.CSSProperties = {
+		display: 'flex',
+		gap: '8px',
+		flexWrap: 'wrap',
+	};
+
+	const actionMenuSummaryStyle: React.CSSProperties = {
 		...secondaryActionStyle,
-		textAlign: 'center',
 		listStyle: 'none',
+		textAlign: 'center',
 	};
 
-	const moreMenuStyle: React.CSSProperties = {
+	const actionMenuStyle: React.CSSProperties = {
 		position: 'absolute',
 		right: 0,
-		bottom: 'calc(100% + 6px)',
-		minWidth: 136,
+		top: 'calc(100% + 6px)',
+		minWidth: 156,
 		padding: '6px',
 		borderRadius: 8,
 		border: '1px solid #e2e8f0',
 		background: '#ffffff',
-		boxShadow: '0 8px 24px rgba(15, 23, 42, 0.15)',
-		zIndex: 15,
+		boxShadow: '0 10px 24px rgba(15, 23, 42, 0.14)',
+		zIndex: 12,
 		display: 'flex',
 		flexDirection: 'column',
 		gap: 4,
 	};
 
-	const moreMenuItemStyle: React.CSSProperties = {
+	const actionMenuItemStyle: React.CSSProperties = {
 		border: '1px solid transparent',
 		background: '#ffffff',
-		color: '#1f2937',
+		color: '#334155',
 		fontSize: '13px',
-		fontWeight: 600,
+		fontWeight: 700,
 		textAlign: 'left',
 		padding: '8px 10px',
 		borderRadius: 6,
 		cursor: 'pointer',
 	};
+
+	const formatRecordDate = (value?: string) => {
+		if (!value) return 'No date';
+		const date = new Date(value);
+		if (Number.isNaN(date.getTime())) return 'No date';
+		return date.toLocaleDateString();
+	};
+
+	const getCostLabel = (record: any) => {
+		const total = getFinancialDisplayTotal(record?.financials);
+		if (!total) return 'No cost logged';
+		return formatCurrency(total, record?.financials?.currency || 'USD');
+	};
+
+	const getNotesPreview = (record: any) => {
+		const raw = String(record?.completionNotes || record?.notes || '').trim();
+		if (!raw) return 'No service notes added yet.';
+		if (raw.length <= 140) return raw;
+		return `${raw.slice(0, 140).trim()}...`;
+	};
+
+	const getAttachmentCount = (record: any) => {
+		const count = [record?.completionFile, ...(Array.isArray(record?.attachments) ? record.attachments : [])].filter(Boolean).length;
+		return count;
+	};
+
+	const areAllRecordsSelected =
+		records.length > 0 && records.every((record) => selectedRecordIds.has(record.id));
+
+	const hasGroupSecondaryActions = Boolean(canSelect || onEdit || onDeleteGroup);
+	const hasRecordSecondaryActions = Boolean(canSelect || onEdit || onDelete);
 
 	const getUnitName = (unitId?: string) => {
 		if (!unitId) return '';
@@ -115,70 +199,71 @@ export const UnifiedMaintenanceHistory: React.FC<
 							}}>
 							🔄 {latestRecord.title} ({records.length} instances)
 						</h3>
-						<p style={{ margin: '0', fontSize: '14px', color: '#6b7280' }}>
-							Latest:{' '}
-							{new Date(latestRecord.completionDate).toLocaleDateString()}
-							<span style={{ marginLeft: '8px' }}>
-								•
-								{' '}
-								{formatCurrency(
-									getFinancialDisplayTotal(latestRecord.financials),
-									latestRecord.financials?.currency || 'USD',
-								)}
-							</span>
-							{latestRecord.unitId && (
-								<span style={{ marginLeft: '8px', fontWeight: '500' }}>
-									• {getUnitName(latestRecord.unitId)}
-								</span>
+						<div style={cardMetaRowStyle}>
+							<span style={cardMetaPillStyle}>Latest {formatRecordDate(latestRecord.completionDate)}</span>
+							<span style={cardMetaPillStyle}>{getCostLabel(latestRecord)}</span>
+							{latestRecord.unitId && getUnitName(latestRecord.unitId) && (
+								<span style={cardMetaPillStyle}>{getUnitName(latestRecord.unitId)}</span>
 							)}
-						</p>
+							{getAttachmentCount(latestRecord) > 0 && (
+								<span style={cardMetaPillStyle}>{getAttachmentCount(latestRecord)} attachment{getAttachmentCount(latestRecord) === 1 ? '' : 's'}</span>
+							)}
+						</div>
+						<p style={{ ...notesPreviewStyle, marginTop: '8px' }}>{getNotesPreview(latestRecord)}</p>
 					</div>
 					<div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-						{onEdit && (
-							<button
-								onClick={(e) => {
-									e.stopPropagation();
-									onEdit(latestRecord);
-								}}
-								style={secondaryActionStyle}>
-								Edit group
-							</button>
-						)}
 						<button
 							onClick={(e) => {
 								e.stopPropagation();
-								onDeleteGroup?.(records);
+								onNavigate?.(latestRecord);
 							}}
-							style={dangerActionStyle}>
-							Delete group
+							style={primaryActionStyle}>
+							View
 						</button>
-						<details
-							onClick={(e) => {
-								e.stopPropagation();
-							}}
-							style={{ position: 'relative' }}>
-							<summary style={moreSummaryStyle}>More</summary>
-							<div style={moreMenuStyle}>
+						{hasGroupSecondaryActions && (
+							<details
+								onClick={(e) => e.stopPropagation()}
+								style={{ position: 'relative' }}>
+								<summary style={actionMenuSummaryStyle}>Manage</summary>
+								<div style={actionMenuStyle}>
+									{canSelect && onToggleSelect && (
+										<button
+											onClick={(e) => {
+												e.stopPropagation();
+												records.forEach((record) => {
+													const isSelected = selectedRecordIds.has(record.id);
+													if (areAllRecordsSelected ? isSelected : !isSelected) {
+														onToggleSelect(record.id);
+													}
+												});
+											}}
+											style={actionMenuItemStyle}>
+											{areAllRecordsSelected ? 'Deselect group' : 'Select group'}
+										</button>
+									)}
 									{onEdit && (
 										<button
 											onClick={(e) => {
 												e.stopPropagation();
 												onEdit(latestRecord);
 											}}
-											style={moreMenuItemStyle}>
+											style={actionMenuItemStyle}>
 											Edit group
 										</button>
 									)}
-								<button
-									onClick={(e) => {
-										e.stopPropagation();
-										onNavigate?.(latestRecord);
-									}}
-									style={moreMenuItemStyle}>
-									View details
-								</button>
-							</div>
-						</details>
+									{onDeleteGroup && (
+										<button
+											onClick={(e) => {
+												e.stopPropagation();
+												onDeleteGroup(records);
+											}}
+											style={{ ...actionMenuItemStyle, color: '#b91c1c' }}>
+											Delete group
+										</button>
+									)}
+								</div>
+							</details>
+						)}
 						<span style={{ fontSize: '18px', color: '#6b7280' }}>
 							{isExpanded ? '▼' : '▶'}
 						</span>
@@ -193,59 +278,71 @@ export const UnifiedMaintenanceHistory: React.FC<
 							key={record.id}
 							style={{
 								marginBottom: '8px',
-								paddingBottom: '8px',
-								borderBottom: '1px solid #f3f4f6',
 							}}>
-							<p style={{ margin: '0 0 8px 0', fontWeight: 600 }}>
+							<div style={recordCardStyle}>
+							<p style={{ margin: 0, fontWeight: 700, color: '#0f172a' }}>
 								{record.title}
 							</p>
-							{/* Additional record details */}
-							<div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-								{onEdit && (
-									<button
-										onClick={(e) => {
-											e.stopPropagation();
-											onEdit(record);
-										}}
-										style={secondaryActionStyle}>
-										Edit record
-									</button>
+							<div style={cardMetaRowStyle}>
+								<span style={cardMetaPillStyle}>{formatRecordDate(record.completionDate)}</span>
+								<span style={cardMetaPillStyle}>{getCostLabel(record)}</span>
+								{record.unitId && getUnitName(record.unitId) && (
+									<span style={cardMetaPillStyle}>{getUnitName(record.unitId)}</span>
 								)}
+								{getAttachmentCount(record) > 0 && (
+									<span style={cardMetaPillStyle}>{getAttachmentCount(record)} attachment{getAttachmentCount(record) === 1 ? '' : 's'}</span>
+								)}
+							</div>
+							<p style={notesPreviewStyle}>{getNotesPreview(record)}</p>
+							<div style={actionRowStyle}>
 								<button
 									onClick={(e) => {
 										e.stopPropagation();
-										onDeleteGroup?.([record]);
+										onNavigate?.(record);
 									}}
-									style={dangerActionStyle}>
-									Delete record
+									style={primaryActionStyle}>
+									View
 								</button>
-								<details
-									onClick={(e) => {
-										e.stopPropagation();
-									}}
-									style={{ position: 'relative' }}>
-									<summary style={moreSummaryStyle}>More</summary>
-									<div style={moreMenuStyle}>
-										{onEdit && (
-											<button
-												onClick={(e) => {
-													e.stopPropagation();
-													onEdit(record);
-												}}
-												style={moreMenuItemStyle}>
-												Edit record
-											</button>
-										)}
-										<button
-											onClick={(e) => {
-												e.stopPropagation();
-												onNavigate?.(record);
-											}}
-											style={moreMenuItemStyle}>
-											View details
-										</button>
-									</div>
-								</details>
+								{hasRecordSecondaryActions && (
+									<details
+										onClick={(e) => e.stopPropagation()}
+										style={{ position: 'relative' }}>
+										<summary style={actionMenuSummaryStyle}>Manage</summary>
+										<div style={actionMenuStyle}>
+											{canSelect && onToggleSelect && record?.id && (
+												<button
+													onClick={(e) => {
+														e.stopPropagation();
+														onToggleSelect(record.id);
+													}}
+													style={actionMenuItemStyle}>
+													{selectedRecordIds.has(record.id) ? 'Deselect' : 'Select'}
+												</button>
+											)}
+											{onEdit && (
+												<button
+													onClick={(e) => {
+														e.stopPropagation();
+														onEdit(record);
+													}}
+													style={actionMenuItemStyle}>
+													Edit record
+												</button>
+											)}
+											{onDelete && (
+												<button
+													onClick={(e) => {
+														e.stopPropagation();
+														onDelete(record);
+													}}
+													style={{ ...actionMenuItemStyle, color: '#b91c1c' }}>
+													Delete
+												</button>
+											)}
+										</div>
+									</details>
+								)}
+							</div>
 							</div>
 						</div>
 				  ))

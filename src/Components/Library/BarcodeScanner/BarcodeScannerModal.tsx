@@ -80,6 +80,12 @@ const Video = styled.video`
 	object-fit: cover;
 `;
 
+const CameraToolbar = styled.div`
+	display: flex;
+	gap: 8px;
+	flex-wrap: wrap;
+`;
+
 const Helper = styled.div`
 	font-size: 12px;
 	color: #64748b;
@@ -323,6 +329,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 	const rafRef = useRef<number | null>(null);
 	const zxingReaderRef = useRef<BrowserMultiFormatReader | null>(null);
 	const zxingStopRef = useRef<(() => void) | null>(null);
+	const activeVideoTrackRef = useRef<MediaStreamTrack | null>(null);
 	const [error, setError] = useState<string>('');
 	const [manualValue, setManualValue] = useState('');
 	const [capturedValue, setCapturedValue] = useState('');
@@ -334,6 +341,8 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 	const [isExtractingText, setIsExtractingText] = useState(false);
 	const [ocrError, setOcrError] = useState('');
 	const [captureEngineLabel, setCaptureEngineLabel] = useState('');
+	const [isTorchAvailable, setIsTorchAvailable] = useState(false);
+	const [isTorchOn, setIsTorchOn] = useState(false);
 
 	const supportsBarcodeDetector = useMemo(
 		() => typeof (window as any).BarcodeDetector !== 'undefined',
@@ -376,11 +385,42 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 			streamRef.current.getTracks().forEach((track) => track.stop());
 			streamRef.current = null;
 		}
+		activeVideoTrackRef.current = null;
+		setIsTorchAvailable(false);
+		setIsTorchOn(false);
 		if (zxingStopRef.current) {
 			zxingStopRef.current();
 			zxingStopRef.current = null;
 		}
 	}, []);
+
+	const syncTorchAvailability = useCallback((stream: MediaStream | null) => {
+		const nextTrack = stream?.getVideoTracks?.()[0] || null;
+		activeVideoTrackRef.current = nextTrack;
+		const capabilities = nextTrack?.getCapabilities?.() as MediaTrackCapabilities & {
+			torch?: boolean;
+		};
+		const hasTorch = Boolean(capabilities?.torch);
+		setIsTorchAvailable(hasTorch);
+		if (!hasTorch) {
+			setIsTorchOn(false);
+		}
+	}, []);
+
+	const toggleTorch = useCallback(async () => {
+		const track = activeVideoTrackRef.current;
+		if (!track || !isTorchAvailable) return;
+
+		const nextTorchState = !isTorchOn;
+		try {
+			await track.applyConstraints({
+				advanced: [{ torch: nextTorchState } as MediaTrackConstraintSet],
+			});
+			setIsTorchOn(nextTorchState);
+		} catch {
+			setError('Flashlight is not available on this camera.');
+		}
+	}, [isTorchAvailable, isTorchOn]);
 
 	const getZxingReader = useCallback(() => {
 		if (!zxingReaderRef.current) {
@@ -536,6 +576,42 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 		reader.readAsDataURL(file);
 	};
 
+	const capturePhotoFromCamera = useCallback(async () => {
+		const video = videoRef.current;
+		if (!video || video.videoWidth === 0 || video.videoHeight === 0) {
+			setOcrError('Camera preview is not ready yet. Try again in a moment.');
+			return;
+		}
+
+		setOcrError('');
+		const canvas = document.createElement('canvas');
+		canvas.width = video.videoWidth;
+		canvas.height = video.videoHeight;
+		const context = canvas.getContext('2d');
+		if (!context) {
+			setOcrError('Could not capture this image. Try again.');
+			return;
+		}
+
+		context.drawImage(video, 0, 0, canvas.width, canvas.height);
+		const previewUrl = canvas.toDataURL('image/jpeg', 0.92);
+		setSelectedImagePreview(previewUrl);
+
+		const blob = await new Promise<Blob | null>((resolve) => {
+			canvas.toBlob((value) => resolve(value), 'image/jpeg', 0.92);
+		});
+		if (!blob) {
+			setOcrError('Could not capture this image. Try again.');
+			return;
+		}
+
+		const capturedFile = new File([blob], `maintley-label-${Date.now()}.jpg`, {
+			type: 'image/jpeg',
+		});
+		setSelectedImageFile(capturedFile);
+		await extractTextFromImage(capturedFile);
+	}, [extractTextFromImage]);
+
 	useEffect(() => {
 		if (!isOpen) {
 			stopScanner();
@@ -553,7 +629,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 			return;
 		}
 
-		if (activeMethod !== 'barcode' || analysis) {
+		if (analysis) {
 			stopScanner();
 			return;
 		}
@@ -567,9 +643,9 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 		const setup = async () => {
 			try {
 				setError(
-					supportsBarcodeDetector
-						? ''
-						: 'Native browser barcode detection is unavailable. Maintley will use ZXing decoding instead.',
+					activeMethod === 'barcode' && !supportsBarcodeDetector
+						? 'Native browser barcode detection is unavailable. Maintley will use ZXing decoding instead.'
+						: '',
 				);
 				const stream = await navigator.mediaDevices.getUserMedia({
 					video: { facingMode: 'environment' },
@@ -581,10 +657,16 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 				}
 
 				streamRef.current = stream;
+				syncTorchAvailability(stream);
 				const video = videoRef.current;
 				if (!video) return;
 				video.srcObject = stream;
 				await video.play();
+
+				if (activeMethod !== 'barcode') {
+					setCaptureEngineLabel('Camera capture for OCR');
+					return;
+				}
 
 				if (!supportsBarcodeDetector) {
 					setCaptureEngineLabel('ZXing live decode');
@@ -664,9 +746,11 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 		activeMethod,
 		analysis,
 		captureValue,
+		capturePhotoFromCamera,
 		defaultMethod,
 		getZxingReader,
 		isOpen,
+		syncTorchAvailability,
 		stopScanner,
 		supportsBarcodeDetector,
 		supportsCameraAccess,
@@ -729,6 +813,14 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 							<VideoWrap>
 								<Video ref={videoRef} playsInline muted />
 							</VideoWrap>
+							<CameraToolbar>
+								<GhostButton
+									type='button'
+									onClick={() => void toggleTorch()}
+									disabled={!isTorchAvailable}>
+									{isTorchOn ? 'Flashlight Off' : 'Flashlight On'}
+								</GhostButton>
+							</CameraToolbar>
 							<Helper>
 								Use this when the label has a UPC/EAN/QR code. Appliance barcodes may not include full make/model/serial data.
 							</Helper>
@@ -738,6 +830,26 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 
 					{!analysis && activeMethod === 'photo' && (
 						<>
+							{supportsCameraAccess && (
+								<>
+									<VideoWrap>
+										<Video ref={videoRef} playsInline muted />
+									</VideoWrap>
+									<CameraToolbar>
+										<GhostButton
+											type='button'
+											onClick={() => void toggleTorch()}
+											disabled={!isTorchAvailable}>
+											{isTorchOn ? 'Flashlight Off' : 'Flashlight On'}
+										</GhostButton>
+										<ActionButton
+											type='button'
+											onClick={() => void capturePhotoFromCamera()}>
+											Capture From Camera
+										</ActionButton>
+									</CameraToolbar>
+								</>
+							)}
 							<Helper>
 								Take or upload the equipment sticker. This path usually finds model and serial details more reliably.
 							</Helper>
