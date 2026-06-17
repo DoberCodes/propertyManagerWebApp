@@ -103,6 +103,8 @@ This uses:
 gh-pages -d build
 ```
 
+`npm run deploy:gh-pages` is also available as an explicit alias to the same command.
+
 Confirm the intended hosting target before using this command.
 
 Maintley currently supports Firebase Hosting, so Firebase Hosting should be treated as the preferred production deployment path unless intentionally deploying elsewhere.
@@ -362,6 +364,10 @@ The repository contains:
 ```text
 build-signed-apk.sh
 ```
+
+`build:signed` is the primary release pipeline. It builds the signed APK,
+creates or updates the GitHub release, tags the repository, and deploys the
+web app through `yarn deploy`.
 
 Review local signing configuration before running release builds.
 

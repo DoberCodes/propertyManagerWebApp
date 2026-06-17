@@ -149,11 +149,11 @@ Each layer has a different responsibility.
 
 Recommended reading order:
 
-1. docs/README.md
-2. docs/Product/PRODUCT_DIRECTION.md
-3. docs/Product/FEATURES.md
-4. docs/Architecture/DATA_MODEL.md
-5. docs/Architecture/TECHNICAL_ARCHITECTURE.md
+1. project-docs/docs/README.md
+2. project-docs/docs/Product/PRODUCT_DIRECTION.md
+3. project-docs/docs/Product/FEATURES.md
+4. project-docs/docs/Architecture/DATA_MODEL.md
+5. project-docs/docs/Architecture/TECHNICAL_ARCHITECTURE.md
 
 These documents provide the quickest path to understanding Maintley.
 

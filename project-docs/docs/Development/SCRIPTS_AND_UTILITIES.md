@@ -16,6 +16,10 @@ This document should be updated whenever scripts are added, removed, or signific
 
 This document lists known scripts from `package.json` and the `scripts/` directory.
 
+For current operational details in the scripts directory, see:
+
+- `scripts/README.md`
+
 A script being listed here does not guarantee it is actively used.
 
 Scripts should be periodically audited and classified as:
@@ -27,6 +31,13 @@ Scripts should be periodically audited and classified as:
 - Remove Candidate
 
 Before running any migration, cleanup, pruning, or apply script, verify it against the current codebase and data model.
+
+## Current Script Notes
+
+- `deploy` remains the primary web deployment script.
+- `deploy:gh-pages` is available as an explicit alias.
+- `stripe:webhook:auto` is Unix-only.
+- E2E scripts are intended to be cross-platform.
 
 ---
 
@@ -614,6 +625,10 @@ yarn build:signed
 ```
 
 Builds a signed Android APK.
+
+`build:signed` is the primary release pipeline. It builds the signed APK,
+creates or updates the GitHub release, tags the repository, and deploys the
+web app through `yarn deploy`.
 
 Risk:
 

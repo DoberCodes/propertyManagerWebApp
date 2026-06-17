@@ -22,8 +22,6 @@ package-lock.json
 
 
 # migrations
-/scripts
-!scripts/generateReleaseNotes.cjs
 /tmp/
 
 # misc

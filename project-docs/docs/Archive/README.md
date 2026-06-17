@@ -78,7 +78,7 @@ Active documentation is organized by ownership domain:
 * Compliance
 * Decisions
 
-Refer to the root documentation index (`docs/README.md`) for the current documentation structure.
+Refer to the root documentation index (`project-docs/docs/README.md`) for the current documentation structure.
 
 ---
 

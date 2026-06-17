@@ -104,7 +104,7 @@ Users should not be penalized for items marked `Not Present`. Home Health should
 - The property creation wizard remains fast.
 - Existing properties get a path to richer records.
 - The assistant becomes the bridge between property records, appliances/systems, suggested maintenance, tasks, and maintenance history.
-- Future implementation should follow `docs/MOBILE_UX_GUIDE.md`, especially progressive disclosure and one decision per screen.
+- Future implementation should follow `project-docs/docs/UX/MOBILE_UX_GUIDE.md`, especially progressive disclosure and one decision per screen.
 
 ## MVP Implementation Notes
 

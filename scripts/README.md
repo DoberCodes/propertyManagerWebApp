@@ -1,246 +1,307 @@
-# Firestore Scripts
+# Scripts Directory Guide
 
-This directory contains scripts for managing your Firestore database.
+Last updated: 2026-06-17
 
-## Available Scripts
+This directory contains operational scripts for data maintenance, testing, releases, migrations, diagnostics, and development utilities.
 
-### 1. Seed Mock Data
+Whenever possible, use package scripts from `package.json` rather than executing files directly.
 
-Populate Firestore with mock data for development/testing.
+Run individual script files only when no package alias exists.
 
-```bash
-npm run seed:firebase
+---
+
+# Directory Layout
+
+```text
+scripts/
+├── archive/
+└── active scripts
 ```
 
-### 2. Initialize App Version (New!)
+### scripts/
 
-Create the initial app version document in Firestore for the update notification system.
+Contains active operational scripts, migration utilities, release tooling, and development helpers.
 
-```bash
-node scripts/initAppVersion.cjs
-```
+### scripts/archive/
 
-This creates an `appConfig/version` document with:
+Contains historical scripts retained for reference.
 
-- version: "1.0.0"
-- releaseDate: current timestamp
-- releaseNotes: description of the release
+Most archived scripts were created to support one-time migrations, schema transitions, or operational changes that have already been completed.
 
-**Run this once before building your first APK with the update system.**
+Do not run archived scripts without reviewing:
 
-### 3. Update App Version (New!)
+* Current data model
+* Current architecture
+* Current deployment process
 
-Update the app version in Firestore when releasing a new APK.
+Archived scripts should not be considered supported operational tooling.
 
-```bash
-node scripts/updateAppVersion.cjs <version> [release notes]
-```
+---
 
-Examples:
+# Script Status
 
-```bash
-node scripts/updateAppVersion.cjs 1.0.1 "Bug fixes and performance improvements"
-node scripts/updateAppVersion.cjs 1.1.0 "New features: Task assignment and property groups"
-```
+Scripts generally fall into one of four categories.
 
-When you update the version in Firestore, users on older versions will automatically see the update notification banner prompting them to download the new APK.
+### Active
 
-### 4. Migrate User Roles by Subscription
+Referenced by package.json or current operational workflows.
 
-Update user roles to ensure consistency with userType while permissions are controlled by subscription plans.
+These scripts are expected to work with the current codebase.
 
-```bash
-node scripts/migrateUserRolesBySubscription.cjs
-```
+### Needs Review
 
-This migration:
+Retained because they may still be useful, but usage has not been recently verified.
 
-- Ensures homeowners have 'admin' role
-- Ensures property managers/landlords have 'property_manager' role
-- Maintains backward compatibility for existing role-based checks
-- Does not change roles based on subscription plan (permissions are subscription-controlled)
+Review implementation before use.
 
-**Run this after migrating to subscription-based permissions.**
+### Archived
 
-### 5. Migrate Recurring Task Fields
+Historical scripts retained for reference.
 
-Backfill recurring task fields for existing tasks so the new recurring task features are supported.
+Not considered active tooling.
 
-```bash
-node scripts/migrateAddRecurringFields.cjs
-```
+### Remove Candidate
 
-### 5. Backfill Missing Task Fields
+Confirmed duplicates or obsolete utilities scheduled for removal.
 
-Backfill missing required task fields (`id`, `notes`, `priority`).
+These should not be relied upon.
+
+---
+
+# Most Common Commands
+
+## Release and Versioning
 
 ```bash
-node scripts/migrateTasksMissingFields.cjs
+yarn build:signed
+yarn release:notes
+yarn version:init
+yarn version:update -- <version> "<notes>"
+yarn version:sync
 ```
 
 ---
 
-## Data Source
-
-**The script imports mock data from `src/data/mockData.ts`** - a shared file used by both Redux slices and the seeding script. This ensures a single source of truth:
-
-- **Redux slices** (`propertyDataSlice.tsx`, `teamSlice.tsx`) import from `mockData.ts`
-- **Seed script** (`scripts/seedFirestore.js`) imports from `mockData.ts`
-- **To update mock data**: Edit `src/data/mockData.ts` and changes will automatically apply to both Redux and Firebase seeding
-
-## Prerequisites
-
-1. **Firebase project set up** in the Firebase Console
-2. **Environment variables configured** in `.env.local` at the client root:
-   ```
-   REACT_APP_FIREBASE_API_KEY=your_api_key
-   REACT_APP_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
-   REACT_APP_FIREBASE_PROJECT_ID=your_project_id
-   REACT_APP_FIREBASE_STORAGE_BUCKET=your_project.appspot.com
-   REACT_APP_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
-   REACT_APP_FIREBASE_APP_ID=your_app_id
-   ```
-3. **Firestore security rules** configured to allow writes (see below)
-
-## Usage
-
-### Run the seeding script:
+## Deploy Web
 
 ```bash
-npm run seed:firebase
+yarn deploy
+yarn deploy:gh-pages
 ```
 
-Or directly:
+---
+
+## E2E and Test Cleanup
 
 ```bash
-node scripts/seedFirestore.js
+yarn e2e
+yarn e2e:full
+yarn e2e:ci
+yarn cleanup:test-data:dry-run
+yarn cleanup:test-data
 ```
 
-## What Gets Created
+---
 
-The script creates the following Firestore collections with sample data:
+## Data Migrations and Cleanup
 
-- **propertyGroups** (2 groups)
-- **properties** (4 properties)
-- **units** (7 units for multi-family properties)
-- **suites** (3 suites for commercial property)
-- **tasks** (4 tasks)
-- **teamGroups** (1 team group)
-- **teamMembers** (2 members)
-- **devices** (3 devices)
+```bash
+yarn migrate:property-memberships
+yarn migrate:property-memberships:apply
 
-All data is structured according to the Firebase schema defined in `FIREBASE_SETUP.md`.
+yarn migrate:maintenance-events
+yarn migrate:maintenance-events:apply
 
-## Firestore Security Rules
+yarn migrate:orphaned-data
+yarn migrate:orphaned-data:apply
 
-**Important:** Before running the seed script, temporarily allow writes to your Firestore database:
+yarn migrate:prune-inactive-user-data
+yarn migrate:prune-inactive-user-data:apply
 
-```javascript
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    match /{document=**} {
-      allow read, write: if true; // TEMPORARY - for seeding only!
-    }
-  }
-}
+yarn cleanup:optional-groups:dry-run
+yarn cleanup:optional-groups:apply
+
+yarn cleanup:shared-properties:dry-run
+yarn cleanup:shared-properties:apply
 ```
 
-**⚠️ After seeding, replace with proper security rules:**
+---
 
-```javascript
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    match /propertyGroups/{groupId} {
-      allow read, write: if request.auth.uid == resource.data.userId;
-    }
-    match /properties/{propertyId} {
-      allow read: if request.auth != null;
-      allow write: if request.auth.uid in resource.data.administrators;
-    }
-    match /units/{unitId} {
-      allow read, write: if request.auth != null;
-    }
-    match /suites/{suiteId} {
-      allow read, write: if request.auth != null;
-    }
-    match /tasks/{taskId} {
-      allow read, write: if request.auth != null;
-    }
-    match /teamGroups/{groupId} {
-      allow read, write: if request.auth.uid == resource.data.userId;
-    }
-    match /teamMembers/{memberId} {
-      allow read, write: if request.auth != null;
-    }
-    match /devices/{deviceId} {
-      allow read, write: if request.auth != null;
-    }
-  }
-}
+## Rules and Seeding
+
+```bash
+yarn test:rules
+yarn test:storage
+yarn test:rules:all
+
+yarn init:firestore
+yarn seed:firebase
 ```
 
-## Reusability
+---
 
-This script can be run multiple times. Each run will:
+# Active Script Inventory
 
-- **Overwrite** existing documents with the same IDs
-- Be idempotent (safe to run repeatedly)
-- Use data from `src/data/mockData.ts` for consistency
+These scripts are actively used, referenced by package aliases, or remain part of current operational workflows.
 
-## Customization
+## Release Helpers
 
-To modify the seeded data:
+* generateReleaseNotes.cjs
+* initAppVersion.cjs
+* updateAppVersion.cjs
+* syncAppVersion.cjs
 
-1. **Edit `src/data/mockData.ts`** - the single source of truth
-2. Update the exported arrays (`mockPropertyGroups`, `mockTasks`, `mockTeamGroups`)
-3. Re-run `npm run seed:firebase` to update Firestore
-4. Changes will also reflect in Redux initial state automatically
+---
 
-### Reverting to Standalone Data
+## Cleanup and Migrations
 
-If needed, the original hardcoded data is preserved as commented code in `seedFirestore.js`. To revert:
+* cleanupFirebaseTestUsers.cjs
+* cleanupOptionalGroupLinks.cjs
+* cleanupSharedPropertiesData.cjs
+* migrateFixReportAccountIntegrity.cjs
+* migrateMaintenanceHistoryToEvents.cjs
+* migratePropertyGroupMemberships.cjs
+* migratePruneInactiveUserData.cjs
+* migrateRemoveOrphanedData.cjs
+* migrateFixDeviceStructure.cjs
 
-1. Open `scripts/seedFirestore.js`
-2. Uncomment the "LEGACY HARDCODED DATA" section
-3. Remove or comment out the import and transform functions at the top
-4. Update the `seedFirestore()` function to use the hardcoded arrays
+---
 
-## Troubleshooting
+## Validation and Diagnostics
 
-### Error: "Missing Firebase configuration"
+* testFirebaseRules.cjs
+* testStorageRules.cjs
+* debugRecurringTasks.cjs
+* testRecurrence.cjs
+* testRecurrenceLogic.cjs
+* auditTasksSchema.cjs
+* checkDeviceLocations.cjs
 
-- Verify `.env.local` exists with all required variables
-- Check that variable names start with `REACT_APP_`
+---
 
-### Error: "Missing or insufficient permissions"
+## Utilities
 
-- Update Firestore security rules to allow writes (see above)
-- Ensure you're using the correct Firebase project
+* convert-to-root-imports.cjs
+* scan-packages-for-test-code.cjs
+* seedFirestore.cjs
+* seedFirestoreAuth.cjs
 
-### Error: "Cannot find module '../src/data/mockData.ts'"
+---
 
-- Ensure `src/data/mockData.ts` exists
-- The script uses require() for TypeScript files - Node.js may need ts-node installed if issues persist
-- Alternative: Revert to the commented hardcoded data (see "Reverting to Standalone Data" above)
+# Needs Review
 
-### Error: "Firebase app already initialized"
+These scripts remain in the repository but are not currently part of documented operational workflows.
 
-- Only run the script once per session
-- Restart if you need to run again
+Review before use.
 
-## Production Notes
+* testFirebaseAdmin.cjs
+* testContractorsQuery.cjs
+* testDevicesQuery.cjs
+* test-push-notifications.cjs
+* trigger-push-notification.cjs
 
-**Never run this script in production!** It's meant for:
+Potential future action:
 
-- Initial development setup
-- Testing environments
-- Demo/staging environments
+* Keep
+* Archive
+* Remove
 
-For production:
+depending on actual usage.
 
-1. Use Firebase Admin SDK with service account credentials
-2. Implement proper authentication
-3. Add data validation and sanitization
-4. Use transactions for data integrity
+---
+
+# Remove Candidates
+
+The following scripts have been identified as likely obsolete or duplicated.
+
+Do not rely on them for current workflows.
+
+* sendPushOnNotificationCreate.js
+
+Potential action:
+
+* Remove after final verification.
+
+---
+
+# Archived Scripts
+
+Historical migration and utility scripts have been moved to:
+
+```text
+scripts/archive/
+```
+
+See:
+
+```text
+scripts/archive/README.md
+```
+
+for execution guidance and archive policies.
+
+---
+
+# Release Pipeline
+
+Maintley's primary release workflow is:
+
+```bash
+yarn build:signed
+```
+
+The release pipeline performs:
+
+* Release note generation
+* Version updates
+* APK build and signing
+* Git commits
+* Git tag creation
+* GitHub Release creation/update
+* APK upload
+* Website deployment
+
+This workflow depends on:
+
+```bash
+yarn deploy
+```
+
+Do not modify deploy behavior without reviewing the release pipeline.
+
+---
+
+# Safety Checklist Before Running Any Data Script
+
+Before running migrations, cleanup scripts, or destructive operations:
+
+1. Confirm the target environment.
+2. Prefer dry-run commands when available.
+3. Review references to legacy collections and fields.
+4. Verify backups or rollback procedures exist.
+5. Record what was executed and when.
+6. Review the current data model if the script has not been recently used.
+
+---
+
+# Notes
+
+* E2E scripts are intended to be cross-platform.
+* Deploy remains the primary deployment command.
+* deploy:gh-pages exists as an explicit alias.
+* build:signed is the primary release workflow.
+* stripe:webhook:auto in functions/package.json is currently Unix-only.
+* Archived scripts should be treated as historical reference, not supported tooling.
+
+---
+
+# Guiding Principle
+
+Active scripts should remain:
+
+* Documented
+* Discoverable
+* Safe
+* Maintainable
+
+When a script is no longer part of normal operations, prefer moving it to archive rather than allowing uncertainty to accumulate in the active scripts directory.
