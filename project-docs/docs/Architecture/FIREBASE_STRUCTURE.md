@@ -1,0 +1,595 @@
+# Firebase Structure
+
+Last reviewed: 2026-06
+
+## Purpose
+
+This document describes how Maintley uses Firebase services and how those services work together to support the platform.
+
+It answers:
+
+> How is Maintley organized within Firebase?
+
+This document covers:
+
+* Firebase services
+* Account architecture
+* Authentication
+* Firestore collections
+* Cloud Functions
+* Storage integration
+* Notifications
+* Deployment structure
+
+For detailed collection definitions, see:
+
+* DATA_MODEL.md
+
+For file storage behavior, see:
+
+* FILES_AND_STORAGE.md
+
+For deployment details, see:
+
+* DEPLOYMENT.md
+
+---
+
+# Firebase Architecture
+
+Maintley uses Firebase as its primary backend platform.
+
+Firebase provides:
+
+* Authentication
+* Database storage
+* File storage
+* Cloud Functions
+* Push notification infrastructure
+
+Maintley follows an account-centric architecture.
+
+High-level relationship:
+
+```text
+User
+  ↓
+Account Membership
+  ↓
+Family Account
+  ↓
+Properties
+  ↓
+Maintenance Records
+```
+
+Authentication identifies users.
+
+Account membership determines access.
+
+Properties serve as the primary organizational object.
+
+Most application data ultimately exists within an account and property context.
+
+---
+
+# Firebase Services Used
+
+## Firebase Authentication
+
+Used for:
+
+* User identity
+* Login
+* Registration
+* Session persistence
+* Account ownership
+
+Authentication does not determine permissions.
+
+Permissions are determined through account membership and role-based access controls.
+
+---
+
+## Cloud Firestore
+
+Used for:
+
+* Properties
+* Appliances & Systems
+* Tasks
+* Maintenance Events
+* Teams
+* Tenants
+* Contractors
+* Notifications
+* Subscription state
+* Application records
+
+Firestore is the primary source of truth for Maintley data.
+
+---
+
+## Firebase Storage
+
+Used for:
+
+* Property photos
+* Appliance photos
+* Manuals
+* Warranty documents
+* Invoices
+* Maintenance attachments
+* Profile images
+
+Firestore stores metadata while Storage stores file contents.
+
+See FILES_AND_STORAGE.md for details.
+
+---
+
+## Firebase Cloud Functions
+
+Used for:
+
+* Billing
+* Invitations
+* Email delivery
+* Maintenance processing
+* Notification generation
+* Scheduled jobs
+* Administrative operations
+
+Functions contain business logic that should not run exclusively on the client.
+
+---
+
+## Firebase Cloud Messaging
+
+Used for:
+
+* Push notifications
+* Mobile notification delivery
+
+FCM tokens are stored and managed within Maintley records.
+
+---
+
+# Firebase Configuration
+
+Client initialization lives in:
+
+```text
+src/config/firebase.ts
+```
+
+Expected frontend environment variables:
+
+* REACT_APP_FIREBASE_API_KEY
+* REACT_APP_FIREBASE_AUTH_DOMAIN
+* REACT_APP_FIREBASE_PROJECT_ID
+* REACT_APP_FIREBASE_STORAGE_BUCKET
+* REACT_APP_FIREBASE_MESSAGING_SENDER_ID
+* REACT_APP_FIREBASE_APP_ID
+
+Additional billing-related environment variables may be required for Stripe integration.
+
+---
+
+# Project Configuration
+
+Firebase project configuration is managed through:
+
+```text
+firebase.json
+```
+
+Current configuration includes:
+
+* Functions source
+* Firestore rules
+* Hosting configuration
+
+Project aliases are managed through:
+
+```text
+.firebaserc
+```
+
+---
+
+# Account Architecture
+
+Maintley uses an account-based authorization model.
+
+Authentication identifies a user.
+
+Authorization is determined through account membership.
+
+Primary hierarchy:
+
+```text
+User
+  ↓
+Account Membership
+  ↓
+Family Account
+  ↓
+Properties
+```
+
+Account records own:
+
+* Properties
+* Appliances & Systems
+* Tasks
+* Maintenance History
+* Contractors
+* Team Members
+* Tenants
+
+This architecture allows multiple users to operate within a shared account while maintaining role-based access controls.
+
+---
+
+# Authentication
+
+Firebase Authentication acts as the identity provider.
+
+Auth state is bridged into Redux through:
+
+```text
+src/services/authService.ts
+```
+
+and
+
+```text
+src/App.tsx
+```
+
+Persistence strategy:
+
+Native platforms:
+
+* IndexedDB persistence when available
+
+Web:
+
+* Browser local persistence
+
+Fallback:
+
+* Browser local persistence if IndexedDB initialization fails
+
+---
+
+# Account Bootstrap
+
+New account creation may create or hydrate:
+
+* users/{uid}
+* familyAccounts/{accountId}
+* accountMemberships/{accountId}_{uid}
+* propertyGroups
+* teamGroups
+
+Bootstrap flows establish the minimum account structure required for Maintley operation.
+
+---
+
+# Firestore Collections
+
+Primary collections:
+
+* users
+* familyAccounts
+* accountMemberships
+* properties
+* propertyGroups
+* propertyGroupMemberships
+* devices
+* tasks
+* maintenanceEvents
+* maintenanceHistory
+* notifications
+* teamMembers
+* teamGroups
+* teamMemberInvitationCodes
+* tenantProfiles
+* tenantInvitationCodes
+* contractors
+* propertyShares
+* userInvitations
+* favorites
+* appConfig
+* feedback
+
+Temporarily hidden but still supported:
+
+* units
+* suites
+
+Legacy and compatibility collections:
+
+* userPreferences
+* activityLogs
+* recentlyViewed
+* deviceSubscriptions
+
+See DATA_MODEL.md for detailed collection definitions.
+
+---
+
+# Derived Systems
+
+Some platform capabilities are generated from existing Firestore data rather than existing as primary collections.
+
+Examples:
+
+* Property Intelligence
+* Recommendations
+* Dashboard Insights
+* Setup Progress
+* Property Health
+* Attention Center summaries
+
+These features derive information from existing records and should not become authoritative sources of data.
+
+Source collections remain:
+
+* Properties
+* Appliances & Systems
+* Tasks
+* Maintenance Events
+* Files
+* Contractors
+
+---
+
+# Firestore Rules
+
+Live Firestore security rules are maintained in:
+
+```text
+firestore.rules
+```
+
+Important concepts:
+
+* Authentication required for application data
+* accountId is the primary account scope
+* accountMemberships are the preferred membership model
+* Legacy ownership fields remain supported where necessary
+* Resource limits are enforced through account counters
+* Function-managed invitation workflows control sensitive writes
+* Notifications follow recipient-based ownership rules
+* App configuration remains authenticated read-only
+
+The live source of truth is always:
+
+```text
+firestore.rules
+```
+
+---
+
+# Cloud Functions Structure
+
+Source directory:
+
+```text
+functions/
+```
+
+Compiled output:
+
+```text
+functions/lib/
+```
+
+Main exports:
+
+```text
+functions/index.ts
+```
+
+Shared authorization helpers:
+
+* functions/accountAuthz.ts
+* functions/inviteAuthz.ts
+
+---
+
+# Function Categories
+
+## Account & Membership
+
+Examples:
+
+* ensureFamilyAccount
+* createFamilyInvite
+* acceptFamilyInvite
+* getFamilyMembers
+* updateFamilyMember
+
+---
+
+## Team Management
+
+Examples:
+
+* createTeamMemberInvitationCode
+* validateTeamMemberInvitationCode
+* redeemTeamMemberInvitationCode
+
+---
+
+## Tenant Management
+
+Examples:
+
+* createTenantInvitationCode
+* validateTenantInvitationCode
+* redeemTenantInvitationCode
+
+---
+
+## Billing
+
+Examples:
+
+* createCheckoutSession
+* validatePromotionCode
+* verifyCheckoutSession
+* cancelSubscription
+* getSubscriptionDetails
+* syncSubscriptionFromStripe
+
+---
+
+## Maintenance
+
+Examples:
+
+* createMaintenanceEvent
+* createMaintenanceEventsBatch
+
+---
+
+## Email Delivery
+
+Examples:
+
+* sendMonthlyPropertySummaries
+* sendMonthlyPropertyInsights
+* sendTaskReminderEmails
+* sendTeamMemberTaskReports
+* sendSeasonalGuidanceEmails
+
+---
+
+## Notifications
+
+Examples:
+
+* sendPushOnNotificationCreate
+
+---
+
+## Account Lifecycle
+
+Examples:
+
+* deleteUserAccount
+* deleteFamilyMemberAccount
+
+---
+
+# Triggers and Scheduled Functions
+
+## Firestore Triggers
+
+Examples:
+
+* sendPushOnNotificationCreate
+* notifyTaskCompletion
+
+Triggers respond automatically to Firestore changes.
+
+---
+
+## HTTP Functions
+
+Examples:
+
+* stripeWebhook
+
+Used when external systems communicate directly with Maintley.
+
+---
+
+## Scheduled Functions
+
+Examples:
+
+* sendMonthlyPropertySummaries
+* sendMonthlyPropertyInsights
+* sendTaskReminderEmails
+* sendTeamMemberTaskReports
+* sendSeasonalGuidanceEmails
+
+Scheduled functions perform recurring maintenance and communication tasks.
+
+---
+
+# Storage Integration
+
+Firebase Storage is used for file storage.
+
+Storage responsibilities include:
+
+* Property files
+* Appliance files
+* Maintenance files
+* Task attachments
+* User images
+* Team files
+
+Observed paths include:
+
+* task-completions/{userId}/{taskId}/{timestamp}-{filename}
+* properties/{userId}/{filename}
+* user-profile-images/{userId}/{filename}
+* team-member-images/{userId}/{memberId}/{filename}
+* team-member-files/{userId}/{memberId}/{filename}
+* device-files/{propertyId}/{deviceId}/{filename}
+* maintenance-files/{propertyId}/{filename}
+
+See FILES_AND_STORAGE.md for complete storage documentation.
+
+---
+
+# Local Verification
+
+Common root scripts:
+
+```bash
+npm run build
+npm run test:ci
+npm run test:rules
+npm run test:storage
+npm run test:rules:all
+```
+
+Functions:
+
+```bash
+npm --prefix functions run build
+npm --prefix functions run test:sandbox
+npm --prefix functions run test:cards:sandbox
+npm --prefix functions run test:webhook:sandbox
+```
+
+These scripts support validation of Firebase-related functionality before deployment.
+
+---
+
+# Guiding Principles
+
+Maintley should remain account-centric.
+
+Properties remain the primary organizational object.
+
+Authentication should remain separate from authorization.
+
+Property Intelligence and recommendation systems should derive from persisted records rather than becoming independent sources of truth.
+
+Firebase services should remain focused on infrastructure responsibilities while business logic remains organized through application systems and Cloud Functions.
+
+When introducing new Firebase resources:
+
+* Prefer extending existing account structures.
+* Avoid duplicating ownership models.
+* Avoid creating parallel data hierarchies.
+* Keep permissions aligned with account membership architecture.
