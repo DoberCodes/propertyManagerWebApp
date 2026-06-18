@@ -39,6 +39,7 @@ import PaywallPageIndex from './pages/PaywallPage';
 import { MaintenanceHistoryGroupPage } from 'pages/MaintenanceHistoryGroup';
 import { SettingsPage } from 'pages/SettingsPage';
 import { USER_ROLES } from './constants/roles';
+import { hasMaintleyAdminAccess } from './utils/maintleyRole';
 
 // Component to handle root route - redirects to login in mobile app
 const RootRoute = () => {
@@ -46,6 +47,19 @@ const RootRoute = () => {
 		return <Navigate to='/login' replace />;
 	}
 	return <LandingPage />;
+};
+
+const MaintleyAdminRoute = () => {
+	const currentUser = useSelector((state: any) => state.user.currentUser);
+	const authLoading = useSelector((state: any) => state.user.authLoading);
+
+	if (authLoading) return null;
+	if (!currentUser) return <Navigate to='/login' replace />;
+	if (!hasMaintleyAdminAccess(currentUser.maintley_role)) {
+		return <Navigate to='/unauthorized' replace />;
+	}
+
+	return <AdminInboxPage />;
 };
 
 export const RouterComponent = () => {
@@ -77,7 +91,7 @@ export const RouterComponent = () => {
 				/>
 				<Route path='registration' element={<RegistrationPage />} />
 				<Route path='register' element={<RegistrationPage />} />
-				<Route path='admin' element={<AdminInboxPage />} />
+				<Route path='admin' element={<MaintleyAdminRoute />} />
 				<Route path='unauthorized' element={<UnauthorizedPage />} />
 				{/* Paywall - accessible to authenticated users */}
 				<Route

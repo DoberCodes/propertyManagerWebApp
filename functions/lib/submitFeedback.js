@@ -472,6 +472,81 @@ exports.listMyFeedbackTickets = functions.https.onCall(async (data, context) => 
     }
     const tickets = (await Promise.all(snapshot.docs.map(async (doc) => {
         const data = doc.data();
+        const rawAdminNotes = Array.isArray(data.adminNotes) ? data.adminNotes : [];
+        const resolutionNotes = data.resolutionNotes
+            ? String(data.resolutionNotes).trim()
+            : '';
+        const normalizedAdminNotes = rawAdminNotes
+            .map((rawNote) => {
+            if (typeof rawNote === 'string') {
+                const noteText = rawNote.trim();
+                if (!noteText)
+                    return null;
+                return {
+                    note: noteText,
+                    visibility: 'customer',
+                };
+            }
+            const noteRecord = typeof rawNote === 'object' && rawNote
+                ? rawNote
+                : null;
+            if (!noteRecord)
+                return null;
+            const noteText = String(noteRecord.note ||
+                noteRecord.message ||
+                noteRecord.text ||
+                noteRecord.resolutionNotes ||
+                '').trim();
+            if (!noteText)
+                return null;
+            const rawVisibility = String(noteRecord.visibility || '')
+                .trim()
+                .toLowerCase();
+            const noteType = String(noteRecord.noteType || '')
+                .trim()
+                .toLowerCase();
+            const isInternal = rawVisibility === 'internal' || noteType === 'internal';
+            const createdAtValue = noteRecord.createdAt !== undefined
+                ? serializeTimestampValue(noteRecord.createdAt)
+                : noteRecord.date !== undefined
+                    ? serializeTimestampValue(noteRecord.date)
+                    : noteRecord.timestamp !== undefined
+                        ? serializeTimestampValue(noteRecord.timestamp)
+                        : undefined;
+            const createdAt = createdAtValue
+                ? String(createdAtValue)
+                : undefined;
+            return {
+                note: noteText,
+                createdAt,
+                date: createdAt,
+                noteType: noteType || undefined,
+                visibility: rawVisibility || (isInternal ? 'internal' : 'customer'),
+                adminUserId: noteRecord.adminUserId
+                    ? String(noteRecord.adminUserId)
+                    : undefined,
+                adminUsername: noteRecord.adminUsername
+                    ? String(noteRecord.adminUsername)
+                    : undefined,
+            };
+        })
+            .filter((note) => Boolean(note));
+        if (resolutionNotes) {
+            const hasResolutionInNotes = normalizedAdminNotes.some((note) => String(note.note || '').trim() === resolutionNotes);
+            if (!hasResolutionInNotes) {
+                normalizedAdminNotes.push({
+                    note: resolutionNotes,
+                    createdAt: data.updatedAt
+                        ? String(serializeTimestampValue(data.updatedAt) || '')
+                        : undefined,
+                    date: data.updatedAt
+                        ? String(serializeTimestampValue(data.updatedAt) || '')
+                        : undefined,
+                    noteType: 'maintley_update',
+                    visibility: 'customer',
+                });
+            }
+        }
         let ticketNumber = String(data.ticketNumber || '').trim();
         if (!ticketNumber) {
             const docSequence = Number(data.ticketSequence || 0);
@@ -499,9 +574,8 @@ exports.listMyFeedbackTickets = functions.https.onCall(async (data, context) => 
             updatedAt: data.updatedAt
                 ? String(serializeTimestampValue(data.updatedAt) || '')
                 : undefined,
-            resolutionNotes: data.resolutionNotes
-                ? String(data.resolutionNotes)
-                : undefined,
+            resolutionNotes: resolutionNotes || undefined,
+            adminNotes: normalizedAdminNotes,
             attachments: await normalizePersistedAttachments(data.attachments),
         };
     })))

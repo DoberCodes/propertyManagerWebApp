@@ -8,16 +8,13 @@
 import React, { useState } from 'react';
 import { Shell, Card, SubTitle, ErrorText, TicketList } from './AdminInboxPage.styles';
 import {
-	AdminLoginForm,
 	AdminHeader,
 	AdminStatsRow,
 	AdminFilterControls,
-	PasswordResetDialog,
 	TicketCard,
 } from './components';
 import { useAdminAuth } from './hooks/useAdminAuth';
 import { useAdminTickets } from './hooks/useAdminTickets';
-import { useAdminPasswordReset } from './hooks/useAdminPasswordReset';
 import { useAdminTicketLinking } from './hooks/useAdminTicketLinking';
 import { useAdminNotes } from './hooks/useAdminNotes';
 import {
@@ -31,11 +28,9 @@ import type { TypeOption } from './constants';
 export const AdminInboxPage: React.FC = () => {
 	const auth = useAdminAuth();
 	const tickets = useAdminTickets();
-	const passwordReset = useAdminPasswordReset();
 	const ticketLinking = useAdminTicketLinking();
 	const notes = useAdminNotes();
 	const [showSettingsMenu, setShowSettingsMenu] = useState(false);
-	const [showResetDialog, setShowResetDialog] = useState(false);
 	const [selectedTicketByGroup, setSelectedTicketByGroup] = useState<Record<string, string>>({});
 	const ticketGroups = React.useMemo(() => groupTicketsForDisplay(tickets.tickets), [tickets.tickets]);
 	const visibleTicketCounts = React.useMemo(
@@ -86,7 +81,7 @@ export const AdminInboxPage: React.FC = () => {
 		);
 	}
 
-	// Not authenticated - show login
+	// Not authenticated/authorized
 	if (!auth.sessionToken || !auth.adminUser) {
 		return (
 			<Shell>
@@ -94,36 +89,13 @@ export const AdminInboxPage: React.FC = () => {
 					<h1 style={{ margin: '0 0 4px', fontSize: '24px', color: '#9a3412' }}>
 						Maintley Admin Inbox
 					</h1>
-					<SubTitle>App admin access only</SubTitle>
-					<AdminLoginForm
-						username={auth.username}
-						password={auth.password}
-						showPassword={auth.showLoginPassword}
-						authError={auth.authError}
-						isLoading={false}
-						onUsernameChange={auth.setUsername}
-						onPasswordChange={auth.setPassword}
-						onShowPasswordToggle={() =>
-							auth.setShowLoginPassword(!auth.showLoginPassword)
-						}
-						onSubmit={auth.handleLogin}
-					/>
+					<SubTitle>You do not have permission to access this page.</SubTitle>
 				</Card>
 			</Shell>
 		);
 	}
 
 	// Authenticated - show admin inbox
-	const handleResetPassword = async (e: React.FormEvent) => {
-		const result = await passwordReset.handleResetPassword(auth.sessionToken!, e);
-		if (result.success && result.shouldLogout) {
-			setShowResetDialog(false);
-			passwordReset.resetState();
-			setShowSettingsMenu(false);
-			await auth.handleLogout();
-		}
-	};
-
 	const handleLinkTicket = async (sourceTicketId: string) => {
 		const targetRef = ticketLinking.linkTargetByTicket[sourceTicketId] || '';
 		console.log(`[Admin] Initiating link for ticket ${sourceTicketId} to ${targetRef}`);
@@ -266,12 +238,6 @@ export const AdminInboxPage: React.FC = () => {
 						tickets.handleRefresh(auth.sessionToken!)
 					}
 					onSettingsToggle={() => setShowSettingsMenu(!showSettingsMenu)}
-					onResetPassword={() => {
-						setShowResetDialog(true);
-						passwordReset.setResetError('');
-						passwordReset.setResetMessage('');
-						setShowSettingsMenu(false);
-					}}
 					onLogout={auth.handleLogout}
 				/>
 
@@ -349,37 +315,6 @@ export const AdminInboxPage: React.FC = () => {
 						);
 					})}
 				</TicketList>
-
-				<PasswordResetDialog
-					open={showResetDialog}
-					isResetting={passwordReset.isResettingPassword}
-					currentPassword={passwordReset.currentPassword}
-					newPassword={passwordReset.newPassword}
-					confirmPassword={passwordReset.confirmPassword}
-					resetError={passwordReset.resetError}
-					resetMessage={passwordReset.resetMessage}
-					showCurrentPassword={passwordReset.showCurrentPassword}
-					showNewPassword={passwordReset.showNewPassword}
-					showConfirmPassword={passwordReset.showConfirmPassword}
-					onCurrentPasswordChange={passwordReset.setCurrentPassword}
-					onNewPasswordChange={passwordReset.setNewPassword}
-					onConfirmPasswordChange={passwordReset.setConfirmPassword}
-					onShowCurrentPasswordToggle={() =>
-						passwordReset.setShowCurrentPassword(!passwordReset.showCurrentPassword)
-					}
-					onShowNewPasswordToggle={() =>
-						passwordReset.setShowNewPassword(!passwordReset.showNewPassword)
-					}
-					onShowConfirmPasswordToggle={() =>
-						passwordReset.setShowConfirmPassword(!passwordReset.showConfirmPassword)
-					}
-					onSubmit={handleResetPassword}
-					onClose={() => {
-						setShowResetDialog(false);
-						passwordReset.setResetError('');
-						passwordReset.setResetMessage('');
-					}}
-				/>
 			</Card>
 		</Shell>
 	);

@@ -104,6 +104,7 @@ export const TicketCard: React.FC<TicketCardProps> = ({
 		createdAt: string;
 		adminUsername?: string;
 		noteType: 'internal' | 'maintley_update';
+		sourceTicketNumbers: string[];
 	};
 
 	const ticketId = String(ticket.id || '');
@@ -140,33 +141,84 @@ export const TicketCard: React.FC<TicketCardProps> = ({
 	const linkSearchQuery = String(linkTargetValue || '').trim().toLowerCase();
 
 	const historyEntries = React.useMemo<HistoryEntry[]>(() => {
-		const entries: HistoryEntry[] = [];
+		const sourceTickets = isPrimaryGroupTicket ? groupTickets : [ticket];
+		const primaryTicketNumber = getDisplayTicketNumber(primaryTicket.ticketNumber, primaryTicketId);
+		const groupedEntries = new Map<
+			string,
+			{
+				note: string;
+				createdAt: string;
+				adminUsername?: string;
+				noteType: HistoryEntry['noteType'];
+				sourceTicketNumbers: Set<string>;
+				hasPrimarySource: boolean;
+			}
+		>();
 
-		for (const [index, entry] of (Array.isArray(ticket.adminNotes) ? ticket.adminNotes : []).entries()) {
-			const note = String(entry.note || '').trim();
-			if (!note) continue;
+		for (const sourceTicket of sourceTickets) {
+			const sourceTicketId = String(sourceTicket.id || '').trim();
+			if (!sourceTicketId) continue;
 
-			const rawType = String(entry.noteType || entry.visibility || '').trim().toLowerCase();
-			const noteType: HistoryEntry['noteType'] =
-				rawType === 'maintley_update' || rawType === 'customer'
-					? 'maintley_update'
-					: 'internal';
+			const sourceTicketNumber = getDisplayTicketNumber(sourceTicket.ticketNumber, sourceTicketId);
+			const sourceEntries = Array.isArray(sourceTicket.adminNotes) ? sourceTicket.adminNotes : [];
 
-			entries.push({
-				id: `${noteType}-${String(entry.createdAt || '')}-${index}`,
-				note,
-				createdAt: String(entry.createdAt || ''),
-				adminUsername: String(entry.adminUsername || '').trim() || undefined,
-				noteType,
-			});
+			for (const [index, entry] of sourceEntries.entries()) {
+				const note = String(entry.note || '').trim();
+				if (!note) continue;
+
+				const createdAt = String(entry.createdAt || '');
+				const adminUserId = String(entry.adminUserId || '').trim();
+				const adminUsername = String(entry.adminUsername || '').trim() || undefined;
+				const rawType = String(entry.noteType || entry.visibility || '').trim().toLowerCase();
+				const noteType: HistoryEntry['noteType'] =
+					rawType === 'maintley_update' || rawType === 'customer'
+						? 'maintley_update'
+						: 'internal';
+
+				const dedupeKey = createdAt
+					? [noteType, createdAt, adminUserId, adminUsername || '', note].join('|')
+					: [noteType, adminUserId, adminUsername || '', note, sourceTicketId, String(index)].join('|');
+
+				const existing = groupedEntries.get(dedupeKey);
+				if (existing) {
+					existing.sourceTicketNumbers.add(sourceTicketNumber);
+					existing.hasPrimarySource = existing.hasPrimarySource || sourceTicketId === primaryTicketId;
+					continue;
+				}
+
+				groupedEntries.set(dedupeKey, {
+					note,
+					createdAt,
+					adminUsername,
+					noteType,
+					sourceTicketNumbers: new Set([sourceTicketNumber]),
+					hasPrimarySource: sourceTicketId === primaryTicketId,
+				});
+			}
 		}
 
-		return entries.sort((left, right) => {
+		return [...groupedEntries.values()]
+			.map((entry, index) => {
+				const sourceTicketNumbers =
+					isPrimaryGroupTicket && (entry.hasPrimarySource || entry.sourceTicketNumbers.size > 1)
+						? [primaryTicketNumber]
+						: [...entry.sourceTicketNumbers];
+
+				return {
+					id: `${entry.noteType}-${entry.createdAt || 'no-date'}-${index}`,
+					note: entry.note,
+					createdAt: entry.createdAt,
+					adminUsername: entry.adminUsername,
+					noteType: entry.noteType,
+					sourceTicketNumbers,
+				};
+			})
+			.sort((left, right) => {
 			const leftTime = Date.parse(left.createdAt || '') || 0;
 			const rightTime = Date.parse(right.createdAt || '') || 0;
 			return rightTime - leftTime;
 		});
-	}, [ticket.adminNotes]);
+	}, [groupTickets, isPrimaryGroupTicket, primaryTicket, primaryTicketId, ticket]);
 
 	const filteredHistoryEntries = React.useMemo(() => {
 		if (historyFilter === 'all') return historyEntries;
@@ -445,6 +497,9 @@ export const TicketCard: React.FC<TicketCardProps> = ({
 														{entry.noteType === 'maintley_update' ? 'Maintley Update' : 'Internal Note'}
 														{entry.adminUsername ? ` · ${entry.adminUsername}` : ''}
 														{entry.createdAt ? ` · ${new Date(entry.createdAt).toLocaleString()}` : ''}
+														{entry.sourceTicketNumbers.length === 1
+															? ` · Ticket ${entry.sourceTicketNumbers[0]}`
+															: ` · Tickets ${entry.sourceTicketNumbers.join(', ')}`}
 												</NoteHistoryMeta>
 											</NoteHistoryItem>
 										))}

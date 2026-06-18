@@ -35,6 +35,7 @@ export interface User {
 	phone?: string;
 	address?: string;
 	image?: string;
+	maintley_role?: Record<string, unknown> | string | boolean;
 	assignedPropertyId?: number;
 	hiddenPropertyIds?: string[]; // Properties hidden from dashboard
 	pushToken?: string; // Push notification token for FCM

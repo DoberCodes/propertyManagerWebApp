@@ -49,6 +49,16 @@ interface PersistedFeedbackAttachment {
 	attachmentUrl?: string;
 }
 
+interface TicketAdminNote {
+	note: string;
+	createdAt?: string;
+	date?: string;
+	noteType?: string;
+	visibility?: string;
+	adminUserId?: string;
+	adminUsername?: string;
+}
+
 const MAX_ATTACHMENTS = 3;
 const MAX_ATTACHMENT_SIZE_BYTES = 3 * 1024 * 1024;
 const MAX_TOTAL_ATTACHMENT_SIZE_BYTES = 8 * 1024 * 1024;
@@ -571,6 +581,7 @@ export const listMyFeedbackTickets = functions.https.onCall(
 			createdAt?: string;
 			updatedAt?: string;
 			resolutionNotes?: string;
+			adminNotes?: TicketAdminNote[];
 			attachments?: PersistedFeedbackAttachment[];
 		}>;
 	}> => {
@@ -628,6 +639,95 @@ export const listMyFeedbackTickets = functions.https.onCall(
 
 		const tickets = (await Promise.all(snapshot.docs.map(async (doc) => {
 			const data = doc.data() as Record<string, unknown>;
+			const rawAdminNotes = Array.isArray(data.adminNotes) ? data.adminNotes : [];
+			const resolutionNotes = data.resolutionNotes
+				? String(data.resolutionNotes).trim()
+				: '';
+
+			const normalizedAdminNotes = rawAdminNotes
+				.map((rawNote) => {
+					if (typeof rawNote === 'string') {
+						const noteText = rawNote.trim();
+						if (!noteText) return null;
+
+						return {
+							note: noteText,
+							visibility: 'customer',
+						} as TicketAdminNote;
+					}
+
+					const noteRecord =
+						typeof rawNote === 'object' && rawNote
+							? (rawNote as Record<string, unknown>)
+							: null;
+					if (!noteRecord) return null;
+
+					const noteText = String(
+						noteRecord.note ||
+							noteRecord.message ||
+							noteRecord.text ||
+							noteRecord.resolutionNotes ||
+							'',
+					).trim();
+					if (!noteText) return null;
+
+					const rawVisibility = String(noteRecord.visibility || '')
+						.trim()
+						.toLowerCase();
+					const noteType = String(noteRecord.noteType || '')
+						.trim()
+						.toLowerCase();
+					const isInternal =
+						rawVisibility === 'internal' || noteType === 'internal';
+
+					const createdAtValue =
+						noteRecord.createdAt !== undefined
+							? serializeTimestampValue(noteRecord.createdAt)
+							: noteRecord.date !== undefined
+								? serializeTimestampValue(noteRecord.date)
+								: noteRecord.timestamp !== undefined
+									? serializeTimestampValue(noteRecord.timestamp)
+								: undefined;
+					const createdAt = createdAtValue
+						? String(createdAtValue)
+						: undefined;
+
+					return {
+						note: noteText,
+						createdAt,
+						date: createdAt,
+						noteType: noteType || undefined,
+						visibility: rawVisibility || (isInternal ? 'internal' : 'customer'),
+						adminUserId: noteRecord.adminUserId
+							? String(noteRecord.adminUserId)
+							: undefined,
+						adminUsername: noteRecord.adminUsername
+							? String(noteRecord.adminUsername)
+							: undefined,
+					};
+				})
+				.filter((note): note is TicketAdminNote => Boolean(note));
+
+			if (resolutionNotes) {
+				const hasResolutionInNotes = normalizedAdminNotes.some(
+					(note) => String(note.note || '').trim() === resolutionNotes,
+				);
+
+				if (!hasResolutionInNotes) {
+					normalizedAdminNotes.push({
+						note: resolutionNotes,
+						createdAt: data.updatedAt
+							? String(serializeTimestampValue(data.updatedAt) || '')
+							: undefined,
+						date: data.updatedAt
+							? String(serializeTimestampValue(data.updatedAt) || '')
+							: undefined,
+						noteType: 'maintley_update',
+						visibility: 'customer',
+					});
+				}
+			}
+
 			let ticketNumber = String(data.ticketNumber || '').trim();
 			if (!ticketNumber) {
 				const docSequence = Number(data.ticketSequence || 0);
@@ -655,9 +755,8 @@ export const listMyFeedbackTickets = functions.https.onCall(
 				updatedAt: data.updatedAt
 					? String(serializeTimestampValue(data.updatedAt) || '')
 					: undefined,
-				resolutionNotes: data.resolutionNotes
-					? String(data.resolutionNotes)
-					: undefined,
+				resolutionNotes: resolutionNotes || undefined,
+				adminNotes: normalizedAdminNotes,
 				attachments: await normalizePersistedAttachments(data.attachments),
 			};
 		})))

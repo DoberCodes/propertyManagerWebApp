@@ -24,7 +24,6 @@ interface AdminHeaderProps {
 	isRefreshing?: boolean;
 	onRefresh: () => Promise<void>;
 	onSettingsToggle: () => void;
-	onResetPassword: () => void;
 	onLogout: () => Promise<void>;
 }
 
@@ -34,7 +33,6 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
 	isRefreshing,
 	onRefresh,
 	onSettingsToggle,
-	onResetPassword,
 	onLogout,
 }) => {
 	const settingsMenuRef = useRef<HTMLDivElement | null>(null);
@@ -57,11 +55,6 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
 		void onLogout();
 	};
 
-	const handleResetPassword = () => {
-		onResetPassword();
-		onSettingsToggle();
-	};
-
 	return (
 		<HeaderRow>
 			<div>
@@ -78,9 +71,6 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
 					</SecondaryButton>
 					{showSettingsMenu ? (
 						<SettingsMenu>
-							<SettingsItem type='button' onClick={handleResetPassword}>
-								Reset Password
-							</SettingsItem>
 							<SettingsItem type='button' onClick={handleLogout}>
 								Sign Out
 							</SettingsItem>

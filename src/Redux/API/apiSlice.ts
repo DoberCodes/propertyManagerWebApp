@@ -14,6 +14,16 @@ export interface CompletionFile {
 	uploadedAt: string;
 }
 
+export interface MyFeedbackAdminNote {
+	note: string;
+	createdAt?: string;
+	date?: string;
+	noteType?: string;
+	visibility?: string;
+	adminUserId?: string;
+	adminUsername?: string;
+}
+
 export interface MyFeedbackTicket {
 	id: string;
 	ticketNumber?: string;
@@ -25,7 +35,7 @@ export interface MyFeedbackTicket {
 	emailDispatchStatus?: string;
 	createdAt?: string;
 	updatedAt?: string;
-	resolutionNotes?: string;
+	adminNotes?: MyFeedbackAdminNote[];
 	linkedTicketIds?: string[];
 	linkedTicketNumbers?: string[];
 	attachments?: Array<{
@@ -226,7 +236,6 @@ export const apiSlice = createApi({
 					const result = await listMyFeedbackTicketsFunction({
 						limit: args?.limit,
 					});
-
 					return {
 						data: Array.isArray(result.data?.tickets)
 							? result.data.tickets

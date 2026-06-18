@@ -4,15 +4,13 @@
  */
 
 import { useEffect, useState } from 'react';
-import {
-	AdminUser,
-	adminPortalLogin,
-	adminPortalLogout,
-	clearAdminSessionToken,
-	getAdminSessionToken,
-	saveAdminSessionToken,
-	validateAdminSession,
-} from '../../../services/adminPortalService';
+import { useDispatch, useSelector } from 'react-redux';
+import { signOutUser } from '../../../services/authService';
+import { setCurrentUser } from '../../../Redux/Slices/userSlice';
+import { hasMaintleyAdminAccess } from '../../../utils/maintleyRole';
+import type { MaintleyRoleValue } from '../../../utils/maintleyRole';
+import type { RootState } from '../../../Redux/store/store';
+import type { AdminUser } from '../../../services/adminPortalService';
 import { ERROR_MESSAGES } from '../constants';
 
 export interface UseAdminAuthReturn {
@@ -33,6 +31,10 @@ export interface UseAdminAuthReturn {
 }
 
 export const useAdminAuth = (): UseAdminAuthReturn => {
+	const dispatch = useDispatch();
+	const currentUser = useSelector((state: RootState) => state.user.currentUser);
+	const authLoading = useSelector((state: RootState) => state.user.authLoading);
+
 	const [sessionToken, setSessionToken] = useState<string | null>(null);
 	const [adminUser, setAdminUser] = useState<AdminUser | null>(null);
 	const [checkingSession, setCheckingSession] = useState(true);
@@ -42,58 +44,48 @@ export const useAdminAuth = (): UseAdminAuthReturn => {
 	const [showLoginPassword, setShowLoginPassword] = useState(false);
 
 	const initializeSession = async () => {
-		setCheckingSession(true);
-		const storedToken = getAdminSessionToken();
-		if (!storedToken) {
+		if (authLoading) {
+			setCheckingSession(true);
+			return;
+		}
+
+		const maintleyRole = (currentUser?.maintley_role ?? null) as MaintleyRoleValue;
+		const canAccessAdmin = hasMaintleyAdminAccess(maintleyRole);
+
+		if (!currentUser || !canAccessAdmin) {
+			setSessionToken(null);
+			setAdminUser(null);
 			setCheckingSession(false);
 			return;
 		}
 
-		try {
-			const result = await validateAdminSession(storedToken);
-			setSessionToken(storedToken);
-			setAdminUser(result.adminUser);
-		} catch {
-			clearAdminSessionToken();
-			setSessionToken(null);
-			setAdminUser(null);
-		}
+		setSessionToken(currentUser.id);
+		const firstName = String(currentUser.firstName || '').trim();
+		const lastName = String(currentUser.lastName || '').trim();
+		const displayName = `${firstName} ${lastName}`.trim() || String(currentUser.email || 'Maintley Admin');
+		setAdminUser({
+			id: currentUser.id,
+			username: String(currentUser.email || currentUser.id),
+			displayName,
+			email: currentUser.email || null,
+			roles: ['admin'],
+		});
 		setCheckingSession(false);
 	};
 
 	useEffect(() => {
 		void initializeSession();
-	}, []);
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [authLoading, currentUser]);
 
 	const handleLogin = async (e: React.FormEvent) => {
 		e.preventDefault();
-		setAuthError('');
-
-		if (!username.trim() || !password.trim()) {
-			setAuthError(ERROR_MESSAGES.MISSING_CREDENTIALS);
-			return;
-		}
-
-		try {
-			const result = await adminPortalLogin(username.trim(), password);
-			saveAdminSessionToken(result.sessionToken);
-			setSessionToken(result.sessionToken);
-			setAdminUser(result.adminUser);
-			setPassword('');
-		} catch (error: any) {
-			setAuthError(error?.message || ERROR_MESSAGES.LOGIN_FAILED);
-		}
+		setAuthError(ERROR_MESSAGES.LOGIN_FAILED);
 	};
 
 	const handleLogout = async () => {
-		if (sessionToken) {
-			try {
-				await adminPortalLogout(sessionToken);
-			} catch {
-				// local cleanup still applies even if network call fails
-			}
-		}
-		clearAdminSessionToken();
+		await signOutUser();
+		dispatch(setCurrentUser(null));
 		setSessionToken(null);
 		setAdminUser(null);
 		setPassword('');

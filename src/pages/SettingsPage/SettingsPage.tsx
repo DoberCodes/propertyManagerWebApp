@@ -41,6 +41,8 @@ import {
 	updateFamilyMember,
 } from 'services/authService';
 import { NotificationPreferences } from 'Components/NotificationPreferences';
+import { hasMaintleyAdminAccess } from 'utils/maintleyRole';
+import { ActionButton } from 'Components/Library/ReusableTable/ReusableTable.styles';
 
 const Container = styled.div`
 	width: 100%;
@@ -782,7 +784,13 @@ const SupportTicketMetaValue = styled.span`
 	color: #1f2937;
 `;
 
-const SupportTicketSection = styled.div`
+const SupportTicketSection = styled.div<{ resolutionNotes?: string }>`
+	border: ${({ resolutionNotes }) => (resolutionNotes ? '1px solid #e5e7eb' : 'none')};
+	padding: ${({ resolutionNotes }) => (resolutionNotes ? '12px' : '0')};
+	border-radius: 8px;
+	background: ${({ resolutionNotes }) => (resolutionNotes ? '#f9fafb' : 'transparent')};
+	margin-top: 12px;
+	border-radius: 8px;
 	margin-top: 10px;
 `;
 
@@ -826,6 +834,7 @@ export const SettingsPage: React.FC = () => {
 	const dispatch = useDispatch<AppDispatch>();
 	const feedback = useAppFeedback();
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
+	const canAccessMaintleyAdmin = hasMaintleyAdminAccess(currentUser?.maintley_role ?? null);
 	const isTenant = currentUser?.role === 'tenant';
 	const isTeamMemberAccount = currentUser?.isTeamMemberAccount === true;
 	const isPrimaryAccountHolder =
@@ -894,6 +903,8 @@ export const SettingsPage: React.FC = () => {
 		{ limit: 20 },
 		{ skip: !currentUser },
 	);
+
+	console.info('My support tickets:', mySupportTickets, loadingMySupportTickets, mySupportTicketsError);
 
 	const formatSupportStatus = (status: string): string =>
 		String(status || 'received')
@@ -1690,9 +1701,16 @@ export const SettingsPage: React.FC = () => {
 									Help us improve Maintley by sharing your feedback, reporting bugs,
 									or requesting new features.
 								</p>
+								<ButtonContainer>
 								<AccountButton onClick={() => setShowFeedbackModal(true)}>
 									Submit Feedback
 								</AccountButton>
+								{canAccessMaintleyAdmin ? (
+									<AccountButton onClick={() => navigate('/admin')}>
+										Open Admin Inbox
+									</AccountButton>
+								) : null}
+								</ButtonContainer>
 
 								{loadingMySupportTickets ? (
 									<p style={{ marginTop: '14px', color: '#6b7280' }}>
@@ -1737,8 +1755,19 @@ export const SettingsPage: React.FC = () => {
 								{filteredSupportTickets && filteredSupportTickets.length > 0 ? (
 									<SupportTicketList>
 										{filteredSupportTickets.map((ticket) => {
+
+											console.info('Rendering support ticket:', ticket);
 											const displayTicketNumber =
 												ticket.ticketNumber || `Ticket ${ticket.id.slice(-6).toUpperCase()}`;
+											const latestAdminNote = Array.isArray(ticket.adminNotes)
+												? [...ticket.adminNotes]
+														.filter((note) => String(note?.visibility || '').toLowerCase() === 'customer')
+														.sort((a, b) => {
+														const aDate = new Date(a.createdAt || a.date || 0).getTime();
+														const bDate = new Date(b.createdAt || b.date || 0).getTime();
+														return bDate - aDate;
+													})[0]
+												: null;
 
 											return (
 											<SupportTicketCard key={ticket.id}>
@@ -1778,11 +1807,11 @@ export const SettingsPage: React.FC = () => {
 													<SupportTicketSectionLabel>Message</SupportTicketSectionLabel>
 													<SupportTicketMessage>{renderLinkedText(ticket.message)}</SupportTicketMessage>
 												</SupportTicketSection>
-												{ticket.resolutionNotes ? (
-													<SupportTicketSection>
-														<SupportTicketSectionLabel>Maintley Update</SupportTicketSectionLabel>
-														<SupportTicketMeta>{renderLinkedText(ticket.resolutionNotes)}</SupportTicketMeta>
-													</SupportTicketSection>
+													{latestAdminNote ? (
+														<SupportTicketSection resolutionNotes={latestAdminNote.note}>
+															<SupportTicketSectionLabel>Latest Maintley Update - {formatSupportDate(latestAdminNote.createdAt || latestAdminNote.date)}</SupportTicketSectionLabel>
+															<SupportTicketMeta>{renderLinkedText(latestAdminNote.note)}</SupportTicketMeta>
+														</SupportTicketSection>
 												) : null}
 												{Array.isArray(ticket.attachments) &&
 												ticket.attachments.length > 0 ? (

@@ -44,6 +44,7 @@ const db = admin.firestore();
 const ADMIN_USERS_COLLECTION = 'admin_users';
 const ADMIN_SESSIONS_COLLECTION = 'admin_sessions';
 const FEEDBACK_COLLECTION = 'feedback';
+const USERS_COLLECTION = 'users';
 const SESSION_TTL_HOURS = 12;
 const MAX_TICKET_RESULTS = 250;
 const FEEDBACK_TICKET_PREFIX = 'MNT';
@@ -373,6 +374,34 @@ const resolveFeedbackTicketByIdOrNumber = async (identifier) => {
     }
     throw new functions.https.HttpsError('not-found', 'Referenced ticket was not found.');
 };
+const normalizeMaintleyRole = (value) => typeof value === 'string' ? value.trim().toLowerCase() : '';
+const requireMaintleyAdmin = async (context) => {
+    var _a, _b, _c;
+    const uid = String(((_a = context.auth) === null || _a === void 0 ? void 0 : _a.uid) || '').trim();
+    if (!uid) {
+        throw new functions.https.HttpsError('unauthenticated', 'Authentication is required.');
+    }
+    const userDoc = await db.collection(USERS_COLLECTION).doc(uid).get();
+    if (!userDoc.exists) {
+        throw new functions.https.HttpsError('permission-denied', 'User profile not found.');
+    }
+    const userData = (userDoc.data() || {});
+    const maintleyRole = normalizeMaintleyRole(userData.maintley_role);
+    if (maintleyRole !== 'admin') {
+        throw new functions.https.HttpsError('permission-denied', 'Admin access is required.');
+    }
+    const firstName = String(userData.firstName || '').trim();
+    const lastName = String(userData.lastName || '').trim();
+    const fallbackEmail = String(((_c = (_b = context.auth) === null || _b === void 0 ? void 0 : _b.token) === null || _c === void 0 ? void 0 : _c.email) || '').trim();
+    const profileEmail = String(userData.email || '').trim();
+    const email = profileEmail || fallbackEmail || null;
+    const displayName = `${firstName} ${lastName}`.trim() || email || 'Maintley Admin';
+    return {
+        uid,
+        email,
+        displayName,
+    };
+};
 const requireAdminSession = async (sessionToken) => {
     const normalizedToken = String(sessionToken || '').trim();
     if (!normalizedToken) {
@@ -571,8 +600,8 @@ exports.adminPortalResetPassword = functions.https.onCall(async (data) => {
         message: 'Password updated. Please sign in again.',
     };
 });
-exports.listFeedbackAdminTickets = functions.https.onCall(async (data) => {
-    await requireAdminSession(String((data === null || data === void 0 ? void 0 : data.sessionToken) || ''));
+exports.listFeedbackAdminTickets = functions.https.onCall(async (data, context) => {
+    await requireMaintleyAdmin(context);
     const requestedStatus = String((data === null || data === void 0 ? void 0 : data.status) || '').trim().toLowerCase();
     const requestedType = String((data === null || data === void 0 ? void 0 : data.type) || '').trim().toLowerCase();
     const requestedLimit = Number((data === null || data === void 0 ? void 0 : data.limit) || 100);
@@ -607,12 +636,12 @@ exports.listFeedbackAdminTickets = functions.https.onCall(async (data) => {
     }
     return { tickets };
 });
-exports.linkFeedbackAdminTickets = functions.https.onCall(async (data) => {
+exports.linkFeedbackAdminTickets = functions.https.onCall(async (data, context) => {
     var _a, _b;
     try {
         console.log('[linkFeedbackAdminTickets] Starting link operation');
-        const session = await requireAdminSession(String((data === null || data === void 0 ? void 0 : data.sessionToken) || ''));
-        console.log('[linkFeedbackAdminTickets] Session validated for user:', session.username);
+        const adminAuth = await requireMaintleyAdmin(context);
+        console.log('[linkFeedbackAdminTickets] Session validated for user:', adminAuth.displayName);
         const sourceTicketId = String((data === null || data === void 0 ? void 0 : data.sourceTicketId) || '').trim();
         const targetTicketRef = String((data === null || data === void 0 ? void 0 : data.targetTicketRef) || '').trim();
         console.log('[linkFeedbackAdminTickets] Linking:', sourceTicketId, '->', targetTicketRef);
@@ -678,15 +707,15 @@ exports.linkFeedbackAdminTickets = functions.https.onCall(async (data) => {
         const noteEntry = {
             note: `Linked into group case ${parentTicketNumber}`,
             createdAt: nowIso,
-            adminUserId: session.adminUserId,
-            adminUsername: session.username,
+            adminUserId: adminAuth.uid,
+            adminUsername: adminAuth.email || adminAuth.displayName,
         };
         const batch = db.batch();
         batch.set(resolvedParentRef, {
             ...parentFields,
             updatedAt: timestamp,
-            updatedByAdminUserId: session.adminUserId,
-            updatedByAdminUsername: session.username,
+            updatedByAdminUserId: adminAuth.uid,
+            updatedByAdminUsername: adminAuth.email || adminAuth.displayName,
             adminNotes: admin.firestore.FieldValue.arrayUnion(noteEntry),
         }, { merge: true });
         const parentStatus = normalizeTicketStatus(parentFields.status);
@@ -707,8 +736,8 @@ exports.linkFeedbackAdminTickets = functions.https.onCall(async (data) => {
                 groupParentTicketId: resolvedParentRef.id,
                 groupParentTicketNumber: parentTicketNumber,
                 updatedAt: timestamp,
-                updatedByAdminUserId: session.adminUserId,
-                updatedByAdminUsername: session.username,
+                updatedByAdminUserId: adminAuth.uid,
+                updatedByAdminUsername: adminAuth.email || adminAuth.displayName,
                 status: parentStatus,
                 publicStatus: parentPublicStatus,
                 adminNotes: admin.firestore.FieldValue.arrayUnion(noteEntry),
@@ -735,8 +764,8 @@ exports.linkFeedbackAdminTickets = functions.https.onCall(async (data) => {
                 linkedTicketIds,
                 linkedTicketNumbers,
                 updatedAt: timestamp,
-                updatedByAdminUserId: session.adminUserId,
-                updatedByAdminUsername: session.username,
+                updatedByAdminUserId: adminAuth.uid,
+                updatedByAdminUsername: adminAuth.email || adminAuth.displayName,
             }, { merge: true });
         }
         console.log('[linkFeedbackAdminTickets] Committing batch write...');
@@ -760,8 +789,8 @@ exports.linkFeedbackAdminTickets = functions.https.onCall(async (data) => {
         throw new functions.https.HttpsError('internal', `Link operation failed: ${message}`);
     }
 });
-exports.unlinkFeedbackAdminTicket = functions.https.onCall(async (data) => {
-    const session = await requireAdminSession(String((data === null || data === void 0 ? void 0 : data.sessionToken) || ''));
+exports.unlinkFeedbackAdminTicket = functions.https.onCall(async (data, context) => {
+    const adminAuth = await requireMaintleyAdmin(context);
     const ticketId = String((data === null || data === void 0 ? void 0 : data.ticketId) || '').trim();
     if (!ticketId) {
         throw new functions.https.HttpsError('invalid-argument', 'Ticket ID is required.');
@@ -790,8 +819,8 @@ exports.unlinkFeedbackAdminTicket = functions.https.onCall(async (data) => {
     const noteEntry = {
         note: `Unlinked ticket ${getTicketNumberFromRecord(childRecord, ticketId)} from group case ${String(parentRecord.ticketNumber || parentTicketId)}`,
         createdAt: nowIso,
-        adminUserId: session.adminUserId,
-        adminUsername: session.username,
+        adminUserId: adminAuth.uid,
+        adminUsername: adminAuth.email || adminAuth.displayName,
     };
     const batch = db.batch();
     batch.set(childRef, {
@@ -805,8 +834,8 @@ exports.unlinkFeedbackAdminTicket = functions.https.onCall(async (data) => {
         isLinkedChild: false,
         isGroupTicket: false,
         updatedAt: timestamp,
-        updatedByAdminUserId: session.adminUserId,
-        updatedByAdminUsername: session.username,
+        updatedByAdminUserId: adminAuth.uid,
+        updatedByAdminUsername: adminAuth.email || adminAuth.displayName,
         adminNotes: admin.firestore.FieldValue.arrayUnion(noteEntry),
     }, { merge: true });
     if (remainingLinkedIds.length > 0) {
@@ -817,8 +846,8 @@ exports.unlinkFeedbackAdminTicket = functions.https.onCall(async (data) => {
         batch.set(parentRef, {
             ...rebuiltParentFields,
             updatedAt: timestamp,
-            updatedByAdminUserId: session.adminUserId,
-            updatedByAdminUsername: session.username,
+            updatedByAdminUserId: adminAuth.uid,
+            updatedByAdminUsername: adminAuth.email || adminAuth.displayName,
             adminNotes: admin.firestore.FieldValue.arrayUnion(noteEntry),
         }, { merge: true });
         const nextLinkedTicketIds = remainingDocs.map((doc) => doc.id);
@@ -837,8 +866,8 @@ exports.unlinkFeedbackAdminTicket = functions.https.onCall(async (data) => {
                 groupParentTicketId: parentTicketId,
                 groupParentTicketNumber: String(rebuiltParentFields.ticketNumber || parentRecord.ticketNumber || ''),
                 updatedAt: timestamp,
-                updatedByAdminUserId: session.adminUserId,
-                updatedByAdminUsername: session.username,
+                updatedByAdminUserId: adminAuth.uid,
+                updatedByAdminUsername: adminAuth.email || adminAuth.displayName,
             }, { merge: true });
         }
     }
@@ -853,16 +882,16 @@ exports.unlinkFeedbackAdminTicket = functions.https.onCall(async (data) => {
             isLinkedPrimary: true,
             isLinkedChild: false,
             updatedAt: timestamp,
-            updatedByAdminUserId: session.adminUserId,
-            updatedByAdminUsername: session.username,
+            updatedByAdminUserId: adminAuth.uid,
+            updatedByAdminUsername: adminAuth.email || adminAuth.displayName,
             adminNotes: admin.firestore.FieldValue.arrayUnion(noteEntry),
         }, { merge: true });
     }
     await batch.commit();
     return { success: true, parentTicketId };
 });
-exports.deleteFeedbackAdminParentTicket = functions.https.onCall(async (data) => {
-    await requireAdminSession(String((data === null || data === void 0 ? void 0 : data.sessionToken) || ''));
+exports.deleteFeedbackAdminParentTicket = functions.https.onCall(async (data, context) => {
+    await requireMaintleyAdmin(context);
     const ticketId = String((data === null || data === void 0 ? void 0 : data.ticketId) || '').trim();
     if (!ticketId) {
         throw new functions.https.HttpsError('invalid-argument', 'Ticket ID is required.');
@@ -884,8 +913,8 @@ exports.deleteFeedbackAdminParentTicket = functions.https.onCall(async (data) =>
     await ticketRef.delete();
     return { success: true };
 });
-exports.updateFeedbackAdminTicketStatus = functions.https.onCall(async (data) => {
-    const session = await requireAdminSession(String((data === null || data === void 0 ? void 0 : data.sessionToken) || ''));
+exports.updateFeedbackAdminTicketStatus = functions.https.onCall(async (data, context) => {
+    const adminAuth = await requireMaintleyAdmin(context);
     const ticketId = String((data === null || data === void 0 ? void 0 : data.ticketId) || '').trim();
     const nextStatus = normalizeTicketStatus(data === null || data === void 0 ? void 0 : data.status);
     const internalNote = String((data === null || data === void 0 ? void 0 : data.internalNote) || '').trim();
@@ -926,8 +955,8 @@ exports.updateFeedbackAdminTicketStatus = functions.https.onCall(async (data) =>
             ? {
                 note: internalNote,
                 createdAt: nowIso,
-                adminUserId: session.adminUserId,
-                adminUsername: session.username,
+                adminUserId: adminAuth.uid,
+                adminUsername: adminAuth.email || adminAuth.displayName,
                 noteType: 'internal',
                 visibility: 'internal',
             }
@@ -936,8 +965,8 @@ exports.updateFeedbackAdminTicketStatus = functions.https.onCall(async (data) =>
             ? {
                 note: resolutionNotes,
                 createdAt: nowIso,
-                adminUserId: session.adminUserId,
-                adminUsername: session.username,
+                adminUserId: adminAuth.uid,
+                adminUsername: adminAuth.email || adminAuth.displayName,
                 noteType: 'maintley_update',
                 visibility: 'customer',
             }
@@ -1021,8 +1050,8 @@ exports.updateFeedbackAdminTicketStatus = functions.https.onCall(async (data) =>
         status: nextStatus,
         publicStatus: getPublicStatus(nextStatus),
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        updatedByAdminUserId: session.adminUserId,
-        updatedByAdminUsername: session.username,
+        updatedByAdminUserId: adminAuth.uid,
+        updatedByAdminUsername: adminAuth.email || adminAuth.displayName,
         lastCustomerUpdateAt: admin.firestore.FieldValue.serverTimestamp(),
     };
     if (nextStatus === 'resolved') {

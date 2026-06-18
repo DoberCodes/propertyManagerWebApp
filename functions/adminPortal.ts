@@ -11,6 +11,7 @@ const db = admin.firestore();
 const ADMIN_USERS_COLLECTION = 'admin_users';
 const ADMIN_SESSIONS_COLLECTION = 'admin_sessions';
 const FEEDBACK_COLLECTION = 'feedback';
+const USERS_COLLECTION = 'users';
 const SESSION_TTL_HOURS = 12;
 const MAX_TICKET_RESULTS = 250;
 const FEEDBACK_TICKET_PREFIX = 'MNT';
@@ -471,6 +472,48 @@ type AdminSession = {
 	roles: string[];
 };
 
+type MaintleyAdminAuth = {
+	uid: string;
+	email: string | null;
+	displayName: string;
+};
+
+const normalizeMaintleyRole = (value: unknown): string =>
+	typeof value === 'string' ? value.trim().toLowerCase() : '';
+
+const requireMaintleyAdmin = async (
+	context: functions.https.CallableContext,
+): Promise<MaintleyAdminAuth> => {
+	const uid = String(context.auth?.uid || '').trim();
+	if (!uid) {
+		throw new functions.https.HttpsError('unauthenticated', 'Authentication is required.');
+	}
+
+	const userDoc = await db.collection(USERS_COLLECTION).doc(uid).get();
+	if (!userDoc.exists) {
+		throw new functions.https.HttpsError('permission-denied', 'User profile not found.');
+	}
+
+	const userData = (userDoc.data() || {}) as Record<string, unknown>;
+	const maintleyRole = normalizeMaintleyRole(userData.maintley_role);
+	if (maintleyRole !== 'admin') {
+		throw new functions.https.HttpsError('permission-denied', 'Admin access is required.');
+	}
+
+	const firstName = String(userData.firstName || '').trim();
+	const lastName = String(userData.lastName || '').trim();
+	const fallbackEmail = String(context.auth?.token?.email || '').trim();
+	const profileEmail = String(userData.email || '').trim();
+	const email = profileEmail || fallbackEmail || null;
+	const displayName = `${firstName} ${lastName}`.trim() || email || 'Maintley Admin';
+
+	return {
+		uid,
+		email,
+		displayName,
+	};
+};
+
 const requireAdminSession = async (sessionToken: string): Promise<AdminSession> => {
 	const normalizedToken = String(sessionToken || '').trim();
 	if (!normalizedToken) {
@@ -836,10 +879,11 @@ export const listFeedbackAdminTickets = functions.https.onCall(
 			type?: string;
 			limit?: number;
 		},
+		context,
 	): Promise<{
 		tickets: Array<Record<string, unknown>>;
 	}> => {
-		await requireAdminSession(String(data?.sessionToken || ''));
+		await requireMaintleyAdmin(context);
 
 		const requestedStatus = String(data?.status || '').trim().toLowerCase();
 		const requestedType = String(data?.type || '').trim().toLowerCase();
@@ -897,12 +941,13 @@ export const linkFeedbackAdminTickets = functions.https.onCall(
 			sourceTicketId?: string;
 			targetTicketRef?: string;
 		},
+		context,
 	): Promise<{ success: true; linkedTicketIds: string[] }> => {
 		try {
 			console.log('[linkFeedbackAdminTickets] Starting link operation');
 			
-			const session = await requireAdminSession(String(data?.sessionToken || ''));
-			console.log('[linkFeedbackAdminTickets] Session validated for user:', session.username);
+			const adminAuth = await requireMaintleyAdmin(context);
+			console.log('[linkFeedbackAdminTickets] Session validated for user:', adminAuth.displayName);
 			
 			const sourceTicketId = String(data?.sourceTicketId || '').trim();
 			const targetTicketRef = String(data?.targetTicketRef || '').trim();
@@ -1006,8 +1051,8 @@ export const linkFeedbackAdminTickets = functions.https.onCall(
 			const noteEntry = {
 				note: `Linked into group case ${parentTicketNumber}`,
 				createdAt: nowIso,
-				adminUserId: session.adminUserId,
-				adminUsername: session.username,
+				adminUserId: adminAuth.uid,
+				adminUsername: adminAuth.email || adminAuth.displayName,
 			};
 			const batch = db.batch();
 
@@ -1016,8 +1061,8 @@ export const linkFeedbackAdminTickets = functions.https.onCall(
 				{
 					...parentFields,
 					updatedAt: timestamp,
-					updatedByAdminUserId: session.adminUserId,
-					updatedByAdminUsername: session.username,
+					updatedByAdminUserId: adminAuth.uid,
+					updatedByAdminUsername: adminAuth.email || adminAuth.displayName,
 					adminNotes: admin.firestore.FieldValue.arrayUnion(noteEntry),
 				},
 				{ merge: true },
@@ -1042,8 +1087,8 @@ export const linkFeedbackAdminTickets = functions.https.onCall(
 					groupParentTicketId: resolvedParentRef.id,
 					groupParentTicketNumber: parentTicketNumber,
 					updatedAt: timestamp,
-					updatedByAdminUserId: session.adminUserId,
-					updatedByAdminUsername: session.username,
+					updatedByAdminUserId: adminAuth.uid,
+					updatedByAdminUsername: adminAuth.email || adminAuth.displayName,
 					status: parentStatus,
 					publicStatus: parentPublicStatus,
 					adminNotes: admin.firestore.FieldValue.arrayUnion(noteEntry),
@@ -1073,8 +1118,8 @@ export const linkFeedbackAdminTickets = functions.https.onCall(
 						linkedTicketIds,
 						linkedTicketNumbers,
 						updatedAt: timestamp,
-						updatedByAdminUserId: session.adminUserId,
-						updatedByAdminUsername: session.username,
+						updatedByAdminUserId: adminAuth.uid,
+						updatedByAdminUsername: adminAuth.email || adminAuth.displayName,
 					},
 					{ merge: true },
 				);
@@ -1112,8 +1157,9 @@ export const unlinkFeedbackAdminTicket = functions.https.onCall(
 			sessionToken?: string;
 			ticketId?: string;
 		},
+		context,
 	): Promise<{ success: true; parentTicketId?: string }> => {
-		const session = await requireAdminSession(String(data?.sessionToken || ''));
+		const adminAuth = await requireMaintleyAdmin(context);
 		const ticketId = String(data?.ticketId || '').trim();
 
 		if (!ticketId) {
@@ -1152,8 +1198,8 @@ export const unlinkFeedbackAdminTicket = functions.https.onCall(
 		const noteEntry = {
 			note: `Unlinked ticket ${getTicketNumberFromRecord(childRecord, ticketId)} from group case ${String(parentRecord.ticketNumber || parentTicketId)}`,
 			createdAt: nowIso,
-			adminUserId: session.adminUserId,
-			adminUsername: session.username,
+			adminUserId: adminAuth.uid,
+			adminUsername: adminAuth.email || adminAuth.displayName,
 		};
 
 		const batch = db.batch();
@@ -1171,8 +1217,8 @@ export const unlinkFeedbackAdminTicket = functions.https.onCall(
 				isLinkedChild: false,
 				isGroupTicket: false,
 				updatedAt: timestamp,
-				updatedByAdminUserId: session.adminUserId,
-				updatedByAdminUsername: session.username,
+				updatedByAdminUserId: adminAuth.uid,
+				updatedByAdminUsername: adminAuth.email || adminAuth.displayName,
 				adminNotes: admin.firestore.FieldValue.arrayUnion(noteEntry),
 			},
 			{ merge: true },
@@ -1195,8 +1241,8 @@ export const unlinkFeedbackAdminTicket = functions.https.onCall(
 				{
 					...rebuiltParentFields,
 					updatedAt: timestamp,
-					updatedByAdminUserId: session.adminUserId,
-					updatedByAdminUsername: session.username,
+					updatedByAdminUserId: adminAuth.uid,
+					updatedByAdminUsername: adminAuth.email || adminAuth.displayName,
 					adminNotes: admin.firestore.FieldValue.arrayUnion(noteEntry),
 				},
 				{ merge: true },
@@ -1223,8 +1269,8 @@ export const unlinkFeedbackAdminTicket = functions.https.onCall(
 						groupParentTicketId: parentTicketId,
 						groupParentTicketNumber: String(rebuiltParentFields.ticketNumber || parentRecord.ticketNumber || ''),
 						updatedAt: timestamp,
-						updatedByAdminUserId: session.adminUserId,
-						updatedByAdminUsername: session.username,
+						updatedByAdminUserId: adminAuth.uid,
+						updatedByAdminUsername: adminAuth.email || adminAuth.displayName,
 					},
 					{ merge: true },
 				);
@@ -1242,8 +1288,8 @@ export const unlinkFeedbackAdminTicket = functions.https.onCall(
 					isLinkedPrimary: true,
 					isLinkedChild: false,
 					updatedAt: timestamp,
-					updatedByAdminUserId: session.adminUserId,
-					updatedByAdminUsername: session.username,
+					updatedByAdminUserId: adminAuth.uid,
+					updatedByAdminUsername: adminAuth.email || adminAuth.displayName,
 					adminNotes: admin.firestore.FieldValue.arrayUnion(noteEntry),
 				},
 				{ merge: true },
@@ -1261,8 +1307,9 @@ export const deleteFeedbackAdminParentTicket = functions.https.onCall(
 			sessionToken?: string;
 			ticketId?: string;
 		},
+		context,
 	): Promise<{ success: true }> => {
-		await requireAdminSession(String(data?.sessionToken || ''));
+		await requireMaintleyAdmin(context);
 		const ticketId = String(data?.ticketId || '').trim();
 
 		if (!ticketId) {
@@ -1307,8 +1354,9 @@ export const updateFeedbackAdminTicketStatus = functions.https.onCall(
 			resolutionNotes?: string;
 			type?: string;
 		},
+		context,
 	): Promise<{ success: true }> => {
-		const session = await requireAdminSession(String(data?.sessionToken || ''));
+		const adminAuth = await requireMaintleyAdmin(context);
 		const ticketId = String(data?.ticketId || '').trim();
 		const nextStatus = normalizeTicketStatus(data?.status);
 		const internalNote = String(data?.internalNote || '').trim();
@@ -1365,8 +1413,8 @@ export const updateFeedbackAdminTicketStatus = functions.https.onCall(
 				? {
 					note: internalNote,
 					createdAt: nowIso,
-					adminUserId: session.adminUserId,
-					adminUsername: session.username,
+					adminUserId: adminAuth.uid,
+					adminUsername: adminAuth.email || adminAuth.displayName,
 					noteType: 'internal',
 					visibility: 'internal',
 				}
@@ -1375,8 +1423,8 @@ export const updateFeedbackAdminTicketStatus = functions.https.onCall(
 				? {
 					note: resolutionNotes,
 					createdAt: nowIso,
-					adminUserId: session.adminUserId,
-					adminUsername: session.username,
+					adminUserId: adminAuth.uid,
+					adminUsername: adminAuth.email || adminAuth.displayName,
 					noteType: 'maintley_update',
 					visibility: 'customer',
 				}
@@ -1470,8 +1518,8 @@ export const updateFeedbackAdminTicketStatus = functions.https.onCall(
 			status: nextStatus,
 			publicStatus: getPublicStatus(nextStatus),
 			updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-			updatedByAdminUserId: session.adminUserId,
-			updatedByAdminUsername: session.username,
+			updatedByAdminUserId: adminAuth.uid,
+			updatedByAdminUsername: adminAuth.email || adminAuth.displayName,
 			lastCustomerUpdateAt: admin.firestore.FieldValue.serverTimestamp(),
 		};
 
