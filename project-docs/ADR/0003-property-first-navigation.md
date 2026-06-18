@@ -1,10 +1,9 @@
-# 0003: Property-First Navigation
+# ADR 0003: Property-First Navigation
 
+Status: Accepted
 Date: 2026-06-12
-
-## Status
-
-Accepted
+Accepted: 2026-06-12
+Decision Source: Manual
 
 ## Context
 

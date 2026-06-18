@@ -1,10 +1,9 @@
-# 0001: Remove Units From the Core Experience
+# ADR 0001: Remove Units From the Core Experience
 
+Status: Accepted
 Date: 2026-06-12
-
-## Status
-
-Accepted
+Accepted: 2026-06-12
+Decision Source: Manual
 
 ## Context
 

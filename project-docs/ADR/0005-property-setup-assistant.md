@@ -1,10 +1,9 @@
-# 0005 - Property Setup Assistant
+# ADR 0005: Property Setup Assistant
 
+Status: Accepted
 Date: 2026-06-12
-
-## Status
-
-Accepted; MVP implemented
+Accepted: 2026-06-12
+Decision Source: Manual
 
 ## Context
 

@@ -38,6 +38,54 @@ Before running any migration, cleanup, pruning, or apply script, verify it again
 - `deploy:gh-pages` is available as an explicit alias.
 - `stripe:webhook:auto` is Unix-only.
 - E2E scripts are intended to be cross-platform.
+- `adr:author` prepares humanized review drafts in `project-docs/reports/decision-audit-YYYY-MM/approved/`.
+- `adr:promote` writes final accepted ADRs into `project-docs/ADR/`.
+- `adr:author`, `adr:promote`, and `adr:promote:dry-run` are the canonical ADR workflow commands.
+
+### ADR Promotion Queue Workflow
+
+1. Run `yarn audit:decisions` to generate candidate drafts.
+2. Run `yarn adr:author` to move polished drafts into `project-docs/reports/decision-audit-YYYY-MM/approved/`.
+3. Review approved drafts and optionally edit their `Status` field:
+   - Leave as `Status: Proposed` to promote to `project-docs/ADR/`.
+   - Change to `Status: Rejected` to reject the decision and move to `rejected/`.
+4. **Optional: Add rejection reasoning:**
+   - When rejecting, add a `Reason:` field to the draft:
+   ```
+   Status: Rejected
+   Rejected: 2026-06-17
+   Reason: Better represented in existing documentation; ADR separation not warranted.
+   ```
+   - The reason is automatically preserved when the draft is promoted.
+5. Run `yarn adr:promote:dry-run` to preview the promotion and rejection targets.
+6. Run `yarn adr:promote` to apply the promotion/rejection:
+   - Approved drafts move to `project-docs/ADR/` with `Status: Accepted`.
+   - Rejected drafts move to `project-docs/reports/decision-audit-YYYY-MM/rejected/` with metadata preserved.
+
+Promotion behavior:
+
+- Routes `Status: Proposed` or `Status: Approved` drafts to `project-docs/ADR/` with `Status: Accepted`.
+- Routes `Status: Rejected` or `Status: Denied` drafts to `rejected/` with `Rejected` date and required `Reason` preserved.
+- Validates candidates against existing ADR slug/title to prevent duplicate promotion.
+- Writes humanized drafts to `approved/` so humans review the polished version, not the raw audit output.
+- Rejected decisions are automatically suppressed in future `yarn audit:decisions` runs, preventing duplicate suggestions.
+- Runs preflight validation before any writes, so invalid drafts fail the run before partial promotion can occur.
+- Reports how many approved candidates were promoted to ADR, how many were rejected, and how many were renumbered.
+
+Rejection metadata:
+
+- `Status: Rejected` - marks the decision as deliberately rejected
+- `Rejected: YYYY-MM-DD` - automatically added with the promotion date
+- `Reason: [text]` - required field when status is `Rejected` or `Denied`
+- Rejected files are permanently archived in `rejected/` folder with full context preserved
+- **Automatically renumbers ADRs to ensure sequential numbering** — if a candidate is rejected, remaining ADRs are renumbered to fill the gap. For example, if 0007 is rejected while 0008 is promoted, 0008 becomes 0007. Internal references (headers, slugs) are automatically updated.
+
+ADR Numbering:
+
+- ADRs are numbered sequentially from 0001 onward
+- When a candidate is rejected during promotion, the remaining candidates are renumbered to maintain sequence with no gaps
+- Internal ADR headers (e.g., `# ADR 0008:`) are automatically updated during renumbering
+- This ensures the final published ADRs always have contiguous numbering without gaps
 
 ---
 

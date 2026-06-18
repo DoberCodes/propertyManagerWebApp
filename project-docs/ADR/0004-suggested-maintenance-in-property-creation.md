@@ -1,10 +1,9 @@
-# 0004 - Suggested Maintenance in Property Creation
+# ADR 0004: Suggested Maintenance in Property Creation
 
+Status: Accepted
 Date: 2026-06-12
-
-## Status
-
-Accepted
+Accepted: 2026-06-12
+Decision Source: Manual
 
 ## Context
 
