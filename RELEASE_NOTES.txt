@@ -1,10 +1,5 @@
-🎉 **Release Notes for Version 2.5.0** 🎉
+🎉 **Release Notes for Version 2.5.1** 🎉
 
 
 ## 🐛 Bug Fixes
-- fixing the documentation and decision flow
-
-## 🔧 Improvements & Maintenance
-- updating documentation
-- documentation and script cleanup including audit reporting
-- feat: adding new admin ticketing system as well as improved customer ticket tracking and notifications on service tickets.
+- fixing the admin portal and a few ticketing issues.
