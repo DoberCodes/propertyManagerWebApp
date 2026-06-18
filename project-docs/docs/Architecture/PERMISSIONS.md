@@ -156,6 +156,21 @@ Never the UI.
 
 ---
 
+# Admin Portal Boundary
+
+The `/admin` route is an app-admin workflow and is separate from normal Maintley user authentication.
+
+Rules:
+
+* Standard user login should not grant access to admin inbox workflows.
+* Admin credentials are validated via Cloud Functions against `admin_users`.
+* Admin sessions are function-managed in `admin_sessions`.
+* Firestore client access to `admin_users` and `admin_sessions` is denied in rules.
+
+This keeps admin access isolated from customer account roles and prevents UI-only protection from becoming a security dependency.
+
+---
+
 # Authentication vs Authorization
 
 Firebase Authentication provides:

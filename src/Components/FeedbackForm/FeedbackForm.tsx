@@ -55,7 +55,7 @@ const FeedbackForm: React.FC<FeedbackFormProps> = ({ onClose }) => {
 	});
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [isSubmitted, setIsSubmitted] = useState(false);
-	const [ticketId, setTicketId] = useState<string | null>(null);
+	const [ticketNumber, setTicketNumber] = useState<string | null>(null);
 	const [error, setError] = useState('');
 	const [attachments, setAttachments] = useState<FeedbackAttachment[]>([]);
 
@@ -146,7 +146,11 @@ const FeedbackForm: React.FC<FeedbackFormProps> = ({ onClose }) => {
 				attachments,
 			}).unwrap();
 
-			if (res && res.id) setTicketId(res.id);
+			if (res?.ticketNumber) {
+				setTicketNumber(res.ticketNumber);
+			} else if (res?.id) {
+				setTicketNumber(res.id);
+			}
 
 			setIsSubmitted(true);
 			setTimeout(() => {
@@ -170,9 +174,9 @@ const FeedbackForm: React.FC<FeedbackFormProps> = ({ onClose }) => {
 					Your feedback has been submitted successfully. We'll review it and get
 					back to you if needed.
 				</SuccessMessage>
-				{ticketId && (
+				{ticketNumber && (
 					<SuccessMessage style={{ marginTop: 10 }}>
-						Ticket ID: <code>{ticketId}</code>
+						Ticket Number: <code>{ticketNumber}</code>
 					</SuccessMessage>
 				)}
 			</SuccessContainer>

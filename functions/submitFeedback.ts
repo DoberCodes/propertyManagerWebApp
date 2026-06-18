@@ -1,5 +1,6 @@
 import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
+import { randomUUID } from 'crypto';
 import { defineSecret } from 'firebase-functions/params';
 import {
 	escapeHtml,
@@ -29,6 +30,10 @@ interface SubmitFeedbackRequest {
 	attachments?: FeedbackAttachment[];
 }
 
+interface ListMyFeedbackTicketsRequest {
+	limit?: number;
+}
+
 interface FeedbackAttachment {
 	filename: string;
 	contentBase64: string;
@@ -36,9 +41,20 @@ interface FeedbackAttachment {
 	sizeBytes: number;
 }
 
+interface PersistedFeedbackAttachment {
+	filename: string;
+	type: string;
+	sizeBytes: number;
+	path?: string;
+	attachmentUrl?: string;
+}
+
 const MAX_ATTACHMENTS = 3;
 const MAX_ATTACHMENT_SIZE_BYTES = 3 * 1024 * 1024;
 const MAX_TOTAL_ATTACHMENT_SIZE_BYTES = 8 * 1024 * 1024;
+const FEEDBACK_TICKET_COUNTER_COLLECTION = 'system_counters';
+const FEEDBACK_TICKET_COUNTER_DOC = 'feedback_ticket_number';
+const FEEDBACK_TICKET_PREFIX = 'MNT';
 
 const isFeedbackType = (value: unknown): value is FeedbackType =>
 	value === 'feedback' || value === 'feature_request' || value === 'bug_report';
@@ -52,9 +68,173 @@ const sanitizeAttachmentFilename = (name: string): string =>
 		.trim()
 		.slice(0, 120) || 'screenshot.png';
 
+const formatFeedbackTicketNumber = (sequence: number): string =>
+	`${FEEDBACK_TICKET_PREFIX}-${String(sequence).padStart(6, '0')}`;
+
+const extractStoragePathFromGsUrl = (urlValue: string): string | null => {
+	const trimmed = String(urlValue || '').trim();
+	if (!trimmed.toLowerCase().startsWith('gs://')) {
+		return null;
+	}
+	const withoutPrefix = trimmed.slice(5);
+	const slashIndex = withoutPrefix.indexOf('/');
+	if (slashIndex === -1 || slashIndex === withoutPrefix.length - 1) {
+		return null;
+	}
+	return withoutPrefix.slice(slashIndex + 1);
+};
+
+const allocateFeedbackTicketNumber = async (): Promise<{
+	ticketSequence: number;
+	ticketNumber: string;
+}> => {
+	const counterRef = db
+		.collection(FEEDBACK_TICKET_COUNTER_COLLECTION)
+		.doc(FEEDBACK_TICKET_COUNTER_DOC);
+
+	const ticketSequence = await db.runTransaction(async (tx) => {
+		const counterSnapshot = await tx.get(counterRef);
+		const currentSequence = Number(counterSnapshot.data()?.current || 0);
+		const nextSequence = Number.isFinite(currentSequence)
+			? currentSequence + 1
+			: 1;
+
+		tx.set(
+			counterRef,
+			{
+				current: nextSequence,
+				updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+			},
+			{ merge: true },
+		);
+
+		return nextSequence;
+	});
+
+	return {
+		ticketSequence,
+		ticketNumber: formatFeedbackTicketNumber(ticketSequence),
+	};
+};
+
+const normalizePersistedAttachments = async (
+	rawAttachments: unknown,
+): Promise<PersistedFeedbackAttachment[]> => {
+	if (!Array.isArray(rawAttachments) || rawAttachments.length === 0) {
+		return [];
+	}
+
+	const bucket = admin.storage().bucket();
+	const normalized = await Promise.all(
+		rawAttachments.map(async (rawAttachment, index) => {
+			const fallbackName = `attachment-${index + 1}`;
+
+			if (typeof rawAttachment === 'string') {
+				const value = rawAttachment.trim();
+				if (!value) {
+					return {
+						filename: fallbackName,
+						type: 'image/unknown',
+						sizeBytes: 0,
+					};
+				}
+
+				if (/^https?:\/\//i.test(value)) {
+					return {
+						filename: fallbackName,
+						type: 'image/unknown',
+						sizeBytes: 0,
+						attachmentUrl: value,
+					};
+				}
+
+				const parsedPath = extractStoragePathFromGsUrl(value) || value;
+				try {
+					const [metadata] = await bucket.file(parsedPath).getMetadata();
+					const token = metadata?.metadata?.firebaseStorageDownloadTokens;
+					const attachmentUrl = token
+						? `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(parsedPath)}?alt=media&token=${token}`
+						: undefined;
+					return {
+						filename: fallbackName,
+						type: 'image/unknown',
+						sizeBytes: 0,
+						path: parsedPath,
+						...(attachmentUrl ? { attachmentUrl } : {}),
+					};
+				} catch {
+					return {
+						filename: fallbackName,
+						type: 'image/unknown',
+						sizeBytes: 0,
+						path: parsedPath,
+					};
+				}
+			}
+
+			const attachment =
+				typeof rawAttachment === 'object' && rawAttachment
+					? (rawAttachment as Record<string, unknown>)
+					: {};
+
+			const filename = sanitizeAttachmentFilename(
+				String(attachment.filename || fallbackName),
+			);
+			const type = String(attachment.type || attachment.contentType || 'image/unknown');
+			const sizeBytes = Number(attachment.sizeBytes || 0);
+
+			const rawUrl = String(
+				attachment.attachmentUrl || attachment.url || attachment.downloadUrl || '',
+			).trim();
+			const rawPath = String(attachment.path || attachment.storagePath || '').trim();
+
+			let attachmentUrl = /^https?:\/\//i.test(rawUrl) ? rawUrl : '';
+			let path = rawPath;
+
+			if (!path && rawUrl.toLowerCase().startsWith('gs://')) {
+				path = extractStoragePathFromGsUrl(rawUrl) || '';
+			}
+
+			if (!attachmentUrl && path) {
+				try {
+					const [metadata] = await bucket.file(path).getMetadata();
+					const token = metadata?.metadata?.firebaseStorageDownloadTokens;
+					if (token) {
+						attachmentUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(path)}?alt=media&token=${token}`;
+					}
+				} catch {
+					// keep returning metadata even when URL generation fails
+				}
+			}
+
+			return {
+				filename,
+				type,
+				sizeBytes: Number.isFinite(sizeBytes) ? sizeBytes : 0,
+				...(path ? { path } : {}),
+				...(attachmentUrl ? { attachmentUrl } : {}),
+			};
+		}),
+	);
+
+	return normalized;
+};
+
+const serializeTimestampValue = (value: unknown): unknown => {
+	if (value && typeof value === 'object' && 'toDate' in (value as Record<string, unknown>)) {
+		const tsObj = value as { toDate: () => Date };
+		return tsObj.toDate().toISOString();
+	}
+	return value;
+};
+
 export const submitFeedback = functions
 	.runWith({ secrets: ['RESEND_API_KEY'] })
-	.https.onCall(async (data: SubmitFeedbackRequest, context) => {
+	.https.onCall(async (data: SubmitFeedbackRequest, context): Promise<{
+		id: string;
+		ticketNumber: string;
+		message: string;
+	}> => {
 		if (!context.auth) {
 			throw new functions.https.HttpsError(
 				'unauthenticated',
@@ -171,24 +351,83 @@ export const submitFeedback = functions
 			);
 		}
 
+		const { ticketNumber, ticketSequence } = await allocateFeedbackTicketNumber();
+
 		const feedbackDoc = {
+			ticketNumber,
+			ticketSequence,
 			type: data.type,
 			subject,
 			message,
 			userId: context.auth.uid,
-			userEmail,
+			userEmail: userEmail || null,
 			userName: data.userName || null,
-			attachments: emailAttachments.map((attachment) => ({
+			attachments: emailAttachments.map((attachment): PersistedFeedbackAttachment => ({
 				filename: attachment.filename,
 				type: attachment.type,
 				sizeBytes: attachment.sizeBytes,
 			})),
-			status: 'pending',
+			status: 'received',
+			publicStatus: 'received',
+			emailDispatchStatus: 'not_sent',
 			createdAt: new Date().toISOString(),
 			updatedAt: new Date().toISOString(),
 		};
 
 		const feedbackRef = await db.collection('feedback').add(feedbackDoc);
+
+		const bucket = admin.storage().bucket();
+		const persistedAttachments: PersistedFeedbackAttachment[] = [];
+		for (const attachment of emailAttachments) {
+			const safeFileName = sanitizeAttachmentFilename(attachment.filename).replace(/\s+/g, '_');
+			const attachmentPath = `feedback-attachments/${context.auth.uid}/${feedbackRef.id}/${Date.now()}-${safeFileName}`;
+			const file = bucket.file(attachmentPath);
+
+			try {
+				const downloadToken = randomUUID();
+				await file.save(Buffer.from(attachment.content, 'base64'), {
+					contentType: attachment.type,
+					resumable: false,
+					metadata: {
+						metadata: {
+							feedbackId: feedbackRef.id,
+							uploaderUserId: context.auth.uid,
+							originalFilename: attachment.filename,
+							firebaseStorageDownloadTokens: downloadToken,
+						},
+					},
+				});
+
+				const encodedPath = encodeURIComponent(attachmentPath);
+				const attachmentUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodedPath}?alt=media&token=${downloadToken}`;
+
+				persistedAttachments.push({
+					filename: attachment.filename,
+					type: attachment.type,
+					sizeBytes: attachment.sizeBytes,
+					path: attachmentPath,
+					attachmentUrl,
+				});
+			} catch (uploadError) {
+				console.error(`[submitFeedback] Failed to upload attachment ${attachment.filename}:`, uploadError);
+				// Record that the attachment was received even if storage failed
+				persistedAttachments.push({
+					filename: attachment.filename,
+					type: attachment.type,
+					sizeBytes: attachment.sizeBytes,
+				});
+			}
+		}
+
+		if (persistedAttachments.length > 0) {
+			await feedbackRef.set(
+				{
+					attachments: persistedAttachments,
+					updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+				},
+				{ merge: true },
+			);
+		}
 
 		const internalSubject = `[Maintley] ${feedbackTypeLabels[data.type]}: ${subject}`;
 		const internalHtml = `
@@ -214,7 +453,8 @@ export const submitFeedback = functions
 			</div>
 		`;
 
-		const confirmationSubject = 'Thanks for your feedback — Maintley';
+		const escapedTicketNumber = escapeHtml(ticketNumber);
+		const confirmationSubject = `Thanks for your feedback — ${ticketNumber} — Maintley`;
 		const confirmationHtml = `
 			<div style="margin:0; padding:0; background:#f3f4f6; font-family:Arial,sans-serif; color:#111827;">
 				<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6; padding:24px 0;">
@@ -226,6 +466,9 @@ export const submitFeedback = functions
 								<p style="margin:0 0 16px 0; font-size:15px; line-height:1.6; color:#374151;">We received your ${feedbackTypeLabels[
 									data.type
 								].toLowerCase()} and our team will review it shortly.</p>
+								<div style="background:#f9fafb; border:1px solid #e5e7eb; border-radius:10px; padding:12px 16px; margin:0 0 16px 0;">
+									<p style="margin:0; font-size:14px; color:#111827;"><strong>Ticket number:</strong> ${escapedTicketNumber}</p>
+								</div>
 								<div style="background:#ecfdf5; border:1px solid #a7f3d0; border-radius:10px; padding:16px; margin:0 0 16px 0;">
 									<p style="margin:0 0 8px 0; font-size:14px; color:#065f46;"><strong>Subject:</strong> ${escapedSubject}</p>
 									<p style="margin:0; font-size:14px; color:#065f46; white-space:pre-wrap;"><strong>Your message:</strong><br/>${escapedMessage}</p>
@@ -239,7 +482,9 @@ export const submitFeedback = functions
 			</div>
 		`;
 
-		let confirmationEmailStatus = 'not_requested';
+		let internalEmailStatus = 'not_sent';
+		let internalEmailError: string | null = null;
+		let confirmationEmailStatus = userEmail ? 'not_sent' : 'not_requested';
 		let confirmationEmailError: string | null = null;
 
 		try {
@@ -255,29 +500,41 @@ export const submitFeedback = functions
 					type: attachment.type,
 				})),
 			});
+			internalEmailStatus = 'sent_via_resend';
+		} catch (internalError) {
+			internalEmailStatus = 'resend_failed';
+			internalEmailError =
+				internalError instanceof Error ? internalError.message : String(internalError);
+			console.error('[submitFeedback] Internal email dispatch failed:', internalError);
+		}
 
-			if (userEmail) {
-				try {
-					await sendMaintleyEmail(resend, {
-						to: userEmail,
-						from: getFeedbackFromAddress(),
-						subject: confirmationSubject,
-						html: confirmationHtml,
-						replyTo: supportEmail,
-					});
-					confirmationEmailStatus = 'sent_via_resend';
-				} catch (confirmationError) {
-					confirmationEmailStatus = 'resend_failed';
-					confirmationEmailError =
-						confirmationError instanceof Error
-							? confirmationError.message
-							: String(confirmationError);
-				}
+		if (userEmail) {
+			try {
+				await sendMaintleyEmail(resend, {
+					to: userEmail,
+					from: getFeedbackFromAddress(),
+					subject: confirmationSubject,
+					html: confirmationHtml,
+					replyTo: supportEmail,
+				});
+				confirmationEmailStatus = 'sent_via_resend';
+			} catch (confirmationError) {
+				confirmationEmailStatus = 'resend_failed';
+				confirmationEmailError =
+					confirmationError instanceof Error
+						? confirmationError.message
+						: String(confirmationError);
+				console.error('[submitFeedback] Confirmation email dispatch failed:', confirmationError);
 			}
+ 		}
 
+		try {
 			await feedbackRef.update({
-				status: 'sent_via_resend',
-				sentAt: admin.firestore.FieldValue.serverTimestamp(),
+				emailDispatchStatus: internalEmailStatus,
+				...(internalEmailStatus === 'sent_via_resend' && {
+					sentAt: admin.firestore.FieldValue.serverTimestamp(),
+				}),
+				...(internalEmailError && { resendError: internalEmailError }),
 				confirmationEmailStatus,
 				...(confirmationEmailStatus === 'sent_via_resend' && {
 					confirmationSentAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -285,21 +542,134 @@ export const submitFeedback = functions
 				...(confirmationEmailError && { confirmationEmailError }),
 				updatedAt: admin.firestore.FieldValue.serverTimestamp(),
 			});
-		} catch (error) {
-			await feedbackRef.update({
-				status: 'resend_failed',
-				resendError: error instanceof Error ? error.message : String(error),
-				updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-			});
-
-			throw new functions.https.HttpsError(
-				'internal',
-				'Failed to submit feedback. Please try again.',
-			);
+		} catch (updateError) {
+			console.error('[submitFeedback] Could not update email dispatch status:', updateError);
+			// Feedback is already saved — do not throw. Email status update failure is non-fatal.
 		}
 
 		return {
 			id: feedbackRef.id,
+			ticketNumber,
 			message: 'Feedback submitted successfully',
 		};
 	});
+
+export const listMyFeedbackTickets = functions.https.onCall(
+	async (
+		data: ListMyFeedbackTicketsRequest,
+		context,
+	): Promise<{
+		tickets: Array<{
+			id: string;
+			ticketNumber?: string;
+			type: string;
+			subject: string;
+			message: string;
+			status: string;
+			publicStatus: string;
+			emailDispatchStatus?: string;
+			createdAt?: string;
+			updatedAt?: string;
+			resolutionNotes?: string;
+			attachments?: PersistedFeedbackAttachment[];
+		}>;
+	}> => {
+		if (!context.auth) {
+			throw new functions.https.HttpsError(
+				'unauthenticated',
+				'User must be authenticated to view support requests.',
+			);
+		}
+
+		const requestedLimit = Number(data?.limit || 25);
+		const limit = Number.isFinite(requestedLimit)
+			? Math.min(Math.max(requestedLimit, 1), 100)
+			: 25;
+
+		let snapshot: admin.firestore.QuerySnapshot;
+		try {
+			snapshot = await db
+				.collection('feedback')
+				.where('userId', '==', context.auth.uid)
+				.orderBy('createdAt', 'desc')
+				.limit(limit)
+				.get();
+		} catch (error: unknown) {
+			const rawCode = String(
+				(error as { code?: unknown; details?: unknown })?.code ||
+					(error as { details?: unknown })?.details ||
+					'',
+			).toLowerCase();
+			const rawMessage = String(
+				(error as { message?: unknown })?.message || '',
+			).toLowerCase();
+
+			const isIndexError =
+				rawCode.includes('failed-precondition') ||
+				rawCode === '9' ||
+				rawMessage.includes('index') ||
+				rawMessage.includes('failed precondition');
+
+			if (!isIndexError) {
+				throw error;
+			}
+
+			functions.logger.warn(
+				'listMyFeedbackTickets: falling back to non-ordered query due to index precondition error',
+				{ uid: context.auth.uid },
+			);
+
+			snapshot = await db
+				.collection('feedback')
+				.where('userId', '==', context.auth.uid)
+				.limit(limit)
+				.get();
+		}
+
+		const tickets = (await Promise.all(snapshot.docs.map(async (doc) => {
+			const data = doc.data() as Record<string, unknown>;
+			let ticketNumber = String(data.ticketNumber || '').trim();
+			if (!ticketNumber) {
+				const docSequence = Number(data.ticketSequence || 0);
+				if (Number.isFinite(docSequence) && docSequence > 0) {
+					ticketNumber = formatFeedbackTicketNumber(docSequence);
+				} else {
+					ticketNumber = `MNT-LEGACY-${doc.id.slice(0, 6).toUpperCase()}`;
+				}
+			}
+
+			return {
+				id: doc.id,
+				ticketNumber,
+				type: String(data.type || 'feedback'),
+				subject: String(data.subject || '(No subject)'),
+				message: String(data.message || ''),
+				status: String(data.status || 'received'),
+				publicStatus: String(data.publicStatus || data.status || 'received'),
+				emailDispatchStatus: data.emailDispatchStatus
+					? String(data.emailDispatchStatus)
+					: undefined,
+				createdAt: data.createdAt
+					? String(serializeTimestampValue(data.createdAt) || '')
+					: undefined,
+				updatedAt: data.updatedAt
+					? String(serializeTimestampValue(data.updatedAt) || '')
+					: undefined,
+				resolutionNotes: data.resolutionNotes
+					? String(data.resolutionNotes)
+					: undefined,
+				attachments: await normalizePersistedAttachments(data.attachments),
+			};
+		})))
+			.sort((a, b) => {
+				const aTime = Date.parse(String(a.createdAt || ''));
+				const bTime = Date.parse(String(b.createdAt || ''));
+				const safeA = Number.isNaN(aTime) ? 0 : aTime;
+				const safeB = Number.isNaN(bTime) ? 0 : bTime;
+				return safeB - safeA;
+			})
+			.slice(0, limit);
+
+		return { tickets };
+	},
+);

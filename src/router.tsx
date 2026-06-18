@@ -31,6 +31,7 @@ import { ReportPage } from './pages/ReportPage';
 import { DevicesHubPage } from './pages/DevicesHubPage/DevicesHubPage';
 import { UserProfile } from './pages/UserProfile';
 import { TenantProfilePage } from './pages/TenantProfilePage';
+import { AdminInboxPage } from './pages/AdminInboxPage/AdminInboxPage';
 import { isNativeApp } from './utils/platform';
 import { useSelector } from 'react-redux';
 import { selectCanAccessTeam } from './Redux/selectors/permissionSelectors';
@@ -76,6 +77,7 @@ export const RouterComponent = () => {
 				/>
 				<Route path='registration' element={<RegistrationPage />} />
 				<Route path='register' element={<RegistrationPage />} />
+				<Route path='admin' element={<AdminInboxPage />} />
 				<Route path='unauthorized' element={<UnauthorizedPage />} />
 				{/* Paywall - accessible to authenticated users */}
 				<Route

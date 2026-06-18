@@ -177,6 +177,44 @@ Low
 
 ---
 
+## Seed Admin User (Admin Portal)
+
+```bash
+cd functions
+npm run seed:admin-user -- --username admin --password "ChangeMeNow!" --display-name "Maintley Owner" --email "owner@example.com"
+```
+
+Purpose:
+
+Creates or updates a document in `admin_users` for `/admin` access.
+
+Behavior:
+
+- Hashes password server-side in the seed script before storing.
+- Upserts by `usernameLower` (or a specific doc with `--doc-id`).
+- Writes `username`, `usernameLower`, `displayName`, `email`, `passwordSalt`, `passwordHash`, `roles`, `isActive`, timestamps.
+- After first seed, records can be edited directly in Firebase Console.
+
+Optional:
+
+```bash
+cd functions
+npm run seed:admin-user -- --username admin --password "ChangeMeNow!" --dry-run
+```
+
+Safe placeholder (inactive account):
+
+```bash
+cd functions
+npm run seed:admin-user -- --username admin-placeholder --password "ChangeMeNow!" --inactive
+```
+
+Risk:
+
+Low
+
+---
+
 ## Build Application
 
 ```bash

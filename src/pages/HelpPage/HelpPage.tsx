@@ -1,10 +1,8 @@
 import React from 'react';
 import styled from 'styled-components';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { useSelector } from 'react-redux';
 import SEO from 'Components/SEO/SEO';
 import { COLORS } from '../../constants/colors';
-import { RootState } from '../../Redux/store/store';
 
 const Container = styled.div`
 	max-width: 1000px;
@@ -123,22 +121,6 @@ const SupportButton = styled.a`
 	}
 `;
 
-const ActionButton = styled.button`
-	display: inline-block;
-	padding: 10px 16px;
-	border-radius: 8px;
-	background: ${COLORS.primary};
-	color: white;
-	text-decoration: none;
-	font-weight: 600;
-	font-size: 0.9rem;
-	border: none;
-	cursor: pointer;
-
-	&:hover {
-		background: ${COLORS.primaryDark};
-	}
-`;
 
 const InfoList = styled.ul`
 	margin: 0;
@@ -177,7 +159,6 @@ const faqItems = [
 const HelpPage: React.FC = () => {
 	const navigate = useNavigate();
 	const location = useLocation();
-	const currentUser = useSelector((state: RootState) => state.user.currentUser);
 
 	const handleBack = () => {
 		const from = (location.state as { from?: string } | null)?.from;
@@ -278,30 +259,6 @@ const HelpPage: React.FC = () => {
 					We typically review incoming requests within 24–48 hours. Critical
 					account or access issues are prioritized first.
 				</SectionText>
-			</Section>
-
-			<Section>
-				<SectionTitle>My Support Requests</SectionTitle>
-				{currentUser ? (
-					<>
-						<SectionText>
-							Ticket tracking is coming soon. You’ll be able to view your
-							submitted requests and status updates here.
-						</SectionText>
-					</>
-				) : (
-					<>
-						<SectionText>
-							Sign in to view and manage your support requests once ticket
-							tracking is available.
-						</SectionText>
-						<SupportActions>
-							<ActionButton onClick={() => navigate('/login')}>
-								Log In to View Tickets
-							</ActionButton>
-						</SupportActions>
-					</>
-				)}
 			</Section>
 		</Container>
 	);

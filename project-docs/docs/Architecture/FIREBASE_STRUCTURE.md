@@ -304,6 +304,24 @@ Primary collections:
 * favorites
 * appConfig
 * feedback
+* admin_users (function-managed)
+* admin_sessions (function-managed)
+
+Admin portal collection notes:
+
+* `admin_users` stores app-admin login records for `/admin`.
+* Documents are manually provisioned and should include:
+  * `username` (string)
+  * `usernameLower` (string, lowercase)
+  * `displayName` (string)
+  * `email` (string)
+  * `passwordSalt` (string)
+  * `passwordHash` (string, scrypt hash of `usernameLower:password`)
+  * `roles` (string[])
+  * `isActive` (boolean)
+  * `createdAt` / `updatedAt` (timestamps)
+* `admin_sessions` stores hashed session tokens and expiry metadata.
+* Both collections are function-managed and denied to direct client reads/writes in Firestore rules.
 
 Temporarily hidden but still supported:
 

@@ -50,6 +50,7 @@
 	"scripts": {
 		"start": "react-scripts start",
 		"build": "react-scripts build",
+		"lint": "eslint 'src/**/*.{ts,tsx}'",
 		"test": "react-scripts test",
 		"test:ci": "react-scripts test --watchAll=false --passWithNoTests",
 		"audit:scripts": "node scripts/auditScripts.cjs",
@@ -86,6 +87,8 @@
 		"migrate:property-memberships:cleanup": "node scripts/migratePropertyGroupMemberships.cjs --apply --cleanup-orphans",
 		"migrate:report-account-integrity": "node scripts/migrateFixReportAccountIntegrity.cjs",
 		"migrate:report-account-integrity:apply": "node scripts/migrateFixReportAccountIntegrity.cjs --apply",
+		"migrate:feedback-ticket-numbers": "node scripts/migrateFeedbackTicketNumbers.cjs",
+		"migrate:feedback-ticket-numbers:apply": "node scripts/migrateFeedbackTicketNumbers.cjs --apply",
 		"migrate:maintenance-events": "node scripts/migrateMaintenanceHistoryToEvents.cjs",
 		"migrate:maintenance-events:apply": "node scripts/migrateMaintenanceHistoryToEvents.cjs --apply",
 		"migrate:orphaned-data": "node scripts/migrateRemoveOrphanedData.cjs",

@@ -10,7 +10,7 @@ export {
 	createTrialSubscription,
 } from './stripeFunctions';
 // Centralized server-side feedback + email handling path.
-export { submitFeedback } from './submitFeedback';
+export { submitFeedback, listMyFeedbackTickets } from './submitFeedback';
 export { markTasksAsOverdue } from './markTasksAsOverdue';
 export {
 	sendMonthlyPropertySummaries,
@@ -59,6 +59,18 @@ export {
 	redeemTenantInvitationCode,
 	syncTenantAccessFromInvites,
 } from './tenantInviteFunctions';
+export {
+	adminPortalLogin,
+	validateAdminPortalSession,
+	adminPortalLogout,
+	adminPortalResetPassword,
+	listFeedbackAdminTickets,
+	updateFeedbackAdminTicketStatus,
+	linkFeedbackAdminTickets,
+	unlinkFeedbackAdminTicket,
+	deleteFeedbackAdminParentTicket,
+} from './adminPortal';
+export { cleanupClosedFeedbackAttachments } from './cleanupClosedFeedbackAttachments';
 // Temporarily disabled due to missing utils/taskNotificationScheduler module
 // export {
 // 	scheduledTaskNotifications,

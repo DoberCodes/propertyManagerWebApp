@@ -14,6 +14,27 @@ export interface CompletionFile {
 	uploadedAt: string;
 }
 
+export interface MyFeedbackTicket {
+	id: string;
+	ticketNumber?: string;
+	type: 'feedback' | 'feature_request' | 'bug_report' | string;
+	subject: string;
+	message: string;
+	status: string;
+	publicStatus: string;
+	emailDispatchStatus?: string;
+	createdAt?: string;
+	updatedAt?: string;
+	resolutionNotes?: string;
+	linkedTicketIds?: string[];
+	linkedTicketNumbers?: string[];
+	attachments?: Array<{
+		filename?: string;
+		attachmentUrl?: string;
+		path?: string;
+	}>;
+}
+
 // Helper to recursively sanitize Firestore data, converting Timestamp objects to ISO strings
 const sanitizeFirestoreData = (data: any): any => {
 	if (data === undefined || data === null) return data;
@@ -120,7 +141,7 @@ export const apiSlice = createApi({
 
 		// Feedback (server-side callable flow to avoid client Firestore blocker issues)
 		submitFeedback: builder.mutation<
-			{ id: string; message: string },
+			{ id: string; ticketNumber?: string; message: string },
 			{
 				type: 'feedback' | 'feature_request' | 'bug_report';
 				subject: string;
@@ -152,7 +173,7 @@ export const apiSlice = createApi({
 								sizeBytes: number;
 							}>;
 						},
-						{ id: string; message: string }
+						{ id: string; ticketNumber?: string; message: string }
 					>(cloudFunctions, 'submitFeedback');
 
 					const result = await submitFeedbackFunction({
@@ -167,6 +188,7 @@ export const apiSlice = createApi({
 					return {
 						data: {
 							id: result.data.id,
+							ticketNumber: result.data.ticketNumber,
 							message: result.data.message || 'Feedback submitted successfully',
 						},
 					};
@@ -189,6 +211,32 @@ export const apiSlice = createApi({
 				}
 			},
 		}),
+
+		getMyFeedbackTickets: builder.query<
+			MyFeedbackTicket[],
+			{ limit?: number } | void
+		>({
+			async queryFn(args) {
+				try {
+					const listMyFeedbackTicketsFunction = httpsCallable<
+						{ limit?: number },
+						{ tickets: MyFeedbackTicket[] }
+					>(cloudFunctions, 'listMyFeedbackTickets');
+
+					const result = await listMyFeedbackTicketsFunction({
+						limit: args?.limit,
+					});
+
+					return {
+						data: Array.isArray(result.data?.tickets)
+							? result.data.tickets
+							: [],
+					};
+				} catch (error: any) {
+					return { error: error?.message || 'Failed to load support tickets' };
+				}
+			},
+		}),
 	}),
 });
 
@@ -197,4 +245,5 @@ export const {
 	useGetAppVersionQuery,
 	// Feedback
 	useSubmitFeedbackMutation,
+	useGetMyFeedbackTicketsQuery,
 } = apiSlice;

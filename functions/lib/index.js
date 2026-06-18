@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.syncTenantAccessFromInvites = exports.redeemTenantInvitationCode = exports.revokeTenantInvitationCode = exports.createTenantInvitationCode = exports.validateTenantInvitationCode = exports.redeemTeamMemberInvitationCode = exports.revokeTeamMemberInvitationCode = exports.validateTeamMemberInvitationCode = exports.createTeamMemberInvitationCode = exports.notifyTaskCompletion = exports.createMaintenanceEventsBatch = exports.createMaintenanceEvent = exports.ensureFamilyAccount = exports.updateFamilyMember = exports.updateFamilyMemberRole = exports.acceptFamilyInvite = exports.revokeFamilyInvite = exports.listFamilyInvites = exports.createFamilyInvite = exports.getFamilyMembers = exports.resendFamilyMemberInvite = exports.deletePropertyGroupCascade = exports.deletePropertyCascade = exports.deleteFamilyMemberAccount = exports.deleteUserAccount = exports.enforceEmailPreferences = exports.debugOverdueTasks = exports.sendTeamMemberTaskReports = exports.sendTaskReminderEmails = exports.sendSeasonalGuidanceEmailTest = exports.sendSeasonalGuidanceEmails = exports.sendMonthlyPropertyInsightsTest = exports.sendMonthlyPropertyInsights = exports.sendMonthlyPropertySummaryTest = exports.sendMonthlyPropertySummaries = exports.markTasksAsOverdue = exports.submitFeedback = exports.createTrialSubscription = exports.stripeWebhook = exports.syncSubscriptionFromStripe = exports.getSubscriptionDetails = exports.cancelSubscription = exports.verifyCheckoutSession = exports.validatePromotionCode = exports.createCheckoutSession = exports.sendPushOnNotificationCreate = void 0;
+exports.adminPortalLogout = exports.validateAdminPortalSession = exports.adminPortalLogin = exports.syncTenantAccessFromInvites = exports.redeemTenantInvitationCode = exports.revokeTenantInvitationCode = exports.createTenantInvitationCode = exports.validateTenantInvitationCode = exports.redeemTeamMemberInvitationCode = exports.revokeTeamMemberInvitationCode = exports.validateTeamMemberInvitationCode = exports.createTeamMemberInvitationCode = exports.notifyTaskCompletion = exports.createMaintenanceEventsBatch = exports.createMaintenanceEvent = exports.ensureFamilyAccount = exports.updateFamilyMember = exports.updateFamilyMemberRole = exports.acceptFamilyInvite = exports.revokeFamilyInvite = exports.listFamilyInvites = exports.createFamilyInvite = exports.getFamilyMembers = exports.resendFamilyMemberInvite = exports.deletePropertyGroupCascade = exports.deletePropertyCascade = exports.deleteFamilyMemberAccount = exports.deleteUserAccount = exports.enforceEmailPreferences = exports.debugOverdueTasks = exports.sendTeamMemberTaskReports = exports.sendTaskReminderEmails = exports.sendSeasonalGuidanceEmailTest = exports.sendSeasonalGuidanceEmails = exports.sendMonthlyPropertyInsightsTest = exports.sendMonthlyPropertyInsights = exports.sendMonthlyPropertySummaryTest = exports.sendMonthlyPropertySummaries = exports.markTasksAsOverdue = exports.listMyFeedbackTickets = exports.submitFeedback = exports.createTrialSubscription = exports.stripeWebhook = exports.syncSubscriptionFromStripe = exports.getSubscriptionDetails = exports.cancelSubscription = exports.verifyCheckoutSession = exports.validatePromotionCode = exports.createCheckoutSession = exports.sendPushOnNotificationCreate = void 0;
+exports.cleanupClosedFeedbackAttachments = exports.deleteFeedbackAdminParentTicket = exports.unlinkFeedbackAdminTicket = exports.linkFeedbackAdminTickets = exports.updateFeedbackAdminTicketStatus = exports.listFeedbackAdminTickets = exports.adminPortalResetPassword = void 0;
 var sendPushOnNotificationCreate_1 = require("./sendPushOnNotificationCreate");
 Object.defineProperty(exports, "sendPushOnNotificationCreate", { enumerable: true, get: function () { return sendPushOnNotificationCreate_1.sendPushOnNotificationCreate; } });
 var stripeFunctions_1 = require("./stripeFunctions");
@@ -15,6 +16,7 @@ Object.defineProperty(exports, "createTrialSubscription", { enumerable: true, ge
 // Centralized server-side feedback + email handling path.
 var submitFeedback_1 = require("./submitFeedback");
 Object.defineProperty(exports, "submitFeedback", { enumerable: true, get: function () { return submitFeedback_1.submitFeedback; } });
+Object.defineProperty(exports, "listMyFeedbackTickets", { enumerable: true, get: function () { return submitFeedback_1.listMyFeedbackTickets; } });
 var markTasksAsOverdue_1 = require("./markTasksAsOverdue");
 Object.defineProperty(exports, "markTasksAsOverdue", { enumerable: true, get: function () { return markTasksAsOverdue_1.markTasksAsOverdue; } });
 var monthlyPropertySummary_1 = require("./monthlyPropertySummary");
@@ -75,6 +77,18 @@ Object.defineProperty(exports, "createTenantInvitationCode", { enumerable: true,
 Object.defineProperty(exports, "revokeTenantInvitationCode", { enumerable: true, get: function () { return tenantInviteFunctions_1.revokeTenantInvitationCode; } });
 Object.defineProperty(exports, "redeemTenantInvitationCode", { enumerable: true, get: function () { return tenantInviteFunctions_1.redeemTenantInvitationCode; } });
 Object.defineProperty(exports, "syncTenantAccessFromInvites", { enumerable: true, get: function () { return tenantInviteFunctions_1.syncTenantAccessFromInvites; } });
+var adminPortal_1 = require("./adminPortal");
+Object.defineProperty(exports, "adminPortalLogin", { enumerable: true, get: function () { return adminPortal_1.adminPortalLogin; } });
+Object.defineProperty(exports, "validateAdminPortalSession", { enumerable: true, get: function () { return adminPortal_1.validateAdminPortalSession; } });
+Object.defineProperty(exports, "adminPortalLogout", { enumerable: true, get: function () { return adminPortal_1.adminPortalLogout; } });
+Object.defineProperty(exports, "adminPortalResetPassword", { enumerable: true, get: function () { return adminPortal_1.adminPortalResetPassword; } });
+Object.defineProperty(exports, "listFeedbackAdminTickets", { enumerable: true, get: function () { return adminPortal_1.listFeedbackAdminTickets; } });
+Object.defineProperty(exports, "updateFeedbackAdminTicketStatus", { enumerable: true, get: function () { return adminPortal_1.updateFeedbackAdminTicketStatus; } });
+Object.defineProperty(exports, "linkFeedbackAdminTickets", { enumerable: true, get: function () { return adminPortal_1.linkFeedbackAdminTickets; } });
+Object.defineProperty(exports, "unlinkFeedbackAdminTicket", { enumerable: true, get: function () { return adminPortal_1.unlinkFeedbackAdminTicket; } });
+Object.defineProperty(exports, "deleteFeedbackAdminParentTicket", { enumerable: true, get: function () { return adminPortal_1.deleteFeedbackAdminParentTicket; } });
+var cleanupClosedFeedbackAttachments_1 = require("./cleanupClosedFeedbackAttachments");
+Object.defineProperty(exports, "cleanupClosedFeedbackAttachments", { enumerable: true, get: function () { return cleanupClosedFeedbackAttachments_1.cleanupClosedFeedbackAttachments; } });
 // Temporarily disabled due to missing utils/taskNotificationScheduler module
 // export {
 // 	scheduledTaskNotifications,

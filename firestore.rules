@@ -683,6 +683,15 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // App admin portal credentials/sessions are function-managed only.
+    match /admin_users/{adminUserId} {
+      allow read, write: if false;
+    }
+
+    match /admin_sessions/{sessionId} {
+      allow read, write: if false;
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

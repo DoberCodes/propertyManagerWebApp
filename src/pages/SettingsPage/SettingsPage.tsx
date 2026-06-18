@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import styled from 'styled-components';
+import styled, { keyframes, css } from 'styled-components';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { AppDispatch, RootState } from 'Redux/store/store';
@@ -31,6 +31,7 @@ import { httpsCallable } from 'firebase/functions';
 import { functions } from 'config/firebase';
 import { useAppFeedback } from 'Components/Library/AppFeedback/AppFeedbackProvider';
 import { useUpdateUserMutation } from 'Redux/API/userSlice';
+import { useGetMyFeedbackTicketsQuery } from 'Redux/API/apiSlice';
 import { setCurrentUser } from 'Redux/Slices/userSlice';
 import {
 	addFamilyMember,
@@ -285,8 +286,9 @@ const AccountSection = styled.div`
 	padding: 24px;
 	margin-bottom: 24px;
 	background: #f9fafb;
+	height: fit-content;
+	overflow: visible;
 	min-width: 0;
-	overflow: hidden;
 
 	@media (max-width: 768px) {
 		padding: 16px;
@@ -611,12 +613,10 @@ const CategorySelect = styled.select`
 const CategoryContent = styled.div`
 	min-width: 0;
 	width: 100%;
-	overflow-x: hidden;
 `;
 
 const CategoryPanel = styled.section`
 	min-height: 68vh;
-	max-height: 78vh;
 	overflow-y: auto;
 	overflow-x: hidden;
 	padding-right: 6px;
@@ -637,6 +637,180 @@ const CategoryPanel = styled.section`
 		min-height: 0;
 	}
 `;
+
+const SupportTicketList = styled.div`
+	display: grid;
+	gap: 12px;
+	margin-top: 14px;
+`;
+
+const SupportTicketFilterGroup = styled.div`
+	display: inline-flex;
+	align-items: center;
+	background: #f3f4f6;
+	border: 1px solid #e5e7eb;
+	border-radius: 999px;
+	padding: 2px;
+`;
+
+const SupportTicketHeaderBar = styled.div`
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 10px;
+	margin-top: 12px;
+`;
+
+const SupportTicketFilterLabel = styled.span`
+	font-size: 0.8rem;
+	font-weight: 700;
+	color: #6b7280;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+`;
+
+const SupportTicketFilterButton = styled.button<{ active?: boolean }>`
+	border: 0;
+	border-radius: 999px;
+	padding: 6px 12px;
+	font-size: 0.82rem;
+	font-weight: 700;
+	cursor: pointer;
+	background: ${({ active }) => (active ? '#4f46e5' : 'transparent')};
+	color: ${({ active }) => (active ? '#ffffff' : '#4b5563')};
+
+	&:hover {
+		background: ${({ active }) => (active ? '#4338ca' : '#e5e7eb')};
+	}
+`;
+
+const refreshSpin = keyframes`
+	0% { transform: rotate(0deg); }
+	100% { transform: rotate(360deg); }
+`;
+
+const SupportTicketRefreshButton = styled.button<{ $isRefreshing?: boolean }>`
+	border: 0;
+	background: transparent;
+	color: #6b7280;
+	cursor: pointer;
+	padding: 4px;
+	line-height: 1;
+	font-size: 1.05rem;
+	${({ $isRefreshing }) => $isRefreshing && css`animation: ${refreshSpin} 1s linear infinite;`}
+
+
+	&:hover {
+		color: #111827;
+	}
+`;
+
+
+
+const SupportTicketCard = styled.div`
+	border: 1px solid #e5e7eb;
+	border-left: 4px solid #4f46e5;
+	border-radius: 12px;
+	padding: 14px;
+	background: #ffffff;
+	box-shadow: 0 1px 2px rgba(17, 24, 39, 0.04);
+`;
+
+const SupportTicketHeader = styled.div`
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
+`;
+
+const SupportTicketSubject = styled.h4`
+	margin: 0;
+	font-size: 0.98rem;
+	color: #111827;
+`;
+
+const SupportTicketStatus = styled.span`
+	padding: 4px 10px;
+	border-radius: 999px;
+	background: #ede9fe;
+	border: 1px solid #ddd6fe;
+	color: #4f46e5;
+	font-size: 0.72rem;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.02em;
+`;
+
+const SupportTicketMeta = styled.p`
+	margin: 8px 0 0;
+	font-size: 0.84rem;
+	color: #6b7280;
+`;
+
+const SupportTicketMetaGrid = styled.div`
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 8px;
+	margin-top: 10px;
+
+	@media (max-width: 860px) {
+		grid-template-columns: 1fr;
+	}
+`;
+
+const SupportTicketMetaBlock = styled.div`
+	padding: 8px 10px;
+	border: 1px solid #e5e7eb;
+	border-radius: 8px;
+	background: #f9fafb;
+`;
+
+const SupportTicketMetaLabel = styled.span`
+	display: block;
+	font-size: 0.72rem;
+	font-weight: 700;
+	letter-spacing: 0.02em;
+	text-transform: uppercase;
+	color: #6b7280;
+`;
+
+const SupportTicketMetaValue = styled.span`
+	display: block;
+	margin-top: 3px;
+	font-size: 0.86rem;
+	color: #1f2937;
+`;
+
+const SupportTicketSection = styled.div`
+	margin-top: 10px;
+`;
+
+const SupportTicketSectionLabel = styled.h5`
+	margin: 0 0 4px;
+	font-size: 0.78rem;
+	font-weight: 700;
+	letter-spacing: 0.02em;
+	text-transform: uppercase;
+	color: #6b7280;
+`;
+
+const SupportTicketMessage = styled.p`
+	margin: 8px 0 0;
+	font-size: 0.9rem;
+	line-height: 1.5;
+	color: #374151;
+	white-space: pre-wrap;
+	word-break: break-word;
+`;
+
+const SupportAttachmentList = styled.ul`
+	margin: 0;
+	padding-left: 16px;
+	font-size: 0.85rem;
+	color: #4b5563;
+`;
+
 
 export const SettingsPage: React.FC = () => {
 	type SettingsCategoryKey =
@@ -705,7 +879,129 @@ export const SettingsPage: React.FC = () => {
 	const [familyMemberSuccess, setFamilyMemberSuccess] = useState('');
 	const [activeCategory, setActiveCategory] =
 		useState<SettingsCategoryKey>('account');
+	const [supportTicketFilter, setSupportTicketFilter] = useState<
+		'active' | 'closed'
+	>('active');
 	const [searchParams, setSearchParams] = useSearchParams();
+
+	const {
+		data: mySupportTickets = [],
+		isLoading: loadingMySupportTickets,
+		isFetching: fetchingMySupportTickets,
+		error: mySupportTicketsError,
+		refetch: refetchMySupportTickets,
+	} = useGetMyFeedbackTicketsQuery(
+		{ limit: 20 },
+		{ skip: !currentUser },
+	);
+
+	const formatSupportStatus = (status: string): string =>
+		String(status || 'received')
+			.replaceAll('_', ' ')
+			.replace(/\b\w/g, (m) => m.toUpperCase());
+
+	const getEffectiveSupportStatus = (ticket: {
+		status?: string;
+		publicStatus?: string;
+		closedAt?: string | { seconds?: number; nanoseconds?: number } | null;
+	}): string => {
+		const rawStatus = String(ticket.status || '')
+			.toLowerCase()
+			.replaceAll(' ', '_')
+			.trim();
+		const rawPublicStatus = String(ticket.publicStatus || '')
+			.toLowerCase()
+			.replaceAll(' ', '_')
+			.trim();
+		const hasClosedTimestamp = Boolean(ticket.closedAt);
+
+		// Customer-facing ticket bucket treats resolved/closed as closed work.
+		if (
+			rawStatus === 'closed' ||
+			rawStatus === 'resolved' ||
+			rawPublicStatus === 'closed' ||
+			rawPublicStatus === 'fixed' ||
+			hasClosedTimestamp
+		) {
+			return 'closed';
+		}
+
+		return String(ticket.publicStatus || ticket.status || 'received');
+	};
+
+	const formatSupportDate = (value?: string): string => {
+		if (!value) return 'Unknown date';
+		const parsed = new Date(value);
+		if (Number.isNaN(parsed.getTime())) return value;
+		return parsed.toLocaleString();
+	};
+
+	const ensureAbsoluteUrl = (value?: string): string | null => {
+		const raw = String(value || '').trim();
+		if (!raw) return null;
+		if (/^https?:\/\//i.test(raw)) return raw;
+		if (/^[\w.-]+\.[a-z]{2,}(\/.*)?$/i.test(raw)) return `https://${raw}`;
+		return null;
+	};
+
+	const renderLinkedText = (value?: string): React.ReactNode => {
+		const text = String(value || '');
+		if (!text) return null;
+
+		const urlRegex = /(https?:\/\/[^\s)]+|(?:[\w-]+\.)+[\w-]{2,}(?:\/[^\s)]*)?)/gi;
+		const parts: React.ReactNode[] = [];
+		let lastIndex = 0;
+		let match: RegExpExecArray | null;
+		let keyIndex = 0;
+
+		while ((match = urlRegex.exec(text)) !== null) {
+			const [matched] = match;
+			const start = match.index;
+			if (start > lastIndex) {
+				parts.push(text.slice(lastIndex, start));
+			}
+			const href = ensureAbsoluteUrl(matched);
+			if (href) {
+				parts.push(
+					<a
+						key={`support-link-${keyIndex++}`}
+						href={href}
+						target='_blank'
+						rel='noopener noreferrer'>
+						{matched}
+					</a>,
+				);
+			} else {
+				parts.push(matched);
+			}
+			lastIndex = start + matched.length;
+		}
+
+		if (lastIndex < text.length) {
+			parts.push(text.slice(lastIndex));
+		}
+
+		return parts.length > 0 ? parts : text;
+	};
+
+	const isClosedSupportStatus = (value?: string): boolean => {
+		const normalized = String(value || '')
+			.toLowerCase()
+			.replaceAll(' ', '_');
+		return normalized === 'closed' || normalized === 'resolved';
+	};
+
+	const filteredSupportTickets = useMemo(() => {
+		if (supportTicketFilter === 'closed') {
+			return mySupportTickets.filter((ticket) =>
+				isClosedSupportStatus(getEffectiveSupportStatus(ticket)),
+			);
+		}
+
+		return mySupportTickets.filter(
+			(ticket) => !isClosedSupportStatus(getEffectiveSupportStatus(ticket)),
+		);
+	}, [mySupportTickets, supportTicketFilter]);
 
 	// Load family members
 	useEffect(() => {
@@ -1397,6 +1693,131 @@ export const SettingsPage: React.FC = () => {
 								<AccountButton onClick={() => setShowFeedbackModal(true)}>
 									Submit Feedback
 								</AccountButton>
+
+								{loadingMySupportTickets ? (
+									<p style={{ marginTop: '14px', color: '#6b7280' }}>
+										Loading your support requests...
+									</p>
+								) : null}
+
+								{mySupportTicketsError ? (
+									<ErrorMessage style={{ marginTop: '14px' }}>
+										Unable to load your support requests right now. Please refresh and try again.
+									</ErrorMessage>
+								) : null}
+
+								<SupportTicketHeaderBar>
+									<SupportTicketFilterLabel>My Tickets</SupportTicketFilterLabel>
+									<div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+										<SupportTicketFilterGroup>
+											<SupportTicketFilterButton
+												type='button'
+												active={supportTicketFilter === 'active'}
+												onClick={() => setSupportTicketFilter('active')}>
+												Open
+											</SupportTicketFilterButton>
+											<SupportTicketFilterButton
+												type='button'
+												active={supportTicketFilter === 'closed'}
+												onClick={() => setSupportTicketFilter('closed')}>
+												Closed
+											</SupportTicketFilterButton>
+										</SupportTicketFilterGroup>
+										<SupportTicketRefreshButton
+											$isRefreshing={Boolean(loadingMySupportTickets || fetchingMySupportTickets)}
+											type='button'
+											onClick={() => refetchMySupportTickets()}
+											title='Refresh tickets'
+											aria-label='Refresh tickets'>
+											↻
+										</SupportTicketRefreshButton>
+									</div>
+								</SupportTicketHeaderBar>
+
+								{filteredSupportTickets && filteredSupportTickets.length > 0 ? (
+									<SupportTicketList>
+										{filteredSupportTickets.map((ticket) => {
+											const displayTicketNumber =
+												ticket.ticketNumber || `Ticket ${ticket.id.slice(-6).toUpperCase()}`;
+
+											return (
+											<SupportTicketCard key={ticket.id}>
+												<SupportTicketHeader>
+													<div>
+														<SupportTicketSubject>
+															Ticket Number: {displayTicketNumber}
+														</SupportTicketSubject>
+													</div>
+													<SupportTicketStatus>
+														{formatSupportStatus(getEffectiveSupportStatus(ticket))}
+													</SupportTicketStatus>
+												</SupportTicketHeader>
+												<SupportTicketMetaGrid>
+													<SupportTicketMetaBlock>
+														<SupportTicketMetaLabel>Type</SupportTicketMetaLabel>
+														<SupportTicketMetaValue>
+															{formatSupportStatus(String(ticket.type || 'feedback'))}
+														</SupportTicketMetaValue>
+													</SupportTicketMetaBlock>
+													<SupportTicketMetaBlock>
+														<SupportTicketMetaLabel>Submitted</SupportTicketMetaLabel>
+														<SupportTicketMetaValue>{formatSupportDate(ticket.createdAt)}</SupportTicketMetaValue>
+													</SupportTicketMetaBlock>
+													<SupportTicketMetaBlock>
+														<SupportTicketMetaLabel>Last Updated</SupportTicketMetaLabel>
+														<SupportTicketMetaValue>
+															{formatSupportDate(ticket.updatedAt || ticket.createdAt)}
+														</SupportTicketMetaValue>
+													</SupportTicketMetaBlock>
+												</SupportTicketMetaGrid>
+												<SupportTicketSection>
+													<SupportTicketSectionLabel>Subject</SupportTicketSectionLabel>
+													<SupportTicketMeta>{renderLinkedText(ticket.subject || '(No subject)')}</SupportTicketMeta>
+												</SupportTicketSection>
+												<SupportTicketSection>
+													<SupportTicketSectionLabel>Message</SupportTicketSectionLabel>
+													<SupportTicketMessage>{renderLinkedText(ticket.message)}</SupportTicketMessage>
+												</SupportTicketSection>
+												{ticket.resolutionNotes ? (
+													<SupportTicketSection>
+														<SupportTicketSectionLabel>Maintley Update</SupportTicketSectionLabel>
+														<SupportTicketMeta>{renderLinkedText(ticket.resolutionNotes)}</SupportTicketMeta>
+													</SupportTicketSection>
+												) : null}
+												{Array.isArray(ticket.attachments) &&
+												ticket.attachments.length > 0 ? (
+													<SupportTicketSection>
+														<SupportTicketSectionLabel>Attachments</SupportTicketSectionLabel>
+														<SupportAttachmentList>
+															{ticket.attachments.map((attachment, index) => {
+																const href = ensureAbsoluteUrl(attachment?.attachmentUrl);
+																const label =
+																	attachment?.filename ||
+																	`Attachment ${index + 1}`;
+																return (
+																	<li key={`${ticket.id}-attachment-${index}`}>
+																		{href ? (
+																			<a href={href} target='_blank' rel='noopener noreferrer'>
+																				{label}
+																			</a>
+																		) : (
+																			label
+																		)}
+																	</li>
+																);
+															})}
+														</SupportAttachmentList>
+													</SupportTicketSection>
+												) : null}
+											</SupportTicketCard>
+											);
+										})}
+									</SupportTicketList>
+								) : (
+									<p style={{ marginTop: '14px', color: '#6b7280' }}>
+										You have no {supportTicketFilter === 'active' ? 'open' : 'closed'} support requests.
+									</p>
+								)}
 							</AccountSection>
 
 							<AccountSection>

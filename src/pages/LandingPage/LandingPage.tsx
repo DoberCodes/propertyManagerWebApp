@@ -15,6 +15,7 @@ import {
 	faChartLine,
 	faDownload,
 	faBoxArchive,
+	faPaperPlane,
 } from '@fortawesome/free-solid-svg-icons';
 import { LandingNavbar } from 'Components/Library/LandingNavbar';
 import HeroSection from './components/Hero';
@@ -708,11 +709,14 @@ const LandingPageComponent = () => {
 									required
 								/>
 							</FormGroup>
-							<SubmitButton type='submit' disabled={formStatus === 'sending'}>
+							<SubmitButton
+								type='submit'
+								disabled={formStatus === 'sending'}
+								aria-label='Send message'>
 								{formStatus === 'sending' && 'Sending...'}
 								{formStatus === 'success' && '✓ Message Sent!'}
 								{formStatus === 'error' && 'Error - Try Again'}
-								{formStatus === 'idle' && 'Send Message'}
+								{formStatus === 'idle' && <FontAwesomeIcon icon={faPaperPlane} />}
 							</SubmitButton>{' '}
 						</ContactForm>
 					</ContactContent>
