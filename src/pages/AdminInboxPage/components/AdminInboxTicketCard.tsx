@@ -449,12 +449,6 @@ export const TicketCard: React.FC<TicketCardProps> = ({
 							Maintly Update
 						</NotesTabButton>
 					</NotesTabList>
-						<SaveNotesButton
-						type='button'
-						disabled={activeNotesTab !== 'internal' || isSaving || !hasInternalNoteDraft}
-						onClick={handleSaveInternalNote}>
-						{isSaving ? 'Saving...' : 'Save Internal Note'}
-					</SaveNotesButton>
 					</CaseGroupSummaryRow>
 
 					<NoteTabPanel>
@@ -508,15 +502,22 @@ export const TicketCard: React.FC<TicketCardProps> = ({
 								) : null}
 						{activeNotesTab === 'internal' ? (
 							<>
-								
 								<Label htmlFor={`note-${ticket.id}`}>Internal Note</Label>
-								<TextArea
-									id={`note-${ticket.id}`}
-									value={noteValue}
-									onChange={(e) => onNoteChange(e.target.value)}
-									disabled={isSaving}
-									placeholder='Add an internal note...'
-								/>
+								<NoteComposerRow>
+									<TextArea
+										id={`note-${ticket.id}`}
+										value={noteValue}
+										onChange={(e) => onNoteChange(e.target.value)}
+										disabled={isSaving}
+										placeholder='Add an internal note...'
+									/>
+									<SaveNotesButton
+										type='button'
+										disabled={isSaving || !hasInternalNoteDraft}
+										onClick={handleSaveInternalNote}>
+										{isSaving ? '...' : 'Save Note'}
+									</SaveNotesButton>
+								</NoteComposerRow>
 							</>
 						) : (
 							<>

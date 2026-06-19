@@ -28,6 +28,7 @@ import { useAppFeedback } from '../Library/AppFeedback/AppFeedbackProvider';
 import { assertStorageQuotaForFiles } from '../../utils/storageQuota';
 import { signalStorageUsageUpdated } from '../../utils/storageUsageEvents';
 import { getEffectiveSubscriptionPlanId } from '../../utils/subscriptionUtils';
+import { canApproveTaskCompletions } from '../../utils/permissions';
 import { TaskDocumentsPanel } from '../TaskDocumentsPanel/TaskDocumentsPanel';
 
 interface TaskCompletionModalProps {
@@ -75,8 +76,14 @@ export const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
 		currentUser?.subscription,
 		'homeowner',
 	);
-	const canSelfComplete =
-		effectivePlan === 'homeowner' || effectivePlan === 'homeowner_plus';
+	const isHomeownerPlan =
+		effectivePlan === 'homeowner' ||
+		effectivePlan === 'homeowner_plus' ||
+		effectivePlan === 'property';
+	const hasApprovalRole = canApproveTaskCompletions(
+		(currentUser?.role ?? '') as Parameters<typeof canApproveTaskCompletions>[0],
+	);
+	const canSelfComplete = isHomeownerPlan || hasApprovalRole;
 	const requiresWorkOrder = Boolean(task?.requiresWorkOrder);
 	const taskProperty = allProperties.find(
 		(property: any) => String(property.id || '') === String(task?.propertyId || ''),

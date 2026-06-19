@@ -1,7 +1,8 @@
-import React, { useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { useSelector } from 'react-redux';
 import {
 	faCircleCheck,
 	faClipboardCheck,
@@ -13,18 +14,40 @@ import {
 	faScrewdriverWrench,
 	faShieldHalved,
 } from '@fortawesome/free-solid-svg-icons';
-import { useGetAllDevicesQuery } from '../../Redux/API/deviceSlice';
-import { useGetPropertiesQuery } from '../../Redux/API/propertySlice';
+import {
+	useCreateDeviceMutation,
+	useGetAllDevicesQuery,
+} from '../../Redux/API/deviceSlice';
+import {
+	useGetPropertiesQuery,
+	useUpdatePropertyMutation,
+} from '../../Redux/API/propertySlice';
 import { useGetTasksQuery } from '../../Redux/API/taskSlice';
 import { useGetAllMaintenanceHistoryForUserQuery } from '../../Redux/API/userSlice';
 import { AppZeroState } from '../../Components/Library/AppZeroState';
+import { DeviceModal } from '../../Components/Library/Modal';
+import { RootState } from '../../Redux/store/store';
 import { buildDeviceSlug } from '../../utils/deviceSlug';
 import {
 	getMaintenanceEventDate,
 	getMaintenanceEventTitle,
 	isContinuityEvent,
 } from '../../utils/maintenanceEventUtils';
-import { Device } from '../../types/Property.types';
+import {
+	Device,
+	DeviceServiceItem,
+	Property,
+	PropertyDocumentCategory,
+} from '../../types/Property.types';
+import { uploadDeviceFile } from '../../utils/deviceFileUpload';
+import { uploadPropertyDocument } from '../../utils/propertyDocumentUpload';
+import {
+	canAddDevice,
+	getEffectiveSubscriptionPlanId,
+	getSubscriptionPlanDetails,
+} from '../../utils/subscriptionUtils';
+import { getRoleCapabilities } from '../../utils/permissions';
+import { useAppFeedback } from '../../Components/Library/AppFeedback/AppFeedbackProvider';
 
 const Wrapper = styled.div`
 	display: flex;
@@ -780,17 +803,83 @@ const getUpcomingMaintenanceDate = (linkedOpenTasks: any[]): string | undefined 
 	return candidate?.dueDate;
 };
 
+type DeviceFormData = {
+	type: string;
+	brand: string;
+	model: string;
+	serialNumber?: string;
+	partNumber?: string;
+	filterSize?: string;
+	specNotes?: string;
+	serviceItems?: DeviceServiceItem[];
+	installationDate: string;
+	decommissionDate?: string;
+	status: 'Active' | 'Maintenance' | 'Broken' | 'Decommissioned';
+	location: {
+		propertyId: string;
+		unitId?: string;
+		suiteId?: string;
+	};
+	files?: Array<{
+		name: string;
+		url: string;
+		size: number;
+		type: string;
+	}>;
+};
+
 export const DevicesHubPage: React.FC = () => {
 	const navigate = useNavigate();
+	const location = useLocation();
+	const feedback = useAppFeedback();
+	const currentUser = useSelector((state: RootState) => state.user.currentUser);
 	const { data: devices = [], isLoading } = useGetAllDevicesQuery();
 	const { data: properties = [], isLoading: isLoadingProperties } =
 		useGetPropertiesQuery();
 	const { data: allTasks = [] } = useGetTasksQuery();
 	const { data: allMaintenanceHistory = [] } = useGetAllMaintenanceHistoryForUserQuery();
+	const [createDevice] = useCreateDeviceMutation();
+	const [updateProperty] = useUpdatePropertyMutation();
 
 	const [searchQuery, setSearchQuery] = useState('');
 	const [statusFilter, setStatusFilter] = useState<'All' | 'Active' | 'Maintenance' | 'Broken' | 'Decommissioned'>('All');
 	const [propertyFilter, setPropertyFilter] = useState('');
+	const [showDeviceModal, setShowDeviceModal] = useState(false);
+	const [isSavingDevice, setIsSavingDevice] = useState(false);
+	const [pendingUploadFiles, setPendingUploadFiles] = useState<File[]>([]);
+	const [pendingPropertyDocumentFiles, setPendingPropertyDocumentFiles] =
+		useState<File[]>([]);
+	const [pendingPropertyDocumentCategory, setPendingPropertyDocumentCategory] =
+		useState<PropertyDocumentCategory>('other');
+	const [deviceFormData, setDeviceFormData] = useState<DeviceFormData>({
+		type: '',
+		brand: '',
+		model: '',
+		serialNumber: '',
+		partNumber: '',
+		filterSize: '',
+		specNotes: '',
+		serviceItems: [],
+		installationDate: '',
+		decommissionDate: '',
+		status: 'Active',
+		location: {
+			propertyId: '',
+		},
+		files: [],
+	});
+
+	const roleCapabilities = useMemo(
+		() => getRoleCapabilities(currentUser?.role),
+		[currentUser?.role],
+	);
+	const canManageAppliances = roleCapabilities.canManageAppliances;
+	const effectivePlanId = getEffectiveSubscriptionPlanId(
+		currentUser?.subscription,
+		'homeowner',
+	);
+	const isSinglePropertyPlan =
+		effectivePlanId === 'homeowner' || effectivePlanId === 'homeowner_plus';
 
 	const propertyNameById = useMemo(() => {
 		const map = new Map<string, string>();
@@ -807,6 +896,250 @@ export const DevicesHubPage: React.FC = () => {
 		});
 		return map;
 	}, [properties]);
+
+	const selectedCreateProperty = useMemo<Property | null>(() => {
+		if (properties.length === 0) {
+			return null;
+		}
+
+		const selected = properties.find(
+			(property: any) =>
+				String(property.id) === String(deviceFormData.location?.propertyId || ''),
+		);
+		return (selected || properties[0] || null) as Property | null;
+	}, [properties, deviceFormData.location?.propertyId]);
+
+	const resolveDefaultCreatePropertyId = () => {
+		if (properties.length === 0) {
+			return '';
+		}
+
+		if (isSinglePropertyPlan) {
+			return String(properties[0].id);
+		}
+
+		if (
+			propertyFilter &&
+			properties.some((property: any) => String(property.id) === propertyFilter)
+		) {
+			return propertyFilter;
+		}
+
+		return String(properties[0].id);
+	};
+
+	const clearCreateActionParam = () => {
+		const params = new URLSearchParams(location.search);
+		params.delete('action');
+		navigate(
+			{
+				pathname: location.pathname,
+				search: params.toString() ? `?${params.toString()}` : '',
+			},
+			{ replace: true },
+		);
+	};
+
+	const resetCreateDeviceForm = (propertyId: string) => {
+		setDeviceFormData({
+			type: '',
+			brand: '',
+			model: '',
+			serialNumber: '',
+			partNumber: '',
+			filterSize: '',
+			specNotes: '',
+			serviceItems: [],
+			installationDate: '',
+			decommissionDate: '',
+			status: 'Active',
+			location: {
+				propertyId,
+			},
+			files: [],
+		});
+		setPendingUploadFiles([]);
+		setPendingPropertyDocumentFiles([]);
+		setPendingPropertyDocumentCategory('other');
+	};
+
+	const handleCreateDeviceFormChange = (field: string, value: string) => {
+		if (field.startsWith('location.')) {
+			const locationField = field.split('.')[1] as 'propertyId' | 'unitId' | 'suiteId';
+			setDeviceFormData((prev) => ({
+				...prev,
+				location: {
+					...prev.location,
+					[locationField]: value,
+				},
+			}));
+			return;
+		}
+
+		setDeviceFormData((prev) => {
+			if (field === 'decommissionDate') {
+				return {
+					...prev,
+					decommissionDate: value,
+					status:
+						value
+							? 'Decommissioned'
+							: prev.status === 'Decommissioned'
+								? 'Active'
+								: prev.status,
+				};
+			}
+
+			if (field === 'status' && value !== 'Decommissioned') {
+				return {
+					...prev,
+					status: value as DeviceFormData['status'],
+					decommissionDate: '',
+				};
+			}
+
+			return {
+				...prev,
+				[field]: value,
+			};
+		});
+	};
+
+	const handleOpenCreateDeviceModal = () => {
+		if (!canManageAppliances) {
+			feedback.notify('Your role can view appliances but cannot add or edit them.');
+			return;
+		}
+
+		if (properties.length === 0) {
+			navigate('/properties?action=create');
+			return;
+		}
+
+		if (!currentUser?.subscription) {
+			feedback.notify('Unable to verify subscription. Please contact support.');
+			return;
+		}
+
+		if (!canAddDevice(currentUser.subscription, devices.length)) {
+			const planDetails = getSubscriptionPlanDetails(effectivePlanId);
+			const maxDevices = planDetails?.maxDevices || 15;
+			feedback.notify(
+				`Your ${planDetails?.name || 'current'} plan allows up to ${maxDevices} appliances. ` +
+					`You currently have ${devices.length} appliances. Please upgrade to add more.`,
+			);
+			return;
+		}
+
+		resetCreateDeviceForm(resolveDefaultCreatePropertyId());
+		setShowDeviceModal(true);
+	};
+
+	const handleCloseCreateDeviceModal = () => {
+		setShowDeviceModal(false);
+	};
+
+	const handleSubmitCreateDevice = async (event: React.FormEvent) => {
+		event.preventDefault();
+
+		if (isSavingDevice || !canManageAppliances) {
+			return;
+		}
+
+		const targetProperty = selectedCreateProperty;
+		if (!targetProperty?.id) {
+			feedback.notify('Select a property before saving this appliance.');
+			return;
+		}
+
+		setIsSavingDevice(true);
+		try {
+			let uploadedFiles: DeviceFormData['files'] = [];
+			if (pendingUploadFiles.length > 0) {
+				uploadedFiles = await Promise.all(
+					pendingUploadFiles.map((file) =>
+						uploadDeviceFile(file, String(targetProperty.id)),
+					),
+				);
+			}
+
+			const deviceData = {
+				...deviceFormData,
+				type: deviceFormData.type.trim(),
+				brand: deviceFormData.brand.trim(),
+				model: deviceFormData.model.trim(),
+				serialNumber: deviceFormData.serialNumber?.trim() || '',
+				partNumber: deviceFormData.partNumber?.trim() || '',
+				filterSize: deviceFormData.filterSize?.trim() || '',
+				specNotes: deviceFormData.specNotes?.trim() || '',
+				status: deviceFormData.decommissionDate
+					? 'Decommissioned'
+					: deviceFormData.status,
+				location: {
+					...deviceFormData.location,
+					propertyId: String(targetProperty.id),
+					unitId: undefined,
+					suiteId: undefined,
+				},
+				files: uploadedFiles,
+				userId: currentUser?.id,
+			};
+
+			const savedDevice = await createDevice(deviceData as any).unwrap();
+			const savedDeviceId = savedDevice?.id;
+
+			if (savedDeviceId && pendingPropertyDocumentFiles.length > 0) {
+				const propertyDocuments = Array.isArray((targetProperty as any)?.documents)
+					? (targetProperty as any).documents
+					: [];
+
+				const uploadedDocuments = await Promise.all(
+					pendingPropertyDocumentFiles.map((file) =>
+						uploadPropertyDocument(
+							file,
+							String(targetProperty.id),
+							pendingPropertyDocumentCategory,
+						),
+					),
+				);
+
+				await updateProperty({
+					id: String(targetProperty.id),
+					updates: {
+						documents: [
+							...propertyDocuments,
+							...uploadedDocuments.map((document) => ({
+								...document,
+								assignedDeviceId: savedDeviceId,
+							})),
+						],
+					},
+				}).unwrap();
+			}
+
+			setShowDeviceModal(false);
+			feedback.notify('Appliance added successfully.');
+		} catch (error: any) {
+			console.error('Error saving appliance from hub:', error);
+			feedback.notify(error?.message || 'Unable to add appliance right now.');
+		} finally {
+			setIsSavingDevice(false);
+		}
+	};
+
+	useEffect(() => {
+		const params = new URLSearchParams(location.search);
+		if (params.get('action') !== 'create') {
+			return;
+		}
+
+		if (isLoadingProperties) {
+			return;
+		}
+
+		handleOpenCreateDeviceModal();
+		clearCreateActionParam();
+	}, [location.pathname, location.search, isLoadingProperties]);
 
 	const openTasks = useMemo(() => allTasks.filter(isOpenTask), [allTasks]);
 
@@ -1178,11 +1511,42 @@ export const DevicesHubPage: React.FC = () => {
 
 	if (!isLoading && deviceRows.length === 0) {
 		return (
-			<AppZeroState
-				kind='noAppliances'
-				actions={[{ label: 'Open Properties', onClick: () => navigate('/properties') }]}
-				fullPage
-			/>
+			<>
+				<AppZeroState
+					kind='noAppliances'
+					actions={[{ label: 'Open Properties', onClick: () => navigate('/properties') }]}
+					fullPage
+				/>
+				{showDeviceModal && selectedCreateProperty && canManageAppliances && (
+					<DeviceModal
+						isOpen={showDeviceModal}
+						onClose={handleCloseCreateDeviceModal}
+						onSubmit={handleSubmitCreateDevice}
+						property={selectedCreateProperty}
+						availableProperties={properties as Property[]}
+						allowPropertySelection={!isSinglePropertyPlan}
+						isEditing={false}
+						pendingFiles={pendingUploadFiles}
+						onPendingFilesChange={setPendingUploadFiles}
+						deviceFormData={deviceFormData as any}
+						onFormChange={(event) =>
+							handleCreateDeviceFormChange(
+								event.currentTarget.name,
+								event.currentTarget.value,
+							)
+						}
+						onServiceItemsChange={(items) =>
+							setDeviceFormData((prev) => ({ ...prev, serviceItems: items }))
+						}
+						pendingPropertyDocumentFiles={pendingPropertyDocumentFiles}
+						onPendingPropertyDocumentFilesChange={setPendingPropertyDocumentFiles}
+						pendingPropertyDocumentCategory={pendingPropertyDocumentCategory}
+						onPendingPropertyDocumentCategoryChange={
+							setPendingPropertyDocumentCategory
+						}
+					/>
+				)}
+			</>
 		);
 	}
 
@@ -1463,6 +1827,36 @@ export const DevicesHubPage: React.FC = () => {
 					)}
 				</SurfaceCard>
 			</HubFeedGrid>
+
+			{showDeviceModal && selectedCreateProperty && canManageAppliances && (
+				<DeviceModal
+					isOpen={showDeviceModal}
+					onClose={handleCloseCreateDeviceModal}
+					onSubmit={handleSubmitCreateDevice}
+					property={selectedCreateProperty}
+					availableProperties={properties as Property[]}
+					allowPropertySelection={!isSinglePropertyPlan}
+					isEditing={false}
+					pendingFiles={pendingUploadFiles}
+					onPendingFilesChange={setPendingUploadFiles}
+					deviceFormData={deviceFormData as any}
+					onFormChange={(event) =>
+						handleCreateDeviceFormChange(
+							event.currentTarget.name,
+							event.currentTarget.value,
+						)
+					}
+					onServiceItemsChange={(items) =>
+						setDeviceFormData((prev) => ({ ...prev, serviceItems: items }))
+					}
+					pendingPropertyDocumentFiles={pendingPropertyDocumentFiles}
+					onPendingPropertyDocumentFilesChange={setPendingPropertyDocumentFiles}
+					pendingPropertyDocumentCategory={pendingPropertyDocumentCategory}
+					onPendingPropertyDocumentCategoryChange={
+						setPendingPropertyDocumentCategory
+					}
+				/>
+			)}
 		</Wrapper>
 	);
 };

@@ -17,7 +17,7 @@ export const ModalOverlay = styled.div`
 	align-items: center;
 	justify-content: center;
 	overflow-y: auto;
-	z-index: 1000;
+	z-index: 1400;
 	padding: 1rem;
 	animation: fadeIn 0.2s ease-in-out;
 

@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useSelector } from 'react-redux';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { RootState } from 'Redux/store/store';
 import { AppZeroState } from 'Components/Library/AppZeroState';
 import { useGetPropertiesQuery } from 'Redux/API/propertySlice';
@@ -15,7 +15,6 @@ import {
 	faEdit,
 	faTrash,
 	faUserPlus,
-	faPlus,
 	faCheck,
 	faFan,
 	faSnowflake,
@@ -75,6 +74,7 @@ import { getRoleCapabilities } from '../../utils/permissions';
 
 export const TasksPage = () => {
 	const navigate = useNavigate();
+	const location = useLocation();
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
 	const isUserTenant = useSelector(selectIsTenant);
 	const isTeamMemberAccount = useSelector(selectIsTeamMemberAccount);
@@ -168,6 +168,76 @@ export const TasksPage = () => {
 	};
 
 	const isMobile = useSelector((state: RootState) => state.app.isMobile);
+
+	useEffect(() => {
+		const params = new URLSearchParams(location.search);
+		const action = params.get('action');
+
+		if (!action) {
+			return;
+		}
+
+		const clearActionParams = () => {
+			const nextParams = new URLSearchParams(location.search);
+			nextParams.delete('action');
+			nextParams.delete('taskId');
+
+			navigate(
+				{
+					pathname: location.pathname,
+					search: nextParams.toString()
+						? `?${nextParams.toString()}`
+						: '',
+				},
+				{ replace: true },
+			);
+		};
+
+		if (action === 'create') {
+			if (canCreateTasks) {
+				taskHandlers.setEditingTaskId('');
+				taskHandlers.setShowTaskDialog(true);
+			}
+			clearActionParams();
+			return;
+		}
+
+		const taskId = params.get('taskId');
+		if (!taskId) {
+			clearActionParams();
+			return;
+		}
+
+		const task = allTasks.find((currentTask) => currentTask.id === taskId);
+		if (!task) {
+			return;
+		}
+
+		if (action === 'assign' && canManageTasks) {
+			taskHandlers.setAssigningTaskId(task.id);
+			setAssigningTaskPropertyId(task.propertyId || '');
+			taskHandlers.setShowTaskAssignDialog(true);
+			clearActionParams();
+			return;
+		}
+
+		if (action === 'complete' && canManageTasks) {
+			setCompletingTaskId(task.id);
+			setShowTaskCompletionModal(true);
+			clearActionParams();
+			return;
+		}
+
+		clearActionParams();
+	}, [
+		location.pathname,
+		location.search,
+		navigate,
+		allTasks,
+		canCreateTasks,
+		canManageTasks,
+		taskHandlers,
+	]);
 
 	// Generate assignee options for task editing
 	const assigneeOptions = useMemo(() => {
@@ -755,7 +825,7 @@ export const TasksPage = () => {
 		);
 	}
 
-	if (filteredTasks.length === 0) {
+	if (filteredTasks.length === 0 && !showTaskDialog) {
 		const taskZeroState = getTaskZeroStateConfig();
 		return (
 			<AppZeroState
@@ -844,31 +914,6 @@ export const TasksPage = () => {
 
 			{isMobile ? (
 				<MobileListSection>
-					{/* floating create button for mobile view */}
-					{canCreateTasks && (
-					<button
-						onClick={handleCreateTask}
-						style={{
-							position: 'fixed',
-							bottom: '80px',
-							right: '20px',
-							width: '60px',
-							height: '60px',
-							borderRadius: '50%',
-							backgroundColor: COLORS.primary,
-							color: 'white',
-							fontSize: '28px',
-							border: 'none',
-							boxShadow: '0 4px 8px rgba(0,0,0,0.3)',
-							zIndex: 1000,
-							display: 'flex',
-							alignItems: 'center',
-							justifyContent: 'center',
-						}}
-						aria-label='Create maintenance task'>
-						<FontAwesomeIcon icon={faPlus} />
-					</button>
-					)}
 					{filteredTasks.map((task: any) => {
 							const operational = getTaskDisplayStatus(task);
 							const isOverdue = operational.isOverdue;

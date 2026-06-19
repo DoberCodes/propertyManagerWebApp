@@ -9,10 +9,200 @@ import styled from 'styled-components';
 // Layout & Containers
 // ============================================================================
 
+/** Outer shell — flex row so sidebar sits beside the main content area */
 export const Shell = styled.div`
+	display: flex;
 	min-height: 100vh;
-	padding: 24px;
 	background: linear-gradient(180deg, #fff7ed 0%, #fffbeb 100%);
+
+	@media (max-width: 768px) {
+		flex-direction: column;
+		padding-bottom: 64px; /* reserve space for mobile bottom bar */
+	}
+`;
+
+/** Scrollable main content area beside the sidebar */
+export const MainContent = styled.div`
+	flex: 1;
+	min-width: 0;
+	padding: 24px;
+	overflow-x: hidden;
+
+	@media (max-width: 768px) {
+		padding: 12px 8px;
+	}
+`;
+
+// ============================================================================
+// Admin Navbar — Desktop Sidebar
+// ============================================================================
+
+export const AdminSidebar = styled.nav`
+	width: 220px;
+	flex-shrink: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	padding: 24px 12px;
+	background: #7c2d12;
+	min-height: 100vh;
+	position: sticky;
+	top: 0;
+	align-self: flex-start;
+
+	@media (max-width: 768px) {
+		display: none;
+	}
+`;
+
+export const SidebarBrand = styled.div`
+	padding: 0 8px 20px;
+	border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+	margin-bottom: 8px;
+`;
+
+export const SidebarBrandName = styled.p`
+	margin: 0;
+	font-size: 15px;
+	font-weight: 800;
+	color: #fff7ed;
+	letter-spacing: 0.03em;
+`;
+
+export const SidebarBrandSub = styled.p`
+	margin: 2px 0 0;
+	font-size: 11px;
+	color: #fca96d;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+`;
+
+export const SidebarNavItem = styled.button<{ $active?: boolean }>`
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	width: 100%;
+	padding: 10px 12px;
+	border-radius: 8px;
+	border: 1px solid ${({ $active }) => ($active ? 'rgba(255,255,255,0.25)' : 'transparent')};
+	background: ${({ $active }) => ($active ? 'rgba(255,255,255,0.12)' : 'transparent')};
+	color: ${({ $active }) => ($active ? '#fff7ed' : '#fca96d')};
+	font-size: 13px;
+	font-weight: ${({ $active }) => ($active ? '700' : '600')};
+	cursor: pointer;
+	text-align: left;
+	transition: background 120ms ease, color 120ms ease;
+
+	&:hover {
+		background: rgba(255, 255, 255, 0.1);
+		color: #fff7ed;
+	}
+`;
+
+export const SidebarNavIcon = styled.span`
+	font-size: 16px;
+	line-height: 1;
+	width: 20px;
+	text-align: center;
+	flex-shrink: 0;
+`;
+
+export const SidebarDivider = styled.hr`
+	border: none;
+	border-top: 1px solid rgba(255, 255, 255, 0.12);
+	margin: 8px 0;
+`;
+
+export const SidebarFooter = styled.div`
+	margin-top: auto;
+	padding-top: 16px;
+	border-top: 1px solid rgba(255, 255, 255, 0.12);
+`;
+
+export const SidebarUserLabel = styled.p`
+	margin: 0 0 8px;
+	font-size: 11px;
+	color: #fca96d;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	padding: 0 8px;
+`;
+
+export const SidebarSignOutButton = styled.button`
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	width: 100%;
+	padding: 10px 12px;
+	border-radius: 8px;
+	border: 1px solid transparent;
+	background: transparent;
+	color: #fca96d;
+	font-size: 13px;
+	font-weight: 600;
+	cursor: pointer;
+	text-align: left;
+	transition: background 120ms ease, color 120ms ease;
+
+	&:hover {
+		background: rgba(255, 255, 255, 0.1);
+		color: #fff7ed;
+	}
+`;
+
+// ============================================================================
+// Admin Navbar — Mobile Bottom Bar
+// ============================================================================
+
+export const MobileNavBar = styled.nav`
+	display: none;
+
+	@media (max-width: 768px) {
+		display: flex;
+		position: fixed;
+		bottom: 0;
+		left: 0;
+		right: 0;
+		background: #7c2d12;
+		border-top: 1px solid rgba(255, 255, 255, 0.15);
+		z-index: 100;
+		padding: 0;
+		height: 64px;
+		align-items: stretch;
+	}
+`;
+
+export const MobileNavItem = styled.button<{ $active?: boolean }>`
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 3px;
+	padding: 8px 4px;
+	border: none;
+	background: ${({ $active }) => ($active ? 'rgba(255,255,255,0.1)' : 'transparent')};
+	color: ${({ $active }) => ($active ? '#fff7ed' : '#fca96d')};
+	cursor: pointer;
+	border-top: 2px solid ${({ $active }) => ($active ? '#fdba74' : 'transparent')};
+	transition: background 120ms ease, color 120ms ease;
+
+	&:hover {
+		background: rgba(255, 255, 255, 0.08);
+		color: #fff7ed;
+	}
+`;
+
+export const MobileNavIcon = styled.span`
+	font-size: 18px;
+	line-height: 1;
+`;
+
+export const MobileNavLabel = styled.span`
+	font-size: 10px;
+	font-weight: 700;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
 `;
 
 export const Card = styled.div`
@@ -23,6 +213,11 @@ export const Card = styled.div`
 	border-radius: 14px;
 	padding: 24px;
 	box-shadow: 0 14px 30px rgba(154, 52, 18, 0.08);
+
+	@media (max-width: 640px) {
+		padding: 12px;
+		border-radius: 10px;
+	}
 `;
 
 export const HeaderRow = styled.div`
@@ -33,17 +228,28 @@ export const HeaderRow = styled.div`
 	flex-wrap: wrap;
 	padding-bottom: 14px;
 	border-bottom: 1px solid #ffedd5;
+
+	@media (max-width: 480px) {
+		flex-direction: column;
+		align-items: stretch;
+	}
 `;
 
 export const FilterRow = styled.div`
 	display: grid;
-	grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+	grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
 	gap: 12px;
 	margin: 16px 0 18px;
 	padding: 14px;
 	border: 1px solid #ffedd5;
 	border-radius: 10px;
 	background: #fffdfa;
+
+	@media (max-width: 480px) {
+		grid-template-columns: 1fr;
+		padding: 10px;
+		gap: 10px;
+	}
 `;
 
 export const TicketList = styled.div`
@@ -60,11 +266,24 @@ export const DialogBackdrop = styled.div`
 	justify-content: center;
 	padding: 16px;
 	z-index: 50;
+
+	@media (max-width: 480px) {
+		align-items: flex-end;
+		padding: 0;
+
+		& > * {
+			width: 100%;
+			max-width: 100%;
+			border-bottom-left-radius: 0;
+			border-bottom-right-radius: 0;
+		}
+	}
 `;
 
 export const DialogCard = styled.div`
 	width: min(560px, 100%);
-    max-height: 90vh;
+	max-height: 90vh;
+	overflow-y: auto;
 	background: #ffffff;
 	border-radius: 12px;
 	border: 1px solid #fed7aa;
@@ -72,6 +291,12 @@ export const DialogCard = styled.div`
 	display: grid;
 	gap: 10px;
 	box-shadow: 0 18px 38px rgba(124, 45, 18, 0.18);
+
+	@media (max-width: 480px) {
+		max-height: 95vh;
+		padding: 14px;
+		border-radius: 10px;
+	}
 `;
 
 // ============================================================================
@@ -101,12 +326,14 @@ export const TicketTitle = styled.h3`
 	margin: 0;
 	font-size: 16px;
 	color: #9a3412;
+	word-break: break-word;
 `;
 
 export const TicketMeta = styled.p`
 	margin: 6px 0;
 	font-size: 12px;
 	color: #7c2d12;
+	word-break: break-all;
 `;
 
 export const ErrorText = styled.p`
@@ -193,7 +420,15 @@ export const ActionGroup = styled.div`
 	display: grid;
 	gap: 6px;
 	justify-content: flex-end;
-	min-width: 170px;
+
+	@media (max-width: 480px) {
+		justify-content: stretch;
+		width: 100%;
+
+		& > button {
+			width: 100%;
+		}
+	}
 `;
 
 export const ButtonRow = styled.div`
@@ -201,6 +436,14 @@ export const ButtonRow = styled.div`
 	gap: 8px;
 	flex-wrap: wrap;
 	align-items: center;
+
+	@media (max-width: 480px) {
+		width: 100%;
+
+		& > button {
+			flex: 1;
+		}
+	}
 `;
 
 // ============================================================================
@@ -227,7 +470,8 @@ export const Input = styled.input`
 
 export const LinkInput = styled(Input)`
 	flex: 1;
-	min-width: 220px;
+	min-width: 0;
+	width: 100%;
 	background: #fffdfa;
 `;
 
@@ -237,6 +481,11 @@ export const Select = styled.select`
 	border-radius: 8px;
 	font-size: 14px;
 	background: #ffffff;
+
+	@media (max-width: 480px) {
+		width: 100%;
+		padding: 8px;
+	}
 `;
 
 export const TextArea = styled.textarea`
@@ -318,6 +567,10 @@ export const TicketCard = styled.div`
 	padding: 14px;
 	background: #fffbeb;
 	box-shadow: 0 6px 14px rgba(124, 45, 18, 0.08);
+
+	@media (max-width: 480px) {
+		padding: 10px;
+	}
 `;
 
 export const TicketHeader = styled.div`
@@ -326,6 +579,10 @@ export const TicketHeader = styled.div`
 	align-items: flex-start;
 	gap: 12px;
 	flex-wrap: wrap;
+
+	@media (max-width: 480px) {
+		flex-direction: column;
+	}
 `;
 
 export const MessageBox = styled.pre`
@@ -395,7 +652,8 @@ export const LinkRow = styled.div`
 export const LinkInputWrap = styled.div`
 	position: relative;
 	flex: 1;
-	min-width: 220px;
+	min-width: 0;
+	width: 100%;
 `;
 
 export const LinkSuggestionList = styled.div`
@@ -468,13 +726,23 @@ export const NoteComposerRow = styled.div`
 
 export const NotesTabList = styled.div`
 	display: inline-flex;
+	flex-wrap: wrap;
 	align-items: center;
 	gap: 6px;
-    width: fit-content;
+	width: fit-content;
+	max-width: 100%;
 	padding: 4px;
 	border: 1px solid #fdba74;
 	border-radius: 10px;
 	background: #fff7ed;
+
+	@media (max-width: 480px) {
+		width: 100%;
+
+		& > button {
+			flex: 1;
+		}
+	}
 `;
 
 export const NotesTabButton = styled.button<{ $active?: boolean }>`
@@ -512,9 +780,13 @@ export const NotesFooter = styled.div`
 export const NoteHistory = styled.div`
 	display: grid;
 	gap: 6px;
-	max-height: 180px;
+	max-height: 200px;
 	overflow-y: auto;
 	padding-right: 4px;
+
+	@media (max-width: 480px) {
+		max-height: 160px;
+	}
 `;
 
 export const NoteHistoryLabel = styled.p`
@@ -541,6 +813,11 @@ export const NoteHistoryText = styled.p`
 	color: #1c1917;
 	white-space: pre-wrap;
 	word-break: break-word;
+
+	@media (max-width: 480px) {
+		font-size: 12px;
+		padding: 6px 8px;
+	}
 `;
 
 export const NoteHistoryMeta = styled.p`
@@ -548,6 +825,11 @@ export const NoteHistoryMeta = styled.p`
 	font-size: 11px;
 	color: #7c2d12;
 	opacity: 0.8;
+
+	@media (max-width: 480px) {
+		font-size: 11px;
+		padding: 6px 8px;
+	}
 `;
 
 export const SaveNotesButton = styled.button`
@@ -570,6 +852,10 @@ export const SaveNotesButton = styled.button`
 		opacity: 0.6;
 		cursor: not-allowed;
 	}
+
+	@media (max-width: 480px) {
+		font-size: 12px;
+	}
 `;
 
 export const HiddenTicketAnchor = styled.div`
@@ -580,7 +866,7 @@ export const HiddenTicketAnchor = styled.div`
 
 export const TicketHeaderMain = styled.div`
 	flex: 1;
-	min-width: 260px;
+	min-width: 0;
 `;
 
 export const GroupCasePanel = styled.div`
@@ -610,7 +896,11 @@ export const CaseGroupSummaryRow = styled.div`
 	justify-content: space-between;
 	gap: 10px;
 	border-radius: 10px;
-	
+	flex-wrap: wrap;
+
+	@media (max-width: 480px) {
+		gap: 8px;
+	}
 `;
 
 export const CaseGroupSummaryText = styled.p`
@@ -740,6 +1030,11 @@ export const StatsRow = styled.div`
 	display: grid;
 	grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
 	margin: 18px 0;
+
+	@media (max-width: 480px) {
+		grid-template-columns: repeat(2, 1fr);
+		gap: 4px;
+	}
 `;
 
 export const StatCard = styled.div`
@@ -747,4 +1042,10 @@ export const StatCard = styled.div`
 	font-weight: 600;
 	color: #9a3412;
 	text-align: center;
+	font-size: 13px;
+
+	@media (max-width: 480px) {
+		font-size: 12px;
+		padding: 8px 6px;
+	}
 `;

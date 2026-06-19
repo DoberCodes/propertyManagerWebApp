@@ -1,5 +1,7 @@
 export { AdminLoginForm } from './AdminLoginForm';
 export { AdminHeader } from './AdminHeader';
+export { AdminNavbar } from './AdminNavbar';
+export type { AdminNavPage } from './AdminNavbar';
 export { AdminStatsRow } from './AdminStatsRow';
 export { AdminFilterControls } from './AdminFilterControls';
 export { PasswordResetDialog } from './PasswordResetDialog';

@@ -12,9 +12,18 @@ import {
 	SidebarOverlay,
 	MobileSidebar,
 	NotificationIcon,
+	MobileBottomNavBar,
+	MobileBottomNavInner,
+	MobileBottomNavItem,
+	MobileBottomNavLabel,
+	MobileBottomCenterWrap,
+	MobileBottomCenterButton,
+	MobileBottomActionMenu,
+	MobileBottomActionBackdrop,
+	MobileBottomActionItem,
 } from './TopNav.styles';
 import { UserProfile } from './UserProfile';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useFavorites } from '../../../../Hooks/useFavorites';
 import {
 	selectIsTenant,
@@ -24,7 +33,6 @@ import {
 	selectIsContractor,
 	selectIsTeamMemberAccount,
 } from '../../../../Redux/selectors/permissionSelectors';
-import { clearUserLocalStorage } from '../../../../utils/localStorageCleanup';
 import { signOutUser } from '../../../../services/authService';
 import TitleName from '../../../../Assets/images/TitleName.png';
 import { GenericModal } from '../../Modal/GenericModal';
@@ -38,9 +46,12 @@ import {
 } from '../../../../utils/subscriptionUtils';
 import { filterPropertyGroupsByRole } from '../../../../utils/dataFilters';
 import { TeamMember } from '../../../../Redux/Slices/teamSlice';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faPlus } from '@fortawesome/free-solid-svg-icons';
 
 export const TopNav = () => {
 	const navigate = useNavigate();
+	const location = useLocation();
 	const dispatch = useDispatch();
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
 	const { favorites } = useFavorites(currentUser!.id);
@@ -55,6 +66,8 @@ export const TopNav = () => {
 	const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 	const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
 	const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false);
+	const [isQuickCreateOpen, setIsQuickCreateOpen] = useState(false);
+	const quickCreateRef = React.useRef<HTMLDivElement | null>(null);
 
 	// Permission flags (use selectors for single source of truth)
 	const isUserTenant = useSelector(selectIsTenant);
@@ -77,6 +90,40 @@ export const TopNav = () => {
 
 		void refetchStorageUsage();
 	}, [isSidebarOpen, isUserTenant, isTeamMemberAccount, refetchStorageUsage]);
+
+	useEffect(() => {
+		const handleOutsideClick = (event: MouseEvent) => {
+			if (!quickCreateRef.current) return;
+			if (quickCreateRef.current.contains(event.target as Node)) return;
+			setIsQuickCreateOpen(false);
+		};
+
+		document.addEventListener('mousedown', handleOutsideClick);
+		return () => document.removeEventListener('mousedown', handleOutsideClick);
+	}, []);
+
+	useEffect(() => {
+		setIsQuickCreateOpen(false);
+	}, [location.pathname]);
+
+	useEffect(() => {
+		const applyMobileBottomPadding = () => {
+			if (window.innerWidth <= 1024) {
+				document.body.style.paddingBottom =
+					'calc(88px + env(safe-area-inset-bottom))';
+			} else {
+				document.body.style.paddingBottom = '';
+			}
+		};
+
+		applyMobileBottomPadding();
+		window.addEventListener('resize', applyMobileBottomPadding);
+
+		return () => {
+			window.removeEventListener('resize', applyMobileBottomPadding);
+			document.body.style.paddingBottom = '';
+		};
+	}, []);
 	const filteredPropertyGroups = React.useMemo(
 		() =>
 			filterPropertyGroupsByRole(
@@ -149,7 +196,7 @@ export const TopNav = () => {
 			visible: !isUserTenant && !isContractor,
 		},
 		{
-			label: 'Appliances & Systems',
+			label: 'Appliances',
 			path: 'devices',
 			visible: !isUserTenant && (canAccessProperties || canViewPages),
 		},
@@ -169,6 +216,50 @@ export const TopNav = () => {
 			visible: !isUserTenant && (canAccessProperties || canViewPages),
 		},
 	];
+
+	const pathname = location.pathname || '';
+	const isPropertyContext = /^\/property\//i.test(pathname);
+	const isHomeActive = pathname === '/dashboard';
+	const isTasksActive = pathname === '/tasks';
+	const isSystemsActive = pathname === '/devices';
+	const isPropertyNavActive = /^\/properties(\/|$)|^\/property\//i.test(pathname);
+
+	const quickCreateActions = isPropertyContext
+		? [
+				{ key: 'add_task', label: 'Add Task', x: -118, y: 22 },
+				{ key: 'add_system', label: 'Add System', x: -58, y: -24 },
+				{ key: 'upload_document', label: 'Upload', x: 58, y: -24 },
+				{ key: 'add_contractor', label: 'Contractor', x: 118, y: 22 },
+		  ]
+		: [
+				{ key: 'add_task', label: 'Add Task', x: -100, y: -10 },
+				{ key: 'add_system', label: 'Add System', x: 0, y: -60 },
+				{ key: 'add_property', label: 'Property', x: 100, y: -10 },
+		  ];
+
+	const handleQuickCreateAction = (action: string) => {
+		switch (action) {
+			case 'add_task':
+				navigate(isPropertyContext ? `${pathname}?action=create-task` : '/tasks?action=create');
+				break;
+			case 'add_system':
+				navigate(isPropertyContext ? `${pathname}?action=create-system` : '/devices?action=create');
+				break;
+			case 'add_property':
+				navigate('/properties?action=create');
+				break;
+			case 'upload_document':
+				navigate(isPropertyContext ? `${pathname}?action=upload-document` : '/report?action=upload');
+				break;
+			case 'add_contractor':
+				navigate('/team?action=add-contractor');
+				break;
+			default:
+				break;
+		}
+
+		setIsQuickCreateOpen(false);
+	};
 
 	const handleLogout = () => {
 		void (async () => {
@@ -421,32 +512,6 @@ export const TopNav = () => {
 												</span>
 											)}
 										</button>
-									{!isUserTenant && (
-										<button
-											onClick={() => {
-												navigate('/features');
-												setIsProfileDropdownOpen(false);
-											}}
-											style={{
-												width: '100%',
-												padding: '12px 16px',
-												border: 'none',
-												background: 'none',
-												textAlign: 'left',
-												cursor: 'pointer',
-												fontSize: '14px',
-												color: '#1a1a1a',
-												transition: 'background-color 0.2s ease',
-											}}
-											onMouseEnter={(e) =>
-												(e.currentTarget.style.backgroundColor = '#f3f4f6')
-											}
-											onMouseLeave={(e) =>
-												(e.currentTarget.style.backgroundColor = 'transparent')
-											}>
-											📋 Features
-										</button>
-									)}
 									<button
 										onClick={() => {
 											handleLogout();
@@ -727,6 +792,67 @@ export const TopNav = () => {
 					</div>
 				)}
 			</MobileSidebar>
+
+			<MobileBottomNavBar aria-label='Main navigation'>
+				<MobileBottomNavInner>
+					<MobileBottomNavItem
+						type='button'
+						$active={isHomeActive}
+						onClick={() => navigate('/dashboard')}
+						aria-current={isHomeActive ? 'page' : undefined}>
+						<MobileBottomNavLabel>Dashboard</MobileBottomNavLabel>
+					</MobileBottomNavItem>
+
+					<MobileBottomNavItem
+						type='button'
+						$active={isTasksActive}
+						onClick={() => navigate('/tasks')}
+						aria-current={isTasksActive ? 'page' : undefined}>
+						<MobileBottomNavLabel>Tasks</MobileBottomNavLabel>
+					</MobileBottomNavItem>
+
+					<MobileBottomCenterWrap ref={quickCreateRef}>
+						<MobileBottomActionBackdrop $open={isQuickCreateOpen} />
+						<MobileBottomActionMenu $open={isQuickCreateOpen}>
+							{quickCreateActions.map((action) => (
+								<MobileBottomActionItem
+									key={action.key}
+									type='button'
+									$x={action.x}
+									$y={action.y}
+									onClick={() => handleQuickCreateAction(action.key)}>
+									{action.label}
+								</MobileBottomActionItem>
+							))}
+						</MobileBottomActionMenu>
+
+						<MobileBottomCenterButton
+							type='button'
+							$open={isQuickCreateOpen}
+							onClick={() => setIsQuickCreateOpen((prev) => !prev)}
+							aria-label='Open quick create menu'
+							aria-expanded={isQuickCreateOpen}>
+								<FontAwesomeIcon icon={faPlus} />
+						</MobileBottomCenterButton>
+					</MobileBottomCenterWrap>
+
+					<MobileBottomNavItem
+						type='button'
+						$active={isSystemsActive}
+						onClick={() => navigate('/devices')}
+						aria-current={isSystemsActive ? 'page' : undefined}>
+						<MobileBottomNavLabel>Systems</MobileBottomNavLabel>
+					</MobileBottomNavItem>
+
+					<MobileBottomNavItem
+						type='button'
+						$active={isPropertyNavActive}
+						onClick={() => navigate('/properties')}
+						aria-current={isPropertyNavActive ? 'page' : undefined}>
+						<MobileBottomNavLabel>Property</MobileBottomNavLabel>
+					</MobileBottomNavItem>
+				</MobileBottomNavInner>
+			</MobileBottomNavBar>
 
 			{/* Notification Modal */}
 			<GenericModal

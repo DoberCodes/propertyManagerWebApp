@@ -6,13 +6,15 @@
  */
 
 import React, { useState } from 'react';
-import { Shell, Card, SubTitle, ErrorText, TicketList } from './AdminInboxPage.styles';
+import { Shell, Card, SubTitle, ErrorText, TicketList, MainContent } from './AdminInboxPage.styles';
 import {
 	AdminHeader,
+	AdminNavbar,
 	AdminStatsRow,
 	AdminFilterControls,
 	TicketCard,
 } from './components';
+import type { AdminNavPage } from './components';
 import { useAdminAuth } from './hooks/useAdminAuth';
 import { useAdminTickets } from './hooks/useAdminTickets';
 import { useAdminTicketLinking } from './hooks/useAdminTicketLinking';
@@ -31,6 +33,7 @@ export const AdminInboxPage: React.FC = () => {
 	const ticketLinking = useAdminTicketLinking();
 	const notes = useAdminNotes();
 	const [showSettingsMenu, setShowSettingsMenu] = useState(false);
+	const [activePage, setActivePage] = useState<AdminNavPage>('inbox');
 	const [selectedTicketByGroup, setSelectedTicketByGroup] = useState<Record<string, string>>({});
 	const ticketGroups = React.useMemo(() => groupTicketsForDisplay(tickets.tickets), [tickets.tickets]);
 	const visibleTicketCounts = React.useMemo(
@@ -76,7 +79,9 @@ export const AdminInboxPage: React.FC = () => {
 	if (auth.checkingSession) {
 		return (
 			<Shell>
-				<Card>{MESSAGES.CHECKING_SESSION}</Card>
+				<MainContent>
+					<Card>{MESSAGES.CHECKING_SESSION}</Card>
+				</MainContent>
 			</Shell>
 		);
 	}
@@ -85,12 +90,14 @@ export const AdminInboxPage: React.FC = () => {
 	if (!auth.sessionToken || !auth.adminUser) {
 		return (
 			<Shell>
-				<Card>
-					<h1 style={{ margin: '0 0 4px', fontSize: '24px', color: '#9a3412' }}>
-						Maintley Admin Inbox
-					</h1>
-					<SubTitle>You do not have permission to access this page.</SubTitle>
-				</Card>
+				<MainContent>
+					<Card>
+						<h1 style={{ margin: '0 0 4px', fontSize: '24px', color: '#9a3412' }}>
+							Maintley Admin Inbox
+						</h1>
+						<SubTitle>You do not have permission to access this page.</SubTitle>
+					</Card>
+				</MainContent>
 			</Shell>
 		);
 	}
@@ -229,6 +236,13 @@ export const AdminInboxPage: React.FC = () => {
 
 	return (
 		<Shell>
+			<AdminNavbar
+				activePage={activePage}
+				adminUser={auth.adminUser}
+				onNavigate={setActivePage}
+				onLogout={auth.handleLogout}
+			/>
+			<MainContent>
 			<Card>
 				<AdminHeader
 					adminUser={auth.adminUser}
@@ -316,6 +330,7 @@ export const AdminInboxPage: React.FC = () => {
 					})}
 				</TicketList>
 			</Card>
+			</MainContent>
 		</Shell>
 	);
 };

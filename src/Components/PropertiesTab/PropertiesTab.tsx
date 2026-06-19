@@ -632,7 +632,9 @@ export const Properties = () => {
 
 	useEffect(() => {
 		const params = new URLSearchParams(location.search);
-		if (params.get('openCreate') !== '1') {
+		const shouldOpenCreateDialog =
+			params.get('openCreate') === '1' || params.get('action') === 'create';
+		if (!shouldOpenCreateDialog) {
 			return;
 		}
 
@@ -648,6 +650,7 @@ export const Properties = () => {
 		setDialogOpen(true);
 
 		params.delete('openCreate');
+		params.delete('action');
 		navigate(
 			{
 				pathname: location.pathname,

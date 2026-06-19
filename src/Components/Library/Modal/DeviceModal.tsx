@@ -39,6 +39,8 @@ interface DeviceModalProps {
 	onClose: () => void;
 	onSubmit: (event: React.FormEvent) => void;
 	property: Property;
+	availableProperties?: Property[];
+	allowPropertySelection?: boolean;
 	deviceId?: string;
 	isEditing?: boolean;
 	units?: any[];
@@ -688,6 +690,11 @@ export const DeviceModal = (props: DeviceModalProps) => {
 	);
 
 	const pendingFiles = props.pendingFiles || [];
+	const canSelectProperty =
+		props.allowPropertySelection === true &&
+		!props.isEditing &&
+		Array.isArray(props.availableProperties) &&
+		props.availableProperties.length > 1;
 
 	return (
 		<>
@@ -766,6 +773,21 @@ export const DeviceModal = (props: DeviceModalProps) => {
 				</div>
 
 				<FormGrid>
+				{canSelectProperty && (
+					<FormGroup>
+						<FormLabel>Property</FormLabel>
+						<FormSelect
+							name='location.propertyId'
+							value={props.deviceFormData.location?.propertyId || props.property.id || ''}
+							onChange={props.onFormChange}>
+							{props.availableProperties?.map((propertyOption) => (
+								<option key={propertyOption.id} value={propertyOption.id}>
+									{propertyOption.title || 'Untitled Property'}
+								</option>
+							))}
+						</FormSelect>
+					</FormGroup>
+				)}
 				<FormGroup>
 					<FormLabel>Name *</FormLabel>
 					<FormInput
