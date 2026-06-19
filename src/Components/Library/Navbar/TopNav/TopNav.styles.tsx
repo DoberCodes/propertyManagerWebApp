@@ -394,7 +394,6 @@ export const MobileBottomNavItem = styled.button<{ $active?: boolean }>`
 	gap: 4px;
 	height: 100%;
 	width: 100%;
-	padding: 6px 2px;
 	color: ${({ $active }) => ($active ? '#0f172a' : COLORS.primaryHover)};
 	cursor: pointer;
 	border-radius: 12px;

@@ -71,6 +71,13 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { COLORS } from '../../constants/colors';
 import { TaskCompletionModal } from '../../Components/TaskCompletionModal';
 import { getRoleCapabilities } from '../../utils/permissions';
+import {
+	AppPage as StandardAppPage,
+	AppPageHeader as StandardAppPageHeader,
+	AppPageSubtitle as StandardAppPageSubtitle,
+	AppPageTitle as StandardAppPageTitle,
+	AppPageTitleBlock as StandardAppPageTitleBlock,
+} from '../../Components/Library/AppPageLayout/AppPageLayout.styles';
 
 export const TasksPage = () => {
 	const navigate = useNavigate();
@@ -837,7 +844,15 @@ export const TasksPage = () => {
 	}
 
 	return (
-		<Wrapper>
+		<StandardAppPage>
+			<StandardAppPageHeader>
+				<StandardAppPageTitleBlock>
+					<StandardAppPageTitle>Tasks</StandardAppPageTitle>
+					<StandardAppPageSubtitle>
+						Track overdue work, upcoming maintenance, and assignment status across your properties.
+					</StandardAppPageSubtitle>
+				</StandardAppPageTitleBlock>
+			</StandardAppPageHeader>
 			{/* Task Filter Section */}
 			<TaskControlPanel>
 				<TaskControlRow>
@@ -1144,6 +1159,6 @@ export const TasksPage = () => {
 					</UndoButton>
 				</UndoToast>
 			)}
-		</Wrapper>
+		</StandardAppPage>
 	);
 };

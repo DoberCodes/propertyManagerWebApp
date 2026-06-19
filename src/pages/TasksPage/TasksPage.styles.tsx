@@ -8,6 +8,14 @@ export const Wrapper = styled.div`
 	padding: 20px;
 	width: 100%;
 	background-color: #f8f9fa;
+
+	@media (max-width: 1024px) {
+		padding: 0;
+	}
+
+	@media (max-width: 480px) {
+		padding: 0;
+	}
 `;
 
 export const TaskGridSection = styled.div`

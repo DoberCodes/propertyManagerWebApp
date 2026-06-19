@@ -112,7 +112,7 @@ export const TopNav = () => {
 			if (window.innerWidth <= 1024) {
 				root.style.setProperty(
 					'--mobile-bottom-nav-offset',
-					'calc(112px + env(safe-area-inset-bottom))',
+					'calc(126px + env(safe-area-inset-bottom))',
 				);
 			} else {
 				root.style.setProperty('--mobile-bottom-nav-offset', '0px');

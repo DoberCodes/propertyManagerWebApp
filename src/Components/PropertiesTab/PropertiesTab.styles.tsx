@@ -11,13 +11,13 @@ export const Wrapper = styled.div`
 	min-height: 0;
 
 	@media (max-width: 1024px) {
-		padding: 15px;
+		padding: 0;
 		gap: 15px;
 		margin: 0;
 	}
 
 	@media (max-width: 480px) {
-		padding: 8px;
+		padding: 0;
 		gap: 12px;
 	}
 `;
@@ -83,7 +83,7 @@ export const SummaryStatsGrid = styled.div`
 	}
 
 	@media (max-width: 640px) {
-		grid-template-columns: 1fr;
+		display: none;
 	}
 `;
 
@@ -128,18 +128,20 @@ export const GroupsContainer = styled.div`
 	display: flex;
 	flex-direction: column;
 	height: fit-content;
-	padding-bottom: 16px;
+	padding-bottom: max(24px, calc(var(--mobile-bottom-nav-offset, 0px) + 24px));
 	gap: 22px;
 	flex: 1;
 	align-items: start;
 
 	@media (max-width: 1024px) {
 		gap: 20px;
+		padding-bottom: calc(var(--mobile-bottom-nav-offset, 0px) + 28px);
 	}
 
 	@media (max-width: 480px) {
 		gap: 20px;
 		align-items: stretch;
+		padding-bottom: calc(var(--mobile-bottom-nav-offset, 0px) + 24px);
 	}
 `;
 
@@ -342,13 +344,8 @@ export const AddPropertyButton = styled.button<{ disabled?: boolean }>`
 		flex: 1;
 	}
 
-	@media (max-width: 768px) {
-		order: 2;
-		flex: 1 0 100%;
-		width: 100%;
-		min-height: 44px;
-		border-radius: 8px;
-		font-size: 14px;
+	@media (max-width: 1024px) {
+		display: none;
 	}
 `;
 

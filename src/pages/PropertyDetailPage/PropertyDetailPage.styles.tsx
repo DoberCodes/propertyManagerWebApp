@@ -8,6 +8,14 @@ export const Wrapper = styled.div`
 	height: auto;
 	min-height: 100%;
 	background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+
+	&::after {
+		content: '';
+		display: block;
+		width: 100%;
+		height: max(16px, calc(var(--mobile-bottom-nav-offset, 0px) + 16px));
+		flex: 0 0 auto;
+	}
 `;
 
 export const Header = styled.div`
@@ -58,16 +66,22 @@ export const Header = styled.div`
 
 export const ContentWrapper = styled.div`
 	flex: 0 0 auto;
-	padding: 20px;
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+	padding: 16px;
 	background-color: #ffffff;
 	border-radius: 12px;
 	width: 100%;
-	height: auto;
-	min-height: calc(100% - 220px);
+	min-height: 0;
 	overflow: visible;
 
+	@media (max-width: 1024px) {
+		padding: 14px;
+	}
+
 	@media (max-width: 480px) {
-		padding: 10px;
+		padding: 12px;
 		border-radius: 10px;
 	}
 `;

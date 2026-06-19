@@ -14,10 +14,9 @@ const Wrapper = styled.div`
 	display: flex;
 	flex-direction: column;
 	gap: 0;
-	height: 100%;
-	overflow-y: auto;
+	min-height: 100%;
+	overflow: visible;
 	background-color: #fafafa;
-	padding-bottom: var(--mobile-bottom-nav-offset, 0px);
 `;
 
 const ContentContainer = styled.div<{ $contentMaxWidth: string }>`
@@ -27,8 +26,19 @@ const ContentContainer = styled.div<{ $contentMaxWidth: string }>`
 	width: 100%;
 	margin: 0 auto;
 
+	&::after {
+		content: '';
+		display: block;
+		width: 100%;
+		height: max(16px, calc(var(--mobile-bottom-nav-offset, 0px) + 16px));
+	}
+
 	@media (max-width: 640px) {
 		padding: 12px;
+
+		&::after {
+			height: calc(var(--mobile-bottom-nav-offset, 0px) + 14px);
+		}
 	}
 `;
 
@@ -94,6 +104,12 @@ export const DetailPageLayout: React.FC<DetailPageLayoutProps> = ({
 
 	useEffect(() => {
 		wrapperRef.current?.scrollTo({
+			top: 0,
+			left: 0,
+			behavior: 'auto',
+		});
+
+		wrapperRef.current?.parentElement?.scrollTo({
 			top: 0,
 			left: 0,
 			behavior: 'auto',

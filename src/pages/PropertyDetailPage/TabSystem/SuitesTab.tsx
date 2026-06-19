@@ -1,7 +1,9 @@
 import React from 'react';
 import { SuitesTabProps } from '../../../types/PropertyDetailPage.types';
 import { useNavigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { RootState } from '../../../Redux/store/store';
 import {
 	SectionContainer,
 	SectionHeader,
@@ -11,7 +13,17 @@ import {
 	Column,
 	Action,
 } from '../../../Components/Library/ReusableTable';
-import { EmptyState, SectionLead } from './index.styles';
+import {
+	DesktopTableWrapper,
+	DeviceCard,
+	EmptyState,
+	MobileActionButton,
+	MobileFeedLine,
+	MobileFeedLineMuted,
+	MobileFeedMeta,
+	MobileTaskActions,
+	SectionLead,
+} from './index.styles';
 import {
 	faExternalLinkAlt,
 	faBuilding,
@@ -22,6 +34,7 @@ import {
 
 export const SuitesTab: React.FC<SuitesTabProps> = ({ property }) => {
 	const navigate = useNavigate();
+	const isMobile = useSelector((state: RootState) => state.app.isMobile);
 
 	if (!property?.hasSuites || property?.propertyType !== 'Commercial') {
 		return null;
@@ -124,16 +137,69 @@ export const SuitesTab: React.FC<SuitesTabProps> = ({ property }) => {
 				Keep commercial spaces aligned with occupancy and system coverage.
 			</SectionLead>
 			{property?.suites && property.suites.length > 0 ? (
-				<ReusableTable
-					columns={columns}
-					rowData={property.suites}
-					getRowClassName={(row: any) =>
-						((row.deviceIds || []).length === 0 ? 'attention-row' : undefined)
-					}
-					actions={actions}
-					hideHeader={true}
-					emptyMessage='No suites yet. Add a suite to begin commercial maintenance tracking.'
-				/>
+				isMobile ? (
+					<div style={{ display: 'flex', flexDirection: 'column', gap: 12, paddingBottom: 4 }}>
+						{property.suites.map((suite: any) => {
+							const linkedSystems = (suite.deviceIds || []).length;
+							const occupantCount = (suite.tenants || []).length;
+							const suiteHref = `/property/${property.slug}/suite/${suite.name
+								.replace(/\s+/g, '-')
+								.toLowerCase()}`;
+
+							return (
+								<DeviceCard key={suite.id || suite.name} onClick={() => navigate(suiteHref)}>
+									<div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+										<div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start' }}>
+											<div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+												<div style={{ fontSize: 15, fontWeight: 800, color: '#0f172a' }}>{suite.name}</div>
+												<div style={{ fontSize: 12, color: '#64748b' }}>
+													Commercial maintenance scope for this suite
+												</div>
+											</div>
+											<span style={{ fontSize: 12, fontWeight: 700, padding: '4px 10px', borderRadius: 999, background: '#ecfeff', color: '#0f766e', border: '1px solid #99f6e4', whiteSpace: 'nowrap' }}>
+												Suite
+											</span>
+										</div>
+										<MobileFeedMeta>
+											<MobileFeedLine>
+												{occupantCount} occupant{occupantCount === 1 ? '' : 's'}
+											</MobileFeedLine>
+											<MobileFeedLineMuted>
+												{linkedSystems} linked system{linkedSystems === 1 ? '' : 's'}
+											</MobileFeedLineMuted>
+											<MobileFeedLineMuted>
+												Timeline updates appear as suite tasks are completed.
+											</MobileFeedLineMuted>
+										</MobileFeedMeta>
+									</div>
+									<MobileTaskActions>
+										<MobileActionButton
+											variant='primary'
+											onClick={(e) => {
+												e.stopPropagation();
+												navigate(suiteHref);
+											}}>
+											View history
+										</MobileActionButton>
+									</MobileTaskActions>
+								</DeviceCard>
+							);
+						})}
+					</div>
+				) : (
+					<DesktopTableWrapper>
+						<ReusableTable
+							columns={columns}
+							rowData={property.suites}
+							getRowClassName={(row: any) =>
+								((row.deviceIds || []).length === 0 ? 'attention-row' : undefined)
+							}
+							actions={actions}
+							hideHeader={true}
+							emptyMessage='No suites yet. Add a suite to begin commercial maintenance tracking.'
+						/>
+					</DesktopTableWrapper>
+				)
 			) : (
 				<EmptyState>
 					<p>No suites added to this property</p>

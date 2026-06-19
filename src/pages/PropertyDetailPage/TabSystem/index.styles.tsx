@@ -30,13 +30,19 @@ export const HeaderContainer = styled.div`
 export const ContentWrapper = styled.div`
 	display: flex;
 	flex-direction: column;
-	gap: 20px;
-	padding: 20px;
-	height: 80%;
-	background-color: #f8f9fa;
-	overflow: scroll;
+	gap: 16px;
+	padding: 0;
+	min-height: 0;
+	height: auto;
+	background-color: transparent;
+	overflow: visible;
+
+	@media (max-width: 1024px) {
+		gap: 14px;
+	}
+
 	@media (max-width: 480px) {
-		padding: 15px;
+		gap: 12px;
 	}
 `;
 
@@ -730,21 +736,27 @@ export const TabControlsContainer = styled.div`
 	justify-content: space-between;
 	background-color: #ffffff;
 	border-bottom: 2px solid #e0e0e0;
-	margin-top: 10px;
-	padding: 0 24px;
+	margin-top: 0;
+	padding: 0 16px;
 	flex-shrink: 0;
 
 	@media (max-width: 1024px) {
 		min-height: 0;
-		padding: 5px 12px;
+		padding: 4px 12px;
+	}
+
+	@media (max-width: 480px) {
+		padding: 4px 8px;
 	}
 `;
 
 export const TabContentContainer = styled.div`
-	padding: 1.5rem;
+	padding: 16px 0 0;
 	flex: 1;
+	min-height: 0;
 
 	@media (max-width: 1024px) {
+		padding-top: 14px;
 	}
 
 	@media (max-width: 480px) {
@@ -752,6 +764,7 @@ export const TabContentContainer = styled.div`
 		flex-direction: column;
 		align-items: stretch;
 		width: 100%;
+		padding-top: 12px;
 	}
 `;
 

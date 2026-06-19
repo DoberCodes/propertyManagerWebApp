@@ -4,6 +4,7 @@ import { COLORS } from './constants/colors';
 const GlobalStyles = createGlobalStyle`
     html {
         scroll-behavior: smooth;
+        height: 100%;
     }
 
     body {
@@ -18,13 +19,7 @@ const GlobalStyles = createGlobalStyle`
         -moz-osx-font-smoothing: grayscale;
         display: flex;
         flex-direction: column;
-        min-height: 100vh;
-        
-        /* Safe area support for mobile devices */
-        padding-top: env(safe-area-inset-top);
-        padding-bottom: env(safe-area-inset-bottom);
-        padding-left: env(safe-area-inset-left);
-        padding-right: env(safe-area-inset-right);
+        min-height: 100%;
     }
 
     #root {

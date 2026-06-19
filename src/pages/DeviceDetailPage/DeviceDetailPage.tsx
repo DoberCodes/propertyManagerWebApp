@@ -23,7 +23,7 @@ import {
 	useGetDevicesQuery,
 	useUpdateDeviceMutation,
 } from '../../Redux/API/deviceSlice';
-import { useGetTasksQuery } from '../../Redux/API/taskSlice';
+import { useDeleteTaskMutation, useGetTasksQuery } from '../../Redux/API/taskSlice';
 import {
 	useAddMaintenanceHistoryMutation,
 	useGetMaintenanceHistoryByPropertyQuery,
@@ -38,7 +38,6 @@ import {
 	isContinuityEvent,
 } from '../../utils/maintenanceEventUtils';
 import { DetailPageLayout, TabContent, ReusableTable, GenericModal } from '../../Components/Library';
-import { HeaderlessFeedSurface } from '../../Components/Library/ReusableTable/ReusableTable.styles';
 import { DeviceModal } from '../../Components/Library/Modal';
 import { TaskModal } from '../../Components/Library/Modal/TaskModal';
 import { TabConfig } from '../../types/DetailPage.types';
@@ -330,8 +329,46 @@ const SummaryGrid = styled.div`
 	}
 
 	@media (max-width: 640px) {
-		grid-template-columns: 1fr;
+		display: none;
 	}
+`;
+
+const MobileCardStack = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+`;
+
+const MobileDetailCard = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	padding: 14px;
+	border: 1px solid #e2e8f0;
+	border-radius: 12px;
+	background: #ffffff;
+`;
+
+const MobileDetailHeader = styled.div`
+	display: flex;
+	justify-content: space-between;
+	align-items: flex-start;
+	gap: 10px;
+`;
+
+const MobileDetailTitle = styled.div`
+	font-size: 0.95rem;
+	font-weight: 800;
+	line-height: 1.35;
+	color: #0f172a;
+`;
+
+const MobileDetailMeta = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	font-size: 0.82rem;
+	color: #64748b;
 `;
 
 const SummaryCard = styled.div`
@@ -636,13 +673,6 @@ const TimelineAttachmentLink = styled.a`
 	}
 `;
 
-const SurfaceCard = styled.div`
-	background: #ffffff;
-	border: 1px solid #e5e7eb;
-	border-radius: 12px;
-	padding: 14px 18px;
-`;
-
 const PhotoSection = styled.div`
 	display: grid;
 	grid-template-columns: 280px 1fr;
@@ -746,43 +776,6 @@ const SectionDescription = styled.p`
 	font-size: 0.9rem;
 	line-height: 1.5;
 	color: #475569;
-`;
-
-const IntelligenceStrip = styled.div`
-	display: grid;
-	grid-template-columns: repeat(3, minmax(0, 1fr));
-	gap: 10px;
-	margin-top: 2px;
-
-	@media (max-width: 1024px) {
-		grid-template-columns: 1fr;
-	}
-`;
-
-const IntelligencePill = styled.div<{ $tone?: 'warning' | 'neutral' | 'success' }>`
-	padding: 10px 12px;
-	border-radius: 10px;
-	border: 1px solid
-		${(props) =>
-			props.$tone === 'warning'
-				? '#fcd34d'
-				: props.$tone === 'success'
-					? '#86efac'
-					: '#cbd5e1'};
-	background: ${(props) =>
-		props.$tone === 'warning'
-			? '#fffbeb'
-			: props.$tone === 'success'
-				? '#f0fdf4'
-				: '#f8fafc'};
-	font-size: 0.84rem;
-	font-weight: 600;
-	color: ${(props) =>
-		props.$tone === 'warning'
-			? '#92400e'
-			: props.$tone === 'success'
-				? '#166534'
-				: '#334155'};
 `;
 
 const UpcomingCareCard = styled.div`
@@ -995,6 +988,7 @@ type TimelineEventCategory =
 	| 'invoice'
 	| 'inspection'
 	| 'recurring'
+	| 'scheduled'
 	| 'completed'
 	| 'warranty'
 	| 'document'
@@ -1007,6 +1001,7 @@ const getTimelineEventCategory = (entry: { title?: string; description?: string;
 	if (text.includes('invoice')) return 'invoice';
 	if (text.includes('inspection')) return 'inspection';
 	if (text.includes('recurring')) return 'recurring';
+	if (text.includes('scheduled task') || text.includes('due on') || text.includes('scheduled maintenance')) return 'scheduled';
 	if (text.includes('warranty')) return 'warranty';
 	if (text.includes('document') || text.includes('upload') || text.includes('file')) return 'document';
 	if (text.includes('note')) return 'note';
@@ -1024,6 +1019,8 @@ const getTimelineEventIcon = (category: TimelineEventCategory) => {
 			return { icon: faClipboardCheck, color: '#0f766e', background: '#ccfbf1' };
 		case 'recurring':
 			return { icon: faRepeat, color: '#7c3aed', background: '#ede9fe' };
+		case 'scheduled':
+			return { icon: faClock, color: '#1d4ed8', background: '#dbeafe' };
 		case 'completed':
 			return { icon: faCircleCheck, color: '#166534', background: '#dcfce7' };
 		case 'warranty':
@@ -1043,6 +1040,7 @@ const getTimelineEventLabel = (entry: { type?: string; title?: string; descripti
 
 	if (eventType === 'task_completed') return 'Task Completed';
 	if (eventType === 'task_approved') return 'Task Approved';
+	if (eventType === 'scheduled_task') return 'Scheduled Task';
 	if (eventType === 'repair_logged' || text.includes('repair')) return 'Repair Logged';
 	if (eventType === 'inspection_completed' || text.includes('inspection')) return 'Inspection';
 	if (eventType === 'invoice_uploaded' || text.includes('invoice')) return 'Invoice';
@@ -1056,6 +1054,7 @@ const getTimelineEventLabel = (entry: { type?: string; title?: string; descripti
 export const DeviceDetailPage: React.FC = () => {
 	const { slug, deviceSlug } = useParams<{ slug: string; deviceSlug: string }>();
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
+	const isMobile = useSelector((state: RootState) => state.app.isMobile);
 	const roleCapabilities = useMemo(
 		() => getRoleCapabilities(currentUser?.role),
 		[currentUser?.role],
@@ -1100,6 +1099,8 @@ export const DeviceDetailPage: React.FC = () => {
 	const [areQuickActionsOpen, setAreQuickActionsOpen] = useState(false);
 	const [showTaskModal, setShowTaskModal] = useState(false);
 	const [showRecurringTaskModal, setShowRecurringTaskModal] = useState(false);
+	const [selectedTask, setSelectedTask] = useState<any | null>(null);
+	const [isEditingTask, setIsEditingTask] = useState(false);
 	const [showQuickLogModal, setShowQuickLogModal] = useState(false);
 	const [quickLogMode, setQuickLogMode] = useState<
 		'note' | 'repair' | 'invoice' | 'inspection' | 'warranty' | 'contractor'
@@ -1147,6 +1148,7 @@ export const DeviceDetailPage: React.FC = () => {
 	});
 
 	const [updateDevice] = useUpdateDeviceMutation();
+	const [deleteTask] = useDeleteTaskMutation();
 	const [addMaintenanceHistory] = useAddMaintenanceHistoryMutation();
 	const [createContractor, { isLoading: isCreatingContractor }] =
 		useCreateContractorMutation();
@@ -1357,6 +1359,37 @@ export const DeviceDetailPage: React.FC = () => {
 		});
 	}, [device?.maintenanceHistory, relatedMaintenanceHistory]);
 
+	const scheduledTaskTimelineEntries = useMemo(() => {
+		return linkedTasks
+			.filter((task: any) => {
+				const dueDate = task?.dueDate ? new Date(task.dueDate) : null;
+				return Boolean(dueDate && !Number.isNaN(dueDate.getTime()));
+			})
+			.map((task: any) => ({
+				id: `scheduled-task-${task.id}`,
+				sourceType: 'scheduled-task',
+				date: task.dueDate,
+				title: task.title || 'Scheduled maintenance task',
+				description: `Due on ${formatDate(task.dueDate)}${task.priority ? ` • ${task.priority} priority` : ''}${task.assignee ? ` • Assigned to ${task.assignee}` : task.assignedTo?.name ? ` • Assigned to ${task.assignedTo.name}` : ''}`,
+				type: 'scheduled_task',
+				raw: task,
+			}))
+			.sort((a, b) => {
+				const aDate = new Date(a.date || 0).getTime() || 0;
+				const bDate = new Date(b.date || 0).getTime() || 0;
+				return bDate - aDate;
+			});
+	}, [linkedTasks]);
+
+	const combinedTimelineEntries = useMemo(
+		() => [...scheduledTaskTimelineEntries, ...deviceTimelineEntries].sort((a, b) => {
+			const aDate = new Date(a.date || 0).getTime() || 0;
+			const bDate = new Date(b.date || 0).getTime() || 0;
+			return bDate - aDate;
+		}),
+		[scheduledTaskTimelineEntries, deviceTimelineEntries],
+	);
+
 	const applianceMaintenanceFeedRecords = useMemo(() => {
 		const records: any[] = [];
 		const seenKeys = new Set<string>();
@@ -1468,20 +1501,6 @@ export const DeviceDetailPage: React.FC = () => {
 		() => linkedTasks.filter((task: any) => Boolean(task.isRecurring)).length,
 		[linkedTasks],
 	);
-
-	const upcomingDueSoonCount = useMemo(() => {
-		const today = new Date();
-		today.setHours(0, 0, 0, 0);
-		const maxDate = new Date(today);
-		maxDate.setDate(maxDate.getDate() + 30);
-
-		return linkedTasks.filter((task: any) => {
-			const dueDate = task?.dueDate ? new Date(task.dueDate) : null;
-			if (!dueDate || Number.isNaN(dueDate.getTime())) return false;
-			dueDate.setHours(0, 0, 0, 0);
-			return dueDate >= today && dueDate <= maxDate;
-		}).length;
-	}, [linkedTasks]);
 
 	// Compute earliest upcoming task for the compact care summary
 	const nextScheduledMaintenance = useMemo(() => {
@@ -1613,8 +1632,24 @@ export const DeviceDetailPage: React.FC = () => {
 	const openCreateTaskModal = () => {
 		if (!canCreateTaskActions) return;
 		if (!deviceTaskTemplate) return;
+		setSelectedTask(null);
+		setIsEditingTask(false);
 		setShowRecurringTaskModal(false);
 		setShowTaskModal(true);
+	};
+
+	const openEditTaskModal = (task: any) => {
+		if (!roleCapabilities.canManageTasks || !task) return;
+		setSelectedTask(task);
+		setIsEditingTask(true);
+		setShowRecurringTaskModal(false);
+		setShowTaskModal(true);
+	};
+
+	const handleDeleteLinkedTask = async (task: any) => {
+		if (!roleCapabilities.canManageTasks || !task?.id) return;
+		if (!window.confirm(`Delete the task "${task.title || 'Task'}"?`)) return;
+		await deleteTask(task.id).unwrap();
 	};
 
 	const openRecurringTaskModal = () => {
@@ -2035,7 +2070,7 @@ export const DeviceDetailPage: React.FC = () => {
 		{
 			id: 'history' as any,
 			label: 'History',
-			count: deviceTimelineEntries.length + relatedMaintenanceHistory.length,
+			count: combinedTimelineEntries.length,
 		},
 		{ id: 'documents' as any, label: 'Documents', count: documentCount },
 		{ id: 'parts' as any, label: 'Parts', count: serviceParts.length },
@@ -2436,7 +2471,6 @@ export const DeviceDetailPage: React.FC = () => {
 
 			{activeTab === 'info' && (
 				<TabContent>
-					<SurfaceCard>
 						<SectionContainer>
 						<SectionBlock>
 							<SectionEyebrow>Appliance Information</SectionEyebrow>
@@ -2548,13 +2582,11 @@ export const DeviceDetailPage: React.FC = () => {
 						)}
 
 						</SectionContainer>
-					</SurfaceCard>
 				</TabContent>
 			)}
 
 			{activeTab === 'documents' && (
 				<TabContent>
-					<SurfaceCard>
 						<SectionContainer>
 							<SectionHeader>Appliance Documents ({documentCount})</SectionHeader>
 							<InfoCard style={{ marginBottom: 12 }}>
@@ -2601,30 +2633,11 @@ export const DeviceDetailPage: React.FC = () => {
 								</EmptyState>
 							)}
 						</SectionContainer>
-					</SurfaceCard>
 				</TabContent>
 			)}
 
 			{activeTab === 'tasks' && (
 				<TabContent>
-					<IntelligenceStrip>
-						<IntelligencePill $tone={overdueTasksCount > 0 ? 'warning' : 'success'}>
-							{overdueTasksCount > 0
-								? `${overdueTasksCount} overdue maintenance item${overdueTasksCount === 1 ? '' : 's'} need attention`
-								: 'No overdue maintenance linked to this appliance'}
-						</IntelligencePill>
-						<IntelligencePill $tone='neutral'>
-							{recurringTaskCount > 0
-								? `${recurringTaskCount} recurring care task${recurringTaskCount === 1 ? '' : 's'} active`
-								: 'No recurring care configured yet'}
-						</IntelligencePill>
-						<IntelligencePill $tone={upcomingDueSoonCount > 0 ? 'warning' : 'success'}>
-							{upcomingDueSoonCount > 0
-								? `${upcomingDueSoonCount} upcoming service ${upcomingDueSoonCount === 1 ? '' : 's'} in the next 30 days`
-								: 'No upcoming service in the next 30 days'}
-						</IntelligencePill>
-					</IntelligenceStrip>
-
 					<UpcomingCareCard>
 						<UpcomingCareHeader>
 							<UpcomingCareTitle>Upcoming Care</UpcomingCareTitle>
@@ -2649,7 +2662,6 @@ export const DeviceDetailPage: React.FC = () => {
 						</UpcomingCareRows>
 					</UpcomingCareCard>
 
-					<SurfaceCard>
 						<SectionContainer>
 							<SectionBlock>
 								<SectionEyebrow>Linked Tasks</SectionEyebrow>
@@ -2659,7 +2671,50 @@ export const DeviceDetailPage: React.FC = () => {
 								</SectionDescription>
 							</SectionBlock>
 							<SectionHeader>Open Tasks ({linkedTasks.length})</SectionHeader>
-							<HeaderlessFeedSurface>
+							{isMobile ? (
+								<MobileCardStack>
+									{linkedTasks.length > 0 ? (
+										linkedTasks.map((task: any) => (
+											<MobileDetailCard key={task.id}>
+												<MobileDetailHeader>
+													<div>
+														<MobileDetailTitle>{task.title}</MobileDetailTitle>
+													</div>
+													<span style={{ fontSize: 12, fontWeight: 700, color: task.status === 'Overdue' ? '#b91c1c' : '#166534', background: task.status === 'Overdue' ? '#fee2e2' : '#dcfce7', borderRadius: 999, padding: '4px 10px', whiteSpace: 'nowrap' }}>
+														{task.status || 'Pending'}
+													</span>
+												</MobileDetailHeader>
+												<MobileDetailMeta>
+													<div>Maintenance Lead: {task.assignee || 'Unassigned'}</div>
+													<div>Due: {task.dueDate || 'No due date set'}</div>
+													<div>Priority: {task.priority || 'Low'}</div>
+												</MobileDetailMeta>
+												{roleCapabilities.canManageTasks && (
+													<ButtonGroup>
+														<ActionButton onClick={() => openEditTaskModal(task)}>
+															<FontAwesomeIcon icon={faEdit} />
+															Edit
+														</ActionButton>
+														<ActionButton className='delete' onClick={() => handleDeleteLinkedTask(task)}>
+															<FontAwesomeIcon icon={faTrash} />
+															Delete
+														</ActionButton>
+													</ButtonGroup>
+												)}
+											</MobileDetailCard>
+										))
+									) : (
+										<EmptyState>
+											<p>No open tasks linked to this appliance. New maintenance tasks will appear here.</p>
+											{canCreateTaskActions && (
+												<SubmitButton type='button' onClick={openCreateTaskModal}>
+													Add Task
+												</SubmitButton>
+											)}
+										</EmptyState>
+									)}
+								</MobileCardStack>
+							) : (
 								<ReusableTable
 									rowData={linkedTasks}
 									showCheckbox={false}
@@ -2730,17 +2785,28 @@ export const DeviceDetailPage: React.FC = () => {
 									emptyMessage='No open tasks linked to this appliance. New maintenance tasks will appear here.'
 									emptyActionLabel={canCreateTaskActions ? 'Add Task' : undefined}
 									onEmptyAction={canCreateTaskActions ? openCreateTaskModal : undefined}
+									actions={roleCapabilities.canManageTasks ? [
+										{
+											label: 'Edit',
+											icon: faEdit,
+											onClick: (task: any) => openEditTaskModal(task),
+										},
+										{
+											label: 'Delete',
+											icon: faTrash,
+											onClick: (task: any) => handleDeleteLinkedTask(task),
+											className: 'delete',
+										},
+									] : []}
 								/>
-							</HeaderlessFeedSurface>
+							)}
 						</SectionContainer>
-					</SurfaceCard>
 				</TabContent>
 			)}
 
 			{activeTab === 'history' && (
 				<TabContent>
 					<CombinedHistoryContainer>
-						<SurfaceCard>
 							<SectionContainer>
 								<SectionBlock>
 									<SectionEyebrow>Timeline</SectionEyebrow>
@@ -2749,9 +2815,9 @@ export const DeviceDetailPage: React.FC = () => {
 										A simple chronological record of what has happened to this system.
 									</SectionDescription>
 								</SectionBlock>
-								{deviceTimelineEntries.length > 0 ? (
+								{combinedTimelineEntries.length > 0 ? (
 									<TimelineList>
-										{deviceTimelineEntries.map((entry: any, index: number) => (
+										{combinedTimelineEntries.map((entry: any, index: number) => (
 											<TimelineItem key={getTimelineEntryKey(entry, index)}>
 												<div>
 													<TimelineDate>{formatRelativeTime(entry.date)}</TimelineDate>
@@ -2776,6 +2842,18 @@ export const DeviceDetailPage: React.FC = () => {
 														</TimelineTitleRow>
 													<TimelineDescription>{entry.description}</TimelineDescription>
 													<TimelineMeta>{entry.type}</TimelineMeta>
+													{entry.sourceType === 'scheduled-task' && roleCapabilities.canManageTasks ? (
+														<ButtonGroup>
+															<ActionButton onClick={() => openEditTaskModal(entry.raw)}>
+																<FontAwesomeIcon icon={faEdit} />
+																Edit Task
+															</ActionButton>
+															<ActionButton className='delete' onClick={() => handleDeleteLinkedTask(entry.raw)}>
+																<FontAwesomeIcon icon={faTrash} />
+																Delete Task
+															</ActionButton>
+														</ButtonGroup>
+													) : null}
 													<TimelineExpandButton
 														type='button'
 														onClick={() => toggleTimelineDetails(getTimelineEntryKey(entry, index))}>
@@ -2860,9 +2938,7 @@ export const DeviceDetailPage: React.FC = () => {
 									</EmptyState>
 								)}
 							</SectionContainer>
-						</SurfaceCard>
 
-						<SurfaceCard>
 							<SectionContainer>
 							<SectionBlock>
 								<SectionEyebrow>Service History</SectionEyebrow>
@@ -2873,8 +2949,32 @@ export const DeviceDetailPage: React.FC = () => {
 							</SectionBlock>
 							<SectionHeader>Maintenance History ({applianceMaintenanceFeedRecords.length})</SectionHeader>
 							{applianceMaintenanceFeedRecords.length > 0 ? (
-								<GridContainer>
-									<GridTable>
+								isMobile ? (
+									<MobileCardStack>
+										{applianceMaintenanceFeedRecords.map((record: any, index: number) => {
+											const attachments = getTimelineAttachments({ raw: record });
+											return (
+												<MobileDetailCard key={`${record.id || record.originalTaskId || 'history'}-${index}`}>
+													<MobileDetailHeader>
+														<MobileDetailTitle>{record.title || record.taskTitle || record.description || 'Task'}</MobileDetailTitle>
+														<span style={{ fontSize: 12, fontWeight: 700, color: '#166534', background: '#dcfce7', borderRadius: 999, padding: '4px 10px', whiteSpace: 'nowrap' }}>
+															{record.status || 'Completed'}
+														</span>
+													</MobileDetailHeader>
+													<MobileDetailMeta>
+														<div>Date: {formatDate(getMaintenanceEventDate(record) || record.date)}</div>
+														<div>Cost: {formatCurrency(getFinancialDisplayTotal(record.financials), record.financials?.currency || 'USD')}</div>
+														<div>
+															Documents: {attachments.length > 0 ? attachments.map((file) => file.name).join(', ') : 'None'}
+														</div>
+													</MobileDetailMeta>
+												</MobileDetailCard>
+											);
+										})}
+									</MobileCardStack>
+								) : (
+									<GridContainer>
+										<GridTable>
 										<thead>
 											<tr>
 												<th>Date</th>
@@ -2933,8 +3033,9 @@ export const DeviceDetailPage: React.FC = () => {
 												);
 											})}
 										</tbody>
-									</GridTable>
-								</GridContainer>
+										</GridTable>
+									</GridContainer>
+								)
 							) : (
 								<EmptyState>
 									<p>
@@ -2948,14 +3049,12 @@ export const DeviceDetailPage: React.FC = () => {
 								</EmptyState>
 							)}
 							</SectionContainer>
-						</SurfaceCard>
 					</CombinedHistoryContainer>
 				</TabContent>
 			)}
 
 			{activeTab === 'parts' && (
 				<TabContent>
-					<SurfaceCard>
 						<SectionContainer>
 						{!canAccessParts && (
 							<LockedFeatureCallout
@@ -3078,6 +3177,37 @@ export const DeviceDetailPage: React.FC = () => {
 
 						{/* Parts Table */}
 						{serviceParts.length > 0 ? (
+							isMobile ? (
+								<MobileCardStack>
+									{serviceParts.map((part: DeviceServiceItem, index: number) => (
+										<MobileDetailCard key={`${part.id}-${index}`}>
+											<MobileDetailHeader>
+												<MobileDetailTitle>{part.name}</MobileDetailTitle>
+												<span style={{ display: 'inline-flex', padding: '4px 8px', backgroundColor: '#f0fdf4', color: '#166534', borderRadius: '999px', fontSize: '12px', fontWeight: 700 }}>
+													{part.category}
+												</span>
+											</MobileDetailHeader>
+											<MobileDetailMeta>
+												<div>Part #: {part.partNumber || '-'}</div>
+												<div>Size / Spec: {part.size || part.mervRating || part.voltage || '-'}</div>
+												<div>Notes: {part.notes || '-'}</div>
+											</MobileDetailMeta>
+											{canAccessParts && (
+												<ButtonGroup>
+													<ActionButton onClick={() => handleEditPart(index)}>
+														<FontAwesomeIcon icon={faEdit} />
+														Edit
+													</ActionButton>
+													<ActionButton className='delete' onClick={() => handleDeletePart(index)}>
+														<FontAwesomeIcon icon={faTrash} />
+														Delete
+													</ActionButton>
+												</ButtonGroup>
+											)}
+										</MobileDetailCard>
+									))}
+								</MobileCardStack>
+							) : (
 							<PartsTable>
 								<thead>
 									<tr>
@@ -3127,24 +3257,33 @@ export const DeviceDetailPage: React.FC = () => {
 									))}
 								</tbody>
 							</PartsTable>
+							)
 						) : (
 							<EmptyState>
 								<p>No parts added yet. Add a part to get started.</p>
 							</EmptyState>
 						)}
 						</SectionContainer>
-					</SurfaceCard>
 				</TabContent>
 			)}
 
 			<TaskModal
 				isOpen={showTaskModal}
-				isEditing={false}
-				editingTaskId={null}
-				initialTask={deviceTaskTemplate || undefined}
+				isEditing={isEditingTask}
+				editingTaskId={isEditingTask ? selectedTask?.id || null : null}
+				editingTask={isEditingTask ? selectedTask : null}
+				initialTask={isEditingTask ? undefined : deviceTaskTemplate || undefined}
 				propertyId={property?.id || null}
-				onClose={() => setShowTaskModal(false)}
-				onSaved={() => setShowTaskModal(false)}
+				onClose={() => {
+					setShowTaskModal(false);
+					setSelectedTask(null);
+					setIsEditingTask(false);
+				}}
+				onSaved={() => {
+					setShowTaskModal(false);
+					setSelectedTask(null);
+					setIsEditingTask(false);
+				}}
 				currentUser={currentUser || null}
 				unitId={device?.location?.unitId || null}
 				unitOptions={taskUnitOptions}

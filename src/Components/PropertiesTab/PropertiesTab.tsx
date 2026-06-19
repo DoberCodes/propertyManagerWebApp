@@ -7,9 +7,12 @@ import {
 	isPropertyImageFallback,
 } from '../../utils/propertyImagePlaceholder';
 import {
-	PageHeaderSection,
-	PageTitle as StandardPageTitle,
-} from '../Library/PageHeaders';
+	AppPage as StandardAppPage,
+	AppPageHeader as StandardAppPageHeader,
+	AppPageSubtitle as StandardAppPageSubtitle,
+	AppPageTitle as StandardAppPageTitle,
+	AppPageTitleBlock as StandardAppPageTitleBlock,
+} from '../Library/AppPageLayout/AppPageLayout.styles';
 import { DeleteConfirmationModal } from '../Library/Modal/DeleteConfirmationModal';
 import { AppZeroState } from '../Library/AppZeroState';
 import { useRecentlyViewed } from '../../Hooks/useRecentlyViewed';
@@ -1489,12 +1492,12 @@ export const Properties = () => {
 	}
 
 	return (
-		<Wrapper>
-			<PageHeaderSection>
-				<div>
-					<StandardPageTitle>Properties</StandardPageTitle>
-					<PageSubtitle>Organize and manage all of your properties in one place.</PageSubtitle>
-				</div>
+		<StandardAppPage as={Wrapper}>
+			<StandardAppPageHeader>
+				<StandardAppPageTitleBlock>
+					<StandardAppPageTitle>Properties</StandardAppPageTitle>
+					<StandardAppPageSubtitle>Organize and manage all of your properties in one place.</StandardAppPageSubtitle>
+				</StandardAppPageTitleBlock>
 				<TopActions>
 					<SearchBar
 						type='text'
@@ -1567,7 +1570,7 @@ export const Properties = () => {
 						</>
 					)}
 				</TopActions>
-			</PageHeaderSection>
+			</StandardAppPageHeader>
 			{showPropertyGroupUpsell && (
 				<LockedFeatureCallout
 					title='Property Groups are locked on your current plan'
@@ -1875,7 +1878,7 @@ export const Properties = () => {
 				}}
 				isLoading={isDeletingProperty}
 			/>
-		</Wrapper>
+		</StandardAppPage>
 	);
 };
 

@@ -118,7 +118,7 @@ export const TabsContainer = styled.div`
 
 export const TabContent = styled.div`
 	flex: 1;
-	overflow-y: auto;
+	overflow: visible;
 	padding: 20px;
 	background-color: #ffffff;
 	width: 100%;

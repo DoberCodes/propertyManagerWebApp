@@ -10,8 +10,8 @@ export const GlanceGrid = styled.div`
 		grid-template-columns: repeat(2, minmax(0, 1fr));
 	}
 
-	@media (max-width: 480px) {
-		grid-template-columns: repeat(2, minmax(0, 1fr));
+	@media (max-width: 640px) {
+		display: none;
 	}
 
 	@media (max-width: 360px) {

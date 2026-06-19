@@ -98,6 +98,13 @@ import { useGetTasksQuery, useUpdateTaskMutation } from 'Redux/API/taskSlice';
 import { useGetAllDevicesQuery } from 'Redux/API/deviceSlice';
 import { useLazyGetMaintenanceHistoryByPropertyQuery } from 'Redux/API/maintenanceSlice';
 import { useGetTeamMembersQuery } from 'Redux/API/teamSlice';
+import {
+	AppPage as StandardAppPage,
+	AppPageHeader as StandardAppPageHeader,
+	AppPageSubtitle as StandardAppPageSubtitle,
+	AppPageTitle as StandardAppPageTitle,
+	AppPageTitleBlock as StandardAppPageTitleBlock,
+} from '../../Components/Library/AppPageLayout/AppPageLayout.styles';
 
 const getLinkedDeviceIds = (task: Partial<Task> & { deviceId?: string | number }): Set<string> => {
 	const ids = new Set<string>();
@@ -1014,7 +1021,7 @@ export const DashboardTab = () => {
 	}
 
 	return (
-		<Wrapper>
+		<StandardAppPage>
 			{/* Scheduled Subscription Banner */}
 			{!isTeamMemberAccount &&
 				currentUser?.subscription?.hasScheduledSubscription &&
@@ -1043,6 +1050,15 @@ export const DashboardTab = () => {
 				isTrialExpired(currentUser.subscription) && (
 					<ExpiredTrialBanner onUpgradeClick={() => navigate('/paywall')} />
 				)}
+
+			<StandardAppPageHeader>
+				<StandardAppPageTitleBlock>
+					<StandardAppPageTitle>Dashboard</StandardAppPageTitle>
+					<StandardAppPageSubtitle>
+						See today&apos;s priorities, portfolio health, and recent maintenance activity.
+					</StandardAppPageSubtitle>
+				</StandardAppPageTitleBlock>
+			</StandardAppPageHeader>
 
 			{/* Action-first top section */}
 			<ActionFirstTopSection>
@@ -1412,6 +1428,6 @@ export const DashboardTab = () => {
 				}
 				assigneeOptions={assigneeOptions}
 			/>
-		</Wrapper>
+		</StandardAppPage>
 	);
 };

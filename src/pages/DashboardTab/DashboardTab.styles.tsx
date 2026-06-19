@@ -8,12 +8,12 @@ export const Wrapper = styled.div`
 	padding: 40px;
 
 	@media (max-width: 1024px) {
-		padding: 15px;
+		padding: 0;
 		gap: 15px;
 	}
 
 	@media (max-width: 480px) {
-		padding: 10px;
+		padding: 0;
 		gap: 10px;
 	}
 `;
