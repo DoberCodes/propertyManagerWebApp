@@ -1,5 +1,8 @@
-🎉 **Release Notes for Version 2.5.1** 🎉
+🎉 **Release Notes for Version 2.5.2** 🎉
 
+
+## 🐛 Bug Fixes
+- fixing layout issues and mobile view issues.
 
 ## 🔧 Improvements & Maintenance
 - Adding the bottom nav bar and fixing a few styling issues. Also added the device create dialog to the device page.
