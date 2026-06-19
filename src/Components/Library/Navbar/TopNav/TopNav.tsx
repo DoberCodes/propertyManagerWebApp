@@ -108,11 +108,14 @@ export const TopNav = () => {
 
 	useEffect(() => {
 		const applyMobileBottomPadding = () => {
+			const root = document.documentElement;
 			if (window.innerWidth <= 1024) {
-				document.body.style.paddingBottom =
-					'calc(88px + env(safe-area-inset-bottom))';
+				root.style.setProperty(
+					'--mobile-bottom-nav-offset',
+					'calc(112px + env(safe-area-inset-bottom))',
+				);
 			} else {
-				document.body.style.paddingBottom = '';
+				root.style.setProperty('--mobile-bottom-nav-offset', '0px');
 			}
 		};
 
@@ -121,7 +124,10 @@ export const TopNav = () => {
 
 		return () => {
 			window.removeEventListener('resize', applyMobileBottomPadding);
-			document.body.style.paddingBottom = '';
+			document.documentElement.style.setProperty(
+				'--mobile-bottom-nav-offset',
+				'0px',
+			);
 		};
 	}, []);
 	const filteredPropertyGroups = React.useMemo(

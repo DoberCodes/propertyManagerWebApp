@@ -32,7 +32,13 @@ export const Wrapper = styled.div`
 		right: 0;
 		height: env(safe-area-inset-top);
 		background: linear-gradient(90deg, #065f46 0%, #047857 100%);
-		z-index: -1;
+		z-index: 0;
+		pointer-events: none;
+	}
+
+	> * {
+		position: relative;
+		z-index: 1;
 	}
 
 	.mobile-title {

@@ -17,6 +17,7 @@ const Wrapper = styled.div`
 	height: 100%;
 	overflow-y: auto;
 	background-color: #fafafa;
+	padding-bottom: var(--mobile-bottom-nav-offset, 0px);
 `;
 
 const ContentContainer = styled.div<{ $contentMaxWidth: string }>`

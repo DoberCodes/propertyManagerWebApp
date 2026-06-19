@@ -65,15 +65,18 @@ export const Content = styled.div`
 	padding: 20px;
 	background-color: #fafafa; /* match TeamPage off-white */
 
-	padding-bottom: max(16px, calc(8px + env(safe-area-inset-bottom)));
+	padding-bottom: max(
+		16px,
+		calc(var(--mobile-bottom-nav-offset, 0px) + 8px)
+	);
 
 	@media (max-width: 1024px) {
 		padding: 15px;
-		padding-bottom: max(18px, calc(12px + env(safe-area-inset-bottom)));
+		padding-bottom: calc(var(--mobile-bottom-nav-offset, 0px) + 14px);
 	}
 
 	@media (max-width: 480px) {
 		padding: 10px;
-		padding-bottom: max(18px, calc(12px + env(safe-area-inset-bottom)));
+		padding-bottom: calc(var(--mobile-bottom-nav-offset, 0px) + 12px);
 	}
 `;
