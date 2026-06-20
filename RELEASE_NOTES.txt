@@ -1,5 +1,5 @@
-🎉 **Release Notes for Version 2.5.3** 🎉
+🎉 **Release Notes for Version 2.5.4** 🎉
 
 
 ## 🐛 Bug Fixes
-- fixing global styling to standardize pages
+- fixing layout issue and more standardizing
