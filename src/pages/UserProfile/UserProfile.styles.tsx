@@ -4,8 +4,31 @@ import { COLORS } from '../../constants/colors';
 export const Wrapper = styled.div`
 	display: flex;
 	flex-direction: column;
-	min-height: 100vh;
+	flex: 0 0 auto;
+	min-height: 100%;
+	width: 100%;
+	overflow: visible;
 	background-color: ${COLORS.bgLight};
+
+	&::after {
+		content: '';
+		display: block;
+		width: 100%;
+		height: max(16px, calc(var(--mobile-bottom-nav-offset, 0px) + 16px));
+		flex: 0 0 auto;
+	}
+
+	@media (max-width: 1024px) {
+		&::after {
+			height: calc(var(--mobile-bottom-nav-offset, 0px) + 18px);
+		}
+	}
+
+	@media (max-width: 480px) {
+		&::after {
+			height: calc(var(--mobile-bottom-nav-offset, 0px) + 16px);
+		}
+	}
 `;
 
 export const Container = styled.div`
@@ -32,15 +55,30 @@ export const Container = styled.div`
 	}
 `;
 
+export const UserProfileHeader = styled.div`
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	gap: 16px;
+
+	@media (max-width: 480px) {
+		gap: 12px;
+	}
+`;
+
 export const FormContentWrapper = styled.div`
 	width: 100%;
 	max-width: 800px;
 `;
 
 export const PageHeader = styled.div`
-	margin-bottom: 2rem;
-	border-bottom: 2px solid ${COLORS.gray100};
-	padding-bottom: 1rem;
+	position: relative;
+	width: 100%;
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	align-content: flex-end;
+
 `;
 
 export const PageTitle = styled.h1`
@@ -78,6 +116,15 @@ export const ImagePreview = styled.img`
 	box-shadow: 0 0 0 4px ${COLORS.primaryLight};
 `;
 
+export const ImageView = styled.img`
+	width: 75%;
+	height: auto;
+	border-radius: 100%;
+	object-fit: cover;
+	border: 2px solid ${COLORS.gray300};
+	box-shadow: 0 0 0 2px ${COLORS.gray100};
+`;
+
 export const ImageUploadInput = styled.input`
 	display: none;
 `;
@@ -107,6 +154,203 @@ export const ImageUploadButton = styled.button`
 		background: ${COLORS.gray300};
 		cursor: not-allowed;
 	}
+`;
+
+export const StatusPill = styled.div`
+	padding: 0.25rem 0.75rem;
+	background-color: ${COLORS.gray300};
+	color: ${COLORS.textPrimary};
+	border-radius: 9999px;
+	font-size: 0.75rem;
+	font-weight: 600;
+	text-transform: uppercase;
+`;
+
+export const AccountSummaryCard = styled.div`
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 1.25rem 2rem;
+	padding: 1.25rem;
+	background: ${COLORS.bgWhite};
+	border: 1px solid ${COLORS.gray200};
+	border-radius: 12px;
+	box-shadow: ${COLORS.shadow};
+	margin-bottom: 1.5rem;
+
+	@media (max-width: 480px) {
+		gap: 1rem;
+		padding: 1rem;
+	}
+`;
+
+export const AccountSummaryMetric = styled.div`
+	display: grid;
+	grid-template-columns: 34px minmax(0, 1fr);
+	align-items: center;
+	gap: 0.75rem;
+	min-width: 0;
+`;
+
+export const AccountSummaryIcon = styled.div`
+	width: 34px;
+	height: 34px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: 10px;
+	background: ${COLORS.primaryLight};
+	color: ${COLORS.primaryDark};
+	font-size: 16px;
+`;
+
+export const AccountSummaryValue = styled.div`
+	color: ${COLORS.gray900};
+	font-size: 1rem;
+	font-weight: 800;
+	line-height: 1.1;
+`;
+
+export const AccountSummaryLabel = styled.div`
+	margin-top: 0.25rem;
+	color: ${COLORS.gray500};
+	font-size: 0.75rem;
+	font-weight: 500;
+	line-height: 1.25;
+`;
+
+export const ProfileSectionHeader = styled.div`
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 1rem;
+	margin: 1.5rem 0 0.75rem;
+`;
+
+export const ProfileSectionTitle = styled.h2`
+	margin: 0;
+	color: ${COLORS.gray900};
+	font-size: 1rem;
+	font-weight: 700;
+`;
+
+export const ProfileSectionLink = styled.a`
+	color: ${COLORS.primaryDark};
+	font-size: 0.875rem;
+	font-weight: 600;
+	text-decoration: none;
+
+	&:hover {
+		text-decoration: underline;
+	}
+`;
+
+export const ProfileListCard = styled.div`
+	overflow: hidden;
+	background: ${COLORS.bgWhite};
+	border: 1px solid ${COLORS.gray200};
+	border-radius: 12px;
+	box-shadow: ${COLORS.shadow};
+`;
+
+export const ActivityRow = styled.div`
+	display: grid;
+	grid-template-columns: 36px minmax(0, 1fr) auto;
+	align-items: center;
+	gap: 0.75rem;
+	padding: 0.9rem 1rem;
+
+	& + & {
+		border-top: 1px solid ${COLORS.gray100};
+	}
+`;
+
+export const ActivityIcon = styled.div`
+	width: 36px;
+	height: 36px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: 10px;
+	background: ${COLORS.primaryLight};
+	color: ${COLORS.primaryDark};
+`;
+
+export const ActivityTitle = styled.div`
+	color: ${COLORS.gray900};
+	font-size: 0.875rem;
+	font-weight: 700;
+	line-height: 1.3;
+`;
+
+export const ActivityDetail = styled.div`
+	margin-top: 0.15rem;
+	overflow: hidden;
+	color: ${COLORS.gray500};
+	font-size: 0.75rem;
+	line-height: 1.3;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+`;
+
+export const ActivityTime = styled.div`
+	color: ${COLORS.gray400};
+	font-size: 0.75rem;
+	white-space: nowrap;
+`;
+
+export const TeamGrid = styled.div`
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+
+	@media (max-width: 560px) {
+		grid-template-columns: 1fr;
+	}
+`;
+
+export const TeamMemberRow = styled.div`
+	display: grid;
+	grid-template-columns: 42px minmax(0, 1fr);
+	align-items: center;
+	gap: 0.75rem;
+	padding: 1rem;
+	border-bottom: 1px solid ${COLORS.gray100};
+
+	&:nth-child(odd) {
+		border-right: 1px solid ${COLORS.gray100};
+	}
+
+	@media (max-width: 560px) {
+		&:nth-child(odd) {
+			border-right: 0;
+		}
+	}
+`;
+
+export const TeamMemberAvatar = styled.div`
+	width: 42px;
+	height: 42px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	overflow: hidden;
+	border-radius: 50%;
+	background: ${COLORS.primaryLight};
+	color: ${COLORS.primaryDark};
+	font-size: 0.875rem;
+	font-weight: 800;
+
+	img {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+	}
+`;
+
+export const EmptyProfileSection = styled.div`
+	padding: 1.25rem;
+	color: ${COLORS.gray500};
+	font-size: 0.875rem;
+	text-align: center;
 `;
 
 export const ButtonGroup = styled.div`

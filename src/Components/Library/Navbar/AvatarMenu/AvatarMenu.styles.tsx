@@ -1,31 +1,51 @@
 import styled from 'styled-components';
 import { Link } from 'react-router-dom';
+import { COLORS } from '../../../../constants/colors';
 
-export const UserProfileWrapper = styled.div<{ $isOpen: boolean }>`
+export const AvatarMenuWrapper = styled.div`
 	position: relative;
 	display: flex;
 	align-items: center;
+	justify-content: center;
+	cursor: pointer;
+	margin-right: 12px;
+	margin-bottom: 4px;
 	gap: 8px;
 
-	@media (max-width: 480px) {
-		gap: 4px;
-	}
 `;
 
 export const UserImage = styled.img`
-	width: 40px;
-	height: 40px;
+	width: 50px;
+	height: 50px;
 	border-radius: 50%;
 	object-fit: cover;
-	border: 2px solid black;
+	border: 2px solid ${COLORS.primary};
 
-	@media (max-width: 480px) {
-		width: 36px;
-		height: 36px;
-		border: 2px solid black;
+	&:hover {
+		border-color: ${COLORS.secondaryHover};
+		opacity: 0.7;
 	}
+
 `;
 
+export const NotificationBadge = styled.div`
+	position: absolute;
+	top: -5px;
+	right: -5px;
+	min-width: 18px;
+	height: 18px;
+	padding: 0 5px;
+	border-radius: 999px;
+	background: #ef4444;
+	color: #ffffff;
+	font-size: 10px;
+	font-weight: 700;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	box-sizing: border-box;
+
+`;
 export const UserInfo = styled.div`
 	display: flex;
 	flex-direction: column;
@@ -68,14 +88,16 @@ export const UserTitle = styled.span`
 `;
 
 export const DropdownMenu = styled.div`
+	display: flex;
+	flex-direction: column;
 	position: absolute;
 	top: calc(100% + 5px);
-	left: 0;
+	right: 0;
 	background-color: white;
 	border: 1px solid #ccc;
 	border-radius: 4px;
 	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-	z-index: 10000;
+	z-index: 1000;
 	min-width: 150px;
 	pointer-events: auto;
 
@@ -111,7 +133,6 @@ export const DropdownItem = styled(Link)`
 
 	@media (max-width: 480px) {
 		padding: 12px 16px;
-		font-size: 15px;
 		min-height: 48px; /* Larger touch target on mobile */
 	}
 `;
@@ -134,14 +155,13 @@ export const DropdownButton = styled.button<{ variant?: 'default' | 'danger' }>`
 
 	&:hover {
 		background-color: ${(props) =>
-			props.variant === 'danger'
-				? 'rgba(239, 68, 68, 0.1)'
-				: 'rgba(34, 197, 94, 0.1)'};
+		props.variant === 'danger'
+			? 'rgba(239, 68, 68, 0.1)'
+			: 'rgba(34, 197, 94, 0.1)'};
 		color: ${(props) => (props.variant === 'danger' ? '#dc2626' : '#22c55e')};
 	}
 
 	@media (max-width: 480px) {
 		padding: 8px 12px;
-		font-size: 12px;
 	}
 `;

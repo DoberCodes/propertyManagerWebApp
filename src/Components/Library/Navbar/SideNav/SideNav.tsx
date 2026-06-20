@@ -1,8 +1,7 @@
 import React from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import { useSelector, useDispatch } from 'react-redux';
-import { RootState, AppDispatch } from '../../../../Redux/store/store';
-import { setActiveRoute } from '../../../../Redux/Slices/navigationSlice';
+import { useNavigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
+import { RootState } from '../../../../Redux/store/store';
 import { useRecentlyViewed } from '../../../../Hooks/useRecentlyViewed';
 import { useFavorites } from '../../../../Hooks/useFavorites';
 import {
@@ -60,9 +59,7 @@ import { filterPropertyGroupsByRole } from '../../../../utils/dataFilters';
 import { TeamMember } from '../../../../Redux/Slices/teamSlice';
 
 export const SideNav = () => {
-	const location = useLocation();
 	const navigate = useNavigate();
-	const dispatch = useDispatch<AppDispatch>();
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
 	const activeRoute = useSelector(
 		(state: RootState) => state.navigation.activeRoute,
@@ -77,14 +74,6 @@ export const SideNav = () => {
 		() => teamGroups.flatMap((group) => group.members || []),
 		[teamGroups],
 	);
-
-	// Update Redux when location changes
-	React.useEffect(() => {
-		const hash = location.hash.replace('#', '');
-		// Extract the main route (e.g., '/dashboard' from '/dashboard' or '/property/:slug')
-		const mainRoute = '/' + hash.split('/')[1];
-		dispatch(setActiveRoute(mainRoute));
-	}, [location.hash, dispatch]);
 
 	// Permission flags (use selectors so logic is centralized)
 	const isUserTenant = useSelector(selectIsTenant);
@@ -124,7 +113,7 @@ export const SideNav = () => {
 
 	const effectivePlanId =
 		currentUser?.subscription?.hasScheduledSubscription &&
-		currentUser.subscription.scheduledPlan
+			currentUser.subscription.scheduledPlan
 			? currentUser.subscription.scheduledPlan
 			: currentUser?.subscription?.plan || 'home';
 	const planDetails = getSubscriptionPlanDetails(effectivePlanId);
@@ -147,7 +136,7 @@ export const SideNav = () => {
 			: `${remainingSlots} property slot${remainingSlots === 1 ? '' : 's'} available`;
 	const planSubtitle =
 		currentUser?.subscription?.hasScheduledSubscription &&
-		currentUser.subscription.scheduledPlan
+			currentUser.subscription.scheduledPlan
 			? `Scheduled plan: ${planDetails?.name || 'Home'}`
 			: `Current plan: ${planDetails?.name || 'Home'}`;
 	const storageUsagePercent = Math.min(100, storageUsage?.usagePercent || 0);
@@ -155,8 +144,8 @@ export const SideNav = () => {
 		? 'Loading storage...'
 		: storageUsage && storageUsage.maxBytes > 0
 			? `${formatStorageBytes(storageUsage.usedBytes)} of ${formatStorageBytes(
-					storageUsage.maxBytes,
-			  )}`
+				storageUsage.maxBytes,
+			)}`
 			: 'Storage not included';
 	const storageFileLabel = storageUsage
 		? `${storageUsage.fileCount} of ${storageUsage.maxFiles} files`
@@ -238,25 +227,25 @@ export const SideNav = () => {
 							<SectionTitle>Favorites</SectionTitle>
 							<SectionContent>
 								{favorites.length > 0 ? (
-										<SimpleList>
+									<SimpleList>
 										{favorites.slice(0, 5).map((property) => (
-												<SimpleListItem
+											<SimpleListItem
 												key={property.id}
-													onClick={() => navigate(`/property/${property.slug}`)}>
-													<ItemText title={property.title}>{property.title}</ItemText>
-													<RemoveItemButton
+												onClick={() => navigate(`/property/${property.slug}`)}>
+												<ItemText title={property.title}>{property.title}</ItemText>
+												<RemoveItemButton
 													type='button'
 													onClick={(e) => {
 														e.stopPropagation();
 														void removeFavorite(property.id);
 													}}
 													title={`Remove ${property.title} from favorites`}
-														aria-label={`Remove ${property.title} from favorites`}>
+													aria-label={`Remove ${property.title} from favorites`}>
 													×
-													</RemoveItemButton>
-												</SimpleListItem>
+												</RemoveItemButton>
+											</SimpleListItem>
 										))}
-										</SimpleList>
+									</SimpleList>
 								) : (
 									<div style={{ fontSize: '12px', color: '#999999' }}>
 										No favorite properties

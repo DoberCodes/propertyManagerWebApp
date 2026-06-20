@@ -39,8 +39,6 @@ export const NavWrapper = styled.div`
 	}
 `;
 
-export const IconWrapper = styled.div``;
-
 export const NavTitle = styled.div`
 	display: flex;
 	align-items: center;

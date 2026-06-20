@@ -23,9 +23,10 @@ const PageWrapper = styled.div`
 const PageHeaderSection = styled.div`
 	display: flex;
 	justify-content: space-between;
-	align-items: center;
 	gap: 24px;
 	flex-wrap: wrap;
+	width: 100%;
+	padding: 24px;
 
 	@media (max-width: 1024px) {
 		gap: 16px;
@@ -35,7 +36,6 @@ const PageHeaderSection = styled.div`
 	@media (max-width: 480px) {
 		gap: 12px;
 		padding: 16px;
-		flex-direction: column;
 		align-items: flex-start;
 	}
 `;

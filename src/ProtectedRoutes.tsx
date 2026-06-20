@@ -38,6 +38,15 @@ export const ProtectedRoutes = ({
 		}
 	}, [currentUser, isLoading, dispatch]);
 
+	useEffect(() => {
+		const handleActiveRoute = () => {
+			// This can be expanded to include analytics or other side effects on route change
+			console.info('Active route:', location.pathname);
+			dispatch({ type: 'navigation/setActiveRoute', payload: location.pathname });
+		}
+		handleActiveRoute();
+	}, [location, dispatch]);
+
 	// Show loading state while auth is being initialized
 	if (isLoading) {
 		return <LoadingState />;

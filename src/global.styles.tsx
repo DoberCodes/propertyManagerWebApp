@@ -78,4 +78,42 @@ export const Flexbox = styled.div<{ span?: any }>`
 	}
 `;
 
+export const IconWrapper = styled.div`
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    color: ${COLORS.textPrimary};
+
+    &:hover {
+        color: ${COLORS.primary};
+        cursor: pointer;
+    }
+`;
+
+export const Toolbar = styled.div`
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+`;
+
+export const ToolbarItem = styled(IconWrapper)`
+    height: 32px;
+    width: 32px;
+    background-color: ${COLORS.bgLight};
+    border: 1px solid ${COLORS.gray300};
+
+    &:hover {
+        background-color: ${COLORS.primaryLight};
+        border-color: ${COLORS.primary};
+    }
+
+    @media (max-width: 640px) {
+        margin: 10px
+    }
+`;
+
 export default GlobalStyles;

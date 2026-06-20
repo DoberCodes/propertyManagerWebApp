@@ -179,7 +179,7 @@ const isSameOrAfter = (date: Date, threshold: Date): boolean =>
 const isSameOrBefore = (date: Date, threshold: Date): boolean =>
 	getDateOnly(date).getTime() <= getDateOnly(threshold).getTime();
 
-const formatDate = (value?: string): string => {
+export const formatDate = (value?: string): string => {
 	const date = parseDate(value);
 	if (!date) return 'No date recorded';
 	return date.toLocaleDateString('en-US', {

@@ -1,7 +1,6 @@
 import React from 'react';
 import {
 	ButtonWrapper,
-	IconWrapper,
 	NavAnchor,
 	NavButton,
 	NavRouteLink,
@@ -13,7 +12,6 @@ import TitleName from '../../../Assets/images/TitleName.png';
 export const LandingNavbar = () => {
 	return (
 		<NavWrapper>
-			<IconWrapper></IconWrapper>
 			<NavTitle>
 				<img src={TitleName} alt='Maintley' />
 			</NavTitle>

@@ -1,5 +1,6 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { clearUserLocalStorage } from '../../utils/localStorageCleanup';
+import { UserRole } from 'constants/roles';
 
 // Family account type for shared subscriptions
 export interface FamilyAccount {
@@ -28,7 +29,7 @@ export interface FamilyAccount {
 export interface User {
 	id: string;
 	email: string;
-	role: string;
+	role: UserRole;
 	firstName?: string;
 	lastName?: string;
 	title?: string;
