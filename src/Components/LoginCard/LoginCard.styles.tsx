@@ -2,83 +2,81 @@ import styled from 'styled-components';
 import { COLORS } from '../../constants/colors';
 
 export const Wrapper = styled.form`
-	display: grid;
-	justify-content: center;
-	align-items: center;
-	padding: 32px 24px;
+	display: flex;
+	flex-direction: column;
+	padding: 0;
 	border: none;
-	border-radius: 12px;
-	background-color: ${COLORS.bgWhite};
+	border-radius: 0;
+	background: transparent;
 	width: 100%;
 	max-width: 420px;
-	box-shadow: ${COLORS.shadowLg};
+	box-shadow: none;
 	position: relative;
 	z-index: 10;
 
 	@media (max-width: 1024px) {
-		max-width: 380px;
-		padding: 28px 20px;
-		border-radius: 10px;
+		max-width: 420px;
 	}
 
 	@media (max-width: 480px) {
 		max-width: 100%;
-		padding: 20px 16px;
-		border-radius: 8px;
-		margin: 10px;
 	}
 `;
 
 export const Title = styled.h2`
 	font-size: 32px;
 	font-weight: 800;
-	margin: 0 auto 28px auto;
+	margin: 0 0 10px;
 	text-decoration: none;
-	text-align: center;
-	background: ${COLORS.gradientPrimary};
-	-webkit-background-clip: text;
-	-webkit-text-fill-color: transparent;
-	background-clip: text;
-	letter-spacing: 0.5px;
+	text-align: left;
+	color: ${COLORS.gray900};
+	letter-spacing: -0.03em;
 
 	@media (max-width: 1024px) {
 		font-size: 28px;
-		margin: 0 auto 24px auto;
 	}
 
 	@media (max-width: 480px) {
 		font-size: 24px;
-		margin: 0 auto 20px auto;
+	}
+
+	@media (max-width: 640px) and (max-height: 720px) {
+		font-size: 21px;
 	}
 `;
 
 export const TrialNotice = styled.p`
-	margin: -16px 0 18px 0;
+	margin: 0 0 22px;
 	font-size: 14px;
-	font-weight: 600;
-	color: ${COLORS.primaryDark};
-	text-align: center;
+	font-weight: 500;
+	color: ${COLORS.gray500};
+	text-align: left;
 
 	@media (max-width: 1024px) {
-		margin: -12px 0 16px 0;
+		margin-bottom: 18px;
 	}
 
 	@media (max-width: 480px) {
 		font-size: 13px;
-		margin: -10px 0 14px 0;
+		margin-bottom: 16px;
+	}
+
+	@media (max-width: 640px) and (max-height: 720px) {
+		margin-bottom: 10px;
+		font-size: 12px;
 	}
 `;
 
 export const Input = styled.input`
 	padding: 12px 14px;
 	font-size: 16px;
-	margin: 10px 0;
+	margin: 7px 0;
 	border: 1.5px solid ${COLORS.gray200};
-	border-radius: 6px;
+	border-radius: 10px;
 	width: 100%;
 	box-sizing: border-box;
 	transition: all 0.2s ease;
-	background-color: ${COLORS.gray50};
+	background-color: #f8fafc;
 
 	&:focus {
 		outline: none;
@@ -103,10 +101,26 @@ export const Input = styled.input`
 		font-size: 14px;
 		margin: 8px 0;
 	}
+
+	@media (max-width: 640px) and (max-height: 720px) {
+		padding: 9px 11px;
+		margin: 4px 0;
+	}
 `;
 
 export const BackButton = styled.a`
-	padding: 10px 0;
+	position: absolute;
+	top: 2px;
+	right: 0;
+	padding: 8px;
+	color: ${COLORS.gray400};
+	font-size: 20px;
+	transition: color 0.2s ease, transform 0.2s ease;
+
+	&:hover {
+		color: ${COLORS.primaryDark};
+		transform: translateX(-2px);
+	}
 
 	@media (max-width: 480px) {
 		padding: 8px 0;
@@ -115,10 +129,15 @@ export const BackButton = styled.a`
 `;
 
 export const Submit = styled.button`
-	margin: 24px auto 0 auto;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 100%;
+	min-height: 46px;
+	margin: 8px 0 0;
 	font-size: 16px;
-	padding: 12px 32px;
-	border-radius: 6px;
+	padding: 12px 24px;
+	border-radius: 10px;
 	border: none;
 	background: ${COLORS.gradientPrimary};
 	color: white;
@@ -149,18 +168,20 @@ export const Submit = styled.button`
 	@media (max-width: 1024px) {
 		font-size: 15px;
 		padding: 10px 28px;
-		margin: 20px auto 0 auto;
+		margin-top: 8px;
 	}
 
 	@media (max-width: 480px) {
 		font-size: 14px;
 		padding: 10px 24px;
-		margin: 16px auto 0 auto;
+		margin-top: 8px;
 	}
 `;
 
 export const RegisterWrapper = styled.div`
-	margin: 28px 0 0 0;
+	margin: 24px 0 0;
+	padding-top: 20px;
+	border-top: 1px solid ${COLORS.gray200};
 	text-align: center;
 	font-size: 15px;
 	color: ${COLORS.textSecondary};
@@ -186,13 +207,19 @@ export const RegisterWrapper = styled.div`
 		margin: 20px 0 0 0;
 		font-size: 13px;
 	}
+
+	@media (max-width: 640px) and (max-height: 720px) {
+		margin-top: 14px;
+		padding-top: 12px;
+		font-size: 12px;
+	}
 `;
 
 export const PasswordInputWrapper = styled.div`
 	position: relative;
 	display: flex;
 	align-items: center;
-	margin: 10px 0;
+	margin: 7px 0;
 	width: 100%;
 
 	input[type='password'],
@@ -201,11 +228,15 @@ export const PasswordInputWrapper = styled.div`
 	}
 
 	@media (max-width: 1024px) {
-		margin: 8px;
+		margin: 7px 0;
 	}
 
 	@media (max-width: 480px) {
-		margin: 6px;
+		margin: 6px 0;
+	}
+
+	@media (max-width: 640px) and (max-height: 720px) {
+		margin: 4px 0;
 	}
 `;
 
@@ -248,7 +279,7 @@ export const PasswordToggleButton = styled.button`
 export const CheckboxWrapper = styled.div`
 	display: flex;
 	align-items: center;
-	margin: 16px 0 12px 0;
+	margin: 12px 0 8px;
 	gap: 8px;
 
 	input[type='checkbox'] {
@@ -281,6 +312,10 @@ export const CheckboxWrapper = styled.div`
 			width: 16px;
 			height: 16px;
 		}
+	}
+
+	@media (max-width: 640px) and (max-height: 720px) {
+		margin: 7px 0 4px;
 	}
 `;
 

@@ -100,11 +100,12 @@ export const LoginCard = () => {
 			<BackButton href='/'>
 				<FontAwesomeIcon icon={faArrowAltCircleLeft} />
 			</BackButton>
-			<Title>Login</Title>
-			<TrialNotice>New here? Start with the free plan.</TrialNotice>
+			<Title>Welcome back</Title>
+			<TrialNotice>Sign in to continue caring for your properties.</TrialNotice>
 			{error && <ErrorMessage>{error}</ErrorMessage>}
 			<Input
-				placeholder='Email Address'
+				placeholder='Email address'
+				aria-label='Email address'
 				autoComplete='email'
 				value={email}
 				onChange={(event) => {
@@ -114,6 +115,7 @@ export const LoginCard = () => {
 			<PasswordInputWrapper>
 				<Input
 					placeholder='Password'
+					aria-label='Password'
 					type={showPassword ? 'text' : 'password'}
 					autoComplete='current-password'
 					value={password}
@@ -157,12 +159,12 @@ export const LoginCard = () => {
 						e.preventDefault();
 						navigate('/forgot-password');
 					}}>
-					Forgot Password?
+					Forgot password?
 				</a>
 			</div>
 			<Submit onClick={(event) => login(event)} disabled={loading}>
 				{loading && <LoadingSpinner />}
-				{loading ? 'Signing in...' : 'Login'}
+				{loading ? 'Signing in...' : 'Sign in'}
 			</Submit>
 
 			<RegisterWrapper>

@@ -30,8 +30,8 @@ export const Wrapper = styled.div`
 		top: calc(-1 * env(safe-area-inset-top, 0px));
 		left: 0;
 		right: 0;
-		height: env(safe-area-inset-top, 20px);
-		padding-top: env(safe-area-inset-top, 20px);
+		height: max(env(safe-area-inset-top, 20px), 20px);
+		padding-top: max(env(safe-area-inset-top, 20px), 20px);
 		background: linear-gradient(90deg, #065f46 0%, #047857 100%);
 		z-index: 0;
 		pointer-events: none;
@@ -48,6 +48,7 @@ export const Wrapper = styled.div`
 
 	@media (max-width: 1024px) {
 		padding: 40px 15px;
+		padding-top: max(60px, env(safe-area-inset-top, 40px));
 		padding-left: max(15px, env(safe-area-inset-left, 15px));
 		padding-right: max(15px, env(safe-area-inset-right, 15px));
 
@@ -69,6 +70,7 @@ export const Wrapper = styled.div`
 
 	@media (max-width: 480px) {
 		padding: 40px 10px;
+		padding-top: max(60px, env(safe-area-inset-top, 40px));
 		padding-left: max(10px, env(safe-area-inset-left, 10px));
 		padding-right: max(10px, env(safe-area-inset-right, 10px));
 
