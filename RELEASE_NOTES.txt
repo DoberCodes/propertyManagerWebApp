@@ -1,5 +1,5 @@
-🎉 **Release Notes for Version 2.5.7** 🎉
+🎉 **Release Notes for Version 2.5.8** 🎉
 
 
 ## 🐛 Bug Fixes
-- fixing assignee bug
+- Adding changes to the layout including modifying the filters on mobile to be floating buttons.
