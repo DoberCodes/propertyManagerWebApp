@@ -5,6 +5,7 @@ import { RootState } from '../../../Redux/store/store';
 import { USER_ROLES } from '../../../constants/roles';
 import { RoleCapabilities } from '../../../utils/permissions';
 import { getEffectiveSubscriptionPlanId } from '../../../utils/subscriptionUtils';
+import { useSearchParams } from 'react-router-dom';
 
 export interface TabsContextProps {
 	property: any;
@@ -29,6 +30,7 @@ export const TabController: React.FC<TabsContextProps> = ({
 	permissions,
 }) => {
 	const dispatch = useDispatch();
+	const [searchParams, setSearchParams] = useSearchParams();
 	const isMobile = useSelector((state: RootState) => state.app.isMobile);
 	const activeTab =
 		useSelector((state: RootState) => state.app.activeTab) || 'details';
@@ -103,15 +105,44 @@ export const TabController: React.FC<TabsContextProps> = ({
 	}
 
 	const tabs = tabsForProperty;
+	const requestedTab = searchParams.get('tab');
+	const tabValues = tabs.map((tab) => tab.value);
+	const tabValuesKey = tabValues.join('|');
 
 	useEffect(() => {
-		if (!tabs.some((tab) => tab.value === activeTab)) {
+		const availableTabs = tabValuesKey.split('|');
+
+		if (requestedTab && availableTabs.includes(requestedTab)) {
+			if (requestedTab !== activeTab) {
+				dispatch(setActiveTab(requestedTab));
+			}
+			return;
+		}
+
+		if (!availableTabs.includes(activeTab)) {
 			dispatch(setActiveTab('details'));
 		}
-	}, [tabs, activeTab, dispatch]);
+
+		if (requestedTab) {
+			const nextParams = new URLSearchParams(searchParams);
+			nextParams.delete('tab');
+			setSearchParams(nextParams, { replace: true });
+		}
+	}, [
+		activeTab,
+		dispatch,
+		requestedTab,
+		searchParams,
+		setSearchParams,
+		tabValuesKey,
+	]);
 
 	const handleTabChange = (tabValue: string) => {
 		dispatch(setActiveTab(tabValue));
+		const nextParams = new URLSearchParams(searchParams);
+		nextParams.set('tab', tabValue);
+		nextParams.delete('action');
+		setSearchParams(nextParams);
 	};
 
 	if (isMobile) {

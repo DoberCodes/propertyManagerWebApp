@@ -127,6 +127,25 @@ Avoid showing advanced controls by default.
 
 ---
 
+## Compact Viewport Search and Filters
+
+On tablet and mobile viewports (1024px wide and below), list-page search,
+filter, and sort controls may be moved into a floating search button to
+preserve vertical space.
+
+The expanded panel should:
+
+* Open from the right near the top of the screen
+* Keep draft changes separate from the active results
+* Apply changes only when the user selects **Apply filters**
+* Collapse after filters are applied
+* Allow dismissal by chevron, backdrop, or Escape without applying changes
+* Show an active-filter count on the collapsed button
+
+Desktop layouts should keep the established inline controls.
+
+---
+
 ## Prioritize Core Actions
 
 Important actions should remain visible without excessive scrolling.
@@ -141,6 +160,35 @@ Examples:
 * Add Task
 
 The most common action should be visually obvious.
+
+When the mobile bottom navigation already provides an action through Quick
+Create, avoid repeating that create button within the page. This applies to
+adding tasks, appliances or systems, contractors, and property documents.
+Desktop pages should retain their contextual create actions.
+
+Property tabs and property Quick Create actions should use shareable URL
+parameters:
+
+```text
+/property/:slug?tab=tasks
+/property/:slug?tab=tasks&action=create-task
+/property/:slug?tab=devices&action=create-system
+/property/:slug?tab=documents&action=upload-document
+/property/:slug?tab=contractors&action=add-contractor
+/property/:slug/device/:deviceSlug?action=edit-appliance
+/property/:slug/device/:deviceSlug?action=add-task
+/property/:slug/device/:deviceSlug?action=upload-document
+/property/:slug/device/:deviceSlug?action=add-log
+```
+
+When Quick Create is used from a nested property page, such as an appliance
+profile, property-level actions should return to the property root before
+selecting the relevant tab. Appliance-level actions should remain on the
+appliance profile and open the appliance-specific edit, task, upload, or log
+workflow. After an action is handled, remove the `action` parameter while
+retaining any remaining navigation parameters. Treat action parameters as
+one-time triggers and replace the current history entry so Back navigation
+does not reopen a previously handled dialog.
 
 ---
 

@@ -126,7 +126,10 @@ export const AppZeroStateActions = styled.div`
 	}
 `;
 
-export const AppZeroStateButton = styled.button<{ $variant?: 'primary' | 'secondary' }>`
+export const AppZeroStateButton = styled.button<{
+	$variant?: 'primary' | 'secondary';
+	$hideOnCompact?: boolean;
+}>`
 	border: ${({ $variant }) =>
 		$variant === 'secondary' ? `1px solid ${COLORS.gray300}` : 'none'};
 	border-radius: 10px;
@@ -156,5 +159,13 @@ export const AppZeroStateButton = styled.button<{ $variant?: 'primary' | 'second
 
 	@media (max-width: 480px) {
 		width: 100%;
+	}
+
+	@media (max-width: 1024px) {
+		${({ $hideOnCompact }) =>
+			$hideOnCompact &&
+			css`
+				display: none;
+			`}
 	}
 `;

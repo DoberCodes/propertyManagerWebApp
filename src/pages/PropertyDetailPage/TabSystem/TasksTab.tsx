@@ -66,7 +66,11 @@ import {
 	ActiveFilterChips,
 	ActiveFilterChip,
 	ActiveFilterChipClear,
+	CompactFilterResultCount,
+	DesktopCreateAction,
+	DesktopFilterArea,
 } from './mobileUiShared';
+import { PropertyTabFilterPanel } from './PropertyTabFilterPanel';
 import { Task } from '../../../types/Task.types';
 import {
 	useDeleteTaskMutation,
@@ -527,16 +531,16 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 
 	// Filter configuration for tasks
 	const taskFilters: FilterConfig[] = [
-		{
-			key: 'status',
-			label: 'Lifecycle Status',
-			type: 'select',
-			options: [
-				{ value: 'Initiated', label: 'Initiated' },
-				{ value: 'Completed', label: 'Completed' },
-				{ value: 'Overdue', label: 'Overdue' },
-			],
-		},
+		// {
+		// 	key: 'status',
+		// 	label: 'Lifecycle Status',
+		// 	type: 'select',
+		// 	options: [
+		// 		{ value: 'Initiated', label: 'Initiated' },
+		// 		{ value: 'Completed', label: 'Completed' },
+		// 		{ value: 'Overdue', label: 'Overdue' },
+		// 	],
+		// },
 		{
 			key: 'priority',
 			label: 'Priority',
@@ -825,8 +829,9 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 					Next 30 Days: {next30TaskCount}
 				</TabSummaryPill>
 			</TabSummaryBar>
-			<Toolbar style={{ marginBottom: 12 }}>
-				{canCreateTasks && (
+			{canCreateTasks && (
+				<DesktopCreateAction>
+				<Toolbar style={{ marginBottom: 12 }}>
 					<ToolbarButton
 						onClick={handleCreateTask}
 						style={{ width: isMobile ? '100%' : undefined }}
@@ -842,110 +847,121 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 						}>
 						+ Create Task
 					</ToolbarButton>
-				)}
-				{/* Units are temporarily hidden from the app flow.
-				{unitOptions.length > 0 && (
-					<div style={{ marginLeft: isMobile ? '0' : '12px', minWidth: isMobile ? '100%' : '220px', width: isMobile ? '100%' : undefined }}>
-						<TaskSelect
-							name='unitFilter'
-							value={selectedUnitId || ''}
-							onChange={(value) => onSelectUnit && onSelectUnit(value)}
-							placeholder='All units'
-							options={[
-								{ value: '', label: 'All units' },
-								...unitOptions,
-							]}
-						/>
-					</div>
-				)}
-				*/}
-			</Toolbar>
-			<div
-				style={{
-					display: 'flex',
-					alignItems: 'center',
-					gap: '8px',
-					flexDirection: isMobile ? 'column' : 'row',
-					marginBottom: isMobile ? (showFilters ? '12px' : '10px') : showFilters ? '12px' : '0',
-				}}>
-				<input
-					type='text'
-					placeholder='Search tasks...'
-					value={(filters.search as string) || ''}
-					onChange={(e) =>
-						setFilters((prev) => ({
-							...prev,
-							search: e.target.value,
-						}))
-					}
+				</Toolbar>
+				</DesktopCreateAction>
+			)}
+			<CompactFilterResultCount>
+				Showing {filteredTasks.length} of {processedTasks.length} tasks for{' '}
+				{property?.title || 'this property'}
+			</CompactFilterResultCount>
+			<PropertyTabFilterPanel
+				propertyName={property?.title || 'this property'}
+				resourceName='tasks'
+				searchPlaceholder='Search tasks...'
+				filters={filters}
+				onFiltersChange={setFilters}
+				filterConfigs={taskFilters}
+				sortValue={sortBy}
+				defaultSortValue='dueDate'
+				sortOptions={[
+					{ value: 'dueDate', label: 'Due date' },
+					{ value: 'priority', label: 'Priority' },
+					{ value: 'title', label: 'Title' },
+				]}
+				onSortChange={(value) =>
+					setSortBy(value as 'dueDate' | 'priority' | 'title')
+				}
+				additionalActiveFilterCount={quickView !== 'all' ? 1 : 0}
+			/>
+			<DesktopFilterArea>
+				<div
 					style={{
-						flex: 1,
-						width: isMobile ? '100%' : undefined,
-						padding: '8px 12px',
-						border: '1px solid #e5e7eb',
-						borderRadius: '4px',
-						fontSize: '14px',
-					}}
-				/>
-				<select
-					value={sortBy}
-					onChange={(event) => setSortBy(event.target.value as 'dueDate' | 'priority' | 'title')}
-					style={{
-						padding: isMobile ? '10px 12px' : '8px 10px',
-						width: isMobile ? '100%' : '170px',
-						border: '1px solid #e5e7eb',
-						borderRadius: '4px',
-						background: '#ffffff',
-						fontWeight: 600,
-					}}
-					aria-label='Sort tasks'>
-					<option value='dueDate'>Sort: Due Date</option>
-					<option value='priority'>Sort: Priority</option>
-					<option value='title'>Sort: Title</option>
-				</select>
-				<button
-					onClick={() => setShowFilters(!showFilters)}
-					style={{
-						padding: isMobile ? '10px 12px' : '8px 10px',
-						width: isMobile ? '100%' : undefined,
-						border: '1px solid #e5e7eb',
-						borderRadius: '4px',
-						background: '#f9fafb',
-						cursor: 'pointer',
 						display: 'flex',
 						alignItems: 'center',
-						justifyContent: 'center',
-						gap: 6,
-						whiteSpace: 'nowrap',
-					}}
-					title={showFilters ? 'Hide filters' : 'Show filters'}>
-					<FontAwesomeIcon icon={faArrowUpAZ} />
-					{showFilters ? 'Hide Filters' : 'Filters'}
-				</button>
-			</div>
-			{activeFilterChips.length > 0 && (
-				<ActiveFilterChips>
-					{activeFilterChips.map((chip) => (
-						<ActiveFilterChip key={chip.key} onClick={chip.onRemove}>
-							{chip.label} ×
-						</ActiveFilterChip>
-					))}
-					<ActiveFilterChipClear
-						onClick={() => {
-							setFilters({});
-							setQuickView('all');
-						}}>
-						Clear all
-					</ActiveFilterChipClear>
-				</ActiveFilterChips>
-			)}
-			{showFilters && (
-				<FilterBar
-					filters={taskFilters}
-					onFiltersChange={setFilters}
-					useCustomSelect={true}
-				/>
-			)}
+						gap: '8px',
+						flexDirection: isMobile ? 'column' : 'row',
+						marginBottom: isMobile ? (showFilters ? '12px' : '10px') : showFilters ? '12px' : '0',
+					}}>
+					<input
+						type='text'
+						placeholder='Search tasks...'
+						value={(filters.search as string) || ''}
+						onChange={(e) =>
+							setFilters((prev) => ({
+								...prev,
+								search: e.target.value,
+							}))
+						}
+						style={{
+							flex: 1,
+							width: isMobile ? '100%' : undefined,
+							padding: '8px 12px',
+							border: '1px solid #e5e7eb',
+							borderRadius: '4px',
+							fontSize: '14px',
+						}}
+					/>
+					<select
+						value={sortBy}
+						onChange={(event) => setSortBy(event.target.value as 'dueDate' | 'priority' | 'title')}
+						style={{
+							padding: isMobile ? '10px 12px' : '8px 10px',
+							width: isMobile ? '100%' : '170px',
+							border: '1px solid #e5e7eb',
+							borderRadius: '4px',
+							background: '#ffffff',
+							fontWeight: 600,
+						}}
+						aria-label='Sort tasks'>
+						<option value='dueDate'>Sort: Due Date</option>
+						<option value='priority'>Sort: Priority</option>
+						<option value='title'>Sort: Title</option>
+					</select>
+					<button
+						onClick={() => setShowFilters(!showFilters)}
+						style={{
+							padding: isMobile ? '10px 12px' : '8px 10px',
+							width: isMobile ? '100%' : undefined,
+							border: '1px solid #e5e7eb',
+							borderRadius: '4px',
+							background: '#f9fafb',
+							cursor: 'pointer',
+							display: 'flex',
+							alignItems: 'center',
+							justifyContent: 'center',
+							gap: 6,
+							whiteSpace: 'nowrap',
+						}}
+						title={showFilters ? 'Hide filters' : 'Show filters'}>
+						<FontAwesomeIcon icon={faArrowUpAZ} />
+						{showFilters ? 'Hide Filters' : 'Filters'}
+					</button>
+				</div>
+				{activeFilterChips.length > 0 && (
+					<ActiveFilterChips>
+						{activeFilterChips.map((chip) => (
+							<ActiveFilterChip key={chip.key} onClick={chip.onRemove}>
+								{chip.label} ×
+							</ActiveFilterChip>
+						))}
+						<ActiveFilterChipClear
+							onClick={() => {
+								setFilters({});
+								setQuickView('all');
+							}}>
+							Clear all
+						</ActiveFilterChipClear>
+					</ActiveFilterChips>
+				)}
+				{showFilters && (
+					<FilterBar
+						filters={taskFilters}
+						onFiltersChange={setFilters}
+						values={filters}
+						useCustomSelect={true}
+					/>
+				)}
+			</DesktopFilterArea>
 
 			{filteredTasks.length > 0 ? (
 				<>
@@ -1089,7 +1105,13 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 					kind={processedTasks.length === 0 ? 'noTasks' : 'noTaskMatches'}
 					actions={
 						processedTasks.length === 0 && canCreateTasks
-							? [{ label: 'Add Task', onClick: handleCreateTask }]
+							? [
+									{
+										label: 'Add Task',
+										onClick: handleCreateTask,
+										hideOnCompact: true,
+									},
+							  ]
 							: processedTasks.length > 0
 								? [
 									{

@@ -121,6 +121,7 @@ export interface SuitesTabProps {
 
 export interface RequestsTabProps {
 	propertyMaintenanceRequests: any[];
+	propertyTitle?: string;
 	currentUser: any;
 	unitOptions?: { label: string; value: string }[];
 	selectedUnitId?: string;

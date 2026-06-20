@@ -70,7 +70,12 @@ import {
 	CardMoreSummary,
 	CardMoreMenu,
 	CardMoreMenuItem,
+	CompactFilterResultCount,
+	DesktopCreateAction,
+	DesktopFilterArea,
 } from './mobileUiShared';
+import { PropertyTabFilterPanel } from './PropertyTabFilterPanel';
+import { FilterConfig, FilterValues } from '../../../Components/Library/FilterBar';
 import {
 	canAddDevice,
 	getEffectiveSubscriptionPlanId,
@@ -139,6 +144,8 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 	const [pendingDeleteDeviceId, setPendingDeleteDeviceId] = useState<
 		string | null
 	>(null);
+	const [filters, setFilters] = useState<FilterValues>({});
+	const [sortBy, setSortBy] = useState<'type' | 'status' | 'brand'>('type');
 
 	const [deviceFormData, setDeviceFormData] = useState<DeviceFormData>({
 		type: '',
@@ -336,6 +343,97 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 			recurringLinkedTasks,
 			needsAttention,
 		};
+	};
+
+	const deviceFilters: FilterConfig[] = [
+		{
+			key: 'status',
+			label: 'Lifecycle Status',
+			type: 'select',
+			options: [
+				{ value: 'Active', label: 'Active' },
+				{ value: 'Maintenance', label: 'Maintenance' },
+				{ value: 'Broken', label: 'Broken' },
+				{ value: 'Decommissioned', label: 'Decommissioned' },
+			],
+		},
+		{
+			key: 'attention',
+			label: 'Attention',
+			type: 'select',
+			options: [
+				{ value: 'needs-attention', label: 'Needs attention' },
+				{ value: 'no-open-tasks', label: 'No open tasks' },
+				{ value: 'missing-details', label: 'Missing details' },
+			],
+		},
+	];
+
+	const filteredDevices = useMemo(() => {
+		const query = String(filters.search || '').trim().toLowerCase();
+		const filtered = devices.filter((device: any) => {
+			const status = getResolvedDeviceStatus(device);
+			const linkedOpenTasks =
+				linkedOpenTaskCountByDevice.get(String(device.id)) || 0;
+			const overdueLinkedTasks =
+				linkedOverdueTaskCountByDevice.get(String(device.id)) || 0;
+			const needsAttention =
+				status === 'Broken' ||
+				status === 'Maintenance' ||
+				linkedOpenTasks > 0 ||
+				overdueLinkedTasks > 0;
+			if (filters.status && status !== filters.status) return false;
+			if (
+				filters.attention === 'needs-attention' &&
+				!needsAttention
+			) {
+				return false;
+			}
+			if (
+				filters.attention === 'no-open-tasks' &&
+				linkedOpenTasks > 0
+			) {
+				return false;
+			}
+			if (
+				filters.attention === 'missing-details' &&
+				hasApplianceDetails(device)
+			) {
+				return false;
+			}
+			if (query) {
+				const haystack = [
+					device.type,
+					device.brand,
+					device.model,
+					device.serialNumber,
+					device.filterSize,
+					device.specNotes,
+				]
+					.filter(Boolean)
+					.join(' ')
+					.toLowerCase();
+				if (!haystack.includes(query)) return false;
+			}
+			return true;
+		});
+
+		return [...filtered].sort((left: any, right: any) => {
+			if (sortBy === 'status') {
+				return getResolvedDeviceStatus(left).localeCompare(
+					getResolvedDeviceStatus(right),
+				);
+			}
+			if (sortBy === 'brand') {
+				return String(left.brand || '').localeCompare(String(right.brand || ''));
+			}
+			return String(left.type || '').localeCompare(String(right.type || ''));
+		});
+	}, [devices, filters, sortBy, linkedOpenTaskCountByDevice, linkedOverdueTaskCountByDevice]);
+
+	const clearDeviceFilters = () => {
+		setFilters({});
+		setSortBy('type');
 	};
 
 	const formatRelativeTime = (value?: string): string => {
@@ -921,6 +1019,7 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 			</TabSummaryBar>
 
 			{canManageAppliances && (
+				<DesktopCreateAction>
 				<Toolbar>
 					<ToolbarButton
 						className='primary-action'
@@ -931,11 +1030,105 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 						{remainingDeviceSlots <= 0 ? 'Appliance Limit Reached' : 'Add Appliance'}
 					</ToolbarButton>
 				</Toolbar>
+				</DesktopCreateAction>
 			)}
+
+			<CompactFilterResultCount>
+				Showing {filteredDevices.length} of {devices.length} appliances for{' '}
+				{property.title || 'this property'}
+			</CompactFilterResultCount>
+			<PropertyTabFilterPanel
+				propertyName={property.title || 'this property'}
+				resourceName='appliances and systems'
+				searchPlaceholder='Search appliances, brands, or models...'
+				filters={filters}
+				onFiltersChange={setFilters}
+				filterConfigs={deviceFilters}
+				sortValue={sortBy}
+				defaultSortValue='type'
+				sortOptions={[
+					{ value: 'type', label: 'Appliance type' },
+					{ value: 'status', label: 'Lifecycle status' },
+					{ value: 'brand', label: 'Brand' },
+				]}
+				onSortChange={(value) =>
+					setSortBy(value as 'type' | 'status' | 'brand')
+				}
+			/>
+			<DesktopFilterArea>
+				<div
+					style={{
+						display: 'grid',
+						gridTemplateColumns:
+							'minmax(240px, 1.4fr) repeat(3, minmax(170px, 1fr))',
+						gap: 10,
+						marginBottom: 16,
+					}}>
+					<input
+						type='search'
+						placeholder='Search appliances, brands, or models...'
+						value={(filters.search as string) || ''}
+						onChange={(event) =>
+							setFilters((current) => ({
+								...current,
+								search: event.target.value,
+							}))
+						}
+						style={{
+							minHeight: 42,
+							padding: '8px 12px',
+							border: '1px solid #cbd5e1',
+							borderRadius: 10,
+						}}
+					/>
+					<select
+						value={(filters.status as string) || ''}
+						onChange={(event) =>
+							setFilters((current) => ({
+								...current,
+								status: event.target.value,
+							}))
+						}
+						style={{ minHeight: 42, padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: 10 }}>
+						<option value=''>All statuses</option>
+						{deviceFilters[0].options?.map((option) => (
+							<option key={option.value} value={option.value}>
+								{option.label}
+							</option>
+						))}
+					</select>
+					<select
+						value={(filters.attention as string) || ''}
+						onChange={(event) =>
+							setFilters((current) => ({
+								...current,
+								attention: event.target.value,
+							}))
+						}
+						style={{ minHeight: 42, padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: 10 }}>
+						<option value=''>All attention states</option>
+						{deviceFilters[1].options?.map((option) => (
+							<option key={option.value} value={option.value}>
+								{option.label}
+							</option>
+						))}
+					</select>
+					<select
+						value={sortBy}
+						onChange={(event) =>
+							setSortBy(event.target.value as 'type' | 'status' | 'brand')
+						}
+						style={{ minHeight: 42, padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: 10 }}>
+						<option value='type'>Sort: Appliance type</option>
+						<option value='status'>Sort: Lifecycle status</option>
+						<option value='brand'>Sort: Brand</option>
+					</select>
+				</div>
+			</DesktopFilterArea>
 
 			{isMobile && (
 				<div style={{ display: 'flex', flexDirection: 'column', gap: 12, paddingBottom: 4 }}>
-					{devices.map((device) => {
+					{filteredDevices.map((device) => {
 						const { linkedOpenTasks, overdueLinkedTasks, recurringLinkedTasks, needsAttention } = getDeviceAttentionState(device);
 						const resolvedStatus = getResolvedDeviceStatus(device);
 						const stateTone = needsAttention ? '#f59e0b' : resolvedStatus === 'Decommissioned' ? '#64748b' : '#22c55e';
@@ -1049,16 +1242,27 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 												: 'Add Appliance',
 										onClick: handleOpenCreateModal,
 										disabled: remainingDeviceSlots <= 0,
+										hideOnCompact: true,
 									},
 							  ]
 							: []
 					}
 				/>
+			) : filteredDevices.length === 0 ? (
+				<AppZeroState
+					kind='noApplianceMatches'
+					actions={[
+						{
+							label: 'Clear Filters',
+							onClick: clearDeviceFilters,
+						},
+					]}
+				/>
 			) : (
 				<DesktopTableWrapper>
 					<ReusableTable
 						columns={columns}
-						rowData={devices}
+						rowData={filteredDevices}
 						getRowClassName={(row: any) =>
 							getDeviceAttentionState(row).needsAttention ? 'attention-row' : undefined
 						}

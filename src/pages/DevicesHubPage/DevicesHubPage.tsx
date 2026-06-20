@@ -12,6 +12,7 @@ import {
 import { useGetTasksQuery } from '../../Redux/API/taskSlice';
 import { useGetAllMaintenanceHistoryForUserQuery } from '../../Redux/API/userSlice';
 import { AppZeroState } from '../../Components/Library/AppZeroState';
+import { FloatingFilterPanel } from '../../Components/Library';
 import { DeviceModal } from '../../Components/Library/Modal';
 import { RootState } from '../../Redux/store/store';
 import { buildDeviceSlug } from '../../utils/deviceSlug';
@@ -48,6 +49,9 @@ import {
 	MetricLabel, 
 	MetricValue,
 	FilterBar, 
+	CompactFilterResultCount,
+	HubFilterFields,
+	HubFilterField,
 	SearchInput, 
 	FilterGroup, 
 	FilterButton, 
@@ -262,6 +266,11 @@ export const DevicesHubPage: React.FC = () => {
 	const [searchQuery, setSearchQuery] = useState('');
 	const [statusFilter, setStatusFilter] = useState<'All' | 'Active' | 'Maintenance' | 'Broken' | 'Decommissioned'>('All');
 	const [propertyFilter, setPropertyFilter] = useState('');
+	const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
+	const [draftSearchQuery, setDraftSearchQuery] = useState('');
+	const [draftStatusFilter, setDraftStatusFilter] =
+		useState<typeof statusFilter>('All');
+	const [draftPropertyFilter, setDraftPropertyFilter] = useState('');
 	const [showDeviceModal, setShowDeviceModal] = useState(false);
 	const [isSavingDevice, setIsSavingDevice] = useState(false);
 	const [pendingUploadFiles, setPendingUploadFiles] = useState<File[]>([]);
@@ -286,6 +295,44 @@ export const DevicesHubPage: React.FC = () => {
 		},
 		files: [],
 	});
+
+	const openFilterPanel = () => {
+		setDraftSearchQuery(searchQuery);
+		setDraftStatusFilter(statusFilter);
+		setDraftPropertyFilter(propertyFilter);
+		setIsFilterPanelOpen(true);
+	};
+
+	const dismissFilterPanel = () => {
+		setDraftSearchQuery(searchQuery);
+		setDraftStatusFilter(statusFilter);
+		setDraftPropertyFilter(propertyFilter);
+		setIsFilterPanelOpen(false);
+	};
+
+	const clearDraftFilters = () => {
+		setDraftSearchQuery('');
+		setDraftStatusFilter('All');
+		setDraftPropertyFilter('');
+	};
+
+	const applyDraftFilters = () => {
+		setSearchQuery(draftSearchQuery);
+		setStatusFilter(draftStatusFilter);
+		setPropertyFilter(draftPropertyFilter);
+		setIsFilterPanelOpen(false);
+	};
+
+	const clearApplianceFilters = () => {
+		setSearchQuery('');
+		setStatusFilter('All');
+		setPropertyFilter('');
+	};
+
+	const activeFilterCount =
+		(searchQuery.trim() ? 1 : 0) +
+		(statusFilter !== 'All' ? 1 : 0) +
+		(propertyFilter ? 1 : 0);
 
 	const roleCapabilities = useMemo(
 		() => getRoleCapabilities(currentUser?.role),
@@ -803,6 +850,72 @@ export const DevicesHubPage: React.FC = () => {
 					{filteredDeviceRows.length} of {deviceRows.length} appliance{deviceRows.length === 1 ? '' : 's'}
 				</FilterResultCount>
 			</FilterBar>
+			<CompactFilterResultCount>
+				Showing {filteredDeviceRows.length} of {deviceRows.length}{' '}
+				{deviceRows.length === 1 ? 'appliance' : 'appliances'}
+			</CompactFilterResultCount>
+			<FloatingFilterPanel
+				isOpen={isFilterPanelOpen}
+				onOpen={openFilterPanel}
+				onDismiss={dismissFilterPanel}
+				onApply={applyDraftFilters}
+				onClearDraft={clearDraftFilters}
+				activeFilterCount={activeFilterCount}
+				title='Search and filter appliances'
+				description='Choose which appliances and systems you want to see, then apply your changes.'>
+				<HubFilterFields>
+					<HubFilterField>
+						Search
+						<SearchInput
+							type='search'
+							placeholder='Search systems, brands, or locations…'
+							value={draftSearchQuery}
+							onChange={(event) =>
+								setDraftSearchQuery(event.target.value)
+							}
+						/>
+					</HubFilterField>
+					{properties.length > 1 && (
+						<HubFilterField>
+							Property
+							<PropertySelect
+								value={draftPropertyFilter}
+								onChange={(event) =>
+									setDraftPropertyFilter(event.target.value)
+								}>
+								<option value=''>All properties</option>
+								{properties.map((property: any) => (
+									<option key={property.id} value={String(property.id)}>
+										{property.title || 'Untitled Property'}
+									</option>
+								))}
+							</PropertySelect>
+						</HubFilterField>
+					)}
+				</HubFilterFields>
+				<HubFilterField>
+					Status
+					<FilterGroup>
+						{(
+							[
+								'All',
+								'Active',
+								'Maintenance',
+								'Broken',
+								'Decommissioned',
+							] as const
+						).map((status) => (
+							<FilterButton
+								key={status}
+								type='button'
+								$active={draftStatusFilter === status}
+								onClick={() => setDraftStatusFilter(status)}>
+								{status}
+							</FilterButton>
+						))}
+					</FilterGroup>
+				</HubFilterField>
+			</FloatingFilterPanel>
 
 			{!isLoading && filteredDeviceRows.length === 0 ? (
 				<AppZeroState
@@ -810,11 +923,7 @@ export const DevicesHubPage: React.FC = () => {
 					actions={[
 						{
 							label: 'Clear Filters',
-							onClick: () => {
-								setSearchQuery('');
-								setStatusFilter('All');
-								setPropertyFilter('');
-							},
+							onClick: clearApplianceFilters,
 						},
 					]}
 				/>

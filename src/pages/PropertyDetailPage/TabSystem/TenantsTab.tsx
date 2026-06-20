@@ -22,6 +22,11 @@ import {
 	FilterConfig,
 	FilterValues,
 } from '../../../Components/Library/FilterBar';
+import { PropertyTabFilterPanel } from './PropertyTabFilterPanel';
+import {
+	CompactFilterResultCount,
+	DesktopFilterArea,
+} from './mobileUiShared';
 import { applyFilters } from '../../../utils/tableFilters';
 import {
 	DesktopTableWrapper,
@@ -478,6 +483,19 @@ export const TenantsTab: React.FC<TenantsTabProps> = ({
 					</FormSelect>
 				)}
 				*/}
+				<CompactFilterResultCount>
+					Showing {filteredTenants.length} of {(property?.tenants || []).length}{' '}
+					tenants for {property?.title || 'this property'}
+				</CompactFilterResultCount>
+				<PropertyTabFilterPanel
+					propertyName={property?.title || 'this property'}
+					resourceName='tenants'
+					searchPlaceholder='Search tenants...'
+					filters={filters}
+					onFiltersChange={setFilters}
+					filterConfigs={tenantFilters}
+				/>
+				<DesktopFilterArea>
 				<div
 					style={{
 						display: 'flex',
@@ -524,8 +542,13 @@ export const TenantsTab: React.FC<TenantsTabProps> = ({
 					</button>
 				</div>
 				{showFilters && (
-					<FilterBar filters={tenantFilters} onFiltersChange={setFilters} />
+					<FilterBar
+						filters={tenantFilters}
+						onFiltersChange={setFilters}
+						values={filters}
+					/>
 				)}
+				</DesktopFilterArea>
 			</div>
 
 			{filteredTenants && filteredTenants.length > 0 ? (

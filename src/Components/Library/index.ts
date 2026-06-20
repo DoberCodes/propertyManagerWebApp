@@ -26,6 +26,7 @@ export {
 export { AppZeroState, getAppZeroStateCopy } from './AppZeroState';
 export type { AppZeroStateAction, AppZeroStateKind } from './AppZeroState';
 export { ZeroState } from './ZeroState';
+export { FloatingFilterPanel } from './FloatingFilterPanel';
 
 // Forms & Inputs
 export {

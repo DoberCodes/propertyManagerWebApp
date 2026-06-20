@@ -1633,7 +1633,6 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 									<>
 										<SummaryTitle>Create the maintenance task first, then add optional automation if needed.</SummaryTitle>
 										<SummaryMeta>
-											<SummaryPill $tone='neutral'>Lifecycle status defaults to Initiated</SummaryPill>
 											<SummaryPill $tone={isAsap ? 'success' : 'neutral'}>
 												{isAsap ? 'ASAP task' : 'Scheduled task'}
 											</SummaryPill>

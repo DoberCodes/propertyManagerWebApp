@@ -25,7 +25,10 @@ import {
 	faBell,
 } from '@fortawesome/free-solid-svg-icons';
 import { Column, Action } from '../../Components/Library/ReusableTable';
-import { TaskModal } from '../../Components/Library';
+import {
+	FloatingFilterPanel,
+	TaskModal,
+} from '../../Components/Library';
 import { TaskAssignModal } from '../../Components/Library/Modal/TaskAssignModal';
 import {
 	useGetTasksQuery,
@@ -34,13 +37,16 @@ import {
 } from '../../Redux/API/taskSlice';
 import { useGetTeamMembersQuery } from '../../Redux/API/teamSlice';
 import {
-	Wrapper,
 	TaskGridSection,
 	TaskControlPanel,
 	TaskControlRow,
 	TaskSearchInput,
 	TaskSortSelect,
 	TaskResultCount,
+	TaskFilterFields,
+	TaskFilterField,
+	TaskPageMetaRow,
+	AddTaskButton,
 	MobileListSection,
 	MobileTaskCard,
 	MobileTaskHeader,
@@ -69,7 +75,6 @@ import {
 	isTaskDueWithinDays,
 } from '../../utils/taskDisplayStatus';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { COLORS } from '../../constants/colors';
 import { TaskCompletionModal } from '../../Components/TaskCompletionModal';
 import { getRoleCapabilities } from '../../utils/permissions';
 import {
@@ -157,6 +162,24 @@ export const TasksPage = () => {
 		key: string;
 		direction: 'asc' | 'desc';
 	}>({ key: 'dueDate', direction: 'asc' });
+	const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
+	const [draftSearchTerm, setDraftSearchTerm] = useState('');
+	const [draftQuickFilter, setDraftQuickFilter] = useState<
+		'all' | 'overdue' | 'due-soon' | 'due-next-30' | 'unassigned'
+	>('all');
+	const [draftSortValue, setDraftSortValue] = useState('dueDate:asc');
+	const [advancedFilters, setAdvancedFilters] = useState({
+		status: '',
+		priority: '',
+		assignedTo: '',
+		category: '',
+		location: '',
+		propertyId: '',
+		dueDateStart: '',
+		dueDateEnd: '',
+	});
+	const [draftAdvancedFilters, setDraftAdvancedFilters] =
+		useState(advancedFilters);
 	const [undoToastMessage, setUndoToastMessage] = useState<string | null>(null);
 	const [pendingUndo, setPendingUndo] = useState<{
 		kind: 'complete' | 'delete';
@@ -272,6 +295,150 @@ export const TasksPage = () => {
 		return allProperties.map((p) => ({ value: p.id, label: p.title }));
 	}, [allProperties]);
 
+	const globalTaskFilterOptions = useMemo(() => {
+		const accessibleTasks = filterTasksByRole(
+			processedTasks,
+			currentUser,
+			teamMembers,
+			allProperties,
+		).filter((task) => task.status !== 'Completed');
+		const uniqueOptions = (values: Array<string | undefined>) =>
+			Array.from(
+				new Set(values.map((value) => String(value || '').trim()).filter(Boolean)),
+			)
+				.sort((left, right) => left.localeCompare(right))
+				.map((value) => ({ value, label: value }));
+
+		const assigneeMap = new Map<string, string>();
+		accessibleTasks.forEach((task: any) => {
+			const assigneeId =
+				task.assignedTo && typeof task.assignedTo === 'object'
+					? task.assignedTo.id
+					: task.assignee;
+			if (assigneeId) {
+				assigneeMap.set(
+					String(assigneeId),
+					getTaskAssigneeDisplayName(task, 'Former assignee'),
+				);
+			}
+		});
+
+		return {
+			statuses: uniqueOptions(accessibleTasks.map((task) => task.status)),
+			categories: uniqueOptions(accessibleTasks.map((task) => task.category)),
+			locations: uniqueOptions(accessibleTasks.map((task) => task.location)),
+			assignees: Array.from(assigneeMap.entries())
+				.map(([value, label]) => ({ value, label }))
+				.sort((left, right) => left.label.localeCompare(right.label)),
+		};
+	}, [processedTasks, currentUser, teamMembers, allProperties]);
+
+	const renderAdvancedFilterFields = (
+		values: typeof advancedFilters,
+		onChange: (
+			key: keyof typeof advancedFilters,
+			value: string,
+		) => void,
+	) => (
+		<TaskFilterFields>
+			{/* <TaskFilterField>
+				Lifecycle status
+				<TaskSortSelect
+					value={values.status}
+					onChange={(event) => onChange('status', event.target.value)}>
+					<option value=''>All statuses</option>
+					{globalTaskFilterOptions.statuses.map((option) => (
+						<option key={option.value} value={option.value}>
+							{option.label}
+						</option>
+					))}
+				</TaskSortSelect>
+			</TaskFilterField> */}
+			<TaskFilterField>
+				Priority
+				<TaskSortSelect
+					value={values.priority}
+					onChange={(event) => onChange('priority', event.target.value)}>
+					<option value=''>All priorities</option>
+					{['Low', 'Medium', 'High', 'Urgent'].map((priority) => (
+						<option key={priority} value={priority}>
+							{priority}
+						</option>
+					))}
+				</TaskSortSelect>
+			</TaskFilterField>
+			<TaskFilterField>
+				Assigned to
+				<TaskSortSelect
+					value={values.assignedTo}
+					onChange={(event) => onChange('assignedTo', event.target.value)}>
+					<option value=''>All assignees</option>
+					<option value='unassigned'>Unassigned</option>
+					{globalTaskFilterOptions.assignees.map((option) => (
+						<option key={option.value} value={option.value}>
+							{option.label}
+						</option>
+					))}
+				</TaskSortSelect>
+			</TaskFilterField>
+			<TaskFilterField>
+				Property
+				<TaskSortSelect
+					value={values.propertyId}
+					onChange={(event) => onChange('propertyId', event.target.value)}>
+					<option value=''>All properties</option>
+					{propertyFilterOptions.map((option) => (
+						<option key={option.value} value={String(option.value)}>
+							{option.label}
+						</option>
+					))}
+				</TaskSortSelect>
+			</TaskFilterField>
+			<TaskFilterField>
+				Category
+				<TaskSortSelect
+					value={values.category}
+					onChange={(event) => onChange('category', event.target.value)}>
+					<option value=''>All categories</option>
+					{globalTaskFilterOptions.categories.map((option) => (
+						<option key={option.value} value={option.value}>
+							{option.label}
+						</option>
+					))}
+				</TaskSortSelect>
+			</TaskFilterField>
+			<TaskFilterField>
+				Location
+				<TaskSortSelect
+					value={values.location}
+					onChange={(event) => onChange('location', event.target.value)}>
+					<option value=''>All locations</option>
+					{globalTaskFilterOptions.locations.map((option) => (
+						<option key={option.value} value={option.value}>
+							{option.label}
+						</option>
+					))}
+				</TaskSortSelect>
+			</TaskFilterField>
+			<TaskFilterField>
+				Due after
+				<TaskSearchInput
+					type='date'
+					value={values.dueDateStart}
+					onChange={(event) => onChange('dueDateStart', event.target.value)}
+				/>
+			</TaskFilterField>
+			<TaskFilterField>
+				Due before
+				<TaskSearchInput
+					type='date'
+					value={values.dueDateEnd}
+					onChange={(event) => onChange('dueDateEnd', event.target.value)}
+				/>
+			</TaskFilterField>
+		</TaskFilterFields>
+	);
+
 	const handleSort = (key: string) => {
 		setSortState((prev) =>
 			prev.key === key
@@ -283,7 +450,67 @@ export const TasksPage = () => {
 	const clearTopFilters = () => {
 		setSearchTerm('');
 		setQuickFilter('all');
+		setAdvancedFilters({
+			status: '',
+			priority: '',
+			assignedTo: '',
+			category: '',
+			location: '',
+			propertyId: '',
+			dueDateStart: '',
+			dueDateEnd: '',
+		});
 	};
+
+	const openFilterPanel = () => {
+		setDraftSearchTerm(searchTerm);
+		setDraftQuickFilter(quickFilter);
+		setDraftSortValue(`${sortState.key}:${sortState.direction}`);
+		setDraftAdvancedFilters({ ...advancedFilters });
+		setIsFilterPanelOpen(true);
+	};
+
+	const dismissFilterPanel = () => {
+		setDraftSearchTerm(searchTerm);
+		setDraftQuickFilter(quickFilter);
+		setDraftSortValue(`${sortState.key}:${sortState.direction}`);
+		setDraftAdvancedFilters({ ...advancedFilters });
+		setIsFilterPanelOpen(false);
+	};
+
+	const clearDraftFilters = () => {
+		setDraftSearchTerm('');
+		setDraftQuickFilter('all');
+		setDraftSortValue('dueDate:asc');
+		setDraftAdvancedFilters({
+			status: '',
+			priority: '',
+			assignedTo: '',
+			category: '',
+			location: '',
+			propertyId: '',
+			dueDateStart: '',
+			dueDateEnd: '',
+		});
+	};
+
+	const applyDraftFilters = () => {
+		const [key, direction] = draftSortValue.split(':') as [
+			string,
+			'asc' | 'desc',
+		];
+		setSearchTerm(draftSearchTerm);
+		setQuickFilter(draftQuickFilter);
+		setAdvancedFilters({ ...draftAdvancedFilters });
+		setSortState({ key, direction });
+		setIsFilterPanelOpen(false);
+	};
+
+	const activeFilterCount =
+		(searchTerm.trim() ? 1 : 0) +
+		(quickFilter !== 'all' ? 1 : 0) +
+		(sortState.key !== 'dueDate' || sortState.direction !== 'asc' ? 1 : 0) +
+		Object.values(advancedFilters).filter(Boolean).length;
 
 	const hasEnabledTaskNotifications = (task: any) =>
 		task?.enableNotifications === true &&
@@ -335,9 +562,67 @@ export const TasksPage = () => {
 			return true;
 		});
 
+		const afterAdvancedFilters = afterQuickFilter.filter((task: any) => {
+			if (advancedFilters.status && task.status !== advancedFilters.status) {
+				return false;
+			}
+			if (
+				advancedFilters.priority &&
+				task.priority !== advancedFilters.priority
+			) {
+				return false;
+			}
+			if (
+				advancedFilters.category &&
+				task.category !== advancedFilters.category
+			) {
+				return false;
+			}
+			if (
+				advancedFilters.location &&
+				task.location !== advancedFilters.location
+			) {
+				return false;
+			}
+			if (
+				advancedFilters.propertyId &&
+				String(task.propertyId) !== advancedFilters.propertyId
+			) {
+				return false;
+			}
+			if (advancedFilters.assignedTo) {
+				const assigneeId =
+					task.assignedTo && typeof task.assignedTo === 'object'
+						? task.assignedTo.id
+						: task.assignee;
+				if (advancedFilters.assignedTo === 'unassigned') {
+					if (assigneeId) return false;
+				} else if (String(assigneeId || '') !== advancedFilters.assignedTo) {
+					return false;
+				}
+			}
+			if (advancedFilters.dueDateStart || advancedFilters.dueDateEnd) {
+				if (!task.dueDate) return false;
+				const dueTime = new Date(task.dueDate).getTime();
+				if (Number.isNaN(dueTime)) return false;
+				if (
+					advancedFilters.dueDateStart &&
+					dueTime < new Date(advancedFilters.dueDateStart).getTime()
+				) {
+					return false;
+				}
+				if (advancedFilters.dueDateEnd) {
+					const endDate = new Date(advancedFilters.dueDateEnd);
+					endDate.setHours(23, 59, 59, 999);
+					if (dueTime > endDate.getTime()) return false;
+				}
+			}
+			return true;
+		});
+
 		// Keep overdue first, then apply user-selected sort.
 		const priorityOrder = { Urgent: 4, High: 3, Medium: 2, Low: 1 };
-		return afterQuickFilter.sort((a, b) => {
+		return afterAdvancedFilters.sort((a, b) => {
 			const overdueA = isTaskOverdueForDisplay(a as any);
 			const overdueB = isTaskOverdueForDisplay(b as any);
 			if (overdueA !== overdueB) {
@@ -386,6 +671,7 @@ export const TasksPage = () => {
 		allProperties,
 		searchTerm,
 		quickFilter,
+		advancedFilters,
 		sortState,
 	]);
 
@@ -421,7 +707,13 @@ export const TasksPage = () => {
 			kind === 'noTaskMatches'
 				? [{ label: 'Clear Filters', onClick: clearTopFilters }]
 				: canCreateTasks
-					? [{ label: 'Add Task', onClick: handleCreateTask }]
+					? [
+							{
+								label: 'Add Task',
+								onClick: handleCreateTask,
+								hideOnCompact: true,
+							},
+					  ]
 					: [];
 
 		return { kind, actions };
@@ -824,7 +1116,11 @@ export const TasksPage = () => {
 		);
 	}
 
-	if (filteredTasks.length === 0 && !showTaskDialog) {
+	if (
+		filteredTasks.length === 0 &&
+		activeFilterCount === 0 &&
+		!showTaskDialog
+	) {
 		const taskZeroState = getTaskZeroStateConfig();
 		return (
 			<AppZeroState
@@ -844,13 +1140,18 @@ export const TasksPage = () => {
 						Track overdue work, upcoming maintenance, and assignment status across your properties.
 					</StandardAppPageSubtitle>
 				</StandardAppPageTitleBlock>
+				{canCreateTasks && (
+					<AddTaskButton type='button' onClick={handleCreateTask}>
+						+ Add Task
+					</AddTaskButton>
+				)}
 			</StandardAppPageHeader>
 			{/* Task Filter Section */}
 			<TaskControlPanel>
 				<TaskControlRow>
 					<TaskSearchInput
 						type='text'
-						placeholder='Search history, notes...'
+						placeholder='Search task titles and notes...'
 						value={searchTerm}
 						onChange={(e) => setSearchTerm(e.target.value)}
 					/>
@@ -865,25 +1166,10 @@ export const TasksPage = () => {
 						<option value='propertyTitle:asc'>Sort: Property A-Z</option>
 						<option value='status:asc'>Sort: Status</option>
 					</TaskSortSelect>
-					{!isMobile && canCreateTasks && (
-						<button
-							onClick={handleCreateTask}
-							style={{
-								background: COLORS.primary,
-								color: 'white',
-								border: 'none',
-								padding: '8px 12px',
-								borderRadius: '6px',
-								fontSize: '0.85rem',
-								fontWeight: 700,
-								cursor: 'pointer',
-								whiteSpace: 'nowrap',
-							}}
-							title='Create maintenance task'>
-							+ Add Task
-						</button>
-					)}
 				</TaskControlRow>
+				{renderAdvancedFilterFields(advancedFilters, (key, value) =>
+					setAdvancedFilters((current) => ({ ...current, [key]: value }))
+				)}
 				<QuickFilterChips>
 					<QuickFilterChip
 						$active={quickFilter === 'all'}
@@ -910,17 +1196,111 @@ export const TasksPage = () => {
 						onClick={() => setQuickFilter('unassigned')}>
 						Unassigned
 					</QuickFilterChip>
-					{(searchTerm.trim().length > 0 || quickFilter !== 'all') && (
-						<QuickFilterChip onClick={clearTopFilters}>Clear</QuickFilterChip>
-					)}
+					{(searchTerm.trim().length > 0 ||
+						quickFilter !== 'all' ||
+						Object.values(advancedFilters).some(Boolean)) && (
+							<QuickFilterChip onClick={clearTopFilters}>Clear</QuickFilterChip>
+						)}
 				</QuickFilterChips>
 				<TaskResultCount>
 					Showing {filteredTasks.length} {filteredTasks.length === 1 ? 'task' : 'tasks'}
 				</TaskResultCount>
 			</TaskControlPanel>
 
+			<TaskPageMetaRow>
+				<TaskResultCount>
+					Showing {filteredTasks.length}{' '}
+					{filteredTasks.length === 1 ? 'task' : 'tasks'}
+				</TaskResultCount>
+			</TaskPageMetaRow>
+
+			<FloatingFilterPanel
+				isOpen={isFilterPanelOpen}
+				onOpen={openFilterPanel}
+				onDismiss={dismissFilterPanel}
+				onApply={applyDraftFilters}
+				onClearDraft={clearDraftFilters}
+				activeFilterCount={activeFilterCount}
+				title='Search and filter tasks'
+				description='Choose what you want to see, then apply your changes.'>
+				<TaskFilterFields>
+					<TaskFilterField>
+						Search
+						<TaskSearchInput
+							type='search'
+							placeholder='Search task titles and notes...'
+							value={draftSearchTerm}
+							onChange={(event) =>
+								setDraftSearchTerm(event.target.value)
+							}
+						/>
+					</TaskFilterField>
+					<TaskFilterField>
+						Sort
+						<TaskSortSelect
+							value={draftSortValue}
+							onChange={(event) =>
+								setDraftSortValue(event.target.value)
+							}>
+							<option value='dueDate:asc'>Due soonest</option>
+							<option value='dueDate:desc'>Due latest</option>
+							<option value='priority:desc'>Priority first</option>
+							<option value='title:asc'>Title A-Z</option>
+							<option value='propertyTitle:asc'>Property A-Z</option>
+							<option value='status:asc'>Status</option>
+						</TaskSortSelect>
+					</TaskFilterField>
+				</TaskFilterFields>
+				{renderAdvancedFilterFields(
+					draftAdvancedFilters,
+					(key, value) =>
+						setDraftAdvancedFilters((current) => ({
+							...current,
+							[key]: value,
+						})),
+				)}
+				<QuickFilterChips>
+					{[
+						['all', 'All'],
+						['overdue', 'Overdue'],
+						['due-soon', 'Due Soon'],
+						['due-next-30', 'Next 30 Days'],
+						['unassigned', 'Unassigned'],
+					].map(([value, label]) => (
+						<QuickFilterChip
+							key={value}
+							type='button'
+							$active={draftQuickFilter === value}
+							onClick={() =>
+								setDraftQuickFilter(
+									value as typeof draftQuickFilter,
+								)
+							}>
+							{label}
+						</QuickFilterChip>
+					))}
+				</QuickFilterChips>
+			</FloatingFilterPanel>
+
 			{isMobile ? (
 				<MobileListSection>
+					{filteredTasks.length === 0 && (
+						<AppZeroState
+							kind='noTaskMatches'
+							actions={[
+								{
+									label: 'Clear Filters',
+									onClick: () => {
+										clearTopFilters();
+										setSortState({
+											key: 'dueDate',
+											direction: 'asc',
+										});
+									},
+								},
+							]}
+						/>
+					)}
 					{filteredTasks.map((task: any) => {
 						const operational = getTaskDisplayStatus(task);
 						const isOverdue = operational.isOverdue;
@@ -1047,6 +1427,23 @@ export const TasksPage = () => {
 				<>
 					{/* Task Grid Section */}
 					<TaskGridSection>
+						{filteredTasks.length === 0 && (
+							<AppZeroState
+								kind='noTaskMatches'
+								actions={[
+									{
+										label: 'Clear Filters',
+										onClick: () => {
+											clearTopFilters();
+											setSortState({
+												key: 'dueDate',
+												direction: 'asc',
+											});
+										},
+									},
+								]}
+							/>
+						)}
 						<ReusableTable
 							rowData={filteredTasks}
 							columns={columns}

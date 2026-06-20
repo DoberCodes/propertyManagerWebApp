@@ -13,6 +13,7 @@ import {
 export type AppZeroStateKind =
 	| 'noProperties'
 	| 'noAssignedProperties'
+	| 'noPropertyMatches'
 	| 'noTasks'
 	| 'noActiveTasks'
 	| 'noTaskMatches'
@@ -24,6 +25,7 @@ export interface AppZeroStateAction {
 	onClick: () => void;
 	variant?: 'primary' | 'secondary';
 	disabled?: boolean;
+	hideOnCompact?: boolean;
 }
 
 interface AppZeroStateContent {
@@ -41,6 +43,10 @@ const APP_ZERO_STATE_COPY: Record<AppZeroStateKind, AppZeroStateContent> = {
 		title: 'No assigned properties',
 		description:
 			'No property assignments were found for your account. Contact your account owner or manager.',
+	},
+	noPropertyMatches: {
+		title: 'No properties match your filters',
+		description: 'Clear your search or filters to see more properties.',
 	},
 	noTasks: {
 		title: 'No tasks yet',
@@ -117,6 +123,7 @@ export const AppZeroState: React.FC<AppZeroStateProps> = ({
 								key={action.label}
 								type='button'
 								$variant={action.variant}
+								$hideOnCompact={action.hideOnCompact}
 								disabled={action.disabled}
 								onClick={action.onClick}>
 								{action.label}

@@ -725,7 +725,11 @@ const UploadButton = styled.button`
 	}
 
 	@media (max-width: 640px) {
-		width: 100%;
+		display: none;
+	}
+
+	@media (min-width: 641px) and (max-width: 1024px) {
+		display: none;
 	}
 `;
 

@@ -61,7 +61,10 @@ import {
 	ActiveFilterChips,
 	ActiveFilterChip,
 	ActiveFilterChipClear,
+	CompactFilterResultCount,
+	DesktopFilterArea,
 } from './mobileUiShared';
+import { PropertyTabFilterPanel } from './PropertyTabFilterPanel';
 import { TaskFinancials } from 'types/Task.types';
 import { PropertyDocument } from 'types/Property.types';
 import { RoleCapabilities } from 'utils/permissions';
@@ -1259,6 +1262,29 @@ export const MaintenanceTab = ({
 			)}
 
 			{/* Collapsable Filter Section */}
+			<CompactFilterResultCount>
+				Showing {filteredRecords.length} of {allMaintenanceRecords.length}{' '}
+				maintenance records for {property?.title || 'this property'}
+			</CompactFilterResultCount>
+			<PropertyTabFilterPanel
+				propertyName={property?.title || 'this property'}
+				resourceName='maintenance history'
+				searchPlaceholder='Search history and notes...'
+				filters={filters}
+				onFiltersChange={setFilters}
+				filterConfigs={maintenanceFilters}
+				sortValue={sortBy}
+				defaultSortValue='dateDesc'
+				sortOptions={[
+					{ value: 'dateDesc', label: 'Newest first' },
+					{ value: 'dateAsc', label: 'Oldest first' },
+					{ value: 'title', label: 'Title' },
+				]}
+				onSortChange={(value) =>
+					setSortBy(value as 'dateDesc' | 'dateAsc' | 'title')
+				}
+			/>
+			<DesktopFilterArea>
 			<div style={{ marginBottom: isMobile ? '12px' : '16px' }}>
 				<div
 					style={{
@@ -1340,9 +1366,11 @@ export const MaintenanceTab = ({
 					<FilterBar
 						filters={maintenanceFilters}
 						onFiltersChange={setFilters}
+						values={filters}
 					/>
 				)}
 			</div>
+			</DesktopFilterArea>
 			{isMobile ? (
 				<div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
 					{filteredRecords.length === 0 ? (

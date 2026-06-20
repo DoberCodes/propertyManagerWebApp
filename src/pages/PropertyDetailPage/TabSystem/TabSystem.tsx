@@ -35,6 +35,7 @@ interface TabsProps {
 	openCreateTaskToken?: number;
 	openCreateDeviceToken?: number;
 	openDocumentsUploadToken?: number;
+	openCreateContractorToken?: number;
 	handleAddMaintenanceHistory: (history: any) => void;
 	handleDeleteMaintenanceHistory: (historyId: string) => void;
 	setShowAddTenantModal: (show: boolean) => void;
@@ -69,6 +70,7 @@ export const TabSystem = ({
 	openCreateTaskToken = 0,
 	openCreateDeviceToken = 0,
 	openDocumentsUploadToken = 0,
+	openCreateContractorToken = 0,
 	// assigneeOptions intentionally not used here
 	handleAddMaintenanceHistory,
 	handleDeleteMaintenanceHistory,
@@ -177,6 +179,7 @@ export const TabSystem = ({
 					property?.isRental && (
 						<RequestsTab
 							propertyMaintenanceRequests={propertyMaintenanceRequests}
+							propertyTitle={property?.title || 'this property'}
 							currentUser={currentUser}
 							unitOptions={unitOptions}
 							selectedUnitId={selectedUnitId}
@@ -189,7 +192,14 @@ export const TabSystem = ({
 					)
 				);
 			case 'contractors':
-				return <ContractorsTab propertyId={property?.id || ''} permissions={permissions} />;
+				return (
+					<ContractorsTab
+						propertyId={property?.id || ''}
+						propertyName={property?.title || 'this property'}
+						openCreateContractorToken={openCreateContractorToken}
+						permissions={permissions}
+					/>
+				);
 			default:
 				return null;
 		}

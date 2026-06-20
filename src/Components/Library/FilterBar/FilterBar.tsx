@@ -17,6 +17,7 @@ export interface FilterValues {
 interface FilterBarProps {
 	filters: FilterConfig[];
 	onFiltersChange: (filters: FilterValues) => void;
+	values?: FilterValues;
 	className?: string;
 	hideOnMobile?: boolean;
 	useCustomSelect?: boolean;
@@ -131,11 +132,18 @@ const ClearButton = styled.button`
 export const FilterBar: React.FC<FilterBarProps> = ({
 	filters,
 	onFiltersChange,
+	values,
 	className,
 	hideOnMobile = false,
 	useCustomSelect = false,
 }) => {
-	const [filterValues, setFilterValues] = useState<FilterValues>({});
+	const [filterValues, setFilterValues] = useState<FilterValues>(values || {});
+
+	useEffect(() => {
+		if (values) {
+			setFilterValues(values);
+		}
+	}, [values]);
 
 	useEffect(() => {
 		onFiltersChange(filterValues);

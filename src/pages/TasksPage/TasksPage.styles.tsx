@@ -43,6 +43,64 @@ export const TaskControlPanel = styled.div`
 	border: 1px solid #e2e8f0;
 	background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
 	box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06);
+
+	@media (max-width: 1024px) {
+		display: none;
+	}
+`;
+
+export const TaskFilterFields = styled.div`
+	display: grid;
+	grid-template-columns: minmax(240px, 1.5fr) minmax(220px, 1fr);
+	gap: 12px;
+
+	@media (max-width: 640px) {
+		grid-template-columns: 1fr;
+	}
+`;
+
+export const TaskFilterField = styled.label`
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	color: #475569;
+	font-size: 12px;
+	font-weight: 800;
+`;
+
+export const TaskPageMetaRow = styled.div`
+	display: none;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	min-height: 28px;
+
+	@media (max-width: 1024px) {
+		display: flex;
+		padding-right: 58px;
+	}
+`;
+
+export const AddTaskButton = styled.button`
+	min-height: 42px;
+	padding: 9px 15px;
+	border: none;
+	border-radius: 10px;
+	background: #10b981;
+	color: #ffffff;
+	font-size: 0.85rem;
+	font-weight: 800;
+	box-shadow: 0 8px 18px rgba(16, 185, 129, 0.2);
+	cursor: pointer;
+	white-space: nowrap;
+
+	&:hover {
+		background: #059669;
+	}
+
+	@media (max-width: 1024px) {
+		display: none;
+	}
 `;
 
 export const TaskControlRow = styled.div`

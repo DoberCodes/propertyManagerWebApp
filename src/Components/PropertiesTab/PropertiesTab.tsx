@@ -15,6 +15,7 @@ import {
 } from '../Library/AppPageLayout/AppPageLayout.styles';
 import { DeleteConfirmationModal } from '../Library/Modal/DeleteConfirmationModal';
 import { AppZeroState } from '../Library/AppZeroState';
+import { FloatingFilterPanel } from '../Library';
 import { useRecentlyViewed } from '../../Hooks/useRecentlyViewed';
 import { useFavorites } from '../../Hooks/useFavorites';
 import { RootState } from '../../Redux/store/store';
@@ -59,6 +60,11 @@ import { USER_ROLES } from '../../constants/roles';
 import {
 	Wrapper,
 	TopActions,
+	DesktopPropertyFilters,
+	CompactResultCount,
+	PropertyFilterFields,
+	PropertyFilterField,
+	PropertyFilterSelect,
 	SummaryStatsGrid,
 	SummaryCard,
 	SummaryIcon,
@@ -425,9 +431,109 @@ export const Properties = () => {
 	const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
 	const [sortBy, setSortBy] = useState<'name' | 'recent' | 'updated'>('name');
 	const [filterBy, setFilterBy] = useState<'all' | 'rental' | 'residential'>('all');
+	const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
+	const [draftSearchQuery, setDraftSearchQuery] = useState('');
+	const [draftSortBy, setDraftSortBy] =
+		useState<'name' | 'recent' | 'updated'>('name');
+	const [draftFilterBy, setDraftFilterBy] =
+		useState<'all' | 'rental' | 'residential'>('all');
 	const [isHeaderMenuOpen, setIsHeaderMenuOpen] = useState(false);
 	const [openGroupMenuId, setOpenGroupMenuId] = useState<string | null>(null);
 	const headerMenuRef = useRef<HTMLDivElement | null>(null);
+
+	const displayedGroups = useMemo(() => {
+		const query = searchQuery.trim().toLowerCase();
+		const getTimestamp = (value?: string) => {
+			const timestamp = value ? new Date(value).getTime() : 0;
+			return Number.isNaN(timestamp) ? 0 : timestamp;
+		};
+
+		return filteredGroups
+			.map((group) => {
+				const properties = [...(group.properties || [])]
+					.filter((property: Property) => {
+						if (filterBy === 'rental' && !property.isRental) return false;
+						if (filterBy === 'residential' && property.isRental) return false;
+						if (!query) return true;
+
+						return [
+							property.title,
+							JSON.stringify(property.address || ''),
+							property.owner,
+							property.propertyType,
+						]
+							.filter(Boolean)
+							.join(' ')
+							.toLowerCase()
+							.includes(query);
+					})
+					.sort((left: Property, right: Property) => {
+						if (sortBy === 'recent') {
+							return (
+								getTimestamp(right.createdAt) - getTimestamp(left.createdAt)
+							);
+						}
+						if (sortBy === 'updated') {
+							return (
+								getTimestamp(right.updatedAt) - getTimestamp(left.updatedAt)
+							);
+						}
+						return String(left.title || '').localeCompare(
+							String(right.title || ''),
+						);
+					});
+
+				return { ...group, properties };
+			})
+			.filter((group) => (group.properties || []).length > 0);
+	}, [filteredGroups, filterBy, searchQuery, sortBy]);
+
+	const displayedPropertyCount = useMemo(
+		() =>
+			displayedGroups.reduce(
+				(total, group) => total + (group.properties || []).length,
+				0,
+			),
+		[displayedGroups],
+	);
+
+	const openFilterPanel = () => {
+		setDraftSearchQuery(searchQuery);
+		setDraftSortBy(sortBy);
+		setDraftFilterBy(filterBy);
+		setIsFilterPanelOpen(true);
+	};
+
+	const dismissFilterPanel = () => {
+		setDraftSearchQuery(searchQuery);
+		setDraftSortBy(sortBy);
+		setDraftFilterBy(filterBy);
+		setIsFilterPanelOpen(false);
+	};
+
+	const clearDraftFilters = () => {
+		setDraftSearchQuery('');
+		setDraftSortBy('name');
+		setDraftFilterBy('all');
+	};
+
+	const applyDraftFilters = () => {
+		setSearchQuery(draftSearchQuery);
+		setSortBy(draftSortBy);
+		setFilterBy(draftFilterBy);
+		setIsFilterPanelOpen(false);
+	};
+
+	const clearPropertyFilters = () => {
+		setSearchQuery('');
+		setSortBy('name');
+		setFilterBy('all');
+	};
+
+	const activeFilterCount =
+		(searchQuery.trim() ? 1 : 0) +
+		(filterBy !== 'all' ? 1 : 0) +
+		(sortBy !== 'name' ? 1 : 0);
 
 	useEffect(() => {
 		const handleClickOutside = (event: MouseEvent) => {
@@ -1499,20 +1605,29 @@ export const Properties = () => {
 					<StandardAppPageSubtitle>Organize and manage all of your properties in one place.</StandardAppPageSubtitle>
 				</StandardAppPageTitleBlock>
 				<TopActions>
-					<SearchBar
-						type='text'
-						placeholder='Search properties...'
-						value={searchQuery}
-						onChange={(e) => setSearchQuery(e.target.value)}
-					/>
-					<FilterSortContainer>
-						<FilterButton $isActive={filterBy !== 'all'} onClick={() => setFilterBy(filterBy === 'all' ? 'rental' : 'all')}>
-							Filters
-						</FilterButton>
-						<SortButton onClick={() => setSortBy(sortBy === 'name' ? 'updated' : 'name')}>
-							Sort
-						</SortButton>
-					</FilterSortContainer>
+					<DesktopPropertyFilters>
+						<SearchBar
+							type='text'
+							placeholder='Search properties...'
+							value={searchQuery}
+							onChange={(e) => setSearchQuery(e.target.value)}
+						/>
+						<FilterSortContainer>
+							<FilterButton
+								$isActive={filterBy !== 'all'}
+								onClick={() =>
+									setFilterBy(filterBy === 'all' ? 'rental' : 'all')
+								}>
+								Filters
+							</FilterButton>
+							<SortButton
+								onClick={() =>
+									setSortBy(sortBy === 'name' ? 'updated' : 'name')
+								}>
+								Sort
+							</SortButton>
+						</FilterSortContainer>
+					</DesktopPropertyFilters>
 					{canManage && (
 						<>
 							<AddPropertyButton
@@ -1571,6 +1686,59 @@ export const Properties = () => {
 					)}
 				</TopActions>
 			</StandardAppPageHeader>
+			<CompactResultCount>
+				Showing {displayedPropertyCount} of {visibleProperties.length}{' '}
+				{visibleProperties.length === 1 ? 'property' : 'properties'}
+			</CompactResultCount>
+			<FloatingFilterPanel
+				isOpen={isFilterPanelOpen}
+				onOpen={openFilterPanel}
+				onDismiss={dismissFilterPanel}
+				onApply={applyDraftFilters}
+				onClearDraft={clearDraftFilters}
+				activeFilterCount={activeFilterCount}
+				title='Search and filter properties'
+				description='Choose which properties you want to see, then apply your changes.'>
+				<PropertyFilterFields>
+					<PropertyFilterField>
+						Search
+						<SearchBar
+							type='search'
+							placeholder='Search properties...'
+							value={draftSearchQuery}
+							onChange={(event) =>
+								setDraftSearchQuery(event.target.value)
+							}
+						/>
+					</PropertyFilterField>
+					<PropertyFilterField>
+						Property use
+						<PropertyFilterSelect
+							value={draftFilterBy}
+							onChange={(event) =>
+								setDraftFilterBy(
+									event.target.value as typeof draftFilterBy,
+								)
+							}>
+							<option value='all'>All properties</option>
+							<option value='rental'>Rentals</option>
+							<option value='residential'>Owner occupied</option>
+						</PropertyFilterSelect>
+					</PropertyFilterField>
+					<PropertyFilterField>
+						Sort
+						<PropertyFilterSelect
+							value={draftSortBy}
+							onChange={(event) =>
+								setDraftSortBy(event.target.value as typeof draftSortBy)
+							}>
+							<option value='name'>Name A-Z</option>
+							<option value='recent'>Recently added</option>
+							<option value='updated'>Recently updated</option>
+						</PropertyFilterSelect>
+					</PropertyFilterField>
+				</PropertyFilterFields>
+			</FloatingFilterPanel>
 			{showPropertyGroupUpsell && (
 				<LockedFeatureCallout
 					title='Property Groups are locked on your current plan'
@@ -1663,7 +1831,18 @@ export const Properties = () => {
 				}
 			/>
 			<GroupsContainer>
-				{filteredGroups.map((group) => (
+				{displayedPropertyCount === 0 && (
+					<AppZeroState
+						kind='noPropertyMatches'
+						actions={[
+							{
+								label: 'Clear Filters',
+								onClick: clearPropertyFilters,
+							},
+						]}
+					/>
+				)}
+				{displayedGroups.map((group) => (
 					<GroupSection key={group.id}>
 						<GroupHeader>
 							<div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
@@ -1881,4 +2060,3 @@ export const Properties = () => {
 		</StandardAppPage>
 	);
 };
-

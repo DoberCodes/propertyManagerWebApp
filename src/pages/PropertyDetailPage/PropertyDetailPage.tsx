@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -193,6 +193,8 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 	const [openCreateTaskToken, setOpenCreateTaskToken] = useState(0);
 	const [openCreateDeviceToken, setOpenCreateDeviceToken] = useState(0);
 	const [openDocumentsUploadToken, setOpenDocumentsUploadToken] = useState(0);
+	const [openCreateContractorToken, setOpenCreateContractorToken] = useState(0);
+	const handledPropertyActionRef = useRef('');
 	const [deleteTaskModalOpen, setDeleteTaskModalOpen] = useState(false);
 	const [taskToDelete, setTaskToDelete] = useState<{
 		id: string;
@@ -284,24 +286,107 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 		setIsActionMenuOpen(false);
 	};
 
+	const selectPropertyTab = (tab: string) => {
+		dispatch(setAppActiveTab(tab));
+		const nextParams = new URLSearchParams(searchParams);
+		nextParams.set('tab', tab);
+		nextParams.delete('action');
+		setSearchParams(nextParams);
+	};
+
 	const handleOpenCreateTaskDialog = () => {
 		if (!roleCapabilities.canCreateTasks) {
 			feedback.notify('Your role can request maintenance but cannot create tasks directly.');
 			return;
 		}
-		dispatch(setAppActiveTab('tasks'));
+		selectPropertyTab('tasks');
 		setOpenCreateTaskToken((currentToken) => currentToken + 1);
 	};
 
 	const handleSetupAddMoreAppliances = () => {
-		dispatch(setAppActiveTab('devices'));
+		selectPropertyTab('devices');
 		setOpenCreateDeviceToken((currentToken) => currentToken + 1);
 	};
 
 	const handleSetupUploadDocuments = () => {
-		dispatch(setAppActiveTab('documents'));
+		selectPropertyTab('documents');
 		setOpenDocumentsUploadToken((currentToken) => currentToken + 1);
 	};
+
+	useEffect(() => {
+		const action = searchParams.get('action');
+		if (!action) {
+			handledPropertyActionRef.current = '';
+			return;
+		}
+		if (!property) return;
+
+		const actionKey = `${property.id}:${action}`;
+		if (handledPropertyActionRef.current === actionKey) return;
+		handledPropertyActionRef.current = actionKey;
+
+		let targetTab = '';
+		let allowed = true;
+
+		switch (action) {
+			case 'create-task':
+				targetTab = 'tasks';
+				allowed = roleCapabilities.canCreateTasks;
+				if (allowed) {
+					setOpenCreateTaskToken((currentToken) => currentToken + 1);
+				}
+				break;
+			case 'create-system':
+				targetTab = 'devices';
+				allowed = roleCapabilities.canManageAppliances;
+				if (allowed) {
+					setOpenCreateDeviceToken((currentToken) => currentToken + 1);
+				}
+				break;
+			case 'upload-document':
+				targetTab = 'documents';
+				allowed = roleCapabilities.canManageProperties;
+				if (allowed) {
+					setOpenDocumentsUploadToken((currentToken) => currentToken + 1);
+				}
+				break;
+			case 'add-contractor':
+				targetTab = 'contractors';
+				allowed = roleCapabilities.canManageContractors;
+				if (allowed) {
+					setOpenCreateContractorToken((currentToken) => currentToken + 1);
+				}
+				break;
+			default:
+				handledPropertyActionRef.current = '';
+				return;
+		}
+
+		if (targetTab) {
+			dispatch(setAppActiveTab(targetTab));
+		}
+
+		if (!allowed) {
+			feedback.notify('Your role does not allow that action for this property.');
+		}
+
+		const nextParams = new URLSearchParams(searchParams);
+		if (targetTab) {
+			nextParams.set('tab', targetTab);
+		}
+		nextParams.delete('action');
+		setSearchParams(nextParams, { replace: true });
+	}, [
+		dispatch,
+		feedback,
+		property,
+		roleCapabilities.canCreateTasks,
+		roleCapabilities.canManageAppliances,
+		roleCapabilities.canManageContractors,
+		roleCapabilities.canManageProperties,
+		searchParams,
+		setSearchParams,
+	]);
 
 	const handleSaveProperty = async (formData: any) => {
 		if (!property?.id) {
@@ -1051,6 +1136,7 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 					openCreateTaskToken={openCreateTaskToken}
 					openCreateDeviceToken={openCreateDeviceToken}
 					openDocumentsUploadToken={openDocumentsUploadToken}
+					openCreateContractorToken={openCreateContractorToken}
 					permissions={roleCapabilities}
 				/>
 

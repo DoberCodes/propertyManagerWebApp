@@ -73,6 +73,70 @@ export const TopActions = styled.div`
 	}
 `;
 
+export const DesktopPropertyFilters = styled.div`
+	display: flex;
+	align-items: center;
+	gap: 10px;
+
+	@media (max-width: 1024px) {
+		display: none;
+	}
+`;
+
+export const CompactResultCount = styled.div`
+	display: none;
+	color: #64748b;
+	font-size: 0.8rem;
+	font-weight: 700;
+
+	@media (max-width: 1024px) {
+		display: block;
+		padding-right: 58px;
+	}
+`;
+
+export const PropertyFilterFields = styled.div`
+	display: grid;
+	grid-template-columns: minmax(220px, 1.4fr) repeat(2, minmax(170px, 1fr));
+	gap: 12px;
+
+	@media (max-width: 720px) {
+		grid-template-columns: 1fr;
+	}
+`;
+
+export const PropertyFilterField = styled.label`
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	color: #475569;
+	font-size: 12px;
+	font-weight: 800;
+
+	> input,
+	> select {
+		width: 100%;
+		max-width: none;
+	}
+`;
+
+export const PropertyFilterSelect = styled.select`
+	width: 100%;
+	min-height: 42px;
+	padding: 8px 12px;
+	border: 1px solid #cbd5e1;
+	border-radius: 10px;
+	background: #ffffff;
+	color: #0f172a;
+	font: inherit;
+
+	&:focus {
+		outline: none;
+		border-color: #22c55e;
+		box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.12);
+	}
+`;
+
 export const SummaryStatsGrid = styled.div`
 	display: grid;
 	grid-template-columns: repeat(4, minmax(140px, 1fr));

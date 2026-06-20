@@ -70,7 +70,7 @@ export const Wrapper = styled.div`
 
 	@media (max-width: 480px) {
 		padding: 40px 10px;
-		padding-top: max(60px, env(safe-area-inset-top, 40px));
+		padding-top: max(60px, env(safe-area-inset-top, 60px));
 		padding-left: max(10px, env(safe-area-inset-left, 10px));
 		padding-right: max(10px, env(safe-area-inset-right, 10px));
 

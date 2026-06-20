@@ -7,10 +7,8 @@ import {
 	Contractor,
 	ContractorCategory,
 } from '../../../types/Contractor.types';
+import { GenericModal } from '../../../Components/Library';
 import {
-	Overlay,
-	FormContainer,
-	Title,
 	SuccessMessage,
 	ErrorMessage,
 	InlineError,
@@ -25,8 +23,6 @@ import {
 	Label,
 	Select,
 	Textarea,
-	ButtonGroup,
-	Button,
 } from './index.styles';
 
 interface ContractorFormProps {
@@ -112,7 +108,7 @@ export const ContractorForm: React.FC<ContractorFormProps> = ({
 		!formData.phone.trim() ? 'Phone Number' : null,
 	].filter(Boolean) as string[];
 
-	const handleSubmit = async (e: React.FormEvent) => {
+	const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
 		setSubmitAttempted(true);
 
@@ -171,130 +167,142 @@ export const ContractorForm: React.FC<ContractorFormProps> = ({
 	};
 
 	return (
-		<Overlay onClick={onClose}>
-			<FormContainer onClick={(e) => e.stopPropagation()}>
-				<Title>{contractor ? 'Edit Contractor' : 'Add New Contractor'}</Title>
-
-				<FormIntroCard>
+		<GenericModal
+			isOpen
+			title={contractor ? 'Edit Contractor' : 'Add Contractor'}
+			onClose={onClose}
+			onSubmit={handleSubmit}
+			showActions
+			secondaryButtonLabel='Cancel'
+			secondaryButtonAction={onClose}
+			primaryButtonLabel={
+				isLoading
+					? 'Saving...'
+					: contractor
+						? 'Update Contractor'
+						: 'Add Contractor'
+			}
+			primaryButtonDisabled={missingRequiredFields.length > 0}
+			isLoading={isLoading}>
+			<FormIntroCard>
+				<FormIntroText>
+					Add the required basics first, then include optional contact context
+					like notes and address.
+				</FormIntroText>
+				<FormIntroPills>
+					<FormIntroPill
+						$tone={missingRequiredFields.length === 0 ? 'success' : 'neutral'}>
+						{4 - missingRequiredFields.length}/4 required complete
+					</FormIntroPill>
+					<FormIntroPill $tone='neutral'>
+						{contractor
+							? 'Editing existing contractor'
+							: 'Creating new contractor'}
+					</FormIntroPill>
+				</FormIntroPills>
+				{submitAttempted && missingRequiredFields.length > 0 && (
 					<FormIntroText>
-						Add the required basics first, then include optional contact context like notes and address.
+						Still needed: {missingRequiredFields.join(', ')}
 					</FormIntroText>
-					<FormIntroPills>
-						<FormIntroPill
-							$tone={missingRequiredFields.length === 0 ? 'success' : 'neutral'}>
-							{4 - missingRequiredFields.length}/4 required complete
-						</FormIntroPill>
-						<FormIntroPill $tone='neutral'>
-							{contractor ? 'Editing existing contractor' : 'Creating new contractor'}
-						</FormIntroPill>
-					</FormIntroPills>
-					{submitAttempted && missingRequiredFields.length > 0 && (
-						<FormIntroText>
-							Still needed: {missingRequiredFields.join(', ')}
-						</FormIntroText>
-					)}
-				</FormIntroCard>
-
-				{message && (
-					<>
-						{message.type === 'success' ? (
-							<SuccessMessage>{message.text}</SuccessMessage>
-						) : (
-							<ErrorMessage>{message.text}</ErrorMessage>
-						)}
-					</>
 				)}
+			</FormIntroCard>
 
-				<form onSubmit={handleSubmit}>
-					<FormGrid>
-					<FormGroup>
-						<Label htmlFor='company'>
-							Company Name <span>*</span>
-						</Label>
-						<Input
-							type='text'
-							id='company'
-							name='company'
-							value={formData.company}
-							onChange={handleChange}
-							placeholder='e.g., ABC Landscaping'
-						/>
-						{errors.company && <InlineError>{errors.company}</InlineError>}
-					</FormGroup>
+			{message &&
+				(message.type === 'success' ? (
+					<SuccessMessage>{message.text}</SuccessMessage>
+				) : (
+					<ErrorMessage>{message.text}</ErrorMessage>
+				))}
 
-					<FormGroup>
-						<Label htmlFor='name'>
-							Contact Name <span>*</span>
-						</Label>
-						<Input
-							type='text'
-							id='name'
-							name='name'
-							value={formData.name}
-							onChange={handleChange}
-							placeholder='e.g., John Smith'
-						/>
-						{errors.name && <InlineError>{errors.name}</InlineError>}
-					</FormGroup>
+			<FormGrid>
+				<FormGroup>
+					<Label htmlFor='company'>
+						Company Name <span>*</span>
+					</Label>
+					<Input
+						type='text'
+						id='company'
+						name='company'
+						value={formData.company}
+						onChange={handleChange}
+						placeholder='e.g., ABC Landscaping'
+					/>
+					{errors.company && <InlineError>{errors.company}</InlineError>}
+				</FormGroup>
 
-					<FormGroup>
-						<Label htmlFor='category'>
-							Category <span>*</span>
-						</Label>
-						<Select
-							id='category'
-							name='category'
-							value={formData.category}
-							onChange={handleChange}>
-							{CONTRACTOR_CATEGORIES.map((cat) => (
-								<option key={cat} value={cat}>
-									{cat}
-								</option>
-							))}
-						</Select>
-						{errors.category && <InlineError>{errors.category}</InlineError>}
-					</FormGroup>
+				<FormGroup>
+					<Label htmlFor='name'>
+						Contact Name <span>*</span>
+					</Label>
+					<Input
+						type='text'
+						id='name'
+						name='name'
+						value={formData.name}
+						onChange={handleChange}
+						placeholder='e.g., John Smith'
+					/>
+					{errors.name && <InlineError>{errors.name}</InlineError>}
+				</FormGroup>
 
-					<FormGroup>
-						<Label htmlFor='phone'>
-							Phone Number <span>*</span>
-						</Label>
-						<Input
-							type='tel'
-							id='phone'
-							name='phone'
-							value={formData.phone}
-							onChange={handleChange}
-							placeholder='e.g., (555) 123-4567'
-						/>
-						{errors.phone && <InlineError>{errors.phone}</InlineError>}
-					</FormGroup>
+				<FormGroup>
+					<Label htmlFor='category'>
+						Category <span>*</span>
+					</Label>
+					<Select
+						id='category'
+						name='category'
+						value={formData.category}
+						onChange={handleChange}>
+						{CONTRACTOR_CATEGORIES.map((cat) => (
+							<option key={cat} value={cat}>
+								{cat}
+							</option>
+						))}
+					</Select>
+					{errors.category && <InlineError>{errors.category}</InlineError>}
+				</FormGroup>
 
-					<FormGroup>
-						<Label htmlFor='email'>Email Address</Label>
-						<Input
-							type='email'
-							id='email'
-							name='email'
-							value={formData.email}
-							onChange={handleChange}
-							placeholder='e.g., john@abc.com'
-						/>
-					</FormGroup>
+				<FormGroup>
+					<Label htmlFor='phone'>
+						Phone Number <span>*</span>
+					</Label>
+					<Input
+						type='tel'
+						id='phone'
+						name='phone'
+						value={formData.phone}
+						onChange={handleChange}
+						placeholder='e.g., (555) 123-4567'
+					/>
+					{errors.phone && <InlineError>{errors.phone}</InlineError>}
+				</FormGroup>
 
-					<FormGroup>
-						<Label htmlFor='address'>Address</Label>
-						<Input
-							type='text'
-							id='address'
-							name='address'
-							value={formData.address}
-							onChange={handleChange}
-							placeholder='e.g., 123 Main St, City, State'
-						/>
-					</FormGroup>
+				<FormGroup>
+					<Label htmlFor='email'>Email Address</Label>
+					<Input
+						type='email'
+						id='email'
+						name='email'
+						value={formData.email}
+						onChange={handleChange}
+						placeholder='e.g., john@abc.com'
+					/>
+				</FormGroup>
 
-					<FormFullWidth>
+				<FormGroup>
+					<Label htmlFor='address'>Address</Label>
+					<Input
+						type='text'
+						id='address'
+						name='address'
+						value={formData.address}
+						onChange={handleChange}
+						placeholder='e.g., 123 Main St, City, State'
+					/>
+				</FormGroup>
+
+				<FormFullWidth>
 					<FormGroup>
 						<Label htmlFor='notes'>Notes</Label>
 						<Textarea
@@ -305,29 +313,8 @@ export const ContractorForm: React.FC<ContractorFormProps> = ({
 							placeholder='Add any special notes or contract details...'
 						/>
 					</FormGroup>
-					</FormFullWidth>
-					</FormGrid>
-
-					<ButtonGroup>
-						<Button
-							type='button'
-							variant='secondary'
-							onClick={onClose}
-							disabled={isLoading}>
-							Cancel
-						</Button>
-						<Button
-							type='submit'
-							disabled={isLoading || missingRequiredFields.length > 0}>
-							{isLoading
-								? 'Saving...'
-								: contractor
-								? 'Update Contractor'
-								: 'Add Contractor'}
-						</Button>
-					</ButtonGroup>
-				</form>
-			</FormContainer>
-		</Overlay>
+				</FormFullWidth>
+			</FormGrid>
+		</GenericModal>
 	);
 };

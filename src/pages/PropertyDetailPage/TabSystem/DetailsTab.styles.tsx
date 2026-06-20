@@ -191,6 +191,10 @@ export const PreviewEmptyAction = styled.button`
 	&:hover {
 		background: #f1f5f9;
 	}
+
+	@media (max-width: 1024px) {
+		display: none;
+	}
 `;
 
 export const TimelineList = styled.div`

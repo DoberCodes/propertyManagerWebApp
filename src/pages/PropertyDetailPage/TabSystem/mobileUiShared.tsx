@@ -34,6 +34,33 @@ export const ActiveFilterChipClear = styled.button`
 	cursor: pointer;
 `;
 
+export const DesktopFilterArea = styled.div`
+	@media (max-width: 1024px) {
+		display: none;
+	}
+`;
+
+export const CompactFilterResultCount = styled.div`
+	display: none;
+	padding-right: 58px;
+	margin: 0 0 12px;
+	color: #64748b;
+	font-size: 0.8rem;
+	font-weight: 700;
+
+	@media (max-width: 1024px) {
+		display: block;
+	}
+`;
+
+export const DesktopCreateAction = styled.div`
+	display: contents;
+
+	@media (max-width: 1024px) {
+		display: none;
+	}
+`;
+
 export const CardMoreDetails = styled.details`
 	position: relative;
 	flex: 1;

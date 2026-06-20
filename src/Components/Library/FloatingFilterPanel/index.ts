@@ -1,0 +1,1 @@
+export { FloatingFilterPanel } from './FloatingFilterPanel';

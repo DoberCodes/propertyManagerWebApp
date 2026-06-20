@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
@@ -59,17 +59,25 @@ import {
 	ActiveFilterChips,
 	ActiveFilterChip,
 	ActiveFilterChipClear,
+	CompactFilterResultCount,
+	DesktopCreateAction,
+	DesktopFilterArea,
 } from './mobileUiShared';
+import { PropertyTabFilterPanel } from './PropertyTabFilterPanel';
 import { useAppFeedback } from '../../../Components/Library/AppFeedback/AppFeedbackProvider';
 import { RoleCapabilities } from '../../../utils/permissions';
 
 interface ContractorsTabProps {
 	propertyId: string;
+	propertyName?: string;
+	openCreateContractorToken?: number;
 	permissions?: RoleCapabilities;
 }
 
 export const ContractorsTab: React.FC<ContractorsTabProps> = ({
 	propertyId,
+	propertyName = 'this property',
+	openCreateContractorToken = 0,
 	permissions,
 }) => {
 	const feedback = useAppFeedback();
@@ -83,6 +91,7 @@ export const ContractorsTab: React.FC<ContractorsTabProps> = ({
 	const [filters, setFilters] = useState<FilterValues>({});
 	const [showFilters, setShowFilters] = useState(false);
 	const [sortBy, setSortBy] = useState<'company' | 'category'>('company');
+	const lastOpenCreateTokenRef = useRef(0);
 	const { isMobile } = useSelector((state: any) => state.app);
 	const canManageContractors = permissions?.canManageContractors ?? true;
 
@@ -176,6 +185,21 @@ export const ContractorsTab: React.FC<ContractorsTabProps> = ({
 		setEditingContractor(null);
 		setIsFormOpen(true);
 	};
+
+	useEffect(() => {
+		if (
+			!openCreateContractorToken ||
+			lastOpenCreateTokenRef.current === openCreateContractorToken
+		) {
+			return;
+		}
+
+		lastOpenCreateTokenRef.current = openCreateContractorToken;
+		if (canManageContractors) {
+			setEditingContractor(null);
+			setIsFormOpen(true);
+		}
+	}, [openCreateContractorToken, canManageContractors]);
 
 	const handleFormClose = () => {
 		setIsFormOpen(false);
@@ -331,6 +355,7 @@ export const ContractorsTab: React.FC<ContractorsTabProps> = ({
 				</TabSummaryPill>
 			</TabSummaryBar>
 			{canManageContractors && (
+				<DesktopCreateAction>
 				<Toolbar>
 					<ToolbarButton
 						onClick={handleAddNew}
@@ -338,8 +363,31 @@ export const ContractorsTab: React.FC<ContractorsTabProps> = ({
 						+ Add Contractor
 					</ToolbarButton>
 				</Toolbar>
+				</DesktopCreateAction>
 			)}
 
+			<CompactFilterResultCount>
+				Showing {filteredContractors.length} of {contractors.length} contractors
+				for {propertyName}
+			</CompactFilterResultCount>
+			<PropertyTabFilterPanel
+				propertyName={propertyName}
+				resourceName='contractors'
+				searchPlaceholder='Search contractors...'
+				filters={filters}
+				onFiltersChange={setFilters}
+				filterConfigs={contractorFilters}
+				sortValue={sortBy}
+				defaultSortValue='company'
+				sortOptions={[
+					{ value: 'company', label: 'Company' },
+					{ value: 'category', label: 'Category' },
+				]}
+				onSortChange={(value) =>
+					setSortBy(value as 'company' | 'category')
+				}
+			/>
+			<DesktopFilterArea>
 			<div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16 }}>
 				<div
 					style={{
@@ -421,10 +469,12 @@ export const ContractorsTab: React.FC<ContractorsTabProps> = ({
 					<FilterBar
 						filters={contractorFilters}
 						onFiltersChange={setFilters}
+						values={filters}
 						hideOnMobile={true}
 					/>
 				)}
 			</div>
+			</DesktopFilterArea>
 
 			{canManageContractors && isFormOpen && (
 				<ContractorForm
@@ -442,9 +492,11 @@ export const ContractorsTab: React.FC<ContractorsTabProps> = ({
 							: 'Try clearing filters, or add a contractor if this is a new service relationship.'}
 					</p>
 					{canManageContractors && (
+						<DesktopCreateAction>
 						<ToolbarButton type='button' onClick={handleAddNew}>
 							Add Contractor
 						</ToolbarButton>
+						</DesktopCreateAction>
 					)}
 				</EmptyState>
 			) : (

@@ -1,5 +1,5 @@
-import React, { useMemo, useRef, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import styled from 'styled-components';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -403,6 +403,10 @@ const QuickActionPanel = styled.div`
 	border-radius: 12px;
 	background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
 	padding: 14px;
+
+	@media (max-width: 1024px) {
+		display: none;
+	}
 `;
 
 const ViewActionsButton = styled.button`
@@ -1054,6 +1058,10 @@ const getTimelineEventLabel = (entry: { type?: string; title?: string; descripti
 
 export const DeviceDetailPage: React.FC = () => {
 	const { slug, deviceSlug } = useParams<{ slug: string; deviceSlug: string }>();
+	const [searchParams, setSearchParams] = useSearchParams();
+	const applianceAction = searchParams.get('action');
+	const capturedApplianceActionRef = useRef<string | null>(null);
+	const pendingApplianceActionRef = useRef<string | null>(null);
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
 	const isMobile = useSelector((state: RootState) => state.app.isMobile);
 	const roleCapabilities = useMemo(
@@ -1265,21 +1273,21 @@ export const DeviceDetailPage: React.FC = () => {
 			title: `${deviceTaskTemplate.title} - recurring`,
 			...(canAccessRecurringTasks
 				? {
-						isRecurring: true,
-						recurrenceFrequency: 'monthly',
-				  }
+					isRecurring: true,
+					recurrenceFrequency: 'monthly',
+				}
 				: { isRecurring: false }),
 		};
 	}, [canAccessRecurringTasks, deviceTaskTemplate]);
 
 	const taskUnitOptions = useMemo(() => {
-	       console.log('[DeviceDetailPage] units:', units);
-	       const options = units.map((unit: any) => ({
-		       label: unit.unitName || unit.name || unit.title || 'Unit',
-		       value: String(unit.id || ''),
-	       }));
-	       console.log('[DeviceDetailPage] taskUnitOptions:', options);
-	       return options;
+		console.log('[DeviceDetailPage] units:', units);
+		const options = units.map((unit: any) => ({
+			label: unit.unitName || unit.name || unit.title || 'Unit',
+			value: String(unit.id || ''),
+		}));
+		console.log('[DeviceDetailPage] taskUnitOptions:', options);
+		return options;
 	}, [units]);
 
 	const linkedTasks = useMemo(() => {
@@ -1400,10 +1408,10 @@ export const DeviceDetailPage: React.FC = () => {
 			const dateKey = String(rawDate).split('T')[0];
 			const textKey = String(
 				record?.title ||
-					record?.taskTitle ||
-					record?.description ||
-					record?.completionNotes ||
-					'',
+				record?.taskTitle ||
+				record?.description ||
+				record?.completionNotes ||
+				'',
 			)
 				.trim()
 				.toLowerCase();
@@ -1468,15 +1476,15 @@ export const DeviceDetailPage: React.FC = () => {
 		const files = Array.isArray(device?.files) ? device.files : [];
 		return Boolean(
 			String(device?.brand || '').trim() ||
-				String(device?.model || '').trim() ||
-				String(device?.serialNumber || '').trim() ||
-				String(device?.partNumber || '').trim() ||
-				String(device?.filterSize || '').trim() ||
-				String(device?.specNotes || '').trim() ||
-				String(device?.installationDate || '').trim() ||
-				String(device?.decommissionDate || '').trim() ||
-				serviceItems.length > 0 ||
-				files.length > 0,
+			String(device?.model || '').trim() ||
+			String(device?.serialNumber || '').trim() ||
+			String(device?.partNumber || '').trim() ||
+			String(device?.filterSize || '').trim() ||
+			String(device?.specNotes || '').trim() ||
+			String(device?.installationDate || '').trim() ||
+			String(device?.decommissionDate || '').trim() ||
+			serviceItems.length > 0 ||
+			files.length > 0,
 		);
 	}, [device]);
 	const activePartFields = useMemo(
@@ -2280,6 +2288,100 @@ export const DeviceDetailPage: React.FC = () => {
 		});
 	};
 
+	useEffect(() => {
+		if (applianceAction) {
+			if (capturedApplianceActionRef.current !== applianceAction) {
+				capturedApplianceActionRef.current = applianceAction;
+				pendingApplianceActionRef.current = applianceAction;
+
+				const nextSearchParams = new URLSearchParams(searchParams);
+				nextSearchParams.delete('action');
+				setSearchParams(nextSearchParams, { replace: true });
+			}
+		} else {
+			capturedApplianceActionRef.current = null;
+		}
+
+		const pendingAction = pendingApplianceActionRef.current;
+		if (!pendingAction || !device || !property) return;
+		pendingApplianceActionRef.current = null;
+
+		switch (pendingAction) {
+			case 'edit-appliance':
+				if (!canManageApplianceActions) break;
+				setEditingDevice(device);
+				setDeviceFormData({
+					type: device.type || '',
+					brand: device.brand || '',
+					model: device.model || '',
+					serialNumber: device.serialNumber || '',
+					serviceItems: device.serviceItems || [],
+					installationDate: device.installationDate || '',
+					decommissionDate: device.decommissionDate || '',
+					status: device.decommissionDate
+						? 'Decommissioned'
+						: device.status || 'Active',
+					location: device.location || { propertyId: property.id },
+					files: deviceDocumentFiles,
+				});
+				setPendingDeviceFiles([]);
+				setRemovedExistingFileUrls([]);
+				setShowDeviceEditModal(true);
+				break;
+			case 'add-task':
+				if (!canCreateTaskActions || !deviceTaskTemplate) break;
+				setSelectedTask(null);
+				setIsEditingTask(false);
+				setShowRecurringTaskModal(false);
+				setShowTaskModal(true);
+				break;
+			case 'upload-document':
+				if (!canUploadDocumentActions) break;
+				setActiveTab('documents');
+				documentInputRef.current?.click();
+				break;
+			case 'add-log':
+				if (!canLogMaintenanceActions) break;
+				setQuickLogMode('note');
+				setQuickLogDescription('');
+				setQuickLogDate(new Date().toISOString().split('T')[0]);
+				setQuickLogAttachment(null);
+				setQuickLogWarrantyExpiration('');
+				setQuickLogFinancials({
+					contractorCost: '',
+					materialsCost: '',
+					laborCost: '',
+					otherCost: '',
+				});
+				setQuickLogSelectedContractorId('');
+				setQuickLogCreateContractor(false);
+				setQuickLogNewContractor({
+					name: '',
+					company: '',
+					category: 'General',
+					phone: '',
+					email: '',
+					notes: '',
+				});
+				setShowQuickLogModal(true);
+				break;
+			default:
+				break;
+		}
+	}, [
+		applianceAction,
+		canCreateTaskActions,
+		canLogMaintenanceActions,
+		canManageApplianceActions,
+		canUploadDocumentActions,
+		device,
+		deviceDocumentFiles,
+		deviceTaskTemplate,
+		property,
+		searchParams,
+		setSearchParams,
+	]);
+
 	if (!slug || !deviceId) {
 		return (
 			<SectionContainer>
@@ -2338,6 +2440,7 @@ export const DeviceDetailPage: React.FC = () => {
 			backPath={`/property/${property.slug}`}
 			headerTheme='slate'
 			contentMaxWidth='100%'
+			compactTabs
 			tabs={tabs}
 			activeTab={activeTab}
 			onTabChange={handleTabChange}>
@@ -2367,99 +2470,99 @@ export const DeviceDetailPage: React.FC = () => {
 					canCreateTaskActions ||
 					canUploadDocumentActions ||
 					canLogMaintenanceActions) && (
-					<QuickActionPanel id='appliance-quick-actions'>
-						<QuickActionHeader>
-							<div>
-								<h3>Quick Actions</h3>
-								<p>Keep this appliance moving with the next maintenance step.</p>
-							</div>
-							<ViewActionsButton
-								type='button'
-								aria-expanded={areQuickActionsOpen}
-								aria-controls='appliance-quick-action-list'
-								onClick={() => setAreQuickActionsOpen((isOpen) => !isOpen)}>
-								{areQuickActionsOpen ? 'Hide Actions' : 'View Actions'}
-							</ViewActionsButton>
-						</QuickActionHeader>
-						{areQuickActionsOpen && (
-							<>
-								<QuickActionGrid id='appliance-quick-action-list'>
-									{canManageApplianceActions && (
-										<QuickActionButton type='button' onClick={handleOpenEditDeviceModal}>
-											<strong>Edit Appliance</strong>
-											<span>Change the appliance profile, status, or location.</span>
-										</QuickActionButton>
-									)}
-									{canCreateTaskActions && (
-										<>
-											<QuickActionButton type='button' onClick={openCreateTaskModal}>
-												<strong>Create Task</strong>
-												<span>Turn this appliance into a tracked maintenance job.</span>
+						<QuickActionPanel id='appliance-quick-actions'>
+							<QuickActionHeader>
+								<div>
+									<h3>Quick Actions</h3>
+									<p>Keep this appliance moving with the next maintenance step.</p>
+								</div>
+								<ViewActionsButton
+									type='button'
+									aria-expanded={areQuickActionsOpen}
+									aria-controls='appliance-quick-action-list'
+									onClick={() => setAreQuickActionsOpen((isOpen) => !isOpen)}>
+									{areQuickActionsOpen ? 'Hide Actions' : 'View Actions'}
+								</ViewActionsButton>
+							</QuickActionHeader>
+							{areQuickActionsOpen && (
+								<>
+									<QuickActionGrid id='appliance-quick-action-list'>
+										{canManageApplianceActions && (
+											<QuickActionButton type='button' onClick={handleOpenEditDeviceModal}>
+												<strong>Edit Appliance</strong>
+												<span>Change the appliance profile, status, or location.</span>
 											</QuickActionButton>
-											<QuickActionButton
-												type='button'
-												onClick={openRecurringTaskModal}
-												disabled={!canAccessRecurringTasks}>
-												<strong>Add Recurring Maintenance</strong>
-												<span>
-													{canAccessRecurringTasks
-														? 'Set ongoing care for filters, service, and inspections.'
-														: 'Homeowner+ feature for ongoing care schedules.'}
-												</span>
+										)}
+										{canCreateTaskActions && (
+											<>
+												<QuickActionButton type='button' onClick={openCreateTaskModal}>
+													<strong>Create Task</strong>
+													<span>Turn this appliance into a tracked maintenance job.</span>
+												</QuickActionButton>
+												<QuickActionButton
+													type='button'
+													onClick={openRecurringTaskModal}
+													disabled={!canAccessRecurringTasks}>
+													<strong>Add Recurring Maintenance</strong>
+													<span>
+														{canAccessRecurringTasks
+															? 'Set ongoing care for filters, service, and inspections.'
+															: 'Homeowner+ feature for ongoing care schedules.'}
+													</span>
+												</QuickActionButton>
+											</>
+										)}
+										{canUploadDocumentActions && (
+											<QuickActionButton type='button' onClick={() => documentInputRef.current?.click()}>
+												<strong>Upload Invoice / Document</strong>
+												<span>Store proof of service, receipts, or manuals here.</span>
 											</QuickActionButton>
-										</>
-									)}
-									{canUploadDocumentActions && (
-										<QuickActionButton type='button' onClick={() => documentInputRef.current?.click()}>
-											<strong>Upload Invoice / Document</strong>
-											<span>Store proof of service, receipts, or manuals here.</span>
-										</QuickActionButton>
-									)}
-									{canLogMaintenanceActions && (
-										<>
-											<QuickActionButton type='button' onClick={() => openQuickLogModal('note')}>
-												<strong>Add Service Note</strong>
-												<span>Capture context that should travel with the system.</span>
-											</QuickActionButton>
-											<QuickActionButton type='button' onClick={() => openQuickLogModal('repair')}>
-												<strong>Log Repair</strong>
-												<span>Write a repair entry directly into the maintenance trail.</span>
-											</QuickActionButton>
-											<QuickActionButton type='button' onClick={() => openQuickLogModal('invoice')}>
-												<strong>Log Invoice</strong>
-												<span>Record invoice details in the maintenance history.</span>
-											</QuickActionButton>
-											<QuickActionButton type='button' onClick={() => openQuickLogModal('inspection')}>
-												<strong>Log Inspection</strong>
-												<span>Document findings and recommendations from inspections.</span>
-											</QuickActionButton>
-						<QuickActionButton
-							type='button'
-							onClick={() => openQuickLogModal('warranty')}
-										title={undefined}>
-							<strong>Log Warranty</strong>
-							<span>
-								{canAccessWarranty
-												? 'Capture coverage terms, expiration details, and warranty documents.'
-									: isTeamMemberAccount
-													? 'Capture warranty dates and notes. Document uploads depend on your role.'
-													: 'Capture expiration dates and notes. Upgrade to attach warranty documents.'}
-							</span>
-						</QuickActionButton>
-											<QuickActionButton type='button' onClick={() => openQuickLogModal('contractor')}>
-												<strong>Log Contractor Visit</strong>
-												<span>Document who visited, what they found, and next steps.</span>
-											</QuickActionButton>
-										</>
-									)}
-								</QuickActionGrid>
-								<QuickActionHint>
-									These actions all feed the same service history so the appliance becomes more useful over time.
-								</QuickActionHint>
-							</>
-						)}
-					</QuickActionPanel>
-				)}
+										)}
+										{canLogMaintenanceActions && (
+											<>
+												<QuickActionButton type='button' onClick={() => openQuickLogModal('note')}>
+													<strong>Add Service Note</strong>
+													<span>Capture context that should travel with the system.</span>
+												</QuickActionButton>
+												<QuickActionButton type='button' onClick={() => openQuickLogModal('repair')}>
+													<strong>Log Repair</strong>
+													<span>Write a repair entry directly into the maintenance trail.</span>
+												</QuickActionButton>
+												<QuickActionButton type='button' onClick={() => openQuickLogModal('invoice')}>
+													<strong>Log Invoice</strong>
+													<span>Record invoice details in the maintenance history.</span>
+												</QuickActionButton>
+												<QuickActionButton type='button' onClick={() => openQuickLogModal('inspection')}>
+													<strong>Log Inspection</strong>
+													<span>Document findings and recommendations from inspections.</span>
+												</QuickActionButton>
+												<QuickActionButton
+													type='button'
+													onClick={() => openQuickLogModal('warranty')}
+													title={undefined}>
+													<strong>Log Warranty</strong>
+													<span>
+														{canAccessWarranty
+															? 'Capture coverage terms, expiration details, and warranty documents.'
+															: isTeamMemberAccount
+																? 'Capture warranty dates and notes. Document uploads depend on your role.'
+																: 'Capture expiration dates and notes. Upgrade to attach warranty documents.'}
+													</span>
+												</QuickActionButton>
+												<QuickActionButton type='button' onClick={() => openQuickLogModal('contractor')}>
+													<strong>Log Contractor Visit</strong>
+													<span>Document who visited, what they found, and next steps.</span>
+												</QuickActionButton>
+											</>
+										)}
+									</QuickActionGrid>
+									<QuickActionHint>
+										These actions all feed the same service history so the appliance becomes more useful over time.
+									</QuickActionHint>
+								</>
+							)}
+						</QuickActionPanel>
+					)}
 				{canUploadDocumentActions && (
 					<input
 						ref={documentInputRef}
@@ -2470,124 +2573,124 @@ export const DeviceDetailPage: React.FC = () => {
 					/>
 				)}
 
-			{activeTab === 'info' && (
-				<TabContent>
+				{activeTab === 'info' && (
+					<TabContent>
 						<SectionContainer>
-						<SectionBlock>
-							<SectionEyebrow>Appliance Information</SectionEyebrow>
-							<SectionTitleStrong>Core Profile and Warranty Context</SectionTitleStrong>
-							<SectionDescription>
-								Keep this profile current so linked tasks, service records, and documents stay actionable.
-							</SectionDescription>
-						</SectionBlock>
-						{canManageApplianceActions && (
-							<PhotoActions style={{ marginBottom: 14 }}>
-								<ScanButton type='button' onClick={() => setIsDeviceScanOpen(true)}>
-									Scan Appliance Barcode
-								</ScanButton>
-								<PhotoHelperText>
-									Use barcode/QR scan to auto-fill appliance type, brand, model, and serial when available.
-								</PhotoHelperText>
-							</PhotoActions>
-						)}
-
-						<PhotoSection>
-							<DevicePhotoCard>
-								{devicePhotoFile?.url ? (
-									<DevicePhotoImg src={devicePhotoFile.url} alt={`${device.type || 'Appliance'} photo`} />
-								) : (
-									<PhotoPlaceholder>No appliance photo selected</PhotoPlaceholder>
-								)}
-							</DevicePhotoCard>
-							<div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-								<SectionHeader style={{ marginBottom: 4 }}>Appliance Photo</SectionHeader>
-								<PhotoHelperText>
-									Add a clear photo for quick recognition. This appears in the appliance profile.
-								</PhotoHelperText>
-								<PhotoActions>
-									<PhotoActionButton
-										type='button'
-										onClick={handleSelectPhotoClick}
-										disabled={isUploadingPhoto}>
-										{isUploadingPhoto
-											? 'Uploading...'
-											: devicePhotoFile
-											? 'Replace Photo'
-											: 'Upload Photo'}
-									</PhotoActionButton>
-									{devicePhotoFile && (
-										<RemovePhotoButton type='button' onClick={handleRemovePhoto}>
-											Remove Photo
-										</RemovePhotoButton>
-									)}
-									<input
-										ref={photoInputRef}
-										type='file'
-										accept='image/*'
-										onChange={handlePhotoUpload}
-										style={{ display: 'none' }}
-									/>
+							<SectionBlock>
+								<SectionEyebrow>Appliance Information</SectionEyebrow>
+								<SectionTitleStrong>Core Profile and Warranty Context</SectionTitleStrong>
+								<SectionDescription>
+									Keep this profile current so linked tasks, service records, and documents stay actionable.
+								</SectionDescription>
+							</SectionBlock>
+							{canManageApplianceActions && (
+								<PhotoActions style={{ marginBottom: 14 }}>
+									<ScanButton type='button' onClick={() => setIsDeviceScanOpen(true)}>
+										Scan Appliance Barcode
+									</ScanButton>
+									<PhotoHelperText>
+										Use barcode/QR scan to auto-fill appliance type, brand, model, and serial when available.
+									</PhotoHelperText>
 								</PhotoActions>
-							</div>
-						</PhotoSection>
+							)}
 
-						<SectionHeader>Appliance Information</SectionHeader>
-						{!hasApplianceDetails && (
-							<InfoCard style={{ borderColor: '#fde68a', background: '#fefce8' }}>
-								<InfoLabel>Profile Details</InfoLabel>
-								<InfoValue style={{ color: '#854d0e' }}>
-									No details added yet. This appliance can still be linked to tasks now and filled in later.
-								</InfoValue>
-							</InfoCard>
-						)}
-						<InfoGrid>
-							<InfoCard>
-								<InfoLabel>Name</InfoLabel>
-								<InfoValue>{device.type || 'N/A'}</InfoValue>
-							</InfoCard>
-							<InfoCard>
-								<InfoLabel>Brand</InfoLabel>
-								<InfoValue>{device.brand || 'N/A'}</InfoValue>
-							</InfoCard>
-							<InfoCard>
-								<InfoLabel>Model</InfoLabel>
-								<InfoValue>{device.model || 'N/A'}</InfoValue>
-							</InfoCard>
-							<InfoCard>
-								<InfoLabel>Serial Number</InfoLabel>
-								<InfoValue>{device.serialNumber || 'N/A'}</InfoValue>
-							</InfoCard>
-							<InfoCard>
-								<InfoLabel>Status</InfoLabel>
-								<InfoValue>{resolvedDeviceStatus}</InfoValue>
-							</InfoCard>
-							<InfoCard>
-								<InfoLabel>Installed</InfoLabel>
-								<InfoValue>{formatDate(device.installationDate)}</InfoValue>
-							</InfoCard>
-							<InfoCard>
-								<InfoLabel>Decommissioned</InfoLabel>
-								<InfoValue>{formatDate(device.decommissionDate)}</InfoValue>
-							</InfoCard>
-							<InfoCard>
-								<InfoLabel>Location</InfoLabel>
-								<InfoValue>{locationLabel}</InfoValue>
-							</InfoCard>
-						</InfoGrid>
+							<PhotoSection>
+								<DevicePhotoCard>
+									{devicePhotoFile?.url ? (
+										<DevicePhotoImg src={devicePhotoFile.url} alt={`${device.type || 'Appliance'} photo`} />
+									) : (
+										<PhotoPlaceholder>No appliance photo selected</PhotoPlaceholder>
+									)}
+								</DevicePhotoCard>
+								<div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+									<SectionHeader style={{ marginBottom: 4 }}>Appliance Photo</SectionHeader>
+									<PhotoHelperText>
+										Add a clear photo for quick recognition. This appears in the appliance profile.
+									</PhotoHelperText>
+									<PhotoActions>
+										<PhotoActionButton
+											type='button'
+											onClick={handleSelectPhotoClick}
+											disabled={isUploadingPhoto}>
+											{isUploadingPhoto
+												? 'Uploading...'
+												: devicePhotoFile
+													? 'Replace Photo'
+													: 'Upload Photo'}
+										</PhotoActionButton>
+										{devicePhotoFile && (
+											<RemovePhotoButton type='button' onClick={handleRemovePhoto}>
+												Remove Photo
+											</RemovePhotoButton>
+										)}
+										<input
+											ref={photoInputRef}
+											type='file'
+											accept='image/*'
+											onChange={handlePhotoUpload}
+											style={{ display: 'none' }}
+										/>
+									</PhotoActions>
+								</div>
+							</PhotoSection>
 
-						{device.notes && (
-							<InfoCard>
-								<InfoLabel>Notes</InfoLabel>
-								<InfoValue>{device.notes}</InfoValue>
-							</InfoCard>
-						)}
+							<SectionHeader>Appliance Information</SectionHeader>
+							{!hasApplianceDetails && (
+								<InfoCard style={{ borderColor: '#fde68a', background: '#fefce8' }}>
+									<InfoLabel>Profile Details</InfoLabel>
+									<InfoValue style={{ color: '#854d0e' }}>
+										No details added yet. This appliance can still be linked to tasks now and filled in later.
+									</InfoValue>
+								</InfoCard>
+							)}
+							<InfoGrid>
+								<InfoCard>
+									<InfoLabel>Name</InfoLabel>
+									<InfoValue>{device.type || 'N/A'}</InfoValue>
+								</InfoCard>
+								<InfoCard>
+									<InfoLabel>Brand</InfoLabel>
+									<InfoValue>{device.brand || 'N/A'}</InfoValue>
+								</InfoCard>
+								<InfoCard>
+									<InfoLabel>Model</InfoLabel>
+									<InfoValue>{device.model || 'N/A'}</InfoValue>
+								</InfoCard>
+								<InfoCard>
+									<InfoLabel>Serial Number</InfoLabel>
+									<InfoValue>{device.serialNumber || 'N/A'}</InfoValue>
+								</InfoCard>
+								<InfoCard>
+									<InfoLabel>Status</InfoLabel>
+									<InfoValue>{resolvedDeviceStatus}</InfoValue>
+								</InfoCard>
+								<InfoCard>
+									<InfoLabel>Installed</InfoLabel>
+									<InfoValue>{formatDate(device.installationDate)}</InfoValue>
+								</InfoCard>
+								<InfoCard>
+									<InfoLabel>Decommissioned</InfoLabel>
+									<InfoValue>{formatDate(device.decommissionDate)}</InfoValue>
+								</InfoCard>
+								<InfoCard>
+									<InfoLabel>Location</InfoLabel>
+									<InfoValue>{locationLabel}</InfoValue>
+								</InfoCard>
+							</InfoGrid>
+
+							{device.notes && (
+								<InfoCard>
+									<InfoLabel>Notes</InfoLabel>
+									<InfoValue>{device.notes}</InfoValue>
+								</InfoCard>
+							)}
 
 						</SectionContainer>
-				</TabContent>
-			)}
+					</TabContent>
+				)}
 
-			{activeTab === 'documents' && (
-				<TabContent>
+				{activeTab === 'documents' && (
+					<TabContent>
 						<SectionContainer>
 							<SectionHeader>Appliance Documents ({documentCount})</SectionHeader>
 							<InfoCard style={{ marginBottom: 12 }}>
@@ -2634,12 +2737,12 @@ export const DeviceDetailPage: React.FC = () => {
 								</EmptyState>
 							)}
 						</SectionContainer>
-				</TabContent>
-			)}
+					</TabContent>
+				)}
 
-			{activeTab === 'tasks' && (
-				<TabContent>
-					<UpcomingCareCard>
+				{activeTab === 'tasks' && (
+					<TabContent>
+						{/* <UpcomingCareCard>
 						<UpcomingCareHeader>
 							<UpcomingCareTitle>Upcoming Care</UpcomingCareTitle>
 							<UpcomingCareLink onClick={() => setActiveTab('history')}>View Timeline →</UpcomingCareLink>
@@ -2661,12 +2764,12 @@ export const DeviceDetailPage: React.FC = () => {
 									: 'No additional maintenance due in next 30 days'}
 							</UpcomingCareRow>
 						</UpcomingCareRows>
-					</UpcomingCareCard>
+					</UpcomingCareCard> */}
 
 						<SectionContainer>
 							<SectionBlock>
 								<SectionEyebrow>Linked Tasks</SectionEyebrow>
-								<SectionTitleStrong>Execution Queue</SectionTitleStrong>
+								<SectionTitleStrong>Appliance Tasks</SectionTitleStrong>
 								<SectionDescription>
 									Use this as your appliance-specific queue for assignments and completions.
 								</SectionDescription>
@@ -2720,66 +2823,66 @@ export const DeviceDetailPage: React.FC = () => {
 									rowData={linkedTasks}
 									showCheckbox={false}
 									columns={[
-									{
-										header: 'Task Summary',
-										key: 'title',
-										render: (value: string, row: any) => (
-											<div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 300 }}>
+										{
+											header: 'Task Summary',
+											key: 'title',
+											render: (value: string, row: any) => (
+												<div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 300 }}>
+													<div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+														<span
+															style={{
+																display: 'inline-flex',
+																alignItems: 'center',
+																justifyContent: 'center',
+																width: 24,
+																height: 24,
+																borderRadius: 8,
+																background: '#ecfeff',
+																color: '#0f766e',
+															}}>
+															<FontAwesomeIcon icon={faScrewdriverWrench} />
+														</span>
+														<strong>{value}</strong>
+													</div>
+													<div style={{ fontSize: 12, color: '#64748b' }}>
+														Maintenance Lead: {row.assignee || 'Unassigned'}
+													</div>
+												</div>
+											),
+										},
+										{
+											header: 'Status',
+											key: 'status',
+											render: (value: string) => (
 												<div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-													<span
-														style={{
-															display: 'inline-flex',
-															alignItems: 'center',
-															justifyContent: 'center',
-															width: 24,
-															height: 24,
-															borderRadius: 8,
-															background: '#ecfeff',
-															color: '#0f766e',
-														}}>
-														<FontAwesomeIcon icon={faScrewdriverWrench} />
-													</span>
-													<strong>{value}</strong>
+													<FontAwesomeIcon
+														icon={value === 'Overdue' ? faClock : faCircleCheck}
+														color={value === 'Overdue' ? '#b91c1c' : '#166534'}
+													/>
+													<span style={{ fontWeight: 700 }}>{value || 'Pending'}</span>
 												</div>
-												<div style={{ fontSize: 12, color: '#64748b' }}>
-													Maintenance Lead: {row.assignee || 'Unassigned'}
+											),
+										},
+										{
+											header: 'Maintenance Activity',
+											key: 'dueDate',
+											render: (value: string, row: any) => (
+												<div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+													<div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>
+														{row.status === 'Overdue'
+															? 'Maintenance is overdue'
+															: 'Maintenance task active'}
+													</div>
+													<div style={{ fontSize: 12, color: '#64748b', display: 'flex', gap: 6, alignItems: 'center' }}>
+														<FontAwesomeIcon icon={faClock} />
+														Due: {value || 'No due date set'}
+													</div>
+													<div style={{ fontSize: 12, color: '#64748b' }}>
+														Priority: {row.priority || 'Low'}
+													</div>
 												</div>
-											</div>
-										),
-									},
-									{
-										header: 'Status',
-										key: 'status',
-										render: (value: string) => (
-											<div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-												<FontAwesomeIcon
-													icon={value === 'Overdue' ? faClock : faCircleCheck}
-													color={value === 'Overdue' ? '#b91c1c' : '#166534'}
-												/>
-												<span style={{ fontWeight: 700 }}>{value || 'Pending'}</span>
-											</div>
-										),
-									},
-									{
-										header: 'Maintenance Activity',
-										key: 'dueDate',
-										render: (value: string, row: any) => (
-											<div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-												<div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>
-													{row.status === 'Overdue'
-														? 'Maintenance is overdue'
-														: 'Maintenance task active'}
-												</div>
-												<div style={{ fontSize: 12, color: '#64748b', display: 'flex', gap: 6, alignItems: 'center' }}>
-													<FontAwesomeIcon icon={faClock} />
-													Due: {value || 'No due date set'}
-												</div>
-												<div style={{ fontSize: 12, color: '#64748b' }}>
-													Priority: {row.priority || 'Low'}
-												</div>
-											</div>
-										),
-									},
+											),
+										},
 									]}
 									hideHeader={true}
 									emptyTitle='No open tasks linked yet'
@@ -2802,12 +2905,12 @@ export const DeviceDetailPage: React.FC = () => {
 								/>
 							)}
 						</SectionContainer>
-				</TabContent>
-			)}
+					</TabContent>
+				)}
 
-			{activeTab === 'history' && (
-				<TabContent>
-					<CombinedHistoryContainer>
+				{activeTab === 'history' && (
+					<TabContent>
+						<CombinedHistoryContainer>
 							<SectionContainer>
 								<SectionBlock>
 									<SectionEyebrow>Timeline</SectionEyebrow>
@@ -2824,23 +2927,23 @@ export const DeviceDetailPage: React.FC = () => {
 													<TimelineDate>{formatRelativeTime(entry.date)}</TimelineDate>
 													<TimelineDateSub>{formatDate(entry.date)}</TimelineDateSub>
 												</div>
-													<TimelineContent>
-														<TimelineTitleRow>
-															{(() => {
-																const iconData = getTimelineEventIcon(
-																	getTimelineEventCategory(entry),
-																);
-																return (
-																	<TimelineIconBadge
-																		$color={iconData.color}
-																		$background={iconData.background}>
-																		<FontAwesomeIcon icon={iconData.icon} />
-																	</TimelineIconBadge>
-																);
-															})()}
-															<TimelineTitle>{entry.title}</TimelineTitle>
-															<TimelineEventBadge>{getTimelineEventLabel(entry)}</TimelineEventBadge>
-														</TimelineTitleRow>
+												<TimelineContent>
+													<TimelineTitleRow>
+														{(() => {
+															const iconData = getTimelineEventIcon(
+																getTimelineEventCategory(entry),
+															);
+															return (
+																<TimelineIconBadge
+																	$color={iconData.color}
+																	$background={iconData.background}>
+																	<FontAwesomeIcon icon={iconData.icon} />
+																</TimelineIconBadge>
+															);
+														})()}
+														<TimelineTitle>{entry.title}</TimelineTitle>
+														<TimelineEventBadge>{getTimelineEventLabel(entry)}</TimelineEventBadge>
+													</TimelineTitleRow>
 													<TimelineDescription>{entry.description}</TimelineDescription>
 													<TimelineMeta>{entry.type}</TimelineMeta>
 													{entry.sourceType === 'scheduled-task' && roleCapabilities.canManageTasks ? (
@@ -2905,15 +3008,15 @@ export const DeviceDetailPage: React.FC = () => {
 																<TimelineDetailValue>
 																	{entry.raw?.financials
 																		? `${formatCurrency(
-																				getFinancialDisplayTotal(entry.raw.financials),
-																				entry.raw.financials.currency || 'USD',
-																		  )}${entry.raw.financials.notes ? ` • ${entry.raw.financials.notes}` : ''}`
+																			getFinancialDisplayTotal(entry.raw.financials),
+																			entry.raw.financials.currency || 'USD',
+																		)}${entry.raw.financials.notes ? ` • ${entry.raw.financials.notes}` : ''}`
 																		: 'No financials recorded'}
 																</TimelineDetailValue>
 															</TimelineDetailBlock>
 														</TimelineDetailsPanel>
 													) : null}
-													</TimelineContent>
+												</TimelineContent>
 											</TimelineItem>
 										))}
 									</TimelineList>
@@ -2941,612 +3044,479 @@ export const DeviceDetailPage: React.FC = () => {
 							</SectionContainer>
 
 							<SectionContainer>
-							<SectionBlock>
-								<SectionEyebrow>Service History</SectionEyebrow>
-								<SectionTitleStrong>Maintenance Lifecycle Records</SectionTitleStrong>
-								<SectionDescription>
-									Every completed record adds to the long-term operational memory of this system.
-								</SectionDescription>
-							</SectionBlock>
-							<SectionHeader>Maintenance History ({applianceMaintenanceFeedRecords.length})</SectionHeader>
-							{applianceMaintenanceFeedRecords.length > 0 ? (
-								isMobile ? (
-									<MobileCardStack>
-										{applianceMaintenanceFeedRecords.map((record: any, index: number) => {
-											const attachments = getTimelineAttachments({ raw: record });
-											return (
-												<MobileDetailCard key={`${record.id || record.originalTaskId || 'history'}-${index}`}>
-													<MobileDetailHeader>
-														<MobileDetailTitle>{record.title || record.taskTitle || record.description || 'Task'}</MobileDetailTitle>
-														<span style={{ fontSize: 12, fontWeight: 700, color: '#166534', background: '#dcfce7', borderRadius: 999, padding: '4px 10px', whiteSpace: 'nowrap' }}>
-															{record.status || 'Completed'}
-														</span>
-													</MobileDetailHeader>
-													<MobileDetailMeta>
-														<div>Date: {formatDate(getMaintenanceEventDate(record) || record.date)}</div>
-														<div>Cost: {formatCurrency(getFinancialDisplayTotal(record.financials), record.financials?.currency || 'USD')}</div>
-														<div>
-															Documents: {attachments.length > 0 ? attachments.map((file) => file.name).join(', ') : 'None'}
-														</div>
-													</MobileDetailMeta>
-												</MobileDetailCard>
-											);
-										})}
-									</MobileCardStack>
-								) : (
-									<GridContainer>
-										<GridTable>
-										<thead>
-											<tr>
-												<th>Date</th>
-												<th>Description</th>
-												<th>Status</th>
-												<th>Documents</th>
-												<th>Cost</th>
-											</tr>
-										</thead>
-										<tbody>
+								<SectionBlock>
+									<SectionEyebrow>Service History</SectionEyebrow>
+									<SectionTitleStrong>Maintenance Lifecycle Records</SectionTitleStrong>
+									<SectionDescription>
+										Every completed record adds to the long-term operational memory of this system.
+									</SectionDescription>
+								</SectionBlock>
+								<SectionHeader>Maintenance History ({applianceMaintenanceFeedRecords.length})</SectionHeader>
+								{applianceMaintenanceFeedRecords.length > 0 ? (
+									isMobile ? (
+										<MobileCardStack>
 											{applianceMaintenanceFeedRecords.map((record: any, index: number) => {
 												const attachments = getTimelineAttachments({ raw: record });
 												return (
-													<tr
-														key={`${record.id || record.originalTaskId || 'history'}-${index}`}>
-														<td>
-															{formatDate(
-																getMaintenanceEventDate(record) ||
-																	record.date,
-															)}
-														</td>
-														<td>
-															{record.title || record.taskTitle || record.description || 'Task'}
-														</td>
-														<td>{record.status || 'Completed'}</td>
-														<td>
-															{attachments.length > 0 ? (
-																<TimelineAttachmentList>
-																	{attachments.map((file, fileIndex) =>
-																		file.url ? (
-																			<TimelineAttachmentLink
-																				key={`${file.name}-${file.url}-${fileIndex}`}
-																				href={file.url}
-																				target='_blank'
-																				rel='noreferrer'>
-																				{file.name}
-																			</TimelineAttachmentLink>
-																		) : (
-																			<span key={`${file.name}-${fileIndex}`}>
-																				{file.name}
-																			</span>
-																		),
-																	)}
-																</TimelineAttachmentList>
-															) : (
-																'-'
-															)}
-														</td>
-														<td>
-															{formatCurrency(
-																getFinancialDisplayTotal(record.financials),
-																record.financials?.currency || 'USD',
-															)}
-														</td>
-													</tr>
+													<MobileDetailCard key={`${record.id || record.originalTaskId || 'history'}-${index}`}>
+														<MobileDetailHeader>
+															<MobileDetailTitle>{record.title || record.taskTitle || record.description || 'Task'}</MobileDetailTitle>
+															<span style={{ fontSize: 12, fontWeight: 700, color: '#166534', background: '#dcfce7', borderRadius: 999, padding: '4px 10px', whiteSpace: 'nowrap' }}>
+																{record.status || 'Completed'}
+															</span>
+														</MobileDetailHeader>
+														<MobileDetailMeta>
+															<div>Date: {formatDate(getMaintenanceEventDate(record) || record.date)}</div>
+															<div>Cost: {formatCurrency(getFinancialDisplayTotal(record.financials), record.financials?.currency || 'USD')}</div>
+															<div>
+																Documents: {attachments.length > 0 ? attachments.map((file) => file.name).join(', ') : 'None'}
+															</div>
+														</MobileDetailMeta>
+													</MobileDetailCard>
 												);
 											})}
-										</tbody>
-										</GridTable>
-									</GridContainer>
-								)
-							) : (
-								<EmptyState>
-									<p>
-										No maintenance history linked to this appliance yet. Completed tasks will appear here as the service record grows.
-									</p>
-									{canCreateTaskActions && (
-										<SubmitButton type='button' onClick={openCreateTaskModal}>
-											Add Task
-										</SubmitButton>
-									)}
-								</EmptyState>
-							)}
-							</SectionContainer>
-					</CombinedHistoryContainer>
-				</TabContent>
-			)}
-
-			{activeTab === 'parts' && (
-				<TabContent>
-						<SectionContainer>
-						{!canAccessParts && (
-							<LockedFeatureCallout
-								title={
-									isTeamMemberAccount
-										? 'Parts & Service is limited by your assigned role'
-										: 'Parts & Service is locked on your current plan'
-								}
-								description={
-									isTeamMemberAccount
-										? 'Your account access is controlled by the account holder.'
-										: 'Track part inventory, filter specs, and service component history by upgrading to the Property plan or higher.'
-								}
-								upgradeLabel='Upgrade for Parts'
-								showUpgradeAction={!isTeamMemberAccount}
-								compact
-							/>
-						)}
-						<SectionBlock>
-							<SectionEyebrow>Warranty and Documents</SectionEyebrow>
-							<SectionTitleStrong>Parts, Filters, and Service Knowledge</SectionTitleStrong>
-							<SectionDescription>
-								Capture part numbers, specs, and service notes so replacements are fast in the field.
-							</SectionDescription>
-						</SectionBlock>
-						<SectionHeader>Parts & Service</SectionHeader>
-						<PhotoActions style={{ marginBottom: 10 }}>
-							<ScanButton
-								type='button'
-								onClick={() => setIsPartScanOpen(true)}
-								disabled={!canAccessParts}>
-								Scan Part Barcode
-							</ScanButton>
-							<PhotoHelperText>
-								Scan to prefill part number, size/spec, and notes fields.
-							</PhotoHelperText>
-						</PhotoActions>
-
-						{/* Add/Edit Form */}
-						<PartsForm>
-							<div style={{ marginBottom: editingPartIndex !== null ? 12 : 0 }}>
-								<div style={{ fontSize: 13, fontWeight: 600, marginBottom: 12, color: '#374151' }}>
-									{editingPartIndex !== null ? 'Edit Part' : 'Add New Part'}
-								</div>
-							</div>
-
-							<FormRow>
-								<FormField>
-									<FormLabel>Part Name</FormLabel>
-									<FormInput
-										type='text'
-										placeholder='Part Name'
-										value={partFormData.name}
-										disabled={!canAccessParts}
-										onChange={(e) =>
-											setPartFormData({ ...partFormData, name: e.target.value })
-										}
-									/>
-								</FormField>
-								<FormField>
-									<FormLabel>Category</FormLabel>
-									<FormSelect
-										value={partFormData.category}
-										disabled={!canAccessParts}
-										onChange={(e) =>
-											setPartFormData({ ...partFormData, category: e.target.value })
-										}>
-										{DEVICE_SERVICE_ITEM_CATEGORY_OPTIONS.map((option) => (
-											<option key={option.value} value={option.value}>
-												{option.label}
-											</option>
-										))}
-									</FormSelect>
-								</FormField>
-
-								<ButtonGroup>
-									{editingPartIndex !== null ? (
-										<>
-											<SubmitButton onClick={handleUpdatePart} disabled={!canAccessParts}>Update</SubmitButton>
-											<CancelButton onClick={handleCancelEdit} disabled={!canAccessParts}>Cancel</CancelButton>
-										</>
+										</MobileCardStack>
 									) : (
-										<SubmitButton onClick={handleAddPart} disabled={!canAccessParts}>Add Part</SubmitButton>
-									)}
-								</ButtonGroup>
-							</FormRow>
+										<GridContainer>
+											<GridTable>
+												<thead>
+													<tr>
+														<th>Date</th>
+														<th>Description</th>
+														<th>Status</th>
+														<th>Documents</th>
+														<th>Cost</th>
+													</tr>
+												</thead>
+												<tbody>
+													{applianceMaintenanceFeedRecords.map((record: any, index: number) => {
+														const attachments = getTimelineAttachments({ raw: record });
+														return (
+															<tr
+																key={`${record.id || record.originalTaskId || 'history'}-${index}`}>
+																<td>
+																	{formatDate(
+																		getMaintenanceEventDate(record) ||
+																		record.date,
+																	)}
+																</td>
+																<td>
+																	{record.title || record.taskTitle || record.description || 'Task'}
+																</td>
+																<td>{record.status || 'Completed'}</td>
+																<td>
+																	{attachments.length > 0 ? (
+																		<TimelineAttachmentList>
+																			{attachments.map((file, fileIndex) =>
+																				file.url ? (
+																					<TimelineAttachmentLink
+																						key={`${file.name}-${file.url}-${fileIndex}`}
+																						href={file.url}
+																						target='_blank'
+																						rel='noreferrer'>
+																						{file.name}
+																					</TimelineAttachmentLink>
+																				) : (
+																					<span key={`${file.name}-${fileIndex}`}>
+																						{file.name}
+																					</span>
+																				),
+																			)}
+																		</TimelineAttachmentList>
+																	) : (
+																		'-'
+																	)}
+																</td>
+																<td>
+																	{formatCurrency(
+																		getFinancialDisplayTotal(record.financials),
+																		record.financials?.currency || 'USD',
+																	)}
+																</td>
+															</tr>
+														);
+													})}
+												</tbody>
+											</GridTable>
+										</GridContainer>
+									)
+								) : (
+									<EmptyState>
+										<p>
+											No maintenance history linked to this appliance yet. Completed tasks will appear here as the service record grows.
+										</p>
+										{canCreateTaskActions && (
+											<SubmitButton type='button' onClick={openCreateTaskModal}>
+												Add Task
+											</SubmitButton>
+										)}
+									</EmptyState>
+								)}
+							</SectionContainer>
+						</CombinedHistoryContainer>
+					</TabContent>
+				)}
 
-							<DynamicFieldsGrid>
-								{activePartFields.map((field) => (
-									<FormField key={String(field.key)}>
-										<FormLabel>{field.label}</FormLabel>
+				{activeTab === 'parts' && (
+					<TabContent>
+						<SectionContainer>
+							{!canAccessParts && (
+								<LockedFeatureCallout
+									title={
+										isTeamMemberAccount
+											? 'Parts & Service is limited by your assigned role'
+											: 'Parts & Service is locked on your current plan'
+									}
+									description={
+										isTeamMemberAccount
+											? 'Your account access is controlled by the account holder.'
+											: 'Track part inventory, filter specs, and service component history by upgrading to the Property plan or higher.'
+									}
+									upgradeLabel='Upgrade for Parts'
+									showUpgradeAction={!isTeamMemberAccount}
+									compact
+								/>
+							)}
+							<SectionBlock>
+								<SectionEyebrow>Warranty and Documents</SectionEyebrow>
+								<SectionTitleStrong>Parts, Filters, and Service Knowledge</SectionTitleStrong>
+								<SectionDescription>
+									Capture part numbers, specs, and service notes so replacements are fast in the field.
+								</SectionDescription>
+							</SectionBlock>
+							<SectionHeader>Parts & Service</SectionHeader>
+							<PhotoActions style={{ marginBottom: 10 }}>
+								<ScanButton
+									type='button'
+									onClick={() => setIsPartScanOpen(true)}
+									disabled={!canAccessParts}>
+									Scan Part Barcode
+								</ScanButton>
+								<PhotoHelperText>
+									Scan to prefill part number, size/spec, and notes fields.
+								</PhotoHelperText>
+							</PhotoActions>
+
+							{/* Add/Edit Form */}
+							<PartsForm>
+								<div style={{ marginBottom: editingPartIndex !== null ? 12 : 0 }}>
+									<div style={{ fontSize: 13, fontWeight: 600, marginBottom: 12, color: '#374151' }}>
+										{editingPartIndex !== null ? 'Edit Part' : 'Add New Part'}
+									</div>
+								</div>
+
+								<FormRow>
+									<FormField>
+										<FormLabel>Part Name</FormLabel>
 										<FormInput
-											type={field.type || 'text'}
-											placeholder={field.placeholder}
-											value={String(partFormData[field.key] || '')}
+											type='text'
+											placeholder='Part Name'
+											value={partFormData.name}
 											disabled={!canAccessParts}
 											onChange={(e) =>
-												setPartFormData({
-													...partFormData,
-													[field.key]: e.target.value,
-												})
+												setPartFormData({ ...partFormData, name: e.target.value })
 											}
 										/>
 									</FormField>
-								))}
-							</DynamicFieldsGrid>
+									<FormField>
+										<FormLabel>Category</FormLabel>
+										<FormSelect
+											value={partFormData.category}
+											disabled={!canAccessParts}
+											onChange={(e) =>
+												setPartFormData({ ...partFormData, category: e.target.value })
+											}>
+											{DEVICE_SERVICE_ITEM_CATEGORY_OPTIONS.map((option) => (
+												<option key={option.value} value={option.value}>
+													{option.label}
+												</option>
+											))}
+										</FormSelect>
+									</FormField>
 
+									<ButtonGroup>
+										{editingPartIndex !== null ? (
+											<>
+												<SubmitButton onClick={handleUpdatePart} disabled={!canAccessParts}>Update</SubmitButton>
+												<CancelButton onClick={handleCancelEdit} disabled={!canAccessParts}>Cancel</CancelButton>
+											</>
+										) : (
+											<SubmitButton onClick={handleAddPart} disabled={!canAccessParts}>Add Part</SubmitButton>
+										)}
+									</ButtonGroup>
+								</FormRow>
+
+								<DynamicFieldsGrid>
+									{activePartFields.map((field) => (
+										<FormField key={String(field.key)}>
+											<FormLabel>{field.label}</FormLabel>
+											<FormInput
+												type={field.type || 'text'}
+												placeholder={field.placeholder}
+												value={String(partFormData[field.key] || '')}
+												disabled={!canAccessParts}
+												onChange={(e) =>
+													setPartFormData({
+														...partFormData,
+														[field.key]: e.target.value,
+													})
+												}
+											/>
+										</FormField>
+									))}
+								</DynamicFieldsGrid>
+
+								<FormField>
+									<FormLabel>Additional Notes</FormLabel>
+									<FormTextarea
+										placeholder='Any relevant details for this part, such as installation tips or preferred vendor.'
+										value={partFormData.notes || ''}
+										disabled={!canAccessParts}
+										onChange={(e) =>
+											setPartFormData({ ...partFormData, notes: e.target.value })
+										}
+									/>
+								</FormField>
+							</PartsForm>
+
+							{/* Parts Table */}
+							{serviceParts.length > 0 ? (
+								isMobile ? (
+									<MobileCardStack>
+										{serviceParts.map((part: DeviceServiceItem, index: number) => (
+											<MobileDetailCard key={`${part.id}-${index}`}>
+												<MobileDetailHeader>
+													<MobileDetailTitle>{part.name}</MobileDetailTitle>
+													<span style={{ display: 'inline-flex', padding: '4px 8px', backgroundColor: '#f0fdf4', color: '#166534', borderRadius: '999px', fontSize: '12px', fontWeight: 700 }}>
+														{part.category}
+													</span>
+												</MobileDetailHeader>
+												<MobileDetailMeta>
+													<div>Part #: {part.partNumber || '-'}</div>
+													<div>Size / Spec: {part.size || part.mervRating || part.voltage || '-'}</div>
+													<div>Notes: {part.notes || '-'}</div>
+												</MobileDetailMeta>
+												{canAccessParts && (
+													<ButtonGroup>
+														<ActionButton onClick={() => handleEditPart(index)}>
+															<FontAwesomeIcon icon={faEdit} />
+															Edit
+														</ActionButton>
+														<ActionButton className='delete' onClick={() => handleDeletePart(index)}>
+															<FontAwesomeIcon icon={faTrash} />
+															Delete
+														</ActionButton>
+													</ButtonGroup>
+												)}
+											</MobileDetailCard>
+										))}
+									</MobileCardStack>
+								) : (
+									<PartsTable>
+										<thead>
+											<tr>
+												<th>Part Name</th>
+												<th>Category</th>
+												<th>Part #</th>
+												<th>Size/Spec</th>
+												<th>Notes</th>
+												<th style={{ width: '150px' }}>Actions</th>
+											</tr>
+										</thead>
+										<tbody>
+											{serviceParts.map((part: DeviceServiceItem, index: number) => (
+												<tr key={`${part.id}-${index}`}>
+													<td style={{ fontWeight: 500 }}>{part.name}</td>
+													<td>
+														<span
+															style={{
+																display: 'inline-block',
+																padding: '4px 8px',
+																backgroundColor: '#f0fdf4',
+																color: '#166534',
+																borderRadius: '4px',
+																fontSize: '12px',
+																fontWeight: 500,
+															}}>
+															{part.category}
+														</span>
+													</td>
+													<td>{part.partNumber || '-'}</td>
+													<td>{part.size || part.mervRating || part.voltage || '-'}</td>
+													<td>{part.notes || '-'}</td>
+													<td>
+														<ActionButton onClick={() => handleEditPart(index)} disabled={!canAccessParts}>
+															<FontAwesomeIcon icon={faEdit} />
+															Edit
+														</ActionButton>
+														<ActionButton
+															className='delete'
+															disabled={!canAccessParts}
+															onClick={() => handleDeletePart(index)}>
+															<FontAwesomeIcon icon={faTrash} />
+															Delete
+														</ActionButton>
+													</td>
+												</tr>
+											))}
+										</tbody>
+									</PartsTable>
+								)
+							) : (
+								<EmptyState>
+									<p>No parts added yet. Add a part to get started.</p>
+								</EmptyState>
+							)}
+						</SectionContainer>
+					</TabContent>
+				)}
+
+				<TaskModal
+					isOpen={showTaskModal}
+					isEditing={isEditingTask}
+					editingTaskId={isEditingTask ? selectedTask?.id || null : null}
+					editingTask={isEditingTask ? selectedTask : null}
+					initialTask={isEditingTask ? undefined : deviceTaskTemplate || undefined}
+					propertyId={property?.id || null}
+					onClose={() => {
+						setShowTaskModal(false);
+						setSelectedTask(null);
+						setIsEditingTask(false);
+					}}
+					onSaved={() => {
+						setShowTaskModal(false);
+						setSelectedTask(null);
+						setIsEditingTask(false);
+					}}
+					currentUser={currentUser || null}
+					unitId={device?.location?.unitId || null}
+					unitOptions={taskUnitOptions}
+				/>
+
+				<TaskModal
+					isOpen={showRecurringTaskModal}
+					isEditing={false}
+					editingTaskId={null}
+					initialTask={recurringTaskTemplate || undefined}
+					propertyId={property?.id || null}
+					onClose={() => setShowRecurringTaskModal(false)}
+					onSaved={handleRecurringTaskSaved}
+					currentUser={currentUser || null}
+					unitId={device?.location?.unitId || null}
+					unitOptions={taskUnitOptions}
+				/>
+
+				<GenericModal
+					isOpen={showQuickLogModal}
+					title={
+						quickLogMode === 'repair'
+							? 'Log Repair'
+							: quickLogMode === 'invoice'
+								? 'Log Invoice'
+								: quickLogMode === 'inspection'
+									? 'Log Inspection'
+									: quickLogMode === 'warranty'
+										? 'Log Warranty'
+										: quickLogMode === 'contractor'
+											? 'Log Contractor Visit'
+											: 'Add Service Note'
+					}
+					onClose={() => setShowQuickLogModal(false)}
+					onSubmit={handleSaveQuickLog}
+					showActions={true}
+					primaryButtonLabel={
+						isSavingQuickLog || isCreatingContractor ? 'Saving...' : 'Save Entry'
+					}
+					secondaryButtonLabel='Cancel'>
+					<PartsForm>
+						<FormRow style={{ gridTemplateColumns: '1fr 1fr' }}>
 							<FormField>
-								<FormLabel>Additional Notes</FormLabel>
-								<FormTextarea
-									placeholder='Any relevant details for this part, such as installation tips or preferred vendor.'
-									value={partFormData.notes || ''}
-									disabled={!canAccessParts}
-									onChange={(e) =>
-										setPartFormData({ ...partFormData, notes: e.target.value })
-									}
+								<FormLabel>Date</FormLabel>
+								<FormInput
+									type='date'
+									value={quickLogDate}
+									onChange={(e) => setQuickLogDate(e.target.value)}
 								/>
 							</FormField>
-						</PartsForm>
-
-						{/* Parts Table */}
-						{serviceParts.length > 0 ? (
-							isMobile ? (
-								<MobileCardStack>
-									{serviceParts.map((part: DeviceServiceItem, index: number) => (
-										<MobileDetailCard key={`${part.id}-${index}`}>
-											<MobileDetailHeader>
-												<MobileDetailTitle>{part.name}</MobileDetailTitle>
-												<span style={{ display: 'inline-flex', padding: '4px 8px', backgroundColor: '#f0fdf4', color: '#166534', borderRadius: '999px', fontSize: '12px', fontWeight: 700 }}>
-													{part.category}
-												</span>
-											</MobileDetailHeader>
-											<MobileDetailMeta>
-												<div>Part #: {part.partNumber || '-'}</div>
-												<div>Size / Spec: {part.size || part.mervRating || part.voltage || '-'}</div>
-												<div>Notes: {part.notes || '-'}</div>
-											</MobileDetailMeta>
-											{canAccessParts && (
-												<ButtonGroup>
-													<ActionButton onClick={() => handleEditPart(index)}>
-														<FontAwesomeIcon icon={faEdit} />
-														Edit
-													</ActionButton>
-													<ActionButton className='delete' onClick={() => handleDeletePart(index)}>
-														<FontAwesomeIcon icon={faTrash} />
-														Delete
-													</ActionButton>
-												</ButtonGroup>
-											)}
-										</MobileDetailCard>
-									))}
-								</MobileCardStack>
-							) : (
-							<PartsTable>
-								<thead>
-									<tr>
-										<th>Part Name</th>
-										<th>Category</th>
-										<th>Part #</th>
-										<th>Size/Spec</th>
-										<th>Notes</th>
-										<th style={{ width: '150px' }}>Actions</th>
-									</tr>
-								</thead>
-								<tbody>
-									{serviceParts.map((part: DeviceServiceItem, index: number) => (
-										<tr key={`${part.id}-${index}`}>
-											<td style={{ fontWeight: 500 }}>{part.name}</td>
-											<td>
-												<span
-													style={{
-														display: 'inline-block',
-														padding: '4px 8px',
-														backgroundColor: '#f0fdf4',
-														color: '#166534',
-														borderRadius: '4px',
-														fontSize: '12px',
-														fontWeight: 500,
-													}}>
-													{part.category}
-												</span>
-											</td>
-											<td>{part.partNumber || '-'}</td>
-											<td>{part.size || part.mervRating || part.voltage || '-'}</td>
-											<td>{part.notes || '-'}</td>
-											<td>
-												<ActionButton onClick={() => handleEditPart(index)} disabled={!canAccessParts}>
-													<FontAwesomeIcon icon={faEdit} />
-													Edit
-												</ActionButton>
-												<ActionButton
-													className='delete'
-													disabled={!canAccessParts}
-													onClick={() => handleDeletePart(index)}>
-													<FontAwesomeIcon icon={faTrash} />
-													Delete
-												</ActionButton>
-											</td>
-										</tr>
-									))}
-								</tbody>
-							</PartsTable>
-							)
-						) : (
-							<EmptyState>
-								<p>No parts added yet. Add a part to get started.</p>
-							</EmptyState>
-						)}
-						</SectionContainer>
-				</TabContent>
-			)}
-
-			<TaskModal
-				isOpen={showTaskModal}
-				isEditing={isEditingTask}
-				editingTaskId={isEditingTask ? selectedTask?.id || null : null}
-				editingTask={isEditingTask ? selectedTask : null}
-				initialTask={isEditingTask ? undefined : deviceTaskTemplate || undefined}
-				propertyId={property?.id || null}
-				onClose={() => {
-					setShowTaskModal(false);
-					setSelectedTask(null);
-					setIsEditingTask(false);
-				}}
-				onSaved={() => {
-					setShowTaskModal(false);
-					setSelectedTask(null);
-					setIsEditingTask(false);
-				}}
-				currentUser={currentUser || null}
-				unitId={device?.location?.unitId || null}
-				unitOptions={taskUnitOptions}
-			/>
-
-			<TaskModal
-				isOpen={showRecurringTaskModal}
-				isEditing={false}
-				editingTaskId={null}
-				initialTask={recurringTaskTemplate || undefined}
-				propertyId={property?.id || null}
-				onClose={() => setShowRecurringTaskModal(false)}
-				onSaved={handleRecurringTaskSaved}
-				currentUser={currentUser || null}
-				unitId={device?.location?.unitId || null}
-				unitOptions={taskUnitOptions}
-			/>
-
-			<GenericModal
-				isOpen={showQuickLogModal}
-				title={
-					quickLogMode === 'repair'
-						? 'Log Repair'
-						: quickLogMode === 'invoice'
-							? 'Log Invoice'
-							: quickLogMode === 'inspection'
-								? 'Log Inspection'
-								: quickLogMode === 'warranty'
-									? 'Log Warranty'
-									: quickLogMode === 'contractor'
-										? 'Log Contractor Visit'
-										: 'Add Service Note'
-				}
-				onClose={() => setShowQuickLogModal(false)}
-				onSubmit={handleSaveQuickLog}
-				showActions={true}
-				primaryButtonLabel={
-					isSavingQuickLog || isCreatingContractor ? 'Saving...' : 'Save Entry'
-				}
-				secondaryButtonLabel='Cancel'>
-				<PartsForm>
-					<FormRow style={{ gridTemplateColumns: '1fr 1fr' }}>
-						<FormField>
-							<FormLabel>Date</FormLabel>
-							<FormInput
-								type='date'
-								value={quickLogDate}
-								onChange={(e) => setQuickLogDate(e.target.value)}
-							/>
-						</FormField>
-						<FormField>
-							<FormLabel>Type</FormLabel>
-							<FormSelect
-								value={quickLogMode}
-								onChange={(e) =>
-									setQuickLogMode(
-										e.target.value as
+							<FormField>
+								<FormLabel>Type</FormLabel>
+								<FormSelect
+									value={quickLogMode}
+									onChange={(e) =>
+										setQuickLogMode(
+											e.target.value as
 											| 'note'
 											| 'repair'
 											| 'invoice'
 											| 'inspection'
 											| 'warranty'
-												| 'contractor'
+											| 'contractor'
 										)
-								}>
-								<option value='note'>Service Note</option>
-								<option value='repair'>Repair</option>
-								<option value='invoice'>Invoice</option>
-								<option value='inspection'>Inspection</option>
-								<option value='warranty'>
-									Warranty{canAccessWarranty || isTeamMemberAccount ? '' : ' (details available)'}
-								</option>
-								<option value='contractor'>Contractor Visit</option>
-							</FormSelect>
-						</FormField>
-					</FormRow>
-					<FormField>
-						<FormLabel>Description</FormLabel>
-						<FormTextarea
-							placeholder={
-								quickLogMode === 'repair'
-									? 'Describe the repair, parts used, and any follow-up.'
-									: quickLogMode === 'invoice'
-										? 'Invoice number, amount, and service details.'
-										: quickLogMode === 'inspection'
-											? 'Inspection findings, recommendations, and any issues noted.'
-											: quickLogMode === 'warranty'
-												? 'Warranty provider, coverage details, and expiration notes.'
-												: quickLogMode === 'contractor'
-													? 'Contractor name, scope of visit, and recommended follow-up.'
-													: 'Add a note that should stay with the maintenance record.'
-							}
-							value={quickLogDescription}
-							onChange={(e) => setQuickLogDescription(e.target.value)}
-						/>
-					</FormField>
-
-					{(quickLogMode === 'repair' ||
-						quickLogMode === 'invoice' ||
-						quickLogMode === 'inspection') && (
-						<>
-							<FormLabel>Financial Details</FormLabel>
-							<FormRow style={{ gridTemplateColumns: '1fr 1fr' }}>
-								<FormField>
-									<FormInput
-										type='number'
-										min='0'
-										step='0.01'
-										placeholder='Contractor cost'
-										value={quickLogFinancials.contractorCost}
-										onChange={(e) =>
-											setQuickLogFinancials((prev) => ({
-												...prev,
-												contractorCost: e.target.value,
-											}))
-										}
-									/>
-								</FormField>
-								<FormField>
-									<FormInput
-										type='number'
-										min='0'
-										step='0.01'
-										placeholder='Materials cost'
-										value={quickLogFinancials.materialsCost}
-										onChange={(e) =>
-											setQuickLogFinancials((prev) => ({
-												...prev,
-												materialsCost: e.target.value,
-											}))
-										}
-									/>
-								</FormField>
-							</FormRow>
-							<FormRow style={{ gridTemplateColumns: '1fr 1fr' }}>
-								<FormField>
-									<FormInput
-										type='number'
-										min='0'
-										step='0.01'
-										placeholder='Labor cost'
-										value={quickLogFinancials.laborCost}
-										onChange={(e) =>
-											setQuickLogFinancials((prev) => ({
-												...prev,
-												laborCost: e.target.value,
-											}))
-										}
-									/>
-								</FormField>
-								<FormField>
-									<FormInput
-										type='number'
-										min='0'
-										step='0.01'
-										placeholder='Other cost'
-										value={quickLogFinancials.otherCost}
-										onChange={(e) =>
-											setQuickLogFinancials((prev) => ({
-												...prev,
-												otherCost: e.target.value,
-											}))
-										}
-									/>
-								</FormField>
-							</FormRow>
-							<div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600 }}>
-								Total:{' '}
-								{formatCurrency(
-									calculateCostTotal({
-										contractorCost: toNumberOrUndefined(quickLogFinancials.contractorCost),
-										materialsCost: toNumberOrUndefined(quickLogFinancials.materialsCost),
-										laborCost: toNumberOrUndefined(quickLogFinancials.laborCost),
-										otherCost: toNumberOrUndefined(quickLogFinancials.otherCost),
-									}),
-								)}
-							</div>
-						</>
-					)}
-
-					{quickLogMode === 'warranty' && (
-						<>
-							<FormField>
-								<FormLabel>Warranty Expiration (Optional)</FormLabel>
-								<FormInput
-									type='date'
-									value={quickLogWarrantyExpiration}
-									onChange={(e) => setQuickLogWarrantyExpiration(e.target.value)}
-								/>
-							</FormField>
-							{canAccessWarranty ? (
-								<FormField>
-									<FormLabel>Warranty Document (Optional)</FormLabel>
-									<FormInput
-										type='file'
-										onChange={(e) =>
-											setQuickLogAttachment(e.target.files?.[0] || null)
-										}
-									/>
-								</FormField>
-							) : (
-								<div style={{ fontSize: '12px', color: '#64748b' }}>
-									Document upload for warranty records follows your plan's storage limits.
-								</div>
-							)}
-						</>
-					)}
-
-					{quickLogMode === 'contractor' && (
-						<>
-							<FormField>
-								<FormLabel>Existing Contractor (Optional)</FormLabel>
-								<FormSelect
-									value={quickLogSelectedContractorId}
-									onChange={(e) => setQuickLogSelectedContractorId(e.target.value)}>
-									<option value=''>No linked contractor</option>
-									{propertyContractors.map((contractor: any) => (
-										<option key={contractor.id} value={contractor.id}>
-											{contractor.name}
-											{contractor.category ? ` (${contractor.category})` : ''}
-										</option>
-									))}
+									}>
+									<option value='note'>Service Note</option>
+									<option value='repair'>Repair</option>
+									<option value='invoice'>Invoice</option>
+									<option value='inspection'>Inspection</option>
+									<option value='warranty'>
+										Warranty{canAccessWarranty || isTeamMemberAccount ? '' : ' (details available)'}
+									</option>
+									<option value='contractor'>Contractor Visit</option>
 								</FormSelect>
 							</FormField>
-							<label
-								style={{
-									display: 'inline-flex',
-									alignItems: 'center',
-									gap: 8,
-									fontSize: '13px',
-									color: '#334155',
-								}}>
-								<input
-									type='checkbox'
-									checked={quickLogCreateContractor}
-									onChange={(e) => setQuickLogCreateContractor(e.target.checked)}
-								/>
-								Create new contractor for this visit
-							</label>
-							{quickLogCreateContractor && (
+						</FormRow>
+						<FormField>
+							<FormLabel>Description</FormLabel>
+							<FormTextarea
+								placeholder={
+									quickLogMode === 'repair'
+										? 'Describe the repair, parts used, and any follow-up.'
+										: quickLogMode === 'invoice'
+											? 'Invoice number, amount, and service details.'
+											: quickLogMode === 'inspection'
+												? 'Inspection findings, recommendations, and any issues noted.'
+												: quickLogMode === 'warranty'
+													? 'Warranty provider, coverage details, and expiration notes.'
+													: quickLogMode === 'contractor'
+														? 'Contractor name, scope of visit, and recommended follow-up.'
+														: 'Add a note that should stay with the maintenance record.'
+								}
+								value={quickLogDescription}
+								onChange={(e) => setQuickLogDescription(e.target.value)}
+							/>
+						</FormField>
+
+						{(quickLogMode === 'repair' ||
+							quickLogMode === 'invoice' ||
+							quickLogMode === 'inspection') && (
 								<>
+									<FormLabel>Financial Details</FormLabel>
 									<FormRow style={{ gridTemplateColumns: '1fr 1fr' }}>
 										<FormField>
 											<FormInput
-												placeholder='Contractor name'
-												value={quickLogNewContractor.name}
+												type='number'
+												min='0'
+												step='0.01'
+												placeholder='Contractor cost'
+												value={quickLogFinancials.contractorCost}
 												onChange={(e) =>
-													setQuickLogNewContractor((prev) => ({
+													setQuickLogFinancials((prev) => ({
 														...prev,
-														name: e.target.value,
+														contractorCost: e.target.value,
 													}))
 												}
 											/>
 										</FormField>
 										<FormField>
 											<FormInput
-												placeholder='Company'
-												value={quickLogNewContractor.company}
+												type='number'
+												min='0'
+												step='0.01'
+												placeholder='Materials cost'
+												value={quickLogFinancials.materialsCost}
 												onChange={(e) =>
-													setQuickLogNewContractor((prev) => ({
+													setQuickLogFinancials((prev) => ({
 														...prev,
-														company: e.target.value,
+														materialsCost: e.target.value,
 													}))
 												}
 											/>
@@ -3555,101 +3525,234 @@ export const DeviceDetailPage: React.FC = () => {
 									<FormRow style={{ gridTemplateColumns: '1fr 1fr' }}>
 										<FormField>
 											<FormInput
-												placeholder='Category'
-												value={quickLogNewContractor.category}
+												type='number'
+												min='0'
+												step='0.01'
+												placeholder='Labor cost'
+												value={quickLogFinancials.laborCost}
 												onChange={(e) =>
-													setQuickLogNewContractor((prev) => ({
+													setQuickLogFinancials((prev) => ({
 														...prev,
-														category: e.target.value,
+														laborCost: e.target.value,
 													}))
 												}
 											/>
 										</FormField>
 										<FormField>
 											<FormInput
-												placeholder='Phone'
-												value={quickLogNewContractor.phone}
+												type='number'
+												min='0'
+												step='0.01'
+												placeholder='Other cost'
+												value={quickLogFinancials.otherCost}
 												onChange={(e) =>
-													setQuickLogNewContractor((prev) => ({
+													setQuickLogFinancials((prev) => ({
 														...prev,
-														phone: e.target.value,
+														otherCost: e.target.value,
 													}))
 												}
 											/>
 										</FormField>
 									</FormRow>
+									<div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600 }}>
+										Total:{' '}
+										{formatCurrency(
+											calculateCostTotal({
+												contractorCost: toNumberOrUndefined(quickLogFinancials.contractorCost),
+												materialsCost: toNumberOrUndefined(quickLogFinancials.materialsCost),
+												laborCost: toNumberOrUndefined(quickLogFinancials.laborCost),
+												otherCost: toNumberOrUndefined(quickLogFinancials.otherCost),
+											}),
+										)}
+									</div>
+								</>
+							)}
+
+						{quickLogMode === 'warranty' && (
+							<>
+								<FormField>
+									<FormLabel>Warranty Expiration (Optional)</FormLabel>
+									<FormInput
+										type='date'
+										value={quickLogWarrantyExpiration}
+										onChange={(e) => setQuickLogWarrantyExpiration(e.target.value)}
+									/>
+								</FormField>
+								{canAccessWarranty ? (
 									<FormField>
+										<FormLabel>Warranty Document (Optional)</FormLabel>
 										<FormInput
-											type='email'
-											placeholder='Email (optional)'
-											value={quickLogNewContractor.email}
+											type='file'
 											onChange={(e) =>
-												setQuickLogNewContractor((prev) => ({
-													...prev,
-													email: e.target.value,
-												}))
+												setQuickLogAttachment(e.target.files?.[0] || null)
 											}
 										/>
 									</FormField>
-								</>
-							)}
+								) : (
+									<div style={{ fontSize: '12px', color: '#64748b' }}>
+										Document upload for warranty records follows your plan's storage limits.
+									</div>
+								)}
+							</>
+						)}
+
+						{quickLogMode === 'contractor' && (
+							<>
+								<FormField>
+									<FormLabel>Existing Contractor (Optional)</FormLabel>
+									<FormSelect
+										value={quickLogSelectedContractorId}
+										onChange={(e) => setQuickLogSelectedContractorId(e.target.value)}>
+										<option value=''>No linked contractor</option>
+										{propertyContractors.map((contractor: any) => (
+											<option key={contractor.id} value={contractor.id}>
+												{contractor.name}
+												{contractor.category ? ` (${contractor.category})` : ''}
+											</option>
+										))}
+									</FormSelect>
+								</FormField>
+								<label
+									style={{
+										display: 'inline-flex',
+										alignItems: 'center',
+										gap: 8,
+										fontSize: '13px',
+										color: '#334155',
+									}}>
+									<input
+										type='checkbox'
+										checked={quickLogCreateContractor}
+										onChange={(e) => setQuickLogCreateContractor(e.target.checked)}
+									/>
+									Create new contractor for this visit
+								</label>
+								{quickLogCreateContractor && (
+									<>
+										<FormRow style={{ gridTemplateColumns: '1fr 1fr' }}>
+											<FormField>
+												<FormInput
+													placeholder='Contractor name'
+													value={quickLogNewContractor.name}
+													onChange={(e) =>
+														setQuickLogNewContractor((prev) => ({
+															...prev,
+															name: e.target.value,
+														}))
+													}
+												/>
+											</FormField>
+											<FormField>
+												<FormInput
+													placeholder='Company'
+													value={quickLogNewContractor.company}
+													onChange={(e) =>
+														setQuickLogNewContractor((prev) => ({
+															...prev,
+															company: e.target.value,
+														}))
+													}
+												/>
+											</FormField>
+										</FormRow>
+										<FormRow style={{ gridTemplateColumns: '1fr 1fr' }}>
+											<FormField>
+												<FormInput
+													placeholder='Category'
+													value={quickLogNewContractor.category}
+													onChange={(e) =>
+														setQuickLogNewContractor((prev) => ({
+															...prev,
+															category: e.target.value,
+														}))
+													}
+												/>
+											</FormField>
+											<FormField>
+												<FormInput
+													placeholder='Phone'
+													value={quickLogNewContractor.phone}
+													onChange={(e) =>
+														setQuickLogNewContractor((prev) => ({
+															...prev,
+															phone: e.target.value,
+														}))
+													}
+												/>
+											</FormField>
+										</FormRow>
+										<FormField>
+											<FormInput
+												type='email'
+												placeholder='Email (optional)'
+												value={quickLogNewContractor.email}
+												onChange={(e) =>
+													setQuickLogNewContractor((prev) => ({
+														...prev,
+														email: e.target.value,
+													}))
+												}
+											/>
+										</FormField>
+									</>
+								)}
+								<FormField>
+									<FormLabel>Visit Document (Optional)</FormLabel>
+									<FormInput
+										type='file'
+										onChange={(e) => setQuickLogAttachment(e.target.files?.[0] || null)}
+									/>
+								</FormField>
+							</>
+						)}
+
+						{quickLogMode === 'note' && (
 							<FormField>
-								<FormLabel>Visit Document (Optional)</FormLabel>
+								<FormLabel>Attach Document (Optional)</FormLabel>
 								<FormInput
 									type='file'
 									onChange={(e) => setQuickLogAttachment(e.target.files?.[0] || null)}
 								/>
 							</FormField>
-						</>
-					)}
+						)}
 
-					{quickLogMode === 'note' && (
-						<FormField>
-							<FormLabel>Attach Document (Optional)</FormLabel>
-							<FormInput
-								type='file'
-								onChange={(e) => setQuickLogAttachment(e.target.files?.[0] || null)}
-							/>
-						</FormField>
-					)}
+						{quickLogAttachment && (
+							<div style={{ fontSize: '12px', color: '#64748b' }}>
+								Attached: {quickLogAttachment.name}
+							</div>
+						)}
+					</PartsForm>
+				</GenericModal>
 
-					{quickLogAttachment && (
-						<div style={{ fontSize: '12px', color: '#64748b' }}>
-							Attached: {quickLogAttachment.name}
-						</div>
-					)}
-				</PartsForm>
-			</GenericModal>
-
-			{device && property && (
-				<DeviceModal
-					isOpen={showDeviceEditModal}
-					onClose={handleCloseEditDeviceModal}
-					onSubmit={handleSaveDeviceEdit}
-					property={property}
-					deviceId={editingDevice?.id}
-					isEditing={true}
-					units={units}
-					pendingFiles={pendingDeviceFiles}
-					onPendingFilesChange={setPendingDeviceFiles}
-					removedExistingFileUrls={removedExistingFileUrls}
-					onRemoveExistingFile={(url) =>
-						setRemovedExistingFileUrls((prev) =>
-							prev.includes(url) ? prev : [...prev, url],
-						)
-					}
-					onRestoreExistingFile={(url) =>
-						setRemovedExistingFileUrls((prev) => prev.filter((item) => item !== url))
-					}
-					onRemovePendingFile={(fileKey) =>
-						setPendingDeviceFiles((prev) =>
-							prev.filter((file) => `${file.name}-${file.size}` !== fileKey),
-						)
-					}
-					deviceFormData={deviceFormData}
-					onFormChange={handleDeviceFormChange}
-				/>
-			)}
+				{device && property && (
+					<DeviceModal
+						isOpen={showDeviceEditModal}
+						onClose={handleCloseEditDeviceModal}
+						onSubmit={handleSaveDeviceEdit}
+						property={property}
+						deviceId={editingDevice?.id}
+						isEditing={true}
+						units={units}
+						pendingFiles={pendingDeviceFiles}
+						onPendingFilesChange={setPendingDeviceFiles}
+						removedExistingFileUrls={removedExistingFileUrls}
+						onRemoveExistingFile={(url) =>
+							setRemovedExistingFileUrls((prev) =>
+								prev.includes(url) ? prev : [...prev, url],
+							)
+						}
+						onRestoreExistingFile={(url) =>
+							setRemovedExistingFileUrls((prev) => prev.filter((item) => item !== url))
+						}
+						onRemovePendingFile={(fileKey) =>
+							setPendingDeviceFiles((prev) =>
+								prev.filter((file) => `${file.name}-${file.size}` !== fileKey),
+							)
+						}
+						deviceFormData={deviceFormData}
+						onFormChange={handleDeviceFormChange}
+					/>
+				)}
 			</PageStack>
 			<BarcodeScannerModal
 				isOpen={isDeviceScanOpen}

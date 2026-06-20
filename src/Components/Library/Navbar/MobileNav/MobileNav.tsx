@@ -157,7 +157,19 @@ export const MobileHamburgerNav: React.FC<MobileNavProps> = ({ isSidebarOpen, se
 
 export const MobileBottomNav: React.FC<MobileNavProps> = ({ isPropertyContext, pathname, setIsQuickCreateOpen, isQuickCreateOpen, quickCreateRef, activeRoute }: MobileNavProps) => {
     const navigate = useNavigate();
-    const quickCreateActions = isPropertyContext
+    const isApplianceContext = /^\/property\/[^/]+\/device\/[^/]+\/?$/i.test(pathname);
+    const propertyPathMatch = pathname.match(/^\/property\/([^/]+)/i);
+    const propertyBasePath = propertyPathMatch
+        ? `/property/${propertyPathMatch[1]}`
+        : pathname;
+    const quickCreateActions = isApplianceContext
+        ? [
+            { key: 'edit_appliance', label: 'Edit Appliance', x: -100, y: 0 },
+            { key: 'add_task', label: 'Add Task', x: -55, y: -55 },
+            { key: 'upload_document', label: 'Upload', x: 55, y: -55 },
+            { key: 'add_log', label: 'Add Log', x: 100, y: 0 },
+        ]
+        : isPropertyContext
         ? [
             { key: 'add_task', label: 'Add Task', x: -100, y: 0 },
             { key: 'add_system', label: 'Add System', x: -55, y: -55 },
@@ -171,21 +183,68 @@ export const MobileBottomNav: React.FC<MobileNavProps> = ({ isPropertyContext, p
         ];
 
     const handleQuickCreateAction = (action: string) => {
+        const navigateToPropertyAction = (tab: string, propertyAction: string) => {
+            const params = new URLSearchParams({
+                tab,
+                action: propertyAction,
+            });
+            navigate({
+                pathname: propertyBasePath,
+                search: `?${params.toString()}`,
+            });
+        };
+
+        const navigateToApplianceAction = (applianceAction: string) => {
+            const params = new URLSearchParams({
+                action: applianceAction,
+            });
+            navigate({
+                pathname,
+                search: `?${params.toString()}`,
+            }, { replace: true });
+        };
+
         switch (action) {
+            case 'edit_appliance':
+                navigateToApplianceAction('edit-appliance');
+                break;
             case 'add_task':
-                navigate(isPropertyContext ? `${pathname}?action=create-task` : '/tasks?action=create');
+                if (isApplianceContext) {
+                    navigateToApplianceAction('add-task');
+                } else if (isPropertyContext) {
+                    navigateToPropertyAction('tasks', 'create-task');
+                } else {
+                    navigate('/tasks?action=create');
+                }
                 break;
             case 'add_system':
-                navigate(isPropertyContext ? `${pathname}?action=create-system` : '/devices?action=create');
+                if (isPropertyContext) {
+                    navigateToPropertyAction('devices', 'create-system');
+                } else {
+                    navigate('/devices?action=create');
+                }
                 break;
             case 'add_property':
                 navigate('/properties?action=create');
                 break;
             case 'upload_document':
-                navigate(isPropertyContext ? `${pathname}?action=upload-document` : '/report?action=upload');
+                if (isApplianceContext) {
+                    navigateToApplianceAction('upload-document');
+                } else if (isPropertyContext) {
+                    navigateToPropertyAction('documents', 'upload-document');
+                } else {
+                    navigate('/report?action=upload');
+                }
+                break;
+            case 'add_log':
+                navigateToApplianceAction('add-log');
                 break;
             case 'add_contractor':
-                navigate('/team?action=add-contractor');
+                if (isPropertyContext) {
+                    navigateToPropertyAction('contractors', 'add-contractor');
+                } else {
+                    navigate('/team?action=add-contractor');
+                }
                 break;
             default:
                 break;

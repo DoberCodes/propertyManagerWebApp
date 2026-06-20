@@ -44,12 +44,17 @@ import {
 	ActiveFilterChips,
 	ActiveFilterChip,
 	ActiveFilterChipClear,
+	CompactFilterResultCount,
+	DesktopCreateAction,
+	DesktopFilterArea,
 } from './mobileUiShared';
+import { PropertyTabFilterPanel } from './PropertyTabFilterPanel';
 import { LockedFeatureCallout } from '../../../Components/Library/LockedFeatureCallout';
 import { canManageTenants as canManageTenantsForPlan } from '../../../utils/subscriptionUtils';
 
 export const RequestsTab: React.FC<RequestsTabProps> = ({
 	propertyMaintenanceRequests,
+	propertyTitle = 'this property',
 	currentUser,
 	canApproveMaintenanceRequest,
 	handleConvertRequestToTask,
@@ -288,6 +293,30 @@ export const RequestsTab: React.FC<RequestsTabProps> = ({
 					compact
 				/>
 			)}
+			<CompactFilterResultCount>
+				Showing {filteredRequests.length} of {propertyMaintenanceRequests.length}{' '}
+				requests for {propertyTitle}
+			</CompactFilterResultCount>
+			<PropertyTabFilterPanel
+				propertyName={propertyTitle}
+				resourceName='maintenance requests'
+				searchPlaceholder='Search requests...'
+				filters={{ search }}
+				onFiltersChange={(nextFilters) =>
+					setSearch((nextFilters.search as string) || '')
+				}
+				sortValue={sortBy}
+				defaultSortValue='dateDesc'
+				sortOptions={[
+					{ value: 'dateDesc', label: 'Newest first' },
+					{ value: 'priority', label: 'Priority' },
+					{ value: 'status', label: 'Status' },
+				]}
+				onSortChange={(value) =>
+					setSortBy(value as 'dateDesc' | 'priority' | 'status')
+				}
+			/>
+			<DesktopFilterArea>
 			<div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16 }}>
 				<div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
 				<input
@@ -370,6 +399,7 @@ export const RequestsTab: React.FC<RequestsTabProps> = ({
 				</ActiveFilterChips>
 			)}
 			</div>
+			</DesktopFilterArea>
 
 			{filteredRequests.length > 0 ? (
 				<>
@@ -477,9 +507,11 @@ export const RequestsTab: React.FC<RequestsTabProps> = ({
 					</p>
 					{propertyMaintenanceRequests.length === 0 ? (
 						onCreateTask && (
+							<DesktopCreateAction>
 							<ToolbarButton type='button' onClick={onCreateTask}>
 								Add Task
 							</ToolbarButton>
+							</DesktopCreateAction>
 						)
 					) : (
 						<ToolbarButton

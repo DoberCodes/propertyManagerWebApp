@@ -258,6 +258,47 @@ const FilterBar = styled.div`
     align-items: center;
     gap: 10px;
     flex-wrap: wrap;
+
+    @media (max-width: 1024px) {
+        display: none;
+    }
+`;
+
+const CompactFilterResultCount = styled.div`
+    display: none;
+    padding-right: 58px;
+    color: #64748b;
+    font-size: 0.8rem;
+    font-weight: 700;
+
+    @media (max-width: 1024px) {
+        display: block;
+    }
+`;
+
+const HubFilterFields = styled.div`
+    display: grid;
+    grid-template-columns: minmax(220px, 1.4fr) minmax(220px, 1fr);
+    gap: 12px;
+
+    @media (max-width: 720px) {
+        grid-template-columns: 1fr;
+    }
+`;
+
+const HubFilterField = styled.label`
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    color: #475569;
+    font-size: 12px;
+    font-weight: 800;
+
+    > input,
+    > select {
+        width: 100%;
+        max-width: none;
+    }
 `;
 
 const SearchInput = styled.input`
@@ -289,6 +330,7 @@ const FilterGroup = styled.div`
     display: flex;
     align-items: center;
     gap: 4px;
+    flex-wrap: wrap;
 `;
 
 const FilterButton = styled.button<{ $active: boolean }>`
@@ -551,6 +593,9 @@ export {
     AttentionContextLink,
     AttentionContextSep,
     FilterBar,
+    CompactFilterResultCount,
+    HubFilterFields,
+    HubFilterField,
     SearchInput,
     FilterGroup,
     FilterButton,
