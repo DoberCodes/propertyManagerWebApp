@@ -1,5 +1,5 @@
-🎉 **Release Notes for Version 2.5.5** 🎉
+🎉 **Release Notes for Version 2.5.6** 🎉
 
 
 ## 🐛 Bug Fixes
-- fixing the safe area on devices
+- fixing the login screen design, also attempting another top safe area fix on devices
