@@ -23,6 +23,7 @@ import {
 
 import { Task, TaskHandlers } from '../../../types/Task.types';
 import { getTaskDisplayStatus } from '../../../utils/taskDisplayStatus';
+import { getTaskAssigneeDisplayName } from '../../../utils/taskUtils';
 import { TaskModal } from '../Modal';
 
 interface MobileTaskCarouselProps {
@@ -216,9 +217,7 @@ export const MobileTaskCarousel: React.FC<MobileTaskCarouselProps> = ({
 											<MetaItem>
 												<MetaLabel>Assigned</MetaLabel>
 												<MetaValue>
-													{typeof task.assignedTo === 'object'
-														? task.assignedTo.name
-														: task.assignedTo || 'Unassigned'}
+													{getTaskAssigneeDisplayName(task)}
 												</MetaValue>
 											</MetaItem>
 										)}

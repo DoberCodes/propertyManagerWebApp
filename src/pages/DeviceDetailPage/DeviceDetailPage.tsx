@@ -37,6 +37,7 @@ import {
 	getMaintenanceEventTitle,
 	isContinuityEvent,
 } from '../../utils/maintenanceEventUtils';
+import { getTaskAssigneeDisplayName } from '../../utils/taskUtils';
 import { DetailPageLayout, TabContent, ReusableTable, GenericModal } from '../../Components/Library';
 import { DeviceModal } from '../../Components/Library/Modal';
 import { TaskModal } from '../../Components/Library/Modal/TaskModal';
@@ -1370,7 +1371,7 @@ export const DeviceDetailPage: React.FC = () => {
 				sourceType: 'scheduled-task',
 				date: task.dueDate,
 				title: task.title || 'Scheduled maintenance task',
-				description: `Due on ${formatDate(task.dueDate)}${task.priority ? ` • ${task.priority} priority` : ''}${task.assignee ? ` • Assigned to ${task.assignee}` : task.assignedTo?.name ? ` • Assigned to ${task.assignedTo.name}` : ''}`,
+				description: `Due on ${formatDate(task.dueDate)}${task.priority ? ` • ${task.priority} priority` : ''}${getTaskAssigneeDisplayName(task, '') ? ` • Assigned to ${getTaskAssigneeDisplayName(task, '')}` : ''}`,
 				type: 'scheduled_task',
 				raw: task,
 			}))
@@ -2685,7 +2686,7 @@ export const DeviceDetailPage: React.FC = () => {
 													</span>
 												</MobileDetailHeader>
 												<MobileDetailMeta>
-													<div>Maintenance Lead: {task.assignee || 'Unassigned'}</div>
+													<div>Maintenance Lead: {getTaskAssigneeDisplayName(task)}</div>
 													<div>Due: {task.dueDate || 'No due date set'}</div>
 													<div>Priority: {task.priority || 'Low'}</div>
 												</MobileDetailMeta>

@@ -435,7 +435,8 @@ Typical fields:
 * priority
 * status
 * recurrence
-* assigneeId
+* assignee
+* assignedTo
 * createdAt
 * updatedAt
 
@@ -449,6 +450,15 @@ Optional fields may include:
 * actualCost
 
 Tasks may exist independently or be associated with one or more devices.
+
+Task assignment stores both:
+
+* An `assignee` record ID used only as an internal reference.
+* An `assignedTo` display snapshot containing the assignee name and optional email.
+
+The display snapshot should be preserved when a team member, family member, or
+contractor loses access so historical and active tasks never expose a raw record
+ID in the interface.
 
 ---
 

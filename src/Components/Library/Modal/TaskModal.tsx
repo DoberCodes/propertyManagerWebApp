@@ -96,8 +96,7 @@ const buildLinkedDeviceDetailsSection = (devices: Device[]) => {
 		if (serviceItems.length > 0) {
 			serviceItems.forEach((item, itemIndex) => {
 				lines.push(
-					`   ${itemIndex + 1}) [${item.category}] ${item.name}${
-						item.details ? ` - ${item.details}` : ''
+					`   ${itemIndex + 1}) [${item.category}] ${item.name}${item.details ? ` - ${item.details}` : ''
 					}`,
 				);
 			});
@@ -315,11 +314,11 @@ const SummaryPill = styled.span<{ $tone?: 'warning' | 'neutral' | 'success' }>`
 				: COLORS.textSecondary};
 	border: 1px solid
 		${(props) =>
-			props.$tone === 'warning'
-				? '#fcd34d'
-				: props.$tone === 'success'
-					? '#86efac'
-					: COLORS.gray200};
+		props.$tone === 'warning'
+			? '#fcd34d'
+			: props.$tone === 'success'
+				? '#86efac'
+				: COLORS.gray200};
 `;
 
 const RequiredList = styled.div`
@@ -455,6 +454,44 @@ interface TaskFormData {
 	financials?: TaskFinancials;
 }
 
+type AssigneeOption = { label: string; value: string; email?: string };
+
+const getStoredAssigneeOption = (task?: any | null): AssigneeOption | null => {
+	if (!task) return null;
+
+	const assignedTo =
+		task.assignedTo && typeof task.assignedTo === 'object'
+			? task.assignedTo
+			: null;
+	const value = String(
+		assignedTo?.id ||
+		(typeof task.assignedTo === 'string' ? task.assignedTo : '') ||
+		task.assignee ||
+		'',
+	).trim();
+
+	if (!value) return null;
+
+	const legacyName =
+		task.assigneeFirstName || task.assigneeLastName
+			? `${task.assigneeFirstName || ''} ${task.assigneeLastName || ''}`.trim()
+			: '';
+	const label = String(
+		assignedTo?.name ||
+		task.assigneeName ||
+		legacyName ||
+		assignedTo?.email ||
+		task.assigneeEmail ||
+		'Former assignee',
+	).trim();
+
+	return {
+		value,
+		label,
+		email: assignedTo?.email || task.assigneeEmail || undefined,
+	};
+};
+
 type ActiveTab = 'details' | 'advanced' | 'schedule' | 'notifications' | 'financial';
 
 type SmartScheduleSuggestion = {
@@ -472,12 +509,12 @@ interface EditTaskModalProps {
 	editingTaskId?: string | null;
 	editingTask?: any | null; // full task object for editing
 	initialTask?:
-		| (Partial<TaskFormData> & {
-				propertyId?: string;
-				unitId?: string;
-				linkedMaintenanceHistoryIds?: string[];
-		  })
-		| null;
+	| (Partial<TaskFormData> & {
+		propertyId?: string;
+		unitId?: string;
+		linkedMaintenanceHistoryIds?: string[];
+	})
+	| null;
 	propertyId?: string | null;
 	// when the caller wants the user to choose a property/unit
 	propertyOptions?: { label: string; value: string }[];
@@ -487,7 +524,7 @@ interface EditTaskModalProps {
 	onSaved?: (updatedTask?: any) => void; // called after successful create/update
 	statusOptions?: string[];
 	priorityOptions?: string[];
-	assigneeOptions?: { label: string; value: string; email?: string }[];
+	assigneeOptions?: AssigneeOption[];
 	currentUser?: any | null;
 	// new/optional callbacks and placeholders
 	taskTitlePlaceholder?: string;
@@ -517,7 +554,7 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 	const effectiveCurrentUser = currentUser || storeCurrentUser;
 	const canUseRecurringTaskFeature = Boolean(
 		effectiveCurrentUser?.subscription &&
-			canUseRecurringTasks(effectiveCurrentUser.subscription as any),
+		canUseRecurringTasks(effectiveCurrentUser.subscription as any),
 	);
 
 	const normalizeTaskTitle = (value?: string | null) =>
@@ -671,13 +708,13 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 	const internalDeviceOptions = React.useMemo(() => {
 		const scopedDevices = selectedPropertyId
 			? allDevices.filter((device: any) => {
-					const devicePropertyId =
-						device.propertyId ||
-						device.location?.propertyId ||
-						device.property?.id ||
-						'';
-					return devicePropertyId === selectedPropertyId;
-			  })
+				const devicePropertyId =
+					device.propertyId ||
+					device.location?.propertyId ||
+					device.property?.id ||
+					'';
+				return devicePropertyId === selectedPropertyId;
+			})
 			: allDevices;
 
 		return scopedDevices.map((device) => {
@@ -701,10 +738,10 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 	const internalMaintenanceHistoryOptions = React.useMemo(() => {
 		const scopedHistory = selectedPropertyId
 			? allMaintenanceHistory.filter((record: any) => {
-					const historyPropertyId =
-						record.propertyId || record.property?.id || '';
-					return historyPropertyId === selectedPropertyId;
-			  })
+				const historyPropertyId =
+					record.propertyId || record.property?.id || '';
+				return historyPropertyId === selectedPropertyId;
+			})
 			: allMaintenanceHistory;
 
 		return scopedHistory.map((record) => {
@@ -762,6 +799,22 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 		}
 		return null;
 	}, [editingTaskId, editingTask, allTasks]);
+	const storedAssigneeOption = useMemo(
+		() => getStoredAssigneeOption(editingTask || foundTask),
+		[editingTask, foundTask],
+	);
+	const resolvedAssigneeOptions = useMemo(() => {
+		if (
+			!storedAssigneeOption ||
+			assigneeOptions.some(
+				(option) => option.value === storedAssigneeOption.value,
+			)
+		) {
+			return assigneeOptions;
+		}
+
+		return [storedAssigneeOption, ...assigneeOptions];
+	}, [assigneeOptions, storedAssigneeOption]);
 
 	// initialize form when modal opens or when editingTaskId/initialTask changes
 	useEffect(() => {
@@ -792,7 +845,7 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 				location: editingTask.location || '',
 				notes: editingTask.notes || '',
 				priority: editingTask.priority,
-				assignedTo: editingTask.assignedTo?.id || editingTask.assignee || '',
+				assignedTo: getStoredAssigneeOption(editingTask)?.value || '',
 				devices: editingTask.devices || [],
 				isRecurring: editingTask.isRecurring || false,
 				recurrenceFrequency: editingTask.recurrenceFrequency,
@@ -826,7 +879,7 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 				location: foundTask.location || '',
 				notes: foundTask.notes || '',
 				priority: foundTask.priority,
-				assignedTo: foundTask.assignedTo?.id || foundTask.assignee || '',
+				assignedTo: getStoredAssigneeOption(foundTask)?.value || '',
 				devices: foundTask.devices || [],
 				isRecurring: foundTask.isRecurring || false,
 				recurrenceFrequency: foundTask.recurrenceFrequency,
@@ -941,16 +994,16 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 	>(fd.linkedMaintenanceHistoryIds || []);
 	const wantsRecurrence = Boolean(
 		canUseRecurringTaskFeature &&
-			(formState.recurrenceFrequency ||
-				formState.recurrenceInterval ||
-				formState.recurrenceCustomUnit),
+		(formState.recurrenceFrequency ||
+			formState.recurrenceInterval ||
+			formState.recurrenceCustomUnit),
 	);
 	const hasSchedule = Boolean(
 		canUseRecurringTaskFeature &&
-			formState.recurrenceFrequency &&
-			(formState.recurrenceFrequency === 'custom'
-				? formState.recurrenceInterval && formState.recurrenceCustomUnit
-				: true), // For non-custom frequencies, just need the frequency
+		formState.recurrenceFrequency &&
+		(formState.recurrenceFrequency === 'custom'
+			? formState.recurrenceInterval && formState.recurrenceCustomUnit
+			: true), // For non-custom frequencies, just need the frequency
 	);
 
 	useEffect(() => {
@@ -1155,40 +1208,40 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 		}));
 	};
 
-		const isCreateMode = !isEditing;
-		const isAsap = !formState.dueDate;
-		const requiresPropertySelection = propertyOptions.length > 0 && !propertyId;
-		const missingRequiredFields = useMemo(() => {
-			const missing: string[] = [];
-			if (requiresPropertySelection && !String(formState.propertyId || '').trim()) {
-				missing.push('Property');
-			}
-			if (!String(formState.title || '').trim()) {
-				missing.push('Task Name');
-			}
-			if (!String(formState.priority || '').trim()) {
-				missing.push('Priority');
-			}
-			return missing;
-		}, [formState.priority, formState.propertyId, formState.title, requiresPropertySelection]);
+	const isCreateMode = !isEditing;
+	const isAsap = !formState.dueDate;
+	const requiresPropertySelection = propertyOptions.length > 0 && !propertyId;
+	const missingRequiredFields = useMemo(() => {
+		const missing: string[] = [];
+		if (requiresPropertySelection && !String(formState.propertyId || '').trim()) {
+			missing.push('Property');
+		}
+		if (!String(formState.title || '').trim()) {
+			missing.push('Task Name');
+		}
+		if (!String(formState.priority || '').trim()) {
+			missing.push('Priority');
+		}
+		return missing;
+	}, [formState.priority, formState.propertyId, formState.title, requiresPropertySelection]);
 
-		const completedBasics = useMemo(() => {
-			const checks = [
-				!requiresPropertySelection || Boolean(String(formState.propertyId || '').trim()),
-				Boolean(String(formState.title || '').trim()),
-				Boolean(String(formState.priority || '').trim()),
-			];
-			return checks.filter(Boolean).length;
-		}, [formState.priority, formState.propertyId, formState.title, requiresPropertySelection]);
+	const completedBasics = useMemo(() => {
+		const checks = [
+			!requiresPropertySelection || Boolean(String(formState.propertyId || '').trim()),
+			Boolean(String(formState.title || '').trim()),
+			Boolean(String(formState.priority || '').trim()),
+		];
+		return checks.filter(Boolean).length;
+	}, [formState.priority, formState.propertyId, formState.title, requiresPropertySelection]);
 
-		const detailsTabTone = missingRequiredFields.length > 0 ? 'warning' : 'success';
+	const detailsTabTone = missingRequiredFields.length > 0 ? 'warning' : 'success';
 
-		const detailsError = submitAttempted && missingRequiredFields.length > 0;
+	const detailsError = submitAttempted && missingRequiredFields.length > 0;
 
-		const sanitizeCostBreakdown = (
-			costs?: CostBreakdown,
-		): CostBreakdown | undefined => {
-			if (!costs) return undefined;
+	const sanitizeCostBreakdown = (
+		costs?: CostBreakdown,
+	): CostBreakdown | undefined => {
+		if (!costs) return undefined;
 		const sanitized: CostBreakdown = {};
 		if (costs.contractorCost !== undefined) {
 			sanitized.contractorCost = costs.contractorCost;
@@ -1364,8 +1417,8 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 				}
 
 				// Convert assignedTo from string (user ID) to object format
-				if (updatesRaw.assignedTo && assigneeOptions) {
-					const selectedOption = assigneeOptions.find(
+				if (updatesRaw.assignedTo) {
+					const selectedOption = resolvedAssigneeOptions.find(
 						(option) => option.value === updatesRaw.assignedTo,
 					);
 					if (selectedOption) {
@@ -1378,10 +1431,11 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 							assignedToObj.email = selectedOption.email;
 						}
 						updatesRaw.assignedTo = assignedToObj;
+						updatesRaw.assignee = selectedOption.value;
 					}
 				} else if (!updatesRaw.assignedTo) {
-					// If assignedTo is empty, remove it
-					delete updatesRaw.assignedTo;
+					updatesRaw.assignedTo = null;
+					updatesRaw.assignee = '';
 				}
 
 				// Keep appliance and history linking optional by omitting empty arrays.
@@ -1438,8 +1492,8 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 				}
 
 				// Convert assignedTo from string (user ID) to object format
-				if (newTaskRaw.assignedTo && assigneeOptions) {
-					const selectedOption = assigneeOptions.find(
+				if (newTaskRaw.assignedTo) {
+					const selectedOption = resolvedAssigneeOptions.find(
 						(option) => option.value === newTaskRaw.assignedTo,
 					);
 					if (selectedOption) {
@@ -1452,6 +1506,7 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 							assignedToObj.email = selectedOption.email;
 						}
 						newTaskRaw.assignedTo = assignedToObj;
+						newTaskRaw.assignee = selectedOption.value;
 					}
 				} else if (!newTaskRaw.assignedTo) {
 					// If assignedTo is empty, remove it
@@ -1496,7 +1551,7 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 		<>
 			<GenericModal
 				isOpen={isOpen}
-				title={isEditing ? 'Refine Maintenance Task' : 'Create Maintenance Task'}
+				title={isEditing ? 'Edit Maintenance Task' : 'Create Maintenance Task'}
 				onClose={onClose}
 				onSubmit={handleSubmit}
 				showActions={true}
@@ -1504,318 +1559,318 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 				secondaryButtonLabel='Cancel'
 				primaryButtonDisabled={missingRequiredFields.length > 0}>
 				<StickyTabRail>
-				<ModalTabContainer>
-					<ModalTab
-						type='button'
-						$active={activeTab === 'details'}
-						onClick={() => setActiveTab('details')}>
-						<TabLabel>
-							Task Details
-							{missingRequiredFields.length > 0 && (
-								<TabBadge $tone={detailsTabTone}>
-									{`${missingRequiredFields.length} required`}
-								</TabBadge>
-							)}
-						</TabLabel>
-					</ModalTab>
-					{isCreateMode ? (
+					<ModalTabContainer>
 						<ModalTab
 							type='button'
-							$active={activeTab === 'advanced'}
-							onClick={() => setActiveTab('advanced')}>
+							$active={activeTab === 'details'}
+							onClick={() => setActiveTab('details')}>
 							<TabLabel>
-								More Options
+								Task Details
+								{missingRequiredFields.length > 0 && (
+									<TabBadge $tone={detailsTabTone}>
+										{`${missingRequiredFields.length} required`}
+									</TabBadge>
+								)}
 							</TabLabel>
 						</ModalTab>
-					) : (
-						<>
+						{isCreateMode ? (
 							<ModalTab
 								type='button'
-								$active={activeTab === 'schedule'}
-								onClick={() => setActiveTab('schedule')}>
+								$active={activeTab === 'advanced'}
+								onClick={() => setActiveTab('advanced')}>
 								<TabLabel>
-									Recurrence
+									More Options
 								</TabLabel>
 							</ModalTab>
-							<ModalTab
-								type='button'
-								$active={activeTab === 'notifications'}
-								onClick={() => setActiveTab('notifications')}>
-								<TabLabel>
-									Notifications
-								</TabLabel>
-							</ModalTab>
-							<ModalTab
-								type='button'
-								$active={activeTab === 'financial'}
-								onClick={() => setActiveTab('financial')}>
-								<TabLabel>
-									Financials
-								</TabLabel>
-							</ModalTab>
-						</>
-					)}
-				</ModalTabContainer>
+						) : (
+							<>
+								<ModalTab
+									type='button'
+									$active={activeTab === 'schedule'}
+									onClick={() => setActiveTab('schedule')}>
+									<TabLabel>
+										Recurrence
+									</TabLabel>
+								</ModalTab>
+								<ModalTab
+									type='button'
+									$active={activeTab === 'notifications'}
+									onClick={() => setActiveTab('notifications')}>
+									<TabLabel>
+										Notifications
+									</TabLabel>
+								</ModalTab>
+								<ModalTab
+									type='button'
+									$active={activeTab === 'financial'}
+									onClick={() => setActiveTab('financial')}>
+									<TabLabel>
+										Financials
+									</TabLabel>
+								</ModalTab>
+							</>
+						)}
+					</ModalTabContainer>
 				</StickyTabRail>
 
 				<TabContentScrollArea ref={tabContentScrollRef}>
 					<ModalTabContent $active={activeTab === 'details'}>
-					{isCreateMode && (
-						<SummaryBanner>
-							<SummaryBannerHeader>
-								<SummaryPill $tone={detailsTabTone}>
-									{completedBasics}/3 core items complete
-								</SummaryPill>
-								<SummaryToggleButton
-									type='button'
-									onClick={() =>
-										setIsCoreSummaryExpanded((prev) => !prev)
-									}>
-									{isCoreSummaryExpanded ? 'Hide details' : 'Show details'}
-								</SummaryToggleButton>
-							</SummaryBannerHeader>
-							{isCoreSummaryExpanded && (
-								<>
-									<SummaryTitle>Create the maintenance task first, then add optional automation if needed.</SummaryTitle>
-									<SummaryMeta>
-										<SummaryPill $tone='neutral'>Lifecycle status defaults to Initiated</SummaryPill>
-										<SummaryPill $tone={isAsap ? 'success' : 'neutral'}>
-											{isAsap ? 'ASAP task' : 'Scheduled task'}
-										</SummaryPill>
-									</SummaryMeta>
-									<RequiredList>
-										{missingRequiredFields.length > 0
-											? `Still needed: ${missingRequiredFields.join(', ')}`
-											: 'All required fields are complete. You can create this maintenance task now or continue with optional settings.'}
-									</RequiredList>
-								</>
-							)}
-						</SummaryBanner>
-					)}
-					<FormGrid>
-						<FormGroupFull>
-							<SectionHeader>
-								<SectionTitle>Core Setup</SectionTitle>
-								<SectionDescription>
-									Define what needs to be done, where it belongs, and how urgent it is.
-								</SectionDescription>
-							</SectionHeader>
-						</FormGroupFull>
+						{isCreateMode && (
+							<SummaryBanner>
+								<SummaryBannerHeader>
+									<SummaryPill $tone={detailsTabTone}>
+										{completedBasics}/3 core items complete
+									</SummaryPill>
+									<SummaryToggleButton
+										type='button'
+										onClick={() =>
+											setIsCoreSummaryExpanded((prev) => !prev)
+										}>
+										{isCoreSummaryExpanded ? 'Hide details' : 'Show details'}
+									</SummaryToggleButton>
+								</SummaryBannerHeader>
+								{isCoreSummaryExpanded && (
+									<>
+										<SummaryTitle>Create the maintenance task first, then add optional automation if needed.</SummaryTitle>
+										<SummaryMeta>
+											<SummaryPill $tone='neutral'>Lifecycle status defaults to Initiated</SummaryPill>
+											<SummaryPill $tone={isAsap ? 'success' : 'neutral'}>
+												{isAsap ? 'ASAP task' : 'Scheduled task'}
+											</SummaryPill>
+										</SummaryMeta>
+										<RequiredList>
+											{missingRequiredFields.length > 0
+												? `Still needed: ${missingRequiredFields.join(', ')}`
+												: 'All required fields are complete. You can create this maintenance task now or continue with optional settings.'}
+										</RequiredList>
+									</>
+								)}
+							</SummaryBanner>
+						)}
+						<FormGrid>
+							<FormGroupFull>
+								<SectionHeader>
+									<SectionTitle>Core Setup</SectionTitle>
+									<SectionDescription>
+										Define what needs to be done, where it belongs, and how urgent it is.
+									</SectionDescription>
+								</SectionHeader>
+							</FormGroupFull>
 
-						<FormGroup>
-							<FormLabel>Task Title *</FormLabel>
-							<FormInput
-								ref={titleInputRef}
-								type='text'
-								name='title'
-								value={formState.title}
-								onChange={handleChange}
-								placeholder={taskTitlePlaceholder}
-								required
-							/>
-							{detailsError && !String(formState.title || '').trim() && (
-								<FieldError>Task title is required.</FieldError>
-							)}
-						</FormGroup>
-
-						{propertyOptions.length > 0 && (
 							<FormGroup>
-								<FormLabel>Property *</FormLabel>
-								<TaskSelect
-									name='propertyId'
-									value={formState.propertyId || ''}
-									onChange={(value) =>
-										handleChange({
-											target: { name: 'propertyId', value, type: 'select-one' },
-										} as any)
-									}
-									placeholder='Select a property...'
-									options={propertyOptions}
+								<FormLabel>Task Title *</FormLabel>
+								<FormInput
+									ref={titleInputRef}
+									type='text'
+									name='title'
+									value={formState.title}
+									onChange={handleChange}
+									placeholder={taskTitlePlaceholder}
+									required
 								/>
-								{detailsError && requiresPropertySelection && !String(formState.propertyId || '').trim() && (
-									<FieldError>Select a property for this task.</FieldError>
+								{detailsError && !String(formState.title || '').trim() && (
+									<FieldError>Task title is required.</FieldError>
 								)}
 							</FormGroup>
-						)}
 
-						<FormGroup>
-							<FormLabel>Priority *</FormLabel>
-							<TaskSelect
-								name='priority'
-								value={formState.priority || ''}
-								onChange={(value) =>
-									onChange({
-										target: { name: 'priority', value, type: 'select-one' },
-									} as any)
-								}
-								placeholder='Select a priority...'
-								options={priorityOptions.map((priority) => ({
-									value: priority,
-									label: priority,
-								}))}
-							/>
-							{detailsError && !String(formState.priority || '').trim() && (
-									<FieldError>Select a priority to keep maintenance planning clear.</FieldError>
-							)}
-						</FormGroup>
-
-						<FormGroup>
-							<FormLabel>Due Timing</FormLabel>
-							<DueDateModeGroup>
-								<DueDateModeButton
-									type='button'
-									$active={!isAsap}
-									onClick={() =>
-										setFormState((prev) => ({
-											...prev,
-											dueDate: prev.dueDate || new Date().toISOString().split('T')[0],
-										}))
-									}>
-									Due date
-								</DueDateModeButton>
-								<DueDateModeButton
-									type='button'
-									$active={isAsap}
-									onClick={() =>
-										setFormState((prev) => ({
-											...prev,
-											dueDate: '',
-										}))
-									}>
-									ASAP
-								</DueDateModeButton>
-							</DueDateModeGroup>
-							{isAsap ? (
-								<HelperBox>
-									This task will be created without a due date and can be addressed as soon as capacity allows.
-								</HelperBox>
-							) : (
-								<>
-									<FormInput
-										type='date'
-										name='dueDate'
-										value={formState.dueDate}
-										onChange={onChange}
+							{propertyOptions.length > 0 && (
+								<FormGroup>
+									<FormLabel>Property *</FormLabel>
+									<TaskSelect
+										name='propertyId'
+										value={formState.propertyId || ''}
+										onChange={(value) =>
+											handleChange({
+												target: { name: 'propertyId', value, type: 'select-one' },
+											} as any)
+										}
+										placeholder='Select a property...'
+										options={propertyOptions}
 									/>
-									<FieldHint>
-										Pick a target date when this maintenance task should be completed.
-									</FieldHint>
-								</>
+									{detailsError && requiresPropertySelection && !String(formState.propertyId || '').trim() && (
+										<FieldError>Select a property for this task.</FieldError>
+									)}
+								</FormGroup>
 							)}
-						</FormGroup>
 
-						{isCreateMode && smartScheduleSuggestion && !hasAppliedSmartSchedule && (
-							<FormGroupFull>
-								<HelperBox>
-									<div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
-										<strong style={{ color: '#166534' }}>Smart default:</strong>
-										<span>{smartScheduleSuggestion.label}</span>
-										<MoreOptionsToggle type='button' onClick={applySmartSchedule}>
-											Apply Suggested Schedule
-										</MoreOptionsToggle>
-									</div>
-								</HelperBox>
-							</FormGroupFull>
-						)}
-
-						{isCreateMode && (
-							<FormGroupFull>
-								<MoreOptionsToggle
-									type='button'
-									$active={showCreateMoreOptions}
-									onClick={() => setShowCreateMoreOptions((prev) => !prev)}>
-									{showCreateMoreOptions ? 'Hide More Options' : 'Show More Options'}
-								</MoreOptionsToggle>
-							</FormGroupFull>
-						)}
-
-						{(!isCreateMode || showCreateMoreOptions) && (
-							<>
-
-						<FormGroupFull>
-							<SectionHeader>
-								<SectionTitle>Assignment and context</SectionTitle>
-								<SectionDescription>
-									Add people and system context so the work is repeatable and traceable.
-								</SectionDescription>
-							</SectionHeader>
-						</FormGroupFull>
-
-						<FormGroup>
-							<FormLabel>Category</FormLabel>
-							<SuggestionInputWrap ref={categoryWrapRef}>
-								<FormInput
-									type='text'
-									name='category'
-									value={formState.category || ''}
-									onChange={handleChange}
-									onFocus={() => setActiveSuggestion('category')}
-									placeholder='e.g., Kitchen'
+							<FormGroup>
+								<FormLabel>Priority *</FormLabel>
+								<TaskSelect
+									name='priority'
+									value={formState.priority || ''}
+									onChange={(value) =>
+										onChange({
+											target: { name: 'priority', value, type: 'select-one' },
+										} as any)
+									}
+									placeholder='Select a priority...'
+									options={priorityOptions.map((priority) => ({
+										value: priority,
+										label: priority,
+									}))}
 								/>
-								{activeSuggestion === 'category' &&
-									filteredCategoryOptions.length > 0 && (
-										<SuggestionDropdown>
-											{filteredCategoryOptions.map((category) => (
-												<SuggestionItem
-													type='button'
-													key={category}
-													$active={
-														(formState.category || '').trim() === category
-													}
-													onMouseDown={(e) => e.preventDefault()}
-													onClick={() => {
-														setFormState((prev) => ({
-															...prev,
-															category,
-														}));
-														setActiveSuggestion(null);
-													}}>
-													{category}
-												</SuggestionItem>
-											))}
-										</SuggestionDropdown>
-									)}
-							</SuggestionInputWrap>
-						</FormGroup>
+								{detailsError && !String(formState.priority || '').trim() && (
+									<FieldError>Select a priority to keep maintenance planning clear.</FieldError>
+								)}
+							</FormGroup>
 
-						<FormGroup>
-							<FormLabel>Location</FormLabel>
-							<SuggestionInputWrap ref={locationWrapRef}>
-								<FormInput
-									type='text'
-									name='location'
-									value={formState.location || ''}
-									onChange={handleChange}
-									onFocus={() => setActiveSuggestion('location')}
-									placeholder='e.g., Sink'
-								/>
-								{activeSuggestion === 'location' &&
-									filteredLocationOptions.length > 0 && (
-										<SuggestionDropdown>
-											{filteredLocationOptions.map((location) => (
-												<SuggestionItem
-													type='button'
-													key={location}
-													$active={
-														(formState.location || '').trim() === location
-													}
-													onMouseDown={(e) => e.preventDefault()}
-													onClick={() => {
-														setFormState((prev) => ({
-															...prev,
-															location,
-														}));
-														setActiveSuggestion(null);
-													}}>
-													{location}
-												</SuggestionItem>
-											))}
-										</SuggestionDropdown>
-									)}
-							</SuggestionInputWrap>
-						</FormGroup>
+							<FormGroup>
+								<FormLabel>Due Timing</FormLabel>
+								<DueDateModeGroup>
+									<DueDateModeButton
+										type='button'
+										$active={!isAsap}
+										onClick={() =>
+											setFormState((prev) => ({
+												...prev,
+												dueDate: prev.dueDate || new Date().toISOString().split('T')[0],
+											}))
+										}>
+										Due date
+									</DueDateModeButton>
+									<DueDateModeButton
+										type='button'
+										$active={isAsap}
+										onClick={() =>
+											setFormState((prev) => ({
+												...prev,
+												dueDate: '',
+											}))
+										}>
+										ASAP
+									</DueDateModeButton>
+								</DueDateModeGroup>
+								{isAsap ? (
+									<HelperBox>
+										This task will be created without a due date and can be addressed as soon as capacity allows.
+									</HelperBox>
+								) : (
+									<>
+										<FormInput
+											type='date'
+											name='dueDate'
+											value={formState.dueDate}
+											onChange={onChange}
+										/>
+										<FieldHint>
+											Pick a target date when this maintenance task should be completed.
+										</FieldHint>
+									</>
+								)}
+							</FormGroup>
 
-								{/* Units are temporarily hidden from the app flow.
+							{isCreateMode && smartScheduleSuggestion && !hasAppliedSmartSchedule && (
+								<FormGroupFull>
+									<HelperBox>
+										<div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
+											<strong style={{ color: '#166534' }}>Smart default:</strong>
+											<span>{smartScheduleSuggestion.label}</span>
+											<MoreOptionsToggle type='button' onClick={applySmartSchedule}>
+												Apply Suggested Schedule
+											</MoreOptionsToggle>
+										</div>
+									</HelperBox>
+								</FormGroupFull>
+							)}
+
+							{isCreateMode && (
+								<FormGroupFull>
+									<MoreOptionsToggle
+										type='button'
+										$active={showCreateMoreOptions}
+										onClick={() => setShowCreateMoreOptions((prev) => !prev)}>
+										{showCreateMoreOptions ? 'Hide More Options' : 'Show More Options'}
+									</MoreOptionsToggle>
+								</FormGroupFull>
+							)}
+
+							{(!isCreateMode || showCreateMoreOptions) && (
+								<>
+
+									<FormGroupFull>
+										<SectionHeader>
+											<SectionTitle>Assignment and context</SectionTitle>
+											<SectionDescription>
+												Add people and system context so the work is repeatable and traceable.
+											</SectionDescription>
+										</SectionHeader>
+									</FormGroupFull>
+
+									<FormGroup>
+										<FormLabel>Category</FormLabel>
+										<SuggestionInputWrap ref={categoryWrapRef}>
+											<FormInput
+												type='text'
+												name='category'
+												value={formState.category || ''}
+												onChange={handleChange}
+												onFocus={() => setActiveSuggestion('category')}
+												placeholder='e.g., Kitchen'
+											/>
+											{activeSuggestion === 'category' &&
+												filteredCategoryOptions.length > 0 && (
+													<SuggestionDropdown>
+														{filteredCategoryOptions.map((category) => (
+															<SuggestionItem
+																type='button'
+																key={category}
+																$active={
+																	(formState.category || '').trim() === category
+																}
+																onMouseDown={(e) => e.preventDefault()}
+																onClick={() => {
+																	setFormState((prev) => ({
+																		...prev,
+																		category,
+																	}));
+																	setActiveSuggestion(null);
+																}}>
+																{category}
+															</SuggestionItem>
+														))}
+													</SuggestionDropdown>
+												)}
+										</SuggestionInputWrap>
+									</FormGroup>
+
+									<FormGroup>
+										<FormLabel>Location</FormLabel>
+										<SuggestionInputWrap ref={locationWrapRef}>
+											<FormInput
+												type='text'
+												name='location'
+												value={formState.location || ''}
+												onChange={handleChange}
+												onFocus={() => setActiveSuggestion('location')}
+												placeholder='e.g., Sink'
+											/>
+											{activeSuggestion === 'location' &&
+												filteredLocationOptions.length > 0 && (
+													<SuggestionDropdown>
+														{filteredLocationOptions.map((location) => (
+															<SuggestionItem
+																type='button'
+																key={location}
+																$active={
+																	(formState.location || '').trim() === location
+																}
+																onMouseDown={(e) => e.preventDefault()}
+																onClick={() => {
+																	setFormState((prev) => ({
+																		...prev,
+																		location,
+																	}));
+																	setActiveSuggestion(null);
+																}}>
+																{location}
+															</SuggestionItem>
+														))}
+													</SuggestionDropdown>
+												)}
+										</SuggestionInputWrap>
+									</FormGroup>
+
+									{/* Units are temporarily hidden from the app flow.
 								{filteredUnitOptions.length > 0 && (
 									<FormGroup>
 										<FormLabel>Unit</FormLabel>
@@ -1837,719 +1892,717 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 								)}
 								*/}
 
-						{assigneeOptions.length > 0 && (
-							<FormGroup>
-								<FormLabel>Assigned To</FormLabel>
-								<TaskSelect
-									name='assignedTo'
-									value={formState.assignedTo || ''}
-									onChange={(value) =>
-										onChange({
-											target: { name: 'assignedTo', value, type: 'select-one' },
-										} as any)
-									}
-									placeholder='Unassigned'
-									options={[
-										{
-											value: '',
-											label:
-												currentUser && formState.assignedTo === currentUser.id
-													? 'Unassign me'
-													: 'Unassigned',
-										},
-										...assigneeOptions,
-									]}
-								/>
-							</FormGroup>
-						)}
-
-						{internalDeviceOptions.length > 0 && (
-							<FormGroup>
-								<FormLabel>Connected Appliances (Optional)</FormLabel>
-								<MultiSelect
-									options={internalDeviceOptions}
-									value={formState.devices || []}
-									onChange={handleDeviceChange}
-									placeholder='Select appliances for this task...'
-								/>
-								<small style={{ color: '#6b7280' }}>
-									Linked appliance service items are automatically appended to task
-									notes when you save. Leave blank for non-appliance tasks.
-								</small>
-							</FormGroup>
-						)}
-
-						{internalMaintenanceHistoryOptions.length > 0 && (
-							<FormGroup>
-								<FormLabel>Linked Maintenance Records</FormLabel>
-								<div
-									style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-									<button
-										type='button'
-										onClick={() => setShowLinkHistoryModal(true)}
-										style={{
-											padding: '8px 12px',
-											background: '#3b82f6',
-											color: 'white',
-											border: 'none',
-											borderRadius: '4px',
-											cursor: 'pointer',
-											fontSize: '14px',
-										}}>
-										🔗 Link Maintenance Records (
-										{formState.linkedMaintenanceHistoryIds?.length || 0})
-									</button>
-									{(formState.linkedMaintenanceHistoryIds?.length || 0) > 0 && (
-										<span style={{ fontSize: '12px', color: '#6b7280' }}>
-											{formState.linkedMaintenanceHistoryIds?.length} linked
-										</span>
+									{resolvedAssigneeOptions.length > 0 && (
+										<FormGroup>
+											<FormLabel>Assigned To</FormLabel>
+											<TaskSelect
+												name='assignedTo'
+												value={formState.assignedTo || ''}
+												onChange={(value) =>
+													onChange({
+														target: { name: 'assignedTo', value, type: 'select-one' },
+													} as any)
+												}
+												placeholder='Unassigned'
+												options={[
+													{
+														value: '',
+														label:
+															currentUser && formState.assignedTo === currentUser.id
+																? 'Unassign me'
+																: 'Unassigned',
+													},
+													...resolvedAssigneeOptions,
+												]}
+											/>
+										</FormGroup>
 									)}
-								</div>
-							</FormGroup>
-						)}
 
-						<FormGroupFull>
-							<TaskDocumentsPanel
-								property={selectedProperty}
-								propertyId={selectedPropertyId}
-								taskId={editingTaskId || editingTask?.id || foundTask?.id}
-								taskStatus={formState.status}
-								canUpload={Boolean(selectedPropertyId)}
-								pendingFiles={pendingTaskDocumentFiles}
-								onPendingFilesChange={setPendingTaskDocumentFiles}
-								pendingCategory={pendingTaskDocumentCategory}
-								onPendingCategoryChange={setPendingTaskDocumentCategory}
-							/>
-						</FormGroupFull>
+									{internalDeviceOptions.length > 0 && (
+										<FormGroup>
+											<FormLabel>Connected Appliances (Optional)</FormLabel>
+											<MultiSelect
+												options={internalDeviceOptions}
+												value={formState.devices || []}
+												onChange={handleDeviceChange}
+												placeholder='Select appliances for this task...'
+											/>
+											<small style={{ color: '#6b7280' }}>
+												Linked appliance service items are automatically appended to task
+												notes when you save. Leave blank for non-appliance tasks.
+											</small>
+										</FormGroup>
+									)}
 
-						{!isCreateMode && (
-							<>
-								<FormGroupFull>
-									<SectionHeader>
-										<SectionTitle>Task</SectionTitle>
-										<SectionDescription>
-											Adjust lifecycle state and completion rules when editing an existing task.
-										</SectionDescription>
-									</SectionHeader>
-								</FormGroupFull>
-								<FormGroup>
-									<FormLabel>Status *</FormLabel>
-									<TaskSelect
-										name='status'
-										value={formState.status || ''}
-										onChange={(value) =>
-											handleChange({
-												target: { name: 'status', value, type: 'select-one' },
-											} as any)
-										}
-										placeholder='Select a status...'
-										options={statusOptions.map((status) => ({
-											value: status,
-											label: status,
-										}))}
-									/>
-								</FormGroup>
+									{internalMaintenanceHistoryOptions.length > 0 && (
+										<FormGroup>
+											<FormLabel>Linked Maintenance Records</FormLabel>
+											<div
+												style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+												<button
+													type='button'
+													onClick={() => setShowLinkHistoryModal(true)}
+													style={{
+														padding: '8px 12px',
+														background: '#3b82f6',
+														color: 'white',
+														border: 'none',
+														borderRadius: '4px',
+														cursor: 'pointer',
+														fontSize: '14px',
+													}}>
+													🔗 Link Maintenance Records (
+													{formState.linkedMaintenanceHistoryIds?.length || 0})
+												</button>
+												{(formState.linkedMaintenanceHistoryIds?.length || 0) > 0 && (
+													<span style={{ fontSize: '12px', color: '#6b7280' }}>
+														{formState.linkedMaintenanceHistoryIds?.length} linked
+													</span>
+												)}
+											</div>
+										</FormGroup>
+									)}
 
-								<FormGroup>
-									<FormLabel>Completion Requirement</FormLabel>
-									<CheckboxRow>
-										<input
-											type='checkbox'
-											name='requiresWorkOrder'
-											checked={Boolean(formState.requiresWorkOrder)}
-											onChange={handleChange}
+									<FormGroupFull>
+										<TaskDocumentsPanel
+											property={selectedProperty}
+											propertyId={selectedPropertyId}
+											taskId={editingTaskId || editingTask?.id || foundTask?.id}
+											taskStatus={formState.status}
+											canUpload={Boolean(selectedPropertyId)}
+											pendingFiles={pendingTaskDocumentFiles}
+											onPendingFilesChange={setPendingTaskDocumentFiles}
+											pendingCategory={pendingTaskDocumentCategory}
+											onPendingCategoryChange={setPendingTaskDocumentCategory}
 										/>
-										Require completion form/work order when marking complete
-									</CheckboxRow>
-								</FormGroup>
-							</>
-						)}
+									</FormGroupFull>
 
-						<FormGroupFull>
-							<FormLabel>Task Notes</FormLabel>
-							<FormTextarea
-								name='notes'
-								value={formState.notes}
-								onChange={onChange}
-								placeholder='Add any notes about this task...'
-							/>
-						</FormGroupFull>
-							</>
-						)}
-					</FormGrid>
-				</ModalTabContent>
+									{!isCreateMode && (
+										<>
+											<FormGroupFull>
+												<SectionHeader>
+													<SectionTitle>Task</SectionTitle>
+													<SectionDescription>
+														Adjust lifecycle state and completion rules when editing an existing task.
+													</SectionDescription>
+												</SectionHeader>
+											</FormGroupFull>
+											<FormGroup>
+												<FormLabel>Status *</FormLabel>
+												<TaskSelect
+													name='status'
+													value={formState.status || ''}
+													onChange={(value) =>
+														handleChange({
+															target: { name: 'status', value, type: 'select-one' },
+														} as any)
+													}
+													placeholder='Select a status...'
+													options={statusOptions.map((status) => ({
+														value: status,
+														label: status,
+													}))}
+												/>
+											</FormGroup>
 
-				<ModalTabContent $active={activeTab === 'advanced'}>
-					<AdvancedStack>
-						<SectionCard>
-							<SectionHeader>
-								<SectionTitle>Task defaults</SectionTitle>
-								<SectionDescription>
-									These settings are optional during creation. You can keep the defaults and update them later.
-								</SectionDescription>
-							</SectionHeader>
-							<FormGrid>
-								<FormGroup>
-									<FormLabel>Status *</FormLabel>
-									<TaskSelect
-										name='status'
-										value={formState.status || ''}
-										onChange={(value) =>
-											handleChange({
-												target: { name: 'status', value, type: 'select-one' },
-											} as any)
-										}
-										placeholder='Select a status...'
-										options={statusOptions.map((status) => ({
-											value: status,
-											label: status,
-										}))}
-									/>
-									<FieldHint>
-										New tasks usually start as Initiated.
-									</FieldHint>
-								</FormGroup>
+											<FormGroup>
+												<FormLabel>Completion Requirement</FormLabel>
+												<CheckboxRow>
+													<input
+														type='checkbox'
+														name='requiresWorkOrder'
+														checked={Boolean(formState.requiresWorkOrder)}
+														onChange={handleChange}
+													/>
+													Require completion form/work order when marking complete
+												</CheckboxRow>
+											</FormGroup>
+										</>
+									)}
 
-								<FormGroup>
-									<FormLabel>Completion Requirement</FormLabel>
-									<CheckboxRow>
-										<input
-											type='checkbox'
-											name='requiresWorkOrder'
-											checked={Boolean(formState.requiresWorkOrder)}
-											onChange={handleChange}
-										/>
-										Require completion form/work order when marking complete
-									</CheckboxRow>
-								</FormGroup>
-							</FormGrid>
-						</SectionCard>
-
-						<SectionCard>
-							<SectionHeader>
-								<SectionTitle>
-									Recurrence {!canUseRecurringTaskFeature && <TabBadge>Homeowner+</TabBadge>}
-								</SectionTitle>
-								<SectionDescription>
-									{canUseRecurringTaskFeature
-										? 'Only configure this if the task should regenerate after completion.'
-										: 'Recurring task schedules are available with Homeowner+.'}
-								</SectionDescription>
-							</SectionHeader>
-							<FormGrid>
-								<FormGroup>
-									<FormLabel>Recurrence Frequency</FormLabel>
-									<TaskSelect
-										name='recurrenceFrequency'
-										value={formState.recurrenceFrequency || ''}
-										onChange={(value) =>
-											onChange({
-												target: {
-													name: 'recurrenceFrequency',
-													value,
-													type: 'select-one',
-												},
-											} as any)
-										}
-										placeholder='No recurrence'
-										disabled={!canUseRecurringTaskFeature}
-										options={[
-											{ value: 'daily', label: 'Daily' },
-											{ value: 'weekly', label: 'Weekly' },
-											{ value: 'biweekly', label: 'Every 2 Weeks' },
-											{ value: 'monthly', label: 'Monthly' },
-											{ value: 'quarterly', label: 'Every 3 Months' },
-											{ value: 'yearly', label: 'Yearly' },
-											{ value: 'custom', label: 'Custom' },
-										]}
-									/>
-								</FormGroup>
-
-								{formState.recurrenceFrequency === 'custom' && (
-									<FormGroup>
-										<FormLabel>Interval</FormLabel>
-										<FormInput
-											type='number'
-											name='recurrenceInterval'
-											value={formState.recurrenceInterval ?? ''}
+									<FormGroupFull>
+										<FormLabel>Task Notes</FormLabel>
+										<FormTextarea
+											name='notes'
+											value={formState.notes}
 											onChange={onChange}
-											min='1'
-											max='365'
-											placeholder='e.g. 3'
+											placeholder='Add any notes about this task...'
 										/>
-									</FormGroup>
-								)}
+									</FormGroupFull>
+								</>
+							)}
+						</FormGrid>
+					</ModalTabContent>
 
-								{formState.recurrenceFrequency === 'custom' && (
+					<ModalTabContent $active={activeTab === 'advanced'}>
+						<AdvancedStack>
+							<SectionCard>
+								<SectionHeader>
+									<SectionTitle>Task defaults</SectionTitle>
+									<SectionDescription>
+										These settings are optional during creation. You can keep the defaults and update them later.
+									</SectionDescription>
+								</SectionHeader>
+								<FormGrid>
 									<FormGroup>
-										<FormLabel>Time Unit</FormLabel>
+										<FormLabel>Status *</FormLabel>
 										<TaskSelect
-											name='recurrenceCustomUnit'
-											value={formState.recurrenceCustomUnit || ''}
+											name='status'
+											value={formState.status || ''}
+											onChange={(value) =>
+												handleChange({
+													target: { name: 'status', value, type: 'select-one' },
+												} as any)
+											}
+											placeholder='Select a status...'
+											options={statusOptions.map((status) => ({
+												value: status,
+												label: status,
+											}))}
+										/>
+										<FieldHint>
+											New tasks usually start as Initiated.
+										</FieldHint>
+									</FormGroup>
+
+									<FormGroup>
+										<FormLabel>Completion Requirement</FormLabel>
+										<CheckboxRow>
+											<input
+												type='checkbox'
+												name='requiresWorkOrder'
+												checked={Boolean(formState.requiresWorkOrder)}
+												onChange={handleChange}
+											/>
+											Require completion form/work order when marking complete
+										</CheckboxRow>
+									</FormGroup>
+								</FormGrid>
+							</SectionCard>
+
+							<SectionCard>
+								<SectionHeader>
+									<SectionTitle>
+										Recurrence {!canUseRecurringTaskFeature && <TabBadge>Homeowner+</TabBadge>}
+									</SectionTitle>
+									<SectionDescription>
+										{canUseRecurringTaskFeature
+											? 'Only configure this if the task should regenerate after completion.'
+											: 'Recurring task schedules are available with Homeowner+.'}
+									</SectionDescription>
+								</SectionHeader>
+								<FormGrid>
+									<FormGroup>
+										<FormLabel>Recurrence Frequency</FormLabel>
+										<TaskSelect
+											name='recurrenceFrequency'
+											value={formState.recurrenceFrequency || ''}
 											onChange={(value) =>
 												onChange({
 													target: {
-														name: 'recurrenceCustomUnit',
+														name: 'recurrenceFrequency',
 														value,
 														type: 'select-one',
 													},
 												} as any)
 											}
-											placeholder='Select unit...'
+											placeholder='No recurrence'
+											disabled={!canUseRecurringTaskFeature}
 											options={[
-												{ value: 'days', label: 'Days' },
-												{ value: 'weeks', label: 'Weeks' },
-												{ value: 'months', label: 'Months' },
-												{ value: 'years', label: 'Years' },
+												{ value: 'daily', label: 'Daily' },
+												{ value: 'weekly', label: 'Weekly' },
+												{ value: 'biweekly', label: 'Every 2 Weeks' },
+												{ value: 'monthly', label: 'Monthly' },
+												{ value: 'quarterly', label: 'Every 3 Months' },
+												{ value: 'yearly', label: 'Yearly' },
+												{ value: 'custom', label: 'Custom' },
 											]}
 										/>
 									</FormGroup>
-								)}
 
-								<FormGroupFull>
-									<FieldHint>
-										{canUseRecurringTaskFeature
-											? 'When recurrence is enabled, completing the task creates the next occurrence automatically.'
-											: 'You can still create a one-time task and update it manually when needed.'}
-									</FieldHint>
-								</FormGroupFull>
-							</FormGrid>
-						</SectionCard>
+									{formState.recurrenceFrequency === 'custom' && (
+										<FormGroup>
+											<FormLabel>Interval</FormLabel>
+											<FormInput
+												type='number'
+												name='recurrenceInterval'
+												value={formState.recurrenceInterval ?? ''}
+												onChange={onChange}
+												min='1'
+												max='365'
+												placeholder='e.g. 3'
+											/>
+										</FormGroup>
+									)}
 
-						<SectionCard>
-							<SectionHeader>
-								<SectionTitle>Notifications</SectionTitle>
-								<SectionDescription>
-									Enable reminders only if this task needs due-date or overdue nudges.
-								</SectionDescription>
-							</SectionHeader>
-							<FormGrid>
-								<FormGroupFull>
-									<div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-										<input
-											type='checkbox'
-											id='enableNotifications-create'
-											name='enableNotifications'
-											checked={formState.enableNotifications || false}
-											onChange={(e) => {
-												const isChecked = e.target.checked;
-												onChange({
-													target: {
-														name: 'enableNotifications',
-														value: isChecked,
-														checked: isChecked,
-														type: 'checkbox',
-													},
-												} as any);
-
-												if (
-													isChecked &&
-													(!formState.notifications || formState.notifications.length === 0)
-												) {
+									{formState.recurrenceFrequency === 'custom' && (
+										<FormGroup>
+											<FormLabel>Time Unit</FormLabel>
+											<TaskSelect
+												name='recurrenceCustomUnit'
+												value={formState.recurrenceCustomUnit || ''}
+												onChange={(value) =>
 													onChange({
 														target: {
-															name: 'notifications',
-															value: getDefaultTaskNotifications(),
-															type: 'custom',
+															name: 'recurrenceCustomUnit',
+															value,
+															type: 'select-one',
+														},
+													} as any)
+												}
+												placeholder='Select unit...'
+												options={[
+													{ value: 'days', label: 'Days' },
+													{ value: 'weeks', label: 'Weeks' },
+													{ value: 'months', label: 'Months' },
+													{ value: 'years', label: 'Years' },
+												]}
+											/>
+										</FormGroup>
+									)}
+
+									<FormGroupFull>
+										<FieldHint>
+											{canUseRecurringTaskFeature
+												? 'When recurrence is enabled, completing the task creates the next occurrence automatically.'
+												: 'You can still create a one-time task and update it manually when needed.'}
+										</FieldHint>
+									</FormGroupFull>
+								</FormGrid>
+							</SectionCard>
+
+							<SectionCard>
+								<SectionHeader>
+									<SectionTitle>Notifications</SectionTitle>
+									<SectionDescription>
+										Enable reminders only if this task needs due-date or overdue nudges.
+									</SectionDescription>
+								</SectionHeader>
+								<FormGrid>
+									<FormGroupFull>
+										<div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+											<input
+												type='checkbox'
+												id='enableNotifications-create'
+												name='enableNotifications'
+												checked={formState.enableNotifications || false}
+												onChange={(e) => {
+													const isChecked = e.target.checked;
+													onChange({
+														target: {
+															name: 'enableNotifications',
+															value: isChecked,
+															checked: isChecked,
+															type: 'checkbox',
 														},
 													} as any);
-												}
-											}}
+
+													if (
+														isChecked &&
+														(!formState.notifications || formState.notifications.length === 0)
+													) {
+														onChange({
+															target: {
+																name: 'notifications',
+																value: getDefaultTaskNotifications(),
+																type: 'custom',
+															},
+														} as any);
+													}
+												}}
+											/>
+											<FormLabel htmlFor='enableNotifications-create' style={{ margin: 0 }}>
+												Enable task notifications
+											</FormLabel>
+										</div>
+										<FieldHint>
+											Default reminders are added automatically and can be customized later.
+										</FieldHint>
+									</FormGroupFull>
+								</FormGrid>
+							</SectionCard>
+
+							<SectionCard>
+								<SectionHeader>
+									<SectionTitle>Financial estimate</SectionTitle>
+									<SectionDescription>
+										Capture estimated cost now if it helps with approval or planning.
+									</SectionDescription>
+								</SectionHeader>
+								<FormGrid>
+									<FormGroup>
+										<FormLabel>Contractor Cost</FormLabel>
+										<FormInput
+											type='number'
+											min='0'
+											step='0.01'
+											value={formState.financials?.estimate?.contractorCost ?? ''}
+											onChange={(e) => handleFinancialEstimateChange('contractorCost', e.target.value)}
+											placeholder='0.00'
 										/>
-										<FormLabel htmlFor='enableNotifications-create' style={{ margin: 0 }}>
-											Enable task notifications
-										</FormLabel>
-									</div>
-									<FieldHint>
-										Default reminders are added automatically and can be customized later.
-									</FieldHint>
-								</FormGroupFull>
-							</FormGrid>
-						</SectionCard>
+									</FormGroup>
+									<FormGroup>
+										<FormLabel>Materials Cost</FormLabel>
+										<FormInput
+											type='number'
+											min='0'
+											step='0.01'
+											value={formState.financials?.estimate?.materialsCost ?? ''}
+											onChange={(e) => handleFinancialEstimateChange('materialsCost', e.target.value)}
+											placeholder='0.00'
+										/>
+									</FormGroup>
+									<FormGroup>
+										<FormLabel>Labor Cost</FormLabel>
+										<FormInput
+											type='number'
+											min='0'
+											step='0.01'
+											value={formState.financials?.estimate?.laborCost ?? ''}
+											onChange={(e) => handleFinancialEstimateChange('laborCost', e.target.value)}
+											placeholder='0.00'
+										/>
+									</FormGroup>
+									<FormGroup>
+										<FormLabel>Other Cost</FormLabel>
+										<FormInput
+											type='number'
+											min='0'
+											step='0.01'
+											value={formState.financials?.estimate?.otherCost ?? ''}
+											onChange={(e) => handleFinancialEstimateChange('otherCost', e.target.value)}
+											placeholder='0.00'
+										/>
+									</FormGroup>
+									<FormGroupFull>
+										<HelperBox>
+											Estimated Total: {formatCurrency(
+												calculateCostTotal(formState.financials?.estimate),
+												formState.financials?.currency || 'USD',
+											)}
+										</HelperBox>
+									</FormGroupFull>
+								</FormGrid>
+							</SectionCard>
+						</AdvancedStack>
+					</ModalTabContent>
 
-						<SectionCard>
-							<SectionHeader>
-								<SectionTitle>Financial estimate</SectionTitle>
-								<SectionDescription>
-									Capture estimated cost now if it helps with approval or planning.
-								</SectionDescription>
-							</SectionHeader>
-							<FormGrid>
-								<FormGroup>
-									<FormLabel>Contractor Cost</FormLabel>
-									<FormInput
-										type='number'
-										min='0'
-										step='0.01'
-										value={formState.financials?.estimate?.contractorCost ?? ''}
-										onChange={(e) => handleFinancialEstimateChange('contractorCost', e.target.value)}
-										placeholder='0.00'
-									/>
-								</FormGroup>
-								<FormGroup>
-									<FormLabel>Materials Cost</FormLabel>
-									<FormInput
-										type='number'
-										min='0'
-										step='0.01'
-										value={formState.financials?.estimate?.materialsCost ?? ''}
-										onChange={(e) => handleFinancialEstimateChange('materialsCost', e.target.value)}
-										placeholder='0.00'
-									/>
-								</FormGroup>
-								<FormGroup>
-									<FormLabel>Labor Cost</FormLabel>
-									<FormInput
-										type='number'
-										min='0'
-										step='0.01'
-										value={formState.financials?.estimate?.laborCost ?? ''}
-										onChange={(e) => handleFinancialEstimateChange('laborCost', e.target.value)}
-										placeholder='0.00'
-									/>
-								</FormGroup>
-								<FormGroup>
-									<FormLabel>Other Cost</FormLabel>
-									<FormInput
-										type='number'
-										min='0'
-										step='0.01'
-										value={formState.financials?.estimate?.otherCost ?? ''}
-										onChange={(e) => handleFinancialEstimateChange('otherCost', e.target.value)}
-										placeholder='0.00'
-									/>
-								</FormGroup>
-								<FormGroupFull>
-									<HelperBox>
-										Estimated Total: {formatCurrency(
-											calculateCostTotal(formState.financials?.estimate),
-											formState.financials?.currency || 'USD',
-										)}
-									</HelperBox>
-								</FormGroupFull>
-							</FormGrid>
-						</SectionCard>
-					</AdvancedStack>
-				</ModalTabContent>
-
-				<ModalTabContent $active={activeTab === 'schedule'}>
-					<FormGrid>
-						<FormGroup>
-							<FormLabel>
-								Recurrence Frequency {!canUseRecurringTaskFeature && <TabBadge>Homeowner+</TabBadge>}
-							</FormLabel>
-							<TaskSelect
-								name='recurrenceFrequency'
-								value={formState.recurrenceFrequency || ''}
-								onChange={(value) =>
-									onChange({
-										target: {
-											name: 'recurrenceFrequency',
-											value,
-											type: 'select-one',
-										},
-									} as any)
-								}
-								placeholder='Select frequency...'
-								disabled={!canUseRecurringTaskFeature}
-								options={[
-									{ value: 'daily', label: 'Daily' },
-									{ value: 'weekly', label: 'Weekly' },
-									{ value: 'biweekly', label: 'Every 2 Weeks' },
-									{ value: 'monthly', label: 'Monthly' },
-									{ value: 'quarterly', label: 'Every 3 Months' },
-									{ value: 'yearly', label: 'Yearly' },
-									{ value: 'custom', label: 'Custom' },
-								]}
-							/>
-						</FormGroup>
-
-						{formState.recurrenceFrequency === 'custom' && (
+					<ModalTabContent $active={activeTab === 'schedule'}>
+						<FormGrid>
 							<FormGroup>
-								<FormLabel>Interval *</FormLabel>
-								<FormInput
-									type='number'
-									name='recurrenceInterval'
-									value={formState.recurrenceInterval ?? ''}
-									onChange={onChange}
-									min='1'
-									max='365'
-									required={
-										formState.recurrenceFrequency === 'custom' &&
-										wantsRecurrence
-									}
-									placeholder='e.g., 3 for every 3 days'
-								/>
-							</FormGroup>
-						)}
-
-						{formState.recurrenceFrequency === 'custom' && (
-							<FormGroup>
-								<FormLabel>Time Unit *</FormLabel>
+								<FormLabel>
+									Recurrence Frequency {!canUseRecurringTaskFeature && <TabBadge>Homeowner+</TabBadge>}
+								</FormLabel>
 								<TaskSelect
-									name='recurrenceCustomUnit'
-									value={formState.recurrenceCustomUnit || ''}
+									name='recurrenceFrequency'
+									value={formState.recurrenceFrequency || ''}
 									onChange={(value) =>
 										onChange({
 											target: {
-												name: 'recurrenceCustomUnit',
+												name: 'recurrenceFrequency',
 												value,
 												type: 'select-one',
 											},
 										} as any)
 									}
-									placeholder='Select unit...'
+									placeholder='Select frequency...'
+									disabled={!canUseRecurringTaskFeature}
 									options={[
-										{ value: 'days', label: 'Days' },
-										{ value: 'weeks', label: 'Weeks' },
-										{ value: 'months', label: 'Months' },
-										{ value: 'years', label: 'Years' },
+										{ value: 'daily', label: 'Daily' },
+										{ value: 'weekly', label: 'Weekly' },
+										{ value: 'biweekly', label: 'Every 2 Weeks' },
+										{ value: 'monthly', label: 'Monthly' },
+										{ value: 'quarterly', label: 'Every 3 Months' },
+										{ value: 'yearly', label: 'Yearly' },
+										{ value: 'custom', label: 'Custom' },
 									]}
 								/>
 							</FormGroup>
-						)}
 
-						<FormGroupFull>
-							{canUseRecurringTaskFeature && (
-							<small style={{ color: '#6b7280' }}>
-								📋 This task will automatically create a new copy with an
-								updated due date each time it is marked as completed.
-							</small>
+							{formState.recurrenceFrequency === 'custom' && (
+								<FormGroup>
+									<FormLabel>Interval *</FormLabel>
+									<FormInput
+										type='number'
+										name='recurrenceInterval'
+										value={formState.recurrenceInterval ?? ''}
+										onChange={onChange}
+										min='1'
+										max='365'
+										required={
+											formState.recurrenceFrequency === 'custom' &&
+											wantsRecurrence
+										}
+										placeholder='e.g., 3 for every 3 days'
+									/>
+								</FormGroup>
 							)}
-							{!canUseRecurringTaskFeature && (
-								<FieldHint>
-									Recurring tasks are a Homeowner+ feature. This task can still
-									be saved as a one-time task.
-								</FieldHint>
-							)}
-						</FormGroupFull>
-					</FormGrid>
-				</ModalTabContent>
 
-				<ModalTabContent $active={activeTab === 'notifications'}>
-					<FormGrid>
-						<FormGroupFull>
-							<div
-								style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-								<input
-									type='checkbox'
-									id='enableNotifications'
-									name='enableNotifications'
-									checked={formState.enableNotifications || false}
-									onChange={(e) => {
-										const isChecked = e.target.checked;
-										onChange({
-											target: {
-												name: 'enableNotifications',
-												value: isChecked,
-												checked: isChecked,
-												type: 'checkbox',
-											},
-										} as any);
-
-										// If enabling notifications and no notifications exist, set defaults
-										if (
-											isChecked &&
-											(!formState.notifications ||
-												formState.notifications.length === 0)
-										) {
-											const defaultNotifications =
-												getDefaultTaskNotifications();
+							{formState.recurrenceFrequency === 'custom' && (
+								<FormGroup>
+									<FormLabel>Time Unit *</FormLabel>
+									<TaskSelect
+										name='recurrenceCustomUnit'
+										value={formState.recurrenceCustomUnit || ''}
+										onChange={(value) =>
 											onChange({
 												target: {
-													name: 'notifications',
-													value: defaultNotifications,
-													type: 'custom',
+													name: 'recurrenceCustomUnit',
+													value,
+													type: 'select-one',
+												},
+											} as any)
+										}
+										placeholder='Select unit...'
+										options={[
+											{ value: 'days', label: 'Days' },
+											{ value: 'weeks', label: 'Weeks' },
+											{ value: 'months', label: 'Months' },
+											{ value: 'years', label: 'Years' },
+										]}
+									/>
+								</FormGroup>
+							)}
+
+							<FormGroupFull>
+								{canUseRecurringTaskFeature && (
+									<small style={{ color: '#6b7280' }}>
+										📋 This task will automatically create a new copy with an
+										updated due date each time it is marked as completed.
+									</small>
+								)}
+								{!canUseRecurringTaskFeature && (
+									<FieldHint>
+										Recurring tasks are a Homeowner+ feature. This task can still
+										be saved as a one-time task.
+									</FieldHint>
+								)}
+							</FormGroupFull>
+						</FormGrid>
+					</ModalTabContent>
+
+					<ModalTabContent $active={activeTab === 'notifications'}>
+						<FormGrid>
+							<FormGroupFull>
+								<div
+									style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+									<input
+										type='checkbox'
+										id='enableNotifications'
+										name='enableNotifications'
+										checked={formState.enableNotifications || false}
+										onChange={(e) => {
+											const isChecked = e.target.checked;
+											onChange({
+												target: {
+													name: 'enableNotifications',
+													value: isChecked,
+													checked: isChecked,
+													type: 'checkbox',
 												},
 											} as any);
-										}
-									}}
-								/>
-								<FormLabel htmlFor='enableNotifications' style={{ margin: 0 }}>
-									Enable task notifications
-								</FormLabel>
-							</div>
-							<small style={{ color: '#6b7280', marginTop: '4px' }}>
-								Get reminded about upcoming and overdue tasks
-							</small>
-						</FormGroupFull>
 
-						{formState.enableNotifications && (
-							<>
-								<FormGroupFull>
-									<FormLabel>Notification Schedule</FormLabel>
-									<div
-										style={{
-											display: 'flex',
-											flexDirection: 'column',
-											gap: '12px',
-										}}>
-										{(formState.notifications || []).map(
-											(notification, index) => (
-												<div
-													key={notification.id}
-													style={{
-														display: 'flex',
-														alignItems: 'center',
-														gap: '12px',
-														padding: '12px',
-														border: '1px solid #e5e7eb',
-														borderRadius: '6px',
-														backgroundColor: '#f9fafb',
-													}}>
-													<input
-														type='checkbox'
-														id={`notification-${index}`}
-														checked={notification.enabled}
-														onChange={(e) => {
-															const updatedNotifications = [
-																...(formState.notifications || []),
-															];
-															updatedNotifications[index] = {
-																...updatedNotifications[index],
-																enabled: e.target.checked,
-															};
-															onChange({
-																target: {
-																	name: 'notifications',
-																	value: updatedNotifications,
-																	type: 'custom',
-																},
-															} as any);
-														}}
-													/>
-													<div style={{ flex: 1 }}>
-														<div
-															style={{ fontWeight: '500', color: '#374151' }}>
-															{notification.type === 'reminder'
-																? notification.daysBeforeDue === 0
-																	? 'Due date'
-																	: notification.daysBeforeDue === 1
-																	? '1 day before due'
-																	: `${notification.daysBeforeDue} days before due`
-																: `${
-																		Math.abs(notification.daysBeforeDue || 0) /
-																		7
-																  } ${
-																		Math.abs(notification.daysBeforeDue || 0) /
-																			7 ===
+											// If enabling notifications and no notifications exist, set defaults
+											if (
+												isChecked &&
+												(!formState.notifications ||
+													formState.notifications.length === 0)
+											) {
+												const defaultNotifications =
+													getDefaultTaskNotifications();
+												onChange({
+													target: {
+														name: 'notifications',
+														value: defaultNotifications,
+														type: 'custom',
+													},
+												} as any);
+											}
+										}}
+									/>
+									<FormLabel htmlFor='enableNotifications' style={{ margin: 0 }}>
+										Enable task notifications
+									</FormLabel>
+								</div>
+								<small style={{ color: '#6b7280', marginTop: '4px' }}>
+									Get reminded about upcoming and overdue tasks
+								</small>
+							</FormGroupFull>
+
+							{formState.enableNotifications && (
+								<>
+									<FormGroupFull>
+										<FormLabel>Notification Schedule</FormLabel>
+										<div
+											style={{
+												display: 'flex',
+												flexDirection: 'column',
+												gap: '12px',
+											}}>
+											{(formState.notifications || []).map(
+												(notification, index) => (
+													<div
+														key={notification.id}
+														style={{
+															display: 'flex',
+															alignItems: 'center',
+															gap: '12px',
+															padding: '12px',
+															border: '1px solid #e5e7eb',
+															borderRadius: '6px',
+															backgroundColor: '#f9fafb',
+														}}>
+														<input
+															type='checkbox'
+															id={`notification-${index}`}
+															checked={notification.enabled}
+															onChange={(e) => {
+																const updatedNotifications = [
+																	...(formState.notifications || []),
+																];
+																updatedNotifications[index] = {
+																	...updatedNotifications[index],
+																	enabled: e.target.checked,
+																};
+																onChange({
+																	target: {
+																		name: 'notifications',
+																		value: updatedNotifications,
+																		type: 'custom',
+																	},
+																} as any);
+															}}
+														/>
+														<div style={{ flex: 1 }}>
+															<div
+																style={{ fontWeight: '500', color: '#374151' }}>
+																{notification.type === 'reminder'
+																	? notification.daysBeforeDue === 0
+																		? 'Due date'
+																		: notification.daysBeforeDue === 1
+																			? '1 day before due'
+																			: `${notification.daysBeforeDue} days before due`
+																	: `${Math.abs(notification.daysBeforeDue || 0) /
+																	7
+																	} ${Math.abs(notification.daysBeforeDue || 0) /
+																		7 ===
 																		1
-																			? 'week'
-																			: 'weeks'
-																  } after due`}
-														</div>
-														<div style={{ fontSize: '14px', color: '#6b7280' }}>
-															{getDefaultNotificationMessage(
-																notification,
-																formState.title || 'Task',
-															)}
+																		? 'week'
+																		: 'weeks'
+																	} after due`}
+															</div>
+															<div style={{ fontSize: '14px', color: '#6b7280' }}>
+																{getDefaultNotificationMessage(
+																	notification,
+																	formState.title || 'Task',
+																)}
+															</div>
 														</div>
 													</div>
-												</div>
-											),
-										)}
-									</div>
-								</FormGroupFull>
+												),
+											)}
+										</div>
+									</FormGroupFull>
 
-								<FormGroupFull>
-									<small style={{ color: '#6b7280' }}>
-										Default schedule: 30 days before, 7 days before, due date,
-										and 1 week after due. You can customize these settings after
-										creating the task.
-									</small>
-								</FormGroupFull>
-							</>
-						)}
-					</FormGrid>
-				</ModalTabContent>
+									<FormGroupFull>
+										<small style={{ color: '#6b7280' }}>
+											Default schedule: 30 days before, 7 days before, due date,
+											and 1 week after due. You can customize these settings after
+											creating the task.
+										</small>
+									</FormGroupFull>
+								</>
+							)}
+						</FormGrid>
+					</ModalTabContent>
 
-				<ModalTabContent $active={activeTab === 'financial'}>
-					<FormGrid>
-						<FormGroup>
-							<FormLabel>Contractor Cost</FormLabel>
-							<FormInput
-								type='number'
-								min='0'
-								step='0.01'
-								value={formState.financials?.estimate?.contractorCost ?? ''}
-								onChange={(e) =>
-									handleFinancialEstimateChange(
+					<ModalTabContent $active={activeTab === 'financial'}>
+						<FormGrid>
+							<FormGroup>
+								<FormLabel>Contractor Cost</FormLabel>
+								<FormInput
+									type='number'
+									min='0'
+									step='0.01'
+									value={formState.financials?.estimate?.contractorCost ?? ''}
+									onChange={(e) =>
+										handleFinancialEstimateChange(
 											'contractorCost',
 											e.target.value,
 										)
-								}
-								placeholder='0.00'
-							/>
-						</FormGroup>
+									}
+									placeholder='0.00'
+								/>
+							</FormGroup>
 
-						<FormGroup>
-							<FormLabel>Materials Cost</FormLabel>
-							<FormInput
-								type='number'
-								min='0'
-								step='0.01'
-								value={formState.financials?.estimate?.materialsCost ?? ''}
-								onChange={(e) =>
-									handleFinancialEstimateChange(
+							<FormGroup>
+								<FormLabel>Materials Cost</FormLabel>
+								<FormInput
+									type='number'
+									min='0'
+									step='0.01'
+									value={formState.financials?.estimate?.materialsCost ?? ''}
+									onChange={(e) =>
+										handleFinancialEstimateChange(
 											'materialsCost',
 											e.target.value,
 										)
-								}
-								placeholder='0.00'
-							/>
-						</FormGroup>
+									}
+									placeholder='0.00'
+								/>
+							</FormGroup>
 
-						<FormGroup>
-							<FormLabel>Labor Cost</FormLabel>
-							<FormInput
-								type='number'
-								min='0'
-								step='0.01'
-								value={formState.financials?.estimate?.laborCost ?? ''}
-								onChange={(e) =>
-									handleFinancialEstimateChange('laborCost', e.target.value)
-								}
-								placeholder='0.00'
-							/>
-						</FormGroup>
+							<FormGroup>
+								<FormLabel>Labor Cost</FormLabel>
+								<FormInput
+									type='number'
+									min='0'
+									step='0.01'
+									value={formState.financials?.estimate?.laborCost ?? ''}
+									onChange={(e) =>
+										handleFinancialEstimateChange('laborCost', e.target.value)
+									}
+									placeholder='0.00'
+								/>
+							</FormGroup>
 
-						<FormGroup>
-							<FormLabel>Other Cost</FormLabel>
-							<FormInput
-								type='number'
-								min='0'
-								step='0.01'
-								value={formState.financials?.estimate?.otherCost ?? ''}
-								onChange={(e) =>
-									handleFinancialEstimateChange('otherCost', e.target.value)
-								}
-								placeholder='0.00'
-							/>
-						</FormGroup>
+							<FormGroup>
+								<FormLabel>Other Cost</FormLabel>
+								<FormInput
+									type='number'
+									min='0'
+									step='0.01'
+									value={formState.financials?.estimate?.otherCost ?? ''}
+									onChange={(e) =>
+										handleFinancialEstimateChange('otherCost', e.target.value)
+									}
+									placeholder='0.00'
+								/>
+							</FormGroup>
 
-						<FormGroupFull>
-							<div
-								style={{
-									padding: '12px',
-									background: '#f9fafb',
-									border: '1px solid #e5e7eb',
-									borderRadius: '6px',
-								}}>
-								<div style={{ fontWeight: 600, marginBottom: '4px' }}>
-									Estimated Total:{' '}
-									{formatCurrency(
-										calculateCostTotal(formState.financials?.estimate),
-										formState.financials?.currency || 'USD',
-									)}
+							<FormGroupFull>
+								<div
+									style={{
+										padding: '12px',
+										background: '#f9fafb',
+										border: '1px solid #e5e7eb',
+										borderRadius: '6px',
+									}}>
+									<div style={{ fontWeight: 600, marginBottom: '4px' }}>
+										Estimated Total:{' '}
+										{formatCurrency(
+											calculateCostTotal(formState.financials?.estimate),
+											formState.financials?.currency || 'USD',
+										)}
+									</div>
+									<small style={{ color: '#6b7280' }}>
+										Optional: add any combination of contractor, materials, labor,
+										or other costs.
+									</small>
 								</div>
-								<small style={{ color: '#6b7280' }}>
-									Optional: add any combination of contractor, materials, labor,
-									or other costs.
-								</small>
-							</div>
-						</FormGroupFull>
-					</FormGrid>
-				</ModalTabContent>
+							</FormGroupFull>
+						</FormGrid>
+					</ModalTabContent>
 				</TabContentScrollArea>
 			</GenericModal>
 

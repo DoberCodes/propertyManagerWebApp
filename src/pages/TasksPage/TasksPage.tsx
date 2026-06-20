@@ -60,6 +60,7 @@ import {
 } from './TasksPage.styles';
 
 import {
+	getTaskAssigneeDisplayName,
 	isTaskOverdueForDisplay,
 	updateOverdueTasks,
 } from '../../utils/taskUtils';
@@ -256,9 +257,8 @@ export const TasksPage = () => {
 			.filter((member): member is typeof member => member !== undefined)
 			.forEach((member) => {
 				assignees.push({
-					label: `${member.firstName || ''} ${member.lastName || ''} (${
-						member.title || ''
-					})`.trim(),
+					label: `${member.firstName || ''} ${member.lastName || ''} (${member.title || ''
+						})`.trim(),
 					value: member.id,
 					email: member.email,
 				});
@@ -311,7 +311,7 @@ export const TasksPage = () => {
 			return {
 				...task,
 				propertyTitle: property?.title || task.property || 'Unknown Property',
-				assignedToNames: task.assignedTo?.name || '',
+				assignedToNames: getTaskAssigneeDisplayName(task, ''),
 			};
 		});
 
@@ -319,9 +319,9 @@ export const TasksPage = () => {
 		const normalizedSearch = searchTerm.trim().toLowerCase();
 		const afterSearch = normalizedSearch
 			? enriched.filter((task) => {
-					const haystack = `${task.title || ''} ${task.notes || ''}`.toLowerCase();
-					return haystack.includes(normalizedSearch);
-			  })
+				const haystack = `${task.title || ''} ${task.notes || ''}`.toLowerCase();
+				return haystack.includes(normalizedSearch);
+			})
 			: enriched;
 
 		const afterQuickFilter = afterSearch.filter((task) => {
@@ -360,14 +360,8 @@ export const TasksPage = () => {
 			} else if (sortState.key === 'title') {
 				baseCompare = (a.title || '').localeCompare(b.title || '');
 			} else if (sortState.key === 'assignedTo') {
-				const assigneeA =
-					typeof a.assignedTo === 'object'
-						? a.assignedTo?.name || ''
-						: a.assignedTo || a.assignee || '';
-				const assigneeB =
-					typeof b.assignedTo === 'object'
-						? b.assignedTo?.name || ''
-						: b.assignedTo || b.assignee || '';
+				const assigneeA = getTaskAssigneeDisplayName(a, '');
+				const assigneeB = getTaskAssigneeDisplayName(b, '');
 				baseCompare = assigneeA.localeCompare(assigneeB);
 			} else if (sortState.key === 'propertyTitle') {
 				baseCompare = (a.propertyTitle || a.property || '').localeCompare(
@@ -468,68 +462,68 @@ export const TasksPage = () => {
 		return { icon: faScrewdriverWrench, color: '#475569', background: '#f1f5f9' };
 	};
 
-		const formatRelativePast = (value?: string) => {
-			if (!value) return 'No recorded activity yet';
-			const target = new Date(value).getTime();
-			if (Number.isNaN(target)) return 'No recorded activity yet';
-			const diffMs = Date.now() - target;
-			const absDays = Math.floor(Math.abs(diffMs) / (1000 * 60 * 60 * 24));
-			if (absDays === 0) return 'Today';
-			if (absDays === 1) return '1 day ago';
-			if (absDays < 7) return `${absDays} days ago`;
-			if (absDays < 30) {
-				const weeks = Math.floor(absDays / 7);
-				return `${weeks} week${weeks === 1 ? '' : 's'} ago`;
-			}
-			const months = Math.floor(absDays / 30);
-			return `${months} month${months === 1 ? '' : 's'} ago`;
-		};
+	const formatRelativePast = (value?: string) => {
+		if (!value) return 'No recorded activity yet';
+		const target = new Date(value).getTime();
+		if (Number.isNaN(target)) return 'No recorded activity yet';
+		const diffMs = Date.now() - target;
+		const absDays = Math.floor(Math.abs(diffMs) / (1000 * 60 * 60 * 24));
+		if (absDays === 0) return 'Today';
+		if (absDays === 1) return '1 day ago';
+		if (absDays < 7) return `${absDays} days ago`;
+		if (absDays < 30) {
+			const weeks = Math.floor(absDays / 7);
+			return `${weeks} week${weeks === 1 ? '' : 's'} ago`;
+		}
+		const months = Math.floor(absDays / 30);
+		return `${months} month${months === 1 ? '' : 's'} ago`;
+	};
 
-		const formatMonthYear = (value?: string) => {
-			if (!value) return null;
-			const target = new Date(value);
-			if (Number.isNaN(target.getTime())) return null;
-			return target.toLocaleDateString('en-US', {
-				month: 'short',
-				year: 'numeric',
-			});
-		};
+	const formatMonthYear = (value?: string) => {
+		if (!value) return null;
+		const target = new Date(value);
+		if (Number.isNaN(target.getTime())) return null;
+		return target.toLocaleDateString('en-US', {
+			month: 'short',
+			year: 'numeric',
+		});
+	};
 
-		const getContinuitySignals = (task: any) => {
-			const signals: string[] = [];
-			const recurringSince = formatMonthYear(task.createdAt || task.lastRecurrenceDate);
+	const getContinuitySignals = (task: any) => {
+		const signals: string[] = [];
+		const recurringSince = formatMonthYear(task.createdAt || task.lastRecurrenceDate);
 
-			if (task.isRecurring) {
-				signals.push(
-					task.recurrenceFrequency
-						? `Recurring ${task.recurrenceFrequency}`
-						: 'Recurring task',
-				);
-			}
+		if (task.isRecurring) {
+			signals.push(
+				task.recurrenceFrequency
+					? `Recurring ${task.recurrenceFrequency}`
+					: 'Recurring task',
+			);
+		}
 
-			if (recurringSince && task.isRecurring) {
-				signals.push(`Recurring since ${recurringSince}`);
-			}
+		if (recurringSince && task.isRecurring) {
+			signals.push(`Recurring since ${recurringSince}`);
+		}
 
-			if (task.completionDate) {
-				signals.push(`Last completed ${formatRelativePast(task.completionDate)}`);
-			} else if (task.updatedAt) {
-				signals.push(`Last updated ${formatRelativePast(task.updatedAt)}`);
-			} else if (task.createdAt) {
-				signals.push(`Opened ${formatRelativePast(task.createdAt)}`);
-			}
+		if (task.completionDate) {
+			signals.push(`Last completed ${formatRelativePast(task.completionDate)}`);
+		} else if (task.updatedAt) {
+			signals.push(`Last updated ${formatRelativePast(task.updatedAt)}`);
+		} else if (task.createdAt) {
+			signals.push(`Opened ${formatRelativePast(task.createdAt)}`);
+		}
 
-			if (signals.length === 0) {
-				signals.push('Awaiting first recorded maintenance event');
-			}
+		if (signals.length === 0) {
+			signals.push('Awaiting first recorded maintenance event');
+		}
 
-			return signals.slice(0, 3);
-		};
+		return signals.slice(0, 3);
+	};
 
 	// Table columns definition
 	const columns: Column[] = [
 		{
-				header: 'Task',
+			header: 'Task',
 			key: 'title',
 			sortable: true,
 			render: (value: string, task: any) => {
@@ -696,9 +690,7 @@ export const TasksPage = () => {
 	};
 
 	const getAssigneeLabel = (task: any) =>
-		typeof task.assignedTo === 'object'
-			? task.assignedTo.name
-			: task.assignedTo || 'Unassigned';
+		getTaskAssigneeDisplayName(task);
 
 	const formatDueDate = (dueDate?: string) => {
 		if (!dueDate) return 'ASAP';
@@ -888,7 +880,7 @@ export const TasksPage = () => {
 								whiteSpace: 'nowrap',
 							}}
 							title='Create maintenance task'>
-								+ Add Task
+							+ Add Task
 						</button>
 					)}
 				</TaskControlRow>
@@ -930,32 +922,32 @@ export const TasksPage = () => {
 			{isMobile ? (
 				<MobileListSection>
 					{filteredTasks.map((task: any) => {
-							const operational = getTaskDisplayStatus(task);
-							const isOverdue = operational.isOverdue;
-							const operationalLabel = operational.label;
-							const operationalTone = operational.color;
-							const maintenanceStatusText =
-								operational.label === 'Completed'
-									? 'Maintenance completed'
-									: operational.label === 'Overdue'
-										? 'Maintenance is overdue'
-										: operational.label === 'Due Soon'
-											? 'Maintenance is coming due soon'
-											: operational.label === 'Initiated'
-												? 'Ready to schedule or review'
-												: 'Upcoming maintenance';
-							const hasTaskNotifications = hasEnabledTaskNotifications(task);
-							return (
-								<MobileTaskCard key={task.id} $overdue={isOverdue}>
-									<MobileTaskHeader>
-										<div
-											style={{
-												display: 'flex',
-												alignItems: 'center',
-												width: '100%',
-												gap: 8,
-											}}>
-											<MobileTaskTitle style={{ margin: 0 }}>{task.title}</MobileTaskTitle>
+						const operational = getTaskDisplayStatus(task);
+						const isOverdue = operational.isOverdue;
+						const operationalLabel = operational.label;
+						const operationalTone = operational.color;
+						const maintenanceStatusText =
+							operational.label === 'Completed'
+								? 'Maintenance completed'
+								: operational.label === 'Overdue'
+									? 'Maintenance is overdue'
+									: operational.label === 'Due Soon'
+										? 'Maintenance is coming due soon'
+										: operational.label === 'Initiated'
+											? 'Ready to schedule or review'
+											: 'Upcoming maintenance';
+						const hasTaskNotifications = hasEnabledTaskNotifications(task);
+						return (
+							<MobileTaskCard key={task.id} $overdue={isOverdue}>
+								<MobileTaskHeader>
+									<div
+										style={{
+											display: 'flex',
+											alignItems: 'center',
+											width: '100%',
+											gap: 8,
+										}}>
+										<MobileTaskTitle style={{ margin: 0 }}>{task.title}</MobileTaskTitle>
 										{hasTaskNotifications && (
 											<div
 												style={{
@@ -974,82 +966,82 @@ export const TasksPage = () => {
 												<FontAwesomeIcon icon={faBell} />
 											</div>
 										)}
-										</div>
-										<div
-											style={{
-												display: 'inline-flex',
-												alignItems: 'center',
-												gap: 6,
-												padding: '5px 10px',
-												borderRadius: 999,
-												border: `1px solid ${operationalTone}33`,
-												background: `${operationalTone}12`,
-												color: operationalTone,
-												fontSize: 12,
-												fontWeight: 800,
-												width: 'fit-content',
-											}}>
-											{operationalLabel}
-										</div>
-									</MobileTaskHeader>
-									<MobileTaskMetaGrid>
-										<MobileMetaItem>
-											<MobileMetaLabel>Identity</MobileMetaLabel>
-											<MobileMetaValue>
-												{task.category || 'General maintenance'}
-												{task.propertyTitle ? ` · ${task.propertyTitle}` : task.property ? ` · ${task.property}` : ''}
-											</MobileMetaValue>
-										</MobileMetaItem>
-										<MobileMetaItem>
-											<MobileMetaLabel>Maintenance Status</MobileMetaLabel>
-											<MobileMetaValue>
-												{maintenanceStatusText}
-											</MobileMetaValue>
-										</MobileMetaItem>
-										<MobileMetaItem>
-											<MobileMetaLabel>Maintenance Context</MobileMetaLabel>
-											<MobileMetaValue>
-												<div>Assigned to {getAssigneeLabel(task)}</div>
-												<div style={{ marginTop: 2, fontSize: '0.8rem', color: '#64748b' }}>
-													{task.priority || 'Low'} priority · {formatDueDate(task.dueDate)}
-												</div>
-											</MobileMetaValue>
-										</MobileMetaItem>
-									</MobileTaskMetaGrid>
-									{canManageTasks && (
-										<MobileTaskActions>
-												<MobileActionButton onClick={() => handleEditTask(task)}>
-												Refine Task
-											</MobileActionButton>
-												<MobileActionLinkRow>
-													<MobileActionLinkButton onClick={() => handleAssignTask(task)}>
-														Assign
-													</MobileActionLinkButton>
-													{task.status !== 'Completed' && (
-														<MobileActionLinkButton
-															onClick={() => handleTaskCompletion(task.id)}
-														>
-															Complete
-														</MobileActionLinkButton>
-													)}
-													<MobileActionLinkButton
-														$danger
-														onClick={() =>
-															queueUndoableAction({
-																kind: 'delete',
-																taskId: task.id,
-																taskTitle: task.title || 'Task',
-															})
-														}
-													>
-														Delete
-													</MobileActionLinkButton>
-												</MobileActionLinkRow>
-										</MobileTaskActions>
-									)}
-								</MobileTaskCard>
-							);
-						})}
+									</div>
+									<div
+										style={{
+											display: 'inline-flex',
+											alignItems: 'center',
+											gap: 6,
+											padding: '5px 10px',
+											borderRadius: 999,
+											border: `1px solid ${operationalTone}33`,
+											background: `${operationalTone}12`,
+											color: operationalTone,
+											fontSize: 12,
+											fontWeight: 800,
+											width: 'fit-content',
+										}}>
+										{operationalLabel}
+									</div>
+								</MobileTaskHeader>
+								<MobileTaskMetaGrid>
+									<MobileMetaItem>
+										<MobileMetaLabel>Identity</MobileMetaLabel>
+										<MobileMetaValue>
+											{task.category || 'General maintenance'}
+											{task.propertyTitle ? ` · ${task.propertyTitle}` : task.property ? ` · ${task.property}` : ''}
+										</MobileMetaValue>
+									</MobileMetaItem>
+									<MobileMetaItem>
+										<MobileMetaLabel>Maintenance Status</MobileMetaLabel>
+										<MobileMetaValue>
+											{maintenanceStatusText}
+										</MobileMetaValue>
+									</MobileMetaItem>
+									<MobileMetaItem>
+										<MobileMetaLabel>Maintenance Context</MobileMetaLabel>
+										<MobileMetaValue>
+											<div>Assigned to {getAssigneeLabel(task)}</div>
+											<div style={{ marginTop: 2, fontSize: '0.8rem', color: '#64748b' }}>
+												{task.priority || 'Low'} priority · {formatDueDate(task.dueDate)}
+											</div>
+										</MobileMetaValue>
+									</MobileMetaItem>
+								</MobileTaskMetaGrid>
+								{canManageTasks && (
+									<MobileTaskActions>
+										<MobileActionButton onClick={() => handleEditTask(task)}>
+											Edit Task
+										</MobileActionButton>
+										<MobileActionLinkRow>
+											<MobileActionLinkButton onClick={() => handleAssignTask(task)}>
+												Assign
+											</MobileActionLinkButton>
+											{task.status !== 'Completed' && (
+												<MobileActionLinkButton
+													onClick={() => handleTaskCompletion(task.id)}
+												>
+													Complete
+												</MobileActionLinkButton>
+											)}
+											<MobileActionLinkButton
+												$danger
+												onClick={() =>
+													queueUndoableAction({
+														kind: 'delete',
+														taskId: task.id,
+														taskTitle: task.title || 'Task',
+													})
+												}
+											>
+												Delete
+											</MobileActionLinkButton>
+										</MobileActionLinkRow>
+									</MobileTaskActions>
+								)}
+							</MobileTaskCard>
+						);
+					})}
 				</MobileListSection>
 			) : (
 				<>

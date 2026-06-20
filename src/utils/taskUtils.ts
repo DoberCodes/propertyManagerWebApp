@@ -54,3 +54,31 @@ export const matchesDateRangeOrIsOverdue = (
 export const updateOverdueTasks = async (tasks: Task[]): Promise<Task[]> => {
 	return tasks;
 };
+
+/**
+ * Returns a homeowner-facing assignee label without exposing internal record IDs.
+ * The assignedTo snapshot is preferred because it remains useful after access is removed.
+ */
+export const getTaskAssigneeDisplayName = (
+	task: Partial<Task> | any,
+	fallback = 'Unassigned',
+): string => {
+	const assignedTo =
+		task?.assignedTo && typeof task.assignedTo === 'object'
+			? task.assignedTo
+			: null;
+	const legacyFullName =
+		task?.assigneeFirstName || task?.assigneeLastName
+			? `${task.assigneeFirstName || ''} ${task.assigneeLastName || ''}`.trim()
+			: '';
+	const displayName = String(
+		assignedTo?.name ||
+			task?.assigneeName ||
+			legacyFullName ||
+			assignedTo?.email ||
+			task?.assigneeEmail ||
+			'',
+	).trim();
+
+	return displayName || fallback;
+};

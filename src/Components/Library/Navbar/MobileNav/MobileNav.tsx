@@ -159,10 +159,10 @@ export const MobileBottomNav: React.FC<MobileNavProps> = ({ isPropertyContext, p
     const navigate = useNavigate();
     const quickCreateActions = isPropertyContext
         ? [
-            { key: 'add_task', label: 'Add Task', x: -118, y: 22 },
-            { key: 'add_system', label: 'Add System', x: -58, y: -24 },
-            { key: 'upload_document', label: 'Upload', x: 58, y: -24 },
-            { key: 'add_contractor', label: 'Contractor', x: 118, y: 22 },
+            { key: 'add_task', label: 'Add Task', x: -100, y: 0 },
+            { key: 'add_system', label: 'Add System', x: -55, y: -55 },
+            { key: 'upload_document', label: 'Upload', x: 55, y: -55 },
+            { key: 'add_contractor', label: 'Contractor', x: 100, y: 0 },
         ]
         : [
             { key: 'add_task', label: 'Add Task', x: -100, y: -10 },

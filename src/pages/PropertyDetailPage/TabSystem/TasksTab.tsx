@@ -27,6 +27,7 @@ import {
 } from '../../../Components/Library/FilterBar';
 import { applyFilters } from '../../../utils/tableFilters';
 import {
+	getTaskAssigneeDisplayName,
 	isTaskOverdueForDisplay,
 	matchesDateRangeOrIsOverdue,
 	updateOverdueTasks,
@@ -329,10 +330,7 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 			header: 'Task',
 			key: 'title',
 			render: (_value: any, task: any) => {
-				const assignee =
-					typeof task.assignedTo === 'object'
-						? task.assignedTo.name
-						: task.assignedTo || 'Unassigned';
+				const assignee = getTaskAssigneeDisplayName(task);
 				const overdue = isTaskOverdueForDisplay(task as Task);
 				const iconStyle = getTaskIcon(task);
 				const hasTaskNotifications = hasEnabledTaskNotifications(task);
@@ -421,7 +419,7 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 			header: 'Maintenance Status',
 			key: 'updatedAt',
 			render: (_value: string, task: any) => {
-						const continuitySignals = getContinuitySignals(task);
+				const continuitySignals = getContinuitySignals(task);
 				const recurringSummary = task.isRecurring
 					? task.recurrenceFrequency
 						? `Recurring ${task.recurrenceFrequency}`
@@ -452,7 +450,7 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 					chip.label === 'Completed'
 						? 'Recorded in maintenance history'
 						: chip.label === 'Overdue'
-								? 'Maintenance is overdue'
+							? 'Maintenance is overdue'
 							: chip.label === 'Due Soon'
 								? 'Maintenance is coming due soon'
 								: chip.label === 'Initiated'
@@ -489,7 +487,7 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 
 	const taskActions: Action<Task>[] = canManageTasks ? [
 		{
-			label: 'Refine Task',
+			label: 'Edit Task',
 			icon: faEdit,
 			onClick: (task: Task) => handleEditTask(task),
 		},
@@ -572,10 +570,10 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 									'Unknown User';
 							} else if (task.assignee) {
 								userId = task.assignee;
-								userName =
-									task.assigneeFirstName && task.assigneeLastName
-										? `${task.assigneeFirstName} ${task.assigneeLastName}`
-										: task.assigneeEmail || task.assignee || 'Unknown User';
+								userName = getTaskAssigneeDisplayName(
+									task,
+									'Former assignee',
+								);
 							} else {
 								return uniqueUsers; // Skip if no assignee info
 							}
@@ -838,7 +836,7 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 						}
 						title={
 							currentUser?.subscription &&
-							isTrialExpired(currentUser.subscription)
+								isTrialExpired(currentUser.subscription)
 								? 'Upgrade your subscription to add new tasks'
 								: undefined
 						}>
@@ -924,8 +922,8 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 					<FontAwesomeIcon icon={faArrowUpAZ} />
 					{showFilters ? 'Hide Filters' : 'Filters'}
 				</button>
-				</div>
-				{activeFilterChips.length > 0 && (
+			</div>
+			{activeFilterChips.length > 0 && (
 				<ActiveFilterChips>
 					{activeFilterChips.map((chip) => (
 						<ActiveFilterChip key={chip.key} onClick={chip.onRemove}>
@@ -940,14 +938,14 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 						Clear all
 					</ActiveFilterChipClear>
 				</ActiveFilterChips>
-				)}
-				{showFilters && (
+			)}
+			{showFilters && (
 				<FilterBar
 					filters={taskFilters}
 					onFiltersChange={setFilters}
 					useCustomSelect={true}
 				/>
-				)}
+			)}
 
 			{filteredTasks.length > 0 ? (
 				<>
@@ -1000,24 +998,24 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 												gap: 8,
 											}}>
 											<MobileTaskTitle style={{ margin: 0 }}>{task.title}</MobileTaskTitle>
-										{hasTaskNotifications && (
-											<div
-												style={{
-													display: 'inline-flex',
-													alignItems: 'center',
-													justifyContent: 'center',
-													width: 24,
-													height: 24,
-													marginLeft: 'auto',
-													borderRadius: 999,
-													fontSize: 12,
-													color: '#a16207',
-													background: '#fef9c3',
-													border: '1px solid #facc15',
-												}}>
-												<FontAwesomeIcon icon={faBell} />
-											</div>
-										)}
+											{hasTaskNotifications && (
+												<div
+													style={{
+														display: 'inline-flex',
+														alignItems: 'center',
+														justifyContent: 'center',
+														width: 24,
+														height: 24,
+														marginLeft: 'auto',
+														borderRadius: 999,
+														fontSize: 12,
+														color: '#a16207',
+														background: '#fef9c3',
+														border: '1px solid #facc15',
+													}}>
+													<FontAwesomeIcon icon={faBell} />
+												</div>
+											)}
 										</div>
 										<StatusBadge status={displayStatus.label}>{displayStatus.label}</StatusBadge>
 									</MobileTaskHeader>
@@ -1032,9 +1030,7 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 										</MobileFeedLine>
 										<MobileFeedLineMuted>
 											Assigned to{' '}
-											{typeof task.assignedTo === 'object'
-												? task.assignedTo.name
-												: task.assignedTo || 'Unassigned'}
+											{getTaskAssigneeDisplayName(task)}
 										</MobileFeedLineMuted>
 										<MobileFeedLineMuted>
 											{task.priority || 'Low'} priority • {task.dueDate || 'ASAP'}
@@ -1066,18 +1062,18 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 													Assign
 												</MobileActionLinkButton>
 												<MobileActionLinkButton
-												onClick={(e) => {
-													e.stopPropagation();
-													handleCompleteTask(task);
-												}}>
+													onClick={(e) => {
+														e.stopPropagation();
+														handleCompleteTask(task);
+													}}>
 													Complete
 												</MobileActionLinkButton>
 												<MobileActionLinkButton
 													$danger
-												onClick={(e) => {
-													e.stopPropagation();
-													handleDeleteTask(task);
-												}}>
+													onClick={(e) => {
+														e.stopPropagation();
+														handleDeleteTask(task);
+													}}>
 													Delete
 												</MobileActionLinkButton>
 											</MobileActionLinkRow>
@@ -1096,14 +1092,14 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 							? [{ label: 'Add Task', onClick: handleCreateTask }]
 							: processedTasks.length > 0
 								? [
-										{
-											label: 'Clear Filters',
-											onClick: () => {
-												setFilters({});
-												setQuickView('all');
-											},
+									{
+										label: 'Clear Filters',
+										onClick: () => {
+											setFilters({});
+											setQuickView('all');
 										},
-								  ]
+									},
+								]
 								: []
 					}
 				/>

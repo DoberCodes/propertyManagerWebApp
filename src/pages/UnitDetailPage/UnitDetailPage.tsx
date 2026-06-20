@@ -53,6 +53,7 @@ import {
 	useUpdateMaintenanceHistoryMutation,
 } from '../../Redux/API/maintenanceSlice';
 import { useDeleteTaskMutation } from '../../Redux/API/taskSlice';
+import { getTaskAssigneeDisplayName } from '../../utils/taskUtils';
 import { useRemoveTenantMutation } from '../../Redux/API/tenantSlice';
 import { getDeviceName } from '../../utils/detailPageUtils';
 import { TabConfig } from '../../types/DetailPage.types';
@@ -1379,7 +1380,7 @@ export const UnitDetailPage: React.FC = () => {
 								<ReusableTable
 									rowData={unitTasks.map((task) => ({
 										...task,
-										assignedToNames: task.assignee || '',
+										assignedToNames: getTaskAssigneeDisplayName(task, ''),
 										propertyTitle: property?.title || '',
 									}))}
 									columns={[

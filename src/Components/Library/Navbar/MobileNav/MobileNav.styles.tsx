@@ -217,4 +217,8 @@ export const MobileBottomActionItem = styled.button<{ $x: number; $y: number }>`
 	text-align: center;
 	line-height: 1.1;
 
+	&:hover {
+		color: ${COLORS.primary};
+	}
+
 `;

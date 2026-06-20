@@ -175,6 +175,7 @@ export const TaskAssignModal = (props: TaskAssignModalProps) => {
 		}
 
 		const updatedTask = {
+			assignee: selectedAssignee.id,
 			assignedTo: {
 				id: selectedAssignee.id,
 				name: selectedAssignee.name,

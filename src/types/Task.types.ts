@@ -51,6 +51,12 @@ export interface TaskNotification {
 	customMessage?: string;
 }
 
+export interface TaskAssigneeSnapshot {
+	id: string;
+	name: string;
+	email?: string;
+}
+
 export interface CostBreakdown {
 	contractorCost?: number;
 	materialsCost?: number;
@@ -93,13 +99,12 @@ export interface Task {
 	propertyTitle?: string; // Optional: denormalized property title for easier access
 	notes?: string;
 	priority?: 'Low' | 'Medium' | 'High' | 'Urgent';
-	assignee?: string;
-
-	assignedTo?: {
-		id: string;
-		name: string;
-		email?: string;
-	}; // Assignee object
+	assignee?: string; // Assignee record ID used as an internal reference
+	assignedTo?: TaskAssigneeSnapshot | null; // Saved display snapshot retained if access is removed
+	assigneeName?: string; // Legacy denormalized display-name compatibility
+	assigneeFirstName?: string;
+	assigneeLastName?: string;
+	assigneeEmail?: string;
 	// Recurring task fields
 	isRecurring?: boolean;
 	recurrenceFrequency?:

@@ -30,8 +30,8 @@ export const Wrapper = styled.div`
 		top: calc(-1 * env(safe-area-inset-top, 0px));
 		left: 0;
 		right: 0;
-		height: max(env(safe-area-inset-top, 20px), 20px);
-		padding-top: max(env(safe-area-inset-top, 20px), 20px);
+		height: max(env(safe-area-inset-top, 20px), 40px);
+		padding-top: max(env(safe-area-inset-top, 20px), 40px);
 		background: linear-gradient(90deg, #065f46 0%, #047857 100%);
 		z-index: 0;
 		pointer-events: none;

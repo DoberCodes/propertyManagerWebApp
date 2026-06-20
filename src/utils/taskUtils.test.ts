@@ -1,4 +1,5 @@
 import {
+	getTaskAssigneeDisplayName,
 	isTaskOverdue,
 	isTaskOverdueForDisplay,
 	matchesDateRangeOrIsOverdue,
@@ -88,6 +89,37 @@ describe('taskUtils overdue helpers', () => {
 			expect(
 				matchesDateRangeOrIsOverdue(task as any, '2030-01-01', '2030-12-31'),
 			).toBe(true);
+		});
+	});
+
+	describe('getTaskAssigneeDisplayName', () => {
+		it('uses the saved assignee snapshot', () => {
+			expect(
+				getTaskAssigneeDisplayName({
+					assignedTo: {
+						id: 'internal-member-id',
+						name: 'Jamie Homeowner',
+					},
+				}),
+			).toBe('Jamie Homeowner');
+		});
+
+		it('never exposes a legacy assignee ID as a display name', () => {
+			expect(
+				getTaskAssigneeDisplayName({
+					assignee: 'internal-member-id',
+				}),
+			).toBe('Unassigned');
+		});
+
+		it('supports legacy saved name fields', () => {
+			expect(
+				getTaskAssigneeDisplayName({
+					assignee: 'internal-member-id',
+					assigneeFirstName: 'Jamie',
+					assigneeLastName: 'Homeowner',
+				}),
+			).toBe('Jamie Homeowner');
 		});
 	});
 });

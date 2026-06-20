@@ -131,7 +131,7 @@ const createTaskNotification = async (
 
 		// Determine who should receive the notification
 		// Priority: assigned user > task creator > property owner
-		let recipientId = task.assignee || task.userId;
+		let recipientId = task.assignedTo?.id || task.assignee || task.userId;
 
 		if (!recipientId) {
 			// If no assignee, try to find property owner

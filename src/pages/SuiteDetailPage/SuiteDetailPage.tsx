@@ -16,6 +16,7 @@ import {
 } from '../../Components/Library';
 import { HeaderlessFeedSurface } from '../../Components/Library/ReusableTable/ReusableTable.styles';
 import { getDeviceName } from '../../utils/detailPageUtils';
+import { getTaskAssigneeDisplayName } from '../../utils/taskUtils';
 import { TabConfig } from '../../types/DetailPage.types';
 import {
 	InfoGrid,
@@ -228,7 +229,7 @@ export const SuiteDetailPage: React.FC = () => {
 								<ReusableTable
 									rowData={suiteTasks.map((task) => ({
 										...task,
-										assignedToNames: task.assignee || '',
+										assignedToNames: getTaskAssigneeDisplayName(task, ''),
 										propertyTitle: property?.title || '',
 									}))}
 									columns={[
