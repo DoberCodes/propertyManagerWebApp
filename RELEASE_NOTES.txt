@@ -1,5 +1,5 @@
-🎉 **Release Notes for Version 2.5.8** 🎉
+🎉 **Release Notes for Version 2.5.9** 🎉
 
 
 ## 🐛 Bug Fixes
-- Adding changes to the layout including modifying the filters on mobile to be floating buttons.
+- fixing mobile nav and adding property group customization
