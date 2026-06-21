@@ -207,11 +207,11 @@ export const MobileBottomActionItem = styled.button<{ $x: number; $y: number }>`
 	padding: 8px 10px;
 	font-size: 11px;
 	font-weight: 700;
-	white-space: nowrap;
 	cursor: pointer;
 	display: flex;
-	height: 50px;
-	width: 100px;
+	height: auto;
+	width: 50px;
+	flex-wrap: wrap;
 	justify-content: center;
 	align-items: center;
 	text-align: center;

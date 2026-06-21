@@ -15,7 +15,16 @@ import {
 } from '../Library/AppPageLayout/AppPageLayout.styles';
 import { DeleteConfirmationModal } from '../Library/Modal/DeleteConfirmationModal';
 import { AppZeroState } from '../Library/AppZeroState';
-import { FloatingFilterPanel } from '../Library';
+import {
+	FloatingFilterPanel,
+	GenericModal,
+	FormInput,
+	FormLabel,
+	FormSelect,
+	FormTextarea,
+	SecondaryButton,
+	DangerButton,
+} from '../Library';
 import { useRecentlyViewed } from '../../Hooks/useRecentlyViewed';
 import { useFavorites } from '../../Hooks/useFavorites';
 import { RootState } from '../../Redux/store/store';
@@ -74,6 +83,9 @@ import {
 	GroupSection,
 	GroupHeader,
 	GroupName,
+	GroupTitleBlock,
+	GroupDescription,
+	GroupIconBadge,
 	GroupCountBadge,
 	GroupNameInput,
 	HeaderRight,
@@ -100,7 +112,6 @@ import {
 	DropdownToggle,
 	GroupActions,
 	GroupActionMenu,
-	PageSubtitle,
 	SearchBar,
 	FilterSortContainer,
 	FilterButton,
@@ -114,12 +125,39 @@ import {
 	HeaderDropdownIcon,
 	HeaderDropdownTitle,
 	HeaderDropdownHint,
+	ManageGroupsStack,
+	ManageGroupsToolbar,
+	ManageGroupList,
+	ManageGroupRow,
+	ManageGroupDragHandle,
+	ManageGroupPreview,
+	ManageGroupRowActions,
+	ManageGroupMenuWrap,
+	ManageGroupMenuButton,
+	ManageGroupMenu,
+	ManageGroupMenuItem,
+	ManageGroupPanel,
+	ManageGroupPanelHeader,
+	ManageGroupAppearancePreview,
+	PropertyTransferList,
+	PropertyTransferRow,
+	PropertyTransferName,
+	PropertyTransferToolbar,
+	PropertyTransferSelectionBar,
+	SelectedTransferActions,
+	BulkTransferActions,
 } from './PropertiesTab.styles';
-import { Property } from '../../types/Property.types';
+import { Property, PropertyGroupIconKey } from '../../types/Property.types';
 import { useAppFeedback } from '../Library/AppFeedback/AppFeedbackProvider';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
 	faHouse,
+	faBuilding,
+	faCity,
+	faWarehouse,
+	faStore,
+	faHotel,
+	faIndustry,
 	faWrench,
 	faCalendarDays,
 	faFileLines,
@@ -127,13 +165,12 @@ import {
 	faChevronDown,
 	faEllipsis,
 	faEllipsisVertical,
-	faFolderPlus,
 	faUsers,
 	faMinimize,
-	faGear,
 	faLocationDot,
 	faMicrochip,
 	faClock,
+	faGripVertical,
 } from '@fortawesome/free-solid-svg-icons';
 
 const ACTIVE_TASK_STATUSES = new Set([
@@ -144,6 +181,41 @@ const ACTIVE_TASK_STATUSES = new Set([
 	'Overdue',
 	'Hold',
 ]);
+
+const GROUP_ICON_OPTIONS: Array<{ key: PropertyGroupIconKey; label: string; icon: any }> = [
+	{ key: 'house', label: 'House', icon: faHouse },
+	{ key: 'building', label: 'Building', icon: faBuilding },
+	{ key: 'city', label: 'City', icon: faCity },
+	{ key: 'warehouse', label: 'Warehouse', icon: faWarehouse },
+	{ key: 'store', label: 'Store', icon: faStore },
+	{ key: 'hotel', label: 'Hotel', icon: faHotel },
+	{ key: 'industry', label: 'Industry', icon: faIndustry },
+];
+
+const GROUP_COLOR_PRESETS: Array<{ label: string; iconColor: string; iconBgColor: string }> = [
+	{ label: 'Ocean', iconColor: '#ffffff', iconBgColor: '#2563eb' },
+	{ label: 'Emerald', iconColor: '#ffffff', iconBgColor: '#059669' },
+	{ label: 'Sunset', iconColor: '#ffffff', iconBgColor: '#ea580c' },
+	{ label: 'Rose', iconColor: '#ffffff', iconBgColor: '#e11d48' },
+	{ label: 'Slate', iconColor: '#ffffff', iconBgColor: '#475569' },
+	{ label: 'Gold', iconColor: '#111827', iconBgColor: '#facc15' },
+	{ label: 'Lavender', iconColor: '#312e81', iconBgColor: '#c4b5fd' },
+	{ label: 'Mint', iconColor: '#064e3b', iconBgColor: '#a7f3d0' },
+];
+
+const GROUP_DEFAULT_ICON_KEY: PropertyGroupIconKey = 'house';
+const GROUP_DEFAULT_ICON_COLOR = '#ffffff';
+const GROUP_DEFAULT_ICON_BG_COLOR = '#2563eb';
+
+const HEX_COLOR_PATTERN = /^#([0-9a-fA-F]{6})$/;
+
+const normalizeHexColor = (value: string, fallback: string): string => {
+	const normalized = String(value || '').trim();
+	if (!HEX_COLOR_PATTERN.test(normalized)) {
+		return fallback;
+	}
+	return normalized.toLowerCase();
+};
 
 const stripUndefinedValues = (value: any): any => {
 	if (Array.isArray(value)) {
@@ -221,8 +293,8 @@ export const Properties = () => {
 	// Expired users cannot manage groups
 	const canManageGroups = currentUser?.subscription
 		? roleCapabilities.canManageProperties &&
-		  canPropertyGroups(currentUser.subscription) &&
-		  !isTrialExpired(currentUser.subscription)
+		canPropertyGroups(currentUser.subscription) &&
+		!isTrialExpired(currentUser.subscription)
 		: false;
 	const effectivePlanId = getEffectiveSubscriptionPlanId(
 		currentUser?.subscription,
@@ -260,7 +332,16 @@ export const Properties = () => {
 			const bName = b.name?.toLowerCase() || '';
 			if (aName === 'my properties') return -1;
 			if (bName === 'my properties') return 1;
-			return 0;
+
+			const aOrder = Number.isFinite(a.sortOrder)
+				? Number(a.sortOrder)
+				: Number.MAX_SAFE_INTEGER;
+			const bOrder = Number.isFinite(b.sortOrder)
+				? Number(b.sortOrder)
+				: Number.MAX_SAFE_INTEGER;
+			if (aOrder !== bOrder) return aOrder - bOrder;
+
+			return aName.localeCompare(bName);
 		});
 	}, [groupsWithProperties, currentUser, teamMembers]);
 
@@ -439,7 +520,104 @@ export const Properties = () => {
 		useState<'all' | 'rental' | 'residential'>('all');
 	const [isHeaderMenuOpen, setIsHeaderMenuOpen] = useState(false);
 	const [openGroupMenuId, setOpenGroupMenuId] = useState<string | null>(null);
+	const [isManageGroupsDialogOpen, setIsManageGroupsDialogOpen] =
+		useState(false);
+	const [manageGroupNames, setManageGroupNames] = useState<Record<string, string>>({});
+	const [manageGroupDescriptions, setManageGroupDescriptions] = useState<
+		Record<string, string>
+	>({});
+	const [manageGroupDefaultCollapsed, setManageGroupDefaultCollapsed] = useState<
+		Record<string, boolean>
+	>({});
+	const [manageGroupOrder, setManageGroupOrder] = useState<string[]>([]);
+	const [manageDialogGroups, setManageDialogGroups] = useState<any[]>([]);
+	const [transferTargets, setTransferTargets] = useState<Record<string, string>>({});
+	const [selectedTransferPropertyIds, setSelectedTransferPropertyIds] = useState<
+		string[]
+	>([]);
+	const [selectedTransferTargetId, setSelectedTransferTargetId] = useState('');
+	const [transferPropertySearch, setTransferPropertySearch] = useState('');
+	const [isSavingManageGroups, setIsSavingManageGroups] = useState(false);
+	const [manageGroupsView, setManageGroupsView] =
+		useState<'reorder' | 'create' | 'details' | 'transfer'>(
+			'reorder',
+		);
+	const [activeManageGroupId, setActiveManageGroupId] = useState<string | null>(null);
+	const [openManageGroupMenuId, setOpenManageGroupMenuId] = useState<string | null>(
+		null,
+	);
+	const [draggingManageGroupId, setDraggingManageGroupId] = useState<string | null>(null);
+	const [manageNewGroupName, setManageNewGroupName] = useState('');
+	const [manageNewGroupDescription, setManageNewGroupDescription] = useState('');
+	const [manageNewGroupDefaultCollapsed, setManageNewGroupDefaultCollapsed] =
+		useState(false);
+	const [manageNewGroupAppearance, setManageNewGroupAppearance] = useState({
+		iconKey: GROUP_DEFAULT_ICON_KEY as PropertyGroupIconKey,
+		iconColor: GROUP_DEFAULT_ICON_COLOR,
+		iconBgColor: GROUP_DEFAULT_ICON_BG_COLOR,
+	});
+	const [isCreatingManageGroup, setIsCreatingManageGroup] = useState(false);
+	const [manageGroupAppearanceDrafts, setManageGroupAppearanceDrafts] = useState<
+		Record<
+			string,
+			{ iconKey: PropertyGroupIconKey; iconColor: string; iconBgColor: string }
+		>
+	>({});
 	const headerMenuRef = useRef<HTMLDivElement | null>(null);
+	const initializedCollapsedGroupsRef = useRef<Set<string>>(new Set());
+
+	const getGroupIconByKey = useCallback((iconKey?: string) => {
+		const match = GROUP_ICON_OPTIONS.find((option) => option.key === iconKey);
+		return match?.icon || faHouse;
+	}, []);
+
+	const getGroupAppearanceFromGroup = useCallback((group: any) => {
+		const iconKey =
+			GROUP_ICON_OPTIONS.some((option) => option.key === group?.groupIconKey)
+				? (group.groupIconKey as PropertyGroupIconKey)
+				: GROUP_DEFAULT_ICON_KEY;
+		const iconColor = normalizeHexColor(group?.groupIconColor, GROUP_DEFAULT_ICON_COLOR);
+		const iconBgColor = normalizeHexColor(
+			group?.groupIconBgColor,
+			GROUP_DEFAULT_ICON_BG_COLOR,
+		);
+
+		return { iconKey, iconColor, iconBgColor };
+	}, []);
+
+	const getGroupAppearanceDraft = useCallback(
+		(group: any) => {
+			const groupId = String(group.id);
+			const draft = manageGroupAppearanceDrafts[groupId];
+			if (draft) {
+				return {
+					iconKey: draft.iconKey,
+					iconColor: normalizeHexColor(draft.iconColor, GROUP_DEFAULT_ICON_COLOR),
+					iconBgColor: normalizeHexColor(
+						draft.iconBgColor,
+						GROUP_DEFAULT_ICON_BG_COLOR,
+					),
+				};
+			}
+
+			return getGroupAppearanceFromGroup(group);
+		},
+		[getGroupAppearanceFromGroup, manageGroupAppearanceDrafts],
+	);
+
+	const orderedManageGroups = useMemo(() => {
+		const groupsById = new Map(
+			manageDialogGroups.map((group) => [String(group.id), group]),
+		);
+		const orderedFromState = manageGroupOrder
+			.map((groupId) => groupsById.get(groupId))
+			.filter(Boolean) as typeof manageDialogGroups;
+		const unsortedGroups = manageDialogGroups.filter(
+			(group) => !manageGroupOrder.includes(String(group.id)),
+		);
+
+		return [...orderedFromState, ...unsortedGroups];
+	}, [manageDialogGroups, manageGroupOrder]);
 
 	const displayedGroups = useMemo(() => {
 		const query = searchQuery.trim().toLowerCase();
@@ -485,8 +663,22 @@ export const Properties = () => {
 
 				return { ...group, properties };
 			})
-			.filter((group) => (group.properties || []).length > 0);
-	}, [filteredGroups, filterBy, searchQuery, sortBy]);
+			.filter((group) => {
+				if ((group.properties || []).length > 0) {
+					return true;
+				}
+
+				if (!canManageGroups) {
+					return false;
+				}
+
+				if (!query && filterBy === 'all') {
+					return true;
+				}
+
+				return String(group.name || '').toLowerCase().includes(query);
+			});
+	}, [filteredGroups, filterBy, searchQuery, sortBy, canManageGroups]);
 
 	const displayedPropertyCount = useMemo(
 		() =>
@@ -534,6 +726,27 @@ export const Properties = () => {
 		(searchQuery.trim() ? 1 : 0) +
 		(filterBy !== 'all' ? 1 : 0) +
 		(sortBy !== 'name' ? 1 : 0);
+
+	useEffect(() => {
+		const defaultCollapsedGroupIds = filteredGroups
+			.filter(
+				(group) =>
+					group.defaultCollapsed &&
+					!initializedCollapsedGroupsRef.current.has(String(group.id)),
+			)
+			.map((group) => String(group.id));
+
+		if (defaultCollapsedGroupIds.length === 0) return;
+
+		defaultCollapsedGroupIds.forEach((groupId) =>
+			initializedCollapsedGroupsRef.current.add(groupId),
+		);
+		setCollapsedGroups((previous) => {
+			const next = new Set(previous);
+			defaultCollapsedGroupIds.forEach((groupId) => next.add(groupId));
+			return next;
+		});
+	}, [filteredGroups]);
 
 	useEffect(() => {
 		const handleClickOutside = (event: MouseEvent) => {
@@ -604,16 +817,40 @@ export const Properties = () => {
 		};
 	}, [propertyToDuplicate, selectedGroupForDialog]);
 
-	const handleAddGroup = async () => {
+	const handleAddGroup = async (
+		rawName = 'New Group',
+		settings?: {
+			description?: string;
+			defaultCollapsed?: boolean;
+			groupIconKey?: PropertyGroupIconKey;
+			groupIconColor?: string;
+			groupIconBgColor?: string;
+		},
+	) => {
 		if (!currentUser) {
+			feedback.notify('You must be signed in to create a group.');
 			console.error('No user logged in');
+			return;
+		}
+
+		const nextName = String(rawName || '').trim();
+		if (!nextName) {
+			feedback.notify('Enter a group name.');
 			return;
 		}
 
 		try {
 			const result = await createPropertyGroup({
 				userId: currentUser.id,
-				name: 'New Group',
+				name: nextName,
+				description: String(settings?.description || '').trim(),
+				defaultCollapsed: Boolean(settings?.defaultCollapsed),
+				groupIconKey: settings?.groupIconKey || GROUP_DEFAULT_ICON_KEY,
+				groupIconColor:
+					settings?.groupIconColor || GROUP_DEFAULT_ICON_COLOR,
+				groupIconBgColor:
+					settings?.groupIconBgColor || GROUP_DEFAULT_ICON_BG_COLOR,
+				sortOrder: propertyGroups.length,
 				properties: [],
 			}).unwrap();
 
@@ -623,10 +860,10 @@ export const Properties = () => {
 					userId: currentUser.id,
 					type: 'property_group_created',
 					title: 'Property Group Created',
-					message: 'New property group "New Group" has been created',
+					message: `New property group "${nextName}" has been created`,
 					data: {
 						groupId: result.id,
-						groupName: 'New Group',
+						groupName: nextName,
 					},
 					status: 'unread',
 					actionUrl: `/properties`,
@@ -636,8 +873,19 @@ export const Properties = () => {
 			} catch (notifError) {
 				console.error('Notification failed:', notifError);
 			}
+
+			feedback.notify(`Group "${nextName}" created.`);
+			return result;
 		} catch (error) {
 			console.error('Failed to create property group:', error);
+			const errorMessage =
+				typeof error === 'string'
+					? error
+					: ((error as any)?.data as string) ||
+					(error as any)?.message ||
+					'Failed to create property group.';
+			feedback.notify(errorMessage);
+			return null;
 		}
 	};
 
@@ -716,11 +964,10 @@ export const Properties = () => {
 				const maxProperties = planDetails?.maxProperties || 1;
 
 				feedback.notify(
-					`Your ${
-						planDetails?.name || 'current'
+					`Your ${planDetails?.name || 'current'
 					} plan allows up to ${maxProperties} properties. ` +
-						`You currently have ${totalProperties} properties. ` +
-						`Please upgrade your plan to add more properties.`,
+					`You currently have ${totalProperties} properties. ` +
+					`Please upgrade your plan to add more properties.`,
 				);
 				// TODO: Redirect to paywall/upgrade page
 				return;
@@ -801,8 +1048,8 @@ export const Properties = () => {
 			const maxProperties = planDetails?.maxProperties || 1;
 			feedback.notify(
 				`Your ${planDetails?.name || 'current'} plan allows up to ${maxProperties} properties. ` +
-					`You currently have ${totalProperties} properties. ` +
-					`Please upgrade your plan to duplicate this property.`,
+				`You currently have ${totalProperties} properties. ` +
+				`Please upgrade your plan to duplicate this property.`,
 			);
 			setOpenDropdown(null);
 			return;
@@ -850,24 +1097,532 @@ export const Properties = () => {
 		setIsHeaderMenuOpen(false);
 	};
 
-	const handleHeaderCreateGroup = async () => {
-		setIsHeaderMenuOpen(false);
-		await handleAddGroup();
-	};
+	const openManageGroupsDialog = useCallback(
+		(options?: {
+			view?: 'reorder' | 'create' | 'details' | 'transfer';
+			activeGroupId?: string | null;
+		}) => {
+			setIsHeaderMenuOpen(false);
+			setManageGroupNames(
+				Object.fromEntries(
+					filteredGroups.map((group) => [String(group.id), group.name || '']),
+				),
+			);
+			setManageGroupDescriptions(
+				Object.fromEntries(
+					filteredGroups.map((group) => [
+						String(group.id),
+						String(group.description || ''),
+					]),
+				),
+			);
+			setManageGroupDefaultCollapsed(
+				Object.fromEntries(
+					filteredGroups.map((group) => [
+						String(group.id),
+						Boolean(group.defaultCollapsed),
+					]),
+				),
+			);
+			setManageGroupOrder(filteredGroups.map((group) => String(group.id)));
+			setManageDialogGroups(filteredGroups.map((group) => ({ ...group })));
+			setManageGroupAppearanceDrafts(
+				Object.fromEntries(
+					filteredGroups.map((group) => {
+						const groupId = String(group.id);
+						const appearance = getGroupAppearanceFromGroup(group);
+						return [groupId, appearance];
+					}),
+				),
+			);
+			setTransferTargets({});
+			setSelectedTransferPropertyIds([]);
+			setSelectedTransferTargetId('');
+			setTransferPropertySearch('');
+			setOpenManageGroupMenuId(null);
+			setManageGroupsView(options?.view || 'reorder');
+			setManageNewGroupName('');
+			setManageNewGroupDescription('');
+			setManageNewGroupDefaultCollapsed(false);
+			setManageNewGroupAppearance({
+				iconKey: GROUP_DEFAULT_ICON_KEY,
+				iconColor: GROUP_DEFAULT_ICON_COLOR,
+				iconBgColor: GROUP_DEFAULT_ICON_BG_COLOR,
+			});
+
+			const preferredGroupId = String(options?.activeGroupId || '').trim();
+			const hasPreferred = preferredGroupId
+				? filteredGroups.some((group) => String(group.id) === preferredGroupId)
+				: false;
+			setActiveManageGroupId(
+				hasPreferred
+					? preferredGroupId
+					: filteredGroups[0]
+						? String(filteredGroups[0].id)
+						: null,
+			);
+			setIsManageGroupsDialogOpen(true);
+		},
+		[filteredGroups, getGroupAppearanceFromGroup],
+	);
 
 	const handleHeaderManageGroups = () => {
-		setIsHeaderMenuOpen(false);
-		feedback.notify('Use the edit and delete icons next to each group to manage groups.');
+		openManageGroupsDialog();
 	};
 
-	const handleHeaderGroupSettings = () => {
-		setIsHeaderMenuOpen(false);
-		feedback.notify('Group settings are coming soon.');
+	const handleCreateGroupFromManageDialog = async () => {
+		const nextName = manageNewGroupName.trim();
+		if (!nextName) {
+			feedback.notify('Enter a group name.');
+			return;
+		}
+
+		const duplicateName = orderedManageGroups.some(
+			(group) => String(group.name || '').trim().toLowerCase() === nextName.toLowerCase(),
+		);
+		if (duplicateName) {
+			feedback.notify('A group with this name already exists.');
+			return;
+		}
+
+		setIsCreatingManageGroup(true);
+		try {
+			const createdGroup = await handleAddGroup(nextName, {
+				description: manageNewGroupDescription,
+				defaultCollapsed: manageNewGroupDefaultCollapsed,
+				groupIconKey: manageNewGroupAppearance.iconKey,
+				groupIconColor: manageNewGroupAppearance.iconColor,
+				groupIconBgColor: manageNewGroupAppearance.iconBgColor,
+			});
+			if (!createdGroup?.id) {
+				return;
+			}
+
+			const createdGroupId = String(createdGroup.id);
+			setManageGroupNames((previous) => ({
+				...previous,
+				[createdGroupId]: nextName,
+			}));
+			setManageGroupDescriptions((previous) => ({
+				...previous,
+				[createdGroupId]: manageNewGroupDescription.trim(),
+			}));
+			setManageGroupDefaultCollapsed((previous) => ({
+				...previous,
+				[createdGroupId]: manageNewGroupDefaultCollapsed,
+			}));
+			setManageGroupOrder((previousOrder) => {
+				if (previousOrder.includes(createdGroupId)) {
+					return previousOrder;
+				}
+				return [...previousOrder, createdGroupId];
+			});
+			setManageDialogGroups((previousGroups) => [
+				...previousGroups,
+				{ ...createdGroup, properties: createdGroup.properties || [] },
+			]);
+			setManageGroupAppearanceDrafts((previousDrafts) => ({
+				...previousDrafts,
+				[createdGroupId]: {
+					...manageNewGroupAppearance,
+				},
+			}));
+			setManageGroupsView('reorder');
+			setActiveManageGroupId(createdGroupId);
+			setManageNewGroupName('');
+			setManageNewGroupDescription('');
+			setManageNewGroupDefaultCollapsed(false);
+			setManageNewGroupAppearance({
+				iconKey: GROUP_DEFAULT_ICON_KEY,
+				iconColor: GROUP_DEFAULT_ICON_COLOR,
+				iconBgColor: GROUP_DEFAULT_ICON_BG_COLOR,
+			});
+		} finally {
+			setIsCreatingManageGroup(false);
+		}
 	};
 
-	const handleGroupSettings = () => {
+	const handleMoveManageGroup = (groupId: string, direction: -1 | 1) => {
+		setManageGroupOrder((previousOrder) => {
+			const index = previousOrder.indexOf(groupId);
+			if (index === -1) return previousOrder;
+			const nextIndex = index + direction;
+			if (nextIndex < 0 || nextIndex >= previousOrder.length) return previousOrder;
+
+			const reordered = [...previousOrder];
+			const [moved] = reordered.splice(index, 1);
+			reordered.splice(nextIndex, 0, moved);
+			return reordered;
+		});
+	};
+
+	const handleDragStartManageGroup = (groupId: string) => {
+		setDraggingManageGroupId(groupId);
+	};
+
+	const handleDropManageGroup = (targetGroupId: string) => {
+		if (!draggingManageGroupId || draggingManageGroupId === targetGroupId) {
+			setDraggingManageGroupId(null);
+			return;
+		}
+
+		setManageGroupOrder((previousOrder) => {
+			const sourceIndex = previousOrder.indexOf(draggingManageGroupId);
+			const targetIndex = previousOrder.indexOf(targetGroupId);
+			if (sourceIndex === -1 || targetIndex === -1) {
+				return previousOrder;
+			}
+
+			const reordered = [...previousOrder];
+			const [moved] = reordered.splice(sourceIndex, 1);
+			reordered.splice(targetIndex, 0, moved);
+			return reordered;
+		});
+		setDraggingManageGroupId(null);
+	};
+
+	useEffect(() => {
+		if (!orderedManageGroups.length) {
+			setActiveManageGroupId(null);
+			return;
+		}
+
+		if (
+			activeManageGroupId &&
+			orderedManageGroups.some(
+				(group) => String(group.id) === String(activeManageGroupId),
+			)
+		) {
+			return;
+		}
+
+		setActiveManageGroupId(String(orderedManageGroups[0].id));
+	}, [activeManageGroupId, orderedManageGroups]);
+
+	const handleSaveManageGroups = async () => {
+		setIsSavingManageGroups(true);
+		try {
+			for (let index = 0; index < orderedManageGroups.length; index += 1) {
+				const group = orderedManageGroups[index];
+				const groupId = String(group.id);
+				const nextName = String(manageGroupNames[groupId] || '').trim();
+				const nextDescription = String(
+					manageGroupDescriptions[groupId] || '',
+				).trim();
+				const nextDefaultCollapsed = Boolean(
+					manageGroupDefaultCollapsed[groupId],
+				);
+				const appearanceDraft = getGroupAppearanceDraft(group);
+				const nextIconKey = appearanceDraft.iconKey;
+				const nextIconColor = appearanceDraft.iconColor;
+				const nextIconBgColor = appearanceDraft.iconBgColor;
+				const currentAppearance = getGroupAppearanceFromGroup(group);
+				const nextSortOrder = index;
+				const hasNameChange = nextName.length > 0 && nextName !== group.name;
+				const hasDescriptionChange =
+					nextDescription !== String(group.description || '').trim();
+				const hasDefaultCollapsedChange =
+					nextDefaultCollapsed !== Boolean(group.defaultCollapsed);
+				const hasSortOrderChange = Number(group.sortOrder ?? -1) !== nextSortOrder;
+				const hasAppearanceChange =
+					nextIconKey !== currentAppearance.iconKey ||
+					nextIconColor !== currentAppearance.iconColor ||
+					nextIconBgColor !== currentAppearance.iconBgColor;
+
+				if (
+					!hasNameChange &&
+					!hasDescriptionChange &&
+					!hasDefaultCollapsedChange &&
+					!hasSortOrderChange &&
+					!hasAppearanceChange
+				)
+					continue;
+
+				const updates: {
+					name?: string;
+					description?: string;
+					sortOrder?: number;
+					defaultCollapsed?: boolean;
+					groupIconKey?: PropertyGroupIconKey;
+					groupIconColor?: string;
+					groupIconBgColor?: string;
+				} = {
+					sortOrder: nextSortOrder,
+					description: nextDescription,
+					defaultCollapsed: nextDefaultCollapsed,
+					groupIconKey: nextIconKey,
+					groupIconColor: nextIconColor,
+					groupIconBgColor: nextIconBgColor,
+				};
+				if (hasNameChange) {
+					updates.name = nextName;
+				}
+
+				await updatePropertyGroup({
+					id: groupId,
+					updates,
+				}).unwrap();
+			}
+
+			feedback.notify('Group updates saved.');
+			setManageDialogGroups((previousGroups) =>
+				previousGroups.map((group, index) => {
+					const groupId = String(group.id);
+					const appearanceDraft = getGroupAppearanceDraft(group);
+					return {
+						...group,
+						name: manageGroupNames[groupId] || group.name,
+						description: manageGroupDescriptions[groupId] || '',
+						defaultCollapsed: Boolean(
+							manageGroupDefaultCollapsed[groupId],
+						),
+						sortOrder: index,
+						groupIconKey: appearanceDraft.iconKey,
+						groupIconColor: appearanceDraft.iconColor,
+						groupIconBgColor: appearanceDraft.iconBgColor,
+					};
+				}),
+			);
+			setIsManageGroupsDialogOpen(false);
+		} catch (error) {
+			console.error('Failed to save group updates:', error);
+			feedback.notify('Unable to save group updates. Please try again.');
+		} finally {
+			setIsSavingManageGroups(false);
+		}
+	};
+
+	const handleManageGroupsSubmit = async () => {
+		if (manageGroupsView === 'create') return;
+		await handleSaveManageGroups();
+	};
+
+	const handleTransferGroupProperties = async (sourceGroupId: string) => {
+		const targetGroupId = String(transferTargets[sourceGroupId] || '').trim();
+		if (!targetGroupId || targetGroupId === sourceGroupId) {
+			feedback.notify('Choose another group to transfer properties.');
+			return;
+		}
+
+		const sourceGroup = orderedManageGroups.find(
+			(group) => String(group.id) === sourceGroupId,
+		);
+		const sourceProperties = sourceGroup?.properties || [];
+		if (sourceProperties.length === 0) {
+			feedback.notify('This group has no properties to transfer.');
+			return;
+		}
+		const targetGroup = orderedManageGroups.find(
+			(group) => String(group.id) === targetGroupId,
+		);
+		if (
+			!window.confirm(
+				`Move ${sourceProperties.length} ${sourceProperties.length === 1 ? 'property' : 'properties'
+				} from "${sourceGroup?.name || 'this group'}" to "${targetGroup?.name || 'the selected group'
+				}"?`,
+			)
+		) {
+			return;
+		}
+
+		setIsSavingManageGroups(true);
+		try {
+			await Promise.all(
+				sourceProperties.map((property) =>
+					updateProperty({
+						id: String(property.id),
+						updates: { groupId: targetGroupId },
+					}).unwrap(),
+				),
+			);
+
+			setTransferTargets((previousTargets) => ({
+				...previousTargets,
+				[sourceGroupId]: '',
+			}));
+			setSelectedTransferPropertyIds([]);
+			setSelectedTransferTargetId('');
+			setManageDialogGroups((previousGroups) =>
+				previousGroups.map((group) =>
+					String(group.id) === sourceGroupId
+						? { ...group, properties: [] }
+						: String(group.id) === targetGroupId
+							? {
+								...group,
+								properties: [
+									...(group.properties || []),
+									...sourceProperties.map((property) => ({
+										...property,
+										groupId: targetGroupId,
+									})),
+								],
+							}
+							: group,
+				),
+			);
+			feedback.notify('Properties transferred successfully.');
+		} catch (error) {
+			console.error('Failed to transfer properties:', error);
+			feedback.notify('Unable to transfer properties. Please try again.');
+		} finally {
+			setIsSavingManageGroups(false);
+		}
+	};
+
+	const handleTransferSelectedProperties = async (
+		sourceGroupId: string,
+		sourceProperties: Property[],
+	) => {
+		const targetGroupId = selectedTransferTargetId.trim();
+		const selectedIds = new Set(selectedTransferPropertyIds);
+		const propertiesToMove = sourceProperties.filter((property) =>
+			selectedIds.has(String(property.id)),
+		);
+		if (!targetGroupId || targetGroupId === sourceGroupId) {
+			feedback.notify('Choose another group for the selected properties.');
+			return;
+		}
+		if (propertiesToMove.length === 0) {
+			feedback.notify('Select at least one property to move.');
+			return;
+		}
+
+		setIsSavingManageGroups(true);
+		try {
+			await Promise.all(
+				propertiesToMove.map((property) =>
+					updateProperty({
+						id: String(property.id),
+						updates: { groupId: targetGroupId },
+					}).unwrap(),
+				),
+			);
+
+			setManageDialogGroups((previousGroups) =>
+				previousGroups.map((group) => {
+					const groupId = String(group.id);
+					if (groupId === sourceGroupId) {
+						return {
+							...group,
+							properties: (group.properties || []).filter(
+								(item: Property) => !selectedIds.has(String(item.id)),
+							),
+						};
+					}
+					if (groupId === targetGroupId) {
+						return {
+							...group,
+							properties: [
+								...(group.properties || []),
+								...propertiesToMove.map((property) => ({
+									...property,
+									groupId: targetGroupId,
+								})),
+							],
+						};
+					}
+					return group;
+				}),
+			);
+			setSelectedTransferPropertyIds([]);
+			setSelectedTransferTargetId('');
+			feedback.notify(
+				`${propertiesToMove.length} ${propertiesToMove.length === 1 ? 'property' : 'properties'
+				} moved successfully.`,
+			);
+		} catch (error) {
+			console.error('Failed to move selected properties:', error);
+			feedback.notify('Unable to move the selected properties. Please try again.');
+		} finally {
+			setIsSavingManageGroups(false);
+		}
+	};
+
+	const handleTransferAllAndDeleteGroup = async (sourceGroupId: string) => {
+		const targetGroupId = String(transferTargets[sourceGroupId] || '').trim();
+		const sourceGroup = orderedManageGroups.find(
+			(group) => String(group.id) === sourceGroupId,
+		);
+		const targetGroup = orderedManageGroups.find(
+			(group) => String(group.id) === targetGroupId,
+		);
+		const sourceProperties = sourceGroup?.properties || [];
+
+		if (!targetGroupId || targetGroupId === sourceGroupId || !targetGroup) {
+			feedback.notify('Choose another group for these properties.');
+			return;
+		}
+		if (
+			!window.confirm(
+				`Move all ${sourceProperties.length} ${sourceProperties.length === 1 ? 'property' : 'properties'
+				} to "${targetGroup.name}", then delete "${sourceGroup?.name || 'this group'
+				}"?`,
+			)
+		) {
+			return;
+		}
+
+		setIsSavingManageGroups(true);
+		try {
+			await Promise.all(
+				sourceProperties.map((property: Property) =>
+					updateProperty({
+						id: String(property.id),
+						updates: { groupId: targetGroupId },
+					}).unwrap(),
+				),
+			);
+			await deletePropertyGroup(sourceGroupId).unwrap();
+
+			setManageDialogGroups((previousGroups) =>
+				previousGroups
+					.filter((group) => String(group.id) !== sourceGroupId)
+					.map((group) =>
+						String(group.id) === targetGroupId
+							? {
+								...group,
+								properties: [
+									...(group.properties || []),
+									...sourceProperties.map((property: Property) => ({
+										...property,
+										groupId: targetGroupId,
+									})),
+								],
+							}
+							: group,
+					),
+			);
+			setManageGroupOrder((previous) =>
+				previous.filter((groupId) => groupId !== sourceGroupId),
+			);
+			setTransferTargets((previous) => {
+				const next = { ...previous };
+				delete next[sourceGroupId];
+				return next;
+			});
+			setSelectedTransferPropertyIds([]);
+			setSelectedTransferTargetId('');
+			setActiveManageGroupId(targetGroupId);
+			setManageGroupsView('reorder');
+			feedback.notify(
+				`Properties moved to "${targetGroup.name}" and group deleted.`,
+			);
+		} catch (error) {
+			console.error('Failed to move properties and delete group:', error);
+			feedback.notify(
+				'Unable to finish moving properties and deleting the group. Please try again.',
+			);
+		} finally {
+			setIsSavingManageGroups(false);
+		}
+	};
+
+	const handleGroupSettings = (groupId: string) => {
 		setOpenGroupMenuId(null);
-		feedback.notify('Group settings are coming soon.');
+		openManageGroupsDialog({
+			view: 'details',
+			activeGroupId: groupId,
+		});
 	};
 
 	const handleDeleteProperty = async (propertyId: string) => {
@@ -974,18 +1729,18 @@ export const Properties = () => {
 	}, [isUserTenant, tenantAssignedProperties, filteredGroups]);
 
 	const singleVisibleProperty = visibleProperties.length === 1 ? visibleProperties[0] : null;
-	
+
 	// Only redirect to single property if user has NO remaining capacity on their plan
 	// This allows property managers to see the "Add Property" button when they have plan capacity
 	const hasRemainingCapacity = useMemo(() => {
 		if (!currentUser?.subscription) return false;
 		return getRemainingPropertySlots(currentUser.subscription, visibleProperties.length) > 0;
 	}, [currentUser, visibleProperties.length]);
-	
-	const singlePropertyRoute = 
+
+	const singlePropertyRoute =
 		singleVisibleProperty && !hasRemainingCapacity
 			? getTenantUnitRoute(singleVisibleProperty) ||
-			  `/property/${singleVisibleProperty.slug}`
+			`/property/${singleVisibleProperty.slug}`
 			: null;
 
 	const handleConfirmDeleteProperty = async () => {
@@ -1028,6 +1783,14 @@ export const Properties = () => {
 	};
 
 	const handleDeleteGroup = async (groupId: string) => {
+		const targetGroup =
+			orderedManageGroups.find((group) => String(group.id) === groupId) ||
+			filteredGroups.find((group) => String(group.id) === groupId);
+		if ((targetGroup?.properties || []).length > 0) {
+			feedback.notify('Move properties out of this group before deleting it.');
+			return;
+		}
+
 		if (
 			!window.confirm('Are you sure you want to delete this property group?')
 		) {
@@ -1036,6 +1799,40 @@ export const Properties = () => {
 		try {
 			const groupToDelete = propertyGroups.find((g) => g.id === groupId);
 			await deletePropertyGroup(groupId).unwrap();
+			setManageDialogGroups((previousGroups) =>
+				previousGroups.filter((group) => String(group.id) !== groupId),
+			);
+			setManageGroupOrder((previousOrder) =>
+				previousOrder.filter((id) => String(id) !== groupId),
+			);
+			setTransferTargets((previousTargets) => {
+				const nextTargets = { ...previousTargets };
+				delete nextTargets[groupId];
+				return nextTargets;
+			});
+			setManageGroupNames((previousNames) => {
+				const nextNames = { ...previousNames };
+				delete nextNames[groupId];
+				return nextNames;
+			});
+			setManageGroupDescriptions((previousDescriptions) => {
+				const nextDescriptions = { ...previousDescriptions };
+				delete nextDescriptions[groupId];
+				return nextDescriptions;
+			});
+			setManageGroupDefaultCollapsed((previousSettings) => {
+				const nextSettings = { ...previousSettings };
+				delete nextSettings[groupId];
+				return nextSettings;
+			});
+			setManageGroupAppearanceDrafts((previousDrafts) => {
+				const nextDrafts = { ...previousDrafts };
+				delete nextDrafts[groupId];
+				return nextDrafts;
+			});
+			setActiveManageGroupId((previousId) =>
+				previousId === groupId ? null : previousId,
+			);
 
 			// Create notification for property group deletion
 			try {
@@ -1057,6 +1854,8 @@ export const Properties = () => {
 			} catch (notifError) {
 				console.error('Notification failed:', notifError);
 			}
+
+			feedback.notify('Group deleted.');
 		} catch (error) {
 			console.error('Failed to delete property group:', error);
 			feedback.notify('Failed to delete property group. Please try again.');
@@ -1248,8 +2047,8 @@ export const Properties = () => {
 
 			const mappedDeviceIds = Array.isArray(devices)
 				? devices
-						.map((deviceId: string) => deviceIdMap.get(String(deviceId)))
-						.filter(Boolean)
+					.map((deviceId: string) => deviceIdMap.get(String(deviceId)))
+					.filter(Boolean)
 				: [];
 
 			const clonedTask = stripUndefinedValues({
@@ -1281,7 +2080,7 @@ export const Properties = () => {
 		if (
 			propertyToDuplicate &&
 			normalizedName.toLowerCase() ===
-				String(propertyToDuplicate.title || '').trim().toLowerCase()
+			String(propertyToDuplicate.title || '').trim().toLowerCase()
 		) {
 			feedback.notify('Please choose a new name for the duplicated property.');
 			throw new Error('Duplicate property name must be changed');
@@ -1400,8 +2199,8 @@ export const Properties = () => {
 				const maxProperties = planDetails?.maxProperties || 1;
 				feedback.notify(
 					`Your ${planDetails?.name || 'current'} plan allows up to ${maxProperties} properties. ` +
-						`You currently have ${totalProperties} properties. ` +
-						`Please upgrade your plan to add more properties.`,
+					`You currently have ${totalProperties} properties. ` +
+					`Please upgrade your plan to add more properties.`,
 				);
 				throw new Error('Property limit reached');
 			}
@@ -1483,14 +2282,12 @@ export const Properties = () => {
 
 						const copiedDetails = [
 							copiedApplianceCount > 0
-								? `${copiedApplianceCount} ${
-										copiedApplianceCount === 1 ? 'appliance' : 'appliances'
-								  }`
+								? `${copiedApplianceCount} ${copiedApplianceCount === 1 ? 'appliance' : 'appliances'
+								}`
 								: null,
 							copiedTaskCount > 0
-								? `${copiedTaskCount} ${
-										copiedTaskCount === 1 ? 'task' : 'tasks'
-								  }`
+								? `${copiedTaskCount} ${copiedTaskCount === 1 ? 'task' : 'tasks'
+								}`
 								: null,
 						].filter(Boolean);
 
@@ -1555,12 +2352,12 @@ export const Properties = () => {
 			: 'noProperties';
 		const zeroStateActions = !isUserTenant && !isTeamMemberAccount && canManage
 			? [
-					{
-						label: 'Add Property',
-						onClick: handleAddPropertyGlobalClick,
-						variant: 'primary' as const,
-					},
-			  ]
+				{
+					label: 'Add Property',
+					onClick: handleAddPropertyGlobalClick,
+					variant: 'primary' as const,
+				},
+			]
 			: [];
 
 		return (
@@ -1644,14 +2441,14 @@ export const Properties = () => {
 									</HeaderMenuButton>
 									{isHeaderMenuOpen && (
 										<HeaderDropdownMenu>
-											<HeaderDropdownItem onClick={handleHeaderCreateGroup}>
+											{/* <HeaderDropdownItem onClick={handleHeaderCreateGroup}>
 												<HeaderDropdownIcon>
 													<FontAwesomeIcon icon={faFolderPlus} />
 												</HeaderDropdownIcon>
 												<div>
 													<HeaderDropdownTitle>Create Group</HeaderDropdownTitle>
 												</div>
-											</HeaderDropdownItem>
+											</HeaderDropdownItem> */}
 											<HeaderDropdownItem onClick={handleHeaderManageGroups}>
 												<HeaderDropdownIcon>
 													<FontAwesomeIcon icon={faUsers} />
@@ -1669,7 +2466,7 @@ export const Properties = () => {
 													<HeaderDropdownTitle>Collapse All Groups</HeaderDropdownTitle>
 												</div>
 											</HeaderDropdownItem>
-											<HeaderDropdownItem onClick={handleHeaderGroupSettings}>
+											{/* <HeaderDropdownItem onClick={handleHeaderGroupSettings}>
 												<HeaderDropdownIcon>
 													<FontAwesomeIcon icon={faGear} />
 												</HeaderDropdownIcon>
@@ -1677,7 +2474,7 @@ export const Properties = () => {
 													<HeaderDropdownTitle>Group Settings</HeaderDropdownTitle>
 													<HeaderDropdownHint>Default group for new properties</HeaderDropdownHint>
 												</div>
-											</HeaderDropdownItem>
+											</HeaderDropdownItem> */}
 										</HeaderDropdownMenu>
 									)}
 								</HeaderMenuWrap>
@@ -1788,7 +2585,7 @@ export const Properties = () => {
 					propertyToDuplicate
 						? duplicateInitialData
 						: selectedPropertyForEdit
-						? {
+							? {
 								name: selectedPropertyForEdit.title,
 								photo: selectedPropertyForEdit.image,
 								owner: selectedPropertyForEdit.owner || '',
@@ -1811,8 +2608,8 @@ export const Properties = () => {
 								coOwners: selectedPropertyForEdit.coOwners || [],
 								administrators: selectedPropertyForEdit.administrators || [],
 								viewers: selectedPropertyForEdit.viewers || [],
-						  }
-						: undefined
+							}
+							: undefined
 				}
 				isDuplicate={!!propertyToDuplicate}
 				duplicateSourceName={propertyToDuplicate?.title}
@@ -1825,13 +2622,13 @@ export const Properties = () => {
 				isHiddenFromDashboard={
 					selectedPropertyForEdit
 						? currentUser?.hiddenPropertyIds?.includes(
-								selectedPropertyForEdit.id,
-						  )
+							selectedPropertyForEdit.id,
+						)
 						: false
 				}
 			/>
 			<GroupsContainer>
-				{displayedPropertyCount === 0 && (
+				{displayedGroups.length === 0 && (
 					<AppZeroState
 						kind='noPropertyMatches'
 						actions={[
@@ -1842,77 +2639,86 @@ export const Properties = () => {
 						]}
 					/>
 				)}
-				{displayedGroups.map((group) => (
-					<GroupSection key={group.id}>
-						<GroupHeader>
-							<div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
-								<CollapseToggle
-									onClick={() => handleToggleCollapse(group.id as any)}
-									title={collapsedGroups.has(group.id as any) ? 'Expand group' : 'Collapse group'}>
-									<FontAwesomeIcon icon={collapsedGroups.has(group.id as any) ? faChevronDown : faChevronUp} />
-								</CollapseToggle>
-								{editingGroupId === group.id ? (
-									<GroupNameInput
-										type='text'
-										value={editingGroupName}
-										onChange={(e) => setEditingGroupName(e.target.value)}
-										onBlur={() => handleToggleEditName(group.id as any)}
-										onKeyDown={(e) => {
-											if (e.key === 'Enter') {
-												handleToggleEditName(group.id as any);
-											}
-										}}
-										autoFocus
-									/>
-								) : (
-									<GroupName>
-										{group.name}
-										<GroupCountBadge>
-											{(group.properties || []).length}
-										</GroupCountBadge>
-									</GroupName>
-								)}
-							</div>
-							<HeaderRight>
-								{canManageGroups && (
-									<GroupActions>
-										<GroupActionMenu
-											title='Group actions'
-											onClick={() =>
-												setOpenGroupMenuId(
-													openGroupMenuId === group.id ? null : (group.id as string),
-												)
-											}>
-											<FontAwesomeIcon icon={faEllipsisVertical} />
-										</GroupActionMenu>
-										{openGroupMenuId === group.id && (
-											<DropdownMenu
-												onClick={(e) => e.stopPropagation()}
-												style={{ top: '36px', right: '0' }}>
-												<DropdownItem
-													onClick={() => {
-														handleToggleEditName(group.id as any);
-														setOpenGroupMenuId(null);
-													}}>
-													Edit Group
-												</DropdownItem>
-												<DropdownItem onClick={handleGroupSettings}>
-													Group Settings
-												</DropdownItem>
-												<DropdownItem
-													onClick={() => {
-														handleDeleteGroup(group.id as any);
-														setOpenGroupMenuId(null);
-													}}
-													style={{ color: '#ef4444' }}>
-													Delete Group
-												</DropdownItem>
-											</DropdownMenu>
-										)}
-									</GroupActions>
-								)}
-							</HeaderRight>
-						</GroupHeader>
+				{displayedGroups.map((group) => {
+					const groupAppearance = getGroupAppearanceFromGroup(group);
+					return (
+						<GroupSection key={group.id}>
+							<GroupHeader>
+								<div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
+									<CollapseToggle
+										onClick={() => handleToggleCollapse(group.id as any)}
+										title={collapsedGroups.has(group.id as any) ? 'Expand group' : 'Collapse group'}>
+										<FontAwesomeIcon icon={collapsedGroups.has(group.id as any) ? faChevronDown : faChevronUp} />
+									</CollapseToggle>
+									<GroupIconBadge
+										$background={groupAppearance.iconBgColor}
+										$color={groupAppearance.iconColor}
+										aria-hidden='true'>
+										<FontAwesomeIcon
+											icon={getGroupIconByKey(groupAppearance.iconKey)}
+										/>
+									</GroupIconBadge>
+									{editingGroupId === group.id ? (
+										<GroupNameInput
+											type='text'
+											value={editingGroupName}
+											onChange={(e) => setEditingGroupName(e.target.value)}
+											onBlur={() => handleToggleEditName(group.id as any)}
+											onKeyDown={(e) => {
+												if (e.key === 'Enter') {
+													handleToggleEditName(group.id as any);
+												}
+											}}
+											autoFocus
+										/>
+									) : (
+										<GroupTitleBlock>
+											<GroupName>
+												{group.name}
+												<GroupCountBadge>
+													{(group.properties || []).length}
+												</GroupCountBadge>
+											</GroupName>
+											{group.description && (
+												<GroupDescription>{group.description}</GroupDescription>
+											)}
+										</GroupTitleBlock>
+									)}
+								</div>
+								<HeaderRight>
+									{canManageGroups && (
+										<GroupActions>
+											<GroupActionMenu
+												title='Group actions'
+												onClick={() =>
+													setOpenGroupMenuId(
+														openGroupMenuId === group.id ? null : (group.id as string),
+													)
+												}>
+												<FontAwesomeIcon icon={faEllipsisVertical} />
+											</GroupActionMenu>
+											{openGroupMenuId === group.id && (
+												<DropdownMenu
+													onClick={(e) => e.stopPropagation()}
+													style={{ top: '36px', right: '0' }}>
+													<DropdownItem
+														onClick={() => handleGroupSettings(String(group.id))}>
+														Group Settings
+													</DropdownItem>
+													<DropdownItem
+														onClick={() => {
+															handleDeleteGroup(group.id as any);
+															setOpenGroupMenuId(null);
+														}}
+														style={{ color: '#ef4444' }}>
+														Delete Group
+													</DropdownItem>
+												</DropdownMenu>
+											)}
+										</GroupActions>
+									)}
+								</HeaderRight>
+							</GroupHeader>
 							{!collapsedGroups.has(group.id as any) && (
 								<PropertiesGrid
 									$isHomeowner={isHomeowner}
@@ -1923,109 +2729,114 @@ export const Properties = () => {
 										const propertyPillLabel = getPropertyPillLabel(property);
 										const propertyImageSrc = getPropertyImageSrc(property.image);
 										const isFallbackImage = isPropertyImageFallback(property.image);
-
 										return (
-								<PropertyTile
-									key={property.id}
-									onClick={() => {
-										addRecentlyViewed({
-											id: property.id,
-											title: property.title,
-											slug: property.slug,
-										});
-										const tenantUnitRoute = getTenantUnitRoute(property);
-										navigate(tenantUnitRoute || `/property/${property.slug}`);
-									}}>
-										<PropertyImageWrap>
-											<PropertyImage
-												$isFallback={isFallbackImage}
-												src={propertyImageSrc}
-												alt={property.title}
-											/>
-											<PropertyTopBadge
-												onClick={(e) => {
-													e.preventDefault();
-													e.stopPropagation();
-													toggleFavorite({
-														id: property.id as any,
+											<PropertyTile
+												key={property.id}
+												onClick={() => {
+													addRecentlyViewed({
+														id: property.id,
 														title: property.title,
 														slug: property.slug,
 													});
-												}}
-												title={isFavorite(property.id as any) ? 'Remove from favorites' : 'Add to favorites'}>
-												<FontAwesomeIcon icon={faHouse} />
-											</PropertyTopBadge>
-											<PropertyTopMenu>
-												<DropdownToggle
-													onClick={(e) => {
-														e.stopPropagation();
-														setOpenDropdown(
-															openDropdown === `${group.id}-${property.id}`
-																? null
-																: `${group.id}-${property.id}`,
-														);
-													}}>
-													<FontAwesomeIcon icon={faEllipsis} />
-												</DropdownToggle>
-											</PropertyTopMenu>
-										</PropertyImageWrap>
-										<PropertyBody>
-											<div>
-												<PropertyTitle
-													onClick={(e) => {
-														e.stopPropagation();
-														addRecentlyViewed({
-															id: property.id as any,
-															title: property.title,
-															slug: property.slug,
-														});
-													}}>
-													{address.primary}
-												</PropertyTitle>
-												<PropertyAddress>
-													<FontAwesomeIcon icon={faLocationDot} />
-													<span>{address.secondary || property.title}</span>
-												</PropertyAddress>
-											</div>
-											<PropertyLabelBadge>{propertyPillLabel}</PropertyLabelBadge>
-										</PropertyBody>
-										<PropertyMetaRow>
-											{metrics.map((metric) => (
-												<PropertyMetaItem key={`${property.id}-${metric.label}`} $color={metric.color}>
-													<FontAwesomeIcon icon={metric.icon} />
-													<PropertyMetaText>
-														<strong>{metric.value}</strong> {metric.label}
-													</PropertyMetaText>
-												</PropertyMetaItem>
-											))}
-										</PropertyMetaRow>
-										{openDropdown === `${group.id}-${property.id}` &&
-											canManage && (
-												<DropdownMenu onClick={(e) => e.stopPropagation()}>
-													<DropdownItem
-														onClick={() =>
-															handleEditPropertyClick(group.id as any, property)
-														}>
-														Edit
-													</DropdownItem>
-													<DropdownItem
-														onClick={() =>
-															handleDuplicatePropertyClick(group.id as any, property)
-														}>
-														Duplicate
-													</DropdownItem>
-													{canDeleteProperty(currentUser!.id, property) && (
-														<DropdownItem
-															onClick={() =>
-																handleDeleteProperty(property.id as any)
-															}
-															style={{ color: '#ef4444' }}>
-															Delete
-														</DropdownItem>
+													const tenantUnitRoute = getTenantUnitRoute(property);
+													navigate(tenantUnitRoute || `/property/${property.slug}`);
+												}}>
+												<PropertyImageWrap>
+													<PropertyImage
+														$isFallback={isFallbackImage}
+														src={propertyImageSrc}
+														alt={property.title}
+													/>
+													<PropertyTopBadge
+														onClick={(e) => {
+															e.preventDefault();
+															e.stopPropagation();
+															toggleFavorite({
+																id: property.id as any,
+																title: property.title,
+																slug: property.slug,
+															});
+														}}
+														style={{
+															background: groupAppearance.iconBgColor,
+														}}
+														title={isFavorite(property.id as any) ? 'Remove from favorites' : 'Add to favorites'}>
+														<FontAwesomeIcon
+															icon={getGroupIconByKey(groupAppearance.iconKey)}
+															style={{ color: groupAppearance.iconColor }}
+														/>
+													</PropertyTopBadge>
+													<PropertyTopMenu>
+														<DropdownToggle
+															onClick={(e) => {
+																e.stopPropagation();
+																setOpenDropdown(
+																	openDropdown === `${group.id}-${property.id}`
+																		? null
+																		: `${group.id}-${property.id}`,
+																);
+															}}>
+															<FontAwesomeIcon icon={faEllipsis} />
+														</DropdownToggle>
+													</PropertyTopMenu>
+												</PropertyImageWrap>
+												<PropertyBody>
+													<div>
+														<PropertyTitle
+															onClick={(e) => {
+																e.stopPropagation();
+																addRecentlyViewed({
+																	id: property.id as any,
+																	title: property.title,
+																	slug: property.slug,
+																});
+															}}>
+															{address.primary}
+														</PropertyTitle>
+														<PropertyAddress>
+															<FontAwesomeIcon icon={faLocationDot} />
+															<span>{address.secondary || property.title}</span>
+														</PropertyAddress>
+													</div>
+													<PropertyLabelBadge>{propertyPillLabel}</PropertyLabelBadge>
+												</PropertyBody>
+												<PropertyMetaRow>
+													{metrics.map((metric) => (
+														<PropertyMetaItem key={`${property.id}-${metric.label}`} $color={metric.color}>
+															<FontAwesomeIcon icon={metric.icon} />
+															<PropertyMetaText>
+																<strong>{metric.value}</strong> {metric.label}
+															</PropertyMetaText>
+														</PropertyMetaItem>
+													))}
+												</PropertyMetaRow>
+												{openDropdown === `${group.id}-${property.id}` &&
+													canManage && (
+														<DropdownMenu onClick={(e) => e.stopPropagation()}>
+															<DropdownItem
+																onClick={() =>
+																	handleEditPropertyClick(group.id as any, property)
+																}>
+																Edit
+															</DropdownItem>
+															<DropdownItem
+																onClick={() =>
+																	handleDuplicatePropertyClick(group.id as any, property)
+																}>
+																Duplicate
+															</DropdownItem>
+															{canDeleteProperty(currentUser!.id, property) && (
+																<DropdownItem
+																	onClick={() =>
+																		handleDeleteProperty(property.id as any)
+																	}
+																	style={{ color: '#ef4444' }}>
+																	Delete
+																</DropdownItem>
+															)}
+														</DropdownMenu>
 													)}
-												</DropdownMenu>
-											)}
-								</PropertyTile>
+											</PropertyTile>
 										);
 									})}
 									{canManage && (
@@ -2041,9 +2852,906 @@ export const Properties = () => {
 									)}
 								</PropertiesGrid>
 							)}
-					</GroupSection>
-				))}
+						</GroupSection>
+					);
+				})}
 			</GroupsContainer>
+
+			<GenericModal
+				isOpen={isManageGroupsDialogOpen}
+				title='Manage Property Groups'
+				onClose={() => {
+					if (isSavingManageGroups || isCreatingManageGroup) return;
+					setIsManageGroupsDialogOpen(false);
+				}}
+				onSubmit={handleManageGroupsSubmit}
+				showActions={true}
+				isLoading={isSavingManageGroups || isCreatingManageGroup}
+				primaryButtonLabel={
+					isSavingManageGroups ? 'Saving...' : 'Save Changes'
+				}
+				primaryButtonDisabled={orderedManageGroups.some(
+					(group) =>
+						!String(manageGroupNames[String(group.id)] || '').trim(),
+				) || manageGroupsView === 'create'}
+				secondaryButtonLabel='Close'>
+				<ManageGroupsStack>
+					<ManageGroupsToolbar>
+						{manageGroupsView === 'reorder' && (
+							<SecondaryButton
+								type='button'
+								onClick={() => setManageGroupsView('create')}>
+								Create Group
+							</SecondaryButton>
+						)}
+					</ManageGroupsToolbar>
+
+					{manageGroupsView === 'reorder' && (
+						<div style={{ fontSize: 12, color: '#64748b' }}>
+							Drag groups into the order you want. On touch screens, use the
+							arrow buttons.
+						</div>
+					)}
+					{manageGroupsView === 'create' ? (
+						<ManageGroupPanel>
+							<ManageGroupPanelHeader>
+								<div>
+									<h4>Create Group</h4>
+									<p>
+										Name the group and choose how it should appear.
+									</p>
+								</div>
+								<SecondaryButton
+									type='button'
+									onClick={() => setManageGroupsView('reorder')}
+									disabled={isCreatingManageGroup}>
+									Back to Groups
+								</SecondaryButton>
+							</ManageGroupPanelHeader>
+							<div>
+								<FormLabel>Group Name</FormLabel>
+								<FormInput
+									type='text'
+									value={manageNewGroupName}
+									onChange={(event) =>
+										setManageNewGroupName(event.target.value)
+									}
+									disabled={isCreatingManageGroup}
+									placeholder='e.g. Rentals, Commercial, Primary Homes'
+									autoFocus
+								/>
+							</div>
+							<div>
+								<FormLabel>Description</FormLabel>
+								<FormTextarea
+									value={manageNewGroupDescription}
+									onChange={(event) =>
+										setManageNewGroupDescription(event.target.value)
+									}
+									disabled={isCreatingManageGroup}
+									maxLength={140}
+									rows={3}
+									placeholder='Optional note about the properties in this group'
+								/>
+							</div>
+							<label
+								style={{
+									display: 'flex',
+									alignItems: 'flex-start',
+									gap: 10,
+									padding: '12px',
+									borderRadius: 10,
+									background: '#f8fafc',
+									cursor: 'pointer',
+								}}>
+								<input
+									type='checkbox'
+									checked={manageNewGroupDefaultCollapsed}
+									onChange={(event) =>
+										setManageNewGroupDefaultCollapsed(
+											event.target.checked,
+										)
+									}
+									disabled={isCreatingManageGroup}
+								/>
+								<span>
+									<strong style={{ display: 'block', fontSize: 13 }}>
+										Start this group collapsed
+									</strong>
+									<span
+										style={{
+											display: 'block',
+											fontSize: 12,
+											color: '#64748b',
+										}}>
+										Useful for less frequently visited groups.
+									</span>
+								</span>
+							</label>
+							<div style={{ display: 'grid', gap: 8 }}>
+								<FormLabel>Icon</FormLabel>
+								<FormSelect
+									value={manageNewGroupAppearance.iconKey}
+									onChange={(event) =>
+										setManageNewGroupAppearance((previous) => ({
+											...previous,
+											iconKey:
+												event.target.value as PropertyGroupIconKey,
+										}))
+									}
+									disabled={isCreatingManageGroup}>
+									{GROUP_ICON_OPTIONS.map((option) => (
+										<option key={option.key} value={option.key}>
+											{option.label}
+										</option>
+									))}
+								</FormSelect>
+							</div>
+							<ManageGroupAppearancePreview>
+								<GroupIconBadge
+									$background={
+										manageNewGroupAppearance.iconBgColor
+									}
+									$color={manageNewGroupAppearance.iconColor}
+									aria-hidden='true'>
+									<FontAwesomeIcon
+										icon={getGroupIconByKey(
+											manageNewGroupAppearance.iconKey,
+										)}
+									/>
+								</GroupIconBadge>
+								<div>
+									<strong>
+										{manageNewGroupName.trim() || 'New Group'}
+									</strong>
+									<span>Live appearance preview</span>
+								</div>
+							</ManageGroupAppearancePreview>
+							<div style={{ display: 'grid', gap: 8 }}>
+								<FormLabel>Color</FormLabel>
+								<div
+									style={{
+										display: 'flex',
+										gap: 8,
+										flexWrap: 'wrap',
+									}}>
+									{GROUP_COLOR_PRESETS.map((preset) => (
+										<button
+											key={`new-${preset.label}`}
+											type='button'
+											onClick={() =>
+												setManageNewGroupAppearance((previous) => ({
+													...previous,
+													iconColor: preset.iconColor,
+													iconBgColor: preset.iconBgColor,
+												}))
+											}
+											disabled={isCreatingManageGroup}
+											style={{
+												padding: '6px 10px',
+												borderRadius: 999,
+												border:
+													manageNewGroupAppearance.iconBgColor ===
+														preset.iconBgColor
+														? '2px solid #0f766e'
+														: '1px solid #e2e8f0',
+												background: '#fff',
+												cursor: 'pointer',
+												fontSize: 12,
+											}}>
+											<span
+												style={{
+													display: 'inline-block',
+													width: 12,
+													height: 12,
+													borderRadius: 999,
+													background: preset.iconBgColor,
+													marginRight: 6,
+													verticalAlign: 'middle',
+												}}
+											/>
+											{preset.label}
+										</button>
+									))}
+								</div>
+							</div>
+							<div
+								style={{
+									display: 'grid',
+									gridTemplateColumns:
+										'repeat(2, minmax(0, 1fr))',
+									gap: 12,
+								}}>
+								<label>
+									<FormLabel>Icon Color</FormLabel>
+									<input
+										type='color'
+										value={manageNewGroupAppearance.iconColor}
+										onChange={(event) =>
+											setManageNewGroupAppearance((previous) => ({
+												...previous,
+												iconColor: event.target.value,
+											}))
+										}
+										disabled={isCreatingManageGroup}
+										style={{ width: '100%', height: 40 }}
+									/>
+								</label>
+								<label>
+									<FormLabel>Background Color</FormLabel>
+									<input
+										type='color'
+										value={manageNewGroupAppearance.iconBgColor}
+										onChange={(event) =>
+											setManageNewGroupAppearance((previous) => ({
+												...previous,
+												iconBgColor: event.target.value,
+											}))
+										}
+										disabled={isCreatingManageGroup}
+										style={{ width: '100%', height: 40 }}
+									/>
+								</label>
+							</div>
+							<SecondaryButton
+								type='button'
+								onClick={handleCreateGroupFromManageDialog}
+								disabled={
+									isCreatingManageGroup ||
+									!manageNewGroupName.trim()
+								}>
+								{isCreatingManageGroup
+									? 'Creating Group...'
+									: 'Create Group'}
+							</SecondaryButton>
+						</ManageGroupPanel>
+					) : manageGroupsView === 'reorder' ? (
+						<ManageGroupList>
+							{orderedManageGroups.map((group, index) => {
+								const groupId = String(group.id);
+								const isDragging = draggingManageGroupId === groupId;
+								const appearance = getGroupAppearanceDraft(group);
+								return (
+									<ManageGroupRow
+										key={groupId}
+										$dragging={isDragging}
+										draggable={!isSavingManageGroups}
+										onDragStart={() => handleDragStartManageGroup(groupId)}
+										onDragOver={(event) => event.preventDefault()}
+										onDrop={() => handleDropManageGroup(groupId)}
+										onDragEnd={() => setDraggingManageGroupId(null)}>
+										<ManageGroupDragHandle title='Drag to reorder'>
+											<FontAwesomeIcon icon={faGripVertical} />
+										</ManageGroupDragHandle>
+										<div
+											style={{
+												width: 38,
+												height: 38,
+												borderRadius: 999,
+												display: 'inline-flex',
+												alignItems: 'center',
+												justifyContent: 'center',
+												background: appearance.iconBgColor,
+												flex: '0 0 38px',
+											}}>
+											<FontAwesomeIcon
+												icon={getGroupIconByKey(appearance.iconKey)}
+												style={{ color: appearance.iconColor }}
+											/>
+										</div>
+										<ManageGroupPreview>
+											<strong>
+												{manageGroupNames[groupId] || group.name}
+											</strong>
+											<span>
+												{(group.properties || []).length}{' '}
+												{(group.properties || []).length === 1
+													? 'property'
+													: 'properties'}
+												{manageGroupDescriptions[groupId]
+													? ` · ${manageGroupDescriptions[groupId]}`
+													: ''}
+											</span>
+										</ManageGroupPreview>
+										<ManageGroupRowActions>
+											<SecondaryButton
+												type='button'
+												title='Move up'
+												onClick={() => handleMoveManageGroup(groupId, -1)}
+												disabled={isSavingManageGroups || index === 0}>
+												<FontAwesomeIcon icon={faChevronUp} />
+											</SecondaryButton>
+											<SecondaryButton
+												type='button'
+												title='Move down'
+												onClick={() => handleMoveManageGroup(groupId, 1)}
+												disabled={
+													isSavingManageGroups ||
+													index === orderedManageGroups.length - 1
+												}>
+												<FontAwesomeIcon icon={faChevronDown} />
+											</SecondaryButton>
+											<ManageGroupMenuWrap>
+												<ManageGroupMenuButton
+													type='button'
+													aria-label={`Group options for ${group.name}`}
+													aria-expanded={openManageGroupMenuId === groupId}
+													onClick={() =>
+														setOpenManageGroupMenuId((current) =>
+															current === groupId ? null : groupId,
+														)
+													}>
+													<FontAwesomeIcon icon={faEllipsisVertical} />
+												</ManageGroupMenuButton>
+												{openManageGroupMenuId === groupId && (
+													<ManageGroupMenu>
+														<ManageGroupMenuItem
+															type='button'
+															onClick={() => {
+																setActiveManageGroupId(groupId);
+																setManageGroupsView('details');
+																setOpenManageGroupMenuId(null);
+															}}>
+															Group Settings
+														</ManageGroupMenuItem>
+														<ManageGroupMenuItem
+															type='button'
+															onClick={() => {
+																setActiveManageGroupId(groupId);
+																setManageGroupsView('transfer');
+																setOpenManageGroupMenuId(null);
+															}}>
+															Move Properties
+														</ManageGroupMenuItem>
+														<ManageGroupMenuItem
+															type='button'
+															$danger
+															disabled={(group.properties || []).length > 0}
+															onClick={() => {
+																setOpenManageGroupMenuId(null);
+																handleDeleteGroup(groupId);
+															}}>
+															Delete Empty Group
+														</ManageGroupMenuItem>
+													</ManageGroupMenu>
+												)}
+											</ManageGroupMenuWrap>
+										</ManageGroupRowActions>
+									</ManageGroupRow>
+								);
+							})
+							}
+						</ManageGroupList>
+					) : manageGroupsView === 'details' ? (
+						(() => {
+							const currentGroup = orderedManageGroups.find(
+								(group) =>
+									String(group.id) === String(activeManageGroupId),
+							);
+							if (!currentGroup) return null;
+							const currentGroupId = String(currentGroup.id);
+
+							return (
+								<ManageGroupPanel>
+									<ManageGroupPanelHeader>
+										<div>
+											<h4>Group Settings</h4>
+											<p>Update the group details, behavior, and appearance.</p>
+										</div>
+										<SecondaryButton
+											type='button'
+											onClick={() => setManageGroupsView('reorder')}>
+											Back to Groups
+										</SecondaryButton>
+									</ManageGroupPanelHeader>
+									<div>
+										<FormLabel>Group Name</FormLabel>
+										<FormInput
+											type='text'
+											value={
+												manageGroupNames[currentGroupId] ??
+												currentGroup.name ??
+												''
+											}
+											onChange={(event) =>
+												setManageGroupNames((previous) => ({
+													...previous,
+													[currentGroupId]: event.target.value,
+												}))
+											}
+											disabled={isSavingManageGroups}
+										/>
+									</div>
+									<div>
+										<FormLabel>Description</FormLabel>
+										<FormTextarea
+											value={
+												manageGroupDescriptions[currentGroupId] ??
+												currentGroup.description ??
+												''
+											}
+											onChange={(event) =>
+												setManageGroupDescriptions((previous) => ({
+													...previous,
+													[currentGroupId]: event.target.value,
+												}))
+											}
+											disabled={isSavingManageGroups}
+											maxLength={140}
+											rows={3}
+											placeholder='Optional note, such as long-term rentals or family homes'
+										/>
+									</div>
+									<label
+										style={{
+											display: 'flex',
+											alignItems: 'flex-start',
+											gap: 10,
+											padding: '12px',
+											borderRadius: 10,
+											background: '#f8fafc',
+											cursor: 'pointer',
+										}}>
+										<input
+											type='checkbox'
+											checked={Boolean(
+												manageGroupDefaultCollapsed[currentGroupId],
+											)}
+											onChange={(event) =>
+												setManageGroupDefaultCollapsed((previous) => ({
+													...previous,
+													[currentGroupId]: event.target.checked,
+												}))
+											}
+											disabled={isSavingManageGroups}
+										/>
+										<span>
+											<strong style={{ display: 'block', fontSize: 13 }}>
+												Start this group collapsed
+											</strong>
+											<span
+												style={{
+													display: 'block',
+													fontSize: 12,
+													color: '#64748b',
+												}}>
+												Useful for less frequently visited groups.
+											</span>
+										</span>
+									</label>
+									{(() => {
+										const appearanceDraft =
+											getGroupAppearanceDraft(currentGroup);
+										return (
+											<>
+												<div style={{ display: 'grid', gap: 8 }}>
+													<FormLabel>Icon</FormLabel>
+													<FormSelect
+														value={appearanceDraft.iconKey}
+														onChange={(event) =>
+															setManageGroupAppearanceDrafts(
+																(previous) => ({
+																	...previous,
+																	[currentGroupId]: {
+																		...appearanceDraft,
+																		iconKey:
+																			event.target
+																				.value as PropertyGroupIconKey,
+																	},
+																}),
+															)
+														}
+														disabled={isSavingManageGroups}>
+														{GROUP_ICON_OPTIONS.map((option) => (
+															<option
+																key={option.key}
+																value={option.key}>
+																{option.label}
+															</option>
+														))}
+													</FormSelect>
+												</div>
+												<ManageGroupAppearancePreview>
+													<GroupIconBadge
+														$background={appearanceDraft.iconBgColor}
+														$color={appearanceDraft.iconColor}
+														aria-hidden='true'>
+														<FontAwesomeIcon
+															icon={getGroupIconByKey(
+																appearanceDraft.iconKey,
+															)}
+														/>
+													</GroupIconBadge>
+													<div>
+														<strong>
+															{manageGroupNames[currentGroupId] ||
+																currentGroup.name}
+														</strong>
+														<span>Live appearance preview</span>
+													</div>
+												</ManageGroupAppearancePreview>
+												<div style={{ display: 'grid', gap: 8 }}>
+													<FormLabel>Color</FormLabel>
+													<div
+														style={{
+															display: 'flex',
+															gap: 8,
+															flexWrap: 'wrap',
+														}}>
+														{GROUP_COLOR_PRESETS.map((preset) => (
+															<button
+																key={`settings-${preset.label}-${currentGroupId}`}
+																type='button'
+																onClick={() =>
+																	setManageGroupAppearanceDrafts(
+																		(previous) => ({
+																			...previous,
+																			[currentGroupId]: {
+																				...appearanceDraft,
+																				iconColor:
+																					preset.iconColor,
+																				iconBgColor:
+																					preset.iconBgColor,
+																			},
+																		}),
+																	)
+																}
+																disabled={isSavingManageGroups}
+																style={{
+																	padding: '6px 10px',
+																	borderRadius: 999,
+																	border:
+																		appearanceDraft.iconBgColor ===
+																			preset.iconBgColor
+																			? '2px solid #0f766e'
+																			: '1px solid #e2e8f0',
+																	background: '#fff',
+																	cursor: 'pointer',
+																	fontSize: 12,
+																}}>
+																<span
+																	style={{
+																		display: 'inline-block',
+																		width: 12,
+																		height: 12,
+																		borderRadius: 999,
+																		background:
+																			preset.iconBgColor,
+																		marginRight: 6,
+																		verticalAlign: 'middle',
+																	}}
+																/>
+																{preset.label}
+															</button>
+														))}
+													</div>
+												</div>
+												<div
+													style={{
+														display: 'grid',
+														gridTemplateColumns:
+															'repeat(2, minmax(0, 1fr))',
+														gap: 12,
+													}}>
+													<label>
+														<FormLabel>Icon Color</FormLabel>
+														<input
+															type='color'
+															value={appearanceDraft.iconColor}
+															onChange={(event) =>
+																setManageGroupAppearanceDrafts(
+																	(previous) => ({
+																		...previous,
+																		[currentGroupId]: {
+																			...appearanceDraft,
+																			iconColor:
+																				event.target.value,
+																		},
+																	}),
+																)
+															}
+															disabled={isSavingManageGroups}
+															style={{ width: '100%', height: 40 }}
+														/>
+													</label>
+													<label>
+														<FormLabel>Background Color</FormLabel>
+														<input
+															type='color'
+															value={appearanceDraft.iconBgColor}
+															onChange={(event) =>
+																setManageGroupAppearanceDrafts(
+																	(previous) => ({
+																		...previous,
+																		[currentGroupId]: {
+																			...appearanceDraft,
+																			iconBgColor:
+																				event.target.value,
+																		},
+																	}),
+																)
+															}
+															disabled={isSavingManageGroups}
+															style={{ width: '100%', height: 40 }}
+														/>
+													</label>
+												</div>
+											</>
+										);
+									})()}
+								</ManageGroupPanel>
+							);
+						})()
+					) : manageGroupsView === 'transfer' ? (
+						(() => {
+							const currentGroup = orderedManageGroups.find(
+								(group) => String(group.id) === String(activeManageGroupId),
+							);
+							if (!currentGroup) {
+								return <div style={{ color: '#64748b' }}>Select a group from options.</div>;
+							}
+
+							const currentGroupId = String(currentGroup.id);
+							const propertyCount = (currentGroup.properties || []).length;
+							const destinationGroups = orderedManageGroups.filter(
+								(group) => String(group.id) !== currentGroupId,
+							);
+							const normalizedTransferSearch =
+								transferPropertySearch.trim().toLowerCase();
+							const filteredTransferProperties = (
+								currentGroup.properties || []
+							).filter((property: Property) => {
+								if (!normalizedTransferSearch) return true;
+								const address = getPropertyAddress(property);
+								return [
+									property.title,
+									address.primary,
+									address.secondary,
+								]
+									.filter(Boolean)
+									.join(' ')
+									.toLowerCase()
+									.includes(normalizedTransferSearch);
+							});
+							const selectedTransferIds = new Set(
+								selectedTransferPropertyIds,
+							);
+							const allVisibleSelected =
+								filteredTransferProperties.length > 0 &&
+								filteredTransferProperties.every((property: Property) =>
+									selectedTransferIds.has(String(property.id)),
+								);
+
+							return (
+								<ManageGroupPanel>
+									<ManageGroupPanelHeader>
+										<div>
+											<h4>Move Properties</h4>
+											<p>
+												{currentGroup.name} · {propertyCount}{' '}
+												{propertyCount === 1 ? 'property' : 'properties'}
+											</p>
+										</div>
+										<SecondaryButton
+											type='button'
+											onClick={() => setManageGroupsView('reorder')}>
+											Back to Groups
+										</SecondaryButton>
+									</ManageGroupPanelHeader>
+									<div style={{ display: 'grid', gap: 8 }}>
+										<FormLabel>Move selected properties</FormLabel>
+										{propertyCount > 0 ? (
+											<>
+												<PropertyTransferToolbar>
+													<FormInput
+														type='search'
+														value={transferPropertySearch}
+														onChange={(event) =>
+															setTransferPropertySearch(
+																event.target.value,
+															)
+														}
+														placeholder='Search properties'
+													/>
+													<PropertyTransferSelectionBar>
+														<span>
+															{selectedTransferPropertyIds.length}{' '}
+															selected
+														</span>
+														<button
+															type='button'
+															onClick={() => {
+																const visibleIds =
+																	filteredTransferProperties.map(
+																		(property: Property) =>
+																			String(property.id),
+																	);
+																setSelectedTransferPropertyIds(
+																	(previous) => {
+																		const next = new Set(previous);
+																		if (allVisibleSelected) {
+																			visibleIds.forEach((id) =>
+																				next.delete(id),
+																			);
+																		} else {
+																			visibleIds.forEach((id) =>
+																				next.add(id),
+																			);
+																		}
+																		return Array.from(next);
+																	},
+																);
+															}}>
+															{allVisibleSelected
+																? 'Clear visible'
+																: 'Select visible'}
+														</button>
+													</PropertyTransferSelectionBar>
+												</PropertyTransferToolbar>
+												<PropertyTransferList>
+													{filteredTransferProperties.map(
+														(property: Property) => {
+															const propertyId = String(property.id);
+															const address = getPropertyAddress(property);
+															return (
+																<PropertyTransferRow
+																	as='label'
+																	key={propertyId}>
+																	<input
+																		type='checkbox'
+																		checked={selectedTransferIds.has(
+																			propertyId,
+																		)}
+																		onChange={(event) =>
+																			setSelectedTransferPropertyIds(
+																				(previous) =>
+																					event.target.checked
+																						? Array.from(
+																							new Set([
+																								...previous,
+																								propertyId,
+																							]),
+																						)
+																						: previous.filter(
+																							(id) =>
+																								id !== propertyId,
+																						),
+																			)
+																		}
+																	/>
+																	<PropertyTransferName>
+																		<strong>{property.title}</strong>
+																		<span>
+																			{address.primary}
+																			{address.secondary
+																				? ` · ${address.secondary}`
+																				: ''}
+																		</span>
+																	</PropertyTransferName>
+																</PropertyTransferRow>
+															);
+														},
+													)}
+													{filteredTransferProperties.length === 0 && (
+														<div
+															style={{
+																padding: 14,
+																fontSize: 12,
+																color: '#64748b',
+															}}>
+															No matching properties.
+														</div>
+													)}
+												</PropertyTransferList>
+												<SelectedTransferActions>
+													<FormSelect
+														value={selectedTransferTargetId}
+														onChange={(event) =>
+															setSelectedTransferTargetId(
+																event.target.value,
+															)
+														}
+														disabled={isSavingManageGroups}>
+														<option value=''>
+															Choose destination group
+														</option>
+														{destinationGroups.map((group) => (
+															<option key={group.id} value={group.id}>
+																{group.name}
+															</option>
+														))}
+													</FormSelect>
+													<SecondaryButton
+														type='button'
+														onClick={() =>
+															handleTransferSelectedProperties(
+																currentGroupId,
+																currentGroup.properties || [],
+															)
+														}
+														disabled={
+															isSavingManageGroups ||
+															selectedTransferPropertyIds.length === 0 ||
+															!selectedTransferTargetId
+														}>
+														Move Selected
+													</SecondaryButton>
+												</SelectedTransferActions>
+											</>
+										) : (
+											<div style={{ fontSize: 12, color: '#64748b' }}>
+												This group has no properties to move.
+											</div>
+										)}
+									</div>
+									<div style={{ display: 'grid', gap: 8 }}>
+										<FormLabel>Move the entire group</FormLabel>
+										<div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+											<FormSelect
+												value={transferTargets[currentGroupId] || ''}
+												onChange={(event) =>
+													setTransferTargets((previous) => ({
+														...previous,
+														[currentGroupId]: event.target.value,
+													}))
+												}
+												disabled={isSavingManageGroups || propertyCount === 0}
+												style={{ flex: 1, minWidth: 180 }}>
+												<option value=''>Choose destination group</option>
+												{destinationGroups.map((group) => (
+													<option key={group.id} value={group.id}>
+														{group.name}
+													</option>
+												))}
+											</FormSelect>
+										</div>
+										<BulkTransferActions>
+											<SecondaryButton
+												type='button'
+												onClick={() =>
+													handleTransferGroupProperties(currentGroupId)
+												}
+												disabled={
+													isSavingManageGroups ||
+													propertyCount === 0 ||
+													!transferTargets[currentGroupId]
+												}>
+												Move All
+											</SecondaryButton>
+											<DangerButton
+												type='button'
+												onClick={() =>
+													handleTransferAllAndDeleteGroup(
+														currentGroupId,
+													)
+												}
+												disabled={
+													isSavingManageGroups ||
+													!transferTargets[currentGroupId]
+												}>
+												Move All & Delete Group
+											</DangerButton>
+										</BulkTransferActions>
+									</div>
+									<div>
+										<DangerButton
+											type='button'
+											onClick={() => handleDeleteGroup(currentGroupId)}
+											disabled={isSavingManageGroups || propertyCount > 0}>
+											Delete Group
+										</DangerButton>
+										{propertyCount > 0 && (
+											<div style={{ marginTop: 6, fontSize: 12, color: '#64748b' }}>
+												Move properties first to enable delete.
+											</div>
+										)}
+									</div>
+								</ManageGroupPanel>
+							);
+						})()
+					) : null}
+				</ManageGroupsStack>
+			</GenericModal>
 
 			{/* Delete Confirmation Modal */}
 			<DeleteConfirmationModal

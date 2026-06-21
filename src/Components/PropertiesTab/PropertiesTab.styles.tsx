@@ -282,6 +282,51 @@ export const GroupName = styled.h2`
 	}
 `;
 
+export const GroupTitleBlock = styled.div`
+	display: grid;
+	gap: 2px;
+	min-width: 0;
+`;
+
+export const GroupIconBadge = styled.span<{
+	$background: string;
+	$color: string;
+}>`
+	width: 38px;
+	height: 38px;
+	flex: 0 0 38px;
+	border-radius: 999px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	background: ${({ $background }) => $background};
+	color: ${({ $color }) => $color};
+	box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.06);
+
+	@media (max-width: 480px) {
+		width: 34px;
+		height: 34px;
+		flex-basis: 34px;
+		font-size: 13px;
+	}
+`;
+
+export const GroupDescription = styled.p`
+	margin: 0;
+	color: #64748b;
+	font-size: 12px;
+	line-height: 1.35;
+	max-width: 680px;
+
+	@media (max-width: 480px) {
+		font-size: 11px;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		max-width: min(62vw, 320px);
+	}
+`;
+
 export const GroupCountBadge = styled.span`
 	margin-left: 8px;
 	padding: 2px 8px;
@@ -439,12 +484,12 @@ export const PropertiesGrid = styled.div<{
 		justify-items: center;
 
 		${({ $isHomeowner, $singleProperty }) =>
-			$isHomeowner && $singleProperty
-				? `
+		$isHomeowner && $singleProperty
+			? `
 			grid-template-columns: 300px;
 			max-width: 300px;
 		`
-				: ''}
+			: ''}
 	}
 
 	@media (max-width: 600px) {
@@ -455,13 +500,13 @@ export const PropertiesGrid = styled.div<{
 		padding: 0;
 
 		${({ $isHomeowner, $singleProperty }) =>
-			$isHomeowner && $singleProperty
-				? `
+		$isHomeowner && $singleProperty
+			? `
 			grid-template-columns: 1fr;
 			width: 100%;
 			max-width: none;
 		`
-				: ''}
+			: ''}
 	}
 `;
 
@@ -535,11 +580,6 @@ export const PropertyTile = styled.div`
 		min-height: 250px;
 	}
 
-	@media (max-width: 600px) {
-		width: 100%;
-		max-width: 360px;
-		min-height: 220px;
-	}
 `;
 
 export const PropertyImageWrap = styled.div`
@@ -1057,7 +1097,7 @@ export const HeaderDropdownMenu = styled.div`
 	z-index: 220;
 
 	@media (max-width: 480px) {
-		right: 0;
+		left: 0;
 		width: min(280px, calc(100vw - 32px));
 	}
 `;
@@ -1100,6 +1140,343 @@ export const HeaderDropdownTitle = styled.span`
 `;
 
 export const HeaderDropdownHint = styled.span`
+	display: block;
 	font-size: 12px;
 	color: #6b7280;
+`;
+
+export const ManageGroupsStack = styled.div`
+	display: grid;
+	gap: 14px;
+`;
+
+export const ManageGroupsToolbar = styled.div`
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: 10px;
+
+	@media (max-width: 600px) {
+		align-items: flex-start;
+		flex-direction: column;
+
+		button {
+			width: 100%;
+		}
+	}
+`;
+
+export const ManageGroupList = styled.div`
+	display: grid;
+	gap: 10px;
+`;
+
+export const ManageGroupRow = styled.div<{ $dragging?: boolean }>`
+	position: relative;
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 12px;
+	border: 1px solid #e2e8f0;
+	border-radius: 12px;
+	background: ${({ $dragging }) => ($dragging ? '#f0fdf4' : '#ffffff')};
+	opacity: ${({ $dragging }) => ($dragging ? 0.65 : 1)};
+	box-shadow: ${({ $dragging }) =>
+		$dragging ? '0 10px 24px rgba(15, 23, 42, 0.12)' : 'none'};
+	transition: border-color 140ms ease, box-shadow 140ms ease,
+		background-color 140ms ease;
+
+	&:hover {
+		border-color: #a7f3d0;
+		box-shadow: 0 6px 18px rgba(15, 23, 42, 0.07);
+	}
+`;
+
+export const ManageGroupDragHandle = styled.div`
+	width: 36px;
+	height: 44px;
+	flex: 0 0 36px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	color: #94a3b8;
+	cursor: grab;
+	touch-action: none;
+
+	&:active {
+		cursor: grabbing;
+	}
+`;
+
+export const ManageGroupPreview = styled.div`
+	flex: 1;
+	min-width: 0;
+	display: grid;
+	gap: 3px;
+
+	strong {
+		color: #0f172a;
+		font-size: 14px;
+	}
+
+	span {
+		color: #64748b;
+		font-size: 12px;
+		line-height: 1.35;
+	}
+`;
+
+export const ManageGroupRowActions = styled.div`
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	flex: 0 0 auto;
+
+	> button:not(:last-child) {
+		width: 34px;
+		height: 34px;
+		padding: 0;
+	}
+`;
+
+export const ManageGroupMenuWrap = styled.div`
+	position: relative;
+`;
+
+export const ManageGroupMenuButton = styled.button`
+	width: 40px;
+	height: 40px;
+	border: none;
+	border-radius: 10px;
+	background: transparent;
+	color: #475569;
+	cursor: pointer;
+
+	&:hover {
+		background: #f1f5f9;
+	}
+`;
+
+export const ManageGroupMenu = styled.div`
+	position: absolute;
+	right: 0;
+	top: calc(100% + 6px);
+	width: 210px;
+	z-index: 20;
+	padding: 6px;
+	border: 1px solid #e2e8f0;
+	border-radius: 12px;
+	background: #ffffff;
+	box-shadow: 0 14px 30px rgba(15, 23, 42, 0.16);
+`;
+
+export const ManageGroupMenuItem = styled.button<{ $danger?: boolean }>`
+	width: 100%;
+	border: none;
+	border-radius: 8px;
+	padding: 10px 11px;
+	background: transparent;
+	color: ${({ $danger }) => ($danger ? '#b91c1c' : '#334155')};
+	text-align: left;
+	font-size: 13px;
+	font-weight: 600;
+	cursor: pointer;
+
+	&:hover {
+		background: ${({ $danger }) => ($danger ? '#fef2f2' : '#f8fafc')};
+	}
+`;
+
+export const ManageGroupPanel = styled.div`
+	display: grid;
+	gap: 14px;
+	border: 1px solid #e2e8f0;
+	border-radius: 12px;
+	padding: 14px;
+	background: #ffffff;
+
+	@media (max-width: 480px) {
+		padding: 12px;
+	}
+`;
+
+export const ManageGroupPanelHeader = styled.div`
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+
+	> div:not(:first-child) {
+		min-width: 0;
+	}
+
+	h4 {
+		margin: 0;
+		color: #0f172a;
+		font-size: 15px;
+	}
+
+	p {
+		margin: 3px 0 0;
+		color: #64748b;
+		font-size: 12px;
+	}
+`;
+
+export const ManageGroupAppearancePreview = styled.div`
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 12px;
+	border: 1px solid #e2e8f0;
+	border-radius: 12px;
+	background: #f8fafc;
+
+	> div {
+		min-width: 0;
+	}
+
+	strong {
+		display: block;
+		color: #0f172a;
+		font-size: 14px;
+	}
+
+	> div > span {
+		display: block;
+		color: #64748b;
+		font-size: 12px;
+	}
+
+	@media (max-width: 600px) {
+		position: sticky;
+		top: 0;
+		z-index: 3;
+		box-shadow: 0 6px 14px rgba(15, 23, 42, 0.08);
+	}
+`;
+
+export const PropertyTransferList = styled.div`
+	display: grid;
+	border: 1px solid #e2e8f0;
+	border-radius: 10px;
+	max-height: min(240px, 32vh);
+	overflow-y: auto;
+	overscroll-behavior: contain;
+	scrollbar-gutter: stable;
+	background: #ffffff;
+
+	&::-webkit-scrollbar {
+		width: 8px;
+	}
+
+	&::-webkit-scrollbar-track {
+		background: #f8fafc;
+		border-radius: 999px;
+	}
+
+	&::-webkit-scrollbar-thumb {
+		background: #cbd5e1;
+		border-radius: 999px;
+	}
+
+	@media (max-width: 600px) {
+		max-height: min(200px, 28vh);
+	}
+`;
+
+export const PropertyTransferRow = styled.div`
+	display: flex;
+	align-items: center;
+	gap: 9px;
+	padding: 9px 10px;
+	border-bottom: 1px solid #f1f5f9;
+	cursor: pointer;
+
+	&:last-child {
+		border-bottom: none;
+	}
+
+	&:hover {
+		background: #f8fafc;
+	}
+`;
+
+export const PropertyTransferName = styled.div`
+	min-width: 0;
+
+	strong {
+		display: block;
+		color: #0f172a;
+		font-size: 13px;
+	}
+
+	span {
+		display: block;
+		color: #64748b;
+		font-size: 11px;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+`;
+
+export const PropertyTransferToolbar = styled.div`
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	gap: 8px;
+	align-items: center;
+
+	@media (max-width: 560px) {
+		grid-template-columns: 1fr;
+	}
+`;
+
+export const PropertyTransferSelectionBar = styled.div`
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	flex-wrap: wrap;
+	font-size: 12px;
+	color: #64748b;
+
+	button {
+		border: none;
+		background: transparent;
+		color: #0f766e;
+		font-weight: 700;
+		cursor: pointer;
+		padding: 4px;
+	}
+`;
+
+export const SelectedTransferActions = styled.div`
+	display: grid;
+	grid-template-columns: minmax(160px, 1fr) auto;
+	gap: 8px;
+
+	@media (max-width: 560px) {
+		grid-template-columns: 1fr;
+
+		button {
+			width: 100%;
+			min-height: 44px;
+		}
+	}
+`;
+
+export const BulkTransferActions = styled.div`
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+
+	@media (max-width: 600px) {
+		flex-direction: column;
+
+		button {
+			width: 100%;
+			min-height: 44px;
+		}
+	}
 `;

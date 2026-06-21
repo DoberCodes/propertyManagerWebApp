@@ -164,23 +164,23 @@ export const MobileBottomNav: React.FC<MobileNavProps> = ({ isPropertyContext, p
         : pathname;
     const quickCreateActions = isApplianceContext
         ? [
-            { key: 'edit_appliance', label: 'Edit Appliance', x: -100, y: 0 },
+            { key: 'add_part', label: 'Add Part', x: -100, y: 0 },
             { key: 'add_task', label: 'Add Task', x: -55, y: -55 },
-            { key: 'upload_document', label: 'Upload', x: 55, y: -55 },
+            { key: 'upload_document', label: 'Upload Document', x: 55, y: -55 },
             { key: 'add_log', label: 'Add Log', x: 100, y: 0 },
         ]
         : isPropertyContext
-        ? [
-            { key: 'add_task', label: 'Add Task', x: -100, y: 0 },
-            { key: 'add_system', label: 'Add System', x: -55, y: -55 },
-            { key: 'upload_document', label: 'Upload', x: 55, y: -55 },
-            { key: 'add_contractor', label: 'Contractor', x: 100, y: 0 },
-        ]
-        : [
-            { key: 'add_task', label: 'Add Task', x: -100, y: -10 },
-            { key: 'add_system', label: 'Add System', x: 0, y: -60 },
-            { key: 'add_property', label: 'Property', x: 100, y: -10 },
-        ];
+            ? [
+                { key: 'add_task', label: 'Add Task', x: -100, y: 0 },
+                { key: 'add_system', label: 'Add System', x: -55, y: -55 },
+                { key: 'upload_document', label: 'Upload Document', x: 55, y: -55 },
+                { key: 'add_contractor', label: 'Add Contractor', x: 100, y: 0 },
+            ]
+            : [
+                { key: 'add_task', label: 'Add Task', x: -100, y: -10 },
+                { key: 'add_system', label: 'Add System', x: 0, y: -60 },
+                { key: 'add_property', label: 'Add Property', x: 100, y: -10 },
+            ];
 
     const handleQuickCreateAction = (action: string) => {
         const navigateToPropertyAction = (tab: string, propertyAction: string) => {
@@ -205,8 +205,8 @@ export const MobileBottomNav: React.FC<MobileNavProps> = ({ isPropertyContext, p
         };
 
         switch (action) {
-            case 'edit_appliance':
-                navigateToApplianceAction('edit-appliance');
+            case 'add_part':
+                navigateToApplianceAction('add_part');
                 break;
             case 'add_task':
                 if (isApplianceContext) {

@@ -81,11 +81,26 @@ export interface PropertyGroup {
 	userId: string;
 	accountId?: string;
 	name: string;
+	description?: string;
+	sortOrder?: number;
+	defaultCollapsed?: boolean;
+	groupIconKey?: PropertyGroupIconKey;
+	groupIconColor?: string;
+	groupIconBgColor?: string;
 	isEditingName?: boolean;
 	properties?: Property[];
 	createdAt?: string;
 	updatedAt?: string;
 }
+
+export type PropertyGroupIconKey =
+	| 'house'
+	| 'building'
+	| 'city'
+	| 'warehouse'
+	| 'store'
+	| 'hotel'
+	| 'industry';
 
 export interface PropertyGroupMembership {
 	id: string;

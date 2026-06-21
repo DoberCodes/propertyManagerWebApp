@@ -194,7 +194,8 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 	const [openCreateDeviceToken, setOpenCreateDeviceToken] = useState(0);
 	const [openDocumentsUploadToken, setOpenDocumentsUploadToken] = useState(0);
 	const [openCreateContractorToken, setOpenCreateContractorToken] = useState(0);
-	const handledPropertyActionRef = useRef('');
+	const capturedPropertyActionRef = useRef('');
+	const pendingPropertyActionRef = useRef('');
 	const [deleteTaskModalOpen, setDeleteTaskModalOpen] = useState(false);
 	const [taskToDelete, setTaskToDelete] = useState<{
 		id: string;
@@ -315,20 +316,35 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 
 	useEffect(() => {
 		const action = searchParams.get('action');
-		if (!action) {
-			handledPropertyActionRef.current = '';
-			return;
-		}
-		if (!property) return;
+		const actionTabMap: Record<string, string> = {
+			'create-task': 'tasks',
+			'create-system': 'devices',
+			'upload-document': 'documents',
+			'add-contractor': 'contractors',
+		};
 
-		const actionKey = `${property.id}:${action}`;
-		if (handledPropertyActionRef.current === actionKey) return;
-		handledPropertyActionRef.current = actionKey;
+		if (action && actionTabMap[action]) {
+			if (capturedPropertyActionRef.current !== action) {
+				capturedPropertyActionRef.current = action;
+				pendingPropertyActionRef.current = action;
+
+				const nextParams = new URLSearchParams(searchParams);
+				nextParams.set('tab', actionTabMap[action]);
+				nextParams.delete('action');
+				setSearchParams(nextParams, { replace: true });
+			}
+		} else if (!action) {
+			capturedPropertyActionRef.current = '';
+		}
+
+		const pendingAction = pendingPropertyActionRef.current;
+		if (!pendingAction || !property) return;
+		pendingPropertyActionRef.current = '';
 
 		let targetTab = '';
 		let allowed = true;
 
-		switch (action) {
+		switch (pendingAction) {
 			case 'create-task':
 				targetTab = 'tasks';
 				allowed = roleCapabilities.canCreateTasks;
@@ -358,7 +374,6 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 				}
 				break;
 			default:
-				handledPropertyActionRef.current = '';
 				return;
 		}
 
@@ -370,12 +385,6 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 			feedback.notify('Your role does not allow that action for this property.');
 		}
 
-		const nextParams = new URLSearchParams(searchParams);
-		if (targetTab) {
-			nextParams.set('tab', targetTab);
-		}
-		nextParams.delete('action');
-		setSearchParams(nextParams, { replace: true });
 	}, [
 		dispatch,
 		feedback,

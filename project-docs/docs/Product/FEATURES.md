@@ -48,6 +48,12 @@ Current capabilities:
 * Duplicate properties.
 * Delete properties.
 * Organize properties into groups.
+* Drag and drop property groups into a preferred order.
+* Rename and manage each group from its contextual menu.
+* Add a short description and choose whether a group starts collapsed.
+* Customize group icons and colors.
+* Use the same group settings when creating or editing a group.
+* Move properties between groups before deleting an empty group.
 * Mark properties as favorites.
 * Hide properties from dashboard views.
 * Track property-level information and notes.

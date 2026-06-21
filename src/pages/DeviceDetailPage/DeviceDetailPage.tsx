@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { useSelector } from 'react-redux';
-import styled from 'styled-components';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
 	faCircleCheck,
@@ -38,7 +37,7 @@ import {
 	isContinuityEvent,
 } from '../../utils/maintenanceEventUtils';
 import { getTaskAssigneeDisplayName } from '../../utils/taskUtils';
-import { DetailPageLayout, TabContent, ReusableTable, GenericModal } from '../../Components/Library';
+import { DetailPageLayout, TabContent, ReusableTable, GenericModal, ButtonGroup, FormInput, FormLabel, FormRow, FormSelect, FormTextarea } from '../../Components/Library';
 import { DeviceModal } from '../../Components/Library/Modal';
 import { TaskModal } from '../../Components/Library/Modal/TaskModal';
 import { TabConfig } from '../../types/DetailPage.types';
@@ -85,6 +84,7 @@ import {
 	buildDeviceServiceItemDetails,
 } from '../../constants/deviceServiceItems';
 import { BarcodeScannerModal } from '../../Components/Library/BarcodeScanner/BarcodeScannerModal';
+import { PageStack, SummaryGrid, SummaryCard, SummaryLabel, SummaryValue, QuickActionPanel, QuickActionHeader, ViewActionsButton, QuickActionGrid, QuickActionButton, QuickActionHint, SectionBlock, SectionEyebrow, SectionTitleStrong, SectionDescription, PhotoActions, ScanButton, PhotoHelperText, PhotoSection, DevicePhotoCard, DevicePhotoImg, PhotoPlaceholder, PhotoActionButton, RemovePhotoButton, MobileCardStack, MobileDetailCard, MobileDetailHeader, MobileDetailTitle, MobileDetailMeta, ActionButton, SubmitButton, CombinedHistoryContainer, TimelineList, TimelineItem, TimelineDate, TimelineDateSub, TimelineContent, TimelineTitleRow, TimelineIconBadge, TimelineTitle, TimelineEventBadge, TimelineDescription, TimelineMeta, TimelineExpandButton, TimelineDetailsPanel, TimelineDetailBlock, TimelineDetailLabel, TimelineDetailValue, TimelineAttachmentList, TimelineAttachmentLink, PartsForm, FormField, DynamicFieldsGrid, PartsTable } from './DeviceDetailPage.styles';
 
 type PartFormState = Omit<DeviceServiceItem, 'id'>;
 
@@ -110,741 +110,6 @@ type DeviceEditFormState = {
 		usage?: 'appliance_photo' | 'document';
 	}>;
 };
-
-
-// Styled components for parts management
-const PartsTable = styled.table`
-	width: 100%;
-	border-collapse: collapse;
-	margin-bottom: 16px;
-
-	thead {
-		background-color: #f3f4f6;
-	}
-
-	th {
-		text-align: left;
-		padding: 12px;
-		font-weight: 600;
-		font-size: 14px;
-		border-bottom: 2px solid #e5e7eb;
-		color: #374151;
-	}
-
-	td {
-		padding: 12px;
-		border-bottom: 1px solid #e5e7eb;
-		font-size: 14px;
-	}
-
-	tbody tr:hover {
-		background-color: #f9fafb;
-	}
-`;
-
-const ActionButton = styled.button`
-	background: none;
-	border: none;
-	cursor: pointer;
-	padding: 6px 8px;
-	color: #6b7280;
-	border-radius: 4px;
-	display: inline-flex;
-	align-items: center;
-	gap: 6px;
-	font-size: 13px;
-
-	&:hover {
-		background-color: #e5e7eb;
-		color: #374151;
-	}
-
-	&.delete:hover {
-		color: #dc2626;
-		background-color: #fee2e2;
-	}
-`;
-
-const PartsForm = styled.div`
-	background-color: #f9fafb;
-	padding: 16px;
-	border-radius: 8px;
-	margin-bottom: 16px;
-	border: 1px solid #e5e7eb;
-`;
-
-const FormRow = styled.div`
-	display: grid;
-	grid-template-columns: 1fr 1fr auto;
-	gap: 12px;
-	align-items: flex-end;
-	margin-bottom: 12px;
-
-	@media (max-width: 768px) {
-		grid-template-columns: 1fr;
-	}
-`;
-
-const DynamicFieldsGrid = styled.div`
-	display: grid;
-	grid-template-columns: repeat(3, minmax(0, 1fr));
-	gap: 12px;
-	margin-bottom: 12px;
-
-	@media (max-width: 1024px) {
-		grid-template-columns: repeat(2, minmax(0, 1fr));
-	}
-
-	@media (max-width: 768px) {
-		grid-template-columns: 1fr;
-	}
-`;
-
-const FormField = styled.div`
-	display: flex;
-	flex-direction: column;
-	gap: 6px;
-`;
-
-const FormLabel = styled.label`
-	font-size: 12px;
-	font-weight: 700;
-	letter-spacing: 0.04em;
-	text-transform: uppercase;
-	color: #64748b;
-`;
-
-const FormInput = styled.input`
-	padding: 8px 12px;
-	border: 1px solid #d1d5db;
-	border-radius: 6px;
-	font-size: 13px;
-	font-family: inherit;
-
-	&:focus {
-		outline: none;
-		border-color: #0f766e;
-		box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.1);
-	}
-`;
-
-const FormSelect = styled.select`
-	padding: 8px 12px;
-	border: 1px solid #d1d5db;
-	border-radius: 6px;
-	font-size: 13px;
-	font-family: inherit;
-
-	&:focus {
-		outline: none;
-		border-color: #0f766e;
-		box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.1);
-	}
-`;
-
-const FormTextarea = styled.textarea`
-	padding: 8px 12px;
-	border: 1px solid #d1d5db;
-	border-radius: 6px;
-	font-size: 13px;
-	font-family: inherit;
-	resize: vertical;
-	min-height: 72px;
-
-	&:focus {
-		outline: none;
-		border-color: #0f766e;
-		box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.1);
-	}
-`;
-
-const ButtonGroup = styled.div`
-	display: flex;
-	gap: 8px;
-`;
-
-const SubmitButton = styled.button`
-	padding: 8px 16px;
-	background-color: #0f766e;
-	color: white;
-	border: none;
-	border-radius: 6px;
-	font-size: 13px;
-	font-weight: 600;
-	cursor: pointer;
-
-	&:hover {
-		background-color: #0d5d56;
-	}
-`;
-
-const CancelButton = styled.button`
-	padding: 8px 16px;
-	background-color: #e5e7eb;
-	color: #374151;
-	border: none;
-	border-radius: 6px;
-	font-size: 13px;
-	font-weight: 600;
-	cursor: pointer;
-
-	&:hover {
-		background-color: #d1d5db;
-	}
-`;
-
-const ScanButton = styled.button`
-	padding: 8px 14px;
-	background-color: #ffffff;
-	color: #0f766e;
-	border: 1px solid #0f766e;
-	border-radius: 6px;
-	font-size: 13px;
-	font-weight: 600;
-	cursor: pointer;
-
-	&:hover {
-		background-color: #ecfeff;
-	}
-`;
-
-const CombinedHistoryContainer = styled.div`
-	display: flex;
-	flex-direction: column;
-	gap: 24px;
-`;
-
-const PageStack = styled.div`
-	display: flex;
-	flex-direction: column;
-	gap: 16px;
-`;
-
-const SummaryGrid = styled.div`
-	display: grid;
-	grid-template-columns: repeat(4, minmax(0, 1fr));
-	gap: 12px;
-
-	@media (max-width: 1280px) {
-		grid-template-columns: repeat(2, minmax(0, 1fr));
-	}
-
-	@media (max-width: 640px) {
-		display: none;
-	}
-`;
-
-const MobileCardStack = styled.div`
-	display: flex;
-	flex-direction: column;
-	gap: 12px;
-`;
-
-const MobileDetailCard = styled.div`
-	display: flex;
-	flex-direction: column;
-	gap: 10px;
-	padding: 14px;
-	border: 1px solid #e2e8f0;
-	border-radius: 12px;
-	background: #ffffff;
-`;
-
-const MobileDetailHeader = styled.div`
-	display: flex;
-	justify-content: space-between;
-	align-items: flex-start;
-	gap: 10px;
-`;
-
-const MobileDetailTitle = styled.div`
-	font-size: 0.95rem;
-	font-weight: 800;
-	line-height: 1.35;
-	color: #0f172a;
-`;
-
-const MobileDetailMeta = styled.div`
-	display: flex;
-	flex-direction: column;
-	gap: 6px;
-	font-size: 0.82rem;
-	color: #64748b;
-`;
-
-const SummaryCard = styled.div`
-	background: #ffffff;
-	border: 1px solid #e5e7eb;
-	border-radius: 10px;
-	padding: 14px 16px;
-`;
-
-const SummaryLabel = styled.div`
-	font-size: 12px;
-	font-weight: 700;
-	letter-spacing: 0.04em;
-	text-transform: uppercase;
-	color: #64748b;
-	margin-bottom: 6px;
-`;
-
-const SummaryValue = styled.div`
-	font-size: 30px;
-	line-height: 1;
-	font-weight: 700;
-	color: #0f172a;
-`;
-
-const QuickActionPanel = styled.div`
-	display: flex;
-	flex-direction: column;
-	gap: 10px;
-	border: 1px solid #e2e8f0;
-	border-radius: 12px;
-	background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
-	padding: 14px;
-
-	@media (max-width: 1024px) {
-		display: none;
-	}
-`;
-
-const ViewActionsButton = styled.button`
-	border: 1px solid #0f766e;
-	background: #ffffff;
-	color: #0f766e;
-	border-radius: 999px;
-	padding: 8px 12px;
-	font-size: 12px;
-	font-weight: 800;
-	cursor: pointer;
-	transition: background-color 0.15s ease, border-color 0.15s ease;
-
-	&:hover {
-		background: #ecfeff;
-		border-color: #115e59;
-	}
-
-	@media (max-width: 480px) {
-		padding: 8px 10px;
-		font-size: 11px;
-	}
-`;
-
-const QuickActionHeader = styled.div`
-	display: flex;
-	justify-content: space-between;
-	align-items: center;
-	gap: 12px;
-	flex-wrap: wrap;
-
-	div {
-		display: flex;
-		flex-direction: column;
-		gap: 4px;
-	}
-
-	h3 {
-		margin: 0;
-		font-size: 1.02rem;
-		font-weight: 800;
-		color: #0f172a;
-	}
-
-	p {
-		margin: 0;
-		font-size: 0.86rem;
-		color: #64748b;
-	}
-`;
-
-const QuickActionGrid = styled.div`
-	display: grid;
-	grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-	gap: 10px;
-
-	@media (max-width: 1200px) {
-		grid-template-columns: repeat(2, minmax(0, 1fr));
-	}
-
-	@media (max-width: 640px) {
-		grid-template-columns: 1fr;
-	}
-`;
-
-const QuickActionButton = styled.button`
-	border: 1px solid #dbe3ea;
-	background: #ffffff;
-	border-radius: 10px;
-	padding: 12px 14px;
-	text-align: left;
-	cursor: pointer;
-	transition: border-color 0.15s ease, transform 0.15s ease, background-color 0.15s ease;
-
-	strong {
-		display: block;
-		font-size: 0.92rem;
-		font-weight: 800;
-		color: #0f172a;
-		margin-bottom: 4px;
-	}
-
-	span {
-		display: block;
-		font-size: 0.78rem;
-		line-height: 1.35;
-		color: #64748b;
-	}
-
-	&:hover {
-		border-color: #16a34a;
-		background: #f0fdf4;
-		transform: translateY(-1px);
-	}
-
-	&:disabled {
-		cursor: not-allowed;
-		opacity: 0.65;
-		border-color: #e2e8f0;
-		background: #f8fafc;
-		transform: none;
-	}
-`;
-
-const QuickActionHint = styled.div`
-	font-size: 0.8rem;
-	color: #64748b;
-`;
-
-const TimelineList = styled.div`
-	display: flex;
-	flex-direction: column;
-	gap: 10px;
-`;
-
-const TimelineItem = styled.div`
-	display: grid;
-	grid-template-columns: 110px 1fr;
-	gap: 12px;
-	padding: 12px 14px;
-	border: 1px solid #e2e8f0;
-	border-radius: 12px;
-	background: #ffffff;
-
-	@media (max-width: 640px) {
-		grid-template-columns: 1fr;
-	}
-`;
-
-const TimelineDate = styled.div`
-	font-size: 0.8rem;
-	font-weight: 800;
-	color: #16a34a;
-`;
-
-const TimelineDateSub = styled.div`
-	margin-top: 2px;
-	font-size: 0.72rem;
-	font-weight: 600;
-	color: #94a3b8;
-`;
-
-const TimelineContent = styled.div`
-	display: flex;
-	flex-direction: column;
-	gap: 4px;
-`;
-
-const TimelineTitleRow = styled.div`
-	display: flex;
-	align-items: center;
-	gap: 8px;
-	flex-wrap: wrap;
-`;
-
-const TimelineIconBadge = styled.span<{ $color: string; $background: string }>`
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	width: 24px;
-	height: 24px;
-	border-radius: 8px;
-	color: ${(props) => props.$color};
-	background: ${(props) => props.$background};
-	font-size: 0.75rem;
-	flex-shrink: 0;
-`;
-
-const TimelineTitle = styled.div`
-	font-size: 0.95rem;
-	font-weight: 800;
-	color: #0f172a;
-	margin-bottom: 4px;
-`;
-
-const TimelineEventBadge = styled.span`
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	padding: 3px 8px;
-	border-radius: 999px;
-	font-size: 0.7rem;
-	font-weight: 800;
-	letter-spacing: 0.03em;
-	text-transform: uppercase;
-	color: #334155;
-	background: #e2e8f0;
-`;
-
-const TimelineDescription = styled.div`
-	font-size: 0.88rem;
-	color: #475569;
-	line-height: 1.45;
-`;
-
-const TimelineMeta = styled.div`
-	margin-top: 6px;
-	font-size: 0.76rem;
-	color: #64748b;
-`;
-
-const TimelineExpandButton = styled.button`
-	margin-top: 8px;
-	align-self: flex-start;
-	border: 1px solid #cbd5e1;
-	background: #f8fafc;
-	color: #334155;
-	border-radius: 999px;
-	padding: 4px 10px;
-	font-size: 0.75rem;
-	font-weight: 700;
-	cursor: pointer;
-
-	&:hover {
-		background: #f1f5f9;
-		border-color: #94a3b8;
-	}
-`;
-
-const TimelineDetailsPanel = styled.div`
-	margin-top: 10px;
-	padding: 10px;
-	border-radius: 10px;
-	border: 1px solid #e2e8f0;
-	background: #f8fafc;
-	display: grid;
-	grid-template-columns: repeat(2, minmax(0, 1fr));
-	gap: 10px;
-
-	@media (max-width: 900px) {
-		grid-template-columns: 1fr;
-	}
-`;
-
-const TimelineDetailBlock = styled.div`
-	display: flex;
-	flex-direction: column;
-	gap: 4px;
-`;
-
-const TimelineDetailLabel = styled.div`
-	font-size: 0.7rem;
-	font-weight: 800;
-	letter-spacing: 0.05em;
-	text-transform: uppercase;
-	color: #64748b;
-`;
-
-const TimelineDetailValue = styled.div`
-	font-size: 0.82rem;
-	line-height: 1.45;
-	color: #334155;
-`;
-
-const TimelineAttachmentList = styled.div`
-	display: flex;
-	flex-direction: column;
-	gap: 4px;
-`;
-
-const TimelineAttachmentLink = styled.a`
-	font-size: 0.82rem;
-	line-height: 1.4;
-	color: #1d4ed8;
-	text-decoration: none;
-
-	&:hover {
-		text-decoration: underline;
-	}
-`;
-
-const PhotoSection = styled.div`
-	display: grid;
-	grid-template-columns: 280px 1fr;
-	gap: 16px;
-	margin-bottom: 16px;
-
-	@media (max-width: 900px) {
-		grid-template-columns: 1fr;
-	}
-`;
-
-const DevicePhotoCard = styled.div`
-	background: #f8fafc;
-	border: 1px solid #e2e8f0;
-	border-radius: 10px;
-	padding: 10px;
-	min-height: 220px;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-`;
-
-const DevicePhotoImg = styled.img`
-	width: 100%;
-	height: 220px;
-	object-fit: cover;
-	border-radius: 8px;
-`;
-
-const PhotoPlaceholder = styled.div`
-	font-size: 13px;
-	font-weight: 600;
-	color: #64748b;
-	text-align: center;
-	padding: 0 12px;
-`;
-
-const PhotoActions = styled.div`
-	display: flex;
-	flex-wrap: wrap;
-	gap: 10px;
-	align-items: center;
-`;
-
-const PhotoActionButton = styled.button`
-	padding: 8px 12px;
-	border-radius: 8px;
-	border: 1px solid #0f766e;
-	background: #0f766e;
-	color: #ffffff;
-	font-size: 13px;
-	font-weight: 600;
-	cursor: pointer;
-
-	&:disabled {
-		opacity: 0.65;
-		cursor: not-allowed;
-	}
-`;
-
-const RemovePhotoButton = styled.button`
-	padding: 8px 12px;
-	border-radius: 8px;
-	border: 1px solid #dc2626;
-	background: #ffffff;
-	color: #dc2626;
-	font-size: 13px;
-	font-weight: 600;
-	cursor: pointer;
-`;
-
-const PhotoHelperText = styled.div`
-	font-size: 12px;
-	color: #64748b;
-`;
-
-const SectionBlock = styled.div`
-	display: flex;
-	flex-direction: column;
-	gap: 6px;
-	margin: 6px 0 14px;
-`;
-
-const SectionEyebrow = styled.span`
-	font-size: 11px;
-	font-weight: 700;
-	letter-spacing: 0.08em;
-	text-transform: uppercase;
-	color: #64748b;
-`;
-
-const SectionTitleStrong = styled.h3`
-	margin: 0;
-	font-size: 1.08rem;
-	font-weight: 800;
-	color: #0f172a;
-`;
-
-const SectionDescription = styled.p`
-	margin: 0;
-	font-size: 0.9rem;
-	line-height: 1.5;
-	color: #475569;
-`;
-
-const UpcomingCareCard = styled.div`
-	background: #ffffff;
-	border: 1px solid #e5e7eb;
-	border-radius: 12px;
-	padding: 14px 18px;
-	margin-top: 12px;
-`;
-
-const UpcomingCareHeader = styled.div`
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	margin-bottom: 10px;
-`;
-
-const UpcomingCareTitle = styled.h4`
-	margin: 0;
-	font-size: 0.95rem;
-	font-weight: 700;
-	color: #0f172a;
-`;
-
-const UpcomingCareLink = styled.button`
-	background: none;
-	border: none;
-	padding: 0;
-	cursor: pointer;
-	font-size: 0.85rem;
-	font-weight: 600;
-	color: #2563eb;
-	&:hover { text-decoration: underline; }
-`;
-
-const UpcomingCareRows = styled.div`
-	display: flex;
-	flex-direction: column;
-	gap: 6px;
-`;
-
-const UpcomingCareRow = styled.div<{ $tone?: 'error' | 'success' | 'info' | 'neutral' }>`
-	font-size: 0.88rem;
-	padding: 6px 10px;
-	border-radius: 6px;
-	color: ${(props) =>
-		props.$tone === 'error'
-			? '#991b1b'
-			: props.$tone === 'success'
-				? '#166534'
-				: props.$tone === 'info'
-					? '#1e40af'
-					: '#475569'};
-	background: ${(props) =>
-		props.$tone === 'error'
-			? '#fee2e2'
-			: props.$tone === 'success'
-				? '#dcfce7'
-				: props.$tone === 'info'
-					? '#dbeafe'
-					: '#f8fafc'};
-`;
-
-
 
 const formatDate = (value?: string) => {
 	if (!value) return 'N/A';
@@ -1056,6 +321,11 @@ const getTimelineEventLabel = (entry: { type?: string; title?: string; descripti
 	return 'Event';
 };
 
+const sanitizeDeviceServiceItem = (item: DeviceServiceItem): DeviceServiceItem =>
+	Object.fromEntries(
+		Object.entries(item).filter(([, value]) => value !== undefined),
+	) as DeviceServiceItem;
+
 export const DeviceDetailPage: React.FC = () => {
 	const { slug, deviceSlug } = useParams<{ slug: string; deviceSlug: string }>();
 	const [searchParams, setSearchParams] = useSearchParams();
@@ -1108,6 +378,7 @@ export const DeviceDetailPage: React.FC = () => {
 	const [areQuickActionsOpen, setAreQuickActionsOpen] = useState(false);
 	const [showTaskModal, setShowTaskModal] = useState(false);
 	const [showRecurringTaskModal, setShowRecurringTaskModal] = useState(false);
+	const [showPartModal, setShowPartModal] = useState(false);
 	const [selectedTask, setSelectedTask] = useState<any | null>(null);
 	const [isEditingTask, setIsEditingTask] = useState(false);
 	const [showQuickLogModal, setShowQuickLogModal] = useState(false);
@@ -1494,38 +765,7 @@ export const DeviceDetailPage: React.FC = () => {
 		[partFormData.category],
 	);
 
-	const overdueTasksCount = useMemo(() => {
-		const today = new Date();
-		today.setHours(0, 0, 0, 0);
 
-		return linkedTasks.filter((task: any) => {
-			const dueDate = task?.dueDate ? new Date(task.dueDate) : null;
-			if (!dueDate || Number.isNaN(dueDate.getTime())) return false;
-			dueDate.setHours(0, 0, 0, 0);
-			return dueDate < today;
-		}).length;
-	}, [linkedTasks]);
-
-	const recurringTaskCount = useMemo(
-		() => linkedTasks.filter((task: any) => Boolean(task.isRecurring)).length,
-		[linkedTasks],
-	);
-
-	// Compute earliest upcoming task for the compact care summary
-	const nextScheduledMaintenance = useMemo(() => {
-		const today = new Date();
-		today.setHours(0, 0, 0, 0);
-		const upcoming = linkedTasks
-			.filter((task: any) => {
-				const dueDate = task?.dueDate ? new Date(task.dueDate) : null;
-				if (!dueDate || Number.isNaN(dueDate.getTime())) return false;
-				dueDate.setHours(0, 0, 0, 0);
-				return dueDate >= today;
-			})
-			.sort((a: any, b: any) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
-		if (!upcoming[0]?.dueDate) return null;
-		return new Date(upcoming[0].dueDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-	}, [linkedTasks]);
 
 	const applianceAssignedDocumentEntries = useMemo(() => {
 		const all = new Map<
@@ -2089,7 +1329,7 @@ export const DeviceDetailPage: React.FC = () => {
 		if (!canManageApplianceActions || !canAccessParts) return;
 		if (!device || !partFormData.name.trim()) return;
 
-		const newPart: DeviceServiceItem = {
+		const newPart = sanitizeDeviceServiceItem({
 			id: `${Date.now()}`,
 			name: partFormData.name.trim(),
 			category: partFormData.category,
@@ -2103,13 +1343,13 @@ export const DeviceDetailPage: React.FC = () => {
 			compatibility: partFormData.compatibility?.trim() || undefined,
 			replacementInterval: partFormData.replacementInterval?.trim() || undefined,
 			notes: partFormData.notes?.trim() || undefined,
-		};
+		});
 
-		const updatedParts = [...serviceParts, newPart];
+		const updatedParts = [...serviceParts, newPart].map(sanitizeDeviceServiceItem);
 		await updateDevice({
 			id: device.id,
 			updates: { serviceItems: updatedParts },
-		});
+		}).unwrap();
 
 		resetPartForm();
 	};
@@ -2119,7 +1359,7 @@ export const DeviceDetailPage: React.FC = () => {
 		if (!device || editingPartIndex === null || !partFormData.name.trim()) return;
 
 		const updatedParts = [...serviceParts];
-		updatedParts[editingPartIndex] = {
+		updatedParts[editingPartIndex] = sanitizeDeviceServiceItem({
 			...serviceParts[editingPartIndex],
 			name: partFormData.name.trim(),
 			category: partFormData.category,
@@ -2133,12 +1373,12 @@ export const DeviceDetailPage: React.FC = () => {
 			compatibility: partFormData.compatibility?.trim() || undefined,
 			replacementInterval: partFormData.replacementInterval?.trim() || undefined,
 			notes: partFormData.notes?.trim() || undefined,
-		};
+		});
 
 		await updateDevice({
 			id: device.id,
-			updates: { serviceItems: updatedParts },
-		});
+			updates: { serviceItems: updatedParts.map(sanitizeDeviceServiceItem) },
+		}).unwrap();
 
 		resetPartForm();
 		setEditingPartIndex(null);
@@ -2148,11 +1388,13 @@ export const DeviceDetailPage: React.FC = () => {
 		if (!canManageApplianceActions || !canAccessParts) return;
 		if (!device) return;
 
-		const updatedParts = serviceParts.filter((_: any, i: number) => i !== index);
+		const updatedParts = serviceParts
+			.filter((_: any, i: number) => i !== index)
+			.map(sanitizeDeviceServiceItem);
 		await updateDevice({
 			id: device.id,
 			updates: { serviceItems: updatedParts },
-		});
+		}).unwrap();
 	};
 
 	const handleEditPart = (index: number) => {
@@ -2173,11 +1415,6 @@ export const DeviceDetailPage: React.FC = () => {
 			notes: part.notes || '',
 		});
 		setEditingPartIndex(index);
-	};
-
-	const handleCancelEdit = () => {
-		resetPartForm();
-		setEditingPartIndex(null);
 	};
 
 	const handleDeviceBarcodeDetected = async (rawValue: string) => {
@@ -2307,26 +1544,23 @@ export const DeviceDetailPage: React.FC = () => {
 		pendingApplianceActionRef.current = null;
 
 		switch (pendingAction) {
-			case 'edit-appliance':
-				if (!canManageApplianceActions) break;
-				setEditingDevice(device);
-				setDeviceFormData({
-					type: device.type || '',
-					brand: device.brand || '',
-					model: device.model || '',
-					serialNumber: device.serialNumber || '',
-					serviceItems: device.serviceItems || [],
-					installationDate: device.installationDate || '',
-					decommissionDate: device.decommissionDate || '',
-					status: device.decommissionDate
-						? 'Decommissioned'
-						: device.status || 'Active',
-					location: device.location || { propertyId: property.id },
-					files: deviceDocumentFiles,
+			case 'add_part':
+				if (!canManageApplianceActions || !canAccessParts) break;
+				setPartFormData({
+					name: '',
+					category: 'part',
+					details: '',
+					partNumber: '',
+					size: '',
+					manufacturer: '',
+					material: '',
+					voltage: '',
+					mervRating: '',
+					compatibility: '',
+					replacementInterval: '',
+					notes: '',
 				});
-				setPendingDeviceFiles([]);
-				setRemovedExistingFileUrls([]);
-				setShowDeviceEditModal(true);
+				setShowPartModal(true);
 				break;
 			case 'add-task':
 				if (!canCreateTaskActions || !deviceTaskTemplate) break;
@@ -2370,6 +1604,7 @@ export const DeviceDetailPage: React.FC = () => {
 		}
 	}, [
 		applianceAction,
+		canAccessParts,
 		canCreateTaskActions,
 		canLogMaintenanceActions,
 		canManageApplianceActions,
@@ -3197,7 +2432,7 @@ export const DeviceDetailPage: React.FC = () => {
 								</PhotoHelperText>
 							</PhotoActions>
 
-							{/* Add/Edit Form */}
+							{/* Add/Edit Form
 							<PartsForm>
 								<div style={{ marginBottom: editingPartIndex !== null ? 12 : 0 }}>
 									<div style={{ fontSize: 13, fontWeight: 600, marginBottom: 12, color: '#374151' }}>
@@ -3277,7 +2512,7 @@ export const DeviceDetailPage: React.FC = () => {
 										}
 									/>
 								</FormField>
-							</PartsForm>
+							</PartsForm> */}
 
 							{/* Parts Table */}
 							{serviceParts.length > 0 ? (
@@ -3723,6 +2958,89 @@ export const DeviceDetailPage: React.FC = () => {
 						)}
 					</PartsForm>
 				</GenericModal>
+
+				{partFormData && (
+					<GenericModal
+						isOpen={showPartModal}
+						onClose={() => {
+							setShowPartModal(false);
+							resetPartForm();
+							setEditingPartIndex(null);
+						}}
+						onSubmit={async () => {
+							if (!device || !partFormData.name.trim()) return;
+							if (editingPartIndex !== null) {
+								await handleUpdatePart();
+							} else {
+								await handleAddPart();
+							}
+							setShowPartModal(false);
+						}}
+						title={editingPartIndex !== null ? 'Edit Part' : 'Add Part'}
+						showActions={true}
+						primaryButtonLabel={editingPartIndex !== null ? 'Update Part' : 'Add Part'}
+						primaryButtonDisabled={!partFormData.name.trim()}
+						secondaryButtonLabel='Cancel'
+					>
+						<PartsForm>
+							<FormRow>
+								<FormField>
+									<FormLabel>Part Name</FormLabel>
+									<FormInput
+										type='text'
+										placeholder='Part Name'
+										value={partFormData.name}
+										onChange={(e) =>
+											setPartFormData({ ...partFormData, name: e.target.value })
+										}
+									/>
+								</FormField>
+								<FormField>
+									<FormLabel>Category</FormLabel>
+									<FormSelect
+										value={partFormData.category}
+										onChange={(e) =>
+											setPartFormData({ ...partFormData, category: e.target.value })
+										}>
+										{DEVICE_SERVICE_ITEM_CATEGORY_OPTIONS.map((option) => (
+											<option key={option.value} value={option.value}>
+												{option.label}
+											</option>
+										))}
+									</FormSelect>
+								</FormField>
+							</FormRow>
+							<DynamicFieldsGrid>
+								{activePartFields.map((field) => (
+									<FormField key={String(field.key)}>
+										<FormLabel>{field.label}</FormLabel>
+										<FormInput
+											type={field.type || 'text'}
+											placeholder={field.placeholder}
+											value={String(partFormData[field.key] || '')}
+											onChange={(e) =>
+												setPartFormData({
+													...partFormData,
+													[field.key]: e.target.value,
+												})
+											}
+										/>
+									</FormField>
+								))}
+							</DynamicFieldsGrid>
+							<FormField>
+								<FormLabel>Additional Notes</FormLabel>
+								<FormTextarea
+									placeholder='Any relevant details for this part, such as installation tips or preferred vendor.'
+									value={partFormData.notes || ''}
+									onChange={(e) =>
+										setPartFormData({ ...partFormData, notes: e.target.value })
+									}
+								/>
+							</FormField>
+						</PartsForm>
+					</GenericModal>
+				)}
 
 				{device && property && (
 					<DeviceModal

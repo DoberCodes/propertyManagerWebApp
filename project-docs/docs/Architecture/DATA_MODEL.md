@@ -304,6 +304,23 @@ Properties should store descriptive information rather than operational history.
 
 Operational history belongs in Maintenance Events.
 
+## Property Groups
+
+Property groups organize existing property records for portfolio navigation.
+They do not own or duplicate property data.
+
+Optional presentation fields include:
+
+* description
+* sortOrder
+* defaultCollapsed
+* groupIconKey
+* groupIconColor
+* groupIconBgColor
+
+These fields control organization and display only. Properties remain the
+authoritative records, and group membership continues to reference them.
+
 ---
 
 # Appliance & System Model
