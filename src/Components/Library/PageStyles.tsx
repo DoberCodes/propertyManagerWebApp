@@ -55,7 +55,6 @@ export const PageTitle = styled.h1`
 	@media (max-width: 1024px) {
 		font-size: 24px;
 	}
-
 	@media (max-width: 480px) {
 		font-size: 22px;
 	}

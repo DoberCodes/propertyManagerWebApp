@@ -171,6 +171,8 @@ import {
 	faMicrochip,
 	faClock,
 	faGripVertical,
+	faLayerGroup,
+	faMarsAndVenus,
 } from '@fortawesome/free-solid-svg-icons';
 
 const ACTIVE_TASK_STATUSES = new Set([
@@ -1097,6 +1099,11 @@ export const Properties = () => {
 		setIsHeaderMenuOpen(false);
 	};
 
+	const handleExpandAllGroups = () => {
+		setCollapsedGroups(new Set());
+		setIsHeaderMenuOpen(false);
+	};
+
 	const openManageGroupsDialog = useCallback(
 		(options?: {
 			view?: 'reorder' | 'create' | 'details' | 'transfer';
@@ -1168,6 +1175,10 @@ export const Properties = () => {
 
 	const handleHeaderManageGroups = () => {
 		openManageGroupsDialog();
+	};
+
+	const handleHeaderCreateGroup = () => {
+		openManageGroupsDialog({ view: 'create' });
 	};
 
 	const handleCreateGroupFromManageDialog = async () => {
@@ -2434,11 +2445,11 @@ export const Properties = () => {
 							</AddPropertyButton>
 							{canManageGroups && (
 								<HeaderMenuWrap ref={headerMenuRef}>
-									<HeaderMenuButton
+									{/* <HeaderMenuButton
 										onClick={() => setIsHeaderMenuOpen((prev) => !prev)}
 										aria-label='Open group options'>
-										...
-									</HeaderMenuButton>
+										Group Management
+									</HeaderMenuButton> */}
 									{isHeaderMenuOpen && (
 										<HeaderDropdownMenu>
 											{/* <HeaderDropdownItem onClick={handleHeaderCreateGroup}>
@@ -2495,7 +2506,33 @@ export const Properties = () => {
 				onClearDraft={clearDraftFilters}
 				activeFilterCount={activeFilterCount}
 				title='Search and filter properties'
-				description='Choose which properties you want to see, then apply your changes.'>
+				description='Choose which properties you want to see, then apply your changes.'
+				additionalSettingsActions={
+					canManageGroups
+						? [
+								{
+									label: 'Manage Groups',
+									description: 'Reorder groups or open group settings.',
+									onClick: handleHeaderManageGroups,
+								},
+								{
+									label: 'Create Group',
+									description: 'Create and customize a new property group.',
+									onClick: handleHeaderCreateGroup,
+								},
+								{
+									label: 'Collapse All',
+									description: 'Show only the group headings.',
+									onClick: handleCollapseAllGroups,
+								},
+								{
+									label: 'Expand All',
+									description: 'Show properties in every group.',
+									onClick: handleExpandAllGroups,
+								},
+							]
+						: undefined
+				}>
 				<PropertyFilterFields>
 					<PropertyFilterField>
 						Search

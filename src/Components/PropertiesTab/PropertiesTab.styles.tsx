@@ -1050,6 +1050,7 @@ export const HeaderMenuWrap = styled.div`
 	position: relative;
 	display: flex;
 	align-items: center;
+	
 
 	@media (max-width: 768px) {
 		order: 4;
@@ -1059,6 +1060,7 @@ export const HeaderMenuWrap = styled.div`
 `;
 
 export const HeaderMenuButton = styled.button`
+
 	height: 40px;
 	min-width: 40px;
 	padding: 0 10px;
@@ -1066,7 +1068,7 @@ export const HeaderMenuButton = styled.button`
 	border-radius: 10px;
 	background: #ffffff;
 	color: #4b5563;
-	font-size: 20px;
+	font-size: 14px;
 	line-height: 1;
 	cursor: pointer;
 	transition: border-color 0.2s ease, background-color 0.2s ease, color 0.2s ease;

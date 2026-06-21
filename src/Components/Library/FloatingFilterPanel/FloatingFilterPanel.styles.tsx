@@ -18,7 +18,7 @@ export const FilterBackdrop = styled.button<{ $open: boolean }>`
 
 export const FilterTrigger = styled.button<{ $open: boolean }>`
 	position: fixed;
-	top: max(150px, calc(env(safe-area-inset-top) + 72px));
+	top: max(50px, calc(env(safe-area-inset-top) + 72px));
 	right: max(18px, env(safe-area-inset-right));
 	display: ${({ $open }) => ($open ? 'none' : 'flex')};
 	align-items: center;
@@ -47,13 +47,99 @@ export const FilterTrigger = styled.button<{ $open: boolean }>`
 	}
 
 	@media (max-width: 1024px) {
-		top: max(180px, calc(env(safe-area-inset-top) + 66px));
+		top: max(120px, calc(env(safe-area-inset-top) + 66px));
 		width: 48px;
 		height: 48px;
 	}
 
 	@media (min-width: 1025px) {
 		display: none;
+	}
+`;
+
+export const AdditionalSettingsMenuWrap = styled.div`
+	position: fixed;
+	top: max(175px, calc(env(safe-area-inset-top) + 121px));
+	right: max(18px, env(safe-area-inset-right));
+	z-index: 505;
+
+	@media (min-width: 1025px) {
+		display: none;
+	}
+`;
+
+export const AdditionalSettingsTrigger = styled.button<{ $open: boolean }>`
+	display: ${({ $open }) => ($open ? 'none' : 'flex')};
+	align-items: center;
+	justify-content: center;
+	width: 40px;
+	height: 40px;
+	border: 1px solid rgba(16, 185, 129, 0.3);
+	border-radius: 50%;
+	background: ${COLORS.gray500};
+	opacity: 0.6;
+	color: #ffffff;
+	font-size: 20px;
+	cursor: pointer;
+	transition: transform 150ms ease, box-shadow 150ms ease;
+
+	&:hover {
+		transform: translateY(-2px);
+		box-shadow: 0 18px 32px rgba(5, 150, 105, 0.36);
+	}
+
+	&:focus-visible {
+		outline: 3px solid rgba(16, 185, 129, 0.24);
+		outline-offset: 3px;
+	}
+
+	@media (max-width: 1024px) {
+		width: 40px;
+		height: 40px;
+		font-size: 16px;
+	}
+`;
+
+export const AdditionalSettingsMenu = styled.div`
+	position: absolute;
+	top: calc(100% + 8px);
+	right: 0;
+	width: min(270px, calc(100vw - 36px));
+	padding: 6px;
+	border: 1px solid #dbe5e1;
+	border-radius: 14px;
+	background: #ffffff;
+	box-shadow: 0 18px 38px rgba(15, 23, 42, 0.18);
+`;
+
+export const AdditionalSettingsMenuItem = styled.button`
+	width: 100%;
+	padding: 10px 12px;
+	border: none;
+	border-radius: 10px;
+	background: transparent;
+	text-align: left;
+	cursor: pointer;
+
+	&:hover {
+		background: #f0fdf4;
+	}
+
+	strong,
+	span {
+		display: block;
+	}
+
+	strong {
+		color: #0f172a;
+		font-size: 13px;
+	}
+
+	span {
+		margin-top: 2px;
+		color: #64748b;
+		font-size: 11px;
+		line-height: 1.35;
 	}
 `;
 

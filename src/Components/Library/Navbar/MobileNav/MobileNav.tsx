@@ -4,6 +4,7 @@ import React from "react"
 import { MobileBottomNavBar, MobileBottomNavInner, MobileBottomNavItem, MobileBottomNavLabel, MobileBottomCenterWrap, MobileBottomActionBackdrop, MobileBottomActionMenu, MobileBottomActionItem, MobileBottomCenterButton, MobileSidebar } from "./MobileNav.styles"
 import { AccountSnapshot } from "Components/AccountSnapshot"
 import { useNavigate } from "react-router-dom"
+import titleName from '../../../../Assets/images/TitleName.png';
 
 
 interface MobileNavProps {
@@ -46,8 +47,11 @@ export const MobileHamburgerNav: React.FC<MobileNavProps> = ({ isSidebarOpen, se
     return (
         <div>
             <MobileSidebar $isOpen={isSidebarOpen}>
+                <div style={{ display: 'flex', justifyContent: 'flex-start', backgroundColor: '#047857', marginBottom: '20px', padding: '5px' }}>
+                    <img src={titleName} alt='Property Manager' style={{ height: '40px' }} />
+                </div>
                 {/* Navigation Menu */}
-                <div style={{ padding: '20px', borderBottom: '1px solid #e5e7eb' }}>
+                <div style={{ padding: '20px', paddingTop: '0', borderBottom: '1px solid #e5e7eb' }}>
                     <h3
                         style={{
                             margin: '0 0 12px 0',

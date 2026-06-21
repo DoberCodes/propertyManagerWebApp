@@ -144,6 +144,11 @@ The expanded panel should:
 
 Desktop layouts should keep the established inline controls.
 
+On the global Properties page, a secondary folder trigger may sit below the
+floating search button. It should appear only in the Properties route and
+provide compact access to property-group actions such as managing, creating,
+collapsing, or expanding groups.
+
 ---
 
 ## Prioritize Core Actions

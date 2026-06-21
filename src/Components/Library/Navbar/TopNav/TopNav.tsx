@@ -4,10 +4,9 @@ import { RootState } from '../../../../Redux/store/store';
 import {
 	Title,
 	Wrapper,
-	LeftSection,
-	RightSection,
 	HamburgerButton,
 	NavbarOverlay,
+	InnerWrapper,
 } from './TopNav.styles';
 import { AvatarMenu } from '../AvatarMenu/AvatarMenu';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -25,14 +24,22 @@ import { GenericModal } from '../../Modal/GenericModal';
 import { NotificationPanel } from '../../NotificationPanel/NotificationPanel';
 
 import { MobileBottomNav, MobileHamburgerNav } from '../MobileNav';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faBars } from '@fortawesome/free-solid-svg-icons';
 
 export const TopNav = () => {
 	const navigate = useNavigate();
 	const location = useLocation();
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
 	const { favorites } = useFavorites(currentUser!.id);
+	const activeRoute = useSelector((state: RootState) => state.navigation.activeRoute);
 
 	console.info(currentUser);
+	const [navLocation, setNavLocation] = useState('Dashboard');
+
+	const pathname = location.pathname || '';
+	const isPropertyContext = /^\/property\//i.test(pathname);
+
 
 
 	const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -49,6 +56,30 @@ export const TopNav = () => {
 	const isTeamMemberAccount = useSelector(selectIsTeamMemberAccount);
 	const isHomeowner = useSelector(selectIsHomeowner);
 
+	useEffect(() => {
+		// Logic to determine nav title based on active route
+		// This can be expanded with more complex logic or a mapping of routes to titles
+
+		if (activeRoute.startsWith('/properties')) {
+			setNavLocation('Properties');
+		} else if (activeRoute.startsWith('/tasks')) {
+			setNavLocation('Tasks');
+		} else if (activeRoute.startsWith('/devices')) {
+			setNavLocation('Appliances');
+		} else if (activeRoute.startsWith('/team')) {
+			setNavLocation('Team');
+		} else if (activeRoute.startsWith('/settings')) {
+			setNavLocation('Settings');
+		} else if (activeRoute.startsWith('/property/')) {
+			setNavLocation(pathname.split('/')[2] || 'Property');
+		} else {
+			setNavLocation('Dashboard');
+		}
+		// Set document title for better UX
+
+
+
+	}, [activeRoute]);
 
 	useEffect(() => {
 		const handleOutsideClick = (event: MouseEvent) => {
@@ -89,15 +120,7 @@ export const TopNav = () => {
 			);
 		};
 	}, []);
-	const activeRoute = useSelector(
-		(state: RootState) => state.navigation.activeRoute,
-	);
-	const pathname = location.pathname || '';
-	const isPropertyContext = /^\/property\//i.test(pathname);
-	const isHomeActive = pathname === '/dashboard';
-	const isTasksActive = pathname === '/tasks';
-	const isSystemsActive = pathname === '/devices';
-	const isPropertyNavActive = /^\/properties(\/|$)|^\/property\//i.test(pathname);
+
 
 	return (
 		<>
@@ -105,42 +128,29 @@ export const TopNav = () => {
 				setIsSidebarOpen(false);
 			}} />
 			<Wrapper>
-				<LeftSection>
-					<HamburgerButton
-						onClick={() => {
-							setIsSidebarOpen(!isSidebarOpen)
-							if (isProfileDropdownOpen) {
-								setIsProfileDropdownOpen(false);
-							}
-						}}
-						title='Open menu'>
-						☰
-					</HamburgerButton>
-					<Title className='desktop-title'>
-						<img src={TitleName} alt='Maintley' />
-						<span
-							style={{
-								color: '#22c55e',
-								position: 'relative',
-								top: '-10px',
-							}}>
+				<InnerWrapper>
+					<div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#fff', fontWeight: 500, fontSize: '18px' }}>
+						<HamburgerButton
+							onClick={() => {
+								setIsSidebarOpen(!isSidebarOpen)
+								if (isProfileDropdownOpen) {
+									setIsProfileDropdownOpen(false);
+								}
+							}}
+							title='Open menu'>
+							<FontAwesomeIcon icon={faBars} size='lg' color='#fff' />
+						</HamburgerButton>
+						{navLocation}
+					</div>
+					<Title>
+						<img src={TitleName} alt='Maintley' />{' '}
+						<span>
 							Beta
 						</span>
 					</Title>
-				</LeftSection>
-				<Title className='mobile-title'>
-					<img src={TitleName} alt='Maintley' />{' '}
-					<div
-						style={{
-							color: '#22c55e',
-						}}>
-						Beta
-					</div>
-				</Title>
-				<RightSection>
 					<NavbarOverlay isDropdown={isProfileDropdownOpen} onClick={() => setIsProfileDropdownOpen(false)} />
 					<AvatarMenu activeRoute={activeRoute} isProfileDropdownOpen={isProfileDropdownOpen} setIsProfileDropdownOpen={setIsProfileDropdownOpen} setIsNotificationModalOpen={setIsNotificationModalOpen} isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} />
-				</RightSection>
+				</InnerWrapper>
 			</Wrapper>
 
 			{/* Mobile Sidebar */}

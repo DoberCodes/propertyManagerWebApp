@@ -250,13 +250,13 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 		isDuplicate &&
 		Boolean(duplicateSourceName?.trim()) &&
 		formData.name.trim().toLowerCase() ===
-			duplicateSourceName!.trim().toLowerCase();
+		duplicateSourceName!.trim().toLowerCase();
 	const propertyNameCreatesSlug = buildPropertySlug(formData.name).length > 0;
 	const requiredPropertyBasicsComplete = Boolean(
 		formData.name.trim() &&
-			propertyNameCreatesSlug &&
-			formData.address.trim() &&
-			!duplicateNameUnchanged,
+		propertyNameCreatesSlug &&
+		formData.address.trim() &&
+		!duplicateNameUnchanged,
 	);
 	const steps = STEPS;
 
@@ -913,11 +913,10 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 									<span>
 										Copy appliance records
 										{duplicateApplianceCount > 0
-											? ` (${duplicateApplianceCount} ${
-													duplicateApplianceCount === 1
-														? 'appliance'
-														: 'appliances'
-											  })`
+											? ` (${duplicateApplianceCount} ${duplicateApplianceCount === 1
+												? 'appliance'
+												: 'appliances'
+											})`
 											: ' (no appliances found)'}
 									</span>
 								</label>
@@ -940,9 +939,8 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 									<span>
 										Copy current tasks
 										{duplicateTaskCount > 0
-											? ` (${duplicateTaskCount} active ${
-													duplicateTaskCount === 1 ? 'task' : 'tasks'
-											  })`
+											? ` (${duplicateTaskCount} active ${duplicateTaskCount === 1 ? 'task' : 'tasks'
+											})`
 											: ' (no active tasks found)'}
 									</span>
 								</label>
@@ -955,7 +953,7 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 						)}
 					</FormSection>
 
-						{/* Units are temporarily hidden from the app flow.
+					{/* Units are temporarily hidden from the app flow.
 						{formData.propertyType === 'Multi-Family' && (
 							<FormSection>
 								<Label>Units</Label>
@@ -1241,7 +1239,7 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 									{isDeletingProperty ? 'Deleting...' : 'Delete Property'}
 								</FooterTextAction>
 							)}
-							
+
 							{propertyId && isSharedProperty && onDetachFromProperty && stepIndex === steps.length - 1 && (
 								<FooterTextAction
 									type='button'

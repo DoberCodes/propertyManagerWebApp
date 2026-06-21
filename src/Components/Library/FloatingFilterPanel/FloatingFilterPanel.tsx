@@ -1,11 +1,18 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { useSelector } from 'react-redux';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
 	faChevronRight,
+	faFolderOpen,
 	faMagnifyingGlass,
 } from '@fortawesome/free-solid-svg-icons';
+import { RootState } from '../../../Redux/store/store';
 import {
 	ActiveFilterBadge,
+	AdditionalSettingsMenu,
+	AdditionalSettingsMenuItem,
+	AdditionalSettingsMenuWrap,
+	AdditionalSettingsTrigger,
 	ApplyFilterButton,
 	ClearDraftButton,
 	CollapseButton,
@@ -28,6 +35,11 @@ interface FloatingFilterPanelProps {
 	title: string;
 	description?: string;
 	children: React.ReactNode;
+	additionalSettingsActions?: Array<{
+		label: string;
+		description?: string;
+		onClick: () => void;
+	}>;
 }
 
 export const FloatingFilterPanel: React.FC<FloatingFilterPanelProps> = ({
@@ -40,7 +52,17 @@ export const FloatingFilterPanel: React.FC<FloatingFilterPanelProps> = ({
 	title,
 	description,
 	children,
+	additionalSettingsActions = [],
 }) => {
+	const activeRoute = useSelector(
+		(state: RootState) => state.navigation.activeRoute,
+	);
+	const [isAdditionalSettingsOpen, setIsAdditionalSettingsOpen] =
+		useState(false);
+	const additionalSettingsRef = useRef<HTMLDivElement | null>(null);
+	const showAdditionalSettings =
+		activeRoute === '/properties' && additionalSettingsActions.length > 0;
+
 	useEffect(() => {
 		if (!isOpen) return;
 
@@ -53,6 +75,37 @@ export const FloatingFilterPanel: React.FC<FloatingFilterPanelProps> = ({
 		document.addEventListener('keydown', handleKeyDown);
 		return () => document.removeEventListener('keydown', handleKeyDown);
 	}, [isOpen, onDismiss]);
+
+	useEffect(() => {
+		if (activeRoute !== '/properties' || isOpen) {
+			setIsAdditionalSettingsOpen(false);
+		}
+	}, [activeRoute, isOpen]);
+
+	useEffect(() => {
+		if (!isAdditionalSettingsOpen) return;
+
+		const handlePointerDown = (event: MouseEvent) => {
+			if (
+				additionalSettingsRef.current &&
+				!additionalSettingsRef.current.contains(event.target as Node)
+			) {
+				setIsAdditionalSettingsOpen(false);
+			}
+		};
+		const handleKeyDown = (event: KeyboardEvent) => {
+			if (event.key === 'Escape') {
+				setIsAdditionalSettingsOpen(false);
+			}
+		};
+
+		document.addEventListener('mousedown', handlePointerDown);
+		document.addEventListener('keydown', handleKeyDown);
+		return () => {
+			document.removeEventListener('mousedown', handlePointerDown);
+			document.removeEventListener('keydown', handleKeyDown);
+		};
+	}, [isAdditionalSettingsOpen]);
 
 	return (
 		<>
@@ -67,6 +120,36 @@ export const FloatingFilterPanel: React.FC<FloatingFilterPanelProps> = ({
 					<ActiveFilterBadge>{activeFilterCount}</ActiveFilterBadge>
 				)}
 			</FilterTrigger>
+			{showAdditionalSettings && (
+				<AdditionalSettingsMenuWrap ref={additionalSettingsRef}>
+					<AdditionalSettingsTrigger
+						type='button'
+						$open={isOpen}
+						onClick={() =>
+							setIsAdditionalSettingsOpen((current) => !current)
+						}
+						aria-label='Open property group options'
+						aria-expanded={isAdditionalSettingsOpen}>
+						<FontAwesomeIcon icon={faFolderOpen} size='sm' />
+					</AdditionalSettingsTrigger>
+					{isAdditionalSettingsOpen && (
+						<AdditionalSettingsMenu>
+							{additionalSettingsActions.map((action) => (
+								<AdditionalSettingsMenuItem
+									key={action.label}
+									type='button'
+									onClick={() => {
+										setIsAdditionalSettingsOpen(false);
+										action.onClick();
+									}}>
+									<strong>{action.label}</strong>
+									{action.description && <span>{action.description}</span>}
+								</AdditionalSettingsMenuItem>
+							))}
+						</AdditionalSettingsMenu>
+					)}
+				</AdditionalSettingsMenuWrap>
+			)}
 
 			<FilterBackdrop
 				type='button'

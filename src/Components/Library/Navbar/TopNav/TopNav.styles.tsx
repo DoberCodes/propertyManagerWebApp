@@ -23,49 +23,12 @@ export const Wrapper = styled.div`
 	z-index: 100;
 	box-shadow: ${COLORS.shadow};
 
-	/* Extend background into top safe area */
-	&::before {
-		content: '';
-		position: absolute;
-		top: calc(-1 * env(safe-area-inset-top, 0px));
-		left: 0;
-		right: 0;
-		height: max(env(safe-area-inset-top, 20px), 40px);
-		padding-top: max(env(safe-area-inset-top, 20px), 40px);
-		background: linear-gradient(90deg, #065f46 0%, #047857 100%);
-		z-index: 0;
-		pointer-events: none;
-	}
-
-	> * {
-		position: relative;
-		z-index: 1;
-	}
-
-	.mobile-title {
-		display: none;
-	}
-
 	@media (max-width: 1024px) {
 		padding: 40px 15px;
 		padding-top: max(60px, env(safe-area-inset-top, 40px));
 		padding-left: max(15px, env(safe-area-inset-left, 15px));
 		padding-right: max(15px, env(safe-area-inset-right, 15px));
 
-		.mobile-title {
-			display: flex;
-			position: absolute;
-			left: 50%;
-			top: 50%;
-			transform: translate(-50%, -50%);
-			height: 80%;
-			align-items: center;
-			max-width: 50vw;
-
-			img {
-				max-height: 100%;
-			}
-		}
 	}
 
 	@media (max-width: 480px) {
@@ -81,111 +44,44 @@ export const Wrapper = styled.div`
 	}
 `;
 
-export const LeftSection = styled.div`
+export const InnerWrapper = styled.div`
 	display: flex;
 	align-items: center;
-	gap: 15px;
-	flex-shrink: 0;
-	width: auto;
+	justify-content: space-between;
+	width: 100%;
+	max-width: 1200px;
+	margin: 0 auto;
+	gap: 20px;
 
-	.desktop-title {
-		display: block;
-	}
-
-	@media (max-width: 1024px) {
-		gap: 12px;
-		max-width: 130px;
-	}
 
 	@media (max-width: 1024px) {
 		gap: 15px;
-		width: auto;
-
-		.desktop-title {
-			display: none;
-		}
-	}
-`;
-
-export const RightSection = styled.div`
-	display: flex;
-	align-items: center;
-	justify-content: flex-end;
-	flex: 0 0 auto;
-	overflow: visible;
-	gap: 20px;
-	padding-right: 6px;
-
-	.mobile-profile {
-		display: none; /* Hide profile picture on desktop */
-	}
-
-	.desktop-profile {
-		display: flex;
-	}
-
-	.desktop-title {
-		display: none;
-	}
-
-	.desktop-notification {
-		display: flex;
-	}
-
-	@media (max-width: 1024px) {
-		flex-wrap: nowrap;
-		justify-content: flex-end;
-		gap: 16px;
-
-		.mobile-profile {
-			display: flex; /* Show profile picture on mobile */
-		}
-
-		.desktop-profile {
-			display: none;
-		}
-
-		.desktop-title {
-			display: none;
-		}
-
-		.desktop-notification {
-			display: none;
-		}
 	}
 
 	@media (max-width: 480px) {
-		gap: 12px;
+		gap: 10px;
 	}
 `;
 
 export const Title = styled.div`
-	display: block;
+	display: flex;
 	justify-content: center;
 	align-items: center;
-	margin: 0;
-	height: 100%;
-
+	flex-shrink: 0;
 	img {
-		max-height: 100%;
-		width: 80%;
-		max-width: 100px;
-		object-fit: contain;
+		height: 50px;
+		width: auto;
+	}
+	span {
+		font-size: 0.8em;	
+		color: ${COLORS.primary};
+		position: relative;
 	}
 
 	@media (max-width: 1024px) {
-		img {
-			height: 100%;
-			max-width: 100%;
-			object-fit: contain;
-		}
+		display: none;
 	}
 
-	@media (max-width: 480px) {
-		img {
-			height: 100%;
-		}
-	}
 `;
 
 export const NavItems = styled.div`
@@ -253,6 +149,8 @@ export const HamburgerButton = styled.button`
 	color: ${COLORS.bgWhite};
 	padding: 8px;
 	margin-right: 10px;
+	justify-content: center;
+	align-items: center;
 	transition: all 0.2s ease;
 
 	&:hover {
@@ -261,7 +159,7 @@ export const HamburgerButton = styled.button`
 	}
 
 	@media (max-width: 1024px) {
-		display: block;
+		display: flex;
 	}
 `;
 

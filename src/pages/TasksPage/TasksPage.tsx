@@ -341,19 +341,6 @@ export const TasksPage = () => {
 		) => void,
 	) => (
 		<TaskFilterFields>
-			{/* <TaskFilterField>
-				Lifecycle status
-				<TaskSortSelect
-					value={values.status}
-					onChange={(event) => onChange('status', event.target.value)}>
-					<option value=''>All statuses</option>
-					{globalTaskFilterOptions.statuses.map((option) => (
-						<option key={option.value} value={option.value}>
-							{option.label}
-						</option>
-					))}
-				</TaskSortSelect>
-			</TaskFilterField> */}
 			<TaskFilterField>
 				Priority
 				<TaskSortSelect
@@ -708,12 +695,12 @@ export const TasksPage = () => {
 				? [{ label: 'Clear Filters', onClick: clearTopFilters }]
 				: canCreateTasks
 					? [
-							{
-								label: 'Add Task',
-								onClick: handleCreateTask,
-								hideOnCompact: true,
-							},
-					  ]
+						{
+							label: 'Add Task',
+							onClick: handleCreateTask,
+							hideOnCompact: true,
+						},
+					]
 					: [];
 
 		return { kind, actions };

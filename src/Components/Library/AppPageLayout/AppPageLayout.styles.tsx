@@ -63,10 +63,12 @@ export const AppPageTitle = styled.h1`
 
 	@media (max-width: 1024px) {
 		font-size: 24px;
+		display: none;
 	}
 
 	@media (max-width: 480px) {
 		font-size: 20px;
+		display: none;
 	}
 `;
 
@@ -79,5 +81,6 @@ export const AppPageSubtitle = styled.p`
 
 	@media (max-width: 480px) {
 		font-size: 13px;
+		display: none;
 	}
 `;
