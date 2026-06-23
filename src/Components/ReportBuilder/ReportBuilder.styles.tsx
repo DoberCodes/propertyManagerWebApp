@@ -5,16 +5,19 @@ export const Wrapper = styled.div`
 	flex-direction: column;
 	gap: 24px;
 	padding: 20px;
+	padding-bottom: max(24px, calc(var(--mobile-bottom-nav-offset, 0px) + 24px));
 	min-height: 100%;
 	background-color: #fafafa;
 
 	@media (max-width: 1024px) {
 		padding: 15px;
+		padding-bottom: calc(var(--mobile-bottom-nav-offset, 0px) + 28px);
 		gap: 16px;
 	}
 
 	@media (max-width: 480px) {
 		padding: 10px;
+		padding-bottom: calc(var(--mobile-bottom-nav-offset, 0px) + 24px);
 		gap: 12px;
 	}
 `;
@@ -75,6 +78,56 @@ export const ReportBuilderContainer = styled.div`
 	@media (max-width: 480px) {
 		gap: 12px;
 	}
+`;
+
+export const MobileReportGrid = styled.div`
+	display: none;
+
+	@media (max-width: 1024px) {
+		display: grid;
+		grid-template-columns: 1fr;
+		gap: 10px;
+	}
+`;
+
+export const MobileReportCard = styled.button<{ $active?: boolean; $locked?: boolean }>`
+	text-align: left;
+	border: 1px solid ${({ $active }) => ($active ? '#16a34a' : '#d1d5db')};
+	background: ${({ $active }) => ($active ? '#f0fdf4' : '#ffffff')};
+	border-radius: 10px;
+	padding: 12px;
+	box-shadow: ${({ $active }) =>
+		$active ? '0 8px 20px rgba(22, 163, 74, 0.12)' : 'none'};
+	cursor: ${({ $locked }) => ($locked ? 'not-allowed' : 'pointer')};
+	opacity: ${({ $locked }) => ($locked ? 0.72 : 1)};
+	transition: border-color 0.18s ease, background-color 0.18s ease, box-shadow 0.18s ease;
+
+	&:focus-visible {
+		outline: 3px solid rgba(22, 163, 74, 0.25);
+		outline-offset: 2px;
+	}
+`;
+
+export const MobileReportCardTitle = styled.div`
+	font-size: 14px;
+	font-weight: 700;
+	color: #111827;
+	margin-bottom: 4px;
+`;
+
+export const MobileReportCardDescription = styled.div`
+	font-size: 12px;
+	line-height: 1.45;
+	color: #4b5563;
+`;
+
+export const MobileReportCardMeta = styled.div`
+	margin-top: 8px;
+	font-size: 11px;
+	font-weight: 700;
+	color: #6b7280;
+	text-transform: uppercase;
+	letter-spacing: 0.03em;
 `;
 
 export const Section = styled.div`
@@ -151,7 +204,7 @@ export const ColumnsGrid = styled.div`
 	}
 
 	@media (max-width: 480px) {
-		grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+		grid-template-columns: repeat(2, minmax(0, 1fr));
 		gap: 6px;
 	}
 `;
@@ -250,7 +303,7 @@ export const Button = styled.button<{ variant?: 'primary' | 'secondary' }>`
 
 	&:hover:not(:disabled) {
 		background-color: ${(props) =>
-			props.variant === 'secondary' ? '#d1d5db' : '#16a34a'};
+		props.variant === 'secondary' ? '#d1d5db' : '#16a34a'};
 	}
 
 	&:disabled {
@@ -301,6 +354,10 @@ export const PreviewTable = styled.div`
 	overflow-x: auto;
 	border: 1px solid #e5e7eb;
 	border-radius: 6px;
+
+	@media (max-width: 480px) {
+		margin: 0 -4px;
+	}
 `;
 
 export const Table = styled.table`
@@ -387,6 +444,10 @@ export const ActionButtons = styled.div`
 	@media (max-width: 480px) {
 		gap: 8px;
 		flex-direction: column;
+
+		button {
+			width: 100%;
+		}
 	}
 `;
 

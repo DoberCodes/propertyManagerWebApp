@@ -72,6 +72,8 @@ export const TopNav = () => {
 			setNavLocation('Settings');
 		} else if (activeRoute.startsWith('/support')) {
 			setNavLocation('Support Center');
+		} else if (activeRoute.startsWith('/report')) {
+			setNavLocation('Reports');
 		} else if (activeRoute.startsWith('/property/')) {
 			setNavLocation(pathname.split('/')[2] || 'Property');
 		} else {
