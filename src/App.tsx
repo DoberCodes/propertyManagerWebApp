@@ -7,11 +7,19 @@ import { onAuthStateChange } from './services/authService';
 import { UpdateNotification } from './Components/Library/UpdateNotification/UpdateNotification';
 import { checkForUpdates } from './utils/versionCheck';
 import styled from 'styled-components';
-import { Capacitor } from '@capacitor/core';
+import { Capacitor, registerPlugin } from '@capacitor/core';
 import { initializePushNotifications } from './services/pushNotifications';
 import { setIsMobile } from './Redux/Slices/appSlice';
 import { AppFeedbackProvider } from './Components/Library/AppFeedback/AppFeedbackProvider';
 import { canUseNotifications } from './utils/subscriptionUtils';
+
+type SystemBarType = 'StatusBar' | 'NavigationBar';
+
+interface SystemBarsPlugin {
+	hide(options?: { type?: SystemBarType }): Promise<void>;
+}
+
+const SystemBars = registerPlugin<SystemBarsPlugin>('SystemBars');
 
 const LoadingContainer = styled.div`
 	display: flex;
@@ -302,6 +310,24 @@ export const App = () => {
 			return;
 		}
 
+		const hideStatusBar = async () => {
+			try {
+				await SystemBars.hide({ type: 'StatusBar' });
+			} catch (error) {
+				console.warn('Unable to hide native status bar:', error);
+			}
+		};
+
+		hideStatusBar();
+
+		const onVisibilityChange = () => {
+			if (document.visibilityState === 'visible') {
+				hideStatusBar();
+			}
+		};
+
+		document.addEventListener('visibilitychange', onVisibilityChange);
+
 		let startY = 0;
 		let isPulling = false;
 		let triggered = false;
@@ -361,6 +387,7 @@ export const App = () => {
 		window.addEventListener('touchend', onTouchEnd);
 
 		return () => {
+			document.removeEventListener('visibilitychange', onVisibilityChange);
 			window.removeEventListener('touchstart', onTouchStart);
 			window.removeEventListener('touchmove', onTouchMove);
 			window.removeEventListener('touchend', onTouchEnd);

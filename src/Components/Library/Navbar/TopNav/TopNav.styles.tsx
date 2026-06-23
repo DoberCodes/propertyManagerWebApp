@@ -14,8 +14,8 @@ export const Wrapper = styled.div`
 	min-height: ${nav_height};
 	flex-shrink: 0;
 	background: linear-gradient(90deg, #065f46 0%, #047857 100%);
-	padding: 40px 20px;
-	padding-top: max(40px, env(safe-area-inset-top, 40px));
+	padding: 24px 20px;
+	padding-top: max(24px, env(safe-area-inset-top, 24px));
 	padding-left: max(20px, env(safe-area-inset-left, 20px));
 	padding-right: max(20px, env(safe-area-inset-right, 20px));
 	overflow: visible;
@@ -24,16 +24,16 @@ export const Wrapper = styled.div`
 	box-shadow: ${COLORS.shadow};
 
 	@media (max-width: 1024px) {
-		padding: 40px 15px;
-		padding-top: max(60px, env(safe-area-inset-top, 40px));
+		padding: 24px 15px;
+		padding-top: max(30px, env(safe-area-inset-top, 24px));
 		padding-left: max(15px, env(safe-area-inset-left, 15px));
 		padding-right: max(15px, env(safe-area-inset-right, 15px));
 
 	}
 
 	@media (max-width: 480px) {
-		padding: 40px 10px;
-		padding-top: max(60px, env(safe-area-inset-top, 60px));
+		padding: 20px 10px;
+		padding-top: max(24px, env(safe-area-inset-top, 24px));
 		padding-left: max(10px, env(safe-area-inset-left, 10px));
 		padding-right: max(10px, env(safe-area-inset-right, 10px));
 
