@@ -1,5 +1,5 @@
-🎉 **Release Notes for Version 2.6.2** 🎉
+🎉 **Release Notes for Version 2.6.3** 🎉
 
 
 ## 🐛 Bug Fixes
-- fixing the reports page mobile view
+- fixing mobile views and decluttering information views. Adding more admin features to help app management.
