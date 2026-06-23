@@ -1,5 +1,5 @@
-🎉 **Release Notes for Version 2.5.10** 🎉
+🎉 **Release Notes for Version 2.6.0** 🎉
 
 
-## 🐛 Bug Fixes
-- fixing the mobile view of properties as well as adding additional floating options
+## 🔧 Improvements & Maintenance
+- feat: Adding customer support portal
