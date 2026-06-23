@@ -1,5 +1,5 @@
-🎉 **Release Notes for Version 2.6.0** 🎉
+🎉 **Release Notes for Version 2.6.1** 🎉
 
 
-## 🔧 Improvements & Maintenance
-- feat: Adding customer support portal
+## 🐛 Bug Fixes
+- fixing the top navigation and top notification bar on devices overlapping
