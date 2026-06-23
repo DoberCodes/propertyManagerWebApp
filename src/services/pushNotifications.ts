@@ -62,21 +62,10 @@ export function initializePushNotifications(
 ) {
 	if (!isNativeApp()) return;
 
-	console.log('Initializing push notifications...');
-
-	// Check current permission status
-	PushNotifications.checkPermissions().then((result) => {
-		console.log('Push notification permissions:', result);
-	});
-
 	// Request permission and register
 	PushNotifications.requestPermissions().then((result) => {
-		console.log('Permission request result:', result);
 		if (result.receive === 'granted') {
-			console.log('Push notification permissions granted');
 			PushNotifications.register();
-		} else {
-			console.log('Push notification permissions denied');
 		}
 	});
 
@@ -96,7 +85,6 @@ export function initializePushNotifications(
 						},
 						{ merge: true },
 					);
-					console.log('Push token saved successfully');
 				} catch (err) {
 					console.error('Failed to save push token to Firestore:', err);
 				}
@@ -114,7 +102,6 @@ export function initializePushNotifications(
 	PushNotifications.addListener(
 		'pushNotificationReceived',
 		(notification: PushNotification) => {
-			console.log('Foreground push notification received:', notification);
 			if (onNotification) onNotification(notification);
 		},
 	);
@@ -123,7 +110,6 @@ export function initializePushNotifications(
 	PushNotifications.addListener(
 		'pushNotificationActionPerformed',
 		(action: PushNotificationActionPerformed) => {
-			console.log('Push notification action performed:', action);
 			if (onAction) onAction(action);
 
 			// Handle navigation based on notification data
@@ -142,7 +128,6 @@ export function initializePushNotifications(
  */
 export async function sendTestPushNotification(userId: string): Promise<void> {
 	if (!isNativeApp()) {
-		console.log('Push notifications only work on native apps');
 		return;
 	}
 
@@ -154,7 +139,6 @@ export async function sendTestPushNotification(userId: string): Promise<void> {
 		const pushToken = userData?.pushToken;
 
 		if (!pushToken) {
-			console.log('No push token found for user');
 			return;
 		}
 
@@ -176,9 +160,6 @@ export async function sendTestPushNotification(userId: string): Promise<void> {
 		await setDoc(
 			doc(db, 'notifications', `test-${Date.now()}`),
 			testNotification,
-		);
-		console.log(
-			'Test notification created - push should be sent automatically',
 		);
 	} catch (error) {
 		console.error('Error sending test push notification:', error);

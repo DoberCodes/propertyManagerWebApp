@@ -1,5 +1,19 @@
 import React, { useState, useMemo } from 'react';
 
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import {
+	faBan,
+	faChevronDown,
+	faChevronUp,
+	faCopy,
+	faFolderOpen,
+	faPen,
+	faPlus,
+	faShieldHalved,
+	faTrash,
+	faUserPlus,
+	faUsers,
+} from '@fortawesome/free-solid-svg-icons';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../Redux/store';
 import {
@@ -10,9 +24,10 @@ import { TeamMember } from '../../Redux/Slices/teamSlice';
 import { useCreateNotificationMutation } from '../../Redux/API/notificationSlice';
 import { useAppFeedback } from '../../Components/Library/AppFeedback/AppFeedbackProvider';
 import {
-	PageHeaderSection,
-	PageTitle as StandardPageTitle,
-} from '../../Components/Library/PageHeaders';
+	AppPageHeader as StandardAppPageHeader,
+	AppPageTitle as StandardPageTitle,
+	AppPageTitleBlock as StandardAppPageTitleBlock,
+} from '../../Components/Library/AppPageLayout/AppPageLayout.styles';
 import {
 	DialogOverlay,
 	DialogHeader as LibraryDialogHeader,
@@ -30,18 +45,36 @@ import {
 } from '../../utils/teamMemberFileUpload';
 import {
 	Wrapper,
+	HeaderActions,
+	MobileTeamGroupActions,
+	FloatingTeamGroupButton,
+	TeamHero,
+	TeamHeroContent,
+	TeamHeroEyebrow,
+	TeamHeroTitle,
+	TeamHeroText,
+	TeamStatsGrid,
+	TeamStatCard,
+	TeamStatValue,
+	TeamStatLabel,
 	AddTeamGroupButton,
 	TeamGroupSection,
 	TeamGroupHeader,
+	TeamGroupTitleBlock,
+	TeamGroupMeta,
 	TeamGroupTitle,
 	TeamGroupNameInput,
 	TeamGroupActions,
 	TeamGroupActionButton,
 	TeamMembersGrid,
 	TeamMemberCard,
+	TeamMemberIdentity,
+	TeamMemberAvatarWrap,
 	TeamMemberActions,
 	TeamMemberActionButton,
+	TeamMemberImage,
 	TeamMemberImagePlaceholder,
+	TeamMemberDetails,
 	TeamMemberName,
 	TeamMemberTitle,
 	TeamMemberProperties,
@@ -51,6 +84,7 @@ import {
 	TeamMemberInviteToken,
 	TeamMemberInviteCode,
 	TeamMemberInviteCopyButton,
+	AccessPill,
 	AccessControlToggle,
 	AccessControlPanel,
 	AccessStatusRow,
@@ -62,14 +96,36 @@ import {
 	AddIcon,
 	AddText,
 	TeamDialogContent,
+	TeamGroupDialogContent,
+	TeamGroupManagementIntro,
+	TeamGroupManagementList,
+	TeamGroupManagementToolbar,
+	TeamGroupManagementTitle,
+	TeamGroupManagementAddButton,
+	TeamGroupManagementRow,
+	TeamGroupManagementInfo,
+	TeamGroupManagementNameInput,
+	TeamGroupManagementMeta,
+	TeamGroupManagementActions,
+	TeamGroupManagementButton,
 	DialogTitle,
 	DialogCloseButton,
+	DialogIntro,
 	DialogBody,
+	CollapsibleDialogSection,
+	CollapsibleDialogSummary,
+	CollapsibleDialogBody,
+	DialogSectionBadge,
+	DialogSectionChevron,
+	DialogSectionHeader,
+	DialogSectionSummaryActions,
+	DialogSectionTitle,
+	DialogSectionText,
+	InlineHelpText,
 	LeftColumn,
 	RightColumn,
 	ImageUploadSection,
 	ImagePreview,
-	SectionTitle,
 	PropertyMultiSelect,
 	PropertyCheckbox,
 	QuickTaskHistory,
@@ -77,6 +133,7 @@ import {
 	FileUploadSection,
 	FileList,
 	FileItem,
+	RemoveFileButton,
 	DialogFooter,
 	CancelButton,
 	EmptyState,
@@ -132,6 +189,28 @@ const getTeamMemberAccessState = (
 	}
 	if (status === 'active') return 'pending';
 	return 'none';
+};
+
+type TeamMemberDialogSectionKey =
+	| 'profile'
+	| 'contact'
+	| 'role'
+	| 'access'
+	| 'properties'
+	| 'notes'
+	| 'history';
+
+const DEFAULT_TEAM_MEMBER_DIALOG_SECTIONS: Record<
+	TeamMemberDialogSectionKey,
+	boolean
+> = {
+	profile: true,
+	contact: false,
+	role: true,
+	access: false,
+	properties: true,
+	notes: false,
+	history: false,
 };
 
 const hasRevocableTeamAccess = (member?: TeamMember | null) => {
@@ -274,7 +353,7 @@ export default function TeamPage() {
 	const [warningDialogCancelText, setWarningDialogCancelText] =
 		useState('Cancel');
 	const [warningDialogOnConfirm, setWarningDialogOnConfirm] = useState(
-		() => () => {},
+		() => () => { },
 	);
 
 	// Combine groups with their members
@@ -313,6 +392,11 @@ export default function TeamPage() {
 		canUseAdvancedTeamManagement(currentUser.subscription);
 
 	const [showTeamMemberDialog, setShowTeamMemberDialog] = useState(false);
+	const [showTeamGroupManagementDialog, setShowTeamGroupManagementDialog] =
+		useState(false);
+	const [teamGroupDraftNames, setTeamGroupDraftNames] = useState<
+		Record<string, string>
+	>({});
 	const [currentGroupId, setCurrentGroupId] = useState<string | null>(null);
 	const [editingMember, setEditingMember] = useState<TeamMember | null>(null);
 	const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
@@ -338,11 +422,41 @@ export default function TeamPage() {
 		enableInvitationCode: true,
 	});
 	const [uploadedFiles, setUploadedFiles] = useState<TeamMember['files']>([]);
+	const [teamMemberDialogOpenSections, setTeamMemberDialogOpenSections] =
+		useState(DEFAULT_TEAM_MEMBER_DIALOG_SECTIONS);
 	const [generatedInvitationCode, setGeneratedInvitationCode] =
 		useState<string>('');
 	const [invitationCodeByMemberId, setInvitationCodeByMemberId] = useState<Record<string, string>>({});
 	const editingMemberAccessState = getTeamMemberAccessState(editingMember);
 	const isEditingAcceptedMember = editingMemberAccessState === 'accepted';
+
+	const handleTeamMemberDialogSectionToggle =
+		(section: TeamMemberDialogSectionKey) =>
+		(event: React.SyntheticEvent<HTMLDetailsElement>) => {
+			const isOpen = event.currentTarget.open;
+			setTeamMemberDialogOpenSections((prev) => ({
+				...prev,
+				[section]: isOpen,
+			}));
+		};
+
+	const renderTeamMemberDialogSummaryActions = (
+		section: TeamMemberDialogSectionKey,
+		badge: React.ReactNode,
+	) => (
+		<DialogSectionSummaryActions>
+			<DialogSectionBadge>{badge}</DialogSectionBadge>
+			<DialogSectionChevron aria-hidden='true'>
+				<FontAwesomeIcon
+					icon={
+						teamMemberDialogOpenSections[section]
+							? faChevronUp
+							: faChevronDown
+					}
+				/>
+			</DialogSectionChevron>
+		</DialogSectionSummaryActions>
+	);
 
 	const getVisibleInvitationCode = (member: TeamMember) =>
 		(member as any).invitationCode || invitationCodeByMemberId[member.id] || '';
@@ -434,15 +548,27 @@ export default function TeamPage() {
 		? filteredTeamGroups
 		: simpleTeamMembers.length > 0
 			? [
-					{
-						id: 'simple-team',
-						userId: '',
-						name: 'Team Members',
-						linkedProperties: [],
-						members: simpleTeamMembers,
-					},
-			  ]
+				{
+					id: 'simple-team',
+					userId: '',
+					name: 'Team Members',
+					linkedProperties: [],
+					members: simpleTeamMembers,
+				},
+			]
 			: [];
+	const visibleTeamMembers = visibleTeamGroups.flatMap(
+		(group) => group.members || [],
+	);
+	const activeAccessCount = visibleTeamMembers.filter(
+		(member) => getTeamMemberAccessState(member) === 'accepted',
+	).length;
+	const pendingAccessCount = visibleTeamMembers.filter(
+		(member) => getTeamMemberAccessState(member) === 'pending',
+	).length;
+	const assignedPropertyCount = new Set(
+		visibleTeamMembers.flatMap((member) => member.linkedProperties || []),
+	).size;
 
 	const handleAddTeamMember = (groupId?: string | null) => {
 		setCurrentGroupId(isAdvancedTeamManagement ? groupId || null : null);
@@ -466,6 +592,10 @@ export default function TeamPage() {
 		});
 		setImagePreview(null);
 		setUploadedFiles([]);
+		setTeamMemberDialogOpenSections({
+			...DEFAULT_TEAM_MEMBER_DIALOG_SECTIONS,
+			access: canManage,
+		});
 		setGeneratedInvitationCode(''); // Reset so it generates fresh for new member
 		setShowTeamMemberDialog(true);
 	};
@@ -557,11 +687,11 @@ export default function TeamPage() {
 		const invitationFields =
 			invitationCodeId && invitationCodeStatus
 				? {
-						invitationCodeId,
-						invitationCodeStatus,
-						...(invitationCode && { invitationCode }),
-						...(invitationCodeExpiresAt && { invitationCodeExpiresAt }),
-				  }
+					invitationCodeId,
+					invitationCodeStatus,
+					...(invitationCode && { invitationCode }),
+					...(invitationCodeExpiresAt && { invitationCodeExpiresAt }),
+				}
 				: {};
 
 		const memberData = {
@@ -684,7 +814,7 @@ export default function TeamPage() {
 		const resolvedGroupId =
 			isAdvancedTeamManagement
 				? (typeof member.groupId === 'string' && member.groupId.trim()) ||
-				  (groupId && groupId !== 'orphan' ? groupId : null)
+				(groupId && groupId !== 'orphan' ? groupId : null)
 				: null;
 		setCurrentGroupId(resolvedGroupId || null);
 		setEditingMember(member);
@@ -706,6 +836,12 @@ export default function TeamPage() {
 		});
 		setImagePreview(member.image || null);
 		setUploadedFiles(member.files || []);
+		setTeamMemberDialogOpenSections({
+			...DEFAULT_TEAM_MEMBER_DIALOG_SECTIONS,
+			access: getTeamMemberAccessState(member) !== 'none',
+			notes: Boolean(member.notes || member.files?.length),
+			history: Boolean(member.taskHistory?.length),
+		});
 		setGeneratedInvitationCode(''); // Reset - will be generated if needed
 		setShowTeamMemberDialog(true);
 	};
@@ -785,15 +921,15 @@ export default function TeamPage() {
 				setEditingMember((current) =>
 					current?.id === member.id
 						? ({
-								...current,
-								invitationCodeStatus: 'revoked',
-								invitationCodeId: null,
-								invitationCode: null,
-								invitationCodeExpiresAt: null,
-								userAccountId: null,
-								redeemedByUserId: null,
-								redeemedAt: null,
-						  } as any)
+							...current,
+							invitationCodeStatus: 'revoked',
+							invitationCodeId: null,
+							invitationCode: null,
+							invitationCodeExpiresAt: null,
+							userAccountId: null,
+							redeemedByUserId: null,
+							redeemedAt: null,
+						} as any)
 						: current,
 				);
 				setInvitationCodeByMemberId((prev) => {
@@ -869,13 +1005,77 @@ export default function TeamPage() {
 		}
 	};
 
+	const handleOpenTeamGroupManagement = () => {
+		setTeamGroupDraftNames(
+			teamGroups.reduce<Record<string, string>>((drafts, group) => {
+				drafts[String(group.id)] = String(group.name || '');
+				return drafts;
+			}, {}),
+		);
+		setShowTeamGroupManagementDialog(true);
+	};
+
+	const handleCreateTeamGroupFromManagement = async () => {
+		await handleAddTeamGroup();
+	};
+
+	const handleSaveTeamGroupManagement = async () => {
+		for (const group of teamGroups) {
+			const groupId = String(group.id);
+			const nextName = String(teamGroupDraftNames[groupId] || '').trim();
+			const currentName = String(group.name || '').trim();
+
+			if (!nextName) {
+				feedback.notify('Enter a name for each team group.');
+				return;
+			}
+
+			if (nextName === currentName) {
+				continue;
+			}
+
+			try {
+				await updateTeamGroup({
+					id: groupId,
+					updates: { name: nextName },
+				}).unwrap();
+
+				try {
+					await createNotification({
+						userId: currentUser!.id,
+						type: 'team_group_updated',
+						title: 'Team Group Updated',
+						message: `Team group "${nextName}" has been updated`,
+						data: {
+							groupId,
+							groupName: nextName,
+						},
+						status: 'unread',
+						actionUrl: `/team`,
+						createdAt: new Date().toISOString(),
+						updatedAt: new Date().toISOString(),
+					}).unwrap();
+				} catch (notifError) {
+					console.error('Notification failed:', notifError);
+				}
+			} catch (error) {
+				console.error('Failed to update team group name:', error);
+				feedback.notify('Unable to save team group changes. Please try again.');
+				return;
+			}
+		}
+
+		feedback.notify('Team groups updated.');
+		setShowTeamGroupManagementDialog(false);
+	};
+
 	const handleEditTeamGroup = async (groupId: string) => {
 		if (editingGroupId === groupId) {
 			// Save the name change
 			if (
 				editingGroupName.trim() &&
 				editingGroupName !==
-					groupsWithMembers.find((g) => g.id === groupId)?.name
+				groupsWithMembers.find((g) => g.id === groupId)?.name
 			) {
 				try {
 					await updateTeamGroup({
@@ -975,30 +1175,65 @@ export default function TeamPage() {
 
 	return (
 		<Wrapper>
-			<WarningDialog
-				open={warningDialogOpen}
-				title={warningDialogTitle}
-				message={warningDialogMessage}
-				confirmText={warningDialogConfirmText}
-				cancelText={warningDialogCancelText}
-				onConfirm={warningDialogOnConfirm}
-				onCancel={() => setWarningDialogOpen(false)}
-			/>
-			<PageHeaderSection>
-				<StandardPageTitle>Team Management</StandardPageTitle>
-				<div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-					{canManage && (
-						<AddTeamGroupButton onClick={() => handleAddTeamMember(null)}>
-							+ Add Team Member
-						</AddTeamGroupButton>
-					)}
+			<StandardAppPageHeader>
+				<StandardAppPageTitleBlock>
+					<StandardPageTitle>Team</StandardPageTitle>
+				</StandardAppPageTitleBlock>
+				<HeaderActions>
 					{canManage && isAdvancedTeamManagement && (
 						<AddTeamGroupButton onClick={handleAddTeamGroup}>
-							+ Add Team Group
+							<FontAwesomeIcon icon={faPlus} />
+							Add Group
 						</AddTeamGroupButton>
 					)}
-				</div>
-			</PageHeaderSection>
+				</HeaderActions>
+			</StandardAppPageHeader>
+
+			<TeamHero>
+				<TeamHeroContent>
+					<TeamHeroEyebrow>
+						<FontAwesomeIcon icon={faUsers} />
+						Team access
+					</TeamHeroEyebrow>
+					<TeamHeroTitle>Keep the right people connected to the right properties.</TeamHeroTitle>
+					<TeamHeroText>
+						Invite your team, assign property access, and keep contact details,
+						notes, and documents in one place.
+					</TeamHeroText>
+				</TeamHeroContent>
+				<TeamStatsGrid aria-label='Team summary'>
+					<TeamStatCard>
+						<TeamStatValue>{visibleTeamMembers.length}</TeamStatValue>
+						<TeamStatLabel>Team members</TeamStatLabel>
+					</TeamStatCard>
+					<TeamStatCard>
+						<TeamStatValue>{activeAccessCount}</TeamStatValue>
+						<TeamStatLabel>Active access</TeamStatLabel>
+					</TeamStatCard>
+					<TeamStatCard>
+						<TeamStatValue>{pendingAccessCount}</TeamStatValue>
+						<TeamStatLabel>Pending invites</TeamStatLabel>
+					</TeamStatCard>
+					<TeamStatCard>
+						<TeamStatValue>
+							{isAdvancedTeamManagement ? assignedPropertyCount : properties.length}
+						</TeamStatValue>
+						<TeamStatLabel>Properties covered</TeamStatLabel>
+					</TeamStatCard>
+				</TeamStatsGrid>
+			</TeamHero>
+
+			{canManage && isAdvancedTeamManagement && (
+				<MobileTeamGroupActions aria-label='Team group actions'>
+					<FloatingTeamGroupButton
+						type='button'
+						onClick={handleOpenTeamGroupManagement}
+						aria-label='Manage team groups'
+						title='Manage team groups'>
+						<FontAwesomeIcon icon={faFolderOpen} size='sm' />
+					</FloatingTeamGroupButton>
+				</MobileTeamGroupActions>
+			)}
 
 			{!canManage && (
 				<LockedFeatureCallout
@@ -1048,18 +1283,26 @@ export default function TeamPage() {
 									autoFocus
 								/>
 							) : (
-								<TeamGroupTitle>{group.name}</TeamGroupTitle>
+								<TeamGroupTitleBlock>
+									<TeamGroupTitle>{group.name}</TeamGroupTitle>
+									<TeamGroupMeta>
+										{(group.members || []).length}{' '}
+										{(group.members || []).length === 1 ? 'person' : 'people'}
+									</TeamGroupMeta>
+								</TeamGroupTitleBlock>
 							)}
 							{canManage && isAdvancedTeamManagement && group.id !== 'simple-team' && (
 								<TeamGroupActions>
 									<TeamGroupActionButton
 										title='Edit group'
 										onClick={() => handleEditTeamGroup(group.id)}>
+										<FontAwesomeIcon icon={faPen} />
 										✎
 									</TeamGroupActionButton>
 									<TeamGroupActionButton
 										title='Delete group'
 										onClick={() => handleDeleteTeamGroup(group.id)}>
+										<FontAwesomeIcon icon={faTrash} />
 										🗑
 									</TeamGroupActionButton>
 								</TeamGroupActions>
@@ -1076,120 +1319,139 @@ export default function TeamPage() {
 								const visibleAssignedProperties = assignedPropertyTitles.slice(0, 3);
 								const hiddenAssignedPropertyCount =
 									assignedPropertyTitles.length - visibleAssignedProperties.length;
+								const accessState = getTeamMemberAccessState(member);
 
 								return (
 									<TeamMemberCard
-									key={member.id}
-									onClick={() =>
-										canManage && handleEditTeamMember(member, group.id)
-									}
-									style={{
-										cursor: canManage ? 'pointer' : 'default',
-										opacity: canManage ? 1 : 0.7,
-									}}>
-									{canManage && currentUser?.email !== member.email && (
-										<TeamMemberActions>
-											{hasRevocableTeamAccess(member) && (
+										key={member.id}
+										onClick={() =>
+											canManage && handleEditTeamMember(member, group.id)
+										}
+										style={{
+											cursor: canManage ? 'pointer' : 'default',
+											opacity: canManage ? 1 : 0.7,
+										}}>
+										{canManage && currentUser?.email !== member.email && (
+											<TeamMemberActions>
+												{hasRevocableTeamAccess(member) && (
+													<TeamMemberActionButton
+														className='revoke'
+														title='Revoke access'
+														onClick={(e) => {
+															e.stopPropagation();
+															handleRevokeAccess(member);
+														}}>
+														<FontAwesomeIcon icon={faBan} />
+														🚫
+													</TeamMemberActionButton>
+												)}
 												<TeamMemberActionButton
-													className='revoke'
-													title='Revoke access'
+													className='delete'
+													title='Delete team member'
 													onClick={(e) => {
 														e.stopPropagation();
-														handleRevokeAccess(member);
-													}}>
-													🚫
-												</TeamMemberActionButton>
-											)}
-											<TeamMemberActionButton
-												className='delete'
-												title='Delete team member'
-												onClick={(e) => {
-													e.stopPropagation();
-													setWarningDialogTitle('Delete Team Member');
-													setWarningDialogMessage(
-														`Are you sure you want to delete ${member.firstName} ${member.lastName}? This action cannot be undone.`,
-													);
-													setWarningDialogConfirmText('Delete');
-													setWarningDialogCancelText('Cancel');
-													setWarningDialogOnConfirm(() => () => {
-														setWarningDialogOpen(false);
-														handleDeleteTeamMember(member.id);
-													});
-													setWarningDialogOpen(true);
-												}}>
-												🗑
-											</TeamMemberActionButton>
-										</TeamMemberActions>
-									)}
-									<TeamMemberName>
-										{member.firstName} {member.lastName}
-									</TeamMemberName>
-									<TeamMemberTitle>{member.title}</TeamMemberTitle>
-									<TeamMemberProperties>
-										<TeamMemberPropertiesLabel>
-											Assigned Properties
-										</TeamMemberPropertiesLabel>
-										<TeamMemberPropertyList>
-											{simpleTeamAssignedProperties ? (
-												<TeamMemberPropertyChip>All properties</TeamMemberPropertyChip>
-											) : visibleAssignedProperties.length > 0 ? (
-												<>
-													{visibleAssignedProperties.map((propertyTitle) => (
-														<TeamMemberPropertyChip key={propertyTitle} title={propertyTitle}>
-															{propertyTitle}
-														</TeamMemberPropertyChip>
-													))}
-													{hiddenAssignedPropertyCount > 0 && (
-														<TeamMemberPropertyChip $muted>
-															+{hiddenAssignedPropertyCount} more
-														</TeamMemberPropertyChip>
-													)}
-												</>
-											) : (
-												<TeamMemberPropertyChip $muted>
-													No properties assigned
-												</TeamMemberPropertyChip>
-											)}
-										</TeamMemberPropertyList>
-									</TeamMemberProperties>
-									{getTeamMemberAccessState(member) !== 'none' && (
-										<div
-											style={{
-												fontSize: '0.75em',
-												color:
-													getTeamMemberAccessState(member) === 'revoked'
-														? '#ef4444'
-														: '#10b981',
-												marginTop: '4px',
-											}}>
-											{getTeamMemberAccessState(member) === 'accepted'
-												? 'Active'
-												: getTeamMemberAccessState(member) === 'pending'
-													? `Invite Pending - ${formatExpirationDate(
-															(member as any).invitationCodeExpiresAt,
-													  )}`
-													: 'Revoked'}
-										</div>
-									)}
-									{canShowInvitationToken(member) &&
-										getVisibleInvitationCode(member) && (
-											<TeamMemberInviteToken>
-												<span>Invitation token</span>
-												<TeamMemberInviteCode>
-													{getVisibleInvitationCode(member)}
-												</TeamMemberInviteCode>
-												<TeamMemberInviteCopyButton
-													type='button'
-													onClick={(event) => {
-														event.stopPropagation();
-														void handleCopyInvitationCode(
-															getVisibleInvitationCode(member),
+														setWarningDialogTitle('Delete Team Member');
+														setWarningDialogMessage(
+															`Are you sure you want to delete ${member.firstName} ${member.lastName}? This action cannot be undone.`,
 														);
+														setWarningDialogConfirmText('Delete');
+														setWarningDialogCancelText('Cancel');
+														setWarningDialogOnConfirm(() => () => {
+															setWarningDialogOpen(false);
+															handleDeleteTeamMember(member.id);
+														});
+														setWarningDialogOpen(true);
 													}}>
-													Copy token
-												</TeamMemberInviteCopyButton>
-											</TeamMemberInviteToken>
+													<FontAwesomeIcon icon={faTrash} />
+													🗑
+												</TeamMemberActionButton>
+											</TeamMemberActions>
 										)}
+										<TeamMemberIdentity>
+											<TeamMemberAvatarWrap>
+												{member.image ? (
+													<TeamMemberImage
+														src={member.image}
+														alt={`${member.firstName} ${member.lastName}`}
+													/>
+												) : (
+													<TeamMemberImagePlaceholder>
+														{member.firstName.charAt(0)}
+														{member.lastName.charAt(0) || '?'}
+													</TeamMemberImagePlaceholder>
+												)}
+											</TeamMemberAvatarWrap>
+											<TeamMemberDetails>
+												<TeamMemberName>
+													{member.firstName} {member.lastName}
+												</TeamMemberName>
+												<TeamMemberTitle>
+													{member.title ||
+														ROLE_OPTIONS.find((role) => role.value === member.role)
+															?.label ||
+														'Team member'}
+												</TeamMemberTitle>
+												{accessState !== 'none' && (
+													<AccessPill $status={accessState}>
+														<FontAwesomeIcon icon={faShieldHalved} />
+														{accessState === 'accepted'
+															? 'Active'
+															: accessState === 'pending'
+																? `Invite pending - ${formatExpirationDate(
+																	(member as any).invitationCodeExpiresAt,
+																)}`
+																: 'Revoked'}
+													</AccessPill>
+												)}
+											</TeamMemberDetails>
+										</TeamMemberIdentity>
+										<TeamMemberProperties>
+											<TeamMemberPropertiesLabel>
+												Assigned Properties
+											</TeamMemberPropertiesLabel>
+											<TeamMemberPropertyList>
+												{simpleTeamAssignedProperties ? (
+													<TeamMemberPropertyChip>All properties</TeamMemberPropertyChip>
+												) : visibleAssignedProperties.length > 0 ? (
+													<>
+														{visibleAssignedProperties.map((propertyTitle) => (
+															<TeamMemberPropertyChip key={propertyTitle} title={propertyTitle}>
+																{propertyTitle}
+															</TeamMemberPropertyChip>
+														))}
+														{hiddenAssignedPropertyCount > 0 && (
+															<TeamMemberPropertyChip $muted>
+																+{hiddenAssignedPropertyCount} more
+															</TeamMemberPropertyChip>
+														)}
+													</>
+												) : (
+													<TeamMemberPropertyChip $muted>
+														No properties assigned
+													</TeamMemberPropertyChip>
+												)}
+											</TeamMemberPropertyList>
+										</TeamMemberProperties>
+										{canShowInvitationToken(member) &&
+											getVisibleInvitationCode(member) && (
+												<TeamMemberInviteToken>
+													<span>Invitation token</span>
+													<TeamMemberInviteCode>
+														{getVisibleInvitationCode(member)}
+													</TeamMemberInviteCode>
+													<TeamMemberInviteCopyButton
+														type='button'
+														onClick={(event) => {
+															event.stopPropagation();
+															void handleCopyInvitationCode(
+																getVisibleInvitationCode(member),
+															);
+														}}>
+														<FontAwesomeIcon icon={faCopy} />
+														Copy token
+													</TeamMemberInviteCopyButton>
+												</TeamMemberInviteToken>
+											)}
 									</TeamMemberCard>
 								);
 							})}
@@ -1203,7 +1465,9 @@ export default function TeamPage() {
 												: null,
 										)
 									}>
-									<AddIcon>+</AddIcon>
+									<AddIcon>
+										<FontAwesomeIcon icon={faUserPlus} />
+									</AddIcon>
 									<AddText>Add Team Member</AddText>
 								</AddTeamMemberCard>
 							)}
@@ -1221,197 +1485,280 @@ export default function TeamPage() {
 								{editingMember ? 'Edit Team Member' : 'Add Team Member'}
 							</DialogTitle>
 							<DialogCloseButton onClick={() => setShowTeamMemberDialog(false)}>
+								<span aria-hidden='true'>×</span>
 								✕
 							</DialogCloseButton>
 						</LibraryDialogHeader>
 
+						<DialogIntro>
+							Keep team records simple: add contact details, choose what they can
+							access, and store helpful notes or files for future reference.
+						</DialogIntro>
+
 						<DialogBody>
 							<LeftColumn>
-								{/* Image Upload */}
-								<ImageUploadSection>
-									{imagePreview ? (
-										<ImagePreview src={imagePreview} alt='Preview' />
+								<CollapsibleDialogSection
+									open={teamMemberDialogOpenSections.profile}
+									onToggle={handleTeamMemberDialogSectionToggle('profile')}>
+									<CollapsibleDialogSummary>
+										<DialogSectionHeader>
+											<DialogSectionTitle>Profile</DialogSectionTitle>
+											<DialogSectionText>
+												Start with the details everyone needs to recognize this
+												person.
+											</DialogSectionText>
+										</DialogSectionHeader>
+										{renderTeamMemberDialogSummaryActions('profile', 'Required')}
+									</CollapsibleDialogSummary>
+									<CollapsibleDialogBody>
+									{/* Image Upload */}
+									<ImageUploadSection>
+										{imagePreview ? (
+											<ImagePreview src={imagePreview} alt='Preview' />
+										) : (
+											<TeamMemberImagePlaceholder>
+												{formData.firstName.charAt(0)}
+												{formData.lastName.charAt(0) || '?'}
+											</TeamMemberImagePlaceholder>
+										)}
+										<FileUploader
+											label='Upload Photo'
+											helperText='JPG, PNG, GIF, WEBP (max 8MB)'
+											accept='image/*'
+											allowedTypes={['image/*']}
+											maxSizeBytes={8 * 1024 * 1024}
+											setFile={handleImageUpload}
+											disabled={isUploadingImage}
+											showSelectedFiles={false}
+										/>
+										{imageUploadError && (
+											<div style={{ color: '#dc2626', fontSize: '12px' }}>
+												{imageUploadError}
+											</div>
+										)}
+									</ImageUploadSection>
+
+									{/* Basic Info */}
+									<FormGroup>
+										<FormLabel>First Name *</FormLabel>
+										<FormInput
+											type='text'
+											placeholder='First name'
+											value={formData.firstName}
+											onChange={(e) =>
+												handleFormChange('firstName', e.target.value)
+											}
+										/>
+									</FormGroup>
+
+									<FormGroup>
+										<FormLabel>Last Name *</FormLabel>
+										<FormInput
+											type='text'
+											placeholder='Last name'
+											value={formData.lastName}
+											onChange={(e) =>
+												handleFormChange('lastName', e.target.value)
+											}
+										/>
+									</FormGroup>
+
+									<FormGroup>
+										<FormLabel>Email *</FormLabel>
+										<FormInput
+											type='email'
+											placeholder='Email address'
+											value={formData.email}
+											onChange={(e) => handleFormChange('email', e.target.value)}
+											disabled={isEditingAcceptedMember}
+										/>
+										{isEditingAcceptedMember && (
+											<div
+												style={{
+													fontSize: '0.75em',
+													color: '#6c757d',
+													marginTop: 4,
+												}}>
+												Email is tied to this team member's login and cannot be
+												changed after the invite is accepted.
+											</div>
+										)}
+									</FormGroup>
+									</CollapsibleDialogBody>
+								</CollapsibleDialogSection>
+
+								<CollapsibleDialogSection
+									open={teamMemberDialogOpenSections.contact}
+									onToggle={handleTeamMemberDialogSectionToggle('contact')}>
+									<CollapsibleDialogSummary>
+										<DialogSectionHeader>
+											<DialogSectionTitle>Contact details</DialogSectionTitle>
+											<DialogSectionText>
+												Optional phone and mailing details for quick reference.
+											</DialogSectionText>
+										</DialogSectionHeader>
+										{renderTeamMemberDialogSummaryActions('contact', 'Optional')}
+									</CollapsibleDialogSummary>
+									<CollapsibleDialogBody>
+
+									<FormGroup>
+										<FormLabel>Phone Number</FormLabel>
+										<FormInput
+											type='tel'
+											placeholder='Phone number'
+											value={formData.phone}
+											onChange={(e) => handleFormChange('phone', e.target.value)}
+										/>
+									</FormGroup>
+
+									<FormGroup>
+										<FormLabel>Mailing Address</FormLabel>
+										<FormInput
+											type='text'
+											placeholder='Street address'
+											value={formData.address}
+											onChange={(e) =>
+												handleFormChange('address', e.target.value)
+											}
+										/>
+									</FormGroup>
+
+									<FormRow>
+										<FormGroup>
+											<FormLabel>City</FormLabel>
+											<FormInput
+												type='text'
+												placeholder='City'
+												value={formData.mailingCity}
+												onChange={(e) =>
+													handleFormChange('mailingCity', e.target.value)
+												}
+											/>
+										</FormGroup>
+										<FormGroup>
+											<FormLabel>State</FormLabel>
+											<FormInput
+												type='text'
+												placeholder='State'
+												value={formData.mailingState}
+												onChange={(e) =>
+													handleFormChange('mailingState', e.target.value)
+												}
+											/>
+										</FormGroup>
+										<FormGroup>
+											<FormLabel>ZIP</FormLabel>
+											<FormInput
+												type='text'
+												placeholder='ZIP'
+												value={formData.mailingZip}
+												onChange={(e) =>
+													handleFormChange('mailingZip', e.target.value)
+												}
+											/>
+										</FormGroup>
+									</FormRow>
+									</CollapsibleDialogBody>
+								</CollapsibleDialogSection>
+
+								<CollapsibleDialogSection
+									open={teamMemberDialogOpenSections.role}
+									onToggle={handleTeamMemberDialogSectionToggle('role')}>
+									<CollapsibleDialogSummary>
+										<DialogSectionHeader>
+											<DialogSectionTitle>Role & group</DialogSectionTitle>
+											<DialogSectionText>
+												Choose how this person fits into your team.
+											</DialogSectionText>
+										</DialogSectionHeader>
+										{renderTeamMemberDialogSummaryActions(
+											'role',
+											ROLE_OPTIONS.find((role) => role.value === formData.role)
+												?.label || 'Team member',
+										)}
+									</CollapsibleDialogSummary>
+									<CollapsibleDialogBody>
+
+									{isAdvancedTeamManagement ? (
+										<FormGroup>
+											<FormLabel>Role *</FormLabel>
+											<FormSelect
+												value={formData.role}
+												onChange={(e) => handleFormChange('role', e.target.value)}>
+												{ROLE_OPTIONS.map((role) => (
+													<option key={role.value} value={role.value}>
+														{role.label}
+													</option>
+												))}
+											</FormSelect>
+										</FormGroup>
 									) : (
-										<TeamMemberImagePlaceholder>
-											{formData.firstName.charAt(0)}
-											{formData.lastName.charAt(0) || '?'}
-										</TeamMemberImagePlaceholder>
+										<FormGroup>
+											<FormLabel>Role</FormLabel>
+											<FormInput value='Administrator' disabled />
+										</FormGroup>
 									)}
-									<FileUploader
-										label='Upload Photo'
-										helperText='JPG, PNG, GIF, WEBP (max 8MB)'
-										accept='image/*'
-										allowedTypes={['image/*']}
-										maxSizeBytes={8 * 1024 * 1024}
-										setFile={handleImageUpload}
-										disabled={isUploadingImage}
-										showSelectedFiles={false}
-									/>
-									{imageUploadError && (
-										<div style={{ color: '#dc2626', fontSize: '12px' }}>
-											{imageUploadError}
-										</div>
-									)}
-								</ImageUploadSection>
 
-								{/* Basic Info */}
-								<FormGroup>
-									<FormLabel>First Name *</FormLabel>
-									<FormInput
-										type='text'
-										placeholder='First name'
-										value={formData.firstName}
-										onChange={(e) =>
-											handleFormChange('firstName', e.target.value)
-										}
-									/>
-								</FormGroup>
-
-								<FormGroup>
-									<FormLabel>Last Name *</FormLabel>
-									<FormInput
-										type='text'
-										placeholder='Last name'
-										value={formData.lastName}
-										onChange={(e) =>
-											handleFormChange('lastName', e.target.value)
-										}
-									/>
-								</FormGroup>
-
-								<FormGroup>
-									<FormLabel>Email *</FormLabel>
-									<FormInput
-										type='email'
-										placeholder='Email address'
-										value={formData.email}
-										onChange={(e) => handleFormChange('email', e.target.value)}
-										disabled={isEditingAcceptedMember}
-									/>
-									{isEditingAcceptedMember && (
-										<div
-											style={{
-												fontSize: '0.75em',
-												color: '#6c757d',
-												marginTop: 4,
-											}}>
-											Email is tied to this team member's login and cannot be
-											changed after the invite is accepted.
-										</div>
-									)}
-								</FormGroup>
-
-								<FormGroup>
-									<FormLabel>Phone Number</FormLabel>
-									<FormInput
-										type='tel'
-										placeholder='Phone number'
-										value={formData.phone}
-										onChange={(e) => handleFormChange('phone', e.target.value)}
-									/>
-								</FormGroup>
-
-								<FormGroup>
-									<FormLabel>Mailing Address</FormLabel>
-									<FormInput
-										type='text'
-										placeholder='Street address'
-										value={formData.address}
-										onChange={(e) =>
-											handleFormChange('address', e.target.value)
-										}
-									/>
-								</FormGroup>
-
-								<FormRow>
 									<FormGroup>
-										<FormLabel>City</FormLabel>
+										<FormLabel>Job Title</FormLabel>
 										<FormInput
 											type='text'
-											placeholder='City'
-											value={formData.mailingCity}
-											onChange={(e) =>
-												handleFormChange('mailingCity', e.target.value)
-											}
+											placeholder='e.g., Leasing Coordinator, Maintenance Lead'
+											value={formData.title}
+											onChange={(e) => handleFormChange('title', e.target.value)}
 										/>
 									</FormGroup>
-									<FormGroup>
-										<FormLabel>State</FormLabel>
-										<FormInput
-											type='text'
-											placeholder='State'
-											value={formData.mailingState}
-											onChange={(e) =>
-												handleFormChange('mailingState', e.target.value)
-											}
-										/>
-									</FormGroup>
-									<FormGroup>
-										<FormLabel>ZIP</FormLabel>
-										<FormInput
-											type='text'
-											placeholder='ZIP'
-											value={formData.mailingZip}
-											onChange={(e) =>
-												handleFormChange('mailingZip', e.target.value)
-											}
-										/>
-									</FormGroup>
-								</FormRow>
 
-								{isAdvancedTeamManagement ? (
-									<FormGroup>
-										<FormLabel>Role *</FormLabel>
-										<FormSelect
-											value={formData.role}
-											onChange={(e) => handleFormChange('role', e.target.value)}>
-											{ROLE_OPTIONS.map((role) => (
-												<option key={role.value} value={role.value}>
-													{role.label}
-												</option>
-											))}
-										</FormSelect>
-									</FormGroup>
-								) : (
-									<FormGroup>
-										<FormLabel>Role</FormLabel>
-										<FormInput value='Administrator' disabled />
-									</FormGroup>
-								)}
-
-								<FormGroup>
-									<FormLabel>Job Title</FormLabel>
-									<FormInput
-										type='text'
-										placeholder='e.g., Leasing Coordinator, Maintenance Lead'
-										value={formData.title}
-										onChange={(e) => handleFormChange('title', e.target.value)}
-									/>
-								</FormGroup>
-
-								{isAdvancedTeamManagement && (
-									<FormGroup>
-										<FormLabel>Team Group (Optional)</FormLabel>
-										<FormSelect
-											value={currentGroupId || ''}
-											onChange={(e) => {
-												const nextGroupId = e.target.value;
-												setCurrentGroupId(nextGroupId || null);
-											}}>
-											<option value=''>No group</option>
-											{teamGroups.map((group) => (
-												<option key={group.id} value={group.id}>
-													{group.name}
-												</option>
-											))}
-										</FormSelect>
-									</FormGroup>
-								)}
+									{isAdvancedTeamManagement && (
+										<FormGroup>
+											<FormLabel>Team Group (Optional)</FormLabel>
+											<FormSelect
+												value={currentGroupId || ''}
+												onChange={(e) => {
+													const nextGroupId = e.target.value;
+													setCurrentGroupId(nextGroupId || null);
+												}}>
+												<option value=''>No group</option>
+												{teamGroups.map((group) => (
+													<option key={group.id} value={group.id}>
+														{group.name}
+													</option>
+												))}
+											</FormSelect>
+										</FormGroup>
+									)}
+									</CollapsibleDialogBody>
+								</CollapsibleDialogSection>
 
 								{/* Promo Code Section */}
 								{canManage && (
-									<FormGroup>
-										<SectionTitle>Access Control</SectionTitle>
+									<CollapsibleDialogSection
+										open={teamMemberDialogOpenSections.access}
+										onToggle={handleTeamMemberDialogSectionToggle('access')}>
+										<CollapsibleDialogSummary>
+											<DialogSectionHeader>
+												<DialogSectionTitle>Login access</DialogSectionTitle>
+												<DialogSectionText>
+													Invite this person only if they should sign in to
+													Maintley.
+												</DialogSectionText>
+											</DialogSectionHeader>
+											{renderTeamMemberDialogSummaryActions(
+												'access',
+												editingMember
+													? getTeamMemberAccessState(editingMember) === 'accepted'
+														? 'Active'
+														: getTeamMemberAccessState(editingMember) === 'pending'
+															? 'Pending'
+															: getTeamMemberAccessState(editingMember) === 'revoked'
+																? 'Revoked'
+																: 'No login'
+													: formData.enableInvitationCode === false
+														? 'Off'
+														: 'Invite',
+											)}
+										</CollapsibleDialogSummary>
+										<CollapsibleDialogBody>
 										{!editingMember && (
 											<AccessControlToggle>
 												<input
@@ -1481,27 +1828,27 @@ export default function TeamPage() {
 														<AccessStatusBadge
 															$status={
 																getTeamMemberAccessState(editingMember) ===
-																'revoked'
+																	'revoked'
 																	? 'revoked'
 																	: 'active'
 															}>
 															{getTeamMemberAccessState(editingMember) ===
-															'accepted'
+																'accepted'
 																? 'Active'
 																: getTeamMemberAccessState(editingMember) ===
-																	  'pending'
+																	'pending'
 																	? 'Invite Pending'
 																	: 'Revoked'}
 														</AccessStatusBadge>
 														{getTeamMemberAccessState(editingMember) ===
 															'pending' && (
-															<AccessStatusMeta>
-																{formatExpirationDate(
-																	(editingMember as any)
-																		.invitationCodeExpiresAt,
-																)}
-															</AccessStatusMeta>
-														)}
+																<AccessStatusMeta>
+																	{formatExpirationDate(
+																		(editingMember as any)
+																			.invitationCodeExpiresAt,
+																	)}
+																</AccessStatusMeta>
+															)}
 													</AccessStatusRow>
 													<AccessActionRow>
 														{canShowInvitationToken(editingMember) &&
@@ -1529,66 +1876,66 @@ export default function TeamPage() {
 														)}
 														{getTeamMemberAccessState(editingMember) ===
 															'revoked' && (
-															<AccessActionButton
-																type='button'
-																onClick={async () => {
-																	try {
-																		const promoCode =
-																			generateTeamInvitationCode(
-																				formData.firstName,
-																				formData.lastName,
-																			);
+																<AccessActionButton
+																	type='button'
+																	onClick={async () => {
+																		try {
+																			const promoCode =
+																				generateTeamInvitationCode(
+																					formData.firstName,
+																					formData.lastName,
+																				);
 
-																		const result =
-																			await createTeamMemberInvitationCode({
-																				teamMemberId: editingMember!.id,
-																				teamMemberEmail: formData.email,
-																				code: promoCode,
-																			}).unwrap();
+																			const result =
+																				await createTeamMemberInvitationCode({
+																					teamMemberId: editingMember!.id,
+																					teamMemberEmail: formData.email,
+																					code: promoCode,
+																				}).unwrap();
 
-																		// Update the editing member with new promo code data
-																		setEditingMember({
-																			...editingMember,
-																			invitationCodeId: result.id,
-																			invitationCode: result.code,
-																			invitationCodeStatus: 'active',
-																			invitationCodeExpiresAt: result.expiresAt,
-																			userAccountId: null,
-																			redeemedByUserId: null,
-																			redeemedAt: null,
-																		} as any);
-
-																		// Update the team member record in the database
-																		await updateTeamMemberApi({
-																			id: editingMember!.id,
-																			updates: {
+																			// Update the editing member with new promo code data
+																			setEditingMember({
+																				...editingMember,
 																				invitationCodeId: result.id,
 																				invitationCode: result.code,
 																				invitationCodeStatus: 'active',
-																				invitationCodeExpiresAt:
-																					result.expiresAt,
+																				invitationCodeExpiresAt: result.expiresAt,
 																				userAccountId: null,
 																				redeemedByUserId: null,
 																				redeemedAt: null,
-																			} as any,
-																		}).unwrap();
+																			} as any);
 
-																		feedback.notify(
-																			'Invitation code regenerated successfully! New code expires in 7 days.',
-																		);
-																	} catch (error) {
-																		console.error(
-																			'Failed to regenerate invitation code:',
-																			error,
-																		);
-																		feedback.notify(
-																			'Failed to regenerate invitation code. Please try again.',
-																		);
-																	}
-																}}>
-																Regenerate Invitation Code
-															</AccessActionButton>
-														)}
+																			// Update the team member record in the database
+																			await updateTeamMemberApi({
+																				id: editingMember!.id,
+																				updates: {
+																					invitationCodeId: result.id,
+																					invitationCode: result.code,
+																					invitationCodeStatus: 'active',
+																					invitationCodeExpiresAt:
+																						result.expiresAt,
+																					userAccountId: null,
+																					redeemedByUserId: null,
+																					redeemedAt: null,
+																				} as any,
+																			}).unwrap();
+
+																			feedback.notify(
+																				'Invitation code regenerated successfully! New code expires in 7 days.',
+																			);
+																		} catch (error) {
+																			console.error(
+																				'Failed to regenerate invitation code:',
+																				error,
+																			);
+																			feedback.notify(
+																				'Failed to regenerate invitation code. Please try again.',
+																			);
+																		}
+																	}}>
+																	Regenerate Invitation Code
+																</AccessActionButton>
+															)}
 													</AccessActionRow>
 													{canShowInvitationToken(editingMember) &&
 														getVisibleInvitationCode(editingMember) && (
@@ -1601,25 +1948,31 @@ export default function TeamPage() {
 														)}
 												</AccessControlPanel>
 											)}
-									</FormGroup>
+										</CollapsibleDialogBody>
+									</CollapsibleDialogSection>
 								)}
 
 							</LeftColumn>
 
 							<RightColumn>
-								{/* Notes */}
-								<FormGroup>
-									<FormLabel>Notes</FormLabel>
-									<FormTextarea
-										placeholder='Add any notes about this team member...'
-										value={formData.notes}
-										onChange={(e) => handleFormChange('notes', e.target.value)}
-									/>
-								</FormGroup>
-
-								{/* Assigned Properties */}
-								<FormGroup>
-									<SectionTitle>Property Access</SectionTitle>
+								<CollapsibleDialogSection
+									open={teamMemberDialogOpenSections.properties}
+									onToggle={handleTeamMemberDialogSectionToggle('properties')}>
+									<CollapsibleDialogSummary>
+										<DialogSectionHeader>
+											<DialogSectionTitle>Property access</DialogSectionTitle>
+											<DialogSectionText>
+												Choose the properties this person should help manage.
+											</DialogSectionText>
+										</DialogSectionHeader>
+										{renderTeamMemberDialogSummaryActions(
+											'properties',
+											isAdvancedTeamManagement
+												? `${formData.linkedProperties.length} selected`
+												: 'All properties',
+										)}
+									</CollapsibleDialogSummary>
+									<CollapsibleDialogBody>
 									{isAdvancedTeamManagement ? (
 										<PropertyMultiSelect>
 											{properties.map((property) => {
@@ -1646,80 +1999,132 @@ export default function TeamPage() {
 											<TeamMemberPropertyChip>All properties</TeamMemberPropertyChip>
 										</TeamMemberPropertyList>
 									)}
-								</FormGroup>
+									</CollapsibleDialogBody>
+								</CollapsibleDialogSection>
 
-								{/* File Upload */}
-								<FileUploadSection>
-									<SectionTitle>Documents & Files</SectionTitle>
-									<FileUploader
-										label='Upload Documents'
-										helperText='Images, PDF, Word, Excel, Text (max 10MB)'
-										accept='image/*,.pdf,.doc,.docx,.txt,.xls,.xlsx'
-										allowedTypes={[
-											'image/jpeg',
-											'image/png',
-											'image/jpg',
-											'image/gif',
-											'image/webp',
-											'application/pdf',
-											'application/msword',
-											'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-											'text/plain',
-											'application/vnd.ms-excel',
-											'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-										]}
-										maxSizeBytes={10 * 1024 * 1024}
-										multiple={true}
-										setFiles={handleFileUpload}
-										disabled={isUploadingFiles}
-										showSelectedFiles={false}
-									/>
-									{fileUploadError && (
-										<div style={{ color: '#dc2626', fontSize: '12px' }}>
-											{fileUploadError}
-										</div>
-									)}
-									{uploadedFiles.length > 0 && (
-										<FileList>
-											{uploadedFiles.map((file) => {
-												const fileId = file.url || file.id || file.name;
-												return (
-													<FileItem key={fileId}>
-														{file.url ? (
-															<a
-																href={file.url}
-																target='_blank'
-																rel='noreferrer'>
-																{file.name}
-															</a>
-														) : (
-															<span>{file.name}</span>
-														)}
-														<button onClick={() => handleRemoveFile(fileId)}>
-															✕
-														</button>
-													</FileItem>
-												);
-											})}
-										</FileList>
-									)}
-								</FileUploadSection>
+								<CollapsibleDialogSection
+									open={teamMemberDialogOpenSections.notes}
+									onToggle={handleTeamMemberDialogSectionToggle('notes')}>
+									<CollapsibleDialogSummary>
+										<DialogSectionHeader>
+											<DialogSectionTitle>Notes & files</DialogSectionTitle>
+											<DialogSectionText>
+												Store helpful context, certifications, or contact notes.
+											</DialogSectionText>
+										</DialogSectionHeader>
+										{renderTeamMemberDialogSummaryActions(
+											'notes',
+											uploadedFiles.length
+												? `${uploadedFiles.length} file${
+														uploadedFiles.length === 1 ? '' : 's'
+													}`
+												: 'Optional',
+										)}
+									</CollapsibleDialogSummary>
+									<CollapsibleDialogBody>
+									<FormGroup>
+										<FormLabel>Notes</FormLabel>
+										<FormTextarea
+											placeholder='Add helpful notes about this team member...'
+											value={formData.notes}
+											onChange={(e) => handleFormChange('notes', e.target.value)}
+										/>
+									</FormGroup>
+
+									<FileUploadSection>
+										<FileUploader
+											label='Upload Documents'
+											helperText='Images, PDF, Word, Excel, Text (max 10MB)'
+											accept='image/*,.pdf,.doc,.docx,.txt,.xls,.xlsx'
+											allowedTypes={[
+												'image/jpeg',
+												'image/png',
+												'image/jpg',
+												'image/gif',
+												'image/webp',
+												'application/pdf',
+												'application/msword',
+												'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+												'text/plain',
+												'application/vnd.ms-excel',
+												'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+											]}
+											maxSizeBytes={10 * 1024 * 1024}
+											multiple={true}
+											setFiles={handleFileUpload}
+											disabled={isUploadingFiles}
+											showSelectedFiles={false}
+										/>
+										{fileUploadError && (
+											<div style={{ color: '#dc2626', fontSize: '12px' }}>
+												{fileUploadError}
+											</div>
+										)}
+										{uploadedFiles.length > 0 && (
+											<FileList>
+												{uploadedFiles.map((file) => {
+													const fileId = file.url || file.id || file.name;
+													return (
+														<FileItem key={fileId}>
+															{file.url ? (
+																<a
+																	href={file.url}
+																	target='_blank'
+																	rel='noreferrer'>
+																	{file.name}
+																</a>
+															) : (
+																<span>{file.name}</span>
+															)}
+															<RemoveFileButton
+																type='button'
+																onClick={() => handleRemoveFile(fileId)}>
+																<FontAwesomeIcon icon={faTrash} />
+																✕
+															</RemoveFileButton>
+														</FileItem>
+													);
+												})}
+											</FileList>
+										)}
+									</FileUploadSection>
+									</CollapsibleDialogBody>
+								</CollapsibleDialogSection>
 
 								{/* Task History */}
 								{editingMember && (
-									<FormGroup>
-										<SectionTitle>Recent Task History</SectionTitle>
+									<CollapsibleDialogSection
+										open={teamMemberDialogOpenSections.history}
+										onToggle={handleTeamMemberDialogSectionToggle('history')}>
+										<CollapsibleDialogSummary>
+											<DialogSectionHeader>
+												<DialogSectionTitle>Recent task history</DialogSectionTitle>
+												<DialogSectionText>
+													Recently completed or assigned work tied to this person.
+												</DialogSectionText>
+											</DialogSectionHeader>
+											{renderTeamMemberDialogSummaryActions(
+												'history',
+												`${editingMember.taskHistory?.length || 0} items`,
+											)}
+										</CollapsibleDialogSummary>
+										<CollapsibleDialogBody>
 										<QuickTaskHistory>
-											{editingMember.taskHistory.map((task, idx) => (
-												<TaskHistoryItem key={idx}>
-													<div>
-														<span>{task.task}</span>
-													</div>
-													<span>{task.date}</span>
-												</TaskHistoryItem>
-											))}
+											{editingMember.taskHistory?.length ? (
+												editingMember.taskHistory.map((task, idx) => (
+													<TaskHistoryItem key={idx}>
+														<div>
+															<span>{task.task}</span>
+														</div>
+														<span>{task.date}</span>
+													</TaskHistoryItem>
+												))
+											) : (
+												<InlineHelpText>No recent task history yet.</InlineHelpText>
+											)}
 										</QuickTaskHistory>
-									</FormGroup>
+										</CollapsibleDialogBody>
+									</CollapsibleDialogSection>
 								)}
 							</RightColumn>
 						</DialogBody>
@@ -1733,6 +2138,103 @@ export default function TeamPage() {
 							</SaveButton>
 						</DialogFooter>
 					</TeamDialogContent>
+				</DialogOverlay>
+			)}
+
+			{showTeamGroupManagementDialog && (
+				<DialogOverlay onClick={() => setShowTeamGroupManagementDialog(false)}>
+					<TeamGroupDialogContent onClick={(e) => e.stopPropagation()}>
+						<LibraryDialogHeader>
+							<DialogTitle>Manage Team Groups</DialogTitle>
+							<DialogCloseButton
+								onClick={() => setShowTeamGroupManagementDialog(false)}>
+								<span aria-hidden='true'>×</span>
+							</DialogCloseButton>
+						</LibraryDialogHeader>
+
+						<TeamGroupManagementIntro>
+							Organize your team into groups so it is easier to assign work and
+							understand who helps with each part of the portfolio.
+						</TeamGroupManagementIntro>
+
+						<TeamGroupManagementList>
+							<TeamGroupManagementToolbar>
+								<TeamGroupManagementTitle>Team groups</TeamGroupManagementTitle>
+								<TeamGroupManagementAddButton
+									type='button'
+									onClick={handleCreateTeamGroupFromManagement}>
+									<FontAwesomeIcon icon={faPlus} />
+									New Group
+								</TeamGroupManagementAddButton>
+							</TeamGroupManagementToolbar>
+							{teamGroups.length === 0 ? (
+								<EmptyState>
+									<p>No team groups yet.</p>
+									<p>Create a group to start organizing team members.</p>
+								</EmptyState>
+							) : (
+								teamGroups.map((group) => {
+									const groupId = String(group.id);
+									const memberCount =
+										groupsWithMembers.find((item) => String(item.id) === groupId)
+											?.members?.length || 0;
+									const canDeleteGroup = memberCount === 0;
+
+									return (
+										<TeamGroupManagementRow key={groupId}>
+											<TeamGroupManagementInfo>
+												<TeamGroupManagementNameInput
+													type='text'
+													value={
+														teamGroupDraftNames[groupId] ??
+														String(group.name || '')
+													}
+													onChange={(event) =>
+														setTeamGroupDraftNames((current) => ({
+															...current,
+															[groupId]: event.target.value,
+														}))
+													}
+													aria-label={`Team group name for ${group.name}`}
+												/>
+												<TeamGroupManagementMeta>
+													{memberCount} {memberCount === 1 ? 'member' : 'members'}
+													{!canDeleteGroup &&
+														' · Move members before deleting'}
+												</TeamGroupManagementMeta>
+											</TeamGroupManagementInfo>
+											<TeamGroupManagementActions>
+												<TeamGroupManagementButton
+													type='button'
+													$variant='danger'
+													disabled={!canDeleteGroup}
+													title={
+														canDeleteGroup
+															? 'Delete team group'
+															: 'Move members before deleting this group'
+													}
+													onClick={() => handleDeleteTeamGroup(groupId)}>
+													<FontAwesomeIcon icon={faTrash} />
+													Delete
+												</TeamGroupManagementButton>
+											</TeamGroupManagementActions>
+										</TeamGroupManagementRow>
+									);
+								})
+							)}
+						</TeamGroupManagementList>
+
+						<DialogFooter>
+							<CancelButton
+								type='button'
+								onClick={() => setShowTeamGroupManagementDialog(false)}>
+								Cancel
+							</CancelButton>
+							<SaveButton type='button' onClick={handleSaveTeamGroupManagement}>
+								Save Changes
+							</SaveButton>
+						</DialogFooter>
+					</TeamGroupDialogContent>
 				</DialogOverlay>
 			)}
 

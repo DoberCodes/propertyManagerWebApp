@@ -225,6 +225,15 @@ const getUpcomingMaintenanceDate = (linkedOpenTasks: any[]): string | undefined 
 	return candidate?.dueDate;
 };
 
+const isTaskOverdue = (task: any): boolean => {
+	const dueDate = toDate(task?.dueDate);
+	if (!dueDate) return false;
+	const today = new Date();
+	today.setHours(0, 0, 0, 0);
+	dueDate.setHours(0, 0, 0, 0);
+	return dueDate < today;
+};
+
 type DeviceFormData = {
 	type: string;
 	brand: string;
@@ -629,6 +638,17 @@ export const DevicesHubPage: React.FC = () => {
 		return map;
 	}, [openTasks]);
 
+	const linkedOverdueTaskCountByDevice = useMemo(() => {
+		const counts = new Map<string, number>();
+		openTasks.forEach((task: any) => {
+			if (!isTaskOverdue(task)) return;
+			getLinkedDeviceIds(task).forEach((id) => {
+				counts.set(id, (counts.get(id) || 0) + 1);
+			});
+		});
+		return counts;
+	}, [openTasks]);
+
 	const continuityEventsByDevice = useMemo(() => {
 		const map = new Map<string, any[]>();
 		const filteredEvents = allMaintenanceHistory.filter(isContinuityEvent);
@@ -663,6 +683,9 @@ export const DevicesHubPage: React.FC = () => {
 				const friendlyName = buildFriendlyDeviceName(device);
 				const technicalSubtitle = buildTechnicalSubtitle(device);
 				const recentActivity = buildRecentActivity(latestMaintenance);
+				const openTaskCount = linkedOpenTaskCountByDevice.get(deviceId) || 0;
+				const overdueTaskCount =
+					linkedOverdueTaskCountByDevice.get(deviceId) || 0;
 
 				return {
 					id: device.id,
@@ -676,11 +699,15 @@ export const DevicesHubPage: React.FC = () => {
 					latestMaintenanceDescription: latestMaintenance?.description,
 					upcomingMaintenance,
 					recentActivity,
-					openTaskCount: linkedOpenTaskCountByDevice.get(deviceId) || 0,
+					openTaskCount,
+					overdueTaskCount,
 					device,
 				};
 			})
 			.sort((a, b) => {
+				if (b.overdueTaskCount !== a.overdueTaskCount) {
+					return b.overdueTaskCount - a.overdueTaskCount;
+				}
 				if (b.openTaskCount !== a.openTaskCount) {
 					return b.openTaskCount - a.openTaskCount;
 				}
@@ -689,6 +716,7 @@ export const DevicesHubPage: React.FC = () => {
 	}, [
 		devices,
 		linkedOpenTaskCountByDevice,
+		linkedOverdueTaskCountByDevice,
 		linkedTasksByDevice,
 		continuityEventsByDevice,
 		propertyById,
@@ -939,7 +967,7 @@ export const DevicesHubPage: React.FC = () => {
 								: '';
 						const deviceSlug = buildDeviceSlug(row.device);
 						const targetPath = propertySlug
-							? `/property/${propertySlug}/device/${deviceSlug}`
+							? `/property/${propertySlug}/device/${deviceSlug}?from=devices`
 							: '/properties';
 
 						return (
@@ -988,7 +1016,7 @@ export const DevicesHubPage: React.FC = () => {
 								</Field>
 								<Field>
 									<Label>Last Maintenance Event</Label>
-									<Value>{formatDate(row.lastServiced)}</Value>
+									<Value>Last serviced {formatDate(row.lastServiced)}</Value>
 								</Field>
 								<Field>
 									<Label>Next Planned Service</Label>
@@ -1000,7 +1028,23 @@ export const DevicesHubPage: React.FC = () => {
 								</Field>
 								<Field>
 									<Label>Open Linked Tasks</Label>
-									<Value>{row.openTaskCount}</Value>
+									<Value
+										style={{
+											color:
+												row.overdueTaskCount > 0 ? '#b91c1c' : undefined,
+											fontWeight:
+												row.overdueTaskCount > 0 ? 850 : undefined,
+										}}>
+										{row.overdueTaskCount > 0
+											? `${row.overdueTaskCount} overdue task${
+													row.overdueTaskCount === 1 ? '' : 's'
+												}`
+											: row.openTaskCount > 0
+												? `${row.openTaskCount} open task${
+														row.openTaskCount === 1 ? '' : 's'
+													}`
+												: 'No open tasks'}
+									</Value>
 								</Field>
 							</DeviceCard>
 						);

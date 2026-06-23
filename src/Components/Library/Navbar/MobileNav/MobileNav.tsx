@@ -46,9 +46,6 @@ export const MobileHamburgerNav: React.FC<MobileNavProps> = ({ isSidebarOpen, se
         },
     ];
 
-    console.info(activeRoute, 'activeRoute in mobile nav');
-
-
     return (
         <div>
             <MobileSidebar $isOpen={isSidebarOpen}>

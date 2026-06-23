@@ -7,6 +7,7 @@ import {
 	HamburgerButton,
 	NavbarOverlay,
 	InnerWrapper,
+	MobileRouteLabel,
 } from './TopNav.styles';
 import { AvatarMenu } from '../AvatarMenu/AvatarMenu';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -34,7 +35,6 @@ export const TopNav = () => {
 	const { favorites } = useFavorites(currentUser!.id);
 	const activeRoute = useSelector((state: RootState) => state.navigation.activeRoute);
 
-	console.info(currentUser);
 	const [navLocation, setNavLocation] = useState('Dashboard');
 
 	const pathname = location.pathname || '';
@@ -133,7 +133,7 @@ export const TopNav = () => {
 			}} />
 			<Wrapper>
 				<InnerWrapper>
-					<div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#fff', fontWeight: 500, fontSize: '18px' }}>
+					<MobileRouteLabel>
 						<HamburgerButton
 							onClick={() => {
 								setIsSidebarOpen(!isSidebarOpen)
@@ -145,7 +145,7 @@ export const TopNav = () => {
 							<FontAwesomeIcon icon={faBars} size='lg' color='#fff' />
 						</HamburgerButton>
 						{navLocation}
-					</div>
+					</MobileRouteLabel>
 					<Title>
 						<img src={TitleName} alt='Maintley' />{' '}
 						<span>

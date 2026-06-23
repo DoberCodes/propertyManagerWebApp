@@ -68,11 +68,6 @@ export const initializeStripe = async (): Promise<Stripe | null> => {
 		return null;
 	}
 
-	// Log if using test keys
-	if (STRIPE_PUBLIC_KEY.includes('pk_test_')) {
-		console.log('📌 Using Stripe TEST mode (localhost development)');
-	}
-
 	try {
 		stripeInstance = await loadStripe(STRIPE_PUBLIC_KEY);
 		return stripeInstance;
@@ -229,25 +224,21 @@ export const handleStripeWebhook = async (event: any) => {
 	switch (event.type) {
 		case 'customer.subscription.updated':
 			// Handle subscription update
-			console.log('Subscription updated:', event.data.object);
 			break;
 
 		case 'customer.subscription.deleted':
 			// Handle subscription cancellation
-			console.log('Subscription deleted:', event.data.object);
 			break;
 
 		case 'invoice.payment_succeeded':
 			// Handle successful payment
-			console.log('Payment succeeded:', event.data.object);
 			break;
 
 		case 'invoice.payment_failed':
 			// Handle failed payment
-			console.log('Payment failed:', event.data.object);
 			break;
 
 		default:
-			console.log('Unhandled Stripe event type:', event.type);
+			break;
 	}
 };

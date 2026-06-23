@@ -39,7 +39,83 @@ export type AdminFeedbackTicket = {
 		noteType?: 'internal' | 'maintley_update' | string;
 		visibility?: 'internal' | 'customer' | string;
 	}>;
+	submissionContext?: {
+		userId?: string;
+		propertyId?: string | null;
+		pageUrl?: string | null;
+		browser?: string | null;
+		deviceType?: 'mobile' | 'desktop' | string;
+		appVersion?: string | null;
+		timestamp?: string | null;
+	};
 	[key: string]: unknown;
+};
+
+export type AdminPortalUserRecord = {
+	id: string;
+	email: string | null;
+	accountId?: string | null;
+	firstName: string;
+	lastName: string;
+	displayName: string;
+	maintleyRole: string;
+	subscriptionPlan: string;
+	subscriptionStatus: string;
+	createdAt?: string;
+	updatedAt?: string;
+	[key: string]: unknown;
+};
+
+export type AdminPortalUserTroubleshootingDetails = {
+	profile: {
+		id: string;
+		email: string | null;
+		firstName: string;
+		lastName: string;
+		displayName: string;
+		maintleyRole: string;
+		accountId?: string | null;
+		subscriptionPlan: string;
+		subscriptionStatus: string;
+		createdAt?: string;
+		updatedAt?: string;
+	};
+	metrics: {
+		propertyCount: number;
+		systemCount: number;
+		taskCount: number;
+		supportRequestCount: number;
+		supportAttachmentStorageBytes: number;
+	};
+	recentSupportRequests: Array<{
+		id: string;
+		ticketNumber?: string | null;
+		type: string;
+		subject: string;
+		status: string;
+		createdAt?: string;
+	}>;
+	recentErrors: Array<{
+		id: string;
+		ticketNumber?: string | null;
+		subject: string;
+		status: string;
+		pageUrl?: string | null;
+		appVersion?: string | null;
+		createdAt?: string;
+	}>;
+	recentNotifications: Array<{
+		id: string;
+		title: string;
+		message?: string;
+		status?: string | null;
+		createdAt?: string;
+	}>;
+	recentActivity: Array<{
+		source: string;
+		description: string;
+		createdAt?: string;
+	}>;
 };
 
 export const saveAdminSessionToken = (token: string): void => {
@@ -115,6 +191,34 @@ export const listAdminFeedbackTickets = async (params: {
 
 	const result = await callable(params);
 	return result.data.tickets || [];
+};
+
+export const listAdminPortalUsers = async (params: {
+	sessionToken: string;
+	query?: string;
+	role?: string;
+	limit?: number;
+}): Promise<AdminPortalUserRecord[]> => {
+	const callable = httpsCallable<
+		{ sessionToken: string; query?: string; role?: string; limit?: number },
+		{ users: AdminPortalUserRecord[] }
+	>(cloudFunctions, 'listAdminPortalUsers');
+
+	const result = await callable(params);
+	return result.data.users || [];
+};
+
+export const getAdminPortalUserTroubleshootingDetails = async (params: {
+	sessionToken: string;
+	userId: string;
+}): Promise<AdminPortalUserTroubleshootingDetails> => {
+	const callable = httpsCallable<
+		{ sessionToken: string; userId: string },
+		AdminPortalUserTroubleshootingDetails
+	>(cloudFunctions, 'getAdminPortalUserTroubleshootingDetails');
+
+	const result = await callable(params);
+	return result.data;
 };
 
 export const updateAdminFeedbackTicketStatus = async (params: {

@@ -68,20 +68,17 @@ export const useAdminTicketLinking = (): UseAdminTicketLinkingReturn => {
 
 		setLinkingTicketId(sourceTicketId);
 		try {
-			console.log(`[LinkTicket] Starting link from ${sourceTicketId} to ${trimmedRef}`);
-			const result = await linkAdminFeedbackTickets({
+			await linkAdminFeedbackTickets({
 				sessionToken,
 				sourceTicketId,
 				targetTicketRef: trimmedRef,
 			});
-			console.log(`[LinkTicket] Success:`, result);
 			
 			// Clear the input field for this ticket immediately
 			setLinkTargetByTicketState((prev) => ({ ...prev, [sourceTicketId]: '' }));
 			
 			// Refresh ticket data to show linked tickets
 			await onRefresh();
-			console.log(`[LinkTicket] Refresh completed`);
 		} catch (error: any) {
 			const errorMsg = error?.message || ERROR_MESSAGES.LINK_TICKET_FAILED;
 			console.error(`[LinkTicket] Error:`, error);

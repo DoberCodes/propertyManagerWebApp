@@ -27,6 +27,15 @@ interface SubmitFeedbackRequest {
 	message: string;
 	userEmail?: string;
 	userName?: string;
+	bugReportContext?: {
+		userId?: string;
+		propertyId?: string;
+		pageUrl?: string;
+		browser?: string;
+		deviceType?: 'mobile' | 'desktop' | string;
+		appVersion?: string;
+		timestamp?: string;
+	};
 	attachments?: FeedbackAttachment[];
 }
 
@@ -296,6 +305,23 @@ export const submitFeedback = functions
 			? data.attachments
 			: [];
 
+		const bugReportContext =
+			typeof data.bugReportContext === 'object' && data.bugReportContext
+				? {
+					userId: String(data.bugReportContext.userId || context.auth.uid).trim() || context.auth.uid,
+					propertyId: String(data.bugReportContext.propertyId || '').trim() || null,
+					pageUrl: String(data.bugReportContext.pageUrl || '').trim() || null,
+					browser: String(data.bugReportContext.browser || '').trim() || null,
+					deviceType:
+						String(data.bugReportContext.deviceType || '').trim().toLowerCase() === 'mobile'
+							? 'mobile'
+							: 'desktop',
+					appVersion: String(data.bugReportContext.appVersion || '').trim() || null,
+					timestamp:
+						String(data.bugReportContext.timestamp || '').trim() || new Date().toISOString(),
+				}
+				: null;
+
 		if (rawAttachments.length > MAX_ATTACHMENTS) {
 			throw new functions.https.HttpsError(
 				'invalid-argument',
@@ -372,6 +398,7 @@ export const submitFeedback = functions
 			userId: context.auth.uid,
 			userEmail: userEmail || null,
 			userName: data.userName || null,
+			submissionContext: bugReportContext,
 			attachments: emailAttachments.map((attachment): PersistedFeedbackAttachment => ({
 				filename: attachment.filename,
 				type: attachment.type,
@@ -440,6 +467,20 @@ export const submitFeedback = functions
 		}
 
 		const internalSubject = `[Maintley] ${feedbackTypeLabels[data.type]}: ${subject}`;
+		const contextBlock = bugReportContext
+			? `
+				<div style="background: #fffbeb; border: 1px solid #fdba74; padding: 14px; border-radius: 8px; margin: 20px 0;">
+					<h3 style="margin-top: 0; color: #7c2d12;">Submission Context</h3>
+					<p><strong>Page URL:</strong> ${escapeHtml(String(bugReportContext.pageUrl || 'n/a'))}</p>
+					<p><strong>Property ID:</strong> ${escapeHtml(String(bugReportContext.propertyId || 'n/a'))}</p>
+					<p><strong>Browser:</strong> ${escapeHtml(String(bugReportContext.browser || 'n/a'))}</p>
+					<p><strong>Device:</strong> ${escapeHtml(String(bugReportContext.deviceType || 'desktop'))}</p>
+					<p><strong>App Version:</strong> ${escapeHtml(String(bugReportContext.appVersion || 'n/a'))}</p>
+					<p><strong>Captured At:</strong> ${escapeHtml(String(bugReportContext.timestamp || new Date().toISOString()))}</p>
+				</div>
+			`
+			: '';
+
 		const internalHtml = `
 			<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
 				<h2 style="color: #6366f1;">New Feedback Received</h2>
@@ -457,6 +498,7 @@ export const submitFeedback = functions
 					<h3 style="margin-top: 0; color: #374151;">Message</h3>
 					<div style="white-space: pre-wrap; line-height: 1.6;">${escapedMessage}</div>
 				</div>
+				${contextBlock}
 				<p style="font-size: 13px; color: #6b7280; margin: 0;">
 					Screenshots attached: ${emailAttachments.length}
 				</p>

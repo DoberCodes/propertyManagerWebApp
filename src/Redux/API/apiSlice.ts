@@ -160,6 +160,15 @@ export const apiSlice = createApi({
 				userId?: string;
 				userEmail?: string;
 				userName?: string;
+				bugReportContext?: {
+					userId?: string;
+					propertyId?: string;
+					pageUrl: string;
+					browser: string;
+					deviceType: 'mobile' | 'desktop';
+					appVersion: string;
+					timestamp: string;
+				};
 				attachments?: Array<{
 					filename: string;
 					contentBase64: string;
@@ -177,6 +186,15 @@ export const apiSlice = createApi({
 							message: string;
 							userEmail?: string;
 							userName?: string;
+							bugReportContext?: {
+								userId?: string;
+								propertyId?: string;
+								pageUrl: string;
+								browser: string;
+								deviceType: 'mobile' | 'desktop';
+								appVersion: string;
+								timestamp: string;
+							};
 							attachments?: Array<{
 								filename: string;
 								contentBase64: string;
@@ -193,6 +211,7 @@ export const apiSlice = createApi({
 						message: feedbackData.message,
 						userEmail: feedbackData.userEmail,
 						userName: feedbackData.userName,
+						bugReportContext: feedbackData.bugReportContext,
 						attachments: feedbackData.attachments,
 					});
 

@@ -65,6 +65,8 @@ export {
 	adminPortalLogout,
 	adminPortalResetPassword,
 	listFeedbackAdminTickets,
+	listAdminPortalUsers,
+	getAdminPortalUserTroubleshootingDetails,
 	updateFeedbackAdminTicketStatus,
 	linkFeedbackAdminTickets,
 	unlinkFeedbackAdminTicket,

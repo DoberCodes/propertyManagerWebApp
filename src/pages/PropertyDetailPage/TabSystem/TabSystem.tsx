@@ -87,8 +87,6 @@ export const TabSystem = ({
 }: TabsProps) => {
 	const activeTab = useSelector((state: RootState) => state.app.activeTab); // Default to 'details' if no active tab is set
 
-	console.info('Rendering TabSystem with activeTab:', activeTab); // Debug log for activeTab
-
 	const renderTabContent = () => {
 		switch (activeTab) {
 			case 'details':

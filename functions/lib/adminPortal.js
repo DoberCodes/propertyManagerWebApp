@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.updateFeedbackAdminTicketStatus = exports.deleteFeedbackAdminParentTicket = exports.unlinkFeedbackAdminTicket = exports.linkFeedbackAdminTickets = exports.listFeedbackAdminTickets = exports.adminPortalResetPassword = exports.adminPortalLogout = exports.validateAdminPortalSession = exports.adminPortalLogin = void 0;
+exports.updateFeedbackAdminTicketStatus = exports.deleteFeedbackAdminParentTicket = exports.unlinkFeedbackAdminTicket = exports.linkFeedbackAdminTickets = exports.listAdminPortalUsers = exports.listFeedbackAdminTickets = exports.adminPortalResetPassword = exports.adminPortalLogout = exports.validateAdminPortalSession = exports.adminPortalLogin = void 0;
 const functions = __importStar(require("firebase-functions/v1"));
 const admin = __importStar(require("firebase-admin"));
 const crypto_1 = require("crypto");
@@ -635,6 +635,61 @@ exports.listFeedbackAdminTickets = functions.https.onCall(async (data, context) 
             .toLowerCase() === requestedType);
     }
     return { tickets };
+});
+exports.listAdminPortalUsers = functions.https.onCall(async (data, context) => {
+    await requireMaintleyAdmin(context);
+    const requestedLimit = Number((data === null || data === void 0 ? void 0 : data.limit) || 100);
+    const limit = Number.isFinite(requestedLimit)
+        ? Math.min(Math.max(requestedLimit, 1), 300)
+        : 100;
+    const normalizedQuery = String((data === null || data === void 0 ? void 0 : data.query) || '').trim().toLowerCase();
+    const normalizedRole = String((data === null || data === void 0 ? void 0 : data.role) || '').trim().toLowerCase();
+    const snapshot = await db.collection(USERS_COLLECTION).limit(limit).get();
+    let users = snapshot.docs.map((doc) => {
+        const raw = (doc.data() || {});
+        const firstName = String(raw.firstName || '').trim();
+        const lastName = String(raw.lastName || '').trim();
+        const email = String(raw.email || '').trim() || null;
+        const maintleyRole = normalizeMaintleyRole(raw.maintley_role) || 'user';
+        const subscription = typeof raw.subscription === 'object' && raw.subscription
+            ? raw.subscription
+            : {};
+        return {
+            id: doc.id,
+            email,
+            firstName,
+            lastName,
+            displayName: `${firstName} ${lastName}`.trim() || email || `User ${doc.id.slice(0, 6)}`,
+            maintleyRole,
+            subscriptionPlan: String(subscription.plan || '').trim() || 'none',
+            subscriptionStatus: String(subscription.status || '').trim() || 'none',
+            createdAt: serializeTimestampValue(raw.createdAt),
+            updatedAt: serializeTimestampValue(raw.updatedAt),
+        };
+    });
+    if (normalizedRole) {
+        users = users.filter((user) => String(user.maintleyRole || '').trim().toLowerCase() === normalizedRole);
+    }
+    if (normalizedQuery) {
+        users = users.filter((user) => {
+            const haystack = [
+                String(user.displayName || ''),
+                String(user.email || ''),
+                String(user.maintleyRole || ''),
+                String(user.subscriptionPlan || ''),
+            ]
+                .join(' ')
+                .toLowerCase();
+            return haystack.includes(normalizedQuery);
+        });
+    }
+    users.sort((left, right) => {
+        const roleCompare = String(left.maintleyRole || '').localeCompare(String(right.maintleyRole || ''));
+        if (roleCompare !== 0)
+            return roleCompare;
+        return String(left.displayName || '').localeCompare(String(right.displayName || ''));
+    });
+    return { users };
 });
 exports.linkFeedbackAdminTickets = functions.https.onCall(async (data, context) => {
     var _a, _b;

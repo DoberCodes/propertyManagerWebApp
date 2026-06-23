@@ -1874,18 +1874,45 @@ export const Properties = () => {
 	};
 
 	const getPropertyAddress = useCallback((property: Property) => {
+		const propertyTitle = property.title?.trim() || 'Untitled Property';
 		const rawAddress = property.address?.trim();
 		if (!rawAddress) {
 			return {
-				primary: property.title,
+				primary: propertyTitle,
 				secondary: 'Address not set',
+				cityState: 'Location not set',
 			};
 		}
 
 		const parts = rawAddress.split(',').map((part) => part.trim()).filter(Boolean);
+		const normalizeState = (stateValue: string) => {
+			const stateMatch = stateValue.match(
+				/^([A-Za-z]{2})(?:\s+\d{5}(?:-\d{4})?)?$/,
+			);
+			return stateMatch ? stateMatch[1].toUpperCase() : stateValue;
+		};
+		const cityState = (() => {
+			if (parts.length >= 3) {
+				const city = parts[parts.length - 2];
+				const state = normalizeState(parts[parts.length - 1]);
+				return [city, state].filter(Boolean).join(', ');
+			}
+
+			if (parts.length === 2) {
+				const secondPartLooksLikeState =
+					/^[A-Za-z]{2}(?:\s+\d{5}(?:-\d{4})?)?$/.test(parts[1]);
+				return secondPartLooksLikeState
+					? [parts[0], normalizeState(parts[1])].filter(Boolean).join(', ')
+					: parts[1];
+			}
+
+			return '';
+		})();
+
 		return {
 			primary: parts[0] || rawAddress,
 			secondary: parts.slice(1).join(', '),
+			cityState,
 		};
 	}, []);
 
@@ -2762,6 +2789,15 @@ export const Properties = () => {
 									$singleProperty={(group.properties || []).length === 1}>
 									{(group.properties || []).map((property: Property) => {
 										const address = getPropertyAddress(property);
+										const propertyDisplayName =
+											property.title?.trim() ||
+											address.primary ||
+											'Untitled Property';
+										const propertyLocationLabel =
+											address.cityState ||
+											address.secondary ||
+											address.primary ||
+											'Location not set';
 										const metrics = getPropertyMetrics(property);
 										const propertyPillLabel = getPropertyPillLabel(property);
 										const propertyImageSrc = getPropertyImageSrc(property.image);
@@ -2828,11 +2864,11 @@ export const Properties = () => {
 																	slug: property.slug,
 																});
 															}}>
-															{address.primary}
+															{propertyDisplayName}
 														</PropertyTitle>
 														<PropertyAddress>
 															<FontAwesomeIcon icon={faLocationDot} />
-															<span>{address.secondary || property.title}</span>
+															<span>{propertyLocationLabel}</span>
 														</PropertyAddress>
 													</div>
 													<PropertyLabelBadge>{propertyPillLabel}</PropertyLabelBadge>

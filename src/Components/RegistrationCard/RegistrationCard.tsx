@@ -321,30 +321,20 @@ export const RegistrationCard = () => {
 		if (inviteMode) {
 			return true;
 		}
-		console.log(
-			`[VAL-STEP3] accountType="${accountType}", selectedPlan="${selectedPlan}", promoCode="${promoCode}"`,
-		);
 		// Plan selection is handled by the embedded paywall
 		// User must select a plan to proceed
 		if (!selectedPlan) {
-			console.log('[VAL-STEP3] No plan selected, setting error');
 			setError('Please select a subscription plan');
 			return false;
 		}
-		console.log('[VAL-STEP3] Validation passed');
 		return true;
 	};
 
 	const handleNext = async () => {
 		setError('');
-		console.log(
-			`[RegistrationCard] handleNext called, step=${step}, selectedPlan="${selectedPlan}"`,
-		);
 		if (step === 1 && validateStep1()) {
-			console.log('[RegistrationCard] Step 1 validated, moving to step 2');
 			setStep(2);
 		} else if (step === 2 && (await validateStep2())) {
-			console.log('[RegistrationCard] Step 2 validated, moving to next step');
 			if (inviteMode || isTenantSignup) {
 				setSelectedPlan(inviteMode && inviteType === 'tenant' ? 'tenant' : isTenantSignup ? 'tenant' : 'team');
 				setStep(4);
@@ -352,12 +342,7 @@ export const RegistrationCard = () => {
 				setStep(3);
 			}
 		} else if (step === 3 && validateStep3()) {
-			console.log('[RegistrationCard] Step 3 validated, moving to step 4');
 			setStep(4);
-		} else {
-			console.log(
-				`[RegistrationCard] Validation failed or wrong step. step=${step}`,
-			);
 		}
 	};
 

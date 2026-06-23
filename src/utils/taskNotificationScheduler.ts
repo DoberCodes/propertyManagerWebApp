@@ -157,9 +157,6 @@ const createTaskNotification = async (
 			: undefined;
 
 		if (!shouldCreateNotification(recipientPreferences, notificationType)) {
-			console.log(
-				`🔕 Skipping ${notificationType} notification for user ${recipientId} because preferences are disabled`,
-			);
 			return;
 		}
 
@@ -187,9 +184,6 @@ const createTaskNotification = async (
 		};
 
 		await addDoc(collection(db, 'notifications'), notificationData);
-		console.log(
-			`🔔 Created ${notificationType} notification for task: ${task.title}`,
-		);
 	} catch (error) {
 		console.error('Error creating task notification:', error);
 	}

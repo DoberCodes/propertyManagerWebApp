@@ -458,6 +458,18 @@ export const DeviceDetailPage: React.FC = () => {
 		() => properties.find((item: any) => item.slug === slug),
 		[properties, slug],
 	);
+	const applianceProfileSource = searchParams.get('from')?.toLowerCase() || '';
+	const cameFromDevicesHub = ['devices', 'appliances', 'appliance-hub'].includes(
+		applianceProfileSource,
+	);
+	const applianceProfileBackPath = cameFromDevicesHub
+		? '/devices'
+		: property?.slug
+			? `/property/${property.slug}?tab=devices`
+			: '/properties';
+	const applianceProfileBackLabel = cameFromDevicesHub
+		? 'Back to Appliances'
+		: 'Back to Property';
 
 	const { data: device, isLoading: deviceLoading } = useGetDeviceQuery(deviceId || '', {
 		skip: !deviceId,
@@ -552,13 +564,10 @@ export const DeviceDetailPage: React.FC = () => {
 	}, [canAccessRecurringTasks, deviceTaskTemplate]);
 
 	const taskUnitOptions = useMemo(() => {
-		console.log('[DeviceDetailPage] units:', units);
-		const options = units.map((unit: any) => ({
+		return units.map((unit: any) => ({
 			label: unit.unitName || unit.name || unit.title || 'Unit',
 			value: String(unit.id || ''),
 		}));
-		console.log('[DeviceDetailPage] taskUnitOptions:', options);
-		return options;
 	}, [units]);
 
 	const linkedTasks = useMemo(() => {
@@ -1672,7 +1681,8 @@ export const DeviceDetailPage: React.FC = () => {
 			title={device.type || 'Appliance'}
 			subtitle={`${property.title} • ${property.slug}`}
 			badge={prettyDeviceSlug}
-			backPath={`/property/${property.slug}`}
+			backPath={applianceProfileBackPath}
+			backLabel={applianceProfileBackLabel}
 			headerTheme='slate'
 			contentMaxWidth='100%'
 			compactTabs

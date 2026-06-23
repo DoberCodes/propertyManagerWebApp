@@ -1,65 +1,5 @@
 import styled from 'styled-components';
 
-export const Wrapper = styled.div`
-	display: flex;
-	flex-direction: column;
-	gap: 24px;
-	padding: 20px;
-	padding-bottom: max(24px, calc(var(--mobile-bottom-nav-offset, 0px) + 24px));
-	min-height: 100%;
-	background-color: #fafafa;
-
-	@media (max-width: 1024px) {
-		padding: 15px;
-		padding-bottom: calc(var(--mobile-bottom-nav-offset, 0px) + 28px);
-		gap: 16px;
-	}
-
-	@media (max-width: 480px) {
-		padding: 10px;
-		padding-bottom: calc(var(--mobile-bottom-nav-offset, 0px) + 24px);
-		gap: 12px;
-	}
-`;
-
-export const PageHeader = styled.div`
-	display: flex;
-	justify-content: space-between;
-	align-items: center;
-	gap: 16px;
-	flex-wrap: wrap;
-
-	@media (max-width: 480px) {
-		gap: 12px;
-	}
-`;
-
-export const PageTitle = styled.h1`
-	font-size: 32px;
-	font-weight: 800;
-	color: #1f2937;
-	margin: 0;
-	letter-spacing: 0.5px;
-
-	@media (max-width: 1024px) {
-		font-size: 28px;
-	}
-
-	@media (max-width: 480px) {
-		font-size: 24px;
-	}
-`;
-
-export const PageDescription = styled.p`
-	font-size: 14px;
-	color: #6b7280;
-	margin: 8px 0 0 0;
-
-	@media (max-width: 480px) {
-		font-size: 12px;
-	}
-`;
-
 export const ReportBuilderContainer = styled.div`
 	display: grid;
 	grid-template-columns: 350px 1fr;
@@ -87,6 +27,14 @@ export const MobileReportGrid = styled.div`
 		display: grid;
 		grid-template-columns: 1fr;
 		gap: 10px;
+	}
+`;
+
+export const DesktopReportSelect = styled.div`
+	display: block;
+
+	@media (max-width: 1024px) {
+		display: none;
 	}
 `;
 
@@ -355,6 +303,10 @@ export const PreviewTable = styled.div`
 	border: 1px solid #e5e7eb;
 	border-radius: 6px;
 
+	@media (max-width: 768px) {
+		display: none;
+	}
+
 	@media (max-width: 480px) {
 		margin: 0 -4px;
 	}
@@ -414,6 +366,99 @@ export const Table = styled.table`
 	}
 `;
 
+export const MobilePreviewCards = styled.div`
+	display: none;
+
+	@media (max-width: 768px) {
+		display: flex;
+		flex-direction: column;
+		gap: 12px;
+	}
+`;
+
+export const MobilePreviewCard = styled.article`
+	border: 1px solid #e2e8f0;
+	border-radius: 14px;
+	background: #ffffff;
+	box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+	overflow: hidden;
+`;
+
+export const MobilePreviewCardHeader = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	padding: 14px 14px 12px;
+	background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+	border-bottom: 1px solid #e2e8f0;
+`;
+
+export const MobilePreviewCardKicker = styled.div`
+	font-size: 11px;
+	font-weight: 800;
+	letter-spacing: 0.05em;
+	text-transform: uppercase;
+	color: #64748b;
+`;
+
+export const MobilePreviewCardTitle = styled.div`
+	font-size: 15px;
+	font-weight: 800;
+	line-height: 1.35;
+	color: #0f172a;
+	overflow-wrap: anywhere;
+`;
+
+export const MobilePreviewFieldList = styled.dl`
+	display: flex;
+	flex-direction: column;
+	margin: 0;
+	padding: 4px 14px 12px;
+`;
+
+export const MobilePreviewField = styled.div`
+	display: grid;
+	grid-template-columns: minmax(92px, 0.42fr) minmax(0, 0.58fr);
+	gap: 10px;
+	padding: 10px 0;
+	border-bottom: 1px solid #f1f5f9;
+
+	&:last-child {
+		border-bottom: none;
+	}
+
+	@media (max-width: 420px) {
+		grid-template-columns: 1fr;
+		gap: 4px;
+	}
+`;
+
+export const MobilePreviewLabel = styled.dt`
+	margin: 0;
+	font-size: 12px;
+	font-weight: 800;
+	color: #475569;
+`;
+
+export const MobilePreviewValue = styled.dd`
+	margin: 0;
+	font-size: 13px;
+	line-height: 1.45;
+	color: #111827;
+	overflow-wrap: anywhere;
+`;
+
+export const MobilePreviewEmptyColumns = styled.div`
+	border: 1px dashed #cbd5e1;
+	border-radius: 12px;
+	background: #f8fafc;
+	color: #475569;
+	font-size: 13px;
+	font-weight: 700;
+	padding: 14px;
+	text-align: center;
+`;
+
 export const EmptyMessage = styled.div`
 	text-align: center;
 	padding: 40px 20px;
@@ -468,6 +513,44 @@ export const SelectAllWrapper = styled.div`
 	}
 `;
 
+export const ColumnOptionsStack = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	margin-bottom: 8px;
+
+	${SelectAllWrapper} {
+		margin-bottom: 0;
+	}
+`;
+
+export const ColumnOptionWrapper = styled.label`
+	display: flex;
+	align-items: flex-start;
+	gap: 8px;
+	padding: 10px;
+	background: #f8fafc;
+	border: 1px solid #e2e8f0;
+	border-radius: 8px;
+	cursor: pointer;
+
+	&:hover {
+		background: #f1f5f9;
+	}
+
+	@media (max-width: 480px) {
+		padding: 9px;
+		gap: 7px;
+	}
+`;
+
+export const ColumnOptionText = styled.span`
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+	min-width: 0;
+`;
+
 export const SelectAllLabel = styled.label`
 	font-size: 13px;
 	font-weight: 600;
@@ -477,6 +560,16 @@ export const SelectAllLabel = styled.label`
 
 	@media (max-width: 480px) {
 		font-size: 12px;
+	}
+`;
+
+export const ColumnOptionHelp = styled.span`
+	font-size: 12px;
+	line-height: 1.4;
+	color: #64748b;
+
+	@media (max-width: 480px) {
+		font-size: 11px;
 	}
 `;
 

@@ -4,14 +4,16 @@
  */
 
 import React, { useRef } from 'react';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faEllipsisVertical, faRotate } from '@fortawesome/free-solid-svg-icons';
 import {
 	HeaderRow,
+	HeaderTitleGroup,
+	HeaderActions,
 	Title,
 	SubTitle,
-	ButtonRow,
-	Button,
 	SettingsWrap,
-	SecondaryButton,
+	HeaderIconButton,
 	SettingsMenu,
 	SettingsItem,
 } from '../AdminInboxPage.styles';
@@ -24,6 +26,7 @@ interface AdminHeaderProps {
 	isRefreshing?: boolean;
 	onRefresh: () => Promise<void>;
 	onSettingsToggle: () => void;
+	onBackToApp: () => void;
 	onLogout: () => Promise<void>;
 }
 
@@ -34,6 +37,7 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
 	onRefresh,
 	onSettingsToggle,
 	onLogout,
+	onBackToApp,
 }) => {
 	const settingsMenuRef = useRef<HTMLDivElement | null>(null);
 
@@ -57,27 +61,40 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
 
 	return (
 		<HeaderRow>
-			<div>
+			<HeaderTitleGroup>
 				<Title>Maintley Admin Inbox</Title>
 				<SubTitle>Signed in as {adminUser?.displayName}</SubTitle>
-			</div>
-			<ButtonRow>
-				<Button type='button' onClick={handleRefresh} disabled={isRefreshing}>
-					{isRefreshing ? 'Refreshing...' : 'Refresh'}
-				</Button>
+			</HeaderTitleGroup>
+			<HeaderActions>
+				<HeaderIconButton
+					type='button'
+					onClick={handleRefresh}
+					disabled={isRefreshing}
+					aria-label={isRefreshing ? 'Refreshing tickets' : 'Refresh tickets'}
+					title={isRefreshing ? 'Refreshing tickets' : 'Refresh tickets'}>
+					<FontAwesomeIcon icon={faRotate} spin={isRefreshing} />
+				</HeaderIconButton>
 				<SettingsWrap ref={settingsMenuRef}>
-					<SecondaryButton type='button' onClick={onSettingsToggle}>
-						Settings
-					</SecondaryButton>
+					<HeaderIconButton
+						type='button'
+						onClick={onSettingsToggle}
+						aria-label='Open admin menu'
+						aria-expanded={showSettingsMenu}
+						title='Open admin menu'>
+						<FontAwesomeIcon icon={faEllipsisVertical} />
+					</HeaderIconButton>
 					{showSettingsMenu ? (
 						<SettingsMenu>
 							<SettingsItem type='button' onClick={handleLogout}>
 								Sign Out
 							</SettingsItem>
+							<SettingsItem type='button' onClick={onBackToApp}>
+								Back to App
+							</SettingsItem>
 						</SettingsMenu>
 					) : null}
 				</SettingsWrap>
-			</ButtonRow>
-		</HeaderRow>
+			</HeaderActions>
+		</HeaderRow >
 	);
 };

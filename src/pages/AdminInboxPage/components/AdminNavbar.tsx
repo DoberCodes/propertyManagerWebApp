@@ -22,7 +22,7 @@ import {
 } from '../AdminInboxPage.styles';
 import type { AdminUser } from '../../../services/adminPortalService';
 
-export type AdminNavPage = 'inbox';
+export type AdminNavPage = 'inbox' | 'users';
 
 interface NavItem {
 	key: AdminNavPage;
@@ -32,12 +32,14 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
 	{ key: 'inbox', label: 'Inbox', icon: 'I' },
+	{ key: 'users', label: 'Users', icon: 'U' },
 ];
 
 interface AdminNavbarProps {
 	activePage: AdminNavPage;
 	adminUser: AdminUser | null;
 	onNavigate: (page: AdminNavPage) => void;
+	onBackToApp: () => void;
 	onLogout: () => Promise<void>;
 }
 
@@ -46,6 +48,7 @@ export const AdminNavbar: React.FC<AdminNavbarProps> = ({
 	adminUser,
 	onNavigate,
 	onLogout,
+	onBackToApp,
 }) => {
 	const handleLogout = () => void onLogout();
 
@@ -78,6 +81,10 @@ export const AdminNavbar: React.FC<AdminNavbarProps> = ({
 							{adminUser.displayName}
 						</SidebarUserLabel>
 					) : null}
+					<SidebarSignOutButton type='button' onClick={onBackToApp}>
+						<SidebarNavIcon aria-hidden='true'>A</SidebarNavIcon>
+						Back to App
+					</SidebarSignOutButton>
 					<SidebarSignOutButton type='button' onClick={handleLogout}>
 						<SidebarNavIcon aria-hidden='true'>🚪</SidebarNavIcon>
 						Sign Out
@@ -98,10 +105,6 @@ export const AdminNavbar: React.FC<AdminNavbarProps> = ({
 						<MobileNavLabel>{item.label}</MobileNavLabel>
 					</MobileNavItem>
 				))}
-				<MobileNavItem type='button' onClick={handleLogout}>
-					<MobileNavIcon aria-hidden='true'>O</MobileNavIcon>
-					<MobileNavLabel>Sign Out</MobileNavLabel>
-				</MobileNavItem>
 			</MobileNavBar>
 		</>
 	);

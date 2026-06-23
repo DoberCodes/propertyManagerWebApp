@@ -366,7 +366,6 @@ export const SettingsPage: React.FC = () => {
 	const handleOpenRemoveFamilyMember = (memberId: string) => {
 		const member = familyMembers.find((m) => m.id === memberId);
 		setFamilyMemberToRemove(member);
-		console.info(member, 'member to remove');
 		if (!member) {
 			feedback.notify('Family member not found');
 			return;

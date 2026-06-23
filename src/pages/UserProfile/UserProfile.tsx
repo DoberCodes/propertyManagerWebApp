@@ -569,7 +569,6 @@ export const UserProfile: React.FC = () => {
 	const handleCancel = () => {
 		navigate(-1);
 	};
-	console.info('Current user in profile:', currentUser);
 	// currentUser guaranteed to exist in protected routes
 
 	return (

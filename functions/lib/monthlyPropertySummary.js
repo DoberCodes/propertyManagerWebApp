@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.sendMonthlyPropertySummaryTest = exports.sendMonthlyPropertySummaries = void 0;
+exports.sendMonthlyPropertySummaryTest = exports.sendMonthlyPropertySummaries = exports.formatDate = void 0;
 const functions = __importStar(require("firebase-functions/v1"));
 const admin = __importStar(require("firebase-admin"));
 const params_1 = require("firebase-functions/params");
@@ -134,6 +134,7 @@ const formatDate = (value) => {
         year: 'numeric',
     });
 };
+exports.formatDate = formatDate;
 const getDocsByAccount = async (collectionName, accountId, userId) => {
     const accountSnapshot = await db
         .collection(collectionName)
@@ -219,7 +220,7 @@ const renderTaskRows = (tasks, propertyById, emptyText) => {
 				<tr>
 					<td style="padding:14px 0; border-top:1px solid #e8eee9;">
 						<div style="font-size:15px; font-weight:800; color:#10251a;">${(0, emailService_1.escapeHtml)(task.title || 'Untitled task')}</div>
-						<div style="font-size:13px; color:#667085; margin-top:5px;">${(0, emailService_1.escapeHtml)(getPropertyLabel(task, propertyById))} &middot; ${(0, emailService_1.escapeHtml)(formatDate(task.dueDate))}</div>
+						<div style="font-size:13px; color:#667085; margin-top:5px;">${(0, emailService_1.escapeHtml)(getPropertyLabel(task, propertyById))} &middot; ${(0, emailService_1.escapeHtml)((0, exports.formatDate)(task.dueDate))}</div>
 					</td>
 				</tr>
 			`).join('')}
@@ -236,7 +237,7 @@ const renderCompletedRows = (events, propertyById) => {
 				<tr>
 					<td style="padding:14px 0; border-top:1px solid #e8eee9;">
 						<div style="font-size:15px; font-weight:800; color:#10251a;">${(0, emailService_1.escapeHtml)(event.title || 'Maintenance activity')}</div>
-						<div style="font-size:13px; color:#667085; margin-top:5px;">${(0, emailService_1.escapeHtml)(getPropertyLabel(event, propertyById))} &middot; ${(0, emailService_1.escapeHtml)(formatDate(event.completionDate || event.createdAt))}</div>
+						<div style="font-size:13px; color:#667085; margin-top:5px;">${(0, emailService_1.escapeHtml)(getPropertyLabel(event, propertyById))} &middot; ${(0, emailService_1.escapeHtml)((0, exports.formatDate)(event.completionDate || event.createdAt))}</div>
 					</td>
 				</tr>
 			`).join('')}

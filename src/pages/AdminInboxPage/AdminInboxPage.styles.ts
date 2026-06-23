@@ -225,14 +225,25 @@ export const HeaderRow = styled.div`
 	justify-content: space-between;
 	align-items: flex-start;
 	gap: 12px;
-	flex-wrap: wrap;
 	padding-bottom: 14px;
 	border-bottom: 1px solid #ffedd5;
 
 	@media (max-width: 480px) {
-		flex-direction: column;
-		align-items: stretch;
+		align-items: flex-start;
+		gap: 10px;
 	}
+`;
+
+export const HeaderTitleGroup = styled.div`
+	min-width: 0;
+	flex: 1;
+`;
+
+export const HeaderActions = styled.div`
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-shrink: 0;
 `;
 
 export const FilterRow = styled.div`
@@ -384,6 +395,35 @@ export const SecondaryButton = styled.button`
 
 	:hover:not(:disabled) {
 		background: #ffedd5;
+	}
+
+	:disabled {
+		opacity: 0.6;
+		cursor: not-allowed;
+	}
+`;
+
+export const HeaderIconButton = styled.button`
+	width: 40px;
+	height: 40px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: 10px;
+	border: 1px solid #fdba74;
+	background: #fff7ed;
+	color: #9a3412;
+	font-size: 15px;
+	cursor: pointer;
+	transition: background-color 0.15s ease, color 0.15s ease, transform 0.15s ease;
+
+	:hover:not(:disabled) {
+		background: #ffedd5;
+		color: #7c2d12;
+	}
+
+	:active:not(:disabled) {
+		transform: translateY(1px);
 	}
 
 	:disabled {
@@ -936,6 +976,140 @@ export const GroupCaseHeader = styled.div`
 export const GroupCaseHeading = styled.div`
 	display: grid;
 	gap: 2px;
+`;
+
+export const UserPanelWrap = styled.div`
+	margin-top: 12px;
+	display: grid;
+	gap: 12px;
+`;
+
+export const UserPanelToolbar = styled.div`
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) 180px auto;
+	gap: 10px;
+	align-items: end;
+
+	@media (max-width: 768px) {
+		grid-template-columns: 1fr;
+	}
+`;
+
+export const UserTableWrap = styled.div`
+	overflow-x: auto;
+	border: 1px solid #fed7aa;
+	border-radius: 10px;
+	background: #ffffff;
+`;
+
+export const UserTable = styled.table`
+	width: 100%;
+	border-collapse: collapse;
+
+	thead {
+		background: #fff7ed;
+	}
+
+	th,
+	td {
+		padding: 10px;
+		text-align: left;
+		font-size: 12px;
+		border-bottom: 1px solid #ffedd5;
+		white-space: nowrap;
+	}
+
+	th {
+		font-weight: 700;
+		color: #9a3412;
+		letter-spacing: 0.04em;
+		text-transform: uppercase;
+	}
+
+	td {
+		color: #7c2d12;
+	}
+`;
+
+export const UserRolePill = styled.span`
+	display: inline-flex;
+	align-items: center;
+	padding: 4px 8px;
+	border-radius: 999px;
+	font-size: 11px;
+	font-weight: 700;
+	background: #ffedd5;
+	color: #9a3412;
+	text-transform: uppercase;
+	letter-spacing: 0.03em;
+`;
+
+export const UserRowActionButton = styled.button`
+	padding: 6px 10px;
+	border-radius: 8px;
+	border: 1px solid #fdba74;
+	background: #fff7ed;
+	color: #9a3412;
+	font-size: 12px;
+	font-weight: 700;
+	cursor: pointer;
+
+	:hover {
+		background: #ffedd5;
+	}
+`;
+
+export const UserDetailsPanel = styled.section`
+	border: 1px solid #fed7aa;
+	border-radius: 12px;
+	background: #fffdfa;
+	padding: 12px;
+	display: grid;
+	gap: 12px;
+`;
+
+export const UserDetailsGrid = styled.div`
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+	gap: 8px;
+`;
+
+export const UserDetailsItem = styled.div`
+	border: 1px solid #ffedd5;
+	border-radius: 8px;
+	background: #ffffff;
+	padding: 10px;
+	display: grid;
+	gap: 4px;
+`;
+
+export const UserDetailsKey = styled.p`
+	margin: 0;
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	color: #9a3412;
+`;
+
+export const UserDetailsValue = styled.p`
+	margin: 0;
+	font-size: 13px;
+	color: #7c2d12;
+	word-break: break-word;
+`;
+
+export const UserActivityList = styled.ul`
+	margin: 0;
+	padding-left: 18px;
+	display: grid;
+	gap: 6px;
+`;
+
+export const UserActivityItem = styled.li`
+	font-size: 12px;
+	color: #7c2d12;
+	line-height: 1.35;
 `;
 
 export const GroupCaseTitle = styled.p`

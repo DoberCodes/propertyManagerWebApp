@@ -115,6 +115,10 @@ export const TicketCard: React.FC<TicketCardProps> = ({
 		? ticketType
 		: 'feedback';
 	const attachments = Array.isArray(ticket.attachments) ? (ticket.attachments as unknown[]) : [];
+	const submissionContext =
+		ticket.submissionContext && typeof ticket.submissionContext === 'object'
+			? (ticket.submissionContext as Record<string, unknown>)
+			: null;
 	const primaryTicketId = String(groupTickets[0]?.id || ticketId);
 	const caseTicketCount = groupTickets.length - 1; // Exclude the parent ticket from the count
 	const primaryTicket =
@@ -214,10 +218,10 @@ export const TicketCard: React.FC<TicketCardProps> = ({
 				};
 			})
 			.sort((left, right) => {
-			const leftTime = Date.parse(left.createdAt || '') || 0;
-			const rightTime = Date.parse(right.createdAt || '') || 0;
-			return rightTime - leftTime;
-		});
+				const leftTime = Date.parse(left.createdAt || '') || 0;
+				const rightTime = Date.parse(right.createdAt || '') || 0;
+				return rightTime - leftTime;
+			});
 	}, [groupTickets, isPrimaryGroupTicket, primaryTicket, primaryTicketId, ticket]);
 
 	const filteredHistoryEntries = React.useMemo(() => {
@@ -407,8 +411,6 @@ export const TicketCard: React.FC<TicketCardProps> = ({
 							const normalized = normalizeAttachment(attachment, idx);
 							const name = normalized.name;
 							const url = normalized.url;
-							console.info('Normalized attachment:', { original: attachment, normalized });
-							console.info('Attachment URL:', url);
 
 							if (!url) {
 								return <AttachmentItem key={`${ticket.id}-${idx}`}>{name} - attachment unavailable</AttachmentItem>;
@@ -426,80 +428,102 @@ export const TicketCard: React.FC<TicketCardProps> = ({
 				</AttachmentSection>
 			) : null}
 
-			
+			{submissionContext ? (
+				<AttachmentSection>
+					<AttachmentLabel>Submission Context</AttachmentLabel>
+					<TicketMeta>
+						Route: {String(submissionContext.pageUrl || 'n/a')}
+					</TicketMeta>
+					<TicketMeta>
+						Property: {String(submissionContext.propertyId || 'n/a')} | Device:{' '}
+						{String(submissionContext.deviceType || 'desktop')}
+					</TicketMeta>
+					<TicketMeta>
+						Browser: {String(submissionContext.browser || 'n/a')}
+					</TicketMeta>
+					<TicketMeta>
+						Version: {String(submissionContext.appVersion || 'n/a')} | Captured:{' '}
+						{submissionContext.timestamp
+							? new Date(String(submissionContext.timestamp)).toLocaleString()
+							: 'n/a'}
+					</TicketMeta>
+				</AttachmentSection>
+			) : null}
+
+
 
 			<NotesStack>
 				<NoteField>
 					<CaseGroupSummaryRow>
-					<NotesTabList role='tablist' aria-label='Ticket notes tabs'>
-						<NotesTabButton
-							type='button'
-							role='tab'
-							aria-selected={activeNotesTab === 'internal'}
-							$active={activeNotesTab === 'internal'}
-							onClick={() => setActiveNotesTab('internal')}>
-							Internal Note
-						</NotesTabButton>
-						<NotesTabButton
-							type='button'
-							role='tab'
-							aria-selected={activeNotesTab === 'maintly'}
-							$active={activeNotesTab === 'maintly'}
-							onClick={() => setActiveNotesTab('maintly')}>
-							Maintly Update
-						</NotesTabButton>
-					</NotesTabList>
+						<NotesTabList role='tablist' aria-label='Ticket notes tabs'>
+							<NotesTabButton
+								type='button'
+								role='tab'
+								aria-selected={activeNotesTab === 'internal'}
+								$active={activeNotesTab === 'internal'}
+								onClick={() => setActiveNotesTab('internal')}>
+								Internal Note
+							</NotesTabButton>
+							<NotesTabButton
+								type='button'
+								role='tab'
+								aria-selected={activeNotesTab === 'maintly'}
+								$active={activeNotesTab === 'maintly'}
+								onClick={() => setActiveNotesTab('maintly')}>
+								Maintly Update
+							</NotesTabButton>
+						</NotesTabList>
 					</CaseGroupSummaryRow>
 
 					<NoteTabPanel>
 						{historyEntries.length > 0 ? (
 							<>
-											<CaseGroupSummaryRow>
-												<NoteHistoryLabel>Ticket Activity</NoteHistoryLabel>
-												<NotesTabList role='tablist' aria-label='Ticket activity filters'>
-													<NotesTabButton
-														type='button'
-														role='tab'
-														aria-selected={historyFilter === 'all'}
-														$active={historyFilter === 'all'}
-														onClick={() => setHistoryFilter('all')}>
-														All
-													</NotesTabButton>
-													<NotesTabButton
-														type='button'
-														role='tab'
-														aria-selected={historyFilter === 'maintley'}
-														$active={historyFilter === 'maintley'}
-														onClick={() => setHistoryFilter('maintley')}>
-														Maintley Updates
-													</NotesTabButton>
-													<NotesTabButton
-														type='button'
-														role='tab'
-														aria-selected={historyFilter === 'internal'}
-														$active={historyFilter === 'internal'}
-														onClick={() => setHistoryFilter('internal')}>
-														Internal Notes
-													</NotesTabButton>
-												</NotesTabList>
-											</CaseGroupSummaryRow>
-										<NoteHistory>
-											{filteredHistoryEntries.map((entry) => (
-												<NoteHistoryItem key={entry.id}>
-													<NoteHistoryText>{entry.note}</NoteHistoryText>
-												<NoteHistoryMeta>
-														{entry.noteType === 'maintley_update' ? 'Maintley Update' : 'Internal Note'}
-														{entry.adminUsername ? ` · ${entry.adminUsername}` : ''}
-														{entry.createdAt ? ` · ${new Date(entry.createdAt).toLocaleString()}` : ''}
-														{entry.sourceTicketNumbers.length === 1
-															? ` · Ticket ${entry.sourceTicketNumbers[0]}`
-															: ` · Tickets ${entry.sourceTicketNumbers.join(', ')}`}
-												</NoteHistoryMeta>
-											</NoteHistoryItem>
-										))}
-									</NoteHistory>
-									</>
-								) : null}
+								<CaseGroupSummaryRow>
+									<NoteHistoryLabel>Ticket Activity</NoteHistoryLabel>
+									<NotesTabList role='tablist' aria-label='Ticket activity filters'>
+										<NotesTabButton
+											type='button'
+											role='tab'
+											aria-selected={historyFilter === 'all'}
+											$active={historyFilter === 'all'}
+											onClick={() => setHistoryFilter('all')}>
+											All
+										</NotesTabButton>
+										<NotesTabButton
+											type='button'
+											role='tab'
+											aria-selected={historyFilter === 'maintley'}
+											$active={historyFilter === 'maintley'}
+											onClick={() => setHistoryFilter('maintley')}>
+											Maintley Updates
+										</NotesTabButton>
+										<NotesTabButton
+											type='button'
+											role='tab'
+											aria-selected={historyFilter === 'internal'}
+											$active={historyFilter === 'internal'}
+											onClick={() => setHistoryFilter('internal')}>
+											Internal Notes
+										</NotesTabButton>
+									</NotesTabList>
+								</CaseGroupSummaryRow>
+								<NoteHistory>
+									{filteredHistoryEntries.map((entry) => (
+										<NoteHistoryItem key={entry.id}>
+											<NoteHistoryText>{entry.note}</NoteHistoryText>
+											<NoteHistoryMeta>
+												{entry.noteType === 'maintley_update' ? 'Maintley Update' : 'Internal Note'}
+												{entry.adminUsername ? ` · ${entry.adminUsername}` : ''}
+												{entry.createdAt ? ` · ${new Date(entry.createdAt).toLocaleString()}` : ''}
+												{entry.sourceTicketNumbers.length === 1
+													? ` · Ticket ${entry.sourceTicketNumbers[0]}`
+													: ` · Tickets ${entry.sourceTicketNumbers.join(', ')}`}
+											</NoteHistoryMeta>
+										</NoteHistoryItem>
+									))}
+								</NoteHistory>
+							</>
+						) : null}
 						{activeNotesTab === 'internal' ? (
 							<>
 								<Label htmlFor={`note-${ticket.id}`}>Internal Note</Label>

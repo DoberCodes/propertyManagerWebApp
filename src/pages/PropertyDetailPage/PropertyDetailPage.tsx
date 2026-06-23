@@ -134,22 +134,6 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 	const { data: firebaseProperties = [], isLoading: isLoadingProperties } =
 		useGetPropertiesQuery();
 
-	if (firebaseProperties && firebaseProperties.length > 0) {
-		console.log(
-			'DEBUG: useGetPropertiesQuery returned properties:',
-			firebaseProperties.length,
-		);
-		console.log(
-			'DEBUG: Property slugs:',
-			firebaseProperties.map((p: any) => p.slug),
-		);
-	} else {
-		console.log(
-			'DEBUG: useGetPropertiesQuery returned empty or no data. isLoading:',
-			isLoadingProperties,
-		);
-	}
-
 	const propertyGroups = useSelector(
 		(state: RootState) => state.propertyData.groups,
 	);
@@ -215,17 +199,6 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 				propertiesFromGroups.find((p: any) => p.slug === normalizedSlug) ||
 				firebaseProperties.find((p: any) => p.id === normalizedSlug) ||
 				propertiesFromGroups.find((p: any) => p.id === normalizedSlug);
-
-		if (!resolvedProperty && firebaseProperties.length > 0) {
-			console.log('DEBUG: Property not found! slug:', slug);
-			console.log(
-				'DEBUG: Available slugs:',
-				firebaseProperties.map((p: any) => p.slug),
-			);
-		}
-		if (firebaseProperties.length > 0) {
-			console.log('DEBUG: Loaded properties count:', firebaseProperties.length);
-		}
 
 		return resolvedProperty;
 	}, [slug, firebaseProperties, propertyGroups, propertyOverride]);

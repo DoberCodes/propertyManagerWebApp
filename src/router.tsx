@@ -74,7 +74,7 @@ export const RouterComponent = () => {
 	const fallbackPath =
 		currentUser?.role === USER_ROLES.TENANT ? 'tenant-profile' : 'dashboard';
 	return (
-		<Router>
+		<Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
 			<Routes>
 				{/* Public Routes */}
 				<Route path='/' element={<RootRoute />} errorElement={<ErrorPage />} />

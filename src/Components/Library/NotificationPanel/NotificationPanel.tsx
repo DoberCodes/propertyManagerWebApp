@@ -449,12 +449,7 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = ({
 								</NotificationContent>
 
 								<DismissButton
-									onClick={(event) => {
-										console.info(
-											'Dismiss button clicked for notification:',
-											notification,
-										);
-										console.info(event);
+									onClick={() => {
 										const notificationId = notification.id;
 										if (!notificationId) {
 											console.error(

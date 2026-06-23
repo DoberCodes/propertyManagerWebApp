@@ -6,11 +6,6 @@ import { apiSlice } from '../API/apiSlice';
 
 const notificationMiddleware: Middleware =
 	(store) => (next) => async (action) => {
-		// Log all fulfilled actions for debugging
-		if (action.type?.endsWith('/fulfilled')) {
-			console.log('Fulfilled action:', action.type, action);
-		}
-
 		// Pass the action to the next middleware/reducer
 		const result = next(action);
 
@@ -65,14 +60,6 @@ const notificationMiddleware: Middleware =
 				const notificationsEnabled = isNotificationsEnabled;
 				const isNotificationEnabled = isTypeEnabled(trigger.type);
 
-				console.log('Notification check:', {
-					endpoint: endpointName,
-					trigger: trigger.type,
-					notificationsEnabled,
-					isNotificationEnabled,
-					userPrefs: currentUser.notificationPreferences,
-				});
-
 				if (notificationsEnabled && isNotificationEnabled) {
 					// Create notification directly in Firestore
 					try {
@@ -88,7 +75,6 @@ const notificationMiddleware: Middleware =
 						};
 
 						await createInAppNotification(notificationData);
-						console.log('Notification created:', notificationData);
 					} catch (error) {
 						console.error('Failed to create notification:', error);
 					}

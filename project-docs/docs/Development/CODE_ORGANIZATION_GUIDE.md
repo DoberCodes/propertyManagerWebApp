@@ -93,6 +93,13 @@ Responsible for:
 * User interaction
 * Display logic
 
+Preferred component direction:
+
+* Keep components focused on one clear UI responsibility.
+* Break large page sections into smaller named components when that improves readability.
+* Reuse shared/global components when a pattern appears in multiple places.
+* Extend shared components carefully instead of creating one-off duplicates.
+
 Should avoid:
 
 * Complex data transformation
@@ -213,6 +220,37 @@ Refactoring is not required simply because a file exceeds a target line count.
 
 ---
 
+# Opportunistic Refactoring While Changing Code
+
+When modifying an existing area, consider whether the touched code can be made
+clearer as part of the same change.
+
+Prefer small, in-scope refactors when they directly support the work being done:
+
+* Extract a repeated UI pattern into a shared component.
+* Move complex state or workflow logic into a hook.
+* Move reusable mapping, formatting, or validation into a utility.
+* Replace one-off local layout code with an existing global layout component.
+* Split a large edited section into smaller named components when it improves readability.
+* Remove duplication introduced by the change before finishing the work.
+
+Avoid broad refactors that are unrelated to the current task.
+
+Good opportunistic refactoring should:
+
+* Stay close to the files already being changed.
+* Reduce duplication or clarify ownership.
+* Preserve existing product behavior.
+* Be easy to review alongside the requested change.
+* Avoid touching high-risk systems unless the task requires it.
+
+The expectation is not to fully clean up every old file during every change.
+
+The expectation is to avoid adding more complexity when a nearby, low-risk
+cleanup would make the implementation clearer.
+
+---
+
 # Preferred Extractions
 
 Good extractions include:
@@ -318,6 +356,14 @@ Prefer concrete implementations first.
 
 Shared code should emerge from repetition.
 
+Maintley should prefer shared global components for UI patterns that appear in
+multiple areas of the app. Examples include page layouts, section headers,
+filter panels, dialogs, empty states, cards, and repeated form controls.
+
+When adding or changing UI, first check whether an existing shared component can
+support the need. If a shared component is close but not quite sufficient,
+prefer a small, intentional extension over creating a duplicate local version.
+
 Avoid:
 
 ```text
@@ -335,6 +381,20 @@ PropertyRecommendationCard
 until multiple use cases clearly exist.
 
 Shared abstractions should solve demonstrated problems rather than anticipated problems.
+
+The preferred direction is:
+
+```text
+Repeated UI pattern
+    ↓
+Shared/global component
+    ↓
+Feature-specific composition
+```
+
+Feature-specific components are still appropriate when the behavior is truly
+unique to one workflow. Shared components should make common patterns easier to
+use without hiding important product behavior.
 
 ---
 

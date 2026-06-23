@@ -514,6 +514,83 @@ const DeviceCard = styled.div`
             border-top: 1px solid #edf2f7;
         }
     }
+
+    @media (max-width: 640px) {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 10px 12px;
+        align-items: start;
+        padding: 14px 14px 13px 16px;
+        border-radius: 18px;
+
+        &::before {
+            top: 14px;
+            bottom: 14px;
+            width: 3px;
+        }
+
+        > div {
+            padding: 0 !important;
+            border: 0 !important;
+        }
+
+        > div:first-child {
+            grid-column: 1 / -1;
+        }
+
+        > div:nth-child(2) {
+            grid-column: 1;
+            grid-row: 2;
+        }
+
+        > div:nth-child(3) {
+            grid-column: 1 / -1;
+            grid-row: 3;
+        }
+
+        > div:nth-child(6) {
+            grid-column: 2;
+            grid-row: 2;
+            justify-self: end;
+            text-align: right;
+        }
+
+        > div:nth-child(4),
+        > div:nth-child(5) {
+            display: none;
+        }
+
+        ${DevicePrimary} {
+            font-size: 0.98rem;
+        }
+
+        ${OpenProfileCue} {
+            width: 28px;
+            height: 28px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 999px;
+            background: #ecfdf5;
+            color: #047857;
+            font-size: 0;
+
+            &::after {
+                content: '→';
+                font-size: 0.95rem;
+                line-height: 1;
+            }
+        }
+
+        ${TechnicalSubtitle} {
+            display: none;
+        }
+
+        ${ContextLinks} {
+            margin-top: 7px;
+            gap: 6px;
+        }
+    }
 `;
 
 const Field = styled.div`
@@ -527,6 +604,10 @@ const Label = styled.div`
     text-transform: uppercase;
     color: #64748b;
     margin-bottom: 5px;
+
+    @media (max-width: 640px) {
+        display: none;
+    }
 `;
 
 const Value = styled.div`
@@ -536,6 +617,12 @@ const Value = styled.div`
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+
+    @media (max-width: 640px) {
+        font-size: 0.82rem;
+        font-weight: 800;
+        color: #475569;
+    }
 `;
 
 const EmptyState = styled.div`

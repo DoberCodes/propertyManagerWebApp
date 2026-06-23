@@ -6,6 +6,7 @@
  */
 
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Shell, Card, SubTitle, ErrorText, TicketList, MainContent } from './AdminInboxPage.styles';
 import {
 	AdminHeader,
@@ -13,6 +14,7 @@ import {
 	AdminStatsRow,
 	AdminFilterControls,
 	TicketCard,
+	AdminUserManagementPanel,
 } from './components';
 import type { AdminNavPage } from './components';
 import { useAdminAuth } from './hooks/useAdminAuth';
@@ -28,6 +30,7 @@ import { MESSAGES } from './constants';
 import type { TypeOption } from './constants';
 
 export const AdminInboxPage: React.FC = () => {
+	const navigate = useNavigate();
 	const auth = useAdminAuth();
 	const tickets = useAdminTickets();
 	const ticketLinking = useAdminTicketLinking();
@@ -105,17 +108,15 @@ export const AdminInboxPage: React.FC = () => {
 	// Authenticated - show admin inbox
 	const handleLinkTicket = async (sourceTicketId: string) => {
 		const targetRef = ticketLinking.linkTargetByTicket[sourceTicketId] || '';
-		console.log(`[Admin] Initiating link for ticket ${sourceTicketId} to ${targetRef}`);
-		
+
 		// Clear any previous errors first
 		tickets.setActionError('');
-		
+
 		await ticketLinking.handleLinkTicket(
 			auth.sessionToken!,
 			sourceTicketId,
 			targetRef,
 			async () => {
-				console.log(`[Admin] Refreshing tickets after link...`);
 				await tickets.loadTickets(auth.sessionToken!, tickets.statusFilter, tickets.typeFilter);
 			},
 			(error) => {
@@ -234,6 +235,10 @@ export const AdminInboxPage: React.FC = () => {
 		setSelectedTicketByGroup({});
 	};
 
+	const handleBackToApp = () => {
+		navigate('/dashboard');
+	};
+
 	return (
 		<Shell>
 			<AdminNavbar
@@ -241,95 +246,104 @@ export const AdminInboxPage: React.FC = () => {
 				adminUser={auth.adminUser}
 				onNavigate={setActivePage}
 				onLogout={auth.handleLogout}
+				onBackToApp={handleBackToApp}
 			/>
 			<MainContent>
-			<Card>
-				<AdminHeader
-					adminUser={auth.adminUser}
-					showSettingsMenu={showSettingsMenu}
-					isRefreshing={tickets.loadingTickets}
-					onRefresh={() =>
-						tickets.handleRefresh(auth.sessionToken!)
-					}
-					onSettingsToggle={() => setShowSettingsMenu(!showSettingsMenu)}
-					onLogout={auth.handleLogout}
-				/>
+				<Card>
+					<AdminHeader
+						adminUser={auth.adminUser}
+						showSettingsMenu={showSettingsMenu}
+						isRefreshing={tickets.loadingTickets}
+						onRefresh={() =>
+							tickets.handleRefresh(auth.sessionToken!)
+						}
+						onSettingsToggle={() => setShowSettingsMenu(!showSettingsMenu)}
+						onLogout={auth.handleLogout}
+						onBackToApp={handleBackToApp}
+					/>
 
-				<AdminStatsRow ticketCounts={visibleTicketCounts} />
+					{activePage === 'users' ? (
+						<AdminUserManagementPanel sessionToken={auth.sessionToken!} />
+					) : (
+						<>
 
-				<AdminFilterControls
-					statusFilter={tickets.statusFilter}
-					typeFilter={tickets.typeFilter}
-					isLoading={tickets.loadingTickets}
-					onStatusChange={handleStatusFilterChange}
-					onTypeChange={handleTypeFilterChange}
-					// onApplyFilters={() =>
-						
-					// }
-				/>
+							<AdminStatsRow ticketCounts={visibleTicketCounts} />
 
-				{tickets.actionError ? <ErrorText>{tickets.actionError}</ErrorText> : null}
-				{tickets.loadingTickets ? <SubTitle>{MESSAGES.LOADING_TICKETS}</SubTitle> : null}
+							<AdminFilterControls
+								statusFilter={tickets.statusFilter}
+								typeFilter={tickets.typeFilter}
+								isLoading={tickets.loadingTickets}
+								onStatusChange={handleStatusFilterChange}
+								onTypeChange={handleTypeFilterChange}
+							// onApplyFilters={() =>
 
-				<TicketList>
-					{ticketGroups.map((group) => {
-						const groupTicketId = String(group.primaryTicket.id || '');
-						const groupTicketIds = new Set(
-							group.tickets.map((groupTicket) => String(groupTicket.id || '')),
-						);
-						const linkableTickets = tickets.tickets.filter(
-							(ticket) => !groupTicketIds.has(String(ticket.id || '')),
-						);
-						const selectedTicketId = selectedTicketByGroup[groupTicketId];
-						const displayedTicket =
-							group.tickets.find((ticket) => String(ticket.id || '') === selectedTicketId) ||
-							group.primaryTicket;
-						const displayedTicketId = String(displayedTicket.id || '');
-						const ticketAnchorId = `ticket-${groupTicketId}`;
-						const isSaving = Boolean(
-							tickets.activeTicketId &&
-								group.tickets.some(
-									(ticket) => String(ticket.id || '') === tickets.activeTicketId,
-								),
-						);
-
-						return (
-							<TicketCard
-								key={groupTicketId}
-								ticket={displayedTicket}
-								ticketNumber={getDisplayTicketNumber(displayedTicket.ticketNumber, displayedTicketId)}
-								ticketAnchorId={ticketAnchorId}
-								groupTickets={group.tickets}
-								linkableTickets={linkableTickets}
-								isSaving={isSaving}
-								isLinking={ticketLinking.linkingTicketId === groupTicketId}
-								isUnlinking={Boolean(ticketLinking.unlinkingTicketId)}
-								isDeletingParent={ticketLinking.deletingParentTicketId === groupTicketId}
-								noteValue={notes.getNote(groupTicketId)}
-								resolutionValue={notes.getResolution(groupTicketId)}
-								linkTargetValue={ticketLinking.linkTargetByTicket[groupTicketId] || ''}
-								onStatusUpdate={(status) => handleStatusUpdate(displayedTicketId, status)}
-									onTypeUpdate={(type) => handleTypeUpdate(displayedTicketId, type)}
-								onNoteChange={(value) => notes.updateNote(groupTicketId, value)}
-								onResolutionChange={(value) =>
-									notes.updateResolution(groupTicketId, value)
-								}
-								onLinkTargetChange={(value) =>
-									ticketLinking.setLinkTargetByTicket((prev) => ({
-										...prev,
-										[groupTicketId]: value,
-									}))
-								}
-								onLinkTicket={() => handleLinkTicket(groupTicketId)}
-								onUnlinkTickets={(ticketIds) => handleUnlinkTickets(ticketIds)}
-								onDeleteParentTicket={() => handleDeleteParentTicket(groupTicketId)}
-								onSaveInternalNote={() => handleSaveNotes(displayedTicketId, groupTicketId)}
-								onSendMaintleyUpdate={() => handleSendMaintleyUpdate(displayedTicketId, groupTicketId)}
+							// }
 							/>
-						);
-					})}
-				</TicketList>
-			</Card>
+
+							{tickets.actionError ? <ErrorText>{tickets.actionError}</ErrorText> : null}
+							{tickets.loadingTickets ? <SubTitle>{MESSAGES.LOADING_TICKETS}</SubTitle> : null}
+
+							<TicketList>
+								{ticketGroups.map((group) => {
+									const groupTicketId = String(group.primaryTicket.id || '');
+									const groupTicketIds = new Set(
+										group.tickets.map((groupTicket) => String(groupTicket.id || '')),
+									);
+									const linkableTickets = tickets.tickets.filter(
+										(ticket) => !groupTicketIds.has(String(ticket.id || '')),
+									);
+									const selectedTicketId = selectedTicketByGroup[groupTicketId];
+									const displayedTicket =
+										group.tickets.find((ticket) => String(ticket.id || '') === selectedTicketId) ||
+										group.primaryTicket;
+									const displayedTicketId = String(displayedTicket.id || '');
+									const ticketAnchorId = `ticket-${groupTicketId}`;
+									const isSaving = Boolean(
+										tickets.activeTicketId &&
+										group.tickets.some(
+											(ticket) => String(ticket.id || '') === tickets.activeTicketId,
+										),
+									);
+
+									return (
+										<TicketCard
+											key={groupTicketId}
+											ticket={displayedTicket}
+											ticketNumber={getDisplayTicketNumber(displayedTicket.ticketNumber, displayedTicketId)}
+											ticketAnchorId={ticketAnchorId}
+											groupTickets={group.tickets}
+											linkableTickets={linkableTickets}
+											isSaving={isSaving}
+											isLinking={ticketLinking.linkingTicketId === groupTicketId}
+											isUnlinking={Boolean(ticketLinking.unlinkingTicketId)}
+											isDeletingParent={ticketLinking.deletingParentTicketId === groupTicketId}
+											noteValue={notes.getNote(groupTicketId)}
+											resolutionValue={notes.getResolution(groupTicketId)}
+											linkTargetValue={ticketLinking.linkTargetByTicket[groupTicketId] || ''}
+											onStatusUpdate={(status) => handleStatusUpdate(displayedTicketId, status)}
+											onTypeUpdate={(type) => handleTypeUpdate(displayedTicketId, type)}
+											onNoteChange={(value) => notes.updateNote(groupTicketId, value)}
+											onResolutionChange={(value) =>
+												notes.updateResolution(groupTicketId, value)
+											}
+											onLinkTargetChange={(value) =>
+												ticketLinking.setLinkTargetByTicket((prev) => ({
+													...prev,
+													[groupTicketId]: value,
+												}))
+											}
+											onLinkTicket={() => handleLinkTicket(groupTicketId)}
+											onUnlinkTickets={(ticketIds) => handleUnlinkTickets(ticketIds)}
+											onDeleteParentTicket={() => handleDeleteParentTicket(groupTicketId)}
+											onSaveInternalNote={() => handleSaveNotes(displayedTicketId, groupTicketId)}
+											onSendMaintleyUpdate={() => handleSendMaintleyUpdate(displayedTicketId, groupTicketId)}
+										/>
+									);
+								})}
+							</TicketList>
+						</>
+					)}
+				</Card>
 			</MainContent>
 		</Shell>
 	);

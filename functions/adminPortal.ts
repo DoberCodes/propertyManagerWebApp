@@ -12,6 +12,10 @@ const ADMIN_USERS_COLLECTION = 'admin_users';
 const ADMIN_SESSIONS_COLLECTION = 'admin_sessions';
 const FEEDBACK_COLLECTION = 'feedback';
 const USERS_COLLECTION = 'users';
+const PROPERTIES_COLLECTION = 'properties';
+const DEVICES_COLLECTION = 'devices';
+const TASKS_COLLECTION = 'tasks';
+const NOTIFICATIONS_COLLECTION = 'notifications';
 const SESSION_TTL_HOURS = 12;
 const MAX_TICKET_RESULTS = 250;
 const FEEDBACK_TICKET_PREFIX = 'MNT';
@@ -481,6 +485,71 @@ type MaintleyAdminAuth = {
 const normalizeMaintleyRole = (value: unknown): string =>
 	typeof value === 'string' ? value.trim().toLowerCase() : '';
 
+const toMillis = (value: unknown): number => {
+	if (!value) return 0;
+	if (typeof value === 'number' && Number.isFinite(value)) {
+		return value > 1e12 ? value : value * 1000;
+	}
+	if (typeof value === 'string') {
+		const parsed = Date.parse(value);
+		return Number.isNaN(parsed) ? 0 : parsed;
+	}
+	if (typeof value === 'object' && value && 'toDate' in (value as Record<string, unknown>)) {
+		const tsObj = value as { toDate: () => Date };
+		return tsObj.toDate().getTime();
+	}
+	return 0;
+};
+
+const toIsoString = (value: unknown): string => {
+	const millis = toMillis(value);
+	return millis > 0 ? new Date(millis).toISOString() : '';
+};
+
+const tryCountWhere = async (
+	collectionName: string,
+	field: string,
+	value: string,
+): Promise<number> => {
+	if (!value) return 0;
+	try {
+		const snapshot = await db
+			.collection(collectionName)
+			.where(field, '==', value)
+			.get();
+		return snapshot.size;
+	} catch {
+		return 0;
+	}
+};
+
+const tryRecentByUser = async (
+	collectionName: string,
+	userId: string,
+	maxResults: number,
+): Promise<Array<Record<string, unknown> & { id: string }>> => {
+	try {
+		const snapshot = await db
+			.collection(collectionName)
+			.where('userId', '==', userId)
+			.orderBy('createdAt', 'desc')
+			.limit(maxResults)
+			.get();
+		return snapshot.docs.map((doc) => ({ id: doc.id, ...(doc.data() as Record<string, unknown>) }));
+	} catch {
+		const fallbackSnapshot = await db
+			.collection(collectionName)
+			.where('userId', '==', userId)
+			.limit(maxResults * 3)
+			.get();
+
+		return fallbackSnapshot.docs
+			.map((doc) => ({ id: doc.id, ...(doc.data() as Record<string, unknown>) }))
+			.sort((left, right) => toMillis(right.createdAt) - toMillis(left.createdAt))
+			.slice(0, maxResults);
+	}
+};
+
 const requireMaintleyAdmin = async (
 	context: functions.https.CallableContext,
 ): Promise<MaintleyAdminAuth> => {
@@ -931,6 +1000,237 @@ export const listFeedbackAdminTickets = functions.https.onCall(
 		}
 
 		return { tickets };
+	},
+);
+
+export const listAdminPortalUsers = functions.https.onCall(
+	async (
+		data: {
+			sessionToken?: string;
+			query?: string;
+			role?: string;
+			limit?: number;
+		},
+		context,
+	): Promise<{ users: Array<Record<string, unknown>> }> => {
+		await requireMaintleyAdmin(context);
+
+		const requestedLimit = Number(data?.limit || 100);
+		const limit = Number.isFinite(requestedLimit)
+			? Math.min(Math.max(requestedLimit, 1), 300)
+			: 100;
+
+		const normalizedQuery = String(data?.query || '').trim().toLowerCase();
+		const normalizedRole = String(data?.role || '').trim().toLowerCase();
+
+		const snapshot = await db.collection(USERS_COLLECTION).limit(limit).get();
+		let users = snapshot.docs.map((doc) => {
+			const raw = (doc.data() || {}) as Record<string, unknown>;
+			const firstName = String(raw.firstName || '').trim();
+			const lastName = String(raw.lastName || '').trim();
+			const email = String(raw.email || '').trim() || null;
+			const maintleyRole = normalizeMaintleyRole(raw.maintley_role) || 'user';
+			const subscription =
+				typeof raw.subscription === 'object' && raw.subscription
+					? (raw.subscription as Record<string, unknown>)
+					: {};
+
+			return {
+				id: doc.id,
+				email,
+				accountId: String(raw.accountId || '').trim() || null,
+				firstName,
+				lastName,
+				displayName:
+					`${firstName} ${lastName}`.trim() || email || `User ${doc.id.slice(0, 6)}`,
+				maintleyRole,
+				subscriptionPlan: String(subscription.plan || '').trim() || 'none',
+				subscriptionStatus: String(subscription.status || '').trim() || 'none',
+				createdAt: serializeTimestampValue(raw.createdAt),
+				updatedAt: serializeTimestampValue(raw.updatedAt),
+			};
+		});
+
+		if (normalizedRole) {
+			users = users.filter(
+				(user) => String(user.maintleyRole || '').trim().toLowerCase() === normalizedRole,
+			);
+		}
+
+		if (normalizedQuery) {
+			users = users.filter((user) => {
+				const haystack = [
+					String(user.displayName || ''),
+					String(user.email || ''),
+					String(user.maintleyRole || ''),
+					String(user.subscriptionPlan || ''),
+				]
+					.join(' ')
+					.toLowerCase();
+				return haystack.includes(normalizedQuery);
+			});
+		}
+
+		users.sort((left, right) => {
+			const roleCompare = String(left.maintleyRole || '').localeCompare(
+				String(right.maintleyRole || ''),
+			);
+			if (roleCompare !== 0) return roleCompare;
+			return String(left.displayName || '').localeCompare(
+				String(right.displayName || ''),
+			);
+		});
+
+		return { users };
+	},
+);
+
+export const getAdminPortalUserTroubleshootingDetails = functions.https.onCall(
+	async (
+		data: {
+			sessionToken?: string;
+			userId?: string;
+		},
+		context,
+	): Promise<Record<string, unknown>> => {
+		await requireMaintleyAdmin(context);
+
+		const targetUserId = String(data?.userId || '').trim();
+		if (!targetUserId) {
+			throw new functions.https.HttpsError('invalid-argument', 'userId is required.');
+		}
+
+		const userDoc = await db.collection(USERS_COLLECTION).doc(targetUserId).get();
+		if (!userDoc.exists) {
+			throw new functions.https.HttpsError('not-found', 'User was not found.');
+		}
+
+		const userData = (userDoc.data() || {}) as Record<string, unknown>;
+		const firstName = String(userData.firstName || '').trim();
+		const lastName = String(userData.lastName || '').trim();
+		const email = String(userData.email || '').trim() || null;
+		const accountId = String(userData.accountId || '').trim();
+		const maintleyRole = normalizeMaintleyRole(userData.maintley_role) || 'user';
+		const subscription =
+			typeof userData.subscription === 'object' && userData.subscription
+				? (userData.subscription as Record<string, unknown>)
+				: {};
+
+		const [propertyCountByAccount, propertyCountByUserId, propertyCountByOwnerId] = await Promise.all([
+			tryCountWhere(PROPERTIES_COLLECTION, 'accountId', accountId),
+			tryCountWhere(PROPERTIES_COLLECTION, 'userId', targetUserId),
+			tryCountWhere(PROPERTIES_COLLECTION, 'ownerId', targetUserId),
+		]);
+
+		const [systemsCountByAccount, systemsCountByUserId, tasksCountByAccount, tasksCountByUserId] =
+			await Promise.all([
+				tryCountWhere(DEVICES_COLLECTION, 'accountId', accountId),
+				tryCountWhere(DEVICES_COLLECTION, 'userId', targetUserId),
+				tryCountWhere(TASKS_COLLECTION, 'accountId', accountId),
+				tryCountWhere(TASKS_COLLECTION, 'userId', targetUserId),
+			]);
+
+		const [recentSupportDocs, recentBugDocs, recentNotificationDocs] = await Promise.all([
+			tryRecentByUser(FEEDBACK_COLLECTION, targetUserId, 8),
+			tryRecentByUser(FEEDBACK_COLLECTION, targetUserId, 20),
+			tryRecentByUser(NOTIFICATIONS_COLLECTION, targetUserId, 8),
+		]);
+
+		const recentSupportRequests = recentSupportDocs.map((doc) => {
+			const type = String(doc.type || 'feedback').trim().toLowerCase();
+			return {
+				id: doc.id,
+				ticketNumber: String(doc.ticketNumber || '').trim() || null,
+				type,
+				subject: String(doc.subject || '').trim() || '(No subject)',
+				status: String(doc.status || 'received').trim() || 'received',
+				createdAt: toIsoString(doc.createdAt),
+			};
+		});
+
+		const recentErrors = recentBugDocs
+			.filter((doc) => String(doc.type || '').trim().toLowerCase() === 'bug_report')
+			.slice(0, 8)
+			.map((doc) => {
+				const submissionContext =
+					typeof doc.submissionContext === 'object' && doc.submissionContext
+						? (doc.submissionContext as Record<string, unknown>)
+						: {};
+				return {
+					id: doc.id,
+					ticketNumber: String(doc.ticketNumber || '').trim() || null,
+					subject: String(doc.subject || '').trim() || '(No subject)',
+					status: String(doc.status || 'received').trim() || 'received',
+					pageUrl: String(submissionContext.pageUrl || '').trim() || null,
+					appVersion: String(submissionContext.appVersion || '').trim() || null,
+					createdAt: toIsoString(doc.createdAt),
+				};
+			});
+
+		const recentNotifications = recentNotificationDocs.map((doc) => ({
+			id: doc.id,
+			title: String(doc.title || doc.type || 'Notification').trim(),
+			message: String(doc.message || doc.body || '').trim(),
+			status: String(doc.status || '').trim() || null,
+			createdAt: toIsoString(doc.createdAt),
+		}));
+
+		const recentActivity = [
+			...recentSupportRequests.map((item) => ({
+				source: 'support_request',
+				description: `${item.type}: ${item.subject}`,
+				createdAt: item.createdAt,
+			})),
+			...recentNotifications.map((item) => ({
+				source: 'notification',
+				description: item.title,
+				createdAt: item.createdAt,
+			})),
+		]
+			.sort((left, right) => toMillis(right.createdAt) - toMillis(left.createdAt))
+			.slice(0, 12);
+
+		const supportAttachmentStorageBytes = recentSupportDocs.reduce((total, doc) => {
+			const attachments = Array.isArray(doc.attachments) ? doc.attachments : [];
+			const attachmentBytes = attachments.reduce((sum, attachment) => {
+				const record =
+					typeof attachment === 'object' && attachment
+						? (attachment as Record<string, unknown>)
+						: {};
+				const size = Number(record.sizeBytes || 0);
+				return sum + (Number.isFinite(size) ? size : 0);
+			}, 0);
+			return total + attachmentBytes;
+		}, 0);
+
+		return {
+			profile: {
+				id: targetUserId,
+				email,
+				firstName,
+				lastName,
+				displayName:
+					`${firstName} ${lastName}`.trim() || email || `User ${targetUserId.slice(0, 6)}`,
+				maintleyRole,
+				accountId: accountId || null,
+				subscriptionPlan: String(subscription.plan || '').trim() || 'none',
+				subscriptionStatus: String(subscription.status || '').trim() || 'none',
+				createdAt: toIsoString(userData.createdAt),
+				updatedAt: toIsoString(userData.updatedAt),
+			},
+			metrics: {
+				propertyCount:
+					propertyCountByAccount || propertyCountByOwnerId || propertyCountByUserId || 0,
+				systemCount: systemsCountByAccount || systemsCountByUserId || 0,
+				taskCount: tasksCountByAccount || tasksCountByUserId || 0,
+				supportRequestCount: recentSupportRequests.length,
+				supportAttachmentStorageBytes,
+			},
+			recentSupportRequests,
+			recentErrors,
+			recentNotifications,
+			recentActivity,
+		};
 	},
 );
 

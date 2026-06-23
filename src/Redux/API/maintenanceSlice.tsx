@@ -136,15 +136,6 @@ const maintenanceSlice = apiSlice.injectEndpoints({
 						}
 					}
 
-					if (process.env.NODE_ENV !== 'production') {
-						console.info('[maintenance-history] query summary', {
-							propertyId,
-							accessibleAccountIds,
-							debugCounts,
-							totalReturned: records.length,
-						});
-					}
-
 					return { data: records };
 				} catch (error: any) {
 					return { error: error.message };

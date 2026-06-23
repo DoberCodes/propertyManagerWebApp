@@ -41,7 +41,6 @@ export const ProtectedRoutes = ({
 	useEffect(() => {
 		const handleActiveRoute = () => {
 			// This can be expanded to include analytics or other side effects on route change
-			console.info('Active route:', location.pathname);
 			dispatch({ type: 'navigation/setActiveRoute', payload: location.pathname });
 		}
 		handleActiveRoute();

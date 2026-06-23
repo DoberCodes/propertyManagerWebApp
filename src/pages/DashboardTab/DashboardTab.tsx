@@ -300,8 +300,7 @@ export const DashboardTab = () => {
 			);
 
 			handleCheckoutSuccess(sessionId)
-				.then((result) => {
-					console.info('Checkout verification result:', result);
+				.then(() => {
 					window.location.reload();
 				})
 				.catch((error) => {
@@ -367,13 +366,6 @@ export const DashboardTab = () => {
 		return assignees;
 	}, [teamMembers]);
 
-	// Task status counts for banner display
-	const filteredTasks = useMemo(
-		() =>
-			filterTasksByRole(allTasks, currentUser, teamMembers, allProperties),
-		[allTasks, currentUser, teamMembers, allProperties],
-	);
-
 	const propertyLookup = useMemo(
 		() =>
 			new Map(
@@ -395,6 +387,62 @@ export const DashboardTab = () => {
 				.filter(Boolean)
 				.sort(),
 		[allProperties],
+	);
+
+	const visiblePropertyTitles = useMemo(
+		() =>
+			new Set(
+				allProperties
+					.map((property) => String((property as any).title || '').trim())
+					.filter(Boolean),
+			),
+		[allProperties],
+	);
+
+	const visiblePropertySlugs = useMemo(
+		() =>
+			new Set(
+				allProperties
+					.map((property) => String((property as any).slug || '').trim())
+					.filter(Boolean),
+			),
+		[allProperties],
+	);
+
+	const roleFilteredTasks = useMemo(
+		() =>
+			filterTasksByRole(allTasks, currentUser, teamMembers, availableProperties),
+		[allTasks, currentUser, teamMembers, availableProperties],
+	);
+
+	// Task status counts for banner display
+	const filteredTasks = useMemo(() => {
+		if (visiblePropertyIdList.length === 0) return [];
+		const visiblePropertyIds = new Set(visiblePropertyIdList);
+
+		return roleFilteredTasks.filter((task) => {
+			const taskPropertyId = String(task.propertyId || '').trim();
+			const taskPropertyTitle = String(
+				task.property || task.propertyTitle || '',
+			).trim();
+			const taskPropertySlug = String((task as any).propertySlug || '').trim();
+
+			return (
+				(taskPropertyId && visiblePropertyIds.has(taskPropertyId)) ||
+				(taskPropertyTitle && visiblePropertyTitles.has(taskPropertyTitle)) ||
+				(taskPropertySlug && visiblePropertySlugs.has(taskPropertySlug))
+			);
+		});
+	}, [
+		roleFilteredTasks,
+		visiblePropertyIdList,
+		visiblePropertyTitles,
+		visiblePropertySlugs,
+	]);
+
+	const dashboardTaskLookup = useMemo(
+		() => new Map(filteredTasks.map((task) => [task.id, task])),
+		[filteredTasks],
 	);
 
 	const visiblePropertyIdsKey = useMemo(
@@ -1463,9 +1511,9 @@ export const DashboardTab = () => {
 				<TaskCompletionModal
 					taskId={completingTaskId}
 					taskTitle={
-						allTasks.find((t) => t.id === completingTaskId)?.title || ''
+						dashboardTaskLookup.get(completingTaskId)?.title || ''
 					}
-					task={allTasks.find((t) => t.id === completingTaskId)}
+					task={dashboardTaskLookup.get(completingTaskId)}
 					onClose={() => setShowTaskCompletionModal(false)}
 					onSuccess={handleTaskCompletionSuccess}
 				/>
@@ -1480,12 +1528,12 @@ export const DashboardTab = () => {
 				editingTaskId={editingTaskId}
 				initialTask={seasonalTaskDraft}
 				editingTask={
-					editingTaskId ? allTasks.find((t) => t.id === editingTaskId) : null
+					editingTaskId ? dashboardTaskLookup.get(editingTaskId) || null : null
 				}
 				isEditing={!!editingTaskId}
 				assigneeOptions={assigneeOptions}
 				currentUser={currentUser}
-				propertyOptions={availableProperties.map((p) => ({
+				propertyOptions={allProperties.map((p) => ({
 					label: p.title,
 					value: p.id,
 				}))}
@@ -1496,17 +1544,17 @@ export const DashboardTab = () => {
 				onClose={() => setShowTaskAssignDialog(false)}
 				task={
 					assigningTaskId
-						? allTasks.find((t) => t.id === assigningTaskId)
+						? dashboardTaskLookup.get(assigningTaskId) || null
 						: null
 				}
 				propertyId={
 					assigningTaskId
-						? allTasks.find((t) => t.id === assigningTaskId)?.propertyId || ''
+						? dashboardTaskLookup.get(assigningTaskId)?.propertyId || ''
 						: ''
 				}
 				selectedAssignee={
 					assigningTaskId
-						? allTasks.find((t) => t.id === assigningTaskId)?.assignedTo
+						? dashboardTaskLookup.get(assigningTaskId)?.assignedTo
 						: null
 				}
 				assigneeOptions={assigneeOptions}

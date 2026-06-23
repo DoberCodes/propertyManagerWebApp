@@ -6,3 +6,4 @@ export { AdminStatsRow } from './AdminStatsRow';
 export { AdminFilterControls } from './AdminFilterControls';
 export { PasswordResetDialog } from './PasswordResetDialog';
 export { TicketCard } from './AdminInboxTicketCard';
+export { AdminUserManagementPanel } from './AdminUserManagementPanel';

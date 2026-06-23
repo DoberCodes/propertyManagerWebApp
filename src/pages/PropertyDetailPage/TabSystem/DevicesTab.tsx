@@ -286,6 +286,23 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 		);
 	};
 
+	const getLastServicedDate = (device: any): string => {
+		const history = Array.isArray(device?.maintenanceHistory)
+			? device.maintenanceHistory
+			: [];
+		const latest = history
+			.filter((entry: any) => entry?.date)
+			.sort((a: any, b: any) => {
+				const left = new Date(a.date).getTime() || 0;
+				const right = new Date(b.date).getTime() || 0;
+				return right - left;
+			})[0];
+		if (!latest?.date) return 'Last serviced not recorded';
+		const date = new Date(latest.date);
+		if (Number.isNaN(date.getTime())) return 'Last serviced not recorded';
+		return `Last serviced ${date.toLocaleDateString()}`;
+	};
+
 	const needsAttentionDeviceCount = useMemo(
 		() =>
 			devices.filter((device: any) => {
@@ -1135,6 +1152,11 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 						const detailsMissing = !hasApplianceDetails(device);
 						const assignedPropertyDocuments =
 							propertyAssignedDocumentsByDevice.get(String(device.id)) || [];
+						const documentCount =
+							(device.files?.length || 0) + assignedPropertyDocuments.length;
+						const deviceSummary = [device.brand, device.model]
+							.filter(Boolean)
+							.join(' · ');
 						return (
 							<DeviceCard
 								key={device.id}
@@ -1169,29 +1191,30 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 													No details added
 												</div>
 											)}
-											<div style={{ fontSize: 12, color: '#64748b', fontWeight: 600 }}>
-												{device.brand || 'No brand'}
-											</div>
 										</div>
 										<span style={{ fontSize: 12, fontWeight: 700, padding: '4px 10px', borderRadius: 999, background: `${stateTone}14`, color: stateTone, border: `1px solid ${stateTone}33`, whiteSpace: 'nowrap' }}>
 											{needsAttention ? 'Needs Attention' : resolvedStatus}
 										</span>
 									</div>
 									<MobileFeedMeta>
-										<MobileFeedLine>{device.model || 'No model details yet'}</MobileFeedLine>
-										<MobileFeedLineMuted>
-											Installed {device.installationDate ? new Date(device.installationDate).toLocaleDateString() : 'Not set'}
-											{device.decommissionDate
-												? ` | Decommissioned ${new Date(device.decommissionDate).toLocaleDateString()}`
-												: ''}
-										</MobileFeedLineMuted>
+										{deviceSummary && (
+											<MobileFeedLine>{deviceSummary}</MobileFeedLine>
+										)}
 										<MobileFeedLineMuted>
 											{linkedOpenTasks} open task{linkedOpenTasks === 1 ? '' : 's'}
 											{recurringLinkedTasks > 0 ? ' • Recurring care active' : ''}
 										</MobileFeedLineMuted>
+										<MobileFeedLineMuted>
+											{getLastServicedDate(device)}
+										</MobileFeedLineMuted>
 										{overdueLinkedTasks > 0 && (
 											<MobileFeedLineMuted style={{ color: '#b91c1c', fontWeight: 700 }}>
 												Overdue by {overdueLinkedTasks} task{overdueLinkedTasks === 1 ? '' : 's'}
+											</MobileFeedLineMuted>
+										)}
+										{documentCount > 0 && (
+											<MobileFeedLineMuted>
+												{documentCount} document{documentCount === 1 ? '' : 's'} attached
 											</MobileFeedLineMuted>
 										)}
 									</MobileFeedMeta>
@@ -1205,24 +1228,6 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 										</MobileActionLinkRow>
 									)}
 								</MobileTaskActions>
-								{(device.files && device.files.length > 0) ||
-								assignedPropertyDocuments.length > 0 ? (
-									<div style={{ marginTop: 4, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-										{(device.files || []).map((file, i) => (
-											<a key={i} href={file.url} target='_blank' rel='noopener noreferrer' style={{ fontSize: 12, color: '#2563eb', textDecoration: 'none' }}>{file.name}</a>
-										))}
-										{assignedPropertyDocuments.map((file, i) => (
-											<a
-												key={`assigned-${file.id || i}`}
-												href={file.url}
-												target='_blank'
-												rel='noopener noreferrer'
-												style={{ fontSize: 12, color: '#0f766e', textDecoration: 'none' }}>
-												{file.name}
-											</a>
-										))}
-									</div>
-								) : null}
 							</DeviceCard>
 						);
 					})}

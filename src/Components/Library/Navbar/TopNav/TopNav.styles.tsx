@@ -49,8 +49,8 @@ export const InnerWrapper = styled.div`
 	align-items: center;
 	justify-content: space-between;
 	width: 100%;
-	max-width: 1200px;
-	margin: 0 auto;
+	max-width: none;
+	margin: 0;
 	gap: 20px;
 
 
@@ -60,6 +60,20 @@ export const InnerWrapper = styled.div`
 
 	@media (max-width: 480px) {
 		gap: 10px;
+	}
+`;
+
+export const MobileRouteLabel = styled.div`
+	display: none;
+
+	@media (max-width: 1024px) {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		color: #ffffff;
+		font-weight: 500;
+		font-size: 18px;
+		min-width: 0;
 	}
 `;
 

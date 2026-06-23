@@ -5,6 +5,7 @@ import { faPaperPlane, faCheckCircle } from '@fortawesome/free-solid-svg-icons';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../Redux/store/store';
 import { useSubmitFeedbackMutation } from '../../Redux/API/apiSlice';
+import { getCurrentAppVersion } from '../../utils/versionCheck';
 
 interface FeedbackFormProps {
 	onClose?: () => void;
@@ -28,6 +29,16 @@ interface FeedbackAttachment {
 	sizeBytes: number;
 }
 
+interface BugReportContext {
+	userId?: string;
+	propertyId?: string;
+	pageUrl: string;
+	browser: string;
+	deviceType: 'mobile' | 'desktop';
+	appVersion: string;
+	timestamp: string;
+}
+
 const MAX_ATTACHMENTS = 3;
 const MAX_ATTACHMENT_SIZE_BYTES = 3 * 1024 * 1024;
 
@@ -44,6 +55,47 @@ const readFileAsDataUrl = (file: File): Promise<string> =>
 		reader.onerror = () => reject(new Error('Failed to read selected file.'));
 		reader.readAsDataURL(file);
 	});
+
+const resolvePropertyIdFromUrl = (): string => {
+	if (typeof window === 'undefined') return '';
+
+	const fullUrl = window.location.href;
+	const hashValue = window.location.hash || '';
+	const urlObject = new URL(fullUrl);
+	const hashQuery = hashValue.includes('?') ? hashValue.split('?')[1] : '';
+	const hashSearchParams = new URLSearchParams(hashQuery);
+
+	const directPropertyId =
+		urlObject.searchParams.get('propertyId') ||
+		urlObject.searchParams.get('property') ||
+		hashSearchParams.get('propertyId') ||
+		hashSearchParams.get('property') ||
+		'';
+	if (directPropertyId.trim()) return directPropertyId.trim();
+
+	const hashPath = hashValue.replace(/^#/, '').split('?')[0] || '';
+	const propertyPathMatch = hashPath.match(/\/properties\/([^/?#]+)/i);
+	return propertyPathMatch?.[1] ? String(propertyPathMatch[1]).trim() : '';
+};
+
+const buildBugReportContext = (userId?: string): BugReportContext => {
+	const pageUrl = typeof window !== 'undefined' ? window.location.href : '';
+	const browser = typeof navigator !== 'undefined' ? navigator.userAgent : 'unknown';
+	const isMobile =
+		typeof window !== 'undefined' &&
+		typeof window.matchMedia === 'function' &&
+		window.matchMedia('(max-width: 768px)').matches;
+
+	return {
+		userId,
+		propertyId: resolvePropertyIdFromUrl() || undefined,
+		pageUrl,
+		browser,
+		deviceType: isMobile ? 'mobile' : 'desktop',
+		appVersion: getCurrentAppVersion(),
+		timestamp: new Date().toISOString(),
+	};
+};
 
 const FeedbackForm: React.FC<FeedbackFormProps> = ({ onClose }) => {
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
@@ -135,6 +187,11 @@ const FeedbackForm: React.FC<FeedbackFormProps> = ({ onClose }) => {
 		setIsSubmitting(true);
 
 		try {
+			const bugReportContext =
+				formData.type === 'bug_report'
+					? buildBugReportContext(currentUser?.id)
+					: undefined;
+
 			const res = await submitFeedback({
 				...formData,
 				userId: currentUser?.id,
@@ -144,6 +201,7 @@ const FeedbackForm: React.FC<FeedbackFormProps> = ({ onClose }) => {
 						? `${currentUser.firstName} ${currentUser.lastName}`
 						: currentUser?.email?.split('@')[0],
 				attachments,
+				bugReportContext,
 			}).unwrap();
 
 			if (res?.ticketNumber) {

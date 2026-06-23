@@ -195,6 +195,10 @@ retaining any remaining navigation parameters. Treat action parameters as
 one-time triggers and replace the current history entry so Back navigation
 does not reopen a previously handled dialog.
 
+Appliance profile back navigation should respect the entry point. Profiles
+opened from a property should return to that property's Appliances tab, while
+profiles opened from the global Appliances page should return to `/devices`.
+
 ---
 
 # Navigation Philosophy

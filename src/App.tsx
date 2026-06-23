@@ -19,7 +19,22 @@ interface SystemBarsPlugin {
 	hide(options?: { type?: SystemBarType }): Promise<void>;
 }
 
-const SystemBars = registerPlugin<SystemBarsPlugin>('SystemBars');
+let systemBarsPlugin: SystemBarsPlugin | null = null;
+
+const getSystemBars = (): SystemBarsPlugin => {
+	if (systemBarsPlugin) {
+		return systemBarsPlugin;
+	}
+
+	const existingSystemBars = (Capacitor as any).Plugins?.SystemBars as
+		| SystemBarsPlugin
+		| undefined;
+
+	systemBarsPlugin =
+		existingSystemBars || registerPlugin<SystemBarsPlugin>('SystemBars');
+
+	return systemBarsPlugin;
+};
 
 const LoadingContainer = styled.div`
 	display: flex;
@@ -236,16 +251,9 @@ export const App = () => {
 
 		pushNotificationsInitializedRef.current = true;
 		initializePushNotifications(
-			(token) => {
-				console.log('Push token received:', token);
-			},
-			(notification) => {
-				console.log('Foreground push notification:', notification);
-			},
+			undefined,
+			undefined,
 			() => currentUserIdRef.current,
-			(action) => {
-				console.log('Push notification action:', action);
-			},
 		);
 	}, [currentUser?.id, currentUser?.subscription]);
 
@@ -312,7 +320,7 @@ export const App = () => {
 
 		const hideStatusBar = async () => {
 			try {
-				await SystemBars.hide({ type: 'StatusBar' });
+				await getSystemBars().hide({ type: 'StatusBar' });
 			} catch (error) {
 				console.warn('Unable to hide native status bar:', error);
 			}

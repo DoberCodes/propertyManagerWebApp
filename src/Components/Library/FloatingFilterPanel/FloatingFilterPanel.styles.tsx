@@ -18,7 +18,7 @@ export const FilterBackdrop = styled.button<{ $open: boolean }>`
 
 export const FilterTrigger = styled.button<{ $open: boolean }>`
 	position: fixed;
-	top: max(50px, calc(env(safe-area-inset-top) + 72px));
+	top: max(20px, calc(env(safe-area-inset-top) + 72px));
 	right: max(18px, env(safe-area-inset-right));
 	display: ${({ $open }) => ($open ? 'none' : 'flex')};
 	align-items: center;
@@ -47,7 +47,7 @@ export const FilterTrigger = styled.button<{ $open: boolean }>`
 	}
 
 	@media (max-width: 1024px) {
-		top: max(132px, calc(env(safe-area-inset-top) + 78px));
+		top: max(100px, calc(env(safe-area-inset-top) + 78px));
 		width: 48px;
 		height: 48px;
 	}
@@ -59,7 +59,7 @@ export const FilterTrigger = styled.button<{ $open: boolean }>`
 
 export const AdditionalSettingsMenuWrap = styled.div`
 	position: fixed;
-	top: max(188px, calc(env(safe-area-inset-top) + 134px));
+	top: max(156px, calc(env(safe-area-inset-top) + 134px));
 	right: max(18px, env(safe-area-inset-right));
 	z-index: 505;
 

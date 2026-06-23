@@ -32,9 +32,13 @@ import {
 	FormSelect as LibrarySelect,
 } from '../Library';
 import {
-	Wrapper,
-	PageTitle,
-	PageDescription,
+	AppPage as StandardAppPage,
+	AppPageHeader as StandardAppPageHeader,
+	AppPageSubtitle as StandardAppPageSubtitle,
+	AppPageTitle as StandardAppPageTitle,
+	AppPageTitleBlock as StandardAppPageTitleBlock,
+} from '../Library/AppPageLayout/AppPageLayout.styles';
+import {
 	ReportBuilderContainer,
 	Section,
 	SectionTitle,
@@ -45,19 +49,21 @@ import {
 	SelectAllWrapper,
 	SelectAllLabel,
 	PreviewSection,
-	PreviewTable,
-	Table,
 	EmptyMessage,
 	ActionButtons,
 	Button,
 	InfoMessage,
-	PageHeader,
 	FilterContainer,
 	MobileReportGrid,
 	MobileReportCard,
 	MobileReportCardTitle,
 	MobileReportCardDescription,
 	MobileReportCardMeta,
+	DesktopReportSelect,
+	ColumnOptionsStack,
+	ColumnOptionWrapper,
+	ColumnOptionText,
+	ColumnOptionHelp,
 } from './ReportBuilder.styles';
 import {
 	TASK_COLUMN_OPTIONS,
@@ -90,6 +96,8 @@ import { useGetTasksQuery } from '../../Redux/API/taskSlice';
 import { useGetTeamMembersQuery } from '../../Redux/API/teamSlice';
 import { useAppFeedback } from '../Library/AppFeedback/AppFeedbackProvider';
 import { LockedFeatureCallout } from '../Library/LockedFeatureCallout';
+import { ReportPreview } from './ReportPreview';
+import { getNonEmptyReportColumns } from './reportPreviewUtils';
 
 // Alias Library components to match local naming convention
 const FormGroup = LibraryFormGroup;
@@ -386,6 +394,7 @@ export const ReportBuilder: React.FC = () => {
 	};
 	const [reportType, setReportType] = useState<ReportType>('');
 	const [selectedColumns, setSelectedColumns] = useState<string[]>([]);
+	const [hideEmptyColumns, setHideEmptyColumns] = useState(false);
 	const [filters, setFilters] = useState<any>({
 		status: '',
 		priority: '',
@@ -950,6 +959,16 @@ export const ReportBuilder: React.FC = () => {
 		filters,
 	]);
 
+	const visibleSelectedColumns = useMemo(() => {
+		if (!hideEmptyColumns) {
+			return selectedColumns;
+		}
+
+		return getNonEmptyReportColumns(previewData, selectedColumns);
+	}, [hideEmptyColumns, previewData, selectedColumns]);
+
+	const hiddenEmptyColumnCount = selectedColumns.length - visibleSelectedColumns.length;
+
 	const handleReportTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
 		if (!canAccessReports) {
 			feedback.notify(
@@ -992,6 +1011,15 @@ export const ReportBuilder: React.FC = () => {
 	const handleDownload = () => {
 		if (!reportType || selectedColumns.length === 0) {
 			feedback.notify('Please select a report type and at least one column');
+			return;
+		}
+
+		if (visibleSelectedColumns.length === 0) {
+			feedback.notify(
+				hideEmptyColumns
+					? 'All selected columns are empty for this report. Turn off hide empty columns or select different columns.'
+					: 'Please select at least one column with report data.',
+			);
 			return;
 		}
 
@@ -1044,64 +1072,64 @@ export const ReportBuilder: React.FC = () => {
 
 		switch (reportType) {
 			case 'tasks':
-				generateTaskReport(previewData, selectedColumns);
+				generateTaskReport(previewData, visibleSelectedColumns);
 				break;
 			case 'overdue-tasks':
-				generateTaskReport(previewData, selectedColumns);
+				generateTaskReport(previewData, visibleSelectedColumns);
 				break;
 			case 'upcoming-tasks':
-				generateTaskReport(previewData, selectedColumns);
+				generateTaskReport(previewData, visibleSelectedColumns);
 				break;
 			case 'maintenance-requests':
 				// use previewData (already filtered/scoped) instead of raw maintenanceRequests
 				generateMaintenanceRequestReport(
 					previewData,
-					selectedColumns,
+					visibleSelectedColumns,
 					filters.status || filters.priority || filters.propertyId
 						? filters
 						: undefined,
 				);
 				break;
 			case 'team':
-				generateTeamReport(previewData, selectedColumns);
+				generateTeamReport(previewData, visibleSelectedColumns);
 				break;
 			case 'contractors':
-				generateContractorReport(previewData, selectedColumns);
+				generateContractorReport(previewData, visibleSelectedColumns);
 				break;
 			case 'suites':
-				generateSuiteReport(previewData, selectedColumns);
+				generateSuiteReport(previewData, visibleSelectedColumns);
 				break;
 			case 'units':
-				generateUnitReport(previewData, selectedColumns);
+				generateUnitReport(previewData, visibleSelectedColumns);
 				break;
 			case 'devices':
-				generateDeviceReport(previewData, selectedColumns);
+				generateDeviceReport(previewData, visibleSelectedColumns);
 				break;
 			case 'maintenance-history':
-				generateMaintenanceHistoryReport(previewData, selectedColumns);
+				generateMaintenanceHistoryReport(previewData, visibleSelectedColumns);
 				break;
 			case 'maintenance-costs':
 				exportToCSV({
 					filename: `maintenance-costs-${new Date().toISOString().split('T')[0]}.csv`,
 					data: previewData,
-					columns: selectedColumns,
+					columns: visibleSelectedColumns,
 				});
 				break;
 			case 'tenant-profiles':
-				generateTenantProfileReport(previewData, selectedColumns);
+				generateTenantProfileReport(previewData, visibleSelectedColumns);
 				break;
 			case 'portfolio-overview':
 				exportToCSV({
 					filename: `portfolio-overview-${new Date().toISOString().split('T')[0]}.csv`,
 					data: previewData,
-					columns: selectedColumns,
+					columns: visibleSelectedColumns,
 				});
 				break;
 			case 'employee-efficiency':
-				generateEmployeeEfficiencyReport(previewData, selectedColumns);
+				generateEmployeeEfficiencyReport(previewData, visibleSelectedColumns);
 				break;
 			case 'property-summary':
-				generatePropertySummaryReport(previewData, selectedColumns);
+				generatePropertySummaryReport(previewData, visibleSelectedColumns);
 				break;
 		}
 	};
@@ -1180,15 +1208,15 @@ export const ReportBuilder: React.FC = () => {
 	}, [columnOptions]);
 
 	return (
-		<Wrapper>
-			<PageHeader>
-				<div>
-					<PageTitle>Reports & Analytics</PageTitle>
-					<PageDescription>
+		<StandardAppPage>
+			<StandardAppPageHeader>
+				<StandardAppPageTitleBlock>
+					<StandardAppPageTitle>Reports & Analytics</StandardAppPageTitle>
+					<StandardAppPageSubtitle>
 						Build custom reports and download CSV data for analysis
-					</PageDescription>
-				</div>
-			</PageHeader>
+					</StandardAppPageSubtitle>
+				</StandardAppPageTitleBlock>
+			</StandardAppPageHeader>
 
 			{isLoading && <InfoMessage>Loading data...</InfoMessage>}
 			<ReportBuilderContainer>
@@ -1265,28 +1293,30 @@ export const ReportBuilder: React.FC = () => {
 							);
 						})}
 					</MobileReportGrid>
-					<FormGroup>
-						<Label>Select Report</Label>
-						<Select value={reportType} onChange={handleReportTypeChange} disabled={!canAccessReports}>
-							<option value=''>-- Choose a report type --</option>
-							{discoverableReports.map((report) => {
-								const isAccessible =
-									canAccessReports &&
-									accessibleReports.some((item) => item.value === report.value);
-								return (
-									<option key={report.value} value={report.value} disabled={!isAccessible}>
-										{report.label}
-										{report.requiresTeamAccess ? ' (Team Management)' : ''}
-										{!isAccessible
-											? isTeamMemberAccount
-												? ' - Role restricted'
-												: ' - Upgrade required'
-											: ''}
-									</option>
-								);
-							})}
-						</Select>
-					</FormGroup>
+					<DesktopReportSelect>
+						<FormGroup>
+							<Label>Select Report</Label>
+							<Select value={reportType} onChange={handleReportTypeChange} disabled={!canAccessReports}>
+								<option value=''>-- Choose a report type --</option>
+								{discoverableReports.map((report) => {
+									const isAccessible =
+										canAccessReports &&
+										accessibleReports.some((item) => item.value === report.value);
+									return (
+										<option key={report.value} value={report.value} disabled={!isAccessible}>
+											{report.label}
+											{report.requiresTeamAccess ? ' (Team Management)' : ''}
+											{!isAccessible
+												? isTeamMemberAccount
+													? ' - Role restricted'
+													: ' - Upgrade required'
+												: ''}
+										</option>
+									);
+								})}
+							</Select>
+						</FormGroup>
+					</DesktopReportSelect>
 					{reportType && currentReportDescription && (
 						<div style={{ fontSize: '13px', color: '#6b7280', marginTop: '8px' }}>
 							{currentReportDescription}
@@ -1370,19 +1400,43 @@ export const ReportBuilder: React.FC = () => {
 				{reportType && (
 					<Section>
 						<SectionTitle>Select Columns</SectionTitle>
-						<SelectAllWrapper>
-							<Checkbox
-								type='checkbox'
-								id='select-all'
-								checked={
-									selectedColumns.length ===
-									Object.keys(columnOptions).length &&
-									Object.keys(columnOptions).length > 0
-								}
-								onChange={handleSelectAll}
-							/>
-							<SelectAllLabel htmlFor='select-all'>Select All</SelectAllLabel>
-						</SelectAllWrapper>
+						<ColumnOptionsStack>
+							<SelectAllWrapper>
+								<Checkbox
+									type='checkbox'
+									id='select-all'
+									checked={
+										selectedColumns.length ===
+										Object.keys(columnOptions).length &&
+										Object.keys(columnOptions).length > 0
+									}
+									onChange={handleSelectAll}
+								/>
+								<SelectAllLabel htmlFor='select-all'>Select All</SelectAllLabel>
+							</SelectAllWrapper>
+							<ColumnOptionWrapper htmlFor='hide-empty-columns'>
+								<Checkbox
+									type='checkbox'
+									id='hide-empty-columns'
+									checked={hideEmptyColumns}
+									onChange={(event) =>
+										setHideEmptyColumns(event.target.checked)
+									}
+								/>
+								<ColumnOptionText>
+									<SelectAllLabel as='span'>
+										Hide empty columns
+									</SelectAllLabel>
+									<ColumnOptionHelp>
+										Preview and download only selected columns that have values
+										in this report.
+										{hideEmptyColumns && hiddenEmptyColumnCount > 0
+											? ` Hiding ${hiddenEmptyColumnCount} empty column${hiddenEmptyColumnCount === 1 ? '' : 's'}.`
+											: ''}
+									</ColumnOptionHelp>
+								</ColumnOptionText>
+							</ColumnOptionWrapper>
+						</ColumnOptionsStack>
 						<ColumnsGrid>
 							{Object.entries(columnOptions).map(([key, label]) => (
 								<CheckboxWrapper
@@ -1406,30 +1460,16 @@ export const ReportBuilder: React.FC = () => {
 			{reportType && previewData.length > 0 && (
 				<PreviewSection>
 					<SectionTitle>Preview ({previewData.length} records)</SectionTitle>
-					<PreviewTable>
-						<Table>
-							<thead>
-								<tr>
-									{selectedColumns.map((col) => (
-										<th key={col}>{columnOptions[col]}</th>
-									))}
-								</tr>
-							</thead>
-							<tbody>
-								{previewData.slice(0, 10).map((row, idx) => (
-									<tr key={idx}>
-										{selectedColumns.map((col) => (
-											<td key={col}>
-												{typeof row[col] === 'object'
-													? JSON.stringify(row[col])
-													: String(row[col] || '-')}
-											</td>
-										))}
-									</tr>
-								))}
-							</tbody>
-						</Table>
-					</PreviewTable>
+					<ReportPreview
+						data={previewData}
+						selectedColumns={visibleSelectedColumns}
+						columnOptions={columnOptions}
+						emptyColumnsMessage={
+							hideEmptyColumns && selectedColumns.length > 0
+								? 'All selected columns are empty for this report. Turn off hide empty columns or choose different columns.'
+								: 'Select at least one column to preview report details.'
+						}
+					/>
 					{previewData.length > 10 && (
 						<InfoMessage>
 							Showing first 10 of {previewData.length} records. Download to see
@@ -1467,6 +1507,6 @@ export const ReportBuilder: React.FC = () => {
 					</EmptyMessage>
 				</PreviewSection>
 			)}
-		</Wrapper>
+		</StandardAppPage>
 	);
 };
