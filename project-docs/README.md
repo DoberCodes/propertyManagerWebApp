@@ -123,6 +123,87 @@ When report findings become accepted direction, the appropriate documentation sh
 
 ---
 
+# ADR Audit Process
+
+The ADR audit looks for important decisions that are documented or implemented but do not yet have an Architecture Decision Record.
+
+Run commands from the repository root.
+
+## 1. Generate the audit and candidate drafts
+
+```bash
+yarn audit:decisions
+```
+
+This runs:
+
+```text
+scripts/auditDecisions.cjs
+```
+
+Output is written to:
+
+```text
+project-docs/reports/decision-audit-YYYY-MM/
+├── audit.md
+├── SUMMARY.md
+└── candidates/
+```
+
+This step creates report artifacts only. It does not add files to `project-docs/ADR/`.
+
+## 2. Prepare drafts for human review
+
+```bash
+yarn adr:author
+```
+
+This runs `scripts/promoteAdrCandidates.cjs --author` and prepares polished drafts in:
+
+```text
+project-docs/reports/decision-audit-YYYY-MM/approved/
+```
+
+Review and edit each draft in `approved/`. To reject a candidate, change its status to `Rejected` and add a clear `Reason:` field.
+
+## 3. Preview the final result
+
+```bash
+yarn adr:promote:dry-run
+```
+
+The dry run validates the drafts and shows which records will be accepted or rejected without changing files.
+
+## 4. Promote reviewed decisions
+
+```bash
+yarn adr:promote
+```
+
+Accepted drafts are written to `project-docs/ADR/`. Rejected drafts are retained in:
+
+```text
+project-docs/reports/decision-audit-YYYY-MM/rejected/
+```
+
+## Targeting a specific audit
+
+By default, the authoring and promotion commands use the newest audit directory. Pass a month or directory directly to the underlying script when working with an older audit:
+
+```bash
+node scripts/promoteAdrCandidates.cjs --author --month 2026-06
+node scripts/promoteAdrCandidates.cjs --promote --dry-run --month 2026-06
+node scripts/promoteAdrCandidates.cjs --promote --dir project-docs/reports/decision-audit-2026-06
+```
+
+For detailed behavior and rejection metadata, see:
+
+```text
+project-docs/docs/Development/SCRIPTS_AND_UTILITIES.md
+```
+
+---
+
 # Documentation Ownership Model
 
 Maintley documentation follows:

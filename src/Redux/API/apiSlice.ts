@@ -35,6 +35,7 @@ export interface MyFeedbackTicket {
 	emailDispatchStatus?: string;
 	createdAt?: string;
 	updatedAt?: string;
+	closedAt?: string;
 	adminNotes?: MyFeedbackAdminNote[];
 	linkedTicketIds?: string[];
 	linkedTicketNumbers?: string[];

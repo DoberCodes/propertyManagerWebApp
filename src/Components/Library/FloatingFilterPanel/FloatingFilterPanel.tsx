@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
-	faChevronRight,
+	faXmark,
 	faFolderOpen,
 	faMagnifyingGlass,
 } from '@fortawesome/free-solid-svg-icons';
@@ -166,8 +166,8 @@ export const FloatingFilterPanel: React.FC<FloatingFilterPanelProps> = ({
 					<CollapseButton
 						type='button'
 						onClick={onDismiss}
-						aria-label='Collapse without applying filters'>
-						<FontAwesomeIcon icon={faChevronRight} />
+						aria-label='Close filters without applying'>
+						<FontAwesomeIcon icon={faXmark} />
 					</CollapseButton>
 					<FilterPanelTitleBlock>
 						<h2>{title}</h2>

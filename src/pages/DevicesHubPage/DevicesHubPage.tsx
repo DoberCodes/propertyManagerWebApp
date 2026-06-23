@@ -864,17 +864,6 @@ export const DevicesHubPage: React.FC = () => {
 				title='Search and filter appliances'
 				description='Choose which appliances and systems you want to see, then apply your changes.'>
 				<HubFilterFields>
-					<HubFilterField>
-						Search
-						<SearchInput
-							type='search'
-							placeholder='Search systems, brands, or locations…'
-							value={draftSearchQuery}
-							onChange={(event) =>
-								setDraftSearchQuery(event.target.value)
-							}
-						/>
-					</HubFilterField>
 					{properties.length > 1 && (
 						<HubFilterField>
 							Property
@@ -892,6 +881,17 @@ export const DevicesHubPage: React.FC = () => {
 							</PropertySelect>
 						</HubFilterField>
 					)}
+					<HubFilterField>
+						Search
+						<SearchInput
+							type='search'
+							placeholder='Search systems, brands, or locations…'
+							value={draftSearchQuery}
+							onChange={(event) =>
+								setDraftSearchQuery(event.target.value)
+							}
+						/>
+					</HubFilterField>
 				</HubFilterFields>
 				<HubFilterField>
 					Status

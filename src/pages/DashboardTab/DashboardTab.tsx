@@ -87,12 +87,14 @@ import {
 	UrgentTaskActions,
 	UrgentActionButton,
 	UrgentQueueEmpty,
+	DashboardPropertyFilter,
+	DashboardDesktopPropertyFilter,
 } from './DashboardTab.styles';
 import { AppZeroState } from 'Components/Library/AppZeroState';
 import { SeasonalMaintenance } from 'Components/SeasonalMaintenance';
 import { SeasonalCard } from 'data/seasonalTipCards';
 import { useTaskHandlers } from 'pages/PropertyDetailPage/useTaskHandlers';
-import { TaskModal } from 'Components/Library';
+import { FloatingFilterPanel, TaskModal } from 'Components/Library';
 import { TaskAssignModal } from 'Components/Library/Modal/TaskAssignModal';
 import { useGetTasksQuery, useUpdateTaskMutation } from 'Redux/API/taskSlice';
 import { useGetAllDevicesQuery } from 'Redux/API/deviceSlice';
@@ -178,12 +180,51 @@ export const DashboardTab = () => {
 		});
 	const [fetchMaintenanceHistoryByProperty] =
 		useLazyGetMaintenanceHistoryByPropertyQuery();
-	const allProperties = useMemo(() => {
+	const availableProperties = useMemo(() => {
 		const combined = [...ownedProperties];
 		// Filter out properties hidden from dashboard
 		const hiddenIds = currentUser?.hiddenPropertyIds || [];
 		return combined.filter((property) => !hiddenIds.includes(property.id));
 	}, [ownedProperties, currentUser?.hiddenPropertyIds]);
+	const [selectedPropertyId, setSelectedPropertyId] = useState('');
+	const [draftPropertyId, setDraftPropertyId] = useState('');
+	const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
+	const allProperties = useMemo(
+		() =>
+			selectedPropertyId
+				? availableProperties.filter(
+						(property) => String(property.id) === selectedPropertyId,
+				  )
+				: availableProperties,
+		[availableProperties, selectedPropertyId],
+	);
+
+	useEffect(() => {
+		if (
+			selectedPropertyId &&
+			!availableProperties.some(
+				(property) => String(property.id) === selectedPropertyId,
+			)
+		) {
+			setSelectedPropertyId('');
+			setDraftPropertyId('');
+		}
+	}, [availableProperties, selectedPropertyId]);
+
+	const openFilterPanel = () => {
+		setDraftPropertyId(selectedPropertyId);
+		setIsFilterPanelOpen(true);
+	};
+
+	const dismissFilterPanel = () => {
+		setDraftPropertyId(selectedPropertyId);
+		setIsFilterPanelOpen(false);
+	};
+
+	const applyPropertyFilter = () => {
+		setSelectedPropertyId(draftPropertyId);
+		setIsFilterPanelOpen(false);
+	};
 
 	const visiblePropertyIds = useMemo(
 		() => new Set(allProperties.map((property) => String(property.id))),
@@ -374,6 +415,8 @@ export const DashboardTab = () => {
 			return;
 		}
 
+		setDashboardMaintenanceHistory([]);
+
 		const loadDashboardMaintenanceHistory = async () => {
 			try {
 				const propertyHistories = await Promise.all(
@@ -495,9 +538,7 @@ export const DashboardTab = () => {
 		const currentMonth = now.getMonth();
 		const currentYear = now.getFullYear();
 
-		const sourceRecords = scopedMaintenanceHistory.length
-			? scopedMaintenanceHistory
-			: allMaintenanceHistory.filter(isContinuityEvent);
+		const sourceRecords = scopedMaintenanceHistory;
 
 		return sourceRecords.filter((record: any) => {
 				const completionDate = new Date(
@@ -509,7 +550,7 @@ export const DashboardTab = () => {
 					completionDate.getFullYear() === currentYear
 				);
 			}).length;
-	}, [scopedMaintenanceHistory, allMaintenanceHistory]);
+	}, [scopedMaintenanceHistory]);
 
 	const taskStatusCounts = useMemo(() => {
 		const now = new Date();
@@ -616,9 +657,7 @@ export const DashboardTab = () => {
 
 		const sourceRecords = dashboardMaintenanceHistory.length
 			? dashboardMaintenanceHistory
-			: scopedMaintenanceHistory.length
-				? scopedMaintenanceHistory
-				: allMaintenanceHistory.filter(isContinuityEvent);
+			: scopedMaintenanceHistory;
 
 		return sourceRecords.filter((record: any) => {
 			const eventDate = new Date(getMaintenanceEventDate(record) || '');
@@ -628,14 +667,12 @@ export const DashboardTab = () => {
 				eventDate.getFullYear() === currentYear
 			);
 		}).length;
-	}, [dashboardMaintenanceHistory, scopedMaintenanceHistory, allMaintenanceHistory]);
+	}, [dashboardMaintenanceHistory, scopedMaintenanceHistory]);
 
 	const recentMaintenanceActivity = useMemo(() => {
 		const sourceRecords = dashboardMaintenanceHistory.length
 			? dashboardMaintenanceHistory
-			: scopedMaintenanceHistory.length
-				? scopedMaintenanceHistory
-				: allMaintenanceHistory.filter(isContinuityEvent);
+			: scopedMaintenanceHistory;
 
 		const activity = sourceRecords
 			.map((record: any) => {
@@ -688,7 +725,6 @@ export const DashboardTab = () => {
 	}, [
 		dashboardMaintenanceHistory,
 		scopedMaintenanceHistory,
-		allMaintenanceHistory,
 		propertyLookup,
 		deviceLookup,
 	]);
@@ -1010,7 +1046,11 @@ export const DashboardTab = () => {
 		setCompletingTaskId(null);
 	};
 
-	if (!isUserTenant && !isLoadingProperties && allProperties.length === 0) {
+	if (
+		!isUserTenant &&
+		!isLoadingProperties &&
+		availableProperties.length === 0
+	) {
 		return (
 			<AppZeroState
 				kind='noProperties'
@@ -1058,7 +1098,50 @@ export const DashboardTab = () => {
 						See today&apos;s priorities, portfolio health, and recent maintenance activity.
 					</StandardAppPageSubtitle>
 				</StandardAppPageTitleBlock>
+				{availableProperties.length > 1 && (
+					<DashboardDesktopPropertyFilter>
+						Property
+						<select
+							value={selectedPropertyId}
+							onChange={(event) =>
+								setSelectedPropertyId(event.target.value)
+							}>
+							<option value=''>All properties</option>
+							{availableProperties.map((property) => (
+								<option key={property.id} value={String(property.id)}>
+									{property.title || 'Untitled Property'}
+								</option>
+							))}
+						</select>
+					</DashboardDesktopPropertyFilter>
+				)}
 			</StandardAppPageHeader>
+
+			{availableProperties.length > 1 && (
+				<FloatingFilterPanel
+					isOpen={isFilterPanelOpen}
+					onOpen={openFilterPanel}
+					onDismiss={dismissFilterPanel}
+					onApply={applyPropertyFilter}
+					onClearDraft={() => setDraftPropertyId('')}
+					activeFilterCount={selectedPropertyId ? 1 : 0}
+					title='Filter dashboard'
+					description='Choose the property you want to see, then apply your change.'>
+					<DashboardPropertyFilter>
+						Property
+						<select
+							value={draftPropertyId}
+							onChange={(event) => setDraftPropertyId(event.target.value)}>
+							<option value=''>All properties</option>
+							{availableProperties.map((property) => (
+								<option key={property.id} value={String(property.id)}>
+									{property.title || 'Untitled Property'}
+								</option>
+							))}
+						</select>
+					</DashboardPropertyFilter>
+				</FloatingFilterPanel>
+			)}
 
 			{/* Action-first top section */}
 			<ActionFirstTopSection>
@@ -1402,7 +1485,7 @@ export const DashboardTab = () => {
 				isEditing={!!editingTaskId}
 				assigneeOptions={assigneeOptions}
 				currentUser={currentUser}
-				propertyOptions={allProperties.map((p) => ({
+				propertyOptions={availableProperties.map((p) => ({
 					label: p.title,
 					value: p.id,
 				}))}

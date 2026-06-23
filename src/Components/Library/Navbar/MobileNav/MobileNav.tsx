@@ -30,6 +30,11 @@ export const MobileHamburgerNav: React.FC<MobileNavProps> = ({ isSidebarOpen, se
     const navigate = useNavigate();
     const navigationItems = [
         {
+            label: 'Support Center',
+            path: 'support',
+            visible: true,
+        },
+        {
             label: 'Team',
             path: 'team',
             visible: !isUserTenant && canAccessTeam,

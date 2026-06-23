@@ -18,6 +18,42 @@ export const Wrapper = styled.div`
 	}
 `;
 
+export const DashboardPropertyFilter = styled.label`
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	min-width: 220px;
+	color: #475569;
+	font-size: 12px;
+	font-weight: 800;
+
+	select {
+		width: 100%;
+		height: 40px;
+		padding: 0 12px;
+		border: 1px solid #cbd5e1;
+		border-radius: 10px;
+		background: #ffffff;
+		color: #334155;
+		font-size: 0.88rem;
+		cursor: pointer;
+		outline: none;
+
+		&:focus {
+			border-color: ${COLORS.primary};
+			box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.12);
+		}
+	}
+`;
+
+export const DashboardDesktopPropertyFilter = styled(
+	DashboardPropertyFilter,
+)`
+	@media (max-width: 1024px) {
+		display: none;
+	}
+`;
+
 export const TaskGridSection = styled.div`
 	display: flex;
 	flex-direction: column;

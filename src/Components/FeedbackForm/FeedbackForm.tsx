@@ -169,10 +169,10 @@ const FeedbackForm: React.FC<FeedbackFormProps> = ({ onClose }) => {
 				<SuccessIcon>
 					<FontAwesomeIcon icon={faCheckCircle} />
 				</SuccessIcon>
-				<SuccessTitle>Thank you for your feedback!</SuccessTitle>
+				<SuccessTitle>Request received</SuccessTitle>
 				<SuccessMessage>
-					Your feedback has been submitted successfully. We'll review it and get
-					back to you if needed.
+					Your request has been sent to Maintley. You can track updates from My
+					requests in the Support Center.
 				</SuccessMessage>
 				{ticketNumber && (
 					<SuccessMessage style={{ marginTop: 10 }}>
@@ -185,21 +185,21 @@ const FeedbackForm: React.FC<FeedbackFormProps> = ({ onClose }) => {
 
 	return (
 		<FormContainer onSubmit={handleSubmit}>
-			<FormTitle>Share Your Feedback</FormTitle>
+			<FormTitle>Tell us how we can help</FormTitle>
 			<FormDescription>
-				Help us improve Maintley by sharing your thoughts, reporting bugs, or
-				requesting new features.
+				Ask a question, report a problem, share feedback, or suggest an
+				improvement.
 			</FormDescription>
 
 			<FormGroup>
-				<Label htmlFor='feedback-type'>Type of Feedback</Label>
+				<Label htmlFor='feedback-type'>Request type</Label>
 				<Select
 					id='feedback-type'
 					value={formData.type}
 					onChange={(e) =>
 						setFormData({ ...formData, type: e.target.value as FeedbackType })
 					}>
-					<option value='feedback'>General Feedback</option>
+					<option value='feedback'>Question or Feedback</option>
 					<option value='feature_request'>Feature Request</option>
 					<option value='bug_report'>Bug Report</option>
 				</Select>
@@ -214,7 +214,7 @@ const FeedbackForm: React.FC<FeedbackFormProps> = ({ onClose }) => {
 					onChange={(e) =>
 						setFormData({ ...formData, subject: e.target.value })
 					}
-					placeholder='Brief description of your feedback'
+					placeholder='Briefly describe what you need help with'
 					required
 				/>
 			</FormGroup>
@@ -231,7 +231,7 @@ const FeedbackForm: React.FC<FeedbackFormProps> = ({ onClose }) => {
 					placeholder='your.email@example.com'
 				/>
 				<HelpText>
-					Provide your email if you'd like us to follow up on your feedback
+					We will use this address if we need to follow up.
 				</HelpText>
 			</FormGroup>
 
@@ -243,7 +243,7 @@ const FeedbackForm: React.FC<FeedbackFormProps> = ({ onClose }) => {
 					onChange={(e) =>
 						setFormData({ ...formData, message: e.target.value })
 					}
-					placeholder='Please provide detailed information about your feedback, bug report, or feature request...'
+					placeholder='Share any details that will help us understand your request...'
 					rows={6}
 					required
 				/>
@@ -303,7 +303,7 @@ const FeedbackForm: React.FC<FeedbackFormProps> = ({ onClose }) => {
 					) : (
 						<>
 							<FontAwesomeIcon icon={faPaperPlane} />
-							Submit Feedback
+							Send Request
 						</>
 					)}
 				</SubmitButton>

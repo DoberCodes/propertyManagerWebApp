@@ -136,7 +136,7 @@ const InfoItem = styled.li`
 const faqItems = [
 	{
 		q: 'How do I submit feedback or report a bug?',
-		a: 'Go to Settings → Feedback & Support and submit the form. If you provide your email, we can follow up directly.',
+		a: 'Open the Support Center from the app navigation and select New support request. You can track the response from My requests.',
 	},
 	{
 		q: "Why can't I see the Team page?",
@@ -194,12 +194,10 @@ const HelpPage: React.FC = () => {
 			<Section>
 				<SectionTitle>Need Help?</SectionTitle>
 				<SectionText>
-					If you need help with a product issue, start with the in-app feedback
-					form in the app settings page. If you are having login issues or other
-					issues accessing your account, you can reach out directly to the
-					support team email below. For critical account or access issues, we
-					prioritize those first. Please include as much detail as possible in
-					your message to help us assist you effectively.
+					If you are signed in, use the Support Center to submit a request and
+					track its progress. If you are having login or account access issues,
+					email the support team directly. Include enough detail to help us
+					understand what happened.
 				</SectionText>
 				<SupportActions>
 					<SupportButton href='mailto:maintleyapp@gmail.com?subject=Maintley%20Support%20Request'>

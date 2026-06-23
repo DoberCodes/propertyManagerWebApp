@@ -9,7 +9,6 @@ import {
 	FormInput,
 	SectionTitle,
 } from 'Components/Library';
-import { FeedbackForm } from 'Components/FeedbackForm';
 import { cancelSubscription } from 'services/stripeService';
 import {
 	updatePassword,
@@ -22,7 +21,6 @@ import { httpsCallable } from 'firebase/functions';
 import { functions } from 'config/firebase';
 import { useAppFeedback } from 'Components/Library/AppFeedback/AppFeedbackProvider';
 import { useUpdateUserMutation } from 'Redux/API/userSlice';
-import { useGetMyFeedbackTicketsQuery } from 'Redux/API/apiSlice';
 import { setCurrentUser } from 'Redux/Slices/userSlice';
 import {
 	addFamilyMember,
@@ -32,9 +30,8 @@ import {
 	resendPasswordReset,
 } from 'services/authService';
 import { NotificationPreferences } from 'pages/SettingsPage/NotificationPreferences';
-import { hasMaintleyAdminAccess } from 'utils/maintleyRole';
 import { Container } from 'Components/SeasonalMaintenance.styles';
-import { Title, SettingsLayout, CategorySidebar, CategoryNavButton, CategoryContent, MobileCategoryPicker, CategorySelect, CategoryPanel, Section, AccountButton, ErrorMessage, ButtonContainer, SuccessMessage, SupportTicketHeaderBar, SupportTicketFilterLabel, SupportTicketFilterGroup, SupportTicketFilterButton, SupportTicketRefreshButton, SupportTicketList, SupportTicketCard, SupportTicketHeader, SupportTicketSubject, SupportTicketStatus, SupportTicketMetaGrid, SupportTicketMetaBlock, SupportTicketMetaLabel, SupportTicketMetaValue, SupportTicketSection, SupportTicketSectionLabel, SupportTicketMeta, SupportTicketMessage, SupportAttachmentList, ResourceButtons, PasswordHelp } from './SettingPage.styles';
+import { Title, SettingsLayout, CategorySidebar, CategoryNavButton, CategoryContent, MobileCategoryPicker, CategorySelect, CategoryPanel, Section, AccountButton, ErrorMessage, SuccessMessage, PasswordHelp } from './SettingPage.styles';
 import { AccountManagement } from './AccountManagement';
 import { FamilyManagement } from './FamilyManagement';
 
@@ -45,7 +42,6 @@ export const SettingsPage: React.FC = () => {
 		| 'account'
 		| 'notifications'
 		| 'getting-started'
-		| 'support'
 		| 'legal';
 
 	const navigate = useNavigate();
@@ -54,7 +50,6 @@ export const SettingsPage: React.FC = () => {
 
 	// User and permissions
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
-	const canAccessMaintleyAdmin = hasMaintleyAdminAccess(currentUser?.maintley_role ?? null);
 	const isTenant = currentUser?.role === 'tenant';
 	const canManageFamilyRoles =
 		currentUser?.isAccountOwner ||
@@ -62,25 +57,14 @@ export const SettingsPage: React.FC = () => {
 		currentUser?.role === 'admin';
 
 
-	// API mutations and queries
+	// API mutations
 	const [updateUser] = useUpdateUserMutation();
-	const {
-		data: mySupportTickets = [],
-		isLoading: loadingMySupportTickets,
-		isFetching: fetchingMySupportTickets,
-		error: mySupportTicketsError,
-		refetch: refetchMySupportTickets,
-	} = useGetMyFeedbackTicketsQuery(
-		{ limit: 20 },
-		{ skip: !currentUser },
-	);
 
 	// UI states
 	const [familyMembers, setFamilyMembers] = useState<any[]>([]);
 	const [familyToResetPassword, setFamilyToResetPassword] = useState<any>(null);
 	const [familyMemberToRemove, setFamilyMemberToRemove] = useState<any>(null);
 	const [activeCategory, setActiveCategory] = useState<SettingsCategoryKey>('account');
-	const [supportTicketFilter, setSupportTicketFilter] = useState<'active' | 'closed'>('active');
 	const [searchParams, setSearchParams] = useSearchParams();
 	const [isRestartingOnboarding, setIsRestartingOnboarding] = useState(false);
 
@@ -110,7 +94,6 @@ export const SettingsPage: React.FC = () => {
 	const [showRemoveFamilyMemberModal, setShowRemoveFamilyMemberModal] = useState(false);
 	const [showCancelSubscriptionModal, setShowCancelSubscriptionModal] = useState(false);
 	const [showPasswordModal, setShowPasswordModal] = useState(false);
-	const [showFeedbackModal, setShowFeedbackModal] = useState(false);
 	const [showDeleteAccountModal, setShowDeleteAccountModal] = useState(false);
 	const [showFamilyResetPasswordModal, setShowFamilyResetPasswordModal] = useState(false);
 
@@ -133,114 +116,6 @@ export const SettingsPage: React.FC = () => {
 		newPassword: '',
 		confirmPassword: '',
 	});
-
-	const formatSupportStatus = (status: string): string =>
-		String(status || 'received')
-			.replaceAll('_', ' ')
-			.replace(/\b\w/g, (m) => m.toUpperCase());
-
-	const getEffectiveSupportStatus = (ticket: {
-		status?: string;
-		publicStatus?: string;
-		closedAt?: string | { seconds?: number; nanoseconds?: number } | null;
-	}): string => {
-		const rawStatus = String(ticket.status || '')
-			.toLowerCase()
-			.replaceAll(' ', '_')
-			.trim();
-		const rawPublicStatus = String(ticket.publicStatus || '')
-			.toLowerCase()
-			.replaceAll(' ', '_')
-			.trim();
-		const hasClosedTimestamp = Boolean(ticket.closedAt);
-
-		// Customer-facing ticket bucket treats resolved/closed as closed work.
-		if (
-			rawStatus === 'closed' ||
-			rawStatus === 'resolved' ||
-			rawPublicStatus === 'closed' ||
-			rawPublicStatus === 'fixed' ||
-			hasClosedTimestamp
-		) {
-			return 'closed';
-		}
-
-		return String(ticket.publicStatus || ticket.status || 'received');
-	};
-
-	const formatSupportDate = (value?: string): string => {
-		if (!value) return 'Unknown date';
-		const parsed = new Date(value);
-		if (Number.isNaN(parsed.getTime())) return value;
-		return parsed.toLocaleString();
-	};
-
-	const ensureAbsoluteUrl = (value?: string): string | null => {
-		const raw = String(value || '').trim();
-		if (!raw) return null;
-		if (/^https?:\/\//i.test(raw)) return raw;
-		if (/^[\w.-]+\.[a-z]{2,}(\/.*)?$/i.test(raw)) return `https://${raw}`;
-		return null;
-	};
-
-	const renderLinkedText = (value?: string): React.ReactNode => {
-		const text = String(value || '');
-		if (!text) return null;
-
-		const urlRegex = /(https?:\/\/[^\s)]+|(?:[\w-]+\.)+[\w-]{2,}(?:\/[^\s)]*)?)/gi;
-		const parts: React.ReactNode[] = [];
-		let lastIndex = 0;
-		let match: RegExpExecArray | null;
-		let keyIndex = 0;
-
-		while ((match = urlRegex.exec(text)) !== null) {
-			const [matched] = match;
-			const start = match.index;
-			if (start > lastIndex) {
-				parts.push(text.slice(lastIndex, start));
-			}
-			const href = ensureAbsoluteUrl(matched);
-			if (href) {
-				parts.push(
-					<a
-						key={`support-link-${keyIndex++}`}
-						href={href}
-						target='_blank'
-						rel='noopener noreferrer'>
-						{matched}
-					</a>,
-				);
-			} else {
-				parts.push(matched);
-			}
-			lastIndex = start + matched.length;
-		}
-
-		if (lastIndex < text.length) {
-			parts.push(text.slice(lastIndex));
-		}
-
-		return parts.length > 0 ? parts : text;
-	};
-
-	const isClosedSupportStatus = (value?: string): boolean => {
-		const normalized = String(value || '')
-			.toLowerCase()
-			.replaceAll(' ', '_');
-		return normalized === 'closed' || normalized === 'resolved';
-	};
-
-	const filteredSupportTickets = useMemo(() => {
-		if (supportTicketFilter === 'closed') {
-			return mySupportTickets.filter((ticket) =>
-				isClosedSupportStatus(getEffectiveSupportStatus(ticket)),
-			);
-		}
-
-		return mySupportTickets.filter(
-			(ticket) => !isClosedSupportStatus(getEffectiveSupportStatus(ticket)),
-		);
-	}, [mySupportTickets, supportTicketFilter]);
 
 	// Load family members
 	useEffect(() => {
@@ -285,11 +160,6 @@ export const SettingsPage: React.FC = () => {
 				visible: !isTenant,
 			},
 			{
-				key: 'support' as SettingsCategoryKey,
-				label: 'Support',
-				visible: true,
-			},
-			{
 				key: 'legal' as SettingsCategoryKey,
 				label: 'Legal',
 				visible: true,
@@ -309,6 +179,11 @@ export const SettingsPage: React.FC = () => {
 			return;
 		}
 
+		if (category === 'support') {
+			navigate('/support', { replace: true });
+			return;
+		}
+
 		const isValidCategory = categoryOptions.some(
 			(option) => option.key === category,
 		);
@@ -322,7 +197,7 @@ export const SettingsPage: React.FC = () => {
 			next.delete('category');
 			return next;
 		}, { replace: true });
-	}, [categoryOptions, searchParams, setSearchParams]);
+	}, [categoryOptions, navigate, searchParams, setSearchParams]);
 
 	useEffect(() => {
 		if (!visibleCategories.some((category) => category.key === activeCategory)) {
@@ -734,177 +609,6 @@ export const SettingsPage: React.FC = () => {
 
 
 
-						{activeCategory === 'support' && (
-							<>
-								<Section>
-									<SectionTitle>Feedback & Support</SectionTitle>
-									<p style={{ marginBottom: '16px', color: '#6b7280' }}>
-										Help us improve Maintley by sharing your feedback, reporting bugs,
-										or requesting new features.
-									</p>
-									<ButtonContainer>
-										<AccountButton onClick={() => setShowFeedbackModal(true)}>
-											Submit Feedback
-										</AccountButton>
-										{canAccessMaintleyAdmin ? (
-											<AccountButton onClick={() => navigate('/admin')}>
-												Open Admin Inbox
-											</AccountButton>
-										) : null}
-									</ButtonContainer>
-
-									{loadingMySupportTickets ? (
-										<p style={{ marginTop: '14px', color: '#6b7280' }}>
-											Loading your support requests...
-										</p>
-									) : null}
-
-									{mySupportTicketsError ? (
-										<ErrorMessage style={{ marginTop: '14px' }}>
-											Unable to load your support requests right now. Please refresh and try again.
-										</ErrorMessage>
-									) : null}
-
-									<SupportTicketHeaderBar>
-										<SupportTicketFilterLabel>My Tickets</SupportTicketFilterLabel>
-										<div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-											<SupportTicketFilterGroup>
-												<SupportTicketFilterButton
-													type='button'
-													active={supportTicketFilter === 'active'}
-													onClick={() => setSupportTicketFilter('active')}>
-													Open
-												</SupportTicketFilterButton>
-												<SupportTicketFilterButton
-													type='button'
-													active={supportTicketFilter === 'closed'}
-													onClick={() => setSupportTicketFilter('closed')}>
-													Closed
-												</SupportTicketFilterButton>
-											</SupportTicketFilterGroup>
-											<SupportTicketRefreshButton
-												$isRefreshing={Boolean(loadingMySupportTickets || fetchingMySupportTickets)}
-												type='button'
-												onClick={() => refetchMySupportTickets()}
-												title='Refresh tickets'
-												aria-label='Refresh tickets'>
-												↻
-											</SupportTicketRefreshButton>
-										</div>
-									</SupportTicketHeaderBar>
-
-									{filteredSupportTickets && filteredSupportTickets.length > 0 ? (
-										<SupportTicketList>
-											{filteredSupportTickets.map((ticket) => {
-
-												console.info('Rendering support ticket:', ticket);
-												const displayTicketNumber =
-													ticket.ticketNumber || `Ticket ${ticket.id.slice(-6).toUpperCase()}`;
-												const latestAdminNote = Array.isArray(ticket.adminNotes)
-													? [...ticket.adminNotes]
-														.filter((note) => String(note?.visibility || '').toLowerCase() === 'customer')
-														.sort((a, b) => {
-															const aDate = new Date(a.createdAt || a.date || 0).getTime();
-															const bDate = new Date(b.createdAt || b.date || 0).getTime();
-															return bDate - aDate;
-														})[0]
-													: null;
-
-												return (
-													<SupportTicketCard key={ticket.id}>
-														<SupportTicketHeader>
-															<div>
-																<SupportTicketSubject>
-																	Ticket Number: {displayTicketNumber}
-																</SupportTicketSubject>
-															</div>
-															<SupportTicketStatus>
-																{formatSupportStatus(getEffectiveSupportStatus(ticket))}
-															</SupportTicketStatus>
-														</SupportTicketHeader>
-														<SupportTicketMetaGrid>
-															<SupportTicketMetaBlock>
-																<SupportTicketMetaLabel>Type</SupportTicketMetaLabel>
-																<SupportTicketMetaValue>
-																	{formatSupportStatus(String(ticket.type || 'feedback'))}
-																</SupportTicketMetaValue>
-															</SupportTicketMetaBlock>
-															<SupportTicketMetaBlock>
-																<SupportTicketMetaLabel>Submitted</SupportTicketMetaLabel>
-																<SupportTicketMetaValue>{formatSupportDate(ticket.createdAt)}</SupportTicketMetaValue>
-															</SupportTicketMetaBlock>
-															<SupportTicketMetaBlock>
-																<SupportTicketMetaLabel>Last Updated</SupportTicketMetaLabel>
-																<SupportTicketMetaValue>
-																	{formatSupportDate(ticket.updatedAt || ticket.createdAt)}
-																</SupportTicketMetaValue>
-															</SupportTicketMetaBlock>
-														</SupportTicketMetaGrid>
-														<SupportTicketSection>
-															<SupportTicketSectionLabel>Subject</SupportTicketSectionLabel>
-															<SupportTicketMeta>{renderLinkedText(ticket.subject || '(No subject)')}</SupportTicketMeta>
-														</SupportTicketSection>
-														<SupportTicketSection>
-															<SupportTicketSectionLabel>Message</SupportTicketSectionLabel>
-															<SupportTicketMessage>{renderLinkedText(ticket.message)}</SupportTicketMessage>
-														</SupportTicketSection>
-														{latestAdminNote ? (
-															<SupportTicketSection resolutionNotes={latestAdminNote.note}>
-																<SupportTicketSectionLabel>Latest Maintley Update - {formatSupportDate(latestAdminNote.createdAt || latestAdminNote.date)}</SupportTicketSectionLabel>
-																<SupportTicketMeta>{renderLinkedText(latestAdminNote.note)}</SupportTicketMeta>
-															</SupportTicketSection>
-														) : null}
-														{Array.isArray(ticket.attachments) &&
-															ticket.attachments.length > 0 ? (
-															<SupportTicketSection>
-																<SupportTicketSectionLabel>Attachments</SupportTicketSectionLabel>
-																<SupportAttachmentList>
-																	{ticket.attachments.map((attachment, index) => {
-																		const href = ensureAbsoluteUrl(attachment?.attachmentUrl);
-																		const label =
-																			attachment?.filename ||
-																			`Attachment ${index + 1}`;
-																		return (
-																			<li key={`${ticket.id}-attachment-${index}`}>
-																				{href ? (
-																					<a href={href} target='_blank' rel='noopener noreferrer'>
-																						{label}
-																					</a>
-																				) : (
-																					label
-																				)}
-																			</li>
-																		);
-																	})}
-																</SupportAttachmentList>
-															</SupportTicketSection>
-														) : null}
-													</SupportTicketCard>
-												);
-											})}
-										</SupportTicketList>
-									) : (
-										<p style={{ marginTop: '14px', color: '#6b7280' }}>
-											You have no {supportTicketFilter === 'active' ? 'open' : 'closed'} support requests.
-										</p>
-									)}
-								</Section>
-
-								<Section>
-									<SectionTitle>Help & Resources</SectionTitle>
-									<p style={{ marginBottom: '16px', color: '#6b7280' }}>
-										Learn about all the features available in Maintley and get help
-										when you need it.
-									</p>
-									<ResourceButtons>
-										<AccountButton onClick={() => navigate('/help')}>
-											Open Help Center
-										</AccountButton>
-									</ResourceButtons>
-								</Section>
-							</>
-						)}
-
 						{activeCategory === 'legal' && (
 							<Section>
 								<SectionTitle>Legal</SectionTitle>
@@ -921,15 +625,6 @@ export const SettingsPage: React.FC = () => {
 			</SettingsLayout>
 
 
-
-			{/* Feedback Modal */}
-			<GenericModal
-				isOpen={showFeedbackModal}
-				title='Submit Feedback'
-				showActions={false}
-				onClose={() => setShowFeedbackModal(false)}>
-				<FeedbackForm onClose={() => setShowFeedbackModal(false)} />
-			</GenericModal>
 
 			{/* Password Change Modal */}
 			<GenericModal

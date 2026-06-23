@@ -38,6 +38,11 @@ import { selectCanAccessTeam } from './Redux/selectors/permissionSelectors';
 import PaywallPageIndex from './pages/PaywallPage';
 import { MaintenanceHistoryGroupPage } from 'pages/MaintenanceHistoryGroup';
 import { SettingsPage } from 'pages/SettingsPage';
+import {
+	SupportArticlePage,
+	SupportArticlesPage,
+	SupportPage,
+} from 'pages/SupportPage';
 import { USER_ROLES } from './constants/roles';
 import { hasMaintleyAdminAccess } from './utils/maintleyRole';
 
@@ -199,6 +204,12 @@ export const RouterComponent = () => {
 
 					{/* Settings - accessible to all authenticated users */}
 					<Route path='settings' element={<SettingsPage />} />
+					<Route path='support' element={<SupportPage />} />
+					<Route path='support/articles' element={<SupportArticlesPage />} />
+					<Route
+						path='support/articles/:articleSlug'
+						element={<SupportArticlePage />}
+					/>
 					<Route path='features' element={<FeatureDocsPage />} />
 
 					{/* User Profile - accessible to all authenticated users */}

@@ -253,6 +253,10 @@ Bottom navigation should emphasize:
 * Global visibility
 * Fast switching
 
+Lower-frequency destinations such as the Support Center should remain
+available from the mobile navigation drawer rather than displacing a core
+maintenance destination in the bottom navigation.
+
 ---
 
 # Global vs Property Context
@@ -300,6 +304,11 @@ Users should be able to switch between:
 using a simple property selector.
 
 Property context changes should require a single interaction whenever possible.
+
+Global Dashboard, Tasks, and Appliances views should offer this same property
+scope control. On tablet and mobile, Property is the first option in the
+floating search and filter panel. A mobile selection remains a draft until the
+user applies the filters; dismissing the panel preserves the current view.
 
 Examples:
 

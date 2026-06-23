@@ -43,6 +43,7 @@ import {
 	faChartBar,
 	faCog,
 	faHome,
+	faHeadset,
 	faIdCard,
 	faMicrochip,
 	faTachometerAlt,
@@ -329,6 +330,27 @@ export const SideNav = () => {
 				<Section>
 					<SectionTitle>Help & Resources</SectionTitle>
 					<SectionContent>
+						<div
+							style={{
+								display: 'flex',
+								alignItems: 'center',
+								gap: '8px',
+								padding: '8px 0',
+								fontSize: '13px',
+								color: activeRoute.startsWith('/support') ? '#16a34a' : '#666666',
+								fontWeight: activeRoute.startsWith('/support') ? 700 : 400,
+								cursor: 'pointer',
+								transition: 'color 0.2s ease',
+							}}
+							onClick={() => navigate('/support')}
+							onMouseEnter={(e) => (e.currentTarget.style.color = '#16a34a')}
+							onMouseLeave={(e) =>
+								(e.currentTarget.style.color =
+									activeRoute.startsWith('/support') ? '#16a34a' : '#666666')
+							}>
+							<FontAwesomeIcon icon={faHeadset} size='sm' />
+							<span>Support Center</span>
+						</div>
 						{!isUserTenant && (
 							<div
 								style={{

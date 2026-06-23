@@ -306,6 +306,60 @@ Reports are generated from existing Maintley records and do not act as separate 
 
 ---
 
+# Customer Support
+
+Authenticated users have a dedicated Support Center at:
+
+```text
+/support
+```
+
+The Support Center brings together:
+
+* New support, feedback, bug, and feature requests.
+* Open and closed request tracking.
+* Customer-visible updates from the Maintley team.
+* Request attachments.
+* Frequently asked questions.
+* Troubleshooting and bug-report guidance.
+* A curated feed limited to significant features and major user-facing updates.
+* In-depth homeowner-friendly articles covering core Maintley functions.
+* Founder notes that explain the practical thinking behind each guide.
+
+Articles use stable, shareable routes:
+
+```text
+/support/articles
+/support/articles/:articleSlug
+```
+
+Current article topics include:
+
+* Building a useful property record.
+* Turning completed tasks into maintenance history.
+* Tracking appliances and systems.
+* Organizing property documents.
+* Configuring maintenance reminders.
+* Organizing properties with groups.
+* Getting started without documenting everything.
+* Using Property Intelligence recommendations.
+* Working with family and team members.
+* Preparing property records for a contractor.
+* Choosing between a task and a maintenance record.
+* Preserving useful information after service work.
+
+The Support Center shows a featured selection. The full article library is
+available through **View all articles**.
+
+Support is a separate navigation destination rather than a Settings category.
+Desktop users can open it from the sidebar or profile menu. Tablet and mobile
+users can open it from the navigation drawer.
+
+The public Help Center remains available at `/help` for general guidance and
+people who cannot access their account.
+
+---
+
 # Billing & Subscription Support
 
 Maintley supports subscription-aware experiences.

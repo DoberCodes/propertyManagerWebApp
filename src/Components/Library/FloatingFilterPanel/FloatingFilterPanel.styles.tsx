@@ -47,7 +47,7 @@ export const FilterTrigger = styled.button<{ $open: boolean }>`
 	}
 
 	@media (max-width: 1024px) {
-		top: max(120px, calc(env(safe-area-inset-top) + 66px));
+		top: max(132px, calc(env(safe-area-inset-top) + 78px));
 		width: 48px;
 		height: 48px;
 	}
@@ -59,7 +59,7 @@ export const FilterTrigger = styled.button<{ $open: boolean }>`
 
 export const AdditionalSettingsMenuWrap = styled.div`
 	position: fixed;
-	top: max(175px, calc(env(safe-area-inset-top) + 121px));
+	top: max(188px, calc(env(safe-area-inset-top) + 134px));
 	right: max(18px, env(safe-area-inset-right));
 	z-index: 505;
 
@@ -167,13 +167,16 @@ export const FilterPanel = styled.aside<{ $open: boolean }>`
 	right: max(16px, env(safe-area-inset-right));
 	width: min(920px, calc(100vw - 64px));
 	max-height: min(72vh, 560px);
+	height: min(72vh, 560px);
+	display: flex;
+	flex-direction: column;
 	padding: 20px;
 	border: 1px solid #dbe5e1;
 	border-radius: 20px;
 	background: rgba(255, 255, 255, 0.98);
 	box-shadow: 0 24px 60px rgba(15, 23, 42, 0.22);
 	z-index: 1100;
-	overflow: visible;
+	overflow: hidden;
 	opacity: ${({ $open }) => ($open ? 1 : 0)};
 	transform: ${({ $open }) =>
 		$open ? 'translateX(0) scaleX(1)' : 'translateX(48px) scaleX(0.72)'};
@@ -182,13 +185,14 @@ export const FilterPanel = styled.aside<{ $open: boolean }>`
 	transition: opacity 160ms ease, transform 190ms ease;
 
 	@media (max-width: 1024px) {
-		top: max(68px, calc(env(safe-area-inset-top) + 60px));
+		top: max(82px, calc(env(safe-area-inset-top) + 74px));
 		right: max(10px, env(safe-area-inset-right));
 		width: calc(100vw - 20px);
-		max-height: calc(100dvh - 154px - env(safe-area-inset-bottom));
+		height: calc(100dvh - 170px - env(safe-area-inset-bottom));
+		max-height: calc(100dvh - 170px - env(safe-area-inset-bottom));
 		padding: 16px;
 		border-radius: 16px;
-		overflow-y: auto;
+		overflow: hidden;
 	}
 
 	@media (min-width: 1025px) {
@@ -233,6 +237,7 @@ export const FilterPanelHeader = styled.div`
 	justify-content: space-between;
 	gap: 16px;
 	margin-bottom: 16px;
+	flex-shrink: 0;
 `;
 
 export const FilterPanelTitleBlock = styled.div`
@@ -257,6 +262,10 @@ export const FilterPanelBody = styled.div`
 	display: flex;
 	flex-direction: column;
 	gap: 14px;
+	flex: 1;
+	min-height: 0;
+	overflow-y: auto;
+	padding-right: 2px;
 
 	input[type='search'] {
 		min-height: 48px;
@@ -267,14 +276,20 @@ export const FilterPanelActions = styled.div`
 	display: flex;
 	align-items: center;
 	justify-content: flex-end;
-	gap: 10px;
+	gap: 12px;
 	margin-top: 18px;
 	padding-top: 14px;
 	border-top: 1px solid #e2e8f0;
+	background: rgba(255, 255, 255, 0.98);
+	flex-shrink: 0;
+	padding-bottom: 6px;
 
 	@media (max-width: 480px) {
 		display: grid;
 		grid-template-columns: 1fr 1fr;
+		column-gap: 8px;
+		row-gap: 8px;
+		padding-bottom: calc(env(safe-area-inset-bottom) + 6px);
 	}
 `;
 
@@ -292,7 +307,7 @@ export const ClearDraftButton = styled.button`
 
 export const ApplyFilterButton = styled.button`
 	min-height: 42px;
-	padding: 9px 20px;
+	padding: 9px 16px;
 	border: none;
 	border-radius: 10px;
 	background: ${COLORS.gradientPrimary};

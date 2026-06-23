@@ -342,6 +342,19 @@ export const TasksPage = () => {
 	) => (
 		<TaskFilterFields>
 			<TaskFilterField>
+				Property
+				<TaskSortSelect
+					value={values.propertyId}
+					onChange={(event) => onChange('propertyId', event.target.value)}>
+					<option value=''>All properties</option>
+					{propertyFilterOptions.map((option) => (
+						<option key={option.value} value={String(option.value)}>
+							{option.label}
+						</option>
+					))}
+				</TaskSortSelect>
+			</TaskFilterField>
+			<TaskFilterField>
 				Priority
 				<TaskSortSelect
 					value={values.priority}
@@ -363,19 +376,6 @@ export const TasksPage = () => {
 					<option value='unassigned'>Unassigned</option>
 					{globalTaskFilterOptions.assignees.map((option) => (
 						<option key={option.value} value={option.value}>
-							{option.label}
-						</option>
-					))}
-				</TaskSortSelect>
-			</TaskFilterField>
-			<TaskFilterField>
-				Property
-				<TaskSortSelect
-					value={values.propertyId}
-					onChange={(event) => onChange('propertyId', event.target.value)}>
-					<option value=''>All properties</option>
-					{propertyFilterOptions.map((option) => (
-						<option key={option.value} value={String(option.value)}>
 							{option.label}
 						</option>
 					))}

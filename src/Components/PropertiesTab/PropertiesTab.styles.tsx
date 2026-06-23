@@ -383,8 +383,8 @@ export const GroupActions = styled.div`
 	gap: 8px;
 	align-items: center;
 
-	@media (max-width: 480px) {
-		gap: 6px;
+	@media (max-width: 1024px) {
+		display: none;
 	}
 `;
 
