@@ -14,7 +14,7 @@ import { Capacitor } from '@capacitor/core';
 import { Browser } from '@capacitor/browser';
 import { store } from '../Redux/store';
 
-const CURRENT_APP_VERSION = '2.6.3'; // Should match package.json version
+const CURRENT_APP_VERSION = '2.6.4'; // Should match package.json version
 const STORAGE_KEY = 'app_version_check';
 const DISMISS_KEY = 'app_update_dismissed_version';
 
