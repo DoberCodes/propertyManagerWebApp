@@ -93,6 +93,8 @@ import {
 import { AppZeroState } from 'Components/Library/AppZeroState';
 import { SeasonalMaintenance } from 'Components/SeasonalMaintenance';
 import { SeasonalCard } from 'data/seasonalTipCards';
+import { isNativeApp } from 'utils/platform';
+import { openSubscriptionManagementInBrowser } from 'utils/authLinks';
 import { useTaskHandlers } from 'pages/PropertyDetailPage/useTaskHandlers';
 import { FloatingFilterPanel, TaskModal } from 'Components/Library';
 import { TaskAssignModal } from 'Components/Library/Modal/TaskAssignModal';
@@ -151,6 +153,7 @@ export const DashboardTab = () => {
 	const navigate = useNavigate();
 	const location = useLocation();
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
+	const nativeApp = isNativeApp();
 	// Select team groups and derive members with memoization to avoid new references
 	const teamGroups = useSelector((state: RootState) => state.team.groups);
 	const { data: firebaseTeamMembers = [] } = useGetTeamMembersQuery();
@@ -1094,6 +1097,15 @@ export const DashboardTab = () => {
 		setCompletingTaskId(null);
 	};
 
+	const handleSubscriptionAction = () => {
+		if (!nativeApp) {
+			navigate('/paywall');
+			return;
+		}
+
+		void openSubscriptionManagementInBrowser();
+	};
+
 	if (
 		!isUserTenant &&
 		!isLoadingProperties &&
@@ -1130,13 +1142,13 @@ export const DashboardTab = () => {
 						daysRemaining={getTrialDaysRemaining(
 							currentUser.subscription as any,
 						)}
-						onUpgradeClick={() => navigate('/paywall')}
+						onUpgradeClick={handleSubscriptionAction}
 					/>
 				)}
 			{!isTeamMemberAccount &&
 				currentUser?.subscription &&
 				isTrialExpired(currentUser.subscription) && (
-					<ExpiredTrialBanner onUpgradeClick={() => navigate('/paywall')} />
+					<ExpiredTrialBanner onUpgradeClick={handleSubscriptionAction} />
 				)}
 
 			<StandardAppPageHeader>

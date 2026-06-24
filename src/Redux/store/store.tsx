@@ -3,6 +3,7 @@ import userReducer from '../Slices/userSlice';
 import navigationReducer from '../Slices/navigationSlice';
 import propertyDataReducer from '../Slices/propertyDataSlice';
 import teamReducer from '../Slices/teamSlice';
+import adminPortalReducer from '../Slices/adminPortalSlice';
 import maintenanceRequestsReducer from '../Slices/maintenanceRequestsSlice';
 import { apiSlice } from '../API/apiSlice';
 import '../API/deviceSlice';
@@ -25,6 +26,7 @@ export const store = configureStore({
 		navigation: navigationReducer,
 		propertyData: propertyDataReducer,
 		team: teamReducer,
+		adminPortal: adminPortalReducer,
 		maintenanceRequests: maintenanceRequestsReducer,
 	},
 	middleware: (getDefaultMiddleware) =>

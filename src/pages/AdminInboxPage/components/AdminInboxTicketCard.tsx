@@ -9,6 +9,7 @@ import {
 	TicketHeader,
 	TicketTitle,
 	TicketMeta,
+	MessageBox,
 	AttachmentSection,
 	AttachmentLabel,
 	AttachmentList,
@@ -375,6 +376,24 @@ export const TicketCard: React.FC<TicketCardProps> = ({
 				</ActionGroup>
 			</TicketHeader>
 
+			<MessageBox>{String(ticket.message || 'No report details were provided.')}</MessageBox>
+
+			<AttachmentSection>
+				<AttachmentLabel>Ticket Details</AttachmentLabel>
+				<TicketMeta>
+					Submitted:{' '}
+					{ticket.createdAt
+						? new Date(String(ticket.createdAt)).toLocaleString()
+						: 'n/a'}
+				</TicketMeta>
+				<TicketMeta>
+					Updated:{' '}
+					{ticket.updatedAt
+						? new Date(String(ticket.updatedAt)).toLocaleString()
+						: 'n/a'}
+				</TicketMeta>
+			</AttachmentSection>
+
 			{isEditDialogOpen ? (
 				<AdminTicketEditDialog
 					ticket={ticket}
@@ -476,39 +495,46 @@ export const TicketCard: React.FC<TicketCardProps> = ({
 					</CaseGroupSummaryRow>
 
 					<NoteTabPanel>
-						{historyEntries.length > 0 ? (
-							<>
-								<CaseGroupSummaryRow>
-									<NoteHistoryLabel>Ticket Activity</NoteHistoryLabel>
-									<NotesTabList role='tablist' aria-label='Ticket activity filters'>
-										<NotesTabButton
-											type='button'
-											role='tab'
-											aria-selected={historyFilter === 'all'}
-											$active={historyFilter === 'all'}
-											onClick={() => setHistoryFilter('all')}>
-											All
-										</NotesTabButton>
-										<NotesTabButton
-											type='button'
-											role='tab'
-											aria-selected={historyFilter === 'maintley'}
-											$active={historyFilter === 'maintley'}
-											onClick={() => setHistoryFilter('maintley')}>
-											Maintley Updates
-										</NotesTabButton>
-										<NotesTabButton
-											type='button'
-											role='tab'
-											aria-selected={historyFilter === 'internal'}
-											$active={historyFilter === 'internal'}
-											onClick={() => setHistoryFilter('internal')}>
-											Internal Notes
-										</NotesTabButton>
-									</NotesTabList>
-								</CaseGroupSummaryRow>
-								<NoteHistory>
-									{filteredHistoryEntries.map((entry) => (
+						<>
+							<CaseGroupSummaryRow>
+								<NoteHistoryLabel>Ticket Activity</NoteHistoryLabel>
+								<NotesTabList role='tablist' aria-label='Ticket activity filters'>
+									<NotesTabButton
+										type='button'
+										role='tab'
+										aria-selected={historyFilter === 'all'}
+										$active={historyFilter === 'all'}
+										onClick={() => setHistoryFilter('all')}>
+										All
+									</NotesTabButton>
+									<NotesTabButton
+										type='button'
+										role='tab'
+										aria-selected={historyFilter === 'maintley'}
+										$active={historyFilter === 'maintley'}
+										onClick={() => setHistoryFilter('maintley')}>
+										Maintley Updates
+									</NotesTabButton>
+									<NotesTabButton
+										type='button'
+										role='tab'
+										aria-selected={historyFilter === 'internal'}
+										$active={historyFilter === 'internal'}
+										onClick={() => setHistoryFilter('internal')}>
+										Internal Notes
+									</NotesTabButton>
+								</NotesTabList>
+							</CaseGroupSummaryRow>
+							<NoteHistory>
+								{filteredHistoryEntries.length === 0 ? (
+									<NoteHistoryItem>
+										<NoteHistoryText>No ticket activity yet.</NoteHistoryText>
+										<NoteHistoryMeta>
+											The original report details are shown above.
+										</NoteHistoryMeta>
+									</NoteHistoryItem>
+								) : (
+									filteredHistoryEntries.map((entry) => (
 										<NoteHistoryItem key={entry.id}>
 											<NoteHistoryText>{entry.note}</NoteHistoryText>
 											<NoteHistoryMeta>
@@ -520,10 +546,10 @@ export const TicketCard: React.FC<TicketCardProps> = ({
 													: ` · Tickets ${entry.sourceTicketNumbers.join(', ')}`}
 											</NoteHistoryMeta>
 										</NoteHistoryItem>
-									))}
-								</NoteHistory>
-							</>
-						) : null}
+									))
+								)}
+							</NoteHistory>
+						</>
 						{activeNotesTab === 'internal' ? (
 							<>
 								<Label htmlFor={`note-${ticket.id}`}>Internal Note</Label>

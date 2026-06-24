@@ -8,6 +8,8 @@ import { formatStorageBytes } from 'utils/storageQuota';
 import { TeamMember } from 'Redux/Slices/teamSlice';
 import { useNavigate } from "react-router";
 import { selectIsTeamMemberAccount, selectIsTenant } from "Redux/selectors/permissionSelectors";
+import { isNativeApp } from 'utils/platform';
+import { openSubscriptionManagementInBrowser } from 'utils/authLinks';
 
 interface AccountSnapshotProps {
     isSidebarOpen: boolean;
@@ -16,6 +18,7 @@ interface AccountSnapshotProps {
 
 export const AccountSnapshot: React.FC<AccountSnapshotProps> = ({isSidebarOpen, setIsSidebarOpen}) => {
     const navigate = useNavigate();
+	const nativeApp = isNativeApp();
     const currentUser = useSelector((state: RootState) => state.user.currentUser);
     const isUserTenant = useSelector(selectIsTenant);
         const isTeamMemberAccount = useSelector(selectIsTeamMemberAccount);
@@ -254,7 +257,11 @@ export const AccountSnapshot: React.FC<AccountSnapshotProps> = ({isSidebarOpen, 
 							<button
 								type='button'
 								onClick={() => {
-									navigate('/paywall');
+									if (!nativeApp) {
+										navigate('/paywall');
+									} else {
+										void openSubscriptionManagementInBrowser();
+									}
 									if (setIsSidebarOpen) {
 										setIsSidebarOpen(false);
 									}
@@ -270,7 +277,7 @@ export const AccountSnapshot: React.FC<AccountSnapshotProps> = ({isSidebarOpen, 
 									cursor: 'pointer',
 									width: '100%',
 								}}>
-								Manage Plan
+								{nativeApp ? 'Manage in Browser' : 'Manage Plan'}
 							</button>
 						</div>
 					</div>

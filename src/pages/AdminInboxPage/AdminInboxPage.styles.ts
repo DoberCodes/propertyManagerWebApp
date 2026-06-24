@@ -29,7 +29,7 @@ export const MainContent = styled.div`
 	overflow-x: hidden;
 
 	@media (max-width: 768px) {
-		padding: 12px 8px;
+		padding: 16px 12px;
 	}
 `;
 
@@ -321,10 +321,10 @@ export const Title = styled.h1`
 `;
 
 export const SubTitle = styled.p`
-	margin: 4px 0 0;
+	margin: 6px 0 0;
 	font-size: 14px;
 	color: #7c2d12;
-	line-height: 1.4;
+	line-height: 1.45;
 `;
 
 export const SecurityTitle = styled.h2`
@@ -473,15 +473,18 @@ export const ActionGroup = styled.div`
 
 export const ButtonRow = styled.div`
 	display: flex;
-	gap: 8px;
+	gap: 10px;
 	flex-wrap: wrap;
 	align-items: center;
+	justify-content: space-between;
 
-	@media (max-width: 480px) {
+	@media (max-width: 640px) {
 		width: 100%;
+		align-items: stretch;
 
 		& > button {
 			flex: 1;
+			min-height: 42px;
 		}
 	}
 `;
@@ -497,10 +500,14 @@ export const Label = styled.label`
 `;
 
 export const Input = styled.input`
-	padding: 10px;
+	width: 100%;
+	box-sizing: border-box;
+	padding: 10px 12px;
 	border: 1px solid #fdba74;
 	border-radius: 8px;
 	font-size: 14px;
+	min-height: 42px;
+	background: #ffffff;
 
 	:disabled {
 		opacity: 0.6;
@@ -516,16 +523,14 @@ export const LinkInput = styled(Input)`
 `;
 
 export const Select = styled.select`
-	padding: 5px;
+	width: 100%;
+	box-sizing: border-box;
+	padding: 10px 12px;
 	border: 1px solid #fdba74;
 	border-radius: 8px;
 	font-size: 14px;
 	background: #ffffff;
-
-	@media (max-width: 480px) {
-		width: 100%;
-		padding: 8px;
-	}
+	min-height: 42px;
 `;
 
 export const TextArea = styled.textarea`
@@ -979,19 +984,37 @@ export const GroupCaseHeading = styled.div`
 `;
 
 export const UserPanelWrap = styled.div`
-	margin-top: 12px;
+	margin-top: 14px;
 	display: grid;
-	gap: 12px;
+	gap: 16px;
 `;
 
 export const UserPanelToolbar = styled.div`
 	display: grid;
-	grid-template-columns: minmax(0, 1fr) 180px auto;
-	gap: 10px;
+	grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+	gap: 12px;
 	align-items: end;
+
+	& > div {
+		display: grid;
+		gap: 6px;
+		min-width: 0;
+	}
+
+	& > button {
+		justify-self: start;
+		min-height: 42px;
+		padding-inline: 14px;
+	}
 
 	@media (max-width: 768px) {
 		grid-template-columns: 1fr;
+		gap: 10px;
+
+		& > button {
+			width: 100%;
+			justify-self: stretch;
+		}
 	}
 `;
 
@@ -1012,7 +1035,7 @@ export const UserTable = styled.table`
 
 	th,
 	td {
-		padding: 10px;
+		padding: 11px 12px;
 		text-align: left;
 		font-size: 12px;
 		border-bottom: 1px solid #ffedd5;
@@ -1063,15 +1086,24 @@ export const UserDetailsPanel = styled.section`
 	border: 1px solid #fed7aa;
 	border-radius: 12px;
 	background: #fffdfa;
-	padding: 12px;
+	padding: 16px;
 	display: grid;
-	gap: 12px;
+	gap: 14px;
+
+	@media (max-width: 640px) {
+		padding: 12px;
+		gap: 12px;
+	}
 `;
 
 export const UserDetailsGrid = styled.div`
 	display: grid;
-	grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-	gap: 8px;
+	grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+	gap: 10px;
+
+	@media (max-width: 640px) {
+		grid-template-columns: 1fr;
+	}
 `;
 
 export const UserDetailsItem = styled.div`

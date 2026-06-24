@@ -341,6 +341,17 @@ export const PlanPrice = styled.div<{ color?: 'white' | 'black' }>`
 	}
 `;
 
+export const PlanBestFor = styled.p<{ color?: 'white' | 'black' }>`
+	margin: 4px 0 14px;
+	font-size: 13px;
+	line-height: 1.4;
+	font-weight: 600;
+	color: ${(props) =>
+		props.color === 'white'
+			? 'rgba(255, 255, 255, 0.9)'
+			: COLORS.textSecondary};
+`;
+
 export const PlanFeatures = styled.ul`
 	list-style: none;
 	padding: 0;

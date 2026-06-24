@@ -9,7 +9,6 @@ Maintley includes:
 * React web app in the repository root.
 * Firebase Functions in `functions/`.
 * Firestore rules in `firestore.rules`.
-* Firebase Hosting configuration in `firebase.json`.
 * Capacitor Android project in `android/`.
 
 ---
@@ -107,37 +106,16 @@ gh-pages -d build
 
 Confirm the intended hosting target before using this command.
 
-Maintley currently supports Firebase Hosting, so Firebase Hosting should be treated as the preferred production deployment path unless intentionally deploying elsewhere.
+Firebase Hosting is not configured in `firebase.json`.
 
 ---
 
-# Firebase Hosting Deploy
+# Firebase Hosting
 
-`firebase.json` includes a Firebase Hosting target that serves the React production build from:
+Firebase Hosting is not part of the active deployment path.
 
-```text
-build/
-```
-
-Routes are rewritten to:
-
-```text
-/index.html
-```
-
-This supports the single-page app routing model.
-
-Build first:
-
-```bash
-npm run build
-```
-
-Deploy hosting:
-
-```bash
-firebase deploy --only hosting
-```
+Do not run `firebase deploy --only hosting` unless Firebase Hosting is
+intentionally reintroduced.
 
 ---
 
@@ -204,8 +182,6 @@ Run rule tests before deploying broad rules changes.
 `firebase.json` currently configures:
 
 * `functions.source`: `functions`
-* `hosting.public`: `build`
-* `hosting.rewrites`: SPA fallback to `/index.html`
 * `firestore.rules`: `firestore.rules`
 
 There is currently no Storage rules file wired in `firebase.json`.
@@ -265,8 +241,9 @@ Recommended flow:
 
 ```bash
 npm run build
-firebase deploy --only hosting
 ```
+
+Publish the generated build through the active web hosting channel.
 
 ---
 
@@ -322,7 +299,7 @@ When frontend code depends on new functions, rules, or backend behavior:
 
 1. Deploy Functions and/or Rules.
 2. Confirm backend deployment succeeded.
-3. Deploy Hosting.
+3. Deploy the frontend through the active web hosting channel.
 
 Example:
 
@@ -330,7 +307,6 @@ Example:
 npm --prefix functions run build
 firebase deploy --only functions
 npm run build
-firebase deploy --only hosting
 ```
 
 ---

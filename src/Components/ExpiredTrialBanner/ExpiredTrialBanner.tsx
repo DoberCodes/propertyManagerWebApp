@@ -1,4 +1,5 @@
 import React from 'react';
+import { isNativeApp } from '../../utils/platform';
 
 /**
  * Expired Access Warning Banner
@@ -11,6 +12,8 @@ interface ExpiredTrialBannerProps {
 export const ExpiredTrialBanner: React.FC<ExpiredTrialBannerProps> = ({
 	onUpgradeClick,
 }) => {
+	const nativeApp = isNativeApp();
+
 	return (
 		<div
 			style={{
@@ -26,9 +29,9 @@ export const ExpiredTrialBanner: React.FC<ExpiredTrialBannerProps> = ({
 				fontWeight: '500',
 			}}>
 			<span>
-				Your current access period has ended. You can still view and export
-				your data, but you cannot add new information. Upgrade to continue
-				using premium features.
+				{nativeApp
+					? 'Your current access period has ended. You can still view and export your data, but you cannot add new information. Manage your subscription in the web account center.'
+					: 'Your current access period has ended. You can still view and export your data, but you cannot add new information. Upgrade to continue using premium features.'}
 			</span>
 			{onUpgradeClick && (
 				<button
@@ -43,7 +46,7 @@ export const ExpiredTrialBanner: React.FC<ExpiredTrialBannerProps> = ({
 						cursor: 'pointer',
 						marginLeft: '15px',
 					}}>
-					Upgrade Now
+					{nativeApp ? 'Manage in Browser' : 'Upgrade Now'}
 				</button>
 			)}
 		</div>

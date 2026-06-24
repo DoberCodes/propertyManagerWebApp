@@ -27,6 +27,7 @@ import {
 	canUsePropertyInsights,
 	canUseTaskReminderEmails,
 } from '../../utils/subscriptionUtils';
+import { isNativeApp } from '../../utils/platform';
 import { ActionsToolbar, DisableAllButton, EnableAllButton, FilterButton, NestedPreferenceControls, PreferenceOption, PreferencePanel, PreferencesGrid, PreferenceText, PresetActions, PresetButton, RecipientGrid, RecipientOption, Section, SectionBody, SectionTitle, SupportTicketFilterButton } from './SettingPage.styles';
 import { IconWrapper } from 'global.styles';
 import { faChevronDown, faChevronUp } from '@fortawesome/free-solid-svg-icons';
@@ -73,6 +74,7 @@ export const NotificationPreferences: React.FC<
 	const propertyInsightsEnabledByPlan = canUsePropertyInsights(
 		currentUser?.subscription,
 	);
+	const nativeApp = isNativeApp();
 	const accountId = String(currentUser?.accountId || currentUser?.id || '').trim();
 	const isAccountOwner =
 		!!currentUser &&
@@ -502,7 +504,9 @@ export const NotificationPreferences: React.FC<
 										<span>
 											Due soon, due today, overdue, and assigned maintenance emails.
 											{!taskReminderEmailsEnabledByPlan
-												? ' Upgrade to Homeowner+ or higher to enable.'
+												? nativeApp
+													? ' Manage this in the web account center to enable.'
+													: ' Upgrade to Homeowner+ or higher to enable.'
 												: ''}
 										</span>
 									</PreferenceText>
@@ -563,7 +567,9 @@ export const NotificationPreferences: React.FC<
 										<span>
 											Optional record observations for documented appliances and maintenance history.
 											{!propertyInsightsEnabledByPlan
-												? ' Upgrade to Homeowner+ or higher to enable.'
+												? nativeApp
+													? ' Manage this in the web account center to enable.'
+													: ' Upgrade to Homeowner+ or higher to enable.'
 												: ''}
 										</span>
 									</PreferenceText>

@@ -166,6 +166,7 @@ Rules:
 * Admin credentials are validated via Cloud Functions against `admin_users`.
 * Admin sessions are function-managed in `admin_sessions`.
 * Firestore client access to `admin_users` and `admin_sessions` is denied in rules.
+* Admin audit log viewing is restricted to top-level Maintley roles and enforced in Cloud Functions.
 
 This keeps admin access isolated from customer account roles and prevents UI-only protection from becoming a security dependency.
 

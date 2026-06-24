@@ -37,6 +37,7 @@ import {
 	isTaskDueWithinDays,
 } from '../../../utils/taskDisplayStatus';
 import { isTrialExpired } from '../../../utils/subscriptionUtils';
+import { isNativeApp } from '../../../utils/platform';
 import { AppZeroState, ReusableTable, TaskModal } from '../../../Components/Library';
 import { Column, Action } from '../../../Components/Library/ReusableTable';
 import { WarningDialog } from '../../../Components/Library/WarningDialog';
@@ -103,6 +104,7 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 	const { isMobile } = useSelector((state: any) => state.app);
 	const canManageTasks = permissions?.canManageTasks ?? true;
 	const canCreateTasks = permissions?.canCreateTasks ?? canManageTasks;
+	const nativeApp = isNativeApp();
 
 	// Task mutations
 	const [deleteTaskMutation] = useDeleteTaskMutation();
@@ -842,7 +844,9 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 						title={
 							currentUser?.subscription &&
 								isTrialExpired(currentUser.subscription)
-								? 'Upgrade your subscription to add new tasks'
+								? nativeApp
+									? 'Manage subscription in the web account center to add new tasks'
+									: 'Upgrade your subscription to add new tasks'
 								: undefined
 						}>
 						+ Create Task

@@ -22,7 +22,7 @@ import {
 } from '../AdminInboxPage.styles';
 import type { AdminUser } from '../../../services/adminPortalService';
 
-export type AdminNavPage = 'inbox' | 'users';
+export type AdminNavPage = 'inbox' | 'users' | 'billing' | 'audit';
 
 interface NavItem {
 	key: AdminNavPage;
@@ -33,11 +33,14 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
 	{ key: 'inbox', label: 'Inbox', icon: 'I' },
 	{ key: 'users', label: 'Users', icon: 'U' },
+	{ key: 'billing', label: 'Billing', icon: '$' },
+	{ key: 'audit', label: 'Audit', icon: 'L' },
 ];
 
 interface AdminNavbarProps {
 	activePage: AdminNavPage;
 	adminUser: AdminUser | null;
+	canViewAuditLogs: boolean;
 	onNavigate: (page: AdminNavPage) => void;
 	onBackToApp: () => void;
 	onLogout: () => Promise<void>;
@@ -46,11 +49,15 @@ interface AdminNavbarProps {
 export const AdminNavbar: React.FC<AdminNavbarProps> = ({
 	activePage,
 	adminUser,
+	canViewAuditLogs,
 	onNavigate,
 	onLogout,
 	onBackToApp,
 }) => {
 	const handleLogout = () => void onLogout();
+	const navItems = canViewAuditLogs
+		? NAV_ITEMS
+		: NAV_ITEMS.filter((item) => item.key !== 'audit');
 
 	return (
 		<>
@@ -61,7 +68,7 @@ export const AdminNavbar: React.FC<AdminNavbarProps> = ({
 					<SidebarBrandSub>Admin Portal</SidebarBrandSub>
 				</SidebarBrand>
 
-				{NAV_ITEMS.map((item) => (
+				{navItems.map((item) => (
 					<SidebarNavItem
 						key={item.key}
 						type='button'
@@ -94,7 +101,7 @@ export const AdminNavbar: React.FC<AdminNavbarProps> = ({
 
 			{/* Mobile bottom bar */}
 			<MobileNavBar aria-label='Admin navigation'>
-				{NAV_ITEMS.map((item) => (
+				{navItems.map((item) => (
 					<MobileNavItem
 						key={item.key}
 						type='button'

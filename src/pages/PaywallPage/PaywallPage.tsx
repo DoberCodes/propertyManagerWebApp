@@ -34,6 +34,7 @@ import {
 	CardBillingToggle,
 	CardBillingButton,
 	FreePlanBadge,
+	PlanBestFor,
 } from './PaywallPage.styles';
 import { SUBSCRIPTION_PLANS } from '../../constants/subscriptions';
 import { SubscriptionData } from '../../utils/subscriptionUtils';
@@ -52,6 +53,8 @@ import {
 	BillingCycle,
 	getStripePriceIdForPlan,
 } from '../../constants/stripe';
+import { isNativeApp } from '../../utils/platform';
+import { openSubscriptionManagementInBrowser } from '../../utils/authLinks';
 
 interface PaywallPageProps {
 	subscription: SubscriptionData;
@@ -84,9 +87,16 @@ const PLAN_GROUPS: Record<PlanAudience, PaidPlanId[]> = {
 
 const PLAN_GROUP_COPY: Record<PlanAudience, string> = {
 	personal:
-		'For homeowners who want a better way to keep track of their home..',
+		'For homeowners who want stronger maintenance records and one-property depth.',
 	business:
-		'For property owners and property managers responsible for maintaining multiple properties.',
+		'For operators managing multiple properties, teams, and service workflows.',
+};
+
+const PLAN_BEST_FOR: Record<PaidPlanId, string> = {
+	homeowner: 'Best for: track your home',
+	homeowner_plus: 'Best for: stay ahead of maintenance',
+	property: 'Best for: manage multiple properties',
+	portfolio: 'Best for: run a property operation',
 };
 
 const DEFAULT_PLAN_BILLING: Record<PaidPlanId, BillingCycle> = {
@@ -138,10 +148,19 @@ export const PaywallPage: React.FC<PaywallPageProps> = ({
 	const isOnTrial = isTrialActive(subscription);
 	const daysRemaining = getTrialDaysRemaining(subscription);
 	const cardLayout = wide ? 'horizontal' : layout;
+	const nativeApp = isNativeApp();
 
 	useEffect(() => {
 		setPlanAudience(getAudienceForPlan(currentPlan, initialPlanAudience));
 	}, [currentPlan, initialPlanAudience]);
+
+	useEffect(() => {
+		if (!nativeApp) return;
+
+		void openSubscriptionManagementInBrowser().finally(() => {
+			navigate('/settings', { replace: true });
+		});
+	}, [nativeApp, navigate]);
 
 	useEffect(() => {
 		if (appliedPromoCode) {
@@ -427,6 +446,9 @@ export const PaywallPage: React.FC<PaywallPageProps> = ({
 						{cycle === 'year' ? 'per year' : 'per month'}
 					</div>
 				</PlanPrice>
+				<PlanBestFor color={useInvertedColors ? 'white' : 'black'}>
+					{PLAN_BEST_FOR[planId]}
+				</PlanBestFor>
 				<PlanFeatures>
 					{plan.features.map((feature, idx) => (
 						<PlanFeature
@@ -456,6 +478,23 @@ export const PaywallPage: React.FC<PaywallPageProps> = ({
 			</PricingCard>
 		);
 	};
+
+	if (nativeApp) {
+		return (
+			<PaywallWrapper variant={variant} wide={wide}>
+				<PaywallContainer variant={variant} wide={wide}>
+					<TrialBannerWrapper variant={variant}>
+						<TrialBannerTitle variant={variant}>
+							Manage billing in your browser
+						</TrialBannerTitle>
+						<TrialBannerText variant={variant}>
+							For account security and compliance, subscription changes are handled on the web.
+						</TrialBannerText>
+					</TrialBannerWrapper>
+				</PaywallContainer>
+			</PaywallWrapper>
+		);
+	}
 
 	return (
 		<PaywallWrapper variant={variant} wide={wide}>

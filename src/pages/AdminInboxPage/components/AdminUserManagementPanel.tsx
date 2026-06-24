@@ -1,11 +1,14 @@
 import React, { useMemo, useState } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import {
     Button,
     ErrorText,
     Input,
+    InlineToggle,
     Label,
     Select,
     SubTitle,
+    SuccessText,
     UserActivityItem,
     UserActivityList,
     UserDetailsGrid,
@@ -20,25 +23,44 @@ import {
     UserTable,
     UserTableWrap,
 } from '../AdminInboxPage.styles';
+import { GenericModal } from 'Components/Library';
 import {
+    adminPortalApplyUserBillingActions,
+    adminPortalManageUserSubscription,
+    adminPortalRefreshUserSubscriptionFromStripe,
     getAdminPortalUserTroubleshootingDetails,
-    listAdminPortalUsers,
-    type AdminPortalUserRecord,
     type AdminPortalUserTroubleshootingDetails,
 } from '../../../services/adminPortalService';
+import {
+    selectFilteredAdminUsers,
+    selectAdminUsersLoading,
+    selectAdminUsersError,
+    selectAdminUsersLastLoaded,
+    selectAdminUsersFilters,
+} from '../../../Redux/selectors/adminPortalSelectors';
+import { setUsersFilters } from '../../../Redux/Slices/adminPortalSlice';
+import { fetchAdminUsers } from '../../../Redux/thunks/adminPortalThunks';
+import type { AppDispatch } from '../../../Redux/store/store';
 
 interface AdminUserManagementPanelProps {
     sessionToken: string;
 }
 
-const ROLE_FILTER_OPTIONS = [
-    { value: '', label: 'All Roles' },
-    { value: 'admin', label: 'Admin' },
-    { value: 'user', label: 'User' },
+const LIST_FILTER_OPTIONS = [
+    { value: '', label: 'All Users' },
+    { value: 'active', label: 'Active' },
+    { value: 'disabled', label: 'Disabled' },
+    { value: 'trial', label: 'Trial' },
+    { value: 'free', label: 'Free' },
+    { value: 'paid', label: 'Paid' },
     { value: 'property_manager', label: 'Property Manager' },
-    { value: 'tenant', label: 'Tenant' },
-    { value: 'contractor', label: 'Contractor' },
-    { value: 'maintenance_tech', label: 'Maintenance Tech' },
+];
+
+const PLAN_OPTIONS = [
+    { value: 'homeowner', label: 'Homeowner' },
+    { value: 'homeowner_plus', label: 'Homeowner+' },
+    { value: 'property', label: 'Property' },
+    { value: 'portfolio', label: 'Portfolio' },
 ];
 
 const formatLabel = (value: string): string =>
@@ -47,69 +69,89 @@ const formatLabel = (value: string): string =>
         .trim()
         .replace(/\b\w/g, (char) => char.toUpperCase()) || 'Unknown';
 
+const formatDate = (value?: string | null): string => {
+    if (!value) return 'n/a';
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? 'n/a' : parsed.toLocaleString();
+};
+
+const formatRelative = (value?: string | null): string => {
+    if (!value) return 'n/a';
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return 'n/a';
+
+    const diffMs = Date.now() - parsed.getTime();
+    if (diffMs < 60_000) return 'just now';
+    const diffMins = Math.floor(diffMs / 60_000);
+    if (diffMins < 60) return `${diffMins}m ago`;
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffHours < 24) return `${diffHours}h ago`;
+    const diffDays = Math.floor(diffHours / 24);
+    return `${diffDays}d ago`;
+};
+
+const formatBytesToMb = (bytes: number): string => {
+    const safeBytes = Number.isFinite(bytes) ? Math.max(0, bytes) : 0;
+    return `${(safeBytes / (1024 * 1024)).toFixed(2)} MB`;
+};
+
 export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> = ({
     sessionToken,
 }) => {
-    const [query, setQuery] = useState('');
-    const [roleFilter, setRoleFilter] = useState('');
-    const [users, setUsers] = useState<AdminPortalUserRecord[]>([]);
-    const [loading, setLoading] = useState(false);
+    const dispatch = useDispatch<AppDispatch>();
+    const filteredUsers = useSelector(selectFilteredAdminUsers);
+    const loading = useSelector(selectAdminUsersLoading);
+    const error = useSelector(selectAdminUsersError);
+    const lastLoadedAt = useSelector(selectAdminUsersLastLoaded);
+    const filters = useSelector(selectAdminUsersFilters);
+    const [localError, setLocalError] = useState('');
+    const [isUserListExpanded, setIsUserListExpanded] = useState(true);
     const [detailLoading, setDetailLoading] = useState(false);
-    const [error, setError] = useState('');
-    const [lastLoadedAt, setLastLoadedAt] = useState<string>('');
     const [selectedUserId, setSelectedUserId] = useState('');
     const [details, setDetails] = useState<AdminPortalUserTroubleshootingDetails | null>(null);
+    const [selectedPlan, setSelectedPlan] = useState('property');
+    const [trialDays, setTrialDays] = useState('');
+    const [planActionLoading, setPlanActionLoading] = useState(false);
+    const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+    const [showBillingActionsDialog, setShowBillingActionsDialog] = useState(false);
+    const [actionMessage, setActionMessage] = useState('');
+    const [syncStripe, setSyncStripe] = useState(false);
+    const [stripeRefreshLoading, setStripeRefreshLoading] = useState(false);
+    const [checkoutBillingCycle, setCheckoutBillingCycle] = useState<'month' | 'year'>('month');
+    const [checkoutCouponCode, setCheckoutCouponCode] = useState('');
+    const [checkoutLink, setCheckoutLink] = useState('');
+    const displayError = localError || error || '';
 
     const sortedUsers = useMemo(() => {
-        return [...users].sort((left, right) => {
-            const roleCompare = String(left.maintleyRole || '').localeCompare(
-                String(right.maintleyRole || ''),
-            );
-            if (roleCompare !== 0) return roleCompare;
-            return String(left.displayName || '').localeCompare(
-                String(right.displayName || ''),
-            );
+        return [...filteredUsers].sort((left, right) => {
+            const leftMillis = new Date(String(left.lastActiveAt || '')).getTime();
+            const rightMillis = new Date(String(right.lastActiveAt || '')).getTime();
+            if (Number.isFinite(leftMillis) && Number.isFinite(rightMillis) && leftMillis !== rightMillis) {
+                return rightMillis - leftMillis;
+            }
+            return String(left.displayName || '').localeCompare(String(right.displayName || ''));
         });
-    }, [users]);
+    }, [filteredUsers]);
 
     const handleLoadUsers = async () => {
-        setLoading(true);
-        setError('');
-        try {
-            const list = await listAdminPortalUsers({
+        await dispatch(
+            fetchAdminUsers({
                 sessionToken,
-                query: query.trim() || undefined,
-                role: roleFilter || undefined,
+                query: filters.query,
+                filter: filters.listFilter || undefined,
                 limit: 250,
-            });
-            setUsers(list);
-            setLastLoadedAt(new Date().toLocaleTimeString());
-        } catch (loadError) {
-            const message =
-                loadError instanceof Error
-                    ? loadError.message
-                    : 'Failed to load users.';
-            setError(message);
-        } finally {
-            setLoading(false);
-        }
+            }),
+        );
     };
 
-    const formatDate = (value?: string): string => {
-        if (!value) return 'n/a';
-        const parsed = new Date(value);
-        return Number.isNaN(parsed.getTime()) ? 'n/a' : parsed.toLocaleString();
-    };
-
-    const formatBytesToMb = (bytes: number): string => {
-        const safeBytes = Number.isFinite(bytes) ? Math.max(0, bytes) : 0;
-        return `${(safeBytes / (1024 * 1024)).toFixed(2)} MB`;
+    const handleFilterChange = (filterUpdates: Partial<typeof filters>) => {
+        dispatch(setUsersFilters(filterUpdates));
     };
 
     const handleInspectUser = async (userId: string) => {
         if (!userId) return;
         setDetailLoading(true);
-        setError('');
+        setLocalError('');
         setSelectedUserId(userId);
         try {
             const result = await getAdminPortalUserTroubleshootingDetails({
@@ -117,21 +159,194 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
                 userId,
             });
             setDetails(result);
+            setCheckoutLink('');
+            setSelectedPlan(result.profile.subscriptionPlan || 'property');
+            setTrialDays('');
+            setCheckoutCouponCode('');
+            if (!result.profile.hasStripeSubscription) {
+                setSyncStripe(false);
+            }
         } catch (detailError) {
             const message =
                 detailError instanceof Error
                     ? detailError.message
                     : 'Failed to load user troubleshooting details.';
-            setError(message);
+            setLocalError(message);
         } finally {
             setDetailLoading(false);
         }
+
+        if (typeof window !== 'undefined' && window.innerWidth <= 768) {
+            setIsUserListExpanded(false);
+        }
     };
+
+    const handleSubscriptionAction = async (
+        action: 'change_plan' | 'extend_trial' | 'cancel_subscription',
+    ): Promise<boolean> => {
+        if (!selectedUserId) return false;
+
+        setPlanActionLoading(true);
+        setLocalError('');
+        setActionMessage('');
+        try {
+            const result = await adminPortalManageUserSubscription({
+                sessionToken,
+                userId: selectedUserId,
+                action,
+                planId: action === 'change_plan' ? selectedPlan : undefined,
+                trialDays: action === 'extend_trial' ? Number(trialDays || 0) : undefined,
+                syncStripe,
+            });
+
+            await handleInspectUser(selectedUserId);
+            setActionMessage(
+                `Subscription updated to ${formatLabel(result.subscriptionPlan)} (${formatLabel(result.subscriptionStatus)}). ${result.stripeUpdated ? 'Stripe updated. ' : ''
+                }Audit log saved.`,
+            );
+            return true;
+        } catch (actionError) {
+            const message =
+                actionError instanceof Error
+                    ? actionError.message
+                    : 'Failed to update subscription.';
+            setLocalError(message);
+            return false;
+        } finally {
+            setPlanActionLoading(false);
+        }
+    };
+
+    const handleApplyBillingUpdates = async (): Promise<void> => {
+        if (!selectedUserId) return;
+
+        const currentPlan = details?.profile.subscriptionPlan || '';
+        const stripeInterval = details?.profile.stripeSubscription?.interval;
+        const billingCycleChanged =
+            syncStripe &&
+            (stripeInterval === 'month' || stripeInterval === 'year') &&
+            checkoutBillingCycle !== stripeInterval;
+        const planId =
+            selectedPlan && (selectedPlan !== currentPlan || billingCycleChanged)
+                ? selectedPlan
+                : undefined;
+        const trimmedTrialDays = trialDays.trim();
+        const parsedTrialDays = trimmedTrialDays ? Number(trimmedTrialDays) : undefined;
+        const promoCode = checkoutCouponCode.trim();
+
+        if (!planId && !parsedTrialDays && !promoCode) {
+            setLocalError('Add a plan change, trial days, or coupon code before applying billing updates.');
+            return;
+        }
+
+        setPlanActionLoading(true);
+        setLocalError('');
+        setActionMessage('');
+        try {
+            const origin = typeof window !== 'undefined' ? window.location.origin : '';
+            const result = await adminPortalApplyUserBillingActions({
+                sessionToken,
+                userId: selectedUserId,
+                planId: planId || (promoCode ? selectedPlan : undefined),
+                billingCycle: checkoutBillingCycle,
+                trialDays: parsedTrialDays,
+                promoCode: promoCode || undefined,
+                syncStripe,
+                successUrl: origin
+                    ? `${origin}/#/dashboard?session_id={CHECKOUT_SESSION_ID}`
+                    : undefined,
+                cancelUrl: origin ? `${origin}/#/paywall` : undefined,
+            });
+            const createdCheckoutLink = result.checkoutUrl || '';
+            setActionMessage(
+                `Billing updates applied for ${formatLabel(result.subscriptionPlan)} (${formatLabel(result.subscriptionStatus)}). ${result.stripeUpdated ? 'Stripe updated. ' : ''
+                }${result.applied.checkoutLinkCreated ? 'Checkout link created. ' : ''}Audit log saved.`,
+            );
+            await handleInspectUser(selectedUserId);
+            setCheckoutLink(createdCheckoutLink);
+            setTrialDays('');
+            setCheckoutCouponCode('');
+        } catch (linkError) {
+            setLocalError(
+                linkError instanceof Error
+                    ? linkError.message
+                    : 'Failed to apply billing updates.',
+            );
+        } finally {
+            setPlanActionLoading(false);
+        }
+    };
+
+    const handleRefreshSubscriptionFromStripe = async (): Promise<void> => {
+        if (!selectedUserId) return;
+
+        setStripeRefreshLoading(true);
+        setLocalError('');
+        setActionMessage('');
+        try {
+            const result = await adminPortalRefreshUserSubscriptionFromStripe({
+                sessionToken,
+                userId: selectedUserId,
+            });
+            await handleInspectUser(selectedUserId);
+            const matchLabel =
+                result.matchedBy === 'stripe_subscription_id'
+                    ? 'subscription ID'
+                    : result.matchedBy === 'stripe_customer_id'
+                        ? 'customer ID'
+                        : result.matchedBy === 'email'
+                            ? 'email'
+                            : 'Stripe';
+            setActionMessage(
+                `Firebase subscription refreshed from Stripe by ${matchLabel}: ${formatLabel(result.subscriptionPlan)} (${formatLabel(result.subscriptionStatus)}). Audit log saved.`,
+            );
+        } catch (refreshError) {
+            setLocalError(
+                refreshError instanceof Error
+                    ? refreshError.message
+                    : 'Failed to refresh subscription from Stripe.',
+            );
+        } finally {
+            setStripeRefreshLoading(false);
+        }
+    };
+
+    const handleCopyCheckoutLink = async (): Promise<void> => {
+        if (!checkoutLink) return;
+        try {
+            await navigator.clipboard.writeText(checkoutLink);
+            setActionMessage('Checkout link copied.');
+        } catch {
+            setActionMessage('Checkout link is ready.');
+        }
+    };
+
+    const handleConfirmCancelSubscription = async (): Promise<void> => {
+        const completed = await handleSubscriptionAction('cancel_subscription');
+        if (completed) {
+            setShowCancelConfirm(false);
+            setShowBillingActionsDialog(false);
+        }
+    };
+
+    const selectedRow = sortedUsers.find((user) => String(user.id) === selectedUserId) || null;
+    const selectedUserCurrentPlan = details?.profile.subscriptionPlan || '';
+    const selectedUserCurrentBillingCycle = details?.profile.stripeSubscription?.interval;
+    const hasPlanChange = Boolean(selectedPlan && selectedPlan !== selectedUserCurrentPlan);
+    const hasBillingCycleChange = Boolean(
+        syncStripe &&
+        (selectedUserCurrentBillingCycle === 'month' || selectedUserCurrentBillingCycle === 'year') &&
+        checkoutBillingCycle !== selectedUserCurrentBillingCycle,
+    );
+    const hasTrialChange = Boolean(trialDays.trim());
+    const hasCouponChange = Boolean(checkoutCouponCode.trim());
+    const hasBillingUpdatesToApply =
+        hasPlanChange || hasBillingCycleChange || hasTrialChange || hasCouponChange;
 
     return (
         <UserPanelWrap>
             <SubTitle>
-                User troubleshooting page: inspect account profile, plan, properties, tasks, storage usage, recent errors, notifications, and support requests without logging in as the user.
+                User troubleshooting: quickly inspect account profile, usage, support history, recent activity, and error context.
             </SubTitle>
 
             <UserPanelToolbar>
@@ -140,18 +355,18 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
                     <Input
                         id='admin-user-search'
                         type='text'
-                        placeholder='Name, email, plan, or role'
-                        value={query}
-                        onChange={(event) => setQuery(event.target.value)}
+                        placeholder='Name, email, plan, account id'
+                        value={filters.query}
+                        onChange={(event) => handleFilterChange({ query: event.target.value })}
                     />
                 </div>
                 <div>
-                    <Label htmlFor='admin-user-role-filter'>Role</Label>
+                    <Label htmlFor='admin-user-filter'>Filter</Label>
                     <Select
-                        id='admin-user-role-filter'
-                        value={roleFilter}
-                        onChange={(event) => setRoleFilter(event.target.value)}>
-                        {ROLE_FILTER_OPTIONS.map((option) => (
+                        id='admin-user-filter'
+                        value={filters.listFilter}
+                        onChange={(event) => handleFilterChange({ listFilter: event.target.value })}>
+                        {LIST_FILTER_OPTIONS.map((option) => (
                             <option key={option.value || 'all'} value={option.value}>
                                 {option.label}
                             </option>
@@ -159,70 +374,107 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
                     </Select>
                 </div>
                 <Button type='button' onClick={() => void handleLoadUsers()} disabled={loading}>
-                    {loading ? 'Loading...' : 'Load Users'}
+                    {loading ? 'Loading...' : 'Refresh'}
                 </Button>
             </UserPanelToolbar>
 
-            {error ? <ErrorText>{error}</ErrorText> : null}
+            {displayError ? <ErrorText>{displayError}</ErrorText> : null}
+            {actionMessage ? <SuccessText>{actionMessage}</SuccessText> : null}
             {lastLoadedAt ? <SubTitle>Last loaded at {lastLoadedAt}</SubTitle> : null}
 
-            <UserTableWrap>
-                <UserTable>
-                    <thead>
-                        <tr>
-                            <th>Name</th>
-                            <th>Email</th>
-                            <th>Role</th>
-                            <th>Plan</th>
-                            <th>Status</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {sortedUsers.length === 0 ? (
+            <div>
+                <InlineToggle
+                    type='button'
+                    onClick={() => setIsUserListExpanded((prev) => !prev)}
+                    aria-expanded={isUserListExpanded}
+                    aria-controls='admin-user-list-table'>
+                    {isUserListExpanded ? 'Hide User List' : 'Show User List'} ({sortedUsers.length})
+                </InlineToggle>
+            </div>
+
+            {isUserListExpanded ? (
+                <UserTableWrap id='admin-user-list-table'>
+                    <UserTable>
+                        <thead>
                             <tr>
-                                <td colSpan={6}>No users loaded yet.</td>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Plan</th>
+                                <th>Properties</th>
+                                <th>Last Active</th>
+                                <th>Status</th>
+                                <th>Created</th>
+                                <th>Actions</th>
                             </tr>
-                        ) : (
-                            sortedUsers.map((user) => (
-                                <tr key={String(user.id)}>
-                                    <td>{String(user.displayName || '') || 'Unknown User'}</td>
-                                    <td>{String(user.email || '') || 'No email'}</td>
-                                    <td>
-                                        <UserRolePill>{formatLabel(String(user.maintleyRole || 'user'))}</UserRolePill>
-                                    </td>
-                                    <td>{formatLabel(String(user.subscriptionPlan || 'none'))}</td>
-                                    <td>{formatLabel(String(user.subscriptionStatus || 'none'))}</td>
-                                    <td>
-                                        <UserRowActionButton
-                                            type='button'
-                                            onClick={() => void handleInspectUser(String(user.id || ''))}>
-                                            Inspect
-                                        </UserRowActionButton>
-                                    </td>
+                        </thead>
+                        <tbody>
+                            {sortedUsers.length === 0 ? (
+                                <tr>
+                                    <td colSpan={8}>No users loaded yet.</td>
                                 </tr>
-                            ))
-                        )}
-                    </tbody>
-                </UserTable>
-            </UserTableWrap>
+                            ) : (
+                                sortedUsers.map((user) => (
+                                    <tr key={String(user.id)}>
+                                        <td>
+                                            {String(user.displayName || '') || 'Unknown User'}
+                                            <div>
+                                                <UserRolePill>{formatLabel(String(user.maintleyRole || 'user'))}</UserRolePill>
+                                            </div>
+                                        </td>
+                                        <td>{String(user.email || '') || 'No email'}</td>
+                                        <td>{formatLabel(String(user.subscriptionPlan || 'none'))}</td>
+                                        <td>{String(user.propertyCount ?? 0)}</td>
+                                        <td>{formatRelative(user.lastActiveAt)}</td>
+                                        <td>{formatLabel(String(user.accountStatus || user.subscriptionStatus || 'active'))}</td>
+                                        <td>{formatDate(String(user.createdAt || ''))}</td>
+                                        <td>
+                                            <UserRowActionButton
+                                                type='button'
+                                                onClick={() => void handleInspectUser(String(user.id || ''))}>
+                                                Inspect
+                                            </UserRowActionButton>
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </UserTable>
+                </UserTableWrap>
+            ) : null}
 
             {details ? (
                 <UserDetailsPanel>
                     <SubTitle>
                         {detailLoading
                             ? 'Loading user details...'
-                            : `Inspection: ${details.profile.displayName} (${details.profile.id})`}
+                            : `Customer Lookup Card: ${details.profile.displayName}`}
                     </SubTitle>
 
+                    <Label>Account</Label>
                     <UserDetailsGrid>
+                        <UserDetailsItem>
+                            <UserDetailsKey>Name</UserDetailsKey>
+                            <UserDetailsValue>{details.profile.displayName || 'Unknown User'}</UserDetailsValue>
+                        </UserDetailsItem>
                         <UserDetailsItem>
                             <UserDetailsKey>Email</UserDetailsKey>
                             <UserDetailsValue>{details.profile.email || 'No email'}</UserDetailsValue>
                         </UserDetailsItem>
                         <UserDetailsItem>
-                            <UserDetailsKey>Role</UserDetailsKey>
-                            <UserDetailsValue>{formatLabel(details.profile.maintleyRole)}</UserDetailsValue>
+                            <UserDetailsKey>Account ID</UserDetailsKey>
+                            <UserDetailsValue>{details.profile.accountId || details.profile.id}</UserDetailsValue>
+                        </UserDetailsItem>
+                        <UserDetailsItem>
+                            <UserDetailsKey>Created Date</UserDetailsKey>
+                            <UserDetailsValue>{formatDate(details.profile.createdAt)}</UserDetailsValue>
+                        </UserDetailsItem>
+                        <UserDetailsItem>
+                            <UserDetailsKey>Last Login</UserDetailsKey>
+                            <UserDetailsValue>{formatDate(details.profile.lastLoginAt)}</UserDetailsValue>
+                        </UserDetailsItem>
+                        <UserDetailsItem>
+                            <UserDetailsKey>Last Activity</UserDetailsKey>
+                            <UserDetailsValue>{formatDate(details.profile.lastActivityAt)}</UserDetailsValue>
                         </UserDetailsItem>
                         <UserDetailsItem>
                             <UserDetailsKey>Plan</UserDetailsKey>
@@ -230,6 +482,14 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
                                 {formatLabel(details.profile.subscriptionPlan)} ({formatLabel(details.profile.subscriptionStatus)})
                             </UserDetailsValue>
                         </UserDetailsItem>
+                        <UserDetailsItem>
+                            <UserDetailsKey>Invite Code</UserDetailsKey>
+                            <UserDetailsValue>{details.profile.inviteCode || 'n/a'}</UserDetailsValue>
+                        </UserDetailsItem>
+                    </UserDetailsGrid>
+
+                    <Label>Usage Summary</Label>
+                    <UserDetailsGrid>
                         <UserDetailsItem>
                             <UserDetailsKey>Properties</UserDetailsKey>
                             <UserDetailsValue>{String(details.metrics.propertyCount)}</UserDetailsValue>
@@ -243,38 +503,107 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
                             <UserDetailsValue>{String(details.metrics.taskCount)}</UserDetailsValue>
                         </UserDetailsItem>
                         <UserDetailsItem>
-                            <UserDetailsKey>Support Requests</UserDetailsKey>
-                            <UserDetailsValue>{String(details.metrics.supportRequestCount)}</UserDetailsValue>
+                            <UserDetailsKey>Documents</UserDetailsKey>
+                            <UserDetailsValue>{String(details.metrics.documentCount ?? 0)}</UserDetailsValue>
                         </UserDetailsItem>
                         <UserDetailsItem>
-                            <UserDetailsKey>Storage (Screenshots)</UserDetailsKey>
+                            <UserDetailsKey>Storage</UserDetailsKey>
+                            <UserDetailsValue>{formatBytesToMb(details.metrics.supportAttachmentStorageBytes)}</UserDetailsValue>
+                        </UserDetailsItem>
+                        <UserDetailsItem>
+                            <UserDetailsKey>Team Members</UserDetailsKey>
+                            <UserDetailsValue>{String(details.metrics.teamMemberCount ?? 0)}</UserDetailsValue>
+                        </UserDetailsItem>
+                    </UserDetailsGrid>
+
+                    <Label>Subscription Management</Label>
+                    <UserDetailsGrid>
+                        <UserDetailsItem>
+                            <UserDetailsKey>Current Plan</UserDetailsKey>
+                            <UserDetailsValue>{formatLabel(details.profile.subscriptionPlan)}</UserDetailsValue>
+                        </UserDetailsItem>
+                        <UserDetailsItem>
+                            <UserDetailsKey>Billing Status</UserDetailsKey>
+                            <UserDetailsValue>{formatLabel(details.profile.subscriptionStatus)}</UserDetailsValue>
+                        </UserDetailsItem>
+                        <UserDetailsItem>
+                            <UserDetailsKey>Stripe Connection</UserDetailsKey>
                             <UserDetailsValue>
-                                {formatBytesToMb(details.metrics.supportAttachmentStorageBytes)}
+                                {details.profile.hasStripeSubscription ? 'Connected' : 'No Stripe subscription on record'}
                             </UserDetailsValue>
+                        </UserDetailsItem>
+                        <UserDetailsItem>
+                            <UserDetailsKey>Stripe Plan</UserDetailsKey>
+                            <UserDetailsValue>
+                                {details.profile.stripeSubscription?.planLabel ||
+                                    (details.profile.stripeSubscription?.error
+                                        ? 'Unable to load Stripe plan'
+                                        : 'n/a')}
+                            </UserDetailsValue>
+                        </UserDetailsItem>
+                        <UserDetailsItem>
+                            <UserDetailsKey>Stripe Status</UserDetailsKey>
+                            <UserDetailsValue>
+                                {details.profile.stripeSubscription?.status
+                                    ? formatLabel(details.profile.stripeSubscription.status)
+                                    : 'n/a'}
+                                {details.profile.stripeSubscription?.cancelAtPeriodEnd
+                                    ? ' (Cancels at period end)'
+                                    : ''}
+                            </UserDetailsValue>
+                        </UserDetailsItem>
+                        <UserDetailsItem>
+                            <UserDetailsKey>Stripe Price</UserDetailsKey>
+                            <UserDetailsValue>
+                                {details.profile.stripeSubscription?.priceId || 'n/a'}
+                            </UserDetailsValue>
+                        </UserDetailsItem>
+                        <UserDetailsItem>
+                            <UserDetailsKey>Stripe Subscription</UserDetailsKey>
+                            <UserDetailsValue>{details.profile.stripeSubscriptionId || 'n/a'}</UserDetailsValue>
+                        </UserDetailsItem>
+                        {details.profile.stripeSubscription?.error ? (
+                            <UserDetailsItem>
+                                <UserDetailsKey>Stripe Lookup</UserDetailsKey>
+                                <UserDetailsValue>{details.profile.stripeSubscription.error}</UserDetailsValue>
+                            </UserDetailsItem>
+                        ) : null}
+                        <UserDetailsItem>
+                            <UserDetailsKey>Stripe Customer</UserDetailsKey>
+                            <UserDetailsValue>
+                                {details.profile.stripeCustomerUrl ? (
+                                    <a
+                                        href={details.profile.stripeCustomerUrl}
+                                        target='_blank'
+                                        rel='noreferrer'>
+                                        View in Stripe
+                                    </a>
+                                ) : (
+                                    details.profile.stripeCustomerId || 'n/a'
+                                )}
+                            </UserDetailsValue>
+                        </UserDetailsItem>
+                        <UserDetailsItem>
+                            <UserDetailsKey>Billing Actions</UserDetailsKey>
+                            <div style={{ display: 'grid', gap: 8 }}>
+                                <Button
+                                    type='button'
+                                    disabled={planActionLoading || stripeRefreshLoading}
+                                    onClick={() => setShowBillingActionsDialog(true)}>
+                                    Manage Billing
+                                </Button>
+                                <Button
+                                    type='button'
+                                    disabled={planActionLoading || stripeRefreshLoading}
+                                    onClick={() => void handleRefreshSubscriptionFromStripe()}>
+                                    {stripeRefreshLoading ? 'Refreshing...' : 'Refresh From Stripe'}
+                                </Button>
+                            </div>
                         </UserDetailsItem>
                     </UserDetailsGrid>
 
                     <div>
-                        <Label>Recent Errors</Label>
-                        <UserActivityList>
-                            {details.recentErrors.length === 0 ? (
-                                <UserActivityItem>No recent bug reports.</UserActivityItem>
-                            ) : (
-                                details.recentErrors.map((entry) => (
-                                    <UserActivityItem key={`error-${entry.id}`}>
-                                        {entry.ticketNumber ? `${entry.ticketNumber} - ` : ''}
-                                        {entry.subject} ({formatLabel(entry.status)})
-                                        {entry.pageUrl ? ` | Route: ${entry.pageUrl}` : ''}
-                                        {entry.appVersion ? ` | Version: ${entry.appVersion}` : ''}
-                                        {entry.createdAt ? ` | ${formatDate(entry.createdAt)}` : ''}
-                                    </UserActivityItem>
-                                ))
-                            )}
-                        </UserActivityList>
-                    </div>
-
-                    <div>
-                        <Label>Recent Support Requests</Label>
+                        <Label>Support History</Label>
                         <UserActivityList>
                             {details.recentSupportRequests.length === 0 ? (
                                 <UserActivityItem>No support requests found.</UserActivityItem>
@@ -305,10 +634,197 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
                             )}
                         </UserActivityList>
                     </div>
+
+                    <div>
+                        <Label>Error History</Label>
+                        <UserActivityList>
+                            {details.recentErrors.length === 0 ? (
+                                <UserActivityItem>No recent bug reports.</UserActivityItem>
+                            ) : (
+                                details.recentErrors.map((entry) => (
+                                    <UserActivityItem key={`error-${entry.id}`}>
+                                        {entry.ticketNumber ? `${entry.ticketNumber} - ` : ''}
+                                        {entry.subject} ({formatLabel(entry.status)})
+                                        {entry.pageUrl ? ` | Route: ${entry.pageUrl}` : ''}
+                                        {entry.appVersion ? ` | Version: ${entry.appVersion}` : ''}
+                                        {entry.createdAt ? ` | ${formatDate(entry.createdAt)}` : ''}
+                                    </UserActivityItem>
+                                ))
+                            )}
+                        </UserActivityList>
+                    </div>
+
+                    <div>
+                        <Label>Notification History</Label>
+                        <UserActivityList>
+                            {details.recentNotifications.length === 0 ? (
+                                <UserActivityItem>No recent notifications found.</UserActivityItem>
+                            ) : (
+                                details.recentNotifications.map((entry) => (
+                                    <UserActivityItem key={`notification-${entry.id}`}>
+                                        {entry.title}
+                                        {entry.status ? ` (${formatLabel(entry.status)})` : ''}
+                                        {entry.message ? ` | ${entry.message}` : ''}
+                                        {entry.createdAt ? ` | ${formatDate(entry.createdAt)}` : ''}
+                                    </UserActivityItem>
+                                ))
+                            )}
+                        </UserActivityList>
+                    </div>
                 </UserDetailsPanel>
-            ) : selectedUserId && detailLoading ? (
-                <SubTitle>Loading inspection details...</SubTitle>
+            ) : selectedRow && detailLoading ? (
+                <SubTitle>Loading inspection details for {selectedRow.displayName}...</SubTitle>
             ) : null}
+
+            <GenericModal
+                isOpen={showBillingActionsDialog}
+                title='Manage billing'
+                onClose={() => {
+                    if (!planActionLoading) {
+                        setShowBillingActionsDialog(false);
+                    }
+                }}
+                compact>
+                <div style={{ display: 'grid', gap: 16 }}>
+                    <div>
+                        <p style={{ margin: '0 0 6px' }}>
+                            <strong>{details?.profile.displayName || selectedRow?.displayName || 'Selected user'}</strong>
+                        </p>
+                        <p style={{ margin: 0 }}>
+                            Maintley: {formatLabel(details?.profile.subscriptionPlan || 'none')} (
+                            {formatLabel(details?.profile.subscriptionStatus || 'none')})
+                        </p>
+                        <p style={{ margin: '4px 0 0' }}>
+                            Stripe:{' '}
+                            {details?.profile.stripeSubscription?.planLabel ||
+                                (details?.profile.hasStripeSubscription ? 'Connected' : 'No subscription on record')}
+                        </p>
+                    </div>
+
+                    <div style={{ display: 'grid', gap: 8 }}>
+                        <Label>Billing updates</Label>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 8 }}>
+                            <div>
+                                <Label>Plan</Label>
+                                <Select
+                                    value={selectedPlan}
+                                    onChange={(event) => setSelectedPlan(event.target.value)}>
+                                    {PLAN_OPTIONS.map((option) => (
+                                        <option key={option.value} value={option.value}>
+                                            {option.label}
+                                        </option>
+                                    ))}
+                                </Select>
+                            </div>
+                            <div>
+                                <Label>Billing cycle</Label>
+                                <Select
+                                    value={checkoutBillingCycle}
+                                    onChange={(event) =>
+                                        setCheckoutBillingCycle(event.target.value as 'month' | 'year')
+                                    }>
+                                    <option value='month'>Monthly</option>
+                                    <option value='year'>Annual</option>
+                                </Select>
+                            </div>
+                            <div>
+                                <Label>Add trial days</Label>
+                                <Input
+                                    type='number'
+                                    min={1}
+                                    max={90}
+                                    placeholder='Optional'
+                                    value={trialDays}
+                                    onChange={(event) => setTrialDays(event.target.value)}
+                                />
+                            </div>
+                            <div>
+                                <Label>Coupon code</Label>
+                                <Input
+                                    type='text'
+                                    placeholder='Optional'
+                                    value={checkoutCouponCode}
+                                    onChange={(event) => setCheckoutCouponCode(event.target.value.toUpperCase())}
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gap: 8 }}>
+                        <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                            <input
+                                type='checkbox'
+                                checked={syncStripe}
+                                disabled={!details?.profile.hasStripeSubscription || planActionLoading}
+                                onChange={(event) => setSyncStripe(event.target.checked)}
+                            />
+                            <span>
+                                Update Stripe subscription first
+                                {details?.profile.hasStripeSubscription
+                                    ? ''
+                                    : ' (requires a Stripe subscription on the user record)'}
+                            </span>
+                        </label>
+                        <Button
+                            type='button'
+                            disabled={planActionLoading || !hasBillingUpdatesToApply}
+                            onClick={() => void handleApplyBillingUpdates()}>
+                            {planActionLoading ? 'Applying...' : 'Apply Billing Updates'}
+                        </Button>
+                        {checkoutLink ? (
+                            <Button
+                                type='button'
+                                disabled={planActionLoading}
+                                onClick={() => void handleCopyCheckoutLink()}>
+                                Copy Checkout Link
+                            </Button>
+                        ) : null}
+                    </div>
+
+                    <div style={{ display: 'grid', gap: 8, borderTop: '1px solid #f3c7aa', paddingTop: 14 }}>
+                        <Label>Cancel subscription</Label>
+                        <p style={{ margin: 0 }}>
+                            Use this only when the customer should stop renewing. This action stays separate from plan, trial, and coupon updates.
+                        </p>
+                        <Button
+                            type='button'
+                            disabled={planActionLoading}
+                            onClick={() => setShowCancelConfirm(true)}>
+                            {planActionLoading ? 'Updating...' : 'Cancel Subscription'}
+                        </Button>
+                    </div>
+                </div>
+            </GenericModal>
+
+            <GenericModal
+                isOpen={showCancelConfirm}
+                title='Cancel subscription?'
+                onClose={() => {
+                    if (!planActionLoading) {
+                        setShowCancelConfirm(false);
+                    }
+                }}
+                primaryButtonLabel={planActionLoading ? 'Cancelling...' : 'Cancel Subscription'}
+                primaryButtonAction={handleConfirmCancelSubscription}
+                secondaryButtonLabel='Keep Subscription'
+                secondaryButtonAction={() => setShowCancelConfirm(false)}
+                primaryButtonDisabled={planActionLoading}
+                isLoading={planActionLoading}
+                showActions
+                compact>
+                <p>
+                    This will mark the subscription as cancelled for{' '}
+                    <strong>{details?.profile.displayName || selectedRow?.displayName || 'this user'}</strong>.
+                </p>
+                <p>
+                    Property records and support history will stay in place. If this customer has an
+                    active Stripe subscription, Stripe will {syncStripe ? '' : 'not '}be updated.
+                </p>
+                <p>
+                    Current plan: {formatLabel(details?.profile.subscriptionPlan || 'none')} (
+                    {formatLabel(details?.profile.subscriptionStatus || 'none')}).
+                </p>
+            </GenericModal>
         </UserPanelWrap>
     );
 };

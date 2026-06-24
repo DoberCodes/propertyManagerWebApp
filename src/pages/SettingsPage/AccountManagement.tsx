@@ -4,6 +4,8 @@ import { AccountActions, AccountButton, ButtonContainer, CancelButton, Container
 import { RootState } from "Redux/store/store";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
+import { isNativeApp } from "utils/platform";
+import { openSubscriptionManagementInBrowser } from "utils/authLinks";
 
 interface AccountManagementProps {
     subscriptionError: boolean;
@@ -18,6 +20,7 @@ interface AccountManagementProps {
 export const AccountManagement: React.FC<AccountManagementProps> = ({ subscriptionError, setSubscriptionError, setShowPasswordModal, setShowDeleteAccountModal, setShowCancelSubscriptionModal }) => {
     const navigate = useNavigate();
     const currentUser = useSelector((state: RootState) => state.user.currentUser);
+    const nativeApp = isNativeApp();
     const subscription = currentUser?.subscription;
     const isTeamMemberAccount = currentUser?.isTeamMemberAccount === true;
     const isTenant = currentUser?.role === 'tenant';
@@ -106,12 +109,21 @@ export const AccountManagement: React.FC<AccountManagementProps> = ({ subscripti
                         </PlanDetails>
 
                         <ButtonContainer>
-                            <UpgradeButton onClick={() => navigate('/paywall')}>
-                                {isFreePlan
-                                    ? 'Upgrade Plan'
-                                    : 'Change Plan'}
+                            <UpgradeButton
+                                onClick={() => {
+                                    if (!nativeApp) {
+                                        navigate('/paywall');
+                                        return;
+                                    }
+                                    void openSubscriptionManagementInBrowser();
+                                }}>
+                                {nativeApp
+                                    ? 'Manage Subscription in Browser'
+                                    : isFreePlan
+                                        ? 'Upgrade Plan'
+                                        : 'Change Plan'}
                             </UpgradeButton>
-                            {subscription.status === 'active' &&
+                            {!nativeApp && subscription.status === 'active' &&
                                 subscription.stripeSubscriptionId && (
                                     <CancelButton
                                         onClick={() => setShowCancelSubscriptionModal(true)}>

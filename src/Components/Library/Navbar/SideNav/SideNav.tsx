@@ -58,9 +58,12 @@ import { useStorageUsage } from '../../../../Hooks/useStorageUsage';
 import { formatStorageBytes } from '../../../../utils/storageQuota';
 import { filterPropertyGroupsByRole } from '../../../../utils/dataFilters';
 import { TeamMember } from '../../../../Redux/Slices/teamSlice';
+import { isNativeApp } from '../../../../utils/platform';
+import { openSubscriptionManagementInBrowser } from '../../../../utils/authLinks';
 
 export const SideNav = () => {
 	const navigate = useNavigate();
+	const nativeApp = isNativeApp();
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
 	const activeRoute = useSelector(
 		(state: RootState) => state.navigation.activeRoute,
@@ -314,8 +317,14 @@ export const SideNav = () => {
 										</PortfolioUsage>
 										<ManagePlanButton
 											type='button'
-											onClick={() => navigate('/paywall')}>
-											Manage Plan
+											onClick={() => {
+												if (!nativeApp) {
+													navigate('/paywall');
+													return;
+												}
+												void openSubscriptionManagementInBrowser();
+											}}>
+											{nativeApp ? 'Manage in Browser' : 'Manage Plan'}
 										</ManagePlanButton>
 									</PortfolioCard>
 								</SectionContent>

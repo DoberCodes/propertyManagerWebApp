@@ -151,6 +151,71 @@ Cancellation should:
 * Synchronize Firestore subscription state.
 * Preserve historical account data.
 
+## Admin Support Adjustments
+
+The admin portal includes support-only subscription actions for troubleshooting
+and account repair:
+
+* Apply billing updates for plan, trial, and coupon changes in one action.
+* Mark subscription cancelled as a separate destructive action.
+
+By default, plan and trial updates write Maintley's user subscription record and
+write one `admin_audit_logs` entry without contacting Stripe.
+
+Support staff may choose **Update Stripe subscription first** when the user
+record already has a Stripe subscription ID. In that mode, the admin action
+updates Stripe first and then syncs Maintley's subscription record from the
+Stripe result.
+
+Current Stripe-backed support behavior:
+
+* Plan changes require an existing Stripe subscription and a paid plan.
+* Trial extensions require an existing Stripe subscription that is still in trial.
+* Coupon codes are applied to the existing Stripe subscription when Stripe sync
+  is enabled.
+* Refresh from Stripe can repair Firebase subscription records by looking up the
+  stored Stripe subscription ID, stored Stripe customer ID, or the user's email
+  address in Stripe.
+* Cancellations set the existing Stripe subscription to cancel at period end.
+
+If the user record does not have a Stripe subscription ID, plan and trial support
+actions remain Maintley-only. Coupon codes create a Stripe Checkout link for a
+paid plan instead of manually discounting the user in Firestore.
+
+Refresh from Stripe is the preferred support repair when Stripe already has an
+active subscription but Firebase does not show the customer as subscribed. The
+repair updates the user subscription and family account subscription from the
+selected Stripe subscription and writes an admin audit log entry.
+
+## Admin Billing Tools
+
+The admin portal includes a focused Billing Tools area for customer acquisition
+and support offers.
+
+Supported admin tools:
+
+* Create Stripe coupons and promotion codes.
+* View recent active, expired, and inactive promotion codes.
+* Copy coupon codes for support or sales follow-up.
+* Create a Stripe Checkout link for a selected user with a selected coupon.
+* Open the user's Stripe customer record from the support view when a Stripe
+  customer ID exists.
+
+Coupon creation supports:
+
+* Percent off or dollar off.
+* Duration: once, repeating, or forever.
+* Max redemptions.
+* Expiration date.
+* Optional plan scoping through the Stripe product attached to the selected
+  Maintley plan price.
+* Internal support note stored in Stripe metadata and admin audit logs.
+
+Maintley should not manually discount users only in Firestore. Coupons,
+promotion codes, redemptions, expiration, and Checkout discounts must remain in
+Stripe. Firestore may store Stripe customer identifiers and admin audit records
+needed for support traceability.
+
 ---
 
 # Stripe Integration
@@ -167,6 +232,11 @@ Exported functions:
 * syncSubscriptionFromStripe
 * stripeWebhook
 * createTrialSubscription
+* adminPortalRefreshUserSubscriptionFromStripe
+* adminPortalApplyUserBillingActions
+* adminPortalCreateBillingCoupon
+* adminPortalListBillingCoupons
+* adminPortalCreateCheckoutLinkWithCoupon
 
 Stripe webhook processing lives in:
 

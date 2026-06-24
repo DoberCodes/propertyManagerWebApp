@@ -7,6 +7,8 @@
 
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
+import type { AppDispatch } from '../../Redux/store/store';
 import { Shell, Card, SubTitle, ErrorText, TicketList, MainContent } from './AdminInboxPage.styles';
 import {
 	AdminHeader,
@@ -15,12 +17,15 @@ import {
 	AdminFilterControls,
 	TicketCard,
 	AdminUserManagementPanel,
+	AdminBillingToolsPanel,
+	AdminAuditLogPanel,
 } from './components';
 import type { AdminNavPage } from './components';
 import { useAdminAuth } from './hooks/useAdminAuth';
 import { useAdminTickets } from './hooks/useAdminTickets';
 import { useAdminTicketLinking } from './hooks/useAdminTicketLinking';
 import { useAdminNotes } from './hooks/useAdminNotes';
+import { fetchAuditLogs, fetchAdminUsers, fetchBillingCoupons } from '../../Redux/thunks/adminPortalThunks';
 import {
 	calculateTicketCounts,
 	getDisplayTicketNumber,
@@ -29,7 +34,30 @@ import {
 import { MESSAGES } from './constants';
 import type { TypeOption } from './constants';
 
+const TOP_LEVEL_ROLE_TOKENS = new Set<string>([
+	'admin',
+	'top_level',
+	'top_level_admin',
+	'root',
+	'global_admin',
+	'super_admin',
+	'superadmin',
+	'maintley_owner',
+	'platform_owner',
+	'owner',
+]);
+
+const normalizeRoleToken = (value: unknown): string =>
+	String(value || '')
+		.trim()
+		.toLowerCase()
+		.replace(/[\s-]+/g, '_');
+
+const hasTopLevelRole = (roles: string[]): boolean =>
+	roles.some((role) => TOP_LEVEL_ROLE_TOKENS.has(normalizeRoleToken(role)));
+
 export const AdminInboxPage: React.FC = () => {
+	const dispatch = useDispatch<AppDispatch>();
 	const navigate = useNavigate();
 	const auth = useAdminAuth();
 	const tickets = useAdminTickets();
@@ -38,6 +66,7 @@ export const AdminInboxPage: React.FC = () => {
 	const [showSettingsMenu, setShowSettingsMenu] = useState(false);
 	const [activePage, setActivePage] = useState<AdminNavPage>('inbox');
 	const [selectedTicketByGroup, setSelectedTicketByGroup] = useState<Record<string, string>>({});
+	const canViewAuditLogs = hasTopLevelRole(auth.adminUser?.roles || []);
 	const ticketGroups = React.useMemo(() => groupTicketsForDisplay(tickets.tickets), [tickets.tickets]);
 	const visibleTicketCounts = React.useMemo(
 		() => calculateTicketCounts(ticketGroups.map((group) => group.primaryTicket)),
@@ -51,6 +80,25 @@ export const AdminInboxPage: React.FC = () => {
 		}
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [auth.sessionToken]);
+
+	React.useEffect(() => {
+		if (!canViewAuditLogs && activePage === 'audit') {
+			setActivePage('inbox');
+		}
+	}, [activePage, canViewAuditLogs]);
+
+	// Load data when tabs change
+	React.useEffect(() => {
+		if (!auth.sessionToken) return;
+
+		if (activePage === 'audit' && canViewAuditLogs) {
+			void dispatch(fetchAuditLogs({ sessionToken: auth.sessionToken }));
+		} else if (activePage === 'users') {
+			void dispatch(fetchAdminUsers({ sessionToken: auth.sessionToken }));
+		} else if (activePage === 'billing') {
+			void dispatch(fetchBillingCoupons({ sessionToken: auth.sessionToken }));
+		}
+	}, [activePage, auth.sessionToken, canViewAuditLogs, dispatch]);
 
 	React.useEffect(() => {
 		const syncSelectedTicketFromHash = () => {
@@ -244,6 +292,7 @@ export const AdminInboxPage: React.FC = () => {
 			<AdminNavbar
 				activePage={activePage}
 				adminUser={auth.adminUser}
+				canViewAuditLogs={canViewAuditLogs}
 				onNavigate={setActivePage}
 				onLogout={auth.handleLogout}
 				onBackToApp={handleBackToApp}
@@ -264,6 +313,14 @@ export const AdminInboxPage: React.FC = () => {
 
 					{activePage === 'users' ? (
 						<AdminUserManagementPanel sessionToken={auth.sessionToken!} />
+					) : activePage === 'billing' ? (
+						<AdminBillingToolsPanel sessionToken={auth.sessionToken!} />
+					) : activePage === 'audit' ? (
+						canViewAuditLogs ? (
+							<AdminAuditLogPanel sessionToken={auth.sessionToken!} />
+						) : (
+							<ErrorText>Top-level Maintley role is required to view audit logs.</ErrorText>
+						)
 					) : (
 						<>
 

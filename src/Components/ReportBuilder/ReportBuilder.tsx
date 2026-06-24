@@ -98,6 +98,7 @@ import { useAppFeedback } from '../Library/AppFeedback/AppFeedbackProvider';
 import { LockedFeatureCallout } from '../Library/LockedFeatureCallout';
 import { ReportPreview } from './ReportPreview';
 import { getNonEmptyReportColumns } from './reportPreviewUtils';
+import { isNativeApp } from '../../utils/platform';
 
 // Alias Library components to match local naming convention
 const FormGroup = LibraryFormGroup;
@@ -385,6 +386,7 @@ export const ReportBuilder: React.FC = () => {
 		!!currentUser?.subscription &&
 		canPortfolioReporting(currentUser.subscription as any);
 	const feedback = useAppFeedback();
+	const nativeApp = isNativeApp();
 
 	// Helper: homeowners may only access Single Family properties in reports
 	const isSingleFamilyProperty = (ptype?: string) => {
@@ -1027,7 +1029,9 @@ export const ReportBuilder: React.FC = () => {
 			feedback.notify(
 				isTeamMemberAccount
 					? 'Report access is controlled by your assigned role.'
-					: 'Your current plan does not include report access. Please upgrade to continue.',
+					: nativeApp
+						? 'Your current plan does not include report access here. Manage this in the web account center.'
+						: 'Your current plan does not include report access. Please upgrade to continue.',
 			);
 			return;
 		}
@@ -1037,7 +1041,9 @@ export const ReportBuilder: React.FC = () => {
 			feedback.notify(
 				isTeamMemberAccount
 					? 'Data export is controlled by your assigned role.'
-					: 'Your current plan does not include data export. Please upgrade to access this feature.',
+					: nativeApp
+						? 'Your current plan does not include data export here. Manage this in the web account center.'
+						: 'Your current plan does not include data export. Please upgrade to access this feature.',
 			);
 			return;
 		}
@@ -1230,7 +1236,9 @@ export const ReportBuilder: React.FC = () => {
 						description={
 							isTeamMemberAccount
 								? 'Ask the account holder to adjust your role if you need report access.'
-								: 'You can preview available report types below. Upgrade to Property or Portfolio to generate and review reports.'
+								: nativeApp
+									? 'You can preview available report types below. Manage report access in the web account center.'
+									: 'You can preview available report types below. Upgrade to Property or Portfolio to generate and review reports.'
 						}
 						upgradeLabel='Upgrade for Reports'
 						showUpgradeAction={!isTeamMemberAccount}
@@ -1256,7 +1264,9 @@ export const ReportBuilder: React.FC = () => {
 											: 'Available'
 								: isTeamMemberAccount
 									? 'Role Restricted'
-									: 'Upgrade Required';
+									: nativeApp
+										? 'Web Management'
+										: 'Upgrade Required';
 
 							return (
 								<MobileReportCard
@@ -1309,7 +1319,9 @@ export const ReportBuilder: React.FC = () => {
 											{!isAccessible
 												? isTeamMemberAccount
 													? ' - Role restricted'
-													: ' - Upgrade required'
+																				: nativeApp
+																					? ' - Web management'
+																					: ' - Upgrade required'
 												: ''}
 										</option>
 									);
@@ -1490,7 +1502,9 @@ export const ReportBuilder: React.FC = () => {
 							{!canExportReports
 								? isTeamMemberAccount
 									? 'Export Restricted'
-									: 'Upgrade to Export'
+									: nativeApp
+										? 'Manage in Browser'
+										: 'Upgrade to Export'
 								: 'Download CSV'}
 						</Button>
 					</ActionButtons>

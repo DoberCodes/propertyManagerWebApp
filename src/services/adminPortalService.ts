@@ -59,8 +59,12 @@ export type AdminPortalUserRecord = {
 	lastName: string;
 	displayName: string;
 	maintleyRole: string;
+	accountStatus?: 'active' | 'disabled' | string;
+	propertyCount?: number;
 	subscriptionPlan: string;
 	subscriptionStatus: string;
+	lastActiveAt?: string | null;
+	lastLoginAt?: string | null;
 	createdAt?: string;
 	updatedAt?: string;
 	[key: string]: unknown;
@@ -74,9 +78,32 @@ export type AdminPortalUserTroubleshootingDetails = {
 		lastName: string;
 		displayName: string;
 		maintleyRole: string;
+		accountStatus?: 'active' | 'disabled' | string;
 		accountId?: string | null;
 		subscriptionPlan: string;
 		subscriptionStatus: string;
+		hasStripeSubscription?: boolean;
+		stripeCustomerId?: string | null;
+		stripeSubscriptionId?: string | null;
+		stripeCustomerUrl?: string | null;
+		stripeSubscription?: {
+			id?: string | null;
+			status?: string | null;
+			planLabel?: string | null;
+			priceId?: string | null;
+			productId?: string | null;
+			productName?: string | null;
+			lookupKey?: string | null;
+			interval?: string | null;
+			maintleyPlan?: string | null;
+			cancelAtPeriodEnd?: boolean;
+			currentPeriodEnd?: string | null;
+			trialEnd?: string | null;
+			error?: string | null;
+		} | null;
+		inviteCode?: string | null;
+		lastLoginAt?: string;
+		lastActivityAt?: string;
 		createdAt?: string;
 		updatedAt?: string;
 	};
@@ -84,8 +111,12 @@ export type AdminPortalUserTroubleshootingDetails = {
 		propertyCount: number;
 		systemCount: number;
 		taskCount: number;
+		documentCount?: number;
+		teamMemberCount?: number;
 		supportRequestCount: number;
 		supportAttachmentStorageBytes: number;
+		recentErrorCount?: number;
+		openTicketCount?: number;
 	};
 	recentSupportRequests: Array<{
 		id: string;
@@ -116,6 +147,44 @@ export type AdminPortalUserTroubleshootingDetails = {
 		description: string;
 		createdAt?: string;
 	}>;
+};
+
+export type AdminBillingCoupon = {
+	id: string;
+	code: string;
+	active: boolean;
+	status: 'active' | 'expired' | 'inactive' | string;
+	couponId?: string | null;
+	name?: string;
+	percentOff?: number | null;
+	amountOff?: number | null;
+	currency?: string | null;
+	duration?: 'once' | 'repeating' | 'forever' | string | null;
+	durationMonths?: number | null;
+	maxRedemptions?: number | null;
+	redeemedCount?: number | null;
+	expiresAt?: string | null;
+	appliesToPlan?: string;
+	appliesToBillingCycle?: string;
+	internalNote?: string;
+	createdAt?: string | null;
+};
+
+export type AdminPortalAuditLogRecord = {
+	id: string;
+	category?: string | null;
+	action?: string | null;
+	targetType?: string | null;
+	targetId?: string | null;
+	performedBy?: {
+		uid?: string | null;
+		displayName?: string | null;
+		email?: string | null;
+	} | null;
+	before?: Record<string, unknown> | null;
+	after?: Record<string, unknown> | null;
+	metadata?: Record<string, unknown> | null;
+	createdAt?: string | null;
 };
 
 export const saveAdminSessionToken = (token: string): void => {
@@ -197,15 +266,32 @@ export const listAdminPortalUsers = async (params: {
 	sessionToken: string;
 	query?: string;
 	role?: string;
+	filter?: string;
 	limit?: number;
 }): Promise<AdminPortalUserRecord[]> => {
 	const callable = httpsCallable<
-		{ sessionToken: string; query?: string; role?: string; limit?: number },
+		{ sessionToken: string; query?: string; role?: string; filter?: string; limit?: number },
 		{ users: AdminPortalUserRecord[] }
 	>(cloudFunctions, 'listAdminPortalUsers');
 
 	const result = await callable(params);
 	return result.data.users || [];
+};
+
+export const listAdminPortalAuditLogs = async (params: {
+	sessionToken: string;
+	limit?: number;
+	query?: string;
+	action?: string;
+	targetId?: string;
+}): Promise<AdminPortalAuditLogRecord[]> => {
+	const callable = httpsCallable<
+		{ sessionToken: string; limit?: number; query?: string; action?: string; targetId?: string },
+		{ logs: AdminPortalAuditLogRecord[] }
+	>(cloudFunctions, 'listAdminPortalAuditLogs');
+
+	const result = await callable(params);
+	return result.data.logs || [];
 };
 
 export const getAdminPortalUserTroubleshootingDetails = async (params: {
@@ -216,6 +302,223 @@ export const getAdminPortalUserTroubleshootingDetails = async (params: {
 		{ sessionToken: string; userId: string },
 		AdminPortalUserTroubleshootingDetails
 	>(cloudFunctions, 'getAdminPortalUserTroubleshootingDetails');
+
+	const result = await callable(params);
+	return result.data;
+};
+
+export const adminPortalManageUserSubscription = async (params: {
+	sessionToken: string;
+	userId: string;
+	action: 'change_plan' | 'extend_trial' | 'cancel_subscription';
+	planId?: string;
+	trialDays?: number;
+	syncStripe?: boolean;
+}): Promise<{
+	success: true;
+	subscriptionPlan: string;
+	subscriptionStatus: string;
+	trialEndsAt: number | null;
+	stripeUpdated: boolean;
+}> => {
+	const callable = httpsCallable<
+		{
+			sessionToken: string;
+			userId: string;
+			action: 'change_plan' | 'extend_trial' | 'cancel_subscription';
+			planId?: string;
+			trialDays?: number;
+			syncStripe?: boolean;
+		},
+		{
+			success: true;
+			subscriptionPlan: string;
+			subscriptionStatus: string;
+			trialEndsAt: number | null;
+			stripeUpdated: boolean;
+		}
+	>(cloudFunctions, 'adminPortalManageUserSubscription');
+
+	const result = await callable(params);
+	return result.data;
+};
+
+export const adminPortalApplyUserBillingActions = async (params: {
+	sessionToken: string;
+	userId: string;
+	planId?: string;
+	billingCycle?: 'month' | 'year';
+	trialDays?: number;
+	promoCode?: string;
+	syncStripe?: boolean;
+	successUrl?: string;
+	cancelUrl?: string;
+}): Promise<{
+	success: true;
+	subscriptionPlan: string;
+	subscriptionStatus: string;
+	trialEndsAt: number | null;
+	stripeUpdated: boolean;
+	checkoutUrl?: string | null;
+	checkoutSessionId?: string | null;
+	stripeCustomerId?: string | null;
+	applied: {
+		planChanged: boolean;
+		trialExtended: boolean;
+		couponApplied: boolean;
+		checkoutLinkCreated: boolean;
+	};
+}> => {
+	const callable = httpsCallable<
+		{
+			sessionToken: string;
+			userId: string;
+			planId?: string;
+			billingCycle?: 'month' | 'year';
+			trialDays?: number;
+			promoCode?: string;
+			syncStripe?: boolean;
+			successUrl?: string;
+			cancelUrl?: string;
+		},
+		{
+			success: true;
+			subscriptionPlan: string;
+			subscriptionStatus: string;
+			trialEndsAt: number | null;
+			stripeUpdated: boolean;
+			checkoutUrl?: string | null;
+			checkoutSessionId?: string | null;
+			stripeCustomerId?: string | null;
+			applied: {
+				planChanged: boolean;
+				trialExtended: boolean;
+				couponApplied: boolean;
+				checkoutLinkCreated: boolean;
+			};
+		}
+	>(cloudFunctions, 'adminPortalApplyUserBillingActions');
+
+	const result = await callable(params);
+	return result.data;
+};
+
+export const adminPortalRefreshUserSubscriptionFromStripe = async (params: {
+	sessionToken: string;
+	userId: string;
+}): Promise<{
+	success: true;
+	subscriptionPlan: string;
+	subscriptionStatus: string;
+	trialEndsAt: number | null;
+	stripeCustomerId?: string | null;
+	stripeSubscriptionId?: string | null;
+	matchedBy: 'stripe_subscription_id' | 'stripe_customer_id' | 'email' | 'none' | string;
+	candidateCount: number;
+}> => {
+	const callable = httpsCallable<
+		{
+			sessionToken: string;
+			userId: string;
+		},
+		{
+			success: true;
+			subscriptionPlan: string;
+			subscriptionStatus: string;
+			trialEndsAt: number | null;
+			stripeCustomerId?: string | null;
+			stripeSubscriptionId?: string | null;
+			matchedBy: 'stripe_subscription_id' | 'stripe_customer_id' | 'email' | 'none' | string;
+			candidateCount: number;
+		}
+	>(cloudFunctions, 'adminPortalRefreshUserSubscriptionFromStripe');
+
+	const result = await callable(params);
+	return result.data;
+};
+
+export const adminPortalCreateBillingCoupon = async (params: {
+	sessionToken: string;
+	code: string;
+	name?: string;
+	discountType: 'percent' | 'amount';
+	percentOff?: number;
+	amountOffCents?: number;
+	duration: 'once' | 'repeating' | 'forever';
+	durationMonths?: number;
+	maxRedemptions?: number;
+	expiresAt?: string;
+	appliesToPlan?: string;
+	appliesToBillingCycle?: 'month' | 'year';
+	internalNote?: string;
+}): Promise<{ success: true; coupon: AdminBillingCoupon }> => {
+	const callable = httpsCallable<
+		{
+			sessionToken: string;
+			code: string;
+			name?: string;
+			discountType: 'percent' | 'amount';
+			percentOff?: number;
+			amountOffCents?: number;
+			duration: 'once' | 'repeating' | 'forever';
+			durationMonths?: number;
+			maxRedemptions?: number;
+			expiresAt?: string;
+			appliesToPlan?: string;
+			appliesToBillingCycle?: 'month' | 'year';
+			internalNote?: string;
+		},
+		{ success: true; coupon: AdminBillingCoupon }
+	>(cloudFunctions, 'adminPortalCreateBillingCoupon');
+
+	const result = await callable(params);
+	return result.data;
+};
+
+export const adminPortalListBillingCoupons = async (params: {
+	sessionToken: string;
+	limit?: number;
+}): Promise<AdminBillingCoupon[]> => {
+	const callable = httpsCallable<
+		{ sessionToken: string; limit?: number },
+		{ coupons: AdminBillingCoupon[] }
+	>(cloudFunctions, 'adminPortalListBillingCoupons');
+
+	const result = await callable(params);
+	return result.data.coupons || [];
+};
+
+export const adminPortalCreateCheckoutLinkWithCoupon = async (params: {
+	sessionToken: string;
+	userId: string;
+	planId: string;
+	billingCycle: 'month' | 'year';
+	promoCode: string;
+	successUrl?: string;
+	cancelUrl?: string;
+}): Promise<{
+	success: true;
+	checkoutUrl: string;
+	sessionId: string;
+	stripeCustomerId: string;
+}> => {
+	const callable = httpsCallable<
+		{
+			sessionToken: string;
+			userId: string;
+			planId: string;
+			billingCycle: 'month' | 'year';
+			promoCode: string;
+			successUrl?: string;
+			cancelUrl?: string;
+		},
+		{
+			success: true;
+			checkoutUrl: string;
+			sessionId: string;
+			stripeCustomerId: string;
+		}
+	>(cloudFunctions, 'adminPortalCreateCheckoutLinkWithCoupon');
 
 	const result = await callable(params);
 	return result.data;

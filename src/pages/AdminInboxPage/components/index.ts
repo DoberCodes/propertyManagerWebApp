@@ -7,3 +7,5 @@ export { AdminFilterControls } from './AdminFilterControls';
 export { PasswordResetDialog } from './PasswordResetDialog';
 export { TicketCard } from './AdminInboxTicketCard';
 export { AdminUserManagementPanel } from './AdminUserManagementPanel';
+export { AdminBillingToolsPanel } from './AdminBillingToolsPanel';
+export { AdminAuditLogPanel } from './AdminAuditLogPanel';

@@ -25,6 +25,8 @@ import { useNavigate } from 'react-router-dom';
 import { setCurrentUser } from '../../Redux/Slices/userSlice';
 import { signInWithEmail } from '../../services/authService';
 import { USER_ROLES } from '../../constants/roles';
+import { isNativeApp } from '../../utils/platform';
+import { getRegistrationUrl, openRegistrationInBrowser } from '../../utils/authLinks';
 
 export const LoginCard = () => {
 	const navigate = useNavigate();
@@ -35,6 +37,7 @@ export const LoginCard = () => {
 	const [loading, setLoading] = useState<boolean>(false);
 	const [showPassword, setShowPassword] = useState<boolean>(false);
 	const [rememberEmail, setRememberEmail] = useState<boolean>(false);
+	const nativeApp = isNativeApp();
 
 	// Load saved email on component mount
 	useEffect(() => {
@@ -169,7 +172,16 @@ export const LoginCard = () => {
 
 			<RegisterWrapper>
 				<p>
-					Don't have an account? <a href='#/registration'>Sign up here</a>
+					Don't have an account?{' '}
+					<a
+						href={nativeApp ? getRegistrationUrl() : '#/registration'}
+						onClick={(event) => {
+							if (!nativeApp) return;
+							event.preventDefault();
+							void openRegistrationInBrowser();
+						}}>
+						{nativeApp ? 'Create account in browser' : 'Sign up here'}
+					</a>
 				</p>
 				<div
 					style={{

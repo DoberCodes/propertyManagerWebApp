@@ -13,6 +13,43 @@ import type { RootState } from '../../../Redux/store/store';
 import type { AdminUser } from '../../../services/adminPortalService';
 import { ERROR_MESSAGES } from '../constants';
 
+const toRoleToken = (value: unknown): string =>
+	String(value || '')
+		.trim()
+		.toLowerCase()
+		.replace(/[\s-]+/g, '_');
+
+const extractMaintleyRoleTokens = (maintleyRole: MaintleyRoleValue): string[] => {
+	if (!maintleyRole) return [];
+
+	if (typeof maintleyRole === 'string') {
+		const token = toRoleToken(maintleyRole);
+		return token ? [token] : [];
+	}
+
+	if (typeof maintleyRole !== 'object') return [];
+
+	const roleRecord = maintleyRole as Record<string, unknown>;
+	const tokens = new Set<string>();
+	const pushToken = (value: unknown) => {
+		const token = toRoleToken(value);
+		if (token) tokens.add(token);
+	};
+
+	for (const key of ['role', 'value', 'maintley_role', 'level', 'tier', 'scope']) {
+		pushToken(roleRecord[key]);
+	}
+
+	for (const key of ['roles', 'values', 'adminRoles']) {
+		const value = roleRecord[key];
+		if (Array.isArray(value)) {
+			for (const item of value) pushToken(item);
+		}
+	}
+
+	return Array.from(tokens);
+};
+
 export interface UseAdminAuthReturn {
 	sessionToken: string | null;
 	adminUser: AdminUser | null;
@@ -68,7 +105,7 @@ export const useAdminAuth = (): UseAdminAuthReturn => {
 			username: String(currentUser.email || currentUser.id),
 			displayName,
 			email: currentUser.email || null,
-			roles: ['admin'],
+			roles: extractMaintleyRoleTokens(maintleyRole),
 		});
 		setCheckingSession(false);
 	};

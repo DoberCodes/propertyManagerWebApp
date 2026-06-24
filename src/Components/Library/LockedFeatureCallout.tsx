@@ -1,5 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { isNativeApp } from '../../utils/platform';
+import { openSubscriptionManagementInBrowser } from '../../utils/authLinks';
 
 type LockedFeatureCalloutProps = {
 	title: string;
@@ -17,6 +19,13 @@ export const LockedFeatureCallout: React.FC<LockedFeatureCalloutProps> = ({
 	compact = false,
 }) => {
 	const navigate = useNavigate();
+	const nativeApp = isNativeApp();
+	const resolvedDescription = nativeApp
+		? description
+				.replace(/Upgrade to [^.]+?\./gi, 'Manage this in the web account center.')
+				.replace(/by upgrading to [^.]+?\./gi, 'in the web account center.')
+				.replace(/\s{2,}/g, ' ')
+		: description;
 
 	return (
 		<div
@@ -34,13 +43,19 @@ export const LockedFeatureCallout: React.FC<LockedFeatureCalloutProps> = ({
 			<div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
 				<strong style={{ fontSize: compact ? 13 : 14, color: '#92400e' }}>{title}</strong>
 				<span style={{ fontSize: compact ? 12 : 13, color: '#92400e', lineHeight: 1.45 }}>
-					{description}
+					{resolvedDescription}
 				</span>
 			</div>
 			{showUpgradeAction && (
 				<button
 					type='button'
-					onClick={() => navigate('/paywall')}
+					onClick={() => {
+						if (!nativeApp) {
+							navigate('/paywall');
+							return;
+						}
+						void openSubscriptionManagementInBrowser();
+					}}
 					style={{
 						border: '1px solid #f59e0b',
 						background: '#f59e0b',
@@ -52,7 +67,7 @@ export const LockedFeatureCallout: React.FC<LockedFeatureCalloutProps> = ({
 						cursor: 'pointer',
 						whiteSpace: 'nowrap',
 					}}>
-					{upgradeLabel}
+					{nativeApp ? 'Manage in Browser' : upgradeLabel}
 				</button>
 			)}
 		</div>

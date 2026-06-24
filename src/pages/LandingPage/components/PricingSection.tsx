@@ -60,7 +60,7 @@ const cardFeatureHighlights: Record<string, string[]> = {
 	homeowner_plus: [
 		'1 property included',
 		'Unlimited appliances & systems',
-		'All suggested maintenance packages',
+		'Property Intelligence insights',
 		'Notifications & recurring tasks',
 	],
 	portfolio: [
@@ -69,6 +69,13 @@ const cardFeatureHighlights: Record<string, string[]> = {
 		'Resident maintenance requests',
 		'Role-based access',
 	],
+};
+
+const bestForByPlanId: Record<string, string> = {
+	homeowner: 'Best for: track your home',
+	homeowner_plus: 'Best for: stay ahead of maintenance',
+	property: 'Best for: manage multiple properties',
+	portfolio: 'Best for: run a property operation',
 };
 
 const quickComparisonRows = [
@@ -138,6 +145,7 @@ const PricingSectionComponent = () => {
 							Up to {plan.maxProperties}{' '}
 							{plan.maxProperties === 1 ? 'property' : 'properties'}
 						</PricingMeta>
+						<PricingMeta>{bestForByPlanId[plan.id]}</PricingMeta>
 						<PricingFeatureList>
 							{getCardHighlights(plan.id, plan.features).map((feature) => (
 								<PricingFeatureItem key={feature}>{feature}</PricingFeatureItem>

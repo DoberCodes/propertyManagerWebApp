@@ -1,4 +1,5 @@
 import React from 'react';
+import { isNativeApp } from '../../utils/platform';
 
 /**
  * Access Expiration Warning Banner
@@ -13,6 +14,8 @@ export const TrialWarningBanner: React.FC<TrialWarningBannerProps> = ({
 	daysRemaining,
 	onUpgradeClick,
 }) => {
+	const nativeApp = isNativeApp();
+
 	// Don't show banner for unlimited access (-1) or access periods with more than 3 days remaining
 	if (daysRemaining === -1 || daysRemaining > 3) {
 		return null;
@@ -33,9 +36,13 @@ export const TrialWarningBanner: React.FC<TrialWarningBannerProps> = ({
 				fontWeight: '500',
 			}}>
 			<span>
-				{daysRemaining === 0
-					? 'Your current access period has ended. Upgrade to continue using premium features.'
-					: `Your current access period ends in ${daysRemaining} day${daysRemaining !== 1 ? 's' : ''}. Upgrade to avoid interruption.`}
+				{nativeApp
+					? daysRemaining === 0
+						? 'Your current access period has ended. Manage your subscription in the web account center.'
+						: `Your current access period ends in ${daysRemaining} day${daysRemaining !== 1 ? 's' : ''}. Manage subscription in the web account center if you need to make changes.`
+					: daysRemaining === 0
+						? 'Your current access period has ended. Upgrade to continue using premium features.'
+						: `Your current access period ends in ${daysRemaining} day${daysRemaining !== 1 ? 's' : ''}. Upgrade to avoid interruption.`}
 			</span>
 			{onUpgradeClick && (
 				<button
@@ -50,7 +57,7 @@ export const TrialWarningBanner: React.FC<TrialWarningBannerProps> = ({
 						cursor: 'pointer',
 						marginLeft: '15px',
 					}}>
-					Upgrade Now
+					{nativeApp ? 'Manage in Browser' : 'Upgrade Now'}
 				</button>
 			)}
 		</div>

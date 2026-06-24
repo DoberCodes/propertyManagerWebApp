@@ -75,6 +75,7 @@ import {
 	canUseRecurringTasks,
 	canTrackWarranties,
 } from '../../utils/subscriptionUtils';
+import { isNativeApp } from '../../utils/platform';
 import { getRoleCapabilities } from '../../utils/permissions';
 import { LockedFeatureCallout } from '../../Components/Library/LockedFeatureCallout';
 import { DeviceServiceItem, PropertyDocument } from '../../types/Property.types';
@@ -1791,7 +1792,9 @@ export const DeviceDetailPage: React.FC = () => {
 															? 'Capture coverage terms, expiration details, and warranty documents.'
 															: isTeamMemberAccount
 																? 'Capture warranty dates and notes. Document uploads depend on your role.'
-																: 'Capture expiration dates and notes. Upgrade to attach warranty documents.'}
+																: isNativeApp()
+																	? 'Capture expiration dates and notes. Manage document access in the web account center.'
+																	: 'Capture expiration dates and notes. Upgrade to attach warranty documents.'}
 													</span>
 												</QuickActionButton>
 												<QuickActionButton type='button' onClick={() => openQuickLogModal('contractor')}>
