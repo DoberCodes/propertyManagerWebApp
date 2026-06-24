@@ -22,9 +22,9 @@ export const LockedFeatureCallout: React.FC<LockedFeatureCalloutProps> = ({
 	const nativeApp = isNativeApp();
 	const resolvedDescription = nativeApp
 		? description
-				.replace(/Upgrade to [^.]+?\./gi, 'Manage this in the web account center.')
-				.replace(/by upgrading to [^.]+?\./gi, 'in the web account center.')
-				.replace(/\s{2,}/g, ' ')
+			.replace(/Upgrade to [^.]+?\./gi, 'Manage this in the web account center.')
+			.replace(/by upgrading to [^.]+?\./gi, 'in the web account center.')
+			.replace(/\s{2,}/g, ' ')
 		: description;
 
 	return (

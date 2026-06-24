@@ -354,8 +354,8 @@ export const SideNav = () => {
 							onClick={() => navigate('/support')}
 							onMouseEnter={(e) => (e.currentTarget.style.color = '#16a34a')}
 							onMouseLeave={(e) =>
-								(e.currentTarget.style.color =
-									activeRoute.startsWith('/support') ? '#16a34a' : '#666666')
+							(e.currentTarget.style.color =
+								activeRoute.startsWith('/support') ? '#16a34a' : '#666666')
 							}>
 							<FontAwesomeIcon icon={faHeadset} size='sm' />
 							<span>Support Center</span>

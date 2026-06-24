@@ -1319,9 +1319,9 @@ export const ReportBuilder: React.FC = () => {
 											{!isAccessible
 												? isTeamMemberAccount
 													? ' - Role restricted'
-																				: nativeApp
-																					? ' - Web management'
-																					: ' - Upgrade required'
+													: nativeApp
+														? ' - Web management'
+														: ' - Upgrade required'
 												: ''}
 										</option>
 									);

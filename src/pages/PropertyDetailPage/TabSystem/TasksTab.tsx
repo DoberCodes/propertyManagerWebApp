@@ -833,25 +833,25 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 			</TabSummaryBar>
 			{canCreateTasks && (
 				<DesktopCreateAction>
-				<Toolbar style={{ marginBottom: 12 }}>
-					<ToolbarButton
-						onClick={handleCreateTask}
-						style={{ width: isMobile ? '100%' : undefined }}
-						disabled={
-							currentUser?.subscription &&
-							isTrialExpired(currentUser.subscription)
-						}
-						title={
-							currentUser?.subscription &&
+					<Toolbar style={{ marginBottom: 12 }}>
+						<ToolbarButton
+							onClick={handleCreateTask}
+							style={{ width: isMobile ? '100%' : undefined }}
+							disabled={
+								currentUser?.subscription &&
 								isTrialExpired(currentUser.subscription)
-								? nativeApp
-									? 'Manage subscription in the web account center to add new tasks'
-									: 'Upgrade your subscription to add new tasks'
-								: undefined
-						}>
-						+ Create Task
-					</ToolbarButton>
-				</Toolbar>
+							}
+							title={
+								currentUser?.subscription &&
+									isTrialExpired(currentUser.subscription)
+									? nativeApp
+										? 'Manage subscription in the web account center to add new tasks'
+										: 'Upgrade your subscription to add new tasks'
+									: undefined
+							}>
+							+ Create Task
+						</ToolbarButton>
+					</Toolbar>
 				</DesktopCreateAction>
 			)}
 			<CompactFilterResultCount>
@@ -1110,12 +1110,12 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 					actions={
 						processedTasks.length === 0 && canCreateTasks
 							? [
-									{
-										label: 'Add Task',
-										onClick: handleCreateTask,
-										hideOnCompact: true,
-									},
-							  ]
+								{
+									label: 'Add Task',
+									onClick: handleCreateTask,
+									hideOnCompact: true,
+								},
+							]
 							: processedTasks.length > 0
 								? [
 									{

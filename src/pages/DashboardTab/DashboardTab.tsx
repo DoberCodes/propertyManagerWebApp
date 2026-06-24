@@ -196,8 +196,8 @@ export const DashboardTab = () => {
 		() =>
 			selectedPropertyId
 				? availableProperties.filter(
-						(property) => String(property.id) === selectedPropertyId,
-				  )
+					(property) => String(property.id) === selectedPropertyId,
+				)
 				: availableProperties,
 		[availableProperties, selectedPropertyId],
 	);
@@ -341,10 +341,10 @@ export const DashboardTab = () => {
 	} | null>(null);
 	const [seasonalTaskDraft, setSeasonalTaskDraft] = useState<
 		| (Partial<TaskFormData> & {
-				propertyId?: string;
-				unitId?: string;
-				linkedMaintenanceHistoryIds?: string[];
-		  })
+			propertyId?: string;
+			unitId?: string;
+			linkedMaintenanceHistoryIds?: string[];
+		})
 		| null
 	>(null);
 
@@ -358,9 +358,8 @@ export const DashboardTab = () => {
 			.filter((member): member is typeof member => member !== undefined)
 			.forEach((member) => {
 				assignees.push({
-					label: `${member.firstName || ''} ${member.lastName || ''} (${
-						member.title || ''
-					})`.trim(),
+					label: `${member.firstName || ''} ${member.lastName || ''} (${member.title || ''
+						})`.trim(),
 					value: member.id,
 					email: member.email,
 				});
@@ -592,15 +591,15 @@ export const DashboardTab = () => {
 		const sourceRecords = scopedMaintenanceHistory;
 
 		return sourceRecords.filter((record: any) => {
-				const completionDate = new Date(
-					getMaintenanceEventDate(record) || '',
-				);
-				return (
-					!Number.isNaN(completionDate.getTime()) &&
-					completionDate.getMonth() === currentMonth &&
-					completionDate.getFullYear() === currentYear
-				);
-			}).length;
+			const completionDate = new Date(
+				getMaintenanceEventDate(record) || '',
+			);
+			return (
+				!Number.isNaN(completionDate.getTime()) &&
+				completionDate.getMonth() === currentMonth &&
+				completionDate.getFullYear() === currentYear
+			);
+		}).length;
 	}, [scopedMaintenanceHistory]);
 
 	const taskStatusCounts = useMemo(() => {
@@ -829,9 +828,8 @@ export const DashboardTab = () => {
 
 	const todayFocusLead = useMemo(() => {
 		if (taskStatusCounts.overdue > 0 && nextUrgentTask) {
-			return `${taskStatusCounts.overdue} ${
-				taskStatusCounts.overdue === 1 ? 'task is' : 'tasks are'
-			} overdue. Start with ${nextUrgentTask.title}.`;
+			return `${taskStatusCounts.overdue} ${taskStatusCounts.overdue === 1 ? 'task is' : 'tasks are'
+				} overdue. Start with ${nextUrgentTask.title}.`;
 		}
 
 		if (nextUrgentTask) {
@@ -845,9 +843,8 @@ export const DashboardTab = () => {
 		if (nextUrgentTask) {
 			const remainingUpcoming = Math.max(taskStatusCounts.upcoming - 1, 0);
 			if (remainingUpcoming > 0) {
-				return `${remainingUpcoming} more ${
-					remainingUpcoming === 1 ? 'task is' : 'tasks are'
-				} due soon after that.`;
+				return `${remainingUpcoming} more ${remainingUpcoming === 1 ? 'task is' : 'tasks are'
+					} due soon after that.`;
 			}
 			return 'Clear this first to reduce the rest of today\'s pressure.';
 		}
@@ -867,14 +864,12 @@ export const DashboardTab = () => {
 
 	const homeHealthInterpretation = useMemo(() => {
 		if (taskStatusCounts.overdue > 0) {
-			return `${taskStatusCounts.overdue} overdue ${
-				taskStatusCounts.overdue === 1 ? 'service window is' : 'service windows are'
-			} pulling this down.`;
+			return `${taskStatusCounts.overdue} overdue ${taskStatusCounts.overdue === 1 ? 'service window is' : 'service windows are'
+				} pulling this down.`;
 		}
 		if (taskStatusCounts.upcoming > 0) {
-			return `${taskStatusCounts.upcoming} upcoming ${
-				taskStatusCounts.upcoming === 1 ? 'service window is' : 'service windows are'
-			} creating near-term pressure.`;
+			return `${taskStatusCounts.upcoming} upcoming ${taskStatusCounts.upcoming === 1 ? 'service window is' : 'service windows are'
+				} creating near-term pressure.`;
 		}
 		return 'No urgent drag right now. System care is in a healthy range.';
 	}, [taskStatusCounts.overdue, taskStatusCounts.upcoming]);
@@ -1008,8 +1003,8 @@ export const DashboardTab = () => {
 			card.priorityLevel === 'high'
 				? 7
 				: card.priorityLevel === 'medium'
-				? 14
-				: 30;
+					? 14
+					: 30;
 		const dueDate = new Date();
 		dueDate.setDate(dueDate.getDate() + daysUntilDue);
 		return dueDate.toISOString().split('T')[0];
@@ -1365,9 +1360,9 @@ export const DashboardTab = () => {
 			<UrgentQueueSection id='urgent-task-queue'>
 				<UrgentQueueHeader>
 					<div>
-							<CardTitle>Needing Attention</CardTitle>
+						<CardTitle>Needing Attention</CardTitle>
 						<UrgentQueueSubtitle>
-								The highest-risk maintenance work is surfaced first so you can reduce overdue pressure fast.
+							The highest-risk maintenance work is surfaced first so you can reduce overdue pressure fast.
 						</UrgentQueueSubtitle>
 					</div>
 					<QueueHeaderActions>
@@ -1413,11 +1408,11 @@ export const DashboardTab = () => {
 										onClick={() => handleOpenTask(task.id)}>
 										<UrgentTaskMain>
 											<TitleRow>
-								<UrgentTaskTitle>{task.title}</UrgentTaskTitle>
-								<TaskStatusBadge $status={getTaskDisplayStatus(task).label}>
-									{getTaskDisplayStatus(task).label}
-								</TaskStatusBadge>
-							</TitleRow>
+												<UrgentTaskTitle>{task.title}</UrgentTaskTitle>
+												<TaskStatusBadge $status={getTaskDisplayStatus(task).label}>
+													{getTaskDisplayStatus(task).label}
+												</TaskStatusBadge>
+											</TitleRow>
 											<UrgentTaskContext>
 												<UrgentTaskProperty>
 													{getUrgentTaskPropertyName(task)}
@@ -1464,11 +1459,11 @@ export const DashboardTab = () => {
 										onClick={() => handleOpenTask(task.id)}>
 										<UrgentTaskMain>
 											<TitleRow>
-								<UrgentTaskTitle>{task.title}</UrgentTaskTitle>
-								<TaskStatusBadge $status={getTaskDisplayStatus(task).label}>
-									{getTaskDisplayStatus(task).label}
-								</TaskStatusBadge>
-							</TitleRow>
+												<UrgentTaskTitle>{task.title}</UrgentTaskTitle>
+												<TaskStatusBadge $status={getTaskDisplayStatus(task).label}>
+													{getTaskDisplayStatus(task).label}
+												</TaskStatusBadge>
+											</TitleRow>
 											<UrgentTaskContext>
 												<UrgentTaskProperty>
 													{getUrgentTaskPropertyName(task)}

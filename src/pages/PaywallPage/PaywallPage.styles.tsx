@@ -61,7 +61,7 @@ export const PaywallSubtitle = styled.p<{ variant?: 'full' | 'embedded' }>`
 	@media (max-width: 1024px) {
 		font-size: ${(props) => (props.variant === 'embedded' ? '14px' : '16px')};
 		margin-bottom: ${(props) =>
-			props.variant === 'embedded' ? '20px' : '40px'};
+		props.variant === 'embedded' ? '20px' : '40px'};
 	}
 `;
 
@@ -290,7 +290,7 @@ export const PricingCard = styled.div<{
 
 	@media (max-width: 1024px) {
 		padding: ${(props) =>
-			props.layout === 'horizontal' ? '16px 12px' : '22px 18px'};
+		props.layout === 'horizontal' ? '16px 12px' : '22px 18px'};
 		margin-top: 0;
 	}
 `;
@@ -334,9 +334,9 @@ export const PlanPrice = styled.div<{ color?: 'white' | 'black' }>`
 	.period {
 		font-size: 16px;
 		color: ${(props) =>
-			props.color === 'white'
-				? 'rgba(255, 255, 255, 0.8)'
-				: COLORS.textSecondary};
+		props.color === 'white'
+			? 'rgba(255, 255, 255, 0.8)'
+			: COLORS.textSecondary};
 		margin-top: 5px;
 	}
 `;
