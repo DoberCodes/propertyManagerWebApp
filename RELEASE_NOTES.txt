@@ -1,6 +1,5 @@
-🎉 **Release Notes for Version 2.6.4** 🎉
+🎉 **Release Notes for Version 2.6.5** 🎉
 
 
 ## 🐛 Bug Fixes
-- fixing plan gating and mobile views. Also modifying wording to avoid excessive push for sales.
-- updating page layouts
+- fixing localhost nav
