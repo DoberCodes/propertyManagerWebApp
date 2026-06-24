@@ -1,5 +1,5 @@
-🎉 **Release Notes for Version 2.6.5** 🎉
+🎉 **Release Notes for Version 2.6.6** 🎉
 
 
 ## 🐛 Bug Fixes
-- fixing localhost nav
+- fixing links to remove firebase hosting
