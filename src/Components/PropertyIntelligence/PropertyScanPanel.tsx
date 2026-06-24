@@ -60,8 +60,8 @@ const getQuickScanSummary = (recommendations: PropertyScanRecommendation[]) => (
 const getSystemDisplayName = (system?: Device): string =>
 	system
 		? [system.brand, system.type, system.model].filter(Boolean).join(' ').trim() ||
-			system.type ||
-			'System record'
+		system.type ||
+		'System record'
 		: 'System record';
 
 const getRecommendationDialogTitle = (
@@ -316,20 +316,19 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 
 	const detailRelatedSystems = detailRecommendation
 		? (detailRecommendation.relatedSystemIds || [])
-				.map((systemId) => systems.find((item) => item.id === systemId))
-				.filter((item): item is Device => Boolean(item))
+			.map((systemId) => systems.find((item) => item.id === systemId))
+			.filter((item): item is Device => Boolean(item))
 		: [];
 	const detailRelatedTasks = detailRecommendation
 		? (detailRecommendation.relatedTaskIds || [])
-				.map((taskId) => tasks.find((task) => task.id === taskId))
-				.filter((item): item is Task => Boolean(item))
+			.map((taskId) => tasks.find((task) => task.id === taskId))
+			.filter((item): item is Task => Boolean(item))
 		: [];
 	const detailAffectedCount = detailRelatedSystems.length || detailRelatedTasks.length;
 	const detailAffectedLabel = detailRelatedTasks.length
 		? `${detailRelatedTasks.length} ${detailRelatedTasks.length === 1 ? 'task' : 'tasks'} affected`
-		: `${detailRelatedSystems.length} ${
-				detailRelatedSystems.length === 1 ? 'system' : 'systems'
-			} affected`;
+		: `${detailRelatedSystems.length} ${detailRelatedSystems.length === 1 ? 'system' : 'systems'
+		} affected`;
 
 	return (
 		<ScanPanel aria-label='Property Quick Scan'>
