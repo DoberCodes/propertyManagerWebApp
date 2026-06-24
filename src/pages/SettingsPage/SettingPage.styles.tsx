@@ -172,18 +172,19 @@ export const LinkButton = styled.button`
     display: inline-block;
     margin: 16px 0;
     padding: 12px 24px;
-    background: #6366f1;
-    color: #fff;
+    background: #ffffff;
+    color: #065f46;
+    border: 1px solid #34d399;
     border-radius: 8px;
     text-decoration: none;
     font-weight: 600;
-    transition: background 0.2s;
-    border: none;
+    transition: all 0.2s;
     cursor: pointer;
     white-space: normal;
     text-align: center;
     &:hover {
-        background: #4f46e5;
+        background: #ecfdf5;
+        border-color: #10b981;
     }
 
     @media (max-width: 640px) {
@@ -194,9 +195,11 @@ export const LinkButton = styled.button`
 `;
 
 export const UpgradeButton = styled(LinkButton)`
-    background: #059669;
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: #ffffff;
+    border: none;
     &:hover {
-        background: #047857;
+        background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
     }
 `;
 
@@ -291,20 +294,21 @@ export const ResourceButtons = styled.div`
 export const AccountButton = styled.button<{ disabled?: boolean }>`
     padding: 12px 24px;
     width: fit-content;
-    background: #6366f1;
-    color: #fff;
+    background: #ffffff;
+    color: #065f46;
+    border: 1px solid #34d399;
     border-radius: 8px;
     text-decoration: none;
     font-weight: 600;
-    transition: background 0.2s;
-    border: none;
+    transition: all 0.2s;
     cursor: pointer;
     white-space: normal;
     text-align: center;
     min-width: 0;
 
     &:hover {
-        background: #4f46e5;
+        background: #ecfdf5;
+        border-color: #10b981;
     }
 
     &:disabled {
@@ -462,17 +466,21 @@ export const CategorySidebar = styled.aside`
 export const CategoryNavButton = styled.button<{ active?: boolean }>`
     width: 100%;
     text-align: left;
-    border: 0;
+    border: 1px solid ${({ active }) => (active ? '#059669' : 'transparent')};
     border-radius: 8px;
     padding: 10px 12px;
     margin-bottom: 4px;
-    background: ${({ active }) => (active ? '#4f46e5' : 'transparent')};
+    background: ${({ active }) =>
+        active ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : 'transparent'};
     color: ${({ active }) => (active ? '#ffffff' : '#374151')};
     font-weight: 600;
     cursor: pointer;
+    transition: all 0.2s;
 
     &:hover {
-        background: ${({ active }) => (active ? '#4338ca' : '#e5e7eb')};
+        background: ${({ active }) =>
+        active ? 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)' : '#ecfdf5'};
+        border-color: #34d399;
     }
 
     &:last-child {
@@ -574,11 +582,13 @@ export const SupportTicketFilterButton = styled.button<{ active?: boolean }>`
     font-size: 0.82rem;
     font-weight: 700;
     cursor: pointer;
-    background: ${({ active }) => (active ? '#4f46e5' : 'transparent')};
+    background: ${({ active }) =>
+        active ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : 'transparent'};
     color: ${({ active }) => (active ? '#ffffff' : '#4b5563')};
 
     &:hover {
-        background: ${({ active }) => (active ? '#4338ca' : '#e5e7eb')};
+        background: ${({ active }) =>
+        active ? 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)' : '#ecfdf5'};
     }
 `;
 
@@ -730,17 +740,18 @@ export const PresetActions = styled.div`
 
 export const PresetButton = styled.button`
     background: #ffffff;
-    color: #0f172a;
-    border: 1px solid #cbd5e1;
+    color: #065f46;
+    border: 1px solid #34d399;
     padding: 8px 12px;
     border-radius: 6px;
     font-size: 13px;
     font-weight: 600;
     cursor: pointer;
+    transition: all 0.2s;
 
     &:hover {
-        background: #f8fafc;
-        border-color: #94a3b8;
+        background: #ecfdf5;
+        border-color: #10b981;
     }
 `;
 

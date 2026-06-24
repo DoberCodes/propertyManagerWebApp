@@ -48,7 +48,7 @@ Product Layer
     ↓
 User Workflows
 
-Property Intelligence Layer
+Maintley Intelligence Layer
     ↓
 Recommendations & Guidance
 
@@ -84,7 +84,7 @@ Maintenance Events
     ↓
 Historical Layer
 
-Property Intelligence
+Maintley Intelligence
     ↓
 Recommendation Layer
 ```
@@ -93,7 +93,7 @@ Properties provide context.
 
 Maintenance Events preserve history.
 
-Property Intelligence provides guidance.
+Maintley Intelligence provides guidance.
 
 Most platform functionality ultimately builds upon these concepts.
 
@@ -296,11 +296,11 @@ Privileged workflows typically use Cloud Functions.
 
 ---
 
-# Property Intelligence Architecture
+# Maintley Intelligence Architecture
 
-Property Intelligence is a derived system.
+Maintley Intelligence is a derived system.
 
-Property Intelligence consumes:
+Maintley Intelligence consumes:
 
 * Properties
 * Appliances & Systems
@@ -308,14 +308,14 @@ Property Intelligence consumes:
 * Maintenance Events
 * Documentation
 
-Property Intelligence generates:
+Maintley Intelligence generates:
 
 * Recommendations
 * Property Insights
 * Quick Scan results
 * Dashboard guidance
 
-Property Intelligence does not own source data.
+Maintley Intelligence does not own source data.
 
 Source data remains in the underlying collections.
 
@@ -725,7 +725,7 @@ Current technical priorities include:
 
 * Continued account-model consolidation
 * Legacy ownership cleanup
-* Property Intelligence expansion
+* Maintley Intelligence expansion
 * Mobile UX improvements
 * Documentation alignment
 * Incremental technical debt reduction
@@ -752,6 +752,6 @@ Properties provide organization.
 
 Maintenance Events provide history.
 
-Property Intelligence provides guidance.
+Maintley Intelligence provides guidance.
 
 The architecture should continue reinforcing those responsibilities as the platform evolves.

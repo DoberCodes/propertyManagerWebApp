@@ -19,7 +19,7 @@ This document answers:
 This document does not define:
 
 * Recommendation logic
-* Property Intelligence behavior
+* Maintley Intelligence behavior
 * Billing implementation
 * Reporting implementation
 * Email delivery behavior
@@ -64,7 +64,7 @@ Best for:
 
 * Active homeowners
 * Recurring maintenance
-* Property Intelligence
+* Maintley Intelligence
 * Maintenance automation
 
 ---
@@ -160,7 +160,7 @@ Best for:
 
 ---
 
-# Property Intelligence
+# Maintley Intelligence
 
 | Feature                   | Free      | Homeowner+ | Property | Portfolio |
 | ------------------------- | --------- | ---------- | -------- | --------- |
@@ -171,7 +171,7 @@ Best for:
 
 ### Notes
 
-Property Intelligence helps users improve the completeness and usefulness of their records.
+Maintley Intelligence helps users improve the completeness and usefulness of their records.
 
 Capabilities may include:
 
@@ -350,7 +350,7 @@ Maintley does not currently provide:
 
 * Exporting user data is not considered a premium feature.
 * Users should always retain ownership of their information.
-* Property Intelligence observations are separate from data exports.
+* Maintley Intelligence observations are separate from data exports.
 
 ---
 
@@ -365,7 +365,7 @@ Unlock:
 * Recurring Tasks
 * Task Reminder Emails
 * Push Notifications
-* Property Intelligence
+* Maintley Intelligence
 * Expanded Storage
 
 ---

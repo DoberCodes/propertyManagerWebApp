@@ -89,9 +89,9 @@ The assistant is intended to reduce onboarding effort while keeping setup option
 
 ---
 
-# Property Intelligence
+# Maintley Intelligence
 
-Property Intelligence helps users improve the completeness and usefulness of their property records.
+Maintley Intelligence helps users improve the completeness and usefulness of their property records.
 
 Current capabilities:
 
@@ -103,7 +103,7 @@ Current capabilities:
 * Missing-information recommendations.
 * Record completeness guidance.
 
-Property Intelligence focuses on improving records rather than evaluating actual property condition.
+Maintley Intelligence focuses on improving records rather than evaluating actual property condition.
 
 See PROPERTY_INTELLIGENCE.md for detailed behavior.
 
@@ -342,7 +342,7 @@ Current article topics include:
 * Configuring maintenance reminders.
 * Organizing properties with groups.
 * Getting started without documenting everything.
-* Using Property Intelligence recommendations.
+* Using Maintley Intelligence recommendations.
 * Working with family and team members.
 * Preparing property records for a contractor.
 * Choosing between a task and a maintenance record.

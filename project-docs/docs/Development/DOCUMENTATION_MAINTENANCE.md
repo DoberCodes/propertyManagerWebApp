@@ -73,7 +73,7 @@ Examples:
 * Removing Units from the core experience
 * Property-first navigation
 * Property Setup Assistant introduction
-* Property Intelligence direction
+* Maintley Intelligence direction
 
 Decision records should remain historical.
 
@@ -142,7 +142,7 @@ Documentation should explain:
 
 Good examples:
 
-* Property Intelligence
+* Maintley Intelligence
 * Billing
 * Permissions
 * Data Model
@@ -170,7 +170,7 @@ Examples:
 * Deployment
 * Permissions
 * Billing
-* Property Intelligence
+* Maintley Intelligence
 
 Avoid creating long-lived documentation for:
 
@@ -205,7 +205,7 @@ PROPERTY_INTELLIGENCE.md
 
 Question:
 
-"Why does Property Intelligence exist?"
+"Why does Maintley Intelligence exist?"
 
 RECOMMENDATION_ENGINE.md
 
@@ -316,7 +316,7 @@ Examples:
 
 Describes:
 
-* Property Intelligence
+* Maintley Intelligence
 * Recommendations
 * Appliance Profiles
 * Guidance systems
@@ -448,7 +448,7 @@ Every concept should have a primary owner.
 
 Examples:
 
-Property Intelligence
+Maintley Intelligence
 
 Source:
 

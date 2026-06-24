@@ -84,6 +84,11 @@ import { TabSystem } from './TabSystem';
 import { TaskFinancials } from '../../types/Task.types';
 import { PropertyDialog } from '../../Components/PropertiesTab/PropertyDialog';
 import { PropertySetupAssistant } from '../../Components/PropertySetupAssistant/PropertySetupAssistant';
+import {
+	PropertyScanActionType,
+	PropertyScanRecommendation,
+} from '../../utils/propertyIntelligenceScan';
+import { buildDeviceSlug } from '../../utils/deviceSlug';
 
 export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 	props,
@@ -178,6 +183,7 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 	const [openCreateDeviceToken, setOpenCreateDeviceToken] = useState(0);
 	const [openDocumentsUploadToken, setOpenDocumentsUploadToken] = useState(0);
 	const [openCreateContractorToken, setOpenCreateContractorToken] = useState(0);
+	const [showPropertyScanPrompt, setShowPropertyScanPrompt] = useState(false);
 	const capturedPropertyActionRef = useRef('');
 	const pendingPropertyActionRef = useRef('');
 	const [deleteTaskModalOpen, setDeleteTaskModalOpen] = useState(false);
@@ -285,6 +291,10 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 	const handleSetupUploadDocuments = () => {
 		selectPropertyTab('documents');
 		setOpenDocumentsUploadToken((currentToken) => currentToken + 1);
+	};
+
+	const handleSetupAssistantExited = () => {
+		setShowPropertyScanPrompt(true);
 	};
 
 	useEffect(() => {
@@ -698,6 +708,14 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 		return allPropertyTasks.filter((task) => task.status !== 'Completed');
 	}, [property, allTasks]);
 
+	const propertyAllTasks = useMemo(() => {
+		if (!property) return [];
+		return allTasks.filter(
+			(task) =>
+				task.propertyId === property.id || task.property === property.title,
+		);
+	}, [property, allTasks]);
+
 	const { data: maintenanceHistoryRecords = [] } =
 		useGetMaintenanceHistoryByPropertyQuery(property?.id || '', {
 			skip: !property?.id,
@@ -706,6 +724,65 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 	const { data: propertyDevices = [] } = useGetDevicesQuery(property?.id || '', {
 		skip: !property?.id,
 	});
+	const canRunPropertyScan =
+		canManageProperties &&
+		roleCapabilities.canManageAppliances &&
+		roleCapabilities.canCreateTasks &&
+		!isUserTenant;
+
+	const handlePropertyScanAction = (
+		actionType: PropertyScanActionType,
+		recommendation: PropertyScanRecommendation,
+	) => {
+		switch (actionType) {
+			case 'edit_property':
+				handleOpenPropertyDialog();
+				break;
+			case 'add_system':
+				handleSetupAddMoreAppliances();
+				break;
+			case 'open_systems':
+				selectPropertyTab('devices');
+				break;
+			case 'edit_system': {
+				const system = propertyDevices.find(
+					(device) => device.id === recommendation.systemId,
+				);
+				if (property?.slug && system) {
+					const deviceSlug = buildDeviceSlug({
+						id: system.id,
+						type: system.type,
+						brand: system.brand,
+						model: system.model,
+					});
+					navigate(`/property/${property.slug}/device/${deviceSlug}`);
+					break;
+				}
+				selectPropertyTab('devices');
+				break;
+			}
+			case 'upload_document':
+				handleSetupUploadDocuments();
+				break;
+			case 'create_task':
+				handleOpenCreateTaskDialog();
+				break;
+			case 'open_tasks':
+				selectPropertyTab('tasks');
+				break;
+			case 'open_maintenance':
+				selectPropertyTab('maintenance');
+				break;
+			case 'review_setup': {
+				const nextParams = new URLSearchParams(searchParams);
+				nextParams.set('setup', '1');
+				setSearchParams(nextParams);
+				break;
+			}
+			default:
+				break;
+		}
+	};
 
 	useEffect(() => {
 		const loadFamilyMembers = async () => {
@@ -1069,14 +1146,11 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 					currentUser={currentUser}
 					devices={propertyDevices}
 					tasks={propertyTasks}
-					canUseAssistant={
-						canManageProperties &&
-						roleCapabilities.canManageAppliances &&
-						roleCapabilities.canCreateTasks &&
-						!isUserTenant
-					}
+					canUseAssistant={canRunPropertyScan}
 					initiallyOpen={shouldOpenPropertySetup}
 					onInitialOpenHandled={handlePropertySetupOpened}
+					onAssistantClosed={handleSetupAssistantExited}
+					onAssistantCompleted={handleSetupAssistantExited}
 					onAddMoreAppliances={handleSetupAddMoreAppliances}
 					onUploadDocuments={handleSetupUploadDocuments}
 				/>
@@ -1094,7 +1168,9 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 					familyMembers={familyMembers}
 					teamMembers={teamMembers}
 					assigneeOptions={assigneeOptions}
-					allTasks={[]}
+					allTasks={propertyAllTasks}
+					canRunPropertyScan={canRunPropertyScan}
+					showPropertyScanPrompt={showPropertyScanPrompt}
 					handleAddMaintenanceHistory={handleAddMaintenanceHistory}
 					handleUpdateMaintenanceHistory={handleUpdateMaintenanceHistory}
 					handleDeleteMaintenanceHistory={handleDeleteMaintenanceHistory}
@@ -1115,6 +1191,7 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 							: undefined
 					}
 					handleConvertRequestToTask={handleGuardedConvertRequestToTask}
+					handlePropertyScanAction={handlePropertyScanAction}
 					openCreateTaskToken={openCreateTaskToken}
 					openCreateDeviceToken={openCreateDeviceToken}
 					openDocumentsUploadToken={openDocumentsUploadToken}

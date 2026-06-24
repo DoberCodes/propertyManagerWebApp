@@ -197,7 +197,7 @@ Examples:
 * Task workflows
 * Appliance workflows
 * Property workflows
-* Property Intelligence updates
+* Maintley Intelligence updates
 
 Recommended validation:
 
@@ -244,7 +244,7 @@ Critical systems include:
 * Billing
 * Permissions
 * Account Memberships
-* Property Intelligence
+* Maintley Intelligence
 * Maintenance Events
 * Notifications
 
@@ -304,9 +304,9 @@ Permission changes should be treated as high-risk.
 
 ---
 
-# Property Intelligence Validation
+# Maintley Intelligence Validation
 
-Changes affecting Property Intelligence should verify:
+Changes affecting Maintley Intelligence should verify:
 
 * Recommendation generation
 * Recommendation prioritization

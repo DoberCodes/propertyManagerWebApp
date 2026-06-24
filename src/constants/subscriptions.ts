@@ -59,7 +59,7 @@ export const SUBSCRIPTION_PLANS = {
 		features: [
 			'Everything in Homeowner, plus:',
 			'Unlimited Appliances & Systems',
-			'Property Intelligence Insights',
+			'Maintley Intelligence Insights',
 			'Recurring Maintenance Tasks',
 			'Notifications & Reminders',
 			'Advanced Document Storage',

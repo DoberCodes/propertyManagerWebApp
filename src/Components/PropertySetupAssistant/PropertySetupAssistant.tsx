@@ -43,6 +43,8 @@ interface PropertySetupAssistantProps {
 	canUseAssistant: boolean;
 	initiallyOpen?: boolean;
 	onInitialOpenHandled?: () => void;
+	onAssistantClosed?: () => void;
+	onAssistantCompleted?: () => void;
 	onAddMoreAppliances?: () => void;
 	onUploadDocuments?: () => void;
 }
@@ -106,6 +108,8 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 	canUseAssistant,
 	initiallyOpen = false,
 	onInitialOpenHandled,
+	onAssistantClosed,
+	onAssistantCompleted,
 	onAddMoreAppliances,
 	onUploadDocuments,
 }) => {
@@ -584,12 +588,14 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 		setIsOpen(false);
 		setHasUserDraftChanges(false);
 		setDraftItems(setupAssistant.items || {});
+		onAssistantClosed?.();
 	};
 
 	const handleSaveCompleteOk = () => {
 		setIsSaveComplete(false);
 		setCompletionSummary(null);
 		setIsOpen(false);
+		onAssistantCompleted?.();
 	};
 
 	const handleAddMoreAppliances = () => {

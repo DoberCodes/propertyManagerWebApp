@@ -120,13 +120,13 @@ Documents:
 
 Contains:
 
-* Property Intelligence architecture
+* Maintley Intelligence architecture
 * Recommendation generation
 * Appliance profile guidance
 * Setup guidance
 * Insight generation
 
-Property Intelligence should remain a derived system.
+Maintley Intelligence should remain a derived system.
 
 It should never become a competing source of truth.
 
@@ -318,7 +318,7 @@ Properties
     ↓
 Maintenance Events
     ↓
-Property Intelligence
+Maintley Intelligence
     ↓
 User Action
 ```
@@ -327,7 +327,7 @@ Core principles:
 
 * Property-centric organization
 * Maintenance Event-centric history
-* Property Intelligence-driven guidance
+* Maintley Intelligence-driven guidance
 * Mobile-first experience
 * Account-centric ownership
 * Clear ownership boundaries
@@ -336,7 +336,7 @@ Properties provide context.
 
 Maintenance Events preserve history.
 
-Property Intelligence provides guidance.
+Maintley Intelligence provides guidance.
 
 These responsibilities should remain distinct as Maintley evolves.
 

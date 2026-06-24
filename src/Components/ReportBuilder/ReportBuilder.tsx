@@ -1503,7 +1503,7 @@ export const ReportBuilder: React.FC = () => {
 								? isTeamMemberAccount
 									? 'Export Restricted'
 									: nativeApp
-										? 'Manage in Browser'
+										? 'Manage Subscription'
 										: 'Upgrade to Export'
 								: 'Download CSV'}
 						</Button>

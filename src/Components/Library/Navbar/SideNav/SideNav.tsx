@@ -324,7 +324,7 @@ export const SideNav = () => {
 												}
 												void openSubscriptionManagementInBrowser();
 											}}>
-											{nativeApp ? 'Manage in Browser' : 'Manage Plan'}
+											{nativeApp ? 'Manage Subscription' : 'Manage Plan'}
 										</ManagePlanButton>
 									</PortfolioCard>
 								</SectionContent>

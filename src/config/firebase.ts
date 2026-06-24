@@ -27,9 +27,15 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
+const isNativePlatform = Capacitor.isNativePlatform();
+const shouldForceLongPolling =
+	process.env.REACT_APP_FIRESTORE_FORCE_LONG_POLLING === 'true' ||
+	isNativePlatform;
+
 // Initialize Firebase services
 export const db = initializeFirestore(app, {
-	experimentalAutoDetectLongPolling: true,
+	experimentalAutoDetectLongPolling: !shouldForceLongPolling,
+	experimentalForceLongPolling: shouldForceLongPolling,
 });
 export const auth = getAuth(app);
 export const storage = getStorage(app);
@@ -39,7 +45,7 @@ export const functions = getFunctions(app);
 // Prefer IndexedDB on native, but fall back to localStorage if unavailable
 const setAuthPersistence = async () => {
 	try {
-		if (Capacitor.isNativePlatform()) {
+		if (isNativePlatform) {
 			await setPersistence(auth, indexedDBLocalPersistence);
 			return;
 		}

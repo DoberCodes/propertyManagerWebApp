@@ -18,7 +18,7 @@ This document covers:
 * Metadata structures
 * Storage limits
 * Quota enforcement
-* Property Intelligence interactions
+* Maintley Intelligence interactions
 
 For related documentation:
 
@@ -385,9 +385,9 @@ Task attachments should preserve historical records of completed work.
 
 ---
 
-# Property Intelligence Integration
+# Maintley Intelligence Integration
 
-Property Intelligence may use file metadata when generating recommendations.
+Maintley Intelligence may use file metadata when generating recommendations.
 
 Examples:
 
@@ -396,13 +396,13 @@ Examples:
 * Missing service records
 * Missing property documentation
 
-Property Intelligence should evaluate:
+Maintley Intelligence should evaluate:
 
 * File presence
 * Metadata availability
 * Relationships to Maintley records
 
-Property Intelligence should not assume file contents are available for analysis unless future extraction systems explicitly support content inspection.
+Maintley Intelligence should not assume file contents are available for analysis unless future extraction systems explicitly support content inspection.
 
 ---
 

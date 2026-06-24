@@ -7,12 +7,17 @@ import { DocumentsTab } from './DocumentsTab';
 import { ContractorsTab } from './ContractorsTab';
 import { RequestsTab } from './RequestsTab';
 import { TenantsTab } from './TenantsTab';
+import { InsightsTab } from './InsightsTab';
 import { TabContentContainer, TabControlsContainer } from './index.styles';
 import { TabController } from 'Components/Library';
 import { Task } from 'types/Task.types';
 import { RootState } from 'Redux/store/store';
 import { useSelector } from 'react-redux';
 import { RoleCapabilities } from 'utils/permissions';
+import {
+	PropertyScanActionType,
+	PropertyScanRecommendation,
+} from 'utils/propertyIntelligenceScan';
 
 interface TabsProps {
 	property: any;
@@ -36,6 +41,8 @@ interface TabsProps {
 	openCreateDeviceToken?: number;
 	openDocumentsUploadToken?: number;
 	openCreateContractorToken?: number;
+	canRunPropertyScan?: boolean;
+	showPropertyScanPrompt?: boolean;
 	handleAddMaintenanceHistory: (history: any) => void;
 	handleDeleteMaintenanceHistory: (historyId: string) => void;
 	setShowAddTenantModal: (show: boolean) => void;
@@ -48,6 +55,10 @@ interface TabsProps {
 	handleCreateDevice?: () => void;
 	handleCreateRequest?: () => void;
 	handleUpdateMaintenanceHistory?: (historyId: string, updates: Partial<any>) => void;
+	handlePropertyScanAction?: (
+		actionType: PropertyScanActionType,
+		recommendation: PropertyScanRecommendation,
+	) => void;
 	permissions?: RoleCapabilities;
 }
 
@@ -71,6 +82,8 @@ export const TabSystem = ({
 	openCreateDeviceToken = 0,
 	openDocumentsUploadToken = 0,
 	openCreateContractorToken = 0,
+	canRunPropertyScan = false,
+	showPropertyScanPrompt = false,
 	// assigneeOptions intentionally not used here
 	handleAddMaintenanceHistory,
 	handleDeleteMaintenanceHistory,
@@ -83,6 +96,7 @@ export const TabSystem = ({
 	handleCreateDevice,
 	handleCreateRequest,
 	handleUpdateMaintenanceHistory,
+	handlePropertyScanAction,
 	permissions,
 }: TabsProps) => {
 	const activeTab = useSelector((state: RootState) => state.app.activeTab); // Default to 'details' if no active tab is set
@@ -101,6 +115,23 @@ export const TabSystem = ({
 						onCreateDevice={handleCreateDevice}
 						onCreateRequest={handleCreateRequest}
 						permissions={permissions}
+					/>
+				);
+			case 'insights':
+				return (
+					<InsightsTab
+						property={property}
+						propertyDevices={propertyDevices}
+						tasks={allTasks}
+						maintenanceHistoryRecords={maintenanceHistoryRecords}
+						canRunScan={canRunPropertyScan}
+						showSetupPrompt={showPropertyScanPrompt}
+						onRecommendationAction={
+							handlePropertyScanAction ||
+							(() => {
+								return undefined;
+							})
+						}
 					/>
 				);
 			case 'devices':
@@ -215,6 +246,7 @@ export const TabSystem = ({
 					propertyMaintenanceRequests={propertyMaintenanceRequests}
 					canApproveMaintenanceRequest={canApproveMaintenanceRequest}
 					permissions={permissions}
+					canViewInsights={canRunPropertyScan}
 				/>
 			</TabControlsContainer>
 

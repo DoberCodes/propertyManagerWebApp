@@ -243,7 +243,6 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
         setLocalError('');
         setActionMessage('');
         try {
-            const origin = typeof window !== 'undefined' ? window.location.origin : '';
             const result = await adminPortalApplyUserBillingActions({
                 sessionToken,
                 userId: selectedUserId,
@@ -252,10 +251,6 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
                 trialDays: parsedTrialDays,
                 promoCode: promoCode || undefined,
                 syncStripe,
-                successUrl: origin
-                    ? `${origin}/#/dashboard?session_id={CHECKOUT_SESSION_ID}`
-                    : undefined,
-                cancelUrl: origin ? `${origin}/#/paywall` : undefined,
             });
             const createdCheckoutLink = result.checkoutUrl || '';
             setActionMessage(

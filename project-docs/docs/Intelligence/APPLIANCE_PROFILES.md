@@ -9,7 +9,7 @@ They serve as the source of truth for:
 * Property Setup Assistant
 * Quick Scan
 * Recommendation Engine
-* Property Intelligence
+* Maintley Intelligence
 * Property Insight Emails
 * Future OCR and barcode extraction
 * Future AI-assisted recommendations

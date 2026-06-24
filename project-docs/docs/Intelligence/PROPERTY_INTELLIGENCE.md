@@ -1,10 +1,10 @@
-# Property Intelligence
+# Maintley Intelligence
 
 Last reviewed: 2026-06
 
 # Purpose
 
-Property Intelligence is Maintley's guidance and recommendation system.
+Maintley Intelligence is Maintley's guidance and recommendation system.
 
 Its purpose is to help users:
 
@@ -14,7 +14,7 @@ Its purpose is to help users:
 * Identify maintenance opportunities
 * Improve long-term property management decisions
 
-Property Intelligence serves as the recommendation layer of Maintley.
+Maintley Intelligence serves as the recommendation layer of Maintley.
 
 It exists to help users understand:
 
@@ -28,7 +28,7 @@ The goal is to provide useful, actionable guidance.
 
 # Intelligence Philosophy
 
-Property Intelligence should act as a guide rather than an auditor.
+Maintley Intelligence should act as a guide rather than an auditor.
 
 The system should help users make progress rather than remind them how incomplete their records are.
 
@@ -60,13 +60,13 @@ Property Incomplete
 Documentation Score: 41%
 ```
 
-Property Intelligence should encourage action rather than create anxiety.
+Maintley Intelligence should encourage action rather than create anxiety.
 
 ---
 
 # Responsibilities
 
-Property Intelligence is responsible for:
+Maintley Intelligence is responsible for:
 
 * Recommendation generation
 * Recommendation prioritization
@@ -79,7 +79,7 @@ Property Intelligence is responsible for:
 * Portfolio Intelligence
 * Future AI-assisted recommendations
 
-Property Intelligence is not responsible for:
+Maintley Intelligence is not responsible for:
 
 * Email delivery
 * Notification delivery
@@ -171,7 +171,7 @@ Recommendations should always provide context.
 
 ## Improve Records, Not Properties
 
-Property Intelligence evaluates Maintley's records.
+Maintley Intelligence evaluates Maintley's records.
 
 It does not evaluate actual property condition.
 
@@ -187,7 +187,7 @@ Prefer:
 * Install date has not been documented.
 * Additional information may improve future maintenance tracking.
 
-Property Intelligence should describe records, not diagnose properties.
+Maintley Intelligence should describe records, not diagnose properties.
 
 ---
 
@@ -250,7 +250,7 @@ Documentation remains valuable but should not dominate recommendations.
 
 # Intelligence Surfaces
 
-Property Intelligence may appear through multiple experiences.
+Maintley Intelligence may appear through multiple experiences.
 
 All experiences should consume the same underlying recommendation engine.
 
@@ -328,7 +328,7 @@ Examples:
 * Missing appliance information
 * Suggested maintenance opportunities
 
-Property Insights consume Property Intelligence recommendations.
+Property Insights consume Maintley Intelligence recommendations.
 
 They do not create them.
 
@@ -338,7 +338,7 @@ They do not create them.
 
 Purpose:
 
-Provide a dedicated destination for Property Intelligence.
+Provide a dedicated destination for Maintley Intelligence.
 
 Potential capabilities:
 
@@ -355,19 +355,20 @@ The Intelligence Center should centralize intelligence-related workflows.
 
 # Scan Types
 
-Property Intelligence supports multiple scan depths.
+Maintley Intelligence supports multiple scan depths.
 
 ---
 
 ## Quick Scan
+## Quick Scan
 
 Purpose:
 
-Immediate recommendations.
+Show the most valuable next actions without overwhelming the user.
 
 Target:
 
-Top 3–5 opportunities.
+Top 3-5 opportunities.
 
 Typical use cases:
 
@@ -376,11 +377,162 @@ Typical use cases:
 * Dashboard review
 * Property review
 
-Quick Scan prioritizes speed and clarity.
+Quick Scan prioritizes maintenance execution and record usefulness.
+
+Quick Scan should surface themes rather than repeating one recommendation per affected system.
+
+Quick Scan summary titles should be encouraging and should avoid leading with large raw counts. Exact affected counts and affected system lists belong in the recommendation detail view.
+
+Quick Scan may show a short progress dialog while it is running. The dialog should use familiar Maintley loading treatment and close once the latest snapshot is ready.
+
+Detailed affected system or task lists should open in a dialog from the recommendation. This keeps the property-level Insights tab focused while still giving users a clear path into the affected records.
+
+High-priority examples:
+
+* A system has no recurring maintenance schedule
+* The property has overdue maintenance tasks
+* The property contains no systems
+* Smoke or carbon monoxide detectors have no maintenance tracking
+
+Medium-priority examples:
+
+* A system is missing an install date
+* A major appliance is missing make or model
+* Maintenance history has not been started for multiple systems
+* Serviced equipment has no contractor recorded
+* Warranty expiration is not recorded
+
+Theme examples:
+
+* Maintenance tracking has not been started for 12 systems.
+* 8 systems do not have recurring maintenance tasks.
+* 6 systems are missing important identification details.
+* 3 major systems are missing install dates.
+
+Quick Scan excludes audit-style completeness items such as:
+
+* Missing photos
+* Missing manuals
+* Missing receipts
+* Missing serial numbers
+* Missing warranty documents
+* Missing notes
+* Cosmetic record completeness issues
+
+Those items belong in Full Property Audit, where a user has explicitly asked for a broader review.
 
 ---
 
-## Deep Scan
+## Property Scan v1
+
+Purpose:
+
+Review the saved property record for completeness and maintenance opportunities after the Property Setup Assistant.
+
+Property Scan v1 is the current Quick Scan implementation and is powered by Maintley Intelligence.
+
+Maintley Intelligence is the umbrella guidance system. Property Scan is the explicit property-level review action.
+
+Property Scan v1 is:
+
+* A record-completeness scan
+* A maintenance-opportunity scan
+* Deterministic and rule-based
+* Based only on data already saved in Maintley
+* Limited to the top 3-5 visible recommendations
+* Displayed from the property-level Insights tab
+* Rendered on the page after the scan completes
+* Supported by dialogs for affected system or task details
+
+Property Scan v1 is not:
+
+* An inspection
+* A condition assessment
+* A safety certification
+* A property grade
+* An AI-generated diagnosis
+
+The scan currently checks for:
+
+* Missing core property details
+* No systems or appliances recorded
+* Systems missing make or model
+* Systems missing serial number
+* Systems missing install date
+* Systems missing warranty information
+* Systems with no maintenance history
+* Systems with no linked recurring task
+* Missing documents or property photos
+* Open overdue tasks
+* Upcoming due maintenance
+* Suggested maintenance opportunities not yet accepted
+
+The engine may generate more recommendations than the user sees. Quick Scan filters and sorts them so the visible experience stays focused on the highest-value next actions.
+
+Repeated system-level findings should be aggregated into a small number of theme-level recommendations in Quick Scan. Individual system findings belong in Full Property Audit or future drill-down views.
+
+Each visible recommendation should include a short explanation of why the action matters. For example, install dates help track equipment age, warranty coverage, and future replacement planning.
+
+The Insights tab should show the last scan date when a scan has been run.
+
+In v1, the latest visible scan result is saved as a backend-derived snapshot so the property-level Insights tab can show the latest scan whenever the user returns.
+
+Each completed Quick Scan is also saved as a backend history snapshot for future scan-history UI. The current UI does not expose that history yet.
+
+Scan snapshots are derived records. They preserve what Maintley Intelligence showed at scan time, but they do not replace the source records used to generate recommendations.
+
+Recommendations are grouped into:
+
+* Missing Information
+* Maintenance Opportunities
+* Overdue Work
+* Documentation Gaps
+* Suggested Next Steps
+
+Each recommendation should clearly explain:
+
+* Which property or system it refers to
+* What saved record data triggered it
+* Why the next step may help the homeowner
+* Which action the user can take next
+
+Phase 1 does not send emails, run scheduled scans, call AI APIs, or calculate a property score.
+
+---
+
+## Full Property Audit
+
+Purpose:
+
+Answer how complete and maintainable the saved records are.
+
+Full Property Audit is a future Maintley Intelligence process.
+
+It may generate a larger set of findings across:
+
+* Documentation Gaps
+* Record Completeness
+* Maintenance Coverage
+* Lifecycle Tracking
+
+Examples:
+
+* Missing manuals
+* Missing photos
+* Missing receipts
+* Missing serial numbers
+* Missing install dates
+* Missing warranty information
+* Systems without tasks
+* Systems without history
+* Systems without contractors
+* Aging equipment
+* Warranty expirations
+* End-of-life planning
+
+Because the user explicitly requests an audit, a larger list of findings is appropriate in this future surface.
+
+---
 
 Purpose:
 
@@ -422,7 +574,7 @@ Portfolio Scan should aggregate property-level recommendations rather than creat
 
 # Recommendation Categories
 
-Property Intelligence may generate recommendations in four categories.
+Maintley Intelligence may generate recommendations in four categories.
 
 ---
 
@@ -514,9 +666,9 @@ Avoid creating separate recommendation systems for portfolio users.
 
 # Property Insight Content
 
-Property Insight content is generated by Property Intelligence.
+Property Insight content is generated by Maintley Intelligence.
 
-Property Intelligence determines:
+Maintley Intelligence determines:
 
 * Which observations exist
 * Recommendation priority
@@ -531,7 +683,7 @@ Delivery systems do not determine recommendation behavior.
 
 # Relationship to Other Systems
 
-Property Intelligence consumes:
+Maintley Intelligence consumes:
 
 * Property Records
 * Appliance Records
@@ -541,7 +693,7 @@ Property Intelligence consumes:
 * Documentation Records
 * Appliance Profiles
 
-Property Intelligence generates:
+Maintley Intelligence generates:
 
 * Recommendations
 * Observations
@@ -565,7 +717,7 @@ EMAIL_NOTIFICATIONS.md
 
 # Future Direction
 
-Property Intelligence should become increasingly useful as records improve.
+Maintley Intelligence should become increasingly useful as records improve.
 
 The objective is not to create scores.
 
@@ -579,6 +731,6 @@ The objective is to help users:
 * Reduce forgotten information
 * Make better decisions
 
-Over time, Property Intelligence should become the primary guidance layer within Maintley.
+Over time, Maintley Intelligence should become the primary guidance layer within Maintley.
 
 It should help users understand not only what information exists, but what actions would provide the greatest value next.

@@ -364,6 +364,50 @@ export const ButtonGroup = styled.div`
 	}
 `;
 
+export const AccountActionsPanel = styled.div`
+	margin-top: 1rem;
+	padding: 1rem;
+	background: ${COLORS.bgWhite};
+	border: 1px solid ${COLORS.gray200};
+	border-radius: 12px;
+	box-shadow: ${COLORS.shadow};
+`;
+
+export const AccountActionButtons = styled.div`
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.75rem;
+	margin-top: 0.75rem;
+`;
+
+export const ProfileActionButton = styled.button`
+	padding: 0.62rem 1rem;
+	background: ${COLORS.gradientPrimary};
+	color: ${COLORS.bgWhite};
+	border: 0;
+	border-radius: 8px;
+	font-size: 0.875rem;
+	font-weight: 700;
+	cursor: pointer;
+	box-shadow: ${COLORS.shadowMd};
+	transition: transform 0.15s ease, box-shadow 0.15s ease;
+
+	&:hover {
+		transform: translateY(-1px);
+		box-shadow: ${COLORS.shadowLg};
+	}
+`;
+
+export const DangerProfileActionButton = styled(ProfileActionButton)`
+	background: linear-gradient(135deg, ${COLORS.errorDark} 0%, ${COLORS.error} 100%);
+`;
+
+export const ActionHelperText = styled.p`
+	margin: 0.6rem 0 0;
+	font-size: 0.8rem;
+	color: ${COLORS.gray500};
+`;
+
 export const CancelButton = styled.button`
 	padding: 0.625rem 1.25rem;
 	background-color: ${COLORS.bgWhite};

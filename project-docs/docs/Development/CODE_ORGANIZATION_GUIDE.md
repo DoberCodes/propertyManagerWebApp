@@ -453,7 +453,7 @@ Refactoring should include documentation updates when changes affect:
 * Permissions
 * Data Models
 * Billing
-* Property Intelligence
+* Maintley Intelligence
 * Recommendation behavior
 * Deployment workflows
 

@@ -277,7 +277,7 @@ export const AccountSnapshot: React.FC<AccountSnapshotProps> = ({ isSidebarOpen,
 						cursor: 'pointer',
 						width: '100%',
 					}}>
-					{nativeApp ? 'Manage in Browser' : 'Manage Plan'}
+					{nativeApp ? 'Manage Subscription' : 'Manage Plan'}
 				</button>
 			</div>
 		</div>

@@ -296,9 +296,9 @@ Maintenance Events remain the source of truth.
 
 ---
 
-# Property Intelligence Integration
+# Maintley Intelligence Integration
 
-Property Intelligence may evaluate Maintenance Events when generating recommendations and observations.
+Maintley Intelligence may evaluate Maintenance Events when generating recommendations and observations.
 
 Examples:
 
@@ -307,7 +307,7 @@ Examples:
 * No inspection history recorded.
 * No service activity recorded.
 
-Property Intelligence should derive observations from Maintenance Events.
+Maintley Intelligence should derive observations from Maintenance Events.
 
 Maintenance Events remain the authoritative historical record.
 
@@ -403,7 +403,7 @@ Maintenance Events should:
 * Support maintenance history views.
 * Support appliance history views.
 * Support property history views.
-* Support Property Intelligence recommendations.
+* Support Maintley Intelligence recommendations.
 
 Maintenance Events should not:
 

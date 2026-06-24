@@ -23,6 +23,7 @@ import {
 	FormInput,
 	ButtonGroup,
 	Section,
+	GenericModal,
 } from '../../Components/Library';
 import {
 	Wrapper,
@@ -58,6 +59,11 @@ import {
 	TeamMemberRow,
 	TeamMemberAvatar,
 	EmptyProfileSection,
+	AccountActionsPanel,
+	AccountActionButtons,
+	ProfileActionButton,
+	DangerProfileActionButton,
+	ActionHelperText,
 } from './UserProfile.styles';
 import { Button } from 'pages/PropertyDetailPage/TabSystem/index.styles';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -88,6 +94,14 @@ import {
 } from 'Redux/selectors/permissionSelectors';
 import { formatStorageBytes } from 'utils/storageQuota';
 import { isContinuityEvent } from 'utils/maintenanceEventUtils';
+import {
+	updatePassword,
+	reauthenticateWithCredential,
+	EmailAuthProvider,
+	signOut,
+} from 'firebase/auth';
+import { auth, functions } from 'config/firebase';
+import { httpsCallable } from 'firebase/functions';
 
 export const UserProfile: React.FC = () => {
 	const dispatch = useDispatch<AppDispatch>();
@@ -111,6 +125,18 @@ export const UserProfile: React.FC = () => {
 	const [error, setError] = useState<string | null>(null);
 	const [success, setSuccess] = useState<string | null>(null);
 	const [isLoading, setIsLoading] = useState(false);
+	const [showPasswordModal, setShowPasswordModal] = useState(false);
+	const [showDeleteAccountModal, setShowDeleteAccountModal] = useState(false);
+	const [passwordError, setPasswordError] = useState('');
+	const [passwordSuccess, setPasswordSuccess] = useState('');
+	const [deleteAccountError, setDeleteAccountError] = useState('');
+	const [isChangingPassword, setIsChangingPassword] = useState(false);
+	const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+	const [passwordForm, setPasswordForm] = useState({
+		currentPassword: '',
+		newPassword: '',
+		confirmPassword: '',
+	});
 	const isUserTenant = useSelector(selectIsTenant);
 	const {
 		data: summaryProperties = [],
@@ -569,6 +595,129 @@ export const UserProfile: React.FC = () => {
 	const handleCancel = () => {
 		navigate(-1);
 	};
+
+	const hasBlockingSubscription =
+		currentUser?.subscription?.status === 'active' ||
+		currentUser?.subscription?.status === 'past_due';
+
+	const openChangePasswordModal = () => {
+		setPasswordError('');
+		setPasswordSuccess('');
+		setPasswordForm({
+			currentPassword: '',
+			newPassword: '',
+			confirmPassword: '',
+		});
+		setShowPasswordModal(true);
+	};
+
+	const openDeleteAccountModal = () => {
+		if (hasBlockingSubscription) {
+			setDeleteAccountError(
+				'You cannot delete your account while you have an active subscription. Please cancel your subscription first.',
+			);
+			setShowDeleteAccountModal(true);
+			return;
+		}
+
+		setDeleteAccountError('');
+		setShowDeleteAccountModal(true);
+	};
+
+	const handlePasswordChange = async (e: React.FormEvent) => {
+		e.preventDefault();
+		setPasswordError('');
+		setPasswordSuccess('');
+
+		if (!passwordForm.currentPassword) {
+			setPasswordError('Current password is required');
+			return;
+		}
+		if (!passwordForm.newPassword) {
+			setPasswordError('New password is required');
+			return;
+		}
+		if (passwordForm.newPassword.length < 6) {
+			setPasswordError('New password must be at least 6 characters');
+			return;
+		}
+		if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+			setPasswordError('New passwords do not match');
+			return;
+		}
+
+		setIsChangingPassword(true);
+
+		try {
+			const user = auth.currentUser;
+			if (!user || !user.email) {
+				setPasswordError('User not authenticated');
+				return;
+			}
+
+			const credential = EmailAuthProvider.credential(
+				user.email,
+				passwordForm.currentPassword,
+			);
+			await reauthenticateWithCredential(user, credential);
+			await updatePassword(user, passwordForm.newPassword);
+
+			setPasswordSuccess('Password updated successfully!');
+			setPasswordForm({
+				currentPassword: '',
+				newPassword: '',
+				confirmPassword: '',
+			});
+			setTimeout(() => {
+				setShowPasswordModal(false);
+				setPasswordSuccess('');
+			}, 2000);
+		} catch (changeError: any) {
+			console.error('Password change error:', changeError);
+			if (changeError.code === 'auth/wrong-password') {
+				setPasswordError('Current password is incorrect');
+			} else if (changeError.code === 'auth/weak-password') {
+				setPasswordError('New password is too weak');
+			} else if (changeError.code === 'auth/requires-recent-login') {
+				setPasswordError(
+					'Please log out and log back in before changing your password',
+				);
+			} else {
+				setPasswordError('Failed to update password. Please try again.');
+			}
+		} finally {
+			setIsChangingPassword(false);
+		}
+	};
+
+	const handleDeleteAccount = async () => {
+		if (!currentUser) return;
+
+		setDeleteAccountError('');
+		setIsDeletingAccount(true);
+
+		try {
+			const deleteUserAccount = httpsCallable(functions, 'deleteUserAccount');
+			await deleteUserAccount({ userId: currentUser.id });
+			await signOut(auth);
+			navigate('/login');
+		} catch (deleteError: any) {
+			console.error('Delete account error:', deleteError);
+			if (deleteError.code === 'functions/permission-denied') {
+				setDeleteAccountError('You can only delete your own account.');
+			} else if (deleteError.code === 'functions/failed-precondition') {
+				setDeleteAccountError(
+					'You cannot delete your account while you have an active subscription. Please cancel your subscription first.',
+				);
+			} else if (deleteError.code === 'functions/internal') {
+				setDeleteAccountError('Failed to delete account. Please contact support.');
+			} else {
+				setDeleteAccountError('An error occurred while deleting your account.');
+			}
+		} finally {
+			setIsDeletingAccount(false);
+		}
+	};
 	// currentUser guaranteed to exist in protected routes
 
 	return (
@@ -597,6 +746,21 @@ export const UserProfile: React.FC = () => {
 							<p>{`Member since: ${formatDate(currentUser?.createdAt)}`}</p>
 						</div>
 					</UserProfileHeader>
+
+					<AccountActionsPanel>
+						<ProfileSectionTitle>Account Actions</ProfileSectionTitle>
+						<AccountActionButtons>
+							<ProfileActionButton type='button' onClick={openChangePasswordModal}>
+								Change Password
+							</ProfileActionButton>
+							<DangerProfileActionButton type='button' onClick={openDeleteAccountModal}>
+								Delete Account
+							</DangerProfileActionButton>
+						</AccountActionButtons>
+						<ActionHelperText>
+							Delete account is permanent and cannot be undone.
+						</ActionHelperText>
+					</AccountActionsPanel>
 
 					<div style={{ marginTop: '24px', marginBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
 						<FormLabel style={{ fontSize: '16px', fontWeight: '600', marginBottom: '5px' }}>Account Summary</FormLabel>
@@ -903,6 +1067,129 @@ export const UserProfile: React.FC = () => {
 				</>
 			)
 			}
+
+			<GenericModal
+				isOpen={showPasswordModal}
+				title='Change Password'
+				onClose={() => {
+					setShowPasswordModal(false);
+					setPasswordError('');
+					setPasswordSuccess('');
+					setPasswordForm({
+						currentPassword: '',
+						newPassword: '',
+						confirmPassword: '',
+					});
+				}}
+				primaryButtonLabel='Update Password'
+				secondaryButtonLabel='Cancel'
+				isLoading={isChangingPassword}
+				onSubmit={handlePasswordChange}>
+				{passwordError && <ErrorMessage>{passwordError}</ErrorMessage>}
+				{passwordSuccess && <SuccessMessage>{passwordSuccess}</SuccessMessage>}
+
+				<FormGroup>
+					<FormLabel>Current Password</FormLabel>
+					<FormInput
+						type='password'
+						value={passwordForm.currentPassword}
+						onChange={(e) =>
+							setPasswordForm({
+								...passwordForm,
+								currentPassword: e.target.value,
+							})
+						}
+						placeholder='Enter your current password'
+						required
+					/>
+				</FormGroup>
+
+				<FormGroup>
+					<FormLabel>New Password</FormLabel>
+					<FormInput
+						type='password'
+						value={passwordForm.newPassword}
+						onChange={(e) =>
+							setPasswordForm({
+								...passwordForm,
+								newPassword: e.target.value,
+							})
+						}
+						placeholder='Enter your new password'
+						required
+					/>
+				</FormGroup>
+
+				<FormGroup>
+					<FormLabel>Confirm New Password</FormLabel>
+					<FormInput
+						type='password'
+						value={passwordForm.confirmPassword}
+						onChange={(e) =>
+							setPasswordForm({
+								...passwordForm,
+								confirmPassword: e.target.value,
+							})
+						}
+						placeholder='Confirm your new password'
+						required
+					/>
+				</FormGroup>
+
+				<ActionHelperText>
+					Password must be at least 6 characters long.
+				</ActionHelperText>
+			</GenericModal>
+
+			<GenericModal
+				isOpen={showDeleteAccountModal}
+				title='Delete Account'
+				onClose={() => {
+					setShowDeleteAccountModal(false);
+					setDeleteAccountError('');
+				}}
+				primaryButtonLabel={
+					deleteAccountError?.includes('active subscription')
+						? 'Open Billing Settings'
+						: 'Delete Account'
+				}
+				secondaryButtonLabel='Cancel'
+				isLoading={isDeletingAccount}
+				showActions={true}
+				onSubmit={
+					deleteAccountError?.includes('active subscription')
+						? () => {
+							setShowDeleteAccountModal(false);
+							navigate('/settings?category=account');
+						}
+						: handleDeleteAccount
+				}>
+				{deleteAccountError && (
+					<ErrorMessage>{deleteAccountError}</ErrorMessage>
+				)}
+
+				{deleteAccountError?.includes('active subscription') ? (
+					<div>
+						<p style={{ marginBottom: '16px', color: '#6b7280' }}>
+							To delete your account, you must first cancel your active subscription.
+						</p>
+						<p style={{ marginBottom: '16px', color: '#6b7280' }}>
+							Open Billing Settings to manage your subscription.
+						</p>
+					</div>
+				) : (
+					<div>
+						<p style={{ marginBottom: '16px', color: '#6b7280' }}>
+							<strong>Warning:</strong> This action cannot be undone. If you are
+							the original owner of any properties, all your properties and
+							associated data will be permanently deleted.
+						</p>
+						<p style={{ marginBottom: '16px', color: '#6b7280' }}>
+							Are you sure you want to delete your account?
+						</p>
+					</div>
+				)}
+			</GenericModal>
 		</Wrapper >
 	);
 };

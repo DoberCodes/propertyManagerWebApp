@@ -67,7 +67,7 @@ export const LockedFeatureCallout: React.FC<LockedFeatureCalloutProps> = ({
 						cursor: 'pointer',
 						whiteSpace: 'nowrap',
 					}}>
-					{nativeApp ? 'Manage in Browser' : upgradeLabel}
+					{nativeApp ? 'Manage Subscription' : upgradeLabel}
 				</button>
 			)}
 		</div>

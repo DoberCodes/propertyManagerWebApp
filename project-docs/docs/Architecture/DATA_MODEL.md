@@ -113,10 +113,10 @@ Certain platform capabilities are generated from persisted data rather than acti
 
 Examples include:
 
-* Property Intelligence
+* Maintley Intelligence
 * Recommendations
 * Setup Progress
-* Property Intelligence summaries
+* Maintley Intelligence summaries
 * Dashboard Insights
 * Attention Center summaries
 
@@ -896,7 +896,7 @@ Examples:
 * Maintenance completion alerts
 * Team activity
 * Tenant requests
-* Property Intelligence observations
+* Maintley Intelligence observations
 
 ---
 
@@ -934,7 +934,7 @@ Notifications may originate from:
 * Maintenance Events
 * Team Activity
 * Tenant Requests
-* Property Intelligence
+* Maintley Intelligence
 
 Example:
 
@@ -1084,15 +1084,15 @@ Reports are views of existing data rather than independent datasets.
 
 ---
 
-# Property Intelligence Model
+# Maintley Intelligence Model
 
-Property Intelligence is a derived system.
+Maintley Intelligence is a derived system.
 
-Property Intelligence does not own source data.
+Maintley Intelligence does not own source data.
 
 Instead, it analyzes existing records and generates guidance.
 
-Property Intelligence consumes:
+Maintley Intelligence consumes:
 
 * Properties
 * Appliances & Systems
@@ -1100,7 +1100,7 @@ Property Intelligence consumes:
 * Maintenance Events
 * Documentation Records
 
-Property Intelligence generates:
+Maintley Intelligence generates:
 
 * Recommendations
 * Property Insights
@@ -1108,11 +1108,39 @@ Property Intelligence generates:
 * Quick Scan Results
 * Portfolio Intelligence
 
-Property Intelligence should always remain downstream from source records.
+Maintley Intelligence should always remain downstream from source records.
+
+## Property Scan Snapshots
+
+Quick Property Scan results are persisted as derived snapshots.
+
+Collections:
+
+* propertyScanLatest
+* propertyScanSnapshots
+
+`propertyScanLatest/{propertyId}` stores the latest Quick Scan snapshot for a property so the Insights tab can show the latest recommendations whenever the user returns.
+
+`propertyScanSnapshots/{snapshotId}` stores append-only scan history snapshots for future history views.
+
+Typical fields:
+
+* accountId
+* propertyId
+* scanType
+* schemaVersion
+* createdAt
+* updatedAt
+* createdBy
+* systemsReviewed
+* summary
+* recommendations
+
+Property scan snapshots are derived records. They preserve what Maintley Intelligence showed at scan time, but they do not replace properties, systems, tasks, maintenance events, or documentation records as the source of truth.
 
 ---
 
-## Property Intelligence Relationships
+## Maintley Intelligence Relationships
 
 Example:
 
@@ -1136,7 +1164,7 @@ No Recorded Filter Changes
 Recommendation
 ```
 
-Property Intelligence should improve records rather than replace them.
+Maintley Intelligence should improve records rather than replace them.
 
 ---
 
@@ -1264,7 +1292,7 @@ The dashboard should aggregate:
 * Tasks
 * Maintenance Events
 * Recommendations
-* Property Intelligence
+* Maintley Intelligence
 
 Dashboard records should not become long-term storage.
 
@@ -1307,7 +1335,7 @@ Maintenance Events
     ↓
 Historical Layer
 
-Property Intelligence
+Maintley Intelligence
     ↓
 Recommendation Layer
 ```
@@ -1426,7 +1454,7 @@ The Maintley data model should continue moving toward:
 * Account-centric ownership
 * Property-centric organization
 * Maintenance Event-centric history
-* Property Intelligence-driven guidance
+* Maintley Intelligence-driven guidance
 
 Future development should favor:
 
@@ -1435,14 +1463,14 @@ Properties
     ↓
 Maintenance Events
     ↓
-Property Intelligence
+Maintley Intelligence
     ↓
 User Action
 ```
 
 over creating additional ownership models or duplicate records.
 
-The long-term objective is to keep the data model understandable, maintainable, and capable of supporting increasingly sophisticated Property Intelligence features without introducing competing sources of truth.
+The long-term objective is to keep the data model understandable, maintainable, and capable of supporting increasingly sophisticated Maintley Intelligence features without introducing competing sources of truth.
 
 ---
 
@@ -1460,6 +1488,6 @@ Properties provide context.
 
 Maintenance Events preserve history.
 
-Property Intelligence provides guidance.
+Maintley Intelligence provides guidance.
 
 These responsibilities should remain distinct as the platform evolves.

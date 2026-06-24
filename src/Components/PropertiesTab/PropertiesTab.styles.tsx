@@ -937,6 +937,97 @@ export const SortButton = styled.button`
 	}
 `;
 
+export const DesktopFilterPanel = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+	background: #ffffff;
+	border: 1px solid #e5e7eb;
+	border-radius: 12px;
+	padding: 14px;
+	margin-bottom: 16px;
+	box-shadow: 0 6px 20px rgba(15, 23, 42, 0.06);
+
+	@media (max-width: 1024px) {
+		display: none;
+	}
+`;
+
+export const DesktopFilterPanelHeader = styled.div`
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+`;
+
+export const DesktopFilterPanelTitle = styled.h3`
+	margin: 0;
+	font-size: 0.95rem;
+	font-weight: 800;
+	color: #0f172a;
+`;
+
+export const DesktopFilterPanelActions = styled.div`
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+`;
+
+export const DesktopFilterClearButton = styled.button`
+	padding: 7px 11px;
+	border: 1px solid #cbd5e1;
+	border-radius: 8px;
+	background: #ffffff;
+	color: #475569;
+	font-size: 0.8rem;
+	font-weight: 700;
+	cursor: pointer;
+
+	&:hover {
+		background: #f8fafc;
+		border-color: #94a3b8;
+	}
+`;
+
+export const DesktopFilterApplyButton = styled.button`
+	padding: 7px 12px;
+	border: 0;
+	border-radius: 8px;
+	background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+	color: #ffffff;
+	font-size: 0.8rem;
+	font-weight: 700;
+	cursor: pointer;
+
+	&:hover {
+		background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+	}
+`;
+
+export const DesktopFilterDismissButton = styled.button`
+	width: 30px;
+	height: 30px;
+	border: 1px solid #e5e7eb;
+	border-radius: 999px;
+	background: #ffffff;
+	color: #64748b;
+	font-size: 0.9rem;
+	line-height: 1;
+	cursor: pointer;
+
+	&:hover {
+		background: #f8fafc;
+		color: #1f2937;
+		border-color: #cbd5e1;
+	}
+`;
+
+export const DesktopFilterPanelGrid = styled.div`
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 12px;
+`;
+
 export const PageHeaderRow = styled.div`
 	display: flex;
 	justify-content: space-between;

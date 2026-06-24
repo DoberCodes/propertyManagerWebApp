@@ -292,6 +292,8 @@ Primary collections:
 * tasks
 * maintenanceEvents
 * maintenanceHistory
+* propertyScanLatest
+* propertyScanSnapshots
 * notifications
 * teamMembers
 * teamGroups
@@ -345,7 +347,7 @@ Some platform capabilities are generated from existing Firestore data rather tha
 
 Examples:
 
-* Property Intelligence
+* Maintley Intelligence
 * Recommendations
 * Dashboard Insights
 * Setup Progress
@@ -363,6 +365,13 @@ Source collections remain:
 * Files
 * Contractors
 
+Maintley Intelligence Quick Scan snapshots are saved in:
+
+* `propertyScanLatest`
+* `propertyScanSnapshots`
+
+These collections store derived scan output for display and future history views. They should not become a source of truth for property details, systems, tasks, or maintenance history.
+
 ---
 
 # Firestore Rules
@@ -379,6 +388,7 @@ Important concepts:
 * accountId is the primary account scope
 * accountMemberships are the preferred membership model
 * Legacy ownership fields remain supported where necessary
+* Maintley Intelligence scan snapshots are account-scoped derived records
 * Resource limits are enforced through account counters
 * Function-managed invitation workflows control sensitive writes
 * Notifications follow recipient-based ownership rules
@@ -601,7 +611,7 @@ Properties remain the primary organizational object.
 
 Authentication should remain separate from authorization.
 
-Property Intelligence and recommendation systems should derive from persisted records rather than becoming independent sources of truth.
+Maintley Intelligence and recommendation systems should derive from persisted records rather than becoming independent sources of truth.
 
 Firebase services should remain focused on infrastructure responsibilities while business logic remains organized through application systems and Cloud Functions.
 

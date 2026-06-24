@@ -360,9 +360,9 @@ The dashboard should focus on immediate action.
 
 ---
 
-# Property Intelligence UX
+# Maintley Intelligence UX
 
-Property Intelligence should provide guidance without overwhelming users.
+Maintley Intelligence should provide guidance without overwhelming users.
 
 Prefer:
 

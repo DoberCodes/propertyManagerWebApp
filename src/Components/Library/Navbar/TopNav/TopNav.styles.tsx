@@ -20,7 +20,7 @@ export const Wrapper = styled.div`
 	padding-right: max(20px, env(safe-area-inset-right, 20px));
 	overflow: visible;
 	position: relative;
-	z-index: 100;
+	z-index: 700;
 	box-shadow: ${COLORS.shadow};
 
 	@media (max-width: 1024px) {
@@ -126,7 +126,7 @@ export const NavbarOverlay = styled.div<{ isOpen?: boolean; isDropdown?: boolean
 	bottom: 0;
 	background-color: ${(props) => (props.isOpen ? `${COLORS.overlay}` : 'transparent')};
 	opacity: ${(props) => (props.isDropdown ? 0 : 1)};
-	z-index: 1000;
+	z-index: ${(props) => (props.isOpen ? 1000 : 690)};
 
 `;
 

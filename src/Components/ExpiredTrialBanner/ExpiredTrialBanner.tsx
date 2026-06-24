@@ -46,7 +46,7 @@ export const ExpiredTrialBanner: React.FC<ExpiredTrialBannerProps> = ({
 						cursor: 'pointer',
 						marginLeft: '15px',
 					}}>
-					{nativeApp ? 'Manage in Browser' : 'Upgrade Now'}
+					{nativeApp ? 'Manage Subscription' : 'Upgrade Now'}
 				</button>
 			)}
 		</div>

@@ -11,6 +11,7 @@ export const AvatarMenuWrapper = styled.div`
 	margin-right: 12px;
 	margin-bottom: 4px;
 	gap: 8px;
+	z-index: 710;
 
 `;
 
@@ -97,7 +98,7 @@ export const DropdownMenu = styled.div`
 	border: 1px solid #ccc;
 	border-radius: 4px;
 	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-	z-index: 1000;
+	z-index: 720;
 	min-width: 150px;
 	pointer-events: auto;
 

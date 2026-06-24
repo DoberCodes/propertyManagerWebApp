@@ -447,16 +447,16 @@ export const helpfulArticles: HelpfulArticle[] = [
 	},
 	{
 		slug: 'use-property-intelligence-recommendations',
-		title: 'Use Property Intelligence recommendations',
+		title: 'Use Maintley Intelligence recommendations',
 		summary:
 			'Understand what recommendations mean and decide which improvements are useful for your property.',
 		readTime: '5 min read',
 		path: '/dashboard',
 		actionLabel: 'Review Recommendations',
 		introduction:
-			'Property Intelligence uses existing Maintley records to suggest practical next steps. Recommendations are guidance based on recorded information—not an inspection, condition assessment, or property grade.',
+			'Maintley Intelligence uses existing Maintley records to suggest practical next steps. Recommendations are guidance based on recorded information—not an inspection, condition assessment, or property grade.',
 		founderNote: [
-			'I built Property Intelligence to answer a simple question: based on what is already recorded, what is the next useful thing someone could add or do?',
+			'I built Maintley Intelligence to answer a simple question: based on what is already recorded, what is the next useful thing someone could add or do?',
 			'I do not want recommendations to judge a property or pressure someone into completing a checklist. They should help people notice opportunities while leaving the final decision with the person who knows the property.',
 		],
 		sections: [

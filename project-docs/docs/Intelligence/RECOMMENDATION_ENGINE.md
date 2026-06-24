@@ -6,9 +6,9 @@ Last reviewed: 2026-06
 
 The Recommendation Engine is responsible for generating, prioritizing, and resolving recommendations within Maintley.
 
-It serves as the implementation layer behind Property Intelligence.
+It serves as the implementation layer behind Maintley Intelligence.
 
-Property Intelligence defines:
+Maintley Intelligence defines:
 
 * Why recommendations exist
 * Where recommendations appear
@@ -338,6 +338,122 @@ The engine should remain rule-driven before introducing AI-generated recommendat
 
 ---
 
+# Property Scan v1 Rules
+
+Property Scan v1 is powered by Maintley Intelligence and uses centralized deterministic rules in the frontend recommendation layer.
+
+Inputs:
+
+* Property record
+* System/appliance records
+* Task records
+* Maintenance history records
+* Property and system documentation
+
+Outputs:
+
+* Recommendation id
+* Property id
+* Optional system id
+* Category
+* Severity
+* Title
+* Description
+* Reason
+* Suggested action label
+* Suggested action type
+* Created timestamp
+* Active or dismissed status
+
+The initial v1 rule set checks for record gaps and maintenance opportunities only.
+
+It should not infer physical condition, safety, code compliance, equipment failure, or remaining useful life.
+
+Dismissed recommendations may be stored locally in v1. Saved recommendation resolution and dismissal history belongs to a later phase.
+
+The latest visible Quick Scan result is saved as a backend-derived snapshot for the property-level Insights tab so users can see the latest scan date and recommendations when they return.
+
+Each completed Quick Scan also creates a backend history snapshot. The current UI does not expose scan history, but the data model supports adding it later without changing the scan engine.
+
+Property Scan v1 may generate more recommendations than it displays. The Quick Scan surface should show the highest-value subset only.
+
+The engine may generate detail recommendations for each affected system. Quick Scan should aggregate repeated detail recommendations into summary themes before display.
+
+Summary rules are shown in Quick Scan.
+
+Examples:
+
+* Maintenance tracking has not been started for many systems.
+* Recurring maintenance is missing for several systems.
+* Important identification details are missing for some systems.
+* Install dates are missing for many major systems.
+
+Exact counts and affected record lists should be available inside the detail view, not in the primary summary title.
+
+Detail rules are reserved for Full Property Audit and future drill-down views.
+
+Examples:
+
+* Dishwasher missing serial number
+* Dryer missing serial number
+* HVAC missing serial number
+* Dishwasher has no maintenance history
+
+Quick Scan display rules:
+
+* Show 3-5 recommendations maximum
+* Exclude low-severity documentation completeness items
+* Exclude documentation gaps from the Quick Scan surface
+* Aggregate repeated system-level findings into themes
+* Keep titles encouraging and put precise counts in details
+* Include a short explanation of why each recommendation matters
+* Show affected record lists in a dialog rather than expanding long lists inline
+* Show only the top recommendations by default, with an option to reveal the remaining Quick Scan recommendations
+* Sort by internal recommendation score
+
+Internal scoring:
+
+* High = 10 points
+* Medium = 5 points
+* Low = 1 point
+
+Severity framework:
+
+High:
+
+Things that directly impact maintenance execution.
+
+Examples:
+
+* No recurring maintenance
+* Overdue tasks
+* Critical systems not tracked
+
+Medium:
+
+Things that reduce future usefulness.
+
+Examples:
+
+* Missing install date
+* Missing make or model
+* Missing maintenance history
+* Missing contractor
+* Missing warranty expiration
+
+Low:
+
+Documentation completeness.
+
+Examples:
+
+* Missing photos
+* Missing manuals
+* Missing receipts
+* Missing serial numbers
+
+---
+
 # Recommendation Resolution
 
 Recommendations should automatically resolve when their underlying condition is satisfied.
@@ -420,7 +536,7 @@ Used for future recommendation history and analytics.
 
 The Recommendation Engine generates recommendations.
 
-Property Intelligence determines where they appear.
+Maintley Intelligence determines where they appear.
 
 Potential surfaces:
 
@@ -489,9 +605,9 @@ Maintenance Events remain the source of truth.
 
 ---
 
-# Property Intelligence Integration
+# Maintley Intelligence Integration
 
-Property Intelligence consumes Recommendation Engine outputs.
+Maintley Intelligence consumes Recommendation Engine outputs.
 
 Relationship:
 
@@ -500,7 +616,7 @@ Recommendation Engine
     ↓
 Recommendations
 
-Property Intelligence
+Maintley Intelligence
     ↓
 Guidance
 
@@ -509,7 +625,7 @@ Dashboard
 User Action
 ```
 
-Property Intelligence should not independently generate recommendation logic.
+Maintley Intelligence should not independently generate recommendation logic.
 
 Recommendation generation should remain centralized.
 

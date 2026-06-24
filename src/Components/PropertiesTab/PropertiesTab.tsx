@@ -115,7 +115,14 @@ import {
 	SearchBar,
 	FilterSortContainer,
 	FilterButton,
-	SortButton,
+	DesktopFilterPanel,
+	DesktopFilterPanelHeader,
+	DesktopFilterPanelTitle,
+	DesktopFilterPanelActions,
+	DesktopFilterClearButton,
+	DesktopFilterApplyButton,
+	DesktopFilterDismissButton,
+	DesktopFilterPanelGrid,
 	CollapseToggle,
 	SummarySubtitle,
 	HeaderMenuWrap,
@@ -514,12 +521,19 @@ export const Properties = () => {
 	const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
 	const [sortBy, setSortBy] = useState<'name' | 'recent' | 'updated'>('name');
 	const [filterBy, setFilterBy] = useState<'all' | 'rental' | 'residential'>('all');
+	const [filterPropertyType, setFilterPropertyType] = useState<'all' | 'Single Family' | 'Multi-Family' | 'Commercial'>('all');
+	const [filterMinBedrooms, setFilterMinBedrooms] = useState<number>(0);
+	const [filterLocation, setFilterLocation] = useState<string>('');
 	const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
 	const [draftSearchQuery, setDraftSearchQuery] = useState('');
 	const [draftSortBy, setDraftSortBy] =
 		useState<'name' | 'recent' | 'updated'>('name');
 	const [draftFilterBy, setDraftFilterBy] =
 		useState<'all' | 'rental' | 'residential'>('all');
+	const [draftPropertyType, setDraftPropertyType] =
+		useState<'all' | 'Single Family' | 'Multi-Family' | 'Commercial'>('all');
+	const [draftMinBedrooms, setDraftMinBedrooms] = useState<number>(0);
+	const [draftLocation, setDraftLocation] = useState<string>('');
 	const [isHeaderMenuOpen, setIsHeaderMenuOpen] = useState(false);
 	const [openGroupMenuId, setOpenGroupMenuId] = useState<string | null>(null);
 	const [isManageGroupsDialogOpen, setIsManageGroupsDialogOpen] =
@@ -634,8 +648,14 @@ export const Properties = () => {
 					.filter((property: Property) => {
 						if (filterBy === 'rental' && !property.isRental) return false;
 						if (filterBy === 'residential' && property.isRental) return false;
+						if (filterPropertyType !== 'all' && property.propertyType !== filterPropertyType) return false;
+						if (filterMinBedrooms > 0 && (property.bedrooms ?? 0) < filterMinBedrooms) return false;
+						const locationQuery = filterLocation.trim().toLowerCase();
+						if (locationQuery) {
+							const addressText = JSON.stringify(property.address || '').toLowerCase();
+							if (!addressText.includes(locationQuery)) return false;
+						}
 						if (!query) return true;
-
 						return [
 							property.title,
 							JSON.stringify(property.address || ''),
@@ -680,7 +700,7 @@ export const Properties = () => {
 
 				return String(group.name || '').toLowerCase().includes(query);
 			});
-	}, [filteredGroups, filterBy, searchQuery, sortBy, canManageGroups]);
+	}, [filteredGroups, filterBy, filterPropertyType, filterMinBedrooms, filterLocation, searchQuery, sortBy, canManageGroups]);
 
 	const displayedPropertyCount = useMemo(
 		() =>
@@ -695,6 +715,9 @@ export const Properties = () => {
 		setDraftSearchQuery(searchQuery);
 		setDraftSortBy(sortBy);
 		setDraftFilterBy(filterBy);
+		setDraftPropertyType(filterPropertyType);
+		setDraftMinBedrooms(filterMinBedrooms);
+		setDraftLocation(filterLocation);
 		setIsFilterPanelOpen(true);
 	};
 
@@ -702,6 +725,9 @@ export const Properties = () => {
 		setDraftSearchQuery(searchQuery);
 		setDraftSortBy(sortBy);
 		setDraftFilterBy(filterBy);
+		setDraftPropertyType(filterPropertyType);
+		setDraftMinBedrooms(filterMinBedrooms);
+		setDraftLocation(filterLocation);
 		setIsFilterPanelOpen(false);
 	};
 
@@ -709,12 +735,18 @@ export const Properties = () => {
 		setDraftSearchQuery('');
 		setDraftSortBy('name');
 		setDraftFilterBy('all');
+		setDraftPropertyType('all');
+		setDraftMinBedrooms(0);
+		setDraftLocation('');
 	};
 
 	const applyDraftFilters = () => {
 		setSearchQuery(draftSearchQuery);
 		setSortBy(draftSortBy);
 		setFilterBy(draftFilterBy);
+		setFilterPropertyType(draftPropertyType);
+		setFilterMinBedrooms(draftMinBedrooms);
+		setFilterLocation(draftLocation);
 		setIsFilterPanelOpen(false);
 	};
 
@@ -722,12 +754,18 @@ export const Properties = () => {
 		setSearchQuery('');
 		setSortBy('name');
 		setFilterBy('all');
+		setFilterPropertyType('all');
+		setFilterMinBedrooms(0);
+		setFilterLocation('');
 	};
 
 	const activeFilterCount =
 		(searchQuery.trim() ? 1 : 0) +
 		(filterBy !== 'all' ? 1 : 0) +
-		(sortBy !== 'name' ? 1 : 0);
+		(sortBy !== 'name' ? 1 : 0) +
+		(filterPropertyType !== 'all' ? 1 : 0) +
+		(filterMinBedrooms > 0 ? 1 : 0) +
+		(filterLocation.trim() ? 1 : 0);
 
 	useEffect(() => {
 		const defaultCollapsedGroupIds = filteredGroups
@@ -2449,18 +2487,18 @@ export const Properties = () => {
 						/>
 						<FilterSortContainer>
 							<FilterButton
-								$isActive={filterBy !== 'all'}
-								onClick={() =>
-									setFilterBy(filterBy === 'all' ? 'rental' : 'all')
-								}>
-								Filters
+								$isActive={activeFilterCount > 0}
+								onClick={openFilterPanel}>
+								{activeFilterCount > 0 ? `Filters (${activeFilterCount})` : 'Filters'}
 							</FilterButton>
-							<SortButton
-								onClick={() =>
-									setSortBy(sortBy === 'name' ? 'updated' : 'name')
-								}>
-								Sort
-							</SortButton>
+							{activeFilterCount > 0 && (
+								<FilterButton
+									$isActive={false}
+									onClick={clearPropertyFilters}
+									style={{ fontSize: '12px', padding: '6px 10px' }}>
+									Clear all
+								</FilterButton>
+							)}
 						</FilterSortContainer>
 					</DesktopPropertyFilters>
 					{canManage && (
@@ -2537,27 +2575,27 @@ export const Properties = () => {
 				additionalSettingsActions={
 					canManageGroups
 						? [
-								{
-									label: 'Manage Groups',
-									description: 'Reorder groups or open group settings.',
-									onClick: handleHeaderManageGroups,
-								},
-								{
-									label: 'Create Group',
-									description: 'Create and customize a new property group.',
-									onClick: handleHeaderCreateGroup,
-								},
-								{
-									label: 'Collapse All',
-									description: 'Show only the group headings.',
-									onClick: handleCollapseAllGroups,
-								},
-								{
-									label: 'Expand All',
-									description: 'Show properties in every group.',
-									onClick: handleExpandAllGroups,
-								},
-							]
+							{
+								label: 'Manage Groups',
+								description: 'Reorder groups or open group settings.',
+								onClick: handleHeaderManageGroups,
+							},
+							{
+								label: 'Create Group',
+								description: 'Create and customize a new property group.',
+								onClick: handleHeaderCreateGroup,
+							},
+							{
+								label: 'Collapse All',
+								description: 'Show only the group headings.',
+								onClick: handleCollapseAllGroups,
+							},
+							{
+								label: 'Expand All',
+								description: 'Show properties in every group.',
+								onClick: handleExpandAllGroups,
+							},
+						]
 						: undefined
 				}>
 				<PropertyFilterFields>
@@ -2567,19 +2605,37 @@ export const Properties = () => {
 							type='search'
 							placeholder='Search properties...'
 							value={draftSearchQuery}
-							onChange={(event) =>
-								setDraftSearchQuery(event.target.value)
-							}
+							onChange={(event) => setDraftSearchQuery(event.target.value)}
 						/>
+					</PropertyFilterField>
+					<PropertyFilterField>
+						Location
+						<SearchBar
+							type='search'
+							placeholder='City, state, or zip...'
+							value={draftLocation}
+							onChange={(event) => setDraftLocation(event.target.value)}
+						/>
+					</PropertyFilterField>
+					<PropertyFilterField>
+						Property type
+						<PropertyFilterSelect
+							value={draftPropertyType}
+							onChange={(event) =>
+								setDraftPropertyType(event.target.value as typeof draftPropertyType)
+							}>
+							<option value='all'>All types</option>
+							<option value='Single Family'>Single Family</option>
+							<option value='Multi-Family'>Multi-Family</option>
+							<option value='Commercial'>Commercial</option>
+						</PropertyFilterSelect>
 					</PropertyFilterField>
 					<PropertyFilterField>
 						Property use
 						<PropertyFilterSelect
 							value={draftFilterBy}
 							onChange={(event) =>
-								setDraftFilterBy(
-									event.target.value as typeof draftFilterBy,
-								)
+								setDraftFilterBy(event.target.value as typeof draftFilterBy)
 							}>
 							<option value='all'>All properties</option>
 							<option value='rental'>Rentals</option>
@@ -2587,19 +2643,128 @@ export const Properties = () => {
 						</PropertyFilterSelect>
 					</PropertyFilterField>
 					<PropertyFilterField>
-						Sort
+						Min. bedrooms
+						<PropertyFilterSelect
+							value={String(draftMinBedrooms)}
+							onChange={(event) => setDraftMinBedrooms(Number(event.target.value))}>
+							<option value='0'>Any</option>
+							<option value='1'>1+</option>
+							<option value='2'>2+</option>
+							<option value='3'>3+</option>
+							<option value='4'>4+</option>
+							<option value='5'>5+</option>
+						</PropertyFilterSelect>
+					</PropertyFilterField>
+					<PropertyFilterField>
+						Sort by
 						<PropertyFilterSelect
 							value={draftSortBy}
 							onChange={(event) =>
 								setDraftSortBy(event.target.value as typeof draftSortBy)
 							}>
-							<option value='name'>Name A-Z</option>
+							<option value='name'>Name A–Z</option>
 							<option value='recent'>Recently added</option>
 							<option value='updated'>Recently updated</option>
 						</PropertyFilterSelect>
 					</PropertyFilterField>
 				</PropertyFilterFields>
 			</FloatingFilterPanel>
+			{/* Desktop inline filter panel */}
+			{isFilterPanelOpen && (
+				<DesktopFilterPanel>
+					<DesktopFilterPanelHeader>
+						<DesktopFilterPanelTitle>Filter & Sort</DesktopFilterPanelTitle>
+						<DesktopFilterPanelActions>
+							<DesktopFilterClearButton
+								type='button'
+								onClick={clearDraftFilters}>
+								Clear all
+							</DesktopFilterClearButton>
+							<DesktopFilterApplyButton
+								type='button'
+								onClick={applyDraftFilters}>
+								Apply
+							</DesktopFilterApplyButton>
+							<DesktopFilterDismissButton
+								type='button'
+								onClick={dismissFilterPanel}
+								aria-label='Close filter panel'>
+								✕
+							</DesktopFilterDismissButton>
+						</DesktopFilterPanelActions>
+					</DesktopFilterPanelHeader>
+					<DesktopFilterPanelGrid>
+						<PropertyFilterField>
+							Search
+							<SearchBar
+								type='search'
+								placeholder='Search properties...'
+								value={draftSearchQuery}
+								onChange={(e) => setDraftSearchQuery(e.target.value)}
+							/>
+						</PropertyFilterField>
+						<PropertyFilterField>
+							Location
+							<SearchBar
+								type='search'
+								placeholder='City, state, or zip...'
+								value={draftLocation}
+								onChange={(e) => setDraftLocation(e.target.value)}
+							/>
+						</PropertyFilterField>
+						<PropertyFilterField>
+							Property type
+							<PropertyFilterSelect
+								value={draftPropertyType}
+								onChange={(e) =>
+									setDraftPropertyType(e.target.value as typeof draftPropertyType)
+								}>
+								<option value='all'>All types</option>
+								<option value='Single Family'>Single Family</option>
+								<option value='Multi-Family'>Multi-Family</option>
+								<option value='Commercial'>Commercial</option>
+							</PropertyFilterSelect>
+						</PropertyFilterField>
+						<PropertyFilterField>
+							Property use
+							<PropertyFilterSelect
+								value={draftFilterBy}
+								onChange={(e) =>
+									setDraftFilterBy(e.target.value as typeof draftFilterBy)
+								}>
+								<option value='all'>All properties</option>
+								<option value='rental'>Rentals</option>
+								<option value='residential'>Owner occupied</option>
+							</PropertyFilterSelect>
+						</PropertyFilterField>
+						<PropertyFilterField>
+							Min. bedrooms
+							<PropertyFilterSelect
+								value={String(draftMinBedrooms)}
+								onChange={(e) => setDraftMinBedrooms(Number(e.target.value))}>
+								<option value='0'>Any</option>
+								<option value='1'>1+</option>
+								<option value='2'>2+</option>
+								<option value='3'>3+</option>
+								<option value='4'>4+</option>
+								<option value='5'>5+</option>
+							</PropertyFilterSelect>
+						</PropertyFilterField>
+						<PropertyFilterField>
+							Sort by
+							<PropertyFilterSelect
+								value={draftSortBy}
+								onChange={(e) =>
+									setDraftSortBy(e.target.value as typeof draftSortBy)
+								}>
+								<option value='name'>Name A–Z</option>
+								<option value='recent'>Recently added</option>
+								<option value='updated'>Recently updated</option>
+							</PropertyFilterSelect>
+						</PropertyFilterField>
+					</DesktopFilterPanelGrid>
+				</DesktopFilterPanel>
+			)}
 			{showPropertyGroupUpsell && (
 				<LockedFeatureCallout
 					title='Property Groups are locked on your current plan'

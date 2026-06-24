@@ -19,7 +19,7 @@ import LegalDocumentPage from './pages/LegalPage/LegalDocumentPage';
 import { Layout } from './pages/Layout';
 import { DashboardTab } from './pages/DashboardTab';
 import { TasksPage } from './pages/TasksPage/TasksPage';
-import { Properties } from './Components/PropertiesTab';
+import { Properties } from './Components/PropertiesTab/PropertiesTab';
 import { PropertyDetailPage } from './pages/PropertyDetailPage/PropertyDetailPage';
 // Units are temporarily hidden from the app flow; keep the page code for the later relaunch.
 // import { UnitDetailPage } from './pages/UnitDetailPage';

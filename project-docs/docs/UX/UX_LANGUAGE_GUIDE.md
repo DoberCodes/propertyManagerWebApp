@@ -12,7 +12,7 @@ It serves as the source of truth for:
 * Navigation
 * Dashboard messaging
 * Recommendations
-* Property Intelligence
+* Maintley Intelligence
 * Notifications
 * Emails
 * Empty states
@@ -144,7 +144,7 @@ Use:
 * Property Records
 * Documents
 * Recommendations
-* Property Intelligence
+* Maintley Intelligence
 * Needs Attention
 * Upcoming
 * Overdue
@@ -238,7 +238,7 @@ Use:
 
 ```text id="cwp3qj"
 Recommendations
-Property Intelligence
+Maintley Intelligence
 Needs Attention
 ```
 
@@ -264,8 +264,8 @@ Operational Score
 | Device Status          | System Status                           |
 | Device Timeline        | Service History                         |
 | Linked Workflow        | Linked Task                             |
-| Property Health        | Property Intelligence                   |
-| Home Health            | Property Intelligence                   |
+| Property Health        | Maintley Intelligence                   |
+| Home Health            | Maintley Intelligence                   |
 
 ---
 
@@ -294,9 +294,9 @@ The dashboard should focus on action rather than evaluation.
 
 ---
 
-# Property Intelligence Language
+# Maintley Intelligence Language
 
-Property Intelligence should guide users rather than audit them.
+Maintley Intelligence should guide users rather than audit them.
 
 Good:
 
@@ -326,7 +326,7 @@ Property Incomplete
 Documentation Score: 41%
 ```
 
-Property Intelligence should encourage progress.
+Maintley Intelligence should encourage progress.
 
 ---
 

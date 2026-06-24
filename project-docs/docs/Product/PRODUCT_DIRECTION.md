@@ -262,11 +262,11 @@ History should remain useful regardless of how the rest of the property evolves.
 
 ---
 
-## Property Intelligence
+## Maintley Intelligence
 
 The Recommendation Layer
 
-Property Intelligence helps users improve records and identify opportunities.
+Maintley Intelligence helps users improve records and identify opportunities.
 
 Examples:
 
@@ -276,7 +276,7 @@ Examples:
 * Dashboard recommendations
 * Property Insights
 
-Property Intelligence should derive from records.
+Maintley Intelligence should derive from records.
 
 It should not become an independent source of truth.
 
@@ -309,7 +309,7 @@ The dashboard should prioritize:
 * Action Center
 * Overdue tasks
 * Upcoming work
-* Property Intelligence recommendations
+* Maintley Intelligence recommendations
 * Property selection
 
 Avoid turning the dashboard into a reporting screen.
@@ -318,9 +318,9 @@ Reports belong elsewhere.
 
 ---
 
-# Property Intelligence Direction
+# Maintley Intelligence Direction
 
-Property Intelligence is becoming a core Maintley capability.
+Maintley Intelligence is becoming a core Maintley capability.
 
 Its purpose is to help users improve records and identify maintenance opportunities.
 
@@ -333,7 +333,7 @@ Current and future examples:
 * Property Insights
 * Portfolio scans
 
-Property Intelligence should prioritize actionable opportunities rather than exhaustive audits.
+Maintley Intelligence should prioritize actionable opportunities rather than exhaustive audits.
 
 Preferred:
 
@@ -470,7 +470,7 @@ Over time the platform should help users:
 * Coordinate maintenance activities
 * Make better property decisions
 
-Tasks, documentation, maintenance history, recommendations, and Property Intelligence all exist to support this goal.
+Tasks, documentation, maintenance history, recommendations, and Maintley Intelligence all exist to support this goal.
 
 The long-term objective is not to create more data.
 

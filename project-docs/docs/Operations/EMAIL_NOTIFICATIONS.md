@@ -16,7 +16,7 @@ This document defines:
 * Preference flags
 * Delivery responsibilities
 
-This document does not define recommendation logic or Property Intelligence behavior.
+This document does not define recommendation logic or Maintley Intelligence behavior.
 
 ---
 
@@ -132,7 +132,7 @@ Appropriate content:
 * Due dates
 * Completion dates
 
-Do not include Property Intelligence recommendations.
+Do not include Maintley Intelligence recommendations.
 
 ---
 
@@ -163,11 +163,11 @@ Disabled
 Behavior:
 
 * Runs on an insight schedule
-* Delivers Property Intelligence observations
+* Delivers Maintley Intelligence observations
 * Displays a limited number of recommendations
 * Links back to Maintley for additional recommendations
 
-Property Insights consume Property Intelligence outputs.
+Property Insights consume Maintley Intelligence outputs.
 
 Recommendation generation, prioritization, and observation creation are defined in:
 
@@ -238,7 +238,7 @@ Reports existing information.
 
 Property Insights:
 
-Reports Property Intelligence observations.
+Reports Maintley Intelligence observations.
 
 These email types should remain separate even if delivered on similar schedules.
 

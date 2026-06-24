@@ -15,6 +15,7 @@ export interface TabsContextProps {
 	unitOptions?: { label: string; value: string }[];
 	selectedUnitId?: string;
 	onSelectUnit?: (id: string) => void;
+	canViewInsights?: boolean;
 	permissions?: RoleCapabilities;
 }
 
@@ -27,6 +28,7 @@ export interface tab {
 export const TabController: React.FC<TabsContextProps> = ({
 	property,
 	currentUser,
+	canViewInsights = false,
 	permissions,
 }) => {
 	const dispatch = useDispatch();
@@ -83,6 +85,16 @@ export const TabController: React.FC<TabsContextProps> = ({
 		  ];
 
 	const tabsForProperty: tab[] = [...baseTabs];
+
+	if (canViewInsights) {
+		const insertAfterDetailsIndex = tabsForProperty.findIndex(
+			(tab) => tab.value === 'details',
+		);
+		tabsForProperty.splice(insertAfterDetailsIndex + 1, 0, {
+			label: 'Insights',
+			value: 'insights',
+		});
+	}
 
 	// Units are temporarily hidden from the app flow while the core loop is simplified.
 	// if (!isTenant && property?.propertyType === 'Multi-Family') {

@@ -10,15 +10,6 @@ import {
 	SectionTitle,
 } from 'Components/Library';
 import { cancelSubscription } from 'services/stripeService';
-import {
-	updatePassword,
-	reauthenticateWithCredential,
-	EmailAuthProvider,
-	signOut,
-} from 'firebase/auth';
-import { auth } from 'config/firebase';
-import { httpsCallable } from 'firebase/functions';
-import { functions } from 'config/firebase';
 import { useAppFeedback } from 'Components/Library/AppFeedback/AppFeedbackProvider';
 import { useUpdateUserMutation } from 'Redux/API/userSlice';
 import { setCurrentUser } from 'Redux/Slices/userSlice';
@@ -31,7 +22,7 @@ import {
 } from 'services/authService';
 import { NotificationPreferences } from 'pages/SettingsPage/NotificationPreferences';
 import { Container } from 'Components/SeasonalMaintenance.styles';
-import { Title, SettingsLayout, CategorySidebar, CategoryNavButton, CategoryContent, MobileCategoryPicker, CategorySelect, CategoryPanel, Section, AccountButton, ErrorMessage, SuccessMessage, PasswordHelp } from './SettingPage.styles';
+import { Title, SettingsLayout, CategorySidebar, CategoryNavButton, CategoryContent, MobileCategoryPicker, CategorySelect, CategoryPanel, Section, AccountButton, ErrorMessage } from './SettingPage.styles';
 import { AccountManagement } from './AccountManagement';
 import { FamilyManagement } from './FamilyManagement';
 
@@ -70,8 +61,6 @@ export const SettingsPage: React.FC = () => {
 
 
 	// loading States
-	const [isChangingPassword, setIsChangingPassword] = useState(false);
-	const [isDeletingAccount, setIsDeletingAccount] = useState(false);
 	const [isRemovingFamilyMember, setIsRemovingFamilyMember] = useState(false);
 	const [isLoadingFamilyMembers, setIsLoadingFamilyMembers] = useState(false);
 	const [familyMemberSuccess, setFamilyMemberSuccess] = useState('');
@@ -81,20 +70,14 @@ export const SettingsPage: React.FC = () => {
 	const [isResendingFamilyPasswordSetup, setIsResendingFamilyPasswordSetup] = useState(false);
 
 	// Success/Error states
-	const [passwordError, setPasswordError] = useState('');
-	const [passwordSuccess, setPasswordSuccess] = useState('');
-	const [deleteAccountError, setDeleteAccountError] = useState('');
 	const [addFamilyMemberError, setAddFamilyMemberError] = useState('');
 	const [cancelSubscriptionError, setCancelSubscriptionError] = useState('');
-	const [subscriptionError, setSubscriptionError] = useState(false);
 
 	// Modal states
 	const [showAddFamilyMemberModal, setShowAddFamilyMemberModal] = useState(false);
 	const [showEditFamilyMemberModal, setShowEditFamilyMemberModal] = useState(false);
 	const [showRemoveFamilyMemberModal, setShowRemoveFamilyMemberModal] = useState(false);
 	const [showCancelSubscriptionModal, setShowCancelSubscriptionModal] = useState(false);
-	const [showPasswordModal, setShowPasswordModal] = useState(false);
-	const [showDeleteAccountModal, setShowDeleteAccountModal] = useState(false);
 	const [showFamilyResetPasswordModal, setShowFamilyResetPasswordModal] = useState(false);
 
 	// Form states
@@ -110,11 +93,6 @@ export const SettingsPage: React.FC = () => {
 		lastName: '',
 		email: '',
 		role: 'member' as 'admin' | 'member',
-	});
-	const [passwordForm, setPasswordForm] = useState({
-		currentPassword: '',
-		newPassword: '',
-		confirmPassword: '',
 	});
 
 	// Load family members
@@ -145,7 +123,7 @@ export const SettingsPage: React.FC = () => {
 			},
 			{
 				key: 'account' as SettingsCategoryKey,
-				label: 'Account',
+				label: 'Billing',
 				visible: true,
 			},
 			{
@@ -411,81 +389,9 @@ export const SettingsPage: React.FC = () => {
 		}
 	};
 
-	const handlePasswordChange = async (e: React.FormEvent) => {
-		e.preventDefault();
-		setPasswordError('');
-		setPasswordSuccess('');
-
-		// Validation
-		if (!passwordForm.currentPassword) {
-			setPasswordError('Current password is required');
-			return;
-		}
-		if (!passwordForm.newPassword) {
-			setPasswordError('New password is required');
-			return;
-		}
-		if (passwordForm.newPassword.length < 6) {
-			setPasswordError('New password must be at least 6 characters');
-			return;
-		}
-		if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-			setPasswordError('New passwords do not match');
-			return;
-		}
-
-		setIsChangingPassword(true);
-
-		try {
-			const user = auth.currentUser;
-			if (!user || !user.email) {
-				setPasswordError('User not authenticated');
-				return;
-			}
-
-			// Reauthenticate user with current password
-			const credential = EmailAuthProvider.credential(
-				user.email,
-				passwordForm.currentPassword,
-			);
-			await reauthenticateWithCredential(user, credential);
-
-			// Update password
-			await updatePassword(user, passwordForm.newPassword);
-
-			setPasswordSuccess('Password updated successfully!');
-			setPasswordForm({
-				currentPassword: '',
-				newPassword: '',
-				confirmPassword: '',
-			});
-			setTimeout(() => {
-				setShowPasswordModal(false);
-				setPasswordSuccess('');
-			}, 2000);
-		} catch (error: any) {
-			console.error('Password change error:', error);
-			if (error.code === 'auth/wrong-password') {
-				setPasswordError('Current password is incorrect');
-			} else if (error.code === 'auth/weak-password') {
-				setPasswordError('New password is too weak');
-			} else if (error.code === 'auth/requires-recent-login') {
-				setPasswordError(
-					'Please log out and log back in before changing your password',
-				);
-			} else {
-				setPasswordError('Failed to update password. Please try again.');
-			}
-		} finally {
-			setIsChangingPassword(false);
-		}
-	};
 
 	const handleCancelSubscription = async () => {
 		if (!currentUser?.subscription?.stripeSubscriptionId) return;
-		if (subscriptionError) {
-			setSubscriptionError(false);
-		}
 
 		setIsCancellingSubscription(true);
 		setCancelSubscriptionError('');
@@ -505,40 +411,6 @@ export const SettingsPage: React.FC = () => {
 		}
 	};
 
-	const handleDeleteAccount = async () => {
-		if (!currentUser) return;
-
-		setDeleteAccountError('');
-		setIsDeletingAccount(true);
-
-		try {
-			const deleteUserAccount = httpsCallable(functions, 'deleteUserAccount');
-			await deleteUserAccount({ userId: currentUser.id });
-
-			// Sign out the user
-			await signOut(auth);
-
-			// Redirect to login page
-			navigate('/login');
-		} catch (error: any) {
-			console.error('Delete account error:', error);
-			if (error.code === 'functions/permission-denied') {
-				setDeleteAccountError('You can only delete your own account.');
-			} else if (error.code === 'functions/failed-precondition') {
-				setDeleteAccountError(
-					'You cannot delete your account while you have an active subscription. Please cancel your subscription first.',
-				);
-			} else if (error.code === 'functions/internal') {
-				setDeleteAccountError(
-					'Failed to delete account. Please contact support.',
-				);
-			} else {
-				setDeleteAccountError('An error occurred while deleting your account.');
-			}
-		} finally {
-			setIsDeletingAccount(false);
-		}
-	};
 
 	return (
 		<Container>
@@ -590,7 +462,7 @@ export const SettingsPage: React.FC = () => {
 
 
 						{activeCategory === 'account' && (
-							<AccountManagement setShowPasswordModal={setShowPasswordModal} setShowDeleteAccountModal={setShowDeleteAccountModal} setShowCancelSubscriptionModal={setShowCancelSubscriptionModal} subscriptionError={subscriptionError} setSubscriptionError={setSubscriptionError} />
+							<AccountManagement setShowCancelSubscriptionModal={setShowCancelSubscriptionModal} />
 						)}
 
 
@@ -622,139 +494,6 @@ export const SettingsPage: React.FC = () => {
 					</CategoryPanel>
 				</CategoryContent>
 			</SettingsLayout>
-
-
-
-			{/* Password Change Modal */}
-			<GenericModal
-				isOpen={showPasswordModal}
-				title='Change Password'
-				onClose={() => {
-					setShowPasswordModal(false);
-					setPasswordError('');
-					setPasswordSuccess('');
-					setPasswordForm({
-						currentPassword: '',
-						newPassword: '',
-						confirmPassword: '',
-					});
-				}}
-				primaryButtonLabel='Update Password'
-				secondaryButtonLabel='Cancel'
-				isLoading={isChangingPassword}
-				onSubmit={handlePasswordChange}>
-				{passwordError && <ErrorMessage>{passwordError}</ErrorMessage>}
-				{passwordSuccess && <SuccessMessage>{passwordSuccess}</SuccessMessage>}
-
-				<FormGroup>
-					<FormLabel>Current Password</FormLabel>
-					<FormInput
-						type='password'
-						value={passwordForm.currentPassword}
-						onChange={(e) =>
-							setPasswordForm({
-								...passwordForm,
-								currentPassword: e.target.value,
-							})
-						}
-						placeholder='Enter your current password'
-						required
-					/>
-				</FormGroup>
-
-				<FormGroup>
-					<FormLabel>New Password</FormLabel>
-					<FormInput
-						type='password'
-						value={passwordForm.newPassword}
-						onChange={(e) =>
-							setPasswordForm({
-								...passwordForm,
-								newPassword: e.target.value,
-							})
-						}
-						placeholder='Enter your new password'
-						required
-					/>
-				</FormGroup>
-
-				<FormGroup>
-					<FormLabel>Confirm New Password</FormLabel>
-					<FormInput
-						type='password'
-						value={passwordForm.confirmPassword}
-						onChange={(e) =>
-							setPasswordForm({
-								...passwordForm,
-								confirmPassword: e.target.value,
-							})
-						}
-						placeholder='Confirm your new password'
-						required
-					/>
-				</FormGroup>
-
-				<PasswordHelp>
-					Password must be at least 6 characters long.
-				</PasswordHelp>
-			</GenericModal>
-
-			{/* Delete Account Modal */}
-			<GenericModal
-				isOpen={showDeleteAccountModal}
-				title='Delete Account'
-				onClose={() => {
-					setShowDeleteAccountModal(false);
-					setDeleteAccountError('');
-				}}
-				primaryButtonLabel={
-					deleteAccountError?.includes('active subscription')
-						? 'Close'
-						: 'Delete Account'
-				}
-				secondaryButtonLabel={
-					deleteAccountError?.includes('active subscription')
-						? undefined
-						: 'Cancel'
-				}
-				isLoading={isDeletingAccount}
-				showActions={true}
-				onSubmit={
-					deleteAccountError?.includes('active subscription')
-						? () => setShowDeleteAccountModal(false)
-						: handleDeleteAccount
-				}>
-				{deleteAccountError && (
-					<ErrorMessage>{deleteAccountError}</ErrorMessage>
-				)}
-
-				{deleteAccountError?.includes('active subscription') ? (
-					<div>
-						<p style={{ marginBottom: '16px', color: '#6b7280' }}>
-							To delete your account, you must first cancel your active
-							subscription. This ensures proper billing closure and prevents any
-							unexpected charges.
-						</p>
-						<p style={{ marginBottom: '16px', color: '#6b7280' }}>
-							You can cancel your subscription in the{' '}
-							<strong>Subscription Management</strong> section above.
-						</p>
-					</div>
-				) : (
-					<div>
-						<p style={{ marginBottom: '16px', color: '#6b7280' }}>
-							<strong>Warning:</strong> This action cannot be undone. If you are
-							the original owner of any properties, all your properties and
-							associated data will be permanently deleted. If you are a co-owner
-							or shared user, you will lose access to shared properties but the
-							properties themselves will remain.
-						</p>
-						<p style={{ marginBottom: '16px', color: '#6b7280' }}>
-							Are you sure you want to delete your account?
-						</p>
-					</div>
-				)}
-			</GenericModal>
 
 			{/* Cancel Subscription Modal */}
 			<GenericModal

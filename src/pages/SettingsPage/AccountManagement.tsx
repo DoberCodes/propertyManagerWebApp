@@ -1,6 +1,6 @@
 import React from "react";
 import { getEffectiveSubscriptionPlanId, getSubscriptionPlanDetails } from "utils/subscriptionUtils";
-import { AccountActions, AccountButton, ButtonContainer, CancelButton, Container, DeleteAccountButton, ErrorMessage, PlanDetails, PlanFeature, PlanFeatures, PlanName, PlanPrice, PlanStatus, Section, SectionTitle, SubscriptionHeader, SubscriptionSection, Title, UpgradeButton } from "./SettingPage.styles";
+import { ButtonContainer, CancelButton, Container, PlanDetails, PlanFeature, PlanFeatures, PlanName, PlanPrice, PlanStatus, Section, SectionTitle, SubscriptionHeader, SubscriptionSection, Title, UpgradeButton } from "./SettingPage.styles";
 import { RootState } from "Redux/store/store";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
@@ -8,21 +8,16 @@ import { isNativeApp } from "utils/platform";
 import { openSubscriptionManagementInBrowser } from "utils/authLinks";
 
 interface AccountManagementProps {
-    subscriptionError: boolean;
-    setSubscriptionError: (error: boolean) => void;
-    setShowPasswordModal: (show: boolean) => void;
-    setShowDeleteAccountModal: (show: boolean) => void;
     setShowCancelSubscriptionModal: (show: boolean) => void;
 }
 
 
 
-export const AccountManagement: React.FC<AccountManagementProps> = ({ subscriptionError, setSubscriptionError, setShowPasswordModal, setShowDeleteAccountModal, setShowCancelSubscriptionModal }) => {
+export const AccountManagement: React.FC<AccountManagementProps> = ({ setShowCancelSubscriptionModal }) => {
     const navigate = useNavigate();
     const currentUser = useSelector((state: RootState) => state.user.currentUser);
     const nativeApp = isNativeApp();
     const subscription = currentUser?.subscription;
-    const isTeamMemberAccount = currentUser?.isTeamMemberAccount === true;
     const isTenant = currentUser?.role === 'tenant';
     const isPrimaryAccountHolder =
         !!currentUser &&
@@ -52,43 +47,7 @@ export const AccountManagement: React.FC<AccountManagementProps> = ({ subscripti
 
     return (
         <Section>
-            <SectionTitle>Account Settings</SectionTitle>
-            {subscriptionError && (
-                <ErrorMessage style={{ marginBottom: '16px' }}>
-                    You must cancel your active subscription before deleting your
-                    account.
-                </ErrorMessage>
-            )}
-            <AccountActions>
-                <AccountButton onClick={() => navigate('/profile')}>
-                    View Profile
-                </AccountButton>
-                <AccountButton onClick={() => setShowPasswordModal(true)}>
-                    Change Password
-                </AccountButton>
-                <DeleteAccountButton
-                    disabled={
-                        subscription.status === 'active' ||
-                        subscription.status === 'past_due'
-                    }
-                    onClick={() => {
-                        if (
-                            subscription.status === 'active' ||
-                            subscription.status === 'past_due'
-                        ) {
-                            setSubscriptionError(true);
-                        } else if (
-                            subscription.status === 'trial' ||
-                            subscription.status === 'expired'
-                        ) {
-                            setShowDeleteAccountModal(true);
-                        } else {
-                            setShowDeleteAccountModal(true);
-                        }
-                    }}>
-                    Delete Account
-                </DeleteAccountButton>
-            </AccountActions>
+            <SectionTitle>Billing & Subscription</SectionTitle>
             {canViewPlanSection && (
                 <>
                     <SubscriptionSection>
@@ -118,11 +77,16 @@ export const AccountManagement: React.FC<AccountManagementProps> = ({ subscripti
                                     void openSubscriptionManagementInBrowser();
                                 }}>
                                 {nativeApp
-                                    ? 'Manage Subscription in Browser'
+                                    ? 'Manage Subscription'
                                     : isFreePlan
                                         ? 'Upgrade Plan'
                                         : 'Change Plan'}
                             </UpgradeButton>
+                            {nativeApp && (
+                                <div style={{ fontSize: '12px', color: '#64748b', marginTop: '8px' }}>
+                                    Opens the secure billing portal in your browser.
+                                </div>
+                            )}
                             {!nativeApp && subscription.status === 'active' &&
                                 subscription.stripeSubscriptionId && (
                                     <CancelButton

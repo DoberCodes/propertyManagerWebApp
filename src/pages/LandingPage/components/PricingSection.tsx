@@ -60,7 +60,7 @@ const cardFeatureHighlights: Record<string, string[]> = {
 	homeowner_plus: [
 		'1 property included',
 		'Unlimited appliances & systems',
-		'Property Intelligence insights',
+		'Maintley Intelligence insights',
 		'Notifications & recurring tasks',
 	],
 	portfolio: [

@@ -8,4 +8,5 @@ export { UnitsTab } from './UnitsTab';
 export { SuitesTab } from './SuitesTab';
 export { RequestsTab } from './RequestsTab';
 export { ContractorsTab } from './ContractorsTab';
+export { InsightsTab } from './InsightsTab';
 export { TabSystem } from './TabSystem';
