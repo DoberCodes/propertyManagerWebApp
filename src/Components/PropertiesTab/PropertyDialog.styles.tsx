@@ -131,6 +131,81 @@ export const DialogContent = styled.div`
 	}
 `;
 
+export const OnboardingTipBanner = styled.div`
+	position: sticky;
+	top: 0;
+	z-index: 3;
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 14px;
+	padding: 14px 16px;
+	border: 1px solid #86efac;
+	border-radius: 14px;
+	background: linear-gradient(180deg, #f0fdf4 0%, #ecfdf5 100%);
+	box-shadow: 0 14px 30px rgba(21, 128, 61, 0.12);
+
+	@media (max-width: 480px) {
+		padding: 12px 14px;
+		border-radius: 12px;
+	}
+`;
+
+export const OnboardingTipText = styled.div`
+	flex: 1;
+	min-width: 0;
+	color: #14532d;
+	font-size: 13px;
+	line-height: 1.5;
+
+	.strong {
+		font-weight: 700;
+	}
+`;
+
+export const OnboardingTipLabel = styled.div`
+	display: block;
+	align-items: center;
+	margin-bottom: 4px;
+	font-size: 12px;
+	font-weight: 800;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: #166534;
+`;
+
+export const OnboardingTipDismissButton = styled.button`
+	flex: 0 0 auto;
+	width: 28px;
+	height: 28px;
+	border: none;
+	border-radius: 999px;
+	background: rgba(22, 101, 52, 0.08);
+	color: #166534;
+	cursor: pointer;
+	font-size: 20px;
+	line-height: 1;
+	font-weight: 700;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	padding: 0;
+	transition:
+		background-color 0.2s ease,
+		color 0.2s ease,
+		transform 0.2s ease;
+
+	&:hover {
+		background: rgba(22, 101, 52, 0.14);
+		transform: translateY(-1px);
+	}
+
+	&:focus-visible {
+		outline: 2px solid #16a34a;
+		outline-offset: 2px;
+	}
+`;
+
 export const FormSection = styled.div`
 	display: flex;
 	flex-direction: column;
@@ -487,7 +562,7 @@ export const WizardStep = styled.button<{ $active?: boolean; $complete?: boolean
 
 	@media (max-width: 900px) {
 		grid-template-columns: ${({ $active }) =>
-			$active ? '22px minmax(0, 1fr)' : '22px'};
+		$active ? '22px minmax(0, 1fr)' : '22px'};
 		justify-items: center;
 		align-items: center;
 		gap: ${({ $active }) => ($active ? '7px' : '0')};
@@ -521,7 +596,7 @@ export const WizardStepDot = styled.span<{ $active?: boolean; $complete?: boolea
 	font-weight: 700;
 	border: 1px solid
 		${({ $active, $complete }) =>
-			$complete || $active ? '#16a34a' : '#d1d5db'};
+		$complete || $active ? '#16a34a' : '#d1d5db'};
 	background: ${({ $active, $complete }) =>
 		$complete || $active ? '#16a34a' : '#f8fafc'};
 	color: ${({ $active, $complete }) =>
@@ -1327,11 +1402,11 @@ export const FooterTextAction = styled.button<{ $tone?: 'danger' | 'warning' }>`
 
 	&:hover:not(:disabled) {
 		color: ${({ $tone }) =>
-			$tone === 'danger'
-				? '#991b1b'
-				: $tone === 'warning'
-					? '#92400e'
-					: '#334155'};
+		$tone === 'danger'
+			? '#991b1b'
+			: $tone === 'warning'
+				? '#92400e'
+				: '#334155'};
 	}
 
 	&:disabled {

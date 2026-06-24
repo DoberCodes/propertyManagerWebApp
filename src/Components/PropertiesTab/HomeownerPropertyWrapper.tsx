@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { RootState } from '../../Redux/store/store';
 import { AppZeroState } from '../Library/AppZeroState';
 import { PropertyDialog } from './PropertyDialog';
@@ -20,8 +20,11 @@ const HomeownerPropertyWrapper: React.FC = () => {
 	const propertyGroups = useSelector(
 		(state: RootState) => state.propertyData.groups,
 	);
+	const location = useLocation();
+	const navigate = useNavigate();
 
 	const [dialogOpen, setDialogOpen] = useState(false);
+	const [showOnboardingSetupTip, setShowOnboardingSetupTip] = useState(false);
 	const [createProperty] = useCreatePropertyMutation();
 	const [createPropertyGroup] = useCreatePropertyGroupMutation();
 
@@ -32,6 +35,36 @@ const HomeownerPropertyWrapper: React.FC = () => {
 
 	// Only allow one property for homeowners
 	const isHomeowner = useSelector(selectIsHomeowner);
+
+	useEffect(() => {
+		const params = new URLSearchParams(location.search);
+		const shouldOpenCreateDialog =
+			params.get('openCreate') === '1' ||
+			params.get('openCreate') === 'onboarding' ||
+			params.get('action') === 'create';
+
+		if (!shouldOpenCreateDialog) {
+			return;
+		}
+
+		setShowOnboardingSetupTip(params.get('openCreate') === 'onboarding');
+		setDialogOpen(true);
+
+		params.delete('openCreate');
+		params.delete('action');
+		navigate(
+			{
+				pathname: location.pathname,
+				search: params.toString() ? `?${params.toString()}` : '',
+			},
+			{ replace: true },
+		);
+	}, [location.pathname, location.search, navigate]);
+
+	const handleCloseDialog = () => {
+		setDialogOpen(false);
+		setShowOnboardingSetupTip(false);
+	};
 
 	if (!isHomeowner) {
 		// Fallback: not a homeowner, show error
@@ -80,8 +113,9 @@ const HomeownerPropertyWrapper: React.FC = () => {
 				/>
 				<PropertyDialog
 					isOpen={dialogOpen}
-					onClose={() => setDialogOpen(false)}
+					onClose={handleCloseDialog}
 					onSave={handleSaveProperty}
+					showOnboardingSetupTip={showOnboardingSetupTip}
 					forceSingleFamily={true}
 					groups={propertyGroups.map((g) => ({ id: g.id, name: g.name }))}
 					selectedGroupId={propertyGroups[0]?.id}

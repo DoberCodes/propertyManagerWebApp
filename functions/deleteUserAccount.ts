@@ -16,6 +16,12 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
 	apiVersion: '2023-10-16',
 });
 
+const PAID_SUBSCRIPTION_PLANS = new Set([
+	'homeowner_plus',
+	'property',
+	'portfolio',
+]);
+
 /**
  * Delete User Account
  * POST /api/delete-user-account
@@ -58,6 +64,10 @@ export const deleteUserAccount = functions.https.onCall(
 
 		if (userData?.subscription) {
 			const subscription = userData.subscription;
+			const normalizedPlan = String(subscription.plan || '')
+				.trim()
+				.toLowerCase();
+			const hasPaidPlan = PAID_SUBSCRIPTION_PLANS.has(normalizedPlan);
 			console.log('User subscription data:', subscription);
 			const now = Math.floor(Date.now() / 1000);
 			console.log('Current timestamp:', now);
@@ -71,8 +81,9 @@ export const deleteUserAccount = functions.https.onCall(
 
 			// Block deletion for active or past_due subscriptions that are NOT in trial
 			if (
-				(subscription.status === 'active' && !isInTrial) ||
-				subscription.status === 'past_due'
+				hasPaidPlan &&
+				((subscription.status === 'active' && !isInTrial) ||
+					subscription.status === 'past_due')
 			) {
 				console.log(
 					'Blocking deletion: subscription is active/past_due and not in trial',

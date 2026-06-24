@@ -416,7 +416,7 @@ const getTeamReportHtml = ({
 				<tr><td align="center">
 					<table role="presentation" width="640" cellpadding="0" cellspacing="0" style="max-width:640px; width:100%; background:#ffffff; border-radius:20px; overflow:hidden; border:1px solid #cfe8d4;">
 						<tr>
-							<td style="background:#13a85b; color:#ffffff; padding:28px 32px;">
+							<td style="background:#16a34a; color:#ffffff; padding:28px 32px;">
 								<div style="font-size:13px; text-transform:uppercase; letter-spacing:0.08em; font-weight:800;">Maintley</div>
 								<h1 style="margin:10px 0 0 0; font-size:27px; line-height:1.2;">Team Task Update</h1>
 								<p style="margin:10px 0 0 0; font-size:15px; line-height:1.6; color:#eaf8ee;">${escapeHtml(frequencyLabel)} maintenance task update.</p>
@@ -440,7 +440,7 @@ const getTeamReportHtml = ({
 								${renderRows(overdueTasks, propertyById, 'No overdue tasks are currently recorded.', (task) => task.dueDate)}
 							</div>
 
-							<a href="${escapeHtml(dashboardUrl)}" style="display:inline-block; background:#13a85b; color:#ffffff; text-decoration:none; padding:13px 20px; border-radius:12px; font-size:14px; font-weight:900;">Open Maintley</a>
+							<a href="${escapeHtml(dashboardUrl)}" style="display:inline-block; background:#16a34a; color:#ffffff; text-decoration:none; padding:13px 20px; border-radius:12px; font-size:14px; font-weight:900;">Open Maintley</a>
 						</td></tr>
 						<tr><td style="padding:18px 32px; border-top:1px solid #e5efe7; font-size:12px; line-height:1.6; color:#667085;">This report is controlled by the account owner in Maintley email preferences.</td></tr>
 					</table>

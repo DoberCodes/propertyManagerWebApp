@@ -36,23 +36,30 @@ const getWelcomeEmailHtml = (
 	return `
 		<div style="background:#f4faf6; padding:24px; font-family: Arial, sans-serif; color:#1f2937;">
 			<div style="max-width:620px; margin:0 auto; background:#ffffff; border:1px solid #dfeee4; border-radius:14px; overflow:hidden;">
-				<div style="background:linear-gradient(90deg,#065f46 0%,#047857 100%); color:#ffffff; padding:22px 24px;">
-					<div style="font-size:13px; letter-spacing:0.04em; text-transform:uppercase; opacity:0.9;">Maintley</div>
-					<h1 style="margin:10px 0 0; font-size:24px; line-height:1.3;">Welcome to Maintley</h1>
+				<div style="background:#0f766e; padding:22px 24px 24px; color:#ffffff;">
+					<p style="margin:0 0 10px; font-size:14px; font-weight:800; letter-spacing:0.08em; text-transform:uppercase; color:rgba(255,255,255,0.9);">Maintley</p>
+					<h1 style="margin:0; font-size:38px; line-height:1.15; font-weight:800; color:#ffffff;">Welcome to Maintley</h1>
 				</div>
 				<div style="padding:24px;">
-					<p style="margin:0 0 12px; font-size:15px; line-height:1.7;">Hi ${safeName},</p>
-					<p style="margin:0 0 14px; font-size:15px; line-height:1.7;">Your account is ready. Maintley helps you stay organized with clear property records, maintenance history, and practical next steps.</p>
-					<p style="margin:0 0 16px; font-size:15px; line-height:1.7;">A great first step is adding your first property, then checking in on upcoming tasks.</p>
-					<div style="margin:20px 0 24px;">
+					<p style="margin:0 0 16px; font-size:15px; line-height:1.7;">Hi ${safeName},</p>
+					<p style="margin:0 0 14px; font-size:15px; line-height:1.7;">Your account is ready.</p>
+					<p style="margin:0 0 14px; font-size:15px; line-height:1.7;">Maintley helps you keep property records, maintenance history, documents, and recurring care organized in one place.</p>
+					<p style="margin:0 0 14px; font-size:15px; line-height:1.7;">Most users start by adding a property and recording major systems like HVAC, Water Heater, and Smoke Detectors. As your records grow, Maintley can help surface maintenance opportunities and useful next steps.</p>
+					<p style="margin:0 0 10px; font-size:15px; line-height:1.7; font-weight:700;">What you can do next:</p>
+					<ul style="margin:0 0 20px 0; padding:0; list-style:none; font-size:15px; line-height:1.8; color:#1f2937;">
+						<li style="margin:0 0 4px;">✓ Add your first property</li>
+						<li style="margin:0 0 4px;">✓ Record your major systems and appliances</li>
+						<li style="margin:0 0 4px;">✓ Create your first maintenance task</li>
+						<li style="margin:0;">✓ Upload manuals, receipts, or warranty information</li>
+					</ul>
+					<div style="margin:20px 0 20px;">
 						<a href="${safeQuickStartUrl}" style="display:inline-block; background:#16a34a; color:#ffffff; text-decoration:none; padding:12px 18px; border-radius:8px; font-weight:700; font-size:14px;">Open Maintley</a>
 					</div>
-					<div style="font-size:13px; color:#5f6b65; line-height:1.7;">
-						Need help getting started? Visit your dashboard for guidance and recommended next actions.
-					</div>
+					<p style="margin:0; font-size:14px; color:#5f6b65; line-height:1.7;">Need help getting started? Visit the Support Center for guides, tutorials, and answers to common questions.</p>
 				</div>
 				<div style="padding:14px 24px; border-top:1px solid #e8eee9; font-size:12px; color:#667085;">
-					Maintley • <a href="${safeAppUrl}" style="color:#047857; text-decoration:none;">${safeAppUrl}</a>
+					Maintley<br />
+					<a href="${safeAppUrl}" style="color:#0f766e; text-decoration:none;">maintleyapp.com</a>
 				</div>
 			</div>
 		</div>

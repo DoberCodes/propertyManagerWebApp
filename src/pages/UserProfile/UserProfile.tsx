@@ -64,6 +64,15 @@ import {
 	ProfileActionButton,
 	DangerProfileActionButton,
 	ActionHelperText,
+	DeleteLoadingCard,
+	DeleteLoadingOverlay,
+	DeleteLoadingTitle,
+	DeleteLoadingText,
+	DeconstructedHouseLoader,
+	HouseRoofPiece,
+	HouseBodyPiece,
+	HouseBlockPiece,
+	HouseBasePiece,
 } from './UserProfile.styles';
 import { Button } from 'pages/PropertyDetailPage/TabSystem/index.styles';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -75,11 +84,12 @@ import {
 	faHouse,
 	faPencil,
 	faScrewdriverWrench,
+	faTriangleExclamation,
 	faUserCheck,
 } from '@fortawesome/free-solid-svg-icons';
 import { formatDate } from 'utils/detailPageUtils';
 import COLORS from 'constants/colors';
-import { ManagePlanButton, PortfolioPlanSub, PortfolioTop, PortfolioUsage, PortfolioUsageBadge, ProgressFill, ProgressTrack } from 'Components/Library/Navbar/SideNav/SideNav.styles';
+import { PortfolioPlanSub, PortfolioTop, PortfolioUsage, PortfolioUsageBadge, ProgressFill, ProgressTrack } from 'Components/Library/Navbar/SideNav/SideNav.styles';
 import {
 	canManageTeam,
 	getRemainingPropertySlots,
@@ -130,6 +140,7 @@ export const UserProfile: React.FC = () => {
 	const [passwordError, setPasswordError] = useState('');
 	const [passwordSuccess, setPasswordSuccess] = useState('');
 	const [deleteAccountError, setDeleteAccountError] = useState('');
+	const [deleteConfirmationInput, setDeleteConfirmationInput] = useState('');
 	const [isChangingPassword, setIsChangingPassword] = useState(false);
 	const [isDeletingAccount, setIsDeletingAccount] = useState(false);
 	const [passwordForm, setPasswordForm] = useState({
@@ -597,8 +608,81 @@ export const UserProfile: React.FC = () => {
 	};
 
 	const hasBlockingSubscription =
-		currentUser?.subscription?.status === 'active' ||
-		currentUser?.subscription?.status === 'past_due';
+		(['homeowner_plus', 'property', 'portfolio'].includes(
+			String(currentUser?.subscription?.plan || '').trim().toLowerCase(),
+		) &&
+			(currentUser?.subscription?.status === 'active' ||
+				currentUser?.subscription?.status === 'past_due')) ||
+		false;
+
+	const paidPlanIds = ['homeowner_plus', 'property', 'portfolio'];
+	const currentPlanId = String(currentUser?.subscription?.plan || '')
+		.trim()
+		.toLowerCase();
+	const isPaidPlan = paidPlanIds.includes(currentPlanId);
+	const hasPendingCancellation =
+		isPaidPlan &&
+		currentUser?.subscription?.status === 'active' &&
+		!!currentUser?.subscription?.hasScheduledSubscription;
+	const currentPlanDetails = getSubscriptionPlanDetails(currentPlanId || 'homeowner');
+	const ownedPropertiesCount = React.useMemo(
+		() =>
+			summaryProperties.filter(
+				(property: any) => String(property.userId || '').trim() === currentUser?.id,
+			).length,
+		[summaryProperties, currentUser?.id],
+	);
+	const activeTeamMembersCount = React.useMemo(
+		() =>
+			profileTeamMembers.filter(
+				(member: any) =>
+					String(member.status || '').trim().toLowerCase() !== 'inactive',
+			).length,
+		[profileTeamMembers],
+	);
+	const hasTeamOwnerBlock =
+		!isTeamMemberAccount && ownedPropertiesCount > 0 && activeTeamMembersCount > 0;
+	const maintenanceRecordCount = maintenanceHistory.length;
+	const documentsCount = summaryProperties.reduce((total: number, property: any) => {
+		const propertyDocuments = Array.isArray(property.documents)
+			? property.documents.length
+			: 0;
+		return total + propertyDocuments;
+	}, 0);
+	const deleteImpactItems = [
+		{ label: 'properties', value: summaryProperties.length },
+		{ label: 'systems', value: summarySystems.length },
+		{ label: 'maintenance records', value: maintenanceRecordCount },
+		{ label: 'uploaded documents', value: documentsCount },
+	].filter((item) => item.value > 0);
+	const hasDeleteImpactData = deleteImpactItems.length > 0;
+
+	type DeleteModalState =
+		| 'active_subscription'
+		| 'pending_cancellation'
+		| 'team_owner'
+		| 'ready';
+
+	const deleteModalState: DeleteModalState = hasPendingCancellation
+		? 'pending_cancellation'
+		: hasBlockingSubscription
+			? 'active_subscription'
+			: hasTeamOwnerBlock
+				? 'team_owner'
+				: 'ready';
+
+	const subscriptionEndDateLabel = React.useMemo(() => {
+		const rawPeriodEnd = (currentUser?.subscription as any)?.currentPeriodEnd;
+		const numericPeriodEnd = Number(rawPeriodEnd || 0);
+		if (!Number.isFinite(numericPeriodEnd) || numericPeriodEnd <= 0) {
+			return 'the end of your billing period';
+		}
+		return new Date(numericPeriodEnd * 1000).toLocaleDateString(undefined, {
+			year: 'numeric',
+			month: 'long',
+			day: 'numeric',
+		});
+	}, [currentUser?.subscription]);
 
 	const openChangePasswordModal = () => {
 		setPasswordError('');
@@ -612,15 +696,8 @@ export const UserProfile: React.FC = () => {
 	};
 
 	const openDeleteAccountModal = () => {
-		if (hasBlockingSubscription) {
-			setDeleteAccountError(
-				'You cannot delete your account while you have an active subscription. Please cancel your subscription first.',
-			);
-			setShowDeleteAccountModal(true);
-			return;
-		}
-
 		setDeleteAccountError('');
+		setDeleteConfirmationInput('');
 		setShowDeleteAccountModal(true);
 	};
 
@@ -707,7 +784,10 @@ export const UserProfile: React.FC = () => {
 				setDeleteAccountError('You can only delete your own account.');
 			} else if (deleteError.code === 'functions/failed-precondition') {
 				setDeleteAccountError(
-					'You cannot delete your account while you have an active subscription. Please cancel your subscription first.',
+					String(
+						deleteError.message ||
+						'You cannot delete your account while you have an active subscription. Please cancel your subscription first.',
+					),
 				);
 			} else if (deleteError.code === 'functions/internal') {
 				setDeleteAccountError('Failed to delete account. Please contact support.');
@@ -1147,48 +1227,180 @@ export const UserProfile: React.FC = () => {
 				onClose={() => {
 					setShowDeleteAccountModal(false);
 					setDeleteAccountError('');
+					setDeleteConfirmationInput('');
 				}}
 				primaryButtonLabel={
-					deleteAccountError?.includes('active subscription')
-						? 'Open Billing Settings'
-						: 'Delete Account'
+					deleteModalState === 'active_subscription' ||
+						deleteModalState === 'pending_cancellation'
+						? 'Manage Subscription'
+						: deleteModalState === 'team_owner'
+							? 'Open Team'
+							: 'Delete Account'
 				}
 				secondaryButtonLabel='Cancel'
 				isLoading={isDeletingAccount}
-				showActions={true}
+				showActions={!isDeletingAccount}
+				primaryButtonDisabled={
+					deleteModalState === 'ready' && deleteConfirmationInput !== 'DELETE'
+				}
 				onSubmit={
-					deleteAccountError?.includes('active subscription')
+					deleteModalState === 'active_subscription' ||
+						deleteModalState === 'pending_cancellation'
 						? () => {
 							setShowDeleteAccountModal(false);
 							navigate('/settings?category=account');
 						}
-						: handleDeleteAccount
+						: deleteModalState === 'team_owner'
+							? () => {
+								setShowDeleteAccountModal(false);
+								navigate('/team');
+							}
+							: handleDeleteAccount
 				}>
-				{deleteAccountError && (
-					<ErrorMessage>{deleteAccountError}</ErrorMessage>
-				)}
+				<div style={{ marginBottom: '12px', height: '100%', justifyContent: 'space-between', alignItems: 'center', display: 'flex', flexDirection: 'column', gap: '12px', width: '100%', position: 'relative' }}>
+					{deleteAccountError && (
+						<ErrorMessage>{deleteAccountError}</ErrorMessage>
+					)}
 
-				{deleteAccountError?.includes('active subscription') ? (
-					<div>
-						<p style={{ marginBottom: '16px', color: '#6b7280' }}>
-							To delete your account, you must first cancel your active subscription.
-						</p>
-						<p style={{ marginBottom: '16px', color: '#6b7280' }}>
-							Open Billing Settings to manage your subscription.
-						</p>
-					</div>
-				) : (
-					<div>
-						<p style={{ marginBottom: '16px', color: '#6b7280' }}>
-							<strong>Warning:</strong> This action cannot be undone. If you are
-							the original owner of any properties, all your properties and
-							associated data will be permanently deleted.
-						</p>
-						<p style={{ marginBottom: '16px', color: '#6b7280' }}>
-							Are you sure you want to delete your account?
-						</p>
-					</div>
-				)}
+					{isDeletingAccount && deleteModalState === 'ready' && (
+						<DeleteLoadingOverlay>
+							<DeleteLoadingCard>
+								<DeleteLoadingTitle>Sorry to see you go</DeleteLoadingTitle>
+								<DeconstructedHouseLoader aria-hidden='true'>
+									<HouseRoofPiece />
+									<HouseBodyPiece>
+										<HouseBlockPiece $slot='one' $delay='0.1s' />
+										<HouseBlockPiece $slot='two' $delay='0.2s' />
+										<HouseBlockPiece $slot='three' $delay='0.3s' />
+										<HouseBlockPiece $slot='four' $delay='0.4s' />
+									</HouseBodyPiece>
+									<HouseBasePiece />
+								</DeconstructedHouseLoader>
+								<DeleteLoadingText>
+									Removing your account data now. This usually takes just a moment.
+								</DeleteLoadingText>
+							</DeleteLoadingCard>
+						</DeleteLoadingOverlay>
+					)}
+
+					{!isDeletingAccount && deleteModalState === 'active_subscription' && (
+						<div
+							style={{
+								background: '#fff5f5',
+								border: '1px solid #fecaca',
+								borderRadius: '10px',
+								padding: '12px 14px',
+								color: '#7f1d1d',
+							}}>
+							<p style={{ margin: 0, fontWeight: 700, display: 'flex', gap: '8px', alignItems: 'center' }}>
+								<FontAwesomeIcon icon={faTriangleExclamation} />
+								Active Subscription Required
+							</p>
+							<p style={{ margin: '8px 0 0', color: '#7f1d1d' }}>
+								You currently have an active {currentPlanDetails?.name || 'paid'} subscription.
+								Account deletion is unavailable while a subscription is active.
+							</p>
+							<p style={{ margin: '10px 0 0', color: '#7f1d1d' }}>To delete your account:</p>
+							<ol style={{ margin: '4px 0 0 18px', padding: 0, color: '#7f1d1d' }}>
+								<li>Cancel your subscription</li>
+								<li>Wait for the subscription to end or downgrade</li>
+								<li>Return here to delete your account</li>
+							</ol>
+						</div>
+					)}
+
+					{!isDeletingAccount && deleteModalState === 'pending_cancellation' && (
+						<div
+							style={{
+								background: '#fff5f5',
+								border: '1px solid #fecaca',
+								borderRadius: '10px',
+								padding: '12px 14px',
+								color: '#7f1d1d',
+							}}>
+							<p style={{ margin: 0, fontWeight: 700, display: 'flex', gap: '8px', alignItems: 'center' }}>
+								<FontAwesomeIcon icon={faTriangleExclamation} />
+								Subscription Ending Soon
+							</p>
+							<p style={{ margin: '8px 0 0', color: '#7f1d1d' }}>
+								Your subscription is scheduled to end on {subscriptionEndDateLabel}.
+								Account deletion will become available once it expires.
+							</p>
+						</div>
+					)}
+
+					{!isDeletingAccount && deleteModalState === 'team_owner' && (
+						<div
+							style={{
+								background: '#fff5f5',
+								border: '1px solid #fecaca',
+								borderRadius: '10px',
+								padding: '12px 14px',
+								color: '#7f1d1d',
+							}}>
+							<p style={{ margin: 0, fontWeight: 700, display: 'flex', gap: '8px', alignItems: 'center' }}>
+								<FontAwesomeIcon icon={faTriangleExclamation} />
+								Team Ownership Review Required
+							</p>
+							<p style={{ margin: '8px 0 0', color: '#7f1d1d' }}>
+								You currently own properties with active team members.
+								Remove team access or transfer ownership before deleting this account.
+							</p>
+						</div>
+					)}
+
+					{!isDeletingAccount && deleteModalState === 'ready' && (
+						<div>
+							<div
+								style={{
+									background: '#fff5f5',
+									border: '1px solid #fecaca',
+									borderRadius: '10px',
+									padding: '12px 14px',
+									color: '#7f1d1d',
+								}}>
+								<p style={{ margin: 0, fontWeight: 700, display: 'flex', gap: '8px', alignItems: 'center' }}>
+									<FontAwesomeIcon icon={faTriangleExclamation} />
+									Delete account is permanent
+								</p>
+								<p style={{ margin: '8px 0 0', color: '#7f1d1d' }}>
+									This action cannot be undone.
+								</p>
+							</div>
+							<div style={{ marginTop: '12px', color: '#4b5563' }}>
+								{hasDeleteImpactData ? (
+									<>
+										<p style={{ margin: '0 0 6px', fontWeight: 600 }}>
+											Deleting your account will permanently remove:
+										</p>
+										<ul style={{ margin: 0, paddingLeft: '18px' }}>
+											{deleteImpactItems.map((item) => (
+												<li key={item.label}>{item.value} {item.label}</li>
+											))}
+										</ul>
+									</>
+								) : (
+									<p style={{ marginTop: '15px', fontWeight: 600 }}>
+										No saved properties, systems, maintenance records, or uploaded documents were found in this account.
+									</p>
+								)}
+							</div>
+						</div>
+					)}
+
+					{!isDeletingAccount && deleteModalState === 'ready' && (
+						<div style={{ marginTop: '14px' }}>
+							<FormLabel>Type DELETE to confirm</FormLabel>
+							<FormInput
+								type='text'
+								value={deleteConfirmationInput}
+								onChange={(e) => setDeleteConfirmationInput(e.target.value)}
+								placeholder='DELETE'
+								autoComplete='off'
+							/>
+						</div>
+					)}
+				</div>
 			</GenericModal>
 		</Wrapper >
 	);

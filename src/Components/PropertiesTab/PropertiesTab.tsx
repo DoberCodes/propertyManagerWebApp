@@ -500,6 +500,7 @@ export const Properties = () => {
 
 	const [openDropdown, setOpenDropdown] = useState<string | null>(null);
 	const [dialogOpen, setDialogOpen] = useState(false);
+	const [showOnboardingSetupTip, setShowOnboardingSetupTip] = useState(false);
 	const [selectedGroupForDialog, setSelectedGroupForDialog] = useState<
 		string | null
 	>(null);
@@ -1029,7 +1030,9 @@ export const Properties = () => {
 	useEffect(() => {
 		const params = new URLSearchParams(location.search);
 		const shouldOpenCreateDialog =
-			params.get('openCreate') === '1' || params.get('action') === 'create';
+			params.get('openCreate') === '1' ||
+			params.get('openCreate') === 'onboarding' ||
+			params.get('action') === 'create';
 		if (!shouldOpenCreateDialog) {
 			return;
 		}
@@ -1043,6 +1046,7 @@ export const Properties = () => {
 		setPropertyToDuplicate(null);
 		setCopyTasksOnDuplicate(false);
 		setCopyAppliancesOnDuplicate(true);
+		setShowOnboardingSetupTip(params.get('openCreate') === 'onboarding');
 		setDialogOpen(true);
 
 		params.delete('openCreate');
@@ -1115,6 +1119,7 @@ export const Properties = () => {
 
 	const handleClosePropertyDialog = () => {
 		setDialogOpen(false);
+		setShowOnboardingSetupTip(false);
 		setSelectedGroupForDialog(null);
 		setSelectedPropertyForEdit(null);
 		setPropertyToDuplicate(null);
@@ -2447,6 +2452,7 @@ export const Properties = () => {
 					isOpen={dialogOpen}
 					onClose={handleClosePropertyDialog}
 					onSave={handleSaveProperty}
+					showOnboardingSetupTip={showOnboardingSetupTip}
 					onDeleteProperty={
 						selectedPropertyForEdit ? handleDeletePropertyFromDialog : undefined
 					}
@@ -2791,6 +2797,7 @@ export const Properties = () => {
 				isOpen={dialogOpen}
 				onClose={handleClosePropertyDialog}
 				onSave={handleSaveProperty}
+				showOnboardingSetupTip={showOnboardingSetupTip}
 				onDeleteProperty={
 					selectedPropertyForEdit ? handleDeletePropertyFromDialog : undefined
 				}

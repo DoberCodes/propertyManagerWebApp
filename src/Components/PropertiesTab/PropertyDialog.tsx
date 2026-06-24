@@ -57,6 +57,10 @@ import {
 	DashboardVisibilityText,
 	DashboardVisibilityTitle,
 	DashboardVisibilityHint,
+	OnboardingTipBanner,
+	OnboardingTipDismissButton,
+	OnboardingTipLabel,
+	OnboardingTipText,
 	DialogSavingCard,
 	DialogSavingOverlay,
 	DialogSavingSpinner,
@@ -77,6 +81,8 @@ import { RootState } from '../../Redux/store/store';
 import { TeamMember } from '../../types/Team.types';
 import { User } from '../../Redux/Slices/userSlice';
 import { getFamilyMembers } from '../../services/authService';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faInfoCircle } from '@fortawesome/free-solid-svg-icons';
 interface MaintenanceRecord {
 	date: string;
 	description: string;
@@ -126,6 +132,7 @@ interface PropertyDialogProps {
 	isHiddenFromDashboard?: boolean;
 	isSharedProperty?: boolean;
 	onDetachFromProperty?: () => void;
+	showOnboardingSetupTip?: boolean;
 }
 
 interface ShareMemberOption {
@@ -192,6 +199,7 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 	isHiddenFromDashboard,
 	isSharedProperty,
 	onDetachFromProperty,
+	showOnboardingSetupTip = false,
 }) => {
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
 	const isTeamMemberAccount = currentUser?.isTeamMemberAccount === true;
@@ -234,6 +242,7 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 	const [imageError, setImageError] = useState<string | null>(null);
 	const [isDeletingProperty, setIsDeletingProperty] = useState(false);
 	const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+	const [isOnboardingTipDismissed, setIsOnboardingTipDismissed] = useState(false);
 	const [familyMembers, setFamilyMembers] = useState<User[]>([]);
 	const [isLoadingFamilyMembers, setIsLoadingFamilyMembers] = useState(false);
 	const [pendingShares, setPendingShares] = useState<{
@@ -314,6 +323,7 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 		setPendingShares({ coOwners: '', administrators: '', viewers: '' });
 		setImageError(null);
 		setIsDeleteConfirmOpen(false);
+		setIsOnboardingTipDismissed(false);
 	}, [isOpen, initialData, selectedGroupId, forceSingleFamily, currentUser, isHiddenFromDashboard]);
 
 	useEffect(() => {
@@ -1104,6 +1114,20 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 						Please review the information below before saving.
 					</WizardPanelHint>
 				</WizardPanelHeader>
+				{showOnboardingSetupTip && !isOnboardingTipDismissed && !initialData && !isDuplicate && (
+					<OnboardingTipBanner>
+						<OnboardingTipText>
+							<OnboardingTipLabel>Onboarding tip</OnboardingTipLabel>
+							<FontAwesomeIcon icon={faInfoCircle} /> Keeping<span className="strong"> Open Property Setup Assistant</span> checked allows you to quickly access the property setup assistant after saving your property.
+						</OnboardingTipText>
+						<OnboardingTipDismissButton
+							type='button'
+							aria-label='Dismiss onboarding tip'
+							onClick={() => setIsOnboardingTipDismissed(true)}>
+							×
+						</OnboardingTipDismissButton>
+					</OnboardingTipBanner>
+				)}
 				<ReviewGrid>
 					{reviewRows.map(([label, value]) => (
 						<React.Fragment key={label}>

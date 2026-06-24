@@ -352,11 +352,35 @@ export const PlanBestFor = styled.p<{ color?: 'white' | 'black' }>`
 			: COLORS.textSecondary};
 `;
 
-export const PlanFeatures = styled.ul`
+export const PlanFeatureToggle = styled.button<{ color?: 'white' | 'black' }>`
+	border: none;
+	background: transparent;
+	padding: 0;
+	margin: 0 0 10px;
+	font-size: 13px;
+	font-weight: 700;
+	cursor: pointer;
+	color: ${(props) =>
+		props.color === 'white' ? 'rgba(255, 255, 255, 0.92)' : COLORS.primary};
+	text-align: left;
+
+	@media (min-width: 769px) {
+		display: none;
+	}
+`;
+
+export const PlanFeatures = styled.ul<{ $collapsed?: boolean }>`
 	list-style: none;
 	padding: 0;
 	margin: 22px 0;
 	flex-grow: 1;
+
+	@media (max-width: 768px) {
+		margin: 10px 0 16px;
+		max-height: ${(props) => (props.$collapsed ? '0' : '700px')};
+		overflow: hidden;
+		transition: max-height 0.28s ease;
+	}
 `;
 
 export const PlanFeature = styled.li<{ color?: 'white' | 'black' }>`
@@ -475,6 +499,38 @@ export const AdditionalOptionsContainer = styled.div<{
 		gap: 16px;
 		margin-top: 16px;
 	}
+`;
+
+export const MobilePromoContainer = styled.div`
+	display: none;
+	margin: 0 0 14px;
+
+	@media (max-width: 768px) {
+		display: block;
+	}
+`;
+
+export const MobilePromoToggle = styled.button`
+	width: 100%;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 11px 14px;
+	border: 1.5px solid ${COLORS.gray200};
+	border-radius: 10px;
+	background: ${COLORS.bgWhite};
+	color: ${COLORS.textPrimary};
+	font-size: 14px;
+	font-weight: 700;
+	cursor: pointer;
+	box-shadow: ${COLORS.shadow};
+`;
+
+export const MobilePromoPanel = styled.div<{ $open?: boolean }>`
+	max-height: ${(props) => (props.$open ? '720px' : '0')};
+	overflow: hidden;
+	transition: max-height 0.25s ease;
+	padding-top: ${(props) => (props.$open ? '10px' : '0')};
 `;
 
 export const PromoSection = styled.div<{ layout?: 'grid' | 'horizontal' }>`

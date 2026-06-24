@@ -35,6 +35,10 @@ import {
 	CardBillingButton,
 	FreePlanBadge,
 	PlanBestFor,
+	PlanFeatureToggle,
+	MobilePromoContainer,
+	MobilePromoToggle,
+	MobilePromoPanel,
 } from './PaywallPage.styles';
 import { SUBSCRIPTION_PLANS } from '../../constants/subscriptions';
 import { SubscriptionData } from '../../utils/subscriptionUtils';
@@ -71,7 +75,7 @@ interface PaywallPageProps {
 }
 
 type PaidPlanId = 'homeowner' | 'homeowner_plus' | 'property' | 'portfolio';
-type PlanAudience = 'personal' | 'business';
+type PlanAudience = 'home' | 'business';
 
 const PLAN_BY_ID = {
 	homeowner: SUBSCRIPTION_PLANS.HOMEOWNER,
@@ -81,22 +85,22 @@ const PLAN_BY_ID = {
 } as const;
 
 const PLAN_GROUPS: Record<PlanAudience, PaidPlanId[]> = {
-	personal: ['homeowner', 'homeowner_plus'],
+	home: ['homeowner', 'homeowner_plus'],
 	business: ['property', 'portfolio'],
 };
 
 const PLAN_GROUP_COPY: Record<PlanAudience, string> = {
-	personal:
+	home:
 		'For homeowners who want stronger maintenance records and one-property depth.',
 	business:
 		'For operators managing multiple properties, teams, and service workflows.',
 };
 
 const PLAN_BEST_FOR: Record<PaidPlanId, string> = {
-	homeowner: 'Best for: track your home',
-	homeowner_plus: 'Best for: stay ahead of maintenance',
-	property: 'Best for: manage multiple properties',
-	portfolio: 'Best for: run a property operation',
+	homeowner: 'Ideal for one home and essential maintenance records.',
+	homeowner_plus: 'Ideal for deeper records, reminders, and proactive upkeep.',
+	property: 'Ideal for managing multiple properties with stronger controls.',
+	portfolio: 'Ideal for teams operating larger property portfolios.',
 };
 
 const DEFAULT_PLAN_BILLING: Record<PaidPlanId, BillingCycle> = {
@@ -108,10 +112,10 @@ const DEFAULT_PLAN_BILLING: Record<PaidPlanId, BillingCycle> = {
 
 const getAudienceForPlan = (
 	planId: string,
-	fallback: PlanAudience = 'personal',
+	fallback: PlanAudience = 'home',
 ): PlanAudience => {
 	if (planId === 'property' || planId === 'portfolio') return 'business';
-	if (planId === 'homeowner' || planId === 'homeowner_plus') return 'personal';
+	if (planId === 'homeowner' || planId === 'homeowner_plus') return 'home';
 	return fallback;
 };
 
@@ -126,7 +130,7 @@ export const PaywallPage: React.FC<PaywallPageProps> = ({
 	onPlanSelect,
 	wide = false,
 	onPromoCodeApplied,
-	initialPlanAudience = 'personal',
+	initialPlanAudience = 'home',
 }) => {
 	const navigate = useNavigate();
 	const [loading, setLoading] = useState(false);
@@ -145,6 +149,18 @@ export const PaywallPage: React.FC<PaywallPageProps> = ({
 	);
 	const [planBillingCycles, setPlanBillingCycles] =
 		useState<Record<PaidPlanId, BillingCycle>>(DEFAULT_PLAN_BILLING);
+	const [isMobileView, setIsMobileView] = useState<boolean>(
+		typeof window !== 'undefined' ? window.innerWidth <= 768 : false,
+	);
+	const [isPromoOpenOnMobile, setIsPromoOpenOnMobile] = useState(false);
+	const [expandedFeaturePlans, setExpandedFeaturePlans] = useState<
+		Record<PaidPlanId, boolean>
+	>({
+		homeowner: false,
+		homeowner_plus: false,
+		property: false,
+		portfolio: false,
+	});
 	const isOnTrial = isTrialActive(subscription);
 	const daysRemaining = getTrialDaysRemaining(subscription);
 	const cardLayout = wide ? 'horizontal' : layout;
@@ -161,6 +177,19 @@ export const PaywallPage: React.FC<PaywallPageProps> = ({
 			navigate('/settings', { replace: true });
 		});
 	}, [nativeApp, navigate]);
+
+	useEffect(() => {
+		const updateViewport = () => setIsMobileView(window.innerWidth <= 768);
+		updateViewport();
+		window.addEventListener('resize', updateViewport);
+		return () => window.removeEventListener('resize', updateViewport);
+	}, []);
+
+	useEffect(() => {
+		if (appliedPromoCode && isMobileView) {
+			setIsPromoOpenOnMobile(true);
+		}
+	}, [appliedPromoCode, isMobileView]);
 
 	useEffect(() => {
 		if (appliedPromoCode) {
@@ -411,11 +440,57 @@ export const PaywallPage: React.FC<PaywallPageProps> = ({
 			if (subscription.status !== 'trial') return 'Current Plan';
 			return 'Upgrade Now';
 		}
-
+		if (planId === 'homeowner') return 'Start Free Plan';
 		if (selectionOnly) return 'Select Plan';
 		if (planIsScheduled) return 'Scheduled';
 		return 'Upgrade';
 	};
+
+	const renderPromoContent = (layoutMode?: 'grid' | 'horizontal') =>
+		appliedPromoCode ? (
+			<PromoText
+				layout={layoutMode}
+				style={{ color: '#22c55e', fontWeight: 'bold' }}>
+				Promo code "{appliedPromoCode.toUpperCase()}" has been applied!
+			</PromoText>
+		) : (
+			<>
+				<PromoText layout={layoutMode}>
+					Enter your promo code to unlock special pricing.
+				</PromoText>
+				<PromoInput
+					layout={layoutMode}
+					type='text'
+					placeholder='Enter promo code'
+					value={promoCode}
+					onChange={(e) => setPromoCode(e.target.value)}
+					onKeyPress={(e) => e.key === 'Enter' && handlePromoCode()}
+				/>
+				{isCheckingPromo && (
+					<PromoText layout={layoutMode} style={{ marginBottom: '12px' }}>
+						Checking promo code...
+					</PromoText>
+				)}
+				{promoHint && !promoError && (
+					<PromoText
+						layout={layoutMode}
+						style={{
+							color: promoHintType === 'success' ? '#22c55e' : '#dc3545',
+							marginBottom: '12px',
+						}}>
+						{promoHint}
+					</PromoText>
+				)}
+				{promoError && (
+					<PromoText layout={layoutMode} style={{ color: '#dc3545', marginBottom: '12px' }}>
+						{promoError}
+					</PromoText>
+				)}
+				<PromoButton onClick={handlePromoCode} disabled={promoLoading}>
+					{promoLoading ? 'Applying...' : 'Apply Code'}
+				</PromoButton>
+			</>
+		);
 
 	const renderPlanCard = (planId: PaidPlanId) => {
 		const plan = PLAN_BY_ID[planId];
@@ -426,6 +501,7 @@ export const PaywallPage: React.FC<PaywallPageProps> = ({
 		const useInvertedColors = isCurrentPlan;
 		const buttonIsCurrent =
 			(isCurrentPlan || isScheduledPlan) && !isOnTrial && !selectionOnly;
+		const isFeaturesExpanded = expandedFeaturePlans[planId];
 
 		return (
 			<PricingCard
@@ -449,7 +525,21 @@ export const PaywallPage: React.FC<PaywallPageProps> = ({
 				<PlanBestFor color={useInvertedColors ? 'white' : 'black'}>
 					{PLAN_BEST_FOR[planId]}
 				</PlanBestFor>
-				<PlanFeatures>
+				{isMobileView && (
+					<PlanFeatureToggle
+						type='button'
+						color={useInvertedColors ? 'white' : 'black'}
+						onClick={() =>
+							setExpandedFeaturePlans((current) => ({
+								...current,
+								[planId]: !current[planId],
+							}))
+						}
+						aria-expanded={isFeaturesExpanded}>
+						{isFeaturesExpanded ? 'Hide features' : 'Show features'}
+					</PlanFeatureToggle>
+				)}
+				<PlanFeatures $collapsed={isMobileView && !isFeaturesExpanded}>
 					{plan.features.map((feature, idx) => (
 						<PlanFeature
 							key={idx}
@@ -572,9 +662,9 @@ export const PaywallPage: React.FC<PaywallPageProps> = ({
 				<PlanAudienceControls variant={variant}>
 					<PlanAudienceButton
 						type='button'
-						$active={planAudience === 'personal'}
-						onClick={() => setPlanAudience('personal')}>
-						Personal
+						$active={planAudience === 'home'}
+						onClick={() => setPlanAudience('home')}>
+						Home
 					</PlanAudienceButton>
 					<PlanAudienceButton
 						type='button'
@@ -587,67 +677,47 @@ export const PaywallPage: React.FC<PaywallPageProps> = ({
 					{PLAN_GROUP_COPY[planAudience]}
 				</PlanGroupIntro>
 
+				{isMobileView && (
+					<MobilePromoContainer>
+						<MobilePromoToggle
+							type='button'
+							onClick={() => setIsPromoOpenOnMobile((open) => !open)}
+							aria-expanded={isPromoOpenOnMobile}>
+							<span>
+								{appliedPromoCode ? 'Promo code applied' : 'Have a promo code?'}
+							</span>
+							<span>{isPromoOpenOnMobile ? 'Hide' : 'Show'}</span>
+						</MobilePromoToggle>
+						<MobilePromoPanel $open={isPromoOpenOnMobile}>
+							<PromoSection layout='grid'>
+								<PromoTitle layout='grid'>
+									{appliedPromoCode
+										? 'Promo Code Applied ✅'
+										: 'Have a Promo Code?'}
+								</PromoTitle>
+								{renderPromoContent('grid')}
+							</PromoSection>
+						</MobilePromoPanel>
+					</MobilePromoContainer>
+				)}
+
 				<PricingCardsGrid layout={cardLayout}>
 					{PLAN_GROUPS[planAudience].map((planId) => renderPlanCard(planId))}
 				</PricingCardsGrid>
 
 				<AdditionalOptionsContainer
 					layout={cardLayout}
-					$single={planAudience === 'personal'}>
-					<PromoSection layout={cardLayout}>
-						<PromoTitle layout={cardLayout}>
-							{appliedPromoCode
-								? 'Promo Code Applied ✅'
-								: 'Have a Promo Code?'}
-						</PromoTitle>
-						{appliedPromoCode ? (
-							<PromoText
-								layout={cardLayout}
-								style={{ color: '#22c55e', fontWeight: 'bold' }}>
-								Promo code "{appliedPromoCode.toUpperCase()}" has been applied!
-							</PromoText>
-						) : (
-							<>
-								<PromoText layout={cardLayout}>
-									Enter your promo code to unlock special pricing.
-								</PromoText>
-								<PromoInput
-									layout={cardLayout}
-									type='text'
-									placeholder='Enter promo code'
-									value={promoCode}
-									onChange={(e) => setPromoCode(e.target.value)}
-									onKeyPress={(e) => e.key === 'Enter' && handlePromoCode()}
-								/>
-								{isCheckingPromo && (
-									<PromoText layout={cardLayout} style={{ marginBottom: '12px' }}>
-										Checking promo code...
-									</PromoText>
-								)}
-								{promoHint && !promoError && (
-									<PromoText
-										layout={cardLayout}
-										style={{
-											color:
-												promoHintType === 'success' ? '#22c55e' : '#dc3545',
-											marginBottom: '12px',
-										}}>
-										{promoHint}
-									</PromoText>
-								)}
-								{promoError && (
-									<PromoText
-										layout={cardLayout}
-										style={{ color: '#dc3545', marginBottom: '12px' }}>
-										{promoError}
-									</PromoText>
-								)}
-								<PromoButton onClick={handlePromoCode} disabled={promoLoading}>
-									{promoLoading ? 'Applying...' : 'Apply Code'}
-								</PromoButton>
-							</>
-						)}
-					</PromoSection>
+					$single={planAudience === 'home' && PLAN_GROUPS[planAudience].length === 1}>
+					{!isMobileView && (
+						<PromoSection layout={cardLayout}>
+							<PromoTitle layout={cardLayout}>
+								{appliedPromoCode
+									? 'Promo Code Applied ✅'
+									: 'Have a Promo Code?'}
+							</PromoTitle>
+							{renderPromoContent(cardLayout)}
+						</PromoSection>
+					)}
 
 					{planAudience === 'business' && (
 						<ContactSalesSection layout={cardLayout}>

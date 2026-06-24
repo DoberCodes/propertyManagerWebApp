@@ -276,6 +276,9 @@ const NON_BILLABLE_SIGNUP_PLANS = new Set([
 	'tenant',
 ]);
 
+const PROPERTY_GROUP_ELIGIBLE_PLANS = new Set(['property', 'portfolio']);
+const TEAM_GROUP_ELIGIBLE_PLANS = new Set(['property', 'portfolio']);
+
 const isNonBillableSignupPlan = (plan: string): boolean =>
 	NON_BILLABLE_SIGNUP_PLANS.has(String(plan || '').trim().toLowerCase());
 
@@ -583,41 +586,48 @@ export const signUpWithEmail = async (
 		}
 
 		if (!isTeamInviteSignup) {
-			// Always create default groups for new account owners.
-			await setDoc(
-				doc(db, 'propertyGroups', `${userCredential.user.uid}_my_properties`),
-				{
+			const normalizedSelectedPlan = String(selectedPlan || '')
+				.trim()
+				.toLowerCase();
+
+			if (PROPERTY_GROUP_ELIGIBLE_PLANS.has(normalizedSelectedPlan)) {
+				await setDoc(
+					doc(db, 'propertyGroups', `${userCredential.user.uid}_my_properties`),
+					{
+						userId: userCredential.user.uid,
+						accountId: userCredential.user.uid,
+						name: 'My Properties',
+						properties: [],
+						createdAt: serverTimestamp(),
+						updatedAt: serverTimestamp(),
+					},
+				);
+
+				await setDoc(
+					doc(db, 'propertyGroups', `${userCredential.user.uid}_shared_properties`),
+					{
+						userId: userCredential.user.uid,
+						accountId: userCredential.user.uid,
+						name: 'Shared Properties',
+						properties: [],
+						createdAt: serverTimestamp(),
+						updatedAt: serverTimestamp(),
+					},
+				);
+			}
+
+			if (TEAM_GROUP_ELIGIBLE_PLANS.has(normalizedSelectedPlan)) {
+				const myTeamGroupId = `${userCredential.user.uid}_default`;
+				const myTeamGroupRef = doc(db, 'teamGroups', myTeamGroupId);
+				await setDoc(myTeamGroupRef, {
 					userId: userCredential.user.uid,
 					accountId: userCredential.user.uid,
-					name: 'My Properties',
-					properties: [],
+					name: 'My Team',
+					linkedProperties: [],
 					createdAt: serverTimestamp(),
 					updatedAt: serverTimestamp(),
-				},
-			);
-
-			await setDoc(
-				doc(db, 'propertyGroups', `${userCredential.user.uid}_shared_properties`),
-				{
-					userId: userCredential.user.uid,
-					accountId: userCredential.user.uid,
-					name: 'Shared Properties',
-					properties: [],
-					createdAt: serverTimestamp(),
-					updatedAt: serverTimestamp(),
-				},
-			);
-
-			const myTeamGroupId = `${userCredential.user.uid}_default`;
-			const myTeamGroupRef = doc(db, 'teamGroups', myTeamGroupId);
-			await setDoc(myTeamGroupRef, {
-				userId: userCredential.user.uid,
-				accountId: userCredential.user.uid,
-				name: 'My Team',
-				linkedProperties: [],
-				createdAt: serverTimestamp(),
-				updatedAt: serverTimestamp(),
-			});
+				});
+			}
 		}
 
 		const finalUser =
@@ -642,6 +652,11 @@ export const signUpWithEmail = async (
 		};
 	} catch (error: any) {
 		console.error('Sign up error:', error);
+		if (isBlockedByClientError(error)) {
+			throw new Error(
+				'Your browser blocked required signup requests. Please disable ad/privacy blockers for this site (and firestore.googleapis.com), then try again.',
+			);
+		}
 		const authErrorMessage = getAuthErrorMessage(error?.code);
 		if (authErrorMessage !== 'Authentication failed. Please try again') {
 			throw new Error(authErrorMessage);

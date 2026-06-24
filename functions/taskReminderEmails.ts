@@ -234,10 +234,10 @@ const getTaskReminderHtml = ({
 		: appUrl;
 
 	return `
-		<div style="margin:0; padding:0; background:#f3f4f6; font-family:Arial,sans-serif; color:#111827;">
-			<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6; padding:24px 0;">
+		<div style="margin:0; padding:0; background:#edf7ef; font-family:Arial,sans-serif; color:#111827;">
+			<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#edf7ef; padding:24px 0;">
 				<tr><td align="center">
-					<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px; width:100%; background:#ffffff; border-radius:12px; overflow:hidden; border:1px solid #e5e7eb;">
+					<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px; width:100%; background:#ffffff; border-radius:12px; overflow:hidden; border:1px solid #cfe8d4;">
 						<tr><td style="background:#16a34a; color:#ffffff; padding:20px 24px; font-size:24px; font-weight:700;">Maintley</td></tr>
 						<tr><td style="padding:24px;">
 							<h2 style="margin:0 0 12px 0; font-size:22px; color:#111827;">Maintenance Reminder</h2>
@@ -250,7 +250,7 @@ const getTaskReminderHtml = ({
 							</div>
 							<a href="${escapeHtml(taskUrl)}" style="display:inline-block; background:#16a34a; color:#ffffff; text-decoration:none; padding:11px 18px; border-radius:8px; font-size:14px; font-weight:600;">Open maintenance task</a>
 						</td></tr>
-						<tr><td style="padding:16px 24px; border-top:1px solid #e5e7eb; font-size:12px; line-height:1.5; color:#6b7280;">This email follows the notification schedule saved on this task. You can update email preferences anytime in Settings.</td></tr>
+						<tr><td style="padding:16px 24px; border-top:1px solid #cfe8d4; font-size:12px; line-height:1.5; color:#6b7280;">This email follows the notification schedule saved on this task. You can update email preferences anytime in Settings.</td></tr>
 					</table>
 				</td></tr>
 			</table>

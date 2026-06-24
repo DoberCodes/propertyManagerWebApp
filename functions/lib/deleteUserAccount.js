@@ -51,6 +51,11 @@ const auth = admin.auth();
 const stripe = new stripe_1.default(process.env.STRIPE_SECRET_KEY || '', {
     apiVersion: '2023-10-16',
 });
+const PAID_SUBSCRIPTION_PLANS = new Set([
+    'homeowner_plus',
+    'property',
+    'portfolio',
+]);
 /**
  * Delete User Account
  * POST /api/delete-user-account
@@ -78,6 +83,10 @@ exports.deleteUserAccount = functions.https.onCall(async (data, context) => {
     const userData = userDoc.data();
     if (userData === null || userData === void 0 ? void 0 : userData.subscription) {
         const subscription = userData.subscription;
+        const normalizedPlan = String(subscription.plan || '')
+            .trim()
+            .toLowerCase();
+        const hasPaidPlan = PAID_SUBSCRIPTION_PLANS.has(normalizedPlan);
         console.log('User subscription data:', subscription);
         const now = Math.floor(Date.now() / 1000);
         console.log('Current timestamp:', now);
@@ -87,8 +96,9 @@ exports.deleteUserAccount = functions.https.onCall(async (data, context) => {
         const isInTrial = subscription.trialEndsAt && subscription.trialEndsAt > now;
         console.log('Is in trial period:', isInTrial);
         // Block deletion for active or past_due subscriptions that are NOT in trial
-        if ((subscription.status === 'active' && !isInTrial) ||
-            subscription.status === 'past_due') {
+        if (hasPaidPlan &&
+            ((subscription.status === 'active' && !isInTrial) ||
+                subscription.status === 'past_due')) {
             console.log('Blocking deletion: subscription is active/past_due and not in trial');
             throw new functions.https.HttpsError('failed-precondition', 'You cannot delete your account while you have an active subscription. Please cancel your subscription first.');
         }

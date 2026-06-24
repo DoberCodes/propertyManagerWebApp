@@ -148,7 +148,7 @@ const getSeasonalGuidanceHtml = ({
 				<tr><td align="center">
 					<table role="presentation" width="640" cellpadding="0" cellspacing="0" style="max-width:640px; width:100%; background:#ffffff; border-radius:20px; overflow:hidden; border:1px solid #cfe8d4; box-shadow:0 10px 30px rgba(16,37,26,0.08);">
 						<tr>
-							<td style="background:#0f5132; color:#ffffff; padding:30px 32px;">
+							<td style="background:#0f766e; color:#ffffff; padding:30px 32px;">
 								<div style="font-size:13px; text-transform:uppercase; letter-spacing:0.08em; font-weight:800;">Maintley</div>
 								<h1 style="margin:10px 0 0 0; font-size:28px; line-height:1.2;">${seasonLabel} Property Care Notes</h1>
 								<p style="margin:10px 0 0 0; font-size:15px; line-height:1.6; color:#eaf8ee;">A few timely prompts to help you keep your property records current.</p>
@@ -156,12 +156,12 @@ const getSeasonalGuidanceHtml = ({
 						</tr>
 						<tr><td style="padding:32px;">
 							<p style="margin:0 0 22px 0; font-size:16px; line-height:1.65; color:#33443a;">Hi ${escapeHtml(name)}, as ${seasonLabel.toLowerCase()} begins, here are a few common property areas homeowners often choose to review or document in Maintley.</p>
-							<div style="font-size:12px; text-transform:uppercase; letter-spacing:0.08em; font-weight:900; color:#0f5132; margin-bottom:12px;">Seasonal prompts</div>
+							<div style="font-size:12px; text-transform:uppercase; letter-spacing:0.08em; font-weight:900; color:#0f766e; margin-bottom:12px;">Seasonal prompts</div>
 							<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 12px 0;">
 								${tipMarkup}
 							</table>
 							<p style="margin:0 0 22px 0; font-size:13px; line-height:1.65; color:#667085;">These are general record prompts. Property needs vary by age, equipment, location, usage, and manufacturer guidance.</p>
-							<a href="${escapeHtml(appUrl)}" style="display:inline-block; background:#13a85b; color:#ffffff; text-decoration:none; padding:13px 20px; border-radius:12px; font-size:14px; font-weight:900;">Open Maintley</a>
+							<a href="${escapeHtml(appUrl)}" style="display:inline-block; background:#16a34a; color:#ffffff; text-decoration:none; padding:13px 20px; border-radius:12px; font-size:14px; font-weight:900;">Open Maintley</a>
 						</td></tr>
 						<tr><td style="padding:18px 32px; border-top:1px solid #e5efe7; font-size:12px; line-height:1.6; color:#667085;">Seasonal notes are general prompts, not professional maintenance advice. You can update email preferences anytime in Settings.</td></tr>
 					</table>

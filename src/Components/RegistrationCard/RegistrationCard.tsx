@@ -12,10 +12,6 @@ import {
 	PasswordInputWrapper,
 	PasswordToggleButton,
 	SectionLabel,
-	QuestionLabel,
-	RadioGrid,
-	RadioOption,
-	ButtonGroup,
 	PasswordMatchText,
 	TenantPlanCard,
 	TenantPlanTitle,
@@ -27,6 +23,9 @@ import {
 	InviteModeTitle,
 	InviteModeDescription,
 	InviteModeActionButton,
+	LegalAgreementSection,
+	LegalAgreementLabel,
+	LegalDocumentButton,
 } from './RegistrationCard.styles';
 import { faArrowCircleLeft } from '@fortawesome/free-solid-svg-icons';
 import { faEye, faEyeSlash } from '@fortawesome/free-regular-svg-icons';
@@ -72,15 +71,13 @@ export const RegistrationCard = () => {
 	const [emailExists, setEmailExists] = useState<boolean>(false);
 	const [password, setPassword] = useState<string>('');
 	const [passwordConfirm, setPasswordConfirm] = useState<string>('');
-	const [phoneNumber, setPhoneNumber] = useState<string>('');
-	const [address, setAddress] = useState<string>('');
 	const [confirmed, setConfirmed] = useState<boolean>(false);
 	const [error, setError] = useState<string>('');
 	const [loading, setLoading] = useState<boolean>(false);
 	const [showPassword, setShowPassword] = useState<boolean>(false);
 	const [showPasswordConfirm, setShowPasswordConfirm] =
 		useState<boolean>(false);
-	const [accountType, setAccountType] = useState<string>('');
+	const [accountType, setAccountType] = useState<string>('homeowner');
 	const [selectedPlan, setSelectedPlan] = useState<string>('');
 	const [promoCode, setPromoCode] = useState<string>('');
 	const [inviteCodeInput, setInviteCodeInput] = useState<string>('');
@@ -110,8 +107,8 @@ export const RegistrationCard = () => {
 	// Tenants skip plan selection, invite mode skips plan selection
 	const isTenantSignup = accountType === 'tenant';
 	const skipsPlanSelection = inviteMode || isTenantSignup;
-	const totalSteps = skipsPlanSelection ? 3 : 4;
-	const displayStep = skipsPlanSelection && step === 4 ? 3 : step;
+	const totalSteps = skipsPlanSelection ? 2 : 3;
+	const displayStep = step;
 
 	const enableInviteMode = () => {
 		setInviteMode(true);
@@ -133,7 +130,7 @@ export const RegistrationCard = () => {
 		setInviteValidationState('idle');
 		setInviteValidationMessage('');
 		setInviteEmailLocked(false);
-		setAccountType('');
+		setAccountType('homeowner');
 		setSelectedPlan('');
 		setPromoCode('');
 		setError('');
@@ -252,19 +249,6 @@ export const RegistrationCard = () => {
 			setError('Please enter your last name');
 			return false;
 		}
-		if (inviteMode) {
-			return true;
-		}
-		if (!accountType) {
-			setError(
-				'Please select your role as a homeowner, property manager, or tenant',
-			);
-			return false;
-		}
-		if (!['homeowner', 'propertyManager', 'tenant'].includes(accountType)) {
-			setError('Invalid account type selected');
-			return false;
-		}
 		return true;
 	};
 
@@ -337,28 +321,33 @@ export const RegistrationCard = () => {
 		} else if (step === 2 && (await validateStep2())) {
 			if (inviteMode || isTenantSignup) {
 				setSelectedPlan(inviteMode && inviteType === 'tenant' ? 'tenant' : isTenantSignup ? 'tenant' : 'team');
-				setStep(4);
+				await signup();
 			} else {
 				setStep(3);
 			}
-		} else if (step === 3 && validateStep3()) {
-			setStep(4);
 		}
 	};
 
 	const handleBack = () => {
 		setError('');
-		if ((inviteMode || isTenantSignup) && step === 4) {
-			setStep(2);
-			return;
-		}
 		if (step > 1) {
 			setStep(step - 1);
 		}
 	};
 
+	const handleTopBack = () => {
+		if (step > 1) {
+			handleBack();
+			return;
+		}
+		navigate('/login');
+	};
+
 	const signup = async () => {
 		setError('');
+		if (!skipsPlanSelection && !validateStep3()) {
+			return;
+		}
 		setLoading(true);
 
 		try {
@@ -366,9 +355,9 @@ export const RegistrationCard = () => {
 			const effectiveAccountType = inviteMode ? 'tenantInvite' : accountType;
 			const userRole = inviteMode
 				? inviteRole ||
-				  (inviteType === 'team'
-						? USER_ROLES.MAINTENANCE
-						: getRoleFromAccountType(effectiveAccountType))
+				(inviteType === 'team'
+					? USER_ROLES.MAINTENANCE
+					: getRoleFromAccountType(effectiveAccountType))
 				: getRoleFromAccountType(effectiveAccountType);
 			const agreedAt = new Date().toISOString();
 			const signupPlan = inviteMode
@@ -441,20 +430,24 @@ export const RegistrationCard = () => {
 		<Wrapper
 			$wide={step === 3}
 			onSubmit={(e) => e.preventDefault()}>
-			<BackButton href='#/login'>
+			<BackButton
+				type='button'
+				onClick={handleTopBack}
+				aria-label={step > 1 ? 'Go back to previous step' : 'Back to login'}>
 				<FontAwesomeIcon icon={faArrowCircleLeft} />
 			</BackButton>
 			<Title>
 				{step === 1 && `Create Account - Step ${displayStep} of ${totalSteps}`}
 				{step === 2 && `Create Account - Step ${displayStep} of ${totalSteps}`}
 				{step === 3 && `Create Account - Step ${displayStep} of ${totalSteps}`}
-				{step === 4 && `Create Account - Step ${displayStep} of ${totalSteps}`}
 			</Title>
-			<TrialNotice>
-				{inviteMode
-					? 'Complete your invited account setup.'
-					: 'Start with the free plan, or choose the paid plan that fits your property.'}
-			</TrialNotice>
+			{step === 1 && (
+				<TrialNotice>
+					{inviteMode
+						? 'Complete your invited account setup.'
+						: 'Keep your property records, maintenance tasks, and service history organized in one place.'}
+				</TrialNotice>
+			)}
 			{error && <ErrorMessage>{error}</ErrorMessage>}
 
 			{/* Step 1: Basic Information */}
@@ -483,60 +476,8 @@ export const RegistrationCard = () => {
 						}}
 						required
 					/>
-					{inviteMode ? (
-						<>
-							<QuestionLabel>You are joining via an invite.</QuestionLabel>
-						</>
-					) : (
-						<>
-							<QuestionLabel>
-								What best describes your account?
-							</QuestionLabel>
-							<RadioGrid>
-								<RadioOption>
-									<input
-										type='radio'
-										name='accountType'
-										value='homeowner'
-										checked={accountType === 'homeowner'}
-										onChange={() => {
-											setAccountType('homeowner');
-											setError('');
-										}}
-										required
-									/>
-									Homeowner
-								</RadioOption>
-								<RadioOption>
-									<input
-										type='radio'
-										name='accountType'
-										value='propertyManager'
-										checked={accountType === 'propertyManager'}
-										onChange={() => {
-											setAccountType('propertyManager');
-											setError('');
-										}}
-										required
-									/>
-									Property Manager
-								</RadioOption>
-								<RadioOption>
-									<input
-										type='radio'
-										name='accountType'
-										value='tenant'
-										checked={accountType === 'tenant'}
-										onChange={() => {
-											setAccountType('tenant');
-											setError('');
-										}}
-										required
-									/>
-									Tenant
-								</RadioOption>
-							</RadioGrid>
-						</>
+					{inviteMode && (
+						<SectionLabel>You are joining through an invite.</SectionLabel>
 					)}
 					{inviteMode ? (
 						<InviteModePanel $active>
@@ -573,30 +514,6 @@ export const RegistrationCard = () => {
 			{step === 2 && (
 				<>
 					<SectionLabel>Create your login credentials</SectionLabel>
-					{inviteMode ? (
-						<InviteModePanel $active>
-							<InviteModeTitle>Invite Registration Enabled</InviteModeTitle>
-							<InviteModeDescription>
-								Enter your invite code and complete account setup.
-							</InviteModeDescription>
-							<InviteModeActionButton
-								type='button'
-								$secondary
-								onClick={disableInviteMode}>
-								Switch to Standard Registration
-							</InviteModeActionButton>
-						</InviteModePanel>
-					) : (
-						<InviteModePanel>
-							<InviteModeTitle>Have an Invite Code?</InviteModeTitle>
-							<InviteModeDescription>
-								Use your invite code to register through the invite flow.
-							</InviteModeDescription>
-							<InviteModeActionButton type='button' onClick={enableInviteMode}>
-								Use Invite Registration
-							</InviteModeActionButton>
-						</InviteModePanel>
-					)}
 					{inviteMode && (
 						<>
 							<Input
@@ -703,15 +620,8 @@ export const RegistrationCard = () => {
 							{confirmed ? '✓ Passwords match' : '✗ Passwords do not match'}
 						</PasswordMatchText>
 					)}
-					<div style={{ marginTop: '16px', marginBottom: '16px' }}>
-						<label
-							style={{
-								display: 'flex',
-								alignItems: 'flex-start',
-								gap: '8px',
-								fontSize: '14px',
-								lineHeight: '1.4',
-							}}>
+					<LegalAgreementSection>
+						<LegalAgreementLabel>
 							<input
 								type='checkbox'
 								checked={agreedToTerms}
@@ -719,56 +629,28 @@ export const RegistrationCard = () => {
 									setAgreedToTerms(e.target.checked);
 									setError('');
 								}}
-								style={{ marginTop: '2px', flexShrink: 0 }}
 								required
 							/>
 							<span>
 								I agree to the{' '}
-								<button
+								<LegalDocumentButton
 									type='button'
-									style={{
-										color: '#10b981',
-										textDecoration: 'none',
-										cursor: 'pointer',
-										background: 'none',
-										border: 'none',
-										padding: 0,
-										font: 'inherit',
-									}}
 									onClick={() =>
 										handleViewDocument('terms-of-service', 'Terms of Service')
 									}>
 									Terms of Service
-								</button>
+								</LegalDocumentButton>
 								,{' '}
-								<button
+								<LegalDocumentButton
 									type='button'
-									style={{
-										color: '#10b981',
-										textDecoration: 'none',
-										cursor: 'pointer',
-										background: 'none',
-										border: 'none',
-										padding: 0,
-										font: 'inherit',
-									}}
 									onClick={() =>
 										handleViewDocument('privacy-policy', 'Privacy Policy')
 									}>
 									Privacy Policy
-								</button>
+								</LegalDocumentButton>
 								, and{' '}
-								<button
+								<LegalDocumentButton
 									type='button'
-									style={{
-										color: '#10b981',
-										textDecoration: 'none',
-										cursor: 'pointer',
-										background: 'none',
-										border: 'none',
-										padding: 0,
-										font: 'inherit',
-									}}
 									onClick={() =>
 										handleViewDocument(
 											'maintenance-disclaimer',
@@ -776,19 +658,10 @@ export const RegistrationCard = () => {
 										)
 									}>
 									Maintenance Disclaimer
-								</button>
+								</LegalDocumentButton>
 								,{' '}
-								<button
+								<LegalDocumentButton
 									type='button'
-									style={{
-										color: '#10b981',
-										textDecoration: 'none',
-										cursor: 'pointer',
-										background: 'none',
-										border: 'none',
-										padding: 0,
-										font: 'inherit',
-									}}
 									onClick={() =>
 										handleViewDocument(
 											'subscription-terms',
@@ -796,38 +669,24 @@ export const RegistrationCard = () => {
 										)
 									}>
 									Subscription Terms
-								</button>
+								</LegalDocumentButton>
 								, and{' '}
-								<button
+								<LegalDocumentButton
 									type='button'
-									style={{
-										color: '#10b981',
-										textDecoration: 'none',
-										cursor: 'pointer',
-										background: 'none',
-										border: 'none',
-										padding: 0,
-										font: 'inherit',
-									}}
 									onClick={() => handleViewDocument('eula', 'EULA')}>
 									EULA
-								</button>
+								</LegalDocumentButton>
 								*
 							</span>
-						</label>
-					</div>
-					<ButtonGroup>
-						<Submit type='button' onClick={handleBack}>
-							Back
-						</Submit>
-						<Submit type='button' onClick={handleNext}>
-							Next
-						</Submit>
-					</ButtonGroup>
+						</LegalAgreementLabel>
+					</LegalAgreementSection>
+					<Submit type='button' onClick={handleNext}>
+						Next
+					</Submit>
 				</>
 			)}
 
-			{/* Step 3: Plan Selection with Paywall */}
+			{/* Step 3: Plan Selection + Create Account */}
 			{step === 3 && !skipsPlanSelection && (
 				<>
 					<PaywallPage
@@ -846,9 +705,7 @@ export const RegistrationCard = () => {
 						variant='embedded'
 						selectionOnly={true}
 						wide={true}
-						initialPlanAudience={
-							accountType === 'propertyManager' ? 'business' : 'personal'
-						}
+						initialPlanAudience='home'
 						onPlanSelect={(planId) => {
 							setSelectedPlan(planId);
 							setError('');
@@ -858,52 +715,10 @@ export const RegistrationCard = () => {
 							setError('');
 						}}
 					/>
-					<ButtonGroup>
-						<Submit type='button' onClick={handleBack}>
-							Back
-						</Submit>
-						<Submit type='button' onClick={handleNext}>
-							Continue
-						</Submit>
-					</ButtonGroup>
-				</>
-			)}
-
-			{/* Step 4: Additional Information (Optional) */}
-			{step === 4 && (
-				<>
-					<SectionLabel>
-						{inviteMode || isTenantSignup
-							? 'Optional profile information'
-							: 'Additional information (optional)'}
-					</SectionLabel>
-					<Input
-						placeholder='Phone Number (optional)'
-						type='tel'
-						autoComplete='tel'
-						value={phoneNumber}
-						onChange={(event) => setPhoneNumber(event.target.value)}
-					/>
-					<Input
-						placeholder='Address (optional)'
-						type='text'
-						autoComplete='street-address'
-						value={address}
-						onChange={(event) => setAddress(event.target.value)}
-					/>
-					<ButtonGroup>
-						<Submit type='button' onClick={handleBack} disabled={loading}>
-							Back
-						</Submit>
-						<Submit
-							type='button'
-							onClick={signup}
-							disabled={loading}
-							style={{ backgroundColor: '#22c55e', color: 'white' }}>
-							{loading && <LoadingSpinner />}
-							{loading ? 'Creating account...' : 'Create Account'}
-						</Submit>
-					</ButtonGroup>
+					<Submit type='button' onClick={signup} disabled={loading}>
+						{loading && <LoadingSpinner />}
+						{loading ? 'Creating account...' : 'Create Account'}
+					</Submit>
 				</>
 			)}
 

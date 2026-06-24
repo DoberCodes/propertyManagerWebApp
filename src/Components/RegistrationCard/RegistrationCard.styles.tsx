@@ -5,15 +5,27 @@ export const Wrapper = styled.form<{ $wide?: boolean }>`
 	display: grid;
 	justify-content: center;
 	align-items: center;
-	padding: ${(props) => (props.$wide ? '10px 36px' : '32px 24px')};
+	padding: ${(props) => (props.$wide ? '14px 36px' : '32px 24px')};
 	border: none;
-	border-radius: 12px;
-	background-color: ${COLORS.bgWhite};
+	border-radius: 16px;
+	background: linear-gradient(180deg, #ffffff 0%, #f8fcfa 100%);
 	width: 100%;
 	max-width: ${(props) => (props.$wide ? '1200px' : '420px')};
-	box-shadow: ${COLORS.shadowLg};
+	box-shadow: 0 20px 42px rgba(15, 118, 110, 0.16);
+	border: 1px solid #cfe8d4;
 	position: relative;
 	z-index: 10;
+	overflow: hidden;
+
+	&::before {
+		content: '';
+		position: absolute;
+		top: 0;
+		left: 0;
+		right: 0;
+		height: 8px;
+		background: linear-gradient(90deg, #16a34a 0%, #0f766e 100%);
+	}
 
 	@media (max-width: 1024px) {
 		max-width: ${(props) => (props.$wide ? '980px' : '420px')};
@@ -23,20 +35,39 @@ export const Wrapper = styled.form<{ $wide?: boolean }>`
 	@media (max-width: 1024px) {
 		max-width: ${(props) => (props.$wide ? '100%' : '380px')};
 		padding: ${(props) => (props.$wide ? '20px 20px' : '28px 20px')};
-		border-radius: 10px;
+		border-radius: 14px;
+	}
+
+	@media (max-width: 768px) {
+		width: 100%;
+		max-width: ${(props) => (props.$wide ? '100%' : '540px')};
+		padding: ${(props) => (props.$wide ? '18px 16px 16px' : '20px 16px 16px')};
+		margin: 10px auto;
+		border-radius: 14px;
+		box-shadow: 0 10px 24px rgba(15, 118, 110, 0.14);
 	}
 
 	@media (max-width: 480px) {
-		max-width: 100%;
-		padding: ${(props) => (props.$wide ? '20px 16px' : '20px 16px')};
-		border-radius: 8px;
-		margin: 10px;
+		max-width: ${(props) => (props.$wide ? '100%' : '420px')};
+		padding: ${(props) => (props.$wide ? '18px 14px 14px' : '18px 14px 14px')};
+		border-radius: 12px;
+		margin: 8px auto;
 	}
 `;
 
-export const BackButton = styled.a`
+export const BackButton = styled.button`
 	padding: 10px 0;
-	color: black;
+	border: none;
+	background: none;
+	color: #0f766e;
+	font-size: 18px;
+	width: fit-content;
+	cursor: pointer;
+	transition: color 0.2s ease;
+
+	&:hover {
+		color: #16a34a;
+	}
 
 	@media (max-width: 480px) {
 		padding: 8px 0;
@@ -50,11 +81,9 @@ export const Title = styled.h2`
 	margin: 0 auto 28px auto;
 	text-decoration: none;
 	text-align: center;
-	background: ${COLORS.gradientPrimary};
-	-webkit-background-clip: text;
-	-webkit-text-fill-color: transparent;
-	background-clip: text;
+	color: #0f766e;
 	letter-spacing: 0.5px;
+	line-height: 1.2;
 
 	@media (max-width: 1024px) {
 		font-size: 28px;
@@ -62,17 +91,21 @@ export const Title = styled.h2`
 	}
 
 	@media (max-width: 480px) {
-		font-size: 24px;
-		margin: 0 auto 20px auto;
+		font-size: 22px;
+		margin: 0 auto 16px auto;
 	}
 `;
 
 export const TrialNotice = styled.p`
-	margin: -16px 0 18px 0;
+	margin: -10px 0 18px 0;
 	font-size: 14px;
 	font-weight: 600;
-	color: ${COLORS.primaryDark};
+	color: #14532d;
 	text-align: center;
+	background: #edf7ef;
+	border: 1px solid #d6eadb;
+	border-radius: 999px;
+	padding: 8px 12px;
 
 	@media (max-width: 1024px) {
 		margin: -12px 0 16px 0;
@@ -88,22 +121,22 @@ export const Input = styled.input`
 	padding: 12px 14px;
 	font-size: 16px;
 	margin: 10px 0;
-	border: 1.5px solid ${COLORS.gray200};
-	border-radius: 6px;
+	border: 1.5px solid #c8dcd0;
+	border-radius: 10px;
 	width: 100%;
 	box-sizing: border-box;
 	transition: all 0.2s ease;
-	background-color: ${COLORS.gray50};
+	background-color: #ffffff;
 
 	&:focus {
 		outline: none;
-		border-color: ${COLORS.primary};
-		box-shadow: 0 0 0 3px ${COLORS.primaryLight};
+		border-color: #16a34a;
+		box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.2);
 		background-color: ${COLORS.bgWhite};
 	}
 
 	&:hover {
-		border-color: ${COLORS.gray300};
+		border-color: #9ec5aa;
 		background-color: ${COLORS.bgWhite};
 	}
 
@@ -124,22 +157,18 @@ export const Submit = styled.button`
 	margin: 24px auto 0 auto;
 	font-size: 16px;
 	padding: 12px 32px;
-	border-radius: 6px;
+	border-radius: 10px;
 	border: none;
-	background: ${COLORS.gradientPrimary};
+	background: linear-gradient(135deg, #16a34a 0%, #0f766e 100%);
 	color: white;
-	font-weight: 600;
+	font-weight: 700;
 	cursor: pointer;
 	transition: all 0.2s ease;
-	box-shadow: 0 4px 6px rgba(16, 185, 129, 0.25);
+	box-shadow: 0 8px 18px rgba(22, 163, 74, 0.24);
 
 	&:hover {
-		background: linear-gradient(
-			135deg,
-			${COLORS.primaryDark} 0%,
-			${COLORS.primaryDarker} 100%
-		);
-		box-shadow: 0 6px 12px rgba(16, 185, 129, 0.35);
+		background: linear-gradient(135deg, #15803d 0%, #0f766e 100%);
+		box-shadow: 0 12px 24px rgba(15, 118, 110, 0.28);
 		transform: translateY(-2px);
 	}
 
@@ -160,15 +189,17 @@ export const Submit = styled.button`
 
 	@media (max-width: 480px) {
 		font-size: 14px;
-		padding: 10px 24px;
+		padding: 12px 16px;
 		margin: 16px auto 0 auto;
+		width: 100%;
 	}
 `;
 
 export const SectionLabel = styled.p`
 	margin: 16px 0 8px 0;
 	font-size: 14px;
-	color: ${COLORS.textSecondary};
+	font-weight: 600;
+	color: #2f4f3f;
 	text-align: left;
 
 	@media (max-width: 480px) {
@@ -208,11 +239,11 @@ export const InviteModeToggle = styled.button`
 
 export const InviteModePanel = styled.div<{ $active?: boolean }>`
 	margin: 14px 0 10px 0;
-	padding: 12px;
-	border-radius: 8px;
+	padding: 14px;
+	border-radius: 12px;
 	border: 1px solid
-		${(props) => (props.$active ? COLORS.primary : COLORS.gray200)};
-	background: ${(props) => (props.$active ? COLORS.primaryLight : COLORS.gray50)};
+		${(props) => (props.$active ? '#16a34a' : '#d6eadb')};
+	background: ${(props) => (props.$active ? '#edf7ef' : '#f8fcfa')};
 `;
 
 export const InviteModeTitle = styled.p`
@@ -226,16 +257,16 @@ export const InviteModeDescription = styled.p`
 	margin: 0 0 10px 0;
 	font-size: 12px;
 	line-height: 1.4;
-	color: ${COLORS.textSecondary};
+	color: #4e6a5b;
 `;
 
 export const InviteModeActionButton = styled.button<{ $secondary?: boolean }>`
 	padding: 8px 12px;
-	border-radius: 6px;
+	border-radius: 8px;
 	border: 1px solid
-		${(props) => (props.$secondary ? COLORS.gray300 : COLORS.primary)};
-	background: ${(props) => (props.$secondary ? COLORS.bgWhite : COLORS.primary)};
-	color: ${(props) => (props.$secondary ? COLORS.textPrimary : COLORS.bgWhite)};
+		${(props) => (props.$secondary ? '#b8d7c2' : '#16a34a')};
+	background: ${(props) => (props.$secondary ? '#ffffff' : '#16a34a')};
+	color: ${(props) => (props.$secondary ? '#0f766e' : COLORS.bgWhite)};
 	font-size: 12px;
 	font-weight: 600;
 	cursor: pointer;
@@ -246,9 +277,9 @@ export const InviteModeActionButton = styled.button<{ $secondary?: boolean }>`
 `;
 
 export const TenantPlanCard = styled.div`
-	border: 1.5px solid ${COLORS.gray200};
-	border-radius: 8px;
-	background-color: ${COLORS.gray50};
+	border: 1.5px solid #c8dcd0;
+	border-radius: 12px;
+	background-color: #f8fcfa;
 	padding: 16px;
 	margin: 8px 0 16px 0;
 `;
@@ -275,7 +306,7 @@ export const TenantPlanNote = styled.p`
 export const QuestionLabel = styled.label`
 	font-weight: 500;
 	font-size: 15px;
-	color: ${COLORS.textPrimary};
+	color: #1f3b2d;
 	margin: 20px 0 12px 0;
 	display: block;
 	text-align: left;
@@ -307,28 +338,28 @@ export const RadioOption = styled.label`
 	align-items: center;
 	gap: 10px;
 	padding: 12px 14px;
-	border: 1.5px solid ${COLORS.gray200};
-	border-radius: 6px;
-	background-color: ${COLORS.gray50};
+	border: 1.5px solid #c8dcd0;
+	border-radius: 10px;
+	background-color: #ffffff;
 	cursor: pointer;
 	transition: all 0.2s ease;
 	font-size: 14px;
 	color: ${COLORS.textPrimary};
 
 	&:hover {
-		border-color: ${COLORS.primary};
+		border-color: #16a34a;
 		background-color: ${COLORS.bgWhite};
 	}
 
-	input:checked + & {
-		border-color: ${COLORS.primary};
-		background-color: ${COLORS.primaryLight};
-		color: ${COLORS.primary};
+	&:has(input:checked) {
+		border-color: #16a34a;
+		background-color: #edf7ef;
+		color: #0f766e;
 		font-weight: 500;
 	}
 
 	input {
-		accent-color: ${COLORS.primary};
+		accent-color: #16a34a;
 		width: 18px;
 		height: 18px;
 		margin: 0;
@@ -362,9 +393,28 @@ export const ButtonGroup = styled.div`
 	justify-content: center;
 	margin-top: 20px;
 
+	button {
+		min-width: 140px;
+	}
+
+	@media (max-width: 768px) {
+		width: 100%;
+		justify-content: stretch;
+
+		button {
+			flex: 1;
+			min-width: 0;
+		}
+	}
+
 	@media (max-width: 480px) {
-		gap: 10px;
+		gap: 8px;
 		margin-top: 16px;
+		flex-direction: column;
+
+		button {
+			width: 100%;
+		}
 	}
 `;
 
@@ -400,14 +450,15 @@ export const RegisterWrapper = styled.div`
 	font-size: 15px;
 	color: ${COLORS.textSecondary};
 
-	span {
-		color: ${COLORS.primary};
+	a {
+		color: #0f766e;
 		font-weight: 600;
 		cursor: pointer;
 		transition: color 0.2s ease;
+		text-decoration: none;
 
 		&:hover {
-			color: ${COLORS.primaryDark};
+			color: #16a34a;
 			text-decoration: underline;
 		}
 	}
@@ -520,5 +571,45 @@ export const PasswordToggleButton = styled.button`
 		font-size: 14px;
 		right: 10px;
 		padding: 6px 10px;
+	}
+`;
+
+export const LegalAgreementSection = styled.div`
+	margin-top: 16px;
+	margin-bottom: 16px;
+	padding: 12px;
+	border: 1px solid #d6eadb;
+	border-radius: 10px;
+	background: #f8fcfa;
+`;
+
+export const LegalAgreementLabel = styled.label`
+	display: flex;
+	align-items: flex-start;
+	gap: 8px;
+	font-size: 14px;
+	line-height: 1.5;
+	color: #2f4f3f;
+
+	input {
+		margin-top: 2px;
+		flex-shrink: 0;
+		accent-color: #16a34a;
+	}
+`;
+
+export const LegalDocumentButton = styled.button`
+	color: #0f766e;
+	text-decoration: none;
+	cursor: pointer;
+	background: none;
+	border: none;
+	padding: 0;
+	font: inherit;
+	font-weight: 600;
+
+	&:hover {
+		color: #16a34a;
+		text-decoration: underline;
 	}
 `;

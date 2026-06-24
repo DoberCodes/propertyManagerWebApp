@@ -356,7 +356,7 @@ exports.submitFeedback = functions
 					<p><strong>User ID:</strong> ${context.auth.uid}</p>
 					<p><strong>Submitted:</strong> ${new Date().toLocaleString()}</p>
 				</div>
-				<div style="background: #ffffff; border: 1px solid #e5e7eb; padding: 20px; border-radius: 8px; margin: 20px 0;">
+				<div style="background: #ffffff; border: 1px solid #cfe8d4; padding: 20px; border-radius: 8px; margin: 20px 0;">
 					<h3 style="margin-top: 0; color: #374151;">Message</h3>
 					<div style="white-space: pre-wrap; line-height: 1.6;">${escapedMessage}</div>
 				</div>
@@ -369,24 +369,24 @@ exports.submitFeedback = functions
     const escapedTicketNumber = (0, emailService_1.escapeHtml)(ticketNumber);
     const confirmationSubject = `Thanks for your feedback — ${ticketNumber} — Maintley`;
     const confirmationHtml = `
-			<div style="margin:0; padding:0; background:#f3f4f6; font-family:Arial,sans-serif; color:#111827;">
-				<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6; padding:24px 0;">
+			<div style="margin:0; padding:0; background:#edf7ef; font-family:Arial,sans-serif; color:#111827;">
+				<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#edf7ef; padding:24px 0;">
 					<tr><td align="center">
-						<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px; width:100%; background:#ffffff; border-radius:12px; overflow:hidden; border:1px solid #e5e7eb;">
-							<tr><td style="background:#10b981; color:#ffffff; padding:20px 24px; font-size:24px; font-weight:700;">Maintley</td></tr>
+						<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px; width:100%; background:#ffffff; border-radius:12px; overflow:hidden; border:1px solid #cfe8d4;">
+							<tr><td style="background:#16a34a; color:#ffffff; padding:20px 24px; font-size:24px; font-weight:700;">Maintley</td></tr>
 							<tr><td style="padding:24px;">
 								<h2 style="margin:0 0 12px 0; font-size:22px; color:#111827;">Thanks for your feedback, ${escapedUserName}!</h2>
 								<p style="margin:0 0 16px 0; font-size:15px; line-height:1.6; color:#374151;">We received your ${feedbackTypeLabels[data.type].toLowerCase()} and our team will review it shortly.</p>
-								<div style="background:#f9fafb; border:1px solid #e5e7eb; border-radius:10px; padding:12px 16px; margin:0 0 16px 0;">
+								<div style="background:#f9fafb; border:1px solid #cfe8d4; border-radius:10px; padding:12px 16px; margin:0 0 16px 0;">
 									<p style="margin:0; font-size:14px; color:#111827;"><strong>Ticket number:</strong> ${escapedTicketNumber}</p>
 								</div>
 								<div style="background:#ecfdf5; border:1px solid #a7f3d0; border-radius:10px; padding:16px; margin:0 0 16px 0;">
 									<p style="margin:0 0 8px 0; font-size:14px; color:#065f46;"><strong>Subject:</strong> ${escapedSubject}</p>
 									<p style="margin:0; font-size:14px; color:#065f46; white-space:pre-wrap;"><strong>Your message:</strong><br/>${escapedMessage}</p>
 								</div>
-								<a href="${helpCenterUrl}" style="display:inline-block; background:#10b981; color:#ffffff; text-decoration:none; padding:11px 18px; border-radius:8px; font-size:14px; font-weight:600;">Visit Help Center</a>
+								<a href="${helpCenterUrl}" style="display:inline-block; background:#16a34a; color:#ffffff; text-decoration:none; padding:11px 18px; border-radius:8px; font-size:14px; font-weight:600;">Visit Help Center</a>
 							</td></tr>
-							<tr><td style="padding:16px 24px; border-top:1px solid #e5e7eb; font-size:12px; line-height:1.5; color:#6b7280;">Maintley Support • <a href="mailto:${supportEmail}" style="color:#10b981; text-decoration:none;">${supportEmail}</a></td></tr>
+							<tr><td style="padding:16px 24px; border-top:1px solid #cfe8d4; font-size:12px; line-height:1.5; color:#6b7280;">Maintley Support • <a href="mailto:${supportEmail}" style="color:#16a34a; text-decoration:none;">${supportEmail}</a></td></tr>
 						</table>
 					</td></tr>
 				</table>
