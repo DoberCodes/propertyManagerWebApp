@@ -233,14 +233,14 @@ const ConfidenceBadge = styled.span<{ $tone: 'high' | 'medium' | 'low' }>`
 		props.$tone === 'high'
 			? '#dcfce7'
 			: props.$tone === 'medium'
-			? '#fef9c3'
-			: '#fee2e2'};
+				? '#fef9c3'
+				: '#fee2e2'};
 	color: ${(props) =>
 		props.$tone === 'high'
 			? '#166534'
 			: props.$tone === 'medium'
-			? '#854d0e'
-			: '#991b1b'};
+				? '#854d0e'
+				: '#991b1b'};
 `;
 
 const GuidanceCard = styled.div`
