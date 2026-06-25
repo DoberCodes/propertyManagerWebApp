@@ -1,9 +1,10 @@
-🎉 **Release Notes for Version 2.7.0** 🎉
+🎉 **Release Notes for Version 2.7.1** 🎉
 
 
 ## 🐛 Bug Fixes
-- fixing the mobile views on multiple new screens
-- fixing the onboarding process and adjusting email color standardization as well as a few more mobile flow adjustments
+- fixing onboarding flow and modifying maintley intelligence files structure and backbones.
+- fixing webpack issues
 
 ## 🔧 Improvements & Maintenance
-- feat: adding property insight scans
+- update tenant profile page and device hub page
+- fixing webpack issues
