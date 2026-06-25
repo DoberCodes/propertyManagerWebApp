@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import styled from 'styled-components';
-import { BrowserMultiFormatReader } from '@zxing/browser';
 import {
 	BarcodeFormat,
+	BrowserMultiFormatReader,
 	DecodeHintType,
 	NotFoundException,
 } from '@zxing/library';
@@ -712,7 +712,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 				}
 
 				const zxingReader = getZxingReader();
-				const zxingControls = await zxingReader.decodeFromStream(
+				await zxingReader.decodeFromStream(
 					stream,
 					video,
 					(result, decodeError) => {
@@ -730,7 +730,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 						}
 					},
 				);
-				zxingStopRef.current = () => zxingControls.stop();
+				zxingStopRef.current = () => zxingReader.reset();
 			} catch {
 				setError('Unable to access camera. Check browser permissions and try again.');
 			}
