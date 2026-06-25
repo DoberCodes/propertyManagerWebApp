@@ -779,6 +779,9 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 				setSearchParams(nextParams);
 				break;
 			}
+			case 'view_plan_options':
+				navigate('/paywall');
+				break;
 			default:
 				break;
 		}

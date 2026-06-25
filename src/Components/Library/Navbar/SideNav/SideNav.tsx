@@ -2,7 +2,6 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../../../Redux/store/store';
-import { useRecentlyViewed } from '../../../../Hooks/useRecentlyViewed';
 import { useFavorites } from '../../../../Hooks/useFavorites';
 import {
 	DesktopWrapper,
@@ -68,7 +67,6 @@ export const SideNav = () => {
 	const activeRoute = useSelector(
 		(state: RootState) => state.navigation.activeRoute,
 	);
-	const { recentProperties } = useRecentlyViewed(currentUser!.id);
 	const { favorites, removeFavorite } = useFavorites(currentUser!.id);
 	const propertyGroups = useSelector(
 		(state: RootState) => state.propertyData.groups,
@@ -253,28 +251,6 @@ export const SideNav = () => {
 								) : (
 									<div style={{ fontSize: '12px', color: '#999999' }}>
 										No favorite properties
-									</div>
-								)}
-							</SectionContent>
-						</Section>
-
-						{/* Recently Viewed Properties Section */}
-						<Section>
-							<SectionTitle>Recently Viewed Properties</SectionTitle>
-							<SectionContent>
-								{recentProperties.length > 0 ? (
-									<SimpleList>
-										{recentProperties.slice(0, 5).map((property) => (
-											<SimpleListItem
-												key={property.id}
-												onClick={() => navigate(`/property/${property.slug}`)}>
-												<ItemText title={property.title}>{property.title}</ItemText>
-											</SimpleListItem>
-										))}
-									</SimpleList>
-								) : (
-									<div style={{ fontSize: '12px', color: '#999999' }}>
-										No recently viewed properties
 									</div>
 								)}
 							</SectionContent>

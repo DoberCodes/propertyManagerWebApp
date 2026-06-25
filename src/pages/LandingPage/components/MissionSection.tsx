@@ -3,7 +3,6 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
 	faBookOpen,
 	faBuilding,
-	faShieldHalved,
 	faMobileScreenButton,
 	faScrewdriverWrench,
 } from '@fortawesome/free-solid-svg-icons';

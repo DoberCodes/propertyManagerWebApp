@@ -162,23 +162,33 @@ Best for:
 
 # Maintley Intelligence
 
-| Feature                   | Free      | Homeowner+ | Property | Portfolio |
-| ------------------------- | --------- | ---------- | -------- | --------- |
-| Dashboard Recommendations | View Only | ✓          | ✓        | ✓         |
-| Quick Scan                | View Only | ✓          | ✓        | ✓         |
-| Setup Recommendations     | View Only | ✓          | ✓        | ✓         |
-| Property Insights         | ✗         | ✓          | ✓        | ✓         |
+| Feature                        | Free | Homeowner+ | Property | Portfolio |
+| ------------------------------ | ---- | ---------- | -------- | --------- |
+| Dashboard Recommendations      | Yes  | Yes        | Yes      | Yes       |
+| Quick Property Scan            | Yes  | Yes        | Yes      | Yes       |
+| Setup Recommendations          | Yes  | Yes        | Yes      | Yes       |
+| Full Property Audit            | No   | Yes        | Yes      | Yes       |
+| Ongoing Property Intelligence  | No   | Yes        | Yes      | Yes       |
+| Property Insights              | No   | Yes        | Yes      | Yes       |
 
 ### Notes
 
-Maintley Intelligence helps users improve the completeness and usefulness of their records.
+Maintley Intelligence reviews what Maintley knows about a property and highlights the few things most worth the user's attention.
+
+Recommendations are explainable guidance based on saved records. They should not be described as AI scans of the home.
 
 Capabilities may include:
 
 * Setup recommendations
 * Dashboard recommendations
-* Quick Scan observations
+* Quick Property Scan observations
+* Full Property Audit completeness reviews
+* Ongoing Property Intelligence observations
 * Property Insight observations
+
+Quick Property Scan should remain available on free and paid plans.
+
+Premium intelligence should expand what Maintley can review and explain, not turn free recommendations into unsolvable warnings.
 
 See PROPERTY_INTELLIGENCE.md for recommendation behavior and prioritization rules.
 

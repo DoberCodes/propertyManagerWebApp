@@ -20,6 +20,24 @@ import { shouldCreateNotification } from '../../utils/notificationPreferences';
 
 const MAX_FAVORITES = 5;
 
+const isFirestorePermissionDeniedError = (error: unknown): boolean => {
+	const err = error as { code?: string; message?: string };
+	const code = String(err?.code || '').trim().toLowerCase();
+	const message = String(err?.message || '').trim().toLowerCase();
+
+	return (
+		code.includes('permission-denied') ||
+		message.includes('missing or insufficient permissions')
+	);
+};
+
+const logMaintenanceHistoryReadWarning = (message: string, error: unknown) => {
+	if (isFirestorePermissionDeniedError(error)) {
+		return;
+	}
+	console.warn(message, error);
+};
+
 const userSlice = apiSlice.injectEndpoints({
 	endpoints: (builder) => ({
 		// User endpoints
@@ -204,12 +222,19 @@ const userSlice = apiSlice.injectEndpoints({
 					// Get all property groups for accessible accounts to find owned properties
 					const groupIds: string[] = [];
 					for (const accountId of accessibleAccountIds) {
-						const groupsQuery = query(
-							collection(db, 'propertyGroups'),
-							where('accountId', '==', accountId),
-						);
-						const groupsSnapshot = await getDocs(groupsQuery);
-						groupIds.push(...groupsSnapshot.docs.map((doc) => doc.id));
+						try {
+							const groupsQuery = query(
+								collection(db, 'propertyGroups'),
+								where('accountId', '==', accountId),
+							);
+							const groupsSnapshot = await getDocs(groupsQuery);
+							groupIds.push(...groupsSnapshot.docs.map((doc) => doc.id));
+						} catch (error) {
+							logMaintenanceHistoryReadWarning(
+								'Could not fetch account-linked property groups for maintenance history:',
+								error,
+							);
+						}
 					}
 
 					let ownedPropertyIds: string[] = [];
@@ -231,12 +256,19 @@ const userSlice = apiSlice.injectEndpoints({
 						// Get all property IDs for these groups
 						for (let i = 0; i < groupIds.length; i += 10) {
 							const batch = groupIds.slice(i, i + 10);
-							const propertiesQuery = query(
-								collection(db, 'properties'),
-								where('groupId', 'in', batch),
-							);
-							const propertiesSnapshot = await getDocs(propertiesQuery);
-							propertiesSnapshot.docs.forEach(addOwnedProperty);
+							try {
+								const propertiesQuery = query(
+									collection(db, 'properties'),
+									where('groupId', 'in', batch),
+								);
+								const propertiesSnapshot = await getDocs(propertiesQuery);
+								propertiesSnapshot.docs.forEach(addOwnedProperty);
+							} catch (error) {
+								logMaintenanceHistoryReadWarning(
+									'Could not fetch group-linked properties for maintenance history:',
+									error,
+								);
+							}
 						}
 					}
 
@@ -249,7 +281,10 @@ const userSlice = apiSlice.injectEndpoints({
 							const accountPropertiesSnapshot = await getDocs(accountPropertiesQuery);
 							accountPropertiesSnapshot.docs.forEach(addOwnedProperty);
 						} catch (error) {
-							console.warn('Could not fetch account-linked properties for maintenance history:', error);
+							logMaintenanceHistoryReadWarning(
+								'Could not fetch account-linked properties for maintenance history:',
+								error,
+							);
 						}
 					}
 
@@ -261,7 +296,10 @@ const userSlice = apiSlice.injectEndpoints({
 						const userPropertiesSnapshot = await getDocs(userPropertiesQuery);
 						userPropertiesSnapshot.docs.forEach(addOwnedProperty);
 					} catch (error) {
-						console.warn('Could not fetch user-linked properties for maintenance history:', error);
+						logMaintenanceHistoryReadWarning(
+							'Could not fetch user-linked properties for maintenance history:',
+							error,
+						);
 					}
 
 					try {
@@ -272,7 +310,10 @@ const userSlice = apiSlice.injectEndpoints({
 						const ownerPropertiesSnapshot = await getDocs(ownerPropertiesQuery);
 						ownerPropertiesSnapshot.docs.forEach(addOwnedProperty);
 					} catch (error) {
-						console.warn('Could not fetch owner-linked properties for maintenance history:', error);
+						logMaintenanceHistoryReadWarning(
+							'Could not fetch owner-linked properties for maintenance history:',
+							error,
+						);
 					}
 
 					const allPropertyIds = Array.from(new Set(ownedPropertyIds));
@@ -295,9 +336,16 @@ const userSlice = apiSlice.injectEndpoints({
 				// Query by accountId across both collections
 				for (const col of collectionsToQuery) {
 					for (const accountId of accessibleAccountIds) {
-						const q = query(collection(db, col), where('accountId', '==', accountId));
-						const snap = await getDocs(q);
-						addUnique(snap.docs);
+						try {
+							const q = query(collection(db, col), where('accountId', '==', accountId));
+							const snap = await getDocs(q);
+							addUnique(snap.docs);
+						} catch (error) {
+							logMaintenanceHistoryReadWarning(
+								'Could not fetch account-linked maintenance records batch:',
+								error,
+							);
+						}
 					}
 				}
 
@@ -310,7 +358,10 @@ const userSlice = apiSlice.injectEndpoints({
 							const snap = await getDocs(q);
 							addUnique(snap.docs);
 						} catch (e) {
-							console.warn('Could not fetch property-linked maintenance batch:', e);
+							logMaintenanceHistoryReadWarning(
+								'Could not fetch property-linked maintenance batch:',
+								e,
+							);
 						}
 					}
 				}
@@ -330,7 +381,10 @@ const userSlice = apiSlice.injectEndpoints({
 								const snap = await getDocs(q);
 								addUnique(snap.docs);
 							} catch (e) {
-								console.warn('Could not fetch legacy title-linked maintenance batch:', e);
+								logMaintenanceHistoryReadWarning(
+									'Could not fetch legacy title-linked maintenance batch:',
+									e,
+								);
 							}
 						}
 					}
@@ -338,6 +392,9 @@ const userSlice = apiSlice.injectEndpoints({
 
 				return { data: allRecords };
 				} catch (error: any) {
+					if (isFirestorePermissionDeniedError(error)) {
+						return { data: [] };
+					}
 					return { error: error.message };
 				}
 			},

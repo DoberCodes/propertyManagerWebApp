@@ -71,7 +71,8 @@ Maintley Intelligence is responsible for:
 * Recommendation generation
 * Recommendation prioritization
 * Quick Scan results
-* Deep Scan results
+* Full Property Audit results
+* Ongoing Property Intelligence observations
 * Setup Assistant recommendations
 * Dashboard recommendations
 * Action Center recommendations
@@ -278,7 +279,7 @@ Examples:
 
 Purpose:
 
-Provide immediate recommendations.
+Review what Maintley knows about a property and highlight the few things most worth the user's attention.
 
 Target:
 
@@ -353,22 +354,149 @@ The Intelligence Center should centralize intelligence-related workflows.
 
 ---
 
-# Scan Types
+# Maintley Intelligence Roadmap
 
-Maintley Intelligence supports multiple scan depths.
+Maintley Intelligence should grow through three distinct levels.
+
+Each level should answer a different customer question.
+
+The levels are not simply larger versions of the same scan.
+
+They represent different product experiences:
+
+1. Quick Property Scan
+2. Full Property Audit
+3. Ongoing Property Intelligence
 
 ---
 
-## Quick Scan
-## Quick Scan
+# Maintley Intelligence Foundation
+
+Maintley Intelligence is implemented as one shared engine with multiple consumers.
+
+The engine evaluates saved property data and produces structured findings.
+
+Consumers decide how those findings are displayed, limited, grouped, persisted, or delivered.
+
+The engine should not render UI, send email, schedule scans, or save scan history.
+
+Maintley Intelligence uses layered sources of truth:
+
+1. User-defined maintenance schedule
+2. Manufacturer-specific guidance (future)
+3. Maintley Baseline Care Library
+4. Current property records
+5. Historical maintenance events
+6. Current date/time
+
+V1 uses Maintley Baseline Care Library, property records, maintenance history, and current date/time.
+
+The Maintley Baseline Care Library is versioned.
+
+Current baseline version:
+
+```text
+2026.1
+```
+
+Baseline guidance is Maintley-defined and generic. V1 does not use external lookups, AI, web data, or manufacturer-specific rules.
+
+Current implementation structure:
+
+```text
+src/intelligence/
+├── types.ts
+├── engine.ts
+├── aggregation.ts
+├── capabilities.ts
+├── prioritization.ts
+├── planFilter.ts
+├── rules/
+└── consumers/
+    └── quickScan.ts
+```
+
+The implementation also includes:
+
+```text
+src/intelligence/baselineCareLibrary.ts
+```
+
+Current engine inputs:
+
+* Property record
+* System and appliance records
+* Task records
+* Maintenance history records
+* Documents and files
+* Plan and capability context
+* Current date
+
+Current engine output:
+
+Structured findings with:
+
+* id
+* ruleId
+* propertyId
+* affectedSystemIds
+* category
+* severity
+* priority
+* title
+* description
+* whyItMatters
+* suggestedActionLabel
+* suggestedActionType
+* requiredPlan
+* requiredCapabilities
+* baselineVersion
+* metadata
+
+The engine result also includes:
+
+* findings
+* summary counts
+* systems reviewed
+* tasks reviewed
+* generatedAt
+
+Current rules:
+
+* Overdue tasks exist
+* Major systems missing install dates
+* Systems missing important identification details
+* Systems with no maintenance history
+* Systems with no actionable maintenance coverage
+* Baseline maintenance cadence appears overdue based on saved maintenance history and current date
+
+Quick Property Scan consumes the shared engine through the Quick Scan consumer.
+
+Property Audit, Dashboard Insights, Email Insights, and future intelligence features should consume the same engine rather than creating separate recommendation logic.
+
+---
+
+## Level 1: Quick Property Scan
+
+Customer question:
+
+> What did Maintley find that is worth my attention?
 
 Purpose:
 
-Show the most valuable next actions without overwhelming the user.
+Show the most valuable next actions from the saved property record without overwhelming the user.
+
+Availability:
+
+Free and paid plans.
 
 Target:
 
 Top 3-5 opportunities.
+
+Expected time:
+
+5-10 seconds.
 
 Typical use cases:
 
@@ -377,11 +505,29 @@ Typical use cases:
 * Dashboard review
 * Property review
 
+Quick Property Scan is designed to be run regularly.
+
 Quick Scan prioritizes maintenance execution and record usefulness.
 
 Quick Scan should surface themes rather than repeating one recommendation per affected system.
 
 Quick Scan summary titles should be encouraging and should avoid leading with large raw counts. Exact affected counts and affected system lists belong in the recommendation detail view.
+
+Quick Scan should be plan-aware.
+
+Maintley Intelligence may generate more findings than a user can act on, but the visible Quick Scan should pass through a capability filter before recommendations are shown.
+
+Free users should see record-focused recommendations they can act on, such as:
+
+* Add install dates
+* Add make or model information
+* Upload warranty information
+* Record first maintenance history
+* Complete property profile information
+
+Free users should not see locked recurring-maintenance recommendations as deficiencies.
+
+When a premium capability is relevant, Quick Scan may show one clearly labeled premium opportunity at most. It should be framed as an available Homeowner+ capability rather than a problem the user failed to fix.
 
 Quick Scan may show a short progress dialog while it is running. The dialog should use familiar Maintley loading treatment and close once the latest snapshot is ready.
 
@@ -427,19 +573,21 @@ Those items belong in Full Property Audit, where a user has explicitly asked for
 
 Purpose:
 
-Review the saved property record for completeness and maintenance opportunities after the Property Setup Assistant.
+Review what Maintley knows about the property and highlight the few record updates or maintenance steps most worth the user's attention after the Property Setup Assistant.
 
-Property Scan v1 is the current Quick Scan implementation and is powered by Maintley Intelligence.
+Property Scan v1 is the current Quick Scan implementation and is powered by the shared Maintley Intelligence engine.
 
 Maintley Intelligence is the umbrella guidance system. Property Scan is the explicit property-level review action.
 
 Property Scan v1 is:
 
-* A record-completeness scan
-* A maintenance-opportunity scan
+* An explainable review of saved property records
+* A maintenance-opportunity review
 * Deterministic and rule-based
 * Based only on data already saved in Maintley
+* A consumer of shared Maintley Intelligence findings
 * Limited to the top 3-5 visible recommendations
+* Filtered by the account's plan capabilities
 * Displayed from the property-level Insights tab
 * Rendered on the page after the scan completes
 * Supported by dialogs for affected system or task details
@@ -452,24 +600,29 @@ Property Scan v1 is not:
 * A property grade
 * An AI-generated diagnosis
 
-The scan currently checks for:
+The shared engine currently checks for:
 
-* Missing core property details
-* No systems or appliances recorded
 * Systems missing make or model
-* Systems missing serial number
 * Systems missing install date
-* Systems missing warranty information
 * Systems with no maintenance history
 * Systems with no linked recurring task
-* Missing documents or property photos
 * Open overdue tasks
-* Upcoming due maintenance
-* Suggested maintenance opportunities not yet accepted
 
-The engine may generate more recommendations than the user sees. Quick Scan filters and sorts them so the visible experience stays focused on the highest-value next actions.
+The engine may generate more findings than the user sees. Quick Scan filters, groups, and limits them so the visible experience stays focused on the highest-value next actions.
 
-Repeated system-level findings should be aggregated into a small number of theme-level recommendations in Quick Scan. Individual system findings belong in Full Property Audit or future drill-down views.
+The visible Property Scan message should be:
+
+```text
+Maintley reviewed what it knows about your property and found a few things worth your attention.
+```
+
+Property Scan should not be marketed or described as:
+
+```text
+AI scanned your house.
+```
+
+Repeated system-level findings should be aggregated into a small number of theme-level recommendations by the Quick Scan consumer. Individual system findings belong in Full Property Audit or future drill-down views.
 
 Each visible recommendation should include a short explanation of why the action matters. For example, install dates help track equipment age, warranty coverage, and future replacement planning.
 
@@ -500,58 +653,151 @@ Phase 1 does not send emails, run scheduled scans, call AI APIs, or calculate a 
 
 ---
 
-## Full Property Audit
+## Level 2: Full Property Audit
+
+Customer question:
+
+> How complete and maintainable are my property records?
 
 Purpose:
 
-Answer how complete and maintainable the saved records are.
+Provide a comprehensive review of property record completeness, maintenance coverage, documentation, and lifecycle readiness.
+
+Availability:
+
+Premium plans.
+
+Expected time:
+
+30-60 seconds.
 
 Full Property Audit is a future Maintley Intelligence process.
 
+It is not a larger Quick Scan.
+
+It should evaluate the property across categories and present completeness-oriented results.
+
 It may generate a larger set of findings across:
 
-* Documentation Gaps
-* Record Completeness
+* Documentation
+* Equipment Records
 * Maintenance Coverage
-* Lifecycle Tracking
+* Lifecycle Planning
+* Property Completeness
 
-Examples:
+Example audit categories:
 
-* Missing manuals
-* Missing photos
-* Missing receipts
-* Missing serial numbers
-* Missing install dates
-* Missing warranty information
-* Systems without tasks
-* Systems without history
-* Systems without contractors
+Documentation:
+
+* Manuals uploaded
+* Warranty documents uploaded
+* Receipts uploaded
+* Photos attached
+
+Equipment Records:
+
+* Make and model recorded
+* Serial numbers recorded
+* Install dates recorded
+* Warranty dates recorded
+
+Maintenance Coverage:
+
+* Maintainable systems have recurring care
+* Completed tasks create maintenance history
+* Filters have replacement schedules
+* Safety devices are being checked
+
+Lifecycle Planning:
+
 * Aging equipment
+* HVAC nearing expected lifespan
+* Water heater age review
+* Roof approaching an inspection window
 * Warranty expirations
 * End-of-life planning
 
-Because the user explicitly requests an audit, a larger list of findings is appropriate in this future surface.
+A future Full Property Audit may present category completeness instead of only listing findings.
+
+Example:
+
+```text
+Property Documentation
+
+72% complete
+
+Equipment Records     4/5
+Maintenance Coverage  3/5
+Documentation         2/5
+History               5/5
+```
+
+Because the user explicitly requests an audit, a larger list of findings is appropriate in this future surface. The audit should still group findings clearly so users can move from summary to detail without feeling buried.
 
 ---
 
+## Level 3: Ongoing Property Intelligence
+
+Customer question:
+
+> What should I think about next?
+
 Purpose:
 
-Comprehensive property analysis.
+Continuously derive useful observations from property records, maintenance history, dates, costs, and seasonal context.
 
-Target:
+Availability:
 
-Full property review.
+Premium plans.
+
+Expected behavior:
+
+Runs continuously or on a scheduled cadence once supported.
+
+Ongoing Property Intelligence is where the broader Maintley Intelligence brand should become most visible.
+
+This layer should help users notice patterns or upcoming decisions they may not have thought to ask about.
 
 Examples:
 
-* Missing maintenance opportunities
-* Missing appliance information
-* Missing parts information
-* Missing documentation
+* Based on HVAC age, begin budgeting for replacement
+* Roof inspection is due before hurricane season
+* Maintenance costs have increased year over year
+* Two warranties expire this fall
+* Seasonal maintenance reminders
+* Lifecycle forecasts
+* Risk indicators
+* Personalized recommendations
 
-Deep Scan may be restricted by subscription level.
+This future layer should be predictive and contextual.
 
-Deep Scan should remain optional.
+It should still remain explainable and derived from Maintley records.
+
+---
+
+## Product Hierarchy
+
+Maintley Intelligence should support a natural product progression:
+
+Free:
+
+> Here is what to do next.
+
+Paid Audit:
+
+> Here is everything that is missing or incomplete.
+
+Premium Intelligence:
+
+> Here is what your data means.
+
+This progression should prevent Full Property Audit from feeling like "Quick Scan with 50 more recommendations."
+
+Quick Scan should stay fast and action-oriented.
+
+Full Property Audit should feel like a comprehensive review.
+
+Ongoing Property Intelligence should feel like guidance that becomes smarter as Maintley records improve.
 
 ---
 

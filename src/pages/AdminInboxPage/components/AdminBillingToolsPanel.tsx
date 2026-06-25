@@ -28,7 +28,6 @@ import {
 	selectBillingCoupons,
 	selectBillingCouponsLoading,
 	selectBillingCouponsError,
-	selectBillingCouponsLastLoaded,
 } from '../../../Redux/selectors/adminPortalSelectors';
 import { addBillingCoupon } from '../../../Redux/Slices/adminPortalSlice';
 import { fetchBillingCoupons } from '../../../Redux/thunks/adminPortalThunks';
@@ -72,7 +71,6 @@ export const AdminBillingToolsPanel: React.FC<AdminBillingToolsPanelProps> = ({
 	const coupons = useSelector(selectBillingCoupons);
 	const loading = useSelector(selectBillingCouponsLoading);
 	const error = useSelector(selectBillingCouponsError);
-	const lastLoadedAt = useSelector(selectBillingCouponsLastLoaded);
 	const [localError, setLocalError] = useState('');
 	const [saving, setSaving] = useState(false);
 	const [message, setMessage] = useState('');

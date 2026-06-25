@@ -383,60 +383,6 @@ export const DevicesHubPage: React.FC = () => {
 		return (selected || properties[0] || null) as Property | null;
 	}, [properties, deviceFormData.location?.propertyId]);
 
-	const resolveDefaultCreatePropertyId = () => {
-		if (properties.length === 0) {
-			return '';
-		}
-
-		if (isSinglePropertyPlan) {
-			return String(properties[0].id);
-		}
-
-		if (
-			propertyFilter &&
-			properties.some((property: any) => String(property.id) === propertyFilter)
-		) {
-			return propertyFilter;
-		}
-
-		return String(properties[0].id);
-	};
-
-	const clearCreateActionParam = () => {
-		const params = new URLSearchParams(location.search);
-		params.delete('action');
-		navigate(
-			{
-				pathname: location.pathname,
-				search: params.toString() ? `?${params.toString()}` : '',
-			},
-			{ replace: true },
-		);
-	};
-
-	const resetCreateDeviceForm = (propertyId: string) => {
-		setDeviceFormData({
-			type: '',
-			brand: '',
-			model: '',
-			serialNumber: '',
-			partNumber: '',
-			filterSize: '',
-			specNotes: '',
-			serviceItems: [],
-			installationDate: '',
-			decommissionDate: '',
-			status: 'Active',
-			location: {
-				propertyId,
-			},
-			files: [],
-		});
-		setPendingUploadFiles([]);
-		setPendingPropertyDocumentFiles([]);
-		setPendingPropertyDocumentCategory('other');
-	};
-
 	const handleCreateDeviceFormChange = (field: string, value: string) => {
 		if (field.startsWith('location.')) {
 			const locationField = field.split('.')[1] as 'propertyId' | 'unitId' | 'suiteId';
@@ -477,36 +423,6 @@ export const DevicesHubPage: React.FC = () => {
 				[field]: value,
 			};
 		});
-	};
-
-	const handleOpenCreateDeviceModal = () => {
-		if (!canManageAppliances) {
-			feedback.notify('Your role can view appliances but cannot add or edit them.');
-			return;
-		}
-
-		if (properties.length === 0) {
-			navigate('/properties?action=create');
-			return;
-		}
-
-		if (!currentUser?.subscription) {
-			feedback.notify('Unable to verify subscription. Please contact support.');
-			return;
-		}
-
-		if (!canAddDevice(currentUser.subscription, devices.length)) {
-			const planDetails = getSubscriptionPlanDetails(effectivePlanId);
-			const maxDevices = planDetails?.maxDevices || 15;
-			feedback.notify(
-				`Your ${planDetails?.name || 'current'} plan allows up to ${maxDevices} appliances. ` +
-					`You currently have ${devices.length} appliances. Please upgrade to add more.`,
-			);
-			return;
-		}
-
-		resetCreateDeviceForm(resolveDefaultCreatePropertyId());
-		setShowDeviceModal(true);
 	};
 
 	const handleCloseCreateDeviceModal = () => {
@@ -611,9 +527,94 @@ export const DevicesHubPage: React.FC = () => {
 			return;
 		}
 
-		handleOpenCreateDeviceModal();
-		clearCreateActionParam();
-	}, [location.pathname, location.search, isLoadingProperties]);
+		if (!canManageAppliances) {
+			feedback.notify('Your role can view appliances but cannot add or edit them.');
+			return;
+		}
+
+		if (properties.length === 0) {
+			navigate('/properties?action=create');
+			return;
+		}
+
+		if (!currentUser?.subscription) {
+			feedback.notify('Unable to verify subscription. Please contact support.');
+			return;
+		}
+
+		if (!canAddDevice(currentUser.subscription, devices.length)) {
+			const planDetails = getSubscriptionPlanDetails(effectivePlanId);
+			const maxDevices = planDetails?.maxDevices || 15;
+			feedback.notify(
+				`Your ${planDetails?.name || 'current'} plan allows up to ${maxDevices} appliances. ` +
+					`You currently have ${devices.length} appliances. Please upgrade to add more.`,
+			);
+			return;
+		}
+
+		const defaultPropertyId = (() => {
+			if (properties.length === 0) {
+				return '';
+			}
+
+			if (isSinglePropertyPlan) {
+				return String(properties[0].id);
+			}
+
+			if (
+				propertyFilter &&
+				properties.some((property: any) => String(property.id) === propertyFilter)
+			) {
+				return propertyFilter;
+			}
+
+			return String(properties[0].id);
+		})();
+
+		setDeviceFormData({
+			type: '',
+			brand: '',
+			model: '',
+			serialNumber: '',
+			partNumber: '',
+			filterSize: '',
+			specNotes: '',
+			serviceItems: [],
+			installationDate: '',
+			decommissionDate: '',
+			status: 'Active',
+			location: {
+				propertyId: defaultPropertyId,
+			},
+			files: [],
+		});
+		setPendingUploadFiles([]);
+		setPendingPropertyDocumentFiles([]);
+		setPendingPropertyDocumentCategory('other');
+		setShowDeviceModal(true);
+
+		params.delete('action');
+		navigate(
+			{
+				pathname: location.pathname,
+				search: params.toString() ? `?${params.toString()}` : '',
+			},
+			{ replace: true },
+		);
+	}, [
+		location.pathname,
+		location.search,
+		isLoadingProperties,
+		canManageAppliances,
+		feedback,
+		properties,
+		currentUser?.subscription,
+		devices.length,
+		effectivePlanId,
+		navigate,
+		propertyFilter,
+		isSinglePropertyPlan,
+	]);
 
 	const openTasks = useMemo(() => allTasks.filter(isOpenTask), [allTasks]);
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { useSelector } from 'react-redux';
 import {
@@ -110,14 +110,14 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 	const [deleteTaskMutation] = useDeleteTaskMutation();
 
 	// Wrapper functions for table actions
-	const handleCreateTask = () => {
+	const handleCreateTask = useCallback(() => {
 		if (!canCreateTasks) {
 			feedback.notify('Your role can view tasks but cannot create maintenance tasks.');
 			return;
 		}
 		setIsEditing(false);
 		setShowTaskModal(true);
-	};
+	}, [canCreateTasks, feedback]);
 
 	const handleEditTask = (task: Task) => {
 		if (!canManageTasks) {
@@ -529,7 +529,7 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 		if (openCreateTaskToken > 0 && canCreateTasks) {
 			handleCreateTask();
 		}
-	}, [openCreateTaskToken, canCreateTasks]);
+	}, [openCreateTaskToken, canCreateTasks, handleCreateTask]);
 
 	// Filter configuration for tasks
 	const taskFilters: FilterConfig[] = [

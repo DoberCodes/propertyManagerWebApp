@@ -46,8 +46,6 @@ import { uploadPropertyDocument } from '../../../utils/propertyDocumentUpload';
 import { buildDeviceSlug } from '../../../utils/deviceSlug';
 import { useAppFeedback } from '../../../Components/Library/AppFeedback/AppFeedbackProvider';
 import {
-	MobileCarouselContainer,
-	DeviceRow,
 	DesktopTableWrapper,
 	Toolbar,
 	ToolbarButton,
@@ -66,10 +64,6 @@ import {
 import { AppZeroState, ReusableTable } from '../../../Components/Library';
 import { Column, Action } from '../../../Components/Library/ReusableTable';
 import {
-	CardMoreDetails,
-	CardMoreSummary,
-	CardMoreMenu,
-	CardMoreMenuItem,
 	CompactFilterResultCount,
 	DesktopCreateAction,
 	DesktopFilterArea,
@@ -320,24 +314,6 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 				0,
 			),
 		[linkedOpenTaskCountByDevice],
-	);
-
-	const linkedOverdueTaskCount = useMemo(
-		() =>
-			Array.from(linkedOverdueTaskCountByDevice.values()).reduce(
-				(total, count) => total + count,
-				0,
-			),
-		[linkedOverdueTaskCountByDevice],
-	);
-
-	const devicesWithRecurringCareCount = useMemo(
-		() =>
-			devices.filter(
-				(device: any) =>
-					(recurringLinkedTaskCountByDevice.get(String(device.id)) || 0) > 0,
-			).length,
-		[devices, recurringLinkedTaskCountByDevice],
 	);
 
 	const getDeviceAttentionState = (device: any) => {

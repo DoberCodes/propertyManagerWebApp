@@ -338,9 +338,130 @@ The engine should remain rule-driven before introducing AI-generated recommendat
 
 ---
 
+# Maintley Intelligence Foundation
+
+Maintley Intelligence uses one shared engine.
+
+The engine generates structured findings from saved property data.
+
+Consumers decide how to display those findings.
+
+No UI, email workflow, dashboard surface, or scan experience should implement separate recommendation logic.
+
+Maintley Intelligence evaluates property records using layered sources of truth:
+
+1. User-defined maintenance schedule
+2. Manufacturer-specific guidance (future)
+3. Maintley Baseline Care Library
+4. Current property records
+5. Historical maintenance events
+6. Current date/time
+
+V1 cadence rules use Maintley Baseline Care Library, property records, maintenance history, and current date/time.
+
+Baseline definitions are versioned. V1 uses:
+
+```text
+baselineVersion: "2026.1"
+```
+
+V1 baseline guidance is Maintley-defined and generic. It does not use external lookups, AI, web data, or manufacturer-specific rules.
+
+Current implementation structure:
+
+```text
+src/intelligence/
+├── types.ts
+├── engine.ts
+├── aggregation.ts
+├── capabilities.ts
+├── prioritization.ts
+├── planFilter.ts
+├── rules/
+└── consumers/
+    └── quickScan.ts
+```
+
+The implementation also includes:
+
+```text
+src/intelligence/baselineCareLibrary.ts
+```
+
+The shared finding model includes:
+
+* id
+* ruleId
+* propertyId
+* affectedSystemIds
+* category
+* severity
+* priority
+* title
+* description
+* whyItMatters
+* suggestedActionLabel
+* suggestedActionType
+* requiredPlan
+* requiredCapabilities
+* baselineVersion
+* metadata
+* createdAt
+
+Engine input includes:
+
+* property
+* systems/devices
+* tasks
+* maintenanceHistory
+* documents/files
+* plan/capabilities
+* currentDate
+
+Engine output includes:
+
+* findings
+* summary counts
+* systems reviewed
+* tasks reviewed
+* generatedAt
+
+The engine is responsible for:
+
+* Running modular rules
+* Normalizing findings
+* Aggregating repetitive findings where engine-level aggregation is appropriate
+* Applying plan and capability filtering when plan context is supplied
+* Generating findings
+* Assigning category, severity, priority, and required plan
+* Comparing saved maintenance history against versioned Maintley baseline cadence where applicable
+* Returning explainable metadata
+
+The engine is not responsible for:
+
+* Rendering UI
+* Sending emails
+* Scheduling scans
+* Persisting scan history
+* Deciding how many findings a consumer displays
+
+---
+
 # Property Scan v1 Rules
 
-Property Scan v1 is powered by Maintley Intelligence and uses centralized deterministic rules in the frontend recommendation layer.
+Property Scan v1 is powered by Maintley Intelligence and consumes the shared deterministic engine.
+
+Property Scan v1 implements Quick Property Scan.
+
+Quick Property Scan answers:
+
+> What did Maintley find that is worth my attention?
+
+It should not try to answer:
+
+> How complete and healthy are all of my property records?
+
+That broader question belongs to the future Full Property Audit surface.
 
 Inputs:
 
@@ -350,20 +471,23 @@ Inputs:
 * Maintenance history records
 * Property and system documentation
 
-Outputs:
+Engine outputs:
 
-* Recommendation id
+* Finding id
+* Rule id
 * Property id
-* Optional system id
+* Affected system ids
 * Category
 * Severity
+* Priority
+* Required plan
 * Title
 * Description
-* Reason
+* Why it matters
 * Suggested action label
 * Suggested action type
+* Metadata
 * Created timestamp
-* Active or dismissed status
 
 The initial v1 rule set checks for record gaps and maintenance opportunities only.
 
@@ -375,9 +499,28 @@ The latest visible Quick Scan result is saved as a backend-derived snapshot for 
 
 Each completed Quick Scan also creates a backend history snapshot. The current UI does not expose scan history, but the data model supports adding it later without changing the scan engine.
 
-Property Scan v1 may generate more recommendations than it displays. The Quick Scan surface should show the highest-value subset only.
+Property Scan v1 may generate more findings than it displays. The Quick Scan surface should show the highest-value subset only.
 
-The engine may generate detail recommendations for each affected system. Quick Scan should aggregate repeated detail recommendations into summary themes before display.
+The Quick Scan surface should frame results as an explainable review of saved property records:
+
+```text
+Maintley reviewed what it knows about your property and found a few things worth your attention.
+```
+
+It should not frame results as an AI scan of the physical home.
+
+The engine may generate detail findings for each affected system. Quick Scan should aggregate repeated detail findings into summary themes before display.
+
+The engine should attach capability metadata to findings.
+
+Examples:
+
+* Record finding: `requiredPlan = homeowner`
+* Premium-capability finding: `requiredPlan = homeowner_plus`
+
+Quick Scan should run findings through a plan capability filter before display.
+
+If a finding is not actionable for the current plan, it should be hidden from the primary Quick Scan recommendations. A consumer may create one clearly labeled premium opportunity, but the locked finding itself should not appear as a deficiency.
 
 Summary rules are shown in Quick Scan.
 
@@ -405,11 +548,27 @@ Quick Scan display rules:
 * Exclude low-severity documentation completeness items
 * Exclude documentation gaps from the Quick Scan surface
 * Aggregate repeated system-level findings into themes
+* Filter out recommendations the user cannot act on with their current plan
+* Limit premium upgrade opportunities to one visible item at most
 * Keep titles encouraging and put precise counts in details
 * Include a short explanation of why each recommendation matters
 * Show affected record lists in a dialog rather than expanding long lists inline
 * Show only the top recommendations by default, with an option to reveal the remaining Quick Scan recommendations
 * Sort by internal recommendation score
+
+Future Full Property Audit rules should use the same engine foundation, but with a different presentation goal.
+
+Full Property Audit answers:
+
+> How complete and maintainable are my property records?
+
+It should evaluate documentation, equipment records, maintenance coverage, lifecycle planning, and property completeness. It may show scores, category completeness, and larger grouped finding lists because the user explicitly requested a comprehensive audit.
+
+Future Ongoing Property Intelligence rules should answer:
+
+> What should I think about next?
+
+Those recommendations may use maintenance history, system age, warranty dates, cost patterns, and seasonal context to produce predictive or contextual observations. They should remain explainable and derived from Maintley records.
 
 Internal scoring:
 

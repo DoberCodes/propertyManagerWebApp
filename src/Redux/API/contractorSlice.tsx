@@ -11,26 +11,11 @@ import {
 } from 'firebase/firestore';
 import { db, auth } from '../../config/firebase';
 import { Contractor } from '../../types/Contractor.types';
-import { PropertyShare } from '../../types/Property.types';
 import { apiSlice, docToData } from './apiSlice';
 import {
 	resolveAccessibleAccountIds,
 	resolveTargetUserId,
 } from './accountContext';
-
-const getShareRecipientEmailCandidates = (
-	profileEmail?: string,
-	authEmail?: string | null,
-): string[] => {
-	const candidates = [
-		String(profileEmail || '').trim(),
-		String(profileEmail || '').trim().toLowerCase(),
-		String(authEmail || '').trim(),
-		String(authEmail || '').trim().toLowerCase(),
-	].filter(Boolean);
-
-	return Array.from(new Set(candidates));
-};
 
 const getSharedPropertyIdsForUser = async (
 	userId: string,

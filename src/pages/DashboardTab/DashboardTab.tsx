@@ -29,7 +29,6 @@ import {
 	syncSubscriptionFromStripe,
 } from 'services/stripeService';
 import {
-	Wrapper,
 	ActionFirstTopSection,
 	TodayFocusCard,
 	CardEyebrow,
@@ -123,6 +122,23 @@ const getLinkedDeviceIds = (task: Partial<Task> & { deviceId?: string | number }
 		ids.add(String(task.deviceId));
 	}
 	return ids;
+};
+
+const isPermissionDeniedError = (error: unknown): boolean => {
+	const err = error as {
+		code?: string;
+		message?: string;
+		status?: number | string;
+		error?: string;
+		data?: { message?: string; error?: string; code?: string | number };
+	};
+	const code = String(err?.code || err?.data?.code || err?.status || '').toLowerCase();
+	const message = String(err?.message || err?.data?.message || err?.error || err?.data?.error || '').toLowerCase();
+
+	return (
+		code.includes('permission-denied') ||
+		message.includes('missing or insufficient permissions')
+	);
 };
 
 export const DashboardTab = () => {
@@ -474,11 +490,13 @@ export const DashboardTab = () => {
 						try {
 							return await fetchMaintenanceHistoryByProperty(propertyId).unwrap();
 						} catch (error) {
-							console.warn(
-								'Could not load dashboard maintenance history for property:',
-								propertyId,
-								error,
-							);
+							if (!isPermissionDeniedError(error)) {
+								console.warn(
+									'Could not load dashboard maintenance history for property:',
+									propertyId,
+									error,
+								);
+							}
 							return [];
 						}
 					}),
@@ -496,7 +514,9 @@ export const DashboardTab = () => {
 					dashboardHistoryLoadedKeyRef.current = visiblePropertyIdsKey;
 				}
 			} catch (error) {
-				console.warn('Could not build dashboard maintenance history aggregate:', error);
+				if (!isPermissionDeniedError(error)) {
+					console.warn('Could not build dashboard maintenance history aggregate:', error);
+				}
 				if (!isCancelled) {
 					setDashboardMaintenanceHistory([]);
 					dashboardHistoryLoadedKeyRef.current = visiblePropertyIdsKey;
@@ -509,7 +529,11 @@ export const DashboardTab = () => {
 		return () => {
 			isCancelled = true;
 		};
-	}, [visiblePropertyIdsKey]);
+	}, [
+		visiblePropertyIdsKey,
+		visiblePropertyIdList,
+		fetchMaintenanceHistoryByProperty,
+	]);
 
 	const deviceLookup = useMemo(
 		() =>

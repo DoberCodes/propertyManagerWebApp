@@ -298,6 +298,29 @@ The dashboard should focus on action rather than evaluation.
 
 Maintley Intelligence should guide users rather than audit them.
 
+Property Scan should be described as an explainable review of saved property records.
+
+Use:
+
+```text
+Maintley reviewed what it knows about your property and found a few things worth your attention.
+```
+
+Avoid:
+
+```text
+AI scanned your house.
+```
+
+Property Scan language should emphasize:
+
+* Saved property details
+* Systems and equipment records
+* Tasks and maintenance history
+* A small number of worthwhile next steps
+
+Property Scan language should not imply Maintley inspected the physical property, diagnosed equipment condition, or judged the home.
+
 Good:
 
 ```text id="9w5v7r"

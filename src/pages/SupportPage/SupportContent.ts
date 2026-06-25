@@ -454,9 +454,9 @@ export const helpfulArticles: HelpfulArticle[] = [
 		path: '/dashboard',
 		actionLabel: 'Review Recommendations',
 		introduction:
-			'Maintley Intelligence uses existing Maintley records to suggest practical next steps. Recommendations are guidance based on recorded information—not an inspection, condition assessment, or property grade.',
+			'Maintley Intelligence reviews existing Maintley records and highlights the few things worth your attention. Recommendations are guidance based on recorded information—not an inspection, condition assessment, or property grade.',
 		founderNote: [
-			'I built Maintley Intelligence to answer a simple question: based on what is already recorded, what is the next useful thing someone could add or do?',
+			'I built Maintley Intelligence to answer a simple question: based on what Maintley knows about this property, what is most worth attention right now?',
 			'I do not want recommendations to judge a property or pressure someone into completing a checklist. They should help people notice opportunities while leaving the final decision with the person who knows the property.',
 		],
 		sections: [

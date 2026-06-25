@@ -126,6 +126,7 @@ export const TabSystem = ({
 						maintenanceHistoryRecords={maintenanceHistoryRecords}
 						canRunScan={canRunPropertyScan}
 						showSetupPrompt={showPropertyScanPrompt}
+						subscription={currentUser?.subscription}
 						onRecommendationAction={
 							handlePropertyScanAction ||
 							(() => {

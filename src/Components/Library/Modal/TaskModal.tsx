@@ -951,6 +951,8 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 		initialTask,
 		foundTask,
 		defaultForm,
+		propertyId,
+		unitId,
 	]);
 
 	const handleChange = (e: React.ChangeEvent<any>) => {

@@ -1129,6 +1129,7 @@ Typical fields:
 * propertyId
 * scanType
 * schemaVersion
+* planId
 * createdAt
 * updatedAt
 * createdBy

@@ -28,11 +28,10 @@ import {
 	canUseTaskReminderEmails,
 } from '../../utils/subscriptionUtils';
 import { isNativeApp } from '../../utils/platform';
-import { ActionsToolbar, DisableAllButton, EnableAllButton, FilterButton, NestedPreferenceControls, PreferenceOption, PreferencePanel, PreferencesGrid, PreferenceText, PresetActions, PresetButton, RecipientGrid, RecipientOption, Section, SectionBody, SectionTitle, SupportTicketFilterButton } from './SettingPage.styles';
+import { ActionsToolbar, DisableAllButton, EnableAllButton, FilterButton, NestedPreferenceControls, PreferenceOption, PreferencePanel, PreferencesGrid, PreferenceText, PresetActions, PresetButton, RecipientGrid, RecipientOption, Section, SectionBody, SectionTitle } from './SettingPage.styles';
 import { IconWrapper } from 'global.styles';
 import { faChevronDown, faChevronUp } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { TabButtonsWrapper } from 'pages/PropertyDetailPage/PropertyDetailPage.styles';
 
 
 

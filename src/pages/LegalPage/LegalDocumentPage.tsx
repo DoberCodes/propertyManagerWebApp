@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import styled from 'styled-components';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import SEO from 'Components/SEO/SEO';
@@ -247,7 +247,7 @@ const LegalDocumentPage: React.FC = () => {
 		element.scrollIntoView({ behavior: 'smooth', block: 'start' });
 	};
 
-	const loadDocument = async () => {
+	const loadDocument = useCallback(async () => {
 		if (!documentInfo) return;
 		setLoading(true);
 		setError(null);
@@ -265,14 +265,14 @@ const LegalDocumentPage: React.FC = () => {
 		} finally {
 			setLoading(false);
 		}
-	};
+	}, [documentInfo]);
 
 	useEffect(() => {
 		if (documentInfo) {
 			setContent('');
 			loadDocument();
 		}
-	}, [documentInfo]);
+	}, [documentInfo, loadDocument]);
 
 	if (!documentInfo) {
 		return (
@@ -339,11 +339,11 @@ const LegalDocumentPage: React.FC = () => {
 
 					{parsedDocument.sections.length > 0
 						? parsedDocument.sections.map((section) => (
-								<Section key={section.id} id={section.id}>
-									<SectionTitle>{section.title}</SectionTitle>
-									<DocumentText>{section.body}</DocumentText>
-								</Section>
-						  ))
+							<Section key={section.id} id={section.id}>
+								<SectionTitle>{section.title}</SectionTitle>
+								<DocumentText>{section.body}</DocumentText>
+							</Section>
+						))
 						: !parsedDocument.intro && <DocumentText>{content}</DocumentText>}
 				</>
 			)}

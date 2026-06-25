@@ -91,7 +91,9 @@ The assistant is intended to reduce onboarding effort while keeping setup option
 
 # Maintley Intelligence
 
-Maintley Intelligence helps users improve the completeness and usefulness of their property records.
+Maintley Intelligence reviews what Maintley knows about a property and highlights the few things most worth the user's attention.
+
+Recommendations are explainable guidance based on saved property records. They are not physical inspections, condition assessments, or property grades.
 
 Current capabilities:
 

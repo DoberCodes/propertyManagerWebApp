@@ -777,7 +777,7 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 										Your property record has a strong starting point.
 									</AssistantTitle>
 									<AssistantText>
-										Discover systems, appliances, and maintenance opportunities you can review over time.
+										Maintley can now review this property record and highlight the few things worth your attention.
 									</AssistantText>
 									<ProgressText>
 										Progress: {progress.reviewed} of {progress.total} reviewed

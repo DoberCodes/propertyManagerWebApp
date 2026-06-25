@@ -15,8 +15,14 @@ import {
 	PropertyScanCategory,
 	PropertyScanRecommendation,
 	runPropertyScanV1,
+	shouldShowPropertyScanRecommendationForPlan,
 } from '../../utils/propertyIntelligenceScan';
+import {
+	getEffectiveSubscriptionPlanId,
+	SubscriptionData,
+} from '../../utils/subscriptionUtils';
 import { RootState } from '../../Redux/store/store';
+import { COLORS } from '../../constants/colors';
 
 interface PropertyScanPanelProps {
 	property: Property;
@@ -25,6 +31,7 @@ interface PropertyScanPanelProps {
 	maintenanceHistory: any[];
 	canRunScan: boolean;
 	showSetupPrompt?: boolean;
+	subscription?: SubscriptionData | null;
 	onRecommendationAction: (
 		actionType: PropertyScanActionType,
 		recommendation: PropertyScanRecommendation,
@@ -132,6 +139,7 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 	maintenanceHistory,
 	canRunScan,
 	showSetupPrompt = false,
+	subscription,
 	onRecommendationAction,
 }) => {
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
@@ -151,6 +159,7 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 		skip: !canRunScan || !property.id,
 	});
 	const [savePropertyScanSnapshot] = useSavePropertyScanSnapshotMutation();
+	const currentPlanId = getEffectiveSubscriptionPlanId(subscription, 'homeowner');
 
 	useEffect(() => {
 		if (typeof window === 'undefined') {
@@ -182,9 +191,13 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 		return (lastScanSnapshot?.recommendations || []).filter(
 			(recommendation) =>
 				recommendation.status !== 'dismissed' &&
-				!dismissedIds.includes(recommendation.id),
+				!dismissedIds.includes(recommendation.id) &&
+				shouldShowPropertyScanRecommendationForPlan(
+					recommendation,
+					currentPlanId,
+				),
 		);
-	}, [dismissedIds, lastScanSnapshot]);
+	}, [currentPlanId, dismissedIds, lastScanSnapshot]);
 	const displayedSummary = useMemo(
 		() => getQuickScanSummary(displayedRecommendations),
 		[displayedRecommendations],
@@ -224,10 +237,10 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 		setScanSaveError('');
 
 		const progressMessages = [
-			'Running Property Scan...',
+			'Reviewing this property record...',
 			`Reviewing ${systems.length} ${systems.length === 1 ? 'system' : 'systems'}`,
 			'Checking maintenance coverage',
-			'Checking documentation completeness',
+			'Finding what is worth attention',
 		];
 
 		for (const message of progressMessages) {
@@ -246,12 +259,18 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 		});
 		const recommendations = getQuickPropertyScanRecommendations(
 			nextScanResult.activeRecommendations,
+			undefined,
+			{
+				planId: currentPlanId,
+				includePremiumOpportunity: true,
+			},
 		);
 		const nextSnapshot: PropertyScanSnapshot = {
 			accountId,
 			propertyId: property.id,
 			scanType: 'quick_property_scan_v1',
 			schemaVersion: 1,
+			planId: currentPlanId,
 			createdAt,
 			updatedAt: createdAt,
 			recommendations,
@@ -274,8 +293,10 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 		recommendation: PropertyScanRecommendation,
 	) => {
 		if (
-			(recommendation.relatedSystemIds?.length || recommendation.relatedTaskIds?.length) &&
-			recommendation.suggestedActionType === 'open_systems'
+			(recommendation.relatedSystemIds?.length ||
+				recommendation.relatedTaskIds?.length) &&
+			(recommendation.suggestedActionType === 'open_systems' ||
+				recommendation.suggestedActionType === 'open_tasks')
 		) {
 			setDetailRecommendation(recommendation);
 			return;
@@ -337,8 +358,9 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 					<ScanEyebrow>Maintley Intelligence</ScanEyebrow>
 					<ScanTitle>Property Quick Scan</ScanTitle>
 					<ScanText>
-						Find the next few record updates and maintenance steps most worth
-						your time, based only on what is saved in Maintley. This is not an
+						Maintley reviews what it knows about this property and highlights
+						the few things most worth your attention. It uses saved property
+						details, systems, tasks, and maintenance history, so it is not an
 						inspection, condition assessment, safety certification, or property grade.
 					</ScanText>
 				</ScanTitleBlock>
@@ -379,13 +401,13 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 
 					{displayedRecommendations.length === 0 ? (
 						<EmptyResult>
-							Your saved property records do not show any immediate high-value
-							opportunities from this scan.
+							Maintley reviewed this property record and did not find any
+							immediate high-value items that need your attention.
 						</EmptyResult>
 					) : (
 						<RecommendationWrap>
 							<RecommendationIntro>
-								Maintley Intelligence Snapshot
+								Things worth your attention
 							</RecommendationIntro>
 							{groupedRecommendations.map((group) => (
 								<CategoryGroup key={group.category}>
@@ -415,7 +437,10 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 												<RecommendationBody>
 													<RecommendationTitleRow>
 														<SeverityPill $severity={recommendation.severity}>
-															{recommendation.severity}
+															{recommendation.recommendationType ===
+															'premium_opportunity'
+																? 'Opportunity'
+																: recommendation.severity}
 														</SeverityPill>
 														<RecommendationTitle>
 															{recommendation.title}
@@ -427,15 +452,6 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 													<RecommendationDescription>
 														{recommendation.description}
 													</RecommendationDescription>
-													{hasAffectedDetails ? (
-														<DetailsButton
-															type='button'
-															onClick={() =>
-																setDetailRecommendation(recommendation)
-															}>
-															View details
-														</DetailsButton>
-													) : null}
 													{hasAffectedDetails ? (
 														<AffectedHint>{affectedLabel}</AffectedHint>
 													) : null}
@@ -479,8 +495,8 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 				<PromptRow>
 					<PromptText>
 						{showSetupPrompt
-							? 'Setup is saved. Run a quick scan to see practical next steps for this property record.'
-							: 'After setup, run a quick scan to see practical next steps for this property record.'}
+							? 'Setup is saved. Run a quick scan so Maintley can review the property record and highlight what is worth your attention.'
+							: 'After setup, run a quick scan so Maintley can review the property record and highlight what is worth your attention.'}
 					</PromptText>
 				</PromptRow>
 			)}
@@ -497,7 +513,7 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 							</ScanLoadingHomeBody>
 						</ScanLoadingHome>
 						<ScanLoadingTitle>
-							{scanProgressMessage || 'Running Property Scan...'}
+							{scanProgressMessage || 'Reviewing this property record...'}
 						</ScanLoadingTitle>
 						<ScanLoadingList>
 							<li>
@@ -505,7 +521,7 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 								{systems.length === 1 ? 'system' : 'systems'}
 							</li>
 							<li>Checking maintenance coverage</li>
-							<li>Checking documentation completeness</li>
+							<li>Finding what is worth attention</li>
 						</ScanLoadingList>
 					</ScanLoadingCard>
 				</ScanLoadingOverlay>
@@ -518,7 +534,14 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 					compact>
 					<DetailDialogBody>
 						<DetailCount>{detailAffectedCount ? detailAffectedLabel : 'No affected records listed'}</DetailCount>
-						<DetailReason>{detailRecommendation.description}</DetailReason>
+						<DetailSection>
+							<DetailSectionLabel>Why this matters</DetailSectionLabel>
+							<DetailReason>{detailRecommendation.description}</DetailReason>
+						</DetailSection>
+						<DetailSection>
+							<DetailSectionLabel>Why this appeared</DetailSectionLabel>
+							<DetailReason>{detailRecommendation.reason}</DetailReason>
+						</DetailSection>
 						{detailRelatedSystems.length > 0 ? (
 							<DetailList>
 								{detailRelatedSystems.map((relatedSystem) => (
@@ -636,21 +659,32 @@ const ScanActions = styled.div`
 const PrimaryButton = styled.button`
 	border: 0;
 	border-radius: 8px;
-	background: #0f766e;
+	background: #16a34a;
 	color: #ffffff;
 	font-weight: 700;
 	font-size: 14px;
 	padding: 10px 14px;
 	cursor: pointer;
 	min-height: 40px;
+	transition: all 0.2s ease;
+	box-shadow: 0 4px 12px rgba(22, 163, 74, 0.25);
 
 	&:hover {
-		background: #115e59;
+		background: #15803d;
+		transform: translateY(-1px);
+		box-shadow: 0 8px 18px rgba(22, 163, 74, 0.3);
 	}
 
 	&:disabled {
 		cursor: wait;
 		opacity: 0.75;
+		transform: none;
+		box-shadow: none;
+	}
+
+	&:focus-visible {
+		outline: 2px solid ${COLORS.primary};
+		outline-offset: 2px;
 	}
 
 	@media (max-width: 720px) {
@@ -946,21 +980,6 @@ const RecommendationDescription = styled.p`
 	line-height: 1.45;
 `;
 
-const DetailsButton = styled.button`
-	align-self: flex-start;
-	border: 0;
-	background: none;
-	color: #0f766e;
-	font-size: 13px;
-	font-weight: 800;
-	padding: 0;
-	cursor: pointer;
-
-	&:hover {
-		text-decoration: underline;
-	}
-`;
-
 const AffectedHint = styled.div`
 	color: #64748b;
 	font-size: 13px;
@@ -980,16 +999,25 @@ const RecommendationActions = styled.div`
 const ActionButton = styled.button`
 	border: 0;
 	border-radius: 8px;
-	background: #172033;
+	background: #16a34a;
 	color: #ffffff;
 	font-size: 13px;
 	font-weight: 700;
 	padding: 9px 12px;
 	cursor: pointer;
 	white-space: nowrap;
+	transition: all 0.2s ease;
+	box-shadow: 0 4px 12px rgba(22, 163, 74, 0.22);
 
 	&:hover {
-		background: #0f172a;
+		background: #15803d;
+		transform: translateY(-1px);
+		box-shadow: 0 8px 18px rgba(22, 163, 74, 0.28);
+	}
+
+	&:focus-visible {
+		outline: 2px solid ${COLORS.primary};
+		outline-offset: 2px;
 	}
 
 	@media (max-width: 760px) {
@@ -998,18 +1026,25 @@ const ActionButton = styled.button`
 `;
 
 const DismissButton = styled.button`
-	border: 1px solid #cbd5e1;
+	border: 1px solid ${COLORS.primary};
 	border-radius: 8px;
 	background: #ffffff;
-	color: #475569;
+	color: ${COLORS.primaryDark};
 	font-size: 13px;
 	font-weight: 700;
 	padding: 9px 12px;
 	cursor: pointer;
 	white-space: nowrap;
+	transition: all 0.2s ease;
 
 	&:hover {
-		background: #f8fafc;
+		background: ${COLORS.primaryLight};
+		border-color: ${COLORS.primaryDark};
+	}
+
+	&:focus-visible {
+		outline: 2px solid ${COLORS.primary};
+		outline-offset: 2px;
 	}
 
 	@media (max-width: 760px) {
@@ -1019,17 +1054,24 @@ const DismissButton = styled.button`
 
 const ShowMoreButton = styled.button`
 	align-self: flex-start;
-	border: 1px solid #cbd5e1;
+	border: 1px solid ${COLORS.primary};
 	border-radius: 8px;
 	background: #ffffff;
-	color: #334155;
+	color: ${COLORS.primaryDark};
 	font-size: 13px;
 	font-weight: 800;
 	padding: 9px 12px;
 	cursor: pointer;
+	transition: all 0.2s ease;
 
 	&:hover {
-		background: #f8fafc;
+		background: ${COLORS.primaryLight};
+		border-color: ${COLORS.primaryDark};
+	}
+
+	&:focus-visible {
+		outline: 2px solid ${COLORS.primary};
+		outline-offset: 2px;
 	}
 `;
 
@@ -1043,6 +1085,20 @@ const DetailCount = styled.div`
 	color: #172033;
 	font-size: 16px;
 	font-weight: 800;
+`;
+
+const DetailSection = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+`;
+
+const DetailSectionLabel = styled.div`
+	color: #0f766e;
+	font-size: 11px;
+	font-weight: 800;
+	letter-spacing: 0;
+	text-transform: uppercase;
 `;
 
 const DetailReason = styled.p`
@@ -1078,15 +1134,24 @@ const DetailRow = styled.div`
 const DetailOpenButton = styled.button`
 	border: 0;
 	border-radius: 8px;
-	background: #172033;
+	background: #16a34a;
 	color: #ffffff;
 	font-size: 13px;
 	font-weight: 700;
 	padding: 8px 10px;
 	cursor: pointer;
 	white-space: nowrap;
+	transition: all 0.2s ease;
+	box-shadow: 0 4px 12px rgba(22, 163, 74, 0.22);
 
 	&:hover {
-		background: #0f172a;
+		background: #15803d;
+		transform: translateY(-1px);
+		box-shadow: 0 8px 18px rgba(22, 163, 74, 0.28);
+	}
+
+	&:focus-visible {
+		outline: 2px solid ${COLORS.primary};
+		outline-offset: 2px;
 	}
 `;

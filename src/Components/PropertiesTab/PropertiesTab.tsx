@@ -126,7 +126,6 @@ import {
 	CollapseToggle,
 	SummarySubtitle,
 	HeaderMenuWrap,
-	HeaderMenuButton,
 	HeaderDropdownMenu,
 	HeaderDropdownItem,
 	HeaderDropdownIcon,
@@ -178,8 +177,6 @@ import {
 	faMicrochip,
 	faClock,
 	faGripVertical,
-	faLayerGroup,
-	faMarsAndVenus,
 } from '@fortawesome/free-solid-svg-icons';
 
 const ACTIVE_TASK_STATUSES = new Set([

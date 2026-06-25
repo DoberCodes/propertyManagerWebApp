@@ -1,0 +1,136 @@
+import { Device } from '../../types/Property.types';
+import { Task } from '../../types/Task.types';
+import {
+	MaintleyFinding,
+	MaintleyCapability,
+	MaintleyIntelligenceContext,
+	MaintleyRequiredPlan,
+} from '../types';
+
+export const normalizeText = (value: unknown): string =>
+	String(value || '')
+		.toLowerCase()
+		.replace(/&/g, 'and')
+		.replace(/[^a-z0-9]+/g, ' ')
+		.trim();
+
+export const isBlank = (value: unknown): boolean =>
+	value === undefined ||
+	value === null ||
+	String(value).trim().length === 0;
+
+export const getSystemName = (system: Device): string =>
+	[system.brand, system.type, system.model].filter(Boolean).join(' ').trim() ||
+	system.type ||
+	'this system';
+
+export const isTaskOpen = (task: Task): boolean =>
+	!['Completed', 'Rejected'].includes(task.status);
+
+export const getTaskDate = (task: Task): Date | null => {
+	if (!task.dueDate) return null;
+	const parsed = new Date(task.dueDate);
+	return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
+export const hasLinkedRecurringTask = (
+	system: Device,
+	tasks: Task[],
+): boolean =>
+	tasks.some(
+		(task) =>
+			isTaskOpen(task) &&
+			task.isRecurring === true &&
+			Array.isArray(task.devices) &&
+			task.devices.includes(system.id),
+	);
+
+const historyMatchesSystem = (history: any, systemId: string): boolean => {
+	const deviceId = String(history?.deviceId || history?.systemId || '');
+	const deviceIds = Array.isArray(history?.deviceIds)
+		? history.deviceIds.map(String)
+		: [];
+	const taskDeviceIds = Array.isArray(history?.devices)
+		? history.devices.map(String)
+		: [];
+
+	return (
+		deviceId === systemId ||
+		deviceIds.includes(systemId) ||
+		taskDeviceIds.includes(systemId)
+	);
+};
+
+export const hasMaintenanceHistory = (
+	system: Device,
+	maintenanceHistory: any[],
+): boolean => {
+	if (Array.isArray(system.maintenanceHistory) && system.maintenanceHistory.length > 0) {
+		return true;
+	}
+
+	return maintenanceHistory.some((record) => historyMatchesSystem(record, system.id));
+};
+
+export const isSafetyTrackingSystem = (system: Device): boolean => {
+	const systemText = normalizeText(`${system.type} ${system.brand} ${system.model}`);
+	return (
+		systemText.includes('smoke') ||
+		systemText.includes('carbon monoxide') ||
+		systemText.includes(' co detector') ||
+		systemText === 'co detector' ||
+		systemText.includes('fire alarm')
+	);
+};
+
+export const makeFinding = (
+	context: MaintleyIntelligenceContext,
+	finding: Omit<
+		MaintleyFinding,
+		| 'propertyId'
+		| 'createdAt'
+		| 'affectedSystemIds'
+		| 'requiredPlan'
+		| 'requiredCapabilities'
+		| 'baselineVersion'
+	> & {
+		affectedSystemIds?: string[];
+		requiredPlan?: MaintleyRequiredPlan;
+		requiredCapabilities?: MaintleyCapability[];
+		baselineVersion?: string;
+	},
+): MaintleyFinding => ({
+	...finding,
+	propertyId: context.property.id,
+	affectedSystemIds: finding.affectedSystemIds || [],
+	requiredPlan: finding.requiredPlan || 'homeowner',
+	requiredCapabilities: finding.requiredCapabilities || [],
+	baselineVersion: finding.baselineVersion || context.baselineVersion,
+	createdAt: context.createdAt,
+});
+
+export const getMaintenanceHistoryDate = (history: any): Date | null => {
+	const dateValue =
+		history?.date ||
+		history?.completedAt ||
+		history?.completionDate ||
+		history?.createdAt ||
+		history?.updatedAt;
+	if (!dateValue) return null;
+	const parsed = new Date(dateValue);
+	return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
+export const getMaintenanceHistoryText = (history: any): string =>
+	normalizeText(
+		[
+			history?.title,
+			history?.description,
+			history?.notes,
+			history?.completionNotes,
+			history?.type,
+			history?.category,
+		]
+			.filter(Boolean)
+			.join(' '),
+	);

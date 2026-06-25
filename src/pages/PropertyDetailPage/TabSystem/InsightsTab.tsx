@@ -6,6 +6,7 @@ import {
 	PropertyScanActionType,
 	PropertyScanRecommendation,
 } from '../../../utils/propertyIntelligenceScan';
+import { SubscriptionData } from '../../../utils/subscriptionUtils';
 
 interface InsightsTabProps {
 	property: Property;
@@ -14,6 +15,7 @@ interface InsightsTabProps {
 	maintenanceHistoryRecords: any[];
 	canRunScan: boolean;
 	showSetupPrompt?: boolean;
+	subscription?: SubscriptionData | null;
 	onRecommendationAction: (
 		actionType: PropertyScanActionType,
 		recommendation: PropertyScanRecommendation,
@@ -27,6 +29,7 @@ export const InsightsTab: React.FC<InsightsTabProps> = ({
 	maintenanceHistoryRecords,
 	canRunScan,
 	showSetupPrompt,
+	subscription,
 	onRecommendationAction,
 }) => (
 	<PropertyScanPanel
@@ -36,6 +39,7 @@ export const InsightsTab: React.FC<InsightsTabProps> = ({
 		maintenanceHistory={maintenanceHistoryRecords}
 		canRunScan={canRunScan}
 		showSetupPrompt={showSetupPrompt}
+		subscription={subscription}
 		onRecommendationAction={onRecommendationAction}
 	/>
 );

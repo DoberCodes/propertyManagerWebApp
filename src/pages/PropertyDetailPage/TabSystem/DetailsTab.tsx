@@ -20,8 +20,6 @@ import {
 	GlanceCard,
 	GlanceLabel,
 	GlanceValue,
-	QuickActionsBar,
-	QuickActionButton,
 	PreviewGrid,
 	PreviewCard,
 	PreviewHeader,

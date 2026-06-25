@@ -839,7 +839,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
 									<span className="icon">🧠</span>
 									<div className="text">
 										<strong>Property Assistant + Property Scan</strong>
-										<span>Guidance for missing details and next best maintenance actions</span>
+										<span>Maintley reviews the record and highlights what is worth attention</span>
 									</div>
 								</PayoffItem>
 							)}

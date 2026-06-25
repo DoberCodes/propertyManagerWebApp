@@ -310,7 +310,8 @@ Maintley Intelligence consumes:
 
 Maintley Intelligence generates:
 
-* Recommendations
+* Structured findings
+* Recommendations derived from findings
 * Property Insights
 * Quick Scan results
 * Dashboard guidance
@@ -318,6 +319,14 @@ Maintley Intelligence generates:
 Maintley Intelligence does not own source data.
 
 Source data remains in the underlying collections.
+
+The shared engine lives in:
+
+```text
+src/intelligence/
+```
+
+Quick Scan, future Property Audit, Dashboard Insights, and Email Insights should consume this shared engine rather than implementing separate recommendation logic.
 
 See:
 

@@ -64,7 +64,7 @@ export const TenantProfilePage: React.FC = () => {
 	const navigate = useNavigate();
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
 
-	const { data: existingProfile, isLoading: isLoadingProfile } =
+	const { data: existingProfile } =
 		useGetTenantProfileQuery(currentUser?.id || '', {
 			skip: !currentUser?.id,
 		});

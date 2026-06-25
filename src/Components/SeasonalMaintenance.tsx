@@ -37,6 +37,33 @@ import {
 
 import seasonalTipCards, { SeasonalCard } from '../data/seasonalTipCards';
 
+const tipImageContext = (require as any).context(
+	'../Assets/TipsImages',
+	false,
+	/\.(png|jpe?g|webp|avif)$/i,
+);
+
+const resolveTipImage = (imagePath?: string): string | null => {
+	if (!imagePath) {
+		return null;
+	}
+
+	if (imagePath.startsWith('/') || imagePath.startsWith('http')) {
+		return imagePath;
+	}
+
+	const imageName = imagePath.split('/').pop();
+	if (!imageName) {
+		return null;
+	}
+
+	try {
+		return tipImageContext(`./${imageName}`);
+	} catch {
+		return null;
+	}
+};
+
 const shuffleSeasonalCards = (cards: SeasonalCard[]) => {
 	const shuffledCards = [...cards];
 	for (let index = shuffledCards.length - 1; index > 0; index -= 1) {
@@ -157,7 +184,7 @@ export const SeasonalMaintenance = ({
 		const ends: Record<string, Date> = {
 			spring: new Date(year, 5, 1),   // Jun 1
 			summer: new Date(year, 8, 1),   // Sep 1
-			fall:   new Date(year, 11, 1),  // Dec 1
+			fall: new Date(year, 11, 1),  // Dec 1
 			winter: new Date(year + (now.getMonth() >= 11 ? 1 : 0), 2, 1), // Mar 1
 		};
 		return ends[season].getTime();
@@ -235,17 +262,6 @@ export const SeasonalMaintenance = ({
 		return () => window.removeEventListener('resize', update);
 	}, [compact]);
 
-	// No rotating text: cards provide full details; keep component static.
-	const getRecommendedTimingText = (card: SeasonalCard) => {
-		if (card.priorityLevel === 'high') {
-			return 'Recommended this week';
-		}
-		if (card.priorityLevel === 'medium') {
-			return 'Recommended this month';
-		}
-		return 'Add to the next maintenance cycle';
-	};
-
 	return (
 		<Container>
 			{loading && (
@@ -265,7 +281,7 @@ export const SeasonalMaintenance = ({
 					<TipsHeader>
 						{compact ? 'Seasonal Maintenance' : 'Seasonal Maintenance Tips'}
 					</TipsHeader>
-					{compact ? (					effectiveCards.length === 0 ? (
+					{compact ? (effectiveCards.length === 0 ? (
 						<SnoozedEmptyState>
 							<p>
 								You've snoozed all{' '}
@@ -274,209 +290,202 @@ export const SeasonalMaintenance = ({
 							</p>
 							<button onClick={unsnoozeAll}>Unsnooze all</button>
 						</SnoozedEmptyState>
-					) : (						renderedCards.map((card, idx) => {
-							const priorityText =
-								card.priorityLevel === 'high'
-									? 'High Priority'
-									: card.priorityLevel === 'medium'
-								? 'Medium Priority'
-								: 'Low Priority';
+					) : (renderedCards.map((card, idx) => {
+						const priorityText =
+							card.priorityLevel === 'high'
+								? 'High Priority'
+								: card.priorityLevel === 'medium'
+									? 'Medium Priority'
+									: 'Low Priority';
 
 						const categoryText = card.riskCategory
 							? `${card.riskCategory
-									.charAt(0)
-									.toUpperCase()}${card.riskCategory.slice(1)} Risk`
+								.charAt(0)
+								.toUpperCase()}${card.riskCategory.slice(1)} Risk`
 							: '';
 						const serviceText =
 							card.serviceLevel === 'professional'
 								? 'Professional'
 								: card.serviceLevel === 'moderate'
-								? 'DIY — Moderate'
-								: 'DIY — Basic';
-							const taskActionState = getAddTipTaskState?.(card) || {
-								disabled: false,
-								label: 'Add as Task',
-								helperText: 'Create a prefilled task from this tip.',
-							};
-
-							return (
-								<CompactTeaser key={card.id || `${pageIndex}-${idx}`}>
-									<CompactTeaserMain>
-										<CompactTopRow>
-											<CompactSeasonTag>
-												{card.season &&
-													card.season.charAt(0).toUpperCase() + card.season.slice(1)}
-												{categoryText ? ` • ${categoryText}` : ''}
-											</CompactSeasonTag>
-											<PriorityPill
-												level={
-													card.priorityLevel === 'high'
-														? 'High'
-														: card.priorityLevel === 'medium'
-														? 'Moderate'
-														: 'Low'
-												}
-												$season={card.season}>
-												{priorityText}
-											</PriorityPill>
-										</CompactTopRow>
-										<CompactTeaserTitle>{card.title}</CompactTeaserTitle>
-										<CompactTeaserSummary>
-											{card.bullets[0] || 'Stay ahead of seasonal maintenance.'}
-										</CompactTeaserSummary>
-										<CompactTeaserList>
-											{card.bullets.slice(1, 3).map((bullet, bulletIndex) => (
-												<li key={bulletIndex}>{bullet}</li>
-											))}
-										</CompactTeaserList>
-										<CompactTeaserFooter>
-											<CompactPager>
-												<ViewButton onClick={prevPage}>Previous Tip</ViewButton>
-												<PageBadge>
-													{pageIndex + 1} / {pages}
-												</PageBadge>
-												<ViewButton onClick={nextPage}>Next Tip</ViewButton>
-											</CompactPager>
-										</CompactTeaserFooter>
-									</CompactTeaserMain>
-									<CompactTeaserSide>
-										<SmallBadge>{serviceText}</SmallBadge>
-									<CompactTeaserMeta $urgency={getTimingUrgency(card)}>{getTimingText(card)}</CompactTeaserMeta>
-										{taskActionState.helperText && (
-											<CompactTeaserMeta>{taskActionState.helperText}</CompactTeaserMeta>
-										)}
-										{onAddTipAsTask && (
-											<CompactSideActions>
-												<CompactActionButton
-													disabled={taskActionState.disabled}
-													onClick={() => onAddTipAsTask(card)}>
-													{taskActionState.label}
-												</CompactActionButton>
-												{!taskActionState.disabled && (
-													<SnoozeButton onClick={() => snoozeTip(card)}>
-														Snooze for season
-													</SnoozeButton>
-												)}
-											</CompactSideActions>
-										)}
-									</CompactTeaserSide>
-								</CompactTeaser>
-							);
-						})
-					)
-					) : (
-					<CardGrid $compact={compact}>
-						{renderedCards.map((card, idx) => {
-							const imageSrc =
-								card.image && (card.image as string).startsWith('/')
-									? (card.image as string)
-									: card.image && (card.image as string).startsWith('http')
-									? (card.image as string)
-									: card.image
-									? require(`../${card.image}`)
-									: null;
-
-							const priorityText =
-								card.priorityLevel === 'high'
-									? 'High Priority'
-									: card.priorityLevel === 'medium'
-									? 'Medium Priority'
-									: 'Low Priority';
-
-							const categoryText = card.riskCategory
-								? `${card.riskCategory
-										.charAt(0)
-										.toUpperCase()}${card.riskCategory.slice(1)} Risk`
-								: '';
-							const serviceText =
-								card.serviceLevel === 'professional'
-									? 'Professional'
-									: card.serviceLevel === 'moderate'
 									? 'DIY — Moderate'
 									: 'DIY — Basic';
+						const taskActionState = getAddTipTaskState?.(card) || {
+							disabled: false,
+							label: 'Add as Task',
+							helperText: 'Create a prefilled task from this tip.',
+						};
 
-							return (
-								<Card key={card.id || `${pageIndex}-${idx}`} $compact={compact}>
-									{!compact && (
-										<CardImageWrapper $compact={compact}>
-											<img
-												src={
-													imageSrc ||
-													'https://via.placeholder.com/600x300?text=No+Image'
-												}
-												alt={card.title}
-											/>
-											<OverlayBadge $season={card.season}>
-												<div
-													style={{
-														display: 'flex',
-														gap: 10,
-														alignItems: 'center',
-													}}>
-													<span style={{ fontSize: 13, fontWeight: 700 }}>
-														{card.season &&
-															card.season.charAt(0).toUpperCase() +
-																card.season.slice(1)}
-													</span>
-													{categoryText && (
-														<span
-															style={{
-																opacity: 0.9,
-																fontSize: 13,
-															}}>{` • ${categoryText}`}</span>
-													)}
-												</div>
-												<PriorityPill
-													level={
-														card.priorityLevel === 'high'
-															? 'High'
-															: card.priorityLevel === 'medium'
-															? 'Moderate'
-															: 'Low'
-													}
-													$season={card.season}>
-													{priorityText}
-												</PriorityPill>
-											</OverlayBadge>
-										</CardImageWrapper>
+						return (
+							<CompactTeaser key={card.id || `${pageIndex}-${idx}`}>
+								<CompactTeaserMain>
+									<CompactTopRow>
+										<CompactSeasonTag>
+											{card.season &&
+												card.season.charAt(0).toUpperCase() + card.season.slice(1)}
+											{categoryText ? ` • ${categoryText}` : ''}
+										</CompactSeasonTag>
+										<PriorityPill
+											level={
+												card.priorityLevel === 'high'
+													? 'High'
+													: card.priorityLevel === 'medium'
+														? 'Moderate'
+														: 'Low'
+											}
+											$season={card.season}>
+											{priorityText}
+										</PriorityPill>
+									</CompactTopRow>
+									<CompactTeaserTitle>{card.title}</CompactTeaserTitle>
+									<CompactTeaserSummary>
+										{card.bullets[0] || 'Stay ahead of seasonal maintenance.'}
+									</CompactTeaserSummary>
+									<CompactTeaserList>
+										{card.bullets.slice(1, 3).map((bullet, bulletIndex) => (
+											<li key={bulletIndex}>{bullet}</li>
+										))}
+									</CompactTeaserList>
+									<CompactTeaserFooter>
+										<CompactPager>
+											<ViewButton onClick={prevPage}>Previous Tip</ViewButton>
+											<PageBadge>
+												{pageIndex + 1} / {pages}
+											</PageBadge>
+											<ViewButton onClick={nextPage}>Next Tip</ViewButton>
+										</CompactPager>
+									</CompactTeaserFooter>
+								</CompactTeaserMain>
+								<CompactTeaserSide>
+									<SmallBadge>{serviceText}</SmallBadge>
+									<CompactTeaserMeta $urgency={getTimingUrgency(card)}>{getTimingText(card)}</CompactTeaserMeta>
+									{taskActionState.helperText && (
+										<CompactTeaserMeta>{taskActionState.helperText}</CompactTeaserMeta>
 									)}
-									<CompactCardBody $compact={compact}>
-										{compact && (
-											<CompactTopRow>
-												<CompactSeasonTag>
-													{card.season &&
-														card.season.charAt(0).toUpperCase() + card.season.slice(1)}
-													{categoryText ? ` • ${categoryText}` : ''}
-												</CompactSeasonTag>
-												<PriorityPill
-													level={
-														card.priorityLevel === 'high'
-															? 'High'
-															: card.priorityLevel === 'medium'
-															? 'Moderate'
-															: 'Low'
+									{onAddTipAsTask && (
+										<CompactSideActions>
+											<CompactActionButton
+												disabled={taskActionState.disabled}
+												onClick={() => onAddTipAsTask(card)}>
+												{taskActionState.label}
+											</CompactActionButton>
+											{!taskActionState.disabled && (
+												<SnoozeButton onClick={() => snoozeTip(card)}>
+													Snooze for season
+												</SnoozeButton>
+											)}
+										</CompactSideActions>
+									)}
+								</CompactTeaserSide>
+							</CompactTeaser>
+						);
+					})
+					)
+					) : (
+						<CardGrid $compact={compact}>
+							{renderedCards.map((card, idx) => {
+								const imageSrc = resolveTipImage(card.image);
+
+								const priorityText =
+									card.priorityLevel === 'high'
+										? 'High Priority'
+										: card.priorityLevel === 'medium'
+											? 'Medium Priority'
+											: 'Low Priority';
+
+								const categoryText = card.riskCategory
+									? `${card.riskCategory
+										.charAt(0)
+										.toUpperCase()}${card.riskCategory.slice(1)} Risk`
+									: '';
+								const serviceText =
+									card.serviceLevel === 'professional'
+										? 'Professional'
+										: card.serviceLevel === 'moderate'
+											? 'DIY — Moderate'
+											: 'DIY — Basic';
+
+								return (
+									<Card key={card.id || `${pageIndex}-${idx}`} $compact={compact}>
+										{!compact && (
+											<CardImageWrapper $compact={compact}>
+												<img
+													src={
+														imageSrc ||
+														'https://via.placeholder.com/600x300?text=No+Image'
 													}
-													$season={card.season}>
-													{priorityText}
-												</PriorityPill>
-											</CompactTopRow>
+													alt={card.title}
+												/>
+												<OverlayBadge $season={card.season}>
+													<div
+														style={{
+															display: 'flex',
+															gap: 10,
+															alignItems: 'center',
+														}}>
+														<span style={{ fontSize: 13, fontWeight: 700 }}>
+															{card.season &&
+																card.season.charAt(0).toUpperCase() +
+																card.season.slice(1)}
+														</span>
+														{categoryText && (
+															<span
+																style={{
+																	opacity: 0.9,
+																	fontSize: 13,
+																}}>{` • ${categoryText}`}</span>
+														)}
+													</div>
+													<PriorityPill
+														level={
+															card.priorityLevel === 'high'
+																? 'High'
+																: card.priorityLevel === 'medium'
+																	? 'Moderate'
+																	: 'Low'
+														}
+														$season={card.season}>
+														{priorityText}
+													</PriorityPill>
+												</OverlayBadge>
+											</CardImageWrapper>
 										)}
-										<CardTitle $compact={compact}>{card.title}</CardTitle>
-										<CardList $compact={compact}>
-											{card.bullets.map((b, i) => (
-												compact && i > 1 ? null : (
-												<li key={i}>{b}</li>
-												)
-											))}
-										</CardList>
-									</CompactCardBody>
-									<FooterRow $season={card.season} $compact={compact}>
-										<SmallBadge>{serviceText}</SmallBadge>
-									</FooterRow>
-								</Card>
-							);
-						})}
-					</CardGrid>
+										<CompactCardBody $compact={compact}>
+											{compact && (
+												<CompactTopRow>
+													<CompactSeasonTag>
+														{card.season &&
+															card.season.charAt(0).toUpperCase() + card.season.slice(1)}
+														{categoryText ? ` • ${categoryText}` : ''}
+													</CompactSeasonTag>
+													<PriorityPill
+														level={
+															card.priorityLevel === 'high'
+																? 'High'
+																: card.priorityLevel === 'medium'
+																	? 'Moderate'
+																	: 'Low'
+														}
+														$season={card.season}>
+														{priorityText}
+													</PriorityPill>
+												</CompactTopRow>
+											)}
+											<CardTitle $compact={compact}>{card.title}</CardTitle>
+											<CardList $compact={compact}>
+												{card.bullets.map((b, i) => (
+													compact && i > 1 ? null : (
+														<li key={i}>{b}</li>
+													)
+												))}
+											</CardList>
+										</CompactCardBody>
+										<FooterRow $season={card.season} $compact={compact}>
+											<SmallBadge>{serviceText}</SmallBadge>
+										</FooterRow>
+									</Card>
+								);
+							})}
+						</CardGrid>
 					)}
 					{!compact && (
 						<Controls $compact={compact}>

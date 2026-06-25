@@ -54,6 +54,7 @@ Property Intelligence is central to guidance and recommendations, but core recor
 
 ## Related Documentation
 
+- project-docs/ADR/0008-intelligence-knowledge-source-priority-and-v1-document-scope.md
 - project-docs/docs/Architecture/DATA_MODEL.md:116
 - project-docs/docs/Architecture/DATA_MODEL.md:119
 - project-docs/docs/Architecture/DATA_MODEL.md:872

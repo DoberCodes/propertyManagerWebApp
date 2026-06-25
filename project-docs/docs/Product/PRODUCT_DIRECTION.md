@@ -333,7 +333,35 @@ Current and future examples:
 * Property Insights
 * Portfolio scans
 
-Maintley Intelligence should prioritize actionable opportunities rather than exhaustive audits.
+Maintley Intelligence should grow through three distinct levels.
+
+Each level should answer a different customer question:
+
+* Quick Property Scan: "What did Maintley find that is worth my attention?"
+* Full Property Audit: "How complete and maintainable are my property records?"
+* Ongoing Property Intelligence: "What should I think about next?"
+
+Quick Property Scan should remain fast, actionable, and available on free and paid plans.
+
+Quick Property Scan should be marketed as an explainable review of what Maintley already knows about a property.
+
+Preferred positioning:
+
+```text
+Maintley reviewed what it knows about your property and found a few things worth your attention.
+```
+
+Avoid positioning Quick Property Scan as:
+
+```text
+AI scanned your house.
+```
+
+Full Property Audit should be a premium, comprehensive review of documentation, equipment records, maintenance coverage, lifecycle planning, and property completeness.
+
+Ongoing Property Intelligence should be a premium guidance layer that surfaces seasonal reminders, cost trends, lifecycle forecasts, warranty timing, and personalized observations as Maintley records improve.
+
+Maintley Intelligence should prioritize actionable opportunities unless the user explicitly requests an audit.
 
 Preferred:
 
@@ -348,6 +376,8 @@ Avoid:
 ```
 
 The goal is progress, not completeness.
+
+Completeness belongs in Full Property Audit, where a user has intentionally asked for a broader review.
 
 ---
 

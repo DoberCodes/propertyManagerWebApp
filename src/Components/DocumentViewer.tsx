@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import styled from 'styled-components';
 import { COLORS } from '../constants/colors';
 
@@ -132,13 +132,7 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({
 	const [loading, setLoading] = useState<boolean>(false);
 	const [error, setError] = useState<string | null>(null);
 
-	useEffect(() => {
-		if (isOpen && documentName) {
-			loadDocument();
-		}
-	}, [isOpen, documentName]);
-
-	const loadDocument = async () => {
+	const loadDocument = useCallback(async () => {
 		setLoading(true);
 		setError(null);
 
@@ -155,7 +149,13 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({
 		} finally {
 			setLoading(false);
 		}
-	};
+	}, [documentName]);
+
+	useEffect(() => {
+		if (isOpen && documentName) {
+			loadDocument();
+		}
+	}, [isOpen, documentName, loadDocument]);
 
 	const handleRetry = () => {
 		loadDocument();

@@ -9,6 +9,7 @@ export interface PropertyScanSnapshot {
 	propertyId: string;
 	scanType: 'quick_property_scan_v1';
 	schemaVersion: 1;
+	planId?: string;
 	createdAt: string;
 	updatedAt: string;
 	createdBy?: string;
