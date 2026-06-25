@@ -56,10 +56,10 @@ export const DetailsTab: React.FC<DetailsTabProps> = ({
 		Array.isArray(propertyDevices)
 			? propertyDevices.length
 			: Array.isArray((property as any)?.deviceIds)
-			? (property as any).deviceIds.length
-			: Array.isArray((property as any)?.devices)
-			? (property as any).devices.length
-			: 0;
+				? (property as any).deviceIds.length
+				: Array.isArray((property as any)?.devices)
+					? (property as any).devices.length
+					: 0;
 	const recentMaintenanceCount = maintenanceHistoryRecords.filter(isContinuityEvent).length;
 
 	const upcomingTasks = [...propertyTasks]

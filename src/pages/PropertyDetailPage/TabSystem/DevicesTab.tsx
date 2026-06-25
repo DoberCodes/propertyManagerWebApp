@@ -268,15 +268,15 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 		const files = Array.isArray(device?.files) ? device.files : [];
 		return Boolean(
 			String(device?.brand || '').trim() ||
-				String(device?.model || '').trim() ||
-				String(device?.serialNumber || '').trim() ||
-				String(device?.partNumber || '').trim() ||
-				String(device?.filterSize || '').trim() ||
-				String(device?.specNotes || '').trim() ||
-				String(device?.installationDate || '').trim() ||
-				String(device?.decommissionDate || '').trim() ||
-				serviceItems.length > 0 ||
-				files.length > 0,
+			String(device?.model || '').trim() ||
+			String(device?.serialNumber || '').trim() ||
+			String(device?.partNumber || '').trim() ||
+			String(device?.filterSize || '').trim() ||
+			String(device?.specNotes || '').trim() ||
+			String(device?.installationDate || '').trim() ||
+			String(device?.decommissionDate || '').trim() ||
+			serviceItems.length > 0 ||
+			files.length > 0,
 		);
 	};
 
@@ -607,13 +607,13 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 						color: '#92400e',
 						background: '#fffbeb',
 						border: '#fcd34d',
-					  }
+					}
 					: {
 						label: 'Healthy',
 						color: '#166534',
 						background: '#f0fdf4',
 						border: '#86efac',
-					  };
+					};
 
 				return (
 					<div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -711,18 +711,18 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 		},
 		...(canManageAppliances
 			? [
-					{
-						label: 'Edit',
-						icon: faEdit,
-						onClick: (device: any) => handleOpenEditModal(device),
-					},
-					{
-						label: 'Delete',
-						icon: faTrash,
-						onClick: (device: any) => handleDeleteDevice(device.id),
-						className: 'delete',
-					},
-			  ]
+				{
+					label: 'Edit',
+					icon: faEdit,
+					onClick: (device: any) => handleOpenEditModal(device),
+				},
+				{
+					label: 'Delete',
+					icon: faTrash,
+					onClick: (device: any) => handleDeleteDevice(device.id),
+					className: 'delete',
+				},
+			]
 			: []),
 	];
 
@@ -778,8 +778,8 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 			} else {
 				feedback.notify(
 					`Your ${planDetails?.name || 'current'} plan allows up to ${maxDevices} appliances. ` +
-						`You currently have ${allDevices.length} appliances. ` +
-						`Please upgrade your plan to add more appliances.`,
+					`You currently have ${allDevices.length} appliances. ` +
+					`Please upgrade your plan to add more appliances.`,
 				);
 			}
 			return;
@@ -1013,16 +1013,16 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 
 			{canManageAppliances && (
 				<DesktopCreateAction>
-				<Toolbar>
-					<ToolbarButton
-						className='primary-action'
-						disabled={remainingDeviceSlots <= 0}
-						onClick={handleOpenCreateModal}
-						style={{ width: isMobile ? '100%' : undefined }}>
-						<FontAwesomeIcon icon={faPlus} style={{ marginRight: '8px' }} />
-						{remainingDeviceSlots <= 0 ? 'Appliance Limit Reached' : 'Add Appliance'}
-					</ToolbarButton>
-				</Toolbar>
+					<Toolbar>
+						<ToolbarButton
+							className='primary-action'
+							disabled={remainingDeviceSlots <= 0}
+							onClick={handleOpenCreateModal}
+							style={{ width: isMobile ? '100%' : undefined }}>
+							<FontAwesomeIcon icon={faPlus} style={{ marginRight: '8px' }} />
+							{remainingDeviceSlots <= 0 ? 'Appliance Limit Reached' : 'Add Appliance'}
+						</ToolbarButton>
+					</Toolbar>
 				</DesktopCreateAction>
 			)}
 
@@ -1216,16 +1216,16 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 					actions={
 						canManageAppliances
 							? [
-									{
-										label:
-											remainingDeviceSlots <= 0
-												? 'Appliance Limit Reached'
-												: 'Add Appliance',
-										onClick: handleOpenCreateModal,
-										disabled: remainingDeviceSlots <= 0,
-										hideOnCompact: true,
-									},
-							  ]
+								{
+									label:
+										remainingDeviceSlots <= 0
+											? 'Appliance Limit Reached'
+											: 'Add Appliance',
+									onClick: handleOpenCreateModal,
+									disabled: remainingDeviceSlots <= 0,
+									hideOnCompact: true,
+								},
+							]
 							: []
 					}
 				/>

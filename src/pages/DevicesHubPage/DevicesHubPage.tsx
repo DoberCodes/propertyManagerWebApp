@@ -43,33 +43,34 @@ import {
 	AppPageTitle as StandardAppPageTitle,
 	AppPageTitleBlock as StandardAppPageTitleBlock,
 } from '../../Components/Library/AppPageLayout/AppPageLayout.styles';
-import { 
-	SummaryRow, 
-	MetricCard, 
-	MetricLabel, 
+import {
+	SummaryRow,
+	MetricCard,
+	MetricLabel,
 	MetricValue,
-	FilterBar, 
+	FilterBar,
 	CompactFilterResultCount,
 	HubFilterFields,
 	HubFilterField,
-	SearchInput, 
-	FilterGroup, 
-	FilterButton, 
-	PropertySelect, 
-	FilterResultCount, 
-	List, 
-	DeviceCard, 
-	Field, 
-	Label, 
-	IdentityTopRow, 
-	DevicePrimary, 
-	OpenProfileCue, 
-	TechnicalSubtitle, 
-	ContextLinks, 
-	ContextLink, 
-	ContextArrow, 
-	StatusPill, 
-	Value } from './DeviceHubPage.styles';
+	SearchInput,
+	FilterGroup,
+	FilterButton,
+	PropertySelect,
+	FilterResultCount,
+	List,
+	DeviceCard,
+	Field,
+	Label,
+	IdentityTopRow,
+	DevicePrimary,
+	OpenProfileCue,
+	TechnicalSubtitle,
+	ContextLinks,
+	ContextLink,
+	ContextArrow,
+	StatusPill,
+	Value
+} from './DeviceHubPage.styles';
 
 
 const toDate = (value?: string): Date | null => {
@@ -124,9 +125,9 @@ const getLatestMaintenanceEntry = (
 ): { date?: string; description?: string } | null => {
 	const history = Array.isArray(device.maintenanceHistory)
 		? device.maintenanceHistory.map((entry: any) => ({
-				date: entry?.date,
-				description: entry?.description,
-		  }))
+			date: entry?.date,
+			description: entry?.description,
+		}))
 		: [];
 	const eventEntries = linkedEvents.map((event: any) => ({
 		date: getMaintenanceEventDate(event),
@@ -176,15 +177,15 @@ const hasApplianceDetails = (device: Device): boolean => {
 	const files = Array.isArray(device.files) ? device.files : [];
 	return Boolean(
 		String(device.brand || '').trim() ||
-			String(device.model || '').trim() ||
-			String(device.serialNumber || '').trim() ||
-			String(device.partNumber || '').trim() ||
-			String(device.filterSize || '').trim() ||
-			String(device.specNotes || '').trim() ||
-			String(device.installationDate || '').trim() ||
-			String(device.decommissionDate || '').trim() ||
-			serviceItems.length > 0 ||
-			files.length > 0,
+		String(device.model || '').trim() ||
+		String(device.serialNumber || '').trim() ||
+		String(device.partNumber || '').trim() ||
+		String(device.filterSize || '').trim() ||
+		String(device.specNotes || '').trim() ||
+		String(device.installationDate || '').trim() ||
+		String(device.decommissionDate || '').trim() ||
+		serviceItems.length > 0 ||
+		files.length > 0,
 	);
 };
 
@@ -547,7 +548,7 @@ export const DevicesHubPage: React.FC = () => {
 			const maxDevices = planDetails?.maxDevices || 15;
 			feedback.notify(
 				`Your ${planDetails?.name || 'current'} plan allows up to ${maxDevices} appliances. ` +
-					`You currently have ${devices.length} appliances. Please upgrade to add more.`,
+				`You currently have ${devices.length} appliances. Please upgrade to add more.`,
 			);
 			return;
 		}
@@ -964,8 +965,8 @@ export const DevicesHubPage: React.FC = () => {
 						const property = properties.find((p: any) => String(p.id) === row.propertyId);
 						const propertySlug = property?.slug || '';
 						const locationHref = row.device.location?.suiteId
-								? `/property/${propertySlug}/suite/${encodeURIComponent(row.locationLabel)}`
-								: '';
+							? `/property/${propertySlug}/suite/${encodeURIComponent(row.locationLabel)}`
+							: '';
 						const deviceSlug = buildDeviceSlug(row.device);
 						const targetPath = propertySlug
 							? `/property/${propertySlug}/device/${deviceSlug}?from=devices`
@@ -999,7 +1000,7 @@ export const DevicesHubPage: React.FC = () => {
 										<ContextLink
 											to={propertySlug ? `/property/${propertySlug}` : '/properties'}
 											onClick={(event) => event.stopPropagation()}>
-												{propertyName}
+											{propertyName}
 										</ContextLink>
 										{locationHref ? (
 											<>
@@ -1037,13 +1038,11 @@ export const DevicesHubPage: React.FC = () => {
 												row.overdueTaskCount > 0 ? 850 : undefined,
 										}}>
 										{row.overdueTaskCount > 0
-											? `${row.overdueTaskCount} overdue task${
-													row.overdueTaskCount === 1 ? '' : 's'
-												}`
+											? `${row.overdueTaskCount} overdue task${row.overdueTaskCount === 1 ? '' : 's'
+											}`
 											: row.openTaskCount > 0
-												? `${row.openTaskCount} open task${
-														row.openTaskCount === 1 ? '' : 's'
-													}`
+												? `${row.openTaskCount} open task${row.openTaskCount === 1 ? '' : 's'
+												}`
 												: 'No open tasks'}
 									</Value>
 								</Field>

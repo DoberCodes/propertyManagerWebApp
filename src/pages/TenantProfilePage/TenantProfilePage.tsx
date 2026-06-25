@@ -528,9 +528,9 @@ export const TenantProfilePage: React.FC = () => {
 											handleInputChange(
 												'smokingStatus',
 												e.target.value as
-													| 'non-smoker'
-													| 'smoker'
-													| 'occasional',
+												| 'non-smoker'
+												| 'smoker'
+												| 'occasional',
 											)
 										}>
 										<option value='non-smoker'>Non-Smoker</option>
