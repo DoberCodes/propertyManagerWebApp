@@ -1,11 +1,10 @@
 {
   "files": {
-    "main.js": "/static/js/main.bf12bb04.js",
-    "static/js/453.2da92bde.chunk.js": "/static/js/453.2da92bde.chunk.js",
-    "static/js/842.2bfe7216.chunk.js": "/static/js/842.2bfe7216.chunk.js",
-    "static/js/312.79ebd4e6.chunk.js": "/static/js/312.79ebd4e6.chunk.js",
-    "static/js/257.528cc00c.chunk.js": "/static/js/257.528cc00c.chunk.js",
-    "static/media/sijmen-van-hooff-IYPsLgHc43s-unsplash.jpg": "/static/media/sijmen-van-hooff-IYPsLgHc43s-unsplash.bfa4acbcd7a14d0cf8d6.jpg",
+    "main.js": "/static/js/main.ecc27b35.js",
+    "static/js/206.9a1061bc.chunk.js": "/static/js/206.9a1061bc.chunk.js",
+    "static/js/127.0ff97932.chunk.js": "/static/js/127.0ff97932.chunk.js",
+    "static/js/73.e634c4ed.chunk.js": "/static/js/73.e634c4ed.chunk.js",
+    "static/js/724.019f4238.chunk.js": "/static/js/724.019f4238.chunk.js",
     "static/media/camper in the woods.jpg": "/static/media/camper in the woods.c64fac4ea21ba3e0dd7e.jpg",
     "static/media/cabin_woods.jpg": "/static/media/cabin_woods.ef9a30601ea319e015d6.jpg",
     "static/media/Rooftop2.jpg": "/static/media/Rooftop2.98e314312d465ed7f3e3.jpg",
@@ -14,9 +13,7 @@
     "static/media/Tree.jpg": "/static/media/Tree.4b19ccde74c3ffdfe9dd.jpg",
     "static/media/Home.jpg": "/static/media/Home.ede9a64f544e587bd309.jpg",
     "static/media/ChatGPT Image Feb 19, 2026, 09_31_30 PM.png": "/static/media/ChatGPT Image Feb 19, 2026, 09_31_30 PM.ac8b476ee7bc5267cde2.png",
-    "static/media/peaceOfMind.jpg": "/static/media/peaceOfMind.056353e9df714c7f6fab.jpg",
     "static/media/privacy.jpg": "/static/media/privacy.c2d6ba008f359dc3cb32.jpg",
-    "static/media/More than.jpg": "/static/media/More than.7d1f1586680e4c6891cb.jpg",
     "static/media/ChatGPT Image Feb 19, 2026, 09_15_18 PM.png": "/static/media/ChatGPT Image Feb 19, 2026, 09_15_18 PM.f40b41f76b7d48c16658.png",
     "static/media/ChatGPT Image Feb 19, 2026, 09_09_10 PM.png": "/static/media/ChatGPT Image Feb 19, 2026, 09_09_10 PM.0bb0e915d865893546ea.png",
     "static/media/ChatGPT Image Feb 19, 2026, 09_00_03 PM.png": "/static/media/ChatGPT Image Feb 19, 2026, 09_00_03 PM.dd09760e22cfb5f292a7.png",
@@ -32,30 +29,18 @@
     "static/media/Fireplace.jpg": "/static/media/Fireplace.b3153b2e24f3e602a976.jpg",
     "static/media/electrical.png": "/static/media/electrical.950eec77589504d9602c.png",
     "static/media/drainage.png": "/static/media/drainage.cbb8e5cd91a4e89f1b58.png",
-    "static/media/1.png": "/static/media/1.f7f086bbe38cebc4ef45.png",
     "static/media/caulking.png": "/static/media/caulking.93c88c3c989d43c0aecc.png",
     "static/media/waterleak.png": "/static/media/waterleak.92ca5d2fd2e93fa5da05.png",
     "static/media/sumppump.png": "/static/media/sumppump.c3efcca8416571d15548.png",
     "static/media/deck.png": "/static/media/deck.f907ac2801f78dedd353.png",
     "static/media/more than property.jpg": "/static/media/more than property.c74ea7f65c888b208833.jpg",
     "static/media/waterheater.png": "/static/media/waterheater.4832a9b24563d770b3d9.png",
-    "static/media/Favicon.png": "/static/media/Favicon.42b673f3b10f46e2e315.png",
     "static/media/emergency.png": "/static/media/emergency.9769e6347be183ec1fbf.png",
-    "static/media/3.png": "/static/media/3.00ebee3cb5ccd091dbbd.png",
     "static/media/gutters.png": "/static/media/gutters.d48d5bada8b5bb4e2e41.png",
-    "static/media/MaintleyLogo.png": "/static/media/MaintleyLogo.1b543b8d34d80c3d7fa7.png",
-    "static/media/6.png": "/static/media/6.14fe87cb97df3486c0b4.png",
-    "static/media/2.png": "/static/media/2.59e911b351450a613737.png",
     "static/media/TitleName.png": "/static/media/TitleName.9503ca5a08e25913cbed.png",
-    "static/media/apiSlice.test.ts.disabled": "/static/media/apiSlice.test.ts.40a1c06737979f86215f.disabled",
-    "index.html": "/index.html",
-    "main.bf12bb04.js.map": "/static/js/main.bf12bb04.js.map",
-    "453.2da92bde.chunk.js.map": "/static/js/453.2da92bde.chunk.js.map",
-    "842.2bfe7216.chunk.js.map": "/static/js/842.2bfe7216.chunk.js.map",
-    "312.79ebd4e6.chunk.js.map": "/static/js/312.79ebd4e6.chunk.js.map",
-    "257.528cc00c.chunk.js.map": "/static/js/257.528cc00c.chunk.js.map"
+    "index.html": "/index.html"
   },
   "entrypoints": [
-    "static/js/main.bf12bb04.js"
+    "static/js/main.ecc27b35.js"
   ]
 }
