@@ -1,9 +1,5 @@
-🎉 **Release Notes for Version 2.7.2** 🎉
+🎉 **Release Notes for Version 2.7.3** 🎉
 
 
 ## 🐛 Bug Fixes
-- fixing types for appliances and fixing landing page message. While also adding new screenshots.
-- Fixing the property scan and the typing for knowledge packs
-
-## 🔧 Improvements & Maintenance
-- fixing wording on property scan page
+- fixing misaligned repo and APK generation
