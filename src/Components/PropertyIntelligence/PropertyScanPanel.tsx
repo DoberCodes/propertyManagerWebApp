@@ -882,8 +882,8 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 						<PlanName>{getPlanLabel(currentPlanId)}</PlanName>
 						<span>
 							{currentPlanId === 'homeowner'
-								? 'Free includes Property Record recommendations. Homeowner+ adds Maintley Knowledge, history-based insights, and personalized context guidance.'
-								: 'Your plan includes Property Records, Maintley Knowledge, history-based insights, and personalized context guidance.'}
+								? 'Free includes Property Memory recommendations. Homeowner+ adds Maintley Knowledge, history-based insights, and personalized context guidance.'
+								: 'Your plan includes Property Memory, Maintley Knowledge, history-based insights, and personalized context guidance.'}
 						</span>
 						{currentPlanId === 'homeowner' ? (
 							<PlanUpgradeButton type='button' onClick={handleViewPlanOptions}>
