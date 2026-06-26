@@ -298,6 +298,14 @@ The dashboard should focus on action rather than evaluation.
 
 Maintley Intelligence should guide users rather than audit them.
 
+Marketing pages should lead with the customer outcome:
+
+```text
+Every record you save today helps future you make better decisions tomorrow.
+```
+
+Use property memory as the explanation for how Maintley delivers that outcome, not as the only promise. Customers should understand that saved maintenance history, documents, warranties, tasks, and parts become more useful over time.
+
 Property Scan should be described as an explainable review of saved property records.
 
 Use:
@@ -320,6 +328,28 @@ Property Scan language should emphasize:
 * A small number of worthwhile next steps
 
 Property Scan language should not imply Maintley inspected the physical property, diagnosed equipment condition, or judged the home.
+
+Recommendations should attribute findings to Maintley's records, not assert physical truth about the property.
+
+Use:
+
+```text
+Maintley's records do not show HVAC service in the past 180 days.
+```
+
+```text
+No install date has been recorded for this system.
+```
+
+Avoid:
+
+```text
+Your HVAC has not been serviced in 180 days.
+```
+
+```text
+This system has not been maintained.
+```
 
 Good:
 
@@ -351,6 +381,50 @@ Documentation Score: 41%
 
 Maintley Intelligence should encourage progress.
 
+Quick Scan recommendation titles should avoid sounding like validation errors.
+
+Prefer opportunity and history-building language:
+
+```text
+Maintley does not currently have recurring maintenance recorded for several systems.
+```
+
+```text
+Maintley's records do not show safety-device maintenance history yet.
+```
+
+Avoid:
+
+```text
+Recurring maintenance is missing.
+```
+
+```text
+Maintenance tracking has not been started.
+```
+
+Recommendation benefits should vary the voice instead of repeating the same phrase every time.
+
+Use a mix of:
+
+* Future you - Future you can quickly see what happened and when.
+* Property history - The property's history becomes more complete.
+* Confidence - Warranty tracking, service planning, and replacements become easier.
+
+Avoid using `future you` in every recommendation.
+
+Recommendation evidence should be available without overwhelming the card.
+
+Use a small expandable disclosure:
+
+```text
+Why this recommendation?
+```
+
+Expanded content should explain what Maintley found in the saved records and, when useful, show affected systems or tasks.
+
+Do not show long reasoning blocks by default.
+
 ---
 
 # Recommendation Writing Guidelines
@@ -360,6 +434,7 @@ Recommendations should:
 1. Start with an action.
 2. Be concise.
 3. Explain value when appropriate.
+4. When space allows, name the future problem the action helps prevent.
 
 Preferred format:
 
@@ -367,6 +442,16 @@ Preferred format:
 Add HVAC Filter Size
 
 Knowing the filter size makes future replacements easier.
+```
+
+For Property Scan and Maintley Intelligence recommendations, the best card structure is:
+
+```text
+What Maintley found
+
+Why it matters
+
+What future headache this helps avoid
 ```
 
 Avoid vague recommendations.

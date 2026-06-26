@@ -1,4 +1,4 @@
-import { Device, Property } from '../types/Property.types';
+import { Asset, Device, Property } from '../types/Property.types';
 import { Task } from '../types/Task.types';
 
 export type MaintleyFindingCategory =
@@ -29,12 +29,15 @@ export type MaintleyCapability = 'recurring_tasks';
 
 export type MaintleyFindingActionType =
 	| 'edit_property'
-	| 'add_system'
-	| 'edit_system'
-	| 'open_systems'
+	| 'add_asset'
+	| 'edit_asset'
+	| 'open_assets'
+	| 'add_system' // legacy alias
+	| 'edit_system' // legacy alias
+	| 'open_systems' // legacy alias
 	| 'upload_document'
 	| 'create_task'
-	| 'open_tasks'
+	| 'open_task'
 	| 'open_maintenance'
 	| 'review_setup'
 	| 'view_plan_options';
@@ -43,6 +46,7 @@ export interface MaintleyFinding {
 	id: string;
 	ruleId: string;
 	propertyId: string;
+	affectedAssetIds?: string[];
 	affectedSystemIds: string[];
 	category: MaintleyFindingCategory;
 	severity: MaintleyFindingSeverity;
@@ -61,6 +65,7 @@ export interface MaintleyFinding {
 
 export interface MaintleyIntelligenceInput {
 	property: Property;
+	assets?: Asset[];
 	systems: Device[];
 	tasks: Task[];
 	maintenanceHistory: any[];
@@ -74,6 +79,7 @@ export interface MaintleyIntelligenceInput {
 
 export interface MaintleyIntelligenceContext {
 	property: Property;
+	assets?: Asset[];
 	systems: Device[];
 	tasks: Task[];
 	maintenanceHistory: any[];
@@ -90,6 +96,7 @@ export interface MaintleyIntelligenceResult {
 	propertyId: string;
 	generatedAt: string;
 	baselineVersion: string;
+	assetsReviewed?: number;
 	systemsReviewed: number;
 	tasksReviewed: number;
 	summary: {

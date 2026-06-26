@@ -33,6 +33,12 @@ import {
 import { BarcodeScannerModal } from '../BarcodeScanner/BarcodeScannerModal';
 import { useGetDevicesQuery } from '../../../Redux/API/deviceSlice';
 import { ApplianceDocumentsPanel } from '../../ApplianceDocumentsPanel/ApplianceDocumentsPanel';
+import {
+	getAssetVariantOptions,
+	getAssetTypeOptions,
+	normalizeAssetType,
+	UNKNOWN_ASSET_TYPE,
+} from '../../../utils/systemTypes';
 
 interface DeviceModalProps {
 	isOpen: boolean;
@@ -58,6 +64,8 @@ interface DeviceModalProps {
 	onRemovePendingFile?: (fileKey: string) => void;
 	deviceFormData: {
 		type: string;
+		assetType?: string;
+		assetVariant?: string;
 		brand: string;
 		model: string;
 		serialNumber?: string;
@@ -432,12 +440,16 @@ export const DeviceModal = (props: DeviceModalProps) => {
 	}, [props.isOpen, activeTab]);
 
 	// Units are temporarily hidden from the app flow.
+	const selectedAssetType = normalizeAssetType(
+		props.deviceFormData.assetType || props.deviceFormData.type,
+	);
+	const variantOptions = getAssetVariantOptions(selectedAssetType);
 
 	const missingRequiredFields = useMemo(() => {
 		const missing: string[] = [];
-		if (!props.deviceFormData.type.trim()) missing.push('Name');
+		if (!selectedAssetType.trim()) missing.push('Asset type');
 		return missing;
-	}, [props.deviceFormData.type]);
+	}, [selectedAssetType]);
 
 	const completedBasics = missingRequiredFields.length === 0 ? 1 : 0;
 	const partsConfigured = serviceItems.length > 0;
@@ -560,34 +572,34 @@ export const DeviceModal = (props: DeviceModalProps) => {
 			serviceItems.map((item) =>
 				item.id === editingItemId
 					? {
-							...item,
-							category,
-							name,
-							details:
-								buildDeviceServiceItemDetails({
-									category,
-									name,
-									details: editDetails.trim(),
-									partNumber: editPartNumber.trim(),
-									size: editSize.trim(),
-									manufacturer: editManufacturer.trim(),
-									material: editMaterial.trim(),
-									voltage: editVoltage.trim(),
-									mervRating: editMervRating.trim(),
-									compatibility: editCompatibility.trim(),
-									replacementInterval: editReplacementInterval.trim(),
-									notes: editNotes.trim(),
-								}) || undefined,
-							partNumber: editPartNumber.trim() || undefined,
-							size: editSize.trim() || undefined,
-							manufacturer: editManufacturer.trim() || undefined,
-							material: editMaterial.trim() || undefined,
-							voltage: editVoltage.trim() || undefined,
-							mervRating: editMervRating.trim() || undefined,
-							compatibility: editCompatibility.trim() || undefined,
-							replacementInterval: editReplacementInterval.trim() || undefined,
-							notes: editNotes.trim() || undefined,
-						}
+						...item,
+						category,
+						name,
+						details:
+							buildDeviceServiceItemDetails({
+								category,
+								name,
+								details: editDetails.trim(),
+								partNumber: editPartNumber.trim(),
+								size: editSize.trim(),
+								manufacturer: editManufacturer.trim(),
+								material: editMaterial.trim(),
+								voltage: editVoltage.trim(),
+								mervRating: editMervRating.trim(),
+								compatibility: editCompatibility.trim(),
+								replacementInterval: editReplacementInterval.trim(),
+								notes: editNotes.trim(),
+							}) || undefined,
+						partNumber: editPartNumber.trim() || undefined,
+						size: editSize.trim() || undefined,
+						manufacturer: editManufacturer.trim() || undefined,
+						material: editMaterial.trim() || undefined,
+						voltage: editVoltage.trim() || undefined,
+						mervRating: editMervRating.trim() || undefined,
+						compatibility: editCompatibility.trim() || undefined,
+						replacementInterval: editReplacementInterval.trim() || undefined,
+						notes: editNotes.trim() || undefined,
+					}
 					: item,
 			),
 		);
@@ -632,7 +644,7 @@ export const DeviceModal = (props: DeviceModalProps) => {
 		});
 
 		if (parsed.type || matchingDevice?.type) {
-			emitChange('type', parsed.type || matchingDevice?.type || '');
+			emitChange('assetType', parsed.type || matchingDevice?.type || '');
 		}
 		if (parsed.brand || matchingDevice?.brand) {
 			emitChange('brand', parsed.brand || matchingDevice?.brand || '');
@@ -698,756 +710,795 @@ export const DeviceModal = (props: DeviceModalProps) => {
 
 	return (
 		<>
-		<GenericModal
-			isOpen={props.isOpen}
-			onClose={props.onClose}
-			title={props.isEditing ? 'Edit Household Appliance' : 'Add New Household Appliance'}
-			onSubmit={(event) => {
-				setSubmitAttempted(true);
-				if (missingRequiredFields.length > 0) {
-					event.preventDefault();
-					setActiveTab('details');
-					return;
-				}
-				props.onSubmit(event);
-			}}
-			showActions={true}
-			primaryButtonLabel={props.isEditing ? 'Save Appliance' : 'Add Appliance'}
-			secondaryButtonLabel='Cancel'
-			primaryButtonDisabled={missingRequiredFields.length > 0}>
-			<StickyTabRail>
-				<ModalTabContainer>
-					<ModalTab
-						type='button'
-						$active={activeTab === 'details'}
-						onClick={() => setActiveTab('details')}>
-						<TabLabel>
-							Appliance Details
-							{missingRequiredFields.length > 0 && (
-								<TabBadge $tone='neutral'>
-									{`${missingRequiredFields.length} required`}
-								</TabBadge>
-							)}
-						</TabLabel>
-					</ModalTab>
-					<ModalTab
-						type='button'
-						$active={activeTab === 'service-items'}
-						onClick={() => setActiveTab('service-items')}>
-						<TabLabel>
-							Parts & Supplies
-						</TabLabel>
-					</ModalTab>
-				</ModalTabContainer>
-			</StickyTabRail>
-
-			<ScrollBody ref={scrollBodyRef}>
-			<ModalTabContent $active={activeTab === 'details'}>
-				<SummaryBanner>
-					<SummaryTitle>Capture the appliance basics first, then optionally document recurring parts and supplies.</SummaryTitle>
-					<SummaryMeta>
-						<SummaryPill $tone={missingRequiredFields.length === 0 ? 'success' : 'neutral'}>
-							{completedBasics}/1 required item complete
-						</SummaryPill>
-						<SummaryPill $tone={partsConfigured ? 'success' : 'neutral'}>
-							{serviceItems.length} part{serviceItems.length === 1 ? '' : 's'} tracked
-						</SummaryPill>
-					</SummaryMeta>
-					<RequiredList>
-						{missingRequiredFields.length > 0
-							? `Still needed: ${missingRequiredFields.join(', ')}`
-							: 'The required name is set. Add more details now, or save and come back later.'}
-					</RequiredList>
-				</SummaryBanner>
-
-				<SectionHeader>
-					<SectionTitle>Core Appliance Details</SectionTitle>
-					<SectionDescription>
-						Name the appliance now. Brand, model, lifecycle dates, and parts can be filled in whenever they are known.
-					</SectionDescription>
-				</SectionHeader>
-				<div style={{ marginBottom: '12px' }}>
-					<ScanButton type='button' onClick={() => setIsDeviceScanOpen(true)}>
-						Capture Appliance Label
-					</ScanButton>
-				</div>
-
-				<FormGrid>
-				{canSelectProperty && (
-					<FormGroup>
-						<FormLabel>Property</FormLabel>
-						<FormSelect
-							name='location.propertyId'
-							value={props.deviceFormData.location?.propertyId || props.property.id || ''}
-							onChange={props.onFormChange}>
-							{props.availableProperties?.map((propertyOption) => (
-								<option key={propertyOption.id} value={propertyOption.id}>
-									{propertyOption.title || 'Untitled Property'}
-								</option>
-							))}
-						</FormSelect>
-					</FormGroup>
-				)}
-				<FormGroup>
-					<FormLabel>Name *</FormLabel>
-					<FormInput
-						type='text'
-						name='type'
-						value={props.deviceFormData.type}
-						onChange={props.onFormChange}
-						placeholder='e.g., Upstairs HVAC, Water Heater'
-						required
-					/>
-					{detailsError && !props.deviceFormData.type.trim() && (
-						<FieldError>Appliance name is required.</FieldError>
-					)}
-				</FormGroup>
-
-				<FormGroup>
-					<FormLabel>Brand</FormLabel>
-					<FormInput
-						type='text'
-						name='brand'
-						value={props.deviceFormData.brand}
-						onChange={props.onFormChange}
-						placeholder='e.g., Carrier, Rheem'
-					/>
-				</FormGroup>
-
-				<FormGroup>
-					<FormLabel>Model</FormLabel>
-					<FormInput
-						type='text'
-						name='model'
-						value={props.deviceFormData.model}
-						onChange={props.onFormChange}
-						placeholder='e.g., AquaEdge, Prestige'
-					/>
-				</FormGroup>
-
-				<FormGroup>
-					<FormLabel>Serial Number</FormLabel>
-					<FormInput
-						type='text'
-						name='serialNumber'
-						value={props.deviceFormData.serialNumber || ''}
-						onChange={props.onFormChange}
-						placeholder='e.g., SN-123456789'
-					/>
-				</FormGroup>
-
-				<FormGroup>
-					<FormLabel>Status</FormLabel>
-					<FormSelect
-						name='status'
-						value={props.deviceFormData.status || 'Active'}
-						onChange={props.onFormChange}>
-						<option value='Active'>Active</option>
-						<option value='Maintenance'>Maintenance</option>
-						<option value='Broken'>Broken</option>
-						<option value='Decommissioned'>Decommissioned</option>
-					</FormSelect>
-				</FormGroup>
-
-				<FormGroup>
-					<FormLabel>Installation Date</FormLabel>
-					<FormInput
-						type='date'
-						name='installationDate'
-						value={props.deviceFormData.installationDate}
-						onChange={props.onFormChange}
-					/>
-				</FormGroup>
-
-				<FormGroup>
-					<FormLabel>Decommission Date</FormLabel>
-					<FormInput
-						type='date'
-						name='decommissionDate'
-						value={props.deviceFormData.decommissionDate || ''}
-						onChange={props.onFormChange}
-					/>
-					<FieldHint>
-						Setting this date marks the appliance as decommissioned.
-					</FieldHint>
-				</FormGroup>
-				{/* Units are temporarily hidden from the app flow. */}
-				<FormGroupFull>
-					<SectionHeader>
-						<SectionTitle>Attachments</SectionTitle>
-						<SectionDescription>
-							Upload a reference photo, manual, or invoice if you have one available.
-						</SectionDescription>
-					</SectionHeader>
-					<FileUploader
-						setFiles={(files) => props.onPendingFilesChange?.(files)}
-						multiple
-						helperText='PDF, docs, images, sheets. Max 10MB each.'
-					/>
-					<AttachmentSection>
-						<SectionTitle style={{ fontSize: '0.92rem' }}>
-							Current & Pending Files
-						</SectionTitle>
-						<AttachmentList>
-							{(props.deviceFormData.files || []).map((file) => {
-								const isRemoved = removedSet.has(file.url);
-								return (
-									<AttachmentItem key={file.url} $muted={isRemoved}>
-										<AttachmentMeta>
-											<AttachmentName>{file.name}</AttachmentName>
-											<AttachmentSubtext>
-												{formatBytes(file.size)}
-												{isRemoved ? ' • Will be removed on save' : ''}
-											</AttachmentSubtext>
-										</AttachmentMeta>
-										<AttachmentActions>
-											{!isRemoved && (
-												<LinkAction
-													href={file.url}
-													target='_blank'
-													rel='noreferrer'>
-													Download
-												</LinkAction>
-											)}
-											{isRemoved ? (
-												<TertiaryAction
-													type='button'
-													onClick={() => props.onRestoreExistingFile?.(file.url)}>
-													Undo
-												</TertiaryAction>
-											) : (
-												<TertiaryAction
-													type='button'
-													$danger
-													onClick={() => props.onRemoveExistingFile?.(file.url)}>
-													Remove
-												</TertiaryAction>
-											)}
-										</AttachmentActions>
-									</AttachmentItem>
-								);
-							})}
-							{pendingFiles.map((file) => {
-								const fileKey = `${file.name}-${file.size}`;
-								return (
-									<AttachmentItem key={fileKey}>
-										<AttachmentMeta>
-											<AttachmentName>{file.name}</AttachmentName>
-											<AttachmentSubtext>
-												{formatBytes(file.size)} • New file queued for upload
-											</AttachmentSubtext>
-										</AttachmentMeta>
-										<AttachmentActions>
-											<TertiaryAction
-												type='button'
-												$danger
-												onClick={() => props.onRemovePendingFile?.(fileKey)}>
-												Remove
-											</TertiaryAction>
-										</AttachmentActions>
-									</AttachmentItem>
-								);
-							})}
-							{(props.deviceFormData.files || []).length === 0 &&
-								pendingFiles.length === 0 && (
-									<AttachmentSubtext>
-										No attachments yet. Add files above to include manuals, invoices, or photos.
-									</AttachmentSubtext>
+			<GenericModal
+				isOpen={props.isOpen}
+				onClose={props.onClose}
+				title={props.isEditing ? 'Edit Household Appliance' : 'Add New Household Appliance'}
+				onSubmit={(event) => {
+					setSubmitAttempted(true);
+					if (missingRequiredFields.length > 0) {
+						event.preventDefault();
+						setActiveTab('details');
+						return;
+					}
+					props.onSubmit(event);
+				}}
+				showActions={true}
+				primaryButtonLabel={props.isEditing ? 'Save Appliance' : 'Add Appliance'}
+				secondaryButtonLabel='Cancel'
+				primaryButtonDisabled={missingRequiredFields.length > 0}>
+				<StickyTabRail>
+					<ModalTabContainer>
+						<ModalTab
+							type='button'
+							$active={activeTab === 'details'}
+							onClick={() => setActiveTab('details')}>
+							<TabLabel>
+								Appliance Details
+								{missingRequiredFields.length > 0 && (
+									<TabBadge $tone='neutral'>
+										{`${missingRequiredFields.length} required`}
+									</TabBadge>
 								)}
-						</AttachmentList>
-					</AttachmentSection>
-					<FieldHint>
-						{(props.pendingFiles || []).length > 0
-							? `${props.pendingFiles?.length || 0} file${
-								(props.pendingFiles?.length || 0) === 1 ? '' : 's'
-							} selected and ready to upload when you save.`
-							: `${props.deviceFormData.files?.length || 0} existing attachment${
-								(props.deviceFormData.files?.length || 0) === 1 ? '' : 's'
-							}. Add new files to upload on save.`}
-					</FieldHint>
-				</FormGroupFull>
-				<FormGroupFull>
-					<ApplianceDocumentsPanel
-						property={props.property}
-						propertyId={props.property.id}
-						deviceId={props.deviceId}
-						canUpload={Boolean(props.property.id)}
-						pendingFiles={props.pendingPropertyDocumentFiles}
-						onPendingFilesChange={props.onPendingPropertyDocumentFilesChange}
-						pendingCategory={props.pendingPropertyDocumentCategory}
-						onPendingCategoryChange={props.onPendingPropertyDocumentCategoryChange}
-					/>
-				</FormGroupFull>
-				</FormGrid>
-			</ModalTabContent>
+							</TabLabel>
+						</ModalTab>
+						<ModalTab
+							type='button'
+							$active={activeTab === 'service-items'}
+							onClick={() => setActiveTab('service-items')}>
+							<TabLabel>
+								Parts & Supplies
+							</TabLabel>
+						</ModalTab>
+					</ModalTabContainer>
+				</StickyTabRail>
 
-			<ModalTabContent $active={activeTab === 'service-items'}>
-				{/* ── Add new item form ── */}
-				<SectionHeader>
-					<SectionTitle>Parts & Supplies</SectionTitle>
-					<SectionDescription>
-						Track filters, fluids, and replacement parts so linked tasks can reuse the details later.
-					</SectionDescription>
-				</SectionHeader>
-				<div style={{ marginBottom: '12px' }}>
-					<ScanButton type='button' onClick={() => setIsPartScanOpen(true)}>
-						Capture Part Label or Barcode
-					</ScanButton>
-				</div>
-				<PartsCard>
-					<p style={{ margin: '0 0 4px', fontWeight: 600, fontSize: '0.95rem', color: COLORS.gray900 }}>
-						Add Service Item
-					</p>
-					<p style={{ margin: '0 0 14px', color: COLORS.gray500, fontSize: '0.85rem' }}>
-						Track parts, filters, fluids, or any service spec. These are automatically
-						appended to linked task notes.
-					</p>
-					<FormGrid>
-						<FormGroup>
-							<FormLabel>Category *</FormLabel>
-							<TaskSelect
-								value={newCategoryOption}
-								onChange={(value) => {
-									setNewCategoryOption(value);
-									if (value !== 'other') {
-										setNewCustomCategory('');
-									}
-								}}
-								options={DEVICE_SERVICE_ITEM_CATEGORY_OPTIONS}
-								placeholder='Select category'
-							/>
-							{newCategoryOption === 'other' && (
+				<ScrollBody ref={scrollBodyRef}>
+					<ModalTabContent $active={activeTab === 'details'}>
+						<SummaryBanner>
+							<SummaryTitle>Capture the appliance basics first, then optionally document recurring parts and supplies.</SummaryTitle>
+							<SummaryMeta>
+								<SummaryPill $tone={missingRequiredFields.length === 0 ? 'success' : 'neutral'}>
+									{completedBasics}/1 required item complete
+								</SummaryPill>
+								<SummaryPill $tone={partsConfigured ? 'success' : 'neutral'}>
+									{serviceItems.length} part{serviceItems.length === 1 ? '' : 's'} tracked
+								</SummaryPill>
+							</SummaryMeta>
+							<RequiredList>
+								{missingRequiredFields.length > 0
+									? `Still needed: ${missingRequiredFields.join(', ')}`
+									: 'The required name is set. Add more details now, or save and come back later.'}
+							</RequiredList>
+						</SummaryBanner>
+
+						<SectionHeader>
+							<SectionTitle>Core Appliance Details</SectionTitle>
+							<SectionDescription>
+								Choose the asset type now. Variant, brand, model, lifecycle dates,
+								and parts can be filled in whenever they are known.
+							</SectionDescription>
+						</SectionHeader>
+						<div style={{ marginBottom: '12px' }}>
+							<ScanButton type='button' onClick={() => setIsDeviceScanOpen(true)}>
+								Capture Appliance Label
+							</ScanButton>
+						</div>
+
+						<FormGrid>
+							{canSelectProperty && (
+								<FormGroup>
+									<FormLabel>Property</FormLabel>
+									<FormSelect
+										name='location.propertyId'
+										value={props.deviceFormData.location?.propertyId || props.property.id || ''}
+										onChange={props.onFormChange}>
+										{props.availableProperties?.map((propertyOption) => (
+											<option key={propertyOption.id} value={propertyOption.id}>
+												{propertyOption.title || 'Untitled Property'}
+											</option>
+										))}
+									</FormSelect>
+								</FormGroup>
+							)}
+							<FormGroup>
+								<FormLabel>Asset Type *</FormLabel>
+								<FormSelect
+									name='assetType'
+									value={selectedAssetType || UNKNOWN_ASSET_TYPE}
+									onChange={props.onFormChange}
+									required>
+									{getAssetTypeOptions().map((option) => (
+										<option key={option.value} value={option.value}>
+											{option.label}
+										</option>
+									))}
+									{selectedAssetType &&
+										!getAssetTypeOptions().some(
+											(option) => option.value === selectedAssetType,
+										) ? (
+										<option value={selectedAssetType}>{selectedAssetType}</option>
+									) : null}
+								</FormSelect>
+								<FieldHint>
+									Choose the broad category Maintley should use for recommendations.
+								</FieldHint>
+								{detailsError && !selectedAssetType.trim() && (
+									<FieldError>Asset type is required.</FieldError>
+								)}
+							</FormGroup>
+
+							<FormGroup>
+								<FormLabel>Variant</FormLabel>
+								<FormSelect
+									name='assetVariant'
+									value={props.deviceFormData.assetVariant || ''}
+									onChange={props.onFormChange}
+									disabled={
+										variantOptions.length === 0 &&
+										!props.deviceFormData.assetVariant
+									}>
+									<option value=''>Unknown / not recorded</option>
+									{variantOptions.map((variant) => (
+										<option key={variant} value={variant}>
+											{variant}
+										</option>
+									))}
+									{props.deviceFormData.assetVariant &&
+										!variantOptions.includes(props.deviceFormData.assetVariant) ? (
+										<option value={props.deviceFormData.assetVariant}>
+											{props.deviceFormData.assetVariant}
+										</option>
+									) : null}
+								</FormSelect>
+								<FieldHint>
+									Add the specific equipment type when known. It can stay unknown.
+								</FieldHint>
+							</FormGroup>
+
+							<FormGroup>
+								<FormLabel>Brand</FormLabel>
 								<FormInput
 									type='text'
-									value={newCustomCategory}
-									onChange={(e) => {
-										setNewCustomCategory(e.target.value);
-									}}
-									placeholder='Enter custom category'
-									style={{ marginTop: '8px' }}
-								/>
-							)}
-						</FormGroup>
-						<FormGroup>
-							<FormLabel>Item Name *</FormLabel>
-							<FormInput
-								type='text'
-								value={newItemName}
-								onChange={(e) => setNewItemName(e.target.value)}
-								placeholder='e.g., HVAC Return Filter'
-							/>
-						</FormGroup>
-					</FormGrid>
-					<FormGrid>
-						{newDynamicFields.map((field) => (
-							<FormGroup key={String(field.key)}>
-								<FormLabel>{field.label}</FormLabel>
-								<FormInput
-									type={field.type || 'text'}
-									value={
-										field.key === 'partNumber'
-											? newItemPartNumber
-											: field.key === 'size'
-												? newItemSize
-												: field.key === 'manufacturer'
-													? newItemManufacturer
-													: field.key === 'material'
-														? newItemMaterial
-														: field.key === 'voltage'
-															? newItemVoltage
-															: field.key === 'mervRating'
-																? newItemMervRating
-																: field.key === 'compatibility'
-																	? newItemCompatibility
-																	: newItemReplacementInterval
-									}
-									onChange={(e) => {
-										const value = e.target.value;
-										if (field.key === 'partNumber') setNewItemPartNumber(value);
-										if (field.key === 'size') setNewItemSize(value);
-										if (field.key === 'manufacturer') setNewItemManufacturer(value);
-										if (field.key === 'material') setNewItemMaterial(value);
-										if (field.key === 'voltage') setNewItemVoltage(value);
-										if (field.key === 'mervRating') setNewItemMervRating(value);
-										if (field.key === 'compatibility') setNewItemCompatibility(value);
-										if (field.key === 'replacementInterval')
-											setNewItemReplacementInterval(value);
-									}}
-									placeholder={field.placeholder}
+									name='brand'
+									value={props.deviceFormData.brand}
+									onChange={props.onFormChange}
+									placeholder='e.g., Carrier, Rheem'
 								/>
 							</FormGroup>
-						))}
-					</FormGrid>
-					<FormGroup>
-						<FormLabel>
-							Details{' '}
-							<span style={{ color: COLORS.gray400, fontWeight: 400 }}>(optional)</span>
-						</FormLabel>
-						<FormTextarea
-							value={newItemDetails}
-							onChange={(e) => setNewItemDetails(e.target.value)}
-							placeholder='Size, grade, part number, vendor info, etc.'
-						/>
-					</FormGroup>
-					<FormGroup>
-						<FormLabel>Notes</FormLabel>
-						<FormTextarea
-							value={newItemNotes}
-							onChange={(e) => setNewItemNotes(e.target.value)}
-							placeholder='Any extra install/service notes for this item.'
-						/>
-					</FormGroup>
-					<button
-						type='button'
-						onClick={handleAddServiceItem}
-						disabled={
-							newCategoryOption === 'other'
-								? !newCustomCategory.trim() || !newItemName.trim()
-								: !newCategoryOption.trim() || !newItemName.trim()
-						}
-						style={{
-							padding: '8px 18px',
-							border: 'none',
-							borderRadius: '6px',
-							background:
-								(newCategoryOption === 'other'
-									? !newCustomCategory.trim() || !newItemName.trim()
-									: !newCategoryOption.trim() || !newItemName.trim())
-									? COLORS.gray200
-									: `linear-gradient(135deg, ${COLORS.primary} 0%, ${COLORS.primaryDark} 100%)`,
-							color:
-								(newCategoryOption === 'other'
-									? !newCustomCategory.trim() || !newItemName.trim()
-									: !newCategoryOption.trim() || !newItemName.trim())
-									? COLORS.gray400
-									: 'white',
-							fontWeight: 600,
-							cursor:
-								(newCategoryOption === 'other'
-									? !newCustomCategory.trim() || !newItemName.trim()
-									: !newCategoryOption.trim() || !newItemName.trim())
-									? 'not-allowed'
-									: 'pointer',
-							fontSize: '0.9rem',
-							boxShadow:
-								(newCategoryOption === 'other'
-									? !newCustomCategory.trim() || !newItemName.trim()
-									: !newCategoryOption.trim() || !newItemName.trim())
-									? 'none'
-									: '0 2px 8px rgba(16,185,129,0.25)',
-						}}>
-						+ Add Item
-					</button>
-				</PartsCard>
 
-				{/* ── Saved items list ── */}
-				<PartsHeader>
-					<span style={{ fontWeight: 600, fontSize: '0.95rem', color: COLORS.gray900 }}>
-						Saved Items{' '}
-						<CountBadge>
-							{serviceItems.length}
-						</CountBadge>
-					</span>
-					{serviceItems.length > 3 && (
-						<FormInput
-							type='text'
-							value={itemFilter}
-							onChange={(e) => setItemFilter(e.target.value)}
-							placeholder='Search items…'
-							style={{ width: '180px', padding: '4px 8px', fontSize: '0.85rem' }}
-						/>
-					)}
-				</PartsHeader>
+							<FormGroup>
+								<FormLabel>Model</FormLabel>
+								<FormInput
+									type='text'
+									name='model'
+									value={props.deviceFormData.model}
+									onChange={props.onFormChange}
+									placeholder='e.g., AquaEdge, Prestige'
+								/>
+							</FormGroup>
 
-				<div
-					style={{
-						border: `1px solid ${COLORS.gray200}`,
-						borderRadius: '8px',
-						overflow: 'hidden',
-					}}>
-					{serviceItems.length === 0 ? (
-						<p
-							style={{
-								margin: 0,
-								padding: '20px 16px',
-								color: COLORS.gray400,
-								fontSize: '0.9rem',
-								textAlign: 'center',
-							}}>
-							No service items yet — add one above.
-						</p>
-					) : filteredServiceItems.length === 0 ? (
-						<p
-							style={{
-								margin: 0,
-								padding: '20px 16px',
-								color: COLORS.gray400,
-								fontSize: '0.9rem',
-								textAlign: 'center',
-							}}>
-							No items match your search.
-						</p>
-					) : (
-						filteredServiceItems.map((item, idx) =>
-							editingItemId === item.id ? (
-								/* ── Inline edit row ── */
-								<div
-									key={item.id}
-									style={{
-										padding: '12px 14px',
-										background: COLORS.primaryLight,
-										borderBottom:
-											idx < filteredServiceItems.length - 1
-												? `1px solid ${COLORS.gray200}`
-												: 'none',
-									}}>
-									<FormGrid style={{ marginBottom: '8px' }}>
-										<FormGroup style={{ marginBottom: 0 }}>
-											<FormLabel>Category *</FormLabel>
-											<TaskSelect
-												value={editCategoryOption}
-												onChange={(value) => {
-													setEditCategoryOption(value);
-														if (value !== 'other') {
-														setEditCustomCategory('');
-													}
-												}}
-													options={DEVICE_SERVICE_ITEM_CATEGORY_OPTIONS}
-												placeholder='Select category'
-											/>
-												{editCategoryOption === 'other' && (
-												<FormInput
-													type='text'
-													value={editCustomCategory}
-													onChange={(e) => {
-														setEditCustomCategory(e.target.value);
-													}}
-													placeholder='Enter custom category'
-													style={{ marginTop: '8px' }}
-												/>
+							<FormGroup>
+								<FormLabel>Serial Number</FormLabel>
+								<FormInput
+									type='text'
+									name='serialNumber'
+									value={props.deviceFormData.serialNumber || ''}
+									onChange={props.onFormChange}
+									placeholder='e.g., SN-123456789'
+								/>
+							</FormGroup>
+
+							<FormGroup>
+								<FormLabel>Status</FormLabel>
+								<FormSelect
+									name='status'
+									value={props.deviceFormData.status || 'Active'}
+									onChange={props.onFormChange}>
+									<option value='Active'>Active</option>
+									<option value='Maintenance'>Maintenance</option>
+									<option value='Broken'>Broken</option>
+									<option value='Decommissioned'>Decommissioned</option>
+								</FormSelect>
+							</FormGroup>
+
+							<FormGroup>
+								<FormLabel>Installation Date</FormLabel>
+								<FormInput
+									type='date'
+									name='installationDate'
+									value={props.deviceFormData.installationDate}
+									onChange={props.onFormChange}
+								/>
+							</FormGroup>
+
+							<FormGroup>
+								<FormLabel>Decommission Date</FormLabel>
+								<FormInput
+									type='date'
+									name='decommissionDate'
+									value={props.deviceFormData.decommissionDate || ''}
+									onChange={props.onFormChange}
+								/>
+								<FieldHint>
+									Setting this date marks the appliance as decommissioned.
+								</FieldHint>
+							</FormGroup>
+							{/* Units are temporarily hidden from the app flow. */}
+							<FormGroupFull>
+								<SectionHeader>
+									<SectionTitle>Attachments</SectionTitle>
+									<SectionDescription>
+										Upload a reference photo, manual, or invoice if you have one available.
+									</SectionDescription>
+								</SectionHeader>
+								<FileUploader
+									setFiles={(files) => props.onPendingFilesChange?.(files)}
+									multiple
+									helperText='PDF, docs, images, sheets. Max 10MB each.'
+								/>
+								<AttachmentSection>
+									<SectionTitle style={{ fontSize: '0.92rem' }}>
+										Current & Pending Files
+									</SectionTitle>
+									<AttachmentList>
+										{(props.deviceFormData.files || []).map((file) => {
+											const isRemoved = removedSet.has(file.url);
+											return (
+												<AttachmentItem key={file.url} $muted={isRemoved}>
+													<AttachmentMeta>
+														<AttachmentName>{file.name}</AttachmentName>
+														<AttachmentSubtext>
+															{formatBytes(file.size)}
+															{isRemoved ? ' • Will be removed on save' : ''}
+														</AttachmentSubtext>
+													</AttachmentMeta>
+													<AttachmentActions>
+														{!isRemoved && (
+															<LinkAction
+																href={file.url}
+																target='_blank'
+																rel='noreferrer'>
+																Download
+															</LinkAction>
+														)}
+														{isRemoved ? (
+															<TertiaryAction
+																type='button'
+																onClick={() => props.onRestoreExistingFile?.(file.url)}>
+																Undo
+															</TertiaryAction>
+														) : (
+															<TertiaryAction
+																type='button'
+																$danger
+																onClick={() => props.onRemoveExistingFile?.(file.url)}>
+																Remove
+															</TertiaryAction>
+														)}
+													</AttachmentActions>
+												</AttachmentItem>
+											);
+										})}
+										{pendingFiles.map((file) => {
+											const fileKey = `${file.name}-${file.size}`;
+											return (
+												<AttachmentItem key={fileKey}>
+													<AttachmentMeta>
+														<AttachmentName>{file.name}</AttachmentName>
+														<AttachmentSubtext>
+															{formatBytes(file.size)} • New file queued for upload
+														</AttachmentSubtext>
+													</AttachmentMeta>
+													<AttachmentActions>
+														<TertiaryAction
+															type='button'
+															$danger
+															onClick={() => props.onRemovePendingFile?.(fileKey)}>
+															Remove
+														</TertiaryAction>
+													</AttachmentActions>
+												</AttachmentItem>
+											);
+										})}
+										{(props.deviceFormData.files || []).length === 0 &&
+											pendingFiles.length === 0 && (
+												<AttachmentSubtext>
+													No attachments yet. Add files above to include manuals, invoices, or photos.
+												</AttachmentSubtext>
 											)}
-										</FormGroup>
-										<FormGroup style={{ marginBottom: 0 }}>
-											<FormLabel>Item Name *</FormLabel>
-											<FormInput
-												type='text'
-												value={editName}
-												onChange={(e) => setEditName(e.target.value)}
-											/>
-										</FormGroup>
-									</FormGrid>
-									<FormGrid style={{ marginBottom: '8px' }}>
-										{editDynamicFields.map((field) => (
-											<FormGroup key={String(field.key)} style={{ marginBottom: 0 }}>
-												<FormLabel>{field.label}</FormLabel>
-												<FormInput
-													type={field.type || 'text'}
-													value={
-														field.key === 'partNumber'
-															? editPartNumber
-															: field.key === 'size'
-																? editSize
-																: field.key === 'manufacturer'
-																	? editManufacturer
-																	: field.key === 'material'
-																		? editMaterial
-																		: field.key === 'voltage'
-																			? editVoltage
-																			: field.key === 'mervRating'
-																				? editMervRating
-																				: field.key === 'compatibility'
-																					? editCompatibility
-																					: editReplacementInterval
-													}
-													onChange={(e) => {
-														const value = e.target.value;
-														if (field.key === 'partNumber') setEditPartNumber(value);
-														if (field.key === 'size') setEditSize(value);
-														if (field.key === 'manufacturer') setEditManufacturer(value);
-														if (field.key === 'material') setEditMaterial(value);
-														if (field.key === 'voltage') setEditVoltage(value);
-														if (field.key === 'mervRating') setEditMervRating(value);
-														if (field.key === 'compatibility') setEditCompatibility(value);
-														if (field.key === 'replacementInterval')
-															setEditReplacementInterval(value);
-													}}
-													placeholder={field.placeholder}
+									</AttachmentList>
+								</AttachmentSection>
+								<FieldHint>
+									{(props.pendingFiles || []).length > 0
+										? `${props.pendingFiles?.length || 0} file${(props.pendingFiles?.length || 0) === 1 ? '' : 's'
+										} selected and ready to upload when you save.`
+										: `${props.deviceFormData.files?.length || 0} existing attachment${(props.deviceFormData.files?.length || 0) === 1 ? '' : 's'
+										}. Add new files to upload on save.`}
+								</FieldHint>
+							</FormGroupFull>
+							<FormGroupFull>
+								<ApplianceDocumentsPanel
+									property={props.property}
+									propertyId={props.property.id}
+									deviceId={props.deviceId}
+									canUpload={Boolean(props.property.id)}
+									pendingFiles={props.pendingPropertyDocumentFiles}
+									onPendingFilesChange={props.onPendingPropertyDocumentFilesChange}
+									pendingCategory={props.pendingPropertyDocumentCategory}
+									onPendingCategoryChange={props.onPendingPropertyDocumentCategoryChange}
+								/>
+							</FormGroupFull>
+						</FormGrid>
+					</ModalTabContent>
+
+					<ModalTabContent $active={activeTab === 'service-items'}>
+						{/* ── Add new item form ── */}
+						<SectionHeader>
+							<SectionTitle>Parts & Supplies</SectionTitle>
+							<SectionDescription>
+								Track filters, fluids, and replacement parts so linked tasks can reuse the details later.
+							</SectionDescription>
+						</SectionHeader>
+						<div style={{ marginBottom: '12px' }}>
+							<ScanButton type='button' onClick={() => setIsPartScanOpen(true)}>
+								Capture Part Label or Barcode
+							</ScanButton>
+						</div>
+						<PartsCard>
+							<p style={{ margin: '0 0 4px', fontWeight: 600, fontSize: '0.95rem', color: COLORS.gray900 }}>
+								Add Service Item
+							</p>
+							<p style={{ margin: '0 0 14px', color: COLORS.gray500, fontSize: '0.85rem' }}>
+								Track parts, filters, fluids, or any service spec. These are automatically
+								appended to linked task notes.
+							</p>
+							<FormGrid>
+								<FormGroup>
+									<FormLabel>Category *</FormLabel>
+									<TaskSelect
+										value={newCategoryOption}
+										onChange={(value) => {
+											setNewCategoryOption(value);
+											if (value !== 'other') {
+												setNewCustomCategory('');
+											}
+										}}
+										options={DEVICE_SERVICE_ITEM_CATEGORY_OPTIONS}
+										placeholder='Select category'
+									/>
+									{newCategoryOption === 'other' && (
+										<FormInput
+											type='text'
+											value={newCustomCategory}
+											onChange={(e) => {
+												setNewCustomCategory(e.target.value);
+											}}
+											placeholder='Enter custom category'
+											style={{ marginTop: '8px' }}
+										/>
+									)}
+								</FormGroup>
+								<FormGroup>
+									<FormLabel>Item Name *</FormLabel>
+									<FormInput
+										type='text'
+										value={newItemName}
+										onChange={(e) => setNewItemName(e.target.value)}
+										placeholder='e.g., HVAC Return Filter'
+									/>
+								</FormGroup>
+							</FormGrid>
+							<FormGrid>
+								{newDynamicFields.map((field) => (
+									<FormGroup key={String(field.key)}>
+										<FormLabel>{field.label}</FormLabel>
+										<FormInput
+											type={field.type || 'text'}
+											value={
+												field.key === 'partNumber'
+													? newItemPartNumber
+													: field.key === 'size'
+														? newItemSize
+														: field.key === 'manufacturer'
+															? newItemManufacturer
+															: field.key === 'material'
+																? newItemMaterial
+																: field.key === 'voltage'
+																	? newItemVoltage
+																	: field.key === 'mervRating'
+																		? newItemMervRating
+																		: field.key === 'compatibility'
+																			? newItemCompatibility
+																			: newItemReplacementInterval
+											}
+											onChange={(e) => {
+												const value = e.target.value;
+												if (field.key === 'partNumber') setNewItemPartNumber(value);
+												if (field.key === 'size') setNewItemSize(value);
+												if (field.key === 'manufacturer') setNewItemManufacturer(value);
+												if (field.key === 'material') setNewItemMaterial(value);
+												if (field.key === 'voltage') setNewItemVoltage(value);
+												if (field.key === 'mervRating') setNewItemMervRating(value);
+												if (field.key === 'compatibility') setNewItemCompatibility(value);
+												if (field.key === 'replacementInterval')
+													setNewItemReplacementInterval(value);
+											}}
+											placeholder={field.placeholder}
+										/>
+									</FormGroup>
+								))}
+							</FormGrid>
+							<FormGroup>
+								<FormLabel>
+									Details{' '}
+									<span style={{ color: COLORS.gray400, fontWeight: 400 }}>(optional)</span>
+								</FormLabel>
+								<FormTextarea
+									value={newItemDetails}
+									onChange={(e) => setNewItemDetails(e.target.value)}
+									placeholder='Size, grade, part number, vendor info, etc.'
+								/>
+							</FormGroup>
+							<FormGroup>
+								<FormLabel>Notes</FormLabel>
+								<FormTextarea
+									value={newItemNotes}
+									onChange={(e) => setNewItemNotes(e.target.value)}
+									placeholder='Any extra install/service notes for this item.'
+								/>
+							</FormGroup>
+							<button
+								type='button'
+								onClick={handleAddServiceItem}
+								disabled={
+									newCategoryOption === 'other'
+										? !newCustomCategory.trim() || !newItemName.trim()
+										: !newCategoryOption.trim() || !newItemName.trim()
+								}
+								style={{
+									padding: '8px 18px',
+									border: 'none',
+									borderRadius: '6px',
+									background:
+										(newCategoryOption === 'other'
+											? !newCustomCategory.trim() || !newItemName.trim()
+											: !newCategoryOption.trim() || !newItemName.trim())
+											? COLORS.gray200
+											: `linear-gradient(135deg, ${COLORS.primary} 0%, ${COLORS.primaryDark} 100%)`,
+									color:
+										(newCategoryOption === 'other'
+											? !newCustomCategory.trim() || !newItemName.trim()
+											: !newCategoryOption.trim() || !newItemName.trim())
+											? COLORS.gray400
+											: 'white',
+									fontWeight: 600,
+									cursor:
+										(newCategoryOption === 'other'
+											? !newCustomCategory.trim() || !newItemName.trim()
+											: !newCategoryOption.trim() || !newItemName.trim())
+											? 'not-allowed'
+											: 'pointer',
+									fontSize: '0.9rem',
+									boxShadow:
+										(newCategoryOption === 'other'
+											? !newCustomCategory.trim() || !newItemName.trim()
+											: !newCategoryOption.trim() || !newItemName.trim())
+											? 'none'
+											: '0 2px 8px rgba(16,185,129,0.25)',
+								}}>
+								+ Add Item
+							</button>
+						</PartsCard>
+
+						{/* ── Saved items list ── */}
+						<PartsHeader>
+							<span style={{ fontWeight: 600, fontSize: '0.95rem', color: COLORS.gray900 }}>
+								Saved Items{' '}
+								<CountBadge>
+									{serviceItems.length}
+								</CountBadge>
+							</span>
+							{serviceItems.length > 3 && (
+								<FormInput
+									type='text'
+									value={itemFilter}
+									onChange={(e) => setItemFilter(e.target.value)}
+									placeholder='Search items…'
+									style={{ width: '180px', padding: '4px 8px', fontSize: '0.85rem' }}
+								/>
+							)}
+						</PartsHeader>
+
+						<div
+							style={{
+								border: `1px solid ${COLORS.gray200}`,
+								borderRadius: '8px',
+								overflow: 'hidden',
+							}}>
+							{serviceItems.length === 0 ? (
+								<p
+									style={{
+										margin: 0,
+										padding: '20px 16px',
+										color: COLORS.gray400,
+										fontSize: '0.9rem',
+										textAlign: 'center',
+									}}>
+									No service items yet — add one above.
+								</p>
+							) : filteredServiceItems.length === 0 ? (
+								<p
+									style={{
+										margin: 0,
+										padding: '20px 16px',
+										color: COLORS.gray400,
+										fontSize: '0.9rem',
+										textAlign: 'center',
+									}}>
+									No items match your search.
+								</p>
+							) : (
+								filteredServiceItems.map((item, idx) =>
+									editingItemId === item.id ? (
+										/* ── Inline edit row ── */
+										<div
+											key={item.id}
+											style={{
+												padding: '12px 14px',
+												background: COLORS.primaryLight,
+												borderBottom:
+													idx < filteredServiceItems.length - 1
+														? `1px solid ${COLORS.gray200}`
+														: 'none',
+											}}>
+											<FormGrid style={{ marginBottom: '8px' }}>
+												<FormGroup style={{ marginBottom: 0 }}>
+													<FormLabel>Category *</FormLabel>
+													<TaskSelect
+														value={editCategoryOption}
+														onChange={(value) => {
+															setEditCategoryOption(value);
+															if (value !== 'other') {
+																setEditCustomCategory('');
+															}
+														}}
+														options={DEVICE_SERVICE_ITEM_CATEGORY_OPTIONS}
+														placeholder='Select category'
+													/>
+													{editCategoryOption === 'other' && (
+														<FormInput
+															type='text'
+															value={editCustomCategory}
+															onChange={(e) => {
+																setEditCustomCategory(e.target.value);
+															}}
+															placeholder='Enter custom category'
+															style={{ marginTop: '8px' }}
+														/>
+													)}
+												</FormGroup>
+												<FormGroup style={{ marginBottom: 0 }}>
+													<FormLabel>Item Name *</FormLabel>
+													<FormInput
+														type='text'
+														value={editName}
+														onChange={(e) => setEditName(e.target.value)}
+													/>
+												</FormGroup>
+											</FormGrid>
+											<FormGrid style={{ marginBottom: '8px' }}>
+												{editDynamicFields.map((field) => (
+													<FormGroup key={String(field.key)} style={{ marginBottom: 0 }}>
+														<FormLabel>{field.label}</FormLabel>
+														<FormInput
+															type={field.type || 'text'}
+															value={
+																field.key === 'partNumber'
+																	? editPartNumber
+																	: field.key === 'size'
+																		? editSize
+																		: field.key === 'manufacturer'
+																			? editManufacturer
+																			: field.key === 'material'
+																				? editMaterial
+																				: field.key === 'voltage'
+																					? editVoltage
+																					: field.key === 'mervRating'
+																						? editMervRating
+																						: field.key === 'compatibility'
+																							? editCompatibility
+																							: editReplacementInterval
+															}
+															onChange={(e) => {
+																const value = e.target.value;
+																if (field.key === 'partNumber') setEditPartNumber(value);
+																if (field.key === 'size') setEditSize(value);
+																if (field.key === 'manufacturer') setEditManufacturer(value);
+																if (field.key === 'material') setEditMaterial(value);
+																if (field.key === 'voltage') setEditVoltage(value);
+																if (field.key === 'mervRating') setEditMervRating(value);
+																if (field.key === 'compatibility') setEditCompatibility(value);
+																if (field.key === 'replacementInterval')
+																	setEditReplacementInterval(value);
+															}}
+															placeholder={field.placeholder}
+														/>
+													</FormGroup>
+												))}
+											</FormGrid>
+											<FormGroup style={{ marginBottom: '10px' }}>
+												<FormLabel>Details</FormLabel>
+												<FormTextarea
+													value={editDetails}
+													onChange={(e) => setEditDetails(e.target.value)}
+													placeholder='Size, grade, part number, etc.'
 												/>
 											</FormGroup>
-										))}
-									</FormGrid>
-									<FormGroup style={{ marginBottom: '10px' }}>
-										<FormLabel>Details</FormLabel>
-										<FormTextarea
-											value={editDetails}
-											onChange={(e) => setEditDetails(e.target.value)}
-											placeholder='Size, grade, part number, etc.'
-										/>
-									</FormGroup>
-									<FormGroup style={{ marginBottom: '10px' }}>
-										<FormLabel>Notes</FormLabel>
-										<FormTextarea
-											value={editNotes}
-											onChange={(e) => setEditNotes(e.target.value)}
-											placeholder='Any extra install/service notes for this item.'
-										/>
-									</FormGroup>
-									<div style={{ display: 'flex', gap: '8px' }}>
-										<button
-											type='button'
-											onClick={handleSaveEdit}
-											disabled={
-												editCategoryOption === 'other'
-													? !editCustomCategory.trim() || !editName.trim()
-													: !editCategoryOption.trim() || !editName.trim()
-											}
-											style={{
-												padding: '6px 14px',
-												border: 'none',
-												borderRadius: '6px',
-												background:
-													(editCategoryOption === 'other'
-														? !editCustomCategory.trim() || !editName.trim()
-														: !editCategoryOption.trim() || !editName.trim())
-														? COLORS.gray200
-														: `linear-gradient(135deg, ${COLORS.primary} 0%, ${COLORS.primaryDark} 100%)`,
-												color:
-													(editCategoryOption === 'other'
-														? !editCustomCategory.trim() || !editName.trim()
-														: !editCategoryOption.trim() || !editName.trim())
-														? COLORS.gray400
-														: 'white',
-												fontWeight: 600,
-												cursor:
-													(editCategoryOption === 'other'
-														? !editCustomCategory.trim() || !editName.trim()
-														: !editCategoryOption.trim() || !editName.trim())
-														? 'not-allowed'
-														: 'pointer',
-												fontSize: '0.85rem',
-											}}>
-											Save
-										</button>
-										<button
-											type='button'
-											onClick={handleCancelEdit}
-											style={{
-												padding: '6px 14px',
-												border: `1.5px solid ${COLORS.gray300}`,
-												borderRadius: '6px',
-												background: 'white',
-												color: COLORS.gray600,
-												fontWeight: 600,
-												cursor: 'pointer',
-												fontSize: '0.85rem',
-											}}>
-											Cancel
-										</button>
-									</div>
-								</div>
-							) : (
-								/* ── Read-only row ── */
-								<div
-									key={item.id}
-									style={{
-										display: 'flex',
-										justifyContent: 'space-between',
-										alignItems: 'flex-start',
-										gap: '12px',
-										padding: '10px 14px',
-										background: idx % 2 === 0 ? 'white' : COLORS.gray50,
-										borderBottom:
-											idx < filteredServiceItems.length - 1
-												? `1px solid ${COLORS.gray100}`
-												: 'none',
-									}}>
-									<div style={{ flex: 1, minWidth: 0 }}>
-										<div
-											style={{
-												fontWeight: 600,
-												fontSize: '0.9rem',
-												color: COLORS.gray900,
-											}}>
-											{item.name}
-										</div>
-										<div
-											style={{
-												fontSize: '0.75rem',
-												color: COLORS.primaryDark,
-												textTransform: 'uppercase',
-												letterSpacing: '0.05em',
-												fontWeight: 600,
-												marginTop: '2px',
-											}}>
-											{item.category}
-										</div>
-										{item.details && (
-											<div
-												style={{
-													fontSize: '0.82rem',
-													color: COLORS.gray500,
-													marginTop: '3px',
-												}}>
-												{item.details}
+											<FormGroup style={{ marginBottom: '10px' }}>
+												<FormLabel>Notes</FormLabel>
+												<FormTextarea
+													value={editNotes}
+													onChange={(e) => setEditNotes(e.target.value)}
+													placeholder='Any extra install/service notes for this item.'
+												/>
+											</FormGroup>
+											<div style={{ display: 'flex', gap: '8px' }}>
+												<button
+													type='button'
+													onClick={handleSaveEdit}
+													disabled={
+														editCategoryOption === 'other'
+															? !editCustomCategory.trim() || !editName.trim()
+															: !editCategoryOption.trim() || !editName.trim()
+													}
+													style={{
+														padding: '6px 14px',
+														border: 'none',
+														borderRadius: '6px',
+														background:
+															(editCategoryOption === 'other'
+																? !editCustomCategory.trim() || !editName.trim()
+																: !editCategoryOption.trim() || !editName.trim())
+																? COLORS.gray200
+																: `linear-gradient(135deg, ${COLORS.primary} 0%, ${COLORS.primaryDark} 100%)`,
+														color:
+															(editCategoryOption === 'other'
+																? !editCustomCategory.trim() || !editName.trim()
+																: !editCategoryOption.trim() || !editName.trim())
+																? COLORS.gray400
+																: 'white',
+														fontWeight: 600,
+														cursor:
+															(editCategoryOption === 'other'
+																? !editCustomCategory.trim() || !editName.trim()
+																: !editCategoryOption.trim() || !editName.trim())
+																? 'not-allowed'
+																: 'pointer',
+														fontSize: '0.85rem',
+													}}>
+													Save
+												</button>
+												<button
+													type='button'
+													onClick={handleCancelEdit}
+													style={{
+														padding: '6px 14px',
+														border: `1.5px solid ${COLORS.gray300}`,
+														borderRadius: '6px',
+														background: 'white',
+														color: COLORS.gray600,
+														fontWeight: 600,
+														cursor: 'pointer',
+														fontSize: '0.85rem',
+													}}>
+													Cancel
+												</button>
 											</div>
-										)}
-									</div>
-									<div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
-										<button
-											type='button'
-											onClick={() => handleStartEdit(item)}
+										</div>
+									) : (
+										/* ── Read-only row ── */
+										<div
+											key={item.id}
 											style={{
-												border: `1.5px solid ${COLORS.gray300}`,
-												background: 'white',
-												color: COLORS.gray700,
-												cursor: 'pointer',
-												fontWeight: 600,
-												borderRadius: '4px',
-												padding: '3px 10px',
-												fontSize: '0.8rem',
+												display: 'flex',
+												justifyContent: 'space-between',
+												alignItems: 'flex-start',
+												gap: '12px',
+												padding: '10px 14px',
+												background: idx % 2 === 0 ? 'white' : COLORS.gray50,
+												borderBottom:
+													idx < filteredServiceItems.length - 1
+														? `1px solid ${COLORS.gray100}`
+														: 'none',
 											}}>
-											Edit
-										</button>
-										<button
-											type='button'
-											onClick={() => handleRemoveServiceItem(item.id)}
-											style={{
-												border: `1.5px solid ${COLORS.errorLight}`,
-												background: COLORS.errorLight,
-												color: COLORS.errorDark,
-												cursor: 'pointer',
-												fontWeight: 600,
-												borderRadius: '4px',
-												padding: '3px 10px',
-												fontSize: '0.8rem',
-											}}>
-											Remove
-										</button>
-									</div>
-								</div>
-							),
-						)
-					)}
-				</div>
-			</ModalTabContent>
-			</ScrollBody>
-		</GenericModal>
-		<BarcodeScannerModal
-			isOpen={isDeviceScanOpen}
-			title='Appliance Capture Assistant'
-			defaultMethod='photo'
-			captureIntent='appliance'
-			onClose={() => setIsDeviceScanOpen(false)}
-			onDetected={handleDeviceBarcodeDetected}
-		/>
-		<BarcodeScannerModal
-			isOpen={isPartScanOpen}
-			title='Part Capture Assistant'
-			defaultMethod='barcode'
-			captureIntent='part'
-			onClose={() => setIsPartScanOpen(false)}
-			onDetected={handlePartBarcodeDetected}
-		/>
+											<div style={{ flex: 1, minWidth: 0 }}>
+												<div
+													style={{
+														fontWeight: 600,
+														fontSize: '0.9rem',
+														color: COLORS.gray900,
+													}}>
+													{item.name}
+												</div>
+												<div
+													style={{
+														fontSize: '0.75rem',
+														color: COLORS.primaryDark,
+														textTransform: 'uppercase',
+														letterSpacing: '0.05em',
+														fontWeight: 600,
+														marginTop: '2px',
+													}}>
+													{item.category}
+												</div>
+												{item.details && (
+													<div
+														style={{
+															fontSize: '0.82rem',
+															color: COLORS.gray500,
+															marginTop: '3px',
+														}}>
+														{item.details}
+													</div>
+												)}
+											</div>
+											<div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
+												<button
+													type='button'
+													onClick={() => handleStartEdit(item)}
+													style={{
+														border: `1.5px solid ${COLORS.gray300}`,
+														background: 'white',
+														color: COLORS.gray700,
+														cursor: 'pointer',
+														fontWeight: 600,
+														borderRadius: '4px',
+														padding: '3px 10px',
+														fontSize: '0.8rem',
+													}}>
+													Edit
+												</button>
+												<button
+													type='button'
+													onClick={() => handleRemoveServiceItem(item.id)}
+													style={{
+														border: `1.5px solid ${COLORS.errorLight}`,
+														background: COLORS.errorLight,
+														color: COLORS.errorDark,
+														cursor: 'pointer',
+														fontWeight: 600,
+														borderRadius: '4px',
+														padding: '3px 10px',
+														fontSize: '0.8rem',
+													}}>
+													Remove
+												</button>
+											</div>
+										</div>
+									),
+								)
+							)}
+						</div>
+					</ModalTabContent>
+				</ScrollBody>
+			</GenericModal>
+			<BarcodeScannerModal
+				isOpen={isDeviceScanOpen}
+				title='Appliance Capture Assistant'
+				defaultMethod='photo'
+				captureIntent='appliance'
+				onClose={() => setIsDeviceScanOpen(false)}
+				onDetected={handleDeviceBarcodeDetected}
+			/>
+			<BarcodeScannerModal
+				isOpen={isPartScanOpen}
+				title='Part Capture Assistant'
+				defaultMethod='barcode'
+				captureIntent='part'
+				onClose={() => setIsPartScanOpen(false)}
+				onDetected={handlePartBarcodeDetected}
+			/>
 		</>
 	);
 };

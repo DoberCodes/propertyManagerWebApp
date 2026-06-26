@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Appliance Profiles define what information is useful for a specific appliance, system, or asset type.
+Appliance Profiles define what information is useful for a specific appliance or asset type.
 
 They serve as the source of truth for:
 
@@ -21,6 +21,28 @@ Appliance Profiles define:
 * Suggested Parts & Supplies
 * Suggested Documentation
 * Recommendation Priorities
+
+---
+
+# Asset Classification
+
+Appliance Profiles should distinguish asset type from variant.
+
+Asset type identifies the general category Maintley should reason over.
+
+Variant identifies the specific equipment pattern when known.
+
+Examples:
+
+* Water Heater -> Tank Gas, Tankless Gas, Heat Pump
+* HVAC -> Furnace, Heat Pump, Central AC, Mini Split
+* Dryer -> Gas, Electric
+* Range / Oven -> Gas, Electric
+* Safety Device -> Smoke Detector, Carbon Monoxide Detector, Combo Detector
+
+Maintley Intelligence should prefer `assetType` and `assetVariant` when available.
+
+Older records may only have a legacy `type` field. Those records should remain supported as generic or unknown until the user updates them or Maintley can safely infer asset classification.
 
 ---
 

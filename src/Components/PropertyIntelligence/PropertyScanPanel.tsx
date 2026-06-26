@@ -23,6 +23,10 @@ import {
 } from '../../utils/subscriptionUtils';
 import { RootState } from '../../Redux/store/store';
 import { COLORS } from '../../constants/colors';
+import {
+	getDeviceAssetVariant,
+	getDeviceAssetType,
+} from '../../utils/systemTypes';
 
 interface PropertyScanPanelProps {
 	property: Property;
@@ -64,16 +68,112 @@ const getQuickScanSummary = (recommendations: PropertyScanRecommendation[]) => (
 	overdue: recommendations.filter((item) => item.category === 'Overdue Work').length,
 });
 
-const getSystemDisplayName = (system?: Device): string =>
-	system
-		? [system.brand, system.type, system.model].filter(Boolean).join(' ').trim() ||
-		system.type ||
+const getAssetDisplayName = (asset?: Device): string =>
+	asset
+		? [
+			asset.brand,
+			getDeviceAssetVariant(asset) || getDeviceAssetType(asset),
+			asset.model,
+		]
+			.filter(Boolean)
+			.join(' ')
+			.trim() ||
+		getDeviceAssetType(asset) ||
 		'System record'
 		: 'System record';
 
 const getRecommendationDialogTitle = (
 	recommendation: PropertyScanRecommendation,
 ): string => recommendation.title.replace(/\.$/, '');
+
+const shouldOpenAffectedDialog = (
+	recommendation: PropertyScanRecommendation,
+): boolean =>
+	Boolean(
+		(recommendation.relatedSystemIds?.length ||
+			recommendation.relatedTaskIds?.length) &&
+		(recommendation.suggestedActionType === 'open_systems' ||
+			recommendation.suggestedActionType === 'open_task'),
+	);
+
+const getRecommendationPrimaryLabel = (
+	recommendation: PropertyScanRecommendation,
+): string => {
+	if (!shouldOpenAffectedDialog(recommendation)) {
+		return recommendation.suggestedActionLabel;
+	}
+	if (recommendation.relatedTaskIds?.length) {
+		return 'Review Tasks';
+	}
+	if (recommendation.relatedSystemIds?.length) {
+		return 'Review Systems';
+	}
+	return recommendation.suggestedActionLabel;
+};
+
+const getRecommendationImpact = (
+	recommendation: PropertyScanRecommendation,
+): string => {
+	switch (recommendation.ruleId) {
+		case 'overdue-tasks-exist':
+			return 'Reviewing these recorded tasks helps keep maintenance visible and prevents it from slipping further behind.';
+		case 'safety-systems-missing-maintenance-history':
+			return 'Recording safety checks now makes routine testing and battery changes easier to remember later.';
+		case 'systems-missing-actionable-maintenance-coverage':
+		case 'premium-recurring-maintenance-opportunity':
+			return 'When recurring maintenance is recorded, service intervals are easier to keep visible over time.';
+		case 'baseline-maintenance-cadence-overdue':
+			return 'Reviewing recorded cadence gaps helps catch routine care before it fades from the property history.';
+		case 'systems-missing-maintenance-history':
+			return 'Starting the history now gives the property a clearer record of what was serviced and when.';
+		case 'systems-missing-important-identification':
+			return 'Adding these details now makes future warranty claims, manuals, and replacement parts easier to find.';
+		case 'major-systems-missing-install-dates':
+			return 'Recording install dates makes warranty tracking, service planning, and future replacements much easier.';
+		default:
+			if (recommendation.category === 'Missing Information') {
+				return 'Completing this now makes the property record more useful when decisions need to be made.';
+			}
+			if (recommendation.category === 'Maintenance Opportunities') {
+				return 'Addressing this now helps turn property history into a clearer maintenance plan.';
+			}
+			if (recommendation.category === 'Overdue Work') {
+				return 'Reviewing this now helps keep urgent maintenance visible.';
+			}
+			return 'Taking this step helps the property history become more useful over time.';
+	}
+};
+
+const getRecommendationEvidence = (
+	recommendation: PropertyScanRecommendation,
+): string => {
+	switch (recommendation.ruleId) {
+		case 'overdue-tasks-exist':
+			return 'Maintley found recorded maintenance tasks with due dates that have passed.';
+		case 'safety-systems-missing-maintenance-history':
+			return 'Maintley found smoke or carbon monoxide detector records without saved maintenance history.';
+		case 'systems-missing-actionable-maintenance-coverage':
+			return 'Maintley found systems without linked recurring maintenance tasks.';
+		case 'premium-recurring-maintenance-opportunity':
+			return 'Maintley found systems where recurring maintenance could be recorded with Homeowner+.';
+		case 'baseline-maintenance-cadence-overdue':
+			return 'Maintley compared saved maintenance history against Maintley baseline care intervals.';
+		case 'systems-missing-maintenance-history':
+			return 'Maintley found systems without saved maintenance history.';
+		case 'systems-missing-important-identification':
+			return 'Maintley found systems without recorded make or model details.';
+		case 'major-systems-missing-install-dates':
+			return 'Maintley found systems without recorded install dates.';
+		default:
+			if (recommendation.relatedTaskIds?.length) {
+				return 'Maintley found related task records connected to this recommendation.';
+			}
+			if (recommendation.relatedSystemIds?.length) {
+				return 'Maintley found related system records connected to this recommendation.';
+			}
+			return '';
+	}
+};
 
 const delay = (milliseconds: number) =>
 	new Promise((resolve) => setTimeout(resolve, milliseconds));
@@ -292,12 +392,7 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 	const handleRecommendationPrimaryAction = (
 		recommendation: PropertyScanRecommendation,
 	) => {
-		if (
-			(recommendation.relatedSystemIds?.length ||
-				recommendation.relatedTaskIds?.length) &&
-			(recommendation.suggestedActionType === 'open_systems' ||
-				recommendation.suggestedActionType === 'open_tasks')
-		) {
+		if (shouldOpenAffectedDialog(recommendation)) {
 			setDetailRecommendation(recommendation);
 			return;
 		}
@@ -317,7 +412,7 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 
 	const handleOpenRelatedTasks = (recommendation: PropertyScanRecommendation) => {
 		setDetailRecommendation(null);
-		onRecommendationAction('open_tasks', recommendation);
+		onRecommendationAction('open_task', recommendation);
 	};
 
 	const handleDismiss = (recommendationId: string) => {
@@ -358,10 +453,13 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 					<ScanEyebrow>Maintley Intelligence</ScanEyebrow>
 					<ScanTitle>Property Quick Scan</ScanTitle>
 					<ScanText>
-						Maintley reviews what it knows about this property and highlights
-						the few things most worth your attention. It uses saved property
-						details, systems, tasks, and maintenance history, so it is not an
-						inspection, condition assessment, safety certification, or property grade.
+						Maintley reviews your property's history, systems, maintenance
+						records, and documents to identify the few items most likely to
+						improve your records or reduce future maintenance surprises.
+						Maintley Intelligence provides recommendations based on the
+						information recorded for your property. It does not inspect your
+						property, verify system condition, or replace professional
+						maintenance advice or inspections.
 					</ScanText>
 				</ScanTitleBlock>
 				<ScanActions>
@@ -387,15 +485,15 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 					<SummaryGrid>
 						<SummaryItem>
 							<SummaryValue>{displayedSummary.active}</SummaryValue>
-							<SummaryLabel>recommendations</SummaryLabel>
+							<SummaryLabel>opportunities</SummaryLabel>
 						</SummaryItem>
 						<SummaryItem>
 							<SummaryValue>{displayedSystemsReviewed}</SummaryValue>
-							<SummaryLabel>systems reviewed</SummaryLabel>
+							<SummaryLabel>systems analyzed</SummaryLabel>
 						</SummaryItem>
 						<SummaryItem>
 							<SummaryValue>{displayedSummary.overdue}</SummaryValue>
-							<SummaryLabel>overdue tasks</SummaryLabel>
+							<SummaryLabel>immediate actions</SummaryLabel>
 						</SummaryItem>
 					</SummaryGrid>
 
@@ -407,7 +505,7 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 					) : (
 						<RecommendationWrap>
 							<RecommendationIntro>
-								Things worth your attention
+								What Maintley Found
 							</RecommendationIntro>
 							{groupedRecommendations.map((group) => (
 								<CategoryGroup key={group.category}>
@@ -416,7 +514,7 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 										const system = recommendation.systemId
 											? systems.find((item) => item.id === recommendation.systemId)
 											: null;
-										const systemLabel = system ? getSystemDisplayName(system) : '';
+										const systemLabel = system ? getAssetDisplayName(system) : '';
 										const relatedSystems = (recommendation.relatedSystemIds || [])
 											.map((systemId) =>
 												systems.find((item) => item.id === systemId),
@@ -431,6 +529,13 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 										const affectedLabel = relatedTasks.length
 											? `${relatedTasks.length} ${relatedTasks.length === 1 ? 'task' : 'tasks'} affected`
 											: `${relatedSystems.length} ${relatedSystems.length === 1 ? 'system' : 'systems'} affected`;
+										const evidenceText = getRecommendationEvidence(recommendation);
+										const evidenceItems = relatedTasks.length
+											? relatedTasks.map((task) => task.title)
+											: relatedSystems.map((item) => getAssetDisplayName(item));
+										const visibleEvidenceItems = evidenceItems.slice(0, 5);
+										const hiddenEvidenceItemCount =
+											evidenceItems.length - visibleEvidenceItems.length;
 
 										return (
 											<RecommendationItem key={recommendation.id}>
@@ -438,7 +543,7 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 													<RecommendationTitleRow>
 														<SeverityPill $severity={recommendation.severity}>
 															{recommendation.recommendationType ===
-															'premium_opportunity'
+																'premium_opportunity'
 																? 'Opportunity'
 																: recommendation.severity}
 														</SeverityPill>
@@ -452,8 +557,29 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 													<RecommendationDescription>
 														{recommendation.description}
 													</RecommendationDescription>
+													<RecommendationImpact>
+														{getRecommendationImpact(recommendation)}
+													</RecommendationImpact>
 													{hasAffectedDetails ? (
 														<AffectedHint>{affectedLabel}</AffectedHint>
+													) : null}
+													{evidenceText ? (
+														<EvidenceDetails>
+															<EvidenceSummary>
+																Why this recommendation?
+															</EvidenceSummary>
+															<EvidenceText>{evidenceText}</EvidenceText>
+															{visibleEvidenceItems.length > 0 ? (
+																<EvidenceList>
+																	{visibleEvidenceItems.map((item, index) => (
+																		<li key={`${item}-${index}`}>{item}</li>
+																	))}
+																	{hiddenEvidenceItemCount > 0 ? (
+																		<li>{hiddenEvidenceItemCount} more affected records</li>
+																	) : null}
+																</EvidenceList>
+															) : null}
+														</EvidenceDetails>
 													) : null}
 												</RecommendationBody>
 												<RecommendationActions>
@@ -464,7 +590,7 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 																recommendation,
 															)
 														}>
-														{recommendation.suggestedActionLabel}
+														{getRecommendationPrimaryLabel(recommendation)}
 													</ActionButton>
 													<DismissButton
 														type='button'
@@ -546,7 +672,7 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 							<DetailList>
 								{detailRelatedSystems.map((relatedSystem) => (
 									<DetailRow key={relatedSystem.id}>
-										<span>{getSystemDisplayName(relatedSystem)}</span>
+										<span>{getAssetDisplayName(relatedSystem)}</span>
 										<DetailOpenButton
 											type='button'
 											onClick={() =>
@@ -571,7 +697,7 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 											onClick={() =>
 												handleOpenRelatedTasks(detailRecommendation)
 											}>
-											Open Tasks
+											Open Task
 										</DetailOpenButton>
 									</DetailRow>
 								))}
@@ -980,9 +1106,56 @@ const RecommendationDescription = styled.p`
 	line-height: 1.45;
 `;
 
+const RecommendationImpact = styled.p`
+	margin: 0;
+	color: #334155;
+	font-size: 13px;
+	font-weight: 600;
+	line-height: 1.45;
+`;
+
 const AffectedHint = styled.div`
 	color: #64748b;
 	font-size: 13px;
+`;
+
+const EvidenceDetails = styled.details`
+	margin-top: 2px;
+	color: #475569;
+	font-size: 13px;
+	line-height: 1.45;
+
+	&[open] {
+		margin-top: 4px;
+	}
+`;
+
+const EvidenceSummary = styled.summary`
+	color: ${COLORS.primaryDark};
+	cursor: pointer;
+	font-weight: 700;
+	list-style-position: inside;
+
+	&:focus-visible {
+		outline: 2px solid ${COLORS.primary};
+		outline-offset: 2px;
+		border-radius: 4px;
+	}
+`;
+
+const EvidenceText = styled.p`
+	margin: 6px 0 0;
+	color: #475569;
+`;
+
+const EvidenceList = styled.ul`
+	margin: 6px 0 0;
+	padding-left: 18px;
+	color: #334155;
+
+	li {
+		margin: 2px 0;
+	}
 `;
 
 const RecommendationActions = styled.div`

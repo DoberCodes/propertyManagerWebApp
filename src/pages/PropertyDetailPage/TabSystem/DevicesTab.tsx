@@ -77,6 +77,14 @@ import {
 	getSubscriptionPlanDetails,
 } from '../../../utils/subscriptionUtils';
 import { RoleCapabilities } from '../../../utils/permissions';
+import {
+	getDeviceAssetVariant,
+	getDeviceAssetType,
+	getAssetVariantOptions,
+	normalizeAssetVariant,
+	normalizeAssetType,
+	UNKNOWN_ASSET_TYPE,
+} from '../../../utils/systemTypes';
 
 const SectionLead = styled.p`
 	margin: -4px 0 14px;
@@ -87,6 +95,8 @@ const SectionLead = styled.p`
 
 interface DeviceFormData {
 	type: string;
+	assetType?: string;
+	assetVariant?: string;
 	brand: string;
 	model: string;
 	serialNumber?: string;
@@ -142,7 +152,9 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 	const [sortBy, setSortBy] = useState<'type' | 'status' | 'brand'>('type');
 
 	const [deviceFormData, setDeviceFormData] = useState<DeviceFormData>({
-		type: '',
+		type: UNKNOWN_ASSET_TYPE,
+		assetType: UNKNOWN_ASSET_TYPE,
+		assetVariant: '',
 		brand: '',
 		model: '',
 		serialNumber: '',
@@ -267,6 +279,8 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 		const serviceItems = Array.isArray(device?.serviceItems) ? device.serviceItems : [];
 		const files = Array.isArray(device?.files) ? device.files : [];
 		return Boolean(
+			String(device?.assetType || '').trim() ||
+			String(device?.assetVariant || '').trim() ||
 			String(device?.brand || '').trim() ||
 			String(device?.model || '').trim() ||
 			String(device?.serialNumber || '').trim() ||
@@ -396,6 +410,8 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 			}
 			if (query) {
 				const haystack = [
+					getDeviceAssetType(device),
+					getDeviceAssetVariant(device),
 					device.type,
 					device.brand,
 					device.model,
@@ -465,7 +481,7 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 	};
 
 	const getDeviceOperationalIcon = (device: any) => {
-		const context = `${device.type || ''} ${device.brand || ''} ${device.model || ''}`.toLowerCase();
+		const context = `${getDeviceAssetType(device)} ${getDeviceAssetVariant(device)} ${device.type || ''} ${device.brand || ''} ${device.model || ''}`.toLowerCase();
 		if (context.includes('hvac') || context.includes('heat') || context.includes('cool')) {
 			return { icon: faFan, color: '#0f766e', background: '#ecfeff' };
 		}
@@ -506,6 +522,8 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 					? units.find((u) => u.id === row.location.unitId)?.name || 'Unit'
 					: 'Property level';
 				const technical = [row.brand, row.model].filter(Boolean).join(' ');
+				const assetType = getDeviceAssetType(row);
+				const assetVariant = getDeviceAssetVariant(row);
 				const { linkedOpenTasks, recurringLinkedTasks } = getDeviceAttentionState(row);
 				const iconStyle = getDeviceOperationalIcon(row);
 				const detailsMissing = !hasApplianceDetails(row);
@@ -528,8 +546,23 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 								<FontAwesomeIcon icon={iconStyle.icon} />
 							</span>
 							<div style={{ fontWeight: 800, color: '#0f172a', lineHeight: 1.3 }}>
-								{row.type || 'Appliance'}
+								{assetType || row.type || 'Appliance'}
 							</div>
+							{assetVariant && (
+								<span
+									style={{
+										border: '1px solid #bbf7d0',
+										background: '#f0fdf4',
+										color: '#166534',
+										borderRadius: 999,
+										padding: '2px 7px',
+										fontSize: 11,
+										fontWeight: 800,
+										whiteSpace: 'nowrap',
+									}}>
+									{assetVariant}
+								</span>
+							)}
 							{detailsMissing && (
 								<span
 									style={{
@@ -728,7 +761,9 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 
 	const resetForm = () => {
 		setDeviceFormData({
-			type: '',
+			type: UNKNOWN_ASSET_TYPE,
+			assetType: UNKNOWN_ASSET_TYPE,
+			assetVariant: '',
 			brand: '',
 			model: '',
 			serialNumber: '',
@@ -809,7 +844,9 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 			return;
 		}
 		setDeviceFormData({
-			type: device.type || '',
+			type: getDeviceAssetType(device),
+			assetType: getDeviceAssetType(device),
+			assetVariant: getDeviceAssetVariant(device),
 			brand: device.brand || '',
 			model: device.model || '',
 			serialNumber: device.serialNumber || '',
@@ -845,6 +882,27 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 		}
 
 		setDeviceFormData((prev) => {
+			if (field === 'assetType') {
+				const nextAssetType = normalizeAssetType(value);
+				const variantOptions = getAssetVariantOptions(nextAssetType);
+				const nextVariant = variantOptions.includes(prev.assetVariant || '')
+					? prev.assetVariant || ''
+					: '';
+				return {
+					...prev,
+					type: nextAssetType,
+					assetType: nextAssetType,
+					assetVariant: nextVariant,
+				};
+			}
+
+			if (field === 'assetVariant') {
+				return {
+					...prev,
+					assetVariant: normalizeAssetVariant(prev.assetType || prev.type, value),
+				};
+			}
+
 			if (field === 'decommissionDate') {
 				return {
 					...prev,
@@ -893,7 +951,12 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 
 			const deviceData = {
 				...deviceFormData,
-				type: deviceFormData.type.trim(),
+				type: normalizeAssetType(deviceFormData.assetType || deviceFormData.type),
+				assetType: normalizeAssetType(deviceFormData.assetType || deviceFormData.type),
+				assetVariant: normalizeAssetVariant(
+					deviceFormData.assetType || deviceFormData.type,
+					deviceFormData.assetVariant,
+				),
 				brand: deviceFormData.brand.trim(),
 				model: deviceFormData.model.trim(),
 				serialNumber: deviceFormData.serialNumber?.trim() || '',
@@ -1160,8 +1223,13 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 													textAlign: 'left',
 													lineHeight: 1.3,
 												}}>
-												{device.type || 'Appliance'}
+												{getDeviceAssetType(device) || device.type || 'Appliance'}
 											</button>
+											{getDeviceAssetVariant(device) && (
+												<div style={{ fontSize: 12, color: '#166534', fontWeight: 800 }}>
+													{getDeviceAssetVariant(device)}
+												</div>
+											)}
 											{detailsMissing && (
 												<div style={{ fontSize: 12, color: '#854d0e', fontWeight: 800 }}>
 													No details added

@@ -44,12 +44,12 @@ const SUMMARY_CONFIGS: SummaryConfig[] = [
 		category: 'Overdue Work',
 		severity: 'high',
 		priority: 'high',
-		title: 'Overdue maintenance tasks need review.',
-		description: 'One or more open maintenance tasks are past due.',
+		title: 'Maintley has recorded maintenance tasks that are now overdue.',
+		description: "Maintley's records show one or more open maintenance tasks are past due.",
 		whyItMatters:
-			'Overdue work directly affects maintenance execution and should be reviewed first.',
-		suggestedActionLabel: 'Open Tasks',
-		suggestedActionType: 'open_tasks',
+			'Reviewing these recorded tasks helps keep maintenance visible and prevents it from slipping further behind.',
+		suggestedActionLabel: 'Review Tasks',
+		suggestedActionType: 'open_task',
 	},
 	{
 		ruleId: 'safety-systems-missing-maintenance-history',
@@ -57,11 +57,11 @@ const SUMMARY_CONFIGS: SummaryConfig[] = [
 		category: 'Maintenance Opportunities',
 		severity: 'high',
 		priority: 'high',
-		title: 'Safety device maintenance tracking has not been started.',
+		title: "Maintley's records do not show safety-device maintenance history.",
 		description:
-			'Smoke or carbon monoxide detector records do not show maintenance history yet.',
+			"Maintley's records do not include battery tests or battery replacements for smoke or carbon monoxide detectors yet.",
 		whyItMatters:
-			'Recording checks or battery changes helps keep safety-device maintenance visible in the property timeline.',
+			'Recording tests and battery changes creates a clear history for the next check.',
 		suggestedActionLabel: 'Review Systems',
 		suggestedActionType: 'open_systems',
 	},
@@ -71,11 +71,11 @@ const SUMMARY_CONFIGS: SummaryConfig[] = [
 		category: 'Maintenance Opportunities',
 		severity: 'high',
 		priority: 'high',
-		title: 'Recurring maintenance is missing for several systems.',
+		title: 'Maintley does not currently have recurring maintenance recorded for several systems.',
 		description:
-			'Some systems do not have linked recurring maintenance tasks.',
+			"Maintley's records do not show linked recurring maintenance tasks for some systems.",
 		whyItMatters:
-			'Recurring tasks help turn important maintenance into a visible schedule.',
+			'Recurring schedules help keep service intervals visible before routine care is forgotten.',
 		suggestedActionLabel: 'Review Systems',
 		suggestedActionType: 'open_systems',
 		requiredPlan: 'homeowner_plus',
@@ -86,11 +86,11 @@ const SUMMARY_CONFIGS: SummaryConfig[] = [
 		category: 'Maintenance Opportunities',
 		severity: 'medium',
 		priority: 'medium',
-		title: 'Some maintenance may be due based on Maintley baseline care.',
+		title: "Maintley's records suggest some routine care may be ready for another look.",
 		description:
 			'Maintley found saved maintenance history that is older than the baseline interval for some systems.',
 		whyItMatters:
-			'Baseline care intervals help turn your maintenance history into practical next steps without relying on manufacturer-specific assumptions.',
+			'Comparing saved history with baseline care intervals helps turn old records into practical next steps.',
 		suggestedActionLabel: 'Review Systems',
 		suggestedActionType: 'open_systems',
 	},
@@ -100,10 +100,10 @@ const SUMMARY_CONFIGS: SummaryConfig[] = [
 		category: 'Maintenance Opportunities',
 		severity: 'medium',
 		priority: 'medium',
-		title: 'Maintenance tracking has not been started for many systems.',
-		description: 'Some systems do not have maintenance history saved yet.',
+		title: "Maintenance history hasn't been started for several systems.",
+		description: "Maintley's records do not show saved maintenance history for some systems yet.",
 		whyItMatters:
-			'Recording maintenance history helps build a useful service timeline and future recommendations.',
+			'Starting the history creates a clearer record of what was serviced, when it happened, and what may need attention next.',
 		suggestedActionLabel: 'Review Systems',
 		suggestedActionType: 'open_systems',
 	},
@@ -113,11 +113,11 @@ const SUMMARY_CONFIGS: SummaryConfig[] = [
 		category: 'Missing Information',
 		severity: 'medium',
 		priority: 'medium',
-		title: 'Important identification details are missing for some systems.',
+		title: "Some systems could be easier to identify in Maintley's records.",
 		description:
-			'Some systems are missing make or model information in the saved record.',
+			"Maintley's records do not show make or model information for some systems.",
 		whyItMatters:
-			'Make and model details make records more useful when finding manuals, parts, or service notes.',
+			'Make and model details make future manuals, parts, warranty claims, and service notes easier to find.',
 		suggestedActionLabel: 'Review Systems',
 		suggestedActionType: 'open_systems',
 	},
@@ -127,10 +127,10 @@ const SUMMARY_CONFIGS: SummaryConfig[] = [
 		category: 'Missing Information',
 		severity: 'medium',
 		priority: 'medium',
-		title: 'Install dates are missing for many major systems.',
-		description: 'Some systems do not have install dates recorded.',
+		title: 'No install date has been recorded for several major systems.',
+		description: "Maintley's records do not show install dates for some major systems.",
 		whyItMatters:
-			'Install dates help with maintenance planning, warranty review, and long-term replacement planning.',
+			'Recording install dates makes warranty tracking, service planning, and future replacements much easier.',
 		suggestedActionLabel: 'Review Systems',
 		suggestedActionType: 'open_systems',
 	},
@@ -150,6 +150,15 @@ const getAffectedSystemIds = (findings: MaintleyFinding[]): string[] =>
 		new Set(findings.flatMap((finding) => finding.affectedSystemIds)),
 	);
 
+const getAffectedAssetIds = (findings: MaintleyFinding[]): string[] =>
+	Array.from(
+		new Set(
+			findings.flatMap(
+				(finding) => finding.affectedAssetIds || finding.affectedSystemIds,
+			),
+		),
+	);
+
 const makeSummaryFinding = (
 	config: SummaryConfig,
 	findings: MaintleyFinding[],
@@ -162,6 +171,7 @@ const makeSummaryFinding = (
 		id: `maintley-intelligence:${firstFinding.propertyId}:quick-scan-summary:${config.idSuffix}`,
 		ruleId: config.ruleId,
 		propertyId: firstFinding.propertyId,
+		affectedAssetIds: getAffectedAssetIds(findings),
 		affectedSystemIds: getAffectedSystemIds(findings),
 		category: config.category,
 		severity: config.severity,
@@ -176,6 +186,7 @@ const makeSummaryFinding = (
 		metadata: {
 			sourceFindingIds: findings.map((finding) => finding.id),
 			affectedTaskIds: getAffectedTaskIds(findings),
+			affectedAssetIds: getAffectedAssetIds(findings),
 			affectedSystemIds: getAffectedSystemIds(findings),
 		},
 		createdAt: firstFinding.createdAt,
@@ -201,6 +212,7 @@ const makePremiumRecurringMaintenanceOpportunity = (
 		id: `maintley-intelligence:${firstFinding.propertyId}:quick-scan-premium:recurring-maintenance`,
 		ruleId: 'premium-recurring-maintenance-opportunity',
 		propertyId: firstFinding.propertyId,
+		affectedAssetIds: [],
 		affectedSystemIds: [],
 		category: 'Maintenance Opportunities',
 		severity: 'medium',

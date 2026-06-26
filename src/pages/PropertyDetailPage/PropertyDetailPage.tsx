@@ -767,7 +767,7 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 			case 'create_task':
 				handleOpenCreateTaskDialog();
 				break;
-			case 'open_tasks':
+			case 'open_task':
 				selectPropertyTab('tasks');
 				break;
 			case 'open_maintenance':

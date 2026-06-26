@@ -94,7 +94,7 @@ describe('propertyIntelligenceScan Quick Property Scan', () => {
 		);
 
 		expect(maintenanceSummary?.title).toBe(
-			'Maintenance tracking has not been started for many systems.',
+			"Maintenance history hasn't been started for several systems.",
 		);
 		expect(maintenanceSummary?.relatedSystemIds).toHaveLength(3);
 		expect(
@@ -148,7 +148,7 @@ describe('propertyIntelligenceScan Quick Property Scan', () => {
 			quickRecommendations.some(
 				(recommendation) =>
 					recommendation.title ===
-					'Recurring maintenance is missing for several systems.',
+					'Maintley does not currently have recurring maintenance recorded for several systems.',
 			),
 		).toBe(false);
 		expect(
@@ -179,7 +179,7 @@ describe('propertyIntelligenceScan Quick Property Scan', () => {
 		const recurringSummary = quickRecommendations.find(
 			(recommendation) =>
 				recommendation.title ===
-				'Recurring maintenance is missing for several systems.',
+				'Maintley does not currently have recurring maintenance recorded for several systems.',
 		);
 
 		expect(recurringSummary?.recommendationType).toBe('feature');
@@ -268,7 +268,7 @@ describe('propertyIntelligenceScan Quick Property Scan', () => {
 				recommendation.ruleId === 'overdue-tasks-exist',
 		);
 
-		expect(overdueSummary?.suggestedActionType).toBe('open_tasks');
+		expect(overdueSummary?.suggestedActionType).toBe('open_task');
 		expect([...(overdueSummary?.relatedTaskIds || [])].sort()).toEqual([
 			'overdue-1',
 			'overdue-2',

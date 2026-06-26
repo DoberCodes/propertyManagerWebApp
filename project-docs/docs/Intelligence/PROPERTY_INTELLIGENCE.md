@@ -80,6 +80,15 @@ Maintley Intelligence is responsible for:
 * Portfolio Intelligence
 * Future AI-assisted recommendations
 
+Maintley Intelligence should prefer structured asset classification when available.
+
+Device records may provide:
+
+* `assetType` - broad asset type, such as HVAC or Water Heater.
+* `assetVariant` - more specific pattern, such as Furnace or Tankless Gas.
+
+Knowledge packs should use these fields before falling back to the legacy `type` field. Legacy records without structured classification should remain supported as generic or unknown.
+
 Maintley Intelligence is not responsible for:
 
 * Email delivery
@@ -176,6 +185,22 @@ Maintley Intelligence evaluates Maintley's records.
 
 It does not evaluate actual property condition.
 
+Recommendation wording should always attribute findings to Maintley's saved records.
+
+Maintley Intelligence should say:
+
+```text
+Maintley's records do not show HVAC service in the past 180 days.
+```
+
+Avoid:
+
+```text
+Your HVAC has not been serviced in 180 days.
+```
+
+The distinction matters because Maintley has memory, not omniscience. It reports on recorded property knowledge and suggests next steps from that record.
+
 Avoid:
 
 * Your water heater needs replacement.
@@ -189,6 +214,138 @@ Prefer:
 * Additional information may improve future maintenance tracking.
 
 Maintley Intelligence should describe records, not diagnose properties.
+
+---
+
+# Recommendation Safety Ladder
+
+Maintley Intelligence recommendations should stay within safe, explainable levels.
+
+## Level 1: Stored Data
+
+Safest.
+
+Reports facts from Maintley's database.
+
+Examples:
+
+* No warranty has been uploaded.
+* No recurring task exists in Maintley's records.
+* No install date has been recorded.
+* Last recorded maintenance was 180 days ago.
+
+## Level 2: Organization Improvements
+
+Still safe.
+
+Suggests ways to make the property record more useful.
+
+Examples:
+
+* Recording the filter size makes future replacements easier.
+* Adding a manual may help future repairs.
+* Consider creating recurring maintenance.
+
+## Level 3: Attributed Guidance
+
+Usually acceptable when clearly attributed.
+
+Uses Maintley baseline guidance, user-defined schedules, or future manufacturer/common guidance while making the source clear.
+
+Example:
+
+```text
+Many HVAC filters are commonly replaced every 90 days. Maintley's records show the last recorded replacement was 112 days ago.
+```
+
+## Level 4: Avoid
+
+Do not diagnose, predict failure, make safety judgments, assess code compliance, or provide structural advice.
+
+Avoid:
+
+* Your water heater is failing.
+* Your roof needs repair.
+* Your wiring is unsafe.
+* This system is not code compliant.
+
+---
+
+# Recommendation Source Types
+
+Future recommendation records should formally identify why the recommendation exists.
+
+Recommended source types:
+
+* Recorded Fact - Derived directly from Maintley's saved data.
+* Documentation Opportunity - Based on absent or incomplete property records.
+* Maintenance Reminder - Based on recorded dates and user-configured or Maintley-defined intervals.
+* General Best Practice - Based on commonly accepted maintenance guidance, with clear attribution.
+* User Preference - Based on how the owner chooses to manage the property.
+
+The current v1 engine already exposes `ruleId`, `description`, `whyItMatters`, metadata, and required plan/capability fields. A future schema change may add an explicit source-type field so every recommendation can answer:
+
+> Why did Maintley recommend this?
+
+That schema change should be handled deliberately because it affects the recommendation contract and saved scan snapshots.
+
+---
+
+# Recommendation Explanation Model
+
+Every recommendation should internally answer four questions.
+
+* Observation - What did Maintley observe in the property's records?
+* Why it matters - Why is the observation useful to the homeowner?
+* Future benefit - What becomes easier, clearer, or more reliable later?
+* Action - What should the user do next?
+
+Every recommendation should also retain an internal reasoning statement.
+
+This is the hidden because behind the recommendation. It may not appear on the recommendation card, but it should be available for future email summaries, recommendation explanations, audit trails, and generated guidance.
+
+Example:
+
+```text
+Observation:
+No install date has been recorded for your Water Heater.
+
+Why it matters:
+Install dates help estimate warranty coverage and replacement planning.
+
+Future benefit:
+Recording the install date makes warranty tracking, service planning, and future replacements much easier.
+
+Action:
+Record the install date if known.
+
+Internal reasoning:
+Maintley recommends recording install dates because they support warranty tracking, replacement planning, and lifecycle estimates.
+```
+
+Not every screen needs to show all four pieces, but the engine should be able to explain them.
+
+Evidence should still be available through rule metadata, affected record IDs, source types, and recorded property data so Maintley can answer:
+
+> How do I know this?
+
+Quick Scan cards should keep evidence behind progressive disclosure.
+
+The default card should show:
+
+* Observation
+* Why it matters
+* Affected count, when affected records are known
+* Recommended action
+
+An inline disclosure labeled `Why this recommendation?` may expand to show:
+
+* The record-based evidence sentence
+* A short affected system or task list
+
+This keeps recommendations scannable while giving curious users a clear answer to:
+
+> Why am I seeing this?
 
 ---
 
@@ -515,6 +672,30 @@ Quick Scan summary titles should be encouraging and should avoid leading with la
 
 Quick Scan should be plan-aware.
 
+Quick Scan summary wording should sound like guidance from an experienced property manager.
+
+Prefer:
+
+```text
+Maintley does not currently have recurring maintenance recorded for several systems.
+```
+
+```text
+Maintley's records do not show safety-device maintenance history yet.
+```
+
+Avoid leading with:
+
+```text
+Recurring maintenance is missing.
+```
+
+```text
+Tracking has not been started.
+```
+
+Quick Scan should reinforce the property-memory story by framing many findings as opportunities to build history, improve future decisions, or reduce forgotten maintenance.
+
 Maintley Intelligence may generate more findings than a user can act on, but the visible Quick Scan should pass through a capability filter before recommendations are shown.
 
 Free users should see record-focused recommendations they can act on, such as:
@@ -535,25 +716,25 @@ Detailed affected system or task lists should open in a dialog from the recommen
 
 High-priority examples:
 
-* A system has no recurring maintenance schedule
-* The property has overdue maintenance tasks
+* Maintley could not find a recurring maintenance schedule for a system
+* Maintley's records show overdue maintenance tasks
 * The property contains no systems
-* Smoke or carbon monoxide detectors have no maintenance tracking
+* Maintley's records do not show smoke or carbon monoxide detector maintenance history
 
 Medium-priority examples:
 
-* A system is missing an install date
-* A major appliance is missing make or model
-* Maintenance history has not been started for multiple systems
-* Serviced equipment has no contractor recorded
-* Warranty expiration is not recorded
+* No install date has been recorded for a system
+* A major appliance could be easier to identify later in Maintley's records with make or model details
+* Maintenance history has not been started for several systems
+* Maintley's records do not show a contractor for serviced equipment
+* No warranty expiration has been recorded
 
 Theme examples:
 
-* Maintenance tracking has not been started for 12 systems.
-* 8 systems do not have recurring maintenance tasks.
-* 6 systems are missing important identification details.
-* 3 major systems are missing install dates.
+* Maintenance history has not been started for several systems.
+* Maintley does not currently have recurring maintenance recorded for several systems.
+* Some systems could be easier to identify in Maintley's records.
+* No install date has been recorded for several major systems.
 
 Quick Scan excludes audit-style completeness items such as:
 
@@ -625,6 +806,13 @@ AI scanned your house.
 Repeated system-level findings should be aggregated into a small number of theme-level recommendations by the Quick Scan consumer. Individual system findings belong in Full Property Audit or future drill-down views.
 
 Each visible recommendation should include a short explanation of why the action matters. For example, install dates help track equipment age, warranty coverage, and future replacement planning.
+
+Visible Quick Scan recommendation cards should help users understand:
+
+* What Maintley found
+* Why the finding matters
+* What future maintenance headache the next step may help avoid
+* Which action the user can take next
 
 The Insights tab should show the last scan date when a scan has been run.
 

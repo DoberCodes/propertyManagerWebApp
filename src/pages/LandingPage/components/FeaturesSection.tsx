@@ -22,7 +22,7 @@ import {
 const FeaturesSectionComponent = () => {
 	return (
 		<FeaturesSection id='Features'>
-			<FeaturesTitle>What Maintley Keeps Connected</FeaturesTitle>
+			<FeaturesTitle>What Maintley Helps You Preserve</FeaturesTitle>
 			<FeatureGrid>
 				<FeatureCard $flagship>
 					<FeatureIcon className='history' $flagship>
@@ -30,8 +30,8 @@ const FeaturesSectionComponent = () => {
 					</FeatureIcon>
 					<FeatureTitle $flagship>Property Records</FeatureTitle>
 					<FeatureDescription>
-						Keep repairs, replacements, service notes, and reports tied to the
-						home instead of buried in separate folders.
+						Preserve repairs, replacements, service notes, and reports in the
+						property history instead of scattered folders.
 					</FeatureDescription>
 				</FeatureCard>
 				<FeatureCard>
@@ -40,8 +40,8 @@ const FeaturesSectionComponent = () => {
 					</FeatureIcon>
 					<FeatureTitle>Appliances & Systems</FeatureTitle>
 					<FeatureDescription>
-						Follow HVAC, appliances, filters, linked parts, and appliance history in
-						one connected place.
+						Keep HVAC, appliances, filters, parts, and service history with the
+						systems they belong to.
 					</FeatureDescription>
 				</FeatureCard>
 				<FeatureCard>
@@ -50,18 +50,18 @@ const FeaturesSectionComponent = () => {
 					</FeatureIcon>
 					<FeatureTitle>Recurring Care</FeatureTitle>
 					<FeatureDescription>
-						Store reminders, seasonal upkeep, and recurring service so future
-						you knows what needs to happen next.
+						Remember seasonal upkeep and recurring service so future you knows
+						what needs attention next.
 					</FeatureDescription>
 				</FeatureCard>
 				<FeatureCard>
 					<FeatureIcon className='analytics'>
 						<FontAwesomeIcon icon={faFileLines} />
 					</FeatureIcon>
-					<FeatureTitle>Team Coordination</FeatureTitle>
+					<FeatureTitle>Shared Property Knowledge</FeatureTitle>
 					<FeatureDescription>
-						Keep tenants, contractors, and managers aligned around the same
-						maintenance memory.
+						Help tenants, contractors, and managers work from the same property
+						history.
 					</FeatureDescription>
 				</FeatureCard>
 				<FeatureCard>
@@ -70,8 +70,8 @@ const FeaturesSectionComponent = () => {
 					</FeatureIcon>
 					<FeatureTitle>Documents & Photos</FeatureTitle>
 					<FeatureDescription>
-						Attach receipts, warranties, photos, and notes directly to the
-						service history.
+						Attach receipts, warranties, photos, and notes where future
+						decisions will need them.
 					</FeatureDescription>
 				</FeatureCard>
 				<FeatureCard>
@@ -80,7 +80,7 @@ const FeaturesSectionComponent = () => {
 					</FeatureIcon>
 					<FeatureTitle>Find Anything Fast</FeatureTitle>
 					<FeatureDescription>
-						Search the history later without digging through texts, folders, or
+						Find the answer later without digging through texts, folders, or
 						emails.
 					</FeatureDescription>
 				</FeatureCard>
@@ -88,9 +88,10 @@ const FeaturesSectionComponent = () => {
 					<FeatureIcon className='mobile'>
 						<FontAwesomeIcon icon={faMobileScreenButton} />
 					</FeatureIcon>
-					<FeatureTitle>Mobile History Access</FeatureTitle>
+					<FeatureTitle>Mobile Recordkeeping</FeatureTitle>
 					<FeatureDescription>
-						Keep the full property story close at hand from any device.
+						Capture maintenance while the details are still fresh, from any
+						device.
 					</FeatureDescription>
 				</FeatureCard>
 			</FeatureGrid>

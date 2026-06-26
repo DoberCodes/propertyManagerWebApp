@@ -45,6 +45,7 @@ import {
 	TimelineList,
 	TimelineRow,
 	TimelineRail,
+	TimelineIcon,
 	TimelineContent,
 	TimelineTitle,
 	TimelineMeta,
@@ -65,6 +66,15 @@ import {
 	OwnershipEventItem,
 	OwnershipEventTitle,
 	OwnershipEventMeta,
+	MemorySection,
+	MemoryShell,
+	MemoryHeader,
+	MemoryIntro,
+	MemoryGrid,
+	MemoryStageCard,
+	MemoryStageNumber,
+	MemoryStageTitle,
+	MemoryStageText,
 	JourneySection,
 	JourneyShell,
 	JourneyHeader,
@@ -141,13 +151,13 @@ const LandingPageComponent = () => {
 
 	// SEO — important for public landing page (site-wide defaults are in public/index.html)
 	const seo = {
-		title: 'Maintley — Maintenance & Property History',
+		title: 'Maintley - Home Maintenance History That Helps Future You',
 		description:
-			'Maintley keeps maintenance history, systems, recurring care, and property records connected so nothing gets lost over time.',
+			'Maintley preserves your property history so every maintenance record, warranty, document, and repair helps future you make better decisions.',
 		url: 'https://maintleyapp.com/',
 		image: `${window.location.origin}/Favicon.png`,
 		keywords:
-			'home maintenance history, property records, recurring maintenance, appliance service history',
+			'home maintenance history, property records, recurring maintenance, appliance service history, property memory',
 		structuredData: {
 			'@context': 'https://schema.org',
 			'@type': 'WebSite',
@@ -166,7 +176,7 @@ const LandingPageComponent = () => {
 	const continuityReasons = [
 		{
 			title: 'Repairs get forgotten',
-			text: 'Small fixes are easy to lose in texts, notes, and calendars. Maintley keeps the full maintenance story connected.',
+			text: 'Small fixes are easy to lose in texts, notes, and calendars. Maintley keeps them in the property history where future you can find them.',
 		},
 		{
 			title: 'Documents get buried',
@@ -174,22 +184,25 @@ const LandingPageComponent = () => {
 		},
 		{
 			title: 'Systems need memory',
-			text: 'HVAC, appliances, filters, and recurring care should be tied to the property itself, not someone’s inbox.',
+			text: 'HVAC, appliances, filters, and recurring care should stay with the property itself, not someone’s inbox.',
 		},
 	];
 
 	const continuityTimeline = [
-		{ title: 'HVAC installed', meta: 'System record created and linked to the property' },
-		{ title: 'Filter replaced', meta: 'Recurring care logged for the next reminder' },
-		{ title: 'Water heater serviced', meta: 'Service history preserved with the system' },
-		{ title: 'Roof inspected', meta: 'Inspection notes and photos attached' },
-		{ title: 'Warranty uploaded', meta: 'Document stored alongside the appliance history' },
+		{ icon: '🏠', title: 'Home Purchased', meta: 'The beginning of the property story' },
+		{ icon: '❄️', title: 'HVAC Installed', meta: 'A major system joins the home history' },
+		{ icon: '🛠', title: 'Annual Service Completed', meta: 'Routine care becomes part of the record' },
+		{ icon: '📷', title: 'Roof Inspection', meta: 'Photos and notes preserve what was checked' },
+		{ icon: '📄', title: 'Warranty Added', meta: 'Coverage details stay easy to find later' },
+		{ icon: '🔧', title: 'Capacitor Replaced', meta: 'A repair becomes useful future context' },
+		{ icon: '💧', title: 'Water Heater Flushed', meta: 'Maintenance history supports the next reminder' },
+		{ icon: '🌿', title: 'Spring Maintenance', meta: 'Seasonal upkeep stays tied to the property' },
 	];
 
 	const ownershipMemoryItems = [
 		'Future you knows exactly when the HVAC was last serviced.',
 		'Never wonder which filter size you bought last time.',
-		'Keep appliance warranties connected to the right system.',
+		'Keep appliance warranties with the right system.',
 		'See replacement history without digging through receipts.',
 		'Find contractor notes and service photos years later.',
 	];
@@ -199,6 +212,25 @@ const LandingPageComponent = () => {
 		{ title: 'Seasonal service completed', meta: 'Logged with technician notes and invoice' },
 		{ title: 'Capacitor replaced', meta: 'Part linked to the appliance history' },
 		{ title: 'Next service scheduled', meta: 'Recurring reminder set for early spring' },
+	];
+
+	const memoryProgression = [
+		{
+			title: 'Record',
+			text: 'Capture maintenance, documents, warranties, parts, and service history as work happens.',
+		},
+		{
+			title: 'Remember',
+			text: 'Your property history stays with the property, not scattered across emails, folders, calendars, or memory.',
+		},
+		{
+			title: 'Understand',
+			text: 'Your property history begins telling a story. Maintley recognizes recurring maintenance, missing information, and emerging patterns before they become problems.',
+		},
+		{
+			title: 'Guide',
+			text: 'Maintley Intelligence turns years of property history into recommendations that help you make better maintenance decisions.',
+		},
 	];
 
 	const screenshotJourney = [
@@ -381,9 +413,10 @@ const LandingPageComponent = () => {
 							))}
 						</WhyGrid>
 						<WhyCallout>
-							Maintley keeps your property’s maintenance history connected in one
-							organized place so systems, service records, recurring care,
-							documents, and replacements all stay tied to the home over time.
+							Every repair, replacement, warranty, and maintenance record tells
+							part of your property's story. Maintley keeps that story together,
+							so future decisions are backed by your property's history instead
+							of guesswork.
 						</WhyCallout>
 					</WhySectionInner>
 				</WhySection>
@@ -394,24 +427,22 @@ const LandingPageComponent = () => {
 						<StoryTitle>How It All Started</StoryTitle>
 						<StoryText>
 							I bought my first home and learned quickly that maintenance is not
-							hard because tasks are complicated. It is hard because memory
-							breaks. Notes live in one app, receipts in another place, and
-							important details fade right when you need them.
+							hard because the work is complicated. It is hard because homes
+							accumulate years of information that gradually disappears.
 						</StoryText>
 						<StoryText>
-							I built Maintley to keep the full home story connected: systems,
-							service events, recurring care, parts, photos, warranties, and
-							contractor notes in one timeline that stays useful over time.
+							Filter sizes are forgotten. Warranties get buried. Service history
+							is lost. Every homeowner eventually starts over unless the
+							property's knowledge is preserved.
 						</StoryText>
 						<StoryText>
-							The goal is simple: future you can open Maintley and know exactly
-							what happened, when it happened, and what needs attention next,
-							without digging through old messages or folders.
+							I built Maintley so a home's knowledge can stay with the property.
+							Every record you save today helps future you make better decisions
+							tomorrow.
 						</StoryText>
 						<StoryText>
 							If you own one home, support family properties, or manage rentals,
-							Maintley helps you keep the maintenance history calm, organized,
-							and ready when real decisions need to be made.
+							Maintley helps you preserve the answers you will wish you had later.
 						</StoryText>
 					</StoryContent>
 				</StorySection>
@@ -424,14 +455,17 @@ const LandingPageComponent = () => {
 					<TimelineShell>
 						<TimelineHeader>Your Home Has a Story</TimelineHeader>
 						<TimelineIntro>
-							Maintley keeps the story organized in order, so future you can see
-							what happened, when it happened, and what comes next.
+							Every completed task, uploaded document, and service record becomes
+							part of your property's memory. That growing history helps future
+							you know what happened, when it happened, and what needs attention
+							next.
 						</TimelineIntro>
 						<TimelineCard>
 							<TimelineList>
 								{continuityTimeline.map((entry) => (
 									<TimelineRow key={entry.title}>
 										<TimelineRail />
+										<TimelineIcon aria-hidden='true'>{entry.icon}</TimelineIcon>
 										<TimelineContent>
 											<TimelineTitle>{entry.title}</TimelineTitle>
 											<TimelineMeta>{entry.meta}</TimelineMeta>
@@ -443,16 +477,38 @@ const LandingPageComponent = () => {
 					</TimelineShell>
 				</TimelineSection>
 
+				{/* Memory Progression Section */}
+				<MemorySection id='PropertyMemory'>
+					<MemoryShell>
+						<MemoryHeader>The More Your Property Remembers, The More Maintley Can Help</MemoryHeader>
+						<MemoryIntro>
+							On day one, Maintley helps you organize your records. As your
+							property's history grows, Maintley begins recognizing patterns,
+							identifying missing information, and surfacing useful
+							recommendations.
+						</MemoryIntro>
+						<MemoryGrid>
+							{memoryProgression.map((stage, index) => (
+								<MemoryStageCard key={stage.title}>
+									<MemoryStageNumber>{index + 1}</MemoryStageNumber>
+									<MemoryStageTitle>{stage.title}</MemoryStageTitle>
+									<MemoryStageText>{stage.text}</MemoryStageText>
+								</MemoryStageCard>
+							))}
+						</MemoryGrid>
+					</MemoryShell>
+				</MemorySection>
+
 				{/* Ownership Memory Section */}
 				<OwnershipSection id='OwnershipMemory'>
 					<OwnershipShell>
 						<OwnershipHeader>
-							Your Home Has a Story. Maintley Keeps It Together.
+							Give Your Property a Memory
 						</OwnershipHeader>
 						<OwnershipIntro>
-							This is where long-term ownership gets easier: systems, service
-							history, recurring care, documents, and replacement records stay
-							organized as one connected memory.
+							Every maintenance record, warranty, document, and repair becomes
+							part of a living history that helps future you make better
+							decisions.
 						</OwnershipIntro>
 						<OwnershipGrid>
 							<OwnershipListCard>
@@ -491,10 +547,10 @@ const LandingPageComponent = () => {
 				{/* Screenshot Journey Section */}
 				<JourneySection id='Journey' ref={journeySectionRef}>
 					<JourneyShell>
-						<JourneyHeader>Three Screens. One Continuous Story.</JourneyHeader>
+						<JourneyHeader>Three Screens. One Long-Term Record.</JourneyHeader>
 						<JourneyIntro>
 							From first log to long-term history, this is how Maintley turns
-							everyday maintenance into reliable memory you can trust later.
+							everyday maintenance into reliable knowledge you can trust later.
 						</JourneyIntro>
 						<JourneyGrid>
 							{screenshotJourney.map((item) => (
@@ -522,7 +578,7 @@ const LandingPageComponent = () => {
 						</BenefitImage>
 						<BenefitContent>
 							<BenefitTitle>
-								Calm Comes From a Complete Home Timeline
+								Better Decisions Start With Better Records
 							</BenefitTitle>
 							<BenefitDescription>
 								When each service, replacement, and note is logged in one place,
@@ -532,7 +588,7 @@ const LandingPageComponent = () => {
 							<BenefitList>
 								<BenefitItem>
 									<FontAwesomeIcon className='benefit-icon' icon={faBookOpen} />
-									Build one reliable source of truth
+									Preserve the property history
 								</BenefitItem>
 								<BenefitItem>
 									<FontAwesomeIcon
@@ -723,11 +779,10 @@ const LandingPageComponent = () => {
 				</ContactSection>
 				{/* CTA Section */}
 				<CTASection>
-					<CTATitle>Give Future You a Reliable Home Memory</CTATitle>
+					<CTATitle>Give Future You the Answers You Wish You Had Today</CTATitle>
 					<CTADescription>
-						Start now and build a clear maintenance history you can rely on for
-						years. Keep systems, service events, documents, and recurring care
-						connected from day one.
+						Every record you save today helps future you make better decisions
+						tomorrow. Start preserving your property's story now.
 					</CTADescription>
 					<CTAButtons>
 						<CTAButton onClick={() => navigate('/register')}>
@@ -743,7 +798,7 @@ const LandingPageComponent = () => {
 					<DownloadContainer>
 						<DownloadHeading>Download the App</DownloadHeading>
 						<DownloadSubtext>
-							Install Maintley and start building your maintenance memory today.
+							Install Maintley and start preserving your maintenance history today.
 							Log work, attach records, and keep your home timeline organized.
 							Available on Android.
 						</DownloadSubtext>
@@ -778,7 +833,7 @@ const LandingPageComponent = () => {
 							<h3>Maintley</h3>
 							<p>
 								A simple way to keep your home, systems, and service history
-								connected for the long run.
+								useful for the long run.
 							</p>
 						</FooterBrand>
 

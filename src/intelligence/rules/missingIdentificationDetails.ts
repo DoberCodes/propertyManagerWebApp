@@ -1,5 +1,5 @@
 import { MaintleyIntelligenceRule } from '../types';
-import { getSystemName, isBlank, makeFinding } from './helpers';
+import { getAssetDisplayName, isBlank, makeFinding } from './helpers';
 
 export const missingIdentificationDetailsRule: MaintleyIntelligenceRule = {
 	id: 'systems-missing-important-identification',
@@ -10,7 +10,7 @@ export const missingIdentificationDetailsRule: MaintleyIntelligenceRule = {
 			if (isBlank(system.model)) missingFields.push('model');
 			if (missingFields.length === 0) return [];
 
-			const systemName = getSystemName(system);
+			const systemName = getAssetDisplayName(system);
 
 			return [
 				makeFinding(context, {

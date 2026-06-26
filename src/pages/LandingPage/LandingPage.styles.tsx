@@ -484,14 +484,36 @@ export const TimelineRail = styled.div`
 	}
 `;
 
+export const TimelineIcon = styled.span`
+	width: 34px;
+	height: 34px;
+	flex-shrink: 0;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: 12px;
+	background: #f8fafc;
+	border: 1px solid #e2e8f0;
+	font-size: 18px;
+	line-height: 1;
+	box-shadow: 0 8px 18px rgba(15, 23, 42, 0.06);
+
+	@media (max-width: 480px) {
+		width: 32px;
+		height: 32px;
+		font-size: 17px;
+		border-radius: 10px;
+	}
+`;
+
 export const TimelineContent = styled.div`
 	flex: 1;
 	min-width: 0;
 `;
 
 export const TimelineTitle = styled.div`
-	font-size: 0.92rem;
-	font-weight: 700;
+	font-size: 0.96rem;
+	font-weight: 800;
 	color: ${COLORS.textPrimary};
 	line-height: 1.45;
 `;
@@ -661,6 +683,127 @@ export const OwnershipEventMeta = styled.div`
 	font-weight: 500;
 	color: ${COLORS.textSecondary};
 	margin-top: 3px;
+`;
+
+export const MemorySection = styled.section`
+	width: 100%;
+	padding: 84px 40px;
+	background: ${COLORS.bgWhite};
+
+	@media (max-width: 1024px) {
+		padding: 56px 20px;
+	}
+
+	@media (max-width: 480px) {
+		padding: 40px 16px;
+	}
+`;
+
+export const MemoryShell = styled.div`
+	max-width: 1120px;
+	margin: 0 auto;
+`;
+
+export const MemoryHeader = styled.h2`
+	max-width: 820px;
+	margin: 0 auto 14px auto;
+	text-align: center;
+	font-size: 40px;
+	font-weight: 800;
+	line-height: 1.16;
+	color: ${COLORS.textPrimary};
+
+	@media (max-width: 1024px) {
+		font-size: 32px;
+	}
+
+	@media (max-width: 480px) {
+		font-size: 25px;
+	}
+`;
+
+export const MemoryIntro = styled.p`
+	max-width: 780px;
+	margin: 0 auto 28px auto;
+	text-align: center;
+	font-size: 16px;
+	line-height: 1.68;
+	color: ${COLORS.textSecondary};
+
+	@media (max-width: 480px) {
+		font-size: 14px;
+	}
+`;
+
+export const MemoryGrid = styled.div`
+	display: grid;
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+	gap: 14px;
+
+	@media (max-width: 1024px) {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+
+	@media (max-width: 640px) {
+		grid-template-columns: 1fr;
+	}
+`;
+
+export const MemoryStageCard = styled.article`
+	position: relative;
+	background: linear-gradient(180deg, #ffffff 0%, #f9fbff 100%);
+	border: 1px solid #dbe7f6;
+	border-radius: 14px;
+	padding: 18px;
+	box-shadow: ${COLORS.shadow};
+	min-height: 190px;
+
+	&:not(:last-child)::after {
+		content: '→';
+		position: absolute;
+		top: 50%;
+		right: -15px;
+		transform: translateY(-50%);
+		color: ${COLORS.primary};
+		font-size: 18px;
+		font-weight: 800;
+		opacity: 0.45;
+		z-index: 2;
+	}
+
+	@media (max-width: 1024px) {
+		&::after {
+			display: none;
+		}
+	}
+`;
+
+export const MemoryStageNumber = styled.div`
+	width: 34px;
+	height: 34px;
+	border-radius: 999px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: ${COLORS.gradientPrimary};
+	color: #ffffff;
+	font-size: 14px;
+	font-weight: 800;
+	margin-bottom: 12px;
+`;
+
+export const MemoryStageTitle = styled.h3`
+	margin: 0 0 8px 0;
+	font-size: 18px;
+	font-weight: 800;
+	color: ${COLORS.textPrimary};
+`;
+
+export const MemoryStageText = styled.p`
+	margin: 0;
+	font-size: 14px;
+	line-height: 1.55;
+	color: ${COLORS.textSecondary};
 `;
 
 /* ============ OUR MISSION SECTION ============ */

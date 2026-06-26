@@ -366,7 +366,9 @@ Typical fields:
 * accountId
 * propertyId
 * name
-* deviceType
+* type
+* assetType
+* assetVariant
 * manufacturer
 * model
 * serialNumber
@@ -386,6 +388,26 @@ Optional fields may include:
 * photoUrl
 
 Device records should contain descriptive information about the asset itself.
+
+`type` remains the homeowner-facing display label stored on the device record.
+
+`assetType` stores the canonical asset classification Maintley Intelligence should reason over, such as:
+
+* HVAC
+* Water Heater
+* Dryer
+* Stove/Oven
+* Refrigerator
+* Safety Device
+
+`assetVariant` stores the more specific pattern when known, such as:
+
+* Furnace
+* Tankless Gas
+* Tank Electric
+* Smoke Detector
+
+Older records may only contain `type`. Those records remain valid and may be backfilled to `assetType` and `assetVariant` when safe inference is available.
 
 Maintenance activity belongs in:
 

@@ -1,5 +1,5 @@
 import { MaintleyIntelligenceRule } from '../types';
-import { getSystemName, hasLinkedRecurringTask, makeFinding } from './helpers';
+import { getAssetDisplayName, hasLinkedRecurringTask, makeFinding } from './helpers';
 
 export const missingMaintenanceCoverageRule: MaintleyIntelligenceRule = {
 	id: 'systems-missing-actionable-maintenance-coverage',
@@ -7,7 +7,7 @@ export const missingMaintenanceCoverageRule: MaintleyIntelligenceRule = {
 		context.systems.flatMap((system) => {
 			if (hasLinkedRecurringTask(system, context.tasks)) return [];
 
-			const systemName = getSystemName(system);
+			const systemName = getAssetDisplayName(system);
 
 			return [
 				makeFinding(context, {

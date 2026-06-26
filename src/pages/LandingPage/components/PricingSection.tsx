@@ -48,7 +48,7 @@ const cardFeatureHighlights: Record<string, string[]> = {
 	home: [
 		'1 property included',
 		'Up to 15 appliances & systems',
-		'Suggested maintenance opportunities',
+		'Quick Property Scan',
 		'Raw data export',
 	],
 	property: [
@@ -60,8 +60,8 @@ const cardFeatureHighlights: Record<string, string[]> = {
 	homeowner_plus: [
 		'1 property included',
 		'Unlimited appliances & systems',
-		'Maintley Intelligence insights',
-		'Notifications & recurring tasks',
+		'Maintley Intelligence',
+		'Personalized recommendations',
 	],
 	portfolio: [
 		'Up to 15 properties included',
@@ -82,6 +82,8 @@ const quickComparisonRows = [
 	{ label: 'Properties included', values: ['1', '1', 'Up to 7', 'Up to 15'] },
 	{ label: 'Appliances & systems', values: ['Up to 15', 'Unlimited', 'Unlimited', 'Unlimited'] },
 	{ label: 'Maintenance history tracking', values: [true, true, true, true] },
+	{ label: 'Quick Property Scan', values: [true, true, true, true] },
+	{ label: 'Maintley Intelligence', values: ['Quick Scan', 'Personalized guidance', 'Property guidance', 'Portfolio guidance'] },
 	{ label: 'Suggested maintenance', values: ['View only', 'Generate tasks', 'Generate tasks', 'Generate tasks'] },
 	{ label: 'Recurring maintenance scheduling', values: [false, true, true, true] },
 	{ label: 'Document & photo storage', values: ['Limited', true, true, true] },

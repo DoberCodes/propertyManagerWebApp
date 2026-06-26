@@ -1,9 +1,9 @@
-import { getBaselineDefinitionForSystem } from '../baselineCareLibrary';
+import { getBaselineDefinitionForAsset } from '../baselineCareLibrary';
 import { MaintleyIntelligenceRule } from '../types';
 import {
 	getMaintenanceHistoryDate,
 	getMaintenanceHistoryText,
-	getSystemName,
+	getAssetDisplayName,
 	makeFinding,
 	normalizeText,
 } from './helpers';
@@ -52,7 +52,7 @@ export const baselineMaintenanceCadenceRule: MaintleyIntelligenceRule = {
 	id: 'baseline-maintenance-cadence-overdue',
 	evaluate: (context) =>
 		context.systems.flatMap((system) => {
-			const baseline = getBaselineDefinitionForSystem(system);
+			const baseline = getBaselineDefinitionForAsset(system);
 			if (!baseline) return [];
 
 			return baseline.suggestedMaintenanceCadence.flatMap((cadence) => {
@@ -69,7 +69,7 @@ export const baselineMaintenanceCadenceRule: MaintleyIntelligenceRule = {
 				);
 				if (elapsedDays <= cadence.intervalDays) return [];
 
-				const systemName = getSystemName(system);
+				const systemName = getAssetDisplayName(system);
 
 				return [
 					makeFinding(context, {
@@ -87,7 +87,7 @@ export const baselineMaintenanceCadenceRule: MaintleyIntelligenceRule = {
 						metadata: {
 							systemId: system.id,
 							systemName,
-							baselineSystemType: baseline.systemType,
+								baselineAssetType: baseline.assetType,
 							baselineImportanceLevel: baseline.importanceLevel,
 							baselineCadenceId: cadence.id,
 							baselineCadenceLabel: cadence.label,

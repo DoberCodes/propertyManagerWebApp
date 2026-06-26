@@ -1,6 +1,10 @@
 import { Device } from '../types/Property.types';
 import { MaintleyCapability } from './types';
 import { normalizeText } from './rules/helpers';
+import {
+	getDeviceAssetClassificationText,
+	getDeviceAssetType,
+} from '../utils/systemTypes';
 
 export const BASELINE_CARE_LIBRARY_VERSION = '2026.1';
 
@@ -18,7 +22,7 @@ export interface BaselineMaintenanceCadence {
 }
 
 export interface BaselineCareDefinition {
-	systemType: string;
+	assetType: string;
 	importanceLevel: BaselineImportanceLevel;
 	matchTerms: string[];
 	recommendedFields: string[];
@@ -31,7 +35,7 @@ export interface BaselineCareDefinition {
 
 export const BASELINE_CARE_DEFINITIONS: BaselineCareDefinition[] = [
 	{
-		systemType: 'HVAC',
+		assetType: 'HVAC',
 		importanceLevel: 'important',
 		matchTerms: ['hvac', 'furnace', 'air conditioner', 'heat pump', 'ac unit'],
 		recommendedFields: ['make', 'model', 'install date', 'filter size'],
@@ -56,7 +60,7 @@ export const BASELINE_CARE_DEFINITIONS: BaselineCareDefinition[] = [
 		],
 	},
 	{
-		systemType: 'Water Heater',
+		assetType: 'Water Heater',
 		importanceLevel: 'important',
 		matchTerms: ['water heater', 'hot water heater'],
 		recommendedFields: ['make', 'model', 'install date'],
@@ -81,7 +85,7 @@ export const BASELINE_CARE_DEFINITIONS: BaselineCareDefinition[] = [
 		],
 	},
 	{
-		systemType: 'Smoke/CO Detector',
+		assetType: 'Smoke/CO Detector',
 		importanceLevel: 'critical',
 		matchTerms: [
 			'smoke detector',
@@ -113,14 +117,20 @@ export const BASELINE_CARE_DEFINITIONS: BaselineCareDefinition[] = [
 	},
 ];
 
-export const getBaselineDefinitionForSystem = (
-	system: Device,
+export const getBaselineDefinitionForAsset = (
+	asset: Device,
 ): BaselineCareDefinition | null => {
-	const systemText = normalizeText(`${system.type} ${system.brand} ${system.model}`);
+	const exactAssetType = getDeviceAssetType(asset);
+	const exactMatch = BASELINE_CARE_DEFINITIONS.find(
+		(definition) => definition.assetType === exactAssetType,
+	);
+	if (exactMatch) return exactMatch;
+
+	const assetText = normalizeText(getDeviceAssetClassificationText(asset));
 	return (
 		BASELINE_CARE_DEFINITIONS.find((definition) =>
 			definition.matchTerms.some((term) =>
-				systemText.includes(normalizeText(term)),
+				assetText.includes(normalizeText(term)),
 			),
 		) || null
 	);

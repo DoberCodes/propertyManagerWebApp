@@ -63,6 +63,114 @@ The goal is long-term property knowledge.
 
 ---
 
+# Maintley Brand Hierarchy
+
+Maintley's positioning should separate the internal product philosophy from the external customer promise.
+
+## Mission
+
+Help homeowners preserve the knowledge of their property.
+
+## Product Promise
+
+Every record you save today helps future you make better decisions tomorrow.
+
+## Product Philosophy
+
+Homes build history. Maintley makes sure it never gets lost.
+
+## Product Capability
+
+Maintley Intelligence helps users act on preserved property knowledge.
+
+## Feature Layer
+
+Current and future features should roll up to the mission and product promise:
+
+* Quick Property Scan
+* Property Setup Assistant
+* Maintenance History
+* Documents
+* Warranties
+* Tasks
+* Parts
+* Timeline
+
+---
+
+# Maintley Product Philosophy
+
+Maintley is not primarily a task manager.
+
+Maintley is not primarily a document storage app.
+
+Maintley is not primarily an AI assistant.
+
+Maintley is a system that preserves a property's operational memory.
+
+Every feature should support at least one of the following:
+
+* Record
+* Remember
+* Understand
+* Guide
+
+These four stages map to Maintley's product architecture:
+
+```text
+Record
+  ↓
+Remember
+  ↓
+Understand
+  ↓
+Guide
+```
+
+Record:
+
+Capture maintenance, documents, warranties, parts, systems, and service history as work happens.
+
+Remember:
+
+Keep property history with the property, not scattered across emails, folders, calendars, or memory.
+
+Understand:
+
+Use accumulated property history to recognize recurring maintenance, missing information, and emerging patterns.
+
+Guide:
+
+Turn preserved property history into recommendations that help users make better maintenance decisions.
+
+Future features should be evaluated against this progression.
+
+Ask:
+
+* Does it record property knowledge?
+* Does it help the property remember?
+* Does it help Maintley understand the property history?
+* Does it guide the user toward a better decision?
+
+If a feature does none of these, it should be questioned before implementation.
+
+Examples:
+
+* Barcode scanning records knowledge.
+* Manual parsing expands what Maintley can understand.
+* Maintenance History helps the property remember.
+* Linked documents preserve context.
+* Maintley Intelligence guides users toward better decisions.
+* Property transfer preserves knowledge across owners.
+
+This philosophy should guide product decisions without becoming heavy customer-facing language. Customers should primarily hear the outcome:
+
+```text
+Every record you save today helps future you make better decisions tomorrow.
+```
+
+---
+
 # Target Users
 
 ## Homeowners

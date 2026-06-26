@@ -1,6 +1,6 @@
 import { MaintleyIntelligenceRule } from '../types';
 import {
-	getSystemName,
+	getAssetDisplayName,
 	hasMaintenanceHistory,
 	isSafetyTrackingSystem,
 	makeFinding,
@@ -12,7 +12,7 @@ export const missingMaintenanceHistoryRule: MaintleyIntelligenceRule = {
 		context.systems.flatMap((system) => {
 			if (hasMaintenanceHistory(system, context.maintenanceHistory)) return [];
 
-			const systemName = getSystemName(system);
+			const systemName = getAssetDisplayName(system);
 			const isSafetySystem = isSafetyTrackingSystem(system);
 			const ruleId = isSafetySystem
 				? 'safety-systems-missing-maintenance-history'

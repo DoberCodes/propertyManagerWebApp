@@ -38,6 +38,7 @@ export const runMaintleyIntelligence = (
 	input: MaintleyIntelligenceInput,
 	rules: MaintleyIntelligenceRule[] = maintleyIntelligenceRules,
 ): MaintleyIntelligenceResult => {
+	const assets = (input.assets || input.systems || []) as typeof input.systems;
 	const currentDate = getCurrentDate(input.currentDate);
 	const createdAt = input.createdAt || currentDate.toISOString();
 	const planId = input.planId ? normalizeMaintleyPlanId(input.planId) : undefined;
@@ -46,7 +47,8 @@ export const runMaintleyIntelligence = (
 		(planId ? getCapabilitiesForPlan(planId) : {});
 	const context = {
 		property: input.property,
-		systems: input.systems,
+		assets,
+		systems: assets,
 		tasks: input.tasks,
 		maintenanceHistory: input.maintenanceHistory,
 		documents: input.documents || [],
@@ -70,7 +72,8 @@ export const runMaintleyIntelligence = (
 		propertyId: input.property.id,
 		generatedAt: createdAt,
 		baselineVersion: BASELINE_CARE_LIBRARY_VERSION,
-		systemsReviewed: input.systems.length,
+		assetsReviewed: assets.length,
+		systemsReviewed: assets.length,
 		tasksReviewed: input.tasks.length,
 		summary: getSummary(findings),
 		findings,

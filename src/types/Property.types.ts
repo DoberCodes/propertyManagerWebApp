@@ -195,10 +195,29 @@ export interface DeviceServiceItem {
 	notes?: string;
 }
 
+export type AssetCategory =
+	| 'hvac'
+	| 'plumbing'
+	| 'kitchen'
+	| 'safety'
+	| 'structural'
+	| 'exterior'
+	| 'transport'
+	| 'outdoor_equipment'
+	| 'utility'
+	| 'water_management'
+	| 'pool_spa'
+	| 'energy'
+	| 'other';
+
 export interface Device {
 	id: string;
 	userId: string; // Owner of the device
-	type: string; // 'HVAC', 'Plumbing', 'Electrical', 'Appliance', 'Security', 'Other'
+	type: string; // Homeowner-facing display type retained on the record
+	assetType?: string; // Canonical internal type for maintainable assets (e.g. refrigerator, heat_pump)
+	assetVariant?: string; // Optional variant used to select more specific knowledge packs
+	assetCategory?: AssetCategory | string; // Portfolio grouping for rule orchestration and analytics
+	knowledgePack?: string; // Intelligence rule package key used by recommendation engine
 	brand?: string;
 	model?: string;
 	serialNumber?: string;
@@ -229,5 +248,8 @@ export interface Device {
 	createdAt?: string;
 	updatedAt?: string;
 }
+
+// Backward-compatible alias while the codebase transitions from Device to Asset terminology.
+export type Asset = Device;
 
 export type PropertyType = 'Single Family' | 'Multi-Family' | 'Commercial';

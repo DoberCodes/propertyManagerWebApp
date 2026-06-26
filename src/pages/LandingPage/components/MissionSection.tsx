@@ -27,8 +27,8 @@ const MissionSectionComponent = () => {
 					</MissionCardIcon>
 					<MissionCardTitle>Property History</MissionCardTitle>
 					<MissionCardDescription>
-						Keep repairs, replacements, service records, reports, and documents
-						connected to the home itself.
+						Preserve repairs, replacements, service records, reports, and
+						documents as part of the home itself.
 					</MissionCardDescription>
 				</MissionCard>
 				<MissionCard>
@@ -37,8 +37,8 @@ const MissionSectionComponent = () => {
 					</MissionCardIcon>
 					<MissionCardTitle>Appliances & Systems</MissionCardTitle>
 					<MissionCardDescription>
-						Track HVAC, appliances, filters, linked parts, and equipment history
-						with the context that keeps them useful.
+						Track HVAC, appliances, filters, parts, and equipment history with
+						the context that makes each record useful later.
 					</MissionCardDescription>
 				</MissionCard>
 				<MissionCard>
@@ -47,8 +47,8 @@ const MissionSectionComponent = () => {
 					</MissionCardIcon>
 					<MissionCardTitle>Recurring Care</MissionCardTitle>
 					<MissionCardDescription>
-						Keep seasonal upkeep, reminders, recurring service, and follow-up work
-						attached to the property timeline.
+						Turn seasonal upkeep, reminders, recurring service, and follow-up
+						work into a timeline future you can rely on.
 					</MissionCardDescription>
 				</MissionCard>
 				<MissionCard>
@@ -57,8 +57,8 @@ const MissionSectionComponent = () => {
 					</MissionCardIcon>
 					<MissionCardTitle>Team Coordination</MissionCardTitle>
 					<MissionCardDescription>
-						Keep tenants, contractors, and maintenance partners aligned around
-						the same living record.
+						Help tenants, contractors, and maintenance partners make decisions
+						from the same property history.
 					</MissionCardDescription>
 				</MissionCard>
 			</MissionContent>

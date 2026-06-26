@@ -16,6 +16,7 @@ export const SUBSCRIPTION_PLANS = {
 			'1 Property',
 			'Up to 15 Appliances & Systems',
 			'Property Setup Assistant',
+			'Quick Property Scan',
 			'Manual Maintenance Tasks',
 			'Maintenance History Tracking',
 			'Suggested Maintenance Opportunities',
@@ -59,7 +60,8 @@ export const SUBSCRIPTION_PLANS = {
 		features: [
 			'Everything in Homeowner, plus:',
 			'Unlimited Appliances & Systems',
-			'Maintley Intelligence Insights',
+			'Maintley Intelligence',
+			'Personalized Maintenance Recommendations',
 			'Recurring Maintenance Tasks',
 			'Notifications & Reminders',
 			'Advanced Document Storage',

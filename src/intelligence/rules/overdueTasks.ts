@@ -24,8 +24,8 @@ export const overdueTasksRule: MaintleyIntelligenceRule = {
 					description: `${task.title} was due on ${dueDate.toLocaleDateString()}.`,
 					whyItMatters:
 						'Overdue work directly affects maintenance execution and should be reviewed first.',
-					suggestedActionLabel: 'Open Tasks',
-					suggestedActionType: 'open_tasks',
+					suggestedActionLabel: 'Review Task',
+					suggestedActionType: 'open_task',
 					metadata: {
 						taskId: task.id,
 						taskTitle: task.title,

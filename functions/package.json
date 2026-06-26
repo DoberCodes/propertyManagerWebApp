@@ -15,6 +15,8 @@
 		"test:webhook:sandbox": "npx ts-node test-stripe-webhook-sandbox.ts",
 		"migrate:account-rbac": "npm run build && node lib/scripts/migrate-account-rbac.js",
 		"migrate:account-counters": "npm run build && node lib/scripts/backfill-account-counters.js",
+		"migrate:device-assets:dry-run": "npm run build && node lib/scripts/backfill-device-assets.js",
+		"migrate:device-assets": "npm run build && node lib/scripts/backfill-device-assets.js --apply",
 		"check-resend": "node scripts/check-resend.cjs",
 		"seed:admin-user": "node scripts/seed-admin-user.cjs",
 		"stripe:webhook": "stripe listen --forward-to localhost:3000/webhook",

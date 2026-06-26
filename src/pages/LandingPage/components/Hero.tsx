@@ -15,11 +15,10 @@ const HeroSection = () => {
 	return (
 		<Hero>
 			<HeroContent>
-				<HeroTitle>Keep the Full Maintenance History of Your Home Organized</HeroTitle>
+				<HeroTitle>Your Home Builds History. Maintley Makes Sure It Never Gets Lost.</HeroTitle>
 				<HeroSubtitle>
-					Maintley keeps systems, service history, recurring care, documents,
-					and replacements connected in one place so nothing gets lost over
-					time.
+					Keep systems, maintenance, documents, warranties, and replacements
+					together in one place, so every repair becomes part of your property's long-term history, helping future you make better maintenance decisions.
 				</HeroSubtitle>
 				<HeroCTA onClick={() => navigate('/register')}>
 					Get Started Free

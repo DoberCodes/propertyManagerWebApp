@@ -408,6 +408,33 @@ The shared finding model includes:
 * metadata
 * createdAt
 
+Every recommendation should be able to explain:
+
+* Observation - What Maintley observed in the property's records.
+* Why it matters - Why the observation is useful to the homeowner.
+* Future benefit - What becomes easier, clearer, or more reliable later.
+* Action - What the user should do next.
+
+Every recommendation should also retain internal reasoning: the hidden because behind the recommendation.
+
+Example:
+
+```text
+Maintley recommends recording install dates because they support warranty tracking, replacement planning, and lifecycle estimates.
+```
+
+The current model supports this through `title`, `description`, `whyItMatters`, `metadata`, `affectedSystemIds`, `suggestedActionLabel`, and `suggestedActionType`. Future recommendation records may expose these as explicit `observation`, `whyItMatters`, `futureBenefit`, `action`, and `reasoning` fields, with evidence/source metadata available for explainability. That should be handled as a deliberate contract change.
+
+Quick Scan can expose phase-1 evidence without changing the recommendation contract by using existing `ruleId`, `metadata`, `affectedSystemIds`, and related task IDs.
+
+The evidence disclosure should answer:
+
+```text
+Why am I seeing this?
+```
+
+It should report what Maintley found in saved records, then list affected records when available.
+
 Engine input includes:
 
 * property
@@ -526,10 +553,10 @@ Summary rules are shown in Quick Scan.
 
 Examples:
 
-* Maintenance tracking has not been started for many systems.
-* Recurring maintenance is missing for several systems.
-* Important identification details are missing for some systems.
-* Install dates are missing for many major systems.
+* Maintenance history has not been started for several systems.
+* Maintley does not currently have recurring maintenance recorded for several systems.
+* Some systems could be easier to identify in Maintley's records.
+* No install date has been recorded for several major systems.
 
 Exact counts and affected record lists should be available inside the detail view, not in the primary summary title.
 
@@ -836,7 +863,7 @@ The Recommendation Engine should:
 Users should be able to understand:
 
 * Why a recommendation exists.
-* What information is missing.
+* What Maintley's records show or do not show.
 * How to resolve it.
 
 The engine should prioritize helping users improve records and complete maintenance activities rather than maximizing recommendation volume.

@@ -1,6 +1,11 @@
 import { Device } from '../../types/Property.types';
 import { Task } from '../../types/Task.types';
 import {
+	getDeviceAssetClassificationText,
+	getDeviceAssetVariant,
+	getDeviceAssetType,
+} from '../../utils/systemTypes';
+import {
 	MaintleyFinding,
 	MaintleyCapability,
 	MaintleyIntelligenceContext,
@@ -19,10 +24,17 @@ export const isBlank = (value: unknown): boolean =>
 	value === null ||
 	String(value).trim().length === 0;
 
-export const getSystemName = (system: Device): string =>
-	[system.brand, system.type, system.model].filter(Boolean).join(' ').trim() ||
-	system.type ||
-	'this system';
+export const getAssetDisplayName = (asset: Device): string =>
+	[
+		asset.brand,
+		getDeviceAssetVariant(asset) || getDeviceAssetType(asset),
+		asset.model,
+	]
+		.filter(Boolean)
+		.join(' ')
+		.trim() ||
+	getDeviceAssetType(asset) ||
+	'this asset';
 
 export const isTaskOpen = (task: Task): boolean =>
 	!['Completed', 'Rejected'].includes(task.status);
@@ -73,7 +85,8 @@ export const hasMaintenanceHistory = (
 };
 
 export const isSafetyTrackingSystem = (system: Device): boolean => {
-	const systemText = normalizeText(`${system.type} ${system.brand} ${system.model}`);
+	if (getDeviceAssetType(system) === 'Safety Device') return true;
+	const systemText = normalizeText(getDeviceAssetClassificationText(system));
 	return (
 		systemText.includes('smoke') ||
 		systemText.includes('carbon monoxide') ||
@@ -89,11 +102,13 @@ export const makeFinding = (
 		MaintleyFinding,
 		| 'propertyId'
 		| 'createdAt'
+		| 'affectedAssetIds'
 		| 'affectedSystemIds'
 		| 'requiredPlan'
 		| 'requiredCapabilities'
 		| 'baselineVersion'
 	> & {
+		affectedAssetIds?: string[];
 		affectedSystemIds?: string[];
 		requiredPlan?: MaintleyRequiredPlan;
 		requiredCapabilities?: MaintleyCapability[];
@@ -102,7 +117,8 @@ export const makeFinding = (
 ): MaintleyFinding => ({
 	...finding,
 	propertyId: context.property.id,
-	affectedSystemIds: finding.affectedSystemIds || [],
+	affectedAssetIds: finding.affectedAssetIds || finding.affectedSystemIds || [],
+	affectedSystemIds: finding.affectedSystemIds || finding.affectedAssetIds || [],
 	requiredPlan: finding.requiredPlan || 'homeowner',
 	requiredCapabilities: finding.requiredCapabilities || [],
 	baselineVersion: finding.baselineVersion || context.baselineVersion,

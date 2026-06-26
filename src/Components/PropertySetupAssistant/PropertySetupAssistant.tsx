@@ -34,6 +34,7 @@ import {
 	canUseUnlimitedSuggestedMaintenancePackages,
 	getSuggestedMaintenancePackageLimit,
 } from '../../utils/subscriptionUtils';
+import { normalizeAssetType } from '../../utils/systemTypes';
 
 interface PropertySetupAssistantProps {
 	property: Property;
@@ -230,13 +231,17 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 			propertyDevices.find((device: any) => {
 				const name = normalize(String(device.name || ''));
 				const type = normalize(String(device.type || ''));
+				const assetType = normalize(String(device.assetType || ''));
 				const compactName = compact(String(device.name || ''));
 				const compactType = compact(String(device.type || ''));
+				const compactAssetType = compact(String(device.assetType || ''));
 				return (
 					expectedNames.has(name) ||
 					expectedNames.has(type) ||
+					expectedNames.has(assetType) ||
 					expectedCompacts.has(compactName) ||
-					expectedCompacts.has(compactType)
+					expectedCompacts.has(compactType) ||
+					expectedCompacts.has(compactAssetType)
 				);
 			}) || null
 		);
@@ -296,7 +301,9 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 			return await createDevice(
 				stripUndefinedValues({
 					userId: currentUser.id,
-					type: item.system.deviceType,
+					type: normalizeAssetType(item.system.deviceType),
+					assetType: normalizeAssetType(item.system.deviceType),
+					assetVariant: '',
 					name: item.system.label,
 					brand: '',
 					model: '',
@@ -365,11 +372,11 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 							suggestedTask,
 							new Date(
 								Date.now() +
-									((systemOrderIndex * 5 + taskIndex * 9) % 35) *
-										24 *
-										60 *
-										60 *
-										1000,
+								((systemOrderIndex * 5 + taskIndex * 9) % 35) *
+								24 *
+								60 *
+								60 *
+								1000,
 							),
 						),
 						status: 'Initiated',
@@ -384,11 +391,11 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 							.join(' '),
 						...(hasPaidSuggestedMaintenancePackages
 							? {
-									isRecurring: true,
-									recurrenceFrequency: suggestedTask.recurrenceFrequency,
-									recurrenceInterval: suggestedTask.recurrenceInterval,
-									recurrenceCustomUnit: suggestedTask.recurrenceCustomUnit,
-							  }
+								isRecurring: true,
+								recurrenceFrequency: suggestedTask.recurrenceFrequency,
+								recurrenceInterval: suggestedTask.recurrenceInterval,
+								recurrenceCustomUnit: suggestedTask.recurrenceCustomUnit,
+							}
 							: { isRecurring: false }),
 						enableNotifications: true,
 						notifications: getDefaultTaskNotifications(),
@@ -498,12 +505,12 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 				...(prev[itemId] || {}),
 				status,
 				...(status === 'present' &&
-				!Array.isArray(prev[itemId]?.selectedSuggestedTaskIds)
+					!Array.isArray(prev[itemId]?.selectedSuggestedTaskIds)
 					? {
-							selectedSuggestedTaskIds: getSuggestedTaskIdsForSystems([
-								itemId,
-							]),
-					  }
+						selectedSuggestedTaskIds: getSuggestedTaskIdsForSystems([
+							itemId,
+						]),
+					}
 					: {}),
 			},
 		}));
@@ -646,7 +653,7 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 					const hadExistingDevice = Boolean(
 						(itemState.deviceId &&
 							propertyDevices.some((device) => device.id === itemState.deviceId)) ||
-							findExistingDevice(itemId),
+						findExistingDevice(itemId),
 					);
 					const device = await ensureDeviceForItem(itemId, nextItems);
 					if (device?.id && !hadExistingDevice) {
@@ -719,9 +726,9 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 				items: nextItems,
 				...(nextProgress.isComplete
 					? {
-							completedAt:
-								setupAssistant.completedAt || new Date().toISOString(),
-					  }
+						completedAt:
+							setupAssistant.completedAt || new Date().toISOString(),
+					}
 					: {}),
 				updatedAt: nowIso,
 			};
@@ -860,7 +867,7 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 												width: `${Math.round(
 													((selectedAreaIndex + 1) /
 														PROPERTY_SETUP_AREAS.length) *
-														100,
+													100,
 												)}%`,
 											}}
 										/>
@@ -978,10 +985,10 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 															{isSuggestedPackageLocked
 																? 'Suggested Maintenance Available'
 																: hasCreatedSuggestedTasks
-																? 'Recurring tasks already added'
-																: wasAlreadyReviewed
-																	? 'Recurring task review'
-																	: 'Suggested recurring tasks'}
+																	? 'Recurring tasks already added'
+																	: wasAlreadyReviewed
+																		? 'Recurring task review'
+																		: 'Suggested recurring tasks'}
 														</TaskPreviewTitle>
 														{isSuggestedPackageLocked && (
 															<TaskPreviewNotice>
@@ -1494,7 +1501,7 @@ const WizardStepDotButton = styled.button<{
 	border-radius: 999px;
 	border: 1px solid
 		${({ $active, $complete }) =>
-			$active || $complete ? '#16a34a' : '#cbd5e1'};
+		$active || $complete ? '#16a34a' : '#cbd5e1'};
 	background: ${({ $active, $complete }) =>
 		$active ? '#16a34a' : $complete ? '#dcfce7' : '#ffffff'};
 	color: ${({ $active, $complete }) =>
