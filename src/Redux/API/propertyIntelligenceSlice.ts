@@ -1,6 +1,9 @@
 import { collection, doc, getDoc, writeBatch } from 'firebase/firestore';
 import { auth, db } from '../../config/firebase';
-import { PropertyScanRecommendation } from '../../utils/propertyIntelligenceScan';
+import {
+	PropertyScanPremiumPreview,
+	PropertyScanRecommendation,
+} from '../../utils/propertyIntelligenceScan';
 import { apiSlice, docToData } from './apiSlice';
 
 export interface PropertyScanSnapshot {
@@ -8,12 +11,13 @@ export interface PropertyScanSnapshot {
 	accountId: string;
 	propertyId: string;
 	scanType: 'quick_property_scan_v1';
-	schemaVersion: 1;
+	schemaVersion: 1 | 2;
 	planId?: string;
 	createdAt: string;
 	updatedAt: string;
 	createdBy?: string;
 	recommendations: PropertyScanRecommendation[];
+	premiumPreview?: PropertyScanPremiumPreview;
 	systemsReviewed: number;
 	summary: {
 		recommendations: number;

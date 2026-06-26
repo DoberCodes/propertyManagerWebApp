@@ -16,6 +16,7 @@ import {
 	MaintleyFindingCategory,
 	MaintleyFindingPriority,
 	MaintleyFindingSeverity,
+	MaintleyFindingSource,
 	MaintleyCapability,
 	MaintleyRequiredPlan,
 } from '../intelligence/types';
@@ -61,6 +62,7 @@ export interface PropertyScanRecommendation {
 	category: PropertyScanCategory;
 	severity: PropertyScanSeverity;
 	priority?: MaintleyFindingPriority;
+	source?: MaintleyFindingSource;
 	title: string;
 	description: string;
 	reason: string;
@@ -73,6 +75,12 @@ export interface PropertyScanRecommendation {
 	metadata?: Record<string, unknown>;
 	createdAt: string;
 	status: PropertyScanRecommendationStatus;
+}
+
+export interface PropertyScanPremiumPreview {
+	sources: MaintleyFindingSource[];
+	examples: string[];
+	requiredPlan: 'homeowner_plus';
 }
 
 export interface PropertyScanInput {
@@ -103,12 +111,12 @@ export interface PropertyScanResult {
 export const QUICK_PROPERTY_SCAN_LIMIT = QUICK_SCAN_FINDING_LIMIT;
 
 const getRecommendationType = (
-	finding: Pick<MaintleyFinding, 'ruleId' | 'requiredPlan'>,
+	finding: Pick<MaintleyFinding, 'ruleId' | 'source'>,
 ): PropertyScanRecommendationType => {
 	if (finding.ruleId === 'premium-recurring-maintenance-opportunity') {
 		return 'premium_opportunity';
 	}
-	return finding.requiredPlan === 'homeowner' ? 'record' : 'feature';
+	return finding.source === 'property_memory' ? 'record' : 'feature';
 };
 
 const getRelatedTaskIdsFromFinding = (finding: MaintleyFinding): string[] => {
@@ -137,6 +145,7 @@ const findingToRecommendation = (
 		category: finding.category,
 		severity: finding.severity,
 		priority: finding.priority,
+		source: finding.source,
 		title: finding.title,
 		description: finding.whyItMatters,
 		reason: finding.description,
@@ -169,6 +178,7 @@ const recommendationToFinding = (
 			: recommendation.category,
 	severity: recommendation.severity,
 	priority: recommendation.priority || recommendation.severity,
+	source: recommendation.source || 'property_memory',
 	title: recommendation.title,
 	description: recommendation.reason,
 	whyItMatters: recommendation.description,
@@ -184,23 +194,32 @@ const recommendationToFinding = (
 	createdAt: recommendation.createdAt,
 });
 
-export const canAccessPropertyScanRecommendation = (
+const getLegacyRequiredPlanForRecommendation = (
 	recommendation: Pick<
 		PropertyScanRecommendation,
 		'id' | 'requiredPlan' | 'ruleId'
+	>,
+): PropertyScanRequiredPlan =>
+	recommendation.requiredPlan ||
+	(recommendation.id.includes('recurring-maintenance') ||
+	recommendation.id.includes(':system-recurring-task:') ||
+	recommendation.ruleId === 'systems-missing-actionable-maintenance-coverage'
+		? 'homeowner_plus'
+		: 'homeowner');
+
+export const canAccessPropertyScanRecommendation = (
+	recommendation: Pick<
+		PropertyScanRecommendation,
+		'id' | 'requiredPlan' | 'ruleId' | 'source'
 	>,
 	planId?: string,
 ): boolean =>
 	canAccessMaintleyFinding(
 		{
-			requiredPlan:
-				recommendation.requiredPlan ||
-				(recommendation.id.includes('recurring-maintenance') ||
-				recommendation.id.includes(':system-recurring-task:') ||
-				recommendation.ruleId ===
-					'systems-missing-actionable-maintenance-coverage'
-					? 'homeowner_plus'
-					: 'homeowner'),
+			source: recommendation.source,
+			requiredPlan: recommendation.source
+				? undefined
+				: getLegacyRequiredPlanForRecommendation(recommendation),
 		},
 		planId,
 	);
@@ -208,7 +227,7 @@ export const canAccessPropertyScanRecommendation = (
 export const shouldShowPropertyScanRecommendationForPlan = (
 	recommendation: Pick<
 		PropertyScanRecommendation,
-		'id' | 'requiredPlan' | 'recommendationType' | 'ruleId'
+		'id' | 'requiredPlan' | 'recommendationType' | 'ruleId' | 'source'
 	>,
 	planId?: string,
 ): boolean => {
@@ -217,6 +236,58 @@ export const shouldShowPropertyScanRecommendationForPlan = (
 		return !isAvailable;
 	}
 	return isAvailable;
+};
+
+const getPremiumPreviewExample = (
+	recommendation: PropertyScanRecommendation,
+): string => {
+	switch (recommendation.ruleId) {
+		case 'knowledge-pack-record-details-missing':
+			return 'Equipment details such as filter sizes';
+		case 'systems-missing-actionable-maintenance-coverage':
+			return 'Recommended recurring maintenance';
+		case 'baseline-maintenance-cadence-overdue':
+			return 'Equipment-specific maintenance guidance';
+		default:
+			switch (recommendation.source) {
+				case 'history_inference':
+					return 'Patterns in your maintenance history';
+				case 'context':
+					return 'Seasonal and property-context guidance';
+				case 'knowledge_pack':
+					return 'Equipment-specific maintenance guidance';
+				default:
+					return 'Additional Maintley Intelligence guidance';
+			}
+	}
+};
+
+export const getQuickPropertyScanPremiumPreview = (
+	recommendations: PropertyScanRecommendation[],
+	planId?: string,
+): PropertyScanPremiumPreview | null => {
+	const lockedRecommendations = recommendations.filter(
+		(recommendation) =>
+			recommendation.status === 'active' &&
+			recommendation.source !== 'property_memory' &&
+			!canAccessPropertyScanRecommendation(recommendation, planId),
+	);
+
+	if (lockedRecommendations.length === 0) return null;
+
+	return {
+		sources: Array.from(
+			new Set(
+				lockedRecommendations
+					.map((recommendation) => recommendation.source)
+					.filter((source): source is MaintleyFindingSource => Boolean(source)),
+			),
+		),
+		examples: Array.from(
+			new Set(lockedRecommendations.map(getPremiumPreviewExample)),
+		).slice(0, 3),
+		requiredPlan: 'homeowner_plus',
+	};
 };
 
 export const getPropertyScanRecommendationScore = (
@@ -242,7 +313,7 @@ export const isQuickPropertyScanRecommendation = (
 export const getQuickPropertyScanRecommendations = (
 	recommendations: PropertyScanRecommendation[],
 	limit = QUICK_PROPERTY_SCAN_LIMIT,
-	options: { planId?: string; includePremiumOpportunity?: boolean } = {},
+	options: { planId?: string } = {},
 ): PropertyScanRecommendation[] =>
 	selectQuickScanFindings(
 		recommendations
@@ -251,7 +322,6 @@ export const getQuickPropertyScanRecommendations = (
 		{
 			planId: options.planId,
 			limit,
-			includePremiumOpportunity: options.includePremiumOpportunity,
 		},
 	).map((finding) => findingToRecommendation(finding));
 

@@ -21,14 +21,30 @@ export interface BaselineMaintenanceCadence {
 	suggestedActionLabel: string;
 }
 
+export interface BaselineLifecycleGuidance {
+	typicalLifespanYears?: string;
+	notes: string[];
+}
+
+export interface BaselineSeasonalGuidance {
+	spring?: string[];
+	summer?: string[];
+	fall?: string[];
+	winter?: string[];
+}
+
 export interface BaselineCareDefinition {
 	assetType: string;
 	importanceLevel: BaselineImportanceLevel;
 	matchTerms: string[];
 	recommendedFields: string[];
 	suggestedMaintenanceCadence: BaselineMaintenanceCadence[];
+	maintenanceTopics: string[];
+	partsAndSupplies: string[];
 	recommendedDocuments: string[];
+	lifecycle: BaselineLifecycleGuidance;
 	lifecycleHints: string[];
+	seasonalGuidance: BaselineSeasonalGuidance;
 	applicableCapabilities: MaintleyCapability[];
 	disclaimerNotes: string[];
 }
@@ -37,7 +53,17 @@ export const BASELINE_CARE_DEFINITIONS: BaselineCareDefinition[] = [
 	{
 		assetType: 'HVAC',
 		importanceLevel: 'important',
-		matchTerms: ['hvac', 'furnace', 'air conditioner', 'heat pump', 'ac unit'],
+		matchTerms: [
+			'hvac',
+			'furnace',
+			'air conditioner',
+			'air conditioning',
+			'central ac',
+			'heat pump',
+			'ac unit',
+			'mini split',
+			'air handler',
+		],
 		recommendedFields: ['make', 'model', 'install date', 'filter size'],
 		suggestedMaintenanceCadence: [
 			{
@@ -51,9 +77,43 @@ export const BASELINE_CARE_DEFINITIONS: BaselineCareDefinition[] = [
 					'Regular filter checks help keep airflow visible in your maintenance records and make routine HVAC care easier to track.',
 				suggestedActionLabel: 'Open maintenance history',
 			},
+			{
+				id: 'hvac-professional-service',
+				label: 'Record HVAC professional service',
+				intervalDays: 365,
+				severity: 'medium',
+				priority: 'medium',
+				matchTerms: [
+					'service',
+					'tune up',
+					'tune-up',
+					'inspection',
+					'professional service',
+					'seasonal service',
+				],
+				whyItMatters:
+					'Recording professional service creates a clearer service timeline for future troubleshooting, warranty review, and planning.',
+				suggestedActionLabel: 'Open maintenance history',
+			},
 		],
+		maintenanceTopics: ['Filter', 'Professional Service'],
+		partsAndSupplies: ['Capacitor', 'Contactor', 'Filter'],
 		recommendedDocuments: ['manual', 'warranty'],
-		lifecycleHints: ['Track install date for future replacement planning.'],
+		lifecycle: {
+			typicalLifespanYears: '15-20',
+			notes: [
+				'Track install date for long-term replacement planning.',
+				'Use lifecycle guidance for planning context, not equipment diagnosis.',
+			],
+		},
+		lifecycleHints: [
+			'Typical lifespan: 15-20 years for many HVAC systems.',
+			'Track install date for future replacement planning.',
+		],
+		seasonalGuidance: {
+			spring: ['Record cooling-season service or filter checks.'],
+			fall: ['Record heating-season service or filter checks.'],
+		},
 		applicableCapabilities: [],
 		disclaimerNotes: [
 			'Maintley baseline guidance is general recordkeeping guidance, not manufacturer-specific service advice.',
@@ -62,8 +122,13 @@ export const BASELINE_CARE_DEFINITIONS: BaselineCareDefinition[] = [
 	{
 		assetType: 'Water Heater',
 		importanceLevel: 'important',
-		matchTerms: ['water heater', 'hot water heater'],
-		recommendedFields: ['make', 'model', 'install date'],
+		matchTerms: [
+			'water heater',
+			'hot water heater',
+			'tankless',
+			'tank water heater',
+		],
+		recommendedFields: ['make', 'model', 'install date', 'serial'],
 		suggestedMaintenanceCadence: [
 			{
 				id: 'water-heater-flush',
@@ -76,12 +141,233 @@ export const BASELINE_CARE_DEFINITIONS: BaselineCareDefinition[] = [
 					'Recording flushes helps preserve a useful service timeline for sediment-related maintenance.',
 				suggestedActionLabel: 'Open maintenance history',
 			},
+			{
+				id: 'water-heater-anode-rod-check',
+				label: 'Inspect water heater anode rod',
+				intervalDays: 1095,
+				severity: 'medium',
+				priority: 'medium',
+				matchTerms: ['anode', 'anode rod'],
+				whyItMatters:
+					'Recording anode rod checks helps make longer-term water heater service history easier to understand.',
+				suggestedActionLabel: 'Open maintenance history',
+			},
 		],
+		maintenanceTopics: ['Flush Tank', 'Inspect Anode Rod'],
+		partsAndSupplies: ['Anode Rod', 'Temperature and Pressure Relief Valve'],
 		recommendedDocuments: ['manual', 'warranty'],
-		lifecycleHints: ['Track install date for long-term replacement planning.'],
+		lifecycle: {
+			typicalLifespanYears: '8-12',
+			notes: [
+				'Track install date for long-term replacement planning.',
+				'Use manufacturer and plumber guidance when it differs from Maintley baseline guidance.',
+			],
+		},
+		lifecycleHints: [
+			'Typical lifespan: 8-12 years for many tank water heaters.',
+			'Track install date for long-term replacement planning.',
+		],
+		seasonalGuidance: {
+			fall: ['Record a flush or service review before heavier winter use.'],
+		},
 		applicableCapabilities: [],
 		disclaimerNotes: [
 			'Maintley baseline guidance should be adjusted if your manufacturer or plumber recommends a different interval.',
+		],
+	},
+	{
+		assetType: 'Refrigerator',
+		importanceLevel: 'standard',
+		matchTerms: ['refrigerator', 'fridge'],
+		recommendedFields: ['make', 'model', 'serial', 'install date', 'filter size'],
+		suggestedMaintenanceCadence: [
+			{
+				id: 'refrigerator-water-filter',
+				label: 'Replace refrigerator water filter',
+				intervalDays: 180,
+				severity: 'medium',
+				priority: 'medium',
+				matchTerms: ['water filter', 'filter replacement', 'replace filter'],
+				whyItMatters:
+					'Recording filter changes makes it easier to remember the filter model and see when it was last replaced.',
+				suggestedActionLabel: 'Open maintenance history',
+			},
+			{
+				id: 'refrigerator-coil-cleaning',
+				label: 'Clean refrigerator coils',
+				intervalDays: 365,
+				severity: 'low',
+				priority: 'low',
+				matchTerms: ['coil', 'coils', 'clean coils', 'condenser coil'],
+				whyItMatters:
+					'Recording coil cleaning keeps routine appliance care visible in the property history.',
+				suggestedActionLabel: 'Open maintenance history',
+			},
+		],
+		maintenanceTopics: ['Water Filter', 'Clean Coils'],
+		partsAndSupplies: ['Water Filter', 'Air Filter'],
+		recommendedDocuments: ['manual', 'warranty'],
+		lifecycle: {
+			typicalLifespanYears: '10-15',
+			notes: [
+				'Track install date for warranty review and replacement planning.',
+			],
+		},
+		lifecycleHints: [
+			'Typical lifespan: 10-15 years for many refrigerators.',
+			'Track water filter model for easier replacements.',
+		],
+		seasonalGuidance: {
+			spring: ['Record coil cleaning if it is part of your routine care.'],
+			fall: ['Review filter history before holiday or heavy kitchen use.'],
+		},
+		applicableCapabilities: [],
+		disclaimerNotes: [
+			'Maintley baseline guidance is general recordkeeping guidance, not manufacturer-specific service advice.',
+		],
+	},
+	{
+		assetType: 'Washer',
+		importanceLevel: 'standard',
+		matchTerms: ['washer', 'washing machine'],
+		recommendedFields: ['make', 'model', 'serial', 'install date'],
+		suggestedMaintenanceCadence: [
+			{
+				id: 'washer-cleaning-cycle',
+				label: 'Run washer cleaning cycle',
+				intervalDays: 90,
+				severity: 'low',
+				priority: 'low',
+				matchTerms: ['clean washer', 'cleaning cycle', 'tub clean', 'washer cleaner'],
+				whyItMatters:
+					'Recording cleaning cycles helps keep routine appliance care visible without relying on memory.',
+				suggestedActionLabel: 'Open maintenance history',
+			},
+			{
+				id: 'washer-hose-check',
+				label: 'Inspect washer hoses',
+				intervalDays: 365,
+				severity: 'medium',
+				priority: 'medium',
+				matchTerms: ['hose', 'hoses', 'supply line', 'inlet hose'],
+				whyItMatters:
+					'Recording hose checks helps future you see when water-supply connections were last reviewed.',
+				suggestedActionLabel: 'Open maintenance history',
+			},
+		],
+		maintenanceTopics: ['Cleaning Cycle', 'Hose Check'],
+		partsAndSupplies: ['Hoses', 'Inlet Screens'],
+		recommendedDocuments: ['manual', 'warranty'],
+		lifecycle: {
+			typicalLifespanYears: '10-13',
+			notes: ['Track install date for replacement planning and warranty review.'],
+		},
+		lifecycleHints: ['Typical lifespan: 10-13 years for many washers.'],
+		seasonalGuidance: {
+			spring: ['Record a hose check if laundry connections are accessible.'],
+			fall: ['Review cleaning-cycle history before heavier seasonal use.'],
+		},
+		applicableCapabilities: [],
+		disclaimerNotes: [
+			'Maintley baseline guidance is general recordkeeping guidance, not manufacturer-specific service advice.',
+		],
+	},
+	{
+		assetType: 'Dryer',
+		importanceLevel: 'important',
+		matchTerms: ['dryer', 'clothes dryer'],
+		recommendedFields: ['make', 'model', 'serial', 'install date'],
+		suggestedMaintenanceCadence: [
+			{
+				id: 'dryer-vent-cleaning',
+				label: 'Clean dryer vent',
+				intervalDays: 365,
+				severity: 'high',
+				priority: 'high',
+				matchTerms: ['vent', 'dryer vent', 'lint duct', 'duct cleaning'],
+				whyItMatters:
+					'Recording dryer vent cleaning keeps an important maintenance item visible in the property timeline.',
+				suggestedActionLabel: 'Open maintenance history',
+			},
+			{
+				id: 'dryer-lint-filter-care',
+				label: 'Record dryer lint filter care',
+				intervalDays: 90,
+				severity: 'medium',
+				priority: 'medium',
+				matchTerms: ['lint filter', 'lint screen', 'lint trap'],
+				whyItMatters:
+					'Recording lint filter care helps make recurring dryer maintenance easier to track over time.',
+				suggestedActionLabel: 'Open maintenance history',
+			},
+		],
+		maintenanceTopics: ['Lint Filter', 'Vent Cleaning'],
+		partsAndSupplies: ['Vent Duct', 'Lint Screen', 'Belt'],
+		recommendedDocuments: ['manual', 'warranty'],
+		lifecycle: {
+			typicalLifespanYears: '10-13',
+			notes: ['Track install date for replacement planning and warranty review.'],
+		},
+		lifecycleHints: ['Typical lifespan: 10-13 years for many dryers.'],
+		seasonalGuidance: {
+			spring: ['Record dryer vent cleaning if it is part of spring maintenance.'],
+			fall: ['Review vent cleaning history before heavier winter laundry use.'],
+		},
+		applicableCapabilities: [],
+		disclaimerNotes: [
+			'Maintley baseline guidance is general recordkeeping guidance, not a safety inspection or code assessment.',
+		],
+	},
+	{
+		assetType: 'Roof',
+		importanceLevel: 'important',
+		matchTerms: ['roof', 'roofing', 'shingle', 'shingles'],
+		recommendedFields: ['install date', 'material', 'warranty'],
+		suggestedMaintenanceCadence: [
+			{
+				id: 'roof-inspection',
+				label: 'Record roof inspection',
+				intervalDays: 365,
+				severity: 'medium',
+				priority: 'medium',
+				matchTerms: ['roof inspection', 'inspect roof', 'roof check', 'roofer'],
+				whyItMatters:
+					'Recording inspections gives future roof reviews and repair decisions a clearer history.',
+				suggestedActionLabel: 'Open maintenance history',
+			},
+			{
+				id: 'roof-gutter-review',
+				label: 'Record roof or gutter review',
+				intervalDays: 180,
+				severity: 'medium',
+				priority: 'medium',
+				matchTerms: ['gutter', 'gutters', 'downspout', 'debris', 'roof debris'],
+				whyItMatters:
+					'Recording roof and gutter reviews helps exterior maintenance stay visible across seasons.',
+				suggestedActionLabel: 'Open maintenance history',
+			},
+		],
+		maintenanceTopics: ['Inspection', 'Gutter or Debris Review'],
+		partsAndSupplies: ['Shingles', 'Flashing', 'Roof Sealant'],
+		recommendedDocuments: ['warranty', 'inspection report', 'photos'],
+		lifecycle: {
+			typicalLifespanYears: '20-30',
+			notes: [
+				'Track install date and material for long-term planning.',
+				'Roof lifecycle varies significantly by material, climate, installation, and maintenance history.',
+			],
+		},
+		lifecycleHints: [
+			'Typical lifespan: 20-30 years for many asphalt shingle roofs.',
+			'Track material and install date for long-term planning.',
+		],
+		seasonalGuidance: {
+			spring: ['Record a roof and gutter review after winter weather.'],
+			fall: ['Record a roof and gutter review before winter weather.'],
+		},
+		applicableCapabilities: [],
+		disclaimerNotes: [
+			'Maintley does not inspect roof condition or evaluate structural safety.',
 		],
 	},
 	{
@@ -94,7 +380,7 @@ export const BASELINE_CARE_DEFINITIONS: BaselineCareDefinition[] = [
 			'co detector',
 			'fire alarm',
 		],
-		recommendedFields: ['install date', 'location'],
+		recommendedFields: ['model', 'serial', 'install date', 'location'],
 		suggestedMaintenanceCadence: [
 			{
 				id: 'safety-device-check',
@@ -107,9 +393,36 @@ export const BASELINE_CARE_DEFINITIONS: BaselineCareDefinition[] = [
 					'Recording checks or battery changes keeps safety-device maintenance visible in the property timeline.',
 				suggestedActionLabel: 'Open maintenance history',
 			},
+			{
+				id: 'safety-device-battery-replacement',
+				label: 'Record detector battery replacement',
+				intervalDays: 365,
+				severity: 'medium',
+				priority: 'medium',
+				matchTerms: ['battery', 'replace battery', 'battery replacement'],
+				whyItMatters:
+					'Recording battery changes makes safety-device maintenance easier to review later.',
+				suggestedActionLabel: 'Open maintenance history',
+			},
 		],
+		maintenanceTopics: ['Test', 'Battery Replacement'],
+		partsAndSupplies: ['Battery', 'Replacement Detector'],
 		recommendedDocuments: ['manual'],
-		lifecycleHints: ['Track replacement dates for each detector.'],
+		lifecycle: {
+			typicalLifespanYears: '7-10',
+			notes: [
+				'Track install and replacement dates for each detector.',
+				'Follow the device label and manufacturer instructions for replacement timing.',
+			],
+		},
+		lifecycleHints: [
+			'Typical replacement window: 7-10 years for many detectors.',
+			'Track replacement dates for each detector.',
+		],
+		seasonalGuidance: {
+			spring: ['Record a test or battery check.'],
+			fall: ['Record a test or battery check.'],
+		},
 		applicableCapabilities: [],
 		disclaimerNotes: [
 			'Maintley does not certify safety devices or evaluate whether they meet code requirements.',

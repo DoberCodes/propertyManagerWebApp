@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import styled from 'styled-components';
 import { useSelector } from 'react-redux';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faCircleInfo } from '@fortawesome/free-solid-svg-icons';
 import { GenericModal } from '../Library';
 import {
 	PropertyScanSnapshot,
@@ -10,6 +12,7 @@ import {
 import { Device, Property } from '../../types/Property.types';
 import { Task } from '../../types/Task.types';
 import {
+	getQuickPropertyScanPremiumPreview,
 	getQuickPropertyScanRecommendations,
 	PropertyScanActionType,
 	PropertyScanCategory,
@@ -55,11 +58,34 @@ const DEFAULT_VISIBLE_RECOMMENDATIONS = 3;
 const getDismissedStorageKey = (propertyId: string): string =>
 	`maintley:property-scan-v1:dismissed:${propertyId}`;
 
+const getEducationStorageKey = (accountId: string): string =>
+	`maintley:property-scan-v1:education-seen:${accountId}`;
+
 const formatScanDate = (value?: string): string => {
 	if (!value) return 'No scan run yet';
 	const parsed = new Date(value);
 	if (Number.isNaN(parsed.getTime())) return 'No scan run yet';
 	return parsed.toLocaleString();
+};
+
+const getPlanLabel = (planId: string): string => {
+	switch (planId) {
+		case 'homeowner_plus':
+			return 'Homeowner+';
+		case 'property':
+			return 'Property';
+		case 'portfolio':
+			return 'Portfolio';
+		case 'team':
+			return 'Team';
+		case 'tenant':
+			return 'Tenant';
+		case 'guest':
+			return 'Guest';
+		case 'homeowner':
+		default:
+			return 'Free';
+	}
 };
 
 const getQuickScanSummary = (recommendations: PropertyScanRecommendation[]) => ({
@@ -128,6 +154,8 @@ const getRecommendationImpact = (
 			return 'Starting the history now gives the property a clearer record of what was serviced and when.';
 		case 'systems-missing-important-identification':
 			return 'Adding these details now makes future warranty claims, manuals, and replacement parts easier to find.';
+		case 'knowledge-pack-record-details-missing':
+			return 'Adding these maintenance details now makes future parts, supplies, and routine care easier to manage.';
 		case 'major-systems-missing-install-dates':
 			return 'Recording install dates makes warranty tracking, service planning, and future replacements much easier.';
 		default:
@@ -162,6 +190,8 @@ const getRecommendationEvidence = (
 			return 'Maintley found systems without saved maintenance history.';
 		case 'systems-missing-important-identification':
 			return 'Maintley found systems without recorded make or model details.';
+		case 'knowledge-pack-record-details-missing':
+			return 'Maintley compared saved system details against Maintley knowledge packs and found useful maintenance details that have not been recorded yet.';
 		case 'major-systems-missing-install-dates':
 			return 'Maintley found systems without recorded install dates.';
 		default:
@@ -172,6 +202,22 @@ const getRecommendationEvidence = (
 				return 'Maintley found related system records connected to this recommendation.';
 			}
 			return '';
+	}
+};
+
+const getRecommendationSourceLabel = (
+	recommendation: PropertyScanRecommendation,
+): string => {
+	switch (recommendation.source) {
+		case 'knowledge_pack':
+			return 'Maintley Knowledge';
+		case 'history_inference':
+			return 'History Intelligence';
+		case 'context':
+			return 'Context Intelligence';
+		case 'property_memory':
+		default:
+			return 'Property Memory';
 	}
 };
 
@@ -250,6 +296,8 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 	const [isRunningScan, setIsRunningScan] = useState(false);
 	const [scanProgressMessage, setScanProgressMessage] = useState('');
 	const [scanSaveError, setScanSaveError] = useState('');
+	const [showQuickScanEducation, setShowQuickScanEducation] = useState(false);
+	const [isQuickScanInfoOpen, setIsQuickScanInfoOpen] = useState(false);
 	const [detailRecommendation, setDetailRecommendation] =
 		useState<PropertyScanRecommendation | null>(null);
 	const {
@@ -260,6 +308,11 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 	});
 	const [savePropertyScanSnapshot] = useSavePropertyScanSnapshotMutation();
 	const currentPlanId = getEffectiveSubscriptionPlanId(subscription, 'homeowner');
+	const educationAccountId = getPropertyAccountId(
+		property,
+		String((currentUser as any)?.accountId || '').trim(),
+		String(currentUser?.id || '').trim(),
+	);
 
 	useEffect(() => {
 		if (typeof window === 'undefined') {
@@ -280,6 +333,17 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 		setScanSaveError('');
 		setDetailRecommendation(null);
 	}, [property.id]);
+
+	useEffect(() => {
+		if (typeof window === 'undefined' || !educationAccountId) {
+			setShowQuickScanEducation(false);
+			return;
+		}
+
+		setShowQuickScanEducation(
+			window.localStorage.getItem(getEducationStorageKey(educationAccountId)) !== 'true',
+		);
+	}, [educationAccountId]);
 
 	useEffect(() => {
 		if (!isRunningScan) {
@@ -309,6 +373,12 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 		: displayedRecommendations.slice(0, DEFAULT_VISIBLE_RECOMMENDATIONS);
 	const hiddenRecommendationCount =
 		displayedRecommendations.length - visibleRecommendations.length;
+	const premiumPreview =
+		currentPlanId === 'homeowner'
+			? lastScanSnapshot?.premiumPreview || null
+			: null;
+	const canShowMore = hiddenRecommendationCount > 0 || Boolean(premiumPreview);
+	const shouldShowPremiumPreview = showAllRecommendations && Boolean(premiumPreview);
 
 	const groupedRecommendations = useMemo(() => {
 		return CATEGORY_ORDER.map((category) => ({
@@ -362,18 +432,22 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 			undefined,
 			{
 				planId: currentPlanId,
-				includePremiumOpportunity: true,
 			},
+		);
+		const premiumPreview = getQuickPropertyScanPremiumPreview(
+			nextScanResult.activeRecommendations,
+			currentPlanId,
 		);
 		const nextSnapshot: PropertyScanSnapshot = {
 			accountId,
 			propertyId: property.id,
 			scanType: 'quick_property_scan_v1',
-			schemaVersion: 1,
+			schemaVersion: 2,
 			planId: currentPlanId,
 			createdAt,
 			updatedAt: createdAt,
 			recommendations,
+			premiumPreview: premiumPreview || undefined,
 			systemsReviewed: systems.length,
 			summary: getSnapshotSummary(recommendations),
 		};
@@ -387,6 +461,42 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 			setScanProgressMessage('');
 			setIsRunningScan(false);
 		}
+	};
+
+	const handleDismissQuickScanEducation = () => {
+		setShowQuickScanEducation(false);
+		if (typeof window !== 'undefined' && educationAccountId) {
+			window.localStorage.setItem(
+				getEducationStorageKey(educationAccountId),
+				'true',
+			);
+		}
+	};
+
+	const handleOpenQuickScanInfo = () => {
+		handleDismissQuickScanEducation();
+		setIsQuickScanInfoOpen(true);
+	};
+
+	const handleViewPlanOptions = () => {
+		onRecommendationAction('view_plan_options', {
+			id: `maintley:property-scan:premium-preview:${property.id}`,
+			propertyId: property.id,
+			category: 'Maintenance Opportunities',
+			severity: 'medium',
+			priority: 'medium',
+			source: 'knowledge_pack',
+			title: 'More Maintley Intelligence is available with Homeowner+.',
+			description:
+				'Homeowner+ includes equipment-specific recommendations, history-based insights, and personalized maintenance guidance.',
+			reason:
+				'Maintley found additional Intelligence guidance that is available with Homeowner+.',
+			suggestedActionLabel: 'Learn More',
+			suggestedActionType: 'view_plan_options',
+			requiredPlan: 'homeowner_plus',
+			createdAt: lastScanSnapshot?.createdAt || new Date().toISOString(),
+			status: 'active',
+		});
 	};
 
 	const handleRecommendationPrimaryAction = (
@@ -463,6 +573,13 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 					</ScanText>
 				</ScanTitleBlock>
 				<ScanActions>
+					<InfoButton
+						type='button'
+						onClick={handleOpenQuickScanInfo}
+						title='How Quick Scan Works'>
+						<FontAwesomeIcon icon={faCircleInfo} aria-hidden='true' />
+						<span>How Quick Scan Works</span>
+					</InfoButton>
 					<PrimaryButton
 						type='button'
 						onClick={handleRunScan}
@@ -474,6 +591,27 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 			<ScanMeta>
 				Last scan: {formatScanDate(lastScanSnapshot?.createdAt)}
 			</ScanMeta>
+			{showQuickScanEducation ? (
+				<QuickScanEducation>
+					<div>
+						<strong>New to Property Quick Scan?</strong>
+						<span>
+							Maintley Intelligence combines your property records with maintenance
+							knowledge to help you plan ahead.
+						</span>
+					</div>
+					<EducationActions>
+						<EducationButton type='button' onClick={handleOpenQuickScanInfo}>
+							Learn More
+						</EducationButton>
+						<EducationDismissButton
+							type='button'
+							onClick={handleDismissQuickScanEducation}>
+							Not now
+						</EducationDismissButton>
+					</EducationActions>
+				</QuickScanEducation>
+			) : null}
 			{scanSaveError ? <ErrorResult>{scanSaveError}</ErrorResult> : null}
 
 			{isLoadingLatestScan ? (
@@ -497,16 +635,31 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 						</SummaryItem>
 					</SummaryGrid>
 
-					{displayedRecommendations.length === 0 ? (
-						<EmptyResult>
-							Maintley reviewed this property record and did not find any
-							immediate high-value items that need your attention.
-						</EmptyResult>
+					{displayedRecommendations.length === 0 && !shouldShowPremiumPreview ? (
+						<>
+							<EmptyResult>
+								Maintley reviewed this property record and did not find any
+								immediate high-value items that need your attention.
+							</EmptyResult>
+							{canShowMore ? (
+								<ShowMoreButton
+									type='button'
+									onClick={() =>
+										setShowAllRecommendations((currentValue) => !currentValue)
+									}>
+									{showAllRecommendations
+										? 'Show Fewer'
+										: 'Explore More Maintley Intelligence'}
+								</ShowMoreButton>
+							) : null}
+						</>
 					) : (
 						<RecommendationWrap>
-							<RecommendationIntro>
-								What Maintley Found
-							</RecommendationIntro>
+							{displayedRecommendations.length > 0 ? (
+								<RecommendationIntro>
+									What Maintley Found
+								</RecommendationIntro>
+							) : null}
 							{groupedRecommendations.map((group) => (
 								<CategoryGroup key={group.category}>
 									<CategoryTitle>{group.category}</CategoryTitle>
@@ -530,6 +683,8 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 											? `${relatedTasks.length} ${relatedTasks.length === 1 ? 'task' : 'tasks'} affected`
 											: `${relatedSystems.length} ${relatedSystems.length === 1 ? 'system' : 'systems'} affected`;
 										const evidenceText = getRecommendationEvidence(recommendation);
+										const sourceLabel =
+											getRecommendationSourceLabel(recommendation);
 										const evidenceItems = relatedTasks.length
 											? relatedTasks.map((task) => task.title)
 											: relatedSystems.map((item) => getAssetDisplayName(item));
@@ -568,6 +723,9 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 															<EvidenceSummary>
 																Why this recommendation?
 															</EvidenceSummary>
+															<EvidenceText>
+																Based on: {sourceLabel}
+															</EvidenceText>
 															<EvidenceText>{evidenceText}</EvidenceText>
 															{visibleEvidenceItems.length > 0 ? (
 																<EvidenceList>
@@ -603,7 +761,7 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 									})}
 								</CategoryGroup>
 							))}
-							{hiddenRecommendationCount > 0 || showAllRecommendations ? (
+							{canShowMore ? (
 								<ShowMoreButton
 									type='button'
 									onClick={() =>
@@ -611,8 +769,36 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 									}>
 									{showAllRecommendations
 										? 'Show Fewer'
-										: `Show ${hiddenRecommendationCount} More`}
+										: hiddenRecommendationCount > 0
+											? `Show ${hiddenRecommendationCount} More`
+											: 'Explore More Maintley Intelligence'}
 								</ShowMoreButton>
+							) : null}
+							{shouldShowPremiumPreview && premiumPreview ? (
+								<PremiumPreview>
+									<PremiumPreviewEyebrow>
+										More available with Homeowner+
+									</PremiumPreviewEyebrow>
+									<PremiumPreviewTitle>
+										As your property's records grow, Maintley can help with more
+										maintenance guidance and planning.
+									</PremiumPreviewTitle>
+									<PremiumPreviewText>
+										Homeowner+ adds equipment-specific recommendations based on the
+										property information you have recorded.
+									</PremiumPreviewText>
+									<PremiumPreviewList>
+										{premiumPreview.examples.map((example) => (
+											<li key={example}>{example}</li>
+										))}
+									</PremiumPreviewList>
+									<PremiumPreviewFooter>
+										<span>Available with Homeowner+</span>
+										<PremiumPreviewButton type='button' onClick={handleViewPlanOptions}>
+											Learn More
+										</PremiumPreviewButton>
+									</PremiumPreviewFooter>
+								</PremiumPreview>
 							) : null}
 						</RecommendationWrap>
 					)}
@@ -652,6 +838,66 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 					</ScanLoadingCard>
 				</ScanLoadingOverlay>
 			) : null}
+			<GenericModal
+				isOpen={isQuickScanInfoOpen}
+				title='How Property Quick Scan Works'
+				onClose={() => setIsQuickScanInfoOpen(false)}
+				compact>
+				<QuickScanInfoBody>
+					<QuickScanInfoLead>
+						Maintley reviews the information you have saved about your property to
+						identify opportunities to improve your records and reduce future
+						maintenance surprises.
+					</QuickScanInfoLead>
+					<IntelligenceSource $tone='records'>
+						<strong>Property Memory</strong>
+						<span>
+							Based on information that has not been recorded yet, such as install
+							dates, overdue tasks, and maintenance history.
+						</span>
+					</IntelligenceSource>
+					<IntelligenceSource $tone='knowledge'>
+						<strong>Maintley Knowledge</strong>
+						<span>
+							Based on general maintenance knowledge for recognized asset types,
+							such as filter details and recurring maintenance.
+						</span>
+					</IntelligenceSource>
+					<IntelligenceSource $tone='history'>
+						<strong>Property History</strong>
+						<span>
+							Based on patterns Maintley recognizes in your own recorded maintenance
+							history.
+						</span>
+					</IntelligenceSource>
+					<IntelligenceSource $tone='context'>
+						<strong>Seasonal &amp; Context</strong>
+						<span>
+							Based on time of year, weather, or property location when that context
+							is available.
+						</span>
+					</IntelligenceSource>
+					<PlanExplanation>
+						<strong>Your Plan</strong>
+						<PlanName>{getPlanLabel(currentPlanId)}</PlanName>
+						<span>
+							{currentPlanId === 'homeowner'
+								? 'Free includes Property Record recommendations. Homeowner+ adds Maintley Knowledge, history-based insights, and personalized context guidance.'
+								: 'Your plan includes Property Records, Maintley Knowledge, history-based insights, and personalized context guidance.'}
+						</span>
+						{currentPlanId === 'homeowner' ? (
+							<PlanUpgradeButton type='button' onClick={handleViewPlanOptions}>
+								Explore Homeowner+
+							</PlanUpgradeButton>
+						) : null}
+					</PlanExplanation>
+					<QuickScanInfoNote>
+						Maintley does not inspect your property or verify equipment condition.
+						Recommendations are based only on recorded information and applicable
+						knowledge.
+					</QuickScanInfoNote>
+				</QuickScanInfoBody>
+			</GenericModal>
 			{detailRecommendation ? (
 				<GenericModal
 					isOpen={Boolean(detailRecommendation)}
@@ -780,6 +1026,170 @@ const ScanActions = styled.div`
 	@media (max-width: 720px) {
 		width: 100%;
 	}
+`;
+
+const InfoButton = styled.button`
+	border: 0;
+	background: transparent;
+	color: ${COLORS.primaryDark};
+	font-size: 13px;
+	font-weight: 700;
+	padding: 10px 4px;
+	cursor: pointer;
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	white-space: nowrap;
+
+	&:hover {
+		color: ${COLORS.primary};
+		text-decoration: underline;
+	}
+
+	&:focus-visible {
+		outline: 2px solid ${COLORS.primary};
+		outline-offset: 2px;
+		border-radius: 4px;
+	}
+`;
+
+const QuickScanEducation = styled.div`
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 14px;
+	border-left: 3px solid #0f766e;
+	background: #f0fdfa;
+	padding: 12px 14px;
+	color: #134e4a;
+
+	> div:first-child {
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
+		font-size: 13px;
+		line-height: 1.45;
+	}
+
+	@media (max-width: 640px) {
+		align-items: flex-start;
+		flex-direction: column;
+	}
+`;
+
+const EducationActions = styled.div`
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	flex-wrap: wrap;
+`;
+
+const EducationButton = styled.button`
+	border: 0;
+	background: transparent;
+	color: ${COLORS.primaryDark};
+	font-size: 13px;
+	font-weight: 700;
+	padding: 4px 0;
+	cursor: pointer;
+
+	&:hover {
+		text-decoration: underline;
+	}
+`;
+
+const EducationDismissButton = styled(EducationButton)`
+	color: #475569;
+	font-weight: 600;
+`;
+
+const QuickScanInfoBody = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+`;
+
+const QuickScanInfoLead = styled.p`
+	margin: 0;
+	color: #334155;
+	font-size: 14px;
+	line-height: 1.55;
+`;
+
+const IntelligenceSource = styled.div<{
+	$tone: 'records' | 'knowledge' | 'history' | 'context';
+}>`
+	border-left: 3px solid
+		${({ $tone }) =>
+		$tone === 'records'
+			? '#16a34a'
+			: $tone === 'knowledge'
+				? '#2563eb'
+				: $tone === 'history'
+					? '#7c3aed'
+					: '#ea580c'};
+	padding-left: 12px;
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+	color: #475569;
+	font-size: 13px;
+	line-height: 1.45;
+
+	strong {
+		color: #172033;
+		font-size: 14px;
+	}
+`;
+
+const PlanExplanation = styled.div`
+	border-top: 1px solid #e2e8f0;
+	padding-top: 14px;
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	color: #475569;
+	font-size: 13px;
+	line-height: 1.5;
+
+	strong {
+		color: #172033;
+		font-size: 14px;
+	}
+`;
+
+const PlanName = styled.span`
+	color: #0f766e;
+	font-size: 15px;
+	font-weight: 800;
+`;
+
+const PlanUpgradeButton = styled.button`
+	align-self: flex-start;
+	border: 1px solid #0f766e;
+	border-radius: 8px;
+	background: #0f766e;
+	color: #ffffff;
+	font-size: 13px;
+	font-weight: 700;
+	padding: 8px 11px;
+	cursor: pointer;
+
+	&:hover {
+		background: #115e59;
+	}
+
+	&:focus-visible {
+		outline: 2px solid #0f766e;
+		outline-offset: 2px;
+	}
+`;
+
+const QuickScanInfoNote = styled.p`
+	margin: 0;
+	color: #64748b;
+	font-size: 12px;
+	line-height: 1.45;
 `;
 
 const PrimaryButton = styled.button`
@@ -1244,6 +1654,85 @@ const ShowMoreButton = styled.button`
 
 	&:focus-visible {
 		outline: 2px solid ${COLORS.primary};
+		outline-offset: 2px;
+	}
+`;
+
+const PremiumPreview = styled.section`
+	border: 1px solid #bfdbfe;
+	background: #eff6ff;
+	padding: 16px;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+`;
+
+const PremiumPreviewEyebrow = styled.div`
+	color: #1d4ed8;
+	font-size: 12px;
+	font-weight: 800;
+	letter-spacing: 0;
+	text-transform: uppercase;
+`;
+
+const PremiumPreviewTitle = styled.h4`
+	margin: 0;
+	color: #172033;
+	font-size: 15px;
+	line-height: 1.4;
+`;
+
+const PremiumPreviewText = styled.p`
+	margin: 0;
+	color: #334155;
+	font-size: 13px;
+	line-height: 1.5;
+`;
+
+const PremiumPreviewList = styled.ul`
+	margin: 0;
+	padding-left: 18px;
+	color: #334155;
+	font-size: 13px;
+	line-height: 1.5;
+
+	li + li {
+		margin-top: 3px;
+	}
+`;
+
+const PremiumPreviewFooter = styled.div`
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	padding-top: 4px;
+	color: #1d4ed8;
+	font-size: 13px;
+	font-weight: 700;
+
+	@media (max-width: 560px) {
+		align-items: flex-start;
+		flex-direction: column;
+	}
+`;
+
+const PremiumPreviewButton = styled.button`
+	border: 1px solid #2563eb;
+	border-radius: 8px;
+	background: #2563eb;
+	color: #ffffff;
+	font-size: 13px;
+	font-weight: 700;
+	padding: 8px 11px;
+	cursor: pointer;
+
+	&:hover {
+		background: #1d4ed8;
+	}
+
+	&:focus-visible {
+		outline: 2px solid #1d4ed8;
 		outline-offset: 2px;
 	}
 `;

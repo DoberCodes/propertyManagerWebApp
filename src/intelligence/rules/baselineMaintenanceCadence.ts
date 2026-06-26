@@ -79,6 +79,7 @@ export const baselineMaintenanceCadenceRule: MaintleyIntelligenceRule = {
 						category: 'Maintenance Opportunities',
 						severity: cadence.severity,
 						priority: cadence.priority,
+						source: 'knowledge_pack',
 						title: `${cadence.label} may be due for ${systemName}.`,
 						description: `${systemName} last had "${cadence.label}" recorded approximately ${elapsedDays} days ago. Maintley's baseline interval is every ${cadence.intervalDays} days.`,
 						whyItMatters: cadence.whyItMatters,

@@ -1,6 +1,9 @@
 import { Device, Property } from '../types/Property.types';
 import { Task } from '../types/Task.types';
-import { BASELINE_CARE_LIBRARY_VERSION } from './baselineCareLibrary';
+import {
+	BASELINE_CARE_LIBRARY_VERSION,
+	getBaselineDefinitionForAsset,
+} from './baselineCareLibrary';
 import { runMaintleyIntelligence } from './engine';
 import { filterFindingsForPlanAndCapabilities } from './planFilter';
 import { missingMaintenanceCoverageRule } from './rules';
@@ -75,6 +78,7 @@ describe('Maintley Intelligence engine', () => {
 				category: expect.any(String),
 				severity: expect.any(String),
 				priority: expect.any(String),
+				source: expect.any(String),
 				title: expect.any(String),
 				description: expect.any(String),
 				whyItMatters: expect.any(String),
@@ -107,6 +111,7 @@ describe('Maintley Intelligence engine', () => {
 		expect(findings[0]).toEqual(
 			expect.objectContaining({
 				ruleId: 'systems-missing-actionable-maintenance-coverage',
+				source: 'knowledge_pack',
 				requiredPlan: 'homeowner_plus',
 				requiredCapabilities: ['recurring_tasks'],
 				affectedSystemIds: ['hvac'],
@@ -144,6 +149,55 @@ describe('Maintley Intelligence engine', () => {
 				(finding) =>
 					finding.ruleId ===
 					'systems-missing-actionable-maintenance-coverage',
+			),
+		).toBe(true);
+	});
+
+	it('uses recommendation source to gate knowledge-pack findings by plan', () => {
+		const result = runMaintleyIntelligence({
+			property,
+			systems: [
+				makeSystem({
+					id: 'hvac',
+					type: 'HVAC',
+					filterSize: '',
+				}),
+			],
+			tasks: [
+				makeTask({
+					id: 'overdue-task',
+					title: 'Review saved task',
+					dueDate: '2020-01-01',
+				}),
+			],
+			maintenanceHistory: [{ id: 'history-1', deviceId: 'hvac' }],
+			createdAt: '2026-06-24T12:00:00.000Z',
+		});
+
+		const freeFindings = filterFindingsForPlanAndCapabilities(
+			result.findings,
+			'homeowner',
+		);
+		const paidFindings = filterFindingsForPlanAndCapabilities(
+			result.findings,
+			'homeowner_plus',
+		);
+
+		expect(
+			freeFindings.some(
+				(finding) =>
+					finding.ruleId === 'knowledge-pack-record-details-missing',
+			),
+		).toBe(false);
+		expect(
+			paidFindings.some(
+				(finding) =>
+					finding.ruleId === 'knowledge-pack-record-details-missing',
+			),
+		).toBe(true);
+		expect(
+			freeFindings.some(
+				(finding) => finding.ruleId === 'overdue-tasks-exist',
 			),
 		).toBe(true);
 	});
@@ -190,6 +244,8 @@ describe('Maintley Intelligence engine', () => {
 		expect(cadenceFinding).toEqual(
 			expect.objectContaining({
 				baselineVersion: BASELINE_CARE_LIBRARY_VERSION,
+				source: 'knowledge_pack',
+				requiredPlan: 'homeowner_plus',
 				title: 'Replace or inspect HVAC filter may be due for Maintley HVAC Model A.',
 				affectedSystemIds: ['hvac'],
 			}),
@@ -224,6 +280,104 @@ describe('Maintley Intelligence engine', () => {
 		expect(
 			result.findings.some(
 				(finding) => finding.ruleId === 'baseline-maintenance-cadence-overdue',
+			),
+		).toBe(false);
+	});
+
+	it('defines baseline knowledge packs for common homeowner asset types', () => {
+		const assetTypes = [
+			'HVAC',
+			'Water Heater',
+			'Refrigerator',
+			'Washer',
+			'Dryer',
+			'Roof',
+			'Smoke/CO Detector',
+		];
+
+		assetTypes.forEach((assetType) => {
+			const definition = getBaselineDefinitionForAsset(
+				makeSystem({ id: assetType, type: assetType }),
+			);
+
+			expect(definition).toEqual(
+				expect.objectContaining({
+					assetType,
+					recommendedFields: expect.any(Array),
+					suggestedMaintenanceCadence: expect.any(Array),
+					maintenanceTopics: expect.any(Array),
+					partsAndSupplies: expect.any(Array),
+					recommendedDocuments: expect.any(Array),
+					lifecycle: expect.objectContaining({
+						notes: expect.any(Array),
+					}),
+					seasonalGuidance: expect.any(Object),
+				}),
+			);
+			expect(definition?.suggestedMaintenanceCadence.length).toBeGreaterThan(0);
+			expect(definition?.partsAndSupplies.length).toBeGreaterThan(0);
+		});
+	});
+
+	it('recommends recording filter size for assets whose knowledge pack needs it', () => {
+		const result = runMaintleyIntelligence({
+			property,
+			systems: [
+				makeSystem({
+					id: 'hvac',
+					type: 'HVAC',
+					filterSize: '',
+				}),
+			],
+			tasks: [],
+			maintenanceHistory: [{ id: 'history-1', deviceId: 'hvac' }],
+			createdAt: '2026-06-24T12:00:00.000Z',
+		});
+
+		const finding = result.findings.find(
+			(item) => item.ruleId === 'knowledge-pack-record-details-missing',
+		);
+
+		expect(finding).toEqual(
+			expect.objectContaining({
+				title: 'Add filter size for Maintley HVAC Model A',
+				source: 'knowledge_pack',
+				requiredPlan: 'homeowner_plus',
+				affectedSystemIds: ['hvac'],
+				metadata: expect.objectContaining({
+					baselineAssetType: 'HVAC',
+					missingFields: ['filter size'],
+				}),
+			}),
+		);
+	});
+
+	it('does not recommend filter size when filter information is already tracked', () => {
+		const result = runMaintleyIntelligence({
+			property,
+			systems: [
+				makeSystem({
+					id: 'hvac',
+					type: 'HVAC',
+					filterSize: '',
+					serviceItems: [
+						{
+							id: 'filter-1',
+							category: 'filter',
+							name: 'HVAC Filter',
+							size: '20x25x1',
+						},
+					],
+				}),
+			],
+			tasks: [],
+			maintenanceHistory: [{ id: 'history-1', deviceId: 'hvac' }],
+			createdAt: '2026-06-24T12:00:00.000Z',
+		});
+
+		expect(
+			result.findings.some(
+				(item) => item.ruleId === 'knowledge-pack-record-details-missing',
 			),
 		).toBe(false);
 	});

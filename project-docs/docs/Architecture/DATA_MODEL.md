@@ -1158,6 +1158,16 @@ Typical fields:
 * systemsReviewed
 * summary
 * recommendations
+* premiumPreview (optional)
+
+Saved recommendations include source provenance. `source` determines plan entitlement for newly generated recommendations:
+
+* `property_memory`
+* `knowledge_pack`
+* `history_inference`
+* `context`
+
+`premiumPreview` is an optional derived explanation of additional Homeowner+ guidance that was available when the scan ran. It is stored separately from `recommendations` so upgrade education never changes recommendation counts, priorities, or the Quick Scan result limit.
 
 Property scan snapshots are derived records. They preserve what Maintley Intelligence showed at scan time, but they do not replace properties, systems, tasks, maintenance events, or documentation records as the source of truth.
 

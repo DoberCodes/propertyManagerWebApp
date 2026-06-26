@@ -190,6 +190,8 @@ Quick Property Scan should remain available on free and paid plans.
 
 Premium intelligence should expand what Maintley can review and explain, not turn free recommendations into unsolvable warnings.
 
+Free Quick Scan focuses on Property Record recommendations based on information the homeowner has saved. Homeowner+ adds equipment-specific Maintley Knowledge, history-based insights, and personalized context guidance as those capabilities become available.
+
 See PROPERTY_INTELLIGENCE.md for recommendation behavior and prioritization rules.
 
 ---
@@ -207,7 +209,7 @@ See PROPERTY_INTELLIGENCE.md for recommendation behavior and prioritization rule
 ### Notes
 
 * Monthly Property Summary is available to all users.
-* Seasonal Guidance is available to all users.
+* General seasonal guidance is available to all users. Personalized seasonal and property-context guidance is part of Homeowner+ Maintley Intelligence.
 * Reminder and push functionality require paid plans.
 
 See EMAIL_NOTIFICATIONS.md for delivery behavior.

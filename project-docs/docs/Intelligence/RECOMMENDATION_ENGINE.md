@@ -397,6 +397,7 @@ The shared finding model includes:
 * category
 * severity
 * priority
+* source
 * title
 * description
 * whyItMatters
@@ -423,7 +424,7 @@ Example:
 Maintley recommends recording install dates because they support warranty tracking, replacement planning, and lifecycle estimates.
 ```
 
-The current model supports this through `title`, `description`, `whyItMatters`, `metadata`, `affectedSystemIds`, `suggestedActionLabel`, and `suggestedActionType`. Future recommendation records may expose these as explicit `observation`, `whyItMatters`, `futureBenefit`, `action`, and `reasoning` fields, with evidence/source metadata available for explainability. That should be handled as a deliberate contract change.
+The current model supports this through `source`, `title`, `description`, `whyItMatters`, `metadata`, `affectedSystemIds`, `suggestedActionLabel`, and `suggestedActionType`. Future recommendation records may expose these as explicit `observation`, `whyItMatters`, `futureBenefit`, `action`, and `reasoning` fields. That should be handled as a deliberate contract change.
 
 Quick Scan can expose phase-1 evidence without changing the recommendation contract by using existing `ruleId`, `metadata`, `affectedSystemIds`, and related task IDs.
 
@@ -520,6 +521,18 @@ The initial v1 rule set checks for record gaps and maintenance opportunities onl
 
 It should not infer physical condition, safety, code compliance, equipment failure, or remaining useful life.
 
+The engine now also consumes expanded baseline knowledge packs for common asset types:
+
+* HVAC
+* Water Heater
+* Refrigerator
+* Washer
+* Dryer
+* Roof
+* Smoke/CO Detector
+
+These packs define useful record fields, maintenance topics, parts and supplies, documentation, lifecycle planning context, and seasonal guidance. Quick Scan may surface high-value, already-modeled record details such as filter size. Broader documentation completeness, serial number, warranty, capacity, fuel type, and lifecycle audit items belong in Full Property Audit or future data-model work unless an existing Maintley field supports an actionable recommendation.
+
 Dismissed recommendations may be stored locally in v1. Saved recommendation resolution and dismissal history belongs to a later phase.
 
 The latest visible Quick Scan result is saved as a backend-derived snapshot for the property-level Insights tab so users can see the latest scan date and recommendations when they return.
@@ -538,16 +551,20 @@ It should not frame results as an AI scan of the physical home.
 
 The engine may generate detail findings for each affected system. Quick Scan should aggregate repeated detail findings into summary themes before display.
 
-The engine should attach capability metadata to findings.
+The engine should attach source and capability metadata to findings.
 
-Examples:
+Source entitlement:
 
-* Record finding: `requiredPlan = homeowner`
-* Premium-capability finding: `requiredPlan = homeowner_plus`
+* `property_memory`: Free/Homeowner and above
+* `knowledge_pack`: Homeowner+ and above
+* `history_inference`: Homeowner+ and above
+* `context`: Homeowner+ and above
+
+`requiredPlan` is retained on findings and saved snapshots for compatibility, but new recommendation access should be derived from `source` first. `requiredCapabilities` remains available for feature-specific actions such as recurring tasks.
 
 Quick Scan should run findings through a plan capability filter before display.
 
-If a finding is not actionable for the current plan, it should be hidden from the primary Quick Scan recommendations. A consumer may create one clearly labeled premium opportunity, but the locked finding itself should not appear as a deficiency.
+If a finding is not actionable for the current plan, it should be hidden from the primary Quick Scan recommendations. When locked Homeowner+ guidance exists, Quick Scan may show one clearly labeled preview after the user chooses to reveal more results. The preview is separate from actionable recommendations and must not affect recommendation counts, priority, or the visible-result limit.
 
 Summary rules are shown in Quick Scan.
 
@@ -576,7 +593,8 @@ Quick Scan display rules:
 * Exclude documentation gaps from the Quick Scan surface
 * Aggregate repeated system-level findings into themes
 * Filter out recommendations the user cannot act on with their current plan
-* Limit premium upgrade opportunities to one visible item at most
+* Show at most one premium guidance preview after the user chooses to reveal more results
+* Do not count a premium guidance preview as a recommendation or an immediate action
 * Keep titles encouraging and put precise counts in details
 * Include a short explanation of why each recommendation matters
 * Show affected record lists in a dialog rather than expanding long lists inline

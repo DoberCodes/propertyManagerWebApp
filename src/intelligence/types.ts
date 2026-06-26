@@ -10,6 +10,12 @@ export type MaintleyFindingSeverity = 'low' | 'medium' | 'high';
 
 export type MaintleyFindingPriority = 'low' | 'medium' | 'high';
 
+export type MaintleyFindingSource =
+	| 'property_memory'
+	| 'knowledge_pack'
+	| 'history_inference'
+	| 'context';
+
 export type MaintleyPlanId =
 	| 'homeowner'
 	| 'homeowner_plus'
@@ -51,6 +57,7 @@ export interface MaintleyFinding {
 	category: MaintleyFindingCategory;
 	severity: MaintleyFindingSeverity;
 	priority: MaintleyFindingPriority;
+	source: MaintleyFindingSource;
 	title: string;
 	description: string;
 	whyItMatters: string;

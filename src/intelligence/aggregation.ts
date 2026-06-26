@@ -5,6 +5,7 @@ export const normalizeMaintleyFindings = (
 ): MaintleyFinding[] =>
 	findings.map((finding) => ({
 		...finding,
+		source: finding.source || 'property_memory',
 		affectedSystemIds: Array.from(new Set(finding.affectedSystemIds || [])),
 		requiredCapabilities: Array.from(new Set(finding.requiredCapabilities || [])),
 		metadata: finding.metadata || {},

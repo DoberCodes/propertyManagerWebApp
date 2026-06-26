@@ -1,5 +1,6 @@
 import {
 	MaintleyCapability,
+	MaintleyFindingSource,
 	MaintleyFinding,
 	MaintleyPlanId,
 	MaintleyRequiredPlan,
@@ -16,6 +17,13 @@ const PLAN_RANK: Record<MaintleyPlanId, number> = {
 	portfolio: 3,
 };
 
+const SOURCE_REQUIRED_PLAN: Record<MaintleyFindingSource, MaintleyRequiredPlan> = {
+	property_memory: 'homeowner',
+	knowledge_pack: 'homeowner_plus',
+	history_inference: 'homeowner_plus',
+	context: 'homeowner_plus',
+};
+
 export const normalizeMaintleyPlanId = (planId?: string): MaintleyPlanId => {
 	const normalizedPlanId = String(planId || '')
 		.trim()
@@ -26,12 +34,25 @@ export const normalizeMaintleyPlanId = (planId?: string): MaintleyPlanId => {
 	return 'homeowner';
 };
 
+export const getRequiredPlanForFindingSource = (
+	source?: MaintleyFindingSource,
+): MaintleyRequiredPlan =>
+	source ? SOURCE_REQUIRED_PLAN[source] : 'homeowner';
+
 export const canAccessMaintleyFinding = (
-	finding: Pick<MaintleyFinding, 'requiredPlan'>,
+	finding: Partial<Pick<MaintleyFinding, 'requiredPlan'>> & {
+		source?: MaintleyFindingSource;
+	},
 	planId?: string,
 ): boolean =>
 	PLAN_RANK[normalizeMaintleyPlanId(planId)] >=
-	PLAN_RANK[normalizeMaintleyPlanId(finding.requiredPlan)];
+	PLAN_RANK[
+		normalizeMaintleyPlanId(
+			finding.source
+				? getRequiredPlanForFindingSource(finding.source)
+				: finding.requiredPlan || 'homeowner',
+		)
+	];
 
 export const filterFindingsForPlan = (
 	findings: MaintleyFinding[],

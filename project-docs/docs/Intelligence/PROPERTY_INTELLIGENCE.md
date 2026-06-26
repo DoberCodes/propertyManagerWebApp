@@ -275,17 +275,23 @@ Avoid:
 
 Future recommendation records should formally identify why the recommendation exists.
 
-Recommended source types:
+Supported source types:
 
-* Recorded Fact - Derived directly from Maintley's saved data.
-* Documentation Opportunity - Based on absent or incomplete property records.
-* Maintenance Reminder - Based on recorded dates and user-configured or Maintley-defined intervals.
-* General Best Practice - Based on commonly accepted maintenance guidance, with clear attribution.
-* User Preference - Based on how the owner chooses to manage the property.
+* `property_memory` - Derived entirely from user-saved property data.
+* `knowledge_pack` - Derived from Maintley knowledge packs.
+* `history_inference` - Derived from patterns in the user's own saved history.
+* `context` - Derived from external or seasonal context.
 
-The current v1 engine already exposes `ruleId`, `description`, `whyItMatters`, metadata, and required plan/capability fields. A future schema change may add an explicit source-type field so every recommendation can answer:
+The current v1 engine exposes `source` so every recommendation can answer:
 
 > Why did Maintley recommend this?
+
+Plan access is source-based:
+
+* Free/Homeowner: `property_memory`
+* Homeowner+ and above: `property_memory`, `knowledge_pack`, `history_inference`, `context`
+
+Avoid rule-specific subscription exceptions when the recommendation source already determines access.
 
 That schema change should be handled deliberately because it affects the recommendation contract and saved scan snapshots.
 
@@ -600,6 +606,7 @@ Structured findings with:
 * category
 * severity
 * priority
+* source
 * title
 * description
 * whyItMatters
@@ -623,9 +630,15 @@ Current rules:
 * Overdue tasks exist
 * Major systems missing install dates
 * Systems missing important identification details
+* Systems missing knowledge-pack-specific maintenance details, such as filter size
 * Systems with no maintenance history
 * Systems with no actionable maintenance coverage
 * Baseline maintenance cadence appears overdue based on saved maintenance history and current date
+
+Current rule sources:
+
+* `property_memory`: overdue tasks, missing install dates, missing identification details, missing maintenance history.
+* `knowledge_pack`: missing knowledge-pack details, recurring maintenance coverage, baseline maintenance cadence.
 
 Quick Property Scan consumes the shared engine through the Quick Scan consumer.
 
@@ -708,7 +721,7 @@ Free users should see record-focused recommendations they can act on, such as:
 
 Free users should not see locked recurring-maintenance recommendations as deficiencies.
 
-When a premium capability is relevant, Quick Scan may show one clearly labeled premium opportunity at most. It should be framed as an available Homeowner+ capability rather than a problem the user failed to fix.
+When locked Homeowner+ guidance is relevant, Quick Scan may show one clearly labeled preview after the user chooses to reveal more results. It should be framed as available guidance rather than a problem the user failed to fix, and it must not count as a recommendation or immediate action.
 
 Quick Scan may show a short progress dialog while it is running. The dialog should use familiar Maintley loading treatment and close once the latest snapshot is ready.
 
@@ -784,6 +797,7 @@ Property Scan v1 is not:
 The shared engine currently checks for:
 
 * Systems missing make or model
+* Systems missing useful knowledge-pack details, such as HVAC or refrigerator filter size
 * Systems missing install date
 * Systems with no maintenance history
 * Systems with no linked recurring task

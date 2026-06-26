@@ -20,7 +20,6 @@ interface QuickScanOptions {
 	planId?: string;
 	capabilities?: Partial<Record<MaintleyCapability, boolean>>;
 	limit?: number;
-	includePremiumOpportunity?: boolean;
 }
 
 interface SummaryConfig {
@@ -122,6 +121,20 @@ const SUMMARY_CONFIGS: SummaryConfig[] = [
 		suggestedActionType: 'open_systems',
 	},
 	{
+		ruleId: 'knowledge-pack-record-details-missing',
+		idSuffix: 'knowledge-pack-details',
+		category: 'Missing Information',
+		severity: 'medium',
+		priority: 'medium',
+		title: "Some systems do not have a filter size recorded.",
+		description:
+			"Maintley's records do not show a filter size for some systems.",
+		whyItMatters:
+			'Adding these details makes future replacement parts and routine care easier to track.',
+		suggestedActionLabel: 'Review Systems',
+		suggestedActionType: 'open_systems',
+	},
+	{
 		ruleId: 'major-systems-missing-install-dates',
 		idSuffix: 'install-dates',
 		category: 'Missing Information',
@@ -176,6 +189,7 @@ const makeSummaryFinding = (
 		category: config.category,
 		severity: config.severity,
 		priority: config.priority,
+		source: firstFinding.source,
 		title: config.title,
 		description: config.description,
 		whyItMatters: config.whyItMatters,
@@ -188,46 +202,6 @@ const makeSummaryFinding = (
 			affectedTaskIds: getAffectedTaskIds(findings),
 			affectedAssetIds: getAffectedAssetIds(findings),
 			affectedSystemIds: getAffectedSystemIds(findings),
-		},
-		createdAt: firstFinding.createdAt,
-	};
-};
-
-const makePremiumRecurringMaintenanceOpportunity = (
-	findings: MaintleyFinding[],
-	planId?: string,
-	capabilities?: Partial<Record<MaintleyCapability, boolean>>,
-): MaintleyFinding | null => {
-	const lockedCoverageFindings = findings.filter(
-		(finding) =>
-			finding.ruleId === 'systems-missing-actionable-maintenance-coverage' &&
-			!filterFindingsForPlanAndCapabilities([finding], planId, capabilities)
-				.length,
-	);
-	if (lockedCoverageFindings.length === 0) return null;
-
-	const firstFinding = lockedCoverageFindings[0];
-
-	return {
-		id: `maintley-intelligence:${firstFinding.propertyId}:quick-scan-premium:recurring-maintenance`,
-		ruleId: 'premium-recurring-maintenance-opportunity',
-		propertyId: firstFinding.propertyId,
-		affectedAssetIds: [],
-		affectedSystemIds: [],
-		category: 'Maintenance Opportunities',
-		severity: 'medium',
-		priority: 'medium',
-		title: 'Recurring maintenance recommendations are available with Homeowner+.',
-		description:
-			'Some systems could benefit from recurring maintenance coverage, which is available on Homeowner+ and higher plans.',
-		whyItMatters:
-			'Recurring schedules help keep routine care visible when you are ready for more maintenance automation.',
-		suggestedActionLabel: 'Learn More',
-		suggestedActionType: 'view_plan_options',
-		requiredPlan: 'homeowner_plus',
-		requiredCapabilities: ['recurring_tasks'],
-		metadata: {
-			sourceFindingIds: lockedCoverageFindings.map((finding) => finding.id),
 		},
 		createdAt: firstFinding.createdAt,
 	};
@@ -253,27 +227,12 @@ export const selectQuickScanFindings = (
 	const passthroughFindings = candidateFindings.filter(
 		(finding) => !summaryRuleIds.has(finding.ruleId),
 	);
-	const premiumOpportunity =
-		options.includePremiumOpportunity === true
-			? makePremiumRecurringMaintenanceOpportunity(
-				findings,
-				options.planId,
-				options.capabilities,
-			)
-			: null;
 	const prioritizedFindings = prioritizeMaintleyFindings([
 		...summaryFindings,
 		...passthroughFindings,
 	]);
 
-	if (!premiumOpportunity) {
-		return prioritizedFindings.slice(0, limit);
-	}
-
-	return [
-		...prioritizedFindings.slice(0, Math.max(0, limit - 1)),
-		premiumOpportunity,
-	];
+	return prioritizedFindings.slice(0, limit);
 };
 
 export const runQuickPropertyScan = (

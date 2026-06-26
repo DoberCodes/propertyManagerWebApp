@@ -8,9 +8,11 @@ import {
 import {
 	MaintleyFinding,
 	MaintleyCapability,
+	MaintleyFindingSource,
 	MaintleyIntelligenceContext,
 	MaintleyRequiredPlan,
 } from '../types';
+import { getRequiredPlanForFindingSource } from '../planFilter';
 
 export const normalizeText = (value: unknown): string =>
 	String(value || '')
@@ -107,23 +109,31 @@ export const makeFinding = (
 		| 'requiredPlan'
 		| 'requiredCapabilities'
 		| 'baselineVersion'
+		| 'source'
 	> & {
 		affectedAssetIds?: string[];
 		affectedSystemIds?: string[];
+		source?: MaintleyFindingSource;
 		requiredPlan?: MaintleyRequiredPlan;
 		requiredCapabilities?: MaintleyCapability[];
 		baselineVersion?: string;
 	},
-): MaintleyFinding => ({
-	...finding,
-	propertyId: context.property.id,
-	affectedAssetIds: finding.affectedAssetIds || finding.affectedSystemIds || [],
-	affectedSystemIds: finding.affectedSystemIds || finding.affectedAssetIds || [],
-	requiredPlan: finding.requiredPlan || 'homeowner',
-	requiredCapabilities: finding.requiredCapabilities || [],
-	baselineVersion: finding.baselineVersion || context.baselineVersion,
-	createdAt: context.createdAt,
-});
+): MaintleyFinding => {
+	const source = finding.source || 'property_memory';
+
+	return {
+		...finding,
+		source,
+		propertyId: context.property.id,
+		affectedAssetIds: finding.affectedAssetIds || finding.affectedSystemIds || [],
+		affectedSystemIds: finding.affectedSystemIds || finding.affectedAssetIds || [],
+		requiredPlan:
+			finding.requiredPlan || getRequiredPlanForFindingSource(source),
+		requiredCapabilities: finding.requiredCapabilities || [],
+		baselineVersion: finding.baselineVersion || context.baselineVersion,
+		createdAt: context.createdAt,
+	};
+};
 
 export const getMaintenanceHistoryDate = (history: any): Date | null => {
 	const dateValue =

@@ -1,6 +1,7 @@
 import { Device, Property } from '../types/Property.types';
 import { Task } from '../types/Task.types';
 import {
+	getQuickPropertyScanPremiumPreview,
 	getQuickPropertyScanRecommendations,
 	runPropertyScanV1,
 } from './propertyIntelligenceScan';
@@ -126,7 +127,7 @@ describe('propertyIntelligenceScan Quick Property Scan', () => {
 		).toBe(false);
 	});
 
-	it('hides locked recurring-maintenance deficiencies on the free plan and shows one premium opportunity', () => {
+	it('keeps the Homeowner+ preview separate from the free Quick Scan limit', () => {
 		const scan = runPropertyScanV1({
 			property: baseProperty,
 			systems: [
@@ -141,7 +142,11 @@ describe('propertyIntelligenceScan Quick Property Scan', () => {
 		const quickRecommendations = getQuickPropertyScanRecommendations(
 			scan.activeRecommendations,
 			undefined,
-			{ planId: 'homeowner', includePremiumOpportunity: true },
+			{ planId: 'homeowner' },
+		);
+		const premiumPreview = getQuickPropertyScanPremiumPreview(
+			scan.activeRecommendations,
+			'homeowner',
 		);
 
 		expect(
@@ -151,12 +156,13 @@ describe('propertyIntelligenceScan Quick Property Scan', () => {
 					'Maintley does not currently have recurring maintenance recorded for several systems.',
 			),
 		).toBe(false);
-		expect(
-			quickRecommendations.filter(
-				(recommendation) =>
-					recommendation.recommendationType === 'premium_opportunity',
-			),
-		).toHaveLength(1);
+		expect(quickRecommendations).toHaveLength(1);
+		expect(premiumPreview).toEqual(
+			expect.objectContaining({
+				requiredPlan: 'homeowner_plus',
+				examples: expect.arrayContaining(['Recommended recurring maintenance']),
+			}),
+		);
 	});
 
 	it('shows recurring maintenance as an actionable Homeowner+ recommendation', () => {
@@ -174,7 +180,11 @@ describe('propertyIntelligenceScan Quick Property Scan', () => {
 		const quickRecommendations = getQuickPropertyScanRecommendations(
 			scan.activeRecommendations,
 			undefined,
-			{ planId: 'homeowner_plus', includePremiumOpportunity: true },
+			{ planId: 'homeowner_plus' },
+		);
+		const premiumPreview = getQuickPropertyScanPremiumPreview(
+			scan.activeRecommendations,
+			'homeowner_plus',
 		);
 		const recurringSummary = quickRecommendations.find(
 			(recommendation) =>
@@ -184,12 +194,7 @@ describe('propertyIntelligenceScan Quick Property Scan', () => {
 
 		expect(recurringSummary?.recommendationType).toBe('feature');
 		expect(recurringSummary?.requiredPlan).toBe('homeowner_plus');
-		expect(
-			quickRecommendations.some(
-				(recommendation) =>
-					recommendation.recommendationType === 'premium_opportunity',
-			),
-		).toBe(false);
+		expect(premiumPreview).toBeNull();
 	});
 
 	it('prioritizes smoke and carbon monoxide detector history gaps as high priority', () => {

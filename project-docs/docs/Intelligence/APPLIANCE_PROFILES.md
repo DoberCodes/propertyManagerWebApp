@@ -176,6 +176,7 @@ Required For Identification
 
 * Manufacturer
 * Model Number
+* Serial Number
 
 Recommended
 
@@ -193,14 +194,16 @@ Optional
 ## Suggested Maintenance
 
 * Replace Filter
-* Annual Service
+* Professional Service
 * Clean Condensate Drain
 
 ---
 
 ## Suggested Parts & Supplies
 
-* HVAC Filter
+* Capacitor
+* Contactor
+* Filter
 
 ---
 
@@ -212,6 +215,20 @@ Optional
 
 ---
 
+## Lifecycle
+
+* Typical planning range: 15-20 years for many HVAC systems.
+* Use install date for planning context, not condition diagnosis.
+
+---
+
+## Seasonal Guidance
+
+* Spring: Record cooling-season service or filter checks.
+* Fall: Record heating-season service or filter checks.
+
+---
+
 # Water Heater
 
 ## Suggested Information
@@ -220,6 +237,7 @@ Required For Identification
 
 * Manufacturer
 * Model Number
+* Serial Number
 
 Recommended
 
@@ -244,6 +262,7 @@ Optional
 ## Suggested Parts & Supplies
 
 * Anode Rod
+* Temperature and Pressure Relief Valve
 
 ---
 
@@ -255,6 +274,19 @@ Optional
 
 ---
 
+## Lifecycle
+
+* Typical planning range: 8-12 years for many tank water heaters.
+* Use manufacturer and plumber guidance when it differs from Maintley baseline guidance.
+
+---
+
+## Seasonal Guidance
+
+* Fall: Record a flush or service review before heavier winter use.
+
+---
+
 # Refrigerator
 
 ## Suggested Information
@@ -263,6 +295,7 @@ Required For Identification
 
 * Manufacturer
 * Model Number
+* Serial Number
 
 Recommended
 
@@ -285,6 +318,7 @@ Optional
 ## Suggested Parts & Supplies
 
 * Water Filter
+* Air Filter
 
 ---
 
@@ -295,14 +329,240 @@ Optional
 
 ---
 
+## Lifecycle
+
+* Typical planning range: 10-15 years for many refrigerators.
+* Track water filter model for easier replacements.
+
+---
+
+## Seasonal Guidance
+
+* Spring: Record coil cleaning if it is part of routine care.
+* Fall: Review filter history before holiday or heavy kitchen use.
+
+---
+
+# Washer
+
+## Suggested Information
+
+Required For Identification
+
+* Manufacturer
+* Model Number
+* Serial Number
+
+Recommended
+
+* Install Date
+
+Optional
+
+* Warranty Expiration
+
+---
+
+## Suggested Maintenance
+
+* Run Cleaning Cycle
+* Inspect Hoses
+
+---
+
+## Suggested Parts & Supplies
+
+* Hoses
+* Inlet Screens
+
+---
+
+## Suggested Documentation
+
+* Manual
+* Warranty
+
+---
+
+## Lifecycle
+
+* Typical planning range: 10-13 years for many washers.
+* Track install date for replacement planning and warranty review.
+
+---
+
+## Seasonal Guidance
+
+* Spring: Record a hose check if laundry connections are accessible.
+* Fall: Review cleaning-cycle history before heavier seasonal use.
+
+---
+
+# Dryer
+
+## Suggested Information
+
+Required For Identification
+
+* Manufacturer
+* Model Number
+* Serial Number
+
+Recommended
+
+* Install Date
+
+Optional
+
+* Warranty Expiration
+
+---
+
+## Suggested Maintenance
+
+* Clean Dryer Vent
+* Record Lint Filter Care
+
+---
+
+## Suggested Parts & Supplies
+
+* Vent Duct
+* Lint Screen
+* Belt
+
+---
+
+## Suggested Documentation
+
+* Manual
+* Warranty
+
+---
+
+## Lifecycle
+
+* Typical planning range: 10-13 years for many dryers.
+* Track install date for replacement planning and warranty review.
+
+---
+
+## Seasonal Guidance
+
+* Spring: Record dryer vent cleaning if it is part of spring maintenance.
+* Fall: Review vent cleaning history before heavier winter laundry use.
+
+---
+
+# Roof
+
+## Suggested Information
+
+Recommended
+
+* Install Date
+* Material
+* Warranty Information
+
+Optional
+
+* Contractor
+
+---
+
+## Suggested Maintenance
+
+* Roof Inspection
+* Gutter or Debris Review
+
+---
+
+## Suggested Parts & Supplies
+
+* Shingles
+* Flashing
+* Roof Sealant
+
+---
+
+## Suggested Documentation
+
+* Warranty
+* Inspection Report
+* Photos
+
+---
+
+## Lifecycle
+
+* Typical planning range: 20-30 years for many asphalt shingle roofs.
+* Roof lifecycle varies significantly by material, climate, installation, and maintenance history.
+
+---
+
+## Seasonal Guidance
+
+* Spring: Record a roof and gutter review after winter weather.
+* Fall: Record a roof and gutter review before winter weather.
+
+---
+
+# Smoke/CO Detector
+
+## Suggested Information
+
+Required For Identification
+
+* Model Number
+* Serial Number
+* Location
+
+Recommended
+
+* Install Date
+* Replacement Date
+
+---
+
+## Suggested Maintenance
+
+* Test Detector
+* Replace Battery
+
+---
+
+## Suggested Parts & Supplies
+
+* Battery
+* Replacement Detector
+
+---
+
+## Suggested Documentation
+
+* Manual
+
+---
+
+## Lifecycle
+
+* Typical replacement window: 7-10 years for many detectors.
+* Follow the device label and manufacturer instructions for replacement timing.
+
+---
+
+## Seasonal Guidance
+
+* Spring: Record a test or battery check.
+* Fall: Record a test or battery check.
+
+---
+
 # Future Expansion
 
 Future appliance profiles may include:
 
 * Dishwasher
-* Washer
-* Dryer
-* Roof
 * Generator
 * Irrigation System
 * Sump Pump
