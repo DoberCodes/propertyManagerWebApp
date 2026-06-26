@@ -370,7 +370,7 @@ Maintley Intelligence Quick Scan snapshots are saved in:
 * `propertyScanLatest`
 * `propertyScanSnapshots`
 
-These collections store derived scan output for display and future history views. They should not become a source of truth for property details, systems, tasks, or maintenance history.
+These collections store derived scan output for the property Insights Overview and History views. They should not become a source of truth for property details, systems, tasks, or maintenance history.
 
 ---
 

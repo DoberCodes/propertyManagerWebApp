@@ -37,11 +37,19 @@ import {
 
 import seasonalTipCards, { SeasonalCard } from '../data/seasonalTipCards';
 
-const tipImageContext = (require as any).context(
-	'../Assets/TipsImages',
-	false,
-	/\.(png|jpe?g|webp|avif)$/i,
-);
+// require.context is a webpack-only API. In Jest it is not available so we
+// fall back to an empty module map so tests that import this component do not crash.
+const tipImageContext: ((path: string) => string) | null = (() => {
+	try {
+		return (require as any).context(
+			'../Assets/TipsImages',
+			false,
+			/\.(png|jpe?g|webp|avif)$/i,
+		);
+	} catch {
+		return null;
+	}
+})();
 
 const resolveTipImage = (imagePath?: string): string | null => {
 	if (!imagePath) {
@@ -58,6 +66,7 @@ const resolveTipImage = (imagePath?: string): string | null => {
 	}
 
 	try {
+		if (!tipImageContext) return null;
 		return tipImageContext(`./${imageName}`);
 	} catch {
 		return null;

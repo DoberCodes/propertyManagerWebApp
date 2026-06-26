@@ -1,11 +1,10 @@
-// import React from 'react';
-// import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-// import { Provider } from 'react-redux';
-// import { configureStore } from '@reduxjs/toolkit';
-// import userEvent from '@testing-library/user-event';
-// import { SettingsPage } from './SettingsPage';
-// import { apiSlice } from '../../Redux/API/apiSlice';
-// import userSlice, { setCurrentUser, User } from '../../Redux/Slices/userSlice';
+// SettingsPage tests are temporarily disabled pending a test environment
+// rewrite that supports full component mounting with auth and Firebase mocks.
+// The placeholder below prevents Jest from failing on an empty test suite.
+describe('SettingsPage', () => {
+    test.todo('add tests once the test environment supports full component mounting');
+});
+
 
 // // Mock dependencies
 // jest.mock('services/authService', () => ({

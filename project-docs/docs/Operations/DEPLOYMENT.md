@@ -499,13 +499,24 @@ Use release notes to summarize meaningful user-facing changes.
 
 ---
 
+# CI Deployment Gate
+
+The Firebase deployment workflow (`firebase-deploy-environments.yml`) runs a
+`build-check` job before deployment. The job installs root dependencies, runs
+`yarn test:ci`, and builds the frontend with production Firebase and Stripe
+environment variables.
+
+The deploy job requires `build-check` to pass. A failed test or frontend build
+therefore prevents the Firebase deployment in that workflow.
+
+---
+
 # Future Deployment Improvements
 
 Potential improvements:
 
 * Separate staging and production Firebase projects.
 * Document environment-specific deploy commands.
-* Add CI deployment checks.
 * Add deployment checklist automation.
 * Wire Storage rules into `firebase.json` if local Storage rules become authoritative.
 * Add smoke tests for critical post-deploy flows.

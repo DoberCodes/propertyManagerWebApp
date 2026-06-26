@@ -125,6 +125,11 @@ export const TabSystem = ({
 						tasks={allTasks}
 						maintenanceHistoryRecords={maintenanceHistoryRecords}
 						canRunScan={canRunPropertyScan}
+						accountId={
+							String((currentUser as any)?.accountId || '').trim() ||
+							String((property as any)?.accountId || '').trim() ||
+							String(property?.userId || '').trim()
+						}
 						showSetupPrompt={showPropertyScanPrompt}
 						subscription={currentUser?.subscription}
 						onRecommendationAction={

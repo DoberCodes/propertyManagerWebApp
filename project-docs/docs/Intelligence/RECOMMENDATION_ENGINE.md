@@ -537,7 +537,9 @@ Dismissed recommendations may be stored locally in v1. Saved recommendation reso
 
 The latest visible Quick Scan result is saved as a backend-derived snapshot for the property-level Insights tab so users can see the latest scan date and recommendations when they return.
 
-Each completed Quick Scan also creates a backend history snapshot. The current UI does not expose scan history, but the data model supports adding it later without changing the scan engine.
+Each completed Quick Scan also creates a backend history snapshot. The property-level Insights workspace exposes these snapshots in its History view without changing the scan engine.
+
+History snapshots are immutable display records. They answer what Maintley understood about the property when the scan was saved; they should not be refreshed from current property, system, task, or maintenance data.
 
 Property Scan v1 may generate more findings than it displays. The Quick Scan surface should show the highest-value subset only.
 

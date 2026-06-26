@@ -1,4 +1,5 @@
 import { MaintenanceRequestItem } from '../../Redux/Slices/maintenanceRequestsSlice';
+import { createMaintenanceRequestId } from '../../utils/detailPageUtils';
 
 const normalizeRequestFiles = (
 	files?: Array<
@@ -69,7 +70,7 @@ export const createMaintenanceRequestUtil = (
 ): MaintenanceRequestItem => {
 	const { files, images } = normalizeRequestFiles(request.files);
 	return {
-		id: `req-${Date.now()}`,
+		id: createMaintenanceRequestId(),
 		title: request.title,
 		description: request.description,
 		priority: request.priority,

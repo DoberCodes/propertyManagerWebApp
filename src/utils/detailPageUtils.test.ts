@@ -139,7 +139,7 @@ describe('detailPageUtils', () => {
 				requestedByEmail: 'john@example.com',
 				submittedBy: 'user-456',
 			});
-			expect(result.id).toMatch(/^req-\d+$/);
+			expect(result.id).toMatch(/^req-[\w-]+$/);
 			expect(result.requestedDate).toBeDefined();
 			expect(result.submittedAt).toBeDefined();
 		});
@@ -168,14 +168,12 @@ describe('detailPageUtils', () => {
 			expect(result.suite).toBe('Suite A');
 		});
 
-		it('should generate unique IDs', async () => {
+		it('should generate unique IDs for requests created in the same moment', () => {
 			const req1 = createMaintenanceRequest(
 				mockRequest,
 				mockProperty as any,
 				mockUser,
 			);
-			// Wait 1ms to ensure different timestamp
-			await new Promise((resolve) => setTimeout(resolve, 1));
 			const req2 = createMaintenanceRequest(
 				mockRequest,
 				mockProperty as any,

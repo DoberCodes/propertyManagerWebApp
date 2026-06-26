@@ -1,4 +1,12 @@
-import { collection, doc, getDoc, writeBatch } from 'firebase/firestore';
+import {
+	collection,
+	doc,
+	getDoc,
+	getDocs,
+	query,
+	where,
+	writeBatch,
+} from 'firebase/firestore';
 import { auth, db } from '../../config/firebase';
 import {
 	PropertyScanPremiumPreview,
@@ -32,6 +40,11 @@ type SavePropertyScanSnapshotInput = Omit<
 	PropertyScanSnapshot,
 	'id' | 'updatedAt' | 'createdBy'
 >;
+
+interface GetPropertyScanSnapshotsInput {
+	propertyId: string;
+	accountId?: string;
+}
 
 const removeUndefinedFieldsDeep = <T>(value: T): T => {
 	if (Array.isArray(value)) {
@@ -88,6 +101,44 @@ const propertyIntelligenceSlice = apiSlice.injectEndpoints({
 			],
 		}),
 
+		getPropertyScanSnapshots: builder.query<
+			PropertyScanSnapshot[],
+			GetPropertyScanSnapshotsInput
+		>({
+			async queryFn({ propertyId, accountId }) {
+				try {
+					if (!propertyId || !accountId) {
+						return { data: [] };
+					}
+
+					const snapshotQuery = query(
+						collection(db, 'propertyScanSnapshots'),
+						where('accountId', '==', accountId),
+						where('propertyId', '==', propertyId),
+					);
+					const snapshotDocs = await getDocs(snapshotQuery);
+					const snapshots = snapshotDocs.docs
+						.map((snapshotDoc) => docToData(snapshotDoc) as PropertyScanSnapshot)
+						.sort(
+							(first, second) =>
+								new Date(second.createdAt || 0).getTime() -
+								new Date(first.createdAt || 0).getTime(),
+						);
+
+					return { data: snapshots };
+				} catch (error: any) {
+					return {
+						error:
+							error?.message ||
+							'Failed to load property scan history snapshots',
+					};
+				}
+			},
+			providesTags: (_result, _error, { propertyId }) => [
+				{ type: 'PropertyScanSnapshots', id: propertyId },
+			],
+		}),
+
 		savePropertyScanSnapshot: builder.mutation<
 			PropertyScanSnapshot,
 			SavePropertyScanSnapshotInput
@@ -130,5 +181,6 @@ const propertyIntelligenceSlice = apiSlice.injectEndpoints({
 
 export const {
 	useGetLatestPropertyScanSnapshotQuery,
+	useGetPropertyScanSnapshotsQuery,
 	useSavePropertyScanSnapshotMutation,
 } = propertyIntelligenceSlice;

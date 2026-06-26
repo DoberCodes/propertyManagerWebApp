@@ -22,10 +22,15 @@ describe('PropertyDialog', () => {
 			</Provider>,
 		);
 
-		await user.click(screen.getByRole('button', { name: /property profile/i }));
-
-		await user.type(screen.getByLabelText(/property name/i), 'Test Property');
-		await user.type(screen.getByLabelText(/address/i), '123 Main Street');
+		await user.type(
+			screen.getByPlaceholderText('Enter property name'),
+			'Test Property',
+		);
+		await user.type(
+			screen.getByPlaceholderText('Enter address'),
+			'123 Main Street',
+		);
+		await user.click(screen.getByRole('button', { name: /^next$/i }));
 
 		const checkbox = screen.getByRole('checkbox');
 		await user.click(checkbox);

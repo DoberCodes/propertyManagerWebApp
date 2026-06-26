@@ -38,6 +38,14 @@ const normalizeRequestFiles = (
 	};
 };
 
+export const createMaintenanceRequestId = (): string => {
+	if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+		return `req-${crypto.randomUUID()}`;
+	}
+
+	return `req-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+};
+
 /**
  * Get device name from device ID
  * Works for any entity (property/unit/suite) with devices
@@ -96,7 +104,7 @@ export const createMaintenanceRequest = (
 ): MaintenanceRequestItem => {
 	const { files, images } = normalizeRequestFiles(request.files);
 	return {
-		id: `req-${Date.now()}`,
+		id: createMaintenanceRequestId(),
 		title: request.title,
 		description: request.description,
 		priority: request.priority,

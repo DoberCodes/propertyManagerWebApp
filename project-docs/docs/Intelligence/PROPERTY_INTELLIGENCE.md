@@ -828,13 +828,20 @@ Visible Quick Scan recommendation cards should help users understand:
 * What future maintenance headache the next step may help avoid
 * Which action the user can take next
 
-The Insights tab should show the last scan date when a scan has been run.
+The property-level Insights tab is a small Maintley Intelligence workspace with:
+
+* Overview
+* History
+
+Overview shows the latest Quick Scan experience, current recommendations, the Run Quick Scan action, and the "How Property Quick Scan Works" help.
+
+History shows saved scan snapshots for the property.
 
 In v1, the latest visible scan result is saved as a backend-derived snapshot so the property-level Insights tab can show the latest scan whenever the user returns.
 
-Each completed Quick Scan is also saved as a backend history snapshot for future scan-history UI. The current UI does not expose that history yet.
+Each completed Quick Scan is also saved as a backend history snapshot. The History view displays those saved snapshots as read-only records.
 
-Scan snapshots are derived records. They preserve what Maintley Intelligence showed at scan time, but they do not replace the source records used to generate recommendations.
+Scan snapshots are derived records. They preserve what Maintley Intelligence showed at scan time, but they do not replace the source records used to generate recommendations. Historical scan details should not update when current property data changes.
 
 Recommendations are grouped into:
 

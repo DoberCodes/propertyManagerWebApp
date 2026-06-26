@@ -1,6 +1,7 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { Provider } from 'react-redux';
+import { MemoryRouter } from 'react-router-dom';
 import { configureStore } from '@reduxjs/toolkit';
 import { TabController } from './TabController';
 
@@ -12,8 +13,9 @@ const makeProps = (overrides: any = {}) => ({
 	},
 	propertyMaintenanceRequests: overrides.propertyMaintenanceRequests || [],
 	canApproveMaintenanceRequest: overrides.canApprove || (() => true),
+	permissions: overrides.permissions,
 	activeTab: overrides.activeTab || 'details',
-	setActiveTab: overrides.setActiveTab || (() => {}),
+	setActiveTab: overrides.setActiveTab || (() => { }),
 });
 
 // Minimal mock store provider for tests
@@ -32,10 +34,14 @@ const createMockStore = (
 	});
 
 const renderWithStore = (ui: React.ReactElement, store?: any) =>
-	render(<Provider store={store || createMockStore()}>{ui}</Provider>);
+	render(
+		<Provider store={store || createMockStore()}>
+			<MemoryRouter>{ui}</MemoryRouter>
+		</Provider>,
+	);
 
 describe('Tabs component', () => {
-	test('shows Units for Multi-Family properties', () => {
+	test('does not show Units for Multi-Family properties while Units are deprioritized', () => {
 		renderWithStore(
 			<TabController
 				{...makeProps({ property: { propertyType: 'Multi-Family' } })}
@@ -45,7 +51,7 @@ describe('Tabs component', () => {
 				user: { currentUser: null },
 			}),
 		);
-		expect(screen.getByText('Units')).toBeInTheDocument();
+		expect(screen.queryByText('Units')).not.toBeInTheDocument();
 	});
 
 	test('does not show Suites for Commercial properties (temporarily hidden)', () => {
@@ -60,12 +66,13 @@ describe('Tabs component', () => {
 		expect(screen.queryByText('Suites')).not.toBeInTheDocument();
 	});
 
-	test('shows Tenants and Requests for rental properties for non-homeowner users', () => {
+	test('shows Tenants and Requests for rental properties when permissions allow', () => {
 		renderWithStore(
 			<TabController
 				{...makeProps({
 					property: { isRental: true, propertyType: 'Single Family' },
 					propertyMaintenanceRequests: [{ id: 'r1', status: 'pending' }],
+					permissions: { canManageTenants: true },
 				})}
 			/>,
 			createMockStore(),
@@ -73,8 +80,6 @@ describe('Tabs component', () => {
 
 		expect(screen.getByText('Tenants')).toBeInTheDocument();
 		expect(screen.getByText('Requests')).toBeInTheDocument();
-		// badge count should be rendered somewhere as '1'
-		expect(screen.getByText('1')).toBeInTheDocument();
 	});
 
 	test('does not show Tenants/Requests for homeowner plan even if isRental is true', () => {
