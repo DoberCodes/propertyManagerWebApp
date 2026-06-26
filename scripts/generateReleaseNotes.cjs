@@ -19,8 +19,9 @@ const octokit = new Octokit({
 	auth: process.env.GITHUB_TOKEN, // Ensure you have a GitHub token set in your environment variables
 });
 
-const owner = 'DoberCodes';
-const repo = 'propertyManagerWebApp';
+const [owner, repo] = (
+	process.env.GITHUB_REPOSITORY || 'DoberFamilyVentures/propertyManagerWebApp'
+).split('/');
 
 async function getCommitsFromPullRequests(latestTagDate) {
 	try {

@@ -18,6 +18,22 @@ const CURRENT_APP_VERSION = '2.7.2'; // Should match package.json version
 const STORAGE_KEY = 'app_version_check';
 const DISMISS_KEY = 'app_update_dismissed_version';
 
+export const GITHUB_RELEASE_REPOSITORY =
+	'DoberFamilyVentures/propertyManagerWebApp';
+export const APK_RELEASE_ASSET_NAME = 'app-release.apk';
+
+export const getGitHubReleaseApiUrl = (release: string): string =>
+	`https://api.github.com/repos/${GITHUB_RELEASE_REPOSITORY}/releases/${release}`;
+
+export const getVersionedAPKDownloadURL = (
+	version: string,
+	assetName = APK_RELEASE_ASSET_NAME,
+): string =>
+	`https://github.com/${GITHUB_RELEASE_REPOSITORY}/releases/download/v${version}/${assetName}`;
+
+export const getLatestAPKDownloadURL = (): string =>
+	`https://github.com/${GITHUB_RELEASE_REPOSITORY}/releases/latest/download/${APK_RELEASE_ASSET_NAME}`;
+
 interface VersionCheckData {
 	lastChecked: number;
 	availableVersion: string;
@@ -45,15 +61,17 @@ const formatBytes = (bytes) => {
 export const getAPKFileSize = async () => {
 	try {
 		// Prefer GitHub Releases API to avoid CORS issues on asset URLs
-		const releaseResponse = await fetch(
-			'https://api.github.com/repos/DoberCodes/propertyManagerWebApp/releases/latest',
-			{ cache: 'no-store' },
-		);
+		const releaseResponse = await fetch(getGitHubReleaseApiUrl('latest'), {
+			cache: 'no-store',
+		});
 		if (releaseResponse.ok) {
 			const release = await releaseResponse.json();
 			const assets = release?.assets || [];
 			const apkAsset = assets.find(
-				(asset) => asset?.label === 'PropertyManager.apk',
+				(asset) =>
+					asset?.name === APK_RELEASE_ASSET_NAME ||
+					asset?.label === APK_RELEASE_ASSET_NAME ||
+					asset?.label === 'PropertyManager.apk',
 			);
 			if (apkAsset?.size) {
 				return formatBytes(Number(apkAsset.size));
@@ -67,8 +85,7 @@ export const getAPKFileSize = async () => {
 	}
 
 	try {
-		const fallbackUrl =
-			'https://github.com/DoberCodes/propertyManagerWebApp/releases/latest/download/app-release.apk';
+		const fallbackUrl = getLatestAPKDownloadURL();
 		const fallbackResponse = await fetch(`${fallbackUrl}?t=${Date.now()}`, {
 			method: 'HEAD',
 			cache: 'no-store',
@@ -181,11 +198,11 @@ export const getAPKDownloadURL = (): string => {
 	if (configuredUrl) {
 		// Ignore legacy GitHub Pages URL to ensure we always check the release asset
 		if (configuredUrl.includes('github.io')) {
-			return 'https://github.com/DoberCodes/propertyManagerWebApp/releases/latest/download/app-release.apk';
+			return getLatestAPKDownloadURL();
 		}
 		return configuredUrl;
 	}
-	return 'https://github.com/DoberCodes/propertyManagerWebApp/releases/latest/download/app-release.apk';
+	return getLatestAPKDownloadURL();
 };
 
 /**

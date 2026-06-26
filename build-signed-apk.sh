@@ -45,6 +45,8 @@ for arg in "$@"; do
 done
 SLACK_WEBHOOK=${SLACK_WEBHOOK:-""}  # Set SLACK_WEBHOOK env var for notifications
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APK_FILE="android/app/build/outputs/apk/release/app-release.apk"
+APK_ASSET_NAME="app-release.apk"
 
 # Color codes for output
 RED='\033[0;31m'
@@ -169,6 +171,8 @@ if [[ -z "$GITHUB_SCOPES" || "$GITHUB_SCOPES" != *"repo"* ]]; then
   exit 1
 fi
 print_success "GitHub token has repo scope"
+REPO_NAME=${GITHUB_REPOSITORY:-$(gh repo view --json nameWithOwner -q .nameWithOwner)}
+print_success "Using GitHub repository: $REPO_NAME"
 
 # Check required files exist
 if [[ ! -f "serviceAccountKey.json" ]]; then
@@ -186,8 +190,8 @@ if [[ "$RELEASE_ONLY" == "--release-only" ]]; then
     print_error "RELEASE_NOTES.txt not found. Cannot create release."
     exit 1
   fi
-  if [[ ! -f "android/app/release/app-release.apk" ]]; then
-    print_error "android/app/release/app-release.apk not found. Cannot create release."
+  if [[ ! -f "$APK_FILE" ]]; then
+    print_error "$APK_FILE not found. Cannot create release."
     exit 1
   fi
   NEW_VERSION=$(node -p "require('./package.json').version")
@@ -336,8 +340,10 @@ fi
 
 echo ""
 print_header "Step 2: Building React App"
-sed -i 's|"homepage": "https://dobercodes.github.io/propertyManagerWebApp"|"homepage": "./"|g' package.json client/package.json
-print_success "Homepage changed to relative path"
+ORIGINAL_ROOT_HOMEPAGE=$(node -p "require('./package.json').homepage || ''")
+ORIGINAL_CLIENT_HOMEPAGE=$(node -p "require('./client/package.json').homepage || ''")
+node -e "const fs=require('fs'); for (const file of ['./package.json','./client/package.json']) { const pkg=require(file); pkg.homepage='./'; fs.writeFileSync(file, JSON.stringify(pkg, null, '\t') + '\n'); }"
+print_success "Homepages changed to relative paths"
 
 if ! yarn build; then
   print_error "Build failed!"
@@ -416,7 +422,7 @@ else
   cd ..
 
   # Verify APK was created
-  if [ ! -f "android/app/build/outputs/apk/release/app-release.apk" ]; then
+  if [ ! -f "$APK_FILE" ]; then
     print_error "app-release.apk not found! Gradle build may have failed."
     send_slack_notification "APK build failed for v$NEW_VERSION" "error"
     exit 1
@@ -426,9 +432,9 @@ fi
 
 echo ""
 print_header "Step 4: Finalizing Build"
-cp android/app/build/outputs/apk/release/app-release.apk public/PropertyManager.apk
+cp "$APK_FILE" "public/$APK_ASSET_NAME"
 print_success "APK copied to public folder"
-ls -lh public/PropertyManager.apk
+ls -lh "public/$APK_ASSET_NAME"
 
 # ========== UPDATE VERSION FILES ==========
 # Version update moved to BEFORE APK build to ensure APK has correct version
@@ -436,8 +442,8 @@ echo ""
 print_header "Step 5: Rebuilding for Web Deployment"
 
 # Restore homepage for web deployment
-sed -i 's|"homepage": "./"|"homepage": "https://dobercodes.github.io/propertyManagerWebApp"|g' package.json client/package.json
-print_success "Homepage restored to GitHub Pages URL"
+ORIGINAL_ROOT_HOMEPAGE="$ORIGINAL_ROOT_HOMEPAGE" ORIGINAL_CLIENT_HOMEPAGE="$ORIGINAL_CLIENT_HOMEPAGE" node -e "const fs=require('fs'); const restore=(file, homepage) => { const pkg=require(file); if (homepage) pkg.homepage=homepage; else delete pkg.homepage; fs.writeFileSync(file, JSON.stringify(pkg, null, '\t') + '\n'); }; restore('./package.json', process.env.ORIGINAL_ROOT_HOMEPAGE); restore('./client/package.json', process.env.ORIGINAL_CLIENT_HOMEPAGE);"
+print_success "Original web homepages restored"
 
 # Rebuild for web
 yarn build
@@ -497,10 +503,6 @@ fi
 echo ""
 print_header "Step 9: Creating GitHub Release"
 RELEASE_NOTES_FILE="RELEASE_NOTES.txt"
-APK_FILE="android/app/build/outputs/apk/release/app-release.apk"
-APK_ASSET_NAME="PropertyManager.apk"
-REPO_NAME=${GITHUB_REPOSITORY:-$(gh repo view --json nameWithOwner -q .nameWithOwner)}
-
 if [ -f "$RELEASE_NOTES_FILE" ] && [ -f "$APK_FILE" ]; then
   RELEASE_EXISTS=false
   if run_gh_with_refresh gh release view "v$NEW_VERSION" --repo "$REPO_NAME" >/dev/null 2>&1; then
@@ -548,7 +550,7 @@ else
 fi
 
 # Remove APK from public folder
-rm -f public/PropertyManager.apk
+rm -f "public/$APK_ASSET_NAME"
 print_success "APK removed from public folder"
 
 # ========== GITHUB PAGES DEPLOYMENT ==========
@@ -565,9 +567,9 @@ print_success "Deployed to GitHub Pages"
 echo ""
 print_header "Step 11: Verifying Release is Live"
 
-RELEASE_URL="https://github.com/DoberCodes/propertyManagerWebApp/releases/tag/v$NEW_VERSION"
-APK_URL="https://github.com/DoberCodes/propertyManagerWebApp/releases/latest/download/PropertyManager.apk"
-PAGES_URL="https://dobercodes.github.io/propertyManagerWebApp/"
+RELEASE_URL="https://github.com/$REPO_NAME/releases/tag/v$NEW_VERSION"
+APK_URL="https://github.com/$REPO_NAME/releases/latest/download/$APK_ASSET_NAME"
+PAGES_URL="https://maintleyapp.com/"
 
 print_info "Checking GitHub release..."
 if gh release view "v$NEW_VERSION" --json "url,assets,isPrerelease,isDraft" -q ".url" >/dev/null 2>&1; then
@@ -622,10 +624,10 @@ fi
 echo "─────────────────────────────────────────"
 echo ""
 echo "Download link:"
-echo "  https://github.com/DoberCodes/propertyManagerWebApp/releases/tag/v$NEW_VERSION"
+echo "  $RELEASE_URL"
 echo ""
 echo "APK available at:"
-echo "  https://github.com/DoberCodes/propertyManagerWebApp/releases/latest/download/PropertyManager.apk"
+echo "  $APK_URL"
 echo ""
 
 # Send success notification

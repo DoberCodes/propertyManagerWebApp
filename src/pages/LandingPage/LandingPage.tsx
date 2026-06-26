@@ -126,7 +126,12 @@ import {
 } from './LandingPage.styles';
 
 import packageJson from '../../../package.json';
-import { getAPKFileSize, getAPKDownloadURL } from '../../utils/versionCheck';
+import {
+	getAPKFileSize,
+	getAPKDownloadURL,
+	getGitHubReleaseApiUrl,
+	getVersionedAPKDownloadURL,
+} from '../../utils/versionCheck';
 import SEO from 'Components/SEO/SEO';
 import { legalDocuments } from '../LegalPage/legalDocuments';
 
@@ -172,7 +177,10 @@ const LandingPageComponent = () => {
 	};
 	// Use previous version (1.7.3) for the versioned APK download
 	const previousVersion = '1.7.3';
-	const versionedApkDownloadUrl = `https://github.com/DoberCodes/propertyManagerWebApp/releases/download/v${previousVersion}/app-release.apk`;
+	const versionedApkDownloadUrl = getVersionedAPKDownloadURL(
+		previousVersion,
+		`PropertyManager-${previousVersion}.apk`,
+	);
 	const continuityReasons = [
 		{
 			title: 'Repairs get forgotten',
@@ -275,22 +283,18 @@ const LandingPageComponent = () => {
 		const fetchFileSizesAndVersionInfo = async () => {
 			try {
 				// Fetch latest release info
-				const releaseResponse = await fetch(
-					'https://api.github.com/repos/DoberCodes/propertyManagerWebApp/releases/latest',
-				);
+				const releaseResponse = await fetch(getGitHubReleaseApiUrl('latest'));
 				if (releaseResponse.ok) {
 					const release = await releaseResponse.json();
 					// Get file sizes for both APKs
 					const assets = release.assets || [];
 					const latestApk = assets.find(
-						(asset) =>
-							asset.label === 'PropertyManager.apk' ||
-							asset.name === 'PropertyManager.apk',
+						(asset) => asset.name === 'app-release.apk',
 					);
 
 					// For versioned APK, fetch the previous version release
 					const previousReleaseResponse = await fetch(
-						`https://api.github.com/repos/DoberCodes/propertyManagerWebApp/releases/tags/v${previousVersion}`,
+						getGitHubReleaseApiUrl(`tags/v${previousVersion}`),
 					);
 					let versionedApkSize = null;
 					if (previousReleaseResponse.ok) {

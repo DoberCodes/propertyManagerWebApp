@@ -349,6 +349,22 @@ Review local signing configuration before running release builds.
 
 Do not commit keystores or signing secrets.
 
+### APK Release Asset
+
+Android releases are published to the active GitHub repository as:
+
+```text
+app-release.apk
+```
+
+The current public download endpoint is:
+
+```text
+https://github.com/DoberFamilyVentures/propertyManagerWebApp/releases/latest/download/app-release.apk
+```
+
+The signed release helper derives its repository from `GITHUB_REPOSITORY` when set, or from the authenticated GitHub repository. It should not contain hardcoded organization or download URLs.
+
 ---
 
 # Pre-Deploy Checks
