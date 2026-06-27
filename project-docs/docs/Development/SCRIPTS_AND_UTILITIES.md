@@ -231,6 +231,68 @@ Low
 
 ---
 
+## Bundle Asset Report
+
+```bash
+yarn analyze:bundle
+```
+
+Purpose:
+
+Reports production build asset sizes from `build/static`, including raw and gzip
+sizes for JavaScript assets. If source maps are present, the report also lists
+the largest source-map contributors.
+
+Run after `yarn build`.
+
+Risk:
+
+Low
+
+---
+
+## Media Asset Report
+
+```bash
+yarn analyze:media
+```
+
+Purpose:
+
+Reports large image and static media assets under `public` and `src`.
+
+Risk:
+
+Low
+
+---
+
+## Asset Budget Check
+
+```bash
+yarn check:asset-budgets
+```
+
+Purpose:
+
+Validates the production build against Maintley's current asset budgets:
+
+* Main JavaScript gzip size under 300 KB
+* Total JavaScript gzip size under 1 MB
+* Built media assets under 6 MB total
+* Individual built media assets under 750 KB
+
+Run after `yarn build`. The check scans the full `build` directory, including
+public assets copied outside `build/static`.
+
+This check is also enforced by `predeploy` and the signed release pipeline.
+
+Risk:
+
+Low
+
+---
+
 ## Validate Build
 
 ```bash

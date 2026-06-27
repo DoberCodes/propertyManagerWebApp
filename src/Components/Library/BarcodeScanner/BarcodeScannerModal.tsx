@@ -1,12 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import styled from 'styled-components';
 import {
-	BarcodeFormat,
-	BrowserMultiFormatReader,
-	DecodeHintType,
-	NotFoundException,
-} from '@zxing/library';
-import {
 	analyzeBarcodePayload,
 	BarcodePayloadAnalysis,
 } from '../../../utils/barcodeScanParser';
@@ -294,6 +288,7 @@ const Checkbox = styled.input`
 type BarcodeScanResult = {
 	rawValue?: string;
 };
+type ZxingModule = typeof import('@zxing/library');
 
 type RelabelRow = {
 	id: string;
@@ -327,7 +322,8 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 	const photoInputRef = useRef<HTMLInputElement | null>(null);
 	const streamRef = useRef<MediaStream | null>(null);
 	const rafRef = useRef<number | null>(null);
-	const zxingReaderRef = useRef<BrowserMultiFormatReader | null>(null);
+	const zxingModuleRef = useRef<ZxingModule | null>(null);
+	const zxingReaderRef = useRef<any | null>(null);
 	const zxingStopRef = useRef<(() => void) | null>(null);
 	const activeVideoTrackRef = useRef<MediaStreamTrack | null>(null);
 	const [error, setError] = useState<string>('');
@@ -422,23 +418,31 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 		}
 	}, [isTorchAvailable, isTorchOn]);
 
-	const getZxingReader = useCallback(() => {
+	const loadZxingModule = useCallback(async () => {
+		if (!zxingModuleRef.current) {
+			zxingModuleRef.current = await import('@zxing/library');
+		}
+		return zxingModuleRef.current;
+	}, []);
+
+	const getZxingReader = useCallback(async () => {
 		if (!zxingReaderRef.current) {
+			const zxing = await loadZxingModule();
 			const hints = new Map();
-			hints.set(DecodeHintType.POSSIBLE_FORMATS, [
-				BarcodeFormat.CODE_128,
-				BarcodeFormat.CODE_39,
-				BarcodeFormat.EAN_13,
-				BarcodeFormat.EAN_8,
-				BarcodeFormat.UPC_A,
-				BarcodeFormat.UPC_E,
-				BarcodeFormat.QR_CODE,
-				BarcodeFormat.DATA_MATRIX,
+			hints.set(zxing.DecodeHintType.POSSIBLE_FORMATS, [
+				zxing.BarcodeFormat.CODE_128,
+				zxing.BarcodeFormat.CODE_39,
+				zxing.BarcodeFormat.EAN_13,
+				zxing.BarcodeFormat.EAN_8,
+				zxing.BarcodeFormat.UPC_A,
+				zxing.BarcodeFormat.UPC_E,
+				zxing.BarcodeFormat.QR_CODE,
+				zxing.BarcodeFormat.DATA_MATRIX,
 			]);
-			zxingReaderRef.current = new BrowserMultiFormatReader(hints);
+			zxingReaderRef.current = new zxing.BrowserMultiFormatReader(hints);
 		}
 		return zxingReaderRef.current;
-	}, []);
+	}, [loadZxingModule]);
 
 	const commitValue = useCallback((value: string) => {
 		const trimmed = value.trim();
@@ -523,7 +527,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 			setOcrError('');
 			setIsExtractingText(true);
 			try {
-				const zxingReader = getZxingReader();
+				const zxingReader = await getZxingReader();
 				const imageUrl = URL.createObjectURL(file);
 				try {
 					const decodedBarcode = await zxingReader.decodeFromImageUrl(imageUrl);
@@ -711,7 +715,8 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 					rafRef.current = requestAnimationFrame(tick);
 				}
 
-				const zxingReader = getZxingReader();
+				const zxing = await loadZxingModule();
+				const zxingReader = await getZxingReader();
 				await zxingReader.decodeFromStream(
 					stream,
 					video,
@@ -723,7 +728,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 						}
 						if (
 							decodeError &&
-							!(decodeError instanceof NotFoundException) &&
+							!(decodeError instanceof zxing.NotFoundException) &&
 							!supportsBarcodeDetector
 						) {
 							setError('ZXing could not decode the current frame. Try better lighting or move closer.');
@@ -750,6 +755,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 		defaultMethod,
 		getZxingReader,
 		isOpen,
+		loadZxingModule,
 		syncTorchAvailability,
 		stopScanner,
 		supportsBarcodeDetector,

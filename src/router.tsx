@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { Suspense } from 'react';
 import {
 	Route,
 	Routes,
@@ -7,44 +7,106 @@ import {
 } from 'react-router-dom';
 import { ErrorPage } from './pages/ErrorPage';
 import { UnauthorizedPage } from './pages/UnauthorizedPage';
-import { LandingPage } from './pages/LandingPage';
-import { LoginPage } from './pages/LoginPage';
-import { ForgotPasswordPage } from './pages/ForgotPasswordPage/ForgotPasswordPage';
-import { RegistrationPage } from './pages/RegistrationPage';
 import { ProtectedRoutes } from './ProtectedRoutes';
-import { FeatureDocsPage } from './pages/FeatureDocs/FeatureDocsPage';
-import { HelpPage } from './pages/HelpPage';
-import LegalPage from './pages/LegalPage/LegalPage';
-import LegalDocumentPage from './pages/LegalPage/LegalDocumentPage';
-import { Layout } from './pages/Layout';
-import { DashboardTab } from './pages/DashboardTab';
-import { TasksPage } from './pages/TasksPage/TasksPage';
-import { Properties } from './Components/PropertiesTab/PropertiesTab';
-import { PropertyDetailPage } from './pages/PropertyDetailPage/PropertyDetailPage';
 // Units are temporarily hidden from the app flow; keep the page code for the later relaunch.
 // import { UnitDetailPage } from './pages/UnitDetailPage';
 // Suites are temporarily hidden from the app flow; keep the page code for the later relaunch.
 // import { SuiteDetailPage } from './pages/SuiteDetailPage/SuiteDetailPage';
-import { DeviceDetailPage } from './pages/DeviceDetailPage/DeviceDetailPage';
-import TeamPage from './pages/TeamPage';
-import { ReportPage } from './pages/ReportPage';
-import { DevicesHubPage } from './pages/DevicesHubPage/DevicesHubPage';
-import { UserProfile } from './pages/UserProfile';
-import { TenantProfilePage } from './pages/TenantProfilePage';
-import { AdminInboxPage } from './pages/AdminInboxPage/AdminInboxPage';
 import { isNativeApp } from './utils/platform';
 import { useSelector } from 'react-redux';
 import { selectCanAccessTeam } from './Redux/selectors/permissionSelectors';
-import PaywallPageIndex from './pages/PaywallPage';
-import { MaintenanceHistoryGroupPage } from 'pages/MaintenanceHistoryGroup';
-import { SettingsPage } from 'pages/SettingsPage';
-import {
-	SupportArticlePage,
-	SupportArticlesPage,
-	SupportPage,
-} from 'pages/SupportPage';
 import { USER_ROLES } from './constants/roles';
 import { hasMaintleyAdminAccess } from './utils/maintleyRole';
+
+const lazyNamed = <TModule, TKey extends keyof TModule>(
+	importer: () => Promise<TModule>,
+	exportName: TKey,
+) =>
+	React.lazy(async () => {
+		const module = await importer();
+		return {
+			default: module[exportName] as React.ComponentType,
+		};
+	});
+
+const LandingPage = lazyNamed(
+	() => import('./pages/LandingPage'),
+	'LandingPage',
+);
+const LoginPage = lazyNamed(() => import('./pages/LoginPage'), 'LoginPage');
+const ForgotPasswordPage = lazyNamed(
+	() => import('./pages/ForgotPasswordPage/ForgotPasswordPage'),
+	'ForgotPasswordPage',
+);
+const RegistrationPage = lazyNamed(
+	() => import('./pages/RegistrationPage'),
+	'RegistrationPage',
+);
+const FeatureDocsPage = lazyNamed(
+	() => import('./pages/FeatureDocs/FeatureDocsPage'),
+	'FeatureDocsPage',
+);
+const HelpPage = lazyNamed(() => import('./pages/HelpPage'), 'HelpPage');
+const LegalPage = React.lazy(() => import('./pages/LegalPage/LegalPage'));
+const LegalDocumentPage = React.lazy(
+	() => import('./pages/LegalPage/LegalDocumentPage'),
+);
+const Layout = lazyNamed(() => import('./pages/Layout'), 'Layout');
+const DashboardTab = lazyNamed(
+	() => import('./pages/DashboardTab'),
+	'DashboardTab',
+);
+const TasksPage = lazyNamed(
+	() => import('./pages/TasksPage/TasksPage'),
+	'TasksPage',
+);
+const Properties = lazyNamed(
+	() => import('./Components/PropertiesTab/PropertiesTab'),
+	'Properties',
+);
+const PropertyDetailPage = lazyNamed(
+	() => import('./pages/PropertyDetailPage/PropertyDetailPage'),
+	'PropertyDetailPage',
+);
+const DeviceDetailPage = lazyNamed(
+	() => import('./pages/DeviceDetailPage/DeviceDetailPage'),
+	'DeviceDetailPage',
+);
+const TeamPage = React.lazy(() => import('./pages/TeamPage'));
+const ReportPage = lazyNamed(() => import('./pages/ReportPage'), 'ReportPage');
+const DevicesHubPage = lazyNamed(
+	() => import('./pages/DevicesHubPage/DevicesHubPage'),
+	'DevicesHubPage',
+);
+const UserProfile = lazyNamed(() => import('./pages/UserProfile'), 'UserProfile');
+const TenantProfilePage = lazyNamed(
+	() => import('./pages/TenantProfilePage'),
+	'TenantProfilePage',
+);
+const AdminInboxPage = lazyNamed(
+	() => import('./pages/AdminInboxPage/AdminInboxPage'),
+	'AdminInboxPage',
+);
+const PaywallPageIndex = React.lazy(() => import('./pages/PaywallPage'));
+const MaintenanceHistoryGroupPage = lazyNamed(
+	() => import('pages/MaintenanceHistoryGroup'),
+	'MaintenanceHistoryGroupPage',
+);
+const SettingsPage = lazyNamed(
+	() => import('pages/SettingsPage'),
+	'SettingsPage',
+);
+const SupportPage = lazyNamed(() => import('pages/SupportPage'), 'SupportPage');
+const SupportArticlesPage = lazyNamed(
+	() => import('pages/SupportPage'),
+	'SupportArticlesPage',
+);
+const SupportArticlePage = lazyNamed(
+	() => import('pages/SupportPage'),
+	'SupportArticlePage',
+);
+
+const RouteLoadingState = () => null;
 
 // Component to handle root route - redirects to login in mobile app
 const RootRoute = () => {
@@ -75,75 +137,76 @@ export const RouterComponent = () => {
 		currentUser?.role === USER_ROLES.TENANT ? 'tenant-profile' : 'dashboard';
 	return (
 		<Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-			<Routes>
-				{/* Public Routes */}
-				<Route path='/' element={<RootRoute />} errorElement={<ErrorPage />} />
-				<Route
-					path='login'
-					element={
-						<ProtectedRoutes>
-							<LoginPage />
-						</ProtectedRoutes>
-					}
-				/>
-				<Route
-					path='forgot-password'
-					element={
-						<ProtectedRoutes>
-							<ForgotPasswordPage />
-						</ProtectedRoutes>
-					}
-				/>
-				<Route path='registration' element={<RegistrationPage />} />
-				<Route path='register' element={<RegistrationPage />} />
-				<Route path='admin' element={<MaintleyAdminRoute />} />
-				<Route path='unauthorized' element={<UnauthorizedPage />} />
-				{/* Paywall - accessible to authenticated users */}
-				<Route
-					path='paywall'
-					element={
-						<ProtectedRoutes>
-							<PaywallPageIndex />
-						</ProtectedRoutes>
-					}
-				/>
-				{/* Feature Docs - public */}
-				<Route path='docs' element={<FeatureDocsPage />} />
-				<Route path='features' element={<FeatureDocsPage />} />
-				<Route path='help' element={<HelpPage />} />
-				{/* Legal Documents - public */}
-				<Route path='legal' element={<LegalPage />} />
-				<Route path='legal/:documentName' element={<LegalDocumentPage />} />
-
-				{/* Protected Routes with Layout - Dashboard accessible to all authenticated users */}
-				<Route
-					element={
-						<ProtectedRoutes>
-							<Layout />
-						</ProtectedRoutes>
-					}>
-					<Route path='dashboard' element={<DashboardTab />} />
-					<Route path='tasks' element={<TasksPage />} />
-					<Route path='devices' element={<DevicesHubPage />} />
-
-					{/* Properties management - accessible to all authenticated users */}
+			<Suspense fallback={<RouteLoadingState />}>
+				<Routes>
+					{/* Public Routes */}
+					<Route path='/' element={<RootRoute />} errorElement={<ErrorPage />} />
 					<Route
-						path='properties'
+						path='login'
 						element={
 							<ProtectedRoutes>
-								<Properties />
+								<LoginPage />
 							</ProtectedRoutes>
 						}
 					/>
 					<Route
-						path='property/:slug'
+						path='forgot-password'
 						element={
 							<ProtectedRoutes>
-								<PropertyDetailPage />
+								<ForgotPasswordPage />
 							</ProtectedRoutes>
 						}
 					/>
-					{/* Units are temporarily hidden from the app flow.
+					<Route path='registration' element={<RegistrationPage />} />
+					<Route path='register' element={<RegistrationPage />} />
+					<Route path='admin' element={<MaintleyAdminRoute />} />
+					<Route path='unauthorized' element={<UnauthorizedPage />} />
+					{/* Paywall - accessible to authenticated users */}
+					<Route
+						path='paywall'
+						element={
+							<ProtectedRoutes>
+								<PaywallPageIndex />
+							</ProtectedRoutes>
+						}
+					/>
+					{/* Feature Docs - public */}
+					<Route path='docs' element={<FeatureDocsPage />} />
+					<Route path='features' element={<FeatureDocsPage />} />
+					<Route path='help' element={<HelpPage />} />
+					{/* Legal Documents - public */}
+					<Route path='legal' element={<LegalPage />} />
+					<Route path='legal/:documentName' element={<LegalDocumentPage />} />
+
+					{/* Protected Routes with Layout - Dashboard accessible to all authenticated users */}
+					<Route
+						element={
+							<ProtectedRoutes>
+								<Layout />
+							</ProtectedRoutes>
+						}>
+						<Route path='dashboard' element={<DashboardTab />} />
+						<Route path='tasks' element={<TasksPage />} />
+						<Route path='devices' element={<DevicesHubPage />} />
+
+						{/* Properties management - accessible to all authenticated users */}
+						<Route
+							path='properties'
+							element={
+								<ProtectedRoutes>
+									<Properties />
+								</ProtectedRoutes>
+							}
+						/>
+						<Route
+							path='property/:slug'
+							element={
+								<ProtectedRoutes>
+									<PropertyDetailPage />
+								</ProtectedRoutes>
+							}
+						/>
+						{/* Units are temporarily hidden from the app flow.
 					<Route
 						path='property/:slug/unit/:unitName'
 						element={
@@ -153,7 +216,7 @@ export const RouterComponent = () => {
 						}
 					/>
 					*/}
-					{/* Suites are temporarily hidden from the app flow.
+						{/* Suites are temporarily hidden from the app flow.
 					<Route
 						path='property/:slug/suite/:suiteName'
 						element={
@@ -163,79 +226,80 @@ export const RouterComponent = () => {
 						}
 					/>
 					*/}
-					<Route
-						path='property/:slug/device/:deviceSlug'
-						element={
-							<ProtectedRoutes>
-								<DeviceDetailPage />
-							</ProtectedRoutes>
-						}
-					/>
-					<Route
-						path='property/:slug/maintenance-history/:groupId'
-						element={
-							<ProtectedRoutes>
-								<MaintenanceHistoryGroupPage />
-							</ProtectedRoutes>
-						}
-					/>
-					{shouldShowTeamRoute && (
 						<Route
-							path='team'
+							path='property/:slug/device/:deviceSlug'
 							element={
 								<ProtectedRoutes>
-									<TeamPage />
+									<DeviceDetailPage />
 								</ProtectedRoutes>
 							}
 						/>
-					)}
+						<Route
+							path='property/:slug/maintenance-history/:groupId'
+							element={
+								<ProtectedRoutes>
+									<MaintenanceHistoryGroupPage />
+								</ProtectedRoutes>
+							}
+						/>
+						{shouldShowTeamRoute && (
+							<Route
+								path='team'
+								element={
+									<ProtectedRoutes>
+										<TeamPage />
+									</ProtectedRoutes>
+								}
+							/>
+						)}
 
-					{/* Reports - accessible to admin, PM, AM, ML with active subscription OR expired users */}
-					<Route
-						path='report'
-						element={
-							<ProtectedRoutes
-								requireSubscription={true}
-								allowExpiredUsers={true}>
-								<ReportPage />
-							</ProtectedRoutes>
-						}
-					/>
+						{/* Reports - accessible to admin, PM, AM, ML with active subscription OR expired users */}
+						<Route
+							path='report'
+							element={
+								<ProtectedRoutes
+									requireSubscription={true}
+									allowExpiredUsers={true}>
+									<ReportPage />
+								</ProtectedRoutes>
+							}
+						/>
 
-					{/* Settings - accessible to all authenticated users */}
-					<Route path='settings' element={<SettingsPage />} />
-					<Route path='support' element={<SupportPage />} />
-					<Route path='support/articles' element={<SupportArticlesPage />} />
-					<Route
-						path='support/articles/:articleSlug'
-						element={<SupportArticlePage />}
-					/>
-					<Route path='features' element={<FeatureDocsPage />} />
+						{/* Settings - accessible to all authenticated users */}
+						<Route path='settings' element={<SettingsPage />} />
+						<Route path='support' element={<SupportPage />} />
+						<Route path='support/articles' element={<SupportArticlesPage />} />
+						<Route
+							path='support/articles/:articleSlug'
+							element={<SupportArticlePage />}
+						/>
+						<Route path='features' element={<FeatureDocsPage />} />
 
-					{/* User Profile - accessible to all authenticated users */}
-					<Route
-						path='profile'
-						element={
-							<ProtectedRoutes>
-								<UserProfile />
-							</ProtectedRoutes>
-						}
-					/>
+						{/* User Profile - accessible to all authenticated users */}
+						<Route
+							path='profile'
+							element={
+								<ProtectedRoutes>
+									<UserProfile />
+								</ProtectedRoutes>
+							}
+						/>
 
-					{/* Tenant Profile - accessible to tenant users */}
-					<Route
-						path='tenant-profile'
-						element={
-							<ProtectedRoutes>
-								<TenantProfilePage />
-							</ProtectedRoutes>
-						}
-					/>
-				</Route>
+						{/* Tenant Profile - accessible to tenant users */}
+						<Route
+							path='tenant-profile'
+							element={
+								<ProtectedRoutes>
+									<TenantProfilePage />
+								</ProtectedRoutes>
+							}
+						/>
+					</Route>
 
-				{/* Fallback redirect */}
-				<Route path='*' element={<Navigate to={fallbackPath} replace />} />
-			</Routes>
+					{/* Fallback redirect */}
+					<Route path='*' element={<Navigate to={fallbackPath} replace />} />
+				</Routes>
+			</Suspense>
 		</Router>
 	);
 };

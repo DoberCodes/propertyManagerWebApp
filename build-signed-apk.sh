@@ -352,6 +352,13 @@ if ! yarn build; then
 fi
 print_success "React app built successfully"
 
+if ! yarn check:asset-budgets; then
+  print_error "Asset budget check failed after mobile web build!"
+  send_slack_notification "Asset budget check failed for v$NEW_VERSION" "error"
+  exit 1
+fi
+print_success "Asset budgets passed for mobile web build"
+
 echo ""
 print_header "Step 3: Syncing Capacitor"
 
@@ -446,8 +453,19 @@ ORIGINAL_ROOT_HOMEPAGE="$ORIGINAL_ROOT_HOMEPAGE" ORIGINAL_CLIENT_HOMEPAGE="$ORIG
 print_success "Original web homepages restored"
 
 # Rebuild for web
-yarn build
+if ! yarn build; then
+  print_error "Web deployment build failed!"
+  send_slack_notification "Web deployment build failed for v$NEW_VERSION" "error"
+  exit 1
+fi
 print_success "Web app rebuilt for deployment"
+
+if ! yarn check:asset-budgets; then
+  print_error "Asset budget check failed after web deployment build!"
+  send_slack_notification "Asset budget check failed for v$NEW_VERSION" "error"
+  exit 1
+fi
+print_success "Asset budgets passed for web deployment build"
 
 # ========== AUTOMATED GIT COMMIT ==========
 echo ""

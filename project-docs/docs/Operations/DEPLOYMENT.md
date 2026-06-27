@@ -345,6 +345,10 @@ build-signed-apk.sh
 creates or updates the GitHub release, tags the repository, and deploys the
 web app through `yarn deploy`.
 
+The signed release pipeline runs `yarn check:asset-budgets` after the mobile web
+build and after the final web deployment build. Asset budget failures block the
+release before Capacitor sync or deployment proceeds.
+
 Review local signing configuration before running release builds.
 
 Do not commit keystores or signing secrets.
@@ -373,6 +377,7 @@ Recommended checks before most deployments:
 
 ```bash
 npm run build
+npm run check:asset-budgets
 npm --prefix functions run build
 npm run test:rules
 ```

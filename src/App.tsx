@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { setCurrentUser, setAuthLoading } from './Redux/Slices/userSlice';
 import { RouterComponent } from './router';
 import { DataFetchProvider } from './Hooks/DataFetchContext';
-import { onAuthStateChange } from './services/authService';
+import { onAuthStateChange } from './services/authSession';
 import { UpdateNotification } from './Components/Library/UpdateNotification/UpdateNotification';
 import { checkForUpdates } from './utils/versionCheck';
 import styled from 'styled-components';

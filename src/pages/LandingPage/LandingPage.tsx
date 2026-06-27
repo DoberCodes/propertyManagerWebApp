@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
@@ -75,17 +75,6 @@ import {
 	MemoryStageNumber,
 	MemoryStageTitle,
 	MemoryStageText,
-	JourneySection,
-	JourneyShell,
-	JourneyHeader,
-	JourneyIntro,
-	JourneyGrid,
-	JourneyCard,
-	JourneyStep,
-	JourneyImage,
-	JourneyCardBody,
-	JourneyCardTitle,
-	JourneyCardText,
 	BenefitsSection,
 	BenefitRow,
 	BenefitImage,
@@ -241,29 +230,6 @@ const LandingPageComponent = () => {
 		},
 	];
 
-	const screenshotJourney = [
-		{
-			step: 'Step 1',
-			title: 'Capture the Work as It Happens',
-			text: 'Log the task, attach photos, and leave notes while details are still fresh.',
-			image: '/screenshots/taskpage.png',
-			alt: 'Task history screen showing maintenance records',
-		},
-		{
-			step: 'Step 2',
-			title: 'Link It to the Right System',
-			text: 'Tie service events, parts, and reminders to appliances so context stays with the home.',
-			image: '/screenshots/devicemanagement.png',
-			alt: 'Appliance management screen with linked maintenance details',
-		},
-		{
-			step: 'Step 3',
-			title: 'Recover Answers in Seconds',
-			text: 'Open property details later and see the full timeline without digging through old files.',
-			image: '/screenshots/propertyDetails.png',
-			alt: 'Property details screen with timeline and service history',
-		},
-	];
 	const [formData, setFormData] = useState({
 		name: '',
 		email: '',
@@ -276,8 +242,6 @@ const LandingPageComponent = () => {
 
 	const [apkFileSize, setApkFileSize] = useState('Unknown');
 	const [versionedApkFileSize, setVersionedApkFileSize] = useState('Unknown');
-	const [isJourneyVisible, setIsJourneyVisible] = useState(false);
-	const journeySectionRef = useRef<HTMLElement | null>(null);
 
 	useEffect(() => {
 		const fetchFileSizesAndVersionInfo = async () => {
@@ -327,27 +291,6 @@ const LandingPageComponent = () => {
 			}
 		};
 		fetchFileSizesAndVersionInfo();
-	}, []);
-
-	useEffect(() => {
-		const section = journeySectionRef.current;
-		if (!section) return;
-
-		const observer = new IntersectionObserver(
-			(entries) => {
-				entries.forEach((entry) => {
-					if (entry.isIntersecting) {
-						setIsJourneyVisible(true);
-						observer.disconnect();
-					}
-				});
-			},
-			{ threshold: 0.2 },
-		);
-
-		observer.observe(section);
-
-		return () => observer.disconnect();
 	}, []);
 
 	const handleInputChange = (
@@ -547,29 +490,6 @@ const LandingPageComponent = () => {
 
 				{/* Features Section */}
 				<FeaturesSectionComponent />
-
-				{/* Screenshot Journey Section */}
-				<JourneySection id='Journey' ref={journeySectionRef}>
-					<JourneyShell>
-						<JourneyHeader>Three Screens. One Long-Term Record.</JourneyHeader>
-						<JourneyIntro>
-							From first log to long-term history, this is how Maintley turns
-							everyday maintenance into reliable knowledge you can trust later.
-						</JourneyIntro>
-						<JourneyGrid>
-							{screenshotJourney.map((item) => (
-								<JourneyCard key={item.title} $visible={isJourneyVisible}>
-									<JourneyImage src={item.image} alt={item.alt} />
-									<JourneyCardBody>
-										<JourneyStep>{item.step}</JourneyStep>
-										<JourneyCardTitle>{item.title}</JourneyCardTitle>
-										<JourneyCardText>{item.text}</JourneyCardText>
-									</JourneyCardBody>
-								</JourneyCard>
-							))}
-						</JourneyGrid>
-					</JourneyShell>
-				</JourneySection>
 
 				{/* Benefits Section */}
 				<BenefitsSection id='Benefits'>
