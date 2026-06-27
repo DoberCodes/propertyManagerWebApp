@@ -7,16 +7,19 @@ describe('dataFilters utility functions', () => {
 			{
 				id: '1',
 				title: 'Task 1',
+				propertyId: 'prop1',
 				property: 'Main Street Property',
 			},
 			{
 				id: '2',
 				title: 'Task 2',
+				propertyId: 'prop1',
 				property: 'Main Street Property',
 			},
 			{
 				id: '3',
 				title: 'Task 3',
+				propertyId: 'prop2',
 				property: 'Oak Street Property',
 			},
 		];
