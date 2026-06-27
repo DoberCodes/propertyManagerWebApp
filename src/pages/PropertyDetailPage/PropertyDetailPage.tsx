@@ -595,9 +595,20 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 		unitId?: string;
 		deviceIds?: string[];
 		completionFile?: File;
+		completionFileData?: {
+			url: string;
+			name: string;
+			size: number;
+			type: string;
+			usage?: 'appliance_photo' | 'document';
+			uploadedAt?: string;
+		};
 		recurringTaskId?: string;
 		linkedTaskIds?: string[];
 		financials?: TaskFinancials;
+		eventType?: any;
+		eventSource?: any;
+		tags?: string[];
 	}) => {
 		if (!property?.id) return;
 		if (!roleCapabilities.canManageMaintenanceHistory) {

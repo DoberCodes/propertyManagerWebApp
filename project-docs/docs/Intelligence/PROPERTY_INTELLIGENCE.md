@@ -1148,6 +1148,8 @@ Maintley Intelligence consumes:
 * Documentation Records
 * Appliance Profiles
 
+Property Knowledge Acquisition may turn reviewed document suggestions into structured Property Memory. Maintley Intelligence consumes that accepted Property Memory; it should not parse raw uploaded documents directly.
+
 Maintley Intelligence generates:
 
 * Recommendations

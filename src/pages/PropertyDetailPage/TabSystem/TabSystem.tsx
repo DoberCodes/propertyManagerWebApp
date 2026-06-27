@@ -3,6 +3,7 @@ import { DetailsTab } from './DetailsTab';
 import { DevicesTab } from './DevicesTab';
 import { TasksTab } from './TasksTab';
 import { MaintenanceTab } from './MaintenanceTab';
+import { CostsTab } from './CostsTab';
 import { DocumentsTab } from './DocumentsTab';
 import { ContractorsTab } from './ContractorsTab';
 import { RequestsTab } from './RequestsTab';
@@ -12,12 +13,14 @@ import { TabContentContainer, TabControlsContainer } from './index.styles';
 import { TabController } from 'Components/Library';
 import { Task } from 'types/Task.types';
 import { RootState } from 'Redux/store/store';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { RoleCapabilities } from 'utils/permissions';
 import {
 	PropertyScanActionType,
 	PropertyScanRecommendation,
 } from 'utils/propertyIntelligenceScan';
+import { setActiveTab } from 'Redux/Slices/appSlice';
+import { useSearchParams } from 'react-router-dom';
 
 interface TabsProps {
 	property: any;
@@ -99,7 +102,18 @@ export const TabSystem = ({
 	handlePropertyScanAction,
 	permissions,
 }: TabsProps) => {
+	const dispatch = useDispatch();
+	const [searchParams, setSearchParams] = useSearchParams();
 	const activeTab = useSelector((state: RootState) => state.app.activeTab); // Default to 'details' if no active tab is set
+
+	const openSuggestedDetails = (suggestionId: string) => {
+		dispatch(setActiveTab('insights'));
+		const nextParams = new URLSearchParams(searchParams);
+		nextParams.set('tab', 'insights');
+		nextParams.set('insightsTab', 'suggested-details');
+		nextParams.set('suggestionId', suggestionId);
+		setSearchParams(nextParams);
+	};
 
 	const renderTabContent = () => {
 		switch (activeTab) {
@@ -124,6 +138,7 @@ export const TabSystem = ({
 						propertyDevices={propertyDevices}
 						tasks={allTasks}
 						maintenanceHistoryRecords={maintenanceHistoryRecords}
+						propertyContractors={propertyContractors}
 						canRunScan={canRunPropertyScan}
 						accountId={
 							String((currentUser as any)?.accountId || '').trim() ||
@@ -132,6 +147,8 @@ export const TabSystem = ({
 						}
 						showSetupPrompt={showPropertyScanPrompt}
 						subscription={currentUser?.subscription}
+						permissions={permissions}
+						onAddMaintenanceHistory={handleAddMaintenanceHistory}
 						onRecommendationAction={
 							handlePropertyScanAction ||
 							(() => {
@@ -179,6 +196,13 @@ export const TabSystem = ({
 						permissions={permissions}
 					/>
 				);
+			case 'costs':
+				return (
+					<CostsTab
+						tasks={allTasks}
+						maintenanceHistoryRecords={maintenanceHistoryRecords}
+					/>
+				);
 			case 'documents':
 				return (
 					<DocumentsTab
@@ -188,6 +212,7 @@ export const TabSystem = ({
 						maintenanceHistoryRecords={maintenanceHistoryRecords}
 						permissions={permissions}
 						openUploadToken={openDocumentsUploadToken}
+						onReviewSuggestedDetails={openSuggestedDetails}
 					/>
 				);
 			case 'tenants':

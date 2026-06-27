@@ -14,10 +14,18 @@ import {
 import { FileUploader } from 'Components/Library/FileUploader';
 import { useUpdatePropertyMutation } from 'Redux/API/propertySlice';
 import {
+	Device,
 	PropertyDocument,
 	PropertyDocumentCategory,
 } from 'types/Property.types';
+import type { PropertyKnowledgeSuggestion } from 'types/PropertyKnowledge.types';
 import { Task } from 'types/Task.types';
+import {
+	createPendingKnowledgeSuggestion,
+	createPendingKnowledgeSuggestionFromFile,
+	markDocumentWithKnowledgeSuggestion,
+	mergeKnowledgeSuggestion,
+} from 'propertyKnowledge/propertyKnowledgeAcquisition';
 import { RoleCapabilities } from 'utils/permissions';
 import {
 	deletePropertyDocumentFile,
@@ -52,6 +60,7 @@ interface DocumentsTabProps {
 	maintenanceHistoryRecords?: any[];
 	permissions?: RoleCapabilities;
 	openUploadToken?: number;
+	onReviewSuggestedDetails?: (suggestionId: string) => void;
 }
 
 const DOCUMENT_ACCEPT =
@@ -131,6 +140,12 @@ const getCategoryLabel = (category?: PropertyDocumentCategory) => {
 	return 'Other document';
 };
 
+const getKnowledgeSuggestionCount = (
+	suggestion?: PropertyKnowledgeSuggestion,
+) =>
+	(suggestion?.extractedFields.length || 0) +
+	(suggestion?.suggestedParts?.length || 0);
+
 const getTaskAssignmentStatus = (task?: Task, fallbackStatus?: string) => {
 	const status = task?.status || fallbackStatus || '';
 	return status === 'Completed' ? 'Completed' : 'Pending';
@@ -143,6 +158,7 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 	maintenanceHistoryRecords = [],
 	permissions,
 	openUploadToken = 0,
+	onReviewSuggestedDetails,
 }) => {
 	const feedback = useAppFeedback();
 	const [updateProperty] = useUpdatePropertyMutation();
@@ -167,6 +183,14 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 	const propertyDocuments = useMemo<PropertyDocument[]>(
 		() => (Array.isArray(property?.documents) ? property.documents : []),
 		[property?.documents],
+	);
+
+	const propertyKnowledgeSuggestions = useMemo<PropertyKnowledgeSuggestion[]>(
+		() =>
+			Array.isArray(property?.knowledgeSuggestions)
+				? property.knowledgeSuggestions
+				: [],
+		[property?.knowledgeSuggestions],
 	);
 
 	const deviceById = useMemo(() => {
@@ -201,13 +225,21 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 	const getDocumentAssignmentValue = (document?: PropertyDocument | null) => {
 		if (document?.assignedDeviceId) return `device:${document.assignedDeviceId}`;
 		if (document?.assignedTaskId) return `task:${document.assignedTaskId}`;
+		const linkedAssetId = document?.links?.assetIds?.[0];
+		if (linkedAssetId) return `device:${linkedAssetId}`;
+		const linkedTaskId = document?.links?.taskIds?.[0];
+		if (linkedTaskId) return `task:${linkedTaskId}`;
 		return 'property';
 	};
 
 	const getAssignmentFields = (value: string) => {
 		if (value.startsWith('device:')) {
+			const assetId = value.slice('device:'.length);
 			return {
-				assignedDeviceId: value.slice('device:'.length),
+				assignedDeviceId: assetId,
+				links: {
+					assetIds: [assetId],
+				},
 			};
 		}
 		if (value.startsWith('task:')) {
@@ -216,20 +248,25 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 			return {
 				assignedTaskId: taskId,
 				assignedTaskStatus: getTaskAssignmentStatus(task),
+				links: {
+					taskIds: [taskId],
+				},
 			};
 		}
-		return {};
+		return { links: {} };
 	};
 
 	const getAssignmentLabel = useCallback((document: PropertyDocument) => {
-		if (document.assignedDeviceId) {
-			const device = deviceById.get(String(document.assignedDeviceId));
+		const assetId = document.assignedDeviceId || document.links?.assetIds?.[0];
+		if (assetId) {
+			const device = deviceById.get(String(assetId));
 			return `Appliance/System: ${
 				device?.type || device?.name || 'Unknown appliance/system'
 			}`;
 		}
-		if (document.assignedTaskId) {
-			const task = taskById.get(String(document.assignedTaskId));
+		const taskId = document.assignedTaskId || document.links?.taskIds?.[0];
+		if (taskId) {
+			const task = taskById.get(String(taskId));
 			const status = getTaskAssignmentStatus(task, document.assignedTaskStatus);
 			return `Task: ${task?.title || 'Unknown task'} (${status})`;
 		}
@@ -254,8 +291,8 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 		() =>
 			propertyDocuments.map((document) => ({
 				id: document.id,
-				name: document.name,
-				url: document.url,
+				name: document.fileName || document.name,
+				url: document.fileUrl || document.url,
 				size: document.size,
 				type: document.type,
 				category: document.category,
@@ -335,6 +372,63 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 		setDocumentAssignment('property');
 	};
 
+	const getLatestKnowledgeSuggestionForDocument = (documentId?: string) => {
+		if (!documentId) return undefined;
+		return [...propertyKnowledgeSuggestions]
+			.reverse()
+			.find((suggestion) => suggestion.sourceDocumentId === documentId);
+	};
+
+	const handleReviewDocumentKnowledge = async (documentId?: string) => {
+		if (!property?.id || !documentId || isSaving) return;
+		const document = propertyDocuments.find((item) => item.id === documentId);
+		if (!document) return;
+
+		const existingPending = [...propertyKnowledgeSuggestions]
+			.reverse()
+			.find(
+				(suggestion) =>
+					suggestion.sourceDocumentId === documentId &&
+					suggestion.status === 'pending',
+			);
+		if (existingPending) {
+			onReviewSuggestedDetails?.(existingPending.id);
+			return;
+		}
+
+		const suggestion = createPendingKnowledgeSuggestion({
+			document,
+			propertyId: property.id,
+			relatedSystemId: document.assignedDeviceId || document.links?.assetIds?.[0],
+			property,
+			systems: propertyDevices as Device[],
+		});
+
+		setIsSaving(true);
+		try {
+			await updateProperty({
+				id: property.id,
+				updates: {
+					documents: propertyDocuments.map((item) =>
+						item.id === document.id
+							? markDocumentWithKnowledgeSuggestion(item, suggestion)
+							: item,
+					),
+					knowledgeSuggestions: mergeKnowledgeSuggestion(
+						propertyKnowledgeSuggestions,
+						suggestion,
+					),
+				},
+			}).unwrap();
+			onReviewSuggestedDetails?.(suggestion.id);
+		} catch (error) {
+			console.error('Error creating knowledge suggestion:', error);
+			feedback.notify('Could not review suggested details for this document.');
+		} finally {
+			setIsSaving(false);
+		}
+	};
+
 	useEffect(() => {
 		if (selectedFiles.length === 1) {
 			setUploadName(selectedFiles[0].name || '');
@@ -361,19 +455,53 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 					),
 				),
 			);
+			const documentsWithAssignment = uploadedDocuments.map((document) => ({
+				...document,
+				...assignmentFields,
+			}));
+			const knowledgeSuggestions = await Promise.all(
+				documentsWithAssignment.map((document, index) =>
+					createPendingKnowledgeSuggestionFromFile({
+						file: selectedFiles[index],
+						document,
+						propertyId: property.id,
+						relatedSystemId:
+							document.assignedDeviceId || document.links?.assetIds?.[0],
+						property,
+						systems: propertyDevices as Device[],
+					}),
+				),
+			);
+			const savedDocuments = documentsWithAssignment.map((document) => {
+				const suggestion = knowledgeSuggestions.find(
+					(candidate) => candidate.sourceDocumentId === document.id,
+				);
+				return suggestion
+					? markDocumentWithKnowledgeSuggestion(document, suggestion)
+					: document;
+			});
 			await updateProperty({
 				id: property.id,
 				updates: {
 					documents: [
 						...propertyDocuments,
-						...uploadedDocuments.map((document) => ({
-							...document,
-							...assignmentFields,
-						})),
+						...savedDocuments,
+					],
+					knowledgeSuggestions: [
+						...propertyKnowledgeSuggestions,
+						...knowledgeSuggestions,
 					],
 				},
 			}).unwrap();
-			feedback.notify('Documents uploaded.');
+			const totalSuggestedDetails = knowledgeSuggestions.reduce(
+				(total, suggestion) => total + getKnowledgeSuggestionCount(suggestion),
+				0,
+			);
+			feedback.notify(
+				totalSuggestedDetails > 0
+					? `Documents uploaded. Maintley found ${totalSuggestedDetails} suggested detail${totalSuggestedDetails === 1 ? '' : 's'} to review.`
+					: 'Documents uploaded.',
+			);
 			closeUploadModal();
 		} catch (error: any) {
 			console.error('Error uploading property documents:', error);
@@ -547,6 +675,13 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 					{allDocuments.map((file, index) => {
 						const key = `${file.source}-${file.id || file.name}-${file.url || 'no-url'}-${index}`;
 						const isPropertyDocument = file.source === 'property';
+						const latestKnowledgeSuggestion =
+							isPropertyDocument && file.id
+								? getLatestKnowledgeSuggestionForDocument(file.id)
+								: undefined;
+						const suggestionCount = getKnowledgeSuggestionCount(
+							latestKnowledgeSuggestion,
+						);
 						return (
 							<DocumentCard key={key}>
 								<DocumentTitleRow>
@@ -575,8 +710,36 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 									<DocumentMeta>Assigned to: {file.assignmentLabel}</DocumentMeta>
 								)}
 								<DocumentMeta>{formatDate(file.date)}</DocumentMeta>
+								{isPropertyDocument &&
+									canManageDocuments &&
+									latestKnowledgeSuggestion?.status === 'pending' &&
+									suggestionCount > 0 && (
+										<DocumentKnowledgePrompt>
+											Maintley found {suggestionCount} suggested detail{suggestionCount === 1 ? '' : 's'} for this property.{' '}
+											<DocumentInlineAction
+												type='button'
+												onClick={() =>
+													onReviewSuggestedDetails?.(latestKnowledgeSuggestion.id)
+												}
+												disabled={isSaving}>
+												Review now
+											</DocumentInlineAction>
+										</DocumentKnowledgePrompt>
+									)}
 								{isPropertyDocument && canManageDocuments && (
 									<DocumentActions>
+										{!latestKnowledgeSuggestion ||
+										getKnowledgeSuggestionCount(latestKnowledgeSuggestion) === 0 ? (
+											<DocumentActionButton
+												type='button'
+												onClick={() => handleReviewDocumentKnowledge(file.id)}
+												disabled={isSaving}>
+												Check for suggested details
+											</DocumentActionButton>
+										) : null}
+										{latestKnowledgeSuggestion?.status === 'applied' && (
+											<DocumentKnowledgeStatus>Saved</DocumentKnowledgeStatus>
+										)}
 										<DocumentActionButton
 											type='button'
 											onClick={() => openEditModal(file.id)}
@@ -693,6 +856,7 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 					</FormSelect>
 				</FormGroup>
 			</GenericModal>
+
 		</SectionContainer>
 	);
 };
@@ -798,6 +962,34 @@ const DocumentMeta = styled.div`
 	line-height: 1.35;
 `;
 
+const DocumentKnowledgePrompt = styled.div`
+	border: 1px solid #ccfbf1;
+	border-radius: 8px;
+	background: #f0fdfa;
+	color: #115e59;
+	font-size: 13px;
+	font-weight: 700;
+	line-height: 1.45;
+	padding: 9px 10px;
+`;
+
+const DocumentInlineAction = styled.button`
+	border: none;
+	background: transparent;
+	color: #0f766e;
+	cursor: pointer;
+	font: inherit;
+	font-weight: 900;
+	padding: 0;
+	text-decoration: underline;
+	text-underline-offset: 3px;
+
+	&:disabled {
+		color: #94a3b8;
+		cursor: not-allowed;
+	}
+`;
+
 const DocumentActions = styled.div`
 	display: flex;
 	gap: 10px;
@@ -820,4 +1012,16 @@ const DocumentActionButton = styled.button<{ $danger?: boolean }>`
 		color: #94a3b8;
 		cursor: not-allowed;
 	}
+`;
+
+const DocumentKnowledgeStatus = styled.span`
+	align-self: center;
+	border: 1px solid #bbf7d0;
+	border-radius: 999px;
+	background: #f0fdf4;
+	color: #166534;
+	font-size: 11px;
+	font-weight: 800;
+	line-height: 1.2;
+	padding: 4px 7px;
 `;

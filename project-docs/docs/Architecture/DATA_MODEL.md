@@ -1106,6 +1106,112 @@ Reports are views of existing data rather than independent datasets.
 
 ---
 
+# Property Knowledge Acquisition Model
+
+Property Knowledge Acquisition is a reviewed acquisition layer that sits before Maintley Intelligence.
+
+It turns documents and other sources into suggested structured Property Memory.
+
+Current first-phase storage:
+
+* `properties/{propertyId}.knowledgeSuggestions`
+* `properties/{propertyId}.propertyKnowledgeProvenance`
+* `devices/{deviceId}.propertyKnowledgeProvenance`
+
+Property documents are the canonical source documents for acquisition.
+
+Document records should live on the property and link outward to the records they support.
+
+Typical property document fields:
+
+* id
+* propertyId
+* fileName
+* fileUrl
+* documentType
+* uploadedAt
+* uploadedBy
+* links
+* acquisitionStatus
+* extractedKnowledgeSuggestionIds
+
+`links` may reference:
+
+* assetIds
+* taskIds
+* maintenanceEventIds, reserved for future maintenance-event migration
+* contractorIds, reserved for future contractor document links
+* warrantyIds, reserved for future warranty document links
+* partIds, reserved for future part document links
+
+Property, appliance/system, and task document screens currently upload documents into the property document record and show filtered views of those records.
+
+Maintenance-event, contractor, warranty, and part links are supported by the model but should be migrated in a later phase.
+
+Legacy document fields such as `name`, `url`, `category`, `assignedDeviceId`, and `assignedTaskId` may remain during migration.
+
+Knowledge suggestions are review records.
+
+Typical fields:
+
+* sourceDocumentId
+* propertyId
+* relatedSystemId
+* documentType
+* extractionMethod
+* extractedFields
+* confidence
+* status
+* createdAt
+* reviewedAt
+* appliedAt
+
+Suggestion status values:
+
+* pending
+* accepted
+* rejected
+* applied
+
+Each extracted field should include:
+
+* fieldKey
+* label
+* value
+* confidence, when available
+* targetEntity
+* targetField
+* sourceText, when available
+* userEditableValue
+* provenance after acceptance
+
+Accepted field provenance should include:
+
+* sourceDocumentId
+* sourceDocumentType
+* extractionMethod
+* confidence, when available
+* acceptedByUser
+* acceptedAt
+
+Rejected suggestions should be retained rather than deleted.
+
+Accepted or applied suggestions may update Property Memory only after user review.
+
+Maintley Intelligence should consume the resulting structured Property Memory. It should not parse raw document content.
+
+Financial facts from documents, such as invoice totals, labor, parts, taxes, contractor details, and payment dates, are Property Memory. Financial analysis, budgeting, lifecycle cost analysis, replacement recommendations, and repair economics belong in future Maintley Intelligence rules that consume this Property Memory.
+
+Accepted contractor suggestions should become contractor records for the property or fill blank details on an existing matching contractor.
+
+Accepted invoice, financial, service, part, and supply suggestions should become Maintenance Event history when they describe completed work or a received invoice. Incomplete part mentions may be retained in history notes so useful property context is not lost simply because a full model number is unavailable.
+
+Accepted part and supply suggestions that are linked to a specific appliance or system may become `serviceItems` on the related device record. This preserves parts and supplies inside the existing appliance/system source record rather than creating a parallel parts collection in this phase.
+
+The Part Knowledge Catalog is a taxonomy used by Property Knowledge Acquisition. It should define conservative matches and target fields, but it should not update records directly or generate recommendations.
+
+---
+
 # Maintley Intelligence Model
 
 Maintley Intelligence is a derived system.
@@ -1352,6 +1458,21 @@ Dashboard
 ```
 
 Dashboard content should be regenerated from source records whenever possible.
+
+---
+
+# Costs View
+
+The property Costs tab is a derived view.
+
+It should read from existing source records such as:
+
+* Maintenance Events
+* Task financials
+
+It should not introduce a competing financial source of truth.
+
+Costs surfaced from invoices, contractor work, labor, parts, taxes, or task estimates should remain attached to the maintenance event or task that produced them.
 
 ---
 

@@ -456,8 +456,17 @@ export const Properties = () => {
 				propertyAggregates.taskByProperty.get(propertyId)?.documents || 0;
 			const deviceDocuments =
 				propertyAggregates.deviceByProperty.get(propertyId)?.documents || 0;
+			const propertyDocuments = Array.isArray(property.documents)
+				? property.documents.length
+				: 0;
 			const propertyPhotoDocument = property.image ? 1 : 0;
-			return count + taskDocuments + deviceDocuments + propertyPhotoDocument;
+			return (
+				count +
+				taskDocuments +
+				deviceDocuments +
+				propertyDocuments +
+				propertyPhotoDocument
+			);
 		}, 0);
 
 		return [

@@ -27,8 +27,14 @@ import {
 	Property,
 	PropertyDocumentCategory,
 } from '../../types/Property.types';
-import { uploadDeviceFile } from '../../utils/deviceFileUpload';
-import { uploadPropertyDocument } from '../../utils/propertyDocumentUpload';
+import {
+	uploadPropertyDocument,
+	withPropertyDocumentLinks,
+} from '../../utils/propertyDocumentUpload';
+import {
+	createPendingKnowledgeSuggestionFromFile,
+	markDocumentWithKnowledgeSuggestion,
+} from '../../propertyKnowledge/propertyKnowledgeAcquisition';
 import {
 	canAddDevice,
 	getEffectiveSubscriptionPlanId,
@@ -445,15 +451,6 @@ export const DevicesHubPage: React.FC = () => {
 
 		setIsSavingDevice(true);
 		try {
-			let uploadedFiles: DeviceFormData['files'] = [];
-			if (pendingUploadFiles.length > 0) {
-				uploadedFiles = await Promise.all(
-					pendingUploadFiles.map((file) =>
-						uploadDeviceFile(file, String(targetProperty.id)),
-					),
-				);
-			}
-
 			const deviceData = {
 				...deviceFormData,
 				type: deviceFormData.type.trim(),
@@ -472,37 +469,80 @@ export const DevicesHubPage: React.FC = () => {
 					unitId: undefined,
 					suiteId: undefined,
 				},
-				files: uploadedFiles,
+				files: [],
 				userId: currentUser?.id,
 			};
 
 			const savedDevice = await createDevice(deviceData as any).unwrap();
 			const savedDeviceId = savedDevice?.id;
 
-			if (savedDeviceId && pendingPropertyDocumentFiles.length > 0) {
+			const propertyDocumentUploads = [
+				...pendingUploadFiles.map((file) => ({
+					file,
+					category: 'other' as PropertyDocumentCategory,
+				})),
+				...pendingPropertyDocumentFiles.map((file) => ({
+					file,
+					category: pendingPropertyDocumentCategory,
+				})),
+			];
+
+			if (savedDeviceId && propertyDocumentUploads.length > 0) {
 				const propertyDocuments = Array.isArray((targetProperty as any)?.documents)
 					? (targetProperty as any).documents
 					: [];
+				const propertyKnowledgeSuggestions = Array.isArray(
+					(targetProperty as any)?.knowledgeSuggestions,
+				)
+					? (targetProperty as any).knowledgeSuggestions
+					: [];
 
 				const uploadedDocuments = await Promise.all(
-					pendingPropertyDocumentFiles.map((file) =>
+					propertyDocumentUploads.map(({ file, category }) =>
 						uploadPropertyDocument(
 							file,
 							String(targetProperty.id),
-							pendingPropertyDocumentCategory,
+							category,
 						),
 					),
 				);
+				const linkedDocuments = uploadedDocuments.map((document) =>
+					withPropertyDocumentLinks(
+						{
+							...document,
+							assignedDeviceId: savedDeviceId,
+						},
+						{ assetIds: [savedDeviceId] },
+					),
+				);
+				const knowledgeSuggestions = await Promise.all(
+					linkedDocuments.map((document, index) =>
+						createPendingKnowledgeSuggestionFromFile({
+							file: propertyDocumentUploads[index].file,
+							document,
+							propertyId: String(targetProperty.id),
+							relatedSystemId: savedDeviceId,
+							property: targetProperty as Property,
+							systems: savedDevice ? [savedDevice as Device] : [],
+						}),
+					),
+				);
+				const savedDocuments = linkedDocuments.map((document) => {
+					const suggestion = knowledgeSuggestions.find(
+						(candidate) => candidate.sourceDocumentId === document.id,
+					);
+					return suggestion
+						? markDocumentWithKnowledgeSuggestion(document, suggestion)
+						: document;
+				});
 
 				await updateProperty({
 					id: String(targetProperty.id),
 					updates: {
-						documents: [
-							...propertyDocuments,
-							...uploadedDocuments.map((document) => ({
-								...document,
-								assignedDeviceId: savedDeviceId,
-							})),
+						documents: [...propertyDocuments, ...savedDocuments],
+						knowledgeSuggestions: [
+							...propertyKnowledgeSuggestions,
+							...knowledgeSuggestions,
 						],
 					},
 				}).unwrap();

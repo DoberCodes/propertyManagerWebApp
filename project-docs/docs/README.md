@@ -117,10 +117,12 @@ Documents:
 * PROPERTY_INTELLIGENCE.md
 * RECOMMENDATION_ENGINE.md
 * APPLIANCE_PROFILES.md
+* PROPERTY_KNOWLEDGE_ACQUISITION.md
 
 Contains:
 
 * Maintley Intelligence architecture
+* Property Knowledge Acquisition
 * Recommendation generation
 * Appliance profile guidance
 * Setup guidance

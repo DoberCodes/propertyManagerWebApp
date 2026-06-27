@@ -314,6 +314,12 @@ Maintenance events should reference files rather than duplicate file data.
 
 # Property Documents
 
+Properties are the canonical owner for property documents.
+
+Documents uploaded from property, appliance/system, or task document contexts should still be stored as property document records.
+
+Context-specific screens should show filtered document views based on document links rather than owning separate document arrays.
+
 Properties may store document records for:
 
 * Manuals
@@ -324,18 +330,31 @@ Properties may store document records for:
 Typical fields:
 
 * id
-* name
-* url
+* propertyId
+* fileName
+* fileUrl
+* documentType
 * size
 * type
-* category
-* assignedDeviceId
-* assignedTaskId
-* assignedTaskStatus
 * uploadedAt
+* uploadedBy
 * storagePath
+* links
+* acquisitionStatus
+* extractedKnowledgeSuggestionIds
 
-These documents support long-term property recordkeeping.
+`links` may include:
+
+* assetIds
+* taskIds
+* maintenanceEventIds, reserved for future maintenance-event migration
+* contractorIds, reserved for future contractor document links
+* warrantyIds, reserved for future warranty document links
+* partIds, reserved for future part document links
+
+Legacy fields such as `name`, `url`, `category`, `assignedDeviceId`, `assignedTaskId`, and `assignedTaskStatus` may remain during migration for backwards compatibility.
+
+These documents support long-term property recordkeeping and Property Knowledge Acquisition.
 
 ---
 
@@ -403,6 +422,28 @@ Maintley Intelligence should evaluate:
 * Relationships to Maintley records
 
 Maintley Intelligence should not assume file contents are available for analysis unless future extraction systems explicitly support content inspection.
+
+---
+
+# Property Knowledge Acquisition Integration
+
+Documents may create Property Knowledge Acquisition suggestions.
+
+In the current phase, suggestions come from document metadata and lightweight OCR for uploaded image files.
+
+Maintley does not automatically update property, system, task, maintenance history, part, contractor, or warranty records from uploaded documents.
+
+Users must review suggested details before saving them to Property Memory.
+
+After user approval, applied suggestions may update source records such as property details, system details, contractor records, maintenance history, or a system's Parts & Supplies list.
+
+Applied suggestions should preserve provenance back to the source document, including sourceDocumentId, sourceDocumentType, extractionMethod, confidence when available, acceptedByUser, and acceptedAt.
+
+Property Knowledge Acquisition grows Property Memory.
+
+Maintley Intelligence reasons over Property Memory.
+
+The recommendation engine should not parse raw documents directly.
 
 ---
 

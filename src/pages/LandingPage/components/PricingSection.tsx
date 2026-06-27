@@ -78,23 +78,46 @@ const bestForByPlanId: Record<string, string> = {
 	portfolio: 'Best for: run a property operation',
 };
 
+const formatLimit = (value: number, unit: string) =>
+	value >= 999 ? 'Unlimited' : `${value} ${unit}${value === 1 ? '' : 's'}`;
+
 const quickComparisonRows = [
 	{ label: 'Properties included', values: ['1', '1', 'Up to 7', 'Up to 15'] },
 	{ label: 'Appliances & systems', values: ['Up to 15', 'Unlimited', 'Unlimited', 'Unlimited'] },
+	{
+		label: 'File limit',
+		values: paidPlans.map((plan) => formatLimit(plan.maxFiles, 'file')),
+	},
+	{
+		label: 'Storage limit',
+		values: paidPlans.map((plan) => `${plan.maxStorageGb} GB`),
+	},
+	{ label: 'Storage usage display', values: [true, true, true, true] },
+	{ label: 'Property setup assistant', values: [true, true, true, true] },
 	{ label: 'Maintenance history tracking', values: [true, true, true, true] },
+	{ label: 'Manual tasks', values: [true, true, true, true] },
+	{ label: 'Task assignment', values: [true, true, true, true] },
 	{ label: 'Quick Property Scan', values: [true, true, true, true] },
+	{ label: 'Full Property Audit', values: [false, true, true, true] },
+	{ label: 'Ongoing Property Intelligence', values: [false, true, true, true] },
 	{ label: 'Maintley Intelligence', values: ['Quick Scan', 'Personalized guidance', 'Property guidance', 'Portfolio guidance'] },
 	{ label: 'Suggested maintenance', values: ['View only', 'Generate tasks', 'Generate tasks', 'Generate tasks'] },
 	{ label: 'Recurring maintenance scheduling', values: [false, true, true, true] },
-	{ label: 'Document & photo storage', values: ['Limited', true, true, true] },
-	{ label: 'Advanced search & retrieval', values: [false, false, true, true] },
+	{ label: 'Task reminder emails', values: [false, true, true, true] },
+	{ label: 'Push notifications', values: [false, true, true, true] },
+	{ label: 'Document & photo storage', values: [true, true, true, true] },
+	{ label: 'Advanced search & retrieval', values: [false, true, true, true] },
 	{ label: 'Raw data export', values: [true, true, true, true] },
 	{ label: 'Warranty information', values: [true, true, true, true] },
 	{ label: 'Linked parts & supplies', values: [false, true, true, true] },
+	{ label: 'Family members', values: ['3', '3', '3', '3'] },
+	{ label: 'Contractor directory', values: [true, true, true, true] },
 	{ label: 'Team collaboration', values: [false, false, 'Simple', true] },
 	{ label: 'Resident maintenance requests', values: [false, false, true, true] },
+	{ label: 'Resident profiles', values: [false, false, true, true] },
 	{ label: 'Role-based access', values: [false, false, false, true] },
 	{ label: 'Property groups', values: [false, false, true, true] },
+	{ label: 'Portfolio reporting', values: [false, false, false, true] },
 	{ label: 'Advanced analytics', values: [false, false, false, true] },
 	{ label: 'Priority support', values: [false, false, false, true] },
 ] as const;
@@ -162,7 +185,7 @@ const PricingSectionComponent = () => {
 				<PricingTable>
 					<PricingTableHead>
 						<PricingTableCell className='head-cell'>Feature</PricingTableCell>
-						<PricingTableCell className='head-cell'>Home</PricingTableCell>
+						<PricingTableCell className='head-cell'>Free</PricingTableCell>
 						<PricingTableCell className='head-cell'>Homeowner+</PricingTableCell>
 						<PricingTableCell className='head-cell'>Property</PricingTableCell>
 						<PricingTableCell className='head-cell'>Portfolio</PricingTableCell>

@@ -79,6 +79,7 @@ export const TabController: React.FC<TabsContextProps> = ({
 							{ label: 'Appliances', value: 'devices' },
 							{ label: 'Tasks', value: 'tasks' },
 							{ label: 'Maintenance History', value: 'maintenance' },
+							{ label: 'Costs', value: 'costs' },
 							{ label: 'Files & Docs', value: 'documents' },
 					  ]
 					: []),

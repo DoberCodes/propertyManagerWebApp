@@ -6,7 +6,14 @@ import {
 	useUpdatePropertyMutation,
 } from 'Redux/API/propertySlice';
 import { PropertyDocument, PropertyDocumentCategory } from 'types/Property.types';
-import { uploadPropertyDocument } from 'utils/propertyDocumentUpload';
+import {
+	uploadPropertyDocument,
+	withPropertyDocumentLinks,
+} from 'utils/propertyDocumentUpload';
+import {
+	createPendingKnowledgeSuggestionFromFile,
+	markDocumentWithKnowledgeSuggestion,
+} from 'propertyKnowledge/propertyKnowledgeAcquisition';
 import { useAppFeedback } from 'Components/Library/AppFeedback/AppFeedbackProvider';
 
 type TaskDocumentsPanelProps = {
@@ -69,11 +76,22 @@ export const TaskDocumentsPanel: React.FC<TaskDocumentsPanelProps> = ({
 			Array.isArray(resolvedProperty?.documents) ? resolvedProperty.documents : [],
 		[resolvedProperty?.documents],
 	);
+	const propertyKnowledgeSuggestions = useMemo(
+		() =>
+			Array.isArray(resolvedProperty?.knowledgeSuggestions)
+				? resolvedProperty.knowledgeSuggestions
+				: [],
+		[resolvedProperty?.knowledgeSuggestions],
+	);
 	const assignedDocuments = useMemo(
 		() =>
 			taskId
 				? propertyDocuments.filter(
-						(document) => String(document.assignedTaskId || '') === String(taskId),
+						(document) =>
+							String(document.assignedTaskId || '') === String(taskId) ||
+							(document.links?.taskIds || []).some(
+								(linkedTaskId) => String(linkedTaskId) === String(taskId),
+							),
 				  )
 				: [],
 		[propertyDocuments, taskId],
@@ -97,17 +115,42 @@ export const TaskDocumentsPanel: React.FC<TaskDocumentsPanelProps> = ({
 					uploadPropertyDocument(file, resolvedPropertyId, selectedCategory),
 				),
 			);
+			const linkedDocuments = uploadedDocuments.map((document) =>
+				withPropertyDocumentLinks(
+					{
+						...document,
+						assignedTaskId: taskId,
+						assignedTaskStatus:
+							taskStatus === 'Completed' ? 'Completed' : 'Pending',
+					},
+					{ taskIds: [taskId] },
+				),
+			);
+			const knowledgeSuggestions = await Promise.all(
+				linkedDocuments.map((document, index) =>
+					createPendingKnowledgeSuggestionFromFile({
+						file: selectedFiles[index],
+						document,
+						propertyId: resolvedPropertyId,
+						property: resolvedProperty,
+					}),
+				),
+			);
+			const savedDocuments = linkedDocuments.map((document) => {
+				const suggestion = knowledgeSuggestions.find(
+					(candidate) => candidate.sourceDocumentId === document.id,
+				);
+				return suggestion
+					? markDocumentWithKnowledgeSuggestion(document, suggestion)
+					: document;
+			});
 			await updateProperty({
 				id: resolvedPropertyId,
 				updates: {
-					documents: [
-						...propertyDocuments,
-						...uploadedDocuments.map((document) => ({
-							...document,
-							assignedTaskId: taskId,
-							assignedTaskStatus:
-								taskStatus === 'Completed' ? 'Completed' : 'Pending',
-						})),
+					documents: [...propertyDocuments, ...savedDocuments],
+					knowledgeSuggestions: [
+						...propertyKnowledgeSuggestions,
+						...knowledgeSuggestions,
 					],
 				},
 			}).unwrap();
@@ -135,8 +178,11 @@ export const TaskDocumentsPanel: React.FC<TaskDocumentsPanelProps> = ({
 				<DocumentList>
 					{assignedDocuments.map((document) => (
 						<DocumentItem key={document.id}>
-							<DocumentLink href={document.url} target='_blank' rel='noreferrer'>
-								{document.name}
+							<DocumentLink
+								href={document.fileUrl || document.url}
+								target='_blank'
+								rel='noreferrer'>
+								{document.fileName || document.name}
 							</DocumentLink>
 							<DocumentMeta>{getCategoryLabel(document.category)}</DocumentMeta>
 						</DocumentItem>

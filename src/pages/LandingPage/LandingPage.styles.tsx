@@ -1303,6 +1303,7 @@ export const PricingComparison = styled.div`
 	background: ${COLORS.bgWhite};
 	border: 1.5px solid ${COLORS.gray200};
 	box-shadow: ${COLORS.shadow};
+	overflow-x: auto;
 `;
 
 export const PricingComparisonTitle = styled.h4`
@@ -1313,10 +1314,11 @@ export const PricingComparisonTitle = styled.h4`
 
 export const PricingTable = styled.div`
 	display: grid;
-	grid-template-columns: 2fr 1fr 1fr 1fr;
+	grid-template-columns: minmax(220px, 2fr) repeat(4, minmax(132px, 1fr));
+	min-width: 760px;
 
 	@media (max-width: 1024px) {
-		grid-template-columns: 1.6fr 1fr 1fr 1fr;
+		grid-template-columns: minmax(200px, 1.7fr) repeat(4, minmax(124px, 1fr));
 		font-size: 13px;
 	}
 `;
@@ -1330,10 +1332,15 @@ export const PricingTableRow = styled.div`
 `;
 
 export const PricingTableCell = styled.div`
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 42px;
 	padding: 10px 8px;
 	border-bottom: 1px solid ${COLORS.gray200};
 	text-align: center;
 	color: ${COLORS.textSecondary};
+	line-height: 1.35;
 
 	&.head-cell {
 		font-weight: 700;
@@ -1341,7 +1348,8 @@ export const PricingTableCell = styled.div`
 		background: ${COLORS.gray100};
 	}
 
-	&:nth-child(4n + 1) {
+	&:nth-child(5n + 1) {
+		justify-content: flex-start;
 		text-align: left;
 		color: ${COLORS.textPrimary};
 		font-weight: 600;

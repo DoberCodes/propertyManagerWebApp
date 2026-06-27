@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import styled from 'styled-components';
 import { PropertyScanPanel } from '../../../Components/PropertyIntelligence/PropertyScanPanel';
 import { PropertyScanHistoryPanel } from '../../../Components/PropertyIntelligence/PropertyScanHistoryPanel';
+import { PropertyKnowledgeReviewPanel } from './PropertyKnowledgeReviewPanel';
 import { Device, Property } from '../../../types/Property.types';
 import { Task } from '../../../types/Task.types';
 import {
@@ -9,16 +11,27 @@ import {
 	PropertyScanRecommendation,
 } from '../../../utils/propertyIntelligenceScan';
 import { SubscriptionData } from '../../../utils/subscriptionUtils';
+import type { RoleCapabilities } from '../../../utils/permissions';
+
+type InsightsWorkspaceTab = 'overview' | 'suggested-details' | 'history';
+
+const isInsightsWorkspaceTab = (
+	value: string | null,
+): value is InsightsWorkspaceTab =>
+	value === 'overview' || value === 'suggested-details' || value === 'history';
 
 interface InsightsTabProps {
 	property: Property;
 	propertyDevices: Device[];
 	tasks: Task[];
 	maintenanceHistoryRecords: any[];
+	propertyContractors?: any[];
 	canRunScan: boolean;
 	accountId?: string;
 	showSetupPrompt?: boolean;
 	subscription?: SubscriptionData | null;
+	permissions?: RoleCapabilities;
+	onAddMaintenanceHistory?: (history: any) => Promise<void> | void;
 	onRecommendationAction: (
 		actionType: PropertyScanActionType,
 		recommendation: PropertyScanRecommendation,
@@ -30,15 +43,52 @@ export const InsightsTab: React.FC<InsightsTabProps> = ({
 	propertyDevices,
 	tasks,
 	maintenanceHistoryRecords,
+	propertyContractors = [],
 	canRunScan,
 	accountId,
 	showSetupPrompt,
 	subscription,
+	permissions,
+	onAddMaintenanceHistory,
 	onRecommendationAction,
 }) => {
-	const [activeWorkspaceTab, setActiveWorkspaceTab] = useState<
-		'overview' | 'history'
-	>('overview');
+	const [searchParams, setSearchParams] = useSearchParams();
+	const requestedWorkspaceTab = searchParams.get('insightsTab');
+	const requestedSuggestionId = searchParams.get('suggestionId');
+	const [activeWorkspaceTab, setActiveWorkspaceTab] =
+		useState<InsightsWorkspaceTab>(
+			isInsightsWorkspaceTab(requestedWorkspaceTab)
+				? requestedWorkspaceTab
+				: 'overview',
+		);
+
+	useEffect(() => {
+		if (
+			isInsightsWorkspaceTab(requestedWorkspaceTab) &&
+			requestedWorkspaceTab !== activeWorkspaceTab
+		) {
+			setActiveWorkspaceTab(requestedWorkspaceTab);
+		}
+	}, [activeWorkspaceTab, requestedWorkspaceTab]);
+
+	const selectWorkspaceTab = (tab: InsightsWorkspaceTab) => {
+		setActiveWorkspaceTab(tab);
+		const nextParams = new URLSearchParams(searchParams);
+		nextParams.set('tab', 'insights');
+		nextParams.set('insightsTab', tab);
+		if (tab !== 'suggested-details') {
+			nextParams.delete('suggestionId');
+		}
+		setSearchParams(nextParams);
+	};
+
+	const selectSuggestion = (suggestionId: string) => {
+		const nextParams = new URLSearchParams(searchParams);
+		nextParams.set('tab', 'insights');
+		nextParams.set('insightsTab', 'suggested-details');
+		nextParams.set('suggestionId', suggestionId);
+		setSearchParams(nextParams);
+	};
 
 	return (
 		<InsightsWorkspace>
@@ -48,20 +98,28 @@ export const InsightsTab: React.FC<InsightsTabProps> = ({
 					role='tab'
 					aria-selected={activeWorkspaceTab === 'overview'}
 					$active={activeWorkspaceTab === 'overview'}
-					onClick={() => setActiveWorkspaceTab('overview')}>
+					onClick={() => selectWorkspaceTab('overview')}>
 					Overview
+				</InsightsTabButton>
+				<InsightsTabButton
+					type='button'
+					role='tab'
+					aria-selected={activeWorkspaceTab === 'suggested-details'}
+					$active={activeWorkspaceTab === 'suggested-details'}
+					onClick={() => selectWorkspaceTab('suggested-details')}>
+					Suggested Details
 				</InsightsTabButton>
 				<InsightsTabButton
 					type='button'
 					role='tab'
 					aria-selected={activeWorkspaceTab === 'history'}
 					$active={activeWorkspaceTab === 'history'}
-					onClick={() => setActiveWorkspaceTab('history')}>
+					onClick={() => selectWorkspaceTab('history')}>
 					History
 				</InsightsTabButton>
 			</InsightsNav>
 
-			{activeWorkspaceTab === 'overview' ? (
+			{activeWorkspaceTab === 'overview' && (
 				<PropertyScanPanel
 					property={property}
 					systems={propertyDevices}
@@ -72,7 +130,19 @@ export const InsightsTab: React.FC<InsightsTabProps> = ({
 					subscription={subscription}
 					onRecommendationAction={onRecommendationAction}
 				/>
-			) : (
+			)}
+			{activeWorkspaceTab === 'suggested-details' && (
+				<PropertyKnowledgeReviewPanel
+					property={property}
+					propertyDevices={propertyDevices}
+					propertyContractors={propertyContractors}
+					permissions={permissions}
+					selectedSuggestionId={requestedSuggestionId}
+					onSelectSuggestion={selectSuggestion}
+					onAddMaintenanceHistory={onAddMaintenanceHistory}
+				/>
+			)}
+			{activeWorkspaceTab === 'history' && (
 				<PropertyScanHistoryPanel
 					propertyId={property.id}
 					accountId={accountId || (property as any).accountId || property.userId}

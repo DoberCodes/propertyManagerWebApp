@@ -15,8 +15,14 @@ import {
 import { PropertyDocument, PropertyDocumentCategory } from 'types/Property.types';
 import {
 	deletePropertyDocumentFile,
+	toPropertyDocumentType,
 	uploadPropertyDocument,
+	withPropertyDocumentLinks,
 } from 'utils/propertyDocumentUpload';
+import {
+	createPendingKnowledgeSuggestionFromFile,
+	markDocumentWithKnowledgeSuggestion,
+} from 'propertyKnowledge/propertyKnowledgeAcquisition';
 import { useAppFeedback } from 'Components/Library/AppFeedback/AppFeedbackProvider';
 
 type ApplianceDocumentsPanelProps = {
@@ -81,12 +87,22 @@ export const ApplianceDocumentsPanel: React.FC<ApplianceDocumentsPanelProps> = (
 			Array.isArray(resolvedProperty?.documents) ? resolvedProperty.documents : [],
 		[resolvedProperty?.documents],
 	);
+	const propertyKnowledgeSuggestions = useMemo(
+		() =>
+			Array.isArray(resolvedProperty?.knowledgeSuggestions)
+				? resolvedProperty.knowledgeSuggestions
+				: [],
+		[resolvedProperty?.knowledgeSuggestions],
+	);
 	const assignedDocuments = useMemo(
 		() =>
 			deviceId
 				? propertyDocuments.filter(
 						(document) =>
-							String(document.assignedDeviceId || '') === String(deviceId),
+							String(document.assignedDeviceId || '') === String(deviceId) ||
+							(document.links?.assetIds || []).some(
+								(assetId) => String(assetId) === String(deviceId),
+							),
 				  )
 				: [],
 		[propertyDocuments, deviceId],
@@ -99,7 +115,7 @@ export const ApplianceDocumentsPanel: React.FC<ApplianceDocumentsPanelProps> = (
 		const document = assignedDocuments.find((item) => item.id === documentId);
 		if (!document) return;
 		setEditingDocument(document);
-		setEditName(document.name);
+		setEditName(document.fileName || document.name);
 		setEditCategory(document.category || 'other');
 	};
 
@@ -125,15 +141,41 @@ export const ApplianceDocumentsPanel: React.FC<ApplianceDocumentsPanelProps> = (
 					uploadPropertyDocument(file, resolvedPropertyId, selectedCategory),
 				),
 			);
+			const linkedDocuments = uploadedDocuments.map((document) =>
+				withPropertyDocumentLinks(
+					{
+						...document,
+						assignedDeviceId: deviceId,
+					},
+					{ assetIds: [deviceId] },
+				),
+			);
+			const knowledgeSuggestions = await Promise.all(
+				linkedDocuments.map((document, index) =>
+					createPendingKnowledgeSuggestionFromFile({
+						file: selectedFiles[index],
+						document,
+						propertyId: resolvedPropertyId,
+						relatedSystemId: deviceId,
+						property: resolvedProperty,
+					}),
+				),
+			);
+			const savedDocuments = linkedDocuments.map((document) => {
+				const suggestion = knowledgeSuggestions.find(
+					(candidate) => candidate.sourceDocumentId === document.id,
+				);
+				return suggestion
+					? markDocumentWithKnowledgeSuggestion(document, suggestion)
+					: document;
+			});
 			await updateProperty({
 				id: resolvedPropertyId,
 				updates: {
-					documents: [
-						...propertyDocuments,
-						...uploadedDocuments.map((document) => ({
-							...document,
-							assignedDeviceId: deviceId,
-						})),
+					documents: [...propertyDocuments, ...savedDocuments],
+					knowledgeSuggestions: [
+						...propertyKnowledgeSuggestions,
+						...knowledgeSuggestions,
 					],
 				},
 			}).unwrap();
@@ -166,7 +208,12 @@ export const ApplianceDocumentsPanel: React.FC<ApplianceDocumentsPanelProps> = (
 							? {
 								...document,
 								name: trimmedName,
+								fileName: trimmedName,
 								category: editCategory,
+								documentType: toPropertyDocumentType(
+									editCategory,
+									trimmedName,
+								),
 							}
 							: document,
 					),
@@ -225,8 +272,11 @@ export const ApplianceDocumentsPanel: React.FC<ApplianceDocumentsPanelProps> = (
 					{assignedDocuments.map((document) => (
 						<DocumentItem key={document.id}>
 							<DocumentTitleRow>
-								<DocumentLink href={document.url} target='_blank' rel='noreferrer'>
-									{document.name}
+								<DocumentLink
+									href={document.fileUrl || document.url}
+									target='_blank'
+									rel='noreferrer'>
+									{document.fileName || document.name}
 								</DocumentLink>
 								<DocumentMeta>{getCategoryLabel(document.category)}</DocumentMeta>
 							</DocumentTitleRow>

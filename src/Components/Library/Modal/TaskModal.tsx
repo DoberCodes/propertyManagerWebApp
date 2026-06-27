@@ -56,7 +56,14 @@ import { Device, PropertyDocumentCategory } from '../../../types/Property.types'
 import { RootState } from '../../../Redux/store/store';
 import { canUseRecurringTasks } from '../../../utils/subscriptionUtils';
 import { TaskDocumentsPanel } from '../../TaskDocumentsPanel/TaskDocumentsPanel';
-import { uploadPropertyDocument } from '../../../utils/propertyDocumentUpload';
+import {
+	uploadPropertyDocument,
+	withPropertyDocumentLinks,
+} from '../../../utils/propertyDocumentUpload';
+import {
+	createPendingKnowledgeSuggestionFromFile,
+	markDocumentWithKnowledgeSuggestion,
+} from '../../../propertyKnowledge/propertyKnowledgeAcquisition';
 
 const LINKED_DEVICE_NOTES_START = '--- Linked Appliance Details ---';
 const LINKED_DEVICE_NOTES_END = '--- End Linked Appliance Details ---';
@@ -1319,18 +1326,49 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 				uploadPropertyDocument(file, scopedPropertyId, pendingTaskDocumentCategory),
 			),
 		);
+		const linkedDocuments = uploadedDocuments.map((document) =>
+			withPropertyDocumentLinks(
+				{
+					...document,
+					assignedTaskId: savedTaskId,
+					assignedTaskStatus:
+						savedTaskStatus === 'Completed' ? 'Completed' : 'Pending',
+				},
+				{ taskIds: [savedTaskId] },
+			),
+		);
+		const knowledgeSuggestions = await Promise.all(
+			linkedDocuments.map((document, index) =>
+				createPendingKnowledgeSuggestionFromFile({
+					file: pendingTaskDocumentFiles[index],
+					document,
+					propertyId: scopedPropertyId,
+					property: propertyForDocuments,
+					systems: linkedDevices,
+				}),
+			),
+		);
+		const savedDocuments = linkedDocuments.map((document) => {
+			const suggestion = knowledgeSuggestions.find(
+				(candidate) => candidate.sourceDocumentId === document.id,
+			);
+			return suggestion
+				? markDocumentWithKnowledgeSuggestion(document, suggestion)
+				: document;
+		});
+		const knowledgeSuggestionsForProperty = Array.isArray(
+			propertyForDocuments?.knowledgeSuggestions,
+		)
+			? propertyForDocuments.knowledgeSuggestions
+			: [];
 
 		await updateProperty({
 			id: scopedPropertyId,
 			updates: {
-				documents: [
-					...propertyDocuments,
-					...uploadedDocuments.map((document) => ({
-						...document,
-						assignedTaskId: savedTaskId,
-						assignedTaskStatus:
-							savedTaskStatus === 'Completed' ? 'Completed' : 'Pending',
-					})),
+				documents: [...propertyDocuments, ...savedDocuments],
+				knowledgeSuggestions: [
+					...knowledgeSuggestionsForProperty,
+					...knowledgeSuggestions,
 				],
 			},
 		}).unwrap();

@@ -2,6 +2,7 @@ export { DetailsTab } from './DetailsTab';
 export { DevicesTab } from './DevicesTab';
 export { TasksTab } from './TasksTab';
 export { MaintenanceTab } from './MaintenanceTab';
+export { CostsTab } from './CostsTab';
 export { DocumentsTab } from './DocumentsTab';
 export { TenantsTab } from './TenantsTab';
 export { UnitsTab } from './UnitsTab';

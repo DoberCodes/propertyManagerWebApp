@@ -5,6 +5,10 @@
 
 import { SharePermission } from '../constants/roles';
 import { SuggestedSystemId } from '../utils/suggestedMaintenance';
+import type {
+	PropertyKnowledgeProvenance,
+	PropertyKnowledgeSuggestion,
+} from './PropertyKnowledge.types';
 
 export type PropertySetupAssistantItemStatus =
 	| 'present'
@@ -31,17 +35,49 @@ export interface PropertySetupAssistantState {
 }
 
 export type PropertyDocumentCategory = 'manual' | 'warranty' | 'other';
+export type PropertyDocumentType =
+	| 'manual'
+	| 'invoice'
+	| 'warranty'
+	| 'receipt'
+	| 'inspection_report'
+	| 'contractor_document'
+	| 'unknown'
+	| 'other';
+
+export type PropertyDocumentAcquisitionStatus =
+	| 'not_reviewed'
+	| 'pending_review'
+	| 'reviewed'
+	| 'applied';
+
+export interface PropertyDocumentLinks {
+	assetIds?: string[];
+	taskIds?: string[];
+	maintenanceEventIds?: string[];
+	contractorIds?: string[];
+	warrantyIds?: string[];
+	partIds?: string[];
+}
 
 export interface PropertyDocument {
 	id: string;
+	propertyId?: string;
 	name: string;
 	url: string;
+	fileName?: string;
+	fileUrl?: string;
 	size: number;
 	type: string;
 	category: PropertyDocumentCategory;
+	documentType?: PropertyDocumentType;
+	uploadedBy?: string;
+	links?: PropertyDocumentLinks;
 	assignedDeviceId?: string;
 	assignedTaskId?: string;
 	assignedTaskStatus?: string;
+	acquisitionStatus?: PropertyDocumentAcquisitionStatus;
+	extractedKnowledgeSuggestionIds?: string[];
 	uploadedAt: string;
 	storagePath?: string;
 }
@@ -72,6 +108,8 @@ export interface Property {
 	isFavorite?: boolean;
 	setupAssistant?: PropertySetupAssistantState;
 	documents?: PropertyDocument[];
+	knowledgeSuggestions?: PropertyKnowledgeSuggestion[];
+	propertyKnowledgeProvenance?: Record<string, PropertyKnowledgeProvenance[]>;
 	createdAt?: string;
 	updatedAt?: string;
 }
@@ -244,6 +282,7 @@ export interface Device {
 		size: number;
 		type: string;
 	}>;
+	propertyKnowledgeProvenance?: Record<string, PropertyKnowledgeProvenance[]>;
 	notes?: string;
 	createdAt?: string;
 	updatedAt?: string;

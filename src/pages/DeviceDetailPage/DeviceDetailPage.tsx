@@ -16,7 +16,12 @@ import {
 	faTrash,
 } from '@fortawesome/free-solid-svg-icons';
 import { RootState } from '../../Redux/store/store';
-import { useGetPropertiesQuery, useGetUnitQuery, useGetUnitsQuery } from '../../Redux/API/propertySlice';
+import {
+	useGetPropertiesQuery,
+	useGetUnitQuery,
+	useGetUnitsQuery,
+	useUpdatePropertyMutation,
+} from '../../Redux/API/propertySlice';
 import {
 	useGetDeviceQuery,
 	useGetDevicesQuery,
@@ -63,6 +68,14 @@ import {
 } from '../../utils/financialUtils';
 import { uploadDeviceFile } from '../../utils/deviceFileUpload';
 import {
+	uploadPropertyDocument,
+	withPropertyDocumentLinks,
+} from '../../utils/propertyDocumentUpload';
+import {
+	createPendingKnowledgeSuggestionFromFile,
+	markDocumentWithKnowledgeSuggestion,
+} from '../../propertyKnowledge/propertyKnowledgeAcquisition';
+import {
 	getDeviceIdFromSlug,
 	getDeviceSlugBase,
 } from '../../utils/deviceSlug';
@@ -78,7 +91,11 @@ import {
 import { isNativeApp } from '../../utils/platform';
 import { getRoleCapabilities } from '../../utils/permissions';
 import { LockedFeatureCallout } from '../../Components/Library/LockedFeatureCallout';
-import { DeviceServiceItem, PropertyDocument } from '../../types/Property.types';
+import {
+	DeviceServiceItem,
+	PropertyDocument,
+	PropertyDocumentCategory,
+} from '../../types/Property.types';
 import {
 	DEVICE_SERVICE_ITEM_CATEGORY_OPTIONS,
 	DEVICE_SERVICE_ITEM_FIELDS_BY_CATEGORY,
@@ -429,6 +446,7 @@ export const DeviceDetailPage: React.FC = () => {
 	});
 
 	const [updateDevice] = useUpdateDeviceMutation();
+	const [updateProperty] = useUpdatePropertyMutation();
 	const [deleteTask] = useDeleteTaskMutation();
 	const [addMaintenanceHistory] = useAddMaintenanceHistoryMutation();
 	const [createContractor, { isLoading: isCreatingContractor }] =
@@ -810,13 +828,25 @@ export const DeviceDetailPage: React.FC = () => {
 			? ((property as any).documents as PropertyDocument[])
 			: [];
 		propertyDocuments.forEach((document) => {
-			if (!document?.name || !document.assignedDeviceId) return;
-			if (String(document.assignedDeviceId) !== String(device?.id || '')) return;
-			const key = `${document.name}::${document.url || ''}`;
+			const linkedDeviceIds = [
+				document.assignedDeviceId,
+				...(document.links?.assetIds || []),
+			].filter(Boolean);
+			const documentName = document.fileName || document.name;
+			const documentUrl = document.fileUrl || document.url;
+			if (
+				!documentName ||
+				!linkedDeviceIds.some(
+					(linkedDeviceId) => String(linkedDeviceId) === String(device?.id || ''),
+				)
+			) {
+				return;
+			}
+			const key = `${documentName}::${documentUrl || ''}`;
 			if (!all.has(key)) {
 				all.set(key, {
-					name: document.name,
-					url: document.url,
+					name: documentName,
+					url: documentUrl,
 					type:
 						document.category === 'manual'
 							? 'Manual'
@@ -1142,12 +1172,51 @@ export const DeviceDetailPage: React.FC = () => {
 		}
 		if (!file || !device || !property) return;
 		try {
-			const uploaded = await uploadDeviceFile(file, property.id, device.id);
-			const documentFile = {
-				...uploaded,
-				usage: 'document' as const,
-			};
 			const isWarrantyDocument = /warranty|guarantee/i.test(file.name) && canAccessWarranty;
+			const documentCategory: PropertyDocumentCategory = isWarrantyDocument
+				? 'warranty'
+				: 'other';
+			const uploadedDocument = await uploadPropertyDocument(
+				file,
+				property.id,
+				documentCategory,
+			);
+			const linkedDocument = withPropertyDocumentLinks(
+				{
+					...uploadedDocument,
+					assignedDeviceId: device.id,
+				},
+				{ assetIds: [device.id] },
+			);
+			const suggestion = await createPendingKnowledgeSuggestionFromFile({
+				file,
+				document: linkedDocument,
+				propertyId: property.id,
+				relatedSystemId: device.id,
+				property,
+				systems: [device],
+			});
+			const savedDocument = markDocumentWithKnowledgeSuggestion(
+				linkedDocument,
+				suggestion,
+			);
+			const propertyDocuments = Array.isArray((property as any)?.documents)
+				? (property as any).documents
+				: [];
+			const propertyKnowledgeSuggestions = Array.isArray(
+				(property as any)?.knowledgeSuggestions,
+			)
+				? (property as any).knowledgeSuggestions
+				: [];
+			const documentFile = {
+				name: savedDocument.fileName || savedDocument.name,
+				url: savedDocument.fileUrl || savedDocument.url,
+				size: savedDocument.size,
+				type: savedDocument.type,
+				uploadedAt: savedDocument.uploadedAt,
+				usage: 'document' as const,
+				propertyDocumentId: savedDocument.id,
+			};
 
 			await addMaintenanceHistory({
 				propertyId: property.id,
@@ -1168,6 +1237,16 @@ export const DeviceDetailPage: React.FC = () => {
 					? ['device', 'document', 'warranty']
 					: ['device', 'document'],
 			}).unwrap();
+			await updateProperty({
+				id: property.id,
+				updates: {
+					documents: [...propertyDocuments, savedDocument],
+					knowledgeSuggestions: [
+						...propertyKnowledgeSuggestions,
+						suggestion,
+					],
+				},
+			}).unwrap();
 
 			const nextEntries = [
 				{
@@ -1179,7 +1258,6 @@ export const DeviceDetailPage: React.FC = () => {
 			await updateDevice({
 				id: device.id,
 				updates: {
-					files: [documentFile, ...(device.files || [])],
 					maintenanceHistory: nextEntries,
 				},
 			}).unwrap();
@@ -1283,23 +1361,9 @@ export const DeviceDetailPage: React.FC = () => {
 			const persistedFiles = (deviceFormData.files || []).filter(
 				(file) => !removedExistingFileUrls.includes(file.url),
 			);
-			let uploadedFiles = persistedFiles;
-
-			if (pendingDeviceFiles.length > 0) {
-				const uploaded = await Promise.all(
-					pendingDeviceFiles.map((file) => uploadDeviceFile(file, property.id, editingDevice.id)),
-				);
-				uploadedFiles = [
-					...persistedFiles,
-					...uploaded.map((file) => ({
-						...file,
-						usage: 'document' as const,
-					})),
-				];
-			}
 			const nextFiles = devicePhotoFile
-				? [devicePhotoFile, ...uploadedFiles]
-				: uploadedFiles;
+				? [devicePhotoFile, ...persistedFiles]
+				: persistedFiles;
 
 			await updateDevice({
 				id: editingDevice.id,
@@ -1315,6 +1379,61 @@ export const DeviceDetailPage: React.FC = () => {
 					files: nextFiles,
 				},
 			}).unwrap();
+
+			if (pendingDeviceFiles.length > 0) {
+				const propertyDocuments = Array.isArray((property as any)?.documents)
+					? (property as any).documents
+					: [];
+				const propertyKnowledgeSuggestions = Array.isArray(
+					(property as any)?.knowledgeSuggestions,
+				)
+					? (property as any).knowledgeSuggestions
+					: [];
+				const uploadedDocuments = await Promise.all(
+					pendingDeviceFiles.map((file) =>
+						uploadPropertyDocument(file, property.id, 'other'),
+					),
+				);
+				const linkedDocuments = uploadedDocuments.map((document) =>
+					withPropertyDocumentLinks(
+						{
+							...document,
+							assignedDeviceId: editingDevice.id,
+						},
+						{ assetIds: [editingDevice.id] },
+					),
+				);
+				const knowledgeSuggestions = await Promise.all(
+					linkedDocuments.map((document, index) =>
+						createPendingKnowledgeSuggestionFromFile({
+							file: pendingDeviceFiles[index],
+							document,
+							propertyId: property.id,
+							relatedSystemId: editingDevice.id,
+							property,
+							systems: [editingDevice],
+						}),
+					),
+				);
+				const savedDocuments = linkedDocuments.map((document) => {
+					const suggestion = knowledgeSuggestions.find(
+						(candidate) => candidate.sourceDocumentId === document.id,
+					);
+					return suggestion
+						? markDocumentWithKnowledgeSuggestion(document, suggestion)
+						: document;
+				});
+				await updateProperty({
+					id: property.id,
+					updates: {
+						documents: [...propertyDocuments, ...savedDocuments],
+						knowledgeSuggestions: [
+							...propertyKnowledgeSuggestions,
+							...knowledgeSuggestions,
+						],
+					},
+				}).unwrap();
+			}
 
 			setShowDeviceEditModal(false);
 			resetDeviceEditState();

@@ -2,7 +2,9 @@ import React from 'react';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Provider } from 'react-redux';
+import { MemoryRouter } from 'react-router-dom';
 import { store } from '../../../Redux/store/store';
+import { AppFeedbackProvider } from '../../../Components/Library/AppFeedback/AppFeedbackProvider';
 import { InsightsTab } from './InsightsTab';
 import {
 	useGetLatestPropertyScanSnapshotQuery,
@@ -124,9 +126,13 @@ const defaultProps = {
 
 const renderInsights = (props: Partial<typeof defaultProps> = {}) =>
 	render(
-		<Provider store={store}>
-			<InsightsTab {...defaultProps} {...props} />
-		</Provider>,
+		<MemoryRouter>
+			<Provider store={store}>
+				<AppFeedbackProvider>
+					<InsightsTab {...defaultProps} {...props} />
+				</AppFeedbackProvider>
+			</Provider>
+		</MemoryRouter>,
 	);
 
 describe('InsightsTab', () => {
@@ -160,9 +166,55 @@ describe('InsightsTab', () => {
 			screen.getByRole('tab', { name: /history/i }),
 		).toBeInTheDocument();
 		expect(
+			screen.getByRole('tab', { name: /suggested details/i }),
+		).toBeInTheDocument();
+		expect(
 			screen.getByRole('region', { name: /property quick scan/i }),
 		).toBeInTheDocument();
 		expect(screen.getByText('What Maintley Found')).toBeInTheDocument();
+	});
+
+	test('shows suggested details inside the Insights workspace', async () => {
+		const user = userEvent.setup();
+		renderInsights({
+			property: {
+				...defaultProps.property,
+				knowledgeSuggestions: [
+					{
+						id: 'knowledge-1',
+						sourceDocumentId: 'doc-1',
+						sourceDocumentName: 'HVAC Invoice.png',
+						propertyId: 'property-1',
+						relatedSystemId: 'system-1',
+						documentType: 'invoice',
+						extractionMethod: 'image_ocr',
+						extractedFields: [
+							{
+								id: 'field-1',
+								fieldKey: 'model',
+								label: 'Model',
+								value: '4TTR4036L1000A',
+								confidence: 0.82,
+								targetEntity: 'system',
+								targetField: 'model',
+							},
+						],
+						suggestedParts: [],
+						status: 'pending',
+						createdAt: '2026-06-26T12:00:00.000Z',
+					},
+				],
+			} as any,
+		});
+
+		await user.click(screen.getByRole('tab', { name: /suggested details/i }));
+
+		expect(
+			screen.getByRole('heading', { name: /suggested details/i }),
+		).toBeInTheDocument();
+		expect(screen.getAllByText('HVAC Invoice.png')).toHaveLength(2);
+		expect(screen.getByDisplayValue('4TTR4036L1000A')).toBeInTheDocument();
+		expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 	});
 
 	test('shows the Intelligence history empty state', async () => {
