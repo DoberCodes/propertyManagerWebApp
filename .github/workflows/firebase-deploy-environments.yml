@@ -74,17 +74,17 @@ jobs:
       - name: Use Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '24'
+          node-version: '20'
           cache: 'yarn'
 
       - name: Install root dependencies
         run: yarn install --frozen-lockfile
 
       - name: Install functions dependencies
-        run: npm --prefix functions ci
+        run: yarn --cwd functions install --frozen-lockfile
 
       - name: Build functions
-        run: npm --prefix functions run build
+        run: yarn --cwd functions build
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v3

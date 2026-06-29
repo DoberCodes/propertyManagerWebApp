@@ -147,7 +147,7 @@ Firestore, Storage, document, invoice, or private property-data responses.
 Build Functions:
 
 ```bash
-npm --prefix functions run build
+yarn --cwd functions build
 ```
 
 Compiled output is written to:
@@ -320,7 +320,7 @@ Examples:
 Recommended flow:
 
 ```bash
-npm --prefix functions run build
+yarn --cwd functions build
 firebase deploy --only functions
 ```
 
@@ -365,7 +365,7 @@ When frontend code depends on new functions, rules, or backend behavior:
 Example:
 
 ```bash
-npm --prefix functions run build
+yarn --cwd functions build
 firebase deploy --only functions
 npm run build
 ```
@@ -439,7 +439,7 @@ Recommended checks before most deployments:
 ```bash
 npm run build
 npm run check:asset-budgets
-npm --prefix functions run build
+yarn --cwd functions build
 npm run test:rules
 ```
 
