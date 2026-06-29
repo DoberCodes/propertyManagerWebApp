@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta name="theme-color" content="#10b981" />
+		<title>Maintley Offline</title>
+		<style>
+			:root {
+				color-scheme: light;
+				font-family:
+					Manrope,
+					-apple-system,
+					BlinkMacSystemFont,
+					'Segoe UI',
+					sans-serif;
+				background: #10b981;
+			}
+
+			* {
+				box-sizing: border-box;
+			}
+
+			body {
+				display: grid;
+				min-height: 100vh;
+				min-height: 100dvh;
+				margin: 0;
+				place-items: center;
+				padding: 24px;
+				background:
+					radial-gradient(circle at top right, rgba(60, 204, 124, 0.24), transparent 34%),
+					linear-gradient(135deg, #047857 0%, #10b981 100%);
+				color: #1f2937;
+			}
+
+			main {
+				width: min(440px, 100%);
+				padding: 34px 28px;
+				border: 1px solid rgba(255, 255, 255, 0.72);
+				border-radius: 22px;
+				background: rgba(255, 255, 255, 0.94);
+				box-shadow: 0 26px 80px rgba(3, 97, 81, 0.32);
+				text-align: center;
+			}
+
+			.logo {
+				margin-bottom: 18px;
+				color: #047857;
+				font-size: clamp(34px, 9vw, 48px);
+				font-weight: 700;
+				line-height: 1;
+			}
+
+			h1 {
+				margin: 0 0 10px;
+				color: #1f2937;
+				font-size: 24px;
+				line-height: 1.2;
+			}
+
+			p {
+				margin: 0;
+				color: #4b5563;
+				font-size: 15px;
+				line-height: 1.55;
+			}
+
+			.note {
+				margin-top: 18px;
+				color: #047857;
+				font-size: 13px;
+				font-weight: 700;
+			}
+		</style>
+	</head>
+	<body>
+		<main>
+			<div class="logo">Maintley</div>
+			<h1>Maintley needs a connection</h1>
+			<p>
+				Your property records are protected online. Reconnect to keep reviewing,
+				updating, and building your property's memory.
+			</p>
+			<p class="note">No private property data is stored by this offline page.</p>
+		</main>
+	</body>
+</html>
