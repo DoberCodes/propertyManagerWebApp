@@ -8,9 +8,12 @@ import GlobalStyles from './global.styles';
 import { StyleSheetManager } from 'styled-components';
 import isPropValid from '@emotion/is-prop-valid';
 import { registerMaintleyServiceWorker } from './serviceWorkerRegistration';
+import { initializePwaInstallPromptCapture } from './services/pwaInstallPrompt';
 if (process.env.NODE_ENV === 'development') {
 	import('./utils/testFirebase');
 }
+
+initializePwaInstallPromptCapture();
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {

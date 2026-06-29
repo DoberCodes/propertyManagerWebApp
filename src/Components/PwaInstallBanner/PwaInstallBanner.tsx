@@ -8,11 +8,12 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import { COLORS } from '../../constants/colors';
 import { TYPOGRAPHY } from '../../constants/typography';
-
-type BeforeInstallPromptEvent = Event & {
-	prompt: () => Promise<void>;
-	userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
-};
+import {
+	BeforeInstallPromptEvent,
+	clearDeferredPwaInstallPrompt,
+	getDeferredPwaInstallPrompt,
+	subscribeToPwaInstallPrompt,
+} from '../../services/pwaInstallPrompt';
 
 const DISMISS_STORAGE_KEY = 'maintley_pwa_install_banner_dismissed_at';
 const DISMISS_DURATION_MS = 30 * 24 * 60 * 60 * 1000;
@@ -50,24 +51,21 @@ export const PwaInstallBanner = () => {
 	const isIos = useMemo(() => getIsIos(), []);
 
 	useEffect(() => {
-		const handleBeforeInstallPrompt = (event: Event) => {
-			event.preventDefault();
-			setDeferredPrompt(event as BeforeInstallPromptEvent);
-		};
-
 		const handleAppInstalled = () => {
 			window.localStorage.setItem(DISMISS_STORAGE_KEY, String(Date.now()));
 			setDeferredPrompt(null);
+			clearDeferredPwaInstallPrompt();
 			setIsDismissed(true);
 			setIsStandalone(true);
 		};
 
-		window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
 		window.addEventListener('appinstalled', handleAppInstalled);
+		const unsubscribe = subscribeToPwaInstallPrompt(setDeferredPrompt);
+		setDeferredPrompt(getDeferredPwaInstallPrompt());
 
 		return () => {
-			window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
 			window.removeEventListener('appinstalled', handleAppInstalled);
+			unsubscribe();
 		};
 	}, []);
 
@@ -87,6 +85,7 @@ export const PwaInstallBanner = () => {
 		await deferredPrompt.prompt();
 		const choice = await deferredPrompt.userChoice;
 		setDeferredPrompt(null);
+		clearDeferredPwaInstallPrompt();
 		if (choice.outcome === 'accepted') {
 			window.localStorage.setItem(DISMISS_STORAGE_KEY, String(Date.now()));
 			setIsDismissed(true);

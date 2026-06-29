@@ -77,9 +77,6 @@ jobs:
           node-version: '20'
           cache: 'yarn'
 
-      - name: Install root dependencies
-        run: yarn install --frozen-lockfile
-
       - name: Install functions dependencies
         run: yarn --cwd functions install --frozen-lockfile
 
@@ -94,7 +91,7 @@ jobs:
 
       - name: Deploy Firestore rules and Functions
         run: |
-          npx firebase-tools deploy \
+          ./functions/node_modules/.bin/firebase deploy \
             --project "${{ steps.target.outputs.project_id }}" \
             --only firestore:rules,functions \
             --non-interactive \
