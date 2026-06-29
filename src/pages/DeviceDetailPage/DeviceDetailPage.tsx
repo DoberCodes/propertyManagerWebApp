@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
 	faCircleCheck,
@@ -22,6 +22,8 @@ import {
 	useGetUnitsQuery,
 	useUpdatePropertyMutation,
 } from '../../Redux/API/propertySlice';
+import { apiSlice } from '../../Redux/API/apiSlice';
+import { useCreateNotificationMutation } from '../../Redux/API/notificationSlice';
 import {
 	useGetDeviceQuery,
 	useGetDevicesQuery,
@@ -68,13 +70,10 @@ import {
 } from '../../utils/financialUtils';
 import { uploadDeviceFile } from '../../utils/deviceFileUpload';
 import {
-	uploadPropertyDocument,
-	withPropertyDocumentLinks,
-} from '../../utils/propertyDocumentUpload';
-import {
-	createPendingKnowledgeSuggestionFromFile,
-	markDocumentWithKnowledgeSuggestion,
-} from '../../propertyKnowledge/propertyKnowledgeAcquisition';
+	preparePropertyMemoryDocumentUploads,
+	startPdfDocumentKnowledgeProcessing,
+} from '../../propertyKnowledge/propertyDocumentUploads';
+import { COLORS } from '../../constants/colors';
 import {
 	getDeviceIdFromSlug,
 	getDeviceSlugBase,
@@ -102,6 +101,7 @@ import {
 	buildDeviceServiceItemDetails,
 } from '../../constants/deviceServiceItems';
 import { BarcodeScannerModal } from '../../Components/Library/BarcodeScanner/BarcodeScannerModal';
+import { LoadingState } from '../../Components/LoadingState';
 import { PageStack, SummaryGrid, SummaryCard, SummaryLabel, SummaryValue, QuickActionPanel, QuickActionHeader, ViewActionsButton, QuickActionGrid, QuickActionButton, QuickActionHint, SectionBlock, SectionEyebrow, SectionTitleStrong, SectionDescription, PhotoActions, ScanButton, PhotoHelperText, PhotoSection, DevicePhotoCard, DevicePhotoImg, PhotoPlaceholder, PhotoActionButton, RemovePhotoButton, MobileCardStack, MobileDetailCard, MobileDetailHeader, MobileDetailTitle, MobileDetailMeta, ActionButton, SubmitButton, CombinedHistoryContainer, TimelineList, TimelineItem, TimelineDate, TimelineDateSub, TimelineContent, TimelineTitleRow, TimelineIconBadge, TimelineTitle, TimelineEventBadge, TimelineDescription, TimelineMeta, TimelineExpandButton, TimelineDetailsPanel, TimelineDetailBlock, TimelineDetailLabel, TimelineDetailValue, TimelineAttachmentList, TimelineAttachmentLink, PartsForm, FormField, DynamicFieldsGrid, PartsTable } from './DeviceDetailPage.styles';
 
 type PartFormState = Omit<DeviceServiceItem, 'id'>;
@@ -304,19 +304,19 @@ const getTimelineEventIcon = (category: TimelineEventCategory) => {
 		case 'invoice':
 			return { icon: faFileInvoiceDollar, color: '#1d4ed8', background: '#dbeafe' };
 		case 'inspection':
-			return { icon: faClipboardCheck, color: '#0f766e', background: '#ccfbf1' };
+			return { icon: faClipboardCheck, color: COLORS.primaryDark, background: COLORS.primaryLight };
 		case 'recurring':
 			return { icon: faRepeat, color: '#7c3aed', background: '#ede9fe' };
 		case 'scheduled':
 			return { icon: faClock, color: '#1d4ed8', background: '#dbeafe' };
 		case 'completed':
-			return { icon: faCircleCheck, color: '#166534', background: '#dcfce7' };
+			return { icon: faCircleCheck, color: COLORS.successDark, background: COLORS.successLight };
 		case 'warranty':
 			return { icon: faShieldHalved, color: '#1e3a8a', background: '#dbeafe' };
 		case 'document':
 			return { icon: faFileLines, color: '#334155', background: '#e2e8f0' };
 		case 'note':
-			return { icon: faCommentDots, color: '#0f766e', background: '#ccfbf1' };
+			return { icon: faCommentDots, color: COLORS.primaryDark, background: COLORS.primaryLight };
 		default:
 			return { icon: faClock, color: '#475569', background: '#e2e8f0' };
 	}
@@ -347,6 +347,7 @@ const sanitizeDeviceServiceItem = (item: DeviceServiceItem): DeviceServiceItem =
 export const DeviceDetailPage: React.FC = () => {
 	const { slug, deviceSlug } = useParams<{ slug: string; deviceSlug: string }>();
 	const [searchParams, setSearchParams] = useSearchParams();
+	const dispatch = useDispatch();
 	const applianceAction = searchParams.get('action');
 	const capturedApplianceActionRef = useRef<string | null>(null);
 	const pendingApplianceActionRef = useRef<string | null>(null);
@@ -447,6 +448,7 @@ export const DeviceDetailPage: React.FC = () => {
 
 	const [updateDevice] = useUpdateDeviceMutation();
 	const [updateProperty] = useUpdatePropertyMutation();
+	const [createNotification] = useCreateNotificationMutation();
 	const [deleteTask] = useDeleteTaskMutation();
 	const [addMaintenanceHistory] = useAddMaintenanceHistoryMutation();
 	const [createContractor, { isLoading: isCreatingContractor }] =
@@ -1176,30 +1178,6 @@ export const DeviceDetailPage: React.FC = () => {
 			const documentCategory: PropertyDocumentCategory = isWarrantyDocument
 				? 'warranty'
 				: 'other';
-			const uploadedDocument = await uploadPropertyDocument(
-				file,
-				property.id,
-				documentCategory,
-			);
-			const linkedDocument = withPropertyDocumentLinks(
-				{
-					...uploadedDocument,
-					assignedDeviceId: device.id,
-				},
-				{ assetIds: [device.id] },
-			);
-			const suggestion = await createPendingKnowledgeSuggestionFromFile({
-				file,
-				document: linkedDocument,
-				propertyId: property.id,
-				relatedSystemId: device.id,
-				property,
-				systems: [device],
-			});
-			const savedDocument = markDocumentWithKnowledgeSuggestion(
-				linkedDocument,
-				suggestion,
-			);
 			const propertyDocuments = Array.isArray((property as any)?.documents)
 				? (property as any).documents
 				: [];
@@ -1208,59 +1186,59 @@ export const DeviceDetailPage: React.FC = () => {
 			)
 				? (property as any).knowledgeSuggestions
 				: [];
-			const documentFile = {
-				name: savedDocument.fileName || savedDocument.name,
-				url: savedDocument.fileUrl || savedDocument.url,
-				size: savedDocument.size,
-				type: savedDocument.type,
-				uploadedAt: savedDocument.uploadedAt,
-				usage: 'document' as const,
-				propertyDocumentId: savedDocument.id,
-			};
-
-			await addMaintenanceHistory({
+			const {
+				documents: savedDocuments,
+				knowledgeSuggestions,
+				pdfDocuments,
+			} = await preparePropertyMemoryDocumentUploads({
+				files: [file],
 				propertyId: property.id,
-				propertyTitle: property.title,
-				title: isWarrantyDocument
-					? `Warranty added: ${file.name}`
-					: `Document uploaded: ${file.name}`,
-				description: file.name,
-				completionDate: new Date().toISOString(),
-				unitId: device.location?.unitId,
-				deviceIds: [device.id],
-				eventType: isWarrantyDocument
-					? 'warranty_added'
-					: 'document_uploaded',
-				eventSource: 'document_upload',
-				completionFileData: documentFile,
-				tags: isWarrantyDocument
-					? ['device', 'document', 'warranty']
-					: ['device', 'document'],
-			}).unwrap();
+				category: documentCategory,
+				property,
+				systems: [device],
+			});
 			await updateProperty({
 				id: property.id,
 				updates: {
-					documents: [...propertyDocuments, savedDocument],
+					documents: [...propertyDocuments, ...savedDocuments],
 					knowledgeSuggestions: [
 						...propertyKnowledgeSuggestions,
-						suggestion,
+						...knowledgeSuggestions,
 					],
 				},
 			}).unwrap();
-
-			const nextEntries = [
-				{
-					date: new Date().toISOString(),
-					description: `Document uploaded: ${file.name}`,
+			startPdfDocumentKnowledgeProcessing({
+				propertyId: property.id,
+				documents: pdfDocuments,
+				notifyScanStarted: (document) =>
+					createNotification({
+						userId: currentUser!.id,
+						type: 'document_scan_started',
+						title: 'Document Review Started',
+						message: `Maintley is reviewing ${document.fileName || document.name} for suggested details.`,
+						data: {
+							propertyId: property.id,
+							propertyTitle: property.title,
+							documentId: document.id,
+							documentName: document.fileName || document.name,
+						},
+						status: 'unread',
+						actionUrl: `/properties/${property.id}`,
+						createdAt: new Date().toISOString(),
+						updatedAt: new Date().toISOString(),
+					}).unwrap(),
+				onProcessed: () => {
+					dispatch(apiSlice.util.invalidateTags(['Properties']));
 				},
-				...(Array.isArray(device.maintenanceHistory) ? device.maintenanceHistory : []),
-			];
-			await updateDevice({
-				id: device.id,
-				updates: {
-					maintenanceHistory: nextEntries,
+				onError: () => {
+					dispatch(apiSlice.util.invalidateTags(['Properties']));
 				},
-			}).unwrap();
+			});
+			window.alert(
+				pdfDocuments.length > 0
+					? 'Document uploaded. Maintley is reviewing PDF details in the background.'
+					: 'Document uploaded to property documents.',
+			);
 		} finally {
 			if (documentInputRef.current) {
 				documentInputRef.current.value = '';
@@ -1389,39 +1367,16 @@ export const DeviceDetailPage: React.FC = () => {
 				)
 					? (property as any).knowledgeSuggestions
 					: [];
-				const uploadedDocuments = await Promise.all(
-					pendingDeviceFiles.map((file) =>
-						uploadPropertyDocument(file, property.id, 'other'),
-					),
-				);
-				const linkedDocuments = uploadedDocuments.map((document) =>
-					withPropertyDocumentLinks(
-						{
-							...document,
-							assignedDeviceId: editingDevice.id,
-						},
-						{ assetIds: [editingDevice.id] },
-					),
-				);
-				const knowledgeSuggestions = await Promise.all(
-					linkedDocuments.map((document, index) =>
-						createPendingKnowledgeSuggestionFromFile({
-							file: pendingDeviceFiles[index],
-							document,
-							propertyId: property.id,
-							relatedSystemId: editingDevice.id,
-							property,
-							systems: [editingDevice],
-						}),
-					),
-				);
-				const savedDocuments = linkedDocuments.map((document) => {
-					const suggestion = knowledgeSuggestions.find(
-						(candidate) => candidate.sourceDocumentId === document.id,
-					);
-					return suggestion
-						? markDocumentWithKnowledgeSuggestion(document, suggestion)
-						: document;
+				const {
+					documents: savedDocuments,
+					knowledgeSuggestions,
+					pdfDocuments,
+				} = await preparePropertyMemoryDocumentUploads({
+					files: pendingDeviceFiles,
+					propertyId: property.id,
+					category: 'other',
+					property,
+					systems: [editingDevice],
 				});
 				await updateProperty({
 					id: property.id,
@@ -1433,6 +1388,33 @@ export const DeviceDetailPage: React.FC = () => {
 						],
 					},
 				}).unwrap();
+				startPdfDocumentKnowledgeProcessing({
+					propertyId: property.id,
+					documents: pdfDocuments,
+					notifyScanStarted: (document) =>
+						createNotification({
+							userId: currentUser!.id,
+							type: 'document_scan_started',
+							title: 'Document Review Started',
+							message: `Maintley is reviewing ${document.fileName || document.name} for suggested details.`,
+							data: {
+								propertyId: property.id,
+								propertyTitle: property.title,
+								documentId: document.id,
+								documentName: document.fileName || document.name,
+							},
+							status: 'unread',
+							actionUrl: `/properties/${property.id}`,
+							createdAt: new Date().toISOString(),
+							updatedAt: new Date().toISOString(),
+						}).unwrap(),
+					onProcessed: () => {
+						dispatch(apiSlice.util.invalidateTags(['Properties']));
+					},
+					onError: () => {
+						dispatch(apiSlice.util.invalidateTags(['Properties']));
+					},
+				});
 			}
 
 			setShowDeviceEditModal(false);
@@ -1768,11 +1750,18 @@ export const DeviceDetailPage: React.FC = () => {
 
 	if (deviceLoading) {
 		return (
-			<SectionContainer>
-				<EmptyState>
-					<p>Loading appliance...</p>
-				</EmptyState>
-			</SectionContainer>
+			<LoadingState
+				loadingKey='appliance-detail'
+				title='Loading appliance'
+				message='Preparing this appliance record.'
+				steps={[
+					'Reading appliance information...',
+					'Connecting maintenance history...',
+					'Indexing warranties...',
+					'Looking for missing documentation...',
+					'Building maintenance insights...',
+				]}
+			/>
 		);
 	}
 
@@ -2151,7 +2140,7 @@ export const DeviceDetailPage: React.FC = () => {
 													<div>
 														<MobileDetailTitle>{task.title}</MobileDetailTitle>
 													</div>
-													<span style={{ fontSize: 12, fontWeight: 700, color: task.status === 'Overdue' ? '#b91c1c' : '#166534', background: task.status === 'Overdue' ? '#fee2e2' : '#dcfce7', borderRadius: 999, padding: '4px 10px', whiteSpace: 'nowrap' }}>
+													<span style={{ fontSize: 12, fontWeight: 700, color: task.status === 'Overdue' ? '#b91c1c' : COLORS.successDark, background: task.status === 'Overdue' ? '#fee2e2' : COLORS.successLight, borderRadius: 999, padding: '4px 10px', whiteSpace: 'nowrap' }}>
 														{task.status || 'Pending'}
 													</span>
 												</MobileDetailHeader>
@@ -2205,7 +2194,7 @@ export const DeviceDetailPage: React.FC = () => {
 																height: 24,
 																borderRadius: 8,
 																background: '#ecfeff',
-																color: '#0f766e',
+																color: COLORS.primaryDark,
 															}}>
 															<FontAwesomeIcon icon={faScrewdriverWrench} />
 														</span>
@@ -2224,7 +2213,7 @@ export const DeviceDetailPage: React.FC = () => {
 												<div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
 													<FontAwesomeIcon
 														icon={value === 'Overdue' ? faClock : faCircleCheck}
-														color={value === 'Overdue' ? '#b91c1c' : '#166534'}
+														color={value === 'Overdue' ? '#b91c1c' : COLORS.successDark}
 													/>
 													<span style={{ fontWeight: 700 }}>{value || 'Pending'}</span>
 												</div>
@@ -2428,7 +2417,7 @@ export const DeviceDetailPage: React.FC = () => {
 													<MobileDetailCard key={`${record.id || record.originalTaskId || 'history'}-${index}`}>
 														<MobileDetailHeader>
 															<MobileDetailTitle>{record.title || record.taskTitle || record.description || 'Task'}</MobileDetailTitle>
-															<span style={{ fontSize: 12, fontWeight: 700, color: '#166534', background: '#dcfce7', borderRadius: 999, padding: '4px 10px', whiteSpace: 'nowrap' }}>
+															<span style={{ fontSize: 12, fontWeight: 700, color: COLORS.successDark, background: COLORS.successLight, borderRadius: 999, padding: '4px 10px', whiteSpace: 'nowrap' }}>
 																{record.status || 'Completed'}
 															</span>
 														</MobileDetailHeader>
@@ -2654,7 +2643,7 @@ export const DeviceDetailPage: React.FC = () => {
 											<MobileDetailCard key={`${part.id}-${index}`}>
 												<MobileDetailHeader>
 													<MobileDetailTitle>{part.name}</MobileDetailTitle>
-													<span style={{ display: 'inline-flex', padding: '4px 8px', backgroundColor: '#f0fdf4', color: '#166534', borderRadius: '999px', fontSize: '12px', fontWeight: 700 }}>
+													<span style={{ display: 'inline-flex', padding: '4px 8px', backgroundColor: COLORS.successLight, color: COLORS.successDark, borderRadius: '999px', fontSize: '12px', fontWeight: 700 }}>
 														{part.category}
 													</span>
 												</MobileDetailHeader>
@@ -2699,8 +2688,8 @@ export const DeviceDetailPage: React.FC = () => {
 															style={{
 																display: 'inline-block',
 																padding: '4px 8px',
-																backgroundColor: '#f0fdf4',
-																color: '#166534',
+																backgroundColor: COLORS.successLight,
+																color: COLORS.successDark,
 																borderRadius: '4px',
 																fontSize: '12px',
 																fontWeight: 500,

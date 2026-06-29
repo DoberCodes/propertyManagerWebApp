@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
+import { COLORS } from '../../constants/colors';
 
 const DebugPanel = styled.div`
 	position: fixed;
@@ -38,9 +39,9 @@ const ToggleButton = styled.button`
 	width: 50px;
 	height: 50px;
 	border-radius: 50%;
-	background: #065f46;
-	color: white;
-	border: 2px solid white;
+	background: ${COLORS.primaryDark};
+	color: ${COLORS.textInverse};
+	border: 2px solid ${COLORS.bgWhite};
 	font-size: 20px;
 	cursor: pointer;
 	z-index: 10000;

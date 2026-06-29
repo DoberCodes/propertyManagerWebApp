@@ -128,6 +128,8 @@ export interface User {
 			team_group_deleted: boolean;
 			maintenance_request: boolean;
 			maintenance_request_created: boolean;
+			document_scan_started: boolean;
+			document_scan_completed: boolean;
 			legal_update: boolean;
 			property_shared: boolean;
 			share_invitation: boolean;

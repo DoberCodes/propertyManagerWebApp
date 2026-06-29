@@ -1,10 +1,11 @@
 import { faPlus } from "@fortawesome/free-solid-svg-icons"
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome"
 import React from "react"
-import { MobileBottomNavBar, MobileBottomNavInner, MobileBottomNavItem, MobileBottomNavLabel, MobileBottomCenterWrap, MobileBottomActionBackdrop, MobileBottomActionMenu, MobileBottomActionItem, MobileBottomCenterButton, MobileSidebar } from "./MobileNav.styles"
+import { MobileBottomNavBar, MobileBottomNavInner, MobileBottomNavItem, MobileBottomNavLabel, MobileBottomCenterWrap, MobileBottomActionBackdrop, MobileBottomActionMenu, MobileBottomActionItem, MobileBottomCenterButton, MobileSidebar, MobileSidebarBrand, MobileSidebarLogo } from "./MobileNav.styles"
 import { AccountSnapshot } from "Components/AccountSnapshot"
 import { useNavigate } from "react-router-dom"
-import titleName from '../../../../Assets/images/TitleName.png';
+import titleName from '../../../../Assets/TitleName.png';
+import { COLORS } from '../../../../constants/colors';
 
 
 interface MobileNavProps {
@@ -49,17 +50,17 @@ export const MobileHamburgerNav: React.FC<MobileNavProps> = ({ isSidebarOpen, se
     return (
         <div>
             <MobileSidebar $isOpen={isSidebarOpen}>
-                <div style={{ display: 'flex', justifyContent: 'flex-start', backgroundColor: '#047857', marginBottom: '20px', padding: '5px' }}>
-                    <img src={titleName} alt='Property Manager' style={{ height: '40px' }} />
-                </div>
+                <MobileSidebarBrand>
+                    <MobileSidebarLogo src={titleName} alt='Maintley' />
+                </MobileSidebarBrand>
                 {/* Navigation Menu */}
-                <div style={{ padding: '20px', paddingTop: '0', borderBottom: '1px solid #e5e7eb' }}>
+                <div style={{ padding: '20px', paddingTop: '0', borderBottom: `1px solid ${COLORS.border}` }}>
                     <h3
                         style={{
                             margin: '0 0 12px 0',
                             fontSize: '12px',
                             fontWeight: '600',
-                            color: '#999999',
+                            color: COLORS.textMuted,
                             textTransform: 'uppercase',
                         }}>
                         Navigation
@@ -73,24 +74,24 @@ export const MobileHamburgerNav: React.FC<MobileNavProps> = ({ isSidebarOpen, se
                                     style={{
                                         padding: '10px 0',
                                         fontSize: '14px',
-                                        color: '#666666',
+                                        color: COLORS.textSecondary,
                                         cursor: 'pointer',
                                         transition: 'color 0.2s ease',
-                                        borderBottom: '1px solid #f0f0f0',
+                                        borderBottom: `1px solid ${COLORS.borderLight}`,
                                         textDecoration: activeRoute === `/${item.path}` ? 'underline' : 'none',
                                         textUnderlineOffset: '4px',
                                         textDecorationThickness: '2px',
-                                        textDecorationColor: activeRoute === `/${item.path}` ? '#22c55e' : 'transparent',
+                                        textDecorationColor: activeRoute === `/${item.path}` ? COLORS.primary : 'transparent',
                                     }}
                                     onClick={() => {
                                         navigate(`/${item.path}`);
                                         setIsSidebarOpen(false);
                                     }}
                                     onMouseEnter={(e) =>
-                                        (e.currentTarget.style.color = '#22c55e')
+                                        (e.currentTarget.style.color = COLORS.primary)
                                     }
                                     onMouseLeave={(e) =>
-                                        (e.currentTarget.style.color = '#666666')
+                                        (e.currentTarget.style.color = COLORS.textSecondary)
                                     }>
                                     {item.label}
                                 </li>
@@ -99,13 +100,13 @@ export const MobileHamburgerNav: React.FC<MobileNavProps> = ({ isSidebarOpen, se
                 </div>
 
                 {!isUserTenant && !isHomeowner && (
-                    <div style={{ padding: '20px', borderBottom: '1px solid #e5e7eb' }}>
+                    <div style={{ padding: '20px', borderBottom: `1px solid ${COLORS.border}` }}>
                         <h3
                             style={{
                                 margin: '0 0 12px 0',
                                 fontSize: '12px',
                                 fontWeight: '600',
-                                color: '#999999',
+                                color: COLORS.textMuted,
                                 textTransform: 'uppercase',
                             }}>
                             Favorites
@@ -118,31 +119,31 @@ export const MobileHamburgerNav: React.FC<MobileNavProps> = ({ isSidebarOpen, se
                                         style={{
                                             padding: '8px 0',
                                             fontSize: '13px',
-                                            color: '#666666',
+                                            color: COLORS.textSecondary,
                                             cursor: 'pointer',
                                             transition: 'color 0.2s ease',
-                                            borderBottom: '1px solid #f0f0f0',
+                                            borderBottom: `1px solid ${COLORS.borderLight}`,
                                             textDecoration: activeRoute === `/property/${property.slug}` ? 'underline' : 'none',
                                             textUnderlineOffset: '4px',
                                             textDecorationThickness: '2px',
-                                            textDecorationColor: activeRoute === `/property/${property.slug}` ? '#22c55e' : 'transparent',
+                                            textDecorationColor: activeRoute === `/property/${property.slug}` ? COLORS.primary : 'transparent',
                                         }}
                                         onClick={() => {
                                             navigate(`/property/${property.slug}`);
                                             setIsSidebarOpen(false);
                                         }}
                                         onMouseEnter={(e) =>
-                                            (e.currentTarget.style.color = '#22c55e')
+                                            (e.currentTarget.style.color = COLORS.primary)
                                         }
                                         onMouseLeave={(e) =>
-                                            (e.currentTarget.style.color = '#666666')
+                                            (e.currentTarget.style.color = COLORS.textSecondary)
                                         }>
                                         {'★ ' + property.title}
                                     </li>
                                 ))}
                             </ul>
                         ) : (
-                            <div style={{ fontSize: '12px', color: '#999999' }}>
+                            <div style={{ fontSize: '12px', color: COLORS.textMuted }}>
                                 No favorite properties
                             </div>
                         )}
@@ -150,7 +151,7 @@ export const MobileHamburgerNav: React.FC<MobileNavProps> = ({ isSidebarOpen, se
                     </div>
 
                 )}
-                <div style={{ width: '100%', borderTop: '1px solid #e5e7eb' }}>
+                <div style={{ width: '100%', borderTop: `1px solid ${COLORS.border}` }}>
                     {!isUserTenant && !isTeamMemberAccount && (
                         <AccountSnapshot isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} />
                     )}

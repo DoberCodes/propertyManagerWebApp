@@ -40,6 +40,7 @@ import {
 import { HeaderlessFeedSurface } from '../../Components/Library/ReusableTable/ReusableTable.styles';
 import { Toolbar } from 'pages/PropertyDetailPage/PropertyDetailPage.styles';
 import { AddTenantModal } from '../../Components/AddTenantModal';
+import { LoadingState } from '../../Components/LoadingState';
 import { MaintenanceRequestModal } from '../../Components/MaintenanceRequestModal';
 import {
 	useCreateDeviceMutation,
@@ -1263,7 +1264,17 @@ export const UnitDetailPage: React.FC = () => {
 								</PrimaryActionButton>
 							</Toolbar>
 							{devicesLoading ? (
-								<div>Loading appliances...</div>
+								<LoadingState
+									loadingKey='unit-appliances'
+									title='Loading appliances'
+									message='Preparing this unit appliance list.'
+									steps={[
+										'Reading appliance information...',
+										'Checking upcoming maintenance...',
+										'Connecting maintenance history...',
+										'Almost ready...',
+									]}
+								/>
 							) : unitDevices.length > 0 ? (
 								<DeviceSystemsList>
 									{unitDevices.map((device: any, idx: number) => {

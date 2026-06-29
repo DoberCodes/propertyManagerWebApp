@@ -5,6 +5,12 @@ import {
 	PropertyScanSnapshot,
 	useGetPropertyScanSnapshotsQuery,
 } from '../../Redux/API/propertyIntelligenceSlice';
+import type { Property } from '../../types/Property.types';
+import type {
+	ExtractedKnowledgeField,
+	ExtractedPartSuggestion,
+	PropertyKnowledgeSuggestion,
+} from '../../types/PropertyKnowledge.types';
 import { PropertyScanRecommendation } from '../../utils/propertyIntelligenceScan';
 import { COLORS } from '../../constants/colors';
 
@@ -12,7 +18,22 @@ interface PropertyScanHistoryPanelProps {
 	propertyId: string;
 	accountId?: string;
 	canRunScan: boolean;
+	property?: Property;
 }
+
+type HistoryTimelineItem =
+	| {
+			type: 'scan';
+			id: string;
+			createdAt?: string;
+			snapshot: PropertyScanSnapshot;
+	  }
+	| {
+			type: 'knowledge';
+			id: string;
+			createdAt?: string;
+			suggestion: PropertyKnowledgeSuggestion;
+	  };
 
 const formatScanDate = (value?: string): string => {
 	if (!value) return 'Date not recorded';
@@ -78,11 +99,63 @@ const getAffectedCount = (recommendation: PropertyScanRecommendation): number =>
 	(recommendation.systemId ? 1 : 0) ||
 	0;
 
+const getAcceptedKnowledgeFields = (
+	suggestion?: PropertyKnowledgeSuggestion,
+): ExtractedKnowledgeField[] =>
+	(suggestion?.extractedFields || []).filter(
+		(field) => field.reviewStatus !== 'rejected',
+	);
+
+const getAcceptedKnowledgeParts = (
+	suggestion?: PropertyKnowledgeSuggestion,
+): ExtractedPartSuggestion[] =>
+	(suggestion?.suggestedParts || []).filter(
+		(part) => part.reviewStatus !== 'rejected',
+	);
+
+const getAddedKnowledgeCount = (
+	suggestion?: PropertyKnowledgeSuggestion,
+): number =>
+	getAcceptedKnowledgeFields(suggestion).length +
+	getAcceptedKnowledgeParts(suggestion).length;
+
+const getKnowledgeEventDate = (
+	suggestion?: PropertyKnowledgeSuggestion,
+): string | undefined =>
+	suggestion?.appliedAt || suggestion?.reviewedAt || suggestion?.createdAt;
+
+const getKnowledgeDocumentLabel = (
+	suggestion?: PropertyKnowledgeSuggestion,
+): string => suggestion?.sourceDocumentName || 'source document';
+
+const getTargetEntityLabel = (value?: string): string => {
+	switch (value) {
+		case 'system':
+			return 'Asset/System';
+		case 'maintenanceHistory':
+			return 'Maintenance History';
+		case 'contractor':
+			return 'Contractor';
+		case 'warranty':
+			return 'Warranty';
+		case 'part':
+			return 'Parts & Supplies';
+		case 'task':
+			return 'Task';
+		case 'property':
+			return 'Property Memory';
+		default:
+			return 'Property Memory';
+	}
+};
+
 export const PropertyScanHistoryPanel: React.FC<
 	PropertyScanHistoryPanelProps
-> = ({ propertyId, accountId, canRunScan }) => {
+> = ({ propertyId, accountId, canRunScan, property }) => {
 	const [selectedSnapshot, setSelectedSnapshot] =
 		useState<PropertyScanSnapshot | null>(null);
+	const [selectedKnowledgeSuggestion, setSelectedKnowledgeSuggestion] =
+		useState<PropertyKnowledgeSuggestion | null>(null);
 	const {
 		data: snapshots = [],
 		isLoading,
@@ -95,6 +168,47 @@ export const PropertyScanHistoryPanel: React.FC<
 	const selectedSources = useMemo(
 		() => (selectedSnapshot ? getSnapshotSources(selectedSnapshot) : []),
 		[selectedSnapshot],
+	);
+	const appliedKnowledgeSuggestions = useMemo<PropertyKnowledgeSuggestion[]>(
+		() =>
+			Array.isArray(property?.knowledgeSuggestions)
+				? property.knowledgeSuggestions.filter(
+						(suggestion) =>
+							suggestion.status === 'applied' &&
+							getAddedKnowledgeCount(suggestion) > 0,
+				  )
+				: [],
+		[property?.knowledgeSuggestions],
+	);
+	const timelineItems = useMemo<HistoryTimelineItem[]>(
+		() =>
+			[
+				...snapshots.map((snapshot) => ({
+					type: 'scan' as const,
+					id: snapshot.id || snapshot.createdAt || 'scan-snapshot',
+					createdAt: snapshot.createdAt,
+					snapshot,
+				})),
+				...appliedKnowledgeSuggestions.map((suggestion) => ({
+					type: 'knowledge' as const,
+					id: suggestion.id,
+					createdAt: getKnowledgeEventDate(suggestion),
+					suggestion,
+				})),
+			].sort((a, b) => {
+				const aTime = new Date(a.createdAt || 0).getTime() || 0;
+				const bTime = new Date(b.createdAt || 0).getTime() || 0;
+				return bTime - aTime;
+			}),
+		[appliedKnowledgeSuggestions, snapshots],
+	);
+	const selectedKnowledgeFields = useMemo(
+		() => getAcceptedKnowledgeFields(selectedKnowledgeSuggestion || undefined),
+		[selectedKnowledgeSuggestion],
+	);
+	const selectedKnowledgeParts = useMemo(
+		() => getAcceptedKnowledgeParts(selectedKnowledgeSuggestion || undefined),
+		[selectedKnowledgeSuggestion],
 	);
 
 	if (!canRunScan) {
@@ -121,30 +235,51 @@ export const PropertyScanHistoryPanel: React.FC<
 					Maintley could not load this property&apos;s Intelligence history.
 					Please try again.
 				</HistoryError>
-			) : snapshots.length === 0 ? (
+			) : timelineItems.length === 0 ? (
 				<HistoryState>
-					Run a Quick Scan to begin building this property&apos;s Intelligence
-					history.
+					Run a Quick Scan or review suggested document details to begin
+					building this property&apos;s Intelligence history.
 				</HistoryState>
 			) : (
 				<SnapshotList>
-					{snapshots.map((snapshot) => (
-						<SnapshotCard key={snapshot.id || snapshot.createdAt}>
+					{timelineItems.map((item) => (
+						<SnapshotCard key={`${item.type}-${item.id}`}>
 							<TimelineDateBlock>
-								<TimelineDate>{formatTimelineDate(snapshot.createdAt)}</TimelineDate>
+								<TimelineDate>{formatTimelineDate(item.createdAt)}</TimelineDate>
 							</TimelineDateBlock>
 							<SnapshotMain>
-								<SnapshotTitle>{getScanTypeLabel(snapshot.scanType)}</SnapshotTitle>
-								<SnapshotSummaryLine>
-									{getRecommendationCount(snapshot)}{' '}
-									{getRecommendationCount(snapshot) === 1
-										? 'recommendation'
-										: 'recommendations'}
-								</SnapshotSummaryLine>
+								{item.type === 'scan' ? (
+									<>
+										<SnapshotTitle>
+											{getScanTypeLabel(item.snapshot.scanType)}
+										</SnapshotTitle>
+										<SnapshotSummaryLine>
+											{getRecommendationCount(item.snapshot)}{' '}
+											{getRecommendationCount(item.snapshot) === 1
+												? 'recommendation'
+												: 'recommendations'}
+										</SnapshotSummaryLine>
+									</>
+								) : (
+									<>
+										<SnapshotTitle>Knowledge added</SnapshotTitle>
+										<SnapshotSummaryLine>
+											{getAddedKnowledgeCount(item.suggestion)} detail
+											{getAddedKnowledgeCount(item.suggestion) === 1
+												? ''
+												: 's'}{' '}
+											added from {getKnowledgeDocumentLabel(item.suggestion)}
+										</SnapshotSummaryLine>
+									</>
+								)}
 							</SnapshotMain>
 							<OpenSnapshotButton
 								type='button'
-								onClick={() => setSelectedSnapshot(snapshot)}>
+								onClick={() =>
+									item.type === 'scan'
+										? setSelectedSnapshot(item.snapshot)
+										: setSelectedKnowledgeSuggestion(item.suggestion)
+								}>
 								View
 							</OpenSnapshotButton>
 						</SnapshotCard>
@@ -227,6 +362,72 @@ export const PropertyScanHistoryPanel: React.FC<
 					</SnapshotDetail>
 				</GenericModal>
 			) : null}
+
+			{selectedKnowledgeSuggestion ? (
+				<GenericModal
+					isOpen={Boolean(selectedKnowledgeSuggestion)}
+					title='Knowledge Added'
+					onClose={() => setSelectedKnowledgeSuggestion(null)}
+					compact>
+					<SnapshotDetail>
+						<DetailIntro>
+							Reviewed {formatScanDate(getKnowledgeEventDate(selectedKnowledgeSuggestion))}. This is a
+							read-only summary of details saved to Property Memory from{' '}
+							{getKnowledgeDocumentLabel(selectedKnowledgeSuggestion)}.
+						</DetailIntro>
+						<DetailSummaryGrid>
+							<DetailSummaryItem>
+								<strong>{getAddedKnowledgeCount(selectedKnowledgeSuggestion)}</strong>
+								<span>details added</span>
+							</DetailSummaryItem>
+							<DetailSummaryItem>
+								<strong>{selectedKnowledgeFields.length}</strong>
+								<span>fields saved</span>
+							</DetailSummaryItem>
+							<DetailSummaryItem>
+								<strong>{selectedKnowledgeParts.length}</strong>
+								<span>parts saved</span>
+							</DetailSummaryItem>
+						</DetailSummaryGrid>
+
+						{selectedKnowledgeFields.length > 0 ? (
+							<DetailSection>
+								<DetailLabel>Details Added</DetailLabel>
+								<KnowledgeSummaryList>
+									{selectedKnowledgeFields.map((field) => (
+										<KnowledgeSummaryItem key={field.id}>
+											<KnowledgeSummaryTitle>
+												{field.label}: {field.userEditableValue || field.value}
+											</KnowledgeSummaryTitle>
+											<KnowledgeSummaryMeta>
+												{getTargetEntityLabel(field.targetEntity)}
+											</KnowledgeSummaryMeta>
+										</KnowledgeSummaryItem>
+									))}
+								</KnowledgeSummaryList>
+							</DetailSection>
+						) : null}
+
+						{selectedKnowledgeParts.length > 0 ? (
+							<DetailSection>
+								<DetailLabel>Parts & Supplies Added</DetailLabel>
+								<KnowledgeSummaryList>
+									{selectedKnowledgeParts.map((part) => (
+										<KnowledgeSummaryItem key={part.id}>
+											<KnowledgeSummaryTitle>
+												{part.userEditableName || part.name}
+											</KnowledgeSummaryTitle>
+											<KnowledgeSummaryMeta>
+												{part.userEditableCategory || part.category}
+											</KnowledgeSummaryMeta>
+										</KnowledgeSummaryItem>
+									))}
+								</KnowledgeSummaryList>
+							</DetailSection>
+						) : null}
+					</SnapshotDetail>
+				</GenericModal>
+			) : null}
 		</HistoryPanel>
 	);
 };
@@ -257,7 +458,7 @@ const HistoryHeader = styled.div`
 `;
 
 const HistoryEyebrow = styled.div`
-	color: #0f766e;
+	color: ${COLORS.primaryDark};
 	font-size: 12px;
 	font-weight: 700;
 	letter-spacing: 0;
@@ -449,7 +650,7 @@ const DetailSection = styled.div`
 `;
 
 const DetailLabel = styled.div`
-	color: #0f766e;
+	color: ${COLORS.primaryDark};
 	font-size: 11px;
 	font-weight: 800;
 	letter-spacing: 0;
@@ -461,6 +662,40 @@ const DetailText = styled.p`
 	color: #475569;
 	font-size: 14px;
 	line-height: 1.5;
+`;
+
+const KnowledgeSummaryList = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	max-height: 44vh;
+	overflow-y: auto;
+	padding-right: 4px;
+`;
+
+const KnowledgeSummaryItem = styled.div`
+	border: 1px solid #e2e8f0;
+	border-radius: 8px;
+	background: #f8fafc;
+	padding: 9px 10px;
+	display: grid;
+	gap: 3px;
+`;
+
+const KnowledgeSummaryTitle = styled.div`
+	color: #172033;
+	font-size: 14px;
+	font-weight: 800;
+	line-height: 1.35;
+	overflow-wrap: anywhere;
+`;
+
+const KnowledgeSummaryMeta = styled.div`
+	color: #64748b;
+	font-size: 12px;
+	font-weight: 700;
+	line-height: 1.35;
+	text-transform: capitalize;
 `;
 
 const RecommendationSnapshotList = styled.div`

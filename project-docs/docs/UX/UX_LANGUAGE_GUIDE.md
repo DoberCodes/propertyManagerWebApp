@@ -70,6 +70,47 @@ Avoid inventing terminology when familiar alternatives exist.
 
 ---
 
+## Use Maintley Visual Standards
+
+Maintley's primary brand colors are:
+
+* Maintley Green: `#047857` — brand primary and primary actions
+* Maintley Accent: `#3FCC7C` — success, checkmarks, and highlights
+* Maintley Hover: `#009E71` — interactive hover states
+* Maintley Pressed: `#036151` — active and pressed states
+* Slate: `#1F2937` — primary text
+* Canvas: `#FAFAF8` — app background
+* White: `#FFFFFF` — surfaces
+
+Use Manrope as the primary product font.
+
+Typography:
+
+* Display: 700, 48-56px
+* H1: 700, 36px
+* H2: 600, 30px
+* H3: 600, 24px
+* H4: 600, 20px
+* Title: 600, 18px
+* Body: 400, 16px
+* Body small: 400, 14px
+* Caption: 400, 12px
+* Button: 600, 14-16px
+* Label: 500, 12-14px
+
+Colored product gradients should use Maintley Green and Maintley Hover:
+
+```text
+linear-gradient(135deg, #047857 0%, #009E71 100%)
+```
+
+Avoid introducing alternate colored gradients for brand or product surfaces.
+
+Implementation should prefer `src/constants/colors.ts` and
+`src/constants/typography.ts` over hard-coded color or type values.
+
+---
+
 ## Focus on Action
 
 Language should help users understand what they can do next.

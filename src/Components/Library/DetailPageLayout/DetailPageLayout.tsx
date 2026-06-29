@@ -9,6 +9,7 @@ import {
 	TabButton,
 } from '../TabController/TabControllerStyles';
 import { BreadcrumbItem, TabConfig } from '../../../types/DetailPage.types';
+import { COLORS } from '../../../constants/colors';
 
 const Wrapper = styled.div`
 	display: flex;
@@ -122,9 +123,9 @@ const DetailTabButton = styled(TabButton)<{
 				min-height: 38px;
 				padding: 0 10px;
 				border-radius: 10px;
-				border: 1px solid ${props.isActive ? '#15803d' : '#d1d5db'};
-				background: ${props.isActive ? '#dcfce7' : '#ffffff'};
-				color: ${props.isActive ? '#15803d' : '#334155'};
+				border: 1px solid ${props.isActive ? COLORS.primaryDark : '#d1d5db'};
+				background: ${props.isActive ? COLORS.primaryLight : COLORS.white};
+				color: ${props.isActive ? COLORS.primaryDark : '#334155'};
 				font-size: 0.82rem;
 				font-weight: 700;
 				line-height: 1;

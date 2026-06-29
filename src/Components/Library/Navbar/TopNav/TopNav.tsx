@@ -20,13 +20,14 @@ import {
 	selectIsTeamMemberAccount,
 	selectIsHomeowner,
 } from '../../../../Redux/selectors/permissionSelectors';
-import TitleName from '../../../../Assets/images/TitleName.png';
+import TitleName from '../../../../Assets/TitleName.png';
 import { GenericModal } from '../../Modal/GenericModal';
 import { NotificationPanel } from '../../NotificationPanel/NotificationPanel';
 
 import { MobileBottomNav, MobileHamburgerNav } from '../MobileNav';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faBars } from '@fortawesome/free-solid-svg-icons';
+import { COLORS } from '../../../../constants/colors';
 
 export const TopNav = () => {
 	const navigate = useNavigate();
@@ -142,7 +143,7 @@ export const TopNav = () => {
 								}
 							}}
 							title='Open menu'>
-							<FontAwesomeIcon icon={faBars} size='lg' color='#fff' />
+							<FontAwesomeIcon icon={faBars} size='lg' color={COLORS.white} />
 						</HamburgerButton>
 						{navLocation}
 					</MobileRouteLabel>

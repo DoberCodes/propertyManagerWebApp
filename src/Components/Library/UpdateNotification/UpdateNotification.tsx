@@ -9,12 +9,13 @@ import {
 	checkForUpdates,
 } from '../../../utils/versionCheck';
 import { isNativeApp } from '../../../utils/platform';
+import { COLORS } from '../../../constants/colors';
 
 const NotificationWrapper = styled.div`
 	position: fixed;
 	bottom: 20px;
 	right: 20px;
-	background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+	background: ${COLORS.gradientPrimary};
 	color: white;
 	padding: 20px 24px;
 	border-radius: 12px;
@@ -76,10 +77,10 @@ const Button = styled.button<{ variant?: 'primary' | 'secondary' }>`
 	white-space: nowrap;
 
 	${(props) =>
-		props.variant === 'primary'
+	props.variant === 'primary'
 			? `
 		background: white;
-		color: #667eea;
+		color: ${COLORS.primary};
 		&:hover {
 			background: #f0f0f0;
 			transform: translateY(-1px);

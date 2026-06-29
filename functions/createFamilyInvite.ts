@@ -26,6 +26,13 @@ interface CreateFamilyMemberRequest {
 	role?: 'owner' | 'admin' | 'member';
 }
 
+const normalizeFamilyMemberRole = (
+	role: CreateFamilyMemberRequest['role'],
+): 'admin' | 'member' => (role === 'admin' ? 'admin' : 'member');
+
+const getFamilyMembershipRoles = (role: 'admin' | 'member'): string[] =>
+	role === 'admin' ? ['member', 'admin'] : ['member'];
+
 export const createFamilyInvite = functions
 	.runWith({ secrets: ['RESEND_API_KEY'] })
 	.https.onCall(async (data: CreateFamilyMemberRequest, context) => {
@@ -40,7 +47,7 @@ export const createFamilyInvite = functions
 		const email = String(data?.email || '').trim();
 		const firstName = String(data?.firstName || '').trim();
 		const lastName = String(data?.lastName || '').trim();
-		const role = (data?.role || 'member') as 'owner' | 'admin' | 'member';
+		const role = normalizeFamilyMemberRole(data?.role || 'member');
 
 		if (!accountId || !email || !firstName || !lastName) {
 			throw new functions.https.HttpsError(
@@ -137,18 +144,30 @@ export const createFamilyInvite = functions
 				lastName,
 				role,
 				accountId,
+				isAccountOwner: false,
+				isTeamMemberAccount: false,
+				onboardingCompleted: true,
 				createdAt: admin.firestore.FieldValue.serverTimestamp(),
 				updatedAt: admin.firestore.FieldValue.serverTimestamp(),
 			});
 
-			// Add user to family memberIds
 			await db
-				.collection('familyAccounts')
-				.doc(accountId)
-				.update({
-					memberIds: admin.firestore.FieldValue.arrayUnion(userId),
+				.collection('accountMemberships')
+				.doc(`${accountId}_${userId}`)
+				.set({
+					accountId,
+					userId,
+					roles: getFamilyMembershipRoles(role),
+					status: 'active',
+					createdAt: admin.firestore.FieldValue.serverTimestamp(),
 					updatedAt: admin.firestore.FieldValue.serverTimestamp(),
 				});
+
+			// Add user to family memberIds
+			await db.collection('familyAccounts').doc(accountId).update({
+				memberIds: admin.firestore.FieldValue.arrayUnion(userId),
+				updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+			});
 
 			// Generate password reset link
 			const resetLink = await admin

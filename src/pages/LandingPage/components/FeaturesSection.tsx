@@ -8,10 +8,12 @@ import {
 	faMagnifyingGlass,
 	faMobileScreenButton,
 	faFileLines,
+	faUsers,
 } from '@fortawesome/free-solid-svg-icons';
 import {
 	FeaturesSection,
 	FeaturesTitle,
+	FeaturesIntro,
 	FeatureGrid,
 	FeatureCard,
 	FeatureIcon,
@@ -22,16 +24,20 @@ import {
 const FeaturesSectionComponent = () => {
 	return (
 		<FeaturesSection id='Features'>
-			<FeaturesTitle>What Maintley Helps You Preserve</FeaturesTitle>
+			<FeaturesTitle>Everything Maintley Keeps Together</FeaturesTitle>
+			<FeaturesIntro>
+				Maintley brings the records, systems, documents, people, and recurring
+				care around your property into one place so every detail has a purpose.
+			</FeaturesIntro>
 			<FeatureGrid>
 				<FeatureCard $flagship>
 					<FeatureIcon className='history' $flagship>
 						<FontAwesomeIcon icon={faClipboardList} />
 					</FeatureIcon>
-					<FeatureTitle $flagship>Property Records</FeatureTitle>
+					<FeatureTitle $flagship>Property History</FeatureTitle>
 					<FeatureDescription>
-						Preserve repairs, replacements, service notes, and reports in the
-						property history instead of scattered folders.
+						Preserve repairs, replacements, service records, reports, and
+						documents as part of the home itself.
 					</FeatureDescription>
 				</FeatureCard>
 				<FeatureCard>
@@ -40,8 +46,8 @@ const FeaturesSectionComponent = () => {
 					</FeatureIcon>
 					<FeatureTitle>Appliances & Systems</FeatureTitle>
 					<FeatureDescription>
-						Keep HVAC, appliances, filters, parts, and service history with the
-						systems they belong to.
+						Keep HVAC, appliances, filters, parts, and equipment history with
+						the systems they belong to.
 					</FeatureDescription>
 				</FeatureCard>
 				<FeatureCard>
@@ -50,18 +56,18 @@ const FeaturesSectionComponent = () => {
 					</FeatureIcon>
 					<FeatureTitle>Recurring Care</FeatureTitle>
 					<FeatureDescription>
-						Remember seasonal upkeep and recurring service so future you knows
-						what needs attention next.
+						Turn seasonal upkeep, reminders, recurring service, and follow-up
+						work into a timeline future you can rely on.
 					</FeatureDescription>
 				</FeatureCard>
 				<FeatureCard>
 					<FeatureIcon className='analytics'>
 						<FontAwesomeIcon icon={faFileLines} />
 					</FeatureIcon>
-					<FeatureTitle>Shared Property Knowledge</FeatureTitle>
+					<FeatureTitle>Document Understanding</FeatureTitle>
 					<FeatureDescription>
-						Help tenants, contractors, and managers work from the same property
-						history.
+						Upload invoices, manuals, warranties, and inspection reports.
+						Maintley can identify useful details for you to review before saving.
 					</FeatureDescription>
 				</FeatureCard>
 				<FeatureCard>
@@ -80,8 +86,8 @@ const FeaturesSectionComponent = () => {
 					</FeatureIcon>
 					<FeatureTitle>Find Anything Fast</FeatureTitle>
 					<FeatureDescription>
-						Find the answer later without digging through texts, folders, or
-						emails.
+						Find the answer later without digging through texts, folders,
+						calendars, or emails.
 					</FeatureDescription>
 				</FeatureCard>
 				<FeatureCard>
@@ -92,6 +98,16 @@ const FeaturesSectionComponent = () => {
 					<FeatureDescription>
 						Capture maintenance while the details are still fresh, from any
 						device.
+					</FeatureDescription>
+				</FeatureCard>
+				<FeatureCard>
+					<FeatureIcon className='mobile'>
+						<FontAwesomeIcon icon={faUsers} />
+					</FeatureIcon>
+					<FeatureTitle>Team Coordination</FeatureTitle>
+					<FeatureDescription>
+						Help tenants, contractors, and maintenance partners work from the
+						same property history.
 					</FeatureDescription>
 				</FeatureCard>
 			</FeatureGrid>

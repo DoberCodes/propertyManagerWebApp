@@ -86,6 +86,7 @@ const HomeownerPropertyWrapper: React.FC = () => {
 				coOwners: formData.coOwners || [],
 				administrators: formData.administrators || [],
 				viewers: formData.viewers || [],
+				accessSnapshots: formData.accessSnapshots || {},
 				...(normalizedGroupId && { groupId: normalizedGroupId }),
 				userId: currentUser!.id,
 			});

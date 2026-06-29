@@ -20,6 +20,7 @@ import {
 } from './accountContext';
 import { getDefaultTaskNotifications } from '../../utils/taskNotificationUtils';
 import { canUseRecurringTasks } from '../../utils/subscriptionUtils';
+import { calculateNextDueDate } from '../../utils/recurringTaskUtils';
 
 const getSharedPropertyIdsForUser = async (
 	userId: string,
@@ -179,15 +180,18 @@ const filterTasksByAllowedProperties = (
 	return tasks.filter((task) => linkedPropertyIds.has(String(task.propertyId || '')));
 };
 
-const sanitizeMaintenanceEvent = (event: Partial<MaintenanceEvent>) => {
+const sanitizeRecord = (record: Record<string, unknown>) => {
 	const sanitized: Record<string, unknown> = {};
-	Object.entries(event).forEach(([key, value]) => {
+	Object.entries(record).forEach(([key, value]) => {
 		if (value !== undefined) {
 			sanitized[key] = value;
 		}
 	});
 	return sanitized;
 };
+
+const sanitizeMaintenanceEvent = (event: Partial<MaintenanceEvent>) =>
+	sanitizeRecord(event as Record<string, unknown>);
 
 const buildMaintenanceEventFromTask = ({
 	task,
@@ -299,6 +303,172 @@ const removeRecurringFieldsForPlan = <T extends Record<string, any>>(
 	delete nextTaskData.parentTaskId;
 	delete nextTaskData.lastRecurrenceDate;
 	return nextTaskData as T;
+};
+
+const toDateOnly = (value?: string): string => {
+	if (!value) return new Date().toISOString().split('T')[0];
+	return value.includes('T') ? value.split('T')[0] : value;
+};
+
+const getRecurringInterval = (task: Task): number | null => {
+	if (!task.isRecurring || !task.recurrenceFrequency) {
+		return null;
+	}
+
+	if (task.recurrenceFrequency === 'custom') {
+		if (!task.recurrenceInterval || !task.recurrenceCustomUnit) {
+			return null;
+		}
+		return task.recurrenceInterval;
+	}
+
+	return task.recurrenceInterval || 1;
+};
+
+const buildNextRecurringTask = ({
+	task,
+	taskId,
+	accountId,
+	completionDate,
+}: {
+	task: Task;
+	taskId: string;
+	accountId: string;
+	completionDate: string;
+}): Omit<Task, 'id'> | null => {
+	const interval = getRecurringInterval(task);
+	if (!interval || !task.recurrenceFrequency) {
+		return null;
+	}
+
+	const lastRecurrenceDate = toDateOnly(completionDate);
+	const nextDueDate = calculateNextDueDate(
+		lastRecurrenceDate,
+		task.recurrenceFrequency,
+		interval,
+		task.recurrenceCustomUnit,
+	);
+	const now = new Date().toISOString();
+	const financials =
+		task.financials?.estimate || task.financials?.notes
+			? {
+					currency: task.financials.currency || 'USD',
+					estimate: task.financials.estimate,
+					notes: task.financials.notes,
+			  }
+			: undefined;
+
+	return sanitizeRecord({
+		userId: task.userId || accountId,
+		accountId,
+		propertyId: task.propertyId,
+		property: task.property,
+		propertyTitle: task.propertyTitle,
+		unitId: task.unitId,
+		suiteId: task.suiteId,
+		devices: task.devices,
+		title: task.title,
+		description: task.description,
+		notes: task.notes,
+		category: task.category,
+		location: task.location,
+		priority: task.priority,
+		assignee: task.assignee,
+		assignedTo: task.assignedTo,
+		assigneeName: task.assigneeName,
+		assigneeFirstName: task.assigneeFirstName,
+		assigneeLastName: task.assigneeLastName,
+		assigneeEmail: task.assigneeEmail,
+		requiresWorkOrder: task.requiresWorkOrder,
+		enableNotifications: task.enableNotifications,
+		notifications: task.notifications,
+		maintenanceGroupId: task.maintenanceGroupId,
+		financials,
+		dueDate: nextDueDate,
+		status: 'Initiated',
+		isRecurring: true,
+		recurrenceFrequency: task.recurrenceFrequency,
+		recurrenceInterval: interval,
+		recurrenceCustomUnit: task.recurrenceCustomUnit,
+		parentTaskId: task.parentTaskId || taskId,
+		lastRecurrenceDate,
+		createdAt: now,
+		updatedAt: now,
+	}) as Omit<Task, 'id'>;
+};
+
+const notifyRecurringTaskGenerationFailure = async ({
+	userId,
+	task,
+	taskId,
+	error,
+}: {
+	userId: string;
+	task: Task;
+	taskId: string;
+	error: unknown;
+}): Promise<void> => {
+	console.warn('Failed to create next recurring task:', error);
+	try {
+		const now = new Date().toISOString();
+		await addDoc(collection(db, 'notifications'), {
+			userId,
+			type: 'task_recurring_generation_failed',
+			title: 'Recurring Task Generation Failed',
+			message: `Automatic recurring task creation failed for "${task.title}". Please review and create the next task manually.`,
+			data: {
+				taskId,
+				taskTitle: task.title,
+				propertyId: task.propertyId,
+				recurrenceFrequency: task.recurrenceFrequency,
+				recurrenceInterval: task.recurrenceInterval,
+			},
+			status: 'unread',
+			actionUrl: task.propertyId ? `/properties/${task.propertyId}` : undefined,
+			createdAt: now,
+			updatedAt: now,
+		});
+	} catch (notificationError) {
+		console.warn(
+			'Failed to create recurring generation failure notification:',
+			notificationError,
+		);
+	}
+};
+
+const createNextRecurringTask = async ({
+	task,
+	taskId,
+	accountId,
+	completionDate,
+	notifyUserId,
+}: {
+	task: Task;
+	taskId: string;
+	accountId: string;
+	completionDate: string;
+	notifyUserId: string;
+}): Promise<void> => {
+	const nextTask = buildNextRecurringTask({
+		task,
+		taskId,
+		accountId,
+		completionDate,
+	});
+	if (!nextTask) {
+		return;
+	}
+
+	try {
+		await addDoc(collection(db, 'tasks'), withDefaultTaskNotificationSchedule(nextTask));
+	} catch (error) {
+		await notifyRecurringTaskGenerationFailure({
+			userId: notifyUserId,
+			task,
+			taskId,
+			error,
+		});
+	}
 };
 
 export const taskSlice = apiSlice.injectEndpoints({
@@ -513,6 +683,13 @@ export const taskSlice = apiSlice.injectEndpoints({
 						});
 
 						await writeMaintenanceEvent(eventPayload as Record<string, unknown>);
+						await createNextRecurringTask({
+							task: { ...existingTask, ...preparedUpdates, status: 'Completed' },
+							taskId: id,
+							accountId: (existingTask as any).accountId || targetUserId,
+							completionDate,
+							notifyUserId: auth.currentUser?.uid || targetUserId,
+						});
 					}
 
 					return { data: { id, ...preparedUpdates } as Task };
@@ -601,6 +778,13 @@ export const taskSlice = apiSlice.injectEndpoints({
 						data: {
 							completedByPlan,
 						},
+					});
+					await createNextRecurringTask({
+						task: taskData,
+						taskId,
+						accountId: (taskData as any).accountId || targetUserId,
+						completionDate,
+						notifyUserId: auth.currentUser?.uid || targetUserId,
 					});
 
 					try {

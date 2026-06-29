@@ -56,6 +56,10 @@ describe('property knowledge acquisition', () => {
 				'installDate',
 			]),
 		);
+		expect(
+			suggestion.extractedFields.find((field) => field.fieldKey === 'assetType')
+				?.value,
+		).toBe('Water Heater');
 	});
 
 	it('does not suggest existing system details again', () => {
@@ -66,7 +70,7 @@ describe('property knowledge acquisition', () => {
 			systems: [
 				{
 					...baseSystem,
-					assetType: 'water_heater',
+					assetType: 'Water Heater',
 					model: 'WH-200',
 					serialNumber: 'SN7788',
 					installationDate: '2024-03-12',
@@ -166,6 +170,43 @@ describe('property knowledge acquisition', () => {
 		expect(result.appliedSuggestion.status).toBe('rejected');
 	});
 
+	it('does not apply individually rejected fields', () => {
+		const suggestion = createPendingKnowledgeSuggestion({
+			document: baseDocument,
+			propertyId: 'property-1',
+		});
+		const modelField = suggestion.extractedFields.find(
+			(field) => field.fieldKey === 'model',
+		);
+		const serialField = suggestion.extractedFields.find(
+			(field) => field.fieldKey === 'serialNumber',
+		);
+		const accepted = acceptKnowledgeSuggestion(suggestion, {
+			reviewedAt: '2026-06-26T13:30:00.000Z',
+			acceptedByUser: 'user-1',
+			fieldReviewStatuses: modelField
+				? { [modelField.id]: { accepted: false } }
+				: {},
+		});
+
+		const result = applyAcceptedKnowledgeSuggestion({
+			suggestion: accepted,
+			property: baseProperty,
+			systems: [baseSystem],
+			acceptedByUser: 'user-1',
+			acceptedAt: '2026-06-26T13:45:00.000Z',
+		});
+
+		expect(
+			accepted.extractedFields.find((field) => field.id === modelField?.id)
+				?.reviewStatus,
+		).toBe('rejected');
+		expect(result.systemUpdates[0].updates.model).toBeUndefined();
+		expect(result.systemUpdates[0].updates.serialNumber).toBe(
+			serialField?.value,
+		);
+	});
+
 	it('keeps accepted fields traceable to the source document', () => {
 		const suggestion = createPendingKnowledgeSuggestion({
 			document: baseDocument,
@@ -235,6 +276,9 @@ describe('property knowledge acquisition', () => {
 		const valuesByKey = new Map(fields.map((field) => [field.fieldKey, field.value]));
 
 		expect(valuesByKey.get('invoiceNumber')).toBe('INV-2025-04158');
+		expect(valuesByKey.get('contractorName')).toBe('Carolina Comfort HVAC, LLC');
+		expect(valuesByKey.get('assetType')).toBe('HVAC');
+		expect(valuesByKey.get('assetVariant')).toBe('Heat Pump');
 		expect(valuesByKey.get('brand')).toBe('Trane');
 		expect(valuesByKey.get('model')).toBe('4TTR4036L1000A');
 		expect(valuesByKey.get('serialNumber')).toContain('Outdoor: 2315X4V2F');
@@ -245,16 +289,65 @@ describe('property knowledge acquisition', () => {
 		expect(valuesByKey.get('laborCost')).toBe('$950.00');
 		expect(valuesByKey.get('taxAmount')).toBe('$495.18');
 		expect(valuesByKey.get('totalCost')).toBe('$7325.18');
-		expect(valuesByKey.get('recommendedMaintenanceInterval')).toBe(
-			'maintenance performed annually',
-		);
-		expect(valuesByKey.get('partName')).toContain('Heat Pump Condenser');
-		expect(valuesByKey.get('partName')).toContain('Multi-Position Coil');
-		expect(valuesByKey.get('partName')).toContain('Smart Thermostat');
-		expect(valuesByKey.get('partNumber')).toContain('4TTR4036L1000A');
-		expect(valuesByKey.get('partNumber')).toContain('TEM4A0C36H41SAA');
+		expect(valuesByKey.has('recommendedMaintenanceInterval')).toBe(false);
+		expect(valuesByKey.has('manufacturerSupportUrl')).toBe(false);
+		expect(valuesByKey.get('partsReplaced')).toContain('Heat Pump Condenser');
+		expect(valuesByKey.get('partsReplaced')).toContain('Multi-Position Coil');
+		expect(valuesByKey.get('partsReplaced')).toContain('Smart Thermostat');
+		expect(valuesByKey.get('partsReplaced')).toContain('4TTR4036L1000A');
+		expect(valuesByKey.get('partsReplaced')).toContain('TEM4A0C36H41SAA');
 		expect(valuesByKey.get('fluidType')).toBe('R-410A');
-		expect(valuesByKey.get('consumables')).toBe('R-410A');
+		expect(
+			fields.find((field) => field.fieldKey === 'invoiceNumber')?.confidenceLevel,
+		).toBe('high');
+		expect(
+			fields.find((field) => field.fieldKey === 'partsReplaced')?.confidenceLevel,
+		).toBe('medium');
+		expect(fields[0].confidenceLevel).toBe('high');
+	});
+
+	it('stops labeled OCR values before the next label on flattened invoice rows', () => {
+		const flattenedSystemText = `
+			SYSTEM INFORMATION: Equipment Type: Split System Heat Pump Brand: Trane Model: 4TTR4036L1000A Serial Number (Outdoor): 2315X4V2F Serial Number (Indoor): 2315X4V2F System Capacity: 3 Ton / 36,000 BTU Refrigerant: R-410A Installation Date: June 14, 2025 Warranty: 10 Year Parts / 10 Year Compressor DESCRIPTION QTY UNIT PRICE AMOUNT
+		`;
+
+		const fields = extractFieldsFromDocumentText(
+			flattenedSystemText,
+			'system-1',
+		);
+		const valuesByKey = new Map(fields.map((field) => [field.fieldKey, field.value]));
+
+		expect(valuesByKey.get('brand')).toBe('Trane');
+		expect(valuesByKey.get('model')).toBe('4TTR4036L1000A');
+		expect(valuesByKey.get('serialNumber')).toBe(
+			'Outdoor: 2315X4V2F; Indoor: 2315X4V2F',
+		);
+		expect(valuesByKey.get('warrantyLength')).toBe(
+			'10 Year Parts / 10 Year Compressor',
+		);
+		expect(valuesByKey.get('warrantyLength')).not.toContain('DESCRIPTION');
+	});
+
+	it('does not treat payment links as contractor names', () => {
+		const fields = extractFieldsFromDocumentText(
+			`
+				Carolina Comfort HVAC, LLC
+				4512 Weddington Road, Suite 102
+				Matthews, NC 28105
+				(704) 555-0198
+				INVOICE
+				Invoice Number: INV-2025-04158
+				Payment Options
+				ES Pay online: carolinacomforthvac.com/pay DnizkolV
+				ACH / Bank Transfer: Routing 053100300 | Account 987654321
+			`,
+			'system-1',
+		);
+		const valuesByKey = new Map(fields.map((field) => [field.fieldKey, field.value]));
+
+		expect(valuesByKey.get('contractorName')).toBe('Carolina Comfort HVAC, LLC');
+		expect(valuesByKey.get('contractorName')).not.toContain('Pay online');
+		expect(valuesByKey.get('contractorName')).not.toContain('.com/pay');
 	});
 
 	it('prepares contractor and maintenance history records when invoice details are applied', () => {
@@ -324,6 +417,8 @@ describe('property knowledge acquisition', () => {
 	it('matches possible HVAC parts and supplies from document text', () => {
 		const suggestions = extractPartSuggestionsFromDocumentText(`
 			DESCRIPTION
+			Trane 3 Ton 16 SEER2 Heat Pump Condenser Model: 4TTR4036L1000A
+			Trane Air Handler with Multi-Position Coil Model: TEM4A0C36H41SAA
 			Honeywell T6 Pro Smart Thermostat
 			Drain Pan with Safety Switch
 			R-410A Refrigerant (per lb)
@@ -331,11 +426,18 @@ describe('property knowledge acquisition', () => {
 		`);
 
 		expect(suggestions.map((part) => part.partKnowledgeId)).toEqual(
-			expect.arrayContaining(['thermostat', 'drain_pan', 'refrigerant']),
+			expect.arrayContaining([
+				'condenser',
+				'coil',
+				'thermostat',
+				'drain_pan',
+				'refrigerant',
+			]),
 		);
 		expect(suggestions.find((part) => part.partKnowledgeId === 'thermostat')).toMatchObject({
 			name: 'Honeywell T6 Pro Smart Thermostat',
 			category: 'accessory',
+			confidenceLevel: 'medium',
 		});
 	});
 

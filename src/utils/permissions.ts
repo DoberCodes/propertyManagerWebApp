@@ -15,6 +15,7 @@ import {
 	canViewTenantInfo,
 } from './subscriptionUtils';
 import { User } from '../Redux/Slices/userSlice';
+import { COLORS } from '../constants/colors';
 
 export interface RoleCapabilities {
 	canManageProperties: boolean;
@@ -193,7 +194,7 @@ export const getRoleColor = (role: UserRole): string => {
 		[USER_ROLES.MAINTENANCE_LEAD]: '#f39c12',
 		[USER_ROLES.MAINTENANCE]: '#f8c471',
 		[USER_ROLES.ACCOUNTING]: '#6366f1',
-		[USER_ROLES.LEASING]: '#10b981',
+		[USER_ROLES.LEASING]: COLORS.primary,
 		[USER_ROLES.CONTRACTOR]: '#95a5a6',
 		[USER_ROLES.TENANT]: '#7f8c8d',
 		[USER_ROLES.PROPERTY_GUEST]: '#bdc3c7',

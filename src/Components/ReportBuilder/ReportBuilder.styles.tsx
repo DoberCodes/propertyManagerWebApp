@@ -1,4 +1,5 @@
 import styled from 'styled-components';
+import { COLORS } from '../../constants/colors';
 
 export const ReportBuilderContainer = styled.div`
 	display: grid;
@@ -40,18 +41,18 @@ export const DesktopReportSelect = styled.div`
 
 export const MobileReportCard = styled.button<{ $active?: boolean; $locked?: boolean }>`
 	text-align: left;
-	border: 1px solid ${({ $active }) => ($active ? '#16a34a' : '#d1d5db')};
-	background: ${({ $active }) => ($active ? '#f0fdf4' : '#ffffff')};
+	border: 1px solid ${({ $active }) => ($active ? COLORS.primaryHover : COLORS.gray300)};
+	background: ${({ $active }) => ($active ? COLORS.primaryLight : COLORS.bgWhite)};
 	border-radius: 10px;
 	padding: 12px;
 	box-shadow: ${({ $active }) =>
-		$active ? '0 8px 20px rgba(22, 163, 74, 0.12)' : 'none'};
+		$active ? '0 8px 20px rgba(4, 120, 87, 0.12)' : 'none'};
 	cursor: ${({ $locked }) => ($locked ? 'not-allowed' : 'pointer')};
 	opacity: ${({ $locked }) => ($locked ? 0.72 : 1)};
 	transition: border-color 0.18s ease, background-color 0.18s ease, box-shadow 0.18s ease;
 
 	&:focus-visible {
-		outline: 3px solid rgba(22, 163, 74, 0.25);
+		outline: 3px solid ${COLORS.primaryLight};
 		outline-offset: 2px;
 	}
 `;
@@ -79,8 +80,8 @@ export const MobileReportCardMeta = styled.div`
 `;
 
 export const Section = styled.div`
-	background: white;
-	border: 1px solid #e5e7eb;
+	background: ${COLORS.bgWhite};
+	border: 1px solid ${COLORS.border};
 	border-radius: 8px;
 	padding: 20px;
 	display: flex;
@@ -131,8 +132,8 @@ export const Input = styled.input`
 
 	&:focus {
 		outline: none;
-		border-color: #22c55e;
-		box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.1);
+		border-color: ${COLORS.primaryHover};
+		box-shadow: 0 0 0 3px ${COLORS.primaryLight};
 	}
 
 	@media (max-width: 480px) {
@@ -182,7 +183,7 @@ export const Checkbox = styled.input`
 	cursor: pointer;
 	width: 14px;
 	height: 14px;
-	accent-color: #22c55e;
+	accent-color: ${COLORS.primaryHover};
 	flex-shrink: 0;
 
 	@media (max-width: 480px) {
@@ -246,12 +247,12 @@ export const Button = styled.button<{ variant?: 'primary' | 'secondary' }>`
 	white-space: nowrap;
 
 	background-color: ${(props) =>
-		props.variant === 'secondary' ? '#e5e7eb' : '#22c55e'};
-	color: ${(props) => (props.variant === 'secondary' ? '#374151' : 'white')};
+		props.variant === 'secondary' ? COLORS.gray200 : COLORS.primary};
+	color: ${(props) => (props.variant === 'secondary' ? COLORS.gray700 : COLORS.white)};
 
 	&:hover:not(:disabled) {
 		background-color: ${(props) =>
-		props.variant === 'secondary' ? '#d1d5db' : '#16a34a'};
+		props.variant === 'secondary' ? COLORS.gray300 : COLORS.primaryHover};
 	}
 
 	&:disabled {
@@ -267,8 +268,8 @@ export const Button = styled.button<{ variant?: 'primary' | 'secondary' }>`
 `;
 
 export const PreviewSection = styled.div`
-	background: white;
-	border: 1px solid #e5e7eb;
+	background: ${COLORS.bgWhite};
+	border: 1px solid ${COLORS.border};
 	border-radius: 8px;
 	padding: 20px;
 	display: flex;
@@ -289,10 +290,10 @@ export const PreviewSection = styled.div`
 
 export const LoadingMessage = styled.div`
 	padding: 16px;
-	background-color: #d1fae5;
-	color: #065f46;
+	background-color: ${COLORS.successLight};
+	color: ${COLORS.primaryDark};
 	border-radius: 8px;
-	border-left: 4px solid #065f46;
+	border-left: 4px solid ${COLORS.primaryDark};
 	font-size: 14px;
 	text-align: center;
 	grid-column: 1 / -1;
@@ -574,12 +575,12 @@ export const ColumnOptionHelp = styled.span`
 `;
 
 export const InfoMessage = styled.div`
-	background: #ecfdf3;
-	border: 1px solid #bbf7d0;
+	background: ${COLORS.primaryLight};
+	border: 1px solid ${COLORS.primaryHover};
 	border-radius: 6px;
 	padding: 12px;
 	font-size: 13px;
-	color: #16a34a;
+	color: ${COLORS.primary};
 
 	@media (max-width: 480px) {
 		padding: 10px;

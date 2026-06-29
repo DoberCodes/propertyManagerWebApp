@@ -8,6 +8,7 @@ import type {
 	ExtractedKnowledgeField,
 	ExtractedPartSuggestion,
 	PartKnowledgeCategory,
+	PropertyKnowledgeConfidenceLevel,
 	PropertyKnowledgeDocumentType,
 	PropertyKnowledgeExtractionMethod,
 	PropertyKnowledgeFieldKey,
@@ -15,7 +16,14 @@ import type {
 	PropertyKnowledgeSuggestion,
 	PropertyKnowledgeTargetEntity,
 } from '../types/PropertyKnowledge.types';
+import {
+	getAssetDefinition,
+	inferAssetVariantFromText,
+	normalizeAssetType,
+	UNKNOWN_ASSET_TYPE,
+} from '../utils/systemTypes';
 import { matchPartKnowledgeFromLines } from './partKnowledgeCatalog';
+import { findAssetTargetCandidate } from './propertyKnowledgeTargeting';
 
 type CreatePendingKnowledgeSuggestionInput = {
 	document: PropertyDocument;
@@ -35,6 +43,7 @@ type ReviewKnowledgeSuggestionInput = {
 	reviewedAt?: string;
 	acceptedByUser?: string;
 	fieldValues?: Record<string, string>;
+	fieldReviewStatuses?: Record<string, { accepted?: boolean }>;
 	partValues?: Record<
 		string,
 		{ name?: string; category?: string; accepted?: boolean }
@@ -81,6 +90,72 @@ type FieldDefinition = {
 	label: string;
 	targetEntity: PropertyKnowledgeTargetEntity;
 	targetField: string;
+};
+
+type ConfidenceOptions = {
+	confidenceLevel?: PropertyKnowledgeConfidenceLevel;
+	confidence?: number;
+	confidenceReason?: string;
+};
+
+const CONFIDENCE_SCORE_BY_LEVEL: Record<PropertyKnowledgeConfidenceLevel, number> = {
+	high: 0.9,
+	medium: 0.68,
+	low: 0.35,
+};
+
+const CONFIDENCE_SORT_WEIGHT: Record<PropertyKnowledgeConfidenceLevel, number> = {
+	high: 0,
+	medium: 1,
+	low: 2,
+};
+
+const getConfidenceLevel = (
+	item: { confidenceLevel?: PropertyKnowledgeConfidenceLevel; confidence?: number },
+): PropertyKnowledgeConfidenceLevel => {
+	if (item.confidenceLevel) return item.confidenceLevel;
+	if (typeof item.confidence === 'number' && item.confidence >= 0.8) return 'high';
+	if (typeof item.confidence === 'number' && item.confidence < 0.5) return 'low';
+	return 'medium';
+};
+
+const isVisibleConfidence = (
+	item: { confidenceLevel?: PropertyKnowledgeConfidenceLevel; confidence?: number },
+) => getConfidenceLevel(item) !== 'low';
+
+const sortByConfidence = <
+	T extends {
+		confidenceLevel?: PropertyKnowledgeConfidenceLevel;
+		confidence?: number;
+		label?: string;
+		fieldKey?: string;
+	},
+>(
+	items: T[],
+) =>
+	[...items].sort((a, b) => {
+		const levelDelta =
+			CONFIDENCE_SORT_WEIGHT[getConfidenceLevel(a)] -
+			CONFIDENCE_SORT_WEIGHT[getConfidenceLevel(b)];
+		if (levelDelta !== 0) return levelDelta;
+		return String(a.label || a.fieldKey || '').localeCompare(
+			String(b.label || b.fieldKey || ''),
+		);
+	});
+
+const prepareVisibleFields = (fields: ExtractedKnowledgeField[]) =>
+	sortByConfidence(fields.filter(isVisibleConfidence));
+
+const calculateSuggestionConfidence = (
+	fields: ExtractedKnowledgeField[],
+	parts: ExtractedPartSuggestion[] = [],
+) => {
+	const scores = [...fields, ...parts]
+		.filter(isVisibleConfidence)
+		.map((item) => item.confidence)
+		.filter((confidence): confidence is number => typeof confidence === 'number');
+	if (scores.length === 0) return undefined;
+	return scores.reduce((sum, score) => sum + score, 0) / scores.length;
 };
 
 const FIELD_DEFINITIONS: Record<PropertyKnowledgeFieldKey, FieldDefinition> = {
@@ -224,7 +299,7 @@ const FIELD_DEFINITIONS: Record<PropertyKnowledgeFieldKey, FieldDefinition> = {
 	partName: { label: 'Part name', targetEntity: 'part', targetField: 'name' },
 	partNumber: {
 		label: 'Part number',
-		targetEntity: 'system',
+		targetEntity: 'maintenanceHistory',
 		targetField: 'partNumber',
 	},
 	filterSize: {
@@ -326,9 +401,70 @@ const normalizeOcrText = (text: string) =>
 		.replace(/\n{3,}/g, '\n\n')
 		.trim();
 
+const OCR_VALUE_BOUNDARY_LABELS = [
+	'Invoice Number',
+	'Invoice Date',
+	'Due Date',
+	'Payment Terms',
+	'Service Date',
+	'Bill To',
+	'Job Address',
+	'Technician',
+	'System Information',
+	'Equipment Type',
+	'System Capacity',
+	'Brand',
+	'Model',
+	'Serial Number (Outdoor)',
+	'Serial Number (Indoor)',
+	'Serial Number Outdoor',
+	'Serial Number Indoor',
+	'Serial Number',
+	'Refrigerant',
+	'Installation Date',
+	'Warranty',
+	'Description',
+	'QTY',
+	'Unit Price',
+	'Amount',
+	'Notes',
+	'Payment Options',
+	'Subtotal',
+	'Tax',
+	'Total Due',
+	'Warranty Information',
+	'Authorized By',
+];
+
+const normalizeLabelForComparison = (label: string) =>
+	label.toLowerCase().replace(/[^a-z0-9]+/g, '');
+
+const escapeLabelPattern = (label: string) =>
+	label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+');
+
+const trimValueAtNextKnownLabel = (
+	value: string | undefined,
+	currentLabels: string[],
+) => {
+	const normalizedCurrentLabels = new Set(
+		currentLabels.map(normalizeLabelForComparison),
+	);
+	const boundaryLabels = OCR_VALUE_BOUNDARY_LABELS.filter(
+		(label) => !normalizedCurrentLabels.has(normalizeLabelForComparison(label)),
+	);
+	const boundaryPattern = boundaryLabels.map(escapeLabelPattern).join('|');
+	const match = String(value || '').match(
+		new RegExp(`\\s+(?:${boundaryPattern})(?:\\s*:|\\b)`, 'i'),
+	);
+	const trimmed = match?.index !== undefined
+		? String(value || '').slice(0, match.index)
+		: String(value || '');
+	return normalizeExtractedValue(trimmed);
+};
+
 const findLabeledTextValue = (text: string, labels: string[]) => {
 	const escapedLabels = labels.map((label) =>
-		label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+'),
+		escapeLabelPattern(label),
 	);
 	const match = text.match(
 		new RegExp(
@@ -336,7 +472,7 @@ const findLabeledTextValue = (text: string, labels: string[]) => {
 			'i',
 		),
 	);
-	return normalizeExtractedValue(match?.[1]);
+	return trimValueAtNextKnownLabel(match?.[1], labels);
 };
 
 const findTextBetween = (text: string, startLabel: string, endLabels: string[]) => {
@@ -377,21 +513,54 @@ const findWebsite = (text: string) => {
 	return normalizeExtractedValue(match?.[0]);
 };
 
+const CONTRACTOR_NAME_EXCLUDE_PATTERN =
+	/invoice|bill to|job address|technician|license|payment|pay online|payment options|routing|account|check by mail|authorized|warranty information|thank you|subtotal|total due|due date|service date|@|www\.|https?:|\.com|\.net|\.org|\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}/i;
+
+const CONTRACTOR_NAME_INCLUDE_PATTERN =
+	/(llc|inc\.?|company|contractor|hvac|heating|cooling|plumbing|electric|roofing|landscap|pest)/i;
+
+const CONTRACTOR_SECTION_END_PATTERN =
+	/\b(INVOICE|BILL TO|JOB ADDRESS|TECHNICIAN|SYSTEM INFORMATION|DESCRIPTION|PAYMENT OPTIONS|AUTHORIZED BY|WARRANTY INFORMATION)\b/i;
+
+const isLikelyAddressLine = (line: string) =>
+	/^\d+\s+\S+/.test(line) ||
+	/\b(street|st\.?|road|rd\.?|avenue|ave\.?|drive|dr\.?|suite|ste\.?|lane|ln\.?|boulevard|blvd\.?)\b/i.test(line) ||
+	/\b[A-Z]{2}\s+\d{5}(?:-\d{4})?\b/.test(line);
+
+const getContractorCandidateScore = (line: string) => {
+	let score = 0;
+	if (/\b(llc|inc\.?|company)\b/i.test(line)) score += 5;
+	if (/\b(hvac|heating|cooling|plumbing|electric|roofing|landscap|pest)\b/i.test(line)) {
+		score += 3;
+	}
+	if (/,/.test(line)) score += 1;
+	const wordCount = line.split(/\s+/).filter(Boolean).length;
+	if (wordCount >= 2 && wordCount <= 8) score += 1;
+	if (line.length > 80) score -= 3;
+	return score;
+};
+
 const findLikelyContractorName = (text: string) => {
 	const lines = normalizeOcrText(text)
 		.split('\n')
 		.map((line) => normalizeExtractedValue(line))
 		.filter(Boolean);
-	const businessLine = lines.find(
-		(line) =>
-			/(llc|inc\.?|company|contractor|hvac|heating|cooling|plumbing|electric|roofing|landscap|pest)/i.test(
-				line,
-			) &&
-			!/invoice|bill to|job address|technician|license|www\.|@|\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}/i.test(
-				line,
-			),
+	const headerEndIndex = lines.findIndex((line) =>
+		CONTRACTOR_SECTION_END_PATTERN.test(line),
 	);
-	return businessLine || '';
+	const headerLines = headerEndIndex > 0 ? lines.slice(0, headerEndIndex) : lines;
+	const candidates = headerLines
+		.filter((line) => CONTRACTOR_NAME_INCLUDE_PATTERN.test(line))
+		.filter((line) => !CONTRACTOR_NAME_EXCLUDE_PATTERN.test(line))
+		.filter((line) => !isLikelyAddressLine(line))
+		.map((line) => ({
+			line,
+			score: getContractorCandidateScore(line),
+		}))
+		.filter((candidate) => candidate.score > 0)
+		.sort((left, right) => right.score - left.score);
+
+	return candidates[0]?.line || '';
 };
 
 const findInvoiceDate = (text: string, label: string) => {
@@ -449,65 +618,14 @@ const extractLineItemKnowledge = (text: string) => {
 };
 
 const inferAssetKnowledge = (text: string) => {
-	const normalized = normalizeSearchText(text);
-	if (normalized.includes('tankless water heater')) {
-		return { assetType: 'water_heater', assetVariant: 'tankless' };
-	}
-	if (normalized.includes('split system heat pump')) {
-		return { assetType: 'heat_pump', assetVariant: 'split_system' };
-	}
-	if (normalized.includes('water heater')) {
-		return { assetType: 'water_heater' };
-	}
-	if (normalized.includes('heat pump')) {
-		return { assetType: 'heat_pump' };
-	}
-	if (normalized.includes('furnace')) {
-		return { assetType: 'furnace' };
-	}
-	if (normalized.includes('central ac') || normalized.includes('air conditioner')) {
-		return { assetType: 'central_ac' };
-	}
-	if (normalized.includes('mini split')) {
-		return { assetType: 'mini_split' };
-	}
-	if (normalized.includes('gas dryer')) {
-		return { assetType: 'dryer', assetVariant: 'gas' };
-	}
-	if (normalized.includes('electric dryer')) {
-		return { assetType: 'dryer', assetVariant: 'electric' };
-	}
-	if (normalized.includes('induction')) {
-		return { assetType: 'stove_oven', assetVariant: 'induction' };
-	}
-	if (normalized.includes('gas stove') || normalized.includes('gas oven')) {
-		return { assetType: 'stove_oven', assetVariant: 'gas' };
-	}
-	if (normalized.includes('electric stove') || normalized.includes('electric oven')) {
-		return { assetType: 'stove_oven', assetVariant: 'electric' };
-	}
-	if (normalized.includes('smoke') && normalized.includes('carbon monoxide')) {
-		return { assetType: 'safety_device', assetVariant: 'combo_detector' };
-	}
-	if (normalized.includes('smoke detector')) {
-		return { assetType: 'safety_device', assetVariant: 'smoke_detector' };
-	}
-	if (normalized.includes('carbon monoxide')) {
-		return {
-			assetType: 'safety_device',
-			assetVariant: 'carbon_monoxide_detector',
-		};
-	}
-	if (normalized.includes('refrigerator filter')) {
-		return { assetType: 'filter_system', assetVariant: 'refrigerator_filter' };
-	}
-	if (normalized.includes('whole home filter')) {
-		return { assetType: 'filter_system', assetVariant: 'whole_home_filter' };
-	}
-	if (normalized.includes('hvac filter')) {
-		return { assetType: 'filter_system', assetVariant: 'hvac_filter' };
-	}
-	return {};
+	const assetType = normalizeAssetType(text);
+	const definition = getAssetDefinition(assetType);
+	if (!definition || assetType === UNKNOWN_ASSET_TYPE) return {};
+
+	return {
+		assetType,
+		assetVariant: inferAssetVariantFromText(assetType, text),
+	};
 };
 
 const createField = (
@@ -516,6 +634,7 @@ const createField = (
 	index: number,
 	relatedSystemId?: string,
 	sourceText?: string,
+	confidenceOptions: ConfidenceOptions = {},
 ): ExtractedKnowledgeField | null => {
 	const normalizedValue = normalizeExtractedValue(value);
 	if (!normalizedValue) return null;
@@ -524,13 +643,20 @@ const createField = (
 		relatedSystemId && SYSTEM_FIELD_KEYS.has(fieldKey)
 			? 'system'
 			: definition.targetEntity;
+	const confidenceLevel = confidenceOptions.confidenceLevel || 'medium';
+	const confidence =
+		confidenceOptions.confidence ?? CONFIDENCE_SCORE_BY_LEVEL[confidenceLevel];
 
 	return {
 		id: `${fieldKey}-${index}`,
 		fieldKey,
 		label: definition.label,
 		value: normalizedValue,
-		confidence: 0.55,
+		confidence,
+		confidenceLevel,
+		...(confidenceOptions.confidenceReason
+			? { confidenceReason: confidenceOptions.confidenceReason }
+			: {}),
 		targetEntity,
 		targetField: definition.targetField,
 		...(sourceText ? { sourceText } : {}),
@@ -583,6 +709,10 @@ export const extractPlaceholderFieldsFromDocument = (
 		fieldKey: PropertyKnowledgeFieldKey,
 		value: string,
 		sourceText?: string,
+		confidenceOptions: ConfidenceOptions = {
+			confidenceLevel: 'medium',
+			confidenceReason: 'Found in document metadata.',
+		},
 	) => {
 		const field = createField(
 			fieldKey,
@@ -590,11 +720,14 @@ export const extractPlaceholderFieldsFromDocument = (
 			fields.length + 1,
 			relatedSystemId,
 			sourceText,
+			confidenceOptions,
 		);
 		if (field) fields.push(field);
 	};
 
-	const assetKnowledge = inferAssetKnowledge(text);
+	const assetKnowledge = inferAssetKnowledge(
+		findLabeledTextValue(text, ['Equipment Type']) || text,
+	);
 	if (assetKnowledge.assetType) {
 		pushField('assetType', assetKnowledge.assetType, document.fileName || document.name);
 	}
@@ -642,7 +775,7 @@ export const extractPlaceholderFieldsFromDocument = (
 		pushField('currency', 'USD', document.fileName || document.name);
 	}
 
-	return fields;
+	return prepareVisibleFields(fields);
 };
 
 export const extractFieldsFromDocumentText = (
@@ -655,6 +788,10 @@ export const extractFieldsFromDocumentText = (
 		fieldKey: PropertyKnowledgeFieldKey,
 		value: string,
 		sourceText?: string,
+		confidenceOptions: ConfidenceOptions = {
+			confidenceLevel: 'medium',
+			confidenceReason: 'Matched from document text and needs review.',
+		},
 	) => {
 		const field = createField(
 			fieldKey,
@@ -662,24 +799,29 @@ export const extractFieldsFromDocumentText = (
 			fields.length + 1,
 			relatedSystemId,
 			sourceText,
+			confidenceOptions,
 		);
-		if (field) {
-			fields.push({
-				...field,
-				confidence: 0.7,
-			});
-		}
+		if (field) fields.push(field);
 	};
 
-	const assetKnowledge = inferAssetKnowledge(text);
+	const assetKnowledge = inferAssetKnowledge(
+		findLabeledTextValue(text, ['Equipment Type']) || text,
+	);
 	if (assetKnowledge.assetType) {
-		pushField('assetType', assetKnowledge.assetType, 'Detected equipment type');
+		pushField('assetType', assetKnowledge.assetType, 'Detected equipment type', {
+			confidenceLevel: 'medium',
+			confidenceReason: 'Inferred from recognized equipment wording.',
+		});
 	}
 	if (assetKnowledge.assetVariant) {
 		pushField(
 			'assetVariant',
 			assetKnowledge.assetVariant,
 			'Detected equipment variant',
+			{
+				confidenceLevel: 'medium',
+				confidenceReason: 'Inferred from recognized equipment wording.',
+			},
 		);
 	}
 
@@ -690,14 +832,38 @@ export const extractFieldsFromDocumentText = (
 			'BILL TO',
 			'INVOICE',
 		]) || (text.match(/Carolina Comfort HVAC,\s*LLC/i)?.[0] || '');
-	pushField('contractorName', contractorName, 'Contractor header');
-	pushField('contractorPhone', findPhoneNumber(text), 'Contractor contact');
-	pushField('contractorWebsite', findWebsite(text), 'Contractor contact');
-	pushField('invoiceNumber', findLabeledTextValue(text, ['Invoice Number']), 'Invoice details');
-	pushField('invoiceDate', findInvoiceDate(text, 'Invoice Date'), 'Invoice details');
-	pushField('maintenanceEventDate', findInvoiceDate(text, 'Service Date'), 'Service details');
-	pushField('brand', findLabeledTextValue(text, ['Brand']), 'System information');
-	pushField('model', findLabeledTextValue(text, ['Model']), 'System information');
+	pushField('contractorName', contractorName, 'Contractor header', {
+		confidenceLevel: 'medium',
+		confidenceReason: 'Matched from the document header.',
+	});
+	pushField('contractorPhone', findPhoneNumber(text), 'Contractor contact', {
+		confidenceLevel: 'high',
+		confidenceReason: 'Document contains a clear phone number.',
+	});
+	pushField('contractorWebsite', findWebsite(text), 'Contractor contact', {
+		confidenceLevel: 'high',
+		confidenceReason: 'Document contains a clear website.',
+	});
+	pushField('invoiceNumber', findLabeledTextValue(text, ['Invoice Number']), 'Invoice details', {
+		confidenceLevel: 'high',
+		confidenceReason: 'Document clearly labels this invoice number.',
+	});
+	pushField('invoiceDate', findInvoiceDate(text, 'Invoice Date'), 'Invoice details', {
+		confidenceLevel: 'high',
+		confidenceReason: 'Document clearly labels this invoice date.',
+	});
+	pushField('maintenanceEventDate', findInvoiceDate(text, 'Service Date'), 'Service details', {
+		confidenceLevel: 'high',
+		confidenceReason: 'Document clearly labels this service date.',
+	});
+	pushField('brand', findLabeledTextValue(text, ['Brand']), 'System information', {
+		confidenceLevel: 'high',
+		confidenceReason: 'Document clearly labels this system brand.',
+	});
+	pushField('model', findLabeledTextValue(text, ['Model']), 'System information', {
+		confidenceLevel: 'high',
+		confidenceReason: 'Document clearly labels this system model.',
+	});
 
 	const outdoorSerial = findLabeledTextValue(text, ['Serial Number (Outdoor)', 'Serial Number Outdoor']);
 	const indoorSerial = findLabeledTextValue(text, ['Serial Number (Indoor)', 'Serial Number Indoor']);
@@ -708,58 +874,96 @@ export const extractFieldsFromDocumentText = (
 		'serialNumber',
 		serialValue || findLabeledTextValue(text, ['Serial Number']),
 		'System information',
+		{
+			confidenceLevel: 'high',
+			confidenceReason: 'Document clearly labels this serial number.',
+		},
 	);
-	pushField('installDate', findInvoiceDate(text, 'Installation Date'), 'System information');
-	pushField('warrantyLength', findLabeledTextValue(text, ['Warranty']), 'System information');
+	pushField('installDate', findInvoiceDate(text, 'Installation Date'), 'System information', {
+		confidenceLevel: 'high',
+		confidenceReason: 'Document clearly labels this installation date.',
+	});
+	pushField('warrantyLength', findLabeledTextValue(text, ['Warranty']), 'System information', {
+		confidenceLevel: 'high',
+		confidenceReason: 'Document clearly labels this warranty information.',
+	});
 	pushField(
 		'maintenanceEventDescription',
 		findLabeledTextValue(text, ['Equipment Type']) ||
 			findLabeledTextValue(text, ['Description']),
 		'Service description',
+		{
+			confidenceLevel: 'medium',
+			confidenceReason: 'Matched from service description text.',
+		},
 	);
 	pushField(
 		'servicePerformed',
 		findTextBetween(text, 'NOTES', ['PAYMENT OPTIONS', 'WARRANTY INFORMATION']) ||
 			findTextBetween(text, 'DESCRIPTION', ['NOTES', 'Subtotal']),
 		'Service notes',
+		{
+			confidenceLevel: 'medium',
+			confidenceReason: 'Matched from notes or description text.',
+		},
 	);
 	const lineItemKnowledge = extractLineItemKnowledge(text);
 	const partNames = lineItemKnowledge.partNames.join('; ');
 	const modelNumbers = lineItemKnowledge.modelNumbers.join('; ');
 	const refrigerants = lineItemKnowledge.refrigerants.join('; ');
-	pushField(
-		'partName',
-		partNames || findLabeledTextValue(text, ['Description']),
-		'Line items',
-	);
-	pushField('partNumber', modelNumbers, 'Line item model numbers');
-	pushField('fluidType', refrigerants, 'System refrigerant');
-	pushField('consumables', refrigerants, 'Line item supplies');
+	pushField('fluidType', refrigerants, 'System refrigerant', {
+		confidenceLevel: 'medium',
+		confidenceReason: 'Matched from refrigerant wording in the document.',
+	});
 	pushField(
 		'partsReplaced',
 		[partNames, modelNumbers && `Models: ${modelNumbers}`, refrigerants && `Refrigerant: ${refrigerants}`]
 			.filter(Boolean)
 			.join('; '),
 		'Line items',
+		{
+			confidenceLevel: 'medium',
+			confidenceReason: 'Matched from invoice line items and needs review.',
+		},
 	);
 	pushField(
 		'recommendedMaintenanceInterval',
 		text.match(/maintenance performed annually/i)?.[0] || '',
 		'Warranty information',
+		{
+			confidenceLevel: 'low',
+			confidenceReason: 'Mentioned in paragraph text, so Maintley is not suggesting it yet.',
+		},
 	);
 	pushField(
 		'manufacturerSupportUrl',
 		text.match(/(?:www\.)?trane\.com\/warranty/i)?.[0] || '',
 		'Warranty information',
+		{
+			confidenceLevel: 'low',
+			confidenceReason: 'Found in paragraph text, so Maintley is not suggesting it yet.',
+		},
 	);
-	pushField('totalCost', findMoneyAfterTextLabel(text, ['TOTAL DUE', 'Total']), 'Invoice total');
-	pushField('laborCost', findMoneyAfterTextLabel(text, ['Labor']), 'Invoice line item');
-	pushField('taxAmount', findMoneyAfterTextLabel(text, ['Tax']), 'Invoice tax');
+	pushField('totalCost', findMoneyAfterTextLabel(text, ['TOTAL DUE', 'Total']), 'Invoice total', {
+		confidenceLevel: 'high',
+		confidenceReason: 'Document clearly labels this total.',
+	});
+	pushField('laborCost', findMoneyAfterTextLabel(text, ['Labor']), 'Invoice line item', {
+		confidenceLevel: 'high',
+		confidenceReason: 'Document clearly labels this labor cost.',
+	});
+	pushField('taxAmount', findMoneyAfterTextLabel(text, ['Tax']), 'Invoice tax', {
+		confidenceLevel: 'high',
+		confidenceReason: 'Document clearly labels this tax amount.',
+	});
 	if (fields.some((field) => ['totalCost', 'laborCost', 'taxAmount'].includes(field.fieldKey))) {
-		pushField('currency', 'USD', 'Invoice currency');
+		pushField('currency', 'USD', 'Invoice currency', {
+			confidenceLevel: 'high',
+			confidenceReason: 'Derived from dollar amounts in the document.',
+		});
 	}
 
-	return fields;
+	return prepareVisibleFields(fields);
 };
 
 export const extractPartSuggestionsFromDocumentText = (
@@ -771,7 +975,11 @@ export const extractPartSuggestionsFromDocumentText = (
 		.split('\n')
 		.map((line) => line.trim())
 		.filter(Boolean);
-	return matchPartKnowledgeFromLines([...lineItemKnowledge.lines, ...rawLines]);
+	return sortByConfidence(
+		matchPartKnowledgeFromLines([...lineItemKnowledge.lines, ...rawLines]).filter(
+			isVisibleConfidence,
+		),
+	);
 };
 
 const dedupeFields = (fields: ExtractedKnowledgeField[]) => {
@@ -836,6 +1044,9 @@ const hasAcceptedFieldForTargets = (
 	fields: ExtractedKnowledgeField[],
 	targetEntities: PropertyKnowledgeTargetEntity[],
 ) => fields.some((field) => targetEntities.includes(field.targetEntity));
+
+const getAcceptedKnowledgeFields = (fields: ExtractedKnowledgeField[]) =>
+	fields.filter((field) => field.reviewStatus !== 'rejected');
 
 const inferContractorCategory = (value: string) => {
 	const normalized = normalizeSearchText(value);
@@ -1078,7 +1289,7 @@ export const createPendingKnowledgeSuggestion = ({
 }: CreatePendingKnowledgeSuggestionInput): PropertyKnowledgeSuggestion => {
 	const documentType = classifyKnowledgeDocument(document);
 	const extractionMethod: PropertyKnowledgeExtractionMethod = 'metadata_placeholder';
-	const resolvedRelatedSystemId = relatedSystemId || document.assignedDeviceId;
+	let resolvedRelatedSystemId = relatedSystemId || document.assignedDeviceId;
 	const extractedFields = filterFieldsToMissingPropertyMemory({
 		fields: extractPlaceholderFieldsFromDocument(
 			document,
@@ -1088,6 +1299,8 @@ export const createPendingKnowledgeSuggestion = ({
 		systems,
 		relatedSystemId: resolvedRelatedSystemId,
 	});
+	const visibleFields = prepareVisibleFields(extractedFields);
+	const confidence = calculateSuggestionConfidence(visibleFields);
 
 	return {
 		id: createSuggestionId(document.id, createdAt),
@@ -1098,8 +1311,8 @@ export const createPendingKnowledgeSuggestion = ({
 			: {}),
 		documentType,
 		extractionMethod,
-		extractedFields,
-		...(extractedFields.length > 0 ? { confidence: 0.55 } : {}),
+		extractedFields: visibleFields,
+		...(confidence !== undefined ? { confidence } : {}),
 		status: 'pending',
 		createdAt,
 		sourceDocumentName: document.fileName || document.name,
@@ -1116,7 +1329,7 @@ export const createPendingKnowledgeSuggestionFromFile = async ({
 	createdAt = new Date().toISOString(),
 }: CreateKnowledgeSuggestionFromFileInput): Promise<PropertyKnowledgeSuggestion> => {
 	const documentType = classifyKnowledgeDocument(document);
-	const resolvedRelatedSystemId = relatedSystemId || document.assignedDeviceId;
+	let resolvedRelatedSystemId = relatedSystemId || document.assignedDeviceId;
 	const metadataFields = extractPlaceholderFieldsFromDocument(
 		document,
 		resolvedRelatedSystemId,
@@ -1132,13 +1345,35 @@ export const createPendingKnowledgeSuggestionFromFile = async ({
 				extractedText,
 				resolvedRelatedSystemId,
 			);
+			if (!resolvedRelatedSystemId && systems?.length) {
+				const assetCandidate = findAssetTargetCandidate({
+					suggestion: {
+						id: createSuggestionId(document.id, createdAt),
+						sourceDocumentId: document.id,
+						propertyId,
+						documentType,
+						extractionMethod,
+						extractedFields: ocrFields,
+						status: 'pending',
+						createdAt,
+						sourceDocumentName: document.fileName || document.name,
+					},
+					fields: ocrFields,
+					systems,
+				});
+				if (assetCandidate?.recordId) {
+					resolvedRelatedSystemId = assetCandidate.recordId;
+				}
+			}
 			suggestedParts = resolvedRelatedSystemId
 				? extractPartSuggestionsFromDocumentText(extractedText)
 				: [];
 			if (ocrFields.length > 0 || suggestedParts.length > 0) {
 				extractionMethod = 'image_ocr';
 				if (ocrFields.length > 0) {
-					extractedFields = dedupeFields([...ocrFields, ...metadataFields]);
+					extractedFields = prepareVisibleFields(
+						dedupeFields([...ocrFields, ...metadataFields]),
+					);
 				}
 			}
 		} catch (error) {
@@ -1146,12 +1381,14 @@ export const createPendingKnowledgeSuggestionFromFile = async ({
 		}
 	}
 
-	extractedFields = filterFieldsToMissingPropertyMemory({
+	extractedFields = prepareVisibleFields(filterFieldsToMissingPropertyMemory({
 		fields: extractedFields,
 		property,
 		systems,
 		relatedSystemId: resolvedRelatedSystemId,
-	});
+	}));
+	suggestedParts = sortByConfidence(suggestedParts.filter(isVisibleConfidence));
+	const confidence = calculateSuggestionConfidence(extractedFields, suggestedParts);
 
 	return {
 		id: createSuggestionId(document.id, createdAt),
@@ -1164,9 +1401,7 @@ export const createPendingKnowledgeSuggestionFromFile = async ({
 		extractionMethod,
 		extractedFields,
 		...(suggestedParts.length > 0 ? { suggestedParts } : {}),
-		...(extractedFields.length > 0 || suggestedParts.length > 0
-			? { confidence: extractionMethod === 'image_ocr' ? 0.7 : 0.55 }
-			: {}),
+		...(confidence !== undefined ? { confidence } : {}),
 		status: 'pending',
 		createdAt,
 		sourceDocumentName: document.fileName || document.name,
@@ -1191,6 +1426,7 @@ export const acceptKnowledgeSuggestion = (
 		reviewedAt = new Date().toISOString(),
 		acceptedByUser = 'unknown',
 		fieldValues = {},
+		fieldReviewStatuses = {},
 		partValues = {},
 	}: ReviewKnowledgeSuggestionInput,
 ): PropertyKnowledgeSuggestion => ({
@@ -1201,12 +1437,20 @@ export const acceptKnowledgeSuggestion = (
 	extractedFields: suggestion.extractedFields.map((field) => ({
 		...field,
 		userEditableValue: fieldValues[field.id] ?? field.userEditableValue ?? field.value,
+		reviewStatus:
+			fieldReviewStatuses[field.id]?.accepted === false
+				? 'rejected'
+				: 'accepted',
 		provenance: {
 			sourceDocumentId: suggestion.sourceDocumentId,
 			sourceDocumentType: suggestion.documentType,
 			extractionMethod: suggestion.extractionMethod,
 			...(field.confidence ?? suggestion.confidence
 				? { confidence: field.confidence ?? suggestion.confidence }
+				: {}),
+			...(field.confidenceLevel ? { confidenceLevel: field.confidenceLevel } : {}),
+			...(field.confidenceReason
+				? { confidenceReason: field.confidenceReason }
 				: {}),
 			acceptedByUser,
 			acceptedAt: reviewedAt,
@@ -1230,6 +1474,10 @@ export const acceptKnowledgeSuggestion = (
 			extractionMethod: suggestion.extractionMethod,
 			...(part.confidence ?? suggestion.confidence
 				? { confidence: part.confidence ?? suggestion.confidence }
+				: {}),
+			...(part.confidenceLevel ? { confidenceLevel: part.confidenceLevel } : {}),
+			...(part.confidenceReason
+				? { confidenceReason: part.confidenceReason }
 				: {}),
 			acceptedByUser,
 			acceptedAt: reviewedAt,
@@ -1283,8 +1531,11 @@ export const applyAcceptedKnowledgeSuggestion = ({
 
 	const propertyUpdates: Partial<Property> = {};
 	const systemUpdateMap = new Map<string, Partial<Device>>();
+	const acceptedFields = getAcceptedKnowledgeFields(
+		acceptedSuggestion.extractedFields,
+	);
 
-	acceptedSuggestion.extractedFields.forEach((field) => {
+	acceptedFields.forEach((field) => {
 		const value = normalizeExtractedValue(field.userEditableValue ?? field.value);
 		if (!value) return;
 
@@ -1295,6 +1546,12 @@ export const applyAcceptedKnowledgeSuggestion = ({
 				extractionMethod: acceptedSuggestion.extractionMethod,
 				...(field.confidence ?? acceptedSuggestion.confidence
 					? { confidence: field.confidence ?? acceptedSuggestion.confidence }
+					: {}),
+				...(field.confidenceLevel
+					? { confidenceLevel: field.confidenceLevel }
+					: {}),
+				...(field.confidenceReason
+					? { confidenceReason: field.confidenceReason }
 					: {}),
 				acceptedByUser,
 				acceptedAt,
@@ -1361,11 +1618,9 @@ export const applyAcceptedKnowledgeSuggestion = ({
 			id,
 			updates,
 		})),
-		contractorSuggestion: buildContractorSuggestion(
-			acceptedSuggestion.extractedFields,
-		),
+		contractorSuggestion: buildContractorSuggestion(acceptedFields),
 		maintenanceHistorySuggestion: buildMaintenanceHistorySuggestion({
-			fields: acceptedSuggestion.extractedFields,
+			fields: acceptedFields,
 			relatedSystemId: acceptedSuggestion.relatedSystemId,
 			acceptedAt,
 			sourceDocumentName: acceptedSuggestion.sourceDocumentName,

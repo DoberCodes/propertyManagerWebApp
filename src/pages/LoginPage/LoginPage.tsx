@@ -10,7 +10,7 @@ import {
 	LoginShell,
 	Wrapper,
 } from './LoginPage.styles';
-import MaintleyLogo from '../../Assets/MaintleyLogoPackage/TitleName.png';
+import MaintleyLogo from '../../Assets/TitleName.png';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
 	faHouse,

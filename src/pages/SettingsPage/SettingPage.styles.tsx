@@ -4,7 +4,7 @@ import styled, { css, keyframes } from "styled-components";
 
 export const Container = styled.div`
     width: 100%;
-    background: #fff;
+    background: ${COLORS.bgWhite};
     border-radius: 12px;
     box-shadow: 0 4px 24px rgba(0, 0, 0, 0.07);
     overflow-x: hidden;
@@ -32,11 +32,11 @@ export const Title = styled.h2`
 `;
 
 export const SubscriptionSection = styled.div`
-    border: 1px solid #e5e7eb;
+    border: 1px solid ${COLORS.border};
     border-radius: 8px;
     padding: 24px;
     margin-bottom: 24px;
-    background: #f9fafb;
+    background: ${COLORS.bgLight};
     min-width: 0;
     overflow: hidden;
 
@@ -68,7 +68,7 @@ export const PlanName = styled.h3`
     font-size: 1.5rem;
     font-weight: 600;
     margin: 0;
-    color: #1f2937;
+    color: ${COLORS.textPrimary};
     min-width: 0;
 
     @media (max-width: 640px) {
@@ -88,8 +88,8 @@ export const PlanStatus = styled.span<{ status: string }>`
         switch (status) {
             case 'free':
                 return `
-                        background: #d1fae5;
-                        color: #065f46;
+                        background: ${COLORS.successLight};
+                        color: ${COLORS.successDark};
                     `;
             case 'trial':
                 return `
@@ -98,8 +98,8 @@ export const PlanStatus = styled.span<{ status: string }>`
                     `;
             case 'active':
                 return `
-                        background: #d1fae5;
-                        color: #065f46;
+                        background: ${COLORS.successLight};
+                        color: ${COLORS.successDark};
                     `;
             case 'cancelled':
                 return `
@@ -108,8 +108,8 @@ export const PlanStatus = styled.span<{ status: string }>`
                     `;
             default:
                 return `
-                        background: #e5e7eb;
-                        color: #6b7280;
+                        background: ${COLORS.gray200};
+                        color: ${COLORS.textSecondary};
                     `;
         }
     }}
@@ -122,7 +122,7 @@ export const PlanDetails = styled.div`
 export const PlanPrice = styled.p`
     font-size: 1.125rem;
     font-weight: 600;
-    color: #059669;
+    color: ${COLORS.primary};
     margin: 8px 0;
 `;
 
@@ -134,12 +134,12 @@ export const PlanFeatures = styled.ul`
 
 export const PlanFeature = styled.li`
     font-size: 0.875rem;
-    color: #6b7280;
+    color: ${COLORS.textSecondary};
     margin-bottom: 4px;
     overflow-wrap: anywhere;
     &::before {
         content: '✓';
-        color: #059669;
+        color: ${COLORS.primary};
         margin-right: 8px;
     }
 `;
@@ -160,21 +160,21 @@ export const TrialText = styled.p`
 `;
 
 export const FreePlanInfo = styled(TrialInfo)`
-    background: #ecfdf5;
-    border: 1px solid #34d399;
+    background: ${COLORS.primaryLight};
+    border: 1px solid ${COLORS.primaryHover};
 `;
 
 export const FreePlanText = styled(TrialText)`
-    color: #065f46;
+    color: ${COLORS.primaryDark};
 `;
 
 export const LinkButton = styled.button`
     display: inline-block;
     margin: 16px 0;
     padding: 12px 24px;
-    background: #ffffff;
-    color: #065f46;
-    border: 1px solid #34d399;
+    background: ${COLORS.bgWhite};
+    color: ${COLORS.primaryDark};
+    border: 1px solid ${COLORS.primaryHover};
     border-radius: 8px;
     text-decoration: none;
     font-weight: 600;
@@ -183,8 +183,8 @@ export const LinkButton = styled.button`
     white-space: normal;
     text-align: center;
     &:hover {
-        background: #ecfdf5;
-        border-color: #10b981;
+        background: ${COLORS.primaryLight};
+        border-color: ${COLORS.primaryHover};
     }
 
     @media (max-width: 640px) {
@@ -195,11 +195,11 @@ export const LinkButton = styled.button`
 `;
 
 export const UpgradeButton = styled(LinkButton)`
-    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-    color: #ffffff;
+    background: ${COLORS.gradientPrimary};
+    color: ${COLORS.white};
     border: none;
     &:hover {
-        background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+        background: ${COLORS.gradientPrimary};
     }
 `;
 
@@ -238,11 +238,11 @@ export const CancelButton = styled(LinkButton)`
 `;
 
 export const Section = styled.div`
-    border: 1px solid #e5e7eb;
+    border: 1px solid ${COLORS.border};
     border-radius: 8px;
     padding: 24px;
     margin-bottom: 24px;
-    background: #f9fafb;
+    background: ${COLORS.bgLight};
     height: fit-content;
     overflow: visible;
     min-width: 0;
@@ -261,7 +261,7 @@ export const SectionTitle = styled.h3`
     font-size: 1.25rem;
     font-weight: 600;
     margin: 0 0 16px 0;
-    color: #1f2937;
+    color: ${COLORS.textPrimary};
     overflow-wrap: anywhere;
 
     @media (max-width: 640px) {
@@ -294,9 +294,9 @@ export const ResourceButtons = styled.div`
 export const AccountButton = styled.button<{ disabled?: boolean }>`
     padding: 12px 24px;
     width: fit-content;
-    background: #ffffff;
-    color: #065f46;
-    border: 1px solid #34d399;
+    background: ${COLORS.bgWhite};
+    color: ${COLORS.primaryDark};
+    border: 1px solid ${COLORS.primaryHover};
     border-radius: 8px;
     text-decoration: none;
     font-weight: 600;
@@ -307,8 +307,8 @@ export const AccountButton = styled.button<{ disabled?: boolean }>`
     min-width: 0;
 
     &:hover {
-        background: #ecfdf5;
-        border-color: #10b981;
+        background: ${COLORS.primaryLight};
+        border-color: ${COLORS.primaryHover};
     }
 
     &:disabled {
@@ -335,15 +335,15 @@ export const FamilyMembersLabel = styled.h4`
     margin-bottom: 8px;
     font-size: 14px;
     font-weight: 600;
-    color: #374151;
+    color: ${COLORS.gray700};
 `;
 
 export const FamilyMemberCard = styled.div`
     display: flex;
     gap: 12px;
     padding: 24px;
-    background: #ffffff;
-    border: 1px solid #e5e7eb;
+    background: ${COLORS.bgWhite};
+    border: 1px solid ${COLORS.border};
     border-radius: 10px;
     margin-bottom: 10px;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
@@ -369,11 +369,11 @@ export const FamilyMemberInfo = styled.div`
 
 export const FamilyMemberName = styled.span`
     font-weight: 600;
-    color: #111827;
+    color: ${COLORS.gray900};
 `;
 
 export const FamilyMemberEmail = styled.span`
-    color: #6b7280;
+    color: ${COLORS.textSecondary};
     word-break: break-word;
     overflow-wrap: anywhere;
 `;
@@ -421,19 +421,19 @@ export const ErrorMessage = styled.div`
 `;
 
 export const SuccessMessage = styled.div`
-    background-color: #d1fae5;
-    color: #065f46;
+    background-color: ${COLORS.successLight};
+    color: ${COLORS.successDark};
     padding: 12px 16px;
     border-radius: 6px;
     margin-bottom: 16px;
     font-size: 14px;
-    border-left: 4px solid #065f46;
+    border-left: 4px solid ${COLORS.successDark};
     overflow-wrap: anywhere;
 `;
 
 export const PasswordHelp = styled.div`
     font-size: 12px;
-    color: #6b7280;
+    color: ${COLORS.textSecondary};
     margin-top: 8px;
     font-style: italic;
 `;
@@ -453,8 +453,8 @@ export const CategorySidebar = styled.aside`
     position: sticky;
     top: 16px;
     height: fit-content;
-    background: #f8fafc;
-    border: 1px solid #e5e7eb;
+    background: ${COLORS.bgLight};
+    border: 1px solid ${COLORS.border};
     border-radius: 10px;
     padding: 10px;
 
@@ -466,21 +466,21 @@ export const CategorySidebar = styled.aside`
 export const CategoryNavButton = styled.button<{ active?: boolean }>`
     width: 100%;
     text-align: left;
-    border: 1px solid ${({ active }) => (active ? '#059669' : 'transparent')};
+    border: 1px solid ${({ active }) => (active ? COLORS.primary : 'transparent')};
     border-radius: 8px;
     padding: 10px 12px;
     margin-bottom: 4px;
     background: ${({ active }) =>
-        active ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : 'transparent'};
-    color: ${({ active }) => (active ? '#ffffff' : '#374151')};
+        active ? COLORS.gradientPrimary : 'transparent'};
+    color: ${({ active }) => (active ? COLORS.white : COLORS.gray700)};
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s;
 
     &:hover {
         background: ${({ active }) =>
-        active ? 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)' : '#ecfdf5'};
-        border-color: #34d399;
+        active ? COLORS.gradientPrimary : COLORS.primaryLight};
+        border-color: ${COLORS.primaryHover};
     }
 
     &:last-child {
@@ -504,10 +504,10 @@ export const MobileCategoryPicker = styled.div`
 export const CategorySelect = styled.select`
     width: 100%;
     padding: 10px 12px;
-    border: 1px solid #d1d5db;
+    border: 1px solid ${COLORS.gray300};
     border-radius: 8px;
-    background: #ffffff;
-    color: #1f2937;
+    background: ${COLORS.bgWhite};
+    color: ${COLORS.textPrimary};
     font-weight: 600;
     min-width: 0;
 
@@ -553,8 +553,8 @@ export const SupportTicketList = styled.div`
 export const SupportTicketFilterGroup = styled.div`
     display: inline-flex;
     align-items: center;
-    background: #f3f4f6;
-    border: 1px solid #e5e7eb;
+    background: ${COLORS.gray100};
+    border: 1px solid ${COLORS.border};
     border-radius: 999px;
     padding: 2px;
 `;
@@ -570,7 +570,7 @@ export const SupportTicketHeaderBar = styled.div`
 export const SupportTicketFilterLabel = styled.span`
     font-size: 0.8rem;
     font-weight: 700;
-    color: #6b7280;
+    color: ${COLORS.textSecondary};
     text-transform: uppercase;
     letter-spacing: 0.04em;
 `;
@@ -583,12 +583,12 @@ export const SupportTicketFilterButton = styled.button<{ active?: boolean }>`
     font-weight: 700;
     cursor: pointer;
     background: ${({ active }) =>
-        active ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : 'transparent'};
-    color: ${({ active }) => (active ? '#ffffff' : '#4b5563')};
+        active ? COLORS.gradientPrimary : 'transparent'};
+    color: ${({ active }) => (active ? COLORS.white : COLORS.gray600)};
 
     &:hover {
         background: ${({ active }) =>
-        active ? 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)' : '#ecfdf5'};
+        active ? COLORS.gradientPrimary : COLORS.primaryLight};
     }
 `;
 
@@ -600,7 +600,7 @@ export const refreshSpin = keyframes`
 export const SupportTicketRefreshButton = styled.button<{ $isRefreshing?: boolean }>`
     border: 0;
     background: transparent;
-    color: #6b7280;
+    color: ${COLORS.textSecondary};
     cursor: pointer;
     padding: 4px;
     line-height: 1;
@@ -609,18 +609,18 @@ export const SupportTicketRefreshButton = styled.button<{ $isRefreshing?: boolea
 
 
     &:hover {
-        color: #111827;
+        color: ${COLORS.gray900};
     }
 `;
 
 
 
 export const SupportTicketCard = styled.div`
-    border: 1px solid #e5e7eb;
+    border: 1px solid ${COLORS.border};
     border-left: 4px solid #4f46e5;
     border-radius: 12px;
     padding: 14px;
-    background: #ffffff;
+    background: ${COLORS.bgWhite};
     box-shadow: 0 1px 2px rgba(17, 24, 39, 0.04);
 `;
 
@@ -635,7 +635,7 @@ export const SupportTicketHeader = styled.div`
 export const SupportTicketSubject = styled.h4`
     margin: 0;
     font-size: 0.98rem;
-    color: #111827;
+    color: ${COLORS.gray900};
 `;
 
 export const SupportTicketStatus = styled.span`
@@ -653,7 +653,7 @@ export const SupportTicketStatus = styled.span`
 export const SupportTicketMeta = styled.p`
     margin: 8px 0 0;
     font-size: 0.84rem;
-    color: #6b7280;
+    color: ${COLORS.textSecondary};
 `;
 
 export const SupportTicketMetaGrid = styled.div`
@@ -669,9 +669,9 @@ export const SupportTicketMetaGrid = styled.div`
 
 export const SupportTicketMetaBlock = styled.div`
     padding: 8px 10px;
-    border: 1px solid #e5e7eb;
+    border: 1px solid ${COLORS.border};
     border-radius: 8px;
-    background: #f9fafb;
+    background: ${COLORS.bgLight};
 `;
 
 export const SupportTicketMetaLabel = styled.span`
@@ -680,21 +680,21 @@ export const SupportTicketMetaLabel = styled.span`
     font-weight: 700;
     letter-spacing: 0.02em;
     text-transform: uppercase;
-    color: #6b7280;
+    color: ${COLORS.textSecondary};
 `;
 
 export const SupportTicketMetaValue = styled.span`
     display: block;
     margin-top: 3px;
     font-size: 0.86rem;
-    color: #1f2937;
+    color: ${COLORS.textPrimary};
 `;
 
 export const SupportTicketSection = styled.div<{ resolutionNotes?: string }>`
-    border: ${({ resolutionNotes }) => (resolutionNotes ? '1px solid #e5e7eb' : 'none')};
+    border: ${({ resolutionNotes }) => (resolutionNotes ? `1px solid ${COLORS.border}` : 'none')};
     padding: ${({ resolutionNotes }) => (resolutionNotes ? '12px' : '0')};
     border-radius: 8px;
-    background: ${({ resolutionNotes }) => (resolutionNotes ? '#f9fafb' : 'transparent')};
+    background: ${({ resolutionNotes }) => (resolutionNotes ? COLORS.bgLight : 'transparent')};
     margin-top: 12px;
     border-radius: 8px;
     margin-top: 10px;
@@ -706,14 +706,14 @@ export const SupportTicketSectionLabel = styled.h5`
     font-weight: 700;
     letter-spacing: 0.02em;
     text-transform: uppercase;
-    color: #6b7280;
+    color: ${COLORS.textSecondary};
 `;
 
 export const SupportTicketMessage = styled.p`
     margin: 8px 0 0;
     font-size: 0.9rem;
     line-height: 1.5;
-    color: #374151;
+    color: ${COLORS.gray700};
     white-space: pre-wrap;
     word-break: break-word;
 `;
@@ -722,7 +722,7 @@ export const SupportAttachmentList = styled.ul`
     margin: 0;
     padding-left: 16px;
     font-size: 0.85rem;
-    color: #4b5563;
+    color: ${COLORS.gray600};
 `;
 
 
@@ -739,9 +739,9 @@ export const PresetActions = styled.div`
 `;
 
 export const PresetButton = styled.button`
-    background: #ffffff;
-    color: #065f46;
-    border: 1px solid #34d399;
+    background: ${COLORS.bgWhite};
+    color: ${COLORS.primaryDark};
+    border: 1px solid ${COLORS.primaryHover};
     padding: 8px 12px;
     border-radius: 6px;
     font-size: 13px;
@@ -750,8 +750,8 @@ export const PresetButton = styled.button`
     transition: all 0.2s;
 
     &:hover {
-        background: #ecfdf5;
-        border-color: #10b981;
+        background: ${COLORS.primaryLight};
+        border-color: ${COLORS.primaryHover};
     }
 `;
 
@@ -769,10 +769,10 @@ export const PreferencesGrid = styled.div`
 
 export const PreferencePanel = styled.div`
     grid-column: 1 / -1;
-    border: 1px solid #e5e7eb;
+    border: 1px solid ${COLORS.border};
     border-radius: 8px;
     padding: 14px;
-    background: #f9fafb;
+    background: ${COLORS.bgLight};
     margin-top: 12px;
     min-width: 0;
 `;
@@ -798,25 +798,25 @@ export const RecipientOption = styled.label`
     align-items: flex-start;
     gap: 10px;
     padding: 10px;
-    border: 1px solid #e5e7eb;
+    border: 1px solid ${COLORS.border};
     border-radius: 6px;
-    background: #ffffff;
+    background: ${COLORS.bgWhite};
     font-size: 14px;
-    color: #374151;
+    color: ${COLORS.gray700};
     cursor: pointer;
     min-width: 0;
 `;
 
 export const PreferenceOption = styled.label`
     padding: 12px;
-    border: 1px solid #e5e7eb;
+    border: 1px solid ${COLORS.border};
     border-radius: 6px;
-    background: #ffffff;
+    background: ${COLORS.bgWhite};
     display: flex;
     align-items: center;
     gap: 10px;
     font-size: 14px;
-    color: #374151;
+    color: ${COLORS.gray700};
 
     cursor: pointer;
 `;

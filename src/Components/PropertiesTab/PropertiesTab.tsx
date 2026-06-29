@@ -66,6 +66,7 @@ import {
 import { canDeleteProperty, getRoleCapabilities } from '../../utils/permissions';
 import { TeamMember } from '../../Redux/Slices/teamSlice';
 import { USER_ROLES } from '../../constants/roles';
+import { COLORS } from '../../constants/colors';
 import {
 	Wrapper,
 	TopActions,
@@ -200,7 +201,7 @@ const GROUP_ICON_OPTIONS: Array<{ key: PropertyGroupIconKey; label: string; icon
 
 const GROUP_COLOR_PRESETS: Array<{ label: string; iconColor: string; iconBgColor: string }> = [
 	{ label: 'Ocean', iconColor: '#ffffff', iconBgColor: '#2563eb' },
-	{ label: 'Emerald', iconColor: '#ffffff', iconBgColor: '#059669' },
+	{ label: 'Maintley', iconColor: COLORS.white, iconBgColor: COLORS.primary },
 	{ label: 'Sunset', iconColor: '#ffffff', iconBgColor: '#ea580c' },
 	{ label: 'Rose', iconColor: '#ffffff', iconBgColor: '#e11d48' },
 	{ label: 'Slate', iconColor: '#ffffff', iconBgColor: '#475569' },
@@ -2185,6 +2186,7 @@ export const Properties = () => {
 			coOwners: formData.coOwners || [],
 			administrators: formData.administrators || [],
 			viewers: formData.viewers || [],
+			accessSnapshots: formData.accessSnapshots || {},
 		};
 
 		if (selectedPropertyForEdit) {
@@ -2850,6 +2852,7 @@ export const Properties = () => {
 								coOwners: selectedPropertyForEdit.coOwners || [],
 								administrators: selectedPropertyForEdit.administrators || [],
 								viewers: selectedPropertyForEdit.viewers || [],
+								accessSnapshots: selectedPropertyForEdit.accessSnapshots || {},
 							}
 							: undefined
 				}
@@ -3284,7 +3287,7 @@ export const Properties = () => {
 												border:
 													manageNewGroupAppearance.iconBgColor ===
 														preset.iconBgColor
-														? '2px solid #0f766e'
+														? `2px solid ${COLORS.primary}`
 														: '1px solid #e2e8f0',
 												background: '#fff',
 												cursor: 'pointer',
@@ -3654,7 +3657,7 @@ export const Properties = () => {
 																	border:
 																		appearanceDraft.iconBgColor ===
 																			preset.iconBgColor
-																			? '2px solid #0f766e'
+																			? `2px solid ${COLORS.primary}`
 																			: '1px solid #e2e8f0',
 																	background: '#fff',
 																	cursor: 'pointer',

@@ -23,6 +23,8 @@ type CostsTabProps = {
 type CostRecord = {
 	id: string;
 	source: 'maintenance' | 'task';
+	sourceId?: string;
+	linkedTaskId?: string;
 	title: string;
 	date?: string;
 	total?: number;
@@ -54,13 +56,23 @@ export const CostsTab: React.FC<CostsTabProps> = ({
 	maintenanceHistoryRecords = [],
 }) => {
 	const costRecords = useMemo<CostRecord[]>(() => {
+		const taskIdsWithMaintenanceCosts = new Set<string>();
 		const maintenanceCosts = maintenanceHistoryRecords
 			.map((record: any): CostRecord | null => {
 				const total = getFinancialDisplayTotal(record.financials);
 				if (total === undefined) return null;
+				const linkedTaskId =
+					record.originalTaskId ||
+					(Array.isArray(record.linkedTaskIds) ? record.linkedTaskIds[0] : '') ||
+					record.taskId;
+				if (linkedTaskId) {
+					taskIdsWithMaintenanceCosts.add(String(linkedTaskId));
+				}
 				return {
 					id: `maintenance-${record.id || record.createdAt || record.title}`,
 					source: 'maintenance',
+					sourceId: record.id,
+					linkedTaskId: linkedTaskId ? String(linkedTaskId) : undefined,
 					title: getMaintenanceEventTitle(record) || 'Maintenance record',
 					date: getMaintenanceEventDate(record),
 					total,
@@ -74,11 +86,20 @@ export const CostsTab: React.FC<CostsTabProps> = ({
 
 		const taskCosts = tasks
 			.map((task): CostRecord | null => {
+				if (
+					task.id &&
+					taskIdsWithMaintenanceCosts.has(String(task.id)) &&
+					(task.status === 'Completed' || task.completionDate)
+				) {
+					return null;
+				}
 				const total = getFinancialDisplayTotal(task.financials);
 				if (total === undefined) return null;
 				return {
 					id: `task-${task.id}`,
 					source: 'task',
+					sourceId: task.id,
+					linkedTaskId: task.id,
 					title: task.title || 'Maintenance task',
 					date: task.completionDate || task.dueDate,
 					total,
@@ -112,8 +133,8 @@ export const CostsTab: React.FC<CostsTabProps> = ({
 		<SectionContainer>
 			<SectionHeader>Costs</SectionHeader>
 			<SectionLead>
-				Review costs recorded from maintenance history, completed work, invoices,
-				and task financials.
+				Review costs from maintenance events, invoices, completed work, and
+				task estimates in one place.
 			</SectionLead>
 
 			<TabSummaryBar>

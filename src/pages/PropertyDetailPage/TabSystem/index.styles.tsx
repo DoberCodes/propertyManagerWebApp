@@ -1,5 +1,6 @@
 import { styled } from 'styled-components';
 import { ContractorCategory } from '../../../types/Contractor.types';
+import { COLORS } from '../../../constants/colors';
 
 export const HeaderContainer = styled.div`
 	display: block;
@@ -148,8 +149,8 @@ export const SectionLead = styled.p`
 `;
 
 export const ToolbarButton = styled.button`
-	background-color: #16a34a;
-	color: white;
+	background-color: ${COLORS.primary};
+	color: ${COLORS.white};
 	border: none;
 	padding: 10px 14px;
 	border-radius: 8px;
@@ -161,9 +162,9 @@ export const ToolbarButton = styled.button`
 	min-height: 40px;
 
 	&:hover:not(:disabled) {
-		background-color: #15803d;
+		background-color: ${COLORS.primaryHover};
 		transform: translateY(-1px);
-		box-shadow: 0 6px 14px rgba(21, 128, 61, 0.26);
+		box-shadow: 0 6px 14px rgba(4, 120, 87, 0.24);
 	}
 
 	&:disabled {
@@ -195,9 +196,9 @@ export const ToolbarButton = styled.button`
 		padding: 12px 20px;
 		font-size: 14px;
 		letter-spacing: 0.01em;
-		box-shadow: 0 4px 6px rgba(22, 163, 74, 0.2), 0 10px 24px rgba(22, 163, 74, 0.22);
+		box-shadow: 0 4px 6px rgba(4, 120, 87, 0.18), 0 10px 24px rgba(4, 120, 87, 0.2);
 		&:hover:not(:disabled) {
-			box-shadow: 0 6px 10px rgba(21, 128, 61, 0.25), 0 14px 30px rgba(21, 128, 61, 0.28);
+			box-shadow: 0 6px 10px rgba(4, 120, 87, 0.22), 0 14px 30px rgba(4, 120, 87, 0.24);
 			transform: translateY(-2px);
 		}
 	}
@@ -248,7 +249,7 @@ export const StatusBadge = styled.span<{ status: string }>`
 				return 'rgba(239, 68, 68, 0.1)';
 			// Device statuses
 			case 'Active':
-				return 'rgba(34, 197, 94, 0.1)';
+				return COLORS.successLight;
 			case 'Maintenance':
 				return 'rgba(245, 158, 11, 0.1)';
 			case 'Broken':
@@ -264,9 +265,9 @@ export const StatusBadge = styled.span<{ status: string }>`
 			// Task statuses
 			case 'Completed':
 			case 'Low':
-				return '#22c55e';
+				return COLORS.success;
 			case 'Upcoming':
-				return '#065f46';
+				return COLORS.successDark;
 			case 'In Progress':
 				return '#3b82f6';
 				case 'Initiated':
@@ -280,7 +281,7 @@ export const StatusBadge = styled.span<{ status: string }>`
 				return '#ef4444';
 			// Device statuses
 			case 'Active':
-				return '#22c55e';
+				return COLORS.success;
 			case 'Maintenance':
 				return '#f59e0b';
 			case 'Broken':
@@ -409,8 +410,8 @@ export const BaseInput = `
 
 	&:focus {
 		outline: none;
-		border-color: #22c55e;
-		box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.14);
+		border-color: ${COLORS.primary};
+		box-shadow: 0 0 0 3px rgba(4, 120, 87, 0.14);
 	}
 `;
 
@@ -498,7 +499,11 @@ export const FormIntroCard = styled.div`
 	padding: 0.9rem 1rem;
 	border-radius: 10px;
 	border: 1px solid #bbf7d0;
-	background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf3 100%);
+	background: linear-gradient(
+		135deg,
+		rgba(0, 158, 113, 0.14) 0%,
+		rgba(4, 120, 87, 0.08) 100%
+	);
 `;
 
 export const FormIntroText = styled.p`
@@ -522,9 +527,10 @@ export const FormIntroPill = styled.span<{ $tone?: 'success' | 'neutral' }>`
 	font-size: 0.75rem;
 	font-weight: 700;
 	border: 1px solid
-		${(props) => (props.$tone === 'success' ? '#86efac' : '#d1d5db')};
-	background: ${(props) => (props.$tone === 'success' ? '#dcfce7' : '#ffffff')};
-	color: ${(props) => (props.$tone === 'success' ? '#166534' : '#334155')};
+		${(props) =>
+			props.$tone === 'success' ? 'rgba(63, 204, 124, 0.42)' : '#d1d5db'};
+	background: ${(props) => (props.$tone === 'success' ? COLORS.successLight : '#ffffff')};
+	color: ${(props) => (props.$tone === 'success' ? COLORS.successDark : '#334155')};
 `;
 
 export const FormGrid = styled.div`
@@ -716,7 +722,7 @@ export const MobileDot = styled.button<{ $active?: boolean }>`
 	height: 8px;
 	border-radius: 999px;
 	border: none;
-	background: ${(props) => (props.$active ? '#22c55e' : '#d1d5db')};
+	background: ${(props) => (props.$active ? COLORS.primary : '#d1d5db')};
 	cursor: pointer;
 `;
 
@@ -868,7 +874,7 @@ export const MobileTaskCheckbox = styled.input.attrs({ type: 'checkbox' })`
 	width: 20px;
 	height: 20px;
 	cursor: pointer;
-	accent-color: #22c55e;
+	accent-color: ${COLORS.primary};
 	flex-shrink: 0;
 	margin-top: 2px;
 `;

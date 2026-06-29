@@ -989,7 +989,7 @@ const ScanTitleBlock = styled.div`
 `;
 
 const ScanEyebrow = styled.div`
-	color: #0f766e;
+	color: ${COLORS.primaryDark};
 	font-size: 12px;
 	font-weight: 700;
 	letter-spacing: 0;
@@ -1058,10 +1058,10 @@ const QuickScanEducation = styled.div`
 	align-items: center;
 	justify-content: space-between;
 	gap: 14px;
-	border-left: 3px solid #0f766e;
-	background: #f0fdfa;
+	border-left: 3px solid ${COLORS.primaryDark};
+	background: ${COLORS.primaryLight};
 	padding: 12px 14px;
-	color: #134e4a;
+	color: ${COLORS.primaryDark};
 
 	> div:first-child {
 		display: flex;
@@ -1122,12 +1122,12 @@ const IntelligenceSource = styled.div<{
 	border-left: 3px solid
 		${({ $tone }) =>
 		$tone === 'records'
-			? '#16a34a'
+			? COLORS.primary
 			: $tone === 'knowledge'
-				? '#2563eb'
+				? COLORS.primaryHover
 				: $tone === 'history'
-					? '#7c3aed'
-					: '#ea580c'};
+					? COLORS.primaryDark
+					: COLORS.maintleyAccent};
 	padding-left: 12px;
 	display: flex;
 	flex-direction: column;
@@ -1159,28 +1159,28 @@ const PlanExplanation = styled.div`
 `;
 
 const PlanName = styled.span`
-	color: #0f766e;
+	color: ${COLORS.primaryDark};
 	font-size: 15px;
 	font-weight: 800;
 `;
 
 const PlanUpgradeButton = styled.button`
 	align-self: flex-start;
-	border: 1px solid #0f766e;
+	border: 1px solid ${COLORS.primaryDark};
 	border-radius: 8px;
-	background: #0f766e;
-	color: #ffffff;
+	background: ${COLORS.primaryDark};
+	color: ${COLORS.white};
 	font-size: 13px;
 	font-weight: 700;
 	padding: 8px 11px;
 	cursor: pointer;
 
 	&:hover {
-		background: #115e59;
+		background: ${COLORS.primaryHover};
 	}
 
 	&:focus-visible {
-		outline: 2px solid #0f766e;
+		outline: 2px solid ${COLORS.primaryDark};
 		outline-offset: 2px;
 	}
 `;
@@ -1195,20 +1195,20 @@ const QuickScanInfoNote = styled.p`
 const PrimaryButton = styled.button`
 	border: 0;
 	border-radius: 8px;
-	background: #16a34a;
-	color: #ffffff;
+	background: ${COLORS.primary};
+	color: ${COLORS.white};
 	font-weight: 700;
 	font-size: 14px;
 	padding: 10px 14px;
 	cursor: pointer;
 	min-height: 40px;
 	transition: all 0.2s ease;
-	box-shadow: 0 4px 12px rgba(22, 163, 74, 0.25);
+	box-shadow: 0 4px 12px rgba(0, 158, 113, 0.22);
 
 	&:hover {
-		background: #15803d;
+		background: ${COLORS.primaryHover};
 		transform: translateY(-1px);
-		box-shadow: 0 8px 18px rgba(22, 163, 74, 0.3);
+		box-shadow: 0 8px 18px rgba(0, 158, 113, 0.26);
 	}
 
 	&:disabled {
@@ -1260,7 +1260,7 @@ const ScanLoadingRoof = styled.div`
 	top: 1px;
 	width: 48px;
 	height: 48px;
-	background: #0f766e;
+	background: ${COLORS.primaryDark};
 	transform: rotate(45deg);
 	border-radius: 6px 6px 2px 6px;
 	animation: property-scan-build-roof 1.8s ease-in-out infinite;
@@ -1292,8 +1292,8 @@ const ScanLoadingHomeBody = styled.div`
 	width: 52px;
 	height: 38px;
 	border-radius: 8px;
-	background: #f0fdfa;
-	border: 1px solid #99f6e4;
+	background: ${COLORS.primaryLight};
+	border: 1px solid rgba(0, 158, 113, 0.22);
 	overflow: hidden;
 `;
 
@@ -1305,7 +1305,7 @@ const ScanLoadingBlock = styled.div<{
 	width: 19px;
 	height: 13px;
 	border-radius: 4px;
-	background: #0f766e;
+	background: ${COLORS.primaryDark};
 	left: ${({ $slot }) =>
 		$slot === 'one' || $slot === 'three' ? '6px' : '27px'};
 	top: ${({ $slot }) =>
@@ -1364,7 +1364,7 @@ const ScanLoadingList = styled.ul`
 		width: 7px;
 		height: 7px;
 		border-radius: 999px;
-		background: #0f766e;
+		background: ${COLORS.primaryDark};
 	}
 `;
 
@@ -1410,10 +1410,10 @@ const PromptText = styled.p`
 `;
 
 const EmptyResult = styled.div`
-	border: 1px solid #bbf7d0;
+	border: 1px solid rgba(0, 158, 113, 0.36);
 	border-radius: 8px;
-	background: #f0fdf4;
-	color: #166534;
+	background: ${COLORS.successLight};
+	color: ${COLORS.successDark};
 	padding: 14px;
 	font-size: 14px;
 	line-height: 1.5;
@@ -1504,7 +1504,7 @@ const RecommendationTitle = styled.h4`
 `;
 
 const SystemLine = styled.div`
-	color: #0f766e;
+	color: ${COLORS.primaryDark};
 	font-size: 13px;
 	font-weight: 700;
 `;
@@ -1582,20 +1582,20 @@ const RecommendationActions = styled.div`
 const ActionButton = styled.button`
 	border: 0;
 	border-radius: 8px;
-	background: #16a34a;
-	color: #ffffff;
+	background: ${COLORS.primary};
+	color: ${COLORS.white};
 	font-size: 13px;
 	font-weight: 700;
 	padding: 9px 12px;
 	cursor: pointer;
 	white-space: nowrap;
 	transition: all 0.2s ease;
-	box-shadow: 0 4px 12px rgba(22, 163, 74, 0.22);
+	box-shadow: 0 4px 12px rgba(0, 158, 113, 0.22);
 
 	&:hover {
-		background: #15803d;
+		background: ${COLORS.primaryHover};
 		transform: translateY(-1px);
-		box-shadow: 0 8px 18px rgba(22, 163, 74, 0.28);
+		box-shadow: 0 8px 18px rgba(0, 158, 113, 0.26);
 	}
 
 	&:focus-visible {
@@ -1718,21 +1718,21 @@ const PremiumPreviewFooter = styled.div`
 `;
 
 const PremiumPreviewButton = styled.button`
-	border: 1px solid #2563eb;
+	border: 1px solid ${COLORS.primary};
 	border-radius: 8px;
-	background: #2563eb;
-	color: #ffffff;
+	background: ${COLORS.primary};
+	color: ${COLORS.white};
 	font-size: 13px;
 	font-weight: 700;
 	padding: 8px 11px;
 	cursor: pointer;
 
 	&:hover {
-		background: #1d4ed8;
+		background: ${COLORS.primaryHover};
 	}
 
 	&:focus-visible {
-		outline: 2px solid #1d4ed8;
+		outline: 2px solid ${COLORS.primary};
 		outline-offset: 2px;
 	}
 `;
@@ -1756,7 +1756,7 @@ const DetailSection = styled.div`
 `;
 
 const DetailSectionLabel = styled.div`
-	color: #0f766e;
+	color: ${COLORS.primaryDark};
 	font-size: 11px;
 	font-weight: 800;
 	letter-spacing: 0;
@@ -1796,20 +1796,20 @@ const DetailRow = styled.div`
 const DetailOpenButton = styled.button`
 	border: 0;
 	border-radius: 8px;
-	background: #16a34a;
-	color: #ffffff;
+	background: ${COLORS.primary};
+	color: ${COLORS.white};
 	font-size: 13px;
 	font-weight: 700;
 	padding: 8px 10px;
 	cursor: pointer;
 	white-space: nowrap;
 	transition: all 0.2s ease;
-	box-shadow: 0 4px 12px rgba(22, 163, 74, 0.22);
+	box-shadow: 0 4px 12px rgba(0, 158, 113, 0.22);
 
 	&:hover {
-		background: #15803d;
+		background: ${COLORS.primaryHover};
 		transform: translateY(-1px);
-		box-shadow: 0 8px 18px rgba(22, 163, 74, 0.28);
+		box-shadow: 0 8px 18px rgba(0, 158, 113, 0.26);
 	}
 
 	&:focus-visible {

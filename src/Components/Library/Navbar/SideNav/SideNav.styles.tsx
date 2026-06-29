@@ -1,11 +1,12 @@
 import styled from 'styled-components';
 import { font_main } from '../../../../global.styles';
 import { Link } from 'react-router-dom';
+import { COLORS } from '../../../../constants/colors';
 
 const TOP_NAV_HEIGHT = '64px'; // Dynamic TopNav height
 
 export const DesktopWrapper = styled.div`
-	background-color: #fefefe;
+	background-color: ${COLORS.white};
 	display: flex;
 	flex-direction: column;
 	height: calc(100vh - ${TOP_NAV_HEIGHT}); /* Subtract dynamic TopNav height */
@@ -26,16 +27,16 @@ export const ProfileSection = styled.div`
 	flex-direction: column;
 	align-items: center;
 	padding: 24px 20px;
-	border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+	border-bottom: 1px solid ${COLORS.border};
 	gap: 12px;
-	background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+	background: ${COLORS.canvas};
 `;
 
 export const ProfileImage = styled.img`
 	width: 60px;
 	height: 60px;
 	border-radius: 50%;
-	border: 3px solid #22c55e;
+	border: 3px solid ${COLORS.primary};
 	object-fit: cover;
 `;
 
@@ -49,13 +50,13 @@ export const ProfileInfo = styled.div`
 export const ProfileName = styled.div`
 	font-size: 16px;
 	font-weight: 600;
-	color: #1a1a1a;
+	color: ${COLORS.textPrimary};
 	text-align: center;
 `;
 
 export const ProfileRole = styled.div`
 	font-size: 12px;
-	color: #666666;
+	color: ${COLORS.textSecondary};
 	text-transform: uppercase;
 	letter-spacing: 0.5px;
 `;
@@ -78,12 +79,12 @@ export const ProfileButton = styled.button<{ variant?: 'primary' | 'danger' }>`
 	cursor: pointer;
 	transition: all 0.2s ease;
 	background: ${(props) =>
-		props.variant === 'danger' ? '#ef4444' : '#22c55e'};
-	color: white;
+		props.variant === 'danger' ? COLORS.error : COLORS.primary};
+	color: ${COLORS.white};
 
 	&:hover {
-		background: ${(props) =>
-			props.variant === 'danger' ? '#dc2626' : '#16a34a'};
+	background: ${(props) =>
+			props.variant === 'danger' ? COLORS.errorDark : COLORS.primaryHover};
 		transform: translateY(-1px);
 		box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 	}
@@ -99,7 +100,7 @@ export const MobileBottomNav = styled.div`
 	bottom: 0;
 	left: 0;
 	right: 0;
-	background: linear-gradient(90deg, #065f46 0%, #047857 100%);
+	background: ${COLORS.primary};
 	border-top: 2px solid rgba(255, 255, 255, 0.25);
 	flex-direction: row;
 	justify-content: stretch;
@@ -122,7 +123,7 @@ export const MobileBottomNav = styled.div`
 		left: 0;
 		right: 0;
 		height: env(safe-area-inset-bottom);
-		background: linear-gradient(90deg, #065f46 0%, #047857 100%);
+		background: ${COLORS.primary};
 		z-index: -1;
 	}
 
@@ -161,12 +162,12 @@ export const MobileNavItem = styled(Link)`
 	}
 
 	&:hover {
-		color: white;
+		color: ${COLORS.white};
 		background-color: rgba(255, 255, 255, 0.08);
 	}
 
 	&.active {
-		color: white;
+		color: ${COLORS.white};
 		background-color: rgba(255, 255, 255, 0.15);
 		font-weight: 700;
 
@@ -177,7 +178,7 @@ export const MobileNavItem = styled(Link)`
 			left: 0;
 			right: 0;
 			height: 3px;
-			background-color: white;
+			background-color: ${COLORS.white};
 		}
 	}
 `;
@@ -215,7 +216,7 @@ export const MenuNav = styled.div`
 `;
 
 export const MenuItem = styled(Link)`
-	color: #22c55e;
+	color: ${COLORS.primary};
 	text-decoration: none;
 	font-size: ${font_main};
 	font-weight: 500;
@@ -228,14 +229,14 @@ export const MenuItem = styled(Link)`
 	border-left: 3px solid transparent;
 
 	&:hover {
-		background-color: rgba(34, 197, 94, 0.1);
+		background-color: ${COLORS.primaryLight};
 	}
 
 	&.active {
-		background-color: rgba(34, 197, 94, 0.15);
-		color: #16a34a;
+		background-color: ${COLORS.primaryLight};
+		color: ${COLORS.primaryDark};
 		font-weight: 600;
-		border-left-color: #22c55e;
+		border-left-color: ${COLORS.primary};
 	}
 
 	@media (max-width: 1024px) {
@@ -273,17 +274,17 @@ export const SimpleList = styled.ul`
 export const SimpleListItem = styled.li`
 	padding: 6px 0;
 	font-size: 13px;
-	color: #666666;
+	color: ${COLORS.textSecondary};
 	cursor: pointer;
 	transition: color 0.2s ease;
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
 	gap: 8px;
-	border-bottom: 1px solid #f0f0f0;
+	border-bottom: 1px solid ${COLORS.borderLight};
 
 	&:hover {
-		color: #22c55e;
+		color: ${COLORS.primary};
 	}
 `;
 
@@ -297,7 +298,7 @@ export const ItemText = styled.span`
 export const RemoveItemButton = styled.button`
 	border: none;
 	background: transparent;
-	color: #9ca3af;
+	color: ${COLORS.textMuted};
 	cursor: pointer;
 	font-size: 14px;
 	padding: 2px 4px;
@@ -306,10 +307,10 @@ export const RemoveItemButton = styled.button`
 `;
 
 export const PortfolioCard = styled.div`
-	border: 1px solid #cfdbe5;
+	border: 1px solid ${COLORS.border};
 	border-radius: 12px;
 	padding: 12px;
-	background: linear-gradient(180deg, #f4f8fb 0%, #ffffff 100%);
+	background: ${COLORS.white};
 	display: flex;
 	flex-direction: column;
 	gap: 8px;
@@ -326,30 +327,30 @@ export const PortfolioPlan = styled.div`
 	font-size: 15px;
 	font-weight: 800;
 	line-height: 1.2;
-	color: #111827;
+	color: ${COLORS.textPrimary};
 `;
 
 export const PortfolioPlanSub = styled.div`
 	font-size: 13px;
 	font-weight: 600;
 	line-height: 1.35;
-	color: #475569;
+	color: ${COLORS.gray600};
 `;
 
 export const PortfolioUsage = styled.div`
 	font-size: 13px;
 	font-weight: 500;
-	color: #475569;
+	color: ${COLORS.gray600};
 	line-height: 1.4;
 `;
 
 export const PortfolioUsageBadge = styled.div`
 	font-size: 12px;
 	font-weight: 700;
-	color: #334155;
+	color: ${COLORS.gray700};
 	line-height: 1.2;
-	background: #e8eef3;
-	border: 1px solid #d6e0e8;
+	background: ${COLORS.borderLight};
+	border: 1px solid ${COLORS.border};
 	border-radius: 999px;
 	padding: 4px 10px;
 	white-space: nowrap;
@@ -358,21 +359,21 @@ export const PortfolioUsageBadge = styled.div`
 export const ProgressTrack = styled.div`
 	height: 7px;
 	border-radius: 999px;
-	background: #dfe7ee;
+	background: ${COLORS.border};
 	overflow: hidden;
 `;
 
 export const ProgressFill = styled.div<{ $percent: number }>`
 	height: 100%;
 	width: ${({ $percent }) => `${$percent}%`};
-	background: linear-gradient(90deg, #10b981 0%, #22c55e 100%);
+	background: ${COLORS.gradientPrimary};
 	transition: width 0.2s ease;
 `;
 
 export const ManagePlanButton = styled.button`
-	border: 1px solid #cfd8e3;
-	background: #ffffff;
-	color: #0f172a;
+	border: 1px solid ${COLORS.border};
+	background: ${COLORS.white};
+	color: ${COLORS.textPrimary};
 	font-size: 13px;
 	font-weight: 600;
 	border-radius: 10px;
@@ -386,8 +387,8 @@ export const ManagePlanButton = styled.button`
 		transform 0.2s ease;
 
 	&:hover {
-		background: #f8fafc;
-		border-color: #b9c8d6;
+		background: ${COLORS.canvas};
+		border-color: ${COLORS.borderDark};
 		transform: translateY(-1px);
 	}
 `;
@@ -398,7 +399,7 @@ export const Section = styled.div`
 	gap: 8px;
 	padding: 14px 16px;
 	flex-shrink: 0; /* Prevent shrinking */
-	border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+	border-bottom: 1px solid ${COLORS.border};
 
 	&:last-of-type {
 		border-bottom: none;
@@ -406,7 +407,7 @@ export const Section = styled.div`
 
 	@media (max-width: 1024px) {
 		padding: 20px;
-		border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+		border-bottom: 1px solid ${COLORS.border};
 		border-right: none;
 		min-width: auto;
 		flex: 0 0 auto;
@@ -422,7 +423,7 @@ export const SectionTitle = styled.h3`
 	font-size: 12px;
 	font-weight: 600;
 	text-transform: uppercase;
-	color: #999999;
+	color: ${COLORS.textMuted};
 	margin: 0 0 2px 0;
 	letter-spacing: 0.5px;
 
@@ -437,7 +438,7 @@ export const SectionContent = styled.div<{ $scrollable?: boolean }>`
 	flex-direction: column;
 	gap: 8px;
 	font-size: ${font_main};
-	color: black;
+	color: ${COLORS.textPrimary};
 	max-height: ${({ $scrollable = true }) => ($scrollable ? '200px' : 'none')};
 	overflow-y: ${({ $scrollable = true }) => ($scrollable ? 'auto' : 'visible')};
 	flex-shrink: 0; /* Prevent shrinking */

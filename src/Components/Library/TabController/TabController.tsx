@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { setActiveTab } from '../../../Redux/Slices/appSlice';
 import { RootState } from '../../../Redux/store/store';
 import { USER_ROLES } from '../../../constants/roles';
+import { COLORS } from '../../../constants/colors';
 import { RoleCapabilities } from '../../../utils/permissions';
 import { getEffectiveSubscriptionPlanId } from '../../../utils/subscriptionUtils';
 import { useSearchParams } from 'react-router-dom';
@@ -179,13 +180,13 @@ export const TabController: React.FC<TabsContextProps> = ({
 									borderRadius: '10px',
 									border:
 										activeTab === tab.value
-											? '1px solid #15803d'
+											? `1px solid ${COLORS.primaryDark}`
 											: '1px solid #d1d5db',
 									background:
 										activeTab === tab.value
-											? '#dcfce7'
-											: '#ffffff',
-									color: activeTab === tab.value ? '#15803d' : '#334155',
+											? COLORS.primaryLight
+											: COLORS.white,
+									color: activeTab === tab.value ? COLORS.primaryDark : '#334155',
 									fontWeight: 700,
 									fontSize: '0.82rem',
 									cursor: 'pointer',

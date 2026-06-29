@@ -48,6 +48,7 @@ export interface PropertyEditHandlers {
 export interface DetailsTabProps {
 	property: Property;
 	teamMembers: any[];
+	familyMembers?: any[];
 	propertyTasks?: any[];
 	propertyDevices?: any[];
 	maintenanceHistoryRecords?: any[];
@@ -136,6 +137,7 @@ export interface RequestsTabProps {
 export interface PropertyDetailSectionProps {
 	property: Property;
 	teamMembers: any[];
+	familyMembers?: any[];
 }
 
 // Modal-related types (re-exported for convenience)

@@ -121,7 +121,8 @@ export const TabSystem = ({
 				return (
 					<DetailsTab
 						property={property}
-						teamMembers={[]}
+						teamMembers={teamMembers}
+						familyMembers={familyMembers}
 						propertyTasks={propertyTasks}
 						propertyDevices={propertyDevices}
 						maintenanceHistoryRecords={maintenanceHistoryRecords}
@@ -149,6 +150,7 @@ export const TabSystem = ({
 						subscription={currentUser?.subscription}
 						permissions={permissions}
 						onAddMaintenanceHistory={handleAddMaintenanceHistory}
+						onUpdateMaintenanceHistory={handleUpdateMaintenanceHistory}
 						onRecommendationAction={
 							handlePropertyScanAction ||
 							(() => {

@@ -606,7 +606,7 @@ export const HouseRoofPiece = styled.span`
 	top: 1px;
 	width: 48px;
 	height: 48px;
-	background: #16a34a;
+	background: ${COLORS.primary};
 	transform: rotate(45deg);
 	border-radius: 6px 6px 2px 6px;
 	animation: ${houseDisassembleRoof} 1.8s ease-in-out infinite;
@@ -633,7 +633,7 @@ export const HouseBlockPiece = styled.span<{
 	width: 19px;
 	height: 13px;
 	border-radius: 4px;
-	background: #16a34a;
+	background: ${COLORS.primary};
 	left: ${({ $slot }) =>
 		$slot === 'one' || $slot === 'three' ? '6px' : '27px'};
 	top: ${({ $slot }) =>
@@ -649,7 +649,7 @@ export const HouseBasePiece = styled.span`
 	bottom: -5px;
 	width: 56px;
 	height: 5px;
-	background: #d1fae5;
+	background: ${COLORS.successLight};
 	border-radius: 999px;
 	opacity: 0.9;
 `;

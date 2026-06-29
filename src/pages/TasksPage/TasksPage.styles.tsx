@@ -1,5 +1,6 @@
 import styled from 'styled-components';
 import { TableContainer } from '../../Components/Library/ReusableTable/ReusableTable.styles';
+import { COLORS } from '../../constants/colors';
 
 export const Wrapper = styled.div`
 	display: flex;
@@ -86,16 +87,16 @@ export const AddTaskButton = styled.button`
 	padding: 9px 15px;
 	border: none;
 	border-radius: 10px;
-	background: #10b981;
-	color: #ffffff;
+	background: ${COLORS.primary};
+	color: ${COLORS.textInverse};
 	font-size: 0.85rem;
 	font-weight: 800;
-	box-shadow: 0 8px 18px rgba(16, 185, 129, 0.2);
+	box-shadow: 0 8px 18px rgba(4, 120, 87, 0.2);
 	cursor: pointer;
 	white-space: nowrap;
 
 	&:hover {
-		background: #059669;
+		background: ${COLORS.primaryHover};
 	}
 
 	@media (max-width: 1024px) {
@@ -187,8 +188,8 @@ export const FilterSection = styled.div`
 
 		&:focus {
 			outline: none;
-			border-color: #3b82f6;
-			box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+			border-color: ${COLORS.secondary};
+			box-shadow: 0 0 0 3px ${COLORS.secondaryLight};
 		}
 	}
 `;
@@ -291,14 +292,14 @@ export const MobileActionButton = styled.button<{ $variant?: 'primary' | 'second
 	min-height: 42px;
 	cursor: pointer;
 	background: ${(props) => {
-		if (props.$variant === 'success') return '#dcfce7';
-		if (props.$variant === 'secondary') return '#e0e7ff';
-		return '#eff6ff';
+		if (props.$variant === 'success') return COLORS.successLight;
+		if (props.$variant === 'secondary') return COLORS.secondaryLight;
+		return COLORS.infoLight;
 	}};
 	color: ${(props) => {
-		if (props.$variant === 'success') return '#166534';
-		if (props.$variant === 'secondary') return '#4338ca';
-		return '#1d4ed8';
+		if (props.$variant === 'success') return COLORS.successDark;
+		if (props.$variant === 'secondary') return COLORS.secondaryDark;
+		return COLORS.infoDark;
 	}};
 	width: 100%;
 
@@ -348,9 +349,9 @@ export const QuickFilterChip = styled.button<{ $active?: boolean }>`
 	height: 32px;
 	padding: 0 10px;
 	border-radius: 999px;
-	border: 1px solid ${(props) => (props.$active ? '#2563eb' : '#d1d5db')};
-	background: ${(props) => (props.$active ? '#dbeafe' : '#ffffff')};
-	color: ${(props) => (props.$active ? '#1d4ed8' : '#374151')};
+	border: 1px solid ${(props) => (props.$active ? COLORS.secondaryHover : COLORS.gray300)};
+	background: ${(props) => (props.$active ? COLORS.secondaryLight : COLORS.bgWhite)};
+	color: ${(props) => (props.$active ? COLORS.infoDark : COLORS.gray700)};
 	font-size: 0.78rem;
 	font-weight: 700;
 	cursor: pointer;
@@ -374,8 +375,8 @@ export const UndoToast = styled.div`
 
 export const UndoButton = styled.button`
 	border: none;
-	background: #2563eb;
-	color: #ffffff;
+	background: ${COLORS.secondaryHover};
+	color: ${COLORS.textInverse};
 	border-radius: 8px;
 	padding: 6px 10px;
 	font-size: 0.78rem;

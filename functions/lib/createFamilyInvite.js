@@ -44,6 +44,8 @@ if (!admin.apps.length) {
     admin.initializeApp();
 }
 const db = admin.firestore();
+const normalizeFamilyMemberRole = (role) => (role === 'admin' ? 'admin' : 'member');
+const getFamilyMembershipRoles = (role) => role === 'admin' ? ['member', 'admin'] : ['member'];
 exports.createFamilyInvite = functions
     .runWith({ secrets: ['RESEND_API_KEY'] })
     .https.onCall(async (data, context) => {
@@ -55,7 +57,7 @@ exports.createFamilyInvite = functions
     const email = String((data === null || data === void 0 ? void 0 : data.email) || '').trim();
     const firstName = String((data === null || data === void 0 ? void 0 : data.firstName) || '').trim();
     const lastName = String((data === null || data === void 0 ? void 0 : data.lastName) || '').trim();
-    const role = ((data === null || data === void 0 ? void 0 : data.role) || 'member');
+    const role = normalizeFamilyMemberRole((data === null || data === void 0 ? void 0 : data.role) || 'member');
     if (!accountId || !email || !firstName || !lastName) {
         throw new functions.https.HttpsError('invalid-argument', 'accountId, email, firstName, and lastName are required');
     }
@@ -122,14 +124,25 @@ exports.createFamilyInvite = functions
             lastName,
             role,
             accountId,
+            isAccountOwner: false,
+            isTeamMemberAccount: false,
+            onboardingCompleted: true,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        await db
+            .collection('accountMemberships')
+            .doc(`${accountId}_${userId}`)
+            .set({
+            accountId,
+            userId,
+            roles: getFamilyMembershipRoles(role),
+            status: 'active',
             createdAt: admin.firestore.FieldValue.serverTimestamp(),
             updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         });
         // Add user to family memberIds
-        await db
-            .collection('familyAccounts')
-            .doc(accountId)
-            .update({
+        await db.collection('familyAccounts').doc(accountId).update({
             memberIds: admin.firestore.FieldValue.arrayUnion(userId),
             updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         });

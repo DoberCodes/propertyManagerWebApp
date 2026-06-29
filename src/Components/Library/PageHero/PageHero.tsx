@@ -1,5 +1,6 @@
 import React from 'react';
 import styled from 'styled-components';
+import { COLORS } from '../../../constants/colors';
 
 // ---------------------------------------------------------------------------
 // Styled components
@@ -23,8 +24,8 @@ const HeroShell = styled.div<{
 		$imageUrl
 			? `url(${$imageUrl})`
 			: $theme === 'slate'
-				? 'linear-gradient(135deg, #0f172a 0%, #1e293b 45%, #334155 100%)'
-				: 'linear-gradient(135deg, #166534 0%, #15803d 50%, #16a34a 100%)'};
+				? `linear-gradient(135deg, ${COLORS.slate} 0%, #111827 100%)`
+				: COLORS.gradientPrimary};
 	background-size: ${({ $imageUrl, $backgroundSize }) =>
 		$imageUrl ? $backgroundSize : 'auto'};
 	background-repeat: no-repeat;

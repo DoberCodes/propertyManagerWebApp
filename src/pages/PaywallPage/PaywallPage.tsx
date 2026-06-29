@@ -41,6 +41,7 @@ import {
 	MobilePromoPanel,
 } from './PaywallPage.styles';
 import { SUBSCRIPTION_PLANS } from '../../constants/subscriptions';
+import { COLORS } from '../../constants/colors';
 import { SubscriptionData } from '../../utils/subscriptionUtils';
 import { ScheduledSubscriptionBanner } from '../../Components/ScheduledSubscriptionBanner/ScheduledSubscriptionBanner';
 import {
@@ -450,7 +451,7 @@ export const PaywallPage: React.FC<PaywallPageProps> = ({
 		appliedPromoCode ? (
 			<PromoText
 				layout={layoutMode}
-				style={{ color: '#22c55e', fontWeight: 'bold' }}>
+				style={{ color: COLORS.successDark, fontWeight: 'bold' }}>
 				Promo code "{appliedPromoCode.toUpperCase()}" has been applied!
 			</PromoText>
 		) : (
@@ -475,7 +476,10 @@ export const PaywallPage: React.FC<PaywallPageProps> = ({
 					<PromoText
 						layout={layoutMode}
 						style={{
-							color: promoHintType === 'success' ? '#22c55e' : '#dc3545',
+							color:
+								promoHintType === 'success'
+									? COLORS.successDark
+									: COLORS.errorDark,
 							marginBottom: '12px',
 						}}>
 						{promoHint}

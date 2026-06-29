@@ -7,13 +7,13 @@ import {
 	NavTitle,
 	NavWrapper,
 } from './LandingNavbar.styles';
-import TitleName from '../../../Assets/images/TitleName.png';
+import TitleName from '../../../Assets/TitleName.png';
 
 export const LandingNavbar = () => {
 	return (
 		<NavWrapper>
 			<NavTitle>
-				<img src={TitleName} alt='Maintley' />
+				<img src={TitleName} alt='Maintley App Logo' />
 			</NavTitle>
 			<ButtonWrapper>
 				<NavAnchor
@@ -27,11 +27,11 @@ export const LandingNavbar = () => {
 					About
 				</NavAnchor>
 				<NavAnchor
-					to='#Mission'
+					to='#MaintleyLoop'
 					scroll={(el) =>
 						el.scrollIntoView({ behavior: 'auto', block: 'start' })
 					}>
-					Mission
+					How It Works
 				</NavAnchor>
 				<NavAnchor
 					to='#Features'

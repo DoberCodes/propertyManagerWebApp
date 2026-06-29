@@ -72,10 +72,10 @@ const cardFeatureHighlights: Record<string, string[]> = {
 };
 
 const bestForByPlanId: Record<string, string> = {
-	homeowner: 'Best for: track your home',
-	homeowner_plus: 'Best for: stay ahead of maintenance',
-	property: 'Best for: manage multiple properties',
-	portfolio: 'Best for: run a property operation',
+	homeowner: 'Best for: organizing one home’s essential records',
+	homeowner_plus: 'Best for: turning records into maintenance guidance',
+	property: 'Best for: managing several properties in one place',
+	portfolio: 'Best for: coordinating a portfolio with your team',
 };
 
 const formatLimit = (value: number, unit: string) =>

@@ -5,10 +5,8 @@ import {
 	submitTaskCompletion,
 	CompletionFile,
 } from '../../Redux/Slices/propertyDataSlice';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { storage } from '../../config/firebase';
+import { apiSlice } from '../../Redux/API/apiSlice';
 import { GenericModal, FormGroup } from '../Library';
-import { calculateNextDueDate } from '../../utils/recurringTaskUtils';
 import { Task } from '../../types/Task.types';
 import { Label, Input, ErrorMessage } from './TaskCompletionModal.styles';
 import { FileUploader } from '../Library/FileUploader';
@@ -18,18 +16,20 @@ import {
 	hasCostData,
 	toNumberOrUndefined,
 } from '../../utils/financialUtils';
+import { useSubmitTaskCompletionMutation } from '../../Redux/API/taskSlice';
 import {
-	useCreateTaskMutation,
-	useSubmitTaskCompletionMutation,
-} from '../../Redux/API/taskSlice';
-import { useGetPropertiesQuery } from '../../Redux/API/propertySlice';
+	useGetPropertiesQuery,
+	useUpdatePropertyMutation,
+} from '../../Redux/API/propertySlice';
 import { useCreateNotificationMutation } from '../../Redux/API/notificationSlice';
 import { useAppFeedback } from '../Library/AppFeedback/AppFeedbackProvider';
-import { assertStorageQuotaForFiles } from '../../utils/storageQuota';
-import { signalStorageUsageUpdated } from '../../utils/storageUsageEvents';
 import { getEffectiveSubscriptionPlanId } from '../../utils/subscriptionUtils';
 import { canApproveTaskCompletions } from '../../utils/permissions';
 import { TaskDocumentsPanel } from '../TaskDocumentsPanel/TaskDocumentsPanel';
+import {
+	preparePropertyMemoryDocumentUploads,
+	startPdfDocumentKnowledgeProcessing,
+} from '../../propertyKnowledge/propertyDocumentUploads';
 
 interface TaskCompletionModalProps {
 	taskId: string;
@@ -68,7 +68,7 @@ export const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
 	const [isSubmitting, setIsSubmitting] = useState(false);
 
 	const [submitCompletion] = useSubmitTaskCompletionMutation();
-	const [createTask] = useCreateTaskMutation();
+	const [updateProperty] = useUpdatePropertyMutation();
 	const [createNotification] = useCreateNotificationMutation();
 	const { data: allProperties = [] } = useGetPropertiesQuery();
 	const feedback = useAppFeedback();
@@ -158,23 +158,71 @@ export const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
 
 			let completionFileData: CompletionFile | undefined;
 			if (selectedFile) {
-				// Only upload when a file is provided.
-				await assertStorageQuotaForFiles(selectedFile, {
-					propertyId: task?.propertyId,
+				if (!task?.propertyId || !taskProperty) {
+					throw new Error('Property details are required before uploading a completion document.');
+				}
+				const propertyDocuments = Array.isArray(taskProperty.documents)
+					? taskProperty.documents
+					: [];
+				const propertyKnowledgeSuggestions = Array.isArray(
+					taskProperty.knowledgeSuggestions,
+				)
+					? taskProperty.knowledgeSuggestions
+					: [];
+				const {
+					documents: savedDocuments,
+					knowledgeSuggestions,
+					pdfDocuments,
+				} = await preparePropertyMemoryDocumentUploads({
+					files: [selectedFile],
+					propertyId: task.propertyId,
+					category: 'other',
+					property: taskProperty,
 				});
-				const fileRef = ref(
-					storage,
-					`task-completions/${currentUser!.id}/${taskId}/${Date.now()}-${selectedFile.name}`,
-				);
-				await uploadBytes(fileRef, selectedFile);
-				const downloadUrl = await getDownloadURL(fileRef);
-				signalStorageUsageUpdated();
+				await updateProperty({
+					id: task.propertyId,
+					updates: {
+						documents: [...propertyDocuments, ...savedDocuments],
+						knowledgeSuggestions: [
+							...propertyKnowledgeSuggestions,
+							...knowledgeSuggestions,
+						],
+					},
+				}).unwrap();
+				startPdfDocumentKnowledgeProcessing({
+					propertyId: task.propertyId,
+					documents: pdfDocuments,
+					notifyScanStarted: (document) =>
+						createNotification({
+							userId: currentUser!.id,
+							type: 'document_scan_started',
+							title: 'Document Review Started',
+							message: `Maintley is reviewing ${document.fileName || document.name} for suggested details.`,
+							data: {
+								propertyId: task.propertyId,
+								propertyTitle: taskProperty.title,
+								documentId: document.id,
+								documentName: document.fileName || document.name,
+							},
+							status: 'unread',
+							actionUrl: `/properties/${task.propertyId}`,
+							createdAt: new Date().toISOString(),
+							updatedAt: new Date().toISOString(),
+						}).unwrap(),
+					onProcessed: () => {
+						dispatch(apiSlice.util.invalidateTags(['Properties']));
+					},
+					onError: () => {
+						dispatch(apiSlice.util.invalidateTags(['Properties']));
+					},
+				});
+				const savedDocument = savedDocuments[0];
 				completionFileData = {
-					name: selectedFile.name,
-					url: downloadUrl,
-					size: selectedFile.size,
-					type: selectedFile.type,
-					uploadedAt: new Date().toISOString(),
+					name: savedDocument?.fileName || savedDocument?.name || selectedFile.name,
+					url: savedDocument?.fileUrl || savedDocument?.url || '',
+					size: savedDocument?.size || selectedFile.size,
+					type: savedDocument?.type || selectedFile.type,
+					uploadedAt: savedDocument?.uploadedAt || new Date().toISOString(),
 				};
 			}
 
@@ -229,117 +277,6 @@ export const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
 					}).unwrap();
 				} catch (notifError) {
 					console.warn('Failed to create approval-required notification:', notifError);
-				}
-			}
-
-			if (
-				task?.isRecurring &&
-				task?.recurrenceFrequency &&
-				task?.recurrenceInterval
-			) {
-				try {
-					const nextDueDate = calculateNextDueDate(
-						completionDate || new Date().toISOString().split('T')[0],
-						task.recurrenceFrequency,
-						task.recurrenceInterval,
-						task.recurrenceCustomUnit,
-					);
-
-					// Build recurring task object, conditionally adding optional fields
-					const recurringTaskData: any = {
-						propertyId: task.propertyId,
-						title: task.title,
-						dueDate: nextDueDate,
-						status: 'Initiated',
-						isRecurring: true,
-						recurrenceFrequency: task.recurrenceFrequency,
-						recurrenceInterval: task.recurrenceInterval,
-						parentTaskId: task.id,
-						lastRecurrenceDate:
-							completionDate || new Date().toISOString().split('T')[0],
-					};
-
-					// Conditionally add optional fields only if they have values
-					if (task.notes) recurringTaskData.notes = task.notes;
-					if (task.category) recurringTaskData.category = task.category;
-					if (task.location) recurringTaskData.location = task.location;
-					if (task.priority) recurringTaskData.priority = task.priority;
-					if (task.assignee) recurringTaskData.assignee = task.assignee;
-					if (task.financials) recurringTaskData.financials = task.financials;
-					recurringTaskData.requiresWorkOrder = Boolean(task.requiresWorkOrder);
-					if (task.recurrenceCustomUnit)
-						recurringTaskData.recurrenceCustomUnit = task.recurrenceCustomUnit;
-
-					await createTask(recurringTaskData).unwrap();
-
-					// Create notification for the automatically generated recurring task
-					try {
-						const recurrenceText =
-							task.recurrenceFrequency === 'custom'
-								? `every ${task.recurrenceInterval} ${task.recurrenceCustomUnit}`
-								: `every ${task.recurrenceFrequency}`;
-
-						await createNotification({
-							userId: currentUser!.id,
-							type: 'task_created',
-							title: 'Recurring Task Generated',
-							message: `New recurring task "${task.title}" has been automatically created (${recurrenceText})`,
-							data: {
-								taskTitle: task.title,
-								propertyId: task.propertyId,
-								isRecurring: true,
-								recurrenceFrequency: task.recurrenceFrequency,
-								recurrenceInterval: task.recurrenceInterval,
-								parentTaskId: task.id,
-								autoGenerated: true,
-							},
-							status: 'unread',
-							actionUrl: `/properties/${task.propertyId}`,
-							createdAt: new Date().toISOString(),
-							updatedAt: new Date().toISOString(),
-						}).unwrap();
-					} catch (notifError) {
-						console.warn(
-							'Failed to create recurring task notification:',
-							notifError,
-						);
-						// Don't fail the completion if notification fails
-					}
-				} catch (recurringError: any) {
-					console.warn(
-						'❌ Failed to create recurring task copy:',
-						recurringError,
-					);
-					console.warn('❌ Recurring error details:', {
-						message: recurringError.message,
-						stack: recurringError.stack,
-						taskData: task,
-					});
-					try {
-						await createNotification({
-							userId: currentUser!.id,
-							type: 'task_recurring_generation_failed',
-							title: 'Recurring Task Generation Failed',
-							message: `Automatic recurring task creation failed for "${task.title}". Please review and create the next task manually.`,
-							data: {
-								taskId: task.id,
-								taskTitle: task.title,
-								propertyId: task.propertyId,
-								recurrenceFrequency: task.recurrenceFrequency,
-								recurrenceInterval: task.recurrenceInterval,
-							},
-							status: 'unread',
-							actionUrl: task.propertyId ? `/properties/${task.propertyId}` : undefined,
-							createdAt: new Date().toISOString(),
-							updatedAt: new Date().toISOString(),
-						}).unwrap();
-					} catch (notifError) {
-						console.warn(
-							'Failed to create recurring generation failure notification:',
-							notifError,
-						);
-					}
-					// Don't fail the completion if recurring creation fails
 				}
 			}
 
@@ -524,8 +461,8 @@ export const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
 				label='Upload Completion Document'
 				helperText={
 					requiresWorkOrder
-						? 'Required: JPG, PNG, GIF, WEBP, PDF (max 25MB)'
-						: 'Optional: JPG, PNG, GIF, WEBP, PDF (max 25MB)'
+						? 'Required: JPG, PNG, GIF, WEBP, PDF (max 10MB)'
+						: 'Optional: JPG, PNG, GIF, WEBP, PDF (max 10MB)'
 				}
 				accept='image/jpeg,image/jpg,image/png,image/gif,image/webp,application/pdf'
 				allowedTypes={[
@@ -536,7 +473,7 @@ export const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
 					'image/webp',
 					'application/pdf',
 				]}
-				maxSizeBytes={25 * 1024 * 1024}
+				maxSizeBytes={10 * 1024 * 1024}
 				required={requiresWorkOrder}
 				setFile={(file) => {
 					setSelectedFile(file);

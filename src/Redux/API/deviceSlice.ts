@@ -134,6 +134,35 @@ const filterDevicesByAllowedProperties = (
 	);
 };
 
+const readDeviceQuery = async (...clauses: ReturnType<typeof where>[]) => {
+	const snapshot = await getDocs(query(collection(db, 'devices'), ...clauses));
+	return snapshot.docs
+		.map((deviceDoc) => docToData(deviceDoc) as Device)
+		.filter(Boolean) as Device[];
+};
+
+const getDevicesForAccount = async (
+	accountId: string,
+	extraClauses: ReturnType<typeof where>[] = [],
+	legacyFilter?: (device: Device) => boolean,
+) => {
+	const [accountScopedDevices, legacyUserScopedDevices] = await Promise.all([
+		readDeviceQuery(where('accountId', '==', accountId), ...extraClauses),
+		readDeviceQuery(where('userId', '==', accountId)),
+	]);
+
+	const filteredLegacyDevices = legacyFilter
+		? legacyUserScopedDevices.filter(legacyFilter)
+		: legacyUserScopedDevices;
+
+	return [...accountScopedDevices, ...filteredLegacyDevices];
+};
+
+const uniqueDevicesById = (devices: Device[]) =>
+	Array.from(
+		new Map(devices.map((device) => [device.id, device])).values(),
+	) as Device[];
+
 const deviceSlice = apiSlice.injectEndpoints({
 	endpoints: (builder) => ({
 		// Device endpoints
@@ -153,20 +182,15 @@ const deviceSlice = apiSlice.injectEndpoints({
 
 					const devices: Device[] = [];
 					for (const accountId of accessibleAccountIds) {
-						const q = query(
-							collection(db, 'devices'),
-							where('accountId', '==', accountId),
-							where('location.propertyId', '==', propertyId),
+						const batch = await getDevicesForAccount(
+							accountId,
+							[where('location.propertyId', '==', propertyId)],
+							(device) =>
+								String(device.location?.propertyId || '') === propertyId,
 						);
-						const querySnapshot = await getDocs(q);
-						const batch = querySnapshot.docs
-							.map((doc) => docToData(doc) as Device)
-							.filter(Boolean) as Device[];
 						devices.push(...batch);
 					}
-					const uniqueDevices = Array.from(
-						new Map(devices.map((device) => [device.id, device])).values(),
-					) as Device[];
+					const uniqueDevices = uniqueDevicesById(devices);
 					return {
 						data: filterDevicesByAllowedProperties(
 							uniqueDevices,
@@ -192,20 +216,14 @@ const deviceSlice = apiSlice.injectEndpoints({
 						await getTeamMemberAccessForCurrentUser(accessibleAccountIds);
 					const devices: Device[] = [];
 					for (const accountId of accessibleAccountIds) {
-						const q = query(
-							collection(db, 'devices'),
-							where('accountId', '==', accountId),
-							where('location.unitId', '==', unitId),
+						const batch = await getDevicesForAccount(
+							accountId,
+							[where('location.unitId', '==', unitId)],
+							(device) => String(device.location?.unitId || '') === unitId,
 						);
-						const querySnapshot = await getDocs(q);
-						const batch = querySnapshot.docs
-							.map((doc) => docToData(doc) as Device)
-							.filter(Boolean) as Device[];
 						devices.push(...batch);
 					}
-					const uniqueDevices = Array.from(
-						new Map(devices.map((device) => [device.id, device])).values(),
-					) as Device[];
+					const uniqueDevices = uniqueDevicesById(devices);
 					return {
 						data: filterDevicesByAllowedProperties(
 							uniqueDevices,
@@ -369,19 +387,10 @@ const deviceSlice = apiSlice.injectEndpoints({
 						await getTeamMemberAccessForCurrentUser(accessibleAccountIds);
 					const devices: Device[] = [];
 					for (const accountId of accessibleAccountIds) {
-						const q = query(
-							collection(db, 'devices'),
-							where('accountId', '==', accountId),
-						);
-						const querySnapshot = await getDocs(q);
-						const batch = querySnapshot.docs
-							.map((doc) => docToData(doc) as Device)
-							.filter(Boolean) as Device[];
+						const batch = await getDevicesForAccount(accountId);
 						devices.push(...batch);
 					}
-					const uniqueDevices = Array.from(
-						new Map(devices.map((device) => [device.id, device])).values(),
-					) as Device[];
+					const uniqueDevices = uniqueDevicesById(devices);
 					return {
 						data: filterDevicesByAllowedProperties(
 							uniqueDevices,

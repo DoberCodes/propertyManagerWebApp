@@ -1,4 +1,5 @@
 import styled from 'styled-components';
+import { COLORS } from '../../constants/colors';
 
 export const Wrapper = styled.div`
 	display: flex;
@@ -29,7 +30,7 @@ export const PageHeader = styled.div`
 	border-radius: 20px;
 	gap: 20px;
 	padding-bottom: 20px;
-	border-bottom: 2px solid #e5e7eb;
+	border-bottom: 2px solid ${COLORS.border};
 	flex-wrap: wrap;
 
 	@media (max-width: 480px) {
@@ -43,7 +44,7 @@ export const PageHeader = styled.div`
 export const PageTitle = styled.h1`
 	font-size: 28px;
 	font-weight: 700;
-	color: #1f2937;
+	color: ${COLORS.textPrimary};
 	margin: 0;
 
 	@media (max-width: 1024px) {
@@ -85,7 +86,7 @@ export const DesktopPropertyFilters = styled.div`
 
 export const CompactResultCount = styled.div`
 	display: none;
-	color: #64748b;
+	color: ${COLORS.textSecondary};
 	font-size: 0.8rem;
 	font-weight: 700;
 
@@ -109,7 +110,7 @@ export const PropertyFilterField = styled.label`
 	display: flex;
 	flex-direction: column;
 	gap: 6px;
-	color: #475569;
+	color: ${COLORS.gray600};
 	font-size: 12px;
 	font-weight: 800;
 
@@ -124,16 +125,16 @@ export const PropertyFilterSelect = styled.select`
 	width: 100%;
 	min-height: 42px;
 	padding: 8px 12px;
-	border: 1px solid #cbd5e1;
+	border: 1px solid ${COLORS.gray300};
 	border-radius: 10px;
-	background: #ffffff;
-	color: #0f172a;
+	background: ${COLORS.white};
+	color: ${COLORS.textPrimary};
 	font: inherit;
 
 	&:focus {
 		outline: none;
-		border-color: #22c55e;
-		box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.12);
+		border-color: ${COLORS.primary};
+		box-shadow: 0 0 0 3px ${COLORS.primaryLight};
 	}
 `;
 
@@ -152,8 +153,8 @@ export const SummaryStatsGrid = styled.div`
 `;
 
 export const SummaryCard = styled.div`
-	background: #ffffff;
-	border: 1px solid #e5e7eb;
+	background: ${COLORS.white};
+	border: 1px solid ${COLORS.border};
 	border-radius: 12px;
 	padding: 14px 16px;
 	display: flex;
@@ -178,13 +179,13 @@ export const SummaryValue = styled.div`
 	font-size: 22px;
 	font-weight: 700;
 	line-height: 1;
-	color: #111827;
+	color: ${COLORS.gray900};
 `;
 
 export const SummaryLabel = styled.div`
 	font-size: 12px;
 	font-weight: 600;
-	color: #4b5563;
+	color: ${COLORS.gray600};
 	margin-top: 4px;
 `;
 
@@ -264,7 +265,7 @@ export const GroupHeader = styled.div`
 export const GroupName = styled.h2`
 	font-size: 18px;
 	font-weight: 600;
-	color: #1f2937;
+	color: ${COLORS.textPrimary};
 	margin: 0;
 	flex: 1;
 	cursor: default;
@@ -313,7 +314,7 @@ export const GroupIconBadge = styled.span<{
 
 export const GroupDescription = styled.p`
 	margin: 0;
-	color: #64748b;
+	color: ${COLORS.textSecondary};
 	font-size: 12px;
 	line-height: 1.35;
 	max-width: 680px;
@@ -333,15 +334,15 @@ export const GroupCountBadge = styled.span`
 	border-radius: 999px;
 	font-size: 11px;
 	font-weight: 700;
-	background: #ecfdf3;
-	color: #047857;
+	background: ${COLORS.primaryLight};
+	color: ${COLORS.primary};
 `;
 
 export const GroupNameInput = styled.input`
 	font-size: 20px;
 	font-weight: 600;
 	color: black;
-	border: 2px solid #22c55e;
+	border: 2px solid ${COLORS.primary};
 	border-radius: 4px;
 	padding: 8px 12px;
 	font-family: inherit;
@@ -349,7 +350,7 @@ export const GroupNameInput = styled.input`
 
 	&:focus {
 		outline: none;
-		border-color: #16a34a;
+		border-color: ${COLORS.primaryHover};
 	}
 
 	@media (max-width: 1024px) {
@@ -391,7 +392,7 @@ export const GroupActions = styled.div`
 export const GroupActionButton = styled.button`
 	background: transparent;
 	border: none;
-	color: #6b7280;
+	color: ${COLORS.textSecondary};
 	font-size: 18px;
 	width: 32px;
 	height: 32px;
@@ -403,7 +404,7 @@ export const GroupActionButton = styled.button`
 	transition: color 0.2s ease;
 
 	&:hover {
-		color: #22c55e;
+		color: ${COLORS.primary};
 	}
 
 	@media (max-width: 1024px) {
@@ -421,8 +422,8 @@ export const GroupActionButton = styled.button`
 `;
 
 export const AddPropertyButton = styled.button<{ disabled?: boolean }>`
-	background-color: #22c55e;
-	color: white;
+	background: ${COLORS.gradientPrimary};
+	color: ${COLORS.white};
 	border: none;
 	padding: 10px 16px;
 	border-radius: 4px;
@@ -433,16 +434,16 @@ export const AddPropertyButton = styled.button<{ disabled?: boolean }>`
 	white-space: nowrap;
 
 	&:hover {
-		background-color: #16a34a;
+		background: ${COLORS.primaryHover};
 	}
 
 	&:active {
-		background-color: #15803d;
+		background: ${COLORS.primaryDark};
 	}
 
 	&:disabled {
-		background-color: #d1d5db; /* Light gray background for disabled state */
-		color: #9ca3af; /* Gray text for disabled state */
+		background-color: ${COLORS.gray300}; /* Light gray background for disabled state */
+		color: ${COLORS.textMuted}; /* Gray text for disabled state */
 		cursor: not-allowed; /* Change cursor to indicate disabled state */
 		opacity: 0.6; /* Reduce opacity for visual feedback */
 	}
@@ -511,9 +512,9 @@ export const PropertiesGrid = styled.div<{
 `;
 
 export const AddPropertyTile = styled.button`
-	border: 1px dashed #cbd5e1;
+	border: 1px dashed ${COLORS.gray300};
 	border-radius: 10px;
-	background: #f8fafc;
+	background: ${COLORS.bgLight};
 	width: 100%;
 	min-height: 180px;
 	display: flex;
@@ -522,13 +523,13 @@ export const AddPropertyTile = styled.button`
 	justify-content: center;
 	gap: 10px;
 	cursor: pointer;
-	color: #475569;
+	color: ${COLORS.gray600};
 	transition: border-color 0.2s ease, background-color 0.2s ease, color 0.2s ease;
 
 	&:hover {
-		border-color: #94a3b8;
-		background: #f1f5f9;
-		color: #0f172a;
+		border-color: ${COLORS.borderDark};
+		background: ${COLORS.borderLight};
+		color: ${COLORS.textPrimary};
 	}
 `;
 
@@ -536,7 +537,7 @@ export const AddPropertyTileIcon = styled.div`
 	width: 34px;
 	height: 34px;
 	border-radius: 999px;
-	border: 1px solid #cbd5e1;
+	border: 1px solid ${COLORS.gray300};
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
@@ -547,12 +548,12 @@ export const AddPropertyTileIcon = styled.div`
 export const AddPropertyTileTitle = styled.div`
 	font-size: 16px;
 	font-weight: 600;
-	color: #1f2937;
+	color: ${COLORS.textPrimary};
 `;
 
 export const AddPropertyTileHint = styled.div`
 	font-size: 12px;
-	color: #64748b;
+	color: ${COLORS.textSecondary};
 	text-align: center;
 	max-width: 180px;
 `;
@@ -562,8 +563,8 @@ export const PropertyTile = styled.div`
 	border-radius: 16px;
 	overflow: hidden;
 	cursor: pointer;
-	background: #ffffff;
-	border: 1px solid #e5e7eb;
+	background: ${COLORS.white};
+	border: 1px solid ${COLORS.border};
 	box-shadow: 0 4px 16px rgba(15, 23, 42, 0.08);
 	transition: transform 0.2s ease, box-shadow 0.2s ease;
 	max-width: 100%;
@@ -597,7 +598,7 @@ export const PropertyImage = styled.img<{ $isFallback?: boolean }>`
 	height: 100%;
 	object-fit: ${({ $isFallback }) => ($isFallback ? 'contain' : 'cover')};
 	padding: ${({ $isFallback }) => ($isFallback ? '4px' : '0')};
-	background: ${({ $isFallback }) => ($isFallback ? '#f3f6f9' : 'transparent')};
+	background: ${({ $isFallback }) => ($isFallback ? COLORS.borderLight : 'transparent')};
 `;
 
 export const PropertyTopBadge = styled.button`
@@ -608,8 +609,8 @@ export const PropertyTopBadge = styled.button`
 	height: 34px;
 	border-radius: 10px;
 	border: none;
-	background: #0f7a4f;
-	color: #ffffff;
+	background: ${COLORS.primary};
+	color: ${COLORS.white};
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -640,7 +641,7 @@ export const PropertyAddress = styled.div`
 	margin-top: 4px;
 	font-size: 12px;
 	line-height: 1.35;
-	color: #6b7280;
+	color: ${COLORS.textSecondary};
 
 	span {
 		display: -webkit-box;
@@ -655,8 +656,8 @@ export const PropertyLabelBadge = styled.span`
 	align-self: flex-start;
 	padding: 6px 10px;
 	border-radius: 999px;
-	background: #ecfdf3;
-	color: #15803d;
+	background: ${COLORS.primaryLight};
+	color: ${COLORS.primaryDark};
 	font-size: 11px;
 	font-weight: 700;
 `;
@@ -666,7 +667,7 @@ export const PropertyMetaRow = styled.div`
 	grid-template-columns: repeat(3, minmax(0, 1fr));
 	gap: 10px;
 	padding: 0 16px 14px;
-	border-top: 1px solid #f1f5f9;
+	border-top: 1px solid ${COLORS.borderLight};
 	padding-top: 12px;
 
 	@media (max-width: 600px) {
@@ -679,7 +680,7 @@ export const PropertyMetaItem = styled.div<{ $color?: string }>`
 	align-items: center;
 	gap: 8px;
 	font-size: 12px;
-	color: ${({ $color }) => $color || '#6b7280'};
+	color: ${({ $color }) => $color || COLORS.textSecondary};
 `;
 
 export const PropertyMetaText = styled.span`
@@ -705,7 +706,7 @@ export const FavoriteStar = styled.button`
 export const PropertyTitle = styled.a`
 	font-size: 22px;
 	font-weight: 600;
-	color: #111827;
+	color: ${COLORS.gray900};
 	text-decoration: none;
 	cursor: pointer;
 	transition: opacity 0.2s ease;
@@ -725,9 +726,9 @@ export const PropertyTitle = styled.a`
 `;
 
 export const DropdownToggle = styled.button`
-	background: #ffffff;
-	border: 1px solid #e5e7eb;
-	color: #4b5563;
+	background: ${COLORS.white};
+	border: 1px solid ${COLORS.border};
+	color: ${COLORS.gray600};
 	font-size: 16px;
 	cursor: pointer;
 	width: 34px;
@@ -739,8 +740,8 @@ export const DropdownToggle = styled.button`
 	justify-content: center;
 
 	&:hover {
-		background-color: #f8fafc;
-		border-color: #cbd5e1;
+		background-color: ${COLORS.bgLight};
+		border-color: ${COLORS.gray300};
 	}
 `;
 
@@ -748,8 +749,8 @@ export const DropdownMenu = styled.div`
 	position: absolute;
 	top: 40px;
 	right: 16px;
-	background-color: white;
-	border: 1px solid #e0e0e0;
+	background-color: ${COLORS.white};
+	border: 1px solid ${COLORS.border};
 	border-radius: 4px;
 	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 	z-index: 100;
@@ -778,7 +779,7 @@ export const DropdownItem = styled.button`
 	}
 
 	&:hover {
-		background-color: #f5f5f5;
+		background-color: ${COLORS.borderLight};
 	}
 
 	@media (max-width: 480px) {
@@ -792,8 +793,8 @@ export const AddGroupContainer = styled.div`
 `;
 
 export const AddGroupButton = styled.button`
-	background-color: #d1d5db;
-	color: #666666;
+	background-color: ${COLORS.gray300};
+	color: ${COLORS.gray600};
 	border: none;
 	padding: 10px 16px;
 	border-radius: 4px;
@@ -803,12 +804,12 @@ export const AddGroupButton = styled.button`
 	transition: background-color 0.2s ease, color 0.2s ease;
 
 	&:hover {
-		background-color: #b6b9c1;
-		color: #4b5563;
+		background-color: ${COLORS.gray400};
+		color: ${COLORS.gray600};
 	}
 
 	&:active {
-		background-color: #a0a5b3;
+		background-color: ${COLORS.gray500};
 	}
 
 	@media (max-width: 480px) {
@@ -820,7 +821,7 @@ export const AddGroupButton = styled.button`
 
 export const PageSubtitle = styled.p`
 	font-size: 14px;
-	color: #6b7280;
+	color: ${COLORS.textSecondary};
 	margin: 4px 0 0 0;
 	font-weight: 400;
 	line-height: 1.45;
@@ -834,16 +835,17 @@ export const SearchBar = styled.input`
 	flex: 1;
 	max-width: 300px;
 	padding: 8px 12px;
-	border: 1px solid #e5e7eb;
+	border: 1px solid ${COLORS.border};
 	border-radius: 6px;
 	font-size: 14px;
-	background-color: #f9fafb;
+	background-color: ${COLORS.bgLight};
 	transition: border-color 0.2s ease, background-color 0.2s ease;
 
 	&:focus {
 		outline: none;
-		border-color: #22c55e;
-		background-color: white;
+		border-color: ${COLORS.primary};
+		box-shadow: 0 0 0 3px ${COLORS.primaryLight};
+		background-color: ${COLORS.white};
 	}
 
 	@media (max-width: 768px) {
@@ -877,18 +879,18 @@ export const FilterSortContainer = styled.div`
 
 export const FilterButton = styled.button<{ $isActive?: boolean }>`
 	padding: 8px 12px;
-	border: 1px solid #e5e7eb;
+	border: 1px solid ${COLORS.border};
 	border-radius: 6px;
-	background-color: ${({ $isActive }) => ($isActive ? '#22c55e' : '#f9fafb')};
-	color: ${({ $isActive }) => ($isActive ? 'white' : '#6b7280')};
+	background: ${({ $isActive }) => ($isActive ? COLORS.gradientPrimary : COLORS.bgLight)};
+	color: ${({ $isActive }) => ($isActive ? COLORS.white : COLORS.textSecondary)};
 	font-size: 13px;
 	font-weight: 500;
 	cursor: pointer;
 	transition: all 0.2s ease;
 
 	&:hover {
-		border-color: #22c55e;
-		background-color: ${({ $isActive }) => ($isActive ? '#16a34a' : '#f0fdf4')};
+		border-color: ${COLORS.primary};
+		background: ${({ $isActive }) => ($isActive ? COLORS.gradientPrimary : COLORS.primaryLight)};
 	}
 
 	@media (max-width: 480px) {
@@ -906,10 +908,10 @@ export const FilterButton = styled.button<{ $isActive?: boolean }>`
 
 export const SortButton = styled.button`
 	padding: 8px 12px;
-	border: 1px solid #e5e7eb;
+	border: 1px solid ${COLORS.border};
 	border-radius: 6px;
-	background-color: #f9fafb;
-	color: #6b7280;
+	background-color: ${COLORS.bgLight};
+	color: ${COLORS.textSecondary};
 	font-size: 13px;
 	font-weight: 500;
 	cursor: pointer;
@@ -919,8 +921,8 @@ export const SortButton = styled.button`
 	gap: 6px;
 
 	&:hover {
-		border-color: #22c55e;
-		background-color: #f0fdf4;
+		border-color: ${COLORS.primary};
+		background-color: ${COLORS.primaryLight};
 	}
 
 	@media (max-width: 480px) {
@@ -941,8 +943,8 @@ export const DesktopFilterPanel = styled.div`
 	display: flex;
 	flex-direction: column;
 	gap: 14px;
-	background: #ffffff;
-	border: 1px solid #e5e7eb;
+	background: ${COLORS.white};
+	border: 1px solid ${COLORS.border};
 	border-radius: 12px;
 	padding: 14px;
 	margin-bottom: 16px;
@@ -964,7 +966,7 @@ export const DesktopFilterPanelTitle = styled.h3`
 	margin: 0;
 	font-size: 0.95rem;
 	font-weight: 800;
-	color: #0f172a;
+	color: ${COLORS.textPrimary};
 `;
 
 export const DesktopFilterPanelActions = styled.div`
@@ -975,17 +977,17 @@ export const DesktopFilterPanelActions = styled.div`
 
 export const DesktopFilterClearButton = styled.button`
 	padding: 7px 11px;
-	border: 1px solid #cbd5e1;
+	border: 1px solid ${COLORS.gray300};
 	border-radius: 8px;
-	background: #ffffff;
-	color: #475569;
+	background: ${COLORS.white};
+	color: ${COLORS.gray600};
 	font-size: 0.8rem;
 	font-weight: 700;
 	cursor: pointer;
 
 	&:hover {
-		background: #f8fafc;
-		border-color: #94a3b8;
+		background: ${COLORS.bgLight};
+		border-color: ${COLORS.borderDark};
 	}
 `;
 
@@ -993,32 +995,32 @@ export const DesktopFilterApplyButton = styled.button`
 	padding: 7px 12px;
 	border: 0;
 	border-radius: 8px;
-	background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-	color: #ffffff;
+	background: ${COLORS.gradientPrimary};
+	color: ${COLORS.white};
 	font-size: 0.8rem;
 	font-weight: 700;
 	cursor: pointer;
 
 	&:hover {
-		background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+		background: ${COLORS.gradientPrimary};
 	}
 `;
 
 export const DesktopFilterDismissButton = styled.button`
 	width: 30px;
 	height: 30px;
-	border: 1px solid #e5e7eb;
+	border: 1px solid ${COLORS.border};
 	border-radius: 999px;
-	background: #ffffff;
-	color: #64748b;
+	background: ${COLORS.white};
+	color: ${COLORS.textSecondary};
 	font-size: 0.9rem;
 	line-height: 1;
 	cursor: pointer;
 
 	&:hover {
-		background: #f8fafc;
-		color: #1f2937;
-		border-color: #cbd5e1;
+		background: ${COLORS.bgLight};
+		color: ${COLORS.textPrimary};
+		border-color: ${COLORS.gray300};
 	}
 `;
 
@@ -1066,17 +1068,17 @@ export const HeaderControls = styled.div`
 
 export const AddToGroupButton = styled.button`
 	padding: 6px 12px;
-	border: 1px solid #22c55e;
+	border: 1px solid ${COLORS.primary};
 	border-radius: 6px;
-	background-color: white;
-	color: #22c55e;
+	background-color: ${COLORS.white};
+	color: ${COLORS.primary};
 	font-size: 12px;
 	font-weight: 600;
 	cursor: pointer;
 	transition: all 0.2s ease;
 
 	&:hover {
-		background-color: #f0fdf4;
+		background-color: ${COLORS.primaryLight};
 	}
 
 	@media (max-width: 480px) {
@@ -1089,7 +1091,7 @@ export const GroupActionMenu = styled.button`
 	padding: 4px 8px;
 	background: none;
 	border: none;
-	color: #9ca3af;
+	color: ${COLORS.textMuted};
 	font-size: 18px;
 	cursor: pointer;
 	transition: color 0.2s ease;
@@ -1098,7 +1100,7 @@ export const GroupActionMenu = styled.button`
 	justify-content: center;
 
 	&:hover {
-		color: #22c55e;
+		color: ${COLORS.primary};
 	}
 
 	@media (max-width: 480px) {
@@ -1112,7 +1114,7 @@ export const CollapseToggle = styled.button`
 	padding: 4px 8px;
 	background: none;
 	border: none;
-	color: #9ca3af;
+	color: ${COLORS.textMuted};
 	font-size: 16px;
 	cursor: pointer;
 	transition: color 0.2s ease, transform 0.2s ease;
@@ -1121,7 +1123,7 @@ export const CollapseToggle = styled.button`
 	justify-content: center;
 
 	&:hover {
-		color: #22c55e;
+		color: ${COLORS.primary};
 	}
 `;
 
@@ -1131,7 +1133,7 @@ export const GroupCollapsed = styled.div`
 
 export const SummarySubtitle = styled.span`
 	font-size: 11px;
-	color: #6b7280;
+	color: ${COLORS.textSecondary};
 	display: block;
 	margin-top: 2px;
 	font-weight: 400;
@@ -1155,19 +1157,19 @@ export const HeaderMenuButton = styled.button`
 	height: 40px;
 	min-width: 40px;
 	padding: 0 10px;
-	border: 1px solid #e5e7eb;
+	border: 1px solid ${COLORS.border};
 	border-radius: 10px;
-	background: #ffffff;
-	color: #4b5563;
+	background: ${COLORS.white};
+	color: ${COLORS.gray600};
 	font-size: 14px;
 	line-height: 1;
 	cursor: pointer;
 	transition: border-color 0.2s ease, background-color 0.2s ease, color 0.2s ease;
 
 	&:hover {
-		border-color: #cbd5e1;
-		background: #f8fafc;
-		color: #1f2937;
+		border-color: ${COLORS.gray300};
+		background: ${COLORS.bgLight};
+		color: ${COLORS.textPrimary};
 	}
 
 	@media (max-width: 768px) {
@@ -1182,8 +1184,8 @@ export const HeaderDropdownMenu = styled.div`
 	top: calc(100% + 8px);
 	right: 0;
 	width: 280px;
-	background: #ffffff;
-	border: 1px solid #e5e7eb;
+	background: ${COLORS.white};
+	border: 1px solid ${COLORS.border};
 	border-radius: 12px;
 	box-shadow: 0 10px 24px rgba(15, 23, 42, 0.14);
 	overflow: hidden;
@@ -1198,21 +1200,21 @@ export const HeaderDropdownMenu = styled.div`
 export const HeaderDropdownItem = styled.button`
 	width: 100%;
 	border: none;
-	background: #ffffff;
+	background: ${COLORS.white};
 	padding: 12px 14px;
 	text-align: left;
 	cursor: pointer;
 	display: flex;
 	align-items: flex-start;
 	gap: 12px;
-	border-bottom: 1px solid #f1f5f9;
+	border-bottom: 1px solid ${COLORS.borderLight};
 
 	&:last-child {
 		border-bottom: none;
 	}
 
 	&:hover {
-		background: #f8fafc;
+		background: ${COLORS.bgLight};
 	}
 `;
 
@@ -1220,7 +1222,7 @@ export const HeaderDropdownIcon = styled.span`
 	width: 18px;
 	min-width: 18px;
 	margin-top: 2px;
-	color: #4b5563;
+	color: ${COLORS.gray600};
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
@@ -1229,13 +1231,13 @@ export const HeaderDropdownIcon = styled.span`
 export const HeaderDropdownTitle = styled.span`
 	font-size: 14px;
 	font-weight: 600;
-	color: #111827;
+	color: ${COLORS.gray900};
 `;
 
 export const HeaderDropdownHint = styled.span`
 	display: block;
 	font-size: 12px;
-	color: #6b7280;
+	color: ${COLORS.textSecondary};
 `;
 
 export const ManageGroupsStack = styled.div`
@@ -1270,9 +1272,9 @@ export const ManageGroupRow = styled.div<{ $dragging?: boolean }>`
 	align-items: center;
 	gap: 12px;
 	padding: 12px;
-	border: 1px solid #e2e8f0;
+	border: 1px solid ${COLORS.border};
 	border-radius: 12px;
-	background: ${({ $dragging }) => ($dragging ? '#f0fdf4' : '#ffffff')};
+	background: ${({ $dragging }) => ($dragging ? COLORS.primaryLight : COLORS.white)};
 	opacity: ${({ $dragging }) => ($dragging ? 0.65 : 1)};
 	box-shadow: ${({ $dragging }) =>
 		$dragging ? '0 10px 24px rgba(15, 23, 42, 0.12)' : 'none'};
@@ -1280,7 +1282,7 @@ export const ManageGroupRow = styled.div<{ $dragging?: boolean }>`
 		background-color 140ms ease;
 
 	&:hover {
-		border-color: #a7f3d0;
+		border-color: ${COLORS.primaryHover};
 		box-shadow: 0 6px 18px rgba(15, 23, 42, 0.07);
 	}
 `;
@@ -1292,7 +1294,7 @@ export const ManageGroupDragHandle = styled.div`
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	color: #94a3b8;
+	color: ${COLORS.borderDark};
 	cursor: grab;
 	touch-action: none;
 
@@ -1308,12 +1310,12 @@ export const ManageGroupPreview = styled.div`
 	gap: 3px;
 
 	strong {
-		color: #0f172a;
+		color: ${COLORS.textPrimary};
 		font-size: 14px;
 	}
 
 	span {
-		color: #64748b;
+		color: ${COLORS.textSecondary};
 		font-size: 12px;
 		line-height: 1.35;
 	}
@@ -1342,11 +1344,11 @@ export const ManageGroupMenuButton = styled.button`
 	border: none;
 	border-radius: 10px;
 	background: transparent;
-	color: #475569;
+	color: ${COLORS.gray600};
 	cursor: pointer;
 
 	&:hover {
-		background: #f1f5f9;
+		background: ${COLORS.borderLight};
 	}
 `;
 
@@ -1357,9 +1359,9 @@ export const ManageGroupMenu = styled.div`
 	width: 210px;
 	z-index: 20;
 	padding: 6px;
-	border: 1px solid #e2e8f0;
+	border: 1px solid ${COLORS.border};
 	border-radius: 12px;
-	background: #ffffff;
+	background: ${COLORS.white};
 	box-shadow: 0 14px 30px rgba(15, 23, 42, 0.16);
 `;
 
@@ -1369,24 +1371,24 @@ export const ManageGroupMenuItem = styled.button<{ $danger?: boolean }>`
 	border-radius: 8px;
 	padding: 10px 11px;
 	background: transparent;
-	color: ${({ $danger }) => ($danger ? '#b91c1c' : '#334155')};
+	color: ${({ $danger }) => ($danger ? COLORS.errorDark : COLORS.gray700)};
 	text-align: left;
 	font-size: 13px;
 	font-weight: 600;
 	cursor: pointer;
 
 	&:hover {
-		background: ${({ $danger }) => ($danger ? '#fef2f2' : '#f8fafc')};
+		background: ${({ $danger }) => ($danger ? COLORS.errorLight : COLORS.bgLight)};
 	}
 `;
 
 export const ManageGroupPanel = styled.div`
 	display: grid;
 	gap: 14px;
-	border: 1px solid #e2e8f0;
+	border: 1px solid ${COLORS.border};
 	border-radius: 12px;
 	padding: 14px;
-	background: #ffffff;
+	background: ${COLORS.white};
 
 	@media (max-width: 480px) {
 		padding: 12px;
@@ -1405,13 +1407,13 @@ export const ManageGroupPanelHeader = styled.div`
 
 	h4 {
 		margin: 0;
-		color: #0f172a;
+		color: ${COLORS.textPrimary};
 		font-size: 15px;
 	}
 
 	p {
 		margin: 3px 0 0;
-		color: #64748b;
+		color: ${COLORS.textSecondary};
 		font-size: 12px;
 	}
 `;
@@ -1421,9 +1423,9 @@ export const ManageGroupAppearancePreview = styled.div`
 	align-items: center;
 	gap: 12px;
 	padding: 12px;
-	border: 1px solid #e2e8f0;
+	border: 1px solid ${COLORS.border};
 	border-radius: 12px;
-	background: #f8fafc;
+	background: ${COLORS.bgLight};
 
 	> div {
 		min-width: 0;
@@ -1431,13 +1433,13 @@ export const ManageGroupAppearancePreview = styled.div`
 
 	strong {
 		display: block;
-		color: #0f172a;
+		color: ${COLORS.textPrimary};
 		font-size: 14px;
 	}
 
 	> div > span {
 		display: block;
-		color: #64748b;
+		color: ${COLORS.textSecondary};
 		font-size: 12px;
 	}
 
@@ -1451,25 +1453,25 @@ export const ManageGroupAppearancePreview = styled.div`
 
 export const PropertyTransferList = styled.div`
 	display: grid;
-	border: 1px solid #e2e8f0;
+	border: 1px solid ${COLORS.border};
 	border-radius: 10px;
 	max-height: min(240px, 32vh);
 	overflow-y: auto;
 	overscroll-behavior: contain;
 	scrollbar-gutter: stable;
-	background: #ffffff;
+	background: ${COLORS.white};
 
 	&::-webkit-scrollbar {
 		width: 8px;
 	}
 
 	&::-webkit-scrollbar-track {
-		background: #f8fafc;
+		background: ${COLORS.bgLight};
 		border-radius: 999px;
 	}
 
 	&::-webkit-scrollbar-thumb {
-		background: #cbd5e1;
+		background: ${COLORS.gray300};
 		border-radius: 999px;
 	}
 
@@ -1483,7 +1485,7 @@ export const PropertyTransferRow = styled.div`
 	align-items: center;
 	gap: 9px;
 	padding: 9px 10px;
-	border-bottom: 1px solid #f1f5f9;
+	border-bottom: 1px solid ${COLORS.borderLight};
 	cursor: pointer;
 
 	&:last-child {
@@ -1491,7 +1493,7 @@ export const PropertyTransferRow = styled.div`
 	}
 
 	&:hover {
-		background: #f8fafc;
+		background: ${COLORS.bgLight};
 	}
 `;
 
@@ -1500,13 +1502,13 @@ export const PropertyTransferName = styled.div`
 
 	strong {
 		display: block;
-		color: #0f172a;
+		color: ${COLORS.textPrimary};
 		font-size: 13px;
 	}
 
 	span {
 		display: block;
-		color: #64748b;
+		color: ${COLORS.textSecondary};
 		font-size: 11px;
 		white-space: nowrap;
 		overflow: hidden;
@@ -1532,12 +1534,12 @@ export const PropertyTransferSelectionBar = styled.div`
 	gap: 8px;
 	flex-wrap: wrap;
 	font-size: 12px;
-	color: #64748b;
+	color: ${COLORS.textSecondary};
 
 	button {
 		border: none;
 		background: transparent;
-		color: #0f766e;
+		color: ${COLORS.primary};
 		font-weight: 700;
 		cursor: pointer;
 		padding: 4px;

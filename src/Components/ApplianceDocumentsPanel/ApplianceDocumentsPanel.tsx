@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { useDispatch } from 'react-redux';
 import styled from 'styled-components';
 import {
 	FormGroup,
@@ -12,18 +13,21 @@ import {
 	useGetPropertiesQuery,
 	useUpdatePropertyMutation,
 } from 'Redux/API/propertySlice';
+import { apiSlice } from 'Redux/API/apiSlice';
+import { useCreateNotificationMutation } from 'Redux/API/notificationSlice';
+import type { AppDispatch } from 'Redux/store/store';
 import { PropertyDocument, PropertyDocumentCategory } from 'types/Property.types';
 import {
 	deletePropertyDocumentFile,
 	toPropertyDocumentType,
-	uploadPropertyDocument,
-	withPropertyDocumentLinks,
 } from 'utils/propertyDocumentUpload';
 import {
-	createPendingKnowledgeSuggestionFromFile,
-	markDocumentWithKnowledgeSuggestion,
-} from 'propertyKnowledge/propertyKnowledgeAcquisition';
+	preparePropertyMemoryDocumentUploads,
+	startPdfDocumentKnowledgeProcessing,
+} from 'propertyKnowledge/propertyDocumentUploads';
 import { useAppFeedback } from 'Components/Library/AppFeedback/AppFeedbackProvider';
+import { auth } from '../../config/firebase';
+import { COLORS } from '../../constants/colors';
 
 type ApplianceDocumentsPanelProps = {
 	property?: any;
@@ -66,7 +70,9 @@ export const ApplianceDocumentsPanel: React.FC<ApplianceDocumentsPanelProps> = (
 	onPendingCategoryChange,
 }) => {
 	const feedback = useAppFeedback();
+	const dispatch = useDispatch<AppDispatch>();
 	const [updateProperty] = useUpdatePropertyMutation();
+	const [createNotification] = useCreateNotificationMutation();
 	const { data: allProperties = [] } = useGetPropertiesQuery();
 	const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
 	const [selectedCategory, setSelectedCategory] =
@@ -110,6 +116,8 @@ export const ApplianceDocumentsPanel: React.FC<ApplianceDocumentsPanelProps> = (
 	const isPendingMode = Boolean(onPendingFilesChange && !deviceId);
 	const displayedPendingFiles = pendingFiles || [];
 	const canManageAssignedDocuments = Boolean(canUpload && resolvedPropertyId && deviceId);
+	const notificationUserId =
+		auth.currentUser?.uid || resolvedProperty?.userId || '';
 
 	const openEditModal = (documentId?: string) => {
 		const document = assignedDocuments.find((item) => item.id === documentId);
@@ -126,7 +134,7 @@ export const ApplianceDocumentsPanel: React.FC<ApplianceDocumentsPanelProps> = (
 	};
 
 	const handleUploadNow = async () => {
-		if (!resolvedPropertyId || !deviceId || selectedFiles.length === 0 || isUploading) {
+		if (!resolvedPropertyId || selectedFiles.length === 0 || isUploading) {
 			return;
 		}
 		if (!resolvedProperty) {
@@ -136,38 +144,15 @@ export const ApplianceDocumentsPanel: React.FC<ApplianceDocumentsPanelProps> = (
 
 		setIsUploading(true);
 		try {
-			const uploadedDocuments = await Promise.all(
-				selectedFiles.map((file) =>
-					uploadPropertyDocument(file, resolvedPropertyId, selectedCategory),
-				),
-			);
-			const linkedDocuments = uploadedDocuments.map((document) =>
-				withPropertyDocumentLinks(
-					{
-						...document,
-						assignedDeviceId: deviceId,
-					},
-					{ assetIds: [deviceId] },
-				),
-			);
-			const knowledgeSuggestions = await Promise.all(
-				linkedDocuments.map((document, index) =>
-					createPendingKnowledgeSuggestionFromFile({
-						file: selectedFiles[index],
-						document,
-						propertyId: resolvedPropertyId,
-						relatedSystemId: deviceId,
-						property: resolvedProperty,
-					}),
-				),
-			);
-			const savedDocuments = linkedDocuments.map((document) => {
-				const suggestion = knowledgeSuggestions.find(
-					(candidate) => candidate.sourceDocumentId === document.id,
-				);
-				return suggestion
-					? markDocumentWithKnowledgeSuggestion(document, suggestion)
-					: document;
+			const {
+				documents: savedDocuments,
+				knowledgeSuggestions,
+				pdfDocuments,
+			} = await preparePropertyMemoryDocumentUploads({
+				files: selectedFiles,
+				propertyId: resolvedPropertyId,
+				category: selectedCategory,
+				property: resolvedProperty,
 			});
 			await updateProperty({
 				id: resolvedPropertyId,
@@ -181,7 +166,40 @@ export const ApplianceDocumentsPanel: React.FC<ApplianceDocumentsPanelProps> = (
 			}).unwrap();
 			setSelectedFiles([]);
 			setSelectedCategory('other');
-			feedback.notify('Appliance documents uploaded.');
+			startPdfDocumentKnowledgeProcessing({
+				propertyId: resolvedPropertyId,
+				documents: pdfDocuments,
+				notifyScanStarted: (document) => {
+					if (!notificationUserId) return undefined;
+					return createNotification({
+						userId: notificationUserId,
+						type: 'document_scan_started',
+						title: 'Document Review Started',
+						message: `Maintley is reviewing ${document.fileName || document.name} for suggested details.`,
+						data: {
+							propertyId: resolvedPropertyId,
+							propertyTitle: resolvedProperty?.title || resolvedProperty?.name,
+							documentId: document.id,
+							documentName: document.fileName || document.name,
+						},
+						status: 'unread',
+						actionUrl: `/properties/${resolvedPropertyId}`,
+						createdAt: new Date().toISOString(),
+						updatedAt: new Date().toISOString(),
+					}).unwrap();
+				},
+				onProcessed: () => {
+					dispatch(apiSlice.util.invalidateTags(['Properties']));
+				},
+				onError: () => {
+					dispatch(apiSlice.util.invalidateTags(['Properties']));
+				},
+			});
+			feedback.notify(
+				pdfDocuments.length > 0
+					? 'Documents uploaded. Maintley is reviewing PDF details in the background.'
+					: 'Documents uploaded to property documents.',
+			);
 		} catch (error: any) {
 			console.error('Error uploading appliance documents:', error);
 			feedback.notify(error?.message || 'Could not upload appliance documents.');
@@ -354,7 +372,7 @@ export const ApplianceDocumentsPanel: React.FC<ApplianceDocumentsPanelProps> = (
 						<option value='other'>Other document</option>
 					</FieldSelect>
 					<FileUploader
-						label='Upload appliance documents'
+						label='Upload property documents'
 						helperText='PDF, image, Word, Excel, or text files under 10MB'
 						accept={DOCUMENT_ACCEPT}
 						allowedTypes={DOCUMENT_ALLOWED_TYPES}
@@ -368,7 +386,7 @@ export const ApplianceDocumentsPanel: React.FC<ApplianceDocumentsPanelProps> = (
 							type='button'
 							onClick={handleUploadNow}
 							disabled={selectedFiles.length === 0 || isUploading}>
-							{isUploading ? 'Uploading...' : 'Upload to appliance'}
+							{isUploading ? 'Uploading...' : 'Upload to property documents'}
 						</UploadButton>
 					)}
 				</UploadArea>
@@ -465,7 +483,7 @@ const DocumentTitleRow = styled.div`
 `;
 
 const DocumentLink = styled.a`
-	color: #0f766e;
+	color: ${COLORS.primary};
 	font-size: 0.9rem;
 	font-weight: 800;
 	text-decoration: underline;
@@ -497,7 +515,7 @@ const DocumentActionButton = styled.button<{ $danger?: boolean }>`
 	border: none;
 	background: transparent;
 	padding: 0;
-	color: ${({ $danger }) => ($danger ? '#b91c1c' : '#0f766e')};
+	color: ${({ $danger }) => ($danger ? COLORS.errorDark : COLORS.primary)};
 	font-size: 0.82rem;
 	font-weight: 800;
 	text-decoration: underline;
@@ -539,8 +557,8 @@ const FieldSelect = styled.select`
 const UploadButton = styled.button`
 	border: none;
 	border-radius: 9px;
-	background: #10b981;
-	color: #ffffff;
+	background: ${COLORS.primary};
+	color: ${COLORS.textInverse};
 	font-weight: 800;
 	padding: 10px 12px;
 	cursor: pointer;

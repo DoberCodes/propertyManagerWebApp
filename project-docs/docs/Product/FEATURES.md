@@ -87,6 +87,10 @@ Current capabilities:
 
 The assistant is intended to reduce onboarding effort while keeping setup optional and flexible.
 
+Initial onboarding is intended for account owners setting up their own account.
+Linked family members and invited team members enter an existing account context
+and should not be forced through the onboarding flow.
+
 ---
 
 # Maintley Intelligence
@@ -286,6 +290,8 @@ Current capabilities:
 * Task reminders.
 * Overdue reminders.
 * Maintenance activity notifications.
+* Document review started notifications.
+* Suggested details ready notifications when Property Knowledge Acquisition finds reviewable information.
 * Notification preferences.
 
 Notification behavior may vary by platform and subscription level.

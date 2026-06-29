@@ -1,12 +1,13 @@
 import { Link } from 'react-router-dom';
 import { HashLink } from 'react-router-hash-link';
 import styled from 'styled-components';
+import { COLORS } from '../../../constants/colors';
 
 export const NavWrapper = styled.div`
 	display: flex;
 	height: 110px;
 	width: 100%;
-	background: linear-gradient(135deg, #065f46 0%, #047857 100%);
+	background: ${COLORS.gradientPrimary};
 	align-items: center;
 	justify-content: space-between;
 	padding: 0 max(20px, env(safe-area-inset-left)) max(20px, env(safe-area-inset-right)) 0;
@@ -43,38 +44,42 @@ export const NavTitle = styled.div`
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	width: 24%;
+	flex: 0 0 300px;
+	min-width: 0;
 	height: 100%;
 	margin: 0;
+	padding-top: 6px;
 
 	img {
-		max-height: 72px;
-		width: auto;
-		max-width: none;
+		display: block;
+		width: min(280px, 100%);
+		height: auto;
+		max-height: 86px;
+		object-fit: contain;
 	}
 
 	@media (max-width: 1024px) {
-		width: auto;
-		flex: 1;
+		flex: 0 1 170px;
 		max-height: 60px;
+		padding-top: 0;
 
 		img {
-			height: 100%;
+			width: min(170px, 100%);
+			height: auto;
 			max-height: 60px;
-			object-fit: contain;
 		}
 	}
 
 	@media (max-width: 480px) {
 		width: 100%;
+		flex: 0 0 auto;
 		padding: 4px 0;
 		max-height: 48px;
 
 		img {
-			height: 100%;
+			width: min(150px, 70vw);
+			height: auto;
 			max-height: 48px;
-			max-width: 70%;
-			object-fit: contain;
 		}
 	}
 `;
@@ -110,7 +115,7 @@ export const NavAnchor = styled(HashLink)`
 	margin: 0px 4px;
 	padding: 8px 10px;
 	text-decoration: none;
-	color: white;
+	color: ${COLORS.white};
 	white-space: nowrap;
 	border-radius: 4px;
 	transition: background-color 0.2s, transform 0.2s;
@@ -145,7 +150,7 @@ export const NavRouteLink = styled(Link)`
 	margin: 0px 4px;
 	padding: 8px 10px;
 	text-decoration: none;
-	color: white;
+	color: ${COLORS.white};
 	white-space: nowrap;
 	border-radius: 4px;
 	transition: background-color 0.2s, transform 0.2s;

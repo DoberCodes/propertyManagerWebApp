@@ -260,6 +260,7 @@ Examples:
 
 * Family members are not team members.
 * Family members are not role-based users.
+* Family members join an existing account and do not run owner onboarding.
 * Family collaboration remains a core platform feature.
 
 ---

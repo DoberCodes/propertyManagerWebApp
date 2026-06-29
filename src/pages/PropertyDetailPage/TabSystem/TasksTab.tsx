@@ -27,6 +27,7 @@ import {
 } from '../../../Components/Library/FilterBar';
 import { applyFilters } from '../../../utils/tableFilters';
 import {
+	compareTasksByDueUrgency,
 	getTaskAssigneeDisplayName,
 	isTaskOverdueForDisplay,
 	matchesDateRangeOrIsOverdue,
@@ -76,6 +77,7 @@ import { Task } from '../../../types/Task.types';
 import {
 	useDeleteTaskMutation,
 } from '../../../Redux/API/taskSlice';
+import { COLORS } from '../../../constants/colors';
 
 export const TasksTab: React.FC<TasksTabProps> = ({
 	propertyTasks,
@@ -213,7 +215,7 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 			case 'Medium':
 				return '#b45309';
 			case 'Low':
-				return '#166534';
+				return COLORS.successDark;
 			default:
 				return '#475569';
 		}
@@ -256,7 +258,7 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 	const getTaskIcon = (task: any) => {
 		const context = `${task.title || ''} ${task.category || ''} ${task.location || ''}`.toLowerCase();
 		if (context.includes('hvac') || context.includes('heat') || context.includes('cool')) {
-			return { icon: faFan, color: '#0f766e', background: '#ecfeff' };
+			return { icon: faFan, color: COLORS.primary, background: COLORS.primaryLight };
 		}
 		if (context.includes('season') || context.includes('winter') || context.includes('summer')) {
 			return { icon: faSnowflake, color: '#1d4ed8', background: '#dbeafe' };
@@ -268,7 +270,7 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 			return { icon: faHouse, color: '#7c2d12', background: '#ffedd5' };
 		}
 		if (task.status === 'Completed') {
-			return { icon: faClockRotateLeft, color: '#166534', background: '#ecfdf5' };
+			return { icon: faClockRotateLeft, color: COLORS.successDark, background: COLORS.successLight };
 		}
 		return { icon: faScrewdriverWrench, color: '#475569', background: '#f1f5f9' };
 	};
@@ -686,15 +688,7 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 				}
 			}
 
-			const overdueA = isTaskOverdueForDisplay(a as Task);
-			const overdueB = isTaskOverdueForDisplay(b as Task);
-			if (overdueA !== overdueB) {
-				return overdueA ? -1 : 1;
-			}
-
-			const dateA = a.dueDate ? new Date(a.dueDate).getTime() : Infinity;
-			const dateB = b.dueDate ? new Date(b.dueDate).getTime() : Infinity;
-			return dateA - dateB;
+			return compareTasksByDueUrgency(a, b);
 		});
 	}, [processedTasks, filters, quickView, sortBy]);
 	const totalTaskCount = processedTasks.length;
@@ -781,9 +775,9 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 						cursor: 'pointer',
 						borderRadius: 8,
 						padding: '0 12px',
-						background: quickView === 'all' ? '#d1fae5' : '#f8fafc',
-						borderColor: quickView === 'all' ? '#34d399' : '#e2e8f0',
-						color: quickView === 'all' ? '#065f46' : '#475569',
+						background: quickView === 'all' ? COLORS.successLight : COLORS.bgLight,
+						borderColor: quickView === 'all' ? COLORS.primaryHover : COLORS.gray200,
+						color: quickView === 'all' ? COLORS.primaryDark : COLORS.gray600,
 						fontWeight: quickView === 'all' ? 800 : 700,
 					}}>
 					All Tasks: {totalTaskCount}

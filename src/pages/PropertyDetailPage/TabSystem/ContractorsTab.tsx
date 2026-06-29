@@ -66,6 +66,7 @@ import {
 import { PropertyTabFilterPanel } from './PropertyTabFilterPanel';
 import { useAppFeedback } from '../../../Components/Library/AppFeedback/AppFeedbackProvider';
 import { RoleCapabilities } from '../../../utils/permissions';
+import { COLORS } from '../../../constants/colors';
 
 interface ContractorsTabProps {
 	propertyId: string;
@@ -230,13 +231,13 @@ export const ContractorsTab: React.FC<ContractorsTabProps> = ({
 	const getContractorIcon = (contractor: any) => {
 		const category = String(contractor.category || '').toLowerCase();
 		if (category.includes('hvac')) {
-			return { icon: faFan, color: '#0f766e', background: '#ecfeff' };
+			return { icon: faFan, color: COLORS.primary, background: COLORS.primaryLight };
 		}
 		if (category.includes('elect')) {
 			return { icon: faBolt, color: '#7c3aed', background: '#f3e8ff' };
 		}
 		if (category.includes('land')) {
-			return { icon: faTree, color: '#166534', background: '#dcfce7' };
+			return { icon: faTree, color: COLORS.successDark, background: COLORS.successLight };
 		}
 		if (category.includes('plumb')) {
 			return { icon: faDroplet, color: '#0369a1', background: '#e0f2fe' };

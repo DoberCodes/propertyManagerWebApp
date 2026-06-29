@@ -3,6 +3,7 @@ import styled from 'styled-components';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import SEO from 'Components/SEO/SEO';
 import { legalDocuments } from './legalDocuments';
+import { COLORS } from '../../constants/colors';
 
 const Container = styled.div`
 	max-width: 1000px;
@@ -76,8 +77,8 @@ const DocumentDescription = styled.p`
 const DocumentLink = styled(Link)`
 	display: inline-block;
 	padding: 8px 16px;
-	background: #10b981;
-	color: #fff;
+	background: ${COLORS.primary};
+	color: ${COLORS.textInverse};
 	border-radius: 6px;
 	text-decoration: none;
 	font-weight: 500;
@@ -85,9 +86,9 @@ const DocumentLink = styled(Link)`
 	transition: background 0.2s;
 
 	&:hover {
-		background: #059669;
+		background: ${COLORS.primaryHover};
 		text-decoration: none;
-		color: #fff;
+		color: ${COLORS.textInverse};
 	}
 `;
 

@@ -1,5 +1,6 @@
 import styled, { createGlobalStyle } from 'styled-components';
 import { COLORS } from './constants/colors';
+import { TYPOGRAPHY } from './constants/typography';
 
 const GlobalStyles = createGlobalStyle`
     html {
@@ -12,9 +13,10 @@ const GlobalStyles = createGlobalStyle`
         padding: 0;
         background-color: ${COLORS.bgLight};
         color: ${COLORS.textPrimary};
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-            'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-            sans-serif;
+        font-family: ${TYPOGRAPHY.fontFamily};
+        font-size: ${TYPOGRAPHY.body.fontSize};
+        font-weight: ${TYPOGRAPHY.body.fontWeight};
+        line-height: ${TYPOGRAPHY.body.lineHeight};
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
         display: flex;
@@ -70,7 +72,7 @@ export const nav_height = '90px';
 export const footer_height = '300px';
 
 export const font_title = '28px';
-export const font_main = '18px';
+export const font_main = TYPOGRAPHY.body.fontSize;
 
 export const Flexbox = styled.div<{ span?: any }>`
 	@media only screen and (min-width: 768px) {

@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
 import styled from 'styled-components';
+import { COLORS } from '../../../constants/colors';
 
 type FeedbackTone = 'success' | 'error' | 'info';
 
@@ -37,17 +38,17 @@ const ToastCard = styled.div<{ $tone: FeedbackTone }>`
 	border: 1px solid
 		${(props) =>
 			props.$tone === 'success'
-				? '#86efac'
+				? COLORS.primaryLight
 				: props.$tone === 'error'
 					? '#fca5a5'
 					: '#cbd5e1'};
 	border-left: 4px solid
 		${(props) =>
 			props.$tone === 'success'
-				? '#16a34a'
+				? COLORS.primary
 				: props.$tone === 'error'
 					? '#dc2626'
-					: '#0f766e'};
+					: COLORS.primaryDark};
 	border-radius: 10px;
 	padding: 10px 12px;
 	min-width: 280px;

@@ -68,6 +68,7 @@ import { PropertyTabFilterPanel } from './PropertyTabFilterPanel';
 import { TaskFinancials } from 'types/Task.types';
 import { PropertyDocument } from 'types/Property.types';
 import { RoleCapabilities } from 'utils/permissions';
+import { COLORS } from '../../../constants/colors';
 
 const maintenanceEventTypeLabels: Record<string, string> = {
 	task_completed: 'Task Completed',
@@ -154,8 +155,8 @@ const getEventVisual = (eventType: string) => {
 			return {
 				label: 'Service Note',
 				icon: faCommentDots,
-				color: '#047857',
-				background: '#d1fae5',
+				color: COLORS.primary,
+				background: COLORS.successLight,
 			};
 		case 'warranty_added':
 			return {
@@ -169,7 +170,7 @@ const getEventVisual = (eventType: string) => {
 			return {
 				label: 'Task Completed',
 				icon: faCircleCheck,
-				color: '#166534',
+				color: COLORS.successDark,
 				background: '#dcfce7',
 			};
 		default:
@@ -273,9 +274,9 @@ const getOperationalStatus = (record: any) => {
 	if (ageDays <= 30) {
 		return {
 			label: 'Recently Serviced',
-			color: '#166534',
-			background: '#f0fdf4',
-			border: '#86efac',
+			color: COLORS.successDark,
+			background: COLORS.successLight,
+			border: COLORS.primaryHover,
 		};
 	}
 
@@ -290,8 +291,8 @@ const getOperationalStatus = (record: any) => {
 
 	return {
 		label: 'Healthy',
-		color: '#065f46',
-		background: '#ecfdf5',
+		color: COLORS.primaryDark,
+		background: COLORS.primaryLight,
 		border: '#6ee7b7',
 	};
 };
@@ -1102,7 +1103,7 @@ export const MaintenanceTab = ({
 									target='_blank'
 									rel='noreferrer'
 									style={{
-										color: '#0f766e',
+										color: COLORS.primary,
 										fontSize: 13,
 										fontWeight: 700,
 										textDecoration: 'underline',

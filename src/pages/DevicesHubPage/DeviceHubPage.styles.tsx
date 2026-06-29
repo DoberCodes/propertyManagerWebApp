@@ -1,17 +1,18 @@
 import styled from 'styled-components';
 import { Link } from 'react-router-dom';
+import { COLORS } from '../../constants/colors';
 
 const SurfaceCard = styled.div`
-    border: 1px solid #e2e8f0;
+    border: 1px solid ${COLORS.border};
     border-radius: 14px;
-    background: #ffffff;
+    background: ${COLORS.white};
     padding: 14px;
 `;
 
 const DevicePrimary = styled.div`
     font-size: 1.05rem;
     font-weight: 800;
-    color: #0f172a;
+    color: ${COLORS.textPrimary};
     line-height: 1.22;
 `;
 
@@ -27,7 +28,7 @@ const OpenProfileCue = styled.span`
     font-size: 0.75rem;
     font-weight: 700;
     letter-spacing: 0.03em;
-    color: #94a3b8;
+    color: ${COLORS.textMuted};
     transition: color 0.18s ease, transform 0.18s ease;
 `;
 
@@ -35,7 +36,7 @@ const TechnicalSubtitle = styled.div`
     margin-top: 4px;
     font-size: 0.88rem;
     font-weight: 700;
-    color: #334155;
+    color: ${COLORS.gray700};
     line-height: 1.35;
 `;
 
@@ -50,7 +51,7 @@ const ContextLinks = styled.div`
 const ContextLink = styled(Link)`
     font-size: 0.8rem;
     font-weight: 600;
-    color: #2563eb;
+    color: ${COLORS.info};
     text-decoration: none;
 
     &:hover {
@@ -60,7 +61,7 @@ const ContextLink = styled(Link)`
 
 const ContextArrow = styled.span`
     font-size: 0.78rem;
-    color: #94a3b8;
+    color: ${COLORS.textMuted};
 `;
 
 const StatusPill = styled.span<{ $status: string }>`
@@ -75,28 +76,28 @@ const StatusPill = styled.span<{ $status: string }>`
     border: 1px solid
         ${(p) =>
             p.$status === 'Broken'
-                ? '#fecaca'
+                ? COLORS.errorLight
                 : p.$status === 'Maintenance'
-                    ? '#fcd34d'
+                    ? COLORS.warningLight
                     : p.$status === 'Decommissioned'
-                        ? '#cbd5e1'
-                    : '#86efac'};
+                        ? COLORS.gray300
+                    : COLORS.successLight};
     background: ${(p) =>
         p.$status === 'Broken'
-            ? '#fef2f2'
+            ? COLORS.errorLight
             : p.$status === 'Maintenance'
-                ? '#fffbeb'
+                ? COLORS.warningLight
                 : p.$status === 'Decommissioned'
-                    ? '#f8fafc'
-                : '#f0fdf4'};
+                    ? COLORS.bgLight
+                : COLORS.successLight};
     color: ${(p) =>
         p.$status === 'Broken'
-            ? '#b91c1c'
+            ? COLORS.errorDark
             : p.$status === 'Maintenance'
-                ? '#92400e'
+                ? COLORS.warningDark
                 : p.$status === 'Decommissioned'
-                    ? '#475569'
-                : '#166534'};
+                    ? COLORS.gray600
+                : COLORS.successDark};
 `;
 
 const HubFeedGrid = styled.div`
@@ -113,14 +114,14 @@ const FeedSectionTitle = styled.h2`
     margin: 0 0 4px;
     font-size: 1rem;
     font-weight: 800;
-    color: #0f172a;
+    color: ${COLORS.textPrimary};
 `;
 
 const FeedSectionText = styled.p`
     margin: 0 0 12px;
     font-size: 0.86rem;
     line-height: 1.5;
-    color: #64748b;
+    color: ${COLORS.textSecondary};
 `;
 
 const ActivityList = styled.div`
@@ -131,9 +132,9 @@ const ActivityList = styled.div`
 
 const ActivityItem = styled.div`
     padding: 12px 14px;
-    border: 1px solid #e2e8f0;
+    border: 1px solid ${COLORS.border};
     border-radius: 12px;
-    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    background: linear-gradient(180deg, ${COLORS.white} 0%, ${COLORS.bgLight} 100%);
 `;
 
 const ActivityHeaderRow = styled.div`
@@ -161,20 +162,20 @@ const ActivityMeta = styled.div`
     font-weight: 700;
     letter-spacing: 0.04em;
     text-transform: uppercase;
-    color: #16a34a;
+    color: ${COLORS.primary};
     margin-bottom: 4px;
 `;
 
 const ActivityTitle = styled.div`
     font-size: 0.92rem;
     font-weight: 800;
-    color: #0f172a;
+    color: ${COLORS.textPrimary};
     margin-bottom: 3px;
 `;
 
 const ActivityDescription = styled.div`
     font-size: 0.84rem;
-    color: #64748b;
+    color: ${COLORS.textSecondary};
     line-height: 1.45;
 `;
 
@@ -189,7 +190,7 @@ const ActivityContext = styled.div`
 const ActivityContextLink = styled(Link)`
     font-size: 0.78rem;
     font-weight: 600;
-    color: #2563eb;
+    color: ${COLORS.info};
     text-decoration: none;
 
     &:hover {
@@ -199,7 +200,7 @@ const ActivityContextLink = styled(Link)`
 
 const ActivityContextSep = styled.span`
     font-size: 0.72rem;
-    color: #94a3b8;
+    color: ${COLORS.textMuted};
 `;
 
 const AttentionPriorityBadge = styled.span<{ $color: string; $background: string; $border: string }>`
@@ -225,7 +226,7 @@ const AttentionHeaderRow = styled.div`
 
 const AttentionReason = styled.div`
     font-size: 0.83rem;
-    color: #475569;
+    color: ${COLORS.gray600};
     line-height: 1.4;
     margin-bottom: 6px;
 `;
@@ -240,7 +241,7 @@ const AttentionContext = styled.div`
 const AttentionContextLink = styled(Link)`
     font-size: 0.78rem;
     font-weight: 600;
-    color: #2563eb;
+    color: ${COLORS.info};
     text-decoration: none;
 
     &:hover {
@@ -250,7 +251,7 @@ const AttentionContextLink = styled(Link)`
 
 const AttentionContextSep = styled.span`
     font-size: 0.72rem;
-    color: #94a3b8;
+    color: ${COLORS.textMuted};
 `;
 
 const FilterBar = styled.div`
@@ -267,7 +268,7 @@ const FilterBar = styled.div`
 const CompactFilterResultCount = styled.div`
     display: none;
     padding-right: 58px;
-    color: #64748b;
+    color: ${COLORS.textSecondary};
     font-size: 0.8rem;
     font-weight: 700;
 
@@ -290,7 +291,7 @@ const HubFilterField = styled.label`
     display: flex;
     flex-direction: column;
     gap: 6px;
-    color: #475569;
+    color: ${COLORS.gray600};
     font-size: 12px;
     font-weight: 800;
 
@@ -307,22 +308,22 @@ const SearchInput = styled.input`
     max-width: 320px;
     height: 36px;
     padding: 0 12px;
-    border: 1px solid #cbd5e1;
+    border: 1px solid ${COLORS.gray300};
     border-radius: 10px;
     font-size: 0.88rem;
     font-weight: 500;
-    color: #0f172a;
-    background: #ffffff;
+    color: ${COLORS.textPrimary};
+    background: ${COLORS.white};
     outline: none;
     transition: border-color 0.15s ease, box-shadow 0.15s ease;
 
     &::placeholder {
-        color: #94a3b8;
+        color: ${COLORS.textMuted};
     }
 
     &:focus {
-        border-color: #22c55e;
-        box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.12);
+        border-color: ${COLORS.primary};
+        box-shadow: 0 0 0 3px ${COLORS.primaryLight};
     }
 `;
 
@@ -337,9 +338,9 @@ const FilterButton = styled.button<{ $active: boolean }>`
     height: 34px;
     padding: 0 12px;
     border-radius: 8px;
-    border: 1px solid ${(p) => (p.$active ? '#22c55e' : '#e2e8f0')};
-    background: ${(p) => (p.$active ? '#f0fdf4' : '#ffffff')};
-    color: ${(p) => (p.$active ? '#166534' : '#475569')};
+    border: 1px solid ${(p) => (p.$active ? COLORS.primary : COLORS.border)};
+    background: ${(p) => (p.$active ? COLORS.successLight : COLORS.white)};
+    color: ${(p) => (p.$active ? COLORS.successDark : COLORS.gray600)};
     font-size: 0.82rem;
     font-weight: ${(p) => (p.$active ? 700 : 600)};
     cursor: pointer;
@@ -347,28 +348,28 @@ const FilterButton = styled.button<{ $active: boolean }>`
     white-space: nowrap;
 
     &:hover {
-        border-color: #22c55e;
-        color: #166534;
-        background: #f0fdf4;
+        border-color: ${COLORS.primary};
+        color: ${COLORS.successDark};
+        background: ${COLORS.successLight};
     }
 `;
 
 const PropertySelect = styled.select`
     height: 36px;
     padding: 0 10px;
-    border: 1px solid #cbd5e1;
+    border: 1px solid ${COLORS.gray300};
     border-radius: 10px;
     font-size: 0.85rem;
     font-weight: 500;
-    color: #334155;
-    background: #ffffff;
+    color: ${COLORS.gray700};
+    background: ${COLORS.white};
     cursor: pointer;
     outline: none;
     max-width: 200px;
     transition: border-color 0.15s ease;
 
     &:focus {
-        border-color: #22c55e;
+        border-color: ${COLORS.primary};
     }
 `;
 
@@ -376,7 +377,7 @@ const FilterResultCount = styled.span`
     margin-left: auto;
     font-size: 0.8rem;
     font-weight: 600;
-    color: #64748b;
+    color: ${COLORS.textSecondary};
     white-space: nowrap;
 `;
 
@@ -389,13 +390,13 @@ const Header = styled.div`
         margin: 0;
         font-size: 1.75rem;
         font-weight: 800;
-        color: #0f172a;
+        color: ${COLORS.textPrimary};
     }
 
     p {
         margin: 0;
         font-size: 0.97rem;
-        color: #64748b;
+        color: ${COLORS.textSecondary};
     }
 `;
 
@@ -414,11 +415,11 @@ const SummaryRow = styled.div`
 `;
 
 const MetricCard = styled.div`
-    border: 1px solid #dbe3ea;
+    border: 1px solid ${COLORS.border};
     border-radius: 14px;
-    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    background: linear-gradient(180deg, ${COLORS.white} 0%, ${COLORS.bgLight} 100%);
     padding: 14px 15px;
-    box-shadow: 0 8px 22px rgba(15, 23, 42, 0.04);
+    box-shadow: ${COLORS.shadow};
 `;
 
 const MetricLabel = styled.div`
@@ -426,14 +427,14 @@ const MetricLabel = styled.div`
     font-weight: 700;
     letter-spacing: 0.04em;
     text-transform: uppercase;
-    color: #64748b;
+    color: ${COLORS.textSecondary};
     margin-bottom: 6px;
 `;
 
 const MetricValue = styled.div`
     font-size: 1.55rem;
     font-weight: 800;
-    color: #0f172a;
+    color: ${COLORS.textPrimary};
 `;
 
 const List = styled.div`
@@ -448,15 +449,15 @@ const DeviceCard = styled.div`
     grid-template-columns: minmax(0, 1.9fr) minmax(0, 0.8fr) minmax(0, 0.95fr) minmax(0, 1.1fr) minmax(0, 1.2fr) minmax(0, 0.75fr);
     gap: 16px;
     align-items: center;
-    border: 1px solid #d7e2ea;
-    background: linear-gradient(180deg, #ffffff 0%, #f8fbfd 100%);
+    border: 1px solid ${COLORS.border};
+    background: linear-gradient(180deg, ${COLORS.white} 0%, ${COLORS.bgLight} 100%);
     border-radius: 16px;
     padding: 18px 18px;
     color: inherit;
     cursor: pointer;
     overflow: hidden;
     transition: border-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
-    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+    box-shadow: ${COLORS.shadowMd};
 
     &::before {
         content: '';
@@ -466,34 +467,34 @@ const DeviceCard = styled.div`
         bottom: 10px;
         width: 4px;
         border-radius: 999px;
-        background: linear-gradient(180deg, #cbd5e1 0%, #e2e8f0 100%);
+        background: linear-gradient(180deg, ${COLORS.gray300} 0%, ${COLORS.border} 100%);
         transition: background 0.18s ease, opacity 0.18s ease;
         opacity: 0.9;
     }
 
     > div:not(:first-child) {
         padding-left: 14px;
-        border-left: 1px solid #edf2f7;
+        border-left: 1px solid ${COLORS.borderLight};
     }
 
     &:hover {
-        border-color: #22c55e;
-        background: linear-gradient(180deg, #ffffff 0%, #f6fff8 100%);
+        border-color: ${COLORS.primary};
+        background: linear-gradient(180deg, ${COLORS.white} 0%, ${COLORS.successLight} 100%);
         transform: translateY(-2px);
-        box-shadow: 0 18px 36px rgba(15, 23, 42, 0.1);
+        box-shadow: ${COLORS.shadowLg};
 
         &::before {
-            background: linear-gradient(180deg, #22c55e 0%, #16a34a 100%);
+            background: ${COLORS.gradientPrimary};
         }
 
         ${DevicePrimary} {
             text-decoration: underline;
-            text-decoration-color: #22c55e;
+            text-decoration-color: ${COLORS.primary};
             text-underline-offset: 3px;
         }
 
         ${OpenProfileCue} {
-            color: #16a34a;
+            color: ${COLORS.primaryHover};
             transform: translateX(2px);
         }
     }
@@ -511,7 +512,7 @@ const DeviceCard = styled.div`
             padding-left: 0;
             border-left: none;
             padding-top: 8px;
-            border-top: 1px solid #edf2f7;
+            border-top: 1px solid ${COLORS.borderLight};
         }
     }
 
@@ -571,8 +572,8 @@ const DeviceCard = styled.div`
             align-items: center;
             justify-content: center;
             border-radius: 999px;
-            background: #ecfdf5;
-            color: #047857;
+            background: ${COLORS.successLight};
+            color: ${COLORS.primary};
             font-size: 0;
 
             &::after {
@@ -602,7 +603,7 @@ const Label = styled.div`
     font-weight: 700;
     letter-spacing: 0.05em;
     text-transform: uppercase;
-    color: #64748b;
+    color: ${COLORS.textSecondary};
     margin-bottom: 5px;
 
     @media (max-width: 640px) {
@@ -613,7 +614,7 @@ const Label = styled.div`
 const Value = styled.div`
     font-size: 0.89rem;
     font-weight: 600;
-    color: #334155;
+    color: ${COLORS.gray700};
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -621,23 +622,23 @@ const Value = styled.div`
     @media (max-width: 640px) {
         font-size: 0.82rem;
         font-weight: 800;
-        color: #475569;
+        color: ${COLORS.gray600};
     }
 `;
 
 const EmptyState = styled.div`
-    border: 1px dashed #cbd5e1;
+    border: 1px dashed ${COLORS.gray300};
     border-radius: 12px;
     padding: 36px 20px;
     text-align: center;
-    color: #64748b;
+    color: ${COLORS.textSecondary};
 
     button {
         margin-top: 12px;
         border: none;
         border-radius: 8px;
-        background: #0f766e;
-        color: #ffffff;
+        background: ${COLORS.primaryDark};
+        color: ${COLORS.white};
         font-size: 13px;
         font-weight: 700;
         padding: 0.55rem 0.9rem;
@@ -645,7 +646,7 @@ const EmptyState = styled.div`
     }
 
     button:hover {
-        background: #115e59;
+        background: ${COLORS.primaryHover};
     }
 `;
 

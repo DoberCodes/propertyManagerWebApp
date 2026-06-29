@@ -11,6 +11,7 @@ import { useGetPropertiesQuery } from '../Redux/API/propertySlice';
 import { useGetPropertyGroupsQuery } from '../Redux/API/propertySlice';
 import { setPropertyGroups, setTasks } from '../Redux/Slices/propertyDataSlice';
 import { setTeamGroups } from '../Redux/Slices/teamSlice';
+import { hideAppLoading, showAppLoading } from '../Redux/Slices/appSlice';
 import { useGetTasksQuery } from '../Redux/API/taskSlice';
 import {
 	useGetTeamGroupsQuery,
@@ -41,6 +42,23 @@ export const useDataFetch = () => {
 interface DataFetchProviderProps {
 	children: ReactNode;
 }
+
+const INITIAL_DATA_LOADING_STEPS = [
+	'Preparing your dashboard...',
+	'Loading your properties...',
+	'Building your property timeline...',
+	'Checking upcoming maintenance...',
+	'Calculating your Home Health Score...',
+	'Organizing your documents...',
+	'Indexing warranties...',
+	'Reading appliance information...',
+	'Reviewing your property...',
+	'Connecting maintenance history...',
+	'Looking for missing documentation...',
+	'Building maintenance insights...',
+	'Organizing your home information...',
+	'Almost ready...',
+];
 
 export const DataFetchProvider: React.FC<DataFetchProviderProps> = ({
 	children,
@@ -74,19 +92,39 @@ export const DataFetchProvider: React.FC<DataFetchProviderProps> = ({
 		skip: !currentUser,
 	});
 
+	const isLoading =
+		groupsLoading ||
+		propertiesLoading ||
+		tasksLoading ||
+		teamGroupsLoading ||
+		teamMembersLoading;
+
+	useEffect(() => {
+		if (!currentUser || !isLoading) {
+			dispatch(hideAppLoading('initial-data'));
+			return;
+		}
+
+		dispatch(
+			showAppLoading({
+				key: 'initial-data',
+				title: 'Loading Maintley',
+				message: 'Preparing your dashboard...',
+				steps: INITIAL_DATA_LOADING_STEPS,
+			}),
+		);
+
+		return () => {
+			dispatch(hideAppLoading('initial-data'));
+		};
+	}, [currentUser, dispatch, isLoading]);
+
 	// Track initial load
 	useEffect(() => {
 		if (!currentUser) {
 			setIsInitialLoadComplete(false);
 			return;
 		}
-
-		const isLoading =
-			groupsLoading ||
-			propertiesLoading ||
-			tasksLoading ||
-			teamGroupsLoading ||
-			teamMembersLoading;
 
 		if (isLoading) {
 			return;
@@ -260,14 +298,8 @@ export const DataFetchProvider: React.FC<DataFetchProviderProps> = ({
 		teamMembersError,
 		dispatch,
 		isInitialLoadComplete,
+		isLoading,
 	]);
-
-	const isLoading =
-		groupsLoading ||
-		propertiesLoading ||
-		tasksLoading ||
-		teamGroupsLoading ||
-		teamMembersLoading;
 
 	return (
 		<DataFetchContext.Provider

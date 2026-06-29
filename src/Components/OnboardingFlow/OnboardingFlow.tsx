@@ -34,7 +34,7 @@ const OnboardingOverlay = styled.div`
 `;
 
 const OnboardingModal = styled.div`
-	background: white;
+	background: ${COLORS.bgWhite};
 	border-radius: 16px;
 	padding: 40px;
 	max-width: 600px;
@@ -64,7 +64,7 @@ const OnboardingHeader = styled.div`
 
 	p {
 		font-size: 16px;
-		color: #64748b;
+		color: ${COLORS.textSecondary};
 		margin: 0;
 	}
 
@@ -101,7 +101,7 @@ const StepDotBase = styled.div<{ $active: boolean; $completed: boolean }>`
 	background: ${({ $active, $completed }) => {
 		if ($completed) return COLORS.success;
 		if ($active) return COLORS.primary;
-		return '#e2e8f0';
+		return COLORS.gray200;
 	}};
 	transition: all 0.3s ease;
 `;
@@ -120,13 +120,13 @@ const StepContent = styled.div`
 	h2 {
 		font-size: 24px;
 		font-weight: 600;
-		color: #1e293b;
+		color: ${COLORS.textPrimary};
 		margin: 0 0 16px 0;
 	}
 
 	p {
 		font-size: 16px;
-		color: #64748b;
+		color: ${COLORS.textSecondary};
 		line-height: 1.6;
 		margin: 0 0 24px 0;
 	}
@@ -146,7 +146,7 @@ const StepContent = styled.div`
 				align-items: center;
 				margin-bottom: 12px;
 				font-size: 16px;
-				color: #475569;
+				color: ${COLORS.gray600};
 
 				&:before {
 					content: '✓';
@@ -191,8 +191,8 @@ const ActionButtons = styled.div`
 `;
 
 const PrimaryButton = styled.button`
-	background: #16a34a;
-	color: white;
+	background: ${COLORS.gradientPrimary};
+	color: ${COLORS.white};
 	border: none;
 	padding: 12px 28px;
 	border-radius: 8px;
@@ -200,12 +200,12 @@ const PrimaryButton = styled.button`
 	font-weight: 700;
 	cursor: pointer;
 	transition: all 0.2s ease;
-	box-shadow: 0 4px 12px rgba(22, 163, 74, 0.25);
+	box-shadow: 0 4px 12px rgba(4, 120, 87, 0.25);
 
 	&:hover {
-		background: #15803d;
+		background: ${COLORS.gradientPrimary};
 		transform: translateY(-2px);
-		box-shadow: 0 8px 20px rgba(22, 163, 74, 0.3);
+		box-shadow: 0 8px 20px rgba(4, 120, 87, 0.3);
 	}
 
 	&:active {
@@ -215,7 +215,7 @@ const PrimaryButton = styled.button`
 
 const SkipButton = styled.button`
 	background: transparent;
-	color: #64748b;
+	color: ${COLORS.textSecondary};
 	border: none;
 	padding: 8px 16px;
 	border-radius: 6px;
@@ -225,7 +225,7 @@ const SkipButton = styled.button`
 	transition: color 0.2s ease;
 
 	&:hover {
-		color: #475569;
+		color: ${COLORS.gray600};
 	}
 `;
 
@@ -253,7 +253,7 @@ const CelebrationModal = styled.div`
 `;
 
 const CelebrationContent = styled.div`
-	background: white;
+	background: ${COLORS.bgWhite};
 	border-radius: 20px;
 	padding: 60px 40px;
 	max-width: 500px;
@@ -431,7 +431,7 @@ const MinimizedWaitingButton = styled.button`
 		height: 20px;
 		border-radius: 50%;
 		background: ${COLORS.primary};
-		color: #166534;
+		color: ${COLORS.white};
 		font-size: 11px;
 		font-weight: 800;
 		line-height: 1;
@@ -459,8 +459,8 @@ const RoleGrid = styled.div`
 const RoleCard = styled.button<{ $selected?: boolean }>`
 	padding: 18px 16px;
 	border-radius: 12px;
-	border: 2px solid ${(p) => (p.$selected ? '#16a34a' : '#e2e8f0')};
-	background: ${(p) => (p.$selected ? '#f0fdf4' : '#f8fafc')};
+	border: 2px solid ${(p) => (p.$selected ? COLORS.primaryHover : COLORS.gray200)};
+	background: ${(p) => (p.$selected ? COLORS.primaryLight : COLORS.bgLight)};
 	cursor: pointer;
 	text-align: left;
 	transition: all 0.2s ease;
@@ -469,8 +469,8 @@ const RoleCard = styled.button<{ $selected?: boolean }>`
 	gap: 6px;
 
 	&:hover {
-		border-color: #16a34a;
-		background: #f0fdf4;
+		border-color: ${COLORS.primaryHover};
+		background: ${COLORS.primaryLight};
 		transform: translateY(-1px);
 	}
 
@@ -488,19 +488,23 @@ const RoleCardEmoji = styled.div`
 const RoleCardLabel = styled.div`
 	font-size: 15px;
 	font-weight: 700;
-	color: #0f172a;
+	color: ${COLORS.textPrimary};
 `;
 
 const RoleCardDesc = styled.div`
 	font-size: 12px;
-	color: #64748b;
+	color: ${COLORS.textSecondary};
 	line-height: 1.4;
 `;
 
 // Payoff preview card
 const PayoffPreview = styled.div`
-	background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%);
-	border: 1px solid rgba(22, 163, 74, 0.2);
+	background: linear-gradient(
+		135deg,
+		rgba(0, 158, 113, 0.14) 0%,
+		rgba(4, 120, 87, 0.08) 100%
+	);
+	border: 1px solid ${COLORS.primaryLight};
 	border-radius: 12px;
 	padding: 18px;
 	margin-top: 20px;
@@ -517,7 +521,7 @@ const PayoffPreviewTitle = styled.div`
 	font-weight: 800;
 	text-transform: uppercase;
 	letter-spacing: 0.07em;
-	color: #16a34a;
+	color: ${COLORS.primary};
 	margin-bottom: 12px;
 `;
 
@@ -532,7 +536,7 @@ const PayoffItem = styled.div`
 	align-items: flex-start;
 	gap: 10px;
 	font-size: 14px;
-	color: #1e293b;
+	color: ${COLORS.textPrimary};
 
 	.icon {
 		font-size: 16px;
@@ -543,12 +547,12 @@ const PayoffItem = styled.div`
 	.text strong {
 		display: block;
 		font-weight: 700;
-		color: #0f172a;
+		color: ${COLORS.textPrimary};
 	}
 
 	.text span {
 		font-size: 12px;
-		color: #64748b;
+		color: ${COLORS.textSecondary};
 	}
 `;
 
@@ -556,11 +560,11 @@ const BridgeStatement = styled.div`
 	margin-top: 14px;
 	padding: 10px 12px;
 	border-radius: 8px;
-	background: #f8fafc;
-	border: 1px solid #e2e8f0;
+	background: ${COLORS.bgLight};
+	border: 1px solid ${COLORS.gray200};
 	font-size: 13px;
 	font-weight: 600;
-	color: #334155;
+	color: ${COLORS.gray700};
 	text-align: left;
 
 	@media (max-width: 768px) {
@@ -582,8 +586,8 @@ const VisualPayoffGrid = styled.div`
 `;
 
 const VisualPayoffCard = styled.div`
-	background: #ffffff;
-	border: 1px solid #d1fae5;
+	background: ${COLORS.bgWhite};
+	border: 1px solid ${COLORS.successLight};
 	border-radius: 10px;
 	padding: 12px;
 	text-align: left;
@@ -594,20 +598,20 @@ const VisualPayoffCard = styled.div`
 		font-weight: 800;
 		text-transform: uppercase;
 		letter-spacing: 0.05em;
-		color: #16a34a;
+		color: ${COLORS.primary};
 		margin-bottom: 8px;
 	}
 
 	.title {
 		font-size: 13px;
 		font-weight: 700;
-		color: #0f172a;
+		color: ${COLORS.textPrimary};
 		margin-bottom: 5px;
 	}
 
 	.meta {
 		font-size: 12px;
-		color: #64748b;
+		color: ${COLORS.textSecondary};
 		line-height: 1.35;
 	}
 `;
@@ -1166,8 +1170,8 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
 							<MinimizedWaitingButton
 								onClick={() => setWaitingModalMinimized(false)}
 								aria-label={minimizedWaitingMessage}>
-								<span className='indicator' style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', color: 'white' }}>
-									<FontAwesomeIcon icon={faChevronUp} size='lg' aria-hidden='true' style={{ color: 'white', background: 'transparent' }} />
+								<span className='indicator' style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', color: COLORS.white }}>
+									<FontAwesomeIcon icon={faChevronUp} size='lg' aria-hidden='true' style={{ color: COLORS.white, background: 'transparent' }} />
 								</span>
 							</MinimizedWaitingButton>
 						</MinimizedWaitingActions>

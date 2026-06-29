@@ -118,9 +118,9 @@ const TabBadge = styled.span<{ $tone?: 'neutral' | 'success' }>`
 	font-weight: 700;
 	letter-spacing: 0.02em;
 	background: ${(props) =>
-		props.$tone === 'success' ? '#dcfce7' : '#eef2f7'};
+		props.$tone === 'success' ? COLORS.successLight : '#eef2f7'};
 	color: ${(props) =>
-		props.$tone === 'success' ? '#166534' : COLORS.textSecondary};
+		props.$tone === 'success' ? COLORS.successDark : COLORS.textSecondary};
 `;
 
 const SummaryBanner = styled.div`
@@ -129,9 +129,13 @@ const SummaryBanner = styled.div`
 	gap: 0.75rem;
 	padding: 1rem;
 	margin-bottom: 1.25rem;
-	border: 1px solid #d1fae5;
+	border: 1px solid ${COLORS.successLight};
 	border-radius: 10px;
-	background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf3 100%);
+	background: linear-gradient(
+		135deg,
+		rgba(0, 158, 113, 0.14) 0%,
+		rgba(4, 120, 87, 0.08) 100%
+	);
 `;
 
 const SummaryTitle = styled.div`
@@ -154,11 +158,11 @@ const SummaryPill = styled.span<{ $tone?: 'neutral' | 'success' }>`
 	font-size: 0.8rem;
 	font-weight: 600;
 	background: ${(props) =>
-		props.$tone === 'success' ? '#dcfce7' : '#ffffff'};
+		props.$tone === 'success' ? COLORS.successLight : '#ffffff'};
 	color: ${(props) =>
-		props.$tone === 'success' ? '#166534' : COLORS.textSecondary};
+		props.$tone === 'success' ? COLORS.successDark : COLORS.textSecondary};
 	border: 1px solid
-		${(props) => (props.$tone === 'success' ? '#86efac' : COLORS.gray200)};
+		${(props) => (props.$tone === 'success' ? COLORS.primaryHover : COLORS.gray200)};
 `;
 
 const RequiredList = styled.div`
@@ -1165,7 +1169,7 @@ export const DeviceModal = (props: DeviceModalProps) => {
 											? !newCustomCategory.trim() || !newItemName.trim()
 											: !newCategoryOption.trim() || !newItemName.trim())
 											? COLORS.gray200
-											: `linear-gradient(135deg, ${COLORS.primary} 0%, ${COLORS.primaryDark} 100%)`,
+											: COLORS.gradientPrimary,
 									color:
 										(newCategoryOption === 'other'
 											? !newCustomCategory.trim() || !newItemName.trim()
@@ -1361,7 +1365,7 @@ export const DeviceModal = (props: DeviceModalProps) => {
 																? !editCustomCategory.trim() || !editName.trim()
 																: !editCategoryOption.trim() || !editName.trim())
 																? COLORS.gray200
-																: `linear-gradient(135deg, ${COLORS.primary} 0%, ${COLORS.primaryDark} 100%)`,
+																: COLORS.gradientPrimary,
 														color:
 															(editCategoryOption === 'other'
 																? !editCustomCategory.trim() || !editName.trim()

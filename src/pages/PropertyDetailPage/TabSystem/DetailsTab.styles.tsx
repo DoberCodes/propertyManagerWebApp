@@ -1,4 +1,5 @@
 import styled from 'styled-components';
+import { COLORS } from '../../../constants/colors';
 
 export const GlanceGrid = styled.div`
 	display: grid;
@@ -69,9 +70,9 @@ export const QuickActionButton = styled.button<{ $variant?: 'primary' | 'seconda
 	padding: 0 12px;
 	border-radius: 9px;
 	border: 1px solid
-		${(props) => (props.$variant === 'secondary' ? '#cbd5e1' : '#16a34a')};
-	background: ${(props) => (props.$variant === 'secondary' ? '#f8fafc' : '#22c55e')};
-	color: ${(props) => (props.$variant === 'secondary' ? '#334155' : '#ffffff')};
+		${(props) => (props.$variant === 'secondary' ? '#cbd5e1' : COLORS.primary)};
+	background: ${(props) => (props.$variant === 'secondary' ? '#f8fafc' : COLORS.primary)};
+	color: ${(props) => (props.$variant === 'secondary' ? '#334155' : COLORS.white)};
 	font-size: 0.84rem;
 	font-weight: 700;
 	cursor: pointer;
@@ -235,20 +236,20 @@ export const TimelineBadge = styled.span<{
 			? '#fef2f2'
 			: p.$type === 'task-due'
 				? '#fffbeb'
-				: '#ecfdf3'};
+				: COLORS.successLight};
 	color: ${(p) =>
 		p.$type === 'task-overdue'
 			? '#b91c1c'
 			: p.$type === 'task-due'
 				? '#92400e'
-				: '#166534'};
+				: COLORS.successDark};
 	border: 1px solid
 		${(p) =>
 			p.$type === 'task-overdue'
 				? '#fecaca'
 				: p.$type === 'task-due'
 					? '#fcd34d'
-					: '#bbf7d0'};
+					: 'rgba(63, 204, 124, 0.42)'};
 `;
 
 export const TimelineBody = styled.div`

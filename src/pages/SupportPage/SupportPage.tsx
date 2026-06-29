@@ -25,6 +25,7 @@ import { GenericModal } from 'Components/Library';
 import { FeedbackForm } from 'Components/FeedbackForm';
 import { useGetMyFeedbackTicketsQuery, MyFeedbackTicket } from 'Redux/API/apiSlice';
 import { hasMaintleyAdminAccess } from 'utils/maintleyRole';
+import { COLORS } from '../../constants/colors';
 import {
 	ActionArrow,
 	ActionCard,
@@ -543,7 +544,7 @@ export const SupportPage: React.FC = () => {
 									Meaningful new capabilities and major experience changes.
 								</PanelText>
 							</div>
-							<FontAwesomeIcon icon={faNewspaper} color='#059669' />
+							<FontAwesomeIcon icon={faNewspaper} color={COLORS.primary} />
 						</PanelHeader>
 						<UpdateList>
 							{recentMaintleyUpdates.map((update) => (

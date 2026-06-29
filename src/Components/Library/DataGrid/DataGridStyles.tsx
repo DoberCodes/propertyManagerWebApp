@@ -3,6 +3,7 @@
  * Provides consistent styling for tables across the application
  */
 import styled from 'styled-components';
+import { COLORS } from '../../../constants/colors';
 
 export const GridContainer = styled.div`
 	overflow-x: auto;
@@ -58,8 +59,8 @@ export const EmptyState = styled.div`
 	button {
 		border: none;
 		border-radius: 8px;
-		background: #16a34a;
-		color: #ffffff;
+		background: ${COLORS.primary};
+		color: ${COLORS.white};
 		font-size: 13px;
 		font-weight: 700;
 		padding: 0.55rem 0.9rem;
@@ -67,7 +68,7 @@ export const EmptyState = styled.div`
 	}
 
 	button:hover:not(:disabled) {
-		background: #15803d;
+		background: ${COLORS.primaryHover};
 	}
 
 	button:disabled {

@@ -4,6 +4,7 @@ import { RegistrationCard } from '../../Components/RegistrationCard/Registration
 import { Wrapper } from './RegistrationPage.styles';
 import { isNativeApp } from '../../utils/platform';
 import { openRegistrationInBrowser } from '../../utils/authLinks';
+import { LoadingState } from '../../Components/LoadingState';
 
 export const RegistrationPage = () => {
 	const navigate = useNavigate();
@@ -17,7 +18,18 @@ export const RegistrationPage = () => {
 	}, [navigate]);
 
 	if (isNativeApp()) {
-		return <Wrapper>Opening secure signup in your browser...</Wrapper>;
+		return (
+			<LoadingState
+				loadingKey='registration'
+				title='Opening signup'
+				message='Opening secure signup in your browser.'
+				steps={[
+					'Opening secure signup...',
+					'Preparing your account setup...',
+					'Almost ready...',
+				]}
+			/>
+		);
 	}
 
 	return (

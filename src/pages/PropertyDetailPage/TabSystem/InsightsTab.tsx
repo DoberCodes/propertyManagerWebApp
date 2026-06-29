@@ -12,6 +12,7 @@ import {
 } from '../../../utils/propertyIntelligenceScan';
 import { SubscriptionData } from '../../../utils/subscriptionUtils';
 import type { RoleCapabilities } from '../../../utils/permissions';
+import { COLORS } from '../../../constants/colors';
 
 type InsightsWorkspaceTab = 'overview' | 'suggested-details' | 'history';
 
@@ -32,6 +33,10 @@ interface InsightsTabProps {
 	subscription?: SubscriptionData | null;
 	permissions?: RoleCapabilities;
 	onAddMaintenanceHistory?: (history: any) => Promise<void> | void;
+	onUpdateMaintenanceHistory?: (
+		historyId: string,
+		updates: Partial<any>,
+	) => Promise<void> | void;
 	onRecommendationAction: (
 		actionType: PropertyScanActionType,
 		recommendation: PropertyScanRecommendation,
@@ -50,6 +55,7 @@ export const InsightsTab: React.FC<InsightsTabProps> = ({
 	subscription,
 	permissions,
 	onAddMaintenanceHistory,
+	onUpdateMaintenanceHistory,
 	onRecommendationAction,
 }) => {
 	const [searchParams, setSearchParams] = useSearchParams();
@@ -135,11 +141,13 @@ export const InsightsTab: React.FC<InsightsTabProps> = ({
 				<PropertyKnowledgeReviewPanel
 					property={property}
 					propertyDevices={propertyDevices}
+					maintenanceHistoryRecords={maintenanceHistoryRecords}
 					propertyContractors={propertyContractors}
 					permissions={permissions}
 					selectedSuggestionId={requestedSuggestionId}
 					onSelectSuggestion={selectSuggestion}
 					onAddMaintenanceHistory={onAddMaintenanceHistory}
+					onUpdateMaintenanceHistory={onUpdateMaintenanceHistory}
 				/>
 			)}
 			{activeWorkspaceTab === 'history' && (
@@ -147,6 +155,7 @@ export const InsightsTab: React.FC<InsightsTabProps> = ({
 					propertyId={property.id}
 					accountId={accountId || (property as any).accountId || property.userId}
 					canRunScan={canRunScan}
+					property={property}
 				/>
 			)}
 		</InsightsWorkspace>
@@ -192,7 +201,7 @@ const InsightsTabButton = styled.button<{ $active: boolean }>`
 	}
 
 	&:focus-visible {
-		outline: 2px solid #0f766e;
+		outline: 2px solid ${COLORS.primary};
 		outline-offset: 2px;
 	}
 

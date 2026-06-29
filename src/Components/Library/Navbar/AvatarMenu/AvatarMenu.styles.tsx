@@ -29,6 +29,27 @@ export const UserImage = styled.img`
 
 `;
 
+export const UserInitials = styled.div`
+	width: 50px;
+	height: 50px;
+	border-radius: 50%;
+	border: 2px solid ${COLORS.primary};
+	background: ${COLORS.primaryLight};
+	color: ${COLORS.primaryDark};
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 16px;
+	font-weight: 800;
+	line-height: 1;
+	text-transform: uppercase;
+
+	&:hover {
+		border-color: ${COLORS.secondaryHover};
+		opacity: 0.8;
+	}
+`;
+
 export const NotificationBadge = styled.div`
 	position: absolute;
 	top: -5px;
@@ -37,8 +58,8 @@ export const NotificationBadge = styled.div`
 	height: 18px;
 	padding: 0 5px;
 	border-radius: 999px;
-	background: #ef4444;
-	color: #ffffff;
+	background: ${COLORS.error};
+	color: ${COLORS.white};
 	font-size: 10px;
 	font-weight: 700;
 	display: flex;
@@ -66,7 +87,7 @@ export const UserInfo = styled.div`
 export const UserName = styled.span`
 	font-size: 14px;
 	font-weight: 600;
-	color: #f9fafb;
+	color: ${COLORS.bgLight};
 	white-space: nowrap;
 	margin: 0;
 	line-height: 1.2;
@@ -78,7 +99,7 @@ export const UserName = styled.span`
 
 export const UserTitle = styled.span`
 	font-size: 12px;
-	color: #e5e7eb;
+	color: ${COLORS.border};
 	white-space: nowrap;
 	margin: 0;
 	line-height: 1.2;
@@ -94,8 +115,8 @@ export const DropdownMenu = styled.div`
 	position: absolute;
 	top: calc(100% + 5px);
 	right: 0;
-	background-color: white;
-	border: 1px solid #ccc;
+	background-color: ${COLORS.white};
+	border: 1px solid ${COLORS.border};
 	border-radius: 4px;
 	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 	z-index: 720;
@@ -111,7 +132,7 @@ export const DropdownMenu = styled.div`
 export const DropdownItem = styled(Link)`
 	display: block;
 	padding: 10px 15px;
-	color: #22c55e;
+	color: ${COLORS.primary};
 	text-decoration: none;
 	font-size: 14px;
 	cursor: pointer;
@@ -125,7 +146,7 @@ export const DropdownItem = styled(Link)`
 	}
 
 	&:hover {
-		background-color: #f0fdf4;
+		background-color: ${COLORS.primaryLight};
 	}
 
 	&:last-child {
@@ -142,7 +163,7 @@ export const DropdownButton = styled.button<{ variant?: 'default' | 'danger' }>`
 	display: block;
 	width: 100%;
 	padding: 10px 15px;
-	color: ${(props) => (props.variant === 'danger' ? '#ef4444' : '#22c55e')};
+	color: ${(props) => (props.variant === 'danger' ? COLORS.error : COLORS.primary)};
 	background: none;
 	border: none;
 	text-align: left;
@@ -157,9 +178,9 @@ export const DropdownButton = styled.button<{ variant?: 'default' | 'danger' }>`
 	&:hover {
 		background-color: ${(props) =>
 		props.variant === 'danger'
-			? 'rgba(239, 68, 68, 0.1)'
-			: 'rgba(34, 197, 94, 0.1)'};
-		color: ${(props) => (props.variant === 'danger' ? '#dc2626' : '#22c55e')};
+			? COLORS.errorLight
+			: COLORS.primaryLight};
+		color: ${(props) => (props.variant === 'danger' ? COLORS.errorDark : COLORS.primary)};
 	}
 
 	@media (max-width: 480px) {

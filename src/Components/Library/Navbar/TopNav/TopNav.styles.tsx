@@ -5,7 +5,7 @@ import { COLORS } from '../../../../constants/colors';
 
 export const Wrapper = styled.div`
 	border: none;
-	border-bottom: 2px solid #047857;
+	border-bottom: 2px solid ${COLORS.primary};
 	display: flex;
 	flex-flow: row;
 	align-items: center;
@@ -13,7 +13,7 @@ export const Wrapper = styled.div`
 	height: ${nav_height};
 	min-height: ${nav_height};
 	flex-shrink: 0;
-	background: linear-gradient(90deg, #065f46 0%, #047857 100%);
+	background: ${COLORS.primary};
 	padding: 24px 20px;
 	padding-top: max(24px, env(safe-area-inset-top, 24px));
 	padding-left: max(20px, env(safe-area-inset-left, 20px));
@@ -70,7 +70,7 @@ export const MobileRouteLabel = styled.div`
 		display: flex;
 		align-items: center;
 		gap: 10px;
-		color: #ffffff;
+		color: ${COLORS.white};
 		font-weight: 500;
 		font-size: 18px;
 		min-width: 0;
@@ -81,11 +81,18 @@ export const Title = styled.div`
 	display: flex;
 	justify-content: center;
 	align-items: center;
+	width: 194px;
+	min-width: 194px;
 	flex-shrink: 0;
+
 	img {
-		height: 50px;
-		width: auto;
+		display: block;
+		width: 184px;
+		height: auto;
+		max-height: 84px;
+		object-fit: contain;
 	}
+
 	span {
 		font-size: 0.8em;	
 		color: ${COLORS.primary};
@@ -132,7 +139,7 @@ export const NavbarOverlay = styled.div<{ isOpen?: boolean; isDropdown?: boolean
 
 export const NavItem = styled(Link)`
 	text-align: center;
-	color: ${COLORS.bgWhite};
+	color: ${COLORS.white};
 	text-decoration: none;
 	cursor: pointer;
 	white-space: nowrap;
@@ -160,7 +167,7 @@ export const HamburgerButton = styled.button`
 	border: none;
 	cursor: pointer;
 	font-size: 24px;
-	color: ${COLORS.bgWhite};
+	color: ${COLORS.white};
 	padding: 8px;
 	margin-right: 10px;
 	justify-content: center;
@@ -217,8 +224,8 @@ export const NotificationIcon = styled.div<{
 			right: 4px;
 			min-width: 16px;
 			height: 16px;
-			background: #ef4444;
-			color: white;
+			background: ${COLORS.error};
+			color: ${COLORS.white};
 			border-radius: 8px;
 			border: 2px solid ${COLORS.primary};
 			font-size: 10px;

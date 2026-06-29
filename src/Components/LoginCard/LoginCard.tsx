@@ -27,6 +27,7 @@ import { signInWithEmail } from '../../services/authService';
 import { USER_ROLES } from '../../constants/roles';
 import { isNativeApp } from '../../utils/platform';
 import { getRegistrationUrl, openRegistrationInBrowser } from '../../utils/authLinks';
+import { COLORS } from '../../constants/colors';
 
 export const LoginCard = () => {
 	const navigate = useNavigate();
@@ -153,7 +154,7 @@ export const LoginCard = () => {
 				<a
 					href='#/forgot-password'
 					style={{
-						color: '#10b981',
+						color: COLORS.primary,
 						textDecoration: 'none',
 						fontSize: '14px',
 						fontWeight: '500',
@@ -197,7 +198,7 @@ export const LoginCard = () => {
 							e.preventDefault();
 							window.location.href = '#/legal';
 						}}
-						style={{ color: '#10b981', textDecoration: 'none' }}>
+						style={{ color: COLORS.primary, textDecoration: 'none' }}>
 						Terms of Service and Privacy Policy
 					</a>
 				</div>

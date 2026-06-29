@@ -1,4 +1,5 @@
 import styled from 'styled-components';
+import { COLORS } from '../../../constants/colors';
 
 /**
  * Shared button styles used across the application
@@ -10,8 +11,8 @@ import styled from 'styled-components';
  */
 export const PrimaryButton = styled.button`
 	padding: 12px 24px;
-	background-color: #22c55e;
-	color: white;
+	background-color: ${COLORS.primary};
+	color: ${COLORS.white};
 	border: none;
 	border-radius: 6px;
 	font-size: 14px;
@@ -21,7 +22,7 @@ export const PrimaryButton = styled.button`
 	min-height: 44px; /* Better touch target */
 
 	&:hover:not(:disabled) {
-		background-color: #16a34a;
+		background-color: ${COLORS.primaryHover};
 		transform: translateY(-1px);
 	}
 
@@ -53,7 +54,7 @@ export const PrimaryButton = styled.button`
 export const SecondaryButton = styled.button`
 	padding: 12px 24px;
 	border: 1px solid #d1d5db;
-	background-color: white;
+	background-color: ${COLORS.white};
 	color: #6b7280;
 	border-radius: 6px;
 	font-size: 14px;
@@ -91,7 +92,7 @@ export const SecondaryButton = styled.button`
 export const DangerButton = styled.button`
 	padding: 12px 24px;
 	background-color: #ef4444;
-	color: white;
+	color: ${COLORS.white};
 	border: none;
 	border-radius: 6px;
 	font-size: 14px;
@@ -132,8 +133,8 @@ export const DangerButton = styled.button`
  */
 export const SmallButton = styled.button`
 	padding: 8px 16px;
-	background-color: #22c55e;
-	color: white;
+	background-color: ${COLORS.primary};
+	color: ${COLORS.white};
 	border: none;
 	border-radius: 4px;
 	font-size: 14px;
@@ -143,7 +144,7 @@ export const SmallButton = styled.button`
 	min-height: 36px; /* Better touch target */
 
 	&:hover:not(:disabled) {
-		background-color: #16a34a;
+		background-color: ${COLORS.primaryHover};
 	}
 
 	&:disabled {
@@ -197,8 +198,8 @@ export const IconButton = styled.button`
 export const OutlineButton = styled.button`
 	padding: 12px 24px;
 	background-color: transparent;
-	color: #22c55e;
-	border: 2px solid #22c55e;
+	color: ${COLORS.primary};
+	border: 2px solid ${COLORS.primary};
 	border-radius: 6px;
 	font-size: 14px;
 	font-weight: 600;
@@ -207,8 +208,8 @@ export const OutlineButton = styled.button`
 	min-height: 44px; /* Better touch target */
 
 	&:hover:not(:disabled) {
-		background-color: #22c55e;
-		color: white;
+		background-color: ${COLORS.primary};
+		color: ${COLORS.white};
 	}
 
 	&:disabled {

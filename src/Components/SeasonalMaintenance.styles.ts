@@ -83,8 +83,8 @@ export const ViewButton = styled.button<{ $active?: boolean }>`
 	padding: 6px 10px;
 	border-radius: 6px;
 	border: 1px solid #e5e7eb;
-	background: ${({ $active }) => ($active ? '#10b981' : 'white')};
-	color: ${({ $active }) => ($active ? 'white' : '#111827')};
+	background: ${({ $active }) => ($active ? COLORS.primary : COLORS.bgWhite)};
+	color: ${({ $active }) => ($active ? COLORS.textInverse : COLORS.textPrimary)};
 	cursor: pointer;
 	font-size: 13px;
 `;
@@ -157,7 +157,7 @@ export const WeatherInfo = styled.div`
 
 export const Recommendation = styled.p`
 	font-size: 13px;
-	color: #10b981;
+	color: ${COLORS.primary};
 	font-weight: 600;
 	margin: 0;
 `;

@@ -10,6 +10,7 @@ import { useNavigate } from "react-router";
 import { selectIsTeamMemberAccount, selectIsTenant } from "Redux/selectors/permissionSelectors";
 import { isNativeApp } from 'utils/platform';
 import { openSubscriptionManagementInBrowser } from 'utils/authLinks';
+import { COLORS } from 'constants/colors';
 
 interface AccountSnapshotProps {
 	isSidebarOpen: boolean;
@@ -183,8 +184,7 @@ export const AccountSnapshot: React.FC<AccountSnapshotProps> = ({ isSidebarOpen,
 						style={{
 							height: '100%',
 							width: `${propertyUsagePercent}%`,
-							background:
-								'linear-gradient(90deg, #10b981 0%, #22c55e 100%)',
+							background: COLORS.gradientPrimary,
 							transition: 'width 0.2s ease',
 						}}
 					/>
@@ -239,8 +239,7 @@ export const AccountSnapshot: React.FC<AccountSnapshotProps> = ({ isSidebarOpen,
 						style={{
 							height: '100%',
 							width: `${storageUsagePercent}%`,
-							background:
-								'linear-gradient(90deg, #10b981 0%, #22c55e 100%)',
+							background: COLORS.gradientPrimary,
 							transition: 'width 0.2s ease',
 						}}
 					/>

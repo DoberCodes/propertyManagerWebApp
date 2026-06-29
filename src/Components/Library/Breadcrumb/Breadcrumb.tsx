@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
+import { COLORS } from '../../../constants/colors';
 
 const BreadcrumbContainer = styled.div`
 	display: flex;
@@ -17,14 +18,14 @@ const BreadcrumbItem = styled.span`
 	color: #6b7280;
 
 	&:hover {
-		color: #22c55e;
+		color: ${COLORS.primary};
 	}
 `;
 
 const BreadcrumbLink = styled.button`
 	background: none;
 	border: none;
-	color: #22c55e;
+	color: ${COLORS.primary};
 	cursor: pointer;
 	font-size: 14px;
 	padding: 0;
@@ -32,7 +33,7 @@ const BreadcrumbLink = styled.button`
 	font-weight: 500;
 
 	&:hover {
-		color: #16a34a;
+		color: ${COLORS.primaryHover};
 		text-decoration: underline;
 	}
 `;

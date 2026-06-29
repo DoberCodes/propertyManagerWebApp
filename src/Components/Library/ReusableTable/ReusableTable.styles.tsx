@@ -1,4 +1,5 @@
 import { styled } from 'styled-components';
+import { COLORS } from '../../../constants/colors';
 
 export const ActionButton = styled.button`
 	background: transparent;
@@ -28,14 +29,14 @@ export const ActionButton = styled.button`
 	}
 
 	&.primary-action {
-		background: #f2fbf6;
-		border-color: #cbe9d9;
-		color: #0f766e;
+		background: ${COLORS.primaryLight};
+		border-color: rgba(4, 120, 87, 0.22);
+		color: ${COLORS.primaryDark};
 	}
 
 	&.primary-action:hover:not(:disabled) {
-		background: #ebf8f1;
-		border-color: #b9dfcd;
+		background: rgba(63, 204, 124, 0.22);
+		border-color: rgba(4, 120, 87, 0.32);
 	}
 
 	&:disabled {
@@ -336,8 +337,8 @@ export const EmptyState = styled.div`
 		margin-top: 6px;
 		border: none;
 		border-radius: 8px;
-		background: #16a34a;
-		color: #ffffff;
+		background: ${COLORS.primary};
+		color: ${COLORS.white};
 		font-size: 13px;
 		font-weight: 700;
 		padding: 0.55rem 0.9rem;
@@ -345,7 +346,7 @@ export const EmptyState = styled.div`
 		transition: background-color 0.15s ease, transform 0.15s ease;
 
 		&:hover {
-			background: #15803d;
+			background: ${COLORS.primaryHover};
 			transform: translateY(-1px);
 		}
 	}

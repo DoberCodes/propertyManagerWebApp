@@ -7,6 +7,7 @@ import {
 	FilterConfig,
 	FilterValues,
 } from '../../../Components/Library/FilterBar';
+import { COLORS } from '../../../constants/colors';
 
 const Fields = styled.div`
 	display: grid;
@@ -39,8 +40,8 @@ const Input = styled.input`
 
 	&:focus {
 		outline: none;
-		border-color: #22c55e;
-		box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.12);
+		border-color: ${COLORS.primary};
+		box-shadow: 0 0 0 3px ${COLORS.primaryLight};
 	}
 `;
 
@@ -56,8 +57,8 @@ const Select = styled.select`
 
 	&:focus {
 		outline: none;
-		border-color: #22c55e;
-		box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.12);
+		border-color: ${COLORS.primary};
+		box-shadow: 0 0 0 3px ${COLORS.primaryLight};
 	}
 `;
 

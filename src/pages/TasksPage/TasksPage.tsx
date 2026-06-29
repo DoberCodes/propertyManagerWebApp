@@ -66,6 +66,7 @@ import {
 } from './TasksPage.styles';
 
 import {
+	compareTasksByDueUrgency,
 	getTaskAssigneeDisplayName,
 	isTaskOverdueForDisplay,
 	updateOverdueTasks,
@@ -84,6 +85,7 @@ import {
 	AppPageTitle as StandardAppPageTitle,
 	AppPageTitleBlock as StandardAppPageTitleBlock,
 } from '../../Components/Library/AppPageLayout/AppPageLayout.styles';
+import { COLORS } from '../../constants/colors';
 
 export const TasksPage = () => {
 	const navigate = useNavigate();
@@ -618,9 +620,7 @@ export const TasksPage = () => {
 
 			let baseCompare = 0;
 			if (sortState.key === 'dueDate') {
-				const dateA = a.dueDate ? new Date(a.dueDate).getTime() : Infinity;
-				const dateB = b.dueDate ? new Date(b.dueDate).getTime() : Infinity;
-				baseCompare = dateA - dateB;
+				baseCompare = compareTasksByDueUrgency(a, b);
 			} else if (sortState.key === 'priority') {
 				const priorityA =
 					priorityOrder[a.priority as keyof typeof priorityOrder] || 0;
@@ -724,7 +724,7 @@ export const TasksPage = () => {
 	const getTaskIcon = (task: any) => {
 		const context = `${task.title || ''} ${task.category || ''} ${task.location || ''}`.toLowerCase();
 		if (context.includes('hvac') || context.includes('heat') || context.includes('cool')) {
-			return { icon: faFan, color: '#0f766e', background: '#ecfeff' };
+			return { icon: faFan, color: COLORS.primary, background: COLORS.primaryLight };
 		}
 		if (context.includes('season') || context.includes('winter') || context.includes('summer')) {
 			return { icon: faSnowflake, color: '#1d4ed8', background: '#dbeafe' };
@@ -736,7 +736,7 @@ export const TasksPage = () => {
 			return { icon: faHouse, color: '#9a3412', background: '#ffedd5' };
 		}
 		if (task.status === 'Completed') {
-			return { icon: faClockRotateLeft, color: '#166534', background: '#ecfdf5' };
+			return { icon: faClockRotateLeft, color: COLORS.successDark, background: COLORS.successLight };
 		}
 		return { icon: faScrewdriverWrench, color: '#475569', background: '#f1f5f9' };
 	};

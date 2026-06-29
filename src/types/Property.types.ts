@@ -47,9 +47,11 @@ export type PropertyDocumentType =
 
 export type PropertyDocumentAcquisitionStatus =
 	| 'not_reviewed'
+	| 'processing'
 	| 'pending_review'
 	| 'reviewed'
-	| 'applied';
+	| 'applied'
+	| 'failed';
 
 export interface PropertyDocumentLinks {
 	assetIds?: string[];
@@ -78,8 +80,18 @@ export interface PropertyDocument {
 	assignedTaskStatus?: string;
 	acquisitionStatus?: PropertyDocumentAcquisitionStatus;
 	extractedKnowledgeSuggestionIds?: string[];
+	acquisitionError?: string;
+	acquisitionStartedAt?: string;
+	acquisitionCompletedAt?: string;
 	uploadedAt: string;
 	storagePath?: string;
+}
+
+export interface PropertyAccessSnapshot {
+	id: string;
+	name: string;
+	email?: string;
+	source?: 'team' | 'family';
 }
 
 export interface Property {
@@ -93,6 +105,7 @@ export interface Property {
 	coOwners?: string[]; // Additional owners with full ownership rights
 	administrators?: string[]; // Property managers/helpers
 	viewers?: string[]; // Read-only access
+	accessSnapshots?: Record<string, PropertyAccessSnapshot>;
 	address?: string;
 	propertyType?: 'Single Family' | 'Multi-Family' | 'Commercial';
 	bedrooms?: number;

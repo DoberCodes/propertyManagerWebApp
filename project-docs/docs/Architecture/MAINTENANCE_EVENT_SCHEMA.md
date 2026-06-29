@@ -248,6 +248,10 @@ Some task workflows support more detailed cost structures.
 
 When linking task financials to maintenance events, verify conversion and normalization behavior.
 
+When a completed task creates a Maintenance Event, the Maintenance Event becomes the owner of the recorded cost for that completed work. The original task may remain linked through `originalTaskId` or `linkedTaskIds`, but derived cost views should use the event cost and avoid counting the same completed task financials twice.
+
+When Property Knowledge Acquisition reviews an uploaded invoice or service document, it should attempt to match the document to an existing Maintenance Event using explainable signals such as source document identity, invoice number, service date, contractor, related asset, and total cost. If the reviewer accepts the match, the existing Maintenance Event should be updated with missing context rather than creating a duplicate event.
+
 ---
 
 # Task Completion Events

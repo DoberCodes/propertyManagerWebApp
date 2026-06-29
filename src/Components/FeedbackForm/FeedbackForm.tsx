@@ -6,6 +6,7 @@ import { useSelector } from 'react-redux';
 import { RootState } from '../../Redux/store/store';
 import { useSubmitFeedbackMutation } from '../../Redux/API/apiSlice';
 import { getCurrentAppVersion } from '../../utils/versionCheck';
+import { COLORS } from '../../constants/colors';
 
 interface FeedbackFormProps {
 	onClose?: () => void;
@@ -376,6 +377,7 @@ export default FeedbackForm;
 const FormContainer = styled.form`
 	max-width: 500px;
 	width: 100%;
+	min-width: 0;
 `;
 
 const FormTitle = styled.h3`
@@ -405,6 +407,7 @@ const Label = styled.label`
 `;
 
 const Input = styled.input`
+	box-sizing: border-box;
 	width: 100%;
 	padding: 10px 12px;
 	border: 1px solid #d1d5db;
@@ -420,6 +423,7 @@ const Input = styled.input`
 `;
 
 const TextArea = styled.textarea`
+	box-sizing: border-box;
 	width: 100%;
 	padding: 10px 12px;
 	border: 1px solid #d1d5db;
@@ -438,6 +442,7 @@ const TextArea = styled.textarea`
 `;
 
 const Select = styled.select`
+	box-sizing: border-box;
 	width: 100%;
 	padding: 10px 12px;
 	border: 1px solid #d1d5db;
@@ -455,12 +460,18 @@ const Select = styled.select`
 
 const ButtonGroup = styled.div`
 	display: flex;
+	flex-wrap: wrap;
 	gap: 12px;
 	justify-content: flex-end;
 	margin-top: 24px;
+
+	@media (max-width: 480px) {
+		flex-direction: column-reverse;
+	}
 `;
 
 const BaseButton = styled.button`
+	box-sizing: border-box;
 	padding: 10px 20px;
 	border-radius: 6px;
 	font-size: 0.875rem;
@@ -469,8 +480,11 @@ const BaseButton = styled.button`
 	transition: all 0.2s;
 	display: flex;
 	align-items: center;
+	justify-content: center;
 	gap: 8px;
 	border: none;
+	max-width: 100%;
+	white-space: nowrap;
 
 	&:disabled {
 		opacity: 0.6;
@@ -485,6 +499,10 @@ const SubmitButton = styled(BaseButton)`
 	&:hover:not(:disabled) {
 		background: #4f46e5;
 	}
+
+	@media (max-width: 480px) {
+		width: 100%;
+	}
 `;
 
 const CancelButton = styled(BaseButton)`
@@ -494,6 +512,10 @@ const CancelButton = styled(BaseButton)`
 
 	&:hover:not(:disabled) {
 		background: #e5e7eb;
+	}
+
+	@media (max-width: 480px) {
+		width: 100%;
 	}
 `;
 
@@ -514,7 +536,7 @@ const SuccessContainer = styled.div`
 
 const SuccessIcon = styled.div`
 	font-size: 3rem;
-	color: #10b981;
+	color: ${COLORS.primary};
 	margin-bottom: 16px;
 `;
 
@@ -554,6 +576,7 @@ const AttachmentList = styled.div`
 const AttachmentItem = styled.div`
 	display: flex;
 	align-items: center;
+	flex-wrap: wrap;
 	gap: 10px;
 	padding: 8px 10px;
 	border-radius: 6px;
@@ -575,6 +598,7 @@ const AttachmentName = styled.span`
 const AttachmentMeta = styled.span`
 	font-size: 0.75rem;
 	color: #6b7280;
+	flex: 0 0 auto;
 `;
 
 const RemoveAttachmentButton = styled.button`
@@ -585,6 +609,7 @@ const RemoveAttachmentButton = styled.button`
 	font-weight: 600;
 	cursor: pointer;
 	padding: 0;
+	flex: 0 0 auto;
 
 	&:hover {
 		text-decoration: underline;

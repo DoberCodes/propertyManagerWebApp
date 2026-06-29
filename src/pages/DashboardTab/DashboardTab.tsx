@@ -473,7 +473,9 @@ export const DashboardTab = () => {
 
 		if (!visiblePropertyIdsKey) {
 			dashboardHistoryLoadedKeyRef.current = '';
-			setDashboardMaintenanceHistory([]);
+			setDashboardMaintenanceHistory((previousHistory) =>
+				previousHistory.length > 0 ? [] : previousHistory,
+			);
 			return;
 		}
 
@@ -481,12 +483,16 @@ export const DashboardTab = () => {
 			return;
 		}
 
-		setDashboardMaintenanceHistory([]);
+		const propertyIdsToLoad = visiblePropertyIdsKey.split('|').filter(Boolean);
+
+		setDashboardMaintenanceHistory((previousHistory) =>
+			previousHistory.length > 0 ? [] : previousHistory,
+		);
 
 		const loadDashboardMaintenanceHistory = async () => {
 			try {
 				const propertyHistories = await Promise.all(
-					visiblePropertyIdList.map(async (propertyId) => {
+					propertyIdsToLoad.map(async (propertyId) => {
 						try {
 							return await fetchMaintenanceHistoryByProperty(propertyId).unwrap();
 						} catch (error) {
@@ -518,7 +524,9 @@ export const DashboardTab = () => {
 					console.warn('Could not build dashboard maintenance history aggregate:', error);
 				}
 				if (!isCancelled) {
-					setDashboardMaintenanceHistory([]);
+					setDashboardMaintenanceHistory((previousHistory) =>
+						previousHistory.length > 0 ? [] : previousHistory,
+					);
 					dashboardHistoryLoadedKeyRef.current = visiblePropertyIdsKey;
 				}
 			}
@@ -529,11 +537,7 @@ export const DashboardTab = () => {
 		return () => {
 			isCancelled = true;
 		};
-	}, [
-		visiblePropertyIdsKey,
-		visiblePropertyIdList,
-		fetchMaintenanceHistoryByProperty,
-	]);
+	}, [visiblePropertyIdsKey, fetchMaintenanceHistoryByProperty]);
 
 	const deviceLookup = useMemo(
 		() =>

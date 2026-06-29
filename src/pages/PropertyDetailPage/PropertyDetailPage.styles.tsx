@@ -1,4 +1,5 @@
 import styled from 'styled-components';
+import { COLORS } from '../../constants/colors';
 
 export const Wrapper = styled.div`
 	display: flex;
@@ -124,18 +125,18 @@ export const TabButton = styled.button<{ isActive: boolean }>`
 	padding: 16px 24px;
 	font-size: 14px;
 	font-weight: 600;
-	color: ${(props) => (props.isActive ? '#22c55e' : '#666666')};
+	color: ${(props) => (props.isActive ? COLORS.primary : '#666666')};
 	cursor: pointer;
 	border-bottom: 3px solid
-		${(props) => (props.isActive ? '#22c55e' : 'transparent')};
+		${(props) => (props.isActive ? COLORS.primary : 'transparent')};
 	transition: all 0.2s ease;
 	margin-bottom: -2px;
 	white-space: nowrap;
 	position: relative;
 
 	&:hover {
-		color: #22c55e;
-		background-color: rgba(34, 197, 94, 0.05);
+		color: ${COLORS.primary};
+		background-color: rgba(4, 120, 87, 0.06);
 	}
 
 	${(props) =>
@@ -149,7 +150,7 @@ export const TabButton = styled.button<{ isActive: boolean }>`
 			transform: translateX(-50%);
 			width: 20px;
 			height: 3px;
-			background: linear-gradient(90deg, #22c55e, #16a34a);
+			background: ${COLORS.gradientPrimary};
 			border-radius: 2px 2px 0 0;
 		}
 	`}
@@ -197,8 +198,8 @@ export const Toolbar = styled.div`
 `;
 
 export const ToolbarButton = styled.button`
-	background-color: #22c55e;
-	color: white;
+	background-color: ${COLORS.primary};
+	color: ${COLORS.white};
 	border: none;
 	padding: 8px 12px;
 	border-radius: 4px;
@@ -209,7 +210,7 @@ export const ToolbarButton = styled.button`
 	white-space: nowrap;
 
 	&:hover:not(:disabled) {
-		background-color: #16a34a;
+		background-color: ${COLORS.primaryHover};
 	}
 
 	&:disabled {
@@ -464,8 +465,8 @@ export const MaintenanceDate = styled.div`
 	min-width: 100px;
 	font-size: 12px;
 	font-weight: 600;
-	color: #22c55e;
-	background-color: rgba(34, 197, 94, 0.1);
+	color: ${COLORS.primary};
+	background-color: ${COLORS.primaryLight};
 	padding: 6px 10px;
 	border-radius: 4px;
 `;
@@ -588,7 +589,7 @@ export const TitleContainer = styled.div`
 
 export const EditableTitleInput = styled.input`
 	background: rgba(255, 255, 255, 0.95);
-	border: 2px solid #22c55e;
+	border: 2px solid ${COLORS.primary};
 	border-radius: 8px;
 	color: #1a1a1a;
 	font-size: 2rem;
@@ -601,7 +602,7 @@ export const EditableTitleInput = styled.input`
 
 	&:focus {
 		outline: none;
-		box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.3);
+		box-shadow: 0 0 0 3px rgba(4, 120, 87, 0.18);
 	}
 
 	@media (max-width: 1024px) {
@@ -645,8 +646,8 @@ export const TabButtonsWrapper = styled.div`
 `;
 
 export const EditModeButton = styled.button`
-	background-color: #22c55e;
-	color: white;
+	background-color: ${COLORS.primary};
+	color: ${COLORS.white};
 	border: none;
 	padding: 12px 16px;
 	border-radius: 4px;
@@ -659,7 +660,7 @@ export const EditModeButton = styled.button`
 	margin-left: auto;
 
 	&:hover {
-		background-color: #16a34a;
+		background-color: ${COLORS.primaryHover};
 	}
 
 	&:disabled {
@@ -679,7 +680,7 @@ export const TaskCheckbox = styled.input.attrs({ type: 'checkbox' })`
 	width: 18px;
 	height: 18px;
 	cursor: pointer;
-	accent-color: #22c55e;
+	accent-color: ${COLORS.primary};
 `;
 
 // Minimal edit button (moved to Details tab)
@@ -697,7 +698,7 @@ export const MinimalEditButton = styled.button`
 	justify-content: center;
 
 	&:hover {
-		color: #22c55e;
+		color: ${COLORS.primary};
 	}
 
 	&:disabled {
@@ -737,8 +738,8 @@ export const EditableFieldInput = styled.input`
 
 	&:focus {
 		outline: none;
-		border-color: #22c55e;
-		box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.1);
+		border-color: ${COLORS.primary};
+		box-shadow: 0 0 0 3px rgba(4, 120, 87, 0.1);
 	}
 
 	@media (max-width: 480px) {
@@ -762,8 +763,8 @@ export const DevicesSectionHeader = styled.div`
 `;
 
 export const AddDeviceButton = styled.button`
-	background-color: #22c55e;
-	color: white;
+	background-color: ${COLORS.primary};
+	color: ${COLORS.white};
 	border: none;
 	padding: 8px 12px;
 	border-radius: 4px;
@@ -773,7 +774,7 @@ export const AddDeviceButton = styled.button`
 	transition: background-color 0.2s ease;
 
 	&:hover {
-		background-color: #16a34a;
+		background-color: ${COLORS.primaryHover};
 	}
 
 	&:disabled {

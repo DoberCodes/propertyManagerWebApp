@@ -25,6 +25,7 @@ import { Container } from 'Components/SeasonalMaintenance.styles';
 import { Title, SettingsLayout, CategorySidebar, CategoryNavButton, CategoryContent, MobileCategoryPicker, CategorySelect, CategoryPanel, Section, AccountButton, ErrorMessage } from './SettingPage.styles';
 import { AccountManagement } from './AccountManagement';
 import { FamilyManagement } from './FamilyManagement';
+import { shouldBypassOnboarding } from 'utils/userAccount';
 
 export const SettingsPage: React.FC = () => {
 	type SettingsCategoryKey =
@@ -42,6 +43,7 @@ export const SettingsPage: React.FC = () => {
 	// User and permissions
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
 	const isTenant = currentUser?.role === 'tenant';
+	const canUseOnboarding = !isTenant && !shouldBypassOnboarding(currentUser);
 	const canManageFamilyRoles =
 		currentUser?.isAccountOwner ||
 		currentUser?.accountId === currentUser?.id ||
@@ -119,7 +121,7 @@ export const SettingsPage: React.FC = () => {
 			{
 				key: 'getting-started' as SettingsCategoryKey,
 				label: 'Getting Started',
-				visible: !isTenant,
+				visible: canUseOnboarding,
 			},
 			{
 				key: 'account' as SettingsCategoryKey,
@@ -143,7 +145,7 @@ export const SettingsPage: React.FC = () => {
 				visible: true,
 			},
 		],
-		[canManageFamilyRoles, isTenant],
+		[canManageFamilyRoles, canUseOnboarding, isTenant],
 	);
 
 	const visibleCategories = useMemo(
@@ -362,7 +364,7 @@ export const SettingsPage: React.FC = () => {
 	}
 
 	const handleRestartOnboarding = async () => {
-		if (!currentUser) return;
+		if (!currentUser || !canUseOnboarding) return;
 
 		setIsRestartingOnboarding(true);
 		try {
@@ -445,7 +447,7 @@ export const SettingsPage: React.FC = () => {
 
 					<CategoryPanel>
 
-						{activeCategory === 'getting-started' && !isTenant && (
+						{activeCategory === 'getting-started' && canUseOnboarding && (
 							<Section>
 								<SectionTitle>Getting Started</SectionTitle>
 								<p style={{ marginBottom: '16px', color: '#6b7280' }}>

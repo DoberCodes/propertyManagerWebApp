@@ -1,5 +1,6 @@
 import React from 'react';
 import { SUBSCRIPTION_PLANS } from '../../constants/subscriptions';
+import { COLORS } from '../../constants/colors';
 
 /**
  * Scheduled Subscription Banner
@@ -30,8 +31,8 @@ export const ScheduledSubscriptionBanner: React.FC<
 	return (
 		<div
 			style={{
-				backgroundColor: '#10b981',
-				color: 'white',
+				backgroundColor: COLORS.primary,
+				color: COLORS.textInverse,
 				padding: '15px 20px',
 				borderRadius: '6px',
 				marginBottom: '20px',
@@ -50,8 +51,8 @@ export const ScheduledSubscriptionBanner: React.FC<
 				<button
 					onClick={onManageClick}
 					style={{
-						background: 'white',
-						color: '#10b981',
+						background: COLORS.bgWhite,
+						color: COLORS.primary,
 						border: 'none',
 						padding: '8px 16px',
 						borderRadius: '4px',

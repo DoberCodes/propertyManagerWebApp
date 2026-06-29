@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import styled from 'styled-components';
 import { COLORS } from '../constants/colors';
+import { TYPOGRAPHY } from '../constants/typography';
 
 const DocumentModal = styled.div`
 	position: fixed;
@@ -67,8 +68,7 @@ const DocumentTextContainer = styled.div`
 `;
 
 const DocumentText = styled.pre`
-	font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto',
-		sans-serif;
+	font-family: ${TYPOGRAPHY.fontFamily};
 	font-size: 14px;
 	line-height: 1.6;
 	color: #374151;

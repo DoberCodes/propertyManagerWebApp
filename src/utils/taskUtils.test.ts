@@ -1,5 +1,7 @@
 import {
+	compareTasksByDueUrgency,
 	getTaskAssigneeDisplayName,
+	getTaskDueUrgencyRank,
 	isTaskOverdue,
 	isTaskOverdueForDisplay,
 	matchesDateRangeOrIsOverdue,
@@ -89,6 +91,65 @@ describe('taskUtils overdue helpers', () => {
 			expect(
 				matchesDateRangeOrIsOverdue(task as any, '2030-01-01', '2030-12-31'),
 			).toBe(true);
+		});
+	});
+
+	describe('task due urgency sorting', () => {
+		const dateOffset = (days: number) => {
+			const date = new Date();
+			date.setDate(date.getDate() + days);
+			date.setHours(12, 0, 0, 0);
+			return date.toISOString();
+		};
+
+		it('orders overdue, due today, ASAP, due soon, then later tasks', () => {
+			const overdue = makeTask({
+				id: 'overdue',
+				title: 'Overdue',
+				dueDate: dateOffset(-1),
+			});
+			const today = makeTask({
+				id: 'today',
+				title: 'Today',
+				dueDate: dateOffset(0),
+			});
+			const asap = makeTask({
+				id: 'asap',
+				title: 'ASAP',
+				dueDate: '',
+			});
+			const dueSoon = makeTask({
+				id: 'due-soon',
+				title: 'Due Soon',
+				dueDate: dateOffset(7),
+			});
+			const later = makeTask({
+				id: 'later',
+				title: 'Later',
+				dueDate: dateOffset(30),
+			});
+
+			const sorted = [later, asap, dueSoon, overdue, today].sort(
+				compareTasksByDueUrgency,
+			);
+
+			expect(sorted.map((task) => task.id)).toEqual([
+				'overdue',
+				'today',
+				'asap',
+				'due-soon',
+				'later',
+			]);
+		});
+
+		it('treats invalid dates as ASAP for sorting', () => {
+			expect(
+				getTaskDueUrgencyRank(
+					makeTask({
+						dueDate: 'not-a-date',
+					}) as any,
+				),
+			).toBe(2);
 		});
 	});
 

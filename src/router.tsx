@@ -15,8 +15,10 @@ import { ProtectedRoutes } from './ProtectedRoutes';
 import { isNativeApp } from './utils/platform';
 import { useSelector } from 'react-redux';
 import { selectCanAccessTeam } from './Redux/selectors/permissionSelectors';
+import type { RootState } from './Redux/store/store';
 import { USER_ROLES } from './constants/roles';
 import { hasMaintleyAdminAccess } from './utils/maintleyRole';
+import { SplashScreen } from './Components/Library/SplashScreen';
 
 const lazyNamed = <TModule, TKey extends keyof TModule>(
 	importer: () => Promise<TModule>,
@@ -106,7 +108,21 @@ const SupportArticlePage = lazyNamed(
 	'SupportArticlePage',
 );
 
-const RouteLoadingState = () => null;
+const RouteLoadingState = () => {
+	return (
+		<SplashScreen
+			title='Opening Maintley'
+			message='Preparing this workspace.'
+			steps={[
+				'Preparing your dashboard...',
+				'Loading your properties...',
+				'Checking upcoming maintenance...',
+				'Organizing your home information...',
+				'Almost ready...',
+			]}
+		/>
+	);
+};
 
 // Component to handle root route - redirects to login in mobile app
 const RootRoute = () => {
@@ -117,8 +133,8 @@ const RootRoute = () => {
 };
 
 const MaintleyAdminRoute = () => {
-	const currentUser = useSelector((state: any) => state.user.currentUser);
-	const authLoading = useSelector((state: any) => state.user.authLoading);
+	const currentUser = useSelector((state: RootState) => state.user.currentUser);
+	const authLoading = useSelector((state: RootState) => state.user.authLoading);
 
 	if (authLoading) return null;
 	if (!currentUser) return <Navigate to='/login' replace />;
@@ -130,7 +146,7 @@ const MaintleyAdminRoute = () => {
 };
 
 export const RouterComponent = () => {
-	const currentUser = useSelector((state: any) => state.user.currentUser);
+	const currentUser = useSelector((state: RootState) => state.user.currentUser);
 	const canAccessTeam = useSelector(selectCanAccessTeam);
 	const shouldShowTeamRoute = !!currentUser && canAccessTeam;
 	const fallbackPath =

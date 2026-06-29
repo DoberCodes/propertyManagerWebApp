@@ -1,5 +1,6 @@
 import styled from 'styled-components';
 import React, { useState, useRef, useEffect } from 'react';
+import { COLORS } from '../../../constants/colors';
 
 /**
  * Shared form styled components used across the app
@@ -35,8 +36,8 @@ export const FormInput = styled.input`
 
 	&:focus {
 		outline: none;
-		border-color: #667eea;
-		box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+		border-color: ${COLORS.primary};
+		box-shadow: 0 0 0 3px ${COLORS.primaryLight};
 	}
 
 	&:disabled {
@@ -69,8 +70,8 @@ export const FormTextarea = styled.textarea`
 
 	&:focus {
 		outline: none;
-		border-color: #667eea;
-		box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+		border-color: ${COLORS.primary};
+		box-shadow: 0 0 0 3px ${COLORS.primaryLight};
 	}
 
 	&:disabled {
@@ -103,8 +104,8 @@ export const FormSelect = styled.select`
 
 	&:focus {
 		outline: none;
-		border-color: #667eea;
-		box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+		border-color: ${COLORS.primary};
+		box-shadow: 0 0 0 3px ${COLORS.primaryLight};
 	}
 
 	&:disabled {
@@ -146,8 +147,8 @@ export const MultiSelectInput = styled.div`
 
 	&:focus-within {
 		outline: none;
-		border-color: #667eea;
-		box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+		border-color: ${COLORS.primary};
+		box-shadow: 0 0 0 3px ${COLORS.primaryLight};
 	}
 
 	&:hover {

@@ -1,4 +1,5 @@
 import styled from 'styled-components';
+import { COLORS } from '../../../constants/colors';
 
 /**
  * Shared tab control styles used across PropertyDetailPage, UnitDetailPage, SuiteDetailPage
@@ -59,15 +60,15 @@ export const TabButton = styled.button<TabButtonProps>`
 	cursor: pointer;
 	font-size: 14px;
 	font-weight: 500;
-	color: ${(props) => (props.isActive ? '#22c55e' : '#6b7280')};
+	color: ${(props) => (props.isActive ? COLORS.primary : '#6b7280')};
 	border-bottom: 3px solid
-		${(props) => (props.isActive ? '#22c55e' : 'transparent')};
+		${(props) => (props.isActive ? COLORS.primary : 'transparent')};
 	white-space: nowrap;
 	transition: all 0.2s ease;
 
 	&:hover {
-		color: #22c55e;
-		background-color: rgba(34, 197, 94, 0.05);
+		color: ${COLORS.primary};
+		background-color: rgba(4, 120, 87, 0.06);
 	}
 
 	&:disabled {
@@ -91,11 +92,11 @@ export const TabButton = styled.button<TabButtonProps>`
 		text-align: center;
 		white-space: normal;
 		line-height: 1.2;
-		border: 1px solid ${(props) => (props.isActive ? '#16a34a' : '#cbd5e1')};
-		border-bottom: 1px solid ${(props) => (props.isActive ? '#16a34a' : '#cbd5e1')};
+		border: 1px solid ${(props) => (props.isActive ? COLORS.primary : '#cbd5e1')};
+		border-bottom: 1px solid ${(props) => (props.isActive ? COLORS.primary : '#cbd5e1')};
 		border-radius: 14px;
-		background: ${(props) => (props.isActive ? '#dcfce7' : '#ffffff')};
-		color: ${(props) => (props.isActive ? '#15803d' : '#0f172a')};
+		background: ${(props) => (props.isActive ? COLORS.primaryLight : COLORS.white)};
+		color: ${(props) => (props.isActive ? COLORS.primaryDark : '#0f172a')};
 		box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
 	}
 `;

@@ -16,7 +16,11 @@ export type PropertyKnowledgeSuggestionStatus =
 export type PropertyKnowledgeExtractionMethod =
 	| 'manual_placeholder'
 	| 'metadata_placeholder'
-	| 'image_ocr';
+	| 'image_ocr'
+	| 'pdf_text'
+	| 'pdf_rendered_ocr';
+
+export type PropertyKnowledgeConfidenceLevel = 'high' | 'medium' | 'low';
 
 export type PropertyKnowledgeTargetEntity =
 	| 'property'
@@ -81,6 +85,8 @@ export interface PropertyKnowledgeProvenance {
 	sourceDocumentType: PropertyKnowledgeDocumentType;
 	extractionMethod: PropertyKnowledgeExtractionMethod;
 	confidence?: number;
+	confidenceLevel?: PropertyKnowledgeConfidenceLevel;
+	confidenceReason?: string;
 	acceptedByUser: string;
 	acceptedAt: string;
 	suggestionId?: string;
@@ -94,10 +100,13 @@ export interface ExtractedKnowledgeField {
 	label: string;
 	value: string;
 	confidence?: number;
+	confidenceLevel?: PropertyKnowledgeConfidenceLevel;
+	confidenceReason?: string;
 	targetEntity: PropertyKnowledgeTargetEntity;
 	targetField: string;
 	sourceText?: string;
 	userEditableValue?: string;
+	reviewStatus?: PropertyKnowledgeReviewStatus;
 	provenance?: PropertyKnowledgeProvenance;
 }
 
@@ -111,6 +120,8 @@ export interface ExtractedPartSuggestion {
 	targetEntity: 'part';
 	sourceText: string;
 	confidence?: number;
+	confidenceLevel?: PropertyKnowledgeConfidenceLevel;
+	confidenceReason?: string;
 	userEditableName?: string;
 	userEditableCategory?: PartKnowledgeCategory;
 	reviewStatus?: PropertyKnowledgeReviewStatus;
@@ -122,6 +133,8 @@ export interface PropertyKnowledgeSuggestion {
 	sourceDocumentId: string;
 	propertyId: string;
 	relatedSystemId?: string;
+	targetMaintenanceEventId?: string;
+	targetContractorId?: string;
 	documentType: PropertyKnowledgeDocumentType;
 	extractionMethod: PropertyKnowledgeExtractionMethod;
 	extractedFields: ExtractedKnowledgeField[];

@@ -3,6 +3,7 @@ import styled from 'styled-components';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import SEO from 'Components/SEO/SEO';
 import { COLORS } from '../../constants/colors';
+import { TYPOGRAPHY } from '../../constants/typography';
 import { legalDocuments } from './legalDocuments';
 
 const Container = styled.div`
@@ -86,8 +87,7 @@ const TocLink = styled.button`
 `;
 
 const DocumentText = styled.pre`
-	font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto',
-		sans-serif;
+	font-family: ${TYPOGRAPHY.fontFamily};
 	font-size: 14px;
 	line-height: 1.6;
 	color: #374151;

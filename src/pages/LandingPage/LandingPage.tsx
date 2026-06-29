@@ -16,10 +16,10 @@ import {
 	faDownload,
 	faBoxArchive,
 	faPaperPlane,
+	faCircleCheck,
 } from '@fortawesome/free-solid-svg-icons';
 import { LandingNavbar } from 'Components/Library/LandingNavbar';
 import HeroSection from './components/Hero';
-import MissionSectionComponent from './components/MissionSection';
 import FeaturesSectionComponent from './components/FeaturesSection';
 import PricingSectionComponent from './components/PricingSection';
 import {
@@ -49,23 +49,6 @@ import {
 	TimelineContent,
 	TimelineTitle,
 	TimelineMeta,
-	OwnershipSection,
-	OwnershipShell,
-	OwnershipHeader,
-	OwnershipIntro,
-	OwnershipGrid,
-	OwnershipListCard,
-	OwnershipList,
-	OwnershipListItem,
-	OwnershipVisualCard,
-	OwnershipDeviceHeader,
-	OwnershipDeviceTitle,
-	OwnershipDeviceMeta,
-	OwnershipDeviceBadge,
-	OwnershipEventList,
-	OwnershipEventItem,
-	OwnershipEventTitle,
-	OwnershipEventMeta,
 	MemorySection,
 	MemoryShell,
 	MemoryHeader,
@@ -73,8 +56,12 @@ import {
 	MemoryGrid,
 	MemoryStageCard,
 	MemoryStageNumber,
+	MemoryStageKicker,
 	MemoryStageTitle,
 	MemoryStageText,
+	MemoryStageExampleLabel,
+	MemoryStageExamples,
+	MemoryStageExampleItem,
 	BenefitsSection,
 	BenefitRow,
 	BenefitImage,
@@ -149,7 +136,7 @@ const LandingPageComponent = () => {
 		description:
 			'Maintley preserves your property history so every maintenance record, warranty, document, and repair helps future you make better decisions.',
 		url: 'https://maintleyapp.com/',
-		image: `${window.location.origin}/Favicon.png`,
+		image: `${window.location.origin}/icons/icon-512.png`,
 		keywords:
 			'home maintenance history, property records, recurring maintenance, appliance service history, property memory',
 		structuredData: {
@@ -196,37 +183,34 @@ const LandingPageComponent = () => {
 		{ icon: '🌿', title: 'Spring Maintenance', meta: 'Seasonal upkeep stays tied to the property' },
 	];
 
-	const ownershipMemoryItems = [
-		'Future you knows exactly when the HVAC was last serviced.',
-		'Never wonder which filter size you bought last time.',
-		'Keep appliance warranties with the right system.',
-		'See replacement history without digging through receipts.',
-		'Find contractor notes and service photos years later.',
-	];
-
-	const deviceHistoryEvents = [
-		{ title: 'Filter size logged', meta: '16x25x1 • changed every 3 months' },
-		{ title: 'Seasonal service completed', meta: 'Logged with technician notes and invoice' },
-		{ title: 'Capacitor replaced', meta: 'Part linked to the appliance history' },
-		{ title: 'Next service scheduled', meta: 'Recurring reminder set for early spring' },
-	];
-
-	const memoryProgression = [
+	const maintleyLoop = [
 		{
-			title: 'Record',
-			text: 'Capture maintenance, documents, warranties, parts, and service history as work happens.',
+			kicker: 'Record',
+			title: 'Property Information',
+			text: 'Tasks, maintenance, invoices, manuals, photos, and warranties give Maintley the raw details of your property.',
+			exampleLabel: 'Sources',
+			examples: ['Tasks', 'Maintenance', 'Invoices', 'Manuals', 'Photos', 'Warranties'],
 		},
 		{
-			title: 'Remember',
-			text: 'Your property history stays with the property, not scattered across emails, folders, calendars, or memory.',
+			kicker: 'Remember',
+			title: 'Property Memory',
+			text: 'Maintley keeps those details connected to the right systems, service history, documents, contractors, parts, and costs.',
+			exampleLabel: 'Preserved context',
+			examples: ['HVAC', 'Brand', 'Model', 'Install date', 'Contractor', 'Parts', 'History'],
 		},
 		{
-			title: 'Understand',
-			text: 'Your property history begins telling a story. Maintley recognizes recurring maintenance, missing information, and emerging patterns before they become problems.',
+			kicker: 'Understand',
+			title: 'Maintley Intelligence',
+			text: 'As the memory grows, Maintley can review your records for gaps, patterns, and opportunities worth your attention.',
+			exampleLabel: 'Maintley can notice',
+			examples: ['Missing warranty', 'Filter size not recorded', 'No maintenance history'],
 		},
 		{
-			title: 'Guide',
-			text: 'Maintley Intelligence turns years of property history into recommendations that help you make better maintenance decisions.',
+			kicker: 'Guide',
+			title: 'Guidance',
+			text: 'That understanding becomes recommendations that help you make better maintenance decisions over time.',
+			exampleLabel: 'What improves',
+			examples: ['Quick Scan', 'Property Audit', 'Seasonal reminders', 'Future recommendations'],
 		},
 	];
 
@@ -394,18 +378,15 @@ const LandingPageComponent = () => {
 					</StoryContent>
 				</StorySection>
 
-				{/* Mission Section */}
-				<MissionSectionComponent />
-
 				{/* Timeline Section */}
 				<TimelineSection id='Timeline'>
 					<TimelineShell>
 						<TimelineHeader>Your Home Has a Story</TimelineHeader>
 						<TimelineIntro>
 							Every completed task, uploaded document, and service record becomes
-							part of your property's memory. That growing history helps future
-							you know what happened, when it happened, and what needs attention
-							next.
+							part of your property's history. As that history grows, Maintley
+							builds a richer memory of your property, helping future you know
+							what happened, when it happened, and what needs attention next.
 						</TimelineIntro>
 						<TimelineCard>
 							<TimelineList>
@@ -424,69 +405,38 @@ const LandingPageComponent = () => {
 					</TimelineShell>
 				</TimelineSection>
 
-				{/* Memory Progression Section */}
-				<MemorySection id='PropertyMemory'>
+				{/* Maintley Loop Section */}
+				<MemorySection id='MaintleyLoop'>
 					<MemoryShell>
-						<MemoryHeader>The More Your Property Remembers, The More Maintley Can Help</MemoryHeader>
+						<MemoryHeader>How Maintley Works</MemoryHeader>
 						<MemoryIntro>
-							On day one, Maintley helps you organize your records. As your
-							property's history grows, Maintley begins recognizing patterns,
-							identifying missing information, and surfacing useful
-							recommendations.
+							Everything you save helps Maintley preserve your property's memory.
+							As that memory grows, Maintley Intelligence can better understand
+							your records and guide future maintenance decisions.
 						</MemoryIntro>
 						<MemoryGrid>
-							{memoryProgression.map((stage, index) => (
+							{maintleyLoop.map((stage, index) => (
 								<MemoryStageCard key={stage.title}>
 									<MemoryStageNumber>{index + 1}</MemoryStageNumber>
+									<MemoryStageKicker>{stage.kicker}</MemoryStageKicker>
 									<MemoryStageTitle>{stage.title}</MemoryStageTitle>
 									<MemoryStageText>{stage.text}</MemoryStageText>
+									<MemoryStageExampleLabel>
+										{stage.exampleLabel}
+									</MemoryStageExampleLabel>
+									<MemoryStageExamples>
+										{stage.examples.map((example) => (
+											<MemoryStageExampleItem key={example}>
+												<FontAwesomeIcon icon={faCircleCheck} />
+												<span>{example}</span>
+											</MemoryStageExampleItem>
+										))}
+									</MemoryStageExamples>
 								</MemoryStageCard>
 							))}
 						</MemoryGrid>
 					</MemoryShell>
 				</MemorySection>
-
-				{/* Ownership Memory Section */}
-				<OwnershipSection id='OwnershipMemory'>
-					<OwnershipShell>
-						<OwnershipHeader>
-							Give Your Property a Memory
-						</OwnershipHeader>
-						<OwnershipIntro>
-							Every maintenance record, warranty, document, and repair becomes
-							part of a living history that helps future you make better
-							decisions.
-						</OwnershipIntro>
-						<OwnershipGrid>
-							<OwnershipListCard>
-								<OwnershipList>
-									{ownershipMemoryItems.map((item) => (
-										<OwnershipListItem key={item}>{item}</OwnershipListItem>
-									))}
-								</OwnershipList>
-							</OwnershipListCard>
-							<OwnershipVisualCard>
-								<OwnershipDeviceHeader>
-									<div>
-										<OwnershipDeviceTitle>HVAC System Memory</OwnershipDeviceTitle>
-										<OwnershipDeviceMeta>
-											Model linked • Documents attached • Recurring care active
-										</OwnershipDeviceMeta>
-									</div>
-									<OwnershipDeviceBadge>System Record</OwnershipDeviceBadge>
-								</OwnershipDeviceHeader>
-								<OwnershipEventList>
-									{deviceHistoryEvents.map((event) => (
-										<OwnershipEventItem key={event.title}>
-											<OwnershipEventTitle>{event.title}</OwnershipEventTitle>
-											<OwnershipEventMeta>{event.meta}</OwnershipEventMeta>
-										</OwnershipEventItem>
-									))}
-								</OwnershipEventList>
-							</OwnershipVisualCard>
-						</OwnershipGrid>
-					</OwnershipShell>
-				</OwnershipSection>
 
 				{/* Features Section */}
 				<FeaturesSectionComponent />
@@ -773,10 +723,10 @@ const LandingPageComponent = () => {
 							<FooterLink
 								onClick={() => {
 									document
-										.getElementById('Mission')
+										.getElementById('MaintleyLoop')
 										?.scrollIntoView({ behavior: 'smooth' });
 								}}>
-								Mission
+								How It Works
 							</FooterLink>
 							<FooterLink
 								onClick={() => {

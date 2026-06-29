@@ -58,6 +58,7 @@ import {
 import { ZeroState } from '../../Components/Library/ZeroState/ZeroState';
 import { TaskCompletionModal } from 'Components/TaskCompletionModal';
 import { FileUploader } from 'Components/Library/FileUploader';
+import { LoadingState } from 'Components/LoadingState';
 import { ConvertRequestToTaskModal } from 'Components/ConvertRequestToTaskModal';
 import { AddTenantModal } from 'Components/AddTenantModal';
 import { MaintenanceRequestModal } from 'Components/MaintenanceRequestModal';
@@ -401,6 +402,7 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 			coOwners: formData.coOwners || [],
 			administrators: formData.administrators || [],
 			viewers: formData.viewers || [],
+			accessSnapshots: formData.accessSnapshots || {},
 		};
 
 		const updates = {
@@ -910,13 +912,19 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 	if (!property) {
 		if (isLoadingProperties) {
 			return (
-				<Wrapper>
-					<ZeroState
-						icon='🏠'
-						title='Loading property...'
-						description='Please wait while we fetch your property details.'
-					/>
-				</Wrapper>
+				<LoadingState
+					loadingKey='property-detail'
+					title='Loading property'
+					message='Preparing this property workspace.'
+					steps={[
+						'Loading your property...',
+						'Building your property timeline...',
+						'Checking upcoming maintenance...',
+						'Organizing your documents...',
+						'Connecting maintenance history...',
+						'Reviewing your property...',
+					]}
+				/>
 			);
 		}
 		return (
@@ -1363,6 +1371,7 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 							coOwners: (property as any).coOwners || [],
 							administrators: (property as any).administrators || [],
 							viewers: (property as any).viewers || [],
+							accessSnapshots: (property as any).accessSnapshots || {},
 						}}
 					/>
 				)}

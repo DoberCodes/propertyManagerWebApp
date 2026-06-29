@@ -30,6 +30,8 @@ export const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
 		team_group_deleted: false,
 		maintenance_request: true,
 		maintenance_request_created: true,
+		document_scan_started: true,
+		document_scan_completed: true,
 		legal_update: true,
 		property_shared: false,
 		share_invitation: true,

@@ -104,13 +104,13 @@ export const FilterSection = styled.div`
 		transition: all 0.2s;
 
 		&:hover {
-			border-color: #3b82f6;
+			border-color: ${COLORS.secondary};
 		}
 
 		&:focus {
 			outline: none;
-			border-color: #3b82f6;
-			box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+			border-color: ${COLORS.secondary};
+			box-shadow: 0 0 0 3px ${COLORS.secondaryLight};
 		}
 	}
 
@@ -203,8 +203,8 @@ export const DropdownItem = styled.button`
 	}
 
 	&:hover {
-		background-color: rgba(34, 197, 94, 0.1);
-		color: #22c55e;
+		background-color: ${COLORS.primaryLight};
+		color: ${COLORS.primary};
 	}
 
 	@media (max-width: 480px) {
@@ -404,8 +404,8 @@ export const TempToggle = styled.div`
 		}
 
 		&.active {
-			background-color: #10b981;
-			color: #fff;
+			background-color: ${COLORS.primary};
+			color: ${COLORS.textInverse};
 			box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 		}
 	}
@@ -536,8 +536,8 @@ export const EmptyDashboardCard = styled.div`
 		margin-top: 8px;
 		border: none;
 		border-radius: 9px;
-		background: #16a34a;
-		color: #ffffff;
+		background: ${COLORS.primary};
+		color: ${COLORS.textInverse};
 		font-size: 0.9rem;
 		font-weight: 800;
 		padding: 0.7rem 1rem;
@@ -546,7 +546,7 @@ export const EmptyDashboardCard = styled.div`
 	}
 
 	button:hover {
-		background: #15803d;
+		background: ${COLORS.primaryHover};
 		transform: translateY(-1px);
 	}
 `;

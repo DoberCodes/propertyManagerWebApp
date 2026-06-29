@@ -20,9 +20,9 @@ export const Hero = styled.section`
 	border-radius: 20px;
 	background:
 		radial-gradient(circle at 92% 12%, rgba(255, 255, 255, 0.2), transparent 32%),
-		linear-gradient(135deg, #065f46 0%, #059669 58%, #10b981 100%);
-	box-shadow: 0 16px 34px rgba(5, 150, 105, 0.18);
-	color: #ffffff;
+		${COLORS.gradientPrimary};
+	box-shadow: 0 16px 34px rgba(4, 120, 87, 0.18);
+	color: ${COLORS.white};
 
 	@media (max-width: 700px) {
 		align-items: flex-start;
@@ -73,15 +73,15 @@ export const HeroButton = styled.button`
 	padding: 12px 18px;
 	border: 1px solid rgba(255, 255, 255, 0.5);
 	border-radius: 12px;
-	background: #ffffff;
-	color: #065f46;
+	background: ${COLORS.bgWhite};
+	color: ${COLORS.primaryDark};
 	font: inherit;
 	font-weight: 800;
 	cursor: pointer;
 	box-shadow: 0 8px 18px rgba(6, 95, 70, 0.18);
 
 	&:hover {
-		background: #ecfdf5;
+		background: ${COLORS.primaryLight};
 		transform: translateY(-1px);
 	}
 
@@ -100,7 +100,7 @@ export const PortalNav = styled.nav`
 	overflow-x: auto;
 	border: 1px solid ${COLORS.gray200};
 	border-radius: 12px;
-	background: #ffffff;
+	background: ${COLORS.bgWhite};
 	box-shadow: ${COLORS.shadow};
 `;
 
@@ -113,7 +113,7 @@ export const PortalNavButton = styled.button<{ $active: boolean }>`
 	border: 0;
 	border-radius: 8px;
 	background: ${({ $active }) => ($active ? COLORS.primaryLight : 'transparent')};
-	color: ${({ $active }) => ($active ? '#065f46' : COLORS.gray600)};
+	color: ${({ $active }) => ($active ? COLORS.primaryDark : COLORS.gray600)};
 	font: inherit;
 	font-size: 0.9rem;
 	font-weight: 750;
@@ -433,10 +433,10 @@ export const TicketDate = styled.div`
 export const StatusBadge = styled.span<{ $closed: boolean }>`
 	flex: 0 0 auto;
 	padding: 5px 9px;
-	border: 1px solid ${({ $closed }) => ($closed ? '#d1d5db' : '#a7f3d0')};
+	border: 1px solid ${({ $closed }) => ($closed ? COLORS.gray300 : COLORS.primaryHover)};
 	border-radius: 999px;
 	background: ${({ $closed }) => ($closed ? COLORS.gray100 : COLORS.primaryLight)};
-	color: ${({ $closed }) => ($closed ? COLORS.gray600 : '#047857')};
+	color: ${({ $closed }) => ($closed ? COLORS.gray600 : COLORS.primary)};
 	font-size: 0.7rem;
 	font-weight: 850;
 	text-transform: uppercase;
@@ -482,9 +482,9 @@ export const TicketMeta = styled.div`
 export const TicketSection = styled.div<{ $highlight?: boolean }>`
 	margin-top: 13px;
 	padding: ${({ $highlight }) => ($highlight ? '12px' : '0')};
-	border: ${({ $highlight }) => ($highlight ? '1px solid #a7f3d0' : '0')};
+	border: ${({ $highlight }) => ($highlight ? `1px solid ${COLORS.primaryHover}` : '0')};
 	border-radius: 9px;
-	background: ${({ $highlight }) => ($highlight ? '#ecfdf5' : 'transparent')};
+	background: ${({ $highlight }) => ($highlight ? COLORS.primaryLight : 'transparent')};
 
 	h3 {
 		margin: 0 0 5px;
@@ -631,7 +631,7 @@ export const VersionBadge = styled.span`
 	padding: 3px 7px;
 	border-radius: 999px;
 	background: ${COLORS.primaryLight};
-	color: #047857;
+	color: ${COLORS.primary};
 `;
 
 export const UpdateTitle = styled.h3`
@@ -663,7 +663,7 @@ export const ArticleCard = styled.button`
 	overflow: hidden;
 	border: 1px solid ${COLORS.gray200};
 	border-radius: 12px;
-	background: #ffffff;
+	background: ${COLORS.bgWhite};
 	font: inherit;
 	text-align: left;
 	cursor: pointer;
@@ -757,7 +757,7 @@ export const ArticleBackButton = styled.button`
 export const ArticleHero = styled.header`
 	padding: 30px;
 	border-radius: 18px;
-	background: linear-gradient(135deg, #065f46 0%, #059669 100%);
+	background: ${COLORS.gradientPrimary};
 	color: #ffffff;
 	box-shadow: 0 14px 30px rgba(5, 150, 105, 0.16);
 
@@ -805,7 +805,11 @@ export const FounderNote = styled.aside`
 	padding: 24px 24px 24px 68px;
 	border: 1px solid #a7f3d0;
 	border-radius: 15px;
-	background: linear-gradient(135deg, #ecfdf5 0%, #f8fffb 100%);
+	background: linear-gradient(
+		135deg,
+		rgba(0, 158, 113, 0.14) 0%,
+		rgba(4, 120, 87, 0.08) 100%
+	);
 	box-shadow: ${COLORS.shadow};
 
 	@media (max-width: 600px) {
@@ -823,8 +827,8 @@ export const FounderNoteIcon = styled.span`
 	width: 34px;
 	height: 34px;
 	border-radius: 50%;
-	background: #047857;
-	color: #ffffff;
+	background: ${COLORS.primary};
+	color: ${COLORS.white};
 
 	@media (max-width: 600px) {
 		top: 17px;
@@ -838,14 +842,14 @@ export const FounderNoteLabel = styled.div`
 	font-weight: 850;
 	letter-spacing: 0.06em;
 	text-transform: uppercase;
-	color: #047857;
+	color: ${COLORS.primary};
 `;
 
 export const FounderNoteText = styled.p`
 	margin: 0 0 10px;
 	font-size: 0.95rem;
 	line-height: 1.7;
-	color: #065f46;
+	color: ${COLORS.primaryDark};
 
 	&:last-child {
 		margin-bottom: 0;
@@ -858,7 +862,7 @@ export const FounderSignature = styled.div`
 	font-weight: 800;
 	font-style: italic;
 	text-align: right;
-	color: #047857;
+	color: ${COLORS.primary};
 `;
 
 export const ArticleLibraryHeader = styled.div`
@@ -878,7 +882,7 @@ export const ArticleSection = styled.section`
 	padding: 24px;
 	border: 1px solid ${COLORS.gray200};
 	border-radius: 15px;
-	background: #ffffff;
+	background: ${COLORS.bgWhite};
 	box-shadow: ${COLORS.shadow};
 
 	h2 {
@@ -915,17 +919,17 @@ export const ArticleSection = styled.section`
 export const ArticleTips = styled.div`
 	margin-top: 16px;
 	padding: 14px 16px;
-	border: 1px solid #a7f3d0;
+	border: 1px solid ${COLORS.primaryHover};
 	border-radius: 10px;
 	background: ${COLORS.primaryLight};
 
 	strong {
-		color: #065f46;
+		color: ${COLORS.primaryDark};
 	}
 
 	ul {
 		margin-top: 7px;
-		color: #047857;
+		color: ${COLORS.primary};
 	}
 `;
 

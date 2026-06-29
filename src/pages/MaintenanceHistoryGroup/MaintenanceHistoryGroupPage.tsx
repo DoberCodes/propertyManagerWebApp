@@ -22,6 +22,7 @@ import {
 	getFinancialDisplayTotal,
 } from 'utils/financialUtils';
 import { useAppFeedback } from 'Components/Library/AppFeedback/AppFeedbackProvider';
+import { COLORS } from '../../constants/colors';
 
 export const MaintenanceHistoryGroupPage: React.FC = () => {
 	const feedback = useAppFeedback();
@@ -310,7 +311,7 @@ export const MaintenanceHistoryGroupPage: React.FC = () => {
 														href={record.completionFile.url}
 														target='_blank'
 														rel='noopener noreferrer'
-														style={{ color: '#22c55e' }}>
+														style={{ color: COLORS.primary }}>
 														📎 {record.completionFile.name}
 													</a>
 												) : (

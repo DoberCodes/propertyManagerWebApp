@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { setCurrentUser, setAuthLoading } from './Redux/Slices/userSlice';
+import type { AppDispatch, RootState } from './Redux/store/store';
 import { RouterComponent } from './router';
 import { DataFetchProvider } from './Hooks/DataFetchContext';
 import { onAuthStateChange } from './services/authSession';
@@ -12,6 +13,8 @@ import { initializePushNotifications } from './services/pushNotifications';
 import { setIsMobile } from './Redux/Slices/appSlice';
 import { AppFeedbackProvider } from './Components/Library/AppFeedback/AppFeedbackProvider';
 import { canUseNotifications } from './utils/subscriptionUtils';
+import { COLORS } from './constants/colors';
+import { SplashScreen } from './Components/Library/SplashScreen';
 
 type SystemBarType = 'StatusBar' | 'NavigationBar';
 
@@ -36,154 +39,6 @@ const getSystemBars = (): SystemBarsPlugin => {
 	return systemBarsPlugin;
 };
 
-const LoadingContainer = styled.div`
-	display: flex;
-	flex-direction: column;
-	justify-content: center;
-	align-items: center;
-	width: 100%;
-	min-height: 100vh;
-	padding: 24px;
-	background:
-		radial-gradient(circle at top, rgba(220, 252, 231, 0.28), transparent 34%),
-		linear-gradient(135deg, #065f46 0%, #047857 100%);
-	color: #ffffff;
-
-	@supports (min-height: 100dvh) {
-		min-height: 100dvh;
-	}
-
-	> div:not([class]) {
-		display: none;
-	}
-`;
-
-const SplashCard = styled.div`
-	width: min(420px, 100%);
-	display: flex;
-	flex-direction: column;
-	align-items: center;
-	gap: 18px;
-	padding: 34px 28px;
-	border-radius: 22px;
-	background: rgba(255, 255, 255, 0.94);
-	box-shadow: 0 26px 80px rgba(6, 78, 59, 0.36);
-	text-align: center;
-`;
-
-const SplashLogoFrame = styled.div`
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	width: 96px;
-	height: 96px;
-`;
-
-const SplashLogo = styled.img`
-	width: 96px;
-	height: 96px;
-	display: block;
-	object-fit: contain;
-`;
-
-const SplashHome = styled.div`
-	position: relative;
-	width: 72px;
-	height: 62px;
-	margin-top: 4px;
-`;
-
-const SplashRoof = styled.div`
-	position: absolute;
-	left: 12px;
-	top: 1px;
-	width: 48px;
-	height: 48px;
-	background: #16a34a;
-	transform: rotate(45deg);
-	border-radius: 6px 6px 2px 6px;
-	animation: app-splash-build-roof 1.8s ease-in-out infinite;
-
-	@keyframes app-splash-build-roof {
-		0%,
-		34% {
-			opacity: 0;
-			transform: translateY(-16px) rotate(45deg) scale(0.88);
-		}
-
-		58%,
-		86% {
-			opacity: 1;
-			transform: translateY(0) rotate(45deg) scale(1);
-		}
-
-		100% {
-			opacity: 0.55;
-			transform: translateY(0) rotate(45deg) scale(1);
-		}
-	}
-`;
-
-const SplashHomeBody = styled.div`
-	position: absolute;
-	left: 10px;
-	bottom: 0;
-	width: 52px;
-	height: 38px;
-	border-radius: 8px;
-	background: #f0fdf4;
-	border: 1px solid #bbf7d0;
-	overflow: hidden;
-`;
-
-const SplashBlock = styled.div<{
-	$delay: string;
-	$slot: 'one' | 'two' | 'three' | 'four';
-}>`
-	position: absolute;
-	width: 19px;
-	height: 13px;
-	border-radius: 4px;
-	background: #16a34a;
-	left: ${({ $slot }) =>
-		$slot === 'one' || $slot === 'three' ? '6px' : '27px'};
-	top: ${({ $slot }) =>
-		$slot === 'one' || $slot === 'two' ? '6px' : '21px'};
-	animation: app-splash-build-block 1.8s ease-in-out infinite;
-	animation-delay: ${({ $delay }) => $delay};
-	transform-origin: center;
-
-	@keyframes app-splash-build-block {
-		0% {
-			opacity: 0;
-			transform: translateY(24px) scale(0.88);
-		}
-
-		28%,
-		78% {
-			opacity: 1;
-			transform: translateY(0) scale(1);
-		}
-
-		100% {
-			opacity: 0.45;
-			transform: translateY(0) scale(1);
-		}
-	}
-`;
-
-const SplashTitle = styled.div`
-	color: #0f172a;
-	font-size: 18px;
-	font-weight: 900;
-`;
-
-const SplashText = styled.div`
-	color: #475569;
-	font-size: 14px;
-	line-height: 1.45;
-`;
-
 const RefreshSpinner = styled.div<{ $isVisible: boolean }>`
 	position: fixed;
 	top: 0;
@@ -194,8 +49,8 @@ const RefreshSpinner = styled.div<{ $isVisible: boolean }>`
 	justify-content: center;
 	align-items: center;
 	padding: 20px;
-	background: linear-gradient(135deg, #065f46 0%, #047857 100%);
-	color: white;
+	background: ${COLORS.gradientPrimary};
+	color: ${COLORS.white};
 	font-size: 16px;
 	font-weight: 600;
 	box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
@@ -221,9 +76,10 @@ const RefreshSpinner = styled.div<{ $isVisible: boolean }>`
 `;
 
 export const App = () => {
-	const dispatch = useDispatch();
-	const authLoading = useSelector((state: any) => state.user.authLoading);
-	const currentUser = useSelector((state: any) => state.user.currentUser);
+	const dispatch = useDispatch<AppDispatch>();
+	const authLoading = useSelector((state: RootState) => state.user.authLoading);
+	const currentUser = useSelector((state: RootState) => state.user.currentUser);
+	const appLoading = useSelector((state: RootState) => state.app.loading);
 	const [isRefreshing, setIsRefreshing] = useState(false);
 	const currentUserIdRef = useRef<string | null>(null);
 	const pushNotificationsInitializedRef = useRef(false);
@@ -404,27 +260,18 @@ export const App = () => {
 
 	if (authLoading) {
 		return (
-			<LoadingContainer>
-				<div>🔄</div>
-				<SplashCard>
-					<SplashLogoFrame>
-						<SplashLogo src='/Favicon.png' alt='Maintley' />
-					</SplashLogoFrame>
-					<SplashHome aria-hidden='true'>
-						<SplashRoof />
-						<SplashHomeBody>
-							<SplashBlock $delay='0s' $slot='one' />
-							<SplashBlock $delay='0.14s' $slot='two' />
-							<SplashBlock $delay='0.28s' $slot='three' />
-							<SplashBlock $delay='0.42s' $slot='four' />
-						</SplashHomeBody>
-					</SplashHome>
-					<SplashTitle>Getting Maintley ready</SplashTitle>
-					<SplashText>
-						Loading your properties, tasks, and maintenance history.
-					</SplashText>
-				</SplashCard>
-			</LoadingContainer>
+			<SplashScreen
+				title='Getting Maintley ready'
+				message='Loading your properties, tasks, and maintenance history.'
+				steps={[
+					'Preparing your dashboard...',
+					'Loading your properties...',
+					'Organizing your documents...',
+					'Checking upcoming maintenance...',
+					'Connecting maintenance history...',
+					'Almost ready...',
+				]}
+			/>
 		);
 	}
 
@@ -435,6 +282,14 @@ export const App = () => {
 					<div className='spinner'></div>
 					Refreshing...
 				</RefreshSpinner>
+				{appLoading.isLoading && (
+					<SplashScreen
+						title={appLoading.title}
+						message={appLoading.message}
+						steps={appLoading.steps}
+						variant='overlay'
+					/>
+				)}
 				<RouterComponent />
 				<UpdateNotification />
 			</AppFeedbackProvider>

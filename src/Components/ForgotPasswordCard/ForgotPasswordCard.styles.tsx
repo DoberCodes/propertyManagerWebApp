@@ -93,11 +93,7 @@ export const Submit = styled.button`
 	box-shadow: 0 4px 6px rgba(16, 185, 129, 0.25);
 
 	&:hover {
-		background: linear-gradient(
-			135deg,
-			${COLORS.primaryDark} 0%,
-			${COLORS.primaryDarker} 100%
-		);
+		background: ${COLORS.gradientPrimary};
 		box-shadow: 0 6px 12px rgba(16, 185, 129, 0.35);
 		transform: translateY(-2px);
 	}

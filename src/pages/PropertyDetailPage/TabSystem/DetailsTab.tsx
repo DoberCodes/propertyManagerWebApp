@@ -6,7 +6,10 @@ import {
 	SectionHeader,
 } from '../../../Components/Library/InfoCards/InfoCardStyles';
 import { StatusBadge } from './index.styles';
-import { isTaskOverdueForDisplay } from '../../../utils/taskUtils';
+import {
+	compareTasksByDueUrgency,
+	isTaskOverdueForDisplay,
+} from '../../../utils/taskUtils';
 import { getTaskDisplayStatus } from '../../../utils/taskDisplayStatus';
 import { DetailsEditHeader } from '../PropertyDetailPage.styles';
 import { PropertyDetailSection } from '../PropertyDetailSection';
@@ -40,6 +43,7 @@ import {
 export const DetailsTab: React.FC<DetailsTabProps> = ({
 	property,
 	teamMembers,
+	familyMembers = [],
 	propertyTasks = [],
 	propertyDevices = [],
 	maintenanceHistoryRecords = [],
@@ -63,11 +67,7 @@ export const DetailsTab: React.FC<DetailsTabProps> = ({
 	const recentMaintenanceCount = maintenanceHistoryRecords.filter(isContinuityEvent).length;
 
 	const upcomingTasks = [...propertyTasks]
-		.sort((a, b) => {
-			const dueA = a?.dueDate ? new Date(a.dueDate).getTime() : Infinity;
-			const dueB = b?.dueDate ? new Date(b.dueDate).getTime() : Infinity;
-			return dueA - dueB;
-		})
+		.sort(compareTasksByDueUrgency)
 		.slice(0, 4);
 
 	const formatPreviewDate = (value?: string) => {
@@ -192,7 +192,11 @@ export const DetailsTab: React.FC<DetailsTabProps> = ({
 				<SectionHeader>Property Maintenance Profile</SectionHeader>
 			</DetailsEditHeader>
 
-			<PropertyDetailSection property={property} teamMembers={teamMembers} />
+			<PropertyDetailSection
+				property={property}
+				teamMembers={teamMembers}
+				familyMembers={familyMembers}
+			/>
 
 			{/* Notes */}
 			{property.notes && (

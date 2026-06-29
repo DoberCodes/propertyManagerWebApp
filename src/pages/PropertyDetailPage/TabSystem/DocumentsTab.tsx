@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useDispatch } from 'react-redux';
 import styled from 'styled-components';
 import {
 	SectionContainer,
@@ -13,6 +14,9 @@ import {
 } from 'Components/Library';
 import { FileUploader } from 'Components/Library/FileUploader';
 import { useUpdatePropertyMutation } from 'Redux/API/propertySlice';
+import { apiSlice } from 'Redux/API/apiSlice';
+import { useCreateNotificationMutation } from 'Redux/API/notificationSlice';
+import type { AppDispatch } from 'Redux/store/store';
 import {
 	Device,
 	PropertyDocument,
@@ -22,16 +26,24 @@ import type { PropertyKnowledgeSuggestion } from 'types/PropertyKnowledge.types'
 import { Task } from 'types/Task.types';
 import {
 	createPendingKnowledgeSuggestion,
-	createPendingKnowledgeSuggestionFromFile,
 	markDocumentWithKnowledgeSuggestion,
 	mergeKnowledgeSuggestion,
 } from 'propertyKnowledge/propertyKnowledgeAcquisition';
+import {
+	preparePropertyMemoryDocumentUploads,
+	startPdfDocumentKnowledgeProcessing,
+} from 'propertyKnowledge/propertyDocumentUploads';
+import {
+	isPdfPropertyDocument,
+	processPropertyDocumentAcquisition,
+} from 'propertyKnowledge/propertyKnowledgeProcessing';
 import { RoleCapabilities } from 'utils/permissions';
 import {
 	deletePropertyDocumentFile,
-	uploadPropertyDocument,
 } from 'utils/propertyDocumentUpload';
+import { auth } from '../../../config/firebase';
 import { useAppFeedback } from '../../../Components/Library/AppFeedback/AppFeedbackProvider';
+import { COLORS } from '../../../constants/colors';
 import {
 	TabSummaryBar,
 	TabSummaryPill,
@@ -146,6 +158,48 @@ const getKnowledgeSuggestionCount = (
 	(suggestion?.extractedFields.length || 0) +
 	(suggestion?.suggestedParts?.length || 0);
 
+const getAddedKnowledgeCount = (
+	suggestion?: PropertyKnowledgeSuggestion,
+) => {
+	if (!suggestion || suggestion.status !== 'applied') return 0;
+	const addedFields = (suggestion.extractedFields || []).filter(
+		(field) => field.reviewStatus !== 'rejected',
+	).length;
+	const addedParts = (suggestion.suggestedParts || []).filter(
+		(part) => part.reviewStatus !== 'rejected',
+	).length;
+	return addedFields + addedParts;
+};
+
+const getDocumentKnowledgeStatusText = (
+	suggestion?: PropertyKnowledgeSuggestion,
+) => {
+	if (!suggestion) return '';
+	if (suggestion.status === 'applied') {
+		const addedCount = getAddedKnowledgeCount(suggestion);
+		return addedCount > 0
+			? `${addedCount} detail${addedCount === 1 ? '' : 's'} added to Property Memory`
+			: 'Document reviewed';
+	}
+	if (suggestion.status === 'rejected') {
+		return 'Document reviewed. No details added.';
+	}
+	if (suggestion.status === 'accepted') {
+		return 'Document reviewed';
+	}
+	return '';
+};
+
+const getDocumentAcquisitionStatusText = (document?: PropertyDocument) => {
+	if (document?.acquisitionStatus === 'processing') {
+		return 'Maintley is reviewing this PDF for suggested details.';
+	}
+	if (document?.acquisitionStatus === 'failed') {
+		return document.acquisitionError || 'Maintley could not review this PDF yet.';
+	}
+	return '';
+};
+
 const getTaskAssignmentStatus = (task?: Task, fallbackStatus?: string) => {
 	const status = task?.status || fallbackStatus || '';
 	return status === 'Completed' ? 'Completed' : 'Pending';
@@ -161,24 +215,26 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 	onReviewSuggestedDetails,
 }) => {
 	const feedback = useAppFeedback();
+	const dispatch = useDispatch<AppDispatch>();
 	const [updateProperty] = useUpdatePropertyMutation();
+	const [createNotification] = useCreateNotificationMutation();
 	const [isUploadOpen, setIsUploadOpen] = useState(false);
 	const [isEditOpen, setIsEditOpen] = useState(false);
 	const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
 	const [uploadName, setUploadName] = useState('');
 	const [documentCategory, setDocumentCategory] =
 		useState<PropertyDocumentCategory>('manual');
-	const [documentAssignment, setDocumentAssignment] = useState('property');
 	const [editingDocument, setEditingDocument] = useState<PropertyDocument | null>(
 		null,
 	);
 	const [editName, setEditName] = useState('');
 	const [editCategory, setEditCategory] =
 		useState<PropertyDocumentCategory>('manual');
-	const [editAssignment, setEditAssignment] = useState('property');
 	const [isSaving, setIsSaving] = useState(false);
 	const lastOpenUploadTokenRef = useRef(0);
 	const canManageDocuments = permissions?.canManageProperties ?? true;
+	const notificationUserId =
+		auth.currentUser?.uid || property?.uploadedBy || property?.userId || '';
 
 	const propertyDocuments = useMemo<PropertyDocument[]>(
 		() => (Array.isArray(property?.documents) ? property.documents : []),
@@ -208,53 +264,6 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 		});
 		return map;
 	}, [propertyTasks]);
-
-	const sortedTasks = useMemo(
-		() =>
-			[...propertyTasks].sort((a, b) => {
-				const aCompleted = a.status === 'Completed' ? 1 : 0;
-				const bCompleted = b.status === 'Completed' ? 1 : 0;
-				if (aCompleted !== bCompleted) return aCompleted - bCompleted;
-				const aDate = new Date(a.dueDate || 0).getTime() || 0;
-				const bDate = new Date(b.dueDate || 0).getTime() || 0;
-				return aDate - bDate;
-			}),
-		[propertyTasks],
-	);
-
-	const getDocumentAssignmentValue = (document?: PropertyDocument | null) => {
-		if (document?.assignedDeviceId) return `device:${document.assignedDeviceId}`;
-		if (document?.assignedTaskId) return `task:${document.assignedTaskId}`;
-		const linkedAssetId = document?.links?.assetIds?.[0];
-		if (linkedAssetId) return `device:${linkedAssetId}`;
-		const linkedTaskId = document?.links?.taskIds?.[0];
-		if (linkedTaskId) return `task:${linkedTaskId}`;
-		return 'property';
-	};
-
-	const getAssignmentFields = (value: string) => {
-		if (value.startsWith('device:')) {
-			const assetId = value.slice('device:'.length);
-			return {
-				assignedDeviceId: assetId,
-				links: {
-					assetIds: [assetId],
-				},
-			};
-		}
-		if (value.startsWith('task:')) {
-			const taskId = value.slice('task:'.length);
-			const task = taskById.get(taskId);
-			return {
-				assignedTaskId: taskId,
-				assignedTaskStatus: getTaskAssignmentStatus(task),
-				links: {
-					taskIds: [taskId],
-				},
-			};
-		}
-		return { links: {} };
-	};
 
 	const getAssignmentLabel = useCallback((document: PropertyDocument) => {
 		const assetId = document.assignedDeviceId || document.links?.assetIds?.[0];
@@ -369,7 +378,6 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 		setSelectedFiles([]);
 		setUploadName('');
 		setDocumentCategory('manual');
-		setDocumentAssignment('property');
 	};
 
 	const getLatestKnowledgeSuggestionForDocument = (documentId?: string) => {
@@ -393,6 +401,68 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 			);
 		if (existingPending) {
 			onReviewSuggestedDetails?.(existingPending.id);
+			return;
+		}
+
+		if (isPdfPropertyDocument(document)) {
+			setIsSaving(true);
+			try {
+				await updateProperty({
+					id: property.id,
+					updates: {
+						documents: propertyDocuments.map((item) =>
+							item.id === document.id
+								? {
+										...item,
+										acquisitionStatus: 'processing',
+										acquisitionStartedAt: new Date().toISOString(),
+										acquisitionError: '',
+								  }
+								: item,
+						),
+					},
+				}).unwrap();
+				feedback.notify('Maintley is reviewing this PDF for suggested details.');
+				if (notificationUserId) {
+					createNotification({
+						userId: notificationUserId,
+						type: 'document_scan_started',
+						title: 'Document Review Started',
+						message: `Maintley is reviewing ${document.fileName || document.name} for suggested details.`,
+						data: {
+							propertyId: property.id,
+							propertyTitle: property.title || property.name,
+							documentId: document.id,
+							documentName: document.fileName || document.name,
+						},
+						status: 'unread',
+						actionUrl: `/properties/${property.id}`,
+						createdAt: new Date().toISOString(),
+						updatedAt: new Date().toISOString(),
+					}).unwrap().catch((notificationError) => {
+						console.warn('Could not create document scan notification:', notificationError);
+					});
+				}
+				processPropertyDocumentAcquisition({
+					propertyId: property.id,
+					documentId: document.id,
+				})
+					.then((result) => {
+						dispatch(apiSlice.util.invalidateTags(['Properties']));
+						if (result.success && result.suggestionId) {
+							onReviewSuggestedDetails?.(result.suggestionId);
+						}
+					})
+					.catch((error) => {
+						console.error('Error processing PDF document:', error);
+						dispatch(apiSlice.util.invalidateTags(['Properties']));
+					});
+			} catch (error) {
+				console.error('Error starting PDF document review:', error);
+				feedback.notify('Could not start reviewing this PDF.');
+			} finally {
+				setIsSaving(false);
+			}
 			return;
 		}
 
@@ -442,43 +512,19 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 		if (!property?.id || selectedFiles.length === 0 || isSaving) return;
 		setIsSaving(true);
 		try {
-			const assignmentFields = getAssignmentFields(documentAssignment);
 			const customNameForSingleFile =
 				selectedFiles.length === 1 ? uploadName.trim() : '';
-			const uploadedDocuments = await Promise.all(
-				selectedFiles.map((file) =>
-					uploadPropertyDocument(
-						file,
-						property.id,
-						documentCategory,
-						customNameForSingleFile,
-					),
-				),
-			);
-			const documentsWithAssignment = uploadedDocuments.map((document) => ({
-				...document,
-				...assignmentFields,
-			}));
-			const knowledgeSuggestions = await Promise.all(
-				documentsWithAssignment.map((document, index) =>
-					createPendingKnowledgeSuggestionFromFile({
-						file: selectedFiles[index],
-						document,
-						propertyId: property.id,
-						relatedSystemId:
-							document.assignedDeviceId || document.links?.assetIds?.[0],
-						property,
-						systems: propertyDevices as Device[],
-					}),
-				),
-			);
-			const savedDocuments = documentsWithAssignment.map((document) => {
-				const suggestion = knowledgeSuggestions.find(
-					(candidate) => candidate.sourceDocumentId === document.id,
-				);
-				return suggestion
-					? markDocumentWithKnowledgeSuggestion(document, suggestion)
-					: document;
+			const {
+				documents: savedDocuments,
+				knowledgeSuggestions,
+				pdfDocuments,
+			} = await preparePropertyMemoryDocumentUploads({
+				files: selectedFiles,
+				propertyId: property.id,
+				category: documentCategory,
+				customNameForSingleFile,
+				property,
+				systems: propertyDevices as Device[],
 			});
 			await updateProperty({
 				id: property.id,
@@ -500,8 +546,42 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 			feedback.notify(
 				totalSuggestedDetails > 0
 					? `Documents uploaded. Maintley found ${totalSuggestedDetails} suggested detail${totalSuggestedDetails === 1 ? '' : 's'} to review.`
-					: 'Documents uploaded.',
+					: pdfDocuments.length > 0
+						? 'Documents uploaded. Maintley is reviewing PDF details in the background.'
+						: 'Documents uploaded.',
 			);
+			startPdfDocumentKnowledgeProcessing({
+				propertyId: property.id,
+				documents: pdfDocuments,
+				notifyScanStarted: (document) => {
+					if (!notificationUserId) return undefined;
+					return createNotification({
+						userId: notificationUserId,
+						type: 'document_scan_started',
+						title: 'Document Review Started',
+						message: `Maintley is reviewing ${document.fileName || document.name} for suggested details.`,
+						data: {
+							propertyId: property.id,
+							propertyTitle: property.title || property.name,
+							documentId: document.id,
+							documentName: document.fileName || document.name,
+						},
+						status: 'unread',
+						actionUrl: `/properties/${property.id}`,
+						createdAt: new Date().toISOString(),
+						updatedAt: new Date().toISOString(),
+					}).unwrap();
+				},
+				onProcessed: (result) => {
+					dispatch(apiSlice.util.invalidateTags(['Properties']));
+					if (result.success && result.suggestionId) {
+						onReviewSuggestedDetails?.(result.suggestionId);
+					}
+				},
+				onError: () => {
+					dispatch(apiSlice.util.invalidateTags(['Properties']));
+				},
+			});
 			closeUploadModal();
 		} catch (error: any) {
 			console.error('Error uploading property documents:', error);
@@ -517,7 +597,6 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 		setEditingDocument(document);
 		setEditName(document.name);
 		setEditCategory(document.category || 'other');
-		setEditAssignment(getDocumentAssignmentValue(document));
 		setIsEditOpen(true);
 	};
 
@@ -526,7 +605,6 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 		setEditingDocument(null);
 		setEditName('');
 		setEditCategory('manual');
-		setEditAssignment('property');
 	};
 
 	const handleSaveEdit = async () => {
@@ -539,24 +617,17 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 
 		setIsSaving(true);
 		try {
-			const assignmentFields = getAssignmentFields(editAssignment);
 			await updateProperty({
 				id: property.id,
 				updates: {
 					documents: propertyDocuments.map((document) =>
 						document.id === editingDocument.id
-							? (() => {
-									const baseDocument = { ...document };
-									delete baseDocument.assignedDeviceId;
-									delete baseDocument.assignedTaskId;
-									delete baseDocument.assignedTaskStatus;
-									return {
-										...baseDocument,
-										name: trimmedName,
-										category: editCategory,
-										...assignmentFields,
-									};
-							  })()
+							? {
+									...document,
+									name: trimmedName,
+									fileName: trimmedName,
+									category: editCategory,
+							  }
 							: document,
 					),
 				},
@@ -598,38 +669,6 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 			setIsSaving(false);
 		}
 	};
-
-	const renderAssignmentOptions = () => (
-		<>
-			<option value='property'>Property only</option>
-			{propertyDevices.length > 0 && (
-				<optgroup label='Appliances & Systems'>
-					{propertyDevices.map((device: any) => {
-						const label = [
-							device?.type || device?.name || 'Appliance/System',
-							[device?.brand, device?.model].filter(Boolean).join(' '),
-						]
-							.filter(Boolean)
-							.join(' - ');
-						return (
-							<option key={`device-${device.id}`} value={`device:${device.id}`}>
-								{label}
-							</option>
-						);
-					})}
-				</optgroup>
-			)}
-			{sortedTasks.length > 0 && (
-				<optgroup label='Tasks'>
-					{sortedTasks.map((task) => (
-						<option key={`task-${task.id}`} value={`task:${task.id}`}>
-							{task.title} ({getTaskAssignmentStatus(task)})
-						</option>
-					))}
-				</optgroup>
-			)}
-		</>
-	);
 
 	return (
 		<SectionContainer>
@@ -682,6 +721,14 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 						const suggestionCount = getKnowledgeSuggestionCount(
 							latestKnowledgeSuggestion,
 						);
+						const reviewedKnowledgeStatus =
+							getDocumentKnowledgeStatusText(latestKnowledgeSuggestion);
+						const acquisitionStatusText =
+							isPropertyDocument && file.id
+								? getDocumentAcquisitionStatusText(
+										propertyDocuments.find((item) => item.id === file.id),
+								  )
+								: '';
 						return (
 							<DocumentCard key={key}>
 								<DocumentTitleRow>
@@ -711,6 +758,27 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 								)}
 								<DocumentMeta>{formatDate(file.date)}</DocumentMeta>
 								{isPropertyDocument &&
+									acquisitionStatusText &&
+									latestKnowledgeSuggestion?.status !== 'pending' && (
+										<DocumentKnowledgePrompt
+											$error={
+												propertyDocuments.find((item) => item.id === file.id)
+													?.acquisitionStatus === 'failed'
+											}>
+											{acquisitionStatusText}{' '}
+											{propertyDocuments.find((item) => item.id === file.id)
+												?.acquisitionStatus === 'failed' &&
+												canManageDocuments && (
+													<DocumentInlineAction
+														type='button'
+														onClick={() => handleReviewDocumentKnowledge(file.id)}
+														disabled={isSaving}>
+														Try again
+													</DocumentInlineAction>
+												)}
+										</DocumentKnowledgePrompt>
+									)}
+								{isPropertyDocument &&
 									canManageDocuments &&
 									latestKnowledgeSuggestion?.status === 'pending' &&
 									suggestionCount > 0 && (
@@ -726,6 +794,13 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 											</DocumentInlineAction>
 										</DocumentKnowledgePrompt>
 									)}
+								{isPropertyDocument &&
+									latestKnowledgeSuggestion?.status !== 'pending' &&
+									reviewedKnowledgeStatus && (
+										<DocumentKnowledgeSummary>
+											{reviewedKnowledgeStatus}
+										</DocumentKnowledgeSummary>
+									)}
 								{isPropertyDocument && canManageDocuments && (
 									<DocumentActions>
 										{!latestKnowledgeSuggestion ||
@@ -733,12 +808,19 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 											<DocumentActionButton
 												type='button'
 												onClick={() => handleReviewDocumentKnowledge(file.id)}
-												disabled={isSaving}>
+												disabled={
+													isSaving ||
+													propertyDocuments.find((item) => item.id === file.id)
+														?.acquisitionStatus === 'processing'
+												}>
 												Check for suggested details
 											</DocumentActionButton>
 										) : null}
-										{latestKnowledgeSuggestion?.status === 'applied' && (
-											<DocumentKnowledgeStatus>Saved</DocumentKnowledgeStatus>
+										{latestKnowledgeSuggestion?.status === 'applied' &&
+											getAddedKnowledgeCount(latestKnowledgeSuggestion) > 0 && (
+											<DocumentKnowledgeStatus>
+												Knowledge saved
+											</DocumentKnowledgeStatus>
 										)}
 										<DocumentActionButton
 											type='button'
@@ -782,15 +864,6 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 						<option value='manual'>Manual</option>
 						<option value='warranty'>Warranty</option>
 						<option value='other'>Other document</option>
-					</FormSelect>
-				</FormGroup>
-				<FormGroup>
-					<FormLabel htmlFor='property-document-assignment'>Assign to</FormLabel>
-					<FormSelect
-						id='property-document-assignment'
-						value={documentAssignment}
-						onChange={(event) => setDocumentAssignment(event.target.value)}>
-						{renderAssignmentOptions()}
 					</FormSelect>
 				</FormGroup>
 				<FileUploader
@@ -846,16 +919,7 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 						<option value='other'>Other document</option>
 					</FormSelect>
 				</FormGroup>
-				<FormGroup>
-					<FormLabel htmlFor='property-document-edit-assignment'>Assign to</FormLabel>
-					<FormSelect
-						id='property-document-edit-assignment'
-						value={editAssignment}
-						onChange={(event) => setEditAssignment(event.target.value)}>
-						{renderAssignmentOptions()}
-					</FormSelect>
-				</FormGroup>
-			</GenericModal>
+		</GenericModal>
 
 		</SectionContainer>
 	);
@@ -876,8 +940,8 @@ const HeaderRow = styled.div`
 const UploadButton = styled.button`
 	border: none;
 	border-radius: 10px;
-	background: #10b981;
-	color: #ffffff;
+	background: ${COLORS.primary};
+	color: ${COLORS.white};
 	font-size: 14px;
 	font-weight: 800;
 	padding: 11px 14px;
@@ -885,7 +949,7 @@ const UploadButton = styled.button`
 	white-space: nowrap;
 
 	&:hover {
-		background: #059669;
+		background: ${COLORS.primaryHover};
 	}
 
 	@media (max-width: 640px) {
@@ -906,9 +970,9 @@ const DocumentCard = styled.div`
 	display: grid;
 	gap: 7px;
 	padding: 12px 14px;
-	border: 1px solid #e2e8f0;
+	border: 1px solid ${COLORS.border};
 	border-radius: 10px;
-	background: #ffffff;
+	background: ${COLORS.white};
 `;
 
 const DocumentTitleRow = styled.div`
@@ -925,7 +989,7 @@ const DocumentTitleRow = styled.div`
 
 const DocumentLink = styled.a`
 	min-width: 0;
-	color: #0f766e;
+	color: ${COLORS.primaryDark};
 	font-size: 14px;
 	font-weight: 800;
 	line-height: 1.35;
@@ -936,7 +1000,7 @@ const DocumentLink = styled.a`
 
 const DocumentName = styled.div`
 	min-width: 0;
-	color: #1f2937;
+	color: ${COLORS.textPrimary};
 	font-size: 14px;
 	font-weight: 800;
 	line-height: 1.35;
@@ -945,10 +1009,10 @@ const DocumentName = styled.div`
 
 const DocumentBadge = styled.span`
 	width: fit-content;
-	border: 1px solid #dbeafe;
+	border: 1px solid ${COLORS.infoLight};
 	border-radius: 999px;
-	background: #eff6ff;
-	color: #1d4ed8;
+	background: ${COLORS.infoLight};
+	color: ${COLORS.infoDark};
 	font-size: 11px;
 	font-weight: 800;
 	line-height: 1.2;
@@ -957,26 +1021,37 @@ const DocumentBadge = styled.span`
 `;
 
 const DocumentMeta = styled.div`
-	color: #64748b;
+	color: ${COLORS.textSecondary};
 	font-size: 12px;
 	line-height: 1.35;
 `;
 
-const DocumentKnowledgePrompt = styled.div`
-	border: 1px solid #ccfbf1;
+const DocumentKnowledgePrompt = styled.div<{ $error?: boolean }>`
+	border: 1px solid ${({ $error }) => ($error ? COLORS.errorLight : COLORS.primaryLight)};
 	border-radius: 8px;
-	background: #f0fdfa;
-	color: #115e59;
+	background: ${({ $error }) => ($error ? COLORS.errorLight : COLORS.primaryLight)};
+	color: ${({ $error }) => ($error ? COLORS.alertError : COLORS.primaryDark)};
 	font-size: 13px;
 	font-weight: 700;
 	line-height: 1.45;
 	padding: 9px 10px;
 `;
 
+const DocumentKnowledgeSummary = styled.div`
+	border: 1px solid ${COLORS.primaryLight};
+	border-radius: 8px;
+	background: ${COLORS.successLight};
+	color: ${COLORS.successDark};
+	font-size: 13px;
+	font-weight: 700;
+	line-height: 1.45;
+	padding: 8px 10px;
+`;
+
 const DocumentInlineAction = styled.button`
 	border: none;
 	background: transparent;
-	color: #0f766e;
+	color: ${COLORS.primaryDark};
 	cursor: pointer;
 	font: inherit;
 	font-weight: 900;
@@ -985,7 +1060,7 @@ const DocumentInlineAction = styled.button`
 	text-underline-offset: 3px;
 
 	&:disabled {
-		color: #94a3b8;
+		color: ${COLORS.textMuted};
 		cursor: not-allowed;
 	}
 `;
@@ -1000,7 +1075,7 @@ const DocumentActions = styled.div`
 const DocumentActionButton = styled.button<{ $danger?: boolean }>`
 	border: none;
 	background: transparent;
-	color: ${({ $danger }) => ($danger ? '#b91c1c' : '#0f766e')};
+	color: ${({ $danger }) => ($danger ? COLORS.errorDark : COLORS.primaryDark)};
 	font-size: 13px;
 	font-weight: 800;
 	padding: 4px 0;
@@ -1009,17 +1084,17 @@ const DocumentActionButton = styled.button<{ $danger?: boolean }>`
 	text-underline-offset: 3px;
 
 	&:disabled {
-		color: #94a3b8;
+		color: ${COLORS.textMuted};
 		cursor: not-allowed;
 	}
 `;
 
 const DocumentKnowledgeStatus = styled.span`
 	align-self: center;
-	border: 1px solid #bbf7d0;
+	border: 1px solid ${COLORS.primaryLight};
 	border-radius: 999px;
-	background: #f0fdf4;
-	color: #166534;
+	background: ${COLORS.successLight};
+	color: ${COLORS.successDark};
 	font-size: 11px;
 	font-weight: 800;
 	line-height: 1.2;

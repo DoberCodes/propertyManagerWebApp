@@ -1,3 +1,5 @@
+import { COLORS } from 'constants/colors';
+
 export type TaskDisplayStatus =
 	| 'Initiated'
 	| 'Upcoming'
@@ -42,8 +44,8 @@ export const getTaskDisplayStatus = (
 	if (storedStatus === 'Completed') {
 		return {
 			label: 'Completed',
-			color: '#166534',
-			background: '#dcfce7',
+			color: COLORS.successDark,
+			background: COLORS.successLight,
 			border: '#86efac',
 			isCompleted: true,
 			isOverdue: false,
@@ -96,8 +98,8 @@ export const getTaskDisplayStatus = (
 
 	return {
 		label: 'Upcoming',
-		color: '#065f46',
-		background: '#ecfdf5',
+		color: COLORS.successDark,
+		background: COLORS.successLight,
 		border: '#6ee7b7',
 		isCompleted: false,
 		isOverdue: false,

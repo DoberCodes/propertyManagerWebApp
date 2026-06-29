@@ -4,6 +4,7 @@
  */
 
 import styled from 'styled-components';
+import { COLORS } from '../../constants/colors';
 
 // ============================================================================
 // Layout & Containers
@@ -355,7 +356,7 @@ export const ErrorText = styled.p`
 
 export const SuccessText = styled.p`
 	margin: 0;
-	color: #166534;
+	color: ${COLORS.successDark};
 	font-size: 13px;
 `;
 

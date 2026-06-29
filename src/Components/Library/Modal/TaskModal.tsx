@@ -37,6 +37,8 @@ import {
 	useUpdateTaskMutation,
 	useGetTasksQuery,
 } from '../../../Redux/API/taskSlice';
+import { apiSlice } from '../../../Redux/API/apiSlice';
+import { useCreateNotificationMutation } from '../../../Redux/API/notificationSlice';
 import { useGetAllDevicesQuery } from '../../../Redux/API/deviceSlice';
 import {
 	useGetPropertiesQuery,
@@ -57,13 +59,9 @@ import { RootState } from '../../../Redux/store/store';
 import { canUseRecurringTasks } from '../../../utils/subscriptionUtils';
 import { TaskDocumentsPanel } from '../../TaskDocumentsPanel/TaskDocumentsPanel';
 import {
-	uploadPropertyDocument,
-	withPropertyDocumentLinks,
-} from '../../../utils/propertyDocumentUpload';
-import {
-	createPendingKnowledgeSuggestionFromFile,
-	markDocumentWithKnowledgeSuggestion,
-} from '../../../propertyKnowledge/propertyKnowledgeAcquisition';
+	preparePropertyMemoryDocumentUploads,
+	startPdfDocumentKnowledgeProcessing,
+} from '../../../propertyKnowledge/propertyDocumentUploads';
 
 const LINKED_DEVICE_NOTES_START = '--- Linked Appliance Details ---';
 const LINKED_DEVICE_NOTES_END = '--- End Linked Appliance Details ---';
@@ -220,7 +218,7 @@ const TabBadge = styled.span<{ $tone?: 'optional' | 'warning' | 'success' }>`
 		props.$tone === 'warning'
 			? '#b91c1c'
 			: props.$tone === 'success'
-				? '#166534'
+				? COLORS.successDark
 				: COLORS.textSecondary};
 
 	@media (max-width: 480px) {
@@ -251,9 +249,13 @@ const SummaryBanner = styled.div`
 	gap: 0.75rem;
 	padding: 1rem;
 	margin-bottom: 1.25rem;
-	border: 1px solid #d1fae5;
+	border: 1px solid ${COLORS.successLight};
 	border-radius: 10px;
-	background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf3 100%);
+	background: linear-gradient(
+		135deg,
+		rgba(0, 158, 113, 0.14) 0%,
+		rgba(4, 120, 87, 0.08) 100%
+	);
 `;
 
 const SummaryBannerHeader = styled.div`
@@ -317,7 +319,7 @@ const SummaryPill = styled.span<{ $tone?: 'warning' | 'neutral' | 'success' }>`
 		props.$tone === 'warning'
 			? '#92400e'
 			: props.$tone === 'success'
-				? '#166534'
+				? COLORS.successDark
 				: COLORS.textSecondary};
 	border: 1px solid
 		${(props) =>
@@ -426,9 +428,9 @@ const AdvancedStack = styled.div`
 `;
 
 const MoreOptionsToggle = styled.button<{ $active?: boolean }>`
-	border: 1px solid ${(props) => (props.$active ? '#16a34a' : COLORS.gray200)};
-	background: ${(props) => (props.$active ? '#f0fdf4' : '#ffffff')};
-	color: ${(props) => (props.$active ? '#166534' : COLORS.textPrimary)};
+	border: 1px solid ${(props) => (props.$active ? COLORS.primary : COLORS.gray200)};
+	background: ${(props) => (props.$active ? COLORS.primaryLight : COLORS.white)};
+	color: ${(props) => (props.$active ? COLORS.primaryDark : COLORS.textPrimary)};
 	border-radius: 8px;
 	padding: 0.55rem 0.85rem;
 	font-size: 0.84rem;
@@ -605,6 +607,7 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 	const { data: allMaintenanceHistory = [] } =
 		useGetAllMaintenanceHistoryForUserQuery();
 	const [createTask] = useCreateTaskMutation();
+	const [createNotification] = useCreateNotificationMutation();
 	const [updateTaskApi] = useUpdateTaskMutation();
 	const [updateProperty] = useUpdatePropertyMutation();
 
@@ -1305,7 +1308,6 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 	const uploadPendingTaskDocuments = async (
 		savedTaskId: string,
 		scopedPropertyId: string,
-		savedTaskStatus?: string,
 	) => {
 		if (!savedTaskId || !scopedPropertyId || pendingTaskDocumentFiles.length === 0) {
 			return;
@@ -1321,40 +1323,16 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 		const propertyDocuments = Array.isArray(propertyForDocuments?.documents)
 			? propertyForDocuments.documents
 			: [];
-		const uploadedDocuments = await Promise.all(
-			pendingTaskDocumentFiles.map((file) =>
-				uploadPropertyDocument(file, scopedPropertyId, pendingTaskDocumentCategory),
-			),
-		);
-		const linkedDocuments = uploadedDocuments.map((document) =>
-			withPropertyDocumentLinks(
-				{
-					...document,
-					assignedTaskId: savedTaskId,
-					assignedTaskStatus:
-						savedTaskStatus === 'Completed' ? 'Completed' : 'Pending',
-				},
-				{ taskIds: [savedTaskId] },
-			),
-		);
-		const knowledgeSuggestions = await Promise.all(
-			linkedDocuments.map((document, index) =>
-				createPendingKnowledgeSuggestionFromFile({
-					file: pendingTaskDocumentFiles[index],
-					document,
-					propertyId: scopedPropertyId,
-					property: propertyForDocuments,
-					systems: linkedDevices,
-				}),
-			),
-		);
-		const savedDocuments = linkedDocuments.map((document) => {
-			const suggestion = knowledgeSuggestions.find(
-				(candidate) => candidate.sourceDocumentId === document.id,
-			);
-			return suggestion
-				? markDocumentWithKnowledgeSuggestion(document, suggestion)
-				: document;
+		const {
+			documents: savedDocuments,
+			knowledgeSuggestions,
+			pdfDocuments,
+		} = await preparePropertyMemoryDocumentUploads({
+			files: pendingTaskDocumentFiles,
+			propertyId: scopedPropertyId,
+			category: pendingTaskDocumentCategory,
+			property: propertyForDocuments,
+			systems: linkedDevices,
 		});
 		const knowledgeSuggestionsForProperty = Array.isArray(
 			propertyForDocuments?.knowledgeSuggestions,
@@ -1372,6 +1350,33 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 				],
 			},
 		}).unwrap();
+		startPdfDocumentKnowledgeProcessing({
+			propertyId: scopedPropertyId,
+			documents: pdfDocuments,
+			notifyScanStarted: (document) =>
+				createNotification({
+					userId: currentUser!.id,
+					type: 'document_scan_started',
+					title: 'Document Review Started',
+					message: `Maintley is reviewing ${document.fileName || document.name} for suggested details.`,
+					data: {
+						propertyId: scopedPropertyId,
+						propertyTitle: propertyForDocuments?.title,
+						documentId: document.id,
+						documentName: document.fileName || document.name,
+					},
+					status: 'unread',
+					actionUrl: `/properties/${scopedPropertyId}`,
+					createdAt: new Date().toISOString(),
+					updatedAt: new Date().toISOString(),
+				}).unwrap(),
+			onProcessed: () => {
+				dispatch(apiSlice.util.invalidateTags(['Properties']));
+			},
+			onError: () => {
+				dispatch(apiSlice.util.invalidateTags(['Properties']));
+			},
+		});
 		setPendingTaskDocumentFiles([]);
 		setPendingTaskDocumentCategory('other');
 	};
@@ -1502,7 +1507,6 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 				await uploadPendingTaskDocuments(
 					taskId,
 					String(updates.propertyId || formState.propertyId || propertyId || ''),
-					String(updates.status || formState.status || ''),
 				);
 				dispatch(updateTask(updated));
 				onSaved?.(updated);
@@ -1575,7 +1579,6 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 				await uploadPendingTaskDocuments(
 					created.id,
 					created.propertyId || newTask.propertyId || '',
-					created.status || newTask.status,
 				);
 				dispatch(addTask(created));
 				onSaved?.(created);
@@ -1802,7 +1805,7 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 								<FormGroupFull>
 									<HelperBox>
 										<div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
-											<strong style={{ color: '#166534' }}>Smart default:</strong>
+											<strong style={{ color: COLORS.successDark }}>Smart default:</strong>
 											<span>{smartScheduleSuggestion.label}</span>
 											<MoreOptionsToggle type='button' onClick={applySmartSchedule}>
 												Apply Suggested Schedule

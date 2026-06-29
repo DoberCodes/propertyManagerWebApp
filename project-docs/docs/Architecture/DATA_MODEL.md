@@ -90,6 +90,12 @@ Contractors may be associated with one or more properties.
 
 Team members may be assigned access to one or more properties.
 
+Property access fields such as `coOwners`, `administrators`, and `viewers`
+store user IDs for access checks. Property records may also store
+`accessSnapshots`, keyed by user ID, with display name, email, and source. These
+snapshots preserve readable property access labels when family or team member
+records are unavailable or change later.
+
 Notifications are generated from changes within these records.
 
 ---
@@ -633,6 +639,12 @@ Tasks track planned work.
 
 Maintenance Events preserve historical work.
 
+When a recurring task is completed, Maintley creates the next `Initiated` task
+from the recurring schedule before removing the completed task from the active
+task list. Built-in recurrence options include daily, weekly, biweekly,
+monthly, quarterly, and yearly schedules; custom schedules use an interval and
+unit.
+
 ---
 
 # Maintenance Event Model
@@ -919,6 +931,7 @@ Examples:
 * Team activity
 * Tenant requests
 * Maintley Intelligence observations
+* Property document scan lifecycle updates
 
 ---
 
@@ -942,6 +955,7 @@ Optional fields may include:
 * propertyId
 * taskId
 * maintenanceEventId
+* documentId
 * actionUrl
 
 Notifications should remain lightweight and user-focused.
@@ -957,6 +971,7 @@ Notifications may originate from:
 * Team Activity
 * Tenant Requests
 * Maintley Intelligence
+* Property Knowledge Acquisition
 
 Example:
 
@@ -1133,7 +1148,23 @@ Typical property document fields:
 * uploadedBy
 * links
 * acquisitionStatus
+* acquisitionStartedAt
+* acquisitionCompletedAt
+* acquisitionError
 * extractedKnowledgeSuggestionIds
+
+Document acquisition status values:
+
+* `not_reviewed`
+* `processing`
+* `pending_review`
+* `reviewed`
+* `applied`
+* `failed`
+
+PDF invoice acquisition is backend processed after the canonical document is
+saved. The PDF remains the source document; rendered page images, OCR text, and
+other intermediate output are derived processing artifacts only.
 
 `links` may reference:
 
@@ -1144,7 +1175,7 @@ Typical property document fields:
 * warrantyIds, reserved for future warranty document links
 * partIds, reserved for future part document links
 
-Property, appliance/system, and task document screens currently upload documents into the property document record and show filtered views of those records.
+Property, appliance/system, task, and task-completion document screens upload documents into the property document record. Upload context should not automatically create permanent ownership. Links to assets, tasks, Maintenance Events, contractors, warranties, parts, or costs should be created by reviewed Property Knowledge suggestions or explicit user actions.
 
 Maintenance-event, contractor, warranty, and part links are supported by the model but should be migrated in a later phase.
 
@@ -1473,6 +1504,10 @@ It should read from existing source records such as:
 It should not introduce a competing financial source of truth.
 
 Costs surfaced from invoices, contractor work, labor, parts, taxes, or task estimates should remain attached to the maintenance event or task that produced them.
+
+When a task is completed and creates a Maintenance Event, the completed work's final financials should live on the linked Maintenance Event. The Costs tab may still centralize visibility, but it should read the completed cost through the Maintenance Event and avoid showing a duplicate task cost row for the same completed work.
+
+Document-based Property Knowledge Acquisition should resolve whether invoice or service costs belong to an existing Maintenance Event before creating a new event. If the reviewer confirms the existing event match, the cost stays attached to that Maintenance Event and the Costs tab continues to derive centralized visibility from the source record.
 
 ---
 

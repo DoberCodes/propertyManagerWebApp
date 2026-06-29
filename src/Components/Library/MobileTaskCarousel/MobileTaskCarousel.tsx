@@ -25,6 +25,7 @@ import { Task, TaskHandlers } from '../../../types/Task.types';
 import { getTaskDisplayStatus } from '../../../utils/taskDisplayStatus';
 import { getTaskAssigneeDisplayName } from '../../../utils/taskUtils';
 import { TaskModal } from '../Modal';
+import { COLORS } from '../../../constants/colors';
 
 interface MobileTaskCarouselProps {
 	tasks: Task[];
@@ -107,7 +108,7 @@ export const MobileTaskCarousel: React.FC<MobileTaskCarouselProps> = ({
 			case 'medium':
 				return '#f59e0b';
 			case 'low':
-				return '#10b981';
+				return COLORS.successDark;
 			default:
 				return '#6b7280';
 		}
@@ -243,7 +244,10 @@ export const MobileTaskCarousel: React.FC<MobileTaskCarouselProps> = ({
 												e.stopPropagation();
 												onTaskComplete?.(task.id);
 											}}
-											style={{ backgroundColor: '#10b981', color: 'white' }}>
+											style={{
+												backgroundColor: COLORS.primary,
+												color: COLORS.textInverse,
+											}}>
 											✓ Complete
 										</ActionButton>
 									)}

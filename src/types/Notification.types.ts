@@ -31,6 +31,8 @@ export interface Notification {
 		| 'team_group_deleted'
 		| 'maintenance_request'
 		| 'maintenance_request_created'
+		| 'document_scan_started'
+		| 'document_scan_completed'
 		| 'legal_update'
 		| 'other'
 		| 'property_shared';

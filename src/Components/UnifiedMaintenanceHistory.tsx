@@ -3,6 +3,7 @@ import {
 	formatCurrency,
 	getFinancialDisplayTotal,
 } from '../utils/financialUtils';
+import { COLORS } from '../constants/colors';
 
 interface UnifiedMaintenanceHistoryProps {
 	records: Array<any>;
@@ -53,9 +54,9 @@ export const UnifiedMaintenanceHistory: React.FC<
 
 	const primaryActionStyle: React.CSSProperties = {
 		...actionButtonBase,
-		background: '#ecfeff',
-		color: '#0f766e',
-		borderColor: '#99f6e4',
+		background: COLORS.primaryLight,
+		color: COLORS.primary,
+		borderColor: COLORS.primary,
 	};
 
 	const cardMetaRowStyle: React.CSSProperties = {

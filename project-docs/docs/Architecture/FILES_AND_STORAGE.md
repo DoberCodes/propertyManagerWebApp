@@ -39,7 +39,8 @@ Users should be able to:
 
 * Track maintenance without uploading files.
 * Store files without creating maintenance events.
-* Associate files with properties, appliances, systems, tasks, or maintenance records.
+* Upload files from property, appliance/system, task, or completion workflows.
+* Let reviewed Property Knowledge suggestions connect files to appliances, systems, tasks, contractors, costs, parts, warranties, or maintenance records.
 * Build documentation gradually over time.
 
 Documentation should enhance records rather than become a prerequisite for maintaining them.
@@ -161,11 +162,7 @@ Maintley should avoid storing raw file contents inside Firestore documents.
 Observed paths include:
 
 ```text
-task-completions/{userId}/{taskId}/{timestamp}-{filename}
-```
-
-```text
-properties/{userId}/{filename}
+properties/{accountId}/{filename}
 ```
 
 ```text
@@ -262,7 +259,7 @@ Current upload helpers enforce quota validation for:
 * Manuals
 * Warranty documents
 * Maintenance files
-* Task completion attachments
+* Task completion attachments through the property document upload path
 
 Storage usage is surfaced through:
 
@@ -341,6 +338,9 @@ Typical fields:
 * storagePath
 * links
 * acquisitionStatus
+* acquisitionStartedAt
+* acquisitionCompletedAt
+* acquisitionError
 * extractedKnowledgeSuggestionIds
 
 `links` may include:
@@ -391,7 +391,7 @@ Bad:
 Task completion workflows may upload files to:
 
 ```text
-task-completions/{userId}/{taskId}/{timestamp}-{filename}
+properties/{accountId}/{filename}
 ```
 
 Resulting metadata may be attached to:
@@ -399,8 +399,14 @@ Resulting metadata may be attached to:
 * Completed tasks
 * Maintenance events
 * Activity history
+* Property documents
 
 Task attachments should preserve historical records of completed work.
+
+Task completion files are stored as property documents first, then the saved
+file reference may be reused on the completed task or resulting Maintenance
+Event. This prevents task completion uploads from becoming a parallel document
+source.
 
 ---
 
@@ -429,9 +435,22 @@ Maintley Intelligence should not assume file contents are available for analysis
 
 Documents may create Property Knowledge Acquisition suggestions.
 
-In the current phase, suggestions come from document metadata and lightweight OCR for uploaded image files.
+In the current phase, suggestions come from document metadata, lightweight OCR
+for uploaded image files, and backend text extraction for supported text-based
+PDF invoices or receipts.
+
+PDF uploads should not be blocked while acquisition runs. The Property Document
+is saved first, then its acquisition status may move to `processing`,
+`pending_review`, or `failed`. The original PDF remains the canonical document.
+Rendered page images or extracted text are derived processing artifacts and
+should not become user-facing Property Documents.
 
 Maintley does not automatically update property, system, task, maintenance history, part, contractor, or warranty records from uploaded documents.
+
+Upload context should not create permanent ownership by itself. A document
+uploaded from an appliance, system, task, or completion workflow is still a
+property document. The acquisition and review workflow may later add links to
+the records the document supports after the user accepts the suggested changes.
 
 Users must review suggested details before saving them to Property Memory.
 

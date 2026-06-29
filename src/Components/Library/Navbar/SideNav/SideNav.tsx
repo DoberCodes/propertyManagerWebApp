@@ -59,6 +59,7 @@ import { filterPropertyGroupsByRole } from '../../../../utils/dataFilters';
 import { TeamMember } from '../../../../Redux/Slices/teamSlice';
 import { isNativeApp } from '../../../../utils/platform';
 import { openSubscriptionManagementInBrowser } from '../../../../utils/authLinks';
+import { COLORS } from '../../../../constants/colors';
 
 export const SideNav = () => {
 	const navigate = useNavigate();
@@ -249,7 +250,7 @@ export const SideNav = () => {
 										))}
 									</SimpleList>
 								) : (
-									<div style={{ fontSize: '12px', color: '#999999' }}>
+									<div style={{ fontSize: '12px', color: COLORS.textMuted }}>
 										No favorite properties
 									</div>
 								)}
@@ -322,16 +323,16 @@ export const SideNav = () => {
 								gap: '8px',
 								padding: '8px 0',
 								fontSize: '13px',
-								color: activeRoute.startsWith('/support') ? '#16a34a' : '#666666',
+								color: activeRoute.startsWith('/support') ? COLORS.primary : COLORS.textSecondary,
 								fontWeight: activeRoute.startsWith('/support') ? 700 : 400,
 								cursor: 'pointer',
 								transition: 'color 0.2s ease',
 							}}
 							onClick={() => navigate('/support')}
-							onMouseEnter={(e) => (e.currentTarget.style.color = '#16a34a')}
+							onMouseEnter={(e) => (e.currentTarget.style.color = COLORS.primary)}
 							onMouseLeave={(e) =>
 							(e.currentTarget.style.color =
-								activeRoute.startsWith('/support') ? '#16a34a' : '#666666')
+								activeRoute.startsWith('/support') ? COLORS.primary : COLORS.textSecondary)
 							}>
 							<FontAwesomeIcon icon={faHeadset} size='sm' />
 							<span>Support Center</span>
@@ -344,13 +345,13 @@ export const SideNav = () => {
 									gap: '8px',
 									padding: '8px 0',
 									fontSize: '13px',
-									color: '#666666',
+									color: COLORS.textSecondary,
 									cursor: 'pointer',
 									transition: 'color 0.2s ease',
 								}}
 								onClick={() => navigate('/features')}
-								onMouseEnter={(e) => (e.currentTarget.style.color = '#6366f1')}
-								onMouseLeave={(e) => (e.currentTarget.style.color = '#666666')}>
+								onMouseEnter={(e) => (e.currentTarget.style.color = COLORS.primary)}
+								onMouseLeave={(e) => (e.currentTarget.style.color = COLORS.textSecondary)}>
 								<FontAwesomeIcon icon={faBookOpen} size='sm' />
 								<span>View All Features</span>
 							</div>
@@ -364,15 +365,15 @@ export const SideNav = () => {
 								display: 'flex',
 								padding: '8px 0',
 								fontSize: '13px',
-								color: '#666666',
+								color: COLORS.textSecondary,
 								cursor: 'pointer',
 								transition: 'color 0.2s ease',
 							}}
 							onClick={() => navigate('/settings')}
 							onMouseEnter={(e) =>
-								(e.currentTarget.style.color = '#999999')
+								(e.currentTarget.style.color = COLORS.textMuted)
 							} /* Lighter gray on hover */
-							onMouseLeave={(e) => (e.currentTarget.style.color = '#666666')}>
+							onMouseLeave={(e) => (e.currentTarget.style.color = COLORS.textSecondary)}>
 							<FontAwesomeIcon icon={faCog} size='lg' />
 							<div style={{ marginLeft: '4px' }}>Settings</div>
 						</div>

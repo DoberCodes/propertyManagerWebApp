@@ -138,11 +138,7 @@ export const HeroCTA = styled.button`
 	display: inline-block;
 
 	&:hover {
-		background: linear-gradient(
-			135deg,
-			${COLORS.primaryDark} 0%,
-			${COLORS.primaryDarker} 100%
-		);
+		background: ${COLORS.gradientPrimary};
 		box-shadow: 0 15px 40px rgba(16, 185, 129, 0.4);
 		transform: translateY(-3px);
 	}
@@ -365,7 +361,11 @@ export const WhyCallout = styled.div`
 	padding: 18px 20px;
 	border-radius: 14px;
 	border: 1px solid rgba(34, 197, 94, 0.2);
-	background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%);
+	background: linear-gradient(
+		135deg,
+		rgba(0, 158, 113, 0.14) 0%,
+		rgba(4, 120, 87, 0.08) 100%
+	);
 	box-shadow: 0 8px 22px rgba(16, 185, 129, 0.08);
 	font-size: 15px;
 	line-height: 1.7;
@@ -469,7 +469,7 @@ export const TimelineRail = styled.div`
 		bottom: -18px;
 		width: 2px;
 		border-radius: 999px;
-		background: linear-gradient(180deg, rgba(34, 197, 94, 0.9), rgba(59, 130, 246, 0.22));
+		background: linear-gradient(180deg, rgba(4, 120, 87, 0.9), rgba(0, 158, 113, 0.22));
 	}
 
 	&::after {
@@ -523,166 +523,6 @@ export const TimelineMeta = styled.div`
 	font-weight: 500;
 	color: ${COLORS.textSecondary};
 	margin-top: 4px;
-`;
-
-export const OwnershipSection = styled.section`
-	width: 100%;
-	padding: 84px 40px;
-	background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
-
-	@media (max-width: 1024px) {
-		padding: 56px 20px;
-	}
-
-	@media (max-width: 480px) {
-		padding: 40px 16px;
-	}
-`;
-
-export const OwnershipShell = styled.div`
-	max-width: 1120px;
-	margin: 0 auto;
-`;
-
-export const OwnershipHeader = styled.h2`
-	font-size: 42px;
-	font-weight: 800;
-	text-align: center;
-	margin: 0 0 14px 0;
-	background: ${COLORS.gradientPrimary};
-	-webkit-background-clip: text;
-	-webkit-text-fill-color: transparent;
-	background-clip: text;
-
-	@media (max-width: 1024px) {
-		font-size: 32px;
-	}
-
-	@media (max-width: 480px) {
-		font-size: 26px;
-	}
-`;
-
-export const OwnershipIntro = styled.p`
-	max-width: 780px;
-	margin: 0 auto 26px auto;
-	text-align: center;
-	font-size: 16px;
-	line-height: 1.65;
-	color: ${COLORS.textSecondary};
-
-	@media (max-width: 480px) {
-		font-size: 14px;
-		margin-bottom: 20px;
-	}
-`;
-
-export const OwnershipGrid = styled.div`
-	display: grid;
-	grid-template-columns: 1.1fr 1fr;
-	gap: 18px;
-
-	@media (max-width: 1024px) {
-		grid-template-columns: 1fr;
-	}
-`;
-
-export const OwnershipListCard = styled.div`
-	background: ${COLORS.bgWhite};
-	border: 1px solid #e8edf3;
-	border-radius: 16px;
-	padding: 18px;
-	box-shadow: ${COLORS.shadow};
-`;
-
-export const OwnershipList = styled.ul`
-	list-style: none;
-	padding: 0;
-	margin: 0;
-	display: flex;
-	flex-direction: column;
-	gap: 10px;
-`;
-
-export const OwnershipListItem = styled.li`
-	font-size: 0.92rem;
-	line-height: 1.5;
-	color: ${COLORS.textPrimary};
-	padding: 10px 12px;
-	border-radius: 10px;
-	background: #f8fafc;
-	border: 1px solid #edf2f7;
-`;
-
-export const OwnershipVisualCard = styled.div`
-	background: linear-gradient(180deg, #ffffff 0%, #f9fbff 100%);
-	border: 1px solid #dbe7f6;
-	border-radius: 16px;
-	padding: 18px;
-	box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
-`;
-
-export const OwnershipDeviceHeader = styled.div`
-	display: flex;
-	align-items: flex-start;
-	justify-content: space-between;
-	gap: 12px;
-	padding-bottom: 12px;
-	border-bottom: 1px solid #edf2f7;
-`;
-
-export const OwnershipDeviceTitle = styled.h3`
-	margin: 0;
-	font-size: 1.05rem;
-	font-weight: 800;
-	color: ${COLORS.textPrimary};
-`;
-
-export const OwnershipDeviceMeta = styled.div`
-	font-size: 0.78rem;
-	font-weight: 600;
-	color: ${COLORS.textSecondary};
-	margin-top: 4px;
-`;
-
-export const OwnershipDeviceBadge = styled.span`
-	display: inline-flex;
-	align-items: center;
-	padding: 4px 10px;
-	border-radius: 999px;
-	font-size: 0.72rem;
-	font-weight: 700;
-	color: #1d4ed8;
-	background: #eff6ff;
-	border: 1px solid #bfdbfe;
-	white-space: nowrap;
-`;
-
-export const OwnershipEventList = styled.div`
-	display: flex;
-	flex-direction: column;
-	gap: 10px;
-	margin-top: 12px;
-`;
-
-export const OwnershipEventItem = styled.div`
-	padding: 10px 12px;
-	border-radius: 10px;
-	background: #f8fafc;
-	border: 1px solid #edf2f7;
-`;
-
-export const OwnershipEventTitle = styled.div`
-	font-size: 0.85rem;
-	font-weight: 700;
-	color: ${COLORS.textPrimary};
-`;
-
-export const OwnershipEventMeta = styled.div`
-	font-size: 0.76rem;
-	font-weight: 500;
-	color: ${COLORS.textSecondary};
-	margin-top: 3px;
 `;
 
 export const MemorySection = styled.section`
@@ -751,12 +591,14 @@ export const MemoryGrid = styled.div`
 
 export const MemoryStageCard = styled.article`
 	position: relative;
-	background: linear-gradient(180deg, #ffffff 0%, #f9fbff 100%);
-	border: 1px solid #dbe7f6;
+	display: flex;
+	flex-direction: column;
+	background: linear-gradient(180deg, ${COLORS.white} 0%, ${COLORS.bgLight} 100%);
+	border: 1px solid ${COLORS.border};
 	border-radius: 14px;
 	padding: 18px;
 	box-shadow: ${COLORS.shadow};
-	min-height: 190px;
+	min-height: 270px;
 
 	&:not(:last-child)::after {
 		content: '→';
@@ -792,6 +634,15 @@ export const MemoryStageNumber = styled.div`
 	margin-bottom: 12px;
 `;
 
+export const MemoryStageKicker = styled.div`
+	margin: 0 0 6px 0;
+	font-size: 11px;
+	font-weight: 800;
+	letter-spacing: 0.1em;
+	text-transform: uppercase;
+	color: ${COLORS.primary};
+`;
+
 export const MemoryStageTitle = styled.h3`
 	margin: 0 0 8px 0;
 	font-size: 18px;
@@ -804,130 +655,51 @@ export const MemoryStageText = styled.p`
 	font-size: 14px;
 	line-height: 1.55;
 	color: ${COLORS.textSecondary};
-`;
-
-/* ============ OUR MISSION SECTION ============ */
-
-export const MissionSection = styled.section`
-	width: 100%;
-	padding: 100px 40px;
-	background-color: ${COLORS.bgLight};
-	position: relative;
+	min-height: 88px;
 
 	@media (max-width: 1024px) {
-		padding: 60px 20px;
+		min-height: 66px;
 	}
 
-	@media (max-width: 480px) {
-		padding: 40px 16px;
+	@media (max-width: 640px) {
+		min-height: auto;
 	}
 `;
 
-export const MissionTitle = styled.h2`
-	font-size: 48px;
+export const MemoryStageExampleLabel = styled.div`
+	margin-top: 16px;
+	padding-top: 14px;
+	border-top: 1px solid ${COLORS.border};
+	font-size: 11px;
 	font-weight: 800;
-	text-align: center;
-	margin: 0 0 60px 0;
-	background: ${COLORS.gradientPrimary};
-	-webkit-background-clip: text;
-	-webkit-text-fill-color: transparent;
-	background-clip: text;
-
-	@media (max-width: 1024px) {
-		font-size: 36px;
-		margin-bottom: 40px;
-	}
-
-	@media (max-width: 480px) {
-		font-size: 28px;
-		margin-bottom: 30px;
-	}
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: ${COLORS.primary};
 `;
 
-export const MissionContent = styled.div`
-	display: grid;
-	grid-template-columns: repeat(4, 1fr);
-	gap: 30px;
-	max-width: 1200px;
-	margin: 0 auto;
-
-	@media (max-width: 1024px) {
-		grid-template-columns: repeat(2, 1fr);
-		gap: 25px;
-	}
-
-	@media (max-width: 1024px) {
-		grid-template-columns: 1fr;
-		gap: 20px;
-	}
+export const MemoryStageExamples = styled.ul`
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 7px;
 `;
 
-export const MissionCard = styled.div`
-	padding: 32px 24px;
-	background: ${COLORS.bgWhite};
-	border: 1.5px solid ${COLORS.gray100};
-	border-radius: 12px;
-	box-shadow: ${COLORS.shadow};
-	text-align: center;
-	transition: all 0.3s ease;
-
-	&:hover {
-		border-color: ${COLORS.primary};
-		box-shadow: ${COLORS.shadowLg};
-		transform: translateY(-5px);
-	}
-
-	@media (max-width: 1024px) {
-		padding: 24px 20px;
-	}
-`;
-
-export const MissionCardIcon = styled.div`
-	font-size: 48px;
-	margin-bottom: 16px;
-	display: block;
-	line-height: 1;
-
-	svg {
-		filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.12));
-	}
-
-	&.history {
-		color: ${COLORS.primary};
-	}
-
-	&.unit {
-		color: ${COLORS.secondary};
-	}
-
-	&.security {
-		color: ${COLORS.infoDark};
-	}
-
-	&.mobile {
-		color: ${COLORS.warningDark};
-	}
-`;
-
-export const MissionCardTitle = styled.h3`
-	font-size: 20px;
+export const MemoryStageExampleItem = styled.li`
+	display: flex;
+	align-items: flex-start;
+	gap: 8px;
+	font-size: 13px;
 	font-weight: 700;
-	margin: 0 0 12px 0;
+	line-height: 1.35;
 	color: ${COLORS.textPrimary};
 
-	@media (max-width: 1024px) {
-		font-size: 18px;
-	}
-`;
-
-export const MissionCardDescription = styled.p`
-	font-size: 15px;
-	line-height: 1.6;
-	color: ${COLORS.textSecondary};
-	margin: 0;
-
-	@media (max-width: 1024px) {
-		font-size: 14px;
+	svg {
+		flex-shrink: 0;
+		margin-top: 2px;
+		color: ${COLORS.primary};
+		font-size: 12px;
 	}
 `;
 
@@ -952,7 +724,7 @@ export const FeaturesTitle = styled.h2`
 	font-size: 48px;
 	font-weight: 800;
 	text-align: center;
-	margin: 0 0 60px 0;
+	margin: 0 0 14px 0;
 	background: ${COLORS.gradientPrimary};
 	-webkit-background-clip: text;
 	-webkit-text-fill-color: transparent;
@@ -960,12 +732,31 @@ export const FeaturesTitle = styled.h2`
 
 	@media (max-width: 1024px) {
 		font-size: 36px;
-		margin-bottom: 40px;
+		margin-bottom: 14px;
 	}
 
 	@media (max-width: 480px) {
 		font-size: 28px;
-		margin-bottom: 30px;
+		margin-bottom: 12px;
+	}
+`;
+
+export const FeaturesIntro = styled.p`
+	max-width: 760px;
+	margin: 0 auto 42px auto;
+	text-align: center;
+	font-size: 16px;
+	line-height: 1.65;
+	color: ${COLORS.textSecondary};
+
+	@media (max-width: 1024px) {
+		margin-bottom: 34px;
+		font-size: 15px;
+	}
+
+	@media (max-width: 480px) {
+		margin-bottom: 26px;
+		font-size: 14px;
 	}
 `;
 
@@ -1000,7 +791,7 @@ export const FeatureCard = styled.div<{ $flagship?: boolean }>`
 	padding: ${(p) => (p.$flagship ? '36px 28px' : '28px 22px')};
 	background: ${(p) =>
 		p.$flagship
-			? 'linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%)'
+			? 'linear-gradient(135deg, rgba(0, 158, 113, 0.14) 0%, rgba(4, 120, 87, 0.08) 100%)'
 			: COLORS.bgWhite};
 	border: ${(p) =>
 		p.$flagship ? '2px solid rgba(16, 185, 129, 0.35)' : `1.5px solid ${COLORS.gray100}`};
@@ -1025,8 +816,8 @@ export const FeatureCard = styled.div<{ $flagship?: boolean }>`
 			font-size: 10px;
 			font-weight: 800;
 			letter-spacing: 0.1em;
-			color: #059669;
-			background: rgba(16, 185, 129, 0.12);
+			color: ${COLORS.primary};
+			background: ${COLORS.primaryLight};
 			padding: 3px 8px;
 			border-radius: 999px;
 			border: 1px solid rgba(16, 185, 129, 0.25);
@@ -1821,11 +1612,7 @@ export const SubmitButton = styled.button`
 	box-shadow: 0 4px 6px rgba(16, 185, 129, 0.25);
 
 	&:hover {
-		background: linear-gradient(
-			135deg,
-			${COLORS.primaryDark} 0%,
-			${COLORS.primaryDarker} 100%
-		);
+		background: ${COLORS.gradientPrimary};
 		box-shadow: 0 6px 12px rgba(16, 185, 129, 0.35);
 		transform: translateY(-2px);
 	}
@@ -2131,7 +1918,7 @@ export const FooterCopyright = styled.div`
 
 export const DownloadSection = styled.section`
 	padding: 80px 20px;
-	background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+	background: ${COLORS.gradientPrimary};
 	text-align: center;
 	color: white;
 
@@ -2174,7 +1961,7 @@ export const DownloadButton = styled.a`
 	gap: 10px;
 	padding: 18px 48px;
 	background: white;
-	color: #667eea;
+	color: ${COLORS.primary};
 	font-size: 18px;
 	font-weight: 600;
 	border-radius: 8px;

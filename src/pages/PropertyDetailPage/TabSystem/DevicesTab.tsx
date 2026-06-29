@@ -16,7 +16,7 @@ import {
 	faPlug,
 } from '@fortawesome/free-solid-svg-icons';
 import { useNavigate } from 'react-router-dom';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from 'Redux/store';
 import {
 	useGetDevicesQuery,
@@ -30,6 +30,8 @@ import {
 	useGetUnitsQuery,
 	useUpdatePropertyMutation,
 } from 'Redux/API/propertySlice';
+import { apiSlice } from 'Redux/API/apiSlice';
+import { useCreateNotificationMutation } from 'Redux/API/notificationSlice';
 import {
 	SectionContainer,
 	SectionHeader,
@@ -43,13 +45,9 @@ import {
 	PropertyDocumentCategory,
 } from '../../../types/Property.types';
 import {
-	uploadPropertyDocument,
-	withPropertyDocumentLinks,
-} from '../../../utils/propertyDocumentUpload';
-import {
-	createPendingKnowledgeSuggestionFromFile,
-	markDocumentWithKnowledgeSuggestion,
-} from '../../../propertyKnowledge/propertyKnowledgeAcquisition';
+	preparePropertyMemoryDocumentUploads,
+	startPdfDocumentKnowledgeProcessing,
+} from '../../../propertyKnowledge/propertyDocumentUploads';
 import { buildDeviceSlug } from '../../../utils/deviceSlug';
 import { useAppFeedback } from '../../../Components/Library/AppFeedback/AppFeedbackProvider';
 import {
@@ -69,6 +67,7 @@ import {
 	MobileFeedLineMuted,
 } from './index.styles';
 import { AppZeroState, ReusableTable } from '../../../Components/Library';
+import { LoadingState } from '../../../Components/LoadingState';
 import { Column, Action } from '../../../Components/Library/ReusableTable';
 import {
 	CompactFilterResultCount,
@@ -92,10 +91,11 @@ import {
 	normalizeAssetType,
 	UNKNOWN_ASSET_TYPE,
 } from '../../../utils/systemTypes';
+import { COLORS } from '../../../constants/colors';
 
 const SectionLead = styled.p`
 	margin: -4px 0 14px;
-	color: #475569;
+	color: ${COLORS.gray600};
 	font-size: 0.92rem;
 	line-height: 1.5;
 `;
@@ -490,7 +490,7 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 	const getDeviceOperationalIcon = (device: any) => {
 		const context = `${getDeviceAssetType(device)} ${getDeviceAssetVariant(device)} ${device.type || ''} ${device.brand || ''} ${device.model || ''}`.toLowerCase();
 		if (context.includes('hvac') || context.includes('heat') || context.includes('cool')) {
-			return { icon: faFan, color: '#0f766e', background: '#ecfeff' };
+			return { icon: faFan, color: COLORS.primary, background: COLORS.primaryLight };
 		}
 		if (context.includes('season') || context.includes('winter') || context.includes('summer')) {
 			return { icon: faSnowflake, color: '#1d4ed8', background: '#dbeafe' };
@@ -565,9 +565,9 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 							{assetVariant && (
 								<span
 									style={{
-										border: '1px solid #bbf7d0',
-										background: '#f0fdf4',
-										color: '#166534',
+										border: `1px solid ${COLORS.primaryHover}`,
+										background: COLORS.primaryLight,
+										color: COLORS.successDark,
 										borderRadius: 999,
 										padding: '2px 7px',
 										fontSize: 11,
@@ -612,7 +612,7 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 								</span>
 							)}
 							{recurringLinkedTasks > 0 && (
-								<span style={{ color: '#0f766e', fontWeight: 700 }}>
+								<span style={{ color: COLORS.primary, fontWeight: 700 }}>
 									Recurring care active
 								</span>
 							)}
@@ -657,9 +657,9 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 					}
 					: {
 						label: 'Healthy',
-						color: '#166534',
-						background: '#f0fdf4',
-						border: '#86efac',
+						color: COLORS.successDark,
+						background: COLORS.successLight,
+						border: COLORS.primaryHover,
 					};
 
 				return (
@@ -731,7 +731,7 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 					propertyAssignedDocumentsByDevice.get(String(row.id))?.length || 0;
 				const count = directCount + assignedCount;
 				return (
-					<span style={{ color: count > 0 ? '#0f766e' : '#94a3b8', fontWeight: count > 0 ? 700 : 500 }}>
+					<span style={{ color: count > 0 ? COLORS.primary : COLORS.textMuted, fontWeight: count > 0 ? 700 : 500 }}>
 						{count > 0 ? `${count} record${count === 1 ? '' : 's'} stored` : 'No documents yet'}
 					</span>
 				);
@@ -745,6 +745,8 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 	const [deleteDevice] = useDeleteDeviceMutation();
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
 	const isMobile = useSelector((state: RootState) => state.app.isMobile);
+	const dispatch = useDispatch();
+	const [createNotification] = useCreateNotificationMutation();
 	const isTeamMemberAccount = currentUser?.isTeamMemberAccount === true;
 	const canManageAppliances = permissions?.canManageAppliances ?? true;
 
@@ -969,17 +971,15 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 				userId: currentUser!.id,
 			};
 
-			let savedDevice: any;
 			if (editingDevice) {
-				savedDevice = await updateDevice({
+				await updateDevice({
 					id: editingDevice.id,
 					updates: deviceData,
 				}).unwrap();
 			} else {
-				savedDevice = await createDevice(deviceData).unwrap();
+				await createDevice(deviceData).unwrap();
 			}
 
-			const savedDeviceId = savedDevice?.id || editingDevice?.id;
 			const propertyDocumentUploads = [
 				...pendingUploadFiles.map((file) => ({
 					file,
@@ -990,7 +990,7 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 					category: pendingPropertyDocumentCategory,
 				})),
 			];
-			if (savedDeviceId && propertyDocumentUploads.length > 0) {
+			if (propertyDocumentUploads.length > 0) {
 				const propertyDocuments = Array.isArray((property as any)?.documents)
 					? (property as any).documents
 					: [];
@@ -999,44 +999,21 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 				)
 					? (property as any).knowledgeSuggestions
 					: [];
-				const uploadedDocuments = await Promise.all(
-					propertyDocumentUploads.map(({ file, category }) =>
-						uploadPropertyDocument(
-							file,
-							property.id,
-							category,
-						),
-					),
-				);
-				const linkedDocuments = uploadedDocuments.map((document) =>
-					withPropertyDocumentLinks(
-						{
-							...document,
-							assignedDeviceId: savedDeviceId,
-						},
-						{ assetIds: [savedDeviceId] },
-					),
-				);
-				const knowledgeSuggestions = await Promise.all(
-					linkedDocuments.map((document, index) =>
-						createPendingKnowledgeSuggestionFromFile({
-							file: propertyDocumentUploads[index].file,
-							document,
-							propertyId: property.id,
-							relatedSystemId: savedDeviceId,
-							property,
-							systems: devices as Device[],
-						}),
-					),
-				);
-				const savedDocuments = linkedDocuments.map((document) => {
-					const suggestion = knowledgeSuggestions.find(
-						(candidate) => candidate.sourceDocumentId === document.id,
-					);
-					return suggestion
-						? markDocumentWithKnowledgeSuggestion(document, suggestion)
-						: document;
-				});
+				const savedDocuments: any[] = [];
+				const knowledgeSuggestions: any[] = [];
+				const pdfDocuments: any[] = [];
+				for (const { file, category } of propertyDocumentUploads) {
+					const result = await preparePropertyMemoryDocumentUploads({
+						files: [file],
+						propertyId: property.id,
+						category,
+						property,
+						systems: devices as Device[],
+					});
+					savedDocuments.push(...result.documents);
+					knowledgeSuggestions.push(...result.knowledgeSuggestions);
+					pdfDocuments.push(...result.pdfDocuments);
+				}
 				await updateProperty({
 					id: property.id,
 					updates: {
@@ -1047,6 +1024,33 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 						],
 					},
 				}).unwrap();
+				startPdfDocumentKnowledgeProcessing({
+					propertyId: property.id,
+					documents: pdfDocuments,
+					notifyScanStarted: (document) =>
+						createNotification({
+							userId: currentUser!.id,
+							type: 'document_scan_started',
+							title: 'Document Review Started',
+							message: `Maintley is reviewing ${document.fileName || document.name} for suggested details.`,
+							data: {
+								propertyId: property.id,
+								propertyTitle: property.title,
+								documentId: document.id,
+								documentName: document.fileName || document.name,
+							},
+							status: 'unread',
+							actionUrl: `/properties/${property.id}`,
+							createdAt: new Date().toISOString(),
+							updatedAt: new Date().toISOString(),
+						}).unwrap(),
+					onProcessed: () => {
+						dispatch(apiSlice.util.invalidateTags(['Properties']));
+					},
+					onError: () => {
+						dispatch(apiSlice.util.invalidateTags(['Properties']));
+					},
+				});
 				setPendingUploadFiles([]);
 				setPendingPropertyDocumentFiles([]);
 				setPendingPropertyDocumentCategory('other');
@@ -1085,10 +1089,18 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 
 	if (isLoading) {
 		return (
-			<SectionContainer>
-				<SectionHeader>Household Appliances</SectionHeader>
-				<div>Loading appliances...</div>
-			</SectionContainer>
+			<LoadingState
+				loadingKey='property-appliances'
+				title='Loading appliances'
+				message='Preparing this property appliance list.'
+				steps={[
+					'Reading appliance information...',
+					'Checking upcoming maintenance...',
+					'Connecting maintenance history...',
+					'Looking for missing documentation...',
+					'Almost ready...',
+				]}
+			/>
 		);
 	}
 
@@ -1234,7 +1246,7 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 					{filteredDevices.map((device) => {
 						const { linkedOpenTasks, overdueLinkedTasks, recurringLinkedTasks, needsAttention } = getDeviceAttentionState(device);
 						const resolvedStatus = getResolvedDeviceStatus(device);
-						const stateTone = needsAttention ? '#f59e0b' : resolvedStatus === 'Decommissioned' ? '#64748b' : '#22c55e';
+						const stateTone = needsAttention ? '#f59e0b' : resolvedStatus === 'Decommissioned' ? '#64748b' : COLORS.success;
 						const detailsMissing = !hasApplianceDetails(device);
 						const assignedPropertyDocuments =
 							propertyAssignedDocumentsByDevice.get(String(device.id)) || [];
@@ -1249,7 +1261,7 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 								$isSelected={selectedDevice === device}
 								onClick={() => setSelectedDevice(device)}
 								style={{
-									borderLeftColor: resolvedStatus === 'Broken' ? '#ef4444' : resolvedStatus === 'Maintenance' ? '#f59e0b' : resolvedStatus === 'Decommissioned' ? '#64748b' : '#22c55e',
+									borderLeftColor: resolvedStatus === 'Broken' ? '#ef4444' : resolvedStatus === 'Maintenance' ? '#f59e0b' : resolvedStatus === 'Decommissioned' ? '#64748b' : COLORS.success,
 								}}>
 								<div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
 									<div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
@@ -1273,7 +1285,7 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 												{getDeviceAssetType(device) || device.type || 'Appliance'}
 											</button>
 											{getDeviceAssetVariant(device) && (
-												<div style={{ fontSize: 12, color: '#166534', fontWeight: 800 }}>
+												<div style={{ fontSize: 12, color: COLORS.successDark, fontWeight: 800 }}>
 													{getDeviceAssetVariant(device)}
 												</div>
 											)}

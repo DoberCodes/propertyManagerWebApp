@@ -9,10 +9,33 @@ import {
 } from './PropertyDetailPage.styles';
 
 export const PropertyDetailSection = (props: PropertyDetailSectionProps) => {
-	// Helper function to get user name from ID
 	const getUserName = (userId: string) => {
-		const user = props.teamMembers.find((member) => member.id === userId);
-		return user ? `${user.firstName} ${user.lastName}` : userId;
+		const snapshot = props.property?.accessSnapshots?.[userId];
+		if (snapshot?.name || snapshot?.email) {
+			return snapshot.name || snapshot.email || userId;
+		}
+
+		const teamMember = props.teamMembers.find((member) => member.id === userId);
+		if (teamMember) {
+			return (
+				`${teamMember.firstName || ''} ${teamMember.lastName || ''}`.trim() ||
+				teamMember.email ||
+				userId
+			);
+		}
+
+		const familyMember = (props.familyMembers || []).find(
+			(member) => member.id === userId,
+		);
+		if (familyMember) {
+			return (
+				`${familyMember.firstName || ''} ${familyMember.lastName || ''}`.trim() ||
+				familyMember.email ||
+				userId
+			);
+		}
+
+		return userId;
 	};
 
 	const getResolvedNames = (userIds: string[] = []) =>

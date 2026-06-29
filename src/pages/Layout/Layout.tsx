@@ -17,6 +17,7 @@ import { docToData } from '../../Redux/API/apiSlice';
 import { doc, getDoc, onSnapshot, updateDoc } from 'firebase/firestore';
 import { auth, db } from '../../config/firebase';
 import { signOut } from 'firebase/auth';
+import { shouldBypassOnboarding } from '../../utils/userAccount';
 
 export const Layout = () => {
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
@@ -145,7 +146,7 @@ export const Layout = () => {
 
 	useEffect(() => {
 		if (currentUser) {
-			if (currentUser.isTeamMemberAccount === true) {
+			if (shouldBypassOnboarding(currentUser)) {
 				setShowOnboarding(false);
 				return;
 			}

@@ -94,7 +94,7 @@ export const BackButton = styled.button<{ variant?: 'full' | 'embedded' }>`
 `;
 
 export const TrialBannerWrapper = styled.div<{ variant?: 'full' | 'embedded' }>`
-	background: linear-gradient(135deg, ${COLORS.primary} 0%, #00a86b 100%);
+	background: ${COLORS.gradientPrimary};
 	color: white;
 	padding: ${(props) => (props.variant === 'embedded' ? '12px 16px' : '40px')};
 	border-radius: ${(props) => (props.variant === 'embedded' ? '8px' : '12px')};
@@ -605,7 +605,7 @@ export const PromoButton = styled.button<{ layout?: 'grid' | 'horizontal' }>`
 export const ContactSalesSection = styled.div<{
 	layout?: 'grid' | 'horizontal';
 }>`
-	background: linear-gradient(135deg, ${COLORS.primary} 0%, #00a86b 100%);
+	background: ${COLORS.gradientPrimary};
 	border-radius: ${(props) => (props.layout === 'horizontal' ? '8px' : '12px')};
 	padding: ${(props) => (props.layout === 'horizontal' ? '16px' : '30px')};
 	text-align: center;

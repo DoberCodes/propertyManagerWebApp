@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import {
 	useCreateDeviceMutation,
 	useGetAllDevicesQuery,
@@ -9,9 +9,12 @@ import {
 	useGetPropertiesQuery,
 	useUpdatePropertyMutation,
 } from '../../Redux/API/propertySlice';
+import { apiSlice } from '../../Redux/API/apiSlice';
+import { useCreateNotificationMutation } from '../../Redux/API/notificationSlice';
 import { useGetTasksQuery } from '../../Redux/API/taskSlice';
 import { useGetAllMaintenanceHistoryForUserQuery } from '../../Redux/API/userSlice';
 import { AppZeroState } from '../../Components/Library/AppZeroState';
+import { LoadingState } from '../../Components/LoadingState';
 import { FloatingFilterPanel } from '../../Components/Library';
 import { DeviceModal } from '../../Components/Library/Modal';
 import { RootState } from '../../Redux/store/store';
@@ -28,13 +31,9 @@ import {
 	PropertyDocumentCategory,
 } from '../../types/Property.types';
 import {
-	uploadPropertyDocument,
-	withPropertyDocumentLinks,
-} from '../../utils/propertyDocumentUpload';
-import {
-	createPendingKnowledgeSuggestionFromFile,
-	markDocumentWithKnowledgeSuggestion,
-} from '../../propertyKnowledge/propertyKnowledgeAcquisition';
+	preparePropertyMemoryDocumentUploads,
+	startPdfDocumentKnowledgeProcessing,
+} from '../../propertyKnowledge/propertyDocumentUploads';
 import {
 	canAddDevice,
 	getEffectiveSubscriptionPlanId,
@@ -270,6 +269,7 @@ export const DevicesHubPage: React.FC = () => {
 	const navigate = useNavigate();
 	const location = useLocation();
 	const feedback = useAppFeedback();
+	const dispatch = useDispatch();
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
 	const { data: devices = [], isLoading } = useGetAllDevicesQuery();
 	const { data: properties = [], isLoading: isLoadingProperties } =
@@ -278,6 +278,7 @@ export const DevicesHubPage: React.FC = () => {
 	const { data: allMaintenanceHistory = [] } = useGetAllMaintenanceHistoryForUserQuery();
 	const [createDevice] = useCreateDeviceMutation();
 	const [updateProperty] = useUpdatePropertyMutation();
+	const [createNotification] = useCreateNotificationMutation();
 
 	const [searchQuery, setSearchQuery] = useState('');
 	const [statusFilter, setStatusFilter] = useState<'All' | 'Active' | 'Maintenance' | 'Broken' | 'Decommissioned'>('All');
@@ -474,7 +475,6 @@ export const DevicesHubPage: React.FC = () => {
 			};
 
 			const savedDevice = await createDevice(deviceData as any).unwrap();
-			const savedDeviceId = savedDevice?.id;
 
 			const propertyDocumentUploads = [
 				...pendingUploadFiles.map((file) => ({
@@ -487,7 +487,7 @@ export const DevicesHubPage: React.FC = () => {
 				})),
 			];
 
-			if (savedDeviceId && propertyDocumentUploads.length > 0) {
+			if (propertyDocumentUploads.length > 0) {
 				const propertyDocuments = Array.isArray((targetProperty as any)?.documents)
 					? (targetProperty as any).documents
 					: [];
@@ -497,44 +497,21 @@ export const DevicesHubPage: React.FC = () => {
 					? (targetProperty as any).knowledgeSuggestions
 					: [];
 
-				const uploadedDocuments = await Promise.all(
-					propertyDocumentUploads.map(({ file, category }) =>
-						uploadPropertyDocument(
-							file,
-							String(targetProperty.id),
-							category,
-						),
-					),
-				);
-				const linkedDocuments = uploadedDocuments.map((document) =>
-					withPropertyDocumentLinks(
-						{
-							...document,
-							assignedDeviceId: savedDeviceId,
-						},
-						{ assetIds: [savedDeviceId] },
-					),
-				);
-				const knowledgeSuggestions = await Promise.all(
-					linkedDocuments.map((document, index) =>
-						createPendingKnowledgeSuggestionFromFile({
-							file: propertyDocumentUploads[index].file,
-							document,
-							propertyId: String(targetProperty.id),
-							relatedSystemId: savedDeviceId,
-							property: targetProperty as Property,
-							systems: savedDevice ? [savedDevice as Device] : [],
-						}),
-					),
-				);
-				const savedDocuments = linkedDocuments.map((document) => {
-					const suggestion = knowledgeSuggestions.find(
-						(candidate) => candidate.sourceDocumentId === document.id,
-					);
-					return suggestion
-						? markDocumentWithKnowledgeSuggestion(document, suggestion)
-						: document;
-				});
+				const savedDocuments: any[] = [];
+				const knowledgeSuggestions: any[] = [];
+				const pdfDocuments: any[] = [];
+				for (const { file, category } of propertyDocumentUploads) {
+					const result = await preparePropertyMemoryDocumentUploads({
+						files: [file],
+						propertyId: String(targetProperty.id),
+						category,
+						property: targetProperty as Property,
+						systems: savedDevice ? [savedDevice as Device] : [],
+					});
+					savedDocuments.push(...result.documents);
+					knowledgeSuggestions.push(...result.knowledgeSuggestions);
+					pdfDocuments.push(...result.pdfDocuments);
+				}
 
 				await updateProperty({
 					id: String(targetProperty.id),
@@ -546,6 +523,33 @@ export const DevicesHubPage: React.FC = () => {
 						],
 					},
 				}).unwrap();
+				startPdfDocumentKnowledgeProcessing({
+					propertyId: String(targetProperty.id),
+					documents: pdfDocuments,
+					notifyScanStarted: (document) =>
+						createNotification({
+							userId: currentUser!.id,
+							type: 'document_scan_started',
+							title: 'Document Review Started',
+							message: `Maintley is reviewing ${document.fileName || document.name} for suggested details.`,
+							data: {
+								propertyId: String(targetProperty.id),
+								propertyTitle: targetProperty.title,
+								documentId: document.id,
+								documentName: document.fileName || document.name,
+							},
+							status: 'unread',
+							actionUrl: `/properties/${targetProperty.id}`,
+							createdAt: new Date().toISOString(),
+							updatedAt: new Date().toISOString(),
+						}).unwrap(),
+					onProcessed: () => {
+						dispatch(apiSlice.util.invalidateTags(['Properties']));
+					},
+					onError: () => {
+						dispatch(apiSlice.util.invalidateTags(['Properties']));
+					},
+				});
 			}
 
 			setShowDeviceModal(false);
@@ -803,6 +807,23 @@ export const DevicesHubPage: React.FC = () => {
 		}).length;
 	}, [deviceRows]);
 
+
+	if (isLoadingProperties || isLoading) {
+		return (
+			<LoadingState
+				loadingKey='appliance-hub'
+				title='Loading appliances'
+				message='Preparing your appliance records.'
+				steps={[
+					'Loading your properties...',
+					'Reading appliance information...',
+					'Checking upcoming maintenance...',
+					'Connecting maintenance history...',
+					'Building maintenance insights...',
+				]}
+			/>
+		);
+	}
 
 	if (!isLoadingProperties && properties.length === 0) {
 		return (

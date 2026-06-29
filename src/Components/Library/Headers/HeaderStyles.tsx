@@ -1,4 +1,5 @@
 import styled from 'styled-components';
+import { COLORS } from '../../../constants/colors';
 
 /**
  * Shared header/gradient header styles used across detail pages
@@ -10,9 +11,9 @@ import styled from 'styled-components';
  */
 export const GradientHeader = styled.div`
 	position: relative;
-	background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+	background: ${COLORS.gradientPrimary};
 	padding: 30px 20px;
-	color: white;
+	color: ${COLORS.white};
 	flex-shrink: 0;
 
 	@media (max-width: 1024px) {
@@ -57,9 +58,9 @@ export const HeaderTopRow = styled.div`
 export const HeaderBadge = styled.span`
 	display: inline-flex;
 	max-width: 100%;
-	background: #ecfdf3;
-	color: #16a34a;
-	border: 1px solid #bbf7d0;
+	background: ${COLORS.primaryLight};
+	color: ${COLORS.primaryDark};
+	border: 1px solid rgba(4, 120, 87, 0.22);
 	padding: 6px 10px;
 	border-radius: 999px;
 	font-size: 12px;
@@ -82,7 +83,7 @@ export const HeaderBadge = styled.span`
  */
 export const HeaderBackButton = styled.button`
 	background: rgba(255, 255, 255, 0.15);
-	color: white;
+	color: ${COLORS.white};
 	border: 1px solid rgba(255, 255, 255, 0.3);
 	border-radius: 999px;
 	padding: 8px 12px;
@@ -117,7 +118,7 @@ export const HeaderTitle = styled.h1`
 	margin: 0;
 	font-size: 28px;
 	font-weight: 600;
-	color: white;
+	color: ${COLORS.white};
 
 	@media (max-width: 1024px) {
 		font-size: 22px;

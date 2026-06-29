@@ -1,4 +1,5 @@
 import { styled } from 'styled-components';
+import { COLORS } from '../../../constants/colors';
 
 export const ActiveFilterChips = styled.div`
 	display: flex;
@@ -134,13 +135,13 @@ export const MobileFabButton = styled.button`
 		bottom: calc(78px + env(safe-area-inset-bottom));
 		height: 52px;
 		padding: 0 18px;
-		border: 1px solid #16a34a;
+		border: 1px solid ${COLORS.primary};
 		border-radius: 999px;
-		background: #22c55e;
-		color: #ffffff;
+		background: ${COLORS.primary};
+		color: ${COLORS.white};
 		font-size: 15px;
 		font-weight: 800;
-		box-shadow: 0 10px 22px rgba(22, 163, 74, 0.35);
+		box-shadow: 0 10px 22px rgba(4, 120, 87, 0.28);
 		z-index: 25;
 		cursor: pointer;
 	}

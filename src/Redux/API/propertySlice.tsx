@@ -32,6 +32,37 @@ import type { SubscriptionData } from '../../utils/subscriptionUtils';
 
 const PROPERTY_GROUP_MEMBERSHIPS_COLLECTION = 'propertyGroupMemberships';
 
+const removeUndefinedFieldsDeep = <T,>(value: T): T => {
+	if (value === undefined) return value;
+	if (value === null) return value;
+	if (value instanceof Date) return value;
+
+	if (Array.isArray(value)) {
+		return value
+			.map((item) => removeUndefinedFieldsDeep(item))
+			.filter((item) => item !== undefined) as T;
+	}
+
+	if (typeof value === 'object') {
+		const prototype = Object.getPrototypeOf(value);
+		if (prototype && prototype !== Object.prototype) {
+			return value;
+		}
+
+		const cleanedEntries = Object.entries(value as Record<string, unknown>)
+			.filter(([, fieldValue]) => fieldValue !== undefined)
+			.map(([key, fieldValue]) => [
+				key,
+				removeUndefinedFieldsDeep(fieldValue),
+			])
+			.filter(([, fieldValue]) => fieldValue !== undefined);
+
+		return Object.fromEntries(cleanedEntries) as T;
+	}
+
+	return value;
+};
+
 const assertCanManagePropertyGroups = async (accountId: string) => {
 	const accountOwnerDoc = await getDoc(doc(db, 'users', accountId));
 	const accountOwnerData = accountOwnerDoc.data() || {};
@@ -1243,6 +1274,8 @@ const propertySlice = apiSlice.injectEndpoints({
 			async queryFn({ id, updates }) {
 				try {
 					const docRef = doc(db, 'properties', id);
+					const sanitizedUpdates =
+						removeUndefinedFieldsDeep<Partial<Property>>(updates);
 					const existingSnapshot = await getDoc(docRef);
 					const existingData = existingSnapshot.data() || {};
 					const accountId =
@@ -1250,15 +1283,15 @@ const propertySlice = apiSlice.injectEndpoints({
 						(await resolveTargetUserId());
 
 					await updateDoc(docRef, {
-						...updates,
+						...sanitizedUpdates,
 						updatedAt: new Date().toISOString(),
 					});
 
-					if ('groupId' in updates) {
-						if (updates.groupId) {
+					if ('groupId' in sanitizedUpdates) {
+						if (sanitizedUpdates.groupId) {
 							await upsertPropertyGroupMembership({
 								accountId,
-								groupId: updates.groupId,
+								groupId: sanitizedUpdates.groupId,
 								propertyId: id,
 							});
 						} else {

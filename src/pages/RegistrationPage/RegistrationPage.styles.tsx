@@ -1,4 +1,5 @@
 import styled from 'styled-components';
+import { COLORS } from '../../constants/colors';
 
 export const Wrapper = styled.div`
 	display: grid;
@@ -9,7 +10,7 @@ export const Wrapper = styled.div`
 	background:
 		radial-gradient(circle at 12% 12%, rgba(187, 247, 208, 0.55), transparent 34%),
 		radial-gradient(circle at 88% 18%, rgba(110, 231, 183, 0.34), transparent 30%),
-		linear-gradient(145deg, #f2fbf4 0%, #e5f4ea 40%, #d7ede0 100%);
+		${COLORS.gradientPrimary};
 	padding: 20px 0;
 
 	@supports (min-height: 100dvh) {

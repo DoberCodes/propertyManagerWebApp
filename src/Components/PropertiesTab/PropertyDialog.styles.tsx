@@ -1,4 +1,5 @@
 import styled from 'styled-components';
+import { COLORS } from '../../constants/colors';
 
 // Dialog container styles
 export const DialogOverlay = styled.div`
@@ -16,7 +17,7 @@ export const DialogOverlay = styled.div`
 
 export const DialogContainer = styled.div`
 	position: relative;
-	background-color: white;
+	background-color: ${COLORS.white};
 	border-radius: 8px;
 	width: 90%;
 	max-width: 900px;
@@ -48,8 +49,8 @@ export const DialogHeader = styled.div`
 	justify-content: space-between;
 	align-items: center;
 	padding: 20px 24px;
-	border-bottom: 1px solid #e0e0e0;
-	background-color: #fafafa;
+	border-bottom: 1px solid ${COLORS.border};
+	background-color: ${COLORS.canvas};
 
 	@media (max-width: 1024px) {
 		padding: 16px 20px;
@@ -79,13 +80,13 @@ export const CloseButton = styled.button`
 	background: none;
 	border: none;
 	font-size: 28px;
-	color: #999999;
+	color: ${COLORS.textMuted};
 	cursor: pointer;
 	padding: 4px 8px;
 	transition: color 0.2s ease;
 
 	&:hover {
-		color: #333333;
+		color: ${COLORS.gray700};
 	}
 
 	@media (max-width: 480px) {
@@ -112,11 +113,11 @@ export const DialogContent = styled.div`
 	}
 
 	&::-webkit-scrollbar-thumb {
-		background: #d1d5db;
+		background: ${COLORS.gray300};
 		border-radius: 4px;
 
 		&:hover {
-			background: #b6b9c1;
+			background: ${COLORS.gray400};
 		}
 	}
 
@@ -140,9 +141,9 @@ export const OnboardingTipBanner = styled.div`
 	justify-content: space-between;
 	gap: 14px;
 	padding: 14px 16px;
-	border: 1px solid #86efac;
+	border: 1px solid ${COLORS.successLight};
 	border-radius: 14px;
-	background: linear-gradient(180deg, #f0fdf4 0%, #ecfdf5 100%);
+	background: ${COLORS.primaryLight};
 	box-shadow: 0 14px 30px rgba(21, 128, 61, 0.12);
 
 	@media (max-width: 480px) {
@@ -154,7 +155,7 @@ export const OnboardingTipBanner = styled.div`
 export const OnboardingTipText = styled.div`
 	flex: 1;
 	min-width: 0;
-	color: #14532d;
+	color: ${COLORS.successDark};
 	font-size: 13px;
 	line-height: 1.5;
 
@@ -171,7 +172,7 @@ export const OnboardingTipLabel = styled.div`
 	font-weight: 800;
 	text-transform: uppercase;
 	letter-spacing: 0.04em;
-	color: #166534;
+	color: ${COLORS.primaryDark};
 `;
 
 export const OnboardingTipDismissButton = styled.button`
@@ -180,8 +181,8 @@ export const OnboardingTipDismissButton = styled.button`
 	height: 28px;
 	border: none;
 	border-radius: 999px;
-	background: rgba(22, 101, 52, 0.08);
-	color: #166534;
+	background: ${COLORS.primaryLight};
+	color: ${COLORS.primaryDark};
 	cursor: pointer;
 	font-size: 20px;
 	line-height: 1;
@@ -196,12 +197,12 @@ export const OnboardingTipDismissButton = styled.button`
 		transform 0.2s ease;
 
 	&:hover {
-		background: rgba(22, 101, 52, 0.14);
+		background: ${COLORS.primaryLight};
 		transform: translateY(-1px);
 	}
 
 	&:focus-visible {
-		outline: 2px solid #16a34a;
+		outline: 2px solid ${COLORS.primaryHover};
 		outline-offset: 2px;
 	}
 `;
@@ -215,7 +216,7 @@ export const FormSection = styled.div`
 export const SectionTitle = styled.h3`
 	font-size: 14px;
 	font-weight: 600;
-	color: #333333;
+	color: ${COLORS.gray700};
 	margin: 0;
 	text-transform: uppercase;
 	letter-spacing: 0.5px;
@@ -251,7 +252,7 @@ export const FormField = styled.div`
 export const Label = styled.label`
 	font-size: 13px;
 	font-weight: 600;
-	color: #333333;
+	color: ${COLORS.gray700};
 
 	@media (max-width: 480px) {
 		font-size: 12px;
@@ -272,9 +273,9 @@ export const DialogSavingOverlay = styled.div`
 
 export const DialogSavingCard = styled.div`
 	width: min(100%, 420px);
-	border: 1px solid #bbf7d0;
+	border: 1px solid ${COLORS.successLight};
 	border-radius: 14px;
-	background: #f0fdf4;
+	background: ${COLORS.successLight};
 	padding: 24px;
 	text-align: center;
 	box-shadow: 0 20px 45px rgba(15, 23, 42, 0.18);
@@ -289,8 +290,8 @@ export const DialogSavingSpinner = styled.div`
 	height: 34px;
 	margin: 0 auto 16px;
 	border-radius: 999px;
-	border: 3px solid #bbf7d0;
-	border-top-color: #16a34a;
+	border: 3px solid ${COLORS.successLight};
+	border-top-color: ${COLORS.primaryHover};
 	animation: property-dialog-spin 800ms linear infinite;
 
 	@keyframes property-dialog-spin {
@@ -304,25 +305,25 @@ export const DialogSavingTitle = styled.h3`
 	margin: 0 0 8px;
 	font-size: 18px;
 	font-weight: 800;
-	color: #14532d;
+	color: ${COLORS.successDark};
 `;
 
 export const DialogSavingText = styled.p`
 	margin: 0;
 	font-size: 14px;
 	line-height: 1.5;
-	color: #166534;
+	color: ${COLORS.primaryDark};
 `;
 
 export const ValidationMessage = styled.div`
 	font-size: 12px;
 	line-height: 1.4;
-	color: #b91c1c;
+	color: ${COLORS.errorDark};
 `;
 
 export const Input = styled.input`
 	padding: 10px 12px;
-	border: 1px solid #d1d5db;
+	border: 1px solid ${COLORS.gray300};
 	border-radius: 4px;
 	font-size: 14px;
 	font-family: inherit;
@@ -332,12 +333,12 @@ export const Input = styled.input`
 
 	&:focus {
 		outline: none;
-		border-color: #22c55e;
-		box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.1);
+		border-color: ${COLORS.primary};
+		box-shadow: 0 0 0 3px ${COLORS.primaryLight};
 	}
 
 	&::placeholder {
-		color: #b6b9c1;
+		color: ${COLORS.gray400};
 	}
 
 	@media (max-width: 480px) {
@@ -348,7 +349,7 @@ export const Input = styled.input`
 
 export const TextArea = styled.textarea`
 	padding: 10px 12px;
-	border: 1px solid #d1d5db;
+	border: 1px solid ${COLORS.gray300};
 	border-radius: 4px;
 	font-size: 14px;
 	font-family: inherit;
@@ -360,12 +361,12 @@ export const TextArea = styled.textarea`
 
 	&:focus {
 		outline: none;
-		border-color: #22c55e;
-		box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.1);
+		border-color: ${COLORS.primary};
+		box-shadow: 0 0 0 3px ${COLORS.primaryLight};
 	}
 
 	&::placeholder {
-		color: #b6b9c1;
+		color: ${COLORS.gray400};
 	}
 
 	@media (max-width: 480px) {
@@ -406,8 +407,8 @@ export const RemovePhotoButton = styled.button`
 	position: absolute;
 	bottom: 8px;
 	right: 8px;
-	background-color: #ef4444;
-	color: white;
+	background-color: ${COLORS.error};
+	color: ${COLORS.white};
 	border: none;
 	padding: 6px 12px;
 	border-radius: 4px;
@@ -416,7 +417,7 @@ export const RemovePhotoButton = styled.button`
 	transition: background-color 0.2s ease;
 
 	&:hover {
-		background-color: #dc2626;
+		background-color: ${COLORS.errorDark};
 	}
 
 	@media (max-width: 480px) {
@@ -432,18 +433,18 @@ export const FileInput = styled.input`
 export const FileLabel = styled.label`
 	display: inline-block;
 	padding: 10px 16px;
-	background-color: #f5f5f5;
-	border: 2px solid #d1d5db;
+	background-color: ${COLORS.borderLight};
+	border: 2px solid ${COLORS.gray300};
 	border-radius: 4px;
 	font-size: 14px;
 	font-weight: 500;
-	color: #333333;
+	color: ${COLORS.gray700};
 	cursor: pointer;
 	transition: all 0.2s ease;
 
 	&:hover {
-		background-color: #ebebeb;
-		border-color: #22c55e;
+		background-color: ${COLORS.border};
+		border-color: ${COLORS.primary};
 	}
 
 	@media (max-width: 480px) {
@@ -464,8 +465,8 @@ export const DeviceRow = styled.div`
 	gap: 12px;
 	align-items: flex-end;
 	padding: 16px;
-	background-color: #fafafa;
-	border: 1px solid #e0e0e0;
+	background-color: ${COLORS.canvas};
+	border: 1px solid ${COLORS.border};
 	border-radius: 4px;
 
 	@media (max-width: 1024px) {
@@ -483,8 +484,8 @@ export const DeviceRow = styled.div`
 `;
 
 export const RemoveDeviceButton = styled.button`
-	background-color: #ef4444;
-	color: white;
+	background-color: ${COLORS.error};
+	color: ${COLORS.white};
 	border: none;
 	padding: 8px 12px;
 	border-radius: 4px;
@@ -494,7 +495,7 @@ export const RemoveDeviceButton = styled.button`
 	transition: background-color 0.2s ease;
 
 	&:hover {
-		background-color: #dc2626;
+		background-color: ${COLORS.errorDark};
 	}
 
 	@media (max-width: 480px) {
@@ -533,7 +534,7 @@ export const WizardSidebar = styled.div`
 		flex-direction: row;
 		align-items: center;
 		gap: 8px;
-		border-bottom: 1px solid #e5e7eb;
+		border-bottom: 1px solid ${COLORS.border};
 		overflow: hidden;
 	}
 
@@ -553,7 +554,7 @@ export const WizardStep = styled.button<{ $active?: boolean; $complete?: boolean
 	background: transparent;
 	text-align: left;
 	cursor: pointer;
-	color: ${({ $active }) => ($active ? '#166534' : '#334155')};
+	color: ${({ $active }) => ($active ? COLORS.primaryDark : COLORS.gray700)};
 
 	&:disabled {
 		cursor: not-allowed;
@@ -567,9 +568,9 @@ export const WizardStep = styled.button<{ $active?: boolean; $complete?: boolean
 		align-items: center;
 		gap: ${({ $active }) => ($active ? '7px' : '0')};
 		padding: ${({ $active }) => ($active ? '6px 10px' : '6px')};
-		border: 1px solid ${({ $active }) => ($active ? '#16a34a' : '#dbe3ea')};
+		border: 1px solid ${({ $active }) => ($active ? COLORS.primary : COLORS.border)};
 		border-radius: 999px;
-		background: ${({ $active }) => ($active ? '#dcfce7' : '#ffffff')};
+		background: ${({ $active }) => ($active ? COLORS.primaryLight : COLORS.white)};
 		text-align: center;
 		min-width: 0;
 		height: 36px;
@@ -596,11 +597,11 @@ export const WizardStepDot = styled.span<{ $active?: boolean; $complete?: boolea
 	font-weight: 700;
 	border: 1px solid
 		${({ $active, $complete }) =>
-		$complete || $active ? '#16a34a' : '#d1d5db'};
+		$complete || $active ? COLORS.primary : COLORS.gray300};
 	background: ${({ $active, $complete }) =>
-		$complete || $active ? '#16a34a' : '#f8fafc'};
+		$complete || $active ? COLORS.primary : COLORS.bgLight};
 	color: ${({ $active, $complete }) =>
-		$complete || $active ? '#ffffff' : '#64748b'};
+		$complete || $active ? COLORS.white : COLORS.textSecondary};
 
 	@media (max-width: 900px) {
 		width: 22px;
@@ -640,7 +641,7 @@ export const WizardStepTitle = styled.span`
 export const WizardStepHint = styled.span`
 	font-size: 11px;
 	line-height: 1.45;
-	color: #64748b;
+	color: ${COLORS.textSecondary};
 
 	@media (max-width: 900px) {
 		display: none;
@@ -678,37 +679,37 @@ export const WizardPanelTitle = styled.h3`
 	font-size: 20px;
 	font-weight: 700;
 	margin: 0;
-	color: #0f172a;
+	color: ${COLORS.textPrimary};
 `;
 
 export const WizardPanelHint = styled.p`
 	font-size: 13px;
 	line-height: 1.5;
 	margin: 0;
-	color: #64748b;
+	color: ${COLORS.textSecondary};
 `;
 
 export const SelectField = styled.select`
 	padding: 10px 12px;
-	border: 1px solid #d1d5db;
+	border: 1px solid ${COLORS.gray300};
 	border-radius: 8px;
 	font-size: 14px;
 	font-family: inherit;
-	background: #ffffff;
+	background: ${COLORS.white};
 	width: 100%;
 
 	&:focus {
 		outline: none;
-		border-color: #22c55e;
-		box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.12);
+		border-color: ${COLORS.primary};
+		box-shadow: 0 0 0 3px ${COLORS.primaryLight};
 	}
 `;
 
 export const UploadDropzone = styled.div`
-	border: 1px dashed #cbd5e1;
+	border: 1px dashed ${COLORS.gray300};
 	border-radius: 12px;
 	padding: 18px;
-	background: #f8fafc;
+	background: ${COLORS.bgLight};
 
 	@media (max-width: 640px) {
 		padding: 12px;
@@ -731,7 +732,7 @@ export const InlineDisclosureButton = styled.button`
 	align-self: flex-start;
 	border: none;
 	background: transparent;
-	color: #047857;
+	color: ${COLORS.primary};
 	font-size: 13px;
 	font-weight: 800;
 	padding: 0;
@@ -758,9 +759,9 @@ export const SharingSection = styled.div`
 	flex-direction: column;
 	gap: 10px;
 	padding: 14px;
-	border: 1px solid #e5e7eb;
+	border: 1px solid ${COLORS.border};
 	border-radius: 12px;
-	background: #ffffff;
+	background: ${COLORS.white};
 `;
 
 export const SharingHeader = styled.div`
@@ -784,13 +785,13 @@ export const SharingTitle = styled.h4`
 	font-size: 14px;
 	font-weight: 700;
 	margin: 0;
-	color: #0f172a;
+	color: ${COLORS.textPrimary};
 `;
 
 export const SharingHint = styled.p`
 	font-size: 12px;
 	line-height: 1.45;
-	color: #64748b;
+	color: ${COLORS.textSecondary};
 	margin: 0;
 `;
 
@@ -816,9 +817,9 @@ export const MemberCard = styled.div`
 	align-items: center;
 	gap: 12px;
 	padding: 10px 12px;
-	border: 1px solid #e5e7eb;
+	border: 1px solid ${COLORS.border};
 	border-radius: 10px;
-	background: #ffffff;
+	background: ${COLORS.white};
 
 	@media (max-width: 640px) {
 		align-items: flex-start;
@@ -834,29 +835,29 @@ export const MemberCardInfo = styled.div`
 export const MemberName = styled.span`
 	font-size: 13px;
 	font-weight: 700;
-	color: #0f172a;
+	color: ${COLORS.textPrimary};
 `;
 
 export const MemberMeta = styled.span`
 	font-size: 12px;
-	color: #64748b;
+	color: ${COLORS.textSecondary};
 `;
 
 export const EmptySharingState = styled.div`
 	padding: 12px;
-	border: 1px dashed #d1d5db;
+	border: 1px dashed ${COLORS.gray300};
 	border-radius: 10px;
 	font-size: 12px;
-	color: #64748b;
-	background: #f8fafc;
+	color: ${COLORS.textSecondary};
+	background: ${COLORS.bgLight};
 `;
 
 export const SuggestionNotice = styled.div`
 	padding: 12px 14px;
-	border: 1px solid #bfdbfe;
+	border: 1px solid ${COLORS.infoLight};
 	border-radius: 12px;
-	background: #eff6ff;
-	color: #1e3a8a;
+	background: ${COLORS.infoLight};
+	color: ${COLORS.infoDark};
 	font-size: 13px;
 	line-height: 1.5;
 
@@ -871,10 +872,10 @@ export const SuggestionToggle = styled.label`
 	align-items: flex-start;
 	gap: 10px;
 	padding: 12px;
-	border: 1px solid #dbe3ea;
+	border: 1px solid ${COLORS.border};
 	border-radius: 12px;
-	background: #ffffff;
-	color: #334155;
+	background: ${COLORS.white};
+	color: ${COLORS.gray700};
 	line-height: 1.45;
 	cursor: pointer;
 
@@ -898,7 +899,7 @@ export const SuggestionToggleText = styled.span`
 `;
 
 export const SuggestionToggleHint = styled.span`
-	color: #64748b;
+	color: ${COLORS.textSecondary};
 	font-size: 13px;
 
 	@media (max-width: 640px) {
@@ -922,10 +923,10 @@ export const SuggestionCard = styled.label<{ $selected?: boolean }>`
 	align-items: flex-start;
 	gap: 10px;
 	padding: 12px;
-	border: 1px solid ${({ $selected }) => ($selected ? '#16a34a' : '#e2e8f0')};
+	border: 1px solid ${({ $selected }) => ($selected ? COLORS.primary : COLORS.border)};
 	border-radius: 12px;
-	background: ${({ $selected }) => ($selected ? '#f0fdf4' : '#ffffff')};
-	color: #0f172a;
+	background: ${({ $selected }) => ($selected ? COLORS.primaryLight : COLORS.white)};
+	color: ${COLORS.textPrimary};
 	cursor: pointer;
 	min-width: 0;
 
@@ -947,21 +948,21 @@ export const SuggestionCardTitle = styled.span`
 	display: block;
 	font-size: 14px;
 	font-weight: 700;
-	color: #0f172a;
+	color: ${COLORS.textPrimary};
 `;
 
 export const SuggestionCardMeta = styled.span`
 	display: block;
 	font-size: 12px;
-	color: #64748b;
+	color: ${COLORS.textSecondary};
 	margin-top: 2px;
 `;
 
 export const SuggestionMoreButton = styled.button`
 	align-self: flex-start;
-	border: 1px solid #cbd5e1;
-	background: #ffffff;
-	color: #0f172a;
+	border: 1px solid ${COLORS.gray300};
+	background: ${COLORS.white};
+	color: ${COLORS.textPrimary};
 	border-radius: 10px;
 	padding: 9px 12px;
 	font-size: 13px;
@@ -969,7 +970,7 @@ export const SuggestionMoreButton = styled.button`
 	cursor: pointer;
 
 	&:hover {
-		background: #f8fafc;
+		background: ${COLORS.bgLight};
 	}
 
 	@media (max-width: 640px) {
@@ -984,9 +985,9 @@ export const SuggestedTaskGroup = styled.div`
 	flex-direction: column;
 	gap: 0;
 	padding: 0;
-	border: 1px solid #e2e8f0;
+	border: 1px solid ${COLORS.border};
 	border-radius: 12px;
-	background: #ffffff;
+	background: ${COLORS.white};
 	overflow: hidden;
 
 	@media (max-width: 640px) {
@@ -1002,13 +1003,13 @@ export const SuggestedTaskGroupHeader = styled.button`
 	gap: 12px;
 	padding: 14px;
 	border: none;
-	background: #ffffff;
-	color: #0f172a;
+	background: ${COLORS.white};
+	color: ${COLORS.textPrimary};
 	text-align: left;
 	cursor: pointer;
 
 	&:hover {
-		background: #f8fafc;
+		background: ${COLORS.bgLight};
 	}
 
 	@media (max-width: 640px) {
@@ -1021,7 +1022,7 @@ export const SuggestedTaskGroupTitle = styled.span`
 	margin: 0;
 	font-size: 14px;
 	font-weight: 800;
-	color: #0f172a;
+	color: ${COLORS.textPrimary};
 `;
 
 export const SuggestedTaskGroupMeta = styled.span`
@@ -1029,14 +1030,14 @@ export const SuggestedTaskGroupMeta = styled.span`
 	margin-top: 3px;
 	font-size: 12px;
 	font-weight: 600;
-	color: #64748b;
+	color: ${COLORS.textSecondary};
 `;
 
 export const SuggestedTaskGroupAction = styled.span`
 	flex: 0 0 auto;
 	font-size: 12px;
 	font-weight: 800;
-	color: #166534;
+	color: ${COLORS.primaryDark};
 `;
 
 export const SuggestedTaskList = styled.div`
@@ -1057,7 +1058,7 @@ export const SuggestedTaskRow = styled.label`
 	gap: 10px;
 	font-size: 13px;
 	line-height: 1.45;
-	color: #334155;
+	color: ${COLORS.gray700};
 	cursor: pointer;
 
 	input {
@@ -1069,7 +1070,7 @@ export const SuggestedTaskRow = styled.label`
 
 	@media (max-width: 640px) {
 		padding: 9px 0;
-		border-top: 1px solid #f1f5f9;
+		border-top: 1px solid ${COLORS.borderLight};
 
 		&:first-of-type {
 			border-top: none;
@@ -1085,7 +1086,7 @@ export const SuggestedTaskText = styled.span`
 `;
 
 export const SuggestedTaskInterval = styled.span`
-	color: #64748b;
+	color: ${COLORS.textSecondary};
 	font-size: 12px;
 
 	@media (max-width: 640px) {
@@ -1095,7 +1096,7 @@ export const SuggestedTaskInterval = styled.span`
 `;
 
 export const SuggestedTaskNote = styled.span`
-	color: #64748b;
+	color: ${COLORS.textSecondary};
 	font-size: 12px;
 	line-height: 1.45;
 `;
@@ -1103,7 +1104,7 @@ export const SuggestedTaskNote = styled.span`
 export const ReviewGrid = styled.div`
 	display: grid;
 	grid-template-columns: 180px minmax(0, 1fr);
-	border: 1px solid #e5e7eb;
+	border: 1px solid ${COLORS.border};
 	border-radius: 12px;
 	overflow: hidden;
 
@@ -1116,16 +1117,16 @@ export const ReviewLabel = styled.div`
 	padding: 12px 14px;
 	font-size: 12px;
 	font-weight: 700;
-	color: #64748b;
-	background: #f8fafc;
-	border-bottom: 1px solid #e5e7eb;
+	color: ${COLORS.textSecondary};
+	background: ${COLORS.bgLight};
+	border-bottom: 1px solid ${COLORS.border};
 `;
 
 export const ReviewValue = styled.div`
 	padding: 12px 14px;
 	font-size: 13px;
-	color: #0f172a;
-	border-bottom: 1px solid #e5e7eb;
+	color: ${COLORS.textPrimary};
+	border-bottom: 1px solid ${COLORS.border};
 
 	img {
 		width: 88px;
@@ -1140,9 +1141,9 @@ export const DashboardVisibilityCard = styled.label`
 	align-items: flex-start;
 	gap: 12px;
 	padding: 14px;
-	border: 1px solid #e5e7eb;
+	border: 1px solid ${COLORS.border};
 	border-radius: 12px;
-	background: #ffffff;
+	background: ${COLORS.white};
 	cursor: pointer;
 
 	input {
@@ -1150,7 +1151,7 @@ export const DashboardVisibilityCard = styled.label`
 		width: 18px;
 		height: 18px;
 		margin-top: 2px;
-		accent-color: #16a34a;
+		accent-color: ${COLORS.primary};
 	}
 `;
 
@@ -1164,18 +1165,18 @@ export const DashboardVisibilityText = styled.span`
 export const DashboardVisibilityTitle = styled.span`
 	font-size: 14px;
 	font-weight: 700;
-	color: #0f172a;
+	color: ${COLORS.textPrimary};
 `;
 
 export const DashboardVisibilityHint = styled.span`
 	font-size: 12px;
 	line-height: 1.45;
-	color: #64748b;
+	color: ${COLORS.textSecondary};
 `;
 
 export const AddDeviceButton = styled.button`
-	background-color: #22c55e;
-	color: white;
+	background: ${COLORS.gradientPrimary};
+	color: ${COLORS.white};
 	border: none;
 	padding: 10px 16px;
 	border-radius: 4px;
@@ -1186,7 +1187,7 @@ export const AddDeviceButton = styled.button`
 	align-self: flex-start;
 
 	&:hover {
-		background-color: #16a34a;
+		background: ${COLORS.primaryHover};
 	}
 
 	@media (max-width: 1024px) {
@@ -1214,8 +1215,8 @@ export const Tag = styled.div`
 	display: flex;
 	align-items: center;
 	gap: 6px;
-	background-color: #e0f2fe;
-	color: #0369a1;
+	background-color: ${COLORS.infoLight};
+	color: ${COLORS.infoDark};
 	padding: 6px 12px;
 	border-radius: 20px;
 	font-size: 13px;
@@ -1254,8 +1255,8 @@ export const TagInput = styled.div`
 
 export const AddButton = styled.button`
 	padding: 8px 16px;
-	background-color: #22c55e;
-	color: white;
+	background: ${COLORS.gradientPrimary};
+	color: ${COLORS.white};
 	border: none;
 	border-radius: 4px;
 	cursor: pointer;
@@ -1265,7 +1266,7 @@ export const AddButton = styled.button`
 	transition: background-color 0.2s ease;
 
 	&:hover {
-		background-color: #16a34a;
+		background: ${COLORS.primaryHover};
 	}
 
 	@media (max-width: 480px) {
@@ -1275,11 +1276,11 @@ export const AddButton = styled.button`
 `;
 
 export const MaintenanceHistoryBox = styled.div`
-	border: 1px solid #e0e0e0;
+	border: 1px solid ${COLORS.border};
 	border-radius: 4px;
 	max-height: 200px;
 	overflow-y: auto;
-	background-color: #fafafa;
+	background-color: ${COLORS.canvas};
 
 	&::-webkit-scrollbar {
 		width: 6px;
@@ -1290,7 +1291,7 @@ export const MaintenanceHistoryBox = styled.div`
 	}
 
 	&::-webkit-scrollbar-thumb {
-		background: #d1d5db;
+		background: ${COLORS.gray300};
 		border-radius: 3px;
 	}
 
@@ -1301,14 +1302,14 @@ export const MaintenanceHistoryBox = styled.div`
 
 export const HistoryItem = styled.div`
 	padding: 12px 16px;
-	border-bottom: 1px solid #e0e0e0;
+	border-bottom: 1px solid ${COLORS.border};
 
 	&:last-child {
 		border-bottom: none;
 	}
 
 	&:hover {
-		background-color: #f5f5f5;
+		background-color: ${COLORS.borderLight};
 	}
 
 	@media (max-width: 480px) {
@@ -1333,8 +1334,8 @@ export const DialogFooter = styled.div`
 	align-items: center;
 	gap: 12px;
 	padding: 16px 24px;
-	border-top: 1px solid #e0e0e0;
-	background-color: #fafafa;
+	border-top: 1px solid ${COLORS.border};
+	background-color: ${COLORS.canvas};
 	flex-shrink: 0;
 
 	@media (max-width: 1024px) {
@@ -1390,10 +1391,10 @@ export const FooterTextAction = styled.button<{ $tone?: 'danger' | 'warning' }>`
 	padding: 8px 4px;
 	color: ${({ $tone }) =>
 		$tone === 'danger'
-			? '#b91c1c'
+			? COLORS.errorDark
 			: $tone === 'warning'
-				? '#b45309'
-				: '#64748b'};
+				? COLORS.warningDark
+				: COLORS.textSecondary};
 	font-size: 13px;
 	font-weight: 700;
 	cursor: pointer;
@@ -1403,10 +1404,10 @@ export const FooterTextAction = styled.button<{ $tone?: 'danger' | 'warning' }>`
 	&:hover:not(:disabled) {
 		color: ${({ $tone }) =>
 		$tone === 'danger'
-			? '#991b1b'
+			? COLORS.errorDark
 			: $tone === 'warning'
-				? '#92400e'
-				: '#334155'};
+				? COLORS.warningDark
+				: COLORS.gray700};
 	}
 
 	&:disabled {
@@ -1422,8 +1423,8 @@ export const FooterTextAction = styled.button<{ $tone?: 'danger' | 'warning' }>`
 `;
 
 export const SaveButton = styled.button`
-	background-color: #22c55e;
-	color: white;
+	background: ${COLORS.gradientPrimary};
+	color: ${COLORS.white};
 	border: none;
 	padding: 10px 24px;
 	border-radius: 4px;
@@ -1433,11 +1434,11 @@ export const SaveButton = styled.button`
 	transition: background-color 0.2s ease;
 
 	&:hover {
-		background-color: #16a34a;
+		background: ${COLORS.primaryHover};
 	}
 
 	&:active {
-		background-color: #15803d;
+		background: ${COLORS.primaryDark};
 	}
 
 	@media (max-width: 1024px) {
@@ -1453,8 +1454,8 @@ export const SaveButton = styled.button`
 `;
 
 export const CancelButton = styled.button`
-	background-color: #e5e7eb;
-	color: #333333;
+	background-color: ${COLORS.border};
+	color: ${COLORS.gray700};
 	border: none;
 	padding: 10px 24px;
 	border-radius: 4px;
@@ -1464,7 +1465,7 @@ export const CancelButton = styled.button`
 	transition: background-color 0.2s ease;
 
 	&:hover {
-		background-color: #d1d5db;
+		background-color: ${COLORS.gray300};
 	}
 
 	@media (max-width: 1024px) {

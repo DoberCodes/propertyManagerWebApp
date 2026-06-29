@@ -8,6 +8,7 @@ import {
 	formatCurrency,
 } from '../../../utils/financialUtils';
 import { TaskFinancials } from '../../../types/Task.types';
+import { COLORS } from '../../../constants/colors';
 
 // Add Maintenance History Modal Component
 interface AddMaintenanceHistoryModalProps {
@@ -709,7 +710,7 @@ export const AddMaintenanceHistoryModal: React.FC<
 						</small>
 						{formData.completionFile && (
 							<div
-								style={{ marginTop: '4px', fontSize: '14px', color: '#059669' }}>
+								style={{ marginTop: '4px', fontSize: '14px', color: COLORS.primary }}>
 								Selected: {formData.completionFile.name}
 							</div>
 						)}
@@ -735,7 +736,7 @@ export const AddMaintenanceHistoryModal: React.FC<
 										target='_blank'
 										rel='noreferrer'
 										style={{
-											color: '#0f766e',
+											color: COLORS.primary,
 											fontSize: '14px',
 											fontWeight: 700,
 											textDecoration: 'underline',

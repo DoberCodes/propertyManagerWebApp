@@ -177,6 +177,13 @@ describe('InsightsTab', () => {
 	test('shows suggested details inside the Insights workspace', async () => {
 		const user = userEvent.setup();
 		renderInsights({
+			propertyDevices: [
+				{
+					id: 'system-1',
+					type: 'HVAC',
+					assetType: 'HVAC',
+				},
+			] as any,
 			property: {
 				...defaultProps.property,
 				knowledgeSuggestions: [
@@ -213,8 +220,112 @@ describe('InsightsTab', () => {
 			screen.getByRole('heading', { name: /suggested details/i }),
 		).toBeInTheDocument();
 		expect(screen.getAllByText('HVAC Invoice.png')).toHaveLength(2);
+		expect(screen.getByText('Matched Asset')).toBeInTheDocument();
+		expect(screen.getByText('HVAC')).toBeInTheDocument();
+		expect(screen.getAllByText('General').length).toBeGreaterThan(0);
+		expect(screen.getByText('1 of 1 accepted')).toBeInTheDocument();
+		expect(screen.queryByText('Current')).not.toBeInTheDocument();
+
+		await user.click(screen.getByRole('button', { name: /expand details/i }));
+
+		expect(screen.getByText('Current')).toBeInTheDocument();
+		expect(screen.getByText('Proposed')).toBeInTheDocument();
+		expect(screen.getByText('Will add')).toBeInTheDocument();
 		expect(screen.getByDisplayValue('4TTR4036L1000A')).toBeInTheDocument();
 		expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+	});
+
+	test('shows a matched maintenance event target before creating a new event', async () => {
+		const user = userEvent.setup();
+		renderInsights({
+			property: {
+				...defaultProps.property,
+				documents: [
+					{
+						id: 'doc-1',
+						fileName: 'Carolina Comfort Invoice.png',
+						uploadedAt: '2026-06-26T12:00:00.000Z',
+					},
+				],
+				knowledgeSuggestions: [
+					{
+						id: 'knowledge-1',
+						sourceDocumentId: 'doc-1',
+						sourceDocumentName: 'Carolina Comfort Invoice.png',
+						propertyId: 'property-1',
+						relatedSystemId: 'system-1',
+						documentType: 'invoice',
+						extractionMethod: 'image_ocr',
+						extractedFields: [
+							{
+								id: 'field-invoice',
+								fieldKey: 'invoiceNumber',
+								label: 'Invoice number',
+								value: 'INV-2025-04158',
+								targetEntity: 'maintenanceHistory',
+								targetField: 'invoiceNumber',
+							},
+							{
+								id: 'field-total',
+								fieldKey: 'totalCost',
+								label: 'Total cost',
+								value: '$7,325.18',
+								targetEntity: 'maintenanceHistory',
+								targetField: 'totalCost',
+							},
+						],
+						suggestedParts: [],
+						status: 'pending',
+						createdAt: '2026-06-26T12:00:00.000Z',
+					},
+				],
+			} as any,
+			propertyDevices: [
+				{
+					id: 'system-1',
+					userId: 'user-1',
+					type: 'HVAC',
+					assetType: 'HVAC',
+					location: {
+						propertyId: 'property-1',
+					},
+				},
+			] as any,
+			maintenanceHistoryRecords: [
+				{
+					id: 'event-1',
+					title: 'HVAC installation',
+					completionDate: '2025-06-14',
+					completionNotes: 'Invoice number: INV-2025-04158',
+					deviceIds: ['system-1'],
+					financials: {
+						currency: 'USD',
+						actual: {
+							contractorCost: 7325.18,
+						},
+					},
+				},
+			] as any,
+		});
+
+		await user.click(screen.getByRole('tab', { name: /suggested details/i }));
+
+		expect(
+			screen.getByText(
+				'Maintley found an existing Maintenance Event that may match this document.',
+			),
+		).toBeInTheDocument();
+		expect(screen.getAllByText(/HVAC installation/).length).toBeGreaterThan(0);
+		expect(
+			screen.getByRole('button', { name: /update existing/i }),
+		).toHaveAttribute('aria-pressed', 'true');
+
+		await user.click(screen.getByRole('button', { name: /not the same/i }));
+
+		expect(
+			screen.getByRole('button', { name: /not the same/i }),
+		).toHaveAttribute('aria-pressed', 'true');
+		expect(screen.getByText('New record')).toBeInTheDocument();
 	});
 
 	test('shows the Intelligence history empty state', async () => {
@@ -225,7 +336,7 @@ describe('InsightsTab', () => {
 
 		expect(
 			screen.getByText(
-				"Run a Quick Scan to begin building this property's Intelligence history.",
+				"Run a Quick Scan or review suggested document details to begin building this property's Intelligence history.",
 			),
 		).toBeInTheDocument();
 		expect(
@@ -279,5 +390,108 @@ describe('InsightsTab', () => {
 			screen.queryByRole('button', { name: /review tasks/i }),
 		).not.toBeInTheDocument();
 		expect(dialog ? within(dialog).queryByText(/delete/i) : null).not.toBeInTheDocument();
+	});
+
+	test('hides reviewed suggestions from the active Suggested Details queue', async () => {
+		const user = userEvent.setup();
+		renderInsights({
+			property: {
+				...defaultProps.property,
+				knowledgeSuggestions: [
+					{
+						id: 'knowledge-applied',
+						sourceDocumentId: 'doc-1',
+						sourceDocumentName: 'HVAC Invoice.png',
+						propertyId: 'property-1',
+						documentType: 'invoice',
+						extractionMethod: 'image_ocr',
+						extractedFields: [
+							{
+								id: 'field-1',
+								fieldKey: 'brand',
+								label: 'Brand',
+								value: 'Trane',
+								targetEntity: 'system',
+								targetField: 'brand',
+							},
+						],
+						suggestedParts: [],
+						status: 'applied',
+						createdAt: '2026-06-26T12:00:00.000Z',
+						reviewedAt: '2026-06-26T12:10:00.000Z',
+						appliedAt: '2026-06-26T12:10:00.000Z',
+					},
+				],
+			} as any,
+		});
+
+		await user.click(screen.getByRole('tab', { name: /suggested details/i }));
+
+		expect(
+			screen.getByText("Your property's memory is ready to grow."),
+		).toBeInTheDocument();
+		expect(screen.queryByText('HVAC Invoice.png')).not.toBeInTheDocument();
+		expect(screen.queryByDisplayValue('Trane')).not.toBeInTheDocument();
+	});
+
+	test('shows applied knowledge as a read-only Intelligence history event', async () => {
+		const user = userEvent.setup();
+		renderInsights({
+			property: {
+				...defaultProps.property,
+				knowledgeSuggestions: [
+					{
+						id: 'knowledge-applied',
+						sourceDocumentId: 'doc-1',
+						sourceDocumentName: 'HVAC Invoice.png',
+						propertyId: 'property-1',
+						documentType: 'invoice',
+						extractionMethod: 'image_ocr',
+						extractedFields: [
+							{
+								id: 'field-1',
+								fieldKey: 'brand',
+								label: 'Brand',
+								value: 'Trane',
+								targetEntity: 'system',
+								targetField: 'brand',
+							},
+						],
+						suggestedParts: [
+							{
+								id: 'part-1',
+								partKnowledgeId: 'thermostat',
+								label: 'Thermostat',
+								name: 'Honeywell T6 Pro Smart Thermostat',
+								category: 'accessory',
+								relatedAssetTypes: ['HVAC'],
+								targetEntity: 'part',
+								sourceText: 'Honeywell T6 Pro Smart Thermostat',
+							},
+						],
+						status: 'applied',
+						createdAt: '2026-06-26T12:00:00.000Z',
+						reviewedAt: '2026-06-26T12:10:00.000Z',
+						appliedAt: '2026-06-26T12:10:00.000Z',
+					},
+				],
+			} as any,
+		});
+
+		await user.click(screen.getByRole('tab', { name: /history/i }));
+
+		expect(screen.getByText('Knowledge added')).toBeInTheDocument();
+		expect(
+			screen.getByText('2 details added from HVAC Invoice.png'),
+		).toBeInTheDocument();
+
+		await user.click(screen.getByRole('button', { name: /^view$/i }));
+
+		expect(screen.getByText(/read-only summary/i)).toBeInTheDocument();
+		expect(screen.getByText('Brand: Trane')).toBeInTheDocument();
+		expect(
+			screen.getByText('Honeywell T6 Pro Smart Thermostat'),
+		).toBeInTheDocument();
+		expect(screen.queryByText(/delete/i)).not.toBeInTheDocument();
 	});
 });

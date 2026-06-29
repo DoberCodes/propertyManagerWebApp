@@ -2,6 +2,26 @@ import { Task, TaskStatus } from '../types/Task.types';
 import { getTaskDisplayStatus } from './taskDisplayStatus';
 import { filterDateRange } from './tableFilters';
 
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+const DUE_SOON_SORT_DAYS = 14;
+
+const parseTaskDueDate = (value?: string): Date | null => {
+	if (!value) return null;
+	const parsed = new Date(value);
+	if (Number.isNaN(parsed.getTime())) return null;
+	return new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate());
+};
+
+const getTodayDate = (): Date => {
+	const today = new Date();
+	return new Date(today.getFullYear(), today.getMonth(), today.getDate());
+};
+
+type TaskDueSortInput = {
+	dueDate?: string;
+	status?: string;
+};
+
 /**
  * Checks if a task is overdue based on its due date and current status
  */
@@ -44,6 +64,48 @@ export const matchesDateRangeOrIsOverdue = (
 	}
 
 	return filterDateRange(task.dueDate, startDate || '', endDate || '');
+};
+
+/**
+ * Orders actionable tasks by homeowner urgency:
+ * overdue, due today, ASAP/no date, due soon, then later work.
+ */
+export const getTaskDueUrgencyRank = (
+	task: TaskDueSortInput,
+): number => {
+	const displayStatus = getTaskDisplayStatus(task);
+	if (displayStatus.isOverdue) return 0;
+
+	const dueDate = parseTaskDueDate(task.dueDate);
+	if (!dueDate) return 2;
+
+	const today = getTodayDate();
+	const daysUntilDue = Math.ceil(
+		(dueDate.getTime() - today.getTime()) / MS_PER_DAY,
+	);
+
+	if (daysUntilDue === 0) return 1;
+	if (daysUntilDue > 0 && daysUntilDue <= DUE_SOON_SORT_DAYS) return 3;
+	return 4;
+};
+
+export const compareTasksByDueUrgency = <
+	T extends TaskDueSortInput,
+>(
+	a: T,
+	b: T,
+): number => {
+	const rankCompare = getTaskDueUrgencyRank(a) - getTaskDueUrgencyRank(b);
+	if (rankCompare !== 0) return rankCompare;
+
+	const dueA = parseTaskDueDate(a.dueDate);
+	const dueB = parseTaskDueDate(b.dueDate);
+
+	if (dueA && dueB) {
+		return dueA.getTime() - dueB.getTime();
+	}
+
+	return 0;
 };
 
 /**

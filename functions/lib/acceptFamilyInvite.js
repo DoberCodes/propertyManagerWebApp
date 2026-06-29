@@ -42,6 +42,8 @@ if (!admin.apps.length) {
 }
 const db = admin.firestore();
 const hashToken = (token) => (0, crypto_1.createHash)('sha256').update(token).digest('hex');
+const normalizeFamilyMemberRole = (role) => role === 'admin' ? 'admin' : 'member';
+const getFamilyMembershipRoles = (role) => role === 'admin' ? ['member', 'admin'] : ['member'];
 exports.acceptFamilyInvite = functions.https.onCall(async (data, context) => {
     if (!context.auth) {
         throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
@@ -83,6 +85,9 @@ exports.acceptFamilyInvite = functions.https.onCall(async (data, context) => {
         const accountId = String(inviteData.accountId || '').trim();
         const accountRef = db.collection('familyAccounts').doc(accountId);
         const userRef = db.collection('users').doc(callerUid);
+        const membershipRef = db
+            .collection('accountMemberships')
+            .doc(`${accountId}_${callerUid}`);
         const [accountDoc, userDoc] = await Promise.all([
             transaction.get(accountRef),
             transaction.get(userRef),
@@ -112,12 +117,23 @@ exports.acceptFamilyInvite = functions.https.onCall(async (data, context) => {
                 updatedAt: admin.firestore.FieldValue.serverTimestamp(),
             });
         }
+        const role = normalizeFamilyMemberRole(inviteData.role || userData.role);
         transaction.update(userRef, {
             accountId,
             isAccountOwner: false,
-            role: inviteData.role || userData.role || 'admin',
+            isTeamMemberAccount: false,
+            onboardingCompleted: true,
+            role,
             updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         });
+        transaction.set(membershipRef, {
+            accountId,
+            userId: callerUid,
+            roles: getFamilyMembershipRoles(role),
+            status: 'active',
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        }, { merge: true });
         transaction.update(inviteRef, {
             status: 'accepted',
             acceptedAt: Date.now(),

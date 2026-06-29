@@ -4,6 +4,7 @@ import {
 	analyzeBarcodePayload,
 	BarcodePayloadAnalysis,
 } from '../../../utils/barcodeScanParser';
+import { COLORS } from '../../../constants/colors';
 
 const Overlay = styled.div`
 	position: fixed;
@@ -19,7 +20,7 @@ const Overlay = styled.div`
 const Card = styled.div`
 	width: min(760px, 100%);
 	max-height: 90vh;
-	background: #ffffff;
+	background: ${COLORS.white};
 	border-radius: 12px;
 	border: 1px solid #e5e7eb;
 	overflow: hidden;
@@ -88,7 +89,7 @@ const Helper = styled.div`
 const EngineHint = styled.div`
 	font-size: 11px;
 	font-weight: 600;
-	color: #0f766e;
+	color: ${COLORS.primaryDark};
 `;
 
 const ErrorText = styled.div`
@@ -106,9 +107,9 @@ const Row = styled.div`
 const ActionButton = styled.button`
 	padding: 8px 12px;
 	border-radius: 8px;
-	border: 1px solid #0f766e;
-	background: #0f766e;
-	color: #ffffff;
+	border: 1px solid ${COLORS.primaryDark};
+	background: ${COLORS.primaryDark};
+	color: ${COLORS.white};
 	font-size: 13px;
 	font-weight: 600;
 	cursor: pointer;
@@ -118,7 +119,7 @@ const GhostButton = styled.button`
 	padding: 8px 12px;
 	border-radius: 8px;
 	border: 1px solid #cbd5e1;
-	background: #ffffff;
+	background: ${COLORS.white};
 	color: #334155;
 	font-size: 13px;
 	font-weight: 600;
@@ -142,9 +143,9 @@ const MethodTabs = styled.div`
 const MethodTabButton = styled.button<{ $active?: boolean }>`
 	padding: 8px 12px;
 	border-radius: 8px;
-	border: 1px solid ${(props) => (props.$active ? '#0f766e' : '#cbd5e1')};
-	background: ${(props) => (props.$active ? '#ecfeff' : '#ffffff')};
-	color: ${(props) => (props.$active ? '#0f766e' : '#334155')};
+	border: 1px solid ${(props) => (props.$active ? COLORS.primaryDark : '#cbd5e1')};
+	background: ${(props) => (props.$active ? COLORS.primaryLight : COLORS.white)};
+	color: ${(props) => (props.$active ? COLORS.primaryDark : '#334155')};
 	font-size: 12px;
 	font-weight: 700;
 	cursor: pointer;
@@ -160,7 +161,7 @@ const PreviewImage = styled.img`
 	object-fit: contain;
 	border-radius: 8px;
 	border: 1px solid #cbd5e1;
-	background: #ffffff;
+	background: ${COLORS.white};
 `;
 
 const InspectorCard = styled.div`
@@ -191,7 +192,7 @@ const ScrollPanel = styled.div`
 	padding: 8px;
 	border-radius: 8px;
 	border: 1px solid #cbd5e1;
-	background: #ffffff;
+	background: ${COLORS.white};
 `;
 
 const DataBlock = styled.pre`
@@ -214,8 +215,8 @@ const Pill = styled.span`
 	border-radius: 999px;
 	font-size: 11px;
 	font-weight: 700;
-	background: #dcfce7;
-	color: #166534;
+	background: ${COLORS.primaryLight};
+	color: ${COLORS.primaryDark};
 `;
 
 const ConfidenceBadge = styled.span<{ $tone: 'high' | 'medium' | 'low' }>`
@@ -225,13 +226,13 @@ const ConfidenceBadge = styled.span<{ $tone: 'high' | 'medium' | 'low' }>`
 	font-weight: 700;
 	background: ${(props) =>
 		props.$tone === 'high'
-			? '#dcfce7'
+			? COLORS.primaryLight
 			: props.$tone === 'medium'
 				? '#fef9c3'
 				: '#fee2e2'};
 	color: ${(props) =>
 		props.$tone === 'high'
-			? '#166534'
+			? COLORS.primaryDark
 			: props.$tone === 'medium'
 				? '#854d0e'
 				: '#991b1b'};

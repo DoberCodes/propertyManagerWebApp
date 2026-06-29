@@ -1,5 +1,6 @@
 import styled from 'styled-components';
 import { DialogContent as BaseDialogContent } from '../../Components/Library';
+import { COLORS } from '../../constants/colors';
 
 export const Wrapper = styled.div`
 	display: flex;
@@ -71,11 +72,11 @@ export const FloatingTeamGroupButton = styled.button`
 	width: 40px;
 	height: 40px;
 	padding: 0;
-	border: 1px solid rgba(16, 185, 129, 0.38);
+	border: 1px solid rgba(4, 120, 87, 0.38);
 	border-radius: 50%;
 	background: #6b7280;
 	opacity: 0.6;
-	color: #ffffff;
+	color: ${COLORS.white};
 	font-size: 16px;
 	box-shadow: none;
 	cursor: pointer;
@@ -84,11 +85,11 @@ export const FloatingTeamGroupButton = styled.button`
 
 	&:hover {
 		transform: translateY(-1px);
-		box-shadow: 0 18px 32px rgba(5, 150, 105, 0.36);
+		box-shadow: 0 18px 32px rgba(4, 120, 87, 0.36);
 	}
 
 	&:focus-visible {
-		outline: 3px solid rgba(16, 185, 129, 0.24);
+		outline: 3px solid ${COLORS.primaryLight};
 		outline-offset: 3px;
 	}
 `;
@@ -99,13 +100,13 @@ export const TeamHero = styled.section`
 	gap: 18px;
 	align-items: stretch;
 	padding: 24px;
-	border: 1px solid rgba(16, 185, 129, 0.16);
+	border: 1px solid ${COLORS.primaryLight};
 	border-radius: 24px;
 	background:
-		linear-gradient(135deg, rgba(6, 95, 70, 0.96), rgba(5, 150, 105, 0.9)),
-		#047857;
-	box-shadow: 0 24px 70px rgba(15, 118, 110, 0.18);
-	color: #ffffff;
+		linear-gradient(135deg, rgba(4, 120, 87, 0.96), rgba(0, 158, 113, 0.9)),
+		${COLORS.maintleyGreen};
+	box-shadow: 0 24px 70px rgba(4, 120, 87, 0.18);
+	color: ${COLORS.white};
 
 	@media (max-width: 900px) {
 		grid-template-columns: 1fr;
@@ -115,7 +116,7 @@ export const TeamHero = styled.section`
 
 	@media (max-width: 768px) {
 		padding: 18px;
-		box-shadow: 0 18px 46px rgba(15, 118, 110, 0.16);
+		box-shadow: 0 18px 46px rgba(4, 120, 87, 0.16);
 	}
 `;
 
@@ -135,7 +136,7 @@ export const TeamHeroEyebrow = styled.div`
 	padding: 7px 10px;
 	border-radius: 999px;
 	background: rgba(255, 255, 255, 0.14);
-	color: #d1fae5;
+	color: ${COLORS.successLight};
 	font-size: 12px;
 	font-weight: 800;
 	letter-spacing: 0.08em;
@@ -172,7 +173,7 @@ export const TeamStatCard = styled.div`
 	padding: 16px;
 	border-radius: 18px;
 	background: rgba(255, 255, 255, 0.94);
-	color: #064e3b;
+	color: ${COLORS.primaryDark};
 	box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.45);
 `;
 
@@ -184,7 +185,7 @@ export const TeamStatValue = styled.div`
 
 export const TeamStatLabel = styled.div`
 	margin-top: 6px;
-	color: #047857;
+	color: ${COLORS.primary};
 	font-size: 12px;
 	font-weight: 800;
 	line-height: 1.25;
@@ -226,9 +227,9 @@ export const AddTeamGroupButton = styled.button`
 	align-items: center;
 	justify-content: center;
 	gap: 8px;
-	background: linear-gradient(135deg, #10b981, #059669);
-	color: white;
-	border: 1px solid rgba(5, 150, 105, 0.3);
+	background: ${COLORS.gradientPrimary};
+	color: ${COLORS.white};
+	border: 1px solid rgba(4, 120, 87, 0.3);
 	padding: 11px 16px;
 	border-radius: 999px;
 	font-size: 14px;
@@ -239,12 +240,12 @@ export const AddTeamGroupButton = styled.button`
 		box-shadow 0.2s ease,
 		background 0.2s ease;
 	white-space: nowrap;
-	box-shadow: 0 10px 24px rgba(16, 185, 129, 0.22);
+	box-shadow: 0 10px 24px rgba(4, 120, 87, 0.22);
 
 	&:hover {
-		background: linear-gradient(135deg, #059669, #047857);
+		background: ${COLORS.gradientPrimary};
 		transform: translateY(-1px);
-		box-shadow: 0 14px 30px rgba(16, 185, 129, 0.28);
+		box-shadow: 0 14px 30px rgba(4, 120, 87, 0.28);
 	}
 
 	&:disabled {
@@ -328,16 +329,16 @@ export const TeamGroupNameInput = styled.input`
 	margin: 0;
 	flex: 1;
 	letter-spacing: 0.3px;
-	border: 2px solid #10b981;
+	border: 2px solid ${COLORS.primaryHover};
 	border-radius: 6px;
 	padding: 6px 12px;
-	background-color: #f0fdf4;
+	background-color: ${COLORS.primaryLight};
 	font-family: inherit;
 
 	&:focus {
 		outline: none;
-		border-color: #059669;
-		box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+		border-color: ${COLORS.primary};
+		box-shadow: 0 0 0 3px ${COLORS.primaryLight};
 	}
 
 	@media (max-width: 1024px) {
@@ -383,9 +384,9 @@ export const TeamGroupActionButton = styled.button`
 	}
 
 	&:hover {
-		background: #ecfdf5;
-		border-color: #bbf7d0;
-		color: #22c55e;
+		background: ${COLORS.primaryLight};
+		border-color: ${COLORS.primaryHover};
+		color: ${COLORS.primary};
 		transform: translateY(-1px);
 	}
 
@@ -481,7 +482,7 @@ export const TeamMemberActions = styled.div`
 `;
 
 export const TeamMemberActionButton = styled.button`
-	background-color: #ffffff;
+	background-color: ${COLORS.bgWhite};
 	border: 1px solid #e5e7eb;
 	border-radius: 999px;
 	width: 28px;
@@ -499,9 +500,9 @@ export const TeamMemberActionButton = styled.button`
 	}
 
 	&:hover {
-		background-color: #ecfdf5;
-		border-color: #bbf7d0;
-		color: #047857;
+		background-color: ${COLORS.primaryLight};
+		border-color: ${COLORS.primaryHover};
+		color: ${COLORS.primary};
 		transform: translateY(-1px);
 	}
 
@@ -517,8 +518,8 @@ export const TeamMemberImage = styled.img`
 	height: 54px;
 	border-radius: 50%;
 	object-fit: cover;
-	background-color: #d1fae5;
-	border: 2px solid #d1fae5;
+	background-color: ${COLORS.successLight};
+	border: 2px solid ${COLORS.successLight};
 
 	@media (max-width: 1024px) {
 		width: 50px;
@@ -535,17 +536,17 @@ export const TeamMemberImagePlaceholder = styled.div`
 	width: 54px;
 	height: 54px;
 	border-radius: 50%;
-	background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+	background: ${COLORS.gradientPrimary};
 	display: flex;
 	align-items: center;
 	justify-content: center;
 	font-size: 18px;
-	color: #047857;
+	color: ${COLORS.white};
 	font-weight: 850;
 	line-height: 1;
 	text-align: center;
 	word-break: break-all;
-	border: 2px solid #bbf7d0;
+	border: 2px solid ${COLORS.primaryHover};
 
 	@media (max-width: 1024px) {
 		width: 50px;
@@ -627,9 +628,9 @@ export const TeamMemberPropertyChip = styled.span<{ $muted?: boolean }>`
 	max-width: 100%;
 	padding: 4px 8px;
 	border-radius: 999px;
-	background: ${({ $muted }) => ($muted ? '#f8fafc' : '#ecfdf3')};
-	border: 1px solid ${({ $muted }) => ($muted ? '#e2e8f0' : '#bbf7d0')};
-	color: ${({ $muted }) => ($muted ? '#64748b' : '#047857')};
+	background: ${({ $muted }) => ($muted ? COLORS.gray50 : COLORS.primaryLight)};
+	border: 1px solid ${({ $muted }) => ($muted ? COLORS.gray200 : COLORS.primaryHover)};
+	color: ${({ $muted }) => ($muted ? COLORS.textSecondary : COLORS.primary)};
 	font-size: 11px;
 	font-weight: 700;
 	line-height: 1.2;
@@ -668,7 +669,7 @@ export const TeamMemberInviteCopyButton = styled.button`
 	gap: 6px;
 	border: 1px solid transparent;
 	background: transparent;
-	color: #0f766e;
+	color: ${COLORS.primary};
 	font-size: 11px;
 	font-weight: 800;
 	cursor: pointer;
@@ -695,18 +696,18 @@ export const AccessPill = styled.div<{
 	background: ${({ $status }) => {
 		if ($status === 'revoked') return '#fef2f2';
 		if ($status === 'pending') return '#fffbeb';
-		return '#ecfdf5';
+		return COLORS.primaryLight;
 	}};
 	border: 1px solid
 		${({ $status }) => {
 			if ($status === 'revoked') return '#fecaca';
 			if ($status === 'pending') return '#fde68a';
-			return '#bbf7d0';
+			return COLORS.primaryHover;
 		}};
 	color: ${({ $status }) => {
 		if ($status === 'revoked') return '#b91c1c';
 		if ($status === 'pending') return '#92400e';
-		return '#047857';
+		return COLORS.primary;
 	}};
 	font-size: 11px;
 	font-weight: 800;
@@ -750,9 +751,9 @@ export const AccessStatusBadge = styled.div<{ $status: 'active' | 'revoked' }>`
 	border-radius: 6px;
 	font-size: 13px;
 	font-weight: 700;
-	color: ${({ $status }) => ($status === 'active' ? '#047857' : '#b91c1c')};
+	color: ${({ $status }) => ($status === 'active' ? COLORS.primary : '#b91c1c')};
 	background-color: ${({ $status }) =>
-		$status === 'active' ? '#d1fae5' : '#fee2e2'};
+		$status === 'active' ? COLORS.successLight : '#fee2e2'};
 `;
 
 export const AccessStatusMeta = styled.div`
@@ -772,13 +773,13 @@ export const AccessActionButton = styled.button<{
 	$variant?: 'primary' | 'danger' | 'ghost';
 }>`
 	border: ${({ $variant }) =>
-		$variant === 'ghost' ? '1px solid #ccfbf1' : 'none'};
+		$variant === 'ghost' ? `1px solid ${COLORS.primaryLight}` : 'none'};
 	background: ${({ $variant }) => {
 		if ($variant === 'danger') return '#dc3545';
-		if ($variant === 'ghost') return '#f0fdfa';
+		if ($variant === 'ghost') return COLORS.primaryLight;
 		return '#007bff';
 	}};
-	color: ${({ $variant }) => ($variant === 'ghost' ? '#0f766e' : 'white')};
+	color: ${({ $variant }) => ($variant === 'ghost' ? COLORS.primary : COLORS.white)};
 	padding: 8px 12px;
 	border-radius: 6px;
 	font-size: 12px;
@@ -789,7 +790,7 @@ export const AccessActionButton = styled.button<{
 	&:hover {
 		background: ${({ $variant }) => {
 			if ($variant === 'danger') return '#b91c1c';
-			if ($variant === 'ghost') return '#ccfbf1';
+			if ($variant === 'ghost') return COLORS.successLight;
 			return '#0056b3';
 		}};
 	}
@@ -807,16 +808,16 @@ export const AddTeamMemberCard = styled.div`
 	gap: 12px;
 	min-height: 154px;
 	padding: 18px;
-	background: rgba(240, 253, 244, 0.74);
-	border: 1.5px dashed #86efac;
+	background: ${COLORS.primaryLight};
+	border: 1.5px dashed ${COLORS.primaryHover};
 	border-radius: 18px;
 	cursor: pointer;
 	transition: all 0.2s ease;
 
 	&:hover {
-		background-color: #ecfdf5;
-		border-color: #22c55e;
-		color: #22c55e;
+		background-color: ${COLORS.successLight};
+		border-color: ${COLORS.primary};
+		color: ${COLORS.primary};
 		transform: translateY(-1px);
 	}
 
@@ -834,16 +835,16 @@ export const AddIcon = styled.div`
 	width: 44px;
 	height: 44px;
 	border-radius: 999px;
-	background: #ffffff;
-	color: #047857;
+	background: ${COLORS.bgWhite};
+	color: ${COLORS.primary};
 	font-size: 18px;
-	box-shadow: 0 10px 22px rgba(16, 185, 129, 0.16);
+	box-shadow: 0 10px 22px rgba(4, 120, 87, 0.16);
 `;
 
 export const AddText = styled.p`
 	font-size: 13px;
 	font-weight: 850;
-	color: #047857;
+	color: ${COLORS.primary};
 	margin: 0;
 	text-align: center;
 `;
@@ -936,10 +937,10 @@ export const TeamGroupManagementAddButton = styled.button`
 	line-height: 1;
 	min-height: 38px;
 	padding: 0 12px;
-	border: 1px solid rgba(16, 185, 129, 0.32);
+	border: 1px solid rgba(4, 120, 87, 0.32);
 	border-radius: 999px;
-	background: #ecfdf5;
-	color: #047857;
+	background: ${COLORS.primaryLight};
+	color: ${COLORS.primary};
 	font-size: 12px;
 	font-weight: 850;
 	cursor: pointer;
@@ -956,7 +957,7 @@ export const TeamGroupManagementAddButton = styled.button`
 	}
 
 	&:hover {
-		background: #d1fae5;
+		background: ${COLORS.successLight};
 		border-color: #86efac;
 		transform: translateY(-1px);
 	}
@@ -985,7 +986,7 @@ export const TeamGroupManagementRow = styled.div`
 	padding: 14px;
 	border: 1px solid #e2e8f0;
 	border-radius: 16px;
-	background: #ffffff;
+	background: ${COLORS.bgWhite};
 	box-shadow: 0 10px 24px rgba(15, 23, 42, 0.04);
 
 	@media (max-width: 640px) {
@@ -1016,8 +1017,8 @@ export const TeamGroupManagementNameInput = styled.input`
 
 	&:focus {
 		outline: none;
-		border-color: #10b981;
-		box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.14);
+		border-color: ${COLORS.primaryHover};
+		box-shadow: 0 0 0 3px ${COLORS.primaryLight};
 	}
 `;
 
@@ -1064,7 +1065,7 @@ export const TeamGroupManagementButton = styled.button<{
 
 	&:hover:not(:disabled) {
 		background: ${({ $variant }) =>
-			$variant === 'danger' ? '#fee2e2' : '#ecfdf5'};
+			$variant === 'danger' ? '#fee2e2' : COLORS.primaryLight};
 	}
 
 	@media (max-width: 640px) {
@@ -1157,7 +1158,7 @@ export const DialogSection = styled.section`
 	padding: 16px;
 	border: 1px solid #e2e8f0;
 	border-radius: 18px;
-	background: #ffffff;
+	background: ${COLORS.bgWhite};
 	box-shadow: 0 10px 26px rgba(15, 23, 42, 0.04);
 
 	@media (max-width: 640px) {
@@ -1172,11 +1173,11 @@ export const CollapsibleDialogSection = styled.details`
 	padding: 16px;
 	border: 1px solid #e2e8f0;
 	border-radius: 18px;
-	background: #ffffff;
+	background: ${COLORS.bgWhite};
 	box-shadow: 0 10px 26px rgba(15, 23, 42, 0.04);
 
 	&[open] {
-		border-color: rgba(16, 185, 129, 0.28);
+		border-color: rgba(4, 120, 87, 0.28);
 	}
 
 	@media (max-width: 640px) {
@@ -1241,8 +1242,8 @@ export const DialogSectionChevron = styled.span`
 	width: 30px;
 	height: 30px;
 	border-radius: 999px;
-	background: #ecfdf5;
-	color: #047857;
+	background: ${COLORS.primaryLight};
+	color: ${COLORS.primary};
 	font-size: 12px;
 	line-height: 1;
 	transition:
@@ -1256,7 +1257,7 @@ export const DialogSectionChevron = styled.span`
 	}
 
 	details[open] & {
-		background: #d1fae5;
+		background: ${COLORS.successLight};
 	}
 `;
 
@@ -1357,8 +1358,8 @@ export const ImageUploadInput = styled.input`
 `;
 
 export const ImageUploadButton = styled.label`
-	background-color: #10b981;
-	color: white;
+	background-color: ${COLORS.primaryHover};
+	color: ${COLORS.white};
 	border: none;
 	padding: 10px 16px;
 	border-radius: 6px;
@@ -1368,7 +1369,7 @@ export const ImageUploadButton = styled.label`
 	transition: background-color 0.2s ease;
 
 	&:hover {
-		background-color: #059669;
+		background-color: ${COLORS.primary};
 	}
 `;
 
@@ -1503,7 +1504,7 @@ export const FileUploadInput = styled.input`
 
 export const FileUploadButton = styled.label`
 	background-color: #6b7280;
-	color: white;
+	color: ${COLORS.white};
 	border: none;
 	padding: 10px 16px;
 	border-radius: 6px;
@@ -1646,11 +1647,11 @@ export const CancelButton = styled(DialogButton)`
 `;
 
 export const SaveButton = styled(DialogButton)`
-	background-color: #22c55e;
-	color: white;
+	background-color: ${COLORS.primary};
+	color: ${COLORS.white};
 
 	&:hover:not(:disabled) {
-		background-color: #16a34a;
+		background-color: ${COLORS.primaryHover};
 	}
 
 	@media (max-width: 640px) {
@@ -1665,7 +1666,7 @@ export const EmptyState = styled.div`
 	justify-content: center;
 	gap: 12px;
 	padding: 40px 20px;
-	background-color: white;
+	background-color: ${COLORS.white};
 	border-radius: 8px;
 	border: 1px solid #e5e7eb;
 	color: #6b7280;

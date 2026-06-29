@@ -25,6 +25,7 @@ import {
 	LEGAL_AGREEMENT_VERSION,
 	createLegalAgreementDocuments,
 } from '../../../constants/legal';
+import { COLORS } from '../../../constants/colors';
 
 interface NotificationPanelProps {
 	userId?: string;
@@ -317,7 +318,7 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = ({
 			case 'property_added':
 				return '#4caf50';
 			case 'task_completed':
-				return '#16a34a';
+				return COLORS.primary;
 			case 'task_assigned':
 				return '#ff9800';
 			case 'task_due_today':

@@ -35,6 +35,8 @@ import {
 	getSuggestedMaintenancePackageLimit,
 } from '../../utils/subscriptionUtils';
 import { normalizeAssetType } from '../../utils/systemTypes';
+import { COLORS } from '../../constants/colors';
+import { LoadingState } from '../LoadingState';
 
 interface PropertySetupAssistantProps {
 	property: Property;
@@ -62,6 +64,15 @@ type SuggestedTaskCreateResult = {
 	taskIds: string[];
 	createdTaskIds: string[];
 };
+
+const PROPERTY_SETUP_LOADING_STEPS = [
+	'Creating your property...',
+	'Setting up your maintenance schedule...',
+	'Organizing your home information...',
+	'Reviewing your property...',
+	'Building maintenance insights...',
+	'Almost ready...',
+];
 
 const stripUndefinedValues = (value: any): any => {
 	if (Array.isArray(value)) {
@@ -1125,77 +1136,63 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 							</ConfirmActions>
 						</ConfirmPanel>
 					)}
-					{(isSavingAssistant || isSaveComplete) && (
+					{isSavingAssistant && (
+						<LoadingState
+							loadingKey='property-setup-assistant'
+							title='Finishing setup'
+							message='Organizing your property setup.'
+							steps={PROPERTY_SETUP_LOADING_STEPS}
+						/>
+					)}
+					{isSaveComplete && (
 						<SavingOverlay role='status' aria-live='polite'>
 							<SavingCard>
-								{isSaveComplete ? (
-									<>
-										<SavingCompleteIcon aria-hidden='true'>OK</SavingCompleteIcon>
-										<SavingTitle>Quick setup review</SavingTitle>
-										<ReviewText>
-											Here is what was saved for {property.title || 'this property'}.
-										</ReviewText>
-										<ReviewStats>
-											<ReviewStat>
-												<strong>{completionSummary?.applianceCount || 0}</strong>
-												<span>appliance/system records</span>
-											</ReviewStat>
-											<ReviewStat>
-												<strong>{completionSummary?.taskCount || 0}</strong>
-												<span>suggested tasks linked</span>
-											</ReviewStat>
-										</ReviewStats>
-										<ReviewMeta>
-											{completionSummary?.createdApplianceCount || 0} new appliance
-											{(completionSummary?.createdApplianceCount || 0) === 1 ? '' : 's'} and{' '}
-											{completionSummary?.createdTaskCount || 0} new task
-											{(completionSummary?.createdTaskCount || 0) === 1 ? '' : 's'} created.
-										</ReviewMeta>
-										{completionSummary?.applianceLabels?.length ? (
-											<ReviewList>
-												{completionSummary.applianceLabels.slice(0, 5).map((label) => (
-													<li key={label}>{label}</li>
-												))}
-												{completionSummary.applianceLabels.length > 5 && (
-													<li>
-														+{completionSummary.applianceLabels.length - 5} more
-													</li>
-												)}
-											</ReviewList>
-										) : null}
-										<ReviewActions>
-											<SavingOkButton type='button' onClick={handleAddMoreAppliances}>
-												Add more appliances
-											</SavingOkButton>
-											<ReviewSecondaryButton
-												type='button'
-												onClick={handleUploadDocuments}>
-												Upload manuals or warranties
-											</ReviewSecondaryButton>
-											<ReviewLinkButton type='button' onClick={handleSaveCompleteOk}>
-												Done
-											</ReviewLinkButton>
-										</ReviewActions>
-									</>
-								) : (
-									<>
-										<SavingHome aria-hidden='true'>
-											<SavingRoof />
-											<SavingHomeBody>
-												<SavingBlock $delay='0s' $slot='one' />
-												<SavingBlock $delay='0.14s' $slot='two' />
-												<SavingBlock $delay='0.28s' $slot='three' />
-												<SavingBlock $delay='0.42s' $slot='four' />
-											</SavingHomeBody>
-										</SavingHome>
-										<SavingTitle>Building your home schedule</SavingTitle>
-										<SavingList>
-											<li>Creating selected appliances</li>
-											<li>Adding maintenance tasks</li>
-											<li>Setting up starter dates</li>
-										</SavingList>
-									</>
-								)}
+								<SavingCompleteIcon aria-hidden='true'>OK</SavingCompleteIcon>
+								<SavingTitle>Quick setup review</SavingTitle>
+								<ReviewText>
+									Here is what was saved for {property.title || 'this property'}.
+								</ReviewText>
+								<ReviewStats>
+									<ReviewStat>
+										<strong>{completionSummary?.applianceCount || 0}</strong>
+										<span>appliance/system records</span>
+									</ReviewStat>
+									<ReviewStat>
+										<strong>{completionSummary?.taskCount || 0}</strong>
+										<span>suggested tasks linked</span>
+									</ReviewStat>
+								</ReviewStats>
+								<ReviewMeta>
+									{completionSummary?.createdApplianceCount || 0} new appliance
+									{(completionSummary?.createdApplianceCount || 0) === 1 ? '' : 's'} and{' '}
+									{completionSummary?.createdTaskCount || 0} new task
+									{(completionSummary?.createdTaskCount || 0) === 1 ? '' : 's'} created.
+								</ReviewMeta>
+								{completionSummary?.applianceLabels?.length ? (
+									<ReviewList>
+										{completionSummary.applianceLabels.slice(0, 5).map((label) => (
+											<li key={label}>{label}</li>
+										))}
+										{completionSummary.applianceLabels.length > 5 && (
+											<li>
+												+{completionSummary.applianceLabels.length - 5} more
+											</li>
+										)}
+									</ReviewList>
+								) : null}
+								<ReviewActions>
+									<SavingOkButton type='button' onClick={handleAddMoreAppliances}>
+										Add more appliances
+									</SavingOkButton>
+									<ReviewSecondaryButton
+										type='button'
+										onClick={handleUploadDocuments}>
+										Upload manuals or warranties
+									</ReviewSecondaryButton>
+									<ReviewLinkButton type='button' onClick={handleSaveCompleteOk}>
+										Done
+									</ReviewLinkButton>
+								</ReviewActions>
 							</SavingCard>
 						</SavingOverlay>
 					)}
@@ -1212,9 +1209,9 @@ const AssistantCard = styled.section<{ $complete?: boolean; $compact?: boolean }
 	align-items: center;
 	margin-bottom: 16px;
 	padding: ${({ $compact }) => ($compact ? '12px 14px' : '16px')};
-	border: 1px solid ${({ $complete }) => ($complete ? '#bbf7d0' : '#dbeafe')};
+	border: 1px solid ${({ $complete }) => ($complete ? COLORS.successLight : COLORS.infoLight)};
 	border-radius: 12px;
-	background: ${({ $complete }) => ($complete ? '#f0fdf4' : '#eff6ff')};
+	background: ${({ $complete }) => ($complete ? COLORS.successLight : COLORS.infoLight)};
 
 	@media (max-width: 640px) {
 		grid-template-columns: 1fr;
@@ -1235,7 +1232,7 @@ const CompleteSummaryButton = styled.button`
 	width: 100%;
 	border: none;
 	background: transparent;
-	color: #047857;
+	color: ${COLORS.primary};
 	font-size: 13px;
 	font-weight: 900;
 	text-align: left;
@@ -1252,8 +1249,8 @@ const CompleteSummaryIcon = styled.span`
 	width: 26px;
 	height: 26px;
 	border-radius: 999px;
-	background: #dcfce7;
-	color: #166534;
+	background: ${COLORS.successLight};
+	color: ${COLORS.successDark};
 	font-size: 18px;
 	line-height: 1;
 	flex: 0 0 auto;
@@ -1266,7 +1263,7 @@ const ExpandedCompleteSummary = styled.div`
 const AssistantEyebrow = styled.div`
 	font-size: 12px;
 	font-weight: 800;
-	color: #047857;
+	color: ${COLORS.primary};
 	text-transform: uppercase;
 	letter-spacing: 0.04em;
 `;
@@ -1275,7 +1272,7 @@ const AssistantTitle = styled.h2`
 	margin: 4px 0;
 	font-size: 18px;
 	line-height: 1.25;
-	color: #0f172a;
+	color: ${COLORS.textPrimary};
 
 	@media (max-width: 640px) {
 		font-size: 16px;
@@ -1286,14 +1283,14 @@ const AssistantText = styled.p`
 	margin: 0;
 	font-size: 13px;
 	line-height: 1.45;
-	color: #475569;
+	color: ${COLORS.gray600};
 `;
 
 const ProgressText = styled.div`
 	margin-top: 10px;
 	font-size: 12px;
 	font-weight: 700;
-	color: #334155;
+	color: ${COLORS.gray700};
 `;
 
 const ProgressTrack = styled.div`
@@ -1307,14 +1304,14 @@ const ProgressTrack = styled.div`
 const ProgressFill = styled.div`
 	height: 100%;
 	border-radius: inherit;
-	background: #16a34a;
+	background: ${COLORS.primary};
 `;
 
 const AssistantButton = styled.button`
 	border: none;
 	border-radius: 10px;
-	background: #16a34a;
-	color: #ffffff;
+	background: ${COLORS.primary};
+	color: ${COLORS.white};
 	font-size: 14px;
 	font-weight: 800;
 	padding: 11px 16px;
@@ -1322,7 +1319,7 @@ const AssistantButton = styled.button`
 	white-space: nowrap;
 
 	&:hover {
-		background: #15803d;
+		background: ${COLORS.primaryHover};
 	}
 
 	&:disabled {
@@ -1360,7 +1357,7 @@ const ModalPanel = styled.div`
 	display: flex;
 	flex-direction: column;
 	border-radius: 14px;
-	background: #ffffff;
+	background: ${COLORS.white};
 	box-shadow: 0 24px 80px rgba(15, 23, 42, 0.28);
 	overflow: hidden;
 
@@ -1388,7 +1385,7 @@ const ModalHeader = styled.div`
 	align-items: flex-start;
 	gap: 12px;
 	padding: 18px;
-	border-bottom: 1px solid #e2e8f0;
+	border-bottom: 1px solid ${COLORS.border};
 	flex-shrink: 0;
 
 	@media (max-width: 640px) {
@@ -1399,14 +1396,14 @@ const ModalHeader = styled.div`
 const ModalTitle = styled.h2`
 	margin: 0;
 	font-size: 20px;
-	color: #0f172a;
+	color: ${COLORS.textPrimary};
 `;
 
 const ModalHint = styled.p`
 	margin: 4px 0 0;
 	font-size: 13px;
 	line-height: 1.45;
-	color: #64748b;
+	color: ${COLORS.textSecondary};
 `;
 
 const CloseButton = styled.button`
@@ -1415,8 +1412,8 @@ const CloseButton = styled.button`
 	height: 36px;
 	border: none;
 	border-radius: 999px;
-	background: #f1f5f9;
-	color: #334155;
+	background: ${COLORS.borderLight};
+	color: ${COLORS.gray700};
 	font-size: 24px;
 	line-height: 1;
 	cursor: pointer;
@@ -1433,7 +1430,7 @@ const ModalBody = styled.div`
 	flex: 1;
 	min-height: 0;
 	overflow: hidden;
-	background: #f8fafc;
+	background: ${COLORS.bgLight};
 
 	@media (max-width: 760px) {
 		overflow: hidden;
@@ -1459,15 +1456,15 @@ const WizardProgressHeader = styled.div`
 	flex-direction: column;
 	gap: 10px;
 	padding: 14px;
-	border: 1px solid #e2e8f0;
+	border: 1px solid ${COLORS.border};
 	border-radius: 12px;
-	background: #ffffff;
+	background: ${COLORS.white};
 `;
 
 const WizardProgressText = styled.div`
 	font-size: 12px;
 	font-weight: 800;
-	color: #475569;
+	color: ${COLORS.gray600};
 	text-transform: uppercase;
 	letter-spacing: 0.04em;
 `;
@@ -1475,14 +1472,14 @@ const WizardProgressText = styled.div`
 const WizardProgressTrack = styled.div`
 	height: 8px;
 	border-radius: 999px;
-	background: #e2e8f0;
+	background: ${COLORS.border};
 	overflow: hidden;
 `;
 
 const WizardProgressFill = styled.div`
 	height: 100%;
 	border-radius: inherit;
-	background: #16a34a;
+	background: ${COLORS.primary};
 	transition: width 0.2s ease;
 `;
 
@@ -1501,11 +1498,11 @@ const WizardStepDotButton = styled.button<{
 	border-radius: 999px;
 	border: 1px solid
 		${({ $active, $complete }) =>
-		$active || $complete ? '#16a34a' : '#cbd5e1'};
+		$active || $complete ? COLORS.primary : COLORS.gray300};
 	background: ${({ $active, $complete }) =>
-		$active ? '#16a34a' : $complete ? '#dcfce7' : '#ffffff'};
+		$active ? COLORS.primary : $complete ? COLORS.successLight : COLORS.white};
 	color: ${({ $active, $complete }) =>
-		$active ? '#ffffff' : $complete ? '#166534' : '#475569'};
+		$active ? COLORS.white : $complete ? COLORS.successDark : COLORS.gray600};
 	font-size: 12px;
 	font-weight: 900;
 	cursor: pointer;
@@ -1525,20 +1522,20 @@ const AreaHeader = styled.div`
 const AreaTitle = styled.h3`
 	margin: 0;
 	font-size: 18px;
-	color: #0f172a;
+	color: ${COLORS.textPrimary};
 `;
 
 const AreaHint = styled.p`
 	margin: 4px 0 0;
 	font-size: 13px;
-	color: #64748b;
+	color: ${COLORS.textSecondary};
 `;
 
 const AreaReviewedPill = styled.div`
 	flex: 0 0 auto;
 	border-radius: 999px;
-	background: #ecfdf5;
-	color: #047857;
+	background: ${COLORS.successLight};
+	color: ${COLORS.primary};
 	font-size: 12px;
 	font-weight: 800;
 	padding: 7px 10px;
@@ -1555,9 +1552,9 @@ const ItemCard = styled.div`
 	flex-direction: column;
 	gap: 10px;
 	padding: 12px;
-	border: 1px solid #e2e8f0;
+	border: 1px solid ${COLORS.border};
 	border-radius: 12px;
-	background: #ffffff;
+	background: ${COLORS.white};
 
 	@media (max-width: 640px) {
 		gap: 10px;
@@ -1583,14 +1580,14 @@ const ItemInfo = styled.div`
 const ItemTitle = styled.div`
 	font-size: 14px;
 	font-weight: 800;
-	color: #0f172a;
+	color: ${COLORS.textPrimary};
 `;
 
 const ItemMeta = styled.div`
 	margin-top: 3px;
 	font-size: 12px;
 	font-weight: 700;
-	color: #64748b;
+	color: ${COLORS.textSecondary};
 `;
 
 const StateButtonGrid = styled.div`
@@ -1608,10 +1605,10 @@ const StateButtonGrid = styled.div`
 `;
 
 const StateButton = styled.button<{ $active?: boolean }>`
-	border: 1px solid ${({ $active }) => ($active ? '#16a34a' : '#cbd5e1')};
+	border: 1px solid ${({ $active }) => ($active ? COLORS.primary : COLORS.gray300)};
 	border-radius: 9px;
-	background: ${({ $active }) => ($active ? '#dcfce7' : '#ffffff')};
-	color: ${({ $active }) => ($active ? '#166534' : '#334155')};
+	background: ${({ $active }) => ($active ? COLORS.successLight : COLORS.white)};
+	color: ${({ $active }) => ($active ? COLORS.successDark : COLORS.gray700)};
 	font-size: 12px;
 	font-weight: 800;
 	padding: 9px 10px;
@@ -1626,8 +1623,8 @@ const StateButton = styled.button<{ $active?: boolean }>`
 
 const TaskPreview = styled.div`
 	border-radius: 10px;
-	border: 1px solid #dbeafe;
-	background: #eff6ff;
+	border: 1px solid ${COLORS.infoLight};
+	background: ${COLORS.infoLight};
 	padding: 10px;
 `;
 
@@ -1635,16 +1632,16 @@ const TaskPreviewTitle = styled.div`
 	margin-bottom: 8px;
 	font-size: 12px;
 	font-weight: 900;
-	color: #1e3a8a;
+	color: ${COLORS.infoDark};
 `;
 
 const TaskPreviewNotice = styled.div`
 	margin-bottom: 8px;
 	padding: 8px 10px;
 	border-radius: 8px;
-	background: #fffbeb;
-	border: 1px solid #fde68a;
-	color: #92400e;
+	background: ${COLORS.warningLight};
+	border: 1px solid ${COLORS.warningLight};
+	color: ${COLORS.warningDark};
 	font-size: 12px;
 	font-weight: 700;
 	line-height: 1.4;
@@ -1663,7 +1660,7 @@ const TaskPreviewItem = styled.div`
 	gap: 10px;
 	font-size: 12px;
 	font-weight: 700;
-	color: #1e293b;
+	color: ${COLORS.textPrimary};
 
 	@media (max-width: 420px) {
 		flex-direction: column;
@@ -1684,47 +1681,47 @@ const TaskPreviewMeta = styled.div`
 
 const TaskInterval = styled.span`
 	flex: 0 0 auto;
-	color: #2563eb;
+	color: ${COLORS.secondaryHover};
 `;
 
 const RemoveTaskButton = styled.button`
 	width: 24px;
 	height: 24px;
-	border: 1px solid #bfdbfe;
+	border: 1px solid ${COLORS.infoLight};
 	border-radius: 999px;
-	background: #ffffff;
-	color: #475569;
+	background: ${COLORS.white};
+	color: ${COLORS.gray600};
 	font-size: 14px;
 	font-weight: 900;
 	line-height: 1;
 	cursor: pointer;
 
 	&:hover {
-		border-color: #ef4444;
-		color: #b91c1c;
+		border-color: ${COLORS.error};
+		color: ${COLORS.errorDark};
 	}
 `;
 
 const RecreateTaskButton = styled.button`
-	border: 1px solid #bfdbfe;
+	border: 1px solid ${COLORS.infoLight};
 	border-radius: 999px;
-	background: #ffffff;
-	color: #1d4ed8;
+	background: ${COLORS.white};
+	color: ${COLORS.secondaryDark};
 	font-size: 12px;
 	font-weight: 900;
 	padding: 5px 9px;
 	cursor: pointer;
 
 	&:hover {
-		border-color: #2563eb;
-		background: #dbeafe;
+		border-color: ${COLORS.secondaryHover};
+		background: ${COLORS.infoLight};
 	}
 `;
 
 const TaskStatusText = styled.span`
 	border-radius: 999px;
-	background: #ffffff;
-	color: #64748b;
+	background: ${COLORS.white};
+	color: ${COLORS.textSecondary};
 	font-size: 11px;
 	font-weight: 900;
 	padding: 5px 8px;
@@ -1733,7 +1730,7 @@ const TaskStatusText = styled.span`
 const EmptyTaskPreview = styled.div`
 	font-size: 12px;
 	font-weight: 700;
-	color: #64748b;
+	color: ${COLORS.textSecondary};
 `;
 
 const WizardNavigation = styled.div`
@@ -1743,7 +1740,7 @@ const WizardNavigation = styled.div`
 	gap: 10px;
 	padding-top: 14px;
 	margin-top: 4px;
-	border-top: 1px solid #e2e8f0;
+	border-top: 1px solid ${COLORS.border};
 
 	@media (max-width: 640px) {
 		display: grid;
@@ -1774,7 +1771,7 @@ const FooterProgress = styled.div`
 	margin-right: auto;
 	font-size: 12px;
 	font-weight: 800;
-	color: #64748b;
+	color: ${COLORS.textSecondary};
 
 	@media (max-width: 420px) {
 		grid-column: 1 / -1;
@@ -1784,7 +1781,7 @@ const FooterProgress = styled.div`
 const SecondaryAction = styled.button`
 	border: none;
 	background: transparent;
-	color: #475569;
+	color: ${COLORS.gray600};
 	font-size: 14px;
 	font-weight: 800;
 	padding: 11px 14px;
@@ -1808,7 +1805,7 @@ const ConfirmPanel = styled.div`
 	width: min(420px, calc(100vw - 32px));
 	transform: translate(-50%, -50%);
 	border-radius: 14px;
-	background: #ffffff;
+	background: ${COLORS.white};
 	box-shadow: 0 24px 80px rgba(15, 23, 42, 0.36);
 	padding: 18px;
 `;
@@ -1816,14 +1813,14 @@ const ConfirmPanel = styled.div`
 const ConfirmTitle = styled.h3`
 	margin: 0;
 	font-size: 18px;
-	color: #0f172a;
+	color: ${COLORS.textPrimary};
 `;
 
 const ConfirmText = styled.p`
 	margin: 8px 0 0;
 	font-size: 13px;
 	line-height: 1.5;
-	color: #475569;
+	color: ${COLORS.gray600};
 `;
 
 const ConfirmActions = styled.div`
@@ -1852,127 +1849,17 @@ const SavingOverlay = styled.div`
 const SavingCard = styled.div`
 	width: min(420px, 100%);
 	border-radius: 18px;
-	background: #ffffff;
+	background: ${COLORS.white};
 	box-shadow: 0 24px 80px rgba(15, 23, 42, 0.34);
 	padding: 28px;
-`;
-
-const SavingHome = styled.div`
-	position: relative;
-	width: 72px;
-	height: 62px;
-	margin: 0 auto 18px;
-`;
-
-const SavingRoof = styled.div`
-	position: absolute;
-	left: 12px;
-	top: 1px;
-	width: 48px;
-	height: 48px;
-	background: #16a34a;
-	transform: rotate(45deg);
-	border-radius: 6px 6px 2px 6px;
-	animation: property-setup-build-roof 1.8s ease-in-out infinite;
-
-	@keyframes property-setup-build-roof {
-		0%,
-		34% {
-			opacity: 0;
-			transform: translateY(-16px) rotate(45deg) scale(0.88);
-		}
-
-		58%,
-		86% {
-			opacity: 1;
-			transform: translateY(0) rotate(45deg) scale(1);
-		}
-
-		100% {
-			opacity: 0.55;
-			transform: translateY(0) rotate(45deg) scale(1);
-		}
-	}
-`;
-
-const SavingHomeBody = styled.div`
-	position: absolute;
-	left: 10px;
-	bottom: 0;
-	width: 52px;
-	height: 38px;
-	border-radius: 8px;
-	background: #f0fdf4;
-	border: 1px solid #bbf7d0;
-	overflow: hidden;
-`;
-
-const SavingBlock = styled.div<{ $delay: string; $slot: 'one' | 'two' | 'three' | 'four' }>`
-	position: absolute;
-	width: 19px;
-	height: 13px;
-	border-radius: 4px;
-	background: #16a34a;
-	left: ${({ $slot }) =>
-		$slot === 'one' || $slot === 'three' ? '6px' : '27px'};
-	top: ${({ $slot }) =>
-		$slot === 'one' || $slot === 'two' ? '6px' : '21px'};
-	animation: property-setup-build-block 1.8s ease-in-out infinite;
-	animation-delay: ${({ $delay }) => $delay};
-	transform-origin: center;
-
-	@keyframes property-setup-build-block {
-		0% {
-			opacity: 0;
-			transform: translateY(24px) scale(0.88);
-		}
-
-		28%,
-		78% {
-			opacity: 1;
-			transform: translateY(0) scale(1);
-		}
-
-		100% {
-			opacity: 0.45;
-			transform: translateY(0) scale(1);
-		}
-	}
 `;
 
 const SavingTitle = styled.div`
 	font-size: 20px;
 	font-weight: 900;
 	line-height: 1.3;
-	color: #0f172a;
+	color: ${COLORS.textPrimary};
 	text-align: center;
-`;
-
-const SavingList = styled.ul`
-	display: grid;
-	gap: 8px;
-	margin: 16px 0 0;
-	padding: 0;
-	list-style: none;
-	font-size: 14px;
-	line-height: 1.4;
-	color: #475569;
-
-	li {
-		position: relative;
-		padding-left: 18px;
-	}
-
-	li::before {
-		content: '';
-		position: absolute;
-		left: 0;
-		top: 0.55em;
-		width: 7px;
-		height: 7px;
-		border-radius: 999px;
-		background: #16a34a;
-	}
 `;
 
 const SavingCompleteIcon = styled.div`
@@ -1983,8 +1870,8 @@ const SavingCompleteIcon = styled.div`
 	height: 54px;
 	margin: 0 auto 18px;
 	border-radius: 999px;
-	background: #dcfce7;
-	color: #15803d;
+	background: ${COLORS.successLight};
+	color: ${COLORS.primaryDark};
 	font-size: 28px;
 	font-weight: 900;
 `;
@@ -1994,21 +1881,21 @@ const SavingOkButton = styled.button`
 	margin-top: 18px;
 	border: none;
 	border-radius: 10px;
-	background: #16a34a;
-	color: #ffffff;
+	background: ${COLORS.primary};
+	color: ${COLORS.white};
 	font-size: 15px;
 	font-weight: 900;
 	padding: 12px 16px;
 	cursor: pointer;
 
 	&:hover {
-		background: #15803d;
+		background: ${COLORS.primaryHover};
 	}
 `;
 
 const ReviewText = styled.p`
 	margin: 8px 0 0;
-	color: #475569;
+	color: ${COLORS.gray600};
 	font-size: 14px;
 	line-height: 1.5;
 	text-align: center;
@@ -2027,14 +1914,14 @@ const ReviewStats = styled.div`
 
 const ReviewStat = styled.div`
 	padding: 12px;
-	border: 1px solid #dcfce7;
+	border: 1px solid ${COLORS.successLight};
 	border-radius: 12px;
-	background: #f0fdf4;
+	background: ${COLORS.successLight};
 	text-align: center;
 
 	strong {
 		display: block;
-		color: #0f172a;
+		color: ${COLORS.textPrimary};
 		font-size: 22px;
 		line-height: 1;
 	}
@@ -2042,7 +1929,7 @@ const ReviewStat = styled.div`
 	span {
 		display: block;
 		margin-top: 6px;
-		color: #475569;
+		color: ${COLORS.gray600};
 		font-size: 12px;
 		font-weight: 800;
 		line-height: 1.3;
@@ -2051,7 +1938,7 @@ const ReviewStat = styled.div`
 
 const ReviewMeta = styled.div`
 	margin-top: 12px;
-	color: #64748b;
+	color: ${COLORS.textSecondary};
 	font-size: 12px;
 	font-weight: 700;
 	line-height: 1.4;
@@ -2068,10 +1955,10 @@ const ReviewList = styled.ul`
 	list-style: none;
 
 	li {
-		border: 1px solid #e2e8f0;
+		border: 1px solid ${COLORS.border};
 		border-radius: 999px;
-		background: #f8fafc;
-		color: #334155;
+		background: ${COLORS.bgLight};
+		color: ${COLORS.gray700};
 		font-size: 12px;
 		font-weight: 800;
 		line-height: 1.2;
@@ -2091,19 +1978,19 @@ const ReviewActions = styled.div`
 
 const ReviewSecondaryButton = styled(SavingOkButton)`
 	margin-top: 0;
-	border: 1px solid #bbf7d0;
-	background: #ecfdf5;
-	color: #047857;
+	border: 1px solid ${COLORS.primaryLight};
+	background: ${COLORS.successLight};
+	color: ${COLORS.primary};
 
 	&:hover {
-		background: #d1fae5;
+		background: ${COLORS.primaryLight};
 	}
 `;
 
 const ReviewLinkButton = styled.button`
 	border: none;
 	background: transparent;
-	color: #475569;
+	color: ${COLORS.gray600};
 	font-size: 14px;
 	font-weight: 800;
 	padding: 8px 12px;

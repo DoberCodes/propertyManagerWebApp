@@ -540,10 +540,23 @@ export const UserProfile: React.FC = () => {
 		setIsUploadingImage(true);
 		try {
 			const imageUrl = await uploadUserProfileImage(file, currentUser.id);
+			const updatedUser = await updateUser({
+				id: currentUser.id,
+				updates: {
+					image: imageUrl,
+				},
+			}).unwrap();
 			setFormData((prev) => ({
 				...prev,
 				image: imageUrl,
 			}));
+			dispatch(
+				setCurrentUser({
+					...currentUser,
+					...updatedUser,
+					image: imageUrl,
+				}),
+			);
 		} catch (err) {
 			setImageError('Failed to upload image. Please try again.');
 			console.error('Image upload error:', err);

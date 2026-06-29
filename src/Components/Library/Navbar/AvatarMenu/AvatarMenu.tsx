@@ -6,7 +6,8 @@ import { useNavigate } from 'react-router-dom';
 import { signOutUser } from 'services/authService';
 import { logout } from 'Redux/Slices/userSlice';
 import { apiSlice } from 'Redux/API/apiSlice';
-import { AvatarMenuWrapper, DropdownButton, DropdownItem, DropdownMenu, NotificationBadge, UserImage } from './AvatarMenu.styles';
+import { AvatarMenuWrapper, DropdownButton, DropdownItem, DropdownMenu, NotificationBadge, UserImage, UserInitials } from './AvatarMenu.styles';
+import { COLORS } from '../../../../constants/colors';
 
 interface AvatarMenuProps {
 	setIsNotificationModalOpen: (open: boolean) => void;
@@ -21,6 +22,25 @@ export const AvatarMenu: React.FC<AvatarMenuProps> = ({ setIsNotificationModalOp
 	const navigate = useNavigate();
 	const dispatch = useDispatch();
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
+	const [imageFailed, setImageFailed] = React.useState(false);
+	const profileImage = String(currentUser?.image || '').trim();
+	const hasProfileImage = Boolean(profileImage) && !imageFailed;
+	const displayName = `${currentUser?.firstName || ''} ${currentUser?.lastName || ''}`.trim() || currentUser?.email || 'User';
+	const initials =
+		[
+			currentUser?.firstName?.trim()?.[0],
+			currentUser?.lastName?.trim()?.[0],
+		]
+			.filter(Boolean)
+			.join('') ||
+		String(currentUser?.email || 'U')
+			.trim()
+			[0] ||
+		'U';
+
+	React.useEffect(() => {
+		setImageFailed(false);
+	}, [profileImage]);
 
 
 	const handleLogout = () => {
@@ -64,11 +84,15 @@ export const AvatarMenu: React.FC<AvatarMenuProps> = ({ setIsNotificationModalOp
 				setIsSidebarOpen(false);
 			}
 		}}>
-
-			<UserImage
-				src={currentUser?.image || 'https://via.placeholder.com/40'}
-				alt={`${currentUser?.firstName} ${currentUser?.lastName}`}
-			/>
+			{hasProfileImage ? (
+				<UserImage
+					src={profileImage}
+					alt={displayName}
+					onError={() => setImageFailed(true)}
+				/>
+			) : (
+				<UserInitials aria-label={displayName}>{initials}</UserInitials>
+			)}
 			{hasUnreadNotifications && unreadCount > 0 && (
 				<NotificationBadge>
 					{unreadCount > 99 ? '99+' : unreadCount}
@@ -82,10 +106,10 @@ export const AvatarMenu: React.FC<AvatarMenuProps> = ({ setIsNotificationModalOp
 								textDecoration: activeRoute === '/profile' ? 'underline' : 'none',
 								textUnderlineOffset: '4px',
 								textDecorationThickness: '2px',
-								textDecorationColor: activeRoute === '/profile' ? '#22c55e' : 'transparent',
+								textDecorationColor: activeRoute === '/profile' ? COLORS.primary : 'transparent',
 							}}
 							onMouseEnter={(e) =>
-								(e.currentTarget.style.backgroundColor = '#f3f4f6')
+								(e.currentTarget.style.backgroundColor = COLORS.bgLight)
 							}
 							onMouseLeave={(e) =>
 								(e.currentTarget.style.backgroundColor = 'transparent')
@@ -97,10 +121,10 @@ export const AvatarMenu: React.FC<AvatarMenuProps> = ({ setIsNotificationModalOp
 								textDecoration: activeRoute === '/settings' ? 'underline' : 'none',
 								textUnderlineOffset: '4px',
 								textDecorationThickness: '2px',
-								textDecorationColor: activeRoute === '/settings' ? '#22c55e' : 'transparent',
+								textDecorationColor: activeRoute === '/settings' ? COLORS.primary : 'transparent',
 							}}
 							onMouseEnter={(e) =>
-								(e.currentTarget.style.backgroundColor = '#f3f4f6')
+								(e.currentTarget.style.backgroundColor = COLORS.bgLight)
 							}
 							onMouseLeave={(e) =>
 								(e.currentTarget.style.backgroundColor = 'transparent')
@@ -115,7 +139,7 @@ export const AvatarMenu: React.FC<AvatarMenuProps> = ({ setIsNotificationModalOp
 								setIsProfileDropdownOpen(false);
 							}}
 							onMouseEnter={(e) =>
-								(e.currentTarget.style.backgroundColor = '#f3f4f6')
+								(e.currentTarget.style.backgroundColor = COLORS.bgLight)
 							}
 							onMouseLeave={(e) =>
 								(e.currentTarget.style.backgroundColor = 'transparent')
@@ -128,8 +152,8 @@ export const AvatarMenu: React.FC<AvatarMenuProps> = ({ setIsNotificationModalOp
 										height: '20px',
 										padding: '0 8px',
 										borderRadius: '999px',
-										background: '#fee2e2',
-										color: '#b91c1c',
+										background: COLORS.errorLight,
+										color: COLORS.errorDark,
 										fontSize: '12px',
 										fontWeight: 700,
 										display: 'inline-flex',

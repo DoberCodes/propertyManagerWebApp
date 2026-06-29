@@ -79,6 +79,7 @@ import { PROPERTY_IMAGE_PLACEHOLDER } from '../../utils/propertyImagePlaceholder
 import { DeleteConfirmationModal } from '../Library/Modal/DeleteConfirmationModal';
 import { RootState } from '../../Redux/store/store';
 import { TeamMember } from '../../types/Team.types';
+import { PropertyAccessSnapshot } from '../../types/Property.types';
 import { User } from '../../Redux/Slices/userSlice';
 import { getFamilyMembers } from '../../services/authService';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -106,6 +107,7 @@ export interface PropertyFormData {
 	coOwners?: string[];
 	administrators?: string[];
 	viewers?: string[];
+	accessSnapshots?: Record<string, PropertyAccessSnapshot>;
 	showOnDashboard?: boolean;
 	openSetupAfterCreate?: boolean;
 }
@@ -227,6 +229,7 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 		coOwners: [],
 		administrators: [],
 		viewers: [],
+		accessSnapshots: {},
 		showOnDashboard: true,
 		openSetupAfterCreate: true,
 	});
@@ -286,6 +289,7 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 				coOwners: initialData.coOwners || [],
 				administrators: initialData.administrators || [],
 				viewers: initialData.viewers || [],
+				accessSnapshots: initialData.accessSnapshots || {},
 				showOnDashboard: !isHiddenFromDashboard,
 				openSetupAfterCreate: false,
 			});
@@ -309,6 +313,7 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 				coOwners: [],
 				administrators: [],
 				viewers: [],
+				accessSnapshots: {},
 				showOnDashboard: true,
 				openSetupAfterCreate: true,
 			});
@@ -426,6 +431,48 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 		[availableMembers],
 	);
 
+	const getSnapshotMember = (id: string): ShareMemberOption | null => {
+		const snapshot = formData.accessSnapshots?.[id];
+		if (!snapshot) return null;
+
+		return {
+			id,
+			displayName: snapshot.name || snapshot.email || id,
+			email: snapshot.email || '',
+			meta: snapshot.source === 'team' ? 'Team member' : 'Family member',
+			source: snapshot.source || 'family',
+		};
+	};
+
+	const buildAccessSnapshots = (): Record<string, PropertyAccessSnapshot> => {
+		const selectedIds = new Set([
+			...(formData.coOwners || []),
+			...(formData.administrators || []),
+			...(formData.viewers || []),
+		]);
+		const snapshots: Record<string, PropertyAccessSnapshot> = {};
+
+		selectedIds.forEach((id) => {
+			const member = availableMemberMap.get(id);
+			if (member) {
+				snapshots[id] = {
+					id,
+					name: member.displayName,
+					email: member.email || undefined,
+					source: member.source,
+				};
+				return;
+			}
+
+			const existingSnapshot = formData.accessSnapshots?.[id];
+			if (existingSnapshot) {
+				snapshots[id] = existingSnapshot;
+			}
+		});
+
+		return snapshots;
+	};
+
 	const handleInputChange = (field: keyof PropertyFormData, value: any) => {
 		setFormData((prev) => ({ ...prev, [field]: value }));
 	};
@@ -485,6 +532,20 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 			const nextAdministrators =
 				prev.administrators?.filter((id) => id !== memberId) || [];
 			const nextViewers = prev.viewers?.filter((id) => id !== memberId) || [];
+			const member = availableMemberMap.get(memberId);
+			const nextAccessSnapshots = {
+				...(prev.accessSnapshots || {}),
+				...(member
+					? {
+							[memberId]: {
+								id: memberId,
+								name: member.displayName,
+								email: member.email || undefined,
+								source: member.source,
+							},
+					  }
+					: {}),
+			};
 
 			return {
 				...prev,
@@ -495,6 +556,7 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 						? [...nextAdministrators, memberId]
 						: nextAdministrators,
 				viewers: field === 'viewers' ? [...nextViewers, memberId] : nextViewers,
+				accessSnapshots: nextAccessSnapshots,
 			};
 		});
 
@@ -558,6 +620,7 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 		try {
 			await onSave({
 				...formData,
+				accessSnapshots: buildAccessSnapshots(),
 				propertyType: forceSingleFamily ? 'Single Family' : formData.propertyType,
 			});
 			onClose();
@@ -588,7 +651,7 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 
 	const getShareMembers = (ids: string[] = []) =>
 		ids
-			.map((id) => availableMemberMap.get(id))
+			.map((id) => availableMemberMap.get(id) || getSnapshotMember(id))
 			.filter(Boolean) as ShareMemberOption[];
 
 	const renderShareSection = (

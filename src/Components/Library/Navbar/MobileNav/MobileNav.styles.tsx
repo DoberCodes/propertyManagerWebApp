@@ -12,7 +12,7 @@ export const MobileSidebar = styled.div<{ $isOpen: boolean }>`
 	width: 100%;
 	max-width: 300px;
 	height: calc(100vh - 60px - 70px);
-	background-color: #fefefe;
+	background-color: ${COLORS.white};
 	overflow-y: auto;
 	overflow-x: hidden;
 	z-index: 1000;
@@ -24,6 +24,25 @@ export const MobileSidebar = styled.div<{ $isOpen: boolean }>`
 	@media (max-width: 1024px) {
 		display: block;
 	}
+`;
+
+export const MobileSidebarBrand = styled.div`
+	display: flex;
+	justify-content: flex-start;
+	align-items: center;
+	background: ${COLORS.primary};
+	margin-bottom: 20px;
+	padding: 8px 12px;
+	min-height: 54px;
+`;
+
+export const MobileSidebarLogo = styled.img`
+	display: block;
+	width: 128px;
+	height: auto;
+	max-height: 44px;
+	object-fit: contain;
+	object-position: left center;
 `;
 
 
@@ -39,8 +58,8 @@ export const MobileBottomNavBar = styled.nav`
 		justify-content: stretch;
 		align-items: flex-end;
 		padding-bottom: env(safe-area-inset-bottom);
-		background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
-		border-top: 1px solid #d2dbe7;
+		background: ${COLORS.white};
+		border-top: 1px solid ${COLORS.border};
 		box-shadow: 0 -8px 20px rgba(15, 23, 42, 0.1);
 		z-index: 900;
 		pointer-events: none;
@@ -51,7 +70,7 @@ export const MobileBottomNavInner = styled.div`
 	width: 100%;
 	height: 74px;
 	border-radius: 0;
-	background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+	background: ${COLORS.white};
 	border: none;
 	box-shadow: none;
 	display: grid;
@@ -68,7 +87,7 @@ export const MobileBottomNavItem = styled.button<{ $active?: boolean }>`
 	flex-direction: column;
 	align-items: center;
 	justify-content: center;
-	color: ${({ $active }) => ($active ? COLORS.primary : '#475569')};
+	color: ${({ $active }) => ($active ? COLORS.primary : COLORS.textSecondary)};
 	gap: 4px;
 	height: 100%;
 	width: 100%;
@@ -118,11 +137,11 @@ export const MobileBottomCenterButton = styled.button<{ $open?: boolean }>`
 	height: 64px;
 	width: 64px;
 	border-radius: 100%;
-	background: #10b981;
+	background: ${COLORS.gradientPrimary};
 	font-size: 32px;
-	color: #ffffff;
+	color: ${COLORS.white};
 	font-weight: 1000;
-	box-shadow: 0 14px 24px rgba(16, 185, 129, 0.4);
+	box-shadow: 0 14px 24px rgba(4, 120, 87, 0.32);
 	cursor: pointer;
 	justify-content: center;
 	align-items: center;
@@ -150,7 +169,7 @@ export const MobileBottomCenterLabel = styled.span`
 	font-weight: 800;
 	letter-spacing: 0.06em;
 	text-transform: uppercase;
-	color: #334155;
+	color: ${COLORS.textSecondary};
 `;
 
 export const MobileBottomActionMenu = styled.div<{ $open?: boolean }>`
@@ -173,8 +192,8 @@ export const MobileBottomActionBackdrop = styled.div<{ $open?: boolean }>`
 	width: min(320px, calc(100vw - 30px));
 	height: 122px;
 	border-radius: 999px 999px 18px 18px;
-	background: linear-gradient(180deg, rgba(251, 253, 255, 0.96) 0%, rgba(243, 248, 252, 0.96) 100%);
-	border: 1px solid #dbe4ee;
+	background: ${COLORS.white};
+	border: 1px solid ${COLORS.border};
 	box-shadow: 0 7px 14px rgba(15, 23, 42, 0.1);
 	backdrop-filter: blur(6px);
 	opacity: ${({ $open }) => ($open ? 1 : 0)};
@@ -200,7 +219,7 @@ export const MobileBottomActionItem = styled.button<{ $x: number; $y: number }>`
 	left: 50%;
 	top: 96%;
 	transform: translate(calc(-50% + ${({ $x }) => $x}px), calc(-100% + ${({ $y }) => $y}px));
-	color: #1e293b;
+	color: ${COLORS.textPrimary};
 	background: transparent;
 	border: none;
 	border-radius: 999px;

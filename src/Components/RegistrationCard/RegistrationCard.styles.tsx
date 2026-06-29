@@ -8,11 +8,11 @@ export const Wrapper = styled.form<{ $wide?: boolean }>`
 	padding: ${(props) => (props.$wide ? '14px 36px' : '32px 24px')};
 	border: none;
 	border-radius: 16px;
-	background: linear-gradient(180deg, #ffffff 0%, #f8fcfa 100%);
+	background: linear-gradient(180deg, ${COLORS.white} 0%, ${COLORS.canvas} 100%);
 	width: 100%;
 	max-width: ${(props) => (props.$wide ? '1200px' : '420px')};
-	box-shadow: 0 20px 42px rgba(15, 118, 110, 0.16);
-	border: 1px solid #cfe8d4;
+	box-shadow: 0 20px 42px rgba(4, 120, 87, 0.16);
+	border: 1px solid ${COLORS.border};
 	position: relative;
 	z-index: 10;
 	overflow: hidden;
@@ -24,7 +24,7 @@ export const Wrapper = styled.form<{ $wide?: boolean }>`
 		left: 0;
 		right: 0;
 		height: 8px;
-		background: linear-gradient(90deg, #16a34a 0%, #0f766e 100%);
+		background: ${COLORS.gradientPrimary};
 	}
 
 	@media (max-width: 1024px) {
@@ -44,7 +44,7 @@ export const Wrapper = styled.form<{ $wide?: boolean }>`
 		padding: ${(props) => (props.$wide ? '18px 16px 16px' : '20px 16px 16px')};
 		margin: 10px auto;
 		border-radius: 14px;
-		box-shadow: 0 10px 24px rgba(15, 118, 110, 0.14);
+		box-shadow: 0 10px 24px rgba(4, 120, 87, 0.14);
 	}
 
 	@media (max-width: 480px) {
@@ -59,14 +59,14 @@ export const BackButton = styled.button`
 	padding: 10px 0;
 	border: none;
 	background: none;
-	color: #0f766e;
+	color: ${COLORS.primary};
 	font-size: 18px;
 	width: fit-content;
 	cursor: pointer;
 	transition: color 0.2s ease;
 
 	&:hover {
-		color: #16a34a;
+		color: ${COLORS.primaryHover};
 	}
 
 	@media (max-width: 480px) {
@@ -81,7 +81,7 @@ export const Title = styled.h2`
 	margin: 0 auto 28px auto;
 	text-decoration: none;
 	text-align: center;
-	color: #0f766e;
+	color: ${COLORS.primary};
 	letter-spacing: 0.5px;
 	line-height: 1.2;
 
@@ -100,10 +100,10 @@ export const TrialNotice = styled.p`
 	margin: -10px 0 18px 0;
 	font-size: 14px;
 	font-weight: 600;
-	color: #14532d;
+	color: ${COLORS.primaryDark};
 	text-align: center;
-	background: #edf7ef;
-	border: 1px solid #d6eadb;
+	background: ${COLORS.primaryLight};
+	border: 1px solid ${COLORS.border};
 	border-radius: 999px;
 	padding: 8px 12px;
 
@@ -121,22 +121,22 @@ export const Input = styled.input`
 	padding: 12px 14px;
 	font-size: 16px;
 	margin: 10px 0;
-	border: 1.5px solid #c8dcd0;
+	border: 1.5px solid ${COLORS.border};
 	border-radius: 10px;
 	width: 100%;
 	box-sizing: border-box;
 	transition: all 0.2s ease;
-	background-color: #ffffff;
+	background-color: ${COLORS.bgWhite};
 
 	&:focus {
 		outline: none;
-		border-color: #16a34a;
-		box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.2);
+		border-color: ${COLORS.primaryHover};
+		box-shadow: 0 0 0 3px ${COLORS.successLight};
 		background-color: ${COLORS.bgWhite};
 	}
 
 	&:hover {
-		border-color: #9ec5aa;
+		border-color: ${COLORS.primaryHover};
 		background-color: ${COLORS.bgWhite};
 	}
 
@@ -159,16 +159,16 @@ export const Submit = styled.button`
 	padding: 12px 32px;
 	border-radius: 10px;
 	border: none;
-	background: linear-gradient(135deg, #16a34a 0%, #0f766e 100%);
-	color: white;
+	background: ${COLORS.gradientPrimary};
+	color: ${COLORS.white};
 	font-weight: 700;
 	cursor: pointer;
 	transition: all 0.2s ease;
-	box-shadow: 0 8px 18px rgba(22, 163, 74, 0.24);
+	box-shadow: 0 8px 18px rgba(4, 120, 87, 0.24);
 
 	&:hover {
-		background: linear-gradient(135deg, #15803d 0%, #0f766e 100%);
-		box-shadow: 0 12px 24px rgba(15, 118, 110, 0.28);
+		background: ${COLORS.gradientPrimary};
+		box-shadow: 0 12px 24px rgba(4, 120, 87, 0.28);
 		transform: translateY(-2px);
 	}
 
@@ -199,7 +199,7 @@ export const SectionLabel = styled.p`
 	margin: 16px 0 8px 0;
 	font-size: 14px;
 	font-weight: 600;
-	color: #2f4f3f;
+	color: ${COLORS.textPrimary};
 	text-align: left;
 
 	@media (max-width: 480px) {
@@ -242,8 +242,8 @@ export const InviteModePanel = styled.div<{ $active?: boolean }>`
 	padding: 14px;
 	border-radius: 12px;
 	border: 1px solid
-		${(props) => (props.$active ? '#16a34a' : '#d6eadb')};
-	background: ${(props) => (props.$active ? '#edf7ef' : '#f8fcfa')};
+		${(props) => (props.$active ? COLORS.primaryHover : COLORS.border)};
+	background: ${(props) => (props.$active ? COLORS.primaryLight : COLORS.bgLight)};
 `;
 
 export const InviteModeTitle = styled.p`
@@ -257,16 +257,16 @@ export const InviteModeDescription = styled.p`
 	margin: 0 0 10px 0;
 	font-size: 12px;
 	line-height: 1.4;
-	color: #4e6a5b;
+	color: ${COLORS.textSecondary};
 `;
 
 export const InviteModeActionButton = styled.button<{ $secondary?: boolean }>`
 	padding: 8px 12px;
 	border-radius: 8px;
 	border: 1px solid
-		${(props) => (props.$secondary ? '#b8d7c2' : '#16a34a')};
-	background: ${(props) => (props.$secondary ? '#ffffff' : '#16a34a')};
-	color: ${(props) => (props.$secondary ? '#0f766e' : COLORS.bgWhite)};
+		${(props) => (props.$secondary ? COLORS.border : COLORS.primaryHover)};
+	background: ${(props) => (props.$secondary ? COLORS.bgWhite : COLORS.primaryHover)};
+	color: ${(props) => (props.$secondary ? COLORS.primary : COLORS.bgWhite)};
 	font-size: 12px;
 	font-weight: 600;
 	cursor: pointer;
@@ -277,9 +277,9 @@ export const InviteModeActionButton = styled.button<{ $secondary?: boolean }>`
 `;
 
 export const TenantPlanCard = styled.div`
-	border: 1.5px solid #c8dcd0;
+	border: 1.5px solid ${COLORS.border};
 	border-radius: 12px;
-	background-color: #f8fcfa;
+	background-color: ${COLORS.bgLight};
 	padding: 16px;
 	margin: 8px 0 16px 0;
 `;
@@ -306,7 +306,7 @@ export const TenantPlanNote = styled.p`
 export const QuestionLabel = styled.label`
 	font-weight: 500;
 	font-size: 15px;
-	color: #1f3b2d;
+	color: ${COLORS.textPrimary};
 	margin: 20px 0 12px 0;
 	display: block;
 	text-align: left;
@@ -338,28 +338,28 @@ export const RadioOption = styled.label`
 	align-items: center;
 	gap: 10px;
 	padding: 12px 14px;
-	border: 1.5px solid #c8dcd0;
+	border: 1.5px solid ${COLORS.border};
 	border-radius: 10px;
-	background-color: #ffffff;
+	background-color: ${COLORS.bgWhite};
 	cursor: pointer;
 	transition: all 0.2s ease;
 	font-size: 14px;
 	color: ${COLORS.textPrimary};
 
 	&:hover {
-		border-color: #16a34a;
+		border-color: ${COLORS.primaryHover};
 		background-color: ${COLORS.bgWhite};
 	}
 
 	&:has(input:checked) {
-		border-color: #16a34a;
-		background-color: #edf7ef;
-		color: #0f766e;
+		border-color: ${COLORS.primaryHover};
+		background-color: ${COLORS.primaryLight};
+		color: ${COLORS.primary};
 		font-weight: 500;
 	}
 
 	input {
-		accent-color: #16a34a;
+		accent-color: ${COLORS.primaryHover};
 		width: 18px;
 		height: 18px;
 		margin: 0;
@@ -451,14 +451,14 @@ export const RegisterWrapper = styled.div`
 	color: ${COLORS.textSecondary};
 
 	a {
-		color: #0f766e;
+		color: ${COLORS.primary};
 		font-weight: 600;
 		cursor: pointer;
 		transition: color 0.2s ease;
 		text-decoration: none;
 
 		&:hover {
-			color: #16a34a;
+			color: ${COLORS.primaryHover};
 			text-decoration: underline;
 		}
 	}
@@ -475,7 +475,7 @@ export const RegisterWrapper = styled.div`
 `;
 
 export const ErrorMessage = styled.div`
-	background-color: #fee;
+	background-color: ${COLORS.errorLight};
 	border: 1px solid ${COLORS.error};
 	color: ${COLORS.errorDark};
 	padding: 12px;
@@ -578,9 +578,9 @@ export const LegalAgreementSection = styled.div`
 	margin-top: 16px;
 	margin-bottom: 16px;
 	padding: 12px;
-	border: 1px solid #d6eadb;
+	border: 1px solid ${COLORS.border};
 	border-radius: 10px;
-	background: #f8fcfa;
+	background: ${COLORS.bgLight};
 `;
 
 export const LegalAgreementLabel = styled.label`
@@ -589,17 +589,17 @@ export const LegalAgreementLabel = styled.label`
 	gap: 8px;
 	font-size: 14px;
 	line-height: 1.5;
-	color: #2f4f3f;
+	color: ${COLORS.textPrimary};
 
 	input {
 		margin-top: 2px;
 		flex-shrink: 0;
-		accent-color: #16a34a;
+		accent-color: ${COLORS.primaryHover};
 	}
 `;
 
 export const LegalDocumentButton = styled.button`
-	color: #0f766e;
+	color: ${COLORS.primary};
 	text-decoration: none;
 	cursor: pointer;
 	background: none;
@@ -609,7 +609,7 @@ export const LegalDocumentButton = styled.button`
 	font-weight: 600;
 
 	&:hover {
-		color: #16a34a;
+		color: ${COLORS.primaryHover};
 		text-decoration: underline;
 	}
 `;

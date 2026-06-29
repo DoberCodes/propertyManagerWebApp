@@ -47,6 +47,7 @@ export {
 	createMaintenanceEventsBatch,
 	notifyTaskCompletion,
 } from './maintenanceEvents';
+export { processPropertyDocumentAcquisition } from './propertyKnowledgeAcquisition';
 export {
 	createTeamMemberInvitationCode,
 	validateTeamMemberInvitationCode,

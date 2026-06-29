@@ -12,9 +12,9 @@ export const Wrapper = styled.div`
 		max(24px, env(safe-area-inset-bottom))
 		max(24px, env(safe-area-inset-left));
 	background:
-		radial-gradient(circle at 12% 18%, rgba(16, 185, 129, 0.18), transparent 30%),
-		radial-gradient(circle at 88% 85%, rgba(59, 130, 246, 0.12), transparent 28%),
-		linear-gradient(145deg, #f0fdf4 0%, ${COLORS.bgLight} 48%, #eff6ff 100%);
+		radial-gradient(circle at 12% 18%, rgba(0, 158, 113, 0.16), transparent 30%),
+		radial-gradient(circle at 88% 85%, rgba(4, 120, 87, 0.12), transparent 28%),
+		linear-gradient(145deg, rgba(0, 158, 113, 0.12) 0%, ${COLORS.bgLight} 48%, rgba(4, 120, 87, 0.08) 100%);
 	position: relative;
 	overflow-x: hidden;
 
@@ -81,7 +81,7 @@ export const BrandPanel = styled.section`
 	overflow: hidden;
 	color: white;
 	background:
-		linear-gradient(155deg, rgba(6, 95, 70, 0.96), rgba(4, 120, 87, 0.93)),
+		linear-gradient(155deg, rgba(4, 120, 87, 0.96), rgba(0, 158, 113, 0.88)),
 		url('/house.jpg') center / cover;
 
 	&::after {
@@ -113,17 +113,21 @@ export const BrandPanel = styled.section`
 export const BrandLogo = styled.img`
 	position: relative;
 	z-index: 1;
-	width: 210px;
+	display: block;
+	width: min(230px, 78%);
 	height: auto;
+	max-height: 120px;
 	object-fit: contain;
 	object-position: left center;
 
 	@media (max-width: 820px) {
-		width: 170px;
+		width: min(180px, 70%);
+		max-height: 92px;
 	}
 
 	@media (max-width: 640px) and (max-height: 720px) {
-		width: 138px;
+		width: min(150px, 70%);
+		max-height: 76px;
 	}
 `;
 

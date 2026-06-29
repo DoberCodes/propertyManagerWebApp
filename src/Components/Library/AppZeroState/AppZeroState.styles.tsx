@@ -15,8 +15,8 @@ export const AppZeroStateShell = styled.section<{ $fullPage?: boolean }>`
 		position: absolute;
 		inset: 0;
 		background:
-			radial-gradient(circle at 14% 18%, rgba(16, 185, 129, 0.14) 0, rgba(16, 185, 129, 0) 42%),
-			radial-gradient(circle at 86% 84%, rgba(59, 130, 246, 0.12) 0, rgba(59, 130, 246, 0) 45%);
+			radial-gradient(circle at 14% 18%, rgba(0, 158, 113, 0.14) 0, rgba(0, 158, 113, 0) 42%),
+			radial-gradient(circle at 86% 84%, rgba(4, 120, 87, 0.1) 0, rgba(4, 120, 87, 0) 45%);
 		pointer-events: none;
 	}
 
@@ -34,7 +34,7 @@ export const AppZeroStateShell = styled.section<{ $fullPage?: boolean }>`
 
 export const AppZeroStateCard = styled.div`
 	width: min(100%, 520px);
-	background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+	background: linear-gradient(180deg, ${COLORS.white} 0%, ${COLORS.canvas} 100%);
 	border: 1px solid ${COLORS.gray200};
 	border-radius: 18px;
 	box-shadow: 0 14px 32px rgba(15, 23, 42, 0.08);
@@ -56,7 +56,7 @@ export const AppZeroStateCard = styled.div`
 		height: 6px;
 		border-top-left-radius: 18px;
 		border-top-right-radius: 18px;
-		background: linear-gradient(90deg, #16a34a 0%, #10b981 52%, #38bdf8 100%);
+		background: ${COLORS.gradientPrimary};
 	}
 
 	@media (max-width: 480px) {
@@ -72,8 +72,8 @@ export const AppZeroStateIcon = styled.div`
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	background: linear-gradient(135deg, #16a34a 0%, #10b981 68%, #34d399 100%);
-	color: #ffffff;
+	background: ${COLORS.gradientPrimary};
+	color: ${COLORS.white};
 	font-size: 1.15rem;
 	font-weight: 800;
 	box-shadow: 0 8px 18px rgba(16, 185, 129, 0.34);
@@ -148,7 +148,7 @@ export const AppZeroStateButton = styled.button<{
 
 	&:hover:not(:disabled) {
 		background: ${({ $variant }) =>
-			$variant === 'secondary' ? COLORS.gray50 : '#15803d'};
+			$variant === 'secondary' ? COLORS.gray50 : COLORS.primaryHover};
 		transform: translateY(-1px);
 	}
 
