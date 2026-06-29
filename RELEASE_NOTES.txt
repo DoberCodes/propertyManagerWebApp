@@ -1,5 +1,5 @@
-🎉 **Release Notes for Version 2.7.6** 🎉
+🎉 **Release Notes for Version 2.7.7** 🎉
 
 
 ## 🐛 Bug Fixes
-- fixing the standardized color scheme and typography, also cleaning up images and logos
+- adding basic pwa and download banner
