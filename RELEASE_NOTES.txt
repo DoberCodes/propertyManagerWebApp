@@ -1,5 +1,5 @@
-🎉 **Release Notes for Version 2.7.10** 🎉
+🎉 **Release Notes for Version 2.7.11** 🎉
 
 
 ## 🐛 Bug Fixes
-- modifying deployed version of the PWA and firebase deploy errors
+- modifying build for firebase deploy
