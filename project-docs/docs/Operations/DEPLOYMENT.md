@@ -256,6 +256,17 @@ Important GitHub Actions secrets include:
   deploy workflow falls back to `PROD_REACT_APP_FIREBASE_PROJECT_ID`
 * `PROD_REACT_APP_FIREBASE_WEB_PUSH_VAPID_KEY` for browser push builds
 * `FIREBASE_SERVICE_ACCOUNT_JSON` for Firebase rules and Functions deployment
+* Stripe price IDs for non-interactive Functions deploy:
+  * `PROD_STRIPE_HOMEOWNER_PLUS_MONTHLY_PRICE_ID`
+  * `PROD_STRIPE_HOMEOWNER_PLUS_ANNUAL_PRICE_ID`
+  * `PROD_STRIPE_PROPERTY_MONTHLY_PRICE_ID`
+  * `PROD_STRIPE_PROPERTY_ANNUAL_PRICE_ID`
+  * `PROD_STRIPE_PORTFOLIO_MONTHLY_PRICE_ID`
+  * `PROD_STRIPE_PORTFOLIO_ANNUAL_PRICE_ID`
+
+The Firebase deploy workflow falls back to matching frontend secret names with
+the `PROD_REACT_APP_` prefix for Stripe price IDs when the backend-specific
+secret names are not present.
 
 Review environment setup before deploying billing, email, or notification changes.
 
@@ -284,6 +295,84 @@ FIREBASE_SERVICE_ACCOUNT_JSON
 Treat this JSON like a password. Do not commit it to the repository.
 
 `FIREBASE_TOKEN` is no longer used by the active Firebase deploy workflow.
+
+The GitHub deploy service account must also be allowed to act as the Cloud
+Functions runtime service account. If deploy fails with:
+
+```text
+Missing permissions required for functions deploy. You must have permission iam.serviceAccounts.ActAs
+```
+
+grant the GitHub deploy service account the IAM role:
+
+```text
+Service Account User
+```
+
+on the runtime service account shown in the error, commonly:
+
+```text
+PROJECT_ID@appspot.gserviceaccount.com
+```
+
+This permission should be granted to the GitHub deploy service account, not to
+the runtime service account itself.
+
+Firestore rules deployment also requires permission to test and release rules
+through the Firebase Rules API. If deploy fails with:
+
+```text
+Request to https://firebaserules.googleapis.com/...:test had HTTP Error: 403
+```
+
+grant the GitHub deploy service account a role that includes Firebase Rules
+permissions. The practical project-level role is:
+
+```text
+Firebase Rules Admin
+```
+
+This lets the deploy workflow validate and publish `firestore.rules`.
+
+Firebase Functions deploy may also ask the Firebase Extensions API about
+installed extension instances while analyzing the project. If deploy fails with:
+
+```text
+Request to https://firebaseextensions.googleapis.com/.../instances had HTTP Error: 403
+```
+
+grant the GitHub deploy service account:
+
+```text
+Firebase Extensions Viewer
+```
+
+If the project later manages extensions through CI, use:
+
+```text
+Firebase Extensions Admin
+```
+
+For the current Maintley deploy workflow, viewer access is enough because the
+workflow only needs Firebase CLI analysis to list extension instances.
+
+Functions that use Firebase/Google Secret Manager params require the deploy
+service account to read secret metadata and versions during deploy analysis. If
+deploy fails with:
+
+```text
+Permission 'secretmanager.secrets.get' denied
+```
+
+grant the GitHub deploy service account:
+
+```text
+Secret Manager Secret Accessor
+```
+
+For least privilege, grant this on the specific secrets used by deployed
+Functions, such as `STRIPE_WEBHOOK_SECRET`. A project-level grant is simpler
+but broader.
 
 ---
 
