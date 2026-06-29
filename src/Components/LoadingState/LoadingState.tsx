@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useDispatch } from 'react-redux';
 import { hideAppLoading, showAppLoading } from '../../Redux/Slices/appSlice';
 import type { AppDispatch } from '../../Redux/store/store';
@@ -17,6 +17,14 @@ export const LoadingState = ({
 	steps,
 }: LoadingStateProps) => {
 	const dispatch = useDispatch<AppDispatch>();
+	const stepsKey = steps?.join('\u001f') || '';
+	const stepsKeyRef = useRef<string>();
+	const stepsRef = useRef<string[] | undefined>(steps);
+
+	if (stepsKeyRef.current !== stepsKey) {
+		stepsKeyRef.current = stepsKey;
+		stepsRef.current = steps;
+	}
 
 	useEffect(() => {
 		dispatch(
@@ -24,14 +32,16 @@ export const LoadingState = ({
 				key: loadingKey,
 				title,
 				message,
-				steps,
+				steps: stepsRef.current,
 			}),
 		);
 
 		return () => {
 			dispatch(hideAppLoading(loadingKey));
 		};
-	}, [dispatch, loadingKey, message, steps, title]);
+		// Depend on step content, not array identity. Some callers pass inline
+		// arrays while rendering loading states.
+	}, [dispatch, loadingKey, message, stepsKey, title]);
 
 	return null;
 };

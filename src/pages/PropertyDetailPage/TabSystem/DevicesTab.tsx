@@ -20,7 +20,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from 'Redux/store';
 import {
 	useGetDevicesQuery,
-	useGetAllDevicesQuery,
+	useLazyGetAllDevicesQuery,
 	useCreateDeviceMutation,
 	useUpdateDeviceMutation,
 	useDeleteDeviceMutation,
@@ -179,7 +179,8 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 	const openCreateModalRef = useRef<() => void>(() => undefined);
 
 	const { data: devices = [], isLoading } = useGetDevicesQuery(property.id);
-	const { data: allDevices = [] } = useGetAllDevicesQuery();
+	const [loadAllDevices, { data: allDevices = [] }] =
+		useLazyGetAllDevicesQuery();
 	const { data: units = [] } = useGetUnitsQuery(property.id);
 	const { data: allTasks = [] } = useGetTasksQuery();
 
@@ -804,10 +805,11 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 
 	const remainingDeviceSlots = useMemo(() => {
 		if (!currentUser?.subscription) return 0;
-		return getRemainingDeviceSlots(currentUser.subscription, allDevices.length);
-	}, [allDevices.length, currentUser?.subscription]);
+		const knownDeviceCount = allDevices.length || devices.length;
+		return getRemainingDeviceSlots(currentUser.subscription, knownDeviceCount);
+	}, [allDevices.length, currentUser?.subscription, devices.length]);
 
-	const handleOpenCreateModal = () => {
+	const handleOpenCreateModal = async () => {
 		if (!canManageAppliances) {
 			feedback.notify('Your role can view appliances but cannot add or edit them.');
 			return;
@@ -817,7 +819,17 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 			return;
 		}
 
-		if (!canAddDevice(currentUser.subscription, allDevices.length)) {
+		let accountDeviceCount = allDevices.length;
+		try {
+			const loadedDevices = await loadAllDevices(undefined, true).unwrap();
+			accountDeviceCount = loadedDevices.length;
+		} catch (error) {
+			console.error('Error verifying appliance limit:', error);
+			feedback.notify('Unable to verify appliance limits. Please try again.');
+			return;
+		}
+
+		if (!canAddDevice(currentUser.subscription, accountDeviceCount)) {
 			const planDetails = getSubscriptionPlanDetails(
 				getEffectiveSubscriptionPlanId(currentUser.subscription),
 			);
@@ -829,7 +841,7 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 			} else {
 				feedback.notify(
 					`Your ${planDetails?.name || 'current'} plan allows up to ${maxDevices} appliances. ` +
-					`You currently have ${allDevices.length} appliances. ` +
+					`You currently have ${accountDeviceCount} appliances. ` +
 					`Please upgrade your plan to add more appliances.`,
 				);
 			}

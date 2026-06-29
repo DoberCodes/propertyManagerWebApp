@@ -88,6 +88,8 @@ const DOCUMENT_ALLOWED_TYPES = [
 	'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
 ];
 
+const PDF_PROCESSING_STALE_MINUTES = 30;
+
 const getRecordDateValue = (record: any): string => {
 	if (!record) return '';
 	if (typeof record.uploadedAt === 'string') return record.uploadedAt;
@@ -192,12 +194,24 @@ const getDocumentKnowledgeStatusText = (
 
 const getDocumentAcquisitionStatusText = (document?: PropertyDocument) => {
 	if (document?.acquisitionStatus === 'processing') {
+		if (isDocumentAcquisitionStale(document)) {
+			return 'Maintley could not finish reviewing this PDF. You can try again.';
+		}
 		return 'Maintley is reviewing this PDF for suggested details.';
 	}
 	if (document?.acquisitionStatus === 'failed') {
 		return document.acquisitionError || 'Maintley could not review this PDF yet.';
 	}
 	return '';
+};
+
+const isDocumentAcquisitionStale = (document?: PropertyDocument) => {
+	if (document?.acquisitionStatus !== 'processing') return false;
+	if (!document.acquisitionStartedAt) return true;
+	const startedAt = new Date(document.acquisitionStartedAt).getTime();
+	if (Number.isNaN(startedAt)) return true;
+	const staleAfterMs = PDF_PROCESSING_STALE_MINUTES * 60 * 1000;
+	return Date.now() - startedAt > staleAfterMs;
 };
 
 const getTaskAssignmentStatus = (task?: Task, fallbackStatus?: string) => {
@@ -387,6 +401,30 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 			.find((suggestion) => suggestion.sourceDocumentId === documentId);
 	};
 
+	const markPdfReviewFailed = async (
+		documentId: string,
+		message = 'Maintley could not finish reviewing this PDF. You can try again.',
+		documentsToUpdate = propertyDocuments,
+	) => {
+		if (!property?.id) return;
+		const completedAt = new Date().toISOString();
+		await updateProperty({
+			id: property.id,
+			updates: {
+				documents: documentsToUpdate.map((item) =>
+					item.id === documentId
+						? {
+								...item,
+								acquisitionStatus: 'failed',
+								acquisitionCompletedAt: completedAt,
+								acquisitionError: message,
+						  }
+						: item,
+				),
+			},
+		}).unwrap();
+	};
+
 	const handleReviewDocumentKnowledge = async (documentId?: string) => {
 		if (!property?.id || !documentId || isSaving) return;
 		const document = propertyDocuments.find((item) => item.id === documentId);
@@ -453,8 +491,17 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 							onReviewSuggestedDetails?.(result.suggestionId);
 						}
 					})
-					.catch((error) => {
+					.catch(async (error) => {
 						console.error('Error processing PDF document:', error);
+						try {
+							await markPdfReviewFailed(
+								document.id,
+								error?.message ||
+									'Maintley could not finish reviewing this PDF. You can try again.',
+							);
+						} catch (statusError) {
+							console.error('Error marking PDF review as failed:', statusError);
+						}
 						dispatch(apiSlice.util.invalidateTags(['Properties']));
 					});
 			} catch (error) {
@@ -578,7 +625,18 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 						onReviewSuggestedDetails?.(result.suggestionId);
 					}
 				},
-				onError: () => {
+				onError: async (error, document) => {
+					try {
+						await markPdfReviewFailed(
+							document.id,
+							error instanceof Error
+								? error.message
+								: 'Maintley could not finish reviewing this PDF. You can try again.',
+							[...propertyDocuments, ...savedDocuments],
+						);
+					} catch (statusError) {
+						console.error('Error marking PDF review as failed:', statusError);
+					}
 					dispatch(apiSlice.util.invalidateTags(['Properties']));
 				},
 			});
@@ -729,6 +787,13 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 										propertyDocuments.find((item) => item.id === file.id),
 								  )
 								: '';
+						const sourcePropertyDocument =
+							isPropertyDocument && file.id
+								? propertyDocuments.find((item) => item.id === file.id)
+								: undefined;
+						const isAcquisitionRetryable =
+							sourcePropertyDocument?.acquisitionStatus === 'failed' ||
+							isDocumentAcquisitionStale(sourcePropertyDocument);
 						return (
 							<DocumentCard key={key}>
 								<DocumentTitleRow>
@@ -762,12 +827,11 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 									latestKnowledgeSuggestion?.status !== 'pending' && (
 										<DocumentKnowledgePrompt
 											$error={
-												propertyDocuments.find((item) => item.id === file.id)
-													?.acquisitionStatus === 'failed'
+												sourcePropertyDocument?.acquisitionStatus === 'failed' ||
+												isDocumentAcquisitionStale(sourcePropertyDocument)
 											}>
 											{acquisitionStatusText}{' '}
-											{propertyDocuments.find((item) => item.id === file.id)
-												?.acquisitionStatus === 'failed' &&
+											{isAcquisitionRetryable &&
 												canManageDocuments && (
 													<DocumentInlineAction
 														type='button'
@@ -810,8 +874,8 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 												onClick={() => handleReviewDocumentKnowledge(file.id)}
 												disabled={
 													isSaving ||
-													propertyDocuments.find((item) => item.id === file.id)
-														?.acquisitionStatus === 'processing'
+													(sourcePropertyDocument?.acquisitionStatus === 'processing' &&
+														!isDocumentAcquisitionStale(sourcePropertyDocument))
 												}>
 												Check for suggested details
 											</DocumentActionButton>

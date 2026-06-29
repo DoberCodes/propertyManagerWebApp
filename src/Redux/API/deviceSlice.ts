@@ -144,18 +144,8 @@ const readDeviceQuery = async (...clauses: ReturnType<typeof where>[]) => {
 const getDevicesForAccount = async (
 	accountId: string,
 	extraClauses: ReturnType<typeof where>[] = [],
-	legacyFilter?: (device: Device) => boolean,
 ) => {
-	const [accountScopedDevices, legacyUserScopedDevices] = await Promise.all([
-		readDeviceQuery(where('accountId', '==', accountId), ...extraClauses),
-		readDeviceQuery(where('userId', '==', accountId)),
-	]);
-
-	const filteredLegacyDevices = legacyFilter
-		? legacyUserScopedDevices.filter(legacyFilter)
-		: legacyUserScopedDevices;
-
-	return [...accountScopedDevices, ...filteredLegacyDevices];
+	return readDeviceQuery(where('accountId', '==', accountId), ...extraClauses);
 };
 
 const uniqueDevicesById = (devices: Device[]) =>
@@ -185,8 +175,6 @@ const deviceSlice = apiSlice.injectEndpoints({
 						const batch = await getDevicesForAccount(
 							accountId,
 							[where('location.propertyId', '==', propertyId)],
-							(device) =>
-								String(device.location?.propertyId || '') === propertyId,
 						);
 						devices.push(...batch);
 					}
@@ -219,7 +207,6 @@ const deviceSlice = apiSlice.injectEndpoints({
 						const batch = await getDevicesForAccount(
 							accountId,
 							[where('location.unitId', '==', unitId)],
-							(device) => String(device.location?.unitId || '') === unitId,
 						);
 						devices.push(...batch);
 					}
@@ -415,4 +402,5 @@ export const {
 	useUpdateDeviceMutation,
 	useDeleteDeviceMutation,
 	useGetAllDevicesQuery,
+	useLazyGetAllDevicesQuery,
 } = deviceSlice;

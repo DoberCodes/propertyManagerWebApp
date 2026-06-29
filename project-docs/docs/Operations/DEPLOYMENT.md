@@ -119,6 +119,29 @@ intentionally reintroduced.
 
 ---
 
+# GitHub Pages PWA Assets
+
+The active web deployment publishes the React `build/` output through GitHub
+Pages on Maintley's custom domain.
+
+PWA files live in `public/` and are copied to the root of `build/` during
+`npm run build`:
+
+* `manifest.json`
+* `service-worker.js`
+* `offline.html`
+* `favicon.ico`
+* `favicon.svg`
+* `apple-touch-icon.png`
+* `mstile-150x150.png`
+* `icons/*`
+
+The service worker intentionally caches only the app shell, static build
+assets, icons, and the offline fallback page. It should not cache Firebase,
+Firestore, Storage, document, invoice, or private property-data responses.
+
+---
+
 # Firebase Functions Build
 
 Build Functions:
@@ -213,6 +236,8 @@ Important frontend variables include:
 * Firebase public config
 * Stripe public config
 * Stripe price identifiers where needed by frontend flows
+* `REACT_APP_FIREBASE_FUNCTIONS_EMULATOR_HOST`, optional for local development
+  when routing callable Functions to the emulator, such as `localhost:5001`
 
 Important backend configuration includes:
 

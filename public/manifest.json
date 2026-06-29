@@ -1,6 +1,6 @@
 {
 	"short_name": "Maintley",
-	"name": "Maintley App",
+	"name": "Maintley",
 	"icons": [
 		{
 			"src": "icons/icon-48.png",
@@ -57,8 +57,9 @@
 			"purpose": "maskable"
 		}
 	],
-	"start_url": ".",
+	"start_url": "/",
+	"scope": "/",
 	"display": "standalone",
-	"theme_color": "#047857",
+	"theme_color": "#10b981",
 	"background_color": "#FAFAF8"
 }

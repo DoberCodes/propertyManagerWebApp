@@ -7,6 +7,7 @@ import App from './App';
 import GlobalStyles from './global.styles';
 import { StyleSheetManager } from 'styled-components';
 import isPropValid from '@emotion/is-prop-valid';
+import { registerMaintleyServiceWorker } from './serviceWorkerRegistration';
 if (process.env.NODE_ENV === 'development') {
 	import('./utils/testFirebase');
 }
@@ -32,3 +33,4 @@ root.render(
 
 // If needed later, web vitals can be sent to an analytics endpoint.
 reportWebVitals();
+registerMaintleyServiceWorker();

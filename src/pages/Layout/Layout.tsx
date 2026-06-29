@@ -8,6 +8,7 @@ import {
 import { DataLoader } from '../../Components/DataLoader';
 import { OnboardingFlow } from '../../Components/OnboardingFlow';
 import LegalAgreementNotification from '../../Components/Library/LegalAgreementNotification';
+import { PwaInstallBanner } from '../../Components/PwaInstallBanner';
 import { Wrapper, Main, Sidebar, Content } from './Layout.styles';
 import { Outlet, useLocation } from 'react-router-dom';
 import { useGetPropertiesQuery } from '../../Redux/API/propertySlice';
@@ -228,6 +229,7 @@ export const Layout = () => {
 						<SideNav />
 					</Sidebar>
 					<Content ref={contentRef} data-app-scroll-container='true'>
+						{!showOnboarding && <PwaInstallBanner />}
 						<Outlet />
 					</Content>
 				</Main>

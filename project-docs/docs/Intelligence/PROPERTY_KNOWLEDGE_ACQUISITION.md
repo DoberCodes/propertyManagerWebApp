@@ -60,6 +60,12 @@ PDF uploads may move through `processing`, `pending_review`, or `failed`
 acquisition states. The PDF remains the source document; any extracted text or
 future rendered page images are derived processing artifacts only.
 
+If PDF processing cannot be started or completed from the client-triggered
+callable path, the document should not remain in `processing` indefinitely.
+The UI should treat stale processing states as retryable and may mark the
+document `failed` with a homeowner-friendly retry message when the processing
+call fails before the backend can update the document.
+
 Before suggesting a new record, Property Knowledge Acquisition should check existing Property Memory for likely targets. If an uploaded invoice, warranty, manual, receipt, or inspection report appears to describe an existing asset, contractor, Maintenance Event, part, warranty, or other record, the review experience should propose updating the existing record first. Users must be able to mark the match as not the same record and create a new record where creation is supported.
 
 Target matching should be conservative and explainable. Safe matching signals include source document identity, invoice number, service date, contractor, total cost, related asset, serial number, model number, and existing document attachments. Similar text alone should not silently merge records.

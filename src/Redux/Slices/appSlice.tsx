@@ -48,6 +48,13 @@ const resolveLoadingState = (
 	};
 };
 
+const haveSameSteps = (left?: string[], right?: string[]) => {
+	if (!left && !right) return true;
+	if (!left || !right) return false;
+	if (left.length !== right.length) return false;
+	return left.every((step, index) => step === right[index]);
+};
+
 const appSlice = createSlice({
 	name: 'app',
 	initialState,
@@ -74,6 +81,15 @@ const appSlice = createSlice({
 			>,
 		) => {
 			const key = action.payload?.key || 'global';
+			const currentRequest = state.loading.activeRequests[key];
+			if (
+				currentRequest?.title === action.payload?.title &&
+				currentRequest?.message === action.payload?.message &&
+				haveSameSteps(currentRequest?.steps, action.payload?.steps)
+			) {
+				return;
+			}
+
 			const activeRequests = {
 				...state.loading.activeRequests,
 				[key]: {
@@ -86,6 +102,9 @@ const appSlice = createSlice({
 		},
 		hideAppLoading: (state, action: PayloadAction<string | undefined>) => {
 			const key = action.payload || 'global';
+			if (!state.loading.activeRequests[key]) {
+				return;
+			}
 			const { [key]: _removed, ...activeRequests } =
 				state.loading.activeRequests;
 			state.loading = resolveLoadingState(activeRequests);
