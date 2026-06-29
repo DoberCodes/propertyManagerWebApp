@@ -1,5 +1,5 @@
-🎉 **Release Notes for Version 2.7.11** 🎉
+🎉 **Release Notes for Version 2.7.12** 🎉
 
 
 ## 🐛 Bug Fixes
-- modifying build for firebase deploy
+- fixing the firebase deploy fails
