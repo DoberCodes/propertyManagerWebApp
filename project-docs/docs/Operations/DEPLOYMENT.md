@@ -268,6 +268,11 @@ The Firebase deploy workflow falls back to matching frontend secret names with
 the `PROD_REACT_APP_` prefix for Stripe price IDs when the backend-specific
 secret names are not present.
 
+During CI, these Stripe price IDs are written into a temporary
+`functions/.env` file before `firebase deploy` runs. This is required because
+Firebase Functions params are resolved from dotenv files during non-interactive
+deploys. The file is ignored by git and should not be committed.
+
 Review environment setup before deploying billing, email, or notification changes.
 
 ## GitHub Actions Firebase Deploy Authentication

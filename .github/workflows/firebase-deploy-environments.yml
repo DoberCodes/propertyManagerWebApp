@@ -89,7 +89,7 @@ jobs:
           credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
           project_id: ${{ steps.target.outputs.project_id }}
 
-      - name: Deploy Firestore rules and Functions
+      - name: Write Functions deploy environment
         env:
           STRIPE_HOMEOWNER_PLUS_MONTHLY_PRICE_ID: ${{ secrets.PROD_STRIPE_HOMEOWNER_PLUS_MONTHLY_PRICE_ID || secrets.PROD_REACT_APP_STRIPE_HOMEOWNER_PLUS_MONTHLY_PRICE_ID }}
           STRIPE_HOMEOWNER_PLUS_ANNUAL_PRICE_ID: ${{ secrets.PROD_STRIPE_HOMEOWNER_PLUS_ANNUAL_PRICE_ID || secrets.PROD_REACT_APP_STRIPE_HOMEOWNER_PLUS_ANNUAL_PRICE_ID }}
@@ -97,6 +97,37 @@ jobs:
           STRIPE_PROPERTY_ANNUAL_PRICE_ID: ${{ secrets.PROD_STRIPE_PROPERTY_ANNUAL_PRICE_ID || secrets.PROD_REACT_APP_STRIPE_PROPERTY_ANNUAL_PRICE_ID }}
           STRIPE_PORTFOLIO_MONTHLY_PRICE_ID: ${{ secrets.PROD_STRIPE_PORTFOLIO_MONTHLY_PRICE_ID || secrets.PROD_REACT_APP_STRIPE_PORTFOLIO_MONTHLY_PRICE_ID }}
           STRIPE_PORTFOLIO_ANNUAL_PRICE_ID: ${{ secrets.PROD_STRIPE_PORTFOLIO_ANNUAL_PRICE_ID || secrets.PROD_REACT_APP_STRIPE_PORTFOLIO_ANNUAL_PRICE_ID }}
+        run: |
+          missing=0
+          for name in \
+            STRIPE_HOMEOWNER_PLUS_MONTHLY_PRICE_ID \
+            STRIPE_HOMEOWNER_PLUS_ANNUAL_PRICE_ID \
+            STRIPE_PROPERTY_MONTHLY_PRICE_ID \
+            STRIPE_PROPERTY_ANNUAL_PRICE_ID \
+            STRIPE_PORTFOLIO_MONTHLY_PRICE_ID \
+            STRIPE_PORTFOLIO_ANNUAL_PRICE_ID
+          do
+            if [[ -z "${!name}" ]]; then
+              echo "Missing required Functions deploy environment value: $name"
+              missing=1
+            fi
+          done
+
+          if [[ "$missing" -ne 0 ]]; then
+            echo "Add the PROD_STRIPE_* GitHub Actions secrets, or matching PROD_REACT_APP_STRIPE_* fallback secrets."
+            exit 1
+          fi
+
+          {
+            echo "STRIPE_HOMEOWNER_PLUS_MONTHLY_PRICE_ID=$STRIPE_HOMEOWNER_PLUS_MONTHLY_PRICE_ID"
+            echo "STRIPE_HOMEOWNER_PLUS_ANNUAL_PRICE_ID=$STRIPE_HOMEOWNER_PLUS_ANNUAL_PRICE_ID"
+            echo "STRIPE_PROPERTY_MONTHLY_PRICE_ID=$STRIPE_PROPERTY_MONTHLY_PRICE_ID"
+            echo "STRIPE_PROPERTY_ANNUAL_PRICE_ID=$STRIPE_PROPERTY_ANNUAL_PRICE_ID"
+            echo "STRIPE_PORTFOLIO_MONTHLY_PRICE_ID=$STRIPE_PORTFOLIO_MONTHLY_PRICE_ID"
+            echo "STRIPE_PORTFOLIO_ANNUAL_PRICE_ID=$STRIPE_PORTFOLIO_ANNUAL_PRICE_ID"
+          } > functions/.env
+
+      - name: Deploy Firestore rules and Functions
         run: |
           ./functions/node_modules/.bin/firebase deploy \
             --project "${{ steps.target.outputs.project_id }}" \
