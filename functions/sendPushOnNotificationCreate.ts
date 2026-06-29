@@ -49,6 +49,33 @@ const canUsePushNotifications = (subscription?: {
 	return PUSH_NOTIFICATION_PLANS.has(rawPlan);
 };
 
+type PushTokenRecord = {
+	token?: unknown;
+	disabled?: unknown;
+};
+
+const getUserPushTokens = (
+	user: FirebaseFirestore.DocumentData,
+): string[] => {
+	const tokens = new Set<string>();
+	const legacyToken = String(user.pushToken || '').trim();
+	if (legacyToken) {
+		tokens.add(legacyToken);
+	}
+
+	if (Array.isArray(user.pushTokens)) {
+		for (const record of user.pushTokens as PushTokenRecord[]) {
+			const token = String(record?.token || '').trim();
+			if (!token || record?.disabled === true) {
+				continue;
+			}
+			tokens.add(token);
+		}
+	}
+
+	return Array.from(tokens);
+};
+
 /**
  * Clean up invalid push tokens from user documents
  */
@@ -59,12 +86,23 @@ async function cleanupInvalidPushToken(userId: string, pushToken: string) {
 
 		if (userDoc.exists) {
 			const userData = userDoc.data();
+			const updates: FirebaseFirestore.UpdateData<FirebaseFirestore.DocumentData> = {};
 			if (userData?.pushToken === pushToken) {
-				// Remove the invalid token
-				await userRef.update({
-					pushToken: admin.firestore.FieldValue.delete(),
-					pushTokenUpdatedAt: admin.firestore.FieldValue.delete(),
-				});
+				updates.pushToken = admin.firestore.FieldValue.delete();
+				updates.pushTokenUpdatedAt = admin.firestore.FieldValue.delete();
+			}
+
+			if (Array.isArray(userData?.pushTokens)) {
+				const nextPushTokens = (userData.pushTokens as PushTokenRecord[]).filter(
+					(record) => String(record?.token || '').trim() !== pushToken,
+				);
+				if (nextPushTokens.length !== userData.pushTokens.length) {
+					updates.pushTokens = nextPushTokens;
+				}
+			}
+
+			if (Object.keys(updates).length > 0) {
+				await userRef.update(updates);
 				console.log(`Cleaned up invalid push token for user ${userId}`);
 			}
 		}
@@ -76,8 +114,12 @@ async function cleanupInvalidPushToken(userId: string, pushToken: string) {
 function toMessageData(
 	notificationId: string,
 	data: unknown,
+	actionUrl?: unknown,
 ): Record<string, string> {
 	const messageData: Record<string, string> = { notificationId };
+	if (actionUrl) {
+		messageData.actionUrl = String(actionUrl);
+	}
 
 	if (!data || typeof data !== 'object' || Array.isArray(data)) {
 		return messageData;
@@ -107,7 +149,7 @@ export const sendPushOnNotificationCreate = onDocumentCreated(
 			`Processing notification ${event.params.notificationId} for user ${notification.userId}`,
 		);
 
-		// Get the recipient user's push token
+		// Get the recipient user's push tokens
 		const userDoc = await db.collection('users').doc(notification.userId).get();
 		const user = userDoc.exists ? userDoc.data() : null;
 
@@ -116,9 +158,9 @@ export const sendPushOnNotificationCreate = onDocumentCreated(
 			return;
 		}
 
-		const pushToken = user.pushToken;
-		if (!pushToken) {
-			console.log(`No push token for user ${notification.userId}`);
+		const pushTokens = getUserPushTokens(user);
+		if (pushTokens.length === 0) {
+			console.log(`No push tokens for user ${notification.userId}`);
 			return;
 		}
 
@@ -161,36 +203,48 @@ export const sendPushOnNotificationCreate = onDocumentCreated(
 		const messageData = toMessageData(
 			event.params.notificationId,
 			notification.data,
+			notification.actionUrl,
 		);
 
 		// Send the push notification via FCM
 		try {
-			const message = {
-				token: pushToken,
+			const message: admin.messaging.MulticastMessage = {
+				tokens: pushTokens,
 				notification: {
 					title: notification.title || 'New Notification',
 					body: notification.message || '',
 				},
 				data: messageData,
+				webpush: {
+					notification: {
+						icon: '/icons/icon-192.png',
+						badge: '/icons/icon-192.png',
+					},
+				},
 			};
 
-			const response = await admin.messaging().send(message);
+			const response = await admin.messaging().sendEachForMulticast(message);
 			console.log(
-				`Push sent successfully to user ${notification.userId}:`,
-				response,
+				`Push delivery for user ${notification.userId}: ${response.successCount} succeeded, ${response.failureCount} failed`,
 			);
+
+			const cleanupPromises = response.responses
+				.map((sendResponse, index) => ({ sendResponse, token: pushTokens[index] }))
+				.filter(({ sendResponse }) => {
+					const errorCode = String(sendResponse.error?.code || '');
+					return (
+						errorCode === 'messaging/registration-token-not-registered' ||
+						errorCode === 'messaging/invalid-registration-token'
+					);
+				})
+				.map(({ token }) => cleanupInvalidPushToken(notification.userId, token));
+
+			await Promise.all(cleanupPromises);
 		} catch (err) {
 			console.error(
 				`Error sending push notification to user ${notification.userId}:`,
 				err,
 			);
-			const errorCode = String((err as { code?: unknown })?.code || '');
-			if (
-				errorCode === 'messaging/registration-token-not-registered' ||
-				errorCode === 'messaging/invalid-registration-token'
-			) {
-				await cleanupInvalidPushToken(notification.userId, pushToken);
-			}
 		}
 	},
 );

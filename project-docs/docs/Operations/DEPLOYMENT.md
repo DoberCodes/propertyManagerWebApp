@@ -236,6 +236,8 @@ Important frontend variables include:
 * Firebase public config
 * Stripe public config
 * Stripe price identifiers where needed by frontend flows
+* `REACT_APP_FIREBASE_WEB_PUSH_VAPID_KEY`, required for browser push
+  notification registration
 * `REACT_APP_FIREBASE_FUNCTIONS_EMULATOR_HOST`, optional for local development
   when routing callable Functions to the emulator, such as `localhost:5001`
 
@@ -247,7 +249,41 @@ Important backend configuration includes:
 * Firebase Functions params/secrets
 * Plan price identifiers
 
+Important GitHub Actions secrets include:
+
+* `PROD_REACT_APP_FIREBASE_PROJECT_ID` for frontend Firebase config
+* `PROD_FIREBASE_PROJECT_ID` for Firebase deploy targeting; if omitted, the
+  deploy workflow falls back to `PROD_REACT_APP_FIREBASE_PROJECT_ID`
+* `PROD_REACT_APP_FIREBASE_WEB_PUSH_VAPID_KEY` for browser push builds
+* `FIREBASE_SERVICE_ACCOUNT_JSON` for Firebase rules and Functions deployment
+
 Review environment setup before deploying billing, email, or notification changes.
+
+## GitHub Actions Firebase Deploy Authentication
+
+Firebase rules and Functions deploy through:
+
+```text
+.github/workflows/firebase-deploy-environments.yml
+```
+
+The workflow authenticates with `google-github-actions/auth` using the
+`FIREBASE_SERVICE_ACCOUNT_JSON` repository secret.
+
+Recommended setup:
+
+1. Create a dedicated Google Cloud service account for GitHub deploys.
+2. Grant only the roles needed to deploy Firestore rules and Cloud Functions.
+3. Create a JSON key for that service account.
+4. Add the minified JSON value as the GitHub Actions repository secret:
+
+```text
+FIREBASE_SERVICE_ACCOUNT_JSON
+```
+
+Treat this JSON like a password. Do not commit it to the repository.
+
+`FIREBASE_TOKEN` is no longer used by the active Firebase deploy workflow.
 
 ---
 
@@ -483,6 +519,9 @@ Validate after notification changes:
 * Push token registration.
 * Push delivery where supported.
 * Notification preferences respected.
+* Browser notification permission denial handled calmly.
+* Invalid browser push tokens are removed from user records after failed
+  delivery.
 
 ## Email Areas
 

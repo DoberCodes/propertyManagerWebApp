@@ -46,6 +46,9 @@ The PWA will complement, not replace:
 - Add a calm authenticated-app install banner that uses the browser install
   prompt when available, gives iOS home-screen guidance, and respects local
   dismissal
+- Add opt-in browser push notification registration through Firebase Cloud
+  Messaging, using the existing Maintley notification records and preferences
+  as the source of truth
 
 ## Caching Policy
 Cache:
@@ -62,9 +65,18 @@ Do not cache by default:
 - private API responses
 
 ## Future Considerations
-- Web push notifications
 - Better offline read-only mode
 - Background sync
 - App shortcuts
 - Share target
 - iOS-specific install guidance
+
+## Web Push Notes
+Browser push is implemented as a delivery channel for existing notification
+documents. It should not create a parallel notification model.
+
+Browser FCM tokens are stored on the user record as `pushTokens[]`. The legacy
+single `pushToken` field remains supported for native/mobile compatibility.
+
+The service worker may display push notifications, but it must not cache
+private user, property, document, invoice, or Firestore data.

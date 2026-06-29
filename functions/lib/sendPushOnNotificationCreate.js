@@ -65,6 +65,23 @@ const canUsePushNotifications = (subscription) => {
         : String(subscription.plan || '').trim().toLowerCase();
     return PUSH_NOTIFICATION_PLANS.has(rawPlan);
 };
+const getUserPushTokens = (user) => {
+    const tokens = new Set();
+    const legacyToken = String(user.pushToken || '').trim();
+    if (legacyToken) {
+        tokens.add(legacyToken);
+    }
+    if (Array.isArray(user.pushTokens)) {
+        for (const record of user.pushTokens) {
+            const token = String((record === null || record === void 0 ? void 0 : record.token) || '').trim();
+            if (!token || (record === null || record === void 0 ? void 0 : record.disabled) === true) {
+                continue;
+            }
+            tokens.add(token);
+        }
+    }
+    return Array.from(tokens);
+};
 /**
  * Clean up invalid push tokens from user documents
  */
@@ -74,12 +91,19 @@ async function cleanupInvalidPushToken(userId, pushToken) {
         const userDoc = await userRef.get();
         if (userDoc.exists) {
             const userData = userDoc.data();
+            const updates = {};
             if ((userData === null || userData === void 0 ? void 0 : userData.pushToken) === pushToken) {
-                // Remove the invalid token
-                await userRef.update({
-                    pushToken: admin.firestore.FieldValue.delete(),
-                    pushTokenUpdatedAt: admin.firestore.FieldValue.delete(),
-                });
+                updates.pushToken = admin.firestore.FieldValue.delete();
+                updates.pushTokenUpdatedAt = admin.firestore.FieldValue.delete();
+            }
+            if (Array.isArray(userData === null || userData === void 0 ? void 0 : userData.pushTokens)) {
+                const nextPushTokens = userData.pushTokens.filter((record) => String((record === null || record === void 0 ? void 0 : record.token) || '').trim() !== pushToken);
+                if (nextPushTokens.length !== userData.pushTokens.length) {
+                    updates.pushTokens = nextPushTokens;
+                }
+            }
+            if (Object.keys(updates).length > 0) {
+                await userRef.update(updates);
                 console.log(`Cleaned up invalid push token for user ${userId}`);
             }
         }
@@ -88,8 +112,11 @@ async function cleanupInvalidPushToken(userId, pushToken) {
         console.error(`Failed to cleanup push token for user ${userId}:`, error);
     }
 }
-function toMessageData(notificationId, data) {
+function toMessageData(notificationId, data, actionUrl) {
     const messageData = { notificationId };
+    if (actionUrl) {
+        messageData.actionUrl = String(actionUrl);
+    }
     if (!data || typeof data !== 'object' || Array.isArray(data)) {
         return messageData;
     }
@@ -110,16 +137,16 @@ exports.sendPushOnNotificationCreate = (0, firestore_1.onDocumentCreated)('notif
         return;
     }
     console.log(`Processing notification ${event.params.notificationId} for user ${notification.userId}`);
-    // Get the recipient user's push token
+    // Get the recipient user's push tokens
     const userDoc = await db.collection('users').doc(notification.userId).get();
     const user = userDoc.exists ? userDoc.data() : null;
     if (!user) {
         console.log(`User ${notification.userId} not found`);
         return;
     }
-    const pushToken = user.pushToken;
-    if (!pushToken) {
-        console.log(`No push token for user ${notification.userId}`);
+    const pushTokens = getUserPushTokens(user);
+    if (pushTokens.length === 0) {
+        console.log(`No push tokens for user ${notification.userId}`);
         return;
     }
     if (!canUsePushNotifications(user.subscription)) {
@@ -147,26 +174,37 @@ exports.sendPushOnNotificationCreate = (0, firestore_1.onDocumentCreated)('notif
         console.log(`Notification type '${notificationType}' is disabled for user ${notification.userId}`);
         return;
     }
-    const messageData = toMessageData(event.params.notificationId, notification.data);
+    const messageData = toMessageData(event.params.notificationId, notification.data, notification.actionUrl);
     // Send the push notification via FCM
     try {
         const message = {
-            token: pushToken,
+            tokens: pushTokens,
             notification: {
                 title: notification.title || 'New Notification',
                 body: notification.message || '',
             },
             data: messageData,
+            webpush: {
+                notification: {
+                    icon: '/icons/icon-192.png',
+                    badge: '/icons/icon-192.png',
+                },
+            },
         };
-        const response = await admin.messaging().send(message);
-        console.log(`Push sent successfully to user ${notification.userId}:`, response);
+        const response = await admin.messaging().sendEachForMulticast(message);
+        console.log(`Push delivery for user ${notification.userId}: ${response.successCount} succeeded, ${response.failureCount} failed`);
+        const cleanupPromises = response.responses
+            .map((sendResponse, index) => ({ sendResponse, token: pushTokens[index] }))
+            .filter(({ sendResponse }) => {
+            var _a;
+            const errorCode = String(((_a = sendResponse.error) === null || _a === void 0 ? void 0 : _a.code) || '');
+            return (errorCode === 'messaging/registration-token-not-registered' ||
+                errorCode === 'messaging/invalid-registration-token');
+        })
+            .map(({ token }) => cleanupInvalidPushToken(notification.userId, token));
+        await Promise.all(cleanupPromises);
     }
     catch (err) {
         console.error(`Error sending push notification to user ${notification.userId}:`, err);
-        const errorCode = String((err === null || err === void 0 ? void 0 : err.code) || '');
-        if (errorCode === 'messaging/registration-token-not-registered' ||
-            errorCode === 'messaging/invalid-registration-token') {
-            await cleanupInvalidPushToken(notification.userId, pushToken);
-        }
     }
 });

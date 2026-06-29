@@ -41,6 +41,17 @@ export interface User {
 	hiddenPropertyIds?: string[]; // Properties hidden from dashboard
 	pushToken?: string; // Push notification token for FCM
 	pushTokenUpdatedAt?: string; // When push token was last updated
+	pushTokens?: Array<{
+		token: string;
+		provider: 'fcm';
+		platform: 'web' | 'native';
+		deviceLabel?: string;
+		userAgent?: string;
+		createdAt: string;
+		updatedAt: string;
+		lastSeenAt?: string;
+		disabled?: boolean;
+	}>;
 	accountId?: string; // Family account ID for shared subscriptions
 	isAccountOwner?: boolean; // Whether this user owns the account/subscription
 	isTeamMemberAccount?: boolean; // Invited team members are scoped to assigned properties

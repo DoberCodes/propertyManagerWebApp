@@ -23,6 +23,16 @@ import {
 import { getDefaultTaskNotifications } from '../../utils/taskNotificationUtils';
 import { mergeEmailPreferences } from '../../utils/emailPreferences';
 import {
+	countEnabledBrowserPushTokens,
+	disableBrowserPushNotifications,
+	enableBrowserPushNotifications,
+	getBrowserPushStatus,
+	getCurrentBrowserPushToken,
+	mergeBrowserPushTokenRecord,
+	removeBrowserPushTokenRecord,
+	BrowserPushStatus,
+} from '../../services/webPushNotifications';
+import {
 	canManageTeam,
 	canUsePropertyInsights,
 	canUseTaskReminderEmails,
@@ -74,6 +84,12 @@ export const NotificationPreferences: React.FC<
 		currentUser?.subscription,
 	);
 	const nativeApp = isNativeApp();
+	const [browserPushStatus, setBrowserPushStatus] =
+		useState<BrowserPushStatus | null>(null);
+	const [currentBrowserPushToken, setCurrentBrowserPushToken] = useState<
+		string | null
+	>(null);
+	const [browserPushBusy, setBrowserPushBusy] = useState(false);
 	const accountId = String(currentUser?.accountId || currentUser?.id || '').trim();
 	const isAccountOwner =
 		!!currentUser &&
@@ -112,6 +128,44 @@ export const NotificationPreferences: React.FC<
 		() => resolvedEmailPreferences,
 	);
 	const [familyMembers, setFamilyMembers] = useState<any[]>([]);
+
+	useEffect(() => {
+		let isMounted = true;
+		getBrowserPushStatus()
+			.then(async (status) => {
+				if (isMounted) {
+					setBrowserPushStatus(status);
+				}
+				if (
+					status.supported &&
+					status.hasVapidKey &&
+					status.permission === 'granted'
+				) {
+					let token: string | null = null;
+					try {
+						token = await getCurrentBrowserPushToken();
+					} catch (error) {
+						console.warn('Could not read current browser push token:', error);
+					}
+					if (isMounted) {
+						setCurrentBrowserPushToken(token);
+					}
+				}
+			})
+			.catch(() => {
+				if (isMounted) {
+					setBrowserPushStatus({
+						supported: false,
+						permission: 'unsupported',
+						hasVapidKey: false,
+					});
+				}
+			});
+
+		return () => {
+			isMounted = false;
+		};
+	}, []);
 
 	useEffect(() => {
 		const nextSerialized = JSON.stringify(resolvedPreferences);
@@ -203,6 +257,16 @@ export const NotificationPreferences: React.FC<
 			key: 'maintenance_request' as const,
 			label: 'Maintenance Requests',
 			description: 'Maintenance request notifications',
+		},
+		{
+			key: 'document_scan_started' as const,
+			label: 'Document Review Started',
+			description: 'When Maintley begins reviewing an uploaded document',
+		},
+		{
+			key: 'document_scan_completed' as const,
+			label: 'Suggested Details Ready',
+			description: 'When Maintley finds document details ready for your review',
 		},
 	];
 
@@ -387,6 +451,108 @@ export const NotificationPreferences: React.FC<
 			console.error('Failed to apply action-based defaults:', error);
 			setPreferences(resolvedPreferences);
 			feedback.notify('Failed to apply action-based defaults. Please try again.');
+		}
+	};
+
+	const browserPushTokenCount = countEnabledBrowserPushTokens(
+		currentUser?.pushTokens,
+	);
+	const browserPushEnabledHere =
+		!!currentBrowserPushToken &&
+		Array.isArray(currentUser?.pushTokens) &&
+		currentUser.pushTokens.some(
+			(tokenRecord: { token?: string; disabled?: boolean }) =>
+				tokenRecord?.token === currentBrowserPushToken &&
+				tokenRecord?.disabled !== true,
+		);
+	const browserPushSupported = browserPushStatus?.supported === true;
+	const browserPushPermission = browserPushStatus?.permission || 'unsupported';
+	const browserPushCanEnable =
+		browserPushSupported &&
+		browserPushStatus?.hasVapidKey === true &&
+		browserPushPermission !== 'denied';
+
+	const refreshBrowserPushStatus = async () => {
+		const status = await getBrowserPushStatus();
+		setBrowserPushStatus(status);
+		if (
+			status.supported &&
+			status.hasVapidKey &&
+			status.permission === 'granted'
+		) {
+			try {
+				setCurrentBrowserPushToken(await getCurrentBrowserPushToken());
+			} catch (error) {
+				console.warn('Could not refresh current browser push token:', error);
+				setCurrentBrowserPushToken(null);
+			}
+		} else {
+			setCurrentBrowserPushToken(null);
+		}
+	};
+
+	const handleEnableBrowserNotifications = async () => {
+		setBrowserPushBusy(true);
+		try {
+			const tokenRecord = await enableBrowserPushNotifications();
+			const pushTokens = mergeBrowserPushTokenRecord(
+				currentUser?.pushTokens,
+				tokenRecord,
+			);
+			await updateUser({
+				id: currentUser.id,
+				updates: { pushTokens },
+			}).unwrap();
+			dispatch(
+				setCurrentUser({
+					...currentUser,
+					pushTokens,
+				}),
+			);
+			await refreshBrowserPushStatus();
+			setCurrentBrowserPushToken(tokenRecord.token);
+			feedback.notify('Browser notifications are on for this browser.');
+		} catch (error) {
+			console.error('Failed to enable browser notifications:', error);
+			const message = String((error as { message?: string })?.message || '');
+			feedback.notify(
+				message || 'Browser notifications could not be enabled. Please try again.',
+			);
+			await refreshBrowserPushStatus();
+		} finally {
+			setBrowserPushBusy(false);
+		}
+	};
+
+	const handleDisableBrowserNotifications = async () => {
+		setBrowserPushBusy(true);
+		try {
+			const currentToken = await getCurrentBrowserPushToken();
+			await disableBrowserPushNotifications();
+			const pushTokens = currentToken
+				? removeBrowserPushTokenRecord(currentUser?.pushTokens, currentToken)
+				: currentUser?.pushTokens || [];
+			await updateUser({
+				id: currentUser.id,
+				updates: { pushTokens },
+			}).unwrap();
+			dispatch(
+				setCurrentUser({
+					...currentUser,
+					pushTokens,
+				}),
+			);
+			await refreshBrowserPushStatus();
+			setCurrentBrowserPushToken(null);
+			feedback.notify('Browser notifications are off for this browser.');
+		} catch (error) {
+			console.error('Failed to disable browser notifications:', error);
+			feedback.notify(
+				'Browser notifications could not be turned off. Please try again.',
+			);
+			await refreshBrowserPushStatus();
+		} finally {
+			setBrowserPushBusy(false);
 		}
 	};
 
@@ -679,6 +845,51 @@ export const NotificationPreferences: React.FC<
 					</div>
 					{!notificationTypesCollapsed && (
 						<>
+							<PreferencePanel>
+								<div
+									style={{
+										display: 'flex',
+										justifyContent: 'space-between',
+										alignItems: 'flex-start',
+										gap: '12px',
+										flexWrap: 'wrap',
+									}}>
+									<PreferenceText>
+										<strong>Browser Notifications</strong>
+										<span>
+											Get Maintley reminders and updates from this browser. These follow your notification preferences below.
+										</span>
+										<span>
+											{!browserPushSupported
+												? 'This browser does not support browser notifications.'
+												: !browserPushStatus?.hasVapidKey
+													? 'Browser notifications need a Firebase web push key before they can be enabled.'
+													: browserPushPermission === 'denied'
+														? 'Browser notifications are blocked. You can allow them in your browser settings.'
+														: browserPushEnabledHere
+															? 'This browser is set up for Maintley notifications.'
+															: browserPushTokenCount > 0
+																? `${browserPushTokenCount} other browser ${browserPushTokenCount === 1 ? 'device is' : 'devices are'} set up for notifications.`
+															: 'Turn this on to receive browser notifications when Maintley has something useful to show you.'}
+										</span>
+									</PreferenceText>
+									{browserPushEnabledHere ? (
+										<DisableAllButton
+											type='button'
+											disabled={browserPushBusy || !browserPushSupported}
+											onClick={handleDisableBrowserNotifications}>
+											{browserPushBusy ? 'Updating...' : 'Turn Off This Browser'}
+										</DisableAllButton>
+									) : (
+										<EnableAllButton
+											type='button'
+											disabled={browserPushBusy || !browserPushCanEnable}
+											onClick={handleEnableBrowserNotifications}>
+											{browserPushBusy ? 'Updating...' : 'Enable Browser Notifications'}
+										</EnableAllButton>
+									)}
+								</div>
+							</PreferencePanel>
 							<PreferencesGrid>
 								{notificationTypes.map((type) => (
 									<PreferenceOption key={type.key}>

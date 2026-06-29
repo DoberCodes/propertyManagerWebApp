@@ -41,6 +41,15 @@ const isStaticAsset = (url) =>
 const isCacheableResponse = (response) =>
 	response && response.ok && response.type === 'basic';
 
+const resolveNotificationTargetUrl = (data = {}) => {
+	const rawUrl = data.actionUrl || data.url || data.click_action || '/';
+	try {
+		return new URL(rawUrl, self.location.origin).href;
+	} catch (error) {
+		return self.location.origin;
+	}
+};
+
 self.addEventListener('install', (event) => {
 	event.waitUntil(
 		caches
@@ -105,5 +114,57 @@ self.addEventListener('fetch', (event) => {
 				return networkResponse;
 			});
 		}),
+	);
+});
+
+self.addEventListener('push', (event) => {
+	if (!event.data) {
+		return;
+	}
+
+	let payload = {};
+	try {
+		payload = event.data.json();
+	} catch (error) {
+		payload = {
+			notification: {
+				title: 'Maintley',
+				body: event.data.text(),
+			},
+		};
+	}
+
+	const notification = payload.notification || {};
+	const data = payload.data || {};
+	const title = notification.title || data.title || 'Maintley';
+	const options = {
+		body: notification.body || data.message || '',
+		icon: notification.icon || '/icons/icon-192.png',
+		badge: notification.badge || '/icons/icon-192.png',
+		data,
+	};
+
+	event.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener('notificationclick', (event) => {
+	event.notification.close();
+	const targetUrl = resolveNotificationTargetUrl(event.notification.data);
+
+	event.waitUntil(
+		self.clients
+			.matchAll({ type: 'window', includeUncontrolled: true })
+			.then((clientList) => {
+				for (const client of clientList) {
+					if ('focus' in client && client.url === targetUrl) {
+						return client.focus();
+					}
+				}
+
+				if (self.clients.openWindow) {
+					return self.clients.openWindow(targetUrl);
+				}
+				return undefined;
+			}),
 	);
 });
