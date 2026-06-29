@@ -1,5 +1,5 @@
-🎉 **Release Notes for Version 2.7.8** 🎉
+🎉 **Release Notes for Version 2.7.9** 🎉
 
 
 ## 🐛 Bug Fixes
-- fixing deploy issues
+- fixing firebase deploy
