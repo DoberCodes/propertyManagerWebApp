@@ -1,5 +1,5 @@
-🎉 **Release Notes for Version 2.7.5** 🎉
+🎉 **Release Notes for Version 2.7.6** 🎉
 
 
 ## 🐛 Bug Fixes
-- fixing github build errors
+- fixing the standardized color scheme and typography, also cleaning up images and logos
