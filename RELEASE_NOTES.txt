@@ -1,5 +1,5 @@
-🎉 **Release Notes for Version 2.7.12** 🎉
+🎉 **Release Notes for Version 2.7.13** 🎉
 
 
 ## 🐛 Bug Fixes
-- fixing the firebase deploy fails
+- adding temp env for firebase
