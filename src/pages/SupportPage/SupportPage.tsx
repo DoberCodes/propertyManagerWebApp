@@ -105,6 +105,8 @@ import {
 type SupportView = 'overview' | 'requests' | 'help';
 type TicketFilter = 'open' | 'closed';
 
+const SUPPORT_UPDATE_PREVIEW_LIMIT = 5;
+
 const normalizeStatus = (value?: string) =>
 	String(value || '')
 		.toLowerCase()
@@ -116,17 +118,20 @@ const isClosedTicket = (ticket: MyFeedbackTicket): boolean => {
 	const publicStatus = normalizeStatus(ticket.publicStatus);
 	return (
 		status === 'closed' ||
-		status === 'resolved' ||
 		publicStatus === 'closed' ||
-		publicStatus === 'fixed' ||
 		Boolean(ticket.closedAt)
 	);
 };
 
 const getDisplayStatus = (ticket: MyFeedbackTicket): string => {
 	if (isClosedTicket(ticket)) return 'Closed';
-	const status = ticket.publicStatus || ticket.status || 'Received';
-	return String(status)
+	const status = normalizeStatus(ticket.status);
+	const publicStatus = normalizeStatus(ticket.publicStatus);
+	if (status === 'resolved' || publicStatus === 'testing' || publicStatus === 'fixed') {
+		return 'Testing Fix';
+	}
+	const displayStatus = ticket.publicStatus || ticket.status || 'Received';
+	return String(displayStatus)
 		.replaceAll('_', ' ')
 		.replace(/\b\w/g, (character) => character.toUpperCase());
 };
@@ -262,6 +267,10 @@ export const SupportPage: React.FC = () => {
 				)
 				.slice(0, 3),
 		[tickets],
+	);
+	const visibleMaintleyUpdates = recentMaintleyUpdates.slice(
+		0,
+		SUPPORT_UPDATE_PREVIEW_LIMIT,
 	);
 	const canAccessAdmin = hasMaintleyAdminAccess(
 		currentUser?.maintley_role ?? null,
@@ -547,7 +556,7 @@ export const SupportPage: React.FC = () => {
 							<FontAwesomeIcon icon={faNewspaper} color={COLORS.primary} />
 						</PanelHeader>
 						<UpdateList>
-							{recentMaintleyUpdates.map((update) => (
+							{visibleMaintleyUpdates.map((update) => (
 								<UpdateItem key={update.version}>
 									<UpdateMeta>
 										<VersionBadge>v{update.version}</VersionBadge>

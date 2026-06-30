@@ -330,12 +330,15 @@ Authenticated users have a dedicated Support Center at:
 The Support Center brings together:
 
 * New support, feedback, bug, and feature requests.
-* Open and closed request tracking.
+* Active, testing-fix, and closed request tracking.
 * Customer-visible updates from the Maintley team.
+* Standard customer-facing Maintley Updates when support request status changes.
+* Admin support actions block interaction while ticket updates are being saved.
+* Admin ticket cards keep attachments visible while detailed context and activity can be expanded as needed.
 * Request attachments.
 * Frequently asked questions.
 * Troubleshooting and bug-report guidance.
-* A curated feed limited to significant features and major user-facing updates.
+* A curated feed showing the latest five significant features and major user-facing updates.
 * In-depth homeowner-friendly articles covering core Maintley functions.
 * Optional inline screenshots in support articles when a visual example helps explain a feature.
 * Founder notes that explain the practical thinking behind each guide.

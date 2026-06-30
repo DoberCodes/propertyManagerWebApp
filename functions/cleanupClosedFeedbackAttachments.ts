@@ -7,7 +7,7 @@ if (!admin.apps.length) {
 
 const db = admin.firestore();
 const FEEDBACK_COLLECTION = 'feedback';
-const CLOSED_STATUSES = new Set(['resolved', 'closed']);
+const CLOSED_STATUSES = new Set(['closed']);
 const RETENTION_DAYS = 90;
 
 const extractStoragePathFromGsUrl = (value: string): string | null => {
@@ -108,7 +108,7 @@ export const cleanupClosedFeedbackAttachments = functions.pubsub
 
 		const snapshot = await db
 			.collection(FEEDBACK_COLLECTION)
-			.where('status', 'in', ['resolved', 'closed'])
+			.where('status', '==', 'closed')
 			.get();
 
 		let processedTickets = 0;

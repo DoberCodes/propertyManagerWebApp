@@ -95,9 +95,9 @@ const getPublicStatus = (status: string): string => {
 		case 'in_progress':
 			return 'planned';
 		case 'resolved':
-			return 'fixed';
-			case 'closed':
-				return 'closed';
+			return 'testing';
+		case 'closed':
+			return 'closed';
 		default:
 			return 'received';
 	}
@@ -166,7 +166,7 @@ const formatTicketStatusLabel = (status: string): string => {
 		case 'in_progress':
 			return 'In Progress';
 		case 'resolved':
-			return 'Resolved';
+			return 'Testing Fix';
 		case 'closed':
 			return 'Closed';
 		default:
@@ -2194,7 +2194,7 @@ export const getAdminPortalUserTroubleshootingDetails = functions
 				supportAttachmentStorageBytes: Math.max(supportAttachmentStorageBytes, usage.bytes),
 				recentErrorCount: recentErrors.length,
 				openTicketCount: recentSupportRequests.filter((entry) =>
-					!['resolved', 'closed'].includes(String(entry.status || '').trim().toLowerCase()),
+					String(entry.status || '').trim().toLowerCase() !== 'closed',
 				).length,
 			},
 			recentSupportRequests,
@@ -3715,7 +3715,7 @@ export const updateFeedbackAdminTicketStatus = functions.https.onCall(
 		if ((nextStatus === 'resolved' || nextStatus === 'closed') && !resolutionNotes) {
 			throw new functions.https.HttpsError(
 				'invalid-argument',
-				'Maintly update is required when setting status to resolved or closed.',
+				'Maintley update is required when setting status to internally testing or closed.',
 			);
 		}
 
@@ -3735,7 +3735,7 @@ export const updateFeedbackAdminTicketStatus = functions.https.onCall(
 		if (isTransitioningIntoClosedLikeStatus && !hasAnyResolutionNotes) {
 			throw new functions.https.HttpsError(
 				'invalid-argument',
-				'Maintly update is required when setting status to resolved or closed.',
+				'Maintley update is required when setting status to internally testing or closed.',
 			);
 		}
 

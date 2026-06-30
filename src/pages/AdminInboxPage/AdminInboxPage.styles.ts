@@ -34,6 +34,54 @@ export const MainContent = styled.div`
 	}
 `;
 
+export const AdminLoadingOverlay = styled.div`
+	position: fixed;
+	inset: 0;
+	z-index: 1200;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 20px;
+	background: rgba(17, 24, 39, 0.38);
+	backdrop-filter: blur(2px);
+`;
+
+export const AdminLoadingPanel = styled.div`
+	display: grid;
+	gap: 10px;
+	justify-items: center;
+	width: min(280px, 100%);
+	padding: 20px;
+	border: 1px solid #fed7aa;
+	border-radius: 14px;
+	background: #ffffff;
+	box-shadow: 0 18px 38px rgba(124, 45, 18, 0.18);
+	color: #7c2d12;
+	text-align: center;
+`;
+
+export const AdminLoadingSpinner = styled.div`
+	width: 30px;
+	height: 30px;
+	border: 3px solid #fed7aa;
+	border-top-color: #ea580c;
+	border-radius: 50%;
+	animation: admin-spin 0.8s linear infinite;
+
+	@keyframes admin-spin {
+		to {
+			transform: rotate(360deg);
+		}
+	}
+`;
+
+export const AdminLoadingText = styled.p`
+	margin: 0;
+	font-size: 13px;
+	font-weight: 700;
+	color: #7c2d12;
+`;
+
 // ============================================================================
 // Admin Navbar — Desktop Sidebar
 // ============================================================================
@@ -276,25 +324,24 @@ export const DialogBackdrop = styled.div`
 	display: flex;
 	align-items: center;
 	justify-content: center;
+	overflow-y: auto;
 	padding: 16px;
-	z-index: 50;
+	z-index: 1000;
 
 	@media (max-width: 480px) {
-		align-items: flex-end;
-		padding: 0;
+		align-items: center;
+		padding: 12px;
 
 		& > * {
 			width: 100%;
 			max-width: 100%;
-			border-bottom-left-radius: 0;
-			border-bottom-right-radius: 0;
 		}
 	}
 `;
 
 export const DialogCard = styled.div`
 	width: min(560px, 100%);
-	max-height: 90vh;
+	max-height: calc(100dvh - 32px);
 	overflow-y: auto;
 	background: #ffffff;
 	border-radius: 12px;
@@ -305,7 +352,7 @@ export const DialogCard = styled.div`
 	box-shadow: 0 18px 38px rgba(124, 45, 18, 0.18);
 
 	@media (max-width: 480px) {
-		max-height: 95vh;
+		max-height: calc(100dvh - 24px);
 		padding: 14px;
 		border-radius: 10px;
 	}
@@ -631,6 +678,32 @@ export const TicketHeader = styled.div`
 	}
 `;
 
+export const TicketCollapseButton = styled.button`
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 7px;
+	padding: 8px 12px;
+	border: 1px solid #fdba74;
+	border-radius: 8px;
+	background: #ffffff;
+	color: #9a3412;
+	font-size: 12px;
+	font-weight: 700;
+	cursor: pointer;
+	transition: background-color 0.15s ease;
+
+	:hover {
+		background: #ffedd5;
+	}
+`;
+
+export const TicketCollapsibleContent = styled.div`
+	display: grid;
+	gap: 8px;
+	margin-top: 10px;
+`;
+
 export const MessageBox = styled.pre`
 	margin: 8px 0;
 	padding: 10px;
@@ -676,6 +749,35 @@ export const AttachmentLink = styled.a`
 	:hover {
 		filter: brightness(0.8);
 	}
+`;
+
+export const AttachmentPreviewGrid = styled.div`
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(160px, 240px));
+	gap: 10px;
+`;
+
+export const AttachmentPreviewLink = styled.a`
+	display: grid;
+	gap: 6px;
+	padding: 8px;
+	border: 1px solid #fed7aa;
+	border-radius: 10px;
+	background: #ffffff;
+	color: #9a3412;
+	text-decoration: none;
+
+	:hover {
+		background: #fff7ed;
+	}
+`;
+
+export const AttachmentPreviewImage = styled.img`
+	width: 100%;
+	aspect-ratio: 4 / 3;
+	object-fit: contain;
+	border-radius: 8px;
+	background: #fffdfa;
 `;
 
 // ============================================================================

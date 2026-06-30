@@ -107,7 +107,7 @@ const getPublicStatus = (status) => {
         case 'in_progress':
             return 'planned';
         case 'resolved':
-            return 'fixed';
+            return 'testing';
         case 'closed':
             return 'closed';
         default:
@@ -162,7 +162,7 @@ const formatTicketStatusLabel = (status) => {
         case 'in_progress':
             return 'In Progress';
         case 'resolved':
-            return 'Resolved';
+            return 'Testing Fix';
         case 'closed':
             return 'Closed';
         default:
@@ -1611,7 +1611,7 @@ exports.getAdminPortalUserTroubleshootingDetails = functions
             supportRequestCount: totalSupportRequestCount || recentSupportRequests.length,
             supportAttachmentStorageBytes: Math.max(supportAttachmentStorageBytes, usage.bytes),
             recentErrorCount: recentErrors.length,
-            openTicketCount: recentSupportRequests.filter((entry) => !['resolved', 'closed'].includes(String(entry.status || '').trim().toLowerCase())).length,
+            openTicketCount: recentSupportRequests.filter((entry) => String(entry.status || '').trim().toLowerCase() !== 'closed').length,
         },
         recentSupportRequests,
         recentErrors,
@@ -2673,7 +2673,7 @@ exports.updateFeedbackAdminTicketStatus = functions.https.onCall(async (data, co
         throw new functions.https.HttpsError('invalid-argument', 'Invalid type value.');
     }
     if ((nextStatus === 'resolved' || nextStatus === 'closed') && !resolutionNotes) {
-        throw new functions.https.HttpsError('invalid-argument', 'Maintly update is required when setting status to resolved or closed.');
+        throw new functions.https.HttpsError('invalid-argument', 'Maintley update is required when setting status to internally testing or closed.');
     }
     const docRef = db.collection(FEEDBACK_COLLECTION).doc(ticketId);
     const docSnapshot = await docRef.get();
@@ -2686,7 +2686,7 @@ exports.updateFeedbackAdminTicketStatus = functions.https.onCall(async (data, co
     const hasAnyResolutionNotes = Boolean(resolutionNotes || existingResolutionNotes);
     const isTransitioningIntoClosedLikeStatus = nextStatus !== currentStatus && (nextStatus === 'resolved' || nextStatus === 'closed');
     if (isTransitioningIntoClosedLikeStatus && !hasAnyResolutionNotes) {
-        throw new functions.https.HttpsError('invalid-argument', 'Maintly update is required when setting status to resolved or closed.');
+        throw new functions.https.HttpsError('invalid-argument', 'Maintley update is required when setting status to internally testing or closed.');
     }
     const { docs: groupedDocs } = await getFeedbackTicketGroupDocs(docSnapshot);
     const nowIso = new Date().toISOString();

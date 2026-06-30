@@ -47,7 +47,7 @@ export const useAdminTickets = (): UseAdminTicketsReturn => {
 
 	const isClosedLikeStatus = (value: string): boolean => {
 		const normalized = String(value || '').trim().toLowerCase();
-		return normalized === 'resolved' || normalized === 'closed';
+		return normalized === 'closed';
 	};
 
 	const applyClientStatusFilter = (

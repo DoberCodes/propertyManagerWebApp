@@ -9,7 +9,18 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import type { AppDispatch } from '../../Redux/store/store';
-import { Shell, Card, SubTitle, ErrorText, TicketList, MainContent } from './AdminInboxPage.styles';
+import {
+	AdminLoadingOverlay,
+	AdminLoadingPanel,
+	AdminLoadingSpinner,
+	AdminLoadingText,
+	Shell,
+	Card,
+	SubTitle,
+	ErrorText,
+	TicketList,
+	MainContent,
+} from './AdminInboxPage.styles';
 import {
 	AdminHeader,
 	AdminNavbar,
@@ -31,7 +42,11 @@ import {
 	getDisplayTicketNumber,
 	groupTicketsForDisplay,
 } from './utils/ticketUtils';
-import { MESSAGES } from './constants';
+import {
+	MAINTLEY_STATUS_UPDATE_MESSAGES,
+	MESSAGES,
+	normalizeStatusForAdmin,
+} from './constants';
 import type { TypeOption } from './constants';
 
 const TOP_LEVEL_ROLE_TOKENS = new Set<string>([
@@ -56,6 +71,21 @@ const normalizeRoleToken = (value: unknown): string =>
 const hasTopLevelRole = (roles: string[]): boolean =>
 	roles.some((role) => TOP_LEVEL_ROLE_TOKENS.has(normalizeRoleToken(role)));
 
+const buildStatusChangeMaintleyUpdate = (
+	nextStatus: string,
+	customUpdate?: string,
+): string | undefined => {
+	const normalizedStatus = normalizeStatusForAdmin(nextStatus);
+	const standardUpdate = MAINTLEY_STATUS_UPDATE_MESSAGES[normalizedStatus];
+	const trimmedCustomUpdate = String(customUpdate || '').trim();
+
+	if (!standardUpdate) return trimmedCustomUpdate || undefined;
+	if (!trimmedCustomUpdate) return standardUpdate;
+	if (trimmedCustomUpdate === standardUpdate) return standardUpdate;
+
+	return `${standardUpdate}\n\n${trimmedCustomUpdate}`;
+};
+
 export const AdminInboxPage: React.FC = () => {
 	const dispatch = useDispatch<AppDispatch>();
 	const navigate = useNavigate();
@@ -71,6 +101,13 @@ export const AdminInboxPage: React.FC = () => {
 	const visibleTicketCounts = React.useMemo(
 		() => calculateTicketCounts(ticketGroups.map((group) => group.primaryTicket)),
 		[ticketGroups],
+	);
+	const isAdminBusy = Boolean(
+		tickets.loadingTickets ||
+			tickets.activeTicketId ||
+			ticketLinking.linkingTicketId ||
+			ticketLinking.unlinkingTicketId ||
+			ticketLinking.deletingParentTicketId,
 	);
 
 	// Ensure tickets load after auth (must come before early returns per rules of hooks)
@@ -210,11 +247,17 @@ export const AdminInboxPage: React.FC = () => {
 		);
 		const groupId = group?.primaryTicket.id;
 		const groupKey = String(groupId || ticketId);
-		const resolutionForUpdate = notes.getResolution(groupKey) || undefined;
+		const currentStatus = normalizeStatusForAdmin(ticket?.status);
+		const normalizedNextStatus = normalizeStatusForAdmin(nextStatus);
+		const statusChanged = normalizedNextStatus !== currentStatus;
+		const resolutionForUpdate = statusChanged
+			? buildStatusChangeMaintleyUpdate(nextStatus, notes.getResolution(groupKey))
+			: notes.getResolution(groupKey) || undefined;
+
 		await tickets.handleStatusUpdate(
 			auth.sessionToken!,
 			ticketId,
-			nextStatus,
+			normalizedNextStatus,
 			notes.getNote(groupKey) || undefined,
 			resolutionForUpdate,
 			String(ticket?.type || 'feedback'),
@@ -289,6 +332,17 @@ export const AdminInboxPage: React.FC = () => {
 
 	return (
 		<Shell>
+			{isAdminBusy ? (
+				<AdminLoadingOverlay
+					role='status'
+					aria-live='polite'
+					aria-label='Admin action in progress'>
+					<AdminLoadingPanel>
+						<AdminLoadingSpinner aria-hidden='true' />
+						<AdminLoadingText>Updating admin portal...</AdminLoadingText>
+					</AdminLoadingPanel>
+				</AdminLoadingOverlay>
+			) : null}
 			<AdminNavbar
 				activePage={activePage}
 				adminUser={auth.adminUser}

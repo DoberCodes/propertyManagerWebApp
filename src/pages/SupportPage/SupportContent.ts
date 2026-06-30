@@ -7,7 +7,7 @@ export const supportFaqItems = [
 	{
 		question: 'Where can I check the status of my request?',
 		answer:
-			'Open My requests in the Support Center to review open and closed requests and the latest Maintley update.',
+			'Open My requests in the Support Center to review active requests, closed requests, and the latest Maintley update.',
 	},
 	{
 		question: "Why can't I see the Team page?",

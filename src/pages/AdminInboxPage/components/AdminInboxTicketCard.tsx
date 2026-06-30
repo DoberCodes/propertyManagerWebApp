@@ -15,8 +15,13 @@ import {
 	AttachmentList,
 	AttachmentItem,
 	AttachmentLink,
+	AttachmentPreviewGrid,
+	AttachmentPreviewImage,
+	AttachmentPreviewLink,
 	SecondaryButton,
 	ActionGroup,
+	TicketCollapseButton,
+	TicketCollapsibleContent,
 	NotesStack,
 	NoteField,
 	NoteComposerRow,
@@ -48,6 +53,7 @@ import { getDisplayTicketNumber } from '../utils/ticketUtils';
 import { AdminTicketEditDialog } from './AdminTIcketEditDialog';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPaperPlane } from '@fortawesome/free-regular-svg-icons';
+import { faChevronDown, faChevronRight } from '@fortawesome/free-solid-svg-icons';
 
 interface TicketCardProps {
 	ticket: AdminFeedbackTicket;
@@ -115,7 +121,10 @@ export const TicketCard: React.FC<TicketCardProps> = ({
 	const normalizedTicketType = editableTypeOptions.includes(ticketType as any)
 		? ticketType
 		: 'feedback';
-	const attachments = Array.isArray(ticket.attachments) ? (ticket.attachments as unknown[]) : [];
+	const attachments = React.useMemo(
+		() => (Array.isArray(ticket.attachments) ? (ticket.attachments as unknown[]) : []),
+		[ticket.attachments],
+	);
 	const submissionContext =
 		ticket.submissionContext && typeof ticket.submissionContext === 'object'
 			? (ticket.submissionContext as Record<string, unknown>)
@@ -131,6 +140,7 @@ export const TicketCard: React.FC<TicketCardProps> = ({
 	const [historyFilter, setHistoryFilter] = React.useState<HistoryFilter>('all');
 	const [isLinkInputFocused, setIsLinkInputFocused] = React.useState(false);
 	const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false);
+	const [isExpanded, setIsExpanded] = React.useState(false);
 	const [selectedUnlinkTicketIds, setSelectedUnlinkTicketIds] = React.useState<string[]>([]);
 	const isPrimaryGroupTicket = Boolean(primaryTicket.isGroupTicket) || Boolean(primaryTicket.isLinkedPrimary);
 	const linkedChildIds = React.useMemo(
@@ -138,11 +148,6 @@ export const TicketCard: React.FC<TicketCardProps> = ({
 		[connectedTickets],
 	);
 	const canDeleteParentTicket = isPrimaryGroupTicket && linkedChildIds.length === 0;
-	const existingGroupResolutionValue = groupTickets
-		.map((groupTicket) => String(groupTicket.resolutionNotes || '').trim())
-		.find(Boolean) || '';
-	const effectiveResolutionValue =
-		resolutionValue.trim() || String(ticket.resolutionNotes || '').trim() || existingGroupResolutionValue;
 	const linkSearchQuery = String(linkTargetValue || '').trim().toLowerCase();
 
 	const historyEntries = React.useMemo<HistoryEntry[]>(() => {
@@ -275,6 +280,14 @@ export const TicketCard: React.FC<TicketCardProps> = ({
 	}, [linkableTickets, linkSearchQuery]);
 
 	const showLinkSuggestions = isLinkInputFocused && linkSuggestions.length > 0;
+	const normalizedAttachments = React.useMemo(
+		() => attachments.map((attachment, idx) => normalizeAttachment(attachment, idx)),
+		[attachments],
+	);
+	const isImageAttachment = (name: string, url?: string): boolean => {
+		const candidate = `${name || ''} ${url || ''}`.toLowerCase().split('?')[0];
+		return /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(candidate);
+	};
 
 	React.useEffect(() => {
 		setSelectedUnlinkTicketIds((prev) => {
@@ -288,10 +301,6 @@ export const TicketCard: React.FC<TicketCardProps> = ({
 
 	const handleStatusChange = (nextStatus: string) => {
 		if (nextStatus === status) return;
-		if ((nextStatus === 'resolved' || nextStatus === 'closed') && !effectiveResolutionValue) {
-			window.alert('Maintley Update is required before setting status to Resolved or Closed.');
-			return;
-		}
 		void onStatusUpdate(nextStatus);
 	};
 
@@ -372,27 +381,39 @@ export const TicketCard: React.FC<TicketCardProps> = ({
 					<SecondaryButton type='button' onClick={openEditDialog}>
 						Edit Ticket
 					</SecondaryButton>
+					<TicketCollapseButton
+						type='button'
+						aria-expanded={isExpanded}
+						aria-controls={`ticket-details-${ticketId}`}
+						onClick={() => setIsExpanded((current) => !current)}>
+						<FontAwesomeIcon icon={isExpanded ? faChevronDown : faChevronRight} />
+						{isExpanded ? 'Hide details' : 'Show details'}
+					</TicketCollapseButton>
 					<CaseGroupSummaryText>{caseTicketCount} tickets linked</CaseGroupSummaryText>
 				</ActionGroup>
 			</TicketHeader>
 
-			<MessageBox>{String(ticket.message || 'No report details were provided.')}</MessageBox>
+			{isExpanded ? (
+				<TicketCollapsibleContent id={`ticket-details-${ticketId}`}>
+					<MessageBox>{String(ticket.message || 'No report details were provided.')}</MessageBox>
 
-			<AttachmentSection>
-				<AttachmentLabel>Ticket Details</AttachmentLabel>
-				<TicketMeta>
-					Submitted:{' '}
-					{ticket.createdAt
-						? new Date(String(ticket.createdAt)).toLocaleString()
-						: 'n/a'}
-				</TicketMeta>
-				<TicketMeta>
-					Updated:{' '}
-					{ticket.updatedAt
-						? new Date(String(ticket.updatedAt)).toLocaleString()
-						: 'n/a'}
-				</TicketMeta>
-			</AttachmentSection>
+					<AttachmentSection>
+						<AttachmentLabel>Ticket Details</AttachmentLabel>
+						<TicketMeta>
+							Submitted:{' '}
+							{ticket.createdAt
+								? new Date(String(ticket.createdAt)).toLocaleString()
+								: 'n/a'}
+						</TicketMeta>
+						<TicketMeta>
+							Updated:{' '}
+							{ticket.updatedAt
+								? new Date(String(ticket.updatedAt)).toLocaleString()
+								: 'n/a'}
+						</TicketMeta>
+					</AttachmentSection>
+				</TicketCollapsibleContent>
+			) : null}
 
 			{isEditDialogOpen ? (
 				<AdminTicketEditDialog
@@ -422,14 +443,31 @@ export const TicketCard: React.FC<TicketCardProps> = ({
 				/>
 			) : null}
 
-			{attachments.length > 0 ? (
+			{normalizedAttachments.length > 0 ? (
 				<AttachmentSection>
 					<AttachmentLabel>Attachments</AttachmentLabel>
+					<AttachmentPreviewGrid>
+						{normalizedAttachments
+							.filter((attachment) => attachment.url && isImageAttachment(attachment.name, attachment.url))
+							.map((attachment, idx) => (
+								<AttachmentPreviewLink
+									key={`${ticket.id}-preview-${idx}`}
+									href={attachment.url}
+									target='_blank'
+									rel='noreferrer noopener'>
+									<AttachmentPreviewImage
+										src={attachment.url}
+										alt={attachment.name}
+										loading='lazy'
+									/>
+									<span>{attachment.name}</span>
+								</AttachmentPreviewLink>
+							))}
+					</AttachmentPreviewGrid>
 					<AttachmentList>
-						{attachments.map((attachment, idx) => {
-							const normalized = normalizeAttachment(attachment, idx);
-							const name = normalized.name;
-							const url = normalized.url;
+						{normalizedAttachments.map((attachment, idx) => {
+							const name = attachment.name;
+							const url = attachment.url;
 
 							if (!url) {
 								return <AttachmentItem key={`${ticket.id}-${idx}`}>{name} - attachment unavailable</AttachmentItem>;
@@ -447,31 +485,33 @@ export const TicketCard: React.FC<TicketCardProps> = ({
 				</AttachmentSection>
 			) : null}
 
-			{submissionContext ? (
-				<AttachmentSection>
-					<AttachmentLabel>Submission Context</AttachmentLabel>
-					<TicketMeta>
-						Route: {String(submissionContext.pageUrl || 'n/a')}
-					</TicketMeta>
-					<TicketMeta>
-						Property: {String(submissionContext.propertyId || 'n/a')} | Device:{' '}
-						{String(submissionContext.deviceType || 'desktop')}
-					</TicketMeta>
-					<TicketMeta>
-						Browser: {String(submissionContext.browser || 'n/a')}
-					</TicketMeta>
-					<TicketMeta>
-						Version: {String(submissionContext.appVersion || 'n/a')} | Captured:{' '}
-						{submissionContext.timestamp
-							? new Date(String(submissionContext.timestamp)).toLocaleString()
-							: 'n/a'}
-					</TicketMeta>
-				</AttachmentSection>
-			) : null}
+			{isExpanded ? (
+				<TicketCollapsibleContent>
+					{submissionContext ? (
+						<AttachmentSection>
+							<AttachmentLabel>Submission Context</AttachmentLabel>
+							<TicketMeta>
+								Route: {String(submissionContext.pageUrl || 'n/a')}
+							</TicketMeta>
+							<TicketMeta>
+								Property: {String(submissionContext.propertyId || 'n/a')} | Device:{' '}
+								{String(submissionContext.deviceType || 'desktop')}
+							</TicketMeta>
+							<TicketMeta>
+								Browser: {String(submissionContext.browser || 'n/a')}
+							</TicketMeta>
+							<TicketMeta>
+								Version: {String(submissionContext.appVersion || 'n/a')} | Captured:{' '}
+								{submissionContext.timestamp
+									? new Date(String(submissionContext.timestamp)).toLocaleString()
+									: 'n/a'}
+							</TicketMeta>
+						</AttachmentSection>
+					) : null}
 
 
 
-			<NotesStack>
+					<NotesStack>
 				<NoteField>
 					<CaseGroupSummaryRow>
 						<NotesTabList role='tablist' aria-label='Ticket notes tabs'>
@@ -489,7 +529,7 @@ export const TicketCard: React.FC<TicketCardProps> = ({
 								aria-selected={activeNotesTab === 'maintly'}
 								$active={activeNotesTab === 'maintly'}
 								onClick={() => setActiveNotesTab('maintly')}>
-								Maintly Update
+								Maintley Update
 							</NotesTabButton>
 						</NotesTabList>
 					</CaseGroupSummaryRow>
@@ -591,7 +631,9 @@ export const TicketCard: React.FC<TicketCardProps> = ({
 						)}
 					</NoteTabPanel>
 				</NoteField>
-			</NotesStack>
+					</NotesStack>
+				</TicketCollapsibleContent>
+			) : null}
 		</TicketCardContainer>
 	);
 };

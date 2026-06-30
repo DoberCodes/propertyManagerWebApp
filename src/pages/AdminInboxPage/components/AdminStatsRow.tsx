@@ -16,7 +16,7 @@ export const AdminStatsRow: React.FC<AdminStatsRowProps> = ({ ticketCounts }) =>
 		<StatsRow>
 			<StatCard>Received: {ticketCounts.received}</StatCard>
 			<StatCard>In Progress: {ticketCounts.in_progress}</StatCard>
-			<StatCard>Resolved: {ticketCounts.resolved}</StatCard>
+			<StatCard>Internally Testing: {ticketCounts.resolved}</StatCard>
 			<StatCard>Closed: {ticketCounts.closed}</StatCard>
 		</StatsRow>
 	);
