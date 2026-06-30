@@ -19,7 +19,6 @@ import {
 	DeviceServiceItem,
 	PropertyDocumentCategory,
 } from '../../../types/Property.types';
-import { FileUploader } from '../FileUploader';
 import { TaskSelect } from '../Select/TaskSelect';
 import {
 	DEVICE_SERVICE_ITEM_CATEGORY_OPTIONS,
@@ -929,22 +928,15 @@ export const DeviceModal = (props: DeviceModalProps) => {
 								</FieldHint>
 							</FormGroup>
 							{/* Units are temporarily hidden from the app flow. */}
+							{(props.deviceFormData.files || []).length > 0 && (
 							<FormGroupFull>
-								<SectionHeader>
-									<SectionTitle>Attachments</SectionTitle>
-									<SectionDescription>
-										Upload a reference photo, manual, or invoice if you have one available.
-									</SectionDescription>
-								</SectionHeader>
-								<FileUploader
-									setFiles={(files) => props.onPendingFilesChange?.(files)}
-									multiple
-									helperText='PDF, docs, images, sheets. Max 10MB each.'
-								/>
 								<AttachmentSection>
 									<SectionTitle style={{ fontSize: '0.92rem' }}>
-										Current & Pending Files
+										Existing Files
 									</SectionTitle>
+									<SectionDescription>
+										These older files are saved directly on this appliance. New uploads should use Appliance Documents below.
+									</SectionDescription>
 									<AttachmentList>
 										{(props.deviceFormData.files || []).map((file) => {
 											const isRemoved = removedSet.has(file.url);
@@ -984,7 +976,7 @@ export const DeviceModal = (props: DeviceModalProps) => {
 												</AttachmentItem>
 											);
 										})}
-										{pendingFiles.map((file) => {
+										{false && pendingFiles.map((file) => {
 											const fileKey = `${file.name}-${file.size}`;
 											return (
 												<AttachmentItem key={fileKey}>
@@ -1005,7 +997,7 @@ export const DeviceModal = (props: DeviceModalProps) => {
 												</AttachmentItem>
 											);
 										})}
-										{(props.deviceFormData.files || []).length === 0 &&
+										{false && (props.deviceFormData.files || []).length === 0 &&
 											pendingFiles.length === 0 && (
 												<AttachmentSubtext>
 													No attachments yet. Add files above to include manuals, invoices, or photos.
@@ -1014,13 +1006,10 @@ export const DeviceModal = (props: DeviceModalProps) => {
 									</AttachmentList>
 								</AttachmentSection>
 								<FieldHint>
-									{(props.pendingFiles || []).length > 0
-										? `${props.pendingFiles?.length || 0} file${(props.pendingFiles?.length || 0) === 1 ? '' : 's'
-										} selected and ready to upload when you save.`
-										: `${props.deviceFormData.files?.length || 0} existing attachment${(props.deviceFormData.files?.length || 0) === 1 ? '' : 's'
-										}. Add new files to upload on save.`}
+									New uploads should use Appliance Documents below.
 								</FieldHint>
 							</FormGroupFull>
+							)}
 							<FormGroupFull>
 								<ApplianceDocumentsPanel
 									property={props.property}

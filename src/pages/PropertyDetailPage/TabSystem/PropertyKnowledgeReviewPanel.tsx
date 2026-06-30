@@ -257,6 +257,14 @@ interface MemoryChangeSection {
 	parts: ExtractedPartSuggestion[];
 }
 
+type ReviewSummaryTone = 'success' | 'warning' | 'required';
+
+interface ReviewSummarySection {
+	title: string;
+	items: string[];
+	tone: ReviewSummaryTone;
+}
+
 type TargetChoiceMode = 'update' | 'create';
 
 interface TargetChoices {
@@ -365,6 +373,16 @@ const getMemoryChangeGroupKey = (
 		return 'part';
 	}
 	return 'maintenance-event';
+};
+
+const getReviewSummaryLabel = (group: MemoryChangeGroup) => {
+	if (group.key === 'asset') return 'System';
+	if (group.key === 'property') return 'Property';
+	if (group.key === 'maintenance-event') return 'Maintenance Event';
+	if (group.key === 'contractor') return 'Contractor';
+	if (group.key === 'warranty') return 'Warranty';
+	if (group.key === 'part') return 'Parts & Supplies';
+	return group.title;
 };
 
 const getRecordValue = (record: any, field?: string) => {
@@ -1069,6 +1087,38 @@ export const PropertyKnowledgeReviewPanel: React.FC<
 	const requiresPropertyAddressConfirmation =
 		selectedSuggestion?.propertyConfirmation?.status === 'needs_confirmation';
 
+	const reviewSummarySections = useMemo<ReviewSummarySection[]>(() => {
+		const uniqueItems = (items: string[]) => Array.from(new Set(items));
+		const newRecords = uniqueItems(
+			selectedMemoryChangeGroups
+				.filter((group) => group.mode === 'create' && group.key !== 'warranty')
+				.map(getReviewSummaryLabel),
+		);
+		const updates = uniqueItems(
+			selectedMemoryChangeGroups
+				.filter((group) => group.mode === 'update' || group.key === 'warranty')
+				.map(getReviewSummaryLabel),
+		);
+		const warnings = requiresPropertyAddressConfirmation
+			? ['Property mismatch']
+			: [];
+		const reviewRequired =
+			requiresPropertyAddressConfirmation && !propertyAddressConfirmed
+				? ['Property confirmation']
+				: [];
+
+		return [
+			{ title: 'New Records', items: newRecords, tone: 'success' as const },
+			{ title: 'Updates', items: updates, tone: 'success' as const },
+			{ title: 'Warnings', items: warnings, tone: 'warning' as const },
+			{ title: 'Review Required', items: reviewRequired, tone: 'required' as const },
+		].filter((section) => section.items.length > 0);
+	}, [
+		propertyAddressConfirmed,
+		requiresPropertyAddressConfirmation,
+		selectedMemoryChangeGroups,
+	]);
+
 	const renderTargetChoice = (group: MemoryChangeGroup) => {
 		if (!group.targetCandidate) return null;
 
@@ -1647,6 +1697,9 @@ export const PropertyKnowledgeReviewPanel: React.FC<
 					if (!fallbackMatchingContractor.category && contractorSuggestion.category) {
 						contractorUpdates.category = contractorSuggestion.category;
 					}
+					if (!fallbackMatchingContractor.website && contractorSuggestion.website) {
+						contractorUpdates.website = contractorSuggestion.website;
+					}
 					const nextNotes = appendNote(
 						fallbackMatchingContractor.notes,
 						contractorSuggestion.notes,
@@ -1670,6 +1723,7 @@ export const PropertyKnowledgeReviewPanel: React.FC<
 						company: contractorSuggestion.company,
 						category: contractorSuggestion.category,
 						phone: contractorSuggestion.phone,
+						website: contractorSuggestion.website,
 						notes: contractorSuggestion.notes,
 					}).unwrap();
 					completedBy = createdContractor?.id;
@@ -1874,13 +1928,41 @@ export const PropertyKnowledgeReviewPanel: React.FC<
 								</KnowledgeEmptyState>
 							) : (
 								<>
+									{reviewSummarySections.length > 0 && (
+										<ReviewSummaryPanel aria-label='Review summary'>
+											<ReviewSummaryTitle>Review Summary</ReviewSummaryTitle>
+											<ReviewSummaryGrid>
+												{reviewSummarySections.map((section) => (
+													<ReviewSummaryGroup key={section.title}>
+														<ReviewSummaryGroupTitle>
+															{section.title}
+														</ReviewSummaryGroupTitle>
+														<ReviewSummaryList>
+															{section.items.map((item) => (
+																<ReviewSummaryItem
+																	key={item}
+																	$tone={section.tone}>
+																	<ReviewSummaryIcon
+																		aria-hidden='true'
+																		$tone={section.tone}>
+																		{section.tone === 'success' ? '✓' : '!'}
+																	</ReviewSummaryIcon>
+																	<span>{item}</span>
+																</ReviewSummaryItem>
+															))}
+														</ReviewSummaryList>
+													</ReviewSummaryGroup>
+												))}
+											</ReviewSummaryGrid>
+										</ReviewSummaryPanel>
+									)}
 									<MemoryReviewIntro>
 										Review what will change in this property's records if you save these suggestions.
 									</MemoryReviewIntro>
 									{selectedSuggestion.propertyConfirmation?.status === 'needs_confirmation' && (
 										<PropertyConfirmationWarning>
 											<PropertyConfirmationTitle>
-												This document may be for a different property.
+												Maintley found information that may belong to another property.
 											</PropertyConfirmationTitle>
 											<PropertyConfirmationGrid>
 												<div>
@@ -1909,7 +1991,7 @@ export const PropertyKnowledgeReviewPanel: React.FC<
 													}
 												/>
 												<label htmlFor={`property-confirmation-${selectedSuggestion.id}`}>
-													This document belongs to this property.
+													Use this document for the selected property.
 												</label>
 											</PropertyConfirmationCheck>
 										</PropertyConfirmationWarning>
@@ -2235,6 +2317,88 @@ const KnowledgeEmptyState = styled.div`
 	font-size: 13px;
 	line-height: 1.45;
 	padding: 12px;
+`;
+
+const ReviewSummaryPanel = styled.section`
+	display: grid;
+	gap: 10px;
+	border: 1px solid ${COLORS.border};
+	border-radius: 8px;
+	background: ${COLORS.bgLight};
+	padding: 12px;
+`;
+
+const ReviewSummaryTitle = styled.h4`
+	margin: 0;
+	color: ${COLORS.textPrimary};
+	font-size: 14px;
+	font-weight: 900;
+	line-height: 1.3;
+`;
+
+const ReviewSummaryGrid = styled.div`
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 10px 14px;
+
+	@media (max-width: 620px) {
+		grid-template-columns: 1fr;
+	}
+`;
+
+const ReviewSummaryGroup = styled.div`
+	display: grid;
+	gap: 6px;
+`;
+
+const ReviewSummaryGroupTitle = styled.div`
+	color: ${COLORS.textSecondary};
+	font-size: 11px;
+	font-weight: 900;
+	letter-spacing: 0;
+	text-transform: uppercase;
+`;
+
+const ReviewSummaryList = styled.ul`
+	display: grid;
+	gap: 5px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+`;
+
+const ReviewSummaryItem = styled.li<{ $tone: ReviewSummaryTone }>`
+	display: grid;
+	grid-template-columns: 18px minmax(0, 1fr);
+	align-items: start;
+	gap: 6px;
+	color: ${({ $tone }) =>
+		$tone === 'warning' || $tone === 'required'
+			? COLORS.warningDark
+			: COLORS.textPrimary};
+	font-size: 13px;
+	font-weight: 800;
+	line-height: 1.35;
+
+	span:last-child {
+		overflow-wrap: anywhere;
+	}
+`;
+
+const ReviewSummaryIcon = styled.span<{ $tone: ReviewSummaryTone }>`
+	display: inline-grid;
+	place-items: center;
+	width: 18px;
+	height: 18px;
+	border-radius: 999px;
+	background: ${COLORS.white};
+	color: ${({ $tone }) =>
+		$tone === 'warning' || $tone === 'required'
+			? COLORS.warningDark
+			: COLORS.primaryDark};
+	font-size: 12px;
+	font-weight: 900;
+	line-height: 1;
 `;
 
 const MemoryReviewIntro = styled.p`

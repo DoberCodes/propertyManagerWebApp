@@ -103,12 +103,14 @@ const contractorSlice = apiSlice.injectEndpoints({
 			any,
 			{
 				propertyId: string;
-				name: string;
+				name?: string;
 				company: string;
-				category: string;
-				phone: string;
+				category?: string;
+				phone?: string;
 				address?: string;
 				email?: string;
+				website?: string;
+				portalUrl?: string;
 				notes?: string;
 			}
 		>({
@@ -120,6 +122,8 @@ const contractorSlice = apiSlice.injectEndpoints({
 				phone,
 				address,
 				email,
+				website,
+				portalUrl,
 				notes,
 			}) {
 				try {
@@ -131,12 +135,14 @@ const contractorSlice = apiSlice.injectEndpoints({
 
 					const contractorData = {
 						propertyId,
-						name,
+						name: name || '',
 						company,
-						category,
-						phone,
+						category: category || 'Contractor',
+						phone: phone || '',
 						address: address || '',
 						email: email || '',
+						website: website || '',
+						portalUrl: portalUrl || '',
 						notes: notes || '',
 						userId: targetUserId,
 						accountId: targetUserId,
@@ -172,6 +178,8 @@ const contractorSlice = apiSlice.injectEndpoints({
 				phone?: string;
 				address?: string;
 				email?: string;
+				website?: string;
+				portalUrl?: string;
 				notes?: string;
 			}
 		>({
@@ -183,6 +191,8 @@ const contractorSlice = apiSlice.injectEndpoints({
 				phone,
 				address,
 				email,
+				website,
+				portalUrl,
 				notes,
 			}) {
 				try {
@@ -197,6 +207,8 @@ const contractorSlice = apiSlice.injectEndpoints({
 					if (phone !== undefined) updates.phone = phone;
 					if (address !== undefined) updates.address = address;
 					if (email !== undefined) updates.email = email;
+					if (website !== undefined) updates.website = website;
+					if (portalUrl !== undefined) updates.portalUrl = portalUrl;
 					if (notes !== undefined) updates.notes = notes;
 
 					await updateDoc(docRef, updates);

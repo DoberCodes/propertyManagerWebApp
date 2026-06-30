@@ -25,6 +25,8 @@ export interface Contractor {
 	phone: string;
 	address?: string;
 	email?: string;
+	website?: string;
+	portalUrl?: string;
 	notes?: string;
 	createdAt: string;
 	updatedAt: string;
@@ -33,12 +35,14 @@ export interface Contractor {
 
 export interface CreateContractorInput {
 	propertyId: string;
-	name: string;
+	name?: string;
 	company: string;
-	category: ContractorCategory;
-	phone: string;
+	category?: ContractorCategory;
+	phone?: string;
 	address?: string;
 	email?: string;
+	website?: string;
+	portalUrl?: string;
 	notes?: string;
 }
 
@@ -50,5 +54,7 @@ export interface UpdateContractorInput {
 	phone?: string;
 	address?: string;
 	email?: string;
+	website?: string;
+	portalUrl?: string;
 	notes?: string;
 }

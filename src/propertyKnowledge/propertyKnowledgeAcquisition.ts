@@ -67,6 +67,7 @@ type ApplyKnowledgeSuggestionResult = {
 		company: string;
 		category: string;
 		phone: string;
+		website?: string;
 		notes?: string;
 	};
 	maintenanceHistorySuggestion?: {
@@ -404,6 +405,8 @@ const normalizeOcrText = (text: string) =>
 
 const OCR_VALUE_BOUNDARY_LABELS = [
 	'Invoice Number',
+	'Report / Invoice #',
+	'Report / Invoice',
 	'Invoice Date',
 	'Due Date',
 	'Payment Terms',
@@ -414,6 +417,7 @@ const OCR_VALUE_BOUNDARY_LABELS = [
 	'Job Address',
 	'Work Address',
 	'Installation Address',
+	'Property',
 	'Property Address',
 	'Billing Property Address',
 	'Technician',
@@ -526,6 +530,7 @@ const PROPERTY_LOCATION_ADDRESS_LABELS = [
 	'Job Address',
 	'Work Address',
 	'Installation Address',
+	'Property',
 	'Property Address',
 	'Billing Property Address',
 ];
@@ -533,6 +538,7 @@ const PROPERTY_LOCATION_ADDRESS_LABELS = [
 type NormalizedAddress = {
 	streetNumber?: string;
 	streetName?: string;
+	unit?: string;
 	state?: string;
 	postalCode?: string;
 };
@@ -563,6 +569,9 @@ const normalizeAddressForComparison = (value?: string): NormalizedAddress => {
 	const statePostalMatch = normalized.match(/\b([a-z]{2})\s+(\d{5})(?:\s*\d{4})?\b/);
 	const state = statePostalMatch?.[1]?.toUpperCase();
 	const postalCode = statePostalMatch?.[2];
+	const unit = normalized.match(
+		/\b(?:apt|apartment|unit|suite|ste|#)\s*([a-z0-9-]+)\b/i,
+	)?.[1];
 	let streetName = '';
 
 	if (streetNumber) {
@@ -578,6 +587,7 @@ const normalizeAddressForComparison = (value?: string): NormalizedAddress => {
 	return {
 		...(streetNumber ? { streetNumber } : {}),
 		...(streetName ? { streetName } : {}),
+		...(unit ? { unit } : {}),
 		...(state ? { state } : {}),
 		...(postalCode ? { postalCode } : {}),
 	};
@@ -714,6 +724,13 @@ export const buildPropertyConfirmationFromDocumentText = (
 	) {
 		conflicts.push('ZIP code');
 	}
+	if (
+		documentAddress.unit &&
+		savedAddress.unit &&
+		documentAddress.unit !== savedAddress.unit
+	) {
+		conflicts.push('apartment/unit');
+	}
 
 	if (conflicts.length === 0) return undefined;
 
@@ -807,6 +824,79 @@ const findInvoiceDate = (text: string, label: string) => {
 		),
 	);
 	return normalizeExtractedValue(match?.[1]);
+};
+
+const findLineValueAfterLabel = (text: string, labels: string[]) => {
+	const lines = normalizeOcrText(text)
+		.split('\n')
+		.map((line) => normalizeExtractedValue(line))
+		.filter(Boolean);
+
+	for (let index = 0; index < lines.length; index += 1) {
+		const line = lines[index];
+		for (const label of labels) {
+			const labelPattern = new RegExp(`^${escapeLabelPattern(label)}\\s*:?\\s*(.*)$`, 'i');
+			const match = line.match(labelPattern);
+			if (!match) continue;
+
+			const sameLineValue = trimValueAtNextKnownLabel(match[1], [label]);
+			if (sameLineValue) return sameLineValue;
+
+			const nextLine = lines[index + 1];
+			if (
+				nextLine &&
+				!isKnownAddressBoundaryLine(nextLine) &&
+				!/^(description|finding|action|cost|tax|paid|recommended follow-up)\b/i.test(nextLine)
+			) {
+				return nextLine;
+			}
+		}
+	}
+
+	return '';
+};
+
+const WARRANTY_UNAVAILABLE_PATTERN =
+	/\b(not provided|not included|unavailable|none|n\/a|no warranty paperwork|paperwork not provided)\b/i;
+
+const normalizeWarrantyValue = (value?: string) =>
+	normalizeExtractedValue(value)
+		.replace(/^warranty\s*:?/i, '')
+		.replace(/\.$/, '')
+		.trim();
+
+const findWarrantyInformation = (text: string) => {
+	const lines = normalizeOcrText(text)
+		.split('\n')
+		.map((line) => normalizeExtractedValue(line))
+		.filter(Boolean);
+	const workmanshipWarrantyLine = lines.find(
+		(line) =>
+			/warranty/i.test(line) &&
+			!WARRANTY_UNAVAILABLE_PATTERN.test(line) &&
+			/\b(workmanship|repair|labor)\b/i.test(line),
+	);
+	if (workmanshipWarrantyLine) {
+		return normalizeWarrantyValue(workmanshipWarrantyLine);
+	}
+
+	const labeledWarranty = findLabeledTextValue(text, ['Warranty']);
+	if (
+		labeledWarranty &&
+		!WARRANTY_UNAVAILABLE_PATTERN.test(labeledWarranty)
+	) {
+		return normalizeWarrantyValue(labeledWarranty);
+	}
+
+	const warrantyLine = lines.find(
+		(line) =>
+			/warranty/i.test(line) &&
+			!WARRANTY_UNAVAILABLE_PATTERN.test(line) &&
+			/\b(workmanship|labor|parts?|compressor|repair|coverage|year|month)\b/i.test(line),
+	);
+	if (warrantyLine) return normalizeWarrantyValue(warrantyLine);
+
+	return '';
 };
 
 const extractDescriptionLines = (text: string) => {
@@ -1079,14 +1169,30 @@ export const extractFieldsFromDocumentText = (
 		confidenceLevel: 'high',
 		confidenceReason: 'Document contains a clear website.',
 	});
-	pushField('invoiceNumber', findLabeledTextValue(text, ['Invoice Number']), 'Invoice details', {
+	pushField(
+		'invoiceNumber',
+		findLabeledTextValue(text, ['Invoice Number']) ||
+			findLineValueAfterLabel(text, [
+				'Report / Invoice #',
+				'Report / Invoice',
+				'Invoice #',
+			]),
+		'Invoice details',
+		{
 		confidenceLevel: 'high',
 		confidenceReason: 'Document clearly labels this invoice number.',
-	});
-	pushField('invoiceDate', findInvoiceDate(text, 'Invoice Date'), 'Invoice details', {
+		},
+	);
+	pushField(
+		'invoiceDate',
+		findInvoiceDate(text, 'Invoice Date') ||
+			findLineValueAfterLabel(text, ['Date']),
+		'Invoice details',
+		{
 		confidenceLevel: 'high',
 		confidenceReason: 'Document clearly labels this invoice date.',
-	});
+		},
+	);
 	pushField('maintenanceEventDate', findInvoiceDate(text, 'Service Date'), 'Service details', {
 		confidenceLevel: 'high',
 		confidenceReason: 'Document clearly labels this service date.',
@@ -1118,7 +1224,7 @@ export const extractFieldsFromDocumentText = (
 		confidenceLevel: 'high',
 		confidenceReason: 'Document clearly labels this installation date.',
 	});
-	pushField('warrantyLength', findLabeledTextValue(text, ['Warranty']), 'System information', {
+	pushField('warrantyLength', findWarrantyInformation(text), 'System information', {
 		confidenceLevel: 'high',
 		confidenceReason: 'Document clearly labels this warranty information.',
 	});
@@ -1179,7 +1285,7 @@ export const extractFieldsFromDocumentText = (
 			confidenceReason: 'Found in paragraph text, so Maintley is not suggesting it yet.',
 		},
 	);
-	pushField('totalCost', findMoneyAfterTextLabel(text, ['TOTAL DUE', 'Total']), 'Invoice total', {
+	pushField('totalCost', findMoneyAfterTextLabel(text, ['Invoice Total', 'TOTAL DUE', 'Total']), 'Invoice total', {
 		confidenceLevel: 'high',
 		confidenceReason: 'Document clearly labels this total.',
 	});
@@ -1307,14 +1413,13 @@ const buildContractorSuggestion = (
 
 	const phone = normalizeExtractedValue(getAcceptedFieldValue(fields, 'contractorPhone'));
 	const website = normalizeExtractedValue(getAcceptedFieldValue(fields, 'contractorWebsite'));
-	const notes = website ? `Website: ${website}` : undefined;
 
 	return {
 		name,
 		company: name,
 		category: inferContractorCategory(`${name} ${website}`),
-		phone: phone || 'Not provided',
-		...(notes ? { notes } : {}),
+		phone,
+		...(website ? { website } : {}),
 	};
 };
 

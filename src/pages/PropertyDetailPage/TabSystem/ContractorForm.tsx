@@ -57,6 +57,8 @@ export const ContractorForm: React.FC<ContractorFormProps> = ({
 		phone: '',
 		address: '',
 		email: '',
+		website: '',
+		portalUrl: '',
 		notes: '',
 	});
 
@@ -83,6 +85,8 @@ export const ContractorForm: React.FC<ContractorFormProps> = ({
 				phone: contractor.phone,
 				address: contractor.address || '',
 				email: contractor.email || '',
+				website: contractor.website || '',
+				portalUrl: contractor.portalUrl || '',
 				notes: contractor.notes || '',
 			});
 		}
@@ -91,11 +95,8 @@ export const ContractorForm: React.FC<ContractorFormProps> = ({
 	const validateForm = (): boolean => {
 		const newErrors: Record<string, string> = {};
 
-		if (!formData.name.trim()) newErrors.name = 'Contact name is required';
 		if (!formData.company.trim())
 			newErrors.company = 'Company name is required';
-		if (!formData.phone.trim()) newErrors.phone = 'Phone is required';
-		if (!formData.category) newErrors.category = 'Category is required';
 
 		setErrors(newErrors);
 		return Object.keys(newErrors).length === 0;
@@ -103,9 +104,6 @@ export const ContractorForm: React.FC<ContractorFormProps> = ({
 
 	const missingRequiredFields = [
 		!formData.company.trim() ? 'Company Name' : null,
-		!formData.name.trim() ? 'Contact Name' : null,
-		!formData.category ? 'Category' : null,
-		!formData.phone.trim() ? 'Phone Number' : null,
 	].filter(Boolean) as string[];
 
 	const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -186,13 +184,13 @@ export const ContractorForm: React.FC<ContractorFormProps> = ({
 			isLoading={isLoading}>
 			<FormIntroCard>
 				<FormIntroText>
-					Add the required basics first, then include optional contact context
-					like notes and address.
+					Add the company name first, then include contact details and online
+					access links when you have them.
 				</FormIntroText>
 				<FormIntroPills>
 					<FormIntroPill
 						$tone={missingRequiredFields.length === 0 ? 'success' : 'neutral'}>
-						{4 - missingRequiredFields.length}/4 required complete
+						{1 - missingRequiredFields.length}/1 required complete
 					</FormIntroPill>
 					<FormIntroPill $tone='neutral'>
 						{contractor
@@ -216,9 +214,7 @@ export const ContractorForm: React.FC<ContractorFormProps> = ({
 
 			<FormGrid>
 				<FormGroup>
-					<Label htmlFor='company'>
-						Company Name <span>*</span>
-					</Label>
+					<Label htmlFor='company'>Company Name <span>*</span></Label>
 					<Input
 						type='text'
 						id='company'
@@ -231,9 +227,7 @@ export const ContractorForm: React.FC<ContractorFormProps> = ({
 				</FormGroup>
 
 				<FormGroup>
-					<Label htmlFor='name'>
-						Contact Name <span>*</span>
-					</Label>
+					<Label htmlFor='name'>Contact Name</Label>
 					<Input
 						type='text'
 						id='name'
@@ -246,9 +240,7 @@ export const ContractorForm: React.FC<ContractorFormProps> = ({
 				</FormGroup>
 
 				<FormGroup>
-					<Label htmlFor='category'>
-						Category <span>*</span>
-					</Label>
+					<Label htmlFor='category'>Category</Label>
 					<Select
 						id='category'
 						name='category'
@@ -264,9 +256,7 @@ export const ContractorForm: React.FC<ContractorFormProps> = ({
 				</FormGroup>
 
 				<FormGroup>
-					<Label htmlFor='phone'>
-						Phone Number <span>*</span>
-					</Label>
+					<Label htmlFor='phone'>Phone Number</Label>
 					<Input
 						type='tel'
 						id='phone'
@@ -299,6 +289,36 @@ export const ContractorForm: React.FC<ContractorFormProps> = ({
 						value={formData.address}
 						onChange={handleChange}
 						placeholder='e.g., 123 Main St, City, State'
+					/>
+				</FormGroup>
+
+				<FormFullWidth>
+					<FormGroup>
+						<Label>Online Access</Label>
+					</FormGroup>
+				</FormFullWidth>
+
+				<FormGroup>
+					<Label htmlFor='website'>Website</Label>
+					<Input
+						type='text'
+						id='website'
+						name='website'
+						value={formData.website}
+						onChange={handleChange}
+						placeholder='e.g., https://abcservice.com'
+					/>
+				</FormGroup>
+
+				<FormGroup>
+					<Label htmlFor='portalUrl'>Customer Portal</Label>
+					<Input
+						type='text'
+						id='portalUrl'
+						name='portalUrl'
+						value={formData.portalUrl}
+						onChange={handleChange}
+						placeholder='e.g., https://portal.abcservice.com'
 					/>
 				</FormGroup>
 

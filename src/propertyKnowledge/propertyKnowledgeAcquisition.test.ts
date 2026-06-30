@@ -356,6 +356,28 @@ describe('property knowledge acquisition', () => {
 		expect(confirmation?.reason).toContain('street number');
 	});
 
+	it('requires property confirmation when a labeled property apartment conflicts', () => {
+		const confirmation = buildPropertyConfirmationFromDocumentText(
+			`
+				Pinecrest Roofing & Exterior
+				Inspection Report and Invoice
+				Property
+				123 Sand Oak Drive, Apt A
+				Report / Invoice #
+				PRX-26077
+			`,
+			'123 Sand Oak Drive, Apt B',
+		);
+
+		expect(confirmation).toMatchObject({
+			status: 'needs_confirmation',
+			documentAddress: '123 Sand Oak Drive, Apt A',
+			propertyAddress: '123 Sand Oak Drive, Apt B',
+			sourceLabel: 'Property',
+		});
+		expect(confirmation?.reason).toContain('apartment/unit');
+	});
+
 	it('ignores contractor mailing addresses without a property-location label', () => {
 		const confirmation = buildPropertyConfirmationFromDocumentText(
 			`
@@ -440,12 +462,58 @@ describe('property knowledge acquisition', () => {
 		const valuesByKey = new Map(fields.map((field) => [field.fieldKey, field.value]));
 
 		expect(valuesByKey.has('contractorName')).toBe(false);
-		expect([...valuesByKey.values()].join(' ')).not.toContain(
-			'Schedule a roof check',
+		expect(valuesByKey.get('warrantyLength')).toBe(
+			'Sealant repair workmanship warranty: 1 year',
 		);
-		expect([...valuesByKey.values()].join(' ')).not.toContain(
-			'workmanship warranty',
+	});
+
+	it('extracts roof inspection invoice totals and workmanship warranty from image text', () => {
+		const invoiceText = `
+			Pinecrest Roofing & Exterior
+			Inspection Report and Invoice
+			Report / Invoice #
+			PRX-26077
+			Date
+			June 2, 2026
+			Property
+			123 Sand Oak Drive, Apt A
+			Inspector
+			Marcus Reed
+
+			Roof Details
+			Asset type: Roof
+			Material: Architectural asphalt shingles
+			Estimated install year: 2019
+			Warranty paperwork: Not provided at visit
+			Observed condition: Normal wear for age; no active leak observed during visual inspection.
+
+			Finding Action Cost
+			Loose pipe boot flashing at rear slope Resealed pipe boot with roofing sealant $85.00
+			Debris in front gutter run Cleared accessible debris $65.00
+			General roof inspection with photos Inspection report attached $175.00
+
+			Invoice Total: $325.00
+			Tax: $0.00
+			Paid: $325.00
+
+			Recommended Follow-Up
+			Schedule a roof check after major storms and clear gutters each fall.
+			Sealant repair workmanship warranty: 1 year.
+		`;
+
+		const fields = extractFieldsFromDocumentText(invoiceText, 'roof-1');
+		const valuesByKey = new Map(fields.map((field) => [field.fieldKey, field.value]));
+
+		expect(valuesByKey.get('contractorName')).toBe('Pinecrest Roofing & Exterior');
+		expect(valuesByKey.get('assetType')).toBe('Roof');
+		expect(valuesByKey.get('invoiceNumber')).toBe('PRX-26077');
+		expect(valuesByKey.get('invoiceDate')).toBe('June 2, 2026');
+		expect(valuesByKey.get('totalCost')).toBe('$325.00');
+		expect(valuesByKey.get('taxAmount')).toBe('$0.00');
+		expect(valuesByKey.get('warrantyLength')).toBe(
+			'Sealant repair workmanship warranty: 1 year',
 		);
+		expect(valuesByKey.get('warrantyLength')).not.toContain('Not provided');
 	});
 
 	it('prepares contractor and maintenance history records when invoice details are applied', () => {
@@ -497,6 +565,7 @@ describe('property knowledge acquisition', () => {
 			name: 'Carolina Comfort HVAC, LLC',
 			category: 'HVAC',
 			phone: '(704) 555-0198',
+			website: 'www.carolinacomforthvac.com',
 		});
 		expect(result.maintenanceHistorySuggestion).toMatchObject({
 			eventType: 'invoice_uploaded',

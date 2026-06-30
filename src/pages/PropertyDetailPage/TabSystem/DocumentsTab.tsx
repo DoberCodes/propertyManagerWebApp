@@ -445,21 +445,6 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 		if (isPdfPropertyDocument(document)) {
 			setIsSaving(true);
 			try {
-				await updateProperty({
-					id: property.id,
-					updates: {
-						documents: propertyDocuments.map((item) =>
-							item.id === document.id
-								? {
-										...item,
-										acquisitionStatus: 'processing',
-										acquisitionStartedAt: new Date().toISOString(),
-										acquisitionError: '',
-								  }
-								: item,
-						),
-					},
-				}).unwrap();
 				feedback.notify('Maintley is reviewing this PDF for suggested details.');
 				if (notificationUserId) {
 					createNotification({
@@ -481,32 +466,24 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 						console.warn('Could not create document scan notification:', notificationError);
 					});
 				}
-				processPropertyDocumentAcquisition({
+				const result = await processPropertyDocumentAcquisition({
 					propertyId: property.id,
 					documentId: document.id,
-				})
-					.then((result) => {
-						dispatch(apiSlice.util.invalidateTags(['Properties']));
-						if (result.success && result.suggestionId) {
-							onReviewSuggestedDetails?.(result.suggestionId);
-						}
-					})
-					.catch(async (error) => {
-						console.error('Error processing PDF document:', error);
-						try {
-							await markPdfReviewFailed(
-								document.id,
-								error?.message ||
-									'Maintley could not finish reviewing this PDF. You can try again.',
-							);
-						} catch (statusError) {
-							console.error('Error marking PDF review as failed:', statusError);
-						}
-						dispatch(apiSlice.util.invalidateTags(['Properties']));
-					});
+				});
+				dispatch(apiSlice.util.invalidateTags(['Properties']));
+				if (result.success && result.suggestionId) {
+					onReviewSuggestedDetails?.(result.suggestionId);
+				} else if (!result.success && result.message) {
+					feedback.notify(result.message);
+				}
 			} catch (error) {
-				console.error('Error starting PDF document review:', error);
-				feedback.notify('Could not start reviewing this PDF.');
+				console.error('Error processing PDF document:', error);
+				const message =
+					error instanceof Error
+						? error.message
+						: 'Could not review this PDF.';
+				feedback.notify(message);
+				dispatch(apiSlice.util.invalidateTags(['Properties']));
 			} finally {
 				setIsSaving(false);
 			}

@@ -105,11 +105,11 @@ If the detected address appears different from the selected property address:
   suggestion.
 * The review should use plain language, such as:
 
-> This document may be for a different property.
+> Maintley found information that may belong to another property.
 
 * The reviewer should be able to continue only after confirming the document
-  belongs to the selected property or choosing a different property workflow
-  when that workflow exists.
+  should be used for the selected property or choosing a different property
+  workflow when that workflow exists.
 * Maintley should not silently apply suggested Maintenance History, contractor,
   system, warranty, cost, or part changes while the mismatch is unresolved.
 
@@ -154,8 +154,8 @@ Completed first phase:
   property address.
 * Required reviewer confirmation before applying suggested Property Memory
   changes when a mismatch is unresolved.
-* Added tests for exact match, partial match, clear mismatch, contractor address
-  ignored, and missing address cases.
+* Added tests for exact match, partial match, clear mismatch, apartment/unit
+  mismatch, contractor address ignored, and missing address cases.
 
 Deferred work:
 

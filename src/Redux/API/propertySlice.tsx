@@ -9,6 +9,7 @@ import {
 	updateDoc,
 	deleteDoc,
 	runTransaction,
+	onSnapshot,
 } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { auth, db, functions } from '../../config/firebase';
@@ -1159,6 +1160,41 @@ const propertySlice = apiSlice.injectEndpoints({
 					return { data };
 				} catch (error: any) {
 					return { error: error.message };
+				}
+			},
+			async onCacheEntryAdded(
+				propertyId,
+				{ updateCachedData, cacheDataLoaded, cacheEntryRemoved },
+			) {
+				if (!propertyId) return;
+
+				let unsubscribe: (() => void) | undefined;
+				try {
+					await cacheDataLoaded;
+
+					unsubscribe = onSnapshot(
+						doc(db, 'properties', propertyId),
+						(docSnapshot) => {
+							const latestData = docToData(docSnapshot) as Property | null;
+							if (!latestData) return;
+
+							updateCachedData((draft) => {
+								Object.keys(draft as Record<string, unknown>).forEach((key) => {
+									delete (draft as Record<string, unknown>)[key];
+								});
+								Object.assign(draft, latestData);
+							});
+						},
+						(error) => {
+							console.warn('Property live update listener failed:', error);
+						},
+					);
+
+					await cacheEntryRemoved;
+				} catch (error) {
+					// The cache entry may be removed before the initial query resolves.
+				} finally {
+					unsubscribe?.();
 				}
 			},
 			providesTags: ['Properties'],

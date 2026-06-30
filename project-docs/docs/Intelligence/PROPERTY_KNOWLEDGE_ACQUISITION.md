@@ -69,10 +69,19 @@ frontend marks the PDF document as `processing`; the backend worker detects that
 state and performs extraction in the background. This prevents the browser from
 owning the processing lifecycle after upload.
 
+Manual retry uses the callable processor directly instead of first writing a new
+`processing` state. The backend writes only the final acquisition outcome for
+that retry, which keeps the property document from receiving unnecessary status
+updates during repeated review attempts.
+
+The active property detail view listens to the current property record so
+document acquisition status changes written by the backend, such as
+`pending_review` or `failed`, appear in the frontend without requiring a manual
+page refresh.
+
 The callable processor remains available for explicit retry. If PDF processing
-cannot be started or completed, the document should not remain in `processing`
-indefinitely. The UI should treat stale processing states as retryable and may
-mark the document `failed` with a homeowner-friendly retry message when needed.
+cannot be started or completed, the backend should move the document out of
+`processing` with a homeowner-friendly retry message when needed.
 
 Before suggesting a new record, Property Knowledge Acquisition should check existing Property Memory for likely targets. If an uploaded invoice, warranty, manual, receipt, or inspection report appears to describe an existing asset, contractor, Maintenance Event, part, warranty, or other record, the review experience should propose updating the existing record first. Users must be able to mark the match as not the same record and create a new record where creation is supported.
 

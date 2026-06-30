@@ -236,6 +236,11 @@ Current capabilities:
 * Assign contractors to tasks.
 * Reference contractors in maintenance workflows.
 * Track contractor contact information.
+* Store contractor website and customer portal links for quick access.
+
+Contractor creation only requires a company name. Contact names, phone numbers,
+email addresses, addresses, notes, websites, and customer portal links may be
+added later.
 
 ---
 

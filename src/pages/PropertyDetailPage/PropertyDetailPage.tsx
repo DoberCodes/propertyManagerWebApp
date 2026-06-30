@@ -16,6 +16,7 @@ import { usePropertyEditHandlers } from 'pages/PropertyDetailPage/usePropertyEdi
 import { useMaintenanceRequestHandlers } from './useMaintenanceRequestHandlers';
 import {
 	useGetPropertiesQuery,
+	useGetPropertyQuery,
 	useUpdatePropertyMutation,
 	useDeletePropertyMutation,
 	useCreatePropertyGroupMutation,
@@ -194,7 +195,7 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 	} | null>(null);
 	const propertyOverride = props.property;
 
-	const property = useMemo(() => {
+	const propertyFromLists = useMemo(() => {
 		const propertiesFromGroups = propertyGroups.flatMap(
 			(group) => group.properties || [],
 		);
@@ -209,6 +210,10 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 
 		return resolvedProperty;
 	}, [slug, firebaseProperties, propertyGroups, propertyOverride]);
+	const { data: liveProperty } = useGetPropertyQuery(propertyFromLists?.id || '', {
+		skip: !propertyFromLists?.id || Boolean(propertyOverride),
+	});
+	const property = propertyOverride || liveProperty || propertyFromLists;
 
 	const tenantAssignment = useMemo(() => {
 		if (!property || !currentUser?.email || !isUserTenant) {

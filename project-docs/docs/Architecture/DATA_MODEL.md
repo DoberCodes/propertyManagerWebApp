@@ -786,6 +786,7 @@ Typical fields:
 * email
 * phone
 * website
+* portalUrl
 * notes
 * createdAt
 * updatedAt
@@ -796,6 +797,10 @@ Optional fields may include:
 * preferredVendor
 * emergencyContact
 * address
+
+Only the company name is required to create a useful contractor record. Contact
+person, phone, email, website, customer portal, address, and notes can be added
+later as the property record becomes more complete.
 
 Contractors may be associated with:
 

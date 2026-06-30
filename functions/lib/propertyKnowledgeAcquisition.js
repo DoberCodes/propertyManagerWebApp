@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.processPropertyDocumentAcquisitionRequests = exports.processPropertyDocumentAcquisition = void 0;
+exports.__test = exports.processPropertyDocumentAcquisitionRequests = exports.processPropertyDocumentAcquisition = void 0;
 const admin = __importStar(require("firebase-admin"));
 const functions = __importStar(require("firebase-functions/v1"));
 const zlib = __importStar(require("zlib"));
@@ -222,6 +222,36 @@ const findLabeledValue = (lines, labels) => {
     }
     return '';
 };
+const WARRANTY_UNAVAILABLE_PATTERN = /\b(not provided|not included|unavailable|none|n\/a|no warranty paperwork|paperwork not provided)\b/i;
+const normalizeWarrantyValue = (value) => toString(value)
+    .replace(/^warranty\s*:?/i, '')
+    .trim();
+const extractWarrantySentence = (value) => {
+    const text = normalizeWarrantyValue(value);
+    if (!text)
+        return '';
+    const warrantySentence = text
+        .split(/(?<=[.!?])\s+/)
+        .find((sentence) => /warranty/i.test(sentence));
+    return toString(warrantySentence || text);
+};
+const findWarrantyInformation = (lines) => {
+    const workmanshipWarrantyLine = lines.find((line) => /warranty/i.test(line) &&
+        /\b(workmanship|repair|labor)\b/i.test(line) &&
+        !WARRANTY_UNAVAILABLE_PATTERN.test(line));
+    if (workmanshipWarrantyLine) {
+        return extractWarrantySentence(workmanshipWarrantyLine);
+    }
+    const labeledWarranty = findLabeledValue(lines, ['Warranty']);
+    if (labeledWarranty &&
+        !WARRANTY_UNAVAILABLE_PATTERN.test(labeledWarranty)) {
+        return extractWarrantySentence(labeledWarranty);
+    }
+    const warrantyLine = lines.find((line) => /warranty/i.test(line) &&
+        !/\bwarranty\s+paperwork\b/i.test(line) &&
+        !WARRANTY_UNAVAILABLE_PATTERN.test(line));
+    return extractWarrantySentence(warrantyLine);
+};
 const findDate = (lines, labels) => {
     var _a;
     return ((_a = findLabeledValue(lines, labels).match(/[A-Za-z]+ \d{1,2}, \d{4}|\d{1,2}\/\d{1,2}\/\d{2,4}|\d{4}-\d{2}-\d{2}/)) === null || _a === void 0 ? void 0 : _a[0]) ||
@@ -240,6 +270,7 @@ const PROPERTY_LOCATION_ADDRESS_LABELS = [
     'Job Address',
     'Work Address',
     'Installation Address',
+    'Property',
     'Property Address',
     'Billing Property Address',
 ];
@@ -262,12 +293,14 @@ const normalizeAddressTokenText = (value) => toString(value)
     .replace(/\s+/g, ' ')
     .trim();
 const normalizeAddressForComparison = (value) => {
-    var _a, _b;
+    var _a, _b, _c;
     const normalized = normalizeAddressTokenText(value);
     const streetNumber = (_a = normalized.match(/\b\d{1,8}\b/)) === null || _a === void 0 ? void 0 : _a[0];
     const statePostalMatch = normalized.match(/\b([a-z]{2})\s+(\d{5})(?:\s*\d{4})?\b/);
     const state = (_b = statePostalMatch === null || statePostalMatch === void 0 ? void 0 : statePostalMatch[1]) === null || _b === void 0 ? void 0 : _b.toUpperCase();
     const postalCode = statePostalMatch === null || statePostalMatch === void 0 ? void 0 : statePostalMatch[2];
+    const unit = ((_c = normalized.match(/\b(?:apt|apartment|unit|suite|ste|#)\s*([a-z0-9-]+)\b/)) === null || _c === void 0 ? void 0 : _c[1]) ||
+        '';
     let streetName = '';
     if (streetNumber) {
         const numberIndex = normalized.indexOf(streetNumber);
@@ -281,6 +314,7 @@ const normalizeAddressForComparison = (value) => {
     return {
         ...(streetNumber ? { streetNumber } : {}),
         ...(streetName ? { streetName } : {}),
+        ...(unit ? { unit } : {}),
         ...(state ? { state } : {}),
         ...(postalCode ? { postalCode } : {}),
     };
@@ -370,6 +404,11 @@ const buildPropertyConfirmationFromPdfText = (text, propertyAddress) => {
         savedAddress.streetName &&
         !doStreetNamesMatch(documentAddress.streetName, savedAddress.streetName)) {
         conflicts.push('street name');
+    }
+    if (documentAddress.unit &&
+        savedAddress.unit &&
+        documentAddress.unit !== savedAddress.unit) {
+        conflicts.push('apartment/unit');
     }
     if (documentAddress.state &&
         savedAddress.state &&
@@ -554,17 +593,17 @@ const extractFieldsFromPdfText = (text) => {
     createField(fields, 'contractorName', findContractorName(lines), 'Contractor header', 'medium', 'Matched from document header.');
     createField(fields, 'contractorPhone', findPhone(text), 'Contractor contact', 'high', 'Document contains a clear phone number.');
     createField(fields, 'contractorWebsite', findWebsite(text), 'Contractor contact', 'high', 'Document contains a clear website.');
-    createField(fields, 'invoiceNumber', findLabeledValue(lines, ['Invoice Number', 'Invoice #', 'Invoice No']), 'Invoice details', 'high', 'Document clearly labels this invoice number.');
-    createField(fields, 'invoiceDate', findDate(lines, ['Invoice Date']), 'Invoice details', 'high', 'Document clearly labels this invoice date.');
+    createField(fields, 'invoiceNumber', findLabeledValue(lines, ['Invoice Number', 'Report / Invoice #', 'Report / Invoice', 'Invoice #', 'Invoice No']), 'Invoice details', 'high', 'Document clearly labels this invoice number.');
+    createField(fields, 'invoiceDate', findDate(lines, ['Invoice Date', 'Date']), 'Invoice details', 'high', 'Document clearly labels this invoice date.');
     createField(fields, 'maintenanceEventDate', findDate(lines, ['Service Date', 'Repair Date', 'Work Date']), 'Service details', 'high', 'Document clearly labels this service date.');
     createField(fields, 'brand', findLabeledValue(lines, ['Brand', 'Manufacturer', 'Make']), 'System information', 'high', 'Document clearly labels this system brand.');
     createField(fields, 'model', findLabeledValue(lines, ['Model', 'Model Number', 'Model No']), 'System information', 'high', 'Document clearly labels this system model.');
     createField(fields, 'serialNumber', findLabeledValue(lines, ['Serial Number', 'Serial No', 'Serial']), 'System information', 'high', 'Document clearly labels this serial number.');
     createField(fields, 'installDate', findDate(lines, ['Installation Date', 'Install Date', 'Installed']), 'System information', 'high', 'Document clearly labels this installation date.');
-    createField(fields, 'warrantyLength', findLabeledValue(lines, ['Warranty']), 'Warranty information', 'high', 'Document clearly labels this warranty information.');
+    createField(fields, 'warrantyLength', findWarrantyInformation(lines), 'Warranty information', 'high', 'Document clearly labels this warranty information.');
     createField(fields, 'maintenanceEventDescription', findLabeledValue(lines, ['Description', 'Service Description', 'Equipment Type']) || assetType, 'Service description', 'medium', 'Matched from service description text.');
     createField(fields, 'servicePerformed', findLabeledValue(lines, ['Service Performed', 'Work Performed', 'Notes']), 'Service notes', 'medium', 'Matched from service notes text.');
-    createField(fields, 'totalCost', findMoney(lines, ['Total Due', 'Total', 'Amount Due']), 'Invoice total', 'high', 'Document clearly labels this total.');
+    createField(fields, 'totalCost', findMoney(lines, ['Invoice Total', 'Total Due', 'Total', 'Amount Due']), 'Invoice total', 'high', 'Document clearly labels this total.');
     createField(fields, 'laborCost', findMoney(lines, ['Labor', 'Labor Cost']), 'Invoice line item', 'high', 'Document clearly labels this labor cost.');
     createField(fields, 'partsCost', findMoney(lines, ['Parts', 'Parts Cost', 'Materials']), 'Invoice line item', 'high', 'Document clearly labels this parts cost.');
     createField(fields, 'taxAmount', findMoney(lines, ['Tax', 'Sales Tax']), 'Invoice tax', 'high', 'Document clearly labels this tax amount.');
@@ -620,21 +659,16 @@ const classifyDocumentType = (document) => {
         return 'manual';
     return 'unknown';
 };
-const PROCESSING_LOCK_STALE_MS = 10 * 60 * 1000;
-const isRecentProcessingLock = (document) => {
-    const startedAt = toString(document.acquisitionWorkerStartedAt);
-    if (!startedAt)
-        return false;
-    const startedAtMs = new Date(startedAt).getTime();
-    if (Number.isNaN(startedAtMs))
-        return false;
-    return Date.now() - startedAtMs < PROCESSING_LOCK_STALE_MS;
+const getPendingSuggestionForDocument = (suggestions, documentId) => suggestions.find((suggestion) => toString(suggestion.sourceDocumentId) === documentId &&
+    toString(suggestion.status) === 'pending');
+const getSuggestionFieldCount = (suggestion) => {
+    const fields = suggestion === null || suggestion === void 0 ? void 0 : suggestion.extractedFields;
+    return Array.isArray(fields) ? fields.length : 0;
 };
 const shouldBackgroundProcessDocument = (document) => toString(document.id) &&
     isPdfDocument(document) &&
     toString(document.storagePath) &&
-    toString(document.acquisitionStatus) === 'processing' &&
-    !isRecentProcessingLock(document);
+    toString(document.acquisitionStatus) === 'processing';
 const hasDocumentChangedForProcessing = (before, after) => {
     if (!after || !shouldBackgroundProcessDocument(after)) {
         return false;
@@ -658,73 +692,51 @@ const getProcessableDocumentIds = (beforeDocuments, afterDocuments) => {
         .map((document) => toString(document.id))
         .filter(Boolean);
 };
-const lockDocumentForProcessing = async ({ propertyRef, documentId, triggeredBy, }) => {
-    const nowIso = new Date().toISOString();
-    return db.runTransaction(async (transaction) => {
-        const snapshot = await transaction.get(propertyRef);
-        if (!snapshot.exists) {
-            throw new functions.https.HttpsError('not-found', 'Property not found.');
-        }
-        const propertyData = snapshot.data() || {};
-        const documents = Array.isArray(propertyData.documents)
-            ? propertyData.documents
-            : [];
-        const document = documents.find((candidate) => toString(candidate.id) === documentId);
-        if (!document) {
-            throw new functions.https.HttpsError('not-found', 'Document not found.');
-        }
-        if (!isPdfDocument(document)) {
-            throw new functions.https.HttpsError('invalid-argument', 'Only PDF documents are supported by this processor.');
-        }
-        if (!toString(document.storagePath)) {
-            throw new functions.https.HttpsError('failed-precondition', 'This document does not have a storage path.');
-        }
-        if (triggeredBy === 'background' &&
-            toString(document.acquisitionStatus) !== 'processing') {
-            return null;
-        }
-        if (triggeredBy === 'background' && isRecentProcessingLock(document)) {
-            return null;
-        }
-        const nextDocuments = updateDocumentInList(documents, documentId, {
-            acquisitionStatus: 'processing',
-            acquisitionStartedAt: toString(document.acquisitionStartedAt) || nowIso,
-            acquisitionWorkerStartedAt: nowIso,
-            acquisitionError: '',
-        });
-        transaction.update(propertyRef, {
-            documents: nextDocuments,
-            updatedAt: nowIso,
-        });
-        return {
-            propertyData,
-            document: {
-                ...document,
-                acquisitionStatus: 'processing',
-                acquisitionStartedAt: toString(document.acquisitionStartedAt) || nowIso,
-                acquisitionWorkerStartedAt: nowIso,
-                acquisitionError: '',
-            },
-            documents,
-        };
-    });
+const loadDocumentForProcessing = async ({ propertyRef, documentId, triggeredBy, }) => {
+    const snapshot = await propertyRef.get();
+    if (!snapshot.exists) {
+        throw new functions.https.HttpsError('not-found', 'Property not found.');
+    }
+    const propertyData = snapshot.data() || {};
+    const documents = Array.isArray(propertyData.documents)
+        ? propertyData.documents
+        : [];
+    const document = documents.find((candidate) => toString(candidate.id) === documentId);
+    if (!document) {
+        throw new functions.https.HttpsError('not-found', 'Document not found.');
+    }
+    if (!isPdfDocument(document)) {
+        throw new functions.https.HttpsError('invalid-argument', 'Only PDF documents are supported by this processor.');
+    }
+    if (!toString(document.storagePath)) {
+        throw new functions.https.HttpsError('failed-precondition', 'This document does not have a storage path.');
+    }
+    if (triggeredBy === 'background' &&
+        toString(document.acquisitionStatus) !== 'processing') {
+        return null;
+    }
+    return {
+        propertyData,
+        document,
+        documents,
+    };
 };
 const processPdfDocumentAcquisition = async ({ propertyId, documentId, triggeredBy, }) => {
     var _a, _b;
     const propertyRef = db.collection('properties').doc(propertyId);
-    const locked = await lockDocumentForProcessing({
+    const loaded = await loadDocumentForProcessing({
         propertyRef,
         documentId,
         triggeredBy,
     });
-    if (!locked) {
+    if (!loaded) {
         return {
             success: false,
             suggestionCount: 0,
             message: 'Document is not ready for processing.',
         };
     }
-    const { propertyData, document, documents } = locked;
+    const { propertyData, document, documents } = loaded;
     const storagePath = toString(document.storagePath);
     try {
         const [pdfBuffer] = await admin.storage().bucket().file(storagePath).download();
@@ -736,25 +748,41 @@ const processPdfDocumentAcquisition = async ({ propertyId, documentId, triggered
         const propertyConfirmation = buildPropertyConfirmationFromPdfText(extractedText, propertyData.address);
         const completedAt = new Date().toISOString();
         if (!extractedText || extractedFields.length === 0) {
-            const latestSnapshot = await propertyRef.get();
-            const latestData = latestSnapshot.data() || {};
-            const latestDocuments = Array.isArray(latestData.documents)
-                ? latestData.documents
-                : documents;
-            await propertyRef.update({
-                documents: updateDocumentInList(latestDocuments, documentId, {
-                    acquisitionStatus: 'failed',
-                    acquisitionCompletedAt: completedAt,
-                    acquisitionWorkerCompletedAt: completedAt,
-                    acquisitionError: 'Maintley could not read useful text from this PDF yet. Scanned PDFs will need the rendered-page OCR processor.',
-                }),
-                updatedAt: completedAt,
+            const failureResult = await db.runTransaction(async (transaction) => {
+                const latestSnapshot = await transaction.get(propertyRef);
+                const latestData = latestSnapshot.data() || {};
+                const latestDocuments = Array.isArray(latestData.documents)
+                    ? latestData.documents
+                    : documents;
+                const latestDocument = latestDocuments.find((candidate) => toString(candidate.id) === documentId);
+                const latestSuggestions = Array.isArray(latestData.knowledgeSuggestions)
+                    ? latestData.knowledgeSuggestions
+                    : [];
+                const existingPending = getPendingSuggestionForDocument(latestSuggestions, documentId);
+                if (toString(latestDocument === null || latestDocument === void 0 ? void 0 : latestDocument.acquisitionStatus) === 'pending_review' &&
+                    existingPending) {
+                    return {
+                        success: true,
+                        suggestionCount: getSuggestionFieldCount(existingPending),
+                        suggestionId: existingPending.id,
+                    };
+                }
+                transaction.update(propertyRef, {
+                    documents: updateDocumentInList(latestDocuments, documentId, {
+                        acquisitionStatus: 'failed',
+                        acquisitionCompletedAt: completedAt,
+                        acquisitionWorkerCompletedAt: completedAt,
+                        acquisitionError: 'Maintley could not read useful text from this PDF yet. Scanned PDFs will need the rendered-page OCR processor.',
+                    }),
+                    updatedAt: completedAt,
+                });
+                return {
+                    success: false,
+                    suggestionCount: 0,
+                    message: 'No readable PDF text found.',
+                };
             });
-            return {
-                success: false,
-                suggestionCount: 0,
-                message: 'No readable PDF text found.',
-            };
+            return failureResult;
         }
         const suggestion = stripUndefinedDeep({
             id: createSuggestionId(documentId, completedAt),
@@ -773,63 +801,97 @@ const processPdfDocumentAcquisition = async ({ propertyId, documentId, triggered
             createdAt: completedAt,
             sourceDocumentName: document.fileName || document.name,
         });
-        const latestSnapshot = await propertyRef.get();
-        const latestData = latestSnapshot.data() || {};
-        const latestDocuments = Array.isArray(latestData.documents)
-            ? latestData.documents
-            : documents;
-        const latestSuggestions = Array.isArray(latestData.knowledgeSuggestions)
-            ? latestData.knowledgeSuggestions
-            : [];
-        const nextSuggestions = [
-            ...latestSuggestions.filter((existing) => toString(existing.sourceDocumentId) !== documentId ||
-                toString(existing.status) !== 'pending'),
-            suggestion,
-        ];
-        await propertyRef.update({
-            documents: updateDocumentInList(latestDocuments, documentId, {
-                acquisitionStatus: 'pending_review',
-                acquisitionCompletedAt: completedAt,
-                acquisitionWorkerCompletedAt: completedAt,
-                acquisitionError: '',
-                extractedKnowledgeSuggestionIds: Array.from(new Set([
-                    ...(document.extractedKnowledgeSuggestionIds || []),
-                    toString(suggestion.id),
-                ])),
-            }),
-            knowledgeSuggestions: nextSuggestions,
-            updatedAt: completedAt,
+        const finalizeResult = await db.runTransaction(async (transaction) => {
+            const latestSnapshot = await transaction.get(propertyRef);
+            const latestData = latestSnapshot.data() || {};
+            const latestDocuments = Array.isArray(latestData.documents)
+                ? latestData.documents
+                : documents;
+            const latestDocument = latestDocuments.find((candidate) => toString(candidate.id) === documentId) || document;
+            const latestSuggestions = Array.isArray(latestData.knowledgeSuggestions)
+                ? latestData.knowledgeSuggestions
+                : [];
+            const existingPending = getPendingSuggestionForDocument(latestSuggestions, documentId);
+            if (toString(latestDocument.acquisitionStatus) === 'pending_review' &&
+                existingPending) {
+                return {
+                    didWrite: false,
+                    propertyData: latestData,
+                    document: latestDocument,
+                    suggestionCount: getSuggestionFieldCount(existingPending) || extractedFields.length,
+                    suggestionId: toString(existingPending.id),
+                };
+            }
+            const nextSuggestions = [
+                ...latestSuggestions.filter((existing) => toString(existing.sourceDocumentId) !== documentId ||
+                    toString(existing.status) !== 'pending'),
+                suggestion,
+            ];
+            transaction.update(propertyRef, {
+                documents: updateDocumentInList(latestDocuments, documentId, {
+                    acquisitionStatus: 'pending_review',
+                    acquisitionCompletedAt: completedAt,
+                    acquisitionWorkerCompletedAt: completedAt,
+                    acquisitionError: '',
+                    extractedKnowledgeSuggestionIds: Array.from(new Set([
+                        ...(latestDocument.extractedKnowledgeSuggestionIds || []),
+                        toString(suggestion.id),
+                    ])),
+                }),
+                knowledgeSuggestions: nextSuggestions,
+                updatedAt: completedAt,
+            });
+            return {
+                didWrite: true,
+                propertyData: latestData,
+                document: latestDocument,
+                suggestionCount: extractedFields.length,
+                suggestionId: toString(suggestion.id),
+            };
         });
-        await createDocumentScanCompletedNotification({
-            propertyId,
-            propertyData: latestData,
-            document,
-            suggestionId: toString(suggestion.id),
-            suggestionCount: extractedFields.length,
-            nowIso: completedAt,
-        });
+        if (finalizeResult.didWrite) {
+            await createDocumentScanCompletedNotification({
+                propertyId,
+                propertyData: finalizeResult.propertyData,
+                document: finalizeResult.document,
+                suggestionId: finalizeResult.suggestionId,
+                suggestionCount: finalizeResult.suggestionCount,
+                nowIso: completedAt,
+            });
+        }
         return {
             success: true,
-            suggestionCount: extractedFields.length,
-            suggestionId: suggestion.id,
+            suggestionCount: finalizeResult.suggestionCount,
+            suggestionId: finalizeResult.suggestionId,
         };
     }
     catch (error) {
         const completedAt = new Date().toISOString();
-        const latestSnapshot = await propertyRef.get();
-        const latestData = latestSnapshot.data() || {};
-        const latestDocuments = Array.isArray(latestData.documents)
-            ? latestData.documents
-            : documents;
-        await propertyRef.update({
-            documents: updateDocumentInList(latestDocuments, documentId, {
-                acquisitionStatus: 'failed',
-                acquisitionCompletedAt: completedAt,
-                acquisitionWorkerCompletedAt: completedAt,
-                acquisitionError: (error === null || error === void 0 ? void 0 : error.message) ||
-                    'Maintley could not review this PDF. Please try again later.',
-            }),
-            updatedAt: completedAt,
+        await db.runTransaction(async (transaction) => {
+            const latestSnapshot = await transaction.get(propertyRef);
+            const latestData = latestSnapshot.data() || {};
+            const latestDocuments = Array.isArray(latestData.documents)
+                ? latestData.documents
+                : documents;
+            const latestDocument = latestDocuments.find((candidate) => toString(candidate.id) === documentId);
+            const latestSuggestions = Array.isArray(latestData.knowledgeSuggestions)
+                ? latestData.knowledgeSuggestions
+                : [];
+            const existingPending = getPendingSuggestionForDocument(latestSuggestions, documentId);
+            if (toString(latestDocument === null || latestDocument === void 0 ? void 0 : latestDocument.acquisitionStatus) === 'pending_review' &&
+                existingPending) {
+                return;
+            }
+            transaction.update(propertyRef, {
+                documents: updateDocumentInList(latestDocuments, documentId, {
+                    acquisitionStatus: 'failed',
+                    acquisitionCompletedAt: completedAt,
+                    acquisitionWorkerCompletedAt: completedAt,
+                    acquisitionError: (error === null || error === void 0 ? void 0 : error.message) ||
+                        'Maintley could not review this PDF. Please try again later.',
+                }),
+                updatedAt: completedAt,
+            });
         });
         console.error('PDF property knowledge acquisition failed:', error);
         throw error;
@@ -893,3 +955,7 @@ exports.processPropertyDocumentAcquisitionRequests = functions
         }
     }
 });
+exports.__test = {
+    buildPropertyConfirmationFromPdfText,
+    extractFieldsFromPdfText,
+};

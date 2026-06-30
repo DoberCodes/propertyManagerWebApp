@@ -129,7 +129,7 @@ export const ContractorsTab: React.FC<ContractorsTabProps> = ({
 	// Apply filters to contractors
 	const filteredContractors = useMemo(() => {
 		const base = applyFilters(contractors, filters, {
-			textFields: ['company', 'name', 'email', 'phone', 'address'],
+			textFields: ['company', 'name', 'email', 'phone', 'address', 'website', 'portalUrl'],
 			selectFields: [{ field: 'category', filterKey: 'category' }],
 		});
 
@@ -245,6 +245,13 @@ export const ContractorsTab: React.FC<ContractorsTabProps> = ({
 		return { icon: faWrench, color: '#475569', background: '#f1f5f9' };
 	};
 
+	const getLinkHref = (value?: string) => {
+		const trimmed = String(value || '').trim();
+		if (!trimmed) return '';
+		if (/^https?:\/\//i.test(trimmed)) return trimmed;
+		return `https://${trimmed}`;
+	};
+
 	// Table configuration for contractors
 	const contractorColumns: Column[] = [
 		{
@@ -302,6 +309,22 @@ export const ContractorsTab: React.FC<ContractorsTabProps> = ({
 				<div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12 }}>
 					{value ? <a href={`tel:${value}`}>{value}</a> : <span style={{ color: '#94a3b8' }}>No phone</span>}
 					<span style={{ color: '#64748b' }}>{contractor.email || 'No email on file'}</span>
+					{contractor.website && (
+						<a
+							href={getLinkHref(contractor.website)}
+							target='_blank'
+							rel='noreferrer'>
+							Website
+						</a>
+					)}
+					{contractor.portalUrl && (
+						<a
+							href={getLinkHref(contractor.portalUrl)}
+							target='_blank'
+							rel='noreferrer'>
+							Customer portal
+						</a>
+					)}
 				</div>
 			),
 		},
@@ -549,7 +572,7 @@ export const ContractorsTab: React.FC<ContractorsTabProps> = ({
 										<MobileFeedLine>Primary contact: {contractor.name}</MobileFeedLine>
 									)}
 									<MobileFeedLine>
-										{contractor.phone}
+										{contractor.phone || 'No phone on file'}
 										{contractor.email ? ` • ${contractor.email}` : ''}
 									</MobileFeedLine>
 									{contractor.category && (
@@ -572,13 +595,33 @@ export const ContractorsTab: React.FC<ContractorsTabProps> = ({
 										</MobileActionButton>
 									)}
 									<MobileActionLinkRow>
-										<MobileActionLinkButton
-											onClick={(e) => {
-												e.stopPropagation();
-												window.location.href = `tel:${contractor.phone}`;
-											}}>
-											Call
-										</MobileActionLinkButton>
+										{contractor.phone && (
+											<MobileActionLinkButton
+												onClick={(e) => {
+													e.stopPropagation();
+													window.location.href = `tel:${contractor.phone}`;
+												}}>
+												Call
+											</MobileActionLinkButton>
+										)}
+										{contractor.website && (
+											<MobileActionLinkButton
+												onClick={(e) => {
+													e.stopPropagation();
+													window.open(getLinkHref(contractor.website), '_blank', 'noopener,noreferrer');
+												}}>
+												Website
+											</MobileActionLinkButton>
+										)}
+										{contractor.portalUrl && (
+											<MobileActionLinkButton
+												onClick={(e) => {
+													e.stopPropagation();
+													window.open(getLinkHref(contractor.portalUrl), '_blank', 'noopener,noreferrer');
+												}}>
+												Portal
+											</MobileActionLinkButton>
+										)}
 										{canManageContractors && (
 											<MobileActionLinkButton
 												$danger
