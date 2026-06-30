@@ -234,6 +234,163 @@ const findMoney = (lines, labels) => {
 };
 const findPhone = (text) => { var _a; return ((_a = text.match(/\(?\d{3}\)?[-.\s]\d{3}[-.\s]\d{4}/)) === null || _a === void 0 ? void 0 : _a[0]) || ''; };
 const findWebsite = (text) => { var _a; return ((_a = text.match(/(?:https?:\/\/)?(?:www\.)?[a-z0-9-]+\.[a-z]{2,}(?:\/[^\s]*)?/i)) === null || _a === void 0 ? void 0 : _a[0]) || ''; };
+const PROPERTY_LOCATION_ADDRESS_LABELS = [
+    'Service Address',
+    'Service Location',
+    'Job Address',
+    'Work Address',
+    'Installation Address',
+    'Property Address',
+    'Billing Property Address',
+];
+const normalizeAddressTokenText = (value) => toString(value)
+    .toLowerCase()
+    .replace(/\b(street)\b/g, 'st')
+    .replace(/\b(road)\b/g, 'rd')
+    .replace(/\b(avenue)\b/g, 'ave')
+    .replace(/\b(drive)\b/g, 'dr')
+    .replace(/\b(lane)\b/g, 'ln')
+    .replace(/\b(boulevard)\b/g, 'blvd')
+    .replace(/\b(court)\b/g, 'ct')
+    .replace(/\b(circle)\b/g, 'cir')
+    .replace(/\b(place)\b/g, 'pl')
+    .replace(/\b(north)\b/g, 'n')
+    .replace(/\b(south)\b/g, 's')
+    .replace(/\b(east)\b/g, 'e')
+    .replace(/\b(west)\b/g, 'w')
+    .replace(/[^a-z0-9#\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+const normalizeAddressForComparison = (value) => {
+    var _a, _b;
+    const normalized = normalizeAddressTokenText(value);
+    const streetNumber = (_a = normalized.match(/\b\d{1,8}\b/)) === null || _a === void 0 ? void 0 : _a[0];
+    const statePostalMatch = normalized.match(/\b([a-z]{2})\s+(\d{5})(?:\s*\d{4})?\b/);
+    const state = (_b = statePostalMatch === null || statePostalMatch === void 0 ? void 0 : statePostalMatch[1]) === null || _b === void 0 ? void 0 : _b.toUpperCase();
+    const postalCode = statePostalMatch === null || statePostalMatch === void 0 ? void 0 : statePostalMatch[2];
+    let streetName = '';
+    if (streetNumber) {
+        const numberIndex = normalized.indexOf(streetNumber);
+        const afterNumber = normalized.slice(numberIndex + streetNumber.length);
+        streetName = afterNumber
+            .replace(/\b(?:apt|apartment|unit|suite|ste|#)\b.*$/i, '')
+            .replace(/\b[a-z]{2}\s+\d{5}.*$/i, '')
+            .replace(/\b\d{5}(?:\s*\d{4})?\b.*$/i, '')
+            .trim();
+    }
+    return {
+        ...(streetNumber ? { streetNumber } : {}),
+        ...(streetName ? { streetName } : {}),
+        ...(state ? { state } : {}),
+        ...(postalCode ? { postalCode } : {}),
+    };
+};
+const getStreetCoreTokens = (streetName) => normalizeAddressTokenText(streetName)
+    .split(/\s+/)
+    .filter(Boolean)
+    .filter((token) => ![
+    'st',
+    'rd',
+    'ave',
+    'dr',
+    'ln',
+    'blvd',
+    'ct',
+    'cir',
+    'pl',
+    'n',
+    's',
+    'e',
+    'w',
+].includes(token));
+const doStreetNamesMatch = (left, right) => {
+    const leftTokens = getStreetCoreTokens(left);
+    const rightTokens = getStreetCoreTokens(right);
+    if (leftTokens.length === 0 || rightTokens.length === 0)
+        return true;
+    return leftTokens[0] === rightTokens[0];
+};
+const extractLabeledPropertyAddress = (lines) => {
+    for (let index = 0; index < lines.length; index += 1) {
+        const line = lines[index];
+        for (const label of PROPERTY_LOCATION_ADDRESS_LABELS) {
+            const lower = line.toLowerCase();
+            const normalizedLabel = label.toLowerCase();
+            if (lower !== normalizedLabel &&
+                lower !== `${normalizedLabel}:` &&
+                !lower.startsWith(`${normalizedLabel}:`) &&
+                !lower.startsWith(`${normalizedLabel} `)) {
+                continue;
+            }
+            const inlineValue = line
+                .slice(label.length)
+                .replace(/^[:#\s-]+/, '')
+                .trim();
+            const parts = inlineValue ? [inlineValue] : [];
+            for (let nextIndex = index + 1; nextIndex < lines.length && parts.length < 3; nextIndex += 1) {
+                const nextLine = lines[nextIndex];
+                if (/^(invoice|description|payment|technician|system information)\b/i.test(nextLine)) {
+                    break;
+                }
+                if (PROPERTY_LOCATION_ADDRESS_LABELS.some((candidateLabel) => nextLine.toLowerCase().startsWith(candidateLabel.toLowerCase()))) {
+                    break;
+                }
+                parts.push(nextLine);
+                if (/\b[A-Z]{2}\s+\d{5}(?:-\d{4})?\b/.test(nextLine)) {
+                    break;
+                }
+            }
+            const value = parts.join(', ').trim();
+            if (value)
+                return { label, value };
+        }
+    }
+    return undefined;
+};
+const buildPropertyConfirmationFromPdfText = (text, propertyAddress) => {
+    const selectedPropertyAddress = toString(propertyAddress);
+    if (!selectedPropertyAddress)
+        return undefined;
+    const candidate = extractLabeledPropertyAddress(linesFromText(text));
+    if (!(candidate === null || candidate === void 0 ? void 0 : candidate.value))
+        return undefined;
+    const documentAddress = normalizeAddressForComparison(candidate.value);
+    const savedAddress = normalizeAddressForComparison(selectedPropertyAddress);
+    const hasComparableStreet = Boolean(documentAddress.streetNumber && savedAddress.streetNumber) &&
+        Boolean(documentAddress.streetName && savedAddress.streetName);
+    if (!hasComparableStreet)
+        return undefined;
+    const conflicts = [];
+    if (documentAddress.streetNumber &&
+        savedAddress.streetNumber &&
+        documentAddress.streetNumber !== savedAddress.streetNumber) {
+        conflicts.push('street number');
+    }
+    if (documentAddress.streetName &&
+        savedAddress.streetName &&
+        !doStreetNamesMatch(documentAddress.streetName, savedAddress.streetName)) {
+        conflicts.push('street name');
+    }
+    if (documentAddress.state &&
+        savedAddress.state &&
+        documentAddress.state !== savedAddress.state) {
+        conflicts.push('state');
+    }
+    if (documentAddress.postalCode &&
+        savedAddress.postalCode &&
+        documentAddress.postalCode !== savedAddress.postalCode) {
+        conflicts.push('ZIP code');
+    }
+    if (conflicts.length === 0)
+        return undefined;
+    return {
+        status: 'needs_confirmation',
+        documentAddress: candidate.value,
+        propertyAddress: selectedPropertyAddress,
+        sourceLabel: candidate.label,
+        reason: `Detected ${candidate.label.toLowerCase()} conflicts with the selected property's ${conflicts.join(', ')}.`,
+    };
+};
 const CONTRACTOR_ENTITY_PATTERN = /\b(LLC|Inc\.?|Ltd\.?|Co\.?|Company|Contractor)\b/i;
 const CONTRACTOR_TRADE_PATTERN = /\b(HVAC|Heating|Cooling|Plumbing|Electric(?:al)?|Roofing|Landscap(?:e|ing)?|Pest|Appliance|Repair)\b/i;
 const CONTRACTOR_EXCLUDE_PATTERN = /invoice|bill to|job address|technician|license|payment|pay online|payment options|routing|account|check by mail|authorized|warranty information|thank you|subtotal|total due|due date|service date|@|www\.|https?:|\.com|\.net|\.org|\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}/i;
@@ -576,6 +733,7 @@ const processPdfDocumentAcquisition = async ({ propertyId, documentId, triggered
         }
         const extractedText = extractTextFromPdfBuffer(pdfBuffer);
         const extractedFields = extractFieldsFromPdfText(extractedText);
+        const propertyConfirmation = buildPropertyConfirmationFromPdfText(extractedText, propertyData.address);
         const completedAt = new Date().toISOString();
         if (!extractedText || extractedFields.length === 0) {
             const latestSnapshot = await propertyRef.get();
@@ -610,6 +768,7 @@ const processPdfDocumentAcquisition = async ({ propertyId, documentId, triggered
             extractedFields,
             confidence: extractedFields.reduce((sum, field) => sum + field.confidence, 0) /
                 extractedFields.length,
+            propertyConfirmation,
             status: 'pending',
             createdAt: completedAt,
             sourceDocumentName: document.fileName || document.name,

@@ -1022,12 +1022,22 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 		if (isOpen) {
 			setActiveTab('details');
 			setSubmitAttempted(false);
-			setShowCreateMoreOptions(false);
+			setShowCreateMoreOptions(
+				Boolean(
+					initialTask &&
+					(
+						(initialTask.devices?.length || 0) > 0 ||
+						Boolean(initialTask.category) ||
+						Boolean(initialTask.location) ||
+						Boolean(initialTask.assignedTo)
+					),
+				),
+			);
 			setIsCoreSummaryExpanded(false);
 			setPendingTaskDocumentFiles([]);
 			setPendingTaskDocumentCategory('other');
 		}
-	}, [isOpen]);
+	}, [isOpen, initialTask]);
 
 	useEffect(() => {
 		if (!isOpen) return;

@@ -35,6 +35,23 @@ describe('reportDataAdapters', () => {
 		expect(labels).not.toContain('maintenance-costs');
 	});
 
+	it('keeps unit and suite reports out of active report availability', () => {
+		const scopedProperties = [
+			{ id: 'property-1', propertyType: 'Commercial', hasSuites: true, suites: [{}] },
+			{ id: 'property-2', propertyType: 'Multi-Family', units: [{}] },
+		];
+
+		const reportTypes = getAccessibleReports(true, true, true, true, true, {
+			scopedProperties,
+			isHomeowner: false,
+			hasMultiFamilyProperties: true,
+			hasCommercialSuites: true,
+		}).map((report) => report.value);
+
+		expect(reportTypes).not.toContain('suites');
+		expect(reportTypes).not.toContain('units');
+	});
+
 	it('allows team reports only for explicit team/page capabilities', () => {
 		expect(
 			canViewTeamReportsForUser({

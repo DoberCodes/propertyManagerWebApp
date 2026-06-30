@@ -534,6 +534,7 @@ export const PropertyKnowledgeReviewPanel: React.FC<
 	});
 	const [expandedSectionKeys, setExpandedSectionKeys] = useState<Record<string, boolean>>({});
 	const [isSaving, setIsSaving] = useState(false);
+	const [propertyAddressConfirmed, setPropertyAddressConfirmed] = useState(false);
 
 	const propertyDocuments = useMemo<PropertyDocument[]>(
 		() => (Array.isArray((property as any)?.documents) ? (property as any).documents : []),
@@ -994,6 +995,7 @@ export const PropertyKnowledgeReviewPanel: React.FC<
 			setKnowledgeFieldValues({});
 			setKnowledgeFieldReviewStatuses({});
 			setKnowledgePartValues({});
+			setPropertyAddressConfirmed(false);
 			setTargetChoices({
 				contractorMode: 'create',
 				maintenanceEventMode: 'create',
@@ -1029,6 +1031,9 @@ export const PropertyKnowledgeReviewPanel: React.FC<
 				]),
 			),
 		);
+		setPropertyAddressConfirmed(
+			selectedSuggestion.propertyConfirmation?.status === 'confirmed',
+		);
 		setTargetChoices({
 			assetId:
 				selectedSuggestion.relatedSystemId ||
@@ -1060,6 +1065,9 @@ export const PropertyKnowledgeReviewPanel: React.FC<
 		).length;
 		return acceptedFieldCount + acceptedPartCount;
 	}, [knowledgeFieldReviewStatuses, knowledgePartValues, selectedSuggestion]);
+
+	const requiresPropertyAddressConfirmation =
+		selectedSuggestion?.propertyConfirmation?.status === 'needs_confirmation';
 
 	const renderTargetChoice = (group: MemoryChangeGroup) => {
 		if (!group.targetCandidate) return null;
@@ -1549,9 +1557,26 @@ export const PropertyKnowledgeReviewPanel: React.FC<
 
 	const handleApplySuggestion = async () => {
 		if (!property?.id || !selectedSuggestion || isSaving) return;
+		if (requiresPropertyAddressConfirmation && !propertyAddressConfirmed) {
+			feedback.notify('Confirm this document belongs to this property before saving.');
+			return;
+		}
 		const acceptedAt = new Date().toISOString();
 		const acceptedByUser = getAcceptedByUserId();
-		const acceptedSuggestion = acceptKnowledgeSuggestion(selectedSuggestion, {
+		const suggestionReadyForReview: PropertyKnowledgeSuggestion =
+			requiresPropertyAddressConfirmation &&
+			selectedSuggestion.propertyConfirmation
+				? {
+						...selectedSuggestion,
+						propertyConfirmation: {
+							...selectedSuggestion.propertyConfirmation,
+							status: 'confirmed',
+							confirmedAt: acceptedAt,
+							confirmedByUser: acceptedByUser,
+						},
+				  }
+				: selectedSuggestion;
+		const acceptedSuggestion = acceptKnowledgeSuggestion(suggestionReadyForReview, {
 			reviewedAt: acceptedAt,
 			acceptedByUser,
 			fieldValues: knowledgeFieldValues,
@@ -1852,6 +1877,43 @@ export const PropertyKnowledgeReviewPanel: React.FC<
 									<MemoryReviewIntro>
 										Review what will change in this property's records if you save these suggestions.
 									</MemoryReviewIntro>
+									{selectedSuggestion.propertyConfirmation?.status === 'needs_confirmation' && (
+										<PropertyConfirmationWarning>
+											<PropertyConfirmationTitle>
+												This document may be for a different property.
+											</PropertyConfirmationTitle>
+											<PropertyConfirmationGrid>
+												<div>
+													<span>Document address</span>
+													<strong>
+														{selectedSuggestion.propertyConfirmation.documentAddress}
+													</strong>
+												</div>
+												<div>
+													<span>Selected property</span>
+													<strong>
+														{selectedSuggestion.propertyConfirmation.propertyAddress}
+													</strong>
+												</div>
+											</PropertyConfirmationGrid>
+											<PropertyConfirmationText>
+												{selectedSuggestion.propertyConfirmation.reason}
+											</PropertyConfirmationText>
+											<PropertyConfirmationCheck>
+												<input
+													id={`property-confirmation-${selectedSuggestion.id}`}
+													type='checkbox'
+													checked={propertyAddressConfirmed}
+													onChange={(event) =>
+														setPropertyAddressConfirmed(event.target.checked)
+													}
+												/>
+												<label htmlFor={`property-confirmation-${selectedSuggestion.id}`}>
+													This document belongs to this property.
+												</label>
+											</PropertyConfirmationCheck>
+										</PropertyConfirmationWarning>
+									)}
 									<MemoryChangeList>
 										{selectedMemoryChangeGroups.map((group) => (
 											<MemoryChangeCard key={group.key}>
@@ -1890,6 +1952,8 @@ export const PropertyKnowledgeReviewPanel: React.FC<
 										selectedSuggestion.status === 'rejected' ||
 										getKnowledgeSuggestionCount(selectedSuggestion) === 0 ||
 										activeReviewItemCount === 0 ||
+										(requiresPropertyAddressConfirmation &&
+											!propertyAddressConfirmed) ||
 										isSaving
 									}>
 									{isSaving ? 'Saving...' : 'Save review'}
@@ -2178,6 +2242,80 @@ const MemoryReviewIntro = styled.p`
 	color: ${COLORS.gray600};
 	font-size: 13px;
 	line-height: 1.5;
+`;
+
+const PropertyConfirmationWarning = styled.div`
+	display: grid;
+	gap: 10px;
+	border: 1px solid ${COLORS.warning};
+	border-radius: 8px;
+	background: ${COLORS.warningLight};
+	padding: 12px;
+`;
+
+const PropertyConfirmationTitle = styled.div`
+	color: ${COLORS.gray800};
+	font-size: 14px;
+	font-weight: 900;
+	line-height: 1.35;
+`;
+
+const PropertyConfirmationGrid = styled.div`
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 8px;
+
+	div {
+		display: grid;
+		gap: 4px;
+		border: 1px solid rgba(217, 119, 6, 0.28);
+		border-radius: 8px;
+		background: ${COLORS.white};
+		padding: 8px;
+	}
+
+	span {
+		color: ${COLORS.textSecondary};
+		font-size: 11px;
+		font-weight: 900;
+		text-transform: uppercase;
+	}
+
+	strong {
+		color: ${COLORS.gray800};
+		font-size: 13px;
+		line-height: 1.35;
+		overflow-wrap: anywhere;
+	}
+
+	@media (max-width: 560px) {
+		grid-template-columns: 1fr;
+	}
+`;
+
+const PropertyConfirmationText = styled.p`
+	margin: 0;
+	color: ${COLORS.gray700};
+	font-size: 13px;
+	line-height: 1.45;
+`;
+
+const PropertyConfirmationCheck = styled.div`
+	display: flex;
+	align-items: flex-start;
+	gap: 8px;
+	color: ${COLORS.gray800};
+	font-size: 13px;
+	font-weight: 900;
+	line-height: 1.35;
+
+	input {
+		margin-top: 2px;
+	}
+
+	label {
+		cursor: pointer;
+	}
 `;
 
 const MemoryChangeList = styled.div`

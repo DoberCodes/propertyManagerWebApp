@@ -1,6 +1,7 @@
 import {
 	acceptKnowledgeSuggestion,
 	applyAcceptedKnowledgeSuggestion,
+	buildPropertyConfirmationFromDocumentText,
 	createPendingKnowledgeSuggestion,
 	extractFieldsFromDocumentText,
 	extractPartSuggestionsFromDocumentText,
@@ -304,6 +305,83 @@ describe('property knowledge acquisition', () => {
 			fields.find((field) => field.fieldKey === 'partsReplaced')?.confidenceLevel,
 		).toBe('medium');
 		expect(fields[0].confidenceLevel).toBe('high');
+	});
+
+	it('does not require property confirmation when a labeled service address matches', () => {
+		const confirmation = buildPropertyConfirmationFromDocumentText(
+			`
+				INVOICE
+				Service Address:
+				123 Main Street
+				Charlotte, NC 28202
+				Invoice Number: INV-1
+			`,
+			'123 Main St, Charlotte, NC 28202',
+		);
+
+		expect(confirmation).toBeUndefined();
+	});
+
+	it('does not require property confirmation for a partial address match', () => {
+		const confirmation = buildPropertyConfirmationFromDocumentText(
+			`
+				INVOICE
+				Job Address: 123 Main Street
+				Invoice Number: INV-1
+			`,
+			'123 Main St, Charlotte, NC 28202',
+		);
+
+		expect(confirmation).toBeUndefined();
+	});
+
+	it('requires property confirmation when a labeled service address conflicts', () => {
+		const confirmation = buildPropertyConfirmationFromDocumentText(
+			`
+				INVOICE
+				Service Address:
+				456 Oak Avenue
+				Charlotte, NC 28202
+				Invoice Number: INV-1
+			`,
+			'123 Main St, Charlotte, NC 28202',
+		);
+
+		expect(confirmation).toMatchObject({
+			status: 'needs_confirmation',
+			documentAddress: '456 Oak Avenue, Charlotte, NC 28202',
+			propertyAddress: '123 Main St, Charlotte, NC 28202',
+			sourceLabel: 'Service Address',
+		});
+		expect(confirmation?.reason).toContain('street number');
+	});
+
+	it('ignores contractor mailing addresses without a property-location label', () => {
+		const confirmation = buildPropertyConfirmationFromDocumentText(
+			`
+				Carolina Comfort HVAC, LLC
+				456 Oak Avenue
+				Charlotte, NC 28202
+				INVOICE
+				Invoice Number: INV-1
+			`,
+			'123 Main St, Charlotte, NC 28202',
+		);
+
+		expect(confirmation).toBeUndefined();
+	});
+
+	it('does not require property confirmation when no document address is found', () => {
+		const confirmation = buildPropertyConfirmationFromDocumentText(
+			`
+				INVOICE
+				Invoice Number: INV-1
+				Total Due $100.00
+			`,
+			'123 Main St, Charlotte, NC 28202',
+		);
+
+		expect(confirmation).toBeUndefined();
 	});
 
 	it('stops labeled OCR values before the next label on flattened invoice rows', () => {

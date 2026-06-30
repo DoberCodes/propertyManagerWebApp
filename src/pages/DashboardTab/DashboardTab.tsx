@@ -23,6 +23,7 @@ import {
 import {
 	runDashboardIntelligence,
 	type DashboardIntelligenceSuggestion,
+	type DashboardSuggestedTaskPrefill,
 } from 'intelligence/consumers/portfolioDashboard';
 import { TaskCompletionModal } from 'Components/TaskCompletionModal';
 import { TrialWarningBanner } from 'Components/TrialWarningBanner/TrialWarningBanner';
@@ -368,6 +369,8 @@ export const DashboardTab = () => {
 	}, [location.search, currentUser]);
 
 	const [showTaskCompletionModal, setShowTaskCompletionModal] = useState(false);
+	const [dashboardTaskPrefill, setDashboardTaskPrefill] =
+		useState<DashboardSuggestedTaskPrefill | null>(null);
 	const hasAttemptedSubscriptionSyncRef = useRef(false);
 
 	useEffect(() => {
@@ -1298,7 +1301,16 @@ export const DashboardTab = () => {
 	};
 
 	const handleOpenTask = (taskId: string) => {
+		setDashboardTaskPrefill(null);
 		handleEditTask([taskId]);
+	};
+
+	const handleOpenCreateTask = (
+		prefill: DashboardSuggestedTaskPrefill | null = null,
+	) => {
+		setEditingTaskId(null);
+		setDashboardTaskPrefill(prefill);
+		setShowTaskDialog(true);
 	};
 
 	const handleStartTask = async (task: Task) => {
@@ -1355,8 +1367,7 @@ export const DashboardTab = () => {
 				return;
 			}
 			case 'create_task':
-				setEditingTaskId(null);
-				setShowTaskDialog(true);
+				handleOpenCreateTask(suggestion.suggestedTask || null);
 				return;
 			case 'edit_property':
 				navigate(singlePropertySlug ? `/property/${singlePropertySlug}` : '/properties');
@@ -1659,10 +1670,7 @@ export const DashboardTab = () => {
 								actions={[
 									{
 										label: 'Add Task',
-										onClick: () => {
-											setEditingTaskId(null);
-											setShowTaskDialog(true);
-										},
+										onClick: () => handleOpenCreateTask(),
 									},
 								]}
 							/>
@@ -1792,10 +1800,7 @@ export const DashboardTab = () => {
 						<p>No maintenance records yet. Complete tasks or add a maintenance record to build the service history.</p>
 						<FocusButton
 							type='button'
-							onClick={() => {
-								setEditingTaskId(null);
-								setShowTaskDialog(true);
-							}}>
+							onClick={() => handleOpenCreateTask()}>
 							Add Task
 						</FocusButton>
 					</RecentActivityEmpty>
@@ -1833,9 +1838,10 @@ export const DashboardTab = () => {
 				isOpen={showTaskDialog}
 				onClose={() => {
 					setShowTaskDialog(false);
+					setDashboardTaskPrefill(null);
 				}}
 				editingTaskId={editingTaskId}
-				initialTask={null}
+				initialTask={editingTaskId ? null : dashboardTaskPrefill}
 				editingTask={
 					editingTaskId ? dashboardTaskLookup.get(editingTaskId) || null : null
 				}

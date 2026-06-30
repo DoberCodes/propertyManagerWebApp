@@ -6,6 +6,10 @@ Property Knowledge Acquisition is the layer that turns uploaded documents and ot
 
 It happens before Maintley Intelligence.
 
+Source-specific support status, limitations, and planned property-confirmation
+safeguards are tracked in
+`PROPERTY_KNOWLEDGE_ACQUISITION_STATUS_MATRIX.md`.
+
 ```text
 Document / source
     ->
@@ -73,6 +77,12 @@ mark the document `failed` with a homeowner-friendly retry message when needed.
 Before suggesting a new record, Property Knowledge Acquisition should check existing Property Memory for likely targets. If an uploaded invoice, warranty, manual, receipt, or inspection report appears to describe an existing asset, contractor, Maintenance Event, part, warranty, or other record, the review experience should propose updating the existing record first. Users must be able to mark the match as not the same record and create a new record where creation is supported.
 
 Target matching should be conservative and explainable. Safe matching signals include source document identity, invoice number, service date, contractor, total cost, related asset, serial number, model number, and existing document attachments. Similar text alone should not silently merge records.
+
+When acquisition detects a clearly labeled service, job, installation, or
+property address that conflicts with the selected property's saved address, the
+review experience should warn that the document may be for a different property.
+Maintley should require reviewer confirmation before applying suggested Property
+Memory changes from that document.
 
 Asset type and subtype suggestions must use Maintley's controlled asset taxonomy. The acquisition layer may infer `assetType` and `assetVariant` from document text, but review fields should use preset options rather than free text. If the source cannot be mapped to a known preset, Maintley should avoid suggesting a custom classification and leave the existing record unchanged.
 

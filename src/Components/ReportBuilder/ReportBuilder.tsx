@@ -54,12 +54,26 @@ import {
 	Button,
 	InfoMessage,
 	FilterContainer,
-	MobileReportGrid,
+	FilterRow,
+	Input,
 	MobileReportCard,
 	MobileReportCardTitle,
 	MobileReportCardDescription,
 	MobileReportCardMeta,
-	DesktopReportSelect,
+	ReportSetupPanel,
+	ReportStepHeader,
+	ReportStepKicker,
+	ReportStepText,
+	ReportOutputPanel,
+	ReportCategoryGrid,
+	ReportCategoryButton,
+	ReportCategoryTitle,
+	ReportCategoryDescription,
+	ReportTemplateGrid,
+	SelectedReportSummary,
+	SelectedReportTitle,
+	SelectedReportMeta,
+	AdvancedColumnsToggle,
 	ColumnOptionsStack,
 	ColumnOptionWrapper,
 	ColumnOptionText,
@@ -448,10 +462,122 @@ const DEFAULT_REPORT_COLUMNS: Partial<Record<ReportType, string[]>> = {
 	units: ['propertyTitle', 'name', 'floor', 'area', 'isOccupied'],
 };
 
+const EMPTY_REPORT_MESSAGES: Partial<Record<ReportType, string>> = {
+	tasks: 'Add a task to include it in this report.',
+	'overdue-tasks': 'No open tasks are past due for this scope.',
+	'upcoming-tasks': 'No open tasks are due in the next 30 days for this scope.',
+	'recurring-maintenance': 'Add a recurring task to see scheduled maintenance here.',
+	'maintenance-requests': 'Submitted maintenance requests will appear here.',
+	'resident-request-lifecycle': 'Resident requests will appear here once submitted or converted to tasks.',
+	'maintenance-history': 'Completed maintenance records will appear here.',
+	'maintenance-costs': 'Maintenance records with cost details will appear here.',
+	devices: 'Add an appliance or system to include it in this report.',
+	'warranty-expiration': 'Add warranty details or upload warranty documents to see them here.',
+	'appliance-service': 'Add appliances, tasks, or service records to build this report.',
+	'document-inventory': 'Upload property documents or attach files to tasks and maintenance records.',
+	contractors: 'Add a contractor to include them in this report.',
+	'contractor-service-spend': 'Contractor work with cost details will appear here.',
+	team: 'Add team members to include them in this report.',
+	'team-workload': 'Assigned team tasks will appear here.',
+	'employee-efficiency': 'Assigned and completed team tasks will appear here.',
+	'tenant-profiles': 'Resident profiles will appear here when available.',
+	'property-summary': 'Add property records to build this summary.',
+	'portfolio-overview': 'Add multiple properties to build a portfolio overview.',
+	suites: 'Commercial suites will appear here when added to a property.',
+	units: 'Units will appear here when added to a property.',
+};
+
+const DATE_FILTER_REPORTS = new Set<ReportType>([
+	'tasks',
+	'overdue-tasks',
+	'upcoming-tasks',
+	'recurring-maintenance',
+	'maintenance-requests',
+	'resident-request-lifecycle',
+	'maintenance-history',
+	'maintenance-costs',
+	'warranty-expiration',
+	'appliance-service',
+	'document-inventory',
+	'contractor-service-spend',
+]);
+
+const getReportRowDateValue = (reportType: ReportType, row: any): string => {
+	if (reportType === 'document-inventory') return row.uploadedAt || '';
+	if (reportType === 'warranty-expiration') return row.warrantyEndDate || '';
+	if (reportType === 'appliance-service') return row.lastServiceDate || '';
+	if (reportType === 'contractor-service-spend') return row.lastServiceDate || '';
+	if (reportType === 'resident-request-lifecycle') return row.submittedAt || '';
+	if (reportType === 'recurring-maintenance') return row.nextDueDate || '';
+	if (reportType === 'maintenance-requests') return row.submittedAt || row.requestedDate || '';
+	if (reportType === 'maintenance-history' || reportType === 'maintenance-costs') {
+		return row.completionDate || row.date || '';
+	}
+	return row.dueDate || row.date || row.completedDate || '';
+};
+
+const getDefaultColumnsForReport = (
+	nextReportType: ReportType,
+	nextColumnOptions: Record<string, string>,
+): string[] => {
+	const availableColumnKeys = Object.keys(nextColumnOptions);
+	const preferredColumns = DEFAULT_REPORT_COLUMNS[nextReportType] || availableColumnKeys;
+	const defaults = preferredColumns.filter((column) =>
+		availableColumnKeys.includes(column),
+	);
+	return defaults.length > 0 ? defaults : availableColumnKeys.slice(0, 6);
+};
+
 const canViewFinancialReportsForUser = (user: any): boolean => {
 	if (!user) return false;
 	if (user.isAccountOwner === true) return true;
 	return getRoleCapabilities(user.role).canManageFinancials;
+};
+
+const TEAM_REPORT_TYPES = new Set<ReportType>([
+	'team',
+	'employee-efficiency',
+	'team-workload',
+]);
+
+const TENANT_REPORT_TYPES = new Set<ReportType>([
+	'tenant-profiles',
+	'resident-request-lifecycle',
+]);
+
+const FINANCIAL_REPORT_TYPES = new Set<ReportType>([
+	'maintenance-costs',
+	'contractor-service-spend',
+]);
+
+const SIMPLE_CSV_EXPORT_FILENAMES: Partial<Record<ReportType, string>> = {
+	'maintenance-costs': 'maintenance-costs',
+	'portfolio-overview': 'portfolio-overview',
+	'document-inventory': 'document-inventory',
+	'warranty-expiration': 'warranty-expiration',
+	'recurring-maintenance': 'recurring-maintenance',
+	'appliance-service': 'appliance-service',
+	'contractor-service-spend': 'contractor-service-spend',
+	'resident-request-lifecycle': 'resident-request-lifecycle',
+	'team-workload': 'team-workload',
+};
+
+const exportSimpleCsvReport = (
+	reportType: ReportType,
+	data: any[],
+	columns: string[],
+): boolean => {
+	const filenameBase = SIMPLE_CSV_EXPORT_FILENAMES[reportType];
+	if (!filenameBase) {
+		return false;
+	}
+
+	exportToCSV({
+		filename: `${filenameBase}-${new Date().toISOString().split('T')[0]}.csv`,
+		data,
+		columns,
+	});
+	return true;
 };
 
 export const ReportBuilder: React.FC = () => {
@@ -865,6 +991,7 @@ export const ReportBuilder: React.FC = () => {
 		'contractor-service-spend',
 		'resident-request-lifecycle',
 	].includes(reportType);
+	const shouldShowDateFilter = DATE_FILTER_REPORTS.has(reportType);
 
 	// Get preview data based on report type
 	const previewData = useMemo<any[]>(() => {
@@ -938,6 +1065,22 @@ export const ReportBuilder: React.FC = () => {
 			data = filterReportRowsByProperty(data, filters.propertyId);
 		}
 
+		if (shouldShowDateFilter && (filters.dateFrom || filters.dateTo)) {
+			data = data.filter((row: any) => {
+				const rowDateValue = getReportRowDateValue(reportType, row);
+				if (!rowDateValue) return false;
+				const rowDate = new Date(rowDateValue).getTime();
+				if (!Number.isFinite(rowDate)) return false;
+				if (filters.dateFrom && rowDate < new Date(filters.dateFrom).getTime()) {
+					return false;
+				}
+				if (filters.dateTo && rowDate > new Date(filters.dateTo).getTime()) {
+					return false;
+				}
+				return true;
+			});
+		}
+
 		if (isHomeowner) {
 			data = filterRowsForHomeownerProperties({
 				reportType,
@@ -950,6 +1093,7 @@ export const ReportBuilder: React.FC = () => {
 	}, [
 		reportType,
 		shouldShowPropertyFilter,
+		shouldShowDateFilter,
 		canAccessTeamReport,
 		canViewFinancialReports,
 		overdueTasks,
@@ -987,18 +1131,6 @@ export const ReportBuilder: React.FC = () => {
 	}, [hideEmptyColumns, previewData, selectedColumns]);
 
 	const hiddenEmptyColumnCount = selectedColumns.length - visibleSelectedColumns.length;
-
-	const handleReportTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-		if (!canAccessReports) {
-			feedback.notify(
-				isTeamMemberAccount
-					? 'Report access is controlled by your assigned role.'
-					: 'Report access is unavailable for your account right now.',
-			);
-			return;
-		}
-		selectReport(e.target.value as ReportType);
-	};
 
 	// Determine which report types should show maintenance-specific filters
 	const shouldShowMaintenanceFilters = reportType === 'maintenance-requests';
@@ -1057,12 +1189,7 @@ export const ReportBuilder: React.FC = () => {
 		}
 
 		// Permission guard for team-related reports
-		if (
-			(reportType === 'team' ||
-				reportType === 'employee-efficiency' ||
-				reportType === 'team-workload') &&
-			!canAccessTeamReport
-		) {
+		if (TEAM_REPORT_TYPES.has(reportType) && !canAccessTeamReport) {
 			feedback.notify('You do not have permission to run this report.');
 			return;
 		}
@@ -1071,11 +1198,7 @@ export const ReportBuilder: React.FC = () => {
 			return;
 		}
 
-		if (
-			(reportType === 'tenant-profiles' ||
-				reportType === 'resident-request-lifecycle') &&
-			!canAccessTenantReports
-		) {
+		if (TENANT_REPORT_TYPES.has(reportType) && !canAccessTenantReports) {
 			feedback.notify('This report requires resident access permissions.');
 			return;
 		}
@@ -1085,17 +1208,17 @@ export const ReportBuilder: React.FC = () => {
 			return;
 		}
 
-		if (
-			(reportType === 'maintenance-costs' ||
-				reportType === 'contractor-service-spend') &&
-			!canViewFinancialReports
-		) {
+		if (FINANCIAL_REPORT_TYPES.has(reportType) && !canViewFinancialReports) {
 			feedback.notify('You do not have permission to run financial reports.');
 			return;
 		}
 
 		if (!accessibleReports.some((report) => report.value === reportType)) {
 			feedback.notify('This report type is not available for your account.');
+			return;
+		}
+
+		if (exportSimpleCsvReport(reportType, previewData, visibleSelectedColumns)) {
 			return;
 		}
 
@@ -1137,71 +1260,8 @@ export const ReportBuilder: React.FC = () => {
 			case 'maintenance-history':
 				generateMaintenanceHistoryReport(previewData, visibleSelectedColumns);
 				break;
-			case 'maintenance-costs':
-				exportToCSV({
-					filename: `maintenance-costs-${new Date().toISOString().split('T')[0]}.csv`,
-					data: previewData,
-					columns: visibleSelectedColumns,
-				});
-				break;
 			case 'tenant-profiles':
 				generateTenantProfileReport(previewData, visibleSelectedColumns);
-				break;
-			case 'portfolio-overview':
-				exportToCSV({
-					filename: `portfolio-overview-${new Date().toISOString().split('T')[0]}.csv`,
-					data: previewData,
-					columns: visibleSelectedColumns,
-				});
-				break;
-			case 'document-inventory':
-				exportToCSV({
-					filename: `document-inventory-${new Date().toISOString().split('T')[0]}.csv`,
-					data: previewData,
-					columns: visibleSelectedColumns,
-				});
-				break;
-			case 'warranty-expiration':
-				exportToCSV({
-					filename: `warranty-expiration-${new Date().toISOString().split('T')[0]}.csv`,
-					data: previewData,
-					columns: visibleSelectedColumns,
-				});
-				break;
-			case 'recurring-maintenance':
-				exportToCSV({
-					filename: `recurring-maintenance-${new Date().toISOString().split('T')[0]}.csv`,
-					data: previewData,
-					columns: visibleSelectedColumns,
-				});
-				break;
-			case 'appliance-service':
-				exportToCSV({
-					filename: `appliance-service-${new Date().toISOString().split('T')[0]}.csv`,
-					data: previewData,
-					columns: visibleSelectedColumns,
-				});
-				break;
-			case 'contractor-service-spend':
-				exportToCSV({
-					filename: `contractor-service-spend-${new Date().toISOString().split('T')[0]}.csv`,
-					data: previewData,
-					columns: visibleSelectedColumns,
-				});
-				break;
-			case 'resident-request-lifecycle':
-				exportToCSV({
-					filename: `resident-request-lifecycle-${new Date().toISOString().split('T')[0]}.csv`,
-					data: previewData,
-					columns: visibleSelectedColumns,
-				});
-				break;
-			case 'team-workload':
-				exportToCSV({
-					filename: `team-workload-${new Date().toISOString().split('T')[0]}.csv`,
-					data: previewData,
-					columns: visibleSelectedColumns,
-				});
 				break;
 			case 'employee-efficiency':
 				generateEmployeeEfficiencyReport(previewData, visibleSelectedColumns);
@@ -1294,20 +1354,9 @@ export const ReportBuilder: React.FC = () => {
 	const selectedReportCategory =
 		(reportType && REPORT_CATEGORY_BY_TYPE[reportType]) || selectedCategory;
 
-	const getDefaultColumnsForReport = (
-		nextReportType: ReportType,
-		nextColumnOptions: Record<string, string> = columnOptions,
-	): string[] => {
-		const availableColumnKeys = Object.keys(nextColumnOptions);
-		const preferredColumns = DEFAULT_REPORT_COLUMNS[nextReportType] || availableColumnKeys;
-		const defaults = preferredColumns.filter((column) =>
-			availableColumnKeys.includes(column),
-		);
-		return defaults.length > 0 ? defaults : availableColumnKeys.slice(0, 6);
-	};
-
 	const selectReport = (nextReportType: ReportType) => {
 		setReportType(nextReportType);
+		setSelectedColumns([]);
 		setFilters({
 			status: '',
 			priority: '',
@@ -1335,9 +1384,9 @@ export const ReportBuilder: React.FC = () => {
 		<StandardAppPage>
 			<StandardAppPageHeader>
 				<StandardAppPageTitleBlock>
-					<StandardAppPageTitle>Reports & Analytics</StandardAppPageTitle>
+					<StandardAppPageTitle>Reports</StandardAppPageTitle>
 					<StandardAppPageSubtitle>
-						Build custom reports and download CSV data for analysis
+						Preview property records and download CSV reports
 					</StandardAppPageSubtitle>
 				</StandardAppPageTitleBlock>
 			</StandardAppPageHeader>
@@ -1363,284 +1412,360 @@ export const ReportBuilder: React.FC = () => {
 						compact
 					/>
 				)}
-				{/* Report Type Selection */}
 				<Section>
-					{' '}
-					<SectionTitle>Report Type</SectionTitle>
-					<MobileReportGrid>
-						{discoverableReports.map((report) => {
-							const isAccessible =
-								canAccessReports &&
-								accessibleReports.some((item) => item.value === report.value);
-							const metaLabel = isAccessible
-								? report.requiresPortfolioReporting
-									? 'Portfolio'
-									: report.requiresAdvancedTeamAccess
-										? 'Advanced'
-										: report.requiresFinancialAccess
-											? 'Financial'
-											: report.requiresTeamAccess
-												? 'Team'
-												: 'Available'
-								: isTeamMemberAccount
-									? 'Role Restricted'
-									: nativeApp
-										? 'Web Management'
-										: 'Unavailable';
+					<ReportSetupPanel>
+						<ReportStepHeader>
+							<ReportStepKicker>Step 1</ReportStepKicker>
+							<SectionTitle>Choose a Report Category</SectionTitle>
+							<ReportStepText>
+								Start with the area of the property record you want to review.
+							</ReportStepText>
+						</ReportStepHeader>
+						<ReportCategoryGrid>
+							{REPORT_CATEGORIES.map((category) => {
+								const categoryReports = reportsByCategory.get(category.id) || [];
+								const availableCount = categoryReports.filter((report) =>
+									accessibleReports.some((item) => item.value === report.value),
+								).length;
+								return (
+									<ReportCategoryButton
+										key={category.id}
+										type='button'
+										$active={selectedCategory === category.id}
+										onClick={() => setSelectedCategory(category.id)}>
+										<ReportCategoryTitle>{category.label}</ReportCategoryTitle>
+										<ReportCategoryDescription>
+											{category.description}
+										</ReportCategoryDescription>
+										<MobileReportCardMeta>
+											{availableCount} available
+										</MobileReportCardMeta>
+									</ReportCategoryButton>
+								);
+							})}
+						</ReportCategoryGrid>
 
-							return (
-								<MobileReportCard
-									key={report.value}
+						<ReportStepHeader>
+							<ReportStepKicker>Step 2</ReportStepKicker>
+							<SectionTitle>Choose a Report</SectionTitle>
+							<ReportStepText>
+								Recommended columns are selected automatically.
+							</ReportStepText>
+						</ReportStepHeader>
+						<ReportTemplateGrid>
+							{visibleCategoryReports.map((report) => {
+								const isAccessible =
+									canAccessReports &&
+									accessibleReports.some((item) => item.value === report.value);
+								const metaLabel = isAccessible
+									? report.requiresPortfolioReporting
+										? 'Portfolio'
+										: report.requiresAdvancedTeamAccess
+											? 'Advanced'
+											: report.requiresFinancialAccess
+												? 'Financial'
+												: report.requiresTeamAccess
+													? 'Team'
+													: 'Available'
+									: isTeamMemberAccount
+										? 'Role Restricted'
+										: nativeApp
+											? 'Web Management'
+											: 'Unavailable';
+
+								return (
+									<MobileReportCard
+										key={report.value}
+										type='button'
+										$active={reportType === report.value}
+										$locked={!isAccessible}
+										onClick={() => {
+											if (!isAccessible) {
+												feedback.notify(
+													isTeamMemberAccount
+														? 'This report is restricted by your role.'
+														: 'This report is not available for your account or role.',
+												);
+												return;
+											}
+											selectReport(report.value);
+										}}>
+										<MobileReportCardTitle>{report.label}</MobileReportCardTitle>
+										<MobileReportCardDescription>
+											{report.description}
+										</MobileReportCardDescription>
+										<MobileReportCardMeta>{metaLabel}</MobileReportCardMeta>
+									</MobileReportCard>
+								);
+							})}
+						</ReportTemplateGrid>
+						{visibleCategoryReports.length === 0 && (
+							<InfoMessage>
+								No reports are available in this category for the current property scope.
+							</InfoMessage>
+						)}
+
+						{reportType && selectedReport && (
+							<SelectedReportSummary>
+								<div>
+									<SelectedReportTitle>{selectedReport.label}</SelectedReportTitle>
+									{currentReportDescription && (
+										<SelectedReportMeta>
+											{currentReportDescription}
+										</SelectedReportMeta>
+									)}
+									<SelectedReportMeta>
+										{REPORT_CATEGORIES.find(
+											(category) => category.id === selectedReportCategory,
+										)?.label || 'Report'}{' '}
+										- {previewData.length} record
+										{previewData.length === 1 ? '' : 's'}
+									</SelectedReportMeta>
+								</div>
+								<Button
 									type='button'
-									$active={reportType === report.value}
-									$locked={!isAccessible}
+									variant='secondary'
 									onClick={() => {
-										if (!isAccessible) {
-											feedback.notify(
-												isTeamMemberAccount
-													? 'This report is restricted by your role.'
-													: 'This report is not available for your account or role.',
-											);
-											return;
-										}
-
-										setReportType(report.value);
+										setReportType('');
 										setSelectedColumns([]);
-										setFilters({
-											status: '',
-											priority: '',
-											propertyId: '',
-											dateFrom: '',
-											dateTo: '',
-										});
 									}}>
-									<MobileReportCardTitle>{report.label}</MobileReportCardTitle>
-									<MobileReportCardDescription>
-										{report.description}
-									</MobileReportCardDescription>
-									<MobileReportCardMeta>{metaLabel}</MobileReportCardMeta>
-								</MobileReportCard>
-							);
-						})}
-					</MobileReportGrid>
-					<DesktopReportSelect>
-						<FormGroup>
-							<Label>Select Report</Label>
-							<Select value={reportType} onChange={handleReportTypeChange} disabled={!canAccessReports}>
-								<option value=''>-- Choose a report type --</option>
-								{discoverableReports.map((report) => {
-									const isAccessible =
-										canAccessReports &&
-										accessibleReports.some((item) => item.value === report.value);
-									return (
-										<option key={report.value} value={report.value} disabled={!isAccessible}>
-											{report.label}
-											{report.requiresTeamAccess ? ' (Team Management)' : ''}
-											{!isAccessible
-												? isTeamMemberAccount
-													? ' - Role restricted'
-													: nativeApp
-														? ' - Web management'
-														: ' - Unavailable'
-												: ''}
-										</option>
-									);
-								})}
-							</Select>
-						</FormGroup>
-					</DesktopReportSelect>
-					{reportType && currentReportDescription && (
-						<div style={{ fontSize: '13px', color: '#6b7280', marginTop: '8px' }}>
-							{currentReportDescription}
-						</div>
-					)}
-					{!isCurrentReportAccessible && reportType && (
-						<InfoMessage style={{ backgroundColor: '#fef3c7', color: '#92400e', marginTop: '12px' }}>
-							This report type is not available for your account.
-						</InfoMessage>
-					)}
-					{(shouldShowMaintenanceFilters || shouldShowPropertyFilter) && (
-						<FilterContainer>
-							<Label style={{ marginTop: '12px' }}>Filters</Label>
-							{shouldShowMaintenanceFilters && (
-								<>
+									Change Report
+								</Button>
+							</SelectedReportSummary>
+						)}
+
+						{!isCurrentReportAccessible && reportType && (
+							<InfoMessage style={{ backgroundColor: '#fef3c7', color: '#92400e' }}>
+								This report type is not available for your account.
+							</InfoMessage>
+						)}
+
+						{reportType && (shouldShowMaintenanceFilters || shouldShowPropertyFilter) && (
+							<FilterContainer>
+								<ReportStepHeader>
+									<ReportStepKicker>Step 3</ReportStepKicker>
+									<SectionTitle>Set Scope</SectionTitle>
+									<ReportStepText>
+										Choose the records to include before previewing.
+									</ReportStepText>
+								</ReportStepHeader>
+								{shouldShowMaintenanceFilters && (
+									<>
+										<FormGroup>
+											<Label>Status</Label>
+											<Select
+												value={filters.status}
+												onChange={(e) =>
+													setFilters({ ...filters, status: e.target.value })
+												}>
+												<option value=''>All Statuses</option>
+												<option value='Pending'>Pending</option>
+												<option value='Under Review'>Under Review</option>
+												<option value='Approved'>Approved</option>
+												<option value='Rejected'>Rejected</option>
+											</Select>
+										</FormGroup>
+
+										<FormGroup>
+											<Label>Priority</Label>
+											<Select
+												value={filters.priority}
+												onChange={(e) =>
+													setFilters({ ...filters, priority: e.target.value })
+												}>
+												<option value=''>All Priorities</option>
+												<option value='Low'>Low</option>
+												<option value='Medium'>Medium</option>
+												<option value='High'>High</option>
+												<option value='Urgent'>Urgent</option>
+											</Select>
+										</FormGroup>
+									</>
+								)}
+
+								{shouldShowPropertyFilter && (
 									<FormGroup>
-										<Label>Status</Label>
+										<Label>Property</Label>
 										<Select
-											value={filters.status}
+											value={filters.propertyId}
 											onChange={(e) =>
-												setFilters({ ...filters, status: e.target.value })
+												setFilters({ ...filters, propertyId: e.target.value })
 											}>
-											<option value=''>All Statuses</option>
-											<option value='Pending'>Pending</option>
-											<option value='Under Review'>Under Review</option>
-											<option value='Approved'>Approved</option>
-											<option value='Rejected'>Rejected</option>
+											<option value=''>All Properties</option>
+											{scopedProperties
+												.filter(
+													(prop) =>
+														!isHomeowner ||
+														isSingleFamilyProperty(prop.propertyType),
+												)
+												.map((prop) => (
+													<option key={prop.id} value={prop.id}>
+														{prop.title}
+													</option>
+												))}
 										</Select>
 									</FormGroup>
-
-									<FormGroup>
-										<Label>Priority</Label>
-										<Select
-											value={filters.priority}
-											onChange={(e) =>
-												setFilters({ ...filters, priority: e.target.value })
-											}>
-											<option value=''>All Priorities</option>
-											<option value='Low'>Low</option>
-											<option value='Medium'>Medium</option>
-											<option value='High'>High</option>
-											<option value='Urgent'>Urgent</option>
-										</Select>
-									</FormGroup>
-								</>
-							)}
-
-							{shouldShowPropertyFilter && (
-								<FormGroup>
-									<Label>Property</Label>
-									<Select
-										value={filters.propertyId}
-										onChange={(e) =>
-											setFilters({ ...filters, propertyId: e.target.value })
-										}>
-										<option value=''>All Properties</option>
-										{scopedProperties
-											.filter(
-												(prop) =>
-													!isHomeowner ||
-													isSingleFamilyProperty(prop.propertyType),
-											)
-											.map((prop) => (
-												<option key={prop.id} value={prop.id}>
-													{prop.title}
-												</option>
-											))}
-									</Select>
-								</FormGroup>
-							)}
-						</FilterContainer>
-					)}
-					{reportType && (
-						<InfoMessage>
-							Found {previewData.length} record(s) for this report type
-						</InfoMessage>
-					)}
+								)}
+								{shouldShowDateFilter && (
+									<FilterRow>
+										<FormGroup>
+											<Label>From</Label>
+											<Input
+												type='date'
+												value={filters.dateFrom}
+												onChange={(e) =>
+													setFilters({ ...filters, dateFrom: e.target.value })
+												}
+											/>
+										</FormGroup>
+										<FormGroup>
+											<Label>To</Label>
+											<Input
+												type='date'
+												value={filters.dateTo}
+												onChange={(e) =>
+													setFilters({ ...filters, dateTo: e.target.value })
+												}
+											/>
+										</FormGroup>
+									</FilterRow>
+								)}
+							</FilterContainer>
+						)}
+					</ReportSetupPanel>
 				</Section>
 
-				{/* Column Selection */}
 				{reportType && (
-					<Section>
-						<SectionTitle>Select Columns</SectionTitle>
-						<ColumnOptionsStack>
-							<SelectAllWrapper>
-								<Checkbox
-									type='checkbox'
-									id='select-all'
-									checked={
-										selectedColumns.length ===
-										Object.keys(columnOptions).length &&
-										Object.keys(columnOptions).length > 0
+					<ReportOutputPanel>
+						<Section>
+							<ReportStepHeader>
+								<ReportStepKicker>Step 4</ReportStepKicker>
+								<SectionTitle>Preview and Export</SectionTitle>
+								<ReportStepText>
+									Using {selectedColumns.length} recommended column
+									{selectedColumns.length === 1 ? '' : 's'}.
+								</ReportStepText>
+							</ReportStepHeader>
+							<AdvancedColumnsToggle
+								type='button'
+								onClick={() => setShowAdvancedColumns((value) => !value)}>
+								{showAdvancedColumns ? 'Hide custom columns' : 'Customize columns'}
+							</AdvancedColumnsToggle>
+							{showAdvancedColumns && (
+								<>
+									<ColumnOptionsStack>
+										<SelectAllWrapper>
+											<Checkbox
+												type='checkbox'
+												id='select-all'
+												checked={
+													selectedColumns.length ===
+													Object.keys(columnOptions).length &&
+													Object.keys(columnOptions).length > 0
+												}
+												onChange={handleSelectAll}
+											/>
+											<SelectAllLabel htmlFor='select-all'>Select All</SelectAllLabel>
+										</SelectAllWrapper>
+										<ColumnOptionWrapper htmlFor='hide-empty-columns'>
+											<Checkbox
+												type='checkbox'
+												id='hide-empty-columns'
+												checked={hideEmptyColumns}
+												onChange={(event) =>
+													setHideEmptyColumns(event.target.checked)
+												}
+											/>
+											<ColumnOptionText>
+												<SelectAllLabel as='span'>
+													Hide empty columns
+												</SelectAllLabel>
+												<ColumnOptionHelp>
+													Preview and download only selected columns that have
+													values in this report.
+													{hideEmptyColumns && hiddenEmptyColumnCount > 0
+														? ` Hiding ${hiddenEmptyColumnCount === 1 ? '1 empty column' : `${hiddenEmptyColumnCount} empty columns`}.`
+														: ''}
+												</ColumnOptionHelp>
+											</ColumnOptionText>
+										</ColumnOptionWrapper>
+									</ColumnOptionsStack>
+									<ColumnsGrid>
+										{Object.entries(columnOptions).map(([key, label]) => (
+											<CheckboxWrapper
+												key={key}
+												onClick={() => handleColumnToggle(key)}>
+												<Checkbox
+													type='checkbox'
+													id={`col-${key}`}
+													checked={selectedColumns.includes(key)}
+													onChange={() => handleColumnToggle(key)}
+												/>
+												<CheckboxLabel htmlFor={`col-${key}`}>
+													{label}
+												</CheckboxLabel>
+											</CheckboxWrapper>
+										))}
+									</ColumnsGrid>
+								</>
+							)}
+						</Section>
+
+						{previewData.length > 0 && (
+							<PreviewSection>
+								<SectionTitle>Preview ({previewData.length} records)</SectionTitle>
+								<ReportPreview
+									data={previewData}
+									selectedColumns={visibleSelectedColumns}
+									columnOptions={columnOptions}
+									emptyColumnsMessage={
+										hideEmptyColumns && selectedColumns.length > 0
+											? 'All selected columns are empty for this report. Turn off hide empty columns or choose different columns.'
+											: 'Select at least one column to preview report details.'
 									}
-									onChange={handleSelectAll}
 								/>
-								<SelectAllLabel htmlFor='select-all'>Select All</SelectAllLabel>
-							</SelectAllWrapper>
-							<ColumnOptionWrapper htmlFor='hide-empty-columns'>
-								<Checkbox
-									type='checkbox'
-									id='hide-empty-columns'
-									checked={hideEmptyColumns}
-									onChange={(event) =>
-										setHideEmptyColumns(event.target.checked)
-									}
-								/>
-								<ColumnOptionText>
-									<SelectAllLabel as='span'>
-										Hide empty columns
-									</SelectAllLabel>
-									<ColumnOptionHelp>
-										Preview and download only selected columns that have values
-										in this report.
-										{hideEmptyColumns && hiddenEmptyColumnCount > 0
-											? ` Hiding ${hiddenEmptyColumnCount} empty column${hiddenEmptyColumnCount === 1 ? '' : 's'}.`
-											: ''}
-									</ColumnOptionHelp>
-								</ColumnOptionText>
-							</ColumnOptionWrapper>
-						</ColumnOptionsStack>
-						<ColumnsGrid>
-							{Object.entries(columnOptions).map(([key, label]) => (
-								<CheckboxWrapper
-									key={key}
-									onClick={() => handleColumnToggle(key)}>
-									<Checkbox
-										type='checkbox'
-										id={`col-${key}`}
-										checked={selectedColumns.includes(key)}
-										onChange={() => handleColumnToggle(key)}
-									/>
-									<CheckboxLabel htmlFor={`col-${key}`}>{label}</CheckboxLabel>
-								</CheckboxWrapper>
-							))}
-						</ColumnsGrid>
-					</Section>
+								{previewData.length > 10 && (
+									<InfoMessage>
+										Showing first 10 of {previewData.length} records. Download to see
+										all data.
+									</InfoMessage>
+								)}
+
+								<ActionButtons>
+									<Button variant='secondary' onClick={() => setReportType('')}>
+										Clear
+									</Button>
+									<Button
+										onClick={handleDownload}
+										disabled={
+											selectedColumns.length === 0 ||
+											!canExportReports
+										}>
+										{!canExportReports
+											? isTeamMemberAccount
+												? 'Export Restricted'
+												: nativeApp
+													? 'Manage Account'
+													: 'Export Unavailable'
+											: 'Download CSV'}
+									</Button>
+								</ActionButtons>
+							</PreviewSection>
+						)}
+
+						{previewData.length === 0 && (
+							<PreviewSection>
+								<EmptyMessage>
+									<div>{EMPTY_REPORT_MESSAGES[reportType] || 'No records match this report yet.'}</div>
+									<Button variant='secondary' onClick={() => setReportType('')}>
+										Choose Another Report
+									</Button>
+								</EmptyMessage>
+							</PreviewSection>
+						)}
+					</ReportOutputPanel>
 				)}
 			</ReportBuilderContainer>
-
-			{/* Preview Section */}
-			{reportType && previewData.length > 0 && (
-				<PreviewSection>
-					<SectionTitle>Preview ({previewData.length} records)</SectionTitle>
-					<ReportPreview
-						data={previewData}
-						selectedColumns={visibleSelectedColumns}
-						columnOptions={columnOptions}
-						emptyColumnsMessage={
-							hideEmptyColumns && selectedColumns.length > 0
-								? 'All selected columns are empty for this report. Turn off hide empty columns or choose different columns.'
-								: 'Select at least one column to preview report details.'
-						}
-					/>
-					{previewData.length > 10 && (
-						<InfoMessage>
-							Showing first 10 of {previewData.length} records. Download to see
-							all data.
-						</InfoMessage>
-					)}
-
-					<ActionButtons>
-						<Button variant='secondary' onClick={() => setReportType('')}>
-							Clear
-						</Button>
-						<Button
-							onClick={handleDownload}
-							disabled={
-								selectedColumns.length === 0 ||
-								!canExportReports
-							}>
-							{!canExportReports
-								? isTeamMemberAccount
-									? 'Export Restricted'
-									: nativeApp
-										? 'Manage Account'
-										: 'Export Unavailable'
-								: 'Download CSV'}
-						</Button>
-					</ActionButtons>
-				</PreviewSection>
-			)}
-
-			{reportType && previewData.length === 0 && (
-				<PreviewSection>
-					<EmptyMessage>
-						<div>No data available for this report type yet.</div>
-						<Button variant='secondary' onClick={() => setReportType('')}>
-							Choose Another Report
-						</Button>
-					</EmptyMessage>
-				</PreviewSection>
-			)}
 		</StandardAppPage>
 	);
 };

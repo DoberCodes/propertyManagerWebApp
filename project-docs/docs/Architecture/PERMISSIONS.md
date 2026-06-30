@@ -25,7 +25,7 @@ For related documentation:
 
 * FIREBASE_STRUCTURE.md
 * DATA_MODEL.md
-* PLAN_FEATURE_MATRIX.md
+* MAINTLEY_PLAN_FEATURE_MATRIX.md
 * BILLING.md
 
 ---
@@ -438,7 +438,7 @@ Subscriptions determine:
 
 Plan definitions are maintained in:
 
-* PLAN_FEATURE_MATRIX.md
+* MAINTLEY_PLAN_FEATURE_MATRIX.md
 * BILLING.md
 
 Permissions should consume plan definitions rather than duplicate them.

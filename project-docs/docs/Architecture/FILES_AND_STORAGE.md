@@ -232,7 +232,7 @@ Current limits:
 
 Customer-facing plan definitions should remain in:
 
-PLAN_FEATURE_MATRIX.md
+MAINTLEY_PLAN_FEATURE_MATRIX.md
 
 ---
 

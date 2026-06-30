@@ -171,5 +171,17 @@ describe('Dashboard Intelligence consumer', () => {
 		);
 		expect(result.primarySuggestion?.contextLabel).toBe('Property: Maple Duplex');
 		expect(result.primarySuggestion?.propertyTitle).toBe('Maple Duplex');
+		expect(result.primarySuggestion?.suggestedTask).toEqual({
+			title: 'Test Carbon Monoxide Detector',
+			propertyId: property.id,
+			devices: ['co-detector-1'],
+			status: 'Initiated',
+			priority: 'High',
+			category: 'Safety',
+			notes:
+				'Recording checks or battery changes keeps safety-device maintenance visible in the property timeline.',
+			isRecurring: true,
+			recurrenceFrequency: 'monthly',
+		});
 	});
 });

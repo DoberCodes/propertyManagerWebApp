@@ -49,6 +49,24 @@ Remaining Phase 3 risk:
 - Warranty dates are only as complete as the current structured warranty fields and warranty documents.
 - Document Inventory is assembled from currently scoped property documents and related file fields. A future server-side report service should own this aggregation for stronger permission enforcement and broader attachment coverage.
 
+## Phase 4 Implementation Update
+
+Date: 2026-06-30
+
+Phase 4 redesigned the existing report builder into a progressive reporting workflow:
+
+- Users choose a report category before choosing a report template.
+- Report templates now apply recommended columns by default.
+- Custom column selection is collapsed behind a Customize columns control.
+- Property, status, priority, and date scope controls appear only when relevant.
+- Empty states now explain what records make each report useful.
+- Desktop now keeps Preview and Export in the output column with the preview directly below it, avoiding the large empty gap caused by placing the preview below the full setup grid.
+- The page title now uses "Reports" instead of "Reports & Analytics".
+
+Remaining Phase 4 risk:
+
+- The report builder is still a client-side CSV preview/export tool. Printable summaries and server-side report generation remain future work.
+
 ## Purpose
 
 Audit Maintley's current report page for:

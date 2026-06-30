@@ -13,6 +13,7 @@ import type {
 	PropertyKnowledgeExtractionMethod,
 	PropertyKnowledgeFieldKey,
 	PropertyKnowledgeProvenance,
+	PropertyKnowledgePropertyConfirmation,
 	PropertyKnowledgeSuggestion,
 	PropertyKnowledgeTargetEntity,
 } from '../types/PropertyKnowledge.types';
@@ -408,7 +409,13 @@ const OCR_VALUE_BOUNDARY_LABELS = [
 	'Payment Terms',
 	'Service Date',
 	'Bill To',
+	'Service Address',
+	'Service Location',
 	'Job Address',
+	'Work Address',
+	'Installation Address',
+	'Property Address',
+	'Billing Property Address',
 	'Technician',
 	'System Information',
 	'Equipment Type',
@@ -511,6 +518,212 @@ const findPhoneNumber = (text: string) => {
 const findWebsite = (text: string) => {
 	const match = text.match(/\b(?:https?:\/\/)?(?:www\.)?[a-z0-9.-]+\.[a-z]{2,}(?:\/[^\s]*)?/i);
 	return normalizeExtractedValue(match?.[0]);
+};
+
+const PROPERTY_LOCATION_ADDRESS_LABELS = [
+	'Service Address',
+	'Service Location',
+	'Job Address',
+	'Work Address',
+	'Installation Address',
+	'Property Address',
+	'Billing Property Address',
+];
+
+type NormalizedAddress = {
+	streetNumber?: string;
+	streetName?: string;
+	state?: string;
+	postalCode?: string;
+};
+
+const normalizeAddressTokenText = (value?: string) =>
+	String(value || '')
+		.toLowerCase()
+		.replace(/\b(street)\b/g, 'st')
+		.replace(/\b(road)\b/g, 'rd')
+		.replace(/\b(avenue)\b/g, 'ave')
+		.replace(/\b(drive)\b/g, 'dr')
+		.replace(/\b(lane)\b/g, 'ln')
+		.replace(/\b(boulevard)\b/g, 'blvd')
+		.replace(/\b(court)\b/g, 'ct')
+		.replace(/\b(circle)\b/g, 'cir')
+		.replace(/\b(place)\b/g, 'pl')
+		.replace(/\b(north)\b/g, 'n')
+		.replace(/\b(south)\b/g, 's')
+		.replace(/\b(east)\b/g, 'e')
+		.replace(/\b(west)\b/g, 'w')
+		.replace(/[^a-z0-9#\s]/g, ' ')
+		.replace(/\s+/g, ' ')
+		.trim();
+
+const normalizeAddressForComparison = (value?: string): NormalizedAddress => {
+	const normalized = normalizeAddressTokenText(value);
+	const streetNumber = normalized.match(/\b\d{1,8}\b/)?.[0];
+	const statePostalMatch = normalized.match(/\b([a-z]{2})\s+(\d{5})(?:\s*\d{4})?\b/);
+	const state = statePostalMatch?.[1]?.toUpperCase();
+	const postalCode = statePostalMatch?.[2];
+	let streetName = '';
+
+	if (streetNumber) {
+		const numberIndex = normalized.indexOf(streetNumber);
+		const afterNumber = normalized.slice(numberIndex + streetNumber.length);
+		streetName = afterNumber
+			.replace(/\b(?:apt|apartment|unit|suite|ste|#)\b.*$/i, '')
+			.replace(/\b[a-z]{2}\s+\d{5}.*$/i, '')
+			.replace(/\b\d{5}(?:\s*\d{4})?\b.*$/i, '')
+			.trim();
+	}
+
+	return {
+		...(streetNumber ? { streetNumber } : {}),
+		...(streetName ? { streetName } : {}),
+		...(state ? { state } : {}),
+		...(postalCode ? { postalCode } : {}),
+	};
+};
+
+const getStreetCoreTokens = (streetName?: string) =>
+	normalizeAddressTokenText(streetName)
+		.split(/\s+/)
+		.filter(Boolean)
+		.filter(
+			(token) =>
+				![
+					'st',
+					'rd',
+					'ave',
+					'dr',
+					'ln',
+					'blvd',
+					'ct',
+					'cir',
+					'pl',
+					'n',
+					's',
+					'e',
+					'w',
+				].includes(token),
+		);
+
+const doStreetNamesMatch = (left?: string, right?: string) => {
+	const leftTokens = getStreetCoreTokens(left);
+	const rightTokens = getStreetCoreTokens(right);
+	if (leftTokens.length === 0 || rightTokens.length === 0) return true;
+	return leftTokens[0] === rightTokens[0];
+};
+
+const isKnownAddressBoundaryLine = (line: string) => {
+	const normalizedLine = normalizeLabelForComparison(line.replace(/:.+$/, ''));
+	return OCR_VALUE_BOUNDARY_LABELS.some(
+		(label) => normalizeLabelForComparison(label) === normalizedLine,
+	);
+};
+
+const extractLabeledPropertyAddress = (rawText: string) => {
+	const text = normalizeOcrText(rawText);
+	const lines = text
+		.split('\n')
+		.map((line) => line.trim())
+		.filter(Boolean);
+
+	for (let index = 0; index < lines.length; index += 1) {
+		const line = lines[index];
+		for (const label of PROPERTY_LOCATION_ADDRESS_LABELS) {
+			const labelPattern = new RegExp(`^${escapeLabelPattern(label)}\\s*:?\\s*(.*)$`, 'i');
+			const match = line.match(labelPattern);
+			if (!match) continue;
+
+			const parts = [trimValueAtNextKnownLabel(match[1], [label])].filter(Boolean);
+			for (
+				let nextIndex = index + 1;
+				nextIndex < lines.length && parts.length < 3;
+				nextIndex += 1
+			) {
+				const nextLine = lines[nextIndex];
+				if (
+					isKnownAddressBoundaryLine(nextLine) ||
+					/^(invoice|description|payment|technician)\b/i.test(nextLine)
+				) {
+					break;
+				}
+				parts.push(nextLine);
+				if (/\b[A-Z]{2}\s+\d{5}(?:-\d{4})?\b/.test(nextLine)) {
+					break;
+				}
+			}
+
+			const value = normalizeExtractedValue(parts.join(', '));
+			if (value) {
+				return { label, value };
+			}
+		}
+	}
+
+	for (const label of PROPERTY_LOCATION_ADDRESS_LABELS) {
+		const value = findLabeledTextValue(text, [label]);
+		if (value) return { label, value };
+	}
+
+	return undefined;
+};
+
+export const buildPropertyConfirmationFromDocumentText = (
+	rawText: string,
+	propertyAddress?: string,
+): PropertyKnowledgePropertyConfirmation | undefined => {
+	const selectedPropertyAddress = normalizeExtractedValue(propertyAddress);
+	if (!selectedPropertyAddress) return undefined;
+
+	const candidate = extractLabeledPropertyAddress(rawText);
+	if (!candidate?.value) return undefined;
+
+	const documentAddress = normalizeAddressForComparison(candidate.value);
+	const savedAddress = normalizeAddressForComparison(selectedPropertyAddress);
+	const hasComparableStreet =
+		Boolean(documentAddress.streetNumber && savedAddress.streetNumber) &&
+		Boolean(documentAddress.streetName && savedAddress.streetName);
+	if (!hasComparableStreet) return undefined;
+
+	const conflicts: string[] = [];
+	if (
+		documentAddress.streetNumber &&
+		savedAddress.streetNumber &&
+		documentAddress.streetNumber !== savedAddress.streetNumber
+	) {
+		conflicts.push('street number');
+	}
+	if (
+		documentAddress.streetName &&
+		savedAddress.streetName &&
+		!doStreetNamesMatch(documentAddress.streetName, savedAddress.streetName)
+	) {
+		conflicts.push('street name');
+	}
+	if (
+		documentAddress.state &&
+		savedAddress.state &&
+		documentAddress.state !== savedAddress.state
+	) {
+		conflicts.push('state');
+	}
+	if (
+		documentAddress.postalCode &&
+		savedAddress.postalCode &&
+		documentAddress.postalCode !== savedAddress.postalCode
+	) {
+		conflicts.push('ZIP code');
+	}
+
+	if (conflicts.length === 0) return undefined;
+
+	return {
+		status: 'needs_confirmation',
+		documentAddress: candidate.value,
+		propertyAddress: selectedPropertyAddress,
+		sourceLabel: candidate.label,
+		reason: `Detected ${candidate.label.toLowerCase()} conflicts with the selected property's ${conflicts.join(', ')}.`,
+	};
 };
 
 const CONTRACTOR_NAME_EXCLUDE_PATTERN =
@@ -1359,10 +1572,15 @@ export const createPendingKnowledgeSuggestionFromFile = async ({
 	let extractionMethod: PropertyKnowledgeExtractionMethod = 'metadata_placeholder';
 	let extractedFields = metadataFields;
 	let suggestedParts: ExtractedPartSuggestion[] = [];
+	let propertyConfirmation: PropertyKnowledgePropertyConfirmation | undefined;
 
 	if (file && String(file.type || '').startsWith('image/')) {
 		try {
 			const extractedText = await extractTextFromImageFile(file);
+			propertyConfirmation = buildPropertyConfirmationFromDocumentText(
+				extractedText,
+				property?.address,
+			);
 			const ocrFields = extractFieldsFromDocumentText(
 				extractedText,
 				resolvedRelatedSystemId,
@@ -1424,6 +1642,7 @@ export const createPendingKnowledgeSuggestionFromFile = async ({
 		extractedFields,
 		...(suggestedParts.length > 0 ? { suggestedParts } : {}),
 		...(confidence !== undefined ? { confidence } : {}),
+		...(propertyConfirmation ? { propertyConfirmation } : {}),
 		status: 'pending',
 		createdAt,
 		sourceDocumentName: document.fileName || document.name,

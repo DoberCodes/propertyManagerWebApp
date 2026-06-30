@@ -39,11 +39,106 @@ export const DesktopReportSelect = styled.div`
 	}
 `;
 
+export const ReportSetupPanel = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+`;
+
+export const ReportOutputPanel = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+	min-width: 0;
+
+	@media (max-width: 1024px) {
+		gap: 12px;
+	}
+`;
+
+export const ReportStepHeader = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+`;
+
+export const ReportStepKicker = styled.div`
+	font-size: 12px;
+	font-weight: 700;
+	color: ${COLORS.primary};
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+`;
+
+export const ReportStepText = styled.p`
+	margin: 0;
+	font-size: 13px;
+	line-height: 1.45;
+	color: ${COLORS.gray600};
+`;
+
+export const ReportCategoryGrid = styled.div`
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+	gap: 8px;
+
+	@media (max-width: 640px) {
+		grid-template-columns: 1fr;
+	}
+`;
+
+export const ReportCategoryButton = styled.button<{ $active?: boolean }>`
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 4px;
+	min-height: 76px;
+	padding: 12px;
+	border: 1px solid ${({ $active }) => ($active ? COLORS.primary : COLORS.gray300)};
+	border-radius: 8px;
+	background: ${({ $active }) => ($active ? COLORS.primaryLight : COLORS.bgWhite)};
+	color: ${COLORS.gray900};
+	text-align: left;
+	cursor: pointer;
+	transition: border-color 0.18s ease, background-color 0.18s ease;
+
+	&:hover {
+		border-color: ${COLORS.primaryHover};
+	}
+
+	&:focus-visible {
+		outline: 3px solid ${COLORS.primaryLight};
+		outline-offset: 2px;
+	}
+`;
+
+export const ReportCategoryTitle = styled.span`
+	font-size: 14px;
+	font-weight: 700;
+	color: ${COLORS.gray900};
+`;
+
+export const ReportCategoryDescription = styled.span`
+	font-size: 12px;
+	line-height: 1.35;
+	color: ${COLORS.gray600};
+`;
+
+export const ReportTemplateGrid = styled.div`
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+	gap: 10px;
+
+	@media (max-width: 640px) {
+		grid-template-columns: 1fr;
+	}
+`;
+
 export const MobileReportCard = styled.button<{ $active?: boolean; $locked?: boolean }>`
 	text-align: left;
 	border: 1px solid ${({ $active }) => ($active ? COLORS.primaryHover : COLORS.gray300)};
 	background: ${({ $active }) => ($active ? COLORS.primaryLight : COLORS.bgWhite)};
-	border-radius: 10px;
+	border-radius: 8px;
 	padding: 12px;
 	box-shadow: ${({ $active }) =>
 		$active ? '0 8px 20px rgba(4, 120, 87, 0.12)' : 'none'};
@@ -77,6 +172,50 @@ export const MobileReportCardMeta = styled.div`
 	color: #6b7280;
 	text-transform: uppercase;
 	letter-spacing: 0.03em;
+`;
+
+export const SelectedReportSummary = styled.div`
+	display: grid;
+	grid-template-columns: 1fr auto;
+	gap: 12px;
+	align-items: center;
+	padding: 12px;
+	border: 1px solid ${COLORS.border};
+	border-radius: 8px;
+	background: ${COLORS.gray50};
+
+	@media (max-width: 640px) {
+		grid-template-columns: 1fr;
+	}
+`;
+
+export const SelectedReportTitle = styled.div`
+	font-size: 15px;
+	font-weight: 700;
+	color: ${COLORS.gray900};
+`;
+
+export const SelectedReportMeta = styled.div`
+	font-size: 12px;
+	color: ${COLORS.gray600};
+	margin-top: 3px;
+`;
+
+export const AdvancedColumnsToggle = styled.button`
+	border: 1px solid ${COLORS.gray300};
+	border-radius: 8px;
+	background: ${COLORS.bgWhite};
+	color: ${COLORS.gray800};
+	font-size: 13px;
+	font-weight: 700;
+	padding: 10px 12px;
+	cursor: pointer;
+	text-align: left;
+
+	&:hover {
+		border-color: ${COLORS.primaryHover};
+		color: ${COLORS.primary};
+	}
 `;
 
 export const Section = styled.div`

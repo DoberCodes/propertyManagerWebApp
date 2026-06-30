@@ -48,7 +48,7 @@ const INITIAL_DATA_LOADING_STEPS = [
 	'Loading your properties...',
 	'Building your property timeline...',
 	'Checking upcoming maintenance...',
-	'Calculating your Home Health Score...',
+	'Reviewing Maintley Intelligence recommendations...',
 	'Organizing your documents...',
 	'Indexing warranties...',
 	'Reading appliance information...',

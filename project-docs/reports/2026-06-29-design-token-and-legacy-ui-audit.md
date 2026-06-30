@@ -274,6 +274,11 @@ Observed:
 - `ReportBuilder` is active through `/report`.
 - It still contains `suites` and `units` report logic.
 
+Implementation update, 2026-06-30:
+
+- Unit and suite report templates are no longer exposed through active report availability.
+- Legacy unit/suite report adapters remain in place for existing data compatibility.
+
 Recommendation:
 
 Keep `ReportBuilder`, but decide whether unit/suite report types should remain visible. If unit/suite UI remains hidden, unit/suite reports should probably be hidden or marked legacy.

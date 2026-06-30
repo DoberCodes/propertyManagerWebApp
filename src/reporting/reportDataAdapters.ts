@@ -1059,6 +1059,11 @@ export const getAccessibleReports = (
 		hasCommercialSuites,
 	} = options;
 
+	// Unit and suite report adapters remain for legacy data compatibility, but
+	// the active report picker should stay property-first while those workflows
+	// are contained.
+	const containedLegacyReports = new Set<ReportType>(['suites', 'units']);
+
 	const allReports: ReportOption[] = [
 		{
 			value: 'tasks',
@@ -1115,14 +1120,6 @@ export const getAccessibleReports = (
 			description: 'Overview metrics for each property including occupancy and tasks',
 			requiresTeamAccess: false,
 			requiresMultiProperty: false,
-		},
-		{
-			value: 'suites',
-			label: 'Suites',
-			description: 'Detailed suite information across properties',
-			requiresTeamAccess: false,
-			requiresMultiProperty: false,
-			requiresCommercialSuites: true,
 		},
 		{
 			value: 'tenant-profiles',
@@ -1217,6 +1214,10 @@ export const getAccessibleReports = (
 	];
 
 	return allReports.filter((report) => {
+		if (containedLegacyReports.has(report.value)) {
+			return false;
+		}
+
 		if (isHomeowner) {
 			if (
 				report.value === 'maintenance-requests' ||

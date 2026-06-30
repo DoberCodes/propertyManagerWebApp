@@ -16,7 +16,7 @@ For related documentation:
 
 * PRODUCT_DIRECTION.md — Product goals and direction
 * PROPERTY_INTELLIGENCE.md — Recommendation and intelligence systems
-* PLAN_FEATURE_MATRIX.md — Plan availability and limits
+* MAINTLEY_PLAN_FEATURE_MATRIX.md — Plan availability and limits
 * DATA_MODEL.md — Underlying data structures
 * TECHNICAL_ARCHITECTURE.md — System implementation
 
@@ -384,7 +384,7 @@ Plan definitions and limits are maintained separately.
 
 See:
 
-* PLAN_FEATURE_MATRIX.md
+* MAINTLEY_PLAN_FEATURE_MATRIX.md
 * BILLING.md
 
 ---

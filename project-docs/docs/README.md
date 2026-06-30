@@ -95,6 +95,7 @@ Documents:
 * PRODUCT_DIRECTION.md
 * FEATURES.md
 * MAINTLEY_PLAN_FEATURE_MATRIX.md
+* ROADMAP_STATUS.md
 
 Contains:
 
@@ -118,11 +119,13 @@ Documents:
 * RECOMMENDATION_ENGINE.md
 * APPLIANCE_PROFILES.md
 * PROPERTY_KNOWLEDGE_ACQUISITION.md
+* PROPERTY_KNOWLEDGE_ACQUISITION_STATUS_MATRIX.md
 
 Contains:
 
 * Maintley Intelligence architecture
 * Property Knowledge Acquisition
+* Property Knowledge Acquisition source support status
 * Recommendation generation
 * Appliance profile guidance
 * Setup guidance

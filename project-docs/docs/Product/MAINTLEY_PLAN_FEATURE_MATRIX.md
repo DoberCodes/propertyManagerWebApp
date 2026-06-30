@@ -167,8 +167,6 @@ Best for:
 | Dashboard Recommendations      | Yes  | Yes        | Yes      | Yes       |
 | Quick Property Scan            | Yes  | Yes        | Yes      | Yes       |
 | Setup Recommendations          | Yes  | Yes        | Yes      | Yes       |
-| Full Property Audit            | No   | Yes        | Yes      | Yes       |
-| Ongoing Property Intelligence  | No   | Yes        | Yes      | Yes       |
 | Property Insights              | No   | Yes        | Yes      | Yes       |
 
 ### Notes
@@ -182,8 +180,6 @@ Capabilities may include:
 * Setup recommendations
 * Dashboard recommendations
 * Quick Property Scan observations
-* Full Property Audit completeness reviews
-* Ongoing Property Intelligence observations
 * Property Insight observations
 
 Quick Property Scan should remain available on free and paid plans.
@@ -193,6 +189,10 @@ Premium intelligence should expand what Maintley can review and explain, not tur
 Free Quick Scan focuses on Property Record recommendations based on information the homeowner has saved. Homeowner+ adds equipment-specific Maintley Knowledge, history-based insights, and personalized context guidance as those capabilities become available.
 
 See PROPERTY_INTELLIGENCE.md for recommendation behavior and prioritization rules.
+
+Full Property Audit and Ongoing Maintley Intelligence are roadmap items, not
+current plan entitlements. They should not be listed as available plan features
+until implemented.
 
 ---
 

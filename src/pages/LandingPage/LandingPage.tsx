@@ -210,7 +210,7 @@ const LandingPageComponent = () => {
 			title: 'Guidance',
 			text: 'That understanding becomes recommendations that help you make better maintenance decisions over time.',
 			exampleLabel: 'What improves',
-			examples: ['Quick Scan', 'Property Audit', 'Seasonal reminders', 'Future recommendations'],
+			examples: ['Quick Scan', 'Dashboard recommendations', 'Seasonal reminders', 'Future recommendations'],
 		},
 	];
 

@@ -402,7 +402,7 @@ Billing behavior is documented separately.
 See:
 
 * BILLING.md
-* PLAN_FEATURE_MATRIX.md
+* MAINTLEY_PLAN_FEATURE_MATRIX.md
 
 ---
 

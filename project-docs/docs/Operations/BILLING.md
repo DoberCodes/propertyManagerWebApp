@@ -8,7 +8,7 @@ This document is implementation-focused.
 
 For customer-facing plan definitions, feature availability, storage limits, upgrade messaging, and subscription comparisons, see:
 
-PLAN_FEATURE_MATRIX.md
+MAINTLEY_PLAN_FEATURE_MATRIX.md
 
 ---
 
@@ -30,7 +30,7 @@ Billing is not the source of truth for:
 * Upgrade messaging
 * Product positioning
 
-Those definitions belong in PLAN_FEATURE_MATRIX.md.
+Those definitions belong in MAINTLEY_PLAN_FEATURE_MATRIX.md.
 
 ---
 
@@ -59,7 +59,7 @@ Special non-subscription access types:
 
 Detailed plan limits and capabilities are defined in:
 
-PLAN_FEATURE_MATRIX.md
+MAINTLEY_PLAN_FEATURE_MATRIX.md
 
 ---
 
@@ -373,7 +373,7 @@ Defines:
 
 ---
 
-## PLAN_FEATURE_MATRIX.md
+## MAINTLEY_PLAN_FEATURE_MATRIX.md
 
 Defines:
 
@@ -384,7 +384,7 @@ Defines:
 * Upgrade messaging
 * Customer-facing plan comparisons
 
-If documentation conflicts occur, PLAN_FEATURE_MATRIX.md should be treated as the product source of truth and billing implementation should be updated accordingly.
+If documentation conflicts occur, MAINTLEY_PLAN_FEATURE_MATRIX.md should be treated as the product source of truth and billing implementation should be updated accordingly.
 
 ---
 

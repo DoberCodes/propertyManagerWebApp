@@ -128,6 +128,20 @@ export interface ExtractedPartSuggestion {
 	provenance?: PropertyKnowledgeProvenance;
 }
 
+export type PropertyKnowledgePropertyConfirmationStatus =
+	| 'needs_confirmation'
+	| 'confirmed';
+
+export interface PropertyKnowledgePropertyConfirmation {
+	status: PropertyKnowledgePropertyConfirmationStatus;
+	documentAddress: string;
+	propertyAddress: string;
+	sourceLabel: string;
+	reason: string;
+	confirmedAt?: string;
+	confirmedByUser?: string;
+}
+
 export interface PropertyKnowledgeSuggestion {
 	id: string;
 	sourceDocumentId: string;
@@ -147,4 +161,5 @@ export interface PropertyKnowledgeSuggestion {
 	rejectedAt?: string;
 	acceptedByUser?: string;
 	sourceDocumentName?: string;
+	propertyConfirmation?: PropertyKnowledgePropertyConfirmation;
 }
