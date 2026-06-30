@@ -28,10 +28,12 @@ import { USER_ROLES } from '../../constants/roles';
 import { isNativeApp } from '../../utils/platform';
 import { getRegistrationUrl, openRegistrationInBrowser } from '../../utils/authLinks';
 import { COLORS } from '../../constants/colors';
+import type { AppDispatch } from '../../Redux/store/store';
+import { clearAccountScopedClientState } from '../../Redux/utils/clearAccountScopedClientState';
 
 export const LoginCard = () => {
 	const navigate = useNavigate();
-	const dispatch = useDispatch();
+	const dispatch = useDispatch<AppDispatch>();
 	const [email, setEmail] = useState<string>('');
 	const [password, setPassword] = useState<string>('');
 	const [error, setError] = useState<string>('');
@@ -75,6 +77,8 @@ export const LoginCard = () => {
 		try {
 			// Sign in with Firebase - trim values to remove whitespace
 			const user = await signInWithEmail(email.trim(), password.trim());
+
+			clearAccountScopedClientState(dispatch);
 
 			// Set user in Redux store
 			dispatch(setCurrentUser(user));

@@ -81,7 +81,7 @@ exports.deleteUserAccount = functions.https.onCall(async (data, context) => {
     // Check if user has an active Stripe subscription
     const userDoc = await db.collection('users').doc(userId).get();
     const userData = userDoc.data();
-    if (userData === null || userData === void 0 ? void 0 : userData.subscription) {
+    if (userData?.subscription) {
         const subscription = userData.subscription;
         const normalizedPlan = String(subscription.plan || '')
             .trim()
@@ -237,9 +237,8 @@ exports.deleteUserAccount = functions.https.onCall(async (data, context) => {
                 .where('coOwners', 'array-contains', userId)
                 .get();
             coOwnerPropertiesSnapshot.forEach((doc) => {
-                var _a;
                 const property = doc.data();
-                const updatedCoOwners = ((_a = property.coOwners) === null || _a === void 0 ? void 0 : _a.filter((id) => id !== userId)) || [];
+                const updatedCoOwners = property.coOwners?.filter((id) => id !== userId) || [];
                 console.log(`Removing ${userId} from co-owners of property: ${doc.id}`);
                 batch.update(doc.ref, { coOwners: updatedCoOwners });
             });
@@ -249,9 +248,8 @@ exports.deleteUserAccount = functions.https.onCall(async (data, context) => {
                 .where('administrators', 'array-contains', userId)
                 .get();
             adminPropertiesSnapshot.forEach((doc) => {
-                var _a;
                 const property = doc.data();
-                const updatedAdmins = ((_a = property.administrators) === null || _a === void 0 ? void 0 : _a.filter((id) => id !== userId)) ||
+                const updatedAdmins = property.administrators?.filter((id) => id !== userId) ||
                     [];
                 console.log(`Removing ${userId} from administrators of property: ${doc.id}`);
                 batch.update(doc.ref, { administrators: updatedAdmins });
@@ -262,9 +260,8 @@ exports.deleteUserAccount = functions.https.onCall(async (data, context) => {
                 .where('viewers', 'array-contains', userId)
                 .get();
             viewerPropertiesSnapshot.forEach((doc) => {
-                var _a;
                 const property = doc.data();
-                const updatedViewers = ((_a = property.viewers) === null || _a === void 0 ? void 0 : _a.filter((id) => id !== userId)) || [];
+                const updatedViewers = property.viewers?.filter((id) => id !== userId) || [];
                 console.log(`Removing ${userId} from viewers of property: ${doc.id}`);
                 batch.update(doc.ref, { viewers: updatedViewers });
             });

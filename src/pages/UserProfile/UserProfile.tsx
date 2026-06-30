@@ -27,7 +27,6 @@ import {
 } from '../../Components/Library';
 import {
 	Wrapper,
-	Container,
 	FormContentWrapper,
 	FormSection,
 	ImageUploadSection,
@@ -40,6 +39,10 @@ import {
 	UserProfileHeader,
 	PageHeader,
 	ImageView,
+	ProfileAvatarColumn,
+	ProfileDetailsPanel,
+	EditProfileButton,
+	ProfileInitialsAvatar,
 	StatusPill,
 	AccountSummaryCard,
 	AccountSummaryMetric,
@@ -73,6 +76,8 @@ import {
 	HouseBodyPiece,
 	HouseBlockPiece,
 	HouseBasePiece,
+	PasswordInputWrapper,
+	PasswordVisibilityButton,
 } from './UserProfile.styles';
 import { Button } from 'pages/PropertyDetailPage/TabSystem/index.styles';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -87,6 +92,7 @@ import {
 	faTriangleExclamation,
 	faUserCheck,
 } from '@fortawesome/free-solid-svg-icons';
+import { faEye, faEyeSlash } from '@fortawesome/free-regular-svg-icons';
 import { formatDate } from 'utils/detailPageUtils';
 import COLORS from 'constants/colors';
 import { PortfolioPlanSub, PortfolioTop, PortfolioUsage, PortfolioUsageBadge, ProgressFill, ProgressTrack } from 'Components/Library/Navbar/SideNav/SideNav.styles';
@@ -143,6 +149,9 @@ export const UserProfile: React.FC = () => {
 	const [deleteConfirmationInput, setDeleteConfirmationInput] = useState('');
 	const [isChangingPassword, setIsChangingPassword] = useState(false);
 	const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+	const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+	const [showNewPassword, setShowNewPassword] = useState(false);
+	const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 	const [passwordForm, setPasswordForm] = useState({
 		currentPassword: '',
 		newPassword: '',
@@ -263,6 +272,17 @@ export const UserProfile: React.FC = () => {
 			return total + taskHistoryCount;
 		}, 0);
 	}, [maintenanceHistory, summaryProperties, summaryTasks]);
+
+	const profileInitials = React.useMemo(() => {
+		const initials = `${formData.firstName?.[0] || ''}${formData.lastName?.[0] || ''}`.toUpperCase();
+		if (initials) {
+			return initials;
+		}
+		return String(currentUser?.email || 'U')
+			.trim()
+			[0]
+			?.toUpperCase() || 'U';
+	}, [currentUser?.email, formData.firstName, formData.lastName]);
 
 	const accountSummaryMetrics = [
 		{
@@ -700,6 +720,9 @@ export const UserProfile: React.FC = () => {
 	const openChangePasswordModal = () => {
 		setPasswordError('');
 		setPasswordSuccess('');
+		setShowCurrentPassword(false);
+		setShowNewPassword(false);
+		setShowConfirmPassword(false);
 		setPasswordForm({
 			currentPassword: '',
 			newPassword: '',
@@ -758,6 +781,9 @@ export const UserProfile: React.FC = () => {
 				newPassword: '',
 				confirmPassword: '',
 			});
+			setShowCurrentPassword(false);
+			setShowNewPassword(false);
+			setShowConfirmPassword(false);
 			setTimeout(() => {
 				setShowPasswordModal(false);
 				setPasswordSuccess('');
@@ -824,20 +850,27 @@ export const UserProfile: React.FC = () => {
 						</StandardPageTitle>
 					</PageHeaderSection>
 					<UserProfileHeader style={{ flexWrap: 'wrap', gap: '24px', border: '1px solid #E0E0E0', borderRadius: '8px', padding: '16px' }}>
-						<Container style={{ width: '25%' }}>
-							<ImageView src={formData.image} alt='Profile' />
-							<div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', marginTop: '12px', cursor: isTeamMemberAccount ? 'not-allowed' : 'pointer', color: isTeamMemberAccount ? '#667085' : '#0f5132' }} onClick={() => !isTeamMemberAccount && setIsEditing(true)}>
+						<ProfileAvatarColumn>
+							{formData.image ? (
+								<ImageView src={formData.image} alt='Profile' />
+							) : (
+								<ProfileInitialsAvatar aria-label='Profile'>
+									{profileInitials}
+								</ProfileInitialsAvatar>
+							)}
+							<EditProfileButton
+								type='button'
+								$disabled={isTeamMemberAccount}
+								onClick={() => !isTeamMemberAccount && setIsEditing(true)}>
 								<FontAwesomeIcon icon={faPencil} /> Edit Profile
-							</div>
-						</Container>
-						<div style={{
-							width: '50%', justifyContent: 'center', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', fontSize: '14px', gap: '8px',
-						}}>
+							</EditProfileButton>
+						</ProfileAvatarColumn>
+						<ProfileDetailsPanel>
 							<FormLabel style={{ fontSize: '16px', fontWeight: '600', marginBottom: '5px' }}>{formData.firstName} {formData.lastName}</FormLabel>
 							<p>{currentUser?.title}</p>
 							<p>{currentUser?.email}</p>
 							<p>{`Member since: ${formatDate(currentUser?.createdAt)}`}</p>
-						</div>
+						</ProfileDetailsPanel>
 					</UserProfileHeader>
 
 					<AccountActionsPanel>
@@ -1168,6 +1201,9 @@ export const UserProfile: React.FC = () => {
 					setShowPasswordModal(false);
 					setPasswordError('');
 					setPasswordSuccess('');
+					setShowCurrentPassword(false);
+					setShowNewPassword(false);
+					setShowConfirmPassword(false);
 					setPasswordForm({
 						currentPassword: '',
 						newPassword: '',
@@ -1177,56 +1213,108 @@ export const UserProfile: React.FC = () => {
 				primaryButtonLabel='Update Password'
 				secondaryButtonLabel='Cancel'
 				isLoading={isChangingPassword}
+				showActions
 				onSubmit={handlePasswordChange}>
 				{passwordError && <ErrorMessage>{passwordError}</ErrorMessage>}
 				{passwordSuccess && <SuccessMessage>{passwordSuccess}</SuccessMessage>}
 
 				<FormGroup>
 					<FormLabel>Current Password</FormLabel>
-					<FormInput
-						type='password'
-						value={passwordForm.currentPassword}
-						onChange={(e) =>
-							setPasswordForm({
-								...passwordForm,
-								currentPassword: e.target.value,
-							})
-						}
-						placeholder='Enter your current password'
-						required
-					/>
+					<PasswordInputWrapper>
+						<FormInput
+							type={showCurrentPassword ? 'text' : 'password'}
+							value={passwordForm.currentPassword}
+							onChange={(e) =>
+								setPasswordForm({
+									...passwordForm,
+									currentPassword: e.target.value,
+								})
+							}
+							placeholder='Enter your current password'
+							required
+						/>
+						<PasswordVisibilityButton
+							type='button'
+							aria-label={
+								showCurrentPassword
+									? 'Hide current password'
+									: 'Show current password'
+							}
+							title={
+								showCurrentPassword
+									? 'Hide current password'
+									: 'Show current password'
+							}
+							onClick={() => setShowCurrentPassword((value) => !value)}>
+							<FontAwesomeIcon
+								icon={showCurrentPassword ? faEyeSlash : faEye}
+							/>
+						</PasswordVisibilityButton>
+					</PasswordInputWrapper>
 				</FormGroup>
 
 				<FormGroup>
 					<FormLabel>New Password</FormLabel>
-					<FormInput
-						type='password'
-						value={passwordForm.newPassword}
-						onChange={(e) =>
-							setPasswordForm({
-								...passwordForm,
-								newPassword: e.target.value,
-							})
-						}
-						placeholder='Enter your new password'
-						required
-					/>
+					<PasswordInputWrapper>
+						<FormInput
+							type={showNewPassword ? 'text' : 'password'}
+							value={passwordForm.newPassword}
+							onChange={(e) =>
+								setPasswordForm({
+									...passwordForm,
+									newPassword: e.target.value,
+								})
+							}
+							placeholder='Enter your new password'
+							required
+						/>
+						<PasswordVisibilityButton
+							type='button'
+							aria-label={
+								showNewPassword ? 'Hide new password' : 'Show new password'
+							}
+							title={
+								showNewPassword ? 'Hide new password' : 'Show new password'
+							}
+							onClick={() => setShowNewPassword((value) => !value)}>
+							<FontAwesomeIcon icon={showNewPassword ? faEyeSlash : faEye} />
+						</PasswordVisibilityButton>
+					</PasswordInputWrapper>
 				</FormGroup>
 
 				<FormGroup>
 					<FormLabel>Confirm New Password</FormLabel>
-					<FormInput
-						type='password'
-						value={passwordForm.confirmPassword}
-						onChange={(e) =>
-							setPasswordForm({
-								...passwordForm,
-								confirmPassword: e.target.value,
-							})
-						}
-						placeholder='Confirm your new password'
-						required
-					/>
+					<PasswordInputWrapper>
+						<FormInput
+							type={showConfirmPassword ? 'text' : 'password'}
+							value={passwordForm.confirmPassword}
+							onChange={(e) =>
+								setPasswordForm({
+									...passwordForm,
+									confirmPassword: e.target.value,
+								})
+							}
+							placeholder='Confirm your new password'
+							required
+						/>
+						<PasswordVisibilityButton
+							type='button'
+							aria-label={
+								showConfirmPassword
+									? 'Hide confirmed password'
+									: 'Show confirmed password'
+							}
+							title={
+								showConfirmPassword
+									? 'Hide confirmed password'
+									: 'Show confirmed password'
+							}
+							onClick={() => setShowConfirmPassword((value) => !value)}>
+							<FontAwesomeIcon
+								icon={showConfirmPassword ? faEyeSlash : faEye}
+							/>
+						</PasswordVisibilityButton>
+					</PasswordInputWrapper>
 				</FormGroup>
 
 				<ActionHelperText>

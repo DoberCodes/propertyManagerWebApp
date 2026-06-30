@@ -84,7 +84,7 @@ exports.ensureFamilyAccount = functions.https.onCall(async (data, context) => {
         throw new functions.https.HttpsError('not-found', 'User profile not found');
     }
     const userData = userDoc.data() || {};
-    const requestedAccountId = String((data === null || data === void 0 ? void 0 : data.accountId) || '').trim();
+    const requestedAccountId = String(data?.accountId || '').trim();
     const accountId = requestedAccountId || String(userData.accountId || '').trim() || uid;
     const isOwner = userData.isAccountOwner === true ||
         accountId === uid ||
@@ -123,7 +123,7 @@ exports.ensureFamilyAccount = functions.https.onCall(async (data, context) => {
             if (!isOwner || accountId !== uid) {
                 throw new functions.https.HttpsError('permission-denied', 'Only account owners can initialize family account records');
             }
-            const subscriptionToStore = (data === null || data === void 0 ? void 0 : data.subscription) ||
+            const subscriptionToStore = data?.subscription ||
                 userData.subscription ||
                 null;
             transaction.set(accountRef, {
@@ -138,8 +138,8 @@ exports.ensureFamilyAccount = functions.https.onCall(async (data, context) => {
             });
             return;
         }
-        if ((data === null || data === void 0 ? void 0 : data.syncSubscription) && isOwner) {
-            const subscriptionToStore = (data === null || data === void 0 ? void 0 : data.subscription) ||
+        if (data?.syncSubscription && isOwner) {
+            const subscriptionToStore = data?.subscription ||
                 userData.subscription;
             if (subscriptionToStore) {
                 transaction.update(accountRef, {

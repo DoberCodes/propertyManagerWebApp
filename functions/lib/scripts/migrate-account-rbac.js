@@ -103,7 +103,6 @@ const migrateUsersAndMemberships = async () => {
     return userMap;
 };
 const migrateFamilyMemberships = async (userMap) => {
-    var _a;
     const familySnapshot = await db.collection('familyAccounts').get();
     for (const familyDoc of familySnapshot.docs) {
         const accountId = familyDoc.id;
@@ -120,7 +119,7 @@ const migrateFamilyMemberships = async (userMap) => {
                 continue;
             if (memberId === ownerId)
                 continue;
-            const userRole = (_a = userMap.get(memberId)) === null || _a === void 0 ? void 0 : _a.role;
+            const userRole = userMap.get(memberId)?.role;
             const familyRole = userRole === 'admin' ? 'family_admin' : 'family_member';
             await upsertMembership(accountId, memberId, [familyRole, ...(userRole === 'admin' ? ['admin'] : ['member'])], 'family-migration');
             const userRef = db.collection('users').doc(memberId);
@@ -133,7 +132,6 @@ const migrateFamilyMemberships = async (userMap) => {
     }
 };
 const migrateCollectionAccountIds = async (userMap) => {
-    var _a;
     for (const migration of ACCOUNT_SCOPED_COLLECTIONS) {
         const snapshot = await db.collection(migration.name).get();
         const writer = db.bulkWriter();
@@ -143,7 +141,7 @@ const migrateCollectionAccountIds = async (userMap) => {
             const ownerUserId = String(data[migration.ownerField] || '').trim();
             if (!ownerUserId)
                 continue;
-            const accountId = ((_a = userMap.get(ownerUserId)) === null || _a === void 0 ? void 0 : _a.accountId) || ownerUserId;
+            const accountId = userMap.get(ownerUserId)?.accountId || ownerUserId;
             const currentAccountId = String(data.accountId || '').trim();
             if (currentAccountId === accountId)
                 continue;

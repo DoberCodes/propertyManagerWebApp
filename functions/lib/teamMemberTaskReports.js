@@ -64,11 +64,10 @@ const normalizePlanId = (value) => {
     return String(value || '').trim().toLowerCase();
 };
 const canUseTeamReports = (user) => {
-    var _a, _b, _c;
-    const scheduledPlan = normalizePlanId((_a = user.subscription) === null || _a === void 0 ? void 0 : _a.scheduledPlan);
-    const plan = ((_b = user.subscription) === null || _b === void 0 ? void 0 : _b.hasScheduledSubscription) && scheduledPlan
+    const scheduledPlan = normalizePlanId(user.subscription?.scheduledPlan);
+    const plan = user.subscription?.hasScheduledSubscription && scheduledPlan
         ? scheduledPlan
-        : normalizePlanId((_c = user.subscription) === null || _c === void 0 ? void 0 : _c.plan);
+        : normalizePlanId(user.subscription?.plan);
     return TEAM_REPORT_PLANS.has(plan);
 };
 const getAccountId = (userId, user) => String(user.accountId || '').trim() || userId;
@@ -134,20 +133,16 @@ const shouldSendForFrequency = (date, frequency) => {
     const weeksSinceAnchor = Math.floor((getDateOnly(date).getTime() - anchor.getTime()) / dayMs / 7);
     return weeksSinceAnchor % 2 === 0;
 };
-const getTeamMemberMatchValues = (member) => {
-    var _a;
-    return new Set([
-        member.id,
-        member.userAccountId,
-        member.redeemedByUserId,
-        (_a = member.email) === null || _a === void 0 ? void 0 : _a.toLowerCase(),
-        getName(member).toLowerCase(),
-    ]
-        .map((value) => String(value || '').trim().toLowerCase())
-        .filter(Boolean));
-};
+const getTeamMemberMatchValues = (member) => new Set([
+    member.id,
+    member.userAccountId,
+    member.redeemedByUserId,
+    member.email?.toLowerCase(),
+    getName(member).toLowerCase(),
+]
+    .map((value) => String(value || '').trim().toLowerCase())
+    .filter(Boolean));
 const getTaskAssignmentValues = (task) => {
-    var _a, _b;
     const assignedTo = task.assignedTo && typeof task.assignedTo === 'object'
         ? task.assignedTo
         : undefined;
@@ -155,9 +150,9 @@ const getTaskAssignmentValues = (task) => {
     return new Set([
         task.assignee,
         assignedToString,
-        assignedTo === null || assignedTo === void 0 ? void 0 : assignedTo.id,
-        (_a = assignedTo === null || assignedTo === void 0 ? void 0 : assignedTo.email) === null || _a === void 0 ? void 0 : _a.toLowerCase(),
-        (_b = assignedTo === null || assignedTo === void 0 ? void 0 : assignedTo.name) === null || _b === void 0 ? void 0 : _b.toLowerCase(),
+        assignedTo?.id,
+        assignedTo?.email?.toLowerCase(),
+        assignedTo?.name?.toLowerCase(),
         task.completedBy,
     ]
         .map((value) => String(value || '').trim().toLowerCase())
@@ -180,11 +175,10 @@ const isTaskRelevantToMember = (task, member) => {
     return linkedProperties.size > 0 && linkedProperties.has(String(task.propertyId || ''));
 };
 const isEventRelevantToMember = (event, member) => {
-    var _a;
     const memberValues = getTeamMemberMatchValues(member);
     const eventValues = new Set([
         event.createdBy,
-        (_a = event.createdByName) === null || _a === void 0 ? void 0 : _a.toLowerCase(),
+        event.createdByName?.toLowerCase(),
     ]
         .map((value) => String(value || '').trim().toLowerCase())
         .filter(Boolean));
@@ -195,11 +189,10 @@ const isEventRelevantToMember = (event, member) => {
     return linkedProperties.size > 0 && linkedProperties.has(String(event.propertyId || ''));
 };
 const getPropertyLabel = (item, propertyById) => {
-    var _a;
     const propertyId = String(item.propertyId || '').trim();
     return (String(item.propertyTitle || '').trim() ||
         String(item.property || '').trim() ||
-        ((_a = propertyById.get(propertyId)) === null || _a === void 0 ? void 0 : _a.title) ||
+        propertyById.get(propertyId)?.title ||
         'Property not labeled');
 };
 const getUpcomingTasks = (tasks, now, windowDays) => {
@@ -214,20 +207,14 @@ const getUpcomingTasks = (tasks, now, windowDays) => {
             getDateOnly(dueDate).getTime() >= getDateOnly(now).getTime() &&
             getDateOnly(dueDate).getTime() <= getDateOnly(windowEnd).getTime());
     })
-        .sort((a, b) => {
-        var _a, _b;
-        return (((_a = parseDate(a.dueDate)) === null || _a === void 0 ? void 0 : _a.getTime()) || 0) -
-            (((_b = parseDate(b.dueDate)) === null || _b === void 0 ? void 0 : _b.getTime()) || 0);
-    });
+        .sort((a, b) => (parseDate(a.dueDate)?.getTime() || 0) -
+        (parseDate(b.dueDate)?.getTime() || 0));
 };
 const getOverdueTasks = (tasks) => tasks
     .filter((task) => ACTIVE_TASK_STATUSES.has(String(task.status || '')))
     .filter((task) => (0, taskDisplayStatus_1.getTaskDisplayStatus)(task).isOverdue)
-    .sort((a, b) => {
-    var _a, _b;
-    return (((_a = parseDate(a.dueDate)) === null || _a === void 0 ? void 0 : _a.getTime()) || 0) -
-        (((_b = parseDate(b.dueDate)) === null || _b === void 0 ? void 0 : _b.getTime()) || 0);
-});
+    .sort((a, b) => (parseDate(a.dueDate)?.getTime() || 0) -
+    (parseDate(b.dueDate)?.getTime() || 0));
 const getCompletedEvents = (events, now, windowDays) => {
     const start = new Date(now);
     start.setDate(start.getDate() - windowDays);
@@ -239,11 +226,8 @@ const getCompletedEvents = (events, now, windowDays) => {
         const eventDate = parseDate(event.completionDate || event.createdAt);
         return !!eventDate && eventDate.getTime() >= start.getTime();
     })
-        .sort((a, b) => {
-        var _a, _b;
-        return (((_a = parseDate(b.completionDate || b.createdAt)) === null || _a === void 0 ? void 0 : _a.getTime()) || 0) -
-            (((_b = parseDate(a.completionDate || a.createdAt)) === null || _b === void 0 ? void 0 : _b.getTime()) || 0);
-    });
+        .sort((a, b) => (parseDate(b.completionDate || b.createdAt)?.getTime() || 0) -
+        (parseDate(a.completionDate || a.createdAt)?.getTime() || 0));
 };
 const renderRows = (items, propertyById, emptyText, getDateValue) => {
     if (items.length === 0) {
@@ -309,9 +293,8 @@ const getTeamReportHtml = ({ member, frequency, upcomingTasks, overdueTasks, com
 	`;
 };
 const sendTeamReportForOwner = async (userId, user, now, appUrl) => {
-    var _a;
-    const preference = (_a = user.emailPreferences) === null || _a === void 0 ? void 0 : _a.teamMemberReports;
-    if ((preference === null || preference === void 0 ? void 0 : preference.enabled) !== true) {
+    const preference = user.emailPreferences?.teamMemberReports;
+    if (preference?.enabled !== true) {
         return [{ sent: false, skipped: true, reason: 'disabled' }];
     }
     const accountId = getAccountId(userId, user);

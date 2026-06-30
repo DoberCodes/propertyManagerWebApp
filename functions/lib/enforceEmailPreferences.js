@@ -55,24 +55,23 @@ const normalizePlanId = (planId) => {
     return String(planId || '').trim().toLowerCase();
 };
 const getEffectivePlanId = (subscription) => {
-    const scheduledPlan = normalizePlanId(subscription === null || subscription === void 0 ? void 0 : subscription.scheduledPlan);
-    if ((subscription === null || subscription === void 0 ? void 0 : subscription.hasScheduledSubscription) && scheduledPlan) {
+    const scheduledPlan = normalizePlanId(subscription?.scheduledPlan);
+    if (subscription?.hasScheduledSubscription && scheduledPlan) {
         return scheduledPlan;
     }
-    const plan = normalizePlanId(subscription === null || subscription === void 0 ? void 0 : subscription.plan);
+    const plan = normalizePlanId(subscription?.plan);
     return plan || 'homeowner';
 };
 exports.enforceEmailPreferences = functions.firestore
     .document('users/{userId}')
     .onWrite(async (change, context) => {
-    var _a, _b, _c, _d;
     if (!change.after.exists) {
         return null;
     }
     const afterData = change.after.data();
-    const taskRemindersEnabled = !!((_a = afterData.emailPreferences) === null || _a === void 0 ? void 0 : _a.taskReminders);
-    const propertyInsightsEnabled = !!((_b = afterData.emailPreferences) === null || _b === void 0 ? void 0 : _b.propertyInsights);
-    const teamMemberReportsEnabled = !!((_d = (_c = afterData.emailPreferences) === null || _c === void 0 ? void 0 : _c.teamMemberReports) === null || _d === void 0 ? void 0 : _d.enabled);
+    const taskRemindersEnabled = !!afterData.emailPreferences?.taskReminders;
+    const propertyInsightsEnabled = !!afterData.emailPreferences?.propertyInsights;
+    const teamMemberReportsEnabled = !!afterData.emailPreferences?.teamMemberReports?.enabled;
     if (!taskRemindersEnabled &&
         !propertyInsightsEnabled &&
         !teamMemberReportsEnabled) {

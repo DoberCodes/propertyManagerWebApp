@@ -63,6 +63,15 @@ describe('ProtectedRoutes', () => {
 		expect(screen.getByText('Login Page')).toBeInTheDocument();
 	});
 
+	it('keeps protected routes on a loading state while auth is unresolved', () => {
+		mockState.user.authLoading = true;
+
+		renderProtectedRoute('/report');
+
+		expect(screen.queryByText('Login Page')).not.toBeInTheDocument();
+		expect(screen.queryByText('Report Page')).not.toBeInTheDocument();
+	});
+
 	it('redirects authenticated users without subscription to paywall when required', () => {
 		mockState.user.currentUser = {
 			id: 'u1',

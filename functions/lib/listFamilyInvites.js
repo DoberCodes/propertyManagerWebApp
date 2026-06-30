@@ -61,7 +61,7 @@ exports.listFamilyInvites = functions.https.onCall(async (data, context) => {
     if (!context.auth) {
         throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
     }
-    const accountId = String((data === null || data === void 0 ? void 0 : data.accountId) || '').trim();
+    const accountId = String(data?.accountId || '').trim();
     if (!accountId) {
         throw new functions.https.HttpsError('invalid-argument', 'accountId is required');
     }

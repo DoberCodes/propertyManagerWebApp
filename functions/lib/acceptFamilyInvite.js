@@ -48,8 +48,8 @@ exports.acceptFamilyInvite = functions.https.onCall(async (data, context) => {
     if (!context.auth) {
         throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
     }
-    const inviteId = String((data === null || data === void 0 ? void 0 : data.inviteId) || '').trim();
-    const token = String((data === null || data === void 0 ? void 0 : data.token) || '').trim();
+    const inviteId = String(data?.inviteId || '').trim();
+    const token = String(data?.token || '').trim();
     if (!inviteId || !token) {
         throw new functions.https.HttpsError('invalid-argument', 'inviteId and token are required');
     }

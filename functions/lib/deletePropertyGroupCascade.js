@@ -49,7 +49,7 @@ const normalizePlanId = (value) => {
     return toString(value).toLowerCase();
 };
 const isTrialActive = (subscription) => {
-    if ((subscription === null || subscription === void 0 ? void 0 : subscription.status) !== 'trial') {
+    if (subscription?.status !== 'trial') {
         return false;
     }
     if (!subscription.trialEndsAt) {
@@ -105,12 +105,11 @@ const updateDocs = async (docs, updated, label) => {
 exports.deletePropertyGroupCascade = functions
     .region('us-central1')
     .https.onCall(async (data, context) => {
-    var _a, _b;
-    const uid = toString((_a = context.auth) === null || _a === void 0 ? void 0 : _a.uid);
+    const uid = toString(context.auth?.uid);
     if (!uid) {
         throw new functions.https.HttpsError('unauthenticated', 'You must be signed in to delete a property group.');
     }
-    const groupId = toString(data === null || data === void 0 ? void 0 : data.groupId);
+    const groupId = toString(data?.groupId);
     if (!groupId) {
         throw new functions.https.HttpsError('invalid-argument', 'groupId is required.');
     }
@@ -132,7 +131,7 @@ exports.deletePropertyGroupCascade = functions
     }
     await (0, accountAuthz_1.assertAccountRole)(uid, accountId, PROPERTY_GROUP_DELETE_ROLES);
     const accountOwnerDoc = await db.collection('users').doc(accountId).get();
-    if (!canUsePropertyGroups((_b = accountOwnerDoc.data()) === null || _b === void 0 ? void 0 : _b.subscription)) {
+    if (!canUsePropertyGroups(accountOwnerDoc.data()?.subscription)) {
         throw new functions.https.HttpsError('permission-denied', 'Property groups are available on Property and Portfolio plans.');
     }
     const deleted = {};

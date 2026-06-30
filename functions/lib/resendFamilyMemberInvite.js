@@ -50,7 +50,6 @@ const db = admin.firestore();
 exports.resendFamilyMemberInvite = functions
     .runWith({ secrets: ['RESEND_API_KEY'] })
     .https.onCall(async (data, context) => {
-    var _a;
     const apiKey = RESEND_API_KEY.value();
     const resend = (0, emailService_1.getResendClient)(apiKey);
     // Verify authentication
@@ -77,13 +76,13 @@ exports.resendFamilyMemberInvite = functions
             .doc(context.auth.uid)
             .get();
         const callerData = callerDoc.data() || {};
-        const callerIsOwner = (accountData === null || accountData === void 0 ? void 0 : accountData.ownerId) === context.auth.uid;
+        const callerIsOwner = accountData?.ownerId === context.auth.uid;
         const callerIsAdmin = callerData.accountId === accountId && callerData.role === 'admin';
         if (!callerIsOwner && !callerIsAdmin) {
             throw new functions.https.HttpsError('permission-denied', 'Only account owners or admins can resend password reset emails');
         }
         // Verify the user is a member of this family account
-        const memberIds = Array.isArray(accountData === null || accountData === void 0 ? void 0 : accountData.memberIds)
+        const memberIds = Array.isArray(accountData?.memberIds)
             ? accountData.memberIds
             : [];
         if (!memberIds.includes(userId)) {
@@ -95,11 +94,11 @@ exports.resendFamilyMemberInvite = functions
             throw new functions.https.HttpsError('not-found', 'Family member not found');
         }
         const memberData = memberDoc.data();
-        const memberEmail = String((memberData === null || memberData === void 0 ? void 0 : memberData.email) || '');
-        const memberFirstName = String((memberData === null || memberData === void 0 ? void 0 : memberData.firstName) || 'there');
+        const memberEmail = String(memberData?.email || '');
+        const memberFirstName = String(memberData?.firstName || 'there');
         // Get account owner data
         const ownerDoc = await db.collection('users').doc(context.auth.uid).get();
-        const ownerName = ((_a = ownerDoc.data()) === null || _a === void 0 ? void 0 : _a.firstName) || 'Account Owner';
+        const ownerName = ownerDoc.data()?.firstName || 'Account Owner';
         // Generate password reset link
         const resetLink = await admin
             .auth()

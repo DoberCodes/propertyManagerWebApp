@@ -64,8 +64,7 @@ const stripUndefinedDeep = (value) => {
     return value === undefined ? undefined : value;
 };
 const assertAuthenticated = (context) => {
-    var _a;
-    const uid = toString((_a = context.auth) === null || _a === void 0 ? void 0 : _a.uid);
+    const uid = toString(context.auth?.uid);
     if (!uid) {
         throw new functions.https.HttpsError('unauthenticated', 'You must be signed in to review document details.');
     }
@@ -252,18 +251,14 @@ const findWarrantyInformation = (lines) => {
         !WARRANTY_UNAVAILABLE_PATTERN.test(line));
     return extractWarrantySentence(warrantyLine);
 };
-const findDate = (lines, labels) => {
-    var _a;
-    return ((_a = findLabeledValue(lines, labels).match(/[A-Za-z]+ \d{1,2}, \d{4}|\d{1,2}\/\d{1,2}\/\d{2,4}|\d{4}-\d{2}-\d{2}/)) === null || _a === void 0 ? void 0 : _a[0]) ||
-        '';
-};
+const findDate = (lines, labels) => findLabeledValue(lines, labels).match(/[A-Za-z]+ \d{1,2}, \d{4}|\d{1,2}\/\d{1,2}\/\d{2,4}|\d{4}-\d{2}-\d{2}/)?.[0] ||
+    '';
 const findMoney = (lines, labels) => {
-    var _a;
     const value = findLabeledValue(lines, labels);
-    return ((_a = value.match(/\$?\s*-?\d[\d,]*\.?\d{0,2}/)) === null || _a === void 0 ? void 0 : _a[0]) || '';
+    return value.match(/\$?\s*-?\d[\d,]*\.?\d{0,2}/)?.[0] || '';
 };
-const findPhone = (text) => { var _a; return ((_a = text.match(/\(?\d{3}\)?[-.\s]\d{3}[-.\s]\d{4}/)) === null || _a === void 0 ? void 0 : _a[0]) || ''; };
-const findWebsite = (text) => { var _a; return ((_a = text.match(/(?:https?:\/\/)?(?:www\.)?[a-z0-9-]+\.[a-z]{2,}(?:\/[^\s]*)?/i)) === null || _a === void 0 ? void 0 : _a[0]) || ''; };
+const findPhone = (text) => text.match(/\(?\d{3}\)?[-.\s]\d{3}[-.\s]\d{4}/)?.[0] || '';
+const findWebsite = (text) => text.match(/(?:https?:\/\/)?(?:www\.)?[a-z0-9-]+\.[a-z]{2,}(?:\/[^\s]*)?/i)?.[0] || '';
 const PROPERTY_LOCATION_ADDRESS_LABELS = [
     'Service Address',
     'Service Location',
@@ -293,13 +288,12 @@ const normalizeAddressTokenText = (value) => toString(value)
     .replace(/\s+/g, ' ')
     .trim();
 const normalizeAddressForComparison = (value) => {
-    var _a, _b, _c;
     const normalized = normalizeAddressTokenText(value);
-    const streetNumber = (_a = normalized.match(/\b\d{1,8}\b/)) === null || _a === void 0 ? void 0 : _a[0];
+    const streetNumber = normalized.match(/\b\d{1,8}\b/)?.[0];
     const statePostalMatch = normalized.match(/\b([a-z]{2})\s+(\d{5})(?:\s*\d{4})?\b/);
-    const state = (_b = statePostalMatch === null || statePostalMatch === void 0 ? void 0 : statePostalMatch[1]) === null || _b === void 0 ? void 0 : _b.toUpperCase();
-    const postalCode = statePostalMatch === null || statePostalMatch === void 0 ? void 0 : statePostalMatch[2];
-    const unit = ((_c = normalized.match(/\b(?:apt|apartment|unit|suite|ste|#)\s*([a-z0-9-]+)\b/)) === null || _c === void 0 ? void 0 : _c[1]) ||
+    const state = statePostalMatch?.[1]?.toUpperCase();
+    const postalCode = statePostalMatch?.[2];
+    const unit = normalized.match(/\b(?:apt|apartment|unit|suite|ste|#)\s*([a-z0-9-]+)\b/)?.[1] ||
         '';
     let streetName = '';
     if (streetNumber) {
@@ -386,7 +380,7 @@ const buildPropertyConfirmationFromPdfText = (text, propertyAddress) => {
     if (!selectedPropertyAddress)
         return undefined;
     const candidate = extractLabeledPropertyAddress(linesFromText(text));
-    if (!(candidate === null || candidate === void 0 ? void 0 : candidate.value))
+    if (!candidate?.value)
         return undefined;
     const documentAddress = normalizeAddressForComparison(candidate.value);
     const savedAddress = normalizeAddressForComparison(selectedPropertyAddress);
@@ -467,7 +461,6 @@ const getContractorCandidateScore = (line) => {
     return score;
 };
 const findContractorName = (lines) => {
-    var _a;
     const explicit = findLabeledValue(lines, ['Contractor', 'Vendor', 'Company']);
     if (explicit &&
         !CONTRACTOR_EXCLUDE_PATTERN.test(explicit) &&
@@ -487,7 +480,7 @@ const findContractorName = (lines) => {
     }))
         .filter((candidate) => candidate.score >= 3)
         .sort((left, right) => right.score - left.score);
-    return ((_a = candidates[0]) === null || _a === void 0 ? void 0 : _a.line) || '';
+    return candidates[0]?.line || '';
 };
 const inferAssetType = (text) => {
     const lower = text.toLowerCase();
@@ -662,7 +655,7 @@ const classifyDocumentType = (document) => {
 const getPendingSuggestionForDocument = (suggestions, documentId) => suggestions.find((suggestion) => toString(suggestion.sourceDocumentId) === documentId &&
     toString(suggestion.status) === 'pending');
 const getSuggestionFieldCount = (suggestion) => {
-    const fields = suggestion === null || suggestion === void 0 ? void 0 : suggestion.extractedFields;
+    const fields = suggestion?.extractedFields;
     return Array.isArray(fields) ? fields.length : 0;
 };
 const shouldBackgroundProcessDocument = (document) => toString(document.id) &&
@@ -722,7 +715,6 @@ const loadDocumentForProcessing = async ({ propertyRef, documentId, triggeredBy,
     };
 };
 const processPdfDocumentAcquisition = async ({ propertyId, documentId, triggeredBy, }) => {
-    var _a, _b;
     const propertyRef = db.collection('properties').doc(propertyId);
     const loaded = await loadDocumentForProcessing({
         propertyRef,
@@ -759,7 +751,7 @@ const processPdfDocumentAcquisition = async ({ propertyId, documentId, triggered
                     ? latestData.knowledgeSuggestions
                     : [];
                 const existingPending = getPendingSuggestionForDocument(latestSuggestions, documentId);
-                if (toString(latestDocument === null || latestDocument === void 0 ? void 0 : latestDocument.acquisitionStatus) === 'pending_review' &&
+                if (toString(latestDocument?.acquisitionStatus) === 'pending_review' &&
                     existingPending) {
                     return {
                         success: true,
@@ -789,7 +781,7 @@ const processPdfDocumentAcquisition = async ({ propertyId, documentId, triggered
             sourceDocumentId: documentId,
             propertyId,
             relatedSystemId: toString(document.assignedDeviceId) ||
-                toString((_b = (_a = document.links) === null || _a === void 0 ? void 0 : _a.assetIds) === null || _b === void 0 ? void 0 : _b[0]) ||
+                toString(document.links?.assetIds?.[0]) ||
                 undefined,
             documentType: classifyDocumentType(document),
             extractionMethod: 'pdf_text',
@@ -878,7 +870,7 @@ const processPdfDocumentAcquisition = async ({ propertyId, documentId, triggered
                 ? latestData.knowledgeSuggestions
                 : [];
             const existingPending = getPendingSuggestionForDocument(latestSuggestions, documentId);
-            if (toString(latestDocument === null || latestDocument === void 0 ? void 0 : latestDocument.acquisitionStatus) === 'pending_review' &&
+            if (toString(latestDocument?.acquisitionStatus) === 'pending_review' &&
                 existingPending) {
                 return;
             }
@@ -887,7 +879,7 @@ const processPdfDocumentAcquisition = async ({ propertyId, documentId, triggered
                     acquisitionStatus: 'failed',
                     acquisitionCompletedAt: completedAt,
                     acquisitionWorkerCompletedAt: completedAt,
-                    acquisitionError: (error === null || error === void 0 ? void 0 : error.message) ||
+                    acquisitionError: error?.message ||
                         'Maintley could not review this PDF. Please try again later.',
                 }),
                 updatedAt: completedAt,
@@ -902,8 +894,8 @@ exports.processPropertyDocumentAcquisition = functions
     .runWith({ timeoutSeconds: 120, memory: '512MB' })
     .https.onCall(async (data, context) => {
     const uid = assertAuthenticated(context);
-    const propertyId = toString(data === null || data === void 0 ? void 0 : data.propertyId);
-    const documentId = toString(data === null || data === void 0 ? void 0 : data.documentId);
+    const propertyId = toString(data?.propertyId);
+    const documentId = toString(data?.documentId);
     if (!propertyId || !documentId) {
         throw new functions.https.HttpsError('invalid-argument', 'propertyId and documentId are required.');
     }
@@ -925,7 +917,7 @@ exports.processPropertyDocumentAcquisition = functions
         if (error instanceof functions.https.HttpsError) {
             throw error;
         }
-        throw new functions.https.HttpsError('internal', (error === null || error === void 0 ? void 0 : error.message) || 'Could not review this PDF.');
+        throw new functions.https.HttpsError('internal', error?.message || 'Could not review this PDF.');
     }
 });
 exports.processPropertyDocumentAcquisitionRequests = functions

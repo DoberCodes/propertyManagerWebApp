@@ -15,6 +15,7 @@ import { AppFeedbackProvider } from './Components/Library/AppFeedback/AppFeedbac
 import { canUseNotifications } from './utils/subscriptionUtils';
 import { COLORS } from './constants/colors';
 import { SplashScreen } from './Components/Library/SplashScreen';
+import { clearAccountScopedClientState } from './Redux/utils/clearAccountScopedClientState';
 
 type SystemBarType = 'StatusBar' | 'NavigationBar';
 
@@ -82,6 +83,7 @@ export const App = () => {
 	const appLoading = useSelector((state: RootState) => state.app.loading);
 	const [isRefreshing, setIsRefreshing] = useState(false);
 	const currentUserIdRef = useRef<string | null>(null);
+	const resolvedAuthUserIdRef = useRef<string | null | undefined>(undefined);
 	const pushNotificationsInitializedRef = useRef(false);
 
 	useEffect(() => {
@@ -114,14 +116,17 @@ export const App = () => {
 	}, [currentUser?.id, currentUser?.subscription]);
 
 	useEffect(() => {
-		// Set a timeout to ensure auth loading completes even if Firebase hangs
-		const timeout = setTimeout(() => {
-			dispatch(setAuthLoading(false));
-		}, 5000); // 5 second timeout
-
 		// Listen to Firebase auth state changes to persist authentication
 		const unsubscribe = onAuthStateChange(async (user) => {
-			clearTimeout(timeout);
+			const nextUserId = user?.id || null;
+			const previousUserId = resolvedAuthUserIdRef.current;
+
+			if (previousUserId !== undefined && previousUserId !== nextUserId) {
+				clearAccountScopedClientState(dispatch);
+				pushNotificationsInitializedRef.current = false;
+			}
+			resolvedAuthUserIdRef.current = nextUserId;
+
 			if (user) {
 				dispatch(setCurrentUser(user));
 				// Update localStorage to keep session in sync
@@ -155,7 +160,6 @@ export const App = () => {
 		// Cleanup subscription on unmount
 		return () => {
 			unsubscribe();
-			clearTimeout(timeout);
 		};
 	}, [dispatch]);
 

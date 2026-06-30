@@ -209,12 +209,11 @@ const updateAccountCounters = async (accountId, deletedDeviceCount) => {
 exports.deletePropertyCascade = functions
     .region('us-central1')
     .https.onCall(async (data, context) => {
-    var _a;
-    const uid = toString((_a = context.auth) === null || _a === void 0 ? void 0 : _a.uid);
+    const uid = toString(context.auth?.uid);
     if (!uid) {
         throw new functions.https.HttpsError('unauthenticated', 'You must be signed in to delete a property.');
     }
-    const propertyId = toString(data === null || data === void 0 ? void 0 : data.propertyId);
+    const propertyId = toString(data?.propertyId);
     if (!propertyId) {
         throw new functions.https.HttpsError('invalid-argument', 'propertyId is required.');
     }

@@ -1,11 +1,11 @@
 import React from 'react';
-import { RootState } from 'Redux/store/store';
+import { AppDispatch, RootState } from 'Redux/store/store';
 import { useDispatch, useSelector } from 'react-redux';
 import { useGetUserNotificationsQuery } from 'Redux/API/notificationSlice';
 import { useNavigate } from 'react-router-dom';
 import { signOutUser } from 'services/authService';
 import { logout } from 'Redux/Slices/userSlice';
-import { apiSlice } from 'Redux/API/apiSlice';
+import { clearAccountScopedClientState } from 'Redux/utils/clearAccountScopedClientState';
 import { AvatarMenuWrapper, DropdownButton, DropdownItem, DropdownMenu, NotificationBadge, UserImage, UserInitials } from './AvatarMenu.styles';
 import { COLORS } from '../../../../constants/colors';
 
@@ -20,7 +20,7 @@ interface AvatarMenuProps {
 
 export const AvatarMenu: React.FC<AvatarMenuProps> = ({ setIsNotificationModalOpen, activeRoute, isSidebarOpen, setIsSidebarOpen, isProfileDropdownOpen, setIsProfileDropdownOpen }) => {
 	const navigate = useNavigate();
-	const dispatch = useDispatch();
+	const dispatch = useDispatch<AppDispatch>();
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
 	const [imageFailed, setImageFailed] = React.useState(false);
 	const profileImage = String(currentUser?.image || '').trim();
@@ -48,8 +48,7 @@ export const AvatarMenu: React.FC<AvatarMenuProps> = ({ setIsNotificationModalOp
 			try {
 				await signOutUser();
 				dispatch(logout());
-				// Reset RTK Query cache to prevent stale data for next user
-				dispatch(apiSlice.util.resetApiState());
+				clearAccountScopedClientState(dispatch);
 				navigate('/');
 			} catch (error) {
 				console.error('Logout failed:', error);

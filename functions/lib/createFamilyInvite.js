@@ -49,15 +49,14 @@ const getFamilyMembershipRoles = (role) => role === 'admin' ? ['member', 'admin'
 exports.createFamilyInvite = functions
     .runWith({ secrets: ['RESEND_API_KEY'] })
     .https.onCall(async (data, context) => {
-    var _a, _b;
     if (!context.auth) {
         throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
     }
-    const accountId = String((data === null || data === void 0 ? void 0 : data.accountId) || '').trim();
-    const email = String((data === null || data === void 0 ? void 0 : data.email) || '').trim();
-    const firstName = String((data === null || data === void 0 ? void 0 : data.firstName) || '').trim();
-    const lastName = String((data === null || data === void 0 ? void 0 : data.lastName) || '').trim();
-    const role = normalizeFamilyMemberRole((data === null || data === void 0 ? void 0 : data.role) || 'member');
+    const accountId = String(data?.accountId || '').trim();
+    const email = String(data?.email || '').trim();
+    const firstName = String(data?.firstName || '').trim();
+    const lastName = String(data?.lastName || '').trim();
+    const role = normalizeFamilyMemberRole(data?.role || 'member');
     if (!accountId || !email || !firstName || !lastName) {
         throw new functions.https.HttpsError('invalid-argument', 'accountId, email, firstName, and lastName are required');
     }
@@ -94,7 +93,7 @@ exports.createFamilyInvite = functions
         userExists = true;
     }
     catch (error) {
-        const code = error === null || error === void 0 ? void 0 : error.code;
+        const code = error?.code;
         if (code !== 'auth/user-not-found') {
             throw error;
         }
@@ -104,7 +103,7 @@ exports.createFamilyInvite = functions
     }
     // Get owner info for email
     const ownerDoc = await db.collection('users').doc(context.auth.uid).get();
-    const ownerName = ((_a = ownerDoc.data()) === null || _a === void 0 ? void 0 : _a.firstName) || ((_b = ownerDoc.data()) === null || _b === void 0 ? void 0 : _b.email) || 'Account Owner';
+    const ownerName = ownerDoc.data()?.firstName || ownerDoc.data()?.email || 'Account Owner';
     // Generate random secure password
     const tempPassword = (0, crypto_1.randomBytes)(32).toString('hex');
     // Create Firebase Auth user

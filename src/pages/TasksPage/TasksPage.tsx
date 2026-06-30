@@ -506,6 +506,10 @@ export const TasksPage = () => {
 		Array.isArray(task?.notifications) &&
 		task.notifications.length > 0;
 
+	const getTaskPropertyLabel = (task: any) =>
+		String(task?.propertyTitle || task?.property || 'Unknown Property').trim() ||
+		'Unknown Property';
+
 	const handleSortOptionChange = (value: string) => {
 		const [key, direction] = value.split(':') as [string, 'asc' | 'desc'];
 		setSortState({ key, direction });
@@ -851,6 +855,24 @@ export const TasksPage = () => {
 						<div style={{ fontSize: 12, color: '#64748b' }}>
 							{task.category || 'General maintenance'}
 							{task.location ? ` · ${task.location}` : ''}
+						</div>
+						<div
+							style={{
+								display: 'inline-flex',
+								alignItems: 'center',
+								gap: 5,
+								minWidth: 0,
+								fontSize: 12,
+								color: '#334155',
+								fontWeight: 700,
+							}}>
+							<FontAwesomeIcon
+								icon={faHouse}
+								style={{ color: '#64748b', flexShrink: 0 }}
+							/>
+							<span style={{ overflowWrap: 'anywhere' }}>
+								Property: {getTaskPropertyLabel(task)}
+							</span>
 						</div>
 						<div style={{ fontSize: 12, color: '#64748b', display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
 							<span>{getAssigneeLabel(task)}</span>
@@ -1355,8 +1377,11 @@ export const TasksPage = () => {
 									<MobileMetaItem>
 										<MobileMetaLabel>Identity</MobileMetaLabel>
 										<MobileMetaValue>
-											{task.category || 'General maintenance'}
-											{task.propertyTitle ? ` · ${task.propertyTitle}` : task.property ? ` · ${task.property}` : ''}
+											<div>Property: {getTaskPropertyLabel(task)}</div>
+											<div style={{ marginTop: 2, fontSize: '0.8rem', color: '#64748b' }}>
+												{task.category || 'General maintenance'}
+												{task.location ? ` · ${task.location}` : ''}
+											</div>
 										</MobileMetaValue>
 									</MobileMetaItem>
 									<MobileMetaItem>

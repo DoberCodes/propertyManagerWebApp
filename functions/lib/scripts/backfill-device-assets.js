@@ -162,12 +162,11 @@ const normalizeAssetType = (value) => {
     if (exactMatch)
         return exactMatch.value;
     const inferredMatch = ASSET_TYPE_DEFINITIONS.find((definition) => definition.matchTerms.some((term) => normalizedValue.includes(normalize(term))));
-    return (inferredMatch === null || inferredMatch === void 0 ? void 0 : inferredMatch.value) || (value === null || value === void 0 ? void 0 : value.trim()) || UNKNOWN_ASSET_TYPE;
+    return inferredMatch?.value || value?.trim() || UNKNOWN_ASSET_TYPE;
 };
 const getAssetVariantOptions = (assetType) => {
-    var _a;
     const normalizedType = normalize(assetType);
-    return (((_a = ASSET_TYPE_DEFINITIONS.find((definition) => normalize(definition.value) === normalizedType)) === null || _a === void 0 ? void 0 : _a.variants) || []);
+    return (ASSET_TYPE_DEFINITIONS.find((definition) => normalize(definition.value) === normalizedType)?.variants || []);
 };
 const inferAssetVariantFromText = (assetType, text) => {
     const variantOptions = getAssetVariantOptions(assetType);

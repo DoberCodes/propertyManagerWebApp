@@ -66,19 +66,19 @@ exports.deleteFamilyMemberAccount = functions.https.onCall(async (data, context)
                 throw new functions.https.HttpsError('not-found', 'Family account not found');
             }
             accountData = accountDoc.data();
-            const callerIsOwner = (accountData === null || accountData === void 0 ? void 0 : accountData.ownerId) === callerUid;
-            const callerIsAdmin = (callerData === null || callerData === void 0 ? void 0 : callerData.accountId) === accountId && (callerData === null || callerData === void 0 ? void 0 : callerData.role) === 'admin';
+            const callerIsOwner = accountData?.ownerId === callerUid;
+            const callerIsAdmin = callerData?.accountId === accountId && callerData?.role === 'admin';
             if (!callerIsOwner && !callerIsAdmin) {
                 throw new functions.https.HttpsError('permission-denied', 'Only account owners or admins can delete family members');
             }
             if (memberId === callerUid) {
                 throw new functions.https.HttpsError('invalid-argument', 'Cannot delete yourself from the account');
             }
-            if (memberId === (accountData === null || accountData === void 0 ? void 0 : accountData.ownerId)) {
+            if (memberId === accountData?.ownerId) {
                 throw new functions.https.HttpsError('permission-denied', 'Cannot delete the account owner');
             }
-            const memberIds = Array.isArray(accountData === null || accountData === void 0 ? void 0 : accountData.memberIds)
-                ? accountData === null || accountData === void 0 ? void 0 : accountData.memberIds
+            const memberIds = Array.isArray(accountData?.memberIds)
+                ? accountData?.memberIds
                 : [];
             if (!memberIds.includes(memberId)) {
                 throw new functions.https.HttpsError('not-found', 'Family member not found in account');

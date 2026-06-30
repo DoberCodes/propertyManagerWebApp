@@ -103,9 +103,8 @@ const getExportedFunctionsConfig = () => {
     }
 };
 const readExportedStripeConfig = (key) => {
-    var _a;
     const exportedConfig = getExportedFunctionsConfig();
-    return sanitizeSecret(((_a = exportedConfig === null || exportedConfig === void 0 ? void 0 : exportedConfig.stripe) === null || _a === void 0 ? void 0 : _a[key]) || '');
+    return sanitizeSecret(exportedConfig?.stripe?.[key] || '');
 };
 const normalizePromoCode = (value) => {
     return sanitizeSecret(String(value || ''));
@@ -188,7 +187,6 @@ const resolvePriceIdForPlan = (planId, billingCycle = 'month') => {
     return ((normalizedCycle === 'year' ? annualPriceMap : monthlyPriceMap)[normalizedPlan] || '');
 };
 const resolvePromotionCodeId = async (promoCode) => {
-    var _a;
     if (!promoCode) {
         return null;
     }
@@ -197,7 +195,7 @@ const resolvePromotionCodeId = async (promoCode) => {
         active: true,
         limit: 1,
     });
-    return ((_a = promotionCodes.data[0]) === null || _a === void 0 ? void 0 : _a.id) || null;
+    return promotionCodes.data[0]?.id || null;
 };
 const db = admin.firestore();
 const removeUndefinedFields = (obj) => {
@@ -239,7 +237,7 @@ const findReusableSubscription = async (customerId, existingSubscriptionId) => {
     return (subscriptions.data.find((subscription) => reusableStatuses.has(subscription.status)) || null);
 };
 const syncFamilyAccountSubscription = async (userData, subscription) => {
-    const accountId = userData === null || userData === void 0 ? void 0 : userData.accountId;
+    const accountId = userData?.accountId;
     if (!accountId) {
         return;
     }
@@ -264,7 +262,6 @@ const syncFamilyAccountSubscription = async (userData, subscription) => {
 exports.createCheckoutSession = functions
     .runWith({ secrets: STRIPE_FUNCTION_SECRETS })
     .https.onCall(async (data, context) => {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _j;
     // Verify user is authenticated
     if (!context.auth) {
         throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
@@ -294,7 +291,7 @@ exports.createCheckoutSession = functions
         const userDoc = await userRef.get();
         const userData = userDoc.data();
         console.log('User data retrieved:', userData);
-        const accountPromoCode = normalizePromoCode(requestedPromoCode || ((_a = userData === null || userData === void 0 ? void 0 : userData.subscription) === null || _a === void 0 ? void 0 : _a.promoCode));
+        const accountPromoCode = normalizePromoCode(requestedPromoCode || userData?.subscription?.promoCode);
         let promotionCodeId = null;
         if (accountPromoCode) {
             promotionCodeId = await resolvePromotionCodeId(accountPromoCode);
@@ -302,7 +299,7 @@ exports.createCheckoutSession = functions
                 console.warn(`Promo code '${accountPromoCode}' was provided but no active Stripe Promotion Code was found. Proceeding without discount.`);
             }
         }
-        let customerId = (_b = userData === null || userData === void 0 ? void 0 : userData.subscription) === null || _b === void 0 ? void 0 : _b.stripeCustomerId;
+        let customerId = userData?.subscription?.stripeCustomerId;
         // Create or retrieve Stripe customer
         if (!customerId) {
             const customer = await getStripe().customers.create({
@@ -318,16 +315,16 @@ exports.createCheckoutSession = functions
                 updatedAt: admin.firestore.FieldValue.serverTimestamp(),
             });
         }
-        const existingSubscription = await findReusableSubscription(customerId, sanitizeSecret(String(((_c = userData === null || userData === void 0 ? void 0 : userData.subscription) === null || _c === void 0 ? void 0 : _c.stripeSubscriptionId) || '')));
+        const existingSubscription = await findReusableSubscription(customerId, sanitizeSecret(String(userData?.subscription?.stripeSubscriptionId || '')));
         if (existingSubscription) {
             const subscriptionItem = existingSubscription.items.data[0];
-            if (!(subscriptionItem === null || subscriptionItem === void 0 ? void 0 : subscriptionItem.id)) {
+            if (!subscriptionItem?.id) {
                 throw new functions.https.HttpsError('failed-precondition', 'Existing Stripe subscription has no subscription item to update.');
             }
             console.log('Updating existing Stripe subscription instead of creating a new one:', {
                 subscriptionId: existingSubscription.id,
                 subscriptionItemId: subscriptionItem.id,
-                currentPriceId: (_d = subscriptionItem.price) === null || _d === void 0 ? void 0 : _d.id,
+                currentPriceId: subscriptionItem.price?.id,
                 newPriceId: resolvedPriceId,
             });
             const updatedSubscription = await getStripe().subscriptions.update(existingSubscription.id, {
@@ -345,10 +342,10 @@ exports.createCheckoutSession = functions
                     ...(accountPromoCode ? { promoCode: accountPromoCode } : {}),
                 },
             });
-            const updatedPriceId = ((_f = (_e = updatedSubscription.items.data[0]) === null || _e === void 0 ? void 0 : _e.price) === null || _f === void 0 ? void 0 : _f.id) || resolvedPriceId;
+            const updatedPriceId = updatedSubscription.items.data[0]?.price?.id || resolvedPriceId;
             const subscriptionData = removeUndefinedFields({
                 status: toLocalSubscriptionStatus(updatedSubscription.status),
-                plan: getPlanFromPriceId(updatedPriceId, normalizedPlanId || ((_g = userData === null || userData === void 0 ? void 0 : userData.subscription) === null || _g === void 0 ? void 0 : _g.plan) || 'homeowner'),
+                plan: getPlanFromPriceId(updatedPriceId, normalizedPlanId || userData?.subscription?.plan || 'homeowner'),
                 currentPeriodStart: updatedSubscription.current_period_start,
                 currentPeriodEnd: updatedSubscription.current_period_end,
                 trialEndsAt: updatedSubscription.trial_end,
@@ -358,7 +355,7 @@ exports.createCheckoutSession = functions
                 scheduledPlan: null,
                 ...(accountPromoCode ? { promoCode: accountPromoCode } : {}),
             });
-            const mergedSubscription = buildMergedSubscription(userData === null || userData === void 0 ? void 0 : userData.subscription, subscriptionData);
+            const mergedSubscription = buildMergedSubscription(userData?.subscription, subscriptionData);
             await userRef.update({
                 subscription: mergedSubscription,
                 updatedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -396,17 +393,17 @@ exports.createCheckoutSession = functions
     catch (error) {
         const stripeError = error;
         console.error('Error creating checkout session:', {
-            message: stripeError === null || stripeError === void 0 ? void 0 : stripeError.message,
-            code: stripeError === null || stripeError === void 0 ? void 0 : stripeError.code,
-            type: stripeError === null || stripeError === void 0 ? void 0 : stripeError.type,
+            message: stripeError?.message,
+            code: stripeError?.code,
+            type: stripeError?.type,
         });
-        if ((_h = stripeError === null || stripeError === void 0 ? void 0 : stripeError.message) === null || _h === void 0 ? void 0 : _h.includes('No such price')) {
+        if (stripeError?.message?.includes('No such price')) {
             throw new functions.https.HttpsError('failed-precondition', 'Stripe price ID is invalid. Verify REACT_APP_STRIPE_*_PLAN_ID values and deployed function config.');
         }
-        if ((_j = stripeError === null || stripeError === void 0 ? void 0 : stripeError.message) === null || _j === void 0 ? void 0 : _j.includes('Invalid API Key')) {
+        if (stripeError?.message?.includes('Invalid API Key')) {
             throw new functions.https.HttpsError('failed-precondition', 'Stripe secret key is invalid or missing in backend configuration.');
         }
-        throw new functions.https.HttpsError('internal', (stripeError === null || stripeError === void 0 ? void 0 : stripeError.message) || 'Failed to create checkout session');
+        throw new functions.https.HttpsError('internal', stripeError?.message || 'Failed to create checkout session');
     }
 });
 /**
@@ -416,7 +413,7 @@ exports.createCheckoutSession = functions
 exports.validatePromotionCode = functions
     .runWith({ secrets: STRIPE_FUNCTION_SECRETS })
     .https.onCall(async (data) => {
-    const normalizedPromoCode = normalizePromoCode(data === null || data === void 0 ? void 0 : data.promoCode).toLowerCase();
+    const normalizedPromoCode = normalizePromoCode(data?.promoCode).toLowerCase();
     if (!normalizedPromoCode) {
         throw new functions.https.HttpsError('invalid-argument', 'promoCode is required');
     }
@@ -427,12 +424,12 @@ exports.validatePromotionCode = functions
             limit: 1,
         });
         const match = promotionCodes.data[0];
-        const couponRef = match === null || match === void 0 ? void 0 : match.coupon;
-        const couponId = typeof couponRef === 'string' ? couponRef : (couponRef === null || couponRef === void 0 ? void 0 : couponRef.id) || null;
+        const couponRef = match?.coupon;
+        const couponId = typeof couponRef === 'string' ? couponRef : couponRef?.id || null;
         return {
             valid: Boolean(match),
             code: normalizedPromoCode,
-            promotionCodeId: (match === null || match === void 0 ? void 0 : match.id) || null,
+            promotionCodeId: match?.id || null,
             couponId,
             message: match
                 ? 'Promo code is valid.'
@@ -442,11 +439,11 @@ exports.validatePromotionCode = functions
     catch (error) {
         const stripeError = error;
         console.error('Error validating promotion code:', {
-            message: stripeError === null || stripeError === void 0 ? void 0 : stripeError.message,
-            code: stripeError === null || stripeError === void 0 ? void 0 : stripeError.code,
-            type: stripeError === null || stripeError === void 0 ? void 0 : stripeError.type,
+            message: stripeError?.message,
+            code: stripeError?.code,
+            type: stripeError?.type,
         });
-        throw new functions.https.HttpsError('internal', (stripeError === null || stripeError === void 0 ? void 0 : stripeError.message) || 'Failed to validate promo code');
+        throw new functions.https.HttpsError('internal', stripeError?.message || 'Failed to validate promo code');
     }
 });
 /**
@@ -457,7 +454,6 @@ exports.validatePromotionCode = functions
 exports.createTrialSubscription = functions
     .runWith({ secrets: STRIPE_FUNCTION_SECRETS })
     .https.onCall(async (data, context) => {
-    var _a;
     // Verify user is authenticated
     if (!context.auth) {
         throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
@@ -482,7 +478,7 @@ exports.createTrialSubscription = functions
         const userDoc = await db.collection('users').doc(userId).get();
         const userData = userDoc.data();
         console.log('User data retrieved:', userData);
-        let customerId = (_a = userData === null || userData === void 0 ? void 0 : userData.subscription) === null || _a === void 0 ? void 0 : _a.stripeCustomerId;
+        let customerId = userData?.subscription?.stripeCustomerId;
         // Create or retrieve Stripe customer
         if (!customerId) {
             const customer = await getStripe().customers.create({
@@ -538,7 +534,6 @@ exports.createTrialSubscription = functions
 exports.verifyCheckoutSession = functions
     .runWith({ secrets: STRIPE_FUNCTION_SECRETS })
     .https.onCall(async (data, context) => {
-    var _a;
     if (!context.auth) {
         throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
     }
@@ -554,7 +549,7 @@ exports.verifyCheckoutSession = functions
         if (!acceptablePaymentStatuses.includes(normalizedPaymentStatus)) {
             throw new functions.https.HttpsError('failed-precondition', `Payment not completed (status: ${normalizedPaymentStatus || 'unknown'})`);
         }
-        const firebaseUID = (_a = session.metadata) === null || _a === void 0 ? void 0 : _a.firebaseUID;
+        const firebaseUID = session.metadata?.firebaseUID;
         if (!firebaseUID) {
             throw new functions.https.HttpsError('invalid-argument', 'Invalid session metadata');
         }
@@ -573,7 +568,7 @@ exports.verifyCheckoutSession = functions
         const userRef = db.collection('users').doc(firebaseUID);
         const userDoc = await userRef.get();
         const userData = userDoc.data();
-        const mergedSubscription = buildMergedSubscription(userData === null || userData === void 0 ? void 0 : userData.subscription, subscriptionData);
+        const mergedSubscription = buildMergedSubscription(userData?.subscription, subscriptionData);
         await userRef.update({
             subscription: mergedSubscription,
             updatedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -661,8 +656,7 @@ exports.getSubscriptionDetails = functions
 exports.syncSubscriptionFromStripe = functions
     .runWith({ secrets: STRIPE_FUNCTION_SECRETS })
     .https.onCall(async (_data, context) => {
-    var _a, _b, _c;
-    if (!((_a = context.auth) === null || _a === void 0 ? void 0 : _a.uid)) {
+    if (!context.auth?.uid) {
         throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
     }
     const userId = context.auth.uid;
@@ -715,7 +709,7 @@ exports.syncSubscriptionFromStripe = functions
                 : stripeSubscription.status === 'canceled'
                     ? 'cancelled'
                     : String(stripeSubscription.status || 'expired');
-    const currentPriceId = ((_c = (_b = stripeSubscription.items.data[0]) === null || _b === void 0 ? void 0 : _b.price) === null || _c === void 0 ? void 0 : _c.id) ||
+    const currentPriceId = stripeSubscription.items.data[0]?.price?.id ||
         existingSubscription.currentPriceId ||
         '';
     const subscriptionPatch = removeUndefinedFields({
@@ -827,7 +821,7 @@ exports.stripeWebhook = functions
     }
     catch (error) {
         const webhookError = error;
-        const message = (webhookError === null || webhookError === void 0 ? void 0 : webhookError.message) || 'Unknown webhook error';
+        const message = webhookError?.message || 'Unknown webhook error';
         console.error('Webhook error:', message);
         res.status(400).send(`Webhook Error: ${message}`);
     }
@@ -836,7 +830,6 @@ exports.stripeWebhook = functions
  * Handle subscription updates from Stripe webhooks
  */
 const handleSubscriptionUpdate = async (subscription) => {
-    var _a, _b;
     try {
         // Find user by Stripe customer ID
         const userQuery = await db
@@ -853,7 +846,7 @@ const handleSubscriptionUpdate = async (subscription) => {
                     : subscription.status === 'trialing'
                         ? 'trial'
                         : subscription.status,
-                plan: getPlanFromPriceId(subscription.items.data[0].price.id, ((_a = userData === null || userData === void 0 ? void 0 : userData.subscription) === null || _a === void 0 ? void 0 : _a.plan) || 'homeowner'),
+                plan: getPlanFromPriceId(subscription.items.data[0].price.id, userData?.subscription?.plan || 'homeowner'),
                 currentPeriodStart: subscription.current_period_start,
                 currentPeriodEnd: subscription.current_period_end,
                 trialEndsAt: subscription.trial_end,
@@ -861,7 +854,7 @@ const handleSubscriptionUpdate = async (subscription) => {
                 updatedAt: admin.firestore.FieldValue.serverTimestamp(),
             };
             // Check if this is a pre-scheduled subscription
-            if (((_b = subscription.metadata) === null || _b === void 0 ? void 0 : _b.preScheduled) === 'true' &&
+            if (subscription.metadata?.preScheduled === 'true' &&
                 subscription.status === 'trialing') {
                 subscriptionData.scheduledPlan = subscriptionData.plan;
                 subscriptionData.hasScheduledSubscription = true;
@@ -977,7 +970,6 @@ const handlePaymentFailure = async (invoice) => {
  * Handle subscription creation from Stripe webhooks
  */
 const handleSubscriptionCreated = async (subscription) => {
-    var _a, _b;
     try {
         // Find user by Stripe customer ID
         const userQuery = await db
@@ -994,7 +986,7 @@ const handleSubscriptionCreated = async (subscription) => {
                     : subscription.status === 'trialing'
                         ? 'trial'
                         : subscription.status,
-                plan: getPlanFromPriceId(subscription.items.data[0].price.id, ((_a = userData === null || userData === void 0 ? void 0 : userData.subscription) === null || _a === void 0 ? void 0 : _a.plan) || 'homeowner'),
+                plan: getPlanFromPriceId(subscription.items.data[0].price.id, userData?.subscription?.plan || 'homeowner'),
                 currentPeriodStart: subscription.current_period_start,
                 currentPeriodEnd: subscription.current_period_end,
                 trialEndsAt: subscription.trial_end,
@@ -1003,7 +995,7 @@ const handleSubscriptionCreated = async (subscription) => {
                 updatedAt: admin.firestore.FieldValue.serverTimestamp(),
             };
             // Check if this is a pre-scheduled subscription
-            if (((_b = subscription.metadata) === null || _b === void 0 ? void 0 : _b.preScheduled) === 'true' &&
+            if (subscription.metadata?.preScheduled === 'true' &&
                 subscription.status === 'trialing') {
                 subscriptionData.scheduledPlan = subscriptionData.plan;
                 subscriptionData.hasScheduledSubscription = true;
@@ -1197,7 +1189,6 @@ const handlePaymentMethodDetached = async (paymentMethod) => {
  * Handle discount creation from Stripe webhooks
  */
 const handleDiscountCreated = async (discount) => {
-    var _a;
     try {
         // Find user by customer ID
         const userQuery = await db
@@ -1206,7 +1197,7 @@ const handleDiscountCreated = async (discount) => {
             .get();
         if (!userQuery.empty) {
             const userDoc = userQuery.docs[0];
-            console.log('Discount applied for user:', userDoc.id, 'Coupon:', (_a = discount.coupon) === null || _a === void 0 ? void 0 : _a.id);
+            console.log('Discount applied for user:', userDoc.id, 'Coupon:', discount.coupon?.id);
         }
     }
     catch (error) {

@@ -714,6 +714,38 @@ Avoid running against production unless intentionally creating sample records.
 
 ---
 
+## Demo Account Seed Data
+
+```bash
+yarn seed:demo-account -- --email homeowner-demo@example.com --plan homeowner_plus
+```
+
+```bash
+yarn seed:demo-account -- --email portfolio-demo@example.com --plan portfolio
+```
+
+Purpose:
+
+Populates an existing Firebase Auth user/account with rich demo records:
+properties, appliances and systems, contractors, active tasks, notifications,
+Maintley Intelligence scan snapshots, and four years of Maintenance Events.
+
+Behavior:
+
+* Dry-run by default.
+* Requires `--apply` before writing records.
+* Supports `--replace --apply` to remove and recreate prior records tagged by
+  the same demo seed.
+* Uses account-scoped records and also preserves legacy `userId` compatibility.
+
+Risk:
+
+Medium
+
+Use only for intentional demo or test accounts.
+
+---
+
 # Android Utilities
 
 Used when preparing Android builds.

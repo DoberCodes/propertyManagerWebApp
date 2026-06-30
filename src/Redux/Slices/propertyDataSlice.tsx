@@ -54,6 +54,7 @@ const propertyDataSlice = createSlice({
 		deleteTask: (state, action: PayloadAction<string>) => {
 			state.tasks = state.tasks.filter((t) => t.id !== action.payload);
 		},
+		resetPropertyData: () => initialState,
 		submitTaskCompletion: (
 			state,
 			action: PayloadAction<{
@@ -121,6 +122,7 @@ export const {
 	addTask,
 	updateTask,
 	deleteTask,
+	resetPropertyData,
 	submitTaskCompletion,
 	approveTaskCompletion,
 	rejectTaskCompletion,

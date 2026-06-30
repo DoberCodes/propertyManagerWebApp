@@ -58,8 +58,8 @@ const upsertTenantAccessFromInvites = async (params) => {
     const propertyIds = new Set();
     invitesSnapshot.docs.forEach((inviteDoc) => {
         const invite = inviteDoc.data();
-        const inviteAccountId = String((invite === null || invite === void 0 ? void 0 : invite.accountId) || '').trim();
-        const invitePropertyId = String((invite === null || invite === void 0 ? void 0 : invite.propertyId) || '').trim();
+        const inviteAccountId = String(invite?.accountId || '').trim();
+        const invitePropertyId = String(invite?.propertyId || '').trim();
         if (inviteAccountId) {
             accountIds.add(inviteAccountId);
         }
@@ -102,16 +102,16 @@ const upsertTenantAccessFromInvites = async (params) => {
         }
         const propertyData = propertySnapshot.data() || {};
         const existingTenants = (propertyData.tenants || []);
-        const tenantAlreadyLinked = existingTenants.some((tenant) => String((tenant === null || tenant === void 0 ? void 0 : tenant.email) || '').trim().toLowerCase() === normalizedEmail);
+        const tenantAlreadyLinked = existingTenants.some((tenant) => String(tenant?.email || '').trim().toLowerCase() === normalizedEmail);
         if (!tenantAlreadyLinked) {
-            const fallbackFirstName = String((userData === null || userData === void 0 ? void 0 : userData.firstName) || '').trim();
-            const fallbackLastName = String((userData === null || userData === void 0 ? void 0 : userData.lastName) || '').trim();
+            const fallbackFirstName = String(userData?.firstName || '').trim();
+            const fallbackLastName = String(userData?.lastName || '').trim();
             existingTenants.push({
                 id: `tenant_${params.uid}`,
                 firstName: fallbackFirstName,
                 lastName: fallbackLastName,
                 email: normalizedEmail,
-                phone: String((userData === null || userData === void 0 ? void 0 : userData.phone) || '').trim(),
+                phone: String(userData?.phone || '').trim(),
                 createdAt: new Date().toISOString(),
             });
             await propertyRef.update({
@@ -123,8 +123,8 @@ const upsertTenantAccessFromInvites = async (params) => {
     return { linkedAccountIds, linkedPropertyIds };
 };
 exports.validateTenantInvitationCode = functions.https.onCall(async (data) => {
-    const promoCode = String((data === null || data === void 0 ? void 0 : data.promoCode) || '').trim().toLowerCase();
-    const tenantEmail = String((data === null || data === void 0 ? void 0 : data.tenantEmail) || '').trim().toLowerCase();
+    const promoCode = String(data?.promoCode || '').trim().toLowerCase();
+    const tenantEmail = String(data?.tenantEmail || '').trim().toLowerCase();
     if (!promoCode || !tenantEmail) {
         throw new functions.https.HttpsError('invalid-argument', 'promoCode and tenantEmail are required');
     }
@@ -143,9 +143,9 @@ exports.createTenantInvitationCode = functions.https.onCall(async (data, context
     if (!context.auth) {
         throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
     }
-    const propertyId = String((data === null || data === void 0 ? void 0 : data.propertyId) || '').trim() || undefined;
-    const tenantEmail = String((data === null || data === void 0 ? void 0 : data.tenantEmail) || '').trim().toLowerCase();
-    const code = String((data === null || data === void 0 ? void 0 : data.code) || '').trim();
+    const propertyId = String(data?.propertyId || '').trim() || undefined;
+    const tenantEmail = String(data?.tenantEmail || '').trim().toLowerCase();
+    const code = String(data?.code || '').trim();
     if (!tenantEmail || !code) {
         throw new functions.https.HttpsError('invalid-argument', 'tenantEmail and code are required');
     }
@@ -175,8 +175,8 @@ exports.revokeTenantInvitationCode = functions.https.onCall(async (data, context
     if (!context.auth) {
         throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
     }
-    const propertyId = String((data === null || data === void 0 ? void 0 : data.propertyId) || '').trim() || undefined;
-    const tenantEmail = String((data === null || data === void 0 ? void 0 : data.tenantEmail) || '').trim().toLowerCase();
+    const propertyId = String(data?.propertyId || '').trim() || undefined;
+    const tenantEmail = String(data?.tenantEmail || '').trim().toLowerCase();
     if (!tenantEmail) {
         throw new functions.https.HttpsError('invalid-argument', 'tenantEmail is required');
     }
@@ -206,7 +206,7 @@ exports.redeemTenantInvitationCode = functions.https.onCall(async (data, context
     if (!context.auth) {
         throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
     }
-    const promoCode = String((data === null || data === void 0 ? void 0 : data.promoCode) || '').trim().toLowerCase();
+    const promoCode = String(data?.promoCode || '').trim().toLowerCase();
     const callerEmail = String(context.auth.token.email || '').trim().toLowerCase();
     if (!promoCode) {
         throw new functions.https.HttpsError('invalid-argument', 'promoCode is required');

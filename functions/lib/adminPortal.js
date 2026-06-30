@@ -228,7 +228,7 @@ const buildGroupParentFields = (parentId, childDocs, statusFallback, resolutionN
     const statuses = childRecords.map((item) => String(item.record.status || 'received'));
     const mergedStatus = pickMergedTicketStatus([...statuses, statusFallback]);
     const mergedPublicStatus = getPublicStatus(mergedStatus);
-    const mergedResolutionNotes = String((existingParentRecord === null || existingParentRecord === void 0 ? void 0 : existingParentRecord.resolutionNotes) || '').trim() ||
+    const mergedResolutionNotes = String(existingParentRecord?.resolutionNotes || '').trim() ||
         resolutionNotesFallback ||
         String(childRecords
             .map((item) => String(item.record.resolutionNotes || '').trim())
@@ -242,8 +242,8 @@ const buildGroupParentFields = (parentId, childDocs, statusFallback, resolutionN
         ? (uniqueSubjects[0] || `Linked Case (${childDocs.length} tickets)`)
         : `Linked Case (${childDocs.length} tickets): ${uniqueSubjects.join(' | ')}`;
     const mergedAttachments = mergeUniqueAttachments(childRecords.map((item) => item.record.attachments));
-    const existingParentTicketNumber = String((existingParentRecord === null || existingParentRecord === void 0 ? void 0 : existingParentRecord.ticketNumber) || '').trim();
-    const existingParentCreatedAt = String((existingParentRecord === null || existingParentRecord === void 0 ? void 0 : existingParentRecord.createdAt) || '').trim();
+    const existingParentTicketNumber = String(existingParentRecord?.ticketNumber || '').trim();
+    const existingParentCreatedAt = String(existingParentRecord?.createdAt || '').trim();
     return {
         type: uniqueTypes.length === 1 ? uniqueTypes[0] : 'feedback',
         subject: mergedSubject,
@@ -309,7 +309,6 @@ const normalizePersistedAttachments = async (rawAttachments) => {
     }
     const bucket = admin.storage().bucket();
     return Promise.all(rawAttachments.map(async (rawAttachment, index) => {
-        var _a, _b;
         const fallbackName = `attachment-${index + 1}`;
         if (typeof rawAttachment === 'string') {
             const value = rawAttachment.trim();
@@ -327,7 +326,7 @@ const normalizePersistedAttachments = async (rawAttachments) => {
             const parsedPath = extractStoragePathFromGsUrl(value) || value;
             try {
                 const [metadata] = await bucket.file(parsedPath).getMetadata();
-                const token = (_a = metadata === null || metadata === void 0 ? void 0 : metadata.metadata) === null || _a === void 0 ? void 0 : _a.firebaseStorageDownloadTokens;
+                const token = metadata?.metadata?.firebaseStorageDownloadTokens;
                 const attachmentUrl = token
                     ? `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(parsedPath)}?alt=media&token=${token}`
                     : undefined;
@@ -364,7 +363,7 @@ const normalizePersistedAttachments = async (rawAttachments) => {
         if (!attachmentUrl && path) {
             try {
                 const [metadata] = await bucket.file(path).getMetadata();
-                const token = (_b = metadata === null || metadata === void 0 ? void 0 : metadata.metadata) === null || _b === void 0 ? void 0 : _b.firebaseStorageDownloadTokens;
+                const token = metadata?.metadata?.firebaseStorageDownloadTokens;
                 if (token) {
                     attachmentUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(path)}?alt=media&token=${token}`;
                 }
@@ -549,9 +548,8 @@ const getExportedFunctionsConfig = () => {
     }
 };
 const readExportedStripeConfig = (key) => {
-    var _a;
     const exportedConfig = getExportedFunctionsConfig();
-    return sanitizeSecret(((_a = exportedConfig === null || exportedConfig === void 0 ? void 0 : exportedConfig.stripe) === null || _a === void 0 ? void 0 : _a[key]) || '');
+    return sanitizeSecret(exportedConfig?.stripe?.[key] || '');
 };
 const resolveStripeSecretKey = () => {
     let secretFromManager = '';
@@ -646,7 +644,7 @@ const resolveStripeProductIdForPlan = async (planId, billingCycle) => {
         return null;
     const price = await getAdminPortalStripe().prices.retrieve(priceId);
     const product = price.product;
-    return typeof product === 'string' ? product : (product === null || product === void 0 ? void 0 : product.id) || null;
+    return typeof product === 'string' ? product : product?.id || null;
 };
 const getStripeDashboardCustomerUrl = (customerId) => {
     const normalized = String(customerId || '').trim();
@@ -662,33 +660,32 @@ const formatStripeAmount = (amountCents) => {
     return Math.max(0, Math.round(Number(amountCents)));
 };
 const serializeAdminPromotionCode = (promotionCode) => {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p;
     const coupon = promotionCode.coupon;
     const couponRecord = coupon && !coupon.deleted ? coupon : null;
-    const expiresAt = promotionCode.expires_at || (couponRecord === null || couponRecord === void 0 ? void 0 : couponRecord.redeem_by) || null;
+    const expiresAt = promotionCode.expires_at || couponRecord?.redeem_by || null;
     const isExpired = Boolean(expiresAt && expiresAt * 1000 <= Date.now());
-    const maxRedemptions = (_b = (_a = promotionCode.max_redemptions) !== null && _a !== void 0 ? _a : couponRecord === null || couponRecord === void 0 ? void 0 : couponRecord.max_redemptions) !== null && _b !== void 0 ? _b : null;
-    const redeemedCount = (_d = (_c = promotionCode.times_redeemed) !== null && _c !== void 0 ? _c : couponRecord === null || couponRecord === void 0 ? void 0 : couponRecord.times_redeemed) !== null && _d !== void 0 ? _d : 0;
+    const maxRedemptions = promotionCode.max_redemptions ?? couponRecord?.max_redemptions ?? null;
+    const redeemedCount = promotionCode.times_redeemed ?? couponRecord?.times_redeemed ?? 0;
     return {
         id: promotionCode.id,
         code: promotionCode.code,
         active: Boolean(promotionCode.active && !isExpired),
         status: promotionCode.active && !isExpired ? 'active' : isExpired ? 'expired' : 'inactive',
-        couponId: (couponRecord === null || couponRecord === void 0 ? void 0 : couponRecord.id) || null,
-        name: (couponRecord === null || couponRecord === void 0 ? void 0 : couponRecord.name) || ((_e = promotionCode.metadata) === null || _e === void 0 ? void 0 : _e.name) || '',
-        percentOff: (_f = couponRecord === null || couponRecord === void 0 ? void 0 : couponRecord.percent_off) !== null && _f !== void 0 ? _f : null,
-        amountOff: (_g = couponRecord === null || couponRecord === void 0 ? void 0 : couponRecord.amount_off) !== null && _g !== void 0 ? _g : null,
-        currency: (couponRecord === null || couponRecord === void 0 ? void 0 : couponRecord.currency) || null,
-        duration: (couponRecord === null || couponRecord === void 0 ? void 0 : couponRecord.duration) || null,
-        durationMonths: (_h = couponRecord === null || couponRecord === void 0 ? void 0 : couponRecord.duration_in_months) !== null && _h !== void 0 ? _h : null,
+        couponId: couponRecord?.id || null,
+        name: couponRecord?.name || promotionCode.metadata?.name || '',
+        percentOff: couponRecord?.percent_off ?? null,
+        amountOff: couponRecord?.amount_off ?? null,
+        currency: couponRecord?.currency || null,
+        duration: couponRecord?.duration || null,
+        durationMonths: couponRecord?.duration_in_months ?? null,
         maxRedemptions,
         redeemedCount,
         expiresAt: expiresAt ? new Date(expiresAt * 1000).toISOString() : null,
-        appliesToPlan: ((_j = promotionCode.metadata) === null || _j === void 0 ? void 0 : _j.appliesToPlan) || ((_k = couponRecord === null || couponRecord === void 0 ? void 0 : couponRecord.metadata) === null || _k === void 0 ? void 0 : _k.appliesToPlan) || '',
-        appliesToBillingCycle: ((_l = promotionCode.metadata) === null || _l === void 0 ? void 0 : _l.appliesToBillingCycle) ||
-            ((_m = couponRecord === null || couponRecord === void 0 ? void 0 : couponRecord.metadata) === null || _m === void 0 ? void 0 : _m.appliesToBillingCycle) ||
+        appliesToPlan: promotionCode.metadata?.appliesToPlan || couponRecord?.metadata?.appliesToPlan || '',
+        appliesToBillingCycle: promotionCode.metadata?.appliesToBillingCycle ||
+            couponRecord?.metadata?.appliesToBillingCycle ||
             '',
-        internalNote: ((_o = promotionCode.metadata) === null || _o === void 0 ? void 0 : _o.internalNote) || ((_p = couponRecord === null || couponRecord === void 0 ? void 0 : couponRecord.metadata) === null || _p === void 0 ? void 0 : _p.internalNote) || '',
+        internalNote: promotionCode.metadata?.internalNote || couponRecord?.metadata?.internalNote || '',
         createdAt: promotionCode.created
             ? new Date(promotionCode.created * 1000).toISOString()
             : null,
@@ -708,32 +705,31 @@ const resolveMaintleyPlanFromStripePriceId = (priceId) => {
     return '';
 };
 const getAdminStripeSubscriptionSummary = async (subscriptionId) => {
-    var _a;
     const normalizedSubscriptionId = String(subscriptionId || '').trim();
     if (!normalizedSubscriptionId)
         return null;
     try {
         const stripeSubscription = await getAdminPortalStripe().subscriptions.retrieve(normalizedSubscriptionId, { expand: ['items.data.price.product'] });
         const item = stripeSubscription.items.data[0];
-        const price = (item === null || item === void 0 ? void 0 : item.price) || null;
+        const price = item?.price || null;
         const product = price && typeof price.product === 'object' && price.product
             ? price.product
             : null;
-        const interval = ((_a = price === null || price === void 0 ? void 0 : price.recurring) === null || _a === void 0 ? void 0 : _a.interval) || '';
-        const planLabel = (product === null || product === void 0 ? void 0 : product.name) ||
-            (price === null || price === void 0 ? void 0 : price.nickname) ||
-            (price === null || price === void 0 ? void 0 : price.lookup_key) ||
-            ((price === null || price === void 0 ? void 0 : price.id) ? `Stripe price ${price.id}` : 'Stripe subscription');
+        const interval = price?.recurring?.interval || '';
+        const planLabel = product?.name ||
+            price?.nickname ||
+            price?.lookup_key ||
+            (price?.id ? `Stripe price ${price.id}` : 'Stripe subscription');
         return {
             id: stripeSubscription.id,
             status: stripeSubscription.status,
             planLabel: interval ? `${planLabel} (${interval})` : planLabel,
-            priceId: (price === null || price === void 0 ? void 0 : price.id) || null,
-            productId: (product === null || product === void 0 ? void 0 : product.id) || (typeof (price === null || price === void 0 ? void 0 : price.product) === 'string' ? price.product : null),
-            productName: (product === null || product === void 0 ? void 0 : product.name) || null,
-            lookupKey: (price === null || price === void 0 ? void 0 : price.lookup_key) || null,
+            priceId: price?.id || null,
+            productId: product?.id || (typeof price?.product === 'string' ? price.product : null),
+            productName: product?.name || null,
+            lookupKey: price?.lookup_key || null,
             interval: interval || null,
-            maintleyPlan: resolveMaintleyPlanFromStripePriceId((price === null || price === void 0 ? void 0 : price.id) || '') || null,
+            maintleyPlan: resolveMaintleyPlanFromStripePriceId(price?.id || '') || null,
             cancelAtPeriodEnd: Boolean(stripeSubscription.cancel_at_period_end),
             currentPeriodEnd: stripeSubscription.current_period_end
                 ? new Date(stripeSubscription.current_period_end * 1000).toISOString()
@@ -745,12 +741,12 @@ const getAdminStripeSubscriptionSummary = async (subscriptionId) => {
     }
     catch (error) {
         const stripeError = error;
-        console.warn(`Unable to retrieve Stripe subscription ${normalizedSubscriptionId} for admin details.`, (stripeError === null || stripeError === void 0 ? void 0 : stripeError.message) || error);
+        console.warn(`Unable to retrieve Stripe subscription ${normalizedSubscriptionId} for admin details.`, stripeError?.message || error);
         return {
             id: normalizedSubscriptionId,
             status: 'unavailable',
             planLabel: null,
-            error: (stripeError === null || stripeError === void 0 ? void 0 : stripeError.message) || 'Unable to retrieve Stripe subscription.',
+            error: stripeError?.message || 'Unable to retrieve Stripe subscription.',
         };
     }
 };
@@ -767,9 +763,8 @@ const pickBestStripeSubscription = (subscriptions) => {
         incomplete_expired: 6,
     };
     return [...subscriptions].sort((left, right) => {
-        var _a, _b;
-        const leftRank = (_a = statusRank[left.status]) !== null && _a !== void 0 ? _a : 99;
-        const rightRank = (_b = statusRank[right.status]) !== null && _b !== void 0 ? _b : 99;
+        const leftRank = statusRank[left.status] ?? 99;
+        const rightRank = statusRank[right.status] ?? 99;
         if (leftRank !== rightRank)
             return leftRank - rightRank;
         const leftPeriodEnd = Number(left.current_period_end || 0);
@@ -780,10 +775,9 @@ const pickBestStripeSubscription = (subscriptions) => {
     })[0] || null;
 };
 const buildAdminSubscriptionPatchFromStripe = (stripeSubscription, currentSubscription) => {
-    var _a;
     const item = stripeSubscription.items.data[0];
-    const price = (item === null || item === void 0 ? void 0 : item.price) || null;
-    const mappedPlan = resolveMaintleyPlanFromStripePriceId((price === null || price === void 0 ? void 0 : price.id) || '');
+    const price = item?.price || null;
+    const mappedPlan = resolveMaintleyPlanFromStripePriceId(price?.id || '');
     const fallbackPlan = String(currentSubscription.plan || '').trim().toLowerCase();
     return removeUndefinedFields({
         ...currentSubscription,
@@ -796,10 +790,10 @@ const buildAdminSubscriptionPatchFromStripe = (stripeSubscription, currentSubscr
             (stripeSubscription.status === 'canceled' ? stripeSubscription.ended_at : undefined),
         stripeCustomerId: String(stripeSubscription.customer || ''),
         stripeSubscriptionId: stripeSubscription.id,
-        stripePriceId: (price === null || price === void 0 ? void 0 : price.id) || null,
-        stripeProductId: typeof (price === null || price === void 0 ? void 0 : price.product) === 'string'
+        stripePriceId: price?.id || null,
+        stripeProductId: typeof price?.product === 'string'
             ? price.product
-            : ((_a = price === null || price === void 0 ? void 0 : price.product) === null || _a === void 0 ? void 0 : _a.id) || null,
+            : price?.product?.id || null,
         cancelAtPeriodEnd: Boolean(stripeSubscription.cancel_at_period_end),
         hasScheduledSubscription: false,
         scheduledPlan: null,
@@ -823,7 +817,7 @@ const findAdminStripeSubscriptionForUser = async (userData, currentSubscription)
         }
         catch (error) {
             const stripeError = error;
-            console.warn(`Stored Stripe subscription ${stripeSubscriptionId} could not be refreshed.`, (stripeError === null || stripeError === void 0 ? void 0 : stripeError.message) || error);
+            console.warn(`Stored Stripe subscription ${stripeSubscriptionId} could not be refreshed.`, stripeError?.message || error);
         }
     }
     const candidateCustomerIds = new Set();
@@ -946,8 +940,7 @@ const getAccountDocumentUsage = async (accountId) => {
     return totals;
 };
 const requireMaintleyAdmin = async (context) => {
-    var _a, _b, _c;
-    const uid = String(((_a = context.auth) === null || _a === void 0 ? void 0 : _a.uid) || '').trim();
+    const uid = String(context.auth?.uid || '').trim();
     if (!uid) {
         throw new functions.https.HttpsError('unauthenticated', 'Authentication is required.');
     }
@@ -962,7 +955,7 @@ const requireMaintleyAdmin = async (context) => {
     }
     const firstName = String(userData.firstName || '').trim();
     const lastName = String(userData.lastName || '').trim();
-    const fallbackEmail = String(((_c = (_b = context.auth) === null || _b === void 0 ? void 0 : _b.token) === null || _c === void 0 ? void 0 : _c.email) || '').trim();
+    const fallbackEmail = String(context.auth?.token?.email || '').trim();
     const profileEmail = String(userData.email || '').trim();
     const email = profileEmail || fallbackEmail || null;
     const displayName = `${firstName} ${lastName}`.trim() || email || 'Maintley Admin';
@@ -1030,11 +1023,10 @@ const hasTopLevelMaintleyRole = (maintleyRole) => {
     return false;
 };
 const requireTopLevelMaintleyAdmin = async (context) => {
-    var _a;
     const adminAuth = await requireMaintleyAdmin(context);
     const userDoc = await db.collection(USERS_COLLECTION).doc(adminAuth.uid).get();
     const userData = (userDoc.data() || {});
-    const authToken = (((_a = context.auth) === null || _a === void 0 ? void 0 : _a.token) || {});
+    const authToken = (context.auth?.token || {});
     const hasTopLevelAccess = hasTopLevelMaintleyRole(userData.maintley_role) ||
         hasTopLevelMaintleyRole(authToken.maintley_role) ||
         hasTopLevelMaintleyRole(authToken.role) ||
@@ -1101,8 +1093,8 @@ const requireAdminSession = async (sessionToken) => {
     };
 };
 exports.adminPortalLogin = functions.https.onCall(async (data) => {
-    const usernameLower = normalizeUsername(data === null || data === void 0 ? void 0 : data.username);
-    const password = String((data === null || data === void 0 ? void 0 : data.password) || '');
+    const usernameLower = normalizeUsername(data?.username);
+    const password = String(data?.password || '');
     if (!usernameLower || !password.trim()) {
         throw new functions.https.HttpsError('invalid-argument', 'Username and password are required.');
     }
@@ -1153,7 +1145,7 @@ exports.adminPortalLogin = functions.https.onCall(async (data) => {
     };
 });
 exports.validateAdminPortalSession = functions.https.onCall(async (data) => {
-    const session = await requireAdminSession(String((data === null || data === void 0 ? void 0 : data.sessionToken) || ''));
+    const session = await requireAdminSession(String(data?.sessionToken || ''));
     return {
         valid: true,
         adminUser: {
@@ -1166,7 +1158,7 @@ exports.validateAdminPortalSession = functions.https.onCall(async (data) => {
     };
 });
 exports.adminPortalLogout = functions.https.onCall(async (data) => {
-    const token = String((data === null || data === void 0 ? void 0 : data.sessionToken) || '').trim();
+    const token = String(data?.sessionToken || '').trim();
     if (!token) {
         return { success: true };
     }
@@ -1187,9 +1179,9 @@ exports.adminPortalLogout = functions.https.onCall(async (data) => {
     return { success: true };
 });
 exports.adminPortalResetPassword = functions.https.onCall(async (data) => {
-    const session = await requireAdminSession(String((data === null || data === void 0 ? void 0 : data.sessionToken) || ''));
-    const currentPassword = String((data === null || data === void 0 ? void 0 : data.currentPassword) || '');
-    const newPassword = String((data === null || data === void 0 ? void 0 : data.newPassword) || '');
+    const session = await requireAdminSession(String(data?.sessionToken || ''));
+    const currentPassword = String(data?.currentPassword || '');
+    const newPassword = String(data?.newPassword || '');
     if (!currentPassword.trim() || !newPassword.trim()) {
         throw new functions.https.HttpsError('invalid-argument', 'Current and new passwords are required.');
     }
@@ -1246,9 +1238,9 @@ exports.adminPortalResetPassword = functions.https.onCall(async (data) => {
 });
 exports.listFeedbackAdminTickets = functions.https.onCall(async (data, context) => {
     await requireMaintleyAdmin(context);
-    const requestedStatus = String((data === null || data === void 0 ? void 0 : data.status) || '').trim().toLowerCase();
-    const requestedType = String((data === null || data === void 0 ? void 0 : data.type) || '').trim().toLowerCase();
-    const requestedLimit = Number((data === null || data === void 0 ? void 0 : data.limit) || 100);
+    const requestedStatus = String(data?.status || '').trim().toLowerCase();
+    const requestedType = String(data?.type || '').trim().toLowerCase();
+    const requestedLimit = Number(data?.limit || 100);
     const limit = Number.isFinite(requestedLimit)
         ? Math.min(Math.max(requestedLimit, 1), MAX_TICKET_RESULTS)
         : 100;
@@ -1282,13 +1274,13 @@ exports.listFeedbackAdminTickets = functions.https.onCall(async (data, context) 
 });
 exports.listAdminPortalUsers = functions.https.onCall(async (data, context) => {
     await requireMaintleyAdmin(context);
-    const requestedLimit = Number((data === null || data === void 0 ? void 0 : data.limit) || 100);
+    const requestedLimit = Number(data?.limit || 100);
     const limit = Number.isFinite(requestedLimit)
         ? Math.min(Math.max(requestedLimit, 1), 300)
         : 100;
-    const normalizedQuery = String((data === null || data === void 0 ? void 0 : data.query) || '').trim().toLowerCase();
-    const normalizedRole = String((data === null || data === void 0 ? void 0 : data.role) || '').trim().toLowerCase();
-    const normalizedFilter = normalizeAdminListFilter(data === null || data === void 0 ? void 0 : data.filter);
+    const normalizedQuery = String(data?.query || '').trim().toLowerCase();
+    const normalizedRole = String(data?.role || '').trim().toLowerCase();
+    const normalizedFilter = normalizeAdminListFilter(data?.filter);
     const propertyCountByAccount = new Map();
     const propertyCountByUser = new Map();
     const snapshot = await db.collection(USERS_COLLECTION).limit(limit).get();
@@ -1390,13 +1382,13 @@ exports.listAdminPortalUsers = functions.https.onCall(async (data, context) => {
 });
 exports.listAdminPortalAuditLogs = functions.https.onCall(async (data, context) => {
     await requireTopLevelMaintleyAdmin(context);
-    const requestedLimit = Number((data === null || data === void 0 ? void 0 : data.limit) || 100);
+    const requestedLimit = Number(data?.limit || 100);
     const limit = Number.isFinite(requestedLimit)
         ? Math.min(Math.max(requestedLimit, 1), 300)
         : 100;
-    const queryToken = String((data === null || data === void 0 ? void 0 : data.query) || '').trim().toLowerCase();
-    const actionToken = String((data === null || data === void 0 ? void 0 : data.action) || '').trim().toLowerCase();
-    const targetIdToken = String((data === null || data === void 0 ? void 0 : data.targetId) || '').trim().toLowerCase();
+    const queryToken = String(data?.query || '').trim().toLowerCase();
+    const actionToken = String(data?.action || '').trim().toLowerCase();
+    const targetIdToken = String(data?.targetId || '').trim().toLowerCase();
     const snapshot = await db
         .collection(ADMIN_AUDIT_LOGS_COLLECTION)
         .orderBy('createdAt', 'desc')
@@ -1462,9 +1454,8 @@ exports.listAdminPortalAuditLogs = functions.https.onCall(async (data, context) 
 exports.getAdminPortalUserTroubleshootingDetails = functions
     .runWith({ secrets: ADMIN_PORTAL_STRIPE_SECRETS })
     .https.onCall(async (data, context) => {
-    var _a;
     await requireMaintleyAdmin(context);
-    const targetUserId = String((data === null || data === void 0 ? void 0 : data.userId) || '').trim();
+    const targetUserId = String(data?.userId || '').trim();
     if (!targetUserId) {
         throw new functions.https.HttpsError('invalid-argument', 'userId is required.');
     }
@@ -1606,7 +1597,7 @@ exports.getAdminPortalUserTroubleshootingDetails = functions
             inviteCode,
             lastLoginAt: toIsoString(userData.lastLoginAt),
             lastActivityAt: recentActivity.length > 0
-                ? String(((_a = recentActivity[0]) === null || _a === void 0 ? void 0 : _a.createdAt) || '')
+                ? String(recentActivity[0]?.createdAt || '')
                 : toIsoString(userData.updatedAt),
             createdAt: toIsoString(userData.createdAt),
             updatedAt: toIsoString(userData.updatedAt),
@@ -1631,15 +1622,15 @@ exports.getAdminPortalUserTroubleshootingDetails = functions
 exports.adminPortalCreateBillingCoupon = functions
     .runWith({ secrets: ADMIN_PORTAL_STRIPE_SECRETS })
     .https.onCall(async (data) => {
-    const adminSession = await requireAdminSession(String((data === null || data === void 0 ? void 0 : data.sessionToken) || ''));
+    const adminSession = await requireAdminSession(String(data?.sessionToken || ''));
     const stripe = getAdminPortalStripe();
-    const code = normalizePromoCode(data === null || data === void 0 ? void 0 : data.code);
+    const code = normalizePromoCode(data?.code);
     if (!code) {
         throw new functions.https.HttpsError('invalid-argument', 'Coupon code is required.');
     }
-    const discountType = String((data === null || data === void 0 ? void 0 : data.discountType) || '').trim().toLowerCase();
-    const percentOff = Number((data === null || data === void 0 ? void 0 : data.percentOff) || 0);
-    const amountOffCents = formatStripeAmount(Number((data === null || data === void 0 ? void 0 : data.amountOffCents) || 0));
+    const discountType = String(data?.discountType || '').trim().toLowerCase();
+    const percentOff = Number(data?.percentOff || 0);
+    const amountOffCents = formatStripeAmount(Number(data?.amountOffCents || 0));
     if (discountType === 'percent') {
         if (!Number.isFinite(percentOff) || percentOff <= 0 || percentOff > 100) {
             throw new functions.https.HttpsError('invalid-argument', 'Percent off must be between 1 and 100.');
@@ -1653,18 +1644,18 @@ exports.adminPortalCreateBillingCoupon = functions
     else {
         throw new functions.https.HttpsError('invalid-argument', 'Discount type must be percent or amount.');
     }
-    const duration = normalizeBillingCouponDuration(data === null || data === void 0 ? void 0 : data.duration);
-    const durationMonths = Number((data === null || data === void 0 ? void 0 : data.durationMonths) || 0);
+    const duration = normalizeBillingCouponDuration(data?.duration);
+    const durationMonths = Number(data?.durationMonths || 0);
     if (duration === 'repeating' &&
         (!Number.isFinite(durationMonths) || durationMonths < 1 || durationMonths > 36)) {
         throw new functions.https.HttpsError('invalid-argument', 'Repeating coupons must last between 1 and 36 months.');
     }
-    const maxRedemptions = Number((data === null || data === void 0 ? void 0 : data.maxRedemptions) || 0);
-    if ((data === null || data === void 0 ? void 0 : data.maxRedemptions) && (!Number.isFinite(maxRedemptions) || maxRedemptions < 1)) {
+    const maxRedemptions = Number(data?.maxRedemptions || 0);
+    if (data?.maxRedemptions && (!Number.isFinite(maxRedemptions) || maxRedemptions < 1)) {
         throw new functions.https.HttpsError('invalid-argument', 'Max redemptions must be at least 1.');
     }
     let expiresAtSeconds;
-    const expiresAt = String((data === null || data === void 0 ? void 0 : data.expiresAt) || '').trim();
+    const expiresAt = String(data?.expiresAt || '').trim();
     if (expiresAt) {
         const parsed = Date.parse(expiresAt);
         if (Number.isNaN(parsed) || parsed <= Date.now()) {
@@ -1672,8 +1663,8 @@ exports.adminPortalCreateBillingCoupon = functions
         }
         expiresAtSeconds = Math.floor(parsed / 1000);
     }
-    const appliesToPlan = String((data === null || data === void 0 ? void 0 : data.appliesToPlan) || '').trim().toLowerCase();
-    const appliesToBillingCycle = normalizeBillingCycle(data === null || data === void 0 ? void 0 : data.appliesToBillingCycle);
+    const appliesToPlan = String(data?.appliesToPlan || '').trim().toLowerCase();
+    const appliesToBillingCycle = normalizeBillingCycle(data?.appliesToBillingCycle);
     const appliesToProductId = appliesToPlan
         ? await resolveStripeProductIdForPlan(appliesToPlan, appliesToBillingCycle)
         : null;
@@ -1686,12 +1677,12 @@ exports.adminPortalCreateBillingCoupon = functions
         createdByAdminUsername: adminSession.username,
         appliesToPlan: appliesToPlan || undefined,
         appliesToBillingCycle: appliesToPlan ? appliesToBillingCycle : undefined,
-        internalNote: String((data === null || data === void 0 ? void 0 : data.internalNote) || '').trim() || undefined,
-        name: String((data === null || data === void 0 ? void 0 : data.name) || '').trim() || undefined,
+        internalNote: String(data?.internalNote || '').trim() || undefined,
+        name: String(data?.name || '').trim() || undefined,
     });
     try {
         const coupon = await stripe.coupons.create({
-            name: String((data === null || data === void 0 ? void 0 : data.name) || '').trim() || code,
+            name: String(data?.name || '').trim() || code,
             duration,
             ...(duration === 'repeating'
                 ? { duration_in_months: Math.round(durationMonths) }
@@ -1737,17 +1728,17 @@ exports.adminPortalCreateBillingCoupon = functions
     }
     catch (error) {
         const stripeError = error;
-        throw new functions.https.HttpsError((stripeError === null || stripeError === void 0 ? void 0 : stripeError.code) === 'resource_already_exists'
+        throw new functions.https.HttpsError(stripeError?.code === 'resource_already_exists'
             ? 'already-exists'
-            : 'internal', (stripeError === null || stripeError === void 0 ? void 0 : stripeError.message) || 'Failed to create Stripe coupon.');
+            : 'internal', stripeError?.message || 'Failed to create Stripe coupon.');
     }
 });
 exports.adminPortalListBillingCoupons = functions
     .runWith({ secrets: ADMIN_PORTAL_STRIPE_SECRETS })
     .https.onCall(async (data) => {
-    await requireAdminSession(String((data === null || data === void 0 ? void 0 : data.sessionToken) || ''));
+    await requireAdminSession(String(data?.sessionToken || ''));
     const stripe = getAdminPortalStripe();
-    const limit = Math.min(Math.max(Number((data === null || data === void 0 ? void 0 : data.limit) || 100), 1), 100);
+    const limit = Math.min(Math.max(Number(data?.limit || 100), 1), 100);
     const [activeCodes, inactiveCodes] = await Promise.all([
         stripe.promotionCodes.list({ active: true, limit }),
         stripe.promotionCodes.list({ active: false, limit }),
@@ -1764,12 +1755,12 @@ exports.adminPortalListBillingCoupons = functions
 exports.adminPortalCreateCheckoutLinkWithCoupon = functions
     .runWith({ secrets: ADMIN_PORTAL_STRIPE_SECRETS })
     .https.onCall(async (data) => {
-    const adminSession = await requireAdminSession(String((data === null || data === void 0 ? void 0 : data.sessionToken) || ''));
+    const adminSession = await requireAdminSession(String(data?.sessionToken || ''));
     const stripe = getAdminPortalStripe();
-    const targetUserId = String((data === null || data === void 0 ? void 0 : data.userId) || '').trim();
-    const planId = String((data === null || data === void 0 ? void 0 : data.planId) || '').trim().toLowerCase();
-    const billingCycle = normalizeBillingCycle(data === null || data === void 0 ? void 0 : data.billingCycle);
-    const promoCode = normalizePromoCode(data === null || data === void 0 ? void 0 : data.promoCode);
+    const targetUserId = String(data?.userId || '').trim();
+    const planId = String(data?.planId || '').trim().toLowerCase();
+    const billingCycle = normalizeBillingCycle(data?.billingCycle);
+    const promoCode = normalizePromoCode(data?.promoCode);
     if (!targetUserId) {
         throw new functions.https.HttpsError('invalid-argument', 'userId is required.');
     }
@@ -1828,8 +1819,8 @@ exports.adminPortalCreateCheckoutLinkWithCoupon = functions
         payment_method_types: ['card'],
         line_items: [{ price: priceId, quantity: 1 }],
         mode: 'subscription',
-        success_url: resolveSuccessUrl(data === null || data === void 0 ? void 0 : data.successUrl),
-        cancel_url: resolveCancelUrl(data === null || data === void 0 ? void 0 : data.cancelUrl),
+        success_url: resolveSuccessUrl(data?.successUrl),
+        cancel_url: resolveCancelUrl(data?.cancelUrl),
         discounts: [{ promotion_code: promotionCode.id }],
         metadata: {
             firebaseUID: targetUserId,
@@ -1868,9 +1859,8 @@ exports.adminPortalCreateCheckoutLinkWithCoupon = functions
 exports.adminPortalRefreshUserSubscriptionFromStripe = functions
     .runWith({ secrets: ADMIN_PORTAL_STRIPE_SECRETS })
     .https.onCall(async (data, context) => {
-    var _a, _b;
     const adminAuth = await requireMaintleyAdmin(context);
-    const rawSessionToken = String((data === null || data === void 0 ? void 0 : data.sessionToken) || '').trim();
+    const rawSessionToken = String(data?.sessionToken || '').trim();
     let adminSession = null;
     if (rawSessionToken) {
         try {
@@ -1880,7 +1870,7 @@ exports.adminPortalRefreshUserSubscriptionFromStripe = functions
             adminSession = null;
         }
     }
-    const targetUserId = String((data === null || data === void 0 ? void 0 : data.userId) || '').trim();
+    const targetUserId = String(data?.userId || '').trim();
     if (!targetUserId) {
         throw new functions.https.HttpsError('invalid-argument', 'userId is required.');
     }
@@ -1908,11 +1898,11 @@ exports.adminPortalRefreshUserSubscriptionFromStripe = functions
         targetType: 'user',
         targetId: targetUserId,
         performedBy: {
-            adminUserId: (adminSession === null || adminSession === void 0 ? void 0 : adminSession.adminUserId) || adminAuth.uid,
-            username: (adminSession === null || adminSession === void 0 ? void 0 : adminSession.username) ||
+            adminUserId: adminSession?.adminUserId || adminAuth.uid,
+            username: adminSession?.username ||
                 String(adminAuth.email || adminAuth.uid),
-            displayName: (adminSession === null || adminSession === void 0 ? void 0 : adminSession.displayName) || adminAuth.displayName,
-            email: (adminSession === null || adminSession === void 0 ? void 0 : adminSession.email) || adminAuth.email,
+            displayName: adminSession?.displayName || adminAuth.displayName,
+            email: adminSession?.email || adminAuth.email,
         },
         before: {
             plan: String(currentSubscription.plan || '').trim() || 'none',
@@ -1932,7 +1922,7 @@ exports.adminPortalRefreshUserSubscriptionFromStripe = functions
             matchedBy: match.matchedBy,
             candidateCount: match.candidateCount,
             stripeStatus: match.subscription.status,
-            stripePriceId: ((_b = (_a = match.subscription.items.data[0]) === null || _a === void 0 ? void 0 : _a.price) === null || _b === void 0 ? void 0 : _b.id) || null,
+            stripePriceId: match.subscription.items.data[0]?.price?.id || null,
         },
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
@@ -1950,9 +1940,8 @@ exports.adminPortalRefreshUserSubscriptionFromStripe = functions
 exports.adminPortalApplyUserBillingActions = functions
     .runWith({ secrets: ADMIN_PORTAL_STRIPE_SECRETS })
     .https.onCall(async (data, context) => {
-    var _a, _b;
     const adminAuth = await requireMaintleyAdmin(context);
-    const rawSessionToken = String((data === null || data === void 0 ? void 0 : data.sessionToken) || '').trim();
+    const rawSessionToken = String(data?.sessionToken || '').trim();
     let adminSession = null;
     if (rawSessionToken) {
         try {
@@ -1963,13 +1952,13 @@ exports.adminPortalApplyUserBillingActions = functions
         }
     }
     const stripe = getAdminPortalStripe();
-    const targetUserId = String((data === null || data === void 0 ? void 0 : data.userId) || '').trim();
-    const nextPlanId = String((data === null || data === void 0 ? void 0 : data.planId) || '').trim().toLowerCase();
-    const billingCycle = normalizeBillingCycle(data === null || data === void 0 ? void 0 : data.billingCycle);
-    const rawTrialDays = String((_a = data === null || data === void 0 ? void 0 : data.trialDays) !== null && _a !== void 0 ? _a : '').trim();
+    const targetUserId = String(data?.userId || '').trim();
+    const nextPlanId = String(data?.planId || '').trim().toLowerCase();
+    const billingCycle = normalizeBillingCycle(data?.billingCycle);
+    const rawTrialDays = String(data?.trialDays ?? '').trim();
     const trialDays = rawTrialDays ? Number(rawTrialDays) : 0;
-    const promoCode = normalizePromoCode(data === null || data === void 0 ? void 0 : data.promoCode);
-    const syncStripe = Boolean(data === null || data === void 0 ? void 0 : data.syncStripe);
+    const promoCode = normalizePromoCode(data?.promoCode);
+    const syncStripe = Boolean(data?.syncStripe);
     if (!targetUserId) {
         throw new functions.https.HttpsError('invalid-argument', 'userId is required.');
     }
@@ -2019,7 +2008,7 @@ exports.adminPortalApplyUserBillingActions = functions
     if (syncStripe && stripeSubscriptionId) {
         const existingSubscription = await stripe.subscriptions.retrieve(stripeSubscriptionId);
         const existingItem = existingSubscription.items.data[0];
-        if (!(existingItem === null || existingItem === void 0 ? void 0 : existingItem.id)) {
+        if (!existingItem?.id) {
             throw new functions.https.HttpsError('failed-precondition', 'The Stripe subscription does not have an editable subscription item.');
         }
         const updateParams = {
@@ -2062,7 +2051,7 @@ exports.adminPortalApplyUserBillingActions = functions
         const updatedSubscription = await stripe.subscriptions.update(existingSubscription.id, updateParams);
         const updatedItem = updatedSubscription.items.data[0];
         const resolvedPlan = nextPlanId ||
-            resolveMaintleyPlanFromStripePriceId(((_b = updatedItem === null || updatedItem === void 0 ? void 0 : updatedItem.price) === null || _b === void 0 ? void 0 : _b.id) || '') ||
+            resolveMaintleyPlanFromStripePriceId(updatedItem?.price?.id || '') ||
             currentPlan ||
             'homeowner';
         Object.assign(nextSubscription, removeUndefinedFields({
@@ -2125,14 +2114,14 @@ exports.adminPortalApplyUserBillingActions = functions
             payment_method_types: ['card'],
             line_items: [{ price: priceId, quantity: 1 }],
             mode: 'subscription',
-            success_url: resolveSuccessUrl(data === null || data === void 0 ? void 0 : data.successUrl),
-            cancel_url: resolveCancelUrl(data === null || data === void 0 ? void 0 : data.cancelUrl),
+            success_url: resolveSuccessUrl(data?.successUrl),
+            cancel_url: resolveCancelUrl(data?.cancelUrl),
             discounts: [{ promotion_code: promotionCode.id }],
             metadata: {
                 firebaseUID: targetUserId,
                 promoCode,
                 createdBy: 'maintley_admin_portal',
-                createdByAdminUserId: (adminSession === null || adminSession === void 0 ? void 0 : adminSession.adminUserId) || adminAuth.uid,
+                createdByAdminUserId: adminSession?.adminUserId || adminAuth.uid,
             },
         });
         checkoutUrl = session.url || null;
@@ -2148,11 +2137,11 @@ exports.adminPortalApplyUserBillingActions = functions
         targetType: 'user',
         targetId: targetUserId,
         performedBy: {
-            adminUserId: (adminSession === null || adminSession === void 0 ? void 0 : adminSession.adminUserId) || adminAuth.uid,
-            username: (adminSession === null || adminSession === void 0 ? void 0 : adminSession.username) ||
+            adminUserId: adminSession?.adminUserId || adminAuth.uid,
+            username: adminSession?.username ||
                 String(adminAuth.email || adminAuth.uid),
-            displayName: (adminSession === null || adminSession === void 0 ? void 0 : adminSession.displayName) || adminAuth.displayName,
-            email: (adminSession === null || adminSession === void 0 ? void 0 : adminSession.email) || adminAuth.email,
+            displayName: adminSession?.displayName || adminAuth.displayName,
+            email: adminSession?.email || adminAuth.email,
         },
         before: {
             plan: String(currentSubscription.plan || '').trim() || 'none',
@@ -2169,7 +2158,7 @@ exports.adminPortalApplyUserBillingActions = functions
             billingCycle,
             trialDays: trialDays || null,
             promoCode: promoCode || null,
-            promotionCodeId: (promotionCode === null || promotionCode === void 0 ? void 0 : promotionCode.id) || null,
+            promotionCodeId: promotionCode?.id || null,
             syncStripe,
             stripeUpdated,
             stripeSubscriptionId: String(nextSubscription.stripeSubscriptionId || '').trim() || null,
@@ -2203,7 +2192,7 @@ const updateStripeForAdminSubscriptionAction = async (params) => {
     const stripe = getAdminPortalStripe();
     const existingSubscription = await stripe.subscriptions.retrieve(stripeSubscriptionId);
     const existingItem = existingSubscription.items.data[0];
-    if (!(existingItem === null || existingItem === void 0 ? void 0 : existingItem.id)) {
+    if (!existingItem?.id) {
         throw new functions.https.HttpsError('failed-precondition', 'The Stripe subscription does not have an editable subscription item.');
     }
     const baseMetadata = {
@@ -2290,11 +2279,11 @@ exports.adminPortalManageUserSubscription = functions
     .runWith({ secrets: ADMIN_PORTAL_STRIPE_SECRETS })
     .https.onCall(async (data, context) => {
     const adminAuth = await requireMaintleyAdmin(context);
-    const targetUserId = String((data === null || data === void 0 ? void 0 : data.userId) || '').trim();
-    const action = normalizeSubscriptionAction(data === null || data === void 0 ? void 0 : data.action);
-    const nextPlanId = String((data === null || data === void 0 ? void 0 : data.planId) || '').trim().toLowerCase();
-    const trialDays = Number((data === null || data === void 0 ? void 0 : data.trialDays) || 0);
-    const syncStripe = Boolean(data === null || data === void 0 ? void 0 : data.syncStripe);
+    const targetUserId = String(data?.userId || '').trim();
+    const action = normalizeSubscriptionAction(data?.action);
+    const nextPlanId = String(data?.planId || '').trim().toLowerCase();
+    const trialDays = Number(data?.trialDays || 0);
+    const syncStripe = Boolean(data?.syncStripe);
     if (!targetUserId) {
         throw new functions.https.HttpsError('invalid-argument', 'userId is required.');
     }
@@ -2391,13 +2380,12 @@ exports.adminPortalManageUserSubscription = functions
     };
 });
 exports.linkFeedbackAdminTickets = functions.https.onCall(async (data, context) => {
-    var _a, _b;
     try {
         console.log('[linkFeedbackAdminTickets] Starting link operation');
         const adminAuth = await requireMaintleyAdmin(context);
         console.log('[linkFeedbackAdminTickets] Session validated for user:', adminAuth.displayName);
-        const sourceTicketId = String((data === null || data === void 0 ? void 0 : data.sourceTicketId) || '').trim();
-        const targetTicketRef = String((data === null || data === void 0 ? void 0 : data.targetTicketRef) || '').trim();
+        const sourceTicketId = String(data?.sourceTicketId || '').trim();
+        const targetTicketRef = String(data?.targetTicketRef || '').trim();
         console.log('[linkFeedbackAdminTickets] Linking:', sourceTicketId, '->', targetTicketRef);
         if (!sourceTicketId || !targetTicketRef) {
             throw new functions.https.HttpsError('invalid-argument', 'Source and target ticket references are required.');
@@ -2526,8 +2514,8 @@ exports.linkFeedbackAdminTickets = functions.https.onCall(async (data, context) 
         await batch.commit();
         console.log('[linkFeedbackAdminTickets] Batch commit successful');
         const refreshedPrimary = await resolvedParentRef.get();
-        const refreshedLinkedTicketIds = Array.isArray((_a = refreshedPrimary.data()) === null || _a === void 0 ? void 0 : _a.linkedTicketIds)
-            ? ((_b = refreshedPrimary.data()) === null || _b === void 0 ? void 0 : _b.linkedTicketIds).map((item) => String(item))
+        const refreshedLinkedTicketIds = Array.isArray(refreshedPrimary.data()?.linkedTicketIds)
+            ? (refreshedPrimary.data()?.linkedTicketIds).map((item) => String(item))
             : [];
         console.log('[linkFeedbackAdminTickets] Link completed successfully');
         return { success: true, linkedTicketIds: refreshedLinkedTicketIds };
@@ -2539,13 +2527,13 @@ exports.linkFeedbackAdminTickets = functions.https.onCall(async (data, context) 
             throw error;
         }
         // Otherwise wrap it as internal error with details
-        const message = (error === null || error === void 0 ? void 0 : error.message) || String(error) || 'Unknown error';
+        const message = error?.message || String(error) || 'Unknown error';
         throw new functions.https.HttpsError('internal', `Link operation failed: ${message}`);
     }
 });
 exports.unlinkFeedbackAdminTicket = functions.https.onCall(async (data, context) => {
     const adminAuth = await requireMaintleyAdmin(context);
-    const ticketId = String((data === null || data === void 0 ? void 0 : data.ticketId) || '').trim();
+    const ticketId = String(data?.ticketId || '').trim();
     if (!ticketId) {
         throw new functions.https.HttpsError('invalid-argument', 'Ticket ID is required.');
     }
@@ -2646,7 +2634,7 @@ exports.unlinkFeedbackAdminTicket = functions.https.onCall(async (data, context)
 });
 exports.deleteFeedbackAdminParentTicket = functions.https.onCall(async (data, context) => {
     await requireMaintleyAdmin(context);
-    const ticketId = String((data === null || data === void 0 ? void 0 : data.ticketId) || '').trim();
+    const ticketId = String(data?.ticketId || '').trim();
     if (!ticketId) {
         throw new functions.https.HttpsError('invalid-argument', 'Ticket ID is required.');
     }
@@ -2669,11 +2657,11 @@ exports.deleteFeedbackAdminParentTicket = functions.https.onCall(async (data, co
 });
 exports.updateFeedbackAdminTicketStatus = functions.https.onCall(async (data, context) => {
     const adminAuth = await requireMaintleyAdmin(context);
-    const ticketId = String((data === null || data === void 0 ? void 0 : data.ticketId) || '').trim();
-    const nextStatus = normalizeTicketStatus(data === null || data === void 0 ? void 0 : data.status);
-    const internalNote = String((data === null || data === void 0 ? void 0 : data.internalNote) || '').trim();
-    const resolutionNotes = String((data === null || data === void 0 ? void 0 : data.resolutionNotes) || '').trim();
-    const requestedType = String((data === null || data === void 0 ? void 0 : data.type) || '').trim();
+    const ticketId = String(data?.ticketId || '').trim();
+    const nextStatus = normalizeTicketStatus(data?.status);
+    const internalNote = String(data?.internalNote || '').trim();
+    const resolutionNotes = String(data?.resolutionNotes || '').trim();
+    const requestedType = String(data?.type || '').trim();
     const nextType = requestedType ? normalizeTicketType(requestedType) : '';
     if (!ticketId) {
         throw new functions.https.HttpsError('invalid-argument', 'Ticket ID is required.');

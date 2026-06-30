@@ -49,11 +49,11 @@ const assertSimpleTeamProfileAllowed = (plan, teamMemberData) => {
     if (!isPropertySimpleTeamPlan(plan)) {
         return;
     }
-    const role = String((teamMemberData === null || teamMemberData === void 0 ? void 0 : teamMemberData.role) || '').trim();
-    const linkedProperties = Array.isArray(teamMemberData === null || teamMemberData === void 0 ? void 0 : teamMemberData.linkedProperties)
-        ? teamMemberData === null || teamMemberData === void 0 ? void 0 : teamMemberData.linkedProperties
+    const role = String(teamMemberData?.role || '').trim();
+    const linkedProperties = Array.isArray(teamMemberData?.linkedProperties)
+        ? teamMemberData?.linkedProperties
         : [];
-    const groupId = String((teamMemberData === null || teamMemberData === void 0 ? void 0 : teamMemberData.groupId) || '').trim();
+    const groupId = String(teamMemberData?.groupId || '').trim();
     if ((role && role !== 'admin') ||
         linkedProperties.length > 0 ||
         groupId) {
@@ -157,8 +157,8 @@ const findNextActiveTeamMembership = async (currentAccountId, linkedUserId) => {
     }) || null);
 };
 exports.validateTeamMemberInvitationCode = functions.https.onCall(async (data) => {
-    const promoCode = String((data === null || data === void 0 ? void 0 : data.promoCode) || '').trim().toLowerCase();
-    const teamMemberEmail = String((data === null || data === void 0 ? void 0 : data.teamMemberEmail) || '')
+    const promoCode = String(data?.promoCode || '').trim().toLowerCase();
+    const teamMemberEmail = String(data?.teamMemberEmail || '')
         .trim()
         .toLowerCase();
     if (!promoCode || !teamMemberEmail) {
@@ -190,7 +190,7 @@ exports.validateTeamMemberInvitationCode = functions.https.onCall(async (data) =
             .get();
         if (teamMemberDoc.exists) {
             const teamMemberData = teamMemberDoc.data();
-            teamMemberRole = (teamMemberData === null || teamMemberData === void 0 ? void 0 : teamMemberData.role) || null;
+            teamMemberRole = teamMemberData?.role || null;
         }
     }
     return {
@@ -204,11 +204,11 @@ exports.createTeamMemberInvitationCode = functions.https.onCall(async (data, con
     if (!context.auth) {
         throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
     }
-    const teamMemberId = String((data === null || data === void 0 ? void 0 : data.teamMemberId) || '').trim();
-    const teamMemberEmail = String((data === null || data === void 0 ? void 0 : data.teamMemberEmail) || '')
+    const teamMemberId = String(data?.teamMemberId || '').trim();
+    const teamMemberEmail = String(data?.teamMemberEmail || '')
         .trim()
         .toLowerCase();
-    const code = String((data === null || data === void 0 ? void 0 : data.code) || '').trim();
+    const code = String(data?.code || '').trim();
     if (!teamMemberId || !teamMemberEmail || !code) {
         throw new functions.https.HttpsError('invalid-argument', 'teamMemberId, teamMemberEmail, and code are required');
     }
@@ -247,7 +247,7 @@ exports.revokeTeamMemberInvitationCode = functions.https.onCall(async (data, con
     if (!context.auth) {
         throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
     }
-    const teamMemberId = String((data === null || data === void 0 ? void 0 : data.teamMemberId) || '').trim();
+    const teamMemberId = String(data?.teamMemberId || '').trim();
     if (!teamMemberId) {
         throw new functions.https.HttpsError('invalid-argument', 'teamMemberId is required');
     }
@@ -314,7 +314,7 @@ exports.revokeTeamMemberInvitationCode = functions.https.onCall(async (data, con
             await admin.auth().deleteUser(linkedUserId);
         }
         catch (authError) {
-            if ((authError === null || authError === void 0 ? void 0 : authError.code) !== 'auth/user-not-found') {
+            if (authError?.code !== 'auth/user-not-found') {
                 console.error('Failed to delete revoked team member auth user:', authError);
             }
         }
@@ -326,12 +326,11 @@ exports.revokeTeamMemberInvitationCode = functions.https.onCall(async (data, con
     };
 });
 exports.redeemTeamMemberInvitationCode = functions.https.onCall(async (data, context) => {
-    var _a;
     if (!context.auth) {
         throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
     }
-    const promoCode = String((data === null || data === void 0 ? void 0 : data.promoCode) || '').trim().toLowerCase();
-    const requestedEmail = String((data === null || data === void 0 ? void 0 : data.teamMemberEmail) || '')
+    const promoCode = String(data?.promoCode || '').trim().toLowerCase();
+    const requestedEmail = String(data?.teamMemberEmail || '')
         .trim()
         .toLowerCase();
     const callerEmail = String(context.auth.token.email || '').trim().toLowerCase();
@@ -380,20 +379,20 @@ exports.redeemTeamMemberInvitationCode = functions.https.onCall(async (data, con
             .collection('users')
             .doc(inviteData.accountId)
             .get();
-        const accountOwnerSubscription = ((_a = accountOwnerDoc.data()) === null || _a === void 0 ? void 0 : _a.subscription) || {};
+        const accountOwnerSubscription = accountOwnerDoc.data()?.subscription || {};
         assertSimpleTeamProfileAllowed(accountOwnerSubscription.plan, teamMemberProfile || undefined);
         await upsertTeamMemberAccess({
             uid: context.auth.uid,
             email: callerEmail,
             accountId: inviteData.accountId,
             teamMemberId: inviteData.teamMemberId,
-            role: (teamMemberProfile === null || teamMemberProfile === void 0 ? void 0 : teamMemberProfile.role) || null,
-            firstName: (teamMemberProfile === null || teamMemberProfile === void 0 ? void 0 : teamMemberProfile.firstName) || null,
-            lastName: (teamMemberProfile === null || teamMemberProfile === void 0 ? void 0 : teamMemberProfile.lastName) || null,
-            title: (teamMemberProfile === null || teamMemberProfile === void 0 ? void 0 : teamMemberProfile.title) || null,
-            phone: (teamMemberProfile === null || teamMemberProfile === void 0 ? void 0 : teamMemberProfile.phone) || null,
-            address: (teamMemberProfile === null || teamMemberProfile === void 0 ? void 0 : teamMemberProfile.address) || null,
-            image: (teamMemberProfile === null || teamMemberProfile === void 0 ? void 0 : teamMemberProfile.image) || null,
+            role: teamMemberProfile?.role || null,
+            firstName: teamMemberProfile?.firstName || null,
+            lastName: teamMemberProfile?.lastName || null,
+            title: teamMemberProfile?.title || null,
+            phone: teamMemberProfile?.phone || null,
+            address: teamMemberProfile?.address || null,
+            image: teamMemberProfile?.image || null,
         });
     }
     return {

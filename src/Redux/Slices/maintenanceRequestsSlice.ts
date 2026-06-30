@@ -47,6 +47,7 @@ const maintenanceRequestsSlice = createSlice({
 		) => {
 			state.requests = action.payload;
 		},
+		resetMaintenanceRequests: () => initialState,
 	},
 });
 
@@ -56,6 +57,7 @@ export const {
 	deleteMaintenanceRequest,
 	convertRequestToTask,
 	setMaintenanceRequests,
+	resetMaintenanceRequests,
 } = maintenanceRequestsSlice.actions;
 
 export default maintenanceRequestsSlice.reducer;

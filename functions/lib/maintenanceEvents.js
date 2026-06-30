@@ -117,8 +117,7 @@ const normalizeAttachments = (value, nowIso) => {
         .filter(Boolean);
 };
 const assertAuthenticated = (context) => {
-    var _a;
-    const uid = toString((_a = context.auth) === null || _a === void 0 ? void 0 : _a.uid);
+    const uid = toString(context.auth?.uid);
     if (!uid) {
         throw new functions.https.HttpsError('unauthenticated', 'You must be signed in to create maintenance events.');
     }
@@ -291,7 +290,7 @@ exports.createMaintenanceEvent = functions
     .https.onCall(async (data, context) => {
     try {
         const uid = assertAuthenticated(context);
-        const event = ((data === null || data === void 0 ? void 0 : data.event) || {});
+        const event = (data?.event || {});
         const result = await writeMaintenanceEvent(event, uid);
         return {
             success: true,
@@ -304,14 +303,14 @@ exports.createMaintenanceEvent = functions
             throw err;
         // Wrap unexpected errors so client sees the message instead of a generic 500
         console.error('createMaintenanceEvent unexpected error:', err);
-        throw new functions.https.HttpsError('internal', (err === null || err === void 0 ? void 0 : err.message) || 'Unexpected error in createMaintenanceEvent');
+        throw new functions.https.HttpsError('internal', err?.message || 'Unexpected error in createMaintenanceEvent');
     }
 });
 exports.createMaintenanceEventsBatch = functions
     .region('us-central1')
     .https.onCall(async (data, context) => {
     const uid = assertAuthenticated(context);
-    const events = Array.isArray(data === null || data === void 0 ? void 0 : data.events) ? data.events : [];
+    const events = Array.isArray(data?.events) ? data.events : [];
     if (events.length === 0) {
         throw new functions.https.HttpsError('invalid-argument', 'events must contain at least one event.');
     }

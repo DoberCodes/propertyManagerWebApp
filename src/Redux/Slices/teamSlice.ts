@@ -80,6 +80,7 @@ const teamSlice = createSlice({
 				);
 			}
 		},
+		resetTeamData: () => initialState,
 	},
 });
 
@@ -93,6 +94,7 @@ export const {
 	addTeamMember,
 	updateTeamMember,
 	deleteTeamMember,
+	resetTeamData,
 } = teamSlice.actions;
 
 export default teamSlice.reducer;

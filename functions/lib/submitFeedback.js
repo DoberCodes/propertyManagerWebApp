@@ -74,9 +74,8 @@ const allocateFeedbackTicketNumber = async () => {
         .collection(FEEDBACK_TICKET_COUNTER_COLLECTION)
         .doc(FEEDBACK_TICKET_COUNTER_DOC);
     const ticketSequence = await db.runTransaction(async (tx) => {
-        var _a;
         const counterSnapshot = await tx.get(counterRef);
-        const currentSequence = Number(((_a = counterSnapshot.data()) === null || _a === void 0 ? void 0 : _a.current) || 0);
+        const currentSequence = Number(counterSnapshot.data()?.current || 0);
         const nextSequence = Number.isFinite(currentSequence)
             ? currentSequence + 1
             : 1;
@@ -97,7 +96,6 @@ const normalizePersistedAttachments = async (rawAttachments) => {
     }
     const bucket = admin.storage().bucket();
     const normalized = await Promise.all(rawAttachments.map(async (rawAttachment, index) => {
-        var _a, _b;
         const fallbackName = `attachment-${index + 1}`;
         if (typeof rawAttachment === 'string') {
             const value = rawAttachment.trim();
@@ -119,7 +117,7 @@ const normalizePersistedAttachments = async (rawAttachments) => {
             const parsedPath = extractStoragePathFromGsUrl(value) || value;
             try {
                 const [metadata] = await bucket.file(parsedPath).getMetadata();
-                const token = (_a = metadata === null || metadata === void 0 ? void 0 : metadata.metadata) === null || _a === void 0 ? void 0 : _a.firebaseStorageDownloadTokens;
+                const token = metadata?.metadata?.firebaseStorageDownloadTokens;
                 const attachmentUrl = token
                     ? `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(parsedPath)}?alt=media&token=${token}`
                     : undefined;
@@ -156,7 +154,7 @@ const normalizePersistedAttachments = async (rawAttachments) => {
         if (!attachmentUrl && path) {
             try {
                 const [metadata] = await bucket.file(path).getMetadata();
-                const token = (_b = metadata === null || metadata === void 0 ? void 0 : metadata.metadata) === null || _b === void 0 ? void 0 : _b.firebaseStorageDownloadTokens;
+                const token = metadata?.metadata?.firebaseStorageDownloadTokens;
                 if (token) {
                     attachmentUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(path)}?alt=media&token=${token}`;
                 }
@@ -466,7 +464,7 @@ exports.listMyFeedbackTickets = functions.https.onCall(async (data, context) => 
     if (!context.auth) {
         throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated to view support requests.');
     }
-    const requestedLimit = Number((data === null || data === void 0 ? void 0 : data.limit) || 25);
+    const requestedLimit = Number(data?.limit || 25);
     const limit = Number.isFinite(requestedLimit)
         ? Math.min(Math.max(requestedLimit, 1), 100)
         : 25;
@@ -480,10 +478,10 @@ exports.listMyFeedbackTickets = functions.https.onCall(async (data, context) => 
             .get();
     }
     catch (error) {
-        const rawCode = String((error === null || error === void 0 ? void 0 : error.code) ||
-            (error === null || error === void 0 ? void 0 : error.details) ||
+        const rawCode = String(error?.code ||
+            error?.details ||
             '').toLowerCase();
-        const rawMessage = String((error === null || error === void 0 ? void 0 : error.message) || '').toLowerCase();
+        const rawMessage = String(error?.message || '').toLowerCase();
         const isIndexError = rawCode.includes('failed-precondition') ||
             rawCode === '9' ||
             rawMessage.includes('index') ||

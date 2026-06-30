@@ -45,11 +45,11 @@ exports.updateFamilyMember = functions.https.onCall(async (data, context) => {
         throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
     }
     const callerUid = context.auth.uid;
-    const accountId = String((data === null || data === void 0 ? void 0 : data.accountId) || '').trim();
-    const memberId = String((data === null || data === void 0 ? void 0 : data.memberId) || '').trim();
-    const firstName = String((data === null || data === void 0 ? void 0 : data.firstName) || '').trim();
-    const lastName = String((data === null || data === void 0 ? void 0 : data.lastName) || '').trim();
-    const role = String((data === null || data === void 0 ? void 0 : data.role) || '').trim();
+    const accountId = String(data?.accountId || '').trim();
+    const memberId = String(data?.memberId || '').trim();
+    const firstName = String(data?.firstName || '').trim();
+    const lastName = String(data?.lastName || '').trim();
+    const role = String(data?.role || '').trim();
     if (!accountId || !memberId || !firstName || !lastName || !role) {
         throw new functions.https.HttpsError('invalid-argument', 'accountId, memberId, firstName, lastName, and role are required');
     }

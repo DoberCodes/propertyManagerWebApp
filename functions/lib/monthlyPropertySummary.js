@@ -66,7 +66,6 @@ const getDisplayName = (user) => {
 const getAccountId = (userId, user) => String(user.accountId || '').trim() || userId;
 const getRecipientKey = (accountId, email) => `${accountId}:${email.trim().toLowerCase()}`;
 const getMonthlyDigestRecipients = async (userId, user, accountId) => {
-    var _a;
     const recipients = new Map();
     const ownerEmail = (user.email || '').trim();
     if (ownerEmail) {
@@ -77,7 +76,7 @@ const getMonthlyDigestRecipients = async (userId, user, accountId) => {
             userId,
         });
     }
-    if (((_a = user.emailPreferences) === null || _a === void 0 ? void 0 : _a.monthlyDigestFamilyRecipients) !== true) {
+    if (user.emailPreferences?.monthlyDigestFamilyRecipients !== true) {
         return Array.from(recipients.values());
     }
     const accountDoc = await db.collection('familyAccounts').doc(accountId).get();
@@ -97,11 +96,10 @@ const getMonthlyDigestRecipients = async (userId, user, accountId) => {
     }
     const memberDocs = await Promise.all(memberIds.map((memberId) => db.collection('users').doc(memberId).get()));
     memberDocs.forEach((memberDoc) => {
-        var _a;
         if (!memberDoc.exists)
             return;
         const member = memberDoc.data();
-        if (((_a = member.emailPreferences) === null || _a === void 0 ? void 0 : _a.monthlyDigest) === false)
+        if (member.emailPreferences?.monthlyDigest === false)
             return;
         const email = String(member.email || '').trim();
         if (!email)
@@ -164,20 +162,14 @@ const getUpcomingTasks = (tasks, now) => {
             return false;
         return isSameOrAfter(dueDate, now) && isSameOrBefore(dueDate, windowEnd);
     })
-        .sort((a, b) => {
-        var _a, _b;
-        return (((_a = parseDate(a.dueDate)) === null || _a === void 0 ? void 0 : _a.getTime()) || 0) -
-            (((_b = parseDate(b.dueDate)) === null || _b === void 0 ? void 0 : _b.getTime()) || 0);
-    });
+        .sort((a, b) => (parseDate(a.dueDate)?.getTime() || 0) -
+        (parseDate(b.dueDate)?.getTime() || 0));
 };
 const getOverdueTasks = (tasks, now) => tasks
     .filter((task) => ACTIVE_TASK_STATUSES.has(String(task.status || '')))
     .filter((task) => (0, taskDisplayStatus_1.getTaskDisplayStatus)(task).isOverdue)
-    .sort((a, b) => {
-    var _a, _b;
-    return (((_a = parseDate(a.dueDate)) === null || _a === void 0 ? void 0 : _a.getTime()) || 0) -
-        (((_b = parseDate(b.dueDate)) === null || _b === void 0 ? void 0 : _b.getTime()) || 0);
-});
+    .sort((a, b) => (parseDate(a.dueDate)?.getTime() || 0) -
+    (parseDate(b.dueDate)?.getTime() || 0));
 const getRecentlyCompletedEvents = (events, now) => {
     const monthStart = getMonthStart(now);
     return events
@@ -188,18 +180,14 @@ const getRecentlyCompletedEvents = (events, now) => {
         const eventDate = parseDate(event.completionDate || event.createdAt);
         return !!eventDate && isSameOrAfter(eventDate, monthStart);
     })
-        .sort((a, b) => {
-        var _a, _b;
-        return (((_a = parseDate(b.completionDate || b.createdAt)) === null || _a === void 0 ? void 0 : _a.getTime()) || 0) -
-            (((_b = parseDate(a.completionDate || a.createdAt)) === null || _b === void 0 ? void 0 : _b.getTime()) || 0);
-    });
+        .sort((a, b) => (parseDate(b.completionDate || b.createdAt)?.getTime() || 0) -
+        (parseDate(a.completionDate || a.createdAt)?.getTime() || 0));
 };
 const getPropertyLabel = (item, propertyById) => {
-    var _a;
     const propertyId = String(item.propertyId || '').trim();
     return (String(item.propertyTitle || '').trim() ||
         String(item.property || '').trim() ||
-        ((_a = propertyById.get(propertyId)) === null || _a === void 0 ? void 0 : _a.title) ||
+        propertyById.get(propertyId)?.title ||
         'Property not labeled');
 };
 const renderMetric = (label, value) => `
@@ -296,13 +284,12 @@ const getMonthlyDigestHtml = ({ name, counts, upcomingTasks, overdueTasks, recen
 	`;
 };
 const sendDigestForUser = async (userId, appUrl, deliveredRecipients) => {
-    var _a;
     const userDoc = await db.collection('users').doc(userId).get();
     if (!userDoc.exists) {
         return { sent: false, skipped: true, reason: 'user_not_found' };
     }
     const user = userDoc.data();
-    if (((_a = user.emailPreferences) === null || _a === void 0 ? void 0 : _a.monthlyDigest) === false) {
+    if (user.emailPreferences?.monthlyDigest === false) {
         return { sent: false, skipped: true, reason: 'monthly_digest_opted_out' };
     }
     const accountId = getAccountId(userId, user);
@@ -350,7 +337,7 @@ const sendDigestForUser = async (userId, appUrl, deliveredRecipients) => {
                 appUrl,
             }),
         });
-        deliveredRecipients === null || deliveredRecipients === void 0 ? void 0 : deliveredRecipients.add(getRecipientKey(accountId, recipient.email));
+        deliveredRecipients?.add(getRecipientKey(accountId, recipient.email));
     }
     return { sent: true, skipped: false, sentCount: unsentRecipients.length };
 };
@@ -399,8 +386,7 @@ exports.sendMonthlyPropertySummaries = functions
 exports.sendMonthlyPropertySummaryTest = functions
     .runWith({ secrets: ['RESEND_API_KEY'], timeoutSeconds: 120, memory: '256MB' })
     .https.onCall(async (_data, context) => {
-    var _a;
-    if (!((_a = context.auth) === null || _a === void 0 ? void 0 : _a.uid)) {
+    if (!context.auth?.uid) {
         throw new functions.https.HttpsError('unauthenticated', 'You must be signed in to send a test monthly property summary.');
     }
     const appUrl = process.env.APP_URL || 'https://maintleyapp.com';

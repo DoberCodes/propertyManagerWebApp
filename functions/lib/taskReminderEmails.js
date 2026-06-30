@@ -60,18 +60,15 @@ const normalizePlanId = (planId) => {
     return String(planId || '').trim().toLowerCase();
 };
 const getEffectivePlanId = (subscription) => {
-    const scheduledPlan = normalizePlanId(subscription === null || subscription === void 0 ? void 0 : subscription.scheduledPlan);
-    if ((subscription === null || subscription === void 0 ? void 0 : subscription.hasScheduledSubscription) && scheduledPlan) {
+    const scheduledPlan = normalizePlanId(subscription?.scheduledPlan);
+    if (subscription?.hasScheduledSubscription && scheduledPlan) {
         return scheduledPlan;
     }
-    const plan = normalizePlanId(subscription === null || subscription === void 0 ? void 0 : subscription.plan);
+    const plan = normalizePlanId(subscription?.plan);
     return plan || 'homeowner';
 };
-const canReceiveTaskReminderEmails = (user) => {
-    var _a;
-    return ((_a = user.emailPreferences) === null || _a === void 0 ? void 0 : _a.taskReminders) === true &&
-        PAID_TASK_REMINDER_EMAIL_PLANS.has(getEffectivePlanId(user.subscription));
-};
+const canReceiveTaskReminderEmails = (user) => user.emailPreferences?.taskReminders === true &&
+    PAID_TASK_REMINDER_EMAIL_PLANS.has(getEffectivePlanId(user.subscription));
 const toDateOnly = (date) => date.toISOString().slice(0, 10);
 const parseTaskDueDate = (dueDate) => {
     if (!dueDate)
@@ -143,11 +140,11 @@ const resolvePropertyLabel = async (task) => {
         return 'Property not labeled';
     }
     const property = propertyDoc.data();
-    const title = String((property === null || property === void 0 ? void 0 : property.title) || '').trim();
+    const title = String(property?.title || '').trim();
     if (title) {
         return title;
     }
-    const address = String((property === null || property === void 0 ? void 0 : property.address) || '').trim();
+    const address = String(property?.address || '').trim();
     return address || 'Property not labeled';
 };
 const getTaskReminderHtml = ({ name, message, task, propertyLabel, appUrl, }) => {
@@ -180,9 +177,8 @@ const getTaskReminderHtml = ({ name, message, task, propertyLabel, appUrl, }) =>
 	`;
 };
 const resolveUserIdFromAssignee = async (task) => {
-    var _a, _b, _c;
     const candidateIds = [
-        (_a = task.assignedTo) === null || _a === void 0 ? void 0 : _a.id,
+        task.assignedTo?.id,
         task.assignee,
         task.userId,
         task.accountId,
@@ -195,7 +191,7 @@ const resolveUserIdFromAssignee = async (task) => {
             return candidateId;
         }
         const teamMemberDoc = await db.collection('teamMembers').doc(candidateId).get();
-        const linkedUserId = String(((_b = teamMemberDoc.data()) === null || _b === void 0 ? void 0 : _b.userAccountId) || '').trim();
+        const linkedUserId = String(teamMemberDoc.data()?.userAccountId || '').trim();
         if (teamMemberDoc.exists && linkedUserId) {
             const linkedUserDoc = await db.collection('users').doc(linkedUserId).get();
             if (linkedUserDoc.exists) {
@@ -203,7 +199,7 @@ const resolveUserIdFromAssignee = async (task) => {
             }
         }
     }
-    const assignedEmail = String(((_c = task.assignedTo) === null || _c === void 0 ? void 0 : _c.email) || '').trim().toLowerCase();
+    const assignedEmail = String(task.assignedTo?.email || '').trim().toLowerCase();
     if (assignedEmail && task.accountId) {
         const userByEmailSnapshot = await db
             .collection('users')

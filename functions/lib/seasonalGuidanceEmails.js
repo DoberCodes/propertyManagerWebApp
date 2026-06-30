@@ -230,8 +230,7 @@ exports.sendSeasonalGuidanceEmails = functions
 exports.sendSeasonalGuidanceEmailTest = functions
     .runWith({ secrets: ['RESEND_API_KEY'], timeoutSeconds: 120, memory: '256MB' })
     .https.onCall(async (_data, context) => {
-    var _a;
-    if (!((_a = context.auth) === null || _a === void 0 ? void 0 : _a.uid)) {
+    if (!context.auth?.uid) {
         throw new functions.https.HttpsError('unauthenticated', 'You must be signed in to send a test seasonal guidance email.');
     }
     const appUrl = process.env.APP_URL || 'https://maintleyapp.com';

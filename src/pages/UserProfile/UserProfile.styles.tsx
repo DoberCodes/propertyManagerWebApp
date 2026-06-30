@@ -97,9 +97,63 @@ export const UserProfileHeader = styled.div`
 	align-items: center;
 	gap: 16px;
 
+	@media (max-width: 640px) {
+		align-items: flex-start;
+		flex-direction: column;
+	}
+
 	@media (max-width: 480px) {
 		gap: 12px;
 	}
+`;
+
+export const ProfileAvatarColumn = styled.div`
+	display: flex;
+	flex: 0 0 160px;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	max-width: 160px;
+	padding: 0.5rem;
+
+	@media (max-width: 640px) {
+		flex: 0 0 auto;
+		width: 100%;
+		max-width: none;
+	}
+`;
+
+export const ProfileDetailsPanel = styled.div`
+	display: flex;
+	flex: 1 1 auto;
+	min-width: 0;
+	flex-direction: column;
+	align-items: flex-start;
+	justify-content: center;
+	gap: 8px;
+	font-size: 14px;
+
+	p {
+		margin: 0;
+		max-width: 100%;
+		overflow-wrap: anywhere;
+	}
+`;
+
+export const EditProfileButton = styled.button<{ $disabled?: boolean }>`
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+	margin-top: 12px;
+	padding: 0;
+	background: transparent;
+	border: 0;
+	color: ${({ $disabled }) => ($disabled ? COLORS.gray500 : COLORS.primaryDark)};
+	cursor: ${({ $disabled }) => ($disabled ? 'not-allowed' : 'pointer')};
+	font: inherit;
+	font-size: 14px;
+	font-weight: 600;
 `;
 
 export const FormContentWrapper = styled.div`
@@ -153,12 +207,64 @@ export const ImagePreview = styled.img`
 `;
 
 export const ImageView = styled.img`
-	width: 75%;
-	height: auto;
+	width: 112px;
+	height: 112px;
+	max-width: 100%;
+	aspect-ratio: 1;
 	border-radius: 100%;
 	object-fit: cover;
 	border: 2px solid ${COLORS.gray300};
 	box-shadow: 0 0 0 2px ${COLORS.gray100};
+`;
+
+export const ProfileInitialsAvatar = styled.div`
+	width: 112px;
+	height: 112px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: 50%;
+	background: ${COLORS.primaryLight};
+	color: ${COLORS.primaryDark};
+	border: 2px solid ${COLORS.gray300};
+	box-shadow: 0 0 0 2px ${COLORS.gray100};
+	font-size: 2rem;
+	font-weight: 800;
+`;
+
+export const PasswordInputWrapper = styled.div`
+	position: relative;
+
+	input {
+		padding-right: 3rem;
+	}
+`;
+
+export const PasswordVisibilityButton = styled.button`
+	position: absolute;
+	top: 50%;
+	right: 0.75rem;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 2rem;
+	height: 2rem;
+	padding: 0;
+	background: transparent;
+	border: 0;
+	color: ${COLORS.gray500};
+	cursor: pointer;
+	transform: translateY(-50%);
+
+	&:hover {
+		color: ${COLORS.gray800};
+	}
+
+	&:focus-visible {
+		outline: 2px solid ${COLORS.primaryLight};
+		outline-offset: 2px;
+		border-radius: 6px;
+	}
 `;
 
 export const ImageUploadInput = styled.input`

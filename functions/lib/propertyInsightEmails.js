@@ -53,11 +53,11 @@ const normalizePlanId = (planId) => {
     return String(planId || '').trim().toLowerCase();
 };
 const getEffectivePlanId = (subscription) => {
-    const scheduledPlan = normalizePlanId(subscription === null || subscription === void 0 ? void 0 : subscription.scheduledPlan);
-    if ((subscription === null || subscription === void 0 ? void 0 : subscription.hasScheduledSubscription) && scheduledPlan) {
+    const scheduledPlan = normalizePlanId(subscription?.scheduledPlan);
+    if (subscription?.hasScheduledSubscription && scheduledPlan) {
         return scheduledPlan;
     }
-    const plan = normalizePlanId(subscription === null || subscription === void 0 ? void 0 : subscription.plan);
+    const plan = normalizePlanId(subscription?.plan);
     return plan || 'homeowner';
 };
 const canUsePropertyInsights = (user) => PROPERTY_INSIGHTS_PLANS.has(getEffectivePlanId(user.subscription));
@@ -91,9 +91,8 @@ const getDeviceLabel = (device) => {
 };
 const getDeviceSearchLabel = (device) => `${device.name || ''} ${device.type || ''}`.toLowerCase();
 const getPropertyTitle = (device, propertyById) => {
-    var _a, _b;
-    const propertyId = String(((_a = device.location) === null || _a === void 0 ? void 0 : _a.propertyId) || '').trim();
-    return (_b = propertyById.get(propertyId)) === null || _b === void 0 ? void 0 : _b.title;
+    const propertyId = String(device.location?.propertyId || '').trim();
+    return propertyById.get(propertyId)?.title;
 };
 const eventText = (event) => [
     event.title,
@@ -385,13 +384,12 @@ const getPropertyInsightsHtml = ({ name, deviceCount, historyCount, observations
 	`;
 };
 const sendPropertyInsightsForUser = async (userId, appUrl) => {
-    var _a;
     const userDoc = await db.collection('users').doc(userId).get();
     if (!userDoc.exists) {
         return { sent: false, skipped: true, reason: 'user_not_found' };
     }
     const user = userDoc.data();
-    if (((_a = user.emailPreferences) === null || _a === void 0 ? void 0 : _a.propertyInsights) !== true) {
+    if (user.emailPreferences?.propertyInsights !== true) {
         return { sent: false, skipped: true, reason: 'property_insights_not_opted_in' };
     }
     if (!canUsePropertyInsights(user)) {
@@ -472,8 +470,7 @@ exports.sendMonthlyPropertyInsights = functions
 exports.sendMonthlyPropertyInsightsTest = functions
     .runWith({ secrets: ['RESEND_API_KEY'], timeoutSeconds: 120, memory: '256MB' })
     .https.onCall(async (_data, context) => {
-    var _a;
-    if (!((_a = context.auth) === null || _a === void 0 ? void 0 : _a.uid)) {
+    if (!context.auth?.uid) {
         throw new functions.https.HttpsError('unauthenticated', 'You must be signed in to send a test Property Insights email.');
     }
     const appUrl = process.env.APP_URL || 'https://maintleyapp.com';

@@ -44,7 +44,7 @@ const PUSH_NOTIFICATION_PLANS = new Set([
     'portfolio',
 ]);
 const isTrialActive = (subscription) => {
-    if ((subscription === null || subscription === void 0 ? void 0 : subscription.status) !== 'trial') {
+    if (subscription?.status !== 'trial') {
         return false;
     }
     if (!subscription.trialEndsAt) {
@@ -73,8 +73,8 @@ const getUserPushTokens = (user) => {
     }
     if (Array.isArray(user.pushTokens)) {
         for (const record of user.pushTokens) {
-            const token = String((record === null || record === void 0 ? void 0 : record.token) || '').trim();
-            if (!token || (record === null || record === void 0 ? void 0 : record.disabled) === true) {
+            const token = String(record?.token || '').trim();
+            if (!token || record?.disabled === true) {
                 continue;
             }
             tokens.add(token);
@@ -92,12 +92,12 @@ async function cleanupInvalidPushToken(userId, pushToken) {
         if (userDoc.exists) {
             const userData = userDoc.data();
             const updates = {};
-            if ((userData === null || userData === void 0 ? void 0 : userData.pushToken) === pushToken) {
+            if (userData?.pushToken === pushToken) {
                 updates.pushToken = admin.firestore.FieldValue.delete();
                 updates.pushTokenUpdatedAt = admin.firestore.FieldValue.delete();
             }
-            if (Array.isArray(userData === null || userData === void 0 ? void 0 : userData.pushTokens)) {
-                const nextPushTokens = userData.pushTokens.filter((record) => String((record === null || record === void 0 ? void 0 : record.token) || '').trim() !== pushToken);
+            if (Array.isArray(userData?.pushTokens)) {
+                const nextPushTokens = userData.pushTokens.filter((record) => String(record?.token || '').trim() !== pushToken);
                 if (nextPushTokens.length !== userData.pushTokens.length) {
                     updates.pushTokens = nextPushTokens;
                 }
@@ -130,8 +130,7 @@ function toMessageData(notificationId, data, actionUrl) {
     return messageData;
 }
 exports.sendPushOnNotificationCreate = (0, firestore_1.onDocumentCreated)('notifications/{notificationId}', async (event) => {
-    var _a, _b;
-    const notification = (_a = event.data) === null || _a === void 0 ? void 0 : _a.data();
+    const notification = event.data?.data();
     if (!notification || !notification.userId) {
         console.log('Invalid notification document - missing userId');
         return;
@@ -160,16 +159,16 @@ exports.sendPushOnNotificationCreate = (0, firestore_1.onDocumentCreated)('notif
         .doc(notification.userId)
         .get();
     const userPreferences = userPreferencesDoc.exists
-        ? (_b = userPreferencesDoc.data()) === null || _b === void 0 ? void 0 : _b.notificationPreferences
+        ? userPreferencesDoc.data()?.notificationPreferences
         : null;
     const notificationPreferences = user.notificationPreferences || userPreferences || null;
-    if ((notificationPreferences === null || notificationPreferences === void 0 ? void 0 : notificationPreferences.enabled) === false) {
+    if (notificationPreferences?.enabled === false) {
         console.log(`Notifications are disabled for user ${notification.userId}`);
         return;
     }
     const notificationType = notification.type; // Assuming notification.type exists
     if (notificationType &&
-        (notificationPreferences === null || notificationPreferences === void 0 ? void 0 : notificationPreferences.types) &&
+        notificationPreferences?.types &&
         notificationPreferences.types[notificationType] === false) {
         console.log(`Notification type '${notificationType}' is disabled for user ${notification.userId}`);
         return;
@@ -196,8 +195,7 @@ exports.sendPushOnNotificationCreate = (0, firestore_1.onDocumentCreated)('notif
         const cleanupPromises = response.responses
             .map((sendResponse, index) => ({ sendResponse, token: pushTokens[index] }))
             .filter(({ sendResponse }) => {
-            var _a;
-            const errorCode = String(((_a = sendResponse.error) === null || _a === void 0 ? void 0 : _a.code) || '');
+            const errorCode = String(sendResponse.error?.code || '');
             return (errorCode === 'messaging/registration-token-not-registered' ||
                 errorCode === 'messaging/invalid-registration-token');
         })
