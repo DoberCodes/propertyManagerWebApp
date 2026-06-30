@@ -11,8 +11,8 @@ import {
 	runTransaction,
 	onSnapshot,
 } from 'firebase/firestore';
-import { httpsCallable } from 'firebase/functions';
-import { auth, db, functions } from '../../config/firebase';
+import { auth, db } from '../../config/firebase';
+import { callFirebaseFunction } from '../../config/firebaseFunctions';
 import {
 	PropertyShare,
 	Suite,
@@ -415,11 +415,10 @@ const propertySlice = apiSlice.injectEndpoints({
 						String(userData?.role || '').trim().toLowerCase() === 'tenant'
 					) {
 						try {
-							const syncTenantAccess = httpsCallable<
+							await callFirebaseFunction<
 								Record<string, never>,
 								{ success: boolean }
-							>(functions, 'syncTenantAccessFromInvites');
-							await syncTenantAccess({});
+							>('syncTenantAccessFromInvites', {});
 						} catch (syncError) {
 							console.warn('Tenant access sync in property query skipped:', syncError);
 						}
@@ -874,11 +873,10 @@ const propertySlice = apiSlice.injectEndpoints({
 					if (accountId) {
 						await assertCanManagePropertyGroups(accountId);
 					}
-					const deletePropertyGroupCascade = httpsCallable<
+					await callFirebaseFunction<
 						{ groupId: string },
 						{ success: boolean }
-					>(functions, 'deletePropertyGroupCascade');
-					await deletePropertyGroupCascade({ groupId });
+					>('deletePropertyGroupCascade', { groupId });
 					return { data: undefined };
 				} catch (error: any) {
 					return { error: error.message };
@@ -911,11 +909,10 @@ const propertySlice = apiSlice.injectEndpoints({
 						String(userData?.role || '').trim().toLowerCase() === 'tenant'
 					) {
 						try {
-							const syncTenantAccess = httpsCallable<
+							await callFirebaseFunction<
 								Record<string, never>,
 								{ success: boolean }
-							>(functions, 'syncTenantAccessFromInvites');
-							await syncTenantAccess({});
+							>('syncTenantAccessFromInvites', {});
 						} catch (syncError) {
 							console.warn('Tenant access sync in getProperties skipped:', syncError);
 						}
@@ -1223,7 +1220,7 @@ const propertySlice = apiSlice.injectEndpoints({
 						};
 					}
 
-					const ensureFamilyAccountCallable = httpsCallable<
+					await callFirebaseFunction<
 						{
 							accountId?: string;
 							syncSubscription?: boolean;
@@ -1233,9 +1230,7 @@ const propertySlice = apiSlice.injectEndpoints({
 							id: string;
 							subscription?: Record<string, unknown>;
 						}
-					>(functions, 'ensureFamilyAccount');
-
-					await ensureFamilyAccountCallable({
+					>('ensureFamilyAccount', {
 						accountId: targetUserId,
 						syncSubscription: false,
 					});
@@ -1353,11 +1348,10 @@ const propertySlice = apiSlice.injectEndpoints({
 						return { error: 'User not authenticated' };
 					}
 
-					const deletePropertyCascade = httpsCallable<
+					await callFirebaseFunction<
 						{ propertyId: string },
 						{ success: boolean }
-					>(functions, 'deletePropertyCascade');
-					await deletePropertyCascade({ propertyId });
+					>('deletePropertyCascade', { propertyId });
 
 					return { data: undefined };
 				} catch (error: any) {

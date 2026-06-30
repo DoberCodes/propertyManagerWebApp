@@ -38,6 +38,8 @@ jest.mock('firebase/firestore', () => ({
 }));
 
 jest.mock('firebase/functions', () => ({
+	connectFunctionsEmulator: jest.fn(),
+	getFunctions: jest.fn(() => ({ app: 'test-functions-app' })),
 	httpsCallable: jest.fn(),
 }));
 
@@ -50,9 +52,11 @@ describe('Family Account Functionality', () => {
 		const mockFetchSignInMethodsForEmail =
 			require('firebase/auth').fetchSignInMethodsForEmail;
 		const mockGetDocs = require('firebase/firestore').getDocs;
+		const mockGetFunctions = require('firebase/functions').getFunctions;
 		const mockHttpsCallable = require('firebase/functions').httpsCallable;
 		mockFetchSignInMethodsForEmail.mockResolvedValue([]);
 		mockGetDocs.mockResolvedValue({ empty: true, docs: [] });
+		mockGetFunctions.mockReturnValue({ app: 'test-functions-app' });
 		mockHttpsCallable.mockImplementation((_functions: unknown, name: string) => {
 			if (name === 'getFamilyAccountSummary') {
 				return jest.fn().mockResolvedValue({

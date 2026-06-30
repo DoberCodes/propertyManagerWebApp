@@ -1,9 +1,4 @@
 import { createAsyncThunk } from '@reduxjs/toolkit';
-import {
-	listAdminPortalAuditLogs,
-	listAdminPortalUsers,
-	adminPortalListBillingCoupons,
-} from '../../services/adminPortalService';
 
 export const fetchAuditLogs = createAsyncThunk(
 	'adminPortal/fetchAuditLogs',
@@ -20,6 +15,7 @@ export const fetchAuditLogs = createAsyncThunk(
 		targetId?: string;
 		limit?: number;
 	}) => {
+		const { listAdminPortalAuditLogs } = await import('../../services/adminPortalService');
 		const data = await listAdminPortalAuditLogs({
 			sessionToken,
 			query: query?.trim() || undefined,
@@ -44,6 +40,7 @@ export const fetchAdminUsers = createAsyncThunk(
 		filter?: string;
 		limit?: number;
 	}) => {
+		const { listAdminPortalUsers } = await import('../../services/adminPortalService');
 		const data = await listAdminPortalUsers({
 			sessionToken,
 			query: query?.trim() || undefined,
@@ -57,6 +54,7 @@ export const fetchAdminUsers = createAsyncThunk(
 export const fetchBillingCoupons = createAsyncThunk(
 	'adminPortal/fetchBillingCoupons',
 	async ({ sessionToken, limit = 100 }: { sessionToken: string; limit?: number }) => {
+		const { adminPortalListBillingCoupons } = await import('../../services/adminPortalService');
 		const data = await adminPortalListBillingCoupons({
 			sessionToken,
 			limit,

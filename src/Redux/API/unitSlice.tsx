@@ -9,9 +9,9 @@ import {
 	updateDoc,
 	where,
 } from 'firebase/firestore';
-import { httpsCallable } from 'firebase/functions';
 import { apiSlice } from './apiSlice';
-import { db, functions } from '../../config/firebase';
+import { db } from '../../config/firebase';
+import { callFirebaseFunction } from '../../config/firebaseFunctions';
 import { resolveTargetUserId } from './accountContext';
 import {
 	TenantInvitationCode,
@@ -289,11 +289,10 @@ const tenantSlice = apiSlice.injectEndpoints({
 		>({
 			async queryFn({ propertyId, tenantEmail, code }) {
 				try {
-					const createInvite = httpsCallable<
+					const result = await callFirebaseFunction<
 						{ propertyId?: string; tenantEmail?: string; code: string },
 						TenantInvitationCode
-					>(functions, 'createTenantInvitationCode');
-					const result = await createInvite({
+					>('createTenantInvitationCode', {
 						propertyId,
 						tenantEmail,
 						code,
@@ -319,11 +318,10 @@ const tenantSlice = apiSlice.injectEndpoints({
 		>({
 			async queryFn({ propertyId, tenantEmail }) {
 				try {
-					const revokeInvite = httpsCallable<
+					await callFirebaseFunction<
 						{ propertyId?: string; tenantEmail: string },
 						{ success: boolean; revokedCount: number }
-					>(functions, 'revokeTenantInvitationCode');
-					await revokeInvite({ propertyId, tenantEmail });
+					>('revokeTenantInvitationCode', { propertyId, tenantEmail });
 					return { data: undefined };
 				} catch (error: any) {
 					return {

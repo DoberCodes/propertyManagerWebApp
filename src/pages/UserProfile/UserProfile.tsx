@@ -116,8 +116,8 @@ import {
 	EmailAuthProvider,
 	signOut,
 } from 'firebase/auth';
-import { auth, functions } from 'config/firebase';
-import { httpsCallable } from 'firebase/functions';
+import { auth } from 'config/firebase';
+import { callFirebaseFunction } from 'config/firebaseFunctions';
 
 export const UserProfile: React.FC = () => {
 	const dispatch = useDispatch<AppDispatch>();
@@ -813,8 +813,10 @@ export const UserProfile: React.FC = () => {
 		setIsDeletingAccount(true);
 
 		try {
-			const deleteUserAccount = httpsCallable(functions, 'deleteUserAccount');
-			await deleteUserAccount({ userId: currentUser.id });
+			await callFirebaseFunction<{ userId: string }, unknown>(
+				'deleteUserAccount',
+				{ userId: currentUser.id },
+			);
 			await signOut(auth);
 			navigate('/login');
 		} catch (deleteError: any) {

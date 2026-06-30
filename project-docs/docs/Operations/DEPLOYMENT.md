@@ -536,7 +536,9 @@ creates or updates the GitHub release, tags the repository, and deploys the
 web app through `yarn deploy`.
 
 The signed release pipeline runs `yarn check:asset-budgets` after the mobile web
-build and after the final web deployment build. Asset budget failures block the
+build and after the final web deployment build. Asset budget target misses up to
+15% over target pass with a warning and make frontend optimization a top priority
+for the next release. Asset budget misses more than 15% over target block the
 release before Capacitor sync or deployment proceeds.
 
 Review local signing configuration before running release builds.

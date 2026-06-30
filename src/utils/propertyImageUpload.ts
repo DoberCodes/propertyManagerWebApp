@@ -1,5 +1,5 @@
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { storage } from '../config/firebase';
+import { storage } from '../config/firebaseStorage';
 import { assertStorageQuotaForFiles, resolveStorageAccountId } from './storageQuota';
 import { signalStorageUsageUpdated } from './storageUsageEvents';
 

@@ -1,6 +1,6 @@
 import { doc, getDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
-import { httpsCallable } from 'firebase/functions';
-import { db, functions } from '../config/firebase';
+import { db } from '../config/firebase';
+import { callFirebaseFunction } from '../config/firebaseFunctions';
 import { User } from '../Redux/Slices/userSlice';
 import { SUBSCRIPTION_STATUS } from '../constants/subscriptions';
 
@@ -47,24 +47,22 @@ export const getUserProfile = async (uid: string): Promise<User> => {
 			throw new Error('User profile not found');
 		}
 
-		const ensureFamilyAccountCallable = httpsCallable<
-			{
-				accountId?: string;
-				syncSubscription?: boolean;
-				subscription?: Record<string, unknown>;
-			},
-			{
-				id: string;
-				subscription?: Record<string, unknown>;
-			}
-		>(functions, 'ensureFamilyAccount');
-
 		// Get family account summary via backend callable (rules-safe)
 		let familyAccountSubscription: Record<string, unknown> | null = null;
 		const userData = userDoc.data();
 		if (userData.accountId) {
 			try {
-				const accountSummary = await ensureFamilyAccountCallable({
+				const accountSummary = await callFirebaseFunction<
+					{
+						accountId?: string;
+						syncSubscription?: boolean;
+						subscription?: Record<string, unknown>;
+					},
+					{
+						id: string;
+						subscription?: Record<string, unknown>;
+					}
+				>('ensureFamilyAccount', {
 					accountId: String(userData.accountId),
 				});
 				familyAccountSubscription = accountSummary.data?.subscription || null;
@@ -242,7 +240,17 @@ export const getUserProfile = async (uid: string): Promise<User> => {
 				(rawData.isAccountOwner || userData.accountId === uid)
 			) {
 				try {
-					await ensureFamilyAccountCallable({
+					await callFirebaseFunction<
+						{
+							accountId?: string;
+							syncSubscription?: boolean;
+							subscription?: Record<string, unknown>;
+						},
+						{
+							id: string;
+							subscription?: Record<string, unknown>;
+						}
+					>('ensureFamilyAccount', {
 						accountId: String(userData.accountId),
 						syncSubscription: true,
 						subscription: userSubscription as unknown as Record<
@@ -307,7 +315,17 @@ export const getUserProfile = async (uid: string): Promise<User> => {
 					updatedAt: serverTimestamp(),
 				});
 
-				await ensureFamilyAccountCallable({
+				await callFirebaseFunction<
+					{
+						accountId?: string;
+						syncSubscription?: boolean;
+						subscription?: Record<string, unknown>;
+					},
+					{
+						id: string;
+						subscription?: Record<string, unknown>;
+					}
+				>('ensureFamilyAccount', {
 					accountId: uid,
 					syncSubscription: true,
 					subscription: serializedData.subscription as Record<string, unknown>,

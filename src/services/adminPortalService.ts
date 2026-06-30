@@ -1,7 +1,12 @@
 import { httpsCallable } from 'firebase/functions';
-import { functions as cloudFunctions } from '../config/firebase';
+import { getFirebaseFunctions } from '../config/firebaseFunctions';
 
 export const ADMIN_SESSION_STORAGE_KEY = 'maintley_admin_session_token';
+
+const getAdminCallable = async <RequestData, ResponseData>(name: string) => {
+	const functions = await getFirebaseFunctions();
+	return httpsCallable<RequestData, ResponseData>(functions, name);
+};
 
 export type AdminUser = {
 	id: string;
@@ -204,10 +209,10 @@ export const adminPortalLogin = async (
 	username: string,
 	password: string,
 ): Promise<{ sessionToken: string; expiresAtMillis: number; adminUser: AdminUser }> => {
-	const callable = httpsCallable<
+	const callable = await getAdminCallable<
 		{ username: string; password: string },
 		{ sessionToken: string; expiresAtMillis: number; adminUser: AdminUser }
-	>(cloudFunctions, 'adminPortalLogin');
+	>('adminPortalLogin');
 
 	const result = await callable({ username, password });
 	return result.data;
@@ -216,18 +221,17 @@ export const adminPortalLogin = async (
 export const validateAdminSession = async (
 	sessionToken: string,
 ): Promise<{ valid: true; adminUser: AdminUser }> => {
-	const callable = httpsCallable<
+	const callable = await getAdminCallable<
 		{ sessionToken: string },
 		{ valid: true; adminUser: AdminUser }
-	>(cloudFunctions, 'validateAdminPortalSession');
+	>('validateAdminPortalSession');
 
 	const result = await callable({ sessionToken });
 	return result.data;
 };
 
 export const adminPortalLogout = async (sessionToken: string): Promise<void> => {
-	const callable = httpsCallable<{ sessionToken: string }, { success: true }>(
-		cloudFunctions,
+	const callable = await getAdminCallable<{ sessionToken: string }, { success: true }>(
 		'adminPortalLogout',
 	);
 	await callable({ sessionToken });
@@ -238,10 +242,10 @@ export const adminPortalResetPassword = async (params: {
 	currentPassword: string;
 	newPassword: string;
 }): Promise<{ success: true; message: string }> => {
-	const callable = httpsCallable<
+	const callable = await getAdminCallable<
 		{ sessionToken: string; currentPassword: string; newPassword: string },
 		{ success: true; message: string }
-	>(cloudFunctions, 'adminPortalResetPassword');
+	>('adminPortalResetPassword');
 
 	const result = await callable(params);
 	return result.data;
@@ -253,10 +257,10 @@ export const listAdminFeedbackTickets = async (params: {
 	type?: string;
 	limit?: number;
 }): Promise<AdminFeedbackTicket[]> => {
-	const callable = httpsCallable<
+	const callable = await getAdminCallable<
 		{ sessionToken: string; status?: string; type?: string; limit?: number },
 		{ tickets: AdminFeedbackTicket[] }
-	>(cloudFunctions, 'listFeedbackAdminTickets');
+	>('listFeedbackAdminTickets');
 
 	const result = await callable(params);
 	return result.data.tickets || [];
@@ -269,10 +273,10 @@ export const listAdminPortalUsers = async (params: {
 	filter?: string;
 	limit?: number;
 }): Promise<AdminPortalUserRecord[]> => {
-	const callable = httpsCallable<
+	const callable = await getAdminCallable<
 		{ sessionToken: string; query?: string; role?: string; filter?: string; limit?: number },
 		{ users: AdminPortalUserRecord[] }
-	>(cloudFunctions, 'listAdminPortalUsers');
+	>('listAdminPortalUsers');
 
 	const result = await callable(params);
 	return result.data.users || [];
@@ -285,10 +289,10 @@ export const listAdminPortalAuditLogs = async (params: {
 	action?: string;
 	targetId?: string;
 }): Promise<AdminPortalAuditLogRecord[]> => {
-	const callable = httpsCallable<
+	const callable = await getAdminCallable<
 		{ sessionToken: string; limit?: number; query?: string; action?: string; targetId?: string },
 		{ logs: AdminPortalAuditLogRecord[] }
-	>(cloudFunctions, 'listAdminPortalAuditLogs');
+	>('listAdminPortalAuditLogs');
 
 	const result = await callable(params);
 	return result.data.logs || [];
@@ -298,10 +302,10 @@ export const getAdminPortalUserTroubleshootingDetails = async (params: {
 	sessionToken: string;
 	userId: string;
 }): Promise<AdminPortalUserTroubleshootingDetails> => {
-	const callable = httpsCallable<
+	const callable = await getAdminCallable<
 		{ sessionToken: string; userId: string },
 		AdminPortalUserTroubleshootingDetails
-	>(cloudFunctions, 'getAdminPortalUserTroubleshootingDetails');
+	>('getAdminPortalUserTroubleshootingDetails');
 
 	const result = await callable(params);
 	return result.data;
@@ -321,7 +325,7 @@ export const adminPortalManageUserSubscription = async (params: {
 	trialEndsAt: number | null;
 	stripeUpdated: boolean;
 }> => {
-	const callable = httpsCallable<
+	const callable = await getAdminCallable<
 		{
 			sessionToken: string;
 			userId: string;
@@ -337,7 +341,7 @@ export const adminPortalManageUserSubscription = async (params: {
 			trialEndsAt: number | null;
 			stripeUpdated: boolean;
 		}
-	>(cloudFunctions, 'adminPortalManageUserSubscription');
+	>('adminPortalManageUserSubscription');
 
 	const result = await callable(params);
 	return result.data;
@@ -369,7 +373,7 @@ export const adminPortalApplyUserBillingActions = async (params: {
 		checkoutLinkCreated: boolean;
 	};
 }> => {
-	const callable = httpsCallable<
+	const callable = await getAdminCallable<
 		{
 			sessionToken: string;
 			userId: string;
@@ -397,7 +401,7 @@ export const adminPortalApplyUserBillingActions = async (params: {
 				checkoutLinkCreated: boolean;
 			};
 		}
-	>(cloudFunctions, 'adminPortalApplyUserBillingActions');
+	>('adminPortalApplyUserBillingActions');
 
 	const result = await callable(params);
 	return result.data;
@@ -416,7 +420,7 @@ export const adminPortalRefreshUserSubscriptionFromStripe = async (params: {
 	matchedBy: 'stripe_subscription_id' | 'stripe_customer_id' | 'email' | 'none' | string;
 	candidateCount: number;
 }> => {
-	const callable = httpsCallable<
+	const callable = await getAdminCallable<
 		{
 			sessionToken: string;
 			userId: string;
@@ -431,7 +435,7 @@ export const adminPortalRefreshUserSubscriptionFromStripe = async (params: {
 			matchedBy: 'stripe_subscription_id' | 'stripe_customer_id' | 'email' | 'none' | string;
 			candidateCount: number;
 		}
-	>(cloudFunctions, 'adminPortalRefreshUserSubscriptionFromStripe');
+	>('adminPortalRefreshUserSubscriptionFromStripe');
 
 	const result = await callable(params);
 	return result.data;
@@ -452,7 +456,7 @@ export const adminPortalCreateBillingCoupon = async (params: {
 	appliesToBillingCycle?: 'month' | 'year';
 	internalNote?: string;
 }): Promise<{ success: true; coupon: AdminBillingCoupon }> => {
-	const callable = httpsCallable<
+	const callable = await getAdminCallable<
 		{
 			sessionToken: string;
 			code: string;
@@ -469,7 +473,7 @@ export const adminPortalCreateBillingCoupon = async (params: {
 			internalNote?: string;
 		},
 		{ success: true; coupon: AdminBillingCoupon }
-	>(cloudFunctions, 'adminPortalCreateBillingCoupon');
+	>('adminPortalCreateBillingCoupon');
 
 	const result = await callable(params);
 	return result.data;
@@ -479,10 +483,10 @@ export const adminPortalListBillingCoupons = async (params: {
 	sessionToken: string;
 	limit?: number;
 }): Promise<AdminBillingCoupon[]> => {
-	const callable = httpsCallable<
+	const callable = await getAdminCallable<
 		{ sessionToken: string; limit?: number },
 		{ coupons: AdminBillingCoupon[] }
-	>(cloudFunctions, 'adminPortalListBillingCoupons');
+	>('adminPortalListBillingCoupons');
 
 	const result = await callable(params);
 	return result.data.coupons || [];
@@ -502,7 +506,7 @@ export const adminPortalCreateCheckoutLinkWithCoupon = async (params: {
 	sessionId: string;
 	stripeCustomerId: string;
 }> => {
-	const callable = httpsCallable<
+	const callable = await getAdminCallable<
 		{
 			sessionToken: string;
 			userId: string;
@@ -518,7 +522,7 @@ export const adminPortalCreateCheckoutLinkWithCoupon = async (params: {
 			sessionId: string;
 			stripeCustomerId: string;
 		}
-	>(cloudFunctions, 'adminPortalCreateCheckoutLinkWithCoupon');
+	>('adminPortalCreateCheckoutLinkWithCoupon');
 
 	const result = await callable(params);
 	return result.data;
@@ -532,7 +536,7 @@ export const updateAdminFeedbackTicketStatus = async (params: {
 	resolutionNotes?: string;
 	type?: string;
 }): Promise<void> => {
-	const callable = httpsCallable<
+	const callable = await getAdminCallable<
 		{
 			sessionToken: string;
 			ticketId: string;
@@ -542,7 +546,7 @@ export const updateAdminFeedbackTicketStatus = async (params: {
 			type?: string;
 		},
 		{ success: true }
-	>(cloudFunctions, 'updateFeedbackAdminTicketStatus');
+	>('updateFeedbackAdminTicketStatus');
 
 	await callable(params);
 };
@@ -552,10 +556,10 @@ export const linkAdminFeedbackTickets = async (params: {
 	sourceTicketId: string;
 	targetTicketRef: string;
 }): Promise<{ success: true; linkedTicketIds: string[] }> => {
-	const callable = httpsCallable<
+	const callable = await getAdminCallable<
 		{ sessionToken: string; sourceTicketId: string; targetTicketRef: string },
 		{ success: true; linkedTicketIds: string[] }
-	>(cloudFunctions, 'linkFeedbackAdminTickets');
+	>('linkFeedbackAdminTickets');
 
 	const result = await callable(params);
 	return result.data;
@@ -565,10 +569,10 @@ export const unlinkAdminFeedbackTicket = async (params: {
 	sessionToken: string;
 	ticketId: string;
 }): Promise<{ success: true; parentTicketId?: string }> => {
-	const callable = httpsCallable<
+	const callable = await getAdminCallable<
 		{ sessionToken: string; ticketId: string },
 		{ success: true; parentTicketId?: string }
-	>(cloudFunctions, 'unlinkFeedbackAdminTicket');
+	>('unlinkFeedbackAdminTicket');
 
 	const result = await callable(params);
 	return result.data;
@@ -578,11 +582,12 @@ export const deleteAdminFeedbackParentTicket = async (params: {
 	sessionToken: string;
 	ticketId: string;
 }): Promise<{ success: true }> => {
-	const callable = httpsCallable<
+	const callable = await getAdminCallable<
 		{ sessionToken: string; ticketId: string },
 		{ success: true }
-	>(cloudFunctions, 'deleteFeedbackAdminParentTicket');
+	>('deleteFeedbackAdminParentTicket');
 
 	const result = await callable(params);
 	return result.data;
 };
+

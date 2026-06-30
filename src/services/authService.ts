@@ -17,7 +17,8 @@ import {
 	where,
 } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
-import { auth, db, functions } from '../config/firebase';
+import { auth, db } from '../config/firebase';
+import { getFirebaseFunctions } from '../config/firebaseFunctions';
 import { clearUserLocalStorage } from '../utils/localStorageCleanup';
 import { User } from '../Redux/Slices/userSlice';
 import { USER_ROLES } from '../constants/roles';
@@ -31,6 +32,11 @@ import { getUserProfile } from './userProfileService';
 
 export { getUserProfile } from './userProfileService';
 export { onAuthStateChange } from './authSession';
+
+const getAuthCallable = async <RequestData, ResponseData>(name: string) => {
+	const functions = await getFirebaseFunctions();
+	return httpsCallable<RequestData, ResponseData>(functions, name);
+};
 
 export interface FamilyInvite {
 	id: string;
@@ -75,10 +81,10 @@ export const signInWithEmail = async (
 		);
 
 		try {
-			const syncTenantAccess = httpsCallable<
+			const syncTenantAccess = await getAuthCallable<
 				Record<string, never>,
 				{ success: boolean }
-			>(functions, 'syncTenantAccessFromInvites');
+			>('syncTenantAccessFromInvites');
 			await syncTenantAccess({});
 		} catch (tenantSyncError) {
 			console.warn('Tenant access sync skipped:', tenantSyncError);
@@ -124,10 +130,10 @@ export const checkEmailExists = async (email: string): Promise<boolean> => {
 };
 
 const findActiveTenantPromoCode = async (promoCode: string, email: string) => {
-	const validateInvite = httpsCallable<
+	const validateInvite = await getAuthCallable<
 		{ promoCode: string; tenantEmail: string },
 		{ valid: boolean }
-	>(functions, 'validateTenantInvitationCode');
+	>('validateTenantInvitationCode');
 	const result = await validateInvite({
 		promoCode,
 		tenantEmail: email,
@@ -136,7 +142,7 @@ const findActiveTenantPromoCode = async (promoCode: string, email: string) => {
 };
 
 const findActiveTeamMemberPromoCode = async (promoCode: string, email: string) => {
-	const validateInvite = httpsCallable<
+	const validateInvite = await getAuthCallable<
 		{ promoCode: string; teamMemberEmail: string },
 		{
 			valid: boolean;
@@ -144,7 +150,7 @@ const findActiveTeamMemberPromoCode = async (promoCode: string, email: string) =
 			accountId?: string | null;
 			role?: string | null;
 		}
-	>(functions, 'validateTeamMemberInvitationCode');
+	>('validateTeamMemberInvitationCode');
 
 	const result = await validateInvite({
 		promoCode,
@@ -515,7 +521,7 @@ export const signUpWithEmail = async (
 			});
 		}
 
-		const ensureFamilyAccountCallable = httpsCallable<
+		const ensureFamilyAccountCallable = await getAuthCallable<
 			{
 				accountId?: string;
 				syncSubscription?: boolean;
@@ -525,7 +531,7 @@ export const signUpWithEmail = async (
 				id: string;
 				subscription?: Record<string, unknown>;
 			}
-		>(functions, 'ensureFamilyAccount');
+		>('ensureFamilyAccount');
 
 		if (!isTeamInviteSignup) {
 			await ensureFamilyAccountCallable({
@@ -544,18 +550,18 @@ export const signUpWithEmail = async (
 		}
 
 		if (shouldRedeemTenantInvite && promoCode?.trim()) {
-			const redeemTenantInvite = httpsCallable<
+			const redeemTenantInvite = await getAuthCallable<
 				{ promoCode: string },
 				{ success: boolean }
-			>(functions, 'redeemTenantInvitationCode');
+			>('redeemTenantInvitationCode');
 			await redeemTenantInvite({ promoCode });
 		}
 
 		if (shouldRedeemTeamInvite && promoCode?.trim()) {
-			const redeemTeamInvite = httpsCallable<
+			const redeemTeamInvite = await getAuthCallable<
 				{ promoCode: string; teamMemberEmail: string },
 				{ success: boolean }
-			>(functions, 'redeemTeamMemberInvitationCode');
+			>('redeemTeamMemberInvitationCode');
 			await redeemTeamInvite({
 				promoCode,
 				teamMemberEmail: email.trim().toLowerCase(),
@@ -667,7 +673,7 @@ export const addFamilyMember = async (
 	role: 'owner' | 'admin' | 'member' = 'admin',
 ): Promise<{ userId: string; message: string }> => {
 	try {
-		const createFamilyInviteFunction = httpsCallable<
+		const createFamilyInviteFunction = await getAuthCallable<
 			{
 				accountId: string;
 				email: string;
@@ -676,7 +682,7 @@ export const addFamilyMember = async (
 				role: 'owner' | 'admin' | 'member';
 			},
 			{ success: boolean; userId: string; message: string }
-		>(functions, 'createFamilyInvite');
+		>('createFamilyInvite');
 
 		const result = await createFamilyInviteFunction({
 			accountId,
@@ -713,12 +719,10 @@ export const removeFamilyMember = async (
 			throw new Error('Cannot remove yourself from the account');
 		}
 
-		// Call Cloud Function to delete the family member's account
-		// This preserves their tasks and history
-		const deleteFamilyMember = httpsCallable(
-			functions,
-			'deleteFamilyMemberAccount',
-		);
+		const deleteFamilyMember = await getAuthCallable<
+			{ memberId: string; accountId: string },
+			unknown
+		>('deleteFamilyMemberAccount');
 		await deleteFamilyMember({ memberId, accountId });
 	} catch (error: any) {
 		console.error('Failed to remove family member:', error);
@@ -731,10 +735,10 @@ export const updateFamilyMemberRole = async (
 	memberId: string,
 	role: 'admin' | 'member',
 ): Promise<void> => {
-	const updateRoleFunction = httpsCallable<
+	const updateRoleFunction = await getAuthCallable<
 		{ accountId: string; memberId: string; role: 'admin' | 'member' },
 		{ success: boolean; message?: string }
-	>(functions, 'updateFamilyMemberRole');
+	>('updateFamilyMemberRole');
 
 	await updateRoleFunction({ accountId, memberId, role });
 };
@@ -746,7 +750,7 @@ export const updateFamilyMember = async (
 	lastName: string,
 	role: 'admin' | 'member',
 ): Promise<void> => {
-	const updateFamilyMemberFunction = httpsCallable<
+	const updateFamilyMemberFunction = await getAuthCallable<
 		{
 			accountId: string;
 			memberId: string;
@@ -755,7 +759,7 @@ export const updateFamilyMember = async (
 			role: 'admin' | 'member';
 		},
 		{ success: boolean; message?: string }
-	>(functions, 'updateFamilyMember');
+	>('updateFamilyMember');
 
 	await updateFamilyMemberFunction({
 		accountId,
@@ -771,10 +775,10 @@ export const updateFamilyMember = async (
  */
 export const getFamilyMembers = async (accountId: string): Promise<User[]> => {
 	try {
-		const getFamilyMembersCallable = httpsCallable<
+		const getFamilyMembersCallable = await getAuthCallable<
 			{ accountId: string },
 			{ members: User[] }
-		>(functions, 'getFamilyMembers');
+		>('getFamilyMembers');
 
 		const result = await getFamilyMembersCallable({ accountId });
 		return Array.isArray(result.data?.members) ? result.data.members : [];
@@ -788,10 +792,10 @@ export const getFamilyInvites = async (
 	accountId: string,
 ): Promise<FamilyInvite[]> => {
 	try {
-		const listFamilyInvitesCallable = httpsCallable<
+		const listFamilyInvitesCallable = await getAuthCallable<
 			{ accountId: string },
 			{ invites: FamilyInvite[] }
-		>(functions, 'listFamilyInvites');
+		>('listFamilyInvites');
 
 		const result = await listFamilyInvitesCallable({ accountId });
 		const invites = Array.isArray(result.data?.invites)
@@ -809,10 +813,10 @@ export const resendPasswordReset = async (
 	accountId: string,
 	userId: string,
 ): Promise<void> => {
-	const resendFunction = httpsCallable<
+	const resendFunction = await getAuthCallable<
 		{ userId: string; accountId: string },
 		{ success: boolean; message?: string }
-	>(functions, 'resendFamilyMemberInvite');
+	>('resendFamilyMemberInvite');
 
 	await resendFunction({ userId, accountId });
 };
@@ -821,10 +825,10 @@ export const revokeFamilyInvite = async (
 	accountId: string,
 	inviteId: string,
 ): Promise<void> => {
-	const revokeInviteFunction = httpsCallable<
+	const revokeInviteFunction = await getAuthCallable<
 		{ inviteId: string; accountId: string },
 		{ success: boolean; message?: string }
-	>(functions, 'revokeFamilyInvite');
+	>('revokeFamilyInvite');
 
 	await revokeInviteFunction({ inviteId, accountId });
 };
@@ -833,10 +837,10 @@ export const acceptFamilyInvite = async (
 	inviteId: string,
 	token: string,
 ): Promise<void> => {
-	const acceptInviteFunction = httpsCallable<
+	const acceptInviteFunction = await getAuthCallable<
 		{ inviteId: string; token: string },
 		{ success: boolean; message?: string }
-	>(functions, 'acceptFamilyInvite');
+	>('acceptFamilyInvite');
 
 	await acceptInviteFunction({ inviteId, token });
 };
@@ -946,3 +950,4 @@ const autoAcceptGuestInvitations = async (
 		console.error('Error auto-accepting guest invitations:', error);
 	}
 };
+

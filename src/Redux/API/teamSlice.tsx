@@ -10,9 +10,9 @@ import {
 	updateDoc,
 	where,
 } from '@firebase/firestore';
-import { httpsCallable } from 'firebase/functions';
 import { apiSlice, docToData } from './apiSlice';
-import { auth, db, functions } from '../../config/firebase';
+import { auth, db } from '../../config/firebase';
+import { callFirebaseFunction } from '../../config/firebaseFunctions';
 import {
 	TeamGroup,
 	TeamMember,
@@ -80,11 +80,10 @@ export const teamSlice = apiSlice.injectEndpoints({
 		>({
 			async queryFn({ teamMemberId, teamMemberEmail, code }) {
 				try {
-					const createInvite = httpsCallable<
+					const result = await callFirebaseFunction<
 						{ teamMemberId: string; teamMemberEmail: string; code: string },
 						TeamMemberInvitationCode
-					>(functions, 'createTeamMemberInvitationCode');
-					const result = await createInvite({
+					>('createTeamMemberInvitationCode', {
 						teamMemberId,
 						teamMemberEmail,
 						code,
@@ -105,11 +104,10 @@ export const teamSlice = apiSlice.injectEndpoints({
 		>({
 			async queryFn({ teamMemberId }) {
 				try {
-					const revokeInvite = httpsCallable<
+					await callFirebaseFunction<
 						{ teamMemberId: string },
 						{ success: boolean; revokedCount: number }
-					>(functions, 'revokeTeamMemberInvitationCode');
-					await revokeInvite({ teamMemberId });
+					>('revokeTeamMemberInvitationCode', { teamMemberId });
 					return { data: undefined };
 				} catch (error: any) {
 					return { error: error.message };
@@ -124,15 +122,14 @@ export const teamSlice = apiSlice.injectEndpoints({
 		>({
 			async queryFn({ promoCode, teamMemberEmail }) {
 				try {
-					const redeemInvite = httpsCallable<
+					await callFirebaseFunction<
 						{ promoCode: string; teamMemberEmail: string },
 						{
 							success: boolean;
 							accountId?: string | null;
 							teamMemberId?: string | null;
 						}
-					>(functions, 'redeemTeamMemberInvitationCode');
-					await redeemInvite({ promoCode, teamMemberEmail });
+					>('redeemTeamMemberInvitationCode', { promoCode, teamMemberEmail });
 					return { data: undefined };
 				} catch (error: any) {
 					return { error: error.message };

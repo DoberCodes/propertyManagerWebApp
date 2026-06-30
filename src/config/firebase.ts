@@ -6,8 +6,6 @@ import {
 	browserLocalPersistence,
 	indexedDBLocalPersistence,
 } from 'firebase/auth';
-import { getStorage } from 'firebase/storage';
-import { connectFunctionsEmulator, getFunctions } from 'firebase/functions';
 import { Capacitor } from '@capacitor/core';
 
 // Firebase configuration
@@ -38,18 +36,6 @@ export const db = initializeFirestore(app, {
 	experimentalForceLongPolling: shouldForceLongPolling,
 });
 export const auth = getAuth(app);
-export const storage = getStorage(app);
-export const functions = getFunctions(app, 'us-central1');
-
-const functionsEmulatorHost =
-	process.env.REACT_APP_FIREBASE_FUNCTIONS_EMULATOR_HOST;
-if (process.env.NODE_ENV === 'development' && functionsEmulatorHost) {
-	const [host, port] = functionsEmulatorHost.split(':');
-	const parsedPort = Number(port || 5001);
-	if (host && Number.isFinite(parsedPort)) {
-		connectFunctionsEmulator(functions, host, parsedPort);
-	}
-}
 
 // Set auth persistence based on platform
 // Prefer IndexedDB on native, but fall back to localStorage if unavailable

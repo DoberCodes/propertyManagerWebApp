@@ -35,6 +35,7 @@ The application will:
 - Keep deployable image assets compressed and sized for their actual UI use.
 - Avoid leaving unreferenced large media files in directories included by bundler dynamic contexts.
 - Enforce frontend asset budgets during deployment and signed release builds.
+- Treat budget misses up to 15% over target as release warnings rather than release blockers, so small performance regressions do not hold up important bug fixes.
 
 Initial asset budgets are:
 
@@ -44,6 +45,7 @@ Initial asset budgets are:
 - Individual built media assets under 750 KB.
 
 The budget check scans the built application, including copied public assets outside `build/static`.
+Assets over target but within 15% of the target pass with a warning and make frontend optimization a top priority for the next release. Assets more than 15% over target fail the check and block release.
 
 ## Consequences
 
@@ -51,7 +53,8 @@ The budget check scans the built application, including copied public assets out
 - Optional engines and heavy libraries should be dynamically imported when practical.
 - Public and static media assets should be optimized before being committed.
 - Assets in directories loaded by `require.context` or similar dynamic import patterns must be treated as deployable, even if no explicit source reference exists.
-- `predeploy` and the signed release pipeline must fail when asset budgets are exceeded.
+- `predeploy` and the signed release pipeline warn when asset budgets are exceeded by up to 15%.
+- `predeploy` and the signed release pipeline must fail when any asset budget is exceeded by more than 15%.
 - Budget thresholds may be adjusted intentionally, but increases should be treated as product and engineering decisions rather than incidental build drift.
 
 ## Measured Results

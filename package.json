@@ -1,9 +1,9 @@
 {
 	"name": "Maintley",
-	"version": "2.7.15",
+	"version": "2.7.16",
 	"private": true,
 	"type": "module",
-	"homepage": "https://maintleyapp.com",
+	"homepage": "./",
 	"dependencies": {
 		"@capacitor/android": "^8.4.1",
 		"@capacitor/app": "^8.1.0",

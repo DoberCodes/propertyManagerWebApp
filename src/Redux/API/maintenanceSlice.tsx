@@ -8,8 +8,8 @@ import {
 	deleteDoc,
 	updateDoc,
 } from 'firebase/firestore';
-import { httpsCallable } from 'firebase/functions';
-import { db, functions as cloudFunctions } from '../../config/firebase';
+import { db } from '../../config/firebase';
+import { callFirebaseFunction } from '../../config/firebaseFunctions';
 import { apiSlice, docToData } from './apiSlice';
 import {
 	resolveAccessibleAccountIds,
@@ -224,13 +224,6 @@ const maintenanceSlice = apiSlice.injectEndpoints({
 						);
 					}
 
-					const createMaintenanceEvent = httpsCallable<
-						{
-							event: Record<string, unknown>;
-						},
-						{ success: boolean; id: string }
-					>(cloudFunctions, 'createMaintenanceEvent');
-
 					const historyData = {
 						accountId,
 						propertyId,
@@ -265,7 +258,10 @@ const maintenanceSlice = apiSlice.injectEndpoints({
 						financials,
 					};
 
-					const result = await createMaintenanceEvent({ event: historyData });
+					const result = await callFirebaseFunction<
+						{ event: Record<string, unknown> },
+						{ success: boolean; id: string }
+					>('createMaintenanceEvent', { event: historyData });
 					return { data: { id: result.data.id, ...(historyData as any) } };
 				} catch (error: any) {
 					return { error: error.message };

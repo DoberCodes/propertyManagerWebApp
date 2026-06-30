@@ -1,6 +1,6 @@
 import { deleteObject, getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import { auth } from '../config/firebase';
-import { storage } from '../config/firebase';
+import { storage } from '../config/firebaseStorage';
 import {
 	PropertyDocument,
 	PropertyDocumentCategory,

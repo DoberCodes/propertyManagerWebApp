@@ -285,6 +285,10 @@ Validates the production build against Maintley's current asset budgets:
 Run after `yarn build`. The check scans the full `build` directory, including
 public assets copied outside `build/static`.
 
+Assets over target but within 15% of target pass with a warning. The warning
+means frontend optimization should become a top priority for the next release.
+Assets more than 15% over target fail the check and block release.
+
 This check is also enforced by `predeploy` and the signed release pipeline.
 
 Risk:

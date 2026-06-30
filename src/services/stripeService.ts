@@ -5,8 +5,7 @@
 
 import { STRIPE_PUBLIC_KEY, STRIPE_CHECKOUT_CONFIG } from '../constants/stripe';
 import { loadStripe, Stripe } from '@stripe/stripe-js';
-import { httpsCallable } from 'firebase/functions';
-import { functions } from '../config/firebase';
+import { callFirebaseFunction } from '../config/firebaseFunctions';
 
 let stripeInstance: Stripe | null = null;
 
@@ -91,9 +90,14 @@ export const createCheckoutSession = async (
 	billingCycle: 'month' | 'year' = 'month',
 ): Promise<string> => {
 	try {
-		// Call Firebase Cloud Function
-		const createCheckout = httpsCallable(functions, 'createCheckoutSession');
-		const result = await createCheckout({
+		const result = await callFirebaseFunction<
+			Record<string, unknown>,
+			{
+				sessionId?: string;
+				url?: string;
+				subscriptionUpdated?: boolean;
+			}
+		>('createCheckoutSession', {
 			priceId,
 			...(planId ? { planId } : {}),
 			billingCycle,
@@ -104,12 +108,7 @@ export const createCheckoutSession = async (
 			...(trialEnd && { trialEnd }),
 			...(promoCode && { promoCode }),
 		});
-
-		const data = result.data as {
-			sessionId?: string;
-			url?: string;
-			subscriptionUpdated?: boolean;
-		};
+		const data = result.data;
 		if (data.subscriptionUpdated) {
 			return '';
 		}
@@ -144,8 +143,10 @@ export const validatePromotionCode = async (
 	}
 
 	try {
-		const validatePromo = httpsCallable(functions, 'validatePromotionCode');
-		const result = await validatePromo({ promoCode: trimmedPromoCode });
+		const result = await callFirebaseFunction<
+			{ promoCode: string },
+			PromoValidationResult
+		>('validatePromotionCode', { promoCode: trimmedPromoCode });
 		return result.data as PromoValidationResult;
 	} catch (error) {
 		console.error('Failed to validate promo code:', error);
@@ -166,9 +167,10 @@ export const redirectToCheckout = (checkoutUrl: string) => {
  */
 export const handleCheckoutSuccess = async (sessionId: string) => {
 	try {
-		// Call Firebase Cloud Function
-		const verifyCheckout = httpsCallable(functions, 'verifyCheckoutSession');
-		const result = await verifyCheckout({ sessionId });
+		const result = await callFirebaseFunction<{ sessionId: string }, unknown>(
+			'verifyCheckoutSession',
+			{ sessionId },
+		);
 
 		return result.data;
 	} catch (error) {
@@ -182,8 +184,10 @@ export const handleCheckoutSuccess = async (sessionId: string) => {
  */
 export const cancelSubscription = async (subscriptionId: string) => {
 	try {
-		const cancel = httpsCallable(functions, 'cancelSubscription');
-		const result = await cancel({ subscriptionId });
+		const result = await callFirebaseFunction<{ subscriptionId: string }, unknown>(
+			'cancelSubscription',
+			{ subscriptionId },
+		);
 		return result.data;
 	} catch (error) {
 		console.error('Failed to cancel subscription:', error);
@@ -196,8 +200,10 @@ export const cancelSubscription = async (subscriptionId: string) => {
  */
 export const getSubscriptionDetails = async (subscriptionId: string) => {
 	try {
-		const getDetails = httpsCallable(functions, 'getSubscriptionDetails');
-		const result = await getDetails({ subscriptionId });
+		const result = await callFirebaseFunction<{ subscriptionId: string }, unknown>(
+			'getSubscriptionDetails',
+			{ subscriptionId },
+		);
 		return result.data;
 	} catch (error) {
 		console.error('Failed to get subscription details:', error);
@@ -207,8 +213,10 @@ export const getSubscriptionDetails = async (subscriptionId: string) => {
 
 export const syncSubscriptionFromStripe = async () => {
 	try {
-		const syncSubscription = httpsCallable(functions, 'syncSubscriptionFromStripe');
-		const result = await syncSubscription({});
+		const result = await callFirebaseFunction<Record<string, never>, unknown>(
+			'syncSubscriptionFromStripe',
+			{},
+		);
 		return result.data;
 	} catch (error) {
 		console.error('Failed to sync subscription from Stripe:', error);

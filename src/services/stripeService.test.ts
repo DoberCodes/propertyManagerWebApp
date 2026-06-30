@@ -2,9 +2,11 @@ import {
 	createCheckoutSession,
 	handleCheckoutSuccess,
 } from './stripeService';
-import { httpsCallable } from 'firebase/functions';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 
 jest.mock('firebase/functions', () => ({
+	connectFunctionsEmulator: jest.fn(),
+	getFunctions: jest.fn(() => ({ app: 'test-functions-app' })),
 	httpsCallable: jest.fn(),
 }));
 
@@ -15,6 +17,7 @@ jest.mock('../config/firebase', () => ({
 describe('stripeService', () => {
 	beforeEach(() => {
 		jest.clearAllMocks();
+		(getFunctions as jest.Mock).mockReturnValue({ app: 'test-functions-app' });
 	});
 
 	it('creates checkout session with expected payload and returns URL', async () => {

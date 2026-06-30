@@ -9,11 +9,11 @@ import {
 	updateDoc,
 	where,
 } from '@firebase/firestore';
-import { httpsCallable } from 'firebase/functions';
 import { CompletionFile, Task, TaskFinancials } from '../../types/Task.types';
 import { MaintenanceEvent } from '../../types/MaintenanceEvent.types';
 import { apiSlice, docToData } from './apiSlice';
-import { auth, db, functions as cloudFunctions } from '../../config/firebase';
+import { auth, db } from '../../config/firebase';
+import { callFirebaseFunction } from '../../config/firebaseFunctions';
 import {
 	resolveAccessibleAccountIds,
 	resolveTargetUserId,
@@ -246,12 +246,10 @@ const buildMaintenanceEventFromTask = ({
 const writeMaintenanceEvent = async (
 	event: Record<string, unknown>,
 ): Promise<void> => {
-	const createMaintenanceEvent = httpsCallable<
+	await callFirebaseFunction<
 		{ event: Record<string, unknown> },
 		{ success: boolean; id: string }
-	>(cloudFunctions, 'createMaintenanceEvent');
-
-	await createMaintenanceEvent({ event });
+	>('createMaintenanceEvent', { event });
 };
 
 const withDefaultTaskNotificationSchedule = (

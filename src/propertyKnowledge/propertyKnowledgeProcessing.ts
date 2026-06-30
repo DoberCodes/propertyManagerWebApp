@@ -1,5 +1,4 @@
-import { httpsCallable } from 'firebase/functions';
-import { functions } from '../config/firebase';
+import { callFirebaseFunction } from '../config/firebaseFunctions';
 import type { PropertyDocument } from '../types/Property.types';
 
 type ProcessPropertyDocumentAcquisitionRequest = {
@@ -27,10 +26,9 @@ export const processPropertyDocumentAcquisition = async ({
 	propertyId,
 	documentId,
 }: ProcessPropertyDocumentAcquisitionRequest) => {
-	const callable = httpsCallable<
+	const result = await callFirebaseFunction<
 		ProcessPropertyDocumentAcquisitionRequest,
 		ProcessPropertyDocumentAcquisitionResponse
-	>(functions, 'processPropertyDocumentAcquisition');
-	const result = await callable({ propertyId, documentId });
+	>('processPropertyDocumentAcquisition', { propertyId, documentId });
 	return result.data;
 };

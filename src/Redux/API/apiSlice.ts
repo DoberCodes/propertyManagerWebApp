@@ -1,7 +1,7 @@
 import { createApi, fakeBaseQuery } from '@reduxjs/toolkit/query/react';
 import { doc, getDoc } from 'firebase/firestore';
-import { httpsCallable } from 'firebase/functions';
-import { db, functions as cloudFunctions } from '../../config/firebase';
+import { db } from '../../config/firebase';
+import { callFirebaseFunction } from '../../config/firebaseFunctions';
 
 // Types
 export type SharePermission = 'co-owner' | 'admin' | 'viewer';
@@ -180,7 +180,7 @@ export const apiSlice = createApi({
 		>({
 			async queryFn(feedbackData) {
 				try {
-					const submitFeedbackFunction = httpsCallable<
+					const result = await callFirebaseFunction<
 						{
 							type: 'feedback' | 'feature_request' | 'bug_report';
 							subject: string;
@@ -204,9 +204,7 @@ export const apiSlice = createApi({
 							}>;
 						},
 						{ id: string; ticketNumber?: string; message: string }
-					>(cloudFunctions, 'submitFeedback');
-
-					const result = await submitFeedbackFunction({
+					>('submitFeedback', {
 						type: feedbackData.type,
 						subject: feedbackData.subject,
 						message: feedbackData.message,
@@ -249,12 +247,10 @@ export const apiSlice = createApi({
 		>({
 			async queryFn(args) {
 				try {
-					const listMyFeedbackTicketsFunction = httpsCallable<
+					const result = await callFirebaseFunction<
 						{ limit?: number },
 						{ tickets: MyFeedbackTicket[] }
-					>(cloudFunctions, 'listMyFeedbackTickets');
-
-					const result = await listMyFeedbackTicketsFunction({
+					>('listMyFeedbackTickets', {
 						limit: args?.limit,
 					});
 					return {

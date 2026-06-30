@@ -12,6 +12,9 @@ const budgets = {
 	maxBuildMediaBytes: 750 * 1024,
 };
 
+const warningThresholdMultiplier = 1.15;
+let warningCount = 0;
+
 const mediaExtensions = new Set([
 	'.avif',
 	'.gif',
@@ -49,8 +52,34 @@ const fail = (message) => {
 	process.exitCode = 1;
 };
 
+const warn = (message) => {
+	warningCount += 1;
+	console.log(`WARN ${message}`);
+};
+
 const pass = (message) => {
 	console.log(`PASS ${message}`);
+};
+
+const checkBudget = ({ label, actualBytes, budgetBytes, context = '' }) => {
+	const warningLimitBytes = Math.round(budgetBytes * warningThresholdMultiplier);
+	const formattedContext = context ? ` (${context})` : '';
+
+	if (actualBytes > warningLimitBytes) {
+		fail(
+			`${label} ${formatBytes(actualBytes)} exceeds ${formatBytes(budgetBytes)} target and ${formatBytes(warningLimitBytes)} blocking threshold${formattedContext}`,
+		);
+		return;
+	}
+
+	if (actualBytes > budgetBytes) {
+		warn(
+			`${label} ${formatBytes(actualBytes)} exceeds ${formatBytes(budgetBytes)} target but is within the 15% release warning threshold (${formatBytes(warningLimitBytes)}). Treat frontend optimization as a top priority for the next release${formattedContext}`,
+		);
+		return;
+	}
+
+	pass(`${label} ${formatBytes(actualBytes)} within ${formatBytes(budgetBytes)}`);
 };
 
 if (!fs.existsSync(buildDir)) {
@@ -86,54 +115,46 @@ const mainJs = jsAssets
 
 if (!mainJs) {
 	fail('Could not find main JavaScript asset.');
-} else if (mainJs.gzipBytes > budgets.mainJsGzipBytes) {
-	fail(
-		`main JS gzip ${formatBytes(mainJs.gzipBytes)} exceeds ${formatBytes(budgets.mainJsGzipBytes)} (${mainJs.relativePath})`,
-	);
 } else {
-	pass(
-		`main JS gzip ${formatBytes(mainJs.gzipBytes)} within ${formatBytes(budgets.mainJsGzipBytes)}`,
-	);
+	checkBudget({
+		label: 'main JS gzip',
+		actualBytes: mainJs.gzipBytes,
+		budgetBytes: budgets.mainJsGzipBytes,
+		context: mainJs.relativePath,
+	});
 }
 
 const totalJsGzipBytes = jsAssets.reduce((sum, asset) => sum + asset.gzipBytes, 0);
-if (totalJsGzipBytes > budgets.totalJsGzipBytes) {
-	fail(
-		`total JS gzip ${formatBytes(totalJsGzipBytes)} exceeds ${formatBytes(budgets.totalJsGzipBytes)}`,
-	);
-} else {
-	pass(
-		`total JS gzip ${formatBytes(totalJsGzipBytes)} within ${formatBytes(budgets.totalJsGzipBytes)}`,
-	);
-}
+checkBudget({
+	label: 'total JS gzip',
+	actualBytes: totalJsGzipBytes,
+	budgetBytes: budgets.totalJsGzipBytes,
+});
 
 const totalBuildMediaBytes = mediaAssets.reduce(
 	(sum, asset) => sum + asset.rawBytes,
 	0,
 );
-if (totalBuildMediaBytes > budgets.totalBuildMediaBytes) {
-	fail(
-		`build media ${formatBytes(totalBuildMediaBytes)} exceeds ${formatBytes(budgets.totalBuildMediaBytes)}`,
-	);
-} else {
-	pass(
-		`build media ${formatBytes(totalBuildMediaBytes)} within ${formatBytes(budgets.totalBuildMediaBytes)}`,
-	);
-}
+checkBudget({
+	label: 'build media',
+	actualBytes: totalBuildMediaBytes,
+	budgetBytes: budgets.totalBuildMediaBytes,
+});
 
 const largestMedia = [...mediaAssets].sort((a, b) => b.rawBytes - a.rawBytes)[0];
-if (largestMedia && largestMedia.rawBytes > budgets.maxBuildMediaBytes) {
-	fail(
-		`largest media asset ${formatBytes(largestMedia.rawBytes)} exceeds ${formatBytes(budgets.maxBuildMediaBytes)} (${largestMedia.relativePath})`,
-	);
-} else if (largestMedia) {
-	pass(
-		`largest media asset ${formatBytes(largestMedia.rawBytes)} within ${formatBytes(budgets.maxBuildMediaBytes)} (${largestMedia.relativePath})`,
-	);
+if (largestMedia) {
+	checkBudget({
+		label: 'largest media asset',
+		actualBytes: largestMedia.rawBytes,
+		budgetBytes: budgets.maxBuildMediaBytes,
+		context: largestMedia.relativePath,
+	});
 }
 
 if (process.exitCode) {
 	console.error('\nAsset budget check failed.');
+} else if (warningCount > 0) {
+	console.log(`\nAsset budget check passed with ${warningCount} warning${warningCount === 1 ? '' : 's'}.`);
 } else {
 	console.log('\nAsset budget check passed.');
 }
