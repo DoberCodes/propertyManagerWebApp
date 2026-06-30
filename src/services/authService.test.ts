@@ -26,6 +26,7 @@ jest.mock('firebase/auth', () => ({
 jest.mock('firebase/firestore', () => ({
 	doc: jest.fn(),
 	getDoc: jest.fn(),
+	getDocFromServer: jest.fn(),
 	setDoc: jest.fn(),
 	updateDoc: jest.fn(),
 	collection: jest.fn(),
@@ -223,7 +224,8 @@ describe('Family Account Functionality', () => {
 	});
 
 	describe('getUserProfile migration', () => {
-		const mockGetDoc = require('firebase/firestore').getDoc;
+		const mockGetDocFromServer =
+			require('firebase/firestore').getDocFromServer;
 		const mockUpdateDoc = require('firebase/firestore').updateDoc;
 		const mockSetDoc = require('firebase/firestore').setDoc;
 
@@ -244,7 +246,7 @@ describe('Family Account Functionality', () => {
 				exists: () => false,
 			};
 
-			mockGetDoc
+			mockGetDocFromServer
 				.mockResolvedValueOnce(mockUserDoc)
 				.mockResolvedValueOnce(mockAccountDoc);
 			mockUpdateDoc.mockResolvedValue(undefined);
@@ -290,7 +292,7 @@ describe('Family Account Functionality', () => {
 				}),
 			};
 
-			mockGetDoc
+			mockGetDocFromServer
 				.mockResolvedValueOnce(mockUserDoc)
 				.mockResolvedValueOnce(mockAccountDoc);
 
@@ -319,6 +321,7 @@ describe('Family Account Functionality', () => {
 			jest.doMock('firebase/firestore', () => ({
 				doc: jest.fn(),
 				getDoc: jest.fn(),
+				getDocFromServer: jest.fn(),
 				setDoc: mockSetDoc,
 				updateDoc: mockUpdateDoc,
 				collection: jest.fn(),

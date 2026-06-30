@@ -1092,6 +1092,36 @@ const requireAdminSession = async (sessionToken) => {
             : [],
     };
 };
+const actorFromAdminSession = (session) => ({
+    adminUserId: session.adminUserId,
+    username: session.username,
+    displayName: session.displayName,
+    email: session.email,
+});
+const actorFromMaintleyAdmin = (adminAuth) => ({
+    adminUserId: adminAuth.uid,
+    username: adminAuth.email || adminAuth.uid,
+    displayName: adminAuth.displayName,
+    email: adminAuth.email,
+});
+const resolveAdminPortalActor = async (context, sessionToken) => {
+    try {
+        const adminAuth = await requireMaintleyAdmin(context);
+        const normalizedToken = String(sessionToken || '').trim();
+        if (normalizedToken) {
+            try {
+                return actorFromAdminSession(await requireAdminSession(normalizedToken));
+            }
+            catch {
+                // The Maintley admin role is authoritative for the current portal.
+            }
+        }
+        return actorFromMaintleyAdmin(adminAuth);
+    }
+    catch (authError) {
+        return actorFromAdminSession(await requireAdminSession(sessionToken));
+    }
+};
 exports.adminPortalLogin = functions.https.onCall(async (data) => {
     const usernameLower = normalizeUsername(data?.username);
     const password = String(data?.password || '');
@@ -1621,8 +1651,8 @@ exports.getAdminPortalUserTroubleshootingDetails = functions
 });
 exports.adminPortalCreateBillingCoupon = functions
     .runWith({ secrets: ADMIN_PORTAL_STRIPE_SECRETS })
-    .https.onCall(async (data) => {
-    const adminSession = await requireAdminSession(String(data?.sessionToken || ''));
+    .https.onCall(async (data, context) => {
+    const adminActor = await resolveAdminPortalActor(context, String(data?.sessionToken || ''));
     const stripe = getAdminPortalStripe();
     const code = normalizePromoCode(data?.code);
     if (!code) {
@@ -1673,8 +1703,8 @@ exports.adminPortalCreateBillingCoupon = functions
     }
     const metadata = removeUndefinedFields({
         source: 'maintley_admin_portal',
-        createdByAdminUserId: adminSession.adminUserId,
-        createdByAdminUsername: adminSession.username,
+        createdByAdminUserId: adminActor.adminUserId,
+        createdByAdminUsername: adminActor.username,
         appliesToPlan: appliesToPlan || undefined,
         appliesToBillingCycle: appliesToPlan ? appliesToBillingCycle : undefined,
         internalNote: String(data?.internalNote || '').trim() || undefined,
@@ -1706,10 +1736,10 @@ exports.adminPortalCreateBillingCoupon = functions
             targetType: 'stripe_promotion_code',
             targetId: promotionCode.id,
             performedBy: {
-                adminUserId: adminSession.adminUserId,
-                username: adminSession.username,
-                displayName: adminSession.displayName,
-                email: adminSession.email,
+                adminUserId: adminActor.adminUserId,
+                username: adminActor.username,
+                displayName: adminActor.displayName,
+                email: adminActor.email,
             },
             metadata: {
                 code,
@@ -1735,8 +1765,8 @@ exports.adminPortalCreateBillingCoupon = functions
 });
 exports.adminPortalListBillingCoupons = functions
     .runWith({ secrets: ADMIN_PORTAL_STRIPE_SECRETS })
-    .https.onCall(async (data) => {
-    await requireAdminSession(String(data?.sessionToken || ''));
+    .https.onCall(async (data, context) => {
+    await resolveAdminPortalActor(context, String(data?.sessionToken || ''));
     const stripe = getAdminPortalStripe();
     const limit = Math.min(Math.max(Number(data?.limit || 100), 1), 100);
     const [activeCodes, inactiveCodes] = await Promise.all([
@@ -1754,8 +1784,8 @@ exports.adminPortalListBillingCoupons = functions
 });
 exports.adminPortalCreateCheckoutLinkWithCoupon = functions
     .runWith({ secrets: ADMIN_PORTAL_STRIPE_SECRETS })
-    .https.onCall(async (data) => {
-    const adminSession = await requireAdminSession(String(data?.sessionToken || ''));
+    .https.onCall(async (data, context) => {
+    const adminActor = await resolveAdminPortalActor(context, String(data?.sessionToken || ''));
     const stripe = getAdminPortalStripe();
     const targetUserId = String(data?.userId || '').trim();
     const planId = String(data?.planId || '').trim().toLowerCase();
@@ -1826,7 +1856,7 @@ exports.adminPortalCreateCheckoutLinkWithCoupon = functions
             firebaseUID: targetUserId,
             promoCode,
             createdBy: 'maintley_admin_portal',
-            createdByAdminUserId: adminSession.adminUserId,
+            createdByAdminUserId: adminActor.adminUserId,
         },
     });
     await db.collection(ADMIN_AUDIT_LOGS_COLLECTION).add({
@@ -1834,10 +1864,10 @@ exports.adminPortalCreateCheckoutLinkWithCoupon = functions
         targetType: 'user',
         targetId: targetUserId,
         performedBy: {
-            adminUserId: adminSession.adminUserId,
-            username: adminSession.username,
-            displayName: adminSession.displayName,
-            email: adminSession.email,
+            adminUserId: adminActor.adminUserId,
+            username: adminActor.username,
+            displayName: adminActor.displayName,
+            email: adminActor.email,
         },
         metadata: {
             planId,

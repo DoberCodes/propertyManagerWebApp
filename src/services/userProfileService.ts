@@ -1,4 +1,4 @@
-import { doc, getDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
+import { doc, getDocFromServer, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { callFirebaseFunction } from '../config/firebaseFunctions';
 import { User } from '../Redux/Slices/userSlice';
@@ -36,11 +36,12 @@ const serializeFirestoreValue = (value: unknown): unknown => {
  */
 export const getUserProfile = async (uid: string): Promise<User> => {
 	try {
-		let userDoc = await getDoc(doc(db, 'users', uid));
+		const userRef = doc(db, 'users', uid);
+		let userDoc = await getDocFromServer(userRef);
 
 		if (!userDoc.exists()) {
 			await new Promise((resolve) => setTimeout(resolve, 400));
-			userDoc = await getDoc(doc(db, 'users', uid));
+			userDoc = await getDocFromServer(userRef);
 		}
 
 		if (!userDoc.exists()) {
@@ -104,7 +105,7 @@ export const getUserProfile = async (uid: string): Promise<User> => {
 			String(rawData.teamMemberId || '').trim()
 		) {
 			try {
-				const teamMemberSnapshot = await getDoc(
+				const teamMemberSnapshot = await getDocFromServer(
 					doc(db, 'teamMembers', String(rawData.teamMemberId).trim()),
 				);
 				if (teamMemberSnapshot.exists()) {
