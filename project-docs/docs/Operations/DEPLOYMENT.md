@@ -361,6 +361,41 @@ Firebase Extensions Admin
 For the current Maintley deploy workflow, viewer access is enough because the
 workflow only needs Firebase CLI analysis to list extension instances.
 
+Cloud Functions deploy may also check project billing state through the Cloud
+Billing API. If deploy fails with:
+
+```text
+cloudbilling.googleapis.com/.../billingInfo had HTTP Error: 403
+Cloud Billing API has not been used ... or it is disabled
+```
+
+enable the Cloud Billing API for the Firebase/GCP project. If the API is
+enabled and deploy still fails, grant the GitHub deploy service account a
+read-only billing role that can inspect project billing state, such as:
+
+```text
+Billing Account Viewer
+```
+
+The deploy workflow does not need to manage billing accounts.
+
+Scheduled Cloud Functions require Cloud Scheduler job permissions during
+deploy. If deploy fails with:
+
+```text
+lacks IAM permission "cloudscheduler.jobs.update"
+```
+
+grant the GitHub deploy service account:
+
+```text
+Cloud Scheduler Admin
+```
+
+This is required for Firebase CLI to create or update scheduler jobs for
+scheduled Functions such as task reminders, monthly summaries, seasonal
+guidance, and cleanup jobs.
+
 Functions that use Firebase/Google Secret Manager params require the deploy
 service account to read secret metadata and versions during deploy analysis. If
 deploy fails with:

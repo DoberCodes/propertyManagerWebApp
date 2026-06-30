@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.processPropertyDocumentAcquisition = void 0;
+exports.processPropertyDocumentAcquisitionRequests = exports.processPropertyDocumentAcquisition = void 0;
 const admin = __importStar(require("firebase-admin"));
 const functions = __importStar(require("firebase-functions/v1"));
 const zlib = __importStar(require("zlib"));
@@ -410,47 +410,112 @@ const classifyDocumentType = (document) => {
         return 'manual';
     return 'unknown';
 };
-exports.processPropertyDocumentAcquisition = functions
-    .region('us-central1')
-    .runWith({ timeoutSeconds: 120, memory: '512MB' })
-    .https.onCall(async (data, context) => {
-    var _a, _b;
-    const uid = assertAuthenticated(context);
-    const propertyId = toString(data === null || data === void 0 ? void 0 : data.propertyId);
-    const documentId = toString(data === null || data === void 0 ? void 0 : data.documentId);
-    if (!propertyId || !documentId) {
-        throw new functions.https.HttpsError('invalid-argument', 'propertyId and documentId are required.');
+const PROCESSING_LOCK_STALE_MS = 10 * 60 * 1000;
+const isRecentProcessingLock = (document) => {
+    const startedAt = toString(document.acquisitionWorkerStartedAt);
+    if (!startedAt)
+        return false;
+    const startedAtMs = new Date(startedAt).getTime();
+    if (Number.isNaN(startedAtMs))
+        return false;
+    return Date.now() - startedAtMs < PROCESSING_LOCK_STALE_MS;
+};
+const shouldBackgroundProcessDocument = (document) => toString(document.id) &&
+    isPdfDocument(document) &&
+    toString(document.storagePath) &&
+    toString(document.acquisitionStatus) === 'processing' &&
+    !isRecentProcessingLock(document);
+const hasDocumentChangedForProcessing = (before, after) => {
+    if (!after || !shouldBackgroundProcessDocument(after)) {
+        return false;
     }
-    const propertyRef = db.collection('properties').doc(propertyId);
-    const propertySnapshot = await propertyRef.get();
-    if (!propertySnapshot.exists) {
-        throw new functions.https.HttpsError('not-found', 'Property not found.');
+    if (!before) {
+        return true;
     }
-    const propertyData = propertySnapshot.data() || {};
-    await assertCanProcessProperty(propertyData, uid);
-    const documents = Array.isArray(propertyData.documents)
-        ? propertyData.documents
-        : [];
-    const document = documents.find((candidate) => toString(candidate.id) === documentId);
-    if (!document) {
-        throw new functions.https.HttpsError('not-found', 'Document not found.');
-    }
-    if (!isPdfDocument(document)) {
-        throw new functions.https.HttpsError('invalid-argument', 'Only PDF documents are supported by this processor.');
-    }
-    const storagePath = toString(document.storagePath);
-    if (!storagePath) {
-        throw new functions.https.HttpsError('failed-precondition', 'This document does not have a storage path.');
-    }
-    const startedAt = new Date().toISOString();
-    await propertyRef.update({
-        documents: updateDocumentInList(documents, documentId, {
-            acquisitionStatus: 'processing',
-            acquisitionStartedAt: startedAt,
-            acquisitionError: '',
-        }),
-        updatedAt: startedAt,
+    return (toString(before.acquisitionStatus) !== toString(after.acquisitionStatus) ||
+        toString(before.storagePath) !== toString(after.storagePath) ||
+        toString(before.acquisitionStartedAt) !== toString(after.acquisitionStartedAt));
+};
+const getProcessableDocumentIds = (beforeDocuments, afterDocuments) => {
+    const beforeById = new Map();
+    beforeDocuments.forEach((document) => {
+        const id = toString(document.id);
+        if (id)
+            beforeById.set(id, document);
     });
+    return afterDocuments
+        .filter((document) => hasDocumentChangedForProcessing(beforeById.get(toString(document.id)), document))
+        .map((document) => toString(document.id))
+        .filter(Boolean);
+};
+const lockDocumentForProcessing = async ({ propertyRef, documentId, triggeredBy, }) => {
+    const nowIso = new Date().toISOString();
+    return db.runTransaction(async (transaction) => {
+        const snapshot = await transaction.get(propertyRef);
+        if (!snapshot.exists) {
+            throw new functions.https.HttpsError('not-found', 'Property not found.');
+        }
+        const propertyData = snapshot.data() || {};
+        const documents = Array.isArray(propertyData.documents)
+            ? propertyData.documents
+            : [];
+        const document = documents.find((candidate) => toString(candidate.id) === documentId);
+        if (!document) {
+            throw new functions.https.HttpsError('not-found', 'Document not found.');
+        }
+        if (!isPdfDocument(document)) {
+            throw new functions.https.HttpsError('invalid-argument', 'Only PDF documents are supported by this processor.');
+        }
+        if (!toString(document.storagePath)) {
+            throw new functions.https.HttpsError('failed-precondition', 'This document does not have a storage path.');
+        }
+        if (triggeredBy === 'background' &&
+            toString(document.acquisitionStatus) !== 'processing') {
+            return null;
+        }
+        if (triggeredBy === 'background' && isRecentProcessingLock(document)) {
+            return null;
+        }
+        const nextDocuments = updateDocumentInList(documents, documentId, {
+            acquisitionStatus: 'processing',
+            acquisitionStartedAt: toString(document.acquisitionStartedAt) || nowIso,
+            acquisitionWorkerStartedAt: nowIso,
+            acquisitionError: '',
+        });
+        transaction.update(propertyRef, {
+            documents: nextDocuments,
+            updatedAt: nowIso,
+        });
+        return {
+            propertyData,
+            document: {
+                ...document,
+                acquisitionStatus: 'processing',
+                acquisitionStartedAt: toString(document.acquisitionStartedAt) || nowIso,
+                acquisitionWorkerStartedAt: nowIso,
+                acquisitionError: '',
+            },
+            documents,
+        };
+    });
+};
+const processPdfDocumentAcquisition = async ({ propertyId, documentId, triggeredBy, }) => {
+    var _a, _b;
+    const propertyRef = db.collection('properties').doc(propertyId);
+    const locked = await lockDocumentForProcessing({
+        propertyRef,
+        documentId,
+        triggeredBy,
+    });
+    if (!locked) {
+        return {
+            success: false,
+            suggestionCount: 0,
+            message: 'Document is not ready for processing.',
+        };
+    }
+    const { propertyData, document, documents } = locked;
+    const storagePath = toString(document.storagePath);
     try {
         const [pdfBuffer] = await admin.storage().bucket().file(storagePath).download();
         if (pdfBuffer.length > MAX_PDF_BYTES) {
@@ -469,6 +534,7 @@ exports.processPropertyDocumentAcquisition = functions
                 documents: updateDocumentInList(latestDocuments, documentId, {
                     acquisitionStatus: 'failed',
                     acquisitionCompletedAt: completedAt,
+                    acquisitionWorkerCompletedAt: completedAt,
                     acquisitionError: 'Maintley could not read useful text from this PDF yet. Scanned PDFs will need the rendered-page OCR processor.',
                 }),
                 updatedAt: completedAt,
@@ -512,6 +578,7 @@ exports.processPropertyDocumentAcquisition = functions
             documents: updateDocumentInList(latestDocuments, documentId, {
                 acquisitionStatus: 'pending_review',
                 acquisitionCompletedAt: completedAt,
+                acquisitionWorkerCompletedAt: completedAt,
                 acquisitionError: '',
                 extractedKnowledgeSuggestionIds: Array.from(new Set([
                     ...(document.extractedKnowledgeSuggestionIds || []),
@@ -546,12 +613,71 @@ exports.processPropertyDocumentAcquisition = functions
             documents: updateDocumentInList(latestDocuments, documentId, {
                 acquisitionStatus: 'failed',
                 acquisitionCompletedAt: completedAt,
+                acquisitionWorkerCompletedAt: completedAt,
                 acquisitionError: (error === null || error === void 0 ? void 0 : error.message) ||
                     'Maintley could not review this PDF. Please try again later.',
             }),
             updatedAt: completedAt,
         });
         console.error('PDF property knowledge acquisition failed:', error);
+        throw error;
+    }
+};
+exports.processPropertyDocumentAcquisition = functions
+    .region('us-central1')
+    .runWith({ timeoutSeconds: 120, memory: '512MB' })
+    .https.onCall(async (data, context) => {
+    const uid = assertAuthenticated(context);
+    const propertyId = toString(data === null || data === void 0 ? void 0 : data.propertyId);
+    const documentId = toString(data === null || data === void 0 ? void 0 : data.documentId);
+    if (!propertyId || !documentId) {
+        throw new functions.https.HttpsError('invalid-argument', 'propertyId and documentId are required.');
+    }
+    const propertyRef = db.collection('properties').doc(propertyId);
+    const propertySnapshot = await propertyRef.get();
+    if (!propertySnapshot.exists) {
+        throw new functions.https.HttpsError('not-found', 'Property not found.');
+    }
+    const propertyData = propertySnapshot.data() || {};
+    await assertCanProcessProperty(propertyData, uid);
+    try {
+        return await processPdfDocumentAcquisition({
+            propertyId,
+            documentId,
+            triggeredBy: 'manual',
+        });
+    }
+    catch (error) {
+        if (error instanceof functions.https.HttpsError) {
+            throw error;
+        }
         throw new functions.https.HttpsError('internal', (error === null || error === void 0 ? void 0 : error.message) || 'Could not review this PDF.');
+    }
+});
+exports.processPropertyDocumentAcquisitionRequests = functions
+    .region('us-central1')
+    .runWith({ timeoutSeconds: 120, memory: '512MB' })
+    .firestore.document('properties/{propertyId}')
+    .onUpdate(async (change, context) => {
+    const beforeData = change.before.data() || {};
+    const afterData = change.after.data() || {};
+    const beforeDocuments = Array.isArray(beforeData.documents)
+        ? beforeData.documents
+        : [];
+    const afterDocuments = Array.isArray(afterData.documents)
+        ? afterData.documents
+        : [];
+    const documentIds = getProcessableDocumentIds(beforeDocuments, afterDocuments);
+    for (const documentId of documentIds) {
+        try {
+            await processPdfDocumentAcquisition({
+                propertyId: context.params.propertyId,
+                documentId,
+                triggeredBy: 'background',
+            });
+        }
+        catch (error) {
+            console.error(`Background PDF acquisition failed for property ${context.params.propertyId}, document ${documentId}:`, error);
+        }
     }
 });

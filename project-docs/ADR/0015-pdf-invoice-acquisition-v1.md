@@ -54,9 +54,13 @@ failed or not-reviewed state with a calm retry path.
 
 Implementation Strategy
 
-The React application may trigger backend processing after the document record is
-saved, but it should not wait for processing to finish before completing the
-upload experience.
+The React application should save the document record and set
+`acquisitionStatus = processing`. Backend processing is triggered from the
+saved property document state so the browser does not need to remain open for
+processing to complete.
+
+The existing callable processor may remain available as a manual retry path,
+but the primary processing lifecycle should be backend-owned.
 
 The backend should expose a property/document-scoped processing entry point. The
 processor should update the existing property document and knowledge suggestion

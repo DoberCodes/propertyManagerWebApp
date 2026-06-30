@@ -26,11 +26,27 @@ type PropertyDocumentRecord = {
 	category?: string;
 	uploadedBy?: string;
 	storagePath?: string;
+	acquisitionStatus?: string;
+	acquisitionStartedAt?: string;
+	acquisitionWorkerStartedAt?: string;
 	assignedDeviceId?: string;
 	links?: {
 		assetIds?: string[];
 	};
 	extractedKnowledgeSuggestionIds?: string[];
+};
+
+type ProcessPdfDocumentAcquisitionInput = {
+	propertyId: string;
+	documentId: string;
+	triggeredBy: 'background' | 'manual';
+};
+
+type ProcessPdfDocumentAcquisitionResult = {
+	success: boolean;
+	suggestionCount?: number;
+	suggestionId?: unknown;
+	message?: string;
 };
 
 type ExtractedField = {
@@ -481,6 +497,286 @@ const classifyDocumentType = (document: PropertyDocumentRecord) => {
 	return 'unknown';
 };
 
+const PROCESSING_LOCK_STALE_MS = 10 * 60 * 1000;
+
+const isRecentProcessingLock = (document: PropertyDocumentRecord) => {
+	const startedAt = toString(document.acquisitionWorkerStartedAt);
+	if (!startedAt) return false;
+	const startedAtMs = new Date(startedAt).getTime();
+	if (Number.isNaN(startedAtMs)) return false;
+	return Date.now() - startedAtMs < PROCESSING_LOCK_STALE_MS;
+};
+
+const shouldBackgroundProcessDocument = (document: PropertyDocumentRecord) =>
+	toString(document.id) &&
+	isPdfDocument(document) &&
+	toString(document.storagePath) &&
+	toString(document.acquisitionStatus) === 'processing' &&
+	!isRecentProcessingLock(document);
+
+const hasDocumentChangedForProcessing = (
+	before?: PropertyDocumentRecord,
+	after?: PropertyDocumentRecord,
+) => {
+	if (!after || !shouldBackgroundProcessDocument(after)) {
+		return false;
+	}
+	if (!before) {
+		return true;
+	}
+
+	return (
+		toString(before.acquisitionStatus) !== toString(after.acquisitionStatus) ||
+		toString(before.storagePath) !== toString(after.storagePath) ||
+		toString(before.acquisitionStartedAt) !== toString(after.acquisitionStartedAt)
+	);
+};
+
+const getProcessableDocumentIds = (
+	beforeDocuments: PropertyDocumentRecord[],
+	afterDocuments: PropertyDocumentRecord[],
+) => {
+	const beforeById = new Map<string, PropertyDocumentRecord>();
+	beforeDocuments.forEach((document) => {
+		const id = toString(document.id);
+		if (id) beforeById.set(id, document);
+	});
+
+	return afterDocuments
+		.filter((document) =>
+			hasDocumentChangedForProcessing(
+				beforeById.get(toString(document.id)),
+				document,
+			),
+		)
+		.map((document) => toString(document.id))
+		.filter(Boolean);
+};
+
+const lockDocumentForProcessing = async ({
+	propertyRef,
+	documentId,
+	triggeredBy,
+}: {
+	propertyRef: FirebaseFirestore.DocumentReference;
+	documentId: string;
+	triggeredBy: ProcessPdfDocumentAcquisitionInput['triggeredBy'];
+}) => {
+	const nowIso = new Date().toISOString();
+
+	return db.runTransaction(async (transaction) => {
+		const snapshot = await transaction.get(propertyRef);
+		if (!snapshot.exists) {
+			throw new functions.https.HttpsError('not-found', 'Property not found.');
+		}
+
+		const propertyData = snapshot.data() || {};
+		const documents = Array.isArray(propertyData.documents)
+			? (propertyData.documents as PropertyDocumentRecord[])
+			: [];
+		const document = documents.find(
+			(candidate) => toString(candidate.id) === documentId,
+		);
+
+		if (!document) {
+			throw new functions.https.HttpsError('not-found', 'Document not found.');
+		}
+		if (!isPdfDocument(document)) {
+			throw new functions.https.HttpsError(
+				'invalid-argument',
+				'Only PDF documents are supported by this processor.',
+			);
+		}
+		if (!toString(document.storagePath)) {
+			throw new functions.https.HttpsError(
+				'failed-precondition',
+				'This document does not have a storage path.',
+			);
+		}
+		if (
+			triggeredBy === 'background' &&
+			toString(document.acquisitionStatus) !== 'processing'
+		) {
+			return null;
+		}
+		if (triggeredBy === 'background' && isRecentProcessingLock(document)) {
+			return null;
+		}
+
+		const nextDocuments = updateDocumentInList(documents, documentId, {
+			acquisitionStatus: 'processing',
+			acquisitionStartedAt: toString(document.acquisitionStartedAt) || nowIso,
+			acquisitionWorkerStartedAt: nowIso,
+			acquisitionError: '',
+		});
+
+		transaction.update(propertyRef, {
+			documents: nextDocuments,
+			updatedAt: nowIso,
+		});
+
+		return {
+			propertyData,
+			document: {
+				...document,
+				acquisitionStatus: 'processing',
+				acquisitionStartedAt: toString(document.acquisitionStartedAt) || nowIso,
+				acquisitionWorkerStartedAt: nowIso,
+				acquisitionError: '',
+			} as PropertyDocumentRecord,
+			documents,
+		};
+	});
+};
+
+const processPdfDocumentAcquisition = async ({
+	propertyId,
+	documentId,
+	triggeredBy,
+}: ProcessPdfDocumentAcquisitionInput): Promise<ProcessPdfDocumentAcquisitionResult> => {
+	const propertyRef = db.collection('properties').doc(propertyId);
+	const locked = await lockDocumentForProcessing({
+		propertyRef,
+		documentId,
+		triggeredBy,
+	});
+
+	if (!locked) {
+		return {
+			success: false,
+			suggestionCount: 0,
+			message: 'Document is not ready for processing.',
+		};
+	}
+
+	const { propertyData, document, documents } = locked;
+	const storagePath = toString(document.storagePath);
+
+	try {
+		const [pdfBuffer] = await admin.storage().bucket().file(storagePath).download();
+		if (pdfBuffer.length > MAX_PDF_BYTES) {
+			throw new Error('PDF is larger than the current 10MB processing limit.');
+		}
+
+		const extractedText = extractTextFromPdfBuffer(pdfBuffer);
+		const extractedFields = extractFieldsFromPdfText(extractedText);
+		const completedAt = new Date().toISOString();
+
+		if (!extractedText || extractedFields.length === 0) {
+			const latestSnapshot = await propertyRef.get();
+			const latestData = latestSnapshot.data() || {};
+			const latestDocuments = Array.isArray(latestData.documents)
+				? (latestData.documents as PropertyDocumentRecord[])
+				: documents;
+			await propertyRef.update({
+				documents: updateDocumentInList(latestDocuments, documentId, {
+					acquisitionStatus: 'failed',
+					acquisitionCompletedAt: completedAt,
+					acquisitionWorkerCompletedAt: completedAt,
+					acquisitionError:
+						'Maintley could not read useful text from this PDF yet. Scanned PDFs will need the rendered-page OCR processor.',
+				}),
+				updatedAt: completedAt,
+			});
+			return {
+				success: false,
+				suggestionCount: 0,
+				message: 'No readable PDF text found.',
+			};
+		}
+
+		const suggestion = stripUndefinedDeep({
+			id: createSuggestionId(documentId, completedAt),
+			sourceDocumentId: documentId,
+			propertyId,
+			relatedSystemId:
+				toString(document.assignedDeviceId) ||
+				toString(document.links?.assetIds?.[0]) ||
+				undefined,
+			documentType: classifyDocumentType(document),
+			extractionMethod: 'pdf_text',
+			extractedFields,
+			confidence:
+				extractedFields.reduce((sum, field) => sum + field.confidence, 0) /
+				extractedFields.length,
+			status: 'pending',
+			createdAt: completedAt,
+			sourceDocumentName: document.fileName || document.name,
+		}) as Record<string, unknown>;
+
+		const latestSnapshot = await propertyRef.get();
+		const latestData = latestSnapshot.data() || {};
+		const latestDocuments = Array.isArray(latestData.documents)
+			? (latestData.documents as PropertyDocumentRecord[])
+			: documents;
+		const latestSuggestions = Array.isArray(latestData.knowledgeSuggestions)
+			? (latestData.knowledgeSuggestions as Record<string, unknown>[])
+			: [];
+		const nextSuggestions = [
+			...latestSuggestions.filter(
+				(existing) =>
+					toString(existing.sourceDocumentId) !== documentId ||
+					toString(existing.status) !== 'pending',
+			),
+			suggestion,
+		];
+
+		await propertyRef.update({
+			documents: updateDocumentInList(latestDocuments, documentId, {
+				acquisitionStatus: 'pending_review',
+				acquisitionCompletedAt: completedAt,
+				acquisitionWorkerCompletedAt: completedAt,
+				acquisitionError: '',
+				extractedKnowledgeSuggestionIds: Array.from(
+					new Set([
+						...(document.extractedKnowledgeSuggestionIds || []),
+						toString(suggestion.id),
+					]),
+				),
+			}),
+			knowledgeSuggestions: nextSuggestions,
+			updatedAt: completedAt,
+		});
+
+		await createDocumentScanCompletedNotification({
+			propertyId,
+			propertyData: latestData,
+			document,
+			suggestionId: toString(suggestion.id),
+			suggestionCount: extractedFields.length,
+			nowIso: completedAt,
+		});
+
+		return {
+			success: true,
+			suggestionCount: extractedFields.length,
+			suggestionId: suggestion.id,
+		};
+	} catch (error: any) {
+		const completedAt = new Date().toISOString();
+		const latestSnapshot = await propertyRef.get();
+		const latestData = latestSnapshot.data() || {};
+		const latestDocuments = Array.isArray(latestData.documents)
+			? (latestData.documents as PropertyDocumentRecord[])
+			: documents;
+
+		await propertyRef.update({
+			documents: updateDocumentInList(latestDocuments, documentId, {
+				acquisitionStatus: 'failed',
+				acquisitionCompletedAt: completedAt,
+				acquisitionWorkerCompletedAt: completedAt,
+				acquisitionError:
+					error?.message ||
+					'Maintley could not review this PDF. Please try again later.',
+			}),
+			updatedAt: completedAt,
+		});
+
+		console.error('PDF property knowledge acquisition failed:', error);
+		throw error;
+	}
+};
+
 export const processPropertyDocumentAcquisition = functions
 	.region('us-central1')
 	.runWith({ timeoutSeconds: 120, memory: '512MB' })
@@ -504,158 +800,50 @@ export const processPropertyDocumentAcquisition = functions
 		const propertyData = propertySnapshot.data() || {};
 		await assertCanProcessProperty(propertyData, uid);
 
-		const documents = Array.isArray(propertyData.documents)
-			? (propertyData.documents as PropertyDocumentRecord[])
-			: [];
-		const document = documents.find((candidate) => toString(candidate.id) === documentId);
-		if (!document) {
-			throw new functions.https.HttpsError('not-found', 'Document not found.');
-		}
-		if (!isPdfDocument(document)) {
-			throw new functions.https.HttpsError(
-				'invalid-argument',
-				'Only PDF documents are supported by this processor.',
-			);
-		}
-		const storagePath = toString(document.storagePath);
-		if (!storagePath) {
-			throw new functions.https.HttpsError(
-				'failed-precondition',
-				'This document does not have a storage path.',
-			);
-		}
-
-		const startedAt = new Date().toISOString();
-		await propertyRef.update({
-			documents: updateDocumentInList(documents, documentId, {
-				acquisitionStatus: 'processing',
-				acquisitionStartedAt: startedAt,
-				acquisitionError: '',
-			}),
-			updatedAt: startedAt,
-		});
-
 		try {
-			const [pdfBuffer] = await admin.storage().bucket().file(storagePath).download();
-			if (pdfBuffer.length > MAX_PDF_BYTES) {
-				throw new Error('PDF is larger than the current 10MB processing limit.');
-			}
-
-			const extractedText = extractTextFromPdfBuffer(pdfBuffer);
-			const extractedFields = extractFieldsFromPdfText(extractedText);
-			const completedAt = new Date().toISOString();
-
-			if (!extractedText || extractedFields.length === 0) {
-				const latestSnapshot = await propertyRef.get();
-				const latestData = latestSnapshot.data() || {};
-				const latestDocuments = Array.isArray(latestData.documents)
-					? (latestData.documents as PropertyDocumentRecord[])
-					: documents;
-				await propertyRef.update({
-					documents: updateDocumentInList(latestDocuments, documentId, {
-						acquisitionStatus: 'failed',
-						acquisitionCompletedAt: completedAt,
-						acquisitionError:
-							'Maintley could not read useful text from this PDF yet. Scanned PDFs will need the rendered-page OCR processor.',
-					}),
-					updatedAt: completedAt,
-				});
-				return {
-					success: false,
-					suggestionCount: 0,
-					message: 'No readable PDF text found.',
-				};
-			}
-
-			const suggestion = stripUndefinedDeep({
-				id: createSuggestionId(documentId, completedAt),
-				sourceDocumentId: documentId,
+			return await processPdfDocumentAcquisition({
 				propertyId,
-				relatedSystemId:
-					toString(document.assignedDeviceId) ||
-					toString(document.links?.assetIds?.[0]) ||
-					undefined,
-				documentType: classifyDocumentType(document),
-				extractionMethod: 'pdf_text',
-				extractedFields,
-				confidence:
-					extractedFields.reduce((sum, field) => sum + field.confidence, 0) /
-					extractedFields.length,
-				status: 'pending',
-				createdAt: completedAt,
-				sourceDocumentName: document.fileName || document.name,
-			}) as Record<string, unknown>;
-
-			const latestSnapshot = await propertyRef.get();
-			const latestData = latestSnapshot.data() || {};
-			const latestDocuments = Array.isArray(latestData.documents)
-				? (latestData.documents as PropertyDocumentRecord[])
-				: documents;
-			const latestSuggestions = Array.isArray(latestData.knowledgeSuggestions)
-				? (latestData.knowledgeSuggestions as Record<string, unknown>[])
-				: [];
-			const nextSuggestions = [
-				...latestSuggestions.filter(
-					(existing) =>
-						toString(existing.sourceDocumentId) !== documentId ||
-						toString(existing.status) !== 'pending',
-				),
-				suggestion,
-			];
-
-			await propertyRef.update({
-				documents: updateDocumentInList(latestDocuments, documentId, {
-					acquisitionStatus: 'pending_review',
-					acquisitionCompletedAt: completedAt,
-					acquisitionError: '',
-					extractedKnowledgeSuggestionIds: Array.from(
-						new Set([
-							...(document.extractedKnowledgeSuggestionIds || []),
-							toString(suggestion.id),
-						]),
-					),
-				}),
-				knowledgeSuggestions: nextSuggestions,
-				updatedAt: completedAt,
+				documentId,
+				triggeredBy: 'manual',
 			});
-
-			await createDocumentScanCompletedNotification({
-				propertyId,
-				propertyData: latestData,
-				document,
-				suggestionId: toString(suggestion.id),
-				suggestionCount: extractedFields.length,
-				nowIso: completedAt,
-			});
-
-			return {
-				success: true,
-				suggestionCount: extractedFields.length,
-				suggestionId: suggestion.id,
-			};
 		} catch (error: any) {
-			const completedAt = new Date().toISOString();
-			const latestSnapshot = await propertyRef.get();
-			const latestData = latestSnapshot.data() || {};
-			const latestDocuments = Array.isArray(latestData.documents)
-				? (latestData.documents as PropertyDocumentRecord[])
-				: documents;
-
-			await propertyRef.update({
-				documents: updateDocumentInList(latestDocuments, documentId, {
-					acquisitionStatus: 'failed',
-					acquisitionCompletedAt: completedAt,
-					acquisitionError:
-						error?.message ||
-						'Maintley could not review this PDF. Please try again later.',
-				}),
-				updatedAt: completedAt,
-			});
-
-			console.error('PDF property knowledge acquisition failed:', error);
+			if (error instanceof functions.https.HttpsError) {
+				throw error;
+			}
 			throw new functions.https.HttpsError(
 				'internal',
 				error?.message || 'Could not review this PDF.',
 			);
+		}
+	});
+
+export const processPropertyDocumentAcquisitionRequests = functions
+	.region('us-central1')
+	.runWith({ timeoutSeconds: 120, memory: '512MB' })
+	.firestore.document('properties/{propertyId}')
+	.onUpdate(async (change, context) => {
+		const beforeData = change.before.data() || {};
+		const afterData = change.after.data() || {};
+		const beforeDocuments = Array.isArray(beforeData.documents)
+			? (beforeData.documents as PropertyDocumentRecord[])
+			: [];
+		const afterDocuments = Array.isArray(afterData.documents)
+			? (afterData.documents as PropertyDocumentRecord[])
+			: [];
+		const documentIds = getProcessableDocumentIds(beforeDocuments, afterDocuments);
+
+		for (const documentId of documentIds) {
+			try {
+				await processPdfDocumentAcquisition({
+					propertyId: context.params.propertyId,
+					documentId,
+					triggeredBy: 'background',
+				});
+			} catch (error) {
+				console.error(
+					`Background PDF acquisition failed for property ${context.params.propertyId}, document ${documentId}:`,
+					error,
+				);
+			}
 		}
 	});

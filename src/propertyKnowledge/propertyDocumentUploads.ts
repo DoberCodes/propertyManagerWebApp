@@ -5,10 +5,8 @@ import {
 	createPendingKnowledgeSuggestionFromFile,
 	markDocumentWithKnowledgeSuggestion,
 } from './propertyKnowledgeAcquisition';
-import {
-	isPdfPropertyDocument,
-	processPropertyDocumentAcquisition,
-} from './propertyKnowledgeProcessing';
+import { isPdfPropertyDocument } from './propertyKnowledgeProcessing';
+import type { ProcessPropertyDocumentAcquisitionResponse } from './propertyKnowledgeProcessing';
 
 type PropertyMemoryDocumentUploadInput = {
 	files: File[];
@@ -30,7 +28,7 @@ type StartPdfDocumentKnowledgeProcessingInput = {
 	documents: PropertyDocument[];
 	notifyScanStarted?: (document: PropertyDocument) => Promise<unknown> | void;
 	onProcessed?: (
-		result: Awaited<ReturnType<typeof processPropertyDocumentAcquisition>>,
+		result: ProcessPropertyDocumentAcquisitionResponse,
 		document: PropertyDocument,
 	) => void;
 	onError?: (error: unknown, document: PropertyDocument) => void;
@@ -103,11 +101,8 @@ export const preparePropertyMemoryDocumentUploads = async ({
 };
 
 export const startPdfDocumentKnowledgeProcessing = ({
-	propertyId,
 	documents,
 	notifyScanStarted,
-	onProcessed,
-	onError,
 }: StartPdfDocumentKnowledgeProcessingInput) => {
 	documents.forEach((document) => {
 		if (!document.id || !isPdfPropertyDocument(document)) return;
@@ -115,15 +110,5 @@ export const startPdfDocumentKnowledgeProcessing = ({
 		Promise.resolve(notifyScanStarted?.(document)).catch((error) => {
 			console.warn('Could not create document scan notification:', error);
 		});
-
-		processPropertyDocumentAcquisition({
-			propertyId,
-			documentId: document.id,
-		})
-			.then((result) => onProcessed?.(result, document))
-			.catch((error) => {
-				console.error('Error processing uploaded PDF document:', error);
-				onError?.(error, document);
-			});
 	});
 };

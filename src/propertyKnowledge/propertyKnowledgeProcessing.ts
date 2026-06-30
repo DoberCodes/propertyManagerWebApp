@@ -7,7 +7,7 @@ type ProcessPropertyDocumentAcquisitionRequest = {
 	documentId: string;
 };
 
-type ProcessPropertyDocumentAcquisitionResponse = {
+export type ProcessPropertyDocumentAcquisitionResponse = {
 	success: boolean;
 	suggestionCount?: number;
 	suggestionId?: string;
