@@ -13,6 +13,7 @@ import {
 	PropertyScanRecommendation,
 } from '../../utils/propertyIntelligenceScan';
 import { apiSlice, docToData } from './apiSlice';
+import { publishMaintleyEvent } from '../../services/maintleyEventService';
 
 export interface PropertyScanSnapshot {
 	id?: string;
@@ -158,6 +159,31 @@ const propertyIntelligenceSlice = apiSlice.injectEndpoints({
 					batch.set(latestRef, payload);
 					batch.set(historyRef, payload);
 					await batch.commit();
+					try {
+						await publishMaintleyEvent({
+							accountId: payload.accountId,
+							propertyId: payload.propertyId,
+							relatedScanId: historyRef.id,
+							type: 'quick_scan_completed',
+							workflowKey: 'maintley-intelligence',
+							entityKey: `quick-scan:${historyRef.id}`,
+							title: 'Quick Scan complete',
+							message: `Maintley found ${payload.summary.recommendations} item${payload.summary.recommendations === 1 ? '' : 's'} to review.`,
+							status: 'completed',
+							priority: payload.summary.high > 0 ? 'high' : 'normal',
+							actionLabel: 'Review scan',
+							actionUrl: `/properties/${payload.propertyId}`,
+							push: true,
+							metadata: {
+								scanType: payload.scanType,
+								recommendationCount: payload.summary.recommendations,
+								highCount: payload.summary.high,
+								overdueCount: payload.summary.overdue,
+							},
+						});
+					} catch (eventError) {
+						console.warn('Could not publish Quick Scan event:', eventError);
+					}
 
 					return {
 						data: {

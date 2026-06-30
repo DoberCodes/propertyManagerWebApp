@@ -38,6 +38,7 @@ const admin = __importStar(require("firebase-admin"));
 const functions = __importStar(require("firebase-functions/v1"));
 const zlib = __importStar(require("zlib"));
 const accountAuthz_1 = require("./accountAuthz");
+const maintleyEventEngine_1 = require("./maintleyEventEngine");
 if (!admin.apps.length) {
     admin.initializeApp();
 }
@@ -606,34 +607,46 @@ const extractFieldsFromPdfText = (text) => {
     return fields;
 };
 const createSuggestionId = (documentId, createdAt) => `knowledge-${documentId}-${new Date(createdAt).getTime()}`.replace(/[^a-zA-Z0-9_-]/g, '-');
-const createDocumentScanCompletedNotification = async ({ propertyId, propertyData, document, suggestionId, suggestionCount, nowIso, }) => {
+const publishDocumentAcquisitionEvent = async ({ propertyId, propertyData, document, suggestionId, suggestionCount, nowIso, type, status, title, message, push, errorMessage, }) => {
     const userId = toString(document.uploadedBy) ||
         toString(propertyData.userId) ||
         toString(propertyData.accountId);
     if (!userId)
         return;
+    const accountId = toString(propertyData.accountId) ||
+        toString(propertyData.userId) ||
+        userId;
     const documentName = toString(document.fileName || document.name) || 'document';
     const propertyTitle = toString(propertyData.title) ||
         toString(propertyData.name) ||
         'this property';
-    await db.collection('notifications').add(stripUndefinedDeep({
+    await (0, maintleyEventEngine_1.publishMaintleyEventRecord)({
+        accountId,
         userId,
-        type: 'document_scan_completed',
-        title: 'Suggested Details Ready',
-        message: `Maintley found ${suggestionCount} suggested detail${suggestionCount === 1 ? '' : 's'} in ${documentName}.`,
-        data: {
-            propertyId,
-            propertyTitle,
-            documentId: toString(document.id),
-            documentName,
-            suggestionId,
-            suggestionCount,
-        },
-        status: 'unread',
+        recipientIds: [userId],
+        propertyId,
+        relatedDocumentId: toString(document.id),
+        relatedScanId: suggestionId,
+        type,
+        workflowKey: 'property-knowledge-acquisition',
+        entityKey: `document:${toString(document.id)}`,
+        title,
+        message,
+        status,
+        priority: type === 'document_review_failed' ? 'high' : 'normal',
+        actionLabel: type === 'document_review_started' ? undefined : 'Review details',
         actionUrl: `/properties/${propertyId}`,
         createdAt: nowIso,
         updatedAt: nowIso,
-    }));
+        push,
+        metadata: {
+            propertyTitle,
+            documentName,
+            suggestionId,
+            suggestionCount,
+            errorMessage,
+        },
+    });
 };
 const classifyDocumentType = (document) => {
     const explicit = toString(document.documentType);
@@ -730,6 +743,18 @@ const processPdfDocumentAcquisition = async ({ propertyId, documentId, triggered
     }
     const { propertyData, document, documents } = loaded;
     const storagePath = toString(document.storagePath);
+    const startedAt = new Date().toISOString();
+    await publishDocumentAcquisitionEvent({
+        propertyId,
+        propertyData,
+        document,
+        nowIso: startedAt,
+        type: 'document_review_started',
+        status: 'processing',
+        title: 'Document review started',
+        message: 'Maintley is reviewing this document.',
+        push: false,
+    });
     try {
         const [pdfBuffer] = await admin.storage().bucket().file(storagePath).download();
         if (pdfBuffer.length > MAX_PDF_BYTES) {
@@ -774,6 +799,20 @@ const processPdfDocumentAcquisition = async ({ propertyId, documentId, triggered
                     message: 'No readable PDF text found.',
                 };
             });
+            if (!failureResult.success) {
+                await publishDocumentAcquisitionEvent({
+                    propertyId,
+                    propertyData,
+                    document,
+                    nowIso: completedAt,
+                    type: 'document_review_failed',
+                    status: 'failed',
+                    title: 'Document review failed',
+                    message: 'Maintley could not review this document yet.',
+                    push: true,
+                    errorMessage: failureResult.message,
+                });
+            }
             return failureResult;
         }
         const suggestion = stripUndefinedDeep({
@@ -842,13 +881,18 @@ const processPdfDocumentAcquisition = async ({ propertyId, documentId, triggered
             };
         });
         if (finalizeResult.didWrite) {
-            await createDocumentScanCompletedNotification({
+            await publishDocumentAcquisitionEvent({
                 propertyId,
                 propertyData: finalizeResult.propertyData,
                 document: finalizeResult.document,
                 suggestionId: finalizeResult.suggestionId,
                 suggestionCount: finalizeResult.suggestionCount,
                 nowIso: completedAt,
+                type: 'suggested_details_ready',
+                status: 'ready',
+                title: 'Suggested details ready',
+                message: `Maintley found ${finalizeResult.suggestionCount} suggested detail${finalizeResult.suggestionCount === 1 ? '' : 's'} in ${toString(finalizeResult.document.fileName || finalizeResult.document.name) || 'this document'}.`,
+                push: true,
             });
         }
         return {
@@ -884,6 +928,19 @@ const processPdfDocumentAcquisition = async ({ propertyId, documentId, triggered
                 }),
                 updatedAt: completedAt,
             });
+        });
+        await publishDocumentAcquisitionEvent({
+            propertyId,
+            propertyData,
+            document,
+            nowIso: completedAt,
+            type: 'document_review_failed',
+            status: 'failed',
+            title: 'Document review failed',
+            message: 'Maintley could not review this document yet.',
+            push: true,
+            errorMessage: error?.message ||
+                'Maintley could not review this PDF. Please try again later.',
         });
         console.error('PDF property knowledge acquisition failed:', error);
         throw error;

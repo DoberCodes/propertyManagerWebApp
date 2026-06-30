@@ -509,6 +509,7 @@ Examples:
 Examples:
 
 * sendPushOnNotificationCreate
+* publishMaintleyEvent
 
 ---
 
@@ -541,6 +542,36 @@ Examples:
 * stripeWebhook
 
 Used when external systems communicate directly with Maintley.
+
+## Maintley Events
+
+Maintley workflow lifecycle events are stored in:
+
+```text
+maintleyEvents/{eventId}
+```
+
+Event records are server-owned. Clients may read events they receive or can
+access through account membership, but clients do not create, update, or delete
+event records directly.
+
+Initial event producers include:
+
+* Property Knowledge Acquisition
+* Maintley Intelligence Quick Scan
+* Support Tickets
+
+Initial consumers include:
+
+* In-app notifications
+* Android push notifications
+
+Future consumer placeholders include:
+
+* Web push
+* Email
+* Intelligence History
+* Activity feeds
 
 ---
 

@@ -8,6 +8,8 @@ import {
 	getResendClient,
 	sendMaintleyEmail,
 } from './emailService';
+import { resolveAccountIdForUser } from './accountAuthz';
+import { publishMaintleyEventRecord } from './maintleyEventEngine';
 
 const RESEND_API_KEY = defineSecret(
 	process.env.RESEND_API_KEY_SECRET_NAME || 'RESEND_API_KEY',
@@ -412,6 +414,34 @@ export const submitFeedback = functions
 		};
 
 		const feedbackRef = await db.collection('feedback').add(feedbackDoc);
+		try {
+			const accountId =
+				(await resolveAccountIdForUser(context.auth.uid)) || context.auth.uid;
+			await publishMaintleyEventRecord({
+				accountId,
+				userId: context.auth.uid,
+				recipientIds: [context.auth.uid],
+				propertyId: bugReportContext?.propertyId || undefined,
+				relatedTicketId: feedbackRef.id,
+				type: 'ticket_received',
+				workflowKey: 'support-ticket',
+				entityKey: `ticket:${feedbackRef.id}`,
+				title: 'Ticket received',
+				message: `Maintley received ticket ${ticketNumber}.`,
+				status: 'received',
+				priority: 'normal',
+				actionLabel: 'View ticket',
+				actionUrl: '/settings?category=notifications',
+				push: false,
+				metadata: {
+					ticketNumber,
+					subject,
+					feedbackType: data.type,
+				},
+			});
+		} catch (eventError) {
+			console.error('[submitFeedback] Could not publish ticket event:', eventError);
+		}
 
 		const bucket = admin.storage().bucket();
 		const persistedAttachments: PersistedFeedbackAttachment[] = [];

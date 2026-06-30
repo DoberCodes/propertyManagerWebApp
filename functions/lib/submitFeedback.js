@@ -39,6 +39,8 @@ const admin = __importStar(require("firebase-admin"));
 const crypto_1 = require("crypto");
 const params_1 = require("firebase-functions/params");
 const emailService_1 = require("./emailService");
+const accountAuthz_1 = require("./accountAuthz");
+const maintleyEventEngine_1 = require("./maintleyEventEngine");
 const RESEND_API_KEY = (0, params_1.defineSecret)(process.env.RESEND_API_KEY_SECRET_NAME || 'RESEND_API_KEY');
 if (!admin.apps.length) {
     admin.initializeApp();
@@ -283,6 +285,34 @@ exports.submitFeedback = functions
         updatedAt: new Date().toISOString(),
     };
     const feedbackRef = await db.collection('feedback').add(feedbackDoc);
+    try {
+        const accountId = (await (0, accountAuthz_1.resolveAccountIdForUser)(context.auth.uid)) || context.auth.uid;
+        await (0, maintleyEventEngine_1.publishMaintleyEventRecord)({
+            accountId,
+            userId: context.auth.uid,
+            recipientIds: [context.auth.uid],
+            propertyId: bugReportContext?.propertyId || undefined,
+            relatedTicketId: feedbackRef.id,
+            type: 'ticket_received',
+            workflowKey: 'support-ticket',
+            entityKey: `ticket:${feedbackRef.id}`,
+            title: 'Ticket received',
+            message: `Maintley received ticket ${ticketNumber}.`,
+            status: 'received',
+            priority: 'normal',
+            actionLabel: 'View ticket',
+            actionUrl: '/settings?category=notifications',
+            push: false,
+            metadata: {
+                ticketNumber,
+                subject,
+                feedbackType: data.type,
+            },
+        });
+    }
+    catch (eventError) {
+        console.error('[submitFeedback] Could not publish ticket event:', eventError);
+    }
     const bucket = admin.storage().bucket();
     const persistedAttachments = [];
     for (const attachment of emailAttachments) {

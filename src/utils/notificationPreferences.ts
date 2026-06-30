@@ -32,6 +32,8 @@ export const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
 		maintenance_request_created: true,
 		document_scan_started: true,
 		document_scan_completed: true,
+		quick_scan_completed: true,
+		property_audit_completed: true,
 		legal_update: true,
 		property_shared: false,
 		share_invitation: true,

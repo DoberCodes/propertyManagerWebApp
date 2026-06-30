@@ -268,6 +268,11 @@ export const NotificationPreferences: React.FC<
 			label: 'Suggested Details Ready',
 			description: 'When Maintley finds document details ready for your review',
 		},
+		{
+			key: 'quick_scan_completed' as const,
+			label: 'Quick Scan Complete',
+			description: 'When Maintley finishes a Property Quick Scan',
+		},
 	];
 
 	const handleTypeToggle = async (

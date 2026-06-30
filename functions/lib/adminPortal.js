@@ -42,6 +42,7 @@ const admin = __importStar(require("firebase-admin"));
 const crypto_1 = require("crypto");
 const stripe_1 = __importDefault(require("stripe"));
 const params_1 = require("firebase-functions/params");
+const maintleyEventEngine_1 = require("./maintleyEventEngine");
 if (!admin.apps.length) {
     admin.initializeApp();
 }
@@ -167,6 +168,45 @@ const formatTicketStatusLabel = (status) => {
             return 'Closed';
         default:
             return 'Received';
+    }
+};
+const getTicketStatusEventType = (status) => {
+    switch (normalizeTicketStatus(status)) {
+        case 'in_progress':
+            return 'ticket_in_progress';
+        case 'resolved':
+            return 'ticket_testing_fix';
+        case 'closed':
+            return 'ticket_closed';
+        case 'received':
+        default:
+            return 'ticket_received';
+    }
+};
+const getTicketStatusEventStatus = (status) => {
+    switch (normalizeTicketStatus(status)) {
+        case 'in_progress':
+            return 'in_progress';
+        case 'resolved':
+            return 'testing';
+        case 'closed':
+            return 'closed';
+        case 'received':
+        default:
+            return 'received';
+    }
+};
+const getTicketStatusEventTitle = (status) => {
+    switch (normalizeTicketStatus(status)) {
+        case 'in_progress':
+            return 'Ticket in progress';
+        case 'resolved':
+            return 'Testing fix';
+        case 'closed':
+            return 'Ticket closed';
+        case 'received':
+        default:
+            return 'Ticket received';
     }
 };
 const pickMergedTicketStatus = (statuses) => {
@@ -2756,66 +2796,17 @@ exports.updateFeedbackAdminTicketStatus = functions.https.onCall(async (data, co
         });
     }
     const statusLabel = formatTicketStatusLabel(nextStatus);
-    const notificationsToCreate = [];
+    const ticketEventsToPublish = [];
     if (didStatusChange || hasMaintleyUpdate) {
         for (const [recipientUserId, recipientTicket] of notificationRecipients.entries()) {
             const ticketLabel = String(recipientTicket.ticketNumber || '').trim() || recipientTicket.ticketId;
-            if (didStatusChange && hasMaintleyUpdate) {
-                notificationsToCreate.push({
-                    userId: recipientUserId,
-                    type: 'maintenance_request',
-                    title: 'Service Ticket Updated',
-                    message: `Ticket ${ticketLabel} moved to ${statusLabel} and includes a new Maintley update.`,
-                    data: {
-                        ticketId: recipientTicket.ticketId,
-                        ticketNumber: ticketLabel,
-                        status: nextStatus,
-                        hasMaintleyUpdate: true,
-                        source: 'service_ticket',
-                    },
-                    status: 'unread',
-                    actionUrl: '/settings?category=notifications',
-                    createdAt: nowIso,
-                    updatedAt: nowIso,
-                });
-                continue;
-            }
-            if (didStatusChange) {
-                notificationsToCreate.push({
-                    userId: recipientUserId,
-                    type: 'maintenance_request',
-                    title: 'Service Ticket Status Updated',
-                    message: `Ticket ${ticketLabel} is now ${statusLabel}.`,
-                    data: {
-                        ticketId: recipientTicket.ticketId,
-                        ticketNumber: ticketLabel,
-                        status: nextStatus,
-                        source: 'service_ticket',
-                    },
-                    status: 'unread',
-                    actionUrl: '/settings?category=notifications',
-                    createdAt: nowIso,
-                    updatedAt: nowIso,
-                });
-            }
-            if (hasMaintleyUpdate) {
-                notificationsToCreate.push({
-                    userId: recipientUserId,
-                    type: 'maintenance_request',
-                    title: 'New Maintley Update',
-                    message: `Ticket ${ticketLabel} has a new Maintley update from support.`,
-                    data: {
-                        ticketId: recipientTicket.ticketId,
-                        ticketNumber: ticketLabel,
-                        hasMaintleyUpdate: true,
-                        source: 'service_ticket',
-                    },
-                    status: 'unread',
-                    actionUrl: '/settings?category=notifications',
-                    createdAt: nowIso,
-                    updatedAt: nowIso,
-                });
-            }
+            ticketEventsToPublish.push({
+                recipientUserId,
+                ticketId: recipientTicket.ticketId,
+                ticketNumber: ticketLabel,
+                message: resolutionNotes ||
+                    `Ticket ${ticketLabel} is now ${statusLabel}.`,
+            });
         }
     }
     const updates = {
@@ -2845,10 +2836,39 @@ exports.updateFeedbackAdminTicketStatus = functions.https.onCall(async (data, co
     for (const groupedDoc of groupedDocs) {
         batch.set(groupedDoc.ref, updates, { merge: true });
     }
-    for (const notification of notificationsToCreate) {
-        const notificationRef = db.collection('notifications').doc();
-        batch.set(notificationRef, notification);
-    }
     await batch.commit();
+    await Promise.all(ticketEventsToPublish.map(async (ticketEvent) => {
+        try {
+            await (0, maintleyEventEngine_1.publishMaintleyEventRecord)({
+                accountId: String(currentRecord.accountId || '').trim() ||
+                    ticketEvent.recipientUserId,
+                userId: ticketEvent.recipientUserId,
+                recipientIds: [ticketEvent.recipientUserId],
+                relatedTicketId: ticketEvent.ticketId,
+                type: getTicketStatusEventType(nextStatus),
+                workflowKey: 'support-ticket',
+                entityKey: `ticket:${ticketEvent.ticketId}`,
+                title: getTicketStatusEventTitle(nextStatus),
+                message: ticketEvent.message,
+                status: getTicketStatusEventStatus(nextStatus),
+                priority: nextStatus === 'closed' ? 'normal' : 'high',
+                actionLabel: 'View ticket',
+                actionUrl: '/settings?category=notifications',
+                createdAt: nowIso,
+                updatedAt: nowIso,
+                push: nextStatus !== 'received',
+                metadata: {
+                    ticketNumber: ticketEvent.ticketNumber,
+                    status: nextStatus,
+                    publicStatus: getPublicStatus(nextStatus),
+                    hasMaintleyUpdate,
+                    source: 'service_ticket',
+                },
+            });
+        }
+        catch (eventError) {
+            console.error(`Could not publish support ticket event for ${ticketEvent.ticketId}:`, eventError);
+        }
+    }));
     return { success: true };
 });

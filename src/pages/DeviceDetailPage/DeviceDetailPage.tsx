@@ -23,7 +23,6 @@ import {
 	useUpdatePropertyMutation,
 } from '../../Redux/API/propertySlice';
 import { apiSlice } from '../../Redux/API/apiSlice';
-import { useCreateNotificationMutation } from '../../Redux/API/notificationSlice';
 import {
 	useGetDeviceQuery,
 	useGetDevicesQuery,
@@ -448,7 +447,6 @@ export const DeviceDetailPage: React.FC = () => {
 
 	const [updateDevice] = useUpdateDeviceMutation();
 	const [updateProperty] = useUpdatePropertyMutation();
-	const [createNotification] = useCreateNotificationMutation();
 	const [deleteTask] = useDeleteTaskMutation();
 	const [addMaintenanceHistory] = useAddMaintenanceHistoryMutation();
 	const [createContractor, { isLoading: isCreatingContractor }] =
@@ -1210,23 +1208,6 @@ export const DeviceDetailPage: React.FC = () => {
 			startPdfDocumentKnowledgeProcessing({
 				propertyId: property.id,
 				documents: pdfDocuments,
-				notifyScanStarted: (document) =>
-					createNotification({
-						userId: currentUser!.id,
-						type: 'document_scan_started',
-						title: 'Document Review Started',
-						message: `Maintley is reviewing ${document.fileName || document.name} for suggested details.`,
-						data: {
-							propertyId: property.id,
-							propertyTitle: property.title,
-							documentId: document.id,
-							documentName: document.fileName || document.name,
-						},
-						status: 'unread',
-						actionUrl: `/properties/${property.id}`,
-						createdAt: new Date().toISOString(),
-						updatedAt: new Date().toISOString(),
-					}).unwrap(),
 				onProcessed: () => {
 					dispatch(apiSlice.util.invalidateTags(['Properties']));
 				},
@@ -1391,23 +1372,6 @@ export const DeviceDetailPage: React.FC = () => {
 				startPdfDocumentKnowledgeProcessing({
 					propertyId: property.id,
 					documents: pdfDocuments,
-					notifyScanStarted: (document) =>
-						createNotification({
-							userId: currentUser!.id,
-							type: 'document_scan_started',
-							title: 'Document Review Started',
-							message: `Maintley is reviewing ${document.fileName || document.name} for suggested details.`,
-							data: {
-								propertyId: property.id,
-								propertyTitle: property.title,
-								documentId: document.id,
-								documentName: document.fileName || document.name,
-							},
-							status: 'unread',
-							actionUrl: `/properties/${property.id}`,
-							createdAt: new Date().toISOString(),
-							updatedAt: new Date().toISOString(),
-						}).unwrap(),
 					onProcessed: () => {
 						dispatch(apiSlice.util.invalidateTags(['Properties']));
 					},

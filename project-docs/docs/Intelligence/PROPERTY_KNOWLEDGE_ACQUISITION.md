@@ -79,6 +79,17 @@ document acquisition status changes written by the backend, such as
 `pending_review` or `failed`, appear in the frontend without requiring a manual
 page refresh.
 
+Document acquisition publishes Maintley Events for the review lifecycle:
+
+* `document_review_started`
+* `suggested_details_ready`
+* `knowledge_imported`
+* `document_review_failed`
+
+These events drive in-app notifications and Android push delivery. Upload
+screens should not directly create separate persistent notifications for each
+document review state.
+
 The callable processor remains available for explicit retry. If PDF processing
 cannot be started or completed, the backend should move the document out of
 `processing` with a homeowner-friendly retry message when needed.

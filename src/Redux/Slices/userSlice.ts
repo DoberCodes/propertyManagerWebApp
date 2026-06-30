@@ -144,6 +144,8 @@ export interface User {
 			maintenance_request_created: boolean;
 			document_scan_started: boolean;
 			document_scan_completed: boolean;
+			quick_scan_completed: boolean;
+			property_audit_completed: boolean;
 			legal_update: boolean;
 			property_shared: boolean;
 			share_invitation: boolean;
