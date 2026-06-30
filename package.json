@@ -85,6 +85,8 @@
 		"deploy:gh-pages": "gh-pages -d build",
 		"seed:firebase": "node scripts/seedFirestore.cjs",
 		"seed:demo-account": "node scripts/seedDemoAccount.cjs",
+		"support:updates": "node scripts/updateSupportUpdates.cjs",
+		"support:updates:dry-run": "node scripts/updateSupportUpdates.cjs --dry-run",
 		"migrate:property-memberships": "node scripts/migratePropertyGroupMemberships.cjs",
 		"migrate:property-memberships:apply": "node scripts/migratePropertyGroupMemberships.cjs --apply",
 		"migrate:property-memberships:cleanup": "node scripts/migratePropertyGroupMemberships.cjs --apply --cleanup-orphans",

@@ -916,6 +916,30 @@ export const ArticleSection = styled.section`
 	}
 `;
 
+export const ArticleSectionImage = styled.figure`
+	margin: 18px 0 0;
+	overflow: hidden;
+	border: 1px solid ${COLORS.gray200};
+	border-radius: 12px;
+	background: ${COLORS.gray50};
+
+	img {
+		display: block;
+		width: 100%;
+		max-height: 520px;
+		object-fit: contain;
+		background: #ffffff;
+	}
+
+	figcaption {
+		padding: 10px 14px;
+		border-top: 1px solid ${COLORS.gray200};
+		font-size: 0.82rem;
+		line-height: 1.45;
+		color: ${COLORS.gray500};
+	}
+`;
+
 export const ArticleTips = styled.div`
 	margin-top: 16px;
 	padding: 14px 16px;

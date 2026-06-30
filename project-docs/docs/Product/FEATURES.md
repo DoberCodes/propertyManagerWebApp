@@ -337,6 +337,7 @@ The Support Center brings together:
 * Troubleshooting and bug-report guidance.
 * A curated feed limited to significant features and major user-facing updates.
 * In-depth homeowner-friendly articles covering core Maintley functions.
+* Optional inline screenshots in support articles when a visual example helps explain a feature.
 * Founder notes that explain the practical thinking behind each guide.
 
 Articles use stable, shareable routes:
@@ -352,6 +353,7 @@ Current article topics include:
 * Turning completed tasks into maintenance history.
 * Tracking appliances and systems.
 * Organizing property documents.
+* Reviewing document suggestions before applying them.
 * Configuring maintenance reminders.
 * Organizing properties with groups.
 * Getting started without documenting everything.

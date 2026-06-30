@@ -746,6 +746,40 @@ Use only for intentional demo or test accounts.
 
 ---
 
+## Support Feature Updates
+
+```bash
+yarn support:updates
+```
+
+Purpose:
+
+Synchronizes the Support Center's feature and major updates list from:
+
+```text
+project-docs/docs/Product/SUPPORT_FEATURE_UPDATES.json
+```
+
+into:
+
+```text
+src/pages/SupportPage/SupportContent.ts
+```
+
+Dry-run:
+
+```bash
+yarn support:updates:dry-run
+```
+
+Risk:
+
+Low
+
+Use this when changing the curated Support Center update feed.
+
+---
+
 # Android Utilities
 
 Used when preparing Android builds.

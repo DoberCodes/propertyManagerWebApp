@@ -29,12 +29,18 @@ export const supportFaqItems = [
 		answer:
 			'Open Legal from Settings to review the Terms of Service, Privacy Policy, Maintenance Disclaimer, Subscription Terms, and EULA.',
 	},
+	{
+		question: 'Why do I need to review document suggestions?',
+		answer:
+			'Maintley may find possible maintenance, contractor, warranty, cost, or property details in uploaded documents. Review those suggestions before applying them so the information is saved to the right property and record.',
+	},
 ];
 
 export const supportKnownIssues = [
 	'Ad or privacy blockers may interfere with support request submission.',
 	'If mobile notifications are not arriving, review both device permissions and Maintley notification settings.',
 	'Changes may take a moment to appear when the device has an unstable connection.',
+	'Document review may miss details in scanned PDFs, low-quality images, or unusual invoice formats. Review suggestions before applying them.',
 ];
 
 export const bugReportChecklist = [
@@ -47,6 +53,54 @@ export const bugReportChecklist = [
 
 export const recentMaintleyUpdates = [
 	{
+		version: '2.7.15',
+		date: 'June 30, 2026',
+		type: 'Experience update',
+		title: 'Property context on task cards',
+		description:
+			'The all-properties Tasks view now shows the related property on each task card, making similar recurring work easier to tell apart.',
+	},
+	{
+		version: '2.7.14',
+		date: 'June 30, 2026',
+		type: 'Account update',
+		title: 'Profile and password improvements',
+		description:
+			'The profile page now keeps profile photos constrained and adds show or hide controls when changing a password.',
+	},
+	{
+		version: '2.7.10',
+		date: 'June 30, 2026',
+		type: 'Feature',
+		title: 'Maintley Intelligence on the dashboard',
+		description:
+			'The dashboard can now show a focused Maintley Intelligence suggestion based on records across the properties in view.',
+	},
+	{
+		version: '2.7.8',
+		date: 'June 30, 2026',
+		type: 'Feature',
+		title: 'Document review for property records',
+		description:
+			'Uploaded invoices, receipts, warranties, and service documents can surface reviewable maintenance, contractor, warranty, cost, and property-match details before anything is applied.',
+	},
+	{
+		version: '2.7.6',
+		date: 'June 30, 2026',
+		type: 'Experience update',
+		title: 'Personal dashboard focus',
+		description:
+			'Dashboard scope can focus on assigned work or broaden to all visible properties, helping owners, family members, and team members reduce noise.',
+	},
+	{
+		version: '2.7.4',
+		date: 'June 30, 2026',
+		type: 'Feature',
+		title: 'Contractor website and portal links',
+		description:
+			'Contractor records now support website and customer portal links, while company name remains the only required field.',
+	},
+	{
 		version: '2.5.9',
 		date: 'June 20, 2026',
 		type: 'Feature',
@@ -55,20 +109,12 @@ export const recentMaintleyUpdates = [
 			'Create, reorder, rename, customize, move, and remove property groups from a more focused management experience.',
 	},
 	{
-		version: '2.5.1',
-		date: 'June 18, 2026',
-		type: 'Major update',
-		title: 'Mobile bottom navigation and Quick Create',
-		description:
-			'Core destinations and common create actions are now easier to reach while working from a phone or tablet.',
-	},
-	{
 		version: '2.5.0',
 		date: 'June 18, 2026',
 		type: 'Feature',
 		title: 'Customer support ticket tracking',
 		description:
-			'Support requests now include ticket numbers, customer-visible status updates, attachments, and improved follow-up.',
+			'Support requests include ticket numbers, customer-visible status updates, attachments, and improved follow-up.',
 	},
 ];
 
@@ -77,6 +123,12 @@ interface ArticleSection {
 	paragraphs?: string[];
 	steps?: string[];
 	tips?: string[];
+	image?: {
+		// Use paths like /assets/images/article_screenshots/properties-overview.png.
+		src: string;
+		alt: string;
+		caption?: string;
+	};
 }
 
 export interface HelpfulArticle {
@@ -96,55 +148,49 @@ export const helpfulArticles: HelpfulArticle[] = [
 		slug: 'build-a-useful-property-record',
 		title: 'Build a useful property record',
 		summary:
-			'Start with the basics, then add appliances, tasks, documents, and history over time.',
+			'Create the foundation for appliances, tasks, documents, contractors, and maintenance history.',
 		readTime: '5 min read',
 		path: '/properties',
 		actionLabel: 'Go to Properties',
 		introduction:
-			'A useful property record brings together the facts about a real property: its address, equipment, upcoming work, completed maintenance, and supporting documents.',
+			'A property record is the main home for everything Maintley knows about a property. It connects the address, systems, tasks, documents, contractors, and completed maintenance in one place.',
 		founderNote: [
-			'One of the reasons I started building Maintley was that property information has a way of disappearing into ordinary life. A filter size gets written on a scrap of paper. A service invoice lives in an email. Someone remembers when the water heater was installed, right up until they do not.',
-			'I do not think you should spend an entire weekend documenting your property before the app becomes useful. My approach is to start with the things I would be frustrated to lose, then let the record grow naturally whenever maintenance happens.',
+			'Maintley is most useful when each record has clear property context. Start with the property, then let tasks, documents, and maintenance history build around it.',
+			'The goal is not to finish every detail on day one. The goal is to create a reliable place for information to collect over time.',
 		],
 		sections: [
 			{
-				heading: 'Record the actual property',
+				heading: 'What this feature does',
 				paragraphs: [
-					'Enter the property’s real street address and factual property details. If Maintley provides a separate display-name field, use it only as a recognizable label such as “Main Street Rental” or “Lake House”; it does not replace the address.',
-					'The property record becomes the main location for its appliances, tasks, documents, contractors, and maintenance history.',
-					'If some details are unknown, leave them blank rather than estimating. Add verified information when it becomes available through records, equipment labels, contractors, or completed work.',
+					'Properties are the primary organizational unit in Maintley. A property can hold appliances and systems, tasks, documents, contractors, tenants, and Maintenance History.',
+					'If you manage more than one property, groups can make the Properties page easier to scan without changing ownership, billing, or access rules.',
 				],
+				image: {
+					src: '',
+					alt: 'Properties page showing property groups and property cards.',
+					caption:
+						'Use the Properties page as the starting point for records, systems, tasks, and documents.',
+				},
 			},
 			{
-				heading: 'Focus on equipment you will maintain',
-				paragraphs: [
-					'Start with equipment that has recurring maintenance, identifying information you may need later, significant replacement cost, or an existing service history.',
-					'Heating and cooling equipment, water heaters, roofing, generators, pumps, and major appliances are usually good candidates. Even a basic profile with a name and location gives future tasks and documents somewhere useful to live.',
-				],
+				heading: 'How to start',
 				steps: [
-					'Take a photo of the model and serial label while you are standing near the equipment.',
-					'Add the manufacturer, model, install date, filter size, or commonly used parts when known.',
-					'Attach the manual or warranty to the equipment profile instead of keeping it in a general folder.',
+					'Add the real property address and a recognizable property name.',
+					'Add the most important appliances or systems first.',
+					'Create tasks for work that needs attention.',
+					'Attach documents to the property, system, task, or completed maintenance record they support.',
 				],
 			},
 			{
-				heading: 'Let normal maintenance build the history',
+				heading: 'What gets saved',
 				paragraphs: [
-					'The record becomes most valuable when it grows as a side effect of doing the work. Use a task for something that still needs attention. When the work is finished, record what happened while the details are still fresh.',
-					'A sentence or two can be enough: who performed the work, what they found, what part was replaced, and what it cost. Add the invoice or a photo if it would help you understand the work later.',
-					'Over time, those entries create a dated maintenance record. You no longer need to guess whether the water heater was flushed last spring or three years ago because the completion date and service details are recorded.',
+					'Maintley saves property details together with linked systems, tasks, files, contractors, and maintenance records. Optional fields can stay blank until you have verified information.',
+					'Over time, normal maintenance activity turns the property record into a practical history of what happened, when it happened, and what records support it.',
 				],
 				tips: [
-					'Use names another person in your household or team would understand.',
-					'Record completed work before the invoice disappears into your inbox.',
-					'Attach documents to the most specific relevant property, appliance, or maintenance entry.',
-				],
-			},
-			{
-				heading: 'A useful record is never really finished',
-				paragraphs: [
-					'Maintley is designed as a property record that improves over time, not a setup project that must be completed once. Every task, service note, photo, and document adds useful context.',
-					'If you only add information when it is useful, the record stays practical. That is much better than creating a large amount of data that nobody wants to maintain.',
+					'Use names another person would recognize.',
+					'Add verified details when work happens.',
+					'Keep supporting documents close to the record they explain.',
 				],
 			},
 		],
@@ -153,48 +199,48 @@ export const helpfulArticles: HelpfulArticle[] = [
 		slug: 'how-tasks-become-maintenance-history',
 		title: 'How tasks become maintenance history',
 		summary:
-			'Understand the connection between planned work, completed work, and the long-term property record.',
+			'Use tasks for planned work and completion details for the permanent maintenance record.',
 		readTime: '5 min read',
 		path: '/tasks',
 		actionLabel: 'Go to Tasks',
 		introduction:
-			'Tasks and Maintenance History serve two different purposes. A task is a plan or reminder. Maintenance History is the record of what actually happened. Completing a task is how those two ideas meet.',
+			'Tasks manage work that still needs attention. When a task is completed with service details, it helps build the long-term Maintenance History for the property.',
 		founderNote: [
-			'I have found that a checklist alone is not enough for property maintenance. Checking off “service furnace” may feel good today, but a year from now it does not tell you who serviced it, what they found, or whether a part was replaced.',
-			'That is why I want task completion in Maintley to feel less like clearing an item from a list and more like preserving a small piece of the property’s story.',
+			'A completed task should not disappear without context. Future you should be able to see who did the work, what changed, and what evidence supports the record.',
+			'That is why task completion matters. The task handles the action, and the completion details preserve the result.',
 		],
 		sections: [
 			{
-				heading: 'Use tasks for work that still needs to happen',
+				heading: 'What this feature does',
 				paragraphs: [
-					'Create a task when something needs attention: a repair, inspection, replacement, seasonal check, or recurring maintenance item. The title should describe the action clearly enough that you know what to do without opening it.',
-					'Link the correct property and appliance or system whenever possible. That connection is important because it determines where the completed work will make sense later.',
-				],
-				steps: [
-					'Prefer “Replace upstairs HVAC filter” over “HVAC.”',
-					'Add a realistic due date and priority.',
-					'Assign the task when someone else owns the next action.',
-					'Use reminders or recurrence for work that should not depend on memory.',
+					'Tasks track repairs, inspections, recurring reminders, and other maintenance work. Maintenance History records completed work after the fact.',
+					'When you complete a task with notes, files, cost, contractor, or linked system details, Maintley keeps that information connected to the property record.',
 				],
 			},
 			{
-				heading: 'Record the result, not just the checkbox',
+				heading: 'How to use it',
+				steps: [
+					'Create a task with a clear action title.',
+					'Link the correct property and appliance or system when possible.',
+					'Assign the task if someone else owns the next action.',
+					'When the work is finished, complete the task and add the service details.',
+				],
+				image: {
+					src: '',
+					alt: 'Tasks page showing maintenance task cards with property context.',
+					caption:
+						'Task cards should show the action, due status, assignment, and related property.',
+				},
+			},
+			{
+				heading: 'What to include at completion',
 				paragraphs: [
-					'When the work is finished, take a moment to record the result. You do not need to write a formal report. A plain explanation of what was done is usually the most useful.',
-					'For a simple task, that may be “Replaced 16x25x1 filter with MERV 8.” For a larger repair, include the contractor, diagnosis, replaced parts, cost, and any follow-up recommendation.',
-					'Service notes, costs, logs, photos, invoices, and other files become supporting context. Completed work then appears in Maintenance History for the property and, when linked, the appliance or system.',
+					'Add what was done, who did it, when it happened, what it cost, and whether follow-up work is needed. Attach invoices, photos, receipts, or service reports when they help explain the work.',
 				],
 				tips: [
-					'Write what changed or what was discovered.',
-					'Include measurements, part numbers, and contractor details when they may matter later.',
-					'Attach the invoice or service report while you still know which task it belongs to.',
-				],
-			},
-			{
-				heading: 'Why this becomes valuable later',
-				paragraphs: [
-					'After enough work is recorded, Maintenance History becomes more than a completed-task archive. It helps you spot recurring problems, understand replacement timing, answer contractor questions, and explain the property to someone else.',
-					'That long-term record is one of the most important ideas behind Maintley. The task gets you through today. The history helps you make better decisions tomorrow.',
+					'Write the result, not only that the task was done.',
+					'Include part numbers or measurements when they may matter later.',
+					'Create a new task for recommended follow-up work.',
 				],
 			},
 		],
@@ -203,47 +249,48 @@ export const helpfulArticles: HelpfulArticle[] = [
 		slug: 'track-appliances-and-home-systems',
 		title: 'Track appliances and home systems',
 		summary:
-			'Keep model information, parts, documents, tasks, and service history connected.',
+			'Keep equipment details, parts, documents, tasks, and service history connected.',
 		readTime: '5 min read',
 		path: '/devices',
 		actionLabel: 'Go to Appliances',
 		introduction:
-			'Appliance and system profiles keep the details, documents, parts, tasks, and service history for important equipment in one understandable place.',
+			'Appliance and system profiles keep model details, service records, parts, documents, and linked tasks in one place.',
 		founderNote: [
-			'I have stood in front of equipment trying to read a faded model label while searching old emails for the last service visit. That experience is exactly what these profiles are meant to avoid.',
-			'My rule is simple: if an item is expensive, needs recurring care, has a model number you may need, or has a history worth preserving, it probably deserves a profile.',
+			'Equipment details are easiest to capture when you are standing next to the system or reviewing a service record.',
+			'Maintley helps preserve that information so a future repair, warranty question, or replacement does not start from scratch.',
 		],
 		sections: [
 			{
-				heading: 'Choose equipment that is worth remembering',
+				heading: 'What this feature does',
 				paragraphs: [
-					'Start with the systems that would cause the most frustration if their information disappeared. Heating and cooling equipment, water heaters, generators, pumps, safety equipment, roofing, and major appliances are common examples.',
-					'The profile can be minimal. A name, property, and location are enough to begin. Add deeper details when you are near the equipment or when service work gives you new information.',
+					'Use appliance and system profiles for equipment you maintain, repair, replace, or reference during service work. Common examples include HVAC systems, water heaters, appliances, roofs, generators, pumps, and safety equipment.',
+					'Each profile can hold manufacturer details, model and serial numbers, install dates, filters, parts, notes, documents, tasks, and Maintenance History.',
 				],
+				image: {
+					src: '',
+					alt: 'Appliance or system profile showing equipment details and linked records.',
+					caption:
+						'Appliance and system profiles keep service details, files, tasks, and history connected.',
+				},
+			},
+			{
+				heading: 'What to record',
 				steps: [
-					'Heating and cooling equipment',
-					'Water heaters and water treatment systems',
-					'Kitchen and laundry appliances',
-					'Roofing, generators, pumps, safety equipment, and other systems',
+					'Name the equipment clearly and connect it to the correct property.',
+					'Add location, manufacturer, model, serial number, and install date when known.',
+					'Attach manuals, warranties, receipts, label photos, or service files.',
+					'Link related tasks before completing maintenance work.',
 				],
 			},
 			{
-				heading: 'Capture identification details once',
+				heading: 'How this helps later',
 				paragraphs: [
-					'Manufacturer, model, serial number, install date, and location are tedious to look up repeatedly. Recording them once makes ordering parts, checking warranty coverage, and speaking with a contractor much easier.',
-					'Take a clear photo of the equipment label when possible. It preserves the source information and provides a reference if a model or serial number is entered incorrectly.',
-				],
-			},
-			{
-				heading: 'Build the equipment’s service record',
-				paragraphs: [
-					'Keep filters, parts, manuals, warranties, receipts, photos, and logs connected to the equipment. Link maintenance tasks before completing them so the resulting history appears where you would naturally look for it.',
-					'Over time, the profile should answer what the equipment is, what it needs, what has gone wrong, and what has already been done about it.',
+					'A complete enough profile helps you order parts, answer contractor questions, check warranty coverage, and understand the service history for that specific system.',
 				],
 				tips: [
 					'Photograph the model and serial label.',
 					'Record filter sizes and commonly replaced parts.',
-					'Link maintenance tasks to the appliance before completing them.',
+					'Leave unknown fields blank until they are verified.',
 				],
 			},
 		],
@@ -257,35 +304,37 @@ export const helpfulArticles: HelpfulArticle[] = [
 		path: '/properties',
 		actionLabel: 'Choose a Property',
 		introduction:
-			'Property documents are useful when you can find them at the moment they matter. The goal is not merely to upload files—it is to keep each file connected to the property, appliance, or maintenance activity it explains.',
+			'Documents are most useful when they are attached to the property, system, task, or completed maintenance record they explain.',
 		founderNote: [
-			'I have never found “put everything in one giant folder” to be a satisfying long-term system. It works until you need a specific warranty, invoice, or service report and cannot remember what it was called.',
-			'In Maintley, I prefer putting a document near the thing it describes. That little bit of context does most of the organizational work for you.',
+			'Storage alone is not organization. The useful part is the context around the file.',
+			'Putting a document near the thing it describes makes it easier to find and easier to trust later.',
 		],
 		sections: [
 			{
-				heading: 'Choose the right location',
+				heading: 'What this feature does',
 				paragraphs: [
-					'Before uploading a file, ask what record you would be viewing when you need it again. That is usually where the file belongs.',
+					'Maintley can store manuals, warranties, receipts, invoices, inspection reports, photos, and other supporting records. Files can support broad property context or specific equipment and maintenance records.',
 				],
+			},
+			{
+				heading: 'Where to attach files',
 				steps: [
-					'Use the property for broad records such as inspections or general photos.',
-					'Use the appliance profile for manuals, warranties, labels, or equipment receipts.',
-					'Use the maintenance completion for invoices, service reports, and work photos.',
+					'Attach general inspections or property photos to the property.',
+					'Attach manuals, warranties, label photos, and equipment receipts to the appliance or system.',
+					'Attach invoices, service reports, receipts, and work photos to the completed maintenance record.',
 				],
+				image: {
+					src: '',
+					alt: 'Document area showing files attached to a property or maintenance record.',
+					caption:
+						'Attach files to the record they support so they are easier to find later.',
+				},
 			},
 			{
-				heading: 'Use clear, factual file names',
+				heading: 'How to keep files useful',
 				paragraphs: [
-					'Camera and scanner filenames are rarely meaningful. Rename the file using the equipment, document type, contractor, or date when that context will help. “Water Heater Warranty - 2025” is far easier to recognize than “IMG_1042.”',
-					'You do not need an elaborate naming convention. The name only needs to make sense when you encounter it months or years later.',
-				],
-			},
-			{
-				heading: 'Use photos and documents intentionally',
-				paragraphs: [
-					'Photos are excellent for labels, damage, installation details, and before-and-after reference. Documents are better for manuals, warranties, invoices, receipts, inspection reports, and formal service records.',
-					'Both support the property record, but neither replaces a maintenance entry explaining what work was completed. A receipt proves a purchase; the history explains why it mattered.',
+					'Use file names that identify the equipment, contractor, document type, or date. The name only needs to make sense when you find it months or years later.',
+					'A file is supporting evidence. Add a short maintenance note when you need the record to explain what happened.',
 				],
 				tips: [
 					'Upload records soon after receiving them.',
@@ -296,54 +345,101 @@ export const helpfulArticles: HelpfulArticle[] = [
 		],
 	},
 	{
+		slug: 'review-document-suggestions',
+		title: 'Review document suggestions before applying them',
+		summary:
+			'Understand document review, property matching, and why suggested changes require approval.',
+		readTime: '4 min read',
+		path: '/properties',
+		actionLabel: 'Choose a Property',
+		introduction:
+			'Document review helps turn useful information from invoices, receipts, warranties, and service records into better property records. Suggestions require your approval before they are applied.',
+		founderNote: [
+			'Document review should reduce manual entry without silently rewriting important records.',
+			'The original file remains the source. Maintley helps surface what may be useful, and you decide what belongs in the property record.',
+		],
+		sections: [
+			{
+				heading: 'What this feature does',
+				paragraphs: [
+					'When supported document text is available, Maintley may suggest maintenance history, contractor information, warranty context, costs, parts, system details, or a possible property match.',
+					'These suggestions come from the uploaded record. They are not an inspection, diagnosis, or automatic correction.',
+				],
+			},
+			{
+				heading: 'How to review suggestions',
+				steps: [
+					'Check the review summary for new records, updates, warnings, and items that need attention.',
+					'Confirm whether the document should be used for the selected property.',
+					'Review contractor, service date, invoice total, warranty, and system details.',
+					'Apply only the suggestions that are useful and accurate.',
+				],
+				image: {
+					src: '',
+					alt: 'Document review screen showing a summary of suggested records, updates, and warnings.',
+					caption:
+						'The review summary shows what Maintley found before you apply any suggested changes.',
+				},
+			},
+			{
+				heading: 'Current limits',
+				paragraphs: [
+					'Clear text-based records work best. Scanned PDFs, low-quality images, handwritten notes, unusual invoice layouts, and multi-document packets may miss details or need manual review.',
+				],
+				tips: [
+					'Use clear photos or text-based PDFs when possible.',
+					'Review suggestions while the context is fresh.',
+					'Keep the original file attached as supporting evidence.',
+				],
+			},
+		],
+	},
+	{
 		slug: 'set-up-maintenance-reminders',
 		title: 'Set up useful maintenance reminders',
 		summary:
-			'Choose the notifications you want and control reminders for individual tasks.',
+			'Use task reminders, recurring schedules, and notification settings to keep maintenance visible.',
 		readTime: '4 min read',
 		path: '/settings?category=notifications',
 		actionLabel: 'Open Notification Settings',
 		introduction:
-			'Notifications are most helpful when they quietly bring the right work back to your attention. They should support your maintenance habits without turning every task into background noise.',
+			'Reminders help important maintenance return to your attention at the right time. They work best when they are tied to clear tasks and realistic due dates.',
 		founderNote: [
-			'I do not want Maintley to nag people. I want a reminder to arrive early enough that you can plan the work, then become more direct only when the due date is close or has passed.',
-			'The best reminder system is the one you still trust. That usually means enabling reminders for meaningful tasks, using realistic due dates, and turning off channels you consistently ignore.',
+			'The best reminder system is one you still trust.',
+			'Use reminders for maintenance that matters, keep stale tasks cleaned up, and adjust notification channels to match how you actually work.',
 		],
 		sections: [
 			{
-				heading: 'Choose your notification channels',
+				heading: 'What this feature does',
 				paragraphs: [
-					'Notification Settings control in-app, push, and email preferences. Think about where you are most likely to act. Push notifications are useful for timely reminders, while email can be better for summaries and information you want to revisit.',
-					'Some options depend on the account plan or device permissions. Even when Maintley is configured correctly, a phone or browser can still block push notifications.',
+					'Maintley supports task due dates, recurring schedules, overdue reminders, in-app notifications, and mobile push notifications where available.',
+					'Notification behavior can depend on account settings, plan availability, device permissions, and connection quality.',
 				],
 			},
 			{
-				heading: 'Enable reminders for tasks',
-				paragraphs: [
-					'Reminders can be enabled for individual tasks or in bulk. When a task does not already have a custom schedule, Maintley can assign the default schedule below.',
-					'The default schedule provides advance notice, a due-date reminder, and an overdue follow-up without requiring a custom schedule for every task.',
-				],
+				heading: 'How to set reminders',
 				steps: [
-					'30 days before the due date',
-					'7 days before the due date',
-					'On the due date',
-					'1 week after the due date when still incomplete',
+					'Create or edit a task and add a due date.',
+					'Enable recurrence for work that repeats.',
+					'Turn on the reminder channels you want in Notification Settings.',
+					'Confirm mobile or browser permissions if you use push notifications.',
 				],
+				image: {
+					src: '',
+					alt: 'Notification settings or task reminder controls in Maintley.',
+					caption:
+						'Reminder settings work best when tasks have clear due dates and recurrence rules.',
+				},
 			},
 			{
-				heading: 'Troubleshoot missing notifications',
+				heading: 'If reminders do not arrive',
 				paragraphs: [
-					'When a reminder does not arrive, work from the task outward. First confirm that the task has a due date and notifications enabled, then check account preferences and device permissions.',
-				],
-				steps: [
-					'Confirm the task has notifications enabled and a due date.',
-					'Review Maintley notification preferences.',
-					'Check the phone or browser notification permission.',
-					'Confirm the device has a stable connection and current app version.',
+					'Start with the task, then check account settings and the device. A task needs a due date and enabled reminders before Maintley can notify you.',
 				],
 				tips: [
-					'Complete or reschedule stale tasks so overdue reminders stay meaningful.',
-					'Use custom schedules for work that needs more or less lead time than the default.',
+					'Complete or reschedule stale overdue tasks.',
+					'Use custom schedules for work that needs more lead time.',
+					'Check device notification permissions after app or browser updates.',
 				],
 			},
 		],
@@ -352,47 +448,47 @@ export const helpfulArticles: HelpfulArticle[] = [
 		slug: 'organize-properties-with-groups',
 		title: 'Organize multiple properties with groups',
 		summary:
-			'Create a clearer portfolio without changing who owns each property.',
+			'Use groups to make a portfolio easier to scan without changing access or ownership.',
 		readTime: '4 min read',
 		path: '/properties',
 		actionLabel: 'Manage Property Groups',
 		introduction:
-			'Groups provide a visual way to organize properties by portfolio, region, property type, or another practical category. They are meant to make a long Properties page easier to understand at a glance.',
+			'Groups organize the Properties page by portfolio, region, ownership, property type, or another practical category.',
 		founderNote: [
-			'I wanted groups to feel more like arranging folders on a desk than configuring another complicated account structure. They should help you find and scan properties—not introduce a second ownership system.',
-			'My preference is to use the fewest groups that make the portfolio clearer. A handful of meaningful categories usually works better than a perfectly detailed hierarchy.',
+			'Groups should make a portfolio easier to scan. They should not feel like another ownership system.',
+			'A few clear groups usually work better than a detailed structure that needs constant upkeep.',
 		],
 		sections: [
 			{
-				heading: 'Create a practical group structure',
+				heading: 'What this feature does',
 				paragraphs: [
-					'Choose categories that describe a real distinction in the portfolio, such as Personal and Rentals, geographic regions, ownership portfolios, or property types.',
-					'Avoid creating a group for information that already belongs in the property record. Groups are strongest when each property has an obvious home and the names remain easy to scan.',
+					'Groups let you create, rename, reorder, collapse, customize, and remove visual sections on the Properties page.',
+					'Groups do not change property ownership, billing, team access, or permissions.',
 				],
 			},
 			{
-				heading: 'Make groups recognizable',
-				paragraphs: [
-					'Icons and colors are there to make groups easier to identify, especially on a phone. Use them consistently rather than trying to make every group visually unique.',
-					'You can also choose whether a group starts collapsed and drag groups into the order that matches how often you use them.',
-				],
+				heading: 'How to use groups',
 				steps: [
-					'Choose a clear group name and optional description.',
-					'Select an icon and color for quick recognition.',
-					'Choose whether the group starts collapsed.',
-					'Drag groups into your preferred order.',
+					'Create a group with a clear name and optional description.',
+					'Choose an icon and color for quick recognition.',
+					'Move properties into the group.',
+					'Reorder or collapse groups based on how you manage the portfolio.',
 				],
+				image: {
+					src: '',
+					alt: 'Property groups being used to organize multiple properties.',
+					caption:
+						'Groups make larger property lists easier to scan without changing access or ownership.',
+				},
 			},
 			{
-				heading: 'Move properties safely',
+				heading: 'Best practices',
 				paragraphs: [
-					'Organization changes. A property may move from a development group into a rental portfolio, or an old category may no longer be useful. Move individual properties whenever needed.',
-					'When removing a group, move its properties first or use the move-and-delete option. The property records themselves remain intact.',
-					'Most importantly, groups do not change property ownership, account access, or team permissions. They are an organizational view, not a security boundary.',
+					'Use group names that describe how you actually think about the properties. If a group becomes empty or confusing, move its properties and remove it.',
 				],
 				tips: [
 					'Keep group names short.',
-					'Use colors and icons consistently.',
+					'Use colors consistently.',
 					'Prefer fewer useful groups over many nearly empty groups.',
 				],
 			},
@@ -402,40 +498,43 @@ export const helpfulArticles: HelpfulArticle[] = [
 		slug: 'get-started-without-documenting-everything',
 		title: 'Get started without documenting everything',
 		summary:
-			'Build a useful record in small pieces instead of turning setup into a weekend project.',
+			'Build a useful record gradually by starting with the next maintenance action.',
 		readTime: '4 min read',
 		path: '/dashboard',
 		actionLabel: 'Return to Dashboard',
 		introduction:
-			'Maintley does not require a complete property inventory before it becomes useful. Begin with verified information connected to current work, then improve the record as normal maintenance happens.',
+			'Maintley does not require a complete property inventory before it becomes useful. Start with the next real maintenance need and build from there.',
 		founderNote: [
-			'One thing I want to avoid is making Maintley feel like homework. Most people already have enough projects around a property; documenting the property should not become another overwhelming one.',
-			'I would rather see someone accurately record one appliance, one task, and one completed service than create fifty empty records they never return to.',
+			'Property documentation should not become another overwhelming project.',
+			'A small number of accurate records is more useful than a large setup effort filled with guesses.',
 		],
 		sections: [
 			{
-				heading: 'Start with the next useful action',
-				paragraphs: [
-					'Begin with something that already needs attention. Add the relevant property, appliance or system, and task. This creates a useful record around real work instead of asking you to enter information without a purpose.',
-				],
+				heading: 'What to do first',
 				steps: [
-					'Add the real property and its address.',
-					'Add the equipment involved in the current work.',
+					'Add the property and address.',
+					'Add the equipment involved in current or upcoming work.',
 					'Create the task or record recently completed maintenance.',
-					'Attach the document or photo already available.',
+					'Attach the document or photo you already have.',
+				],
+				image: {
+					src: '',
+					alt: 'Dashboard or property setup view showing a simple first maintenance action.',
+					caption:
+						'Start with one real property, one useful record, and the next maintenance action.',
+				},
+			},
+			{
+				heading: 'What can wait',
+				paragraphs: [
+					'Leave unknown install dates, model numbers, costs, and service details blank until they can be verified from an equipment label, invoice, contractor, or other record.',
+					'An incomplete factual record is better than a complete-looking record built from estimates.',
 				],
 			},
 			{
-				heading: 'Leave unknown information unknown',
+				heading: 'How to keep momentum',
 				paragraphs: [
-					'Do not estimate install dates, model numbers, costs, or service details. Leave an optional field blank until the information can be verified from an equipment label, invoice, contractor, or other record.',
-					'An incomplete factual record is more trustworthy than a complete-looking record built from guesses.',
-				],
-			},
-			{
-				heading: 'Use maintenance as the routine',
-				paragraphs: [
-					'Each time work happens, add the details that became available. The property record will become more complete as a result of normal use.',
+					'Add information when maintenance happens. Each task, document, and completed service record improves the property record without requiring a separate documentation project.',
 				],
 				tips: [
 					'Keep the first session short.',
@@ -449,39 +548,46 @@ export const helpfulArticles: HelpfulArticle[] = [
 		slug: 'use-property-intelligence-recommendations',
 		title: 'Use Maintley Intelligence recommendations',
 		summary:
-			'Understand what recommendations mean and decide which improvements are useful for your property.',
+			'Understand recommendations, why they appear, and how to decide what to act on.',
 		readTime: '5 min read',
 		path: '/dashboard',
 		actionLabel: 'Review Recommendations',
 		introduction:
-			'Maintley Intelligence reviews existing Maintley records and highlights the few things worth your attention. Recommendations are guidance based on recorded information—not an inspection, condition assessment, or property grade.',
+			'Maintley Intelligence reviews saved property records and highlights a small number of useful next steps. Recommendations are guidance, not inspections or property grades.',
 		founderNote: [
-			'I built Maintley Intelligence to answer a simple question: based on what Maintley knows about this property, what is most worth attention right now?',
-			'I do not want recommendations to judge a property or pressure someone into completing a checklist. They should help people notice opportunities while leaving the final decision with the person who knows the property.',
+			'Maintley Intelligence should help people notice worthwhile next steps without making the property feel judged.',
+			'Recommendations are most useful when they explain what Maintley found and what action would improve the record.',
 		],
 		sections: [
 			{
-				heading: 'Read recommendations as opportunities',
+				heading: 'What this feature does',
 				paragraphs: [
-					'A recommendation may suggest adding a filter size, install date, warranty, appliance, or maintenance task. It identifies a potentially useful improvement based on current records.',
-					'It does not establish that the property is unsafe, incomplete, or in poor condition.',
+					'Recommendations may suggest adding a recurring task, recording an install date, uploading warranty information, completing missing system details, or reviewing a maintenance pattern.',
+					'They are based on Maintley records. They do not diagnose equipment condition or confirm what is physically happening at a property.',
 				],
 			},
 			{
-				heading: 'Verify before adding information',
+				heading: 'How to read recommendations',
 				paragraphs: [
-					'When a recommendation asks for factual information, verify it from a reliable source. Equipment labels, manuals, invoices, warranty records, and qualified contractors are stronger sources than estimates.',
+					'Look for the action, the property context, and the reason the recommendation appeared. In cross-property views, the property name helps you understand where the action belongs.',
 				],
+				image: {
+					src: '',
+					alt: 'Maintley Intelligence recommendation card with property context.',
+					caption:
+						'Maintley Intelligence recommendations should explain the action and where it belongs.',
+				},
 			},
 			{
-				heading: 'Choose what is useful now',
-				paragraphs: [
-					'Act on recommendations that support current maintenance, preserve important information, or reduce future searching. Other recommendations can wait.',
+				heading: 'How to decide what to do',
+				steps: [
+					'Act on recommendations tied to current maintenance or safety-related routines.',
+					'Verify factual information from labels, invoices, manuals, warranties, or contractors.',
+					'Skip or defer suggestions that are not useful right now.',
 				],
 				tips: [
-					'Prioritize recommendations tied to active maintenance.',
-					'Dismiss or defer suggestions that are not relevant.',
-					'Remember that recommendations improve as the underlying records improve.',
+					'Recommendations improve as the underlying records improve.',
+					'Use the suggestion as a starting point, not a final conclusion.',
 				],
 			},
 		],
@@ -490,40 +596,48 @@ export const helpfulArticles: HelpfulArticle[] = [
 		slug: 'work-with-family-and-team-members',
 		title: 'Work with family and team members',
 		summary:
-			'Share responsibility while keeping property access and assignments clear.',
+			'Share responsibility while keeping access, assignments, and dashboard focus clear.',
 		readTime: '5 min read',
 		path: '/profile',
 		actionLabel: 'Open Your Profile',
 		introduction:
-			'Shared access works best when each person understands which properties they can access, which tasks they own, and where completed work should be recorded.',
+			'Shared access helps family members and team members contribute to the property record without everyone needing the same responsibilities.',
 		founderNote: [
-			'Property knowledge often lives with more than one person. A spouse remembers the contractor, a family member handled the repair, or a team member knows what happened at a property that morning.',
-			'I want Maintley to preserve those contributions without making access confusing. Collaboration should add context to the property record while keeping responsibility clear.',
+			'Property knowledge often lives with more than one person.',
+			'Maintley should make that collaboration easier while keeping property access, task ownership, and completed work clear.',
 		],
 		sections: [
 			{
-				heading: 'Choose the appropriate relationship',
+				heading: 'What this feature does',
 				paragraphs: [
-					'Family members share an account-level relationship where supported. Team members operate within assigned-property access and do not own the subscription or billing.',
-					'Use the relationship that matches the person’s actual responsibilities.',
+					'Family members and team members can help manage work based on the access and properties assigned to them. Team members operate within assigned-property scope and do not own billing.',
+					'Dashboard focus can help each person see work that is relevant to them while still allowing broader visible-property views when appropriate.',
 				],
 			},
 			{
-				heading: 'Assign properties and tasks clearly',
-				paragraphs: [
-					'Give team members access only to the properties they need. Assign tasks when one person is responsible for completing or coordinating the work.',
-					'The assignee name should identify the person; internal IDs are references and should not be treated as user-facing information.',
+				heading: 'How to set up shared work',
+				steps: [
+					'Invite the person using the relationship that matches their responsibility.',
+					'Assign only the properties they need.',
+					'Assign tasks when they own the next action.',
+					'Record completed work in Maintley instead of leaving it only in messages or email.',
 				],
 			},
 			{
-				heading: 'Record work where everyone can find it',
+				heading: 'How dashboard focus helps',
 				paragraphs: [
-					'When shared work is completed, record the result on the task or Maintenance History instead of leaving the details in a private message.',
+					'A personal dashboard view can reduce noise for someone who only needs assigned work or a limited property set. Owners and managers can switch to a broader view when they need portfolio context.',
 				],
+				image: {
+					src: '',
+					alt: 'Dashboard focus controls showing personal and all visible property views.',
+					caption:
+						'Dashboard focus helps each user start with the work most relevant to them.',
+				},
 				tips: [
 					'Use clear task titles and due dates.',
 					'Keep access limited to relevant properties.',
-					'Record decisions and completed work in Maintley.',
+					'Record decisions and completed work where the team can find them.',
 				],
 			},
 		],
@@ -532,41 +646,48 @@ export const helpfulArticles: HelpfulArticle[] = [
 		slug: 'prepare-property-records-for-a-contractor',
 		title: 'Prepare property records for a contractor',
 		summary:
-			'Gather the equipment details, history, photos, and questions that make a service visit more productive.',
+			'Gather equipment details, service history, photos, documents, and questions before a visit.',
 		readTime: '5 min read',
 		path: '/properties',
 		actionLabel: 'Choose a Property',
 		introduction:
-			'A prepared property record can help a contractor understand the equipment, recent symptoms, previous work, and available documentation before or during a service visit.',
+			'A prepared property record helps a contractor understand the equipment, symptoms, previous work, and available documents before or during a service visit.',
 		founderNote: [
-			'I like the idea of walking into a contractor conversation with facts instead of trying to reconstruct everything while standing beside the equipment.',
-			'Maintley should make that easier by keeping the model information, previous service, current task, photos, and documents connected to the same property record.',
+			'Contractor conversations are easier when you can answer basic questions without searching through old messages.',
+			'Maintley keeps the model details, service history, current task, photos, and documents connected to the property record.',
 		],
 		sections: [
 			{
-				heading: 'Confirm the equipment record',
+				heading: 'What to prepare',
 				steps: [
-					'Verify the manufacturer, model, serial number, and equipment location.',
-					'Add a clear photo of the equipment and identification label.',
-					'Attach the relevant manual, warranty, or previous service report.',
+					'Confirm the property and equipment location.',
+					'Verify manufacturer, model, serial number, and install date when known.',
+					'Attach manuals, warranties, previous service reports, photos, or error codes.',
+					'Review Maintenance History for past repairs and recurring issues.',
 				],
+				image: {
+					src: '',
+					alt: 'Property or system record prepared with details for a contractor visit.',
+					caption:
+						'Prepare the equipment details, files, and service history before a contractor visit.',
+				},
 			},
 			{
-				heading: 'Describe the current issue factually',
+				heading: 'How to describe the issue',
 				paragraphs: [
 					'Record observable symptoms, when they started, and any conditions that affect them. Avoid presenting an unverified diagnosis as fact.',
 					'Photos, videos, error codes, measurements, and exact dates can be more useful than a broad description.',
 				],
 			},
 			{
-				heading: 'Review previous work',
+				heading: 'What to do after the visit',
 				paragraphs: [
-					'Check Maintenance History for earlier repairs, replaced parts, recurring symptoms, and contractor recommendations. Prepare the questions you want answered during the visit.',
+					'Record the contractor findings, completed work, cost, replaced parts, warranty coverage, and recommended follow-up. Attach the final invoice and service report.',
 				],
 				tips: [
 					'Keep access instructions separate from technical notes.',
-					'Record the contractor’s findings after the visit.',
-					'Attach the final invoice and service report to the completed work.',
+					'Ask for exact part names or numbers.',
+					'Create a task for recommended follow-up work.',
 				],
 			},
 		],
@@ -575,37 +696,44 @@ export const helpfulArticles: HelpfulArticle[] = [
 		slug: 'repair-record-or-maintenance-task',
 		title: 'Should this be a task or a maintenance record?',
 		summary:
-			'Choose the right place for future work, completed work, and historical information.',
+			'Choose tasks for future work and Maintenance History for completed work.',
 		readTime: '4 min read',
 		path: '/tasks',
 		actionLabel: 'Go to Tasks',
 		introduction:
-			'Use a task for work that still needs to happen. Use Maintenance History for work that already happened. When a task is completed, its result should become part of the historical record.',
+			'Use a task for work that still needs attention. Use Maintenance History for work that already happened.',
 		founderNote: [
-			'This distinction matters because a to-do list and a property history answer different questions. One tells you what is next. The other tells you what is true about the work that was completed.',
-			'I want Maintley to connect those two ideas without blending them into one confusing list.',
+			'A to-do list and a property history answer different questions.',
+			'Maintley connects them, but the distinction keeps the record easier to understand.',
 		],
 		sections: [
 			{
-				heading: 'Create a task for future work',
+				heading: 'Use a task when work is pending',
 				paragraphs: [
-					'Use a task when an inspection, repair, replacement, or routine maintenance item has not been completed. Add the due date, assignee, recurrence, and reminders needed to manage the work.',
+					'Create a task for inspections, repairs, replacements, recurring maintenance, or follow-up work that still needs to happen.',
+					'Tasks can have due dates, recurrence, reminders, assignments, notes, and property or system links.',
 				],
 			},
 			{
-				heading: 'Create a maintenance record for past work',
+				heading: 'Use Maintenance History for completed work',
 				paragraphs: [
-					'Use a manual maintenance entry when work was already completed and no Maintley task existed. Record the actual date, work performed, service notes, cost, contractor, and supporting files when known.',
+					'Create a maintenance record when the work already happened and there was no Maintley task to complete. Record the actual service date, work performed, contractor, cost, notes, and supporting files when known.',
 				],
 			},
 			{
-				heading: 'Complete an existing task',
+				heading: 'Complete a task when one already exists',
 				paragraphs: [
-					'If the work began as a Maintley task, complete that task instead of creating an unrelated duplicate history entry. Add the completion details so the planned work and result remain connected.',
+					'If the work started as a Maintley task, complete that task instead of creating an unrelated duplicate history entry.',
 				],
+				image: {
+					src: '',
+					alt: 'Task completion screen or Maintenance History record for completed work.',
+					caption:
+						'Completing the task keeps the planned work and historical record connected.',
+				},
 				tips: [
 					'Future action equals task.',
-					'Past verified work equals maintenance record.',
+					'Past verified work equals Maintenance History.',
 					'Completed Maintley task equals task completion with historical details.',
 				],
 			},
@@ -615,37 +743,43 @@ export const helpfulArticles: HelpfulArticle[] = [
 		slug: 'what-to-preserve-after-service-work',
 		title: 'What to preserve after service work',
 		summary:
-			'Record the details that will matter during the next repair, replacement, warranty claim, or sale.',
+			'Record the service details that matter for future repairs, warranty claims, and property history.',
 		readTime: '5 min read',
 		path: '/properties',
 		actionLabel: 'Choose a Property',
 		introduction:
-			'After service work, preserve enough factual information to understand what happened without relying on the contractor, invoice, or your memory being available later.',
+			'After service work, preserve enough information to understand what happened without relying on memory, email, or the contractor being available later.',
 		founderNote: [
-			'The few minutes after service work are often the best chance to preserve useful information. The contractor is still there, the replaced part is visible, and the details have not yet disappeared into email or paperwork.',
-			'I want Maintley to make that small follow-up habit worthwhile by turning it into a record that remains useful for years.',
+			'The few minutes after service work are often the best time to capture useful details.',
+			'Maintley turns that small follow-up habit into a record that can stay useful for years.',
 		],
 		sections: [
 			{
-				heading: 'Record the essential facts',
+				heading: 'What to record',
 				steps: [
-					'The actual service date',
-					'The contractor or person who performed the work',
-					'The reported problem and verified findings',
-					'The work completed and parts replaced',
-					'The total cost and any warranty coverage',
+					'The actual service date.',
+					'The contractor or person who performed the work.',
+					'The reported problem and verified findings.',
+					'The work completed and parts replaced.',
+					'The total cost and any warranty coverage.',
 				],
 			},
 			{
-				heading: 'Preserve supporting records',
+				heading: 'Where to save it',
 				paragraphs: [
-					'Attach the final invoice, service report, receipts, photos, and warranty information. Link the work to the correct property and appliance or system.',
+					'Save completed work in Maintenance History or by completing the related task. Link the record to the correct property and appliance or system whenever possible.',
 				],
+				image: {
+					src: '',
+					alt: 'Maintenance History showing a completed service record with supporting details.',
+					caption:
+						'Maintenance History preserves what happened, when it happened, and what records support it.',
+				},
 			},
 			{
-				heading: 'Capture the next action',
+				heading: 'What to attach',
 				paragraphs: [
-					'If the contractor recommends follow-up work, create a separate task with a clear due date. Do not bury future work only inside the service notes.',
+					'Attach the final invoice, service report, receipts, photos, and warranty information. These files support the maintenance record and make future repairs easier to understand.',
 				],
 				tips: [
 					'Ask for exact part names or numbers.',

@@ -137,6 +137,8 @@ yarn test:rules:all
 yarn init:firestore
 yarn seed:firebase
 yarn seed:demo-account -- --email demo@example.com --plan portfolio
+yarn support:updates
+yarn support:updates:dry-run
 ```
 
 `seed:demo-account` populates an existing Firebase Auth user. Create the demo
@@ -191,6 +193,7 @@ These scripts are actively used, referenced by package aliases, or remain part o
 * seedFirestore.cjs
 * seedFirestoreAuth.cjs
 * seedDemoAccount.cjs
+* updateSupportUpdates.cjs
 
 ---
 

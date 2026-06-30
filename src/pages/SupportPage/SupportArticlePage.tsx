@@ -20,6 +20,7 @@ import {
 	ArticlePageTitle,
 	ArticlePrimaryAction,
 	ArticleSection,
+	ArticleSectionImage,
 	ArticleTips,
 	EmptyState,
 	FounderNote,
@@ -64,7 +65,7 @@ export const SupportArticlePage: React.FC = () => {
 			<ArticleHero>
 				<ArticlePageMeta>
 					<FontAwesomeIcon icon={faBookOpen} />
-					Helpful article · {article.readTime}
+					Helpful article - {article.readTime}
 				</ArticlePageMeta>
 				<ArticlePageTitle>{article.title}</ArticlePageTitle>
 				<ArticlePageIntro>{article.introduction}</ArticlePageIntro>
@@ -79,7 +80,7 @@ export const SupportArticlePage: React.FC = () => {
 					{article.founderNote.map((paragraph) => (
 						<FounderNoteText key={paragraph}>{paragraph}</FounderNoteText>
 					))}
-					<FounderSignature>— Austin, Founder of Maintley</FounderSignature>
+					<FounderSignature>Austin, Founder of Maintley</FounderSignature>
 				</FounderNote>
 
 				{article.sections.map((section) => (
@@ -94,6 +95,14 @@ export const SupportArticlePage: React.FC = () => {
 									<li key={step}>{step}</li>
 								))}
 							</ol>
+						) : null}
+						{section.image?.src ? (
+							<ArticleSectionImage>
+								<img src={section.image.src} alt={section.image.alt} loading='lazy' />
+								{section.image.caption ? (
+									<figcaption>{section.image.caption}</figcaption>
+								) : null}
+							</ArticleSectionImage>
 						) : null}
 						{section.tips?.length ? (
 							<ArticleTips>
