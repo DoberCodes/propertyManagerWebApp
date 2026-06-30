@@ -1,5 +1,5 @@
-🎉 **Release Notes for Version 2.7.13** 🎉
+🎉 **Release Notes for Version 2.7.14** 🎉
 
 
 ## 🐛 Bug Fixes
-- adding temp env for firebase
+- fixing upload scan to work in the background
