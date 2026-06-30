@@ -234,11 +234,64 @@ const findMoney = (lines, labels) => {
 };
 const findPhone = (text) => { var _a; return ((_a = text.match(/\(?\d{3}\)?[-.\s]\d{3}[-.\s]\d{4}/)) === null || _a === void 0 ? void 0 : _a[0]) || ''; };
 const findWebsite = (text) => { var _a; return ((_a = text.match(/(?:https?:\/\/)?(?:www\.)?[a-z0-9-]+\.[a-z]{2,}(?:\/[^\s]*)?/i)) === null || _a === void 0 ? void 0 : _a[0]) || ''; };
+const CONTRACTOR_ENTITY_PATTERN = /\b(LLC|Inc\.?|Ltd\.?|Co\.?|Company|Contractor)\b/i;
+const CONTRACTOR_TRADE_PATTERN = /\b(HVAC|Heating|Cooling|Plumbing|Electric(?:al)?|Roofing|Landscap(?:e|ing)?|Pest|Appliance|Repair)\b/i;
+const CONTRACTOR_EXCLUDE_PATTERN = /invoice|bill to|job address|technician|license|payment|pay online|payment options|routing|account|check by mail|authorized|warranty information|thank you|subtotal|total due|due date|service date|@|www\.|https?:|\.com|\.net|\.org|\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}/i;
+const CONTRACTOR_GUIDANCE_PATTERN = /\b(schedule|clear|after|before|each|fall|spring|summer|winter|warranty|workmanship|sealant|gutters?|storms?|coverage|maintain|maintenance|recommended?|should|must|please|within)\b/i;
+const CONTRACTOR_SECTION_END_PATTERN = /\b(INVOICE|BILL TO|JOB ADDRESS|TECHNICIAN|SYSTEM INFORMATION|DESCRIPTION|PAYMENT OPTIONS|AUTHORIZED BY|WARRANTY INFORMATION)\b/i;
+const isLikelyAddressLine = (line) => /^\d+\s+\S+/.test(line) ||
+    /\b(street|st\.?|road|rd\.?|avenue|ave\.?|drive|dr\.?|suite|ste\.?|lane|ln\.?|boulevard|blvd\.?)\b/i.test(line) ||
+    /\b[A-Z]{2}\s+\d{5}(?:-\d{4})?\b/.test(line);
+const getWordCount = (line) => line.split(/\s+/).filter(Boolean).length;
+const isLikelyGuidanceOrWarrantyLine = (line) => {
+    const wordCount = getWordCount(line);
+    return (CONTRACTOR_GUIDANCE_PATTERN.test(line) ||
+        (/[.!?]$/.test(line) && wordCount > 5) ||
+        (/:\s*/.test(line) && !CONTRACTOR_ENTITY_PATTERN.test(line)));
+};
+const getContractorCandidateScore = (line) => {
+    let score = 0;
+    const hasEntitySignal = CONTRACTOR_ENTITY_PATTERN.test(line);
+    const hasTradeSignal = CONTRACTOR_TRADE_PATTERN.test(line);
+    if (hasEntitySignal)
+        score += 5;
+    if (hasTradeSignal)
+        score += 3;
+    if (/,/.test(line))
+        score += 1;
+    const wordCount = getWordCount(line);
+    if (wordCount >= 2 && wordCount <= 8)
+        score += 1;
+    if (wordCount > 10)
+        score -= 4;
+    if (line.length > 80)
+        score -= 3;
+    if (isLikelyGuidanceOrWarrantyLine(line) && !hasEntitySignal)
+        score -= 6;
+    return score;
+};
 const findContractorName = (lines) => {
+    var _a;
     const explicit = findLabeledValue(lines, ['Contractor', 'Vendor', 'Company']);
-    if (explicit)
+    if (explicit &&
+        !CONTRACTOR_EXCLUDE_PATTERN.test(explicit) &&
+        !isLikelyAddressLine(explicit) &&
+        getContractorCandidateScore(explicit) >= 3) {
         return explicit;
-    return (lines.find((line) => /\b(LLC|Inc\.?|Co\.?|Company|HVAC|Heating|Cooling|Plumbing|Appliance|Repair)\b/i.test(line)) || '');
+    }
+    const headerEndIndex = lines.findIndex((line) => CONTRACTOR_SECTION_END_PATTERN.test(line));
+    const headerLines = headerEndIndex > 0 ? lines.slice(0, headerEndIndex) : lines;
+    const candidates = headerLines
+        .filter((line) => CONTRACTOR_TRADE_PATTERN.test(line) || CONTRACTOR_ENTITY_PATTERN.test(line))
+        .filter((line) => !CONTRACTOR_EXCLUDE_PATTERN.test(line))
+        .filter((line) => !isLikelyAddressLine(line))
+        .map((line) => ({
+        line,
+        score: getContractorCandidateScore(line),
+    }))
+        .filter((candidate) => candidate.score >= 3)
+        .sort((left, right) => right.score - left.score);
+    return ((_a = candidates[0]) === null || _a === void 0 ? void 0 : _a.line) || '';
 };
 const inferAssetType = (text) => {
     const lower = text.toLowerCase();

@@ -350,6 +350,26 @@ describe('property knowledge acquisition', () => {
 		expect(valuesByKey.get('contractorName')).not.toContain('.com/pay');
 	});
 
+	it('does not treat maintenance guidance or warranty prose as a contractor name', () => {
+		const fields = extractFieldsFromDocumentText(
+			`
+				ROOF INSPECTION NOTES
+				Schedule a roof check after major storms and clear gutters each fall.
+				Sealant repair workmanship warranty: 1 year.
+			`,
+			'system-1',
+		);
+		const valuesByKey = new Map(fields.map((field) => [field.fieldKey, field.value]));
+
+		expect(valuesByKey.has('contractorName')).toBe(false);
+		expect([...valuesByKey.values()].join(' ')).not.toContain(
+			'Schedule a roof check',
+		);
+		expect([...valuesByKey.values()].join(' ')).not.toContain(
+			'workmanship warranty',
+		);
+	});
+
 	it('prepares contractor and maintenance history records when invoice details are applied', () => {
 		const fields = extractFieldsFromDocumentText(
 			`

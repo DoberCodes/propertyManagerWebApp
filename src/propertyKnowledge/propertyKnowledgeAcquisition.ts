@@ -517,7 +517,16 @@ const CONTRACTOR_NAME_EXCLUDE_PATTERN =
 	/invoice|bill to|job address|technician|license|payment|pay online|payment options|routing|account|check by mail|authorized|warranty information|thank you|subtotal|total due|due date|service date|@|www\.|https?:|\.com|\.net|\.org|\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}/i;
 
 const CONTRACTOR_NAME_INCLUDE_PATTERN =
-	/(llc|inc\.?|company|contractor|hvac|heating|cooling|plumbing|electric|roofing|landscap|pest)/i;
+	/(llc|inc\.?|company|contractor|hvac|heating|cooling|plumbing|electric|roofing|landscap|pest|appliance|repair)/i;
+
+const CONTRACTOR_ENTITY_PATTERN =
+	/\b(llc|inc\.?|ltd\.?|co\.?|company|contractor)\b/i;
+
+const CONTRACTOR_TRADE_PATTERN =
+	/\b(hvac|heating|cooling|plumbing|electric(?:al)?|roofing|landscap(?:e|ing)?|pest|appliance|repair)\b/i;
+
+const CONTRACTOR_GUIDANCE_PATTERN =
+	/\b(schedule|clear|after|before|each|fall|spring|summer|winter|warranty|workmanship|sealant|gutters?|storms?|coverage|maintain|maintenance|recommended?|should|must|please|within)\b/i;
 
 const CONTRACTOR_SECTION_END_PATTERN =
 	/\b(INVOICE|BILL TO|JOB ADDRESS|TECHNICIAN|SYSTEM INFORMATION|DESCRIPTION|PAYMENT OPTIONS|AUTHORIZED BY|WARRANTY INFORMATION)\b/i;
@@ -527,16 +536,29 @@ const isLikelyAddressLine = (line: string) =>
 	/\b(street|st\.?|road|rd\.?|avenue|ave\.?|drive|dr\.?|suite|ste\.?|lane|ln\.?|boulevard|blvd\.?)\b/i.test(line) ||
 	/\b[A-Z]{2}\s+\d{5}(?:-\d{4})?\b/.test(line);
 
+const getWordCount = (line: string) => line.split(/\s+/).filter(Boolean).length;
+
+const isLikelyGuidanceOrWarrantyLine = (line: string) => {
+	const wordCount = getWordCount(line);
+	return (
+		CONTRACTOR_GUIDANCE_PATTERN.test(line) ||
+		(/[.!?]$/.test(line) && wordCount > 5) ||
+		(/:\s*/.test(line) && !CONTRACTOR_ENTITY_PATTERN.test(line))
+	);
+};
+
 const getContractorCandidateScore = (line: string) => {
 	let score = 0;
-	if (/\b(llc|inc\.?|company)\b/i.test(line)) score += 5;
-	if (/\b(hvac|heating|cooling|plumbing|electric|roofing|landscap|pest)\b/i.test(line)) {
-		score += 3;
-	}
+	const hasEntitySignal = CONTRACTOR_ENTITY_PATTERN.test(line);
+	const hasTradeSignal = CONTRACTOR_TRADE_PATTERN.test(line);
+	if (hasEntitySignal) score += 5;
+	if (hasTradeSignal) score += 3;
 	if (/,/.test(line)) score += 1;
-	const wordCount = line.split(/\s+/).filter(Boolean).length;
+	const wordCount = getWordCount(line);
 	if (wordCount >= 2 && wordCount <= 8) score += 1;
+	if (wordCount > 10) score -= 4;
 	if (line.length > 80) score -= 3;
+	if (isLikelyGuidanceOrWarrantyLine(line) && !hasEntitySignal) score -= 6;
 	return score;
 };
 
@@ -557,7 +579,7 @@ const findLikelyContractorName = (text: string) => {
 			line,
 			score: getContractorCandidateScore(line),
 		}))
-		.filter((candidate) => candidate.score > 0)
+		.filter((candidate) => candidate.score >= 3)
 		.sort((left, right) => right.score - left.score);
 
 	return candidates[0]?.line || '';
