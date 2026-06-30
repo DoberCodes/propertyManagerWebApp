@@ -1,7 +1,9 @@
 import { SUBSCRIPTION_STATUS } from '../constants/subscriptions';
 import {
 	canAdvancedAuditTrail,
+	canAccessReportBuilder,
 	canExportData,
+	canExportReports,
 	canLinkParts,
 	canManageTeam,
 	canManageTenants,
@@ -24,6 +26,14 @@ const activeSubscription = (plan: string): SubscriptionData => ({
 	plan,
 	currentPeriodStart: 0,
 	currentPeriodEnd: 9999999999,
+});
+
+const expiredSubscription = (plan: string): SubscriptionData => ({
+	status: SUBSCRIPTION_STATUS.EXPIRED,
+	plan,
+	currentPeriodStart: 0,
+	currentPeriodEnd: 0,
+	trialEndsAt: 0,
 });
 
 describe('subscriptionUtils', () => {
@@ -78,9 +88,20 @@ describe('subscriptionUtils', () => {
 
 		expect(canViewReports(free)).toBe(true);
 		expect(canExportData(free)).toBe(true);
+		expect(canAccessReportBuilder(free)).toBe(true);
+		expect(canExportReports(free)).toBe(true);
 		expect(canTrackWarranties(free)).toBe(true);
 		expect(canUseSuggestedMaintenancePackages(free)).toBe(false);
 		expect(getSuggestedMaintenancePackageLimit(free)).toBe(0);
+	});
+
+	it('allows expired users to access report exports for their existing data', () => {
+		const expired = expiredSubscription('homeowner');
+
+		expect(canViewReports(expired)).toBe(false);
+		expect(canExportData(expired)).toBe(false);
+		expect(canAccessReportBuilder(expired)).toBe(true);
+		expect(canExportReports(expired)).toBe(true);
 	});
 
 	it('separates simple Property teams from advanced Portfolio teams', () => {

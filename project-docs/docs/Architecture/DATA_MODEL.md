@@ -201,6 +201,27 @@ Accounts own properties and associated records.
 
 Properties remain the primary organizational object throughout the platform.
 
+## User Preferences
+
+User records may store lightweight presentation preferences.
+
+Typical fields:
+
+* dashboardPreferences.scope
+
+Supported values:
+
+```text
+my_focus
+all_visible_properties
+```
+
+Purpose:
+
+Controls Dashboard presentation for the current user. This preference does not
+change account permissions, property ownership, task assignment, or source
+records.
+
 ---
 
 ## familyAccounts

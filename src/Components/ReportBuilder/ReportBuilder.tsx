@@ -2,13 +2,13 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../Redux/store/store';
 import {
-	canAccessReadOnlyFeatures,
-	canExportData,
+	canAccessReportBuilder,
+	canExportReports as canExportReportData,
 	canPortfolioReporting,
 	canUseAdvancedTeamManagement,
 	canViewTenantInfo,
-	canViewReports,
 } from '../../utils/subscriptionUtils';
+import { getRoleCapabilities } from '../../utils/permissions';
 import {
 	selectCanAccessTeam,
 	selectCanManageTenants,
@@ -89,8 +89,6 @@ import {
 	generateMaintenanceHistoryReport,
 	generateTenantProfileReport,
 	exportToCSV,
-	EmployeeEfficiencyMetrics,
-	PropertySummaryMetrics,
 } from '../../utils/csvExport';
 import { useGetTasksQuery } from '../../Redux/API/taskSlice';
 import { useGetTeamMembersQuery } from '../../Redux/API/teamSlice';
@@ -99,42 +97,41 @@ import { LockedFeatureCallout } from '../Library/LockedFeatureCallout';
 import { ReportPreview } from './ReportPreview';
 import { getNonEmptyReportColumns } from './reportPreviewUtils';
 import { isNativeApp } from '../../utils/platform';
+import {
+	FINANCIAL_COLUMN_KEYS,
+	ReportType,
+	buildApplianceServiceRows,
+	buildContractorServiceSpendRows,
+	buildDocumentInventoryRows,
+	buildEmployeeEfficiencyRows,
+	buildMaintenanceRequestRows,
+	buildPortfolioOverviewRows,
+	buildPropertySummaryRows,
+	buildRecurringMaintenanceRows,
+	buildResidentRequestLifecycleRows,
+	buildSuiteReportRows,
+	buildTeamWorkloadRows,
+	buildUnitReportRows,
+	buildWarrantyExpirationRows,
+	canViewTeamReportsForUser,
+	filterRecordsForAccountOrProperties,
+	filterReportRowsByProperty,
+	filterRowsForHomeownerProperties,
+	getAccessibleReports,
+	getActiveAccountId,
+	getAllowedPropertyIdSet,
+	getReportDescription,
+	isSingleFamilyProperty,
+	normalizeContractorReportRows,
+	normalizeDeviceReportRows,
+	normalizeMaintenanceHistoryReportRows,
+	normalizeTaskReportRows,
+} from '../../reporting/reportDataAdapters';
 
 // Alias Library components to match local naming convention
 const FormGroup = LibraryFormGroup;
 const Label = LibraryLabel;
 const Select = LibrarySelect;
-
-type ReportType =
-	| 'tasks'
-	| 'maintenance-requests'
-	| 'team'
-	| 'employee-efficiency'
-	| 'property-summary'
-	| 'contractors'
-	| 'suites'
-	| 'units'
-	| 'devices'
-	| 'maintenance-history'
-	| 'tenant-profiles'
-	| 'overdue-tasks'
-	| 'upcoming-tasks'
-	| 'maintenance-costs'
-	| 'portfolio-overview'
-	| '';
-
-type ReportOption = {
-	value: ReportType;
-	label: string;
-	description: string;
-	requiresTeamAccess: boolean;
-	requiresMultiProperty?: boolean;
-	requiresMultiFamily?: boolean;
-	requiresCommercialSuites?: boolean;
-	requiresAdvancedTeamAccess?: boolean;
-	requiresTenantInfoAccess?: boolean;
-	requiresPortfolioReporting?: boolean;
-};
 
 const OVERDUE_TASK_COLUMN_OPTIONS = {
 	...TASK_COLUMN_OPTIONS,
@@ -166,215 +163,318 @@ const PORTFOLIO_OVERVIEW_COLUMN_OPTIONS = {
 	completionRate: 'Completion Rate (%)',
 };
 
-// Helper to determine which reports a user can access
-const getAccessibleReports = (
-	canAccessTeamReport: boolean,
-	canAccessAdvancedTeamReport: boolean,
-	canAccessTenantReports: boolean,
-	canAccessPortfolioReports: boolean,
-	options: {
-		scopedProperties: any[];
-		isHomeowner: boolean;
-		hasMultiFamilyProperties: boolean;
-		hasCommercialSuites: boolean;
-	},
-): ReportOption[] => {
-	const {
-		scopedProperties,
-		isHomeowner,
-		hasMultiFamilyProperties,
-		hasCommercialSuites,
-	} = options;
-
-	const allReports: ReportOption[] = [
-		{
-			value: 'tasks' as ReportType,
-			label: 'Task Report',
-			description: 'Overview of all tasks with details on status, assignments, and dates',
-			requiresTeamAccess: false,
-			requiresMultiProperty: false,
-		},
-		{
-			value: 'overdue-tasks' as ReportType,
-			label: 'Overdue Tasks',
-			description: 'Past-due tasks that still need attention',
-			requiresTeamAccess: false,
-			requiresMultiProperty: false,
-		},
-		{
-			value: 'upcoming-tasks' as ReportType,
-			label: 'Upcoming Tasks',
-			description: 'Tasks due in the next 30 days for proactive planning',
-			requiresTeamAccess: false,
-			requiresMultiProperty: false,
-		},
-		{
-			value: 'maintenance-requests' as ReportType,
-			label: 'Maintenance Requests',
-			description: 'Submitted maintenance requests with status and priority',
-			requiresTeamAccess: false,
-			requiresMultiProperty: false,
-		},
-		{
-			value: 'contractors' as ReportType,
-			label: 'Contractors',
-			description: 'List of contractors and their service history',
-			requiresTeamAccess: false,
-			requiresMultiProperty: false,
-		},
-		{
-			value: 'devices' as ReportType,
-			label: 'Appliances',
-			description: 'Property appliances with installation dates, status, and maintenance notes',
-			requiresTeamAccess: false,
-			requiresMultiProperty: false,
-		},
-		{
-			value: 'maintenance-history' as ReportType,
-			label: 'Maintenance History',
-			description: 'Historical record of all completed maintenance work',
-			requiresTeamAccess: false,
-			requiresMultiProperty: false,
-		},
-		{
-			value: 'property-summary' as ReportType,
-			label: 'Property Summary',
-			description: 'Overview metrics for each property including occupancy and tasks',
-			requiresTeamAccess: false,
-			requiresMultiProperty: false,
-		},
-		{
-			value: 'suites' as ReportType,
-			label: 'Suites',
-			description: 'Detailed suite information across properties',
-			requiresTeamAccess: false,
-			requiresMultiProperty: false,
-			requiresCommercialSuites: true,
-		},
-		// Units are temporarily hidden from the app flow while the core loop is simplified.
-		// {
-		// 	value: 'units' as ReportType,
-		// 	label: 'Units',
-		// 	description: 'Individual unit details and occupancy information',
-		// 	requiresTeamAccess: false,
-		// 	requiresMultiProperty: false,
-		// 	requiresMultiFamily: true,
-		// },
-		{
-			value: 'tenant-profiles' as ReportType,
-			label: 'Tenant Profiles',
-			description: 'Tenant contact information and lease details',
-			requiresTeamAccess: false,
-			requiresMultiProperty: false,
-			requiresTenantInfoAccess: true,
-		},
-		{
-			value: 'maintenance-costs' as ReportType,
-			label: 'Maintenance Costs',
-			description: 'Estimated versus actual maintenance spend by record',
-			requiresTeamAccess: false,
-			requiresMultiProperty: false,
-		},
-		{
-			value: 'portfolio-overview' as ReportType,
-			label: 'Portfolio Overview',
-			description: 'Portfolio-wide KPI snapshot for operational reporting',
-			requiresTeamAccess: false,
-			requiresMultiProperty: true,
-			requiresPortfolioReporting: true,
-		},
-		{
-			value: 'team' as ReportType,
-			label: 'Team Members',
-			description: 'Team member information and contact details (Team Management)',
-			requiresTeamAccess: true,
-			requiresMultiProperty: false,
-		},
-		{
-			value: 'employee-efficiency' as ReportType,
-			label: 'Employee Efficiency',
-			description: 'Performance metrics for team members (Team Management)',
-			requiresTeamAccess: true,
-			requiresAdvancedTeamAccess: true,
-			requiresMultiProperty: false,
-		},
-	];
-
-	// Filter reports based on user permissions
-	return allReports.filter((report) => {
-		if (isHomeowner) {
-			// Homeowner plans are restricted to single-family report options.
-			if (
-				report.value === 'maintenance-requests' ||
-				report.value === 'suites' ||
-				report.value === 'units' ||
-				report.value === 'tenant-profiles' ||
-				report.value === 'team' ||
-				report.value === 'employee-efficiency'
-			) {
-				return false;
-			}
-		}
-
-		// Team reports only for users with team access
-		if (report.requiresTeamAccess && !canAccessTeamReport) {
-			return false;
-		}
-		if (report.requiresAdvancedTeamAccess && !canAccessAdvancedTeamReport) {
-			return false;
-		}
-
-		if (report.requiresTenantInfoAccess && !canAccessTenantReports) {
-			return false;
-		}
-
-		if (report.requiresPortfolioReporting && !canAccessPortfolioReports) {
-			return false;
-		}
-
-		// Multi-property reports not applicable for homeowners or single-property users
-		if (report.requiresMultiProperty && scopedProperties.length <= 1) {
-			return false;
-		}
-
-		if (report.requiresMultiFamily && !hasMultiFamilyProperties) {
-			return false;
-		}
-
-		if (report.requiresCommercialSuites && !hasCommercialSuites) {
-			return false;
-		}
-
-		return true;
-	});
+const DOCUMENT_INVENTORY_COLUMN_OPTIONS = {
+	propertyTitle: 'Property',
+	documentName: 'Document',
+	documentType: 'Document Type',
+	source: 'Source',
+	linkedApplianceCount: 'Linked Appliances',
+	linkedTaskCount: 'Linked Tasks',
+	linkedMaintenanceEventCount: 'Linked Maintenance Records',
+	uploadedAt: 'Uploaded',
+	uploadedBy: 'Uploaded By',
+	acquisitionStatus: 'Review Status',
+	fileSize: 'File Size',
+	contentType: 'File Type',
+	url: 'File URL',
 };
 
-// Helper to get description for a report type
-const getReportDescription = (
-	reportType: ReportType,
-	accessibleReports: ReturnType<typeof getAccessibleReports>,
-): string => {
-	const report = accessibleReports.find((r) => r.value === reportType);
-	return report?.description || '';
+const WARRANTY_EXPIRATION_COLUMN_OPTIONS = {
+	propertyTitle: 'Property',
+	applianceSystem: 'Appliance/System',
+	manufacturer: 'Manufacturer',
+	model: 'Model',
+	serialNumber: 'Serial Number',
+	installDate: 'Install Date',
+	warrantyStartDate: 'Warranty Start',
+	warrantyEndDate: 'Warranty End',
+	warrantyLength: 'Warranty Length',
+	warrantyDocumentAttached: 'Warranty Document Attached',
+	documentName: 'Warranty Document',
+	status: 'Status',
+	notes: 'Notes',
+};
+
+const RECURRING_MAINTENANCE_COLUMN_OPTIONS = {
+	propertyTitle: 'Property',
+	title: 'Task',
+	status: 'Status',
+	priority: 'Priority',
+	recurrenceFrequency: 'Frequency',
+	recurrenceInterval: 'Interval',
+	recurrenceCustomUnit: 'Custom Unit',
+	nextDueDate: 'Next Due',
+	lastCompleted: 'Last Completed',
+	reminderEnabled: 'Reminder Enabled',
+	assignee: 'Assignee',
+	applianceCount: 'Linked Appliances',
+};
+
+const APPLIANCE_SERVICE_COLUMN_OPTIONS = {
+	propertyTitle: 'Property',
+	applianceSystem: 'Appliance/System',
+	type: 'Type',
+	manufacturer: 'Manufacturer',
+	model: 'Model',
+	serialNumber: 'Serial Number',
+	installDate: 'Install Date',
+	lastServiceDate: 'Last Service',
+	serviceCount: 'Service Records',
+	openTasks: 'Open Tasks',
+	upcomingTasks: 'Upcoming Tasks',
+	warrantyEndDate: 'Warranty End',
+	documentsAttached: 'Documents',
+	status: 'Status',
+};
+
+const CONTRACTOR_SERVICE_SPEND_COLUMN_OPTIONS = {
+	contractorName: 'Contractor',
+	company: 'Company',
+	propertyTitle: 'Property',
+	category: 'Category',
+	completedJobs: 'Completed Jobs',
+	lastServiceDate: 'Last Service',
+	estimatedTotal: 'Estimated Total',
+	actualTotal: 'Actual Total',
+	linkedMaintenanceRecords: 'Maintenance Records',
+	linkedTasks: 'Tasks',
+};
+
+const RESIDENT_REQUEST_LIFECYCLE_COLUMN_OPTIONS = {
+	propertyTitle: 'Property',
+	title: 'Request',
+	submittedByName: 'Submitted By',
+	submittedAt: 'Submitted',
+	status: 'Status',
+	convertedToTaskId: 'Converted Task',
+	timeToConversionDays: 'Days to Conversion',
+	priority: 'Priority',
+	category: 'Category',
+	completedDate: 'Completed',
+};
+
+const TEAM_WORKLOAD_COLUMN_OPTIONS = {
+	firstName: 'First Name',
+	lastName: 'Last Name',
+	email: 'Email',
+	title: 'Title',
+	assignedPropertyCount: 'Assigned Properties',
+	openTasks: 'Open Tasks',
+	overdueTasks: 'Overdue Tasks',
+	dueNext30Days: 'Due Next 30 Days',
+	completedTasks: 'Completed Tasks',
+};
+
+type ReportCategoryId =
+	| 'tasks'
+	| 'maintenance'
+	| 'systems'
+	| 'documents'
+	| 'contractors'
+	| 'people'
+	| 'portfolio';
+
+const REPORT_CATEGORIES: Array<{
+	id: ReportCategoryId;
+	label: string;
+	description: string;
+}> = [
+	{
+		id: 'tasks',
+		label: 'Tasks',
+		description: 'Open work, due dates, and recurring care',
+	},
+	{
+		id: 'maintenance',
+		label: 'Maintenance History',
+		description: 'Completed work, service records, and costs',
+	},
+	{
+		id: 'systems',
+		label: 'Appliances & Systems',
+		description: 'Equipment, warranties, and service activity',
+	},
+	{
+		id: 'documents',
+		label: 'Documents',
+		description: 'Uploaded records and linked files',
+	},
+	{
+		id: 'contractors',
+		label: 'Contractors',
+		description: 'Contacts, service activity, and spend',
+	},
+	{
+		id: 'people',
+		label: 'People',
+		description: 'Team, residents, and request activity',
+	},
+	{
+		id: 'portfolio',
+		label: 'Portfolio',
+		description: 'Cross-property summaries',
+	},
+];
+
+const REPORT_CATEGORY_BY_TYPE: Partial<Record<ReportType, ReportCategoryId>> = {
+	tasks: 'tasks',
+	'overdue-tasks': 'tasks',
+	'upcoming-tasks': 'tasks',
+	'recurring-maintenance': 'tasks',
+	'maintenance-requests': 'maintenance',
+	'resident-request-lifecycle': 'maintenance',
+	'maintenance-history': 'maintenance',
+	'maintenance-costs': 'maintenance',
+	devices: 'systems',
+	'warranty-expiration': 'systems',
+	'appliance-service': 'systems',
+	'document-inventory': 'documents',
+	contractors: 'contractors',
+	'contractor-service-spend': 'contractors',
+	team: 'people',
+	'team-workload': 'people',
+	'employee-efficiency': 'people',
+	'tenant-profiles': 'people',
+	'property-summary': 'portfolio',
+	'portfolio-overview': 'portfolio',
+	suites: 'portfolio',
+	units: 'portfolio',
+};
+
+const DEFAULT_REPORT_COLUMNS: Partial<Record<ReportType, string[]>> = {
+	tasks: ['title', 'property', 'dueDate', 'status', 'priority', 'assignee'],
+	'overdue-tasks': ['title', 'property', 'dueDate', 'daysOverdue', 'priority', 'assignee'],
+	'upcoming-tasks': ['title', 'property', 'dueDate', 'daysUntilDue', 'priority', 'assignee'],
+	'recurring-maintenance': [
+		'propertyTitle',
+		'title',
+		'recurrenceFrequency',
+		'nextDueDate',
+		'reminderEnabled',
+		'assignee',
+	],
+	'maintenance-requests': [
+		'title',
+		'propertyTitle',
+		'status',
+		'priority',
+		'submittedByName',
+		'submittedAt',
+	],
+	'resident-request-lifecycle': [
+		'propertyTitle',
+		'title',
+		'status',
+		'submittedAt',
+		'convertedToTaskId',
+		'timeToConversionDays',
+	],
+	'maintenance-history': ['date', 'description', 'propertyTitle', 'status', 'completedBy'],
+	'maintenance-costs': [
+		'propertyTitle',
+		'date',
+		'description',
+		'estimatedTotal',
+		'actualTotal',
+		'finalTotal',
+	],
+	devices: ['propertyTitle', 'type', 'brand', 'model', 'serialNumber', 'status'],
+	'warranty-expiration': [
+		'propertyTitle',
+		'applianceSystem',
+		'manufacturer',
+		'model',
+		'warrantyEndDate',
+		'warrantyDocumentAttached',
+	],
+	'appliance-service': [
+		'propertyTitle',
+		'applianceSystem',
+		'lastServiceDate',
+		'serviceCount',
+		'openTasks',
+		'documentsAttached',
+	],
+	'document-inventory': [
+		'propertyTitle',
+		'documentName',
+		'documentType',
+		'source',
+		'uploadedAt',
+		'acquisitionStatus',
+	],
+	contractors: ['propertyTitle', 'name', 'company', 'category', 'phone', 'email'],
+	'contractor-service-spend': [
+		'contractorName',
+		'propertyTitle',
+		'completedJobs',
+		'lastServiceDate',
+		'actualTotal',
+		'linkedMaintenanceRecords',
+	],
+	team: ['firstName', 'lastName', 'title', 'email', 'role', 'phone'],
+	'team-workload': [
+		'firstName',
+		'lastName',
+		'assignedPropertyCount',
+		'openTasks',
+		'overdueTasks',
+		'dueNext30Days',
+	],
+	'employee-efficiency': [
+		'firstName',
+		'lastName',
+		'totalTasksAssigned',
+		'tasksCompleted',
+		'completionRate',
+	],
+	'tenant-profiles': ['firstName', 'lastName', 'email', 'phone', 'profileCompleteness'],
+	'property-summary': [
+		'propertyTitle',
+		'propertyType',
+		'totalTasks',
+		'completedTasks',
+		'maintenanceHistoryCount',
+	],
+	'portfolio-overview': [
+		'propertyCount',
+		'taskCount',
+		'completedTaskCount',
+		'pendingTaskCount',
+		'maintenanceRecordCount',
+		'completionRate',
+	],
+	suites: ['propertyTitle', 'name', 'floor', 'area', 'isOccupied'],
+	units: ['propertyTitle', 'name', 'floor', 'area', 'isOccupied'],
+};
+
+const canViewFinancialReportsForUser = (user: any): boolean => {
+	if (!user) return false;
+	if (user.isAccountOwner === true) return true;
+	return getRoleCapabilities(user.role).canManageFinancials;
 };
 
 export const ReportBuilder: React.FC = () => {
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
+	const reduxMaintenanceRequests = useSelector(
+		(state: RootState) => state.maintenanceRequests.requests,
+	);
 	const canAccessReports =
-		!!currentUser?.subscription && canViewReports(currentUser.subscription as any);
+		!!currentUser?.subscription &&
+		canAccessReportBuilder(currentUser.subscription as any);
 	const canExportReports =
 		!!currentUser?.subscription &&
-		canAccessReadOnlyFeatures(currentUser.subscription as any) &&
-		canExportData(currentUser.subscription as any);
+		canExportReportData(currentUser.subscription as any);
 	const canManageTeam = useSelector(selectCanAccessTeam);
 	const canManageTenantsPermission = useSelector(selectCanManageTenants);
 	const canViewPages = useSelector(selectCanViewAllPages);
 	const isHomeowner = useSelector(selectIsHomeowner);
 	const isTeamMemberAccount = useSelector(selectIsTeamMemberAccount);
-	const canAccessTeamReport =
-		!!currentUser &&
-		!isHomeowner &&
-		(canManageTeam || canViewPages || !!currentUser.accountId);
+	const canAccessTeamReport = canViewTeamReportsForUser({
+		isHomeowner,
+		canManageTeam,
+		canViewPages,
+	});
 	const canAccessAdvancedTeamReport =
 		!!currentUser?.subscription &&
 		canUseAdvancedTeamManagement(currentUser.subscription as any);
@@ -385,17 +485,14 @@ export const ReportBuilder: React.FC = () => {
 	const canAccessPortfolioReports =
 		!!currentUser?.subscription &&
 		canPortfolioReporting(currentUser.subscription as any);
+	const canViewFinancialReports = canViewFinancialReportsForUser(currentUser);
 	const feedback = useAppFeedback();
 	const nativeApp = isNativeApp();
 
-	// Helper: homeowners may only access Single Family properties in reports
-	const isSingleFamilyProperty = (ptype?: string) => {
-		if (!ptype) return false;
-		const normalized = String(ptype).toLowerCase().replace(/[-_]/g, ' ').trim();
-		return normalized.includes('single');
-	};
 	const [reportType, setReportType] = useState<ReportType>('');
+	const [selectedCategory, setSelectedCategory] = useState<ReportCategoryId>('tasks');
 	const [selectedColumns, setSelectedColumns] = useState<string[]>([]);
+	const [showAdvancedColumns, setShowAdvancedColumns] = useState(false);
 	const [hideEmptyColumns, setHideEmptyColumns] = useState(false);
 	const [filters, setFilters] = useState<any>({
 		status: '',
@@ -431,7 +528,7 @@ export const ReportBuilder: React.FC = () => {
 
 	const { data: allDevices = [] } = useGetAllDevicesQuery();
 
-	const activeAccountId = String(currentUser?.accountId || currentUser?.id || '').trim();
+	const activeAccountId = getActiveAccountId(currentUser);
 
 	const scopedProperties = useMemo(() => {
 		if (!activeAccountId) {
@@ -448,18 +545,16 @@ export const ReportBuilder: React.FC = () => {
 	}, [properties, activeAccountId]);
 
 	const allowedPropertyIdSet = useMemo(
-		() => new Set(scopedProperties.map((property: any) => property.id)),
+		() => getAllowedPropertyIdSet(scopedProperties),
 		[scopedProperties],
 	);
 
 	const scopedTasks = useMemo(() => {
-		return tasks.filter((task: any) => {
-			const taskAccountId = String(task.accountId || '').trim();
-			return (
-				(taskAccountId && taskAccountId === activeAccountId) ||
-				allowedPropertyIdSet.has(task.propertyId)
-			);
-		});
+		return filterRecordsForAccountOrProperties(
+			tasks,
+			activeAccountId,
+			allowedPropertyIdSet,
+		);
 	}, [tasks, activeAccountId, allowedPropertyIdSet]);
 
 	const scopedTeamMembers = useMemo(() => {
@@ -474,71 +569,49 @@ export const ReportBuilder: React.FC = () => {
 	}, [firebaseTeamMembers, activeAccountId]);
 
 	const scopedMaintenanceHistory = useMemo(() => {
-		return allMaintenanceHistory.filter((record: any) => {
-			const recordAccountId = String(record.accountId || '').trim();
-			return (
-				(recordAccountId && recordAccountId === activeAccountId) ||
-				allowedPropertyIdSet.has(record.propertyId)
-			);
-		});
+		return filterRecordsForAccountOrProperties(
+			allMaintenanceHistory,
+			activeAccountId,
+			allowedPropertyIdSet,
+		);
 	}, [allMaintenanceHistory, activeAccountId, allowedPropertyIdSet]);
 
 	const scopedTenantProfiles = useMemo(() => {
-		return publicTenantProfiles.filter((profile: any) => {
-			const profileAccountId = String(profile.accountId || '').trim();
-			return (
-				(profileAccountId && profileAccountId === activeAccountId) ||
-				allowedPropertyIdSet.has(profile.propertyId)
-			);
-		});
+		return filterRecordsForAccountOrProperties(
+			publicTenantProfiles,
+			activeAccountId,
+			allowedPropertyIdSet,
+		);
 	}, [publicTenantProfiles, activeAccountId, allowedPropertyIdSet]);
 
 	const scopedContractors = useMemo(() => {
-		return contractors.filter((contractor: any) => {
-			const contractorAccountId = String(contractor.accountId || '').trim();
-			return (
-				(contractorAccountId && contractorAccountId === activeAccountId) ||
-				allowedPropertyIdSet.has(contractor.propertyId)
-			);
-		});
+		return filterRecordsForAccountOrProperties(
+			contractors,
+			activeAccountId,
+			allowedPropertyIdSet,
+		);
 	}, [contractors, activeAccountId, allowedPropertyIdSet]);
 
 	const scopedUnits = useMemo(() => {
-		return allUnits.filter((unit: any) => {
-			const unitAccountId = String(unit.accountId || '').trim();
-			return (
-				(unitAccountId && unitAccountId === activeAccountId) ||
-				allowedPropertyIdSet.has(unit.propertyId)
-			);
-		});
+		return filterRecordsForAccountOrProperties(
+			allUnits,
+			activeAccountId,
+			allowedPropertyIdSet,
+		);
 	}, [allUnits, activeAccountId, allowedPropertyIdSet]);
 
 	const scopedDevices = useMemo(() => {
-		return allDevices.filter((device: any) => {
-			const deviceAccountId = String(device.accountId || '').trim();
-			const propertyId = device.location?.propertyId;
-			return (
-				(deviceAccountId && deviceAccountId === activeAccountId) ||
-				allowedPropertyIdSet.has(propertyId)
-			);
-		});
+		return filterRecordsForAccountOrProperties(
+			allDevices,
+			activeAccountId,
+			allowedPropertyIdSet,
+		);
 	}, [allDevices, activeAccountId, allowedPropertyIdSet]);
 
-	const suitesData = useMemo(() => {
-		const allSuites: any[] = [];
-		scopedProperties.forEach((property: any) => {
-			if (property.hasSuites && property.suites) {
-				property.suites.forEach((suite: any) => {
-					allSuites.push({
-						...suite,
-						propertyTitle: property.title,
-						propertyId: property.id,
-					});
-				});
-			}
-		});
-		return allSuites;
-	}, [scopedProperties]);
+	const suitesData = useMemo(
+		() => buildSuiteReportRows(scopedProperties),
+		[scopedProperties],
+	);
 
 	const hasMultiFamilyProperties = useMemo(() => {
 		if (isHomeowner) return false;
@@ -559,52 +632,48 @@ export const ReportBuilder: React.FC = () => {
 		});
 	}, [scopedProperties, isHomeowner]);
 
-	const unitsData = useMemo(() => {
-		return scopedUnits.map((unit: any) => {
-			const property = scopedProperties.find((p: any) => p.id === unit.propertyId);
-			return {
-				...unit,
-				propertyTitle: property?.title || 'Unknown Property',
-				propertyId: unit.propertyId,
-			};
-		});
-	}, [scopedUnits, scopedProperties]);
+	const unitsData = useMemo(
+		() => buildUnitReportRows(scopedUnits, scopedProperties),
+		[scopedUnits, scopedProperties],
+	);
 
-	const devicesData = useMemo(() => {
-		return scopedDevices.map((device: any) => {
-			const property = scopedProperties.find(
-				(p: any) => p.id === device.location?.propertyId,
-			);
-			return {
-				...device,
-				propertyTitle: property?.title || 'Unknown Property',
-				propertyId: device.location?.propertyId,
-			};
-		});
-	}, [scopedDevices, scopedProperties]);
+	const devicesData = useMemo(
+		() => normalizeDeviceReportRows(scopedDevices, scopedProperties),
+		[scopedDevices, scopedProperties],
+	);
 
-	const contractorsData = useMemo(() => {
-		return scopedContractors.map((contractor: any) => {
-			const property = scopedProperties.find(
-				(p: any) => p.id === contractor.propertyId,
-			);
-			return {
-				...contractor,
-				propertyTitle: property?.title || 'Unknown Property',
-			};
-		});
-	}, [scopedContractors, scopedProperties]);
+	const contractorsData = useMemo(
+		() => normalizeContractorReportRows(scopedContractors, scopedProperties),
+		[scopedContractors, scopedProperties],
+	);
 
-	// Filter tasks to get maintenance requests (tasks with specific properties)
-	const maintenanceRequests = scopedTasks.filter(
-		(t: any) =>
-			t.type === 'maintenance' ||
-			t.title?.toLowerCase().includes('maintenance'),
+	const taskReportRows = useMemo(
+		() => normalizeTaskReportRows(scopedTasks),
+		[scopedTasks],
+	);
+
+	const maintenanceHistoryData = useMemo(
+		() =>
+			normalizeMaintenanceHistoryReportRows(
+				scopedMaintenanceHistory,
+				scopedProperties,
+			),
+		[scopedMaintenanceHistory, scopedProperties],
+	);
+
+	const maintenanceRequests = useMemo(
+		() =>
+			buildMaintenanceRequestRows({
+				properties: scopedProperties,
+				reduxMaintenanceRequests,
+				allowedPropertyIdSet,
+			}),
+		[allowedPropertyIdSet, reduxMaintenanceRequests, scopedProperties],
 	);
 
 	const overdueTasks = useMemo(() => {
 		const now = new Date();
-		return scopedTasks
+		return taskReportRows
 			.filter((task: any) => {
 				if (!task.dueDate) return false;
 				const isCompleted = String(task.status || '').toLowerCase() === 'completed';
@@ -619,14 +688,14 @@ export const ReportBuilder: React.FC = () => {
 					daysOverdue,
 				};
 			});
-	}, [scopedTasks]);
+	}, [taskReportRows]);
 
 	const upcomingTasks = useMemo(() => {
 		const now = new Date();
 		const horizon = new Date();
 		horizon.setDate(now.getDate() + 30);
 
-		return scopedTasks
+		return taskReportRows
 			.filter((task: any) => {
 				if (!task.dueDate) return false;
 				const isCompleted = String(task.status || '').toLowerCase() === 'completed';
@@ -642,60 +711,85 @@ export const ReportBuilder: React.FC = () => {
 					daysUntilDue,
 				};
 			});
-	}, [scopedTasks]);
+	}, [taskReportRows]);
 
-	const maintenanceCostsData = useMemo(() => {
-		return scopedMaintenanceHistory.map((record: any) => {
-			const estimate = record.financials?.estimate;
-			const actual = record.financials?.actual;
-			const estimatedTotal =
-				(estimate?.contractorCost || 0) +
-				(estimate?.materialsCost || 0) +
-				(estimate?.laborCost || 0) +
-				(estimate?.otherCost || 0);
-			const actualTotal =
-				(actual?.contractorCost || 0) +
-				(actual?.materialsCost || 0) +
-				(actual?.laborCost || 0) +
-				(actual?.otherCost || 0);
+	const portfolioOverviewData = useMemo(
+		() =>
+			buildPortfolioOverviewRows({
+				properties: scopedProperties,
+				tasks: taskReportRows,
+				maintenanceHistory: maintenanceHistoryData,
+				maintenanceRequests,
+			}),
+		[scopedProperties, taskReportRows, maintenanceHistoryData, maintenanceRequests],
+	);
 
-			return {
-				...record,
-				estimatedTotal,
-				actualTotal,
-				finalTotal: actualTotal || estimatedTotal,
-				financialNotes: record.financials?.notes || '',
-			};
-		});
-	}, [scopedMaintenanceHistory]);
+	const warrantyExpirationData = useMemo(
+		() =>
+			buildWarrantyExpirationRows({
+				properties: scopedProperties,
+				devices: devicesData,
+			}),
+		[scopedProperties, devicesData],
+	);
 
-	const portfolioOverviewData = useMemo(() => {
-		const totalTasks = scopedTasks.length;
-		const completedTaskCount = scopedTasks.filter(
-			(task: any) => String(task.status || '').toLowerCase() === 'completed',
-		).length;
-		const pendingTaskCount = scopedTasks.filter(
-			(task: any) => String(task.status || '').toLowerCase() !== 'completed',
-		).length;
-		const completionRate =
-			totalTasks > 0 ? Math.round((completedTaskCount / totalTasks) * 100) : 0;
+	const documentInventoryData = useMemo(
+		() =>
+			buildDocumentInventoryRows({
+				properties: scopedProperties,
+				devices: devicesData,
+				tasks: taskReportRows,
+				maintenanceHistory: maintenanceHistoryData,
+				maintenanceRequests,
+			}),
+		[
+			scopedProperties,
+			devicesData,
+			taskReportRows,
+			maintenanceHistoryData,
+			maintenanceRequests,
+		],
+	);
 
-		return [
-			{
-				propertyCount: scopedProperties.length,
-				taskCount: totalTasks,
-				completedTaskCount,
-				pendingTaskCount,
-				maintenanceRecordCount: scopedMaintenanceHistory.length,
-				requestCount: maintenanceRequests.length,
-				completionRate,
-			},
-		];
-	}, [scopedProperties, scopedTasks, scopedMaintenanceHistory, maintenanceRequests]);
+	const recurringMaintenanceData = useMemo(
+		() => buildRecurringMaintenanceRows(taskReportRows),
+		[taskReportRows],
+	);
+
+	const applianceServiceData = useMemo(
+		() =>
+			buildApplianceServiceRows({
+				devices: devicesData,
+				tasks: taskReportRows,
+				maintenanceHistory: maintenanceHistoryData,
+				properties: scopedProperties,
+			}),
+		[devicesData, taskReportRows, maintenanceHistoryData, scopedProperties],
+	);
+
+	const contractorServiceSpendData = useMemo(
+		() =>
+			buildContractorServiceSpendRows({
+				contractors: contractorsData,
+				tasks: taskReportRows,
+				maintenanceHistory: maintenanceHistoryData,
+			}),
+		[contractorsData, taskReportRows, maintenanceHistoryData],
+	);
+
+	const residentRequestLifecycleData = useMemo(
+		() => buildResidentRequestLifecycleRows(maintenanceRequests, taskReportRows),
+		[maintenanceRequests, taskReportRows],
+	);
+
+	const teamWorkloadData = useMemo(
+		() => buildTeamWorkloadRows(scopedTeamMembers, taskReportRows),
+		[scopedTeamMembers, taskReportRows],
+	);
 
 	// Get column options based on report type
 	const columnOptions = useMemo(() => {
-		const optionsMap: Record<ReportType, Record<string, string>> = {
+		const optionsMap: Partial<Record<ReportType, Record<string, string>>> = {
 			tasks: TASK_COLUMN_OPTIONS,
 			'overdue-tasks': OVERDUE_TASK_COLUMN_OPTIONS,
 			'upcoming-tasks': UPCOMING_TASK_COLUMN_OPTIONS,
@@ -705,6 +799,13 @@ export const ReportBuilder: React.FC = () => {
 			'property-summary': PROPERTY_SUMMARY_COLUMN_OPTIONS,
 			'maintenance-costs': MAINTENANCE_COST_COLUMN_OPTIONS,
 			'portfolio-overview': PORTFOLIO_OVERVIEW_COLUMN_OPTIONS,
+			'document-inventory': DOCUMENT_INVENTORY_COLUMN_OPTIONS,
+			'warranty-expiration': WARRANTY_EXPIRATION_COLUMN_OPTIONS,
+			'recurring-maintenance': RECURRING_MAINTENANCE_COLUMN_OPTIONS,
+			'appliance-service': APPLIANCE_SERVICE_COLUMN_OPTIONS,
+			'contractor-service-spend': CONTRACTOR_SERVICE_SPEND_COLUMN_OPTIONS,
+			'resident-request-lifecycle': RESIDENT_REQUEST_LIFECYCLE_COLUMN_OPTIONS,
+			'team-workload': TEAM_WORKLOAD_COLUMN_OPTIONS,
 			contractors: CONTRACTOR_COLUMN_OPTIONS,
 			suites: SUITE_COLUMN_OPTIONS,
 			units: UNIT_COLUMN_OPTIONS,
@@ -730,12 +831,19 @@ export const ReportBuilder: React.FC = () => {
 			delete availableOptions.totalTenants;
 		}
 
+		if (!canViewFinancialReports) {
+			FINANCIAL_COLUMN_KEYS.forEach((columnKey) => {
+				delete availableOptions[columnKey];
+			});
+		}
+
 		return availableOptions;
 	}, [
 		reportType,
 		hasMultiFamilyProperties,
 		hasCommercialSuites,
 		isHomeowner,
+		canViewFinancialReports,
 	]);
 
 	// Determine which report types should show property filter
@@ -750,6 +858,12 @@ export const ReportBuilder: React.FC = () => {
 		'devices',
 		'maintenance-history',
 		'maintenance-costs',
+		'document-inventory',
+		'warranty-expiration',
+		'recurring-maintenance',
+		'appliance-service',
+		'contractor-service-spend',
+		'resident-request-lifecycle',
 	].includes(reportType);
 
 	// Get preview data based on report type
@@ -757,7 +871,7 @@ export const ReportBuilder: React.FC = () => {
 		let data: any[] = [];
 
 		if (reportType === 'tasks') {
-			data = scopedTasks;
+			data = taskReportRows;
 		} else if (reportType === 'overdue-tasks') {
 			data = overdueTasks;
 		} else if (reportType === 'upcoming-tasks') {
@@ -775,108 +889,38 @@ export const ReportBuilder: React.FC = () => {
 		} else if (reportType === 'devices') {
 			data = devicesData;
 		} else if (reportType === 'maintenance-history') {
-			data = scopedMaintenanceHistory;
+			data = maintenanceHistoryData;
 		} else if (reportType === 'maintenance-costs') {
-			data = maintenanceCostsData;
+			data = canViewFinancialReports ? maintenanceHistoryData : [];
 		} else if (reportType === 'tenant-profiles') {
 			data = scopedTenantProfiles;
 		} else if (reportType === 'employee-efficiency') {
-			// Calculate employee efficiency metrics (restricted to users who can access team)
-			if (!canAccessTeamReport) {
-				data = [];
-			} else {
-				data = scopedTeamMembers.map((member: any) => {
-					const memberTasks = scopedTasks.filter(
-						(t: any) => t.assignedTo === member.id,
-					);
-					const completed = memberTasks.filter(
-						(t: any) => t.status === 'Completed',
-					);
-
-					const avgDays =
-						memberTasks.length > 0
-							? memberTasks
-								.filter((t: any) => t.completionDate && t.dueDate)
-								.reduce((acc: number, t: any) => {
-									const due = new Date(t.dueDate).getTime();
-									const comp = new Date(t.completionDate!).getTime();
-									return acc + (comp - due) / (1000 * 60 * 60 * 24);
-								}, 0) / memberTasks.length
-							: 0;
-
-					return {
-						employeeId: member.id as any,
-						firstName: member.firstName,
-						lastName: member.lastName,
-						email: member.email,
-						title: member.title,
-						totalTasksAssigned: memberTasks.length,
-						tasksCompleted: completed.length,
-						tasksInProgress: memberTasks.filter(
-							(t: any) => t.status === 'In Progress',
-						).length,
-						tasksPending: memberTasks.filter((t: any) => t.status === 'Pending')
-							.length,
-						completionRate:
-							memberTasks.length > 0
-								? Math.round((completed.length / memberTasks.length) * 100)
-								: 0,
-						averageCompletionDays: Math.round(avgDays),
-						lastTaskCompletionDate:
-							completed.length > 0
-								? new Date(
-									completed[completed.length - 1].completionDate!,
-								).toLocaleDateString()
-								: 'N/A',
-					} as EmployeeEfficiencyMetrics;
-				});
-			}
+			data = canAccessTeamReport
+				? buildEmployeeEfficiencyRows(scopedTeamMembers, taskReportRows)
+				: [];
+		} else if (reportType === 'team-workload') {
+			data = canAccessTeamReport ? teamWorkloadData : [];
 		} else if (reportType === 'property-summary') {
-			// Calculate property summary metrics
-			data = scopedProperties.map((prop: any) => {
-				const propTasks = scopedTasks.filter((t: any) => t.propertyId === prop.id);
-				const propRequests = maintenanceRequests.filter(
-					(r: any) => r.propertyId === prop.id,
-				);
-
-				let totalUnits = 0;
-				let occupiedUnits = 0;
-				let totalOccupants = 0;
-
-				if (prop.units) {
-					totalUnits = prop.units.length;
-					occupiedUnits = prop.units.filter(
-						(u: any) => (u.occupants || []).length > 0,
-					).length;
-					totalOccupants = prop.units.reduce(
-						(sum: number, u: any) => sum + (u.occupants || []).length,
-						0,
-					);
-				}
-
-				return {
-					propertyId: prop.id as any,
-					propertyTitle: prop.title,
-					address: prop.address || 'N/A',
-					owner: prop.owner || 'N/A',
-					propertyType: prop.propertyType || 'Unknown',
-					totalUnits,
-					occupiedUnits,
-					totalTenants: totalOccupants,
-					totalTasks: propTasks.length,
-					completedTasks: propTasks.filter((t: any) => t.status === 'Completed')
-						.length,
-					maintenanceHistoryCount: (prop.taskHistory || []).length,
-					pendingMaintenanceRequests: propRequests.filter(
-						(r: any) => r.status === 'Pending',
-					).length,
-					approvedMaintenanceRequests: propRequests.filter(
-						(r: any) => r.status === 'Approved',
-					).length,
-				} as PropertySummaryMetrics;
+			data = buildPropertySummaryRows({
+				properties: scopedProperties,
+				tasks: taskReportRows,
+				maintenanceRequests,
+				maintenanceHistory: maintenanceHistoryData,
 			});
 		} else if (reportType === 'portfolio-overview') {
 			data = canAccessPortfolioReports ? portfolioOverviewData : [];
+		} else if (reportType === 'document-inventory') {
+			data = documentInventoryData;
+		} else if (reportType === 'warranty-expiration') {
+			data = warrantyExpirationData;
+		} else if (reportType === 'recurring-maintenance') {
+			data = recurringMaintenanceData;
+		} else if (reportType === 'appliance-service') {
+			data = applianceServiceData;
+		} else if (reportType === 'contractor-service-spend') {
+			data = canViewFinancialReports ? contractorServiceSpendData : [];
+		} else if (reportType === 'resident-request-lifecycle') {
+			data = canAccessTenantReports ? residentRequestLifecycleData : [];
 		}
 
 		// Apply filters
@@ -891,50 +935,15 @@ export const ReportBuilder: React.FC = () => {
 				data = data.filter((r: any) => r.propertyId === filters.propertyId);
 			}
 		} else if (shouldShowPropertyFilter && filters.propertyId) {
-			// Apply property filter to other report types that have property data
-			data = data.filter((item: any) => item.propertyId === filters.propertyId);
+			data = filterReportRowsByProperty(data, filters.propertyId);
 		}
 
-		// Enforce homeowner restriction: homeowners may only see Single Family property data
 		if (isHomeowner) {
-			const propertyRelatedReports: ReportType[] = [
-				'tasks',
-				'overdue-tasks',
-				'upcoming-tasks',
-				'maintenance-requests',
-				'contractors',
-				'suites',
-				'units',
-				'devices',
-				'maintenance-history',
-				'maintenance-costs',
-				'property-summary',
-			];
-
-			if (propertyRelatedReports.includes(reportType)) {
-				data = data.filter((item: any) => {
-					// property-summary items are property objects with propertyType
-					if (reportType === 'property-summary' && item.propertyType) {
-						return isSingleFamilyProperty(item.propertyType);
-					}
-
-					// Items that directly include a propertyType
-					if (item.propertyType)
-						return isSingleFamilyProperty(item.propertyType);
-
-					// Try common property id locations
-					const propId =
-						item.propertyId ||
-						item.location?.propertyId ||
-						item.property?.id ||
-						item.propertyId;
-					if (!propId) return false; // exclude items not tied to a property
-
-					const prop = scopedProperties.find((p: any) => p.id === propId);
-					if (!prop) return false;
-					return isSingleFamilyProperty(prop.propertyType);
-				});
-			}
+			data = filterRowsForHomeownerProperties({
+				reportType,
+				rows: data,
+				properties: scopedProperties,
+			});
 		}
 
 		return data;
@@ -942,13 +951,21 @@ export const ReportBuilder: React.FC = () => {
 		reportType,
 		shouldShowPropertyFilter,
 		canAccessTeamReport,
+		canViewFinancialReports,
 		overdueTasks,
 		upcomingTasks,
-		maintenanceCostsData,
 		portfolioOverviewData,
+		canAccessTenantReports,
+		documentInventoryData,
+		warrantyExpirationData,
+		recurringMaintenanceData,
+		applianceServiceData,
+		contractorServiceSpendData,
+		residentRequestLifecycleData,
+		teamWorkloadData,
 		canAccessPortfolioReports,
 		isHomeowner,
-		scopedTasks,
+		taskReportRows,
 		maintenanceRequests,
 		scopedTeamMembers,
 		scopedProperties,
@@ -956,7 +973,7 @@ export const ReportBuilder: React.FC = () => {
 		suitesData,
 		unitsData,
 		devicesData,
-		scopedMaintenanceHistory,
+		maintenanceHistoryData,
 		scopedTenantProfiles,
 		filters,
 	]);
@@ -976,19 +993,11 @@ export const ReportBuilder: React.FC = () => {
 			feedback.notify(
 				isTeamMemberAccount
 					? 'Report access is controlled by your assigned role.'
-					: 'Report access is locked on your current plan.',
+					: 'Report access is unavailable for your account right now.',
 			);
 			return;
 		}
-		setReportType(e.target.value as ReportType);
-		setSelectedColumns([]);
-		setFilters({
-			status: '',
-			priority: '',
-			propertyId: '',
-			dateFrom: '',
-			dateTo: '',
-		});
+		selectReport(e.target.value as ReportType);
 	};
 
 	// Determine which report types should show maintenance-specific filters
@@ -1030,27 +1039,28 @@ export const ReportBuilder: React.FC = () => {
 				isTeamMemberAccount
 					? 'Report access is controlled by your assigned role.'
 					: nativeApp
-						? 'Your current plan does not include report access here. Manage this in the web account center.'
-						: 'Your current plan does not include report access. Please upgrade to continue.',
+						? 'Report access is unavailable here. Manage billing or account access in the web account center.'
+						: 'Report access is unavailable for your account right now.',
 			);
 			return;
 		}
 
-		// Check subscription permissions for export - allow expired users to export
 		if (!canExportReports) {
 			feedback.notify(
 				isTeamMemberAccount
 					? 'Data export is controlled by your assigned role.'
 					: nativeApp
-						? 'Your current plan does not include data export here. Manage this in the web account center.'
-						: 'Your current plan does not include data export. Please upgrade to access this feature.',
+						? 'Data export is unavailable here. Manage billing or account access in the web account center.'
+						: 'Data export is unavailable for your account right now.',
 			);
 			return;
 		}
 
 		// Permission guard for team-related reports
 		if (
-			(reportType === 'team' || reportType === 'employee-efficiency') &&
+			(reportType === 'team' ||
+				reportType === 'employee-efficiency' ||
+				reportType === 'team-workload') &&
 			!canAccessTeamReport
 		) {
 			feedback.notify('You do not have permission to run this report.');
@@ -1061,13 +1071,26 @@ export const ReportBuilder: React.FC = () => {
 			return;
 		}
 
-		if (reportType === 'tenant-profiles' && !canAccessTenantReports) {
-			feedback.notify('Tenant profile reports require tenant access permissions.');
+		if (
+			(reportType === 'tenant-profiles' ||
+				reportType === 'resident-request-lifecycle') &&
+			!canAccessTenantReports
+		) {
+			feedback.notify('This report requires resident access permissions.');
 			return;
 		}
 
 		if (reportType === 'portfolio-overview' && !canAccessPortfolioReports) {
 			feedback.notify('Portfolio overview reports require the Portfolio plan.');
+			return;
+		}
+
+		if (
+			(reportType === 'maintenance-costs' ||
+				reportType === 'contractor-service-spend') &&
+			!canViewFinancialReports
+		) {
+			feedback.notify('You do not have permission to run financial reports.');
 			return;
 		}
 
@@ -1131,6 +1154,55 @@ export const ReportBuilder: React.FC = () => {
 					columns: visibleSelectedColumns,
 				});
 				break;
+			case 'document-inventory':
+				exportToCSV({
+					filename: `document-inventory-${new Date().toISOString().split('T')[0]}.csv`,
+					data: previewData,
+					columns: visibleSelectedColumns,
+				});
+				break;
+			case 'warranty-expiration':
+				exportToCSV({
+					filename: `warranty-expiration-${new Date().toISOString().split('T')[0]}.csv`,
+					data: previewData,
+					columns: visibleSelectedColumns,
+				});
+				break;
+			case 'recurring-maintenance':
+				exportToCSV({
+					filename: `recurring-maintenance-${new Date().toISOString().split('T')[0]}.csv`,
+					data: previewData,
+					columns: visibleSelectedColumns,
+				});
+				break;
+			case 'appliance-service':
+				exportToCSV({
+					filename: `appliance-service-${new Date().toISOString().split('T')[0]}.csv`,
+					data: previewData,
+					columns: visibleSelectedColumns,
+				});
+				break;
+			case 'contractor-service-spend':
+				exportToCSV({
+					filename: `contractor-service-spend-${new Date().toISOString().split('T')[0]}.csv`,
+					data: previewData,
+					columns: visibleSelectedColumns,
+				});
+				break;
+			case 'resident-request-lifecycle':
+				exportToCSV({
+					filename: `resident-request-lifecycle-${new Date().toISOString().split('T')[0]}.csv`,
+					data: previewData,
+					columns: visibleSelectedColumns,
+				});
+				break;
+			case 'team-workload':
+				exportToCSV({
+					filename: `team-workload-${new Date().toISOString().split('T')[0]}.csv`,
+					data: previewData,
+					columns: visibleSelectedColumns,
+				});
+				break;
 			case 'employee-efficiency':
 				generateEmployeeEfficiencyReport(previewData, visibleSelectedColumns);
 				break;
@@ -1157,6 +1229,7 @@ export const ReportBuilder: React.FC = () => {
 				canAccessAdvancedTeamReport,
 				canAccessTenantReports,
 				canAccessPortfolioReports,
+				canViewFinancialReports,
 				{
 					scopedProperties,
 					isHomeowner,
@@ -1169,6 +1242,7 @@ export const ReportBuilder: React.FC = () => {
 			canAccessAdvancedTeamReport,
 			canAccessTenantReports,
 			canAccessPortfolioReports,
+			canViewFinancialReports,
 			scopedProperties,
 			isHomeowner,
 			hasMultiFamilyProperties,
@@ -1178,7 +1252,7 @@ export const ReportBuilder: React.FC = () => {
 
 	const discoverableReports = useMemo(
 		() =>
-			getAccessibleReports(true, true, true, true, {
+			getAccessibleReports(true, true, true, true, true, {
 				scopedProperties,
 				isHomeowner,
 				hasMultiFamilyProperties,
@@ -1205,13 +1279,57 @@ export const ReportBuilder: React.FC = () => {
 		[reportType, accessibleReports],
 	);
 
+	const reportsByCategory = useMemo(() => {
+		const grouped = new Map<ReportCategoryId, typeof discoverableReports>();
+		REPORT_CATEGORIES.forEach((category) => grouped.set(category.id, []));
+		discoverableReports.forEach((report) => {
+			const categoryId = REPORT_CATEGORY_BY_TYPE[report.value] || 'tasks';
+			grouped.set(categoryId, [...(grouped.get(categoryId) || []), report]);
+		});
+		return grouped;
+	}, [discoverableReports]);
+
+	const visibleCategoryReports = reportsByCategory.get(selectedCategory) || [];
+	const selectedReport = accessibleReports.find((report) => report.value === reportType);
+	const selectedReportCategory =
+		(reportType && REPORT_CATEGORY_BY_TYPE[reportType]) || selectedCategory;
+
+	const getDefaultColumnsForReport = (
+		nextReportType: ReportType,
+		nextColumnOptions: Record<string, string> = columnOptions,
+	): string[] => {
+		const availableColumnKeys = Object.keys(nextColumnOptions);
+		const preferredColumns = DEFAULT_REPORT_COLUMNS[nextReportType] || availableColumnKeys;
+		const defaults = preferredColumns.filter((column) =>
+			availableColumnKeys.includes(column),
+		);
+		return defaults.length > 0 ? defaults : availableColumnKeys.slice(0, 6);
+	};
+
+	const selectReport = (nextReportType: ReportType) => {
+		setReportType(nextReportType);
+		setFilters({
+			status: '',
+			priority: '',
+			propertyId: '',
+			dateFrom: '',
+			dateTo: '',
+		});
+		setHideEmptyColumns(false);
+		setShowAdvancedColumns(false);
+	};
+
 	useEffect(() => {
 		// Keep selected columns in sync when available columns change.
 		const availableColumnKeys = new Set(Object.keys(columnOptions));
-		setSelectedColumns((prev) =>
-			prev.filter((column) => availableColumnKeys.has(column)),
-		);
-	}, [columnOptions]);
+		setSelectedColumns((prev) => {
+			const nextColumns = prev.filter((column) => availableColumnKeys.has(column));
+			if (nextColumns.length > 0) {
+				return nextColumns;
+			}
+			return getDefaultColumnsForReport(reportType, columnOptions);
+		});
+	}, [columnOptions, reportType]);
 
 	return (
 		<StandardAppPage>
@@ -1231,17 +1349,17 @@ export const ReportBuilder: React.FC = () => {
 						title={
 							isTeamMemberAccount
 								? 'Reports are limited by your assigned role'
-								: 'Reports are locked on your current plan'
+								: 'Reports are unavailable for your account'
 						}
 						description={
 							isTeamMemberAccount
 								? 'Ask the account holder to adjust your role if you need report access.'
 								: nativeApp
-									? 'You can preview available report types below. Manage report access in the web account center.'
-									: 'You can preview available report types below. Upgrade to Property or Portfolio to generate and review reports.'
+									? 'You can preview available report types below. Manage billing or account access in the web account center.'
+									: 'You can preview available report types below. Check your account access or billing status to generate reports.'
 						}
-						upgradeLabel='Upgrade for Reports'
-						showUpgradeAction={!isTeamMemberAccount}
+						upgradeLabel='Manage Account'
+						showUpgradeAction={!isTeamMemberAccount && !nativeApp}
 						compact
 					/>
 				)}
@@ -1259,14 +1377,16 @@ export const ReportBuilder: React.FC = () => {
 									? 'Portfolio'
 									: report.requiresAdvancedTeamAccess
 										? 'Advanced'
-										: report.requiresTeamAccess
-											? 'Team'
-											: 'Available'
+										: report.requiresFinancialAccess
+											? 'Financial'
+											: report.requiresTeamAccess
+												? 'Team'
+												: 'Available'
 								: isTeamMemberAccount
 									? 'Role Restricted'
 									: nativeApp
 										? 'Web Management'
-										: 'Upgrade Required';
+										: 'Unavailable';
 
 							return (
 								<MobileReportCard
@@ -1279,7 +1399,7 @@ export const ReportBuilder: React.FC = () => {
 											feedback.notify(
 												isTeamMemberAccount
 													? 'This report is restricted by your role.'
-													: 'This report requires a higher plan or permission.',
+													: 'This report is not available for your account or role.',
 											);
 											return;
 										}
@@ -1321,7 +1441,7 @@ export const ReportBuilder: React.FC = () => {
 													? ' - Role restricted'
 													: nativeApp
 														? ' - Web management'
-														: ' - Upgrade required'
+														: ' - Unavailable'
 												: ''}
 										</option>
 									);
@@ -1503,8 +1623,8 @@ export const ReportBuilder: React.FC = () => {
 								? isTeamMemberAccount
 									? 'Export Restricted'
 									: nativeApp
-										? 'Manage Subscription'
-										: 'Upgrade to Export'
+										? 'Manage Account'
+										: 'Export Unavailable'
 								: 'Download CSV'}
 						</Button>
 					</ActionButtons>

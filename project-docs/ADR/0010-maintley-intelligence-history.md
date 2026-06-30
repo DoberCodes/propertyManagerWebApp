@@ -17,7 +17,7 @@ These represent different concepts and should remain separate.
 
 Decision
 
-Property Intelligence will include its own history.
+Maintley Intelligence will include its own history.
 
 The property page will contain an Insights tab.
 

@@ -54,6 +54,56 @@ export const DashboardDesktopPropertyFilter = styled(
 	}
 `;
 
+export const DashboardHeaderActions = styled.div`
+	display: flex;
+	align-items: flex-end;
+	justify-content: flex-end;
+	gap: 12px;
+	flex-wrap: wrap;
+
+	@media (max-width: 768px) {
+		width: 100%;
+		justify-content: flex-start;
+	}
+`;
+
+export const DashboardScopeControl = styled.div`
+	display: grid;
+	grid-template-columns: repeat(2, minmax(104px, 1fr));
+	gap: 3px;
+	padding: 3px;
+	border: 1px solid ${COLORS.border};
+	border-radius: 10px;
+	background: ${COLORS.gray50};
+	min-height: 40px;
+`;
+
+export const DashboardScopeButton = styled.button<{ $isActive?: boolean }>`
+	min-width: 104px;
+	height: 34px;
+	padding: 0 10px;
+	border: none;
+	border-radius: 8px;
+	background: ${(props) => (props.$isActive ? COLORS.bgWhite : 'transparent')};
+	color: ${(props) =>
+		props.$isActive ? COLORS.primaryDark : COLORS.textSecondary};
+	box-shadow: ${(props) => (props.$isActive ? COLORS.shadow : 'none')};
+	font-size: 0.78rem;
+	font-weight: 800;
+	cursor: pointer;
+	white-space: nowrap;
+	transition: background-color 0.15s ease, color 0.15s ease,
+		box-shadow 0.15s ease;
+
+	&:hover {
+		color: ${COLORS.primaryDark};
+	}
+
+	@media (max-width: 480px) {
+		min-width: 0;
+	}
+`;
+
 export const TaskGridSection = styled.div`
 	display: flex;
 	flex-direction: column;
@@ -487,7 +537,7 @@ export const ZeroState = styled.div`
 
 export const ActionFirstTopSection = styled.section`
 	display: grid;
-	grid-template-columns: repeat(3, minmax(0, 1fr));
+	grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
 	gap: 14px;
 
 	@media (max-width: 1024px) {
@@ -571,8 +621,41 @@ export const PortfolioHealthCard = styled.article`
 	${sharedCard}
 `;
 
-export const HomeHealthCard = styled.article`
+export const DashboardIntelligenceCard = styled.article`
 	${sharedCard}
+	border-color: rgba(5, 150, 105, 0.22);
+	background: linear-gradient(180deg, ${COLORS.bgWhite} 0%, rgba(236, 253, 245, 0.8) 100%);
+`;
+
+export const DashboardIntelligenceText = styled.p`
+	margin: 0;
+	font-size: 0.88rem;
+	font-weight: 600;
+	line-height: 1.45;
+	color: ${COLORS.textPrimary};
+`;
+
+export const DashboardIntelligenceContext = styled.p`
+	margin: -2px 0 0;
+	font-size: 0.78rem;
+	font-weight: 800;
+	line-height: 1.35;
+	color: ${COLORS.primaryDark};
+`;
+
+export const DashboardIntelligenceImpact = styled.p`
+	margin: 0;
+	font-size: 0.82rem;
+	font-weight: 500;
+	line-height: 1.5;
+	color: ${COLORS.textSecondary};
+`;
+
+export const DashboardIntelligenceActions = styled.div`
+	margin-top: auto;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px;
 `;
 
 export const CardEyebrow = styled.p`
@@ -766,85 +849,6 @@ export const PortfolioMetricValue = styled.p`
 	margin: 4px 0 0;
 	font-size: 1.35rem;
 	font-weight: 800;
-	color: ${COLORS.textPrimary};
-`;
-
-export const HomeHealthHeader = styled.div`
-	display: flex;
-	justify-content: space-between;
-	align-items: flex-start;
-	gap: 10px;
-`;
-
-export const HomeHealthStatusPill = styled.span<{
-	$status: 'Strong' | 'Stable' | 'At Risk';
-}>`
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	padding: 5px 10px;
-	margin-top: 8px;
-	border-radius: 999px;
-	font-size: 0.75rem;
-	font-weight: 800;
-	background: ${(props) => {
-		switch (props.$status) {
-			case 'Strong':
-				return COLORS.successLight;
-			case 'Stable':
-				return COLORS.infoLight;
-			default:
-				return COLORS.errorLight;
-		}
-	}};
-	color: ${(props) => {
-		switch (props.$status) {
-			case 'Strong':
-				return COLORS.successDark;
-			case 'Stable':
-				return COLORS.infoDark;
-			default:
-				return COLORS.errorDark;
-		}
-	}};
-`;
-
-export const HomeHealthScoreValue = styled.div`
-	font-size: 2rem;
-	font-weight: 900;
-	line-height: 1;
-	color: ${COLORS.primaryDark};
-`;
-
-export const HomeHealthTrend = styled.p`
-	margin: 0;
-	font-size: 0.85rem;
-	font-weight: 600;
-	color: ${COLORS.textSecondary};
-`;
-
-export const HomeHealthRecommendation = styled.p`
-	margin: 0;
-	padding: 10px 12px;
-	border-radius: 10px;
-	background: ${COLORS.primaryLight};
-	color: ${COLORS.primaryDark};
-	font-size: 0.84rem;
-	font-weight: 800;
-	line-height: 1.45;
-`;
-
-export const HomeHealthDrivers = styled.ul`
-	margin: 0;
-	padding-left: 18px;
-	display: flex;
-	flex-direction: column;
-	gap: 6px;
-`;
-
-export const HomeHealthDriver = styled.li`
-	font-size: 0.83rem;
-	font-weight: 500;
 	color: ${COLORS.textPrimary};
 `;
 

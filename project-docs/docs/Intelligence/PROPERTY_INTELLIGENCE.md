@@ -466,7 +466,7 @@ Surface the most valuable opportunities.
 
 Target:
 
-Top 3 recommendations.
+One primary suggestion on the dashboard today. Future dashboard surfaces may show the top 3 recommendations when there is enough room and a clear user benefit.
 
 Focus:
 
@@ -477,6 +477,8 @@ Focus:
 The dashboard should answer:
 
 > What should I improve next?
+
+Dashboard recommendations should be generated through the dashboard Maintley Intelligence consumer. The dashboard should not own separate recommendation rules.
 
 ---
 
@@ -576,7 +578,8 @@ src/intelligence/
 ├── planFilter.ts
 ├── rules/
 └── consumers/
-    └── quickScan.ts
+    ├── quickScan.ts
+    └── portfolioDashboard.ts
 ```
 
 The implementation also includes:
@@ -642,7 +645,9 @@ Current rule sources:
 
 Quick Property Scan consumes the shared engine through the Quick Scan consumer.
 
-Property Audit, Dashboard Insights, Email Insights, and future intelligence features should consume the same engine rather than creating separate recommendation logic.
+The dashboard consumes the same engine through the portfolio dashboard consumer. It evaluates the properties currently visible on the dashboard and returns one specific highest-priority next action. Dashboard recommendations should prefer direct, record-specific wording over grouped summaries.
+
+Property Audit, Email Insights, and future intelligence features should consume the same engine rather than creating separate recommendation logic.
 
 ---
 
@@ -1024,6 +1029,8 @@ Examples:
 * Properties missing recurring maintenance
 
 Portfolio Scan should aggregate property-level recommendations rather than create independent recommendation systems.
+
+The dashboard's current Maintley Intelligence suggestion is a lightweight portfolio-style consumer, not a full Portfolio Scan. It chooses one visible property finding for quick action while leaving grouped portfolio review to future intelligence surfaces.
 
 ---
 

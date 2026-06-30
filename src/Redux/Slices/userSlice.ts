@@ -39,6 +39,9 @@ export interface User {
 	maintley_role?: Record<string, unknown> | string | boolean;
 	assignedPropertyId?: number;
 	hiddenPropertyIds?: string[]; // Properties hidden from dashboard
+	dashboardPreferences?: {
+		scope?: 'my_focus' | 'all_visible_properties';
+	};
 	pushToken?: string; // Push notification token for FCM
 	pushTokenUpdatedAt?: string; // When push token was last updated
 	pushTokens?: Array<{

@@ -7,7 +7,7 @@ Decision Source: Manual
 
 ## Context
 
-Property Intelligence needs to evolve from a single-source recommendation model to a multi-source model over time.
+Maintley Intelligence needs to evolve from a single-source recommendation model to a multi-source model over time.
 
 Manuals and uploaded documents are planned future knowledge sources, but v1 guidance must remain explainable and bounded by currently supported inputs.
 

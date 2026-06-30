@@ -420,6 +420,16 @@ The dashboard should prioritize:
 * Maintley Intelligence recommendations
 * Property selection
 
+The dashboard should be personal-first and scope-aware. Owners and managers may
+see portfolio-wide priorities across the properties in view, while team members
+and family members should see framing focused on their relevant work and
+property context.
+
+Dashboard scope is a user preference. `My Focus` narrows the Dashboard toward
+tasks assigned to the current user and the property context needed for that
+work. `All Visible` shows the user's visible property set without changing
+permissions or duplicating portfolio state.
+
 Avoid turning the dashboard into a reporting screen.
 
 Reports belong elsewhere.
@@ -447,7 +457,7 @@ Each level should answer a different customer question:
 
 * Quick Property Scan: "What did Maintley find that is worth my attention?"
 * Full Property Audit: "How complete and maintainable are my property records?"
-* Ongoing Property Intelligence: "What should I think about next?"
+* Ongoing Maintley Intelligence: "What should I think about next?"
 
 Quick Property Scan should remain fast, actionable, and available on free and paid plans.
 
@@ -467,7 +477,7 @@ AI scanned your house.
 
 Full Property Audit should be a premium, comprehensive review of documentation, equipment records, maintenance coverage, lifecycle planning, and property completeness.
 
-Ongoing Property Intelligence should be a premium guidance layer that surfaces seasonal reminders, cost trends, lifecycle forecasts, warranty timing, and personalized observations as Maintley records improve.
+Ongoing Maintley Intelligence should be a premium guidance layer that surfaces seasonal reminders, cost trends, lifecycle forecasts, warranty timing, and personalized observations as Maintley records improve.
 
 Maintley Intelligence should prioritize actionable opportunities unless the user explicitly requests an audit.
 

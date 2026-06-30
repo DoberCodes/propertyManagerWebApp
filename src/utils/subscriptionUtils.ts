@@ -361,11 +361,31 @@ export const canViewReports = (subscription: SubscriptionData): boolean => {
 	return plan?.permissions.canViewReports || false;
 };
 
+export const canAccessReportBuilder = (
+	subscription: SubscriptionData,
+): boolean => {
+	if (!canAccessReadOnlyFeatures(subscription)) {
+		return false;
+	}
+
+	const plan = getEffectivePlan(subscription);
+	return plan?.permissions.canViewReports || false;
+};
+
 /**
  * Check if subscription plan allows data export
  */
 export const canExportData = (subscription: SubscriptionData): boolean => {
 	if (!isSubscriptionActive(subscription)) {
+		return false;
+	}
+
+	const plan = getEffectivePlan(subscription);
+	return plan?.permissions.canExportData || false;
+};
+
+export const canExportReports = (subscription: SubscriptionData): boolean => {
+	if (!canAccessReadOnlyFeatures(subscription)) {
 		return false;
 	}
 

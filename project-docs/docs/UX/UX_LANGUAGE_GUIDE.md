@@ -324,6 +324,22 @@ Preferred dashboard sections:
 * Recommendations
 * Recent Activity
 
+Dashboard framing should adapt to the user's responsibility. Use `Your Focus`
+or `Your Tasks` for assigned users, `Team Focus` or `Team Tasks` for maintenance
+lead views, and broader property-in-view language for owners and managers.
+
+Dashboard scope controls should use plain, short labels:
+
+* My Focus
+* All Visible
+
+Use `My Focus` for a personal work view. Use `All Visible` for the broader
+visible property view. If the personal view has no assigned work, use:
+
+```text
+No tasks assigned to you right now.
+```
+
 Avoid:
 
 * Property Score
@@ -474,8 +490,9 @@ Recommendations should:
 
 1. Start with an action.
 2. Be concise.
-3. Explain value when appropriate.
-4. When space allows, name the future problem the action helps prevent.
+3. Name the affected property in supporting context when the recommendation appears in a dashboard or other cross-property view.
+4. Explain value when appropriate.
+5. When space allows, name the future problem the action helps prevent.
 
 Preferred format:
 

@@ -379,7 +379,8 @@ src/intelligence/
 ├── planFilter.ts
 ├── rules/
 └── consumers/
-    └── quickScan.ts
+    ├── quickScan.ts
+    └── portfolioDashboard.ts
 ```
 
 The implementation also includes:
@@ -426,7 +427,7 @@ Maintley recommends recording install dates because they support warranty tracki
 
 The current model supports this through `source`, `title`, `description`, `whyItMatters`, `metadata`, `affectedSystemIds`, `suggestedActionLabel`, and `suggestedActionType`. Future recommendation records may expose these as explicit `observation`, `whyItMatters`, `futureBenefit`, `action`, and `reasoning` fields. That should be handled as a deliberate contract change.
 
-Quick Scan can expose phase-1 evidence without changing the recommendation contract by using existing `ruleId`, `metadata`, `affectedSystemIds`, and related task IDs.
+Quick Scan and the dashboard consumer can expose phase-1 evidence without changing the recommendation contract by using existing `ruleId`, `metadata`, `affectedSystemIds`, and related task IDs.
 
 The evidence disclosure should answer:
 
@@ -848,6 +849,8 @@ Examples:
 * Properties missing appliance information
 
 Portfolio Intelligence should reuse recommendation logic rather than introducing separate rule systems.
+
+The dashboard currently uses `src/intelligence/consumers/portfolioDashboard.ts` as a lightweight portfolio-style consumer. It runs the shared engine against the properties currently visible to the user and returns one specific highest-priority suggestion for the dashboard. This consumer is presentation-focused, should prefer direct wording over grouped summaries, and should not persist new source data.
 
 ---
 

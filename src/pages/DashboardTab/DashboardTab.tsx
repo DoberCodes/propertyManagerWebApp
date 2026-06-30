@@ -1,29 +1,39 @@
-import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from 'Redux/store/store';
-import { Task, TaskFormData } from 'types/Task.types';
+import { setCurrentUser } from 'Redux/Slices/userSlice';
+import { Task } from 'types/Task.types';
 import { useGetPropertiesQuery } from 'Redux/API/propertySlice';
 import {
 	useGetAllMaintenanceHistoryForUserQuery,
+	useUpdateUserMutation,
 } from 'Redux/API/userSlice';
 import { getTenantPropertySlug } from 'utils/permissions';
 import {
 	selectIsTeamMemberAccount,
 	selectIsTenant,
 } from 'Redux/selectors/permissionSelectors';
-import { filterTasksByRole } from 'utils/dataFilters';
-import { getCurrentLocation } from 'utils/geolocation';
+import { filterTasksByRole, findTeamMemberForUser } from 'utils/dataFilters';
 import { getTaskDisplayStatus } from 'utils/taskDisplayStatus';
 import {
 	getMaintenanceEventDate,
 	isContinuityEvent,
 } from 'utils/maintenanceEventUtils';
+import {
+	runDashboardIntelligence,
+	type DashboardIntelligenceSuggestion,
+} from 'intelligence/consumers/portfolioDashboard';
 import { TaskCompletionModal } from 'Components/TaskCompletionModal';
 import { TrialWarningBanner } from 'Components/TrialWarningBanner/TrialWarningBanner';
 import { ExpiredTrialBanner } from 'Components/ExpiredTrialBanner/ExpiredTrialBanner';
 import { ScheduledSubscriptionBanner } from 'Components/ScheduledSubscriptionBanner/ScheduledSubscriptionBanner';
-import { getTrialDaysRemaining, isTrialExpired } from 'utils/subscriptionUtils';
+import {
+	getEffectiveSubscriptionPlanId,
+	getTrialDaysRemaining,
+	isTrialExpired,
+} from 'utils/subscriptionUtils';
+import { USER_ROLES } from 'constants/roles';
 import {
 	handleCheckoutSuccess,
 	syncSubscriptionFromStripe,
@@ -46,14 +56,10 @@ import {
 	PortfolioMetric,
 	PortfolioMetricLabel,
 	PortfolioMetricValue,
-	HomeHealthCard,
-	HomeHealthHeader,
-	HomeHealthStatusPill,
-	HomeHealthScoreValue,
-	HomeHealthTrend,
-	HomeHealthRecommendation,
-	HomeHealthDrivers,
-	HomeHealthDriver,
+	DashboardIntelligenceCard,
+	DashboardIntelligenceContext,
+	DashboardIntelligenceImpact,
+	DashboardIntelligenceActions,
 	RecentActivitySection,
 	RecentActivityHeader,
 	RecentActivitySubtitle,
@@ -88,10 +94,11 @@ import {
 	UrgentQueueEmpty,
 	DashboardPropertyFilter,
 	DashboardDesktopPropertyFilter,
+	DashboardHeaderActions,
+	DashboardScopeControl,
+	DashboardScopeButton,
 } from './DashboardTab.styles';
 import { AppZeroState } from 'Components/Library/AppZeroState';
-import { SeasonalMaintenance } from 'Components/SeasonalMaintenance';
-import { SeasonalCard } from 'data/seasonalTipCards';
 import { isNativeApp } from 'utils/platform';
 import { openSubscriptionManagementInBrowser } from 'utils/authLinks';
 import { useTaskHandlers } from 'pages/PropertyDetailPage/useTaskHandlers';
@@ -141,6 +148,40 @@ const isPermissionDeniedError = (error: unknown): boolean => {
 	);
 };
 
+type DashboardAudience =
+	| 'owner_manager'
+	| 'maintenance_lead'
+	| 'assigned_user'
+	| 'single_property';
+
+type DashboardScopePreference = 'my_focus' | 'all_visible_properties';
+
+const MANAGER_DASHBOARD_ROLES = new Set<string>([
+	USER_ROLES.ADMIN,
+	USER_ROLES.PROPERTY_MANAGER,
+	USER_ROLES.ASSISTANT_MANAGER,
+]);
+
+const ASSIGNED_WORK_DASHBOARD_ROLES = new Set<string>([
+	USER_ROLES.MAINTENANCE,
+	USER_ROLES.ACCOUNTING,
+	USER_ROLES.LEASING,
+	USER_ROLES.CONTRACTOR,
+	USER_ROLES.PROPERTY_GUEST,
+]);
+
+const normalizeText = (value: unknown): string =>
+	String(value || '').trim().toLowerCase();
+
+const getSavedDashboardScope = (
+	value: unknown,
+): DashboardScopePreference | null => {
+	if (value === 'my_focus' || value === 'all_visible_properties') {
+		return value;
+	}
+	return null;
+};
+
 export const DashboardTab = () => {
 	const ACTIVE_TASK_STATUSES = useMemo(
 		() =>
@@ -168,6 +209,7 @@ export const DashboardTab = () => {
 
 	const navigate = useNavigate();
 	const location = useLocation();
+	const dispatch = useDispatch();
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
 	const nativeApp = isNativeApp();
 	// Select team groups and derive members with memoization to avoid new references
@@ -208,7 +250,7 @@ export const DashboardTab = () => {
 	const [selectedPropertyId, setSelectedPropertyId] = useState('');
 	const [draftPropertyId, setDraftPropertyId] = useState('');
 	const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
-	const allProperties = useMemo(
+	const propertyFilteredProperties = useMemo(
 		() =>
 			selectedPropertyId
 				? availableProperties.filter(
@@ -245,21 +287,9 @@ export const DashboardTab = () => {
 		setIsFilterPanelOpen(false);
 	};
 
-	const visiblePropertyIds = useMemo(
-		() => new Set(allProperties.map((property) => String(property.id))),
-		[allProperties],
-	);
-
-	const visibleDevices = useMemo(
-		() =>
-			allDevices.filter((device: any) =>
-				visiblePropertyIds.has(String(device?.location?.propertyId || '')),
-			),
-		[allDevices, visiblePropertyIds],
-	);
-
 	// Firebase mutations
 	const [updateTaskMutation] = useUpdateTaskMutation();
+	const [updateUser] = useUpdateUserMutation();
 
 	// Local task handlers for dashboard (used by MobileTaskCarousel)
 	const taskHandlers = useTaskHandlers({ updateTaskMutation });
@@ -281,6 +311,27 @@ export const DashboardTab = () => {
 	const isUserTenant = useSelector(selectIsTenant);
 	const isTeamMemberAccount = useSelector(selectIsTeamMemberAccount);
 
+	const dashboardAudience = useMemo<DashboardAudience>(() => {
+		const role = String(currentUser?.role || '');
+
+		if (role === USER_ROLES.MAINTENANCE_LEAD) {
+			return 'maintenance_lead';
+		}
+
+		if (isTeamMemberAccount || ASSIGNED_WORK_DASHBOARD_ROLES.has(role)) {
+			return 'assigned_user';
+		}
+
+		if (
+			currentUser?.isAccountOwner === true ||
+			MANAGER_DASHBOARD_ROLES.has(role)
+		) {
+			return 'owner_manager';
+		}
+
+		return 'single_property';
+	}, [currentUser?.isAccountOwner, currentUser?.role, isTeamMemberAccount]);
+
 	useEffect(() => {
 		if (currentUser && isUserTenant) {
 			const propertySlug = getTenantPropertySlug(
@@ -291,18 +342,6 @@ export const DashboardTab = () => {
 			}
 		}
 	}, [currentUser, isUserTenant, navigate]);
-
-	// Get user geolocation once on mount (with permission request on mobile)
-	useEffect(() => {
-		const getLocation = async () => {
-			const location = await getCurrentLocation();
-			if (location) {
-				setUserLocation(location);
-				// Set default temp unit based on location
-			}
-		};
-		getLocation();
-	}, []);
 
 	// Handle Stripe checkout success
 	useEffect(() => {
@@ -351,18 +390,6 @@ export const DashboardTab = () => {
 		any[]
 	>([]);
 	const dashboardHistoryLoadedKeyRef = useRef<string>('');
-	const [userLocation, setUserLocation] = useState<{
-		latitude: number;
-		longitude: number;
-	} | null>(null);
-	const [seasonalTaskDraft, setSeasonalTaskDraft] = useState<
-		| (Partial<TaskFormData> & {
-			propertyId?: string;
-			unitId?: string;
-			linkedMaintenanceHistoryIds?: string[];
-		})
-		| null
-	>(null);
 
 	// Generate assignee options for task editing
 	const assigneeOptions = useMemo(() => {
@@ -383,6 +410,364 @@ export const DashboardTab = () => {
 
 		return assignees;
 	}, [teamMembers]);
+
+	const currentTeamMember = useMemo(
+		() => findTeamMemberForUser(teamMembers, currentUser),
+		[teamMembers, currentUser],
+	);
+
+	const roleFilteredTasks = useMemo(
+		() =>
+			filterTasksByRole(
+				allTasks,
+				currentUser,
+				teamMembers,
+				availableProperties,
+			),
+		[allTasks, currentUser, teamMembers, availableProperties],
+	);
+
+	const propertyFilteredIdList = useMemo(
+		() =>
+			propertyFilteredProperties
+				.map((property) => String(property?.id || '').trim())
+				.filter(Boolean)
+				.sort(),
+		[propertyFilteredProperties],
+	);
+
+	const propertyFilteredTitles = useMemo(
+		() =>
+			new Set(
+				propertyFilteredProperties
+					.map((property) => String((property as any).title || '').trim())
+					.filter(Boolean),
+			),
+		[propertyFilteredProperties],
+	);
+
+	const propertyFilteredSlugs = useMemo(
+		() =>
+			new Set(
+				propertyFilteredProperties
+					.map((property) => String((property as any).slug || '').trim())
+					.filter(Boolean),
+			),
+		[propertyFilteredProperties],
+	);
+
+	const propertyScopedTasks = useMemo(() => {
+		if (propertyFilteredIdList.length === 0) return [];
+		const propertyFilteredIds = new Set(propertyFilteredIdList);
+
+		return roleFilteredTasks.filter((task) => {
+			const taskPropertyId = String(task.propertyId || '').trim();
+			const taskPropertyTitle = String(
+				task.property || task.propertyTitle || '',
+			).trim();
+			const taskPropertySlug = String((task as any).propertySlug || '').trim();
+
+			return (
+				(taskPropertyId && propertyFilteredIds.has(taskPropertyId)) ||
+				(taskPropertyTitle && propertyFilteredTitles.has(taskPropertyTitle)) ||
+				(taskPropertySlug && propertyFilteredSlugs.has(taskPropertySlug))
+			);
+		});
+	}, [
+		roleFilteredTasks,
+		propertyFilteredIdList,
+		propertyFilteredTitles,
+		propertyFilteredSlugs,
+	]);
+
+	const isTaskAssignedToCurrentUser = useMemo(() => {
+		const idTokens = new Set(
+			[
+				currentUser?.id,
+				(currentUser as any)?.uid,
+				(currentUser as any)?.teamMemberId,
+				currentTeamMember?.id,
+			]
+				.map((value) => String(value || '').trim())
+				.filter(Boolean),
+		);
+		const emailTokens = new Set(
+			[currentUser?.email, currentTeamMember?.email]
+				.map(normalizeText)
+				.filter(Boolean),
+		);
+		const nameTokens = new Set(
+			[
+				`${currentUser?.firstName || ''} ${currentUser?.lastName || ''}`,
+				`${currentTeamMember?.firstName || ''} ${currentTeamMember?.lastName || ''}`,
+			]
+				.map(normalizeText)
+				.filter(Boolean),
+		);
+
+		return (task: Task): boolean => {
+			const assigneeIds = [
+				task.assignee,
+				task.assignedTo?.id,
+				(task as any).assignedToId,
+				(task as any).assignedUserId,
+			]
+				.map((value) => String(value || '').trim())
+				.filter(Boolean);
+			if (assigneeIds.some((id) => idTokens.has(id))) {
+				return true;
+			}
+
+			const assigneeEmails = [
+				task.assignedTo?.email,
+				task.assigneeEmail,
+				(task as any).assignedToEmail,
+			]
+				.map(normalizeText)
+				.filter(Boolean);
+			if (assigneeEmails.some((email) => emailTokens.has(email))) {
+				return true;
+			}
+
+			const assigneeNames = [
+				task.assignedTo?.name,
+				task.assigneeName,
+				`${task.assigneeFirstName || ''} ${task.assigneeLastName || ''}`,
+			]
+				.map(normalizeText)
+				.filter(Boolean);
+			return assigneeNames.some((name) => nameTokens.has(name));
+		};
+	}, [currentUser, currentTeamMember]);
+
+	const defaultDashboardScope = useMemo<DashboardScopePreference>(() => {
+		const role = String(currentUser?.role || '');
+		const isManagerOrOwner =
+			currentUser?.isAccountOwner === true ||
+			MANAGER_DASHBOARD_ROLES.has(role) ||
+			dashboardAudience === 'maintenance_lead';
+		if (!isManagerOrOwner && availableProperties.length > 1) {
+			return 'my_focus';
+		}
+		if (dashboardAudience === 'assigned_user') {
+			return 'my_focus';
+		}
+		return 'all_visible_properties';
+	}, [
+		availableProperties.length,
+		currentUser?.isAccountOwner,
+		currentUser?.role,
+		dashboardAudience,
+	]);
+
+	const dashboardScope = useMemo<DashboardScopePreference>(
+		() =>
+			getSavedDashboardScope(currentUser?.dashboardPreferences?.scope) ||
+			defaultDashboardScope,
+		[currentUser?.dashboardPreferences?.scope, defaultDashboardScope],
+	);
+
+	const myFocusTasks = useMemo(
+		() => propertyScopedTasks.filter(isTaskAssignedToCurrentUser),
+		[propertyScopedTasks, isTaskAssignedToCurrentUser],
+	);
+
+	const myFocusPropertyIds = useMemo(
+		() =>
+			new Set(
+				myFocusTasks
+					.map((task) => String(task.propertyId || '').trim())
+					.filter(Boolean),
+			),
+		[myFocusTasks],
+	);
+
+	const allProperties = useMemo(() => {
+		if (dashboardScope === 'all_visible_properties' || selectedPropertyId) {
+			return propertyFilteredProperties;
+		}
+
+		return propertyFilteredProperties.filter((property) =>
+			myFocusPropertyIds.has(String(property.id)),
+		);
+	}, [
+		dashboardScope,
+		myFocusPropertyIds,
+		propertyFilteredProperties,
+		selectedPropertyId,
+	]);
+
+	const filteredTasks = useMemo(
+		() =>
+			dashboardScope === 'my_focus'
+				? myFocusTasks
+				: propertyScopedTasks,
+		[dashboardScope, myFocusTasks, propertyScopedTasks],
+	);
+
+	const visiblePropertyIds = useMemo(
+		() => new Set(allProperties.map((property) => String(property.id))),
+		[allProperties],
+	);
+
+	const visibleDevices = useMemo(
+		() =>
+			allDevices.filter((device: any) =>
+				visiblePropertyIds.has(String(device?.location?.propertyId || '')),
+			),
+		[allDevices, visiblePropertyIds],
+	);
+	const trackedSystemsCount = visibleDevices.length;
+
+	const handleDashboardScopeChange = async (
+		scope: DashboardScopePreference,
+	) => {
+		if (!currentUser || scope === dashboardScope) return;
+
+		const previousPreferences = currentUser.dashboardPreferences || {};
+		const dashboardPreferences = {
+			...previousPreferences,
+			scope,
+		};
+
+		dispatch(
+			setCurrentUser({
+				...currentUser,
+				dashboardPreferences,
+			}),
+		);
+
+		try {
+			await updateUser({
+				id: currentUser.id,
+				updates: { dashboardPreferences },
+			}).unwrap();
+		} catch (error) {
+			console.error('Failed to update dashboard scope preference:', error);
+			dispatch(
+				setCurrentUser({
+					...currentUser,
+					dashboardPreferences: previousPreferences,
+				}),
+			);
+		}
+	};
+
+	const dashboardFraming = useMemo(() => {
+		const isSinglePropertyScope = allProperties.length === 1;
+		const isMyFocus = dashboardScope === 'my_focus';
+		const propertyCountLabel = `${allProperties.length} ${
+			allProperties.length === 1 ? 'property' : 'properties'
+		}`;
+		const systemsCountLabel = `${trackedSystemsCount} ${
+			trackedSystemsCount === 1 ? 'tracked system' : 'tracked systems'
+		}`;
+		const scopePill = isMyFocus
+			? 'My Focus'
+			: isSinglePropertyScope
+				? 'Single property view'
+				: `${allProperties.length} properties in view`;
+		const overviewEyebrow = isMyFocus
+			? 'Your Properties'
+			: isSinglePropertyScope
+				? 'Property Overview'
+				: 'Properties in View';
+		const overviewText =
+			allProperties.length === 0
+				? 'No properties have assigned work in this view.'
+				: `Current maintenance picture across ${propertyCountLabel} and ${systemsCountLabel}.`;
+
+		switch (dashboardAudience) {
+			case 'maintenance_lead':
+				return {
+					pageSubtitle: isMyFocus
+						? 'See the work assigned to you across the properties in view.'
+						: 'See team-visible work, overdue tasks, and property context in view.',
+					focusEyebrow: isMyFocus ? 'Your Focus' : 'Team Focus',
+					focusTitle: isMyFocus
+						? 'Handle your next task'
+						: 'Keep priority work moving',
+					overviewEyebrow: isSinglePropertyScope
+						? overviewEyebrow
+						: isMyFocus
+							? 'Your Properties'
+							: 'Team Properties',
+					overviewText,
+					queueTitle: isMyFocus ? 'Your Tasks' : 'Team Tasks',
+					queueSubtitle: isMyFocus
+						? 'Overdue and upcoming tasks assigned to you are grouped so you can decide what to handle next.'
+						: 'Overdue and upcoming team-visible tasks are grouped so you can decide what needs attention next.',
+					scopePill,
+					recentSubtitle: isMyFocus
+						? 'Recently recorded work connected to your focus.'
+						: 'Recently recorded work across the properties currently in view.',
+				};
+			case 'assigned_user':
+				return {
+					pageSubtitle: isMyFocus
+						? 'See the work assigned to you and the property context around it.'
+						: 'See the work and property updates visible to you.',
+					focusEyebrow: 'Your Focus',
+					focusTitle: 'Handle your next task',
+					overviewEyebrow: isSinglePropertyScope
+						? overviewEyebrow
+						: 'Your Properties',
+					overviewText,
+					queueTitle: 'Your Tasks',
+					queueSubtitle:
+						'Overdue and upcoming tasks in your view are grouped so you can decide what to handle next.',
+					scopePill,
+					recentSubtitle: isMyFocus
+						? 'Recently recorded work connected to your focus.'
+						: 'Recently recorded work connected to the properties in your view.',
+				};
+			case 'single_property':
+				return {
+					pageSubtitle: isMyFocus
+						? 'See your assigned maintenance work and recent records.'
+						: "See today's maintenance priorities and recent records for this property.",
+					focusEyebrow: isMyFocus ? 'Your Focus' : "Today's Focus",
+					focusTitle: 'Handle what matters first',
+					overviewEyebrow,
+					overviewText,
+					queueTitle: isMyFocus ? 'Your Tasks' : 'Maintenance Tasks',
+					queueSubtitle:
+						'Overdue and upcoming maintenance tasks are grouped so you can decide what to handle next.',
+					scopePill,
+					recentSubtitle: isMyFocus
+						? 'Recently recorded work connected to your focus.'
+						: 'Recently recorded work for the property in view.',
+				};
+			case 'owner_manager':
+			default:
+				return {
+					pageSubtitle: isMyFocus
+						? 'See the work assigned to you across the properties in view.'
+						: isSinglePropertyScope
+							? "See today's priorities, upcoming work, and recent maintenance for this property."
+							: "See today's priorities, upcoming work, and recent maintenance across the properties in view.",
+					focusEyebrow: isMyFocus ? 'Your Focus' : "Today's Focus",
+					focusTitle: isMyFocus
+						? 'Handle your next task'
+						: 'Handle what matters first',
+					overviewEyebrow,
+					overviewText,
+					queueTitle: isMyFocus ? 'Your Tasks' : 'Needing Attention',
+					queueSubtitle: isMyFocus
+						? 'Overdue and upcoming tasks assigned to you are grouped so you can decide what to handle next.'
+						: 'Overdue and upcoming maintenance tasks are grouped so you can decide what to handle next.',
+					scopePill,
+					recentSubtitle: isMyFocus
+						? 'Recently recorded work connected to your focus.'
+						: 'Recently recorded work across the properties in view.',
+				};
+		}
+	}, [
+		allProperties.length,
+		dashboardAudience,
+		dashboardScope,
+		trackedSystemsCount,
+	]);
 
 	const propertyLookup = useMemo(
 		() =>
@@ -406,57 +791,6 @@ export const DashboardTab = () => {
 				.sort(),
 		[allProperties],
 	);
-
-	const visiblePropertyTitles = useMemo(
-		() =>
-			new Set(
-				allProperties
-					.map((property) => String((property as any).title || '').trim())
-					.filter(Boolean),
-			),
-		[allProperties],
-	);
-
-	const visiblePropertySlugs = useMemo(
-		() =>
-			new Set(
-				allProperties
-					.map((property) => String((property as any).slug || '').trim())
-					.filter(Boolean),
-			),
-		[allProperties],
-	);
-
-	const roleFilteredTasks = useMemo(
-		() =>
-			filterTasksByRole(allTasks, currentUser, teamMembers, availableProperties),
-		[allTasks, currentUser, teamMembers, availableProperties],
-	);
-
-	// Task status counts for banner display
-	const filteredTasks = useMemo(() => {
-		if (visiblePropertyIdList.length === 0) return [];
-		const visiblePropertyIds = new Set(visiblePropertyIdList);
-
-		return roleFilteredTasks.filter((task) => {
-			const taskPropertyId = String(task.propertyId || '').trim();
-			const taskPropertyTitle = String(
-				task.property || task.propertyTitle || '',
-			).trim();
-			const taskPropertySlug = String((task as any).propertySlug || '').trim();
-
-			return (
-				(taskPropertyId && visiblePropertyIds.has(taskPropertyId)) ||
-				(taskPropertyTitle && visiblePropertyTitles.has(taskPropertyTitle)) ||
-				(taskPropertySlug && visiblePropertySlugs.has(taskPropertySlug))
-			);
-		});
-	}, [
-		roleFilteredTasks,
-		visiblePropertyIdList,
-		visiblePropertyTitles,
-		visiblePropertySlugs,
-	]);
 
 	const dashboardTaskLookup = useMemo(
 		() => new Map(filteredTasks.map((task) => [task.id, task])),
@@ -590,6 +924,44 @@ export const DashboardTab = () => {
 			});
 	}, [allMaintenanceHistory, allProperties]);
 
+	const dashboardIntelligenceHistory = useMemo(
+		() =>
+			dashboardMaintenanceHistory.length > 0
+				? dashboardMaintenanceHistory
+				: scopedMaintenanceHistory,
+		[dashboardMaintenanceHistory, scopedMaintenanceHistory],
+	);
+
+	const effectivePlanId = useMemo(
+		() =>
+			getEffectiveSubscriptionPlanId(
+				currentUser?.subscription as any,
+				'homeowner',
+			),
+		[currentUser?.subscription],
+	);
+
+	const dashboardIntelligence = useMemo(
+		() =>
+			runDashboardIntelligence({
+				properties: allProperties,
+				systems: visibleDevices,
+				tasks: filteredTasks,
+				maintenanceHistory: dashboardIntelligenceHistory,
+				planId: effectivePlanId,
+				limit: 1,
+			}),
+		[
+			allProperties,
+			visibleDevices,
+			filteredTasks,
+			dashboardIntelligenceHistory,
+			effectivePlanId,
+		],
+	);
+
+	const dashboardSuggestion = dashboardIntelligence.primarySuggestion;
+
 	const completedTasksCount = useMemo(() => {
 		if (dashboardMaintenanceHistory.length > 0) {
 			return dashboardMaintenanceHistory.filter(isContinuityEvent).length;
@@ -610,25 +982,6 @@ export const DashboardTab = () => {
 			return total + Math.max(taskHistoryCount, maintenanceHistoryCount);
 		}, 0);
 	}, [dashboardMaintenanceHistory, scopedMaintenanceHistory, allProperties]);
-
-	const completedThisMonthCount = useMemo(() => {
-		const now = new Date();
-		const currentMonth = now.getMonth();
-		const currentYear = now.getFullYear();
-
-		const sourceRecords = scopedMaintenanceHistory;
-
-		return sourceRecords.filter((record: any) => {
-			const completionDate = new Date(
-				getMaintenanceEventDate(record) || '',
-			);
-			return (
-				!Number.isNaN(completionDate.getTime()) &&
-				completionDate.getMonth() === currentMonth &&
-				completionDate.getFullYear() === currentYear
-			);
-		}).length;
-	}, [scopedMaintenanceHistory]);
 
 	const taskStatusCounts = useMemo(() => {
 		const now = new Date();
@@ -807,17 +1160,6 @@ export const DashboardTab = () => {
 		deviceLookup,
 	]);
 
-	// Property score calculation (100 - penalty for overdue tasks)
-	const propertyScore = useMemo(() => {
-		const baseScore = 100;
-		const penaltyPerOverdueTask = 5; // 5 points deducted per overdue task
-		const score = Math.max(
-			0,
-			baseScore - taskStatusCounts.overdue * penaltyPerOverdueTask,
-		);
-		return score;
-	}, [taskStatusCounts.overdue]);
-
 	const urgentTasks = useMemo(() => {
 		const now = new Date();
 		const maxDueDate = new Date(now);
@@ -874,7 +1216,7 @@ export const DashboardTab = () => {
 				return `${remainingUpcoming} more ${remainingUpcoming === 1 ? 'task is' : 'tasks are'
 					} due soon after that.`;
 			}
-			return 'Clear this first to reduce the rest of today\'s pressure.';
+			return 'Handle this first to keep the rest of the list easier to manage.';
 		}
 
 		if (taskStatusCounts.completed > 0) {
@@ -883,58 +1225,6 @@ export const DashboardTab = () => {
 
 		return 'Add the next planned maintenance task while the queue is clear.';
 	}, [nextUrgentTask, taskStatusCounts.upcoming, taskStatusCounts.completed]);
-
-	const homeHealthStatus = useMemo(() => {
-		if (propertyScore >= 90) return 'Strong';
-		if (propertyScore >= 75) return 'Stable';
-		return 'At Risk';
-	}, [propertyScore]);
-
-	const homeHealthInterpretation = useMemo(() => {
-		if (taskStatusCounts.overdue > 0) {
-			return `${taskStatusCounts.overdue} overdue ${taskStatusCounts.overdue === 1 ? 'service window is' : 'service windows are'
-				} pulling this down.`;
-		}
-		if (taskStatusCounts.upcoming > 0) {
-			return `${taskStatusCounts.upcoming} upcoming ${taskStatusCounts.upcoming === 1 ? 'service window is' : 'service windows are'
-				} creating near-term pressure.`;
-		}
-		return 'No urgent drag right now. System care is in a healthy range.';
-	}, [taskStatusCounts.overdue, taskStatusCounts.upcoming]);
-
-	const trackedSystemsCount = visibleDevices.length;
-
-	const homeHealthPrimaryAction = useMemo(() => {
-		if (nextUrgentTask && taskStatusCounts.overdue > 0) {
-			return `Best next recovery: close the overdue work on ${nextUrgentTask.title}.`;
-		}
-
-		if (nextUrgentTask) {
-			return `Best next move: start ${nextUrgentTask.title} before that service window slips.`;
-		}
-
-		if (completedThisMonthCount > 0) {
-			return 'Best next move: schedule one preventive service window while the queue is clear.';
-		}
-
-		return 'Best next move: add the next planned maintenance task.';
-	}, [nextUrgentTask, taskStatusCounts.overdue, completedThisMonthCount]);
-
-	const homeHealthDrivers = useMemo(() => {
-		const overduePenalty = taskStatusCounts.overdue * 5;
-		const completionMomentum = Math.min(20, taskStatusCounts.completed * 0.5);
-		const upcomingPressure = Math.min(15, taskStatusCounts.upcoming * 2);
-
-		return [
-			`Overdue penalty: -${overduePenalty} pts`,
-			`Completion momentum: +${completionMomentum.toFixed(0)} pts`,
-			`Upcoming pressure: -${upcomingPressure.toFixed(0)} pts`,
-		];
-	}, [
-		taskStatusCounts.overdue,
-		taskStatusCounts.completed,
-		taskStatusCounts.upcoming,
-	]);
 
 	const overdueUrgentTasks = useMemo(
 		() =>
@@ -1007,98 +1297,6 @@ export const DashboardTab = () => {
 		return `Assigned to ${displayName || member.email || 'team member'}`;
 	};
 
-	const normalizeTaskTitle = useCallback(
-		(value?: string | null) =>
-			String(value || '')
-				.trim()
-				.toLowerCase()
-				.replace(/\s+/g, ' '),
-		[],
-	);
-
-	const getSeasonalTaskPriority = (card: SeasonalCard) => {
-		if (card.priorityLevel === 'high') {
-			return 'High';
-		}
-		if (card.priorityLevel === 'medium') {
-			return 'Medium';
-		}
-		return 'Low';
-	};
-
-	const getSeasonalTaskDueDate = (card: SeasonalCard) => {
-		const daysUntilDue =
-			card.priorityLevel === 'high'
-				? 7
-				: card.priorityLevel === 'medium'
-					? 14
-					: 30;
-		const dueDate = new Date();
-		dueDate.setDate(dueDate.getDate() + daysUntilDue);
-		return dueDate.toISOString().split('T')[0];
-	};
-
-	const getSeasonalTipTaskState = useCallback(
-		(card: SeasonalCard) => {
-			if (!allProperties.length) {
-				return {
-					disabled: true,
-					label: 'No Property Available',
-					helperText: 'Add a property before scheduling seasonal work.',
-				};
-			}
-
-			if (allProperties.length > 1) {
-				return {
-					disabled: false,
-					label: 'Add Task',
-					helperText: 'Choose the property in the maintenance task modal.',
-				};
-			}
-
-			const currentPropertyId = allProperties[0]?.id || '';
-			const alreadyAdded = filteredTasks.some(
-				(task) =>
-					ACTIVE_TASK_STATUSES.has(task.status) &&
-					task.propertyId === currentPropertyId &&
-					normalizeTaskTitle(task.title) === normalizeTaskTitle(card.title),
-			);
-
-			if (alreadyAdded) {
-				return {
-					disabled: true,
-					label: 'Already Added',
-					helperText: 'This tip is already active for the property in view.',
-				};
-			}
-
-			return {
-				disabled: false,
-				label: 'Add Task',
-				helperText: 'Create a prefilled maintenance task from this seasonal tip.',
-			};
-		},
-		[allProperties, filteredTasks, ACTIVE_TASK_STATUSES, normalizeTaskTitle],
-	);
-
-	const handleAddSeasonalTipTask = useCallback(
-		(card: SeasonalCard) => {
-			const propertyId = allProperties.length === 1 ? allProperties[0]?.id || '' : '';
-			setEditingTaskId(null);
-			setSeasonalTaskDraft({
-				title: card.title,
-				dueDate: getSeasonalTaskDueDate(card),
-				status: 'Initiated',
-				priority: getSeasonalTaskPriority(card),
-				category: 'Seasonal Maintenance',
-				notes: ['Seasonal maintenance tip:', ...card.bullets.map((bullet) => `- ${bullet}`)].join('\n'),
-				propertyId,
-			});
-			setShowTaskDialog(true);
-		},
-		[allProperties, setEditingTaskId, setShowTaskDialog],
-	);
-
 	const handleOpenTask = (taskId: string) => {
 		handleEditTask([taskId]);
 	};
@@ -1127,6 +1325,66 @@ export const DashboardTab = () => {
 		}
 
 		void openSubscriptionManagementInBrowser();
+	};
+
+	const getSingleAffectedPropertySlug = (
+		suggestion: DashboardIntelligenceSuggestion,
+	): string => {
+		if (suggestion.affectedPropertyIds.length !== 1) {
+			return '';
+		}
+
+		return propertyLookup.get(suggestion.affectedPropertyIds[0])?.slug || '';
+	};
+
+	const handleOpenDashboardSuggestion = (
+		suggestion: DashboardIntelligenceSuggestion,
+	) => {
+		const singlePropertySlug = getSingleAffectedPropertySlug(suggestion);
+
+		switch (suggestion.suggestedActionType) {
+			case 'open_task': {
+				const taskId = suggestion.relatedTaskIds.find((id) =>
+					dashboardTaskLookup.has(id),
+				);
+				if (taskId && suggestion.relatedTaskIds.length === 1) {
+					handleOpenTask(taskId);
+					return;
+				}
+				navigate('/tasks');
+				return;
+			}
+			case 'create_task':
+				setEditingTaskId(null);
+				setShowTaskDialog(true);
+				return;
+			case 'edit_property':
+				navigate(singlePropertySlug ? `/property/${singlePropertySlug}` : '/properties');
+				return;
+			case 'add_asset':
+			case 'add_system':
+				navigate(
+					singlePropertySlug
+						? `/property/${singlePropertySlug}?tab=devices&action=create-system`
+						: '/devices?action=create',
+				);
+				return;
+			case 'open_maintenance':
+				navigate(singlePropertySlug ? `/property/${singlePropertySlug}` : '/properties');
+				return;
+			case 'edit_asset':
+			case 'edit_system':
+			case 'open_assets':
+			case 'open_systems':
+				navigate(
+					singlePropertySlug
+						? `/property/${singlePropertySlug}?tab=devices`
+						: '/devices',
+				);
+				return;
+			default:
+				navigate('/tasks');
+		}
 	};
 
 	if (
@@ -1178,26 +1436,48 @@ export const DashboardTab = () => {
 				<StandardAppPageTitleBlock>
 					<StandardAppPageTitle>Dashboard</StandardAppPageTitle>
 					<StandardAppPageSubtitle>
-						See today&apos;s priorities, portfolio health, and recent maintenance activity.
+						{dashboardFraming.pageSubtitle}
 					</StandardAppPageSubtitle>
 				</StandardAppPageTitleBlock>
-				{availableProperties.length > 1 && (
-					<DashboardDesktopPropertyFilter>
-						Property
-						<select
-							value={selectedPropertyId}
-							onChange={(event) =>
-								setSelectedPropertyId(event.target.value)
-							}>
-							<option value=''>All properties</option>
-							{availableProperties.map((property) => (
-								<option key={property.id} value={String(property.id)}>
-									{property.title || 'Untitled Property'}
-								</option>
-							))}
-						</select>
-					</DashboardDesktopPropertyFilter>
-				)}
+				<DashboardHeaderActions>
+					<DashboardScopeControl aria-label='Dashboard view'>
+						<DashboardScopeButton
+							type='button'
+							$isActive={dashboardScope === 'my_focus'}
+							aria-pressed={dashboardScope === 'my_focus'}
+							onClick={() => {
+								void handleDashboardScopeChange('my_focus');
+							}}>
+							My Focus
+						</DashboardScopeButton>
+						<DashboardScopeButton
+							type='button'
+							$isActive={dashboardScope === 'all_visible_properties'}
+							aria-pressed={dashboardScope === 'all_visible_properties'}
+							onClick={() => {
+								void handleDashboardScopeChange('all_visible_properties');
+							}}>
+							All Visible
+						</DashboardScopeButton>
+					</DashboardScopeControl>
+					{availableProperties.length > 1 && (
+						<DashboardDesktopPropertyFilter>
+							Property
+							<select
+								value={selectedPropertyId}
+								onChange={(event) =>
+									setSelectedPropertyId(event.target.value)
+								}>
+								<option value=''>All properties</option>
+								{availableProperties.map((property) => (
+									<option key={property.id} value={String(property.id)}>
+										{property.title || 'Untitled Property'}
+									</option>
+								))}
+							</select>
+						</DashboardDesktopPropertyFilter>
+					)}
+				</DashboardHeaderActions>
 			</StandardAppPageHeader>
 
 			{availableProperties.length > 1 && (
@@ -1229,8 +1509,8 @@ export const DashboardTab = () => {
 			{/* Action-first top section */}
 			<ActionFirstTopSection>
 				<TodayFocusCard>
-					<CardEyebrow>Today's Focus</CardEyebrow>
-					<CardTitle>Handle what matters first</CardTitle>
+					<CardEyebrow>{dashboardFraming.focusEyebrow}</CardEyebrow>
+					<CardTitle>{dashboardFraming.focusTitle}</CardTitle>
 					<TodayFocusLead>{todayFocusLead}</TodayFocusLead>
 					<TodayFocusSupportingText>
 						{todayFocusSupport}
@@ -1295,11 +1575,9 @@ export const DashboardTab = () => {
 				</TodayFocusCard>
 
 				<PortfolioHealthCard>
-					<CardEyebrow>{allProperties.length === 1 ? 'Home Overview' : 'Portfolio Overview'}</CardEyebrow>
+					<CardEyebrow>{dashboardFraming.overviewEyebrow}</CardEyebrow>
 					<PortfolioHeaderText>
-						Current maintenance picture across {allProperties.length}{' '}
-						{allProperties.length === 1 ? 'property' : 'properties'} and {trackedSystemsCount}{' '}
-						{trackedSystemsCount === 1 ? 'tracked system' : 'tracked systems'}.
+						{dashboardFraming.overviewText}
 					</PortfolioHeaderText>
 					<PortfolioMetrics>
 						<PortfolioMetric>
@@ -1323,81 +1601,43 @@ export const DashboardTab = () => {
 					</PortfolioMetrics>
 				</PortfolioHealthCard>
 
-				<HomeHealthCard>
-					<HomeHealthHeader>
-						<div>
-							<CardEyebrow>Home Health Score</CardEyebrow>
-							<HomeHealthStatusPill $status={homeHealthStatus}>
-								{homeHealthStatus}
-							</HomeHealthStatusPill>
-						</div>
-						<HomeHealthScoreValue>{propertyScore}</HomeHealthScoreValue>
-					</HomeHealthHeader>
-					<HomeHealthTrend>{homeHealthInterpretation}</HomeHealthTrend>
-					<HomeHealthRecommendation>
-						{homeHealthPrimaryAction}
-					</HomeHealthRecommendation>
-					<HomeHealthDrivers>
-						{homeHealthDrivers.slice(0, 2).map((driver) => (
-							<HomeHealthDriver key={driver}>{driver}</HomeHealthDriver>
-						))}
-					</HomeHealthDrivers>
-				</HomeHealthCard>
-			</ActionFirstTopSection>
-
-			<RecentActivitySection>
-				<RecentActivityHeader>
-					<div>
-						<CardEyebrow>Recent Maintenance Activity</CardEyebrow>
-						<RecentActivitySubtitle>
-							The most recent device-level maintenance updates across your active properties.
-						</RecentActivitySubtitle>
-					</div>
-				</RecentActivityHeader>
-				{recentMaintenanceActivity.length === 0 ? (
-					<RecentActivityEmpty>
-						<p>No appliance maintenance events yet. Complete tasks or add logs from an appliance page to build the service history.</p>
-						<FocusButton
-							type='button'
-							onClick={() => {
-								setSeasonalTaskDraft(null);
-								setEditingTaskId(null);
-								setShowTaskDialog(true);
-							}}>
-							Add Task
-						</FocusButton>
-					</RecentActivityEmpty>
-				) : (
-					<RecentActivityList>
-						{recentMaintenanceActivity.map((entry: any) => (
-							<RecentActivityRow key={entry.id}>
-								<RecentActivityMain>
-									<RecentActivityTitle>{entry.description}</RecentActivityTitle>
-									<RecentActivityMeta>
-										{entry.deviceName} • {entry.propertyName}
-									</RecentActivityMeta>
-								</RecentActivityMain>
-								<RecentActivityDate>{formatActivityDate(entry.timestamp)}</RecentActivityDate>
-							</RecentActivityRow>
-						))}
-					</RecentActivityList>
+				{dashboardSuggestion && (
+					<DashboardIntelligenceCard>
+						<CardEyebrow>Maintley Intelligence</CardEyebrow>
+						<CardTitle>{dashboardSuggestion.title}</CardTitle>
+						{dashboardSuggestion.contextLabel && (
+							<DashboardIntelligenceContext>
+								{dashboardSuggestion.contextLabel}
+							</DashboardIntelligenceContext>
+						)}
+						<DashboardIntelligenceImpact>
+							{dashboardSuggestion.whyItMatters}
+						</DashboardIntelligenceImpact>
+						<DashboardIntelligenceActions>
+							<FocusButton
+								type='button'
+								onClick={() =>
+									handleOpenDashboardSuggestion(dashboardSuggestion)
+								}>
+								{dashboardSuggestion.suggestedActionLabel}
+							</FocusButton>
+						</DashboardIntelligenceActions>
+					</DashboardIntelligenceCard>
 				)}
-			</RecentActivitySection>
+			</ActionFirstTopSection>
 
 			{/* Urgent queue */}
 			<UrgentQueueSection id='urgent-task-queue'>
 				<UrgentQueueHeader>
 					<div>
-						<CardTitle>Needing Attention</CardTitle>
+						<CardTitle>{dashboardFraming.queueTitle}</CardTitle>
 						<UrgentQueueSubtitle>
-							The highest-risk maintenance work is surfaced first so you can reduce overdue pressure fast.
+							{dashboardFraming.queueSubtitle}
 						</UrgentQueueSubtitle>
 					</div>
 					<QueueHeaderActions>
 						<QueueFilterPill>
-							{allProperties.length === 1
-								? 'Single property view'
-								: `${allProperties.length} properties in view`}
+							{dashboardFraming.scopePill}
 						</QueueFilterPill>
 						{overdueUrgentTasks.length > 0 && (
 							<QueueFilterPill $tone='urgent'>
@@ -1409,19 +1649,24 @@ export const DashboardTab = () => {
 
 				{urgentTasks.length === 0 ? (
 					filteredTasks.length === 0 ? (
-						<AppZeroState
-							kind='noTasks'
-							actions={[
-								{
-									label: 'Add Task',
-									onClick: () => {
-										setSeasonalTaskDraft(null);
-										setEditingTaskId(null);
-										setShowTaskDialog(true);
+						dashboardScope === 'my_focus' ? (
+							<UrgentQueueEmpty>
+								No tasks assigned to you right now.
+							</UrgentQueueEmpty>
+						) : (
+							<AppZeroState
+								kind='noTasks'
+								actions={[
+									{
+										label: 'Add Task',
+										onClick: () => {
+											setEditingTaskId(null);
+											setShowTaskDialog(true);
+										},
 									},
-								},
-							]}
-						/>
+								]}
+							/>
+						)
 					) : (
 						<UrgentQueueEmpty>Nothing needing attention right now. Great job.</UrgentQueueEmpty>
 					)
@@ -1533,13 +1778,43 @@ export const DashboardTab = () => {
 				)}
 			</UrgentQueueSection>
 
-			{/* Seasonal remains useful but secondary */}
-			<SeasonalMaintenance
-				location={userLocation}
-				compact
-				onAddTipAsTask={handleAddSeasonalTipTask}
-				getAddTipTaskState={getSeasonalTipTaskState}
-			/>
+			<RecentActivitySection>
+				<RecentActivityHeader>
+					<div>
+						<CardEyebrow>Recent Maintenance</CardEyebrow>
+						<RecentActivitySubtitle>
+							{dashboardFraming.recentSubtitle}
+						</RecentActivitySubtitle>
+					</div>
+				</RecentActivityHeader>
+				{recentMaintenanceActivity.length === 0 ? (
+					<RecentActivityEmpty>
+						<p>No maintenance records yet. Complete tasks or add a maintenance record to build the service history.</p>
+						<FocusButton
+							type='button'
+							onClick={() => {
+								setEditingTaskId(null);
+								setShowTaskDialog(true);
+							}}>
+							Add Task
+						</FocusButton>
+					</RecentActivityEmpty>
+				) : (
+					<RecentActivityList>
+						{recentMaintenanceActivity.map((entry: any) => (
+							<RecentActivityRow key={entry.id}>
+								<RecentActivityMain>
+									<RecentActivityTitle>{entry.description}</RecentActivityTitle>
+									<RecentActivityMeta>
+										{entry.deviceName} - {entry.propertyName}
+									</RecentActivityMeta>
+								</RecentActivityMain>
+								<RecentActivityDate>{formatActivityDate(entry.timestamp)}</RecentActivityDate>
+							</RecentActivityRow>
+						))}
+					</RecentActivityList>
+				)}
+			</RecentActivitySection>
 
 			{/* Task Completion Modal */}
 			{showTaskCompletionModal && completingTaskId && (
@@ -1558,10 +1833,9 @@ export const DashboardTab = () => {
 				isOpen={showTaskDialog}
 				onClose={() => {
 					setShowTaskDialog(false);
-					setSeasonalTaskDraft(null);
 				}}
 				editingTaskId={editingTaskId}
-				initialTask={seasonalTaskDraft}
+				initialTask={null}
 				editingTask={
 					editingTaskId ? dashboardTaskLookup.get(editingTaskId) || null : null
 				}

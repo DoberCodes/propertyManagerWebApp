@@ -270,6 +270,46 @@ service cloud.firestore {
       return canManageAccount(accountId);
     }
 
+    function callerHasTaskManagementRole(accountId) {
+      return hasLegacyAccountLink(accountId) &&
+        callerUserDocExists() &&
+        ('role' in callerUserData()) &&
+        ['maintenance_lead', 'maintenance'].hasAny([callerUserData().role]);
+    }
+
+    function callerLinkedTeamMemberHasTaskManagementRole(accountId) {
+      return callerUserDocExists() &&
+        ('teamMemberId' in callerUserData()) &&
+        exists(/databases/$(database)/documents/teamMembers/$(callerUserData().teamMemberId)) &&
+        (
+          (
+            'accountId' in get(/databases/$(database)/documents/teamMembers/$(callerUserData().teamMemberId)).data &&
+            get(/databases/$(database)/documents/teamMembers/$(callerUserData().teamMemberId)).data.accountId == accountId
+          ) ||
+          (
+            'userId' in get(/databases/$(database)/documents/teamMembers/$(callerUserData().teamMemberId)).data &&
+            get(/databases/$(database)/documents/teamMembers/$(callerUserData().teamMemberId)).data.userId == accountId
+          )
+        ) &&
+        ('role' in get(/databases/$(database)/documents/teamMembers/$(callerUserData().teamMemberId)).data) &&
+        ['maintenance_lead', 'maintenance'].hasAny([
+          get(/databases/$(database)/documents/teamMembers/$(callerUserData().teamMemberId)).data.role
+        ]);
+    }
+
+    function canManageTasks(accountId) {
+      return canManageAccount(accountId) ||
+        hasAnyRole(accountId, ['maintenance_lead', 'maintenance']) ||
+        callerHasTaskManagementRole(accountId) ||
+        callerLinkedTeamMemberHasTaskManagementRole(accountId);
+    }
+
+    function scopedRecordAccountId(data) {
+      return ('accountId' in data)
+        ? data.accountId
+        : (('userId' in data) ? data.userId : '');
+    }
+
     function canManageFamilyMemberRole(userId) {
       return isAuthenticated() &&
         userId != request.auth.uid &&
@@ -434,19 +474,21 @@ service cloud.firestore {
 
     match /tasks/{taskId} {
       allow read: if isAuthenticated() &&
-        ('accountId' in resource.data) &&
-        canReadAccount(resource.data.accountId);
+        scopedRecordAccountId(resource.data) != '' &&
+        canReadAccount(scopedRecordAccountId(resource.data));
       allow create: if isAuthenticated() &&
         ('accountId' in request.resource.data) &&
-        canManageAccount(request.resource.data.accountId) &&
+        canManageTasks(request.resource.data.accountId) &&
         unitCreateRespectsResidentPlan(request.resource.data.accountId);
       allow update: if isAuthenticated() &&
-        ('accountId' in resource.data) &&
-        canManageAccount(resource.data.accountId) &&
-        unitWriteRespectsResidentPlan(resource.data.accountId);
+        scopedRecordAccountId(resource.data) != '' &&
+        ('accountId' in request.resource.data) &&
+        request.resource.data.accountId == scopedRecordAccountId(resource.data) &&
+        canManageTasks(scopedRecordAccountId(resource.data)) &&
+        unitWriteRespectsResidentPlan(scopedRecordAccountId(resource.data));
       allow delete: if isAuthenticated() &&
-        ('accountId' in resource.data) &&
-        canManageAccount(resource.data.accountId);
+        scopedRecordAccountId(resource.data) != '' &&
+        canManageAccount(scopedRecordAccountId(resource.data));
     }
 
     match /maintenanceHistory/{historyId} {

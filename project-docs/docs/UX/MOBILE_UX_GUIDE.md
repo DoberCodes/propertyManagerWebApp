@@ -356,6 +356,15 @@ Prefer:
 * Property switching
 * Quick actions
 
+Dashboard copy should reflect the user's scope. Assigned users should see
+personal task-focused framing before broad portfolio language, while owners and
+managers may see the properties currently in view.
+
+Dashboard scope should remain easy to change on mobile. Use compact labels such
+as `My Focus` and `All Visible`, and keep the control near the Dashboard header
+or property selector so users understand whether they are seeing personal work
+or the broader visible property set.
+
 The dashboard should focus on immediate action.
 
 ---

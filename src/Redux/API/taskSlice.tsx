@@ -649,8 +649,14 @@ export const taskSlice = apiSlice.injectEndpoints({
 						updates as Record<string, any>,
 						canUseRecurringTaskFeature,
 					) as Partial<Task>;
+					const existingAccountId = String(
+						(existingTask as any)?.accountId ||
+							(existingTask as any)?.userId ||
+							targetUserId,
+					).trim();
 
 					await updateDoc(docRef, {
+						...(existingAccountId ? { accountId: existingAccountId } : {}),
 						...preparedUpdates,
 						updatedAt: new Date().toISOString(),
 					});

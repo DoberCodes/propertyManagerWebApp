@@ -574,16 +574,24 @@ Read:
 Create:
 
 * Account managers
+* Maintenance roles with task management access
 
 Update:
 
 * Account managers
+* Maintenance roles with task management access
 
 Delete:
 
 * Account managers
 
-UI restrictions may be more granular than Firestore enforcement.
+Maintenance roles with task management access include `maintenance_lead` and
+`maintenance`. Deletes remain limited to account managers.
+
+Task authorization resolves the account scope from `accountId`. Legacy task
+records that still only have `userId` may be updated when `userId` resolves to
+the same account scope; updates should backfill `accountId` rather than preserve
+the legacy-only shape.
 
 ---
 

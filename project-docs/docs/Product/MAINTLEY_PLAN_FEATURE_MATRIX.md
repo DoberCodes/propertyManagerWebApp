@@ -209,7 +209,7 @@ See PROPERTY_INTELLIGENCE.md for recommendation behavior and prioritization rule
 ### Notes
 
 * Monthly Property Summary is available to all users.
-* General seasonal guidance is available to all users. Personalized seasonal and property-context guidance is part of Homeowner+ Maintley Intelligence.
+* Standalone seasonal dashboard guidance has been removed. Future seasonal guidance should appear through Maintley Intelligence rather than a separate dashboard module.
 * Reminder and push functionality require paid plans.
 
 See EMAIL_NOTIFICATIONS.md for delivery behavior.
