@@ -61,6 +61,7 @@ my-release-key.keystore
 serviceAccountKey.json
 # Firebase google-services.json (Android)
 android/app/google-services.json
-# APK files (too large for git, deployed via GitHub Pages)
+# Android release artifacts (too large for git, attached to GitHub Releases)
 public/PropertyManager.apk
 *.apk
+*.aab

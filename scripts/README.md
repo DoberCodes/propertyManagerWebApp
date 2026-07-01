@@ -341,18 +341,19 @@ The release workflow uses split ownership:
 * Release Notes Action generates customer and engineering notes.
 * Release Prep Action opens or updates the `release/next` PR with the correct
   version bump.
-* Deploy Web Action publishes the web app to GitHub Pages after `Build Check`
-  succeeds on `main`.
+* Deploy Web Action publishes the web app to GitHub Pages when release version
+  files land on `main`, normally after the `release/next` PR is merged.
 * `build:signed` remains the local Android signing helper while signing secrets
   stay local. It validates that version files were already prepared, builds the
-  signed APK, creates or updates the GitHub Release, and uploads
-  `app-release.apk`. It does not commit, push to `main`, deploy GitHub Pages, or
-  publish Firestore app-version state.
+  signed APK and AAB, creates or updates the GitHub Release, and uploads
+  versioned assets such as `maintley-2.9.16-release.apk` and
+  `maintley-2.9.16-release.aab`. It does not commit, push to `main`, deploy
+  GitHub Pages, or publish Firestore app-version state.
 * Publish App Version Action writes Firestore `appConfig/version` only after the
   GitHub Release APK is reachable.
 
 Do not modify release behavior without reviewing the release workflows and
-signed APK helper together.
+signed Android artifact helper together.
 
 ---
 
