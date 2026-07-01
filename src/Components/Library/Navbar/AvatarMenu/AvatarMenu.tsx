@@ -82,7 +82,7 @@ export const AvatarMenu: React.FC<AvatarMenuProps> = ({ setIsNotificationModalOp
 			tabIndex={0}
 			aria-label='Open profile menu'
 			onClick={() => {
-				setIsProfileDropdownOpen(!isProfileDropdownOpen)
+				setIsProfileDropdownOpen(!isProfileDropdownOpen);
 				if (isSidebarOpen) {
 					setIsSidebarOpen(false);
 				}

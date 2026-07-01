@@ -521,7 +521,8 @@ GitHub Actions:
   `E2E_FIREBASE_SERVICE_ACCOUNT_JSON` so the workflow can clean up test data
   after the run.
 * Cleanup uses the E2E Firebase project id as a guard and refuses to run if the
-  service account project does not match `E2E_REACT_APP_FIREBASE_PROJECT_ID`.
+  service account project does not match `E2E_FIREBASE_PROJECT_ID`. The GitHub
+  workflow maps this value from the `E2E_REACT_APP_FIREBASE_PROJECT_ID` secret.
 * E2E intentionally does not fall back to production Firebase config.
 * Stripe checkout tests are not part of the automatic PR smoke flow.
 
