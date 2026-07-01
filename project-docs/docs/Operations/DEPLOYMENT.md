@@ -131,7 +131,8 @@ GitHub Pages deployment is handled by:
 ```
 
 The workflow runs after the `Build Check` workflow succeeds on `main`. It builds
-the web app, runs asset budget checks, and publishes through `yarn deploy`.
+the web app, runs asset budget checks, and publishes the existing `build/`
+folder with `gh-pages` using the workflow `GITHUB_TOKEN`.
 
 PWA files live in `public/` and are copied to the root of `build/` during
 `npm run build`:
