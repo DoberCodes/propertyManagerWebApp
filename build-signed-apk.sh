@@ -80,6 +80,10 @@ print_info() {
   echo -e "${BLUE}ℹ $1${NC}"
 }
 
+has_non_empty_file() {
+  [[ -f "$1" ]] && grep -q '[^[:space:]]' "$1"
+}
+
 # Run gh command and auto-refresh auth on failure, then retry once
 run_gh_with_refresh() {
   local output
@@ -186,6 +190,11 @@ load_release_notes_from_action() {
 
   if [[ ! -f "$RELEASE_NOTES_ACTION_DIR/release-notes.customer.md" ]]; then
     print_error "Release note artifact is missing release-notes.customer.md"
+    exit 1
+  fi
+
+  if ! has_non_empty_file "$RELEASE_NOTES_ACTION_DIR/release-notes.customer.md"; then
+    print_error "Release note artifact has empty customer release notes."
     exit 1
   fi
 
@@ -301,6 +310,10 @@ if [[ "$RELEASE_ONLY" == "--release-only" ]]; then
     print_error "RELEASE_NOTES.txt not found. Cannot create release."
     exit 1
   fi
+  if ! has_non_empty_file "RELEASE_NOTES.txt"; then
+    print_error "RELEASE_NOTES.txt is empty. Cannot create release."
+    exit 1
+  fi
   if [[ ! -f "$APK_FILE" ]]; then
     print_error "$APK_FILE not found. Cannot create release."
     exit 1
@@ -361,14 +374,9 @@ if [[ -z "$SUGGESTED_VERSION" ]]; then
 fi
 print_success "Version generated: $SUGGESTED_VERSION"
 
-if [[ -z "$AUTO_NOTES" ]]; then
-  if [[ -f "RELEASE_NOTES.txt" ]]; then
-    print_warning "No release note content found in the action artifact. Reusing existing RELEASE_NOTES.txt."
-    AUTO_NOTES=$(cat RELEASE_NOTES.txt)
-  else
-    print_error "No release notes loaded. Check the Release Notes workflow artifact."
-    exit 1
-  fi
+if ! has_non_empty_file "RELEASE_NOTES.txt"; then
+  print_error "No customer release notes loaded. Check the Release Notes workflow artifact."
+  exit 1
 fi
 print_success "Release notes loaded ($(echo "$AUTO_NOTES" | wc -l) lines)"
 

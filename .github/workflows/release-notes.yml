@@ -23,6 +23,12 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
 
+      - name: Resolve checked-out commit
+        id: commit
+        shell: bash
+        run: |
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
       - name: Use Node.js
         uses: actions/setup-node@v4
         with:
@@ -74,6 +80,8 @@ jobs:
             echo ""
             echo "**Range:** ${{ steps.range.outputs.range_label }}"
             echo ""
+            echo "**Commit:** ${{ steps.commit.outputs.sha }}"
+            echo ""
             echo "### Customer Notes"
             echo ""
             cat tmp/release-notes.customer.md
@@ -86,7 +94,7 @@ jobs:
       - name: Upload release note artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: release-notes-${{ github.sha }}
+          name: release-notes-${{ steps.commit.outputs.sha }}
           path: |
             tmp/release-notes.customer.md
             tmp/release-notes.engineering.md

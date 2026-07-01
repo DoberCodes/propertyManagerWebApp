@@ -397,6 +397,18 @@ const parseRepo = (repoValue) => {
 	return { owner, repo };
 };
 
+const validateExecutionContext = (options) => {
+	if (options.dryRun) return;
+
+	if (!options.repo) {
+		throw new Error('GITHUB_REPOSITORY or --repo is required unless --dry-run is used.');
+	}
+
+	if (!options.token) {
+		throw new Error('GITHUB_TOKEN or GH_TOKEN is required unless --dry-run is used.');
+	}
+};
+
 const syncAdr = async ({ adr, previousAdr, github, options }) => {
 	const result = {
 		adr: adr.id,
@@ -468,9 +480,7 @@ const main = async () => {
 		return;
 	}
 
-	if (!options.dryRun && !options.token) {
-		throw new Error('GITHUB_TOKEN or GH_TOKEN is required unless --dry-run is used.');
-	}
+	validateExecutionContext(options);
 
 	const repoParts = options.repo ? parseRepo(options.repo) : null;
 	const github = repoParts
@@ -496,7 +506,7 @@ const main = async () => {
 				status: adr.status,
 				action: shouldTrackAdr(adr) ? 'would_create' : 'skipped',
 				message: shouldTrackAdr(adr)
-					? 'No repository configured; dry-run only.'
+					? 'No repository configured; explicit dry-run preview only.'
 					: 'ADR status is not tracked.',
 			});
 			continue;

@@ -583,7 +583,8 @@ and release note artifacts after merges to `main`. The action does not commit
 release note files automatically; `build:signed` remains the release path that
 publishes the customer-facing release body. If the action has not finished for
 the current commit, `build:signed` waits briefly and then stops with instructions
-to rerun or wait for the workflow.
+to rerun or wait for the workflow. Empty customer release note artifacts block
+the release instead of publishing a blank GitHub Release body.
 
 The release-notes action is not a test workflow. `build:signed` still performs
 its local test, build, and asset-budget validation before publishing a release.

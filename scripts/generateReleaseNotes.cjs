@@ -205,6 +205,7 @@ const getLatestVersionTag = () => {
 
 const getCommitRows = (fromRef, toRef) => {
 	const range = fromRef ? `${fromRef}..${toRef}` : toRef;
+	const filesByCommit = getCommitFilesByRange(range);
 	const output = tryRun('git', [
 		'log',
 		range,
@@ -227,18 +228,41 @@ const getCommitRows = (fromRef, toRef) => {
 				authorEmail,
 				date,
 				subject: subject || '',
-				files: getCommitFiles(sha),
+				files: filesByCommit.get(sha) || [],
 			};
 		})
 		.filter((commit) => !isReleaseCommit(commit.subject));
 };
 
-const getCommitFiles = (sha) => {
-	const output = tryRun('git', ['show', '--pretty=format:', '--name-only', sha]);
-	return output
-		.split(/\r?\n/)
-		.map((file) => file.trim())
-		.filter(Boolean);
+const getCommitFilesByRange = (range) => {
+	const output = tryRun('git', [
+		'log',
+		range,
+		'--first-parent',
+		'--name-only',
+		'--pretty=format:%x1e%H',
+	]);
+	const filesByCommit = new Map();
+	let currentSha = '';
+
+	for (const rawLine of output.split(/\r?\n/)) {
+		const line = rawLine.trim();
+		if (!line) continue;
+
+		if (line.startsWith('\x1e')) {
+			currentSha = line.slice(1).trim();
+			if (currentSha && !filesByCommit.has(currentSha)) {
+				filesByCommit.set(currentSha, []);
+			}
+			continue;
+		}
+
+		if (currentSha) {
+			filesByCommit.get(currentSha).push(line);
+		}
+	}
+
+	return filesByCommit;
 };
 
 const isReleaseCommit = (subject) => {
@@ -257,8 +281,7 @@ const getPrNumberFromSubject = (subject) => {
 	const squashMatch = subject.match(/\(#(\d+)\)\s*$/);
 	if (squashMatch) return squashMatch[1];
 
-	const genericMatch = subject.match(/#(\d+)/);
-	return genericMatch ? genericMatch[1] : '';
+	return '';
 };
 
 const getRepoFlag = () => {

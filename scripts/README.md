@@ -202,6 +202,10 @@ Local audit:
 yarn adr:trackers:dry-run --json
 ```
 
+Non-dry-run syncs require `GITHUB_REPOSITORY` or `--repo`, plus `GITHUB_TOKEN`
+or `GH_TOKEN`. Missing write context is treated as an error so a real sync cannot
+silently fall back to a preview.
+
 ---
 
 ## Cleanup and Migrations

@@ -554,6 +554,15 @@ Local audit:
 yarn adr:trackers:dry-run --json
 ```
 
+Real syncs require GitHub write context:
+
+```bash
+GITHUB_REPOSITORY=owner/repo GITHUB_TOKEN=... yarn adr:trackers:sync
+```
+
+If `--dry-run` is not supplied, missing repository or token configuration should
+fail the command instead of producing a preview summary.
+
 ---
 
 # AI Documentation Rules
