@@ -1,6 +1,6 @@
 # ADR 0013: Frontend Asset Budget and Bundle Optimization
 
-Status: Accepted
+Status: Implemented
 Date: 2026-06-27
 Accepted: 2026-06-27
 Decision Source: Manual

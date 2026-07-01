@@ -1,0 +1,62 @@
+name: ADR Implementation Trackers
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'project-docs/ADR/**/*.md'
+  workflow_dispatch:
+    inputs:
+      scan_all:
+        description: 'Scan all ADR files instead of only changed files'
+        required: false
+        default: 'true'
+      dry_run:
+        description: 'Report actions without creating or commenting on issues'
+        required: false
+        default: 'true'
+
+jobs:
+  sync-trackers:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Sync ADR implementation trackers
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          BEFORE_SHA: ${{ github.event.before }}
+          AFTER_SHA: ${{ github.sha }}
+          SCAN_ALL: ${{ github.event.inputs.scan_all }}
+          DRY_RUN: ${{ github.event.inputs.dry_run }}
+        run: |
+          DRY_RUN_FLAG=""
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "$DRY_RUN" == "true" ]]; then
+            DRY_RUN_FLAG="--dry-run"
+          fi
+
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "$SCAN_ALL" == "true" ]]; then
+            node scripts/syncAdrImplementationTrackers.cjs --all $DRY_RUN_FLAG
+          elif [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "Manual ADR tracker runs require scan_all=true because no push diff is available."
+            exit 1
+          else
+            node scripts/syncAdrImplementationTrackers.cjs \
+              --changed-from "$BEFORE_SHA" \
+              --changed-to "$AFTER_SHA" \
+              $DRY_RUN_FLAG
+          fi

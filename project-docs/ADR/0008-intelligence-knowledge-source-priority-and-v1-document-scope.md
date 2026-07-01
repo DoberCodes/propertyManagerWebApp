@@ -1,6 +1,6 @@
 # ADR 0008: Intelligence Knowledge-Source Priority And V1 Document Scope
 
-Status: Accepted
+Status: Accepted - initial implementation
 Accepted: 2026-06-24
 Date: 2026-06-24
 Decision Source: Manual

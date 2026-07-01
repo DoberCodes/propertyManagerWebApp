@@ -1,303 +1,770 @@
+#!/usr/bin/env node
+
 /**
- * Generate Release Notes from Git Commits
+ * Generate Maintley release notes from the git range since the latest version tag.
  *
- * This script generates release notes by analyzing git commits since the last version tag.
- * It categorizes commits and suggests a new version number based on conventional commits.
+ * Defaults:
+ * - Previous release: latest semver-like tag matching v*
+ * - Target ref: HEAD
+ * - Source of truth: local git history
+ * - PR enrichment: optional GitHub CLI lookup when PR numbers are found
  *
- * Usage: node scripts/generateReleaseNotes.cjs [currentVersion]
- * Example: node scripts/generateReleaseNotes.cjs 1.0.0
+ * Usage:
+ *   node scripts/generateReleaseNotes.cjs
+ *   node scripts/generateReleaseNotes.cjs --json --output RELEASE_NOTES.txt --engineering-output tmp/release-notes.engineering.md --metadata-output tmp/release-notes.json
+ *   node scripts/generateReleaseNotes.cjs --from v2.7.16 --to HEAD --bump patch
  */
 
-require('dotenv').config();
-
-const { Octokit } = require('@octokit/rest');
 const fs = require('fs');
 const path = require('path');
-const packageJson = require(path.resolve('./package.json'));
+const { execFileSync } = require('child_process');
 
-const octokit = new Octokit({
-	auth: process.env.GITHUB_TOKEN, // Ensure you have a GitHub token set in your environment variables
-});
+const ENGINEERING_CATEGORY_ORDER = [
+	'breaking',
+	'highlights',
+	'fixes',
+	'backend',
+	'android',
+	'docs',
+	'maintenance',
+];
 
-const [owner, repo] = (
-	process.env.GITHUB_REPOSITORY || 'DoberFamilyVentures/propertyManagerWebApp'
-).split('/');
+const ENGINEERING_CATEGORY_TITLES = {
+	breaking: 'Breaking Changes',
+	highlights: 'Highlights',
+	fixes: 'Fixes',
+	backend: 'Backend, Rules, and Billing',
+	android: 'Android',
+	docs: 'Docs',
+	maintenance: 'Maintenance',
+};
 
-async function getCommitsFromPullRequests(latestTagDate) {
-	try {
-		const { data: pullRequests } = await octokit.pulls.list({
-			owner,
-			repo,
-			state: 'closed',
-			per_page: 100,
-		});
+const CUSTOMER_CATEGORY_ORDER = ['whatsNew', 'improvements', 'fixes'];
 
-		return pullRequests
-			.filter((pr) => pr.merged_at !== null) // Only merged PRs
-			.filter((pr) =>
-				latestTagDate ? new Date(pr.merged_at) > latestTagDate : true,
-			)
-			.map((pr) => ({
-				sha: pr.merge_commit_sha,
-				message: pr.title, // Use PR title as the commit message
-				author: pr.user.login,
-				date: pr.merged_at,
-			}));
-	} catch (error) {
-		console.error('Error fetching pull requests:', error);
-		return [];
-	}
-}
+const CUSTOMER_CATEGORY_TITLES = {
+	whatsNew: "What's New",
+	improvements: 'Improvements',
+	fixes: 'Fixes',
+};
 
-async function getLatestTagDate() {
-	// Fetch the latest release tag
-	const { data: releases } = await octokit.repos.listTags({
-		owner,
-		repo,
-		per_page: 1,
-	});
+const BUMP_ORDER = {
+	none: 0,
+	patch: 1,
+	minor: 2,
+	major: 3,
+};
 
-	if (releases.length === 0) {
-		console.error('No tags found in the repository.');
-		return null;
-	}
+const parseArgs = (argv) => {
+	const options = {
+		from: '',
+		to: 'HEAD',
+		output: '',
+		customerOutput: '',
+		engineeringOutput: '',
+		metadataOutput: '',
+		version: '',
+		bump: '',
+		json: false,
+		dryRun: false,
+		allowEmpty: false,
+	};
 
-	const latestTag = releases[0].name;
-
-	// Fetch the commit associated with the latest tag
-	const { data: tagCommit } = await octokit.repos.getCommit({
-		owner,
-		repo,
-		ref: latestTag,
-	});
-
-	return new Date(tagCommit.commit.author.date);
-}
-
-async function calculateNextVersion(currentVersion, commits) {
-	const [major, minor, patch] = currentVersion.split('.').map(Number);
-	let newMajor = major;
-	let newMinor = minor;
-	let newPatch = patch;
-
-
-	       // Determine the highest level of change in the commits
-	       const hasBreakingChange = commits.some((commit) =>
-		       /breaking:/i.test(commit.message)
-	       );
-	       const hasFeature = commits.some((commit) =>
-		       commit.message.toLowerCase().startsWith('feature:') || commit.message.toLowerCase().startsWith('feat:')
-	       );
-	       const hasFix = commits.some((commit) =>
-		       commit.message.toLowerCase().startsWith('fix:')
-	       );
-
-	       if (hasBreakingChange) {
-		       newMajor += 1;
-		       newMinor = 0; // Reset minor and patch when major is incremented
-		       newPatch = 0;
-	       } else if (hasFeature) {
-		       newMinor += 1;
-		       newPatch = 0; // Reset patch when minor is incremented
-	       } else if (hasFix) {
-		       newPatch += 1;
-	       }
-
-	return `${newMajor}.${newMinor}.${newPatch}`;
-}
-
-async function getCommitsSinceLastTag(latestTagDate) {
-	try {
-		if (!latestTagDate) {
-			return [];
-		}
-
-		// Fetch all commits since the latest tag using pagination
-		let page = 1;
-		let allCommits = [];
-		let keepFetching = true;
-		while (keepFetching) {
-			const { data: commits } = await octokit.repos.listCommits({
-				owner,
-				repo,
-				per_page: 100,
-				page,
-			});
-			if (commits.length === 0) {
-				keepFetching = false;
-			} else {
-				allCommits = allCommits.concat(commits);
-				page++;
+	for (let index = 0; index < argv.length; index += 1) {
+		const arg = argv[index];
+		const readValue = () => {
+			const value = argv[index + 1];
+			if (!value || value.startsWith('--')) {
+				throw new Error(`Missing value for ${arg}`);
 			}
+			index += 1;
+			return value;
+		};
+
+		if (arg === '--from') options.from = readValue();
+		else if (arg === '--to') options.to = readValue();
+		else if (arg === '--output') options.output = readValue();
+		else if (arg === '--customer-output') options.customerOutput = readValue();
+		else if (arg === '--engineering-output') options.engineeringOutput = readValue();
+		else if (arg === '--metadata-output') options.metadataOutput = readValue();
+		else if (arg === '--version') options.version = readValue();
+		else if (arg === '--bump') options.bump = readValue();
+		else if (arg === '--json') options.json = true;
+		else if (arg === '--dry-run') options.dryRun = true;
+		else if (arg === '--allow-empty') options.allowEmpty = true;
+		else if (arg === '--help' || arg === '-h') {
+			printHelp();
+			process.exit(0);
+		} else {
+			throw new Error(`Unknown argument: ${arg}`);
 		}
-
-		const filteredCommits = allCommits
-			.map((commit) => ({
-				sha: commit.sha,
-				message: commit.commit.message,
-				author: commit.commit.author.name,
-				date: commit.commit.author.date,
-			}))
-			.filter((commit) => new Date(commit.date) > latestTagDate);
-
-		// Filter out `release:` commits
-		const finalCommits = filteredCommits.filter(
-			(commit) => !commit.message.toLowerCase().startsWith('release:'),
-		);
-
-		// Log filtered commits for debugging
-		console.log('Filtered Commits:', finalCommits);
-
-		return finalCommits;
-	} catch (error) {
-		console.error('Error fetching commits:', error);
-		return [];
 	}
-}
 
-async function generateReleaseNotes() {
-	const latestTagDate = await getLatestTagDate();
-	const [commits, prs] = await Promise.all([
-		getCommitsSinceLastTag(latestTagDate),
-		getCommitsFromPullRequests(latestTagDate),
+	if (options.bump && !Object.prototype.hasOwnProperty.call(BUMP_ORDER, options.bump)) {
+		throw new Error('--bump must be one of: major, minor, patch, none');
+	}
+
+	return options;
+};
+
+const log = (message) => {
+	process.stderr.write(`${message}\n`);
+};
+
+const printHelp = () => {
+	process.stdout.write(`Generate Maintley release notes.
+
+Options:
+  --from <tag>              Start tag/ref. Defaults to latest v* tag.
+  --to <ref>                End ref. Defaults to HEAD.
+  --output <file>           Write customer-facing release notes markdown to a file.
+  --customer-output <file>  Write customer-facing release notes markdown to a file.
+  --engineering-output <file>
+                            Write engineering release notes markdown to a file.
+  --metadata-output <file>  Write release metadata JSON to a file.
+  --version <version>       Force output version.
+  --bump <type>             Force bump: major, minor, patch, none.
+  --json                    Print metadata JSON to stdout.
+  --dry-run                 Do not write output files.
+  --allow-empty             Produce empty release notes instead of failing.
+`);
+};
+
+const run = (command, args, options = {}) =>
+	{
+		const commandArgs =
+			command === 'git'
+				? ['-c', `safe.directory=${process.cwd().replace(/\\/g, '/')}`, ...args]
+				: args;
+		return execFileSync(command, commandArgs, {
+			encoding: 'utf8',
+			stdio: ['ignore', 'pipe', options.allowFailure ? 'pipe' : 'inherit'],
+			...options,
+		}).trim();
+	};
+
+const tryRun = (command, args) => {
+	try {
+		return run(command, args, { allowFailure: true });
+	} catch (_error) {
+		return '';
+	}
+};
+
+const ensureGitRepo = () => {
+	const insideRepo = tryRun('git', ['rev-parse', '--is-inside-work-tree']);
+	if (insideRepo !== 'true') {
+		throw new Error('Release notes must be generated from inside a git repository.');
+	}
+};
+
+const readPackageVersion = () => {
+	const packagePath = path.resolve(process.cwd(), 'package.json');
+	const packageJson = JSON.parse(fs.readFileSync(packagePath, 'utf8'));
+	return String(packageJson.version || '0.0.0');
+};
+
+const parseVersion = (version) => {
+	const match = String(version || '').trim().match(/^v?(\d+)\.(\d+)\.(\d+)/);
+	if (!match) {
+		throw new Error(`Invalid semver version: ${version}`);
+	}
+	return {
+		major: Number(match[1]),
+		minor: Number(match[2]),
+		patch: Number(match[3]),
+	};
+};
+
+const formatVersion = ({ major, minor, patch }) => `${major}.${minor}.${patch}`;
+
+const bumpVersion = (currentVersion, bump) => {
+	const parsed = parseVersion(currentVersion);
+	if (bump === 'major') {
+		return formatVersion({ major: parsed.major + 1, minor: 0, patch: 0 });
+	}
+	if (bump === 'minor') {
+		return formatVersion({ major: parsed.major, minor: parsed.minor + 1, patch: 0 });
+	}
+	if (bump === 'patch') {
+		return formatVersion({
+			major: parsed.major,
+			minor: parsed.minor,
+			patch: parsed.patch + 1,
+		});
+	}
+	return formatVersion(parsed);
+};
+
+const getLatestVersionTag = () => {
+	const tags = tryRun('git', ['tag', '--list', 'v[0-9]*', '--sort=-v:refname'])
+		.split(/\r?\n/)
+		.map((tag) => tag.trim())
+		.filter(Boolean);
+	return tags[0] || '';
+};
+
+const getCommitRows = (fromRef, toRef) => {
+	const range = fromRef ? `${fromRef}..${toRef}` : toRef;
+	const output = tryRun('git', [
+		'log',
+		range,
+		'--first-parent',
+		'--pretty=format:%H%x1f%P%x1f%an%x1f%ae%x1f%aI%x1f%s%x1e',
 	]);
 
-	const combinedCommits = [...commits, ...prs]
-		.filter(
-			(commit) =>
-				commit.message && !commit.message.toLowerCase().startsWith('release:'),
-		)
-		.reduce((acc, commit) => {
-			const key = commit.sha || `${commit.message}-${commit.date}`;
-			if (!acc.has(key)) {
-				acc.set(key, commit);
-			}
-			return acc;
-		}, new Map())
-		.values();
+	if (!output) return [];
 
-	const commitsList = Array.from(combinedCommits).sort(
-		(a, b) => new Date(a.date) - new Date(b.date),
+	return output
+		.split('\x1e')
+		.map((row) => row.trim())
+		.filter(Boolean)
+		.map((row) => {
+			const [sha, parents, authorName, authorEmail, date, subject] = row.split('\x1f');
+			return {
+				sha,
+				parents: parents ? parents.split(' ').filter(Boolean) : [],
+				authorName,
+				authorEmail,
+				date,
+				subject: subject || '',
+				files: getCommitFiles(sha),
+			};
+		})
+		.filter((commit) => !isReleaseCommit(commit.subject));
+};
+
+const getCommitFiles = (sha) => {
+	const output = tryRun('git', ['show', '--pretty=format:', '--name-only', sha]);
+	return output
+		.split(/\r?\n/)
+		.map((file) => file.trim())
+		.filter(Boolean);
+};
+
+const isReleaseCommit = (subject) => {
+	const normalized = String(subject || '').trim().toLowerCase();
+	return (
+		normalized.startsWith('release:') ||
+		normalized.startsWith('chore(release):') ||
+		normalized.startsWith('chore: release')
 	);
+};
 
-	if (commitsList.length === 0) {
-		console.log('No commits found since the last tag.');
-		return;
+const getPrNumberFromSubject = (subject) => {
+	const mergeMatch = subject.match(/merge pull request #(\d+)/i);
+	if (mergeMatch) return mergeMatch[1];
+
+	const squashMatch = subject.match(/\(#(\d+)\)\s*$/);
+	if (squashMatch) return squashMatch[1];
+
+	const genericMatch = subject.match(/#(\d+)/);
+	return genericMatch ? genericMatch[1] : '';
+};
+
+const getRepoFlag = () => {
+	const envRepo = String(process.env.GITHUB_REPOSITORY || '').trim();
+	if (envRepo) return ['--repo', envRepo];
+
+	const ghRepo = tryRun('gh', ['repo', 'view', '--json', 'nameWithOwner', '-q', '.nameWithOwner']);
+	return ghRepo ? ['--repo', ghRepo] : [];
+};
+
+const fetchPr = (number) => {
+	const repoFlag = getRepoFlag();
+	const output = tryRun('gh', [
+		'pr',
+		'view',
+		String(number),
+		'--json',
+		'number,title,body,labels,author,mergedAt,url,baseRefName,headRefName',
+		...repoFlag,
+	]);
+	if (!output) return null;
+
+	try {
+		return JSON.parse(output);
+	} catch (_error) {
+		return null;
+	}
+};
+
+const buildEntries = (commits) => {
+	const prEntries = new Map();
+	const directEntries = [];
+	const warnings = [];
+
+	for (const commit of commits) {
+		const prNumber = getPrNumberFromSubject(commit.subject);
+		if (!prNumber) {
+			directEntries.push(buildDirectEntry(commit));
+			warnings.push(`Direct commit without PR detected: ${commit.sha.slice(0, 7)} ${commit.subject}`);
+			continue;
+		}
+
+		if (prEntries.has(prNumber)) {
+			prEntries.get(prNumber).commits.push(commit);
+			continue;
+		}
+
+		const pr = fetchPr(prNumber);
+		const entry = pr ? buildPrEntry(pr, commit) : buildPrFallbackEntry(prNumber, commit);
+		entry.commits = [commit];
+		prEntries.set(prNumber, entry);
 	}
 
-	// Calculate the next version
-	const nextVersion = await calculateNextVersion(
-		packageJson.version,
-		commitsList,
-	);
+	return {
+		entries: [...prEntries.values(), ...directEntries].sort(
+			(a, b) => new Date(a.date) - new Date(b.date),
+		),
+		warnings,
+	};
+};
 
-	// Categorize commits
-	const features = [];
-	const fixes = [];
-	const chores = [];
-
-	commitsList.forEach((commit) => {
-		if (commit.message.toLowerCase().startsWith('feature:')) {
-			features.push(commit);
-		} else if (commit.message.toLowerCase().startsWith('fix:')) {
-			fixes.push(commit);
-		} else {
-			chores.push(commit);
-		}
+const buildPrEntry = (pr, commit) => {
+	const labels = Array.isArray(pr.labels)
+		? pr.labels.map((label) => String(label.name || '').trim().toLowerCase()).filter(Boolean)
+		: [];
+	const files = commit.files || [];
+	const rawTitle = pr.title || commit.subject;
+	const title = cleanTitle(rawTitle);
+	const category = categorize({ title: rawTitle, labels, files, body: pr.body || '' });
+	const customerCategory = inferCustomerCategory({
+		title: rawTitle,
+		labels,
+		files,
+		body: pr.body || '',
+		engineeringCategory: category,
 	});
 
-	// Generate friendly release notes
-	const releaseNotes = formatReleaseNotes(commitsList, nextVersion);
+	return {
+		type: 'pr',
+		number: pr.number,
+		title,
+		body: pr.body || '',
+		labels,
+		author: pr.author?.login || commit.authorName,
+		date: pr.mergedAt || commit.date,
+		url: pr.url || '',
+		files,
+		category,
+		customerCategory,
+		customerSummary: toCustomerSummary({ title: rawTitle, body: pr.body || '' }),
+		bump: inferBump({ title: rawTitle, labels, body: pr.body || '' }),
+	};
+};
 
-	// Output JSON with version and notes
-	console.log('JSON Output:');
-	console.log(
-		JSON.stringify(
-			{
-				version: nextVersion,
-				notes: releaseNotes,
-			},
-			null,
-			2,
-		),
-	);
+const buildPrFallbackEntry = (number, commit) => {
+	const rawTitle = commit.subject.replace(/\s*\(#\d+\)\s*$/, '');
+	const title = cleanTitle(rawTitle);
+	const category = categorize({ title: rawTitle, labels: [], files: commit.files || [], body: '' });
+	const customerCategory = inferCustomerCategory({
+		title: rawTitle,
+		labels: [],
+		files: commit.files || [],
+		body: '',
+		engineeringCategory: category,
+	});
+	return {
+		type: 'pr',
+		number,
+		title,
+		body: '',
+		labels: [],
+		author: commit.authorName,
+		date: commit.date,
+		url: '',
+		files: commit.files || [],
+		category,
+		customerCategory,
+		customerSummary: toCustomerSummary({ title: rawTitle, body: '' }),
+		bump: inferBump({ title: rawTitle, labels: [], body: '' }),
+	};
+};
 
-	// Ensure the release notes are used in the GitHub release creation or other relevant steps
-}
+const buildDirectEntry = (commit) => {
+	const rawTitle = commit.subject;
+	const title = cleanTitle(rawTitle);
+	const category = categorize({ title: rawTitle, labels: [], files: commit.files || [], body: '' });
+	const customerCategory = inferCustomerCategory({
+		title: rawTitle,
+		labels: [],
+		files: commit.files || [],
+		body: '',
+		engineeringCategory: category,
+	});
+	return {
+		type: 'commit',
+		sha: commit.sha,
+		title,
+		body: '',
+		labels: [],
+		author: commit.authorName,
+		date: commit.date,
+		url: '',
+		files: commit.files || [],
+		category,
+		customerCategory,
+		customerSummary: toCustomerSummary({ title: rawTitle, body: '' }),
+		bump: inferBump({ title: rawTitle, labels: [], body: '' }),
+	};
+};
 
-function formatReleaseNotes(commits, version) {
-	const notes = [`🎉 **Release Notes for Version ${version}** 🎉\n`];
+const cleanTitle = (title) =>
+	String(title || '')
+		.replace(/^feat(?:\(.+?\))?:\s*/i, '')
+		.replace(/^feature(?:\(.+?\))?:\s*/i, '')
+		.replace(/^fix(?:\(.+?\))?:\s*/i, '')
+		.replace(/^docs(?:\(.+?\))?:\s*/i, '')
+		.replace(/^chore(?:\(.+?\))?:\s*/i, '')
+		.replace(/^refactor(?:\(.+?\))?:\s*/i, '')
+		.replace(/^build(?:\(.+?\))?:\s*/i, '')
+		.replace(/^ci(?:\(.+?\))?:\s*/i, '')
+		.replace(/^test(?:\(.+?\))?:\s*/i, '')
+		.trim();
 
-	// Breaking Changes
-	const breakingChanges = commits
-		.filter((commit) =>
-			commit.message.toLowerCase().includes('breaking change:'),
+const hasAny = (values, patterns) =>
+	values.some((value) => patterns.some((pattern) => pattern.test(value)));
+
+const hasLabel = (labels, patterns) => hasAny(labels, patterns);
+
+const extractReleaseNote = (body) => {
+	const lines = String(body || '').split(/\r?\n/);
+	const inlinePatterns = [
+		/^\s*(?:customer release note|release note|customer note|customer-facing summary|user-facing summary)\s*:\s*(.+)$/i,
+	];
+	for (const line of lines) {
+		for (const pattern of inlinePatterns) {
+			const match = line.match(pattern);
+			if (match?.[1]) return cleanReleaseNote(match[1]);
+		}
+	}
+
+	const headerPattern =
+		/^\s*#{1,6}\s*(?:customer release note|release note|customer note|customer-facing summary|user-facing summary)s?\s*$/i;
+	const nextHeaderPattern = /^\s*#{1,6}\s+\S+/;
+	const startIndex = lines.findIndex((line) => headerPattern.test(line));
+	if (startIndex === -1) return '';
+
+	const sectionLines = [];
+	for (let index = startIndex + 1; index < lines.length; index += 1) {
+		const line = lines[index];
+		if (nextHeaderPattern.test(line)) break;
+		if (!line.trim() && sectionLines.length === 0) continue;
+		sectionLines.push(line);
+	}
+
+	return cleanReleaseNote(sectionLines.join(' '));
+};
+
+const cleanReleaseNote = (value) =>
+	String(value || '')
+		.replace(/\s+/g, ' ')
+		.replace(/^[-*]\s+/, '')
+		.trim();
+
+const sentenceCase = (value) => {
+	const text = String(value || '').trim();
+	if (!text) return '';
+	return `${text.charAt(0).toUpperCase()}${text.slice(1)}`;
+};
+
+const toCustomerSummary = ({ title, body }) => {
+	const explicitNote = extractReleaseNote(body);
+	if (explicitNote) return explicitNote;
+
+	const cleaned = cleanTitle(title)
+		.replace(/\bADR\b/g, 'architecture decision')
+		.replace(/\bCI\b/g, 'release automation')
+		.replace(/\bPWA\b/g, 'installable web app')
+		.replace(/\bUI\b/g, 'screen')
+		.replace(/\bUX\b/g, 'experience');
+
+	return sentenceCase(cleaned);
+};
+
+const inferCustomerCategory = ({ title, labels, files, body, engineeringCategory }) => {
+	const text = `${title}\n${body || ''}`.toLowerCase();
+	const fileText = files.join('\n').toLowerCase();
+
+	if (
+		hasLabel(labels, [/no[- ]?release[- ]?note/, /internal/, /dependencies?/, /chore/]) ||
+		(/^chore(?:\(.+?\))?:/i.test(title) && !extractReleaseNote(body))
+	) {
+		return '';
+	}
+
+	if (engineeringCategory === 'breaking' || engineeringCategory === 'highlights') {
+		return 'whatsNew';
+	}
+
+	if (
+		engineeringCategory === 'fixes' ||
+		hasLabel(labels, [/bug/, /fix/]) ||
+		/^fix(?:\(.+?\))?:/i.test(title)
+	) {
+		return 'fixes';
+	}
+
+	if (
+		extractReleaseNote(body) ||
+		hasLabel(labels, [
+			/customer[- ]?facing/,
+			/release[- ]?note/,
+			/enhancement/,
+			/feature/,
+			/mobile/,
+			/android/,
+			/billing/,
+			/dashboard/,
+			/support/,
+			/notification/,
+		])
+	) {
+		return engineeringCategory === 'highlights' ? 'whatsNew' : 'improvements';
+	}
+
+	if (
+		engineeringCategory === 'android' ||
+		/\b(login|dashboard|task|property|document|profile|support|ticket|notification|billing|checkout|android|mobile|app)\b/.test(
+			text,
 		)
-		.map(
-			(commit) =>
-				`- ${commit.message
-					.replace(/^[Bb]reaking [Cc]hange:\s*/i, '')
-					.replace(/\s*\(.*?\)/g, '')
-					.trim()}`,
-		);
-
-	if (breakingChanges.length > 0) {
-		notes.push('\n## ⚠️ BREAKING CHANGES', ...breakingChanges);
+	) {
+		return 'improvements';
 	}
 
-	// Features
-	const features = commits
-		.filter((commit) => commit.message.toLowerCase().startsWith('feature:'))
-		.map(
-			(commit) =>
-				`- ${commit.message
-					.replace(/^[Ff]eature:\s*/i, '')
-					.replace(/\s*\(.*?\)/g, '')
-					.trim()}`,
-		);
-
-	if (features.length > 0) {
-		notes.push('\n## ✨ Features', ...features);
+	if (
+		engineeringCategory === 'docs' ||
+		engineeringCategory === 'maintenance' ||
+		/(^|\n|\/)(scripts|project-docs|\.github|README|package-lock|yarn\.lock)/i.test(fileText)
+	) {
+		return '';
 	}
 
-	// Bug Fixes
-	const bugFixes = commits
-		.filter((commit) => commit.message.toLowerCase().startsWith('fix:'))
-		.map(
-			(commit) =>
-				`- ${commit.message
-					.replace(/^[Ff]ix:\s*/i, '')
-					.replace(/\s*\(.*?\)/g, '')
-					.trim()}`,
-		);
+	return 'improvements';
+};
 
-	if (bugFixes.length > 0) {
-		notes.push('\n## 🐛 Bug Fixes', ...bugFixes);
+const categorize = ({ title, labels, files, body }) => {
+	const text = `${title}\n${body || ''}`.toLowerCase();
+	const labelText = labels.join(' ');
+	const fileText = files.join('\n').toLowerCase();
+
+	if (/breaking change|breaking:/i.test(text) || /\bbreaking\b/.test(labelText)) {
+		return 'breaking';
 	}
 
-	// Chores/Improvements
-	const chores = commits
-		.filter(
-			(commit) =>
-				commit.message.toLowerCase().startsWith('chore:') ||
-				(!commit.message.toLowerCase().startsWith('feature:') &&
-					!commit.message.toLowerCase().startsWith('fix:') &&
-					!commit.message.toLowerCase().startsWith('release:') &&
-					!commit.message.toLowerCase().includes('breaking change:')),
-		)
-		.map(
-			(commit) =>
-				`- ${commit.message
-					.replace(/^[Cc]hore:\s*/i, '')
-					.replace(/\s*\(.*?\)/g, '')
-					.trim()}`,
-		);
-
-	if (chores.length > 0) {
-		notes.push('\n## 🔧 Improvements & Maintenance', ...chores);
+	if (hasAny(labels, [/bug/, /fix/]) || /^fix(?:\(.+?\))?:/i.test(title)) {
+		return 'fixes';
 	}
 
-	return notes.join('\n');
+	if (
+		hasAny(labels, [/billing/, /backend/, /firebase/, /functions/, /rules/, /stripe/]) ||
+		/(^|\n|\/)(functions|firestore\.rules|firebase\.json)/.test(fileText) ||
+		/\b(stripe|billing|firestore|firebase|function|rules)\b/.test(text)
+	) {
+		return 'backend';
+	}
+
+	if (
+		hasAny(labels, [/android/, /mobile/, /capacitor/]) ||
+		/(^|\n|\/)(android|capacitor\.config)/.test(fileText) ||
+		/\b(android|apk|capacitor|mobile)\b/.test(text)
+	) {
+		return 'android';
+	}
+
+	if (
+		hasAny(labels, [/docs/, /documentation/]) ||
+		/(^|\n|\/)(project-docs|docs|README|AGENTS\.md)/i.test(fileText) ||
+		/^docs(?:\(.+?\))?:/i.test(title)
+	) {
+		return 'docs';
+	}
+
+	if (
+		hasAny(labels, [/feature/, /enhancement/, /highlight/]) ||
+		/^feat(?:\(.+?\))?:/i.test(title) ||
+		/^feature(?:\(.+?\))?:/i.test(title)
+	) {
+		return 'highlights';
+	}
+
+	return 'maintenance';
+};
+
+const inferBump = ({ title, labels, body }) => {
+	const text = `${title}\n${body || ''}`.toLowerCase();
+	if (/breaking change|breaking:/.test(text) || labels.includes('breaking')) {
+		return 'major';
+	}
+	if (
+		labels.some((label) => /feature|enhancement|highlight/.test(label)) ||
+		/^feat(?:\(.+?\))?:/i.test(title) ||
+		/^feature(?:\(.+?\))?:/i.test(title)
+	) {
+		return 'minor';
+	}
+	return 'patch';
+};
+
+const inferOverallBump = (entries) => {
+	let result = 'none';
+	for (const entry of entries) {
+		if (BUMP_ORDER[entry.bump] > BUMP_ORDER[result]) {
+			result = entry.bump;
+		}
+	}
+	return result;
+};
+
+const formatEntry = (entry) => {
+	const suffix =
+		entry.type === 'pr'
+			? ` (#${entry.number})`
+			: ` (${String(entry.sha || '').slice(0, 7)})`;
+	return `- ${entry.title}${suffix}`;
+};
+
+const formatCustomerEntry = (entry) => `- ${entry.customerSummary || entry.title}`;
+
+const formatCustomerReleaseNotes = ({ version, entries }) => {
+	const customerEntries = entries.filter((entry) => entry.customerCategory);
+	const lines = [`# Maintley v${version}`, '', 'Here is what improved in this release.', ''];
+
+	if (customerEntries.length === 0) {
+		lines.push(
+			'This release includes reliability, maintenance, and platform improvements for Maintley.',
+		);
+		lines.push('');
+		return `${lines.join('\n').trim()}\n`;
+	}
+
+	for (const category of CUSTOMER_CATEGORY_ORDER) {
+		const categoryEntries = customerEntries.filter(
+			(entry) => entry.customerCategory === category,
+		);
+		if (categoryEntries.length === 0) continue;
+		lines.push(`## ${CUSTOMER_CATEGORY_TITLES[category]}`);
+		lines.push(...categoryEntries.map(formatCustomerEntry));
+		lines.push('');
+	}
+
+	return `${lines.join('\n').trim()}\n`;
+};
+
+const formatEngineeringReleaseNotes = ({ version, previousTag, targetRef, entries }) => {
+	const lines = [`# Engineering Release Notes for v${version}`, ''];
+	if (previousTag) {
+		lines.push(`Changes since ${previousTag}.`, '');
+	} else {
+		lines.push(`Changes through ${targetRef}.`, '');
+	}
+
+	for (const category of ENGINEERING_CATEGORY_ORDER) {
+		const categoryEntries = entries.filter((entry) => entry.category === category);
+		if (categoryEntries.length === 0) continue;
+		lines.push(`## ${ENGINEERING_CATEGORY_TITLES[category]}`);
+		lines.push(...categoryEntries.map(formatEntry));
+		lines.push('');
+	}
+
+	return `${lines.join('\n').trim()}\n`;
+};
+
+const ensureParentDir = (filePath) => {
+	const dir = path.dirname(path.resolve(filePath));
+	fs.mkdirSync(dir, { recursive: true });
+};
+
+const main = () => {
+	const options = parseArgs(process.argv.slice(2));
+	ensureGitRepo();
+
+	const packageVersion = readPackageVersion();
+	const previousTag = options.from || getLatestVersionTag();
+	const targetRef = options.to || 'HEAD';
+	const commits = getCommitRows(previousTag, targetRef);
+	const range = previousTag ? `${previousTag}..${targetRef}` : targetRef;
+
+	if (commits.length === 0 && !options.allowEmpty) {
+		throw new Error(`No releaseable commits found for range ${range}.`);
+	}
+
+	const { entries, warnings } = buildEntries(commits);
+	const inferredBump = inferOverallBump(entries);
+	const selectedBump = options.bump || inferredBump || 'patch';
+	const version = options.version || bumpVersion(packageVersion, selectedBump);
+	const customerNotes = formatCustomerReleaseNotes({
+		version,
+		entries,
+	});
+	const engineeringNotes = formatEngineeringReleaseNotes({
+		version,
+		previousTag,
+		targetRef,
+		entries,
+	});
+
+	const metadata = {
+		version,
+		notes: customerNotes,
+		customerNotes,
+		engineeringNotes,
+		previousTag: previousTag || null,
+		targetRef,
+		range,
+		packageVersion,
+		bump: selectedBump,
+		inferredBump,
+		counts: {
+			commits: commits.length,
+			entries: entries.length,
+			customerEntries: entries.filter((entry) => entry.customerCategory).length,
+			pullRequests: entries.filter((entry) => entry.type === 'pr').length,
+			directCommits: entries.filter((entry) => entry.type === 'commit').length,
+		},
+		warnings,
+	};
+
+	if (warnings.length > 0) {
+		for (const warning of warnings) {
+			log(`Warning: ${warning}`);
+		}
+	}
+
+	if (options.output && !options.dryRun) {
+		ensureParentDir(options.output);
+		fs.writeFileSync(options.output, customerNotes, 'utf8');
+		log(`Wrote customer release notes to ${options.output}`);
+	}
+
+	if (options.customerOutput && !options.dryRun) {
+		ensureParentDir(options.customerOutput);
+		fs.writeFileSync(options.customerOutput, customerNotes, 'utf8');
+		log(`Wrote customer release notes to ${options.customerOutput}`);
+	}
+
+	if (options.engineeringOutput && !options.dryRun) {
+		ensureParentDir(options.engineeringOutput);
+		fs.writeFileSync(options.engineeringOutput, engineeringNotes, 'utf8');
+		log(`Wrote engineering release notes to ${options.engineeringOutput}`);
+	}
+
+	if (options.metadataOutput && !options.dryRun) {
+		ensureParentDir(options.metadataOutput);
+		fs.writeFileSync(options.metadataOutput, `${JSON.stringify(metadata, null, 2)}\n`, 'utf8');
+		log(`Wrote release metadata to ${options.metadataOutput}`);
+	}
+
+	if (options.json) {
+		process.stdout.write(`${JSON.stringify(metadata, null, 2)}\n`);
+	} else {
+		process.stdout.write(customerNotes);
+	}
+};
+
+try {
+	main();
+} catch (error) {
+	process.stderr.write(`Release notes generation failed: ${error.message}\n`);
+	process.exit(1);
 }
-
-generateReleaseNotes();

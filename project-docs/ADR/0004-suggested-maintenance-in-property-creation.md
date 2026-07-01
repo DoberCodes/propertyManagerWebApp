@@ -1,6 +1,6 @@
 # ADR 0004: Suggested Maintenance in Property Creation
 
-Status: Accepted
+Status: Implemented
 Date: 2026-06-12
 Accepted: 2026-06-12
 Decision Source: Manual

@@ -1,0 +1,93 @@
+name: Release Notes
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  generate-release-notes:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Determine release note range
+        id: range
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            git fetch origin main --tags
+            FROM_REF="$(git merge-base origin/main HEAD)"
+            echo "from_ref=$FROM_REF" >> "$GITHUB_OUTPUT"
+            echo "range_label=PR changes against main" >> "$GITHUB_OUTPUT"
+          else
+            git fetch --tags
+            echo "from_ref=" >> "$GITHUB_OUTPUT"
+            echo "range_label=Changes since latest v* tag" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Generate release notes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        shell: bash
+        run: |
+          mkdir -p tmp
+
+          FROM_ARGS=()
+          if [[ -n "${{ steps.range.outputs.from_ref }}" ]]; then
+            FROM_ARGS=(--from "${{ steps.range.outputs.from_ref }}")
+          fi
+
+          node scripts/generateReleaseNotes.cjs \
+            "${FROM_ARGS[@]}" \
+            --to HEAD \
+            --allow-empty \
+            --output tmp/release-notes.customer.md \
+            --engineering-output tmp/release-notes.engineering.md \
+            --metadata-output tmp/release-notes.json \
+            --json > tmp/release-notes.stdout.json
+
+      - name: Write job summary
+        shell: bash
+        run: |
+          {
+            echo "## Release Notes Preview"
+            echo ""
+            echo "**Range:** ${{ steps.range.outputs.range_label }}"
+            echo ""
+            echo "### Customer Notes"
+            echo ""
+            cat tmp/release-notes.customer.md
+            echo ""
+            echo "### Engineering Notes"
+            echo ""
+            cat tmp/release-notes.engineering.md
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload release note artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-notes-${{ github.sha }}
+          path: |
+            tmp/release-notes.customer.md
+            tmp/release-notes.engineering.md
+            tmp/release-notes.json
