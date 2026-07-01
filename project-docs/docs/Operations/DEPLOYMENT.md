@@ -612,6 +612,11 @@ The workflow uses `scripts/prepareReleaseVersion.cjs` and
 feature or breaking change later lands on `main`, the same `release/next` PR is
 updated with the higher required bump.
 
+`release/next` is treated as a version-only administrative PR. Release note
+previews and E2E tests are skipped for that PR, while Build Check runs only
+`yarn version:validate`. After the release PR merges to `main`, Release Prep
+does not open another release PR from the `release: prepare v...` commit.
+
 The current app version used by update notifications is derived from
 `package.json` through:
 

@@ -514,6 +514,9 @@ Playwright provides workflow-level confidence.
 GitHub Actions:
 
 * PRs run `E2E Tests / smoke` against Chromium only.
+* The `release/next` PR skips E2E and runs version validation instead of the
+  full Build Check test/build jobs because it only updates release version
+  files.
 * Manual workflow dispatch can run `smoke`, `workflows`, or `full-safe`.
 * E2E requires dedicated `E2E_REACT_APP_FIREBASE_*` secrets and
   `E2E_DEMO_EMAIL` / `E2E_DEMO_PASSWORD`.

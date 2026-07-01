@@ -60,4 +60,3 @@ jobs:
           yarn gh-pages
           -d build
           -r https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git
-          -u "github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>"

@@ -4,10 +4,15 @@ on:
   push:
     branches:
       - main
+    paths-ignore:
+      - package.json
+      - client/package.json
+      - android/app/build.gradle
   workflow_dispatch:
 
 jobs:
   prepare-release-pr:
+    if: github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'release: prepare v')
     runs-on: ubuntu-latest
     permissions:
       contents: write
