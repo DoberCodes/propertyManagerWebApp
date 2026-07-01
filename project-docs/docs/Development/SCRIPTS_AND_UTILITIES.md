@@ -350,6 +350,32 @@ Low
 ## Playwright End-to-End Testing
 
 ```bash
+yarn e2e:smoke:chrome
+```
+
+Run the non-mutating Chromium smoke suite used by PR checks.
+
+---
+
+```bash
+yarn e2e:workflows:chrome
+```
+
+Run Chromium workflow coverage that uses the demo account and may create
+properties or tasks.
+
+---
+
+```bash
+yarn e2e:full-safe
+```
+
+Run non-Stripe, non-destructive workflow coverage across configured browser
+projects.
+
+---
+
+```bash
 yarn e2e
 ```
 
@@ -491,7 +517,10 @@ Preview changes.
 yarn cleanup:test-data:full
 ```
 
-Remove test users and demo artifacts.
+Remove test users and demo artifacts. This script can use
+`FIREBASE_SERVICE_ACCOUNT_JSON`, `FIREBASE_SERVICE_ACCOUNT_PATH`, or a root
+`serviceAccountKey.json`. When `E2E_FIREBASE_PROJECT_ID` is set, cleanup refuses
+to run if the service account belongs to a different Firebase project.
 
 Risk:
 
