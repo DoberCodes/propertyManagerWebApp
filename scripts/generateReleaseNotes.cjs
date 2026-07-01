@@ -177,6 +177,18 @@ const parseVersion = (version) => {
 
 const formatVersion = ({ major, minor, patch }) => `${major}.${minor}.${patch}`;
 
+const compareVersions = (leftVersion, rightVersion) => {
+	const left = parseVersion(leftVersion);
+	const right = parseVersion(rightVersion);
+
+	for (const key of ['major', 'minor', 'patch']) {
+		if (left[key] > right[key]) return 1;
+		if (left[key] < right[key]) return -1;
+	}
+
+	return 0;
+};
+
 const bumpVersion = (currentVersion, bump) => {
 	const parsed = parseVersion(currentVersion);
 	if (bump === 'major') {
@@ -571,7 +583,11 @@ const categorize = ({ title, labels, files, body }) => {
 	const labelText = labels.join(' ');
 	const fileText = files.join('\n').toLowerCase();
 
-	if (/breaking change|breaking:/i.test(text) || /\bbreaking\b/.test(labelText)) {
+	if (
+		/breaking change|breaking:/i.test(text) ||
+		/^[a-z]+(?:\(.+?\))?!:/i.test(title) ||
+		/\bbreaking\b/.test(labelText)
+	) {
 		return 'breaking';
 	}
 
@@ -616,7 +632,11 @@ const categorize = ({ title, labels, files, body }) => {
 
 const inferBump = ({ title, labels, body }) => {
 	const text = `${title}\n${body || ''}`.toLowerCase();
-	if (/breaking change|breaking:/.test(text) || labels.includes('breaking')) {
+	if (
+		/breaking change|breaking:/.test(text) ||
+		/^[a-z]+(?:\(.+?\))?!:/i.test(title) ||
+		labels.some((label) => label === 'breaking' || label === 'breaking-change')
+	) {
 		return 'major';
 	}
 	if (
@@ -715,7 +735,22 @@ const main = () => {
 	const { entries, warnings } = buildEntries(commits);
 	const inferredBump = inferOverallBump(entries);
 	const selectedBump = options.bump || inferredBump || 'patch';
-	const version = options.version || bumpVersion(packageVersion, selectedBump);
+	const previousVersion = previousTag ? previousTag.replace(/^v/, '') : null;
+	const packageVersionIsAheadOfPreviousTag =
+		previousVersion && compareVersions(packageVersion, previousVersion) > 0;
+	const expectedVersionFromPreviousTag = previousVersion
+		? bumpVersion(previousVersion, selectedBump)
+		: bumpVersion(packageVersion, selectedBump);
+	const selectedAutomaticVersion =
+		packageVersionIsAheadOfPreviousTag &&
+		compareVersions(packageVersion, expectedVersionFromPreviousTag) > 0
+			? packageVersion
+			: expectedVersionFromPreviousTag;
+	const version =
+		options.version || selectedAutomaticVersion;
+	const packageVersionIsPrepared =
+		packageVersionIsAheadOfPreviousTag &&
+		compareVersions(version, packageVersion) === 0;
 	const customerNotes = formatCustomerReleaseNotes({
 		version,
 		entries,
@@ -736,6 +771,8 @@ const main = () => {
 		targetRef,
 		range,
 		packageVersion,
+		packageVersionIsPrepared,
+		expectedVersionFromPreviousTag,
 		bump: selectedBump,
 		inferredBump,
 		counts: {

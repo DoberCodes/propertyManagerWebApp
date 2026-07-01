@@ -1,0 +1,59 @@
+name: Deploy Web
+
+on:
+  workflow_run:
+    workflows:
+      - Build Check
+    types:
+      - completed
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy-web:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'yarn'
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Build web app
+        env:
+          CI: false
+          REACT_APP_FIREBASE_API_KEY: ${{ secrets.PROD_REACT_APP_FIREBASE_API_KEY }}
+          REACT_APP_FIREBASE_AUTH_DOMAIN: ${{ secrets.PROD_REACT_APP_FIREBASE_AUTH_DOMAIN }}
+          REACT_APP_FIREBASE_PROJECT_ID: ${{ secrets.PROD_REACT_APP_FIREBASE_PROJECT_ID }}
+          REACT_APP_FIREBASE_STORAGE_BUCKET: ${{ secrets.PROD_REACT_APP_FIREBASE_STORAGE_BUCKET }}
+          REACT_APP_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.PROD_REACT_APP_FIREBASE_MESSAGING_SENDER_ID }}
+          REACT_APP_FIREBASE_APP_ID: ${{ secrets.PROD_REACT_APP_FIREBASE_APP_ID }}
+          REACT_APP_FIREBASE_WEB_PUSH_VAPID_KEY: ${{ secrets.PROD_REACT_APP_FIREBASE_WEB_PUSH_VAPID_KEY }}
+          REACT_APP_STRIPE_PUBLIC_KEY: ${{ secrets.PROD_REACT_APP_STRIPE_PUBLIC_KEY }}
+        run: yarn build
+
+      - name: Check asset budgets
+        run: yarn check:asset-budgets
+
+      - name: Deploy to GitHub Pages
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: yarn deploy

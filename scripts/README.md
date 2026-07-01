@@ -80,6 +80,10 @@ yarn release:notes --json --output RELEASE_NOTES.txt --engineering-output tmp/re
 yarn adr:trackers:dry-run --json
 yarn version:init
 yarn version:update -- <version> "<notes>"
+yarn version:prepare -- --version 2.8.0
+yarn version:prepare -- --metadata tmp/release-notes.json
+yarn version:validate
+yarn version:publish -- --version 2.8.0 --release-notes-file RELEASE_NOTES.txt --apk-url <url>
 yarn version:sync
 ```
 
@@ -161,7 +165,10 @@ These scripts are actively used, referenced by package aliases, or remain part o
 
 * generateReleaseNotes.cjs
 * initAppVersion.cjs
+* prepareReleaseVersion.cjs
+* publishAppVersion.cjs
 * updateAppVersion.cjs
+* validateReleaseVersion.cjs
 * syncAppVersion.cjs
 
 `generateReleaseNotes.cjs` is the active PR-first release note generator used by
@@ -169,6 +176,11 @@ the Release Notes GitHub Action and local preview commands. It uses the local
 git range from the latest `v*` tag to `HEAD`, enriches merged PRs with GitHub
 CLI metadata when available, writes customer-facing release notes, and can write
 engineering notes plus structured metadata.
+
+When `package.json` is already ahead of the latest `v*` tag, the generator treats
+that package version as the prepared release version instead of bumping again.
+This allows the automated release-prep PR to own version file changes without
+causing a second bump after the PR is merged.
 
 The generator separates release communication into two layers:
 
@@ -183,6 +195,20 @@ artifact.
 `build:signed` does not call this generator directly. It downloads the
 successful `release-notes.yml` artifact for the current `main` commit and uses
 those customer notes as the GitHub Release body.
+
+`prepareReleaseVersion.cjs` updates the repo-controlled release version files:
+
+* `package.json`
+* `client/package.json`
+* `android/app/build.gradle`
+
+It increments Android `versionCode` when the Android `versionName` changes.
+`validateReleaseVersion.cjs` verifies those version surfaces are synchronized
+and that the client app version is derived from `package.json`.
+
+`publishAppVersion.cjs` publishes Firestore `appConfig/version` after a release
+APK is available. The GitHub Action uses this to avoid showing app update
+notifications before the downloadable APK exists.
 
 The legacy commit/date-based generator is archived at:
 
@@ -304,30 +330,29 @@ for execution guidance and archive policies.
 
 # Release Pipeline
 
-Maintley's primary release workflow is:
+Maintley's local signed APK command is:
 
 ```bash
 yarn build:signed
 ```
 
-The release pipeline performs:
+The release workflow uses split ownership:
 
-* Release note generation
-* Version updates
-* APK build and signing
-* Git commits
-* Git tag creation
-* GitHub Release creation/update
-* APK upload
-* Website deployment
+* Release Notes Action generates customer and engineering notes.
+* Release Prep Action opens or updates the `release/next` PR with the correct
+  version bump.
+* Deploy Web Action publishes the web app to GitHub Pages after `Build Check`
+  succeeds on `main`.
+* `build:signed` remains the local Android signing helper while signing secrets
+  stay local. It validates that version files were already prepared, builds the
+  signed APK, creates or updates the GitHub Release, and uploads
+  `app-release.apk`. It does not commit, push to `main`, deploy GitHub Pages, or
+  publish Firestore app-version state.
+* Publish App Version Action writes Firestore `appConfig/version` only after the
+  GitHub Release APK is reachable.
 
-This workflow depends on:
-
-```bash
-yarn deploy
-```
-
-Do not modify deploy behavior without reviewing the release pipeline.
+Do not modify release behavior without reviewing the release workflows and
+signed APK helper together.
 
 ---
 
@@ -352,7 +377,7 @@ Before running migrations, cleanup scripts, or destructive operations:
 * E2E scripts are intended to be cross-platform.
 * Deploy remains the primary deployment command.
 * deploy:gh-pages exists as an explicit alias.
-* build:signed is the primary release workflow.
+* build:signed is the local signed APK helper.
 * stripe:webhook:auto in functions/package.json is currently Unix-only.
 * Archived scripts should be treated as historical reference, not supported tooling.
 
