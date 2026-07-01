@@ -41,7 +41,8 @@ jobs:
         run: |
           VERSION="${INPUT_VERSION:-${RELEASE_TAG#v}}"
           TAG="v$VERSION"
-          APK_URL="https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG/app-release.apk"
+          APK_ASSET_NAME="maintley-$VERSION-release.apk"
+          APK_URL="https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG/$APK_ASSET_NAME"
           RELEASE_URL="https://github.com/$GITHUB_REPOSITORY/releases/tag/$TAG"
 
           mkdir -p tmp
@@ -54,7 +55,7 @@ jobs:
             fi
 
             if [[ "$attempt" == "12" ]]; then
-              echo "APK asset app-release.apk was not reachable for $TAG."
+              echo "APK asset $APK_ASSET_NAME was not reachable for $TAG."
               exit 1
             fi
 

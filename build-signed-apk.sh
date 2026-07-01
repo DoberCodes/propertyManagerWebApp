@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Build signed release APK script
-# This automates the process of building a signed APK for release
+# Build signed release Android artifacts script
+# This automates the process of building signed APK and AAB artifacts for release
 # 
 # Features:
 #   - Pre-flight checks (branch, git status, tools, auth)
@@ -9,8 +9,8 @@
 #   - Release note loading from the Release Notes GitHub Action
 #   - Automated tests
 #   - Dry-run mode for validation
-#   - Automated Gradle APK build (no Android Studio needed!)
-#   - GitHub Release creation with APK attachment
+#   - Automated Gradle APK and AAB build (no Android Studio needed!)
+#   - GitHub Release creation with APK and AAB attachments
 #   - Slack notifications (optional)
 #
 # Usage:
@@ -46,7 +46,9 @@ done
 SLACK_WEBHOOK=${SLACK_WEBHOOK:-""}  # Set SLACK_WEBHOOK env var for notifications
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APK_FILE="android/app/build/outputs/apk/release/app-release.apk"
-APK_ASSET_NAME="app-release.apk"
+AAB_FILE="android/app/build/outputs/bundle/release/app-release.aab"
+APK_ASSET_NAME=""
+AAB_ASSET_NAME=""
 RELEASE_NOTES_WORKFLOW="release-notes.yml"
 RELEASE_NOTES_ACTION_DIR="tmp/release-notes-action"
 CUSTOMER_RELEASE_NOTES_FILE="tmp/release-notes.customer.md"
@@ -83,6 +85,11 @@ print_info() {
 
 has_non_empty_file() {
   [[ -f "$1" ]] && grep -q '[^[:space:]]' "$1"
+}
+
+set_release_asset_names() {
+  APK_ASSET_NAME="maintley-${NEW_VERSION}-release.apk"
+  AAB_ASSET_NAME="maintley-${NEW_VERSION}-release.aab"
 }
 
 # Run gh command and auto-refresh auth on failure, then retry once
@@ -313,7 +320,12 @@ if [[ "$RELEASE_ONLY" == "--release-only" ]]; then
     print_error "$APK_FILE not found. Cannot create release."
     exit 1
   fi
+  if [[ ! -f "$AAB_FILE" ]]; then
+    print_error "$AAB_FILE not found. Cannot create release."
+    exit 1
+  fi
   NEW_VERSION=$(node -p "require('./package.json').version")
+  set_release_asset_names
   RELEASE_NOTES_FILE="RELEASE_NOTES.txt"
   RELEASE_NOTES=$(cat RELEASE_NOTES.txt)
   RELEASE_NOTES_SUMMARY=$(echo "$RELEASE_NOTES" | head -n 8)
@@ -387,6 +399,7 @@ RELEASE_NOTES=$(cat "$RELEASE_NOTES_FILE")
 echo "─────────────────────────────────────────"
 echo ""
 NEW_VERSION=$SUGGESTED_VERSION
+set_release_asset_names
 echo "Using version: $NEW_VERSION"
 echo "Using release notes from the Release Notes GitHub Action."
 echo ""
@@ -422,8 +435,10 @@ if [[ "$DRY_RUN" == "--dry-run" || "$DRY_RUN" == "-d" ]]; then
   echo "  - Run asset budget checks"
   echo "  - Sync Capacitor Android assets"
   echo "  - Build signed APK"
+  echo "  - Build signed AAB"
   echo "  - Create or update the GitHub Release"
   echo "  - Upload $APK_ASSET_NAME"
+  echo "  - Upload $AAB_ASSET_NAME"
   echo ""
   print_success "Dry run completed successfully. Ready for real release!"
   exit 0
@@ -515,15 +530,16 @@ else
 fi
 
 echo ""
-print_header "Step 4: Building Signed APK"
+print_header "Step 4: Building Signed Android Artifacts"
 
-# Build APK using Gradle (skip in dry-run)
+# Build APK and AAB using Gradle (skip in dry-run)
 if [[ "$DRY_RUN" == "--dry-run" ]]; then
-  print_success "APK build skipped (dry-run mode)"
+  print_success "Android artifact build skipped (dry-run mode)"
 else
-  print_info "Building APK with Gradle..."
+  print_info "Building APK and AAB with Gradle..."
   cd android
   if ! ./gradlew assembleRelease \
+    bundleRelease \
     -Pandroid.injected.signing.store.file="$(cd .. && pwd)/my-release-key.keystore" \
     -Pandroid.injected.signing.store.password="$KEYSTORE_PASSWORD" \
     -Pandroid.injected.signing.key.alias=my-key-alias \
@@ -536,29 +552,35 @@ else
   fi
   cd ..
 
-  # Verify APK was created
+  # Verify APK and AAB were created
   if [ ! -f "$APK_FILE" ]; then
     print_error "app-release.apk not found! Gradle build may have failed."
     send_slack_notification "APK build failed for v$NEW_VERSION" "error"
     exit 1
   fi
-  print_success "APK built successfully with Gradle"
+  if [ ! -f "$AAB_FILE" ]; then
+    print_error "app-release.aab not found! Gradle build may have failed."
+    send_slack_notification "AAB build failed for v$NEW_VERSION" "error"
+    exit 1
+  fi
+  print_success "APK and AAB built successfully with Gradle"
 fi
 
 echo ""
-print_header "Step 5: Preparing Release Asset"
+print_header "Step 5: Preparing Release Assets"
 ls -lh "$APK_FILE"
-print_success "Signed APK is ready for upload"
+ls -lh "$AAB_FILE"
+print_success "Signed APK and AAB are ready for upload"
 fi
 
 # ========== CREATE GITHUB RELEASE ==========
 echo ""
 print_header "Step 6: Creating GitHub Release"
-if [ -f "$RELEASE_NOTES_FILE" ] && [ -f "$APK_FILE" ]; then
+if [ -f "$RELEASE_NOTES_FILE" ] && [ -f "$APK_FILE" ] && [ -f "$AAB_FILE" ]; then
   RELEASE_EXISTS=false
   if run_gh_with_refresh gh release view "v$NEW_VERSION" --repo "$REPO_NAME" >/dev/null 2>&1; then
     RELEASE_EXISTS=true
-    print_warning "Release v$NEW_VERSION already exists. Updating with new APK."
+    print_warning "Release v$NEW_VERSION already exists. Updating with new Android artifacts."
   fi
 
   if [ "$RELEASE_EXISTS" = true ]; then
@@ -581,23 +603,24 @@ if [ -f "$RELEASE_NOTES_FILE" ] && [ -f "$APK_FILE" ]; then
     print_success "GitHub release v$NEW_VERSION created"
   fi
 
-  # Upload/replace APK (use --clobber to overwrite existing assets with same name)
-  # This handles both new releases and APK replacements in existing releases
+  # Upload/replace APK and AAB (use --clobber to overwrite existing assets with same name)
+  # This handles both new releases and artifact replacements in existing releases
   if run_gh_with_refresh gh release upload "v$NEW_VERSION" \
     "$APK_FILE#$APK_ASSET_NAME" \
+    "$AAB_FILE#$AAB_ASSET_NAME" \
     --repo "$REPO_NAME" --clobber; then
     if [ "$RELEASE_EXISTS" = true ]; then
-      print_success "APK replaced in existing GitHub release v$NEW_VERSION"
+      print_success "APK and AAB replaced in existing GitHub release v$NEW_VERSION"
     else
-      print_success "APK uploaded to new GitHub release v$NEW_VERSION"
+      print_success "APK and AAB uploaded to new GitHub release v$NEW_VERSION"
     fi
   else
-    print_warning "Could not upload APK to release. You can upload it manually from GitHub."
-    send_slack_notification "Failed to upload APK for v$NEW_VERSION" "warning"
+    print_warning "Could not upload APK/AAB to release. You can upload them manually from GitHub."
+    send_slack_notification "Failed to upload Android artifacts for v$NEW_VERSION" "warning"
     exit 1
   fi
 else
-  print_error "Missing release notes or APK file"
+  print_error "Missing release notes, APK, or AAB file"
   send_slack_notification "Missing files for GitHub release v$NEW_VERSION" "error"
   exit 1
 fi
@@ -608,6 +631,7 @@ print_header "Step 7: Verifying Release is Live"
 
 RELEASE_URL="https://github.com/$REPO_NAME/releases/tag/v$NEW_VERSION"
 APK_URL="https://github.com/$REPO_NAME/releases/download/v$NEW_VERSION/$APK_ASSET_NAME"
+AAB_URL="https://github.com/$REPO_NAME/releases/download/v$NEW_VERSION/$AAB_ASSET_NAME"
 
 print_info "Checking GitHub release..."
 if gh release view "v$NEW_VERSION" --json "url,assets,isPrerelease,isDraft" -q ".url" >/dev/null 2>&1; then
@@ -625,6 +649,13 @@ else
   print_warning "⚠ APK URL may not be immediately accessible (CDN propagation)"
 fi
 
+print_info "Checking AAB availability..."
+if curl -s -I "$AAB_URL" | grep -q "200\|302"; then
+  print_success "✓ AAB is accessible at release URL"
+else
+  print_warning "⚠ AAB URL may not be immediately accessible (CDN propagation)"
+fi
+
 
 # ========== FINAL SUMMARY ==========
 echo ""
@@ -635,10 +666,11 @@ print_success "Version prepared at $NEW_VERSION"
 print_success "React app built with relative paths for mobile"
 print_success "Capacitor synced with mobile-optimized assets"
 print_success "APK built and signed"
+print_success "AAB built and signed"
 if [ "$RELEASE_EXISTS" = true ]; then
-  print_success "APK replaced in existing GitHub release v$NEW_VERSION"
+  print_success "APK and AAB replaced in existing GitHub release v$NEW_VERSION"
 else
-  print_success "GitHub release v$NEW_VERSION created with APK"
+  print_success "GitHub release v$NEW_VERSION created with APK and AAB"
 fi
 echo ""
 echo "Release notes for v$NEW_VERSION:"
@@ -656,12 +688,15 @@ echo ""
 echo "APK available at:"
 echo "  $APK_URL"
 echo ""
+echo "AAB available at:"
+echo "  $AAB_URL"
+echo ""
 
 # Send success notification
 if [ "$RELEASE_EXISTS" = true ]; then
-  send_slack_notification "✅ Release v$NEW_VERSION updated! APK replaced." "success"
+  send_slack_notification "✅ Release v$NEW_VERSION updated! APK and AAB replaced." "success"
 else
-  send_slack_notification "✅ Release v$NEW_VERSION completed successfully! APK deployed." "success"
+  send_slack_notification "✅ Release v$NEW_VERSION completed successfully! APK and AAB deployed." "success"
 fi
 
 echo ""
