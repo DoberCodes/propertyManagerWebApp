@@ -510,6 +510,61 @@ Documentation should evolve alongside the platform.
 
 ---
 
+# ADR Implementation Trackers
+
+Accepted ADRs may require follow-up implementation work. Maintley uses a
+GitHub Action to create implementation tracker issues when ADR files in
+`project-docs/ADR/` are merged to `main`.
+
+The tracker action is intentionally conservative:
+
+* It only runs automatically for changed ADR files on `main`.
+* It creates issues only for accepted implementation statuses.
+* It skips proposed, implemented, superseded, and rejected ADRs.
+* It uses a hidden issue marker to avoid duplicate tracker issues.
+* It does not overwrite manually edited tracker issue bodies.
+* It comments on an existing tracker issue when the ADR status changes.
+
+Tracked statuses:
+
+```text
+Accepted
+Accepted - planned
+Accepted - in progress
+Accepted - initial implementation
+Accepted - phased implementation
+```
+
+Skipped statuses:
+
+```text
+Proposed
+Implemented
+Superseded
+Rejected
+```
+
+Implementation tracker issues should remain open until the ADR behavior is
+implemented, documentation reflects the implementation, validation is recorded,
+and the ADR status is updated.
+
+Local audit:
+
+```bash
+yarn adr:trackers:dry-run --json
+```
+
+Real syncs require GitHub write context:
+
+```bash
+GITHUB_REPOSITORY=owner/repo GITHUB_TOKEN=... yarn adr:trackers:sync
+```
+
+If `--dry-run` is not supplied, missing repository or token configuration should
+fail the command instead of producing a preview summary.
+
+---
+
 # AI Documentation Rules
 
 When generating documentation:

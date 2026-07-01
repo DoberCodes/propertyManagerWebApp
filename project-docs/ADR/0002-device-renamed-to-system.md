@@ -1,6 +1,6 @@
 # ADR 0002: Rename User-Facing Devices to Appliances and Systems
 
-Status: Accepted
+Status: Implemented
 Date: 2026-06-12
 Accepted: 2026-06-12
 Decision Source: Manual

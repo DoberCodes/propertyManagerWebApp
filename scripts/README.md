@@ -75,6 +75,9 @@ These should not be relied upon.
 ```bash
 yarn build:signed
 yarn release:notes
+yarn release:notes:preview
+yarn release:notes --json --output RELEASE_NOTES.txt --engineering-output tmp/release-notes.engineering.md --metadata-output tmp/release-notes.json
+yarn adr:trackers:dry-run --json
 yarn version:init
 yarn version:update -- <version> "<notes>"
 yarn version:sync
@@ -157,6 +160,51 @@ These scripts are actively used, referenced by package aliases, or remain part o
 * initAppVersion.cjs
 * updateAppVersion.cjs
 * syncAppVersion.cjs
+
+`generateReleaseNotes.cjs` is the active PR-first release note generator used by
+the Release Notes GitHub Action and local preview commands. It uses the local
+git range from the latest `v*` tag to `HEAD`, enriches merged PRs with GitHub
+CLI metadata when available, writes customer-facing release notes, and can write
+engineering notes plus structured metadata.
+
+The generator separates release communication into two layers:
+
+* Customer notes explain what improved in Maintley using plain product language.
+* Engineering notes preserve PR numbers, direct commits, categories, and
+  technical context for maintainers.
+
+`--output` writes customer-facing notes for backwards compatibility. Use
+`--engineering-output` when the technical notes should be retained as an
+artifact.
+
+`build:signed` does not call this generator directly. It downloads the
+successful `release-notes.yml` artifact for the current `main` commit and uses
+those customer notes as the GitHub Release body.
+
+The legacy commit/date-based generator is archived at:
+
+```text
+scripts/archive/generateReleaseNotes.legacy.cjs
+```
+
+## ADR Helpers
+
+* syncAdrImplementationTrackers.cjs
+
+`syncAdrImplementationTrackers.cjs` backs the GitHub Action that creates ADR
+implementation tracker issues after accepted ADRs are merged to `main`. It uses
+hidden issue markers to avoid duplicates and does not overwrite existing issue
+bodies after creation.
+
+Local audit:
+
+```bash
+yarn adr:trackers:dry-run --json
+```
+
+Non-dry-run syncs require `GITHUB_REPOSITORY` or `--repo`, plus `GITHUB_TOKEN`
+or `GH_TOKEN`. Missing write context is treated as an error so a real sync cannot
+silently fall back to a preview.
 
 ---
 

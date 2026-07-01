@@ -1,4 +1,9 @@
 0010 ADR: Maintley Intelligence History
+
+Status
+
+Implemented
+
 Context
 
 Maintley Intelligence currently produces recommendations based on a property's recorded information.

@@ -6,7 +6,7 @@
 # Features:
 #   - Pre-flight checks (branch, git status, tools, auth)
 #   - Auto-commits version changes
-#   - Changelog validation from commits
+#   - Release note loading from the Release Notes GitHub Action
 #   - Automated tests
 #   - Dry-run mode for validation
 #   - Automated Gradle APK build (no Android Studio needed!)
@@ -47,6 +47,8 @@ SLACK_WEBHOOK=${SLACK_WEBHOOK:-""}  # Set SLACK_WEBHOOK env var for notification
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APK_FILE="android/app/build/outputs/apk/release/app-release.apk"
 APK_ASSET_NAME="app-release.apk"
+RELEASE_NOTES_WORKFLOW="release-notes.yml"
+RELEASE_NOTES_ACTION_DIR="tmp/release-notes-action"
 
 # Color codes for output
 RED='\033[0;31m'
@@ -78,12 +80,16 @@ print_info() {
   echo -e "${BLUE}ℹ $1${NC}"
 }
 
+has_non_empty_file() {
+  [[ -f "$1" ]] && grep -q '[^[:space:]]' "$1"
+}
+
 # Run gh command and auto-refresh auth on failure, then retry once
 run_gh_with_refresh() {
   local output
   output=$(env -u GH_TOKEN -u GITHUB_TOKEN "$@" 2>&1) || {
     if echo "$output" | grep -qi "Resource not accessible by personal access token\|authentication\|login"; then
-      print_warning "GitHub auth issue detected. Refreshing credentials..."
+      print_warning "GitHub auth issue detected. Refreshing credentials..." >&2
       gh auth refresh -h github.com -s repo
       env -u GH_TOKEN -u GITHUB_TOKEN "$@"
       return $?
@@ -93,6 +99,120 @@ run_gh_with_refresh() {
   }
   echo "$output"
   return 0
+}
+
+get_successful_release_notes_run_id() {
+  local commit_sha=$1
+  local output
+
+  if ! output=$(run_gh_with_refresh gh run list \
+    --repo "$REPO_NAME" \
+    --workflow "$RELEASE_NOTES_WORKFLOW" \
+    --commit "$commit_sha" \
+    --limit 10 \
+    --json databaseId,status,conclusion \
+    --jq '.[] | select(.status == "completed" and .conclusion == "success") | .databaseId'); then
+    return 1
+  fi
+
+  printf '%s\n' "$output" \
+    | head -n 1 \
+    | tr -d '\r'
+}
+
+get_latest_release_notes_run_status() {
+  local commit_sha=$1
+  local output
+
+  if ! output=$(run_gh_with_refresh gh run list \
+    --repo "$REPO_NAME" \
+    --workflow "$RELEASE_NOTES_WORKFLOW" \
+    --commit "$commit_sha" \
+    --limit 1 \
+    --json status,conclusion,url \
+    --jq 'if length == 0 then "not found" else .[0].status + "/" + (.[0].conclusion // "pending") + " " + .[0].url end'); then
+    return 1
+  fi
+
+  printf '%s\n' "$output"
+}
+
+load_release_notes_from_action() {
+  local commit_sha
+  local run_id
+  local latest_status
+  local artifact_name
+  commit_sha=$(git rev-parse HEAD)
+  artifact_name="release-notes-$commit_sha"
+
+  print_info "Looking for Release Notes workflow artifact for $commit_sha"
+
+  for attempt in 1 2 3 4 5 6; do
+    if ! run_id=$(get_successful_release_notes_run_id "$commit_sha"); then
+      print_error "Could not query Release Notes workflow runs."
+      exit 1
+    fi
+
+    if [[ -n "$run_id" ]]; then
+      break
+    fi
+
+    if ! latest_status=$(get_latest_release_notes_run_status "$commit_sha"); then
+      print_error "Could not read the latest Release Notes workflow status."
+      exit 1
+    fi
+
+    if [[ "$latest_status" == "not found" ]]; then
+      print_warning "No Release Notes workflow run found for this commit."
+      break
+    fi
+
+    print_warning "Release Notes workflow is not ready yet ($latest_status). Waiting..."
+    sleep 10
+  done
+
+  if [[ -z "$run_id" ]]; then
+    print_error "No successful Release Notes workflow artifact found for this commit."
+    echo "Wait for the Release Notes action on main to finish, or rerun the workflow for this commit."
+    exit 1
+  fi
+
+  rm -rf "$RELEASE_NOTES_ACTION_DIR"
+  mkdir -p "$RELEASE_NOTES_ACTION_DIR" tmp
+
+  if ! run_gh_with_refresh gh run download "$run_id" \
+    --repo "$REPO_NAME" \
+    --name "$artifact_name" \
+    --dir "$RELEASE_NOTES_ACTION_DIR"; then
+    print_error "Failed to download release note artifact: $artifact_name"
+    exit 1
+  fi
+
+  if [[ ! -f "$RELEASE_NOTES_ACTION_DIR/release-notes.customer.md" ]]; then
+    print_error "Release note artifact is missing release-notes.customer.md"
+    exit 1
+  fi
+
+  if ! has_non_empty_file "$RELEASE_NOTES_ACTION_DIR/release-notes.customer.md"; then
+    print_error "Release note artifact has empty customer release notes."
+    exit 1
+  fi
+
+  if [[ ! -f "$RELEASE_NOTES_ACTION_DIR/release-notes.engineering.md" ]]; then
+    print_error "Release note artifact is missing release-notes.engineering.md"
+    exit 1
+  fi
+
+  if [[ ! -f "$RELEASE_NOTES_ACTION_DIR/release-notes.json" ]]; then
+    print_error "Release note artifact is missing release-notes.json"
+    exit 1
+  fi
+
+  cp "$RELEASE_NOTES_ACTION_DIR/release-notes.customer.md" RELEASE_NOTES.txt
+  cp "$RELEASE_NOTES_ACTION_DIR/release-notes.engineering.md" tmp/release-notes.engineering.md
+  cp "$RELEASE_NOTES_ACTION_DIR/release-notes.json" tmp/release-notes.json
+
+  print_success "Loaded release notes from Release Notes workflow run $run_id"
 }
 
 # Function to send Slack notification
@@ -161,7 +281,7 @@ if [[ -z $(gh auth token 2>/dev/null) ]]; then
 fi
 print_success "GitHub CLI authenticated"
 
-# Clear old release notes to ensure only new notes are generated
+# Clear old release notes before loading the action-generated artifact.
 echo "" > RELEASE_NOTES.txt
 
 # Check GitHub token scopes (needs repo for releases)
@@ -188,6 +308,10 @@ if [[ "$RELEASE_ONLY" == "--release-only" ]]; then
   print_warning "Release-only mode enabled. Skipping build and version generation."
   if [[ ! -f "RELEASE_NOTES.txt" ]]; then
     print_error "RELEASE_NOTES.txt not found. Cannot create release."
+    exit 1
+  fi
+  if ! has_non_empty_file "RELEASE_NOTES.txt"; then
+    print_error "RELEASE_NOTES.txt is empty. Cannot create release."
     exit 1
   fi
   if [[ ! -f "$APK_FILE" ]]; then
@@ -220,22 +344,22 @@ print_success "Tests completed"
 echo ""
 fi
 
-# ========== GENERATE RELEASE NOTES ==========
+# ========== LOAD RELEASE NOTES ==========
 if [[ "$goto_release_only" == "1" ]]; then
   goto_release_only=1
 else
-print_header "Step 0: Generating Release Notes"
+print_header "Step 0: Loading Release Notes"
 
-# Capture full output including debug info
-RELEASE_INFO=$(node scripts/generateReleaseNotes.cjs)
+mkdir -p tmp
+RELEASE_METADATA_FILE="tmp/release-notes.json"
+load_release_notes_from_action
 
-# Show only the JSON output part to avoid duplication
-echo "$RELEASE_INFO" | grep -A 20 "JSON Output:" | head -15
+node -e "const fs=require('fs'); const data=JSON.parse(fs.readFileSync(process.argv[1],'utf8')); console.log(JSON.stringify({version:data.version, range:data.range, bump:data.bump, counts:data.counts, warnings:data.warnings}, null, 2));" "$RELEASE_METADATA_FILE"
 echo ""
 
-# Extract suggested version and notes from JSON output
-SUGGESTED_VERSION=$(echo "$RELEASE_INFO" | grep -A 10 "JSON Output:" | grep '"version":' | sed 's/.*"version": "\(.*\)".*/\1/')
-AUTO_NOTES=$(echo "$RELEASE_INFO" | grep -A 10 "JSON Output:" | grep '"notes":' | sed 's/.*"notes": "\(.*\)".*/\1/')
+# Extract suggested version and notes from structured metadata.
+SUGGESTED_VERSION=$(node -e "const fs=require('fs'); const data=JSON.parse(fs.readFileSync(process.argv[1],'utf8')); process.stdout.write(data.version || '');" "$RELEASE_METADATA_FILE")
+AUTO_NOTES=$(cat RELEASE_NOTES.txt 2>/dev/null || true)
 
 # ========== CHANGELOG VALIDATION ==========
 if [[ -z "$SUGGESTED_VERSION" ]]; then
@@ -250,26 +374,24 @@ if [[ -z "$SUGGESTED_VERSION" ]]; then
 fi
 print_success "Version generated: $SUGGESTED_VERSION"
 
-if [[ -z "$AUTO_NOTES" ]]; then
-  if [[ -f "RELEASE_NOTES.txt" ]]; then
-    print_warning "No new release notes generated. Reusing existing RELEASE_NOTES.txt."
-    AUTO_NOTES=$(cat RELEASE_NOTES.txt)
-  else
-    print_error "No release notes generated. Check for commits since last tag."
-    exit 1
-  fi
+if ! has_non_empty_file "RELEASE_NOTES.txt"; then
+  print_error "No customer release notes loaded. Check the Release Notes workflow artifact."
+  exit 1
 fi
-print_success "Release notes generated ($(echo "$AUTO_NOTES" | wc -l) lines)"
+print_success "Release notes loaded ($(echo "$AUTO_NOTES" | wc -l) lines)"
 
-# Write release notes to RELEASE_NOTES.txt
-echo -e "$AUTO_NOTES" > RELEASE_NOTES.txt
 RELEASE_NOTES=$(cat RELEASE_NOTES.txt)
 
 echo "─────────────────────────────────────────"
 echo ""
 NEW_VERSION=$SUGGESTED_VERSION
 echo "Using version: $NEW_VERSION"
-echo "Using auto-generated release notes."
+echo "Using release notes from the Release Notes GitHub Action."
+echo ""
+echo "Customer release notes:"
+echo "-----------------------------------------"
+cat RELEASE_NOTES.txt
+echo "-----------------------------------------"
 
 # Capture a short summary for the final output
 RELEASE_NOTES_SUMMARY=$(echo "$RELEASE_NOTES" | head -n 8)
