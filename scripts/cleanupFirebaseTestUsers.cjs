@@ -19,12 +19,48 @@
  * - node scripts/cleanupFirebaseTestUsers.cjs --include-demo-artifacts
  */
 
+const fs = require('fs');
+const path = require('path');
 const admin = require('firebase-admin');
-const serviceAccount = require('../serviceAccountKey.json');
 
 const args = new Set(process.argv.slice(2));
 const isDryRun = args.has('--dry-run');
 const includeDemoArtifacts = args.has('--include-demo-artifacts');
+
+function loadServiceAccount() {
+	if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
+		try {
+			return JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
+		} catch (error) {
+			throw new Error(
+				`FIREBASE_SERVICE_ACCOUNT_JSON is not valid JSON: ${error.message}`,
+			);
+		}
+	}
+
+	const serviceAccountPath =
+		process.env.FIREBASE_SERVICE_ACCOUNT_PATH ||
+		path.resolve(__dirname, '../serviceAccountKey.json');
+	if (!fs.existsSync(serviceAccountPath)) {
+		throw new Error(
+			`Service account key not found at ${serviceAccountPath}. Set FIREBASE_SERVICE_ACCOUNT_JSON, FIREBASE_SERVICE_ACCOUNT_PATH, or place serviceAccountKey.json at the repo root.`,
+		);
+	}
+
+	return JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
+}
+
+const serviceAccount = loadServiceAccount();
+const expectedProjectId = process.env.E2E_FIREBASE_PROJECT_ID || '';
+if (
+	expectedProjectId &&
+	serviceAccount.project_id &&
+	serviceAccount.project_id !== expectedProjectId
+) {
+	throw new Error(
+		`Refusing to clean Firebase test data for project "${serviceAccount.project_id}" because E2E_FIREBASE_PROJECT_ID is "${expectedProjectId}".`,
+	);
+}
 
 admin.initializeApp({
 	credential: admin.credential.cert(serviceAccount),
