@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import styled from 'styled-components';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faChevronDown, faChevronUp } from '@fortawesome/free-solid-svg-icons';
 import { useCreateDeviceMutation } from '../../Redux/API/deviceSlice';
 import { useUpdatePropertyMutation } from '../../Redux/API/propertySlice';
 import { useCreateTaskMutation } from '../../Redux/API/taskSlice';
@@ -139,6 +141,8 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 	>(setupAssistant.items || {});
 	const [hasUserDraftChanges, setHasUserDraftChanges] = useState(false);
 	const [isCloseConfirmOpen, setIsCloseConfirmOpen] = useState(false);
+	const [isAssistantCardCollapsed, setIsAssistantCardCollapsed] =
+		useState(false);
 	const [isCompleteSummaryExpanded, setIsCompleteSummaryExpanded] =
 		useState(false);
 	const [selectedAreaId, setSelectedAreaId] = useState<PropertySetupAreaId>(
@@ -774,29 +778,91 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 
 	return (
 		<>
-			<AssistantCard $complete={progress.isComplete} $compact={progress.isComplete && !isCompleteSummaryExpanded}>
+			<AssistantCard
+				$complete={progress.isComplete}
+				$compact={
+					isAssistantCardCollapsed ||
+					(progress.isComplete && !isCompleteSummaryExpanded)
+				}>
 				<AssistantContent>
-					{progress.isComplete ? (
-						<>
-							<CompleteSummaryButton
-								type='button'
-								onClick={() =>
-									setIsCompleteSummaryExpanded((isExpanded) => !isExpanded)
-								}
-								aria-expanded={isCompleteSummaryExpanded}>
-								<span>Property setup complete</span>
-								<CompleteSummaryIcon>
-									{isCompleteSummaryExpanded ? '-' : '+'}
-								</CompleteSummaryIcon>
-							</CompleteSummaryButton>
-							{isCompleteSummaryExpanded && (
-								<ExpandedCompleteSummary>
+					<AssistantHeader>
+						<AssistantEyebrow>Property Setup Assistant</AssistantEyebrow>
+						<AssistantCollapseButton
+							type='button'
+							onClick={() =>
+								setIsAssistantCardCollapsed((isCollapsed) => !isCollapsed)
+							}
+							aria-label={
+								isAssistantCardCollapsed
+									? 'Expand Property Setup Assistant'
+									: 'Collapse Property Setup Assistant'
+							}
+							aria-expanded={!isAssistantCardCollapsed}
+							title={
+								isAssistantCardCollapsed
+									? 'Expand Property Setup Assistant'
+									: 'Collapse Property Setup Assistant'
+							}>
+							<FontAwesomeIcon
+								icon={isAssistantCardCollapsed ? faChevronDown : faChevronUp}
+								aria-hidden='true'
+							/>
+						</AssistantCollapseButton>
+					</AssistantHeader>
+					{!isAssistantCardCollapsed && (
+						<AssistantBody>
+							{progress.isComplete ? (
+								<>
+									<CompleteSummaryButton
+										type='button'
+										onClick={() =>
+											setIsCompleteSummaryExpanded(
+												(isExpanded) => !isExpanded,
+											)
+										}
+										aria-expanded={isCompleteSummaryExpanded}>
+										<span>Property setup complete</span>
+										<CompleteSummaryIcon>
+											{isCompleteSummaryExpanded ? '-' : '+'}
+										</CompleteSummaryIcon>
+									</CompleteSummaryButton>
+									{isCompleteSummaryExpanded && (
+										<ExpandedCompleteSummary>
+											<AssistantTitle>
+												Your property record has a strong starting point.
+											</AssistantTitle>
+											<AssistantText>
+												Maintley can now review this property record and highlight the few things worth your attention.
+											</AssistantText>
+											<ProgressText>
+												Progress: {progress.reviewed} of {progress.total}{' '}
+												reviewed
+											</ProgressText>
+											<ProgressTrack>
+												<ProgressFill
+													style={{
+														width: `${Math.round(
+															(progress.reviewed / progress.total) * 100,
+														)}%`,
+													}}
+												/>
+											</ProgressTrack>
+										</ExpandedCompleteSummary>
+									)}
+								</>
+							) : (
+								<>
 									<AssistantTitle>
-										Your property record has a strong starting point.
+										Build a more complete record of your property.
 									</AssistantTitle>
 									<AssistantText>
-										Maintley can now review this property record and highlight the few things worth your attention.
+										Discover systems, appliances, and maintenance opportunities you can review over time.
 									</AssistantText>
+									{hasDetectedUnsavedProgress && (
+										<AssistantText>
+											We found matching appliances already on this property. Review setup to save them into your setup progress and add any missing suggested tasks.
+										</AssistantText>
+									)}
 									<ProgressText>
 										Progress: {progress.reviewed} of {progress.total} reviewed
 									</ProgressText>
@@ -809,43 +875,17 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 											}}
 										/>
 									</ProgressTrack>
-								</ExpandedCompleteSummary>
+								</>
 							)}
-						</>
-					) : (
-						<>
-							<AssistantEyebrow>Property Setup Assistant</AssistantEyebrow>
-							<AssistantTitle>
-								Build a more complete record of your property.
-							</AssistantTitle>
-							<AssistantText>
-								Discover systems, appliances, and maintenance opportunities you can review over time.
-							</AssistantText>
-							{hasDetectedUnsavedProgress && (
-								<AssistantText>
-									We found matching appliances already on this property. Review setup to save them into your setup progress and add any missing suggested tasks.
-								</AssistantText>
-							)}
-							<ProgressText>
-								Progress: {progress.reviewed} of {progress.total} reviewed
-							</ProgressText>
-							<ProgressTrack>
-								<ProgressFill
-									style={{
-										width: `${Math.round(
-											(progress.reviewed / progress.total) * 100,
-										)}%`,
-									}}
-								/>
-							</ProgressTrack>
-						</>
+						</AssistantBody>
 					)}
 				</AssistantContent>
-				{(!progress.isComplete || isCompleteSummaryExpanded) && (
-					<AssistantButton type='button' onClick={openAssistant}>
-						{progress.isComplete ? 'Review Setup' : 'Continue Setup'}
-					</AssistantButton>
-				)}
+				{!isAssistantCardCollapsed &&
+					(!progress.isComplete || isCompleteSummaryExpanded) && (
+						<AssistantButton type='button' onClick={openAssistant}>
+							{progress.isComplete ? 'Review Setup' : 'Continue Setup'}
+						</AssistantButton>
+					)}
 			</AssistantCard>
 
 			{isOpen && (
@@ -1221,7 +1261,43 @@ const AssistantCard = styled.section<{ $complete?: boolean; $compact?: boolean }
 `;
 
 const AssistantContent = styled.div`
+	grid-column: 1 / -1;
 	min-width: 0;
+`;
+
+const AssistantHeader = styled.div`
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	min-width: 0;
+`;
+
+const AssistantBody = styled.div`
+	margin-top: 4px;
+`;
+
+const AssistantCollapseButton = styled.button`
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 34px;
+	height: 34px;
+	border: 1px solid rgba(11, 91, 72, 0.18);
+	border-radius: 999px;
+	background: ${COLORS.white};
+	color: ${COLORS.primary};
+	cursor: pointer;
+	flex: 0 0 auto;
+
+	&:hover {
+		background: rgba(11, 91, 72, 0.08);
+	}
+
+	&:focus-visible {
+		outline: 3px solid rgba(11, 91, 72, 0.22);
+		outline-offset: 2px;
+	}
 `;
 
 const CompleteSummaryButton = styled.button`
@@ -1308,6 +1384,8 @@ const ProgressFill = styled.div`
 `;
 
 const AssistantButton = styled.button`
+	grid-column: 2;
+	justify-self: end;
 	border: none;
 	border-radius: 10px;
 	background: ${COLORS.primary};
@@ -1328,6 +1406,8 @@ const AssistantButton = styled.button`
 	}
 
 	@media (max-width: 640px) {
+		grid-column: 1;
+		justify-self: stretch;
 		width: 100%;
 		min-height: 44px;
 	}
