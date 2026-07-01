@@ -54,6 +54,8 @@ const BUMP_ORDER = {
 	major: 3,
 };
 
+const SEMVER_PATTERN = /^v?\d+\.\d+\.\d+$/;
+
 const parseArgs = (argv) => {
 	const options = {
 		from: '',
@@ -161,6 +163,13 @@ const readPackageVersion = () => {
 	const packagePath = path.resolve(process.cwd(), 'package.json');
 	const packageJson = JSON.parse(fs.readFileSync(packagePath, 'utf8'));
 	return String(packageJson.version || '0.0.0');
+};
+
+const isSemverVersion = (version) => SEMVER_PATTERN.test(String(version || '').trim());
+
+const getVersionFromRef = (ref) => {
+	const normalized = String(ref || '').trim();
+	return isSemverVersion(normalized) ? normalized.replace(/^v/, '') : '';
 };
 
 const parseVersion = (version) => {
@@ -723,10 +732,14 @@ const main = () => {
 	ensureGitRepo();
 
 	const packageVersion = readPackageVersion();
-	const previousTag = options.from || getLatestVersionTag();
+	const latestVersionTag = getLatestVersionTag();
+	const rangeStartRef = options.from || latestVersionTag;
+	const previousVersionTag = getVersionFromRef(rangeStartRef)
+		? rangeStartRef
+		: latestVersionTag;
 	const targetRef = options.to || 'HEAD';
-	const commits = getCommitRows(previousTag, targetRef);
-	const range = previousTag ? `${previousTag}..${targetRef}` : targetRef;
+	const commits = getCommitRows(rangeStartRef, targetRef);
+	const range = rangeStartRef ? `${rangeStartRef}..${targetRef}` : targetRef;
 
 	if (commits.length === 0 && !options.allowEmpty) {
 		throw new Error(`No releaseable commits found for range ${range}.`);
@@ -735,7 +748,7 @@ const main = () => {
 	const { entries, warnings } = buildEntries(commits);
 	const inferredBump = inferOverallBump(entries);
 	const selectedBump = options.bump || inferredBump || 'patch';
-	const previousVersion = previousTag ? previousTag.replace(/^v/, '') : null;
+	const previousVersion = getVersionFromRef(previousVersionTag);
 	const packageVersionIsAheadOfPreviousTag =
 		previousVersion && compareVersions(packageVersion, previousVersion) > 0;
 	const expectedVersionFromPreviousTag = previousVersion
@@ -748,6 +761,9 @@ const main = () => {
 			: expectedVersionFromPreviousTag;
 	const version =
 		options.version || selectedAutomaticVersion;
+	if (!isSemverVersion(version)) {
+		throw new Error(`Release version must be semver, received: ${version}`);
+	}
 	const packageVersionIsPrepared =
 		packageVersionIsAheadOfPreviousTag &&
 		compareVersions(version, packageVersion) === 0;
@@ -757,7 +773,7 @@ const main = () => {
 	});
 	const engineeringNotes = formatEngineeringReleaseNotes({
 		version,
-		previousTag,
+		previousTag: rangeStartRef,
 		targetRef,
 		entries,
 	});
@@ -767,7 +783,8 @@ const main = () => {
 		notes: customerNotes,
 		customerNotes,
 		engineeringNotes,
-		previousTag: previousTag || null,
+		previousTag: previousVersionTag || null,
+		rangeStartRef: rangeStartRef || null,
 		targetRef,
 		range,
 		packageVersion,
