@@ -139,12 +139,32 @@ service cloud.firestore {
           : 0);
     }
 
+    function subscriptionHasCurrentEntitlement(subscription) {
+      return subscription.status == 'active' ||
+        (
+          subscription.status == 'trial' &&
+          (
+            !('trialEndsAt' in subscription) ||
+            subscription.trialEndsAt == null ||
+            subscription.trialEndsAt > (request.time.toMillis() / 1000)
+          )
+        );
+    }
+
+    function entitledPlanForAccount(accountId) {
+      return accountOwnerDocExists(accountId) &&
+        ('subscription' in accountOwnerData(accountId)) &&
+        subscriptionHasCurrentEntitlement(accountOwnerData(accountId).subscription)
+        ? accountOwnerData(accountId).subscription.plan
+        : 'homeowner';
+    }
+
     function maxPropertiesForAccount(accountId) {
-      return maxPropertiesForPlan(accountOwnerData(accountId).subscription.plan);
+      return maxPropertiesForPlan(entitledPlanForAccount(accountId));
     }
 
     function maxDevicesForAccount(accountId) {
-      return maxDevicesForPlan(accountOwnerData(accountId).subscription.plan);
+      return maxDevicesForPlan(entitledPlanForAccount(accountId));
     }
 
     function hasPropertyCounterCreateIncrement(accountId) {

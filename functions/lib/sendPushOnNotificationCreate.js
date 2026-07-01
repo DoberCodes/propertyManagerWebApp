@@ -59,10 +59,7 @@ const canUsePushNotifications = (subscription) => {
     if (subscription.status !== 'active' && !isTrialActive(subscription)) {
         return false;
     }
-    const scheduledPlan = String(subscription.scheduledPlan || '').trim().toLowerCase();
-    const rawPlan = subscription.hasScheduledSubscription && scheduledPlan
-        ? scheduledPlan
-        : String(subscription.plan || '').trim().toLowerCase();
+    const rawPlan = String(subscription.plan || '').trim().toLowerCase();
     return PUSH_NOTIFICATION_PLANS.has(rawPlan);
 };
 const getUserPushTokens = (user) => {

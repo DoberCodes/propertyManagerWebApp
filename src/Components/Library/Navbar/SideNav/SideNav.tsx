@@ -50,6 +50,7 @@ import {
 	faUsers,
 } from '@fortawesome/free-solid-svg-icons';
 import {
+	getEffectiveSubscriptionPlanId,
 	getRemainingPropertySlots,
 	getSubscriptionPlanDetails,
 } from '../../../../utils/subscriptionUtils';
@@ -114,18 +115,14 @@ export const SideNav = () => {
 		[filteredPropertyGroups],
 	);
 
-	const effectivePlanId =
-		currentUser?.subscription?.hasScheduledSubscription &&
-			currentUser.subscription.scheduledPlan
-			? currentUser.subscription.scheduledPlan
-			: currentUser?.subscription?.plan || 'home';
+	const effectivePlanId = getEffectiveSubscriptionPlanId(
+		currentUser?.subscription,
+		'homeowner',
+	);
 	const planDetails = getSubscriptionPlanDetails(effectivePlanId);
 	const maxProperties = planDetails?.maxProperties ?? 1;
-	const effectiveSubscription = currentUser?.subscription
-		? { ...currentUser.subscription, plan: effectivePlanId }
-		: undefined;
-	const remainingSlots = effectiveSubscription
-		? getRemainingPropertySlots(effectiveSubscription, totalProperties)
+	const remainingSlots = currentUser?.subscription
+		? getRemainingPropertySlots(currentUser.subscription, totalProperties)
 		: 0;
 	const usagePercent = maxProperties > 0 ? (totalProperties / maxProperties) * 100 : 0;
 	const hasPropertyCapacity = maxProperties > 0;
@@ -137,11 +134,7 @@ export const SideNav = () => {
 		: remainingSlots === 0 && totalProperties > maxProperties
 			? `${totalProperties - maxProperties} over plan limit`
 			: `${remainingSlots} property slot${remainingSlots === 1 ? '' : 's'} available`;
-	const planSubtitle =
-		currentUser?.subscription?.hasScheduledSubscription &&
-			currentUser.subscription.scheduledPlan
-			? `Scheduled plan: ${planDetails?.name || 'Home'}`
-			: `Current plan: ${planDetails?.name || 'Home'}`;
+	const planSubtitle = `Current plan: ${planDetails?.name || 'Home'}`;
 	const storageUsagePercent = Math.min(100, storageUsage?.usagePercent || 0);
 	const storageUsageLabel = isStorageUsageLoading
 		? 'Loading storage...'

@@ -457,6 +457,8 @@ export const createCheckoutSession = functions
 					stripeSubscriptionId: updatedSubscription.id,
 					hasScheduledSubscription: false,
 					scheduledPlan: null,
+					pendingCheckoutPlan: null,
+					pendingCheckoutStartedAt: null,
 					...(accountPromoCode ? { promoCode: accountPromoCode } : {}),
 				});
 
@@ -752,16 +754,25 @@ export const verifyCheckoutSession = functions
 			const subscription = await getStripe().subscriptions.retrieve(
 				session.subscription as string,
 			);
+			const subscriptionStatus = toLocalSubscriptionStatus(subscription.status);
+			if (!['active', 'trial'].includes(subscriptionStatus)) {
+				throw new functions.https.HttpsError(
+					'failed-precondition',
+					`Subscription not active yet (status: ${subscription.status || 'unknown'})`,
+				);
+			}
 
 			// Update user subscription in Firestore
 			const subscriptionData = {
-				status: 'active',
+				status: subscriptionStatus,
 				plan: getPlanFromPriceId(subscription.items.data[0].price.id),
 				currentPeriodStart: subscription.current_period_start,
 				currentPeriodEnd: subscription.current_period_end,
 				trialEndsAt: subscription.trial_end,
 				stripeCustomerId: session.customer as string,
 				stripeSubscriptionId: subscription.id,
+				pendingCheckoutPlan: null,
+				pendingCheckoutStartedAt: null,
 			};
 
 			const userRef = db.collection('users').doc(firebaseUID);
@@ -993,12 +1004,14 @@ export const syncSubscriptionFromStripe = functions
 			),
 			currentPeriodStart: stripeSubscription.current_period_start,
 			currentPeriodEnd: stripeSubscription.current_period_end,
-			trialEndsAt: stripeSubscription.trial_end,
-			stripeCustomerId: String(stripeSubscription.customer || stripeCustomerId),
-			stripeSubscriptionId: stripeSubscription.id,
-			updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-			...(stripeSubscription.status === 'canceled'
-				? { canceledAt: stripeSubscription.canceled_at }
+				trialEndsAt: stripeSubscription.trial_end,
+				stripeCustomerId: String(stripeSubscription.customer || stripeCustomerId),
+				stripeSubscriptionId: stripeSubscription.id,
+				pendingCheckoutPlan: null,
+				pendingCheckoutStartedAt: null,
+				updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+				...(stripeSubscription.status === 'canceled'
+					? { canceledAt: stripeSubscription.canceled_at }
 				: {}),
 		});
 
@@ -1152,6 +1165,8 @@ const handleSubscriptionUpdate = async (subscription: any) => {
 				currentPeriodEnd: subscription.current_period_end,
 				trialEndsAt: subscription.trial_end,
 				stripeSubscriptionId: subscription.id,
+				pendingCheckoutPlan: null,
+				pendingCheckoutStartedAt: null,
 				updatedAt: admin.firestore.FieldValue.serverTimestamp(),
 			};
 
@@ -1334,6 +1349,8 @@ const handleSubscriptionCreated = async (subscription: any) => {
 				currentPeriodEnd: subscription.current_period_end,
 				trialEndsAt: subscription.trial_end,
 				stripeSubscriptionId: subscription.id,
+				pendingCheckoutPlan: null,
+				pendingCheckoutStartedAt: null,
 				createdAt: admin.firestore.FieldValue.serverTimestamp(),
 				updatedAt: admin.firestore.FieldValue.serverTimestamp(),
 			};

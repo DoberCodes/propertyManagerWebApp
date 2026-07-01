@@ -20,6 +20,8 @@ export interface FamilyAccount {
 		updatedAt?: string;
 		hasScheduledSubscription?: boolean;
 		scheduledPlan?: string;
+		pendingCheckoutPlan?: string;
+		pendingCheckoutStartedAt?: number;
 	};
 	createdAt: string;
 	updatedAt: string;
@@ -71,6 +73,8 @@ export interface User {
 		updatedAt?: string;
 		hasScheduledSubscription?: boolean;
 		scheduledPlan?: string;
+		pendingCheckoutPlan?: string;
+		pendingCheckoutStartedAt?: number;
 	};
 	legalAgreement?: {
 		agreedToTerms: boolean;

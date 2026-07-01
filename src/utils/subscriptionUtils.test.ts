@@ -14,6 +14,7 @@ import {
 	canUseSimpleTeamManagement,
 	canUseSuggestedMaintenancePackages,
 	canViewReports,
+	getEffectiveSubscriptionPlanId,
 	getMaxFilesForPlan,
 	getMaxPropertiesForPlan,
 	getMaxStorageGbForPlan,
@@ -139,5 +140,37 @@ describe('subscriptionUtils', () => {
 		expect(canManageTenants(team)).toBe(false);
 		expect(canManageTeam(tenant)).toBe(false);
 		expect(canManageTenants(tenant)).toBe(false);
+	});
+
+	it('does not treat an abandoned paid checkout as paid-plan access', () => {
+		const abandonedCheckout: SubscriptionData = {
+			status: SUBSCRIPTION_STATUS.CANCELLED,
+			plan: 'portfolio',
+			currentPeriodStart: 0,
+			currentPeriodEnd: 0,
+			promoCode: 'summer',
+			pendingCheckoutPlan: 'portfolio',
+			pendingCheckoutStartedAt: 1,
+		};
+
+		expect(getEffectiveSubscriptionPlanId(abandonedCheckout)).toBe('homeowner');
+		expect(canManageTeam(abandonedCheckout)).toBe(false);
+		expect(canManageTenants(abandonedCheckout)).toBe(false);
+	});
+
+	it('keeps scheduled future plans out of current entitlement checks', () => {
+		const currentHomeownerWithScheduledPortfolio: SubscriptionData = {
+			status: SUBSCRIPTION_STATUS.ACTIVE,
+			plan: 'homeowner',
+			currentPeriodStart: 0,
+			currentPeriodEnd: 9999999999,
+			hasScheduledSubscription: true,
+			scheduledPlan: 'portfolio',
+		};
+
+		expect(getEffectiveSubscriptionPlanId(currentHomeownerWithScheduledPortfolio)).toBe(
+			'homeowner',
+		);
+		expect(canManageTeam(currentHomeownerWithScheduledPortfolio)).toBe(false);
 	});
 });

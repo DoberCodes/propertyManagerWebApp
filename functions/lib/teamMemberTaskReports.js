@@ -64,10 +64,18 @@ const normalizePlanId = (value) => {
     return String(value || '').trim().toLowerCase();
 };
 const canUseTeamReports = (user) => {
-    const scheduledPlan = normalizePlanId(user.subscription?.scheduledPlan);
-    const plan = user.subscription?.hasScheduledSubscription && scheduledPlan
-        ? scheduledPlan
-        : normalizePlanId(user.subscription?.plan);
+    const subscription = user.subscription;
+    if (!subscription?.status)
+        return false;
+    if (subscription.status === 'trial') {
+        if (subscription.trialEndsAt && subscription.trialEndsAt <= Date.now() / 1000) {
+            return false;
+        }
+    }
+    else if (subscription.status !== 'active') {
+        return false;
+    }
+    const plan = normalizePlanId(subscription.plan);
     return TEAM_REPORT_PLANS.has(plan);
 };
 const getAccountId = (userId, user) => String(user.accountId || '').trim() || userId;

@@ -221,12 +221,22 @@ const createPendingCheckoutSubscription = (
 ) => {
 	const now = Math.floor(Date.now() / 1000);
 	const normalizedPromoCode = promoCode?.trim() || undefined;
+	const normalizedPendingPlan = String(selectedPlan || '')
+		.trim()
+		.toLowerCase();
 
 	return {
-		status: SUBSCRIPTION_STATUS.CANCELLED,
-		plan: selectedPlan,
+		status: SUBSCRIPTION_STATUS.ACTIVE,
+		plan: 'homeowner',
 		currentPeriodStart: now,
-		currentPeriodEnd: now,
+		currentPeriodEnd: now + 365 * 24 * 60 * 60,
+		trialEndsAt: null,
+		...(normalizedPendingPlan && normalizedPendingPlan !== 'homeowner'
+			? {
+					pendingCheckoutPlan: normalizedPendingPlan,
+					pendingCheckoutStartedAt: now,
+			  }
+			: {}),
 		...(normalizedPromoCode ? { promoCode: normalizedPromoCode } : {}),
 	};
 };

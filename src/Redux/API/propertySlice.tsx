@@ -27,6 +27,7 @@ import {
 } from './accountContext';
 import {
 	canPropertyGroups,
+	getEffectiveSubscriptionPlanId,
 	getMaxPropertiesForPlan,
 } from '../../utils/subscriptionUtils';
 import type { SubscriptionData } from '../../utils/subscriptionUtils';
@@ -1244,7 +1245,10 @@ const propertySlice = apiSlice.injectEndpoints({
 						);
 						const userData = userSnapshot.data() || {};
 						const subscription = userData.subscription || {};
-						const planId = subscription.plan || 'home';
+						const planId = getEffectiveSubscriptionPlanId(
+							subscription,
+							'homeowner',
+						);
 						const maxProperties = getMaxPropertiesForPlan(planId);
 
 						const accountSnapshot = await transaction.get(accountRef);

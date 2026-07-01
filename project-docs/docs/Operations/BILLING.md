@@ -113,6 +113,16 @@ Expected flow:
 4. Webhook updates subscription state.
 5. Firestore subscription records are synchronized.
 
+Checkout intent is not paid-plan access. If a user starts Stripe Checkout and
+backs out before Stripe confirms the subscription, Maintley may keep billing
+context such as `stripeCustomerId`, `promoCode`, `pendingCheckoutPlan`, and
+`pendingCheckoutStartedAt`, but the current entitlement remains the free
+Homeowner plan until Stripe confirms an active or trialing subscription.
+
+Feature gates, resource limits, push/email delivery gates, and account usage
+widgets should use the current entitled plan, not a pending checkout plan or
+future scheduled plan.
+
 ---
 
 ## Upgrade Flow

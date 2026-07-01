@@ -54,10 +54,20 @@ const TEAM_MEMBER_REPORT_PLANS = new Set(['property', 'portfolio']);
 const normalizePlanId = (planId) => {
     return String(planId || '').trim().toLowerCase();
 };
+const hasCurrentEntitlement = (subscription) => {
+    if (!subscription?.status)
+        return false;
+    if (subscription.status === 'active')
+        return true;
+    if (subscription.status !== 'trial')
+        return false;
+    if (!subscription.trialEndsAt)
+        return true;
+    return subscription.trialEndsAt > Date.now() / 1000;
+};
 const getEffectivePlanId = (subscription) => {
-    const scheduledPlan = normalizePlanId(subscription?.scheduledPlan);
-    if (subscription?.hasScheduledSubscription && scheduledPlan) {
-        return scheduledPlan;
+    if (!hasCurrentEntitlement(subscription)) {
+        return 'homeowner';
     }
     const plan = normalizePlanId(subscription?.plan);
     return plan || 'homeowner';
