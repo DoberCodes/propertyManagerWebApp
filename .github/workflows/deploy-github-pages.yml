@@ -10,7 +10,27 @@ on:
   workflow_dispatch:
 
 jobs:
+  version-validate:
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.ref == 'release/next'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'yarn'
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Validate release version files
+        run: yarn version:validate
+
   unit-test:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.ref != 'release/next'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -29,6 +49,7 @@ jobs:
         run: yarn test:ci
 
   build:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.ref != 'release/next'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
