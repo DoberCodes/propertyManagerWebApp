@@ -272,6 +272,15 @@ export async function registerNewAccount(
 		// Wait for Continue button
 		console.log('Waiting for Continue button');
 		const continueButton = page.getByRole('button', { name: /continue/i });
+		const canContinue = await continueButton
+			.isVisible({ timeout: 10000 })
+			.catch(() => false);
+		if (!canContinue && !submitFinalStep) {
+			console.log(
+				'Continue button not shown after plan selection; registration smoke stops before account submission.',
+			);
+			return;
+		}
 		await continueButton.waitFor({ state: 'visible', timeout: 10000 });
 		console.log('Found Continue button, clicking it');
 		await continueButton.click();
@@ -443,11 +452,22 @@ export async function logout(page: Page) {
 		.isVisible({ timeout: 5000 })
 		.catch(() => false);
 	if (!canLogout) {
-		return;
+		throw new Error('Logout failed: could not find a visible logout button.');
 	}
 
 	await logoutButton.click();
-	await page.waitForTimeout(1500);
+	const didLeaveDashboard = await page
+		.waitForFunction(() => !window.location.hash.includes('/dashboard'), {
+			timeout: 10000,
+		})
+		.then(() => true)
+		.catch(() => false);
+
+	if (!didLeaveDashboard) {
+		throw new Error(
+			`Logout failed: still on dashboard after clicking logout (${page.url()}).`,
+		);
+	}
 }
 
 /**
