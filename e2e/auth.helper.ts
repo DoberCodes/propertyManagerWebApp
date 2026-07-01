@@ -431,17 +431,28 @@ export async function logout(page: Page) {
 
 	await waitForPageLoaded(page);
 
-	const desktopProfileTrigger = page.locator('.desktop-profile').first();
+	const profileMenuTrigger = page
+		.getByRole('button', { name: /open profile menu/i })
+		.first();
 	if (
-		await desktopProfileTrigger.isVisible({ timeout: 3000 }).catch(() => false)
+		await profileMenuTrigger.isVisible({ timeout: 3000 }).catch(() => false)
 	) {
-		await desktopProfileTrigger.click();
+		await profileMenuTrigger.click();
 	} else {
-		const mobileProfileTrigger = page.locator('.mobile-profile img').first();
+		const desktopProfileTrigger = page.locator('.desktop-profile').first();
 		if (
-			await mobileProfileTrigger.isVisible({ timeout: 3000 }).catch(() => false)
+			await desktopProfileTrigger.isVisible({ timeout: 3000 }).catch(() => false)
 		) {
-			await mobileProfileTrigger.click();
+			await desktopProfileTrigger.click();
+		} else {
+			const mobileProfileTrigger = page.locator('.mobile-profile img').first();
+			if (
+				await mobileProfileTrigger
+					.isVisible({ timeout: 3000 })
+					.catch(() => false)
+			) {
+				await mobileProfileTrigger.click();
+			}
 		}
 	}
 
