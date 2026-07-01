@@ -1,0 +1,89 @@
+name: Publish App Version
+
+on:
+  release:
+    types:
+      - published
+      - edited
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version to publish, without the leading v
+        required: true
+
+jobs:
+  publish-app-version:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'yarn'
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Resolve release
+        id: release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          INPUT_VERSION: ${{ github.event.inputs.version }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          VERSION="${INPUT_VERSION:-${RELEASE_TAG#v}}"
+          TAG="v$VERSION"
+          APK_URL="https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG/app-release.apk"
+          RELEASE_URL="https://github.com/$GITHUB_REPOSITORY/releases/tag/$TAG"
+
+          mkdir -p tmp
+          gh release view "$TAG" --json body --jq '.body // ""' > tmp/release-notes.customer.md
+
+          for attempt in 1 2 3 4 5 6 7 8 9 10 11 12; do
+            if curl -fsIL "$APK_URL" >/dev/null; then
+              echo "APK is available at $APK_URL"
+              break
+            fi
+
+            if [[ "$attempt" == "12" ]]; then
+              echo "APK asset app-release.apk was not reachable for $TAG."
+              exit 1
+            fi
+
+            echo "APK is not reachable yet. Waiting before retry $attempt..."
+            sleep 10
+          done
+
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "apk_url=$APK_URL" >> "$GITHUB_OUTPUT"
+          echo "release_url=$RELEASE_URL" >> "$GITHUB_OUTPUT"
+
+      - name: Publish Firestore app version
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+          FIREBASE_PROJECT_ID: ${{ secrets.PROD_FIREBASE_PROJECT_ID || secrets.PROD_REACT_APP_FIREBASE_PROJECT_ID }}
+        run: |
+          node scripts/publishAppVersion.cjs \
+            --version "${{ steps.release.outputs.version }}" \
+            --release-notes-file tmp/release-notes.customer.md \
+            --apk-url "${{ steps.release.outputs.apk_url }}" \
+            --release-url "${{ steps.release.outputs.release_url }}" \
+            --json
+
+      - name: Write summary
+        run: |
+          {
+            echo "## App Version Published"
+            echo ""
+            echo "**Version:** v${{ steps.release.outputs.version }}"
+            echo ""
+            echo "**APK:** ${{ steps.release.outputs.apk_url }}"
+          } >> "$GITHUB_STEP_SUMMARY"

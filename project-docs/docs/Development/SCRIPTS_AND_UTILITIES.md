@@ -873,9 +873,12 @@ yarn build:signed
 
 Builds a signed Android APK.
 
-`build:signed` is the primary release pipeline. It builds the signed APK,
-creates or updates the GitHub release, tags the repository, and deploys the
-web app through `yarn deploy`.
+`build:signed` remains the local signed APK helper while Android signing secrets
+stay local. Release notes, version preparation, and Firestore app-version
+publication are handled by GitHub Actions. The command validates prepared
+version files, builds the signed APK, creates or updates the GitHub Release, and
+uploads `app-release.apk`. It does not commit, push to `main`, deploy GitHub
+Pages, or publish Firestore app-version state.
 
 Risk:
 
@@ -891,7 +894,7 @@ Requires signing configuration.
 yarn testDeploy
 ```
 
-Validates Android signing workflow without full deployment.
+Validates the local signed APK workflow without building or publishing a release.
 
 Risk:
 
@@ -954,6 +957,60 @@ Generates release notes from project history.
 Risk:
 
 Low
+
+---
+
+## Release Version Preparation
+
+```bash
+yarn version:prepare -- --metadata tmp/release-notes.json
+```
+
+Prepares repo-controlled release version files from release metadata:
+
+* `package.json`
+* `client/package.json`
+* `android/app/build.gradle`
+
+The Release Prep GitHub Action runs this automatically and opens or updates the
+`release/next` PR. It uses the highest required bump across the full unreleased
+range, so a feature or breaking change landing after a patch fix updates the
+same release PR instead of leaving an older patch version in place.
+
+Risk:
+
+Low
+
+---
+
+## Release Version Validation
+
+```bash
+yarn version:validate
+```
+
+Verifies package, client, Android `versionName`, Android `versionCode`, and the
+client app-version source are synchronized.
+
+Risk:
+
+Low
+
+---
+
+## Publish App Version
+
+```bash
+yarn version:publish -- --version 2.8.0 --release-notes-file RELEASE_NOTES.txt --apk-url <url>
+```
+
+Publishes Firestore `appConfig/version`. The Publish App Version GitHub Action
+uses this only after the GitHub Release APK is reachable, so users do not see an
+update notification before the APK exists.
+
+Risk:
+
+Medium
 
 ---
 

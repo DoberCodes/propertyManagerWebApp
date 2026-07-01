@@ -54,6 +54,8 @@ const BUMP_ORDER = {
 	major: 3,
 };
 
+const SEMVER_PATTERN = /^v?\d+\.\d+\.\d+$/;
+
 const parseArgs = (argv) => {
 	const options = {
 		from: '',
@@ -163,6 +165,13 @@ const readPackageVersion = () => {
 	return String(packageJson.version || '0.0.0');
 };
 
+const isSemverVersion = (version) => SEMVER_PATTERN.test(String(version || '').trim());
+
+const getVersionFromRef = (ref) => {
+	const normalized = String(ref || '').trim();
+	return isSemverVersion(normalized) ? normalized.replace(/^v/, '') : '';
+};
+
 const parseVersion = (version) => {
 	const match = String(version || '').trim().match(/^v?(\d+)\.(\d+)\.(\d+)/);
 	if (!match) {
@@ -176,6 +185,18 @@ const parseVersion = (version) => {
 };
 
 const formatVersion = ({ major, minor, patch }) => `${major}.${minor}.${patch}`;
+
+const compareVersions = (leftVersion, rightVersion) => {
+	const left = parseVersion(leftVersion);
+	const right = parseVersion(rightVersion);
+
+	for (const key of ['major', 'minor', 'patch']) {
+		if (left[key] > right[key]) return 1;
+		if (left[key] < right[key]) return -1;
+	}
+
+	return 0;
+};
 
 const bumpVersion = (currentVersion, bump) => {
 	const parsed = parseVersion(currentVersion);
@@ -571,7 +592,11 @@ const categorize = ({ title, labels, files, body }) => {
 	const labelText = labels.join(' ');
 	const fileText = files.join('\n').toLowerCase();
 
-	if (/breaking change|breaking:/i.test(text) || /\bbreaking\b/.test(labelText)) {
+	if (
+		/breaking change|breaking:/i.test(text) ||
+		/^[a-z]+(?:\(.+?\))?!:/i.test(title) ||
+		/\bbreaking\b/.test(labelText)
+	) {
 		return 'breaking';
 	}
 
@@ -616,7 +641,11 @@ const categorize = ({ title, labels, files, body }) => {
 
 const inferBump = ({ title, labels, body }) => {
 	const text = `${title}\n${body || ''}`.toLowerCase();
-	if (/breaking change|breaking:/.test(text) || labels.includes('breaking')) {
+	if (
+		/breaking change|breaking:/.test(text) ||
+		/^[a-z]+(?:\(.+?\))?!:/i.test(title) ||
+		labels.some((label) => label === 'breaking' || label === 'breaking-change')
+	) {
 		return 'major';
 	}
 	if (
@@ -703,10 +732,14 @@ const main = () => {
 	ensureGitRepo();
 
 	const packageVersion = readPackageVersion();
-	const previousTag = options.from || getLatestVersionTag();
+	const latestVersionTag = getLatestVersionTag();
+	const rangeStartRef = options.from || latestVersionTag;
+	const previousVersionTag = getVersionFromRef(rangeStartRef)
+		? rangeStartRef
+		: latestVersionTag;
 	const targetRef = options.to || 'HEAD';
-	const commits = getCommitRows(previousTag, targetRef);
-	const range = previousTag ? `${previousTag}..${targetRef}` : targetRef;
+	const commits = getCommitRows(rangeStartRef, targetRef);
+	const range = rangeStartRef ? `${rangeStartRef}..${targetRef}` : targetRef;
 
 	if (commits.length === 0 && !options.allowEmpty) {
 		throw new Error(`No releaseable commits found for range ${range}.`);
@@ -715,14 +748,32 @@ const main = () => {
 	const { entries, warnings } = buildEntries(commits);
 	const inferredBump = inferOverallBump(entries);
 	const selectedBump = options.bump || inferredBump || 'patch';
-	const version = options.version || bumpVersion(packageVersion, selectedBump);
+	const previousVersion = getVersionFromRef(previousVersionTag);
+	const packageVersionIsAheadOfPreviousTag =
+		previousVersion && compareVersions(packageVersion, previousVersion) > 0;
+	const expectedVersionFromPreviousTag = previousVersion
+		? bumpVersion(previousVersion, selectedBump)
+		: bumpVersion(packageVersion, selectedBump);
+	const selectedAutomaticVersion =
+		packageVersionIsAheadOfPreviousTag &&
+		compareVersions(packageVersion, expectedVersionFromPreviousTag) > 0
+			? packageVersion
+			: expectedVersionFromPreviousTag;
+	const version =
+		options.version || selectedAutomaticVersion;
+	if (!isSemverVersion(version)) {
+		throw new Error(`Release version must be semver, received: ${version}`);
+	}
+	const packageVersionIsPrepared =
+		packageVersionIsAheadOfPreviousTag &&
+		compareVersions(version, packageVersion) === 0;
 	const customerNotes = formatCustomerReleaseNotes({
 		version,
 		entries,
 	});
 	const engineeringNotes = formatEngineeringReleaseNotes({
 		version,
-		previousTag,
+		previousTag: rangeStartRef,
 		targetRef,
 		entries,
 	});
@@ -732,10 +783,13 @@ const main = () => {
 		notes: customerNotes,
 		customerNotes,
 		engineeringNotes,
-		previousTag: previousTag || null,
+		previousTag: previousVersionTag || null,
+		rangeStartRef: rangeStartRef || null,
 		targetRef,
 		range,
 		packageVersion,
+		packageVersionIsPrepared,
+		expectedVersionFromPreviousTag,
 		bump: selectedBump,
 		inferredBump,
 		counts: {

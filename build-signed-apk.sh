@@ -5,13 +5,12 @@
 # 
 # Features:
 #   - Pre-flight checks (branch, git status, tools, auth)
-#   - Auto-commits version changes
+#   - Validates release version files prepared by the release PR
 #   - Release note loading from the Release Notes GitHub Action
 #   - Automated tests
 #   - Dry-run mode for validation
 #   - Automated Gradle APK build (no Android Studio needed!)
 #   - GitHub Release creation with APK attachment
-#   - GitHub Pages deployment
 #   - Slack notifications (optional)
 #
 # Usage:
@@ -22,6 +21,7 @@
 #   - Keystore file (my-release-key.keystore) in project root
 #   - GitHub CLI authenticated (gh auth login)
 #   - Git on main branch with no uncommitted changes
+#   - Release version already prepared and merged to main
 
 set -e  # Exit on any error
 
@@ -49,6 +49,7 @@ APK_FILE="android/app/build/outputs/apk/release/app-release.apk"
 APK_ASSET_NAME="app-release.apk"
 RELEASE_NOTES_WORKFLOW="release-notes.yml"
 RELEASE_NOTES_ACTION_DIR="tmp/release-notes-action"
+CUSTOMER_RELEASE_NOTES_FILE="tmp/release-notes.customer.md"
 
 # Color codes for output
 RED='\033[0;31m'
@@ -208,7 +209,7 @@ load_release_notes_from_action() {
     exit 1
   fi
 
-  cp "$RELEASE_NOTES_ACTION_DIR/release-notes.customer.md" RELEASE_NOTES.txt
+  cp "$RELEASE_NOTES_ACTION_DIR/release-notes.customer.md" "$CUSTOMER_RELEASE_NOTES_FILE"
   cp "$RELEASE_NOTES_ACTION_DIR/release-notes.engineering.md" tmp/release-notes.engineering.md
   cp "$RELEASE_NOTES_ACTION_DIR/release-notes.json" tmp/release-notes.json
 
@@ -281,9 +282,6 @@ if [[ -z $(gh auth token 2>/dev/null) ]]; then
 fi
 print_success "GitHub CLI authenticated"
 
-# Clear old release notes before loading the action-generated artifact.
-echo "" > RELEASE_NOTES.txt
-
 # Check GitHub token scopes (needs repo for releases)
 GITHUB_SCOPES=$(gh auth status -t -h github.com 2>/dev/null | grep -i "Token scopes" | sed 's/.*: //')
 if [[ -z "$GITHUB_SCOPES" || "$GITHUB_SCOPES" != *"repo"* ]]; then
@@ -295,9 +293,6 @@ REPO_NAME=${GITHUB_REPOSITORY:-$(gh repo view --json nameWithOwner -q .nameWithO
 print_success "Using GitHub repository: $REPO_NAME"
 
 # Check required files exist
-if [[ ! -f "serviceAccountKey.json" ]]; then
-  print_warning "serviceAccountKey.json not found. Firebase updates will be skipped."
-fi
 if [[ ! -f "my-release-key.keystore" ]]; then
   print_error "my-release-key.keystore not found. Cannot build signed APK."
   exit 1
@@ -307,7 +302,7 @@ print_success "Required files found"
 if [[ "$RELEASE_ONLY" == "--release-only" ]]; then
   print_warning "Release-only mode enabled. Skipping build and version generation."
   if [[ ! -f "RELEASE_NOTES.txt" ]]; then
-    print_error "RELEASE_NOTES.txt not found. Cannot create release."
+    print_error "RELEASE_NOTES.txt not found. Cannot create release in release-only mode."
     exit 1
   fi
   if ! has_non_empty_file "RELEASE_NOTES.txt"; then
@@ -319,10 +314,7 @@ if [[ "$RELEASE_ONLY" == "--release-only" ]]; then
     exit 1
   fi
   NEW_VERSION=$(node -p "require('./package.json').version")
-  if ! git rev-parse -q --verify "refs/tags/v$NEW_VERSION" >/dev/null; then
-    print_error "Git tag v$NEW_VERSION not found. Run full build or create the tag first."
-    exit 1
-  fi
+  RELEASE_NOTES_FILE="RELEASE_NOTES.txt"
   RELEASE_NOTES=$(cat RELEASE_NOTES.txt)
   RELEASE_NOTES_SUMMARY=$(echo "$RELEASE_NOTES" | head -n 8)
   goto_release_only=1
@@ -359,12 +351,13 @@ echo ""
 
 # Extract suggested version and notes from structured metadata.
 SUGGESTED_VERSION=$(node -e "const fs=require('fs'); const data=JSON.parse(fs.readFileSync(process.argv[1],'utf8')); process.stdout.write(data.version || '');" "$RELEASE_METADATA_FILE")
-AUTO_NOTES=$(cat RELEASE_NOTES.txt 2>/dev/null || true)
+CURRENT_VERSION=$(node -p "require('./package.json').version")
+RELEASE_NOTES_FILE="$CUSTOMER_RELEASE_NOTES_FILE"
+AUTO_NOTES=$(cat "$RELEASE_NOTES_FILE" 2>/dev/null || true)
 
 # ========== CHANGELOG VALIDATION ==========
 if [[ -z "$SUGGESTED_VERSION" ]]; then
-  CURRENT_VERSION=$(node -p "require('./package.json').version")
-  if [[ -n "$CURRENT_VERSION" && -f "RELEASE_NOTES.txt" ]]; then
+  if [[ -n "$CURRENT_VERSION" && -f "$RELEASE_NOTES_FILE" ]]; then
     print_warning "No new commits since last tag. Reusing version $CURRENT_VERSION and existing release notes."
     SUGGESTED_VERSION="$CURRENT_VERSION"
   else
@@ -374,13 +367,22 @@ if [[ -z "$SUGGESTED_VERSION" ]]; then
 fi
 print_success "Version generated: $SUGGESTED_VERSION"
 
-if ! has_non_empty_file "RELEASE_NOTES.txt"; then
+if [[ "$SUGGESTED_VERSION" != "$CURRENT_VERSION" ]]; then
+  print_error "Release version is not prepared on main."
+  echo "Release Notes suggests v$SUGGESTED_VERSION, but package.json is v$CURRENT_VERSION."
+  echo "Merge the release/next PR first, then rerun build:signed from main."
+  exit 1
+fi
+
+node scripts/validateReleaseVersion.cjs
+
+if ! has_non_empty_file "$RELEASE_NOTES_FILE"; then
   print_error "No customer release notes loaded. Check the Release Notes workflow artifact."
   exit 1
 fi
 print_success "Release notes loaded ($(echo "$AUTO_NOTES" | wc -l) lines)"
 
-RELEASE_NOTES=$(cat RELEASE_NOTES.txt)
+RELEASE_NOTES=$(cat "$RELEASE_NOTES_FILE")
 
 echo "─────────────────────────────────────────"
 echo ""
@@ -390,37 +392,38 @@ echo "Using release notes from the Release Notes GitHub Action."
 echo ""
 echo "Customer release notes:"
 echo "-----------------------------------------"
-cat RELEASE_NOTES.txt
+cat "$RELEASE_NOTES_FILE"
 echo "-----------------------------------------"
 
 # Capture a short summary for the final output
 RELEASE_NOTES_SUMMARY=$(echo "$RELEASE_NOTES" | head -n 8)
 
 echo ""
-# VERSION UPDATE MOVED TO AFTER SUCCESSFUL BUILD
-# This prevents version bumps when builds fail
+# Version files must already be prepared by the release/next PR.
 fi
 
 # ========== DRY RUN MODE ==========
 if [[ "$goto_release_only" == "1" ]]; then
   print_header "Release-Only Mode"
   echo ""
-  print_warning "Skipping build, version update, commit, tag, and push."
+  print_warning "Skipping build and APK signing. Release-only mode will only update the GitHub Release asset."
   echo ""
 else
 if [[ "$DRY_RUN" == "--dry-run" || "$DRY_RUN" == "-d" ]]; then
   print_header "DRY RUN MODE"
   echo ""
-  print_warning "This is a dry run. No changes will be committed or pushed."
+  print_warning "This is a dry run. No APK, release, source commit, main push, web deploy, or Firestore publish will happen."
   echo ""
   echo "Would perform the following actions:"
   echo "  - Version: $NEW_VERSION"
   echo "  - Branch: main"
-  echo "  - Changes to commit:"
-  echo "    * package.json (version update)"
-  echo "    * src/utils/versionCheck.ts (version update)"
-  echo "    * build/ (React build)"
-  echo "    * android/ (Capacitor sync)"
+  echo "  - Validate prepared version files"
+  echo "  - Build React app with mobile paths"
+  echo "  - Run asset budget checks"
+  echo "  - Sync Capacitor Android assets"
+  echo "  - Build signed APK"
+  echo "  - Create or update the GitHub Release"
+  echo "  - Upload $APK_ASSET_NAME"
   echo ""
   print_success "Dry run completed successfully. Ready for real release!"
   exit 0
@@ -430,35 +433,14 @@ fi
 if [[ "$goto_release_only" != "1" ]]; then
 # ========== BUILD STEPS ==========
 # Order is critical for proper asset paths:
-# 1. Update versions first (so built app has correct version)
+# 1. Validate versions prepared by the release PR
 # 2. Change homepage to relative paths for mobile build
 # 3. Build React app with mobile-optimized assets
 # 4. Sync Capacitor to copy mobile assets to Android project
 # 5. Build signed APK with embedded mobile assets
 
-print_header "Step 1: Updating Version Files"
-if [[ "$DRY_RUN" != "--dry-run" && "$DRY_RUN" != "-d" ]]; then
-  node scripts/updateAppVersion.cjs "$NEW_VERSION" "$RELEASE_NOTES"
-  print_success "Version updated to $NEW_VERSION in Firestore"
-  
-  # Update package.json version
-  node -e "const pkg = require('./package.json'); pkg.version = '$NEW_VERSION'; require('fs').writeFileSync('./package.json', JSON.stringify(pkg, null, '\t') + '\n');"
-  node -e "const pkg = require('./client/package.json'); pkg.version = '$NEW_VERSION'; require('fs').writeFileSync('./client/package.json', JSON.stringify(pkg, null, '\t') + '\n');"
-  print_success "Version updated to $NEW_VERSION in package.json"
-  
-  # Update the hardcoded version in versionCheck.ts
-  sed -i "s/const CURRENT_APP_VERSION = '[^']*';/const CURRENT_APP_VERSION = '$NEW_VERSION';/" src/utils/versionCheck.ts
-  print_success "Updated CURRENT_APP_VERSION in versionCheck.ts"
-  
-  # Update Android versionCode and versionName in build.gradle BEFORE building APK
-  CURRENT_VERSION_CODE=$(grep -oP 'versionCode \K\d+' android/app/build.gradle)
-  NEW_VERSION_CODE=$((CURRENT_VERSION_CODE + 1))
-  sed -i "s/versionCode $CURRENT_VERSION_CODE/versionCode $NEW_VERSION_CODE/" android/app/build.gradle
-  sed -i "s/versionName \"[^\"]*\"/versionName \"$NEW_VERSION\"/" android/app/build.gradle
-  print_success "Updated Android versionCode to $NEW_VERSION_CODE and versionName to $NEW_VERSION"
-else
-  print_warning "Skipping version update in dry-run mode"
-fi
+print_header "Step 1: Validating Prepared Version Files"
+node scripts/validateReleaseVersion.cjs
 
 echo ""
 print_header "Step 2: Building React App"
@@ -491,6 +473,10 @@ if ! npx cap sync android; then
   exit 1
 fi
 print_success "Capacitor synced successfully - web assets copied to Android"
+
+# Restore homepage values after mobile assets have been copied.
+ORIGINAL_ROOT_HOMEPAGE="$ORIGINAL_ROOT_HOMEPAGE" ORIGINAL_CLIENT_HOMEPAGE="$ORIGINAL_CLIENT_HOMEPAGE" node -e "const fs=require('fs'); const restore=(file, homepage) => { const pkg=require(file); if (homepage) pkg.homepage=homepage; else delete pkg.homepage; fs.writeFileSync(file, JSON.stringify(pkg, null, '\t') + '\n'); }; restore('./package.json', process.env.ORIGINAL_ROOT_HOMEPAGE); restore('./client/package.json', process.env.ORIGINAL_CLIENT_HOMEPAGE);"
+print_success "Original web homepages restored"
 
 # Check keystore file
 if [ ! -f "my-release-key.keystore" ]; then
@@ -560,89 +546,14 @@ else
 fi
 
 echo ""
-print_header "Step 4: Finalizing Build"
-cp "$APK_FILE" "public/$APK_ASSET_NAME"
-print_success "APK copied to public folder"
-ls -lh "public/$APK_ASSET_NAME"
-
-# ========== UPDATE VERSION FILES ==========
-# Version update moved to BEFORE APK build to ensure APK has correct version
-echo ""
-print_header "Step 5: Rebuilding for Web Deployment"
-
-# Restore homepage for web deployment
-ORIGINAL_ROOT_HOMEPAGE="$ORIGINAL_ROOT_HOMEPAGE" ORIGINAL_CLIENT_HOMEPAGE="$ORIGINAL_CLIENT_HOMEPAGE" node -e "const fs=require('fs'); const restore=(file, homepage) => { const pkg=require(file); if (homepage) pkg.homepage=homepage; else delete pkg.homepage; fs.writeFileSync(file, JSON.stringify(pkg, null, '\t') + '\n'); }; restore('./package.json', process.env.ORIGINAL_ROOT_HOMEPAGE); restore('./client/package.json', process.env.ORIGINAL_CLIENT_HOMEPAGE);"
-print_success "Original web homepages restored"
-
-# Rebuild for web
-if ! yarn build; then
-  print_error "Web deployment build failed!"
-  send_slack_notification "Web deployment build failed for v$NEW_VERSION" "error"
-  exit 1
-fi
-print_success "Web app rebuilt for deployment"
-
-if ! yarn check:asset-budgets; then
-  print_error "Asset budget check failed after web deployment build!"
-  send_slack_notification "Asset budget check failed for v$NEW_VERSION" "error"
-  exit 1
-fi
-print_success "Asset budgets passed for web deployment build"
-
-# ========== AUTOMATED GIT COMMIT ==========
-echo ""
-print_header "Step 6: Auto-Committing Changes"
-
-git add package.json client/package.json src/utils/versionCheck.ts android/app/build.gradle RELEASE_NOTES.txt
-if git diff --cached --quiet; then
-  print_warning "No version changes to commit. Skipping commit/push/tag steps."
-  SKIP_GIT_STEPS=1
-else
-  git commit -m "release: v$NEW_VERSION
-
-- Bump version to $NEW_VERSION
-- Update app version check
-- Update Android versionCode and versionName
-- Update release notes
-- Build signed APK"
-  print_success "Changes committed to main"
-  SKIP_GIT_STEPS=0
-fi
-
-# Push to main
-echo ""
-print_header "Step 7: Pushing to Main"
-if [[ "$SKIP_GIT_STEPS" == "1" ]]; then
-  print_warning "Skipping push (no new commits)."
-else
-  if ! git push origin main; then
-    print_error "Failed to push to main branch"
-    send_slack_notification "Failed to push v$NEW_VERSION to main" "error"
-    exit 1
-  fi
-  print_success "Pushed to main branch"
-fi
-
-# ========== CREATE GIT TAG ==========
-echo ""
-print_header "Step 8: Creating Git Tag"
-if [[ "$SKIP_GIT_STEPS" == "1" ]]; then
-  print_warning "Skipping tag creation (no new commits)."
-else
-  git tag -a v$NEW_VERSION -m "Release version $NEW_VERSION"
-  if ! git push origin --tags; then
-    print_error "Failed to push tags"
-    send_slack_notification "Failed to create tag for v$NEW_VERSION" "error"
-    exit 1
-  fi
-  print_success "Git tag v$NEW_VERSION created and pushed"
-fi
+print_header "Step 5: Preparing Release Asset"
+ls -lh "$APK_FILE"
+print_success "Signed APK is ready for upload"
 fi
 
 # ========== CREATE GITHUB RELEASE ==========
 echo ""
-print_header "Step 9: Creating GitHub Release"
-RELEASE_NOTES_FILE="RELEASE_NOTES.txt"
+print_header "Step 6: Creating GitHub Release"
 if [ -f "$RELEASE_NOTES_FILE" ] && [ -f "$APK_FILE" ]; then
   RELEASE_EXISTS=false
   if run_gh_with_refresh gh release view "v$NEW_VERSION" --repo "$REPO_NAME" >/dev/null 2>&1; then
@@ -661,6 +572,7 @@ if [ -f "$RELEASE_NOTES_FILE" ] && [ -f "$APK_FILE" ]; then
     if ! run_gh_with_refresh gh release create "v$NEW_VERSION" \
       --repo "$REPO_NAME" \
       --title "Release v$NEW_VERSION" \
+      --target "$(git rev-parse HEAD)" \
       --notes-file "$RELEASE_NOTES_FILE"; then
       print_error "Failed to create GitHub release"
       send_slack_notification "Failed to create GitHub release for v$NEW_VERSION" "error"
@@ -682,6 +594,7 @@ if [ -f "$RELEASE_NOTES_FILE" ] && [ -f "$APK_FILE" ]; then
   else
     print_warning "Could not upload APK to release. You can upload it manually from GitHub."
     send_slack_notification "Failed to upload APK for v$NEW_VERSION" "warning"
+    exit 1
   fi
 else
   print_error "Missing release notes or APK file"
@@ -689,27 +602,12 @@ else
   exit 1
 fi
 
-# Remove APK from public folder
-rm -f "public/$APK_ASSET_NAME"
-print_success "APK removed from public folder"
-
-# ========== GITHUB PAGES DEPLOYMENT ==========
-echo ""
-print_header "Step 10: Deploying to GitHub Pages"
-if ! yarn deploy; then
-  print_error "GitHub Pages deployment failed"
-  send_slack_notification "GitHub Pages deployment failed for v$NEW_VERSION" "error"
-  exit 1
-fi
-print_success "Deployed to GitHub Pages"
-
 # ========== VERIFY RELEASE IS LIVE ==========
 echo ""
-print_header "Step 11: Verifying Release is Live"
+print_header "Step 7: Verifying Release is Live"
 
 RELEASE_URL="https://github.com/$REPO_NAME/releases/tag/v$NEW_VERSION"
-APK_URL="https://github.com/$REPO_NAME/releases/latest/download/$APK_ASSET_NAME"
-PAGES_URL="https://maintleyapp.com/"
+APK_URL="https://github.com/$REPO_NAME/releases/download/v$NEW_VERSION/$APK_ASSET_NAME"
 
 print_info "Checking GitHub release..."
 if gh release view "v$NEW_VERSION" --json "url,assets,isPrerelease,isDraft" -q ".url" >/dev/null 2>&1; then
@@ -727,32 +625,21 @@ else
   print_warning "⚠ APK URL may not be immediately accessible (CDN propagation)"
 fi
 
-print_info "Checking GitHub Pages site..."
-if curl -s -I "$PAGES_URL" | grep -q "200"; then
-  print_success "✓ GitHub Pages site is live"
-else
-  print_warning "⚠ GitHub Pages may still be building (check back in 1-2 minutes)"
-fi
 
 # ========== FINAL SUMMARY ==========
 echo ""
 print_header "Release Complete!"
 echo ""
 echo "Summary:"
-print_success "Version bumped to $NEW_VERSION"
+print_success "Version prepared at $NEW_VERSION"
 print_success "React app built with relative paths for mobile"
 print_success "Capacitor synced with mobile-optimized assets"
 print_success "APK built and signed"
-if [[ "$SKIP_GIT_STEPS" != "1" ]]; then
-  print_success "Changes committed and pushed to main"
-  print_success "Git tag v$NEW_VERSION created"
-fi
 if [ "$RELEASE_EXISTS" = true ]; then
   print_success "APK replaced in existing GitHub release v$NEW_VERSION"
 else
   print_success "GitHub release v$NEW_VERSION created with APK"
 fi
-print_success "Website deployed to GitHub Pages"
 echo ""
 echo "Release notes for v$NEW_VERSION:"
 echo "─────────────────────────────────────────"
@@ -772,9 +659,9 @@ echo ""
 
 # Send success notification
 if [ "$RELEASE_EXISTS" = true ]; then
-  send_slack_notification "✅ Release v$NEW_VERSION updated! APK replaced and website updated." "success"
+  send_slack_notification "✅ Release v$NEW_VERSION updated! APK replaced." "success"
 else
-  send_slack_notification "✅ Release v$NEW_VERSION completed successfully! APK deployed and website updated." "success"
+  send_slack_notification "✅ Release v$NEW_VERSION completed successfully! APK deployed." "success"
 fi
 
 echo ""
