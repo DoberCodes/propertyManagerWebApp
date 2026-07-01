@@ -1,13 +1,6 @@
-🎉 **Release Notes for Version 2.7.17** 🎉
+🎉 **Release Notes for Version 2.7.18** 🎉
 
 
 ## 🐛 Bug Fixes
-- fixing the styling and the dashboard alignment
-- fixing the report builder also fixing the conflicting plan information on future expansion
-- fixing the contractor data and fixing the duplicate appliance info, cleaning up knowledge acquisition
-- updating packages and a few UI bug fixes
-- fixing the feature list on support and updating other help/support guides
-- fixing the support tickets and admin inbox issues
-
-## 🔧 Improvements & Maintenance
-- performance optimization
+- coupon creation admin portal
+- fixing plan exploit
