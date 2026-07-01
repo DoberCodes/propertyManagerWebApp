@@ -224,9 +224,9 @@ Examples:
 Recommended validation:
 
 ```bash id="4xk7pt"
-npm run build
-npm run test:ci
-npm run e2e
+yarn build
+yarn test:ci
+yarn e2e
 ```
 
 Plus:
@@ -266,7 +266,7 @@ Recommended validation:
 
 ```bash id="zcfcff"
 npm --prefix functions run build
-npm run test:stripe:sandbox
+yarn test:stripe:sandbox
 ```
 
 Additional validation:
@@ -448,39 +448,83 @@ Important:
 
 # Playwright E2E
 
+PR smoke suite:
+
+```bash
+yarn e2e:smoke:chrome
+```
+
+The PR smoke suite is intentionally non-mutating. It verifies registration
+navigation without submitting a new account, and verifies demo login/logout. It
+must not create Firebase accounts, Stripe customers, properties, tasks, or
+checkout sessions.
+
+Workflow coverage:
+
+```bash
+yarn e2e:workflows:chrome
+```
+
+This suite is manual-only in GitHub Actions because it uses the demo account and
+creates workflow records such as properties or tasks.
+
+Safe cross-browser coverage:
+
+```bash
+yarn e2e:full-safe
+```
+
+This manual suite runs non-Stripe, non-destructive workflow coverage across the
+configured browser projects.
+
 All tests:
 
 ```bash id="d22v3v"
-npm run e2e
+yarn e2e
 ```
 
 UI mode:
 
 ```bash id="sjyjxt"
-npm run e2e:ui
+yarn e2e:ui
 ```
 
 Debug:
 
 ```bash id="6td9wv"
-npm run e2e:debug
+yarn e2e:debug
 ```
 
 Single browser:
 
 ```bash id="9a3g7k"
-npm run e2e:chrome
-npm run e2e:firefox
-npm run e2e:webkit
+yarn e2e:chrome
+yarn e2e:firefox
+yarn e2e:webkit
 ```
 
 Reports:
 
 ```bash id="kpn0n6"
-npm run e2e:report
+yarn e2e:report
 ```
 
 Playwright provides workflow-level confidence.
+
+GitHub Actions:
+
+* PRs run `E2E Tests / smoke` against Chromium only.
+* Manual workflow dispatch can run `smoke`, `workflows`, or `full-safe`.
+* E2E requires dedicated `E2E_REACT_APP_FIREBASE_*` secrets and
+  `E2E_DEMO_EMAIL` / `E2E_DEMO_PASSWORD`.
+* Manual `workflows` and `full-safe` runs require
+  `E2E_FIREBASE_SERVICE_ACCOUNT_JSON` so the workflow can clean up test data
+  after the run.
+* Cleanup uses the E2E Firebase project id as a guard and refuses to run if the
+  service account project does not match `E2E_FIREBASE_PROJECT_ID`. The GitHub
+  workflow maps this value from the `E2E_REACT_APP_FIREBASE_PROJECT_ID` secret.
+* E2E intentionally does not fall back to production Firebase config.
+* Stripe checkout tests are not part of the automatic PR smoke flow.
 
 ---
 
@@ -489,11 +533,11 @@ Playwright provides workflow-level confidence.
 Sandbox tests:
 
 ```bash id="5pr8jo"
-npm run test:stripe:sandbox
-npm run test:stripe:cards:sandbox
-npm run test:stripe:webhook:sandbox
-npm run test:stripe:e2e
-npm run test:stripe:all
+yarn test:stripe:sandbox
+yarn test:stripe:cards:sandbox
+yarn test:stripe:webhook:sandbox
+yarn test:stripe:e2e
+yarn test:stripe:all
 ```
 
 Use:
@@ -511,9 +555,9 @@ Never validate billing changes against production resources.
 Firebase cleanup scripts:
 
 ```bash id="g1j0lw"
-npm run cleanup:test-data
-npm run cleanup:test-data:dry-run
-npm run cleanup:test-data:full
+yarn cleanup:test-data
+yarn cleanup:test-data:dry-run
+yarn cleanup:test-data:full
 ```
 
 Review cleanup scripts before executing destructive operations.

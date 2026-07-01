@@ -419,6 +419,22 @@ const syncAdr = async ({ adr, previousAdr, github, options }) => {
 		message: '',
 	};
 
+	const isTrackedStatus = shouldTrackAdr(adr);
+	const previousStatus = previousAdr?.status || '';
+	const hasStatusChange =
+		previousStatus &&
+		normalizeStatus(previousStatus) !== adr.normalizedStatus;
+	const statusMessage = adr.status
+		? `ADR status is not tracked: ${adr.status}`
+		: 'ADR has no status';
+
+	if (!isTrackedStatus && options.dryRun) {
+		if (hasStatusChange && previousAdr && shouldTrackAdr(previousAdr)) {
+			result.action = 'would_comment';
+			result.message = `${statusMessage}; existing tracker would receive a status-change comment if present.`;
+			return result;
+		}
+
 	if (!shouldTrackAdr(adr)) {
 		result.message = adr.status
 			? `ADR status is not tracked: ${adr.status}`
@@ -432,6 +448,11 @@ const syncAdr = async ({ adr, previousAdr, github, options }) => {
 				...github,
 				marker: adr.marker,
 		  });
+
+	if (!isTrackedStatus && !existingIssue) {
+		result.message = statusMessage;
+		return result;
+	}
 
 	if (!existingIssue) {
 		const createdIssue = await createIssue({
@@ -447,6 +468,9 @@ const syncAdr = async ({ adr, previousAdr, github, options }) => {
 
 	result.issueNumber = existingIssue.number;
 	result.action = 'exists';
+	result.message = isTrackedStatus ? existingIssue.html_url : statusMessage;
+
+	if (hasStatusChange) {
 	result.message = existingIssue.html_url;
 
 	const previousStatus = previousAdr?.status || '';

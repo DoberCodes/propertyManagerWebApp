@@ -65,6 +65,9 @@
 		"test:build": "yarn validate",
 		"validate": "yarn test:ci && yarn build",
 		"e2e": "playwright test",
+		"e2e:smoke:chrome": "playwright test e2e/auth.spec.ts --project=chromium",
+		"e2e:workflows:chrome": "playwright test e2e/auth.spec.ts e2e/property.spec.ts e2e/task.spec.ts e2e/account-rbac.spec.ts --project=chromium",
+		"e2e:full-safe": "playwright test e2e/auth.spec.ts e2e/property.spec.ts e2e/task.spec.ts e2e/journey.spec.ts e2e/account-rbac.spec.ts --project=chromium --project=firefox --project=webkit --project=\"Mobile Chrome\" --project=\"Mobile Safari\"",
 		"e2e:ui": "playwright test --ui",
 		"e2e:debug": "playwright test --debug",
 		"e2e:chrome": "playwright test --project=chromium",
@@ -72,8 +75,8 @@
 		"e2e:webkit": "playwright test --project=webkit",
 		"e2e:report": "playwright show-report",
 		"e2e:clean": "node -e \"const fs=require('fs');['test-results','playwright-report','.auth'].forEach((p)=>fs.rmSync(p,{recursive:true,force:true}));\"",
-		"e2e:full": "playwright test && npm run e2e:clean",
-		"e2e:ci": "playwright test && npm run e2e:clean && node scripts/cleanupFirebaseTestUsers.cjs --include-demo-artifacts",
+		"e2e:full": "playwright test && yarn e2e:clean",
+		"e2e:ci": "playwright test && yarn e2e:clean && node scripts/cleanupFirebaseTestUsers.cjs --include-demo-artifacts",
 		"cleanup:test-data": "node scripts/cleanupFirebaseTestUsers.cjs",
 		"cleanup:test-data:dry-run": "node scripts/cleanupFirebaseTestUsers.cjs --dry-run",
 		"cleanup:test-data:full": "node scripts/cleanupFirebaseTestUsers.cjs --include-demo-artifacts",
@@ -120,7 +123,7 @@
 		"test:stripe:cards:sandbox": "npm --prefix functions run test:cards:sandbox",
 		"test:stripe:e2e": "playwright test e2e/payment.spec.ts e2e/stripe-hosted-checkout.spec.ts --project=chromium",
 		"test:stripe:webhook:sandbox": "npm --prefix functions run test:webhook:sandbox",
-		"test:stripe:all": "npm run test:stripe:sandbox && npm run test:stripe:cards:sandbox && npm run test:stripe:webhook:sandbox && npm run test:stripe:e2e"
+		"test:stripe:all": "yarn test:stripe:sandbox && yarn test:stripe:cards:sandbox && yarn test:stripe:webhook:sandbox && yarn test:stripe:e2e"
 	},
 	"browserslist": {
 		"production": [

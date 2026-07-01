@@ -98,6 +98,9 @@ yarn deploy:gh-pages
 
 ```bash
 yarn e2e
+yarn e2e:smoke:chrome
+yarn e2e:workflows:chrome
+yarn e2e:full-safe
 yarn e2e:full
 yarn e2e:ci
 yarn cleanup:test-data:dry-run
@@ -343,6 +346,9 @@ Before running migrations, cleanup scripts, or destructive operations:
 
 # Notes
 
+* `e2e:smoke:chrome` is the non-mutating PR smoke suite.
+* `e2e:workflows:chrome` and `e2e:full-safe` use the demo account and are intended for manual workflow validation.
+* GitHub Actions runs `cleanup:test-data:full` after manual E2E workflow suites and requires `E2E_FIREBASE_SERVICE_ACCOUNT_JSON`.
 * E2E scripts are intended to be cross-platform.
 * Deploy remains the primary deployment command.
 * deploy:gh-pages exists as an explicit alias.

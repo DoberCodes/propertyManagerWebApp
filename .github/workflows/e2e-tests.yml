@@ -1,0 +1,150 @@
+name: E2E Tests
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      suite:
+        description: 'E2E suite to run'
+        required: true
+        default: 'smoke'
+        type: choice
+        options:
+          - smoke
+          - workflows
+          - full-safe
+
+jobs:
+  e2e:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    env:
+      E2E_DEMO_EMAIL: ${{ secrets.E2E_DEMO_EMAIL }}
+      E2E_DEMO_PASSWORD: ${{ secrets.E2E_DEMO_PASSWORD }}
+      REACT_APP_FIREBASE_API_KEY: ${{ secrets.E2E_REACT_APP_FIREBASE_API_KEY }}
+      REACT_APP_FIREBASE_AUTH_DOMAIN: ${{ secrets.E2E_REACT_APP_FIREBASE_AUTH_DOMAIN }}
+      REACT_APP_FIREBASE_PROJECT_ID: ${{ secrets.E2E_REACT_APP_FIREBASE_PROJECT_ID }}
+      REACT_APP_FIREBASE_STORAGE_BUCKET: ${{ secrets.E2E_REACT_APP_FIREBASE_STORAGE_BUCKET }}
+      REACT_APP_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.E2E_REACT_APP_FIREBASE_MESSAGING_SENDER_ID }}
+      REACT_APP_FIREBASE_APP_ID: ${{ secrets.E2E_REACT_APP_FIREBASE_APP_ID }}
+      REACT_APP_FIREBASE_WEB_PUSH_VAPID_KEY: ${{ secrets.E2E_REACT_APP_FIREBASE_WEB_PUSH_VAPID_KEY }}
+      REACT_APP_STRIPE_PUBLIC_KEY: ''
+      FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.E2E_FIREBASE_SERVICE_ACCOUNT_JSON }}
+      E2E_FIREBASE_PROJECT_ID: ${{ secrets.E2E_REACT_APP_FIREBASE_PROJECT_ID }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'yarn'
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Validate e2e environment
+        shell: bash
+        run: |
+          missing=0
+          for name in \
+            E2E_DEMO_EMAIL \
+            E2E_DEMO_PASSWORD \
+            REACT_APP_FIREBASE_API_KEY \
+            REACT_APP_FIREBASE_AUTH_DOMAIN \
+            REACT_APP_FIREBASE_PROJECT_ID \
+            REACT_APP_FIREBASE_STORAGE_BUCKET \
+            REACT_APP_FIREBASE_MESSAGING_SENDER_ID \
+            REACT_APP_FIREBASE_APP_ID
+          do
+            if [[ -z "${!name}" ]]; then
+              echo "Missing required e2e environment value: $name"
+              missing=1
+            fi
+          done
+
+          if [[ "$missing" -ne 0 ]]; then
+            echo "Add E2E_DEMO_EMAIL, E2E_DEMO_PASSWORD, and E2E_REACT_APP_FIREBASE_* GitHub Actions secrets."
+            echo "E2E intentionally does not fall back to production Firebase config."
+            exit 1
+          fi
+
+      - name: Resolve e2e suite
+        id: suite
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            SUITE="smoke"
+          else
+            SUITE="${{ github.event.inputs.suite }}"
+          fi
+
+          case "$SUITE" in
+            smoke)
+              echo "command=yarn e2e:smoke:chrome" >> "$GITHUB_OUTPUT"
+              echo "browsers=chromium" >> "$GITHUB_OUTPUT"
+              ;;
+            workflows)
+              echo "command=yarn e2e:workflows:chrome" >> "$GITHUB_OUTPUT"
+              echo "browsers=chromium" >> "$GITHUB_OUTPUT"
+              ;;
+            full-safe)
+              echo "command=yarn e2e:full-safe" >> "$GITHUB_OUTPUT"
+              echo "browsers=all" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "Unknown e2e suite: $SUITE"
+              exit 1
+              ;;
+          esac
+
+          echo "suite=$SUITE" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('**/yarn.lock') }}
+
+      - name: Install Playwright browsers
+        shell: bash
+        run: |
+          if [[ "${{ steps.suite.outputs.browsers }}" == "all" ]]; then
+            npx playwright install --with-deps
+          else
+            npx playwright install --with-deps chromium
+          fi
+
+      - name: Run Playwright e2e
+        run: ${{ steps.suite.outputs.command }}
+
+      - name: Cleanup E2E Firebase test data
+        if: always() && github.event_name == 'workflow_dispatch' && (steps.suite.outputs.suite == 'workflows' || steps.suite.outputs.suite == 'full-safe')
+        shell: bash
+        run: |
+          if [[ -z "$FIREBASE_SERVICE_ACCOUNT_JSON" ]]; then
+            echo "Missing E2E_FIREBASE_SERVICE_ACCOUNT_JSON secret. Manual E2E suites require cleanup credentials."
+            exit 1
+          fi
+
+          yarn cleanup:test-data:full
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-${{ steps.suite.outputs.suite }}
+          path: playwright-report
+          if-no-files-found: ignore
+
+      - name: Upload Playwright results
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-results-${{ steps.suite.outputs.suite }}
+          path: test-results
+          if-no-files-found: ignore
