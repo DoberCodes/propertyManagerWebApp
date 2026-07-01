@@ -8,13 +8,15 @@ import { getDemoCredentials, loginWithDemoUser } from './auth.helper';
 
 const authFile = path.join('.auth', 'demo-user.json');
 
+const readEnv = (name: string) => process.env[name]?.trim() || '';
+
 const firebaseConfig = {
-	apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
-	authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
-	projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
-	storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
-	messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
-	appId: process.env.REACT_APP_FIREBASE_APP_ID,
+	apiKey: readEnv('REACT_APP_FIREBASE_API_KEY'),
+	authDomain: readEnv('REACT_APP_FIREBASE_AUTH_DOMAIN'),
+	projectId: readEnv('REACT_APP_FIREBASE_PROJECT_ID'),
+	storageBucket: readEnv('REACT_APP_FIREBASE_STORAGE_BUCKET'),
+	messagingSenderId: readEnv('REACT_APP_FIREBASE_MESSAGING_SENDER_ID'),
+	appId: readEnv('REACT_APP_FIREBASE_APP_ID'),
 };
 
 const hasFirebaseConfig = () =>
