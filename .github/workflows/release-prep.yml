@@ -12,7 +12,7 @@ on:
 
 jobs:
   prepare-release-pr:
-    if: github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'release: prepare v')
+    if: ${{ github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'release: prepare v') }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
