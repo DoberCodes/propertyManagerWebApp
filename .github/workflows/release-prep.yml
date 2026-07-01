@@ -1,0 +1,140 @@
+name: Release Prep
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  prepare-release-pr:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Generate release metadata
+        id: notes
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          mkdir -p tmp
+
+          if ! node scripts/generateReleaseNotes.cjs \
+            --output tmp/release-notes.customer.md \
+            --engineering-output tmp/release-notes.engineering.md \
+            --metadata-output tmp/release-notes.json \
+            --json > tmp/release-notes.stdout.json; then
+            echo "No release metadata could be generated. Skipping release prep."
+            echo "has_metadata=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          VERSION="$(node -e "const data=require('./tmp/release-notes.json'); process.stdout.write(data.version || '')")"
+          BUMP="$(node -e "const data=require('./tmp/release-notes.json'); process.stdout.write(data.bump || '')")"
+          INFERRED_BUMP="$(node -e "const data=require('./tmp/release-notes.json'); process.stdout.write(data.inferredBump || '')")"
+          echo "has_metadata=true" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "bump=$BUMP" >> "$GITHUB_OUTPUT"
+          echo "inferred_bump=$INFERRED_BUMP" >> "$GITHUB_OUTPUT"
+
+      - name: Prepare release version files
+        if: steps.notes.outputs.has_metadata == 'true'
+        id: prep
+        shell: bash
+        run: |
+          node scripts/prepareReleaseVersion.cjs \
+            --metadata tmp/release-notes.json \
+            --json > tmp/release-prep.json
+
+          CHANGED="$(node -e "const data=require('./tmp/release-prep.json'); process.stdout.write(String(Boolean(data.changed)))")"
+          VERSION="$(node -e "const data=require('./tmp/release-prep.json'); process.stdout.write(data.version || '')")"
+          VERSION_CODE="$(node -e "const data=require('./tmp/release-prep.json'); process.stdout.write(String(data.versionCode || ''))")"
+
+          echo "changed=$CHANGED" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "version_code=$VERSION_CODE" >> "$GITHUB_OUTPUT"
+
+      - name: Validate release version files
+        if: steps.prep.outputs.changed == 'true'
+        run: node scripts/validateReleaseVersion.cjs
+
+      - name: Open release prep PR
+        if: steps.prep.outputs.changed == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.prep.outputs.version }}
+          VERSION_CODE: ${{ steps.prep.outputs.version_code }}
+          BUMP: ${{ steps.notes.outputs.bump }}
+          INFERRED_BUMP: ${{ steps.notes.outputs.inferred_bump }}
+        run: |
+          BRANCH="release/next"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B "$BRANCH"
+          git add package.json client/package.json android/app/build.gradle
+          git commit -m "release: prepare v$VERSION"
+          git push --force-with-lease origin "$BRANCH"
+
+          {
+            echo "This PR prepares Maintley v$VERSION for release."
+            echo ""
+            echo "Version updates:"
+            echo "- package.json: v$VERSION"
+            echo "- client/package.json: v$VERSION"
+            echo "- Android versionName: v$VERSION"
+            echo "- Android versionCode: $VERSION_CODE"
+            echo "- Selected bump: $BUMP"
+            echo "- Inferred bump: $INFERRED_BUMP"
+            echo ""
+            echo "Customer release notes preview:"
+            echo ""
+            cat tmp/release-notes.customer.md
+          } > tmp/release-prep-pr-body.md
+
+          PR_NUMBER="$(gh pr list --base main --head "$BRANCH" --json number --jq '.[0].number // ""')"
+          if [[ -n "$PR_NUMBER" ]]; then
+            gh pr edit "$PR_NUMBER" \
+              --title "Release v$VERSION" \
+              --body-file tmp/release-prep-pr-body.md
+          else
+            gh pr create \
+              --base main \
+              --head "$BRANCH" \
+              --title "Release v$VERSION" \
+              --body-file tmp/release-prep-pr-body.md
+          fi
+
+      - name: Write summary
+        if: steps.notes.outputs.has_metadata == 'true'
+        shell: bash
+        run: |
+          {
+            echo "## Release Prep"
+            echo ""
+            echo "**Version:** v${{ steps.prep.outputs.version }}"
+            echo "**Selected bump:** ${{ steps.notes.outputs.bump }}"
+            echo "**Inferred bump:** ${{ steps.notes.outputs.inferred_bump }}"
+            echo ""
+            if [[ "${{ steps.prep.outputs.changed }}" == "true" ]]; then
+              echo "Opened or updated the release prep PR."
+            else
+              echo "No release version changes were needed."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

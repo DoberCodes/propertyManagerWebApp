@@ -101,13 +101,13 @@ import {
 	FooterCopyright,
 } from './LandingPage.styles';
 
-import packageJson from '../../../package.json';
 import {
 	getAPKFileSize,
 	getAPKDownloadURL,
 	getGitHubReleaseApiUrl,
 	getVersionedAPKDownloadURL,
 } from '../../utils/versionCheck';
+import { CURRENT_APP_VERSION } from '../../config/appVersion';
 import SEO from 'Components/SEO/SEO';
 import { legalDocuments } from '../LegalPage/legalDocuments';
 
@@ -695,7 +695,7 @@ const LandingPageComponent = () => {
 							</InfoItem>
 							<InfoItem>
 								<strong>Version</strong>
-								<span>{`${packageJson.version} (latest)`}</span>
+								<span>{`${CURRENT_APP_VERSION} (latest)`}</span>
 							</InfoItem>
 						</DownloadInfo>
 					</DownloadContainer>
