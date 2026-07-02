@@ -46,9 +46,9 @@ export const AvatarMenu: React.FC<AvatarMenuProps> = ({ setIsNotificationModalOp
 	const handleLogout = () => {
 		void (async () => {
 			try {
+				clearAccountScopedClientState(dispatch);
 				await signOutUser();
 				dispatch(logout());
-				clearAccountScopedClientState(dispatch);
 				navigate('/');
 			} catch (error) {
 				console.error('Logout failed:', error);

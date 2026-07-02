@@ -123,6 +123,11 @@ Feature gates, resource limits, push/email delivery gates, and account usage
 widgets should use the current entitled plan, not a pending checkout plan or
 future scheduled plan.
 
+Paid-plan setup records, such as default property groups or team groups, should
+be created only after Stripe confirms an active or trialing subscription. A
+pending checkout may store intent metadata, but it must not create paid-plan
+operational structure.
+
 ---
 
 ## Upgrade Flow

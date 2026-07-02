@@ -31,7 +31,16 @@ export const ButtonGroup = styled.div
 	})
 	.withConfig({
 		shouldForwardProp: (prop) =>
-			!['$justify', '$gap', '$marginTop', '$responsive'].includes(prop),
+			![
+				'$justify',
+				'$gap',
+				'$marginTop',
+				'$responsive',
+				'justify',
+				'gap',
+				'marginTop',
+				'responsive',
+			].includes(prop),
 	})<ButtonGroupProps & ButtonGroupStyleProps>`
 	display: flex;
 	gap: ${(props) => props.$gap ?? props.gap ?? '12px'};

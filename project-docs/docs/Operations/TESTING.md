@@ -291,7 +291,7 @@ Changes affecting permissions should verify:
 Recommended validation:
 
 ```bash id="1c73oq"
-npm run test:rules
+yarn test:rules
 ```
 
 Additional validation:
@@ -424,19 +424,29 @@ Use focused testing when appropriate, but ensure impacted workflows are validate
 Firestore rules:
 
 ```bash id="6m8p34"
-npm run test:rules
+yarn test:rules
+```
+
+This runs Firestore Emulator-backed allow/deny assertions. It should be used for
+permission behavior such as account roles, task writes, account memberships,
+support/admin boundaries, notification ownership, and denied access.
+
+Firestore structure smoke check:
+
+```bash id="8f7n2a"
+yarn test:rules:structure
 ```
 
 Storage checks:
 
 ```bash id="6oqljv"
-npm run test:storage
+yarn test:storage
 ```
 
 Combined:
 
 ```bash id="2n4a0r"
-npm run test:rules:all
+yarn test:rules:all
 ```
 
 Important:
@@ -455,8 +465,9 @@ yarn e2e:smoke:chrome
 ```
 
 The PR smoke suite is intentionally non-mutating. It verifies registration
-navigation without submitting a new account, and verifies demo login/logout. It
-must not create Firebase accounts, Stripe customers, properties, tasks, or
+navigation without submitting a new account, verifies demo login/logout, and
+checks the Support Center without submitting a ticket. It must not create
+Firebase accounts, Stripe customers, properties, tasks, support tickets, or
 checkout sessions.
 
 Workflow coverage:
@@ -513,6 +524,8 @@ Playwright provides workflow-level confidence.
 
 GitHub Actions:
 
+* Build Check runs `yarn test:ci`, `yarn test:rules`, `yarn test:storage`, `yarn build`,
+  `yarn check:asset-budgets`, and `yarn --cwd functions build` for normal PRs.
 * PRs run `E2E Tests / smoke` against Chromium only.
 * The `release/next` PR skips E2E and runs version validation instead of the
   full Build Check test/build jobs because it only updates release version
@@ -528,6 +541,8 @@ GitHub Actions:
   workflow maps this value from the `E2E_REACT_APP_FIREBASE_PROJECT_ID` secret.
 * E2E intentionally does not fall back to production Firebase config.
 * Stripe checkout tests are not part of the automatic PR smoke flow.
+* Storage rules are tested with Firebase emulators and Firestore-backed account
+  context.
 
 ---
 

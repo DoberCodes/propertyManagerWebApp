@@ -36,7 +36,10 @@ const createMockStore = (
 const renderWithStore = (ui: React.ReactElement, store?: any) =>
 	render(
 		<Provider store={store || createMockStore()}>
-			<MemoryRouter>{ui}</MemoryRouter>
+			<MemoryRouter
+				future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+				{ui}
+			</MemoryRouter>
 		</Provider>,
 	);
 

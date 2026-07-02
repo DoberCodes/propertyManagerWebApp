@@ -4,7 +4,12 @@
  */
 
 import { AdminFeedbackTicket } from '../../../services/adminPortalService';
-import { StatusOption, DEFAULT_TICKET_COUNTS, normalizeStatusForAdmin } from '../constants';
+import {
+	StatusOption,
+	DEFAULT_TICKET_COUNTS,
+	MAINTLEY_STATUS_UPDATE_MESSAGES,
+	normalizeStatusForAdmin,
+} from '../constants';
 
 export interface AdminTicketGroup {
 	primaryTicket: AdminFeedbackTicket;
@@ -45,6 +50,21 @@ export const getDisplayTicketNumber = (ticketNumber: string | undefined, ticketI
 	const rawTicketNumber = String(ticketNumber || '').trim();
 	const rawTicketId = String(ticketId || '').trim();
 	return rawTicketNumber || rawTicketId || 'UNKNOWN-TICKET';
+};
+
+export const buildStatusChangeMaintleyUpdate = (
+	nextStatus: string,
+	customUpdate?: string,
+): string | undefined => {
+	const normalizedStatus = normalizeStatusForAdmin(nextStatus);
+	const standardUpdate = MAINTLEY_STATUS_UPDATE_MESSAGES[normalizedStatus];
+	const trimmedCustomUpdate = String(customUpdate || '').trim();
+
+	if (!standardUpdate) return trimmedCustomUpdate || undefined;
+	if (!trimmedCustomUpdate) return standardUpdate;
+	if (trimmedCustomUpdate === standardUpdate) return standardUpdate;
+
+	return `${standardUpdate}\n\n${trimmedCustomUpdate}`;
 };
 
 export const groupTicketsForDisplay = (

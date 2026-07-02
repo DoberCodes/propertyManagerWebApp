@@ -48,6 +48,18 @@ jobs:
       - name: Unit tests
         run: yarn test:ci
 
+      - name: Use Java for Firebase emulators
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Firestore rules tests
+        run: yarn test:rules
+
+      - name: Storage rules tests
+        run: yarn test:storage
+
   build:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.ref != 'release/next'
     runs-on: ubuntu-latest
@@ -64,7 +76,6 @@ jobs:
       - name: Install dependencies
         run: yarn install --frozen-lockfile
 
-
       - name: Build
         env:
           CI: false
@@ -77,4 +88,27 @@ jobs:
           REACT_APP_FIREBASE_WEB_PUSH_VAPID_KEY: ${{ secrets.PROD_REACT_APP_FIREBASE_WEB_PUSH_VAPID_KEY }}
           REACT_APP_STRIPE_PUBLIC_KEY: ${{ secrets.PROD_REACT_APP_STRIPE_PUBLIC_KEY }}
         run: yarn build
+
+      - name: Check asset budgets
+        run: yarn check:asset-budgets
+
+  functions-build:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.ref != 'release/next'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'yarn'
+          cache-dependency-path: functions/yarn.lock
+
+      - name: Install functions dependencies
+        run: yarn --cwd functions install --frozen-lockfile
+
+      - name: Build functions
+        run: yarn --cwd functions build
 
