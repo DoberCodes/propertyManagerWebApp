@@ -350,6 +350,33 @@ Firebase Rules Admin
 
 This lets the deploy workflow validate and publish `firestore.rules`.
 
+Cloud Storage rules deployment also requires the deploy service account to read
+the Firebase Storage default bucket. If deploy fails with:
+
+```text
+Permission 'firebasestorage.defaultBucket.get' denied
+```
+
+grant the GitHub deploy service account:
+
+```text
+Cloud Storage for Firebase Viewer
+```
+
+If CI should deploy `storage.rules`, grant:
+
+```text
+Cloud Storage for Firebase Admin
+```
+
+The deploy workflow only includes the `storage` target on push when
+`storage.rules` or `firebase.json` changes. Manual workflow runs can include it
+by setting deploy targets to:
+
+```text
+functions,firestore:rules,storage
+```
+
 Firebase Functions deploy may also ask the Firebase Extensions API about
 installed extension instances while analyzing the project. If deploy fails with:
 
@@ -635,9 +662,17 @@ Firestore app-version publication is handled by:
 .github/workflows/publish-app-version.yml
 ```
 
-The Publish App Version workflow waits until the versioned APK release asset is
-reachable on the GitHub Release, then writes `appConfig/version`. This prevents
-users from seeing an update notification before the APK exists.
+`build:signed` dispatches the Publish App Version workflow after the signed APK
+and AAB are uploaded to the GitHub Release. The workflow waits until the
+versioned APK release asset is reachable, then writes `appConfig/version`. This
+prevents users from seeing an update notification before the APK exists.
+
+If the dispatch step fails, run it manually after confirming the release asset
+exists:
+
+```bash
+gh workflow run publish-app-version.yml --repo DoberFamilyVentures/propertyManagerWebApp --ref main -f version=2.9.16
+```
 
 Web deployment is handled separately by the Deploy Web workflow when release
 version files land on `main`. `build:signed` does not deploy GitHub Pages.

@@ -347,10 +347,11 @@ The release workflow uses split ownership:
   stay local. It validates that version files were already prepared, builds the
   signed APK and AAB, creates or updates the GitHub Release, and uploads
   versioned assets such as `maintley-2.9.16-release.apk` and
-  `maintley-2.9.16-release.aab`. It does not commit, push to `main`, deploy
-  GitHub Pages, or publish Firestore app-version state.
-* Publish App Version Action writes Firestore `appConfig/version` only after the
-  GitHub Release APK is reachable.
+  `maintley-2.9.16-release.aab`. It does not commit, push to `main`, or deploy
+  GitHub Pages.
+* After Android assets are uploaded, `build:signed` dispatches the Publish App
+  Version Action. That action writes Firestore `appConfig/version` only after
+  the GitHub Release APK is reachable.
 
 Do not modify release behavior without reviewing the release workflows and
 signed Android artifact helper together.

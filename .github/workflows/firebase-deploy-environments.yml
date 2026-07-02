@@ -5,6 +5,11 @@ on:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      deploy_targets:
+        description: Comma-separated Firebase deploy targets.
+        required: false
+        default: functions,firestore:rules
 
 jobs:
   build-check:
@@ -50,6 +55,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
 
       - name: Resolve target Firebase project
@@ -71,25 +78,86 @@ jobs:
           echo "target=$TARGET" >> "$GITHUB_OUTPUT"
           echo "project_id=$PROJECT_ID" >> "$GITHUB_OUTPUT"
 
+      - name: Resolve Firebase deploy targets
+        id: deploy-targets
+        shell: bash
+        env:
+          MANUAL_DEPLOY_TARGETS: ${{ github.event.inputs.deploy_targets }}
+          BEFORE_SHA: ${{ github.event.before }}
+          CURRENT_SHA: ${{ github.sha }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            TARGETS="${MANUAL_DEPLOY_TARGETS// /}"
+            if [[ -z "$TARGETS" ]]; then
+              TARGETS="functions,firestore:rules"
+            fi
+
+            echo "targets=$TARGETS" >> "$GITHUB_OUTPUT"
+            echo "has_targets=true" >> "$GITHUB_OUTPUT"
+            echo "Manual Firebase deploy targets: $TARGETS"
+            exit 0
+          fi
+
+          if [[ -n "$BEFORE_SHA" && "$BEFORE_SHA" != "0000000000000000000000000000000000000000" ]] && git cat-file -e "$BEFORE_SHA^{commit}" 2>/dev/null; then
+            CHANGED_FILES="$(git diff --name-only "$BEFORE_SHA" "$CURRENT_SHA")"
+          else
+            CHANGED_FILES="$(git diff --name-only HEAD~1 HEAD)"
+          fi
+
+          echo "Changed files:"
+          echo "$CHANGED_FILES"
+
+          targets=()
+
+          if echo "$CHANGED_FILES" | grep -Eq '(^functions/|^firebase\.json$)'; then
+            targets+=("functions")
+          fi
+
+          if echo "$CHANGED_FILES" | grep -Eq '(^firestore\.rules$|^firebase\.json$)'; then
+            targets+=("firestore:rules")
+          fi
+
+          if echo "$CHANGED_FILES" | grep -Eq '(^storage\.rules$|^firebase\.json$)'; then
+            targets+=("storage")
+          fi
+
+          if [[ "${#targets[@]}" -eq 0 ]]; then
+            echo "targets=" >> "$GITHUB_OUTPUT"
+            echo "has_targets=false" >> "$GITHUB_OUTPUT"
+            echo "No Firebase deploy targets changed."
+            exit 0
+          fi
+
+          TARGETS="$(IFS=,; echo "${targets[*]}")"
+          echo "targets=$TARGETS" >> "$GITHUB_OUTPUT"
+          echo "has_targets=true" >> "$GITHUB_OUTPUT"
+          echo "Firebase deploy targets: $TARGETS"
+
       - name: Use Node.js
+        if: steps.deploy-targets.outputs.has_targets == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'yarn'
 
       - name: Install functions dependencies
+        if: steps.deploy-targets.outputs.has_targets == 'true'
         run: yarn --cwd functions install --frozen-lockfile
 
       - name: Build functions
+        if: steps.deploy-targets.outputs.has_targets == 'true' && contains(steps.deploy-targets.outputs.targets, 'functions')
         run: yarn --cwd functions build
 
       - name: Authenticate to Google Cloud
+        if: steps.deploy-targets.outputs.has_targets == 'true'
         uses: google-github-actions/auth@v3
         with:
           credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
           project_id: ${{ steps.target.outputs.project_id }}
 
       - name: Write Functions deploy environment
+        if: steps.deploy-targets.outputs.has_targets == 'true' && contains(steps.deploy-targets.outputs.targets, 'functions')
         env:
           STRIPE_HOMEOWNER_PLUS_MONTHLY_PRICE_ID: ${{ secrets.PROD_STRIPE_HOMEOWNER_PLUS_MONTHLY_PRICE_ID || secrets.PROD_REACT_APP_STRIPE_HOMEOWNER_PLUS_MONTHLY_PRICE_ID }}
           STRIPE_HOMEOWNER_PLUS_ANNUAL_PRICE_ID: ${{ secrets.PROD_STRIPE_HOMEOWNER_PLUS_ANNUAL_PRICE_ID || secrets.PROD_REACT_APP_STRIPE_HOMEOWNER_PLUS_ANNUAL_PRICE_ID }}
@@ -128,9 +196,10 @@ jobs:
           } > functions/.env
 
       - name: Deploy Firebase rules and Functions
+        if: steps.deploy-targets.outputs.has_targets == 'true'
         run: |
           ./functions/node_modules/.bin/firebase deploy \
             --project "${{ steps.target.outputs.project_id }}" \
-            --only firestore:rules,storage,functions \
+            --only "${{ steps.deploy-targets.outputs.targets }}" \
             --non-interactive \
             --force

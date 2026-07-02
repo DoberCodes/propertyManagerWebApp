@@ -1,10 +1,6 @@
 name: Publish App Version
 
 on:
-  release:
-    types:
-      - published
-      - edited
   workflow_dispatch:
     inputs:
       version:
