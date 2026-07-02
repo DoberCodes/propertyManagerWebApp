@@ -38,13 +38,22 @@ jobs:
           VERSION="${INPUT_VERSION:-${RELEASE_TAG#v}}"
           TAG="v$VERSION"
           APK_ASSET_NAME="maintley-$VERSION-release.apk"
-          APK_URL="https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG/$APK_ASSET_NAME"
+          EXPECTED_APK_URL="https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG/$APK_ASSET_NAME"
+          APK_URL=""
           RELEASE_URL="https://github.com/$GITHUB_REPOSITORY/releases/tag/$TAG"
 
           mkdir -p tmp
           gh release view "$TAG" --json body --jq '.body // ""' > tmp/release-notes.customer.md
 
           for attempt in 1 2 3 4 5 6 7 8 9 10 11 12; do
+            APK_URL="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG" \
+              --jq ".assets[] | select(.name == \"$APK_ASSET_NAME\" or .label == \"$APK_ASSET_NAME\" or .name == \"app-release.apk\") | .browser_download_url" \
+              2>/dev/null | head -n 1 || true)"
+
+            if [[ -z "$APK_URL" ]]; then
+              APK_URL="$EXPECTED_APK_URL"
+            fi
+
             if curl -fsIL "$APK_URL" >/dev/null; then
               echo "APK is available at $APK_URL"
               break
@@ -52,6 +61,7 @@ jobs:
 
             if [[ "$attempt" == "12" ]]; then
               echo "APK asset $APK_ASSET_NAME was not reachable for $TAG."
+              echo "Last checked URL: $APK_URL"
               exit 1
             fi
 

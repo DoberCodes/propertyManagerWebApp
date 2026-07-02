@@ -699,6 +699,10 @@ maintley-{version}-release.apk
 maintley-{version}-release.aab
 ```
 
+`build:signed` copies the Gradle outputs into these versioned filenames before
+uploading them. Do not rely on GitHub Release asset labels for the download URL;
+GitHub download paths are based on the uploaded file name.
+
 Example release asset names for v2.9.16:
 
 ```text

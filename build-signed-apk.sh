@@ -49,6 +49,9 @@ APK_FILE="android/app/build/outputs/apk/release/app-release.apk"
 AAB_FILE="android/app/build/outputs/bundle/release/app-release.aab"
 APK_ASSET_NAME=""
 AAB_ASSET_NAME=""
+RELEASE_ASSET_DIR="tmp/android-release-assets"
+VERSIONED_APK_FILE=""
+VERSIONED_AAB_FILE=""
 RELEASE_NOTES_WORKFLOW="release-notes.yml"
 PUBLISH_APP_VERSION_WORKFLOW="publish-app-version.yml"
 RELEASE_NOTES_ACTION_DIR="tmp/release-notes-action"
@@ -91,6 +94,27 @@ has_non_empty_file() {
 set_release_asset_names() {
   APK_ASSET_NAME="maintley-${NEW_VERSION}-release.apk"
   AAB_ASSET_NAME="maintley-${NEW_VERSION}-release.aab"
+  VERSIONED_APK_FILE="$RELEASE_ASSET_DIR/$APK_ASSET_NAME"
+  VERSIONED_AAB_FILE="$RELEASE_ASSET_DIR/$AAB_ASSET_NAME"
+}
+
+prepare_versioned_release_assets() {
+  mkdir -p "$RELEASE_ASSET_DIR"
+  cp "$APK_FILE" "$VERSIONED_APK_FILE"
+  cp "$AAB_FILE" "$VERSIONED_AAB_FILE"
+
+  if [ ! -f "$VERSIONED_APK_FILE" ]; then
+    print_error "$VERSIONED_APK_FILE not found! Versioned APK preparation failed."
+    exit 1
+  fi
+  if [ ! -f "$VERSIONED_AAB_FILE" ]; then
+    print_error "$VERSIONED_AAB_FILE not found! Versioned AAB preparation failed."
+    exit 1
+  fi
+
+  ls -lh "$VERSIONED_APK_FILE"
+  ls -lh "$VERSIONED_AAB_FILE"
+  print_success "Versioned Android release assets are ready for upload"
 }
 
 # Run gh command and auto-refresh auth on failure, then retry once
@@ -577,7 +601,8 @@ fi
 # ========== CREATE GITHUB RELEASE ==========
 echo ""
 print_header "Step 6: Creating GitHub Release"
-if [ -f "$RELEASE_NOTES_FILE" ] && [ -f "$APK_FILE" ] && [ -f "$AAB_FILE" ]; then
+prepare_versioned_release_assets
+if [ -f "$RELEASE_NOTES_FILE" ] && [ -f "$VERSIONED_APK_FILE" ] && [ -f "$VERSIONED_AAB_FILE" ]; then
   RELEASE_EXISTS=false
   if run_gh_with_refresh gh release view "v$NEW_VERSION" --repo "$REPO_NAME" >/dev/null 2>&1; then
     RELEASE_EXISTS=true
@@ -607,8 +632,8 @@ if [ -f "$RELEASE_NOTES_FILE" ] && [ -f "$APK_FILE" ] && [ -f "$AAB_FILE" ]; the
   # Upload/replace APK and AAB (use --clobber to overwrite existing assets with same name)
   # This handles both new releases and artifact replacements in existing releases
   if run_gh_with_refresh gh release upload "v$NEW_VERSION" \
-    "$APK_FILE#$APK_ASSET_NAME" \
-    "$AAB_FILE#$AAB_ASSET_NAME" \
+    "$VERSIONED_APK_FILE" \
+    "$VERSIONED_AAB_FILE" \
     --repo "$REPO_NAME" --clobber; then
     if [ "$RELEASE_EXISTS" = true ]; then
       print_success "APK and AAB replaced in existing GitHub release v$NEW_VERSION"
