@@ -8,7 +8,7 @@ import {
 	deleteDoc,
 	updateDoc,
 } from 'firebase/firestore';
-import { db } from '../../config/firebase';
+import { auth, db } from '../../config/firebase';
 import { callFirebaseFunction } from '../../config/firebaseFunctions';
 import { apiSlice, docToData } from './apiSlice';
 import {
@@ -22,15 +22,21 @@ const maintenanceSlice = apiSlice.injectEndpoints({
 	endpoints: (builder) => ({
 		// Maintenance endpoints
 		getMaintenanceHistoryByProperty: builder.query<MaintenanceEvent[], string>({
-			async queryFn(propertyId: string) {
+			async queryFn(propertyId: string, { signal }) {
 				try {
 					if (!propertyId) {
 						return { data: [] };
 					}
+					const queryAuthUid = auth.currentUser?.uid || '';
+					const authContextChanged = () =>
+						queryAuthUid && auth.currentUser?.uid !== queryAuthUid;
 					let accessibleAccountIds: string[] = [];
 					try {
 						accessibleAccountIds = await resolveAccessibleAccountIds();
 					} catch (accountContextError) {
+						if (signal.aborted || authContextChanged()) {
+							return { data: [] };
+						}
 						console.warn(
 							'Could not resolve accessible account IDs for maintenance history query. Falling back to property-scoped reads.',
 							accountContextError,
@@ -47,6 +53,9 @@ const maintenanceSlice = apiSlice.injectEndpoints({
 					// Read from both collections; maintenanceEvents is canonical, maintenanceHistory is legacy.
 					for (const collectionName of ['maintenanceEvents', 'maintenanceHistory']) {
 						for (const accountId of accessibleAccountIds) {
+							if (signal.aborted || authContextChanged()) {
+								return { data: [] };
+							}
 							try {
 								const q = query(
 									collection(db, collectionName),
@@ -54,6 +63,9 @@ const maintenanceSlice = apiSlice.injectEndpoints({
 									where('propertyId', '==', propertyId),
 								);
 								const snapshot = await getDocs(q);
+								if (signal.aborted || authContextChanged()) {
+									return { data: [] };
+								}
 								snapshot.docs.forEach((d) => {
 									const data = docToData(d);
 									if (data && !seenIds.has(data.id)) {
@@ -67,6 +79,9 @@ const maintenanceSlice = apiSlice.injectEndpoints({
 									}
 								});
 							} catch (error) {
+								if (signal.aborted || authContextChanged()) {
+									return { data: [] };
+								}
 								console.warn(
 									`Maintenance history query failed for ${collectionName} (${accountId}).`,
 									error,
@@ -78,12 +93,18 @@ const maintenanceSlice = apiSlice.injectEndpoints({
 					// Secondary pass: query by propertyId without account filter.
 					// This fills gaps when account context changed but rules still allow the property read.
 					for (const collectionName of ['maintenanceEvents', 'maintenanceHistory']) {
+						if (signal.aborted || authContextChanged()) {
+							return { data: [] };
+						}
 						try {
 							const propertyQuery = query(
 								collection(db, collectionName),
 								where('propertyId', '==', propertyId),
 							);
 							const propertySnapshot = await getDocs(propertyQuery);
+							if (signal.aborted || authContextChanged()) {
+								return { data: [] };
+							}
 							propertySnapshot.docs.forEach((d) => {
 								const data = docToData(d);
 								if (data && !seenIds.has(data.id)) {
@@ -102,11 +123,20 @@ const maintenanceSlice = apiSlice.injectEndpoints({
 					}
 
 					// Fallback by propertyTitle for old records that lack a propertyId field
+					if (signal.aborted || authContextChanged()) {
+						return { data: [] };
+					}
 					const propertyDoc = await getDoc(doc(db, 'properties', propertyId));
+					if (signal.aborted || authContextChanged()) {
+						return { data: [] };
+					}
 					const propertyTitle = docToData(propertyDoc)?.title;
 					if (propertyTitle) {
 						for (const collectionName of ['maintenanceEvents', 'maintenanceHistory']) {
 							for (const accountId of accessibleAccountIds) {
+								if (signal.aborted || authContextChanged()) {
+									return { data: [] };
+								}
 								try {
 									const titleQuery = query(
 										collection(db, collectionName),
@@ -114,6 +144,9 @@ const maintenanceSlice = apiSlice.injectEndpoints({
 										where('propertyTitle', '==', propertyTitle),
 									);
 									const titleSnapshot = await getDocs(titleQuery);
+									if (signal.aborted || authContextChanged()) {
+										return { data: [] };
+									}
 									titleSnapshot.docs.forEach((d) => {
 										const data = docToData(d);
 										if (data && !seenIds.has(data.id)) {
@@ -127,6 +160,9 @@ const maintenanceSlice = apiSlice.injectEndpoints({
 										}
 									});
 								} catch (error) {
+									if (signal.aborted || authContextChanged()) {
+										return { data: [] };
+									}
 									console.warn(
 										`Maintenance title fallback query failed for ${collectionName} (${accountId}).`,
 										error,

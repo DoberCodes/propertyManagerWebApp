@@ -16,13 +16,13 @@ export const STATUS_LABELS: Record<StatusOption, string> = {
 
 export const MAINTLEY_STATUS_UPDATE_MESSAGES: Record<StatusOption, string> = {
 	received:
-"We received your ticket and will review it shortly. Thank you for taking the time to help improve Maintley.",
+		"We received your ticket and will review it shortly. Thank you for taking the time to help improve Maintley.",
 	in_progress:
-"We're actively investigating this issue and working toward a solution. We'll share another update as progress is made.",
+		"We're actively investigating this issue and working toward a solution. We'll share another update as progress is made.",
 	resolved:
-"We've implemented a fix and are completing final testing before release. We'll let you know if anything changes during testing.",
+		"We've implemented a fix and are completing final testing before release. We'll let you know if anything changes during testing.",
 	closed:
-"This fix has been scheduled for the next Maintley release. Thank you for helping improve the Maintley community.",
+		"This fix has been scheduled for the next Maintley release. Thank you for helping improve the Maintley community.",
 };
 
 export const normalizeStatusForAdmin = (value: unknown): StatusOption => {

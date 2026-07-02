@@ -27,7 +27,9 @@ const renderProtectedRoute = (
 	const { requireSubscription = false, allowExpiredUsers = false } = options;
 
 	return render(
-		<MemoryRouter initialEntries={[path]}>
+		<MemoryRouter
+			initialEntries={[path]}
+			future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
 			<Routes>
 				<Route path='/login' element={<div>Login Page</div>} />
 				<Route path='/paywall' element={<div>Paywall Page</div>} />

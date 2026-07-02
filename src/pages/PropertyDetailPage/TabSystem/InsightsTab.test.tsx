@@ -126,7 +126,8 @@ const defaultProps = {
 
 const renderInsights = (props: Partial<typeof defaultProps> = {}) =>
 	render(
-		<MemoryRouter>
+		<MemoryRouter
+			future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
 			<Provider store={store}>
 				<AppFeedbackProvider>
 					<InsightsTab {...defaultProps} {...props} />

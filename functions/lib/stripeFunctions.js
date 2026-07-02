@@ -198,6 +198,62 @@ const resolvePromotionCodeId = async (promoCode) => {
     return promotionCodes.data[0]?.id || null;
 };
 const db = admin.firestore();
+const PROPERTY_GROUP_ELIGIBLE_PLANS = new Set(['property', 'portfolio']);
+const TEAM_GROUP_ELIGIBLE_PLANS = new Set(['property', 'portfolio']);
+const ensureConfirmedPlanDefaults = async (accountId, planId) => {
+    const normalizedAccountId = String(accountId || '').trim();
+    const normalizedPlanId = String(planId || '').trim().toLowerCase();
+    if (!normalizedAccountId) {
+        return;
+    }
+    const now = admin.firestore.FieldValue.serverTimestamp();
+    const createIfMissing = async (ref, data) => {
+        const snapshot = await ref.get();
+        if (!snapshot.exists) {
+            await ref.set(data);
+        }
+    };
+    const writes = [];
+    if (PROPERTY_GROUP_ELIGIBLE_PLANS.has(normalizedPlanId)) {
+        writes.push(createIfMissing(db
+            .collection('propertyGroups')
+            .doc(`${normalizedAccountId}_my_properties`), {
+            userId: normalizedAccountId,
+            accountId: normalizedAccountId,
+            name: 'My Properties',
+            properties: [],
+            createdAt: now,
+            updatedAt: now,
+        }), createIfMissing(db
+            .collection('propertyGroups')
+            .doc(`${normalizedAccountId}_shared_properties`), {
+            userId: normalizedAccountId,
+            accountId: normalizedAccountId,
+            name: 'Shared Properties',
+            properties: [],
+            createdAt: now,
+            updatedAt: now,
+        }));
+    }
+    if (TEAM_GROUP_ELIGIBLE_PLANS.has(normalizedPlanId)) {
+        writes.push(createIfMissing(db.collection('teamGroups').doc(`${normalizedAccountId}_default`), {
+            userId: normalizedAccountId,
+            accountId: normalizedAccountId,
+            name: 'My Team',
+            linkedProperties: [],
+            createdAt: now,
+            updatedAt: now,
+        }));
+    }
+    await Promise.all(writes);
+};
+const ensureConfirmedPlanDefaultsForSubscription = async (accountId, subscription) => {
+    const status = String(subscription?.status || '').trim().toLowerCase();
+    if (!['active', 'trial'].includes(status)) {
+        return;
+    }
+    await ensureConfirmedPlanDefaults(accountId, String(subscription?.plan || ''));
+};
 const removeUndefinedFields = (obj) => {
     return Object.fromEntries(Object.entries(obj).filter(([, value]) => value !== undefined));
 };
@@ -363,6 +419,7 @@ exports.createCheckoutSession = functions
                 updatedAt: admin.firestore.FieldValue.serverTimestamp(),
             });
             await syncFamilyAccountSubscription(userData, mergedSubscription);
+            await ensureConfirmedPlanDefaultsForSubscription(userData?.accountId || userId, mergedSubscription);
             return {
                 subscriptionUpdated: true,
                 subscriptionId: updatedSubscription.id,
@@ -582,6 +639,7 @@ exports.verifyCheckoutSession = functions
             updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         });
         await syncFamilyAccountSubscription(userData, mergedSubscription);
+        await ensureConfirmedPlanDefaultsForSubscription(userData?.accountId || firebaseUID, mergedSubscription);
         return { success: true, subscription: subscriptionData };
     }
     catch (error) {
@@ -741,6 +799,7 @@ exports.syncSubscriptionFromStripe = functions
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
     await syncFamilyAccountSubscription(userData, mergedSubscription);
+    await ensureConfirmedPlanDefaultsForSubscription(userData?.accountId || userDoc.id, mergedSubscription);
     return {
         success: true,
         source: 'stripe-sync-fallback',
@@ -881,6 +940,7 @@ const handleSubscriptionUpdate = async (subscription) => {
                 subscription: mergedSubscription,
             });
             await syncFamilyAccountSubscription(userData, mergedSubscription);
+            await ensureConfirmedPlanDefaultsForSubscription(userData?.accountId || userDoc.id, mergedSubscription);
             console.log('Subscription updated for user:', userDoc.id);
         }
     }
@@ -943,6 +1003,7 @@ const handlePaymentSuccess = async (invoice) => {
                 subscription: mergedSubscription,
             });
             await syncFamilyAccountSubscription(userData, mergedSubscription);
+            await ensureConfirmedPlanDefaultsForSubscription(userData?.accountId || userDoc.id, mergedSubscription);
             console.log('Payment succeeded for user:', userDoc.id);
         }
     }
@@ -1024,6 +1085,7 @@ const handleSubscriptionCreated = async (subscription) => {
                 subscription: mergedSubscription,
             });
             await syncFamilyAccountSubscription(userData, mergedSubscription);
+            await ensureConfirmedPlanDefaultsForSubscription(userData?.accountId || userDoc.id, mergedSubscription);
             console.log('New subscription created for user:', userDoc.id, 'Plan:', subscriptionData.plan, 'Status:', subscriptionData.status);
         }
         else {
@@ -1079,6 +1141,7 @@ const handleSubscriptionResumed = async (subscription) => {
                 updatedAt: admin.firestore.FieldValue.serverTimestamp(),
             });
             await syncFamilyAccountSubscription(userData, mergedSubscription);
+            await ensureConfirmedPlanDefaultsForSubscription(userData?.accountId || userDoc.id, mergedSubscription);
             console.log('Subscription resumed for user:', userDoc.id);
         }
     }
