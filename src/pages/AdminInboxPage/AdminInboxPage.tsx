@@ -38,12 +38,12 @@ import { useAdminTicketLinking } from './hooks/useAdminTicketLinking';
 import { useAdminNotes } from './hooks/useAdminNotes';
 import { fetchAuditLogs, fetchAdminUsers, fetchBillingCoupons } from '../../Redux/thunks/adminPortalThunks';
 import {
+	buildStatusChangeMaintleyUpdate,
 	calculateTicketCounts,
 	getDisplayTicketNumber,
 	groupTicketsForDisplay,
 } from './utils/ticketUtils';
 import {
-	MAINTLEY_STATUS_UPDATE_MESSAGES,
 	MESSAGES,
 	normalizeStatusForAdmin,
 } from './constants';
@@ -70,21 +70,6 @@ const normalizeRoleToken = (value: unknown): string =>
 
 const hasTopLevelRole = (roles: string[]): boolean =>
 	roles.some((role) => TOP_LEVEL_ROLE_TOKENS.has(normalizeRoleToken(role)));
-
-const buildStatusChangeMaintleyUpdate = (
-	nextStatus: string,
-	customUpdate?: string,
-): string | undefined => {
-	const normalizedStatus = normalizeStatusForAdmin(nextStatus);
-	const standardUpdate = MAINTLEY_STATUS_UPDATE_MESSAGES[normalizedStatus];
-	const trimmedCustomUpdate = String(customUpdate || '').trim();
-
-	if (!standardUpdate) return trimmedCustomUpdate || undefined;
-	if (!trimmedCustomUpdate) return standardUpdate;
-	if (trimmedCustomUpdate === standardUpdate) return standardUpdate;
-
-	return `${standardUpdate}\n\n${trimmedCustomUpdate}`;
-};
 
 export const AdminInboxPage: React.FC = () => {
 	const dispatch = useDispatch<AppDispatch>();

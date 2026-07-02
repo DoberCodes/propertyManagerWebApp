@@ -127,10 +127,10 @@ jobs:
             echo "STRIPE_PORTFOLIO_ANNUAL_PRICE_ID=$STRIPE_PORTFOLIO_ANNUAL_PRICE_ID"
           } > functions/.env
 
-      - name: Deploy Firestore rules and Functions
+      - name: Deploy Firebase rules and Functions
         run: |
           ./functions/node_modules/.bin/firebase deploy \
             --project "${{ steps.target.outputs.project_id }}" \
-            --only firestore:rules,functions \
+            --only firestore:rules,storage,functions \
             --non-interactive \
             --force

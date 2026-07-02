@@ -11,12 +11,42 @@ jest.mock('axios', () => ({
 	create: jest.fn(() => ({ get: jest.fn(), post: jest.fn() })),
 }));
 
+jest.mock('./router', () => ({
+	RouterComponent: () => <div>Router ready</div>,
+}));
+
+jest.mock('./Hooks/DataFetchContext', () => ({
+	DataFetchProvider: ({ children }: { children: React.ReactNode }) => (
+		<div>{children}</div>
+	),
+}));
+
+jest.mock('./Components/Library/UpdateNotification/UpdateNotification', () => ({
+	UpdateNotification: () => null,
+}));
+
+jest.mock('./services/authSession', () => ({
+	onAuthStateChange: () => () => {},
+}));
+
+jest.mock('./utils/versionCheck', () => ({
+	checkForUpdates: jest.fn().mockResolvedValue(null),
+}));
+
+jest.mock('@capacitor/core', () => ({
+	Capacitor: {
+		isNativePlatform: () => false,
+		Plugins: {},
+	},
+	registerPlugin: jest.fn(),
+}));
+
 test('renders app', () => {
 	render(
 		<Provider store={store}>
 			<App />
 		</Provider>,
 	);
-	// Basic test that app renders without crashing
+
 	expect(document.body).toBeInTheDocument();
 });
