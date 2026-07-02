@@ -291,9 +291,28 @@ const isReleaseCommit = (subject) => {
 	return (
 		normalized.startsWith('release:') ||
 		normalized.startsWith('chore(release):') ||
-		normalized.startsWith('chore: release')
+		normalized.startsWith('chore: release') ||
+		isReleaseAutomationTitle(subject)
 	);
 };
+
+const isReleaseAutomationTitle = (title) => {
+	const normalized = String(title || '')
+		.trim()
+		.replace(/\s*\(#\d+\)\s*$/, '')
+		.toLowerCase();
+
+	return (
+		/^release v\d+\.\d+\.\d+(?:[-+][0-9a-z.-]+)?$/.test(normalized) ||
+		/^release: prepare v\d+\.\d+\.\d+(?:[-+][0-9a-z.-]+)?$/.test(normalized) ||
+		/^chore: prepare release v\d+\.\d+\.\d+(?:[-+][0-9a-z.-]+)?$/.test(normalized)
+	);
+};
+
+const isReleaseAutomationEntry = (entry) =>
+	isReleaseAutomationTitle(entry.title) ||
+	isReleaseAutomationTitle(entry.rawTitle) ||
+	String(entry.headRefName || '').trim().toLowerCase() === 'release/next';
 
 const getPrNumberFromSubject = (subject) => {
 	const mergeMatch = subject.match(/merge pull request #(\d+)/i);
@@ -352,6 +371,9 @@ const buildEntries = (commits) => {
 
 		const pr = fetchPr(prNumber);
 		const entry = pr ? buildPrEntry(pr, commit) : buildPrFallbackEntry(prNumber, commit);
+		if (isReleaseAutomationEntry(entry)) {
+			continue;
+		}
 		entry.commits = [commit];
 		prEntries.set(prNumber, entry);
 	}
@@ -384,11 +406,13 @@ const buildPrEntry = (pr, commit) => {
 		type: 'pr',
 		number: pr.number,
 		title,
+		rawTitle,
 		body: pr.body || '',
 		labels,
 		author: pr.author?.login || commit.authorName,
 		date: pr.mergedAt || commit.date,
 		url: pr.url || '',
+		headRefName: pr.headRefName || '',
 		files,
 		category,
 		customerCategory,
@@ -412,6 +436,7 @@ const buildPrFallbackEntry = (number, commit) => {
 		type: 'pr',
 		number,
 		title,
+		rawTitle,
 		body: '',
 		labels: [],
 		author: commit.authorName,
@@ -440,6 +465,7 @@ const buildDirectEntry = (commit) => {
 		type: 'commit',
 		sha: commit.sha,
 		title,
+		rawTitle,
 		body: '',
 		labels: [],
 		author: commit.authorName,
@@ -684,7 +710,7 @@ const formatCustomerReleaseNotes = ({ version, entries }) => {
 
 	if (customerEntries.length === 0) {
 		lines.push(
-			'This release includes reliability, maintenance, and platform improvements for Maintley.',
+			'This release includes behind-the-scenes improvements to keep Maintley faster, steadier, and easier to maintain.',
 		);
 		lines.push('');
 		return `${lines.join('\n').trim()}\n`;
