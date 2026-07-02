@@ -524,7 +524,7 @@ Playwright provides workflow-level confidence.
 
 GitHub Actions:
 
-* Build Check runs `yarn test:ci`, `yarn test:rules`, `yarn build`,
+* Build Check runs `yarn test:ci`, `yarn test:rules`, `yarn test:storage`, `yarn build`,
   `yarn check:asset-budgets`, and `yarn --cwd functions build` for normal PRs.
 * PRs run `E2E Tests / smoke` against Chromium only.
 * The `release/next` PR skips E2E and runs version validation instead of the
@@ -541,8 +541,8 @@ GitHub Actions:
   workflow maps this value from the `E2E_REACT_APP_FIREBASE_PROJECT_ID` secret.
 * E2E intentionally does not fall back to production Firebase config.
 * Stripe checkout tests are not part of the automatic PR smoke flow.
-* `yarn test:storage` is not a required PR check yet because the current script
-  uses Admin SDK credentials and a live bucket rather than the Storage emulator.
+* Storage rules are tested with Firebase emulators and Firestore-backed account
+  context.
 
 ---
 

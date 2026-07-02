@@ -30,11 +30,11 @@ testing pass. The project now has meaningful coverage across:
 
 The remaining risk is concentrated in three areas:
 
-1. Storage rules do not yet have a repeatable emulator-based test.
-2. Some Playwright workflow tests are smoke-level and accept broad fallback
+1. Some Playwright workflow tests are smoke-level and accept broad fallback
    assertions instead of verifying persisted data and final user-visible state.
-3. Several critical workflows still depend on manual validation or scripts
+2. Several critical workflows still depend on manual validation or scripts
    outside the required PR path.
+3. Billing sandbox tests remain intentionally outside automatic PR checks.
 
 ## Current Automated Test Layers
 
@@ -92,10 +92,9 @@ Current Firestore rules coverage includes:
 * Notification reads, creates, updates, and deletes are limited to the recipient.
 * Notification update spoofing is denied.
 
-Assessment: Firestore rules coverage is good and recently improved. The current
-Storage script is not equivalent coverage because it uses Admin SDK credentials
-and a live bucket instead of a checked-in `storage.rules` file with the Storage
-emulator.
+Assessment: Firestore and Storage rules now have repeatable emulator-backed
+coverage. Storage rules are backed by a checked-in `storage.rules` file and
+Firestore-seeded account/property context.
 
 ### Playwright E2E
 
@@ -147,6 +146,7 @@ Current GitHub Actions behavior:
 
 * `Build Check` runs `yarn test:ci`.
 * `Build Check` runs `yarn test:rules`.
+* `Build Check` runs `yarn test:storage`.
 * `Build Check` runs `yarn build`.
 * `Build Check` runs `yarn check:asset-budgets`.
 * `Build Check` runs `yarn --cwd functions build`.
@@ -157,6 +157,7 @@ Coverage this enforces:
 
 * Unit/integration regression coverage.
 * Firestore security rules coverage.
+* Storage security rules coverage.
 * Frontend build health.
 * Bundle budget regression detection.
 * Functions TypeScript build health.
@@ -167,12 +168,9 @@ Coverage this enforces:
 
 The following critical checks are available but not required on normal PRs:
 
-* `yarn test:storage`
 * `yarn e2e:workflows:chrome`
 * Stripe sandbox tests
 
-Storage remains excluded because the current script requires live Firebase
-credentials and does not exercise checked-in Storage rules through the emulator.
 The remaining pipeline gap is workflow-level and billing sandbox coverage.
 
 ## Critical Workflow Coverage Matrix
@@ -181,7 +179,7 @@ The remaining pipeline gap is workflow-level and billing sandbox coverage.
 | --- | --- | --- | --- |
 | Authentication | Protected route unit tests and auth E2E smoke | Good | Direct navigation flash is covered by unresolved-auth loading behavior. |
 | Account switching | Unit cache clear test and E2E two-account regression | Good | Requires secondary demo credentials to run the strongest E2E path. |
-| Account permissions | Firestore rules and account context tests | Good | Needs CI enforcement. |
+| Account permissions | Firestore rules and account context tests | Good | Enforced by Build Check. |
 | Team member task writes | Firestore emulator regression | Good | Covers maintenance and maintenance lead task writes. |
 | Billing checkout | Stripe service unit tests, checkout E2E, entitlement regression | Moderate | Promo/checkout-abandonment regression has frontend/service coverage; webhook integration should be enforced separately. |
 | Stripe webhooks | Sandbox scripts | Moderate | Useful, but not part of PR CI and not isolated unit tests. |
@@ -206,22 +204,7 @@ The remaining pipeline gap is workflow-level and billing sandbox coverage.
 
 ## Highest-Value Gaps
 
-### 1. Add Emulator-Based Storage Rules Coverage
-
-Risk:
-
-Storage access can regress without a repeatable PR-safe test because the current
-storage script depends on live Admin SDK credentials.
-
-Recommended change:
-
-Add a checked-in `storage.rules` file and replace the live-bucket storage script
-with Storage emulator assertions.
-
-The test should cover authenticated access, owner-scoped paths, property-scoped
-paths, attachment paths, and default-deny behavior.
-
-### 2. Tighten Task Completion Coverage
+### 1. Tighten Task Completion Coverage
 
 Risk:
 
@@ -237,7 +220,7 @@ Recommended tests:
 * Assert a linked maintenance event/history record appears on the property.
 * Assert cost appears in the Costs tab without duplicate counting.
 
-### 3. Add Property Setup Assistant Tests
+### 2. Add Property Setup Assistant Tests
 
 Risk:
 
@@ -252,7 +235,7 @@ Recommended tests:
 * Suggested tasks include correct property context.
 * Assistant remains optional and does not block property usage.
 
-### 4. Add Document Upload and Review Readiness Coverage
+### 3. Add Document Upload and Review Readiness Coverage
 
 Risk:
 
@@ -267,7 +250,7 @@ Recommended tests:
 * Accepted invoice details create maintenance history with invoice total,
   contractor, warranty context, and correct property targeting.
 
-### 5. Add Support/Admin Function Boundary Tests
+### 4. Add Support/Admin Function Boundary Tests
 
 Risk:
 
@@ -282,7 +265,7 @@ Recommended tests:
 * Resolved/internal testing remains open to the customer as "Testing fix."
 * Ticket attachments are visible but details remain collapsed by default.
 
-### 6. Add Contractor Field Regression Tests
+### 5. Add Contractor Field Regression Tests
 
 Risk:
 
@@ -296,7 +279,7 @@ Recommended tests:
 * Contractor remains associated with the selected property.
 * Contractor can be used in task/maintenance history context.
 
-### 7. Improve Notification Coverage After Event Refactor
+### 6. Improve Notification Coverage After Event Refactor
 
 Risk:
 
@@ -314,10 +297,9 @@ the refactor.
 ### Phase 1: Make Existing Critical Checks Required
 
 1. Keep `yarn test:ci`, `yarn test:rules`, `yarn build`,
-   `yarn check:asset-budgets`, and `yarn --cwd functions build` in the required
-   Build Check workflow.
+   `yarn test:storage`, `yarn check:asset-budgets`, and
+   `yarn --cwd functions build` in the required Build Check workflow.
 2. Ensure required branch checks include the expanded Build Check jobs.
-3. Add Storage emulator coverage before making `yarn test:storage` required.
 
 Expected impact:
 
@@ -365,6 +347,7 @@ For normal feature PRs:
 yarn test:ci
 yarn build
 yarn test:rules
+yarn test:storage
 yarn --cwd functions build
 yarn check:asset-budgets
 yarn e2e:smoke:chrome
@@ -386,8 +369,7 @@ Require Stripe sandbox validation and manual Stripe Dashboard verification.
 For permission changes:
 
 Require Firestore rules tests and at least one manual owner/team-member/tenant
-account validation pass when the affected role exists. Add Storage emulator
-tests before treating Storage as an automated required check.
+account validation pass when the affected role exists.
 
 ## Current Bottom Line
 
@@ -396,5 +378,5 @@ permissions, billing entitlement, Property Knowledge Acquisition, Maintley
 Intelligence, support display, and reporting adapters.
 
 The next priority should not be adding many unrelated tests. The next priority
-should be adding Storage emulator coverage and making the core
-property/task/history workflow tests assert durable saved outcomes.
+should be making the core property/task/history workflow tests assert durable
+saved outcomes.

@@ -468,22 +468,30 @@ The recommendation engine should not parse raw documents directly.
 
 # Storage Rules Status
 
-Important:
+Storage rules are maintained in:
 
-`firebase.json` does not currently wire a Storage rules file.
+```text
+storage.rules
+```
+
+`firebase.json` wires the Storage rules file for deployment.
 
 The repository includes:
 
 ```bash
-npm run test:storage
+yarn test:storage
 ```
 
-Before relying on Storage rule behavior, verify:
+This runs Firebase Emulator-backed allow/deny assertions against Storage rules
+and Firestore account/property context. The test covers:
 
-* Whether Storage rules exist in Firebase Console.
-* Whether a local Storage rules file should be added.
-* Whether firebase.json should manage Storage rules.
-* Whether test scripts match deployed behavior.
+* Property document and image paths.
+* User profile images.
+* Team member images and files.
+* Appliance and system files.
+* Maintenance files.
+* Support ticket attachments created by server-side feedback workflows.
+* Default-deny behavior for unknown paths.
 
 Storage security should not be assumed without verification.
 

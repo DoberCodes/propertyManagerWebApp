@@ -1,0 +1,140 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function callerMembershipId(accountId) {
+      return accountId + '_' + request.auth.uid;
+    }
+
+    function userDocExists() {
+      return isAuthenticated() &&
+        firestore.exists(/databases/(default)/documents/users/$(request.auth.uid));
+    }
+
+    function userData() {
+      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function hasActiveMembership(accountId) {
+      return isAuthenticated() &&
+        firestore.exists(/databases/(default)/documents/accountMemberships/$(callerMembershipId(accountId))) &&
+        firestore.get(/databases/(default)/documents/accountMemberships/$(callerMembershipId(accountId))).data.status == 'active';
+    }
+
+    function hasLegacyAccountLink(accountId) {
+      return userDocExists() &&
+        (
+          request.auth.uid == accountId ||
+          (('accountId' in userData()) && userData().accountId == accountId) ||
+          (('familyAccountId' in userData()) && userData().familyAccountId == accountId)
+        );
+    }
+
+    function canReadAccount(accountId) {
+      return isAuthenticated() &&
+        (
+          hasActiveMembership(accountId) ||
+          hasLegacyAccountLink(accountId)
+        );
+    }
+
+    function propertyExists(propertyId) {
+      return firestore.exists(/databases/(default)/documents/properties/$(propertyId));
+    }
+
+    function propertyAccountId(propertyId) {
+      return firestore.get(/databases/(default)/documents/properties/$(propertyId)).data.accountId;
+    }
+
+    function canReadProperty(propertyId) {
+      return isAuthenticated() &&
+        propertyExists(propertyId) &&
+        canReadAccount(propertyAccountId(propertyId));
+    }
+
+    function isImageUpload() {
+      return request.resource != null &&
+        request.resource.contentType.matches('image/.*');
+    }
+
+    function isSupportedDocumentUpload() {
+      return request.resource != null &&
+        (
+          request.resource.contentType.matches('image/.*') ||
+          request.resource.contentType == 'application/pdf' ||
+          request.resource.contentType == 'application/msword' ||
+          request.resource.contentType == 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+          request.resource.contentType == 'text/plain' ||
+          request.resource.contentType == 'application/vnd.ms-excel' ||
+          request.resource.contentType == 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        );
+    }
+
+    function isUnderSizeLimit(maxBytes) {
+      return request.resource != null &&
+        request.resource.size <= maxBytes;
+    }
+
+    match /properties/{accountId}/{fileName} {
+      allow read: if canReadAccount(accountId);
+      allow create, update: if canReadAccount(accountId) &&
+        isSupportedDocumentUpload() &&
+        isUnderSizeLimit(10 * 1024 * 1024);
+      allow delete: if canReadAccount(accountId);
+    }
+
+    match /user-profile-images/{userId}/{fileName} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAuthenticated() &&
+        request.auth.uid == userId &&
+        isImageUpload() &&
+        isUnderSizeLimit(8 * 1024 * 1024);
+      allow delete: if isAuthenticated() && request.auth.uid == userId;
+    }
+
+    match /team-member-images/{accountId}/{memberId}/{fileName} {
+      allow read: if canReadAccount(accountId);
+      allow create, update: if canReadAccount(accountId) &&
+        isImageUpload() &&
+        isUnderSizeLimit(8 * 1024 * 1024);
+      allow delete: if canReadAccount(accountId);
+    }
+
+    match /team-member-files/{accountId}/{memberId}/{fileName} {
+      allow read: if canReadAccount(accountId);
+      allow create, update: if canReadAccount(accountId) &&
+        isSupportedDocumentUpload() &&
+        isUnderSizeLimit(10 * 1024 * 1024);
+      allow delete: if canReadAccount(accountId);
+    }
+
+    match /device-files/{propertyId}/{deviceId}/{fileName} {
+      allow read: if canReadProperty(propertyId);
+      allow create, update: if canReadProperty(propertyId) &&
+        isSupportedDocumentUpload() &&
+        isUnderSizeLimit(10 * 1024 * 1024);
+      allow delete: if canReadProperty(propertyId);
+    }
+
+    match /maintenance-files/{propertyId}/{fileName} {
+      allow read: if canReadProperty(propertyId);
+      allow create, update: if canReadProperty(propertyId) &&
+        isSupportedDocumentUpload() &&
+        isUnderSizeLimit(10 * 1024 * 1024);
+      allow delete: if canReadProperty(propertyId);
+    }
+
+    match /feedback-attachments/{userId}/{feedbackId}/{fileName} {
+      allow read: if isAuthenticated() && request.auth.uid == userId;
+      allow write: if false;
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

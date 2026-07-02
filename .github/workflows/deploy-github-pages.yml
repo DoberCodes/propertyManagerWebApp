@@ -57,6 +57,9 @@ jobs:
       - name: Firestore rules tests
         run: yarn test:rules
 
+      - name: Storage rules tests
+        run: yarn test:storage
+
   build:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.ref != 'release/next'
     runs-on: ubuntu-latest
