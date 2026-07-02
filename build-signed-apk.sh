@@ -50,6 +50,7 @@ AAB_FILE="android/app/build/outputs/bundle/release/app-release.aab"
 APK_ASSET_NAME=""
 AAB_ASSET_NAME=""
 RELEASE_NOTES_WORKFLOW="release-notes.yml"
+PUBLISH_APP_VERSION_WORKFLOW="publish-app-version.yml"
 RELEASE_NOTES_ACTION_DIR="tmp/release-notes-action"
 CUSTOMER_RELEASE_NOTES_FILE="tmp/release-notes.customer.md"
 
@@ -656,6 +657,22 @@ else
   print_warning "⚠ AAB URL may not be immediately accessible (CDN propagation)"
 fi
 
+
+# ========== PUBLISH APP VERSION ==========
+echo ""
+print_header "Step 8: Publishing App Version"
+print_info "Dispatching $PUBLISH_APP_VERSION_WORKFLOW after Android assets upload..."
+if run_gh_with_refresh gh workflow run "$PUBLISH_APP_VERSION_WORKFLOW" \
+  --repo "$REPO_NAME" \
+  --ref main \
+  -f version="$NEW_VERSION"; then
+  print_success "Publish App Version workflow dispatched for v$NEW_VERSION"
+else
+  print_error "Failed to dispatch Publish App Version workflow"
+  print_warning "Run manually: gh workflow run $PUBLISH_APP_VERSION_WORKFLOW --repo $REPO_NAME --ref main -f version=$NEW_VERSION"
+  send_slack_notification "Failed to dispatch app-version publish for v$NEW_VERSION" "error"
+  exit 1
+fi
 
 # ========== FINAL SUMMARY ==========
 echo ""
