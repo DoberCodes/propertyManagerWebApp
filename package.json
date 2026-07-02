@@ -48,7 +48,8 @@
 	},
 	"scripts": {
 		"start": "node ./node_modules/react-scripts/bin/react-scripts.js start",
-		"build": "node ./node_modules/react-scripts/bin/react-scripts.js build",
+		"build": "node scripts/validateFrontendEnv.cjs && node ./node_modules/react-scripts/bin/react-scripts.js build",
+		"validate:frontend-env": "node scripts/validateFrontendEnv.cjs",
 		"lint": "eslint 'src/**/*.{ts,tsx}'",
 		"test": "node ./node_modules/react-scripts/bin/react-scripts.js test",
 		"test:ci": "node ./node_modules/react-scripts/bin/react-scripts.js test --watchAll=false --passWithNoTests",

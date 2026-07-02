@@ -262,7 +262,13 @@ Important backend configuration includes:
 
 Important GitHub Actions secrets include:
 
-* `PROD_REACT_APP_FIREBASE_PROJECT_ID` for frontend Firebase config
+* Frontend Firebase config:
+  * `PROD_REACT_APP_FIREBASE_API_KEY`
+  * `PROD_REACT_APP_FIREBASE_AUTH_DOMAIN`
+  * `PROD_REACT_APP_FIREBASE_PROJECT_ID`
+  * `PROD_REACT_APP_FIREBASE_STORAGE_BUCKET`
+  * `PROD_REACT_APP_FIREBASE_MESSAGING_SENDER_ID`
+  * `PROD_REACT_APP_FIREBASE_APP_ID`
 * `PROD_FIREBASE_PROJECT_ID` for Firebase deploy targeting; if omitted, the
   deploy workflow falls back to `PROD_REACT_APP_FIREBASE_PROJECT_ID`
 * `PROD_REACT_APP_FIREBASE_WEB_PUSH_VAPID_KEY` for browser push builds
@@ -278,6 +284,11 @@ Important GitHub Actions secrets include:
 The Firebase deploy workflow falls back to matching frontend secret names with
 the `PROD_REACT_APP_` prefix for Stripe price IDs when the backend-specific
 secret names are not present.
+
+Frontend builds run `scripts/validateFrontendEnv.cjs` before `react-scripts
+build`. Missing values or placeholder values such as `YOUR_STORAGE_BUCKET`
+block the build so production cannot publish a bundle pointed at a placeholder
+Firebase project or Storage bucket.
 
 During CI, these Stripe price IDs are written into a temporary
 `functions/.env` file before `firebase deploy` runs. This is required because
