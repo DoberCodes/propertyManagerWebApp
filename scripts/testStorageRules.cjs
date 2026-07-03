@@ -1,251 +1,295 @@
-/**
- * Firebase Storage Security Rules Test Script
- *
- * Tests Firebase Storage security rules to ensure proper file access control
- * Run with: node scripts/testStorageRules.cjs
- *
- * IMPORTANT: This script checks if storage paths exist and are accessible
- */
+const fs = require('fs');
+const path = require('path');
+const {
+	assertFails,
+	assertSucceeds,
+	initializeTestEnvironment,
+} = require('@firebase/rules-unit-testing');
 
-const admin = require('firebase-admin');
-const serviceAccount = require('../serviceAccountKey.json');
-require('dotenv').config({ path: '.env' });
+const FIRESTORE_RULES_PATH = path.join(__dirname, '..', 'firestore.rules');
+const STORAGE_RULES_PATH = path.join(__dirname, '..', 'storage.rules');
+const FIREBASE_RC_PATH = path.join(__dirname, '..', '.firebaserc');
 
-// Get storage bucket from environment or service account
-const storageBucket =
-	process.env.REACT_APP_FIREBASE_STORAGE_BUCKET ||
-	`${serviceAccount.project_id}.appspot.com`;
-
-admin.initializeApp({
-	credential: admin.credential.cert(serviceAccount),
-	storageBucket: storageBucket,
-});
-
-const bucket = admin.storage().bucket();
-
-// Storage paths to test
-const STORAGE_PATHS = [
-	{
-		name: 'Task Completions',
-		pattern: 'task-completions/{userId}/{taskId}/',
-		example: 'task-completions/',
-		userBased: true,
-	},
-	{
-		name: 'Property Images',
-		pattern: 'properties/{userId}/',
-		example: 'properties/',
-		userBased: true,
-	},
-	{
-		name: 'User Profile Images',
-		pattern: 'user-profile-images/{userId}/',
-		example: 'user-profile-images/',
-		userBased: true,
-	},
-	{
-		name: 'Team Member Images',
-		pattern: 'team-member-images/{userId}/{memberId}/',
-		example: 'team-member-images/',
-		userBased: true,
-	},
-	{
-		name: 'Team Member Files',
-		pattern: 'team-member-files/{userId}/{memberId}/',
-		example: 'team-member-files/',
-		userBased: true,
-	},
-	{
-		name: 'Device Files',
-		pattern: 'device-files/{propertyId}/{deviceId}/',
-		example: 'device-files/',
-		userBased: false,
-	},
-	{
-		name: 'Maintenance Files',
-		pattern: 'maintenance-files/{propertyId}/',
-		example: 'maintenance-files/',
-		userBased: false,
-	},
-];
-
-async function testStorageRules() {
-	console.log('🗄️  Testing Firebase Storage Security Rules\n');
-	console.log('='.repeat(60));
-
-	const results = {
-		passed: [],
-		failed: [],
-		warnings: [],
-	};
-
-	// Test 1: Check bucket exists and is accessible
-	console.log('\n📦 TEST 1: Storage Bucket');
-	console.log('-'.repeat(60));
-
-	try {
-		const [metadata] = await bucket.getMetadata();
-		console.log(`✅ Bucket exists: ${metadata.name}`);
-		console.log(`   Location: ${metadata.location}`);
-		console.log(`   Storage class: ${metadata.storageClass}`);
-		results.passed.push('Bucket accessible');
-	} catch (error) {
-		console.log(`❌ Bucket error: ${error.message}`);
-		results.failed.push(`Bucket: ${error.message}`);
-		console.log('\n⚠️  Cannot continue tests without bucket access');
-		return;
+const resolveProjectId = () => {
+	const firebaseRc = JSON.parse(fs.readFileSync(FIREBASE_RC_PATH, 'utf8'));
+	const projectId = firebaseRc?.projects?.default;
+	if (!projectId) {
+		throw new Error('Missing default Firebase project in .firebaserc.');
 	}
+	return projectId;
+};
 
-	// Test 2: Check storage paths
-	console.log('\n📂 TEST 2: Storage Path Structure');
-	console.log('-'.repeat(60));
+const PROJECT_ID = resolveProjectId();
 
-	for (const path of STORAGE_PATHS) {
-		try {
-			// List files in the path (with prefix)
-			const [files] = await bucket.getFiles({
-				prefix: path.example,
-				maxResults: 5,
-			});
+const accountId = 'account-owner';
+const ownerUid = 'account-owner';
+const teamMemberUid = 'team-member-user';
+const outsiderUid = 'outsider-user';
+const propertyId = 'property-1';
+const otherPropertyId = 'property-outsider';
 
-			if (files.length > 0) {
-				console.log(`✅ ${path.name}: ${files.length} file(s) found`);
-				console.log(`   Pattern: ${path.pattern}`);
-				console.log(`   Sample: ${files[0].name}`);
-				results.passed.push(`${path.name} has files`);
-			} else {
-				console.log(`⚠️  ${path.name}: Path exists but no files`);
-				console.log(`   Pattern: ${path.pattern}`);
-				results.warnings.push(`${path.name} is empty`);
-			}
-		} catch (error) {
-			console.log(`⚠️  ${path.name}: ${error.message}`);
-			results.warnings.push(`${path.name}: ${error.message}`);
-		}
-	}
+const membershipId = (uid, targetAccountId = accountId) =>
+	`${targetAccountId}_${uid}`;
 
-	// Test 3: Verify security patterns
-	console.log('\n🔐 TEST 3: Security Rule Patterns');
-	console.log('-'.repeat(60));
+const fileData = 'maintley test file';
 
-	// Check user-based paths
-	const userBasedPaths = STORAGE_PATHS.filter((p) => p.userBased);
-	console.log(`User-Based Paths (${userBasedPaths.length}):`);
-	userBasedPaths.forEach((path) => {
-		console.log(`   • ${path.name}: ${path.pattern}`);
+async function seedFirestore(env) {
+	await env.withSecurityRulesDisabled(async (context) => {
+		const db = context.firestore();
+
+		await db.doc(`users/${ownerUid}`).set({
+			id: ownerUid,
+			accountId,
+			role: 'admin',
+			isAccountOwner: true,
+		});
+
+		await db.doc(`users/${teamMemberUid}`).set({
+			id: teamMemberUid,
+			accountId,
+			role: 'maintenance_lead',
+			isTeamMemberAccount: true,
+		});
+
+		await db.doc(`users/${outsiderUid}`).set({
+			id: outsiderUid,
+			accountId: outsiderUid,
+			role: 'admin',
+			isAccountOwner: true,
+		});
+
+		await db.doc(`accountMemberships/${membershipId(ownerUid)}`).set({
+			accountId,
+			userId: ownerUid,
+			roles: ['account_owner', 'admin', 'member'],
+			status: 'active',
+		});
+
+		await db.doc(`accountMemberships/${membershipId(teamMemberUid)}`).set({
+			accountId,
+			userId: teamMemberUid,
+			roles: ['maintenance_lead', 'member'],
+			status: 'active',
+		});
+
+		await db.doc(`accountMemberships/${membershipId(outsiderUid, outsiderUid)}`).set({
+			accountId: outsiderUid,
+			userId: outsiderUid,
+			roles: ['account_owner', 'admin', 'member'],
+			status: 'active',
+		});
+
+		await db.doc(`properties/${propertyId}`).set({
+			accountId,
+			userId: ownerUid,
+			title: 'Sand Oak Drive',
+		});
+
+		await db.doc(`properties/${otherPropertyId}`).set({
+			accountId: outsiderUid,
+			userId: outsiderUid,
+			title: 'Outsider Property',
+		});
 	});
-	results.passed.push(`${userBasedPaths.length} user-based paths configured`);
-
-	// Check property-based paths
-	const propertyBasedPaths = STORAGE_PATHS.filter((p) => !p.userBased);
-	console.log(`\nProperty-Based Paths (${propertyBasedPaths.length}):`);
-	propertyBasedPaths.forEach((path) => {
-		console.log(`   • ${path.name}: ${path.pattern}`);
-	});
-	results.passed.push(
-		`${propertyBasedPaths.length} property-based paths configured`,
-	);
-
-	// Test 4: File metadata check
-	console.log('\n📋 TEST 4: File Metadata & Access');
-	console.log('-'.repeat(60));
-
-	try {
-		// Get all files (limited sample)
-		const [allFiles] = await bucket.getFiles({ maxResults: 10 });
-
-		if (allFiles.length > 0) {
-			console.log(`✅ Found ${allFiles.length} sample file(s) in storage`);
-
-			// Check first file metadata
-			const sampleFile = allFiles[0];
-			const [metadata] = await sampleFile.getMetadata();
-
-			console.log(`\n   Sample File Analysis:`);
-			console.log(`   • Name: ${metadata.name}`);
-			console.log(`   • Size: ${(metadata.size / 1024).toFixed(2)} KB`);
-			console.log(`   • Type: ${metadata.contentType || 'unknown'}`);
-			console.log(`   • Created: ${metadata.timeCreated}`);
-			console.log(`   • Updated: ${metadata.updated}`);
-
-			results.passed.push('File metadata accessible');
-		} else {
-			console.log('⚠️  No files found in storage');
-			results.warnings.push('Storage is empty');
-		}
-	} catch (error) {
-		console.log(`❌ File metadata error: ${error.message}`);
-		results.failed.push(`Metadata: ${error.message}`);
-	}
-
-	// Test 5: Path security validation
-	console.log('\n🛡️  TEST 5: Security Rule Validation');
-	console.log('-'.repeat(60));
-
-	console.log('Expected Security Behavior:');
-	console.log('   ✅ Authentication required for all paths');
-	console.log('   ✅ Users can only write to their own folders (userId-based)');
-	console.log('   ✅ Property files accessible to authenticated users');
-	console.log('   ✅ Profile images readable by all authenticated users');
-	console.log('   ✅ Task completions private to uploader');
-	console.log('   ❌ Default deny for unlisted paths');
-
-	results.passed.push('Security rules documented');
-
-	// Print summary
-	console.log('\n' + '='.repeat(60));
-	console.log('📋 TEST SUMMARY');
-	console.log('='.repeat(60));
-	console.log(`✅ Passed: ${results.passed.length}`);
-	console.log(`⚠️  Warnings: ${results.warnings.length}`);
-	console.log(`❌ Failed: ${results.failed.length}`);
-
-	if (results.failed.length > 0) {
-		console.log('\n❌ Failed Tests:');
-		results.failed.forEach((fail) => console.log(`   • ${fail}`));
-	}
-
-	if (results.warnings.length > 0) {
-		console.log('\n⚠️  Warnings:');
-		results.warnings.forEach((warn) => console.log(`   • ${warn}`));
-	}
-
-	console.log('\n💡 Recommendations:');
-
-	if (results.warnings.some((w) => w.includes('empty'))) {
-		console.log(
-			'   • Storage paths are empty. Upload test files to verify rules.',
-		);
-	}
-
-	console.log('   • Verify rules in Firebase Console → Storage → Rules');
-	console.log('   • Test file uploads through your app');
-	console.log("   • Ensure unauthorized users cannot access others' files");
-
-	console.log('\n🔗 Next Steps:');
-	console.log('   1. Go to Firebase Console → Storage → Rules');
-	console.log('   2. Copy rules from STORAGE_RULES.md');
-	console.log('   3. Click "Publish"');
-	console.log('   4. Test file uploads in your app');
-
-	console.log('\n📄 Storage Rules Location:');
-	console.log('   File: STORAGE_RULES.md');
-	console.log('   Deploy: Firebase Console → Storage → Rules');
-
-	console.log('\n✅ Storage rules testing complete!\n');
 }
 
-// Run the tests
-testStorageRules()
-	.then(() => {
-		console.log('🎉 All storage tests completed!');
-		process.exit(0);
-	})
-	.catch((error) => {
-		console.error('💥 Storage test script failed:', error);
-		console.error('\nCommon issues:');
-		console.error('   • Check serviceAccountKey.json is valid');
-		console.error('   • Verify storage bucket exists in Firebase Console');
-		console.error('   • Ensure Admin SDK has storage permissions');
-		process.exit(1);
+function storageFor(env, uid) {
+	return env.authenticatedContext(uid, { email: `${uid}@example.com` }).storage();
+}
+
+function unauthenticatedStorage(env) {
+	return env.unauthenticatedContext().storage();
+}
+
+function putString(storage, filePath, contentType = 'text/plain') {
+	return storage.ref(filePath).putString(fileData, 'raw', { contentType });
+}
+
+async function seedStorage(env) {
+	await env.withSecurityRulesDisabled(async (context) => {
+		const storage = context.storage();
+		await putString(storage, `properties/${accountId}/seeded-document.txt`);
+		await putString(storage, `user-profile-images/${ownerUid}/profile.png`, 'image/png');
+		await putString(storage, `team-member-images/${accountId}/${teamMemberUid}/profile.png`, 'image/png');
+		await putString(storage, `team-member-files/${accountId}/${teamMemberUid}/credentials.pdf`, 'application/pdf');
+		await putString(storage, `device-files/${propertyId}/device-1/manual.pdf`, 'application/pdf');
+		await putString(storage, `maintenance-files/${propertyId}/invoice.pdf`, 'application/pdf');
+		await putString(storage, `feedback-attachments/${ownerUid}/ticket-1/screenshot.png`, 'image/png');
 	});
+}
+
+async function run() {
+	const firestoreRules = fs.readFileSync(FIRESTORE_RULES_PATH, 'utf8');
+	const storageRules = fs.readFileSync(STORAGE_RULES_PATH, 'utf8');
+	const env = await initializeTestEnvironment({
+		projectId: PROJECT_ID,
+		firestore: {
+			rules: firestoreRules,
+		},
+		storage: {
+			rules: storageRules,
+		},
+	});
+
+	try {
+		await seedFirestore(env);
+		await seedStorage(env);
+
+		const ownerStorage = storageFor(env, ownerUid);
+		const teamMemberStorage = storageFor(env, teamMemberUid);
+		const outsiderStorage = storageFor(env, outsiderUid);
+		const publicStorage = unauthenticatedStorage(env);
+
+		await assertSucceeds(
+			ownerStorage.ref(`properties/${accountId}/owner-document.pdf`).putString(
+				fileData,
+				'raw',
+				{ contentType: 'application/pdf' },
+			),
+		);
+		await assertSucceeds(
+			teamMemberStorage.ref(`properties/${accountId}/team-document.txt`).putString(
+				fileData,
+				'raw',
+				{ contentType: 'text/plain' },
+			),
+		);
+		await assertFails(
+			outsiderStorage.ref(`properties/${accountId}/outsider-document.txt`).putString(
+				fileData,
+				'raw',
+				{ contentType: 'text/plain' },
+			),
+		);
+		await assertFails(
+			publicStorage.ref(`properties/${accountId}/anonymous-document.txt`).getMetadata(),
+		);
+
+		await assertSucceeds(
+			ownerStorage.ref(`user-profile-images/${ownerUid}/new-profile.png`).putString(
+				fileData,
+				'raw',
+				{ contentType: 'image/png' },
+			),
+		);
+		await assertFails(
+			teamMemberStorage.ref(`user-profile-images/${ownerUid}/spoofed-profile.png`).putString(
+				fileData,
+				'raw',
+				{ contentType: 'image/png' },
+			),
+		);
+		await assertFails(
+			ownerStorage.ref(`user-profile-images/${ownerUid}/profile.txt`).putString(
+				fileData,
+				'raw',
+				{ contentType: 'text/plain' },
+			),
+		);
+		await assertSucceeds(
+			teamMemberStorage.ref(`user-profile-images/${ownerUid}/profile.png`).getMetadata(),
+		);
+
+		await assertSucceeds(
+			ownerStorage.ref(`team-member-images/${accountId}/${teamMemberUid}/new-profile.png`).putString(
+				fileData,
+				'raw',
+				{ contentType: 'image/png' },
+			),
+		);
+		await assertSucceeds(
+			teamMemberStorage.ref(`team-member-files/${accountId}/${teamMemberUid}/note.txt`).putString(
+				fileData,
+				'raw',
+				{ contentType: 'text/plain' },
+			),
+		);
+		await assertFails(
+			outsiderStorage.ref(`team-member-files/${accountId}/${teamMemberUid}/outsider.txt`).putString(
+				fileData,
+				'raw',
+				{ contentType: 'text/plain' },
+			),
+		);
+
+		await assertSucceeds(
+			teamMemberStorage.ref(`device-files/${propertyId}/device-1/manual.pdf`).getMetadata(),
+		);
+		await assertSucceeds(
+			teamMemberStorage.ref(`device-files/${propertyId}/device-1/new-manual.pdf`).putString(
+				fileData,
+				'raw',
+				{ contentType: 'application/pdf' },
+			),
+		);
+		await assertFails(
+			outsiderStorage.ref(`device-files/${propertyId}/device-1/outsider.pdf`).putString(
+				fileData,
+				'raw',
+				{ contentType: 'application/pdf' },
+			),
+		);
+		await assertFails(
+			ownerStorage.ref(`device-files/${otherPropertyId}/device-1/owner.pdf`).putString(
+				fileData,
+				'raw',
+				{ contentType: 'application/pdf' },
+			),
+		);
+
+		await assertSucceeds(
+			ownerStorage.ref(`maintenance-files/${propertyId}/invoice.pdf`).getMetadata(),
+		);
+		await assertSucceeds(
+			teamMemberStorage.ref(`maintenance-files/${propertyId}/new-invoice.pdf`).putString(
+				fileData,
+				'raw',
+				{ contentType: 'application/pdf' },
+			),
+		);
+		await assertFails(
+			outsiderStorage.ref(`maintenance-files/${propertyId}/outsider.pdf`).putString(
+				fileData,
+				'raw',
+				{ contentType: 'application/pdf' },
+			),
+		);
+
+		await assertSucceeds(
+			ownerStorage.ref(`properties/${accountId}/seeded-document.txt`).delete(),
+		);
+		await assertFails(
+			outsiderStorage.ref(`maintenance-files/${propertyId}/invoice.pdf`).delete(),
+		);
+
+		await assertSucceeds(
+			ownerStorage.ref('feedback-attachments/account-owner/ticket-1/screenshot.png').getMetadata(),
+		);
+		await assertFails(
+			teamMemberStorage.ref('feedback-attachments/account-owner/ticket-1/screenshot.png').getMetadata(),
+		);
+		await assertFails(
+			ownerStorage.ref('feedback-attachments/account-owner/ticket-2/client-upload.png').putString(
+				fileData,
+				'raw',
+				{ contentType: 'image/png' },
+			),
+		);
+
+		await assertFails(
+			ownerStorage.ref('unknown/path/file.txt').putString(fileData, 'raw', {
+				contentType: 'text/plain',
+			}),
+		);
+
+		console.log('Storage rules permission boundary tests passed.');
+	} finally {
+		await env.cleanup();
+	}
+}
+
+run().catch((error) => {
+	console.error('Storage rules permission boundary tests failed.');
+	console.error(error);
+	process.exit(1);
+});

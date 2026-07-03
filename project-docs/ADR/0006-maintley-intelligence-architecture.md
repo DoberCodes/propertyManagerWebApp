@@ -1,6 +1,6 @@
 # ADR 0006: Maintley Intelligence Architecture
 
-Status: Accepted
+Status: Accepted - initial implementation
 Accepted: 2026-06-18
 Date: 2026-06-18
 Amended: 2026-06-30

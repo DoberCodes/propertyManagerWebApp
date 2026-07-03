@@ -1,7 +1,7 @@
 # ADR: Maintley Progressive Web App Support
 
 ## Status
-Accepted
+Implemented
 
 ## Context
 Maintley currently runs as a web app and has an Android app path. A Progressive Web App would allow users to install Maintley from the browser on supported desktop and mobile devices.

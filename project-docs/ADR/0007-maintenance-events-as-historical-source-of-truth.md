@@ -1,6 +1,6 @@
 # ADR 0007: Maintenance Events As Historical Source Of Truth
 
-Status: Accepted
+Status: Accepted - initial implementation
 Accepted: 2026-06-18
 Date: 2026-06-18
 Decision Source: ADR Gap Audit

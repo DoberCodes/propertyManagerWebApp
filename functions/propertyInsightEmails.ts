@@ -24,7 +24,9 @@ const PROPERTY_INSIGHTS_PLANS = new Set([
 ]);
 
 interface UserSubscriptionLike {
+	status?: string;
 	plan?: string;
+	trialEndsAt?: number | null;
 	hasScheduledSubscription?: boolean;
 	scheduledPlan?: string;
 }
@@ -102,9 +104,13 @@ const normalizePlanId = (planId?: string): string => {
 };
 
 const getEffectivePlanId = (subscription?: UserSubscriptionLike): string => {
-	const scheduledPlan = normalizePlanId(subscription?.scheduledPlan);
-	if (subscription?.hasScheduledSubscription && scheduledPlan) {
-		return scheduledPlan;
+	if (!subscription?.status) return 'homeowner';
+	if (subscription.status === 'trial') {
+		if (subscription.trialEndsAt && subscription.trialEndsAt <= Date.now() / 1000) {
+			return 'homeowner';
+		}
+	} else if (subscription.status !== 'active') {
+		return 'homeowner';
 	}
 
 	const plan = normalizePlanId(subscription?.plan);

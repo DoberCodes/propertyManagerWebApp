@@ -98,6 +98,7 @@ import COLORS from 'constants/colors';
 import { PortfolioPlanSub, PortfolioTop, PortfolioUsage, PortfolioUsageBadge, ProgressFill, ProgressTrack } from 'Components/Library/Navbar/SideNav/SideNav.styles';
 import {
 	canManageTeam,
+	getEffectiveSubscriptionPlanId,
 	getRemainingPropertySlots,
 	getSubscriptionPlanDetails,
 } from 'utils/subscriptionUtils';
@@ -483,18 +484,14 @@ export const UserProfile: React.FC = () => {
 			).length,
 		[filteredPropertyGroups],
 	);
-	const effectivePlanId =
-		currentUser?.subscription?.hasScheduledSubscription &&
-			currentUser.subscription.scheduledPlan
-			? currentUser.subscription.scheduledPlan
-			: currentUser?.subscription?.plan || 'home';
+	const effectivePlanId = getEffectiveSubscriptionPlanId(
+		currentUser?.subscription,
+		'homeowner',
+	);
 	const planDetails = getSubscriptionPlanDetails(effectivePlanId);
 
-	const effectiveSubscription = currentUser?.subscription
-		? { ...currentUser.subscription, plan: effectivePlanId }
-		: undefined;
-	const remainingSlots = effectiveSubscription
-		? getRemainingPropertySlots(effectiveSubscription, totalProperties)
+	const remainingSlots = currentUser?.subscription
+		? getRemainingPropertySlots(currentUser.subscription, totalProperties)
 		: 0;
 	const maxProperties = planDetails?.maxProperties ?? 1;
 	const usagePercent = maxProperties > 0 ? (totalProperties / maxProperties) * 100 : 0;
@@ -504,11 +501,7 @@ export const UserProfile: React.FC = () => {
 		: remainingSlots === 0 && totalProperties > maxProperties
 			? `${totalProperties - maxProperties} over plan limit`
 			: `${remainingSlots} property slot${remainingSlots === 1 ? '' : 's'} available`;
-	const planSubtitle =
-		currentUser?.subscription?.hasScheduledSubscription &&
-			currentUser.subscription.scheduledPlan
-			? `Scheduled plan: ${planDetails?.name || 'Home'}`
-			: `Current plan: ${planDetails?.name || 'Home'}`;
+	const planSubtitle = `Current plan: ${planDetails?.name || 'Home'}`;
 	const storageUsagePercent = Math.min(100, storageUsage?.usagePercent || 0);
 	const storageUsageLabel = isStorageUsageLoading
 		? 'Loading storage...'
@@ -649,9 +642,10 @@ export const UserProfile: React.FC = () => {
 		false;
 
 	const paidPlanIds = ['homeowner_plus', 'property', 'portfolio'];
-	const currentPlanId = String(currentUser?.subscription?.plan || '')
-		.trim()
-		.toLowerCase();
+	const currentPlanId = getEffectiveSubscriptionPlanId(
+		currentUser?.subscription,
+		'homeowner',
+	);
 	const isPaidPlan = paidPlanIds.includes(currentPlanId);
 	const hasPendingCancellation =
 		isPaidPlan &&

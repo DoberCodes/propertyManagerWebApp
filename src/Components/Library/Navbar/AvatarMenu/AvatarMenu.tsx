@@ -46,9 +46,9 @@ export const AvatarMenu: React.FC<AvatarMenuProps> = ({ setIsNotificationModalOp
 	const handleLogout = () => {
 		void (async () => {
 			try {
+				clearAccountScopedClientState(dispatch);
 				await signOutUser();
 				dispatch(logout());
-				clearAccountScopedClientState(dispatch);
 				navigate('/');
 			} catch (error) {
 				console.error('Logout failed:', error);
@@ -77,12 +77,24 @@ export const AvatarMenu: React.FC<AvatarMenuProps> = ({ setIsNotificationModalOp
 
 
 	return (
-		<AvatarMenuWrapper onClick={() => {
-			setIsProfileDropdownOpen(!isProfileDropdownOpen)
-			if (isSidebarOpen) {
-				setIsSidebarOpen(false);
-			}
-		}}>
+		<AvatarMenuWrapper
+			role='button'
+			tabIndex={0}
+			aria-label='Open profile menu'
+			onClick={() => {
+				setIsProfileDropdownOpen(!isProfileDropdownOpen);
+				if (isSidebarOpen) {
+					setIsSidebarOpen(false);
+				}
+			}}
+			onKeyDown={(event) => {
+				if (event.key !== 'Enter' && event.key !== ' ') return;
+				event.preventDefault();
+				setIsProfileDropdownOpen(!isProfileDropdownOpen);
+				if (isSidebarOpen) {
+					setIsSidebarOpen(false);
+				}
+			}}>
 			{hasProfileImage ? (
 				<UserImage
 					src={profileImage}

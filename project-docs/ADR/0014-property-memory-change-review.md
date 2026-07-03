@@ -1,7 +1,7 @@
 ADR: Property Memory Change Review
 Status
 
-Proposed
+Accepted - initial implementation
 
 Context
 

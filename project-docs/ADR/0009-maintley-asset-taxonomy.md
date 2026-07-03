@@ -1,6 +1,6 @@
 ADR-0009: Maintley Asset Taxonomy
 
-Status: Accepted
+Status: Accepted - initial implementation
 
 Context
 

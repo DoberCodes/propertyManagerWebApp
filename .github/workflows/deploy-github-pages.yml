@@ -10,7 +10,27 @@ on:
   workflow_dispatch:
 
 jobs:
+  version-validate:
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.ref == 'release/next'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'yarn'
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Validate release version files
+        run: yarn version:validate
+
   unit-test:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.ref != 'release/next'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -28,7 +48,20 @@ jobs:
       - name: Unit tests
         run: yarn test:ci
 
+      - name: Use Java for Firebase emulators
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Firestore rules tests
+        run: yarn test:rules
+
+      - name: Storage rules tests
+        run: yarn test:storage
+
   build:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.ref != 'release/next'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -42,7 +75,6 @@ jobs:
 
       - name: Install dependencies
         run: yarn install --frozen-lockfile
-
 
       - name: Build
         env:
@@ -57,8 +89,11 @@ jobs:
           REACT_APP_STRIPE_PUBLIC_KEY: ${{ secrets.PROD_REACT_APP_STRIPE_PUBLIC_KEY }}
         run: yarn build
 
-  e2e-chromium:
-    if: github.event_name == 'pull_request'
+      - name: Check asset budgets
+        run: yarn check:asset-budgets
+
+  functions-build:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.ref != 'release/next'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -67,77 +102,13 @@ jobs:
       - name: Use Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '24'
+          node-version: '20'
           cache: 'yarn'
+          cache-dependency-path: functions/yarn.lock
 
-      - name: Install dependencies
-        run: yarn install --frozen-lockfile
+      - name: Install functions dependencies
+        run: yarn --cwd functions install --frozen-lockfile
 
-      - name: Cache Playwright browsers
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-${{ hashFiles('**/yarn.lock') }}
+      - name: Build functions
+        run: yarn --cwd functions build
 
-      - name: Install Playwright browsers
-        run: npx playwright install --with-deps
-
-      - name: Playwright tests (Chromium)
-        run: yarn e2e:chrome
-        continue-on-error: true
-
-      - name: Upload Playwright report (failure)
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: playwright-report
-          path: playwright-report
-
-      - name: Upload Playwright results (failure)
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: playwright-results
-          path: test-results
-
-  e2e-full:
-    if: github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Use Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '24'
-          cache: 'yarn'
-
-      - name: Install dependencies
-        run: yarn install --frozen-lockfile
-
-      - name: Cache Playwright browsers
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-${{ hashFiles('**/yarn.lock') }}
-
-      - name: Install Playwright browsers
-        run: npx playwright install --with-deps
-
-      - name: Playwright tests (full)
-        run: yarn e2e
-
-      - name: Upload Playwright report (failure)
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: playwright-report
-          path: playwright-report
-
-      - name: Upload Playwright results (failure)
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: playwright-results
-          path: test-results

@@ -75,8 +75,15 @@ These should not be relied upon.
 ```bash
 yarn build:signed
 yarn release:notes
+yarn release:notes:preview
+yarn release:notes --json --output RELEASE_NOTES.txt --engineering-output tmp/release-notes.engineering.md --metadata-output tmp/release-notes.json
+yarn adr:trackers:dry-run --json
 yarn version:init
 yarn version:update -- <version> "<notes>"
+yarn version:prepare -- --version 2.8.0
+yarn version:prepare -- --metadata tmp/release-notes.json
+yarn version:validate
+yarn version:publish -- --version 2.8.0 --release-notes-file RELEASE_NOTES.txt --apk-url <url>
 yarn version:sync
 ```
 
@@ -95,6 +102,9 @@ yarn deploy:gh-pages
 
 ```bash
 yarn e2e
+yarn e2e:smoke:chrome
+yarn e2e:workflows:chrome
+yarn e2e:full-safe
 yarn e2e:full
 yarn e2e:ci
 yarn cleanup:test-data:dry-run
@@ -155,8 +165,75 @@ These scripts are actively used, referenced by package aliases, or remain part o
 
 * generateReleaseNotes.cjs
 * initAppVersion.cjs
+* prepareReleaseVersion.cjs
+* publishAppVersion.cjs
 * updateAppVersion.cjs
+* validateReleaseVersion.cjs
 * syncAppVersion.cjs
+
+`generateReleaseNotes.cjs` is the active PR-first release note generator used by
+the Release Notes GitHub Action and local preview commands. It uses the local
+git range from the latest `v*` tag to `HEAD`, enriches merged PRs with GitHub
+CLI metadata when available, writes customer-facing release notes, and can write
+engineering notes plus structured metadata.
+
+When `package.json` is already ahead of the latest `v*` tag, the generator treats
+that package version as the prepared release version instead of bumping again.
+This allows the automated release-prep PR to own version file changes without
+causing a second bump after the PR is merged.
+
+The generator separates release communication into two layers:
+
+* Customer notes explain what improved in Maintley using plain product language.
+* Engineering notes preserve PR numbers, direct commits, categories, and
+  technical context for maintainers.
+
+`--output` writes customer-facing notes for backwards compatibility. Use
+`--engineering-output` when the technical notes should be retained as an
+artifact.
+
+`build:signed` does not call this generator directly. It downloads the
+successful `release-notes.yml` artifact for the current `main` commit and uses
+those customer notes as the GitHub Release body.
+
+`prepareReleaseVersion.cjs` updates the repo-controlled release version files:
+
+* `package.json`
+* `client/package.json`
+* `android/app/build.gradle`
+
+It increments Android `versionCode` when the Android `versionName` changes.
+`validateReleaseVersion.cjs` verifies those version surfaces are synchronized
+and that the client app version is derived from `package.json`.
+
+`publishAppVersion.cjs` publishes Firestore `appConfig/version` after a release
+APK is available. The GitHub Action uses this to avoid showing app update
+notifications before the downloadable APK exists.
+
+The legacy commit/date-based generator is archived at:
+
+```text
+scripts/archive/generateReleaseNotes.legacy.cjs
+```
+
+## ADR Helpers
+
+* syncAdrImplementationTrackers.cjs
+
+`syncAdrImplementationTrackers.cjs` backs the GitHub Action that creates ADR
+implementation tracker issues after accepted ADRs are merged to `main`. It uses
+hidden issue markers to avoid duplicates and does not overwrite existing issue
+bodies after creation.
+
+Local audit:
+
+```bash
+yarn adr:trackers:dry-run --json
+```
+
+Non-dry-run syncs require `GITHUB_REPOSITORY` or `--repo`, plus `GITHUB_TOKEN`
+or `GH_TOKEN`. Missing write context is treated as an error so a real sync cannot
+silently fall back to a preview.
 
 ---
 
@@ -253,30 +330,33 @@ for execution guidance and archive policies.
 
 # Release Pipeline
 
-Maintley's primary release workflow is:
+Maintley's local signed APK command is:
 
 ```bash
 yarn build:signed
 ```
 
-The release pipeline performs:
+The release workflow uses split ownership:
 
-* Release note generation
-* Version updates
-* APK build and signing
-* Git commits
-* Git tag creation
-* GitHub Release creation/update
-* APK upload
-* Website deployment
+* Release Notes Action generates customer and engineering notes.
+* Release Prep Action opens or updates the `release/next` PR with the correct
+  version bump.
+* Deploy Web Action publishes the web app to GitHub Pages when release version
+  files land on `main`, normally after the `release/next` PR is merged.
+* `build:signed` remains the local Android signing helper while signing secrets
+  stay local. It validates that version files were already prepared, builds the
+  signed APK and AAB, creates or updates the GitHub Release, and uploads
+  versioned assets such as `maintley-2.9.16-release.apk` and
+  `maintley-2.9.16-release.aab`. The helper copies Gradle's `app-release.*`
+  outputs into those versioned filenames before upload so GitHub download URLs
+  match the release asset names. It does not commit, push to `main`, or deploy
+  GitHub Pages.
+* After Android assets are uploaded, `build:signed` dispatches the Publish App
+  Version Action. That action writes Firestore `appConfig/version` only after
+  the GitHub Release APK is reachable.
 
-This workflow depends on:
-
-```bash
-yarn deploy
-```
-
-Do not modify deploy behavior without reviewing the release pipeline.
+Do not modify release behavior without reviewing the release workflows and
+signed Android artifact helper together.
 
 ---
 
@@ -295,10 +375,13 @@ Before running migrations, cleanup scripts, or destructive operations:
 
 # Notes
 
+* `e2e:smoke:chrome` is the non-mutating PR smoke suite.
+* `e2e:workflows:chrome` and `e2e:full-safe` use the demo account and are intended for manual workflow validation.
+* GitHub Actions runs `cleanup:test-data:full` after manual E2E workflow suites and requires `E2E_FIREBASE_SERVICE_ACCOUNT_JSON`.
 * E2E scripts are intended to be cross-platform.
 * Deploy remains the primary deployment command.
 * deploy:gh-pages exists as an explicit alias.
-* build:signed is the primary release workflow.
+* build:signed is the local signed APK helper.
 * stripe:webhook:auto in functions/package.json is currently Unix-only.
 * Archived scripts should be treated as historical reference, not supported tooling.
 

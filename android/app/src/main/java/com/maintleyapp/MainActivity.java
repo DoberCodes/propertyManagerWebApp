@@ -1,4 +1,4 @@
-package com.doberfamily.propertymanager;
+package com.maintleyapp;
 
 import android.os.Bundle;
 

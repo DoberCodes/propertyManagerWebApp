@@ -221,12 +221,22 @@ const createPendingCheckoutSubscription = (
 ) => {
 	const now = Math.floor(Date.now() / 1000);
 	const normalizedPromoCode = promoCode?.trim() || undefined;
+	const normalizedPendingPlan = String(selectedPlan || '')
+		.trim()
+		.toLowerCase();
 
 	return {
-		status: SUBSCRIPTION_STATUS.CANCELLED,
-		plan: selectedPlan,
+		status: SUBSCRIPTION_STATUS.ACTIVE,
+		plan: 'homeowner',
 		currentPeriodStart: now,
-		currentPeriodEnd: now,
+		currentPeriodEnd: now + 365 * 24 * 60 * 60,
+		trialEndsAt: null,
+		...(normalizedPendingPlan && normalizedPendingPlan !== 'homeowner'
+			? {
+					pendingCheckoutPlan: normalizedPendingPlan,
+					pendingCheckoutStartedAt: now,
+			  }
+			: {}),
 		...(normalizedPromoCode ? { promoCode: normalizedPromoCode } : {}),
 	};
 };
@@ -569,11 +579,11 @@ export const signUpWithEmail = async (
 		}
 
 		if (!isTeamInviteSignup) {
-			const normalizedSelectedPlan = String(selectedPlan || '')
+			const normalizedEntitledPlan = String(subscription?.plan || 'homeowner')
 				.trim()
 				.toLowerCase();
 
-			if (PROPERTY_GROUP_ELIGIBLE_PLANS.has(normalizedSelectedPlan)) {
+			if (PROPERTY_GROUP_ELIGIBLE_PLANS.has(normalizedEntitledPlan)) {
 				await setDoc(
 					doc(db, 'propertyGroups', `${userCredential.user.uid}_my_properties`),
 					{
@@ -599,7 +609,7 @@ export const signUpWithEmail = async (
 				);
 			}
 
-			if (TEAM_GROUP_ELIGIBLE_PLANS.has(normalizedSelectedPlan)) {
+			if (TEAM_GROUP_ELIGIBLE_PLANS.has(normalizedEntitledPlan)) {
 				const myTeamGroupId = `${userCredential.user.uid}_default`;
 				const myTeamGroupRef = doc(db, 'teamGroups', myTeamGroupId);
 				await setDoc(myTeamGroupRef, {

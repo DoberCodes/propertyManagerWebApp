@@ -223,6 +223,94 @@ const resolvePromotionCodeId = async (
 
 const db = admin.firestore();
 
+const PROPERTY_GROUP_ELIGIBLE_PLANS = new Set(['property', 'portfolio']);
+const TEAM_GROUP_ELIGIBLE_PLANS = new Set(['property', 'portfolio']);
+
+const ensureConfirmedPlanDefaults = async (
+	accountId: string,
+	planId: string,
+): Promise<void> => {
+	const normalizedAccountId = String(accountId || '').trim();
+	const normalizedPlanId = String(planId || '').trim().toLowerCase();
+
+	if (!normalizedAccountId) {
+		return;
+	}
+
+	const now = admin.firestore.FieldValue.serverTimestamp();
+	const createIfMissing = async (
+		ref: FirebaseFirestore.DocumentReference,
+		data: Record<string, unknown>,
+	): Promise<void> => {
+		const snapshot = await ref.get();
+		if (!snapshot.exists) {
+			await ref.set(data);
+		}
+	};
+	const writes: Promise<void>[] = [];
+
+	if (PROPERTY_GROUP_ELIGIBLE_PLANS.has(normalizedPlanId)) {
+		writes.push(
+			createIfMissing(
+				db
+					.collection('propertyGroups')
+					.doc(`${normalizedAccountId}_my_properties`),
+				{
+					userId: normalizedAccountId,
+					accountId: normalizedAccountId,
+					name: 'My Properties',
+					properties: [],
+					createdAt: now,
+					updatedAt: now,
+				},
+			),
+			createIfMissing(
+				db
+					.collection('propertyGroups')
+					.doc(`${normalizedAccountId}_shared_properties`),
+				{
+					userId: normalizedAccountId,
+					accountId: normalizedAccountId,
+					name: 'Shared Properties',
+					properties: [],
+					createdAt: now,
+					updatedAt: now,
+				},
+			),
+		);
+	}
+
+	if (TEAM_GROUP_ELIGIBLE_PLANS.has(normalizedPlanId)) {
+		writes.push(
+			createIfMissing(
+				db.collection('teamGroups').doc(`${normalizedAccountId}_default`),
+				{
+					userId: normalizedAccountId,
+					accountId: normalizedAccountId,
+					name: 'My Team',
+					linkedProperties: [],
+					createdAt: now,
+					updatedAt: now,
+				},
+			),
+		);
+	}
+
+	await Promise.all(writes);
+};
+
+const ensureConfirmedPlanDefaultsForSubscription = async (
+	accountId: string,
+	subscription: Record<string, any> | undefined,
+): Promise<void> => {
+	const status = String(subscription?.status || '').trim().toLowerCase();
+	if (!['active', 'trial'].includes(status)) {
+		return;
+	}
+
+	await ensureConfirmedPlanDefaults(accountId, String(subscription?.plan || ''));
+};
+
 const removeUndefinedFields = (obj: Record<string, any>) => {
 	return Object.fromEntries(
 		Object.entries(obj).filter(([, value]) => value !== undefined),
@@ -457,6 +545,8 @@ export const createCheckoutSession = functions
 					stripeSubscriptionId: updatedSubscription.id,
 					hasScheduledSubscription: false,
 					scheduledPlan: null,
+					pendingCheckoutPlan: null,
+					pendingCheckoutStartedAt: null,
 					...(accountPromoCode ? { promoCode: accountPromoCode } : {}),
 				});
 
@@ -471,6 +561,10 @@ export const createCheckoutSession = functions
 				});
 
 				await syncFamilyAccountSubscription(userData, mergedSubscription);
+				await ensureConfirmedPlanDefaultsForSubscription(
+					userData?.accountId || userId,
+					mergedSubscription,
+				);
 
 				return {
 					subscriptionUpdated: true,
@@ -752,16 +846,25 @@ export const verifyCheckoutSession = functions
 			const subscription = await getStripe().subscriptions.retrieve(
 				session.subscription as string,
 			);
+			const subscriptionStatus = toLocalSubscriptionStatus(subscription.status);
+			if (!['active', 'trial'].includes(subscriptionStatus)) {
+				throw new functions.https.HttpsError(
+					'failed-precondition',
+					`Subscription not active yet (status: ${subscription.status || 'unknown'})`,
+				);
+			}
 
 			// Update user subscription in Firestore
 			const subscriptionData = {
-				status: 'active',
+				status: subscriptionStatus,
 				plan: getPlanFromPriceId(subscription.items.data[0].price.id),
 				currentPeriodStart: subscription.current_period_start,
 				currentPeriodEnd: subscription.current_period_end,
 				trialEndsAt: subscription.trial_end,
 				stripeCustomerId: session.customer as string,
 				stripeSubscriptionId: subscription.id,
+				pendingCheckoutPlan: null,
+				pendingCheckoutStartedAt: null,
 			};
 
 			const userRef = db.collection('users').doc(firebaseUID);
@@ -778,6 +881,10 @@ export const verifyCheckoutSession = functions
 			});
 
 			await syncFamilyAccountSubscription(userData, mergedSubscription);
+			await ensureConfirmedPlanDefaultsForSubscription(
+				userData?.accountId || firebaseUID,
+				mergedSubscription,
+			);
 
 			return { success: true, subscription: subscriptionData };
 		} catch (error) {
@@ -993,12 +1100,14 @@ export const syncSubscriptionFromStripe = functions
 			),
 			currentPeriodStart: stripeSubscription.current_period_start,
 			currentPeriodEnd: stripeSubscription.current_period_end,
-			trialEndsAt: stripeSubscription.trial_end,
-			stripeCustomerId: String(stripeSubscription.customer || stripeCustomerId),
-			stripeSubscriptionId: stripeSubscription.id,
-			updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-			...(stripeSubscription.status === 'canceled'
-				? { canceledAt: stripeSubscription.canceled_at }
+				trialEndsAt: stripeSubscription.trial_end,
+				stripeCustomerId: String(stripeSubscription.customer || stripeCustomerId),
+				stripeSubscriptionId: stripeSubscription.id,
+				pendingCheckoutPlan: null,
+				pendingCheckoutStartedAt: null,
+				updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+				...(stripeSubscription.status === 'canceled'
+					? { canceledAt: stripeSubscription.canceled_at }
 				: {}),
 		});
 
@@ -1013,6 +1122,10 @@ export const syncSubscriptionFromStripe = functions
 		});
 
 		await syncFamilyAccountSubscription(userData, mergedSubscription);
+		await ensureConfirmedPlanDefaultsForSubscription(
+			userData?.accountId || userDoc.id,
+			mergedSubscription,
+		);
 
 		return {
 			success: true,
@@ -1152,6 +1265,8 @@ const handleSubscriptionUpdate = async (subscription: any) => {
 				currentPeriodEnd: subscription.current_period_end,
 				trialEndsAt: subscription.trial_end,
 				stripeSubscriptionId: subscription.id,
+				pendingCheckoutPlan: null,
+				pendingCheckoutStartedAt: null,
 				updatedAt: admin.firestore.FieldValue.serverTimestamp(),
 			};
 
@@ -1179,6 +1294,10 @@ const handleSubscriptionUpdate = async (subscription: any) => {
 			});
 
 			await syncFamilyAccountSubscription(userData, mergedSubscription);
+			await ensureConfirmedPlanDefaultsForSubscription(
+				userData?.accountId || userDoc.id,
+				mergedSubscription,
+			);
 
 			console.log('Subscription updated for user:', userDoc.id);
 		}
@@ -1257,6 +1376,10 @@ const handlePaymentSuccess = async (invoice: any) => {
 			});
 
 			await syncFamilyAccountSubscription(userData, mergedSubscription);
+			await ensureConfirmedPlanDefaultsForSubscription(
+				userData?.accountId || userDoc.id,
+				mergedSubscription,
+			);
 
 			console.log('Payment succeeded for user:', userDoc.id);
 		}
@@ -1334,6 +1457,8 @@ const handleSubscriptionCreated = async (subscription: any) => {
 				currentPeriodEnd: subscription.current_period_end,
 				trialEndsAt: subscription.trial_end,
 				stripeSubscriptionId: subscription.id,
+				pendingCheckoutPlan: null,
+				pendingCheckoutStartedAt: null,
 				createdAt: admin.firestore.FieldValue.serverTimestamp(),
 				updatedAt: admin.firestore.FieldValue.serverTimestamp(),
 			};
@@ -1362,6 +1487,10 @@ const handleSubscriptionCreated = async (subscription: any) => {
 			});
 
 			await syncFamilyAccountSubscription(userData, mergedSubscription);
+			await ensureConfirmedPlanDefaultsForSubscription(
+				userData?.accountId || userDoc.id,
+				mergedSubscription,
+			);
 
 			console.log(
 				'New subscription created for user:',
@@ -1432,6 +1561,10 @@ const handleSubscriptionResumed = async (subscription: any) => {
 				updatedAt: admin.firestore.FieldValue.serverTimestamp(),
 			});
 			await syncFamilyAccountSubscription(userData, mergedSubscription);
+			await ensureConfirmedPlanDefaultsForSubscription(
+				userData?.accountId || userDoc.id,
+				mergedSubscription,
+			);
 			console.log('Subscription resumed for user:', userDoc.id);
 		}
 	} catch (error) {

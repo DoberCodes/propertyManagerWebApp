@@ -3,7 +3,11 @@ import React, { useEffect } from "react";
 import { useSelector } from "react-redux";
 import { RootState } from "Redux/store/store";
 import { filterPropertyGroupsByRole } from "utils/dataFilters";
-import { getRemainingPropertySlots, getSubscriptionPlanDetails } from "utils/subscriptionUtils";
+import {
+	getEffectiveSubscriptionPlanId,
+	getRemainingPropertySlots,
+	getSubscriptionPlanDetails,
+} from "utils/subscriptionUtils";
 import { formatStorageBytes } from 'utils/storageQuota';
 import { TeamMember } from 'Redux/Slices/teamSlice';
 import { useNavigate } from "react-router";
@@ -76,22 +80,18 @@ export const AccountSnapshot: React.FC<AccountSnapshotProps> = ({ isSidebarOpen,
 			).length,
 		[filteredPropertyGroups],
 	);
-	const effectivePlanId =
-		currentUser?.subscription?.hasScheduledSubscription &&
-			currentUser.subscription.scheduledPlan
-			? currentUser.subscription.scheduledPlan
-			: currentUser?.subscription?.plan || 'homeowner';
+	const effectivePlanId = getEffectiveSubscriptionPlanId(
+		currentUser?.subscription,
+		'homeowner',
+	);
 
 
 
 	const planDetails = getSubscriptionPlanDetails(effectivePlanId);
 
 	const maxProperties = planDetails?.maxProperties ?? 1;
-	const effectiveSubscription = currentUser?.subscription
-		? { ...currentUser.subscription, plan: effectivePlanId }
-		: undefined;
-	const remainingSlots = effectiveSubscription
-		? getRemainingPropertySlots(effectiveSubscription, totalProperties)
+	const remainingSlots = currentUser?.subscription
+		? getRemainingPropertySlots(currentUser.subscription, totalProperties)
 		: 0;
 
 	const propertyUsagePercent =
@@ -105,11 +105,7 @@ export const AccountSnapshot: React.FC<AccountSnapshotProps> = ({ isSidebarOpen,
 		: remainingSlots === 0 && totalProperties > maxProperties
 			? `${totalProperties - maxProperties} over plan limit`
 			: `${remainingSlots} property slot${remainingSlots === 1 ? '' : 's'} available`;
-	const planSubtitle =
-		currentUser?.subscription?.hasScheduledSubscription &&
-			currentUser.subscription.scheduledPlan
-			? `Scheduled plan: ${planDetails?.name || 'Homeowner'}`
-			: `Current plan: ${planDetails?.name || 'Homeowner'}`;
+	const planSubtitle = `Current plan: ${planDetails?.name || 'Homeowner'}`;
 	const storageUsagePercent = Math.min(100, storageUsage?.usagePercent || 0);
 	const storageUsageLabel = isStorageUsageLoading
 		? 'Loading storage...'

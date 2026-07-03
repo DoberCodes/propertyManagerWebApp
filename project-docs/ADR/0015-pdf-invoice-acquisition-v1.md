@@ -1,7 +1,7 @@
 ADR: PDF Invoice Acquisition v1
 Status
 
-Accepted
+Accepted - initial implementation
 
 Context
 

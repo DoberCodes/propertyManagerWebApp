@@ -53,9 +53,15 @@ const normalizePlanId = (planId) => {
     return String(planId || '').trim().toLowerCase();
 };
 const getEffectivePlanId = (subscription) => {
-    const scheduledPlan = normalizePlanId(subscription?.scheduledPlan);
-    if (subscription?.hasScheduledSubscription && scheduledPlan) {
-        return scheduledPlan;
+    if (!subscription?.status)
+        return 'homeowner';
+    if (subscription.status === 'trial') {
+        if (subscription.trialEndsAt && subscription.trialEndsAt <= Date.now() / 1000) {
+            return 'homeowner';
+        }
+    }
+    else if (subscription.status !== 'active') {
+        return 'homeowner';
     }
     const plan = normalizePlanId(subscription?.plan);
     return plan || 'homeowner';

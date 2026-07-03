@@ -68,7 +68,9 @@ interface PropertyLike {
 }
 
 interface UserSubscriptionLike {
+	status?: string;
 	plan?: string;
+	trialEndsAt?: number | null;
 	hasScheduledSubscription?: boolean;
 	scheduledPlan?: string;
 }
@@ -93,10 +95,17 @@ const normalizePlanId = (planId?: string): string => {
 	return String(planId || '').trim().toLowerCase();
 };
 
+const hasCurrentEntitlement = (subscription?: UserSubscriptionLike): boolean => {
+	if (!subscription?.status) return false;
+	if (subscription.status === 'active') return true;
+	if (subscription.status !== 'trial') return false;
+	if (!subscription.trialEndsAt) return true;
+	return subscription.trialEndsAt > Date.now() / 1000;
+};
+
 const getEffectivePlanId = (subscription?: UserSubscriptionLike): string => {
-	const scheduledPlan = normalizePlanId(subscription?.scheduledPlan);
-	if (subscription?.hasScheduledSubscription && scheduledPlan) {
-		return scheduledPlan;
+	if (!hasCurrentEntitlement(subscription)) {
+		return 'homeowner';
 	}
 
 	const plan = normalizePlanId(subscription?.plan);

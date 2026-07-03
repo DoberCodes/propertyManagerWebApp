@@ -1,6 +1,6 @@
 # ADR 0005: Property Setup Assistant
 
-Status: Accepted
+Status: Implemented
 Date: 2026-06-12
 Accepted: 2026-06-12
 Decision Source: Manual

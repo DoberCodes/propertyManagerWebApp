@@ -1,6 +1,6 @@
 # ADR 0017: Personal-Focus Dashboard
 
-Status: Accepted
+Status: Implemented
 Date: 2026-06-30
 Accepted: 2026-06-30
 Decision Source: Dashboard Alignment Review

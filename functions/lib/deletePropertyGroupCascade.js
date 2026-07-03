@@ -64,10 +64,7 @@ const canUsePropertyGroups = (subscription) => {
     if (subscription.status !== 'active' && !isTrialActive(subscription)) {
         return false;
     }
-    const scheduledPlan = normalizePlanId(subscription.scheduledPlan);
-    const plan = subscription.hasScheduledSubscription && scheduledPlan
-        ? scheduledPlan
-        : normalizePlanId(subscription.plan);
+    const plan = normalizePlanId(subscription.plan);
     return PROPERTY_GROUP_PLANS.has(plan);
 };
 const chunk = (items, size) => {

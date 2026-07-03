@@ -14,7 +14,6 @@ import '../API/tenantSlice';
 import '../API/teamSlice';
 import '../API/notificationSlice';
 import '../API/maintenanceSlice';
-import '../API/unitSlice';
 import '../API/propertyIntelligenceSlice';
 import notificationMiddleware from '../middleware/notificationMiddleware';
 import appSlice from '../Slices/appSlice';

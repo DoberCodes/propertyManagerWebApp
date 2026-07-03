@@ -51,11 +51,7 @@ const canUsePropertyGroups = (subscription: any): boolean => {
 		return false;
 	}
 
-	const scheduledPlan = normalizePlanId(subscription.scheduledPlan);
-	const plan =
-		subscription.hasScheduledSubscription && scheduledPlan
-			? scheduledPlan
-			: normalizePlanId(subscription.plan);
+	const plan = normalizePlanId(subscription.plan);
 	return PROPERTY_GROUP_PLANS.has(plan);
 };
 

@@ -516,6 +516,86 @@ describe('property knowledge acquisition', () => {
 		expect(valuesByKey.get('warrantyLength')).not.toContain('Not provided');
 	});
 
+	it('turns an accepted roof invoice review into maintenance history with cost and warranty context', () => {
+		const fields = extractFieldsFromDocumentText(
+			`
+				Pinecrest Roofing & Exterior
+				Inspection Report and Invoice
+				Report / Invoice #
+				PRX-26077
+				Date
+				June 2, 2026
+				Property
+				123 Sand Oak Drive, Apt A
+				Roof Details
+				Asset type: Roof
+				Finding Action Cost
+				Loose pipe boot flashing at rear slope Resealed pipe boot with roofing sealant $85.00
+				Debris in front gutter run Cleared accessible debris $65.00
+				General roof inspection with photos Inspection report attached $175.00
+				Invoice Total: $325.00
+				Tax: $0.00
+				Paid: $325.00
+				Recommended Follow-Up
+				Schedule a roof check after major storms and clear gutters each fall.
+				Sealant repair workmanship warranty: 1 year.
+			`,
+			'roof-1',
+		);
+		const accepted = acceptKnowledgeSuggestion(
+			{
+				id: 'suggestion-roof-1',
+				sourceDocumentId: 'doc-roof-1',
+				propertyId: 'property-1',
+				relatedSystemId: 'roof-1',
+				documentType: 'invoice',
+				extractionMethod: 'image_ocr',
+				extractedFields: fields,
+				status: 'pending',
+				createdAt: '2026-06-26T12:00:00.000Z',
+				sourceDocumentName: 'Pinecrest Roofing Invoice.png',
+			},
+			{
+				reviewedAt: '2026-06-26T13:00:00.000Z',
+				acceptedByUser: 'user-1',
+			},
+		);
+
+		const result = applyAcceptedKnowledgeSuggestion({
+			suggestion: accepted,
+			property: baseProperty,
+			systems: [
+				{
+					...baseSystem,
+					id: 'roof-1',
+					type: 'Roof',
+					assetType: 'Roof',
+				},
+			],
+			acceptedByUser: 'user-1',
+			acceptedAt: '2026-06-26T13:10:00.000Z',
+		});
+
+		expect(result.maintenanceHistorySuggestion).toMatchObject({
+			eventType: 'invoice_uploaded',
+			eventSource: 'document_upload',
+			completionDate: '2026-06-02',
+			deviceIds: ['roof-1'],
+			financials: {
+				actual: {
+					contractorCost: 325,
+				},
+			},
+		});
+		expect(result.maintenanceHistorySuggestion?.completionNotes).toContain(
+			'Total: USD 325.00',
+		);
+		expect(result.maintenanceHistorySuggestion?.completionNotes).toContain(
+			'Warranty information: Sealant repair workmanship warranty: 1 year',
+		);
+		expect(result.contractorSuggestion?.name).toBe('Pinecrest Roofing & Exterior');
+	});
+
 	it('prepares contractor and maintenance history records when invoice details are applied', () => {
 		const fields = extractFieldsFromDocumentText(
 			`

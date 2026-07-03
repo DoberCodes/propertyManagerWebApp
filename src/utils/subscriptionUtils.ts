@@ -18,6 +18,8 @@ export interface SubscriptionData {
 	promoCode?: string;
 	hasScheduledSubscription?: boolean;
 	scheduledPlan?: string;
+	pendingCheckoutPlan?: string;
+	pendingCheckoutStartedAt?: number;
 }
 
 const CURRENT_PLAN_IDS = new Set([
@@ -42,21 +44,32 @@ const getPlanById = (planId: string) => {
 	return Object.values(SUBSCRIPTION_PLANS).find((p) => p.id === normalizedPlanId);
 };
 
+const hasCurrentEntitlement = (
+	subscription?: Pick<SubscriptionData, 'status' | 'trialEndsAt'> | null,
+): boolean => {
+	if (!subscription?.status) return true;
+	if (subscription.status === SUBSCRIPTION_STATUS.ACTIVE) return true;
+	if (subscription.status !== SUBSCRIPTION_STATUS.TRIAL) return false;
+	if (!subscription.trialEndsAt) return true;
+	const now = Math.floor(Date.now() / 1000);
+	return now < subscription.trialEndsAt;
+};
+
 const getEffectivePlan = (subscription: SubscriptionData) =>
 	getPlanById(getEffectiveSubscriptionPlanId(subscription));
 
 export const getEffectiveSubscriptionPlanId = (
 	subscription?: Pick<
 		SubscriptionData,
-		'plan' | 'hasScheduledSubscription' | 'scheduledPlan'
+		'plan' | 'status' | 'trialEndsAt' | 'hasScheduledSubscription' | 'scheduledPlan'
 	> | null,
 	fallbackPlanId = 'homeowner',
 ): string => {
-	const scheduledPlan = String(subscription?.scheduledPlan || '').trim();
-	const planId =
-		subscription?.hasScheduledSubscription && scheduledPlan
-			? scheduledPlan
-			: String(subscription?.plan || fallbackPlanId).trim();
+	if (!hasCurrentEntitlement(subscription)) {
+		return resolvePlanId(fallbackPlanId);
+	}
+
+	const planId = String(subscription?.plan || fallbackPlanId).trim();
 	return resolvePlanId(planId || fallbackPlanId);
 };
 
@@ -209,7 +222,7 @@ export const getMaxStorageGbForPlan = (planId: string): number => {
 export const canUseTaskReminderEmails = (
 	subscription?: Pick<
 		SubscriptionData,
-		'plan' | 'hasScheduledSubscription' | 'scheduledPlan'
+		'plan' | 'status' | 'trialEndsAt' | 'hasScheduledSubscription' | 'scheduledPlan'
 	> | null,
 ): boolean => {
 	const effectivePlan = getEffectiveSubscriptionPlanId(subscription, 'homeowner');
@@ -219,7 +232,7 @@ export const canUseTaskReminderEmails = (
 export const canUsePropertyInsights = (
 	subscription?: Pick<
 		SubscriptionData,
-		'plan' | 'hasScheduledSubscription' | 'scheduledPlan'
+		'plan' | 'status' | 'trialEndsAt' | 'hasScheduledSubscription' | 'scheduledPlan'
 	> | null,
 ): boolean => {
 	const effectivePlan = getEffectiveSubscriptionPlanId(subscription, 'homeowner');

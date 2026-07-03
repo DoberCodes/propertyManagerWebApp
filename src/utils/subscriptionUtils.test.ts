@@ -14,6 +14,7 @@ import {
 	canUseSimpleTeamManagement,
 	canUseSuggestedMaintenancePackages,
 	canViewReports,
+	getEffectiveSubscriptionPlanId,
 	getMaxFilesForPlan,
 	getMaxPropertiesForPlan,
 	getMaxStorageGbForPlan,
@@ -139,5 +140,73 @@ describe('subscriptionUtils', () => {
 		expect(canManageTenants(team)).toBe(false);
 		expect(canManageTeam(tenant)).toBe(false);
 		expect(canManageTenants(tenant)).toBe(false);
+	});
+
+	it('does not treat an abandoned paid checkout as paid-plan access', () => {
+		const abandonedCheckout: SubscriptionData = {
+			status: SUBSCRIPTION_STATUS.CANCELLED,
+			plan: 'portfolio',
+			currentPeriodStart: 0,
+			currentPeriodEnd: 0,
+			promoCode: 'summer',
+			pendingCheckoutPlan: 'portfolio',
+			pendingCheckoutStartedAt: 1,
+		};
+
+		expect(getEffectiveSubscriptionPlanId(abandonedCheckout)).toBe('homeowner');
+		expect(canManageTeam(abandonedCheckout)).toBe(false);
+		expect(canManageTenants(abandonedCheckout)).toBe(false);
+	});
+
+	it('keeps active free users on free entitlement while paid checkout is pending', () => {
+		const pendingPaidCheckout: SubscriptionData = {
+			status: SUBSCRIPTION_STATUS.ACTIVE,
+			plan: 'homeowner',
+			currentPeriodStart: 0,
+			currentPeriodEnd: 9999999999,
+			promoCode: 'summer',
+			pendingCheckoutPlan: 'portfolio',
+			pendingCheckoutStartedAt: 1,
+		};
+
+		expect(getEffectiveSubscriptionPlanId(pendingPaidCheckout)).toBe('homeowner');
+		expect(canManageTeam(pendingPaidCheckout)).toBe(false);
+		expect(canManageTenants(pendingPaidCheckout)).toBe(false);
+		expect(canUseAdvancedTeamManagement(pendingPaidCheckout)).toBe(false);
+	});
+
+	it('does not grant paid feature access from a pending checkout on expired access', () => {
+		const expiredWithPendingPaidCheckout: SubscriptionData = {
+			status: SUBSCRIPTION_STATUS.EXPIRED,
+			plan: 'property',
+			currentPeriodStart: 0,
+			currentPeriodEnd: 0,
+			trialEndsAt: 0,
+			pendingCheckoutPlan: 'portfolio',
+			pendingCheckoutStartedAt: 1,
+		};
+
+		expect(getEffectiveSubscriptionPlanId(expiredWithPendingPaidCheckout)).toBe(
+			'homeowner',
+		);
+		expect(canManageTeam(expiredWithPendingPaidCheckout)).toBe(false);
+		expect(canManageTenants(expiredWithPendingPaidCheckout)).toBe(false);
+		expect(canUseAdvancedTeamManagement(expiredWithPendingPaidCheckout)).toBe(false);
+	});
+
+	it('keeps scheduled future plans out of current entitlement checks', () => {
+		const currentHomeownerWithScheduledPortfolio: SubscriptionData = {
+			status: SUBSCRIPTION_STATUS.ACTIVE,
+			plan: 'homeowner',
+			currentPeriodStart: 0,
+			currentPeriodEnd: 9999999999,
+			hasScheduledSubscription: true,
+			scheduledPlan: 'portfolio',
+		};
+
+		expect(getEffectiveSubscriptionPlanId(currentHomeownerWithScheduledPortfolio)).toBe(
+			'homeowner',
+		);
+		expect(canManageTeam(currentHomeownerWithScheduledPortfolio)).toBe(false);
 	});
 });
