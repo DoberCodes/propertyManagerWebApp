@@ -368,6 +368,12 @@ Recommended validation:
 npm --prefix functions run build
 ```
 
+Maintley Event Engine validation:
+
+```bash
+yarn test:notifications
+```
+
 Additional validation:
 
 * Test notification delivery

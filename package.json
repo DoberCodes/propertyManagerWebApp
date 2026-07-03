@@ -111,6 +111,7 @@
 		"test:rules:structure": "node scripts/testFirebaseRules.cjs",
 		"test:storage": "node ./node_modules/firebase-tools/lib/bin/firebase.js emulators:exec --only firestore,storage \"node scripts/testStorageRules.cjs\"",
 		"test:rules:all": "yarn test:rules && yarn test:storage",
+		"test:notifications": "npm --prefix functions run build && node scripts/testMaintleyEventEngine.cjs",
 		"cap:sync": "yarn build && npx cap sync android",
 		"cap:open": "npx cap open android",
 		"build:apk": "node scripts/initAppVersion.cjs && yarn build && npx cap sync android",
