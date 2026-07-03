@@ -231,7 +231,7 @@ export const DashboardTab = () => {
 	);
 
 	// Fetch tasks and properties from Firebase
-	const { data: allTasks = [] } = useGetTasksQuery();
+	const { data: allTasks = [], refetch: refetchTasks } = useGetTasksQuery();
 	const { data: allDevices = [] } = useGetAllDevicesQuery();
 	const { data: ownedProperties = [], isLoading: isLoadingProperties } =
 		useGetPropertiesQuery();
@@ -1839,6 +1839,10 @@ export const DashboardTab = () => {
 				onClose={() => {
 					setShowTaskDialog(false);
 					setDashboardTaskPrefill(null);
+				}}
+				onSaved={() => {
+					setDashboardTaskPrefill(null);
+					void refetchTasks();
 				}}
 				editingTaskId={editingTaskId}
 				initialTask={editingTaskId ? null : dashboardTaskPrefill}
