@@ -123,6 +123,7 @@
 		"build:signed": "bash build-signed-apk.sh",
 		"release:notes": "node scripts/generateReleaseNotes.cjs",
 		"release:notes:preview": "node scripts/generateReleaseNotes.cjs --output tmp/release-notes.customer.md --engineering-output tmp/release-notes.engineering.md --metadata-output tmp/release-notes.json",
+		"content:idea": "node scripts/generateMaintleyContentIdea.cjs",
 		"testDeploy": "bash build-signed-apk.sh --dry-run",
 		"test:stripe:sandbox": "npm --prefix functions run test:sandbox",
 		"test:stripe:cards:sandbox": "npm --prefix functions run test:cards:sandbox",
