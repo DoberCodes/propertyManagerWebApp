@@ -6,15 +6,11 @@ import { prioritizeMaintleyFindings } from '../prioritization';
 import {
 	MaintleyCapability,
 	MaintleyFinding,
-	MaintleyFindingActionType,
-	MaintleyFindingCategory,
-	MaintleyFindingPriority,
-	MaintleyFindingSeverity,
 	MaintleyIntelligenceInput,
-	MaintleyRequiredPlan,
 } from '../types';
 
 export const QUICK_SCAN_FINDING_LIMIT = 5;
+const QUICK_SCAN_PROPERTY_MEMORY_LIMIT = 3;
 
 interface QuickScanOptions {
 	planId?: string;
@@ -22,189 +18,75 @@ interface QuickScanOptions {
 	limit?: number;
 }
 
-interface SummaryConfig {
-	ruleId: string;
-	idSuffix: string;
-	category: MaintleyFindingCategory;
-	severity: MaintleyFindingSeverity;
-	priority: MaintleyFindingPriority;
-	title: string;
-	description: string;
-	whyItMatters: string;
-	suggestedActionLabel: string;
-	suggestedActionType: MaintleyFindingActionType;
-	requiredPlan?: MaintleyRequiredPlan;
+const PROPERTY_MEMORY_RULE_IDS = new Set([
+	'overdue-tasks-exist',
+	'safety-systems-missing-maintenance-history',
+	'systems-missing-maintenance-history',
+	'systems-missing-important-identification',
+	'major-systems-missing-install-dates',
+	'systems-missing-actionable-maintenance-coverage',
+]);
+
+interface QuickScanSelectionState {
+	selectedIds: Set<string>;
+	ruleIds: Set<string>;
+	assetKeys: Set<string>;
 }
 
-const SUMMARY_CONFIGS: SummaryConfig[] = [
-	{
-		ruleId: 'overdue-tasks-exist',
-		idSuffix: 'overdue-tasks',
-		category: 'Overdue Work',
-		severity: 'high',
-		priority: 'high',
-		title: 'Maintley has recorded maintenance tasks that are now overdue.',
-		description: "Maintley's records show one or more open maintenance tasks are past due.",
-		whyItMatters:
-			'Reviewing these recorded tasks helps keep maintenance visible and prevents it from slipping further behind.',
-		suggestedActionLabel: 'Review Tasks',
-		suggestedActionType: 'open_task',
-	},
-	{
-		ruleId: 'safety-systems-missing-maintenance-history',
-		idSuffix: 'safety-device-history',
-		category: 'Maintenance Opportunities',
-		severity: 'high',
-		priority: 'high',
-		title: "Maintley's records do not show safety-device maintenance history.",
-		description:
-			"Maintley's records do not include battery tests or battery replacements for smoke or carbon monoxide detectors yet.",
-		whyItMatters:
-			'Recording tests and battery changes creates a clear history for the next check.',
-		suggestedActionLabel: 'Review Systems',
-		suggestedActionType: 'open_systems',
-	},
-	{
-		ruleId: 'systems-missing-actionable-maintenance-coverage',
-		idSuffix: 'recurring-maintenance',
-		category: 'Maintenance Opportunities',
-		severity: 'high',
-		priority: 'high',
-		title: 'Maintley does not currently have recurring maintenance recorded for several systems.',
-		description:
-			"Maintley's records do not show linked recurring maintenance tasks for some systems.",
-		whyItMatters:
-			'Recurring schedules help keep service intervals visible before routine care is forgotten.',
-		suggestedActionLabel: 'Review Systems',
-		suggestedActionType: 'open_systems',
-		requiredPlan: 'homeowner_plus',
-	},
-	{
-		ruleId: 'baseline-maintenance-cadence-overdue',
-		idSuffix: 'baseline-maintenance-cadence',
-		category: 'Maintenance Opportunities',
-		severity: 'medium',
-		priority: 'medium',
-		title: "Maintley's records suggest some routine care may be ready for another look.",
-		description:
-			'Maintley found saved maintenance history that is older than the baseline interval for some systems.',
-		whyItMatters:
-			'Comparing saved history with baseline care intervals helps turn old records into practical next steps.',
-		suggestedActionLabel: 'Review Systems',
-		suggestedActionType: 'open_systems',
-	},
-	{
-		ruleId: 'systems-missing-maintenance-history',
-		idSuffix: 'maintenance-history',
-		category: 'Maintenance Opportunities',
-		severity: 'medium',
-		priority: 'medium',
-		title: "Maintenance history hasn't been started for several systems.",
-		description: "Maintley's records do not show saved maintenance history for some systems yet.",
-		whyItMatters:
-			'Starting the history creates a clearer record of what was serviced, when it happened, and what may need attention next.',
-		suggestedActionLabel: 'Review Systems',
-		suggestedActionType: 'open_systems',
-	},
-	{
-		ruleId: 'systems-missing-important-identification',
-		idSuffix: 'system-identification',
-		category: 'Missing Information',
-		severity: 'medium',
-		priority: 'medium',
-		title: "Some systems could be easier to identify in Maintley's records.",
-		description:
-			"Maintley's records do not show make or model information for some systems.",
-		whyItMatters:
-			'Make and model details make future manuals, parts, warranty claims, and service notes easier to find.',
-		suggestedActionLabel: 'Review Systems',
-		suggestedActionType: 'open_systems',
-	},
-	{
-		ruleId: 'knowledge-pack-record-details-missing',
-		idSuffix: 'knowledge-pack-details',
-		category: 'Missing Information',
-		severity: 'medium',
-		priority: 'medium',
-		title: "Some systems do not have a filter size recorded.",
-		description:
-			"Maintley's records do not show a filter size for some systems.",
-		whyItMatters:
-			'Adding these details makes future replacement parts and routine care easier to track.',
-		suggestedActionLabel: 'Review Systems',
-		suggestedActionType: 'open_systems',
-	},
-	{
-		ruleId: 'major-systems-missing-install-dates',
-		idSuffix: 'install-dates',
-		category: 'Missing Information',
-		severity: 'medium',
-		priority: 'medium',
-		title: 'No install date has been recorded for several major systems.',
-		description: "Maintley's records do not show install dates for some major systems.",
-		whyItMatters:
-			'Recording install dates makes warranty tracking, service planning, and future replacements much easier.',
-		suggestedActionLabel: 'Review Systems',
-		suggestedActionType: 'open_systems',
-	},
-];
+const isPropertyMemoryQuickScanFinding = (finding: MaintleyFinding): boolean =>
+	finding.source === 'property_memory' || PROPERTY_MEMORY_RULE_IDS.has(finding.ruleId);
 
-const getAffectedTaskIds = (findings: MaintleyFinding[]): string[] =>
-	Array.from(
-		new Set(
-			findings
-				.map((finding) => String(finding.metadata.taskId || ''))
-				.filter(Boolean),
-		),
-	);
+const getFindingAssetKeys = (finding: MaintleyFinding): string[] => {
+	const assetIds = finding.affectedAssetIds?.length
+		? finding.affectedAssetIds
+		: finding.affectedSystemIds;
+	if (assetIds.length > 0) {
+		return assetIds.map((assetId) => `asset:${assetId}`);
+	}
+	const taskId = String(finding.metadata.taskId || '').trim();
+	if (taskId) return [`task:${taskId}`];
+	return [`property:${finding.propertyId}`];
+};
 
-const getAffectedSystemIds = (findings: MaintleyFinding[]): string[] =>
-	Array.from(
-		new Set(findings.flatMap((finding) => finding.affectedSystemIds)),
-	);
+const hasAssetOverlap = (
+	finding: MaintleyFinding,
+	assetKeys: Set<string>,
+): boolean => getFindingAssetKeys(finding).some((key) => assetKeys.has(key));
 
-const getAffectedAssetIds = (findings: MaintleyFinding[]): string[] =>
-	Array.from(
-		new Set(
-			findings.flatMap(
-				(finding) => finding.affectedAssetIds || finding.affectedSystemIds,
-			),
-		),
-	);
+const rememberFinding = (
+	state: QuickScanSelectionState,
+	finding: MaintleyFinding,
+) => {
+	state.selectedIds.add(finding.id);
+	state.ruleIds.add(finding.ruleId);
+	getFindingAssetKeys(finding).forEach((key) => state.assetKeys.add(key));
+};
 
-const makeSummaryFinding = (
-	config: SummaryConfig,
-	findings: MaintleyFinding[],
-): MaintleyFinding | null => {
-	if (findings.length === 0) return null;
+const selectDiverseFindings = (
+	candidates: MaintleyFinding[],
+	count: number,
+	state: QuickScanSelectionState,
+): MaintleyFinding[] => {
+	const selected: MaintleyFinding[] = [];
 
-	const firstFinding = findings[0];
-
-	return {
-		id: `maintley-intelligence:${firstFinding.propertyId}:quick-scan-summary:${config.idSuffix}`,
-		ruleId: config.ruleId,
-		propertyId: firstFinding.propertyId,
-		affectedAssetIds: getAffectedAssetIds(findings),
-		affectedSystemIds: getAffectedSystemIds(findings),
-		category: config.category,
-		severity: config.severity,
-		priority: config.priority,
-		source: firstFinding.source,
-		title: config.title,
-		description: config.description,
-		whyItMatters: config.whyItMatters,
-		suggestedActionLabel: config.suggestedActionLabel,
-		suggestedActionType: config.suggestedActionType,
-		requiredPlan: config.requiredPlan || firstFinding.requiredPlan,
-		requiredCapabilities: firstFinding.requiredCapabilities,
-		metadata: {
-			sourceFindingIds: findings.map((finding) => finding.id),
-			affectedTaskIds: getAffectedTaskIds(findings),
-			affectedAssetIds: getAffectedAssetIds(findings),
-			affectedSystemIds: getAffectedSystemIds(findings),
-		},
-		createdAt: firstFinding.createdAt,
+	const tryPass = (predicate: (finding: MaintleyFinding) => boolean) => {
+		for (const finding of candidates) {
+			if (selected.length >= count) return;
+			if (state.selectedIds.has(finding.id)) continue;
+			if (!predicate(finding)) continue;
+			selected.push(finding);
+			rememberFinding(state, finding);
+		}
 	};
+
+	tryPass(
+		(finding) =>
+			!state.ruleIds.has(finding.ruleId) &&
+			!hasAssetOverlap(finding, state.assetKeys),
+	);
+	tryPass((finding) => !state.ruleIds.has(finding.ruleId));
+
+	return selected;
 };
 
 export const selectQuickScanFindings = (
@@ -217,22 +99,42 @@ export const selectQuickScanFindings = (
 		options.planId,
 		options.capabilities,
 	);
-	const summaryRuleIds = new Set(SUMMARY_CONFIGS.map((config) => config.ruleId));
-	const summaryFindings = SUMMARY_CONFIGS.map((config) =>
-		makeSummaryFinding(
-			config,
-			candidateFindings.filter((finding) => finding.ruleId === config.ruleId),
-		),
-	).filter((finding): finding is MaintleyFinding => Boolean(finding));
-	const passthroughFindings = candidateFindings.filter(
-		(finding) => !summaryRuleIds.has(finding.ruleId),
+	const prioritizedFindings = prioritizeMaintleyFindings(candidateFindings);
+	const selectionState: QuickScanSelectionState = {
+		selectedIds: new Set(),
+		ruleIds: new Set(),
+		assetKeys: new Set(),
+	};
+	const propertyMemoryLimit = Math.min(
+		QUICK_SCAN_PROPERTY_MEMORY_LIMIT,
+		limit,
 	);
-	const prioritizedFindings = prioritizeMaintleyFindings([
-		...summaryFindings,
-		...passthroughFindings,
-	]);
+	const expandedLimit = Math.max(0, limit - propertyMemoryLimit);
+	const propertyMemoryFindings = prioritizedFindings.filter(
+		isPropertyMemoryQuickScanFinding,
+	);
+	const expandedFindings = prioritizedFindings.filter(
+		(finding) => !isPropertyMemoryQuickScanFinding(finding),
+	);
+	const selectedFindings = [
+		...selectDiverseFindings(
+			propertyMemoryFindings,
+			propertyMemoryLimit,
+			selectionState,
+		),
+		...selectDiverseFindings(expandedFindings, expandedLimit, selectionState),
+	];
+	const remainingSlots = limit - selectedFindings.length;
+	if (remainingSlots <= 0) return prioritizeMaintleyFindings(selectedFindings);
 
-	return prioritizedFindings.slice(0, limit);
+	return prioritizeMaintleyFindings([
+		...selectedFindings,
+		...selectDiverseFindings(
+			prioritizedFindings,
+			remainingSlots,
+			selectionState,
+		),
+	]);
 };
 
 export const runQuickPropertyScan = (

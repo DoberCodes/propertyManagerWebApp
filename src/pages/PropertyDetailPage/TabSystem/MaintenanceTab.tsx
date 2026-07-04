@@ -301,6 +301,7 @@ export interface MaintenanceTabProps {
 	property: any;
 	maintenanceHistoryRecords?: any[];
 	units?: any[];
+	devices?: any[];
 	teamMembers?: any[];
 	contractors?: any[];
 	familyMembers?: any[];
@@ -321,6 +322,20 @@ export interface MaintenanceTabProps {
 	}) => void;
 	onUpdateMaintenanceHistory?: (id: string, updates: Partial<any>) => void;
 	onDeleteMaintenanceHistory?: (historyId: string) => void;
+	openCreateHistoryToken?: number;
+	createHistoryDraft?: {
+		title?: string;
+		completionDate?: string;
+		completedBy?: string;
+		completedByName?: string;
+		completionNotes?: string;
+		unitId?: string;
+		deviceIds?: string[];
+		maintenanceGroupId?: string;
+		financials?: TaskFinancials;
+	} | null;
+	createHistoryDraftRecommendationId?: string | null;
+	onCreateHistoryDraftSaved?: (recommendationId: string) => void;
 	permissions?: RoleCapabilities;
 }
 
@@ -328,6 +343,7 @@ export const MaintenanceTab = ({
 	property,
 	maintenanceHistoryRecords = [],
 	units = [],
+	devices = [],
 	teamMembers = [],
 	contractors = [],
 	familyMembers = [],
@@ -335,6 +351,10 @@ export const MaintenanceTab = ({
 	onAddMaintenanceHistory,
 	onUpdateMaintenanceHistory,
 	onDeleteMaintenanceHistory,
+	openCreateHistoryToken = 0,
+	createHistoryDraft = null,
+	createHistoryDraftRecommendationId = null,
+	onCreateHistoryDraftSaved,
 	permissions,
 }: MaintenanceTabProps) => {
 	const feedback = useAppFeedback();
@@ -348,6 +368,11 @@ export const MaintenanceTab = ({
 	);
 	const [showBulkGroupModal, setShowBulkGroupModal] = useState(false);
 	const [editingHistoryRecord, setEditingHistoryRecord] = useState<any | null>(null);
+	const [activeHistoryDraft, setActiveHistoryDraft] = useState<
+		NonNullable<MaintenanceTabProps['createHistoryDraft']> | null
+	>(null);
+	const [activeHistoryDraftRecommendationId, setActiveHistoryDraftRecommendationId] =
+		useState<string | null>(null);
 	// dialog for deletions
 	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 	const [deleteDialogMessage, setDeleteDialogMessage] = useState('');
@@ -472,8 +497,24 @@ export const MaintenanceTab = ({
 
 	const openAddHistoryModal = () => {
 		setEditingHistoryRecord(null);
+		setActiveHistoryDraft(null);
+		setActiveHistoryDraftRecommendationId(null);
 		setShowAddModal(true);
 	};
+
+	React.useEffect(() => {
+		if (openCreateHistoryToken > 0 && canManageMaintenanceHistory) {
+			setEditingHistoryRecord(null);
+			setActiveHistoryDraft(createHistoryDraft);
+			setActiveHistoryDraftRecommendationId(createHistoryDraftRecommendationId);
+			setShowAddModal(true);
+		}
+	}, [
+		canManageMaintenanceHistory,
+		createHistoryDraft,
+		createHistoryDraftRecommendationId,
+		openCreateHistoryToken,
+	]);
 
 	const openEditHistoryModal = (record: any) => {
 		if (!canManageMaintenanceHistory || !onUpdateMaintenanceHistory || !record?.id) return;
@@ -519,6 +560,11 @@ export const MaintenanceTab = ({
 
 		if (!onAddMaintenanceHistory) return;
 		await onAddMaintenanceHistory(data);
+		if (activeHistoryDraftRecommendationId) {
+			onCreateHistoryDraftSaved?.(activeHistoryDraftRecommendationId);
+			setActiveHistoryDraftRecommendationId(null);
+			setActiveHistoryDraft(null);
+		}
 		setEditingHistoryRecord(null);
 		setShowAddModal(false);
 	};
@@ -1475,18 +1521,16 @@ export const MaintenanceTab = ({
 					onClose={() => {
 						setShowAddModal(false);
 						setEditingHistoryRecord(null);
+						setActiveHistoryDraft(null);
+						setActiveHistoryDraftRecommendationId(null);
 					}}
 					title={editingHistoryRecord ? 'Edit Maintenance History' : 'Add Maintenance History'}
 					primaryButtonLabel={editingHistoryRecord ? 'Save Changes' : 'Add History'}
 					hideAttachmentField={Boolean(editingHistoryRecord)}
-					initialData={editingHistoryRecord || undefined}
+					initialData={editingHistoryRecord || activeHistoryDraft || undefined}
 					onSubmit={handleHistoryModalSubmit}
 					property={property}
-					devices={Array.isArray((property as any)?.devices)
-						? (property as any).devices
-						: Array.isArray((property as any)?.deviceIds)
-							? (property as any).deviceIds.map((id: string) => ({ id }))
-							: []}
+					devices={devices}
 					units={units}
 					teamMembers={teamMembers}
 					contractors={contractors}

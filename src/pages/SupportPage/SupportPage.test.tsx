@@ -114,10 +114,7 @@ describe('SupportPage customer tickets', () => {
 			},
 		]);
 
-		const ticket = screen
-			.getByText('Profile picture not showing')
-			.closest('article, section, div');
-
+		expect(screen.getByText('Profile picture not showing')).toBeInTheDocument();
 		expect(screen.getByText('Testing Fix')).toBeInTheDocument();
 		expect(screen.queryByText('Closed')).not.toBeInTheDocument();
 		expect(screen.getAllByText(/Latest Maintley update/i).length).toBeGreaterThan(0);
@@ -125,7 +122,6 @@ describe('SupportPage customer tickets', () => {
 			screen.getByText('We implemented a fix and are completing final testing.'),
 		).toBeInTheDocument();
 		expect(screen.queryByText('Internal stack trace and deployment note.')).not.toBeInTheDocument();
-		expect(ticket).toBeTruthy();
 	});
 
 	it('only places truly closed tickets in the closed request list', async () => {

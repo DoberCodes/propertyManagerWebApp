@@ -1,6 +1,6 @@
 ---
 title: Future you should not have to start over
-status: ready
+status: published
 pillar: property-memory
 platforms:
   - maintley-facebook

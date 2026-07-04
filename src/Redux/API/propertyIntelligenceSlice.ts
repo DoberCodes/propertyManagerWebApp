@@ -8,6 +8,15 @@ import {
 	writeBatch,
 } from 'firebase/firestore';
 import { auth, db } from '../../config/firebase';
+import type {
+	PropertyAuditAssetReview,
+	PropertyAuditCategory,
+} from '../../intelligence/consumers/propertyAudit';
+import {
+	getPropertyScanLatestSnapshotId,
+	getPropertyScanPersistenceTargets,
+} from '../../utils/propertyIntelligencePersistence';
+import type { PropertyIntelligenceScanType } from '../../utils/propertyIntelligencePersistence';
 import {
 	PropertyScanPremiumPreview,
 	PropertyScanRecommendation,
@@ -19,15 +28,19 @@ export interface PropertyScanSnapshot {
 	id?: string;
 	accountId: string;
 	propertyId: string;
-	scanType: 'quick_property_scan_v1';
+	scanType: PropertyIntelligenceScanType;
 	schemaVersion: 1 | 2;
 	planId?: string;
 	createdAt: string;
 	updatedAt: string;
 	createdBy?: string;
 	recommendations: PropertyScanRecommendation[];
+	auditCategories?: PropertyAuditCategory[];
+	auditAssetReviews?: PropertyAuditAssetReview[];
 	premiumPreview?: PropertyScanPremiumPreview;
 	systemsReviewed: number;
+	tasksReviewed?: number;
+	baselineVersion?: string;
 	summary: {
 		recommendations: number;
 		overdue: number;
@@ -41,6 +54,11 @@ type SavePropertyScanSnapshotInput = Omit<
 	PropertyScanSnapshot,
 	'id' | 'updatedAt' | 'createdBy'
 >;
+
+interface GetLatestPropertyScanSnapshotInput {
+	propertyId: string;
+	scanType?: PropertyIntelligenceScanType;
+}
 
 interface GetPropertyScanSnapshotsInput {
 	propertyId: string;
@@ -68,6 +86,36 @@ const removeUndefinedFieldsDeep = <T>(value: T): T => {
 	return value;
 };
 
+const publishScanCompletedEvent = async (
+	payload: PropertyScanSnapshot,
+	relatedScanId: string,
+) => {
+	const isAudit = payload.scanType === 'property_audit_v1';
+	await publishMaintleyEvent({
+		accountId: payload.accountId,
+		propertyId: payload.propertyId,
+		relatedScanId,
+		type: isAudit ? 'property_audit_completed' : 'quick_scan_completed',
+		workflowKey: 'maintley-intelligence',
+		entityKey: isAudit
+			? `property-audit:${payload.propertyId}`
+			: `quick-scan:${relatedScanId}`,
+		title: isAudit ? 'Property Audit complete' : 'Quick Scan complete',
+		message: `Maintley found ${payload.summary.recommendations} ${isAudit ? 'audit ' : ''}item${payload.summary.recommendations === 1 ? '' : 's'} to review.`,
+		status: 'completed',
+		priority: payload.summary.high > 0 ? 'high' : 'normal',
+		actionLabel: isAudit ? 'Review audit' : 'Review scan',
+		actionUrl: `/properties/${payload.propertyId}`,
+		push: !isAudit,
+		metadata: {
+			scanType: payload.scanType,
+			recommendationCount: payload.summary.recommendations,
+			highCount: payload.summary.high,
+			overdueCount: payload.summary.overdue,
+		},
+	});
+};
+
 const propertyIntelligenceSlice = apiSlice.injectEndpoints({
 	endpoints: (builder) => ({
 		getLatestPropertyScanSnapshot: builder.query<
@@ -81,7 +129,11 @@ const propertyIntelligenceSlice = apiSlice.injectEndpoints({
 					}
 
 					const latestSnapshot = await getDoc(
-						doc(db, 'propertyScanLatest', propertyId),
+						doc(
+							db,
+							'propertyScanLatest',
+							getPropertyScanLatestSnapshotId(propertyId),
+						),
 					);
 
 					return {
@@ -99,6 +151,48 @@ const propertyIntelligenceSlice = apiSlice.injectEndpoints({
 			},
 			providesTags: (_result, _error, propertyId) => [
 				{ type: 'PropertyScanSnapshots', id: propertyId },
+			],
+		}),
+
+		getLatestPropertyIntelligenceSnapshot: builder.query<
+			PropertyScanSnapshot | null,
+			GetLatestPropertyScanSnapshotInput
+		>({
+			async queryFn({
+				propertyId,
+				scanType = 'quick_property_scan_v1',
+			}: GetLatestPropertyScanSnapshotInput) {
+				try {
+					if (!propertyId) {
+						return { data: null };
+					}
+
+					const latestSnapshot = await getDoc(
+						doc(
+							db,
+							'propertyScanLatest',
+							getPropertyScanLatestSnapshotId(propertyId, scanType),
+						),
+					);
+
+					return {
+						data: latestSnapshot.exists()
+							? (docToData(latestSnapshot) as PropertyScanSnapshot)
+							: null,
+					};
+				} catch (error: any) {
+					return {
+						error:
+							error?.message ||
+							'Failed to load the latest property intelligence snapshot',
+					};
+				}
+			},
+			providesTags: (_result, _error, { propertyId, scanType }) => [
+				{
+					type: 'PropertyScanSnapshots',
+					id: getPropertyScanLatestSnapshotId(propertyId, scanType),
+				},
 			],
 		}),
 
@@ -153,34 +247,27 @@ const propertyIntelligenceSlice = apiSlice.injectEndpoints({
 						createdBy: auth.currentUser?.uid,
 					});
 
-					const latestRef = doc(db, 'propertyScanLatest', snapshot.propertyId);
+					const persistenceTargets = getPropertyScanPersistenceTargets(
+						snapshot.propertyId,
+						snapshot.scanType,
+					);
+					const latestRef = doc(
+						db,
+						'propertyScanLatest',
+						persistenceTargets.latestSnapshotId,
+					);
 					const historyRef = doc(collection(db, 'propertyScanSnapshots'));
 					const batch = writeBatch(db);
 					batch.set(latestRef, payload);
-					batch.set(historyRef, payload);
+					if (persistenceTargets.writeHistorySnapshot) {
+						batch.set(historyRef, payload);
+					}
 					await batch.commit();
+					const relatedScanId = persistenceTargets.writeHistorySnapshot
+						? historyRef.id
+						: latestRef.id;
 					try {
-						await publishMaintleyEvent({
-							accountId: payload.accountId,
-							propertyId: payload.propertyId,
-							relatedScanId: historyRef.id,
-							type: 'quick_scan_completed',
-							workflowKey: 'maintley-intelligence',
-							entityKey: `quick-scan:${historyRef.id}`,
-							title: 'Quick Scan complete',
-							message: `Maintley found ${payload.summary.recommendations} item${payload.summary.recommendations === 1 ? '' : 's'} to review.`,
-							status: 'completed',
-							priority: payload.summary.high > 0 ? 'high' : 'normal',
-							actionLabel: 'Review scan',
-							actionUrl: `/properties/${payload.propertyId}`,
-							push: true,
-							metadata: {
-								scanType: payload.scanType,
-								recommendationCount: payload.summary.recommendations,
-								highCount: payload.summary.high,
-								overdueCount: payload.summary.overdue,
-							},
-						});
+						await publishScanCompletedEvent(payload, relatedScanId);
 					} catch (eventError) {
 						console.warn('Could not publish Quick Scan event:', eventError);
 					}
@@ -188,7 +275,7 @@ const propertyIntelligenceSlice = apiSlice.injectEndpoints({
 					return {
 						data: {
 							...payload,
-							id: historyRef.id,
+							id: relatedScanId,
 						},
 					};
 				} catch (error: any) {
@@ -200,13 +287,77 @@ const propertyIntelligenceSlice = apiSlice.injectEndpoints({
 			},
 			invalidatesTags: (_result, _error, snapshot) => [
 				{ type: 'PropertyScanSnapshots', id: snapshot.propertyId },
+				{
+					type: 'PropertyScanSnapshots',
+					id: getPropertyScanLatestSnapshotId(
+						snapshot.propertyId,
+						snapshot.scanType,
+					),
+				},
+			],
+		}),
+
+		savePropertyAuditSnapshot: builder.mutation<
+			PropertyScanSnapshot,
+			SavePropertyScanSnapshotInput
+		>({
+			async queryFn(snapshot) {
+				try {
+					const now = new Date().toISOString();
+					const payload: PropertyScanSnapshot = removeUndefinedFieldsDeep({
+						...snapshot,
+						scanType: 'property_audit_v1',
+						updatedAt: now,
+						createdBy: auth.currentUser?.uid,
+					});
+
+					const latestRef = doc(
+						db,
+						'propertyScanLatest',
+						getPropertyScanLatestSnapshotId(
+							snapshot.propertyId,
+							'property_audit_v1',
+						),
+					);
+					const batch = writeBatch(db);
+					batch.set(latestRef, payload);
+					await batch.commit();
+					try {
+						await publishScanCompletedEvent(payload, latestRef.id);
+					} catch (eventError) {
+						console.warn('Could not publish Property Audit event:', eventError);
+					}
+
+					return {
+						data: {
+							...payload,
+							id: latestRef.id,
+						},
+					};
+				} catch (error: any) {
+					return {
+						error:
+							error?.message || 'Failed to save property audit snapshot',
+					};
+				}
+			},
+			invalidatesTags: (_result, _error, snapshot) => [
+				{
+					type: 'PropertyScanSnapshots',
+					id: getPropertyScanLatestSnapshotId(
+						snapshot.propertyId,
+						'property_audit_v1',
+					),
+				},
 			],
 		}),
 	}),
 });
 
 export const {
+	useGetLatestPropertyIntelligenceSnapshotQuery,
 	useGetLatestPropertyScanSnapshotQuery,
 	useGetPropertyScanSnapshotsQuery,
+	useSavePropertyAuditSnapshotMutation,
 	useSavePropertyScanSnapshotMutation,
 } = propertyIntelligenceSlice;

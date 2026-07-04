@@ -20,6 +20,7 @@ Maintley content should help homeowners understand why property memory matters:
 - `published/` - Posts that have gone live, with dates and performance notes.
 - `archived/` - Retired, outdated, duplicate, or no-longer-useful content.
 - `templates/` - Reusable content templates.
+- `IDEA_INBOX.md` - A quick dumping ground for founder views, outside ideas, and rough content angles.
 
 ## Statuses
 
@@ -66,16 +67,22 @@ Supported `cta` values:
 3. Fill in `title`, `status`, `pillar`, likely `platforms`, and a rough idea.
 4. Keep the idea practical. Start with the homeowner problem before describing Maintley.
 
+For loose notes, use `IDEA_INBOX.md` instead of creating a full post file. Add a `##` heading and a few rough paragraphs. Optional fields like `Pillar:`, `Tags:`, `Problem:`, `Evidence:`, and `Maintley Connection:` help the generator shape the idea, but they are not required.
+
+When the generator creates a post from an inbox idea, it copies the original idea into the generated post and removes the used `##` section from `IDEA_INBOX.md`. Use `--dry-run` to preview without changing the inbox, or `--keep-inbox` if you intentionally want the idea to remain there.
+
 You can also generate a ready-to-edit post from Maintley's maintained docs:
 
 ```bash
 yarn content:idea
 yarn content:idea -- --topic "documents belong with the property" --status ready
 yarn content:idea -- --pillar property-memory --source adr --status drafting
+yarn content:idea -- --source ideas --status drafting
+yarn content:idea -- --source ideas --status drafting --keep-inbox
 yarn content:idea -- --count 5 --status ready
 ```
 
-The generator is local and deterministic. It does not publish content, call social platforms, or use an AI API. It reads Maintley source documents, creates the next numbered markdown file, and includes source notes for review.
+The generator is local and deterministic. It does not publish content, call social platforms, or use an AI API. It reads Maintley source documents and `IDEA_INBOX.md`, creates the next numbered markdown file, and includes source notes for review.
 
 Default output is `status: ready` so the generated file starts closer to publishable copy. Use `--status idea` or `--status drafting` when the angle still needs more thinking.
 

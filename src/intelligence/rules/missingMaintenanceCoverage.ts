@@ -1,4 +1,5 @@
 import { MaintleyIntelligenceRule } from '../types';
+import { getBaselineDefinitionForAsset } from '../baselineCareLibrary';
 import { getAssetDisplayName, hasLinkedRecurringTask, makeFinding } from './helpers';
 
 export const missingMaintenanceCoverageRule: MaintleyIntelligenceRule = {
@@ -6,6 +7,10 @@ export const missingMaintenanceCoverageRule: MaintleyIntelligenceRule = {
 	evaluate: (context) =>
 		context.systems.flatMap((system) => {
 			if (hasLinkedRecurringTask(system, context.tasks)) return [];
+
+			const baseline = getBaselineDefinitionForAsset(system);
+			const suggestedCadence = baseline?.suggestedMaintenanceCadence || [];
+			if (suggestedCadence.length === 0) return [];
 
 			const systemName = getAssetDisplayName(system);
 
@@ -28,6 +33,12 @@ export const missingMaintenanceCoverageRule: MaintleyIntelligenceRule = {
 					metadata: {
 						systemId: system.id,
 						systemName,
+						baselineAssetType: baseline?.assetType,
+						suggestedMaintenanceCadence: suggestedCadence.map((cadence) => ({
+							id: cadence.id,
+							label: cadence.label,
+							intervalDays: cadence.intervalDays,
+						})),
 					},
 				}),
 			];

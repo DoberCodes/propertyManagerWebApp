@@ -254,8 +254,14 @@ Optional
 
 ## Suggested Maintenance
 
+Tank water heaters:
+
 * Flush Tank
 * Inspect Anode Rod
+
+Tankless water heaters:
+
+* Review Tankless Descaling
 
 ---
 
@@ -283,7 +289,7 @@ Optional
 
 ## Seasonal Guidance
 
-* Fall: Record a flush or service review before heavier winter use.
+* Fall: Record tank maintenance or tankless service review before heavier winter use.
 
 ---
 

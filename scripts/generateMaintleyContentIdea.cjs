@@ -5,12 +5,15 @@ const path = require('path');
 
 const rootDir = path.resolve(__dirname, '..');
 const contentDir = path.join(rootDir, 'marketing', 'maintley', 'content');
+const ideaInboxRelativePath = 'marketing/maintley/content/IDEA_INBOX.md';
+const ideaInboxPath = path.join(rootDir, ideaInboxRelativePath);
 
 const sourceRoots = {
 	core: [
 		'project-docs/docs/Product/PRODUCT_DIRECTION.md',
 		'project-docs/docs/UX/UX_LANGUAGE_GUIDE.md',
 		'project-docs/docs/Intelligence/PROPERTY_INTELLIGENCE.md',
+		ideaInboxRelativePath,
 	],
 	product: [
 		'project-docs/docs/Product/PRODUCT_DIRECTION.md',
@@ -21,6 +24,7 @@ const sourceRoots = {
 		'project-docs/docs/Intelligence/PROPERTY_INTELLIGENCE.md',
 		'project-docs/docs/Intelligence/RECOMMENDATION_ENGINE.md',
 	],
+	ideas: [ideaInboxRelativePath],
 	adr: ['project-docs/ADR'],
 	all: [
 		'project-docs/docs/Product/PRODUCT_DIRECTION.md',
@@ -28,6 +32,7 @@ const sourceRoots = {
 		'project-docs/docs/UX/UX_LANGUAGE_GUIDE.md',
 		'project-docs/docs/Intelligence/PROPERTY_INTELLIGENCE.md',
 		'project-docs/docs/Intelligence/RECOMMENDATION_ENGINE.md',
+		ideaInboxRelativePath,
 		'project-docs/ADR',
 	],
 };
@@ -319,6 +324,7 @@ Usage:
   yarn content:idea
   yarn content:idea -- --topic "documents belong with the property" --status ready
   node scripts/generateMaintleyContentIdea.cjs --pillar property-memory --source adr --dry-run
+  node scripts/generateMaintleyContentIdea.cjs --source ideas --status drafting
 
 Options:
   --title <text>          Force the post title.
@@ -327,9 +333,10 @@ Options:
   --status <value>        One of: ${supportedStatuses.join(', ')}. Defaults to ready.
   --platforms <list>      Comma-separated platforms. Defaults to maintley-facebook,nextdoor,linkedin.
   --cta <value>           One of: ${supportedCtas.join(', ')}
-  --source <value>        core, product, intelligence, adr, or all. Defaults to core.
+  --source <value>        core, product, intelligence, ideas, adr, or all. Defaults to core.
   --count <number>        Number of separate drafts to create. Defaults to 1.
   --dry-run               Print the generated file path and content without writing.
+  --keep-inbox            Keep generated idea sections in IDEA_INBOX.md after writing.
   --help                  Show this help.
 `);
 }
@@ -345,6 +352,7 @@ function parseArgs(argv) {
 		source: 'core',
 		count: 1,
 		dryRun: false,
+		keepInbox: false,
 	};
 
 	for (let index = 0; index < argv.length; index += 1) {
@@ -371,6 +379,7 @@ function parseArgs(argv) {
 		else if (arg === '--source') options.source = readValue();
 		else if (arg === '--count') options.count = Number(readValue());
 		else if (arg === '--dry-run') options.dryRun = true;
+		else if (arg === '--keep-inbox') options.keepInbox = true;
 		else if (arg === '--help' || arg === '-h') {
 			printHelp();
 			process.exit(0);
@@ -391,7 +400,7 @@ function validateOptions(options) {
 		throw new Error(`--pillar must be one of: ${supportedPillars.join(', ')}`);
 	}
 	if (!sourceRoots[options.source]) {
-		throw new Error('--source must be one of: core, product, intelligence, adr, all');
+		throw new Error('--source must be one of: core, product, intelligence, ideas, adr, all');
 	}
 	if (options.cta && !supportedCtas.includes(options.cta)) {
 		throw new Error(`--cta must be one of: ${supportedCtas.join(', ')}`);
@@ -458,7 +467,11 @@ function getNextContentNumber() {
 function readExistingContentIndex() {
 	const files = listMarkdownFiles(contentDir).filter((file) => {
 		const relativePath = path.relative(contentDir, file).split(path.sep).join('/');
-		return !relativePath.startsWith('templates/');
+		return (
+			!relativePath.startsWith('templates/') &&
+			relativePath !== 'README.md' &&
+			relativePath !== 'IDEA_INBOX.md'
+		);
 	});
 	const entries = files.map((file) => {
 		const text = fs.readFileSync(file, 'utf8');
@@ -563,6 +576,32 @@ function collectSourceFiles(sourceKey) {
 	return files;
 }
 
+function getMarkdownLinesOutsideCodeFences(text) {
+	const lines = text.split(/\r?\n/);
+	let isInCodeFence = false;
+
+	return lines.filter((line) => {
+		if (/^\s*```/.test(line)) {
+			isInCodeFence = !isInCodeFence;
+			return false;
+		}
+		return !isInCodeFence;
+	});
+}
+
+function getIdeaInboxSourceText(text) {
+	return getMarkdownLinesOutsideCodeFences(text)
+		.join('\n')
+		.split(/(?=^##\s+)/m)
+		.map((section) => section.trim())
+		.filter((section) => {
+			if (!section.startsWith('## ')) return false;
+			const heading = section.split(/\r?\n/)[0].replace(/^##\s+/, '').trim();
+			return !/^\[(used|archived|skip)\]/i.test(heading);
+		})
+		.join('\n\n');
+}
+
 function extractSourceNotes(files, topic) {
 	const topicTokens = new Set(normalizeToken(topic).split(' ').filter((token) => token.length > 3));
 	const notes = [];
@@ -570,7 +609,13 @@ function extractSourceNotes(files, topic) {
 	for (const file of files) {
 		const relativePath = path.relative(rootDir, file).split(path.sep).join('/');
 		const text = fs.readFileSync(file, 'utf8');
-		const lines = text.split(/\r?\n/);
+		const sourceText =
+			relativePath === ideaInboxRelativePath
+				? getIdeaInboxSourceText(text)
+				: text;
+		if (!sourceText.trim()) continue;
+
+		const lines = getMarkdownLinesOutsideCodeFences(sourceText);
 		const titleLine = lines.find((line) => /^#\s+/.test(line));
 		const title = titleLine ? titleLine.replace(/^#\s+/, '').trim() : path.basename(file);
 		const scoredLines = lines
@@ -600,9 +645,231 @@ function extractSourceNotes(files, topic) {
 	return notes.slice(0, 6);
 }
 
+const ideaFieldNames = [
+	'Pillar',
+	'Tags',
+	'Problem',
+	'Evidence',
+	'Story',
+	'Why it matters',
+	'Connection',
+	'Maintley Connection',
+	'Hook',
+	'Hooks',
+	'Caption',
+	'Short',
+	'Graphic',
+	'CTA',
+	'Evergreen',
+	'Follow-ups',
+	'Follow-up',
+	'Confidence',
+	'Related ADR',
+];
+
+function isMarkdownSeparator(value) {
+	return /^-{3,}$/.test(String(value || '').trim());
+}
+
+function cleanIdeaValue(value) {
+	return String(value || '')
+		.split(/\r?\n/)
+		.map((line) => line.trim())
+		.filter((line) => line && !isMarkdownSeparator(line))
+		.join(' ')
+		.trim();
+}
+
+function cleanIdeaTitle(value) {
+	return String(value || '').trim().replace(/[.!?]+$/g, '');
+}
+
+function isIdeaFieldLine(line) {
+	return ideaFieldNames.some((fieldName) => {
+		const escapedFieldName = fieldName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+		return new RegExp(`^[-*]?\\s*${escapedFieldName}:`, 'i').test(line);
+	});
+}
+
+function readField(section, fieldName) {
+	const escapedFieldName = fieldName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+	const lines = section.split(/\r?\n/);
+
+	for (let index = 0; index < lines.length; index += 1) {
+		const match = lines[index].match(new RegExp(`^[-*]?\\s*${escapedFieldName}:\\s*(.*)$`, 'i'));
+		if (!match) continue;
+
+		if (match[1].trim()) {
+			return cleanIdeaValue(match[1]);
+		}
+
+		const valueLines = [];
+		for (let valueIndex = index + 1; valueIndex < lines.length; valueIndex += 1) {
+			const line = lines[valueIndex];
+			if (/^##\s+/.test(line) || isMarkdownSeparator(line) || isIdeaFieldLine(line)) {
+				break;
+			}
+			valueLines.push(line);
+		}
+		return cleanIdeaValue(valueLines.join('\n'));
+	}
+
+	return '';
+}
+
+function splitFieldList(value) {
+	return String(value || '')
+		.split(/[,|]/)
+		.map((item) => item.trim())
+		.filter(Boolean);
+}
+
+function getIdeaParagraphs(sectionBody) {
+	return sectionBody
+		.replace(/^[-*]?\s*(Pillar|Tags|Problem|Evidence|Story|Why it matters|Connection|Maintley Connection|Hook|Hooks|Caption|Short|Graphic|CTA|Evergreen|Follow-ups?|Confidence|Related ADR):\s*.*$/gim, '')
+		.split(/\n\s*\n/)
+		.map((paragraph) =>
+			paragraph
+				.split(/\r?\n/)
+				.map((line) => line.replace(/^[-*]\s+/, '').trim())
+				.filter((line) => line && !isMarkdownSeparator(line))
+				.join(' '),
+		)
+		.map((paragraph) => paragraph.trim())
+		.filter((paragraph) => paragraph.length > 0);
+}
+
+function normalizeSupportedValue(value, supportedValues, fallback) {
+	return supportedValues.includes(value) ? value : fallback;
+}
+
+function buildIdeaHooks(title, paragraphs, explicitHook) {
+	const cleanTitle = cleanIdeaTitle(title);
+	const firstParagraph = paragraphs[0] || '';
+	const firstSentence = firstParagraph.split(/(?<=[.!?])\s+/)[0] || '';
+	const seeds = [
+		explicitHook,
+		cleanTitle,
+		firstSentence,
+		`${cleanTitle} is one of those homeownership details that becomes clearer with a real record.`,
+		`This is the kind of practical homeowner problem Maintley is built to make calmer.`,
+		`A better property record starts with noticing where useful details usually get lost.`,
+	].filter(Boolean);
+
+	const uniqueHooks = [];
+	for (const seed of seeds) {
+		const hook = cleanIdeaValue(seed);
+		if (hook && !uniqueHooks.includes(hook)) {
+			uniqueHooks.push(hook);
+		}
+		if (uniqueHooks.length >= 5) break;
+	}
+
+	while (uniqueHooks.length < 5) {
+		uniqueHooks.push(cleanTitle);
+	}
+
+	return uniqueHooks;
+}
+
+function readIdeaInboxTopics() {
+	if (!fs.existsSync(ideaInboxPath)) {
+		return [];
+	}
+
+	const originalText = fs.readFileSync(ideaInboxPath, 'utf8');
+	const marker = 'Add real ideas below this line.';
+	const markerIndex = originalText.indexOf(marker);
+	const ideaText =
+		markerIndex >= 0
+			? originalText.slice(markerIndex + marker.length)
+			: originalText;
+	const text = getMarkdownLinesOutsideCodeFences(
+		ideaText,
+	).join('\n');
+	const sections = text
+		.split(/(?=^##\s+)/m)
+		.map((section) => section.trim())
+		.filter((section) => section.startsWith('## '));
+
+	return sections
+		.map((section) => {
+			const [headingLine, ...bodyLines] = section.split(/\r?\n/);
+			const rawTitle = headingLine.replace(/^##\s+/, '').trim();
+			if (!rawTitle || /^\[(used|archived|skip)\]/i.test(rawTitle)) {
+				return null;
+			}
+
+			const title = cleanIdeaTitle(rawTitle.replace(/\s+\[(used|archived|skip)\]$/i, '').trim());
+			const body = bodyLines.join('\n').trim();
+			const paragraphs = getIdeaParagraphs(body);
+			const fieldTags = splitFieldList(readField(body, 'Tags'));
+			const tags = fieldTags.length > 0 ? fieldTags : ['founder view', 'home records'];
+			const problem =
+				readField(body, 'Problem') ||
+				paragraphs[0] ||
+				`${title} is a founder-led idea that should be translated into a practical homeowner problem.`;
+			const evidence =
+				readField(body, 'Evidence') ||
+				readField(body, 'Story') ||
+				readField(body, 'Why it matters') ||
+				paragraphs[1] ||
+				'This idea came from the Maintley marketing idea inbox and should be grounded in a familiar homeowner situation.';
+			const connection =
+				readField(body, 'Maintley Connection') ||
+				readField(body, 'Connection') ||
+				paragraphs[2] ||
+				'Maintley helps keep maintenance history, documents, warranties, photos, and service notes connected to the property so useful details are easier to find later.';
+			const explicitHook = readField(body, 'Hook') || readField(body, 'Hooks');
+			const hooks = buildIdeaHooks(title, paragraphs, explicitHook);
+			const caption =
+				readField(body, 'Caption') ||
+				`${hooks[0]}\n\n${problem}\n\n${evidence}\n\n${connection}`;
+
+			return {
+				slug: slugify(title),
+				title,
+				pillar: normalizeSupportedValue(
+					readField(body, 'Pillar'),
+					supportedPillars,
+					'founder-journey',
+				),
+				tags,
+				problem,
+				evidence,
+				connection,
+				hooks,
+				caption,
+				short: readField(body, 'Short') || `${hooks[0]}\n\n${connection}`,
+				graphic: readField(body, 'Graphic') || 'founder note',
+				cta: normalizeSupportedValue(
+					readField(body, 'CTA'),
+					supportedCtas,
+					'discussion',
+				),
+				evergreen: readField(body, 'Evergreen') || 'Medium',
+				followUps:
+					splitFieldList(readField(body, 'Follow-ups') || readField(body, 'Follow-up')).length > 0
+						? splitFieldList(readField(body, 'Follow-ups') || readField(body, 'Follow-up'))
+						: [
+							`A homeowner example behind ${title}.`,
+							`How ${title.toLowerCase()} connects to property memory.`,
+							`What this idea means for better home records.`,
+						],
+				sourceIdea: {
+					path: ideaInboxRelativePath,
+					heading: title,
+					body,
+				},
+			};
+		})
+		.filter(Boolean);
+}
+
 function chooseTopics(options, existingEntries) {
 	const requested = normalizeToken(`${options.topic} ${options.pillar}`);
-	const scoredTopics = topicBank
+	const availableTopics = [...readIdeaInboxTopics(), ...topicBank];
+	const scoredTopics = availableTopics
 		.map((topic, index) => {
 			const haystack = normalizeToken(`${topic.title} ${topic.slug} ${topic.pillar} ${topic.tags.join(' ')}`);
 			const tokens = requested.split(' ').filter((token) => token.length > 3);
@@ -686,6 +953,32 @@ function formatPerformance() {
 	return ['  impressions:', '  clicks:', '  reactions:', '  comments:', '  shares:', '  notes:'].join('\n');
 }
 
+function formatOriginalIdea(topic) {
+	if (!topic.sourceIdea) {
+		return '';
+	}
+
+	const originalIdeaLines = [
+		`Source: ${topic.sourceIdea.path}`,
+		`Heading: ${topic.sourceIdea.heading}`,
+		'',
+		String(topic.sourceIdea.body || '').trim() ||
+			'No additional idea text was provided.',
+	].join('\n');
+
+	return `---
+
+# Original Idea
+
+This post was generated from the Maintley idea inbox. The inbox item can stay removed because this generated post keeps the original note for tracking.
+
+\`\`\`md
+${originalIdeaLines}
+\`\`\`
+
+`;
+}
+
 function buildMarkdown(options, topic, sourceNotes) {
 	const sourceList = sourceNotes.length
 		? sourceNotes.map((source) => `- ${source.path}${source.note ? `: ${source.note}` : ''}`).join('\n')
@@ -695,6 +988,7 @@ function buildMarkdown(options, topic, sourceNotes) {
 		.join('\n\n');
 	const followUps = topic.followUps.map((item) => `- ${item}`).join('\n');
 	const hooks = topic.hooks.map((hook, index) => `${index + 1}. ${hook}`).join('\n');
+	const originalIdea = formatOriginalIdea(topic);
 	const graphicSuggestions = [
 		`${topic.graphic}: Use a calm, practical visual tied to home records, documents, maintenance history, or a simple before-and-after comparison.`,
 		'screenshot: Use Maintley only if the screenshot clearly shows records connected to a property.',
@@ -786,6 +1080,7 @@ ${topic.evergreen}
 
 ${sourceList}
 
+${originalIdea}
 ---
 
 # Future Follow-ups
@@ -798,6 +1093,85 @@ function ensureContentDirectories() {
 	for (const folder of Object.values(folderByStatus)) {
 		fs.mkdirSync(path.join(contentDir, folder), { recursive: true });
 	}
+}
+
+function normalizeIdeaHeading(value) {
+	return String(value || '')
+		.replace(/^##\s+/, '')
+		.replace(/\s+\[(used|archived|skip)\]$/i, '')
+		.trim();
+}
+
+function removeGeneratedIdeasFromInbox(topics, options) {
+	if (options.keepInbox || options.dryRun || !fs.existsSync(ideaInboxPath)) {
+		return 0;
+	}
+
+	const headingsToRemove = new Set(
+		topics
+			.map((topic) => topic.sourceIdea?.heading)
+			.filter(Boolean)
+			.map(normalizeIdeaHeading),
+	);
+	if (headingsToRemove.size === 0) {
+		return 0;
+	}
+
+	const originalText = fs.readFileSync(ideaInboxPath, 'utf8');
+	const marker = 'Add real ideas below this line.';
+	const markerIndex = originalText.indexOf(marker);
+	const protectedEnd =
+		markerIndex >= 0 ? markerIndex + marker.length : 0;
+	const protectedText = originalText.slice(0, protectedEnd);
+	const editableText = originalText.slice(protectedEnd);
+	const lines = editableText.split(/\r?\n/);
+	const keptLines = [];
+	let currentSection = [];
+	let currentHeading = '';
+	let removedCount = 0;
+	let isInCodeFence = false;
+
+	const flushSection = () => {
+		if (currentSection.length === 0) {
+			return;
+		}
+		if (currentHeading && headingsToRemove.has(currentHeading)) {
+			removedCount += 1;
+		} else {
+			keptLines.push(...currentSection);
+		}
+		currentSection = [];
+		currentHeading = '';
+	};
+
+	for (const line of lines) {
+		if (/^\s*```/.test(line)) {
+			isInCodeFence = !isInCodeFence;
+		}
+
+		if (!isInCodeFence && /^##\s+/.test(line)) {
+			flushSection();
+			currentSection = [line];
+			currentHeading = normalizeIdeaHeading(line);
+			continue;
+		}
+
+		if (currentSection.length > 0) {
+			currentSection.push(line);
+		} else {
+			keptLines.push(line);
+		}
+	}
+	flushSection();
+
+	if (removedCount > 0) {
+		const nextText = `${protectedText}${keptLines.join('\n')}`
+			.replace(/\n{4,}/g, '\n\n\n')
+			.replace(/[ \t]+\n/g, '\n');
+		fs.writeFileSync(ideaInboxPath, nextText.endsWith('\n') ? nextText : `${nextText}\n`, 'utf8');
+	}
+
+	return removedCount;
 }
 
 function main() {
@@ -839,6 +1213,10 @@ function main() {
 		for (const item of generated) {
 			fs.writeFileSync(item.filePath, item.markdown, 'utf8');
 			process.stdout.write(`Created ${path.relative(rootDir, item.filePath)}\n`);
+		}
+		const removedInboxIdeas = removeGeneratedIdeasFromInbox(topics, options);
+		if (removedInboxIdeas > 0) {
+			process.stdout.write(`Removed ${removedInboxIdeas} used idea inbox item(s).\n`);
 		}
 		if (duplicateNotes.length > 0) {
 			process.stdout.write(`Skipped similar existing topics:\n- ${duplicateNotes.join('\n- ')}\n`);

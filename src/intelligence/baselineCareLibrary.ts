@@ -3,6 +3,7 @@ import { MaintleyCapability } from './types';
 import { normalizeText } from './rules/helpers';
 import {
 	getDeviceAssetClassificationText,
+	getDeviceAssetVariant,
 	getDeviceAssetType,
 } from '../utils/systemTypes';
 
@@ -16,6 +17,8 @@ export interface BaselineMaintenanceCadence {
 	intervalDays: number;
 	severity: 'low' | 'medium' | 'high';
 	priority: 'low' | 'medium' | 'high';
+	applicableVariants?: string[];
+	excludedVariants?: string[];
 	matchTerms: string[];
 	whyItMatters: string;
 	suggestedActionLabel: string;
@@ -136,6 +139,7 @@ export const BASELINE_CARE_DEFINITIONS: BaselineCareDefinition[] = [
 				intervalDays: 365,
 				severity: 'medium',
 				priority: 'medium',
+				applicableVariants: ['Tank Gas', 'Tank Electric', 'Heat Pump'],
 				matchTerms: ['flush', 'flushed', 'drain', 'sediment'],
 				whyItMatters:
 					'Recording flushes helps preserve a useful service timeline for sediment-related maintenance.',
@@ -147,13 +151,26 @@ export const BASELINE_CARE_DEFINITIONS: BaselineCareDefinition[] = [
 				intervalDays: 1095,
 				severity: 'medium',
 				priority: 'medium',
+				applicableVariants: ['Tank Gas', 'Tank Electric', 'Heat Pump'],
 				matchTerms: ['anode', 'anode rod'],
 				whyItMatters:
 					'Recording anode rod checks helps make longer-term water heater service history easier to understand.',
 				suggestedActionLabel: 'Open maintenance history',
 			},
+			{
+				id: 'tankless-water-heater-descaling-review',
+				label: 'Review tankless water heater descaling',
+				intervalDays: 365,
+				severity: 'medium',
+				priority: 'medium',
+				applicableVariants: ['Tankless Gas', 'Tankless Electric'],
+				matchTerms: ['descale', 'descaling', 'scale', 'mineral'],
+				whyItMatters:
+					'Recording descaling or manufacturer-recommended tankless service helps keep water-heater maintenance history specific to the equipment type.',
+				suggestedActionLabel: 'Open maintenance history',
+			},
 		],
-		maintenanceTopics: ['Flush Tank', 'Inspect Anode Rod'],
+		maintenanceTopics: ['Flush Tank', 'Inspect Anode Rod', 'Tankless Descaling Review'],
 		partsAndSupplies: ['Anode Rod', 'Temperature and Pressure Relief Valve'],
 		recommendedDocuments: ['manual', 'warranty'],
 		lifecycle: {
@@ -430,6 +447,36 @@ export const BASELINE_CARE_DEFINITIONS: BaselineCareDefinition[] = [
 	},
 ];
 
+const isCadenceApplicableToAsset = (
+	cadence: BaselineMaintenanceCadence,
+	assetVariant: string,
+): boolean => {
+	const applicableVariants = cadence.applicableVariants || [];
+	const excludedVariants = cadence.excludedVariants || [];
+	if (!assetVariant) return true;
+	if (excludedVariants.includes(assetVariant)) return false;
+	if (applicableVariants.length > 0) {
+		return applicableVariants.includes(assetVariant);
+	}
+	return true;
+};
+
+const applyAssetVariantToDefinition = (
+	definition: BaselineCareDefinition,
+	asset: Device,
+): BaselineCareDefinition => {
+	const assetVariant = getDeviceAssetVariant(asset);
+	if (!assetVariant) return definition;
+
+	return {
+		...definition,
+		suggestedMaintenanceCadence:
+			definition.suggestedMaintenanceCadence.filter((cadence) =>
+				isCadenceApplicableToAsset(cadence, assetVariant),
+			),
+	};
+};
+
 export const getBaselineDefinitionForAsset = (
 	asset: Device,
 ): BaselineCareDefinition | null => {
@@ -437,14 +484,15 @@ export const getBaselineDefinitionForAsset = (
 	const exactMatch = BASELINE_CARE_DEFINITIONS.find(
 		(definition) => definition.assetType === exactAssetType,
 	);
-	if (exactMatch) return exactMatch;
+	if (exactMatch) return applyAssetVariantToDefinition(exactMatch, asset);
 
 	const assetText = normalizeText(getDeviceAssetClassificationText(asset));
-	return (
+	const textMatch =
 		BASELINE_CARE_DEFINITIONS.find((definition) =>
 			definition.matchTerms.some((term) =>
 				assetText.includes(normalizeText(term)),
 			),
-		) || null
-	);
+		) || null;
+
+	return textMatch ? applyAssetVariantToDefinition(textMatch, asset) : null;
 };

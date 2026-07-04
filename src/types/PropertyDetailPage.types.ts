@@ -4,7 +4,7 @@
  */
 
 import { Property } from './Property.types';
-import { TaskFinancials } from './Task.types';
+import { TaskFinancials, TaskFormData } from './Task.types';
 import { RoleCapabilities } from '../utils/permissions';
 
 // Main component props
@@ -67,13 +67,29 @@ export interface TasksTabProps {
 	selectedUnitId?: string;
 	onSelectUnit?: (unitId: string) => void;
 	openCreateTaskToken?: number;
+	createTaskDraft?: (Partial<TaskFormData> & { propertyId?: string }) | null;
+	createTaskDraftRecommendationId?: string | null;
+	onCreateTaskDraftSaved?: (recommendationId: string) => void;
 	permissions?: RoleCapabilities;
+}
+
+export interface MaintenanceHistoryDraftData {
+	title?: string;
+	completionDate?: string;
+	completedBy?: string;
+	completedByName?: string;
+	completionNotes?: string;
+	unitId?: string;
+	deviceIds?: string[];
+	maintenanceGroupId?: string;
+	financials?: TaskFinancials;
 }
 
 export interface MaintenanceTabProps {
 	property: any;
 	maintenanceHistoryRecords?: any[];
 	units?: any[];
+	devices?: any[];
 	teamMembers?: any[];
 	contractors?: any[];
 	familyMembers?: any[];
@@ -93,6 +109,10 @@ export interface MaintenanceTabProps {
 	}) => void;
 	onUpdateMaintenanceHistory?: (id: string, updates: Partial<any>) => void;
 	onDeleteMaintenanceHistory?: (historyId: string) => void;
+	openCreateHistoryToken?: number;
+	createHistoryDraft?: MaintenanceHistoryDraftData | null;
+	createHistoryDraftRecommendationId?: string | null;
+	onCreateHistoryDraftSaved?: (recommendationId: string) => void;
 	permissions?: RoleCapabilities;
 }
 

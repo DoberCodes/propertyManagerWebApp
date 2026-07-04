@@ -319,6 +319,36 @@ describe('Maintley Intelligence engine', () => {
 		});
 	});
 
+	it('uses water-heater variant knowledge for recurring maintenance cadence', () => {
+		const tanklessElectricDefinition = getBaselineDefinitionForAsset(
+			makeSystem({
+				id: 'tankless-electric-water-heater',
+				type: 'Water Heater',
+				assetType: 'Water Heater',
+				assetVariant: 'Tankless Electric',
+			}),
+		);
+		const tankElectricDefinition = getBaselineDefinitionForAsset(
+			makeSystem({
+				id: 'tank-electric-water-heater',
+				type: 'Water Heater',
+				assetType: 'Water Heater',
+				assetVariant: 'Tank Electric',
+			}),
+		);
+
+		expect(
+			tanklessElectricDefinition?.suggestedMaintenanceCadence.map(
+				(cadence) => cadence.id,
+			),
+		).toEqual(['tankless-water-heater-descaling-review']);
+		expect(
+			tankElectricDefinition?.suggestedMaintenanceCadence.map(
+				(cadence) => cadence.id,
+			),
+		).toEqual(['water-heater-flush', 'water-heater-anode-rod-check']);
+	});
+
 	it('recommends recording filter size for assets whose knowledge pack needs it', () => {
 		const result = runMaintleyIntelligence({
 			property,
