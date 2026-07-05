@@ -6,18 +6,11 @@ import teamReducer from '../Slices/teamSlice';
 import adminPortalReducer from '../Slices/adminPortalSlice';
 import maintenanceRequestsReducer from '../Slices/maintenanceRequestsSlice';
 import { apiSlice } from '../API/apiSlice';
-import '../API/deviceSlice';
-import '../API/contractorSlice';
-import '../API/propertySlice';
-import '../API/userSlice';
-import '../API/tenantSlice';
-import '../API/teamSlice';
-import '../API/notificationSlice';
-import '../API/maintenanceSlice';
-import '../API/propertyIntelligenceSlice';
 import notificationMiddleware from '../middleware/notificationMiddleware';
 import appSlice from '../Slices/appSlice';
 
+// Route-specific RTK Query endpoint modules are imported by the components that use
+// their hooks so they can stay in route chunks instead of the startup bundle.
 export const store = configureStore({
 	reducer: {
 		user: userReducer,

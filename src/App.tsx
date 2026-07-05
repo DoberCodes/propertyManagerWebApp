@@ -5,8 +5,6 @@ import type { AppDispatch, RootState } from './Redux/store/store';
 import { RouterComponent } from './router';
 import { DataFetchProvider } from './Hooks/DataFetchContext';
 import { onAuthStateChange } from './services/authSession';
-import { UpdateNotification } from './Components/Library/UpdateNotification/UpdateNotification';
-import { checkForUpdates } from './utils/versionCheck';
 import styled from 'styled-components';
 import { Capacitor, registerPlugin } from '@capacitor/core';
 import { initializePushNotifications } from './services/pushNotifications';
@@ -16,6 +14,10 @@ import { canUseNotifications } from './utils/subscriptionUtils';
 import { COLORS } from './constants/colors';
 import { SplashScreen } from './Components/Library/SplashScreen';
 import { clearAccountScopedClientState } from './Redux/utils/clearAccountScopedClientState';
+
+const UpdateNotification = React.lazy(
+	() => import('./Components/Library/UpdateNotification/UpdateNotification'),
+);
 
 type SystemBarType = 'StatusBar' | 'NavigationBar';
 
@@ -144,18 +146,6 @@ export const App = () => {
 			// Auth check is complete - stop showing loading state
 			dispatch(setAuthLoading(false));
 		});
-
-		// Check for app updates after auth is initialized
-		const initVersionCheck = async () => {
-			try {
-				await checkForUpdates();
-			} catch (error) {
-				console.error('Error checking for updates:', error);
-			}
-		};
-
-		// Check for updates when app mounts
-		initVersionCheck();
 
 		// Cleanup subscription on unmount
 		return () => {
@@ -295,7 +285,9 @@ export const App = () => {
 					/>
 				)}
 				<RouterComponent />
-				<UpdateNotification />
+				<React.Suspense fallback={null}>
+					<UpdateNotification />
+				</React.Suspense>
 			</AppFeedbackProvider>
 		</DataFetchProvider>
 	);
