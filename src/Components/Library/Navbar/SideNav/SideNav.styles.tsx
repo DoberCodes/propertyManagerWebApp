@@ -460,7 +460,7 @@ export const BottomSections = styled.div`
 	display: flex;
 	flex-direction: column;
 	gap: 10px;
-	margin-top: 0;
+	margin-top: auto;
 	padding: 12px 16px 16px;
 	flex-shrink: 0; /* Prevent shrinking */
 
@@ -474,4 +474,13 @@ export const BottomSections = styled.div`
 		padding: 15px;
 		gap: 0;
 	}
+`;
+
+export const AppVersionFooter = styled.div`
+	padding: 0 16px 12px;
+	font-size: 11px;
+	font-weight: 600;
+	line-height: 1.4;
+	color: ${COLORS.textMuted};
+	text-align: center;
 `;

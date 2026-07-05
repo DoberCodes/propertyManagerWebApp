@@ -1,11 +1,12 @@
 import { faPlus } from "@fortawesome/free-solid-svg-icons"
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome"
 import React from "react"
-import { MobileBottomNavBar, MobileBottomNavInner, MobileBottomNavItem, MobileBottomNavLabel, MobileBottomCenterWrap, MobileBottomActionBackdrop, MobileBottomActionMenu, MobileBottomActionItem, MobileBottomCenterButton, MobileSidebar, MobileSidebarBrand, MobileSidebarLogo } from "./MobileNav.styles"
+import { MobileBottomNavBar, MobileBottomNavInner, MobileBottomNavItem, MobileBottomNavLabel, MobileBottomCenterWrap, MobileBottomActionBackdrop, MobileBottomActionMenu, MobileBottomActionItem, MobileBottomCenterButton, MobileSidebar, MobileSidebarBrand, MobileSidebarLogo, MobileSidebarVersion } from "./MobileNav.styles"
 import { AccountSnapshot } from "Components/AccountSnapshot"
 import { useNavigate } from "react-router-dom"
 import titleName from '../../../../Assets/TitleName.png';
 import { COLORS } from '../../../../constants/colors';
+import { CURRENT_APP_VERSION } from '../../../../config/appVersion';
 
 
 interface MobileNavProps {
@@ -156,6 +157,7 @@ export const MobileHamburgerNav: React.FC<MobileNavProps> = ({ isSidebarOpen, se
                         <AccountSnapshot isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} />
                     )}
                 </div>
+                <MobileSidebarVersion>Maintley v{CURRENT_APP_VERSION}</MobileSidebarVersion>
             </MobileSidebar>
         </div>
     )
