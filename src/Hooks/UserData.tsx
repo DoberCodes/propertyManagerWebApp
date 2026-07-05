@@ -3,6 +3,18 @@ import { setUserCred } from '../Redux/Slices/userSlice';
 import { useDispatch } from 'react-redux';
 import { Timeout } from './Controller';
 
+const getStoredLoggedUser = () => {
+	try {
+		const rawValue = localStorage.getItem('loggedUser');
+		if (!rawValue) return null;
+
+		const parsed = JSON.parse(rawValue);
+		return parsed?.user || parsed;
+	} catch {
+		return null;
+	}
+};
+
 export const useGetAuthStatus = () => {
 	const dispatch = useDispatch();
 	const [Authenticated, setAuthenticated] = useState({
@@ -18,7 +30,7 @@ export const useGetAuthStatus = () => {
 		Authenticated: true,
 	};
 
-	const localUser: any = JSON.parse(localStorage.getItem('loggedUser') || '');
+	const localUser = getStoredLoggedUser();
 
 	useEffect(() => {
 		if (Authenticated.loading && localUser) {
