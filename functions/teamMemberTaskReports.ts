@@ -7,6 +7,10 @@ import {
 	sendMaintleyEmail,
 } from './emailService';
 import { getTaskDisplayStatus } from './taskDisplayStatus';
+import {
+	getEffectiveSubscriptionPlanId,
+	isSubscriptionCurrentlyEntitled,
+} from './subscriptionEntitlements';
 
 const RESEND_API_KEY = defineSecret(
 	process.env.RESEND_API_KEY_SECRET_NAME || 'RESEND_API_KEY',
@@ -38,6 +42,8 @@ interface OwnerUser {
 		trialEndsAt?: number | null;
 		hasScheduledSubscription?: boolean;
 		scheduledPlan?: string;
+		pendingCheckoutPlan?: string;
+		stripeSubscriptionId?: string;
 	};
 	emailPreferences?: {
 		teamMemberReports?: TeamMemberReportsPreference;
@@ -115,22 +121,13 @@ const COMPLETED_EVENT_TYPES = new Set([
 
 const TEAM_REPORT_PLANS = new Set(['property', 'portfolio']);
 
-const normalizePlanId = (value?: string): string => {
-	return String(value || '').trim().toLowerCase();
-};
-
 const canUseTeamReports = (user: OwnerUser): boolean => {
 	const subscription = user.subscription;
-	if (!subscription?.status) return false;
-	if (subscription.status === 'trial') {
-		if (subscription.trialEndsAt && subscription.trialEndsAt <= Date.now() / 1000) {
-			return false;
-		}
-	} else if (subscription.status !== 'active') {
+	if (!isSubscriptionCurrentlyEntitled(subscription)) {
 		return false;
 	}
 
-	const plan = normalizePlanId(subscription.plan);
+	const plan = getEffectiveSubscriptionPlanId(subscription, 'homeowner');
 	return TEAM_REPORT_PLANS.has(plan);
 };
 

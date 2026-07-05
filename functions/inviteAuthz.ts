@@ -1,6 +1,11 @@
 import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 import { assertAccountRole, resolveAccountIdForUser } from './accountAuthz';
+import {
+	getEffectiveSubscriptionPlanId,
+	isSubscriptionCurrentlyEntitled,
+	SubscriptionEntitlementLike,
+} from './subscriptionEntitlements';
 
 if (!admin.apps.length) {
 	admin.initializeApp();
@@ -15,36 +20,10 @@ const PLAN_CAPABILITIES = {
 
 type InviteCapability = keyof typeof PLAN_CAPABILITIES;
 
-type SubscriptionLike = {
-	status?: string;
-	plan?: string;
-	trialEndsAt?: number | null;
-};
-
-const isTrialActive = (subscription: SubscriptionLike): boolean => {
-	if (subscription.status !== 'trial') {
-		return false;
-	}
-
-	if (!subscription.trialEndsAt) {
-		return true;
-	}
-
-	return subscription.trialEndsAt > Date.now() / 1000;
-};
-
-const isSubscriptionActive = (subscription?: SubscriptionLike): boolean => {
-	if (!subscription) {
-		return false;
-	}
-
-	return subscription.status === 'active' || isTrialActive(subscription);
-};
-
 export const assertInviteCapability = async (
 	uid: string,
 	capability: InviteCapability,
-): Promise<{ accountId: string; subscription: SubscriptionLike }> => {
+): Promise<{ accountId: string; subscription: SubscriptionEntitlementLike }> => {
 	const accountId = await resolveAccountIdForUser(uid);
 	await assertAccountRole(uid, accountId, ['account_owner', 'admin', 'manager']);
 
@@ -57,17 +36,18 @@ export const assertInviteCapability = async (
 	}
 
 	const accountOwnerData = accountOwnerDoc.data() || {};
-	const subscription = (accountOwnerData.subscription || {}) as SubscriptionLike;
-	const normalizedPlan = String(subscription.plan || '').trim().toLowerCase();
+	const subscription = (accountOwnerData.subscription ||
+		{}) as SubscriptionEntitlementLike;
+	const effectivePlan = getEffectiveSubscriptionPlanId(subscription, 'homeowner');
 
-	if (!isSubscriptionActive(subscription)) {
+	if (!isSubscriptionCurrentlyEntitled(subscription)) {
 		throw new functions.https.HttpsError(
 			'permission-denied',
 			'An active subscription is required for this invite action',
 		);
 	}
 
-	if (!PLAN_CAPABILITIES[capability].has(normalizedPlan)) {
+	if (!PLAN_CAPABILITIES[capability].has(effectivePlan)) {
 		throw new functions.https.HttpsError(
 			'permission-denied',
 			capability === 'team'

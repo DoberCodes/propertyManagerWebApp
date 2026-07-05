@@ -194,6 +194,40 @@ describe('subscriptionUtils', () => {
 		expect(canUseAdvancedTeamManagement(expiredWithPendingPaidCheckout)).toBe(false);
 	});
 
+	it('does not grant paid access when a pending checkout left a paid plan without Stripe confirmation', () => {
+		const stalePaidCheckout: SubscriptionData = {
+			status: SUBSCRIPTION_STATUS.ACTIVE,
+			plan: 'portfolio',
+			currentPeriodStart: 0,
+			currentPeriodEnd: 9999999999,
+			promoCode: 'summer',
+			pendingCheckoutPlan: 'portfolio',
+			pendingCheckoutStartedAt: 1,
+		};
+
+		expect(getEffectiveSubscriptionPlanId(stalePaidCheckout)).toBe('homeowner');
+		expect(canManageTeam(stalePaidCheckout)).toBe(false);
+		expect(canManageTenants(stalePaidCheckout)).toBe(false);
+		expect(canUseAdvancedTeamManagement(stalePaidCheckout)).toBe(false);
+	});
+
+	it('keeps paid access when Stripe has confirmed the subscription', () => {
+		const confirmedPaidCheckout: SubscriptionData = {
+			status: SUBSCRIPTION_STATUS.ACTIVE,
+			plan: 'portfolio',
+			currentPeriodStart: 0,
+			currentPeriodEnd: 9999999999,
+			pendingCheckoutPlan: 'portfolio',
+			pendingCheckoutStartedAt: 1,
+			stripeSubscriptionId: 'sub_confirmed',
+		};
+
+		expect(getEffectiveSubscriptionPlanId(confirmedPaidCheckout)).toBe('portfolio');
+		expect(canManageTeam(confirmedPaidCheckout)).toBe(true);
+		expect(canManageTenants(confirmedPaidCheckout)).toBe(true);
+		expect(canUseAdvancedTeamManagement(confirmedPaidCheckout)).toBe(true);
+	});
+
 	it('keeps scheduled future plans out of current entitlement checks', () => {
 		const currentHomeownerWithScheduledPortfolio: SubscriptionData = {
 			status: SUBSCRIPTION_STATUS.ACTIVE,

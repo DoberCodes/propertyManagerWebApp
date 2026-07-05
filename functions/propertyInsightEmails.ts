@@ -6,6 +6,7 @@ import {
 	getResendClient,
 	sendMaintleyEmail,
 } from './emailService';
+import { getEffectiveSubscriptionPlanId } from './subscriptionEntitlements';
 
 const RESEND_API_KEY = defineSecret(
 	process.env.RESEND_API_KEY_SECRET_NAME || 'RESEND_API_KEY',
@@ -29,6 +30,8 @@ interface UserSubscriptionLike {
 	trialEndsAt?: number | null;
 	hasScheduledSubscription?: boolean;
 	scheduledPlan?: string;
+	pendingCheckoutPlan?: string;
+	stripeSubscriptionId?: string;
 }
 
 interface PropertyInsightsUser {
@@ -99,26 +102,10 @@ interface InsightSummary {
 
 const MAX_EMAIL_OBSERVATIONS = 5;
 
-const normalizePlanId = (planId?: string): string => {
-	return String(planId || '').trim().toLowerCase();
-};
-
-const getEffectivePlanId = (subscription?: UserSubscriptionLike): string => {
-	if (!subscription?.status) return 'homeowner';
-	if (subscription.status === 'trial') {
-		if (subscription.trialEndsAt && subscription.trialEndsAt <= Date.now() / 1000) {
-			return 'homeowner';
-		}
-	} else if (subscription.status !== 'active') {
-		return 'homeowner';
-	}
-
-	const plan = normalizePlanId(subscription?.plan);
-	return plan || 'homeowner';
-};
-
 const canUsePropertyInsights = (user: PropertyInsightsUser): boolean =>
-	PROPERTY_INSIGHTS_PLANS.has(getEffectivePlanId(user.subscription));
+	PROPERTY_INSIGHTS_PLANS.has(
+		getEffectiveSubscriptionPlanId(user.subscription, 'homeowner'),
+	);
 
 const getDisplayName = (user: PropertyInsightsUser): string => {
 	const name = (user.firstName || user.displayName || '').trim();

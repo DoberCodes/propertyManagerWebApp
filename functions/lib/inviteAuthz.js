@@ -37,6 +37,7 @@ exports.assertInviteCapability = void 0;
 const functions = __importStar(require("firebase-functions/v1"));
 const admin = __importStar(require("firebase-admin"));
 const accountAuthz_1 = require("./accountAuthz");
+const subscriptionEntitlements_1 = require("./subscriptionEntitlements");
 if (!admin.apps.length) {
     admin.initializeApp();
 }
@@ -44,21 +45,6 @@ const db = admin.firestore();
 const PLAN_CAPABILITIES = {
     team: new Set(['property', 'portfolio']),
     tenant: new Set(['property', 'portfolio']),
-};
-const isTrialActive = (subscription) => {
-    if (subscription.status !== 'trial') {
-        return false;
-    }
-    if (!subscription.trialEndsAt) {
-        return true;
-    }
-    return subscription.trialEndsAt > Date.now() / 1000;
-};
-const isSubscriptionActive = (subscription) => {
-    if (!subscription) {
-        return false;
-    }
-    return subscription.status === 'active' || isTrialActive(subscription);
 };
 const assertInviteCapability = async (uid, capability) => {
     const accountId = await (0, accountAuthz_1.resolveAccountIdForUser)(uid);
@@ -69,11 +55,11 @@ const assertInviteCapability = async (uid, capability) => {
     }
     const accountOwnerData = accountOwnerDoc.data() || {};
     const subscription = (accountOwnerData.subscription || {});
-    const normalizedPlan = String(subscription.plan || '').trim().toLowerCase();
-    if (!isSubscriptionActive(subscription)) {
+    const effectivePlan = (0, subscriptionEntitlements_1.getEffectiveSubscriptionPlanId)(subscription, 'homeowner');
+    if (!(0, subscriptionEntitlements_1.isSubscriptionCurrentlyEntitled)(subscription)) {
         throw new functions.https.HttpsError('permission-denied', 'An active subscription is required for this invite action');
     }
-    if (!PLAN_CAPABILITIES[capability].has(normalizedPlan)) {
+    if (!PLAN_CAPABILITIES[capability].has(effectivePlan)) {
         throw new functions.https.HttpsError('permission-denied', capability === 'team'
             ? 'Your current subscription plan does not allow inviting team members.'
             : 'Your current subscription plan does not allow inviting tenants.');

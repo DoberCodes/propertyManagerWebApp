@@ -31,6 +31,7 @@ const CURRENT_PLAN_IDS = new Set([
 	'team',
 	'tenant',
 ]);
+const PAID_PLAN_IDS = new Set(['homeowner_plus', 'property', 'portfolio']);
 const UNLIMITED_DEVICE_LIMIT_SENTINEL = 999;
 const UNLIMITED_FEATURE_LIMIT_SENTINEL = 999;
 
@@ -55,17 +56,37 @@ const hasCurrentEntitlement = (
 	return now < subscription.trialEndsAt;
 };
 
+const hasUnconfirmedPaidCheckout = (
+	subscription?: Pick<
+		SubscriptionData,
+		'pendingCheckoutPlan' | 'stripeSubscriptionId'
+	> | null,
+): boolean => {
+	const pendingPlan = resolvePlanId(subscription?.pendingCheckoutPlan || '');
+	return PAID_PLAN_IDS.has(pendingPlan) && !subscription?.stripeSubscriptionId;
+};
+
 const getEffectivePlan = (subscription: SubscriptionData) =>
 	getPlanById(getEffectiveSubscriptionPlanId(subscription));
 
 export const getEffectiveSubscriptionPlanId = (
 	subscription?: Pick<
 		SubscriptionData,
-		'plan' | 'status' | 'trialEndsAt' | 'hasScheduledSubscription' | 'scheduledPlan'
+		| 'plan'
+		| 'status'
+		| 'trialEndsAt'
+		| 'hasScheduledSubscription'
+		| 'scheduledPlan'
+		| 'pendingCheckoutPlan'
+		| 'stripeSubscriptionId'
 	> | null,
 	fallbackPlanId = 'homeowner',
 ): string => {
 	if (!hasCurrentEntitlement(subscription)) {
+		return resolvePlanId(fallbackPlanId);
+	}
+
+	if (hasUnconfirmedPaidCheckout(subscription)) {
 		return resolvePlanId(fallbackPlanId);
 	}
 
@@ -222,7 +243,13 @@ export const getMaxStorageGbForPlan = (planId: string): number => {
 export const canUseTaskReminderEmails = (
 	subscription?: Pick<
 		SubscriptionData,
-		'plan' | 'status' | 'trialEndsAt' | 'hasScheduledSubscription' | 'scheduledPlan'
+		| 'plan'
+		| 'status'
+		| 'trialEndsAt'
+		| 'hasScheduledSubscription'
+		| 'scheduledPlan'
+		| 'pendingCheckoutPlan'
+		| 'stripeSubscriptionId'
 	> | null,
 ): boolean => {
 	const effectivePlan = getEffectiveSubscriptionPlanId(subscription, 'homeowner');
@@ -232,7 +259,13 @@ export const canUseTaskReminderEmails = (
 export const canUsePropertyInsights = (
 	subscription?: Pick<
 		SubscriptionData,
-		'plan' | 'status' | 'trialEndsAt' | 'hasScheduledSubscription' | 'scheduledPlan'
+		| 'plan'
+		| 'status'
+		| 'trialEndsAt'
+		| 'hasScheduledSubscription'
+		| 'scheduledPlan'
+		| 'pendingCheckoutPlan'
+		| 'stripeSubscriptionId'
 	> | null,
 ): boolean => {
 	const effectivePlan = getEffectiveSubscriptionPlanId(subscription, 'homeowner');
