@@ -877,8 +877,9 @@ Builds a signed Android APK.
 stay local. Release notes, version preparation, and Firestore app-version
 publication are handled by GitHub Actions. The command validates prepared
 version files, builds the signed APK, creates or updates the GitHub Release, and
-uploads `app-release.apk`. It does not commit, push to `main`, deploy GitHub
-Pages, or publish Firestore app-version state.
+uploads versioned Android assets such as `maintley-{version}-release.apk`. It
+does not commit, push to `main`, deploy GitHub Pages, or publish Firestore
+app-version state.
 
 Risk:
 

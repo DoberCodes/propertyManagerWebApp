@@ -27,6 +27,7 @@ import {
 	ProgressFill,
 	ManagePlanButton,
 	BottomSections,
+	AppVersionFooter,
 } from './SideNav.styles';
 import {
 	selectIsTenant,
@@ -61,6 +62,7 @@ import { TeamMember } from '../../../../Redux/Slices/teamSlice';
 import { isNativeApp } from '../../../../utils/platform';
 import { openSubscriptionManagementInBrowser } from '../../../../utils/authLinks';
 import { COLORS } from '../../../../constants/colors';
+import { CURRENT_APP_VERSION } from '../../../../config/appVersion';
 
 export const SideNav = () => {
 	const navigate = useNavigate();
@@ -373,6 +375,7 @@ export const SideNav = () => {
 					</SectionContent>
 				</Section>
 			</BottomSections>
+			<AppVersionFooter>Maintley v{CURRENT_APP_VERSION}</AppVersionFooter>
 		</DesktopWrapper>
 	);
 };

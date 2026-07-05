@@ -14,7 +14,6 @@ import {
 	faScrewdriverWrench,
 	faChartLine,
 	faDownload,
-	faBoxArchive,
 	faPaperPlane,
 	faCircleCheck,
 } from '@fortawesome/free-solid-svg-icons';
@@ -104,8 +103,8 @@ import {
 import {
 	getAPKFileSize,
 	getAPKDownloadURL,
+	getAPKReleaseAssetName,
 	getGitHubReleaseApiUrl,
-	getVersionedAPKDownloadURL,
 } from '../../utils/versionCheck';
 import { CURRENT_APP_VERSION } from '../../config/appVersion';
 import SEO from 'Components/SEO/SEO';
@@ -151,12 +150,6 @@ const LandingPageComponent = () => {
 			},
 		},
 	};
-	// Use previous version (1.7.3) for the versioned APK download
-	const previousVersion = '1.7.3';
-	const versionedApkDownloadUrl = getVersionedAPKDownloadURL(
-		previousVersion,
-		`PropertyManager-${previousVersion}.apk`,
-	);
 	const continuityReasons = [
 		{
 			title: 'Repairs get forgotten',
@@ -225,7 +218,6 @@ const LandingPageComponent = () => {
 	>('idle');
 
 	const [apkFileSize, setApkFileSize] = useState('Unknown');
-	const [versionedApkFileSize, setVersionedApkFileSize] = useState('Unknown');
 
 	useEffect(() => {
 		const fetchFileSizesAndVersionInfo = async () => {
@@ -234,36 +226,18 @@ const LandingPageComponent = () => {
 				const releaseResponse = await fetch(getGitHubReleaseApiUrl('latest'));
 				if (releaseResponse.ok) {
 					const release = await releaseResponse.json();
-					// Get file sizes for both APKs
 					const assets = release.assets || [];
+					const latestReleaseVersion = String(release.tag_name || '')
+						.replace(/^v/, '') || CURRENT_APP_VERSION;
+					const latestReleaseAssetName = getAPKReleaseAssetName(latestReleaseVersion);
 					const latestApk = assets.find(
-						(asset) => asset.name === 'app-release.apk',
+						(asset) =>
+							asset.name === latestReleaseAssetName ||
+							/^maintley-.+-release\.apk$/i.test(asset.name || ''),
 					);
-
-					// For versioned APK, fetch the previous version release
-					const previousReleaseResponse = await fetch(
-						getGitHubReleaseApiUrl(`tags/v${previousVersion}`),
-					);
-					let versionedApkSize = null;
-					if (previousReleaseResponse.ok) {
-						const previousRelease = await previousReleaseResponse.json();
-						const previousAssets = previousRelease.assets || [];
-						const versionedApk = previousAssets.find(
-							(asset) =>
-								asset.label === `PropertyManager-${previousVersion}.apk` ||
-								asset.name === `PropertyManager-${previousVersion}.apk` ||
-								asset.name === 'app-release.apk',
-						);
-						if (versionedApk?.size) {
-							versionedApkSize = versionedApk.size;
-						}
-					}
 
 					if (latestApk?.size) {
 						setApkFileSize(formatBytes(latestApk.size));
-					}
-					if (versionedApkSize) {
-						setVersionedApkFileSize(formatBytes(versionedApkSize));
 					}
 				}
 			} catch (error) {
@@ -271,7 +245,6 @@ const LandingPageComponent = () => {
 				// Fallback to basic file size fetching
 				const size = await getAPKFileSize();
 				setApkFileSize(size);
-				setVersionedApkFileSize(size);
 			}
 		};
 		fetchFileSizesAndVersionInfo();
@@ -679,10 +652,6 @@ const LandingPageComponent = () => {
 						<DownloadButton href={apkDownloadUrl} download>
 							<FontAwesomeIcon icon={faDownload} /> Download Latest APK (
 							{apkFileSize})
-						</DownloadButton>
-						<DownloadButton href={versionedApkDownloadUrl} download>
-							<FontAwesomeIcon icon={faBoxArchive} /> Download v
-							{previousVersion} APK ({versionedApkFileSize})
 						</DownloadButton>
 						<DownloadInfo>
 							<InfoItem>

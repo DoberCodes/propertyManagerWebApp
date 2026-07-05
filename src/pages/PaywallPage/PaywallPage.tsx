@@ -397,7 +397,6 @@ export const PaywallPage: React.FC<PaywallPageProps> = ({
 	};
 
 	const handleContactSales = () => {
-		// TODO: Implement contact sales form or mailto link
 		window.location.href =
 			'mailto:maintleyapp@gmail.com?subject=Custom Pricing Inquiry';
 	};
