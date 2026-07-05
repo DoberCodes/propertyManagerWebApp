@@ -20,19 +20,23 @@ const DISMISS_KEY = 'app_update_dismissed_version';
 
 export const GITHUB_RELEASE_REPOSITORY =
 	'DoberFamilyVentures/propertyManagerWebApp';
-export const APK_RELEASE_ASSET_NAME = 'app-release.apk';
+export const getAPKReleaseAssetName = (version: string): string =>
+	`maintley-${version}-release.apk`;
+export const APK_RELEASE_ASSET_NAME = getAPKReleaseAssetName(CURRENT_APP_VERSION);
 
 export const getGitHubReleaseApiUrl = (release: string): string =>
 	`https://api.github.com/repos/${GITHUB_RELEASE_REPOSITORY}/releases/${release}`;
 
 export const getVersionedAPKDownloadURL = (
 	version: string,
-	assetName = APK_RELEASE_ASSET_NAME,
+	assetName = getAPKReleaseAssetName(version),
 ): string =>
 	`https://github.com/${GITHUB_RELEASE_REPOSITORY}/releases/download/v${version}/${assetName}`;
 
-export const getLatestAPKDownloadURL = (): string =>
-	`https://github.com/${GITHUB_RELEASE_REPOSITORY}/releases/latest/download/${APK_RELEASE_ASSET_NAME}`;
+export const getLatestAPKDownloadURL = (): string => {
+	const version = getAvailableVersion() || CURRENT_APP_VERSION;
+	return getVersionedAPKDownloadURL(version);
+};
 
 interface VersionCheckData {
 	lastChecked: number;
@@ -67,10 +71,16 @@ export const getAPKFileSize = async () => {
 		if (releaseResponse.ok) {
 			const release = await releaseResponse.json();
 			const assets = release?.assets || [];
+			const releaseVersion = String(release?.tag_name || '')
+				.replace(/^v/, '') || CURRENT_APP_VERSION;
+			const releaseAssetName = getAPKReleaseAssetName(releaseVersion);
 			const apkAsset = assets.find(
 				(asset) =>
+					asset?.name === releaseAssetName ||
+					asset?.label === releaseAssetName ||
 					asset?.name === APK_RELEASE_ASSET_NAME ||
 					asset?.label === APK_RELEASE_ASSET_NAME ||
+					/^maintley-.+-release\.apk$/i.test(asset?.name || '') ||
 					asset?.label === 'PropertyManager.apk',
 			);
 			if (apkAsset?.size) {
@@ -218,7 +228,9 @@ export const downloadAPK = async (): Promise<void> => {
 		// On web, trigger direct download
 		const link = document.createElement('a');
 		link.href = url;
-		link.download = 'app-release.apk';
+		link.download = getAPKReleaseAssetName(
+			getAvailableVersion() || CURRENT_APP_VERSION,
+		);
 		document.body.appendChild(link);
 		link.click();
 		document.body.removeChild(link);

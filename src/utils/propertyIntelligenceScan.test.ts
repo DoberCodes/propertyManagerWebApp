@@ -72,7 +72,7 @@ describe('propertyIntelligenceScan Quick Property Scan', () => {
 		expect(quickRecommendations).toHaveLength(5);
 	});
 
-	it('aggregates repeated system findings into theme recommendations', () => {
+	it('selects one representative finding for repeated Quick Scan issue types', () => {
 		const systems = ['hvac', 'water-heater', 'dishwasher'].map((id) =>
 			makeSystem({ id, type: id }),
 		);
@@ -94,15 +94,14 @@ describe('propertyIntelligenceScan Quick Property Scan', () => {
 				recommendation.ruleId === 'systems-missing-maintenance-history',
 		);
 
-		expect(maintenanceSummary?.title).toBe(
-			"Maintenance history hasn't been started for several systems.",
-		);
-		expect(maintenanceSummary?.relatedSystemIds).toHaveLength(3);
+		expect(maintenanceSummary?.title).toMatch(/^Record first maintenance note/);
+		expect(maintenanceSummary?.relatedSystemIds).toHaveLength(1);
 		expect(
-			quickRecommendations.some((recommendation) =>
-				recommendation.title.startsWith('Record first maintenance note'),
+			quickRecommendations.filter(
+				(recommendation) =>
+					recommendation.ruleId === 'systems-missing-maintenance-history',
 			),
-		).toBe(false);
+		).toHaveLength(1);
 	});
 
 	it('keeps low-severity serial number gaps out of Quick Scan', () => {
@@ -188,8 +187,8 @@ describe('propertyIntelligenceScan Quick Property Scan', () => {
 		);
 		const recurringSummary = quickRecommendations.find(
 			(recommendation) =>
-				recommendation.title ===
-				'Maintley does not currently have recurring maintenance recorded for several systems.',
+				recommendation.ruleId ===
+				'systems-missing-actionable-maintenance-coverage',
 		);
 
 		expect(recurringSummary?.recommendationType).toBe('feature');
@@ -236,10 +235,10 @@ describe('propertyIntelligenceScan Quick Property Scan', () => {
 		);
 
 		expect(safetySummary?.severity).toBe('high');
-		expect([...(safetySummary?.relatedSystemIds || [])].sort()).toEqual([
-			'co-detector',
-			'smoke-detector',
-		]);
+		expect(safetySummary?.relatedSystemIds).toHaveLength(1);
+		expect(['co-detector', 'smoke-detector']).toContain(
+			safetySummary?.relatedSystemIds?.[0],
+		);
 		expect(generalMaintenanceSummary?.relatedSystemIds).toEqual(['dishwasher']);
 	});
 
@@ -274,9 +273,9 @@ describe('propertyIntelligenceScan Quick Property Scan', () => {
 		);
 
 		expect(overdueSummary?.suggestedActionType).toBe('open_task');
-		expect([...(overdueSummary?.relatedTaskIds || [])].sort()).toEqual([
-			'overdue-1',
-			'overdue-2',
-		]);
+		expect(overdueSummary?.relatedTaskIds).toHaveLength(1);
+		expect(['overdue-1', 'overdue-2']).toContain(
+			overdueSummary?.relatedTaskIds?.[0],
+		);
 	});
 });

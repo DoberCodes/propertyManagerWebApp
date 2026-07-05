@@ -35,24 +35,24 @@ export const SupportArticlesPage: React.FC = () => {
 				type='button'
 				onClick={() => navigate('/support?view=help')}>
 				<FontAwesomeIcon icon={faArrowLeft} />
-				Back to Help & guides
+				Back to Guides & FAQs
 			</ArticleBackButton>
 
 			<ArticleHero>
 				<ArticlePageMeta>
 					<FontAwesomeIcon icon={faBookOpen} />
-					Maintley Help
+					Maintley Guides
 				</ArticlePageMeta>
-				<ArticlePageTitle>Helpful articles</ArticlePageTitle>
+				<ArticlePageTitle>Maintley Guides</ArticlePageTitle>
 				<ArticlePageIntro>
-					Practical guidance for building reliable property records, managing
-					maintenance, and getting more value from Maintley.
+					Step-by-step guidance for building useful property records, keeping
+					maintenance visible, and getting more value from Maintley.
 				</ArticlePageIntro>
 			</ArticleHero>
 
 			<ArticleLibraryHeader>
 				<div>
-					<h2 style={{ margin: '18px 0 5px' }}>All articles</h2>
+					<h2 style={{ margin: '18px 0 5px' }}>All guides</h2>
 					<p style={{ margin: 0, color: '#6b7280' }}>
 						{helpfulArticles.length} guides available
 					</p>
@@ -72,7 +72,9 @@ export const SupportArticlesPage: React.FC = () => {
 							<ArticleSummaryCopy>
 								<ArticleTitle>{article.title}</ArticleTitle>
 								<ArticleDescription>{article.summary}</ArticleDescription>
-								<ArticleReadTime>{article.readTime}</ArticleReadTime>
+								<ArticleReadTime>
+									Maintley Guide - {article.readTime}
+								</ArticleReadTime>
 							</ArticleSummaryCopy>
 							<ArticleArrow>
 								<FontAwesomeIcon icon={faArrowRight} />

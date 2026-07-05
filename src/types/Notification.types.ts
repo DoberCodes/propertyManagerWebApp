@@ -33,6 +33,8 @@ export interface Notification {
 		| 'maintenance_request_created'
 		| 'document_scan_started'
 		| 'document_scan_completed'
+		| 'quick_scan_completed'
+		| 'property_audit_completed'
 		| 'legal_update'
 		| 'other'
 		| 'property_shared';

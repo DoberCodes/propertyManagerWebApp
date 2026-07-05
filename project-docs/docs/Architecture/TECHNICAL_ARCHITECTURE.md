@@ -654,23 +654,47 @@ See:
 
 # Notification Architecture
 
-Notifications are stored in:
+Maintley workflow lifecycle events are stored in:
+
+```text
+maintleyEvents/{eventId}
+```
+
+In-app notification delivery records are stored in:
 
 ```text
 notifications/{notificationId}
 ```
 
-Notification creation sources include:
+Maintley Event producers include:
 
-* Client workflows
-* Cloud Functions
-* Maintenance event triggers
+* Property Knowledge Acquisition
+* Maintley Intelligence Quick Scan
+* Support Tickets
 
-Push delivery is handled through:
+Event consumers include:
+
+* In-app notification upserts
+* Android push delivery for actionable milestones
+
+Future event consumers include:
+
+* Web push
+* Email
+* Intelligence History
+* Activity feeds
+
+Legacy notification-create push delivery remains handled through:
 
 ```text
 sendPushOnNotificationCreate
 ```
+
+Event-generated in-app notifications suppress the legacy create trigger and let
+the event consumer decide whether Android push should be sent. This prevents
+non-actionable milestones, such as document review started, from sending noisy
+push notifications while still allowing later milestones to update the same
+in-app notification record.
 
 Notification delivery architecture is documented separately.
 

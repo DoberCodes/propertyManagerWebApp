@@ -10,7 +10,6 @@ import {
 	useUpdatePropertyMutation,
 } from '../../Redux/API/propertySlice';
 import { apiSlice } from '../../Redux/API/apiSlice';
-import { useCreateNotificationMutation } from '../../Redux/API/notificationSlice';
 import { useGetTasksQuery } from '../../Redux/API/taskSlice';
 import { useGetAllMaintenanceHistoryForUserQuery } from '../../Redux/API/userSlice';
 import { AppZeroState } from '../../Components/Library/AppZeroState';
@@ -278,7 +277,6 @@ export const DevicesHubPage: React.FC = () => {
 	const { data: allMaintenanceHistory = [] } = useGetAllMaintenanceHistoryForUserQuery();
 	const [createDevice] = useCreateDeviceMutation();
 	const [updateProperty] = useUpdatePropertyMutation();
-	const [createNotification] = useCreateNotificationMutation();
 
 	const [searchQuery, setSearchQuery] = useState('');
 	const [statusFilter, setStatusFilter] = useState<'All' | 'Active' | 'Maintenance' | 'Broken' | 'Decommissioned'>('All');
@@ -526,23 +524,6 @@ export const DevicesHubPage: React.FC = () => {
 				startPdfDocumentKnowledgeProcessing({
 					propertyId: String(targetProperty.id),
 					documents: pdfDocuments,
-					notifyScanStarted: (document) =>
-						createNotification({
-							userId: currentUser!.id,
-							type: 'document_scan_started',
-							title: 'Document Review Started',
-							message: `Maintley is reviewing ${document.fileName || document.name} for suggested details.`,
-							data: {
-								propertyId: String(targetProperty.id),
-								propertyTitle: targetProperty.title,
-								documentId: document.id,
-								documentName: document.fileName || document.name,
-							},
-							status: 'unread',
-							actionUrl: `/properties/${targetProperty.id}`,
-							createdAt: new Date().toISOString(),
-							updatedAt: new Date().toISOString(),
-						}).unwrap(),
 					onProcessed: () => {
 						dispatch(apiSlice.util.invalidateTags(['Properties']));
 					},

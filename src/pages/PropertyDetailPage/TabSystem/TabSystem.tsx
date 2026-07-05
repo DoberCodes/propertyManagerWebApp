@@ -15,6 +15,8 @@ import { Task } from 'types/Task.types';
 import { RootState } from 'Redux/store/store';
 import { useDispatch, useSelector } from 'react-redux';
 import { RoleCapabilities } from 'utils/permissions';
+import { TaskFormData } from 'types/Task.types';
+import { MaintenanceHistoryDraftData } from 'types/PropertyDetailPage.types';
 import {
 	PropertyScanActionType,
 	PropertyScanRecommendation,
@@ -41,11 +43,19 @@ interface TabsProps {
 	onSelectUnit?: (id: string) => void;
 	assigneeOptions?: { label: string; value: string; email?: string }[];
 	openCreateTaskToken?: number;
+	createTaskDraft?: (Partial<TaskFormData> & { propertyId?: string }) | null;
+	createTaskDraftRecommendationId?: string | null;
+	onCreateTaskDraftSaved?: (recommendationId: string) => void;
+	openCreateHistoryToken?: number;
+	createHistoryDraft?: MaintenanceHistoryDraftData | null;
+	createHistoryDraftRecommendationId?: string | null;
+	onCreateHistoryDraftSaved?: (recommendationId: string) => void;
 	openCreateDeviceToken?: number;
 	openDocumentsUploadToken?: number;
 	openCreateContractorToken?: number;
 	canRunPropertyScan?: boolean;
 	showPropertyScanPrompt?: boolean;
+	resolvedRecommendationIds?: string[];
 	handleAddMaintenanceHistory: (history: any) => void;
 	handleDeleteMaintenanceHistory: (historyId: string) => void;
 	setShowAddTenantModal: (show: boolean) => void;
@@ -82,11 +92,19 @@ export const TabSystem = ({
 	selectedUnitId,
 	onSelectUnit,
 	openCreateTaskToken = 0,
+	createTaskDraft = null,
+	createTaskDraftRecommendationId = null,
+	onCreateTaskDraftSaved,
+	openCreateHistoryToken = 0,
+	createHistoryDraft = null,
+	createHistoryDraftRecommendationId = null,
+	onCreateHistoryDraftSaved,
 	openCreateDeviceToken = 0,
 	openDocumentsUploadToken = 0,
 	openCreateContractorToken = 0,
 	canRunPropertyScan = false,
 	showPropertyScanPrompt = false,
+	resolvedRecommendationIds = [],
 	// assigneeOptions intentionally not used here
 	handleAddMaintenanceHistory,
 	handleDeleteMaintenanceHistory,
@@ -147,6 +165,7 @@ export const TabSystem = ({
 							String(property?.userId || '').trim()
 						}
 						showSetupPrompt={showPropertyScanPrompt}
+						resolvedRecommendationIds={resolvedRecommendationIds}
 						subscription={currentUser?.subscription}
 						permissions={permissions}
 						onAddMaintenanceHistory={handleAddMaintenanceHistory}
@@ -179,6 +198,9 @@ export const TabSystem = ({
 						selectedUnitId={selectedUnitId}
 						onSelectUnit={onSelectUnit}
 						openCreateTaskToken={openCreateTaskToken}
+						createTaskDraft={createTaskDraft}
+						createTaskDraftRecommendationId={createTaskDraftRecommendationId}
+						onCreateTaskDraftSaved={onCreateTaskDraftSaved}
 						permissions={permissions}
 					/>
 				);
@@ -188,10 +210,15 @@ export const TabSystem = ({
 						property={property}
 						maintenanceHistoryRecords={maintenanceHistoryRecords}
 						units={propertyUnits}
+						devices={propertyDevices}
 						teamMembers={teamMembers}
 						contractors={propertyContractors}
 						familyMembers={familyMembers}
 						tasks={allTasks}
+						openCreateHistoryToken={openCreateHistoryToken}
+						createHistoryDraft={createHistoryDraft}
+						createHistoryDraftRecommendationId={createHistoryDraftRecommendationId}
+						onCreateHistoryDraftSaved={onCreateHistoryDraftSaved}
 						onAddMaintenanceHistory={handleAddMaintenanceHistory}
 						onUpdateMaintenanceHistory={handleUpdateMaintenanceHistory}
 						onDeleteMaintenanceHistory={handleDeleteMaintenanceHistory}

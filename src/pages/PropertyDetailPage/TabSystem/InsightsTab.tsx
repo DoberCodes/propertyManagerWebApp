@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import styled from 'styled-components';
+import { PropertyAuditPanel } from '../../../Components/PropertyIntelligence/PropertyAuditPanel';
 import { PropertyScanPanel } from '../../../Components/PropertyIntelligence/PropertyScanPanel';
 import { PropertyScanHistoryPanel } from '../../../Components/PropertyIntelligence/PropertyScanHistoryPanel';
 import { PropertyKnowledgeReviewPanel } from './PropertyKnowledgeReviewPanel';
@@ -30,6 +31,7 @@ interface InsightsTabProps {
 	canRunScan: boolean;
 	accountId?: string;
 	showSetupPrompt?: boolean;
+	resolvedRecommendationIds?: string[];
 	subscription?: SubscriptionData | null;
 	permissions?: RoleCapabilities;
 	onAddMaintenanceHistory?: (history: any) => Promise<void> | void;
@@ -52,6 +54,7 @@ export const InsightsTab: React.FC<InsightsTabProps> = ({
 	canRunScan,
 	accountId,
 	showSetupPrompt,
+	resolvedRecommendationIds = [],
 	subscription,
 	permissions,
 	onAddMaintenanceHistory,
@@ -126,16 +129,29 @@ export const InsightsTab: React.FC<InsightsTabProps> = ({
 			</InsightsNav>
 
 			{activeWorkspaceTab === 'overview' && (
-				<PropertyScanPanel
-					property={property}
-					systems={propertyDevices}
-					tasks={tasks}
-					maintenanceHistory={maintenanceHistoryRecords}
-					canRunScan={canRunScan}
-					showSetupPrompt={showSetupPrompt}
-					subscription={subscription}
-					onRecommendationAction={onRecommendationAction}
-				/>
+				<>
+					<PropertyScanPanel
+						property={property}
+						systems={propertyDevices}
+						tasks={tasks}
+						maintenanceHistory={maintenanceHistoryRecords}
+						canRunScan={canRunScan}
+						showSetupPrompt={showSetupPrompt}
+						resolvedRecommendationIds={resolvedRecommendationIds}
+						subscription={subscription}
+						onRecommendationAction={onRecommendationAction}
+					/>
+					<PropertyAuditPanel
+						property={property}
+						systems={propertyDevices}
+						tasks={tasks}
+						maintenanceHistory={maintenanceHistoryRecords}
+						canRunAudit={canRunScan}
+						resolvedRecommendationIds={resolvedRecommendationIds}
+						subscription={subscription}
+						onRecommendationAction={onRecommendationAction}
+					/>
+				</>
 			)}
 			{activeWorkspaceTab === 'suggested-details' && (
 				<PropertyKnowledgeReviewPanel

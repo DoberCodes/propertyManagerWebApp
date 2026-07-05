@@ -26,7 +26,6 @@ type PropertyMemoryDocumentUploadResult = {
 type StartPdfDocumentKnowledgeProcessingInput = {
 	propertyId: string;
 	documents: PropertyDocument[];
-	notifyScanStarted?: (document: PropertyDocument) => Promise<unknown> | void;
 	onProcessed?: (
 		result: ProcessPropertyDocumentAcquisitionResponse,
 		document: PropertyDocument,
@@ -102,13 +101,9 @@ export const preparePropertyMemoryDocumentUploads = async ({
 
 export const startPdfDocumentKnowledgeProcessing = ({
 	documents,
-	notifyScanStarted,
 }: StartPdfDocumentKnowledgeProcessingInput) => {
 	documents.forEach((document) => {
 		if (!document.id || !isPdfPropertyDocument(document)) return;
-
-		Promise.resolve(notifyScanStarted?.(document)).catch((error) => {
-			console.warn('Could not create document scan notification:', error);
-		});
+		// Persistent document-review lifecycle notifications are backend-owned.
 	});
 };

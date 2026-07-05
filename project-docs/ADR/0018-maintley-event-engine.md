@@ -1,7 +1,7 @@
 ADR: Maintley Event Engine
 Status
 
-Proposed
+Accepted - initial implementation
 
 Context
 
@@ -197,3 +197,27 @@ Automation Rules
 Calendar Integrations
 
 Events should remain platform-independent regardless of future delivery mechanisms.
+
+Initial Implementation
+
+The first implementation stores event lifecycle records in:
+
+```text
+maintleyEvents/{workflowKey__entityKey}
+```
+
+Initial consumers create or update in-app delivery records in:
+
+```text
+notifications/{eventId__recipientId}
+```
+
+Event-generated notification records are updated in place when a workflow moves
+forward. For example, a document review can move from "Document review started"
+to "Suggested details ready" to "Knowledge imported" without creating repeated
+duplicate notification rows for the same document.
+
+Android push delivery is handled by the event consumer for actionable or
+important milestones. Non-actionable milestones such as document review started
+remain in-app only. Web push and email consumers are represented as future
+channels but are not implemented by this ADR phase.

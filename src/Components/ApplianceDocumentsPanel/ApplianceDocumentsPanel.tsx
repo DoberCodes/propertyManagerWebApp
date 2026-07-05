@@ -14,7 +14,6 @@ import {
 	useUpdatePropertyMutation,
 } from 'Redux/API/propertySlice';
 import { apiSlice } from 'Redux/API/apiSlice';
-import { useCreateNotificationMutation } from 'Redux/API/notificationSlice';
 import type { AppDispatch } from 'Redux/store/store';
 import { PropertyDocument, PropertyDocumentCategory } from 'types/Property.types';
 import {
@@ -26,7 +25,6 @@ import {
 	startPdfDocumentKnowledgeProcessing,
 } from 'propertyKnowledge/propertyDocumentUploads';
 import { useAppFeedback } from 'Components/Library/AppFeedback/AppFeedbackProvider';
-import { auth } from '../../config/firebase';
 import { COLORS } from '../../constants/colors';
 
 type ApplianceDocumentsPanelProps = {
@@ -72,7 +70,6 @@ export const ApplianceDocumentsPanel: React.FC<ApplianceDocumentsPanelProps> = (
 	const feedback = useAppFeedback();
 	const dispatch = useDispatch<AppDispatch>();
 	const [updateProperty] = useUpdatePropertyMutation();
-	const [createNotification] = useCreateNotificationMutation();
 	const { data: allProperties = [] } = useGetPropertiesQuery();
 	const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
 	const [selectedCategory, setSelectedCategory] =
@@ -116,8 +113,6 @@ export const ApplianceDocumentsPanel: React.FC<ApplianceDocumentsPanelProps> = (
 	const isPendingMode = Boolean(onPendingFilesChange && !deviceId);
 	const displayedPendingFiles = pendingFiles || [];
 	const canManageAssignedDocuments = Boolean(canUpload && resolvedPropertyId && deviceId);
-	const notificationUserId =
-		auth.currentUser?.uid || resolvedProperty?.userId || '';
 
 	const openEditModal = (documentId?: string) => {
 		const document = assignedDocuments.find((item) => item.id === documentId);
@@ -169,25 +164,6 @@ export const ApplianceDocumentsPanel: React.FC<ApplianceDocumentsPanelProps> = (
 			startPdfDocumentKnowledgeProcessing({
 				propertyId: resolvedPropertyId,
 				documents: pdfDocuments,
-				notifyScanStarted: (document) => {
-					if (!notificationUserId) return undefined;
-					return createNotification({
-						userId: notificationUserId,
-						type: 'document_scan_started',
-						title: 'Document Review Started',
-						message: `Maintley is reviewing ${document.fileName || document.name} for suggested details.`,
-						data: {
-							propertyId: resolvedPropertyId,
-							propertyTitle: resolvedProperty?.title || resolvedProperty?.name,
-							documentId: document.id,
-							documentName: document.fileName || document.name,
-						},
-						status: 'unread',
-						actionUrl: `/properties/${resolvedPropertyId}`,
-						createdAt: new Date().toISOString(),
-						updatedAt: new Date().toISOString(),
-					}).unwrap();
-				},
 				onProcessed: () => {
 					dispatch(apiSlice.util.invalidateTags(['Properties']));
 				},

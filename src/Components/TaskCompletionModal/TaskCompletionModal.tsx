@@ -192,23 +192,6 @@ export const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
 				startPdfDocumentKnowledgeProcessing({
 					propertyId: task.propertyId,
 					documents: pdfDocuments,
-					notifyScanStarted: (document) =>
-						createNotification({
-							userId: currentUser!.id,
-							type: 'document_scan_started',
-							title: 'Document Review Started',
-							message: `Maintley is reviewing ${document.fileName || document.name} for suggested details.`,
-							data: {
-								propertyId: task.propertyId,
-								propertyTitle: taskProperty.title,
-								documentId: document.id,
-								documentName: document.fileName || document.name,
-							},
-							status: 'unread',
-							actionUrl: `/properties/${task.propertyId}`,
-							createdAt: new Date().toISOString(),
-							updatedAt: new Date().toISOString(),
-						}).unwrap(),
 					onProcessed: () => {
 						dispatch(apiSlice.util.invalidateTags(['Properties']));
 					},

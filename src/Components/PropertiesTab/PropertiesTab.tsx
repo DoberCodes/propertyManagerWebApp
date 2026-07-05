@@ -1017,7 +1017,7 @@ export const Properties = () => {
 					`You currently have ${totalProperties} properties. ` +
 					`Please upgrade your plan to add more properties.`,
 				);
-				// TODO: Redirect to paywall/upgrade page
+				navigate('/paywall');
 				return;
 			}
 		} else {

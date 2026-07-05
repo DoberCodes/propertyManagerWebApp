@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Provider } from 'react-redux';
 import { MemoryRouter } from 'react-router-dom';
@@ -7,14 +7,18 @@ import { store } from '../../../Redux/store/store';
 import { AppFeedbackProvider } from '../../../Components/Library/AppFeedback/AppFeedbackProvider';
 import { InsightsTab } from './InsightsTab';
 import {
+	useGetLatestPropertyIntelligenceSnapshotQuery,
 	useGetLatestPropertyScanSnapshotQuery,
 	useGetPropertyScanSnapshotsQuery,
+	useSavePropertyAuditSnapshotMutation,
 	useSavePropertyScanSnapshotMutation,
 } from '../../../Redux/API/propertyIntelligenceSlice';
 
 jest.mock('../../../Redux/API/propertyIntelligenceSlice', () => ({
+	useGetLatestPropertyIntelligenceSnapshotQuery: jest.fn(),
 	useGetLatestPropertyScanSnapshotQuery: jest.fn(),
 	useGetPropertyScanSnapshotsQuery: jest.fn(),
+	useSavePropertyAuditSnapshotMutation: jest.fn(),
 	useSavePropertyScanSnapshotMutation: jest.fn(),
 }));
 
@@ -150,6 +154,13 @@ describe('InsightsTab', () => {
 		(useSavePropertyScanSnapshotMutation as jest.Mock).mockReturnValue([
 			jest.fn(),
 		]);
+		(useGetLatestPropertyIntelligenceSnapshotQuery as jest.Mock).mockReturnValue({
+			data: null,
+			isLoading: false,
+		});
+		(useSavePropertyAuditSnapshotMutation as jest.Mock).mockReturnValue([
+			jest.fn(),
+		]);
 		(useGetPropertyScanSnapshotsQuery as jest.Mock).mockReturnValue({
 			data: [],
 			isLoading: false,
@@ -172,7 +183,10 @@ describe('InsightsTab', () => {
 		expect(
 			screen.getByRole('region', { name: /property quick scan/i }),
 		).toBeInTheDocument();
-		expect(screen.getByText('What Maintley Found')).toBeInTheDocument();
+		expect(
+			screen.getByRole('region', { name: /property review/i }),
+		).toBeInTheDocument();
+		expect(screen.queryByText('What Maintley Found')).not.toBeInTheDocument();
 	});
 
 	test('shows suggested details inside the Insights workspace', async () => {
@@ -376,9 +390,9 @@ describe('InsightsTab', () => {
 		await user.click(screen.getByRole('tab', { name: /history/i }));
 		await user.click(screen.getByRole('button', { name: /^view$/i }));
 
-		const dialog = screen.getByRole('heading', {
-			name: /quick scan snapshot/i,
-		}).closest('div');
+		expect(
+			screen.getByRole('heading', { name: /quick scan snapshot/i }),
+		).toBeInTheDocument();
 
 		expect(screen.getByText(/read-only record/i)).toBeInTheDocument();
 		expect(
@@ -390,7 +404,7 @@ describe('InsightsTab', () => {
 		expect(
 			screen.queryByRole('button', { name: /review tasks/i }),
 		).not.toBeInTheDocument();
-		expect(dialog ? within(dialog).queryByText(/delete/i) : null).not.toBeInTheDocument();
+		expect(screen.queryByText(/delete/i)).not.toBeInTheDocument();
 	});
 
 	test('hides reviewed suggestions from the active Suggested Details queue', async () => {

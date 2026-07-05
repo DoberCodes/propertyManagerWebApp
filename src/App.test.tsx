@@ -22,15 +22,13 @@ jest.mock('./Hooks/DataFetchContext', () => ({
 }));
 
 jest.mock('./Components/Library/UpdateNotification/UpdateNotification', () => ({
+	__esModule: true,
+	default: () => null,
 	UpdateNotification: () => null,
 }));
 
 jest.mock('./services/authSession', () => ({
 	onAuthStateChange: () => () => {},
-}));
-
-jest.mock('./utils/versionCheck', () => ({
-	checkForUpdates: jest.fn().mockResolvedValue(null),
 }));
 
 jest.mock('@capacitor/core', () => ({

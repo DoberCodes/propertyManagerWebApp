@@ -15,7 +15,6 @@ import {
 import { FileUploader } from 'Components/Library/FileUploader';
 import { useUpdatePropertyMutation } from 'Redux/API/propertySlice';
 import { apiSlice } from 'Redux/API/apiSlice';
-import { useCreateNotificationMutation } from 'Redux/API/notificationSlice';
 import type { AppDispatch } from 'Redux/store/store';
 import {
 	Device,
@@ -41,7 +40,6 @@ import { RoleCapabilities } from 'utils/permissions';
 import {
 	deletePropertyDocumentFile,
 } from 'utils/propertyDocumentUpload';
-import { auth } from '../../../config/firebase';
 import { useAppFeedback } from '../../../Components/Library/AppFeedback/AppFeedbackProvider';
 import { COLORS } from '../../../constants/colors';
 import {
@@ -231,7 +229,6 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 	const feedback = useAppFeedback();
 	const dispatch = useDispatch<AppDispatch>();
 	const [updateProperty] = useUpdatePropertyMutation();
-	const [createNotification] = useCreateNotificationMutation();
 	const [isUploadOpen, setIsUploadOpen] = useState(false);
 	const [isEditOpen, setIsEditOpen] = useState(false);
 	const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
@@ -247,8 +244,6 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 	const [isSaving, setIsSaving] = useState(false);
 	const lastOpenUploadTokenRef = useRef(0);
 	const canManageDocuments = permissions?.canManageProperties ?? true;
-	const notificationUserId =
-		auth.currentUser?.uid || property?.uploadedBy || property?.userId || '';
 
 	const propertyDocuments = useMemo<PropertyDocument[]>(
 		() => (Array.isArray(property?.documents) ? property.documents : []),
@@ -446,26 +441,6 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 			setIsSaving(true);
 			try {
 				feedback.notify('Maintley is reviewing this PDF for suggested details.');
-				if (notificationUserId) {
-					createNotification({
-						userId: notificationUserId,
-						type: 'document_scan_started',
-						title: 'Document Review Started',
-						message: `Maintley is reviewing ${document.fileName || document.name} for suggested details.`,
-						data: {
-							propertyId: property.id,
-							propertyTitle: property.title || property.name,
-							documentId: document.id,
-							documentName: document.fileName || document.name,
-						},
-						status: 'unread',
-						actionUrl: `/properties/${property.id}`,
-						createdAt: new Date().toISOString(),
-						updatedAt: new Date().toISOString(),
-					}).unwrap().catch((notificationError) => {
-						console.warn('Could not create document scan notification:', notificationError);
-					});
-				}
 				const result = await processPropertyDocumentAcquisition({
 					propertyId: property.id,
 					documentId: document.id,
@@ -577,25 +552,6 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 			startPdfDocumentKnowledgeProcessing({
 				propertyId: property.id,
 				documents: pdfDocuments,
-				notifyScanStarted: (document) => {
-					if (!notificationUserId) return undefined;
-					return createNotification({
-						userId: notificationUserId,
-						type: 'document_scan_started',
-						title: 'Document Review Started',
-						message: `Maintley is reviewing ${document.fileName || document.name} for suggested details.`,
-						data: {
-							propertyId: property.id,
-							propertyTitle: property.title || property.name,
-							documentId: document.id,
-							documentName: document.fileName || document.name,
-						},
-						status: 'unread',
-						actionUrl: `/properties/${property.id}`,
-						createdAt: new Date().toISOString(),
-						updatedAt: new Date().toISOString(),
-					}).unwrap();
-				},
 				onProcessed: (result) => {
 					dispatch(apiSlice.util.invalidateTags(['Properties']));
 					if (result.success && result.suggestionId) {

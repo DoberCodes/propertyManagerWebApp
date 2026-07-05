@@ -1,4 +1,5 @@
 export { sendPushOnNotificationCreate } from './sendPushOnNotificationCreate';
+export { publishMaintleyEvent } from './maintleyEventEngine';
 export {
 	createCheckoutSession,
 	validatePromotionCode,

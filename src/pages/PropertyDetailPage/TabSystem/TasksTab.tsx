@@ -73,7 +73,7 @@ import {
 	DesktopFilterArea,
 } from './mobileUiShared';
 import { PropertyTabFilterPanel } from './PropertyTabFilterPanel';
-import { Task } from '../../../types/Task.types';
+import { Task, TaskFormData } from '../../../types/Task.types';
 import {
 	useDeleteTaskMutation,
 } from '../../../Redux/API/taskSlice';
@@ -85,6 +85,9 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 	currentUser,
 	assigneeOptions = [],
 	openCreateTaskToken = 0,
+	createTaskDraft = null,
+	createTaskDraftRecommendationId = null,
+	onCreateTaskDraftSaved,
 	permissions,
 }) => {
 	const feedback = useAppFeedback();
@@ -92,6 +95,11 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 	const [showFilters, setShowFilters] = useState(false);
 	const [processedTasks, setProcessedTasks] = useState<any[]>([]);
 	const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+	const [activeTaskDraft, setActiveTaskDraft] = useState<
+		(Partial<TaskFormData> & { propertyId?: string }) | null
+	>(null);
+	const [activeTaskDraftRecommendationId, setActiveTaskDraftRecommendationId] =
+		useState<string | null>(null);
 	const [quickView, setQuickView] = useState<
 		'all' | 'overdue' | 'dueSoon' | 'next30'
 	>('all');
@@ -118,6 +126,7 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 			return;
 		}
 		setIsEditing(false);
+		setSelectedTask(null);
 		setShowTaskModal(true);
 	}, [canCreateTasks, feedback]);
 
@@ -529,9 +538,17 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 
 	useEffect(() => {
 		if (openCreateTaskToken > 0 && canCreateTasks) {
+			setActiveTaskDraft(createTaskDraft);
+			setActiveTaskDraftRecommendationId(createTaskDraftRecommendationId);
 			handleCreateTask();
 		}
-	}, [openCreateTaskToken, canCreateTasks, handleCreateTask]);
+	}, [
+		canCreateTasks,
+		createTaskDraft,
+		createTaskDraftRecommendationId,
+		handleCreateTask,
+		openCreateTaskToken,
+	]);
 
 	// Filter configuration for tasks
 	const taskFilters: FilterConfig[] = [
@@ -1140,17 +1157,34 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 			{(canManageTasks || canCreateTasks) && (
 				<TaskModal
 					isOpen={showTaskModal}
-					onClose={() => setShowTaskModal(false)}
+					onClose={() => {
+						setShowTaskModal(false);
+						if (!isEditing) {
+							setActiveTaskDraft(null);
+							setActiveTaskDraftRecommendationId(null);
+						}
+					}}
 					editingTask={isEditing ? selectedTask : undefined}
 					editingTaskId={isEditing ? selectedTask?.id : undefined}
 					isEditing={isEditing}
+					initialTask={!isEditing ? activeTaskDraft : null}
 					propertyId={property?.id || ''}
 					unitId=''
 					assigneeOptions={assigneeOptions}
 					currentUser={currentUser}
+					taskTitlePlaceholder={
+						activeTaskDraftRecommendationId
+							? 'Recurring task name'
+							: undefined
+					}
 					onSaved={(updatedTask) => {
 						if (updatedTask) {
 							setSelectedTask(updatedTask);
+						}
+						if (!isEditing && activeTaskDraftRecommendationId) {
+							onCreateTaskDraftSaved?.(activeTaskDraftRecommendationId);
+							setActiveTaskDraftRecommendationId(null);
+							setActiveTaskDraft(null);
 						}
 					}}
 				/>

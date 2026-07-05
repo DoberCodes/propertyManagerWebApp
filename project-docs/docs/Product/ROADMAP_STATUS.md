@@ -53,7 +53,8 @@ currently supports.
 
 Current decisions:
 
-* Full Property Audit is a roadmap item, not a current plan entitlement.
+* Full Property Audit is in active implementation. Public entitlement language
+  should remain conservative until the shipped experience is verified.
 * Ongoing Maintley Intelligence is a roadmap item, not a current plan
   entitlement.
 * Current Maintley Intelligence value includes Quick Property Scan, Dashboard
@@ -244,7 +245,7 @@ Remaining:
 
 ### Full Property Audit
 
-Status: Roadmap
+Status: Active implementation
 
 Source:
 
@@ -262,6 +263,12 @@ Constraint:
 
 Full Property Audit should use the shared Maintley Intelligence engine. It
 should not become a separate recommendation system.
+
+Current direction:
+
+Property Audit should be asset-centered rather than a long flat recommendation
+list. It should show summary counts, top priority assets, category browsing,
+and asset reviews powered by Knowledge Pack-derived findings.
 
 ### Ongoing Maintley Intelligence
 

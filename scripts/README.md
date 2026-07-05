@@ -70,6 +70,17 @@ These should not be relied upon.
 
 # Most Common Commands
 
+## Content
+
+```bash
+yarn content:idea
+yarn content:idea -- --topic "documents belong with the property" --status ready
+yarn content:idea -- --pillar property-memory --source adr --dry-run
+yarn content:idea -- --count 5 --status ready
+```
+
+---
+
 ## Release and Versioning
 
 ```bash
@@ -271,6 +282,7 @@ silently fall back to a preview.
 ## Utilities
 
 * convert-to-root-imports.cjs
+* generateMaintleyContentIdea.cjs
 * scan-packages-for-test-code.cjs
 * seedFirestore.cjs
 * seedFirestoreAuth.cjs

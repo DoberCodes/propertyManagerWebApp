@@ -2,6 +2,18 @@ import React, { useState } from 'react';
 import { FileUploader } from '../FileUploader';
 import GenericModal from './GenericModal';
 import {
+	FormGrid,
+	FormGroup,
+	FormGroupFull,
+	FormInput,
+	FormLabel,
+	FormSelect,
+	FormTextarea,
+	ModalTab,
+	ModalTabContainer,
+	ModalTabContent,
+} from './ModalStyles';
+import {
 	hasCostData,
 	toNumberOrUndefined,
 	calculateCostTotal,
@@ -70,6 +82,9 @@ export const AddMaintenanceHistoryModal: React.FC<
 	initialData,
 	relatedDocuments = [],
 }) => {
+	const [activeTab, setActiveTab] = useState<'record' | 'costs' | 'attachments'>(
+		'record',
+	);
 	const [formData, setFormData] = useState({
 		title: '',
 		completionDate: '',
@@ -91,6 +106,7 @@ export const AddMaintenanceHistoryModal: React.FC<
 
 	React.useEffect(() => {
 		if (!isOpen) return;
+		setActiveTab('record');
 
 		if (initialData) {
 			setFormData({
@@ -296,465 +312,337 @@ export const AddMaintenanceHistoryModal: React.FC<
 			primaryButtonLabel={primaryButtonLabel}
 			secondaryButtonLabel='Cancel'
 			onSubmit={handleSubmit}>
-			<div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-				<div>
-					<label
-						style={{
-							display: 'block',
-							marginBottom: '4px',
-							fontWeight: 'bold',
-						}}>
-						Task Title *
-					</label>
-					<input
-						type='text'
-						name='title'
-						value={formData.title}
-						onChange={handleChange}
-						placeholder='e.g., Fixed leaking faucet'
-						style={{
-							width: '100%',
-							padding: '8px',
-							border: '1px solid #ccc',
-							borderRadius: '4px',
-							fontSize: '14px',
-						}}
-						required
-					/>
-				</div>
+			<>
+				<ModalTabContainer role='tablist' aria-label='Maintenance record sections'>
+					<ModalTab
+						type='button'
+						$active={activeTab === 'record'}
+						onClick={() => setActiveTab('record')}>
+						Record
+					</ModalTab>
+					<ModalTab
+						type='button'
+						$active={activeTab === 'costs'}
+						onClick={() => setActiveTab('costs')}>
+						Costs
+					</ModalTab>
+					<ModalTab
+						type='button'
+						$active={activeTab === 'attachments'}
+						onClick={() => setActiveTab('attachments')}>
+						Attachments
+					</ModalTab>
+				</ModalTabContainer>
 
-				<div>
-					<label
-						style={{
-							display: 'block',
-							marginBottom: '4px',
-							fontWeight: 'bold',
-						}}>
-						Financials (optional)
-					</label>
-					<div
-						style={{
-							display: 'grid',
-							gridTemplateColumns: '1fr 1fr',
-							gap: '8px',
-						}}>
-						<input
-							type='number'
-							name='contractorCost'
-							min='0'
-							step='0.01'
-							value={formData.contractorCost}
-							onChange={handleChange}
-							placeholder='Contractor cost'
-							style={{
-								padding: '8px',
-								border: '1px solid #ccc',
-								borderRadius: '4px',
-								fontSize: '14px',
-							}}
-						/>
-						<input
-							type='number'
-							name='materialsCost'
-							min='0'
-							step='0.01'
-							value={formData.materialsCost}
-							onChange={handleChange}
-							placeholder='Materials cost'
-							style={{
-								padding: '8px',
-								border: '1px solid #ccc',
-								borderRadius: '4px',
-								fontSize: '14px',
-							}}
-						/>
-						<input
-							type='number'
-							name='laborCost'
-							min='0'
-							step='0.01'
-							value={formData.laborCost}
-							onChange={handleChange}
-							placeholder='Labor cost'
-							style={{
-								padding: '8px',
-								border: '1px solid #ccc',
-								borderRadius: '4px',
-								fontSize: '14px',
-							}}
-						/>
-						<input
-							type='number'
-							name='otherCost'
-							min='0'
-							step='0.01'
-							value={formData.otherCost}
-							onChange={handleChange}
-							placeholder='Other cost'
-							style={{
-								padding: '8px',
-								border: '1px solid #ccc',
-								borderRadius: '4px',
-								fontSize: '14px',
-							}}
-						/>
-					</div>
-					<small
-						style={{
-							color: '#6b7280',
-							fontSize: '12px',
-							marginTop: '4px',
-							display: 'block',
-						}}>
-						Total:{' '}
-						{formatCurrency(
-							calculateCostTotal({
-								contractorCost: toNumberOrUndefined(formData.contractorCost),
-								materialsCost: toNumberOrUndefined(formData.materialsCost),
-								laborCost: toNumberOrUndefined(formData.laborCost),
-								otherCost: toNumberOrUndefined(formData.otherCost),
-							}),
-							'USD',
-						)}
-					</small>
-				</div>
-
-				<div>
-					<label
-						style={{
-							display: 'block',
-							marginBottom: '4px',
-							fontWeight: 'bold',
-						}}>
-						Completion Date *
-					</label>
-					<input
-						type='date'
-						name='completionDate'
-						value={formData.completionDate}
-						onChange={handleChange}
-						style={{
-							width: '100%',
-							padding: '8px',
-							border: '1px solid #ccc',
-							borderRadius: '4px',
-							fontSize: '14px',
-						}}
-						required
-					/>
-				</div>
-
-				{/* Units are temporarily hidden from the app flow.
-				{property?.propertyType === 'Multi-Family' && units.length > 0 && (
-					<div>
-						<label
-							style={{
-								display: 'block',
-								marginBottom: '4px',
-								fontWeight: 'bold',
-							}}>
-							Unit
-						</label>
-						<select
-							name='unitId'
-							value={formData.unitId}
-							onChange={handleChange}
-							style={{
-								width: '100%',
-								padding: '8px',
-								border: '1px solid #ccc',
-								borderRadius: '4px',
-								fontSize: '14px',
-							}}>
-							<option value=''>Property Level</option>
-							{units.map((unit) => (
-								<option key={unit.id} value={unit.id}>
-									{unit.unitNumber || unit.address || `Unit ${unit.id}`}
-								</option>
-							))}
-						</select>
-					</div>
-				)}
-				*/}
-
-				{deviceOptions.length > 0 && (
-					<div>
-						<label
-							style={{
-								display: 'block',
-								marginBottom: '4px',
-								fontWeight: 'bold',
-							}}>
-							Linked Appliances
-						</label>
-						<select
-							multiple
-							value={selectedDeviceIds}
-							onChange={handleDeviceChange}
-							style={{
-								width: '100%',
-								minHeight: '120px',
-								padding: '8px',
-								border: '1px solid #ccc',
-								borderRadius: '4px',
-								fontSize: '14px',
-							}}>
-							{deviceOptions.map((device) => (
-								<option key={device.id} value={device.id}>
-									{device.label}
-								</option>
-							))}
-						</select>
-						<small
-							style={{
-								color: '#6b7280',
-								fontSize: '12px',
-								marginTop: '4px',
-								display: 'block',
-							}}>
-							Hold Ctrl/Command to select multiple appliances.
-						</small>
-					</div>
-				)}
-
-				<div>
-					<label
-						style={{
-							display: 'block',
-							marginBottom: '4px',
-							fontWeight: 'bold',
-						}}>
-						Maintenance Group
-					</label>
-					<select
-						name='maintenanceGroupId'
-						value={selectedGroupId}
-						onChange={handleGroupChange}
-						style={{
-							width: '100%',
-							padding: '8px',
-							border: '1px solid #ccc',
-							borderRadius: '4px',
-							fontSize: '14px',
-						}}>
-						<option value=''>No group</option>
-						<option value='__new__'>Create new group</option>
-						{groupOptions.map((option) => (
-							<option key={option.value} value={option.value}>
-								{option.label}
-							</option>
-						))}
-					</select>
-					<small
-						style={{
-							color: '#6b7280',
-							fontSize: '12px',
-							marginTop: '4px',
-							display: 'block',
-						}}>
-						Add this history item to an existing maintenance group or create a
-						new one.
-					</small>
-				</div>
-
-				<div>
-					<label
-						style={{
-							display: 'block',
-							marginBottom: '4px',
-							fontWeight: 'bold',
-						}}>
-						Completed By
-					</label>
-					{completedByMode === 'dropdown' ? (
-						<select
-							value={
-								formData.completedBy
-									? familyMembers.find((m) => m.id === formData.completedBy)
-										? `family-${formData.completedBy}`
-										: contractors.find((c) => c.id === formData.completedBy)
-										? `contractor-${formData.completedBy}`
-										: teamMembers.find((t) => t.id === formData.completedBy)
-										? `team-${formData.completedBy}`
-										: ''
-									: ''
-							}
-							onChange={handleCompletedByChange}
-							style={{
-								width: '100%',
-								padding: '8px',
-								border: '1px solid #ccc',
-								borderRadius: '4px',
-								fontSize: '14px',
-							}}>
-							<option value=''>Select from existing...</option>
-							{completedByOptions.map((option) => (
-								<option key={option.value} value={option.value}>
-									{option.label}
-								</option>
-							))}
-						</select>
-					) : (
-						<div>
-							<input
+				<ModalTabContent $active={activeTab === 'record'}>
+					<FormGrid>
+						<FormGroup>
+							<FormLabel htmlFor='maintenance-record-title'>
+								Record Name *
+							</FormLabel>
+							<FormInput
+								id='maintenance-record-title'
 								type='text'
-								name='completedByName'
-								value={formData.completedByName}
+								name='title'
+								value={formData.title}
 								onChange={handleChange}
-								placeholder='e.g., John Doe or ABC Plumbing'
-								style={{
-									width: '100%',
-									padding: '8px',
-									border: '1px solid #ccc',
-									borderRadius: '4px',
-									fontSize: '14px',
-								}}
+								placeholder='e.g., Replaced filter'
+								required
 							/>
-							<button
-								type='button'
-								onClick={() => {
-									setCompletedByMode('dropdown');
-									setFormData((prev) => ({
-										...prev,
-										completedBy: '',
-										completedByName: '',
-									}));
-								}}
-								style={{
-									marginTop: '4px',
-									padding: '4px 8px',
-									background: 'none',
-									border: 'none',
-									color: '#3b82f6',
-									cursor: 'pointer',
-									fontSize: '12px',
-									textDecoration: 'underline',
-								}}>
-								Select from existing instead
-							</button>
-						</div>
-					)}
-					{completedByMode === 'dropdown' && (
-						<small
-							style={{
-								color: '#6b7280',
-								fontSize: '12px',
-								marginTop: '4px',
-								display: 'block',
-							}}>
-							Can't find who you're looking for? Select "Enter custom name..."
-							to add manually.
-						</small>
-					)}
-				</div>
+						</FormGroup>
 
-				<div>
-					<label
-						style={{
-							display: 'block',
-							marginBottom: '4px',
-							fontWeight: 'bold',
-						}}>
-						Notes
-					</label>
-					<textarea
-						name='completionNotes'
-						value={formData.completionNotes}
-						onChange={handleChange}
-						placeholder='Additional details about the maintenance...'
-						rows={3}
-						style={{
-							width: '100%',
-							padding: '8px',
-							border: '1px solid #ccc',
-							borderRadius: '4px',
-							fontSize: '14px',
-							resize: 'vertical',
-						}}
-					/>
-				</div>
+						<FormGroup>
+							<FormLabel htmlFor='maintenance-record-date'>Date *</FormLabel>
+							<FormInput
+								id='maintenance-record-date'
+								type='date'
+								name='completionDate'
+								value={formData.completionDate}
+								onChange={handleChange}
+								required
+							/>
+						</FormGroup>
 
-				{!hideAttachmentField && (
-					<div>
-						<label
-							style={{
-								display: 'block',
-								marginBottom: '4px',
-								fontWeight: 'bold',
-							}}>
-							Attachment (optional)
-						</label>
-						<FileUploader
-							label='Attach File'
-							helperText='Images, PDF, Word, Excel, Text (max 10MB)'
-							accept='image/*,.pdf,.doc,.docx,.txt,.xls,.xlsx'
-							allowedTypes={[
-								'image/jpeg',
-								'image/png',
-								'image/jpg',
-								'image/gif',
-								'image/webp',
-								'application/pdf',
-								'application/msword',
-								'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-								'text/plain',
-								'application/vnd.ms-excel',
-								'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-							]}
-							maxSizeBytes={10 * 1024 * 1024}
-							setFile={handleFileChange}
-							showSelectedFiles={false}
-						/>
-						<small style={{ color: '#6b7280', fontSize: '12px' }}>
-							Supported formats: Images, PDF, Word, Excel, Text (max 10MB)
-						</small>
-						{formData.completionFile && (
-							<div
-								style={{ marginTop: '4px', fontSize: '14px', color: COLORS.primary }}>
-								Selected: {formData.completionFile.name}
-							</div>
+						<FormGroupFull>
+							<FormLabel htmlFor='maintenance-record-description'>
+								Description
+							</FormLabel>
+							<FormTextarea
+								id='maintenance-record-description'
+								name='completionNotes'
+								value={formData.completionNotes}
+								onChange={handleChange}
+								placeholder='Add more detail about what was done.'
+								rows={4}
+							/>
+						</FormGroupFull>
+
+						{deviceOptions.length > 0 && (
+							<FormGroupFull>
+								<FormLabel htmlFor='maintenance-linked-appliances'>
+									Related Appliances
+								</FormLabel>
+								<FormSelect
+									id='maintenance-linked-appliances'
+									multiple
+									value={selectedDeviceIds}
+									onChange={handleDeviceChange}
+									style={{ minHeight: 120 }}>
+									{deviceOptions.map((device) => (
+										<option key={device.id} value={device.id}>
+											{device.label}
+										</option>
+									))}
+								</FormSelect>
+								<small style={{ color: '#6b7280', fontSize: 12 }}>
+									Hold Ctrl/Command to select multiple appliances.
+								</small>
+							</FormGroupFull>
 						)}
-					</div>
-				)}
 
-				{relatedDocuments.length > 0 && (
-					<div>
-						<label
-							style={{
-								display: 'block',
-								marginBottom: '4px',
-								fontWeight: 'bold',
-							}}>
-							Related Task Documents
-						</label>
-						<div style={{ display: 'grid', gap: '8px' }}>
-							{relatedDocuments.map((document, index) =>
-								document.url ? (
-									<a
-										key={`${document.name}-${document.url}-${index}`}
-										href={document.url}
-										target='_blank'
-										rel='noreferrer'
+						<FormGroup>
+							<FormLabel htmlFor='maintenance-completed-by'>
+								Completed By
+							</FormLabel>
+							{completedByMode === 'dropdown' ? (
+								<FormSelect
+									id='maintenance-completed-by'
+									value={
+										formData.completedBy
+											? familyMembers.find((m) => m.id === formData.completedBy)
+												? `family-${formData.completedBy}`
+												: contractors.find((c) => c.id === formData.completedBy)
+													? `contractor-${formData.completedBy}`
+													: teamMembers.find((t) => t.id === formData.completedBy)
+														? `team-${formData.completedBy}`
+														: ''
+											: ''
+									}
+									onChange={handleCompletedByChange}>
+									<option value=''>Select from existing...</option>
+									{completedByOptions.map((option) => (
+										<option key={option.value} value={option.value}>
+											{option.label}
+										</option>
+									))}
+								</FormSelect>
+							) : (
+								<div>
+									<FormInput
+										type='text'
+										name='completedByName'
+										value={formData.completedByName}
+										onChange={handleChange}
+										placeholder='e.g., John Doe or ABC Plumbing'
+									/>
+									<button
+										type='button'
+										onClick={() => {
+											setCompletedByMode('dropdown');
+											setFormData((prev) => ({
+												...prev,
+												completedBy: '',
+												completedByName: '',
+											}));
+										}}
 										style={{
+											marginTop: 4,
+											padding: '4px 0',
+											background: 'none',
+											border: 'none',
 											color: COLORS.primary,
-											fontSize: '14px',
-											fontWeight: 700,
+											cursor: 'pointer',
+											fontSize: 12,
 											textDecoration: 'underline',
 										}}>
-										{document.name}
-									</a>
-								) : (
-									<span
-										key={`${document.name}-${index}`}
-										style={{ color: '#475569', fontSize: '14px' }}>
-										{document.name}
-									</span>
-								),
+										Select from existing instead
+									</button>
+								</div>
 							)}
-						</div>
+							{completedByMode === 'dropdown' && (
+								<small style={{ color: '#6b7280', fontSize: 12 }}>
+									Select "Enter custom name..." if the person or company is not
+									listed.
+								</small>
+							)}
+						</FormGroup>
+
+						<FormGroup>
+							<FormLabel htmlFor='maintenance-group'>Maintenance Group</FormLabel>
+							<FormSelect
+								id='maintenance-group'
+								name='maintenanceGroupId'
+								value={selectedGroupId}
+								onChange={handleGroupChange}>
+								<option value=''>No group</option>
+								<option value='__new__'>Create new group</option>
+								{groupOptions.map((option) => (
+									<option key={option.value} value={option.value}>
+										{option.label}
+									</option>
+								))}
+							</FormSelect>
+						</FormGroup>
+					</FormGrid>
+				</ModalTabContent>
+
+				<ModalTabContent $active={activeTab === 'costs'}>
+					<FormGrid>
+						<FormGroup>
+							<FormLabel htmlFor='maintenance-contractor-cost'>
+								Contractor Cost
+							</FormLabel>
+							<FormInput
+								id='maintenance-contractor-cost'
+								type='number'
+								name='contractorCost'
+								min='0'
+								step='0.01'
+								value={formData.contractorCost}
+								onChange={handleChange}
+								placeholder='0.00'
+							/>
+						</FormGroup>
+						<FormGroup>
+							<FormLabel htmlFor='maintenance-materials-cost'>
+								Materials Cost
+							</FormLabel>
+							<FormInput
+								id='maintenance-materials-cost'
+								type='number'
+								name='materialsCost'
+								min='0'
+								step='0.01'
+								value={formData.materialsCost}
+								onChange={handleChange}
+								placeholder='0.00'
+							/>
+						</FormGroup>
+						<FormGroup>
+							<FormLabel htmlFor='maintenance-labor-cost'>Labor Cost</FormLabel>
+							<FormInput
+								id='maintenance-labor-cost'
+								type='number'
+								name='laborCost'
+								min='0'
+								step='0.01'
+								value={formData.laborCost}
+								onChange={handleChange}
+								placeholder='0.00'
+							/>
+						</FormGroup>
+						<FormGroup>
+							<FormLabel htmlFor='maintenance-other-cost'>Other Cost</FormLabel>
+							<FormInput
+								id='maintenance-other-cost'
+								type='number'
+								name='otherCost'
+								min='0'
+								step='0.01'
+								value={formData.otherCost}
+								onChange={handleChange}
+								placeholder='0.00'
+							/>
+						</FormGroup>
+						<FormGroupFull>
+							<small style={{ color: '#475569', fontSize: 13, fontWeight: 700 }}>
+								Total:{' '}
+								{formatCurrency(
+									calculateCostTotal({
+										contractorCost: toNumberOrUndefined(
+											formData.contractorCost,
+										),
+										materialsCost: toNumberOrUndefined(
+											formData.materialsCost,
+										),
+										laborCost: toNumberOrUndefined(formData.laborCost),
+										otherCost: toNumberOrUndefined(formData.otherCost),
+									}),
+									'USD',
+								)}
+							</small>
+						</FormGroupFull>
+					</FormGrid>
+				</ModalTabContent>
+
+				<ModalTabContent $active={activeTab === 'attachments'}>
+					<div style={{ display: 'grid', gap: 16 }}>
+						{!hideAttachmentField && (
+							<FormGroup>
+								<FormLabel>Attachment</FormLabel>
+								<FileUploader
+									label='Attach File'
+									helperText='Images, PDF, Word, Excel, Text (max 10MB)'
+									accept='image/*,.pdf,.doc,.docx,.txt,.xls,.xlsx'
+									allowedTypes={[
+										'image/jpeg',
+										'image/png',
+										'image/jpg',
+										'image/gif',
+										'image/webp',
+										'application/pdf',
+										'application/msword',
+										'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+										'text/plain',
+										'application/vnd.ms-excel',
+										'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+									]}
+									maxSizeBytes={10 * 1024 * 1024}
+									setFile={handleFileChange}
+									showSelectedFiles={false}
+								/>
+								{formData.completionFile && (
+									<div
+										style={{
+											marginTop: 4,
+											fontSize: 14,
+											color: COLORS.primary,
+										}}>
+										Selected: {formData.completionFile.name}
+									</div>
+								)}
+							</FormGroup>
+						)}
+
+						{relatedDocuments.length > 0 && (
+							<FormGroup>
+								<FormLabel>Related Task Documents</FormLabel>
+								<div style={{ display: 'grid', gap: 8 }}>
+									{relatedDocuments.map((document, index) =>
+										document.url ? (
+											<a
+												key={`${document.name}-${document.url}-${index}`}
+												href={document.url}
+												target='_blank'
+												rel='noreferrer'
+												style={{
+													color: COLORS.primary,
+													fontSize: 14,
+													fontWeight: 700,
+													textDecoration: 'underline',
+												}}>
+												{document.name}
+											</a>
+										) : (
+											<span
+												key={`${document.name}-${index}`}
+												style={{ color: '#475569', fontSize: 14 }}>
+												{document.name}
+											</span>
+										),
+									)}
+								</div>
+							</FormGroup>
+						)}
+
+						{hideAttachmentField && relatedDocuments.length === 0 && (
+							<small style={{ color: '#64748b', fontSize: 13 }}>
+								No attachments are linked to this record.
+							</small>
+						)}
 					</div>
-				)}
-			</div>
+				</ModalTabContent>
+			</>
 		</GenericModal>
 	);
 };

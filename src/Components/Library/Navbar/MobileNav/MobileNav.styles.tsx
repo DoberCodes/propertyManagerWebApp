@@ -6,6 +6,7 @@ import { COLORS } from '../../../../constants/colors';
 
 export const MobileSidebar = styled.div<{ $isOpen: boolean }>`
 	display: none;
+	flex-direction: column;
 	position: fixed;
 	left: 0;
 	top: 60px;
@@ -22,7 +23,7 @@ export const MobileSidebar = styled.div<{ $isOpen: boolean }>`
 	transition: transform 0.3s ease;
 
 	@media (max-width: 1024px) {
-		display: block;
+		display: flex;
 	}
 `;
 
@@ -43,6 +44,17 @@ export const MobileSidebarLogo = styled.img`
 	max-height: 44px;
 	object-fit: contain;
 	object-position: left center;
+`;
+
+export const MobileSidebarVersion = styled.div`
+	margin-top: auto;
+	padding: 14px 20px 18px;
+	border-top: 1px solid ${COLORS.border};
+	color: ${COLORS.textMuted};
+	font-size: 11px;
+	font-weight: 600;
+	line-height: 1.4;
+	text-align: center;
 `;
 
 

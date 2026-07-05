@@ -1,6 +1,6 @@
 # Maintley Intelligence
 
-Last reviewed: 2026-06
+Last reviewed: 2026-07
 
 # Purpose
 
@@ -71,7 +71,7 @@ Maintley Intelligence is responsible for:
 * Recommendation generation
 * Recommendation prioritization
 * Quick Scan results
-* Full Property Audit results
+* Full Property Review results
 * Ongoing Property Intelligence observations
 * Setup Assistant recommendations
 * Dashboard recommendations
@@ -176,6 +176,16 @@ Add HVAC Filter Size
 Knowing the filter size simplifies future filter replacement and improves maintenance tracking.
 
 Recommendations should always provide context.
+
+Resolution should preserve that context.
+
+When a user chooses to act on a recommendation, Maintley should show the
+recommendation, the affected asset, the audit area, why it matters, and the
+recommended completion path before sending the user into a task, document,
+asset, contractor, or maintenance-history workflow.
+
+The recommendation explains the opportunity. The Resolution Engine decides how
+Maintley should help the user finish it.
 
 ---
 
@@ -530,7 +540,7 @@ The levels are not simply larger versions of the same scan.
 They represent different product experiences:
 
 1. Quick Property Scan
-2. Full Property Audit
+2. Full Property Review
 3. Ongoing Property Intelligence
 
 ---
@@ -579,7 +589,8 @@ src/intelligence/
 ├── rules/
 └── consumers/
     ├── quickScan.ts
-    └── portfolioDashboard.ts
+    ├── portfolioDashboard.ts
+    └── propertyAudit.ts
 ```
 
 The implementation also includes:
@@ -647,7 +658,7 @@ Quick Property Scan consumes the shared engine through the Quick Scan consumer.
 
 The dashboard consumes the same engine through the portfolio dashboard consumer. It evaluates the properties currently visible on the dashboard and returns one specific highest-priority next action. Dashboard recommendations should prefer direct, record-specific wording over grouped summaries.
 
-Property Audit, Email Insights, and future intelligence features should consume the same engine rather than creating separate recommendation logic.
+Property Review, Email Insights, and future intelligence features should consume the same engine rather than creating separate recommendation logic. The internal Property Audit consumer groups shared engine findings into review categories instead of adding separate review recommendation rules.
 
 ---
 
@@ -684,22 +695,25 @@ Quick Property Scan is designed to be run regularly.
 
 Quick Scan prioritizes maintenance execution and record usefulness.
 
-Quick Scan should surface themes rather than repeating one recommendation per affected system.
+Quick Scan should surface a varied shortlist rather than grouping repeated
+findings into broad themes.
 
-Quick Scan summary titles should be encouraging and should avoid leading with large raw counts. Exact affected counts and affected system lists belong in the recommendation detail view.
+Quick Scan titles should be specific, direct, and encouraging. Exact affected
+counts and full affected system lists belong in Property Review, not the daily
+Quick Scan surface.
 
 Quick Scan should be plan-aware.
 
-Quick Scan summary wording should sound like guidance from an experienced property manager.
+Quick Scan wording should sound like guidance from an experienced property manager.
 
 Prefer:
 
 ```text
-Maintley does not currently have recurring maintenance recorded for several systems.
+Add a recurring reminder for Water Heater.
 ```
 
 ```text
-Maintley's records do not show safety-device maintenance history yet.
+Record first maintenance note for Smoke Detector.
 ```
 
 Avoid leading with:
@@ -715,6 +729,19 @@ Tracking has not been started.
 Quick Scan should reinforce the property-memory story by framing many findings as opportunities to build history, improve future decisions, or reduce forgotten maintenance.
 
 Maintley Intelligence may generate more findings than a user can act on, but the visible Quick Scan should pass through a capability filter before recommendations are shown.
+
+Quick Scan should act like a small, varied daily to-do list. It should avoid
+showing several copies of the same issue type when other useful categories are
+available.
+
+Selection guidance:
+
+* Show 3-5 high-value recommendations.
+* Prefer up to 3 property-memory items such as missing install date, missing make/model, missing history, overdue task, or missing recurring task.
+* Prefer up to 2 expanded intelligence items from Maintley Knowledge, property history, or seasonal/context guidance when the user's plan can access them.
+* Prefer different rule types before repeating the same rule.
+* Prefer different assets before repeating the same asset.
+* Allow important safety or overdue work to win priority, but still keep the visible list varied when possible.
 
 Free users should see record-focused recommendations they can act on, such as:
 
@@ -747,12 +774,13 @@ Medium-priority examples:
 * Maintley's records do not show a contractor for serviced equipment
 * No warranty expiration has been recorded
 
-Theme examples:
+Varied Quick Scan examples:
 
-* Maintenance history has not been started for several systems.
-* Maintley does not currently have recurring maintenance recorded for several systems.
-* Some systems could be easier to identify in Maintley's records.
-* No install date has been recorded for several major systems.
+* Add install date for Water Heater.
+* Record first maintenance note for Smoke Detector.
+* Add make or model for Refrigerator.
+* Add filter size for Furnace.
+* Create recurring reminder for HVAC.
 
 Quick Scan excludes audit-style completeness items such as:
 
@@ -764,7 +792,7 @@ Quick Scan excludes audit-style completeness items such as:
 * Missing notes
 * Cosmetic record completeness issues
 
-Those items belong in Full Property Audit, where a user has explicitly asked for a broader review.
+Those items belong in Full Property Review, where a user has explicitly asked for a broader review.
 
 ---
 
@@ -808,7 +836,9 @@ The shared engine currently checks for:
 * Systems with no linked recurring task
 * Open overdue tasks
 
-The engine may generate more findings than the user sees. Quick Scan filters, groups, and limits them so the visible experience stays focused on the highest-value next actions.
+The engine may generate more findings than the user sees. Quick Scan filters,
+diversifies, and limits them so the visible experience stays focused on the
+highest-value next actions without feeling like a full review.
 
 The visible Property Scan message should be:
 
@@ -822,7 +852,10 @@ Property Scan should not be marketed or described as:
 AI scanned your house.
 ```
 
-Repeated system-level findings should be aggregated into a small number of theme-level recommendations by the Quick Scan consumer. Individual system findings belong in Full Property Audit or future drill-down views.
+Repeated system-level findings should not be grouped into broad theme cards in
+Quick Scan. The Quick Scan consumer should choose a representative, varied set of
+individual recommendations. Full Property Review remains the place to see every
+related item grouped by asset.
 
 Each visible recommendation should include a short explanation of why the action matters. For example, install dates help track equipment age, warranty coverage, and future replacement planning.
 
@@ -838,7 +871,7 @@ The property-level Insights tab is a small Maintley Intelligence workspace with:
 * Overview
 * History
 
-Overview shows the latest Quick Scan experience, current recommendations, the Run Quick Scan action, and the "How Property Quick Scan Works" help.
+Overview shows separate collapsed Maintley Intelligence cards for Quick Scan and Property Review, current recommendations, future scan entry points, and help for how each review works.
 
 History shows saved scan snapshots for the property.
 
@@ -867,7 +900,7 @@ Phase 1 does not send emails, run scheduled scans, call AI APIs, or calculate a 
 
 ---
 
-## Level 2: Full Property Audit
+## Level 2: Full Property Review
 
 Customer question:
 
@@ -885,11 +918,25 @@ Expected time:
 
 30-60 seconds.
 
-Full Property Audit is a future Maintley Intelligence process.
+Full Property Review is the customer-facing Maintley Intelligence experience backed by the shared engine and the internal Property Audit consumer.
 
 It is not a larger Quick Scan.
 
-It should evaluate the property across categories and present completeness-oriented results.
+It should evaluate the property across categories and present completeness-oriented results by asset.
+
+Quick Scan is priority-oriented:
+
+> What should I pay attention to?
+
+Property Review is completeness-oriented:
+
+> How complete and useful is this property record?
+
+The primary Property Review experience should be organized around assets rather than a flat recommendation list. Categories remain available for browsing and summary counts, but the detailed review should help users inspect each system or appliance in one place.
+
+Expanded asset reviews should group findings by audit area so users can improve one kind of memory at a time.
+
+It appears as a separate collapsed card below Quick Scan in the property Insights Overview. It may persist the latest review snapshot separately from Quick Scan so users can return to a larger review without rerunning it. The latest Property Review may be overwritten by the next Property Review for the same property. Review history is not stored in the current phase.
 
 It may generate a larger set of findings across:
 
@@ -899,7 +946,7 @@ It may generate a larger set of findings across:
 * Lifecycle Planning
 * Property Completeness
 
-Example audit categories:
+Example review categories:
 
 Documentation:
 
@@ -931,22 +978,41 @@ Lifecycle Planning:
 * Warranty expirations
 * End-of-life planning
 
-A future Full Property Audit may present category completeness instead of only listing findings.
+Example asset review:
+
+```text
+Water Heater
+
+Maintenance Coverage
+- Missing recurring maintenance
+- Missing maintenance history
+
+Equipment Records
+- Missing install date
+- Missing serial number
+
+Documentation
+- Missing warranty
+```
+
+Property Review may present category completeness and asset progress instead of only listing findings.
+
+Progress percentages should not be shown until Knowledge Pack checklist scoring provides a trustworthy denominator. Until then, Property Review should show open opportunity counts by asset and category.
 
 Example:
 
 ```text
-Property Documentation
+Water Heater
 
-72% complete
+7 of 10 review items complete
 
 Equipment Records     4/5
-Maintenance Coverage  3/5
-Documentation         2/5
-History               5/5
+Maintenance Coverage  1/3
+Documentation         1/2
+Lifecycle             1/1
 ```
 
-Because the user explicitly requests an audit, a larger list of findings is appropriate in this future surface. The audit should still group findings clearly so users can move from summary to detail without feeling buried.
+Because the user explicitly requests a review, a larger set of findings is appropriate in this surface. The review should still group findings clearly so users can move from summary to asset detail without feeling buried.
 
 ---
 
@@ -997,7 +1063,7 @@ Free:
 
 > Here is what to do next.
 
-Paid Audit:
+Paid Review:
 
 > Here is everything that is missing or incomplete.
 
@@ -1005,11 +1071,11 @@ Premium Intelligence:
 
 > Here is what your data means.
 
-This progression should prevent Full Property Audit from feeling like "Quick Scan with 50 more recommendations."
+This progression should prevent Full Property Review from feeling like "Quick Scan with 50 more recommendations."
 
 Quick Scan should stay fast and action-oriented.
 
-Full Property Audit should feel like a comprehensive review.
+Full Property Review should feel like a comprehensive asset review.
 
 Ongoing Property Intelligence should feel like guidance that becomes smarter as Maintley records improve.
 

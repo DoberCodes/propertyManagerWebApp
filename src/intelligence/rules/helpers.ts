@@ -52,11 +52,28 @@ export const hasLinkedRecurringTask = (
 	tasks: Task[],
 ): boolean =>
 	tasks.some(
-		(task) =>
-			isTaskOpen(task) &&
-			task.isRecurring === true &&
-			Array.isArray(task.devices) &&
-			task.devices.includes(system.id),
+		(task) => {
+			if (!isTaskOpen(task) || task.isRecurring !== true) {
+				return false;
+			}
+
+			const linkedSystemIds = new Set<string>();
+			if (Array.isArray(task.devices)) {
+				task.devices.forEach((deviceId) => {
+					if (deviceId !== undefined && deviceId !== null) {
+						linkedSystemIds.add(String(deviceId));
+					}
+				});
+			}
+
+			const legacyDeviceId = (task as Task & { deviceId?: string | number })
+				.deviceId;
+			if (legacyDeviceId !== undefined && legacyDeviceId !== null) {
+				linkedSystemIds.add(String(legacyDeviceId));
+			}
+
+			return linkedSystemIds.has(String(system.id));
+		},
 	);
 
 const historyMatchesSystem = (history: any, systemId: string): boolean => {

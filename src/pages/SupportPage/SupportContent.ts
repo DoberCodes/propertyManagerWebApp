@@ -160,13 +160,13 @@ export const helpfulArticles: HelpfulArticle[] = [
 		],
 		sections: [
 			{
-				heading: 'What this feature does',
+				heading: 'What this helps you do',
 				paragraphs: [
 					'Properties are the primary organizational unit in Maintley. A property can hold appliances and systems, tasks, documents, contractors, tenants, and Maintenance History.',
 					'If you manage more than one property, groups can make the Properties page easier to scan without changing ownership, billing, or access rules.',
 				],
 				image: {
-					src: '',
+					src: '/screenshots/desktop_multiproperty.png',
 					alt: 'Properties page showing property groups and property cards.',
 					caption:
 						'Use the Properties page as the starting point for records, systems, tasks, and documents.',
@@ -197,7 +197,7 @@ export const helpfulArticles: HelpfulArticle[] = [
 	},
 	{
 		slug: 'how-tasks-become-maintenance-history',
-		title: 'How tasks become maintenance history',
+		title: 'Turn tasks into maintenance history',
 		summary:
 			'Use tasks for planned work and completion details for the permanent maintenance record.',
 		readTime: '5 min read',
@@ -211,7 +211,7 @@ export const helpfulArticles: HelpfulArticle[] = [
 		],
 		sections: [
 			{
-				heading: 'What this feature does',
+				heading: 'What this helps you do',
 				paragraphs: [
 					'Tasks track repairs, inspections, recurring reminders, and other maintenance work. Maintenance History records completed work after the fact.',
 					'When you complete a task with notes, files, cost, contractor, or linked system details, Maintley keeps that information connected to the property record.',
@@ -226,7 +226,7 @@ export const helpfulArticles: HelpfulArticle[] = [
 					'When the work is finished, complete the task and add the service details.',
 				],
 				image: {
-					src: '',
+					src: '/screenshots/desktop_tasks.png',
 					alt: 'Tasks page showing maintenance task cards with property context.',
 					caption:
 						'Task cards should show the action, due status, assignment, and related property.',
@@ -261,13 +261,13 @@ export const helpfulArticles: HelpfulArticle[] = [
 		],
 		sections: [
 			{
-				heading: 'What this feature does',
+				heading: 'What this helps you do',
 				paragraphs: [
 					'Use appliance and system profiles for equipment you maintain, repair, replace, or reference during service work. Common examples include HVAC systems, water heaters, appliances, roofs, generators, pumps, and safety equipment.',
 					'Each profile can hold manufacturer details, model and serial numbers, install dates, filters, parts, notes, documents, tasks, and Maintenance History.',
 				],
 				image: {
-					src: '',
+					src: '/screenshots/desktop_appliance.png',
 					alt: 'Appliance or system profile showing equipment details and linked records.',
 					caption:
 						'Appliance and system profiles keep service details, files, tasks, and history connected.',
@@ -311,7 +311,7 @@ export const helpfulArticles: HelpfulArticle[] = [
 		],
 		sections: [
 			{
-				heading: 'What this feature does',
+				heading: 'What this helps you do',
 				paragraphs: [
 					'Maintley can store manuals, warranties, receipts, invoices, inspection reports, photos, and other supporting records. Files can support broad property context or specific equipment and maintenance records.',
 				],
@@ -324,7 +324,7 @@ export const helpfulArticles: HelpfulArticle[] = [
 					'Attach invoices, service reports, receipts, and work photos to the completed maintenance record.',
 				],
 				image: {
-					src: '',
+					src: '/screenshots/desktop_documents.png',
 					alt: 'Document area showing files attached to a property or maintenance record.',
 					caption:
 						'Attach files to the record they support so they are easier to find later.',
@@ -346,7 +346,7 @@ export const helpfulArticles: HelpfulArticle[] = [
 	},
 	{
 		slug: 'review-document-suggestions',
-		title: 'Review document suggestions before applying them',
+		title: 'Review document suggestions',
 		summary:
 			'Understand document review, property matching, and why suggested changes require approval.',
 		readTime: '4 min read',
@@ -360,7 +360,7 @@ export const helpfulArticles: HelpfulArticle[] = [
 		],
 		sections: [
 			{
-				heading: 'What this feature does',
+				heading: 'What this helps you do',
 				paragraphs: [
 					'When supported document text is available, Maintley may suggest maintenance history, contractor information, warranty context, costs, parts, system details, or a possible property match.',
 					'These suggestions come from the uploaded record. They are not an inspection, diagnosis, or automatic correction.',
@@ -375,7 +375,7 @@ export const helpfulArticles: HelpfulArticle[] = [
 					'Apply only the suggestions that are useful and accurate.',
 				],
 				image: {
-					src: '',
+					src: '/screenshots/desktop_suggestedDetails.png',
 					alt: 'Document review screen showing a summary of suggested records, updates, and warnings.',
 					caption:
 						'The review summary shows what Maintley found before you apply any suggested changes.',
@@ -410,7 +410,7 @@ export const helpfulArticles: HelpfulArticle[] = [
 		],
 		sections: [
 			{
-				heading: 'What this feature does',
+				heading: 'What this helps you do',
 				paragraphs: [
 					'Maintley supports task due dates, recurring schedules, overdue reminders, in-app notifications, and mobile push notifications where available.',
 					'Notification behavior can depend on account settings, plan availability, device permissions, and connection quality.',
@@ -425,7 +425,7 @@ export const helpfulArticles: HelpfulArticle[] = [
 					'Confirm mobile or browser permissions if you use push notifications.',
 				],
 				image: {
-					src: '',
+					src: '/screenshots/desktop_taskcreate.png',
 					alt: 'Notification settings or task reminder controls in Maintley.',
 					caption:
 						'Reminder settings work best when tasks have clear due dates and recurrence rules.',
@@ -460,7 +460,7 @@ export const helpfulArticles: HelpfulArticle[] = [
 		],
 		sections: [
 			{
-				heading: 'What this feature does',
+				heading: 'What this helps you do',
 				paragraphs: [
 					'Groups let you create, rename, reorder, collapse, customize, and remove visual sections on the Properties page.',
 					'Groups do not change property ownership, billing, team access, or permissions.',
@@ -475,7 +475,7 @@ export const helpfulArticles: HelpfulArticle[] = [
 					'Reorder or collapse groups based on how you manage the portfolio.',
 				],
 				image: {
-					src: '',
+					src: '/screenshots/desktop_multiproperty.png',
 					alt: 'Property groups being used to organize multiple properties.',
 					caption:
 						'Groups make larger property lists easier to scan without changing access or ownership.',
@@ -518,7 +518,7 @@ export const helpfulArticles: HelpfulArticle[] = [
 					'Attach the document or photo you already have.',
 				],
 				image: {
-					src: '',
+					src: '/screenshots/desktop_setupassistant.png',
 					alt: 'Dashboard or property setup view showing a simple first maintenance action.',
 					caption:
 						'Start with one real property, one useful record, and the next maintenance action.',
@@ -560,7 +560,7 @@ export const helpfulArticles: HelpfulArticle[] = [
 		],
 		sections: [
 			{
-				heading: 'What this feature does',
+				heading: 'What this helps you do',
 				paragraphs: [
 					'Recommendations may suggest adding a recurring task, recording an install date, uploading warranty information, completing missing system details, or reviewing a maintenance pattern.',
 					'They are based on Maintley records. They do not diagnose equipment condition or confirm what is physically happening at a property.',
@@ -572,7 +572,7 @@ export const helpfulArticles: HelpfulArticle[] = [
 					'Look for the action, the property context, and the reason the recommendation appeared. In cross-property views, the property name helps you understand where the action belongs.',
 				],
 				image: {
-					src: '',
+					src: '/screenshots/desktop_dashboard.png',
 					alt: 'Maintley Intelligence recommendation card with property context.',
 					caption:
 						'Maintley Intelligence recommendations should explain the action and where it belongs.',
@@ -608,7 +608,7 @@ export const helpfulArticles: HelpfulArticle[] = [
 		],
 		sections: [
 			{
-				heading: 'What this feature does',
+				heading: 'What this helps you do',
 				paragraphs: [
 					'Family members and team members can help manage work based on the access and properties assigned to them. Team members operate within assigned-property scope and do not own billing.',
 					'Dashboard focus can help each person see work that is relevant to them while still allowing broader visible-property views when appropriate.',
@@ -629,7 +629,7 @@ export const helpfulArticles: HelpfulArticle[] = [
 					'A personal dashboard view can reduce noise for someone who only needs assigned work or a limited property set. Owners and managers can switch to a broader view when they need portfolio context.',
 				],
 				image: {
-					src: '',
+					src: '/screenshots/desktop_dashboard.png',
 					alt: 'Dashboard focus controls showing personal and all visible property views.',
 					caption:
 						'Dashboard focus helps each user start with the work most relevant to them.',
@@ -666,7 +666,7 @@ export const helpfulArticles: HelpfulArticle[] = [
 					'Review Maintenance History for past repairs and recurring issues.',
 				],
 				image: {
-					src: '',
+					src: '/screenshots/desktop_propertydetails.png',
 					alt: 'Property or system record prepared with details for a contractor visit.',
 					caption:
 						'Prepare the equipment details, files, and service history before a contractor visit.',
@@ -694,7 +694,7 @@ export const helpfulArticles: HelpfulArticle[] = [
 	},
 	{
 		slug: 'repair-record-or-maintenance-task',
-		title: 'Should this be a task or a maintenance record?',
+		title: 'Choose between a task and a maintenance record',
 		summary:
 			'Choose tasks for future work and Maintenance History for completed work.',
 		readTime: '4 min read',
@@ -726,7 +726,7 @@ export const helpfulArticles: HelpfulArticle[] = [
 					'If the work started as a Maintley task, complete that task instead of creating an unrelated duplicate history entry.',
 				],
 				image: {
-					src: '',
+					src: '/screenshots/desktop_taskhistory.png',
 					alt: 'Task completion screen or Maintenance History record for completed work.',
 					caption:
 						'Completing the task keeps the planned work and historical record connected.',
@@ -741,7 +741,7 @@ export const helpfulArticles: HelpfulArticle[] = [
 	},
 	{
 		slug: 'what-to-preserve-after-service-work',
-		title: 'What to preserve after service work',
+		title: 'Preserve service work after the visit',
 		summary:
 			'Record the service details that matter for future repairs, warranty claims, and property history.',
 		readTime: '5 min read',
@@ -770,7 +770,7 @@ export const helpfulArticles: HelpfulArticle[] = [
 					'Save completed work in Maintenance History or by completing the related task. Link the record to the correct property and appliance or system whenever possible.',
 				],
 				image: {
-					src: '',
+					src: '/screenshots/desktop_taskhistory.png',
 					alt: 'Maintenance History showing a completed service record with supporting details.',
 					caption:
 						'Maintenance History preserves what happened, when it happened, and what records support it.',
