@@ -41,7 +41,6 @@ interface TabsProps {
 	unitOptions?: { label: string; value: string }[];
 	selectedUnitId?: string;
 	onSelectUnit?: (id: string) => void;
-	assigneeOptions?: { label: string; value: string; email?: string }[];
 	openCreateTaskToken?: number;
 	createTaskDraft?: (Partial<TaskFormData> & { propertyId?: string }) | null;
 	createTaskDraftRecommendationId?: string | null;
@@ -105,7 +104,6 @@ export const TabSystem = ({
 	canRunPropertyScan = false,
 	showPropertyScanPrompt = false,
 	resolvedRecommendationIds = [],
-	// assigneeOptions intentionally not used here
 	handleAddMaintenanceHistory,
 	handleDeleteMaintenanceHistory,
 	setShowAddTenantModal,

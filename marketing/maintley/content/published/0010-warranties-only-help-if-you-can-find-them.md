@@ -1,6 +1,6 @@
 ---
 title: Warranties only help if you can find them
-status: ready
+status: published
 pillar: homeowner-moment
 platforms:
   - maintley-facebook

@@ -1,25 +1,17 @@
 import { useSelector } from 'react-redux';
-import { useMemo } from 'react';
-import { RootState } from '../../../Redux/store';
+import React, { useEffect, useMemo, useState } from 'react';
 import GenericModal from './GenericModal';
 import { FormGroup, FormLabel } from './ModalStyles';
-import React, { useCallback, useEffect, useState } from 'react';
 import { TaskSelect } from '../Select/TaskSelect';
-import {
-	useGetUserByIdQuery,
-} from '../../../Redux/API/userSlice';
-import { useGetPropertyQuery } from '../../../Redux/API/propertySlice';
-import { useGetContractorsByPropertyQuery } from '../../../Redux/API/contractorSlice';
-import { useGetTeamMembersQuery } from '../../../Redux/API/teamSlice';
-import { getFamilyMembers } from '../../../services/authService';
 import { useUpdateTaskMutation } from '../../../Redux/API/taskSlice';
 import { useAppFeedback } from '../AppFeedback/AppFeedbackProvider';
-
-type AssigneeOption = {
-	id: string;
-	name: string;
-	email?: string;
-};
+import {
+	buildTaskAssignmentFields,
+	getStoredTaskAssigneeOption,
+	mergeTaskAssigneeOptions,
+	type TaskAssigneeOption,
+} from '../../../tasks/taskAssignment';
+import { useTaskAssigneeOptions } from '../../../tasks/useTaskAssigneeOptions';
 
 interface TaskAssignModalProps {
 	isOpen: boolean;
@@ -28,142 +20,51 @@ interface TaskAssignModalProps {
 	propertyId: string;
 	unitId?: string;
 	selectedAssignee: any;
-	assigneeOptions?: { label: string; value: string; email?: string }[];
+	assigneeOptions?: TaskAssigneeOption[];
 }
 
 export const TaskAssignModal = (props: TaskAssignModalProps) => {
 	const feedback = useAppFeedback();
 	const currentUser = useSelector((state: any) => state.user.currentUser);
-
-	const { data: contractors = [] } = useGetContractorsByPropertyQuery(
-		props.propertyId,
-	);
-	const { data: property } = useGetPropertyQuery(props.propertyId);
-	const { data: propertyOwner } = useGetUserByIdQuery(property?.userId || '', {
-		skip: !property?.userId,
+	const taskAssigneeOptions = useTaskAssigneeOptions({
+		propertyId: props.propertyId || props.task?.propertyId || '',
+		currentUser,
+		additionalOptions: props.assigneeOptions,
 	});
-	const { data: firebaseTeamMembers = [] } = useGetTeamMembersQuery();
+	const storedAssigneeOption = useMemo(
+		() => getStoredTaskAssigneeOption(props.selectedAssignee || props.task),
+		[props.selectedAssignee, props.task],
+	);
 
 	const [selectedAssignee, setSelectedAssignee] = useState<any>(
-		props.selectedAssignee ?? { id: '', name: '', email: '' },
+		storedAssigneeOption
+			? {
+					id: storedAssigneeOption.value,
+					name: storedAssigneeOption.label,
+					email: storedAssigneeOption.email || '',
+			  }
+			: { id: '', name: '', email: '' },
 	);
 
 	useEffect(() => {
 		setSelectedAssignee(
-			props.selectedAssignee ?? { id: '', name: '', email: '' },
+			storedAssigneeOption
+				? {
+						id: storedAssigneeOption.value,
+						name: storedAssigneeOption.label,
+						email: storedAssigneeOption.email || '',
+				  }
+				: { id: '', name: '', email: '' },
 		);
-	}, [props.selectedAssignee]);
-	// Select team groups and memoize derived members to avoid returning new references
-	const teamGroups = useSelector((state: RootState) => state.team.groups);
-	const reduxTeamMembers = useMemo(
-		() => teamGroups.flatMap((group) => group.members || []),
-		[teamGroups],
-	);
-	const teamMembers = useMemo(
+	}, [storedAssigneeOption]);
+	const resolvedAssigneeOptions = useMemo(
 		() =>
-			(firebaseTeamMembers.length > 0 ? firebaseTeamMembers : reduxTeamMembers)
-				.filter(Boolean),
-		[firebaseTeamMembers, reduxTeamMembers],
+			mergeTaskAssigneeOptions([
+				storedAssigneeOption,
+				...taskAssigneeOptions,
+			]),
+		[storedAssigneeOption, taskAssigneeOptions],
 	);
-
-	const [familyMembers, setFamilyMembers] = useState<any[]>([]);
-
-	useEffect(() => {
-		const fetchFamilyMembers = async () => {
-			if (currentUser?.isTeamMemberAccount) {
-				setFamilyMembers([]);
-				return;
-			}
-
-			if (currentUser?.accountId) {
-				try {
-					const members = await getFamilyMembers(currentUser.accountId);
-					setFamilyMembers(members || []);
-				} catch (error) {
-					console.error('Error fetching family members:', error);
-					setFamilyMembers([]);
-				}
-			}
-		};
-
-		fetchFamilyMembers();
-	}, [currentUser?.accountId, currentUser?.isTeamMemberAccount]);
-
-	const fetchAssignees = useCallback((): AssigneeOption[] => {
-		const assignees: AssigneeOption[] = [];
-		const addAssignee = (assignee?: Partial<AssigneeOption> | null) => {
-			const id = String(assignee?.id || '').trim();
-			const name = String(assignee?.name || assignee?.email || '').trim();
-			if (!id || !name) return;
-			if (assignees.some((item) => item.id === id)) return;
-			assignees.push({
-				id,
-				name,
-				email: assignee?.email,
-			});
-		};
-
-		(props.assigneeOptions || []).forEach((option) =>
-			addAssignee({
-				id: option.value,
-				name: option.label,
-				email: option.email,
-			}),
-		);
-
-		if (propertyOwner && propertyOwner.id !== currentUser?.id) {
-			addAssignee({
-				id: propertyOwner.id,
-				name:
-					propertyOwner.firstName && propertyOwner.lastName
-						? `${propertyOwner.firstName} ${propertyOwner.lastName}`
-						: propertyOwner.email?.split('@')[0] || 'Property Owner',
-				email: propertyOwner.email || '',
-			});
-		}
-
-		teamMembers.forEach((member) =>
-			addAssignee({
-				id: member?.id,
-				name: member?.firstName
-					? `${member?.firstName} ${member?.lastName || ''}`.trim()
-					: member?.email,
-				email: member?.email,
-			}),
-		);
-
-		contractors.forEach((contractor) =>
-			addAssignee({
-				id: contractor?.id,
-				name: contractor?.name
-					? `${contractor?.name} (${contractor?.category})`
-					: contractor?.email,
-				email: contractor?.email,
-			}),
-		);
-
-		familyMembers.forEach((member) =>
-			addAssignee({
-				id: member?.id,
-				name: member?.firstName
-					? `${member?.firstName} ${member?.lastName || ''}`.trim()
-					: member?.email,
-				email: member?.email,
-			}),
-		);
-
-		addAssignee(props.selectedAssignee);
-
-		return assignees;
-	}, [
-		familyMembers,
-		teamMembers,
-		contractors,
-		props.selectedAssignee,
-		props.assigneeOptions,
-		propertyOwner,
-		currentUser?.id,
-	]);
 
 	const [assignTask] = useUpdateTaskMutation();
 
@@ -173,14 +74,23 @@ export const TaskAssignModal = (props: TaskAssignModalProps) => {
 			feedback.notify('Please select an assignee');
 			return;
 		}
+		if (!props.task?.id) {
+			feedback.notify('Unable to assign this task. Please try again.');
+			return;
+		}
+
+		const assignmentFields = buildTaskAssignmentFields(
+			selectedAssignee.id,
+			resolvedAssigneeOptions,
+		);
+		if (!assignmentFields) {
+			feedback.notify('Please select an assignee');
+			return;
+		}
 
 		const updatedTask = {
-			assignee: selectedAssignee.id,
-			assignedTo: {
-				id: selectedAssignee.id,
-				name: selectedAssignee.name,
-				email: selectedAssignee.email,
-			},
+			assignee: assignmentFields.assignee,
+			assignedTo: assignmentFields.assignedTo,
 		};
 		assignTask({ id: props.task.id, updates: updatedTask })
 			.unwrap()
@@ -196,7 +106,7 @@ export const TaskAssignModal = (props: TaskAssignModalProps) => {
 		<GenericModal
 			isOpen={props.isOpen}
 			onClose={props.onClose}
-			title='Assign Task to Team Member'
+			title='Assign Task'
 			showActions={true}
 			primaryButtonLabel='Assign'
 			onSubmit={handleSubmit}
@@ -207,18 +117,25 @@ export const TaskAssignModal = (props: TaskAssignModalProps) => {
 				<TaskSelect
 					value={selectedAssignee?.id || ''}
 					onChange={(selectedId) => {
+						const option = resolvedAssigneeOptions.find(
+							(assignee) => assignee.value === selectedId,
+						);
 						setSelectedAssignee(
-							fetchAssignees().find(
-								(assignee) => assignee.id === selectedId,
-							) || { id: '', name: '', email: '' },
+							option
+								? {
+										id: option.value,
+										name: option.label,
+										email: option.email || '',
+								  }
+								: { id: '', name: '', email: '' },
 						);
 					}}
-					placeholder='Select a user...'
+					placeholder='Select a person or contractor...'
 					options={[
-						{ value: '', label: 'Select a user...' },
-						...fetchAssignees().map((assignee) => ({
-							value: assignee.id,
-							label: assignee.name,
+						{ value: '', label: 'Select a person or contractor...' },
+						...resolvedAssigneeOptions.map((assignee) => ({
+							value: assignee.value,
+							label: assignee.label,
 						})),
 					]}
 				/>

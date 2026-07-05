@@ -25,11 +25,11 @@ import { useCreateNotificationMutation } from '../../Redux/API/notificationSlice
 import { useAppFeedback } from '../Library/AppFeedback/AppFeedbackProvider';
 import { getEffectiveSubscriptionPlanId } from '../../utils/subscriptionUtils';
 import { canApproveTaskCompletions } from '../../utils/permissions';
-import { TaskDocumentsPanel } from '../TaskDocumentsPanel/TaskDocumentsPanel';
 import {
 	preparePropertyMemoryDocumentUploads,
 	startPdfDocumentKnowledgeProcessing,
 } from '../../propertyKnowledge/propertyDocumentUploads';
+import { withPropertyDocumentLinks } from '../../utils/propertyDocumentUpload';
 
 interface TaskCompletionModalProps {
 	taskId: string;
@@ -179,10 +179,16 @@ export const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
 					category: 'other',
 					property: taskProperty,
 				});
+				const linkedSavedDocuments = savedDocuments.map((document) =>
+					withPropertyDocumentLinks(document, { taskIds: [taskId] }),
+				);
+				const linkedPdfDocuments = linkedSavedDocuments.filter((document) =>
+					pdfDocuments.some((pdfDocument) => pdfDocument.id === document.id),
+				);
 				await updateProperty({
 					id: task.propertyId,
 					updates: {
-						documents: [...propertyDocuments, ...savedDocuments],
+						documents: [...propertyDocuments, ...linkedSavedDocuments],
 						knowledgeSuggestions: [
 							...propertyKnowledgeSuggestions,
 							...knowledgeSuggestions,
@@ -191,7 +197,7 @@ export const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
 				}).unwrap();
 				startPdfDocumentKnowledgeProcessing({
 					propertyId: task.propertyId,
-					documents: pdfDocuments,
+					documents: linkedPdfDocuments,
 					onProcessed: () => {
 						dispatch(apiSlice.util.invalidateTags(['Properties']));
 					},
@@ -199,7 +205,7 @@ export const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
 						dispatch(apiSlice.util.invalidateTags(['Properties']));
 					},
 				});
-				const savedDocument = savedDocuments[0];
+				const savedDocument = linkedSavedDocuments[0];
 				completionFileData = {
 					name: savedDocument?.fileName || savedDocument?.name || selectedFile.name,
 					url: savedDocument?.fileUrl || savedDocument?.url || '',
@@ -464,18 +470,6 @@ export const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
 				}}
 			/>
 			{errors.file && <ErrorMessage>{errors.file}</ErrorMessage>}
-
-			{task?.propertyId && (
-				<FormGroup>
-					<TaskDocumentsPanel
-						property={taskProperty}
-						propertyId={task.propertyId}
-						taskId={taskId}
-						taskStatus={task.status}
-						canUpload
-					/>
-				</FormGroup>
-			)}
 
 			{errors.general && (
 				<ErrorMessage style={{ marginBottom: '1rem' }}>
