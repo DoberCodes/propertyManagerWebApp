@@ -629,8 +629,11 @@ tmp/release-notes.engineering.md
 ```
 
 The action also generates release note previews for pull requests into `main`
-and release note artifacts after merges to `main`. Empty customer release note
-artifacts block the release instead of publishing a blank GitHub Release body.
+and release note artifacts after merges to `main`. When a release has no
+customer-facing entries, the customer notes use a short behind-the-scenes
+improvement message instead of publishing a blank GitHub Release body.
+Release-prep PRs such as `Release v2.7.23` are excluded from generated release
+notes so they do not appear as customer-facing improvements.
 
 Release version changes are prepared by:
 

@@ -199,6 +199,11 @@ The generator separates release communication into two layers:
 * Engineering notes preserve PR numbers, direct commits, categories, and
   technical context for maintainers.
 
+When no customer-facing release entries are found, customer notes use a short
+behind-the-scenes improvement message instead of producing an empty release body.
+Release-prep PRs such as `Release v2.7.23` are ignored by the generator so the
+versioning PR itself does not appear as a customer-facing improvement.
+
 `--output` writes customer-facing notes for backwards compatibility. Use
 `--engineering-output` when the technical notes should be retained as an
 artifact.
