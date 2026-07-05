@@ -255,6 +255,12 @@ and
 src/App.tsx
 ```
 
+When Firebase reports a different authenticated user, Maintley should treat the
+app as unresolved until the next user profile has loaded. Account-scoped RTK
+Query data, Redux slices, and prior-user local cache are cleared during that
+transition so protected screens do not briefly render the previous account's
+properties, tasks, or dashboard data.
+
 Persistence strategy:
 
 Native platforms:

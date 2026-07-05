@@ -185,14 +185,28 @@ const initialState: UserState = {
 	authLoading: true,
 };
 
+const getLoggedUserSession = (user: User) => ({
+	token: `firebase-token-${user.id}`,
+	user,
+});
+
 const userSlice = createSlice({
 	name: 'user',
 	initialState,
 	reducers: {
+		beginAuthTransition: (state) => {
+			state.currentUser = null;
+			state.cred = null;
+			state.authLoading = true;
+			localStorage.removeItem('loggedUser');
+		},
 		setCurrentUser: (state, action: PayloadAction<User | null>) => {
 			if (action.payload) {
 				state.currentUser = action.payload;
-				localStorage.setItem('loggedUser', JSON.stringify(action.payload));
+				localStorage.setItem(
+					'loggedUser',
+					JSON.stringify(getLoggedUserSession(action.payload)),
+				);
 			} else {
 				state.currentUser = null;
 				localStorage.removeItem('loggedUser');
@@ -215,6 +229,11 @@ const userSlice = createSlice({
 	},
 });
 
-export const { setCurrentUser, setUserCred, setAuthLoading, logout } =
-	userSlice.actions;
+export const {
+	beginAuthTransition,
+	setCurrentUser,
+	setUserCred,
+	setAuthLoading,
+	logout,
+} = userSlice.actions;
 export default userSlice.reducer;

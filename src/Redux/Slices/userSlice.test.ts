@@ -1,4 +1,5 @@
 import userReducer, {
+	beginAuthTransition,
 	setCurrentUser,
 	setUserCred,
 	setAuthLoading,
@@ -58,8 +59,27 @@ describe('userSlice', () => {
 			expect(actual.currentUser).toMatchObject(mockUser);
 			expect(actual.authLoading).toBe(false);
 			expect(localStorageMock.getItem('loggedUser')).toBe(
-				JSON.stringify(mockUser),
+				JSON.stringify({
+					token: 'firebase-token-user-123',
+					user: mockUser,
+				}),
 			);
+		});
+
+		it('should handle beginAuthTransition', () => {
+			const stateWithUser = {
+				currentUser: mockUser as any,
+				cred: { token: 'abc' },
+				authLoading: false,
+			};
+			localStorageMock.setItem('loggedUser', JSON.stringify(mockUser));
+
+			const actual = userReducer(stateWithUser, beginAuthTransition());
+
+			expect(actual.currentUser).toBeNull();
+			expect(actual.cred).toBeNull();
+			expect(actual.authLoading).toBe(true);
+			expect(localStorageMock.getItem('loggedUser')).toBeNull();
 		});
 
 		it('should handle setCurrentUser with null', () => {

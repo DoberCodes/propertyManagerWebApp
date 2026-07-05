@@ -1,6 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { setCurrentUser, setAuthLoading } from './Redux/Slices/userSlice';
+import {
+	beginAuthTransition,
+	setCurrentUser,
+	setAuthLoading,
+} from './Redux/Slices/userSlice';
 import type { AppDispatch, RootState } from './Redux/store/store';
 import { RouterComponent } from './router';
 import { DataFetchProvider } from './Hooks/DataFetchContext';
@@ -119,32 +123,43 @@ export const App = () => {
 
 	useEffect(() => {
 		// Listen to Firebase auth state changes to persist authentication
+		const clearForAuthUserChange = (nextUserId: string | null) => {
+			const previousUserId =
+				currentUserIdRef.current || resolvedAuthUserIdRef.current || null;
+			const hasResolvedAuth = resolvedAuthUserIdRef.current !== undefined;
+
+			if (hasResolvedAuth && previousUserId !== nextUserId) {
+				dispatch(beginAuthTransition());
+				clearAccountScopedClientState(dispatch, {
+					userId: previousUserId,
+					clearLocalStorage: true,
+				});
+				pushNotificationsInitializedRef.current = false;
+			}
+		};
+
 		const unsubscribe = onAuthStateChange(async (user) => {
 			const nextUserId = user?.id || null;
 			const previousUserId = resolvedAuthUserIdRef.current;
 
 			if (previousUserId !== undefined && previousUserId !== nextUserId) {
-				clearAccountScopedClientState(dispatch);
+				clearAccountScopedClientState(dispatch, {
+					userId: previousUserId,
+					clearLocalStorage: true,
+				});
 				pushNotificationsInitializedRef.current = false;
 			}
 			resolvedAuthUserIdRef.current = nextUserId;
 
 			if (user) {
 				dispatch(setCurrentUser(user));
-				// Update localStorage to keep session in sync
-				localStorage.setItem(
-					'loggedUser',
-					JSON.stringify({
-						token: `firebase-token-${user.id}`,
-						user,
-					}),
-				);
 			} else {
 				dispatch(setCurrentUser(null));
-				localStorage.removeItem('loggedUser');
 			}
 			// Auth check is complete - stop showing loading state
 			dispatch(setAuthLoading(false));
+		}, {
+			onAuthUserResolving: clearForAuthUserChange,
 		});
 
 		// Cleanup subscription on unmount
