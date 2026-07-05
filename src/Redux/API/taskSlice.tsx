@@ -20,10 +20,15 @@ import {
 import { canUseRecurringTasks } from '../../utils/subscriptionUtils';
 import {
 	buildMaintenanceEventFromTask,
-	buildNextRecurringTask,
 	removeRecurringFieldsForPlan,
 	withDefaultTaskNotificationSchedule,
 } from '../../tasks/taskLifecycle';
+import {
+	approveTaskWorkflow,
+	createNextRecurringTaskForCompletion,
+	submitTaskCompletionWorkflow,
+	TaskLifecycleDependencies,
+} from '../../tasks/taskLifecycleWorkflow';
 
 const getSharedPropertyIdsForUser = async (
 	userId: string,
@@ -241,39 +246,22 @@ const notifyRecurringTaskGenerationFailure = async ({
 	}
 };
 
-const createNextRecurringTask = async ({
-	task,
-	taskId,
-	accountId,
-	completionDate,
-	notifyUserId,
-}: {
-	task: Task;
-	taskId: string;
-	accountId: string;
-	completionDate: string;
-	notifyUserId: string;
-}): Promise<void> => {
-	const nextTask = buildNextRecurringTask({
-		task,
-		taskId,
-		accountId,
-		completionDate,
-	});
-	if (!nextTask) {
-		return;
-	}
-
-	try {
-		await addDoc(collection(db, 'tasks'), withDefaultTaskNotificationSchedule(nextTask));
-	} catch (error) {
-		await notifyRecurringTaskGenerationFailure({
-			userId: notifyUserId,
-			task,
-			taskId,
-			error,
-		});
-	}
+const createTaskLifecycleDependencies = (): TaskLifecycleDependencies => {
+	return {
+		getTask: async (taskId: string) => {
+			const taskSnapshot = await getDoc(doc(db, 'tasks', taskId));
+			return taskSnapshot.exists() ? (taskSnapshot.data() as Task) : null;
+		},
+		writeMaintenanceEvent,
+		createTask: async (task) => {
+			await addDoc(collection(db, 'tasks'), task);
+		},
+		deleteTask: async (taskId) => {
+			await deleteDoc(doc(db, 'tasks', taskId));
+		},
+		notifyRecurringTaskGenerationFailure,
+		warn: console.warn,
+	};
 };
 
 export const taskSlice = apiSlice.injectEndpoints({
@@ -494,12 +482,13 @@ export const taskSlice = apiSlice.injectEndpoints({
 						});
 
 						await writeMaintenanceEvent(eventPayload as Record<string, unknown>);
-						await createNextRecurringTask({
+						await createNextRecurringTaskForCompletion({
 							task: { ...existingTask, ...preparedUpdates, status: 'Completed' },
 							taskId: id,
 							accountId: (existingTask as any).accountId || targetUserId,
 							completionDate,
 							notifyUserId: auth.currentUser?.uid || targetUserId,
+							deps: createTaskLifecycleDependencies(),
 						});
 					}
 
@@ -550,71 +539,23 @@ export const taskSlice = apiSlice.injectEndpoints({
 				completedByPlan,
 			}) {
 				try {
-					const docRef = doc(db, 'tasks', taskId);
-					const taskSnapshot = await getDoc(docRef);
-					if (!taskSnapshot.exists()) {
-						return { error: 'Task not found' };
-					}
-					const taskData = taskSnapshot.data() as Task;
 					const targetUserId = await resolveTargetUserId();
-					const mergedFinancials = financials
-						? {
-								currency:
-									financials.currency || taskData.financials?.currency || 'USD',
-								estimate:
-									financials.estimate || taskData.financials?.estimate,
-								actual: financials.actual || taskData.financials?.actual,
-								notes:
-									financials.notes !== undefined
-										? financials.notes
-										: taskData.financials?.notes,
-						  }
-						: taskData.financials;
-					const eventPayload = buildMaintenanceEventFromTask({
-						task: { ...taskData, status: 'Completed' },
-						taskId,
-						accountId: (taskData as any).accountId || targetUserId,
-						eventType: 'task_completed',
-						eventSource: 'task_completion',
-						completionDate,
-						completionNotes: completionNotes || taskData.completionNotes || '',
-						completionFile,
-						completedBy,
-						completedByName: undefined,
-						financials: mergedFinancials,
-					});
-
-					await writeMaintenanceEvent({
-						...eventPayload,
-						data: {
+					const result = await submitTaskCompletionWorkflow(
+						{
+							taskId,
+							accountId: targetUserId,
+							notifyUserId: auth.currentUser?.uid || targetUserId,
+							completionDate,
+							completionNotes,
+							completionFile,
+							financials,
+							completedBy,
 							completedByPlan,
 						},
-					});
-					await createNextRecurringTask({
-						task: taskData,
-						taskId,
-						accountId: (taskData as any).accountId || targetUserId,
-						completionDate,
-						notifyUserId: auth.currentUser?.uid || targetUserId,
-					});
+						createTaskLifecycleDependencies(),
+					);
 
-					try {
-						await deleteDoc(docRef);
-					} catch (cleanupError) {
-						console.warn('Task completion history was written, but task cleanup failed:', cleanupError);
-					}
-
-					return {
-						data: {
-							id: taskId,
-							status: 'Completed',
-							completionDate,
-							completionFile,
-							completedBy,
-							completionNotes,
-							financials: mergedFinancials,
-						},
-					};
+					return { data: result };
 				} catch (error: any) {
 					return { error: error.message };
 				}
@@ -628,46 +569,19 @@ export const taskSlice = apiSlice.injectEndpoints({
 		>({
 			async queryFn({ taskId, approvedBy }) {
 				try {
-					const docRef = doc(db, 'tasks', taskId);
-					const taskSnapshot = await getDoc(docRef);
-					if (!taskSnapshot.exists()) {
-						return { error: 'Task not found' };
-					}
-					const taskData = taskSnapshot.data() as Task;
 					const targetUserId = await resolveTargetUserId();
-					const approvedAt = new Date().toISOString();
-					const updates = {
-						status: 'Completed' as const,
-						approvedBy,
-						updatedAt: approvedAt,
-					};
-
-					const eventPayload = buildMaintenanceEventFromTask({
-						task: { ...taskData, ...updates },
-						taskId,
-						accountId: (taskData as any).accountId || targetUserId,
-						eventType: 'task_approved',
-						eventSource: 'task_approval',
-						completionDate: taskData.completionDate || approvedAt,
-						completionNotes: taskData.completionNotes,
-						completionFile: taskData.completionFile,
-						completedBy: taskData.completedBy,
-						completedByName: undefined,
-						financials: taskData.financials,
-					});
-
-					await writeMaintenanceEvent({
-						...eventPayload,
-						data: {
+					const result = await approveTaskWorkflow(
+						{
+							taskId,
+							accountId: targetUserId,
 							approvedBy,
-							approvedAt,
 						},
-					});
-					await deleteDoc(docRef);
+						createTaskLifecycleDependencies(),
+					);
 
 					// TODO: Send notification to the user who completed the task
 
-					return { data: { id: taskId, ...updates } };
+					return { data: result };
 				} catch (error: any) {
 					return { error: error.message };
 				}
