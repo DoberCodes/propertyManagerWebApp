@@ -39,6 +39,7 @@ const admin = __importStar(require("firebase-admin"));
 const params_1 = require("firebase-functions/params");
 const emailService_1 = require("./emailService");
 const taskDisplayStatus_1 = require("./taskDisplayStatus");
+const subscriptionEntitlements_1 = require("./subscriptionEntitlements");
 const RESEND_API_KEY = (0, params_1.defineSecret)(process.env.RESEND_API_KEY_SECRET_NAME || 'RESEND_API_KEY');
 if (!admin.apps.length) {
     admin.initializeApp();
@@ -60,22 +61,12 @@ const COMPLETED_EVENT_TYPES = new Set([
     'recurring_maintenance_completed',
 ]);
 const TEAM_REPORT_PLANS = new Set(['property', 'portfolio']);
-const normalizePlanId = (value) => {
-    return String(value || '').trim().toLowerCase();
-};
 const canUseTeamReports = (user) => {
     const subscription = user.subscription;
-    if (!subscription?.status)
-        return false;
-    if (subscription.status === 'trial') {
-        if (subscription.trialEndsAt && subscription.trialEndsAt <= Date.now() / 1000) {
-            return false;
-        }
-    }
-    else if (subscription.status !== 'active') {
+    if (!(0, subscriptionEntitlements_1.isSubscriptionCurrentlyEntitled)(subscription)) {
         return false;
     }
-    const plan = normalizePlanId(subscription.plan);
+    const plan = (0, subscriptionEntitlements_1.getEffectiveSubscriptionPlanId)(subscription, 'homeowner');
     return TEAM_REPORT_PLANS.has(plan);
 };
 const getAccountId = (userId, user) => String(user.accountId || '').trim() || userId;

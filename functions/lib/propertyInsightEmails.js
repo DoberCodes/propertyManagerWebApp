@@ -38,6 +38,7 @@ const functions = __importStar(require("firebase-functions/v1"));
 const admin = __importStar(require("firebase-admin"));
 const params_1 = require("firebase-functions/params");
 const emailService_1 = require("./emailService");
+const subscriptionEntitlements_1 = require("./subscriptionEntitlements");
 const RESEND_API_KEY = (0, params_1.defineSecret)(process.env.RESEND_API_KEY_SECRET_NAME || 'RESEND_API_KEY');
 if (!admin.apps.length) {
     admin.initializeApp();
@@ -49,24 +50,7 @@ const PROPERTY_INSIGHTS_PLANS = new Set([
     'portfolio',
 ]);
 const MAX_EMAIL_OBSERVATIONS = 5;
-const normalizePlanId = (planId) => {
-    return String(planId || '').trim().toLowerCase();
-};
-const getEffectivePlanId = (subscription) => {
-    if (!subscription?.status)
-        return 'homeowner';
-    if (subscription.status === 'trial') {
-        if (subscription.trialEndsAt && subscription.trialEndsAt <= Date.now() / 1000) {
-            return 'homeowner';
-        }
-    }
-    else if (subscription.status !== 'active') {
-        return 'homeowner';
-    }
-    const plan = normalizePlanId(subscription?.plan);
-    return plan || 'homeowner';
-};
-const canUsePropertyInsights = (user) => PROPERTY_INSIGHTS_PLANS.has(getEffectivePlanId(user.subscription));
+const canUsePropertyInsights = (user) => PROPERTY_INSIGHTS_PLANS.has((0, subscriptionEntitlements_1.getEffectiveSubscriptionPlanId)(user.subscription, 'homeowner'));
 const getDisplayName = (user) => {
     const name = (user.firstName || user.displayName || '').trim();
     return name || 'there';

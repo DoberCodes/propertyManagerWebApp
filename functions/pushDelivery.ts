@@ -1,4 +1,5 @@
 import * as admin from 'firebase-admin';
+import { getEffectiveSubscriptionPlanId } from './subscriptionEntitlements';
 
 const PUSH_NOTIFICATION_PLANS = new Set([
 	'homeowner_plus',
@@ -18,42 +19,21 @@ type PushDeliveryOptions = {
 
 const getDb = () => admin.firestore();
 
-const isTrialActive = (subscription?: {
-	status?: string;
-	trialEndsAt?: number | null;
-}): boolean => {
-	if (subscription?.status !== 'trial') {
-		return false;
-	}
-
-	if (!subscription.trialEndsAt) {
-		return true;
-	}
-
-	return subscription.trialEndsAt > Date.now() / 1000;
-};
-
 const canUsePushNotifications = (subscription?: {
 	status?: string;
 	plan?: string;
 	hasScheduledSubscription?: boolean;
 	scheduledPlan?: string;
 	trialEndsAt?: number | null;
+	pendingCheckoutPlan?: string;
+	stripeSubscriptionId?: string;
 }): boolean => {
 	if (!subscription) {
 		return false;
 	}
 
-	if (subscription.status !== 'active' && !isTrialActive(subscription)) {
-		return false;
-	}
-
-	const scheduledPlan = String(subscription.scheduledPlan || '').trim().toLowerCase();
-	const rawPlan =
-		subscription.hasScheduledSubscription && scheduledPlan
-			? scheduledPlan
-			: String(subscription.plan || '').trim().toLowerCase();
-	return PUSH_NOTIFICATION_PLANS.has(rawPlan);
+	const effectivePlan = getEffectiveSubscriptionPlanId(subscription, 'homeowner');
+	return PUSH_NOTIFICATION_PLANS.has(effectivePlan);
 };
 
 const getUserPushTokens = (

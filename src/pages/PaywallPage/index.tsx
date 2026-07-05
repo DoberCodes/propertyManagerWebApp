@@ -1,7 +1,10 @@
 import React from 'react';
 import { useSelector } from 'react-redux';
 import PaywallPage from './PaywallPage';
-import { SubscriptionData } from '../../utils/subscriptionUtils';
+import {
+	getEffectiveSubscriptionPlanId,
+	SubscriptionData,
+} from '../../utils/subscriptionUtils';
 
 /**
  * Paywall Page Wrapper - Connected to Redux for subscription data
@@ -15,7 +18,7 @@ const PaywallPageIndex: React.FC = () => {
 		currentPeriodStart: Math.floor(Date.now() / 1000),
 		currentPeriodEnd: Math.floor(Date.now() / 1000),
 	};
-	const currentPlan = subscription?.plan || 'homeowner';
+	const currentPlan = getEffectiveSubscriptionPlanId(subscription, 'homeowner');
 
 	return (
 		<PaywallPage
