@@ -143,8 +143,6 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 	const [isCloseConfirmOpen, setIsCloseConfirmOpen] = useState(false);
 	const [isAssistantCardCollapsed, setIsAssistantCardCollapsed] =
 		useState(false);
-	const [isCompleteSummaryExpanded, setIsCompleteSummaryExpanded] =
-		useState(false);
 	const [selectedAreaId, setSelectedAreaId] = useState<PropertySetupAreaId>(
 		getFirstIncompleteSetupAreaId(setupAssistant),
 	);
@@ -780,10 +778,7 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 		<>
 			<AssistantCard
 				$complete={progress.isComplete}
-				$compact={
-					isAssistantCardCollapsed ||
-					(progress.isComplete && !isCompleteSummaryExpanded)
-				}>
+				$compact={isAssistantCardCollapsed}>
 				<AssistantContent>
 					<AssistantHeader>
 						<AssistantEyebrow>Property Setup Assistant</AssistantEyebrow>
@@ -812,44 +807,28 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 					{!isAssistantCardCollapsed && (
 						<AssistantBody>
 							{progress.isComplete ? (
-								<>
-									<CompleteSummaryButton
-										type='button'
-										onClick={() =>
-											setIsCompleteSummaryExpanded(
-												(isExpanded) => !isExpanded,
-											)
-										}
-										aria-expanded={isCompleteSummaryExpanded}>
-										<span>Property setup complete</span>
-										<CompleteSummaryIcon>
-											{isCompleteSummaryExpanded ? '-' : '+'}
-										</CompleteSummaryIcon>
-									</CompleteSummaryButton>
-									{isCompleteSummaryExpanded && (
-										<ExpandedCompleteSummary>
-											<AssistantTitle>
-												Your property record has a strong starting point.
-											</AssistantTitle>
-											<AssistantText>
-												Maintley can now review this property record and highlight the few things worth your attention.
-											</AssistantText>
-											<ProgressText>
-												Progress: {progress.reviewed} of {progress.total}{' '}
-												reviewed
-											</ProgressText>
-											<ProgressTrack>
-												<ProgressFill
-													style={{
-														width: `${Math.round(
-															(progress.reviewed / progress.total) * 100,
-														)}%`,
-													}}
-												/>
-											</ProgressTrack>
-										</ExpandedCompleteSummary>
-									)}
-								</>
+								<CompleteSummary>
+									<CompleteSummaryLabel>Property setup complete</CompleteSummaryLabel>
+									<AssistantTitle>
+										Your property record has a strong starting point.
+									</AssistantTitle>
+									<AssistantText>
+										Maintley can now review this property record and highlight the few things worth your attention.
+									</AssistantText>
+									<ProgressText>
+										Progress: {progress.reviewed} of {progress.total}{' '}
+										reviewed
+									</ProgressText>
+									<ProgressTrack>
+										<ProgressFill
+											style={{
+												width: `${Math.round(
+													(progress.reviewed / progress.total) * 100,
+												)}%`,
+											}}
+										/>
+									</ProgressTrack>
+								</CompleteSummary>
 							) : (
 								<>
 									<AssistantTitle>
@@ -880,12 +859,11 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 						</AssistantBody>
 					)}
 				</AssistantContent>
-				{!isAssistantCardCollapsed &&
-					(!progress.isComplete || isCompleteSummaryExpanded) && (
-						<AssistantButton type='button' onClick={openAssistant}>
-							{progress.isComplete ? 'Review Setup' : 'Continue Setup'}
-						</AssistantButton>
-					)}
+				{!isAssistantCardCollapsed && (
+					<AssistantButton type='button' onClick={openAssistant}>
+						{progress.isComplete ? 'Review Setup' : 'Continue Setup'}
+					</AssistantButton>
+				)}
 			</AssistantCard>
 
 			{isOpen && (
@@ -1300,40 +1278,18 @@ const AssistantCollapseButton = styled.button`
 	}
 `;
 
-const CompleteSummaryButton = styled.button`
+const CompleteSummary = styled.div`
 	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	gap: 12px;
-	width: 100%;
-	border: none;
-	background: transparent;
+	flex-direction: column;
+	gap: 6px;
+`;
+
+const CompleteSummaryLabel = styled.div`
 	color: ${COLORS.primary};
 	font-size: 13px;
 	font-weight: 900;
-	text-align: left;
 	text-transform: uppercase;
 	letter-spacing: 0.04em;
-	padding: 0;
-	cursor: pointer;
-`;
-
-const CompleteSummaryIcon = styled.span`
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	width: 26px;
-	height: 26px;
-	border-radius: 999px;
-	background: ${COLORS.successLight};
-	color: ${COLORS.successDark};
-	font-size: 18px;
-	line-height: 1;
-	flex: 0 0 auto;
-`;
-
-const ExpandedCompleteSummary = styled.div`
-	margin-top: 12px;
 `;
 
 const AssistantEyebrow = styled.div`

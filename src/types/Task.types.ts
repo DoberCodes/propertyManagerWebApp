@@ -55,6 +55,7 @@ export interface TaskAssigneeSnapshot {
 	id: string;
 	name: string;
 	email?: string;
+	type?: 'user' | 'team_member' | 'family_member' | 'contractor' | 'unknown';
 }
 
 export interface CostBreakdown {

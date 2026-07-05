@@ -83,7 +83,6 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 	propertyTasks,
 	property,
 	currentUser,
-	assigneeOptions = [],
 	openCreateTaskToken = 0,
 	createTaskDraft = null,
 	createTaskDraftRecommendationId = null,
@@ -1148,7 +1147,7 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 				<TaskAssignModal
 					isOpen={showAssignModal}
 					task={selectedTask}
-					propertyId={''}
+					propertyId={selectedTask?.propertyId || property?.id || ''}
 					onClose={() => setShowAssignModal(false)}
 					selectedAssignee={selectedTask?.assignedTo}
 				/>
@@ -1170,7 +1169,6 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 					initialTask={!isEditing ? activeTaskDraft : null}
 					propertyId={property?.id || ''}
 					unitId=''
-					assigneeOptions={assigneeOptions}
 					currentUser={currentUser}
 					taskTitlePlaceholder={
 						activeTaskDraftRecommendationId

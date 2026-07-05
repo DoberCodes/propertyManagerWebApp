@@ -62,7 +62,6 @@ export interface TasksTabProps {
 	propertyTasks: any[];
 	property: any;
 	currentUser?: any;
-	assigneeOptions?: { label: string; value: string; email?: string }[];
 	unitOptions?: { label: string; value: string }[];
 	selectedUnitId?: string;
 	onSelectUnit?: (unitId: string) => void;

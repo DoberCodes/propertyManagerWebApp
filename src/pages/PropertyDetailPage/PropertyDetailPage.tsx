@@ -1080,44 +1080,6 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 		loadFamilyMembers();
 	}, [currentUser?.accountId, isTeamMemberAccount]);
 
-	const assigneeOptions = useMemo(() => {
-		const assignees: Array<{ label: string; value: string; email?: string }> =
-			[];
-
-		teamMembers
-			.filter((member): member is TeamMember => member !== undefined)
-			.forEach((member) => {
-				assignees.push({
-					label: `${member.firstName || ''} ${member.lastName || ''} (${member.title || ''})`.trim(),
-					value: member.id,
-					email: member.email,
-				});
-			});
-
-		propertyContractors.forEach((contractor) => {
-			assignees.push({
-				label: `${contractor.name} (${contractor.category})`,
-				value: contractor.id,
-				email: contractor.email,
-			});
-		});
-
-		familyMembers.forEach((member) => {
-			assignees.push({
-				label: `${member.firstName} ${member.lastName}`,
-				value: member.id,
-				email: member.email,
-			});
-		});
-
-		const uniqueAssignees = assignees.filter(
-			(assignee, index, self) =>
-				index === self.findIndex((a) => a.value === assignee.value),
-		);
-
-		return uniqueAssignees;
-	}, [teamMembers, propertyContractors, familyMembers]);
-
 	const handlePhotoUpload = async (file: File | null) => {
 		if (!canManageProperties) {
 			setImageError('Your role can view this property but cannot change property photos.');
@@ -1450,7 +1412,6 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 					propertyContractors={propertyContractors}
 					familyMembers={familyMembers}
 					teamMembers={teamMembers}
-					assigneeOptions={assigneeOptions}
 					allTasks={propertyAllTasks}
 					canRunPropertyScan={canRunPropertyScan}
 					showPropertyScanPrompt={showPropertyScanPrompt}
@@ -1597,7 +1558,6 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 						initialTask={createTaskDraft}
 						propertyId={property.id}
 						unitId=''
-						assigneeOptions={assigneeOptions}
 						currentUser={currentUser}
 						taskTitlePlaceholder={
 							createTaskDraftRecommendationId

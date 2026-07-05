@@ -61,6 +61,13 @@ import {
 	preparePropertyMemoryDocumentUploads,
 	startPdfDocumentKnowledgeProcessing,
 } from '../../../propertyKnowledge/propertyDocumentUploads';
+import {
+	buildTaskAssignmentFields,
+	getStoredTaskAssigneeOption,
+	mergeTaskAssigneeOptions,
+	type TaskAssigneeOption,
+} from '../../../tasks/taskAssignment';
+import { useTaskAssigneeOptions } from '../../../tasks/useTaskAssigneeOptions';
 
 const LINKED_DEVICE_NOTES_START = '--- Linked Appliance Details ---';
 const LINKED_DEVICE_NOTES_END = '--- End Linked Appliance Details ---';
@@ -462,44 +469,6 @@ interface TaskFormData {
 	financials?: TaskFinancials;
 }
 
-type AssigneeOption = { label: string; value: string; email?: string };
-
-const getStoredAssigneeOption = (task?: any | null): AssigneeOption | null => {
-	if (!task) return null;
-
-	const assignedTo =
-		task.assignedTo && typeof task.assignedTo === 'object'
-			? task.assignedTo
-			: null;
-	const value = String(
-		assignedTo?.id ||
-		(typeof task.assignedTo === 'string' ? task.assignedTo : '') ||
-		task.assignee ||
-		'',
-	).trim();
-
-	if (!value) return null;
-
-	const legacyName =
-		task.assigneeFirstName || task.assigneeLastName
-			? `${task.assigneeFirstName || ''} ${task.assigneeLastName || ''}`.trim()
-			: '';
-	const label = String(
-		assignedTo?.name ||
-		task.assigneeName ||
-		legacyName ||
-		assignedTo?.email ||
-		task.assigneeEmail ||
-		'Former assignee',
-	).trim();
-
-	return {
-		value,
-		label,
-		email: assignedTo?.email || task.assigneeEmail || undefined,
-	};
-};
-
 type ActiveTab = 'details' | 'advanced' | 'schedule' | 'notifications' | 'financial';
 
 type SmartScheduleSuggestion = {
@@ -532,7 +501,7 @@ interface EditTaskModalProps {
 	onSaved?: (updatedTask?: any) => void; // called after successful create/update
 	statusOptions?: string[];
 	priorityOptions?: string[];
-	assigneeOptions?: AssigneeOption[];
+	assigneeOptions?: TaskAssigneeOption[];
 	currentUser?: any | null;
 	// new/optional callbacks and placeholders
 	taskTitlePlaceholder?: string;
@@ -625,6 +594,11 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 	const hasInitializedFormForOpen = useRef(false);
 
 	const selectedPropertyId = formState.propertyId || propertyId || '';
+	const taskAssigneeOptions = useTaskAssigneeOptions({
+		propertyId: selectedPropertyId,
+		currentUser: effectiveCurrentUser,
+		additionalOptions: assigneeOptions,
+	});
 
 	// Determine if selected property is single family
 	const selectedProperty = useMemo(() => {
@@ -808,21 +782,15 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 		return null;
 	}, [editingTaskId, editingTask, allTasks]);
 	const storedAssigneeOption = useMemo(
-		() => getStoredAssigneeOption(editingTask || foundTask),
-		[editingTask, foundTask],
+		() => getStoredTaskAssigneeOption(editingTask || foundTask || initialTask),
+		[editingTask, foundTask, initialTask],
 	);
 	const resolvedAssigneeOptions = useMemo(() => {
-		if (
-			!storedAssigneeOption ||
-			assigneeOptions.some(
-				(option) => option.value === storedAssigneeOption.value,
-			)
-		) {
-			return assigneeOptions;
-		}
-
-		return [storedAssigneeOption, ...assigneeOptions];
-	}, [assigneeOptions, storedAssigneeOption]);
+		return mergeTaskAssigneeOptions([
+			storedAssigneeOption,
+			...taskAssigneeOptions,
+		]);
+	}, [storedAssigneeOption, taskAssigneeOptions]);
 
 	// initialize form when modal opens or when editingTaskId/initialTask changes
 	useEffect(() => {
@@ -853,7 +821,7 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 				location: editingTask.location || '',
 				notes: editingTask.notes || '',
 				priority: editingTask.priority,
-				assignedTo: getStoredAssigneeOption(editingTask)?.value || '',
+				assignedTo: getStoredTaskAssigneeOption(editingTask)?.value || '',
 				devices: editingTask.devices || [],
 				isRecurring: editingTask.isRecurring || false,
 				recurrenceFrequency: editingTask.recurrenceFrequency,
@@ -887,7 +855,7 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 				location: foundTask.location || '',
 				notes: foundTask.notes || '',
 				priority: foundTask.priority,
-				assignedTo: getStoredAssigneeOption(foundTask)?.value || '',
+				assignedTo: getStoredTaskAssigneeOption(foundTask)?.value || '',
 				devices: foundTask.devices || [],
 				isRecurring: foundTask.isRecurring || false,
 				recurrenceFrequency: foundTask.recurrenceFrequency,
@@ -1452,23 +1420,13 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 					});
 				}
 
-				// Convert assignedTo from string (user ID) to object format
-				if (updatesRaw.assignedTo) {
-					const selectedOption = resolvedAssigneeOptions.find(
-						(option) => option.value === updatesRaw.assignedTo,
-					);
-					if (selectedOption) {
-						const assignedToObj: any = {
-							id: selectedOption.value,
-							name: selectedOption.label,
-						};
-						// Only include email if it exists and is not empty
-						if (selectedOption.email && selectedOption.email.trim()) {
-							assignedToObj.email = selectedOption.email;
-						}
-						updatesRaw.assignedTo = assignedToObj;
-						updatesRaw.assignee = selectedOption.value;
-					}
+				const assignmentFields = buildTaskAssignmentFields(
+					updatesRaw.assignedTo,
+					resolvedAssigneeOptions,
+				);
+				if (assignmentFields) {
+					updatesRaw.assignedTo = assignmentFields.assignedTo;
+					updatesRaw.assignee = assignmentFields.assignee;
 				} else if (!updatesRaw.assignedTo) {
 					updatesRaw.assignedTo = null;
 					updatesRaw.assignee = '';
@@ -1526,26 +1484,17 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 					});
 				}
 
-				// Convert assignedTo from string (user ID) to object format
-				if (newTaskRaw.assignedTo) {
-					const selectedOption = resolvedAssigneeOptions.find(
-						(option) => option.value === newTaskRaw.assignedTo,
-					);
-					if (selectedOption) {
-						const assignedToObj: any = {
-							id: selectedOption.value,
-							name: selectedOption.label,
-						};
-						// Only include email if it exists and is not empty
-						if (selectedOption.email && selectedOption.email.trim()) {
-							assignedToObj.email = selectedOption.email;
-						}
-						newTaskRaw.assignedTo = assignedToObj;
-						newTaskRaw.assignee = selectedOption.value;
-					}
+				const assignmentFields = buildTaskAssignmentFields(
+					newTaskRaw.assignedTo,
+					resolvedAssigneeOptions,
+				);
+				if (assignmentFields) {
+					newTaskRaw.assignedTo = assignmentFields.assignedTo;
+					newTaskRaw.assignee = assignmentFields.assignee;
 				} else if (!newTaskRaw.assignedTo) {
 					// If assignedTo is empty, remove it
 					delete newTaskRaw.assignedTo;
+					delete newTaskRaw.assignee;
 				}
 
 				// Keep appliance and history linking optional by omitting empty arrays.
@@ -1925,31 +1874,30 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 								)}
 								*/}
 
-									{resolvedAssigneeOptions.length > 0 && (
-										<FormGroup>
-											<FormLabel>Assigned To</FormLabel>
-											<TaskSelect
-												name='assignedTo'
-												value={formState.assignedTo || ''}
-												onChange={(value) =>
-													onChange({
-														target: { name: 'assignedTo', value, type: 'select-one' },
-													} as any)
-												}
-												placeholder='Unassigned'
-												options={[
-													{
-														value: '',
-														label:
-															currentUser && formState.assignedTo === currentUser.id
-																? 'Unassign me'
-																: 'Unassigned',
-													},
-													...resolvedAssigneeOptions,
-												]}
-											/>
-										</FormGroup>
-									)}
+									<FormGroup>
+										<FormLabel>Assigned To</FormLabel>
+										<TaskSelect
+											name='assignedTo'
+											value={formState.assignedTo || ''}
+											onChange={(value) =>
+												onChange({
+													target: { name: 'assignedTo', value, type: 'select-one' },
+												} as any)
+											}
+											placeholder='Unassigned'
+											options={[
+												{
+													value: '',
+													label:
+														effectiveCurrentUser &&
+														formState.assignedTo === effectiveCurrentUser.id
+															? 'Unassign me'
+															: 'Unassigned',
+												},
+												...resolvedAssigneeOptions,
+											]}
+										/>
+									</FormGroup>
 
 									{internalDeviceOptions.length > 0 && (
 										<FormGroup>
