@@ -654,6 +654,15 @@ service cloud.firestore {
       allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
     }
 
+    match /maintleyEvents/{eventId} {
+      allow read: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid ||
+        (('recipientIds' in resource.data) && request.auth.uid in resource.data.recipientIds) ||
+        (('accountId' in resource.data) && canReadAccount(resource.data.accountId))
+      );
+      allow create, update, delete: if false;
+    }
+
     match /contractors/{contractorId} {
       allow read: if isAuthenticated() &&
         ('accountId' in resource.data) &&

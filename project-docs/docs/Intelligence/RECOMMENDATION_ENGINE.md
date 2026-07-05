@@ -1,6 +1,6 @@
 # Recommendation Engine
 
-Last reviewed: 2026-06
+Last reviewed: 2026-07
 
 # Purpose
 
@@ -53,6 +53,65 @@ Archived
 Recommendations should be generated from existing records.
 
 Recommendations should not become independent sources of truth.
+
+## Resolution Engine
+
+The Resolution Engine maps recommendations to completion workflows.
+
+Recommendations should describe what Maintley found and why it matters.
+Resolution plans should describe what the user can do next.
+
+Initial resolution types:
+
+* `edit_asset`
+* `create_task`
+* `create_history`
+* `upload_document`
+* `scan_barcode`
+* `knowledge_review`
+* `contractor`
+* `review_task`
+
+Examples:
+
+| Recommendation | Resolution workflow |
+| --- | --- |
+| Missing install date | Edit asset record, upload invoice, or upload warranty |
+| Missing filter size | Edit asset record, upload manual, or scan label |
+| Missing recurring maintenance | Create recurring task |
+| Missing maintenance history | Open maintenance history or upload invoice |
+| Overdue work | Review related tasks |
+
+Resolution should update the underlying property memory: assets, tasks,
+maintenance history, documents, contractors, or knowledge suggestions. When the
+source records improve, Maintley Intelligence should naturally stop showing the
+resolved recommendation on the next scan or audit.
+
+Resolution actions should prefer opening the existing full dialog over the
+current property context when that dialog is available. Examples include
+recurring task creation and maintenance-history entry. Full-page navigation
+should remain available for deeper record review, but it should not be required
+when the user can complete the workflow from the property page.
+
+Missing recurring-maintenance recommendations should prepare a recurring task
+draft with property and asset context already filled in. Unless Maintley has a
+specific recommended task name, the task title should remain blank so the user
+names the actual recurring work. Overdue-task recommendations should navigate to
+task review because the task already exists.
+
+When multiple baseline recurring tasks are known for one asset, the resolution
+workflow should present them as choices instead of guessing which task the user
+intends to create.
+
+Baseline recurring maintenance must respect asset variants. For example,
+tank-style water-heater maintenance such as flushing a tank or inspecting an
+anode rod should not be recommended for electric tankless water heaters.
+
+Maintenance-history recommendations should open a maintenance event draft with
+the affected asset linked through `deviceIds`. This keeps future intelligence
+able to detect that the event belongs to the specific system instead of relying
+on notes text. Maintley should not prefill the record name, date, or description
+from the recommendation because the user must describe what actually happened.
 
 ---
 
@@ -380,7 +439,8 @@ src/intelligence/
 ├── rules/
 └── consumers/
     ├── quickScan.ts
-    └── portfolioDashboard.ts
+    ├── portfolioDashboard.ts
+    └── propertyAudit.ts
 ```
 
 The implementation also includes:
@@ -490,7 +550,7 @@ It should not try to answer:
 
 > How complete and healthy are all of my property records?
 
-That broader question belongs to the future Full Property Audit surface.
+That broader question belongs to the Full Property Review surface.
 
 Inputs:
 
@@ -532,7 +592,7 @@ The engine now also consumes expanded baseline knowledge packs for common asset 
 * Roof
 * Smoke/CO Detector
 
-These packs define useful record fields, maintenance topics, parts and supplies, documentation, lifecycle planning context, and seasonal guidance. Quick Scan may surface high-value, already-modeled record details such as filter size. Broader documentation completeness, serial number, warranty, capacity, fuel type, and lifecycle audit items belong in Full Property Audit or future data-model work unless an existing Maintley field supports an actionable recommendation.
+These packs define useful record fields, maintenance topics, parts and supplies, documentation, lifecycle planning context, and seasonal guidance. Quick Scan may surface high-value, already-modeled record details such as filter size. Broader documentation completeness, serial number, warranty, capacity, fuel type, and lifecycle review items belong in Full Property Review or future data-model work unless an existing Maintley field supports an actionable recommendation.
 
 Dismissed recommendations may be stored locally in v1. Saved recommendation resolution and dismissal history belongs to a later phase.
 
@@ -552,7 +612,10 @@ Maintley reviewed what it knows about your property and found a few things worth
 
 It should not frame results as an AI scan of the physical home.
 
-The engine may generate detail findings for each affected system. Quick Scan should aggregate repeated detail findings into summary themes before display.
+The engine may generate detail findings for each affected system. Quick Scan
+should not aggregate repeated detail findings into summary themes. It should
+select a varied shortlist of individual recommendations so the user sees a few
+different useful next actions.
 
 The engine should attach source and capability metadata to findings.
 
@@ -569,7 +632,16 @@ Quick Scan should run findings through a plan capability filter before display.
 
 If a finding is not actionable for the current plan, it should be hidden from the primary Quick Scan recommendations. When locked Homeowner+ guidance exists, Quick Scan may show one clearly labeled preview after the user chooses to reveal more results. The preview is separate from actionable recommendations and must not affect recommendation counts, priority, or the visible-result limit.
 
-Summary rules are shown in Quick Scan.
+Quick Scan uses diverse selection.
+
+The selector should:
+
+* Show 3-5 high-value findings.
+* Prefer up to 3 property-memory findings.
+* Prefer up to 2 expanded intelligence findings from Maintley Knowledge, property history, or seasonal/context sources when available for the user's plan.
+* Prefer different rule IDs before repeating a rule.
+* Prefer different assets before repeating an asset.
+* Leave open slots empty rather than padding the scan with repeated rule types.
 
 Examples:
 
@@ -580,7 +652,7 @@ Examples:
 
 Exact counts and affected record lists should be available inside the detail view, not in the primary summary title.
 
-Detail rules are reserved for Full Property Audit and future drill-down views.
+Detail rules are reserved for Full Property Review and future drill-down views.
 
 Examples:
 
@@ -594,7 +666,8 @@ Quick Scan display rules:
 * Show 3-5 recommendations maximum
 * Exclude low-severity documentation completeness items
 * Exclude documentation gaps from the Quick Scan surface
-* Aggregate repeated system-level findings into themes
+* Avoid broad grouped theme cards
+* Prefer a varied set of individual recommendations
 * Filter out recommendations the user cannot act on with their current plan
 * Show at most one premium guidance preview after the user chooses to reveal more results
 * Do not count a premium guidance preview as a recommendation or an immediate action
@@ -604,13 +677,15 @@ Quick Scan display rules:
 * Show only the top recommendations by default, with an option to reveal the remaining Quick Scan recommendations
 * Sort by internal recommendation score
 
-Future Full Property Audit rules should use the same engine foundation, but with a different presentation goal.
+The customer-facing Property Review experience uses the same engine foundation through the internal Property Audit consumer. It preserves detail-level findings instead of applying Quick Scan summary aggregation, then derives category summaries and asset-centered review groups.
 
-Full Property Audit answers:
+Full Property Review answers:
 
 > How complete and maintainable are my property records?
 
-It should evaluate documentation, equipment records, maintenance coverage, lifecycle planning, and property completeness. It may show scores, category completeness, and larger grouped finding lists because the user explicitly requested a comprehensive audit.
+It should evaluate documentation, equipment records, maintenance coverage, lifecycle planning, and property completeness. It may show scores, category completeness, asset review groups, and larger grouped finding lists because the user explicitly requested a comprehensive review. The current persistence phase stores only the latest Property Review snapshot using a scan-type-specific `propertyScanLatest` key; it does not write review history snapshots.
+
+Quick Scan should remain recommendation-first. Property Review should be asset-first. Categories such as Maintenance Coverage, Equipment Records, Documentation, Safety, and Lifecycle are useful browse layers, but users should be able to review all open opportunities for one asset without jumping between category lists.
 
 Future Ongoing Property Intelligence rules should answer:
 

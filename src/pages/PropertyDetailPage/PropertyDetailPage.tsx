@@ -46,6 +46,7 @@ import {
 } from '../../Redux/selectors/permissionSelectors';
 import { isTrialExpired } from '../../utils/subscriptionUtils';
 import { TeamMember } from '../../types/Team.types';
+import { Device } from '../../types/Property.types';
 import { useFavorites } from '../../Hooks/useFavorites';
 import {
 	uploadPropertyImage,
@@ -63,6 +64,7 @@ import { LoadingState } from 'Components/LoadingState';
 import { ConvertRequestToTaskModal } from 'Components/ConvertRequestToTaskModal';
 import { AddTenantModal } from 'Components/AddTenantModal';
 import { MaintenanceRequestModal } from 'Components/MaintenanceRequestModal';
+import { RecommendationResolutionModal } from 'Components/PropertyIntelligence/RecommendationResolutionModal';
 import { DeleteConfirmationModal } from 'Components/Library/Modal/DeleteConfirmationModal';
 import {
 	PageHero,
@@ -75,15 +77,19 @@ import {
 	ContentWrapper,
 	DesktopHeroActions,
 } from './PropertyDetailPage.styles';
-import { DeviceModal } from '../../Components/Library/Modal';
+import { DeviceModal, TaskModal } from '../../Components/Library/Modal';
+import { AddMaintenanceHistoryModal } from '../../Components/Library/Modal/AddMaintenanceHistoryModal';
 import {
 	useDeleteTaskMutation,
 	useGetTasksQuery,
 } from '../../Redux/API/taskSlice';
-import { useGetDevicesQuery } from '../../Redux/API/deviceSlice';
+import {
+	useGetDevicesQuery,
+} from '../../Redux/API/deviceSlice';
 import { useGetTeamMembersQuery } from '../../Redux/API/teamSlice';
 import { TabSystem } from './TabSystem';
-import { TaskFinancials } from '../../types/Task.types';
+import { TaskFinancials, TaskFormData } from '../../types/Task.types';
+import { MaintenanceHistoryDraftData } from '../../types/PropertyDetailPage.types';
 import { PropertyDialog } from '../../Components/PropertiesTab/PropertyDialog';
 import { PropertySetupAssistant } from '../../Components/PropertySetupAssistant/PropertySetupAssistant';
 import {
@@ -182,10 +188,30 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 	const [tenantToDelete, setTenantToDelete] = useState<any | null>(null);
 	const [isPropertyDialogOpen, setIsPropertyDialogOpen] = useState(false);
 	const [openCreateTaskToken, setOpenCreateTaskToken] = useState(0);
+	const [createTaskDraft, setCreateTaskDraft] = useState<
+		(Partial<TaskFormData> & { propertyId?: string }) | null
+	>(null);
+	const [createTaskDraftRecommendationId, setCreateTaskDraftRecommendationId] =
+		useState<string | null>(null);
+	const [openCreateHistoryToken, setOpenCreateHistoryToken] = useState(0);
+	const [createHistoryDraft, setCreateHistoryDraft] =
+		useState<MaintenanceHistoryDraftData | null>(null);
+	const [
+		createHistoryDraftRecommendationId,
+		setCreateHistoryDraftRecommendationId,
+	] = useState<string | null>(null);
 	const [openCreateDeviceToken, setOpenCreateDeviceToken] = useState(0);
 	const [openDocumentsUploadToken, setOpenDocumentsUploadToken] = useState(0);
 	const [openCreateContractorToken, setOpenCreateContractorToken] = useState(0);
 	const [showPropertyScanPrompt, setShowPropertyScanPrompt] = useState(false);
+	const [resolutionRecommendation, setResolutionRecommendation] =
+		useState<PropertyScanRecommendation | null>(null);
+	const [showResolutionTaskModal, setShowResolutionTaskModal] = useState(false);
+	const [showResolutionHistoryModal, setShowResolutionHistoryModal] =
+		useState(false);
+	const [resolvedRecommendationIds, setResolvedRecommendationIds] = useState<
+		string[]
+	>([]);
 	const capturedPropertyActionRef = useRef('');
 	const pendingPropertyActionRef = useRef('');
 	const [deleteTaskModalOpen, setDeleteTaskModalOpen] = useState(false);
@@ -280,13 +306,193 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 		setSearchParams(nextParams);
 	};
 
-	const handleOpenCreateTaskDialog = () => {
+	const getRecommendationSystem = (
+		recommendation: PropertyScanRecommendation,
+	): Device | undefined => {
+		const systemId = String(
+			recommendation.systemId ||
+				recommendation.relatedSystemIds?.[0] ||
+				recommendation.metadata?.systemId ||
+				'',
+		).trim();
+		return propertyDevices.find((device) => device.id === systemId);
+	};
+
+	const getSystemDisplayName = (system?: Device): string =>
+		system
+			? [system.brand, system.type, system.model].filter(Boolean).join(' ').trim() ||
+				system.type ||
+				'System'
+			: 'System';
+
+	const getSuggestedCadenceOptions = (
+		recommendation: PropertyScanRecommendation,
+	): Array<{ label: string; intervalDays?: number }> => {
+		const rawCadence = recommendation.metadata?.suggestedMaintenanceCadence;
+		if (!Array.isArray(rawCadence)) return [];
+		return rawCadence
+			.map((cadence) => ({
+				label: String((cadence as any)?.label || '').trim(),
+				intervalDays: Number((cadence as any)?.intervalDays || 0) || undefined,
+			}))
+			.filter((cadence) => cadence.label);
+	};
+
+	const getRecurrenceFromInterval = (
+		intervalDays?: number,
+	): Pick<
+		TaskFormData,
+		'recurrenceFrequency' | 'recurrenceInterval' | 'recurrenceCustomUnit'
+	> => {
+		if (!intervalDays) {
+			return { recurrenceFrequency: 'monthly' };
+		}
+		if (intervalDays <= 7) return { recurrenceFrequency: 'weekly' };
+		if (intervalDays <= 14) return { recurrenceFrequency: 'biweekly' };
+		if (intervalDays >= 80 && intervalDays <= 100) {
+			return { recurrenceFrequency: 'quarterly' };
+		}
+		if (intervalDays >= 330 && intervalDays <= 400) {
+			return { recurrenceFrequency: 'yearly' };
+		}
+		if (intervalDays >= 28 && intervalDays <= 31) {
+			return { recurrenceFrequency: 'monthly' };
+		}
+		return {
+			recurrenceFrequency: 'custom',
+			recurrenceInterval: intervalDays,
+			recurrenceCustomUnit: 'days',
+		};
+	};
+
+	const buildRecurringTaskDraft = (
+		recommendation: PropertyScanRecommendation,
+	): (Partial<TaskFormData> & { propertyId?: string }) | null => {
+		if (!property?.id) return null;
+		const system = getRecommendationSystem(recommendation);
+		const systemName =
+			String(recommendation.metadata?.systemName || '').trim() ||
+			getSystemDisplayName(system);
+		const cadenceOptions = getSuggestedCadenceOptions(recommendation);
+		const selectedCadenceRaw = recommendation.metadata?.selectedMaintenanceCadence;
+		const selectedCadence =
+			selectedCadenceRaw && typeof selectedCadenceRaw === 'object'
+				? {
+					label: String((selectedCadenceRaw as any)?.label || '').trim(),
+					intervalDays:
+						Number((selectedCadenceRaw as any)?.intervalDays || 0) ||
+						undefined,
+				}
+				: undefined;
+		const singleCadence =
+			selectedCadence?.label
+				? selectedCadence
+				: cadenceOptions.length === 1
+					? cadenceOptions[0]
+					: undefined;
+		const recurrence = getRecurrenceFromInterval(singleCadence?.intervalDays);
+		const cadenceLines = cadenceOptions.map(
+			(cadence) =>
+				`- ${cadence.label}${
+					cadence.intervalDays ? ` every ${cadence.intervalDays} days` : ''
+				}`,
+		);
+
+		return {
+			title: singleCadence?.label || '',
+			dueDate: new Date().toISOString().split('T')[0],
+			status: 'Initiated',
+			category: 'Preventive Maintenance',
+			location: system?.location?.unitId || system?.location?.suiteId || '',
+			priority: recommendation.severity === 'high' ? 'High' : 'Medium',
+			notes: [
+				`Maintley found that ${systemName} does not have a linked recurring maintenance task yet.`,
+				'Add the specific recurring work that should be tracked for this system.',
+				cadenceLines.length ? '' : undefined,
+				cadenceLines.length ? 'Suggested recurring care:' : undefined,
+				...cadenceLines,
+				'',
+				recommendation.title,
+				'',
+				recommendation.description,
+				'',
+				`Why it matters: ${recommendation.reason}`,
+			].filter(Boolean).join('\n'),
+			devices: system?.id ? [system.id] : [],
+			isRecurring: true,
+			...recurrence,
+			enableNotifications: true,
+			propertyId: property.id,
+		};
+	};
+
+	const handleOpenCreateTaskDialog = (
+		recommendation?: PropertyScanRecommendation,
+	) => {
 		if (!roleCapabilities.canCreateTasks) {
 			feedback.notify('Your role can request maintenance but cannot create tasks directly.');
 			return;
 		}
+		if (recommendation?.resolution?.resolutionType === 'create_task') {
+			setCreateTaskDraft(buildRecurringTaskDraft(recommendation));
+			setCreateTaskDraftRecommendationId(recommendation.id);
+			setShowResolutionTaskModal(true);
+			return;
+		}
+
+		setCreateTaskDraft(null);
+		setCreateTaskDraftRecommendationId(null);
 		selectPropertyTab('tasks');
 		setOpenCreateTaskToken((currentToken) => currentToken + 1);
+	};
+
+	const buildMaintenanceHistoryDraft = (
+		recommendation: PropertyScanRecommendation,
+	): MaintenanceHistoryDraftData | null => {
+		const system = getRecommendationSystem(recommendation);
+		const systemName =
+			String(recommendation.metadata?.systemName || '').trim() ||
+			getSystemDisplayName(system);
+
+		return {
+			title:
+				recommendation.ruleId === 'baseline-maintenance-cadence-overdue'
+					? String(recommendation.metadata?.baselineCadenceLabel || '').trim() ||
+						`${systemName} maintenance`
+					: `${systemName} maintenance note`,
+			completionDate: new Date().toISOString().split('T')[0],
+			unitId: system?.location?.unitId || system?.location?.suiteId || '',
+			deviceIds: system?.id ? [system.id] : [],
+			completionNotes: [
+				'Created from a Maintley recommendation.',
+				'',
+				recommendation.title,
+				'',
+				recommendation.description,
+				'',
+				`Why it matters: ${recommendation.reason}`,
+			].join('\n'),
+		};
+	};
+
+	const handleOpenCreateMaintenanceHistoryDialog = (
+		recommendation?: PropertyScanRecommendation,
+	) => {
+		if (!roleCapabilities.canManageMaintenanceHistory) {
+			feedback.notify('Your role can view maintenance history but cannot add records.');
+			return;
+		}
+		if (recommendation?.resolution?.resolutionType === 'create_history') {
+			setCreateHistoryDraft(buildMaintenanceHistoryDraft(recommendation));
+			setCreateHistoryDraftRecommendationId(recommendation.id);
+			setShowResolutionHistoryModal(true);
+			return;
+		}
+
+		setCreateHistoryDraft(null);
+		setCreateHistoryDraftRecommendationId(null);
+		selectPropertyTab('maintenance');
+		setOpenCreateHistoryToken((currentToken) => currentToken + 1);
 	};
 
 	const handleSetupAddMoreAppliances = () => {
@@ -602,6 +808,7 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 		unitId?: string;
 		deviceIds?: string[];
 		completionFile?: File;
+		maintenanceGroupId?: string;
 		completionFileData?: {
 			url: string;
 			name: string;
@@ -629,9 +836,11 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 				propertyTitle: property.title,
 				...data,
 			}).unwrap();
+			return true;
 		} catch (error) {
 			console.error('Failed to add maintenance history:', error);
 			feedback.notify('Failed to add maintenance history. Please try again.');
+			return false;
 		}
 	};
 
@@ -748,7 +957,7 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 		roleCapabilities.canCreateTasks &&
 		!isUserTenant;
 
-	const handlePropertyScanAction = (
+	const executePropertyScanAction = (
 		actionType: PropertyScanActionType,
 		recommendation: PropertyScanRecommendation,
 	) => {
@@ -783,12 +992,16 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 				handleSetupUploadDocuments();
 				break;
 			case 'create_task':
-				handleOpenCreateTaskDialog();
+				handleOpenCreateTaskDialog(recommendation);
 				break;
 			case 'open_task':
 				selectPropertyTab('tasks');
 				break;
 			case 'open_maintenance':
+				if (recommendation.resolution?.resolutionType === 'create_history') {
+					handleOpenCreateMaintenanceHistoryDialog(recommendation);
+					break;
+				}
 				selectPropertyTab('maintenance');
 				break;
 			case 'review_setup': {
@@ -803,6 +1016,49 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 			default:
 				break;
 		}
+	};
+
+	const handlePropertyScanAction = (
+		actionType: PropertyScanActionType,
+		recommendation: PropertyScanRecommendation,
+	) => {
+		if (
+			recommendation.resolution &&
+			actionType === recommendation.resolution.primaryActionType
+		) {
+			setResolutionRecommendation(recommendation);
+			return;
+		}
+
+		executePropertyScanAction(actionType, recommendation);
+	};
+
+	const handleResolutionAction = (
+		actionType: PropertyScanActionType,
+		recommendation: PropertyScanRecommendation,
+	) => {
+		setResolutionRecommendation(null);
+		executePropertyScanAction(actionType, recommendation);
+	};
+
+	const handleResolutionTaskSaved = (recommendationId: string) => {
+		setResolvedRecommendationIds((currentIds) =>
+			currentIds.includes(recommendationId)
+				? currentIds
+				: [...currentIds, recommendationId],
+		);
+		setCreateTaskDraft(null);
+		setCreateTaskDraftRecommendationId(null);
+	};
+
+	const handleResolutionHistorySaved = (recommendationId: string) => {
+		setResolvedRecommendationIds((currentIds) =>
+			currentIds.includes(recommendationId)
+				? currentIds
+				: [...currentIds, recommendationId],
+		);
+		setCreateHistoryDraft(null);
+		setCreateHistoryDraftRecommendationId(null);
 	};
 
 	useEffect(() => {
@@ -1198,6 +1454,14 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 					allTasks={propertyAllTasks}
 					canRunPropertyScan={canRunPropertyScan}
 					showPropertyScanPrompt={showPropertyScanPrompt}
+					resolvedRecommendationIds={resolvedRecommendationIds}
+					createTaskDraft={createTaskDraft}
+					createTaskDraftRecommendationId={createTaskDraftRecommendationId}
+					onCreateTaskDraftSaved={handleResolutionTaskSaved}
+					openCreateHistoryToken={openCreateHistoryToken}
+					createHistoryDraft={createHistoryDraft}
+					createHistoryDraftRecommendationId={createHistoryDraftRecommendationId}
+					onCreateHistoryDraftSaved={handleResolutionHistorySaved}
 					handleAddMaintenanceHistory={handleAddMaintenanceHistory}
 					handleUpdateMaintenanceHistory={handleUpdateMaintenanceHistory}
 					handleDeleteMaintenanceHistory={handleDeleteMaintenanceHistory}
@@ -1320,6 +1584,71 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 						onSuccess={handleTaskCompletionSuccess}
 					/>
 				)}
+
+				{property && showResolutionTaskModal && (
+					<TaskModal
+						isOpen={showResolutionTaskModal}
+						onClose={() => {
+							setShowResolutionTaskModal(false);
+							setCreateTaskDraft(null);
+							setCreateTaskDraftRecommendationId(null);
+						}}
+						isEditing={false}
+						initialTask={createTaskDraft}
+						propertyId={property.id}
+						unitId=''
+						assigneeOptions={assigneeOptions}
+						currentUser={currentUser}
+						taskTitlePlaceholder={
+							createTaskDraftRecommendationId
+								? 'Recurring task name'
+								: undefined
+						}
+						onSaved={() => {
+							if (createTaskDraftRecommendationId) {
+								handleResolutionTaskSaved(createTaskDraftRecommendationId);
+							}
+							setShowResolutionTaskModal(false);
+						}}
+					/>
+				)}
+
+				{property && showResolutionHistoryModal && (
+					<AddMaintenanceHistoryModal
+						isOpen={showResolutionHistoryModal}
+						onClose={() => {
+							setShowResolutionHistoryModal(false);
+							setCreateHistoryDraft(null);
+							setCreateHistoryDraftRecommendationId(null);
+						}}
+						title='Add Maintenance History'
+						primaryButtonLabel='Add History'
+						initialData={createHistoryDraft || undefined}
+						onSubmit={async (data) => {
+							const didSave = await handleAddMaintenanceHistory(data);
+							if (!didSave) return;
+							if (createHistoryDraftRecommendationId) {
+								handleResolutionHistorySaved(createHistoryDraftRecommendationId);
+							}
+							setShowResolutionHistoryModal(false);
+						}}
+						property={property}
+						devices={propertyDevices}
+						units={propertyUnits}
+						teamMembers={teamMembers}
+						contractors={propertyContractors}
+						familyMembers={familyMembers}
+						groupOptions={[]}
+						onCreateGroupId={() => ''}
+					/>
+				)}
+
+				<RecommendationResolutionModal
+					isOpen={Boolean(resolutionRecommendation)}
+					recommendation={resolutionRecommendation}
+					onClose={() => setResolutionRecommendation(null)}
+					onStartAction={handleResolutionAction}
+				/>
 
 				{property && (
 					<PropertyDialog

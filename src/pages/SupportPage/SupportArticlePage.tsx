@@ -42,12 +42,12 @@ export const SupportArticlePage: React.FC = () => {
 					type='button'
 					onClick={() => navigate('/support/articles')}>
 					<FontAwesomeIcon icon={faArrowLeft} />
-					Back to all articles
+					Back to all guides
 				</ArticleBackButton>
 				<EmptyState>
 					<FontAwesomeIcon icon={faBookOpen} />
-					<h3>Article not found</h3>
-					<p>This help article may have moved or is no longer available.</p>
+					<h3>Guide not found</h3>
+					<p>This Maintley Guide may have moved or is no longer available.</p>
 				</EmptyState>
 			</ArticlePageShell>
 		);
@@ -59,13 +59,13 @@ export const SupportArticlePage: React.FC = () => {
 				type='button'
 				onClick={() => navigate('/support/articles')}>
 				<FontAwesomeIcon icon={faArrowLeft} />
-				Back to all articles
+				Back to all guides
 			</ArticleBackButton>
 
 			<ArticleHero>
 				<ArticlePageMeta>
 					<FontAwesomeIcon icon={faBookOpen} />
-					Helpful article - {article.readTime}
+					Maintley Guide - {article.readTime}
 				</ArticlePageMeta>
 				<ArticlePageTitle>{article.title}</ArticlePageTitle>
 				<ArticlePageIntro>{article.introduction}</ArticlePageIntro>
@@ -76,7 +76,7 @@ export const SupportArticlePage: React.FC = () => {
 					<FounderNoteIcon>
 						<FontAwesomeIcon icon={faQuoteLeft} />
 					</FounderNoteIcon>
-					<FounderNoteLabel>From the founder</FounderNoteLabel>
+					<FounderNoteLabel>Why this matters</FounderNoteLabel>
 					{article.founderNote.map((paragraph) => (
 						<FounderNoteText key={paragraph}>{paragraph}</FounderNoteText>
 					))}
@@ -107,7 +107,7 @@ export const SupportArticlePage: React.FC = () => {
 						{section.tips?.length ? (
 							<ArticleTips>
 								<strong>
-									<FontAwesomeIcon icon={faLightbulb} /> Helpful tips
+									<FontAwesomeIcon icon={faLightbulb} /> Guide tips
 								</strong>
 								<ul>
 									{section.tips.map((tip) => (
@@ -122,7 +122,7 @@ export const SupportArticlePage: React.FC = () => {
 
 			<ArticleFooter>
 				<div>
-					<h2>Ready to put this into practice?</h2>
+					<h2>Ready to put this guide into practice?</h2>
 					<p>Open the relevant area in Maintley and continue from there.</p>
 				</div>
 				<ArticlePrimaryAction

@@ -372,12 +372,16 @@ Source collections remain:
 * Files
 * Contractors
 
-Maintley Intelligence Quick Scan snapshots are saved in:
+Maintley Intelligence scan snapshots are saved in:
 
 * `propertyScanLatest`
 * `propertyScanSnapshots`
 
-These collections store derived scan output for the property Insights Overview and History views. They should not become a source of truth for property details, systems, tasks, or maintenance history.
+`propertyScanLatest` stores latest scan snapshots by scan type. Quick Scan keeps the legacy `{propertyId}` latest key; Property Audit uses `{propertyId}__property_audit_v1` so it cannot overwrite the latest Quick Scan.
+
+`propertyScanSnapshots` stores append-only Quick Scan history. Property Audit history is not stored in the current phase; only the latest Property Audit snapshot is retained.
+
+These collections store derived scan output for the property Insights Overview and History views. Property Audit snapshots may include `auditCategories` and `auditAssetReviews` so the UI can present category browsing and asset-centered review without changing the source records. They should not become a source of truth for property details, systems, tasks, or maintenance history.
 
 ---
 
@@ -509,6 +513,7 @@ Examples:
 Examples:
 
 * sendPushOnNotificationCreate
+* publishMaintleyEvent
 
 ---
 
@@ -541,6 +546,36 @@ Examples:
 * stripeWebhook
 
 Used when external systems communicate directly with Maintley.
+
+## Maintley Events
+
+Maintley workflow lifecycle events are stored in:
+
+```text
+maintleyEvents/{eventId}
+```
+
+Event records are server-owned. Clients may read events they receive or can
+access through account membership, but clients do not create, update, or delete
+event records directly.
+
+Initial event producers include:
+
+* Property Knowledge Acquisition
+* Maintley Intelligence Quick Scan
+* Support Tickets
+
+Initial consumers include:
+
+* In-app notifications
+* Android push notifications
+
+Future consumer placeholders include:
+
+* Web push
+* Email
+* Intelligence History
+* Activity feeds
 
 ---
 

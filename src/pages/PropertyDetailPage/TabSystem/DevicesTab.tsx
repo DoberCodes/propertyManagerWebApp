@@ -31,7 +31,6 @@ import {
 	useUpdatePropertyMutation,
 } from 'Redux/API/propertySlice';
 import { apiSlice } from 'Redux/API/apiSlice';
-import { useCreateNotificationMutation } from 'Redux/API/notificationSlice';
 import {
 	SectionContainer,
 	SectionHeader,
@@ -747,7 +746,6 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
 	const isMobile = useSelector((state: RootState) => state.app.isMobile);
 	const dispatch = useDispatch();
-	const [createNotification] = useCreateNotificationMutation();
 	const isTeamMemberAccount = currentUser?.isTeamMemberAccount === true;
 	const canManageAppliances = permissions?.canManageAppliances ?? true;
 
@@ -1039,23 +1037,6 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 				startPdfDocumentKnowledgeProcessing({
 					propertyId: property.id,
 					documents: pdfDocuments,
-					notifyScanStarted: (document) =>
-						createNotification({
-							userId: currentUser!.id,
-							type: 'document_scan_started',
-							title: 'Document Review Started',
-							message: `Maintley is reviewing ${document.fileName || document.name} for suggested details.`,
-							data: {
-								propertyId: property.id,
-								propertyTitle: property.title,
-								documentId: document.id,
-								documentName: document.fileName || document.name,
-							},
-							status: 'unread',
-							actionUrl: `/properties/${property.id}`,
-							createdAt: new Date().toISOString(),
-							updatedAt: new Date().toISOString(),
-						}).unwrap(),
 					onProcessed: () => {
 						dispatch(apiSlice.util.invalidateTags(['Properties']));
 					},

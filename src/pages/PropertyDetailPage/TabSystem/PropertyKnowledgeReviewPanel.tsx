@@ -45,6 +45,7 @@ import {
 } from 'utils/systemTypes';
 import { COLORS } from '../../../constants/colors';
 import { getFinancialDisplayTotal } from 'utils/financialUtils';
+import { publishMaintleyEvent } from 'services/maintleyEventService';
 
 interface PropertyKnowledgeReviewPanelProps {
 	property: Property;
@@ -1806,6 +1807,42 @@ export const PropertyKnowledgeReviewPanel: React.FC<
 					),
 				},
 			}).unwrap();
+			try {
+				const sourceDocument = propertyDocuments.find(
+					(document) =>
+						document.id === result.appliedSuggestion.sourceDocumentId,
+				);
+				const accountId =
+					String((property as any).accountId || '').trim() ||
+					String(property.userId || '').trim() ||
+					String((currentUser as any)?.accountId || '').trim() ||
+					String((currentUser as any)?.id || '').trim();
+				if (accountId) {
+					const importedCount = getKnowledgeSuggestionCount(result.appliedSuggestion);
+					await publishMaintleyEvent({
+						accountId,
+						propertyId: property.id,
+						relatedDocumentId: result.appliedSuggestion.sourceDocumentId,
+						type: 'knowledge_imported',
+						workflowKey: 'property-knowledge-acquisition',
+						entityKey: `document:${result.appliedSuggestion.sourceDocumentId}`,
+						title: 'Knowledge imported',
+						message: `Maintley saved ${importedCount} reviewed detail${importedCount === 1 ? '' : 's'} from ${sourceDocument?.fileName || sourceDocument?.name || 'this document'}.`,
+						status: 'completed',
+						priority: 'normal',
+						actionLabel: 'View property',
+						actionUrl: `/properties/${property.id}`,
+						push: true,
+						metadata: {
+							documentName: sourceDocument?.fileName || sourceDocument?.name,
+							suggestionId: result.appliedSuggestion.id,
+							importedCount,
+						},
+					});
+				}
+			} catch (eventError) {
+				console.warn('Could not publish knowledge imported event:', eventError);
+			}
 			feedback.notify('Suggested details saved to the property record.');
 		} catch (error) {
 			console.error('Error applying knowledge suggestion:', error);

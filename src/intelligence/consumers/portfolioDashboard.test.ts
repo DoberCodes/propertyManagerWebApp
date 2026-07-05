@@ -184,4 +184,79 @@ describe('Dashboard Intelligence consumer', () => {
 			recurrenceFrequency: 'monthly',
 		});
 	});
+
+	it('advances to the next recurring reminder suggestion after the first system is covered', () => {
+		const property = makeProperty('property-1', 'Maple Duplex');
+		const firstDetector = makeSystem('co-detector-1', property.id, {
+			type: 'Safety Device',
+			assetType: 'Safety Device',
+			brand: '',
+			model: '',
+			assetVariant: 'Carbon Monoxide Detector',
+		} as Partial<Device>);
+		const secondDetector = makeSystem('co-detector-2', property.id, {
+			type: 'Safety Device',
+			assetType: 'Safety Device',
+			brand: '',
+			model: '',
+			assetVariant: 'Smoke Detector',
+		} as Partial<Device>);
+
+		const result = runDashboardIntelligence({
+			properties: [property],
+			systems: [firstDetector, secondDetector],
+			tasks: [
+				makeTask('task-1', property.id, {
+					title: 'Test Carbon Monoxide Detector',
+					isRecurring: true,
+					devices: [firstDetector.id],
+				}),
+			],
+			maintenanceHistory: [],
+			planId: 'homeowner_plus',
+			currentDate: '2026-06-30T12:00:00.000Z',
+			createdAt: '2026-06-30T12:00:00.000Z',
+		});
+
+		expect(result.primarySuggestion?.title).toBe(
+			'Add a recurring reminder for Smoke Detector',
+		);
+		expect(result.primarySuggestion?.affectedSystemIds).toEqual([
+			secondDetector.id,
+		]);
+	});
+
+	it('treats legacy recurring task deviceId links as covered systems', () => {
+		const property = makeProperty('property-1', 'Maple Duplex');
+		const detector = makeSystem('co-detector-1', property.id, {
+			type: 'Safety Device',
+			assetType: 'Safety Device',
+			brand: '',
+			model: '',
+			assetVariant: 'Carbon Monoxide Detector',
+		} as Partial<Device>);
+
+		const result = runDashboardIntelligence({
+			properties: [property],
+			systems: [detector],
+			tasks: [
+				makeTask('task-1', property.id, {
+					title: 'Test Carbon Monoxide Detector',
+					isRecurring: true,
+					deviceId: detector.id,
+				} as Partial<Task>),
+			],
+			maintenanceHistory: [],
+			planId: 'homeowner_plus',
+			currentDate: '2026-06-30T12:00:00.000Z',
+			createdAt: '2026-06-30T12:00:00.000Z',
+		});
+
+		expect(result.primarySuggestion?.ruleId).not.toBe(
+			'systems-missing-actionable-maintenance-coverage',
+		);
+		expect(result.primarySuggestion?.affectedSystemIds || []).not.toContain(
+			detector.id,
+		);
+	});
 });

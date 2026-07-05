@@ -159,6 +159,54 @@ async function seedFirestore(env) {
 			}),
 		);
 
+		await db.doc('maintleyEvents/event-owned').set({
+			id: 'event-owned',
+			accountId,
+			userId: ownerUid,
+			recipientIds: [ownerUid],
+			type: 'suggested_details_ready',
+			workflowKey: 'property-knowledge-acquisition',
+			entityKey: 'document:doc-1',
+			title: 'Suggested details ready',
+			message: 'Maintley found suggested details in this document.',
+			status: 'ready',
+			priority: 'normal',
+			createdAt: '2026-07-01T12:00:00.000Z',
+			updatedAt: '2026-07-01T12:00:00.000Z',
+		});
+
+		await db.doc('maintleyEvents/event-recipient').set({
+			id: 'event-recipient',
+			accountId,
+			userId: ownerUid,
+			recipientIds: [maintenanceLeadUid],
+			type: 'ticket_in_progress',
+			workflowKey: 'support-ticket',
+			entityKey: 'ticket:feedback-owned',
+			title: 'Ticket in progress',
+			message: 'Maintley is investigating this ticket.',
+			status: 'in_progress',
+			priority: 'high',
+			createdAt: '2026-07-01T12:00:00.000Z',
+			updatedAt: '2026-07-01T12:00:00.000Z',
+		});
+
+		await db.doc('maintleyEvents/event-outsider').set({
+			id: 'event-outsider',
+			accountId: outsiderUid,
+			userId: outsiderUid,
+			recipientIds: [outsiderUid],
+			type: 'quick_scan_completed',
+			workflowKey: 'maintley-intelligence',
+			entityKey: 'scan:outsider-scan',
+			title: 'Quick Scan complete',
+			message: 'Maintley found items to review.',
+			status: 'completed',
+			priority: 'normal',
+			createdAt: '2026-07-01T12:00:00.000Z',
+			updatedAt: '2026-07-01T12:00:00.000Z',
+		});
+
 		await db.doc('feedback/feedback-owned').set({
 			accountId,
 			userId: ownerUid,
@@ -380,6 +428,35 @@ async function run() {
 		await assertFails(
 			outsiderDb.doc('notifications/notification-created-by-owner').delete(),
 		);
+
+		await assertSucceeds(ownerDb.doc('maintleyEvents/event-owned').get());
+		await assertSucceeds(
+			maintenanceLeadDb.doc('maintleyEvents/event-recipient').get(),
+		);
+		await assertFails(outsiderDb.doc('maintleyEvents/event-owned').get());
+		await assertFails(ownerDb.doc('maintleyEvents/event-outsider').get());
+		await assertFails(
+			ownerDb.doc('maintleyEvents/event-created-by-client').set({
+				accountId,
+				userId: ownerUid,
+				recipientIds: [ownerUid],
+				type: 'quick_scan_completed',
+				workflowKey: 'maintley-intelligence',
+				entityKey: 'scan:client-created',
+				title: 'Quick Scan complete',
+				message: 'Client write attempt.',
+				status: 'completed',
+				createdAt: '2026-07-01T12:00:00.000Z',
+				updatedAt: '2026-07-01T12:00:00.000Z',
+			}),
+		);
+		await assertFails(
+			ownerDb.doc('maintleyEvents/event-owned').update({
+				status: 'completed',
+				updatedAt: '2026-07-01T15:00:00.000Z',
+			}),
+		);
+		await assertFails(ownerDb.doc('maintleyEvents/event-owned').delete());
 
 		console.log('Firestore rules permission boundary tests passed.');
 	} finally {

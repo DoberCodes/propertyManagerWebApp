@@ -2,7 +2,11 @@ import React, { useEffect, useMemo, useState } from 'react';
 import styled from 'styled-components';
 import { useSelector } from 'react-redux';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faCircleInfo } from '@fortawesome/free-solid-svg-icons';
+import {
+	faChevronDown,
+	faChevronUp,
+	faCircleInfo,
+} from '@fortawesome/free-solid-svg-icons';
 import { GenericModal } from '../Library';
 import {
 	PropertyScanSnapshot,
@@ -38,6 +42,7 @@ interface PropertyScanPanelProps {
 	maintenanceHistory: any[];
 	canRunScan: boolean;
 	showSetupPrompt?: boolean;
+	resolvedRecommendationIds?: string[];
 	subscription?: SubscriptionData | null;
 	onRecommendationAction: (
 		actionType: PropertyScanActionType,
@@ -126,7 +131,10 @@ const getRecommendationPrimaryLabel = (
 	recommendation: PropertyScanRecommendation,
 ): string => {
 	if (!shouldOpenAffectedDialog(recommendation)) {
-		return recommendation.suggestedActionLabel;
+		return (
+			recommendation.resolution?.actionLabel ||
+			recommendation.suggestedActionLabel
+		);
 	}
 	if (recommendation.relatedTaskIds?.length) {
 		return 'Review Tasks';
@@ -134,7 +142,10 @@ const getRecommendationPrimaryLabel = (
 	if (recommendation.relatedSystemIds?.length) {
 		return 'Review Systems';
 	}
-	return recommendation.suggestedActionLabel;
+	return (
+		recommendation.resolution?.actionLabel ||
+		recommendation.suggestedActionLabel
+	);
 };
 
 const getRecommendationImpact = (
@@ -285,6 +296,7 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 	maintenanceHistory,
 	canRunScan,
 	showSetupPrompt = false,
+	resolvedRecommendationIds = [],
 	subscription,
 	onRecommendationAction,
 }) => {
@@ -294,6 +306,7 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 		useState<PropertyScanSnapshot | null>(null);
 	const [showAllRecommendations, setShowAllRecommendations] = useState(false);
 	const [isRunningScan, setIsRunningScan] = useState(false);
+	const [isQuickScanCollapsed, setIsQuickScanCollapsed] = useState(true);
 	const [scanProgressMessage, setScanProgressMessage] = useState('');
 	const [scanSaveError, setScanSaveError] = useState('');
 	const [showQuickScanEducation, setShowQuickScanEducation] = useState(false);
@@ -356,12 +369,13 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 			(recommendation) =>
 				recommendation.status !== 'dismissed' &&
 				!dismissedIds.includes(recommendation.id) &&
+				!resolvedRecommendationIds.includes(recommendation.id) &&
 				shouldShowPropertyScanRecommendationForPlan(
 					recommendation,
 					currentPlanId,
 				),
 		);
-	}, [currentPlanId, dismissedIds, lastScanSnapshot]);
+	}, [currentPlanId, dismissedIds, lastScanSnapshot, resolvedRecommendationIds]);
 	const displayedSummary = useMemo(
 		() => getQuickScanSummary(displayedRecommendations),
 		[displayedRecommendations],
@@ -454,6 +468,7 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 		try {
 			const savedSnapshot = await savePropertyScanSnapshot(nextSnapshot).unwrap();
 			setLastScanSnapshot(savedSnapshot || nextSnapshot);
+			setIsQuickScanCollapsed(false);
 			setScanProgressMessage('');
 			setIsRunningScan(false);
 		} catch (error) {
@@ -561,7 +576,19 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 			<ScanHeader>
 				<ScanTitleBlock>
 					<ScanEyebrow>Maintley Intelligence</ScanEyebrow>
-					<ScanTitle>Property Quick Scan</ScanTitle>
+					<ScanTitleRow>
+						<ScanTitle>Property Quick Scan</ScanTitle>
+						<CollapseButton
+							type='button'
+							aria-expanded={!isQuickScanCollapsed}
+							aria-label={isQuickScanCollapsed ? 'Expand Property Quick Scan' : 'Collapse Property Quick Scan'}
+							onClick={() => setIsQuickScanCollapsed((currentValue) => !currentValue)}>
+							<FontAwesomeIcon
+								icon={isQuickScanCollapsed ? faChevronDown : faChevronUp}
+								aria-hidden='true'
+							/>
+						</CollapseButton>
+					</ScanTitleRow>
 					<ScanText>
 						Maintley reviews your property's history, systems, maintenance
 						records, and documents to identify the few items most likely to
@@ -588,7 +615,9 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 					</PrimaryButton>
 				</ScanActions>
 			</ScanHeader>
-			<ScanMeta>
+			{!isQuickScanCollapsed ? (
+				<>
+					<ScanMeta>
 				Last scan: {formatScanDate(lastScanSnapshot?.createdAt)}
 			</ScanMeta>
 			{showQuickScanEducation ? (
@@ -812,6 +841,8 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 					</PromptText>
 				</PromptRow>
 			)}
+				</>
+			) : null}
 			{isRunningScan ? (
 				<ScanLoadingOverlay aria-live='polite' role='status'>
 					<ScanLoadingCard>
@@ -986,6 +1017,10 @@ const ScanTitleBlock = styled.div`
 	flex-direction: column;
 	gap: 6px;
 	min-width: 0;
+
+	@media (max-width: 720px) {
+		width: 100%;
+	}
 `;
 
 const ScanEyebrow = styled.div`
@@ -1001,6 +1036,41 @@ const ScanTitle = styled.h2`
 	color: #172033;
 	font-size: 22px;
 	line-height: 1.2;
+`;
+
+const ScanTitleRow = styled.div`
+	display: flex;
+	align-items: center;
+	gap: 10px;
+
+	@media (max-width: 720px) {
+		justify-content: space-between;
+		width: 100%;
+	}
+`;
+
+const CollapseButton = styled.button`
+	border: 1px solid #d9e2ec;
+	border-radius: 8px;
+	background: #ffffff;
+	color: ${COLORS.primaryDark};
+	width: 34px;
+	height: 34px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	flex: 0 0 auto;
+	cursor: pointer;
+
+	&:hover {
+		background: ${COLORS.primaryLight};
+		border-color: ${COLORS.primary};
+	}
+
+	&:focus-visible {
+		outline: 2px solid ${COLORS.primary};
+		outline-offset: 2px;
+	}
 `;
 
 const ScanText = styled.p`

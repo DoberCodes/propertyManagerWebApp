@@ -20,6 +20,10 @@ import {
 	MaintleyCapability,
 	MaintleyRequiredPlan,
 } from '../intelligence/types';
+import {
+	getRecommendationResolutionPlan,
+	RecommendationResolutionPlan,
+} from '../intelligence/resolutionEngine';
 
 export type PropertyScanCategory =
 	| MaintleyFindingCategory
@@ -72,6 +76,7 @@ export interface PropertyScanRecommendation {
 	requiredCapabilities?: MaintleyCapability[];
 	baselineVersion?: string;
 	recommendationType?: PropertyScanRecommendationType;
+	resolution?: RecommendationResolutionPlan;
 	metadata?: Record<string, unknown>;
 	createdAt: string;
 	status: PropertyScanRecommendationStatus;
@@ -128,7 +133,7 @@ const getRelatedTaskIdsFromFinding = (finding: MaintleyFinding): string[] => {
 	return taskId ? [taskId] : [];
 };
 
-const findingToRecommendation = (
+export const maintleyFindingToPropertyScanRecommendation = (
 	finding: MaintleyFinding,
 	status: PropertyScanRecommendationStatus = 'active',
 ): PropertyScanRecommendation => {
@@ -155,6 +160,7 @@ const findingToRecommendation = (
 		requiredCapabilities: finding.requiredCapabilities,
 		baselineVersion: finding.baselineVersion,
 		recommendationType: getRecommendationType(finding),
+		resolution: getRecommendationResolutionPlan(finding),
 		metadata: finding.metadata,
 		createdAt: finding.createdAt,
 		status,
@@ -323,7 +329,7 @@ export const getQuickPropertyScanRecommendations = (
 			planId: options.planId,
 			limit,
 		},
-	).map((finding) => findingToRecommendation(finding));
+	).map((finding) => maintleyFindingToPropertyScanRecommendation(finding));
 
 export const runPropertyScanV1 = ({
 	property,
@@ -342,7 +348,7 @@ export const runPropertyScanV1 = ({
 		createdAt,
 	});
 	const recommendations = result.findings.map((finding) =>
-		findingToRecommendation(
+		maintleyFindingToPropertyScanRecommendation(
 			finding,
 			dismissedIds.has(finding.id) ? 'dismissed' : 'active',
 		),

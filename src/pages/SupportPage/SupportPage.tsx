@@ -412,7 +412,7 @@ export const SupportPage: React.FC = () => {
 					$active={activeView === 'help'}
 					onClick={() => setView('help')}>
 					<FontAwesomeIcon icon={faCircleQuestion} />
-					Help & guides
+					Guides & FAQs
 				</PortalNavButton>
 			</PortalNav>
 
@@ -454,7 +454,7 @@ export const SupportPage: React.FC = () => {
 							<ActionContent>
 								<ActionTitle>Find an answer</ActionTitle>
 								<ActionText>
-									Browse common questions and troubleshooting guidance.
+									Browse Maintley Guides and common questions.
 								</ActionText>
 							</ActionContent>
 							<ActionArrow>
@@ -643,15 +643,15 @@ export const SupportPage: React.FC = () => {
 					<Panel>
 						<PanelHeader>
 							<div>
-								<PanelTitle>Helpful articles</PanelTitle>
+								<PanelTitle>Maintley Guides</PanelTitle>
 								<PanelText>
-									Featured guides to the core parts of Maintley.
+									Step-by-step Maintley Guides for building better property records.
 								</PanelText>
 							</div>
 							<TextButton
 								type='button'
 								onClick={() => navigate('/support/articles')}>
-								View all articles
+								View all guides
 							</TextButton>
 						</PanelHeader>
 						<ArticleGrid>
@@ -671,7 +671,9 @@ export const SupportPage: React.FC = () => {
 											<ArticleDescription>
 												{article.summary}
 											</ArticleDescription>
-											<ArticleReadTime>{article.readTime}</ArticleReadTime>
+											<ArticleReadTime>
+												Maintley Guide - {article.readTime}
+											</ArticleReadTime>
 										</ArticleSummaryCopy>
 										<ArticleArrow>
 											<FontAwesomeIcon icon={faArrowRight} />

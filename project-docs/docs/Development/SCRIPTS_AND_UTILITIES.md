@@ -1014,6 +1014,45 @@ Medium
 
 ---
 
+# Content Utilities
+
+---
+
+## Maintley Content Idea Generator
+
+```bash
+yarn content:idea
+```
+
+Generate a ready-to-edit marketing content markdown file in:
+
+```text
+marketing/maintley/content/
+```
+
+Common options:
+
+```bash
+yarn content:idea -- --topic "documents belong with the property" --status ready
+yarn content:idea -- --pillar property-memory --source adr --status drafting
+yarn content:idea -- --count 5 --status ready
+yarn content:idea -- --dry-run
+```
+
+Purpose:
+
+Creates sequentially numbered Maintley content drafts based on maintained product,
+UX, Intelligence, and ADR documentation. The script supports batch generation
+with `--count` and scans existing backlog content to skip matching or highly
+similar topics. The script is deterministic, local, and does not publish content,
+call social platforms, or use external AI services.
+
+Risk:
+
+Low
+
+---
+
 # Stripe Testing Utilities
 
 Billing behavior is documented in:

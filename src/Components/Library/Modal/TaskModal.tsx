@@ -38,7 +38,6 @@ import {
 	useGetTasksQuery,
 } from '../../../Redux/API/taskSlice';
 import { apiSlice } from '../../../Redux/API/apiSlice';
-import { useCreateNotificationMutation } from '../../../Redux/API/notificationSlice';
 import { useGetAllDevicesQuery } from '../../../Redux/API/deviceSlice';
 import {
 	useGetPropertiesQuery,
@@ -607,7 +606,6 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 	const { data: allMaintenanceHistory = [] } =
 		useGetAllMaintenanceHistoryForUserQuery();
 	const [createTask] = useCreateTaskMutation();
-	const [createNotification] = useCreateNotificationMutation();
 	const [updateTaskApi] = useUpdateTaskMutation();
 	const [updateProperty] = useUpdatePropertyMutation();
 
@@ -1363,23 +1361,6 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 		startPdfDocumentKnowledgeProcessing({
 			propertyId: scopedPropertyId,
 			documents: pdfDocuments,
-			notifyScanStarted: (document) =>
-				createNotification({
-					userId: currentUser!.id,
-					type: 'document_scan_started',
-					title: 'Document Review Started',
-					message: `Maintley is reviewing ${document.fileName || document.name} for suggested details.`,
-					data: {
-						propertyId: scopedPropertyId,
-						propertyTitle: propertyForDocuments?.title,
-						documentId: document.id,
-						documentName: document.fileName || document.name,
-					},
-					status: 'unread',
-					actionUrl: `/properties/${scopedPropertyId}`,
-					createdAt: new Date().toISOString(),
-					updatedAt: new Date().toISOString(),
-				}).unwrap(),
 			onProcessed: () => {
 				dispatch(apiSlice.util.invalidateTags(['Properties']));
 			},
