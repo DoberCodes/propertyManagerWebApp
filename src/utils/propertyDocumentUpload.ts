@@ -46,9 +46,8 @@ export const toPropertyDocumentType = (
 export const withPropertyDocumentLinks = (
 	document: PropertyDocument,
 	links: PropertyDocumentLinks,
-): PropertyDocument => ({
-	...document,
-	links: {
+): PropertyDocument => {
+	const nextLinks = {
 		...(document.links || {}),
 		...links,
 		assetIds: [
@@ -75,8 +74,17 @@ export const withPropertyDocumentLinks = (
 			...(document.links?.partIds || []),
 			...(links.partIds || []),
 		].filter((value, index, values) => values.indexOf(value) === index),
-	},
-});
+	};
+	const assignedDeviceId = document.assignedDeviceId || nextLinks.assetIds[0];
+	const assignedTaskId = document.assignedTaskId || nextLinks.taskIds[0];
+
+	return {
+		...document,
+		links: nextLinks,
+		...(assignedDeviceId ? { assignedDeviceId } : {}),
+		...(assignedTaskId ? { assignedTaskId } : {}),
+	};
+};
 
 export const isValidPropertyDocument = (file: File): boolean => {
 	const allowedTypes = [

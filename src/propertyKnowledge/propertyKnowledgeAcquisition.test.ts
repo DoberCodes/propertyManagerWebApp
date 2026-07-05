@@ -63,6 +63,22 @@ describe('property knowledge acquisition', () => {
 		).toBe('Water Heater');
 	});
 
+	it('uses document asset links when legacy assigned device fields are missing', () => {
+		const suggestion = createPendingKnowledgeSuggestion({
+			document: {
+				...baseDocument,
+				assignedDeviceId: undefined,
+				links: {
+					assetIds: ['system-1'],
+				},
+			},
+			propertyId: 'property-1',
+			createdAt: '2026-06-26T12:30:00.000Z',
+		});
+
+		expect(suggestion.relatedSystemId).toBe('system-1');
+	});
+
 	it('does not suggest existing system details again', () => {
 		const suggestion = createPendingKnowledgeSuggestion({
 			document: baseDocument,

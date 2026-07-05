@@ -29,7 +29,6 @@ import {
 	preparePropertyMemoryDocumentUploads,
 	startPdfDocumentKnowledgeProcessing,
 } from '../../propertyKnowledge/propertyDocumentUploads';
-import { withPropertyDocumentLinks } from '../../utils/propertyDocumentUpload';
 
 interface TaskCompletionModalProps {
 	taskId: string;
@@ -178,17 +177,15 @@ export const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
 					propertyId: task.propertyId,
 					category: 'other',
 					property: taskProperty,
+					uploadContext: {
+						taskIds: [taskId],
+						assignedTaskStatus: task.status,
+					},
 				});
-				const linkedSavedDocuments = savedDocuments.map((document) =>
-					withPropertyDocumentLinks(document, { taskIds: [taskId] }),
-				);
-				const linkedPdfDocuments = linkedSavedDocuments.filter((document) =>
-					pdfDocuments.some((pdfDocument) => pdfDocument.id === document.id),
-				);
 				await updateProperty({
 					id: task.propertyId,
 					updates: {
-						documents: [...propertyDocuments, ...linkedSavedDocuments],
+						documents: [...propertyDocuments, ...savedDocuments],
 						knowledgeSuggestions: [
 							...propertyKnowledgeSuggestions,
 							...knowledgeSuggestions,
@@ -197,7 +194,7 @@ export const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
 				}).unwrap();
 				startPdfDocumentKnowledgeProcessing({
 					propertyId: task.propertyId,
-					documents: linkedPdfDocuments,
+					documents: pdfDocuments,
 					onProcessed: () => {
 						dispatch(apiSlice.util.invalidateTags(['Properties']));
 					},
@@ -205,7 +202,7 @@ export const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
 						dispatch(apiSlice.util.invalidateTags(['Properties']));
 					},
 				});
-				const savedDocument = linkedSavedDocuments[0];
+				const savedDocument = savedDocuments[0];
 				completionFileData = {
 					name: savedDocument?.fileName || savedDocument?.name || selectedFile.name,
 					url: savedDocument?.fileUrl || savedDocument?.url || '',

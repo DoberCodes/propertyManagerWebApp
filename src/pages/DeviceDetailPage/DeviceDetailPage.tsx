@@ -1194,6 +1194,9 @@ export const DeviceDetailPage: React.FC = () => {
 				category: documentCategory,
 				property,
 				systems: [device],
+				uploadContext: {
+					assetIds: [String(device.id)],
+				},
 			});
 			await updateProperty({
 				id: property.id,
@@ -1358,6 +1361,9 @@ export const DeviceDetailPage: React.FC = () => {
 					category: 'other',
 					property,
 					systems: [editingDevice],
+					uploadContext: {
+						assetIds: [String(editingDevice.id)],
+					},
 				});
 				await updateProperty({
 					id: property.id,
