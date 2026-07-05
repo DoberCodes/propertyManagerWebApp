@@ -273,6 +273,11 @@ export const NotificationPreferences: React.FC<
 			label: 'Quick Scan Complete',
 			description: 'When Maintley finishes a Property Quick Scan',
 		},
+		{
+			key: 'property_audit_completed' as const,
+			label: 'Property Review Complete',
+			description: 'When Maintley finishes a Property Review',
+		},
 	];
 
 	const handleTypeToggle = async (

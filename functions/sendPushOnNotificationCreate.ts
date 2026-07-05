@@ -2,7 +2,9 @@ import * as admin from 'firebase-admin';
 import { onDocumentCreated } from 'firebase-functions/v2/firestore';
 import { sendPushForNotification } from './pushDelivery';
 
-admin.initializeApp();
+if (!admin.apps.length) {
+	admin.initializeApp();
+}
 
 export const sendPushOnNotificationCreate = onDocumentCreated(
 	'notifications/{notificationId}',

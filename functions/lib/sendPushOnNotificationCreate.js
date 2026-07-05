@@ -37,7 +37,9 @@ exports.sendPushOnNotificationCreate = void 0;
 const admin = __importStar(require("firebase-admin"));
 const firestore_1 = require("firebase-functions/v2/firestore");
 const pushDelivery_1 = require("./pushDelivery");
-admin.initializeApp();
+if (!admin.apps.length) {
+    admin.initializeApp();
+}
 exports.sendPushOnNotificationCreate = (0, firestore_1.onDocumentCreated)('notifications/{notificationId}', async (event) => {
     const notification = event.data?.data();
     if (!notification || !notification.userId) {
