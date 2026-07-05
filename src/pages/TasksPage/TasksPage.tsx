@@ -272,26 +272,6 @@ export const TasksPage = () => {
 		taskHandlers,
 	]);
 
-	// Generate assignee options for task editing
-	const assigneeOptions = useMemo(() => {
-		const assignees: Array<{ label: string; value: string; email?: string }> =
-			[];
-
-		// Add team members
-		teamMembers
-			.filter((member): member is typeof member => member !== undefined)
-			.forEach((member) => {
-				assignees.push({
-					label: `${member.firstName || ''} ${member.lastName || ''} (${member.title || ''
-						})`.trim(),
-					value: member.id,
-					email: member.email,
-				});
-			});
-
-		return assignees;
-	}, [teamMembers]);
-
 	// property options for filtering on the main tasks page
 	const propertyFilterOptions = useMemo(() => {
 		return allProperties.map((p) => ({ value: p.id, label: p.title }));
@@ -1520,7 +1500,6 @@ export const TasksPage = () => {
 					}
 					isEditing={!!editingTaskId}
 					propertyOptions={propertyFilterOptions}
-					assigneeOptions={assigneeOptions}
 					currentUser={currentUser}
 				/>
 			)}
@@ -1536,7 +1515,6 @@ export const TasksPage = () => {
 					}
 					propertyId={assigningTaskPropertyId}
 					selectedAssignee={null}
-					assigneeOptions={assigneeOptions}
 				/>
 			)}
 

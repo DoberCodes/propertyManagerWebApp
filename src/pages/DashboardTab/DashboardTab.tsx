@@ -394,26 +394,6 @@ export const DashboardTab = () => {
 	>([]);
 	const dashboardHistoryLoadedKeyRef = useRef<string>('');
 
-	// Generate assignee options for task editing
-	const assigneeOptions = useMemo(() => {
-		const assignees: Array<{ label: string; value: string; email?: string }> =
-			[];
-
-		// Add team members
-		teamMembers
-			.filter((member): member is typeof member => member !== undefined)
-			.forEach((member) => {
-				assignees.push({
-					label: `${member.firstName || ''} ${member.lastName || ''} (${member.title || ''
-						})`.trim(),
-					value: member.id,
-					email: member.email,
-				});
-			});
-
-		return assignees;
-	}, [teamMembers]);
-
 	const currentTeamMember = useMemo(
 		() => findTeamMemberForUser(teamMembers, currentUser),
 		[teamMembers, currentUser],
@@ -1850,7 +1830,6 @@ export const DashboardTab = () => {
 					editingTaskId ? dashboardTaskLookup.get(editingTaskId) || null : null
 				}
 				isEditing={!!editingTaskId}
-				assigneeOptions={assigneeOptions}
 				currentUser={currentUser}
 				propertyOptions={allProperties.map((p) => ({
 					label: p.title,
@@ -1876,7 +1855,6 @@ export const DashboardTab = () => {
 						? dashboardTaskLookup.get(assigningTaskId)?.assignedTo
 						: null
 				}
-				assigneeOptions={assigneeOptions}
 			/>
 		</StandardAppPage>
 	);

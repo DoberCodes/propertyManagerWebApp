@@ -520,11 +520,25 @@ Tasks may exist independently or be associated with one or more devices.
 Task assignment stores both:
 
 * An `assignee` record ID used only as an internal reference.
-* An `assignedTo` display snapshot containing the assignee name and optional email.
+* An `assignedTo` display snapshot containing the assignee name, optional email,
+  and optional assignee type.
 
 The display snapshot should be preserved when a team member, family member, or
 contractor loses access so historical and active tasks never expose a raw record
 ID in the interface.
+
+Current assignment types may include:
+
+* `user`
+* `team_member`
+* `family_member`
+* `contractor`
+* `unknown`
+
+Task assignment options should be resolved through Maintley's shared task
+assignment resolver rather than rebuilt independently by each task surface. This
+keeps eligible people and contractors consistent across Dashboard, Tasks,
+property tasks, device tasks, and mobile task editing.
 
 ---
 

@@ -10,7 +10,6 @@ import {
 	where,
 } from '@firebase/firestore';
 import { CompletionFile, Task, TaskFinancials } from '../../types/Task.types';
-import { MaintenanceEvent } from '../../types/MaintenanceEvent.types';
 import { apiSlice, docToData } from './apiSlice';
 import { auth, db } from '../../config/firebase';
 import { callFirebaseFunction } from '../../config/firebaseFunctions';
@@ -18,9 +17,13 @@ import {
 	resolveAccessibleAccountIds,
 	resolveTargetUserId,
 } from './accountContext';
-import { getDefaultTaskNotifications } from '../../utils/taskNotificationUtils';
 import { canUseRecurringTasks } from '../../utils/subscriptionUtils';
-import { calculateNextDueDate } from '../../utils/recurringTaskUtils';
+import {
+	buildMaintenanceEventFromTask,
+	buildNextRecurringTask,
+	removeRecurringFieldsForPlan,
+	withDefaultTaskNotificationSchedule,
+} from '../../tasks/taskLifecycle';
 
 const getSharedPropertyIdsForUser = async (
 	userId: string,
@@ -180,69 +183,6 @@ const filterTasksByAllowedProperties = (
 	return tasks.filter((task) => linkedPropertyIds.has(String(task.propertyId || '')));
 };
 
-const sanitizeRecord = (record: Record<string, unknown>) => {
-	const sanitized: Record<string, unknown> = {};
-	Object.entries(record).forEach(([key, value]) => {
-		if (value !== undefined) {
-			sanitized[key] = value;
-		}
-	});
-	return sanitized;
-};
-
-const sanitizeMaintenanceEvent = (event: Partial<MaintenanceEvent>) =>
-	sanitizeRecord(event as Record<string, unknown>);
-
-const buildMaintenanceEventFromTask = ({
-	task,
-	taskId,
-	accountId,
-	eventType,
-	eventSource,
-	completionDate,
-	completionNotes,
-	completionFile,
-	completedBy,
-	completedByName,
-	financials,
-}: {
-	task: Task;
-	taskId: string;
-	accountId: string;
-	eventType: MaintenanceEvent['eventType'];
-	eventSource: MaintenanceEvent['eventSource'];
-	completionDate: string;
-	completionNotes?: string;
-	completionFile?: CompletionFile;
-	completedBy?: string;
-	completedByName?: string;
-	financials?: TaskFinancials;
-}) => {
-	const now = new Date().toISOString();
-	return sanitizeMaintenanceEvent({
-		accountId,
-		propertyId: task.propertyId,
-		propertyTitle: task.propertyTitle || task.property,
-		unitId: task.unitId,
-		deviceIds: Array.isArray(task.devices) && task.devices.length > 0 ? task.devices : undefined,
-		title: task.title || 'Maintenance event',
-		completionDate,
-		completionNotes: completionNotes || task.completionNotes,
-		completedBy,
-		completedByName,
-		completionFile,
-		financials: financials || task.financials,
-		linkedTaskIds: [taskId],
-		originalTaskId: taskId,
-		recurringTaskId: task.isRecurring ? task.parentTaskId || taskId : undefined,
-		maintenanceCycleId: task.isRecurring ? task.parentTaskId || taskId : undefined,
-		eventType,
-		eventSource,
-		createdAt: now,
-		updatedAt: now,
-	});
-};
-
 const writeMaintenanceEvent = async (
 	event: Record<string, unknown>,
 ): Promise<void> => {
@@ -250,30 +190,6 @@ const writeMaintenanceEvent = async (
 		{ event: Record<string, unknown> },
 		{ success: boolean; id: string }
 	>('createMaintenanceEvent', { event });
-};
-
-const withDefaultTaskNotificationSchedule = (
-	task: Omit<Task, 'id'>,
-): Omit<Task, 'id'> => {
-	if (task.enableNotifications === false) {
-		return task;
-	}
-
-	if (Array.isArray(task.notifications) && task.notifications.length > 0) {
-		return {
-			...task,
-			enableNotifications:
-				typeof task.enableNotifications === 'boolean'
-					? task.enableNotifications
-					: true,
-		};
-	}
-
-	return {
-		...task,
-		enableNotifications: true,
-		notifications: getDefaultTaskNotifications(),
-	};
 };
 
 const canAccountUseRecurringTasks = async (accountId: string): Promise<boolean> => {
@@ -285,115 +201,6 @@ const canAccountUseRecurringTasks = async (accountId: string): Promise<boolean> 
 	);
 };
 
-const removeRecurringFieldsForPlan = <T extends Record<string, any>>(
-	taskData: T,
-	canUseRecurringTaskFeature: boolean,
-): T => {
-	if (canUseRecurringTaskFeature) {
-		return taskData;
-	}
-
-	const nextTaskData: Record<string, any> = { ...taskData };
-	nextTaskData.isRecurring = false;
-	delete nextTaskData.recurrenceFrequency;
-	delete nextTaskData.recurrenceInterval;
-	delete nextTaskData.recurrenceCustomUnit;
-	delete nextTaskData.parentTaskId;
-	delete nextTaskData.lastRecurrenceDate;
-	return nextTaskData as T;
-};
-
-const toDateOnly = (value?: string): string => {
-	if (!value) return new Date().toISOString().split('T')[0];
-	return value.includes('T') ? value.split('T')[0] : value;
-};
-
-const getRecurringInterval = (task: Task): number | null => {
-	if (!task.isRecurring || !task.recurrenceFrequency) {
-		return null;
-	}
-
-	if (task.recurrenceFrequency === 'custom') {
-		if (!task.recurrenceInterval || !task.recurrenceCustomUnit) {
-			return null;
-		}
-		return task.recurrenceInterval;
-	}
-
-	return task.recurrenceInterval || 1;
-};
-
-const buildNextRecurringTask = ({
-	task,
-	taskId,
-	accountId,
-	completionDate,
-}: {
-	task: Task;
-	taskId: string;
-	accountId: string;
-	completionDate: string;
-}): Omit<Task, 'id'> | null => {
-	const interval = getRecurringInterval(task);
-	if (!interval || !task.recurrenceFrequency) {
-		return null;
-	}
-
-	const lastRecurrenceDate = toDateOnly(completionDate);
-	const nextDueDate = calculateNextDueDate(
-		lastRecurrenceDate,
-		task.recurrenceFrequency,
-		interval,
-		task.recurrenceCustomUnit,
-	);
-	const now = new Date().toISOString();
-	const financials =
-		task.financials?.estimate || task.financials?.notes
-			? {
-					currency: task.financials.currency || 'USD',
-					estimate: task.financials.estimate,
-					notes: task.financials.notes,
-			  }
-			: undefined;
-
-	return sanitizeRecord({
-		userId: task.userId || accountId,
-		accountId,
-		propertyId: task.propertyId,
-		property: task.property,
-		propertyTitle: task.propertyTitle,
-		unitId: task.unitId,
-		suiteId: task.suiteId,
-		devices: task.devices,
-		title: task.title,
-		description: task.description,
-		notes: task.notes,
-		category: task.category,
-		location: task.location,
-		priority: task.priority,
-		assignee: task.assignee,
-		assignedTo: task.assignedTo,
-		assigneeName: task.assigneeName,
-		assigneeFirstName: task.assigneeFirstName,
-		assigneeLastName: task.assigneeLastName,
-		assigneeEmail: task.assigneeEmail,
-		requiresWorkOrder: task.requiresWorkOrder,
-		enableNotifications: task.enableNotifications,
-		notifications: task.notifications,
-		maintenanceGroupId: task.maintenanceGroupId,
-		financials,
-		dueDate: nextDueDate,
-		status: 'Initiated',
-		isRecurring: true,
-		recurrenceFrequency: task.recurrenceFrequency,
-		recurrenceInterval: interval,
-		recurrenceCustomUnit: task.recurrenceCustomUnit,
-		parentTaskId: task.parentTaskId || taskId,
-		lastRecurrenceDate,
-		createdAt: now,
-		updatedAt: now,
-	}) as Omit<Task, 'id'>;
-};
 
 const notifyRecurringTaskGenerationFailure = async ({
 	userId,
