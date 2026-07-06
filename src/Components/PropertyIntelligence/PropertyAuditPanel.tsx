@@ -125,6 +125,7 @@ export const PropertyAuditPanel: React.FC<PropertyAuditPanelProps> = ({
 		recordNoun: isHomeowner ? 'home record' : 'property record',
 		recordPlural: isHomeowner ? 'home records' : 'property records',
 		subjectNoun: isHomeowner ? 'home' : 'property',
+		timelineNoun: isHomeowner ? 'home timeline' : 'property timeline',
 		memoryLabel: isHomeowner ? 'Home Memory' : 'Property Memory',
 	};
 	const [isCollapsed, setIsCollapsed] = useState(true);
@@ -529,8 +530,8 @@ export const PropertyAuditPanel: React.FC<PropertyAuditPanelProps> = ({
 					<ReviewInfoItem $tone='maintenance'>
 						<strong>Maintenance Coverage</strong>
 						<span>
-							Looks for recurring care and maintenance history that would make the
-							long-term property timeline more useful.
+							Looks for recurring care and maintenance history that would make the{' '}
+							long-term {reviewLanguage.timelineNoun} more useful.
 						</span>
 					</ReviewInfoItem>
 					<ReviewInfoItem $tone='assets'>
@@ -541,7 +542,8 @@ export const PropertyAuditPanel: React.FC<PropertyAuditPanelProps> = ({
 						</span>
 					</ReviewInfoItem>
 					<ReviewInfoNote>
-						Maintley does not inspect the property or verify equipment condition.
+						Maintley does not inspect the {reviewLanguage.subjectNoun}{' '}
+						or verify equipment condition.
 						{reviewLanguage.label} is based on recorded information and general
 						maintenance knowledge.
 					</ReviewInfoNote>

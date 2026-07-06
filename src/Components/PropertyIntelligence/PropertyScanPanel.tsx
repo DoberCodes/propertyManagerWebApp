@@ -315,6 +315,8 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 		recordPlural: isHomeowner ? 'home records' : 'property records',
 		possessiveNoun: isHomeowner ? 'home record' : "property's history",
 		subjectNoun: isHomeowner ? 'home' : 'property',
+		historyLabel: isHomeowner ? 'Home History' : 'Property History',
+		locationNoun: isHomeowner ? 'home' : 'property',
 		systemLabelPlural: isHomeowner ? 'equipment records' : 'systems',
 		memoryLabel: isHomeowner ? 'Home Memory' : 'Property Memory',
 	};
@@ -607,11 +609,12 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 						</CollapseButton>
 					</ScanTitleRow>
 					<ScanText>
-						Maintley reviews your {scanLanguage.possessiveNoun}, {scanLanguage.systemLabelPlural}, maintenance
+						Maintley reviews your {scanLanguage.possessiveNoun},{' '}
+						{scanLanguage.systemLabelPlural}, maintenance
 						records, and documents to identify the few items most likely to
 						improve your records or reduce future maintenance surprises.
 						Maintley Intelligence provides recommendations based on the
-						information recorded for your {scanLanguage.subjectNoun}. It does not inspect your
+						information recorded for your {scanLanguage.subjectNoun}. It does not inspect your{' '}
 						{scanLanguage.subjectNoun}, verify equipment condition, or replace professional
 						maintenance advice or inspections.
 					</ScanText>
@@ -642,7 +645,8 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 					<div>
 							<strong>New to {scanLanguage.panelLabel}?</strong>
 							<span>
-								Maintley Intelligence combines your {scanLanguage.recordNoun} with maintenance
+								Maintley Intelligence combines your {scanLanguage.recordNoun}{' '}
+								with maintenance
 								knowledge to help you plan ahead.
 						</span>
 					</div>
@@ -833,13 +837,13 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 									<PremiumPreviewEyebrow>
 										More available with Homeowner+
 									</PremiumPreviewEyebrow>
-									<PremiumPreviewTitle>
+								<PremiumPreviewTitle>
 										As your {scanLanguage.recordPlural} grow, Maintley can help with more
 										maintenance guidance and planning.
 									</PremiumPreviewTitle>
 									<PremiumPreviewText>
-										Homeowner+ adds equipment-specific recommendations based on the
-										property information you have recorded.
+										Homeowner+ adds equipment-specific recommendations based on the{' '}
+										{scanLanguage.locationNoun} information you have recorded.
 									</PremiumPreviewText>
 									<PremiumPreviewList>
 										{premiumPreview.examples.map((example) => (
@@ -901,7 +905,8 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 				compact>
 				<QuickScanInfoBody>
 					<QuickScanInfoLead>
-						Maintley reviews the information you have saved about your property to
+						Maintley reviews the information you have saved about your{' '}
+						{scanLanguage.locationNoun} to
 						identify opportunities to improve your records and reduce future
 						maintenance surprises.
 					</QuickScanInfoLead>
@@ -920,7 +925,7 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 						</span>
 					</IntelligenceSource>
 					<IntelligenceSource $tone='history'>
-						<strong>Property History</strong>
+						<strong>{scanLanguage.historyLabel}</strong>
 						<span>
 							Based on patterns Maintley recognizes in your own recorded maintenance
 							history.
@@ -929,7 +934,8 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 					<IntelligenceSource $tone='context'>
 						<strong>Seasonal &amp; Context</strong>
 						<span>
-							Based on time of year, weather, or property location when that context
+							Based on time of year, weather, or {scanLanguage.locationNoun}{' '}
+							location when that context
 							is available.
 						</span>
 					</IntelligenceSource>
@@ -948,7 +954,8 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 						) : null}
 					</PlanExplanation>
 					<QuickScanInfoNote>
-						Maintley does not inspect your property or verify equipment condition.
+						Maintley does not inspect your {scanLanguage.locationNoun}{' '}
+						or verify equipment condition.
 						Recommendations are based only on recorded information and applicable
 						knowledge.
 					</QuickScanInfoNote>

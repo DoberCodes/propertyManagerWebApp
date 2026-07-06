@@ -144,7 +144,11 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 
 	const { isFavorite, toggleFavorite } = useFavorites(currentUser!.id);
 
-	const { data: firebaseProperties = [], isLoading: isLoadingProperties } =
+	const {
+		data: firebaseProperties = [],
+		isLoading: isLoadingProperties,
+		isFetching: isFetchingProperties,
+	} =
 		useGetPropertiesQuery();
 
 	const propertyGroups = useSelector(
@@ -236,7 +240,11 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 
 		return resolvedProperty;
 	}, [slug, firebaseProperties, propertyGroups, propertyOverride]);
-	const { data: liveProperty } = useGetPropertyQuery(propertyFromLists?.id || '', {
+	const {
+		data: liveProperty,
+		isLoading: isLoadingLiveProperty,
+		isFetching: isFetchingLiveProperty,
+	} = useGetPropertyQuery(propertyFromLists?.id || '', {
 		skip: !propertyFromLists?.id || Boolean(propertyOverride),
 	});
 	const property = propertyOverride || liveProperty || propertyFromLists;
@@ -1137,19 +1145,24 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 	};
 
 	if (!property) {
-		if (isLoadingProperties) {
+		if (
+			isLoadingProperties ||
+			isFetchingProperties ||
+			isLoadingLiveProperty ||
+			isFetchingLiveProperty
+		) {
 			return (
 				<LoadingState
 					loadingKey='property-detail'
-					title='Loading property'
-					message='Preparing this property workspace.'
+					title={isHomeowner ? 'Loading home' : 'Loading property'}
+					message={isHomeowner ? 'Preparing this home record.' : 'Preparing this property workspace.'}
 					steps={[
-						'Loading your property...',
-						'Building your property timeline...',
+						isHomeowner ? 'Loading your home...' : 'Loading your property...',
+						isHomeowner ? 'Building your home timeline...' : 'Building your property timeline...',
 						'Checking upcoming maintenance...',
 						'Organizing your documents...',
 						'Connecting maintenance history...',
-						'Reviewing your property...',
+						isHomeowner ? 'Reviewing your home...' : 'Reviewing your property...',
 					]}
 				/>
 			);

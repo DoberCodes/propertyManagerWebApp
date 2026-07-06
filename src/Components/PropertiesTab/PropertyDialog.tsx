@@ -206,6 +206,15 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
 	const isTeamMemberAccount = currentUser?.isTeamMemberAccount === true;
 	const teamGroups = useSelector((state: RootState) => state.team.groups);
+	const recordTitleLabel = forceSingleFamily ? 'Home' : 'Property';
+	const recordLowerLabel = forceSingleFamily ? 'home' : 'property';
+	const recordPluralLowerLabel = forceSingleFamily ? 'homes' : 'properties';
+	const recordPageLabel = forceSingleFamily ? 'home record' : 'property record';
+	const getStepHint = (step: (typeof STEPS)[number]) =>
+		step.hint
+			.replace('this property', `this ${recordLowerLabel}`)
+			.replace('your property', `your ${recordLowerLabel}`)
+			.replace('property', recordLowerLabel);
 
 	const teamMembers = useMemo(
 		() => teamGroups.flatMap((group) => group.members || []),
@@ -728,7 +737,7 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 			return (
 				<WizardPanel>
 					<WizardPanelHeader>
-						<WizardPanelTitle>Property Basics</WizardPanelTitle>
+						<WizardPanelTitle>{recordTitleLabel} Basics</WizardPanelTitle>
 						<WizardPanelHint>
 							Start with the essentials. You can add more details after this.
 						</WizardPanelHint>
@@ -736,7 +745,7 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 					<FormSection>
 						<FormRow>
 							<FormField>
-								<Label>Property Name</Label>
+								<Label>{recordTitleLabel} Name</Label>
 								<Input
 									type='text'
 									value={formData.name}
@@ -746,12 +755,12 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 								/>
 								{!formData.name.trim() && (
 									<ValidationMessage>
-										Property name is required so Maintley can create a property page.
+										{recordTitleLabel} name is required so Maintley can create a {recordPageLabel}.
 									</ValidationMessage>
 								)}
 								{formData.name.trim() && !propertyNameCreatesSlug && (
 									<ValidationMessage>
-										Use at least one letter or number so Maintley can create a valid property link.
+										Use at least one letter or number so Maintley can create a valid {recordLowerLabel} link.
 									</ValidationMessage>
 								)}
 								{duplicateNameUnchanged && (
@@ -825,7 +834,7 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 
 					<FormSection>
 						<FormField>
-							<Label>Property Photo (Optional)</Label>
+							<Label>{recordTitleLabel} Photo (Optional)</Label>
 							<CompactActionRow>
 								<SecondaryButton
 									type='button'
@@ -865,7 +874,7 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 						)}
 						{formData.photo && (
 							<PhotoPreview>
-								<PhotoPreviewImage src={formData.photo} alt='Property' />
+								<PhotoPreviewImage src={formData.photo} alt={`${recordTitleLabel} preview`} />
 							</PhotoPreview>
 						)}
 					</FormSection>
@@ -877,16 +886,16 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 			return (
 				<WizardPanel>
 					<WizardPanelHeader>
-						<WizardPanelTitle>Property Details</WizardPanelTitle>
+						<WizardPanelTitle>{recordTitleLabel} Details</WizardPanelTitle>
 						<WizardPanelHint>
-							The basic information about your property.
+							The basic information about your {recordLowerLabel}.
 						</WizardPanelHint>
 					</WizardPanelHeader>
 
 					<FormSection>
 						<FormRow>
 							<FormField>
-								<Label>Property Type</Label>
+								<Label>{recordTitleLabel} Type</Label>
 								<SelectField
 									value={formData.propertyType}
 									disabled={forceSingleFamily}
@@ -958,7 +967,7 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 									checked={!!formData.isRental}
 									onChange={(e) => handleInputChange('isRental', e.target.checked)}
 								/>
-								Yes, this property is a rental
+								Yes, this {recordLowerLabel} is a rental
 							</label>
 						</FormField>
 						{isDuplicate && (
@@ -1100,7 +1109,7 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 						<TextArea
 							value={formData.notes}
 							onChange={(e) => handleInputChange('notes', e.target.value)}
-							placeholder='Add any notes about this property...'
+							placeholder={`Add any notes about this ${recordLowerLabel}...`}
 						/>
 					</FormSection>
 				</WizardPanel>
@@ -1121,25 +1130,25 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 					)}
 					{availableMembers.length === 0 && !isLoadingFamilyMembers && (
 						<EmptySharingState>
-							No eligible members were found in your account yet. Add team or family members first if you want to share this property.
+							No eligible members were found in your account yet. Add team or family members first if you want to share this {recordLowerLabel}.
 						</EmptySharingState>
 					)}
 					{renderShareSection(
 						'coOwners',
 						'Co-Owners',
-						'Co-owners can view and manage the property details.',
+						`Co-owners can view and manage the ${recordLowerLabel} details.`,
 						'Add Co-Owner',
 					)}
 					{renderShareSection(
 						'administrators',
 						'Administrators',
-						'Administrators have full access to manage this property.',
+						`Administrators have full access to manage this ${recordLowerLabel}.`,
 						'Add Administrator',
 					)}
 					{renderShareSection(
 						'viewers',
 						'Viewers',
-						'Viewers can see the property details but cannot make changes.',
+						`Viewers can see the ${recordLowerLabel} details but cannot make changes.`,
 						'Add Viewer',
 					)}
 				</WizardPanel>
@@ -1148,13 +1157,13 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 
 		const reviewRows: Array<[string, React.ReactNode]> = [
 			['Group', groups.find((group) => group.id === formData.groupId)?.name || 'No group'],
-			['Property Photo', formData.photo ? <img src={formData.photo} alt='Property preview' /> : 'No photo'],
-			['Property Name', formData.name || 'Not set'],
+			[`${recordTitleLabel} Photo`, formData.photo ? <img src={formData.photo} alt={`${recordTitleLabel} preview`} /> : 'No photo'],
+			[`${recordTitleLabel} Name`, formData.name || 'Not set'],
 			['Address', formData.address || 'Not set'],
-			['Property Type', formData.propertyType],
+			[`${recordTitleLabel} Type`, formData.propertyType],
 			['Owner', formData.owner || 'Not set'],
 			['Bedrooms / Bathrooms', `${formData.bedrooms ?? 0} / ${formData.bathrooms ?? 0}`],
-			['Rental Property', formData.isRental ? 'Yes' : 'No'],
+			[`Rental ${recordTitleLabel}`, formData.isRental ? 'Yes' : 'No'],
 			[
 				'Co-Owners',
 				getShareMembers(formData.coOwners).map((member) => member.displayName).join(', ') || 'None',
@@ -1172,7 +1181,7 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 		return (
 			<WizardPanel>
 				<WizardPanelHeader>
-					<WizardPanelTitle>Review Your Property</WizardPanelTitle>
+					<WizardPanelTitle>Review Your {recordTitleLabel}</WizardPanelTitle>
 					<WizardPanelHint>
 						Please review the information below before saving.
 					</WizardPanelHint>
@@ -1181,7 +1190,7 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 					<OnboardingTipBanner>
 						<OnboardingTipText>
 							<OnboardingTipLabel>Onboarding tip</OnboardingTipLabel>
-							<FontAwesomeIcon icon={faInfoCircle} /> Keeping<span className="strong"> Open Property Setup Assistant</span> checked allows you to quickly access the property setup assistant after saving your property.
+							<FontAwesomeIcon icon={faInfoCircle} /> Keeping<span className="strong"> Open {recordTitleLabel} Setup Assistant</span> checked allows you to quickly access the {recordLowerLabel} setup assistant after saving your {recordLowerLabel}.
 						</OnboardingTipText>
 						<OnboardingTipDismissButton
 							type='button'
@@ -1209,10 +1218,10 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 					/>
 					<DashboardVisibilityText>
 						<DashboardVisibilityTitle>
-							Show this property on the dashboard
+							Show this {recordLowerLabel} on the dashboard
 						</DashboardVisibilityTitle>
 						<DashboardVisibilityHint>
-							Keep this on for active properties you want included in dashboard summaries. Turn it off for archived or less-used properties.
+							Keep this on for active {recordPluralLowerLabel} you want included in dashboard summaries. Turn it off for archived or less-used {recordPluralLowerLabel}.
 						</DashboardVisibilityHint>
 					</DashboardVisibilityText>
 				</DashboardVisibilityCard>
@@ -1227,10 +1236,10 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 						/>
 						<DashboardVisibilityText>
 							<DashboardVisibilityTitle>
-								Open Property Setup Assistant after creating
+								Open {recordTitleLabel} Setup Assistant after creating
 							</DashboardVisibilityTitle>
 							<DashboardVisibilityHint>
-								Jump into the property-level assistant next so you can review appliances and maintenance tasks there.
+								Jump into the {recordLowerLabel} setup assistant next so you can review equipment and maintenance tasks there.
 							</DashboardVisibilityHint>
 						</DashboardVisibilityText>
 					</DashboardVisibilityCard>
@@ -1242,14 +1251,14 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 	if (!isOpen) return null;
 
 	const savingTitle = isDuplicate
-		? 'Creating duplicate property...'
+		? `Creating duplicate ${recordLowerLabel}...`
 		: initialData
-			? 'Saving property changes...'
-			: 'Creating your property...';
+			? `Saving ${recordLowerLabel} changes...`
+			: `Creating your ${recordLowerLabel}...`;
 	const savingText =
 		!initialData && !isDuplicate && formData.openSetupAfterCreate !== false
-			? 'Please wait while we create the property page. Next, we will open the Property Setup Assistant.'
-			: 'Please wait while we save this property.';
+			? `Please wait while we create the ${recordPageLabel}. Next, we will open the ${recordTitleLabel} Setup Assistant.`
+			: `Please wait while we save this ${recordLowerLabel}.`;
 
 	return (
 		<>
@@ -1264,15 +1273,15 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 						<div>
 							<DialogTitle>
 								{isDuplicate
-									? 'Duplicate Property'
+									? `Duplicate ${recordTitleLabel}`
 									: initialData
-										? 'Edit Property'
-										: 'Add New Property'}
+										? `Edit ${recordTitleLabel}`
+										: `Add New ${recordTitleLabel}`}
 							</DialogTitle>
 							<div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>
 								{isDuplicate
-									? 'Start with the existing details, then rename the new property.'
-									: 'Add the details of your property to get started.'}
+									? `Start with the existing details, then rename the new ${recordLowerLabel}.`
+									: `Add the details of your ${recordLowerLabel} to get started.`}
 							</div>
 						</div>
 						<CloseButton onClick={onClose}>×</CloseButton>
@@ -1306,7 +1315,7 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 										</WizardStepDot>
 										<WizardStepText $active={stepIndex === index}>
 											<WizardStepTitle>{step.navTitle}</WizardStepTitle>
-											<WizardStepHint>{step.hint}</WizardStepHint>
+											<WizardStepHint>{getStepHint(step)}</WizardStepHint>
 										</WizardStepText>
 									</WizardStep>
 								))}
@@ -1323,7 +1332,7 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 									$tone='danger'
 									onClick={handleDeletePropertyClick}
 									disabled={isDeletingProperty || isSubmitting}>
-									{isDeletingProperty ? 'Deleting...' : 'Delete Property'}
+									{isDeletingProperty ? 'Deleting...' : `Delete ${recordTitleLabel}`}
 								</FooterTextAction>
 							)}
 
@@ -1333,7 +1342,7 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 									$tone='warning'
 									onClick={onDetachFromProperty}
 									disabled={isSubmitting || isDeletingProperty}>
-									Detach from Property
+									Detach from {recordTitleLabel}
 								</FooterTextAction>
 							)}
 						</FooterActionGroup>
@@ -1356,7 +1365,7 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 										? 'Saving...'
 										: isDuplicate
 											? 'Create Duplicate'
-											: 'Save Property'}
+											: `Save ${recordTitleLabel}`}
 								</SaveButton>
 							)}
 						</FooterActionGroup>
@@ -1375,8 +1384,8 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 
 			<DeleteConfirmationModal
 				isOpen={isDeleteConfirmOpen}
-				itemName={formData.name || initialData?.name || 'this property'}
-				itemType='property'
+				itemName={formData.name || initialData?.name || `this ${recordLowerLabel}`}
+				itemType={recordLowerLabel}
 				onConfirm={handleConfirmDeleteProperty}
 				onCancel={() => setIsDeleteConfirmOpen(false)}
 				isLoading={isDeletingProperty}
