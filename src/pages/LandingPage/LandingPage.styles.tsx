@@ -9,11 +9,15 @@ export const Wrapper = styled.div`
 	padding-top: max(env(safe-area-inset-top), 0px);
 
 	@media (max-width: 1024px) {
-		margin-top: 70px;
+		margin-top: 84px;
+	}
+
+	@media (max-width: 900px) {
+		margin-top: 76px;
 	}
 
 	@media (max-width: 480px) {
-		margin-top: 128px;
+		margin-top: 112px;
 		padding-top: max(env(safe-area-inset-top), 8px);
 	}
 `;

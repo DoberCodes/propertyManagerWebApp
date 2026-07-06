@@ -10,31 +10,36 @@ export const NavWrapper = styled.div`
 	background: ${COLORS.gradientPrimary};
 	align-items: center;
 	justify-content: space-between;
-	padding: 0 max(20px, env(safe-area-inset-left)) max(20px, env(safe-area-inset-right)) 0;
+	padding: 0 max(20px, env(safe-area-inset-right)) 0 max(20px, env(safe-area-inset-left));
 	margin: 0 auto;
 	position: fixed;
 	top: 0;
 	left: 0;
 	right: 0;
+	box-sizing: border-box;
 	flex-wrap: wrap;
 	gap: 10px;
 	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 	z-index: 100;
 
 	@media (max-width: 1024px) {
-		height: 90px;
-		padding: 10px max(12px, env(safe-area-inset-left)) 10px max(12px, env(safe-area-inset-right));
+		height: 84px;
+		padding: 10px max(12px, env(safe-area-inset-right)) 10px max(12px, env(safe-area-inset-left));
 		gap: 8px;
 		flex-direction: row;
 		flex-wrap: nowrap;
 	}
 
+	@media (max-width: 900px) {
+		height: 76px;
+	}
+
 	@media (max-width: 480px) {
-		height: 128px;
-		min-height: 128px;
+		height: 112px;
+		min-height: 112px;
 		flex-direction: column;
 		justify-content: center;
-		padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-left)) 24px max(8px, env(safe-area-inset-right));
+		padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) 24px max(8px, env(safe-area-inset-left));
 		gap: 4px;
 		flex-wrap: nowrap;
 	}
@@ -59,14 +64,22 @@ export const NavTitle = styled.div`
 	}
 
 	@media (max-width: 1024px) {
-		flex: 0 1 170px;
+		flex: 0 1 160px;
 		max-height: 60px;
 		padding-top: 0;
 
 		img {
-			width: min(170px, 100%);
+			width: min(160px, 100%);
 			height: auto;
 			max-height: 60px;
+		}
+	}
+
+	@media (max-width: 900px) {
+		flex-basis: 142px;
+
+		img {
+			width: min(142px, 100%);
 		}
 	}
 
@@ -90,11 +103,19 @@ export const ButtonWrapper = styled.div`
 	justify-content: flex-end;
 	align-items: center;
 	gap: 4px;
-	flex: 1;
+	flex: 1 1 auto;
+	min-width: 0;
+	max-width: 100%;
 
 	@media (max-width: 1024px) {
 		gap: 6px;
-		justify-content: center;
+		justify-content: flex-end;
+	}
+
+	@media (max-width: 900px) {
+		.secondary-nav-link {
+			display: none;
+		}
 	}
 
 	@media (max-width: 480px) {
@@ -127,7 +148,7 @@ export const NavAnchor = styled(HashLink)`
 
 	@media (max-width: 1024px) {
 		font-size: 14px;
-		margin: 0px 8px 0px 8px;
+		margin: 0;
 		padding: 6px 10px;
 	}
 
@@ -162,7 +183,7 @@ export const NavRouteLink = styled(Link)`
 
 	@media (max-width: 1024px) {
 		font-size: 14px;
-		margin: 0px 8px 0px 8px;
+		margin: 0;
 		padding: 6px 10px;
 	}
 
