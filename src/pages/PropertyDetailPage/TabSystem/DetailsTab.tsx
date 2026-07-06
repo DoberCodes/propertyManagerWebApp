@@ -44,6 +44,7 @@ export const DetailsTab: React.FC<DetailsTabProps> = ({
 	property,
 	teamMembers,
 	familyMembers = [],
+	homeownerMode = false,
 	propertyTasks = [],
 	propertyDevices = [],
 	maintenanceHistoryRecords = [],
@@ -151,7 +152,7 @@ export const DetailsTab: React.FC<DetailsTabProps> = ({
 					<GlanceValue>{overdueTasksCount}</GlanceValue>
 				</GlanceCard>
 				<GlanceCard>
-					<GlanceLabel>Appliances</GlanceLabel>
+					<GlanceLabel>Equipment</GlanceLabel>
 					<GlanceValue>{devicesCount}</GlanceValue>
 				</GlanceCard>
 				<GlanceCard>
@@ -189,13 +190,14 @@ export const DetailsTab: React.FC<DetailsTabProps> = ({
 
 			{/* Edit Mode Header */}
 			<DetailsEditHeader>
-				<SectionHeader>Property Maintenance Profile</SectionHeader>
+				<SectionHeader>Maintenance Profile</SectionHeader>
 			</DetailsEditHeader>
 
 			<PropertyDetailSection
 				property={property}
 				teamMembers={teamMembers}
 				familyMembers={familyMembers}
+				homeownerMode={homeownerMode}
 			/>
 
 			{/* Notes */}
@@ -260,7 +262,9 @@ export const DetailsTab: React.FC<DetailsTabProps> = ({
 				</PreviewCard>
 
 				<PreviewCard>
-					<PreviewHeader>Property Timeline</PreviewHeader>
+					<PreviewHeader>
+						{homeownerMode ? 'Home Timeline' : 'Property Timeline'}
+					</PreviewHeader>
 					<TimelineList>
 						{propertyTimeline.length === 0 ? (
 							<PreviewItem>

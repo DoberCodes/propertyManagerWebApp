@@ -7,8 +7,6 @@ import {
 	faEdit,
 	faTrash,
 	faWrench,
-	faCircleCheck,
-	faTriangleExclamation,
 	faFan,
 	faSnowflake,
 	faClipboardCheck,
@@ -16,7 +14,7 @@ import {
 	faPlug,
 } from '@fortawesome/free-solid-svg-icons';
 import { useNavigate } from 'react-router-dom';
-import { useDispatch, useSelector } from 'react-redux';
+import { useSelector } from 'react-redux';
 import { RootState } from 'Redux/store';
 import {
 	useGetDevicesQuery,
@@ -26,11 +24,7 @@ import {
 	useDeleteDeviceMutation,
 } from 'Redux/API/deviceSlice';
 import { useGetTasksQuery } from 'Redux/API/taskSlice';
-import {
-	useGetUnitsQuery,
-	useUpdatePropertyMutation,
-} from 'Redux/API/propertySlice';
-import { apiSlice } from 'Redux/API/apiSlice';
+import { useGetUnitsQuery } from 'Redux/API/propertySlice';
 import {
 	SectionContainer,
 	SectionHeader,
@@ -43,10 +37,7 @@ import {
 	DeviceServiceItem,
 	PropertyDocumentCategory,
 } from '../../../types/Property.types';
-import {
-	preparePropertyMemoryDocumentUploads,
-	startPdfDocumentKnowledgeProcessing,
-} from '../../../propertyKnowledge/propertyDocumentUploads';
+import { usePropertyDocumentUploadWorkflow } from '../../../propertyKnowledge/usePropertyDocumentUploadWorkflow';
 import { buildDeviceSlug } from '../../../utils/deviceSlug';
 import { useAppFeedback } from '../../../Components/Library/AppFeedback/AppFeedbackProvider';
 import {
@@ -318,16 +309,6 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 		return `Last serviced ${date.toLocaleDateString()}`;
 	};
 
-	const needsAttentionDeviceCount = useMemo(
-		() =>
-			devices.filter((device: any) => {
-				const status = getResolvedDeviceStatus(device);
-				const linkedOpenTasks = linkedOpenTaskCountByDevice.get(String(device.id)) || 0;
-				return status === 'Broken' || status === 'Maintenance' || linkedOpenTasks > 0;
-			}).length,
-		[devices, linkedOpenTaskCountByDevice],
-	);
-
 	const linkedOpenTaskCount = useMemo(
 		() =>
 			Array.from(linkedOpenTaskCountByDevice.values()).reduce(
@@ -344,18 +325,12 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 			linkedOverdueTaskCountByDevice.get(String(device.id)) || 0;
 		const recurringLinkedTasks =
 			recurringLinkedTaskCountByDevice.get(String(device.id)) || 0;
-		const needsAttention =
-			status === 'Broken' ||
-			status === 'Maintenance' ||
-			linkedOpenTasks > 0 ||
-			overdueLinkedTasks > 0;
 
 		return {
 			status,
 			linkedOpenTasks,
 			overdueLinkedTasks,
 			recurringLinkedTasks,
-			needsAttention,
 		};
 	};
 
@@ -373,10 +348,9 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 		},
 		{
 			key: 'attention',
-			label: 'Attention',
+			label: 'Record',
 			type: 'select',
 			options: [
-				{ value: 'needs-attention', label: 'Needs attention' },
 				{ value: 'no-open-tasks', label: 'No open tasks' },
 				{ value: 'missing-details', label: 'Missing details' },
 			],
@@ -389,20 +363,7 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 			const status = getResolvedDeviceStatus(device);
 			const linkedOpenTasks =
 				linkedOpenTaskCountByDevice.get(String(device.id)) || 0;
-			const overdueLinkedTasks =
-				linkedOverdueTaskCountByDevice.get(String(device.id)) || 0;
-			const needsAttention =
-				status === 'Broken' ||
-				status === 'Maintenance' ||
-				linkedOpenTasks > 0 ||
-				overdueLinkedTasks > 0;
 			if (filters.status && status !== filters.status) return false;
-			if (
-				filters.attention === 'needs-attention' &&
-				!needsAttention
-			) {
-				return false;
-			}
 			if (
 				filters.attention === 'no-open-tasks' &&
 				linkedOpenTasks > 0
@@ -445,7 +406,7 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 			}
 			return String(left.type || '').localeCompare(String(right.type || ''));
 		});
-	}, [devices, filters, sortBy, linkedOpenTaskCountByDevice, linkedOverdueTaskCountByDevice]);
+	}, [devices, filters, sortBy, linkedOpenTaskCountByDevice]);
 
 	const clearDeviceFilters = () => {
 		setFilters({});
@@ -560,7 +521,7 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 								<FontAwesomeIcon icon={iconStyle.icon} />
 							</span>
 							<div style={{ fontWeight: 800, color: '#0f172a', lineHeight: 1.3 }}>
-								{assetType || row.type || 'Appliance'}
+								{assetType || row.type || 'Equipment'}
 							</div>
 							{assetVariant && (
 								<span
@@ -644,43 +605,11 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 				const {
 					status: resolvedStatus,
 					overdueLinkedTasks,
-					needsAttention,
 				} =
 					getDeviceAttentionState({ ...row, status });
 
-				const chip = needsAttention
-					? {
-						label: 'Needs Attention',
-						color: '#92400e',
-						background: '#fffbeb',
-						border: '#fcd34d',
-					}
-					: {
-						label: 'Healthy',
-						color: COLORS.successDark,
-						background: COLORS.successLight,
-						border: COLORS.primaryHover,
-					};
-
 				return (
 					<div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-						<div
-							style={{
-								display: 'inline-flex',
-								alignItems: 'center',
-								gap: 6,
-								padding: '6px 10px',
-								borderRadius: 999,
-								border: `1px solid ${chip.border}`,
-								background: chip.background,
-								color: chip.color,
-								fontSize: 12,
-								fontWeight: 800,
-								width: 'fit-content',
-							}}>
-							<FontAwesomeIcon icon={needsAttention ? faTriangleExclamation : faCircleCheck} />
-							{chip.label}
-						</div>
 						<StatusBadge status={resolvedStatus}>{resolvedStatus}</StatusBadge>
 						{overdueLinkedTasks > 0 && (
 							<span
@@ -741,13 +670,21 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 
 	const [createDevice] = useCreateDeviceMutation();
 	const [updateDevice] = useUpdateDeviceMutation();
-	const [updateProperty] = useUpdatePropertyMutation();
 	const [deleteDevice] = useDeleteDeviceMutation();
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
 	const isMobile = useSelector((state: RootState) => state.app.isMobile);
-	const dispatch = useDispatch();
+	const { uploadPropertyDocuments } = usePropertyDocumentUploadWorkflow();
 	const isTeamMemberAccount = currentUser?.isTeamMemberAccount === true;
 	const canManageAppliances = permissions?.canManageAppliances ?? true;
+	const effectivePlanId = getEffectiveSubscriptionPlanId(
+		currentUser?.subscription,
+		'homeowner',
+	);
+	const isHomeownerMode =
+		effectivePlanId === 'homeowner' || effectivePlanId === 'homeowner_plus';
+	const equipmentLanguage = {
+		contextNoun: isHomeownerMode ? 'this home' : 'this property',
+	};
 
 	const deviceActions: Action[] = [
 		{
@@ -809,7 +746,7 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 
 	const handleOpenCreateModal = async () => {
 		if (!canManageAppliances) {
-			feedback.notify('Your role can view appliances but cannot add or edit them.');
+			feedback.notify('Your role can view equipment but cannot add or edit it.');
 			return;
 		}
 		if (!currentUser?.subscription) {
@@ -822,8 +759,8 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 			const loadedDevices = await loadAllDevices(undefined, true).unwrap();
 			accountDeviceCount = loadedDevices.length;
 		} catch (error) {
-			console.error('Error verifying appliance limit:', error);
-			feedback.notify('Unable to verify appliance limits. Please try again.');
+			console.error('Error verifying equipment limit:', error);
+			feedback.notify('Unable to verify equipment limits. Please try again.');
 			return;
 		}
 
@@ -834,13 +771,13 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 			const maxDevices = planDetails?.maxDevices || 15;
 			if (isTeamMemberAccount) {
 				feedback.notify(
-					`This account has reached its appliance limit of ${maxDevices}. Ask the account holder to adjust the account or remove unused appliances.`,
+					`This account has reached its equipment limit of ${maxDevices}. Ask the account holder to adjust the account or remove unused equipment records.`,
 				);
 			} else {
 				feedback.notify(
-					`Your ${planDetails?.name || 'current'} plan allows up to ${maxDevices} appliances. ` +
-					`You currently have ${accountDeviceCount} appliances. ` +
-					`Please upgrade your plan to add more appliances.`,
+					`Your ${planDetails?.name || 'current'} plan allows up to ${maxDevices} equipment records. ` +
+					`You currently have ${accountDeviceCount} equipment records. ` +
+					`Please upgrade your plan to add more equipment records.`,
 				);
 			}
 			return;
@@ -866,7 +803,7 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 
 	const handleOpenEditModal = (device: any) => {
 		if (!canManageAppliances) {
-			feedback.notify('Your role can view appliances but cannot edit them.');
+			feedback.notify('Your role can view equipment but cannot edit it.');
 			return;
 		}
 		setDeviceFormData({
@@ -955,7 +892,7 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 	const handleSubmit = async () => {
 		if (isSubmitting) return;
 		if (!canManageAppliances) {
-			feedback.notify('Your role can view appliances but cannot save appliance changes.');
+			feedback.notify('Your role can view equipment but cannot save equipment changes.');
 			return;
 		}
 
@@ -1003,51 +940,17 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 				})),
 			];
 			if (propertyDocumentUploads.length > 0) {
-				const propertyDocuments = Array.isArray((property as any)?.documents)
-					? (property as any).documents
-					: [];
-				const propertyKnowledgeSuggestions = Array.isArray(
-					(property as any)?.knowledgeSuggestions,
-				)
-					? (property as any).knowledgeSuggestions
-					: [];
-				const savedDocuments: any[] = [];
-				const knowledgeSuggestions: any[] = [];
-				const pdfDocuments: any[] = [];
-				for (const { file, category } of propertyDocumentUploads) {
-					const result = await preparePropertyMemoryDocumentUploads({
+				await uploadPropertyDocuments({
+					property,
+					propertyId: property.id,
+					batches: propertyDocumentUploads.map(({ file, category }) => ({
 						files: [file],
-						propertyId: property.id,
 						category,
-						property,
 						systems: devices as Device[],
 						uploadContext: {
 							assetIds: savedDeviceId ? [savedDeviceId] : [],
 						},
-					});
-					savedDocuments.push(...result.documents);
-					knowledgeSuggestions.push(...result.knowledgeSuggestions);
-					pdfDocuments.push(...result.pdfDocuments);
-				}
-				await updateProperty({
-					id: property.id,
-					updates: {
-						documents: [...propertyDocuments, ...savedDocuments],
-						knowledgeSuggestions: [
-							...propertyKnowledgeSuggestions,
-							...knowledgeSuggestions,
-						],
-					},
-				}).unwrap();
-				startPdfDocumentKnowledgeProcessing({
-					propertyId: property.id,
-					documents: pdfDocuments,
-					onProcessed: () => {
-						dispatch(apiSlice.util.invalidateTags(['Properties']));
-					},
-					onError: () => {
-						dispatch(apiSlice.util.invalidateTags(['Properties']));
-					},
+					})),
 				});
 				setPendingUploadFiles([]);
 				setPendingPropertyDocumentFiles([]);
@@ -1056,7 +959,7 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 
 			handleCloseModal();
 		} catch (error) {
-			console.error('Error saving appliance:', error);
+			console.error('Error saving equipment:', error);
 		} finally {
 			setIsSubmitting(false);
 		}
@@ -1064,10 +967,10 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 
 	const handleDeleteDevice = (deviceId: string) => {
 		if (!canManageAppliances) {
-			feedback.notify('Your role can view appliances but cannot delete them.');
+			feedback.notify('Your role can view equipment but cannot delete it.');
 			return;
 		}
-		setDeleteDialogMessage('Are you sure you want to delete this appliance?');
+		setDeleteDialogMessage('Are you sure you want to delete this equipment record?');
 		setPendingDeleteDeviceId(deviceId);
 		setDeleteDialogOpen(true);
 	};
@@ -1078,8 +981,8 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 			await deleteDevice(pendingDeleteDeviceId);
 			setSelectedDevice(null);
 		} catch (error) {
-			console.error('Error deleting appliance:', error);
-			feedback.notify('Failed to delete appliance. Please try again.');
+			console.error('Error deleting equipment:', error);
+			feedback.notify('Failed to delete equipment. Please try again.');
 		}
 		setDeleteDialogOpen(false);
 		setPendingDeleteDeviceId(null);
@@ -1089,10 +992,10 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 		return (
 			<LoadingState
 				loadingKey='property-appliances'
-				title='Loading appliances'
-				message='Preparing this property appliance list.'
+				title='Loading equipment'
+				message={`Preparing the equipment list for ${equipmentLanguage.contextNoun}.`}
 				steps={[
-					'Reading appliance information...',
+					'Reading equipment information...',
 					'Checking upcoming maintenance...',
 					'Connecting maintenance history...',
 					'Looking for missing documentation...',
@@ -1113,9 +1016,9 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 				onConfirm={confirmDeleteDevice}
 				onCancel={() => setDeleteDialogOpen(false)}
 			/>
-			<SectionHeader>Home Systems</SectionHeader>
+			<SectionHeader>Equipment</SectionHeader>
 			<SectionLead>
-				Track each system as the operational memory of this property, including
+				Track each equipment record as part of the maintenance memory for {equipmentLanguage.contextNoun}, including
 				task context and service lifecycle history.
 			</SectionLead>
 			<TabSummaryBar>
@@ -1124,10 +1027,7 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 					Active: {devices.filter((d) => getResolvedDeviceStatus(d) === 'Active').length}
 				</TabSummaryPill>
 				<TabSummaryPill>
-					Needs Attention: {needsAttentionDeviceCount}
-				</TabSummaryPill>
-				<TabSummaryPill>
-					Open Appliance Tasks: {linkedOpenTaskCount}
+					Open Equipment Tasks: {linkedOpenTaskCount}
 				</TabSummaryPill>
 			</TabSummaryBar>
 
@@ -1140,27 +1040,27 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 							onClick={handleOpenCreateModal}
 							style={{ width: isMobile ? '100%' : undefined }}>
 							<FontAwesomeIcon icon={faPlus} style={{ marginRight: '8px' }} />
-							{remainingDeviceSlots <= 0 ? 'Appliance Limit Reached' : 'Add Appliance'}
+							{remainingDeviceSlots <= 0 ? 'Equipment Limit Reached' : 'Add Equipment'}
 						</ToolbarButton>
 					</Toolbar>
 				</DesktopCreateAction>
 			)}
 
 			<CompactFilterResultCount>
-				Showing {filteredDevices.length} of {devices.length} appliances for{' '}
-				{property.title || 'this property'}
+				Showing {filteredDevices.length} of {devices.length} equipment records for{' '}
+				{property.title || equipmentLanguage.contextNoun}
 			</CompactFilterResultCount>
 			<PropertyTabFilterPanel
-				propertyName={property.title || 'this property'}
-				resourceName='appliances and systems'
-				searchPlaceholder='Search appliances, brands, or models...'
+				propertyName={property.title || equipmentLanguage.contextNoun}
+				resourceName='equipment records'
+				searchPlaceholder='Search equipment, brands, or models...'
 				filters={filters}
 				onFiltersChange={setFilters}
 				filterConfigs={deviceFilters}
 				sortValue={sortBy}
 				defaultSortValue='type'
 				sortOptions={[
-					{ value: 'type', label: 'Appliance type' },
+					{ value: 'type', label: 'Equipment type' },
 					{ value: 'status', label: 'Lifecycle status' },
 					{ value: 'brand', label: 'Brand' },
 				]}
@@ -1179,7 +1079,7 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 					}}>
 					<input
 						type='search'
-						placeholder='Search appliances, brands, or models...'
+						placeholder='Search equipment, brands, or models...'
 						value={(filters.search as string) || ''}
 						onChange={(event) =>
 							setFilters((current) => ({
@@ -1219,7 +1119,7 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 							}))
 						}
 						style={{ minHeight: 42, padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: 10 }}>
-						<option value=''>All attention states</option>
+						<option value=''>All record states</option>
 						{deviceFilters[1].options?.map((option) => (
 							<option key={option.value} value={option.value}>
 								{option.label}
@@ -1232,7 +1132,7 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 							setSortBy(event.target.value as 'type' | 'status' | 'brand')
 						}
 						style={{ minHeight: 42, padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: 10 }}>
-						<option value='type'>Sort: Appliance type</option>
+						<option value='type'>Sort: Equipment type</option>
 						<option value='status'>Sort: Lifecycle status</option>
 						<option value='brand'>Sort: Brand</option>
 					</select>
@@ -1242,9 +1142,9 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 			{isMobile && (
 				<div style={{ display: 'flex', flexDirection: 'column', gap: 12, paddingBottom: 4 }}>
 					{filteredDevices.map((device) => {
-						const { linkedOpenTasks, overdueLinkedTasks, recurringLinkedTasks, needsAttention } = getDeviceAttentionState(device);
+						const { linkedOpenTasks, overdueLinkedTasks, recurringLinkedTasks } = getDeviceAttentionState(device);
 						const resolvedStatus = getResolvedDeviceStatus(device);
-						const stateTone = needsAttention ? '#f59e0b' : resolvedStatus === 'Decommissioned' ? '#64748b' : COLORS.success;
+						const stateTone = resolvedStatus === 'Decommissioned' ? '#64748b' : COLORS.success;
 						const detailsMissing = !hasApplianceDetails(device);
 						const assignedPropertyDocuments =
 							propertyAssignedDocumentsByDevice.get(String(device.id)) || [];
@@ -1280,7 +1180,7 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 													textAlign: 'left',
 													lineHeight: 1.3,
 												}}>
-												{getDeviceAssetType(device) || device.type || 'Appliance'}
+												{getDeviceAssetType(device) || device.type || 'Equipment'}
 											</button>
 											{getDeviceAssetVariant(device) && (
 												<div style={{ fontSize: 12, color: COLORS.successDark, fontWeight: 800 }}>
@@ -1294,7 +1194,7 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 											)}
 										</div>
 										<span style={{ fontSize: 12, fontWeight: 700, padding: '4px 10px', borderRadius: 999, background: `${stateTone}14`, color: stateTone, border: `1px solid ${stateTone}33`, whiteSpace: 'nowrap' }}>
-											{needsAttention ? 'Needs Attention' : resolvedStatus}
+											{resolvedStatus}
 										</span>
 									</div>
 									<MobileFeedMeta>
@@ -1344,8 +1244,8 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 								{
 									label:
 										remainingDeviceSlots <= 0
-											? 'Appliance Limit Reached'
-											: 'Add Appliance',
+											? 'Equipment Limit Reached'
+											: 'Add Equipment',
 									onClick: handleOpenCreateModal,
 									disabled: remainingDeviceSlots <= 0,
 									hideOnCompact: true,
@@ -1369,13 +1269,10 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 					<ReusableTable
 						columns={columns}
 						rowData={filteredDevices}
-						getRowClassName={(row: any) =>
-							getDeviceAttentionState(row).needsAttention ? 'attention-row' : undefined
-						}
 						actions={deviceActions}
 						showCheckbox={false}
 						hideHeader={true}
-						emptyMessage='No systems have been recorded yet. Add your first appliance to start operational history.'
+						emptyMessage='No equipment records have been added yet. Add your first equipment record to start maintenance history.'
 					/>
 				</DesktopTableWrapper>
 			)}

@@ -18,7 +18,7 @@
 		"date": "June 30, 2026",
 		"type": "Feature",
 		"title": "Maintley Intelligence on the dashboard",
-		"description": "The dashboard can now show a focused Maintley Intelligence suggestion based on records across the properties in view."
+		"description": "The dashboard can now show a focused Maintley Intelligence suggestion based on records across the homes in view."
 	},
 	{
 		"version": "2.7.8",
@@ -32,7 +32,7 @@
 		"date": "June 30, 2026",
 		"type": "Experience update",
 		"title": "Personal dashboard focus",
-		"description": "Dashboard scope can focus on assigned work or broaden to all visible properties, helping owners, family members, and team members reduce noise."
+		"description": "Dashboard scope can focus on assigned work or broaden to all visible work, helping owners, family members, and team members reduce noise."
 	},
 	{
 		"version": "2.7.4",

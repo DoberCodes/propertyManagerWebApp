@@ -1,41 +1,5 @@
-import styled, { keyframes } from 'styled-components';
+import styled from 'styled-components';
 import { COLORS } from '../../constants/colors';
-
-const houseDisassembleRoof = keyframes`
-	0%,
-	45% {
-		opacity: 1;
-		transform: translateY(0) rotate(45deg) scale(1);
-	}
-	100% {
-		opacity: 0;
-		transform: translateY(-14px) rotate(45deg) scale(0.9);
-	}
-`;
-
-const houseDisassembleBlock = keyframes`
-	0%,
-	42% {
-		opacity: 1;
-		transform: translateY(0) scale(1);
-	}
-	100% {
-		opacity: 0;
-		transform: translateY(-20px) scale(0.84);
-	}
-`;
-
-const houseBodyPulse = keyframes`
-	0%,
-	100% {
-		border-color: #bbf7d0;
-		box-shadow: inset 0 0 0 0 rgba(22, 163, 74, 0.08);
-	}
-	50% {
-		border-color: #86efac;
-		box-shadow: inset 0 0 0 2px rgba(22, 163, 74, 0.08);
-	}
-`;
 
 export const Wrapper = styled.div`
 	display: flex;
@@ -697,65 +661,4 @@ export const DeleteLoadingText = styled.p`
 	margin: 8px 0 0;
 	font-size: 13px;
 	color: ${COLORS.gray500};
-`;
-
-export const DeconstructedHouseLoader = styled.div`
-	position: relative;
-	width: 72px;
-	height: 62px;
-	margin: 14px auto 6px;
-`;
-
-export const HouseRoofPiece = styled.span`
-	position: absolute;
-	left: 12px;
-	top: 1px;
-	width: 48px;
-	height: 48px;
-	background: ${COLORS.primary};
-	transform: rotate(45deg);
-	border-radius: 6px 6px 2px 6px;
-	animation: ${houseDisassembleRoof} 1.8s ease-in-out infinite;
-`;
-
-export const HouseBodyPiece = styled.span`
-	position: absolute;
-	left: 10px;
-	bottom: 0;
-	width: 52px;
-	height: 38px;
-	border-radius: 8px;
-	background: #f0fdf4;
-	border: 1px solid #bbf7d0;
-	overflow: hidden;
-	animation: ${houseBodyPulse} 1.8s ease-in-out infinite;
-`;
-
-export const HouseBlockPiece = styled.span<{
-	$delay: string;
-	$slot: 'one' | 'two' | 'three' | 'four';
-}>`
-	position: absolute;
-	width: 19px;
-	height: 13px;
-	border-radius: 4px;
-	background: ${COLORS.primary};
-	left: ${({ $slot }) =>
-		$slot === 'one' || $slot === 'three' ? '6px' : '27px'};
-	top: ${({ $slot }) =>
-		$slot === 'one' || $slot === 'two' ? '6px' : '21px'};
-	animation: ${houseDisassembleBlock} 1.8s ease-in-out infinite;
-	animation-delay: ${({ $delay }) => $delay};
-	transform-origin: center;
-`;
-
-export const HouseBasePiece = styled.span`
-	position: absolute;
-	left: 8px;
-	bottom: -5px;
-	width: 56px;
-	height: 5px;
-	background: ${COLORS.successLight};
-	border-radius: 999px;
-	opacity: 0.9;
 `;

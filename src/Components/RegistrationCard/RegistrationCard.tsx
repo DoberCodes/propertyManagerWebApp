@@ -35,7 +35,10 @@ import {
 import { redirectToCheckout } from '../../services/stripeService';
 import { USER_ROLES } from '../../constants/roles';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { setCurrentUser } from '../../Redux/Slices/userSlice';
+import {
+	beginAuthTransition,
+	setCurrentUser,
+} from '../../Redux/Slices/userSlice';
 import { PaywallPage } from '../../pages/PaywallPage/PaywallPage';
 import DocumentViewer from '../DocumentViewer';
 import { TRIAL_DURATION_DAYS } from '../../constants/subscriptions';
@@ -403,9 +406,10 @@ export const RegistrationCard = () => {
 				return;
 			}
 
-			setLoading(false);
+			dispatch(beginAuthTransition());
 			navigate(
 				user.role === USER_ROLES.TENANT ? '/tenant-profile' : '/dashboard',
+				{ replace: true },
 			);
 		} catch (error: any) {
 			console.error('RegistrationCard: Registration error', error);
@@ -441,7 +445,7 @@ export const RegistrationCard = () => {
 				<TrialNotice>
 					{inviteMode
 						? 'Complete your invited account setup.'
-						: 'Keep your property records, maintenance tasks, and service history organized in one place.'}
+						: 'Keep your home record, maintenance tasks, and service history organized in one place.'}
 				</TrialNotice>
 			)}
 			{error && <ErrorMessage>{error}</ErrorMessage>}

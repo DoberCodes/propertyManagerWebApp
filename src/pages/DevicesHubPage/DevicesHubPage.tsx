@@ -1,15 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { useDispatch, useSelector } from 'react-redux';
+import { useSelector } from 'react-redux';
 import {
 	useCreateDeviceMutation,
 	useGetAllDevicesQuery,
 } from '../../Redux/API/deviceSlice';
-import {
-	useGetPropertiesQuery,
-	useUpdatePropertyMutation,
-} from '../../Redux/API/propertySlice';
-import { apiSlice } from '../../Redux/API/apiSlice';
+import { useGetPropertiesQuery } from '../../Redux/API/propertySlice';
 import { useGetTasksQuery } from '../../Redux/API/taskSlice';
 import { useGetAllMaintenanceHistoryForUserQuery } from '../../Redux/API/userSlice';
 import { AppZeroState } from '../../Components/Library/AppZeroState';
@@ -29,10 +25,7 @@ import {
 	Property,
 	PropertyDocumentCategory,
 } from '../../types/Property.types';
-import {
-	preparePropertyMemoryDocumentUploads,
-	startPdfDocumentKnowledgeProcessing,
-} from '../../propertyKnowledge/propertyDocumentUploads';
+import { usePropertyDocumentUploadWorkflow } from '../../propertyKnowledge/usePropertyDocumentUploadWorkflow';
 import {
 	canAddDevice,
 	getEffectiveSubscriptionPlanId,
@@ -268,7 +261,6 @@ export const DevicesHubPage: React.FC = () => {
 	const navigate = useNavigate();
 	const location = useLocation();
 	const feedback = useAppFeedback();
-	const dispatch = useDispatch();
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
 	const { data: devices = [], isLoading } = useGetAllDevicesQuery();
 	const { data: properties = [], isLoading: isLoadingProperties } =
@@ -276,7 +268,7 @@ export const DevicesHubPage: React.FC = () => {
 	const { data: allTasks = [] } = useGetTasksQuery();
 	const { data: allMaintenanceHistory = [] } = useGetAllMaintenanceHistoryForUserQuery();
 	const [createDevice] = useCreateDeviceMutation();
-	const [updateProperty] = useUpdatePropertyMutation();
+	const { uploadPropertyDocuments } = usePropertyDocumentUploadWorkflow();
 
 	const [searchQuery, setSearchQuery] = useState('');
 	const [statusFilter, setStatusFilter] = useState<'All' | 'Active' | 'Maintenance' | 'Broken' | 'Decommissioned'>('All');
@@ -444,7 +436,7 @@ export const DevicesHubPage: React.FC = () => {
 
 		const targetProperty = selectedCreateProperty;
 		if (!targetProperty?.id) {
-			feedback.notify('Select a property before saving this appliance.');
+			feedback.notify('Select a property before saving this equipment record.');
 			return;
 		}
 
@@ -486,61 +478,25 @@ export const DevicesHubPage: React.FC = () => {
 			];
 
 			if (propertyDocumentUploads.length > 0) {
-				const propertyDocuments = Array.isArray((targetProperty as any)?.documents)
-					? (targetProperty as any).documents
-					: [];
-				const propertyKnowledgeSuggestions = Array.isArray(
-					(targetProperty as any)?.knowledgeSuggestions,
-				)
-					? (targetProperty as any).knowledgeSuggestions
-					: [];
-
-				const savedDocuments: any[] = [];
-				const knowledgeSuggestions: any[] = [];
-				const pdfDocuments: any[] = [];
-				for (const { file, category } of propertyDocumentUploads) {
-					const result = await preparePropertyMemoryDocumentUploads({
+				await uploadPropertyDocuments({
+					property: targetProperty as Property,
+					propertyId: String(targetProperty.id),
+					batches: propertyDocumentUploads.map(({ file, category }) => ({
 						files: [file],
-						propertyId: String(targetProperty.id),
 						category,
-						property: targetProperty as Property,
 						systems: savedDevice ? [savedDevice as Device] : [],
 						uploadContext: {
 							assetIds: savedDevice?.id ? [String(savedDevice.id)] : [],
 						},
-					});
-					savedDocuments.push(...result.documents);
-					knowledgeSuggestions.push(...result.knowledgeSuggestions);
-					pdfDocuments.push(...result.pdfDocuments);
-				}
-
-				await updateProperty({
-					id: String(targetProperty.id),
-					updates: {
-						documents: [...propertyDocuments, ...savedDocuments],
-						knowledgeSuggestions: [
-							...propertyKnowledgeSuggestions,
-							...knowledgeSuggestions,
-						],
-					},
-				}).unwrap();
-				startPdfDocumentKnowledgeProcessing({
-					propertyId: String(targetProperty.id),
-					documents: pdfDocuments,
-					onProcessed: () => {
-						dispatch(apiSlice.util.invalidateTags(['Properties']));
-					},
-					onError: () => {
-						dispatch(apiSlice.util.invalidateTags(['Properties']));
-					},
+					})),
 				});
 			}
 
 			setShowDeviceModal(false);
 			feedback.notify('Appliance added successfully.');
 		} catch (error: any) {
-			console.error('Error saving appliance from hub:', error);
-			feedback.notify(error?.message || 'Unable to add appliance right now.');
+			console.error('Error saving equipment record from hub:', error);
+			feedback.notify(error?.message || 'Unable to add equipment right now.');
 		} finally {
 			setIsSavingDevice(false);
 		}
@@ -557,7 +513,7 @@ export const DevicesHubPage: React.FC = () => {
 		}
 
 		if (!canManageAppliances) {
-			feedback.notify('Your role can view appliances but cannot add or edit them.');
+			feedback.notify('Your role can view equipment but cannot add or edit it.');
 			return;
 		}
 
@@ -575,8 +531,8 @@ export const DevicesHubPage: React.FC = () => {
 			const planDetails = getSubscriptionPlanDetails(effectivePlanId);
 			const maxDevices = planDetails?.maxDevices || 15;
 			feedback.notify(
-				`Your ${planDetails?.name || 'current'} plan allows up to ${maxDevices} appliances. ` +
-				`You currently have ${devices.length} appliances. Please upgrade to add more.`,
+				`Your ${planDetails?.name || 'current'} plan allows up to ${maxDevices} equipment records. ` +
+				`You currently have ${devices.length} equipment records. Please upgrade to add more.`,
 			);
 			return;
 		}
@@ -796,11 +752,11 @@ export const DevicesHubPage: React.FC = () => {
 		return (
 			<LoadingState
 				loadingKey='appliance-hub'
-				title='Loading appliances'
-				message='Preparing your appliance records.'
+				title='Loading equipment'
+				message='Preparing your equipment records.'
 				steps={[
 					'Loading your properties...',
-					'Reading appliance information...',
+					'Reading equipment information...',
 					'Checking upcoming maintenance...',
 					'Connecting maintenance history...',
 					'Building maintenance insights...',
@@ -813,7 +769,13 @@ export const DevicesHubPage: React.FC = () => {
 		return (
 			<AppZeroState
 				kind='noProperties'
-				actions={[{ label: 'Add Property', onClick: () => navigate('/properties?openCreate=1') }]}
+				context={isSinglePropertyPlan ? 'homeowner' : 'property'}
+				actions={[
+					{
+						label: isSinglePropertyPlan ? 'Add Home' : 'Add Property',
+						onClick: () => navigate('/properties?openCreate=1'),
+					},
+				]}
 				fullPage
 			/>
 		);
@@ -864,16 +826,18 @@ export const DevicesHubPage: React.FC = () => {
 		<StandardAppPage>
 			<StandardAppPageHeader>
 				<StandardAppPageTitleBlock>
-					<StandardAppPageTitle>Appliances & Systems Hub</StandardAppPageTitle>
+					<StandardAppPageTitle>Equipment Hub</StandardAppPageTitle>
 					<StandardAppPageSubtitle>
-						Cross-property maintenance status for every appliance and system.
+						{isSinglePropertyPlan
+							? 'Maintenance status for every equipment record in this home.'
+							: 'Cross-property maintenance status for every equipment record.'}
 					</StandardAppPageSubtitle>
 				</StandardAppPageTitleBlock>
 			</StandardAppPageHeader>
 
 			<SummaryRow>
 				<MetricCard>
-					<MetricLabel>Total Appliances</MetricLabel>
+					<MetricLabel>Total Equipment</MetricLabel>
 					<MetricValue>{devices.length}</MetricValue>
 				</MetricCard>
 				<MetricCard>
@@ -898,7 +862,7 @@ export const DevicesHubPage: React.FC = () => {
 			<FilterBar>
 				<SearchInput
 					type='text'
-					placeholder='Search systems, brands, or locations…'
+					placeholder='Search equipment, brands, or locations...'
 					value={searchQuery}
 					onChange={(e) => setSearchQuery(e.target.value)}
 				/>
@@ -913,7 +877,7 @@ export const DevicesHubPage: React.FC = () => {
 					<PropertySelect
 						value={propertyFilter}
 						onChange={(e) => setPropertyFilter(e.target.value)}>
-						<option value=''>All properties</option>
+						<option value=''>{isSinglePropertyPlan ? 'All homes' : 'All properties'}</option>
 						{properties.map((p: any) => (
 							<option key={p.id} value={String(p.id)}>
 								{p.title || 'Untitled Property'}
@@ -922,12 +886,12 @@ export const DevicesHubPage: React.FC = () => {
 					</PropertySelect>
 				) : null}
 				<FilterResultCount>
-					{filteredDeviceRows.length} of {deviceRows.length} appliance{deviceRows.length === 1 ? '' : 's'}
+					{filteredDeviceRows.length} of {deviceRows.length} equipment record{deviceRows.length === 1 ? '' : 's'}
 				</FilterResultCount>
 			</FilterBar>
 			<CompactFilterResultCount>
 				Showing {filteredDeviceRows.length} of {deviceRows.length}{' '}
-				{deviceRows.length === 1 ? 'appliance' : 'appliances'}
+				{deviceRows.length === 1 ? 'equipment record' : 'equipment records'}
 			</CompactFilterResultCount>
 			<FloatingFilterPanel
 				isOpen={isFilterPanelOpen}
@@ -936,8 +900,8 @@ export const DevicesHubPage: React.FC = () => {
 				onApply={applyDraftFilters}
 				onClearDraft={clearDraftFilters}
 				activeFilterCount={activeFilterCount}
-				title='Search and filter appliances'
-				description='Choose which appliances and systems you want to see, then apply your changes.'>
+				title='Search and filter equipment'
+				description='Choose which equipment records you want to see, then apply your changes.'>
 				<HubFilterFields>
 					{properties.length > 1 && (
 						<HubFilterField>
@@ -947,7 +911,7 @@ export const DevicesHubPage: React.FC = () => {
 								onChange={(event) =>
 									setDraftPropertyFilter(event.target.value)
 								}>
-								<option value=''>All properties</option>
+								<option value=''>{isSinglePropertyPlan ? 'All homes' : 'All properties'}</option>
 								{properties.map((property: any) => (
 									<option key={property.id} value={String(property.id)}>
 										{property.title || 'Untitled Property'}
@@ -960,7 +924,7 @@ export const DevicesHubPage: React.FC = () => {
 						Search
 						<SearchInput
 							type='search'
-							placeholder='Search systems, brands, or locations…'
+							placeholder='Search equipment, brands, or locations...'
 							value={draftSearchQuery}
 							onChange={(event) =>
 								setDraftSearchQuery(event.target.value)
@@ -1030,7 +994,7 @@ export const DevicesHubPage: React.FC = () => {
 									}
 								}}>
 								<Field>
-									<Label>System Identity</Label>
+									<Label>Equipment Record</Label>
 									<IdentityTopRow>
 										<DevicePrimary>{row.friendlyName}</DevicePrimary>
 										<OpenProfileCue>Open profile →</OpenProfileCue>

@@ -167,6 +167,7 @@ Best for:
 | Dashboard Recommendations      | Yes  | Yes        | Yes      | Yes       |
 | Quick Property Scan            | Yes  | Yes        | Yes      | Yes       |
 | Setup Recommendations          | Yes  | Yes        | Yes      | Yes       |
+| Home / Property Review         | Preview | Yes     | Yes      | Yes       |
 | Property Insights              | No   | Yes        | Yes      | Yes       |
 
 ### Notes
@@ -186,13 +187,15 @@ Quick Property Scan should remain available on free and paid plans.
 
 Premium intelligence should expand what Maintley can review and explain, not turn free recommendations into unsolvable warnings.
 
-Free Quick Scan focuses on Property Record recommendations based on information the homeowner has saved. Homeowner+ adds equipment-specific Maintley Knowledge, history-based insights, and personalized context guidance as those capabilities become available.
+Free Quick Scan is the first layer of Maintley Intelligence. It is powered by Home Memory / Property Memory and focuses on information the user has saved, such as missing details, setup gaps, maintenance history, overdue tasks, and documents.
+
+Homeowner+ and higher plans expand Maintley Intelligence with Maintley Knowledge, Home / Property History, Seasonal Context, and Maintenance Patterns.
+
+Home / Property Review is the deeper completeness-oriented layer. Free users may see a paid preview, but the full review is available on Homeowner+ and higher plans.
 
 See PROPERTY_INTELLIGENCE.md for recommendation behavior and prioritization rules.
 
-Full Property Audit and Ongoing Maintley Intelligence are roadmap items, not
-current plan entitlements. They should not be listed as available plan features
-until implemented.
+Ongoing Maintley Intelligence remains a roadmap item, not a current plan entitlement. It should not be listed as an available plan feature until implemented.
 
 ---
 
@@ -224,6 +227,7 @@ See EMAIL_NOTIFICATIONS.md for delivery behavior.
 | File Downloads        | ✓    | ✓          | ✓        | ✓         |
 | File Deletion         | ✓    | ✓          | ✓        | ✓         |
 | Storage Usage Display | ✓    | ✓          | ✓        | ✓         |
+| Suggested Details from Documents | Preview | Yes | Yes | Yes |
 | File Limit            | 10   | 250        | 1500     | 5000      |
 | Storage Limit         | 1 GB | 5 GB       | 15 GB    | 25 GB     |
 
@@ -232,6 +236,7 @@ See EMAIL_NOTIFICATIONS.md for delivery behavior.
 * Users should always retain access to existing files.
 * Storage limits may evolve based on real-world usage.
 * File management remains available on all plans.
+* Free users can upload and organize documents. Homeowner+ and higher plans unlock Maintley's suggested detail review from uploaded documents.
 
 ---
 
@@ -378,7 +383,8 @@ Unlock:
 * Recurring Tasks
 * Task Reminder Emails
 * Push Notifications
-* Maintley Intelligence
+* Expanded Maintley Intelligence
+* Home Review
 * Expanded Storage
 
 ---

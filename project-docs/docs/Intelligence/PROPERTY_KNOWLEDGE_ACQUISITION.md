@@ -10,6 +10,14 @@ Source-specific support status, limitations, and planned property-confirmation
 safeguards are tracked in
 `PROPERTY_KNOWLEDGE_ACQUISITION_STATUS_MATRIX.md`.
 
+Plan availability:
+
+* Document upload and storage remain available on all plans.
+* Suggested details from uploaded documents are available on Homeowner+,
+  Property, and Portfolio plans.
+* Free users may see a preview or upgrade prompt, but upload workflows should
+  save the source document without starting Property Knowledge Acquisition.
+
 ```text
 Document / source
     ->
@@ -48,7 +56,17 @@ Part and supply extraction uses the Part Knowledge Catalog. The acquisition laye
 
 # Current Implementation
 
-The first implementation stores pending knowledge suggestions on the property record.
+Property Knowledge Acquisition stores source documents and review suggestions as
+property-scoped first-class records:
+
+* `propertyDocuments/{documentId}`
+* `propertyKnowledgeSuggestions/{suggestionId}`
+
+The property record may still contain `documents` and `knowledgeSuggestions`
+arrays during the migration period. Those embedded arrays are compatibility
+mirrors for older surfaces and triggers. New acquisition and review surfaces
+should read collection-backed records and merge embedded records only as a
+fallback.
 
 Property documents are the canonical source documents for acquisition. Uploads started from appliance/system, task, or task-completion screens should still create property document records. When a user explicitly uploads from a task or appliance/system workflow, Maintley may preserve that upload context as a supporting-document link so the file remains visible from that workflow. Upload context may help the UI, but acquisition should not automatically create additional permanent links to an asset, task, contractor, warranty, part, or Maintenance Event.
 
@@ -74,10 +92,10 @@ Manual retry uses the callable processor directly instead of first writing a new
 that retry, which keeps the property document from receiving unnecessary status
 updates during repeated review attempts.
 
-The active property detail view listens to the current property record so
-document acquisition status changes written by the backend, such as
-`pending_review` or `failed`, appear in the frontend without requiring a manual
-page refresh.
+The active property detail view listens to collection-backed property document
+and suggestion records, then merges any embedded compatibility records. Document
+acquisition status changes written by the backend, such as `pending_review` or
+`failed`, should appear in the frontend without requiring a manual page refresh.
 
 Document acquisition publishes Maintley Events for the review lifecycle:
 

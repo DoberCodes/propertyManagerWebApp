@@ -135,8 +135,11 @@ export const SideNav = () => {
 		? 'Property creation is not included'
 		: remainingSlots === 0 && totalProperties > maxProperties
 			? `${totalProperties - maxProperties} over plan limit`
-			: `${remainingSlots} property slot${remainingSlots === 1 ? '' : 's'} available`;
-	const planSubtitle = `Current plan: ${planDetails?.name || 'Home'}`;
+			: `${remainingSlots} ${isHomeowner ? 'home' : 'property'} slot${remainingSlots === 1 ? '' : 's'} available`;
+	const isSingleHomeView = totalProperties <= 1;
+	const planCardTitle = isSingleHomeView ? 'Home Plan' : 'Property Plan';
+	const planSubtitle = `Plan: ${planDetails?.name || 'Home'}`;
+	const propertyUsageLabel = isSingleHomeView ? 'Home records' : 'Property records';
 	const storageUsagePercent = Math.min(100, storageUsage?.usagePercent || 0);
 	const storageUsageLabel = isStorageUsageLoading
 		? 'Loading storage...'
@@ -148,6 +151,10 @@ export const SideNav = () => {
 	const storageFileLabel = storageUsage
 		? `${storageUsage.fileCount} of ${storageUsage.maxFiles} files`
 		: '';
+	const propertyNavLabel = isHomeowner ? 'Homes' : 'Property Records';
+	const emptyFavoritesLabel = isHomeowner
+		? 'No favorite homes'
+		: 'No favorite property records';
 
 	// Desktop nav items
 	const desktopMenuItems = [
@@ -164,13 +171,13 @@ export const SideNav = () => {
 			visible: !isUserTenant && !isContractor,
 		},
 		{
-			label: 'Appliances',
+			label: 'Equipment',
 			path: '/devices',
 			icon: faMicrochip,
 			visible: !isUserTenant && (canAccessProperties || canViewPages),
 		},
 		{
-			label: 'Properties',
+			label: propertyNavLabel,
 			path: '/properties',
 			icon: faHome,
 			visible: isUserTenant || canAccessProperties || canViewPages,
@@ -182,7 +189,7 @@ export const SideNav = () => {
 			visible: !isUserTenant && !isHomeowner && canAccessTeam,
 		},
 		{
-			label: 'Report',
+			label: 'Reports',
 			path: '/report',
 			icon: faChartBar,
 			visible: !isUserTenant && (canAccessProperties || canViewPages),
@@ -246,7 +253,7 @@ export const SideNav = () => {
 									</SimpleList>
 								) : (
 									<div style={{ fontSize: '12px', color: COLORS.textMuted }}>
-										No favorite properties
+										{emptyFavoritesLabel}
 									</div>
 								)}
 							</SectionContent>
@@ -258,7 +265,7 @@ export const SideNav = () => {
 									<PortfolioCard>
 										<PortfolioTop>
 											<PortfolioPlan>
-												Property Plan
+												{planCardTitle}
 											</PortfolioPlan>
 											<PortfolioUsageBadge>
 												{planUsageLabel}
@@ -271,7 +278,7 @@ export const SideNav = () => {
 											<ProgressFill $percent={Math.min(100, usagePercent)} />
 										</ProgressTrack>
 										<PortfolioUsage>
-											{planSlotLabel}
+											{propertyUsageLabel}: {planSlotLabel}
 										</PortfolioUsage>
 										<PortfolioTop>
 											<PortfolioPlanSub>
@@ -291,7 +298,7 @@ export const SideNav = () => {
 											type='button'
 											onClick={() => {
 												if (!nativeApp) {
-													navigate('/paywall');
+													navigate('/settings?category=account');
 													return;
 												}
 												void openSubscriptionManagementInBrowser();

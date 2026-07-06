@@ -35,12 +35,15 @@ export const LandingNavbar = () => {
 				</NavAnchor>
 				<NavAnchor
 					to='#Features'
+					className='secondary-nav-link'
 					scroll={(el) =>
 						el.scrollIntoView({ behavior: 'auto', block: 'start' })
 					}>
 					Feature Highlights
 				</NavAnchor>
-				<NavRouteLink to='/features'>Feature Catalog</NavRouteLink>
+				<NavRouteLink to='/features' className='secondary-nav-link'>
+					Feature Catalog
+				</NavRouteLink>
 				<NavAnchor
 					to='#Pricing'
 					scroll={(el) =>
@@ -50,6 +53,7 @@ export const LandingNavbar = () => {
 				</NavAnchor>
 				<NavAnchor
 					to='#Contact'
+					className='secondary-nav-link'
 					scroll={(el) =>
 						el.scrollIntoView({ behavior: 'auto', block: 'start' })
 					}>

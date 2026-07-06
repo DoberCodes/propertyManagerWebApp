@@ -145,6 +145,19 @@ const MaintleyAdminRoute = () => {
 	return <AdminInboxPage />;
 };
 
+const LegacySubscriptionRoute = () => {
+	const currentUser = useSelector((state: RootState) => state.user.currentUser);
+	const authLoading = useSelector((state: RootState) => state.user.authLoading);
+
+	if (authLoading) return null;
+	return (
+		<Navigate
+			to={currentUser ? '/settings?category=account' : '/login'}
+			replace
+		/>
+	);
+};
+
 export const RouterComponent = () => {
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
 	const canAccessTeam = useSelector(selectCanAccessTeam);
@@ -177,6 +190,7 @@ export const RouterComponent = () => {
 					<Route path='register' element={<RegistrationPage />} />
 					<Route path='admin' element={<MaintleyAdminRoute />} />
 					<Route path='unauthorized' element={<UnauthorizedPage />} />
+					<Route path='subscription/*' element={<LegacySubscriptionRoute />} />
 					{/* Paywall - accessible to authenticated users */}
 					<Route
 						path='paywall'

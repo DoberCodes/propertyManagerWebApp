@@ -92,13 +92,13 @@ const PLAN_GROUPS: Record<PlanAudience, PaidPlanId[]> = {
 
 const PLAN_GROUP_COPY: Record<PlanAudience, string> = {
 	home:
-		'For homeowners who want stronger maintenance records and one-property depth.',
+		'Free helps find record gaps. Homeowner+ turns those records into reminders, timelines, and Maintley Intelligence.',
 	business:
-		'For operators managing multiple properties, teams, and service workflows.',
+		'For rentals and multi-property teams that need shared records, assignments, reporting, and service workflows.',
 };
 
 const PLAN_BEST_FOR: Record<PaidPlanId, string> = {
-	homeowner: 'Ideal for one home and essential maintenance records.',
+	homeowner: 'Ideal for finding gaps in one home record.',
 	homeowner_plus: 'Ideal for deeper records, reminders, and proactive upkeep.',
 	property: 'Ideal for managing multiple properties with stronger controls.',
 	portfolio: 'Ideal for teams operating larger property portfolios.',
@@ -589,6 +589,15 @@ export const PaywallPage: React.FC<PaywallPageProps> = ({
 		);
 	}
 
+	const paywallHeadline =
+		planAudience === 'home'
+			? 'Choose the plan that fits your home'
+			: 'Choose the plan that fits your rentals';
+	const paywallIntro =
+		planAudience === 'home'
+			? 'Free helps you find gaps in your home record. Homeowner+ turns maintenance insight into reminders, timelines, exports, and Maintley Intelligence.'
+			: 'Start with core property records, then upgrade when you need assignments, reporting, resident workflows, and cross-property coordination.';
+
 	return (
 		<PaywallWrapper variant={variant} wide={wide}>
 			<PaywallContainer variant={variant} wide={wide}>
@@ -612,11 +621,10 @@ export const PaywallPage: React.FC<PaywallPageProps> = ({
 				{!isOnTrial && !subscription?.hasScheduledSubscription && (
 					<TrialBannerWrapper variant={variant}>
 						<TrialBannerTitle variant={variant}>
-							Choose the plan that fits your property
+							{paywallHeadline}
 						</TrialBannerTitle>
 						<TrialBannerText variant={variant}>
-							Start with the free tier, then upgrade when you need more
-							appliances, suggested maintenance, documents, or team tools.
+							{paywallIntro}
 						</TrialBannerText>
 					</TrialBannerWrapper>
 				)}

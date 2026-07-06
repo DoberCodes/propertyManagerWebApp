@@ -518,7 +518,7 @@ const DeviceCard = styled.div`
 
     @media (max-width: 640px) {
         display: grid;
-        grid-template-columns: 1fr auto;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
         gap: 10px 12px;
         align-items: start;
         padding: 14px 14px 13px 16px;
@@ -545,8 +545,18 @@ const DeviceCard = styled.div`
         }
 
         > div:nth-child(3) {
-            grid-column: 1 / -1;
+            grid-column: 1;
             grid-row: 3;
+        }
+
+        > div:nth-child(4) {
+            grid-column: 2;
+            grid-row: 3;
+        }
+
+        > div:nth-child(5) {
+            grid-column: 1 / -1;
+            grid-row: 4;
         }
 
         > div:nth-child(6) {
@@ -554,11 +564,6 @@ const DeviceCard = styled.div`
             grid-row: 2;
             justify-self: end;
             text-align: right;
-        }
-
-        > div:nth-child(4),
-        > div:nth-child(5) {
-            display: none;
         }
 
         ${DevicePrimary} {
@@ -607,7 +612,9 @@ const Label = styled.div`
     margin-bottom: 5px;
 
     @media (max-width: 640px) {
-        display: none;
+        display: block;
+        margin-bottom: 3px;
+        font-size: 0.62rem;
     }
 `;
 
@@ -623,6 +630,9 @@ const Value = styled.div`
         font-size: 0.82rem;
         font-weight: 800;
         color: ${COLORS.gray600};
+        white-space: normal;
+        overflow: visible;
+        text-overflow: clip;
     }
 `;
 

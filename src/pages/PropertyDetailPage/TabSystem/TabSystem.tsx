@@ -37,6 +37,7 @@ interface TabsProps {
 	propertyContractors: any[];
 	familyMembers: any[];
 	allTasks: Task[];
+	homeownerMode?: boolean;
 	// unit filtering support for multifamily properties
 	unitOptions?: { label: string; value: string }[];
 	selectedUnitId?: string;
@@ -87,6 +88,7 @@ export const TabSystem = ({
 	propertyContractors,
 	familyMembers,
 	allTasks,
+	homeownerMode = false,
 	unitOptions = [],
 	selectedUnitId,
 	onSelectUnit,
@@ -139,6 +141,7 @@ export const TabSystem = ({
 						property={property}
 						teamMembers={teamMembers}
 						familyMembers={familyMembers}
+						homeownerMode={homeownerMode}
 						propertyTasks={propertyTasks}
 						propertyDevices={propertyDevices}
 						maintenanceHistoryRecords={maintenanceHistoryRecords}

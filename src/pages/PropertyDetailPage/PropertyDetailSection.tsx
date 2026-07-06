@@ -60,7 +60,7 @@ export const PropertyDetailSection = (props: PropertyDetailSectionProps) => {
 		<SectionContainer>
 			<InfoGrid>
 				<InfoCard>
-					<InfoLabel>Property Type</InfoLabel>
+					<InfoLabel>{props.homeownerMode ? 'Home Type' : 'Property Type'}</InfoLabel>
 
 					<InfoValue>
 						{props.property?.propertyType || 'Single Family'}

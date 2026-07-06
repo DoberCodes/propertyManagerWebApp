@@ -1213,15 +1213,22 @@ Property Knowledge Acquisition is a reviewed acquisition layer that sits before 
 
 It turns documents and other sources into suggested structured Property Memory.
 
-Current first-phase storage:
+Current storage:
 
-* `properties/{propertyId}.knowledgeSuggestions`
+* `propertyDocuments/{documentId}`
+* `propertyKnowledgeSuggestions/{suggestionId}`
+* `properties/{propertyId}.documents`, compatibility mirror during migration
+* `properties/{propertyId}.knowledgeSuggestions`, compatibility mirror during migration
 * `properties/{propertyId}.propertyKnowledgeProvenance`
 * `devices/{deviceId}.propertyKnowledgeProvenance`
 
 Property documents are the canonical source documents for acquisition.
 
-Document records should live on the property and link outward to the records they support.
+Document records should be property-scoped first-class records and link outward
+to the records they support. The embedded property arrays are compatibility
+mirrors while older surfaces and triggers finish moving to the collection-backed
+model. New workflows should read collection-backed records and merge embedded
+records only as a fallback.
 
 Typical property document fields:
 
@@ -1238,6 +1245,22 @@ Typical property document fields:
 * acquisitionCompletedAt
 * acquisitionError
 * extractedKnowledgeSuggestionIds
+
+Typical property knowledge suggestion fields:
+
+* id
+* accountId
+* propertyId
+* sourceDocumentId
+* sourceDocumentName
+* documentType
+* extractionMethod
+* status
+* confidence
+* extractedFields
+* suggestedParts
+* createdAt
+* updatedAt
 
 Document acquisition status values:
 

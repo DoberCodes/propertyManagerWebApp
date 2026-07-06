@@ -6,6 +6,7 @@ import { missingKnowledgePackDetailsRule } from './missingKnowledgePackDetails';
 import { missingMaintenanceCoverageRule } from './missingMaintenanceCoverage';
 import { missingMaintenanceHistoryRule } from './missingMaintenanceHistory';
 import { overdueTasksRule } from './overdueTasks';
+import { seasonalContextGuidanceRule } from './seasonalContextGuidance';
 
 export const maintleyIntelligenceRules: MaintleyIntelligenceRule[] = [
 	overdueTasksRule,
@@ -15,6 +16,7 @@ export const maintleyIntelligenceRules: MaintleyIntelligenceRule[] = [
 	missingMaintenanceHistoryRule,
 	missingMaintenanceCoverageRule,
 	baselineMaintenanceCadenceRule,
+	seasonalContextGuidanceRule,
 ];
 
 export {
@@ -25,4 +27,5 @@ export {
 	missingMaintenanceCoverageRule,
 	missingMaintenanceHistoryRule,
 	overdueTasksRule,
+	seasonalContextGuidanceRule,
 };

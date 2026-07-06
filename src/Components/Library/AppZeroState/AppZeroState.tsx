@@ -37,7 +37,7 @@ const APP_ZERO_STATE_COPY: Record<AppZeroStateKind, AppZeroStateContent> = {
 	noProperties: {
 		title: 'No properties yet',
 		description:
-			'Add your first property to start organizing tasks, appliances, maintenance history, and reminders.',
+			'Add your first property to start organizing tasks, equipment, maintenance history, and reminders.',
 	},
 	noAssignedProperties: {
 		title: 'No assigned properties',
@@ -63,13 +63,13 @@ const APP_ZERO_STATE_COPY: Record<AppZeroStateKind, AppZeroStateContent> = {
 		description: 'Clear your search or filters to see more tasks.',
 	},
 	noAppliances: {
-		title: 'No appliances or systems yet',
+		title: 'No equipment records yet',
 		description:
-			'Add systems like HVAC, water heater, roof, appliances, or other equipment you want to track.',
+			'Add HVAC, water heater, roof, appliances, or other equipment you want to track.',
 	},
 	noApplianceMatches: {
-		title: 'No appliances match your filters',
-		description: 'Clear your search or filters to see more appliances.',
+		title: 'No equipment matches your filters',
+		description: 'Clear your search or filters to see more equipment.',
 	},
 };
 
@@ -79,18 +79,22 @@ interface AppZeroStateProps {
 	description?: string;
 	actions?: AppZeroStateAction[];
 	fullPage?: boolean;
+	context?: 'homeowner' | 'property';
 }
 
-const getZeroStateBadge = (kind: AppZeroStateKind): string => {
+const getZeroStateBadge = (
+	kind: AppZeroStateKind,
+	context: AppZeroStateProps['context'] = 'property',
+): string => {
 	if (kind === 'noTasks' || kind === 'noActiveTasks' || kind === 'noTaskMatches') {
 		return 'Task Center';
 	}
 
 	if (kind === 'noAppliances' || kind === 'noApplianceMatches') {
-		return 'Appliances & Systems';
+		return 'Equipment';
 	}
 
-	return 'Property Setup';
+	return context === 'homeowner' ? 'Home Setup' : 'Property Setup';
 };
 
 export const getAppZeroStateCopy = (
@@ -103,9 +107,17 @@ export const AppZeroState: React.FC<AppZeroStateProps> = ({
 	description,
 	actions = [],
 	fullPage = false,
+	context = 'property',
 }) => {
-	const copy = getAppZeroStateCopy(kind);
-	const badge = getZeroStateBadge(kind);
+	const copy =
+		context === 'homeowner' && kind === 'noProperties'
+			? {
+					title: 'No homes yet',
+					description:
+						'Add your first home to start organizing tasks, equipment, maintenance history, and reminders.',
+			}
+			: getAppZeroStateCopy(kind);
+	const badge = getZeroStateBadge(kind, context);
 
 	return (
 		<AppZeroStateShell $fullPage={fullPage}>

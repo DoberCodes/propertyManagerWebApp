@@ -11,6 +11,7 @@ import {
 	getAccessibleReports,
 	getAllowedPropertyIdSet,
 	normalizeDeviceReportRows,
+	normalizeTaskReportRows,
 } from './reportDataAdapters';
 
 describe('reportDataAdapters', () => {
@@ -137,6 +138,44 @@ describe('reportDataAdapters', () => {
 			brand: 'Acme',
 			installationDate: '2025-01-15',
 			location: 'Basement',
+		});
+	});
+
+	it('cleans task report rows for homeowner-safe report output', () => {
+		const rows = normalizeTaskReportRows(
+			[
+				{
+					id: 'task-1',
+					propertyId: 'property-1',
+					title: 'Replace filter',
+					status: 'Initiated',
+					dueDate: '',
+					assignedTo: 'eHR80EIAaih2xhwVSYS9oWu7hOL2',
+				},
+				{
+					id: 'task-2',
+					propertyId: 'property-1',
+					title: 'Inspect roof',
+					status: 'Completed',
+					dueDate: 'not-a-date',
+					assignedTo: { id: 'member-1' },
+				},
+			],
+			[{ id: 'property-1', title: 'Oak House' }],
+			[{ id: 'member-1', firstName: 'Alex', lastName: 'Smith' }],
+		);
+
+		expect(rows[0]).toMatchObject({
+			property: 'Oak House',
+			propertyTitle: 'Oak House',
+			status: 'Open',
+			dueDate: '',
+			assignee: '',
+		});
+		expect(rows[1]).toMatchObject({
+			status: 'Completed',
+			dueDate: '',
+			assignee: 'Alex Smith',
 		});
 	});
 

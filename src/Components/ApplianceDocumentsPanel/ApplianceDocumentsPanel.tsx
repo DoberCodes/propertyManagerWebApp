@@ -1,5 +1,4 @@
 import React, { useMemo, useState } from 'react';
-import { useDispatch } from 'react-redux';
 import styled from 'styled-components';
 import {
 	FormGroup,
@@ -13,17 +12,12 @@ import {
 	useGetPropertiesQuery,
 	useUpdatePropertyMutation,
 } from 'Redux/API/propertySlice';
-import { apiSlice } from 'Redux/API/apiSlice';
-import type { AppDispatch } from 'Redux/store/store';
 import { PropertyDocument, PropertyDocumentCategory } from 'types/Property.types';
 import {
 	deletePropertyDocumentFile,
 	toPropertyDocumentType,
 } from 'utils/propertyDocumentUpload';
-import {
-	preparePropertyMemoryDocumentUploads,
-	startPdfDocumentKnowledgeProcessing,
-} from 'propertyKnowledge/propertyDocumentUploads';
+import { usePropertyDocumentUploadWorkflow } from 'propertyKnowledge/usePropertyDocumentUploadWorkflow';
 import { useAppFeedback } from 'Components/Library/AppFeedback/AppFeedbackProvider';
 import { COLORS } from '../../constants/colors';
 
@@ -68,8 +62,8 @@ export const ApplianceDocumentsPanel: React.FC<ApplianceDocumentsPanelProps> = (
 	onPendingCategoryChange,
 }) => {
 	const feedback = useAppFeedback();
-	const dispatch = useDispatch<AppDispatch>();
 	const [updateProperty] = useUpdatePropertyMutation();
+	const { uploadPropertyDocuments } = usePropertyDocumentUploadWorkflow();
 	const { data: allProperties = [] } = useGetPropertiesQuery();
 	const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
 	const [selectedCategory, setSelectedCategory] =
@@ -89,13 +83,6 @@ export const ApplianceDocumentsPanel: React.FC<ApplianceDocumentsPanelProps> = (
 		() =>
 			Array.isArray(resolvedProperty?.documents) ? resolvedProperty.documents : [],
 		[resolvedProperty?.documents],
-	);
-	const propertyKnowledgeSuggestions = useMemo(
-		() =>
-			Array.isArray(resolvedProperty?.knowledgeSuggestions)
-				? resolvedProperty.knowledgeSuggestions
-				: [],
-		[resolvedProperty?.knowledgeSuggestions],
 	);
 	const assignedDocuments = useMemo(
 		() =>
@@ -139,46 +126,21 @@ export const ApplianceDocumentsPanel: React.FC<ApplianceDocumentsPanelProps> = (
 
 		setIsUploading(true);
 		try {
-			const {
-				documents: savedDocuments,
-				knowledgeSuggestions,
-				pdfDocuments,
-			} = await preparePropertyMemoryDocumentUploads({
-				files: selectedFiles,
-				propertyId: resolvedPropertyId,
-				category: selectedCategory,
+			await uploadPropertyDocuments({
 				property: resolvedProperty,
-				uploadContext: {
-					assetIds: deviceId ? [deviceId] : [],
-				},
+				propertyId: resolvedPropertyId,
+				batches: [
+					{
+						files: selectedFiles,
+						category: selectedCategory,
+						uploadContext: {
+							assetIds: deviceId ? [deviceId] : [],
+						},
+					},
+				],
 			});
-			await updateProperty({
-				id: resolvedPropertyId,
-				updates: {
-					documents: [...propertyDocuments, ...savedDocuments],
-					knowledgeSuggestions: [
-						...propertyKnowledgeSuggestions,
-						...knowledgeSuggestions,
-					],
-				},
-			}).unwrap();
 			setSelectedFiles([]);
 			setSelectedCategory('other');
-			startPdfDocumentKnowledgeProcessing({
-				propertyId: resolvedPropertyId,
-				documents: pdfDocuments,
-				onProcessed: () => {
-					dispatch(apiSlice.util.invalidateTags(['Properties']));
-				},
-				onError: () => {
-					dispatch(apiSlice.util.invalidateTags(['Properties']));
-				},
-			});
-			feedback.notify(
-				pdfDocuments.length > 0
-					? 'Documents uploaded. Maintley is reviewing PDF details in the background.'
-					: 'Documents uploaded to property documents.',
-			);
 		} catch (error: any) {
 			console.error('Error uploading appliance documents:', error);
 			feedback.notify(error?.message || 'Could not upload appliance documents.');

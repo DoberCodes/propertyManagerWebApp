@@ -66,6 +66,18 @@ const isBlockedByClientError = (error: any): boolean => {
 	);
 };
 
+const isExpectedAuthTeardownError = (error: any): boolean => {
+	const rawMessage = String(error?.message || '').toLowerCase();
+	const rawCode = String(error?.code || '').toLowerCase();
+
+	return (
+		!auth.currentUser ||
+		rawCode.includes('unauthenticated') ||
+		rawMessage.includes('unauthenticated') ||
+		rawMessage.includes('user not authenticated')
+	);
+};
+
 /**
  * Sign in with email and password
  */
@@ -269,7 +281,6 @@ const NON_BILLABLE_SIGNUP_PLANS = new Set([
 	'tenant',
 ]);
 
-const PROPERTY_GROUP_ELIGIBLE_PLANS = new Set(['property', 'portfolio']);
 const TEAM_GROUP_ELIGIBLE_PLANS = new Set(['property', 'portfolio']);
 
 const isNonBillableSignupPlan = (plan: string): boolean =>
@@ -583,32 +594,6 @@ export const signUpWithEmail = async (
 				.trim()
 				.toLowerCase();
 
-			if (PROPERTY_GROUP_ELIGIBLE_PLANS.has(normalizedEntitledPlan)) {
-				await setDoc(
-					doc(db, 'propertyGroups', `${userCredential.user.uid}_my_properties`),
-					{
-						userId: userCredential.user.uid,
-						accountId: userCredential.user.uid,
-						name: 'My Properties',
-						properties: [],
-						createdAt: serverTimestamp(),
-						updatedAt: serverTimestamp(),
-					},
-				);
-
-				await setDoc(
-					doc(db, 'propertyGroups', `${userCredential.user.uid}_shared_properties`),
-					{
-						userId: userCredential.user.uid,
-						accountId: userCredential.user.uid,
-						name: 'Shared Properties',
-						properties: [],
-						createdAt: serverTimestamp(),
-						updatedAt: serverTimestamp(),
-					},
-				);
-			}
-
 			if (TEAM_GROUP_ELIGIBLE_PLANS.has(normalizedEntitledPlan)) {
 				const myTeamGroupId = `${userCredential.user.uid}_default`;
 				const myTeamGroupRef = doc(db, 'teamGroups', myTeamGroupId);
@@ -785,6 +770,10 @@ export const updateFamilyMember = async (
  */
 export const getFamilyMembers = async (accountId: string): Promise<User[]> => {
 	try {
+		if (!accountId || !auth.currentUser) {
+			return [];
+		}
+
 		const getFamilyMembersCallable = await getAuthCallable<
 			{ accountId: string },
 			{ members: User[] }
@@ -793,6 +782,10 @@ export const getFamilyMembers = async (accountId: string): Promise<User[]> => {
 		const result = await getFamilyMembersCallable({ accountId });
 		return Array.isArray(result.data?.members) ? result.data.members : [];
 	} catch (error: any) {
+		if (isExpectedAuthTeardownError(error)) {
+			return [];
+		}
+
 		console.error('Failed to get family members:', error);
 		return [];
 	}

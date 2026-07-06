@@ -312,6 +312,37 @@ export const Properties = () => {
 		!canManageGroups &&
 		getMaxPropertiesForPlan(effectivePlanId) > 1;
 
+	const propertyLanguage = useMemo(
+		() => ({
+			pageTitle: isHomeowner ? 'Homes' : 'Property Records',
+			pageSubtitle: isHomeowner
+				? 'Keep your home record organized with maintenance, equipment, documents, people, and history.'
+				: 'Keep each property record organized with maintenance, equipment, documents, people, and history.',
+			addLabel: isHomeowner ? 'Add Home' : 'Add Property Record',
+			searchPlaceholder: isHomeowner ? 'Search homes...' : 'Search property records...',
+			filterTitle: isHomeowner ? 'Search and filter homes' : 'Search and filter property records',
+			filterDescription: isHomeowner
+				? 'Choose which home records you want to see, then apply your changes.'
+				: 'Choose which property records you want to see, then apply your changes.',
+			recordSingular: isHomeowner ? 'home' : 'property record',
+			recordPlural: isHomeowner ? 'homes' : 'property records',
+			totalSingularLabel: isHomeowner ? 'Home Record' : 'Property Record',
+			totalPluralLabel: isHomeowner ? 'Home Records' : 'Property Records',
+			documentSubtitle: isHomeowner ? 'Across your home record' : 'Across property records',
+		}),
+		[isHomeowner],
+	);
+
+	const getDisplayGroupName = useCallback((name?: string) => {
+		const rawName = String(name || '').trim();
+		const normalized = rawName.toLowerCase();
+
+		if (normalized === 'main residence') return 'Primary Home';
+		if (normalized === 'shared properties') return 'Shared With Me';
+
+		return rawName || 'Property Records';
+	}, []);
+
 	// Combine groups with their properties
 	const groupsWithProperties = useMemo(() => {
 		return propertyGroups.map((group) => ({
@@ -328,18 +359,22 @@ export const Properties = () => {
 	// Filter groups based on user role and assignments
 	// Note: Casting to any[] to handle type mismatch between Redux types (number IDs) and Firebase types (string IDs)
 	const filteredGroups = useMemo(() => {
+		const systemDefaultGroupNames = new Set(['my properties', 'shared properties']);
 		const groups = filterPropertyGroupsByRole(
 			groupsWithProperties as any[],
 			currentUser,
 			teamMembers?.filter((m): m is TeamMember => m !== undefined),
-		);
-		// Sort groups so "My Properties" appears first
+		).filter((group) => {
+			const normalizedName = String(group.name || '').trim().toLowerCase();
+			return !(
+				systemDefaultGroupNames.has(normalizedName) &&
+				(group.properties || []).length === 0
+			);
+		});
+
 		return groups.sort((a, b) => {
 			const aName = a.name?.toLowerCase() || '';
 			const bName = b.name?.toLowerCase() || '';
-			if (aName === 'my properties') return -1;
-			if (bName === 'my properties') return 1;
-
 			const aOrder = Number.isFinite(a.sortOrder)
 				? Number(a.sortOrder)
 				: Number.MAX_SAFE_INTEGER;
@@ -473,7 +508,10 @@ export const Properties = () => {
 		return [
 			{
 				value: uniqueProperties.length,
-				label: 'Total Properties',
+				label:
+					uniqueProperties.length === 1
+						? propertyLanguage.totalSingularLabel
+						: propertyLanguage.totalPluralLabel,
 				icon: faHouse,
 				bg: '#ecfdf3',
 				color: '#0f9f6e',
@@ -497,13 +535,13 @@ export const Properties = () => {
 			{
 				value: documents,
 				label: 'Documents',
-				subtitle: 'Across all properties',
+				subtitle: propertyLanguage.documentSubtitle,
 				icon: faFileLines,
 				bg: '#f5f3ff',
 				color: '#7c3aed',
 			},
 		];
-	}, [filteredGroups, propertyAggregates]);
+	}, [filteredGroups, propertyAggregates, propertyLanguage]);
 
 	const [openDropdown, setOpenDropdown] = useState<string | null>(null);
 	const [dialogOpen, setDialogOpen] = useState(false);
@@ -2009,7 +2047,7 @@ export const Properties = () => {
 			{
 				icon: faMicrochip,
 				value: systemsCount,
-				label: systemsCount === 1 ? 'System' : 'Systems',
+				label: systemsCount === 1 ? 'Equipment Record' : 'Equipment Records',
 				color: '#6b7280',
 			},
 		];
@@ -2387,7 +2425,7 @@ export const Properties = () => {
 						);
 					} else if (formData.openSetupAfterCreate !== false) {
 						feedback.notify(
-							`${formData.name} was created. Opening property setup.`,
+							`${formData.name} was created. Opening ${isHomeowner ? 'home' : 'property'} setup.`,
 							'success',
 						);
 						navigate(`/property/${result.data.slug}?setup=1`);
@@ -2442,7 +2480,7 @@ export const Properties = () => {
 		const zeroStateActions = !isUserTenant && !isTeamMemberAccount && canManage
 			? [
 				{
-					label: 'Add Property',
+					label: propertyLanguage.addLabel,
 					onClick: handleAddPropertyGlobalClick,
 					variant: 'primary' as const,
 				},
@@ -2488,14 +2526,14 @@ export const Properties = () => {
 		<StandardAppPage as={Wrapper}>
 			<StandardAppPageHeader>
 				<StandardAppPageTitleBlock>
-					<StandardAppPageTitle>Properties</StandardAppPageTitle>
-					<StandardAppPageSubtitle>Organize and manage all of your properties in one place.</StandardAppPageSubtitle>
+					<StandardAppPageTitle>{propertyLanguage.pageTitle}</StandardAppPageTitle>
+					<StandardAppPageSubtitle>{propertyLanguage.pageSubtitle}</StandardAppPageSubtitle>
 				</StandardAppPageTitleBlock>
 				<TopActions>
 					<DesktopPropertyFilters>
 						<SearchBar
 							type='text'
-							placeholder='Search properties...'
+							placeholder={propertyLanguage.searchPlaceholder}
 							value={searchQuery}
 							onChange={(e) => setSearchQuery(e.target.value)}
 						/>
@@ -2520,7 +2558,7 @@ export const Properties = () => {
 							<AddPropertyButton
 								disabled={handleDisabled()}
 								onClick={handleAddPropertyGlobalClick}>
-								+ Add Property
+								+ {propertyLanguage.addLabel}
 							</AddPropertyButton>
 							{canManageGroups && (
 								<HeaderMenuWrap ref={headerMenuRef}>
@@ -2575,7 +2613,9 @@ export const Properties = () => {
 			</StandardAppPageHeader>
 			<CompactResultCount>
 				Showing {displayedPropertyCount} of {visibleProperties.length}{' '}
-				{visibleProperties.length === 1 ? 'property' : 'properties'}
+				{visibleProperties.length === 1
+					? propertyLanguage.recordSingular
+					: propertyLanguage.recordPlural}
 			</CompactResultCount>
 			<FloatingFilterPanel
 				isOpen={isFilterPanelOpen}
@@ -2584,8 +2624,8 @@ export const Properties = () => {
 				onApply={applyDraftFilters}
 				onClearDraft={clearDraftFilters}
 				activeFilterCount={activeFilterCount}
-				title='Search and filter properties'
-				description='Choose which properties you want to see, then apply your changes.'
+				title={propertyLanguage.filterTitle}
+				description={propertyLanguage.filterDescription}
 				additionalSettingsActions={
 					canManageGroups
 						? [
@@ -2617,7 +2657,7 @@ export const Properties = () => {
 						Search
 						<SearchBar
 							type='search'
-							placeholder='Search properties...'
+							placeholder={propertyLanguage.searchPlaceholder}
 							value={draftSearchQuery}
 							onChange={(event) => setDraftSearchQuery(event.target.value)}
 						/>
@@ -2712,7 +2752,7 @@ export const Properties = () => {
 							Search
 							<SearchBar
 								type='search'
-								placeholder='Search properties...'
+								placeholder={propertyLanguage.searchPlaceholder}
 								value={draftSearchQuery}
 								onChange={(e) => setDraftSearchQuery(e.target.value)}
 							/>
@@ -2919,7 +2959,7 @@ export const Properties = () => {
 									) : (
 										<GroupTitleBlock>
 											<GroupName>
-												{group.name}
+												{getDisplayGroupName(group.name)}
 												<GroupCountBadge>
 													{(group.properties || []).length}
 												</GroupCountBadge>
@@ -2983,18 +3023,21 @@ export const Properties = () => {
 										const propertyPillLabel = getPropertyPillLabel(property);
 										const propertyImageSrc = getPropertyImageSrc(property.image);
 										const isFallbackImage = isPropertyImageFallback(property.image);
+										const propertyRoute =
+											getTenantUnitRoute(property) ||
+											`/property/${property.slug}`;
+										const openProperty = () => {
+											addRecentlyViewed({
+												id: property.id,
+												title: property.title,
+												slug: property.slug,
+											});
+											navigate(propertyRoute);
+										};
 										return (
 											<PropertyTile
 												key={property.id}
-												onClick={() => {
-													addRecentlyViewed({
-														id: property.id,
-														title: property.title,
-														slug: property.slug,
-													});
-													const tenantUnitRoute = getTenantUnitRoute(property);
-													navigate(tenantUnitRoute || `/property/${property.slug}`);
-												}}>
+												onClick={openProperty}>
 												<PropertyImageWrap>
 													<PropertyImage
 														$isFallback={isFallbackImage}
@@ -3037,13 +3080,11 @@ export const Properties = () => {
 												<PropertyBody>
 													<div>
 														<PropertyTitle
+															href={propertyRoute}
 															onClick={(e) => {
+																e.preventDefault();
 																e.stopPropagation();
-																addRecentlyViewed({
-																	id: property.id as any,
-																	title: property.title,
-																	slug: property.slug,
-																});
+																openProperty();
 															}}>
 															{propertyDisplayName}
 														</PropertyTitle>
@@ -3098,9 +3139,9 @@ export const Properties = () => {
 											type='button'
 											onClick={() => handleAddPropertyToGroup(group.id as any)}>
 											<AddPropertyTileIcon>+</AddPropertyTileIcon>
-											<AddPropertyTileTitle>Add Property</AddPropertyTileTitle>
+											<AddPropertyTileTitle>{propertyLanguage.addLabel}</AddPropertyTileTitle>
 											<AddPropertyTileHint>
-												Add another property to this group
+												Add another {propertyLanguage.recordSingular} to this group
 											</AddPropertyTileHint>
 										</AddPropertyTile>
 									)}
@@ -3805,7 +3846,7 @@ export const Properties = () => {
 																event.target.value,
 															)
 														}
-														placeholder='Search properties'
+														placeholder={propertyLanguage.searchPlaceholder.replace('...', '')}
 													/>
 													<PropertyTransferSelectionBar>
 														<span>

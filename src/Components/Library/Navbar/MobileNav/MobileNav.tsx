@@ -42,7 +42,7 @@ export const MobileHamburgerNav: React.FC<MobileNavProps> = ({ isSidebarOpen, se
             visible: !isUserTenant && canAccessTeam,
         },
         {
-            label: 'Report',
+            label: 'Reports',
             path: 'report',
             visible: !isUserTenant && (canAccessProperties || canViewPages),
         },
@@ -145,7 +145,7 @@ export const MobileHamburgerNav: React.FC<MobileNavProps> = ({ isSidebarOpen, se
                             </ul>
                         ) : (
                             <div style={{ fontSize: '12px', color: COLORS.textMuted }}>
-                                No favorite properties
+                                {isHomeowner ? 'No favorite homes' : 'No favorite property records'}
                             </div>
                         )}
 
@@ -173,22 +173,22 @@ export const MobileBottomNav: React.FC<MobileNavProps> = ({ isPropertyContext, p
         : pathname;
     const quickCreateActions = isApplianceContext
         ? [
-            { key: 'add_part', label: 'Add Part', x: -100, y: 0 },
-            { key: 'add_task', label: 'Add Task', x: -55, y: -55 },
-            { key: 'upload_document', label: 'Upload Document', x: 55, y: -55 },
-            { key: 'add_log', label: 'Add Log', x: 100, y: 0 },
+            { key: 'add_part', label: 'Part', x: -100, y: 0 },
+            { key: 'add_task', label: 'Task', x: -55, y: -55 },
+            { key: 'upload_document', label: 'Document', x: 55, y: -55 },
+            { key: 'add_log', label: 'Log', x: 100, y: 0 },
         ]
         : isPropertyContext
             ? [
-                { key: 'add_task', label: 'Add Task', x: -100, y: 0 },
-                { key: 'add_system', label: 'Add System', x: -55, y: -55 },
-                { key: 'upload_document', label: 'Upload Document', x: 55, y: -55 },
-                { key: 'add_contractor', label: 'Add Contractor', x: 100, y: 0 },
+                { key: 'add_task', label: 'Task', x: -100, y: 0 },
+            { key: 'add_system', label: 'Equipment', x: -55, y: -55 },
+                { key: 'upload_document', label: 'Document', x: 55, y: -55 },
+                { key: 'add_contractor', label: 'Contractor', x: 100, y: 0 },
             ]
             : [
-                { key: 'add_task', label: 'Add Task', x: -100, y: -10 },
-                { key: 'add_system', label: 'Add System', x: 0, y: -60 },
-                { key: 'add_property', label: 'Add Property', x: 100, y: -10 },
+                { key: 'add_task', label: 'Task', x: -100, y: -10 },
+                { key: 'add_system', label: 'Equipment', x: 0, y: -60 },
+                { key: 'add_property', label: 'Home', x: 100, y: -10 },
             ];
 
     const handleQuickCreateAction = (action: string) => {
@@ -269,7 +269,7 @@ export const MobileBottomNav: React.FC<MobileNavProps> = ({ isPropertyContext, p
                     $active={activeRoute === '/dashboard'}
                     onClick={() => navigate('/dashboard')}
                     aria-current={activeRoute === '/dashboard' ? 'page' : undefined}>
-                    <MobileBottomNavLabel>Dashboard</MobileBottomNavLabel>
+                    <MobileBottomNavLabel>Today</MobileBottomNavLabel>
                 </MobileBottomNavItem>
 
                 <MobileBottomNavItem
@@ -310,7 +310,7 @@ export const MobileBottomNav: React.FC<MobileNavProps> = ({ isPropertyContext, p
                     $active={activeRoute === '/devices'}
                     onClick={() => navigate('/devices')}
                     aria-current={activeRoute === '/devices' ? 'page' : undefined}>
-                    <MobileBottomNavLabel>Systems</MobileBottomNavLabel>
+                    <MobileBottomNavLabel>Equipment</MobileBottomNavLabel>
                 </MobileBottomNavItem>
 
                 <MobileBottomNavItem
@@ -318,7 +318,7 @@ export const MobileBottomNav: React.FC<MobileNavProps> = ({ isPropertyContext, p
                     $active={activeRoute === '/properties'}
                     onClick={() => navigate('/properties')}
                     aria-current={activeRoute === '/properties' ? 'page' : undefined}>
-                    <MobileBottomNavLabel>Property</MobileBottomNavLabel>
+                    <MobileBottomNavLabel>Home</MobileBottomNavLabel>
                 </MobileBottomNavItem>
             </MobileBottomNavInner>
         </MobileBottomNavBar>

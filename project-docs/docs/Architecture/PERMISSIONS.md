@@ -250,6 +250,9 @@ Important fields:
 * status
 
 Active membership is required for account-scoped access unless a legacy compatibility path applies.
+For legacy membership records, a missing membership `status` is treated as active
+by both Firestore and Storage rules; explicit disabled or inactive statuses should
+continue to deny access.
 
 See FIREBASE_STRUCTURE.md for detailed account architecture.
 

@@ -160,6 +160,7 @@ export const InsightsTab: React.FC<InsightsTabProps> = ({
 					maintenanceHistoryRecords={maintenanceHistoryRecords}
 					propertyContractors={propertyContractors}
 					permissions={permissions}
+					subscription={subscription}
 					selectedSuggestionId={requestedSuggestionId}
 					onSelectSuggestion={selectSuggestion}
 					onAddMaintenanceHistory={onAddMaintenanceHistory}

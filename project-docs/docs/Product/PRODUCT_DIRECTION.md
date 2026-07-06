@@ -292,7 +292,7 @@ Typical journey:
 ```text
 Property
   ↓
-Appliances & Systems
+Equipment Records
   ↓
 Maintenance History
   ↓
@@ -341,7 +341,7 @@ Properties are the primary organizing object within Maintley.
 
 Properties own:
 
-* Appliances & Systems
+* Equipment Records
 * Tasks
 * Maintenance History
 * Documentation
@@ -421,13 +421,13 @@ The dashboard should prioritize:
 * Property selection
 
 The dashboard should be personal-first and scope-aware. Owners and managers may
-see portfolio-wide priorities across the properties in view, while team members
+see broader priorities across the homes or properties in view, while team members
 and family members should see framing focused on their relevant work and
 property context.
 
 Dashboard scope is a user preference. `My Focus` narrows the Dashboard toward
 tasks assigned to the current user and the property context needed for that
-work. `All Visible` shows the user's visible property set without changing
+work. `All Work` shows the user's visible work without changing
 permissions or duplicating portfolio state.
 
 Avoid turning the dashboard into a reporting screen.
@@ -509,7 +509,7 @@ Recommended flow:
 
 1. Basics
 2. Property Profile
-3. Appliances & Systems
+3. Equipment Records
 4. Suggested Maintenance
 5. Access & Sharing
 6. Review
@@ -540,9 +540,10 @@ Supported responses:
 
 * Present
 * Not Present
-* Unknown
+* Skip for now
 
 Users should never be penalized for systems they do not have.
+Items skipped for now should stay open so users understand they can return later.
 
 ---
 

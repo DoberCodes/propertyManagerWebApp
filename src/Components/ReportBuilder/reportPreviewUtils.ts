@@ -27,9 +27,31 @@ export const getNonEmptyReportColumns = (
 	);
 };
 
-export const formatPreviewValue = (value: unknown): string => {
+const getEmptyPreviewValue = (column?: string): string => {
+	const normalizedColumn = String(column || '').toLowerCase();
+	if (normalizedColumn.includes('duedate') || normalizedColumn.includes('nextdue')) {
+		return 'Not scheduled';
+	}
+	if (
+		normalizedColumn.includes('assignee') ||
+		normalizedColumn.includes('assigned') ||
+		normalizedColumn.includes('completedby') ||
+		normalizedColumn.includes('approvedby')
+	) {
+		return 'Unassigned';
+	}
+	if (
+		normalizedColumn.includes('property') ||
+		normalizedColumn.includes('appliancesystem')
+	) {
+		return 'Not linked';
+	}
+	return 'Not provided';
+};
+
+export const formatPreviewValue = (value: unknown, column?: string): string => {
 	if (!hasReportValue(value)) {
-		return '-';
+		return getEmptyPreviewValue(column);
 	}
 
 	if (Array.isArray(value)) {

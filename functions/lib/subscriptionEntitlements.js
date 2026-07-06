@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getEffectiveSubscriptionPlanId = exports.isSubscriptionCurrentlyEntitled = exports.normalizePlanId = void 0;
+exports.canUsePropertyKnowledgeAcquisition = exports.getEffectiveSubscriptionPlanId = exports.isSubscriptionCurrentlyEntitled = exports.normalizePlanId = void 0;
 const CURRENT_PLAN_IDS = new Set([
     'homeowner',
     'homeowner_plus',
@@ -40,3 +40,5 @@ const getEffectiveSubscriptionPlanId = (subscription, fallbackPlanId = 'homeowne
     return (0, exports.normalizePlanId)(subscription?.plan || fallbackPlanId);
 };
 exports.getEffectiveSubscriptionPlanId = getEffectiveSubscriptionPlanId;
+const canUsePropertyKnowledgeAcquisition = (subscription) => PAID_PLAN_IDS.has((0, exports.getEffectiveSubscriptionPlanId)(subscription, 'homeowner'));
+exports.canUsePropertyKnowledgeAcquisition = canUsePropertyKnowledgeAcquisition;

@@ -87,7 +87,7 @@ export const HeroBackButton = styled.button`
 	@media (max-width: 480px) {
 		top: 12px;
 		left: 12px;
-		max-width: calc(100% - 72px);
+		max-width: calc(100% - 128px);
 		padding: 10px 12px;
 		font-size: 15px;
 		min-height: 44px;

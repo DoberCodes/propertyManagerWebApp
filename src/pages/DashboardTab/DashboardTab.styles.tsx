@@ -627,6 +627,31 @@ export const DashboardIntelligenceCard = styled.article`
 	background: linear-gradient(180deg, ${COLORS.bgWhite} 0%, rgba(236, 253, 245, 0.8) 100%);
 `;
 
+export const DashboardIntelligenceHeader = styled.div`
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 10px;
+`;
+
+export const DashboardIntelligenceSourcePill = styled.span`
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+	max-width: 52%;
+	padding: 4px 8px;
+	border: 1px solid rgba(4, 120, 87, 0.18);
+	border-radius: 999px;
+	background: rgba(255, 255, 255, 0.86);
+	color: ${COLORS.primaryDark};
+	font-size: 0.68rem;
+	font-weight: 800;
+	line-height: 1.15;
+	text-align: center;
+	white-space: normal;
+`;
+
 export const DashboardIntelligenceText = styled.p`
 	margin: 0;
 	font-size: 0.88rem;

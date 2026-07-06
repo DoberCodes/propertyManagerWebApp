@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { Link, useNavigate } from 'react-router-dom';
 import { RootState, AppDispatch } from 'Redux/store';
-import { setCurrentUser } from 'Redux/Slices/userSlice';
+import { beginAuthTransition, setCurrentUser } from 'Redux/Slices/userSlice';
 import {
 	useGetAllMaintenanceHistoryForUserQuery,
 	useUpdateUserMutation,
@@ -71,14 +71,10 @@ import {
 	DeleteLoadingOverlay,
 	DeleteLoadingTitle,
 	DeleteLoadingText,
-	DeconstructedHouseLoader,
-	HouseRoofPiece,
-	HouseBodyPiece,
-	HouseBlockPiece,
-	HouseBasePiece,
 	PasswordInputWrapper,
 	PasswordVisibilityButton,
 } from './UserProfile.styles';
+import { HouseLogoLoader } from 'Components/Library/HouseLogoLoader';
 import { Button } from 'pages/PropertyDetailPage/TabSystem/index.styles';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
@@ -123,6 +119,7 @@ import { callFirebaseFunction } from 'config/firebaseFunctions';
 export const UserProfile: React.FC = () => {
 	const dispatch = useDispatch<AppDispatch>();
 	const navigate = useNavigate();
+	const deleteConfirmationInputId = 'delete-account-confirmation-input';
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
 	const [updateUser] = useUpdateUserMutation();
 	const isTeamMemberAccount = useSelector(selectIsTeamMemberAccount);
@@ -494,14 +491,15 @@ export const UserProfile: React.FC = () => {
 		? getRemainingPropertySlots(currentUser.subscription, totalProperties)
 		: 0;
 	const maxProperties = planDetails?.maxProperties ?? 1;
+	const planRecordNoun = maxProperties <= 1 ? 'home' : 'property';
 	const usagePercent = maxProperties > 0 ? (totalProperties / maxProperties) * 100 : 0;
 	const hasPropertyCapacity = maxProperties > 0;
 	const planSlotLabel = !hasPropertyCapacity
 		? 'Property creation is not included'
 		: remainingSlots === 0 && totalProperties > maxProperties
 			? `${totalProperties - maxProperties} over plan limit`
-			: `${remainingSlots} property slot${remainingSlots === 1 ? '' : 's'} available`;
-	const planSubtitle = `Current plan: ${planDetails?.name || 'Home'}`;
+			: `${remainingSlots} ${planRecordNoun} slot${remainingSlots === 1 ? '' : 's'} available`;
+	const planSubtitle = `Plan: ${planDetails?.name || 'Home'}`;
 	const storageUsagePercent = Math.min(100, storageUsage?.usagePercent || 0);
 	const storageUsageLabel = isStorageUsageLoading
 		? 'Loading storage...'
@@ -652,6 +650,9 @@ export const UserProfile: React.FC = () => {
 		currentUser?.subscription?.status === 'active' &&
 		!!currentUser?.subscription?.hasScheduledSubscription;
 	const currentPlanDetails = getSubscriptionPlanDetails(currentPlanId || 'homeowner');
+	const memberSinceLabel = currentUser?.createdAt
+		? formatDate(currentUser.createdAt)
+		: 'Not available yet';
 	const ownedPropertiesCount = React.useMemo(
 		() =>
 			summaryProperties.filter(
@@ -811,8 +812,9 @@ export const UserProfile: React.FC = () => {
 				'deleteUserAccount',
 				{ userId: currentUser.id },
 			);
+			dispatch(beginAuthTransition());
 			await signOut(auth);
-			navigate('/login');
+			navigate('/login', { replace: true });
 		} catch (deleteError: any) {
 			console.error('Delete account error:', deleteError);
 			if (deleteError.code === 'functions/permission-denied') {
@@ -865,7 +867,7 @@ export const UserProfile: React.FC = () => {
 							<FormLabel style={{ fontSize: '16px', fontWeight: '600', marginBottom: '5px' }}>{formData.firstName} {formData.lastName}</FormLabel>
 							<p>{currentUser?.title}</p>
 							<p>{currentUser?.email}</p>
-							<p>{`Member since: ${formatDate(currentUser?.createdAt)}`}</p>
+							<p>{`Member since: ${memberSinceLabel}`}</p>
 						</ProfileDetailsPanel>
 					</UserProfileHeader>
 
@@ -1363,16 +1365,7 @@ export const UserProfile: React.FC = () => {
 						<DeleteLoadingOverlay>
 							<DeleteLoadingCard>
 								<DeleteLoadingTitle>Sorry to see you go</DeleteLoadingTitle>
-								<DeconstructedHouseLoader aria-hidden='true'>
-									<HouseRoofPiece />
-									<HouseBodyPiece>
-										<HouseBlockPiece $slot='one' $delay='0.1s' />
-										<HouseBlockPiece $slot='two' $delay='0.2s' />
-										<HouseBlockPiece $slot='three' $delay='0.3s' />
-										<HouseBlockPiece $slot='four' $delay='0.4s' />
-									</HouseBodyPiece>
-									<HouseBasePiece />
-								</DeconstructedHouseLoader>
+								<HouseLogoLoader variant='deconstruct' size={76} />
 								<DeleteLoadingText>
 									Removing your account data now. This usually takes just a moment.
 								</DeleteLoadingText>
@@ -1487,8 +1480,9 @@ export const UserProfile: React.FC = () => {
 
 					{!isDeletingAccount && deleteModalState === 'ready' && (
 						<div style={{ marginTop: '14px' }}>
-							<FormLabel>Type DELETE to confirm</FormLabel>
+							<FormLabel htmlFor={deleteConfirmationInputId}>Type DELETE to confirm</FormLabel>
 							<FormInput
+								id={deleteConfirmationInputId}
 								type='text'
 								value={deleteConfirmationInput}
 								onChange={(e) => setDeleteConfirmationInput(e.target.value)}

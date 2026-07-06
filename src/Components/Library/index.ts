@@ -10,6 +10,7 @@ export { Breadcrumb } from './Breadcrumb';
 
 // Data Display
 export { ReusableTable } from './ReusableTable';
+export { HouseLogoLoader } from './HouseLogoLoader';
 export { MobileTaskCarousel } from './MobileTaskCarousel/MobileTaskCarousel';
 export { MobileCarousel } from './MobileCarousel/MobileCarousel';
 export { GridContainer, GridTable, EmptyState } from './DataGrid';

@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faEllipsisV, faCamera } from '@fortawesome/free-solid-svg-icons';
+import { faEllipsisV, faCamera, faPen } from '@fortawesome/free-solid-svg-icons';
 import { PropertyDetailPageProps } from '../../types/PropertyDetailPage.types';
 import { RootState } from '../../Redux/store/store';
 import { User } from '../../Redux/Slices/userSlice';
@@ -118,10 +118,29 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 	const isUserTenant = useSelector(selectIsTenant);
 	const canAccessProperties = useSelector(selectCanAccessProperties);
 	const isHomeowner = useSelector(selectIsHomeowner);
-	const roleCapabilities = useMemo(
-		() => getRoleCapabilities(currentUser?.role),
-		[currentUser?.role],
-	);
+	const roleCapabilities = useMemo(() => {
+		const capabilities = getRoleCapabilities(currentUser?.role);
+		if (currentUser?.isAccountOwner !== true) {
+			return capabilities;
+		}
+
+		return {
+			...capabilities,
+			canManageProperties: true,
+			canManageTasks: true,
+			canCreateTasks: true,
+			canCompleteTasks: true,
+			canManageMaintenanceHistory: true,
+			canCreateMaintenanceRequests: true,
+			canApproveMaintenanceRequests: true,
+			canManageAppliances: true,
+			canManageContractors: true,
+			canManageTenants: true,
+			canManageFinancials: true,
+			canManageTeam: true,
+			canManageDocuments: true,
+		};
+	}, [currentUser?.isAccountOwner, currentUser?.role]);
 	const canManageProperties =
 		canAccessProperties &&
 		!!currentUser?.subscription &&
@@ -144,7 +163,11 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 
 	const { isFavorite, toggleFavorite } = useFavorites(currentUser!.id);
 
-	const { data: firebaseProperties = [], isLoading: isLoadingProperties } =
+	const {
+		data: firebaseProperties = [],
+		isLoading: isLoadingProperties,
+		isFetching: isFetchingProperties,
+	} =
 		useGetPropertiesQuery();
 
 	const propertyGroups = useSelector(
@@ -236,7 +259,11 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 
 		return resolvedProperty;
 	}, [slug, firebaseProperties, propertyGroups, propertyOverride]);
-	const { data: liveProperty } = useGetPropertyQuery(propertyFromLists?.id || '', {
+	const {
+		data: liveProperty,
+		isLoading: isLoadingLiveProperty,
+		isFetching: isFetchingLiveProperty,
+	} = useGetPropertyQuery(propertyFromLists?.id || '', {
 		skip: !propertyFromLists?.id || Boolean(propertyOverride),
 	});
 	const property = propertyOverride || liveProperty || propertyFromLists;
@@ -678,16 +705,23 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 		}
 
 		await deletePropertyMutation(property.id).unwrap();
+		const deletedPropertyId = property.id;
+		const deletedPropertyTitle = property.title;
+		const redirectPath = isHomeowner ? '/dashboard' : '/properties';
+
+		setIsPropertyDialogOpen(false);
+		setIsActionMenuOpen(false);
+		navigate(redirectPath, { replace: true });
 
 		try {
 			await createNotification({
 				userId: currentUser!.id,
 				type: 'property_deleted',
 				title: 'Property Deleted',
-				message: `Property "${property.title}" has been deleted`,
+				message: `Property "${deletedPropertyTitle}" has been deleted`,
 				data: {
-					propertyId: property.id,
-					propertyTitle: property.title,
+					propertyId: deletedPropertyId,
+					propertyTitle: deletedPropertyTitle,
 				},
 				status: 'unread',
 				createdAt: new Date().toISOString(),
@@ -696,9 +730,6 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 		} catch (notifError) {
 			console.error('Notification failed:', notifError);
 		}
-
-		setIsPropertyDialogOpen(false);
-		navigate('/properties', { replace: true });
 	};
 
 	const handleConfirmDeleteTenant = async () => {
@@ -1133,19 +1164,24 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 	};
 
 	if (!property) {
-		if (isLoadingProperties) {
+		if (
+			isLoadingProperties ||
+			isFetchingProperties ||
+			isLoadingLiveProperty ||
+			isFetchingLiveProperty
+		) {
 			return (
 				<LoadingState
 					loadingKey='property-detail'
-					title='Loading property'
-					message='Preparing this property workspace.'
+					title={isHomeowner ? 'Loading home' : 'Loading property'}
+					message={isHomeowner ? 'Preparing this home record.' : 'Preparing this property workspace.'}
 					steps={[
-						'Loading your property...',
-						'Building your property timeline...',
+						isHomeowner ? 'Loading your home...' : 'Loading your property...',
+						isHomeowner ? 'Building your home timeline...' : 'Building your property timeline...',
 						'Checking upcoming maintenance...',
 						'Organizing your documents...',
 						'Connecting maintenance history...',
-						'Reviewing your property...',
+						isHomeowner ? 'Reviewing your home...' : 'Reviewing your property...',
 					]}
 				/>
 			);
@@ -1154,11 +1190,15 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 			<Wrapper>
 				<ZeroState
 					icon='🔍'
-					title='Property not found'
-					description="The property you're looking for doesn't exist or may have been deleted."
+					title={isHomeowner ? 'Home not found' : 'Property record not found'}
+					description={
+						isHomeowner
+							? "The home you're looking for doesn't exist or may have been deleted."
+							: "The property record you're looking for doesn't exist or may have been deleted."
+					}
 					actions={[
 						{
-							label: 'Back to Properties',
+							label: isHomeowner ? 'Back to Home' : 'Back to Property Records',
 							onClick: () => navigate('/properties'),
 						},
 					]}
@@ -1190,21 +1230,46 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 			<PageHero
 				headerImageUrl={headerImageSrc}
 				backgroundSize={isHeaderFallbackImage ? '360px auto' : 'cover'}
-				backLabel='← Back to Properties'
+				backLabel={isHomeowner ? '← Back to Home' : '← Back to Property Records'}
 				onBack={() => navigate('/properties')}
 				topRight={currentUser ? (
 					<div style={{ display: 'none' }} className='mobile-action-menu'>
+						{canManageProperties && (
+							<button
+								onClick={() => {
+									setIsActionMenuOpen(false);
+									handleOpenPropertyDialog();
+								}}
+								style={{
+									background: 'rgba(255, 255, 255, 0.14)',
+									border: '1px solid rgba(255, 255, 255, 0.45)',
+									padding: '10px 12px',
+									borderRadius: '999px',
+									cursor: 'pointer',
+									fontSize: '15px',
+									color: 'white',
+									zIndex: 3,
+									minWidth: '44px',
+									minHeight: '44px',
+								}}
+								aria-label={isHomeowner ? 'Edit home record' : 'Edit property record'}
+								title={isHomeowner ? 'Edit home record' : 'Edit property record'}>
+								<FontAwesomeIcon icon={faPen} />
+							</button>
+						)}
 						<button
 							onClick={() => setIsActionMenuOpen(!isActionMenuOpen)}
 							style={{
-								background: 'none',
-								border: 'none',
-								padding: '8px 12px',
-								borderRadius: '4px',
+								background: 'rgba(255, 255, 255, 0.14)',
+								border: '1px solid rgba(255, 255, 255, 0.45)',
+								padding: '10px 12px',
+								borderRadius: '999px',
 								cursor: 'pointer',
-								fontSize: '20px',
+								fontSize: '15px',
 								color: 'white',
 								zIndex: 3,
+								minWidth: '44px',
+								minHeight: '44px',
 							}}
 							title='More options'>
 							<FontAwesomeIcon icon={faEllipsisV} />
@@ -1249,7 +1314,10 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 								)}
 								{canManageProperties && (
 									<button
-										onClick={handleOpenPropertyDialog}
+										onClick={() => {
+											setIsActionMenuOpen(false);
+											handleOpenPropertyDialog();
+										}}
 										style={{
 											width: '100%',
 											background: 'none',
@@ -1261,7 +1329,7 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 											cursor: 'pointer',
 											borderBottom: '1px solid #f3f4f6',
 										}}>
-										Edit Property
+										{isHomeowner ? 'Edit Home Record' : 'Edit Property Record'}
 									</button>
 								)}
 								{isUserTenant && property?.isRental && (
@@ -1327,7 +1395,7 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 					<DesktopHeroActions>
 						{canManageProperties && (
 							<HeroActionButton onClick={handleOpenPropertyDialog}>
-								✎ Edit Property
+								✎ {isHomeowner ? 'Edit Home Record' : 'Edit Property Record'}
 							</HeroActionButton>
 						)}
 						{currentUser && !isUserTenant && (
@@ -1413,6 +1481,7 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 					familyMembers={familyMembers}
 					teamMembers={teamMembers}
 					allTasks={propertyAllTasks}
+					homeownerMode={isHomeowner}
 					canRunPropertyScan={canRunPropertyScan}
 					showPropertyScanPrompt={showPropertyScanPrompt}
 					resolvedRecommendationIds={resolvedRecommendationIds}
@@ -1681,13 +1750,15 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 					display: none !important;
 				}
 
-				@media (max-width: 480px) {
+				@media (max-width: 768px) {
 					.desktop-actions {
 						display: none !important;
 					}
 
 					.mobile-action-menu {
-						display: block !important;
+						display: flex !important;
+						align-items: center;
+						gap: 8px;
 					}
 				}
 			`}</style>

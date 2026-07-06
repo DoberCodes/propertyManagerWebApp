@@ -97,6 +97,7 @@ export const AccountSnapshot: React.FC<AccountSnapshotProps> = ({ isSidebarOpen,
 	const propertyUsagePercent =
 		maxProperties > 0 ? Math.min(100, (totalProperties / maxProperties) * 100) : 0;
 	const hasPropertyCapacity = maxProperties > 0;
+	const planRecordNoun = maxProperties <= 1 ? 'home' : 'property';
 	const planUsageLabel = hasPropertyCapacity
 		? `${totalProperties} of ${maxProperties}`
 		: `${totalProperties}`;
@@ -104,8 +105,8 @@ export const AccountSnapshot: React.FC<AccountSnapshotProps> = ({ isSidebarOpen,
 		? 'Property creation is not included'
 		: remainingSlots === 0 && totalProperties > maxProperties
 			? `${totalProperties - maxProperties} over plan limit`
-			: `${remainingSlots} property slot${remainingSlots === 1 ? '' : 's'} available`;
-	const planSubtitle = `Current plan: ${planDetails?.name || 'Homeowner'}`;
+			: `${remainingSlots} ${planRecordNoun} slot${remainingSlots === 1 ? '' : 's'} available`;
+	const planSubtitle = `Plan: ${planDetails?.name || 'Home'}`;
 	const storageUsagePercent = Math.min(100, storageUsage?.usagePercent || 0);
 	const storageUsageLabel = isStorageUsageLoading
 		? 'Loading storage...'
@@ -144,7 +145,7 @@ export const AccountSnapshot: React.FC<AccountSnapshotProps> = ({ isSidebarOpen,
 							fontWeight: 800,
 							color: '#111827',
 						}}>
-						Property Plan
+						Plan & Usage
 					</div>
 					<div
 						style={{

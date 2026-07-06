@@ -305,7 +305,7 @@ const REPORT_CATEGORIES: Array<{
 	},
 	{
 		id: 'systems',
-		label: 'Appliances & Systems',
+		label: 'Equipment Records',
 		description: 'Equipment, warranties, and service activity',
 	},
 	{
@@ -325,8 +325,8 @@ const REPORT_CATEGORIES: Array<{
 	},
 	{
 		id: 'portfolio',
-		label: 'Portfolio',
-		description: 'Cross-property summaries',
+		label: 'Summary',
+		description: 'Home and property summaries',
 	},
 ];
 
@@ -774,8 +774,14 @@ export const ReportBuilder: React.FC = () => {
 	);
 
 	const taskReportRows = useMemo(
-		() => normalizeTaskReportRows(scopedTasks),
-		[scopedTasks],
+		() =>
+			normalizeTaskReportRows(
+				scopedTasks,
+				scopedProperties,
+				scopedTeamMembers,
+				contractorsData,
+			),
+		[scopedTasks, scopedProperties, scopedTeamMembers, contractorsData],
 	);
 
 	const maintenanceHistoryData = useMemo(
@@ -942,6 +948,21 @@ export const ReportBuilder: React.FC = () => {
 		};
 
 		const availableOptions = { ...(optionsMap[reportType] || {}) };
+
+		if (isHomeowner) {
+			if (availableOptions.propertyTitle) {
+				availableOptions.propertyTitle = 'Home';
+			}
+			if (availableOptions.linkedApplianceCount) {
+				availableOptions.linkedApplianceCount = 'Linked Equipment';
+			}
+			if (availableOptions.applianceCount) {
+				availableOptions.applianceCount = 'Linked Equipment';
+			}
+			if (availableOptions.applianceSystem) {
+				availableOptions.applianceSystem = 'Equipment';
+			}
+		}
 
 		if (!hasMultiFamilyProperties) {
 			delete availableOptions.unit;
@@ -1194,7 +1215,7 @@ export const ReportBuilder: React.FC = () => {
 			return;
 		}
 		if (reportType === 'employee-efficiency' && !canAccessAdvancedTeamReport) {
-			feedback.notify('Employee efficiency reports require Portfolio.');
+			feedback.notify('Employee efficiency reports require advanced team reporting.');
 			return;
 		}
 
@@ -1204,7 +1225,7 @@ export const ReportBuilder: React.FC = () => {
 		}
 
 		if (reportType === 'portfolio-overview' && !canAccessPortfolioReports) {
-			feedback.notify('Portfolio overview reports require the Portfolio plan.');
+			feedback.notify('This report requires multi-property reporting.');
 			return;
 		}
 
@@ -1339,6 +1360,14 @@ export const ReportBuilder: React.FC = () => {
 		[reportType, accessibleReports],
 	);
 
+	const getCategoryDescription = (category: typeof REPORT_CATEGORIES[number]) => {
+		if (isHomeowner && category.id === 'portfolio') {
+			return 'Home records and maintenance summaries';
+		}
+
+		return category.description;
+	};
+
 	const reportsByCategory = useMemo(() => {
 		const grouped = new Map<ReportCategoryId, typeof discoverableReports>();
 		REPORT_CATEGORIES.forEach((category) => grouped.set(category.id, []));
@@ -1386,7 +1415,9 @@ export const ReportBuilder: React.FC = () => {
 				<StandardAppPageTitleBlock>
 					<StandardAppPageTitle>Reports</StandardAppPageTitle>
 					<StandardAppPageSubtitle>
-						Preview property records and download CSV reports
+						{isHomeowner
+							? 'Preview home records and download CSV reports'
+							: 'Preview property records and download CSV reports'}
 					</StandardAppPageSubtitle>
 				</StandardAppPageTitleBlock>
 			</StandardAppPageHeader>
@@ -1418,7 +1449,7 @@ export const ReportBuilder: React.FC = () => {
 							<ReportStepKicker>Step 1</ReportStepKicker>
 							<SectionTitle>Choose a Report Category</SectionTitle>
 							<ReportStepText>
-								Start with the area of the property record you want to review.
+								Start with the area of the {isHomeowner ? 'home record' : 'property record'} you want to review.
 							</ReportStepText>
 						</ReportStepHeader>
 						<ReportCategoryGrid>
@@ -1435,7 +1466,7 @@ export const ReportBuilder: React.FC = () => {
 										onClick={() => setSelectedCategory(category.id)}>
 										<ReportCategoryTitle>{category.label}</ReportCategoryTitle>
 										<ReportCategoryDescription>
-											{category.description}
+											{getCategoryDescription(category)}
 										</ReportCategoryDescription>
 										<MobileReportCardMeta>
 											{availableCount} available
@@ -1459,7 +1490,7 @@ export const ReportBuilder: React.FC = () => {
 									accessibleReports.some((item) => item.value === report.value);
 								const metaLabel = isAccessible
 									? report.requiresPortfolioReporting
-										? 'Portfolio'
+										? 'Multi-property'
 										: report.requiresAdvancedTeamAccess
 											? 'Advanced'
 											: report.requiresFinancialAccess

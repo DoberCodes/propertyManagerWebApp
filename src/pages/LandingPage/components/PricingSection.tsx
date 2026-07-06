@@ -46,22 +46,22 @@ const paidPlans = [
 
 const cardFeatureHighlights: Record<string, string[]> = {
 	home: [
-		'1 property included',
-		'Up to 15 appliances & systems',
-		'Quick Property Scan',
-		'Raw data export',
+		'1 home included',
+		'Up to 15 equipment records',
+		'Basic record gap check',
+		'Starter document storage',
 	],
 	property: [
 		'Up to 7 properties included',
-		'Unlimited appliances & systems',
+		'Unlimited equipment records',
 		'Property groups',
 		'Resident maintenance requests',
 	],
 	homeowner_plus: [
-		'1 property included',
-		'Unlimited appliances & systems',
+		'1 home included',
+		'Unlimited equipment records',
 		'Maintley Intelligence',
-		'Personalized recommendations',
+		'Reminders and timelines',
 	],
 	portfolio: [
 		'Up to 15 properties included',
@@ -83,7 +83,7 @@ const formatLimit = (value: number, unit: string) =>
 
 const quickComparisonRows = [
 	{ label: 'Properties included', values: ['1', '1', 'Up to 7', 'Up to 15'] },
-	{ label: 'Appliances & systems', values: ['Up to 15', 'Unlimited', 'Unlimited', 'Unlimited'] },
+	{ label: 'Equipment records', values: ['Up to 15', 'Unlimited', 'Unlimited', 'Unlimited'] },
 	{
 		label: 'File limit',
 		values: paidPlans.map((plan) => formatLimit(plan.maxFiles, 'file')),
@@ -97,11 +97,10 @@ const quickComparisonRows = [
 	{ label: 'Maintenance history tracking', values: [true, true, true, true] },
 	{ label: 'Manual tasks', values: [true, true, true, true] },
 	{ label: 'Task assignment', values: [true, true, true, true] },
-	{ label: 'Quick Property Scan', values: [true, true, true, true] },
-	{ label: 'Dashboard recommendations', values: [true, true, true, true] },
+	{ label: 'Basic record gap check', values: [true, true, true, true] },
+	{ label: 'Maintley Intelligence guidance', values: ['Record gaps', 'Personalized guidance', 'Property guidance', 'Portfolio guidance'] },
 	{ label: 'Property Insight observations', values: [false, true, true, true] },
-	{ label: 'Maintley Intelligence', values: ['Quick Scan', 'Personalized guidance', 'Property guidance', 'Portfolio guidance'] },
-	{ label: 'Suggested maintenance', values: ['View only', 'Generate tasks', 'Generate tasks', 'Generate tasks'] },
+	{ label: 'Suggested maintenance actions', values: ['Record gaps only', 'Generate tasks', 'Generate tasks', 'Generate tasks'] },
 	{ label: 'Recurring maintenance scheduling', values: [false, true, true, true] },
 	{ label: 'Task reminder emails', values: [false, true, true, true] },
 	{ label: 'Push notifications', values: [false, true, true, true] },

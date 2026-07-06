@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Provider } from 'react-redux';
 import { MemoryRouter } from 'react-router-dom';
@@ -121,7 +121,7 @@ const defaultProps = {
 	accountId: 'acct-1',
 	subscription: {
 		status: 'active' as const,
-		plan: 'homeowner',
+		plan: 'homeowner_plus',
 		currentPeriodStart: 0,
 		currentPeriodEnd: 0,
 	},
@@ -337,9 +337,11 @@ describe('InsightsTab', () => {
 
 		await user.click(screen.getByRole('button', { name: /not the same/i }));
 
-		expect(
-			screen.getByRole('button', { name: /not the same/i }),
-		).toHaveAttribute('aria-pressed', 'true');
+		await waitFor(() => {
+			expect(
+				screen.getByRole('button', { name: /not the same/i }),
+			).toHaveAttribute('aria-pressed', 'true');
+		});
 		expect(screen.getByText('New record')).toBeInTheDocument();
 	});
 

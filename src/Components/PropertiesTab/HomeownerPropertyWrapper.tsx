@@ -103,9 +103,10 @@ const HomeownerPropertyWrapper: React.FC = () => {
 			<>
 				<AppZeroState
 					kind='noProperties'
+					context='homeowner'
 					actions={[
 						{
-							label: 'Add Property',
+							label: 'Add Home',
 							onClick: () => setDialogOpen(true),
 							variant: 'primary',
 						},

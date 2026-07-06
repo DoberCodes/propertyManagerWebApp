@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useDispatch } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import {
 	SectionContainer,
@@ -28,10 +29,13 @@ import {
 	markDocumentWithKnowledgeSuggestion,
 	mergeKnowledgeSuggestion,
 } from 'propertyKnowledge/propertyKnowledgeAcquisition';
+import { usePropertyDocumentUploadWorkflow } from 'propertyKnowledge/usePropertyDocumentUploadWorkflow';
 import {
-	preparePropertyMemoryDocumentUploads,
-	startPdfDocumentKnowledgeProcessing,
-} from 'propertyKnowledge/propertyDocumentUploads';
+	deletePropertyDocumentFromCollection,
+	updatePropertyDocumentInCollection,
+	updatePropertyKnowledgeSuggestionInCollection,
+} from 'propertyKnowledge/propertyMemoryRecordService';
+import { usePropertyMemoryRecords } from 'propertyKnowledge/usePropertyMemoryRecords';
 import {
 	isPdfPropertyDocument,
 	processPropertyDocumentAcquisition,
@@ -228,6 +232,7 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 }) => {
 	const feedback = useAppFeedback();
 	const dispatch = useDispatch<AppDispatch>();
+	const navigate = useNavigate();
 	const [updateProperty] = useUpdatePropertyMutation();
 	const [isUploadOpen, setIsUploadOpen] = useState(false);
 	const [isEditOpen, setIsEditOpen] = useState(false);
@@ -243,20 +248,14 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 		useState<PropertyDocumentCategory>('manual');
 	const [isSaving, setIsSaving] = useState(false);
 	const lastOpenUploadTokenRef = useRef(0);
-	const canManageDocuments = permissions?.canManageProperties ?? true;
-
-	const propertyDocuments = useMemo<PropertyDocument[]>(
-		() => (Array.isArray(property?.documents) ? property.documents : []),
-		[property?.documents],
-	);
-
-	const propertyKnowledgeSuggestions = useMemo<PropertyKnowledgeSuggestion[]>(
-		() =>
-			Array.isArray(property?.knowledgeSuggestions)
-				? property.knowledgeSuggestions
-				: [],
-		[property?.knowledgeSuggestions],
-	);
+	const canManageDocuments =
+		permissions?.canManageDocuments ?? permissions?.canManageProperties ?? false;
+	const { canUseDocumentReview, uploadPropertyDocuments } =
+		usePropertyDocumentUploadWorkflow();
+	const {
+		documents: propertyDocuments,
+		knowledgeSuggestions: propertyKnowledgeSuggestions,
+	} = usePropertyMemoryRecords(property);
 
 	const deviceById = useMemo(() => {
 		const map = new Map<string, any>();
@@ -403,6 +402,15 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 	) => {
 		if (!property?.id) return;
 		const completedAt = new Date().toISOString();
+		const documentUpdates = {
+			acquisitionStatus: 'failed' as const,
+			acquisitionCompletedAt: completedAt,
+			acquisitionError: message,
+		};
+		await updatePropertyDocumentInCollection(property, documentId, {
+			...documentUpdates,
+			acquisitionWorkerCompletedAt: completedAt,
+		} as Partial<PropertyDocument>);
 		await updateProperty({
 			id: property.id,
 			updates: {
@@ -410,9 +418,7 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 					item.id === documentId
 						? {
 								...item,
-								acquisitionStatus: 'failed',
-								acquisitionCompletedAt: completedAt,
-								acquisitionError: message,
+								...documentUpdates,
 						  }
 						: item,
 				),
@@ -422,6 +428,11 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 
 	const handleReviewDocumentKnowledge = async (documentId?: string) => {
 		if (!property?.id || !documentId || isSaving) return;
+		if (!canUseDocumentReview) {
+			feedback.notify('Suggested details from documents are available with Homeowner+.');
+			navigate('/paywall');
+			return;
+		}
 		const document = propertyDocuments.find((item) => item.id === documentId);
 		if (!document) return;
 
@@ -475,6 +486,14 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 
 		setIsSaving(true);
 		try {
+			const reviewedDocument = markDocumentWithKnowledgeSuggestion(
+				document,
+				suggestion,
+			);
+			await Promise.all([
+				updatePropertyDocumentInCollection(property, document.id, reviewedDocument),
+				updatePropertyKnowledgeSuggestionInCollection(property, suggestion),
+			]);
 			await updateProperty({
 				id: property.id,
 				updates: {
@@ -513,47 +532,18 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 		try {
 			const customNameForSingleFile =
 				selectedFiles.length === 1 ? uploadName.trim() : '';
-			const {
-				documents: savedDocuments,
-				knowledgeSuggestions,
-				pdfDocuments,
-			} = await preparePropertyMemoryDocumentUploads({
-				files: selectedFiles,
-				propertyId: property.id,
-				category: documentCategory,
-				customNameForSingleFile,
+			const { documents: savedDocuments } = await uploadPropertyDocuments({
 				property,
-				systems: propertyDevices as Device[],
-			});
-			await updateProperty({
-				id: property.id,
-				updates: {
-					documents: [
-						...propertyDocuments,
-						...savedDocuments,
-					],
-					knowledgeSuggestions: [
-						...propertyKnowledgeSuggestions,
-						...knowledgeSuggestions,
-					],
-				},
-			}).unwrap();
-			const totalSuggestedDetails = knowledgeSuggestions.reduce(
-				(total, suggestion) => total + getKnowledgeSuggestionCount(suggestion),
-				0,
-			);
-			feedback.notify(
-				totalSuggestedDetails > 0
-					? `Documents uploaded. Maintley found ${totalSuggestedDetails} suggested detail${totalSuggestedDetails === 1 ? '' : 's'} to review.`
-					: pdfDocuments.length > 0
-						? 'Documents uploaded. Maintley is reviewing PDF details in the background.'
-						: 'Documents uploaded.',
-			);
-			startPdfDocumentKnowledgeProcessing({
 				propertyId: property.id,
-				documents: pdfDocuments,
+				batches: [
+					{
+						files: selectedFiles,
+						category: documentCategory,
+						customNameForSingleFile,
+						systems: propertyDevices as Device[],
+					},
+				],
 				onProcessed: (result) => {
-					dispatch(apiSlice.util.invalidateTags(['Properties']));
 					if (result.success && result.suggestionId) {
 						onReviewSuggestedDetails?.(result.suggestionId);
 					}
@@ -570,7 +560,6 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 					} catch (statusError) {
 						console.error('Error marking PDF review as failed:', statusError);
 					}
-					dispatch(apiSlice.util.invalidateTags(['Properties']));
 				},
 			});
 			closeUploadModal();
@@ -608,6 +597,11 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 
 		setIsSaving(true);
 		try {
+			await updatePropertyDocumentInCollection(property, editingDocument.id, {
+				name: trimmedName,
+				fileName: trimmedName,
+				category: editCategory,
+			});
 			await updateProperty({
 				id: property.id,
 				updates: {
@@ -646,6 +640,7 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 			} catch (storageError) {
 				console.warn('Could not delete property document file:', storageError);
 			}
+			await deletePropertyDocumentFromCollection(document.id);
 			await updateProperty({
 				id: property.id,
 				updates: {
@@ -687,7 +682,6 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 					{maintenanceDocuments.length} maintenance file{maintenanceDocuments.length === 1 ? '' : 's'}
 				</TabSummaryPill>
 			</TabSummaryBar>
-
 			{allDocuments.length === 0 ? (
 				<EmptyState>
 					<h3>No files or documents yet</h3>
@@ -765,7 +759,8 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 											}>
 											{acquisitionStatusText}{' '}
 											{isAcquisitionRetryable &&
-												canManageDocuments && (
+												canManageDocuments &&
+												canUseDocumentReview && (
 													<DocumentInlineAction
 														type='button'
 														onClick={() => handleReviewDocumentKnowledge(file.id)}
@@ -781,14 +776,23 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 									suggestionCount > 0 && (
 										<DocumentKnowledgePrompt>
 											Maintley found {suggestionCount} suggested detail{suggestionCount === 1 ? '' : 's'} for this property.{' '}
-											<DocumentInlineAction
-												type='button'
-												onClick={() =>
-													onReviewSuggestedDetails?.(latestKnowledgeSuggestion.id)
-												}
-												disabled={isSaving}>
-												Review now
-											</DocumentInlineAction>
+											{canUseDocumentReview ? (
+												<DocumentInlineAction
+													type='button'
+													onClick={() =>
+														onReviewSuggestedDetails?.(latestKnowledgeSuggestion.id)
+													}
+													disabled={isSaving}>
+													Review now
+												</DocumentInlineAction>
+											) : (
+												<DocumentInlineAction
+													type='button'
+													onClick={() => navigate('/paywall')}
+													disabled={isSaving}>
+													Available with Homeowner+
+												</DocumentInlineAction>
+											)}
 										</DocumentKnowledgePrompt>
 									)}
 								{isPropertyDocument &&
@@ -804,13 +808,19 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 										getKnowledgeSuggestionCount(latestKnowledgeSuggestion) === 0 ? (
 											<DocumentActionButton
 												type='button'
-												onClick={() => handleReviewDocumentKnowledge(file.id)}
+												onClick={() =>
+													canUseDocumentReview
+														? handleReviewDocumentKnowledge(file.id)
+														: navigate('/paywall')
+												}
 												disabled={
 													isSaving ||
 													(sourcePropertyDocument?.acquisitionStatus === 'processing' &&
 														!isDocumentAcquisitionStale(sourcePropertyDocument))
 												}>
-												Check for suggested details
+												{canUseDocumentReview
+													? 'Check for suggested details'
+													: 'Review with Homeowner+'}
 											</DocumentActionButton>
 										) : null}
 										{latestKnowledgeSuggestion?.status === 'applied' &&

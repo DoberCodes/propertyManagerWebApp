@@ -7,6 +7,7 @@ import { useGetPropertiesQuery } from 'Redux/API/propertySlice';
 import {
 	selectIsTeamMemberAccount,
 	selectIsTenant,
+	selectIsHomeowner,
 } from 'Redux/selectors/permissionSelectors';
 import { filterTasksByRole } from '../../utils/dataFilters';
 import { ReusableTable } from '../../Components/Library/ReusableTable';
@@ -93,6 +94,7 @@ export const TasksPage = () => {
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
 	const isUserTenant = useSelector(selectIsTenant);
 	const isTeamMemberAccount = useSelector(selectIsTeamMemberAccount);
+	const isHomeowner = useSelector(selectIsHomeowner);
 	const roleCapabilities = useMemo(
 		() => getRoleCapabilities(currentUser?.role),
 		[currentUser?.role],
@@ -276,6 +278,14 @@ export const TasksPage = () => {
 	const propertyFilterOptions = useMemo(() => {
 		return allProperties.map((p) => ({ value: p.id, label: p.title }));
 	}, [allProperties]);
+	const taskPropertyLanguage = {
+		filterLabel: isHomeowner ? 'Home' : 'Property',
+		allOptionLabel: isHomeowner ? 'All homes' : 'All properties',
+		itemPrefix: isHomeowner ? 'Home' : 'Property',
+		sortLabel: isHomeowner ? 'Home A-Z' : 'Property A-Z',
+		addRecordLabel: isHomeowner ? 'Add Home' : 'Add Property Record',
+		unknownLabel: isHomeowner ? 'Unknown Home' : 'Unknown Property',
+	};
 
 	const globalTaskFilterOptions = useMemo(() => {
 		const accessibleTasks = filterTasksByRole(
@@ -324,11 +334,11 @@ export const TasksPage = () => {
 	) => (
 		<TaskFilterFields>
 			<TaskFilterField>
-				Property
+				{taskPropertyLanguage.filterLabel}
 				<TaskSortSelect
 					value={values.propertyId}
 					onChange={(event) => onChange('propertyId', event.target.value)}>
-					<option value=''>All properties</option>
+					<option value=''>{taskPropertyLanguage.allOptionLabel}</option>
 					{propertyFilterOptions.map((option) => (
 						<option key={option.value} value={String(option.value)}>
 							{option.label}
@@ -487,8 +497,8 @@ export const TasksPage = () => {
 		task.notifications.length > 0;
 
 	const getTaskPropertyLabel = (task: any) =>
-		String(task?.propertyTitle || task?.property || 'Unknown Property').trim() ||
-		'Unknown Property';
+		String(task?.propertyTitle || task?.property || taskPropertyLanguage.unknownLabel).trim() ||
+		taskPropertyLanguage.unknownLabel;
 
 	const handleSortOptionChange = (value: string) => {
 		const [key, direction] = value.split(':') as [string, 'asc' | 'desc'];
@@ -851,7 +861,7 @@ export const TasksPage = () => {
 								style={{ color: '#64748b', flexShrink: 0 }}
 							/>
 							<span style={{ overflowWrap: 'anywhere' }}>
-								Property: {getTaskPropertyLabel(task)}
+								{taskPropertyLanguage.itemPrefix}: {getTaskPropertyLabel(task)}
 							</span>
 						</div>
 						<div style={{ fontSize: 12, color: '#64748b', display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -926,7 +936,7 @@ export const TasksPage = () => {
 							? 'Maintenance is overdue'
 							: operational.label === 'Due Soon'
 								? 'Maintenance is coming due soon'
-								: operational.label === 'Initiated'
+								: operational.label === 'Open'
 									? 'Ready to schedule or review'
 									: 'Upcoming maintenance';
 				return (
@@ -1097,7 +1107,7 @@ export const TasksPage = () => {
 				kind={isUserTenant || isTeamMemberAccount ? 'noAssignedProperties' : 'noProperties'}
 				actions={
 					!isUserTenant && !isTeamMemberAccount
-						? [{ label: 'Add Property', onClick: () => navigate('/properties?openCreate=1') }]
+						? [{ label: taskPropertyLanguage.addRecordLabel, onClick: () => navigate('/properties?openCreate=1') }]
 						: []
 				}
 				fullPage
@@ -1152,7 +1162,7 @@ export const TasksPage = () => {
 						<option value='dueDate:desc'>Sort: Due latest</option>
 						<option value='priority:desc'>Sort: Priority first</option>
 						<option value='title:asc'>Sort: Title A-Z</option>
-						<option value='propertyTitle:asc'>Sort: Property A-Z</option>
+						<option value='propertyTitle:asc'>Sort: {taskPropertyLanguage.sortLabel}</option>
 						<option value='status:asc'>Sort: Status</option>
 					</TaskSortSelect>
 				</TaskControlRow>
@@ -1235,7 +1245,7 @@ export const TasksPage = () => {
 							<option value='dueDate:desc'>Due latest</option>
 							<option value='priority:desc'>Priority first</option>
 							<option value='title:asc'>Title A-Z</option>
-							<option value='propertyTitle:asc'>Property A-Z</option>
+							<option value='propertyTitle:asc'>{taskPropertyLanguage.sortLabel}</option>
 							<option value='status:asc'>Status</option>
 						</TaskSortSelect>
 					</TaskFilterField>
@@ -1302,9 +1312,14 @@ export const TasksPage = () => {
 									? 'Maintenance is overdue'
 									: operational.label === 'Due Soon'
 										? 'Maintenance is coming due soon'
-										: operational.label === 'Initiated'
+										: operational.label === 'Open'
 											? 'Ready to schedule or review'
 											: 'Upcoming maintenance';
+						const assigneeLabel = getAssigneeLabel(task);
+						const assigneeText =
+							assigneeLabel === 'Unassigned'
+								? 'Unassigned'
+								: `Assigned to ${assigneeLabel}`;
 						const hasTaskNotifications = hasEnabledTaskNotifications(task);
 						return (
 							<MobileTaskCard key={task.id} $overdue={isOverdue}>
@@ -1357,7 +1372,7 @@ export const TasksPage = () => {
 									<MobileMetaItem>
 										<MobileMetaLabel>Identity</MobileMetaLabel>
 										<MobileMetaValue>
-											<div>Property: {getTaskPropertyLabel(task)}</div>
+											<div>{taskPropertyLanguage.itemPrefix}: {getTaskPropertyLabel(task)}</div>
 											<div style={{ marginTop: 2, fontSize: '0.8rem', color: '#64748b' }}>
 												{task.category || 'General maintenance'}
 												{task.location ? ` · ${task.location}` : ''}
@@ -1373,7 +1388,7 @@ export const TasksPage = () => {
 									<MobileMetaItem>
 										<MobileMetaLabel>Maintenance Context</MobileMetaLabel>
 										<MobileMetaValue>
-											<div>Assigned to {getAssigneeLabel(task)}</div>
+											<div>{assigneeText}</div>
 											<div style={{ marginTop: 2, fontSize: '0.8rem', color: '#64748b' }}>
 												{task.priority || 'Low'} priority · {formatDueDate(task.dueDate)}
 											</div>

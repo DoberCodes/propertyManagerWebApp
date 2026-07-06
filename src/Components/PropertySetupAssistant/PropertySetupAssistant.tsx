@@ -34,6 +34,7 @@ import { getDefaultTaskNotifications } from '../../utils/taskNotificationUtils';
 import {
 	canUseSuggestedMaintenancePackages,
 	canUseUnlimitedSuggestedMaintenancePackages,
+	getEffectiveSubscriptionPlanId,
 	getSuggestedMaintenancePackageLimit,
 } from '../../utils/subscriptionUtils';
 import { normalizeAssetType } from '../../utils/systemTypes';
@@ -67,11 +68,11 @@ type SuggestedTaskCreateResult = {
 	createdTaskIds: string[];
 };
 
-const PROPERTY_SETUP_LOADING_STEPS = [
-	'Creating your property...',
+const getSetupLoadingSteps = (isHomeownerMode: boolean) => [
+	isHomeownerMode ? 'Updating your home record...' : 'Updating your property record...',
 	'Setting up your maintenance schedule...',
 	'Organizing your home information...',
-	'Reviewing your property...',
+	isHomeownerMode ? 'Reviewing your home...' : 'Reviewing your property...',
 	'Building maintenance insights...',
 	'Almost ready...',
 ];
@@ -128,6 +129,26 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 	onUploadDocuments,
 }) => {
 	const feedback = useAppFeedback();
+	const effectivePlanId = getEffectiveSubscriptionPlanId(
+		currentUser?.subscription,
+		'homeowner',
+	);
+	const isHomeownerMode =
+		effectivePlanId === 'homeowner' || effectivePlanId === 'homeowner_plus';
+	const setupLanguage = {
+		eyebrow: isHomeownerMode ? 'Home Setup Assistant' : 'Property Setup Assistant',
+		completeLabel: isHomeownerMode ? 'Home setup complete' : 'Property setup complete',
+		recordNoun: isHomeownerMode ? 'home record' : 'property record',
+		mainTitle: isHomeownerMode
+			? 'Build a more complete record of your home.'
+			: 'Build a more complete record of your property.',
+		intro: isHomeownerMode
+			? 'Discover equipment, documents, and maintenance opportunities you can review over time.'
+			: 'Discover equipment, documents, and maintenance opportunities you can review over time.',
+		detectedText: isHomeownerMode
+			? 'We found matching equipment already in this home record. Review setup to save it into your setup progress and add any missing suggested tasks.'
+			: 'We found matching equipment already in this property record. Review setup to save it into your setup progress and add any missing suggested tasks.',
+	};
 	const [updateProperty] = useUpdatePropertyMutation();
 	const [createDevice] = useCreateDeviceMutation();
 	const [createTask] = useCreateTaskMutation();
@@ -135,6 +156,10 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 	const [localSetupAssistant, setLocalSetupAssistant] =
 		useState<PropertySetupAssistantState>(initialSetupAssistant);
 	const setupAssistant = localSetupAssistant;
+	const savedSetupProgress = useMemo(
+		() => getPropertySetupProgress(setupAssistant),
+		[setupAssistant],
+	);
 	const [isOpen, setIsOpen] = useState(false);
 	const [draftItems, setDraftItems] = useState<
 		NonNullable<PropertySetupAssistantState['items']>
@@ -142,7 +167,7 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 	const [hasUserDraftChanges, setHasUserDraftChanges] = useState(false);
 	const [isCloseConfirmOpen, setIsCloseConfirmOpen] = useState(false);
 	const [isAssistantCardCollapsed, setIsAssistantCardCollapsed] =
-		useState(false);
+		useState(savedSetupProgress.isComplete);
 	const [selectedAreaId, setSelectedAreaId] = useState<PropertySetupAreaId>(
 		getFirstIncompleteSetupAreaId(setupAssistant),
 	);
@@ -176,6 +201,10 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 			setDraftItems(property.setupAssistant?.items || {});
 		}
 	}, [property.id, property.setupAssistant, isOpen]);
+
+	useEffect(() => {
+		setIsAssistantCardCollapsed(savedSetupProgress.isComplete);
+	}, [property.id, savedSetupProgress.isComplete]);
 
 	useEffect(() => {
 		if (!initiallyOpen || !canUseAssistant) {
@@ -286,7 +315,7 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 	});
 	const hasDetectedUnsavedProgress =
 		progress.reviewed >
-		getPropertySetupProgress(setupAssistant).reviewed;
+		savedSetupProgress.reviewed;
 
 	const ensureDeviceForItem = async (
 		itemId: SuggestedSystemId,
@@ -781,7 +810,7 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 				$compact={isAssistantCardCollapsed}>
 				<AssistantContent>
 					<AssistantHeader>
-						<AssistantEyebrow>Property Setup Assistant</AssistantEyebrow>
+						<AssistantEyebrow>{setupLanguage.eyebrow}</AssistantEyebrow>
 						<AssistantCollapseButton
 							type='button'
 							onClick={() =>
@@ -789,14 +818,14 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 							}
 							aria-label={
 								isAssistantCardCollapsed
-									? 'Expand Property Setup Assistant'
-									: 'Collapse Property Setup Assistant'
+									? `Expand ${setupLanguage.eyebrow}`
+									: `Collapse ${setupLanguage.eyebrow}`
 							}
 							aria-expanded={!isAssistantCardCollapsed}
 							title={
 								isAssistantCardCollapsed
-									? 'Expand Property Setup Assistant'
-									: 'Collapse Property Setup Assistant'
+									? `Expand ${setupLanguage.eyebrow}`
+									: `Collapse ${setupLanguage.eyebrow}`
 							}>
 							<FontAwesomeIcon
 								icon={isAssistantCardCollapsed ? faChevronDown : faChevronUp}
@@ -808,12 +837,12 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 						<AssistantBody>
 							{progress.isComplete ? (
 								<CompleteSummary>
-									<CompleteSummaryLabel>Property setup complete</CompleteSummaryLabel>
+									<CompleteSummaryLabel>{setupLanguage.completeLabel}</CompleteSummaryLabel>
 									<AssistantTitle>
-										Your property record has a strong starting point.
+										Your {setupLanguage.recordNoun} has a strong starting point.
 									</AssistantTitle>
 									<AssistantText>
-										Maintley can now review this property record and highlight the few things worth your attention.
+										Maintley can now review this {setupLanguage.recordNoun} and highlight the few things worth your attention.
 									</AssistantText>
 									<ProgressText>
 										Progress: {progress.reviewed} of {progress.total}{' '}
@@ -832,14 +861,14 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 							) : (
 								<>
 									<AssistantTitle>
-										Build a more complete record of your property.
+										{setupLanguage.mainTitle}
 									</AssistantTitle>
 									<AssistantText>
-										Discover systems, appliances, and maintenance opportunities you can review over time.
+										{setupLanguage.intro}
 									</AssistantText>
 									{hasDetectedUnsavedProgress && (
 										<AssistantText>
-											We found matching appliances already on this property. Review setup to save them into your setup progress and add any missing suggested tasks.
+											{setupLanguage.detectedText}
 										</AssistantText>
 									)}
 									<ProgressText>
@@ -871,9 +900,9 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 					<ModalPanel>
 						<ModalHeader>
 							<div>
-								<ModalTitle>Property Setup Assistant</ModalTitle>
+								<ModalTitle>{setupLanguage.eyebrow}</ModalTitle>
 								<ModalHint>
-									Review one area at a time. You can skip and return whenever you want.
+									Review one area at a time. Items marked Skip for now stay open so you can return later.
 								</ModalHint>
 							</div>
 							<CloseButton
@@ -978,7 +1007,7 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 																	? 'Will add when you click Done'
 																	: status === 'not_present'
 																		? 'Not present'
-																		: 'Unknown / skipped'}
+																		: 'Skipped for now'}
 															{savedState?.status &&
 																savedState.status !== status &&
 																' - Unsaved change'}
@@ -1004,7 +1033,7 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 															$active={status === 'unknown'}
 															disabled={isSavingAssistant}
 															onClick={() => handleSetStatus(itemId, 'unknown')}>
-															Unknown
+															Skip for now
 														</StateButton>
 													</StateButtonGrid>
 												</ItemTopRow>
@@ -1158,8 +1187,8 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 						<LoadingState
 							loadingKey='property-setup-assistant'
 							title='Finishing setup'
-							message='Organizing your property setup.'
-							steps={PROPERTY_SETUP_LOADING_STEPS}
+							message={`Organizing your ${isHomeownerMode ? 'home' : 'property'} setup.`}
+							steps={getSetupLoadingSteps(isHomeownerMode)}
 						/>
 					)}
 					{isSaveComplete && (
@@ -1482,7 +1511,7 @@ const AreaPanel = styled.div`
 	min-height: 0;
 
 	@media (max-width: 640px) {
-		padding: 14px;
+		padding: 14px 14px max(24px, calc(18px + env(safe-area-inset-bottom)));
 		gap: 12px;
 	}
 `;

@@ -552,25 +552,6 @@ const userSlice = apiSlice.injectEndpoints({
 					// Update invitation status
 					await updateDoc(invitationRef, { status: 'accepted' });
 
-					// Ensure the recipient has a Shared Properties group
-					const sharedGroupName = 'Shared Properties';
-					const sharedGroupQuery = query(
-						collection(db, 'propertyGroups'),
-						where('userId', '==', userId),
-						where('name', '==', sharedGroupName),
-					);
-					const sharedGroupSnapshot = await getDocs(sharedGroupQuery);
-					if (sharedGroupSnapshot.empty) {
-						const nowIso = new Date().toISOString();
-						await addDoc(collection(db, 'propertyGroups'), {
-							userId,
-							accountId: userId,
-							name: sharedGroupName,
-							createdAt: nowIso,
-							updatedAt: nowIso,
-						});
-					}
-
 					// Create a notification for the recipient
 					const recipientNotificationData = {
 						userId,

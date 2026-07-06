@@ -1,18 +1,9 @@
 import React, { useMemo, useState } from 'react';
-import { useDispatch } from 'react-redux';
 import styled from 'styled-components';
 import { FileUploader } from 'Components/Library/FileUploader';
-import { apiSlice } from 'Redux/API/apiSlice';
-import {
-	useGetPropertiesQuery,
-	useUpdatePropertyMutation,
-} from 'Redux/API/propertySlice';
-import type { AppDispatch } from 'Redux/store/store';
+import { useGetPropertiesQuery } from 'Redux/API/propertySlice';
 import { PropertyDocument, PropertyDocumentCategory } from 'types/Property.types';
-import {
-	preparePropertyMemoryDocumentUploads,
-	startPdfDocumentKnowledgeProcessing,
-} from 'propertyKnowledge/propertyDocumentUploads';
+import { usePropertyDocumentUploadWorkflow } from 'propertyKnowledge/usePropertyDocumentUploadWorkflow';
 import { useAppFeedback } from 'Components/Library/AppFeedback/AppFeedbackProvider';
 import { COLORS } from '../../constants/colors';
 
@@ -59,8 +50,7 @@ export const TaskDocumentsPanel: React.FC<TaskDocumentsPanelProps> = ({
 	onPendingCategoryChange,
 }) => {
 	const feedback = useAppFeedback();
-	const dispatch = useDispatch<AppDispatch>();
-	const [updateProperty] = useUpdatePropertyMutation();
+	const { uploadPropertyDocuments } = usePropertyDocumentUploadWorkflow();
 	const { data: allProperties = [] } = useGetPropertiesQuery();
 	const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
 	const [selectedCategory, setSelectedCategory] =
@@ -76,13 +66,6 @@ export const TaskDocumentsPanel: React.FC<TaskDocumentsPanelProps> = ({
 		() =>
 			Array.isArray(resolvedProperty?.documents) ? resolvedProperty.documents : [],
 		[resolvedProperty?.documents],
-	);
-	const propertyKnowledgeSuggestions = useMemo(
-		() =>
-			Array.isArray(resolvedProperty?.knowledgeSuggestions)
-				? resolvedProperty.knowledgeSuggestions
-				: [],
-		[resolvedProperty?.knowledgeSuggestions],
 	);
 	const assignedDocuments = useMemo(
 		() =>
@@ -111,47 +94,22 @@ export const TaskDocumentsPanel: React.FC<TaskDocumentsPanelProps> = ({
 
 		setIsUploading(true);
 		try {
-			const {
-				documents: savedDocuments,
-				knowledgeSuggestions,
-				pdfDocuments,
-			} = await preparePropertyMemoryDocumentUploads({
-				files: selectedFiles,
-				propertyId: resolvedPropertyId,
-				category: selectedCategory,
+			await uploadPropertyDocuments({
 				property: resolvedProperty,
-				uploadContext: {
-					taskIds: [taskId],
-					assignedTaskStatus: taskStatus,
-				},
+				propertyId: resolvedPropertyId,
+				batches: [
+					{
+						files: selectedFiles,
+						category: selectedCategory,
+						uploadContext: {
+							taskIds: [taskId],
+							assignedTaskStatus: taskStatus,
+						},
+					},
+				],
 			});
-			await updateProperty({
-				id: resolvedPropertyId,
-				updates: {
-					documents: [...propertyDocuments, ...savedDocuments],
-					knowledgeSuggestions: [
-						...propertyKnowledgeSuggestions,
-						...knowledgeSuggestions,
-					],
-				},
-			}).unwrap();
 			setSelectedFiles([]);
 			setSelectedCategory('other');
-			startPdfDocumentKnowledgeProcessing({
-				propertyId: resolvedPropertyId,
-				documents: pdfDocuments,
-				onProcessed: () => {
-					dispatch(apiSlice.util.invalidateTags(['Properties']));
-				},
-				onError: () => {
-					dispatch(apiSlice.util.invalidateTags(['Properties']));
-				},
-			});
-			feedback.notify(
-				pdfDocuments.length > 0
-					? 'Documents uploaded. Maintley is reviewing PDF details in the background.'
-					: 'Documents uploaded to property documents.',
-			);
 		} catch (error: any) {
 			console.error('Error uploading task documents:', error);
 			feedback.notify(error?.message || 'Could not upload task documents.');

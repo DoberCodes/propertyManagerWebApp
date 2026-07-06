@@ -143,23 +143,50 @@ describe('Property Audit consumer', () => {
 			planId: 'homeowner_plus',
 		});
 
-		expect(audit.assetReviews).toHaveLength(1);
-		expect(audit.assetReviews[0]).toEqual(
+		expect(audit.assetReviews.map((review) => review.assetId)).toEqual([
+			'property',
+			'water-heater-1',
+		]);
+
+		const propertyReview = audit.assetReviews.find(
+			(review) => review.assetId === 'property',
+		);
+		expect(propertyReview).toEqual(
+			expect.objectContaining({
+				assetTitle: 'General Property',
+				summary: expect.objectContaining({
+					total: propertyReview?.findings.length,
+				}),
+			}),
+		);
+		expect(propertyReview?.categoryGroups).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					id: 'maintenance_coverage',
+					title: 'Maintenance',
+				}),
+			]),
+		);
+
+		const waterHeaterReview = audit.assetReviews.find(
+			(review) => review.assetId === 'water-heater-1',
+		);
+		expect(waterHeaterReview).toEqual(
 			expect.objectContaining({
 				assetId: 'water-heater-1',
 				assetTitle: 'Water Heater',
 				knowledgePack: 'water_heater.generic',
 				summary: expect.objectContaining({
-					total: audit.assetReviews[0].findings.length,
+					total: waterHeaterReview?.findings.length,
 				}),
 			}),
 		);
-		expect(audit.assetReviews[0].categorySummaries.map((summary) => summary.id))
+		expect(waterHeaterReview?.categorySummaries.map((summary) => summary.id))
 			.toEqual(expect.arrayContaining([
 				'maintenance_coverage',
 				'equipment_records',
 			]));
-		expect(audit.assetReviews[0].categoryGroups).toEqual(
+		expect(waterHeaterReview?.categoryGroups).toEqual(
 			expect.arrayContaining([
 				expect.objectContaining({
 					id: 'maintenance_coverage',
@@ -181,7 +208,7 @@ describe('Property Audit consumer', () => {
 				}),
 			]),
 		);
-		expect(audit.assetReviews[0].findings.map((finding) => finding.ruleId))
+		expect(waterHeaterReview?.findings.map((finding) => finding.ruleId))
 			.toEqual(expect.arrayContaining([
 				'systems-missing-actionable-maintenance-coverage',
 				'systems-missing-maintenance-history',

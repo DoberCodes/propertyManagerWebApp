@@ -8,6 +8,7 @@ import {
 	faCircleInfo,
 } from '@fortawesome/free-solid-svg-icons';
 import { GenericModal } from '../Library';
+import { HouseLogoLoader } from '../Library/HouseLogoLoader';
 import {
 	PropertyScanSnapshot,
 	useGetLatestPropertyIntelligenceSnapshotQuery,
@@ -31,6 +32,7 @@ import {
 	SubscriptionData,
 } from '../../utils/subscriptionUtils';
 import { RootState } from '../../Redux/store/store';
+import { selectIsHomeowner } from '../../Redux/selectors/permissionSelectors';
 import { COLORS } from '../../constants/colors';
 
 interface PropertyAuditPanelProps {
@@ -118,6 +120,15 @@ export const PropertyAuditPanel: React.FC<PropertyAuditPanelProps> = ({
 	onRecommendationAction,
 }) => {
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
+	const isHomeowner = useSelector(selectIsHomeowner);
+	const reviewLanguage = {
+		label: isHomeowner ? 'Home Review' : 'Property Review',
+		recordNoun: isHomeowner ? 'home record' : 'property record',
+		recordPlural: isHomeowner ? 'home records' : 'property records',
+		subjectNoun: isHomeowner ? 'home' : 'property',
+		timelineNoun: isHomeowner ? 'home timeline' : 'property timeline',
+		memoryLabel: isHomeowner ? 'Home Memory' : 'Property Memory',
+	};
 	const [isCollapsed, setIsCollapsed] = useState(true);
 	const [isReviewInfoOpen, setIsReviewInfoOpen] = useState(false);
 	const [isRunningAudit, setIsRunningAudit] = useState(false);
@@ -127,6 +138,9 @@ export const PropertyAuditPanel: React.FC<PropertyAuditPanelProps> = ({
 	const [expandedAssetIds, setExpandedAssetIds] = useState<Set<string>>(
 		() => new Set(),
 	);
+	const currentPlanId = getEffectiveSubscriptionPlanId(subscription, 'homeowner');
+	const isFreePlan = currentPlanId === 'homeowner';
+	const canRunFullReview = canRunAudit && !isFreePlan;
 	const {
 		data: persistedAuditSnapshot,
 		isLoading: isLoadingAuditSnapshot,
@@ -136,11 +150,10 @@ export const PropertyAuditPanel: React.FC<PropertyAuditPanelProps> = ({
 			scanType: 'property_audit_v1',
 		},
 		{
-			skip: !canRunAudit || !property.id,
+			skip: !canRunFullReview || !property.id,
 		},
 	);
 	const [savePropertyAuditSnapshot] = useSavePropertyAuditSnapshotMutation();
-	const currentPlanId = getEffectiveSubscriptionPlanId(subscription, 'homeowner');
 
 	useEffect(() => {
 		if (!isRunningAudit) {
@@ -222,7 +235,7 @@ export const PropertyAuditPanel: React.FC<PropertyAuditPanelProps> = ({
 			low: findings.filter((finding) => finding.severity === 'low').length,
 		};
 	}, [auditCategories, latestAuditSnapshot]);
-	const hasSavedAudit = Boolean(latestAuditSnapshot);
+	const hasSavedAudit = canRunFullReview && Boolean(latestAuditSnapshot);
 
 	const handleToggleAssetReview = (assetId: string) => {
 		setExpandedAssetIds((currentIds) => {
@@ -237,6 +250,10 @@ export const PropertyAuditPanel: React.FC<PropertyAuditPanelProps> = ({
 	};
 
 	const handleRunAudit = async () => {
+		if (isFreePlan) {
+			handleViewPlanOptions();
+			return;
+		}
 		if (isRunningAudit) return;
 		const accountId = getPropertyAccountId(
 			property,
@@ -244,7 +261,7 @@ export const PropertyAuditPanel: React.FC<PropertyAuditPanelProps> = ({
 			String(currentUser?.id || '').trim(),
 		);
 		if (!accountId) {
-			setAuditSaveError('Maintley could not identify the account for this property.');
+			setAuditSaveError(`Maintley could not identify the account for this ${reviewLanguage.subjectNoun}.`);
 			return;
 		}
 
@@ -295,21 +312,42 @@ export const PropertyAuditPanel: React.FC<PropertyAuditPanelProps> = ({
 		}
 	};
 
+	const handleViewPlanOptions = () => {
+		onRecommendationAction('view_plan_options', {
+			id: `maintley:property-review:premium-preview:${property.id}`,
+			propertyId: property.id,
+			category: 'Suggested Next Steps',
+			severity: 'medium',
+			priority: 'medium',
+			source: 'knowledge_pack',
+			title: `${reviewLanguage.label} is available with Homeowner+.`,
+			description:
+				'Homeowner+ unlocks a broader equipment-by-equipment review of documentation, maintenance coverage, history, and planning gaps.',
+			reason:
+				'Maintley can provide a deeper review when the account includes expanded intelligence sources.',
+			suggestedActionLabel: 'Explore Homeowner+',
+			suggestedActionType: 'view_plan_options',
+			requiredPlan: 'homeowner_plus',
+			createdAt: new Date().toISOString(),
+			status: 'active',
+		});
+	};
+
 	if (!canRunAudit) {
 		return null;
 	}
 
 	return (
-		<AuditPanel aria-label='Property Review'>
+		<AuditPanel aria-label={reviewLanguage.label}>
 			<AuditHeader>
 				<AuditTitleBlock>
 					<AuditEyebrow>Maintley Intelligence</AuditEyebrow>
 					<AuditTitleRow>
-						<AuditTitle>Property Review</AuditTitle>
+						<AuditTitle>{reviewLanguage.label}</AuditTitle>
 						<CollapseButton
 							type='button'
 							aria-expanded={!isCollapsed}
-							aria-label={isCollapsed ? 'Expand Property Review' : 'Collapse Property Review'}
+							aria-label={isCollapsed ? `Expand ${reviewLanguage.label}` : `Collapse ${reviewLanguage.label}`}
 							onClick={() => setIsCollapsed((currentValue) => !currentValue)}>
 							<FontAwesomeIcon
 								icon={isCollapsed ? faChevronDown : faChevronUp}
@@ -318,24 +356,33 @@ export const PropertyAuditPanel: React.FC<PropertyAuditPanelProps> = ({
 						</CollapseButton>
 					</AuditTitleRow>
 					<AuditText>
-						A broader review of saved property records, maintenance coverage,
-						and equipment details, organized by system so you can improve the
-						property memory over time.
+						A broader review of saved {reviewLanguage.recordPlural}, maintenance coverage,
+						and equipment details, organized by {isHomeowner ? 'equipment' : 'system'} so you can improve the
+						{' '}{reviewLanguage.subjectNoun} memory over time.
+						{isFreePlan
+							? ' Free includes Quick Scan. Home Review is the deeper Homeowner+ layer.'
+							: ''}
 					</AuditText>
 				</AuditTitleBlock>
 				<AuditActions>
 					<InfoButton
 						type='button'
 						onClick={() => setIsReviewInfoOpen(true)}
-						title='How Property Review Works'>
+						title={`How ${reviewLanguage.label} Works`}>
 						<FontAwesomeIcon icon={faCircleInfo} aria-hidden='true' />
-						<span>How Property Review Works</span>
+						<span>How {reviewLanguage.label} Works</span>
 					</InfoButton>
 					<PrimaryButton
 						type='button'
-						onClick={handleRunAudit}
+						onClick={isFreePlan ? handleViewPlanOptions : handleRunAudit}
 						disabled={isRunningAudit}>
-						{isRunningAudit ? 'Reviewing...' : hasSavedAudit ? 'Run Again' : 'Run Review'}
+						{isFreePlan
+							? 'Explore Homeowner+'
+							: isRunningAudit
+								? 'Reviewing...'
+								: hasSavedAudit
+									? 'Run Again'
+									: 'Run Review'}
 					</PrimaryButton>
 				</AuditActions>
 			</AuditHeader>
@@ -343,10 +390,66 @@ export const PropertyAuditPanel: React.FC<PropertyAuditPanelProps> = ({
 			{isCollapsed ? null : (
 				<AuditBody>
 					<AuditMeta>
-						Last review: {formatAuditDate(latestAuditSnapshot?.createdAt)}
+						{isFreePlan
+							? `${reviewLanguage.label} unlocks with Homeowner+.`
+							: `Last review: ${formatAuditDate(latestAuditSnapshot?.createdAt)}`}
 					</AuditMeta>
 					{auditSaveError ? <ErrorResult>{auditSaveError}</ErrorResult> : null}
-					{isLoadingAuditSnapshot ? (
+					{isFreePlan ? (
+						<ReviewUpgradePreview>
+							<ReviewUpgradeEyebrow>Available with Homeowner+</ReviewUpgradeEyebrow>
+							<ReviewUpgradeTitle>
+								A deeper review of how complete this {reviewLanguage.recordNoun} is.
+							</ReviewUpgradeTitle>
+							<ReviewUpgradeText>
+								Quick Scan helps you choose a few useful next steps. {reviewLanguage.label}{' '}
+								goes further by organizing every open opportunity by equipment record,
+								documentation, maintenance coverage, history, and planning gaps.
+							</ReviewUpgradeText>
+							<ReviewUpgradeGrid>
+								<ReviewUpgradeItem>
+									<strong>Asset Reviews</strong>
+									<span>Review each equipment record with grouped opportunities.</span>
+								</ReviewUpgradeItem>
+								<ReviewUpgradeItem>
+									<strong>Maintley Knowledge</strong>
+									<span>Compare saved details against equipment-specific guidance.</span>
+								</ReviewUpgradeItem>
+								<ReviewUpgradeItem>
+									<strong>Maintenance Coverage</strong>
+									<span>Find missing recurring care, history, and useful follow-up records.</span>
+								</ReviewUpgradeItem>
+								<ReviewUpgradeItem>
+									<strong>Planning Context</strong>
+									<span>Use history, seasonal context, and patterns as the record grows.</span>
+								</ReviewUpgradeItem>
+							</ReviewUpgradeGrid>
+							<ReviewUpgradeAction type='button' onClick={handleViewPlanOptions}>
+								Explore Homeowner+
+							</ReviewUpgradeAction>
+						</ReviewUpgradePreview>
+					) : isRunningAudit ? (
+						<AuditLoadingOverlay aria-live='polite' role='status'>
+							<AuditLoadingCard>
+								<AuditLoadingMark>
+									<HouseLogoLoader variant='assemble' />
+								</AuditLoadingMark>
+								<AuditLoadingTitle>
+									Reviewing this {reviewLanguage.recordNoun}...
+								</AuditLoadingTitle>
+								<AuditLoadingList>
+									<li>
+										Reviewing {systems.length}{' '}
+										{systems.length === 1
+											? isHomeowner ? 'equipment record' : 'system'
+											: isHomeowner ? 'equipment records' : 'systems'}
+									</li>
+									<li>Organizing opportunities by record</li>
+									<li>Building the review summary</li>
+								</AuditLoadingList>
+							</AuditLoadingCard>
+						</AuditLoadingOverlay>
+					) : isLoadingAuditSnapshot ? (
 						<PromptRow>
 							<PromptText>Loading latest review...</PromptText>
 						</PromptRow>
@@ -363,7 +466,7 @@ export const PropertyAuditPanel: React.FC<PropertyAuditPanelProps> = ({
 								</SummaryItem>
 								<SummaryItem>
 									<SummaryValue>{latestAuditSnapshot?.systemsReviewed || 0}</SummaryValue>
-									<SummaryLabel>systems reviewed</SummaryLabel>
+									<SummaryLabel>{isHomeowner ? 'equipment reviewed' : 'systems reviewed'}</SummaryLabel>
 								</SummaryItem>
 							</SummaryGrid>
 							{visibleAssetReviews.length > 0 ? (
@@ -484,7 +587,7 @@ export const PropertyAuditPanel: React.FC<PropertyAuditPanelProps> = ({
 								</>
 							) : (
 								<EmptyResult>
-									Maintley reviewed this property record and did not find active
+									Maintley reviewed this {reviewLanguage.recordNoun} and did not find active
 									review items.
 								</EmptyResult>
 							)}
@@ -492,8 +595,8 @@ export const PropertyAuditPanel: React.FC<PropertyAuditPanelProps> = ({
 					) : (
 						<PromptRow>
 							<PromptText>
-								Run a Property Review when you want a broader look at saved
-								records, grouped by system, documentation, and maintenance coverage.
+								Run a {reviewLanguage.label} when you want a broader look at saved
+								records, grouped by {isHomeowner ? 'equipment' : 'system'}, documentation, and maintenance coverage.
 							</PromptText>
 						</PromptRow>
 					)}
@@ -501,17 +604,20 @@ export const PropertyAuditPanel: React.FC<PropertyAuditPanelProps> = ({
 			)}
 			<GenericModal
 				isOpen={isReviewInfoOpen}
-				title='How Property Review Works'
+				title={`How ${reviewLanguage.label} Works`}
 				onClose={() => setIsReviewInfoOpen(false)}
 				compact>
 				<ReviewInfoBody>
 					<ReviewInfoLead>
-						Property Review looks across the records saved for this property and
-						groups opportunities by system, documentation, and maintenance
+						{reviewLanguage.label} looks across the records saved for this {reviewLanguage.subjectNoun} and
+						groups opportunities by {isHomeowner ? 'equipment' : 'system'}, documentation, and maintenance
 						coverage.
+						{isFreePlan
+							? ' Free includes Quick Scan. This deeper review unlocks with Homeowner+.'
+							: ''}
 					</ReviewInfoLead>
 					<ReviewInfoItem $tone='records'>
-						<strong>Property Memory</strong>
+						<strong>{reviewLanguage.memoryLabel}</strong>
 						<span>
 							Checks saved records for useful details such as install dates,
 							make, model, service notes, and supporting documents.
@@ -520,20 +626,21 @@ export const PropertyAuditPanel: React.FC<PropertyAuditPanelProps> = ({
 					<ReviewInfoItem $tone='maintenance'>
 						<strong>Maintenance Coverage</strong>
 						<span>
-							Looks for recurring care and maintenance history that would make the
-							long-term property timeline more useful.
+							Looks for recurring care and maintenance history that would make the{' '}
+							long-term {reviewLanguage.timelineNoun} more useful.
 						</span>
 					</ReviewInfoItem>
 					<ReviewInfoItem $tone='assets'>
 						<strong>Asset Reviews</strong>
 						<span>
-							Organizes opportunities by system so you can improve one record at
-							a time instead of sorting through a long flat list.
+							Organizes opportunities by {isHomeowner ? 'equipment' : 'system'} so you can improve
+							one record at a time instead of sorting through a long flat list.
 						</span>
 					</ReviewInfoItem>
 					<ReviewInfoNote>
-						Maintley does not inspect the property or verify equipment condition.
-						Property Review is based on recorded information and general
+						Maintley does not inspect the {reviewLanguage.subjectNoun}{' '}
+						or verify equipment condition.
+						{reviewLanguage.label} is based on recorded information and general
 						maintenance knowledge.
 					</ReviewInfoNote>
 				</ReviewInfoBody>
@@ -751,6 +858,150 @@ const PromptText = styled.p`
 	margin: 0;
 	color: #475569;
 	font-size: 14px;
+`;
+
+const ReviewUpgradePreview = styled.section`
+	border: 1px solid #bfdbfe;
+	border-radius: 8px;
+	background: linear-gradient(180deg, #eff6ff 0%, #ffffff 100%);
+	padding: 16px;
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+`;
+
+const ReviewUpgradeEyebrow = styled.div`
+	color: #1d4ed8;
+	font-size: 12px;
+	font-weight: 800;
+	letter-spacing: 0;
+	text-transform: uppercase;
+`;
+
+const ReviewUpgradeTitle = styled.h3`
+	margin: 0;
+	color: #172033;
+	font-size: 18px;
+	line-height: 1.35;
+`;
+
+const ReviewUpgradeText = styled.p`
+	margin: 0;
+	color: #334155;
+	font-size: 14px;
+	line-height: 1.5;
+`;
+
+const ReviewUpgradeGrid = styled.div`
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 10px;
+
+	@media (max-width: 640px) {
+		grid-template-columns: 1fr;
+	}
+`;
+
+const ReviewUpgradeItem = styled.div`
+	border: 1px solid #dbeafe;
+	border-radius: 8px;
+	background: #ffffff;
+	padding: 12px;
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+
+	strong {
+		color: #172033;
+		font-size: 14px;
+	}
+
+	span {
+		color: #475569;
+		font-size: 13px;
+		line-height: 1.4;
+	}
+`;
+
+const ReviewUpgradeAction = styled.button`
+	align-self: flex-start;
+	border: 1px solid ${COLORS.primary};
+	border-radius: 8px;
+	background: ${COLORS.primary};
+	color: ${COLORS.white};
+	font-size: 13px;
+	font-weight: 800;
+	padding: 9px 12px;
+	cursor: pointer;
+
+	&:hover {
+		background: ${COLORS.primaryHover};
+	}
+
+	&:focus-visible {
+		outline: 2px solid ${COLORS.primary};
+		outline-offset: 2px;
+	}
+`;
+
+const AuditLoadingOverlay = styled.div`
+	position: fixed;
+	inset: 0;
+	z-index: 10002;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 20px;
+	background: rgba(15, 23, 42, 0.58);
+`;
+
+const AuditLoadingCard = styled.div`
+	width: min(420px, 100%);
+	border-radius: 18px;
+	background: #ffffff;
+	box-shadow: 0 24px 80px rgba(15, 23, 42, 0.34);
+	padding: 28px;
+`;
+
+const AuditLoadingMark = styled.div`
+	display: flex;
+	justify-content: center;
+	margin-bottom: 18px;
+`;
+
+const AuditLoadingTitle = styled.div`
+	color: #0f172a;
+	font-size: 20px;
+	font-weight: 900;
+	line-height: 1.3;
+	text-align: center;
+`;
+
+const AuditLoadingList = styled.ul`
+	display: grid;
+	gap: 8px;
+	margin: 16px 0 0;
+	padding: 0;
+	list-style: none;
+	color: #475569;
+	font-size: 14px;
+	line-height: 1.4;
+
+	li {
+		position: relative;
+		padding-left: 18px;
+	}
+
+	li::before {
+		content: '';
+		position: absolute;
+		left: 0;
+		top: 0.55em;
+		width: 7px;
+		height: 7px;
+		border-radius: 999px;
+		background: ${COLORS.primaryDark};
+	}
 `;
 
 const ErrorResult = styled.div`

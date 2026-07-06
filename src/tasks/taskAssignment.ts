@@ -32,8 +32,6 @@ type BuildTaskAssigneeOptionsInput = {
 
 const normalize = (value?: unknown): string => String(value || '').trim();
 
-const normalizeEmail = (value?: unknown): string => normalize(value).toLowerCase();
-
 const getPersonName = (person?: any | null): string => {
 	if (!person) return '';
 	const fullName = [person.firstName, person.lastName]

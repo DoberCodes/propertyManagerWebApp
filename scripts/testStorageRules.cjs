@@ -23,6 +23,7 @@ const PROJECT_ID = resolveProjectId();
 
 const accountId = 'account-owner';
 const ownerUid = 'account-owner';
+const legacyOwnerUid = 'legacy-account-owner';
 const teamMemberUid = 'team-member-user';
 const outsiderUid = 'outsider-user';
 const propertyId = 'property-1';
@@ -51,6 +52,13 @@ async function seedFirestore(env) {
 			isTeamMemberAccount: true,
 		});
 
+		await db.doc(`users/${legacyOwnerUid}`).set({
+			id: legacyOwnerUid,
+			accountId,
+			role: 'admin',
+			isAccountOwner: true,
+		});
+
 		await db.doc(`users/${outsiderUid}`).set({
 			id: outsiderUid,
 			accountId: outsiderUid,
@@ -70,6 +78,12 @@ async function seedFirestore(env) {
 			userId: teamMemberUid,
 			roles: ['maintenance_lead', 'member'],
 			status: 'active',
+		});
+
+		await db.doc(`accountMemberships/${membershipId(legacyOwnerUid)}`).set({
+			accountId,
+			userId: legacyOwnerUid,
+			roles: ['account_owner', 'admin', 'member'],
 		});
 
 		await db.doc(`accountMemberships/${membershipId(outsiderUid, outsiderUid)}`).set({
@@ -136,12 +150,20 @@ async function run() {
 		await seedStorage(env);
 
 		const ownerStorage = storageFor(env, ownerUid);
+		const legacyOwnerStorage = storageFor(env, legacyOwnerUid);
 		const teamMemberStorage = storageFor(env, teamMemberUid);
 		const outsiderStorage = storageFor(env, outsiderUid);
 		const publicStorage = unauthenticatedStorage(env);
 
 		await assertSucceeds(
 			ownerStorage.ref(`properties/${accountId}/owner-document.pdf`).putString(
+				fileData,
+				'raw',
+				{ contentType: 'application/pdf' },
+			),
+		);
+		await assertSucceeds(
+			legacyOwnerStorage.ref(`properties/${accountId}/legacy-owner-document.pdf`).putString(
 				fileData,
 				'raw',
 				{ contentType: 'application/pdf' },

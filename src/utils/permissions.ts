@@ -30,6 +30,7 @@ export interface RoleCapabilities {
 	canManageTenants: boolean;
 	canManageFinancials: boolean;
 	canManageTeam: boolean;
+	canManageDocuments: boolean;
 }
 
 const createCapabilities = (
@@ -47,6 +48,7 @@ const createCapabilities = (
 	canManageTenants: false,
 	canManageFinancials: false,
 	canManageTeam: false,
+	canManageDocuments: false,
 	...overrides,
 });
 
@@ -63,6 +65,7 @@ const FULL_MANAGER_CAPABILITIES = createCapabilities({
 	canManageTenants: true,
 	canManageFinancials: true,
 	canManageTeam: true,
+	canManageDocuments: true,
 });
 
 export const getRoleCapabilities = (role?: string | null): RoleCapabilities => {

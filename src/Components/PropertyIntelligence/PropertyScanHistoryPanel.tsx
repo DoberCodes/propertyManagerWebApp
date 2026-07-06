@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { useSelector } from 'react-redux';
 import styled from 'styled-components';
 import { GenericModal } from '../Library';
 import {
@@ -13,6 +14,7 @@ import type {
 } from '../../types/PropertyKnowledge.types';
 import { PropertyScanRecommendation } from '../../utils/propertyIntelligenceScan';
 import { COLORS } from '../../constants/colors';
+import { selectIsHomeowner } from '../../Redux/selectors/permissionSelectors';
 
 interface PropertyScanHistoryPanelProps {
 	propertyId: string;
@@ -152,6 +154,14 @@ const getTargetEntityLabel = (value?: string): string => {
 export const PropertyScanHistoryPanel: React.FC<
 	PropertyScanHistoryPanelProps
 > = ({ propertyId, accountId, canRunScan, property }) => {
+	const isHomeowner = useSelector(selectIsHomeowner);
+	const historyLanguage = {
+		panelLabel: isHomeowner
+			? 'Home Intelligence history'
+			: 'Property Intelligence history',
+		subjectNoun: isHomeowner ? 'home' : 'property',
+		recordPlural: isHomeowner ? 'home records' : 'property records',
+	};
 	const [selectedSnapshot, setSelectedSnapshot] =
 		useState<PropertyScanSnapshot | null>(null);
 	const [selectedKnowledgeSuggestion, setSelectedKnowledgeSuggestion] =
@@ -216,15 +226,16 @@ export const PropertyScanHistoryPanel: React.FC<
 	}
 
 	return (
-		<HistoryPanel aria-label='Property Intelligence history'>
+		<HistoryPanel aria-label={historyLanguage.panelLabel}>
 			<HistoryHeader>
 				<div>
 					<HistoryEyebrow>Maintley Intelligence</HistoryEyebrow>
 					<HistoryTitle>Intelligence History</HistoryTitle>
 				</div>
 				<HistoryDescription>
-					Review what Maintley understood about this property at earlier points
-					in time. These snapshots stay unchanged when property records change.
+					Review what Maintley understood about this {historyLanguage.subjectNoun}{' '}
+					at earlier points in time. These snapshots stay unchanged when{' '}
+					{historyLanguage.recordPlural} change.
 				</HistoryDescription>
 			</HistoryHeader>
 
@@ -232,13 +243,14 @@ export const PropertyScanHistoryPanel: React.FC<
 				<HistoryState>Loading scan history...</HistoryState>
 			) : isError ? (
 				<HistoryError>
-					Maintley could not load this property&apos;s Intelligence history.
+					Maintley could not load this {historyLanguage.subjectNoun}&apos;s
+					Intelligence history.
 					Please try again.
 				</HistoryError>
 			) : timelineItems.length === 0 ? (
 				<HistoryState>
 					Run a Quick Scan or review suggested document details to begin
-					building this property&apos;s Intelligence history.
+					building this {historyLanguage.subjectNoun}&apos;s Intelligence history.
 				</HistoryState>
 			) : (
 				<SnapshotList>

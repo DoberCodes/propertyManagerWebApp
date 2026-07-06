@@ -671,6 +671,9 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
 	const canAccessProperties = useSelector(selectCanAccessProperties);
 	const isPropertyManager =
 		!!currentUser && canAccessProperties && !isHomeowner;
+	const setupAssistantLabel = isHomeowner
+		? 'Home Setup Assistant'
+		: 'Property Setup Assistant';
 	const hasSuggestedTaskAutomation = currentUser?.subscription
 		? canUseSuggestedMaintenancePackages(currentUser.subscription)
 		: false;
@@ -734,8 +737,8 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
 			latestCreatedProperty?.address ||
 			latestCreatedProperty?.title ||
 			latestCreatedProperty?.name ||
-			'Your property',
-		).trim() || 'Your property';
+			(isHomeowner ? 'Your home' : 'Your property'),
+		).trim() || (isHomeowner ? 'Your home' : 'Your property');
 
 	const createdPropertyMonthYear = new Intl.DateTimeFormat('en-US', {
 		month: 'long',
@@ -775,6 +778,15 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
 						: isCompactMobile
 							? 'Track appliances, repairs, and service history so nothing falls through the cracks.'
 							: 'Track appliances, repairs, tasks, and service history in one place — so nothing falls through the cracks.';
+
+		const isHomeownerTour = userPersona === 'homeowner' || isHomeowner;
+		const recordLabel = isHomeownerTour ? 'home' : 'property';
+		const recordTitleLabel = isHomeownerTour ? 'Home' : 'Property';
+		const recordPageLabel = isHomeownerTour ? 'home record' : 'property record';
+		const setupAssistantPair = isHomeownerTour
+			? 'Home Setup Assistant + Home Quick Scan'
+			: 'Property Setup Assistant + Property Scan';
+		const paidAutomationEnabled = hasSuggestedTaskAutomation;
 
 		const steps: OnboardingStep[] = [
 			// Step 0: Role selection
@@ -820,15 +832,23 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
 							<PayoffItem>
 								<span className="icon">🏠</span>
 								<div className="text">
-									<strong>Your property, fully profiled</strong>
+									<strong>Your {recordLabel}, fully profiled</strong>
 									<span>All key info and history in one place</span>
 								</div>
 							</PayoffItem>
 							<PayoffItem>
 								<span className="icon">✅</span>
 								<div className="text">
-									<strong>Your first maintenance task live</strong>
-									<span>With reminders so nothing gets forgotten</span>
+									<strong>
+										{paidAutomationEnabled
+											? 'Your first maintenance task live'
+											: 'Your first maintenance next step identified'}
+									</strong>
+									<span>
+										{paidAutomationEnabled
+											? 'With reminders so nothing gets forgotten'
+											: 'Maintley shows what is worth reviewing first'}
+									</span>
 								</div>
 							</PayoffItem>
 							<PayoffItem>
@@ -842,7 +862,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
 								<PayoffItem>
 									<span className="icon">🧠</span>
 									<div className="text">
-										<strong>Property Assistant + Property Scan</strong>
+										<strong>{setupAssistantPair}</strong>
 										<span>Maintley reviews the record and highlights what is worth attention</span>
 									</div>
 								</PayoffItem>
@@ -859,17 +879,17 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
 			{
 				id: 'create_property_instruction',
 				type: 'instruction',
-				title: 'Add your first property.',
+				title: `Add your first ${recordLabel}.`,
 				description:
-					"This takes about 2 minutes and starts your long-term maintenance record. I'll open the add-property dialog for you.",
+					`This takes about 2 minutes and starts your long-term maintenance record. I'll open the add-${recordLabel} dialog for you.`,
 				content: (
 					<div style={{ textAlign: 'left', marginTop: '20px' }}>
 						<p style={{ marginBottom: '12px', fontWeight: '600', color: '#0f172a', fontSize: '14px' }}>
 							You only need:
 						</p>
 						<ul style={{ paddingLeft: '20px', margin: '0', color: '#475569', fontSize: '14px', lineHeight: isCompactMobile ? '1.55' : '2' }}>
-							<li>Property address</li>
-							<li>Property type</li>
+							<li>{recordTitleLabel} address</li>
+							<li>{recordTitleLabel} type</li>
 							{!isCompactMobile && <li>Optional details (year built, square footage)</li>}
 						</ul>
 
@@ -878,8 +898,9 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
 						</BridgeStatement>
 					</div>
 				),
-				actionLabel: 'Add My Property →',
+				actionLabel: isHomeownerTour ? 'Add My Home →' : 'Add My Property →',
 				action: () => {
+					setWaitingModalMinimized(true);
 					navigate('/properties?openCreate=onboarding');
 					setCurrentStepIndex(currentStepIndex + 1);
 				},
@@ -890,7 +911,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
 			{
 				id: 'wait_property_creation',
 				type: 'waiting',
-				title: 'Go ahead and add your property.',
+				title: `Go ahead and add your ${recordLabel}.`,
 				description:
 					"Take your time. I'll stay in the background and pop back in once it's ready.",
 				waitCondition: () => properties.length > 0,
@@ -901,9 +922,9 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
 			{
 				id: 'property_celebration',
 				type: 'celebration',
-				title: 'Your first property is live. 🎉',
+				title: `Your first ${recordLabel} is live. 🎉`,
 				description:
-					"You now have a permanent home for every repair and service record for this property.",
+					`You now have a permanent ${recordPageLabel} for every repair and service record.`,
 				content: (
 					<VisualPayoffGrid>
 						<VisualPayoffCard>
@@ -913,7 +934,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
 						</VisualPayoffCard>
 						<VisualPayoffCard>
 							<div className='header'>Timeline</div>
-							<div className='title'>{createdPropertyMonthYear}: Property added</div>
+							<div className='title'>{createdPropertyMonthYear}: {recordTitleLabel} added</div>
 							<div className='meta'>Next entries appear automatically as work gets logged.</div>
 						</VisualPayoffCard>
 						<VisualPayoffCard>
@@ -931,7 +952,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
 			{
 				id: 'click_property_instruction',
 				type: 'waiting',
-				title: 'Now that your property is set up, open it.',
+				title: `Now that your ${recordLabel} is set up, open it.`,
 				description:
 					'This is where appliances, tasks, and maintenance history come together.',
 				waitCondition: () => location.pathname.includes('/property/'),
@@ -940,12 +961,12 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
 			{
 				id: 'property_detail_page_guide',
 				type: 'page_guide',
-				title: 'Your Property Command Center',
+				title: isHomeownerTour ? 'Your Home Record' : 'Your Property Command Center',
 				description:
-					'Everything for this property lives here: tasks, appliances, contractors, and history.',
+					`Everything for this ${recordLabel} lives here: tasks, equipment, contractors, and history.`,
 				content: (
 					<BridgeStatement>
-						We are moving from property setup to the core systems and work inside the property.
+						We are moving from setup to the equipment, tasks, and history inside this {recordPageLabel}.
 					</BridgeStatement>
 				),
 				actionLabel: 'Got it →',
@@ -960,9 +981,9 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
 			{
 				id: 'wait_setup_assistant',
 				type: 'waiting',
-				title: 'Property Setup Assistant.',
+				title: `${setupAssistantLabel}.`,
 				description:
-					"Complete the Property Setup Assistant to start your maintenance journey.",
+					`Review a few items, then save your first ${setupAssistantLabel.toLowerCase()} progress to continue.`,
 				waitCondition: () => hasSetupAssistantProgress,
 				autoAdvance: true,
 				skipLabel: 'Skip Tour',
@@ -1013,9 +1034,11 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
 		steps.push({
 			id: 'homeowner_complete',
 			type: 'instruction',
-			title: "You're already ahead of most property owners.",
+			title: isHomeownerTour
+				? "You're already ahead on home maintenance."
+				: "You're already ahead of most property owners.",
 			description:
-				'Your property setup has started. Maintley can now connect appliances, tasks, and future maintenance history.',
+				`Your ${recordLabel} setup has started. Maintley can now connect equipment, tasks, and future maintenance history.`,
 			content: (
 				<>
 					<PayoffPreview>
@@ -1024,19 +1047,19 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
 							<PayoffItem>
 								<span className="icon">✅</span>
 								<div className="text">
-									<strong>Your property setup is underway</strong>
+									<strong>Your {recordLabel} setup is underway</strong>
 									<span>
 										{hasSuggestedTaskAutomation
-											? 'Appliances and suggested tasks now have a starting point'
-											: 'Appliances and core property details now have a starting point'}
+											? 'Equipment and suggested tasks now have a starting point'
+											: `Equipment and core ${recordLabel} details now have a starting point`}
 									</span>
 								</div>
 							</PayoffItem>
 							<PayoffItem>
 								<span className="icon">🏠</span>
 								<div className="text">
-									<strong>Your property dashboard is ready</strong>
-									<span>Review appliances, tasks, and history as you go</span>
+									<strong>Your {recordLabel} dashboard is ready</strong>
+									<span>Review equipment, tasks, and history as you go</span>
 								</div>
 							</PayoffItem>
 							{!isCompactMobile && (
@@ -1157,8 +1180,8 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
 		) {
 			const minimizedWaitingMessage =
 				currentStep.id === 'wait_setup_assistant'
-					? 'Listening for Property Setup Assistant progress. I will pop back in as soon as setup starts.'
-					: 'Listening for your property to be created. I will pop back in when it is ready.';
+					? `I will check back after you save your first ${setupAssistantLabel.toLowerCase()} progress.`
+					: `Listening for your ${isHomeowner ? 'home' : 'property'} to be created. I will pop back in when it is ready.`;
 
 			return (
 				<MinimizedWaitingModal>

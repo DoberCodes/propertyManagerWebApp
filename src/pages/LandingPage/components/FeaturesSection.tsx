@@ -26,8 +26,8 @@ const FeaturesSectionComponent = () => {
 		<FeaturesSection id='Features'>
 			<FeaturesTitle>Everything Maintley Keeps Together</FeaturesTitle>
 			<FeaturesIntro>
-				Maintley brings the records, systems, documents, people, and recurring
-				care around your property into one place so every detail has a purpose.
+				Maintley brings the records, equipment, documents, people, and recurring
+				care around your home into one place so every detail has a purpose.
 			</FeaturesIntro>
 			<FeatureGrid>
 				<FeatureCard $flagship>
@@ -44,10 +44,10 @@ const FeaturesSectionComponent = () => {
 					<FeatureIcon className='unit'>
 						<FontAwesomeIcon icon={faBuilding} />
 					</FeatureIcon>
-					<FeatureTitle>Appliances & Systems</FeatureTitle>
+					<FeatureTitle>Equipment Records</FeatureTitle>
 					<FeatureDescription>
 						Keep HVAC, appliances, filters, parts, and equipment history with
-						the systems they belong to.
+						the records they belong to.
 					</FeatureDescription>
 				</FeatureCard>
 				<FeatureCard>

@@ -37,11 +37,9 @@ import {
 	useUpdateTaskMutation,
 	useGetTasksQuery,
 } from '../../../Redux/API/taskSlice';
-import { apiSlice } from '../../../Redux/API/apiSlice';
 import { useGetAllDevicesQuery } from '../../../Redux/API/deviceSlice';
 import {
 	useGetPropertiesQuery,
-	useUpdatePropertyMutation,
 } from '../../../Redux/API/propertySlice';
 import { useGetAllMaintenanceHistoryForUserQuery } from '../../../Redux/API/userSlice';
 import { addTask, updateTask } from '../../../Redux/Slices/propertyDataSlice';
@@ -55,12 +53,11 @@ import { db } from '../../../config/firebase';
 import { COLORS } from '../../../constants/colors';
 import { Device, PropertyDocumentCategory } from '../../../types/Property.types';
 import { RootState } from '../../../Redux/store/store';
-import { canUseRecurringTasks } from '../../../utils/subscriptionUtils';
-import { TaskDocumentsPanel } from '../../TaskDocumentsPanel/TaskDocumentsPanel';
 import {
-	preparePropertyMemoryDocumentUploads,
-	startPdfDocumentKnowledgeProcessing,
-} from '../../../propertyKnowledge/propertyDocumentUploads';
+	canUseRecurringTasks,
+} from '../../../utils/subscriptionUtils';
+import { TaskDocumentsPanel } from '../../TaskDocumentsPanel/TaskDocumentsPanel';
+import { usePropertyDocumentUploadWorkflow } from '../../../propertyKnowledge/usePropertyDocumentUploadWorkflow';
 import {
 	buildTaskAssignmentFields,
 	getStoredTaskAssigneeOption,
@@ -539,6 +536,8 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 			.trim()
 			.toLowerCase()
 			.replace(/\s+/g, ' ');
+	const getTaskStatusOptionLabel = (status: string) =>
+		status === 'Initiated' ? 'Open' : status;
 
 	// modal-owned form state (defaults)
 	const defaultForm: TaskFormData = useMemo(
@@ -576,7 +575,7 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 		useGetAllMaintenanceHistoryForUserQuery();
 	const [createTask] = useCreateTaskMutation();
 	const [updateTaskApi] = useUpdateTaskMutation();
-	const [updateProperty] = useUpdatePropertyMutation();
+	const { uploadPropertyDocuments } = usePropertyDocumentUploadWorkflow();
 
 	const [formState, setFormState] = useState<TaskFormData>(defaultForm);
 	const [pendingTaskDocumentFiles, setPendingTaskDocumentFiles] = useState<File[]>(
@@ -1296,49 +1295,20 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 			feedback.notify('Task saved, but property details were still loading so documents were not uploaded.');
 			return;
 		}
-		const propertyDocuments = Array.isArray(propertyForDocuments?.documents)
-			? propertyForDocuments.documents
-			: [];
-		const {
-			documents: savedDocuments,
-			knowledgeSuggestions,
-			pdfDocuments,
-		} = await preparePropertyMemoryDocumentUploads({
-			files: pendingTaskDocumentFiles,
-			propertyId: scopedPropertyId,
-			category: pendingTaskDocumentCategory,
+		await uploadPropertyDocuments({
 			property: propertyForDocuments,
-			systems: linkedDevices,
-			uploadContext: {
-				taskIds: [savedTaskId],
-				assignedTaskStatus: formState.status,
-			},
-		});
-		const knowledgeSuggestionsForProperty = Array.isArray(
-			propertyForDocuments?.knowledgeSuggestions,
-		)
-			? propertyForDocuments.knowledgeSuggestions
-			: [];
-
-		await updateProperty({
-			id: scopedPropertyId,
-			updates: {
-				documents: [...propertyDocuments, ...savedDocuments],
-				knowledgeSuggestions: [
-					...knowledgeSuggestionsForProperty,
-					...knowledgeSuggestions,
-				],
-			},
-		}).unwrap();
-		startPdfDocumentKnowledgeProcessing({
 			propertyId: scopedPropertyId,
-			documents: pdfDocuments,
-			onProcessed: () => {
-				dispatch(apiSlice.util.invalidateTags(['Properties']));
-			},
-			onError: () => {
-				dispatch(apiSlice.util.invalidateTags(['Properties']));
-			},
+			batches: [
+				{
+					files: pendingTaskDocumentFiles,
+					category: pendingTaskDocumentCategory,
+					systems: linkedDevices,
+					uploadContext: {
+						taskIds: [savedTaskId],
+						assignedTaskStatus: formState.status,
+					},
+				},
+			],
 		});
 		setPendingTaskDocumentFiles([]);
 		setPendingTaskDocumentCategory('other');
@@ -1985,7 +1955,7 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 													placeholder='Select a status...'
 													options={statusOptions.map((status) => ({
 														value: status,
-														label: status,
+														label: getTaskStatusOptionLabel(status),
 													}))}
 												/>
 											</FormGroup>
@@ -2042,11 +2012,11 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 											placeholder='Select a status...'
 											options={statusOptions.map((status) => ({
 												value: status,
-												label: status,
+												label: getTaskStatusOptionLabel(status),
 											}))}
 										/>
 										<FieldHint>
-											New tasks usually start as Initiated.
+											New tasks usually start as Open.
 										</FieldHint>
 									</FormGroup>
 
