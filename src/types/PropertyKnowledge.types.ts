@@ -144,6 +144,7 @@ export interface PropertyKnowledgePropertyConfirmation {
 
 export interface PropertyKnowledgeSuggestion {
 	id: string;
+	accountId?: string;
 	sourceDocumentId: string;
 	propertyId: string;
 	relatedSystemId?: string;
@@ -162,4 +163,5 @@ export interface PropertyKnowledgeSuggestion {
 	acceptedByUser?: string;
 	sourceDocumentName?: string;
 	propertyConfirmation?: PropertyKnowledgePropertyConfirmation;
+	updatedAt?: string;
 }

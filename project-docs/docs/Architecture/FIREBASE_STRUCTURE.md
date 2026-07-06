@@ -103,6 +103,8 @@ Used for:
 * Tenants
 * Contractors
 * Notifications
+* Property documents
+* Property knowledge suggestions
 * Subscription state
 * Application records
 

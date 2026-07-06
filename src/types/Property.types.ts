@@ -64,6 +64,7 @@ export interface PropertyDocumentLinks {
 
 export interface PropertyDocument {
 	id: string;
+	accountId?: string;
 	propertyId?: string;
 	name: string;
 	url: string;
@@ -84,6 +85,7 @@ export interface PropertyDocument {
 	acquisitionStartedAt?: string;
 	acquisitionCompletedAt?: string;
 	uploadedAt: string;
+	updatedAt?: string;
 	storagePath?: string;
 }
 
@@ -96,6 +98,7 @@ export interface PropertyAccessSnapshot {
 
 export interface Property {
 	id: string;
+	accountId?: string;
 	groupId?: string;
 	userId: string; // Owner of the property
 	title: string;

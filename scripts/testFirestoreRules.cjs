@@ -44,6 +44,35 @@ const createNotification = (overrides = {}) => ({
 	...overrides,
 });
 
+const createPropertyDocument = (overrides = {}) => ({
+	id: 'property-document-owned',
+	accountId,
+	propertyId: 'property-1',
+	name: 'HVAC invoice',
+	fileName: 'hvac-invoice.pdf',
+	fileUrl: 'https://example.com/hvac-invoice.pdf',
+	fileType: 'application/pdf',
+	category: 'invoice',
+	uploadedAt: '2026-07-01T12:00:00.000Z',
+	updatedAt: '2026-07-01T12:00:00.000Z',
+	...overrides,
+});
+
+const createPropertyKnowledgeSuggestion = (overrides = {}) => ({
+	id: 'property-suggestion-owned',
+	accountId,
+	propertyId: 'property-1',
+	sourceDocumentId: 'property-document-owned',
+	status: 'pending',
+	confidence: 0.9,
+	createdAt: '2026-07-01T12:00:00.000Z',
+	updatedAt: '2026-07-01T12:00:00.000Z',
+	suggestedData: {
+		documents: [],
+	},
+	...overrides,
+});
+
 async function seedFirestore(env) {
 	await env.withSecurityRulesDisabled(async (context) => {
 		const db = context.firestore();
@@ -128,6 +157,31 @@ async function seedFirestore(env) {
 			title: 'Sand Oak Drive',
 			address: '123 Sand Oak Drive, Apt A',
 		});
+
+		await db.doc('propertyDocuments/property-document-owned').set(
+			createPropertyDocument(),
+		);
+
+		await db.doc('propertyDocuments/property-document-outsider').set(
+			createPropertyDocument({
+				id: 'property-document-outsider',
+				accountId: outsiderUid,
+				propertyId: 'outsider-property',
+			}),
+		);
+
+		await db.doc('propertyKnowledgeSuggestions/property-suggestion-owned').set(
+			createPropertyKnowledgeSuggestion(),
+		);
+
+		await db.doc('propertyKnowledgeSuggestions/property-suggestion-outsider').set(
+			createPropertyKnowledgeSuggestion({
+				id: 'property-suggestion-outsider',
+				accountId: outsiderUid,
+				propertyId: 'outsider-property',
+				sourceDocumentId: 'property-document-outsider',
+			}),
+		);
 
 		await db.doc('tasks/task-existing').set(
 			createTask({
@@ -383,6 +437,140 @@ async function run() {
 			}),
 		);
 		await assertFails(ownerDb.doc('feedback/feedback-owned').delete());
+
+		await assertSucceeds(ownerDb.doc('propertyDocuments/property-document-owned').get());
+		await assertSucceeds(
+			ownerDb
+				.collection('propertyDocuments')
+				.where('propertyId', '==', 'property-1')
+				.where('accountId', '==', accountId)
+				.get(),
+		);
+		await assertSucceeds(
+			maintenanceLeadDb.doc('propertyDocuments/property-document-owned').get(),
+		);
+		await assertFails(
+			outsiderDb.doc('propertyDocuments/property-document-owned').get(),
+		);
+		await assertFails(
+			ownerDb.doc('propertyDocuments/property-document-outsider').get(),
+		);
+		await assertSucceeds(
+			ownerDb.doc('propertyDocuments/property-document-created').set(
+				createPropertyDocument({
+					id: 'property-document-created',
+					name: 'Water heater warranty',
+				}),
+			),
+		);
+		await assertFails(
+			maintenanceLeadDb.doc('propertyDocuments/property-document-lead-created').set(
+				createPropertyDocument({
+					id: 'property-document-lead-created',
+					name: 'Lead upload attempt',
+				}),
+			),
+		);
+		await assertFails(
+			outsiderDb.doc('propertyDocuments/property-document-outsider-created').set(
+				createPropertyDocument({
+					id: 'property-document-outsider-created',
+					name: 'Outsider upload attempt',
+				}),
+			),
+		);
+		await assertSucceeds(
+			ownerDb.doc('propertyDocuments/property-document-owned').update({
+				acquisitionStatus: 'reviewed',
+				updatedAt: '2026-07-01T13:00:00.000Z',
+			}),
+		);
+		await assertFails(
+			ownerDb.doc('propertyDocuments/property-document-owned').update({
+				accountId: outsiderUid,
+				updatedAt: '2026-07-01T13:30:00.000Z',
+			}),
+		);
+		await assertFails(
+			maintenanceLeadDb.doc('propertyDocuments/property-document-owned').delete(),
+		);
+		await assertSucceeds(
+			ownerDb.doc('propertyDocuments/property-document-created').delete(),
+		);
+
+		await assertSucceeds(
+			ownerDb
+				.doc('propertyKnowledgeSuggestions/property-suggestion-owned')
+				.get(),
+		);
+		await assertSucceeds(
+			ownerDb
+				.collection('propertyKnowledgeSuggestions')
+				.where('propertyId', '==', 'property-1')
+				.where('accountId', '==', accountId)
+				.get(),
+		);
+		await assertSucceeds(
+			maintenanceLeadDb
+				.doc('propertyKnowledgeSuggestions/property-suggestion-owned')
+				.get(),
+		);
+		await assertFails(
+			outsiderDb
+				.doc('propertyKnowledgeSuggestions/property-suggestion-owned')
+				.get(),
+		);
+		await assertFails(
+			ownerDb
+				.doc('propertyKnowledgeSuggestions/property-suggestion-outsider')
+				.get(),
+		);
+		await assertSucceeds(
+			ownerDb
+				.doc('propertyKnowledgeSuggestions/property-suggestion-created')
+				.set(
+					createPropertyKnowledgeSuggestion({
+						id: 'property-suggestion-created',
+						sourceDocumentId: 'property-document-owned',
+					}),
+				),
+		);
+		await assertFails(
+			maintenanceLeadDb
+				.doc('propertyKnowledgeSuggestions/property-suggestion-lead-created')
+				.set(
+					createPropertyKnowledgeSuggestion({
+						id: 'property-suggestion-lead-created',
+						sourceDocumentId: 'property-document-owned',
+					}),
+				),
+		);
+		await assertSucceeds(
+			ownerDb
+				.doc('propertyKnowledgeSuggestions/property-suggestion-owned')
+				.update({
+					status: 'accepted',
+					updatedAt: '2026-07-01T13:00:00.000Z',
+				}),
+		);
+		await assertFails(
+			ownerDb
+				.doc('propertyKnowledgeSuggestions/property-suggestion-owned')
+				.update({
+					accountId: outsiderUid,
+					updatedAt: '2026-07-01T13:30:00.000Z',
+				}),
+		);
+		await assertFails(
+			maintenanceLeadDb
+				.doc('propertyKnowledgeSuggestions/property-suggestion-owned')
+				.delete(),
+		);
+		await assertSucceeds(
+			ownerDb
+				.doc('propertyKnowledgeSuggestions/property-suggestion-created')
+				.delete(),
+		);
 
 		await assertSucceeds(ownerDb.doc('notifications/notification-owned').get());
 		await assertFails(outsiderDb.doc('notifications/notification-owned').get());

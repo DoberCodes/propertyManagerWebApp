@@ -128,6 +128,7 @@ export const uploadPropertyDocument = async (
 
 	return {
 		id: `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+		accountId,
 		propertyId,
 		name: resolvedDocumentName,
 		url,

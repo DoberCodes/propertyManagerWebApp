@@ -15,6 +15,8 @@ const db = admin.firestore();
 
 const WRITER_ROLES = ['owner', 'admin', 'manager', 'editor', 'member'];
 const MAX_PDF_BYTES = 10 * 1024 * 1024;
+const PROPERTY_DOCUMENTS_COLLECTION = 'propertyDocuments';
+const PROPERTY_KNOWLEDGE_SUGGESTIONS_COLLECTION = 'propertyKnowledgeSuggestions';
 
 type ProcessDocumentRequest = {
 	propertyId?: string;
@@ -23,6 +25,8 @@ type ProcessDocumentRequest = {
 
 type PropertyDocumentRecord = {
 	id?: string;
+	accountId?: string;
+	propertyId?: string;
 	name?: string;
 	fileName?: string;
 	type?: string;
@@ -32,6 +36,8 @@ type PropertyDocumentRecord = {
 	storagePath?: string;
 	acquisitionStatus?: string;
 	acquisitionStartedAt?: string;
+	acquisitionCompletedAt?: string;
+	acquisitionError?: string;
 	assignedDeviceId?: string;
 	links?: {
 		assetIds?: string[];
@@ -151,7 +157,47 @@ const updateDocumentInList = (
 		toString(document.id) === documentId
 			? stripUndefinedDeep({ ...document, ...updates })
 			: document,
-	);
+		);
+
+const getPropertyAccountId = (propertyData: Record<string, unknown>) =>
+	toString(propertyData.accountId) || toString(propertyData.userId);
+
+const buildDocumentCollectionRecord = ({
+	propertyId,
+	propertyData,
+	document,
+	updates = {},
+	nowIso = new Date().toISOString(),
+}: {
+	propertyId: string;
+	propertyData: Record<string, unknown>;
+	document: PropertyDocumentRecord;
+	updates?: Record<string, unknown>;
+	nowIso?: string;
+}): Record<string, unknown> =>
+	stripUndefinedDeep({
+		...document,
+		...updates,
+		id: toString(document.id),
+		accountId: toString(document.accountId) || getPropertyAccountId(propertyData),
+		propertyId,
+		updatedAt: nowIso,
+	}) as Record<string, unknown>;
+
+const buildSuggestionCollectionRecord = ({
+	propertyData,
+	suggestion,
+	nowIso = new Date().toISOString(),
+}: {
+	propertyData: Record<string, unknown>;
+	suggestion: Record<string, unknown>;
+	nowIso?: string;
+}): Record<string, unknown> =>
+	stripUndefinedDeep({
+		...suggestion,
+		accountId: toString(suggestion.accountId) || getPropertyAccountId(propertyData),
+		updatedAt: nowIso,
+	}) as Record<string, unknown>;
 
 const normalizeText = (text: string) =>
 	text
@@ -934,9 +980,25 @@ const loadDocumentForProcessing = async ({
 	const documents = Array.isArray(propertyData.documents)
 		? (propertyData.documents as PropertyDocumentRecord[])
 		: [];
-	const document = documents.find(
+	let document = documents.find(
 		(candidate) => toString(candidate.id) === documentId,
 	);
+
+	if (!document) {
+		const documentSnapshot = await db
+			.collection(PROPERTY_DOCUMENTS_COLLECTION)
+			.doc(documentId)
+			.get();
+		const documentData = documentSnapshot.data() as
+			| PropertyDocumentRecord
+			| undefined;
+		if (documentSnapshot.exists && toString(documentData?.propertyId) === snapshot.id) {
+			document = {
+				id: documentSnapshot.id,
+				...documentData,
+			};
+		}
+	}
 
 	if (!document) {
 		throw new functions.https.HttpsError('not-found', 'Document not found.');
@@ -963,7 +1025,11 @@ const loadDocumentForProcessing = async ({
 	return {
 		propertyData,
 		document,
-		documents,
+		documents: documents.some(
+			(candidate) => toString(candidate.id) === documentId,
+		)
+			? documents
+			: [...documents, document],
 	};
 };
 
@@ -1045,16 +1111,32 @@ const processPdfDocumentAcquisition = async ({
 					};
 				}
 
+				const documentUpdates = {
+					acquisitionStatus: 'failed',
+					acquisitionCompletedAt: completedAt,
+					acquisitionWorkerCompletedAt: completedAt,
+					acquisitionError:
+						'Maintley could not read useful text from this PDF yet. Scanned PDFs will need the rendered-page OCR processor.',
+				};
 				transaction.update(propertyRef, {
-					documents: updateDocumentInList(latestDocuments, documentId, {
-						acquisitionStatus: 'failed',
-						acquisitionCompletedAt: completedAt,
-						acquisitionWorkerCompletedAt: completedAt,
-						acquisitionError:
-							'Maintley could not read useful text from this PDF yet. Scanned PDFs will need the rendered-page OCR processor.',
-					}),
+					documents: updateDocumentInList(
+						latestDocuments,
+						documentId,
+						documentUpdates,
+					),
 					updatedAt: completedAt,
 				});
+				transaction.set(
+					db.collection(PROPERTY_DOCUMENTS_COLLECTION).doc(documentId),
+					buildDocumentCollectionRecord({
+						propertyId,
+						propertyData: latestData,
+						document: latestDocument || document,
+						updates: documentUpdates,
+						nowIso: completedAt,
+					}),
+					{ merge: true },
+				);
 
 				return {
 					success: false,
@@ -1140,22 +1222,49 @@ const processPdfDocumentAcquisition = async ({
 				suggestion,
 			];
 
+			const documentUpdates = {
+				acquisitionStatus: 'pending_review',
+				acquisitionCompletedAt: completedAt,
+				acquisitionWorkerCompletedAt: completedAt,
+				acquisitionError: '',
+				extractedKnowledgeSuggestionIds: Array.from(
+					new Set([
+						...(latestDocument.extractedKnowledgeSuggestionIds || []),
+						toString(suggestion.id),
+					]),
+				),
+			};
 			transaction.update(propertyRef, {
-				documents: updateDocumentInList(latestDocuments, documentId, {
-					acquisitionStatus: 'pending_review',
-					acquisitionCompletedAt: completedAt,
-					acquisitionWorkerCompletedAt: completedAt,
-					acquisitionError: '',
-					extractedKnowledgeSuggestionIds: Array.from(
-						new Set([
-							...(latestDocument.extractedKnowledgeSuggestionIds || []),
-							toString(suggestion.id),
-						]),
-					),
-				}),
+				documents: updateDocumentInList(
+					latestDocuments,
+					documentId,
+					documentUpdates,
+				),
 				knowledgeSuggestions: nextSuggestions,
 				updatedAt: completedAt,
 			});
+			transaction.set(
+				db.collection(PROPERTY_DOCUMENTS_COLLECTION).doc(documentId),
+				buildDocumentCollectionRecord({
+					propertyId,
+					propertyData: latestData,
+					document: latestDocument,
+					updates: documentUpdates,
+					nowIso: completedAt,
+				}),
+				{ merge: true },
+			);
+			transaction.set(
+				db.collection(PROPERTY_KNOWLEDGE_SUGGESTIONS_COLLECTION).doc(
+					toString(suggestion.id),
+				),
+				buildSuggestionCollectionRecord({
+					propertyData: latestData,
+					suggestion,
+					nowIso: completedAt,
+				}),
+				{ merge: true },
+			);
 
 			return {
 				didWrite: true,
@@ -1213,17 +1322,33 @@ const processPdfDocumentAcquisition = async ({
 				return;
 			}
 
+			const documentUpdates = {
+				acquisitionStatus: 'failed',
+				acquisitionCompletedAt: completedAt,
+				acquisitionWorkerCompletedAt: completedAt,
+				acquisitionError:
+					error?.message ||
+					'Maintley could not review this PDF. Please try again later.',
+			};
 			transaction.update(propertyRef, {
-				documents: updateDocumentInList(latestDocuments, documentId, {
-					acquisitionStatus: 'failed',
-					acquisitionCompletedAt: completedAt,
-					acquisitionWorkerCompletedAt: completedAt,
-					acquisitionError:
-						error?.message ||
-						'Maintley could not review this PDF. Please try again later.',
-				}),
+				documents: updateDocumentInList(
+					latestDocuments,
+					documentId,
+					documentUpdates,
+				),
 				updatedAt: completedAt,
 			});
+			transaction.set(
+				db.collection(PROPERTY_DOCUMENTS_COLLECTION).doc(documentId),
+				buildDocumentCollectionRecord({
+					propertyId,
+					propertyData: latestData,
+					document: latestDocument || document,
+					updates: documentUpdates,
+					nowIso: completedAt,
+				}),
+				{ merge: true },
+			);
 		});
 
 		await publishDocumentAcquisitionEvent({

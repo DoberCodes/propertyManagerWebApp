@@ -29,6 +29,11 @@ import {
 	rejectKnowledgeSuggestion,
 } from 'propertyKnowledge/propertyKnowledgeAcquisition';
 import {
+	updatePropertyDocumentInCollection,
+	updatePropertyKnowledgeSuggestionInCollection,
+} from 'propertyKnowledge/propertyMemoryRecordService';
+import { usePropertyMemoryRecords } from 'propertyKnowledge/usePropertyMemoryRecords';
+import {
 	findAssetTargetCandidate,
 	findContractorTargetCandidate,
 	findMaintenanceEventTargetCandidate,
@@ -555,15 +560,15 @@ export const PropertyKnowledgeReviewPanel: React.FC<
 	const [isSaving, setIsSaving] = useState(false);
 	const [propertyAddressConfirmed, setPropertyAddressConfirmed] = useState(false);
 
-	const propertyDocuments = useMemo<PropertyDocument[]>(
-		() => (Array.isArray((property as any)?.documents) ? (property as any).documents : []),
-		[property],
-	);
+	const {
+		documents: propertyDocuments,
+		knowledgeSuggestions: mergedKnowledgeSuggestions,
+	} = usePropertyMemoryRecords(property);
 
 	const allKnowledgeSuggestions = useMemo<PropertyKnowledgeSuggestion[]>(
 		() =>
-			Array.isArray((property as any)?.knowledgeSuggestions)
-				? [...(property as any).knowledgeSuggestions].sort((a, b) => {
+			mergedKnowledgeSuggestions.length > 0
+				? [...mergedKnowledgeSuggestions].sort((a, b) => {
 						const statusWeight = (status: string) =>
 							status === 'pending' ? 0 : status === 'accepted' ? 1 : 2;
 						const weightDelta = statusWeight(a.status) - statusWeight(b.status);
@@ -574,7 +579,7 @@ export const PropertyKnowledgeReviewPanel: React.FC<
 						);
 				  })
 				: [],
-		[property],
+		[mergedKnowledgeSuggestions],
 	);
 
 	const knowledgeSuggestions = useMemo<PropertyKnowledgeSuggestion[]>(
@@ -1580,6 +1585,19 @@ export const PropertyKnowledgeReviewPanel: React.FC<
 
 		setIsSaving(true);
 		try {
+			await Promise.all([
+				updatePropertyDocumentInCollection(
+					property,
+					rejectedSuggestion.sourceDocumentId,
+					{
+						acquisitionStatus: 'reviewed',
+					},
+				),
+				updatePropertyKnowledgeSuggestionInCollection(
+					property,
+					rejectedSuggestion,
+				),
+			]);
 			await updateProperty({
 				id: property.id,
 				updates: {
@@ -1789,6 +1807,19 @@ export const PropertyKnowledgeReviewPanel: React.FC<
 				}
 			}
 
+			await Promise.all([
+				updatePropertyDocumentInCollection(
+					property,
+					result.appliedSuggestion.sourceDocumentId,
+					{
+						acquisitionStatus: 'applied',
+					},
+				),
+				updatePropertyKnowledgeSuggestionInCollection(
+					property,
+					result.appliedSuggestion,
+				),
+			]);
 			await updateProperty({
 				id: property.id,
 				updates: {

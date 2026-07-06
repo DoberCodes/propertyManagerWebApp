@@ -14,6 +14,7 @@ import {
 	createPendingKnowledgeSuggestionFromFile,
 	markDocumentWithKnowledgeSuggestion,
 } from './propertyKnowledgeAcquisition';
+import { savePropertyMemoryRecordsToCollections } from './propertyMemoryRecordService';
 import { isPdfPropertyDocument } from './propertyKnowledgeProcessing';
 import type { ProcessPropertyDocumentAcquisitionResponse } from './propertyKnowledgeProcessing';
 
@@ -142,6 +143,12 @@ export const preparePropertyMemoryDocumentUploads = async ({
 		return suggestion
 			? markDocumentWithKnowledgeSuggestion(document, suggestion)
 			: document;
+	});
+
+	await savePropertyMemoryRecordsToCollections({
+		property: property || { id: propertyId },
+		documents,
+		knowledgeSuggestions,
 	});
 
 	return {

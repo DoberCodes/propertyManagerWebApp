@@ -454,6 +454,40 @@ service cloud.firestore {
         hasPropertyCounterDeleteDecrement(resource.data.accountId);
     }
 
+    match /propertyDocuments/{documentId} {
+      allow read: if isAuthenticated() &&
+        ('accountId' in resource.data) &&
+        canReadAccount(resource.data.accountId);
+      allow create: if isAuthenticated() &&
+        ('accountId' in request.resource.data) &&
+        canManageAccount(request.resource.data.accountId);
+      allow update: if isAuthenticated() &&
+        ('accountId' in resource.data) &&
+        ('accountId' in request.resource.data) &&
+        resource.data.accountId == request.resource.data.accountId &&
+        canManageAccount(resource.data.accountId);
+      allow delete: if isAuthenticated() &&
+        ('accountId' in resource.data) &&
+        canManageAccount(resource.data.accountId);
+    }
+
+    match /propertyKnowledgeSuggestions/{suggestionId} {
+      allow read: if isAuthenticated() &&
+        ('accountId' in resource.data) &&
+        canReadAccount(resource.data.accountId);
+      allow create: if isAuthenticated() &&
+        ('accountId' in request.resource.data) &&
+        canManageAccount(request.resource.data.accountId);
+      allow update: if isAuthenticated() &&
+        ('accountId' in resource.data) &&
+        ('accountId' in request.resource.data) &&
+        resource.data.accountId == request.resource.data.accountId &&
+        canManageAccount(resource.data.accountId);
+      allow delete: if isAuthenticated() &&
+        ('accountId' in resource.data) &&
+        canManageAccount(resource.data.accountId);
+    }
+
     match /propertyGroupMemberships/{membershipId} {
       allow read: if isAuthenticated() &&
         ('accountId' in resource.data) &&

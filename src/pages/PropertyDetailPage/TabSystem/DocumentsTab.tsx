@@ -33,6 +33,12 @@ import {
 	startPdfDocumentKnowledgeProcessing,
 } from 'propertyKnowledge/propertyDocumentUploads';
 import {
+	deletePropertyDocumentFromCollection,
+	updatePropertyDocumentInCollection,
+	updatePropertyKnowledgeSuggestionInCollection,
+} from 'propertyKnowledge/propertyMemoryRecordService';
+import { usePropertyMemoryRecords } from 'propertyKnowledge/usePropertyMemoryRecords';
+import {
 	isPdfPropertyDocument,
 	processPropertyDocumentAcquisition,
 } from 'propertyKnowledge/propertyKnowledgeProcessing';
@@ -244,19 +250,10 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 	const [isSaving, setIsSaving] = useState(false);
 	const lastOpenUploadTokenRef = useRef(0);
 	const canManageDocuments = permissions?.canManageProperties ?? true;
-
-	const propertyDocuments = useMemo<PropertyDocument[]>(
-		() => (Array.isArray(property?.documents) ? property.documents : []),
-		[property?.documents],
-	);
-
-	const propertyKnowledgeSuggestions = useMemo<PropertyKnowledgeSuggestion[]>(
-		() =>
-			Array.isArray(property?.knowledgeSuggestions)
-				? property.knowledgeSuggestions
-				: [],
-		[property?.knowledgeSuggestions],
-	);
+	const {
+		documents: propertyDocuments,
+		knowledgeSuggestions: propertyKnowledgeSuggestions,
+	} = usePropertyMemoryRecords(property);
 
 	const deviceById = useMemo(() => {
 		const map = new Map<string, any>();
@@ -403,6 +400,15 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 	) => {
 		if (!property?.id) return;
 		const completedAt = new Date().toISOString();
+		const documentUpdates = {
+			acquisitionStatus: 'failed' as const,
+			acquisitionCompletedAt: completedAt,
+			acquisitionError: message,
+		};
+		await updatePropertyDocumentInCollection(property, documentId, {
+			...documentUpdates,
+			acquisitionWorkerCompletedAt: completedAt,
+		} as Partial<PropertyDocument>);
 		await updateProperty({
 			id: property.id,
 			updates: {
@@ -410,9 +416,7 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 					item.id === documentId
 						? {
 								...item,
-								acquisitionStatus: 'failed',
-								acquisitionCompletedAt: completedAt,
-								acquisitionError: message,
+								...documentUpdates,
 						  }
 						: item,
 				),
@@ -475,6 +479,14 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 
 		setIsSaving(true);
 		try {
+			const reviewedDocument = markDocumentWithKnowledgeSuggestion(
+				document,
+				suggestion,
+			);
+			await Promise.all([
+				updatePropertyDocumentInCollection(property, document.id, reviewedDocument),
+				updatePropertyKnowledgeSuggestionInCollection(property, suggestion),
+			]);
 			await updateProperty({
 				id: property.id,
 				updates: {
@@ -608,6 +620,11 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 
 		setIsSaving(true);
 		try {
+			await updatePropertyDocumentInCollection(property, editingDocument.id, {
+				name: trimmedName,
+				fileName: trimmedName,
+				category: editCategory,
+			});
 			await updateProperty({
 				id: property.id,
 				updates: {
@@ -646,6 +663,7 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 			} catch (storageError) {
 				console.warn('Could not delete property document file:', storageError);
 			}
+			await deletePropertyDocumentFromCollection(document.id);
 			await updateProperty({
 				id: property.id,
 				updates: {
