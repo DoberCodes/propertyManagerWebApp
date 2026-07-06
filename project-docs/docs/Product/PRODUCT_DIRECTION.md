@@ -540,9 +540,10 @@ Supported responses:
 
 * Present
 * Not Present
-* Unknown
+* Skip for now
 
 Users should never be penalized for systems they do not have.
+Items skipped for now should stay open so users understand they can return later.
 
 ---
 

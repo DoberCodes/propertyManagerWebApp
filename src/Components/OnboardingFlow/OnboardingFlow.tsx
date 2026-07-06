@@ -671,6 +671,9 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
 	const canAccessProperties = useSelector(selectCanAccessProperties);
 	const isPropertyManager =
 		!!currentUser && canAccessProperties && !isHomeowner;
+	const setupAssistantLabel = isHomeowner
+		? 'Home Setup Assistant'
+		: 'Property Setup Assistant';
 	const hasSuggestedTaskAutomation = currentUser?.subscription
 		? canUseSuggestedMaintenancePackages(currentUser.subscription)
 		: false;
@@ -960,9 +963,9 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
 			{
 				id: 'wait_setup_assistant',
 				type: 'waiting',
-				title: 'Property Setup Assistant.',
+				title: `${setupAssistantLabel}.`,
 				description:
-					"Complete the Property Setup Assistant to start your maintenance journey.",
+					`Review a few items, then save your first ${setupAssistantLabel.toLowerCase()} progress to continue.`,
 				waitCondition: () => hasSetupAssistantProgress,
 				autoAdvance: true,
 				skipLabel: 'Skip Tour',
@@ -1157,7 +1160,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
 		) {
 			const minimizedWaitingMessage =
 				currentStep.id === 'wait_setup_assistant'
-					? 'Listening for Property Setup Assistant progress. I will pop back in as soon as setup starts.'
+					? `I will check back after you save your first ${setupAssistantLabel.toLowerCase()} progress.`
 					: 'Listening for your property to be created. I will pop back in when it is ready.';
 
 			return (

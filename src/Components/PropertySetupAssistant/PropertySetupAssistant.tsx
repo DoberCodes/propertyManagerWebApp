@@ -894,7 +894,7 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 							<div>
 								<ModalTitle>{setupLanguage.eyebrow}</ModalTitle>
 								<ModalHint>
-									Review one area at a time. You can skip and return whenever you want.
+									Review one area at a time. Items marked Skip for now stay open so you can return later.
 								</ModalHint>
 							</div>
 							<CloseButton
@@ -999,7 +999,7 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 																	? 'Will add when you click Done'
 																	: status === 'not_present'
 																		? 'Not present'
-																		: 'Unknown / skipped'}
+																		: 'Skipped for now'}
 															{savedState?.status &&
 																savedState.status !== status &&
 																' - Unsaved change'}
@@ -1025,7 +1025,7 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 															$active={status === 'unknown'}
 															disabled={isSavingAssistant}
 															onClick={() => handleSetStatus(itemId, 'unknown')}>
-															Unknown
+															Skip for now
 														</StateButton>
 													</StateButtonGrid>
 												</ItemTopRow>
