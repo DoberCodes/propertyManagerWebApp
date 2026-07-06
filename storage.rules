@@ -25,6 +25,10 @@ service firebase.storage {
         firestore.get(/databases/(default)/documents/accountMemberships/$(callerMembershipId(accountId))).data.status == 'active';
     }
 
+    function membershipData(accountId) {
+      return firestore.get(/databases/(default)/documents/accountMemberships/$(callerMembershipId(accountId))).data;
+    }
+
     function hasLegacyAccountLink(accountId) {
       return userDocExists() &&
         (
@@ -42,6 +46,27 @@ service firebase.storage {
         );
     }
 
+    function hasAnyRole(accountId, roles) {
+      return hasActiveMembership(accountId) &&
+        ('roles' in membershipData(accountId)) &&
+        membershipData(accountId).roles.hasAny(roles);
+    }
+
+    function hasLegacyManageRole(accountId) {
+      return hasLegacyAccountLink(accountId) &&
+        !((('isTeamMemberAccount' in userData()) && userData().isTeamMemberAccount == true)) &&
+        (
+          request.auth.uid == accountId ||
+          (('isAccountOwner' in userData()) && userData().isAccountOwner == true) ||
+          (('role' in userData()) && ['admin', 'property_manager', 'assistant_manager'].hasAny([userData().role]))
+        );
+    }
+
+    function canManageAccount(accountId) {
+      return hasAnyRole(accountId, ['account_owner', 'admin', 'manager']) ||
+        hasLegacyManageRole(accountId);
+    }
+
     function propertyExists(propertyId) {
       return firestore.exists(/databases/(default)/documents/properties/$(propertyId));
     }
@@ -54,6 +79,12 @@ service firebase.storage {
       return isAuthenticated() &&
         propertyExists(propertyId) &&
         canReadAccount(propertyAccountId(propertyId));
+    }
+
+    function canManageProperty(propertyId) {
+      return isAuthenticated() &&
+        propertyExists(propertyId) &&
+        canManageAccount(propertyAccountId(propertyId));
     }
 
     function isImageUpload() {
@@ -81,10 +112,10 @@ service firebase.storage {
 
     match /properties/{accountId}/{fileName} {
       allow read: if canReadAccount(accountId);
-      allow create, update: if canReadAccount(accountId) &&
+      allow create, update: if canManageAccount(accountId) &&
         isSupportedDocumentUpload() &&
         isUnderSizeLimit(10 * 1024 * 1024);
-      allow delete: if canReadAccount(accountId);
+      allow delete: if canManageAccount(accountId);
     }
 
     match /user-profile-images/{userId}/{fileName} {
@@ -98,34 +129,34 @@ service firebase.storage {
 
     match /team-member-images/{accountId}/{memberId}/{fileName} {
       allow read: if canReadAccount(accountId);
-      allow create, update: if canReadAccount(accountId) &&
+      allow create, update: if canManageAccount(accountId) &&
         isImageUpload() &&
         isUnderSizeLimit(8 * 1024 * 1024);
-      allow delete: if canReadAccount(accountId);
+      allow delete: if canManageAccount(accountId);
     }
 
     match /team-member-files/{accountId}/{memberId}/{fileName} {
       allow read: if canReadAccount(accountId);
-      allow create, update: if canReadAccount(accountId) &&
+      allow create, update: if canManageAccount(accountId) &&
         isSupportedDocumentUpload() &&
         isUnderSizeLimit(10 * 1024 * 1024);
-      allow delete: if canReadAccount(accountId);
+      allow delete: if canManageAccount(accountId);
     }
 
     match /device-files/{propertyId}/{deviceId}/{fileName} {
       allow read: if canReadProperty(propertyId);
-      allow create, update: if canReadProperty(propertyId) &&
+      allow create, update: if canManageProperty(propertyId) &&
         isSupportedDocumentUpload() &&
         isUnderSizeLimit(10 * 1024 * 1024);
-      allow delete: if canReadProperty(propertyId);
+      allow delete: if canManageProperty(propertyId);
     }
 
     match /maintenance-files/{propertyId}/{fileName} {
       allow read: if canReadProperty(propertyId);
-      allow create, update: if canReadProperty(propertyId) &&
+      allow create, update: if canManageProperty(propertyId) &&
         isSupportedDocumentUpload() &&
         isUnderSizeLimit(10 * 1024 * 1024);
-      allow delete: if canReadProperty(propertyId);
+      allow delete: if canManageProperty(propertyId);
     }
 
     match /feedback-attachments/{userId}/{feedbackId}/{fileName} {

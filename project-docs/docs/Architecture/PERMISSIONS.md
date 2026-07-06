@@ -112,6 +112,32 @@ Firestore Rules are an authoritative security boundary.
 
 ---
 
+## Firebase Storage Rules
+
+Purpose:
+
+Protect file objects that support property documents, appliance/system records,
+maintenance records, team member profiles, user profile images, and feedback
+attachments.
+
+Storage authorization should mirror the Firestore metadata owner wherever
+possible.
+
+Rules:
+
+* Read access may be granted to authorized account or property readers.
+* Create, update, and delete access should require the corresponding management
+  permission.
+* Read-only account or property access should not allow file upload or deletion.
+* User profile image writes are limited to the owning user.
+* Feedback attachments are function-owned and cannot be written directly by the
+  client.
+
+This prevents files from being uploaded or deleted when the matching Firestore
+metadata write would be denied.
+
+---
+
 ## Cloud Functions
 
 Purpose:
