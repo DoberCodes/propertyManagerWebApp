@@ -68,7 +68,7 @@ describe('Dashboard Intelligence consumer', () => {
 		expect(result.primarySuggestion?.title).toBe(
 			'Review overdue task: Flush Water Heater',
 		);
-		expect(result.primarySuggestion?.contextLabel).toBe('Property: Lake House');
+		expect(result.primarySuggestion?.contextLabel).toBe('Lake House');
 		expect(result.primarySuggestion?.affectedPropertyIds).toEqual([secondProperty.id]);
 		expect(result.primarySuggestion?.relatedTaskIds).toEqual(['task-2']);
 	});
@@ -96,7 +96,7 @@ describe('Dashboard Intelligence consumer', () => {
 		expect(result.primarySuggestion?.title).toBe(
 			'Record first maintenance note for Maintley HVAC Model system-1',
 		);
-		expect(result.primarySuggestion?.contextLabel).toBe('Property: Main Home');
+		expect(result.primarySuggestion?.contextLabel).toBe('Main Home');
 		expect(result.primarySuggestion?.affectedPropertyIds).toEqual([firstProperty.id]);
 		expect(result.primarySuggestion?.affectedSystemIds).toEqual(['system-1']);
 	});
@@ -141,7 +141,7 @@ describe('Dashboard Intelligence consumer', () => {
 			'Add filter size for Maintley HVAC Model hvac-1',
 		);
 		expect(homeownerPlusResult.primarySuggestion?.contextLabel).toBe(
-			'Property: Main Home',
+			'Main Home',
 		);
 	});
 
@@ -169,7 +169,7 @@ describe('Dashboard Intelligence consumer', () => {
 		expect(result.primarySuggestion?.title).toBe(
 			'Add a recurring reminder for Carbon Monoxide Detector',
 		);
-		expect(result.primarySuggestion?.contextLabel).toBe('Property: Maple Duplex');
+		expect(result.primarySuggestion?.contextLabel).toBe('Maple Duplex');
 		expect(result.primarySuggestion?.propertyTitle).toBe('Maple Duplex');
 		expect(result.primarySuggestion?.suggestedTask).toEqual({
 			title: 'Test Carbon Monoxide Detector',

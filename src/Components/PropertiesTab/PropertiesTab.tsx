@@ -312,6 +312,26 @@ export const Properties = () => {
 		!canManageGroups &&
 		getMaxPropertiesForPlan(effectivePlanId) > 1;
 
+	const propertyLanguage = useMemo(
+		() => ({
+			pageTitle: isHomeowner ? 'Homes' : 'Properties',
+			pageSubtitle: isHomeowner
+				? 'Keep your home records, equipment, documents, and maintenance work organized in one place.'
+				: 'Organize and manage all of your properties in one place.',
+			addLabel: isHomeowner ? 'Add Home' : 'Add Property',
+			searchPlaceholder: isHomeowner ? 'Search homes...' : 'Search properties...',
+			filterTitle: isHomeowner ? 'Search and filter homes' : 'Search and filter properties',
+			filterDescription: isHomeowner
+				? 'Choose which home records you want to see, then apply your changes.'
+				: 'Choose which properties you want to see, then apply your changes.',
+			recordSingular: isHomeowner ? 'home' : 'property',
+			recordPlural: isHomeowner ? 'homes' : 'properties',
+			totalLabel: isHomeowner ? 'Home Records' : 'Total Properties',
+			documentSubtitle: isHomeowner ? 'Across your home records' : 'Across all properties',
+		}),
+		[isHomeowner],
+	);
+
 	// Combine groups with their properties
 	const groupsWithProperties = useMemo(() => {
 		return propertyGroups.map((group) => ({
@@ -473,7 +493,7 @@ export const Properties = () => {
 		return [
 			{
 				value: uniqueProperties.length,
-				label: 'Total Properties',
+				label: propertyLanguage.totalLabel,
 				icon: faHouse,
 				bg: '#ecfdf3',
 				color: '#0f9f6e',
@@ -497,13 +517,13 @@ export const Properties = () => {
 			{
 				value: documents,
 				label: 'Documents',
-				subtitle: 'Across all properties',
+				subtitle: propertyLanguage.documentSubtitle,
 				icon: faFileLines,
 				bg: '#f5f3ff',
 				color: '#7c3aed',
 			},
 		];
-	}, [filteredGroups, propertyAggregates]);
+	}, [filteredGroups, propertyAggregates, propertyLanguage]);
 
 	const [openDropdown, setOpenDropdown] = useState<string | null>(null);
 	const [dialogOpen, setDialogOpen] = useState(false);
@@ -2009,7 +2029,7 @@ export const Properties = () => {
 			{
 				icon: faMicrochip,
 				value: systemsCount,
-				label: systemsCount === 1 ? 'System' : 'Systems',
+				label: systemsCount === 1 ? 'Equipment Record' : 'Equipment Records',
 				color: '#6b7280',
 			},
 		];
@@ -2442,7 +2462,7 @@ export const Properties = () => {
 		const zeroStateActions = !isUserTenant && !isTeamMemberAccount && canManage
 			? [
 				{
-					label: 'Add Property',
+					label: propertyLanguage.addLabel,
 					onClick: handleAddPropertyGlobalClick,
 					variant: 'primary' as const,
 				},
@@ -2488,14 +2508,14 @@ export const Properties = () => {
 		<StandardAppPage as={Wrapper}>
 			<StandardAppPageHeader>
 				<StandardAppPageTitleBlock>
-					<StandardAppPageTitle>Properties</StandardAppPageTitle>
-					<StandardAppPageSubtitle>Organize and manage all of your properties in one place.</StandardAppPageSubtitle>
+					<StandardAppPageTitle>{propertyLanguage.pageTitle}</StandardAppPageTitle>
+					<StandardAppPageSubtitle>{propertyLanguage.pageSubtitle}</StandardAppPageSubtitle>
 				</StandardAppPageTitleBlock>
 				<TopActions>
 					<DesktopPropertyFilters>
 						<SearchBar
 							type='text'
-							placeholder='Search properties...'
+							placeholder={propertyLanguage.searchPlaceholder}
 							value={searchQuery}
 							onChange={(e) => setSearchQuery(e.target.value)}
 						/>
@@ -2520,7 +2540,7 @@ export const Properties = () => {
 							<AddPropertyButton
 								disabled={handleDisabled()}
 								onClick={handleAddPropertyGlobalClick}>
-								+ Add Property
+								+ {propertyLanguage.addLabel}
 							</AddPropertyButton>
 							{canManageGroups && (
 								<HeaderMenuWrap ref={headerMenuRef}>
@@ -2575,7 +2595,9 @@ export const Properties = () => {
 			</StandardAppPageHeader>
 			<CompactResultCount>
 				Showing {displayedPropertyCount} of {visibleProperties.length}{' '}
-				{visibleProperties.length === 1 ? 'property' : 'properties'}
+				{visibleProperties.length === 1
+					? propertyLanguage.recordSingular
+					: propertyLanguage.recordPlural}
 			</CompactResultCount>
 			<FloatingFilterPanel
 				isOpen={isFilterPanelOpen}
@@ -2584,8 +2606,8 @@ export const Properties = () => {
 				onApply={applyDraftFilters}
 				onClearDraft={clearDraftFilters}
 				activeFilterCount={activeFilterCount}
-				title='Search and filter properties'
-				description='Choose which properties you want to see, then apply your changes.'
+				title={propertyLanguage.filterTitle}
+				description={propertyLanguage.filterDescription}
 				additionalSettingsActions={
 					canManageGroups
 						? [
@@ -2617,7 +2639,7 @@ export const Properties = () => {
 						Search
 						<SearchBar
 							type='search'
-							placeholder='Search properties...'
+							placeholder={propertyLanguage.searchPlaceholder}
 							value={draftSearchQuery}
 							onChange={(event) => setDraftSearchQuery(event.target.value)}
 						/>
@@ -2712,7 +2734,7 @@ export const Properties = () => {
 							Search
 							<SearchBar
 								type='search'
-								placeholder='Search properties...'
+								placeholder={propertyLanguage.searchPlaceholder}
 								value={draftSearchQuery}
 								onChange={(e) => setDraftSearchQuery(e.target.value)}
 							/>
@@ -3099,9 +3121,9 @@ export const Properties = () => {
 											type='button'
 											onClick={() => handleAddPropertyToGroup(group.id as any)}>
 											<AddPropertyTileIcon>+</AddPropertyTileIcon>
-											<AddPropertyTileTitle>Add Property</AddPropertyTileTitle>
+											<AddPropertyTileTitle>{propertyLanguage.addLabel}</AddPropertyTileTitle>
 											<AddPropertyTileHint>
-												Add another property to this group
+												Add another {propertyLanguage.recordSingular} to this group
 											</AddPropertyTileHint>
 										</AddPropertyTile>
 									)}
@@ -3806,7 +3828,7 @@ export const Properties = () => {
 																event.target.value,
 															)
 														}
-														placeholder='Search properties'
+														placeholder={propertyLanguage.searchPlaceholder.replace('...', '')}
 													/>
 													<PropertyTransferSelectionBar>
 														<span>

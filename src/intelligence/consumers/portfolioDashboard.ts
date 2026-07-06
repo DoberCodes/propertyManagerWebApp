@@ -321,7 +321,7 @@ const makeDashboardSuggestion = (
 		title: finding.title,
 		description: finding.description,
 		whyItMatters: finding.whyItMatters,
-		contextLabel: propertyTitle ? `Property: ${propertyTitle}` : '',
+		contextLabel: propertyTitle,
 		propertyTitle,
 		suggestedActionLabel: finding.suggestedActionLabel,
 		suggestedActionType: finding.suggestedActionType,

@@ -23,6 +23,7 @@ import {
 import TitleName from '../../../../Assets/TitleName.png';
 import { GenericModal } from '../../Modal/GenericModal';
 import { NotificationPanel } from '../../NotificationPanel/NotificationPanel';
+import { useGetPropertiesQuery } from '../../../../Redux/API/propertySlice';
 
 import { MobileBottomNav, MobileHamburgerNav } from '../MobileNav';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -34,6 +35,7 @@ export const TopNav = () => {
 	const location = useLocation();
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
 	const { favorites } = useFavorites(currentUser!.id);
+	const { data: navProperties = [] } = useGetPropertiesQuery();
 	const activeRoute = useSelector((state: RootState) => state.navigation.activeRoute);
 
 	const [navLocation, setNavLocation] = useState('Dashboard');
@@ -62,11 +64,11 @@ export const TopNav = () => {
 		// This can be expanded with more complex logic or a mapping of routes to titles
 
 		if (activeRoute.startsWith('/properties')) {
-			setNavLocation('Properties');
+			setNavLocation(isHomeowner ? 'Homes' : 'Properties');
 		} else if (activeRoute.startsWith('/tasks')) {
 			setNavLocation('Tasks');
 		} else if (activeRoute.startsWith('/devices')) {
-			setNavLocation('Appliances');
+			setNavLocation('Equipment');
 		} else if (activeRoute.startsWith('/team')) {
 			setNavLocation('Team');
 		} else if (activeRoute.startsWith('/settings')) {
@@ -76,7 +78,21 @@ export const TopNav = () => {
 		} else if (activeRoute.startsWith('/report')) {
 			setNavLocation('Reports');
 		} else if (activeRoute.startsWith('/property/')) {
-			setNavLocation(pathname.split('/')[2] || 'Property');
+			const rawPropertyKey = pathname.split('/')[2] || '';
+			const propertyKey = decodeURIComponent(rawPropertyKey);
+			const matchedProperty = navProperties.find(
+				(property: any) =>
+					String(property?.slug || '') === propertyKey ||
+					String(property?.id || '') === propertyKey,
+			);
+			const matchedFavorite = favorites.find(
+				(favorite) => String(favorite.slug || '') === propertyKey,
+			);
+			setNavLocation(
+				matchedProperty?.title ||
+				matchedFavorite?.title ||
+				(isHomeowner ? 'Home' : 'Property'),
+			);
 		} else {
 			setNavLocation('Dashboard');
 		}
@@ -84,7 +100,7 @@ export const TopNav = () => {
 
 
 
-	}, [activeRoute, pathname]);
+	}, [activeRoute, favorites, isHomeowner, navProperties, pathname]);
 
 	useEffect(() => {
 		const handleOutsideClick = (event: MouseEvent) => {
