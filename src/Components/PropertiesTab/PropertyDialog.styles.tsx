@@ -517,6 +517,7 @@ export const WizardShell = styled.div`
 
 	@media (max-width: 900px) {
 		grid-template-columns: 1fr;
+		grid-template-rows: auto minmax(0, 1fr);
 	}
 `;
 
@@ -530,6 +531,7 @@ export const WizardSidebar = styled.div`
 
 	@media (max-width: 900px) {
 		height: auto;
+		align-self: start;
 		padding: 10px 12px;
 		flex-direction: row;
 		align-items: center;
