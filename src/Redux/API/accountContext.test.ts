@@ -1,5 +1,11 @@
 import { auth } from '../../config/firebase';
-import { resolveAccessibleAccountIds, resolveTargetUserId } from './accountContext';
+import {
+	filterRecordsByAccessProperties,
+	getTeamMemberForAccountUser,
+	resolveAccessibleAccountIds,
+	resolveAccountAccessContext,
+	resolveTargetUserId,
+} from './accountContext';
 import {
 	collection,
 	doc,
@@ -195,6 +201,115 @@ describe('accountContext', () => {
 			mockGetDoc.mockResolvedValue(userSnapshot({}));
 
 			await expect(resolveAccessibleAccountIds()).resolves.toEqual(['user-1']);
+		});
+	});
+
+	describe('getTeamMemberForAccountUser', () => {
+		it('resolves a linked team member by profile teamMemberId', async () => {
+			mockGetDoc.mockResolvedValue(
+				userSnapshot({
+					accountId: 'portfolio-account',
+					email: 'lead@example.com',
+					role: 'maintenance_lead',
+					linkedProperties: ['property-1'],
+				}),
+			);
+
+			await expect(
+				getTeamMemberForAccountUser(
+					['portfolio-account'],
+					{ teamMemberId: 'team-member-1' },
+					'user-1',
+					'lead@example.com',
+				),
+			).resolves.toMatchObject({
+				accountId: 'portfolio-account',
+				role: 'maintenance_lead',
+				linkedProperties: ['property-1'],
+			});
+		});
+	});
+
+	describe('resolveAccountAccessContext', () => {
+		it('normalizes scoped team member property access and capabilities', async () => {
+			mockGetDoc.mockImplementation((_ref: any) => {
+				if (_ref.collectionName === 'users') {
+					return Promise.resolve(
+						userSnapshot({
+							accountId: 'portfolio-account',
+							email: 'lead@example.com',
+							isTeamMemberAccount: true,
+							role: 'maintenance_lead',
+							teamMemberId: 'team-member-1',
+						}),
+					);
+				}
+
+				if (_ref.collectionName === 'teamMembers') {
+					return Promise.resolve(
+						userSnapshot({
+							accountId: 'portfolio-account',
+							email: 'lead@example.com',
+							role: 'maintenance_lead',
+							linkedProperties: ['property-1', 'property-2'],
+						}),
+					);
+				}
+
+				return Promise.resolve(userSnapshot({}));
+			});
+			mockGetDocs
+				.mockResolvedValueOnce(
+					querySnapshot([{ accountId: 'portfolio-account', status: 'active' }]),
+				)
+				.mockResolvedValueOnce(querySnapshot([]));
+
+			await expect(resolveAccountAccessContext()).resolves.toMatchObject({
+				userId: 'user-1',
+				accountIds: ['portfolio-account'],
+				activeAccountId: 'portfolio-account',
+				userRole: 'maintenance_lead',
+				isScopedTeamMember: true,
+				allowedPropertyIds: ['property-1', 'property-2'],
+				canManageTasks: true,
+				canManageMaintenance: true,
+				canManageProperties: false,
+			});
+		});
+	});
+
+	describe('filterRecordsByAccessProperties', () => {
+		it('filters records to scoped team member property ids', () => {
+			const records = [
+				{ id: 'task-1', propertyId: 'property-1' },
+				{ id: 'task-2', propertyId: 'property-2' },
+			];
+
+			expect(
+				filterRecordsByAccessProperties(
+					records,
+					{
+						isScopedTeamMember: true,
+						allowedPropertyIds: ['property-2'],
+					},
+					(record) => record.propertyId,
+				),
+			).toEqual([{ id: 'task-2', propertyId: 'property-2' }]);
+		});
+
+		it('leaves records unchanged for unscoped users', () => {
+			const records = [{ id: 'task-1', propertyId: 'property-1' }];
+
+			expect(
+				filterRecordsByAccessProperties(
+					records,
+					{
+						isScopedTeamMember: false,
+						allowedPropertyIds: [],
+					},
+					(record) => record.propertyId,
+				),
+			).toBe(records);
 		});
 	});
 

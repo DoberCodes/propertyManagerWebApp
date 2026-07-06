@@ -14,7 +14,8 @@ import { apiSlice, docToData } from './apiSlice';
 import { auth, db } from '../../config/firebase';
 import { callFirebaseFunction } from '../../config/firebaseFunctions';
 import {
-	resolveAccessibleAccountIds,
+	filterRecordsByAccessProperties,
+	resolveAccountAccessContext,
 	resolveTargetUserId,
 } from './accountContext';
 import { canUseRecurringTasks } from '../../utils/subscriptionUtils';
@@ -72,120 +73,6 @@ const getSharedPropertyIdsForUser = async (
 
 	return Array.from(propertyIdSet);
 	*/
-};
-
-type TeamMemberAccess = {
-	id?: string;
-	accountId?: string;
-	email?: string;
-	role?: string;
-	userAccountId?: string;
-	linkedProperties?: string[];
-};
-
-const getTeamMemberAccessForCurrentUser = async (
-	accountIds: string[],
-	userData: any,
-	userId: string,
-	authEmail?: string | null,
-): Promise<{ isScoped: boolean; linkedPropertyIds: Set<string> }> => {
-	const isTeamMemberProfile =
-		userData?.isTeamMemberAccount === true ||
-		String(userData?.subscription?.promoCode || '')
-			.trim()
-			.toUpperCase()
-			.startsWith('TEAM-');
-
-	if (!isTeamMemberProfile || userData?.isAccountOwner === true) {
-		return { isScoped: false, linkedPropertyIds: new Set() };
-	}
-
-	if (String(userData?.role || '').trim().toLowerCase() === 'admin') {
-		return { isScoped: false, linkedPropertyIds: new Set() };
-	}
-
-	const normalizedEmail = String(userData?.email || authEmail || '')
-		.trim()
-		.toLowerCase();
-	const teamMemberId = String(userData?.teamMemberId || '').trim();
-
-	for (const accountId of accountIds) {
-		if (teamMemberId) {
-			const memberDoc = await getDoc(doc(db, 'teamMembers', teamMemberId));
-			if (memberDoc.exists()) {
-				const member = docToData(memberDoc) as TeamMemberAccess;
-				if (!member.accountId || member.accountId === accountId) {
-					if (String(member.role || '').trim().toLowerCase() === 'admin') {
-						return { isScoped: false, linkedPropertyIds: new Set() };
-					}
-					return {
-						isScoped: true,
-						linkedPropertyIds: new Set(member.linkedProperties || []),
-					};
-				}
-			}
-		}
-
-		const byUserQuery = query(
-			collection(db, 'teamMembers'),
-			where('accountId', '==', accountId),
-			where('userAccountId', '==', userId),
-		);
-		const byUserSnapshot = await getDocs(byUserQuery);
-		if (!byUserSnapshot.empty) {
-			const member = docToData(byUserSnapshot.docs[0]) as TeamMemberAccess;
-			if (String(member.role || '').trim().toLowerCase() === 'admin') {
-				return { isScoped: false, linkedPropertyIds: new Set() };
-			}
-			return {
-				isScoped: true,
-				linkedPropertyIds: new Set(member.linkedProperties || []),
-			};
-		}
-
-		if (normalizedEmail) {
-			const membersQuery = query(
-				collection(db, 'teamMembers'),
-				where('accountId', '==', accountId),
-			);
-			const membersSnapshot = await getDocs(membersQuery);
-			const emailMatch = membersSnapshot.docs
-				.map((memberDoc) => docToData(memberDoc) as TeamMemberAccess)
-				.find(
-					(member) =>
-						String(member?.email || '').trim().toLowerCase() ===
-						normalizedEmail,
-				);
-
-			if (emailMatch) {
-				if (String(emailMatch.role || '').trim().toLowerCase() === 'admin') {
-					return { isScoped: false, linkedPropertyIds: new Set() };
-				}
-				return {
-					isScoped: true,
-					linkedPropertyIds: new Set(emailMatch.linkedProperties || []),
-				};
-			}
-		}
-	}
-
-	return { isScoped: true, linkedPropertyIds: new Set() };
-};
-
-const filterTasksByAllowedProperties = (
-	tasks: Task[],
-	isScoped: boolean,
-	linkedPropertyIds: Set<string>,
-): Task[] => {
-	if (!isScoped) {
-		return tasks;
-	}
-
-	if (linkedPropertyIds.size === 0) {
-		return [];
-	}
-
-	return tasks.filter((task) => linkedPropertyIds.has(String(task.propertyId || '')));
 };
 
 const writeMaintenanceEvent = async (
@@ -275,17 +162,11 @@ export const taskSlice = apiSlice.injectEndpoints({
 						return { error: 'User not authenticated' };
 					}
 					const userId = currentUser.uid;
-					const accessibleAccountIds = await resolveAccessibleAccountIds();
+					const accessContext = await resolveAccountAccessContext();
+					const accessibleAccountIds = accessContext.accountIds;
 					const userDocRef = doc(db, 'users', userId);
 					const userDoc = await getDoc(userDocRef);
 					const userData = userDoc.data() || {};
-					const { isScoped, linkedPropertyIds } =
-						await getTeamMemberAccessForCurrentUser(
-							accessibleAccountIds,
-							userData,
-							userId,
-							currentUser.email,
-						);
 
 					const ownedPropertyIds: string[] = [];
 					for (const accountId of accessibleAccountIds) {
@@ -325,7 +206,9 @@ export const taskSlice = apiSlice.injectEndpoints({
 					const allPropertyIds = [
 						...new Set([...ownedPropertyIds, ...sharedPropertyIds]),
 					].filter((propertyId) =>
-						isScoped ? linkedPropertyIds.has(String(propertyId)) : true,
+						accessContext.isScopedTeamMember
+							? accessContext.allowedPropertyIds.includes(String(propertyId))
+							: true,
 					);
 
 					const accountTasks: Task[] = [];
@@ -375,10 +258,10 @@ export const taskSlice = apiSlice.injectEndpoints({
 					) as Task[];
 
 					return {
-						data: filterTasksByAllowedProperties(
+						data: filterRecordsByAccessProperties(
 							uniqueTasks,
-							isScoped,
-							linkedPropertyIds,
+							accessContext,
+							(task) => String(task.propertyId || ''),
 						),
 					};
 				} catch (error: any) {
