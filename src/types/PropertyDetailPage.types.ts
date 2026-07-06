@@ -49,6 +49,7 @@ export interface DetailsTabProps {
 	property: Property;
 	teamMembers: any[];
 	familyMembers?: any[];
+	homeownerMode?: boolean;
 	propertyTasks?: any[];
 	propertyDevices?: any[];
 	maintenanceHistoryRecords?: any[];
@@ -157,6 +158,7 @@ export interface PropertyDetailSectionProps {
 	property: Property;
 	teamMembers: any[];
 	familyMembers?: any[];
+	homeownerMode?: boolean;
 }
 
 // Modal-related types (re-exported for convenience)

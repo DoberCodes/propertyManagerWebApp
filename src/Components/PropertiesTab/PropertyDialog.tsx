@@ -61,6 +61,7 @@ import {
 	OnboardingTipDismissButton,
 	OnboardingTipLabel,
 	OnboardingTipText,
+	OnboardingNextStepBanner,
 	DialogSavingCard,
 	DialogSavingOverlay,
 	DialogSavingSpinner,
@@ -228,6 +229,7 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 	const recordLowerLabel = forceSingleFamily ? 'home' : 'property';
 	const recordPluralLowerLabel = forceSingleFamily ? 'homes' : 'properties';
 	const recordPageLabel = forceSingleFamily ? 'home record' : 'property record';
+	const setupAssistantLabel = forceSingleFamily ? 'Home Setup Assistant' : 'Property Setup Assistant';
 	const isOnboardingHomeCreateFlow =
 		showOnboardingSetupTip && forceSingleFamily && !initialData && !isDuplicate;
 	const getStepHint = (step: PropertyDialogStep) =>
@@ -772,7 +774,7 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 									type='text'
 									value={formData.name}
 									onChange={(e) => handleInputChange('name', e.target.value)}
-									placeholder='Enter property name'
+									placeholder={`Enter ${recordLowerLabel} name`}
 									required
 								/>
 								{!formData.name.trim() && (
@@ -802,7 +804,7 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 								/>
 								{!formData.address.trim() && (
 									<ValidationMessage>
-										Address is required so the property has enough context across the app.
+										Address is required so this {recordLowerLabel} has enough context across the app.
 									</ValidationMessage>
 								)}
 							</FormField>
@@ -822,6 +824,14 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 									<option value='Single Family'>Single Family</option>
 								</SelectField>
 							</FormField>
+						)}
+						{isOnboardingHomeCreateFlow && (
+							<OnboardingNextStepBanner>
+								<FontAwesomeIcon icon={faInfoCircle} />
+								<span>
+									<strong>Next:</strong> after saving, Maintley will open the {setupAssistantLabel} so you can add equipment and suggested maintenance tasks.
+								</span>
+							</OnboardingNextStepBanner>
 						)}
 					</FormSection>
 
@@ -1299,7 +1309,7 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 			: `Creating your ${recordLowerLabel}...`;
 	const savingText =
 		!initialData && !isDuplicate && formData.openSetupAfterCreate !== false
-			? `Please wait while we create the ${recordPageLabel}. Next, we will open the ${recordTitleLabel} Setup Assistant.`
+			? `Please wait while we create the ${recordPageLabel}. Next, we will open the ${setupAssistantLabel}.`
 			: `Please wait while we save this ${recordLowerLabel}.`;
 
 	return (

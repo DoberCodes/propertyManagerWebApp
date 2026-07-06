@@ -68,11 +68,11 @@ type SuggestedTaskCreateResult = {
 	createdTaskIds: string[];
 };
 
-const PROPERTY_SETUP_LOADING_STEPS = [
-	'Creating your property...',
+const getSetupLoadingSteps = (isHomeownerMode: boolean) => [
+	isHomeownerMode ? 'Updating your home record...' : 'Updating your property record...',
 	'Setting up your maintenance schedule...',
 	'Organizing your home information...',
-	'Reviewing your property...',
+	isHomeownerMode ? 'Reviewing your home...' : 'Reviewing your property...',
 	'Building maintenance insights...',
 	'Almost ready...',
 ];
@@ -1179,8 +1179,8 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 						<LoadingState
 							loadingKey='property-setup-assistant'
 							title='Finishing setup'
-							message='Organizing your property setup.'
-							steps={PROPERTY_SETUP_LOADING_STEPS}
+							message={`Organizing your ${isHomeownerMode ? 'home' : 'property'} setup.`}
+							steps={getSetupLoadingSteps(isHomeownerMode)}
 						/>
 					)}
 					{isSaveComplete && (
@@ -1503,7 +1503,7 @@ const AreaPanel = styled.div`
 	min-height: 0;
 
 	@media (max-width: 640px) {
-		padding: 14px;
+		padding: 14px 14px max(24px, calc(18px + env(safe-area-inset-bottom)));
 		gap: 12px;
 	}
 `;

@@ -207,6 +207,34 @@ export const OnboardingTipDismissButton = styled.button`
 	}
 `;
 
+export const OnboardingNextStepBanner = styled.div`
+	display: flex;
+	align-items: flex-start;
+	gap: 10px;
+	padding: 12px 14px;
+	border: 1px solid ${COLORS.successLight};
+	border-radius: 10px;
+	background: ${COLORS.primaryLight};
+	color: ${COLORS.successDark};
+	font-size: 13px;
+	line-height: 1.45;
+
+	svg {
+		flex: 0 0 auto;
+		margin-top: 2px;
+		color: ${COLORS.primary};
+	}
+
+	strong {
+		font-weight: 800;
+	}
+
+	@media (max-width: 480px) {
+		padding: 11px 12px;
+		font-size: 12px;
+	}
+`;
+
 export const FormSection = styled.div`
 	display: flex;
 	flex-direction: column;

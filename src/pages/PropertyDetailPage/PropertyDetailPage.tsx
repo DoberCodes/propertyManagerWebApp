@@ -1462,6 +1462,7 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 					familyMembers={familyMembers}
 					teamMembers={teamMembers}
 					allTasks={propertyAllTasks}
+					homeownerMode={isHomeowner}
 					canRunPropertyScan={canRunPropertyScan}
 					showPropertyScanPrompt={showPropertyScanPrompt}
 					resolvedRecommendationIds={resolvedRecommendationIds}

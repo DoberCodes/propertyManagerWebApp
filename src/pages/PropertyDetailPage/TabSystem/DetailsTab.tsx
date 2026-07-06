@@ -44,6 +44,7 @@ export const DetailsTab: React.FC<DetailsTabProps> = ({
 	property,
 	teamMembers,
 	familyMembers = [],
+	homeownerMode = false,
 	propertyTasks = [],
 	propertyDevices = [],
 	maintenanceHistoryRecords = [],
@@ -196,6 +197,7 @@ export const DetailsTab: React.FC<DetailsTabProps> = ({
 				property={property}
 				teamMembers={teamMembers}
 				familyMembers={familyMembers}
+				homeownerMode={homeownerMode}
 			/>
 
 			{/* Notes */}

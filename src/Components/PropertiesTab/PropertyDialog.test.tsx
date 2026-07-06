@@ -67,10 +67,13 @@ describe('PropertyDialog', () => {
 
 		expect(screen.getByText('Home Basics')).toBeInTheDocument();
 		expect(screen.getByText('Home Type')).toBeInTheDocument();
+		expect(
+			screen.getByText(/Maintley will open the Home Setup Assistant/i),
+		).toBeInTheDocument();
 		expect(screen.queryByRole('button', { name: /^next$/i })).not.toBeInTheDocument();
 		expect(screen.queryByText('Access & Sharing')).not.toBeInTheDocument();
 
-		await user.type(screen.getByPlaceholderText('Enter property name'), 'Willow House');
+		await user.type(screen.getByPlaceholderText('Enter home name'), 'Willow House');
 		await user.type(screen.getByPlaceholderText('Enter address'), '123 Willow Lane');
 		await user.click(screen.getByRole('button', { name: /save home/i }));
 

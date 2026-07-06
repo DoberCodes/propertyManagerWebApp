@@ -2422,7 +2422,7 @@ export const Properties = () => {
 						);
 					} else if (formData.openSetupAfterCreate !== false) {
 						feedback.notify(
-							`${formData.name} was created. Opening property setup.`,
+							`${formData.name} was created. Opening ${isHomeowner ? 'home' : 'property'} setup.`,
 							'success',
 						);
 						navigate(`/property/${result.data.slug}?setup=1`);
