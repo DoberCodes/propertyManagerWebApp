@@ -106,7 +106,7 @@ export const AccountSnapshot: React.FC<AccountSnapshotProps> = ({ isSidebarOpen,
 		: remainingSlots === 0 && totalProperties > maxProperties
 			? `${totalProperties - maxProperties} over plan limit`
 			: `${remainingSlots} ${planRecordNoun} slot${remainingSlots === 1 ? '' : 's'} available`;
-	const planSubtitle = `Plan: ${planDetails?.name || 'Homeowner'}`;
+	const planSubtitle = `Plan: ${planDetails?.name || 'Home'}`;
 	const storageUsagePercent = Math.min(100, storageUsage?.usagePercent || 0);
 	const storageUsageLabel = isStorageUsageLoading
 		? 'Loading storage...'

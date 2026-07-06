@@ -298,8 +298,13 @@ The current v1 engine exposes `source` so every recommendation can answer:
 
 Plan access is source-based:
 
-* Free/Homeowner: `property_memory`
+* Free: `property_memory`
 * Homeowner+ and above: `property_memory`, `knowledge_pack`, `history_inference`, `context`
+
+Customer-facing source language should make the depth clear:
+
+* Free Quick Scan: Maintley Intelligence powered by Home Memory / Property Memory.
+* Paid Quick Scan: Maintley Intelligence powered by Home Memory / Property Memory, Maintley Knowledge, Home / Property History, Seasonal Context, and Maintenance Patterns.
 
 Avoid rule-specific subscription exceptions when the recommendation source already determines access.
 
@@ -734,6 +739,12 @@ Quick Scan should act like a small, varied daily to-do list. It should avoid
 showing several copies of the same issue type when other useful categories are
 available.
 
+Quick Scan should remain part of Maintley Intelligence on every plan. The plan
+boundary is depth, not brand access. Free users receive the first layer of
+Maintley Intelligence powered by Home Memory / Property Memory. Paid users can
+receive recommendations informed by Maintley Knowledge, saved history, seasonal
+context, and maintenance patterns.
+
 Selection guidance:
 
 * Show 3-5 high-value recommendations.
@@ -912,7 +923,7 @@ Provide a comprehensive review of property record completeness, maintenance cove
 
 Availability:
 
-Premium plans.
+Preview on Free. Full review on Homeowner+ and higher plans.
 
 Expected time:
 
@@ -1061,7 +1072,7 @@ Maintley Intelligence should support a natural product progression:
 
 Free:
 
-> Here is what to do next.
+> Here is what to do next from my Home Memory / Property Memory.
 
 Paid Review:
 

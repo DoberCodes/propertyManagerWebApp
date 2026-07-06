@@ -135,7 +135,7 @@ export const SideNav = () => {
 		? 'Property creation is not included'
 		: remainingSlots === 0 && totalProperties > maxProperties
 			? `${totalProperties - maxProperties} over plan limit`
-			: `${remainingSlots} property slot${remainingSlots === 1 ? '' : 's'} available`;
+			: `${remainingSlots} ${isHomeowner ? 'home' : 'property'} slot${remainingSlots === 1 ? '' : 's'} available`;
 	const isSingleHomeView = totalProperties <= 1;
 	const planCardTitle = isSingleHomeView ? 'Home Plan' : 'Property Plan';
 	const planSubtitle = `Plan: ${planDetails?.name || 'Home'}`;

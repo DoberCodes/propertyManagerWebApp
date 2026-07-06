@@ -650,6 +650,9 @@ export const UserProfile: React.FC = () => {
 		currentUser?.subscription?.status === 'active' &&
 		!!currentUser?.subscription?.hasScheduledSubscription;
 	const currentPlanDetails = getSubscriptionPlanDetails(currentPlanId || 'homeowner');
+	const memberSinceLabel = currentUser?.createdAt
+		? formatDate(currentUser.createdAt)
+		: 'Not available yet';
 	const ownedPropertiesCount = React.useMemo(
 		() =>
 			summaryProperties.filter(
@@ -864,7 +867,7 @@ export const UserProfile: React.FC = () => {
 							<FormLabel style={{ fontSize: '16px', fontWeight: '600', marginBottom: '5px' }}>{formData.firstName} {formData.lastName}</FormLabel>
 							<p>{currentUser?.title}</p>
 							<p>{currentUser?.email}</p>
-							<p>{`Member since: ${formatDate(currentUser?.createdAt)}`}</p>
+							<p>{`Member since: ${memberSinceLabel}`}</p>
 						</ProfileDetailsPanel>
 					</UserProfileHeader>
 

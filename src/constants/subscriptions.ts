@@ -5,7 +5,7 @@ export const SUBSCRIPTION_PLANS = {
 	// ========== CORE SUBSCRIPTION TIERS ==========
 	HOMEOWNER: {
 		id: 'homeowner',
-		name: 'Homeowner',
+		name: 'Free',
 		priceMonthly: 0,
 		priceYearly: 0,
 		maxProperties: 1,
@@ -56,7 +56,7 @@ export const SUBSCRIPTION_PLANS = {
 		maxFiles: 250,
 		maxStorageGb: 5,
 		features: [
-			'Everything in Homeowner, plus:',
+			'Everything in Free, plus:',
 			'Unlimited Equipment Records',
 			'Maintley Intelligence',
 			'Personalized Maintenance Guidance',

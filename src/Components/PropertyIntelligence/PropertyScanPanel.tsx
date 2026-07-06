@@ -341,6 +341,34 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 	});
 	const [savePropertyScanSnapshot] = useSavePropertyScanSnapshotMutation();
 	const currentPlanId = getEffectiveSubscriptionPlanId(subscription, 'homeowner');
+	const isFreePlan = currentPlanId === 'homeowner';
+	const intelligenceSourceCards = [
+		{
+			label: scanLanguage.memoryLabel,
+			description: `Saved ${scanLanguage.recordPlural}, equipment details, tasks, and documents.`,
+			active: true,
+		},
+		{
+			label: 'Maintley Knowledge',
+			description: 'Equipment-specific guidance from Maintley knowledge packs.',
+			active: !isFreePlan,
+		},
+		{
+			label: scanLanguage.historyLabel,
+			description: 'Patterns from maintenance history saved in Maintley.',
+			active: !isFreePlan,
+		},
+		{
+			label: 'Seasonal Context',
+			description: 'Timing and seasonal guidance when context is available.',
+			active: !isFreePlan,
+		},
+		{
+			label: 'Maintenance Patterns',
+			description: 'Recurring care and long-term maintenance rhythm insights.',
+			active: !isFreePlan,
+		},
+	];
 	const educationAccountId = getPropertyAccountId(
 		property,
 		String((currentUser as any)?.accountId || '').trim(),
@@ -408,7 +436,7 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 	const hiddenRecommendationCount =
 		displayedRecommendations.length - visibleRecommendations.length;
 	const premiumPreview =
-		currentPlanId === 'homeowner'
+		isFreePlan
 			? lastScanSnapshot?.premiumPreview || null
 			: null;
 	const canShowMore = hiddenRecommendationCount > 0 || Boolean(premiumPreview);
@@ -641,14 +669,60 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 					<ScanMeta>
 				Last scan: {formatScanDate(lastScanSnapshot?.createdAt)}
 			</ScanMeta>
+			<IntelligenceDepthCard>
+				<IntelligenceDepthHeader>
+					<div>
+						<IntelligenceDepthEyebrow>Maintley Intelligence depth</IntelligenceDepthEyebrow>
+						<IntelligenceDepthTitle>
+							{isFreePlan
+								? `Powered by ${scanLanguage.memoryLabel}`
+								: `Powered by ${scanLanguage.memoryLabel}, Maintley Knowledge, ${scanLanguage.historyLabel}, Seasonal Context, and Maintenance Patterns`}
+						</IntelligenceDepthTitle>
+					</div>
+					<IntelligencePlanPill>
+						{isFreePlan ? 'Free layer' : 'Expanded layer'}
+					</IntelligencePlanPill>
+				</IntelligenceDepthHeader>
+				<IntelligenceDepthText>
+					{isFreePlan
+						? `Free Quick Scan looks for useful next steps in the ${scanLanguage.recordNoun} you have already built. Homeowner+ adds deeper sources for richer guidance.`
+						: `This Quick Scan can use saved records, Maintley Knowledge, history, seasonal context, and maintenance patterns to choose a small set of high-value next steps.`}
+				</IntelligenceDepthText>
+				<IntelligenceSourceGrid>
+					{intelligenceSourceCards.map((source) => (
+						<IntelligenceSourceCard
+							key={source.label}
+							$active={source.active}>
+							<strong>{source.label}</strong>
+							<span>{source.description}</span>
+							{source.active ? (
+								<SourceStatus $active>Included</SourceStatus>
+							) : (
+								<SourceStatus $active={false}>Available with Homeowner+</SourceStatus>
+							)}
+						</IntelligenceSourceCard>
+					))}
+				</IntelligenceSourceGrid>
+				{isFreePlan ? (
+					<IntelligenceDepthFooter>
+						<span>
+							Home Review, Maintley Knowledge, seasonal guidance, and deeper
+							maintenance patterns unlock with Homeowner+.
+						</span>
+						<PlanUpgradeButton type='button' onClick={handleViewPlanOptions}>
+							Explore Homeowner+
+						</PlanUpgradeButton>
+					</IntelligenceDepthFooter>
+				) : null}
+			</IntelligenceDepthCard>
 			{showQuickScanEducation ? (
 				<QuickScanEducation>
 					<div>
 							<strong>New to {scanLanguage.panelLabel}?</strong>
 							<span>
-								Maintley Intelligence combines your {scanLanguage.recordNoun}{' '}
-								with maintenance
-								knowledge to help you plan ahead.
+								{isFreePlan
+									? `Maintley Intelligence starts with your ${scanLanguage.recordNoun} and shows the most useful Home Memory gaps to review next.`
+									: `Maintley Intelligence combines your ${scanLanguage.recordNoun} with maintenance knowledge, history, and context to help you plan ahead.`}
 						</span>
 					</div>
 					<EducationActions>
@@ -927,7 +1001,7 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 						</span>
 					</IntelligenceSource>
 					<IntelligenceSource $tone='context'>
-						<strong>Seasonal &amp; Context</strong>
+						<strong>Seasonal Context</strong>
 						<span>
 							Based on time of year, weather, or {scanLanguage.locationNoun}{' '}
 							location when that context
@@ -938,11 +1012,11 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 						<strong>Your Plan</strong>
 						<PlanName>{getPlanLabel(currentPlanId)}</PlanName>
 						<span>
-							{currentPlanId === 'homeowner'
-								? `Free includes ${scanLanguage.memoryLabel} recommendations. Homeowner+ adds Maintley Knowledge, history-based insights, and personalized context guidance.`
-								: `Your plan includes ${scanLanguage.memoryLabel}, Maintley Knowledge, history-based insights, and personalized context guidance.`}
+							{isFreePlan
+								? `Free includes ${scanLanguage.memoryLabel} recommendations. Homeowner+ adds Maintley Knowledge, ${scanLanguage.historyLabel}, Seasonal Context, and Maintenance Patterns.`
+								: `Your plan includes ${scanLanguage.memoryLabel}, Maintley Knowledge, ${scanLanguage.historyLabel}, Seasonal Context, and Maintenance Patterns.`}
 						</span>
-						{currentPlanId === 'homeowner' ? (
+						{isFreePlan ? (
 							<PlanUpgradeButton type='button' onClick={handleViewPlanOptions}>
 								Explore Homeowner+
 							</PlanUpgradeButton>
@@ -1113,6 +1187,126 @@ const ScanMeta = styled.div`
 	padding-top: 10px;
 	color: #64748b;
 	font-size: 13px;
+`;
+
+const IntelligenceDepthCard = styled.section`
+	border: 1px solid #d7eadf;
+	border-radius: 8px;
+	background: linear-gradient(180deg, #f2fbf7 0%, #ffffff 100%);
+	padding: 14px;
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+`;
+
+const IntelligenceDepthHeader = styled.div`
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 12px;
+
+	@media (max-width: 640px) {
+		flex-direction: column;
+	}
+`;
+
+const IntelligenceDepthEyebrow = styled.div`
+	color: ${COLORS.primaryDark};
+	font-size: 11px;
+	font-weight: 800;
+	letter-spacing: 0;
+	text-transform: uppercase;
+`;
+
+const IntelligenceDepthTitle = styled.div`
+	margin-top: 3px;
+	color: #172033;
+	font-size: 15px;
+	font-weight: 800;
+	line-height: 1.35;
+`;
+
+const IntelligencePlanPill = styled.span`
+	border: 1px solid rgba(0, 158, 113, 0.28);
+	border-radius: 999px;
+	background: #ffffff;
+	color: ${COLORS.primaryDark};
+	font-size: 12px;
+	font-weight: 800;
+	padding: 5px 9px;
+	white-space: nowrap;
+`;
+
+const IntelligenceDepthText = styled.p`
+	margin: 0;
+	color: #475569;
+	font-size: 13px;
+	line-height: 1.5;
+`;
+
+const IntelligenceSourceGrid = styled.div`
+	display: grid;
+	grid-template-columns: repeat(5, minmax(0, 1fr));
+	gap: 8px;
+
+	@media (max-width: 980px) {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+
+	@media (max-width: 560px) {
+		grid-template-columns: 1fr;
+	}
+`;
+
+const IntelligenceSourceCard = styled.div<{ $active: boolean }>`
+	border: 1px solid ${({ $active }) => ($active ? '#b8dfca' : '#e2e8f0')};
+	border-radius: 8px;
+	background: ${({ $active }) => ($active ? '#ffffff' : '#f8fafc')};
+	padding: 10px;
+	display: flex;
+	flex-direction: column;
+	gap: 5px;
+	min-height: 116px;
+
+	strong {
+		color: ${({ $active }) => ($active ? '#172033' : '#64748b')};
+		font-size: 13px;
+		line-height: 1.25;
+	}
+
+	span {
+		color: #64748b;
+		font-size: 12px;
+		line-height: 1.35;
+	}
+`;
+
+const SourceStatus = styled.div<{ $active: boolean }>`
+	margin-top: auto;
+	align-self: flex-start;
+	border-radius: 999px;
+	background: ${({ $active }) => ($active ? COLORS.primaryLight : '#e2e8f0')};
+	color: ${({ $active }) => ($active ? COLORS.primaryDark : '#475569')};
+	font-size: 11px;
+	font-weight: 800;
+	padding: 4px 7px;
+`;
+
+const IntelligenceDepthFooter = styled.div`
+	border-top: 1px solid #dbe7e1;
+	padding-top: 10px;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	color: #475569;
+	font-size: 13px;
+	line-height: 1.45;
+
+	@media (max-width: 640px) {
+		align-items: flex-start;
+		flex-direction: column;
+	}
 `;
 
 const ScanActions = styled.div`

@@ -138,6 +138,9 @@ export const PropertyAuditPanel: React.FC<PropertyAuditPanelProps> = ({
 	const [expandedAssetIds, setExpandedAssetIds] = useState<Set<string>>(
 		() => new Set(),
 	);
+	const currentPlanId = getEffectiveSubscriptionPlanId(subscription, 'homeowner');
+	const isFreePlan = currentPlanId === 'homeowner';
+	const canRunFullReview = canRunAudit && !isFreePlan;
 	const {
 		data: persistedAuditSnapshot,
 		isLoading: isLoadingAuditSnapshot,
@@ -147,11 +150,10 @@ export const PropertyAuditPanel: React.FC<PropertyAuditPanelProps> = ({
 			scanType: 'property_audit_v1',
 		},
 		{
-			skip: !canRunAudit || !property.id,
+			skip: !canRunFullReview || !property.id,
 		},
 	);
 	const [savePropertyAuditSnapshot] = useSavePropertyAuditSnapshotMutation();
-	const currentPlanId = getEffectiveSubscriptionPlanId(subscription, 'homeowner');
 
 	useEffect(() => {
 		if (!isRunningAudit) {
@@ -233,7 +235,7 @@ export const PropertyAuditPanel: React.FC<PropertyAuditPanelProps> = ({
 			low: findings.filter((finding) => finding.severity === 'low').length,
 		};
 	}, [auditCategories, latestAuditSnapshot]);
-	const hasSavedAudit = Boolean(latestAuditSnapshot);
+	const hasSavedAudit = canRunFullReview && Boolean(latestAuditSnapshot);
 
 	const handleToggleAssetReview = (assetId: string) => {
 		setExpandedAssetIds((currentIds) => {
@@ -248,6 +250,10 @@ export const PropertyAuditPanel: React.FC<PropertyAuditPanelProps> = ({
 	};
 
 	const handleRunAudit = async () => {
+		if (isFreePlan) {
+			handleViewPlanOptions();
+			return;
+		}
 		if (isRunningAudit) return;
 		const accountId = getPropertyAccountId(
 			property,
@@ -306,6 +312,27 @@ export const PropertyAuditPanel: React.FC<PropertyAuditPanelProps> = ({
 		}
 	};
 
+	const handleViewPlanOptions = () => {
+		onRecommendationAction('view_plan_options', {
+			id: `maintley:property-review:premium-preview:${property.id}`,
+			propertyId: property.id,
+			category: 'Suggested Next Steps',
+			severity: 'medium',
+			priority: 'medium',
+			source: 'knowledge_pack',
+			title: `${reviewLanguage.label} is available with Homeowner+.`,
+			description:
+				'Homeowner+ unlocks a broader equipment-by-equipment review of documentation, maintenance coverage, history, and planning gaps.',
+			reason:
+				'Maintley can provide a deeper review when the account includes expanded intelligence sources.',
+			suggestedActionLabel: 'Explore Homeowner+',
+			suggestedActionType: 'view_plan_options',
+			requiredPlan: 'homeowner_plus',
+			createdAt: new Date().toISOString(),
+			status: 'active',
+		});
+	};
+
 	if (!canRunAudit) {
 		return null;
 	}
@@ -332,6 +359,9 @@ export const PropertyAuditPanel: React.FC<PropertyAuditPanelProps> = ({
 						A broader review of saved {reviewLanguage.recordPlural}, maintenance coverage,
 						and equipment details, organized by {isHomeowner ? 'equipment' : 'system'} so you can improve the
 						{reviewLanguage.subjectNoun} memory over time.
+						{isFreePlan
+							? ' Free includes Quick Scan. Home Review is the deeper Homeowner+ layer.'
+							: ''}
 					</AuditText>
 				</AuditTitleBlock>
 				<AuditActions>
@@ -344,9 +374,15 @@ export const PropertyAuditPanel: React.FC<PropertyAuditPanelProps> = ({
 					</InfoButton>
 					<PrimaryButton
 						type='button'
-						onClick={handleRunAudit}
+						onClick={isFreePlan ? handleViewPlanOptions : handleRunAudit}
 						disabled={isRunningAudit}>
-						{isRunningAudit ? 'Reviewing...' : hasSavedAudit ? 'Run Again' : 'Run Review'}
+						{isFreePlan
+							? 'Explore Homeowner+'
+							: isRunningAudit
+								? 'Reviewing...'
+								: hasSavedAudit
+									? 'Run Again'
+									: 'Run Review'}
 					</PrimaryButton>
 				</AuditActions>
 			</AuditHeader>
@@ -354,10 +390,45 @@ export const PropertyAuditPanel: React.FC<PropertyAuditPanelProps> = ({
 			{isCollapsed ? null : (
 				<AuditBody>
 					<AuditMeta>
-						Last review: {formatAuditDate(latestAuditSnapshot?.createdAt)}
+						{isFreePlan
+							? `${reviewLanguage.label} unlocks with Homeowner+.`
+							: `Last review: ${formatAuditDate(latestAuditSnapshot?.createdAt)}`}
 					</AuditMeta>
 					{auditSaveError ? <ErrorResult>{auditSaveError}</ErrorResult> : null}
-					{isRunningAudit ? (
+					{isFreePlan ? (
+						<ReviewUpgradePreview>
+							<ReviewUpgradeEyebrow>Available with Homeowner+</ReviewUpgradeEyebrow>
+							<ReviewUpgradeTitle>
+								A deeper review of how complete this {reviewLanguage.recordNoun} is.
+							</ReviewUpgradeTitle>
+							<ReviewUpgradeText>
+								Quick Scan helps you choose a few useful next steps. {reviewLanguage.label}{' '}
+								goes further by organizing every open opportunity by equipment record,
+								documentation, maintenance coverage, history, and planning gaps.
+							</ReviewUpgradeText>
+							<ReviewUpgradeGrid>
+								<ReviewUpgradeItem>
+									<strong>Asset Reviews</strong>
+									<span>Review each equipment record with grouped opportunities.</span>
+								</ReviewUpgradeItem>
+								<ReviewUpgradeItem>
+									<strong>Maintley Knowledge</strong>
+									<span>Compare saved details against equipment-specific guidance.</span>
+								</ReviewUpgradeItem>
+								<ReviewUpgradeItem>
+									<strong>Maintenance Coverage</strong>
+									<span>Find missing recurring care, history, and useful follow-up records.</span>
+								</ReviewUpgradeItem>
+								<ReviewUpgradeItem>
+									<strong>Planning Context</strong>
+									<span>Use history, seasonal context, and patterns as the record grows.</span>
+								</ReviewUpgradeItem>
+							</ReviewUpgradeGrid>
+							<ReviewUpgradeAction type='button' onClick={handleViewPlanOptions}>
+								Explore Homeowner+
+							</ReviewUpgradeAction>
+						</ReviewUpgradePreview>
+					) : isRunningAudit ? (
 						<AuditLoadingOverlay aria-live='polite' role='status'>
 							<AuditLoadingCard>
 								<AuditLoadingMark>
@@ -541,6 +612,9 @@ export const PropertyAuditPanel: React.FC<PropertyAuditPanelProps> = ({
 						{reviewLanguage.label} looks across the records saved for this {reviewLanguage.subjectNoun} and
 						groups opportunities by {isHomeowner ? 'equipment' : 'system'}, documentation, and maintenance
 						coverage.
+						{isFreePlan
+							? ' Free includes Quick Scan. This deeper review unlocks with Homeowner+.'
+							: ''}
 					</ReviewInfoLead>
 					<ReviewInfoItem $tone='records'>
 						<strong>{reviewLanguage.memoryLabel}</strong>
@@ -784,6 +858,90 @@ const PromptText = styled.p`
 	margin: 0;
 	color: #475569;
 	font-size: 14px;
+`;
+
+const ReviewUpgradePreview = styled.section`
+	border: 1px solid #bfdbfe;
+	border-radius: 8px;
+	background: linear-gradient(180deg, #eff6ff 0%, #ffffff 100%);
+	padding: 16px;
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+`;
+
+const ReviewUpgradeEyebrow = styled.div`
+	color: #1d4ed8;
+	font-size: 12px;
+	font-weight: 800;
+	letter-spacing: 0;
+	text-transform: uppercase;
+`;
+
+const ReviewUpgradeTitle = styled.h3`
+	margin: 0;
+	color: #172033;
+	font-size: 18px;
+	line-height: 1.35;
+`;
+
+const ReviewUpgradeText = styled.p`
+	margin: 0;
+	color: #334155;
+	font-size: 14px;
+	line-height: 1.5;
+`;
+
+const ReviewUpgradeGrid = styled.div`
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 10px;
+
+	@media (max-width: 640px) {
+		grid-template-columns: 1fr;
+	}
+`;
+
+const ReviewUpgradeItem = styled.div`
+	border: 1px solid #dbeafe;
+	border-radius: 8px;
+	background: #ffffff;
+	padding: 12px;
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+
+	strong {
+		color: #172033;
+		font-size: 14px;
+	}
+
+	span {
+		color: #475569;
+		font-size: 13px;
+		line-height: 1.4;
+	}
+`;
+
+const ReviewUpgradeAction = styled.button`
+	align-self: flex-start;
+	border: 1px solid ${COLORS.primary};
+	border-radius: 8px;
+	background: ${COLORS.primary};
+	color: ${COLORS.white};
+	font-size: 13px;
+	font-weight: 800;
+	padding: 9px 12px;
+	cursor: pointer;
+
+	&:hover {
+		background: ${COLORS.primaryHover};
+	}
+
+	&:focus-visible {
+		outline: 2px solid ${COLORS.primary};
+		outline-offset: 2px;
+	}
 `;
 
 const AuditLoadingOverlay = styled.div`
