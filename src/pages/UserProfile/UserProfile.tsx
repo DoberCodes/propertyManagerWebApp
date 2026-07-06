@@ -71,14 +71,10 @@ import {
 	DeleteLoadingOverlay,
 	DeleteLoadingTitle,
 	DeleteLoadingText,
-	DeconstructedHouseLoader,
-	HouseRoofPiece,
-	HouseBodyPiece,
-	HouseBlockPiece,
-	HouseBasePiece,
 	PasswordInputWrapper,
 	PasswordVisibilityButton,
 } from './UserProfile.styles';
+import { HouseLogoLoader } from 'Components/Library/HouseLogoLoader';
 import { Button } from 'pages/PropertyDetailPage/TabSystem/index.styles';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
@@ -1366,16 +1362,7 @@ export const UserProfile: React.FC = () => {
 						<DeleteLoadingOverlay>
 							<DeleteLoadingCard>
 								<DeleteLoadingTitle>Sorry to see you go</DeleteLoadingTitle>
-								<DeconstructedHouseLoader aria-hidden='true'>
-									<HouseRoofPiece />
-									<HouseBodyPiece>
-										<HouseBlockPiece $slot='one' $delay='0.1s' />
-										<HouseBlockPiece $slot='two' $delay='0.2s' />
-										<HouseBlockPiece $slot='three' $delay='0.3s' />
-										<HouseBlockPiece $slot='four' $delay='0.4s' />
-									</HouseBodyPiece>
-									<HouseBasePiece />
-								</DeconstructedHouseLoader>
+								<HouseLogoLoader variant='deconstruct' size={76} />
 								<DeleteLoadingText>
 									Removing your account data now. This usually takes just a moment.
 								</DeleteLoadingText>

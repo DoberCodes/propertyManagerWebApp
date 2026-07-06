@@ -8,6 +8,7 @@ import {
 	faCircleInfo,
 } from '@fortawesome/free-solid-svg-icons';
 import { GenericModal } from '../Library';
+import { HouseLogoLoader } from '../Library/HouseLogoLoader';
 import {
 	PropertyScanSnapshot,
 	useGetLatestPropertyIntelligenceSnapshotQuery,
@@ -356,7 +357,28 @@ export const PropertyAuditPanel: React.FC<PropertyAuditPanelProps> = ({
 						Last review: {formatAuditDate(latestAuditSnapshot?.createdAt)}
 					</AuditMeta>
 					{auditSaveError ? <ErrorResult>{auditSaveError}</ErrorResult> : null}
-					{isLoadingAuditSnapshot ? (
+					{isRunningAudit ? (
+						<AuditLoadingOverlay aria-live='polite' role='status'>
+							<AuditLoadingCard>
+								<AuditLoadingMark>
+									<HouseLogoLoader variant='assemble' />
+								</AuditLoadingMark>
+								<AuditLoadingTitle>
+									Reviewing this {reviewLanguage.recordNoun}...
+								</AuditLoadingTitle>
+								<AuditLoadingList>
+									<li>
+										Reviewing {systems.length}{' '}
+										{systems.length === 1
+											? isHomeowner ? 'equipment record' : 'system'
+											: isHomeowner ? 'equipment records' : 'systems'}
+									</li>
+									<li>Organizing opportunities by record</li>
+									<li>Building the review summary</li>
+								</AuditLoadingList>
+							</AuditLoadingCard>
+						</AuditLoadingOverlay>
+					) : isLoadingAuditSnapshot ? (
 						<PromptRow>
 							<PromptText>Loading latest review...</PromptText>
 						</PromptRow>
@@ -762,6 +784,66 @@ const PromptText = styled.p`
 	margin: 0;
 	color: #475569;
 	font-size: 14px;
+`;
+
+const AuditLoadingOverlay = styled.div`
+	position: fixed;
+	inset: 0;
+	z-index: 10002;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 20px;
+	background: rgba(15, 23, 42, 0.58);
+`;
+
+const AuditLoadingCard = styled.div`
+	width: min(420px, 100%);
+	border-radius: 18px;
+	background: #ffffff;
+	box-shadow: 0 24px 80px rgba(15, 23, 42, 0.34);
+	padding: 28px;
+`;
+
+const AuditLoadingMark = styled.div`
+	display: flex;
+	justify-content: center;
+	margin-bottom: 18px;
+`;
+
+const AuditLoadingTitle = styled.div`
+	color: #0f172a;
+	font-size: 20px;
+	font-weight: 900;
+	line-height: 1.3;
+	text-align: center;
+`;
+
+const AuditLoadingList = styled.ul`
+	display: grid;
+	gap: 8px;
+	margin: 16px 0 0;
+	padding: 0;
+	list-style: none;
+	color: #475569;
+	font-size: 14px;
+	line-height: 1.4;
+
+	li {
+		position: relative;
+		padding-left: 18px;
+	}
+
+	li::before {
+		content: '';
+		position: absolute;
+		left: 0;
+		top: 0.55em;
+		width: 7px;
+		height: 7px;
+		border-radius: 999px;
+		background: ${COLORS.primaryDark};
+	}
 `;
 
 const ErrorResult = styled.div`

@@ -8,6 +8,7 @@ import {
 	faCircleInfo,
 } from '@fortawesome/free-solid-svg-icons';
 import { GenericModal } from '../Library';
+import { HouseLogoLoader } from '../Library/HouseLogoLoader';
 import {
 	PropertyScanSnapshot,
 	useGetLatestPropertyScanSnapshotQuery,
@@ -875,15 +876,9 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 			{isRunningScan ? (
 				<ScanLoadingOverlay aria-live='polite' role='status'>
 					<ScanLoadingCard>
-						<ScanLoadingHome aria-hidden='true'>
-							<ScanLoadingRoof />
-							<ScanLoadingHomeBody>
-								<ScanLoadingBlock $delay='0s' $slot='one' />
-								<ScanLoadingBlock $delay='0.14s' $slot='two' />
-								<ScanLoadingBlock $delay='0.28s' $slot='three' />
-								<ScanLoadingBlock $delay='0.42s' $slot='four' />
-							</ScanLoadingHomeBody>
-						</ScanLoadingHome>
+						<ScanLoadingMark>
+							<HouseLogoLoader variant='assemble' />
+						</ScanLoadingMark>
 						<ScanLoadingTitle>
 							{scanProgressMessage || `Reviewing this ${scanLanguage.recordNoun}...`}
 						</ScanLoadingTitle>
@@ -1349,90 +1344,10 @@ const ScanLoadingCard = styled.div`
 	padding: 28px;
 `;
 
-const ScanLoadingHome = styled.div`
-	position: relative;
-	width: 72px;
-	height: 62px;
-	margin: 0 auto 18px;
-`;
-
-const ScanLoadingRoof = styled.div`
-	position: absolute;
-	left: 12px;
-	top: 1px;
-	width: 48px;
-	height: 48px;
-	background: ${COLORS.primaryDark};
-	transform: rotate(45deg);
-	border-radius: 6px 6px 2px 6px;
-	animation: property-scan-build-roof 1.8s ease-in-out infinite;
-
-	@keyframes property-scan-build-roof {
-		0%,
-		34% {
-			opacity: 0;
-			transform: translateY(-16px) rotate(45deg) scale(0.88);
-		}
-
-		58%,
-		86% {
-			opacity: 1;
-			transform: translateY(0) rotate(45deg) scale(1);
-		}
-
-		100% {
-			opacity: 0.55;
-			transform: translateY(0) rotate(45deg) scale(1);
-		}
-	}
-`;
-
-const ScanLoadingHomeBody = styled.div`
-	position: absolute;
-	left: 10px;
-	bottom: 0;
-	width: 52px;
-	height: 38px;
-	border-radius: 8px;
-	background: ${COLORS.primaryLight};
-	border: 1px solid rgba(0, 158, 113, 0.22);
-	overflow: hidden;
-`;
-
-const ScanLoadingBlock = styled.div<{
-	$delay: string;
-	$slot: 'one' | 'two' | 'three' | 'four';
-}>`
-	position: absolute;
-	width: 19px;
-	height: 13px;
-	border-radius: 4px;
-	background: ${COLORS.primaryDark};
-	left: ${({ $slot }) =>
-		$slot === 'one' || $slot === 'three' ? '6px' : '27px'};
-	top: ${({ $slot }) =>
-		$slot === 'one' || $slot === 'two' ? '6px' : '21px'};
-	animation: property-scan-build-block 1.8s ease-in-out infinite;
-	animation-delay: ${({ $delay }) => $delay};
-	transform-origin: center;
-
-	@keyframes property-scan-build-block {
-		0% {
-			opacity: 0;
-			transform: translateY(24px) scale(0.88);
-		}
-
-		28%,
-		78% {
-			opacity: 1;
-			transform: translateY(0) scale(1);
-		}
-
-		100% {
-			opacity: 0.45;
-			transform: translateY(0) scale(1);
-		}
-	}
+const ScanLoadingMark = styled.div`
+	display: flex;
+	justify-content: center;
+	margin-bottom: 18px;
 `;
 
 const ScanLoadingTitle = styled.div`
