@@ -331,10 +331,10 @@ lead views, and broader property-in-view language for owners and managers.
 Dashboard scope controls should use plain, short labels:
 
 * My Focus
-* All Visible
+* All Work
 
-Use `My Focus` for a personal work view. Use `All Visible` for the broader
-visible property view. If the personal view has no assigned work, use:
+Use `My Focus` for a personal work view. Use `All Work` for the broader
+visible work view. If the personal view has no assigned work, use:
 
 ```text
 No tasks assigned to you right now.

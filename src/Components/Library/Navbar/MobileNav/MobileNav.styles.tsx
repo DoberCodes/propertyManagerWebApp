@@ -128,10 +128,11 @@ export const MobileBottomNavIcon = styled.span`
 
 
 export const MobileBottomNavLabel = styled.span`
-	font-size: 12px;
+	font-size: 11px;
 	font-weight: 700;
-	letter-spacing: 0.04em;
+	letter-spacing: 0.02em;
 	text-transform: uppercase;
+	white-space: nowrap;
 `;
 
 export const MobileBottomCenterWrap = styled.div`
@@ -241,7 +242,7 @@ export const MobileBottomActionItem = styled.button<{ $x: number; $y: number }>`
 	cursor: pointer;
 	display: flex;
 	height: auto;
-	width: 50px;
+	width: 72px;
 	flex-wrap: wrap;
 	justify-content: center;
 	align-items: center;

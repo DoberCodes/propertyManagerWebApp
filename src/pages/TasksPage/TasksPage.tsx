@@ -1305,6 +1305,11 @@ export const TasksPage = () => {
 										: operational.label === 'Open'
 											? 'Ready to schedule or review'
 											: 'Upcoming maintenance';
+						const assigneeLabel = getAssigneeLabel(task);
+						const assigneeText =
+							assigneeLabel === 'Unassigned'
+								? 'Unassigned'
+								: `Assigned to ${assigneeLabel}`;
 						const hasTaskNotifications = hasEnabledTaskNotifications(task);
 						return (
 							<MobileTaskCard key={task.id} $overdue={isOverdue}>
@@ -1373,7 +1378,7 @@ export const TasksPage = () => {
 									<MobileMetaItem>
 										<MobileMetaLabel>Maintenance Context</MobileMetaLabel>
 										<MobileMetaValue>
-											<div>Assigned to {getAssigneeLabel(task)}</div>
+											<div>{assigneeText}</div>
 											<div style={{ marginTop: 2, fontSize: '0.8rem', color: '#64748b' }}>
 												{task.priority || 'Low'} priority · {formatDueDate(task.dueDate)}
 											</div>

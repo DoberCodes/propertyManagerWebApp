@@ -115,20 +115,20 @@ See PROPERTY_INTELLIGENCE.md for detailed behavior.
 
 ---
 
-# Appliances & Systems
+# Equipment Records
 
 The platform internally uses the term `devices`, but user-facing language should refer to:
 
-* Appliances
-* Systems
-* Appliances & Systems
+* Equipment
+* Equipment Records
+* Home equipment
 
 Current capabilities:
 
-* Create appliance and system records.
-* Edit appliance and system records.
-* Duplicate appliance and system records.
-* Delete appliance and system records.
+* Create equipment records.
+* Edit equipment records.
+* Duplicate equipment records.
+* Delete equipment records.
 * Track manufacturer information.
 * Track model information.
 * Track serial information.

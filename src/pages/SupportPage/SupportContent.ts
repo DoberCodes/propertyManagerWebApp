@@ -74,7 +74,7 @@ export const recentMaintleyUpdates = [
 		type: 'Feature',
 		title: 'Maintley Intelligence on the dashboard',
 		description:
-			'The dashboard can now show a focused Maintley Intelligence suggestion based on records across the properties in view.',
+			'The dashboard can now show a focused Maintley Intelligence suggestion based on records across the homes in view.',
 	},
 	{
 		version: '2.7.8',
@@ -90,7 +90,7 @@ export const recentMaintleyUpdates = [
 		type: 'Experience update',
 		title: 'Personal dashboard focus',
 		description:
-			'Dashboard scope can focus on assigned work or broaden to all visible properties, helping owners, family members, and team members reduce noise.',
+			'Dashboard scope can focus on assigned work or broaden to all visible work, helping owners, family members, and team members reduce noise.',
 	},
 	{
 		version: '2.7.4',
@@ -611,7 +611,7 @@ export const helpfulArticles: HelpfulArticle[] = [
 				heading: 'What this helps you do',
 				paragraphs: [
 					'Family members and team members can help manage work based on the access and properties assigned to them. Team members operate within assigned-property scope and do not own billing.',
-					'Dashboard focus can help each person see work that is relevant to them while still allowing broader visible-property views when appropriate.',
+					'Dashboard focus can help each person see work that is relevant to them while still allowing broader all-work views when appropriate.',
 				],
 			},
 			{
@@ -630,7 +630,7 @@ export const helpfulArticles: HelpfulArticle[] = [
 				],
 				image: {
 					src: '/screenshots/desktop_dashboard.png',
-					alt: 'Dashboard focus controls showing personal and all visible property views.',
+					alt: 'Dashboard focus controls showing personal and all-work views.',
 					caption:
 						'Dashboard focus helps each user start with the work most relevant to them.',
 				},

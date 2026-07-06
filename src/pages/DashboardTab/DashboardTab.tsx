@@ -640,31 +640,31 @@ export const DashboardTab = () => {
 		const isSinglePropertyScope = allProperties.length === 1;
 		const isMyFocus = dashboardScope === 'my_focus';
 		const propertyCountLabel = `${allProperties.length} ${
-			allProperties.length === 1 ? 'property' : 'properties'
+			allProperties.length === 1 ? 'home' : 'homes'
 		}`;
 		const systemsCountLabel = `${trackedSystemsCount} ${
-			trackedSystemsCount === 1 ? 'tracked system' : 'tracked systems'
+			trackedSystemsCount === 1 ? 'equipment record' : 'equipment records'
 		}`;
 		const scopePill = isMyFocus
 			? 'My Focus'
 			: isSinglePropertyScope
-				? 'Single property view'
-				: `${allProperties.length} properties in view`;
+				? 'One home view'
+				: `${allProperties.length} homes in view`;
 		const overviewEyebrow = isMyFocus
-			? 'Your Properties'
+			? 'Your Homes'
 			: isSinglePropertyScope
-				? 'Property Overview'
-				: 'Properties in View';
+				? 'Home Overview'
+				: 'Homes in View';
 		const overviewText =
 			allProperties.length === 0
-				? 'No properties have assigned work in this view.'
+				? 'No homes have assigned work in this view.'
 				: `Current maintenance picture across ${propertyCountLabel} and ${systemsCountLabel}.`;
 
 		switch (dashboardAudience) {
 			case 'maintenance_lead':
 				return {
 					pageSubtitle: isMyFocus
-						? 'See the work assigned to you across the properties in view.'
+						? 'See the work assigned to you across the homes in view.'
 						: 'See team-visible work, overdue tasks, and property context in view.',
 					focusEyebrow: isMyFocus ? 'Your Focus' : 'Team Focus',
 					focusTitle: isMyFocus
@@ -673,8 +673,8 @@ export const DashboardTab = () => {
 					overviewEyebrow: isSinglePropertyScope
 						? overviewEyebrow
 						: isMyFocus
-							? 'Your Properties'
-							: 'Team Properties',
+							? 'Your Homes'
+							: 'Team Homes',
 					overviewText,
 					queueTitle: isMyFocus ? 'Your Tasks' : 'Team Tasks',
 					queueSubtitle: isMyFocus
@@ -683,7 +683,7 @@ export const DashboardTab = () => {
 					scopePill,
 					recentSubtitle: isMyFocus
 						? 'Recently recorded work connected to your focus.'
-						: 'Recently recorded work across the properties currently in view.',
+						: 'Recently recorded work across the homes currently in view.',
 				};
 			case 'assigned_user':
 				return {
@@ -694,7 +694,7 @@ export const DashboardTab = () => {
 					focusTitle: 'Handle your next task',
 					overviewEyebrow: isSinglePropertyScope
 						? overviewEyebrow
-						: 'Your Properties',
+						: 'Your Homes',
 					overviewText,
 					queueTitle: 'Your Tasks',
 					queueSubtitle:
@@ -702,7 +702,7 @@ export const DashboardTab = () => {
 					scopePill,
 					recentSubtitle: isMyFocus
 						? 'Recently recorded work connected to your focus.'
-						: 'Recently recorded work connected to the properties in your view.',
+						: 'Recently recorded work connected to the homes in your view.',
 				};
 			case 'single_property':
 				return {
@@ -725,10 +725,10 @@ export const DashboardTab = () => {
 			default:
 				return {
 					pageSubtitle: isMyFocus
-						? 'See the work assigned to you across the properties in view.'
+						? 'See the work assigned to you across the homes in view.'
 						: isSinglePropertyScope
 							? "See today's priorities, upcoming work, and recent maintenance for this property."
-							: "See today's priorities, upcoming work, and recent maintenance across the properties in view.",
+							: "See today's priorities, upcoming work, and recent maintenance across the homes in view.",
 					focusEyebrow: isMyFocus ? 'Your Focus' : "Today's Focus",
 					focusTitle: isMyFocus
 						? 'Handle your next task'
@@ -742,7 +742,7 @@ export const DashboardTab = () => {
 					scopePill,
 					recentSubtitle: isMyFocus
 						? 'Recently recorded work connected to your focus.'
-						: 'Recently recorded work across the properties in view.',
+						: 'Recently recorded work across the homes in view.',
 				};
 		}
 	}, [
@@ -1448,18 +1448,18 @@ export const DashboardTab = () => {
 							onClick={() => {
 								void handleDashboardScopeChange('all_visible_properties');
 							}}>
-							All Visible
+							All Work
 						</DashboardScopeButton>
 					</DashboardScopeControl>
 					{availableProperties.length > 1 && (
 						<DashboardDesktopPropertyFilter>
-							Property
+							Home
 							<select
 								value={selectedPropertyId}
 								onChange={(event) =>
 									setSelectedPropertyId(event.target.value)
 								}>
-								<option value=''>All properties</option>
+								<option value=''>All homes</option>
 								{availableProperties.map((property) => (
 									<option key={property.id} value={String(property.id)}>
 										{property.title || 'Untitled Property'}

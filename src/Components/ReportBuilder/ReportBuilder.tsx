@@ -305,7 +305,7 @@ const REPORT_CATEGORIES: Array<{
 	},
 	{
 		id: 'systems',
-		label: 'Appliances & Systems',
+		label: 'Equipment Records',
 		description: 'Equipment, warranties, and service activity',
 	},
 	{

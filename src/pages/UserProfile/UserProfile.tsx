@@ -494,14 +494,15 @@ export const UserProfile: React.FC = () => {
 		? getRemainingPropertySlots(currentUser.subscription, totalProperties)
 		: 0;
 	const maxProperties = planDetails?.maxProperties ?? 1;
+	const planRecordNoun = maxProperties <= 1 ? 'home' : 'property';
 	const usagePercent = maxProperties > 0 ? (totalProperties / maxProperties) * 100 : 0;
 	const hasPropertyCapacity = maxProperties > 0;
 	const planSlotLabel = !hasPropertyCapacity
 		? 'Property creation is not included'
 		: remainingSlots === 0 && totalProperties > maxProperties
 			? `${totalProperties - maxProperties} over plan limit`
-			: `${remainingSlots} property slot${remainingSlots === 1 ? '' : 's'} available`;
-	const planSubtitle = `Current plan: ${planDetails?.name || 'Home'}`;
+			: `${remainingSlots} ${planRecordNoun} slot${remainingSlots === 1 ? '' : 's'} available`;
+	const planSubtitle = `Plan: ${planDetails?.name || 'Home'}`;
 	const storageUsagePercent = Math.min(100, storageUsage?.usagePercent || 0);
 	const storageUsageLabel = isStorageUsageLoading
 		? 'Loading storage...'

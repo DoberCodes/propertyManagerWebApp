@@ -2983,18 +2983,21 @@ export const Properties = () => {
 										const propertyPillLabel = getPropertyPillLabel(property);
 										const propertyImageSrc = getPropertyImageSrc(property.image);
 										const isFallbackImage = isPropertyImageFallback(property.image);
+										const propertyRoute =
+											getTenantUnitRoute(property) ||
+											`/property/${property.slug}`;
+										const openProperty = () => {
+											addRecentlyViewed({
+												id: property.id,
+												title: property.title,
+												slug: property.slug,
+											});
+											navigate(propertyRoute);
+										};
 										return (
 											<PropertyTile
 												key={property.id}
-												onClick={() => {
-													addRecentlyViewed({
-														id: property.id,
-														title: property.title,
-														slug: property.slug,
-													});
-													const tenantUnitRoute = getTenantUnitRoute(property);
-													navigate(tenantUnitRoute || `/property/${property.slug}`);
-												}}>
+												onClick={openProperty}>
 												<PropertyImageWrap>
 													<PropertyImage
 														$isFallback={isFallbackImage}
@@ -3037,13 +3040,11 @@ export const Properties = () => {
 												<PropertyBody>
 													<div>
 														<PropertyTitle
+															href={propertyRoute}
 															onClick={(e) => {
+																e.preventDefault();
 																e.stopPropagation();
-																addRecentlyViewed({
-																	id: property.id as any,
-																	title: property.title,
-																	slug: property.slug,
-																});
+																openProperty();
 															}}>
 															{propertyDisplayName}
 														</PropertyTitle>

@@ -864,16 +864,16 @@ export const DevicesHubPage: React.FC = () => {
 		<StandardAppPage>
 			<StandardAppPageHeader>
 				<StandardAppPageTitleBlock>
-					<StandardAppPageTitle>Appliances & Systems Hub</StandardAppPageTitle>
+					<StandardAppPageTitle>Equipment Hub</StandardAppPageTitle>
 					<StandardAppPageSubtitle>
-						Cross-property maintenance status for every appliance and system.
+						Cross-property maintenance status for every equipment record.
 					</StandardAppPageSubtitle>
 				</StandardAppPageTitleBlock>
 			</StandardAppPageHeader>
 
 			<SummaryRow>
 				<MetricCard>
-					<MetricLabel>Total Appliances</MetricLabel>
+					<MetricLabel>Total Equipment</MetricLabel>
 					<MetricValue>{devices.length}</MetricValue>
 				</MetricCard>
 				<MetricCard>
