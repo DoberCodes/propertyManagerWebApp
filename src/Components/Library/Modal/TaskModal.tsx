@@ -1309,6 +1309,10 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 			category: pendingTaskDocumentCategory,
 			property: propertyForDocuments,
 			systems: linkedDevices,
+			uploadContext: {
+				taskIds: [savedTaskId],
+				assignedTaskStatus: formState.status,
+			},
 		});
 		const knowledgeSuggestionsForProperty = Array.isArray(
 			propertyForDocuments?.knowledgeSuggestions,

@@ -51,6 +51,7 @@ export const TaskDocumentsPanel: React.FC<TaskDocumentsPanelProps> = ({
 	property,
 	propertyId,
 	taskId,
+	taskStatus,
 	canUpload = true,
 	pendingFiles,
 	onPendingFilesChange,
@@ -119,6 +120,10 @@ export const TaskDocumentsPanel: React.FC<TaskDocumentsPanelProps> = ({
 				propertyId: resolvedPropertyId,
 				category: selectedCategory,
 				property: resolvedProperty,
+				uploadContext: {
+					taskIds: [taskId],
+					assignedTaskStatus: taskStatus,
+				},
 			});
 			await updateProperty({
 				id: resolvedPropertyId,

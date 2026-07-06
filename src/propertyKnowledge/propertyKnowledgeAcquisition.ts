@@ -1629,7 +1629,8 @@ export const createPendingKnowledgeSuggestion = ({
 }: CreatePendingKnowledgeSuggestionInput): PropertyKnowledgeSuggestion => {
 	const documentType = classifyKnowledgeDocument(document);
 	const extractionMethod: PropertyKnowledgeExtractionMethod = 'metadata_placeholder';
-	let resolvedRelatedSystemId = relatedSystemId || document.assignedDeviceId;
+	let resolvedRelatedSystemId =
+		relatedSystemId || document.assignedDeviceId || document.links?.assetIds?.[0];
 	const extractedFields = filterFieldsToMissingPropertyMemory({
 		fields: extractPlaceholderFieldsFromDocument(
 			document,
@@ -1669,7 +1670,8 @@ export const createPendingKnowledgeSuggestionFromFile = async ({
 	createdAt = new Date().toISOString(),
 }: CreateKnowledgeSuggestionFromFileInput): Promise<PropertyKnowledgeSuggestion> => {
 	const documentType = classifyKnowledgeDocument(document);
-	let resolvedRelatedSystemId = relatedSystemId || document.assignedDeviceId;
+	let resolvedRelatedSystemId =
+		relatedSystemId || document.assignedDeviceId || document.links?.assetIds?.[0];
 	const metadataFields = extractPlaceholderFieldsFromDocument(
 		document,
 		resolvedRelatedSystemId,

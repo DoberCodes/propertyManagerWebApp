@@ -981,13 +981,15 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 				userId: currentUser!.id,
 			};
 
+			let savedDeviceId = editingDevice?.id ? String(editingDevice.id) : '';
 			if (editingDevice) {
 				await updateDevice({
 					id: editingDevice.id,
 					updates: deviceData,
 				}).unwrap();
 			} else {
-				await createDevice(deviceData).unwrap();
+				const savedDevice = await createDevice(deviceData).unwrap();
+				savedDeviceId = String((savedDevice as any)?.id || '');
 			}
 
 			const propertyDocumentUploads = [
@@ -1019,6 +1021,9 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 						category,
 						property,
 						systems: devices as Device[],
+						uploadContext: {
+							assetIds: savedDeviceId ? [savedDeviceId] : [],
+						},
 					});
 					savedDocuments.push(...result.documents);
 					knowledgeSuggestions.push(...result.knowledgeSuggestions);

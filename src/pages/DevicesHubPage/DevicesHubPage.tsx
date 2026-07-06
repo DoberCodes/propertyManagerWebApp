@@ -505,6 +505,9 @@ export const DevicesHubPage: React.FC = () => {
 						category,
 						property: targetProperty as Property,
 						systems: savedDevice ? [savedDevice as Device] : [],
+						uploadContext: {
+							assetIds: savedDevice?.id ? [String(savedDevice.id)] : [],
+						},
 					});
 					savedDocuments.push(...result.documents);
 					knowledgeSuggestions.push(...result.knowledgeSuggestions);
