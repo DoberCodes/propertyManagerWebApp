@@ -64,7 +64,7 @@ export const TopNav = () => {
 		// This can be expanded with more complex logic or a mapping of routes to titles
 
 		if (activeRoute.startsWith('/properties')) {
-			setNavLocation(isHomeowner ? 'Homes' : 'Properties');
+			setNavLocation(isHomeowner ? 'Homes' : 'Property Records');
 		} else if (activeRoute.startsWith('/tasks')) {
 			setNavLocation('Tasks');
 		} else if (activeRoute.startsWith('/devices')) {

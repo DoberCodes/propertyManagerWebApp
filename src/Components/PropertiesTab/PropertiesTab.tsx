@@ -314,23 +314,35 @@ export const Properties = () => {
 
 	const propertyLanguage = useMemo(
 		() => ({
-			pageTitle: isHomeowner ? 'Homes' : 'Properties',
+			pageTitle: isHomeowner ? 'Homes' : 'Property Records',
 			pageSubtitle: isHomeowner
-				? 'Keep your home records, equipment, documents, and maintenance work organized in one place.'
-				: 'Organize and manage all of your properties in one place.',
-			addLabel: isHomeowner ? 'Add Home' : 'Add Property',
-			searchPlaceholder: isHomeowner ? 'Search homes...' : 'Search properties...',
-			filterTitle: isHomeowner ? 'Search and filter homes' : 'Search and filter properties',
+				? 'Keep your home record organized with maintenance, equipment, documents, people, and history.'
+				: 'Keep each property record organized with maintenance, equipment, documents, people, and history.',
+			addLabel: isHomeowner ? 'Add Home' : 'Add Property Record',
+			searchPlaceholder: isHomeowner ? 'Search homes...' : 'Search property records...',
+			filterTitle: isHomeowner ? 'Search and filter homes' : 'Search and filter property records',
 			filterDescription: isHomeowner
 				? 'Choose which home records you want to see, then apply your changes.'
-				: 'Choose which properties you want to see, then apply your changes.',
-			recordSingular: isHomeowner ? 'home' : 'property',
-			recordPlural: isHomeowner ? 'homes' : 'properties',
-			totalLabel: isHomeowner ? 'Home Records' : 'Total Properties',
-			documentSubtitle: isHomeowner ? 'Across your home records' : 'Across all properties',
+				: 'Choose which property records you want to see, then apply your changes.',
+			recordSingular: isHomeowner ? 'home' : 'property record',
+			recordPlural: isHomeowner ? 'homes' : 'property records',
+			totalSingularLabel: isHomeowner ? 'Home Record' : 'Property Record',
+			totalPluralLabel: isHomeowner ? 'Home Records' : 'Property Records',
+			documentSubtitle: isHomeowner ? 'Across your home record' : 'Across property records',
 		}),
 		[isHomeowner],
 	);
+
+	const getDisplayGroupName = useCallback((name?: string) => {
+		const rawName = String(name || '').trim();
+		const normalized = rawName.toLowerCase();
+
+		if (normalized === 'my properties') return 'My Property Records';
+		if (normalized === 'main residence') return 'Primary Home';
+		if (normalized === 'shared properties') return 'Shared With Me';
+
+		return rawName || 'Property Records';
+	}, []);
 
 	// Combine groups with their properties
 	const groupsWithProperties = useMemo(() => {
@@ -493,7 +505,10 @@ export const Properties = () => {
 		return [
 			{
 				value: uniqueProperties.length,
-				label: propertyLanguage.totalLabel,
+				label:
+					uniqueProperties.length === 1
+						? propertyLanguage.totalSingularLabel
+						: propertyLanguage.totalPluralLabel,
 				icon: faHouse,
 				bg: '#ecfdf3',
 				color: '#0f9f6e',
@@ -2941,7 +2956,7 @@ export const Properties = () => {
 									) : (
 										<GroupTitleBlock>
 											<GroupName>
-												{group.name}
+												{getDisplayGroupName(group.name)}
 												<GroupCountBadge>
 													{(group.properties || []).length}
 												</GroupCountBadge>
