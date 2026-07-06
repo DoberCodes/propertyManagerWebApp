@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { Link, useNavigate } from 'react-router-dom';
 import { RootState, AppDispatch } from 'Redux/store';
-import { setCurrentUser } from 'Redux/Slices/userSlice';
+import { beginAuthTransition, setCurrentUser } from 'Redux/Slices/userSlice';
 import {
 	useGetAllMaintenanceHistoryForUserQuery,
 	useUpdateUserMutation,
@@ -123,6 +123,7 @@ import { callFirebaseFunction } from 'config/firebaseFunctions';
 export const UserProfile: React.FC = () => {
 	const dispatch = useDispatch<AppDispatch>();
 	const navigate = useNavigate();
+	const deleteConfirmationInputId = 'delete-account-confirmation-input';
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
 	const [updateUser] = useUpdateUserMutation();
 	const isTeamMemberAccount = useSelector(selectIsTeamMemberAccount);
@@ -812,8 +813,9 @@ export const UserProfile: React.FC = () => {
 				'deleteUserAccount',
 				{ userId: currentUser.id },
 			);
+			dispatch(beginAuthTransition());
 			await signOut(auth);
-			navigate('/login');
+			navigate('/login', { replace: true });
 		} catch (deleteError: any) {
 			console.error('Delete account error:', deleteError);
 			if (deleteError.code === 'functions/permission-denied') {
@@ -1488,8 +1490,9 @@ export const UserProfile: React.FC = () => {
 
 					{!isDeletingAccount && deleteModalState === 'ready' && (
 						<div style={{ marginTop: '14px' }}>
-							<FormLabel>Type DELETE to confirm</FormLabel>
+							<FormLabel htmlFor={deleteConfirmationInputId}>Type DELETE to confirm</FormLabel>
 							<FormInput
+								id={deleteConfirmationInputId}
 								type='text'
 								value={deleteConfirmationInput}
 								onChange={(e) => setDeleteConfirmationInput(e.target.value)}

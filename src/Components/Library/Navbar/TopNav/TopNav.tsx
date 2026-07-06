@@ -63,7 +63,9 @@ export const TopNav = () => {
 		// Logic to determine nav title based on active route
 		// This can be expanded with more complex logic or a mapping of routes to titles
 
-		if (activeRoute.startsWith('/properties')) {
+		if (pathname.startsWith('/profile') || activeRoute.startsWith('/profile')) {
+			setNavLocation('My Profile');
+		} else if (activeRoute.startsWith('/properties')) {
 			setNavLocation(isHomeowner ? 'Homes' : 'Property Records');
 		} else if (activeRoute.startsWith('/tasks')) {
 			setNavLocation('Tasks');

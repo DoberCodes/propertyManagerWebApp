@@ -66,6 +66,18 @@ const isBlockedByClientError = (error: any): boolean => {
 	);
 };
 
+const isExpectedAuthTeardownError = (error: any): boolean => {
+	const rawMessage = String(error?.message || '').toLowerCase();
+	const rawCode = String(error?.code || '').toLowerCase();
+
+	return (
+		!auth.currentUser ||
+		rawCode.includes('unauthenticated') ||
+		rawMessage.includes('unauthenticated') ||
+		rawMessage.includes('user not authenticated')
+	);
+};
+
 /**
  * Sign in with email and password
  */
@@ -785,6 +797,10 @@ export const updateFamilyMember = async (
  */
 export const getFamilyMembers = async (accountId: string): Promise<User[]> => {
 	try {
+		if (!accountId || !auth.currentUser) {
+			return [];
+		}
+
 		const getFamilyMembersCallable = await getAuthCallable<
 			{ accountId: string },
 			{ members: User[] }
@@ -793,6 +809,10 @@ export const getFamilyMembers = async (accountId: string): Promise<User[]> => {
 		const result = await getFamilyMembersCallable({ accountId });
 		return Array.isArray(result.data?.members) ? result.data.members : [];
 	} catch (error: any) {
+		if (isExpectedAuthTeardownError(error)) {
+			return [];
+		}
+
 		console.error('Failed to get family members:', error);
 		return [];
 	}
