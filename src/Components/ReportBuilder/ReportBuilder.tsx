@@ -325,8 +325,8 @@ const REPORT_CATEGORIES: Array<{
 	},
 	{
 		id: 'portfolio',
-		label: 'Portfolio',
-		description: 'Cross-property summaries',
+		label: 'Summary',
+		description: 'Home and property summaries',
 	},
 ];
 
@@ -774,8 +774,14 @@ export const ReportBuilder: React.FC = () => {
 	);
 
 	const taskReportRows = useMemo(
-		() => normalizeTaskReportRows(scopedTasks),
-		[scopedTasks],
+		() =>
+			normalizeTaskReportRows(
+				scopedTasks,
+				scopedProperties,
+				scopedTeamMembers,
+				contractorsData,
+			),
+		[scopedTasks, scopedProperties, scopedTeamMembers, contractorsData],
 	);
 
 	const maintenanceHistoryData = useMemo(
@@ -1194,7 +1200,7 @@ export const ReportBuilder: React.FC = () => {
 			return;
 		}
 		if (reportType === 'employee-efficiency' && !canAccessAdvancedTeamReport) {
-			feedback.notify('Employee efficiency reports require Portfolio.');
+			feedback.notify('Employee efficiency reports require advanced team reporting.');
 			return;
 		}
 
@@ -1204,7 +1210,7 @@ export const ReportBuilder: React.FC = () => {
 		}
 
 		if (reportType === 'portfolio-overview' && !canAccessPortfolioReports) {
-			feedback.notify('Portfolio overview reports require the Portfolio plan.');
+			feedback.notify('This report requires multi-property reporting.');
 			return;
 		}
 
@@ -1459,7 +1465,7 @@ export const ReportBuilder: React.FC = () => {
 									accessibleReports.some((item) => item.value === report.value);
 								const metaLabel = isAccessible
 									? report.requiresPortfolioReporting
-										? 'Portfolio'
+										? 'Multi-property'
 										: report.requiresAdvancedTeamAccess
 											? 'Advanced'
 											: report.requiresFinancialAccess

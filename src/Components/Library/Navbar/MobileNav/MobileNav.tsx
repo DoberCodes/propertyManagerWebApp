@@ -42,7 +42,7 @@ export const MobileHamburgerNav: React.FC<MobileNavProps> = ({ isSidebarOpen, se
             visible: !isUserTenant && canAccessTeam,
         },
         {
-            label: 'Report',
+            label: 'Reports',
             path: 'report',
             visible: !isUserTenant && (canAccessProperties || canViewPages),
         },
@@ -181,14 +181,14 @@ export const MobileBottomNav: React.FC<MobileNavProps> = ({ isPropertyContext, p
         : isPropertyContext
             ? [
                 { key: 'add_task', label: 'Add Task', x: -100, y: 0 },
-                { key: 'add_system', label: 'Add System', x: -55, y: -55 },
+            { key: 'add_system', label: 'Add Equipment', x: -55, y: -55 },
                 { key: 'upload_document', label: 'Upload Document', x: 55, y: -55 },
                 { key: 'add_contractor', label: 'Add Contractor', x: 100, y: 0 },
             ]
             : [
                 { key: 'add_task', label: 'Add Task', x: -100, y: -10 },
-                { key: 'add_system', label: 'Add System', x: 0, y: -60 },
-                { key: 'add_property', label: 'Add Property', x: 100, y: -10 },
+                { key: 'add_system', label: 'Add Equipment', x: 0, y: -60 },
+                { key: 'add_property', label: 'Add Home', x: 100, y: -10 },
             ];
 
     const handleQuickCreateAction = (action: string) => {
@@ -310,7 +310,7 @@ export const MobileBottomNav: React.FC<MobileNavProps> = ({ isPropertyContext, p
                     $active={activeRoute === '/devices'}
                     onClick={() => navigate('/devices')}
                     aria-current={activeRoute === '/devices' ? 'page' : undefined}>
-                    <MobileBottomNavLabel>Systems</MobileBottomNavLabel>
+                    <MobileBottomNavLabel>Equipment</MobileBottomNavLabel>
                 </MobileBottomNavItem>
 
                 <MobileBottomNavItem
@@ -318,7 +318,7 @@ export const MobileBottomNav: React.FC<MobileNavProps> = ({ isPropertyContext, p
                     $active={activeRoute === '/properties'}
                     onClick={() => navigate('/properties')}
                     aria-current={activeRoute === '/properties' ? 'page' : undefined}>
-                    <MobileBottomNavLabel>Property</MobileBottomNavLabel>
+                    <MobileBottomNavLabel>Home</MobileBottomNavLabel>
                 </MobileBottomNavItem>
             </MobileBottomNavInner>
         </MobileBottomNavBar>

@@ -926,7 +926,7 @@ export const TasksPage = () => {
 							? 'Maintenance is overdue'
 							: operational.label === 'Due Soon'
 								? 'Maintenance is coming due soon'
-								: operational.label === 'Initiated'
+								: operational.label === 'Open'
 									? 'Ready to schedule or review'
 									: 'Upcoming maintenance';
 				return (
@@ -1302,7 +1302,7 @@ export const TasksPage = () => {
 									? 'Maintenance is overdue'
 									: operational.label === 'Due Soon'
 										? 'Maintenance is coming due soon'
-										: operational.label === 'Initiated'
+										: operational.label === 'Open'
 											? 'Ready to schedule or review'
 											: 'Upcoming maintenance';
 						const hasTaskNotifications = hasEnabledTaskNotifications(task);

@@ -469,7 +469,7 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 							? 'Maintenance is overdue'
 							: chip.label === 'Due Soon'
 								? 'Maintenance is coming due soon'
-								: chip.label === 'Initiated'
+								: chip.label === 'Open'
 									? 'Ready to schedule or review'
 									: 'Upcoming maintenance';
 
@@ -1008,7 +1008,7 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 										? 'Maintenance is overdue'
 										: displayStatus.label === 'Due Soon'
 											? 'Maintenance is coming due soon'
-											: displayStatus.label === 'Initiated'
+											: displayStatus.label === 'Open'
 												? 'Ready to schedule or review'
 												: 'Upcoming maintenance';
 							const hasTaskNotifications = hasEnabledTaskNotifications(task);

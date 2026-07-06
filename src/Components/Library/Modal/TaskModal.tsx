@@ -539,6 +539,8 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 			.trim()
 			.toLowerCase()
 			.replace(/\s+/g, ' ');
+	const getTaskStatusOptionLabel = (status: string) =>
+		status === 'Initiated' ? 'Open' : status;
 
 	// modal-owned form state (defaults)
 	const defaultForm: TaskFormData = useMemo(
@@ -1985,7 +1987,7 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 													placeholder='Select a status...'
 													options={statusOptions.map((status) => ({
 														value: status,
-														label: status,
+														label: getTaskStatusOptionLabel(status),
 													}))}
 												/>
 											</FormGroup>
@@ -2042,11 +2044,11 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 											placeholder='Select a status...'
 											options={statusOptions.map((status) => ({
 												value: status,
-												label: status,
+												label: getTaskStatusOptionLabel(status),
 											}))}
 										/>
 										<FieldHint>
-											New tasks usually start as Initiated.
+											New tasks usually start as Open.
 										</FieldHint>
 									</FormGroup>
 

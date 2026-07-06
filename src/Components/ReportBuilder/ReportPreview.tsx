@@ -53,7 +53,7 @@ export const ReportPreview: React.FC<ReportPreviewProps> = ({
 						{previewRows.map((row, idx) => (
 							<tr key={idx}>
 								{selectedColumns.map((col) => (
-									<td key={col}>{formatPreviewValue(row[col])}</td>
+									<td key={col}>{formatPreviewValue(row[col], col)}</td>
 								))}
 							</tr>
 						))}
@@ -66,7 +66,7 @@ export const ReportPreview: React.FC<ReportPreviewProps> = ({
 					const primaryColumn = selectedColumns[0];
 					const secondaryColumns = selectedColumns.slice(1);
 					const primaryLabel = columnOptions[primaryColumn] || 'Record';
-					const primaryValue = formatPreviewValue(row[primaryColumn]);
+					const primaryValue = formatPreviewValue(row[primaryColumn], primaryColumn);
 
 					return (
 						<MobilePreviewCard key={idx}>
@@ -75,7 +75,7 @@ export const ReportPreview: React.FC<ReportPreviewProps> = ({
 									Record {idx + 1} of {data.length}
 								</MobilePreviewCardKicker>
 								<MobilePreviewCardTitle>
-									{primaryValue === '-' ? primaryLabel : primaryValue}
+									{primaryValue === 'Not provided' ? primaryLabel : primaryValue}
 								</MobilePreviewCardTitle>
 							</MobilePreviewCardHeader>
 
@@ -86,7 +86,7 @@ export const ReportPreview: React.FC<ReportPreviewProps> = ({
 											{columnOptions[col] || col}
 										</MobilePreviewLabel>
 										<MobilePreviewValue>
-											{formatPreviewValue(row[col])}
+											{formatPreviewValue(row[col], col)}
 										</MobilePreviewValue>
 									</MobilePreviewField>
 								))}

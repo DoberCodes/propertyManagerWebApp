@@ -79,6 +79,33 @@ export const createPropertyLookup = (properties: any[]): Map<string, any> =>
 		return lookup;
 	}, new Map<string, any>());
 
+const normalizeDisplayText = (value: unknown): string =>
+	String(value || '').trim();
+
+const looksLikeRawIdentifier = (value: unknown): boolean => {
+	const normalized = normalizeDisplayText(value);
+	if (!normalized) return false;
+	if (normalized.includes('@') || normalized.includes(' ')) return false;
+	return /^[A-Za-z0-9_-]{20,}$/.test(normalized);
+};
+
+const cleanDisplayText = (value: unknown): string => {
+	const normalized = normalizeDisplayText(value);
+	return looksLikeRawIdentifier(normalized) ? '' : normalized;
+};
+
+const cleanDateValue = (value: unknown): string => {
+	const normalized = normalizeDisplayText(value);
+	if (!normalized) return '';
+	const millis = new Date(normalized).getTime();
+	return Number.isFinite(millis) ? normalized : '';
+};
+
+const normalizeTaskStatusLabel = (status: unknown): string => {
+	const normalized = normalizeDisplayText(status);
+	return normalized === 'Initiated' ? 'Open' : normalized;
+};
+
 const getRecordPropertyId = (record: any): string =>
 	String(
 		record?.propertyId ||
@@ -92,7 +119,104 @@ const getPropertyTitle = (
 	propertyLookup: Map<string, any>,
 	fallback?: string,
 ): string =>
-	String(fallback || propertyLookup.get(propertyId)?.title || 'Unknown Property').trim();
+	cleanDisplayText(fallback) ||
+	cleanDisplayText(propertyLookup.get(propertyId)?.title);
+
+const createPersonLookup = (
+	people: any[] = [],
+	contractors: any[] = [],
+): Map<string, string> => {
+	const lookup = new Map<string, string>();
+	const addAlias = (alias: unknown, name: string) => {
+		const normalizedAlias = normalizeDisplayText(alias).toLowerCase();
+		if (normalizedAlias && name) {
+			lookup.set(normalizedAlias, name);
+		}
+	};
+
+	people.forEach((person) => {
+		const name = cleanDisplayText(
+			person?.displayName ||
+				person?.name ||
+				[person?.firstName, person?.lastName].filter(Boolean).join(' '),
+		);
+		if (!name) return;
+		[
+			person?.id,
+			person?.userId,
+			person?.email,
+			person?.displayName,
+			person?.name,
+			[person?.firstName, person?.lastName].filter(Boolean).join(' '),
+		].forEach((alias) => addAlias(alias, name));
+	});
+
+	contractors.forEach((contractor) => {
+		const name = cleanDisplayText(contractor?.name || contractor?.company);
+		if (!name) return;
+		[
+			contractor?.id,
+			contractor?.name,
+			contractor?.company,
+			contractor?.email,
+		].forEach((alias) => addAlias(alias, name));
+	});
+
+	return lookup;
+};
+
+const resolvePersonDisplayName = (
+	candidates: unknown[],
+	lookup: Map<string, string>,
+): string => {
+	for (const candidate of candidates) {
+		const normalized = normalizeDisplayText(candidate);
+		if (!normalized) continue;
+		const lookupName = lookup.get(normalized.toLowerCase());
+		if (lookupName) return lookupName;
+		const cleaned = cleanDisplayText(normalized);
+		if (cleaned) return cleaned;
+	}
+	return '';
+};
+
+const getTaskAssigneeDisplayName = (
+	task: any,
+	assigneeLookup: Map<string, string>,
+): string => {
+	const assignedTo = task?.assignedTo;
+	return resolvePersonDisplayName(
+		[
+			task?.assignedToName,
+			task?.assigneeName,
+			assignedTo?.displayName,
+			assignedTo?.name,
+			[task?.assigneeFirstName, task?.assigneeLastName]
+				.filter(Boolean)
+				.join(' '),
+			task?.assignedToEmail,
+			task?.assigneeEmail,
+			task?.assignee,
+			assignedTo?.email,
+			task?.assignedToId,
+			assignedTo?.id,
+			assignedTo,
+		],
+		assigneeLookup,
+	);
+};
+
+const resolveTaskPropertyTitle = (
+	task: any,
+	propertyLookup: Map<string, any>,
+): string => {
+	const propertyId = String(task.propertyId || '').trim();
+	return getPropertyTitle(
+		propertyId,
+		propertyLookup,
+		task.propertyTitle || task.property,
+	);
+};
 
 export const filterRecordsForAccountOrProperties = (
 	records: any[],
@@ -190,23 +314,30 @@ export const normalizeDeviceReportRows = (
 	});
 };
 
-export const normalizeTaskReportRows = (tasks: any[]): any[] =>
-	tasks.map((task: any) => {
+export const normalizeTaskReportRows = (
+	tasks: any[],
+	properties: any[] = [],
+	teamMembers: any[] = [],
+	contractors: any[] = [],
+): any[] => {
+	const propertyLookup = createPropertyLookup(properties);
+	const assigneeLookup = createPersonLookup(teamMembers, contractors);
+
+	return tasks.map((task: any) => {
 		const estimate = task.financials?.estimate;
 		const actual = task.financials?.actual;
 		const estimatedTotal = calculateCostTotal(estimate);
 		const actualTotal = calculateCostTotal(actual);
+		const propertyTitle = resolveTaskPropertyTitle(task, propertyLookup);
 		return {
 			...task,
 			propertyId: String(task.propertyId || '').trim(),
-			property: task.property || task.propertyTitle || '',
-			assignee:
-				task.assignee ||
-				task.assignedToName ||
-				task.assignedTo?.displayName ||
-				task.assignedTo?.name ||
-				task.assignedTo ||
-				'',
+			property: propertyTitle,
+			propertyTitle,
+			dueDate: cleanDateValue(task.dueDate),
+			completionDate: cleanDateValue(task.completionDate),
+			status: normalizeTaskStatusLabel(task.status),
+			assignee: getTaskAssigneeDisplayName(task, assigneeLookup),
 			estimateContractorCost: estimate?.contractorCost,
 			estimateMaterialsCost: estimate?.materialsCost,
 			estimateLaborCost: estimate?.laborCost,
@@ -221,6 +352,7 @@ export const normalizeTaskReportRows = (tasks: any[]): any[] =>
 			financialNotes: task.financials?.notes || '',
 		};
 	});
+};
 
 export const normalizeMaintenanceHistoryReportRows = (
 	records: any[],

@@ -1,7 +1,7 @@
 import { COLORS } from 'constants/colors';
 
 export type TaskDisplayStatus =
-	| 'Initiated'
+	| 'Open'
 	| 'Upcoming'
 	| 'Due Soon'
 	| 'Overdue'
@@ -56,7 +56,7 @@ export const getTaskDisplayStatus = (
 	const dueDate = parseDateOnly(task.dueDate);
 	if (!dueDate) {
 		return {
-			label: 'Initiated',
+			label: 'Open',
 			color: '#475569',
 			background: '#f8fafc',
 			border: '#cbd5e1',
