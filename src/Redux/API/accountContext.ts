@@ -207,9 +207,7 @@ export const resolveAccountAccessContext = async (): Promise<AccountAccessContex
 		canManageTasks: capabilities.canManageTasks,
 		canManageProperties: capabilities.canManageProperties,
 		canManageDocuments:
-			capabilities.canManageProperties ||
-			capabilities.canManageAppliances ||
-			capabilities.canManageMaintenanceHistory,
+			capabilities.canManageDocuments || capabilities.canManageProperties,
 		canManageMaintenance: capabilities.canManageMaintenanceHistory,
 		canManageTeam: capabilities.canManageTeam,
 	};

@@ -79,9 +79,13 @@ interface AppZeroStateProps {
 	description?: string;
 	actions?: AppZeroStateAction[];
 	fullPage?: boolean;
+	context?: 'homeowner' | 'property';
 }
 
-const getZeroStateBadge = (kind: AppZeroStateKind): string => {
+const getZeroStateBadge = (
+	kind: AppZeroStateKind,
+	context: AppZeroStateProps['context'] = 'property',
+): string => {
 	if (kind === 'noTasks' || kind === 'noActiveTasks' || kind === 'noTaskMatches') {
 		return 'Task Center';
 	}
@@ -90,7 +94,7 @@ const getZeroStateBadge = (kind: AppZeroStateKind): string => {
 		return 'Equipment';
 	}
 
-	return 'Property Setup';
+	return context === 'homeowner' ? 'Home Setup' : 'Property Setup';
 };
 
 export const getAppZeroStateCopy = (
@@ -103,9 +107,17 @@ export const AppZeroState: React.FC<AppZeroStateProps> = ({
 	description,
 	actions = [],
 	fullPage = false,
+	context = 'property',
 }) => {
-	const copy = getAppZeroStateCopy(kind);
-	const badge = getZeroStateBadge(kind);
+	const copy =
+		context === 'homeowner' && kind === 'noProperties'
+			? {
+					title: 'No homes yet',
+					description:
+						'Add your first home to start organizing tasks, equipment, maintenance history, and reminders.',
+			}
+			: getAppZeroStateCopy(kind);
+	const badge = getZeroStateBadge(kind, context);
 
 	return (
 		<AppZeroStateShell $fullPage={fullPage}>

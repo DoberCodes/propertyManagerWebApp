@@ -8,10 +8,10 @@ import {
 	MaintleyFindingPriority,
 	MaintleyFindingSeverity,
 	MaintleyFindingSource,
+	MaintleyPlanId,
 } from '../types';
 import { getBaselineDefinitionForAsset } from '../baselineCareLibrary';
 import { runMaintleyIntelligence } from '../engine';
-import { compareMaintleyFindings } from '../prioritization';
 import { normalizeMaintleyPlanId } from '../planFilter';
 import {
 	getAssetDisplayName,
@@ -55,6 +55,7 @@ export interface DashboardSuggestedTaskPrefill {
 	title: string;
 	propertyId: string;
 	devices?: string[];
+	dueDate?: string;
 	status?: string;
 	priority?: string;
 	category?: string;
@@ -102,6 +103,88 @@ const getRelatedTaskIds = (findings: MaintleyFinding[]): string[] =>
 			}),
 		),
 	);
+
+const PRIORITY_RANK: Record<MaintleyFindingPriority, number> = {
+	high: 0,
+	medium: 1,
+	low: 2,
+};
+
+const SEVERITY_RANK: Record<MaintleyFindingSeverity, number> = {
+	high: 0,
+	medium: 1,
+	low: 2,
+};
+
+const DASHBOARD_PAID_SOURCE_RANK: Record<MaintleyFindingSource, number> = {
+	history_inference: 0,
+	context: 1,
+	knowledge_pack: 2,
+	property_memory: 3,
+};
+
+const DASHBOARD_EXCLUDED_RULE_IDS = new Set([
+	'overdue-tasks-exist',
+	'systems-missing-actionable-maintenance-coverage',
+]);
+
+const DASHBOARD_PAID_SPOTLIGHT_SOURCES = new Set<MaintleyFindingSource>([
+	'history_inference',
+	'context',
+	'knowledge_pack',
+]);
+
+const isExpandedIntelligencePlan = (planId: MaintleyPlanId): boolean =>
+	!['guest', 'tenant', 'homeowner'].includes(planId);
+
+const compareDashboardFindings = (
+	left: MaintleyFinding,
+	right: MaintleyFinding,
+	planId: MaintleyPlanId,
+): number => {
+	if (isExpandedIntelligencePlan(planId)) {
+		const sourceDelta =
+			DASHBOARD_PAID_SOURCE_RANK[left.source] -
+			DASHBOARD_PAID_SOURCE_RANK[right.source];
+		if (sourceDelta !== 0) return sourceDelta;
+	}
+
+	const priorityDelta =
+		PRIORITY_RANK[left.priority] - PRIORITY_RANK[right.priority];
+	if (priorityDelta !== 0) return priorityDelta;
+
+	const severityDelta =
+		SEVERITY_RANK[left.severity] - SEVERITY_RANK[right.severity];
+	if (severityDelta !== 0) return severityDelta;
+
+	const seasonalRankDelta =
+		Number(left.metadata.seasonalTaskRank || Number.MAX_SAFE_INTEGER) -
+		Number(right.metadata.seasonalTaskRank || Number.MAX_SAFE_INTEGER);
+	if (seasonalRankDelta !== 0) return seasonalRankDelta;
+
+	return left.title.localeCompare(right.title);
+};
+
+const filterDashboardSpotlightFindings = (
+	findings: MaintleyFinding[],
+	planId: MaintleyPlanId,
+): MaintleyFinding[] => {
+	const eligibleFindings = findings.filter(
+		(finding) => !DASHBOARD_EXCLUDED_RULE_IDS.has(finding.ruleId),
+	);
+
+	if (!isExpandedIntelligencePlan(planId)) {
+		return eligibleFindings;
+	}
+
+	const paidSpotlightFindings = eligibleFindings.filter((finding) =>
+		DASHBOARD_PAID_SPOTLIGHT_SOURCES.has(finding.source),
+	);
+
+	return paidSpotlightFindings.length > 0
+		? paidSpotlightFindings
+		: eligibleFindings;
+};
 
 const getAffectedSystemIds = (finding: MaintleyFinding): string[] =>
 	Array.from(
@@ -243,6 +326,38 @@ const buildSuggestedTaskPrefill = (
 	}
 
 	const systemId = getPrimaryAffectedSystemId(finding);
+	if (finding.ruleId === 'seasonal-context-guidance') {
+		const seasonalTitle = String(finding.metadata.seasonalTaskTitle || '').trim();
+		const seasonalDescription = String(
+			finding.metadata.seasonalTaskDescription || finding.description || '',
+		).trim();
+		const seasonalDueDate = String(finding.metadata.seasonalTaskDueDate || '').trim();
+		const seasonalCategory = String(
+			finding.metadata.seasonalTaskCategory || 'Maintenance',
+		).trim();
+		const seasonalPriority = String(
+			finding.metadata.seasonalTaskPriority || finding.priority || 'Medium',
+		).trim();
+
+		return {
+			title: seasonalTitle || finding.title,
+			propertyId: finding.propertyId,
+			devices: systemId ? [systemId] : [],
+			dueDate: seasonalDueDate,
+			status: 'Initiated',
+			priority: seasonalPriority,
+			category: seasonalCategory,
+			notes: [
+				seasonalDescription,
+				finding.whyItMatters,
+				'Created from a Maintley seasonal recommendation.',
+			]
+				.filter(Boolean)
+				.join('\n\n'),
+			isRecurring: false,
+		};
+	}
+
 	const system = systemId ? systemLookup.get(systemId) : undefined;
 	const systemName = String(finding.metadata.systemName || '').trim() ||
 		(system ? getAssetDisplayName(system) : 'this system');
@@ -392,8 +507,13 @@ export const runDashboardIntelligence = ({
 
 		return result.findings;
 	});
-	const suggestions = [...propertyFindings]
-		.sort(compareMaintleyFindings)
+	const suggestions = filterDashboardSpotlightFindings(
+		propertyFindings,
+		normalizedPlanId,
+	)
+		.sort((left, right) =>
+			compareDashboardFindings(left, right, normalizedPlanId),
+		)
 		.slice(0, limit)
 		.map((finding) =>
 			makeDashboardSuggestion(

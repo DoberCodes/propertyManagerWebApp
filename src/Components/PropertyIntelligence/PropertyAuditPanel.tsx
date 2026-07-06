@@ -358,7 +358,7 @@ export const PropertyAuditPanel: React.FC<PropertyAuditPanelProps> = ({
 					<AuditText>
 						A broader review of saved {reviewLanguage.recordPlural}, maintenance coverage,
 						and equipment details, organized by {isHomeowner ? 'equipment' : 'system'} so you can improve the
-						{reviewLanguage.subjectNoun} memory over time.
+						{' '}{reviewLanguage.subjectNoun} memory over time.
 						{isFreePlan
 							? ' Free includes Quick Scan. Home Review is the deeper Homeowner+ layer.'
 							: ''}
@@ -633,8 +633,8 @@ export const PropertyAuditPanel: React.FC<PropertyAuditPanelProps> = ({
 					<ReviewInfoItem $tone='assets'>
 						<strong>Asset Reviews</strong>
 						<span>
-							Organizes opportunities by system so you can improve one record at
-							a time instead of sorting through a long flat list.
+							Organizes opportunities by {isHomeowner ? 'equipment' : 'system'} so you can improve
+							one record at a time instead of sorting through a long flat list.
 						</span>
 					</ReviewInfoItem>
 					<ReviewInfoNote>

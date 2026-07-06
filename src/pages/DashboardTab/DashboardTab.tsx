@@ -11,6 +11,7 @@ import {
 } from 'Redux/API/userSlice';
 import { getTenantPropertySlug } from 'utils/permissions';
 import {
+	selectIsHomeowner,
 	selectIsTeamMemberAccount,
 	selectIsTenant,
 } from 'Redux/selectors/permissionSelectors';
@@ -58,6 +59,8 @@ import {
 	PortfolioMetricLabel,
 	PortfolioMetricValue,
 	DashboardIntelligenceCard,
+	DashboardIntelligenceHeader,
+	DashboardIntelligenceSourcePill,
 	DashboardIntelligenceContext,
 	DashboardIntelligenceImpact,
 	DashboardIntelligenceActions,
@@ -212,6 +215,7 @@ export const DashboardTab = () => {
 	const location = useLocation();
 	const dispatch = useDispatch();
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
+	const isHomeowner = useSelector(selectIsHomeowner);
 	const nativeApp = isNativeApp();
 	// Select team groups and derive members with memoization to avoid new references
 	const teamGroups = useSelector((state: RootState) => state.team.groups);
@@ -945,6 +949,22 @@ export const DashboardTab = () => {
 
 	const dashboardSuggestion = dashboardIntelligence.primarySuggestion;
 
+	const getDashboardSuggestionSourceLabel = (
+		suggestion: DashboardIntelligenceSuggestion,
+	): string => {
+		switch (suggestion.source) {
+			case 'context':
+				return 'Seasonal';
+			case 'history_inference':
+				return isHomeowner ? 'Home History' : 'Property History';
+			case 'knowledge_pack':
+				return 'Maintley Knowledge';
+			case 'property_memory':
+			default:
+				return isHomeowner ? 'Home Memory' : 'Property Memory';
+		}
+	};
+
 	const completedTasksCount = useMemo(() => {
 		if (dashboardMaintenanceHistory.length > 0) {
 			return dashboardMaintenanceHistory.filter(isContinuityEvent).length;
@@ -1386,7 +1406,13 @@ export const DashboardTab = () => {
 		return (
 			<AppZeroState
 				kind='noProperties'
-				actions={[{ label: 'Add Property', onClick: () => navigate('/properties?openCreate=1') }]}
+				context={isHomeowner ? 'homeowner' : 'property'}
+				actions={[
+					{
+						label: isHomeowner ? 'Add Home' : 'Add Property',
+						onClick: () => navigate('/properties?openCreate=1'),
+					},
+				]}
 				fullPage
 			/>
 		);
@@ -1594,7 +1620,12 @@ export const DashboardTab = () => {
 
 				{dashboardSuggestion && (
 					<DashboardIntelligenceCard>
-						<CardEyebrow>Maintley Intelligence</CardEyebrow>
+						<DashboardIntelligenceHeader>
+							<CardEyebrow>Maintley Intelligence</CardEyebrow>
+							<DashboardIntelligenceSourcePill>
+								{getDashboardSuggestionSourceLabel(dashboardSuggestion)}
+							</DashboardIntelligenceSourcePill>
+						</DashboardIntelligenceHeader>
 						<CardTitle>{dashboardSuggestion.title}</CardTitle>
 						{dashboardSuggestion.contextLabel && (
 							<DashboardIntelligenceContext>

@@ -248,7 +248,8 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 		useState<PropertyDocumentCategory>('manual');
 	const [isSaving, setIsSaving] = useState(false);
 	const lastOpenUploadTokenRef = useRef(0);
-	const canManageDocuments = permissions?.canManageProperties ?? true;
+	const canManageDocuments =
+		permissions?.canManageDocuments ?? permissions?.canManageProperties ?? false;
 	const { canUseDocumentReview, uploadPropertyDocuments } =
 		usePropertyDocumentUploadWorkflow();
 	const {
@@ -681,23 +682,6 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 					{maintenanceDocuments.length} maintenance file{maintenanceDocuments.length === 1 ? '' : 's'}
 				</TabSummaryPill>
 			</TabSummaryBar>
-			{canManageDocuments && !canUseDocumentReview && (
-				<DocumentReviewTease>
-					<div>
-						<strong>Suggested details from documents</strong>
-						<span>
-							Homeowner+ can review invoices, warranties, manuals, and inspection
-							reports for details you can approve into Property Memory.
-						</span>
-					</div>
-					<DocumentReviewTeaseButton
-						type='button'
-						onClick={() => navigate('/paywall')}>
-						Explore Homeowner+
-					</DocumentReviewTeaseButton>
-				</DocumentReviewTease>
-			)}
-
 			{allDocuments.length === 0 ? (
 				<EmptyState>
 					<h3>No files or documents yet</h3>
@@ -987,60 +971,6 @@ const UploadButton = styled.button`
 const DocumentGrid = styled.div`
 	display: grid;
 	gap: 10px;
-`;
-
-const DocumentReviewTease = styled.div`
-	border: 1px solid #bfdbfe;
-	border-radius: 10px;
-	background: linear-gradient(180deg, #eff6ff 0%, #ffffff 100%);
-	padding: 14px;
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	gap: 14px;
-
-	div {
-		display: grid;
-		gap: 4px;
-	}
-
-	strong {
-		color: ${COLORS.textPrimary};
-		font-size: 14px;
-		line-height: 1.35;
-	}
-
-	span {
-		color: ${COLORS.textSecondary};
-		font-size: 13px;
-		line-height: 1.45;
-	}
-
-	@media (max-width: 640px) {
-		align-items: flex-start;
-		flex-direction: column;
-	}
-`;
-
-const DocumentReviewTeaseButton = styled.button`
-	border: 1px solid ${COLORS.primary};
-	border-radius: 8px;
-	background: ${COLORS.primary};
-	color: ${COLORS.white};
-	font-size: 13px;
-	font-weight: 800;
-	padding: 9px 12px;
-	cursor: pointer;
-	white-space: nowrap;
-
-	&:hover {
-		background: ${COLORS.primaryHover};
-	}
-
-	&:focus-visible {
-		outline: 2px solid ${COLORS.primary};
-		outline-offset: 2px;
-	}
 `;
 
 const DocumentCard = styled.div`

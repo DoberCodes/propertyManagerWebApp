@@ -262,7 +262,9 @@ export const DetailsTab: React.FC<DetailsTabProps> = ({
 				</PreviewCard>
 
 				<PreviewCard>
-					<PreviewHeader>Property Timeline</PreviewHeader>
+					<PreviewHeader>
+						{homeownerMode ? 'Home Timeline' : 'Property Timeline'}
+					</PreviewHeader>
 					<TimelineList>
 						{propertyTimeline.length === 0 ? (
 							<PreviewItem>

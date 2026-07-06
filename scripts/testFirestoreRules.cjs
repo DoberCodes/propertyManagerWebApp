@@ -11,6 +11,7 @@ const RULES_PATH = path.join(__dirname, '..', 'firestore.rules');
 
 const accountId = 'account-owner';
 const ownerUid = 'account-owner';
+const legacyOwnerUid = 'legacy-account-owner';
 const maintenanceLeadUid = 'maintenance-lead-user';
 const maintenanceUid = 'maintenance-user';
 const inactiveLeadUid = 'inactive-maintenance-lead-user';
@@ -95,6 +96,13 @@ async function seedFirestore(env) {
 			isTeamMemberAccount: true,
 		});
 
+		await db.doc(`users/${legacyOwnerUid}`).set({
+			id: legacyOwnerUid,
+			accountId,
+			role: 'admin',
+			isAccountOwner: true,
+		});
+
 		await db.doc(`users/${maintenanceUid}`).set({
 			id: maintenanceUid,
 			accountId,
@@ -121,6 +129,12 @@ async function seedFirestore(env) {
 			userId: ownerUid,
 			roles: ['account_owner', 'admin', 'member'],
 			status: 'active',
+		});
+
+		await db.doc(`accountMemberships/${membershipId(legacyOwnerUid)}`).set({
+			accountId,
+			userId: legacyOwnerUid,
+			roles: ['account_owner', 'admin', 'member'],
 		});
 
 		await db.doc(`accountMemberships/${membershipId(maintenanceLeadUid)}`).set({
@@ -310,6 +324,7 @@ async function run() {
 		await seedFirestore(env);
 
 		const ownerDb = authedDb(env, ownerUid);
+		const legacyOwnerDb = authedDb(env, legacyOwnerUid);
 		const maintenanceLeadDb = authedDb(env, maintenanceLeadUid);
 		const maintenanceDb = authedDb(env, maintenanceUid);
 		const inactiveLeadDb = authedDb(env, inactiveLeadUid);
@@ -460,6 +475,14 @@ async function run() {
 				createPropertyDocument({
 					id: 'property-document-created',
 					name: 'Water heater warranty',
+				}),
+			),
+		);
+		await assertSucceeds(
+			legacyOwnerDb.doc('propertyDocuments/property-document-legacy-created').set(
+				createPropertyDocument({
+					id: 'property-document-legacy-created',
+					name: 'Legacy owner upload',
 				}),
 			),
 		);

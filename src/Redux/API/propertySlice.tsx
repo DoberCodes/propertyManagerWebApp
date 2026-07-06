@@ -619,44 +619,36 @@ const propertySlice = apiSlice.injectEndpoints({
 						}),
 					);
 
-					// Check if we need to create a "Shared Properties" group
-					const hasSharedPropertiesGroup = groupsWithProperties.some(
-						(group) => group.name?.toLowerCase() === 'shared properties',
-					);
-
 					let finalGroups: PropertyGroup[] = [...groupsWithProperties];
 
-					// If no Shared Properties group exists, check if user has shared properties
-					if (!hasSharedPropertiesGroup) {
-						const receivedShares = await getReceivedPropertySharesForUser(
-							userId,
-							userEmail,
-							currentUser.email,
-						);
-						if (receivedShares.length > 0) {
-							// User has shared properties, create the group
-							try {
-								const sharedGroupData = {
-									name: 'Shared Properties',
-									userId: targetUserId,
-									accountId: targetUserId,
-									properties: [],
-									createdAt: new Date().toISOString(),
-									updatedAt: new Date().toISOString(),
-								};
-								const sharedGroupRef = await addDoc(
-									collection(db, 'propertyGroups'),
-									sharedGroupData,
-								);
-								finalGroups.push({
-									id: sharedGroupRef.id,
-									...sharedGroupData,
-								});
-								// Note: Properties will be loaded on next query refresh
-							} catch (error) {
-								console.error('Error creating Shared Properties group:', error);
-							}
-						}
+					const sharedPropertyList = [
+						...coOwnerSharedProperties,
+						...regularSharedProperties,
+					];
+					const representedPropertyIds = new Set(
+						finalGroups
+							.flatMap((group) => group.properties || [])
+							.map((property) => property.id)
+							.filter(Boolean),
+					);
+					const unrepresentedSharedProperties = Array.from(
+						new Map(
+							sharedPropertyList
+								.filter((property) => property?.id && !representedPropertyIds.has(property.id))
+								.map((property) => [property.id, property]),
+						).values(),
+					) as Property[];
+
+					if (unrepresentedSharedProperties.length > 0) {
+						finalGroups.push({
+							id: `virtual-${targetUserId}-shared-with-me`,
+							name: 'Shared With Me',
+							userId: targetUserId,
+							accountId: targetUserId,
+							properties: unrepresentedSharedProperties,
+							createdAt: new Date().toISOString(),
+							updatedAt: new Date().toISOString(),
+						});
 					}
 
 					if (String(userData?.role || '').trim().toLowerCase() === 'tenant') {
@@ -710,7 +702,7 @@ const propertySlice = apiSlice.injectEndpoints({
 								finalGroups = [
 									{
 										id: `tenant-${targetUserId}-assigned-properties`,
-										name: 'My Properties',
+										name: 'Assigned Properties',
 										userId: targetUserId,
 										accountId: targetUserId,
 										properties: uniqueTenantProperties,
@@ -761,7 +753,7 @@ const propertySlice = apiSlice.injectEndpoints({
 						if (uniqueFallbackProperties.length > 0) {
 							finalGroups.push({
 								id: `virtual-${targetUserId}-my-properties`,
-								name: 'My Properties',
+								name: 'Ungrouped Properties',
 								userId: targetUserId,
 								accountId: targetUserId,
 								properties: uniqueFallbackProperties,

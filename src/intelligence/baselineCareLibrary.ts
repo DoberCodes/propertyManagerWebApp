@@ -115,6 +115,7 @@ export const BASELINE_CARE_DEFINITIONS: BaselineCareDefinition[] = [
 		],
 		seasonalGuidance: {
 			spring: ['Record cooling-season service or filter checks.'],
+			summer: ['Review cooling-season filter checks or service history.'],
 			fall: ['Record heating-season service or filter checks.'],
 		},
 		applicableCapabilities: [],
@@ -185,6 +186,7 @@ export const BASELINE_CARE_DEFINITIONS: BaselineCareDefinition[] = [
 			'Track install date for long-term replacement planning.',
 		],
 		seasonalGuidance: {
+			summer: ['Review water heater service history before heavier household use.'],
 			fall: ['Record a flush or service review before heavier winter use.'],
 		},
 		applicableCapabilities: [],
@@ -236,6 +238,7 @@ export const BASELINE_CARE_DEFINITIONS: BaselineCareDefinition[] = [
 		],
 		seasonalGuidance: {
 			spring: ['Record coil cleaning if it is part of your routine care.'],
+			summer: ['Review refrigerator filter or coil-cleaning history during heavier seasonal use.'],
 			fall: ['Review filter history before holiday or heavy kitchen use.'],
 		},
 		applicableCapabilities: [],
@@ -282,6 +285,7 @@ export const BASELINE_CARE_DEFINITIONS: BaselineCareDefinition[] = [
 		lifecycleHints: ['Typical lifespan: 10-13 years for many washers.'],
 		seasonalGuidance: {
 			spring: ['Record a hose check if laundry connections are accessible.'],
+			summer: ['Review washer cleaning-cycle history during heavier laundry seasons.'],
 			fall: ['Review cleaning-cycle history before heavier seasonal use.'],
 		},
 		applicableCapabilities: [],
@@ -328,6 +332,7 @@ export const BASELINE_CARE_DEFINITIONS: BaselineCareDefinition[] = [
 		lifecycleHints: ['Typical lifespan: 10-13 years for many dryers.'],
 		seasonalGuidance: {
 			spring: ['Record dryer vent cleaning if it is part of spring maintenance.'],
+			summer: ['Review lint and vent-cleaning history during heavier laundry seasons.'],
 			fall: ['Review vent cleaning history before heavier winter laundry use.'],
 		},
 		applicableCapabilities: [],
@@ -380,6 +385,7 @@ export const BASELINE_CARE_DEFINITIONS: BaselineCareDefinition[] = [
 		],
 		seasonalGuidance: {
 			spring: ['Record a roof and gutter review after winter weather.'],
+			summer: ['Record a roof or gutter review after heavy storms.'],
 			fall: ['Record a roof and gutter review before winter weather.'],
 		},
 		applicableCapabilities: [],
@@ -438,6 +444,7 @@ export const BASELINE_CARE_DEFINITIONS: BaselineCareDefinition[] = [
 		],
 		seasonalGuidance: {
 			spring: ['Record a test or battery check.'],
+			summer: ['Review detector test history and battery notes.'],
 			fall: ['Record a test or battery check.'],
 		},
 		applicableCapabilities: [],

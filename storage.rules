@@ -22,7 +22,10 @@ service firebase.storage {
     function hasActiveMembership(accountId) {
       return isAuthenticated() &&
         firestore.exists(/databases/(default)/documents/accountMemberships/$(callerMembershipId(accountId))) &&
-        firestore.get(/databases/(default)/documents/accountMemberships/$(callerMembershipId(accountId))).data.status == 'active';
+        (
+          !('status' in firestore.get(/databases/(default)/documents/accountMemberships/$(callerMembershipId(accountId))).data) ||
+          firestore.get(/databases/(default)/documents/accountMemberships/$(callerMembershipId(accountId))).data.status == 'active'
+        );
     }
 
     function membershipData(accountId) {

@@ -286,7 +286,6 @@ New account creation may create or hydrate:
 * users/{uid}
 * familyAccounts/{accountId}
 * accountMemberships/{accountId}_{uid}
-* propertyGroups
 * teamGroups
 
 Bootstrap flows establish the minimum account structure required for Maintley operation.

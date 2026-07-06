@@ -7,8 +7,6 @@ import {
 	faEdit,
 	faTrash,
 	faWrench,
-	faCircleCheck,
-	faTriangleExclamation,
 	faFan,
 	faSnowflake,
 	faClipboardCheck,
@@ -311,16 +309,6 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 		return `Last serviced ${date.toLocaleDateString()}`;
 	};
 
-	const needsAttentionDeviceCount = useMemo(
-		() =>
-			devices.filter((device: any) => {
-				const status = getResolvedDeviceStatus(device);
-				const linkedOpenTasks = linkedOpenTaskCountByDevice.get(String(device.id)) || 0;
-				return status === 'Broken' || status === 'Maintenance' || linkedOpenTasks > 0;
-			}).length,
-		[devices, linkedOpenTaskCountByDevice],
-	);
-
 	const linkedOpenTaskCount = useMemo(
 		() =>
 			Array.from(linkedOpenTaskCountByDevice.values()).reduce(
@@ -337,18 +325,12 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 			linkedOverdueTaskCountByDevice.get(String(device.id)) || 0;
 		const recurringLinkedTasks =
 			recurringLinkedTaskCountByDevice.get(String(device.id)) || 0;
-		const needsAttention =
-			status === 'Broken' ||
-			status === 'Maintenance' ||
-			linkedOpenTasks > 0 ||
-			overdueLinkedTasks > 0;
 
 		return {
 			status,
 			linkedOpenTasks,
 			overdueLinkedTasks,
 			recurringLinkedTasks,
-			needsAttention,
 		};
 	};
 
@@ -366,10 +348,9 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 		},
 		{
 			key: 'attention',
-			label: 'Attention',
+			label: 'Record',
 			type: 'select',
 			options: [
-				{ value: 'needs-attention', label: 'Needs attention' },
 				{ value: 'no-open-tasks', label: 'No open tasks' },
 				{ value: 'missing-details', label: 'Missing details' },
 			],
@@ -382,20 +363,7 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 			const status = getResolvedDeviceStatus(device);
 			const linkedOpenTasks =
 				linkedOpenTaskCountByDevice.get(String(device.id)) || 0;
-			const overdueLinkedTasks =
-				linkedOverdueTaskCountByDevice.get(String(device.id)) || 0;
-			const needsAttention =
-				status === 'Broken' ||
-				status === 'Maintenance' ||
-				linkedOpenTasks > 0 ||
-				overdueLinkedTasks > 0;
 			if (filters.status && status !== filters.status) return false;
-			if (
-				filters.attention === 'needs-attention' &&
-				!needsAttention
-			) {
-				return false;
-			}
 			if (
 				filters.attention === 'no-open-tasks' &&
 				linkedOpenTasks > 0
@@ -438,7 +406,7 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 			}
 			return String(left.type || '').localeCompare(String(right.type || ''));
 		});
-	}, [devices, filters, sortBy, linkedOpenTaskCountByDevice, linkedOverdueTaskCountByDevice]);
+	}, [devices, filters, sortBy, linkedOpenTaskCountByDevice]);
 
 	const clearDeviceFilters = () => {
 		setFilters({});
@@ -637,43 +605,11 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 				const {
 					status: resolvedStatus,
 					overdueLinkedTasks,
-					needsAttention,
 				} =
 					getDeviceAttentionState({ ...row, status });
 
-				const chip = needsAttention
-					? {
-						label: 'Needs Attention',
-						color: '#92400e',
-						background: '#fffbeb',
-						border: '#fcd34d',
-					}
-					: {
-						label: 'Healthy',
-						color: COLORS.successDark,
-						background: COLORS.successLight,
-						border: COLORS.primaryHover,
-					};
-
 				return (
 					<div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-						<div
-							style={{
-								display: 'inline-flex',
-								alignItems: 'center',
-								gap: 6,
-								padding: '6px 10px',
-								borderRadius: 999,
-								border: `1px solid ${chip.border}`,
-								background: chip.background,
-								color: chip.color,
-								fontSize: 12,
-								fontWeight: 800,
-								width: 'fit-content',
-							}}>
-							<FontAwesomeIcon icon={needsAttention ? faTriangleExclamation : faCircleCheck} />
-							{chip.label}
-						</div>
 						<StatusBadge status={resolvedStatus}>{resolvedStatus}</StatusBadge>
 						{overdueLinkedTasks > 0 && (
 							<span
@@ -1091,9 +1027,6 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 					Active: {devices.filter((d) => getResolvedDeviceStatus(d) === 'Active').length}
 				</TabSummaryPill>
 				<TabSummaryPill>
-					Needs Attention: {needsAttentionDeviceCount}
-				</TabSummaryPill>
-				<TabSummaryPill>
 					Open Equipment Tasks: {linkedOpenTaskCount}
 				</TabSummaryPill>
 			</TabSummaryBar>
@@ -1186,7 +1119,7 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 							}))
 						}
 						style={{ minHeight: 42, padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: 10 }}>
-						<option value=''>All attention states</option>
+						<option value=''>All record states</option>
 						{deviceFilters[1].options?.map((option) => (
 							<option key={option.value} value={option.value}>
 								{option.label}
@@ -1209,9 +1142,9 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 			{isMobile && (
 				<div style={{ display: 'flex', flexDirection: 'column', gap: 12, paddingBottom: 4 }}>
 					{filteredDevices.map((device) => {
-						const { linkedOpenTasks, overdueLinkedTasks, recurringLinkedTasks, needsAttention } = getDeviceAttentionState(device);
+						const { linkedOpenTasks, overdueLinkedTasks, recurringLinkedTasks } = getDeviceAttentionState(device);
 						const resolvedStatus = getResolvedDeviceStatus(device);
-						const stateTone = needsAttention ? '#f59e0b' : resolvedStatus === 'Decommissioned' ? '#64748b' : COLORS.success;
+						const stateTone = resolvedStatus === 'Decommissioned' ? '#64748b' : COLORS.success;
 						const detailsMissing = !hasApplianceDetails(device);
 						const assignedPropertyDocuments =
 							propertyAssignedDocumentsByDevice.get(String(device.id)) || [];
@@ -1261,7 +1194,7 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 											)}
 										</div>
 										<span style={{ fontSize: 12, fontWeight: 700, padding: '4px 10px', borderRadius: 999, background: `${stateTone}14`, color: stateTone, border: `1px solid ${stateTone}33`, whiteSpace: 'nowrap' }}>
-											{needsAttention ? 'Needs Attention' : resolvedStatus}
+											{resolvedStatus}
 										</span>
 									</div>
 									<MobileFeedMeta>
@@ -1336,9 +1269,6 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 					<ReusableTable
 						columns={columns}
 						rowData={filteredDevices}
-						getRowClassName={(row: any) =>
-							getDeviceAttentionState(row).needsAttention ? 'attention-row' : undefined
-						}
 						actions={deviceActions}
 						showCheckbox={false}
 						hideHeader={true}

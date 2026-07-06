@@ -244,7 +244,7 @@ describe('Maintley Intelligence engine', () => {
 		expect(cadenceFinding).toEqual(
 			expect.objectContaining({
 				baselineVersion: BASELINE_CARE_LIBRARY_VERSION,
-				source: 'knowledge_pack',
+				source: 'history_inference',
 				requiredPlan: 'homeowner_plus',
 				title: 'Replace or inspect HVAC filter may be due for Maintley HVAC Model A.',
 				affectedSystemIds: ['hvac'],
@@ -256,6 +256,38 @@ describe('Maintley Intelligence engine', () => {
 				baselineIntervalDays: 90,
 				elapsedDays: 181,
 				baselineVersion: BASELINE_CARE_LIBRARY_VERSION,
+			}),
+		);
+	});
+
+	it('generates seasonal context guidance from baseline knowledge when in season', () => {
+		const result = runMaintleyIntelligence({
+			property,
+			systems: [makeSystem({ id: 'hvac', type: 'HVAC' })],
+			tasks: [],
+			maintenanceHistory: [],
+			currentDate: '2026-07-01T12:00:00.000Z',
+			createdAt: '2026-07-01T12:00:00.000Z',
+		});
+		const seasonalFinding = result.findings.find(
+			(finding) =>
+				finding.ruleId === 'seasonal-context-guidance' &&
+				finding.metadata.seasonalTaskId === 'summer-hvac-readiness',
+		);
+
+		expect(seasonalFinding).toEqual(
+			expect.objectContaining({
+				source: 'context',
+				requiredPlan: 'homeowner_plus',
+				title: 'Check air conditioning filters and outdoor unit airflow',
+				suggestedActionLabel: 'Create seasonal task',
+				suggestedActionType: 'create_task',
+				affectedSystemIds: ['hvac'],
+				metadata: expect.objectContaining({
+					season: 'summer',
+					seasonalTaskCategory: 'HVAC',
+					seasonalTaskDueDate: '2026-07-15',
+				}),
 			}),
 		);
 	});

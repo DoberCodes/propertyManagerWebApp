@@ -118,10 +118,29 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 	const isUserTenant = useSelector(selectIsTenant);
 	const canAccessProperties = useSelector(selectCanAccessProperties);
 	const isHomeowner = useSelector(selectIsHomeowner);
-	const roleCapabilities = useMemo(
-		() => getRoleCapabilities(currentUser?.role),
-		[currentUser?.role],
-	);
+	const roleCapabilities = useMemo(() => {
+		const capabilities = getRoleCapabilities(currentUser?.role);
+		if (currentUser?.isAccountOwner !== true) {
+			return capabilities;
+		}
+
+		return {
+			...capabilities,
+			canManageProperties: true,
+			canManageTasks: true,
+			canCreateTasks: true,
+			canCompleteTasks: true,
+			canManageMaintenanceHistory: true,
+			canCreateMaintenanceRequests: true,
+			canApproveMaintenanceRequests: true,
+			canManageAppliances: true,
+			canManageContractors: true,
+			canManageTenants: true,
+			canManageFinancials: true,
+			canManageTeam: true,
+			canManageDocuments: true,
+		};
+	}, [currentUser?.isAccountOwner, currentUser?.role]);
 	const canManageProperties =
 		canAccessProperties &&
 		!!currentUser?.subscription &&

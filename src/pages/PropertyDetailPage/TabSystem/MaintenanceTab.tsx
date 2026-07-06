@@ -264,16 +264,16 @@ const getOperationalStatus = (record: any) => {
 
 	if (eventType === 'repair_logged') {
 		return {
-			label: 'Needs Attention',
-			color: '#b45309',
-			background: '#fffbeb',
-			border: '#fcd34d',
+			label: 'Repair Logged',
+			color: COLORS.primaryDark,
+			background: COLORS.primaryLight,
+			border: '#6ee7b7',
 		};
 	}
 
 	if (ageDays <= 30) {
 		return {
-			label: 'Recently Serviced',
+			label: 'Recently Recorded',
 			color: COLORS.successDark,
 			background: COLORS.successLight,
 			border: COLORS.primaryHover,
@@ -282,15 +282,15 @@ const getOperationalStatus = (record: any) => {
 
 	if (ageDays > 180) {
 		return {
-			label: 'Attention',
-			color: '#92400e',
-			background: '#fffbeb',
-			border: '#fcd34d',
+			label: 'Older Record',
+			color: '#475569',
+			background: '#f8fafc',
+			border: '#e2e8f0',
 		};
 	}
 
 	return {
-		label: 'Healthy',
+		label: 'Recorded',
 		color: COLORS.primaryDark,
 		background: COLORS.primaryLight,
 		border: '#6ee7b7',
@@ -1504,12 +1504,6 @@ export const MaintenanceTab = ({
 					onSelectAll={(_checked, selectedRowIds) =>
 						setSelectedRecordIds(new Set(selectedRowIds))
 					}
-					getRowClassName={(row) => {
-						const status = getOperationalStatus(row);
-						return status.label === 'Needs Attention' || status.label === 'Attention'
-							? 'attention-row'
-							: undefined;
-					}}
 					onRowDoubleClick={handleNavigation}
 					showCheckbox={canBulkEdit}
 				/>

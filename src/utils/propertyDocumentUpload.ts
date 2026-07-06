@@ -118,7 +118,16 @@ export const uploadPropertyDocument = async (
 	const storagePath = `properties/${accountId}/${fileName}`;
 	const storageRef = ref(storage, storagePath);
 
-	await uploadBytes(storageRef, file, { contentType: file.type });
+	try {
+		await uploadBytes(storageRef, file, { contentType: file.type });
+	} catch (error: any) {
+		if (error?.code === 'storage/unauthorized') {
+			throw new Error(
+				'You do not have permission to upload documents for this record. Ask the account owner or an administrator to update your access.',
+			);
+		}
+		throw error;
+	}
 	const url = await getDownloadURL(storageRef);
 	signalStorageUsageUpdated();
 

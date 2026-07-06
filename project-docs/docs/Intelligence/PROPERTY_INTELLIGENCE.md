@@ -485,15 +485,37 @@ One primary suggestion on the dashboard today. Future dashboard surfaces may sho
 
 Focus:
 
-* Immediate action
-* Maintenance opportunities
-* Record improvement opportunities
+* High-value Maintley Intelligence
+* Maintenance opportunities that are not already covered by dashboard work queues
+* Record improvement opportunities with clear planning or maintenance value
 
 The dashboard should answer:
 
 > What should I improve next?
 
 Dashboard recommendations should be generated through the dashboard Maintley Intelligence consumer. The dashboard should not own separate recommendation rules.
+
+The dashboard Maintley Intelligence card should not repeat overdue tasks because
+overdue work already has its own dashboard queue. It should also avoid using the
+spotlight for basic recurring-task setup when richer paid intelligence is
+available; recurring-task coverage belongs more naturally in Quick Scan and
+Property Review. On paid plans, the card should act as the showcase for deeper
+Maintley Intelligence and prefer sources in this order:
+
+1. Home / Property History trends
+2. Seasonal Context
+3. Maintley Knowledge
+
+Basic record-memory findings may remain available for free plans or as a
+fallback when no expanded intelligence finding is available, but they should not
+crowd out deeper paid-plan guidance.
+
+Seasonal Context recommendations should be concrete seasonal maintenance actions,
+not vague reminders to review records. For example, summer recommendations may
+suggest inspecting the roof, clearing gutters, checking HVAC filters and outdoor
+unit airflow, sealing exterior gaps, testing sprinklers, trimming branches, or
+reviewing deck and fence condition. The dashboard action should open a clear
+one-time seasonal task draft when task creation is the natural next step.
 
 ---
 
@@ -657,7 +679,9 @@ Current rules:
 Current rule sources:
 
 * `property_memory`: overdue tasks, missing install dates, missing identification details, missing maintenance history.
-* `knowledge_pack`: missing knowledge-pack details, recurring maintenance coverage, baseline maintenance cadence.
+* `knowledge_pack`: missing knowledge-pack details, recurring maintenance coverage.
+* `history_inference`: baseline maintenance cadence inferred from saved maintenance history and current date.
+* `context`: seasonal guidance from recognized asset type and current season.
 
 Quick Property Scan consumes the shared engine through the Quick Scan consumer.
 

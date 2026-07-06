@@ -769,7 +769,13 @@ export const DevicesHubPage: React.FC = () => {
 		return (
 			<AppZeroState
 				kind='noProperties'
-				actions={[{ label: 'Add Property', onClick: () => navigate('/properties?openCreate=1') }]}
+				context={isSinglePropertyPlan ? 'homeowner' : 'property'}
+				actions={[
+					{
+						label: isSinglePropertyPlan ? 'Add Home' : 'Add Property',
+						onClick: () => navigate('/properties?openCreate=1'),
+					},
+				]}
 				fullPage
 			/>
 		);

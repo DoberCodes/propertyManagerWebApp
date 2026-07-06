@@ -1,13 +1,18 @@
 import React, { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import { RegistrationCard } from '../../Components/RegistrationCard/RegistrationCard';
 import { Wrapper } from './RegistrationPage.styles';
 import { isNativeApp } from '../../utils/platform';
 import { openRegistrationInBrowser } from '../../utils/authLinks';
 import { LoadingState } from '../../Components/LoadingState';
+import { RootState } from '../../Redux/store/store';
+import { USER_ROLES } from '../../constants/roles';
 
 export const RegistrationPage = () => {
 	const navigate = useNavigate();
+	const currentUser = useSelector((state: RootState) => state.user.currentUser);
+	const authLoading = useSelector((state: RootState) => state.user.authLoading);
 
 	useEffect(() => {
 		if (!isNativeApp()) return;
@@ -28,6 +33,19 @@ export const RegistrationPage = () => {
 					'Preparing your account setup...',
 					'Almost ready...',
 				]}
+			/>
+		);
+	}
+
+	if (authLoading) {
+		return <LoadingState />;
+	}
+
+	if (currentUser) {
+		return (
+			<Navigate
+				to={currentUser.role === USER_ROLES.TENANT ? '/tenant-profile' : '/dashboard'}
+				replace
 			/>
 		);
 	}

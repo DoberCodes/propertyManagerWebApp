@@ -337,7 +337,6 @@ export const Properties = () => {
 		const rawName = String(name || '').trim();
 		const normalized = rawName.toLowerCase();
 
-		if (normalized === 'my properties') return 'My Property Records';
 		if (normalized === 'main residence') return 'Primary Home';
 		if (normalized === 'shared properties') return 'Shared With Me';
 
@@ -360,18 +359,22 @@ export const Properties = () => {
 	// Filter groups based on user role and assignments
 	// Note: Casting to any[] to handle type mismatch between Redux types (number IDs) and Firebase types (string IDs)
 	const filteredGroups = useMemo(() => {
+		const systemDefaultGroupNames = new Set(['my properties', 'shared properties']);
 		const groups = filterPropertyGroupsByRole(
 			groupsWithProperties as any[],
 			currentUser,
 			teamMembers?.filter((m): m is TeamMember => m !== undefined),
-		);
-		// Sort groups so "My Properties" appears first
+		).filter((group) => {
+			const normalizedName = String(group.name || '').trim().toLowerCase();
+			return !(
+				systemDefaultGroupNames.has(normalizedName) &&
+				(group.properties || []).length === 0
+			);
+		});
+
 		return groups.sort((a, b) => {
 			const aName = a.name?.toLowerCase() || '';
 			const bName = b.name?.toLowerCase() || '';
-			if (aName === 'my properties') return -1;
-			if (bName === 'my properties') return 1;
-
 			const aOrder = Number.isFinite(a.sortOrder)
 				? Number(a.sortOrder)
 				: Number.MAX_SAFE_INTEGER;

@@ -43,7 +43,7 @@ const makeTask = (
 });
 
 describe('Dashboard Intelligence consumer', () => {
-	it('prioritizes overdue work across visible properties', () => {
+	it('does not repeat overdue work in the Maintley Intelligence spotlight', () => {
 		const firstProperty = makeProperty('property-1', 'Main Home');
 		const secondProperty = makeProperty('property-2', 'Lake House');
 
@@ -64,13 +64,7 @@ describe('Dashboard Intelligence consumer', () => {
 			createdAt: '2026-06-30T12:00:00.000Z',
 		});
 
-		expect(result.primarySuggestion?.ruleId).toBe('overdue-tasks-exist');
-		expect(result.primarySuggestion?.title).toBe(
-			'Review overdue task: Flush Water Heater',
-		);
-		expect(result.primarySuggestion?.contextLabel).toBe('Lake House');
-		expect(result.primarySuggestion?.affectedPropertyIds).toEqual([secondProperty.id]);
-		expect(result.primarySuggestion?.relatedTaskIds).toEqual(['task-2']);
+		expect(result.primarySuggestion).toBeNull();
 	});
 
 	it('returns one specific finding instead of aggregating repeated findings', () => {
@@ -120,8 +114,8 @@ describe('Dashboard Intelligence consumer', () => {
 			tasks: [recurringTask],
 			maintenanceHistory,
 			planId: 'homeowner',
-			currentDate: '2026-06-30T12:00:00.000Z',
-			createdAt: '2026-06-30T12:00:00.000Z',
+			currentDate: '2026-01-15T12:00:00.000Z',
+			createdAt: '2026-01-15T12:00:00.000Z',
 		});
 		const homeownerPlusResult = runDashboardIntelligence({
 			properties: [property],
@@ -129,8 +123,8 @@ describe('Dashboard Intelligence consumer', () => {
 			tasks: [recurringTask],
 			maintenanceHistory,
 			planId: 'homeowner_plus',
-			currentDate: '2026-06-30T12:00:00.000Z',
-			createdAt: '2026-06-30T12:00:00.000Z',
+			currentDate: '2026-01-15T12:00:00.000Z',
+			createdAt: '2026-01-15T12:00:00.000Z',
 		});
 
 		expect(homeownerResult.primarySuggestion).toBeNull();
@@ -145,7 +139,69 @@ describe('Dashboard Intelligence consumer', () => {
 		);
 	});
 
-	it('keeps property context even when only one property is evaluated', () => {
+	it('uses paid dashboard hierarchy: history trends before seasonal context before Maintley Knowledge', () => {
+		const property = makeProperty('property-1', 'Main Home');
+		const hvac = makeSystem('hvac-1', property.id, {
+			filterSize: '',
+		});
+		const recurringTask = makeTask('task-1', property.id, {
+			title: 'General HVAC Care',
+			dueDate: '2026-12-01',
+			isRecurring: true,
+			devices: [hvac.id],
+		});
+		const maintenanceHistory = [
+			{
+				id: 'history-filter',
+				deviceId: hvac.id,
+				title: 'Replace HVAC filter',
+				date: '2026-01-01T12:00:00.000Z',
+			},
+		];
+
+		const result = runDashboardIntelligence({
+			properties: [property],
+			systems: [hvac],
+			tasks: [recurringTask],
+			maintenanceHistory,
+			planId: 'homeowner_plus',
+			currentDate: '2026-10-01T12:00:00.000Z',
+			createdAt: '2026-10-01T12:00:00.000Z',
+		});
+
+		expect(result.primarySuggestion?.source).toBe('history_inference');
+		expect(result.primarySuggestion?.ruleId).toBe(
+			'baseline-maintenance-cadence-overdue',
+		);
+	});
+
+	it('uses seasonal context before Maintley Knowledge when no history trend is available', () => {
+		const property = makeProperty('property-1', 'Main Home');
+		const hvac = makeSystem('hvac-1', property.id, {
+			filterSize: '',
+		});
+		const recurringTask = makeTask('task-1', property.id, {
+			title: 'General HVAC Care',
+			dueDate: '2026-12-01',
+			isRecurring: true,
+			devices: [hvac.id],
+		});
+
+		const result = runDashboardIntelligence({
+			properties: [property],
+			systems: [hvac],
+			tasks: [recurringTask],
+			maintenanceHistory: [],
+			planId: 'homeowner_plus',
+			currentDate: '2026-07-01T12:00:00.000Z',
+			createdAt: '2026-07-01T12:00:00.000Z',
+		});
+
+		expect(result.primarySuggestion?.source).toBe('context');
+		expect(result.primarySuggestion?.ruleId).toBe('seasonal-context-guidance');
+	});
+
+	it('uses seasonal context instead of recurring reminder setup on paid dashboard', () => {
 		const property = makeProperty('property-1', 'Maple Duplex');
 
 		const result = runDashboardIntelligence({
@@ -166,26 +222,33 @@ describe('Dashboard Intelligence consumer', () => {
 			createdAt: '2026-06-30T12:00:00.000Z',
 		});
 
+		expect(result.primarySuggestion?.ruleId).toBe('seasonal-context-guidance');
+		expect(result.primarySuggestion?.source).toBe('context');
 		expect(result.primarySuggestion?.title).toBe(
-			'Add a recurring reminder for Carbon Monoxide Detector',
+			'Inspect roof and clear gutters before summer storms',
+		);
+		expect(result.primarySuggestion?.whyItMatters).toBe(
+			'Summer storms can turn small roof or gutter issues into leaks, overflow, siding damage, or foundation problems. This gives the home record a clear seasonal exterior check.',
+		);
+		expect(result.primarySuggestion?.suggestedActionLabel).toBe(
+			'Create seasonal task',
 		);
 		expect(result.primarySuggestion?.contextLabel).toBe('Maple Duplex');
 		expect(result.primarySuggestion?.propertyTitle).toBe('Maple Duplex');
-		expect(result.primarySuggestion?.suggestedTask).toEqual({
-			title: 'Test Carbon Monoxide Detector',
-			propertyId: property.id,
-			devices: ['co-detector-1'],
-			status: 'Initiated',
-			priority: 'High',
-			category: 'Safety',
-			notes:
-				'Recording checks or battery changes keeps safety-device maintenance visible in the property timeline.',
-			isRecurring: true,
-			recurrenceFrequency: 'monthly',
-		});
+		expect(result.primarySuggestion?.suggestedTask).toEqual(
+			expect.objectContaining({
+				title: 'Inspect roof and clear gutters before summer storms',
+				propertyId: property.id,
+				dueDate: '2026-07-14',
+				status: 'Initiated',
+				priority: 'High',
+				category: 'Exterior',
+				isRecurring: false,
+			}),
+		);
 	});
 
-	it('advances to the next recurring reminder suggestion after the first system is covered', () => {
+	it('does not surface recurring reminder setup when another paid spotlight finding is available', () => {
 		const property = makeProperty('property-1', 'Maple Duplex');
 		const firstDetector = makeSystem('co-detector-1', property.id, {
 			type: 'Safety Device',
@@ -218,12 +281,8 @@ describe('Dashboard Intelligence consumer', () => {
 			createdAt: '2026-06-30T12:00:00.000Z',
 		});
 
-		expect(result.primarySuggestion?.title).toBe(
-			'Add a recurring reminder for Smoke Detector',
-		);
-		expect(result.primarySuggestion?.affectedSystemIds).toEqual([
-			secondDetector.id,
-		]);
+		expect(result.primarySuggestion?.ruleId).toBe('seasonal-context-guidance');
+		expect(result.primarySuggestion?.title).not.toMatch(/recurring reminder/i);
 	});
 
 	it('treats legacy recurring task deviceId links as covered systems', () => {
@@ -254,9 +313,6 @@ describe('Dashboard Intelligence consumer', () => {
 
 		expect(result.primarySuggestion?.ruleId).not.toBe(
 			'systems-missing-actionable-maintenance-coverage',
-		);
-		expect(result.primarySuggestion?.affectedSystemIds || []).not.toContain(
-			detector.id,
 		);
 	});
 });

@@ -737,8 +737,8 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
 			latestCreatedProperty?.address ||
 			latestCreatedProperty?.title ||
 			latestCreatedProperty?.name ||
-			'Your property',
-		).trim() || 'Your property';
+			(isHomeowner ? 'Your home' : 'Your property'),
+		).trim() || (isHomeowner ? 'Your home' : 'Your property');
 
 	const createdPropertyMonthYear = new Intl.DateTimeFormat('en-US', {
 		month: 'long',
@@ -786,6 +786,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
 		const setupAssistantPair = isHomeownerTour
 			? 'Home Setup Assistant + Home Quick Scan'
 			: 'Property Setup Assistant + Property Scan';
+		const paidAutomationEnabled = hasSuggestedTaskAutomation;
 
 		const steps: OnboardingStep[] = [
 			// Step 0: Role selection
@@ -838,8 +839,16 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
 							<PayoffItem>
 								<span className="icon">✅</span>
 								<div className="text">
-									<strong>Your first maintenance task live</strong>
-									<span>With reminders so nothing gets forgotten</span>
+									<strong>
+										{paidAutomationEnabled
+											? 'Your first maintenance task live'
+											: 'Your first maintenance next step identified'}
+									</strong>
+									<span>
+										{paidAutomationEnabled
+											? 'With reminders so nothing gets forgotten'
+											: 'Maintley shows what is worth reviewing first'}
+									</span>
 								</div>
 							</PayoffItem>
 							<PayoffItem>
@@ -891,6 +900,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
 				),
 				actionLabel: isHomeownerTour ? 'Add My Home →' : 'Add My Property →',
 				action: () => {
+					setWaitingModalMinimized(true);
 					navigate('/properties?openCreate=onboarding');
 					setCurrentStepIndex(currentStepIndex + 1);
 				},

@@ -15,7 +15,7 @@ export const SUBSCRIPTION_PLANS = {
 		features: [
 			'1 Home',
 			'Up to 15 Equipment Records',
-			'Property Setup Assistant',
+			'Home Setup Assistant',
 			'Basic Record Gap Check',
 			'Manual Maintenance Tasks',
 			'Maintenance History Tracking',

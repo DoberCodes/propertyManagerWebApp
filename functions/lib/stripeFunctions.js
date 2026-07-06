@@ -198,7 +198,6 @@ const resolvePromotionCodeId = async (promoCode) => {
     return promotionCodes.data[0]?.id || null;
 };
 const db = admin.firestore();
-const PROPERTY_GROUP_ELIGIBLE_PLANS = new Set(['property', 'portfolio']);
 const TEAM_GROUP_ELIGIBLE_PLANS = new Set(['property', 'portfolio']);
 const ensureConfirmedPlanDefaults = async (accountId, planId) => {
     const normalizedAccountId = String(accountId || '').trim();
@@ -214,27 +213,6 @@ const ensureConfirmedPlanDefaults = async (accountId, planId) => {
         }
     };
     const writes = [];
-    if (PROPERTY_GROUP_ELIGIBLE_PLANS.has(normalizedPlanId)) {
-        writes.push(createIfMissing(db
-            .collection('propertyGroups')
-            .doc(`${normalizedAccountId}_my_properties`), {
-            userId: normalizedAccountId,
-            accountId: normalizedAccountId,
-            name: 'My Properties',
-            properties: [],
-            createdAt: now,
-            updatedAt: now,
-        }), createIfMissing(db
-            .collection('propertyGroups')
-            .doc(`${normalizedAccountId}_shared_properties`), {
-            userId: normalizedAccountId,
-            accountId: normalizedAccountId,
-            name: 'Shared Properties',
-            properties: [],
-            createdAt: now,
-            updatedAt: now,
-        }));
-    }
     if (TEAM_GROUP_ELIGIBLE_PLANS.has(normalizedPlanId)) {
         writes.push(createIfMissing(db.collection('teamGroups').doc(`${normalizedAccountId}_default`), {
             userId: normalizedAccountId,

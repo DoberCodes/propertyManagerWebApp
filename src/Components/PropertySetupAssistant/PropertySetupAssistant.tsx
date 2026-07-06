@@ -156,6 +156,10 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 	const [localSetupAssistant, setLocalSetupAssistant] =
 		useState<PropertySetupAssistantState>(initialSetupAssistant);
 	const setupAssistant = localSetupAssistant;
+	const savedSetupProgress = useMemo(
+		() => getPropertySetupProgress(setupAssistant),
+		[setupAssistant],
+	);
 	const [isOpen, setIsOpen] = useState(false);
 	const [draftItems, setDraftItems] = useState<
 		NonNullable<PropertySetupAssistantState['items']>
@@ -163,7 +167,7 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 	const [hasUserDraftChanges, setHasUserDraftChanges] = useState(false);
 	const [isCloseConfirmOpen, setIsCloseConfirmOpen] = useState(false);
 	const [isAssistantCardCollapsed, setIsAssistantCardCollapsed] =
-		useState(false);
+		useState(savedSetupProgress.isComplete);
 	const [selectedAreaId, setSelectedAreaId] = useState<PropertySetupAreaId>(
 		getFirstIncompleteSetupAreaId(setupAssistant),
 	);
@@ -197,6 +201,10 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 			setDraftItems(property.setupAssistant?.items || {});
 		}
 	}, [property.id, property.setupAssistant, isOpen]);
+
+	useEffect(() => {
+		setIsAssistantCardCollapsed(savedSetupProgress.isComplete);
+	}, [property.id, savedSetupProgress.isComplete]);
 
 	useEffect(() => {
 		if (!initiallyOpen || !canUseAssistant) {
@@ -307,7 +315,7 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 	});
 	const hasDetectedUnsavedProgress =
 		progress.reviewed >
-		getPropertySetupProgress(setupAssistant).reviewed;
+		savedSetupProgress.reviewed;
 
 	const ensureDeviceForItem = async (
 		itemId: SuggestedSystemId,

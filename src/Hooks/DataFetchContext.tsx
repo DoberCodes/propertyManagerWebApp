@@ -255,7 +255,7 @@ export const DataFetchProvider: React.FC<DataFetchProviderProps> = ({
 				? [
 						{
 							id: `virtual-${currentUser.id}-all-properties`,
-							name: 'My Properties',
+							name: 'Ungrouped Properties',
 							userId: currentUser.id,
 							accountId: currentUser.accountId || currentUser.id,
 							properties,
