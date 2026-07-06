@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Provider } from 'react-redux';
 import { store } from '../../Redux/store/store';
@@ -45,5 +45,38 @@ describe('PropertyDialog', () => {
 		// onSave receives formData; the last call's first arg should have isRental true
 		const savedArg = (onSave as jest.Mock).mock.calls[0][0];
 		expect(savedArg.isRental).toBe(true);
+	});
+
+	test('shortens onboarding home creation to basics only', async () => {
+		const user = userEvent.setup();
+		const onSave = jest.fn().mockResolvedValue(undefined);
+		const onClose = jest.fn();
+
+		render(
+			<Provider store={store}>
+				<PropertyDialog
+					isOpen={true}
+					onClose={onClose}
+					onSave={onSave}
+					groups={[]}
+					forceSingleFamily
+					showOnboardingSetupTip
+				/>
+			</Provider>,
+		);
+
+		expect(screen.getByText('Home Basics')).toBeInTheDocument();
+		expect(screen.getByText('Home Type')).toBeInTheDocument();
+		expect(screen.queryByRole('button', { name: /^next$/i })).not.toBeInTheDocument();
+		expect(screen.queryByText('Access & Sharing')).not.toBeInTheDocument();
+
+		await user.type(screen.getByPlaceholderText('Enter property name'), 'Willow House');
+		await user.type(screen.getByPlaceholderText('Enter address'), '123 Willow Lane');
+		await user.click(screen.getByRole('button', { name: /save home/i }));
+
+		await waitFor(() => expect(onSave).toHaveBeenCalled());
+		const savedArg = (onSave as jest.Mock).mock.calls[0][0];
+		expect(savedArg.propertyType).toBe('Single Family');
+		expect(savedArg.openSetupAfterCreate).toBe(true);
 	});
 });

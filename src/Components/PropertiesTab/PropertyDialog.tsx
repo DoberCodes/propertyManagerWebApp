@@ -152,7 +152,16 @@ const buildPropertySlug = (value: string) =>
 		.replace(/\s+/g, '-')
 		.replace(/[^\w-]/g, '');
 
-const STEPS = [
+type PropertyDialogStepKey = 'group' | 'details' | 'sharing' | 'review';
+
+interface PropertyDialogStep {
+	key: PropertyDialogStepKey;
+	title: string;
+	navTitle: string;
+	hint: string;
+}
+
+const STEPS: PropertyDialogStep[] = [
 	{
 		key: 'group',
 		title: 'Basic Details',
@@ -177,7 +186,16 @@ const STEPS = [
 		navTitle: 'Review',
 		hint: 'Confirm and save your property',
 	},
-] as const;
+];
+
+const ONBOARDING_HOME_STEPS: PropertyDialogStep[] = [
+	{
+		key: 'group',
+		title: 'Home Basics',
+		navTitle: 'Basics',
+		hint: 'Name, address, and type',
+	},
+];
 
 export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 	isOpen,
@@ -210,7 +228,9 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 	const recordLowerLabel = forceSingleFamily ? 'home' : 'property';
 	const recordPluralLowerLabel = forceSingleFamily ? 'homes' : 'properties';
 	const recordPageLabel = forceSingleFamily ? 'home record' : 'property record';
-	const getStepHint = (step: (typeof STEPS)[number]) =>
+	const isOnboardingHomeCreateFlow =
+		showOnboardingSetupTip && forceSingleFamily && !initialData && !isDuplicate;
+	const getStepHint = (step: PropertyDialogStep) =>
 		step.hint
 			.replace('this property', `this ${recordLowerLabel}`)
 			.replace('your property', `your ${recordLowerLabel}`)
@@ -279,7 +299,7 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 		formData.address.trim() &&
 		!duplicateNameUnchanged,
 	);
-	const steps = STEPS;
+	const steps = isOnboardingHomeCreateFlow ? ONBOARDING_HOME_STEPS : STEPS;
 
 	useEffect(() => {
 		if (!isOpen) {
@@ -739,7 +759,9 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 					<WizardPanelHeader>
 						<WizardPanelTitle>{recordTitleLabel} Basics</WizardPanelTitle>
 						<WizardPanelHint>
-							Start with the essentials. You can add more details after this.
+							{isOnboardingHomeCreateFlow
+								? 'Start with the essentials. Maintley will guide equipment setup next.'
+								: 'Start with the essentials. You can add more details after this.'}
 						</WizardPanelHint>
 					</WizardPanelHeader>
 					<FormSection>
@@ -785,99 +807,119 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 								)}
 							</FormField>
 						</FormRow>
-					</FormSection>
-
-					<FormSection>
-						<FormField>
-							<Label>Group</Label>
-							<SelectField
-								value={formData.groupId ?? ''}
-								onChange={(e) => handleInputChange('groupId', e.target.value || null)}>
-								<option value=''>No group</option>
-								{groups.map((group) => (
-									<option key={group.id} value={group.id}>
-										{group.name}
-									</option>
-								))}
-							</SelectField>
-						</FormField>
-						{onCreateGroup && (
-							<>
-								<InlineDisclosureButton
-									type='button'
-									onClick={() => setIsCreateGroupOpen((current) => !current)}>
-									{isCreateGroupOpen ? 'Cancel new group' : '+ Create New Group'}
-								</InlineDisclosureButton>
-								{isCreateGroupOpen && (
-									<CompactCreateRow>
-										<Input
-											value={newGroupName}
-											onChange={(e) => setNewGroupName(e.target.value)}
-											placeholder='New group name'
-										/>
-										<AddButton
-											onClick={async () => {
-												if (!onCreateGroup || !newGroupName.trim()) return;
-												const id = await onCreateGroup(newGroupName.trim());
-												setNewGroupName('');
-												setIsCreateGroupOpen(false);
-												handleInputChange('groupId', id || null);
-											}}
-											disabled={!newGroupName.trim()}>
-											Create
-										</AddButton>
-									</CompactCreateRow>
-								)}
-							</>
+						{isOnboardingHomeCreateFlow && (
+							<FormField>
+								<Label>{recordTitleLabel} Type</Label>
+								<SelectField
+									value={formData.propertyType}
+									disabled={forceSingleFamily}
+									onChange={(e) =>
+										handleInputChange(
+											'propertyType',
+											e.target.value as PropertyFormData['propertyType'],
+										)
+									}>
+									<option value='Single Family'>Single Family</option>
+								</SelectField>
+							</FormField>
 						)}
 					</FormSection>
 
-					<FormSection>
-						<FormField>
-							<Label>{recordTitleLabel} Photo (Optional)</Label>
-							<CompactActionRow>
-								<SecondaryButton
-									type='button'
-									onClick={() => setIsPhotoUploadOpen((current) => !current)}
-									disabled={isUploadingImage}>
-									{isPhotoUploadOpen || formData.photo ? 'Change Photo' : 'Upload Photo'}
-								</SecondaryButton>
-								<SecondaryButton
-									type='button'
-									onClick={handleUseFallbackPhoto}
-									disabled={isUploadingImage}>
-									Use Default
-								</SecondaryButton>
-							</CompactActionRow>
-						</FormField>
-						{imageError && (
-							<ValidationMessage>{imageError}</ValidationMessage>
-						)}
-						{isPhotoUploadOpen && (
-							<UploadDropzone>
-								{isUploadingImage ? (
-									<div style={{ padding: 12, textAlign: 'center', color: '#64748b' }}>
-										Processing image...
-									</div>
-								) : (
-									<FileUploader
-										label='Upload Image File'
-										helperText='JPG, PNG, GIF, WEBP (max 8MB)'
-										accept='image/*'
-										allowedTypes={['image/*']}
-										maxSizeBytes={8 * 1024 * 1024}
-										setFile={handlePhotoUpload}
-										showSelectedFiles={false}
-									/>
+					{!isOnboardingHomeCreateFlow && (
+						<>
+							<FormSection>
+								<FormField>
+									<Label>Group</Label>
+									<SelectField
+										value={formData.groupId ?? ''}
+										onChange={(e) => handleInputChange('groupId', e.target.value || null)}>
+										<option value=''>No group</option>
+										{groups.map((group) => (
+											<option key={group.id} value={group.id}>
+												{group.name}
+											</option>
+										))}
+									</SelectField>
+								</FormField>
+								{onCreateGroup && (
+									<>
+										<InlineDisclosureButton
+											type='button'
+											onClick={() => setIsCreateGroupOpen((current) => !current)}>
+											{isCreateGroupOpen ? 'Cancel new group' : '+ Create New Group'}
+										</InlineDisclosureButton>
+										{isCreateGroupOpen && (
+											<CompactCreateRow>
+												<Input
+													value={newGroupName}
+													onChange={(e) => setNewGroupName(e.target.value)}
+													placeholder='New group name'
+												/>
+												<AddButton
+													onClick={async () => {
+														if (!onCreateGroup || !newGroupName.trim()) return;
+														const id = await onCreateGroup(newGroupName.trim());
+														setNewGroupName('');
+														setIsCreateGroupOpen(false);
+														handleInputChange('groupId', id || null);
+													}}
+													disabled={!newGroupName.trim()}>
+													Create
+												</AddButton>
+											</CompactCreateRow>
+										)}
+									</>
 								)}
-							</UploadDropzone>
-						)}
-						{formData.photo && (
-							<PhotoPreview>
-								<PhotoPreviewImage src={formData.photo} alt={`${recordTitleLabel} preview`} />
-							</PhotoPreview>
-						)}
-					</FormSection>
+							</FormSection>
+
+							<FormSection>
+								<FormField>
+									<Label>{recordTitleLabel} Photo (Optional)</Label>
+									<CompactActionRow>
+										<SecondaryButton
+											type='button'
+											onClick={() => setIsPhotoUploadOpen((current) => !current)}
+											disabled={isUploadingImage}>
+											{isPhotoUploadOpen || formData.photo ? 'Change Photo' : 'Upload Photo'}
+										</SecondaryButton>
+										<SecondaryButton
+											type='button'
+											onClick={handleUseFallbackPhoto}
+											disabled={isUploadingImage}>
+											Use Default
+										</SecondaryButton>
+									</CompactActionRow>
+								</FormField>
+								{imageError && (
+									<ValidationMessage>{imageError}</ValidationMessage>
+								)}
+								{isPhotoUploadOpen && (
+									<UploadDropzone>
+										{isUploadingImage ? (
+											<div style={{ padding: 12, textAlign: 'center', color: '#64748b' }}>
+												Processing image...
+											</div>
+										) : (
+											<FileUploader
+												label='Upload Image File'
+												helperText='JPG, PNG, GIF, WEBP (max 8MB)'
+												accept='image/*'
+												allowedTypes={['image/*']}
+												maxSizeBytes={8 * 1024 * 1024}
+												setFile={handlePhotoUpload}
+												showSelectedFiles={false}
+											/>
+										)}
+									</UploadDropzone>
+								)}
+								{formData.photo && (
+									<PhotoPreview>
+										<PhotoPreviewImage src={formData.photo} alt={`${recordTitleLabel} preview`} />
+									</PhotoPreview>
+								)}
+							</FormSection>
+						</>
+					)}
 				</WizardPanel>
 			);
 		}
