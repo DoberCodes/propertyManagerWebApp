@@ -50,9 +50,9 @@ Part and supply extraction uses the Part Knowledge Catalog. The acquisition laye
 
 The first implementation stores pending knowledge suggestions on the property record.
 
-Property documents are the canonical source documents for acquisition. Uploads started from appliance/system, task, or task-completion screens should still create property document records. Upload context may help the UI, but it should not automatically create permanent links to an asset, task, contractor, warranty, part, or Maintenance Event.
+Property documents are the canonical source documents for acquisition. Uploads started from appliance/system, task, or task-completion screens should still create property document records. When a user explicitly uploads from a task or appliance/system workflow, Maintley may preserve that upload context as a supporting-document link so the file remains visible from that workflow. Upload context may help the UI, but acquisition should not automatically create additional permanent links to an asset, task, contractor, warranty, part, or Maintenance Event.
 
-Links should come from reviewed Property Memory changes. If acquisition finds that a document appears to describe an existing asset, task, contractor, part, warranty, cost, or Maintenance Event, the review experience should propose that connection and let the user confirm it.
+Additional links should come from reviewed Property Memory changes. If acquisition finds that a document appears to describe an existing asset, task, contractor, part, warranty, cost, or Maintenance Event, the review experience should propose that connection and let the user confirm it.
 
 Suggested details are generated from document metadata, lightweight image OCR
 for uploaded image files, and backend PDF text extraction for supported

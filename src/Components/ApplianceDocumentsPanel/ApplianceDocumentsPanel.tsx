@@ -148,6 +148,9 @@ export const ApplianceDocumentsPanel: React.FC<ApplianceDocumentsPanelProps> = (
 				propertyId: resolvedPropertyId,
 				category: selectedCategory,
 				property: resolvedProperty,
+				uploadContext: {
+					assetIds: deviceId ? [deviceId] : [],
+				},
 			});
 			await updateProperty({
 				id: resolvedPropertyId,

@@ -1,6 +1,15 @@
-import type { Device, Property, PropertyDocument, PropertyDocumentCategory } from '../types/Property.types';
+import type {
+	Device,
+	Property,
+	PropertyDocument,
+	PropertyDocumentCategory,
+	PropertyDocumentLinks,
+} from '../types/Property.types';
 import type { PropertyKnowledgeSuggestion } from '../types/PropertyKnowledge.types';
-import { uploadPropertyDocument } from '../utils/propertyDocumentUpload';
+import {
+	uploadPropertyDocument,
+	withPropertyDocumentLinks,
+} from '../utils/propertyDocumentUpload';
 import {
 	createPendingKnowledgeSuggestionFromFile,
 	markDocumentWithKnowledgeSuggestion,
@@ -15,12 +24,17 @@ type PropertyMemoryDocumentUploadInput = {
 	property?: Property;
 	systems?: Device[];
 	customNameForSingleFile?: string;
+	uploadContext?: PropertyMemoryDocumentUploadContext;
 };
 
 type PropertyMemoryDocumentUploadResult = {
 	documents: PropertyDocument[];
 	knowledgeSuggestions: PropertyKnowledgeSuggestion[];
 	pdfDocuments: PropertyDocument[];
+};
+
+export type PropertyMemoryDocumentUploadContext = PropertyDocumentLinks & {
+	assignedTaskStatus?: string;
 };
 
 type StartPdfDocumentKnowledgeProcessingInput = {
@@ -43,6 +57,40 @@ export const markPdfDocumentAsProcessing = (
 	acquisitionError: '',
 });
 
+const uniqueIds = (ids?: string[]) =>
+	(ids || [])
+		.map((id) => String(id || '').trim())
+		.filter(Boolean)
+		.filter((value, index, values) => values.indexOf(value) === index);
+
+export const applyPropertyDocumentUploadContext = (
+	document: PropertyDocument,
+	context?: PropertyMemoryDocumentUploadContext,
+): PropertyDocument => {
+	if (!context) return document;
+
+	const links: PropertyDocumentLinks = {
+		assetIds: uniqueIds(context.assetIds),
+		taskIds: uniqueIds(context.taskIds),
+		maintenanceEventIds: uniqueIds(context.maintenanceEventIds),
+		contractorIds: uniqueIds(context.contractorIds),
+		warrantyIds: uniqueIds(context.warrantyIds),
+		partIds: uniqueIds(context.partIds),
+	};
+	const hasLinks = Object.values(links).some((ids = []) => ids.length > 0);
+	const linkedDocument = hasLinks
+		? withPropertyDocumentLinks(document, links)
+		: document;
+	const assignedTaskStatus = String(context.assignedTaskStatus || '').trim();
+
+	return assignedTaskStatus
+		? {
+				...linkedDocument,
+				assignedTaskStatus,
+		  }
+		: linkedDocument;
+};
+
 export const preparePropertyMemoryDocumentUploads = async ({
 	files,
 	propertyId,
@@ -50,6 +98,7 @@ export const preparePropertyMemoryDocumentUploads = async ({
 	property,
 	systems = [],
 	customNameForSingleFile,
+	uploadContext,
 }: PropertyMemoryDocumentUploadInput): Promise<PropertyMemoryDocumentUploadResult> => {
 	const uploadedDocuments = await Promise.all(
 		files.map((file) =>
@@ -61,10 +110,13 @@ export const preparePropertyMemoryDocumentUploads = async ({
 			),
 		),
 	);
+	const contextualDocuments = uploadedDocuments.map((document) =>
+		applyPropertyDocumentUploadContext(document, uploadContext),
+	);
 
 	const knowledgeSuggestions = (
 		await Promise.all(
-			uploadedDocuments.map((document, index) =>
+			contextualDocuments.map((document, index) =>
 				isPdfPropertyDocument(document)
 					? Promise.resolve(null)
 					: createPendingKnowledgeSuggestionFromFile({
@@ -80,7 +132,7 @@ export const preparePropertyMemoryDocumentUploads = async ({
 		Boolean(suggestion),
 	);
 
-	const documents = uploadedDocuments.map((document) => {
+	const documents = contextualDocuments.map((document) => {
 		if (isPdfPropertyDocument(document)) {
 			return markPdfDocumentAsProcessing(document);
 		}
