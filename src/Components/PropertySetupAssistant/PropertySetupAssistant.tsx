@@ -34,6 +34,7 @@ import { getDefaultTaskNotifications } from '../../utils/taskNotificationUtils';
 import {
 	canUseSuggestedMaintenancePackages,
 	canUseUnlimitedSuggestedMaintenancePackages,
+	getEffectiveSubscriptionPlanId,
 	getSuggestedMaintenancePackageLimit,
 } from '../../utils/subscriptionUtils';
 import { normalizeAssetType } from '../../utils/systemTypes';
@@ -128,6 +129,26 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 	onUploadDocuments,
 }) => {
 	const feedback = useAppFeedback();
+	const effectivePlanId = getEffectiveSubscriptionPlanId(
+		currentUser?.subscription,
+		'homeowner',
+	);
+	const isHomeownerMode =
+		effectivePlanId === 'homeowner' || effectivePlanId === 'homeowner_plus';
+	const setupLanguage = {
+		eyebrow: isHomeownerMode ? 'Home Setup Assistant' : 'Property Setup Assistant',
+		completeLabel: isHomeownerMode ? 'Home setup complete' : 'Property setup complete',
+		recordNoun: isHomeownerMode ? 'home record' : 'property record',
+		mainTitle: isHomeownerMode
+			? 'Build a more complete record of your home.'
+			: 'Build a more complete record of your property.',
+		intro: isHomeownerMode
+			? 'Discover equipment, documents, and maintenance opportunities you can review over time.'
+			: 'Discover equipment, documents, and maintenance opportunities you can review over time.',
+		detectedText: isHomeownerMode
+			? 'We found matching equipment already in this home record. Review setup to save it into your setup progress and add any missing suggested tasks.'
+			: 'We found matching equipment already in this property record. Review setup to save it into your setup progress and add any missing suggested tasks.',
+	};
 	const [updateProperty] = useUpdatePropertyMutation();
 	const [createDevice] = useCreateDeviceMutation();
 	const [createTask] = useCreateTaskMutation();
@@ -781,7 +802,7 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 				$compact={isAssistantCardCollapsed}>
 				<AssistantContent>
 					<AssistantHeader>
-						<AssistantEyebrow>Property Setup Assistant</AssistantEyebrow>
+						<AssistantEyebrow>{setupLanguage.eyebrow}</AssistantEyebrow>
 						<AssistantCollapseButton
 							type='button'
 							onClick={() =>
@@ -789,14 +810,14 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 							}
 							aria-label={
 								isAssistantCardCollapsed
-									? 'Expand Property Setup Assistant'
-									: 'Collapse Property Setup Assistant'
+									? `Expand ${setupLanguage.eyebrow}`
+									: `Collapse ${setupLanguage.eyebrow}`
 							}
 							aria-expanded={!isAssistantCardCollapsed}
 							title={
 								isAssistantCardCollapsed
-									? 'Expand Property Setup Assistant'
-									: 'Collapse Property Setup Assistant'
+									? `Expand ${setupLanguage.eyebrow}`
+									: `Collapse ${setupLanguage.eyebrow}`
 							}>
 							<FontAwesomeIcon
 								icon={isAssistantCardCollapsed ? faChevronDown : faChevronUp}
@@ -808,12 +829,12 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 						<AssistantBody>
 							{progress.isComplete ? (
 								<CompleteSummary>
-									<CompleteSummaryLabel>Property setup complete</CompleteSummaryLabel>
+									<CompleteSummaryLabel>{setupLanguage.completeLabel}</CompleteSummaryLabel>
 									<AssistantTitle>
-										Your property record has a strong starting point.
+										Your {setupLanguage.recordNoun} has a strong starting point.
 									</AssistantTitle>
 									<AssistantText>
-										Maintley can now review this property record and highlight the few things worth your attention.
+										Maintley can now review this {setupLanguage.recordNoun} and highlight the few things worth your attention.
 									</AssistantText>
 									<ProgressText>
 										Progress: {progress.reviewed} of {progress.total}{' '}
@@ -832,14 +853,14 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 							) : (
 								<>
 									<AssistantTitle>
-										Build a more complete record of your property.
+										{setupLanguage.mainTitle}
 									</AssistantTitle>
 									<AssistantText>
-										Discover systems, appliances, and maintenance opportunities you can review over time.
+										{setupLanguage.intro}
 									</AssistantText>
 									{hasDetectedUnsavedProgress && (
 										<AssistantText>
-											We found matching appliances already on this property. Review setup to save them into your setup progress and add any missing suggested tasks.
+											{setupLanguage.detectedText}
 										</AssistantText>
 									)}
 									<ProgressText>
@@ -871,7 +892,7 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 					<ModalPanel>
 						<ModalHeader>
 							<div>
-								<ModalTitle>Property Setup Assistant</ModalTitle>
+								<ModalTitle>{setupLanguage.eyebrow}</ModalTitle>
 								<ModalHint>
 									Review one area at a time. You can skip and return whenever you want.
 								</ModalHint>

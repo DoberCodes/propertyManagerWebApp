@@ -29,6 +29,7 @@ import {
 	SubscriptionData,
 } from '../../utils/subscriptionUtils';
 import { RootState } from '../../Redux/store/store';
+import { selectIsHomeowner } from '../../Redux/selectors/permissionSelectors';
 import { COLORS } from '../../constants/colors';
 import {
 	getDeviceAssetVariant,
@@ -150,7 +151,10 @@ const getRecommendationPrimaryLabel = (
 
 const getRecommendationImpact = (
 	recommendation: PropertyScanRecommendation,
+	isHomeowner = false,
 ): string => {
+	const subjectHistory = isHomeowner ? 'home history' : 'property history';
+	const recordNoun = isHomeowner ? 'home record' : 'property record';
 	switch (recommendation.ruleId) {
 		case 'overdue-tasks-exist':
 			return 'Reviewing these recorded tasks helps keep maintenance visible and prevents it from slipping further behind.';
@@ -160,9 +164,9 @@ const getRecommendationImpact = (
 		case 'premium-recurring-maintenance-opportunity':
 			return 'When recurring maintenance is recorded, service intervals are easier to keep visible over time.';
 		case 'baseline-maintenance-cadence-overdue':
-			return 'Reviewing recorded cadence gaps helps catch routine care before it fades from the property history.';
+			return `Reviewing recorded cadence gaps helps catch routine care before it fades from the ${subjectHistory}.`;
 		case 'systems-missing-maintenance-history':
-			return 'Starting the history now gives the property a clearer record of what was serviced and when.';
+			return `Starting the history now gives the ${isHomeowner ? 'home' : 'property'} a clearer record of what was serviced and when.`;
 		case 'systems-missing-important-identification':
 			return 'Adding these details now makes future warranty claims, manuals, and replacement parts easier to find.';
 		case 'knowledge-pack-record-details-missing':
@@ -171,46 +175,48 @@ const getRecommendationImpact = (
 			return 'Recording install dates makes warranty tracking, service planning, and future replacements much easier.';
 		default:
 			if (recommendation.category === 'Missing Information') {
-				return 'Completing this now makes the property record more useful when decisions need to be made.';
+				return `Completing this now makes the ${recordNoun} more useful when decisions need to be made.`;
 			}
 			if (recommendation.category === 'Maintenance Opportunities') {
-				return 'Addressing this now helps turn property history into a clearer maintenance plan.';
+				return `Addressing this now helps turn ${subjectHistory} into a clearer maintenance plan.`;
 			}
 			if (recommendation.category === 'Overdue Work') {
 				return 'Reviewing this now helps keep urgent maintenance visible.';
 			}
-			return 'Taking this step helps the property history become more useful over time.';
+			return `Taking this step helps the ${subjectHistory} become more useful over time.`;
 	}
 };
 
 const getRecommendationEvidence = (
 	recommendation: PropertyScanRecommendation,
+	isHomeowner = false,
 ): string => {
+	const equipmentNoun = isHomeowner ? 'equipment records' : 'systems';
 	switch (recommendation.ruleId) {
 		case 'overdue-tasks-exist':
 			return 'Maintley found recorded maintenance tasks with due dates that have passed.';
 		case 'safety-systems-missing-maintenance-history':
 			return 'Maintley found smoke or carbon monoxide detector records without saved maintenance history.';
 		case 'systems-missing-actionable-maintenance-coverage':
-			return 'Maintley found systems without linked recurring maintenance tasks.';
+			return `Maintley found ${equipmentNoun} without linked recurring maintenance tasks.`;
 		case 'premium-recurring-maintenance-opportunity':
-			return 'Maintley found systems where recurring maintenance could be recorded with Homeowner+.';
+			return `Maintley found ${equipmentNoun} where recurring maintenance could be recorded with Homeowner+.`;
 		case 'baseline-maintenance-cadence-overdue':
 			return 'Maintley compared saved maintenance history against Maintley baseline care intervals.';
 		case 'systems-missing-maintenance-history':
-			return 'Maintley found systems without saved maintenance history.';
+			return `Maintley found ${equipmentNoun} without saved maintenance history.`;
 		case 'systems-missing-important-identification':
-			return 'Maintley found systems without recorded make or model details.';
+			return `Maintley found ${equipmentNoun} without recorded make or model details.`;
 		case 'knowledge-pack-record-details-missing':
-			return 'Maintley compared saved system details against Maintley knowledge packs and found useful maintenance details that have not been recorded yet.';
+			return `Maintley compared saved ${isHomeowner ? 'equipment' : 'system'} details against Maintley knowledge packs and found useful maintenance details that have not been recorded yet.`;
 		case 'major-systems-missing-install-dates':
-			return 'Maintley found systems without recorded install dates.';
+			return `Maintley found ${equipmentNoun} without recorded install dates.`;
 		default:
 			if (recommendation.relatedTaskIds?.length) {
 				return 'Maintley found related task records connected to this recommendation.';
 			}
 			if (recommendation.relatedSystemIds?.length) {
-				return 'Maintley found related system records connected to this recommendation.';
+				return `Maintley found related ${isHomeowner ? 'equipment' : 'system'} records connected to this recommendation.`;
 			}
 			return '';
 	}
@@ -218,6 +224,7 @@ const getRecommendationEvidence = (
 
 const getRecommendationSourceLabel = (
 	recommendation: PropertyScanRecommendation,
+	isHomeowner = false,
 ): string => {
 	switch (recommendation.source) {
 		case 'knowledge_pack':
@@ -228,7 +235,7 @@ const getRecommendationSourceLabel = (
 			return 'Context Intelligence';
 		case 'property_memory':
 		default:
-			return 'Property Memory';
+			return isHomeowner ? 'Home Memory' : 'Property Memory';
 	}
 };
 
@@ -301,6 +308,16 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 	onRecommendationAction,
 }) => {
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
+	const isHomeowner = useSelector(selectIsHomeowner);
+	const scanLanguage = {
+		panelLabel: isHomeowner ? 'Home Quick Scan' : 'Property Quick Scan',
+		recordNoun: isHomeowner ? 'home record' : 'property record',
+		recordPlural: isHomeowner ? 'home records' : 'property records',
+		possessiveNoun: isHomeowner ? 'home record' : "property's history",
+		subjectNoun: isHomeowner ? 'home' : 'property',
+		systemLabelPlural: isHomeowner ? 'equipment records' : 'systems',
+		memoryLabel: isHomeowner ? 'Home Memory' : 'Property Memory',
+	};
 	const [dismissedIds, setDismissedIds] = useState<string[]>([]);
 	const [lastScanSnapshot, setLastScanSnapshot] =
 		useState<PropertyScanSnapshot | null>(null);
@@ -411,7 +428,7 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 			String(currentUser?.id || '').trim(),
 		);
 		if (!accountId) {
-			setScanSaveError('Maintley could not identify the account for this property.');
+			setScanSaveError(`Maintley could not identify the account for this ${scanLanguage.subjectNoun}.`);
 			return;
 		}
 
@@ -421,7 +438,7 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 		setScanSaveError('');
 
 		const progressMessages = [
-			'Reviewing this property record...',
+			`Reviewing this ${scanLanguage.recordNoun}...`,
 			`Reviewing ${systems.length} ${systems.length === 1 ? 'system' : 'systems'}`,
 			'Checking maintenance coverage',
 			'Finding what is worth attention',
@@ -572,16 +589,16 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 		} affected`;
 
 	return (
-		<ScanPanel aria-label='Property Quick Scan'>
+		<ScanPanel aria-label={scanLanguage.panelLabel}>
 			<ScanHeader>
 				<ScanTitleBlock>
 					<ScanEyebrow>Maintley Intelligence</ScanEyebrow>
 					<ScanTitleRow>
-						<ScanTitle>Property Quick Scan</ScanTitle>
+						<ScanTitle>{scanLanguage.panelLabel}</ScanTitle>
 						<CollapseButton
 							type='button'
 							aria-expanded={!isQuickScanCollapsed}
-							aria-label={isQuickScanCollapsed ? 'Expand Property Quick Scan' : 'Collapse Property Quick Scan'}
+							aria-label={isQuickScanCollapsed ? `Expand ${scanLanguage.panelLabel}` : `Collapse ${scanLanguage.panelLabel}`}
 							onClick={() => setIsQuickScanCollapsed((currentValue) => !currentValue)}>
 							<FontAwesomeIcon
 								icon={isQuickScanCollapsed ? faChevronDown : faChevronUp}
@@ -590,12 +607,12 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 						</CollapseButton>
 					</ScanTitleRow>
 					<ScanText>
-						Maintley reviews your property's history, systems, maintenance
+						Maintley reviews your {scanLanguage.possessiveNoun}, {scanLanguage.systemLabelPlural}, maintenance
 						records, and documents to identify the few items most likely to
 						improve your records or reduce future maintenance surprises.
 						Maintley Intelligence provides recommendations based on the
-						information recorded for your property. It does not inspect your
-						property, verify system condition, or replace professional
+						information recorded for your {scanLanguage.subjectNoun}. It does not inspect your
+						{scanLanguage.subjectNoun}, verify equipment condition, or replace professional
 						maintenance advice or inspections.
 					</ScanText>
 				</ScanTitleBlock>
@@ -623,10 +640,10 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 			{showQuickScanEducation ? (
 				<QuickScanEducation>
 					<div>
-						<strong>New to Property Quick Scan?</strong>
-						<span>
-							Maintley Intelligence combines your property records with maintenance
-							knowledge to help you plan ahead.
+							<strong>New to {scanLanguage.panelLabel}?</strong>
+							<span>
+								Maintley Intelligence combines your {scanLanguage.recordNoun} with maintenance
+								knowledge to help you plan ahead.
 						</span>
 					</div>
 					<EducationActions>
@@ -656,7 +673,7 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 						</SummaryItem>
 						<SummaryItem>
 							<SummaryValue>{displayedSystemsReviewed}</SummaryValue>
-							<SummaryLabel>systems analyzed</SummaryLabel>
+							<SummaryLabel>{isHomeowner ? 'equipment analyzed' : 'systems analyzed'}</SummaryLabel>
 						</SummaryItem>
 						<SummaryItem>
 							<SummaryValue>{displayedSummary.overdue}</SummaryValue>
@@ -667,7 +684,7 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 					{displayedRecommendations.length === 0 && !shouldShowPremiumPreview ? (
 						<>
 							<EmptyResult>
-								Maintley reviewed this property record and did not find any
+								Maintley reviewed this {scanLanguage.recordNoun} and did not find any
 								immediate high-value items that need your attention.
 							</EmptyResult>
 							{canShowMore ? (
@@ -710,10 +727,18 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 										const hasAffectedDetails = affectedCount > 0;
 										const affectedLabel = relatedTasks.length
 											? `${relatedTasks.length} ${relatedTasks.length === 1 ? 'task' : 'tasks'} affected`
-											: `${relatedSystems.length} ${relatedSystems.length === 1 ? 'system' : 'systems'} affected`;
-										const evidenceText = getRecommendationEvidence(recommendation);
+											: `${relatedSystems.length} ${
+												relatedSystems.length === 1
+													? isHomeowner
+														? 'equipment record'
+														: 'system'
+													: isHomeowner
+														? 'equipment records'
+														: 'systems'
+											} affected`;
+										const evidenceText = getRecommendationEvidence(recommendation, isHomeowner);
 										const sourceLabel =
-											getRecommendationSourceLabel(recommendation);
+											getRecommendationSourceLabel(recommendation, isHomeowner);
 										const evidenceItems = relatedTasks.length
 											? relatedTasks.map((task) => task.title)
 											: relatedSystems.map((item) => getAssetDisplayName(item));
@@ -742,7 +767,7 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 														{recommendation.description}
 													</RecommendationDescription>
 													<RecommendationImpact>
-														{getRecommendationImpact(recommendation)}
+														{getRecommendationImpact(recommendation, isHomeowner)}
 													</RecommendationImpact>
 													{hasAffectedDetails ? (
 														<AffectedHint>{affectedLabel}</AffectedHint>
@@ -809,7 +834,7 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 										More available with Homeowner+
 									</PremiumPreviewEyebrow>
 									<PremiumPreviewTitle>
-										As your property's records grow, Maintley can help with more
+										As your {scanLanguage.recordPlural} grow, Maintley can help with more
 										maintenance guidance and planning.
 									</PremiumPreviewTitle>
 									<PremiumPreviewText>
@@ -836,8 +861,8 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 				<PromptRow>
 					<PromptText>
 						{showSetupPrompt
-							? 'Setup is saved. Run a quick scan so Maintley can review the property record and highlight what is worth your attention.'
-							: 'After setup, run a quick scan so Maintley can review the property record and highlight what is worth your attention.'}
+							? `Setup is saved. Run a quick scan so Maintley can review the ${scanLanguage.recordNoun} and highlight what is worth your attention.`
+							: `After setup, run a quick scan so Maintley can review the ${scanLanguage.recordNoun} and highlight what is worth your attention.`}
 					</PromptText>
 				</PromptRow>
 			)}
@@ -856,7 +881,7 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 							</ScanLoadingHomeBody>
 						</ScanLoadingHome>
 						<ScanLoadingTitle>
-							{scanProgressMessage || 'Reviewing this property record...'}
+							{scanProgressMessage || `Reviewing this ${scanLanguage.recordNoun}...`}
 						</ScanLoadingTitle>
 						<ScanLoadingList>
 							<li>
@@ -871,7 +896,7 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 			) : null}
 			<GenericModal
 				isOpen={isQuickScanInfoOpen}
-				title='How Property Quick Scan Works'
+				title={`How ${scanLanguage.panelLabel} Works`}
 				onClose={() => setIsQuickScanInfoOpen(false)}
 				compact>
 				<QuickScanInfoBody>
@@ -881,7 +906,7 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 						maintenance surprises.
 					</QuickScanInfoLead>
 					<IntelligenceSource $tone='records'>
-						<strong>Property Memory</strong>
+						<strong>{scanLanguage.memoryLabel}</strong>
 						<span>
 							Based on information that has not been recorded yet, such as install
 							dates, overdue tasks, and maintenance history.
@@ -913,8 +938,8 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 						<PlanName>{getPlanLabel(currentPlanId)}</PlanName>
 						<span>
 							{currentPlanId === 'homeowner'
-								? 'Free includes Property Memory recommendations. Homeowner+ adds Maintley Knowledge, history-based insights, and personalized context guidance.'
-								: 'Your plan includes Property Memory, Maintley Knowledge, history-based insights, and personalized context guidance.'}
+								? `Free includes ${scanLanguage.memoryLabel} recommendations. Homeowner+ adds Maintley Knowledge, history-based insights, and personalized context guidance.`
+								: `Your plan includes ${scanLanguage.memoryLabel}, Maintley Knowledge, history-based insights, and personalized context guidance.`}
 						</span>
 						{currentPlanId === 'homeowner' ? (
 							<PlanUpgradeButton type='button' onClick={handleViewPlanOptions}>

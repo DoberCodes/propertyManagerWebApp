@@ -151,6 +151,10 @@ export const SideNav = () => {
 	const storageFileLabel = storageUsage
 		? `${storageUsage.fileCount} of ${storageUsage.maxFiles} files`
 		: '';
+	const propertyNavLabel = isHomeowner ? 'Homes' : 'Property Records';
+	const emptyFavoritesLabel = isHomeowner
+		? 'No favorite homes'
+		: 'No favorite property records';
 
 	// Desktop nav items
 	const desktopMenuItems = [
@@ -173,7 +177,7 @@ export const SideNav = () => {
 			visible: !isUserTenant && (canAccessProperties || canViewPages),
 		},
 		{
-			label: 'Properties',
+			label: propertyNavLabel,
 			path: '/properties',
 			icon: faHome,
 			visible: isUserTenant || canAccessProperties || canViewPages,
@@ -249,7 +253,7 @@ export const SideNav = () => {
 									</SimpleList>
 								) : (
 									<div style={{ fontSize: '12px', color: COLORS.textMuted }}>
-										No favorite properties
+										{emptyFavoritesLabel}
 									</div>
 								)}
 							</SectionContent>

@@ -31,6 +31,7 @@ import {
 	SubscriptionData,
 } from '../../utils/subscriptionUtils';
 import { RootState } from '../../Redux/store/store';
+import { selectIsHomeowner } from '../../Redux/selectors/permissionSelectors';
 import { COLORS } from '../../constants/colors';
 
 interface PropertyAuditPanelProps {
@@ -118,6 +119,14 @@ export const PropertyAuditPanel: React.FC<PropertyAuditPanelProps> = ({
 	onRecommendationAction,
 }) => {
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
+	const isHomeowner = useSelector(selectIsHomeowner);
+	const reviewLanguage = {
+		label: isHomeowner ? 'Home Review' : 'Property Review',
+		recordNoun: isHomeowner ? 'home record' : 'property record',
+		recordPlural: isHomeowner ? 'home records' : 'property records',
+		subjectNoun: isHomeowner ? 'home' : 'property',
+		memoryLabel: isHomeowner ? 'Home Memory' : 'Property Memory',
+	};
 	const [isCollapsed, setIsCollapsed] = useState(true);
 	const [isReviewInfoOpen, setIsReviewInfoOpen] = useState(false);
 	const [isRunningAudit, setIsRunningAudit] = useState(false);
@@ -244,7 +253,7 @@ export const PropertyAuditPanel: React.FC<PropertyAuditPanelProps> = ({
 			String(currentUser?.id || '').trim(),
 		);
 		if (!accountId) {
-			setAuditSaveError('Maintley could not identify the account for this property.');
+			setAuditSaveError(`Maintley could not identify the account for this ${reviewLanguage.subjectNoun}.`);
 			return;
 		}
 
@@ -300,16 +309,16 @@ export const PropertyAuditPanel: React.FC<PropertyAuditPanelProps> = ({
 	}
 
 	return (
-		<AuditPanel aria-label='Property Review'>
+		<AuditPanel aria-label={reviewLanguage.label}>
 			<AuditHeader>
 				<AuditTitleBlock>
 					<AuditEyebrow>Maintley Intelligence</AuditEyebrow>
 					<AuditTitleRow>
-						<AuditTitle>Property Review</AuditTitle>
+						<AuditTitle>{reviewLanguage.label}</AuditTitle>
 						<CollapseButton
 							type='button'
 							aria-expanded={!isCollapsed}
-							aria-label={isCollapsed ? 'Expand Property Review' : 'Collapse Property Review'}
+							aria-label={isCollapsed ? `Expand ${reviewLanguage.label}` : `Collapse ${reviewLanguage.label}`}
 							onClick={() => setIsCollapsed((currentValue) => !currentValue)}>
 							<FontAwesomeIcon
 								icon={isCollapsed ? faChevronDown : faChevronUp}
@@ -318,18 +327,18 @@ export const PropertyAuditPanel: React.FC<PropertyAuditPanelProps> = ({
 						</CollapseButton>
 					</AuditTitleRow>
 					<AuditText>
-						A broader review of saved property records, maintenance coverage,
-						and equipment details, organized by system so you can improve the
-						property memory over time.
+						A broader review of saved {reviewLanguage.recordPlural}, maintenance coverage,
+						and equipment details, organized by {isHomeowner ? 'equipment' : 'system'} so you can improve the
+						{reviewLanguage.subjectNoun} memory over time.
 					</AuditText>
 				</AuditTitleBlock>
 				<AuditActions>
 					<InfoButton
 						type='button'
 						onClick={() => setIsReviewInfoOpen(true)}
-						title='How Property Review Works'>
+						title={`How ${reviewLanguage.label} Works`}>
 						<FontAwesomeIcon icon={faCircleInfo} aria-hidden='true' />
-						<span>How Property Review Works</span>
+						<span>How {reviewLanguage.label} Works</span>
 					</InfoButton>
 					<PrimaryButton
 						type='button'
@@ -363,7 +372,7 @@ export const PropertyAuditPanel: React.FC<PropertyAuditPanelProps> = ({
 								</SummaryItem>
 								<SummaryItem>
 									<SummaryValue>{latestAuditSnapshot?.systemsReviewed || 0}</SummaryValue>
-									<SummaryLabel>systems reviewed</SummaryLabel>
+									<SummaryLabel>{isHomeowner ? 'equipment reviewed' : 'systems reviewed'}</SummaryLabel>
 								</SummaryItem>
 							</SummaryGrid>
 							{visibleAssetReviews.length > 0 ? (
@@ -484,7 +493,7 @@ export const PropertyAuditPanel: React.FC<PropertyAuditPanelProps> = ({
 								</>
 							) : (
 								<EmptyResult>
-									Maintley reviewed this property record and did not find active
+									Maintley reviewed this {reviewLanguage.recordNoun} and did not find active
 									review items.
 								</EmptyResult>
 							)}
@@ -492,8 +501,8 @@ export const PropertyAuditPanel: React.FC<PropertyAuditPanelProps> = ({
 					) : (
 						<PromptRow>
 							<PromptText>
-								Run a Property Review when you want a broader look at saved
-								records, grouped by system, documentation, and maintenance coverage.
+								Run a {reviewLanguage.label} when you want a broader look at saved
+								records, grouped by {isHomeowner ? 'equipment' : 'system'}, documentation, and maintenance coverage.
 							</PromptText>
 						</PromptRow>
 					)}
@@ -501,17 +510,17 @@ export const PropertyAuditPanel: React.FC<PropertyAuditPanelProps> = ({
 			)}
 			<GenericModal
 				isOpen={isReviewInfoOpen}
-				title='How Property Review Works'
+				title={`How ${reviewLanguage.label} Works`}
 				onClose={() => setIsReviewInfoOpen(false)}
 				compact>
 				<ReviewInfoBody>
 					<ReviewInfoLead>
-						Property Review looks across the records saved for this property and
-						groups opportunities by system, documentation, and maintenance
+						{reviewLanguage.label} looks across the records saved for this {reviewLanguage.subjectNoun} and
+						groups opportunities by {isHomeowner ? 'equipment' : 'system'}, documentation, and maintenance
 						coverage.
 					</ReviewInfoLead>
 					<ReviewInfoItem $tone='records'>
-						<strong>Property Memory</strong>
+						<strong>{reviewLanguage.memoryLabel}</strong>
 						<span>
 							Checks saved records for useful details such as install dates,
 							make, model, service notes, and supporting documents.
@@ -533,7 +542,7 @@ export const PropertyAuditPanel: React.FC<PropertyAuditPanelProps> = ({
 					</ReviewInfoItem>
 					<ReviewInfoNote>
 						Maintley does not inspect the property or verify equipment condition.
-						Property Review is based on recorded information and general
+						{reviewLanguage.label} is based on recorded information and general
 						maintenance knowledge.
 					</ReviewInfoNote>
 				</ReviewInfoBody>

@@ -145,7 +145,7 @@ export const MobileHamburgerNav: React.FC<MobileNavProps> = ({ isSidebarOpen, se
                             </ul>
                         ) : (
                             <div style={{ fontSize: '12px', color: COLORS.textMuted }}>
-                                No favorite properties
+                                {isHomeowner ? 'No favorite homes' : 'No favorite property records'}
                             </div>
                         )}
 

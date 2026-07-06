@@ -1154,11 +1154,15 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 			<Wrapper>
 				<ZeroState
 					icon='🔍'
-					title='Property not found'
-					description="The property you're looking for doesn't exist or may have been deleted."
+					title={isHomeowner ? 'Home not found' : 'Property record not found'}
+					description={
+						isHomeowner
+							? "The home you're looking for doesn't exist or may have been deleted."
+							: "The property record you're looking for doesn't exist or may have been deleted."
+					}
 					actions={[
 						{
-							label: 'Back to Properties',
+							label: isHomeowner ? 'Back to Home' : 'Back to Property Records',
 							onClick: () => navigate('/properties'),
 						},
 					]}
@@ -1190,7 +1194,7 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 			<PageHero
 				headerImageUrl={headerImageSrc}
 				backgroundSize={isHeaderFallbackImage ? '360px auto' : 'cover'}
-				backLabel='← Back to Properties'
+				backLabel={isHomeowner ? '← Back to Home' : '← Back to Property Records'}
 				onBack={() => navigate('/properties')}
 				topRight={currentUser ? (
 					<div style={{ display: 'none' }} className='mobile-action-menu'>
@@ -1261,7 +1265,7 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 											cursor: 'pointer',
 											borderBottom: '1px solid #f3f4f6',
 										}}>
-										Edit Property
+										{isHomeowner ? 'Edit Home Record' : 'Edit Property Record'}
 									</button>
 								)}
 								{isUserTenant && property?.isRental && (
@@ -1327,7 +1331,7 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 					<DesktopHeroActions>
 						{canManageProperties && (
 							<HeroActionButton onClick={handleOpenPropertyDialog}>
-								✎ Edit Property
+								✎ {isHomeowner ? 'Edit Home Record' : 'Edit Property Record'}
 							</HeroActionButton>
 						)}
 						{currentUser && !isUserTenant && (

@@ -151,7 +151,7 @@ export const DetailsTab: React.FC<DetailsTabProps> = ({
 					<GlanceValue>{overdueTasksCount}</GlanceValue>
 				</GlanceCard>
 				<GlanceCard>
-					<GlanceLabel>Appliances</GlanceLabel>
+					<GlanceLabel>Equipment</GlanceLabel>
 					<GlanceValue>{devicesCount}</GlanceValue>
 				</GlanceCard>
 				<GlanceCard>
@@ -189,7 +189,7 @@ export const DetailsTab: React.FC<DetailsTabProps> = ({
 
 			{/* Edit Mode Header */}
 			<DetailsEditHeader>
-				<SectionHeader>Property Maintenance Profile</SectionHeader>
+				<SectionHeader>Maintenance Profile</SectionHeader>
 			</DetailsEditHeader>
 
 			<PropertyDetailSection

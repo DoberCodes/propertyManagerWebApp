@@ -866,7 +866,9 @@ export const DevicesHubPage: React.FC = () => {
 				<StandardAppPageTitleBlock>
 					<StandardAppPageTitle>Equipment Hub</StandardAppPageTitle>
 					<StandardAppPageSubtitle>
-						Cross-property maintenance status for every equipment record.
+						{isSinglePropertyPlan
+							? 'Maintenance status for every equipment record in this home.'
+							: 'Cross-property maintenance status for every equipment record.'}
 					</StandardAppPageSubtitle>
 				</StandardAppPageTitleBlock>
 			</StandardAppPageHeader>
@@ -913,7 +915,7 @@ export const DevicesHubPage: React.FC = () => {
 					<PropertySelect
 						value={propertyFilter}
 						onChange={(e) => setPropertyFilter(e.target.value)}>
-						<option value=''>All properties</option>
+						<option value=''>{isSinglePropertyPlan ? 'All homes' : 'All properties'}</option>
 						{properties.map((p: any) => (
 							<option key={p.id} value={String(p.id)}>
 								{p.title || 'Untitled Property'}
@@ -947,7 +949,7 @@ export const DevicesHubPage: React.FC = () => {
 								onChange={(event) =>
 									setDraftPropertyFilter(event.target.value)
 								}>
-								<option value=''>All properties</option>
+								<option value=''>{isSinglePropertyPlan ? 'All homes' : 'All properties'}</option>
 								{properties.map((property: any) => (
 									<option key={property.id} value={String(property.id)}>
 										{property.title || 'Untitled Property'}

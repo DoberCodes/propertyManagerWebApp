@@ -77,7 +77,7 @@ export const TabController: React.FC<TabsContextProps> = ({
 				{ label: 'Details', value: 'details' },
 				...(canViewMaintenanceTabs
 					? [
-							{ label: 'Appliances', value: 'devices' },
+							{ label: isHomeowner ? 'Equipment' : 'Appliances', value: 'devices' },
 							{ label: 'Tasks', value: 'tasks' },
 							{ label: 'Maintenance History', value: 'maintenance' },
 							{ label: 'Costs', value: 'costs' },

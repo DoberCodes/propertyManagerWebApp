@@ -949,6 +949,21 @@ export const ReportBuilder: React.FC = () => {
 
 		const availableOptions = { ...(optionsMap[reportType] || {}) };
 
+		if (isHomeowner) {
+			if (availableOptions.propertyTitle) {
+				availableOptions.propertyTitle = 'Home';
+			}
+			if (availableOptions.linkedApplianceCount) {
+				availableOptions.linkedApplianceCount = 'Linked Equipment';
+			}
+			if (availableOptions.applianceCount) {
+				availableOptions.applianceCount = 'Linked Equipment';
+			}
+			if (availableOptions.applianceSystem) {
+				availableOptions.applianceSystem = 'Equipment';
+			}
+		}
+
 		if (!hasMultiFamilyProperties) {
 			delete availableOptions.unit;
 		}
@@ -1345,6 +1360,14 @@ export const ReportBuilder: React.FC = () => {
 		[reportType, accessibleReports],
 	);
 
+	const getCategoryDescription = (category: typeof REPORT_CATEGORIES[number]) => {
+		if (isHomeowner && category.id === 'portfolio') {
+			return 'Home records and maintenance summaries';
+		}
+
+		return category.description;
+	};
+
 	const reportsByCategory = useMemo(() => {
 		const grouped = new Map<ReportCategoryId, typeof discoverableReports>();
 		REPORT_CATEGORIES.forEach((category) => grouped.set(category.id, []));
@@ -1392,7 +1415,9 @@ export const ReportBuilder: React.FC = () => {
 				<StandardAppPageTitleBlock>
 					<StandardAppPageTitle>Reports</StandardAppPageTitle>
 					<StandardAppPageSubtitle>
-						Preview property records and download CSV reports
+						{isHomeowner
+							? 'Preview home records and download CSV reports'
+							: 'Preview property records and download CSV reports'}
 					</StandardAppPageSubtitle>
 				</StandardAppPageTitleBlock>
 			</StandardAppPageHeader>
@@ -1424,7 +1449,7 @@ export const ReportBuilder: React.FC = () => {
 							<ReportStepKicker>Step 1</ReportStepKicker>
 							<SectionTitle>Choose a Report Category</SectionTitle>
 							<ReportStepText>
-								Start with the area of the property record you want to review.
+								Start with the area of the {isHomeowner ? 'home record' : 'property record'} you want to review.
 							</ReportStepText>
 						</ReportStepHeader>
 						<ReportCategoryGrid>
@@ -1441,7 +1466,7 @@ export const ReportBuilder: React.FC = () => {
 										onClick={() => setSelectedCategory(category.id)}>
 										<ReportCategoryTitle>{category.label}</ReportCategoryTitle>
 										<ReportCategoryDescription>
-											{category.description}
+											{getCategoryDescription(category)}
 										</ReportCategoryDescription>
 										<MobileReportCardMeta>
 											{availableCount} available
