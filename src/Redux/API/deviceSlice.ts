@@ -14,125 +14,14 @@ import { db } from '../../config/firebase';
 import { Device } from '../../types/Property.types';
 import { apiSlice, docToData } from './apiSlice';
 import {
-	resolveAccessibleAccountIds,
+	filterRecordsByAccessProperties,
+	resolveAccountAccessContext,
 	resolveTargetUserId,
 } from './accountContext';
 import {
 	getEffectiveSubscriptionPlanId,
 	getMaxDevicesForPlan,
 } from '../../utils/subscriptionUtils';
-
-type TeamMemberAccess = {
-	id?: string;
-	accountId?: string;
-	email?: string;
-	role?: string;
-	userAccountId?: string;
-	linkedProperties?: string[];
-};
-
-const getTeamMemberAccessForCurrentUser = async (
-	accountIds: string[],
-): Promise<{ isScoped: boolean; linkedPropertyIds: Set<string> }> => {
-	const currentUser = auth.currentUser;
-	if (!currentUser) {
-		return { isScoped: false, linkedPropertyIds: new Set() };
-	}
-
-	const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
-	const userData = userDoc.data() || {};
-	if (String(userData?.role || '').trim().toLowerCase() === 'admin') {
-		return { isScoped: false, linkedPropertyIds: new Set() };
-	}
-	const isScoped = userData?.isTeamMemberAccount === true;
-	if (!isScoped) {
-		return { isScoped: false, linkedPropertyIds: new Set() };
-	}
-
-	const normalizedEmail = String(userData?.email || currentUser.email || '')
-		.trim()
-		.toLowerCase();
-	const teamMemberId = String(userData?.teamMemberId || '').trim();
-
-	for (const accountId of accountIds) {
-		if (teamMemberId) {
-			const memberDoc = await getDoc(doc(db, 'teamMembers', teamMemberId));
-			if (memberDoc.exists()) {
-				const member = docToData(memberDoc) as TeamMemberAccess;
-				if (!member.accountId || member.accountId === accountId) {
-					if (String(member.role || '').trim().toLowerCase() === 'admin') {
-						return { isScoped: false, linkedPropertyIds: new Set() };
-					}
-					return {
-						isScoped: true,
-						linkedPropertyIds: new Set(member.linkedProperties || []),
-					};
-				}
-			}
-		}
-
-		const byUserQuery = query(
-			collection(db, 'teamMembers'),
-			where('accountId', '==', accountId),
-			where('userAccountId', '==', currentUser.uid),
-		);
-		const byUserSnapshot = await getDocs(byUserQuery);
-		if (!byUserSnapshot.empty) {
-			const member = docToData(byUserSnapshot.docs[0]) as TeamMemberAccess;
-			if (String(member.role || '').trim().toLowerCase() === 'admin') {
-				return { isScoped: false, linkedPropertyIds: new Set() };
-			}
-			return {
-				isScoped: true,
-				linkedPropertyIds: new Set(member.linkedProperties || []),
-			};
-		}
-
-		if (normalizedEmail) {
-			const accountMembersQuery = query(
-				collection(db, 'teamMembers'),
-				where('accountId', '==', accountId),
-			);
-			const accountMembersSnapshot = await getDocs(accountMembersQuery);
-			const emailMatch = accountMembersSnapshot.docs
-				.map((memberDoc) => docToData(memberDoc) as TeamMemberAccess)
-				.find(
-					(member) =>
-						String(member?.email || '').trim().toLowerCase() ===
-						normalizedEmail,
-			);
-			if (emailMatch) {
-				if (String(emailMatch.role || '').trim().toLowerCase() === 'admin') {
-					return { isScoped: false, linkedPropertyIds: new Set() };
-				}
-				return {
-					isScoped: true,
-					linkedPropertyIds: new Set(emailMatch.linkedProperties || []),
-				};
-			}
-		}
-	}
-
-	return { isScoped: true, linkedPropertyIds: new Set() };
-};
-
-const filterDevicesByAllowedProperties = (
-	devices: Device[],
-	isScoped: boolean,
-	linkedPropertyIds: Set<string>,
-) => {
-	if (!isScoped) {
-		return devices;
-	}
-
-	if (linkedPropertyIds.size === 0) {
-		return [];
-	}
-
-	return devices.filter((device) =>
-		linkedPropertyIds.has(String(device.location?.propertyId || '')),
-	);
-};
 
 const readDeviceQuery = async (...clauses: ReturnType<typeof where>[]) => {
 	const snapshot = await getDocs(query(collection(db, 'devices'), ...clauses));
@@ -163,10 +52,12 @@ const deviceSlice = apiSlice.injectEndpoints({
 					if (!propertyId) {
 						return { data: [] };
 					}
-					const accessibleAccountIds = await resolveAccessibleAccountIds();
-					const { isScoped, linkedPropertyIds } =
-						await getTeamMemberAccessForCurrentUser(accessibleAccountIds);
-					if (isScoped && !linkedPropertyIds.has(propertyId)) {
+					const accessContext = await resolveAccountAccessContext();
+					const accessibleAccountIds = accessContext.accountIds;
+					if (
+						accessContext.isScopedTeamMember &&
+						!accessContext.allowedPropertyIds.includes(propertyId)
+					) {
 						return { data: [] };
 					}
 
@@ -180,10 +71,10 @@ const deviceSlice = apiSlice.injectEndpoints({
 					}
 					const uniqueDevices = uniqueDevicesById(devices);
 					return {
-						data: filterDevicesByAllowedProperties(
+						data: filterRecordsByAccessProperties(
 							uniqueDevices,
-							isScoped,
-							linkedPropertyIds,
+							accessContext,
+							(device) => String(device.location?.propertyId || ''),
 						),
 					};
 				} catch (error: any) {
@@ -199,9 +90,8 @@ const deviceSlice = apiSlice.injectEndpoints({
 					if (!unitId) {
 						return { data: [] };
 					}
-					const accessibleAccountIds = await resolveAccessibleAccountIds();
-					const { isScoped, linkedPropertyIds } =
-						await getTeamMemberAccessForCurrentUser(accessibleAccountIds);
+					const accessContext = await resolveAccountAccessContext();
+					const accessibleAccountIds = accessContext.accountIds;
 					const devices: Device[] = [];
 					for (const accountId of accessibleAccountIds) {
 						const batch = await getDevicesForAccount(
@@ -212,10 +102,10 @@ const deviceSlice = apiSlice.injectEndpoints({
 					}
 					const uniqueDevices = uniqueDevicesById(devices);
 					return {
-						data: filterDevicesByAllowedProperties(
+						data: filterRecordsByAccessProperties(
 							uniqueDevices,
-							isScoped,
-							linkedPropertyIds,
+							accessContext,
+							(device) => String(device.location?.propertyId || ''),
 						),
 					};
 				} catch (error: any) {
@@ -231,12 +121,12 @@ const deviceSlice = apiSlice.injectEndpoints({
 					const docRef = doc(db, 'devices', deviceId);
 					const docSnapshot = await getDoc(docRef);
 					const data = docToData(docSnapshot) as Device;
-					const accessibleAccountIds = await resolveAccessibleAccountIds();
-					const { isScoped, linkedPropertyIds } =
-						await getTeamMemberAccessForCurrentUser(accessibleAccountIds);
+					const accessContext = await resolveAccountAccessContext();
 					if (
-						isScoped &&
-						!linkedPropertyIds.has(String(data.location?.propertyId || ''))
+						accessContext.isScopedTeamMember &&
+						!accessContext.allowedPropertyIds.includes(
+							String(data.location?.propertyId || ''),
+						)
 					) {
 						return { error: 'Not authorized to view this appliance' };
 					}
@@ -369,9 +259,8 @@ const deviceSlice = apiSlice.injectEndpoints({
 					if (!currentUser) {
 						return { error: 'User not authenticated' };
 					}
-					const accessibleAccountIds = await resolveAccessibleAccountIds();
-					const { isScoped, linkedPropertyIds } =
-						await getTeamMemberAccessForCurrentUser(accessibleAccountIds);
+					const accessContext = await resolveAccountAccessContext();
+					const accessibleAccountIds = accessContext.accountIds;
 					const devices: Device[] = [];
 					for (const accountId of accessibleAccountIds) {
 						const batch = await getDevicesForAccount(accountId);
@@ -379,10 +268,10 @@ const deviceSlice = apiSlice.injectEndpoints({
 					}
 					const uniqueDevices = uniqueDevicesById(devices);
 					return {
-						data: filterDevicesByAllowedProperties(
+						data: filterRecordsByAccessProperties(
 							uniqueDevices,
-							isScoped,
-							linkedPropertyIds,
+							accessContext,
+							(device) => String(device.location?.propertyId || ''),
 						),
 					};
 				} catch (error: any) {
