@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
-import { useDispatch, useSelector } from 'react-redux';
+import { useSelector } from 'react-redux';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
 	faCircleCheck,
@@ -20,9 +20,7 @@ import {
 	useGetPropertiesQuery,
 	useGetUnitQuery,
 	useGetUnitsQuery,
-	useUpdatePropertyMutation,
 } from '../../Redux/API/propertySlice';
-import { apiSlice } from '../../Redux/API/apiSlice';
 import {
 	useGetDeviceQuery,
 	useGetDevicesQuery,
@@ -68,10 +66,7 @@ import {
 	toNumberOrUndefined,
 } from '../../utils/financialUtils';
 import { uploadDeviceFile } from '../../utils/deviceFileUpload';
-import {
-	preparePropertyMemoryDocumentUploads,
-	startPdfDocumentKnowledgeProcessing,
-} from '../../propertyKnowledge/propertyDocumentUploads';
+import { usePropertyDocumentUploadWorkflow } from '../../propertyKnowledge/usePropertyDocumentUploadWorkflow';
 import { COLORS } from '../../constants/colors';
 import {
 	getDeviceIdFromSlug,
@@ -346,7 +341,6 @@ const sanitizeDeviceServiceItem = (item: DeviceServiceItem): DeviceServiceItem =
 export const DeviceDetailPage: React.FC = () => {
 	const { slug, deviceSlug } = useParams<{ slug: string; deviceSlug: string }>();
 	const [searchParams, setSearchParams] = useSearchParams();
-	const dispatch = useDispatch();
 	const applianceAction = searchParams.get('action');
 	const capturedApplianceActionRef = useRef<string | null>(null);
 	const pendingApplianceActionRef = useRef<string | null>(null);
@@ -446,11 +440,11 @@ export const DeviceDetailPage: React.FC = () => {
 	});
 
 	const [updateDevice] = useUpdateDeviceMutation();
-	const [updateProperty] = useUpdatePropertyMutation();
 	const [deleteTask] = useDeleteTaskMutation();
 	const [addMaintenanceHistory] = useAddMaintenanceHistoryMutation();
 	const [createContractor, { isLoading: isCreatingContractor }] =
 		useCreateContractorMutation();
+	const { uploadPropertyDocuments } = usePropertyDocumentUploadWorkflow();
 
 	const resetPartForm = () => {
 		setPartFormData({
@@ -1176,53 +1170,21 @@ export const DeviceDetailPage: React.FC = () => {
 			const documentCategory: PropertyDocumentCategory = isWarrantyDocument
 				? 'warranty'
 				: 'other';
-			const propertyDocuments = Array.isArray((property as any)?.documents)
-				? (property as any).documents
-				: [];
-			const propertyKnowledgeSuggestions = Array.isArray(
-				(property as any)?.knowledgeSuggestions,
-			)
-				? (property as any).knowledgeSuggestions
-				: [];
-			const {
-				documents: savedDocuments,
-				knowledgeSuggestions,
-				pdfDocuments,
-			} = await preparePropertyMemoryDocumentUploads({
-				files: [file],
-				propertyId: property.id,
-				category: documentCategory,
+
+			await uploadPropertyDocuments({
 				property,
-				systems: [device],
-				uploadContext: {
-					assetIds: [String(device.id)],
-				},
-			});
-			await updateProperty({
-				id: property.id,
-				updates: {
-					documents: [...propertyDocuments, ...savedDocuments],
-					knowledgeSuggestions: [
-						...propertyKnowledgeSuggestions,
-						...knowledgeSuggestions,
-					],
-				},
-			}).unwrap();
-			startPdfDocumentKnowledgeProcessing({
 				propertyId: property.id,
-				documents: pdfDocuments,
-				onProcessed: () => {
-					dispatch(apiSlice.util.invalidateTags(['Properties']));
-				},
-				onError: () => {
-					dispatch(apiSlice.util.invalidateTags(['Properties']));
-				},
+				batches: [
+					{
+						files: [file],
+						category: documentCategory,
+						systems: [device],
+						uploadContext: {
+							assetIds: [String(device.id)],
+						},
+					},
+				],
 			});
-			window.alert(
-				pdfDocuments.length > 0
-					? 'Document uploaded. Maintley is reviewing PDF details in the background.'
-					: 'Document uploaded to property documents.',
-			);
 		} finally {
 			if (documentInputRef.current) {
 				documentInputRef.current.value = '';
@@ -1343,47 +1305,19 @@ export const DeviceDetailPage: React.FC = () => {
 			}).unwrap();
 
 			if (pendingDeviceFiles.length > 0) {
-				const propertyDocuments = Array.isArray((property as any)?.documents)
-					? (property as any).documents
-					: [];
-				const propertyKnowledgeSuggestions = Array.isArray(
-					(property as any)?.knowledgeSuggestions,
-				)
-					? (property as any).knowledgeSuggestions
-					: [];
-				const {
-					documents: savedDocuments,
-					knowledgeSuggestions,
-					pdfDocuments,
-				} = await preparePropertyMemoryDocumentUploads({
-					files: pendingDeviceFiles,
-					propertyId: property.id,
-					category: 'other',
+				await uploadPropertyDocuments({
 					property,
-					systems: [editingDevice],
-					uploadContext: {
-						assetIds: [String(editingDevice.id)],
-					},
-				});
-				await updateProperty({
-					id: property.id,
-					updates: {
-						documents: [...propertyDocuments, ...savedDocuments],
-						knowledgeSuggestions: [
-							...propertyKnowledgeSuggestions,
-							...knowledgeSuggestions,
-						],
-					},
-				}).unwrap();
-				startPdfDocumentKnowledgeProcessing({
 					propertyId: property.id,
-					documents: pdfDocuments,
-					onProcessed: () => {
-						dispatch(apiSlice.util.invalidateTags(['Properties']));
-					},
-					onError: () => {
-						dispatch(apiSlice.util.invalidateTags(['Properties']));
-					},
+					batches: [
+						{
+							files: pendingDeviceFiles,
+							category: 'other',
+							systems: [editingDevice],
+							uploadContext: {
+								assetIds: [String(editingDevice.id)],
+							},
+						},
+					],
 				});
 			}
 

@@ -39,6 +39,7 @@ const functions = __importStar(require("firebase-functions/v1"));
 const zlib = __importStar(require("zlib"));
 const accountAuthz_1 = require("./accountAuthz");
 const maintleyEventEngine_1 = require("./maintleyEventEngine");
+const subscriptionEntitlements_1 = require("./subscriptionEntitlements");
 if (!admin.apps.length) {
     admin.initializeApp();
 }
@@ -99,6 +100,45 @@ const updateDocumentInList = (documents, documentId, updates) => documents.map((
     ? stripUndefinedDeep({ ...document, ...updates })
     : document);
 const getPropertyAccountId = (propertyData) => toString(propertyData.accountId) || toString(propertyData.userId);
+const getSubscriptionFromRecord = (data) => {
+    const subscription = data?.subscription;
+    return subscription && typeof subscription === 'object'
+        ? subscription
+        : null;
+};
+const loadAccountSubscription = async (accountId, fallbackUserId) => {
+    const accountDocumentIds = [
+        accountId,
+        fallbackUserId && fallbackUserId !== accountId ? fallbackUserId : '',
+    ].filter(Boolean);
+    for (const documentId of accountDocumentIds) {
+        const familyAccountSnapshot = await db
+            .collection('familyAccounts')
+            .doc(documentId)
+            .get();
+        const familyAccountSubscription = getSubscriptionFromRecord(familyAccountSnapshot.data());
+        if (familyAccountSubscription) {
+            return familyAccountSubscription;
+        }
+    }
+    for (const documentId of accountDocumentIds) {
+        const userSnapshot = await db.collection('users').doc(documentId).get();
+        const userSubscription = getSubscriptionFromRecord(userSnapshot.data());
+        if (userSubscription) {
+            return userSubscription;
+        }
+    }
+    return null;
+};
+const assertCanUsePropertyKnowledgeAcquisitionForProperty = async (propertyData) => {
+    const accountId = getPropertyAccountId(propertyData);
+    const ownerId = toString(propertyData.userId);
+    const subscription = await loadAccountSubscription(accountId, ownerId);
+    if ((0, subscriptionEntitlements_1.canUsePropertyKnowledgeAcquisition)(subscription)) {
+        return;
+    }
+    throw new functions.https.HttpsError('permission-denied', 'Suggested details from documents are available with Homeowner+.');
+};
 const buildDocumentCollectionRecord = ({ propertyId, propertyData, document, updates = {}, nowIso = new Date().toISOString(), }) => stripUndefinedDeep({
     ...document,
     ...updates,
@@ -773,6 +813,7 @@ const processPdfDocumentAcquisition = async ({ propertyId, documentId, triggered
         };
     }
     const { propertyData, document, documents } = loaded;
+    await assertCanUsePropertyKnowledgeAcquisitionForProperty(propertyData);
     const storagePath = toString(document.storagePath);
     const startedAt = new Date().toISOString();
     await publishDocumentAcquisitionEvent({

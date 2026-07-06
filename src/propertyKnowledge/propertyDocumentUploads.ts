@@ -26,6 +26,7 @@ type PropertyMemoryDocumentUploadInput = {
 	systems?: Device[];
 	customNameForSingleFile?: string;
 	uploadContext?: PropertyMemoryDocumentUploadContext;
+	enableKnowledgeAcquisition?: boolean;
 };
 
 type PropertyMemoryDocumentUploadResult = {
@@ -100,6 +101,7 @@ export const preparePropertyMemoryDocumentUploads = async ({
 	systems = [],
 	customNameForSingleFile,
 	uploadContext,
+	enableKnowledgeAcquisition = true,
 }: PropertyMemoryDocumentUploadInput): Promise<PropertyMemoryDocumentUploadResult> => {
 	const uploadedDocuments = await Promise.all(
 		files.map((file) =>
@@ -118,7 +120,7 @@ export const preparePropertyMemoryDocumentUploads = async ({
 	const knowledgeSuggestions = (
 		await Promise.all(
 			contextualDocuments.map((document, index) =>
-				isPdfPropertyDocument(document)
+				!enableKnowledgeAcquisition || isPdfPropertyDocument(document)
 					? Promise.resolve(null)
 					: createPendingKnowledgeSuggestionFromFile({
 							file: files[index],
@@ -135,7 +137,9 @@ export const preparePropertyMemoryDocumentUploads = async ({
 
 	const documents = contextualDocuments.map((document) => {
 		if (isPdfPropertyDocument(document)) {
-			return markPdfDocumentAsProcessing(document);
+			return enableKnowledgeAcquisition
+				? markPdfDocumentAsProcessing(document)
+				: document;
 		}
 		const suggestion = knowledgeSuggestions.find(
 			(candidate) => candidate.sourceDocumentId === document.id,

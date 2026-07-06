@@ -54,3 +54,7 @@ export const getEffectiveSubscriptionPlanId = (
 	return normalizePlanId(subscription?.plan || fallbackPlanId);
 };
 
+export const canUsePropertyKnowledgeAcquisition = (
+	subscription?: SubscriptionEntitlementLike | null,
+): boolean => PAID_PLAN_IDS.has(getEffectiveSubscriptionPlanId(subscription, 'homeowner'));
+

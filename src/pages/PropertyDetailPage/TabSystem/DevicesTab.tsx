@@ -16,7 +16,7 @@ import {
 	faPlug,
 } from '@fortawesome/free-solid-svg-icons';
 import { useNavigate } from 'react-router-dom';
-import { useDispatch, useSelector } from 'react-redux';
+import { useSelector } from 'react-redux';
 import { RootState } from 'Redux/store';
 import {
 	useGetDevicesQuery,
@@ -26,11 +26,7 @@ import {
 	useDeleteDeviceMutation,
 } from 'Redux/API/deviceSlice';
 import { useGetTasksQuery } from 'Redux/API/taskSlice';
-import {
-	useGetUnitsQuery,
-	useUpdatePropertyMutation,
-} from 'Redux/API/propertySlice';
-import { apiSlice } from 'Redux/API/apiSlice';
+import { useGetUnitsQuery } from 'Redux/API/propertySlice';
 import {
 	SectionContainer,
 	SectionHeader,
@@ -43,10 +39,7 @@ import {
 	DeviceServiceItem,
 	PropertyDocumentCategory,
 } from '../../../types/Property.types';
-import {
-	preparePropertyMemoryDocumentUploads,
-	startPdfDocumentKnowledgeProcessing,
-} from '../../../propertyKnowledge/propertyDocumentUploads';
+import { usePropertyDocumentUploadWorkflow } from '../../../propertyKnowledge/usePropertyDocumentUploadWorkflow';
 import { buildDeviceSlug } from '../../../utils/deviceSlug';
 import { useAppFeedback } from '../../../Components/Library/AppFeedback/AppFeedbackProvider';
 import {
@@ -741,11 +734,10 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 
 	const [createDevice] = useCreateDeviceMutation();
 	const [updateDevice] = useUpdateDeviceMutation();
-	const [updateProperty] = useUpdatePropertyMutation();
 	const [deleteDevice] = useDeleteDeviceMutation();
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
 	const isMobile = useSelector((state: RootState) => state.app.isMobile);
-	const dispatch = useDispatch();
+	const { uploadPropertyDocuments } = usePropertyDocumentUploadWorkflow();
 	const isTeamMemberAccount = currentUser?.isTeamMemberAccount === true;
 	const canManageAppliances = permissions?.canManageAppliances ?? true;
 	const effectivePlanId = getEffectiveSubscriptionPlanId(
@@ -1012,51 +1004,17 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 				})),
 			];
 			if (propertyDocumentUploads.length > 0) {
-				const propertyDocuments = Array.isArray((property as any)?.documents)
-					? (property as any).documents
-					: [];
-				const propertyKnowledgeSuggestions = Array.isArray(
-					(property as any)?.knowledgeSuggestions,
-				)
-					? (property as any).knowledgeSuggestions
-					: [];
-				const savedDocuments: any[] = [];
-				const knowledgeSuggestions: any[] = [];
-				const pdfDocuments: any[] = [];
-				for (const { file, category } of propertyDocumentUploads) {
-					const result = await preparePropertyMemoryDocumentUploads({
+				await uploadPropertyDocuments({
+					property,
+					propertyId: property.id,
+					batches: propertyDocumentUploads.map(({ file, category }) => ({
 						files: [file],
-						propertyId: property.id,
 						category,
-						property,
 						systems: devices as Device[],
 						uploadContext: {
 							assetIds: savedDeviceId ? [savedDeviceId] : [],
 						},
-					});
-					savedDocuments.push(...result.documents);
-					knowledgeSuggestions.push(...result.knowledgeSuggestions);
-					pdfDocuments.push(...result.pdfDocuments);
-				}
-				await updateProperty({
-					id: property.id,
-					updates: {
-						documents: [...propertyDocuments, ...savedDocuments],
-						knowledgeSuggestions: [
-							...propertyKnowledgeSuggestions,
-							...knowledgeSuggestions,
-						],
-					},
-				}).unwrap();
-				startPdfDocumentKnowledgeProcessing({
-					propertyId: property.id,
-					documents: pdfDocuments,
-					onProcessed: () => {
-						dispatch(apiSlice.util.invalidateTags(['Properties']));
-					},
-					onError: () => {
-						dispatch(apiSlice.util.invalidateTags(['Properties']));
-					},
+					})),
 				});
 				setPendingUploadFiles([]);
 				setPendingPropertyDocumentFiles([]);

@@ -272,6 +272,22 @@ export const canUsePropertyInsights = (
 	return ['homeowner_plus', 'property', 'portfolio'].includes(effectivePlan);
 };
 
+export const canUsePropertyKnowledgeAcquisition = (
+	subscription?: Pick<
+		SubscriptionData,
+		| 'plan'
+		| 'status'
+		| 'trialEndsAt'
+		| 'hasScheduledSubscription'
+		| 'scheduledPlan'
+		| 'pendingCheckoutPlan'
+		| 'stripeSubscriptionId'
+	> | null,
+): boolean => {
+	const effectivePlan = getEffectiveSubscriptionPlanId(subscription, 'homeowner');
+	return ['homeowner_plus', 'property', 'portfolio'].includes(effectivePlan);
+};
+
 /**
  * Check if user can add more properties based on their subscription and role
  */

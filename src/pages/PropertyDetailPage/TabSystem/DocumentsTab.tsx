@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useDispatch } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import {
 	SectionContainer,
@@ -28,10 +29,7 @@ import {
 	markDocumentWithKnowledgeSuggestion,
 	mergeKnowledgeSuggestion,
 } from 'propertyKnowledge/propertyKnowledgeAcquisition';
-import {
-	preparePropertyMemoryDocumentUploads,
-	startPdfDocumentKnowledgeProcessing,
-} from 'propertyKnowledge/propertyDocumentUploads';
+import { usePropertyDocumentUploadWorkflow } from 'propertyKnowledge/usePropertyDocumentUploadWorkflow';
 import {
 	deletePropertyDocumentFromCollection,
 	updatePropertyDocumentInCollection,
@@ -234,6 +232,7 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 }) => {
 	const feedback = useAppFeedback();
 	const dispatch = useDispatch<AppDispatch>();
+	const navigate = useNavigate();
 	const [updateProperty] = useUpdatePropertyMutation();
 	const [isUploadOpen, setIsUploadOpen] = useState(false);
 	const [isEditOpen, setIsEditOpen] = useState(false);
@@ -250,6 +249,8 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 	const [isSaving, setIsSaving] = useState(false);
 	const lastOpenUploadTokenRef = useRef(0);
 	const canManageDocuments = permissions?.canManageProperties ?? true;
+	const { canUseDocumentReview, uploadPropertyDocuments } =
+		usePropertyDocumentUploadWorkflow();
 	const {
 		documents: propertyDocuments,
 		knowledgeSuggestions: propertyKnowledgeSuggestions,
@@ -426,6 +427,11 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 
 	const handleReviewDocumentKnowledge = async (documentId?: string) => {
 		if (!property?.id || !documentId || isSaving) return;
+		if (!canUseDocumentReview) {
+			feedback.notify('Suggested details from documents are available with Homeowner+.');
+			navigate('/paywall');
+			return;
+		}
 		const document = propertyDocuments.find((item) => item.id === documentId);
 		if (!document) return;
 
@@ -525,47 +531,18 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 		try {
 			const customNameForSingleFile =
 				selectedFiles.length === 1 ? uploadName.trim() : '';
-			const {
-				documents: savedDocuments,
-				knowledgeSuggestions,
-				pdfDocuments,
-			} = await preparePropertyMemoryDocumentUploads({
-				files: selectedFiles,
-				propertyId: property.id,
-				category: documentCategory,
-				customNameForSingleFile,
+			const { documents: savedDocuments } = await uploadPropertyDocuments({
 				property,
-				systems: propertyDevices as Device[],
-			});
-			await updateProperty({
-				id: property.id,
-				updates: {
-					documents: [
-						...propertyDocuments,
-						...savedDocuments,
-					],
-					knowledgeSuggestions: [
-						...propertyKnowledgeSuggestions,
-						...knowledgeSuggestions,
-					],
-				},
-			}).unwrap();
-			const totalSuggestedDetails = knowledgeSuggestions.reduce(
-				(total, suggestion) => total + getKnowledgeSuggestionCount(suggestion),
-				0,
-			);
-			feedback.notify(
-				totalSuggestedDetails > 0
-					? `Documents uploaded. Maintley found ${totalSuggestedDetails} suggested detail${totalSuggestedDetails === 1 ? '' : 's'} to review.`
-					: pdfDocuments.length > 0
-						? 'Documents uploaded. Maintley is reviewing PDF details in the background.'
-						: 'Documents uploaded.',
-			);
-			startPdfDocumentKnowledgeProcessing({
 				propertyId: property.id,
-				documents: pdfDocuments,
+				batches: [
+					{
+						files: selectedFiles,
+						category: documentCategory,
+						customNameForSingleFile,
+						systems: propertyDevices as Device[],
+					},
+				],
 				onProcessed: (result) => {
-					dispatch(apiSlice.util.invalidateTags(['Properties']));
 					if (result.success && result.suggestionId) {
 						onReviewSuggestedDetails?.(result.suggestionId);
 					}
@@ -582,7 +559,6 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 					} catch (statusError) {
 						console.error('Error marking PDF review as failed:', statusError);
 					}
-					dispatch(apiSlice.util.invalidateTags(['Properties']));
 				},
 			});
 			closeUploadModal();
@@ -705,6 +681,22 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 					{maintenanceDocuments.length} maintenance file{maintenanceDocuments.length === 1 ? '' : 's'}
 				</TabSummaryPill>
 			</TabSummaryBar>
+			{canManageDocuments && !canUseDocumentReview && (
+				<DocumentReviewTease>
+					<div>
+						<strong>Suggested details from documents</strong>
+						<span>
+							Homeowner+ can review invoices, warranties, manuals, and inspection
+							reports for details you can approve into Property Memory.
+						</span>
+					</div>
+					<DocumentReviewTeaseButton
+						type='button'
+						onClick={() => navigate('/paywall')}>
+						Explore Homeowner+
+					</DocumentReviewTeaseButton>
+				</DocumentReviewTease>
+			)}
 
 			{allDocuments.length === 0 ? (
 				<EmptyState>
@@ -783,7 +775,8 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 											}>
 											{acquisitionStatusText}{' '}
 											{isAcquisitionRetryable &&
-												canManageDocuments && (
+												canManageDocuments &&
+												canUseDocumentReview && (
 													<DocumentInlineAction
 														type='button'
 														onClick={() => handleReviewDocumentKnowledge(file.id)}
@@ -799,14 +792,23 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 									suggestionCount > 0 && (
 										<DocumentKnowledgePrompt>
 											Maintley found {suggestionCount} suggested detail{suggestionCount === 1 ? '' : 's'} for this property.{' '}
-											<DocumentInlineAction
-												type='button'
-												onClick={() =>
-													onReviewSuggestedDetails?.(latestKnowledgeSuggestion.id)
-												}
-												disabled={isSaving}>
-												Review now
-											</DocumentInlineAction>
+											{canUseDocumentReview ? (
+												<DocumentInlineAction
+													type='button'
+													onClick={() =>
+														onReviewSuggestedDetails?.(latestKnowledgeSuggestion.id)
+													}
+													disabled={isSaving}>
+													Review now
+												</DocumentInlineAction>
+											) : (
+												<DocumentInlineAction
+													type='button'
+													onClick={() => navigate('/paywall')}
+													disabled={isSaving}>
+													Available with Homeowner+
+												</DocumentInlineAction>
+											)}
 										</DocumentKnowledgePrompt>
 									)}
 								{isPropertyDocument &&
@@ -822,13 +824,19 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 										getKnowledgeSuggestionCount(latestKnowledgeSuggestion) === 0 ? (
 											<DocumentActionButton
 												type='button'
-												onClick={() => handleReviewDocumentKnowledge(file.id)}
+												onClick={() =>
+													canUseDocumentReview
+														? handleReviewDocumentKnowledge(file.id)
+														: navigate('/paywall')
+												}
 												disabled={
 													isSaving ||
 													(sourcePropertyDocument?.acquisitionStatus === 'processing' &&
 														!isDocumentAcquisitionStale(sourcePropertyDocument))
 												}>
-												Check for suggested details
+												{canUseDocumentReview
+													? 'Check for suggested details'
+													: 'Review with Homeowner+'}
 											</DocumentActionButton>
 										) : null}
 										{latestKnowledgeSuggestion?.status === 'applied' &&
@@ -979,6 +987,60 @@ const UploadButton = styled.button`
 const DocumentGrid = styled.div`
 	display: grid;
 	gap: 10px;
+`;
+
+const DocumentReviewTease = styled.div`
+	border: 1px solid #bfdbfe;
+	border-radius: 10px;
+	background: linear-gradient(180deg, #eff6ff 0%, #ffffff 100%);
+	padding: 14px;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 14px;
+
+	div {
+		display: grid;
+		gap: 4px;
+	}
+
+	strong {
+		color: ${COLORS.textPrimary};
+		font-size: 14px;
+		line-height: 1.35;
+	}
+
+	span {
+		color: ${COLORS.textSecondary};
+		font-size: 13px;
+		line-height: 1.45;
+	}
+
+	@media (max-width: 640px) {
+		align-items: flex-start;
+		flex-direction: column;
+	}
+`;
+
+const DocumentReviewTeaseButton = styled.button`
+	border: 1px solid ${COLORS.primary};
+	border-radius: 8px;
+	background: ${COLORS.primary};
+	color: ${COLORS.white};
+	font-size: 13px;
+	font-weight: 800;
+	padding: 9px 12px;
+	cursor: pointer;
+	white-space: nowrap;
+
+	&:hover {
+		background: ${COLORS.primaryHover};
+	}
+
+	&:focus-visible {
+		outline: 2px solid ${COLORS.primary};
+		outline-offset: 2px;
+	}
 `;
 
 const DocumentCard = styled.div`

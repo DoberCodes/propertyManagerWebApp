@@ -10,6 +10,14 @@ Source-specific support status, limitations, and planned property-confirmation
 safeguards are tracked in
 `PROPERTY_KNOWLEDGE_ACQUISITION_STATUS_MATRIX.md`.
 
+Plan availability:
+
+* Document upload and storage remain available on all plans.
+* Suggested details from uploaded documents are available on Homeowner+,
+  Property, and Portfolio plans.
+* Free users may see a preview or upgrade prompt, but upload workflows should
+  save the source document without starting Property Knowledge Acquisition.
+
 ```text
 Document / source
     ->

@@ -1,15 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { useDispatch, useSelector } from 'react-redux';
+import { useSelector } from 'react-redux';
 import {
 	useCreateDeviceMutation,
 	useGetAllDevicesQuery,
 } from '../../Redux/API/deviceSlice';
-import {
-	useGetPropertiesQuery,
-	useUpdatePropertyMutation,
-} from '../../Redux/API/propertySlice';
-import { apiSlice } from '../../Redux/API/apiSlice';
+import { useGetPropertiesQuery } from '../../Redux/API/propertySlice';
 import { useGetTasksQuery } from '../../Redux/API/taskSlice';
 import { useGetAllMaintenanceHistoryForUserQuery } from '../../Redux/API/userSlice';
 import { AppZeroState } from '../../Components/Library/AppZeroState';
@@ -29,10 +25,7 @@ import {
 	Property,
 	PropertyDocumentCategory,
 } from '../../types/Property.types';
-import {
-	preparePropertyMemoryDocumentUploads,
-	startPdfDocumentKnowledgeProcessing,
-} from '../../propertyKnowledge/propertyDocumentUploads';
+import { usePropertyDocumentUploadWorkflow } from '../../propertyKnowledge/usePropertyDocumentUploadWorkflow';
 import {
 	canAddDevice,
 	getEffectiveSubscriptionPlanId,
@@ -268,7 +261,6 @@ export const DevicesHubPage: React.FC = () => {
 	const navigate = useNavigate();
 	const location = useLocation();
 	const feedback = useAppFeedback();
-	const dispatch = useDispatch();
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
 	const { data: devices = [], isLoading } = useGetAllDevicesQuery();
 	const { data: properties = [], isLoading: isLoadingProperties } =
@@ -276,7 +268,7 @@ export const DevicesHubPage: React.FC = () => {
 	const { data: allTasks = [] } = useGetTasksQuery();
 	const { data: allMaintenanceHistory = [] } = useGetAllMaintenanceHistoryForUserQuery();
 	const [createDevice] = useCreateDeviceMutation();
-	const [updateProperty] = useUpdatePropertyMutation();
+	const { uploadPropertyDocuments } = usePropertyDocumentUploadWorkflow();
 
 	const [searchQuery, setSearchQuery] = useState('');
 	const [statusFilter, setStatusFilter] = useState<'All' | 'Active' | 'Maintenance' | 'Broken' | 'Decommissioned'>('All');
@@ -486,53 +478,17 @@ export const DevicesHubPage: React.FC = () => {
 			];
 
 			if (propertyDocumentUploads.length > 0) {
-				const propertyDocuments = Array.isArray((targetProperty as any)?.documents)
-					? (targetProperty as any).documents
-					: [];
-				const propertyKnowledgeSuggestions = Array.isArray(
-					(targetProperty as any)?.knowledgeSuggestions,
-				)
-					? (targetProperty as any).knowledgeSuggestions
-					: [];
-
-				const savedDocuments: any[] = [];
-				const knowledgeSuggestions: any[] = [];
-				const pdfDocuments: any[] = [];
-				for (const { file, category } of propertyDocumentUploads) {
-					const result = await preparePropertyMemoryDocumentUploads({
+				await uploadPropertyDocuments({
+					property: targetProperty as Property,
+					propertyId: String(targetProperty.id),
+					batches: propertyDocumentUploads.map(({ file, category }) => ({
 						files: [file],
-						propertyId: String(targetProperty.id),
 						category,
-						property: targetProperty as Property,
 						systems: savedDevice ? [savedDevice as Device] : [],
 						uploadContext: {
 							assetIds: savedDevice?.id ? [String(savedDevice.id)] : [],
 						},
-					});
-					savedDocuments.push(...result.documents);
-					knowledgeSuggestions.push(...result.knowledgeSuggestions);
-					pdfDocuments.push(...result.pdfDocuments);
-				}
-
-				await updateProperty({
-					id: String(targetProperty.id),
-					updates: {
-						documents: [...propertyDocuments, ...savedDocuments],
-						knowledgeSuggestions: [
-							...propertyKnowledgeSuggestions,
-							...knowledgeSuggestions,
-						],
-					},
-				}).unwrap();
-				startPdfDocumentKnowledgeProcessing({
-					propertyId: String(targetProperty.id),
-					documents: pdfDocuments,
-					onProcessed: () => {
-						dispatch(apiSlice.util.invalidateTags(['Properties']));
-					},
-					onError: () => {
-						dispatch(apiSlice.util.invalidateTags(['Properties']));
-					},
+					})),
 				});
 			}
 

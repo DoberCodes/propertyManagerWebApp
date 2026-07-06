@@ -5,7 +5,6 @@ import {
 	submitTaskCompletion,
 	CompletionFile,
 } from '../../Redux/Slices/propertyDataSlice';
-import { apiSlice } from '../../Redux/API/apiSlice';
 import { GenericModal, FormGroup } from '../Library';
 import { Task } from '../../types/Task.types';
 import { Label, Input, ErrorMessage } from './TaskCompletionModal.styles';
@@ -19,16 +18,14 @@ import {
 import { useSubmitTaskCompletionMutation } from '../../Redux/API/taskSlice';
 import {
 	useGetPropertiesQuery,
-	useUpdatePropertyMutation,
 } from '../../Redux/API/propertySlice';
 import { useCreateNotificationMutation } from '../../Redux/API/notificationSlice';
 import { useAppFeedback } from '../Library/AppFeedback/AppFeedbackProvider';
-import { getEffectiveSubscriptionPlanId } from '../../utils/subscriptionUtils';
-import { canApproveTaskCompletions } from '../../utils/permissions';
 import {
-	preparePropertyMemoryDocumentUploads,
-	startPdfDocumentKnowledgeProcessing,
-} from '../../propertyKnowledge/propertyDocumentUploads';
+	getEffectiveSubscriptionPlanId,
+} from '../../utils/subscriptionUtils';
+import { canApproveTaskCompletions } from '../../utils/permissions';
+import { usePropertyDocumentUploadWorkflow } from '../../propertyKnowledge/usePropertyDocumentUploadWorkflow';
 
 interface TaskCompletionModalProps {
 	taskId: string;
@@ -67,8 +64,8 @@ export const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
 	const [isSubmitting, setIsSubmitting] = useState(false);
 
 	const [submitCompletion] = useSubmitTaskCompletionMutation();
-	const [updateProperty] = useUpdatePropertyMutation();
 	const [createNotification] = useCreateNotificationMutation();
+	const { uploadPropertyDocuments } = usePropertyDocumentUploadWorkflow();
 	const { data: allProperties = [] } = useGetPropertiesQuery();
 	const feedback = useAppFeedback();
 	const effectivePlan = getEffectiveSubscriptionPlanId(
@@ -160,47 +157,20 @@ export const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
 				if (!task?.propertyId || !taskProperty) {
 					throw new Error('Property details are required before uploading a completion document.');
 				}
-				const propertyDocuments = Array.isArray(taskProperty.documents)
-					? taskProperty.documents
-					: [];
-				const propertyKnowledgeSuggestions = Array.isArray(
-					taskProperty.knowledgeSuggestions,
-				)
-					? taskProperty.knowledgeSuggestions
-					: [];
-				const {
-					documents: savedDocuments,
-					knowledgeSuggestions,
-					pdfDocuments,
-				} = await preparePropertyMemoryDocumentUploads({
-					files: [selectedFile],
-					propertyId: task.propertyId,
-					category: 'other',
+				const { documents: savedDocuments } = await uploadPropertyDocuments({
 					property: taskProperty,
-					uploadContext: {
-						taskIds: [taskId],
-						assignedTaskStatus: task.status,
-					},
-				});
-				await updateProperty({
-					id: task.propertyId,
-					updates: {
-						documents: [...propertyDocuments, ...savedDocuments],
-						knowledgeSuggestions: [
-							...propertyKnowledgeSuggestions,
-							...knowledgeSuggestions,
-						],
-					},
-				}).unwrap();
-				startPdfDocumentKnowledgeProcessing({
 					propertyId: task.propertyId,
-					documents: pdfDocuments,
-					onProcessed: () => {
-						dispatch(apiSlice.util.invalidateTags(['Properties']));
-					},
-					onError: () => {
-						dispatch(apiSlice.util.invalidateTags(['Properties']));
-					},
+					batches: [
+						{
+							files: [selectedFile],
+							category: 'other',
+							uploadContext: {
+								taskIds: [taskId],
+								assignedTaskStatus: task.status,
+							},
+						},
+					],
+					notify: false,
 				});
 				const savedDocument = savedDocuments[0];
 				completionFileData = {

@@ -227,6 +227,7 @@ See EMAIL_NOTIFICATIONS.md for delivery behavior.
 | File Downloads        | ✓    | ✓          | ✓        | ✓         |
 | File Deletion         | ✓    | ✓          | ✓        | ✓         |
 | Storage Usage Display | ✓    | ✓          | ✓        | ✓         |
+| Suggested Details from Documents | Preview | Yes | Yes | Yes |
 | File Limit            | 10   | 250        | 1500     | 5000      |
 | Storage Limit         | 1 GB | 5 GB       | 15 GB    | 25 GB     |
 
@@ -235,6 +236,7 @@ See EMAIL_NOTIFICATIONS.md for delivery behavior.
 * Users should always retain access to existing files.
 * Storage limits may evolve based on real-world usage.
 * File management remains available on all plans.
+* Free users can upload and organize documents. Homeowner+ and higher plans unlock Maintley's suggested detail review from uploaded documents.
 
 ---
 

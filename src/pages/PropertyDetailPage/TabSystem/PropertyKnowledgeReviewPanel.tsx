@@ -1,5 +1,6 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSelector } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import {
 	FormInput,
@@ -40,6 +41,10 @@ import {
 	type KnowledgeTargetCandidate,
 } from 'propertyKnowledge/propertyKnowledgeTargeting';
 import type { RoleCapabilities } from 'utils/permissions';
+import {
+	canUsePropertyKnowledgeAcquisition,
+	SubscriptionData,
+} from 'utils/subscriptionUtils';
 import { useAppFeedback } from 'Components/Library/AppFeedback/AppFeedbackProvider';
 import {
 	getAssetTypeOptions,
@@ -58,6 +63,7 @@ interface PropertyKnowledgeReviewPanelProps {
 	maintenanceHistoryRecords?: any[];
 	propertyContractors?: any[];
 	permissions?: RoleCapabilities;
+	subscription?: SubscriptionData | null;
 	selectedSuggestionId?: string | null;
 	onSelectSuggestion?: (suggestionId: string) => void;
 	onAddMaintenanceHistory?: (history: any) => Promise<void> | void;
@@ -530,12 +536,14 @@ export const PropertyKnowledgeReviewPanel: React.FC<
 	maintenanceHistoryRecords = [],
 	propertyContractors = [],
 	permissions,
+	subscription,
 	selectedSuggestionId,
 	onSelectSuggestion,
 	onAddMaintenanceHistory,
 	onUpdateMaintenanceHistory,
 }) => {
 	const feedback = useAppFeedback();
+	const navigate = useNavigate();
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
 	const [updateProperty] = useUpdatePropertyMutation();
 	const [updateDevice] = useUpdateDeviceMutation();
@@ -556,9 +564,13 @@ export const PropertyKnowledgeReviewPanel: React.FC<
 		contractorMode: 'create',
 		maintenanceEventMode: 'create',
 	});
+	const initializedSuggestionKeyRef = useRef('');
 	const [expandedSectionKeys, setExpandedSectionKeys] = useState<Record<string, boolean>>({});
 	const [isSaving, setIsSaving] = useState(false);
 	const [propertyAddressConfirmed, setPropertyAddressConfirmed] = useState(false);
+	const canUseDocumentReview = canUsePropertyKnowledgeAcquisition(
+		subscription || currentUser?.subscription,
+	);
 
 	const {
 		documents: propertyDocuments,
@@ -1016,6 +1028,7 @@ export const PropertyKnowledgeReviewPanel: React.FC<
 
 	useEffect(() => {
 		if (!selectedSuggestion) {
+			initializedSuggestionKeyRef.current = '';
 			setKnowledgeFieldValues({});
 			setKnowledgeFieldReviewStatuses({});
 			setKnowledgePartValues({});
@@ -1027,6 +1040,20 @@ export const PropertyKnowledgeReviewPanel: React.FC<
 			return;
 		}
 
+		const initializationKey = [
+			selectedSuggestion.id,
+			selectedSuggestion.updatedAt || '',
+			selectedSuggestion.status || '',
+			targetAssetRecordId || '',
+			targetContractorRecordId || '',
+			targetMaintenanceEventRecordId || '',
+		].join('|');
+
+		if (initializedSuggestionKeyRef.current === initializationKey) {
+			return;
+		}
+
+		initializedSuggestionKeyRef.current = initializationKey;
 		setKnowledgeFieldValues(
 			Object.fromEntries(
 				selectedSuggestion.extractedFields.map((field) => [
@@ -1883,6 +1910,42 @@ export const PropertyKnowledgeReviewPanel: React.FC<
 		}
 	};
 
+	if (!canUseDocumentReview) {
+		return (
+			<PanelShell>
+				<PanelHeader>
+					<div>
+						<PanelTitle>Suggested Details</PanelTitle>
+						<PanelText>
+							Upload documents on any plan. Homeowner+ can review those documents
+							for details you can approve into Property Memory.
+						</PanelText>
+					</div>
+				</PanelHeader>
+				<DocumentReviewUpgradeState>
+					<UpgradeEyebrow>Available with Homeowner+</UpgradeEyebrow>
+					<h3>Turn documents into reviewed property memory.</h3>
+					<p>
+						Maintley can review invoices, warranties, manuals, and inspection
+						reports for details such as model numbers, install dates, warranty
+						terms, contractors, maintenance history, parts, and costs.
+					</p>
+					<UpgradeExampleGrid>
+						<span>Invoice totals</span>
+						<span>Warranty details</span>
+						<span>Contractors</span>
+						<span>Maintenance history</span>
+						<span>Parts & supplies</span>
+						<span>Equipment details</span>
+					</UpgradeExampleGrid>
+					<UpgradeButton type='button' onClick={() => navigate('/paywall')}>
+						Explore Homeowner+
+					</UpgradeButton>
+				</DocumentReviewUpgradeState>
+			</PanelShell>
+		);
+	}
+
 	if (knowledgeSuggestions.length === 0) {
 		return (
 			<PanelShell>
@@ -2232,6 +2295,79 @@ const ReviewLayout = styled.div`
 
 	@media (max-width: 820px) {
 		grid-template-columns: 1fr;
+	}
+`;
+
+const DocumentReviewUpgradeState = styled.div`
+	border: 1px solid #bfdbfe;
+	border-radius: 10px;
+	background: linear-gradient(180deg, #eff6ff 0%, #ffffff 100%);
+	padding: 18px;
+	display: grid;
+	gap: 12px;
+
+	h3 {
+		margin: 0;
+		color: ${COLORS.textPrimary};
+		font-size: 17px;
+		line-height: 1.35;
+	}
+
+	p {
+		margin: 0;
+		color: ${COLORS.textSecondary};
+		font-size: 14px;
+		line-height: 1.5;
+	}
+`;
+
+const UpgradeEyebrow = styled.div`
+	color: #1d4ed8;
+	font-size: 12px;
+	font-weight: 900;
+	letter-spacing: 0;
+	text-transform: uppercase;
+`;
+
+const UpgradeExampleGrid = styled.div`
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 8px;
+
+	span {
+		border: 1px solid #dbeafe;
+		border-radius: 999px;
+		background: #ffffff;
+		color: #334155;
+		font-size: 12px;
+		font-weight: 800;
+		padding: 7px 9px;
+		text-align: center;
+	}
+
+	@media (max-width: 640px) {
+		grid-template-columns: 1fr;
+	}
+`;
+
+const UpgradeButton = styled.button`
+	justify-self: start;
+	border: 1px solid ${COLORS.primary};
+	border-radius: 8px;
+	background: ${COLORS.primary};
+	color: ${COLORS.white};
+	font-size: 13px;
+	font-weight: 800;
+	padding: 9px 12px;
+	cursor: pointer;
+
+	&:hover {
+		background: ${COLORS.primaryHover};
+	}
+
+	&:focus-visible {
+		outline: 2px solid ${COLORS.primary};
+		outline-offset: 2px;
 	}
 `;
 
