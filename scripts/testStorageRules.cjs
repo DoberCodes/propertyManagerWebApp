@@ -147,7 +147,7 @@ async function run() {
 				{ contentType: 'application/pdf' },
 			),
 		);
-		await assertSucceeds(
+		await assertFails(
 			teamMemberStorage.ref(`properties/${accountId}/team-document.txt`).putString(
 				fileData,
 				'raw',
@@ -197,8 +197,15 @@ async function run() {
 				{ contentType: 'image/png' },
 			),
 		);
-		await assertSucceeds(
+		await assertFails(
 			teamMemberStorage.ref(`team-member-files/${accountId}/${teamMemberUid}/note.txt`).putString(
+				fileData,
+				'raw',
+				{ contentType: 'text/plain' },
+			),
+		);
+		await assertSucceeds(
+			ownerStorage.ref(`team-member-files/${accountId}/${teamMemberUid}/note.txt`).putString(
 				fileData,
 				'raw',
 				{ contentType: 'text/plain' },
@@ -215,8 +222,15 @@ async function run() {
 		await assertSucceeds(
 			teamMemberStorage.ref(`device-files/${propertyId}/device-1/manual.pdf`).getMetadata(),
 		);
-		await assertSucceeds(
+		await assertFails(
 			teamMemberStorage.ref(`device-files/${propertyId}/device-1/new-manual.pdf`).putString(
+				fileData,
+				'raw',
+				{ contentType: 'application/pdf' },
+			),
+		);
+		await assertSucceeds(
+			ownerStorage.ref(`device-files/${propertyId}/device-1/new-manual.pdf`).putString(
 				fileData,
 				'raw',
 				{ contentType: 'application/pdf' },
@@ -240,8 +254,15 @@ async function run() {
 		await assertSucceeds(
 			ownerStorage.ref(`maintenance-files/${propertyId}/invoice.pdf`).getMetadata(),
 		);
-		await assertSucceeds(
+		await assertFails(
 			teamMemberStorage.ref(`maintenance-files/${propertyId}/new-invoice.pdf`).putString(
+				fileData,
+				'raw',
+				{ contentType: 'application/pdf' },
+			),
+		);
+		await assertSucceeds(
+			ownerStorage.ref(`maintenance-files/${propertyId}/new-invoice.pdf`).putString(
 				fileData,
 				'raw',
 				{ contentType: 'application/pdf' },
@@ -257,6 +278,9 @@ async function run() {
 
 		await assertSucceeds(
 			ownerStorage.ref(`properties/${accountId}/seeded-document.txt`).delete(),
+		);
+		await assertFails(
+			teamMemberStorage.ref(`device-files/${propertyId}/device-1/manual.pdf`).delete(),
 		);
 		await assertFails(
 			outsiderStorage.ref(`maintenance-files/${propertyId}/invoice.pdf`).delete(),
