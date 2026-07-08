@@ -124,6 +124,18 @@ Maintley may recommend adding these later.
 
 ---
 
+## Asset Record Expectations
+
+Maintley Intelligence should apply different expectations to different kinds of records.
+
+Equipment and mechanical systems, such as HVAC, water heaters, refrigerators, washers, dryers, and safety detectors, may benefit from make, model, serial number, install date, recurring care, and maintenance-history recommendations.
+
+Structural or inspection-based records, such as roofs, windows, doors, gutters, siding, foundations, decks, fences, driveways, chimneys, and GFCI outlets, should not be treated like appliances. Maintley should not penalize these records for missing make, model, serial number, install date, recurring care, or routine maintenance history.
+
+For structural and inspection-based records, Maintley may recommend documenting inspections or condition reviews. This guidance should be framed as recordkeeping and inspection history, not as a required maintenance schedule.
+
+---
+
 ## Prioritize Value
 
 Not all recommendations provide equal value.

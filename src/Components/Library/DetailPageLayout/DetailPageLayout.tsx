@@ -149,6 +149,7 @@ interface DetailPageLayoutProps {
 	activeTab: string;
 	onTabChange: (tab: string) => void;
 	children: React.ReactNode;
+	topRightActions?: React.ReactNode;
 }
 
 export const DetailPageLayout: React.FC<DetailPageLayoutProps> = ({
@@ -165,6 +166,7 @@ export const DetailPageLayout: React.FC<DetailPageLayoutProps> = ({
 	activeTab,
 	onTabChange,
 	children,
+	topRightActions,
 }) => {
 	const navigate = useNavigate();
 	const location = useLocation();
@@ -191,7 +193,14 @@ export const DetailPageLayout: React.FC<DetailPageLayoutProps> = ({
 				headerTheme={headerTheme}
 				backLabel={backLabel}
 				onBack={() => navigate(backPath)}
-				topRight={badge ? <HeaderBadge>{badge}</HeaderBadge> : undefined}
+				topRight={
+					badge || topRightActions ? (
+						<>
+							{badge && <HeaderBadge>{badge}</HeaderBadge>}
+							{topRightActions}
+						</>
+					) : undefined
+				}
 				title={title}
 				subtitle={subtitle}
 			/>

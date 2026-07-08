@@ -96,7 +96,7 @@ import {
 } from '../../constants/deviceServiceItems';
 import { BarcodeScannerModal } from '../../Components/Library/BarcodeScanner/BarcodeScannerModal';
 import { LoadingState } from '../../Components/LoadingState';
-import { PageStack, SummaryGrid, SummaryCard, SummaryLabel, SummaryValue, QuickActionPanel, QuickActionHeader, ViewActionsButton, QuickActionGrid, QuickActionButton, QuickActionHint, SectionBlock, SectionEyebrow, SectionTitleStrong, SectionDescription, PhotoActions, ScanButton, PhotoHelperText, PhotoSection, DevicePhotoCard, DevicePhotoImg, PhotoPlaceholder, PhotoActionButton, RemovePhotoButton, MobileCardStack, MobileDetailCard, MobileDetailHeader, MobileDetailTitle, MobileDetailMeta, ActionButton, SubmitButton, CombinedHistoryContainer, TimelineList, TimelineItem, TimelineDate, TimelineDateSub, TimelineContent, TimelineTitleRow, TimelineIconBadge, TimelineTitle, TimelineEventBadge, TimelineDescription, TimelineMeta, TimelineExpandButton, TimelineDetailsPanel, TimelineDetailBlock, TimelineDetailLabel, TimelineDetailValue, TimelineAttachmentList, TimelineAttachmentLink, PartsForm, FormField, DynamicFieldsGrid, PartsTable } from './DeviceDetailPage.styles';
+import { PageStack, HeroEditButton, SummaryGrid, SummaryCard, SummaryLabel, SummaryValue, QuickActionPanel, QuickActionHeader, ViewActionsButton, QuickActionGrid, QuickActionButton, QuickActionHint, SectionBlock, SectionEyebrow, SectionTitleStrong, SectionDescription, PhotoActions, ScanButton, PhotoHelperText, PhotoSection, DevicePhotoCard, DevicePhotoImg, PhotoPlaceholder, PhotoActionButton, RemovePhotoButton, MobileCardStack, MobileDetailCard, MobileDetailHeader, MobileDetailTitle, MobileDetailMeta, ActionButton, SubmitButton, CombinedHistoryContainer, TimelineList, TimelineItem, TimelineDate, TimelineDateSub, TimelineContent, TimelineTitleRow, TimelineIconBadge, TimelineTitle, TimelineEventBadge, TimelineDescription, TimelineMeta, TimelineExpandButton, TimelineDetailsPanel, TimelineDetailBlock, TimelineDetailLabel, TimelineDetailValue, TimelineAttachmentList, TimelineAttachmentLink, PartsForm, FormField, DynamicFieldsGrid, PartsTable } from './DeviceDetailPage.styles';
 
 type PartFormState = Omit<DeviceServiceItem, 'id'>;
 
@@ -1698,6 +1698,17 @@ export const DeviceDetailPage: React.FC = () => {
 			backLabel={applianceProfileBackLabel}
 			headerTheme='slate'
 			contentMaxWidth='100%'
+			topRightActions={
+				canManageApplianceActions ? (
+					<HeroEditButton
+						type='button'
+						aria-label='Edit appliance'
+						title='Edit appliance'
+						onClick={handleOpenEditDeviceModal}>
+						<FontAwesomeIcon icon={faEdit} aria-hidden='true' />
+					</HeroEditButton>
+				) : undefined
+			}
 			compactTabs
 			tabs={tabs}
 			activeTab={activeTab}

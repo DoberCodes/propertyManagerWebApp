@@ -1,10 +1,13 @@
 import { MaintleyIntelligenceRule } from '../types';
+import { expectsEquipmentIdentityDetails } from '../assetRecordExpectations';
 import { getAssetDisplayName, isBlank, makeFinding } from './helpers';
 
 export const missingIdentificationDetailsRule: MaintleyIntelligenceRule = {
 	id: 'systems-missing-important-identification',
 	evaluate: (context) =>
 		context.systems.flatMap((system) => {
+			if (!expectsEquipmentIdentityDetails(system)) return [];
+
 			const missingFields: string[] = [];
 			if (isBlank(system.brand)) missingFields.push('make');
 			if (isBlank(system.model)) missingFields.push('model');

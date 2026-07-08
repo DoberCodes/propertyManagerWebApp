@@ -732,3 +732,33 @@ export const UpcomingCareRow = styled.div<{ $tone?: 'error' | 'success' | 'info'
                     ? COLORS.infoLight
                     : COLORS.bgLight};
 `;
+export const HeroEditButton = styled.button`
+    width: 42px;
+    height: 42px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.35);
+    color: ${COLORS.white};
+    cursor: pointer;
+    box-shadow: 0 10px 22px rgba(15, 23, 42, 0.22);
+    transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+
+    &:hover {
+        background: rgba(15, 23, 42, 0.55);
+        border-color: rgba(255, 255, 255, 0.85);
+        transform: translateY(-1px);
+    }
+
+    &:focus-visible {
+        outline: 3px solid rgba(255, 255, 255, 0.7);
+        outline-offset: 2px;
+    }
+
+    @media (max-width: 480px) {
+        width: 44px;
+        height: 44px;
+    }
+`;
