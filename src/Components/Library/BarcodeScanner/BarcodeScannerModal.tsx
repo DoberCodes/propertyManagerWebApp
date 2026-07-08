@@ -113,6 +113,11 @@ const ActionButton = styled.button`
 	font-size: 13px;
 	font-weight: 600;
 	cursor: pointer;
+
+	&:disabled {
+		opacity: 0.55;
+		cursor: not-allowed;
+	}
 `;
 
 const GhostButton = styled.button`
@@ -124,6 +129,11 @@ const GhostButton = styled.button`
 	font-size: 13px;
 	font-weight: 600;
 	cursor: pointer;
+
+	&:disabled {
+		opacity: 0.55;
+		cursor: not-allowed;
+	}
 `;
 
 const Input = styled.input`
@@ -132,6 +142,16 @@ const Input = styled.input`
 	border-radius: 8px;
 	font-size: 13px;
 	flex: 1;
+`;
+
+const TextArea = styled.textarea`
+	padding: 8px 10px;
+	border: 1px solid #cbd5e1;
+	border-radius: 8px;
+	font-size: 13px;
+	width: 100%;
+	min-height: 140px;
+	resize: vertical;
 `;
 
 const MethodTabs = styled.div`
@@ -248,6 +268,31 @@ const GuidanceCard = styled.div`
 	gap: 6px;
 `;
 
+const WizardSteps = styled.div`
+	display: grid;
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+	gap: 6px;
+
+	@media (max-width: 560px) {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+`;
+
+const WizardStepItem = styled.div<{ $active?: boolean; $complete?: boolean }>`
+	border: 1px solid
+		${(props) =>
+			props.$active || props.$complete ? COLORS.primaryDark : '#cbd5e1'};
+	border-radius: 8px;
+	background: ${(props) =>
+		props.$active ? COLORS.primaryLight : props.$complete ? '#ecfdf5' : COLORS.white};
+	color: ${(props) =>
+		props.$active || props.$complete ? COLORS.primaryDark : '#64748b'};
+	padding: 7px 8px;
+	font-size: 11px;
+	font-weight: 700;
+	text-align: center;
+`;
+
 const RelabelGrid = styled.div`
 	display: flex;
 	flex-direction: column;
@@ -286,6 +331,20 @@ const Checkbox = styled.input`
 	height: 14px;
 `;
 
+const RawDetails = styled.details`
+	border: 1px solid #cbd5e1;
+	border-radius: 8px;
+	background: ${COLORS.white};
+	padding: 8px;
+`;
+
+const RawSummary = styled.summary`
+	cursor: pointer;
+	font-size: 12px;
+	font-weight: 700;
+	color: #334155;
+`;
+
 type BarcodeScanResult = {
 	rawValue?: string;
 };
@@ -301,6 +360,42 @@ type RelabelRow = {
 
 type ScannerMethod = 'barcode' | 'photo';
 type CaptureIntent = 'appliance' | 'part' | 'generic';
+type PhotoWizardStep = 'capture' | 'confirm-image' | 'review-text' | 'review-fields';
+
+const FIELD_LABELS: Record<string, string> = {
+	type: 'Appliance type',
+	assetType: 'Appliance type',
+	brand: 'Brand',
+	manufacturer: 'Manufacturer',
+	model: 'Model',
+	serialNumber: 'Serial number',
+	serial: 'Serial number',
+	partNumber: 'Part number',
+	filterSize: 'Filter size',
+	specNotes: 'Service notes',
+	name: 'Name',
+	category: 'Category',
+	details: 'Details',
+	size: 'Size',
+	material: 'Material',
+	voltage: 'Voltage',
+	mervRating: 'MERV rating',
+	compatibility: 'Compatibility',
+	replacementInterval: 'Replacement interval',
+	notes: 'Notes',
+};
+
+const formatFieldLabel = (key: string): string => {
+	const trimmed = key.trim();
+	if (!trimmed) return '';
+	if (FIELD_LABELS[trimmed]) return FIELD_LABELS[trimmed];
+	const spaced = trimmed
+		.replace(/([a-z])([A-Z])/g, '$1 $2')
+		.replace(/[_-]+/g, ' ')
+		.replace(/\s+/g, ' ')
+		.trim();
+	return spaced ? spaced.charAt(0).toUpperCase() + spaced.slice(1) : trimmed;
+};
 
 interface BarcodeScannerModalProps {
 	isOpen: boolean;
@@ -333,6 +428,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 	const [analysis, setAnalysis] = useState<BarcodePayloadAnalysis | null>(null);
 	const [relabelRows, setRelabelRows] = useState<RelabelRow[]>([]);
 	const [activeMethod, setActiveMethod] = useState<ScannerMethod>(defaultMethod);
+	const [photoWizardStep, setPhotoWizardStep] = useState<PhotoWizardStep>('capture');
 	const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
 	const [selectedImagePreview, setSelectedImagePreview] = useState('');
 	const [isExtractingText, setIsExtractingText] = useState(false);
@@ -453,7 +549,34 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 		onClose();
 	}, [onClose, onDetected, stopScanner]);
 
+	const buildRowsFromNormalized = useCallback(
+		(
+			normalizedFields: Record<string, unknown>,
+			prefix: string,
+		): RelabelRow[] =>
+			Object.entries(normalizedFields)
+				.filter(([, value]) => typeof value === 'string' && value.trim())
+				.map(([key, value], index) => ({
+					id: `${prefix}-${index}-${key}`,
+					sourceKey: formatFieldLabel(key),
+					targetKey: formatFieldLabel(key),
+					value: String(value),
+					selected: true,
+				})),
+		[],
+	);
+
 	const buildRelabelRows = useCallback((nextAnalysis: BarcodePayloadAnalysis): RelabelRow[] => {
+		if (captureIntent === 'appliance') {
+			const rows = buildRowsFromNormalized(nextAnalysis.normalized.device, 'device');
+			if (rows.length > 0) return rows;
+		}
+
+		if (captureIntent === 'part') {
+			const rows = buildRowsFromNormalized(nextAnalysis.normalized.part, 'part');
+			if (rows.length > 0) return rows;
+		}
+
 		const rows: RelabelRow[] = [];
 		const pairEntries = Object.entries(nextAnalysis.keyValuePairs);
 
@@ -461,8 +584,8 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 			pairEntries.forEach(([key, value], index) => {
 				rows.push({
 					id: `pair-${index}-${key}`,
-					sourceKey: key,
-					targetKey: key,
+					sourceKey: formatFieldLabel(key),
+					targetKey: formatFieldLabel(key),
 					value,
 					selected: true,
 				});
@@ -481,15 +604,15 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 		Object.entries(mergedNormalized).forEach(([key, value], index) => {
 			rows.push({
 				id: `normalized-${index}-${key}`,
-				sourceKey: key,
-				targetKey: key,
+				sourceKey: formatFieldLabel(key),
+				targetKey: formatFieldLabel(key),
 				value,
 				selected: true,
 			});
 		});
 
 		return rows;
-	}, []);
+	}, [buildRowsFromNormalized, captureIntent]);
 
 	const captureValue = useCallback((value: string) => {
 		const trimmed = value.trim();
@@ -498,8 +621,38 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 		setCapturedValue(trimmed);
 		setAnalysis(nextAnalysis);
 		setRelabelRows(buildRelabelRows(nextAnalysis));
+		if (activeMethod === 'photo') {
+			setPhotoWizardStep('review-fields');
+		}
 		stopScanner();
-	}, [buildRelabelRows, stopScanner]);
+	}, [activeMethod, buildRelabelRows, stopScanner]);
+
+	const resetPhotoCapture = useCallback(() => {
+		setManualValue('');
+		setCapturedValue('');
+		setAnalysis(null);
+		setRelabelRows([]);
+		setSelectedImageFile(null);
+		setSelectedImagePreview('');
+		setIsExtractingText(false);
+		setOcrError('');
+		setCaptureEngineLabel('');
+		setPhotoWizardStep('capture');
+	}, []);
+
+	const selectMethod = useCallback((method: ScannerMethod) => {
+		setActiveMethod(method);
+		setManualValue('');
+		setCapturedValue('');
+		setAnalysis(null);
+		setRelabelRows([]);
+		setSelectedImageFile(null);
+		setSelectedImagePreview('');
+		setIsExtractingText(false);
+		setOcrError('');
+		setCaptureEngineLabel('');
+		setPhotoWizardStep('capture');
+	}, []);
 
 	const toggleRelabelRow = (id: string) => {
 		setRelabelRows((prev) =>
@@ -527,6 +680,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 		async (file: File) => {
 			setOcrError('');
 			setIsExtractingText(true);
+			setPhotoWizardStep('review-text');
 			try {
 				const zxingReader = await getZxingReader();
 				const imageUrl = URL.createObjectURL(file);
@@ -536,7 +690,6 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 					if (decodedValue) {
 						setCaptureEngineLabel('ZXing barcode decode from image');
 						setManualValue(decodedValue);
-						captureValue(decodedValue);
 						return;
 					}
 				} catch {
@@ -553,19 +706,20 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 				const extractedText = String(result?.data?.text || '').trim();
 				if (!extractedText) {
 					setOcrError('No readable text was detected on this image. Try a clearer photo.');
+					setPhotoWizardStep('confirm-image');
 					return;
 				}
 
 				setCaptureEngineLabel('OCR text extraction');
 				setManualValue(extractedText);
-				captureValue(extractedText);
 			} catch {
 				setOcrError('Unable to extract text from this image. Please try another photo.');
+				setPhotoWizardStep('confirm-image');
 			} finally {
 				setIsExtractingText(false);
 			}
 		},
-		[captureValue, getZxingReader],
+		[getZxingReader],
 	);
 
 	const handlePhotoSelected = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -573,10 +727,16 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 		if (!file) return;
 		setSelectedImageFile(file);
 		setOcrError('');
+		setManualValue('');
+		setCapturedValue('');
+		setAnalysis(null);
+		setRelabelRows([]);
 
 		const reader = new FileReader();
 		reader.onload = () => {
 			setSelectedImagePreview(String(reader.result || ''));
+			setPhotoWizardStep('confirm-image');
+			stopScanner();
 		};
 		reader.readAsDataURL(file);
 	};
@@ -614,8 +774,9 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 			type: 'image/jpeg',
 		});
 		setSelectedImageFile(capturedFile);
-		await extractTextFromImage(capturedFile);
-	}, [extractTextFromImage]);
+		setPhotoWizardStep('confirm-image');
+		stopScanner();
+	}, [stopScanner]);
 
 	useEffect(() => {
 		if (!isOpen) {
@@ -626,6 +787,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 			setAnalysis(null);
 			setRelabelRows([]);
 			setActiveMethod(defaultMethod);
+			setPhotoWizardStep('capture');
 			setSelectedImageFile(null);
 			setSelectedImagePreview('');
 			setIsExtractingText(false);
@@ -635,6 +797,11 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 		}
 
 		if (analysis) {
+			stopScanner();
+			return;
+		}
+
+		if (activeMethod === 'photo' && photoWizardStep !== 'capture') {
 			stopScanner();
 			return;
 		}
@@ -757,6 +924,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 		getZxingReader,
 		isOpen,
 		loadZxingModule,
+		photoWizardStep,
 		syncTorchAvailability,
 		stopScanner,
 		supportsBarcodeDetector,
@@ -766,8 +934,8 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 	const tabLabels = useMemo(() => {
 		if (captureIntent === 'appliance') {
 			return {
-				barcode: 'Barcode Scan (Helper)',
-				photo: 'Label Scan (Recommended)',
+				barcode: 'Barcode / QR',
+				photo: 'Appliance Label',
 			};
 		}
 
@@ -776,6 +944,21 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 			photo: 'Label Photo (OCR)',
 		};
 	}, [captureIntent]);
+	const hasSelectedRelabelRows = relabelRows.some(
+		(row) => row.selected && row.targetKey.trim() && row.value.trim(),
+	);
+	const inspectorTitle =
+		captureIntent === 'appliance'
+			? 'Recognized appliance details'
+			: captureIntent === 'part'
+				? 'Recognized part details'
+				: 'Scanned data inspector';
+	const inspectorHint =
+		captureIntent === 'appliance'
+			? 'Review the fields Maintley recognized from the label. Only checked fields will be applied to this appliance.'
+			: captureIntent === 'part'
+				? 'Review the fields Maintley recognized. Only checked fields will be applied to this part.'
+				: 'Review detected key-value pairs, GS1 segments, and normalized mappings before applying.';
 
 	if (!isOpen) return null;
 
@@ -804,16 +987,38 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 						<MethodTabButton
 							type='button'
 							$active={activeMethod === 'barcode'}
-							onClick={() => setActiveMethod('barcode')}>
+							onClick={() => selectMethod('barcode')}>
 							{tabLabels.barcode}
 						</MethodTabButton>
 						<MethodTabButton
 							type='button'
 							$active={activeMethod === 'photo'}
-							onClick={() => setActiveMethod('photo')}>
+							onClick={() => selectMethod('photo')}>
 							{tabLabels.photo}
 						</MethodTabButton>
 					</MethodTabs>
+					{activeMethod === 'photo' && (
+						<WizardSteps>
+							<WizardStepItem
+								$active={photoWizardStep === 'capture'}
+								$complete={photoWizardStep !== 'capture'}>
+								1. Capture
+							</WizardStepItem>
+							<WizardStepItem
+								$active={photoWizardStep === 'confirm-image'}
+								$complete={photoWizardStep === 'review-text' || photoWizardStep === 'review-fields'}>
+								2. Confirm image
+							</WizardStepItem>
+							<WizardStepItem
+								$active={photoWizardStep === 'review-text'}
+								$complete={photoWizardStep === 'review-fields'}>
+								3. Validate text
+							</WizardStepItem>
+							<WizardStepItem $active={photoWizardStep === 'review-fields'}>
+								4. Apply fields
+							</WizardStepItem>
+						</WizardSteps>
+					)}
 
 					{!analysis && activeMethod === 'barcode' && (
 						<>
@@ -835,7 +1040,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 						</>
 					)}
 
-					{!analysis && activeMethod === 'photo' && (
+					{!analysis && activeMethod === 'photo' && photoWizardStep === 'capture' && (
 						<>
 							{supportsCameraAccess && (
 								<>
@@ -858,7 +1063,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 								</>
 							)}
 							<Helper>
-								Take or upload the equipment sticker. This path usually finds model and serial details more reliably.
+								Take or upload the equipment label. Maintley will suggest model, serial, brand, and service fields for review.
 							</Helper>
 							<Helper>
 								Tip: fill the frame with the label, reduce glare, and keep text horizontal for best OCR results.
@@ -867,9 +1072,30 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 								<ActionButton
 									type='button'
 									onClick={() => photoInputRef.current?.click()}>
-									Choose Sticker Image
+									Choose Label Image
 								</ActionButton>
-								<GhostButton
+							</Row>
+							<HiddenFileInput
+								ref={photoInputRef}
+								type='file'
+								accept='image/*'
+								capture='environment'
+								onChange={handlePhotoSelected}
+							/>
+							{ocrError && <ErrorText>{ocrError}</ErrorText>}
+						</>
+					)}
+					{!analysis && activeMethod === 'photo' && photoWizardStep === 'confirm-image' && (
+						<InspectorCard>
+							<InspectorTitle>Confirm the label photo</InspectorTitle>
+							<InspectorHint>
+								Make sure the model and serial areas are readable. If glare or blur hides the label, retake it before Maintley reads the text.
+							</InspectorHint>
+							{selectedImagePreview && (
+								<PreviewImage src={selectedImagePreview} alt='Appliance label preview' />
+							)}
+							<Row>
+								<ActionButton
 									type='button'
 									disabled={!selectedImageFile || isExtractingText}
 									onClick={() => {
@@ -877,7 +1103,15 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 											void extractTextFromImage(selectedImageFile);
 										}
 									}}>
-									{isExtractingText ? 'Reading Text...' : 'Extract Text'}
+									{isExtractingText ? 'Reading Text...' : 'Use This Image'}
+								</ActionButton>
+								<GhostButton type='button' onClick={resetPhotoCapture}>
+									Retake
+								</GhostButton>
+								<GhostButton
+									type='button'
+									onClick={() => photoInputRef.current?.click()}>
+									Choose Different Image
 								</GhostButton>
 							</Row>
 							<HiddenFileInput
@@ -887,85 +1121,131 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 								capture='environment'
 								onChange={handlePhotoSelected}
 							/>
-							{selectedImagePreview && (
-								<PreviewImage src={selectedImagePreview} alt='Sticker preview' />
-							)}
 							{ocrError && <ErrorText>{ocrError}</ErrorText>}
-						</>
+						</InspectorCard>
+					)}
+					{!analysis && activeMethod === 'photo' && photoWizardStep === 'review-text' && (
+						<InspectorCard>
+							<InspectorTitle>Validate recognized text</InspectorTitle>
+							<InspectorHint>
+								Fix obvious OCR mistakes before Maintley turns the text into appliance fields.
+							</InspectorHint>
+							{selectedImagePreview && (
+								<PreviewImage src={selectedImagePreview} alt='Appliance label preview' />
+							)}
+							<TextArea
+								value={manualValue}
+								onChange={(event) => setManualValue(event.target.value)}
+								placeholder='Recognized label text will appear here'
+								disabled={isExtractingText}
+							/>
+							{captureEngineLabel && <EngineHint>Captured via: {captureEngineLabel}</EngineHint>}
+							{ocrError && <ErrorText>{ocrError}</ErrorText>}
+							<Row>
+								<ActionButton
+									type='button'
+									disabled={!manualValue.trim() || isExtractingText}
+									onClick={() => captureValue(manualValue)}>
+									Review Recognized Fields
+								</ActionButton>
+								<GhostButton
+									type='button'
+									disabled={!selectedImageFile || isExtractingText}
+									onClick={() => {
+										if (selectedImageFile) {
+											void extractTextFromImage(selectedImageFile);
+										}
+									}}>
+									{isExtractingText ? 'Reading Text...' : 'Read Again'}
+								</GhostButton>
+								<GhostButton type='button' onClick={resetPhotoCapture}>
+									Retake
+								</GhostButton>
+							</Row>
+						</InspectorCard>
 					)}
 					{error && <ErrorText>{error}</ErrorText>}
-					<Row>
-						<Input
-							type='text'
-							value={manualValue}
-							onChange={(e) => setManualValue(e.target.value)}
-							placeholder='Paste barcode or extracted sticker text'
-						/>
-						<ActionButton type='button' onClick={() => captureValue(manualValue)}>
-							Inspect Captured Text
-						</ActionButton>
-						<GhostButton
-							type='button'
-							onClick={() => {
-								setManualValue('');
-							}}>
-							Clear
-						</GhostButton>
-					</Row>
+					{activeMethod === 'barcode' && (
+						<Row>
+							<Input
+								type='text'
+								value={manualValue}
+								onChange={(e) => setManualValue(e.target.value)}
+								placeholder='Paste barcode or label text'
+							/>
+							<ActionButton type='button' onClick={() => captureValue(manualValue)}>
+								Review Fields
+							</ActionButton>
+							<GhostButton
+								type='button'
+								onClick={() => {
+									setManualValue('');
+								}}>
+								Clear
+							</GhostButton>
+						</Row>
+					)}
 					{analysis && (
 						<InspectorCard>
-							<InspectorTitle>Scanned Data Inspector</InspectorTitle>
-							<InspectorHint>
-								Standardized structure: raw value, detected key-value pairs, GS1 segments, and normalized appliance/part mappings. Review before applying.
-							</InspectorHint>
+							<InspectorTitle>{inspectorTitle}</InspectorTitle>
+							<InspectorHint>{inspectorHint}</InspectorHint>
 							{captureEngineLabel && <EngineHint>Captured via: {captureEngineLabel}</EngineHint>}
 							<PillRow>
 								{analysis.formatHints.hasPairs && <Pill>Key/Value</Pill>}
 								{analysis.formatHints.hasGs1Markers && <Pill>GS1</Pill>}
 								{analysis.formatHints.looksLikePlainCode && <Pill>Plain Code</Pill>}
 							</PillRow>
-							<ScrollPanel>
-								<DataBlock>
-									{JSON.stringify(
-										{
-											raw: analysis.raw,
-											keyValuePairs: analysis.keyValuePairs,
-											gs1: analysis.gs1,
-											normalized: analysis.normalized,
-										},
-										null,
-										2,
-									)}
-								</DataBlock>
-							</ScrollPanel>
+							<RawDetails>
+								<RawSummary>View original captured text</RawSummary>
+								<ScrollPanel style={{ marginTop: '8px' }}>
+									<DataBlock>
+										{JSON.stringify(
+											{
+												raw: analysis.raw,
+												keyValuePairs: analysis.keyValuePairs,
+												gs1: analysis.gs1,
+											},
+											null,
+											2,
+										)}
+									</DataBlock>
+								</ScrollPanel>
+							</RawDetails>
 							<Row>
-								<ActionButton type='button' onClick={() => commitValue(capturedValue)}>
-									Apply Scanned Value
-								</ActionButton>
+								{captureIntent === 'generic' && (
+									<ActionButton type='button' onClick={() => commitValue(capturedValue)}>
+										Apply Scanned Value
+									</ActionButton>
+								)}
 								<ActionButton
 									type='button'
+									disabled={!hasSelectedRelabelRows}
 									onClick={() => {
 										const applyValue = buildApplyValue();
 										commitValue(applyValue);
 									}}>
-									Apply Relabeled Fields
+									Apply Reviewed Fields
 								</ActionButton>
 								<GhostButton
 									type='button'
 									onClick={() => {
+										if (activeMethod === 'photo') {
+											resetPhotoCapture();
+											return;
+										}
 										setCapturedValue('');
 										setAnalysis(null);
 										setRelabelRows([]);
 										setError('');
 									}}>
-									Scan Again
+									{activeMethod === 'photo' ? 'Start Over' : 'Scan Again'}
 								</GhostButton>
 							</Row>
 							<InspectorTitle style={{ marginTop: '2px' }}>
-								Relabel and Select Fields To Apply
+								Fields to apply
 							</InspectorTitle>
 							<InspectorHint>
-								Rename keys so they match existing inputs, then apply only checked rows.
+								Uncheck anything that looks wrong. You can edit a field name or value before applying.
 							</InspectorHint>
 							<ScrollPanel>
 								<RelabelGrid>

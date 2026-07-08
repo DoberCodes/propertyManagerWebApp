@@ -1,4 +1,5 @@
 import { MaintleyIntelligenceRule } from '../types';
+import { expectsMaintenanceHistoryRecord } from '../assetRecordExpectations';
 import {
 	getAssetDisplayName,
 	hasMaintenanceHistory,
@@ -10,6 +11,7 @@ export const missingMaintenanceHistoryRule: MaintleyIntelligenceRule = {
 	id: 'systems-missing-maintenance-history',
 	evaluate: (context) =>
 		context.systems.flatMap((system) => {
+			if (!expectsMaintenanceHistoryRecord(system)) return [];
 			if (hasMaintenanceHistory(system, context.maintenanceHistory)) return [];
 
 			const systemName = getAssetDisplayName(system);

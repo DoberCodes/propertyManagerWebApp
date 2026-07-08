@@ -1,4 +1,5 @@
 import { MaintleyIntelligenceRule } from '../types';
+import { expectsRecurringCareRecord } from '../assetRecordExpectations';
 import { getBaselineDefinitionForAsset } from '../baselineCareLibrary';
 import { getAssetDisplayName, hasLinkedRecurringTask, makeFinding } from './helpers';
 
@@ -6,6 +7,7 @@ export const missingMaintenanceCoverageRule: MaintleyIntelligenceRule = {
 	id: 'systems-missing-actionable-maintenance-coverage',
 	evaluate: (context) =>
 		context.systems.flatMap((system) => {
+			if (!expectsRecurringCareRecord(system)) return [];
 			if (hasLinkedRecurringTask(system, context.tasks)) return [];
 
 			const baseline = getBaselineDefinitionForAsset(system);

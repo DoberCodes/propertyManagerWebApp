@@ -17,15 +17,6 @@ import {
 	SimpleListItem,
 	ItemText,
 	RemoveItemButton,
-	PortfolioCard,
-	PortfolioTop,
-	PortfolioPlan,
-	PortfolioPlanSub,
-	PortfolioUsage,
-	PortfolioUsageBadge,
-	ProgressTrack,
-	ProgressFill,
-	ManagePlanButton,
 	BottomSections,
 	AppVersionFooter,
 } from './SideNav.styles';
@@ -35,7 +26,6 @@ import {
 	selectCanAccessProperties,
 	selectIsHomeowner,
 	selectIsContractor,
-	selectIsTeamMemberAccount,
 } from '../../../../Redux/selectors/permissionSelectors';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
@@ -52,34 +42,18 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import {
 	getEffectiveSubscriptionPlanId,
-	getRemainingPropertySlots,
 	getSubscriptionPlanDetails,
 } from '../../../../utils/subscriptionUtils';
-import { useStorageUsage } from '../../../../Hooks/useStorageUsage';
-import { formatStorageBytes } from '../../../../utils/storageQuota';
-import { filterPropertyGroupsByRole } from '../../../../utils/dataFilters';
-import { TeamMember } from '../../../../Redux/Slices/teamSlice';
-import { isNativeApp } from '../../../../utils/platform';
-import { openSubscriptionManagementInBrowser } from '../../../../utils/authLinks';
 import { COLORS } from '../../../../constants/colors';
 import { CURRENT_APP_VERSION } from '../../../../config/appVersion';
 
 export const SideNav = () => {
 	const navigate = useNavigate();
-	const nativeApp = isNativeApp();
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
 	const activeRoute = useSelector(
 		(state: RootState) => state.navigation.activeRoute,
 	);
 	const { favorites, removeFavorite } = useFavorites(currentUser!.id);
-	const propertyGroups = useSelector(
-		(state: RootState) => state.propertyData.groups,
-	);
-	const teamGroups = useSelector((state: RootState) => state.team.groups);
-	const teamMembers = React.useMemo(
-		() => teamGroups.flatMap((group) => group.members || []),
-		[teamGroups],
-	);
 
 	// Permission flags (use selectors so logic is centralized)
 	const isUserTenant = useSelector(selectIsTenant);
@@ -87,35 +61,9 @@ export const SideNav = () => {
 	const canAccessProperties = useSelector(selectCanAccessProperties);
 	const isHomeowner = useSelector(selectIsHomeowner);
 	const isContractor = useSelector(selectIsContractor);
-	const isTeamMemberAccount = useSelector(selectIsTeamMemberAccount);
 	const canViewPages = useSelector(selectCanAccessProperties); // Restored variable
-	const { usage: storageUsage, isLoading: isStorageUsageLoading } =
-		useStorageUsage(currentUser, !isUserTenant && !isTeamMemberAccount);
 
 	const isActive = (path: string) => activeRoute === path;
-	const filteredPropertyGroups = React.useMemo(
-		() =>
-			filterPropertyGroupsByRole(
-				propertyGroups.map((group) => ({
-					...group,
-					properties: group.properties || [],
-				})) as any[],
-				currentUser,
-				teamMembers.filter((member): member is TeamMember => member !== undefined),
-			),
-		[propertyGroups, currentUser, teamMembers],
-	);
-	const totalProperties = React.useMemo(
-		() =>
-			Array.from(
-				new Set(
-					filteredPropertyGroups
-						.flatMap((group) => group.properties || [])
-						.map((property) => property.id),
-				),
-			).length,
-		[filteredPropertyGroups],
-	);
 
 	const effectivePlanId = getEffectiveSubscriptionPlanId(
 		currentUser?.subscription,
@@ -123,37 +71,14 @@ export const SideNav = () => {
 	);
 	const planDetails = getSubscriptionPlanDetails(effectivePlanId);
 	const maxProperties = planDetails?.maxProperties ?? 1;
-	const remainingSlots = currentUser?.subscription
-		? getRemainingPropertySlots(currentUser.subscription, totalProperties)
-		: 0;
-	const usagePercent = maxProperties > 0 ? (totalProperties / maxProperties) * 100 : 0;
-	const hasPropertyCapacity = maxProperties > 0;
-	const planUsageLabel = hasPropertyCapacity
-		? `${totalProperties} of ${maxProperties}`
-		: `${totalProperties}`;
-	const planSlotLabel = !hasPropertyCapacity
-		? 'Property creation is not included'
-		: remainingSlots === 0 && totalProperties > maxProperties
-			? `${totalProperties - maxProperties} over plan limit`
-			: `${remainingSlots} ${isHomeowner ? 'home' : 'property'} slot${remainingSlots === 1 ? '' : 's'} available`;
-	const isSingleHomeView = totalProperties <= 1;
-	const planCardTitle = isSingleHomeView ? 'Home Plan' : 'Property Plan';
-	const planSubtitle = `Plan: ${planDetails?.name || 'Home'}`;
-	const propertyUsageLabel = isSingleHomeView ? 'Home records' : 'Property records';
-	const storageUsagePercent = Math.min(100, storageUsage?.usagePercent || 0);
-	const storageUsageLabel = isStorageUsageLoading
-		? 'Loading storage...'
-		: storageUsage && storageUsage.maxBytes > 0
-			? `${formatStorageBytes(storageUsage.usedBytes)} of ${formatStorageBytes(
-				storageUsage.maxBytes,
-			)}`
-			: 'Storage not included';
-	const storageFileLabel = storageUsage
-		? `${storageUsage.fileCount} of ${storageUsage.maxFiles} files`
-		: '';
-	const propertyNavLabel = isHomeowner ? 'Homes' : 'Property Records';
+	const isSingleHomePlan = isHomeowner && maxProperties <= 1;
+	const propertyNavLabel = isSingleHomePlan
+		? 'Home'
+		: isHomeowner
+			? 'Homes'
+			: 'Property Records';
 	const emptyFavoritesLabel = isHomeowner
-		? 'No favorite homes'
+		? `No favorite ${isSingleHomePlan ? 'home' : 'homes'}`
 		: 'No favorite property records';
 
 	// Desktop nav items
@@ -259,56 +184,6 @@ export const SideNav = () => {
 							</SectionContent>
 						</Section>
 
-						{!isTeamMemberAccount && (
-							<Section>
-								<SectionContent $scrollable={false}>
-									<PortfolioCard>
-										<PortfolioTop>
-											<PortfolioPlan>
-												{planCardTitle}
-											</PortfolioPlan>
-											<PortfolioUsageBadge>
-												{planUsageLabel}
-											</PortfolioUsageBadge>
-										</PortfolioTop>
-										<PortfolioPlanSub>
-											{planSubtitle}
-										</PortfolioPlanSub>
-										<ProgressTrack>
-											<ProgressFill $percent={Math.min(100, usagePercent)} />
-										</ProgressTrack>
-										<PortfolioUsage>
-											{propertyUsageLabel}: {planSlotLabel}
-										</PortfolioUsage>
-										<PortfolioTop>
-											<PortfolioPlanSub>
-												Storage
-											</PortfolioPlanSub>
-											<PortfolioUsageBadge>
-												{storageFileLabel || 'Files'}
-											</PortfolioUsageBadge>
-										</PortfolioTop>
-										<ProgressTrack>
-											<ProgressFill $percent={storageUsagePercent} />
-										</ProgressTrack>
-										<PortfolioUsage>
-											{storageUsageLabel}
-										</PortfolioUsage>
-										<ManagePlanButton
-											type='button'
-											onClick={() => {
-												if (!nativeApp) {
-													navigate('/settings?category=account');
-													return;
-												}
-												void openSubscriptionManagementInBrowser();
-											}}>
-											{nativeApp ? 'Manage Subscription' : 'Manage Plan'}
-										</ManagePlanButton>
-									</PortfolioCard>
-								</SectionContent>
-							</Section>
-						)}
 					</>
 				)}
 			</MenuSection>

@@ -567,6 +567,39 @@ export const TimelineAttachmentLink = styled.a`
     }
 `;
 
+export const RecordSuggestionList = styled.div`
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 8px;
+`;
+
+export const RecordSuggestionItem = styled.span`
+    display: inline-flex;
+    align-items: center;
+    padding: 5px 9px;
+    border: 1px solid ${COLORS.border};
+    border-radius: 999px;
+    background: ${COLORS.bgLight};
+    color: ${COLORS.gray700};
+    font-size: 0.78rem;
+    font-weight: 700;
+`;
+
+export const ServiceItemDetailsList = styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+`;
+
+export const ServiceItemDetail = styled.div`
+    line-height: 1.4;
+
+    strong {
+        color: ${COLORS.gray700};
+    }
+`;
+
 export const PhotoSection = styled.div`
     display: grid;
     grid-template-columns: 280px 1fr;
@@ -731,4 +764,34 @@ export const UpcomingCareRow = styled.div<{ $tone?: 'error' | 'success' | 'info'
                 : props.$tone === 'info'
                     ? COLORS.infoLight
                     : COLORS.bgLight};
+`;
+export const HeroEditButton = styled.button`
+    width: 42px;
+    height: 42px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.35);
+    color: ${COLORS.white};
+    cursor: pointer;
+    box-shadow: 0 10px 22px rgba(15, 23, 42, 0.22);
+    transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+
+    &:hover {
+        background: rgba(15, 23, 42, 0.55);
+        border-color: rgba(255, 255, 255, 0.85);
+        transform: translateY(-1px);
+    }
+
+    &:focus-visible {
+        outline: 3px solid rgba(255, 255, 255, 0.7);
+        outline-offset: 2px;
+    }
+
+    @media (max-width: 480px) {
+        width: 44px;
+        height: 44px;
+    }
 `;

@@ -1,10 +1,12 @@
 import { MaintleyIntelligenceRule } from '../types';
+import { expectsInstallDateRecord } from '../assetRecordExpectations';
 import { getAssetDisplayName, isBlank, makeFinding } from './helpers';
 
 export const missingInstallDatesRule: MaintleyIntelligenceRule = {
 	id: 'major-systems-missing-install-dates',
 	evaluate: (context) =>
 		context.systems.flatMap((system) => {
+			if (!expectsInstallDateRecord(system)) return [];
 			if (!isBlank(system.installationDate)) return [];
 			const systemName = getAssetDisplayName(system);
 

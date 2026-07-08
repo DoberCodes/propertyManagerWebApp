@@ -82,6 +82,7 @@ import {
 	UNKNOWN_ASSET_TYPE,
 } from '../../../utils/systemTypes';
 import { COLORS } from '../../../constants/colors';
+import { expectsEquipmentIdentityDetails } from '../../../intelligence/assetRecordExpectations';
 
 const SectionLead = styled.p`
 	margin: -4px 0 14px;
@@ -372,7 +373,7 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 			}
 			if (
 				filters.attention === 'missing-details' &&
-				hasApplianceDetails(device)
+				(!expectsEquipmentIdentityDetails(device) || hasApplianceDetails(device))
 			) {
 				return false;
 			}
@@ -501,7 +502,8 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 				const assetVariant = getDeviceAssetVariant(row);
 				const { linkedOpenTasks, recurringLinkedTasks } = getDeviceAttentionState(row);
 				const iconStyle = getDeviceOperationalIcon(row);
-				const detailsMissing = !hasApplianceDetails(row);
+				const expectsIdentityDetails = expectsEquipmentIdentityDetails(row);
+				const detailsMissing = expectsIdentityDetails && !hasApplianceDetails(row);
 
 				return (
 					<div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 270 }}>
@@ -555,13 +557,15 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 							)}
 						</div>
 						<div style={{ fontSize: 13, fontWeight: 700, color: '#334155', lineHeight: 1.4 }}>
-							{technical || 'No model details yet'}
+							{technical || (expectsIdentityDetails ? 'No model details yet' : 'Inspection record')}
 						</div>
 						<div style={{ fontSize: 12, color: '#64748b', lineHeight: 1.4 }}>
 							Location: {locationName}
 						</div>
 						<div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', fontSize: 12, color: '#64748b' }}>
-							<span>Installed {formatRelativeTime(row.installationDate)}</span>
+							{expectsIdentityDetails && (
+								<span>Installed {formatRelativeTime(row.installationDate)}</span>
+							)}
 							{row.decommissionDate && (
 								<span style={{ color: '#64748b', fontWeight: 700 }}>
 									Decommissioned {formatRelativeTime(row.decommissionDate)}
@@ -1145,7 +1149,8 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 						const { linkedOpenTasks, overdueLinkedTasks, recurringLinkedTasks } = getDeviceAttentionState(device);
 						const resolvedStatus = getResolvedDeviceStatus(device);
 						const stateTone = resolvedStatus === 'Decommissioned' ? '#64748b' : COLORS.success;
-						const detailsMissing = !hasApplianceDetails(device);
+						const expectsIdentityDetails = expectsEquipmentIdentityDetails(device);
+						const detailsMissing = expectsIdentityDetails && !hasApplianceDetails(device);
 						const assignedPropertyDocuments =
 							propertyAssignedDocumentsByDevice.get(String(device.id)) || [];
 						const documentCount =
@@ -1206,7 +1211,7 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 											{recurringLinkedTasks > 0 ? ' • Recurring care active' : ''}
 										</MobileFeedLineMuted>
 										<MobileFeedLineMuted>
-											{getLastServicedDate(device)}
+											{expectsIdentityDetails ? getLastServicedDate(device) : 'Inspection record'}
 										</MobileFeedLineMuted>
 										{overdueLinkedTasks > 0 && (
 											<MobileFeedLineMuted style={{ color: '#b91c1c', fontWeight: 700 }}>

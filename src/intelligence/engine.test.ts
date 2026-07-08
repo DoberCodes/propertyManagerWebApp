@@ -221,6 +221,50 @@ describe('Maintley Intelligence engine', () => {
 		).toBe(false);
 	});
 
+	it('treats inspection record assets as inspection guidance instead of equipment requirements', () => {
+		const result = runMaintleyIntelligence({
+			property,
+			systems: [
+				makeSystem({
+					id: 'roof',
+					type: 'Roof',
+					assetType: 'Roof',
+					brand: '',
+					model: '',
+					serialNumber: '',
+					installationDate: '',
+				}),
+				makeSystem({
+					id: 'gfci-outlets',
+					type: 'GFCI Outlets',
+					assetType: 'GFCI Outlets',
+					brand: '',
+					model: '',
+					serialNumber: '',
+					installationDate: '',
+				}),
+			],
+			tasks: [],
+			maintenanceHistory: [],
+			createdAt: '2026-06-24T12:00:00.000Z',
+		});
+
+		const ruleIds = result.findings.map((finding) => finding.ruleId);
+
+		expect(ruleIds).not.toContain('systems-missing-important-identification');
+		expect(ruleIds).not.toContain('major-systems-missing-install-dates');
+		expect(ruleIds).not.toContain('systems-missing-maintenance-history');
+		expect(ruleIds).not.toContain('systems-missing-actionable-maintenance-coverage');
+		expect(ruleIds).toContain('inspection-assets-missing-documented-inspection');
+		expect(
+			result.findings.filter(
+				(finding) =>
+					finding.ruleId ===
+					'inspection-assets-missing-documented-inspection',
+			),
+		).toHaveLength(2);
+	});
+
 	it('compares maintenance history dates against Maintley baseline cadence', () => {
 		const result = runMaintleyIntelligence({
 			property,

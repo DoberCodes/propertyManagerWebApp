@@ -142,6 +142,7 @@ const RULE_CATEGORY_MAP: Record<string, PropertyAuditCategoryId> = {
 	'systems-missing-important-identification': 'equipment_records',
 	'knowledge-pack-record-details-missing': 'equipment_records',
 	'major-systems-missing-install-dates': 'equipment_records',
+	'inspection-assets-missing-documented-inspection': 'documentation',
 };
 
 const getAuditCategoryId = (

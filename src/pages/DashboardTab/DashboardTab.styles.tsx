@@ -634,6 +634,40 @@ export const DashboardIntelligenceHeader = styled.div`
 	gap: 10px;
 `;
 
+export const HomeHealthHeader = styled.div`
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 10px;
+`;
+
+export const HomeHealthHelp = styled.span`
+	display: inline-flex;
+	flex-shrink: 0;
+`;
+
+export const HomeHealthHelpButton = styled.button`
+	width: 28px;
+	height: 28px;
+	border-radius: 999px;
+	border: 1px solid rgba(4, 120, 87, 0.18);
+	background: ${COLORS.bgWhite};
+	color: ${COLORS.primaryDark};
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	cursor: help;
+	transition: background 0.16s ease, border-color 0.16s ease, color 0.16s ease;
+
+	&:hover,
+	&:focus-visible {
+		background: ${COLORS.primaryLight};
+		border-color: rgba(4, 120, 87, 0.32);
+		color: ${COLORS.primary};
+		outline: none;
+	}
+`;
+
 export const DashboardIntelligenceSourcePill = styled.span`
 	display: inline-flex;
 	align-items: center;
@@ -680,7 +714,16 @@ export const DashboardIntelligenceActions = styled.div`
 	margin-top: auto;
 	display: flex;
 	flex-wrap: wrap;
+	justify-content: flex-end;
 	gap: 10px;
+
+	@media (max-width: 640px) {
+		justify-content: stretch;
+
+		button {
+			flex: 1 1 100%;
+		}
+	}
 `;
 
 export const CardEyebrow = styled.p`
@@ -850,11 +893,341 @@ export const PortfolioMetrics = styled.div`
 	}
 `;
 
+export const HomeHealthSummary = styled.div`
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 16px;
+
+	@media (max-width: 420px) {
+		align-items: flex-start;
+		flex-direction: column;
+		gap: 10px;
+	}
+`;
+
+export const HomeHealthStatus = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+`;
+
+export const HomeHealthStatusLine = styled.div`
+	display: flex;
+	align-items: baseline;
+	gap: 8px;
+	flex-wrap: wrap;
+`;
+
+export const HomeHealthStatusLabel = styled.p`
+	margin: 0;
+	font-size: 1.12rem;
+	font-weight: 800;
+	color: ${COLORS.textPrimary};
+`;
+
+export const HomeHealthStatusPercent = styled.p`
+	margin: 0;
+	color: ${COLORS.primaryDark};
+	font-size: 1.36rem;
+	font-weight: 900;
+	line-height: 1;
+`;
+
+// Kept temporarily so React Fast Refresh can recover from older hot-update chunks
+// that referenced the previous percentage readout name.
+export const HomeHealthScore = HomeHealthStatusLabel;
+
+export const HomeHealthMemoryBlocks = styled.div`
+	display: grid;
+	grid-template-columns: repeat(10, 1fr);
+	gap: 3px;
+	width: min(168px, 100%);
+`;
+
+export const HomeHealthMemoryBlock = styled.span<{ $filled: boolean }>`
+	height: 14px;
+	border-radius: 4px;
+	background: ${(props) =>
+		props.$filled
+			? `linear-gradient(180deg, ${COLORS.primary} 0%, ${COLORS.primaryHover} 100%)`
+			: COLORS.gray100};
+	border: 1px solid
+		${(props) => (props.$filled ? 'rgba(4, 120, 87, 0.2)' : COLORS.border)};
+`;
+
+export const HomeHealthMemoryText = styled.p`
+	margin: 0;
+	font-size: 0.76rem;
+	font-weight: 800;
+	color: ${COLORS.textSecondary};
+`;
+
+export const HomeHealthBreakdown = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+`;
+
+export const HomeHealthBreakdownRow = styled.button<{ $clickable?: boolean }>`
+	display: grid;
+	grid-template-columns: 112px minmax(90px, 1fr) 42px;
+	align-items: center;
+	gap: 8px;
+	width: 100%;
+	border: 0;
+	background: transparent;
+	padding: 0;
+	font-size: 0.76rem;
+	font-weight: 700;
+	color: ${COLORS.textSecondary};
+	text-align: left;
+	cursor: ${(props) => (props.$clickable ? 'pointer' : 'default')};
+
+	&:hover,
+	&:focus-visible {
+		color: ${(props) => (props.$clickable ? COLORS.primaryDark : COLORS.textSecondary)};
+		outline: none;
+	}
+
+	&:disabled {
+		cursor: default;
+	}
+
+	@media (max-width: 420px) {
+		width: 100%;
+		grid-template-columns: 104px minmax(90px, 1fr) 42px;
+	}
+`;
+
+export const HomeHealthBarTrack = styled.div`
+	height: 8px;
+	border-radius: 999px;
+	background: ${COLORS.gray100};
+	overflow: hidden;
+`;
+
+export const HomeHealthBarFill = styled.div<{ $percent: number }>`
+	width: ${(props) => Math.max(0, Math.min(100, props.$percent))}%;
+	height: 100%;
+	border-radius: inherit;
+	background: linear-gradient(90deg, ${COLORS.primary} 0%, ${COLORS.success} 100%);
+`;
+
 export const PortfolioHeaderText = styled.p`
 	margin: 0;
 	font-size: 0.82rem;
 	font-weight: 600;
 	color: ${COLORS.textSecondary};
+`;
+
+export const HomeHealthGapRow = styled.div`
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 10px;
+	border-top: 1px solid ${COLORS.borderLight};
+	border-bottom: 1px solid ${COLORS.borderLight};
+	padding: 9px 0;
+	color: ${COLORS.textSecondary};
+	font-size: 0.78rem;
+	font-weight: 800;
+
+	strong {
+		color: ${COLORS.textPrimary};
+		font-size: 0.82rem;
+		text-align: right;
+	}
+`;
+
+export const HomeHealthQuickWin = styled.div`
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 10px 12px;
+	border-radius: 12px;
+	border: 1px solid rgba(4, 120, 87, 0.14);
+	background: rgba(63, 204, 124, 0.08);
+
+	@media (max-width: 640px) {
+		align-items: flex-start;
+		flex-direction: column;
+	}
+`;
+
+export const HomeHealthQuickWinLabel = styled.p`
+	margin: 0 0 4px;
+	color: ${COLORS.primaryDark};
+	font-size: 0.68rem;
+	font-weight: 900;
+	letter-spacing: 0.07em;
+	text-transform: uppercase;
+`;
+
+export const HomeHealthQuickWinText = styled.p`
+	margin: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	font-size: 0.78rem;
+	line-height: 1.35;
+	color: ${COLORS.textSecondary};
+
+	strong {
+		color: ${COLORS.textPrimary};
+		font-size: 0.86rem;
+	}
+`;
+
+export const HomeHealthQuickWinButton = styled.button`
+	flex-shrink: 0;
+	border: 1px solid rgba(4, 120, 87, 0.22);
+	border-radius: 999px;
+	background: ${COLORS.bgWhite};
+	color: ${COLORS.primaryDark};
+	padding: 7px 10px;
+	font-size: 0.76rem;
+	font-weight: 900;
+	cursor: pointer;
+
+	&:hover,
+	&:focus-visible {
+		border-color: rgba(4, 120, 87, 0.4);
+		color: ${COLORS.primaryHover};
+		outline: none;
+	}
+`;
+
+export const HomeHealthOpportunityList = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	color: ${COLORS.textSecondary};
+	font-size: 0.78rem;
+	font-weight: 800;
+
+	ul {
+		margin: 0;
+		padding-left: 18px;
+		display: flex;
+		flex-direction: column;
+		gap: 3px;
+	}
+
+	li {
+		color: ${COLORS.textPrimary};
+		font-weight: 650;
+	}
+`;
+
+export const HomeHealthActionRow = styled.div`
+	display: flex;
+	justify-content: flex-end;
+	margin-top: -2px;
+
+	@media (max-width: 640px) {
+		justify-content: flex-start;
+	}
+`;
+
+export const HomeHealthTextButton = styled.button`
+	border: none;
+	background: transparent;
+	padding: 0;
+	color: ${COLORS.primaryDark};
+	font-size: 0.82rem;
+	font-weight: 800;
+	cursor: pointer;
+	text-decoration: underline;
+	text-underline-offset: 4px;
+	text-decoration-thickness: 1px;
+
+	&:hover,
+	&:focus-visible {
+		color: ${COLORS.primaryHover};
+		outline: none;
+	}
+`;
+
+export const HomeHealthDialogBody = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	color: ${COLORS.textSecondary};
+`;
+
+export const HomeHealthDialogLead = styled.p`
+	margin: 0;
+	padding: 12px 14px;
+	border-radius: 12px;
+	border: 1px solid rgba(4, 120, 87, 0.14);
+	background: rgba(63, 204, 124, 0.08);
+	font-size: 0.9rem;
+	font-weight: 650;
+	line-height: 1.5;
+	color: ${COLORS.textPrimary};
+`;
+
+export const HomeHealthDialogSubhead = styled.p`
+	margin: 4px 0 -2px;
+	font-size: 0.72rem;
+	font-weight: 800;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: ${COLORS.textSecondary};
+`;
+
+export const HomeHealthDialogSection = styled.div`
+	border-top: 1px solid ${COLORS.border};
+	padding: 11px 0 0;
+	display: grid;
+	grid-template-columns: 118px minmax(0, 1fr);
+	gap: 12px;
+	font-size: 0.84rem;
+	line-height: 1.45;
+
+	strong {
+		color: ${COLORS.primaryDark};
+		font-size: 0.84rem;
+		font-weight: 800;
+	}
+
+	span {
+		color: ${COLORS.textSecondary};
+	}
+
+	@media (max-width: 520px) {
+		grid-template-columns: 1fr;
+		gap: 4px;
+	}
+`;
+
+export const HomeHealthDialogNote = styled.p`
+	margin: 4px 0 0;
+	padding: 12px 14px;
+	border-radius: 12px;
+	background: ${COLORS.gray50};
+	border: 1px solid ${COLORS.border};
+	color: ${COLORS.textPrimary};
+	font-size: 0.86rem;
+	font-weight: 700;
+	line-height: 1.5;
+
+	@media (max-width: 520px) {
+		font-size: 0.84rem;
+	}
+`;
+
+export const HomeHealthDialogFooter = styled.p`
+	margin: 2px 0 0;
+	padding-top: 2px;
+	color: ${COLORS.textMuted};
+	font-size: 0.74rem;
+	font-weight: 800;
+	letter-spacing: 0.06em;
+	text-align: center;
+	text-transform: uppercase;
 `;
 
 export const PortfolioMetric = styled.div`

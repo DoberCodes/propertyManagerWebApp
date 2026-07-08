@@ -1,4 +1,5 @@
 import { getBaselineDefinitionForAsset } from '../baselineCareLibrary';
+import { expectsRecurringCareRecord } from '../assetRecordExpectations';
 import { MaintleyIntelligenceRule } from '../types';
 import {
 	getMaintenanceHistoryDate,
@@ -52,6 +53,8 @@ export const baselineMaintenanceCadenceRule: MaintleyIntelligenceRule = {
 	id: 'baseline-maintenance-cadence-overdue',
 	evaluate: (context) =>
 		context.systems.flatMap((system) => {
+			if (!expectsRecurringCareRecord(system)) return [];
+
 			const baseline = getBaselineDefinitionForAsset(system);
 			if (!baseline) return [];
 

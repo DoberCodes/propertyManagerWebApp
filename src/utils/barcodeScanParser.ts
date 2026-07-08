@@ -100,6 +100,7 @@ const KEY_ALIASES: Record<string, string> = {
 	tonnage: 'filterSize',
 	capacity: 'filterSize',
 	notes: 'specNotes',
+	servicenotes: 'specNotes',
 	spec: 'specNotes',
 	specnotes: 'specNotes',
 	rating: 'specNotes',
@@ -168,7 +169,7 @@ const normalizeCategory = (value?: string): string | undefined => {
 const normalizeOcrText = (raw: string): string =>
 	raw
 		.replace(/\r/g, '\n')
-		.replace(/[\u2013\u2014]/g, '-')
+		.replace(/[\u2010-\u2015\u2212]/g, '-')
 		.replace(/[\u201c\u201d]/g, '"')
 		.replace(/\u2019/g, "'")
 		.replace(/\u00a0/g, ' ');
@@ -186,6 +187,25 @@ const cleanCapturedValue = (value: string): string => {
 		.replace(/[|;,]+$/, '')
 		.trim();
 };
+
+const normalizeIdentifierValue = (value?: string): string | undefined => {
+	if (!value) return undefined;
+	const normalized = normalizeOcrText(value)
+		.replace(/\s*-\s*/g, '-')
+		.replace(/\s*\/\s*/g, '/')
+		.replace(/\s*\.\s*/g, '.')
+		.replace(/\s+/g, ' ')
+		.trim()
+		.toUpperCase();
+	return normalized || undefined;
+};
+
+const normalizeDeviceFields = (parsed: ParsedDeviceFields): ParsedDeviceFields => ({
+	...parsed,
+	model: normalizeIdentifierValue(parsed.model),
+	serialNumber: normalizeIdentifierValue(parsed.serialNumber),
+	partNumber: normalizeIdentifierValue(parsed.partNumber),
+});
 
 const isPlaceholderLabelValue = (value: string): boolean =>
 	/^(number|no\.?|num|#|serial|model|part|item|product)$/i.test(value.trim());
@@ -468,11 +488,7 @@ export const parseDeviceBarcodePayload = (raw: string): ParsedDeviceFields => {
 		parsed.serialNumber = text;
 	}
 
-	if (!parsed.specNotes) {
-		parsed.specNotes = `Scanned code: ${text}`;
-	}
-
-	return parsed;
+	return normalizeDeviceFields(parsed);
 };
 
 export const parsePartBarcodePayload = (raw: string): ParsedPartFields => {

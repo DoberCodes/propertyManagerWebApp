@@ -54,6 +54,30 @@ describe('barcodeScanParser', () => {
 		expect(parsed.partNumber).toBe('AB-4455');
 	});
 
+	it('normalizes OCR dash and spacing noise in appliance identifiers', () => {
+		const parsed = parseDeviceBarcodePayload(`
+			LENNOX
+			Model Number
+			CHX35 - 36B - 6F - 1
+			Serial Number
+			abc - 123 - xy
+		`);
+
+		expect(parsed.brand).toBe('Lennox');
+		expect(parsed.model).toBe('CHX35-36B-6F-1');
+		expect(parsed.serialNumber).toBe('ABC-123-XY');
+	});
+
+	it('does not turn raw OCR text into appliance service notes', () => {
+		const parsed = parseDeviceBarcodePayload(`
+			LENNOX
+			Model: CHX35-36B-6F-1
+			Serial: 123456789
+		`);
+
+		expect(parsed.specNotes).toBeUndefined();
+	});
+
 	it('extracts part fields from filter packaging text', () => {
 		const parsed = parsePartBarcodePayload(`
 			Brand: Filtrete

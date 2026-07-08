@@ -29,6 +29,10 @@ import { MobileBottomNav, MobileHamburgerNav } from '../MobileNav';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faBars } from '@fortawesome/free-solid-svg-icons';
 import { COLORS } from '../../../../constants/colors';
+import {
+	getEffectiveSubscriptionPlanId,
+	getSubscriptionPlanDetails,
+} from '../../../../utils/subscriptionUtils';
 
 export const TopNav = () => {
 	const navigate = useNavigate();
@@ -58,6 +62,17 @@ export const TopNav = () => {
 	const canViewPages = useSelector(selectCanViewAllPages);
 	const isTeamMemberAccount = useSelector(selectIsTeamMemberAccount);
 	const isHomeowner = useSelector(selectIsHomeowner);
+	const effectivePlanId = getEffectiveSubscriptionPlanId(
+		currentUser?.subscription,
+		'homeowner',
+	);
+	const planDetails = getSubscriptionPlanDetails(effectivePlanId);
+	const isSingleHomePlan = isHomeowner && (planDetails?.maxProperties ?? 1) <= 1;
+	const propertyRouteLabel = isSingleHomePlan
+		? 'Home'
+		: isHomeowner
+			? 'Homes'
+			: 'Property Records';
 
 	useEffect(() => {
 		// Logic to determine nav title based on active route
@@ -66,7 +81,7 @@ export const TopNav = () => {
 		if (pathname.startsWith('/profile') || activeRoute.startsWith('/profile')) {
 			setNavLocation('My Profile');
 		} else if (activeRoute.startsWith('/properties')) {
-			setNavLocation(isHomeowner ? 'Homes' : 'Property Records');
+			setNavLocation(propertyRouteLabel);
 		} else if (activeRoute.startsWith('/tasks')) {
 			setNavLocation('Tasks');
 		} else if (activeRoute.startsWith('/devices')) {
@@ -102,7 +117,7 @@ export const TopNav = () => {
 
 
 
-	}, [activeRoute, favorites, isHomeowner, navProperties, pathname]);
+	}, [activeRoute, favorites, isHomeowner, navProperties, pathname, propertyRouteLabel]);
 
 	useEffect(() => {
 		const handleOutsideClick = (event: MouseEvent) => {

@@ -31,14 +31,14 @@ const ContentContainer = styled.div<{ $contentMaxWidth: string }>`
 		content: '';
 		display: block;
 		width: 100%;
-		height: max(16px, calc(var(--mobile-bottom-nav-offset, 0px) + 16px));
+		height: max(24px, calc(var(--mobile-bottom-nav-offset, 0px) + 32px));
 	}
 
 	@media (max-width: 640px) {
 		padding: 12px;
 
 		&::after {
-			height: calc(var(--mobile-bottom-nav-offset, 0px) + 14px);
+			height: calc(var(--mobile-bottom-nav-offset, 0px) + 104px);
 		}
 	}
 `;
@@ -149,6 +149,7 @@ interface DetailPageLayoutProps {
 	activeTab: string;
 	onTabChange: (tab: string) => void;
 	children: React.ReactNode;
+	topRightActions?: React.ReactNode;
 }
 
 export const DetailPageLayout: React.FC<DetailPageLayoutProps> = ({
@@ -165,6 +166,7 @@ export const DetailPageLayout: React.FC<DetailPageLayoutProps> = ({
 	activeTab,
 	onTabChange,
 	children,
+	topRightActions,
 }) => {
 	const navigate = useNavigate();
 	const location = useLocation();
@@ -191,7 +193,14 @@ export const DetailPageLayout: React.FC<DetailPageLayoutProps> = ({
 				headerTheme={headerTheme}
 				backLabel={backLabel}
 				onBack={() => navigate(backPath)}
-				topRight={badge ? <HeaderBadge>{badge}</HeaderBadge> : undefined}
+				topRight={
+					badge || topRightActions ? (
+						<>
+							{badge && <HeaderBadge>{badge}</HeaderBadge>}
+							{topRightActions}
+						</>
+					) : undefined
+				}
 				title={title}
 				subtitle={subtitle}
 			/>
