@@ -1756,12 +1756,6 @@ export const DeviceDetailPage: React.FC = () => {
 							{areQuickActionsOpen && (
 								<>
 									<QuickActionGrid id='appliance-quick-action-list'>
-										{canManageApplianceActions && (
-											<QuickActionButton type='button' onClick={handleOpenEditDeviceModal}>
-												<strong>Edit Appliance</strong>
-												<span>Change the appliance profile, status, or location.</span>
-											</QuickActionButton>
-										)}
 										{canCreateTaskActions && (
 											<>
 												<QuickActionButton type='button' onClick={openCreateTaskModal}>
