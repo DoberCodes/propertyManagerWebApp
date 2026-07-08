@@ -70,7 +70,6 @@ import { usePropertyDocumentUploadWorkflow } from '../../propertyKnowledge/usePr
 import { COLORS } from '../../constants/colors';
 import {
 	getDeviceIdFromSlug,
-	getDeviceSlugBase,
 } from '../../utils/deviceSlug';
 import {
 	parseDeviceBarcodePayload,
@@ -81,7 +80,6 @@ import {
 	canUseRecurringTasks,
 	canTrackWarranties,
 } from '../../utils/subscriptionUtils';
-import { isNativeApp } from '../../utils/platform';
 import { getRoleCapabilities } from '../../utils/permissions';
 import { LockedFeatureCallout } from '../../Components/Library/LockedFeatureCallout';
 import {
@@ -96,7 +94,7 @@ import {
 } from '../../constants/deviceServiceItems';
 import { BarcodeScannerModal } from '../../Components/Library/BarcodeScanner/BarcodeScannerModal';
 import { LoadingState } from '../../Components/LoadingState';
-import { PageStack, HeroEditButton, SummaryGrid, SummaryCard, SummaryLabel, SummaryValue, QuickActionPanel, QuickActionHeader, ViewActionsButton, QuickActionGrid, QuickActionButton, QuickActionHint, SectionBlock, SectionEyebrow, SectionTitleStrong, SectionDescription, PhotoActions, ScanButton, PhotoHelperText, PhotoSection, DevicePhotoCard, DevicePhotoImg, PhotoPlaceholder, PhotoActionButton, RemovePhotoButton, MobileCardStack, MobileDetailCard, MobileDetailHeader, MobileDetailTitle, MobileDetailMeta, ActionButton, SubmitButton, CombinedHistoryContainer, TimelineList, TimelineItem, TimelineDate, TimelineDateSub, TimelineContent, TimelineTitleRow, TimelineIconBadge, TimelineTitle, TimelineEventBadge, TimelineDescription, TimelineMeta, TimelineExpandButton, TimelineDetailsPanel, TimelineDetailBlock, TimelineDetailLabel, TimelineDetailValue, TimelineAttachmentList, TimelineAttachmentLink, PartsForm, FormField, DynamicFieldsGrid, PartsTable } from './DeviceDetailPage.styles';
+import { PageStack, HeroEditButton, SummaryGrid, SummaryCard, SummaryLabel, SummaryValue, QuickActionPanel, QuickActionHeader, ViewActionsButton, QuickActionGrid, QuickActionButton, QuickActionHint, SectionBlock, SectionEyebrow, SectionTitleStrong, SectionDescription, PhotoActions, ScanButton, PhotoHelperText, PhotoSection, DevicePhotoCard, DevicePhotoImg, PhotoPlaceholder, PhotoActionButton, RemovePhotoButton, MobileCardStack, MobileDetailCard, MobileDetailHeader, MobileDetailTitle, MobileDetailMeta, ActionButton, SubmitButton, CombinedHistoryContainer, TimelineList, TimelineItem, TimelineDate, TimelineDateSub, TimelineContent, TimelineTitleRow, TimelineIconBadge, TimelineTitle, TimelineEventBadge, TimelineDescription, TimelineMeta, TimelineExpandButton, TimelineDetailsPanel, TimelineDetailBlock, TimelineDetailLabel, TimelineDetailValue, TimelineAttachmentList, TimelineAttachmentLink, PartsForm, FormField, DynamicFieldsGrid, PartsTable, RecordSuggestionList, RecordSuggestionItem, ServiceItemDetailsList, ServiceItemDetail } from './DeviceDetailPage.styles';
 
 type PartFormState = Omit<DeviceServiceItem, 'id'>;
 
@@ -123,10 +121,22 @@ type DeviceEditFormState = {
 	}>;
 };
 
+const isPlainDateString = (value: string): boolean => /^\d{4}-\d{2}-\d{2}$/.test(value);
+
+const parseDisplayDate = (value?: string): Date | null => {
+	if (!value) return null;
+	if (isPlainDateString(value)) {
+		const [year, month, day] = value.split('-').map(Number);
+		return new Date(year, month - 1, day);
+	}
+	const date = new Date(value);
+	return Number.isNaN(date.getTime()) ? null : date;
+};
+
 const formatDate = (value?: string) => {
 	if (!value) return 'N/A';
-	const date = new Date(value);
-	if (Number.isNaN(date.getTime())) return value;
+	const date = parseDisplayDate(value);
+	if (!date) return value;
 	return date.toLocaleDateString();
 };
 
@@ -208,9 +218,10 @@ const getTimelineAttachments = (entry: any): Array<{ name: string; url?: string 
 const getTimelineContractorLabel = (entry: any): string => {
 	const raw = entry?.raw || {};
 	if (raw.assignedTo?.name) return String(raw.assignedTo.name);
-	if (raw.assignee) return String(raw.assignee);
+	if (raw.assigneeName) return String(raw.assigneeName);
 	if (raw.completedByName) return String(raw.completedByName);
-	if (raw.completedBy) return String(raw.completedBy);
+	if (raw.contractorName) return String(raw.contractorName);
+	if (raw.contractorCompany) return String(raw.contractorCompany);
 	return 'Not recorded';
 };
 
@@ -320,18 +331,81 @@ const getTimelineEventLabel = (entry: { type?: string; title?: string; descripti
 	const eventType = String(entry.type || '').toLowerCase();
 	const text = `${String(entry.title || '')} ${String(entry.description || '')} ${String(entry.type || '')}`.toLowerCase();
 
-	if (eventType === 'task_completed') return 'Task Completed';
-	if (eventType === 'task_approved') return 'Task Approved';
-	if (eventType === 'scheduled_task') return 'Scheduled Task';
-	if (eventType === 'repair_logged' || text.includes('repair')) return 'Repair Logged';
+	if (eventType === 'task_completed') return 'Task completed';
+	if (eventType === 'task_approved') return 'Task approved';
+	if (eventType === 'scheduled_task') return 'Scheduled maintenance';
+	if (eventType === 'repair_logged' || text.includes('repair')) return 'Repair logged';
 	if (eventType === 'inspection_completed' || text.includes('inspection')) return 'Inspection';
 	if (eventType === 'invoice_uploaded' || text.includes('invoice')) return 'Invoice';
 	if (eventType === 'document_uploaded' || text.includes('document')) return 'Document';
-	if (eventType === 'service_note_added' || text.includes('note')) return 'Service Note';
-	if (eventType === 'maintenance_recorded' || text.includes('recorded')) return 'Recorded';
+	if (eventType === 'service_note_added' || text.includes('note')) return 'Service note';
+	if (eventType === 'maintenance_recorded' || text.includes('recorded')) return 'Maintenance recorded';
+	if (eventType === 'contractor_visit_logged' || text.includes('contractor')) return 'Contractor visit';
+	if (eventType === 'warranty_added' || text.includes('warranty')) return 'Warranty added';
 	if (eventType === 'completed' || text.includes('complete') || text.includes('done')) return 'Completed';
 	return 'Event';
 };
+
+const getTimelineMetaLabel = (entry: { sourceType?: string; type?: string; title?: string; description?: string }) => {
+	if (entry.sourceType === 'scheduled-task') return 'Upcoming scheduled work';
+	if (entry.sourceType === 'device-log') return 'Appliance log';
+	if (entry.sourceType === 'maintenance-record') return getTimelineEventLabel(entry);
+	return getTimelineEventLabel(entry);
+};
+
+const getMaintenanceRecordStatusLabel = (record: any): string => {
+	const eventType = String(record?.eventType || '').trim();
+	if (eventType) {
+		return getTimelineEventLabel({
+			type: eventType,
+			title: record?.title || record?.taskTitle,
+			description: record?.description || record?.notes,
+		});
+	}
+	const status = String(record?.status || '').trim();
+	if (!status) return 'Completed';
+	if (status.includes('_')) return getTimelineEventLabel({ type: status });
+	return status;
+};
+
+const getUniqueDisplayParts = (...parts: Array<string | undefined | null>): string[] => {
+	const seen = new Set<string>();
+	return parts
+		.map((part) => String(part || '').trim())
+		.filter(Boolean)
+		.filter((part) => {
+			const key = part.toLowerCase();
+			if (seen.has(key)) return false;
+			seen.add(key);
+			return true;
+		});
+};
+
+const getApplianceProfileTitle = (device: any): string =>
+	getUniqueDisplayParts(device?.brand, device?.model, device?.type).join(' ') || 'Appliance';
+
+const getServiceItemCategoryLabel = (category?: string): string =>
+	DEVICE_SERVICE_ITEM_CATEGORY_OPTIONS.find((option) => option.value === category)?.label ||
+	String(category || 'Part');
+
+const getServiceItemDetails = (item: DeviceServiceItem): Array<{ label: string; value: string }> => [
+	{ label: 'Part #', value: item.partNumber || '' },
+	{ label: 'Size', value: item.size || '' },
+	{ label: 'MERV', value: item.mervRating || '' },
+	{ label: 'Replace every', value: item.replacementInterval || '' },
+	{ label: 'Manufacturer', value: item.manufacturer || '' },
+	{ label: 'Material', value: item.material || '' },
+	{ label: 'Voltage', value: item.voltage || '' },
+	{ label: 'Compatibility', value: item.compatibility || '' },
+	{ label: 'Notes', value: item.notes || '' },
+].filter((detail) => detail.value.trim());
+
+const getServiceItemKeyDetails = (item: DeviceServiceItem): string =>
+	getServiceItemDetails(item)
+		.filter((detail) => ['Part #', 'Size', 'MERV', 'Manufacturer', 'Material', 'Voltage', 'Compatibility'].includes(detail.label))
+		.slice(0, 4)
+		.map((detail) => `${detail.label}: ${detail.value}`)
+		.join(' / ') || buildDeviceServiceItemDetails(item) || 'Not recorded';
 
 const sanitizeDeviceServiceItem = (item: DeviceServiceItem): DeviceServiceItem =>
 	Object.fromEntries(
@@ -672,7 +746,7 @@ export const DeviceDetailPage: React.FC = () => {
 				sourceType: 'scheduled-task',
 				date: task.dueDate,
 				title: task.title || 'Scheduled maintenance task',
-				description: `Due on ${formatDate(task.dueDate)}${task.priority ? ` • ${task.priority} priority` : ''}${getTaskAssigneeDisplayName(task, '') ? ` • Assigned to ${getTaskAssigneeDisplayName(task, '')}` : ''}`,
+				description: `Due on ${formatDate(task.dueDate)}${task.priority ? ` - ${task.priority} priority` : ''}${getTaskAssigneeDisplayName(task, '') ? ` - Assigned to ${getTaskAssigneeDisplayName(task, '')}` : ''}`,
 				type: 'scheduled_task',
 				raw: task,
 			}))
@@ -760,7 +834,7 @@ export const DeviceDetailPage: React.FC = () => {
 			),
 		[deviceFiles, devicePhotoFile],
 	);
-	const serviceParts = device?.serviceItems || [];
+	const serviceParts = useMemo(() => device?.serviceItems || [], [device?.serviceItems]);
 	const resolvedDeviceStatus = device?.decommissionDate
 		? 'Decommissioned'
 		: device?.status || 'Active';
@@ -890,6 +964,54 @@ export const DeviceDetailPage: React.FC = () => {
 		() => applianceAssignedDocumentEntries.length,
 		[applianceAssignedDocumentEntries],
 	);
+
+	const serviceFilterItems = useMemo(
+		() => serviceParts.filter((part: DeviceServiceItem) => {
+			const text = `${part.category || ''} ${part.name || ''}`.toLowerCase();
+			return text.includes('filter');
+		}),
+		[serviceParts],
+	);
+
+	const hasRecurringTask = useMemo(
+		() => linkedTasks.some((task: any) => Boolean(task.isRecurring || task.recurrence || task.recurrenceFrequency)),
+		[linkedTasks],
+	);
+
+	const documentTypeText = useMemo(
+		() => applianceAssignedDocumentEntries
+			.map((file: any) => `${file.type || ''} ${file.name || ''}`.toLowerCase())
+			.join(' '),
+		[applianceAssignedDocumentEntries],
+	);
+	const hasWarrantyDocument = /warranty/.test(documentTypeText);
+	const hasManualDocument = /manual/.test(documentTypeText);
+	const hasInvoiceDocument = /invoice|receipt/.test(documentTypeText);
+
+	const recordSuggestions = useMemo(() => {
+		const suggestions: string[] = [];
+		if (!String(device?.brand || '').trim()) suggestions.push('Add make or brand');
+		if (!String(device?.model || '').trim()) suggestions.push('Add model number');
+		if (!String(device?.serialNumber || '').trim()) suggestions.push('Add serial number');
+		if (!String(device?.installationDate || '').trim()) suggestions.push('Add install date');
+		if (serviceFilterItems.length === 0 && /hvac|furnace|air handler|heat pump/i.test(`${device?.type || ''} ${device?.assetType || ''} ${device?.assetVariant || ''}`)) {
+			suggestions.push('Add filter sizes');
+		}
+		if (!hasRecurringTask) suggestions.push('Add recurring maintenance');
+		if (!hasWarrantyDocument) suggestions.push('Upload warranty information');
+		if (!hasManualDocument) suggestions.push('Upload manual');
+		return suggestions;
+	}, [device, hasManualDocument, hasRecurringTask, hasWarrantyDocument, serviceFilterItems.length]);
+
+	const recommendedNextStep = useMemo(() => {
+		const deviceText = `${device?.type || ''} ${device?.assetType || ''} ${device?.assetVariant || ''}`.toLowerCase();
+		const isHvac = /hvac|furnace|air handler|heat pump/.test(deviceText);
+		const filterSizesRecorded = serviceFilterItems.filter((part) => String(part.size || '').trim()).length;
+		if (isHvac && !hasRecurringTask) return 'Recommended next step: Add recurring filter replacement.';
+		if (isHvac && serviceFilterItems.length > 0 && filterSizesRecorded < serviceFilterItems.length) return 'Quick win: Confirm filter sizes for every return.';
+		if (recordSuggestions.length > 0) return `Recommended next step: ${recordSuggestions[0]}.`;
+		return 'This appliance record has the basics Maintley needs for future service.';
+	}, [device, hasRecurringTask, recordSuggestions, serviceFilterItems]);
 
 	const repairCount = useMemo(
 		() =>
@@ -1462,7 +1584,6 @@ export const DeviceDetailPage: React.FC = () => {
 			updates.specNotes = matchingDevice
 				? `${parsed.specNotes} | Matched existing appliance: ${matchingDevice.type || 'Appliance'} ${matchingDevice.brand || ''} ${matchingDevice.model || ''}`.trim()
 				: parsed.specNotes;
-			updates.notes = parsed.specNotes;
 		}
 
 		if (Object.keys(updates).length === 0) return;
@@ -1679,11 +1800,13 @@ export const DeviceDetailPage: React.FC = () => {
 		);
 	}
 
-	const prettyDeviceSlug = getDeviceSlugBase({
-		type: device.type,
-		brand: device.brand,
-		model: device.model,
-	});
+	const applianceProfileTitle = getApplianceProfileTitle(device);
+	const applianceProfileSubtitle = getUniqueDisplayParts(
+		device.model ? `Model ${device.model}` : '',
+		device.serialNumber ? `Serial ${device.serialNumber}` : '',
+		locationLabel !== 'Property level' ? locationLabel : '',
+		property.title,
+	).join(' - ');
 
 	const handleTabChange = (tab: string) => {
 		setActiveTab(tab);
@@ -1691,9 +1814,9 @@ export const DeviceDetailPage: React.FC = () => {
 
 	return (
 		<DetailPageLayout
-			title={device.type || 'Appliance'}
-			subtitle={`${property.title} • ${property.slug}`}
-			badge={prettyDeviceSlug}
+			title={applianceProfileTitle}
+			subtitle={applianceProfileSubtitle}
+			badge={resolvedDeviceStatus}
 			backPath={applianceProfileBackPath}
 			backLabel={applianceProfileBackLabel}
 			headerTheme='slate'
@@ -1782,47 +1905,14 @@ export const DeviceDetailPage: React.FC = () => {
 											</QuickActionButton>
 										)}
 										{canLogMaintenanceActions && (
-											<>
-												<QuickActionButton type='button' onClick={() => openQuickLogModal('note')}>
-													<strong>Add Service Note</strong>
-													<span>Capture context that should travel with the system.</span>
-												</QuickActionButton>
-												<QuickActionButton type='button' onClick={() => openQuickLogModal('repair')}>
-													<strong>Log Repair</strong>
-													<span>Write a repair entry directly into the maintenance trail.</span>
-												</QuickActionButton>
-												<QuickActionButton type='button' onClick={() => openQuickLogModal('invoice')}>
-													<strong>Log Invoice</strong>
-													<span>Record invoice details in the maintenance history.</span>
-												</QuickActionButton>
-												<QuickActionButton type='button' onClick={() => openQuickLogModal('inspection')}>
-													<strong>Log Inspection</strong>
-													<span>Document findings and recommendations from inspections.</span>
-												</QuickActionButton>
-												<QuickActionButton
-													type='button'
-													onClick={() => openQuickLogModal('warranty')}
-													title={undefined}>
-													<strong>Log Warranty</strong>
-													<span>
-														{canAccessWarranty
-															? 'Capture coverage terms, expiration details, and warranty documents.'
-															: isTeamMemberAccount
-																? 'Capture warranty dates and notes. Document uploads depend on your role.'
-																: isNativeApp()
-																	? 'Capture expiration dates and notes. Manage document access in the web account center.'
-																	: 'Capture expiration dates and notes. Upgrade to attach warranty documents.'}
-													</span>
-												</QuickActionButton>
-												<QuickActionButton type='button' onClick={() => openQuickLogModal('contractor')}>
-													<strong>Log Contractor Visit</strong>
-													<span>Document who visited, what they found, and next steps.</span>
-												</QuickActionButton>
-											</>
+											<QuickActionButton type='button' onClick={() => openQuickLogModal('note')}>
+												<strong>Log work</strong>
+												<span>Save service notes, repairs, invoices, inspections, warranties, or contractor visits.</span>
+											</QuickActionButton>
 										)}
 									</QuickActionGrid>
 									<QuickActionHint>
-										These actions all feed the same service history so the appliance becomes more useful over time.
+										{recommendedNextStep}
 									</QuickActionHint>
 								</>
 							)}
@@ -1843,9 +1933,9 @@ export const DeviceDetailPage: React.FC = () => {
 						<SectionContainer>
 							<SectionBlock>
 								<SectionEyebrow>Appliance Information</SectionEyebrow>
-								<SectionTitleStrong>Core Profile and Warranty Context</SectionTitleStrong>
+								<SectionTitleStrong>System Card</SectionTitleStrong>
 								<SectionDescription>
-									Keep this profile current so linked tasks, service records, and documents stay actionable.
+									Keep model, serial, install date, filters, warranties, and service records in one place.
 								</SectionDescription>
 							</SectionBlock>
 							{canManageApplianceActions && (
@@ -1899,7 +1989,7 @@ export const DeviceDetailPage: React.FC = () => {
 								</div>
 							</PhotoSection>
 
-							<SectionHeader>Appliance Information</SectionHeader>
+							<SectionHeader>Appliance Identity</SectionHeader>
 							{!hasApplianceDetails && (
 								<InfoCard style={{ borderColor: '#fde68a', background: '#fefce8' }}>
 									<InfoLabel>Profile Details</InfoLabel>
@@ -1943,6 +2033,17 @@ export const DeviceDetailPage: React.FC = () => {
 								</InfoCard>
 							</InfoGrid>
 
+							{recordSuggestions.length > 0 && (
+								<InfoCard>
+									<InfoLabel>Helpful Next Details</InfoLabel>
+									<RecordSuggestionList>
+										{recordSuggestions.slice(0, 5).map((suggestion) => (
+											<RecordSuggestionItem key={suggestion}>{suggestion}</RecordSuggestionItem>
+										))}
+									</RecordSuggestionList>
+								</InfoCard>
+							)}
+
 							{device.notes && (
 								<InfoCard>
 									<InfoLabel>Notes</InfoLabel>
@@ -1964,6 +2065,16 @@ export const DeviceDetailPage: React.FC = () => {
 									This tab shows documents directly assigned to this appliance or system.
 								</InfoValue>
 							</InfoCard>
+							{(!hasWarrantyDocument || !hasManualDocument || !hasInvoiceDocument) && (
+								<InfoCard style={{ marginBottom: 12 }}>
+									<InfoLabel>Useful Documents To Add</InfoLabel>
+									<RecordSuggestionList>
+										{!hasWarrantyDocument && <RecordSuggestionItem>Upload warranty information</RecordSuggestionItem>}
+										{!hasManualDocument && <RecordSuggestionItem>Upload manual</RecordSuggestionItem>}
+										{!hasInvoiceDocument && <RecordSuggestionItem>Upload install invoice or receipt</RecordSuggestionItem>}
+									</RecordSuggestionList>
+								</InfoCard>
+							)}
 							{applianceAssignedDocumentEntries.length > 0 ? (
 								<div style={{ display: 'grid', gap: 10 }}>
 									{applianceAssignedDocumentEntries.map((file: any, index: number) => (
@@ -2054,8 +2165,8 @@ export const DeviceDetailPage: React.FC = () => {
 													</span>
 												</MobileDetailHeader>
 												<MobileDetailMeta>
-													<div>Maintenance Lead: {getTaskAssigneeDisplayName(task)}</div>
-													<div>Due: {task.dueDate || 'No due date set'}</div>
+													<div>Assigned to: {getTaskAssigneeDisplayName(task)}</div>
+													<div>Due: {task.dueDate ? formatDate(task.dueDate) : 'No due date set'}</div>
 													<div>Priority: {task.priority || 'Low'}</div>
 												</MobileDetailMeta>
 												{roleCapabilities.canManageTasks && (
@@ -2110,7 +2221,7 @@ export const DeviceDetailPage: React.FC = () => {
 														<strong>{value}</strong>
 													</div>
 													<div style={{ fontSize: 12, color: '#64748b' }}>
-														Maintenance Lead: {row.assignee || 'Unassigned'}
+														Assigned to: {getTaskAssigneeDisplayName(row)}
 													</div>
 												</div>
 											),
@@ -2140,7 +2251,7 @@ export const DeviceDetailPage: React.FC = () => {
 													</div>
 													<div style={{ fontSize: 12, color: '#64748b', display: 'flex', gap: 6, alignItems: 'center' }}>
 														<FontAwesomeIcon icon={faClock} />
-														Due: {value || 'No due date set'}
+														Due: {value ? formatDate(value) : 'No due date set'}
 													</div>
 													<div style={{ fontSize: 12, color: '#64748b' }}>
 														Priority: {row.priority || 'Low'}
@@ -2178,15 +2289,15 @@ export const DeviceDetailPage: React.FC = () => {
 						<CombinedHistoryContainer>
 							<SectionContainer>
 								<SectionBlock>
-									<SectionEyebrow>Timeline</SectionEyebrow>
-									<SectionTitleStrong>Maintenance Timeline</SectionTitleStrong>
+									<SectionEyebrow>Upcoming</SectionEyebrow>
+									<SectionTitleStrong>Upcoming Scheduled Work</SectionTitleStrong>
 									<SectionDescription>
-										A simple chronological record of what has happened to this system.
+										Scheduled tasks for this appliance appear here before they become service history.
 									</SectionDescription>
 								</SectionBlock>
-								{combinedTimelineEntries.length > 0 ? (
+								{scheduledTaskTimelineEntries.length > 0 ? (
 									<TimelineList>
-										{combinedTimelineEntries.map((entry: any, index: number) => (
+										{scheduledTaskTimelineEntries.map((entry: any, index: number) => (
 											<TimelineItem key={getTimelineEntryKey(entry, index)}>
 												<div>
 													<TimelineDate>{formatRelativeTime(entry.date)}</TimelineDate>
@@ -2210,7 +2321,7 @@ export const DeviceDetailPage: React.FC = () => {
 														<TimelineEventBadge>{getTimelineEventLabel(entry)}</TimelineEventBadge>
 													</TimelineTitleRow>
 													<TimelineDescription>{entry.description}</TimelineDescription>
-													<TimelineMeta>{entry.type}</TimelineMeta>
+													<TimelineMeta>{getTimelineMetaLabel(entry)}</TimelineMeta>
 													{entry.sourceType === 'scheduled-task' && roleCapabilities.canManageTasks ? (
 														<ButtonGroup>
 															<ActionButton onClick={() => openEditTaskModal(entry.raw)}>
@@ -2288,7 +2399,7 @@ export const DeviceDetailPage: React.FC = () => {
 								) : (
 									<EmptyState>
 										<p>
-											No timeline entries yet. Tasks and quick service notes create the record for this appliance.
+											No scheduled work linked to this appliance yet. Add a task or recurring reminder when there is work to track.
 										</p>
 										{(canCreateTaskActions || canLogMaintenanceActions) && (
 											<ButtonGroup>
@@ -2299,7 +2410,7 @@ export const DeviceDetailPage: React.FC = () => {
 												)}
 												{canLogMaintenanceActions && (
 													<ScanButton type='button' onClick={() => openQuickLogModal('note')}>
-														Add Service Note
+														Log work
 													</ScanButton>
 												)}
 											</ButtonGroup>
@@ -2311,9 +2422,9 @@ export const DeviceDetailPage: React.FC = () => {
 							<SectionContainer>
 								<SectionBlock>
 									<SectionEyebrow>Service History</SectionEyebrow>
-									<SectionTitleStrong>Maintenance Lifecycle Records</SectionTitleStrong>
+									<SectionTitleStrong>Service History</SectionTitleStrong>
 									<SectionDescription>
-										Every completed record adds to the long-term operational memory of this system.
+										Completed tasks, logged work, contractor visits, invoices, and notes build this appliance's service history.
 									</SectionDescription>
 								</SectionBlock>
 								<SectionHeader>Maintenance History ({applianceMaintenanceFeedRecords.length})</SectionHeader>
@@ -2327,7 +2438,7 @@ export const DeviceDetailPage: React.FC = () => {
 														<MobileDetailHeader>
 															<MobileDetailTitle>{record.title || record.taskTitle || record.description || 'Task'}</MobileDetailTitle>
 															<span style={{ fontSize: 12, fontWeight: 700, color: COLORS.successDark, background: COLORS.successLight, borderRadius: 999, padding: '4px 10px', whiteSpace: 'nowrap' }}>
-																{record.status || 'Completed'}
+																{getMaintenanceRecordStatusLabel(record)}
 															</span>
 														</MobileDetailHeader>
 														<MobileDetailMeta>
@@ -2368,7 +2479,7 @@ export const DeviceDetailPage: React.FC = () => {
 																<td>
 																	{record.title || record.taskTitle || record.description || 'Task'}
 																</td>
-																<td>{record.status || 'Completed'}</td>
+																<td>{getMaintenanceRecordStatusLabel(record)}</td>
 																<td>
 																	{attachments.length > 0 ? (
 																		<TimelineAttachmentList>
@@ -2553,13 +2664,21 @@ export const DeviceDetailPage: React.FC = () => {
 												<MobileDetailHeader>
 													<MobileDetailTitle>{part.name}</MobileDetailTitle>
 													<span style={{ display: 'inline-flex', padding: '4px 8px', backgroundColor: COLORS.successLight, color: COLORS.successDark, borderRadius: '999px', fontSize: '12px', fontWeight: 700 }}>
-														{part.category}
+														{getServiceItemCategoryLabel(part.category)}
 													</span>
 												</MobileDetailHeader>
 												<MobileDetailMeta>
-													<div>Part #: {part.partNumber || '-'}</div>
-													<div>Size / Spec: {part.size || part.mervRating || part.voltage || '-'}</div>
-													<div>Notes: {part.notes || '-'}</div>
+													{getServiceItemDetails(part).length > 0 ? (
+														<ServiceItemDetailsList>
+															{getServiceItemDetails(part).map((detail) => (
+																<ServiceItemDetail key={`${part.id}-${detail.label}`}>
+																	<strong>{detail.label}:</strong> {detail.value}
+																</ServiceItemDetail>
+															))}
+														</ServiceItemDetailsList>
+													) : (
+														<div>No part details recorded yet.</div>
+													)}
 												</MobileDetailMeta>
 												{canAccessParts && (
 													<ButtonGroup>
@@ -2580,10 +2699,10 @@ export const DeviceDetailPage: React.FC = () => {
 									<PartsTable>
 										<thead>
 											<tr>
-												<th>Part Name</th>
-												<th>Category</th>
-												<th>Part #</th>
-												<th>Size/Spec</th>
+												<th>Name</th>
+												<th>Type</th>
+												<th>Key Details</th>
+												<th>Replacement</th>
 												<th>Notes</th>
 												<th style={{ width: '150px' }}>Actions</th>
 											</tr>
@@ -2603,12 +2722,12 @@ export const DeviceDetailPage: React.FC = () => {
 																fontSize: '12px',
 																fontWeight: 500,
 															}}>
-															{part.category}
+															{getServiceItemCategoryLabel(part.category)}
 														</span>
 													</td>
-													<td>{part.partNumber || '-'}</td>
-													<td>{part.size || part.mervRating || part.voltage || '-'}</td>
-													<td>{part.notes || '-'}</td>
+													<td>{getServiceItemKeyDetails(part)}</td>
+													<td>{part.replacementInterval || 'Not recorded'}</td>
+													<td>{part.notes || part.details || 'Not recorded'}</td>
 													<td>
 														<ActionButton onClick={() => handleEditPart(index)} disabled={!canAccessParts}>
 															<FontAwesomeIcon icon={faEdit} />
@@ -2629,7 +2748,7 @@ export const DeviceDetailPage: React.FC = () => {
 								)
 							) : (
 								<EmptyState>
-									<p>No parts added yet. Add a part to get started.</p>
+									<p>No parts or filters added yet. Add filter sizes, part numbers, or replacement notes when they are useful.</p>
 								</EmptyState>
 							)}
 						</SectionContainer>
@@ -2673,24 +2792,12 @@ export const DeviceDetailPage: React.FC = () => {
 
 				<GenericModal
 					isOpen={showQuickLogModal}
-					title={
-						quickLogMode === 'repair'
-							? 'Log Repair'
-							: quickLogMode === 'invoice'
-								? 'Log Invoice'
-								: quickLogMode === 'inspection'
-									? 'Log Inspection'
-									: quickLogMode === 'warranty'
-										? 'Log Warranty'
-										: quickLogMode === 'contractor'
-											? 'Log Contractor Visit'
-											: 'Add Service Note'
-					}
+					title='Log work'
 					onClose={() => setShowQuickLogModal(false)}
 					onSubmit={handleSaveQuickLog}
 					showActions={true}
 					primaryButtonLabel={
-						isSavingQuickLog || isCreatingContractor ? 'Saving...' : 'Save Entry'
+						isSavingQuickLog || isCreatingContractor ? 'Saving...' : 'Save work'
 					}
 					secondaryButtonLabel='Cancel'>
 					<PartsForm>
@@ -3104,13 +3211,17 @@ export const DeviceDetailPage: React.FC = () => {
 			</PageStack>
 			<BarcodeScannerModal
 				isOpen={isDeviceScanOpen}
-				title='Scan Appliance Barcode'
+				title='Appliance Capture Assistant'
+				defaultMethod='photo'
+				captureIntent='appliance'
 				onClose={() => setIsDeviceScanOpen(false)}
 				onDetected={handleDeviceBarcodeDetected}
 			/>
 			<BarcodeScannerModal
 				isOpen={isPartScanOpen}
-				title='Scan Part Barcode'
+				title='Part Capture Assistant'
+				defaultMethod='barcode'
+				captureIntent='part'
 				onClose={() => setIsPartScanOpen(false)}
 				onDetected={handlePartBarcodeDetected}
 			/>

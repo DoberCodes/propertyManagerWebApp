@@ -176,7 +176,7 @@ export const MobileBottomNav: React.FC<MobileNavProps> = ({ isPropertyContext, p
             { key: 'add_part', label: 'Part', x: -100, y: 0 },
             { key: 'add_task', label: 'Task', x: -55, y: -55 },
             { key: 'upload_document', label: 'Document', x: 55, y: -55 },
-            { key: 'add_log', label: 'Log', x: 100, y: 0 },
+            { key: 'add_log', label: 'Log work', x: 100, y: 0 },
         ]
         : isPropertyContext
             ? [

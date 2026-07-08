@@ -11,7 +11,7 @@ They serve as the source of truth for:
 * Recommendation Engine
 * Maintley Intelligence
 * Property Insight Emails
-* Future OCR and barcode extraction
+* Appliance label capture and barcode extraction
 * Future AI-assisted recommendations
 
 Appliance Profiles define:
@@ -122,6 +122,50 @@ Examples:
 * Photos
 
 Documentation should improve records but should not be required.
+
+---
+
+# Appliance Label Capture
+
+Appliance label capture is a Property Memory intake surface, not an automatic
+autofill system.
+
+The primary appliance capture path should be:
+
+```text
+Capture or upload label
+    ->
+Confirm image or retake
+    ->
+Read text from image
+    ->
+User validates recognized text
+    ->
+Recognize possible fields
+    ->
+User reviews, edits, and selects fields
+    ->
+Apply accepted fields to the appliance profile
+```
+
+Barcode and QR scanning may remain available as a helper path, but appliance
+labels often contain the more useful make, model, serial, and service details.
+
+Scanner output should follow these rules:
+
+* Show recognized details before applying them.
+* Let users confirm or retake the label image before OCR runs.
+* Let users validate and correct OCR text before fields are proposed.
+* Apply only fields the user reviewed and accepted.
+* Normalize model, serial, and part identifiers conservatively.
+* Keep original OCR or barcode text behind a disclosure for evidence.
+* Do not save raw OCR text into appliance notes or service notes.
+* Do not silently overwrite existing appliance identity fields without review.
+
+Dedicated scan-session records, source evidence records, server-side OCR, and
+confidence-backed extraction provenance are future architecture work. They
+should be introduced deliberately instead of being added as duplicate appliance
+state.
 
 ---
 

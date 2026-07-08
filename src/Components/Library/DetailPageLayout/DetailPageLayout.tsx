@@ -31,14 +31,14 @@ const ContentContainer = styled.div<{ $contentMaxWidth: string }>`
 		content: '';
 		display: block;
 		width: 100%;
-		height: max(16px, calc(var(--mobile-bottom-nav-offset, 0px) + 16px));
+		height: max(24px, calc(var(--mobile-bottom-nav-offset, 0px) + 32px));
 	}
 
 	@media (max-width: 640px) {
 		padding: 12px;
 
 		&::after {
-			height: calc(var(--mobile-bottom-nav-offset, 0px) + 14px);
+			height: calc(var(--mobile-bottom-nav-offset, 0px) + 104px);
 		}
 	}
 `;

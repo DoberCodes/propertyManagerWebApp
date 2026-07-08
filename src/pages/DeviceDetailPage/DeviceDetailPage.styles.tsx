@@ -567,6 +567,39 @@ export const TimelineAttachmentLink = styled.a`
     }
 `;
 
+export const RecordSuggestionList = styled.div`
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 8px;
+`;
+
+export const RecordSuggestionItem = styled.span`
+    display: inline-flex;
+    align-items: center;
+    padding: 5px 9px;
+    border: 1px solid ${COLORS.border};
+    border-radius: 999px;
+    background: ${COLORS.bgLight};
+    color: ${COLORS.gray700};
+    font-size: 0.78rem;
+    font-weight: 700;
+`;
+
+export const ServiceItemDetailsList = styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+`;
+
+export const ServiceItemDetail = styled.div`
+    line-height: 1.4;
+
+    strong {
+        color: ${COLORS.gray700};
+    }
+`;
+
 export const PhotoSection = styled.div`
     display: grid;
     grid-template-columns: 280px 1fr;
