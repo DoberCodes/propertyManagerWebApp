@@ -18,6 +18,8 @@ interface MobileNavProps {
     activeRoute: string;
     isUserTenant: boolean;
     isHomeowner: boolean;
+    isSingleHomePlan?: boolean;
+    primaryHomePropertyPath?: string;
     isTeamMemberAccount: boolean;
     isPropertyContext: boolean;
     pathname: string;
@@ -164,41 +166,61 @@ export const MobileHamburgerNav: React.FC<MobileNavProps> = ({ isSidebarOpen, se
 }
 
 
-export const MobileBottomNav: React.FC<MobileNavProps> = ({ isPropertyContext, pathname, setIsQuickCreateOpen, isQuickCreateOpen, quickCreateRef, activeRoute }: MobileNavProps) => {
+export const MobileBottomNav: React.FC<MobileNavProps> = ({
+    isPropertyContext,
+    pathname,
+    setIsQuickCreateOpen,
+    isQuickCreateOpen,
+    quickCreateRef,
+    activeRoute,
+    isHomeowner,
+    isSingleHomePlan,
+    primaryHomePropertyPath,
+}: MobileNavProps) => {
     const navigate = useNavigate();
     const isApplianceContext = /^\/property\/[^/]+\/device\/[^/]+\/?$/i.test(pathname);
     const propertyPathMatch = pathname.match(/^\/property\/([^/]+)/i);
     const propertyBasePath = propertyPathMatch
         ? `/property/${propertyPathMatch[1]}`
         : pathname;
+    const hasExistingSingleHome = Boolean(isHomeowner && isSingleHomePlan && primaryHomePropertyPath);
+    const propertyNavLabel = isHomeowner ? 'Home' : 'Properties';
+    const addPropertyLabel = isHomeowner ? 'Add Home' : 'Add Property';
+
     const quickCreateActions = isApplianceContext
         ? [
-            { key: 'add_part', label: 'Part', x: -100, y: 0 },
-            { key: 'add_task', label: 'Task', x: -55, y: -55 },
-            { key: 'upload_document', label: 'Document', x: 55, y: -55 },
-            { key: 'add_log', label: 'Log work', x: 100, y: 0 },
+            { key: 'add_part', label: 'Add Part', x: -108, y: 0 },
+            { key: 'add_task', label: 'Add Task', x: -56, y: -58 },
+            { key: 'upload_document', label: 'Upload Document', x: 56, y: -58 },
+            { key: 'add_log', label: 'Log Work', x: 108, y: 0 },
         ]
         : isPropertyContext
             ? [
-                { key: 'add_task', label: 'Task', x: -100, y: 0 },
-            { key: 'add_system', label: 'Equipment', x: -55, y: -55 },
-                { key: 'upload_document', label: 'Document', x: 55, y: -55 },
-                { key: 'add_contractor', label: 'Contractor', x: 100, y: 0 },
+                { key: 'add_task', label: 'Add Task', x: -108, y: 0 },
+                { key: 'add_system', label: 'Add Equipment', x: -56, y: -58 },
+                { key: 'upload_document', label: 'Upload Document', x: 56, y: -58 },
+                { key: 'add_contractor', label: 'Add Contractor', x: 108, y: 0 },
             ]
             : [
-                { key: 'add_task', label: 'Task', x: -100, y: -10 },
-                { key: 'add_system', label: 'Equipment', x: 0, y: -60 },
-                { key: 'add_property', label: 'Home', x: 100, y: -10 },
+                { key: 'add_task', label: 'Add Task', x: -112, y: -10 },
+                { key: 'add_system', label: 'Add Equipment', x: 0, y: -64 },
+                hasExistingSingleHome
+                    ? { key: 'upload_document', label: 'Upload Document', x: 112, y: -10 }
+                    : { key: 'add_property', label: addPropertyLabel, x: 112, y: -10 },
             ];
 
     const handleQuickCreateAction = (action: string) => {
-        const navigateToPropertyAction = (tab: string, propertyAction: string) => {
+        const navigateToPropertyAction = (
+            tab: string,
+            propertyAction: string,
+            targetPropertyPath = propertyBasePath,
+        ) => {
             const params = new URLSearchParams({
                 tab,
                 action: propertyAction,
             });
             navigate({
-                pathname: propertyBasePath,
+                pathname: targetPropertyPath,
                 search: `?${params.toString()}`,
             });
         };
@@ -213,6 +235,12 @@ export const MobileBottomNav: React.FC<MobileNavProps> = ({ isPropertyContext, p
             }, { replace: true });
         };
 
+        const navigateToSingleHomeAction = (tab: string, propertyAction: string) => {
+            if (!primaryHomePropertyPath) return false;
+            navigateToPropertyAction(tab, propertyAction, primaryHomePropertyPath);
+            return true;
+        };
+
         switch (action) {
             case 'add_part':
                 navigateToApplianceAction('add_part');
@@ -222,14 +250,14 @@ export const MobileBottomNav: React.FC<MobileNavProps> = ({ isPropertyContext, p
                     navigateToApplianceAction('add-task');
                 } else if (isPropertyContext) {
                     navigateToPropertyAction('tasks', 'create-task');
-                } else {
+                } else if (!navigateToSingleHomeAction('tasks', 'create-task')) {
                     navigate('/tasks?action=create');
                 }
                 break;
             case 'add_system':
                 if (isPropertyContext) {
                     navigateToPropertyAction('devices', 'create-system');
-                } else {
+                } else if (!navigateToSingleHomeAction('devices', 'create-system')) {
                     navigate('/devices?action=create');
                 }
                 break;
@@ -241,7 +269,7 @@ export const MobileBottomNav: React.FC<MobileNavProps> = ({ isPropertyContext, p
                     navigateToApplianceAction('upload-document');
                 } else if (isPropertyContext) {
                     navigateToPropertyAction('documents', 'upload-document');
-                } else {
+                } else if (!navigateToSingleHomeAction('documents', 'upload-document')) {
                     navigate('/report?action=upload');
                 }
                 break;
@@ -318,7 +346,7 @@ export const MobileBottomNav: React.FC<MobileNavProps> = ({ isPropertyContext, p
                     $active={activeRoute === '/properties'}
                     onClick={() => navigate('/properties')}
                     aria-current={activeRoute === '/properties' ? 'page' : undefined}>
-                    <MobileBottomNavLabel>Home</MobileBottomNavLabel>
+                    <MobileBottomNavLabel>{propertyNavLabel}</MobileBottomNavLabel>
                 </MobileBottomNavItem>
             </MobileBottomNavInner>
         </MobileBottomNavBar>

@@ -189,7 +189,7 @@ export const MobileBottomActionMenu = styled.div<{ $open?: boolean }>`
 	position: absolute;
 	left: 50%;
 	top: -136px;
-	width: 330px;
+	width: min(356px, calc(100vw - 18px));
 	height: 138px;
 	transform: translateX(-50%) scale(${({ $open }) => ($open ? 1 : 0.94)});
 	opacity: ${({ $open }) => ($open ? 1 : 0)};
@@ -202,7 +202,7 @@ export const MobileBottomActionBackdrop = styled.div<{ $open?: boolean }>`
 	left: 50%;
 	top: -116px;
 	transform: translateX(-50%);
-	width: min(320px, calc(100vw - 30px));
+	width: min(344px, calc(100vw - 24px));
 	height: 122px;
 	border-radius: 999px 999px 18px 18px;
 	background: ${COLORS.white};
@@ -237,12 +237,12 @@ export const MobileBottomActionItem = styled.button<{ $x: number; $y: number }>`
 	border: none;
 	border-radius: 999px;
 	padding: 8px 10px;
-	font-size: 11px;
+	font-size: 10.5px;
 	font-weight: 700;
 	cursor: pointer;
 	display: flex;
 	height: auto;
-	width: 72px;
+	width: 88px;
 	flex-wrap: wrap;
 	justify-content: center;
 	align-items: center;

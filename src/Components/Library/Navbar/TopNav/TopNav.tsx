@@ -73,6 +73,13 @@ export const TopNav = () => {
 		: isHomeowner
 			? 'Homes'
 			: 'Property Records';
+	const primaryHomeProperty = isSingleHomePlan ? navProperties[0] : undefined;
+	const primaryHomePropertyKey = String(
+		primaryHomeProperty?.slug || primaryHomeProperty?.id || '',
+	);
+	const primaryHomePropertyPath = primaryHomePropertyKey
+		? `/property/${primaryHomePropertyKey}`
+		: '';
 
 	useEffect(() => {
 		// Logic to determine nav title based on active route
@@ -194,7 +201,7 @@ export const TopNav = () => {
 			{/* Mobile Sidebar */}
 			<MobileHamburgerNav isQuickCreateOpen={isQuickCreateOpen} setIsQuickCreateOpen={setIsQuickCreateOpen} isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} isUserTenant={isUserTenant} isHomeowner={isHomeowner} isTeamMemberAccount={isTeamMemberAccount} isPropertyContext={isPropertyContext} pathname={pathname} favorites={favorites} canAccessTeam={canAccessTeam} canAccessProperties={canAccessProperties} canViewPages={canViewPages} activeRoute={activeRoute} />
 
-			<MobileBottomNav isQuickCreateOpen={isQuickCreateOpen} setIsQuickCreateOpen={setIsQuickCreateOpen} isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} isUserTenant={isUserTenant} isHomeowner={isHomeowner} isTeamMemberAccount={isTeamMemberAccount} isPropertyContext={isPropertyContext} pathname={pathname} favorites={favorites} quickCreateRef={quickCreateRef} canAccessTeam={canAccessTeam} canAccessProperties={canAccessProperties} canViewPages={canViewPages} activeRoute={activeRoute} />
+			<MobileBottomNav isQuickCreateOpen={isQuickCreateOpen} setIsQuickCreateOpen={setIsQuickCreateOpen} isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} isUserTenant={isUserTenant} isHomeowner={isHomeowner} isSingleHomePlan={isSingleHomePlan} primaryHomePropertyPath={primaryHomePropertyPath} isTeamMemberAccount={isTeamMemberAccount} isPropertyContext={isPropertyContext} pathname={pathname} favorites={favorites} quickCreateRef={quickCreateRef} canAccessTeam={canAccessTeam} canAccessProperties={canAccessProperties} canViewPages={canViewPages} activeRoute={activeRoute} />
 
 			{/* Notification Modal */}
 			<GenericModal

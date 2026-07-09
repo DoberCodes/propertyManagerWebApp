@@ -67,12 +67,44 @@ const VideoWrap = styled.div`
 	overflow: hidden;
 	background: #0f172a;
 	min-height: 240px;
+	position: relative;
+	touch-action: none;
+	user-select: none;
 `;
 
 const Video = styled.video`
 	width: 100%;
 	height: 320px;
 	object-fit: cover;
+	display: block;
+`;
+
+const CameraGestureHint = styled.div`
+	position: absolute;
+	left: 10px;
+	right: 10px;
+	bottom: 10px;
+	padding: 6px 8px;
+	border-radius: 8px;
+	background: rgba(15, 23, 42, 0.72);
+	color: ${COLORS.white};
+	font-size: 11px;
+	font-weight: 600;
+	text-align: center;
+	pointer-events: none;
+`;
+
+const FocusReticle = styled.div<{ $x: number; $y: number }>`
+	position: absolute;
+	left: ${(props) => props.$x}px;
+	top: ${(props) => props.$y}px;
+	width: 54px;
+	height: 54px;
+	border: 2px solid ${COLORS.white};
+	border-radius: 999px;
+	box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.4);
+	transform: translate(-50%, -50%);
+	pointer-events: none;
 `;
 
 const CameraToolbar = styled.div`
@@ -361,6 +393,13 @@ type RelabelRow = {
 type ScannerMethod = 'barcode' | 'photo';
 type CaptureIntent = 'appliance' | 'part' | 'generic';
 type PhotoWizardStep = 'capture' | 'confirm-image' | 'review-text' | 'review-fields';
+type CameraPoint = { x: number; y: number };
+type CameraZoomCapability = { min: number; max: number; step?: number };
+type CameraControlCapabilities = {
+	zoom: CameraZoomCapability | null;
+	supportsFocusPoint: boolean;
+	focusModes: string[];
+};
 
 const FIELD_LABELS: Record<string, string> = {
 	type: 'Appliance type',
@@ -384,6 +423,17 @@ const FIELD_LABELS: Record<string, string> = {
 	replacementInterval: 'Replacement interval',
 	notes: 'Notes',
 };
+
+const DEFAULT_CAMERA_CONTROLS: CameraControlCapabilities = {
+	zoom: null,
+	supportsFocusPoint: false,
+	focusModes: [],
+};
+
+const clamp = (value: number, min: number, max: number): number => Math.min(max, Math.max(min, value));
+
+const getPointerDistance = (first: CameraPoint, second: CameraPoint): number =>
+	Math.hypot(first.x - second.x, first.y - second.y);
 
 const formatFieldLabel = (key: string): string => {
 	const trimmed = key.trim();
@@ -436,6 +486,14 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 	const [captureEngineLabel, setCaptureEngineLabel] = useState('');
 	const [isTorchAvailable, setIsTorchAvailable] = useState(false);
 	const [isTorchOn, setIsTorchOn] = useState(false);
+	const [cameraControls, setCameraControls] = useState<CameraControlCapabilities>(DEFAULT_CAMERA_CONTROLS);
+	const [cameraZoom, setCameraZoom] = useState(1);
+	const [cameraGestureMessage, setCameraGestureMessage] = useState('');
+	const [focusPoint, setFocusPoint] = useState<CameraPoint | null>(null);
+	const cameraPointersRef = useRef<Map<number, CameraPoint>>(new Map());
+	const pinchStateRef = useRef<{ distance: number; zoom: number } | null>(null);
+	const tapCandidateRef = useRef<{ pointerId: number; x: number; y: number; moved: boolean } | null>(null);
+	const focusReticleTimeoutRef = useRef<number | null>(null);
 
 	const supportsBarcodeDetector = useMemo(
 		() => typeof (window as any).BarcodeDetector !== 'undefined',
@@ -479,6 +537,17 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 			streamRef.current = null;
 		}
 		activeVideoTrackRef.current = null;
+		cameraPointersRef.current.clear();
+		pinchStateRef.current = null;
+		tapCandidateRef.current = null;
+		if (focusReticleTimeoutRef.current) {
+			window.clearTimeout(focusReticleTimeoutRef.current);
+			focusReticleTimeoutRef.current = null;
+		}
+		setFocusPoint(null);
+		setCameraControls(DEFAULT_CAMERA_CONTROLS);
+		setCameraZoom(1);
+		setCameraGestureMessage('');
 		setIsTorchAvailable(false);
 		setIsTorchOn(false);
 		if (zxingStopRef.current) {
@@ -492,12 +561,34 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 		activeVideoTrackRef.current = nextTrack;
 		const capabilities = nextTrack?.getCapabilities?.() as MediaTrackCapabilities & {
 			torch?: boolean;
+			zoom?: CameraZoomCapability;
+			focusMode?: string[];
+			pointsOfInterest?: boolean;
 		};
+		const settings = nextTrack?.getSettings?.() as MediaTrackSettings & { zoom?: number };
 		const hasTorch = Boolean(capabilities?.torch);
+		const zoomCapability = capabilities?.zoom;
+		const hasZoom =
+			!!zoomCapability &&
+			Number.isFinite(zoomCapability.min) &&
+			Number.isFinite(zoomCapability.max) &&
+			zoomCapability.max > zoomCapability.min;
+		const focusModes = Array.isArray(capabilities?.focusMode) ? capabilities.focusMode : [];
+		const supportsFocusPoint = Boolean(capabilities?.pointsOfInterest) || focusModes.length > 0;
+
 		setIsTorchAvailable(hasTorch);
 		if (!hasTorch) {
 			setIsTorchOn(false);
 		}
+		setCameraControls({
+			zoom: hasZoom ? zoomCapability : null,
+			supportsFocusPoint,
+			focusModes,
+		});
+		setCameraZoom(
+			hasZoom ? clamp(settings?.zoom ?? zoomCapability.min, zoomCapability.min, zoomCapability.max) : 1,
+		);
+		setCameraGestureMessage('');
 	}, []);
 
 	const toggleTorch = useCallback(async () => {
@@ -515,6 +606,179 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 		}
 	}, [isTorchAvailable, isTorchOn]);
 
+	const applyCameraConstraints = useCallback(async (constraints: Record<string, unknown>) => {
+		const track = activeVideoTrackRef.current;
+		if (!track || track.readyState !== 'live') return false;
+
+		try {
+			await track.applyConstraints({
+				advanced: [constraints as MediaTrackConstraintSet],
+			});
+			return true;
+		} catch {
+			return false;
+		}
+	}, []);
+
+	const applyCameraZoom = useCallback(
+		async (nextZoom: number, announce = true) => {
+			const zoomCapability = cameraControls.zoom;
+			if (!zoomCapability) return false;
+
+			const steppedZoom = zoomCapability.step
+				? Math.round(nextZoom / zoomCapability.step) * zoomCapability.step
+				: nextZoom;
+			const clampedZoom = Number(
+				clamp(steppedZoom, zoomCapability.min, zoomCapability.max).toFixed(2),
+			);
+			const applied = await applyCameraConstraints({ zoom: clampedZoom });
+			if (applied) {
+				setCameraZoom(clampedZoom);
+				if (announce) {
+					setCameraGestureMessage(`Zoom ${clampedZoom.toFixed(1)}x`);
+				}
+			}
+			return applied;
+		},
+		[applyCameraConstraints, cameraControls.zoom],
+	);
+
+	const focusCameraAtPoint = useCallback(
+		async (point: CameraPoint, rect: DOMRect) => {
+			const focusModes = cameraControls.focusModes;
+			const preferredFocusMode = focusModes.includes('single-shot')
+				? 'single-shot'
+				: focusModes.includes('continuous')
+					? 'continuous'
+					: focusModes[0];
+			const normalizedPoint = {
+				x: clamp(point.x / rect.width, 0, 1),
+				y: clamp(point.y / rect.height, 0, 1),
+			};
+			const focusAttempts = [
+				preferredFocusMode
+					? { pointsOfInterest: [normalizedPoint], focusMode: preferredFocusMode }
+					: { pointsOfInterest: [normalizedPoint] },
+				{ pointsOfInterest: [normalizedPoint] },
+				preferredFocusMode ? { focusMode: preferredFocusMode } : null,
+			].filter(Boolean) as Array<Record<string, unknown>>;
+
+			for (const attempt of focusAttempts) {
+				if (await applyCameraConstraints(attempt)) {
+					setCameraGestureMessage('Focus adjusted');
+					return true;
+				}
+			}
+
+			setCameraGestureMessage('Tap-to-focus is not available on this camera.');
+			return false;
+		},
+		[applyCameraConstraints, cameraControls.focusModes],
+	);
+
+	const showFocusReticle = useCallback((point: CameraPoint) => {
+		setFocusPoint(point);
+		if (focusReticleTimeoutRef.current) {
+			window.clearTimeout(focusReticleTimeoutRef.current);
+		}
+		focusReticleTimeoutRef.current = window.setTimeout(() => {
+			setFocusPoint(null);
+			focusReticleTimeoutRef.current = null;
+		}, 700);
+	}, []);
+
+	const getCameraPointerPoint = (event: React.PointerEvent<HTMLDivElement>): CameraPoint => {
+		const rect = event.currentTarget.getBoundingClientRect();
+		return {
+			x: event.clientX - rect.left,
+			y: event.clientY - rect.top,
+		};
+	};
+
+	const handleCameraPointerDown = useCallback(
+		(event: React.PointerEvent<HTMLDivElement>) => {
+			if (!activeVideoTrackRef.current) return;
+			event.preventDefault();
+			event.currentTarget.setPointerCapture?.(event.pointerId);
+			const point = getCameraPointerPoint(event);
+			cameraPointersRef.current.set(event.pointerId, point);
+
+			if (cameraPointersRef.current.size === 1) {
+				tapCandidateRef.current = {
+					pointerId: event.pointerId,
+					x: event.clientX,
+					y: event.clientY,
+					moved: false,
+				};
+				return;
+			}
+
+			if (cameraPointersRef.current.size === 2) {
+				const [first, second] = Array.from(cameraPointersRef.current.values());
+				pinchStateRef.current = { distance: getPointerDistance(first, second), zoom: cameraZoom };
+				tapCandidateRef.current = null;
+			}
+		},
+		[cameraZoom],
+	);
+
+	const handleCameraPointerMove = useCallback(
+		(event: React.PointerEvent<HTMLDivElement>) => {
+			if (!cameraPointersRef.current.has(event.pointerId)) return;
+			event.preventDefault();
+			const point = getCameraPointerPoint(event);
+			cameraPointersRef.current.set(event.pointerId, point);
+
+			const tapCandidate = tapCandidateRef.current;
+			if (tapCandidate?.pointerId === event.pointerId) {
+				const movedDistance = Math.hypot(event.clientX - tapCandidate.x, event.clientY - tapCandidate.y);
+				if (movedDistance > 8) {
+					tapCandidateRef.current = { ...tapCandidate, moved: true };
+				}
+			}
+
+			if (cameraPointersRef.current.size !== 2 || !pinchStateRef.current || !cameraControls.zoom) return;
+			const [first, second] = Array.from(cameraPointersRef.current.values());
+			const nextDistance = getPointerDistance(first, second);
+			if (pinchStateRef.current.distance <= 0) return;
+			const nextZoom = pinchStateRef.current.zoom * (nextDistance / pinchStateRef.current.distance);
+			void applyCameraZoom(nextZoom, false);
+			setCameraGestureMessage('Pinch to zoom');
+		},
+		[applyCameraZoom, cameraControls.zoom],
+	);
+
+	const handleCameraPointerEnd = useCallback(
+		(event: React.PointerEvent<HTMLDivElement>) => {
+			if (!cameraPointersRef.current.has(event.pointerId)) return;
+			event.preventDefault();
+			const point = getCameraPointerPoint(event);
+			const rect = event.currentTarget.getBoundingClientRect();
+			const tapCandidate = tapCandidateRef.current;
+			const isTap =
+				tapCandidate?.pointerId === event.pointerId &&
+				!tapCandidate.moved &&
+				cameraPointersRef.current.size === 1;
+
+			cameraPointersRef.current.delete(event.pointerId);
+			event.currentTarget.releasePointerCapture?.(event.pointerId);
+			if (cameraPointersRef.current.size < 2) {
+				pinchStateRef.current = null;
+			}
+			if (tapCandidate?.pointerId === event.pointerId) {
+				tapCandidateRef.current = null;
+			}
+
+			if (!isTap) return;
+			showFocusReticle(point);
+			if (!cameraControls.supportsFocusPoint) {
+				setCameraGestureMessage('Tap-to-focus is not available on this camera.');
+				return;
+			}
+			void focusCameraAtPoint(point, rect);
+		},
+		[cameraControls.supportsFocusPoint, focusCameraAtPoint, showFocusReticle],
+	);
 	const loadZxingModule = useCallback(async () => {
 		if (!zxingModuleRef.current) {
 			zxingModuleRef.current = await import('@zxing/library');
@@ -959,7 +1223,25 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 			: captureIntent === 'part'
 				? 'Review the fields Maintley recognized. Only checked fields will be applied to this part.'
 				: 'Review detected key-value pairs, GS1 segments, and normalized mappings before applying.';
-
+	const cameraGestureHint = useMemo(() => {
+		const hints: string[] = [];
+		if (cameraControls.zoom) hints.push('Pinch to zoom');
+		if (cameraControls.supportsFocusPoint) hints.push('Tap to focus');
+		return hints.join('. ');
+	}, [cameraControls.supportsFocusPoint, cameraControls.zoom]);
+	const cameraHintText = cameraGestureMessage || cameraGestureHint;
+	const renderCameraPreview = () => (
+		<VideoWrap
+			onPointerDown={handleCameraPointerDown}
+			onPointerMove={handleCameraPointerMove}
+			onPointerUp={handleCameraPointerEnd}
+			onPointerCancel={handleCameraPointerEnd}
+			aria-label='Camera preview'>
+			<Video ref={videoRef} playsInline muted />
+			{focusPoint && <FocusReticle $x={focusPoint.x} $y={focusPoint.y} />}
+			{cameraHintText && <CameraGestureHint>{cameraHintText}</CameraGestureHint>}
+		</VideoWrap>
+	);
 	if (!isOpen) return null;
 
 	return (
@@ -1022,9 +1304,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 
 					{!analysis && activeMethod === 'barcode' && (
 						<>
-							<VideoWrap>
-								<Video ref={videoRef} playsInline muted />
-							</VideoWrap>
+							{renderCameraPreview()}
 							<CameraToolbar>
 								<GhostButton
 									type='button'
@@ -1044,9 +1324,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 						<>
 							{supportsCameraAccess && (
 								<>
-									<VideoWrap>
-										<Video ref={videoRef} playsInline muted />
-									</VideoWrap>
+									{renderCameraPreview()}
 									<CameraToolbar>
 										<GhostButton
 											type='button'
