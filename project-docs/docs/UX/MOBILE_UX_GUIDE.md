@@ -195,6 +195,11 @@ retaining any remaining navigation parameters. Treat action parameters as
 one-time triggers and replace the current history entry so Back navigation
 does not reopen a previously handled dialog.
 
+For single-home homeowner plans, global Quick Create should use the existing
+home as the default property context once a home exists. Do not continue to
+show **Add Home** when the account cannot add another home. Prefer useful
+home-memory actions such as **Add Task**, **Add Equipment**, and **Upload
+Document**, routed to the existing home.
 Appliance profile back navigation should respect the entry point. Profiles
 opened from a property should return to that property's Appliances tab, while
 profiles opened from the global Appliances page should return to `/devices`.
