@@ -1464,7 +1464,9 @@ export const HomeActivityContent = styled.div`
 	overscroll-behavior: contain;
 
 	@media (max-width: 768px) {
-		max-height: 68vh;
+		max-height: none;
+		overflow: visible;
+		overscroll-behavior: auto;
 	}
 `;
 

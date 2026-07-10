@@ -553,6 +553,10 @@ const getScheduleAlignmentText = (
 		metadata,
 		'scheduledTaskDaysFromLastMaintenance',
 	);
+	if (!scheduledDaysFromLastService || scheduledDaysFromLastService <= 0) {
+		return 'Your maintenance history and recurring task may no longer line up. Reviewing the next reminder date or the recorded maintenance history may help keep them aligned.';
+	}
+
 	const intervalText = formatIntervalNoun(scheduledDaysFromLastService);
 	return `Your maintenance history and recurring task currently reflect ${intervalText}. Reviewing the next reminder date or the recorded maintenance history may help keep them aligned.`;
 };

@@ -292,6 +292,8 @@ type HomeTimelineEntry = {
 	dateLabel: string;
 };
 
+const HOME_ACTIVITY_LIST_LIMIT = 10;
+
 const MANAGER_DASHBOARD_ROLES = new Set<string>([
 	USER_ROLES.ADMIN,
 	USER_ROLES.PROPERTY_MANAGER,
@@ -1434,7 +1436,7 @@ export const DashboardTab = () => {
 			})
 			.filter(Boolean)
 			.sort((a: any, b: any) => b.timestamp.getTime() - a.timestamp.getTime())
-			.slice(0, 5);
+			.slice(0, HOME_ACTIVITY_LIST_LIMIT);
 
 		return activity;
 	}, [
@@ -1475,7 +1477,7 @@ export const DashboardTab = () => {
 				const bPriority = PRIORITY_RANK[b.priority || 'Low'] || 1;
 				return bPriority - aPriority;
 			})
-			.slice(0, 5);
+			.slice(0, HOME_ACTIVITY_LIST_LIMIT);
 	}, [filteredTasks, ACTIVE_TASK_STATUSES, PRIORITY_RANK, DASHBOARD_DUE_WINDOW_DAYS]);
 
 	const nextUrgentTask = urgentTasks[0] || null;
@@ -1654,7 +1656,7 @@ export const DashboardTab = () => {
 
 		return entries
 			.sort((a, b) => b.date.getTime() - a.date.getTime())
-			.slice(0, 12);
+			.slice(0, HOME_ACTIVITY_LIST_LIMIT);
 	}, [
 		allProperties,
 		dashboardMaintenanceHistory,

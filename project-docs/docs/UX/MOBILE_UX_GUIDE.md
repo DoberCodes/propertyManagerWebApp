@@ -374,7 +374,9 @@ The dashboard should focus on immediate action.
 
 Tabbed dashboard modules, such as Home Activity, should keep their tab row
 visible on mobile. Use a compact horizontally scrollable tab strip when labels
-cannot fit in one line.
+cannot fit in one line. Let the page handle vertical scrolling on mobile rather
+than placing the module body inside its own scroll area; keep each activity list
+to a short preview, typically no more than 10 items.
 
 ---
 
