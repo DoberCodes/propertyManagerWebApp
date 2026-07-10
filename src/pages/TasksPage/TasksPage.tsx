@@ -24,6 +24,8 @@ import {
 	faScrewdriverWrench,
 	faClockRotateLeft,
 	faBell,
+	faChevronDown,
+	faChevronUp,
 } from '@fortawesome/free-solid-svg-icons';
 import { Column, Action } from '../../Components/Library/ReusableTable';
 import {
@@ -41,6 +43,9 @@ import {
 	TaskGridSection,
 	TaskControlPanel,
 	TaskControlRow,
+	TaskFilterAdvancedBody,
+	TaskFilterCollapseButton,
+	TaskFilterSummaryRow,
 	TaskSearchInput,
 	TaskSortSelect,
 	TaskResultCount,
@@ -166,6 +171,7 @@ export const TasksPage = () => {
 		key: string;
 		direction: 'asc' | 'desc';
 	}>({ key: 'dueDate', direction: 'asc' });
+	const [areTopFiltersExpanded, setAreTopFiltersExpanded] = useState(false);
 	const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
 	const [draftSearchTerm, setDraftSearchTerm] = useState('');
 	const [draftQuickFilter, setDraftQuickFilter] = useState<
@@ -1147,63 +1153,77 @@ export const TasksPage = () => {
 			</StandardAppPageHeader>
 			{/* Task Filter Section */}
 			<TaskControlPanel>
-				<TaskControlRow>
-					<TaskSearchInput
-						type='text'
-						placeholder='Search task titles and notes...'
-						value={searchTerm}
-						onChange={(e) => setSearchTerm(e.target.value)}
-					/>
-					<TaskSortSelect
-						value={`${sortState.key}:${sortState.direction}`}
-						onChange={(e) => handleSortOptionChange(e.target.value)}
-						aria-label='Organize tasks'>
-						<option value='dueDate:asc'>Sort: Due soonest</option>
-						<option value='dueDate:desc'>Sort: Due latest</option>
-						<option value='priority:desc'>Sort: Priority first</option>
-						<option value='title:asc'>Sort: Title A-Z</option>
-						<option value='propertyTitle:asc'>Sort: {taskPropertyLanguage.sortLabel}</option>
-						<option value='status:asc'>Sort: Status</option>
-					</TaskSortSelect>
-				</TaskControlRow>
-				{renderAdvancedFilterFields(advancedFilters, (key, value) =>
-					setAdvancedFilters((current) => ({ ...current, [key]: value }))
-				)}
-				<QuickFilterChips>
-					<QuickFilterChip
-						$active={quickFilter === 'all'}
-						onClick={() => setQuickFilter('all')}>
-						All
-					</QuickFilterChip>
-					<QuickFilterChip
-						$active={quickFilter === 'overdue'}
-						onClick={() => setQuickFilter('overdue')}>
-						Overdue
-					</QuickFilterChip>
-					<QuickFilterChip
-						$active={quickFilter === 'due-soon'}
-						onClick={() => setQuickFilter('due-soon')}>
-						Due Soon
-					</QuickFilterChip>
-					<QuickFilterChip
-						$active={quickFilter === 'due-next-30'}
-						onClick={() => setQuickFilter('due-next-30')}>
-						Next 30 Days
-					</QuickFilterChip>
-					<QuickFilterChip
-						$active={quickFilter === 'unassigned'}
-						onClick={() => setQuickFilter('unassigned')}>
-						Unassigned
-					</QuickFilterChip>
-					{(searchTerm.trim().length > 0 ||
-						quickFilter !== 'all' ||
-						Object.values(advancedFilters).some(Boolean)) && (
-							<QuickFilterChip onClick={clearTopFilters}>Clear</QuickFilterChip>
-						)}
-				</QuickFilterChips>
+				<TaskFilterSummaryRow>
+					<QuickFilterChips>
+						<QuickFilterChip
+							$active={quickFilter === 'all'}
+							onClick={() => setQuickFilter('all')}>
+							All
+						</QuickFilterChip>
+						<QuickFilterChip
+							$active={quickFilter === 'overdue'}
+							onClick={() => setQuickFilter('overdue')}>
+							Overdue
+						</QuickFilterChip>
+						<QuickFilterChip
+							$active={quickFilter === 'due-soon'}
+							onClick={() => setQuickFilter('due-soon')}>
+							Due Soon
+						</QuickFilterChip>
+						<QuickFilterChip
+							$active={quickFilter === 'due-next-30'}
+							onClick={() => setQuickFilter('due-next-30')}>
+							Next 30 Days
+						</QuickFilterChip>
+						<QuickFilterChip
+							$active={quickFilter === 'unassigned'}
+							onClick={() => setQuickFilter('unassigned')}>
+							Unassigned
+						</QuickFilterChip>
+						{(searchTerm.trim().length > 0 ||
+							quickFilter !== 'all' ||
+							Object.values(advancedFilters).some(Boolean)) && (
+								<QuickFilterChip onClick={clearTopFilters}>Clear</QuickFilterChip>
+							)}
+					</QuickFilterChips>
+					<TaskFilterCollapseButton
+						type='button'
+						onClick={() => setAreTopFiltersExpanded((value) => !value)}
+						aria-expanded={areTopFiltersExpanded}
+						aria-label={areTopFiltersExpanded ? 'Collapse task filters' : 'Expand task filters'}
+						title={areTopFiltersExpanded ? 'Collapse filters' : 'Expand filters'}>
+						<FontAwesomeIcon icon={areTopFiltersExpanded ? faChevronUp : faChevronDown} />
+					</TaskFilterCollapseButton>
+				</TaskFilterSummaryRow>
 				<TaskResultCount>
 					Showing {filteredTasks.length} {filteredTasks.length === 1 ? 'task' : 'tasks'}
 				</TaskResultCount>
+				{areTopFiltersExpanded && (
+					<TaskFilterAdvancedBody>
+						<TaskControlRow>
+							<TaskSearchInput
+								type='text'
+								placeholder='Search task titles and notes...'
+								value={searchTerm}
+								onChange={(e) => setSearchTerm(e.target.value)}
+							/>
+							<TaskSortSelect
+								value={`${sortState.key}:${sortState.direction}`}
+								onChange={(e) => handleSortOptionChange(e.target.value)}
+								aria-label='Organize tasks'>
+								<option value='dueDate:asc'>Sort: Due soonest</option>
+								<option value='dueDate:desc'>Sort: Due latest</option>
+								<option value='priority:desc'>Sort: Priority first</option>
+								<option value='title:asc'>Sort: Title A-Z</option>
+								<option value='propertyTitle:asc'>Sort: {taskPropertyLanguage.sortLabel}</option>
+								<option value='status:asc'>Sort: Status</option>
+							</TaskSortSelect>
+						</TaskControlRow>
+						{renderAdvancedFilterFields(advancedFilters, (key, value) =>
+							setAdvancedFilters((current) => ({ ...current, [key]: value }))
+						)}
+					</TaskFilterAdvancedBody>
+				)}
 			</TaskControlPanel>
 
 			<TaskPageMetaRow>

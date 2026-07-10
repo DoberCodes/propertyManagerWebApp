@@ -1379,6 +1379,10 @@ export const HomeActivitySection = styled.section`
 	flex-direction: column;
 	gap: 0;
 	overflow: hidden;
+
+	@media (max-width: 768px) {
+		overflow: visible;
+	}
 `;
 
 export const HomeActivityHeader = styled.div`
@@ -1391,9 +1395,16 @@ export const HomeActivityHeader = styled.div`
 	border-bottom: 1px solid ${COLORS.border};
 
 	@media (max-width: 768px) {
-		flex-direction: column;
-		align-items: stretch;
-		padding-top: 10px;
+		display: block;
+		padding: 10px 12px 0;
+		overflow-x: auto;
+		overflow-y: visible;
+		-webkit-overflow-scrolling: touch;
+		scrollbar-width: none;
+
+		&::-webkit-scrollbar {
+			display: none;
+		}
 	}
 `;
 
@@ -1405,8 +1416,10 @@ export const HomeActivityTabs = styled.div`
 	max-width: 100%;
 
 	@media (max-width: 720px) {
-		width: 100%;
-		overflow-x: auto;
+		width: max-content;
+		min-width: max-content;
+		max-width: none;
+		overflow: visible;
 	}
 `;
 
@@ -1425,6 +1438,12 @@ export const HomeActivityTab = styled.button<{ $active?: boolean }>`
 	margin-bottom: -1px;
 	transition: background-color 0.15s ease, color 0.15s ease,
 		border-color 0.15s ease;
+
+	@media (max-width: 720px) {
+		flex: 0 0 auto;
+		font-size: 0.78rem;
+		padding: 9px 11px;
+	}
 
 	&:hover,
 	&:focus-visible {

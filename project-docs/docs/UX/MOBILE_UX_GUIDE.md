@@ -372,6 +372,10 @@ or the broader visible property set.
 
 The dashboard should focus on immediate action.
 
+Tabbed dashboard modules, such as Home Activity, should keep their tab row
+visible on mobile. Use a compact horizontally scrollable tab strip when labels
+cannot fit in one line.
+
 ---
 
 # Maintley Intelligence UX

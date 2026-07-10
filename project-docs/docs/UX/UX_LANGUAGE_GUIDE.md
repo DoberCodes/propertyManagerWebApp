@@ -231,6 +231,10 @@ Workflow
 Workflows
 ```
 
+Task list filter areas should stay compact by default. Show quick filters and
+the visible task count first, then place search, sort, and advanced filters
+behind a clear expand/collapse control.
+
 ---
 
 ## Systems & Equipment

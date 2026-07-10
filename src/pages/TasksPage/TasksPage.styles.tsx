@@ -50,6 +50,38 @@ export const TaskControlPanel = styled.div`
 	}
 `;
 
+export const TaskFilterAdvancedBody = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	padding-top: 12px;
+	border-top: 1px solid #e2e8f0;
+`;
+
+export const TaskFilterCollapseButton = styled.button`
+	flex: 0 0 auto;
+	width: 34px;
+	height: 34px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: 999px;
+	border: 1px solid #cbd5e1;
+	background: #ffffff;
+	color: #334155;
+	cursor: pointer;
+	transition: background-color 0.15s ease, border-color 0.15s ease,
+		color 0.15s ease;
+
+	&:hover,
+	&:focus-visible {
+		background: #ecfdf5;
+		border-color: ${COLORS.primary};
+		color: ${COLORS.primaryDark};
+		outline: none;
+	}
+`;
+
 export const TaskFilterFields = styled.div`
 	display: grid;
 	grid-template-columns: minmax(240px, 1.5fr) minmax(220px, 1fr);
@@ -343,6 +375,18 @@ export const QuickFilterChips = styled.div`
 	flex-wrap: wrap;
 	gap: 8px;
 	margin-top: 12px;
+`;
+
+export const TaskFilterSummaryRow = styled.div`
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 12px;
+
+	${QuickFilterChips} {
+		flex: 1 1 auto;
+		margin-top: 0;
+	}
 `;
 
 export const QuickFilterChip = styled.button<{ $active?: boolean }>`
