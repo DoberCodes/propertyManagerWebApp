@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import { DetailsTabProps } from '../../../types/PropertyDetailPage.types';
 import {
 	InfoCard,
@@ -13,11 +13,7 @@ import {
 import { getTaskDisplayStatus } from '../../../utils/taskDisplayStatus';
 import { DetailsEditHeader } from '../PropertyDetailPage.styles';
 import { PropertyDetailSection } from '../PropertyDetailSection';
-import {
-	getMaintenanceEventDate,
-	getMaintenanceEventTitle,
-	isContinuityEvent,
-} from '../../../utils/maintenanceEventUtils';
+import { isContinuityEvent } from '../../../utils/maintenanceEventUtils';
 import {
 	GlanceGrid,
 	GlanceCard,
@@ -32,12 +28,6 @@ import {
 	PreviewItemTrailing,
 	PreviewItemMeta,
 	PreviewEmptyAction,
-	TimelineList,
-	TimelineItem,
-	TimelineBadge,
-	TimelineBody,
-	TimelineTitle,
-	TimelineMeta,
 } from './DetailsTab.styles';
 
 export const DetailsTab: React.FC<DetailsTabProps> = ({
@@ -87,58 +77,6 @@ export const DetailsTab: React.FC<DetailsTabProps> = ({
 			year: '2-digit',
 		});
 	};
-
-	const formatRelativeTime = (value?: string) => {
-		if (!value) return 'date unknown';
-		const date = new Date(value);
-		if (Number.isNaN(date.getTime())) return 'date unknown';
-
-		const diffMs = Date.now() - date.getTime();
-		const diffDays = Math.round(Math.abs(diffMs) / 86400000);
-
-		if (diffDays === 0) return diffMs >= 0 ? 'today' : 'later today';
-		if (diffDays === 1) return diffMs >= 0 ? 'yesterday' : 'tomorrow';
-		if (diffDays < 7) return diffMs >= 0 ? `${diffDays} days ago` : `in ${diffDays} days`;
-		if (diffDays < 30) {
-			const weeks = Math.round(diffDays / 7);
-			return diffMs >= 0 ? `${weeks} weeks ago` : `in ${weeks} weeks`;
-		}
-		const months = Math.round(diffDays / 30);
-		return diffMs >= 0 ? `${months} months ago` : `in ${months} months`;
-	};
-
-	const propertyTimeline = useMemo(() => {
-		type TimelineEvent = {
-			key: string;
-			type: 'maintenance';
-			title: string;
-			meta: string;
-			date?: string;
-		};
-
-		const timelineEvents: TimelineEvent[] = [];
-
-		maintenanceHistoryRecords
-			.filter(isContinuityEvent)
-			.forEach((record) => {
-				const eventDate = getMaintenanceEventDate(record);
-				timelineEvents.push({
-					key: `maintenance-${record.id || `${record.title}-${eventDate}`}`,
-					type: 'maintenance',
-					title: getMaintenanceEventTitle(record) || 'Maintenance completed',
-					meta: `Logged ${formatRelativeTime(eventDate)}`,
-					date: eventDate,
-				});
-			});
-
-		return timelineEvents
-			.sort((a, b) => {
-				const left = a.date ? new Date(a.date).getTime() : 0;
-				const right = b.date ? new Date(b.date).getTime() : 0;
-				return right - left;
-			})
-			.slice(0, 8);
-	}, [maintenanceHistoryRecords]);
 
 	return (
 		<>
@@ -259,39 +197,6 @@ export const DetailsTab: React.FC<DetailsTabProps> = ({
 							})
 						)}
 					</PreviewList>
-				</PreviewCard>
-
-				<PreviewCard>
-					<PreviewHeader>
-						{homeownerMode ? 'Home Timeline' : 'Property Timeline'}
-					</PreviewHeader>
-					<TimelineList>
-						{propertyTimeline.length === 0 ? (
-							<PreviewItem>
-								<div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-									<PreviewItemTitle>No maintenance activity yet</PreviewItemTitle>
-									<PreviewItemMeta style={{ textAlign: 'left' }}>
-										Completed tasks and service records build this timeline.
-									</PreviewItemMeta>
-									<PreviewEmptyAction type='button' onClick={() => onCreateTask?.()}>
-										Add Task
-									</PreviewEmptyAction>
-								</div>
-							</PreviewItem>
-						) : (
-							propertyTimeline.map((event) => (
-								<TimelineItem key={event.key}>
-									<TimelineBadge $type={event.type}>
-										Service
-									</TimelineBadge>
-									<TimelineBody>
-										<TimelineTitle>{event.title}</TimelineTitle>
-										<TimelineMeta>{event.meta}</TimelineMeta>
-									</TimelineBody>
-								</TimelineItem>
-							))
-						)}
-					</TimelineList>
 				</PreviewCard>
 			</PreviewGrid>
 		</>

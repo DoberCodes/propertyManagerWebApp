@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from 'Redux/store/store';
@@ -19,6 +19,7 @@ import { filterTasksByRole, findTeamMemberForUser } from 'utils/dataFilters';
 import { getTaskDisplayStatus } from 'utils/taskDisplayStatus';
 import {
 	getMaintenanceEventDate,
+	getMaintenanceEventTitle,
 	isContinuityEvent,
 } from 'utils/maintenanceEventUtils';
 import {
@@ -95,9 +96,6 @@ import {
 	DashboardIntelligenceImpact,
 	DashboardIntelligenceEvidence,
 	DashboardIntelligenceActions,
-	RecentActivitySection,
-	RecentActivityHeader,
-	RecentActivitySubtitle,
 	RecentActivityList,
 	RecentActivityRow,
 	RecentActivityMain,
@@ -105,11 +103,20 @@ import {
 	RecentActivityMeta,
 	RecentActivityDate,
 	RecentActivityEmpty,
-	UrgentQueueSection,
-	UrgentQueueHeader,
-	QueueHeaderActions,
-	QueueFilterPill,
-	UrgentQueueSubtitle,
+	HomeActivitySection,
+	HomeActivityHeader,
+	HomeActivityTabs,
+	HomeActivityTab,
+	HomeActivityContent,
+	HomeTimelineList,
+	HomeTimelineRow,
+	HomeTimelineDate,
+	HomeTimelineDateSub,
+	HomeTimelineMain,
+	HomeTimelineTitleRow,
+	HomeTimelineTitle,
+	HomeTimelineBadge,
+	HomeTimelineMeta,
 	UrgentTaskGroup,
 	UrgentTaskGroupLabel,
 	UrgentTaskList,
@@ -274,6 +281,16 @@ type DashboardAudience =
 	| 'single_property';
 
 type DashboardScopePreference = 'my_focus' | 'all_visible_properties';
+type HomeActivityTabKey = 'needs_attention' | 'recent_maintenance' | 'home_timeline';
+
+type HomeTimelineEntry = {
+	id: string;
+	type: 'task' | 'maintenance' | 'document' | 'home';
+	title: string;
+	meta: string;
+	date: Date;
+	dateLabel: string;
+};
 
 const MANAGER_DASHBOARD_ROLES = new Set<string>([
 	USER_ROLES.ADMIN,
@@ -371,6 +388,8 @@ export const DashboardTab = () => {
 	const [draftPropertyId, setDraftPropertyId] = useState('');
 	const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
 	const [isHomeHealthHelpOpen, setIsHomeHealthHelpOpen] = useState(false);
+	const [activeHomeActivityTab, setActiveHomeActivityTab] =
+		useState<HomeActivityTabKey>('needs_attention');
 	const propertyFilteredProperties = useMemo(
 		() =>
 			selectedPropertyId
@@ -855,7 +874,7 @@ export const DashboardTab = () => {
 						: 'Handle what matters first',
 					overviewEyebrow,
 					overviewText,
-					queueTitle: isMyFocus ? 'Your Tasks' : 'Needing Attention',
+					queueTitle: isMyFocus ? 'Your Tasks' : 'Needs Attention',
 					queueSubtitle: isMyFocus
 						? 'Overdue and upcoming tasks assigned to you are grouped so you can decide what to handle next.'
 						: 'Overdue and upcoming maintenance tasks are grouped so you can decide what to handle next.',
@@ -983,7 +1002,7 @@ export const DashboardTab = () => {
 				visibleDevices.map((device: any) => {
 					const id = String(device?.id || '').trim();
 					const name =
-						[device?.type, device?.brand, device?.model]
+						[device?.brand, device?.type || device?.assetType]
 							.filter(Boolean)
 							.join(' ')
 							.trim() || 'Equipment';
@@ -1534,14 +1553,139 @@ export const DashboardTab = () => {
 			year: 'numeric',
 		});
 
-	const getUrgentTaskPropertyName = (task: Task) => {
+	const formatTimelineDate = (value: Date) =>
+		value.toLocaleDateString(undefined, {
+			month: 'numeric',
+			day: 'numeric',
+			year: '2-digit',
+		});
+
+	const getUrgentTaskPropertyName = useCallback((task: Task) => {
 		return (
 			propertyLookup.get(task.propertyId)?.title ||
 			task.propertyTitle ||
 			task.property ||
 			'Property'
 		);
-	};
+	}, [propertyLookup]);
+
+	const homeTimelineEntries = useMemo<HomeTimelineEntry[]>(() => {
+		const sourceRecords = dashboardMaintenanceHistory.length
+			? dashboardMaintenanceHistory
+			: scopedMaintenanceHistory;
+		const entries: HomeTimelineEntry[] = [];
+
+		sourceRecords.forEach((record: any) => {
+			const eventDateValue = getMaintenanceEventDate(record);
+			const eventDate = new Date(eventDateValue || '');
+			if (Number.isNaN(eventDate.getTime())) return;
+
+			const recordPropertyId = String(record?.propertyId || '').trim();
+			const propertyName =
+				propertyLookup.get(recordPropertyId)?.title ||
+				String(record?.propertyTitle || record?.property || '').trim() ||
+				'Home';
+
+			entries.push({
+				id: `maintenance-${String(record?.id || `${propertyName}-${eventDateValue}`).trim()}`,
+				type: 'maintenance',
+				title: getMaintenanceEventTitle(record) || 'Maintenance completed',
+				meta: `${propertyName} - Service record`,
+				date: eventDate,
+				dateLabel: formatTimelineDate(eventDate),
+			});
+		});
+
+		filteredTasks.forEach((task) => {
+			const completionValue = String(task.completionDate || task.approvedAt || '').trim();
+			const dueValue = String(task.dueDate || '').trim();
+			const dateValue = completionValue || dueValue;
+			const eventDate = new Date(dateValue);
+			if (Number.isNaN(eventDate.getTime())) return;
+
+			const propertyName = getUrgentTaskPropertyName(task);
+			const displayStatus = getTaskDisplayStatus(task).label;
+			const isCompleted = displayStatus === 'Completed' || Boolean(completionValue);
+			const title = isCompleted
+				? `${task.title} completed`
+				: `${task.title} ${new Date(dateValue).getTime() < Date.now() ? 'due' : 'scheduled'}`;
+
+			entries.push({
+				id: `task-${task.id}-${dateValue}`,
+				type: 'task',
+				title,
+				meta: `${propertyName} - ${displayStatus}`,
+				date: eventDate,
+				dateLabel: formatTimelineDate(eventDate),
+			});
+		});
+
+		allProperties.forEach((property: any) => {
+			const propertyName = String(property?.title || 'Home').trim();
+
+			if (Array.isArray(property?.documents)) {
+				property.documents.forEach((document: any) => {
+					const uploadedAt = new Date(String(document?.uploadedAt || document?.updatedAt || ''));
+					if (Number.isNaN(uploadedAt.getTime())) return;
+
+					entries.push({
+						id: `document-${String(document?.id || document?.name || uploadedAt.toISOString()).trim()}`,
+						type: 'document',
+						title: `${String(document?.name || document?.fileName || 'Document').trim()} added`,
+						meta: `${propertyName} - Document`,
+						date: uploadedAt,
+						dateLabel: formatTimelineDate(uploadedAt),
+					});
+				});
+			}
+
+			const createdAt = new Date(String(property?.createdAt || ''));
+			if (!Number.isNaN(createdAt.getTime())) {
+				entries.push({
+					id: `home-created-${property.id}`,
+					type: 'home',
+					title: `${propertyName} added to Maintley`,
+					meta: 'Home record',
+					date: createdAt,
+					dateLabel: formatTimelineDate(createdAt),
+				});
+			}
+		});
+
+		return entries
+			.sort((a, b) => b.date.getTime() - a.date.getTime())
+			.slice(0, 12);
+	}, [
+		allProperties,
+		dashboardMaintenanceHistory,
+		filteredTasks,
+		getUrgentTaskPropertyName,
+		propertyLookup,
+		scopedMaintenanceHistory,
+	]);
+
+	const homeActivityTabs = useMemo(
+		() => [
+			{
+				key: 'needs_attention' as HomeActivityTabKey,
+				label: 'Needs Attention',
+				description:
+					'Overdue and upcoming maintenance tasks grouped so you can decide what to handle next.',
+			},
+			{
+				key: 'recent_maintenance' as HomeActivityTabKey,
+				label: 'Recent Maintenance',
+				description: 'Recently completed work and logged service records.',
+			},
+			{
+				key: 'home_timeline' as HomeActivityTabKey,
+				label: 'Home Timeline',
+				description:
+					'A full chronological view of tasks, service records, documents, and home updates.',
+			},
+		],
+		[],
+	);
 
 	const getUrgentTaskAssignee = (task: Task) => {
 		if (task.assignedTo?.name) {
@@ -2001,189 +2145,227 @@ export const DashboardTab = () => {
 				)}
 			</ActionFirstTopSection>
 
-			{/* Urgent queue */}
-			<UrgentQueueSection id='urgent-task-queue'>
-				<UrgentQueueHeader>
-					<div>
-						<CardTitle>{dashboardFraming.queueTitle}</CardTitle>
-						<UrgentQueueSubtitle>
-							{dashboardFraming.queueSubtitle}
-						</UrgentQueueSubtitle>
-					</div>
-					<QueueHeaderActions>
-						<QueueFilterPill>
-							{dashboardFraming.scopePill}
-						</QueueFilterPill>
-						{overdueUrgentTasks.length > 0 && (
-							<QueueFilterPill $tone='urgent'>
-								{overdueUrgentTasks.length} overdue now
-							</QueueFilterPill>
-						)}
-					</QueueHeaderActions>
-				</UrgentQueueHeader>
+			<HomeActivitySection id='home-activity'>
+				<HomeActivityHeader>
+					<HomeActivityTabs aria-label='Home activity views'>
+						{homeActivityTabs.map((tab) => (
+							<HomeActivityTab
+								key={tab.key}
+								type='button'
+								$active={activeHomeActivityTab === tab.key}
+								aria-pressed={activeHomeActivityTab === tab.key}
+								onClick={() => setActiveHomeActivityTab(tab.key)}>
+							{tab.label}
+						</HomeActivityTab>
+					))}
+				</HomeActivityTabs>
+				</HomeActivityHeader>
 
-				{urgentTasks.length === 0 ? (
-					filteredTasks.length === 0 ? (
-						dashboardScope === 'my_focus' ? (
-							<UrgentQueueEmpty>
-								No tasks assigned to you right now.
-							</UrgentQueueEmpty>
-						) : (
-							<AppZeroState
-								kind='noTasks'
-								actions={[
-									{
-										label: 'Add Task',
-										onClick: () => handleOpenCreateTask(),
-									},
-								]}
-							/>
-						)
-					) : (
-						<UrgentQueueEmpty>Nothing needing attention right now. Great job.</UrgentQueueEmpty>
-					)
-				) : (
-					<UrgentTaskList>
-						{overdueUrgentTasks.length > 0 && (
-							<UrgentTaskGroup>
-								<UrgentTaskGroupLabel>Overdue</UrgentTaskGroupLabel>
-								{overdueUrgentTasks.map((task) => (
-									<UrgentTaskRow
-										key={task.id}
-										onClick={() => handleOpenTask(task.id)}>
-										<UrgentTaskMain>
-											<TitleRow>
-												<UrgentTaskTitle>{task.title}</UrgentTaskTitle>
-												<TaskStatusBadge $status={getTaskDisplayStatus(task).label}>
-													{getTaskDisplayStatus(task).label}
-												</TaskStatusBadge>
-											</TitleRow>
-											<UrgentTaskContext>
-												<UrgentTaskProperty>
-													{getUrgentTaskPropertyName(task)}
-												</UrgentTaskProperty>
-												<UrgentTaskAssignee>
-													{getUrgentTaskAssignee(task)}
-												</UrgentTaskAssignee>
-											</UrgentTaskContext>
-											<UrgentTaskMeta>
-												<UrgentTaskDue>{formatUrgentDueLabel(task)}</UrgentTaskDue>
-												<UrgentTaskPriority $priority={task.priority || 'Low'}>
-													{task.priority || 'Low'}
-												</UrgentTaskPriority>
-											</UrgentTaskMeta>
-										</UrgentTaskMain>
-										<UrgentTaskActions>
-											<UrgentActionButton
-												$variant='success'
-												onClick={(event) => {
-													event.stopPropagation();
-													handleCompleteTask(task.id);
-												}}>
-												Complete
-											</UrgentActionButton>
-											<UrgentActionButton
-												$variant='secondary'
-												onClick={(event) => {
-													event.stopPropagation();
-													handleAssignTask(task.id);
-												}}>
-												Assign
-											</UrgentActionButton>
-										</UrgentTaskActions>
-									</UrgentTaskRow>
-								))}
-							</UrgentTaskGroup>
-						)}
-						{dueSoonUrgentTasks.length > 0 && (
-							<UrgentTaskGroup>
-								<UrgentTaskGroupLabel>Due Soon</UrgentTaskGroupLabel>
-								{dueSoonUrgentTasks.map((task) => (
-									<UrgentTaskRow
-										key={task.id}
-										onClick={() => handleOpenTask(task.id)}>
-										<UrgentTaskMain>
-											<TitleRow>
-												<UrgentTaskTitle>{task.title}</UrgentTaskTitle>
-												<TaskStatusBadge $status={getTaskDisplayStatus(task).label}>
-													{getTaskDisplayStatus(task).label}
-												</TaskStatusBadge>
-											</TitleRow>
-											<UrgentTaskContext>
-												<UrgentTaskProperty>
-													{getUrgentTaskPropertyName(task)}
-												</UrgentTaskProperty>
-												<UrgentTaskAssignee>
-													{getUrgentTaskAssignee(task)}
-												</UrgentTaskAssignee>
-											</UrgentTaskContext>
-											<UrgentTaskMeta>
-												<UrgentTaskDue>{formatUrgentDueLabel(task)}</UrgentTaskDue>
-												<UrgentTaskPriority $priority={task.priority || 'Low'}>
-													{task.priority || 'Low'}
-												</UrgentTaskPriority>
-											</UrgentTaskMeta>
-										</UrgentTaskMain>
-										<UrgentTaskActions>
-											<UrgentActionButton
-												$variant='success'
-												onClick={(event) => {
-													event.stopPropagation();
-													handleCompleteTask(task.id);
-												}}>
-												Complete
-											</UrgentActionButton>
-											<UrgentActionButton
-												$variant='secondary'
-												onClick={(event) => {
-													event.stopPropagation();
-													handleAssignTask(task.id);
-												}}>
-												Assign
-											</UrgentActionButton>
-										</UrgentTaskActions>
-									</UrgentTaskRow>
-								))}
-							</UrgentTaskGroup>
-						)}
-					</UrgentTaskList>
-				)}
-			</UrgentQueueSection>
+				<HomeActivityContent>
+					{activeHomeActivityTab === 'needs_attention' && (
+						<>
+							{urgentTasks.length === 0 ? (
+								filteredTasks.length === 0 ? (
+									dashboardScope === 'my_focus' ? (
+										<UrgentQueueEmpty>
+											No tasks assigned to you right now.
+										</UrgentQueueEmpty>
+									) : (
+										<AppZeroState
+											kind='noTasks'
+											actions={[
+												{
+													label: 'Add Task',
+													onClick: () => handleOpenCreateTask(),
+												},
+											]}
+										/>
+									)
+								) : (
+									<UrgentQueueEmpty>Nothing needing attention right now. Great job.</UrgentQueueEmpty>
+								)
+							) : (
+								<UrgentTaskList>
+									{overdueUrgentTasks.length > 0 && (
+										<UrgentTaskGroup>
+											<UrgentTaskGroupLabel>Overdue</UrgentTaskGroupLabel>
+											{overdueUrgentTasks.map((task) => (
+												<UrgentTaskRow
+													key={task.id}
+													onClick={() => handleOpenTask(task.id)}>
+													<UrgentTaskMain>
+														<TitleRow>
+															<UrgentTaskTitle>{task.title}</UrgentTaskTitle>
+															<TaskStatusBadge $status={getTaskDisplayStatus(task).label}>
+																{getTaskDisplayStatus(task).label}
+															</TaskStatusBadge>
+														</TitleRow>
+														<UrgentTaskContext>
+															<UrgentTaskProperty>
+																{getUrgentTaskPropertyName(task)}
+															</UrgentTaskProperty>
+															<UrgentTaskAssignee>
+																{getUrgentTaskAssignee(task)}
+															</UrgentTaskAssignee>
+														</UrgentTaskContext>
+														<UrgentTaskMeta>
+															<UrgentTaskDue>{formatUrgentDueLabel(task)}</UrgentTaskDue>
+															<UrgentTaskPriority $priority={task.priority || 'Low'}>
+																{task.priority || 'Low'}
+															</UrgentTaskPriority>
+														</UrgentTaskMeta>
+													</UrgentTaskMain>
+													<UrgentTaskActions>
+														<UrgentActionButton
+															$variant='success'
+															onClick={(event) => {
+																event.stopPropagation();
+																handleCompleteTask(task.id);
+															}}>
+															Complete
+														</UrgentActionButton>
+														<UrgentActionButton
+															$variant='secondary'
+															onClick={(event) => {
+																event.stopPropagation();
+																handleAssignTask(task.id);
+															}}>
+															Assign
+														</UrgentActionButton>
+													</UrgentTaskActions>
+												</UrgentTaskRow>
+											))}
+										</UrgentTaskGroup>
+									)}
+									{dueSoonUrgentTasks.length > 0 && (
+										<UrgentTaskGroup>
+											<UrgentTaskGroupLabel>Due Soon</UrgentTaskGroupLabel>
+											{dueSoonUrgentTasks.map((task) => (
+												<UrgentTaskRow
+													key={task.id}
+													onClick={() => handleOpenTask(task.id)}>
+													<UrgentTaskMain>
+														<TitleRow>
+															<UrgentTaskTitle>{task.title}</UrgentTaskTitle>
+															<TaskStatusBadge $status={getTaskDisplayStatus(task).label}>
+																{getTaskDisplayStatus(task).label}
+															</TaskStatusBadge>
+														</TitleRow>
+														<UrgentTaskContext>
+															<UrgentTaskProperty>
+																{getUrgentTaskPropertyName(task)}
+															</UrgentTaskProperty>
+															<UrgentTaskAssignee>
+																{getUrgentTaskAssignee(task)}
+															</UrgentTaskAssignee>
+														</UrgentTaskContext>
+														<UrgentTaskMeta>
+															<UrgentTaskDue>{formatUrgentDueLabel(task)}</UrgentTaskDue>
+															<UrgentTaskPriority $priority={task.priority || 'Low'}>
+																{task.priority || 'Low'}
+															</UrgentTaskPriority>
+														</UrgentTaskMeta>
+													</UrgentTaskMain>
+													<UrgentTaskActions>
+														<UrgentActionButton
+															$variant='success'
+															onClick={(event) => {
+																event.stopPropagation();
+																handleCompleteTask(task.id);
+															}}>
+															Complete
+														</UrgentActionButton>
+														<UrgentActionButton
+															$variant='secondary'
+															onClick={(event) => {
+																event.stopPropagation();
+																handleAssignTask(task.id);
+															}}>
+															Assign
+														</UrgentActionButton>
+													</UrgentTaskActions>
+												</UrgentTaskRow>
+											))}
+										</UrgentTaskGroup>
+									)}
+								</UrgentTaskList>
+							)}
+						</>
+					)}
 
-			<RecentActivitySection>
-				<RecentActivityHeader>
-					<div>
-						<CardEyebrow>Recent Maintenance</CardEyebrow>
-						<RecentActivitySubtitle>
-							{dashboardFraming.recentSubtitle}
-						</RecentActivitySubtitle>
-					</div>
-				</RecentActivityHeader>
-				{recentMaintenanceActivity.length === 0 ? (
-					<RecentActivityEmpty>
-						<p>No maintenance records yet. Complete tasks or add a maintenance record to build the service history.</p>
-						<FocusButton
-							type='button'
-							onClick={() => handleOpenCreateTask()}>
-							Add Task
-						</FocusButton>
-					</RecentActivityEmpty>
-				) : (
-					<RecentActivityList>
-						{recentMaintenanceActivity.map((entry: any) => (
-							<RecentActivityRow key={entry.id}>
-								<RecentActivityMain>
-									<RecentActivityTitle>{entry.description}</RecentActivityTitle>
-									<RecentActivityMeta>
-										{entry.deviceName} - {entry.propertyName}
-									</RecentActivityMeta>
-								</RecentActivityMain>
-								<RecentActivityDate>{formatActivityDate(entry.timestamp)}</RecentActivityDate>
-							</RecentActivityRow>
-						))}
-					</RecentActivityList>
-				)}
-			</RecentActivitySection>
+					{activeHomeActivityTab === 'recent_maintenance' && (
+						<>
+							{recentMaintenanceActivity.length === 0 ? (
+								<RecentActivityEmpty>
+									<p>No maintenance records yet. Complete tasks or add a maintenance record to build the service history.</p>
+									<FocusButton
+										type='button'
+										onClick={() => handleOpenCreateTask()}>
+										Add Task
+									</FocusButton>
+								</RecentActivityEmpty>
+							) : (
+								<RecentActivityList>
+									{recentMaintenanceActivity.map((entry: any) => (
+										<RecentActivityRow key={entry.id}>
+											<RecentActivityMain>
+												<RecentActivityTitle>{entry.description}</RecentActivityTitle>
+												<RecentActivityMeta>
+													{entry.deviceName} - {entry.propertyName}
+												</RecentActivityMeta>
+											</RecentActivityMain>
+											<RecentActivityDate>{formatActivityDate(entry.timestamp)}</RecentActivityDate>
+										</RecentActivityRow>
+									))}
+								</RecentActivityList>
+							)}
+						</>
+					)}
+
+					{activeHomeActivityTab === 'home_timeline' && (
+						<>
+							{homeTimelineEntries.length === 0 ? (
+								<RecentActivityEmpty>
+									<p>Tasks, service records, documents, and home updates will appear here as your home history grows.</p>
+									<FocusButton
+										type='button'
+										onClick={() => handleOpenCreateTask()}>
+										Add Task
+									</FocusButton>
+								</RecentActivityEmpty>
+							) : (
+								<HomeTimelineList>
+									{homeTimelineEntries.map((entry) => (
+										<HomeTimelineRow key={entry.id}>
+											<HomeTimelineDate>
+												{entry.dateLabel}
+												<HomeTimelineDateSub>
+													{formatActivityDate(entry.date)}
+												</HomeTimelineDateSub>
+											</HomeTimelineDate>
+											<HomeTimelineMain>
+												<HomeTimelineTitleRow>
+													<HomeTimelineTitle>{entry.title}</HomeTimelineTitle>
+													<HomeTimelineBadge $type={entry.type}>
+														{entry.type === 'maintenance'
+															? 'Service'
+															: entry.type === 'document'
+																? 'Document'
+																: entry.type === 'home'
+																	? 'Home'
+																	: 'Task'}
+													</HomeTimelineBadge>
+												</HomeTimelineTitleRow>
+												<HomeTimelineMeta>{entry.meta}</HomeTimelineMeta>
+											</HomeTimelineMain>
+										</HomeTimelineRow>
+									))}
+								</HomeTimelineList>
+							)}
+						</>
+					)}
+				</HomeActivityContent>
+			</HomeActivitySection>
 
 			<GenericModal
 				isOpen={isHomeHealthHelpOpen}

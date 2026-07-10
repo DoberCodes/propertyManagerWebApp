@@ -1369,6 +1369,191 @@ export const RecentActivityEmpty = styled.div`
 	}
 `;
 
+export const HomeActivitySection = styled.section`
+	background: ${COLORS.bgWhite};
+	border: 1px solid ${COLORS.border};
+	border-radius: 14px;
+	box-shadow: ${COLORS.shadow};
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 0;
+	overflow: hidden;
+`;
+
+export const HomeActivityHeader = styled.div`
+	display: flex;
+	justify-content: space-between;
+	align-items: flex-end;
+	gap: 12px;
+	padding: 12px 16px 0;
+	background: ${COLORS.gray50};
+	border-bottom: 1px solid ${COLORS.border};
+
+	@media (max-width: 768px) {
+		flex-direction: column;
+		align-items: stretch;
+		padding-top: 10px;
+	}
+`;
+
+export const HomeActivityTabs = styled.div`
+	display: inline-flex;
+	align-items: center;
+	gap: 3px;
+	width: fit-content;
+	max-width: 100%;
+
+	@media (max-width: 720px) {
+		width: 100%;
+		overflow-x: auto;
+	}
+`;
+
+export const HomeActivityTab = styled.button<{ $active?: boolean }>`
+	border: 1px solid ${COLORS.border};
+	border-bottom-color: ${(props) => (props.$active ? COLORS.bgWhite : COLORS.border)};
+	border-radius: 11px 11px 0 0;
+	background: ${(props) => (props.$active ? COLORS.bgWhite : '#f5efe2')};
+	color: ${(props) =>
+		props.$active ? COLORS.primaryDark : COLORS.textSecondary};
+	font-size: 0.84rem;
+	font-weight: 800;
+	white-space: nowrap;
+	padding: 10px 13px;
+	cursor: pointer;
+	margin-bottom: -1px;
+	transition: background-color 0.15s ease, color 0.15s ease,
+		border-color 0.15s ease;
+
+	&:hover,
+	&:focus-visible {
+		background: ${(props) => (props.$active ? COLORS.bgWhite : '#fbf7ee')};
+		color: ${COLORS.primaryDark};
+		outline: none;
+	}
+`;
+
+export const HomeActivityContent = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	padding: 16px;
+	background: ${COLORS.bgWhite};
+	max-height: 620px;
+	overflow-y: auto;
+	overscroll-behavior: contain;
+
+	@media (max-width: 768px) {
+		max-height: 68vh;
+	}
+`;
+
+export const HomeTimelineList = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+`;
+
+export const HomeTimelineRow = styled.div`
+	display: grid;
+	grid-template-columns: minmax(96px, 124px) minmax(0, 1fr);
+	gap: 12px;
+	border: 1px solid ${COLORS.border};
+	border-radius: 12px;
+	padding: 12px;
+	background: ${COLORS.gray50};
+
+	@media (max-width: 640px) {
+		grid-template-columns: 1fr;
+		gap: 8px;
+	}
+`;
+
+export const HomeTimelineDate = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+	font-size: 0.76rem;
+	font-weight: 800;
+	color: ${COLORS.primaryDark};
+`;
+
+export const HomeTimelineDateSub = styled.span`
+	font-size: 0.72rem;
+	font-weight: 700;
+	color: ${COLORS.textMuted};
+`;
+
+export const HomeTimelineMain = styled.div`
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+`;
+
+export const HomeTimelineTitleRow = styled.div`
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
+`;
+
+export const HomeTimelineTitle = styled.h4`
+	margin: 0;
+	font-size: 0.94rem;
+	font-weight: 800;
+	color: ${COLORS.textPrimary};
+	line-height: 1.35;
+`;
+
+export const HomeTimelineBadge = styled.span<{
+	$type: 'task' | 'maintenance' | 'document' | 'home';
+}>`
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	padding: 4px 8px;
+	border-radius: 999px;
+	font-size: 0.68rem;
+	font-weight: 800;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	white-space: nowrap;
+	background: ${(props) => {
+		switch (props.$type) {
+			case 'maintenance':
+				return COLORS.primaryLight;
+			case 'document':
+				return COLORS.secondaryLight;
+			case 'home':
+				return COLORS.gray100;
+			default:
+				return COLORS.warningLight;
+		}
+	}};
+	color: ${(props) => {
+		switch (props.$type) {
+			case 'maintenance':
+				return COLORS.primaryDark;
+			case 'document':
+				return COLORS.secondaryDark;
+			case 'home':
+				return COLORS.textSecondary;
+			default:
+				return COLORS.warningDark;
+		}
+	}};
+`;
+
+export const HomeTimelineMeta = styled.p`
+	margin: 0;
+	font-size: 0.8rem;
+	font-weight: 650;
+	color: ${COLORS.textSecondary};
+	line-height: 1.4;
+`;
+
 export const UrgentQueueSection = styled.section`
 	background: ${COLORS.bgWhite};
 	border: 1px solid ${COLORS.border};
@@ -1389,25 +1574,6 @@ export const UrgentQueueHeader = styled.div`
 	@media (max-width: 768px) {
 		flex-direction: column;
 	}
-`;
-
-export const QueueHeaderActions = styled.div`
-	display: flex;
-	align-items: center;
-	gap: 8px;
-`;
-
-export const QueueFilterPill = styled.span<{ $tone?: 'neutral' | 'urgent' }>`
-	display: inline-flex;
-	align-items: center;
-	padding: 6px 10px;
-	border-radius: 999px;
-	background: ${(props) =>
-		props.$tone === 'urgent' ? COLORS.errorLight : COLORS.gray100};
-	color: ${(props) =>
-		props.$tone === 'urgent' ? COLORS.errorDark : COLORS.textSecondary};
-	font-size: 0.76rem;
-	font-weight: 700;
 `;
 
 export const UrgentQueueSubtitle = styled.p`

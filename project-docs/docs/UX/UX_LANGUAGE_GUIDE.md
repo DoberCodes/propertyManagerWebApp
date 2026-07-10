@@ -323,6 +323,19 @@ Preferred dashboard sections:
 * Upcoming
 * Recommendations
 * Recent Activity
+* Home Activity
+
+The operational lower dashboard area should use a single `Home Activity` module
+with folder-style tabs:
+
+```text
+Needs Attention | Recent Maintenance | Home Timeline
+```
+
+`Needs Attention` is the default tab. `Recent Maintenance` should be spelled out
+rather than shortened. `Home Timeline` is preferred over `Property Timeline` for
+homeowner-facing dashboard language. Avoid adding extra status pills to this
+module when the tabs already provide enough structure.
 
 Dashboard framing should adapt to the user's responsibility. Use `Your Focus`
 or `Your Tasks` for assigned users, `Team Focus` or `Team Tasks` for maintenance

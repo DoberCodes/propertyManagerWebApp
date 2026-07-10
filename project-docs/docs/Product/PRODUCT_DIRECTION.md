@@ -419,11 +419,25 @@ The dashboard should prioritize:
 * Upcoming work
 * Maintley Intelligence recommendations
 * Property selection
+* Home Activity
 
 The dashboard should be personal-first and scope-aware. Owners and managers may
 see broader priorities across the homes or properties in view, while team members
 and family members should see framing focused on their relevant work and
 property context.
+
+The lower dashboard area should combine operational activity into one tabbed
+module:
+
+```text
+Needs Attention | Recent Maintenance | Home Timeline
+```
+
+`Needs Attention` shows current overdue and upcoming work. `Recent Maintenance`
+shows recently completed work and logged service records. `Home Timeline` is the
+full chronological activity view for tasks, service records, documents, and home
+updates. Dynamic timelines belong on the dashboard; property details should stay
+focused on stable home facts, ownership, insurance, notes, and record metadata.
 
 Dashboard scope is a user preference. `My Focus` narrows the Dashboard toward
 tasks assigned to the current user and the property context needed for that
