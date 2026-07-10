@@ -137,7 +137,7 @@ const LandingPageComponent = () => {
 		url: 'https://maintleyapp.com/',
 		image: `${window.location.origin}/icons/icon-512.png`,
 		keywords:
-			'home maintenance history, property records, recurring maintenance, appliance service history, property memory',
+			'home maintenance history, property records, recurring maintenance, equipment service history, property memory',
 		structuredData: {
 			'@context': 'https://schema.org',
 			'@type': 'WebSite',
@@ -161,7 +161,7 @@ const LandingPageComponent = () => {
 		},
 		{
 			title: 'Systems need memory',
-			text: 'HVAC, appliances, filters, and recurring care should stay with the property itself, not someone’s inbox.',
+			text: 'HVAC, equipment, filters, and recurring care should stay with the property itself, not someone’s inbox.',
 		},
 	];
 

@@ -740,7 +740,7 @@ export const NotificationPreferences: React.FC<
 									<PreferenceText>
 										<strong>Property Insights</strong>
 										<span>
-											Optional record observations for documented appliances and maintenance history.
+											Optional record observations for documented equipment and maintenance history.
 											{!propertyInsightsEnabledByPlan
 												? nativeApp
 													? ' Manage this in the web account center to enable.'

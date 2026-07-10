@@ -132,7 +132,7 @@ export const generateTaskReport = (
 export const MAINTENANCE_COLUMN_OPTIONS = {
 	date: 'Date',
 	description: 'Description',
-	deviceId: 'Appliance ID',
+	deviceId: 'Equipment ID',
 	unit: 'Unit',
 	suite: 'Suite',
 	property: 'Property',

@@ -130,7 +130,7 @@ Maintley Intelligence should apply different expectations to different kinds of 
 
 Equipment and mechanical systems, such as HVAC, water heaters, refrigerators, washers, dryers, and safety detectors, may benefit from make, model, serial number, install date, recurring care, and maintenance-history recommendations.
 
-Structural or inspection-based records, such as roofs, windows, doors, gutters, siding, foundations, decks, fences, driveways, chimneys, and GFCI outlets, should not be treated like appliances. Maintley should not penalize these records for missing make, model, serial number, install date, recurring care, or routine maintenance history.
+Structural or inspection-based records, such as roofs, windows, doors, gutters, siding, foundations, decks, fences, driveways, chimneys, and GFCI outlets, should not be evaluated with mechanical-equipment identity expectations. Maintley should not penalize these records for missing make, model, serial number, install date, recurring care, or routine maintenance history.
 
 For structural and inspection-based records, Maintley may recommend documenting inspections or condition reviews. This guidance should be framed as recordkeeping and inspection history, not as a required maintenance schedule.
 
@@ -459,7 +459,7 @@ Guide initial property setup.
 
 Examples:
 
-* Suggested appliances
+* Suggested equipment
 * Suggested systems
 * Suggested maintenance tasks
 
@@ -507,6 +507,8 @@ The dashboard should answer:
 
 Dashboard recommendations should be generated through the dashboard Maintley Intelligence consumer. The dashboard should not own separate recommendation rules.
 
+Dashboard recommendation titles should identify equipment by make and equipment type, such as `Lennox HVAC`, while keeping model and serial numbers in supporting details. When a dashboard recommendation is based on saved maintenance history, the card should include concise proof lines that explain the recommendation in homeowner language. If a matching linked recurring task is already scheduled farther out than the common care timeframe, the recommendation should become a schedule optimization insight: show the recorded service pattern, show the recurring task name, next date, and frequency, then explain that the maintenance history and recurring task currently reflect a longer interval. The copy should point users toward reviewing the next reminder date or recorded maintenance history instead of implying the task does not exist.
+
 The dashboard Maintley Intelligence card should not repeat overdue tasks because
 overdue work already has its own dashboard queue. It should also avoid using the
 spotlight for basic recurring-task setup when richer paid intelligence is
@@ -540,7 +542,7 @@ Provide periodic intelligence summaries.
 Examples:
 
 * Missing maintenance history
-* Missing appliance information
+* Missing equipment information
 * Suggested maintenance opportunities
 
 Property Insights consume Maintley Intelligence recommendations.
@@ -641,7 +643,7 @@ src/intelligence/baselineCareLibrary.ts
 Current engine inputs:
 
 * Property record
-* System and appliance records
+* System and equipment records
 * Task records
 * Maintenance history records
 * Documents and files
@@ -728,7 +730,7 @@ Expected time:
 Typical use cases:
 
 * After Setup Assistant completion
-* After appliance creation
+* After equipment creation
 * Dashboard review
 * Property review
 
@@ -816,7 +818,7 @@ High-priority examples:
 Medium-priority examples:
 
 * No install date has been recorded for a system
-* A major appliance could be easier to identify later in Maintley's records with make or model details
+* A major equipment could be easier to identify later in Maintley's records with make or model details
 * Maintenance history has not been started for several systems
 * Maintley's records do not show a contractor for serviced equipment
 * No warranty expiration has been recorded
@@ -979,7 +981,7 @@ Property Review is completeness-oriented:
 
 > How complete and useful is this property record?
 
-The primary Property Review experience should be organized around assets rather than a flat recommendation list. Categories remain available for browsing and summary counts, but the detailed review should help users inspect each system or appliance in one place.
+The primary Property Review experience should be organized around assets rather than a flat recommendation list. Categories remain available for browsing and summary counts, but the detailed review should help users inspect each system or equipment in one place.
 
 Expanded asset reviews should group findings by audit area so users can improve one kind of memory at a time.
 
@@ -1137,7 +1139,7 @@ Review multiple properties.
 Examples:
 
 * Properties with no maintenance history
-* Properties with no appliances
+* Properties with no equipment
 * Properties with missing critical information
 * Properties missing recurring maintenance
 
@@ -1168,7 +1170,7 @@ Examples:
 
 ## Information
 
-Suggested appliance metadata.
+Suggested equipment metadata.
 
 Examples:
 
@@ -1229,7 +1231,7 @@ Examples:
 Examples:
 
 * Properties with no maintenance history
-* Properties with no appliances
+* Properties with no equipment
 * Properties missing recurring maintenance
 * Properties missing critical records
 
@@ -1261,12 +1263,12 @@ Delivery systems do not determine recommendation behavior.
 Maintley Intelligence consumes:
 
 * Property Records
-* Appliance Records
+* Equipment Records
 * Maintenance Events
 * Task Records
 * Parts & Supplies Records
 * Documentation Records
-* Appliance Profiles
+* Equipment Profiles
 
 Property Knowledge Acquisition may turn reviewed document suggestions into structured Property Memory. Maintley Intelligence consumes that accepted Property Memory; it should not parse raw uploaded documents directly.
 
@@ -1282,7 +1284,7 @@ Recommendation generation rules are defined in:
 
 RECOMMENDATION_ENGINE.md
 
-Appliance-specific expectations are defined in:
+Equipment-specific expectations are defined in:
 
 APPLIANCE_PROFILES.md
 

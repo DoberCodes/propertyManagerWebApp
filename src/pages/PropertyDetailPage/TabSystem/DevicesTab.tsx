@@ -274,6 +274,12 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 	const getResolvedDeviceStatus = (device: any) =>
 		device?.decommissionDate ? 'Decommissioned' : device?.status || 'Active';
 
+	const getDeviceTitle = (device: any): string =>
+		[device?.brand, getDeviceAssetType(device) || device?.type]
+			.filter(Boolean)
+			.join(' ')
+			.trim() || 'Equipment';
+
 	const hasApplianceDetails = (device: any) => {
 		const serviceItems = Array.isArray(device?.serviceItems) ? device.serviceItems : [];
 		const files = Array.isArray(device?.files) ? device.files : [];
@@ -497,8 +503,7 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 				const locationName = row.location?.unitId
 					? units.find((u) => u.id === row.location.unitId)?.name || 'Unit'
 					: 'Property level';
-				const technical = [row.brand, row.model].filter(Boolean).join(' ');
-				const assetType = getDeviceAssetType(row);
+				const technical = row.model ? `Model ${row.model}` : '';
 				const assetVariant = getDeviceAssetVariant(row);
 				const { linkedOpenTasks, recurringLinkedTasks } = getDeviceAttentionState(row);
 				const iconStyle = getDeviceOperationalIcon(row);
@@ -523,7 +528,7 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 								<FontAwesomeIcon icon={iconStyle.icon} />
 							</span>
 							<div style={{ fontWeight: 800, color: '#0f172a', lineHeight: 1.3 }}>
-								{assetType || row.type || 'Equipment'}
+								{getDeviceTitle(row)}
 							</div>
 							{assetVariant && (
 								<span
@@ -1155,9 +1160,7 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 							propertyAssignedDocumentsByDevice.get(String(device.id)) || [];
 						const documentCount =
 							(device.files?.length || 0) + assignedPropertyDocuments.length;
-						const deviceSummary = [device.brand, device.model]
-							.filter(Boolean)
-							.join(' · ');
+						const deviceSummary = device.model ? `Model ${device.model}` : '';
 						return (
 							<DeviceCard
 								key={device.id}
@@ -1185,7 +1188,7 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 													textAlign: 'left',
 													lineHeight: 1.3,
 												}}>
-												{getDeviceAssetType(device) || device.type || 'Equipment'}
+												{getDeviceTitle(device)}
 											</button>
 											{getDeviceAssetVariant(device) && (
 												<div style={{ fontSize: 12, color: COLORS.successDark, fontWeight: 800 }}>

@@ -172,7 +172,7 @@ export const DetailsTab: React.FC<DetailsTabProps> = ({
 					)}
 					{permissions?.canManageAppliances && onCreateDevice && (
 						<QuickActionButton $variant='secondary' onClick={() => onCreateDevice()}>
-							Add Appliance
+							Add Equipment
 						</QuickActionButton>
 					)}
 					{property?.isRental &&

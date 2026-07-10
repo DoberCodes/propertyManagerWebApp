@@ -2386,9 +2386,9 @@ export const Properties = () => {
 								deviceIdMap = await cloneDuplicateAppliances(result.data);
 								copiedApplianceCount = deviceIdMap.size;
 							} catch (applianceCopyError) {
-								console.error('Failed to copy appliances:', applianceCopyError);
+								console.error('Failed to copy equipment records:', applianceCopyError);
 								feedback.notify(
-									'Property was duplicated, but appliances could not all be copied.',
+									'Property was duplicated, but equipment records could not all be copied.',
 								);
 							}
 						}
@@ -2409,7 +2409,7 @@ export const Properties = () => {
 
 						const copiedDetails = [
 							copiedApplianceCount > 0
-								? `${copiedApplianceCount} ${copiedApplianceCount === 1 ? 'appliance' : 'appliances'
+								? `${copiedApplianceCount} ${copiedApplianceCount === 1 ? 'equipment record' : 'equipment records'
 								}`
 								: null,
 							copiedTaskCount > 0

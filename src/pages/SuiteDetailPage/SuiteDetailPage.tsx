@@ -194,13 +194,13 @@ export const SuiteDetailPage: React.FC = () => {
 				{activeTab === 'devices' && (
 					<TabContent>
 						<SectionContainer>
-							<SectionHeader>Suite Appliances</SectionHeader>
+							<SectionHeader>Suite Equipment</SectionHeader>
 							{suite.deviceIds && suite.deviceIds.length > 0 ? (
 								<GridContainer>
 									<GridTable>
 										<thead>
 											<tr>
-												<th>Appliance ID</th>
+												<th>Equipment ID</th>
 											</tr>
 										</thead>
 										<tbody>
@@ -214,7 +214,7 @@ export const SuiteDetailPage: React.FC = () => {
 								</GridContainer>
 							) : (
 								<EmptyState>
-									<p>No appliances assigned to this suite</p>
+									<p>No equipment assigned to this suite</p>
 								</EmptyState>
 							)}
 						</SectionContainer>
@@ -314,7 +314,7 @@ export const SuiteDetailPage: React.FC = () => {
 											<tr>
 												<th>Date</th>
 												<th>Description</th>
-												<th>Appliance</th>
+												<th>Equipment</th>
 											</tr>
 										</thead>
 										<tbody>

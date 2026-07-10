@@ -36,7 +36,7 @@ The email system is not responsible for:
 * Recommendation generation
 * Observation prioritization
 * Property completeness evaluation
-* Appliance profile definitions
+* Equipment profile definitions
 
 Those responsibilities belong to:
 
@@ -86,7 +86,7 @@ Appropriate content:
 * Overdue tasks
 * Completed maintenance
 * Property counts
-* Appliance counts
+* Equipment counts
 * Links back to Maintley
 
 ---

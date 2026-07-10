@@ -57,7 +57,7 @@ Phase 1:
 * Keep current embedded arrays for compatibility.
 * Add shared adapters so upload surfaces treat property documents as canonical
   property-owned records with context links.
-* Avoid creating new task-only or appliance-only document ownership models.
+* Avoid creating new task-only or equipment-only document ownership models.
 
 Phase 2:
 
@@ -97,5 +97,5 @@ Cost:
 * Remove embedded document arrays immediately.
 * Automatically link documents to every inferred record without review.
 * Replace Property Knowledge Acquisition review behavior.
-* Create separate task-owned or appliance-owned document collections.
+* Create separate task-owned or equipment-owned document collections.
 

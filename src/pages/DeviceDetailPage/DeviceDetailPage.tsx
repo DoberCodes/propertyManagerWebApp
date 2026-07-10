@@ -348,7 +348,7 @@ const getTimelineEventLabel = (entry: { type?: string; title?: string; descripti
 
 const getTimelineMetaLabel = (entry: { sourceType?: string; type?: string; title?: string; description?: string }) => {
 	if (entry.sourceType === 'scheduled-task') return 'Upcoming scheduled work';
-	if (entry.sourceType === 'device-log') return 'Appliance log';
+	if (entry.sourceType === 'device-log') return 'Equipment log';
 	if (entry.sourceType === 'maintenance-record') return getTimelineEventLabel(entry);
 	return getTimelineEventLabel(entry);
 };
@@ -382,7 +382,7 @@ const getUniqueDisplayParts = (...parts: Array<string | undefined | null>): stri
 };
 
 const getApplianceProfileTitle = (device: any): string =>
-	getUniqueDisplayParts(device?.brand, device?.model, device?.type).join(' ') || 'Appliance';
+	getUniqueDisplayParts(device?.brand, device?.type).join(' ') || 'Equipment';
 
 const getServiceItemCategoryLabel = (category?: string): string =>
 	DEVICE_SERVICE_ITEM_CATEGORY_OPTIONS.find((option) => option.value === category)?.label ||
@@ -555,7 +555,7 @@ export const DeviceDetailPage: React.FC = () => {
 			? `/property/${property.slug}?tab=devices`
 			: '/properties';
 	const applianceProfileBackLabel = cameFromDevicesHub
-		? 'Back to Appliances'
+		? 'Back to Equipment'
 		: 'Back to Property';
 
 	const { data: device, isLoading: deviceLoading } = useGetDeviceQuery(deviceId || '', {
@@ -621,7 +621,7 @@ export const DeviceDetailPage: React.FC = () => {
 		const deviceName = [device.type, device.brand, device.model]
 			.filter(Boolean)
 			.join(' ')
-			.trim() || 'Appliance';
+			.trim() || 'Equipment';
 		return {
 			title: `${deviceName} maintenance`,
 			dueDate: new Date().toISOString().split('T')[0],
@@ -632,7 +632,7 @@ export const DeviceDetailPage: React.FC = () => {
 			devices: [String(device.id)],
 			priority: 'Medium',
 			isRecurring: false,
-			notes: `${deviceName} maintenance task created from the appliance page.`,
+			notes: `${deviceName} maintenance task created from the equipment page.`,
 		};
 	}, [device, property]);
 
@@ -708,7 +708,7 @@ export const DeviceDetailPage: React.FC = () => {
 				date: entry.date,
 				title: getTimelineTitle(entry.description),
 				description: getTimelineDescription(entry.description),
-				type: 'Appliance Log',
+				type: 'Equipment Log',
 				raw: entry,
 			}))
 			: [];
@@ -1010,7 +1010,7 @@ export const DeviceDetailPage: React.FC = () => {
 		if (isHvac && !hasRecurringTask) return 'Recommended next step: Add recurring filter replacement.';
 		if (isHvac && serviceFilterItems.length > 0 && filterSizesRecorded < serviceFilterItems.length) return 'Quick win: Confirm filter sizes for every return.';
 		if (recordSuggestions.length > 0) return `Recommended next step: ${recordSuggestions[0]}.`;
-		return 'This appliance record has the basics Maintley needs for future service.';
+		return 'This equipment record has the basics Maintley needs for future service.';
 	}, [device, hasRecurringTask, recordSuggestions, serviceFilterItems]);
 
 	const repairCount = useMemo(
@@ -1261,7 +1261,7 @@ export const DeviceDetailPage: React.FC = () => {
 			const deviceName = [device.type, device.brand, device.model]
 				.filter(Boolean)
 				.join(' ')
-				.trim() || 'Appliance';
+				.trim() || 'Equipment';
 			const nextEntries = [
 				{
 					date: new Date().toISOString(),
@@ -1446,7 +1446,7 @@ export const DeviceDetailPage: React.FC = () => {
 			setShowDeviceEditModal(false);
 			resetDeviceEditState();
 		} catch (error) {
-			console.error('Failed to save appliance edits:', error);
+			console.error('Failed to save equipment edits:', error);
 		}
 	};
 
@@ -1582,7 +1582,7 @@ export const DeviceDetailPage: React.FC = () => {
 		}
 		if (parsed.specNotes) {
 			updates.specNotes = matchingDevice
-				? `${parsed.specNotes} | Matched existing appliance: ${matchingDevice.type || 'Appliance'} ${matchingDevice.brand || ''} ${matchingDevice.model || ''}`.trim()
+				? `${parsed.specNotes} | Matched existing equipment: ${matchingDevice.type || 'Equipment'} ${matchingDevice.brand || ''} ${matchingDevice.model || ''}`.trim()
 				: parsed.specNotes;
 		}
 
@@ -1757,7 +1757,7 @@ export const DeviceDetailPage: React.FC = () => {
 		return (
 			<SectionContainer>
 				<EmptyState>
-					<p>Invalid appliance link</p>
+					<p>Invalid equipment link</p>
 				</EmptyState>
 			</SectionContainer>
 		);
@@ -1777,10 +1777,10 @@ export const DeviceDetailPage: React.FC = () => {
 		return (
 			<LoadingState
 				loadingKey='appliance-detail'
-				title='Loading appliance'
-				message='Preparing this appliance record.'
+				title='Loading equipment'
+				message='Preparing this equipment record.'
 				steps={[
-					'Reading appliance information...',
+					'Reading equipment information...',
 					'Connecting maintenance history...',
 					'Indexing warranties...',
 					'Looking for missing documentation...',
@@ -1794,7 +1794,7 @@ export const DeviceDetailPage: React.FC = () => {
 		return (
 			<SectionContainer>
 				<EmptyState>
-					<p>Appliance not found for this property</p>
+					<p>Equipment not found for this property</p>
 				</EmptyState>
 			</SectionContainer>
 		);
@@ -1825,8 +1825,8 @@ export const DeviceDetailPage: React.FC = () => {
 				canManageApplianceActions ? (
 					<HeroEditButton
 						type='button'
-						aria-label='Edit appliance'
-						title='Edit appliance'
+						aria-label='Edit equipment'
+						title='Edit equipment'
 						onClick={handleOpenEditDeviceModal}>
 						<FontAwesomeIcon icon={faEdit} aria-hidden='true' />
 					</HeroEditButton>
@@ -1866,7 +1866,7 @@ export const DeviceDetailPage: React.FC = () => {
 							<QuickActionHeader>
 								<div>
 									<h3>Quick Actions</h3>
-									<p>Keep this appliance moving with the next maintenance step.</p>
+									<p>Keep this equipment moving with the next maintenance step.</p>
 								</div>
 								<ViewActionsButton
 									type='button'
@@ -1883,7 +1883,7 @@ export const DeviceDetailPage: React.FC = () => {
 											<>
 												<QuickActionButton type='button' onClick={openCreateTaskModal}>
 													<strong>Create Task</strong>
-													<span>Turn this appliance into a tracked maintenance job.</span>
+													<span>Turn this equipment into a tracked maintenance job.</span>
 												</QuickActionButton>
 												<QuickActionButton
 													type='button'
@@ -1932,7 +1932,7 @@ export const DeviceDetailPage: React.FC = () => {
 					<TabContent>
 						<SectionContainer>
 							<SectionBlock>
-								<SectionEyebrow>Appliance Information</SectionEyebrow>
+								<SectionEyebrow>Equipment Information</SectionEyebrow>
 								<SectionTitleStrong>System Card</SectionTitleStrong>
 								<SectionDescription>
 									Keep model, serial, install date, filters, warranties, and service records in one place.
@@ -1941,10 +1941,10 @@ export const DeviceDetailPage: React.FC = () => {
 							{canManageApplianceActions && (
 								<PhotoActions style={{ marginBottom: 14 }}>
 									<ScanButton type='button' onClick={() => setIsDeviceScanOpen(true)}>
-										Scan Appliance Barcode
+										Scan Equipment Barcode
 									</ScanButton>
 									<PhotoHelperText>
-										Use barcode/QR scan to auto-fill appliance type, brand, model, and serial when available.
+										Use barcode/QR scan to auto-fill equipment type, brand, model, and serial when available.
 									</PhotoHelperText>
 								</PhotoActions>
 							)}
@@ -1952,15 +1952,15 @@ export const DeviceDetailPage: React.FC = () => {
 							<PhotoSection>
 								<DevicePhotoCard>
 									{devicePhotoFile?.url ? (
-										<DevicePhotoImg src={devicePhotoFile.url} alt={`${device.type || 'Appliance'} photo`} />
+										<DevicePhotoImg src={devicePhotoFile.url} alt={`${device.type || 'Equipment'} photo`} />
 									) : (
-										<PhotoPlaceholder>No appliance photo selected</PhotoPlaceholder>
+										<PhotoPlaceholder>No equipment photo selected</PhotoPlaceholder>
 									)}
 								</DevicePhotoCard>
 								<div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-									<SectionHeader style={{ marginBottom: 4 }}>Appliance Photo</SectionHeader>
+									<SectionHeader style={{ marginBottom: 4 }}>Equipment Photo</SectionHeader>
 									<PhotoHelperText>
-										Add a clear photo for quick recognition. This appears in the appliance profile.
+										Add a clear photo for quick recognition. This appears in the equipment profile.
 									</PhotoHelperText>
 									<PhotoActions>
 										<PhotoActionButton
@@ -1989,12 +1989,12 @@ export const DeviceDetailPage: React.FC = () => {
 								</div>
 							</PhotoSection>
 
-							<SectionHeader>Appliance Identity</SectionHeader>
+							<SectionHeader>Equipment Identity</SectionHeader>
 							{!hasApplianceDetails && (
 								<InfoCard style={{ borderColor: '#fde68a', background: '#fefce8' }}>
 									<InfoLabel>Profile Details</InfoLabel>
 									<InfoValue style={{ color: '#854d0e' }}>
-										No details added yet. This appliance can still be linked to tasks now and filled in later.
+										No details added yet. This equipment can still be linked to tasks now and filled in later.
 									</InfoValue>
 								</InfoCard>
 							)}
@@ -2058,11 +2058,11 @@ export const DeviceDetailPage: React.FC = () => {
 				{activeTab === 'documents' && (
 					<TabContent>
 						<SectionContainer>
-							<SectionHeader>Appliance Documents ({documentCount})</SectionHeader>
+							<SectionHeader>Equipment Documents ({documentCount})</SectionHeader>
 							<InfoCard style={{ marginBottom: 12 }}>
-								<InfoLabel>Appliance-Assigned Files</InfoLabel>
+								<InfoLabel>Equipment-Assigned Files</InfoLabel>
 								<InfoValue>
-									This tab shows documents directly assigned to this appliance or system.
+									This tab shows documents directly assigned to this equipment.
 								</InfoValue>
 							</InfoCard>
 							{(!hasWarrantyDocument || !hasManualDocument || !hasInvoiceDocument) && (
@@ -2098,7 +2098,7 @@ export const DeviceDetailPage: React.FC = () => {
 											<div style={{ fontSize: 12, color: '#64748b' }}>
 												{file.source === 'maintenance'
 													? file.sourceLabel || 'Maintenance record'
-													: file.type || 'Appliance file'}
+													: file.type || 'Equipment file'}
 												{typeof file.size === 'number' ? ` • ${(file.size / 1024).toFixed(1)} KB` : ''}
 												{file.date
 													? ` • ${formatDate(file.date)}`
@@ -2109,7 +2109,7 @@ export const DeviceDetailPage: React.FC = () => {
 								</div>
 							) : (
 								<EmptyState>
-									<p>No documents assigned to this appliance yet.</p>
+									<p>No documents assigned to this equipment yet.</p>
 								</EmptyState>
 							)}
 						</SectionContainer>
@@ -2145,9 +2145,9 @@ export const DeviceDetailPage: React.FC = () => {
 						<SectionContainer>
 							<SectionBlock>
 								<SectionEyebrow>Linked Tasks</SectionEyebrow>
-								<SectionTitleStrong>Appliance Tasks</SectionTitleStrong>
+								<SectionTitleStrong>Equipment Tasks</SectionTitleStrong>
 								<SectionDescription>
-									Use this as your appliance-specific queue for assignments and completions.
+									Use this as your equipment-specific queue for assignments and completions.
 								</SectionDescription>
 							</SectionBlock>
 							<SectionHeader>Open Tasks ({linkedTasks.length})</SectionHeader>
@@ -2185,7 +2185,7 @@ export const DeviceDetailPage: React.FC = () => {
 										))
 									) : (
 										<EmptyState>
-											<p>No open tasks linked to this appliance. New maintenance tasks will appear here.</p>
+											<p>No open tasks linked to this equipment. New maintenance tasks will appear here.</p>
 											{canCreateTaskActions && (
 												<SubmitButton type='button' onClick={openCreateTaskModal}>
 													Add Task
@@ -2262,7 +2262,7 @@ export const DeviceDetailPage: React.FC = () => {
 									]}
 									hideHeader={true}
 									emptyTitle='No open tasks linked yet'
-									emptyMessage='No open tasks linked to this appliance. New maintenance tasks will appear here.'
+									emptyMessage='No open tasks linked to this equipment. New maintenance tasks will appear here.'
 									emptyActionLabel={canCreateTaskActions ? 'Add Task' : undefined}
 									onEmptyAction={canCreateTaskActions ? openCreateTaskModal : undefined}
 									actions={roleCapabilities.canManageTasks ? [
@@ -2292,7 +2292,7 @@ export const DeviceDetailPage: React.FC = () => {
 									<SectionEyebrow>Upcoming</SectionEyebrow>
 									<SectionTitleStrong>Upcoming Scheduled Work</SectionTitleStrong>
 									<SectionDescription>
-										Scheduled tasks for this appliance appear here before they become service history.
+										Scheduled tasks for this equipment appear here before they become service history.
 									</SectionDescription>
 								</SectionBlock>
 								{scheduledTaskTimelineEntries.length > 0 ? (
@@ -2399,7 +2399,7 @@ export const DeviceDetailPage: React.FC = () => {
 								) : (
 									<EmptyState>
 										<p>
-											No scheduled work linked to this appliance yet. Add a task or recurring reminder when there is work to track.
+											No scheduled work linked to this equipment yet. Add a task or recurring reminder when there is work to track.
 										</p>
 										{(canCreateTaskActions || canLogMaintenanceActions) && (
 											<ButtonGroup>
@@ -2424,7 +2424,7 @@ export const DeviceDetailPage: React.FC = () => {
 									<SectionEyebrow>Service History</SectionEyebrow>
 									<SectionTitleStrong>Service History</SectionTitleStrong>
 									<SectionDescription>
-										Completed tasks, logged work, contractor visits, invoices, and notes build this appliance's service history.
+										Completed tasks, logged work, contractor visits, invoices, and notes build this equipment's service history.
 									</SectionDescription>
 								</SectionBlock>
 								<SectionHeader>Maintenance History ({applianceMaintenanceFeedRecords.length})</SectionHeader>
@@ -2519,7 +2519,7 @@ export const DeviceDetailPage: React.FC = () => {
 								) : (
 									<EmptyState>
 										<p>
-											No maintenance history linked to this appliance yet. Completed tasks will appear here as the service record grows.
+											No maintenance history linked to this equipment yet. Completed tasks will appear here as the service record grows.
 										</p>
 										{canCreateTaskActions && (
 											<SubmitButton type='button' onClick={openCreateTaskModal}>
@@ -3211,7 +3211,7 @@ export const DeviceDetailPage: React.FC = () => {
 			</PageStack>
 			<BarcodeScannerModal
 				isOpen={isDeviceScanOpen}
-				title='Appliance Capture Assistant'
+				title='Equipment Capture Assistant'
 				defaultMethod='photo'
 				captureIntent='appliance'
 				onClose={() => setIsDeviceScanOpen(false)}

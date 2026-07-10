@@ -58,13 +58,13 @@ Maintley currently supports conservative suggestions in these field families:
 
 | Field family | Example fields | Target Property Memory |
 | --- | --- | --- |
-| System identity | manufacturer, brand, model, serial number, asset type, asset variant, install date, filter size | Appliance/System |
+| System identity | manufacturer, brand, model, serial number, asset type, asset variant, install date, filter size | Equipment |
 | Contractor | contractor name, installer, phone, website | Contractor |
 | Warranty | warranty start date, warranty end date, warranty length, registration required | Warranty context |
 | Invoice and service | invoice number, invoice date, maintenance date, maintenance description, service performed | Maintenance History |
 | Cost | total cost, labor cost, parts cost, tax amount, currency | Maintenance History financials |
 | Parts and supplies | part name, part number, parts replaced, consumables, lubricant type, fluid type | Maintenance History notes or system Parts & Supplies |
-| Manual metadata | manual version, publication date, manufacturer support URL | Appliance/System |
+| Manual metadata | manual version, publication date, manufacturer support URL | Equipment |
 
 Low-confidence extracted details should not be shown as active review
 suggestions in the current phase.
@@ -161,7 +161,7 @@ Deferred work:
 
 * Scanned PDF rendered-page OCR.
 * Full manual understanding.
-* Photo-based appliance identification.
+* Photo-based equipment identification.
 * General document summarization.
 * AI-based document interpretation.
 * Multi-property document reassignment flow.

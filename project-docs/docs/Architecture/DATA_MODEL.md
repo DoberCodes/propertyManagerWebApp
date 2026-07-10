@@ -63,7 +63,7 @@ Primary hierarchy:
 
 Account
 └── Properties
-├── Appliances & Systems
+├── Equipment
 ├── Tasks
 ├── Maintenance Events
 ├── Contractors
@@ -75,15 +75,15 @@ Account
 
 Properties serve as the primary organizational object.
 
-Appliances & Systems belong to properties.
+Equipment records belong to properties.
 
-Tasks belong to properties and may optionally reference one or more appliances.
+Tasks belong to properties and may optionally reference one or more equipment records.
 
 Maintenance Events may reference:
 
 * Properties
 * Tasks
-* Appliances & Systems
+* Equipment
 * Contractors
 
 Contractors may be associated with one or more properties.
@@ -131,7 +131,7 @@ These concepts should be treated as derived views of existing records.
 Source records remain:
 
 * Properties
-* Appliances & Systems
+* Equipment
 * Tasks
 * Maintenance Events
 * Contractors
@@ -143,8 +143,8 @@ Derived features may cache results for performance purposes, but the underlying 
 
 Recommendations are expected to be generated from:
 
-* Appliance Profiles
-* Existing appliance metadata
+* Equipment Profiles
+* Existing equipment metadata
 * Maintenance history
 * Task history
 * Documentation availability
@@ -286,7 +286,7 @@ Properties are the primary organizational record in Maintley.
 
 Properties provide context for:
 
-* Appliances & Systems
+* Equipment
 * Tasks
 * Maintenance Events
 * Contractors
@@ -350,9 +350,9 @@ authoritative records, and group membership continues to reference them.
 
 ---
 
-# Appliance & System Model
+# Equipment Model
 
-Appliances and systems represent maintainable assets associated with a property.
+Equipment records represent maintainable assets associated with a property.
 
 Examples:
 
@@ -368,7 +368,7 @@ Examples:
 Maintley uses the term:
 
 ```text
-Appliances & Systems
+Equipment
 ```
 
 for user-facing communication.
@@ -697,7 +697,7 @@ Maintenance Events preserve:
 * Completed Tasks
 * Historical Documentation
 
-Maintenance Events should remain useful regardless of future changes to tasks, appliances, or recommendations.
+Maintenance Events should remain useful regardless of future changes to tasks, equipment, or recommendations.
 
 ---
 
@@ -1096,7 +1096,7 @@ Typical fields:
 Supported resources may include:
 
 * Properties
-* Appliances & Systems
+* Equipment
 * Tasks
 * Contractors
 
@@ -1128,7 +1128,7 @@ Files should support records rather than replace them.
 Files may be associated with:
 
 * Properties
-* Appliances & Systems
+* Equipment
 * Tasks
 * Maintenance Events
 
@@ -1174,7 +1174,7 @@ Reports are derived data rather than authoritative records.
 Primary reporting sources:
 
 * Properties
-* Appliances & Systems
+* Equipment
 * Tasks
 * Maintenance Events
 * Contractors
@@ -1284,7 +1284,7 @@ other intermediate output are derived processing artifacts only.
 * warrantyIds, reserved for future warranty document links
 * partIds, reserved for future part document links
 
-Property, appliance/system, task, and task-completion document screens upload documents into the property document record. Upload context should not automatically create permanent ownership. Links to assets, tasks, Maintenance Events, contractors, warranties, parts, or costs should be created by reviewed Property Knowledge suggestions or explicit user actions.
+Property, equipment, task, and task-completion document screens upload documents into the property document record. Upload context should not automatically create permanent ownership. Links to assets, tasks, Maintenance Events, contractors, warranties, parts, or costs should be created by reviewed Property Knowledge suggestions or explicit user actions.
 
 Maintenance-event, contractor, warranty, and part links are supported by the model but should be migrated in a later phase.
 
@@ -1346,7 +1346,7 @@ Accepted contractor suggestions should become contractor records for the propert
 
 Accepted invoice, financial, service, part, and supply suggestions should become Maintenance Event history when they describe completed work or a received invoice. Incomplete part mentions may be retained in history notes so useful property context is not lost simply because a full model number is unavailable.
 
-Accepted part and supply suggestions that are linked to a specific appliance or system may become `serviceItems` on the related device record. This preserves parts and supplies inside the existing appliance/system source record rather than creating a parallel parts collection in this phase.
+Accepted part and supply suggestions that are linked to a specific equipment or system may become `serviceItems` on the related device record. This preserves parts and supplies inside the existing equipment source record rather than creating a parallel parts collection in this phase.
 
 The Part Knowledge Catalog is a taxonomy used by Property Knowledge Acquisition. It should define conservative matches and target fields, but it should not update records directly or generate recommendations.
 
@@ -1363,7 +1363,7 @@ Instead, it analyzes existing records and generates guidance.
 Maintley Intelligence consumes:
 
 * Properties
-* Appliances & Systems
+* Equipment
 * Tasks
 * Maintenance Events
 * Documentation Records
@@ -1466,7 +1466,7 @@ Recommendations identify opportunities to improve records or maintenance outcome
 
 Recommendations may originate from:
 
-* Appliance Profiles
+* Equipment Profiles
 * Property Records
 * Maintenance Events
 * Task Records
@@ -1553,7 +1553,7 @@ It should not become an independent source of truth.
 Setup Progress may evaluate:
 
 * Property Information
-* Appliance Records
+* Equipment Records
 * Maintenance Records
 * Documentation Records
 
@@ -1658,7 +1658,7 @@ Each layer has a distinct responsibility.
 Primary records:
 
 * Properties
-* Appliances & Systems
+* Equipment
 * Contractors
 * Tenants
 

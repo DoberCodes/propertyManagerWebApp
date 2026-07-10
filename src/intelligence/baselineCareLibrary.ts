@@ -219,7 +219,7 @@ export const BASELINE_CARE_DEFINITIONS: BaselineCareDefinition[] = [
 				priority: 'low',
 				matchTerms: ['coil', 'coils', 'clean coils', 'condenser coil'],
 				whyItMatters:
-					'Recording coil cleaning keeps routine appliance care visible in the property history.',
+					'Recording coil cleaning keeps routine equipment care visible in the property history.',
 				suggestedActionLabel: 'Open maintenance history',
 			},
 		],
@@ -260,7 +260,7 @@ export const BASELINE_CARE_DEFINITIONS: BaselineCareDefinition[] = [
 				priority: 'low',
 				matchTerms: ['clean washer', 'cleaning cycle', 'tub clean', 'washer cleaner'],
 				whyItMatters:
-					'Recording cleaning cycles helps keep routine appliance care visible without relying on memory.',
+					'Recording cleaning cycles helps keep routine equipment care visible without relying on memory.',
 				suggestedActionLabel: 'Open maintenance history',
 			},
 			{

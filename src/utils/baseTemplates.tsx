@@ -152,9 +152,9 @@ export const baselineTasks: Task[] = [
 		property: '',
 	},
 	{
-		title: 'Appliances Maintenance',
+		title: 'Equipment Maintenance',
 		description:
-			'Check that key appliances (stove, fridge, washer/dryer) are operating correctly.',
+			'Check that key equipment (stove, fridge, washer/dryer) is operating correctly.',
 		dueDate: '',
 		priority: 'Low',
 		status: 'Pending',

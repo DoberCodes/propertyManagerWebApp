@@ -30,7 +30,6 @@ export const getAssetDisplayName = (asset: Device): string =>
 	[
 		asset.brand,
 		getDeviceAssetVariant(asset) || getDeviceAssetType(asset),
-		asset.model,
 	]
 		.filter(Boolean)
 		.join(' ')

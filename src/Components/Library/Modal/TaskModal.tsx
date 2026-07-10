@@ -66,8 +66,8 @@ import {
 } from '../../../tasks/taskAssignment';
 import { useTaskAssigneeOptions } from '../../../tasks/useTaskAssigneeOptions';
 
-const LINKED_DEVICE_NOTES_START = '--- Linked Appliance Details ---';
-const LINKED_DEVICE_NOTES_END = '--- End Linked Appliance Details ---';
+const LINKED_DEVICE_NOTES_START = '--- Linked Equipment Details ---';
+const LINKED_DEVICE_NOTES_END = '--- End Linked Equipment Details ---';
 
 const escapeForRegex = (value: string) =>
 	value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -86,7 +86,7 @@ const buildLinkedDeviceDetailsSection = (devices: Device[]) => {
 
 	const lines: string[] = [
 		LINKED_DEVICE_NOTES_START,
-		'Use these linked appliance details while performing this task:',
+		'Use these linked equipment details while performing this task:',
 		'',
 	];
 
@@ -94,7 +94,7 @@ const buildLinkedDeviceDetailsSection = (devices: Device[]) => {
 		const displayName =
 			(device.brand && device.model
 				? `${device.brand} ${device.model}`
-				: device.model || device.brand || device.type || `Appliance ${index + 1}`) +
+				: device.model || device.brand || device.type || `Equipment ${index + 1}`) +
 			(device.type ? ` (${device.type})` : '');
 		const serviceItems = device.serviceItems || [];
 
@@ -109,7 +109,7 @@ const buildLinkedDeviceDetailsSection = (devices: Device[]) => {
 				);
 			});
 		} else {
-			// Backward compatibility for older appliances that still use scalar fields.
+			// Backward compatibility for older equipment records that still use scalar fields.
 			if (device.partNumber) lines.push(`   Part Number: ${device.partNumber}`);
 			if (device.filterSize) lines.push(`   Filter Size: ${device.filterSize}`);
 			if (device.specNotes) lines.push(`   Service Notes: ${device.specNotes}`);
@@ -122,7 +122,7 @@ const buildLinkedDeviceDetailsSection = (devices: Device[]) => {
 			!device.filterSize &&
 			!device.specNotes
 		) {
-			lines.push('   No additional appliance specs saved yet.');
+			lines.push('   No additional equipment specs saved yet.');
 		}
 		lines.push('');
 	});
@@ -702,7 +702,7 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 			const displayName =
 				device.brand && device.model
 					? `${device.brand} ${device.model}`
-					: device.type || 'Unknown Appliance';
+					: device.type || 'Unknown Equipment';
 			return {
 				label: `${displayName} (${device.type || 'Unknown Type'})`,
 				value: device.id,
@@ -1268,7 +1268,7 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 						...(deviceSnapshot.data() as Omit<Device, 'id'>),
 					} as Device;
 				} catch (error) {
-					console.warn('Failed to load full linked appliance details for task notes', {
+					console.warn('Failed to load full linked equipment details for task notes', {
 						deviceId,
 						error,
 					});
@@ -1406,7 +1406,7 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 					updatesRaw.assignee = '';
 				}
 
-				// Keep appliance and history linking optional by omitting empty arrays.
+				// Keep equipment and history linking optional by omitting empty arrays.
 				if (Array.isArray(updatesRaw.devices) && updatesRaw.devices.length === 0) {
 					delete updatesRaw.devices;
 				}
@@ -1471,7 +1471,7 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 					delete newTaskRaw.assignee;
 				}
 
-				// Keep appliance and history linking optional by omitting empty arrays.
+				// Keep equipment and history linking optional by omitting empty arrays.
 				if (Array.isArray(newTaskRaw.devices) && newTaskRaw.devices.length === 0) {
 					delete newTaskRaw.devices;
 				}
@@ -1875,16 +1875,16 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 
 									{internalDeviceOptions.length > 0 && (
 										<FormGroup>
-											<FormLabel>Connected Appliances (Optional)</FormLabel>
+											<FormLabel>Connected Equipment (Optional)</FormLabel>
 											<MultiSelect
 												options={internalDeviceOptions}
 												value={formState.devices || []}
 												onChange={handleDeviceChange}
-												placeholder='Select appliances for this task...'
+												placeholder='Select equipment for this task...'
 											/>
 											<small style={{ color: '#6b7280' }}>
-												Linked appliance service items are automatically appended to task
-												notes when you save. Leave blank for non-appliance tasks.
+												Linked equipment service items are automatically appended to task
+												notes when you save. Leave blank for tasks that are not tied to equipment.
 											</small>
 										</FormGroup>
 									)}

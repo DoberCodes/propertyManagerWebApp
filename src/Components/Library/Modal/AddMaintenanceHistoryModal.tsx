@@ -299,7 +299,7 @@ export const AddMaintenanceHistoryModal: React.FC<
 				device.name ||
 				[device.type, device.brand, device.model].filter(Boolean).join(' ') ||
 				device.serialNumber ||
-				`Appliance ${device.id}`,
+				`Equipment ${device.id}`,
 		}))
 		.filter((device) => device.id);
 
@@ -380,7 +380,7 @@ export const AddMaintenanceHistoryModal: React.FC<
 						{deviceOptions.length > 0 && (
 							<FormGroupFull>
 								<FormLabel htmlFor='maintenance-linked-appliances'>
-									Related Appliances
+									Related Equipment
 								</FormLabel>
 								<FormSelect
 									id='maintenance-linked-appliances'
@@ -395,7 +395,7 @@ export const AddMaintenanceHistoryModal: React.FC<
 									))}
 								</FormSelect>
 								<small style={{ color: '#6b7280', fontSize: 12 }}>
-									Hold Ctrl/Command to select multiple appliances.
+									Hold Ctrl/Command to select multiple equipment records.
 								</small>
 							</FormGroupFull>
 						)}

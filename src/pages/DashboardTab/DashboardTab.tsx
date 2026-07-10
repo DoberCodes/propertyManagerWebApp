@@ -68,10 +68,6 @@ import {
 	HomeHealthMemoryText,
 	HomeHealthGapRow,
 	HomeHealthOpportunityList,
-	HomeHealthQuickWin,
-	HomeHealthQuickWinButton,
-	HomeHealthQuickWinLabel,
-	HomeHealthQuickWinText,
 	HomeHealthStatus,
 	HomeHealthStatusLabel,
 	HomeHealthStatusLine,
@@ -97,6 +93,7 @@ import {
 	DashboardIntelligenceSourcePill,
 	DashboardIntelligenceContext,
 	DashboardIntelligenceImpact,
+	DashboardIntelligenceEvidence,
 	DashboardIntelligenceActions,
 	RecentActivitySection,
 	RecentActivityHeader,
@@ -989,7 +986,7 @@ export const DashboardTab = () => {
 						[device?.type, device?.brand, device?.model]
 							.filter(Boolean)
 							.join(' ')
-							.trim() || 'Appliance';
+							.trim() || 'Equipment';
 					return [id, name];
 				}),
 			),
@@ -1398,7 +1395,7 @@ export const DashboardTab = () => {
 					.filter(Boolean);
 
 				const deviceName = normalizedDeviceIds.length
-					? deviceLookup.get(normalizedDeviceIds[0]) || 'Appliance'
+					? deviceLookup.get(normalizedDeviceIds[0]) || 'Equipment'
 					: 'Property-level';
 
 				return {
@@ -1918,22 +1915,6 @@ export const DashboardTab = () => {
 							{homeHealth.largestGap.label} - {homeHealth.largestGap.value}%
 						</strong>
 					</HomeHealthGapRow>
-					<HomeHealthQuickWin>
-						<div>
-							<HomeHealthQuickWinLabel>Quick Win</HomeHealthQuickWinLabel>
-							<HomeHealthQuickWinText>
-								<strong>{homeHealth.quickWin.label}</strong>
-								<span>{homeHealth.quickWin.detail}</span>
-							</HomeHealthQuickWinText>
-						</div>
-						{canOpenHealthReview && (
-							<HomeHealthQuickWinButton
-								type='button'
-								onClick={handleOpenHealthReview}>
-								Review
-							</HomeHealthQuickWinButton>
-						)}
-					</HomeHealthQuickWin>
 					<HomeHealthOpportunityList>
 						<span>Biggest opportunities</span>
 						<ul>
@@ -1990,6 +1971,23 @@ export const DashboardTab = () => {
 						<DashboardIntelligenceImpact>
 							{dashboardSuggestion.whyItMatters}
 						</DashboardIntelligenceImpact>
+						{(dashboardSuggestion.evidenceDetails?.length ||
+							dashboardSuggestion.evidenceSummary) && (
+							<DashboardIntelligenceEvidence>
+								<span className='evidence-heading'>Why</span>
+								{dashboardSuggestion.evidenceDetails?.length ? (
+									dashboardSuggestion.evidenceDetails.map((detail, index) => (
+										<span className='evidence-line' key={`${detail.label}-${index}`}>
+											{detail.text}
+										</span>
+									))
+								) : (
+									<span className='evidence-text'>
+										{dashboardSuggestion.evidenceSummary}
+									</span>
+								)}
+							</DashboardIntelligenceEvidence>
+						)}
 						<DashboardIntelligenceActions>
 							<FocusButton
 								type='button'

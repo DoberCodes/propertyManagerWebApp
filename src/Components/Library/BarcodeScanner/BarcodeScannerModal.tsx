@@ -5,6 +5,11 @@ import {
 	BarcodePayloadAnalysis,
 } from '../../../utils/barcodeScanParser';
 import { COLORS } from '../../../constants/colors';
+import {
+	isNativeScannerAvailable,
+	scanWithNativeScanner,
+	toWebPath,
+} from '../../../native/nativeScanner';
 
 const Overlay = styled.div`
 	position: fixed;
@@ -402,8 +407,8 @@ type CameraControlCapabilities = {
 };
 
 const FIELD_LABELS: Record<string, string> = {
-	type: 'Appliance type',
-	assetType: 'Appliance type',
+	type: 'Equipment type',
+	assetType: 'Equipment type',
 	brand: 'Brand',
 	manufacturer: 'Manufacturer',
 	model: 'Model',
@@ -494,6 +499,8 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 	const pinchStateRef = useRef<{ distance: number; zoom: number } | null>(null);
 	const tapCandidateRef = useRef<{ pointerId: number; x: number; y: number; moved: boolean } | null>(null);
 	const focusReticleTimeoutRef = useRef<number | null>(null);
+	const nativeScanInFlightRef = useRef(false);
+	const nativeScanAutoOpenedRef = useRef(false);
 
 	const supportsBarcodeDetector = useMemo(
 		() => typeof (window as any).BarcodeDetector !== 'undefined',
@@ -506,6 +513,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 			typeof navigator.mediaDevices.getUserMedia === 'function',
 		[],
 	);
+	const usesNativeScanner = useMemo(() => isNativeScannerAvailable(), []);
 
 	const confidenceFromField = useCallback(
 		(sourceKey: string, targetKey: string, value: string): 'high' | 'medium' | 'low' => {
@@ -902,6 +910,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 		setOcrError('');
 		setCaptureEngineLabel('');
 		setPhotoWizardStep('capture');
+		nativeScanAutoOpenedRef.current = false;
 	}, []);
 
 	const selectMethod = useCallback((method: ScannerMethod) => {
@@ -916,6 +925,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 		setOcrError('');
 		setCaptureEngineLabel('');
 		setPhotoWizardStep('capture');
+		nativeScanAutoOpenedRef.current = false;
 	}, []);
 
 	const toggleRelabelRow = (id: string) => {
@@ -986,6 +996,32 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 		[getZxingReader],
 	);
 
+	const applyNativePhotoResult = useCallback(
+		async (uri: string) => {
+			try {
+				const webPath = toWebPath(uri);
+				const response = await fetch(webPath);
+				if (!response.ok) throw new Error('Native image could not be loaded.');
+				const blob = await response.blob();
+				const capturedFile = new File([blob], `maintley-label-${Date.now()}.jpg`, {
+					type: blob.type || 'image/jpeg',
+				});
+				setSelectedImageFile(capturedFile);
+				setSelectedImagePreview(webPath);
+				setOcrError('');
+				setManualValue('');
+				setCapturedValue('');
+				setAnalysis(null);
+				setRelabelRows([]);
+				setCaptureEngineLabel('Native Android camera');
+				setPhotoWizardStep('confirm-image');
+				stopScanner();
+			} catch {
+				setOcrError('Could not load the photo from the Android camera. Try again or choose a label image.');
+			}
+		},
+		[stopScanner],
+	);
 	const handlePhotoSelected = (event: React.ChangeEvent<HTMLInputElement>) => {
 		const file = event.target.files?.[0];
 		if (!file) return;
@@ -1042,6 +1078,33 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 		stopScanner();
 	}, [stopScanner]);
 
+	const launchNativeScanner = useCallback(async () => {
+		if (!usesNativeScanner || nativeScanInFlightRef.current) return;
+
+		nativeScanInFlightRef.current = true;
+		stopScanner();
+		setError('');
+		setOcrError('');
+		try {
+			const result = await scanWithNativeScanner(activeMethod);
+			if (result.value) {
+				setCaptureEngineLabel('Native Android barcode scanner');
+				captureValue(result.value);
+				return;
+			}
+			if (result.uri) {
+				await applyNativePhotoResult(result.uri);
+			}
+		} catch {
+			if (activeMethod === 'barcode') {
+				setError('Android scanner was closed. Try again or paste the code manually.');
+			} else {
+				setOcrError('Android camera was closed. Try again or choose a label image.');
+			}
+		} finally {
+			nativeScanInFlightRef.current = false;
+		}
+	}, [activeMethod, applyNativePhotoResult, captureValue, stopScanner, usesNativeScanner]);
 	useEffect(() => {
 		if (!isOpen) {
 			stopScanner();
@@ -1057,6 +1120,8 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 			setIsExtractingText(false);
 			setOcrError('');
 			setCaptureEngineLabel('');
+			nativeScanInFlightRef.current = false;
+			nativeScanAutoOpenedRef.current = false;
 			return;
 		}
 
@@ -1067,6 +1132,15 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 
 		if (activeMethod === 'photo' && photoWizardStep !== 'capture') {
 			stopScanner();
+			return;
+		}
+
+		if (usesNativeScanner) {
+			stopScanner();
+			if (!nativeScanAutoOpenedRef.current) {
+				nativeScanAutoOpenedRef.current = true;
+				void launchNativeScanner();
+			}
 			return;
 		}
 
@@ -1187,19 +1261,21 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 		defaultMethod,
 		getZxingReader,
 		isOpen,
+		launchNativeScanner,
 		loadZxingModule,
 		photoWizardStep,
 		syncTorchAvailability,
 		stopScanner,
 		supportsBarcodeDetector,
 		supportsCameraAccess,
+		usesNativeScanner,
 	]);
 
 	const tabLabels = useMemo(() => {
 		if (captureIntent === 'appliance') {
 			return {
 				barcode: 'Barcode / QR',
-				photo: 'Appliance Label',
+				photo: 'Equipment Label',
 			};
 		}
 
@@ -1213,13 +1289,13 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 	);
 	const inspectorTitle =
 		captureIntent === 'appliance'
-			? 'Recognized appliance details'
+			? 'Recognized equipment details'
 			: captureIntent === 'part'
 				? 'Recognized part details'
 				: 'Scanned data inspector';
 	const inspectorHint =
 		captureIntent === 'appliance'
-			? 'Review the fields Maintley recognized from the label. Only checked fields will be applied to this appliance.'
+			? 'Review the fields Maintley recognized from the label. Only checked fields will be applied to this equipment record.'
 			: captureIntent === 'part'
 				? 'Review the fields Maintley recognized. Only checked fields will be applied to this part.'
 				: 'Review detected key-value pairs, GS1 segments, and normalized mappings before applying.';
@@ -1241,6 +1317,23 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 			{focusPoint && <FocusReticle $x={focusPoint.x} $y={focusPoint.y} />}
 			{cameraHintText && <CameraGestureHint>{cameraHintText}</CameraGestureHint>}
 		</VideoWrap>
+	);
+	const renderNativeScannerPrompt = () => (
+		<InspectorCard>
+			<InspectorTitle>
+				{activeMethod === 'barcode' ? 'Android barcode scanner' : 'Android label camera'}
+			</InspectorTitle>
+			<InspectorHint>
+				The Android app uses a native camera here so pinch zoom and tap focus work reliably.
+			</InspectorHint>
+			<Row>
+				<ActionButton
+					type='button'
+					onClick={() => void launchNativeScanner()}>
+					{activeMethod === 'barcode' ? 'Open Barcode Scanner' : 'Open Android Camera'}
+				</ActionButton>
+			</Row>
+		</InspectorCard>
 	);
 	if (!isOpen) return null;
 
@@ -1304,25 +1397,31 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 
 					{!analysis && activeMethod === 'barcode' && (
 						<>
-							{renderCameraPreview()}
-							<CameraToolbar>
+							{usesNativeScanner ? renderNativeScannerPrompt() : (
+								<>
+									{renderCameraPreview()}
+									<CameraToolbar>
 								<GhostButton
 									type='button'
 									onClick={() => void toggleTorch()}
 									disabled={!isTorchAvailable}>
 									{isTorchOn ? 'Flashlight Off' : 'Flashlight On'}
 								</GhostButton>
-							</CameraToolbar>
+									</CameraToolbar>
+								</>
+							)}
 							<Helper>
-								Use this when the label has a UPC/EAN/QR code. Appliance barcodes may not include full make/model/serial data.
+								Use this when the label has a UPC/EAN/QR code. Equipment barcodes may not include full make/model/serial data.
 							</Helper>
-							<EngineHint>Engines: Native BarcodeDetector + ZXing fallback</EngineHint>
+							<EngineHint>{usesNativeScanner ? 'Engine: Native Android scanner' : 'Engines: Native BarcodeDetector + ZXing fallback'}</EngineHint>
 						</>
 					)}
 
 					{!analysis && activeMethod === 'photo' && photoWizardStep === 'capture' && (
 						<>
-							{supportsCameraAccess && (
+							{usesNativeScanner ? (
+								renderNativeScannerPrompt()
+							) : supportsCameraAccess && (
 								<>
 									{renderCameraPreview()}
 									<CameraToolbar>
@@ -1370,7 +1469,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 								Make sure the model and serial areas are readable. If glare or blur hides the label, retake it before Maintley reads the text.
 							</InspectorHint>
 							{selectedImagePreview && (
-								<PreviewImage src={selectedImagePreview} alt='Appliance label preview' />
+								<PreviewImage src={selectedImagePreview} alt='Equipment label preview' />
 							)}
 							<Row>
 								<ActionButton
@@ -1406,10 +1505,10 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 						<InspectorCard>
 							<InspectorTitle>Validate recognized text</InspectorTitle>
 							<InspectorHint>
-								Fix obvious OCR mistakes before Maintley turns the text into appliance fields.
+								Fix obvious OCR mistakes before Maintley turns the text into equipment fields.
 							</InspectorHint>
 							{selectedImagePreview && (
-								<PreviewImage src={selectedImagePreview} alt='Appliance label preview' />
+								<PreviewImage src={selectedImagePreview} alt='Equipment label preview' />
 							)}
 							<TextArea
 								value={manualValue}

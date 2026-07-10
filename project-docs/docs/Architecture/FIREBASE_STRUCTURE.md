@@ -96,7 +96,7 @@ Permissions are determined through account membership and role-based access cont
 Used for:
 
 * Properties
-* Appliances & Systems
+* Equipment
 * Tasks
 * Maintenance Events
 * Teams
@@ -117,7 +117,7 @@ Firestore is the primary source of truth for Maintley data.
 Used for:
 
 * Property photos
-* Appliance photos
+* Equipment photos
 * Manuals
 * Warranty documents
 * Invoices
@@ -230,7 +230,7 @@ Properties
 Account records own:
 
 * Properties
-* Appliances & Systems
+* Equipment
 * Tasks
 * Maintenance History
 * Contractors
@@ -373,7 +373,7 @@ These features derive information from existing records and should not become au
 Source collections remain:
 
 * Properties
-* Appliances & Systems
+* Equipment
 * Tasks
 * Maintenance Events
 * Files
@@ -607,7 +607,7 @@ Firebase Storage is used for file storage.
 Storage responsibilities include:
 
 * Property files
-* Appliance files
+* Equipment files
 * Maintenance files
 * Task attachments
 * User images

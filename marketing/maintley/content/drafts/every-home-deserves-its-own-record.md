@@ -20,7 +20,7 @@ tags:
 
 Every home has a history.
 
-Repairs, appliance replacements, service visits, warranties, receipts, filter sizes, contractor notes, and the small details that are easy to forget.
+Repairs, equipment replacements, service visits, warranties, receipts, filter sizes, contractor notes, and the small details that are easy to forget.
 
 Most of that information ends up scattered across emails, folders, drawers, calendars, and memory.
 

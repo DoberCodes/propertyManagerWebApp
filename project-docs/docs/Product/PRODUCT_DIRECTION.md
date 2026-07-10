@@ -178,7 +178,7 @@ Every record you save today helps future you make better decisions tomorrow.
 Need:
 
 * Maintenance tracking
-* Appliance records
+* Equipment records
 * Documentation storage
 * Maintenance reminders
 
@@ -218,7 +218,7 @@ Usually responsible for portfolios.
 
 Information should become more valuable over time.
 
-Every completed task, uploaded document, maintenance event, and appliance record should improve the usefulness of the property record.
+Every completed task, uploaded document, maintenance event, and equipment record should improve the usefulness of the property record.
 
 ---
 

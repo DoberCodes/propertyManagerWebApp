@@ -710,6 +710,31 @@ export const DashboardIntelligenceImpact = styled.p`
 	color: ${COLORS.textSecondary};
 `;
 
+export const DashboardIntelligenceEvidence = styled.div`
+	margin: 0;
+	padding: 9px 10px;
+	border: 1px solid rgba(4, 120, 87, 0.16);
+	border-radius: 10px;
+	background: rgba(255, 255, 255, 0.74);
+	color: ${COLORS.textSecondary};
+	font-size: 0.8rem;
+	font-weight: 600;
+	line-height: 1.45;
+	display: flex;
+	flex-direction: column;
+	gap: 7px;
+
+	.evidence-heading {
+		color: ${COLORS.primaryDark};
+		font-weight: 900;
+	}
+
+	.evidence-line,
+	.evidence-text {
+		color: ${COLORS.textSecondary};
+	}
+`;
+
 export const DashboardIntelligenceActions = styled.div`
 	margin-top: auto;
 	display: flex;

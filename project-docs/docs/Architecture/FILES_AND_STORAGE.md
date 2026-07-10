@@ -39,8 +39,8 @@ Users should be able to:
 
 * Track maintenance without uploading files.
 * Store files without creating maintenance events.
-* Upload files from property, appliance/system, task, or completion workflows.
-* Let reviewed Property Knowledge suggestions connect files to appliances, systems, tasks, contractors, costs, parts, warranties, or maintenance records.
+* Upload files from property, equipment, task, or completion workflows.
+* Let reviewed Property Knowledge suggestions connect files to equipment, systems, tasks, contractors, costs, parts, warranties, or maintenance records.
 * Build documentation gradually over time.
 
 Documentation should enhance records rather than become a prerequisite for maintaining them.
@@ -65,9 +65,9 @@ Examples:
 
 ---
 
-## Appliance & System Files
+## Equipment Files
 
-Associated with an appliance or system.
+Associated with an equipment or system.
 
 Examples:
 
@@ -255,7 +255,7 @@ Current upload helpers enforce quota validation for:
 * Property images
 * User profile images
 * Team member files
-* Appliance & system files
+* Equipment & system files
 * Manuals
 * Warranty documents
 * Maintenance files
@@ -313,7 +313,7 @@ Maintenance events should reference files rather than duplicate file data.
 
 Properties are the canonical owner for property documents.
 
-Documents uploaded from property, appliance/system, or task document contexts should still be stored as property document records.
+Documents uploaded from property, equipment, or task document contexts should still be stored as property document records.
 
 Context-specific screens should show filtered document views based on document links rather than owning separate document arrays.
 
@@ -378,11 +378,11 @@ Examples:
 
 Good:
 
-* Appliance photo remains unchanged when warranty PDF is uploaded.
+* Equipment photo remains unchanged when warranty PDF is uploaded.
 
 Bad:
 
-* Warranty upload replaces appliance image.
+* Warranty upload replaces equipment image.
 
 ---
 
@@ -417,7 +417,7 @@ Maintley Intelligence may use file metadata when generating recommendations.
 Examples:
 
 * Missing warranty documentation
-* Missing appliance manuals
+* Missing equipment manuals
 * Missing service records
 * Missing property documentation
 
@@ -448,7 +448,7 @@ should not become user-facing Property Documents.
 Maintley does not automatically update property, system, task, maintenance history, part, contractor, or warranty records from uploaded documents.
 
 Upload context should not create permanent ownership by itself. A document
-uploaded from an appliance, system, task, or completion workflow is still a
+uploaded from an equipment, system, task, or completion workflow is still a
 property document. The acquisition and review workflow may later add links to
 the records the document supports after the user accepts the suggested changes.
 
@@ -488,7 +488,7 @@ and Firestore account/property context. The test covers:
 * Property document and image paths.
 * User profile images.
 * Team member images and files.
-* Appliance and system files.
+* Equipment and system files.
 * Maintenance files.
 * Support ticket attachments created by server-side feedback workflows.
 * Default-deny behavior for unknown paths.
@@ -518,11 +518,11 @@ Potential future enhancements include:
 
 * OCR extraction
 * Barcode-assisted file association
-* Automatic appliance manual matching
+* Automatic equipment manual matching
 * Warranty extraction
 * Receipt parsing
 * AI-assisted document classification
 
 These capabilities should enhance existing records rather than replace the underlying storage model.
 
-The source of truth should remain the underlying property, appliance, task, and maintenance records.
+The source of truth should remain the underlying property, equipment, task, and maintenance records.

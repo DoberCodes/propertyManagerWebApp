@@ -639,7 +639,7 @@ export const MaintenanceTab = ({
 					.filter(Boolean)
 					.join(' ') ||
 				device?.serialNumber ||
-				`Appliance ${id}`;
+				`Equipment ${id}`;
 			map.set(id, label);
 		});
 
@@ -677,7 +677,7 @@ export const MaintenanceTab = ({
 			const labels = ids
 				.map((id: any) => String(id))
 				.filter(Boolean)
-				.map((id: string) => deviceNameById.get(id) || `Appliance ${id}`);
+				.map((id: string) => deviceNameById.get(id) || `Equipment ${id}`);
 
 			if (labels.length === 0) {
 				return '-';
@@ -756,7 +756,7 @@ export const MaintenanceTab = ({
 			? [
 					{
 						key: 'linkedDevice',
-						label: 'Linked Appliance',
+						label: 'Linked Equipment',
 						type: 'select' as const,
 						options: deviceFilterOptions,
 					},
@@ -902,7 +902,7 @@ export const MaintenanceTab = ({
 		if (filters.linkedDevice) {
 			chips.push({
 				key: 'linkedDevice',
-				label: `Linked Appliance: ${
+				label: `Linked Equipment: ${
 					deviceNameById.get(String(filters.linkedDevice)) ||
 					String(filters.linkedDevice)
 				}`,
@@ -1021,7 +1021,7 @@ export const MaintenanceTab = ({
 						<div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', color: '#475569', fontSize: 12, fontWeight: 700 }}>
 							<span>{eventVisual.label}</span>
 							<span>•</span>
-							<span>{row.linkedDevices || 'No linked appliance'}</span>
+							<span>{row.linkedDevices || 'No linked equipment'}</span>
 							<span>•</span>
 							<span>{relative}</span>
 						</div>

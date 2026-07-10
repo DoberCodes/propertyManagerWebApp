@@ -177,7 +177,6 @@ Use:
 * Property
 * Systems
 * Equipment
-* Appliances
 * Tasks
 * Maintenance
 * Service History
@@ -242,7 +241,6 @@ Use:
 System
 Systems
 Equipment
-Appliance
 ```
 
 Avoid:
@@ -299,7 +297,9 @@ Operational Score
 | ---------------------- | --------------------------------------- |
 | Workflow               | Task                                    |
 | Workflows              | Tasks                                   |
-| Devices                | Systems or Equipment                    |
+| Devices                | Equipment                              |
+| Appliances             | Equipment                              |
+| Appliances & Systems   | Equipment                              |
 | Operational Continuity | Maintenance History or Property Records |
 | Continuity Risk        | Needs Attention                         |
 | Device Status          | System Status                           |
@@ -605,7 +605,7 @@ No systems found.
 Use:
 
 ```text id="mf2k7k"
-Add systems like your HVAC, water heater, roof, appliances, generator, or other equipment you want to track.
+Add equipment like your HVAC, water heater, roof, generator, safety devices, or anything else you want to track.
 ```
 
 ---

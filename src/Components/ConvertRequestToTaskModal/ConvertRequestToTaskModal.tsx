@@ -219,14 +219,14 @@ Submitted by: ${request.submittedByName} on ${
 
 				{deviceOptions.length > 0 && (
 					<FormGroup>
-						<Label>Connected Appliances (Optional)</Label>
+						<Label>Connected Equipment (Optional)</Label>
 						<MultiSelect
 							options={deviceOptions}
 							value={taskData.devices || []}
 							onChange={(devices) => setTaskData({ ...taskData, devices })}
-							placeholder='Select appliances for this task...'
+							placeholder='Select equipment for this task...'
 						/>
-						<Helper>Leave blank if this request is not tied to a specific appliance.</Helper>
+						<Helper>Leave blank if this request is not tied to specific equipment.</Helper>
 					</FormGroup>
 				)}
 

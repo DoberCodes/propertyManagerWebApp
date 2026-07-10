@@ -769,15 +769,15 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
 					: "We'll help you stay ahead of repairs, track every service, and never forget an important maintenance task again."
 				: userPersona === 'landlord'
 					? isCompactMobile
-						? 'Track repairs, appliances, and service records across properties in one place.'
-						: "Track appliances, repairs, contractors, and service history across all your properties in one place."
+						? 'Track repairs, equipment, and service records across properties in one place.'
+						: "Track equipment, repairs, contractors, and service history across all your properties in one place."
 					: userPersona === 'manager'
 						? isCompactMobile
 							? 'Manage tasks, teams, and records across your portfolio with less back-and-forth.'
 							: "Manage tasks, tenants, contractors, and maintenance records across your entire portfolio."
 						: isCompactMobile
-							? 'Track appliances, repairs, and service history so nothing falls through the cracks.'
-							: 'Track appliances, repairs, tasks, and service history in one place — so nothing falls through the cracks.';
+							? 'Track equipment, repairs, and service history so nothing falls through the cracks.'
+							: 'Track equipment, repairs, tasks, and service history in one place — so nothing falls through the cracks.';
 
 		const isHomeownerTour = userPersona === 'homeowner' || isHomeowner;
 		const recordLabel = isHomeownerTour ? 'home' : 'property';
@@ -954,7 +954,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
 				type: 'waiting',
 				title: `Now that your ${recordLabel} is set up, open it.`,
 				description:
-					'This is where appliances, tasks, and maintenance history come together.',
+					'This is where equipment, tasks, and maintenance history come together.',
 				waitCondition: () => location.pathname.includes('/property/'),
 				autoAdvance: true,
 			},
@@ -1019,7 +1019,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
 								🏢 Property-Level Management
 							</h4>
 							<p style={{ margin: '0 0 0 28px', fontSize: '14px', color: '#64748b', lineHeight: '1.5' }}>
-								Manage appliances, tasks, and history from a single property record.
+								Manage equipment, tasks, and history from a single property record.
 							</p>
 						</div>
 					</div>

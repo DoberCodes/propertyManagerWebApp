@@ -116,7 +116,7 @@ Firestore Rules are an authoritative security boundary.
 
 Purpose:
 
-Protect file objects that support property documents, appliance/system records,
+Protect file objects that support property documents, equipment records,
 maintenance records, team member profiles, user profile images, and feedback
 attachments.
 
@@ -338,7 +338,7 @@ Typical capabilities:
 * Manage properties
 * Manage tasks
 * Manage maintenance history
-* Manage appliances & systems
+* Manage equipment & systems
 * Manage contractors
 * Manage tenants
 * Manage team members
@@ -358,7 +358,7 @@ Typical capabilities:
 * Create tasks
 * Complete tasks
 * Manage maintenance history
-* Manage appliances & systems
+* Manage equipment & systems
 * Manage contractors
 
 Typically restricted:

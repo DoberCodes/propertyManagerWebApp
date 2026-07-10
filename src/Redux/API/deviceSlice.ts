@@ -128,7 +128,7 @@ const deviceSlice = apiSlice.injectEndpoints({
 							String(data.location?.propertyId || ''),
 						)
 					) {
-						return { error: 'Not authorized to view this appliance' };
+						return { error: 'Not authorized to view this equipment record' };
 					}
 					return { data: data as Device };
 				} catch (error: any) {
@@ -165,7 +165,7 @@ const deviceSlice = apiSlice.injectEndpoints({
 
 						if (currentDeviceCount >= maxDevices) {
 							throw new Error(
-								`Appliance limit reached for current plan (${maxDevices} max).`,
+								`Equipment limit reached for current plan (${maxDevices} max).`,
 							);
 						}
 

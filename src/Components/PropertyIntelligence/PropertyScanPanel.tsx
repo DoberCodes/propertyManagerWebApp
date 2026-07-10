@@ -56,6 +56,7 @@ const CATEGORY_ORDER: PropertyScanCategory[] = [
 	'Overdue Work',
 	'Missing Information',
 	'Maintenance Opportunities',
+	'Schedule Optimization',
 	'Documentation Gaps',
 	'Suggested Next Steps',
 ];
@@ -180,6 +181,9 @@ const getRecommendationImpact = (
 			}
 			if (recommendation.category === 'Maintenance Opportunities') {
 				return `Addressing this now helps turn ${subjectHistory} into a clearer maintenance plan.`;
+			}
+			if (recommendation.category === 'Schedule Optimization') {
+				return 'Reviewing this now helps keep future reminders aligned with the maintenance history.';
 			}
 			if (recommendation.category === 'Overdue Work') {
 				return 'Reviewing this now helps keep urgent maintenance visible.';

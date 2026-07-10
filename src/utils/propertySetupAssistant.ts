@@ -40,7 +40,7 @@ export const PROPERTY_SETUP_AREAS: PropertySetupAssistantArea[] = [
 	{
 		id: 'kitchen',
 		title: 'Kitchen',
-		hint: 'Review common kitchen appliances and fixtures.',
+		hint: 'Review common kitchen equipment and fixtures.',
 		itemIds: [
 			'refrigerator',
 			'dishwasher',
@@ -58,7 +58,7 @@ export const PROPERTY_SETUP_AREAS: PropertySetupAssistantArea[] = [
 	{
 		id: 'laundry',
 		title: 'Laundry',
-		hint: 'Track laundry appliances and vent-related care.',
+		hint: 'Track laundry equipment and vent-related care.',
 		itemIds: ['washer', 'dryer'],
 	},
 	{

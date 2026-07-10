@@ -9,7 +9,7 @@ Maintenance Events represent the historical record of work performed within Main
 The `maintenanceEvents` collection serves as the canonical maintenance timeline for:
 
 * Properties
-* Appliances & Systems
+* Equipment
 * Tasks
 * Contractors
 * Documentation
@@ -17,7 +17,7 @@ The `maintenanceEvents` collection serves as the canonical maintenance timeline 
 
 Maintenance Events preserve historical context even when related records change over time.
 
-Tasks may be edited, appliances may be replaced, contractors may be removed, and properties may evolve.
+Tasks may be edited, equipment may be replaced, contractors may be removed, and properties may evolve.
 
 Maintenance Events exist to ensure completed work remains part of the permanent maintenance record.
 
@@ -55,7 +55,7 @@ maintenanceHistory/{historyId}
 Maintenance Events may be associated with:
 
 * Properties
-* Appliances & Systems
+* Equipment
 * Tasks
 * Contractors
 * Attachments
@@ -73,7 +73,7 @@ Maintenance Event
 ```text
 Property
   ↓
-Appliance & System
+Equipment
   ↓
 Maintenance Event
 ```
@@ -354,7 +354,7 @@ By property:
 
 * propertyId
 
-By appliance/system:
+By equipment:
 
 * deviceIds (array membership)
 
@@ -405,14 +405,14 @@ Maintenance Events should:
 * Remain append-oriented whenever possible.
 * Support auditing and reporting.
 * Support maintenance history views.
-* Support appliance history views.
+* Support equipment history views.
 * Support property history views.
 * Support Maintley Intelligence recommendations.
 
 Maintenance Events should not:
 
 * Replace task records.
-* Replace appliance records.
+* Replace equipment records.
 * Replace contractor records.
 * Become a duplicate source of property information.
 
