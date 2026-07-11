@@ -318,7 +318,7 @@ Describes:
 
 * Maintley Intelligence
 * Recommendations
-* Appliance Profiles
+* Equipment Profiles
 * Guidance systems
 
 Examples:

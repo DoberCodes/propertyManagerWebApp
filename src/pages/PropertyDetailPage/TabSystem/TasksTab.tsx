@@ -6,7 +6,6 @@ import {
 	faTrash,
 	faUserPlus,
 	faCheckCircle,
-	faArrowUpAZ,
 	faFan,
 	faSnowflake,
 	faClipboardCheck,
@@ -14,6 +13,8 @@ import {
 	faScrewdriverWrench,
 	faClockRotateLeft,
 	faBell,
+	faChevronDown,
+	faChevronUp,
 } from '@fortawesome/free-solid-svg-icons';
 import { TasksTabProps } from '../../../types/PropertyDetailPage.types';
 import {
@@ -68,9 +69,13 @@ import {
 	ActiveFilterChips,
 	ActiveFilterChip,
 	ActiveFilterChipClear,
-	CompactFilterResultCount,
+	CollapsibleFilterBody,
+	CollapsibleFilterShell,
 	DesktopCreateAction,
 	DesktopFilterArea,
+	FilterCollapseButton,
+	FilterSummaryResultCount,
+	FilterSummaryStack,
 } from './mobileUiShared';
 import { PropertyTabFilterPanel } from './PropertyTabFilterPanel';
 import { Task, TaskFormData } from '../../../types/Task.types';
@@ -783,7 +788,9 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 			<SectionLead>
 				Manage recurring tasks, due dates, and overdue maintenance in one place.
 			</SectionLead>
-			<TabSummaryBar>
+			<CollapsibleFilterShell>
+				<FilterSummaryStack>
+					<TabSummaryBar>
 				<TabSummaryPill
 					as='button'
 					onClick={() => setQuickView('all')}
@@ -840,7 +847,21 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 					}}>
 					Next 30 Days: {next30TaskCount}
 				</TabSummaryPill>
-			</TabSummaryBar>
+					</TabSummaryBar>
+					<FilterSummaryResultCount>
+						Showing {filteredTasks.length} of {processedTasks.length} tasks for{' '}
+						{property?.title || 'this property'}
+					</FilterSummaryResultCount>
+				</FilterSummaryStack>
+				<FilterCollapseButton
+					type='button'
+					onClick={() => setShowFilters((value) => !value)}
+					aria-expanded={showFilters}
+					aria-label={showFilters ? 'Collapse task filters' : 'Expand task filters'}
+					title={showFilters ? 'Collapse filters' : 'Expand filters'}>
+					<FontAwesomeIcon icon={showFilters ? faChevronUp : faChevronDown} />
+				</FilterCollapseButton>
+			</CollapsibleFilterShell>
 			{canCreateTasks && (
 				<DesktopCreateAction>
 					<Toolbar style={{ marginBottom: 12 }}>
@@ -864,11 +885,9 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 					</Toolbar>
 				</DesktopCreateAction>
 			)}
-			<CompactFilterResultCount>
-				Showing {filteredTasks.length} of {processedTasks.length} tasks for{' '}
-				{property?.title || 'this property'}
-			</CompactFilterResultCount>
-			<PropertyTabFilterPanel
+			{showFilters && (
+				<CollapsibleFilterBody>
+					<PropertyTabFilterPanel
 				propertyName={property?.title || 'this property'}
 				resourceName='tasks'
 				searchPlaceholder='Search tasks...'
@@ -931,25 +950,6 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 						<option value='priority'>Sort: Priority</option>
 						<option value='title'>Sort: Title</option>
 					</select>
-					<button
-						onClick={() => setShowFilters(!showFilters)}
-						style={{
-							padding: isMobile ? '10px 12px' : '8px 10px',
-							width: isMobile ? '100%' : undefined,
-							border: '1px solid #e5e7eb',
-							borderRadius: '4px',
-							background: '#f9fafb',
-							cursor: 'pointer',
-							display: 'flex',
-							alignItems: 'center',
-							justifyContent: 'center',
-							gap: 6,
-							whiteSpace: 'nowrap',
-						}}
-						title={showFilters ? 'Hide filters' : 'Show filters'}>
-						<FontAwesomeIcon icon={faArrowUpAZ} />
-						{showFilters ? 'Hide Filters' : 'Filters'}
-					</button>
 				</div>
 				{activeFilterChips.length > 0 && (
 					<ActiveFilterChips>
@@ -967,15 +967,15 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 						</ActiveFilterChipClear>
 					</ActiveFilterChips>
 				)}
-				{showFilters && (
-					<FilterBar
-						filters={taskFilters}
-						onFiltersChange={setFilters}
-						values={filters}
-						useCustomSelect={true}
-					/>
-				)}
+				<FilterBar
+					filters={taskFilters}
+					onFiltersChange={setFilters}
+					values={filters}
+					useCustomSelect={true}
+				/>
 			</DesktopFilterArea>
+				</CollapsibleFilterBody>
+			)}
 
 			{filteredTasks.length > 0 ? (
 				<>

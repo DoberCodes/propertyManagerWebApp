@@ -9,7 +9,7 @@ Maintenance Events represent the historical record of work performed within Main
 The `maintenanceEvents` collection serves as the canonical maintenance timeline for:
 
 * Properties
-* Appliances & Systems
+* Equipment
 * Tasks
 * Contractors
 * Documentation
@@ -17,7 +17,7 @@ The `maintenanceEvents` collection serves as the canonical maintenance timeline 
 
 Maintenance Events preserve historical context even when related records change over time.
 
-Tasks may be edited, appliances may be replaced, contractors may be removed, and properties may evolve.
+Tasks may be edited, equipment may be replaced, contractors may be removed, and properties may evolve.
 
 Maintenance Events exist to ensure completed work remains part of the permanent maintenance record.
 
@@ -55,7 +55,7 @@ maintenanceHistory/{historyId}
 Maintenance Events may be associated with:
 
 * Properties
-* Appliances & Systems
+* Equipment
 * Tasks
 * Contractors
 * Attachments
@@ -73,7 +73,7 @@ Maintenance Event
 ```text
 Property
   ↓
-Appliance & System
+Equipment
   ↓
 Maintenance Event
 ```
@@ -128,6 +128,10 @@ Common fields:
 * createdByName
 * createdAt
 * updatedAt
+
+`completionDate` may be stored as a date-only string such as `2026-07-10`.
+Date-only maintenance values are calendar dates and should be displayed in the
+user's local calendar without shifting through UTC conversion.
 * priority
 * tags
 * linkedTaskIds
@@ -246,7 +250,10 @@ Current shape:
 
 Some task workflows support more detailed cost structures.
 
-When linking task financials to maintenance events, verify conversion and normalization behavior.
+When linking task financials to maintenance events, detailed estimate and actual
+cost breakdowns should be preserved. Summary totals such as `estimatedCost` and
+`actualCost` should be derived during event creation when they are not already
+present so cost views and reports can read a consistent total.
 
 When a completed task creates a Maintenance Event, the Maintenance Event becomes the owner of the recorded cost for that completed work. The original task may remain linked through `originalTaskId` or `linkedTaskIds`, but derived cost views should use the event cost and avoid counting the same completed task financials twice.
 
@@ -354,7 +361,7 @@ By property:
 
 * propertyId
 
-By appliance/system:
+By equipment:
 
 * deviceIds (array membership)
 
@@ -405,14 +412,14 @@ Maintenance Events should:
 * Remain append-oriented whenever possible.
 * Support auditing and reporting.
 * Support maintenance history views.
-* Support appliance history views.
+* Support equipment history views.
 * Support property history views.
 * Support Maintley Intelligence recommendations.
 
 Maintenance Events should not:
 
 * Replace task records.
-* Replace appliance records.
+* Replace equipment records.
 * Replace contractor records.
 * Become a duplicate source of property information.
 

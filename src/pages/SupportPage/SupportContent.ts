@@ -148,7 +148,7 @@ export const helpfulArticles: HelpfulArticle[] = [
 		slug: 'build-a-useful-property-record',
 		title: 'Build a useful property record',
 		summary:
-			'Create the foundation for appliances, tasks, documents, contractors, and maintenance history.',
+			'Create the foundation for equipment, tasks, documents, contractors, and maintenance history.',
 		readTime: '5 min read',
 		path: '/properties',
 		actionLabel: 'Go to Properties',
@@ -162,7 +162,7 @@ export const helpfulArticles: HelpfulArticle[] = [
 			{
 				heading: 'What this helps you do',
 				paragraphs: [
-					'Properties are the primary organizational unit in Maintley. A property can hold appliances and systems, tasks, documents, contractors, tenants, and Maintenance History.',
+					'Properties are the primary organizational unit in Maintley. A property can hold equipment, tasks, documents, contractors, tenants, and Maintenance History.',
 					'If you manage more than one property, groups can make the Properties page easier to scan without changing ownership, billing, or access rules.',
 				],
 				image: {
@@ -176,7 +176,7 @@ export const helpfulArticles: HelpfulArticle[] = [
 				heading: 'How to start',
 				steps: [
 					'Add the real property address and a recognizable property name.',
-					'Add the most important appliances or systems first.',
+					'Add the most important equipment first.',
 					'Create tasks for work that needs attention.',
 					'Attach documents to the property, system, task, or completed maintenance record they support.',
 				],
@@ -221,7 +221,7 @@ export const helpfulArticles: HelpfulArticle[] = [
 				heading: 'How to use it',
 				steps: [
 					'Create a task with a clear action title.',
-					'Link the correct property and appliance or system when possible.',
+					'Link the correct property and equipment when possible.',
 					'Assign the task if someone else owns the next action.',
 					'When the work is finished, complete the task and add the service details.',
 				],
@@ -247,14 +247,14 @@ export const helpfulArticles: HelpfulArticle[] = [
 	},
 	{
 		slug: 'track-appliances-and-home-systems',
-		title: 'Track appliances and home systems',
+		title: 'Track equipment and home systems',
 		summary:
 			'Keep equipment details, parts, documents, tasks, and service history connected.',
 		readTime: '5 min read',
 		path: '/devices',
-		actionLabel: 'Go to Appliances',
+		actionLabel: 'Go to Equipment',
 		introduction:
-			'Appliance and system profiles keep model details, service records, parts, documents, and linked tasks in one place.',
+			'Equipment profiles keep model details, service records, parts, documents, and linked tasks in one place.',
 		founderNote: [
 			'Equipment details are easiest to capture when you are standing next to the system or reviewing a service record.',
 			'Maintley helps preserve that information so a future repair, warranty question, or replacement does not start from scratch.',
@@ -263,14 +263,14 @@ export const helpfulArticles: HelpfulArticle[] = [
 			{
 				heading: 'What this helps you do',
 				paragraphs: [
-					'Use appliance and system profiles for equipment you maintain, repair, replace, or reference during service work. Common examples include HVAC systems, water heaters, appliances, roofs, generators, pumps, and safety equipment.',
+					'Use equipment profiles for items you maintain, repair, replace, or reference during service work. Common examples include HVAC systems, water heaters, kitchen equipment, roofs, generators, pumps, and safety equipment.',
 					'Each profile can hold manufacturer details, model and serial numbers, install dates, filters, parts, notes, documents, tasks, and Maintenance History.',
 				],
 				image: {
 					src: '/screenshots/desktop_appliance.png',
-					alt: 'Appliance or system profile showing equipment details and linked records.',
+					alt: 'Equipment profile showing details and linked records.',
 					caption:
-						'Appliance and system profiles keep service details, files, tasks, and history connected.',
+						'Equipment profiles keep service details, files, tasks, and history connected.',
 				},
 			},
 			{
@@ -320,7 +320,7 @@ export const helpfulArticles: HelpfulArticle[] = [
 				heading: 'Where to attach files',
 				steps: [
 					'Attach general inspections or property photos to the property.',
-					'Attach manuals, warranties, label photos, and equipment receipts to the appliance or system.',
+					'Attach manuals, warranties, label photos, and receipts to the equipment.',
 					'Attach invoices, service reports, receipts, and work photos to the completed maintenance record.',
 				],
 				image: {
@@ -767,7 +767,7 @@ export const helpfulArticles: HelpfulArticle[] = [
 			{
 				heading: 'Where to save it',
 				paragraphs: [
-					'Save completed work in Maintenance History or by completing the related task. Link the record to the correct property and appliance or system whenever possible.',
+					'Save completed work in Maintenance History or by completing the related task. Link the record to the correct property and equipment whenever possible.',
 				],
 				image: {
 					src: '/screenshots/desktop_taskhistory.png',

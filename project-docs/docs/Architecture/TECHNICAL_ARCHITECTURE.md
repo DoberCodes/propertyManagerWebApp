@@ -136,6 +136,8 @@ Scanning & OCR:
 * tesseract.js
 * Barcode parsing utilities
 * Label parsing utilities
+* Browser/PWA scanning through getUserMedia, BarcodeDetector, and ZXing fallback
+* Android native scanner bridge through Capacitor, CameraX, and ML Kit barcode scanning
 
 ---
 
@@ -281,7 +283,7 @@ Feature APIs provide access to:
 
 * Properties
 * Tasks
-* Appliances & Systems
+* Equipment
 * Contractors
 * Team Members
 * Tenants
@@ -303,7 +305,7 @@ Maintley Intelligence is a derived system.
 Maintley Intelligence consumes:
 
 * Properties
-* Appliances & Systems
+* Equipment
 * Tasks
 * Maintenance Events
 * Documentation
@@ -533,7 +535,7 @@ Used for:
 
 * Property data
 * Tasks
-* Appliances & Systems
+* Equipment
 * Contractors
 * Maintenance records
 
@@ -709,7 +711,7 @@ See:
 Firebase Storage is used for:
 
 * Property photos
-* Appliance photos
+* Equipment photos
 * Maintenance attachments
 * Warranty documents
 * User images

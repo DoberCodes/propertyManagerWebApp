@@ -37,7 +37,7 @@ This information is used solely to operate, maintain, and improve the Service.
 
 Maintley does not:
 
-Monitor physical properties, appliances, or equipment in real time
+Monitor physical properties or equipment in real time
 
 Verify completion of maintenance tasks
 

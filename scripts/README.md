@@ -133,6 +133,9 @@ yarn migrate:property-memberships:apply
 yarn migrate:maintenance-events
 yarn migrate:maintenance-events:apply
 
+yarn migrate:equipment-terminology
+yarn migrate:equipment-terminology:apply
+
 yarn migrate:orphaned-data
 yarn migrate:orphaned-data:apply
 
@@ -260,6 +263,7 @@ silently fall back to a preview.
 * cleanupSharedPropertiesData.cjs
 * migrateFixReportAccountIntegrity.cjs
 * migrateMaintenanceHistoryToEvents.cjs
+* migrateEquipmentTerminology.cjs
 * migratePropertyGroupMemberships.cjs
 * migratePruneInactiveUserData.cjs
 * migrateRemoveOrphanedData.cjs

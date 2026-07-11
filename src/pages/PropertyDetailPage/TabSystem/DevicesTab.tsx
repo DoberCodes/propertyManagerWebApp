@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import styled from 'styled-components';
 import {
@@ -83,6 +83,7 @@ import {
 } from '../../../utils/systemTypes';
 import { COLORS } from '../../../constants/colors';
 import { expectsEquipmentIdentityDetails } from '../../../intelligence/assetRecordExpectations';
+import { formatDisplayDate, getDisplayDateTime, parseDisplayDate } from '../../../utils/dateDisplay';
 
 const SectionLead = styled.p`
 	margin: -4px 0 14px;
@@ -216,8 +217,8 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 
 		openPropertyTasks.forEach((task: any) => {
 			if (!task?.dueDate) return;
-			const dueDate = new Date(task.dueDate);
-			if (Number.isNaN(dueDate.getTime())) return;
+			const dueDate = parseDisplayDate(task.dueDate);
+			if (!dueDate) return;
 			dueDate.setHours(0, 0, 0, 0);
 			if (dueDate >= today) return;
 
@@ -274,7 +275,10 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 	const getResolvedDeviceStatus = (device: any) =>
 		device?.decommissionDate ? 'Decommissioned' : device?.status || 'Active';
 
-	const hasApplianceDetails = (device: any) => {
+	const getDeviceInstallDate = useCallback((device: any): string =>
+		String(device?.installationDate || device?.installDate || '').trim(), []);
+
+	const hasApplianceDetails = useCallback((device: any) => {
 		const serviceItems = Array.isArray(device?.serviceItems) ? device.serviceItems : [];
 		const files = Array.isArray(device?.files) ? device.files : [];
 		return Boolean(
@@ -286,12 +290,12 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 			String(device?.partNumber || '').trim() ||
 			String(device?.filterSize || '').trim() ||
 			String(device?.specNotes || '').trim() ||
-			String(device?.installationDate || '').trim() ||
+			getDeviceInstallDate(device) ||
 			String(device?.decommissionDate || '').trim() ||
 			serviceItems.length > 0 ||
 			files.length > 0,
 		);
-	};
+	}, [getDeviceInstallDate]);
 
 	const getLastServicedDate = (device: any): string => {
 		const history = Array.isArray(device?.maintenanceHistory)
@@ -300,14 +304,14 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 		const latest = history
 			.filter((entry: any) => entry?.date)
 			.sort((a: any, b: any) => {
-				const left = new Date(a.date).getTime() || 0;
-				const right = new Date(b.date).getTime() || 0;
+				const left = getDisplayDateTime(a.date);
+				const right = getDisplayDateTime(b.date);
 				return right - left;
 			})[0];
 		if (!latest?.date) return 'Last serviced not recorded';
-		const date = new Date(latest.date);
-		if (Number.isNaN(date.getTime())) return 'Last serviced not recorded';
-		return `Last serviced ${date.toLocaleDateString()}`;
+		const formatted = formatDisplayDate(latest.date);
+		if (!formatted) return 'Last serviced not recorded';
+		return `Last serviced ${formatted}`;
 	};
 
 	const linkedOpenTaskCount = useMemo(
@@ -407,7 +411,7 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 			}
 			return String(left.type || '').localeCompare(String(right.type || ''));
 		});
-	}, [devices, filters, sortBy, linkedOpenTaskCountByDevice]);
+	}, [devices, filters, sortBy, linkedOpenTaskCountByDevice, hasApplianceDetails]);
 
 	const clearDeviceFilters = () => {
 		setFilters({});
@@ -416,8 +420,8 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 
 	const formatRelativeTime = (value?: string): string => {
 		if (!value) return 'No activity recorded yet';
-		const target = new Date(value).getTime();
-		if (Number.isNaN(target)) return 'No activity recorded yet';
+		const target = getDisplayDateTime(value);
+		if (!target) return 'No activity recorded yet';
 
 		const now = Date.now();
 		const diffMs = now - target;
@@ -564,7 +568,7 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 						</div>
 						<div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', fontSize: 12, color: '#64748b' }}>
 							{expectsIdentityDetails && (
-								<span>Installed {formatRelativeTime(row.installationDate)}</span>
+								<span>Installed {formatRelativeTime(getDeviceInstallDate(row))}</span>
 							)}
 							{row.decommissionDate && (
 								<span style={{ color: '#64748b', fontWeight: 700 }}>
@@ -649,7 +653,7 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 					<div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
 						<div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{activityText}</div>
 						<div style={{ fontSize: 12, color: '#64748b' }}>
-							Last lifecycle update: {formatRelativeTime(row.decommissionDate || row.installationDate)}
+							Last lifecycle update: {formatRelativeTime(row.decommissionDate || getDeviceInstallDate(row))}
 						</div>
 					</div>
 				);
@@ -818,7 +822,7 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 			model: device.model || '',
 			serialNumber: device.serialNumber || '',
 			serviceItems: device.serviceItems || [],
-			installationDate: device.installationDate || '',
+			installationDate: getDeviceInstallDate(device),
 			decommissionDate: device.decommissionDate || '',
 			status: getResolvedDeviceStatus(device),
 			location: device.location || { propertyId: property.id },
@@ -974,7 +978,19 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 			feedback.notify('Your role can view equipment but cannot delete it.');
 			return;
 		}
-		setDeleteDialogMessage('Are you sure you want to delete this equipment record?');
+		const device = devices.find((item: any) => String(item.id) === String(deviceId));
+		const equipmentName = [
+			device?.brand,
+			device
+				? getDeviceAssetVariant(device) || getDeviceAssetType(device) || device.type
+				: '',
+		]
+			.filter(Boolean)
+			.join(' ')
+			.trim() || 'this equipment record';
+		setDeleteDialogMessage(
+			`Are you sure you want to delete "${equipmentName}"? This cannot be undone.`,
+		);
 		setPendingDeleteDeviceId(deviceId);
 		setDeleteDialogOpen(true);
 	};

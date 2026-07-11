@@ -44,6 +44,7 @@ describe('task lifecycle helpers', () => {
 				actual: {
 					contractorCost: 200,
 				},
+				actualCost: 200,
 			},
 			nowIso: '2026-07-05T12:00:00.000Z',
 		});
@@ -61,6 +62,7 @@ describe('task lifecycle helpers', () => {
 				actual: {
 					contractorCost: 200,
 				},
+				actualCost: 200,
 			},
 			linkedTaskIds: ['task-1'],
 			originalTaskId: 'task-1',

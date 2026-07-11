@@ -47,7 +47,7 @@ Best for:
 
 * Homeowners getting started
 * Property documentation
-* Appliance tracking
+* Equipment tracking
 * Manual maintenance tracking
 
 ---
@@ -122,11 +122,11 @@ Best for:
 
 ---
 
-# Appliances, Systems & Assets
+# Equipment & Assets
 
 | Feature                               | Free      | Homeowner+ | Property  | Portfolio |
 | ------------------------------------- | --------- | ---------- | --------- | --------- |
-| Systems / Appliances / Assets         | 15        | Unlimited  | Unlimited | Unlimited |
+| Equipment / Assets         | 15        | Unlimited  | Unlimited | Unlimited |
 | Warranty Information                  | ✓         | ✓          | ✓         | ✓         |
 | Serial Numbers                        | ✓         | ✓          | ✓         | ✓         |
 | Model Numbers                         | ✓         | ✓          | ✓         | ✓         |
@@ -136,7 +136,7 @@ Best for:
 
 ### Notes
 
-* Assets may include appliances, systems, vehicles, generators, tools, equipment, trailers, and other maintainable items.
+* Assets may include equipment, systems, vehicles, generators, tools, equipment, trailers, and other maintainable items.
 * Free users may view recommendations.
 * Paid plans may generate maintenance tasks from recommendations.
 

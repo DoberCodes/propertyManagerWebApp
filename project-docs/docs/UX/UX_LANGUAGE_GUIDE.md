@@ -177,7 +177,6 @@ Use:
 * Property
 * Systems
 * Equipment
-* Appliances
 * Tasks
 * Maintenance
 * Service History
@@ -242,7 +241,6 @@ Use:
 System
 Systems
 Equipment
-Appliance
 ```
 
 Avoid:
@@ -605,7 +603,7 @@ No systems found.
 Use:
 
 ```text id="mf2k7k"
-Add systems like your HVAC, water heater, roof, appliances, generator, or other equipment you want to track.
+Add equipment like your HVAC, water heater, roof, generator, or other home systems you want to track.
 ```
 
 ---

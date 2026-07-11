@@ -40,6 +40,7 @@ describe('task lifecycle workflows', () => {
 	it('merges completion financials without losing task estimates', () => {
 		expect(
 			mergeCompletionFinancials(baseTask.financials, {
+				actualCost: 45,
 				actual: {
 					materialsCost: 45,
 				},
@@ -52,6 +53,7 @@ describe('task lifecycle workflows', () => {
 			actual: {
 				materialsCost: 45,
 			},
+			actualCost: 45,
 			notes: 'Use property safety checklist.',
 		});
 	});
@@ -75,6 +77,7 @@ describe('task lifecycle workflows', () => {
 				completedBy: 'member-1',
 				completedByPlan: 'portfolio',
 				financials: {
+					actualCost: 95,
 					actual: {
 						contractorCost: 95,
 					},
@@ -99,6 +102,12 @@ describe('task lifecycle workflows', () => {
 				data: {
 					completedByPlan: 'portfolio',
 				},
+				financials: expect.objectContaining({
+					actual: {
+						contractorCost: 95,
+					},
+					actualCost: 95,
+				}),
 			}),
 		);
 		expect(deps.createTask).toHaveBeenCalledTimes(1);

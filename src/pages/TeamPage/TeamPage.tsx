@@ -1127,16 +1127,16 @@ export default function TeamPage() {
 	};
 
 	const handleDeleteTeamGroup = async (groupId: string) => {
+		const groupToDelete = groupsWithMembers.find((g) => g.id === groupId);
 		setWarningDialogTitle('Delete Team Group');
 		setWarningDialogMessage(
-			'Are you sure you want to delete this team group? This action cannot be undone.',
+			`Are you sure you want to delete "${groupToDelete?.name || 'this team group'}"? This action cannot be undone.`,
 		);
 		setWarningDialogConfirmText('Delete');
 		setWarningDialogCancelText('Cancel');
 		setWarningDialogOnConfirm(() => async () => {
 			setWarningDialogOpen(false);
 			try {
-				const groupToDelete = groupsWithMembers.find((g) => g.id === groupId);
 				await deleteTeamGroupApi(groupId).unwrap();
 				try {
 					if (groupToDelete) {
@@ -1294,12 +1294,14 @@ export default function TeamPage() {
 							{canManage && isAdvancedTeamManagement && group.id !== 'simple-team' && (
 								<TeamGroupActions>
 									<TeamGroupActionButton
+										aria-label='Edit'
 										title='Edit group'
 										onClick={() => handleEditTeamGroup(group.id)}>
 										<FontAwesomeIcon icon={faPen} />
 										✎
 									</TeamGroupActionButton>
 									<TeamGroupActionButton
+										aria-label='Delete'
 										title='Delete group'
 										onClick={() => handleDeleteTeamGroup(group.id)}>
 										<FontAwesomeIcon icon={faTrash} />
@@ -1336,6 +1338,7 @@ export default function TeamPage() {
 												{hasRevocableTeamAccess(member) && (
 													<TeamMemberActionButton
 														className='revoke'
+														aria-label='Revoke'
 														title='Revoke access'
 														onClick={(e) => {
 															e.stopPropagation();
@@ -1347,6 +1350,7 @@ export default function TeamPage() {
 												)}
 												<TeamMemberActionButton
 													className='delete'
+													aria-label='Delete'
 													title='Delete team member'
 													onClick={(e) => {
 														e.stopPropagation();
@@ -1661,6 +1665,9 @@ export default function TeamPage() {
 									</CollapsibleDialogBody>
 								</CollapsibleDialogSection>
 
+							</LeftColumn>
+
+							<RightColumn>
 								<CollapsibleDialogSection
 									open={teamMemberDialogOpenSections.role}
 									onToggle={handleTeamMemberDialogSectionToggle('role')}>
@@ -1730,7 +1737,6 @@ export default function TeamPage() {
 									</CollapsibleDialogBody>
 								</CollapsibleDialogSection>
 
-								{/* Promo Code Section */}
 								{canManage && (
 									<CollapsibleDialogSection
 										open={teamMemberDialogOpenSections.access}
@@ -1893,7 +1899,6 @@ export default function TeamPage() {
 																					code: promoCode,
 																				}).unwrap();
 
-																			// Update the editing member with new promo code data
 																			setEditingMember({
 																				...editingMember,
 																				invitationCodeId: result.id,
@@ -1905,7 +1910,6 @@ export default function TeamPage() {
 																				redeemedAt: null,
 																			} as any);
 
-																			// Update the team member record in the database
 																			await updateTeamMemberApi({
 																				id: editingMember!.id,
 																				updates: {
@@ -1952,9 +1956,6 @@ export default function TeamPage() {
 									</CollapsibleDialogSection>
 								)}
 
-							</LeftColumn>
-
-							<RightColumn>
 								<CollapsibleDialogSection
 									open={teamMemberDialogOpenSections.properties}
 									onToggle={handleTeamMemberDialogSectionToggle('properties')}>

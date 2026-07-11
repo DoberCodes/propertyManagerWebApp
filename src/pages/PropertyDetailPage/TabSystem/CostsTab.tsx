@@ -10,6 +10,7 @@ import {
 	formatCurrency,
 	getFinancialDisplayTotal,
 } from '../../../utils/financialUtils';
+import { formatDisplayDate, getDisplayDateTime } from '../../../utils/dateDisplay';
 import {
 	getMaintenanceEventDate,
 	getMaintenanceEventTitle,
@@ -36,18 +37,16 @@ type CostRecord = {
 
 const formatDate = (value?: string) => {
 	if (!value) return 'No date recorded';
-	const date = new Date(value);
-	if (Number.isNaN(date.getTime())) return value;
-	return date.toLocaleDateString(undefined, {
+	return formatDisplayDate(value, {
 		month: 'short',
 		day: 'numeric',
 		year: 'numeric',
-	});
+	}) || value;
 };
 
 const sortByDateDesc = (a: CostRecord, b: CostRecord) => {
-	const aTime = a.date ? new Date(a.date).getTime() : 0;
-	const bTime = b.date ? new Date(b.date).getTime() : 0;
+	const aTime = getDisplayDateTime(a.date);
+	const bTime = getDisplayDateTime(b.date);
 	return bTime - aTime;
 };
 

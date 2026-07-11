@@ -227,7 +227,7 @@ export const UnitsTab: React.FC<UnitsTabProps> = ({
 											{unit.occupantCountResolved} occupant{unit.occupantCountResolved === 1 ? '' : 's'}
 										</MobileFeedLineMuted>
 										<MobileFeedLine>
-											Appliances: <strong style={{ color: '#0f172a' }}><UnitDeviceCount unitId={unit.id} /></strong>
+											Equipment: <strong style={{ color: '#0f172a' }}><UnitDeviceCount unitId={unit.id} /></strong>
 										</MobileFeedLine>
 									</MobileFeedMeta>
 								</div>

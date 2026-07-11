@@ -52,7 +52,7 @@ describe('propertyIntelligenceScan Quick Property Scan', () => {
 				model: '',
 				serialNumber: '',
 				installationDate: '',
-				type: index === 0 ? 'Smoke Detector' : `Appliance ${index}`,
+				type: index === 0 ? 'Smoke Detector' : `Equipment ${index}`,
 			}),
 		);
 		const scan = runPropertyScanV1({

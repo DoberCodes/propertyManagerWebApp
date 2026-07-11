@@ -127,7 +127,7 @@ Contains:
 * Property Knowledge Acquisition
 * Property Knowledge Acquisition source support status
 * Recommendation generation
-* Appliance profile guidance
+* Equipment profile guidance
 * Setup guidance
 * Insight generation
 

@@ -7,7 +7,7 @@ Decision Source: Manual
 
 ## Context
 
-Maintley is focusing on the core maintenance loop: properties, appliances/systems, tasks, and maintenance history.
+Maintley is focusing on the core maintenance loop: properties, equipment, tasks, and maintenance history.
 
 Units and suites add complexity before the core loop is fully clear to users. The codebase still contains unit and suite support, but the current product direction is to keep those concepts out of the primary user experience.
 

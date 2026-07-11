@@ -676,7 +676,7 @@ export const UnitDetailPage: React.FC = () => {
 	const tabsConfig: TabConfig[] = [
 		{ id: 'info', label: 'Unit Info' },
 		{ id: 'occupants', label: `Occupants (${unitOccupants.length})` },
-		{ id: 'devices', label: `Appliances (${unitDevices.length})` },
+		{ id: 'devices', label: `Equipment (${unitDevices.length})` },
 		{ id: 'tasks', label: `Tasks (${unitTasks.length})` },
 		{ id: 'history', label: `Maintenance History (${unitMaintenanceHistory.length})` },
 		{ id: 'requests', label: `Requests (${unitRequests.length})` },
@@ -866,7 +866,7 @@ export const UnitDetailPage: React.FC = () => {
 
 	const handleCreateDeviceQuick = async () => {
 		if (!property?.id || !unit?.id) return;
-		const type = window.prompt('Appliance type (required):', 'HVAC') || '';
+		const type = window.prompt('Equipment type (required):', 'HVAC') || '';
 		if (!type.trim()) return;
 		const brand = window.prompt('Brand (required):', 'Unknown') || '';
 		if (!brand.trim()) return;
@@ -882,39 +882,39 @@ export const UnitDetailPage: React.FC = () => {
 				status: 'Active',
 				location: { propertyId: property.id, unitId: unit.id },
 			} as any).unwrap();
-			feedback.notify('Appliance created');
+			feedback.notify('Equipment created');
 		} catch (error) {
-			console.error('Failed to create appliance:', error);
-			feedback.notify('Failed to create appliance');
+			console.error('Failed to create equipment:', error);
+			feedback.notify('Failed to create equipment');
 		}
 	};
 
 	const handleEditDeviceQuick = async (device: any) => {
 		const nextStatus = window.prompt(
-			'Update appliance status (Active, Maintenance, Broken, Decommissioned):',
+			'Update equipment status (Active, Maintenance, Broken, Decommissioned):',
 			device.status || 'Active',
 		);
 		if (!nextStatus) return;
 		try {
 			await updateDevice({ id: device.id, updates: { status: nextStatus as any } }).unwrap();
-			feedback.notify('Appliance updated');
+			feedback.notify('Equipment updated');
 		} catch (error) {
-			console.error('Failed to update appliance:', error);
-			feedback.notify('Failed to update appliance');
+			console.error('Failed to update equipment:', error);
+			feedback.notify('Failed to update equipment');
 		}
 	};
 
 	const handleDeleteDeviceQuick = async (device: any) => {
 		if (!device?.id) return;
-		if (!window.confirm(`Delete appliance ${device.type || ''} ${device.model || ''}?`)) {
+		if (!window.confirm(`Delete equipment "${[device.brand, device.type, device.model].filter(Boolean).join(' ') || 'record'}"?`)) {
 			return;
 		}
 		try {
 			await deleteDevice(device.id).unwrap();
-			feedback.notify('Appliance deleted');
+			feedback.notify('Equipment deleted');
 		} catch (error) {
-			console.error('Failed to delete appliance:', error);
-			feedback.notify('Failed to delete appliance');
+			console.error('Failed to delete equipment:', error);
+			feedback.notify('Failed to delete equipment');
 		}
 	};
 
@@ -1109,7 +1109,7 @@ export const UnitDetailPage: React.FC = () => {
 									<StatGrid>
 										<StatCard>
 											<StatValue>{unitDevices.length}</StatValue>
-											<StatLabel>Appliances</StatLabel>
+											<StatLabel>Equipment</StatLabel>
 										</StatCard>
 										<StatCard>
 											<StatValue>{unitTasks.length}</StatValue>
@@ -1241,7 +1241,7 @@ export const UnitDetailPage: React.FC = () => {
 					</div>
 				)}
 
-				{/* Appliances Tab */}
+				{/* Equipment Tab */}
 				{activeTab === 'devices' && (
 					<div>
 						<SectionContainer>
@@ -1255,21 +1255,21 @@ export const UnitDetailPage: React.FC = () => {
 									Active: {unitDevices.filter((d: any) => (d.status || 'Active') === 'Active').length}
 								</SummaryPill>
 								<SummaryPill>Needs Attention: {needsAttentionDeviceCount}</SummaryPill>
-								<SummaryPill>Open Appliance Tasks: {linkedOpenTaskCount}</SummaryPill>
+								<SummaryPill>Open Equipment Tasks: {linkedOpenTaskCount}</SummaryPill>
 							</SummaryBar>
 							<Toolbar>
 								<PrimaryActionButton onClick={handleCreateDeviceQuick}>
 									<FontAwesomeIcon icon={faPlus} style={{ marginRight: 8 }} />
-									Add Appliance
+									Add Equipment
 								</PrimaryActionButton>
 							</Toolbar>
 							{devicesLoading ? (
 								<LoadingState
 									loadingKey='unit-appliances'
-									title='Loading appliances'
-									message='Preparing this unit appliance list.'
+									title='Loading equipment'
+									message='Preparing this unit equipment list.'
 									steps={[
-										'Reading appliance information...',
+										'Reading equipment information...',
 										'Checking upcoming maintenance...',
 										'Connecting maintenance history...',
 										'Almost ready...',
@@ -1292,7 +1292,7 @@ export const UnitDetailPage: React.FC = () => {
 															<FontAwesomeIcon icon={iconStyle.icon} />
 														</DeviceIcon>
 														<DeviceTitle>
-															{getDeviceName(device.id, { devices: unitDevices }) || device.type || 'Appliance'}
+															{getDeviceName(device.id, { devices: unitDevices }) || device.type || 'Equipment'}
 														</DeviceTitle>
 													</DeviceTitleRow>
 													<DeviceSubTitle>
@@ -1370,7 +1370,7 @@ export const UnitDetailPage: React.FC = () => {
 								</DeviceSystemsList>
 							) : (
 								<EmptyState>
-									<p>No systems have been recorded yet. Add your first appliance to start operational history.</p>
+									<p>No equipment has been recorded yet. Add your first equipment record to start maintenance history.</p>
 								</EmptyState>
 							)}
 						</SectionContainer>
@@ -1495,7 +1495,7 @@ export const UnitDetailPage: React.FC = () => {
 											<tr>
 												<th>Date</th>
 												<th>Description</th>
-												<th>Appliance</th>
+												<th>Equipment</th>
 												<th>Cost</th>
 												<th>Actions</th>
 											</tr>

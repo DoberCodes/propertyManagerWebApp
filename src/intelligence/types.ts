@@ -4,6 +4,7 @@ import { Task } from '../types/Task.types';
 export type MaintleyFindingCategory =
 	| 'Overdue Work'
 	| 'Maintenance Opportunities'
+	| 'Schedule Optimization'
 	| 'Missing Information';
 
 export type MaintleyFindingSeverity = 'low' | 'medium' | 'high';

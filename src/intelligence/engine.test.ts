@@ -290,7 +290,7 @@ describe('Maintley Intelligence engine', () => {
 				baselineVersion: BASELINE_CARE_LIBRARY_VERSION,
 				source: 'history_inference',
 				requiredPlan: 'homeowner_plus',
-				title: 'Replace or inspect HVAC filter may be due for Maintley HVAC Model A.',
+				title: 'Replace or inspect HVAC filter may be due',
 				affectedSystemIds: ['hvac'],
 			}),
 		);
@@ -300,6 +300,53 @@ describe('Maintley Intelligence engine', () => {
 				baselineIntervalDays: 90,
 				elapsedDays: 181,
 				baselineVersion: BASELINE_CARE_LIBRARY_VERSION,
+			}),
+		);
+	});
+
+	it('points cadence guidance at a linked recurring task when the schedule is farther out', () => {
+		const result = runMaintleyIntelligence({
+			property,
+			systems: [makeSystem({ id: 'hvac', type: 'HVAC' })],
+			tasks: [
+				makeTask({
+					id: 'filter-task',
+					title: 'Replace HVAC filter',
+					dueDate: '2026-12-01',
+					isRecurring: true,
+					devices: ['hvac'],
+				}),
+			],
+			maintenanceHistory: [
+				{
+					id: 'history-filter',
+					deviceId: 'hvac',
+					title: 'Replace HVAC filter',
+					date: '2026-01-01T12:00:00.000Z',
+				},
+			],
+			currentDate: '2026-07-01T12:00:00.000Z',
+			createdAt: '2026-07-01T12:00:00.000Z',
+		});
+		const cadenceFinding = result.findings.find(
+			(finding) => finding.ruleId === 'baseline-maintenance-cadence-overdue',
+		);
+
+		expect(cadenceFinding).toEqual(
+			expect.objectContaining({
+				category: 'Schedule Optimization',
+				title: 'Your HVAC filter schedule may need an update',
+				whyItMatters:
+					'A filter schedule that matches the actual maintenance routine helps keep future reminders useful.',
+				suggestedActionLabel: 'Review scheduled task',
+				suggestedActionType: 'open_task',
+				affectedSystemIds: ['hvac'],
+				metadata: expect.objectContaining({
+					taskId: 'filter-task',
+					scheduledTaskId: 'filter-task',
+					scheduledTaskTitle: 'Replace HVAC filter',
+					scheduledTaskDaysFromLastMaintenance: 334,
+				}),
 			}),
 		);
 	});
@@ -446,7 +493,7 @@ describe('Maintley Intelligence engine', () => {
 
 		expect(finding).toEqual(
 			expect.objectContaining({
-				title: 'Add filter size for Maintley HVAC Model A',
+				title: 'Add filter size for Maintley HVAC',
 				source: 'knowledge_pack',
 				requiredPlan: 'homeowner_plus',
 				affectedSystemIds: ['hvac'],

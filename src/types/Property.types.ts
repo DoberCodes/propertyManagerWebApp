@@ -280,6 +280,7 @@ export interface Device {
 	specNotes?: string;
 	serviceItems?: DeviceServiceItem[];
 	installationDate?: string;
+	installDate?: string;
 	decommissionDate?: string;
 	location: {
 		propertyId: string;

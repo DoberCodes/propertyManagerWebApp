@@ -106,7 +106,7 @@ const CATEGORY_DETAILS: Record<
 	equipment_records: {
 		title: 'Equipment Records',
 		description:
-			'Important system and appliance details that make future maintenance easier to manage.',
+			'Important equipment details that make future maintenance easier to manage.',
 	},
 	documentation: {
 		title: 'Documentation',
@@ -153,6 +153,7 @@ const getAuditCategoryId = (
 
 	switch (finding.category) {
 		case 'Maintenance Opportunities':
+		case 'Schedule Optimization':
 		case 'Overdue Work':
 			return 'maintenance_coverage';
 		case 'Missing Information':

@@ -54,11 +54,75 @@ export const CompactFilterResultCount = styled.div`
 	}
 `;
 
+export const FilterSummaryResultCount = styled.div`
+	padding-right: 8px;
+	color: #64748b;
+	font-size: 0.8rem;
+	font-weight: 700;
+`;
+
 export const DesktopCreateAction = styled.div`
 	display: contents;
 
 	@media (max-width: 1024px) {
 		display: none;
+	}
+`;
+
+export const CollapsibleFilterShell = styled.div`
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 12px;
+	margin: 0 0 14px;
+	padding: 12px;
+	border: 1px solid #e2e8f0;
+	border-radius: 12px;
+	background: #f8fafc;
+`;
+
+export const FilterSummaryHeaderRow = styled.div`
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 12px;
+`;
+
+export const FilterSummaryStack = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	flex: 1 1 auto;
+	min-width: 0;
+`;
+
+export const CollapsibleFilterBody = styled.div`
+	margin-top: 12px;
+	padding-top: 12px;
+	border-top: 1px solid #e2e8f0;
+`;
+
+export const FilterCollapseButton = styled.button`
+	flex: 0 0 auto;
+	width: 34px;
+	height: 34px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: 999px;
+	border: 1px solid #cbd5e1;
+	background: #ffffff;
+	color: #334155;
+	cursor: pointer;
+	transition: background-color 0.15s ease, border-color 0.15s ease,
+		color 0.15s ease;
+
+	&:hover,
+	&:focus-visible {
+		background: #ecfdf5;
+		border-color: ${COLORS.primary};
+		color: ${COLORS.primaryDark};
+		outline: none;
 	}
 `;
 

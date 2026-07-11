@@ -1,8 +1,8 @@
-# Appliance Profiles
+# Equipment Profiles
 
 ## Purpose
 
-Appliance Profiles define what information is useful for a specific appliance or asset type.
+Equipment Profiles define what information is useful for a specific equipment or asset type.
 
 They serve as the source of truth for:
 
@@ -11,10 +11,10 @@ They serve as the source of truth for:
 * Recommendation Engine
 * Maintley Intelligence
 * Property Insight Emails
-* Appliance label capture and barcode extraction
+* Equipment label capture and barcode extraction
 * Future AI-assisted recommendations
 
-Appliance Profiles define:
+Equipment Profiles define:
 
 * Suggested Information
 * Suggested Maintenance
@@ -26,7 +26,7 @@ Appliance Profiles define:
 
 # Asset Classification
 
-Appliance Profiles should distinguish asset type from variant.
+Equipment Profiles should distinguish asset type from variant.
 
 Asset type identifies the general category Maintley should reason over.
 
@@ -50,7 +50,7 @@ Older records may only have a legacy `type` field. Those records should remain s
 
 Maintley should never require users to provide every possible field.
 
-Appliance Profiles exist to help users build more useful records over time.
+Equipment Profiles exist to help users build more useful records over time.
 
 Missing information should generate recommendations, not errors.
 
@@ -70,7 +70,7 @@ Maintley may recommend adding these later because they improve future maintenanc
 
 ## Suggested Information
 
-Information that helps identify, maintain, or manage an appliance.
+Information that helps identify, maintain, or manage an equipment.
 
 Examples:
 
@@ -99,7 +99,7 @@ Examples:
 
 ## Suggested Parts & Supplies
 
-Consumable or replaceable items associated with an appliance.
+Consumable or replaceable items associated with an equipment.
 
 Examples:
 
@@ -125,12 +125,12 @@ Documentation should improve records but should not be required.
 
 ---
 
-# Appliance Label Capture
+# Equipment Label Capture
 
-Appliance label capture is a Property Memory intake surface, not an automatic
+Equipment label capture is a Property Memory intake surface, not an automatic
 autofill system.
 
-The primary appliance capture path should be:
+The primary equipment capture path should be:
 
 ```text
 Capture or upload label
@@ -145,10 +145,10 @@ Recognize possible fields
     ->
 User reviews, edits, and selects fields
     ->
-Apply accepted fields to the appliance profile
+Apply accepted fields to the equipment profile
 ```
 
-Barcode and QR scanning may remain available as a helper path, but appliance
+Barcode and QR scanning may remain available as a helper path, but equipment
 labels often contain the more useful make, model, serial, and service details.
 
 Scanner output should follow these rules:
@@ -159,12 +159,12 @@ Scanner output should follow these rules:
 * Apply only fields the user reviewed and accepted.
 * Normalize model, serial, and part identifiers conservatively.
 * Keep original OCR or barcode text behind a disclosure for evidence.
-* Do not save raw OCR text into appliance notes or service notes.
-* Do not silently overwrite existing appliance identity fields without review.
+* Do not save raw OCR text into equipment notes or service notes.
+* Do not silently overwrite existing equipment identity fields without review.
 
 Dedicated scan-session records, source evidence records, server-side OCR, and
 confidence-backed extraction provenance are future architecture work. They
-should be introduced deliberately instead of being added as duplicate appliance
+should be introduced deliberately instead of being added as duplicate equipment
 state.
 
 ---
@@ -610,7 +610,7 @@ Recommended
 
 # Future Expansion
 
-Future appliance profiles may include:
+Future equipment profiles may include:
 
 * Dishwasher
 * Generator
@@ -624,4 +624,4 @@ Future appliance profiles may include:
 * Vehicles
 * Trailers
 
-All future appliance profiles should follow the same structure to ensure consistent recommendation generation throughout the platform.
+All future equipment profiles should follow the same structure to ensure consistent recommendation generation throughout the platform.

@@ -82,7 +82,7 @@ export const MaintenanceRequestModal: React.FC<
 					<option value='Plumbing'>Plumbing</option>
 					<option value='Electrical'>Electrical</option>
 					<option value='HVAC'>HVAC</option>
-					<option value='Appliance'>Appliance</option>
+					<option value='Equipment'>Equipment</option>
 					<option value='Structural'>Structural</option>
 					<option value='Pest Control'>Pest Control</option>
 					<option value='Landscaping'>Landscaping</option>

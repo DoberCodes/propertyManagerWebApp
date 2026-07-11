@@ -68,7 +68,7 @@ mirrors for older surfaces and triggers. New acquisition and review surfaces
 should read collection-backed records and merge embedded records only as a
 fallback.
 
-Property documents are the canonical source documents for acquisition. Uploads started from appliance/system, task, or task-completion screens should still create property document records. When a user explicitly uploads from a task or appliance/system workflow, Maintley may preserve that upload context as a supporting-document link so the file remains visible from that workflow. Upload context may help the UI, but acquisition should not automatically create additional permanent links to an asset, task, contractor, warranty, part, or Maintenance Event.
+Property documents are the canonical source documents for acquisition. Uploads started from equipment, task, or task-completion screens should still create property document records. When a user explicitly uploads from a task or equipment workflow, Maintley may preserve that upload context as a supporting-document link so the file remains visible from that workflow. Upload context may help the UI, but acquisition should not automatically create additional permanent links to an asset, task, contractor, warranty, part, or Maintenance Event.
 
 Additional links should come from reviewed Property Memory changes. If acquisition finds that a document appears to describe an existing asset, task, contractor, part, warranty, cost, or Maintenance Event, the review experience should propose that connection and let the user confirm it.
 
@@ -205,7 +205,7 @@ task creates or updates Maintenance History. A completion attachment should
 still be stored as a property document first, then reused on the completed task
 or resulting Maintenance Event so the file remains part of Property Memory.
 
-When accepted part suggestions are linked to a specific appliance or system, the apply step may add them to that system's Parts & Supplies list. These records should retain source context and should not be created without user review.
+When accepted part suggestions are linked to a specific equipment or system, the apply step may add them to that system's Parts & Supplies list. These records should retain source context and should not be created without user review.
 
 ---
 

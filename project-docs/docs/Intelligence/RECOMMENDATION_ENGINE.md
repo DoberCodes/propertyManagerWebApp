@@ -121,9 +121,9 @@ Recommendations may originate from multiple systems.
 
 ---
 
-## Appliance Profiles
+## Equipment Profiles
 
-Appliance Profiles define:
+Equipment Profiles define:
 
 * Expected information
 * Suggested maintenance
@@ -144,7 +144,7 @@ Water Heater:
 * Capacity
 * Flush Maintenance
 
-Appliance Profiles are expected to be the primary recommendation source.
+Equipment Profiles are expected to be the primary recommendation source.
 
 ---
 
@@ -209,7 +209,7 @@ The Setup Assistant may generate recommendations based on user selections.
 
 Examples:
 
-* Suggested appliances
+* Suggested equipment
 * Suggested maintenance
 * Suggested property records
 
@@ -555,7 +555,7 @@ That broader question belongs to the Full Property Review surface.
 Inputs:
 
 * Property record
-* System/appliance records
+* System/equipment records
 * Task records
 * Maintenance history records
 * Property and system documentation
@@ -834,9 +834,9 @@ Recommendation logic should remain centralized regardless of presentation.
 
 ---
 
-# Appliance Profile Integration
+# Equipment Profile Integration
 
-Appliance Profiles should define expected information.
+Equipment Profiles should define expected information.
 
 Example:
 
@@ -859,7 +859,7 @@ Documentation
 - Warranty
 ```
 
-The Recommendation Engine should consume Appliance Profiles rather than hard-code appliance-specific requirements throughout the application.
+The Recommendation Engine should consume Equipment Profiles rather than hard-code equipment-specific requirements throughout the application.
 
 ---
 
@@ -921,7 +921,7 @@ Examples:
 
 * Properties missing maintenance history
 * Properties missing recurring maintenance
-* Properties missing appliance information
+* Properties missing equipment information
 
 Portfolio Intelligence should reuse recommendation logic rather than introducing separate rule systems.
 

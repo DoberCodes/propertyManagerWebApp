@@ -786,7 +786,7 @@ After deployment, validate the areas affected by the change.
 * Dashboard loads.
 * Properties load.
 * Tasks load.
-* Appliances & Systems load.
+* Equipment load.
 * Property detail pages load.
 * Mobile navigation works.
 

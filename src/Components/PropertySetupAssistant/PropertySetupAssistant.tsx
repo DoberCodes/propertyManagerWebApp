@@ -360,12 +360,12 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 				}) as any,
 			).unwrap();
 		} catch (error) {
-			console.warn('Property setup assistant could not create appliance:', {
+			console.warn('Property setup assistant could not create equipment record:', {
 				itemId,
 				error,
 			});
 			feedback.notify(
-				'Marked present, but the appliance/system record could not be created.',
+				'Marked present, but the equipment record could not be created.',
 			);
 			return null;
 		}
@@ -1002,7 +1002,7 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 														<ItemTitle>{item.label}</ItemTitle>
 														<ItemMeta>
 															{existingDevice && status === 'present'
-																? 'Already in Appliances'
+																? 'Already in Equipment'
 																: status === 'present'
 																	? 'Will add when you click Done'
 																	: status === 'not_present'
@@ -1052,7 +1052,7 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 															<TaskPreviewNotice>
 																{hasPaidSuggestedMaintenancePackages
 																	? 'Your current package allowance is already used for this property.'
-																	: 'Homeowner+ feature. You can still add this appliance now.'}
+																	: 'Homeowner+ feature. You can still add this equipment now.'}
 															</TaskPreviewNotice>
 														)}
 														<TaskPreviewList>
@@ -1121,7 +1121,7 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 																})
 															) : (
 																<EmptyTaskPreview>
-																	No suggested tasks selected. The appliance can
+																	No suggested tasks selected. The equipment can
 																	still be added.
 																</EmptyTaskPreview>
 															)}
@@ -1164,7 +1164,7 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 							<ConfirmTitle>Save setup changes?</ConfirmTitle>
 							<ConfirmText>
 								You made changes in this setup review. Saving will create or
-								link the appliances marked present and add their suggested
+								link the equipment marked present and add their suggested
 								recurring tasks.
 							</ConfirmText>
 							<ConfirmActions>
@@ -1202,7 +1202,7 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 								<ReviewStats>
 									<ReviewStat>
 										<strong>{completionSummary?.applianceCount || 0}</strong>
-										<span>appliance/system records</span>
+										<span>equipment records</span>
 									</ReviewStat>
 									<ReviewStat>
 										<strong>{completionSummary?.taskCount || 0}</strong>
@@ -1210,7 +1210,7 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 									</ReviewStat>
 								</ReviewStats>
 								<ReviewMeta>
-									{completionSummary?.createdApplianceCount || 0} new appliance
+									{completionSummary?.createdApplianceCount || 0} new equipment record
 									{(completionSummary?.createdApplianceCount || 0) === 1 ? '' : 's'} and{' '}
 									{completionSummary?.createdTaskCount || 0} new task
 									{(completionSummary?.createdTaskCount || 0) === 1 ? '' : 's'} created.
@@ -1229,7 +1229,7 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 								) : null}
 								<ReviewActions>
 									<SavingOkButton type='button' onClick={handleAddMoreAppliances}>
-										Add more appliances
+										Add more equipment
 									</SavingOkButton>
 									<ReviewSecondaryButton
 										type='button'

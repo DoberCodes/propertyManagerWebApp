@@ -52,7 +52,7 @@ interface NotificationPreferencesProps {
 
 export const NotificationPreferences: React.FC<
 	NotificationPreferencesProps
-> = ({ currentUser, defaultCollapsed = false }) => {
+> = ({ currentUser, defaultCollapsed = true }) => {
 	const dispatch = useDispatch<AppDispatch>();
 	const feedback = useAppFeedback();
 	const [updateUser] = useUpdateUserMutation();
@@ -619,11 +619,11 @@ export const NotificationPreferences: React.FC<
 
 	return (
 		<Section>
-			<SectionTitle>🔔 Notification Preferences</SectionTitle>
+			<SectionTitle>Notification Preferences</SectionTitle>
 
 			<SectionBody>
 				<p style={{ marginBottom: '24px', color: '#6b7280' }}>
-					Control which notifications you receive and manage your task reminders.
+					Choose how Maintley reaches you. Open a section below to adjust email, browser, or task reminder settings.
 				</p>
 
 				<PresetActions>
@@ -740,7 +740,7 @@ export const NotificationPreferences: React.FC<
 									<PreferenceText>
 										<strong>Property Insights</strong>
 										<span>
-											Optional record observations for documented appliances and maintenance history.
+											Optional record observations for documented equipment and maintenance history.
 											{!propertyInsightsEnabledByPlan
 												? nativeApp
 													? ' Manage this in the web account center to enable.'
@@ -843,7 +843,7 @@ export const NotificationPreferences: React.FC<
 				<Section>
 					<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
 						<SectionTitle style={{ marginBottom: '0' }}>
-							In-App and Push Notification Preferences
+							Browser and In-App Notifications
 						</SectionTitle>
 						<IconWrapper onClick={() => setNotificationTypesCollapsed((prev) => !prev)}>
 							{notificationTypesCollapsed ? (
@@ -927,7 +927,7 @@ export const NotificationPreferences: React.FC<
 				<Section>
 					<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
 						<SectionTitle style={{ marginBottom: '0' }}>
-							Tasks Notification Preferences
+							Task Reminder Notifications
 						</SectionTitle>
 						<IconWrapper onClick={() => setTasksCollapsed((prev) => !prev)}>
 							{tasksCollapsed ? (

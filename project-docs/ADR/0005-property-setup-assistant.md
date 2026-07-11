@@ -7,11 +7,11 @@ Decision Source: Manual
 
 ## Context
 
-The property creation wizard now helps users get to useful value quickly by collecting basics, selecting appliances/systems, and optionally creating suggested maintenance tasks.
+The property creation wizard now helps users get to useful value quickly by collecting basics, selecting equipment, and optionally creating suggested maintenance tasks.
 
 That wizard should stay lightweight. It is not the right place for a full property audit because users need to reach the core app quickly.
 
-Maintley still needs a way to help users discover systems, appliances, records, and maintenance opportunities they may not know to track. This is especially important for existing properties and for users who want to improve a property record over time.
+Maintley still needs a way to help users discover systems, equipment, records, and maintenance opportunities they may not know to track. This is especially important for existing properties and for users who want to improve a property record over time.
 
 ## Decision
 
@@ -56,7 +56,7 @@ Example areas:
 
 Each item should support three states:
 
-- `Present`: create or connect the relevant appliance/system record and offer suggested maintenance.
+- `Present`: create or connect the relevant equipment record and offer suggested maintenance.
 - `Not Present`: no future suggestions and no negative impact.
 - `Unknown / Skip`: user can revisit later.
 
@@ -102,7 +102,7 @@ Users should not be penalized for items marked `Not Present`. Home Health should
 
 - The property creation wizard remains fast.
 - Existing properties get a path to richer records.
-- The assistant becomes the bridge between property records, appliances/systems, suggested maintenance, tasks, and maintenance history.
+- The assistant becomes the bridge between property records, equipment, suggested maintenance, tasks, and maintenance history.
 - Future implementation should follow `project-docs/docs/UX/MOBILE_UX_GUIDE.md`, especially progressive disclosure and one decision per screen.
 
 ## MVP Implementation Notes
@@ -113,7 +113,7 @@ The first implementation adds:
 - A mobile-friendly modal organized by area.
 - `Present`, `Not Present`, and `Unknown` item states.
 - Stored progress on `properties/{propertyId}.setupAssistant`.
-- Appliance/system creation or reuse for items marked present.
+- Equipment/system creation or reuse for items marked present.
 - Suggested recurring task creation for present items, using the existing suggested maintenance templates.
 
 Future iterations can add richer Home Health integration, completed-state dismissal behavior, and more detailed room/property-record fields.

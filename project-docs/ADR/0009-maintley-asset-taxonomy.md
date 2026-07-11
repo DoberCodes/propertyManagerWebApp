@@ -6,7 +6,7 @@ Context
 
 Maintley Intelligence relies on understanding what assets exist on a property so it can provide documentation guidance, maintenance recommendations, lifecycle insights, and future intelligence features.
 
-Historically, Maintley primarily modeled "appliances" and "systems." As the platform evolves, the scope expands beyond appliances to include structural components, exterior features, utilities, safety equipment, outdoor equipment, and potentially other maintainable assets.
+Historically, Maintley primarily modeled "equipment" and "systems." As the platform evolves, the scope expands beyond equipment to include structural components, exterior features, utilities, safety equipment, outdoor equipment, and potentially other maintainable assets.
 
 To support long-term growth, Maintley requires a consistent taxonomy that separates user-facing concepts from intelligence implementation details.
 

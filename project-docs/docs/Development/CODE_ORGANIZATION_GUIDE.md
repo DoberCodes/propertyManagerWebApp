@@ -322,7 +322,7 @@ Examples:
 
 ```text
 PropertyBasicsSection.tsx
-ApplianceDetailsSection.tsx
+EquipmentDetailsSection.tsx
 MaintenanceScheduleSection.tsx
 ```
 

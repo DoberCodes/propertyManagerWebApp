@@ -662,7 +662,7 @@ export const DeviceModal = (props: DeviceModalProps) => {
 		}
 		if (parsed.specNotes) {
 			const enrichedNotes = matchingDevice
-				? `${parsed.specNotes} | Matched existing appliance: ${matchingDevice.type || 'Appliance'} ${matchingDevice.brand || ''} ${matchingDevice.model || ''}`.trim()
+				? `${parsed.specNotes} | Matched existing equipment: ${matchingDevice.type || 'Equipment'} ${matchingDevice.brand || ''} ${matchingDevice.model || ''}`.trim()
 				: parsed.specNotes;
 			emitChange('specNotes', enrichedNotes);
 		}
@@ -716,7 +716,7 @@ export const DeviceModal = (props: DeviceModalProps) => {
 			<GenericModal
 				isOpen={props.isOpen}
 				onClose={props.onClose}
-				title={props.isEditing ? 'Edit Household Appliance' : 'Add New Household Appliance'}
+				title={props.isEditing ? 'Edit Equipment' : 'Add Equipment'}
 				onSubmit={(event) => {
 					setSubmitAttempted(true);
 					if (missingRequiredFields.length > 0) {
@@ -727,7 +727,7 @@ export const DeviceModal = (props: DeviceModalProps) => {
 					props.onSubmit(event);
 				}}
 				showActions={true}
-				primaryButtonLabel={props.isEditing ? 'Save Appliance' : 'Add Appliance'}
+				primaryButtonLabel={props.isEditing ? 'Save Equipment' : 'Add Equipment'}
 				secondaryButtonLabel='Cancel'
 				primaryButtonDisabled={missingRequiredFields.length > 0}>
 				<StickyTabRail>
@@ -737,7 +737,7 @@ export const DeviceModal = (props: DeviceModalProps) => {
 							$active={activeTab === 'details'}
 							onClick={() => setActiveTab('details')}>
 							<TabLabel>
-								Appliance Details
+								Equipment Details
 								{missingRequiredFields.length > 0 && (
 									<TabBadge $tone='neutral'>
 										{`${missingRequiredFields.length} required`}
@@ -759,7 +759,7 @@ export const DeviceModal = (props: DeviceModalProps) => {
 				<ScrollBody ref={scrollBodyRef}>
 					<ModalTabContent $active={activeTab === 'details'}>
 						<SummaryBanner>
-							<SummaryTitle>Capture the appliance basics first, then optionally document recurring parts and supplies.</SummaryTitle>
+							<SummaryTitle>Capture the equipment basics first, then optionally document recurring parts and supplies.</SummaryTitle>
 							<SummaryMeta>
 								<SummaryPill $tone={missingRequiredFields.length === 0 ? 'success' : 'neutral'}>
 									{completedBasics}/1 required item complete
@@ -776,7 +776,7 @@ export const DeviceModal = (props: DeviceModalProps) => {
 						</SummaryBanner>
 
 						<SectionHeader>
-							<SectionTitle>Core Appliance Details</SectionTitle>
+							<SectionTitle>Core Equipment Details</SectionTitle>
 							<SectionDescription>
 								Choose the asset type now. Variant, brand, model, lifecycle dates,
 								and parts can be filled in whenever they are known.
@@ -784,7 +784,7 @@ export const DeviceModal = (props: DeviceModalProps) => {
 						</SectionHeader>
 						<div style={{ marginBottom: '12px' }}>
 							<ScanButton type='button' onClick={() => setIsDeviceScanOpen(true)}>
-								Capture Appliance Label
+								Capture Equipment Label
 							</ScanButton>
 						</div>
 
@@ -924,7 +924,7 @@ export const DeviceModal = (props: DeviceModalProps) => {
 									onChange={props.onFormChange}
 								/>
 								<FieldHint>
-									Setting this date marks the appliance as decommissioned.
+									Setting this date marks the equipment as decommissioned.
 								</FieldHint>
 							</FormGroup>
 							{/* Units are temporarily hidden from the app flow. */}
@@ -935,7 +935,7 @@ export const DeviceModal = (props: DeviceModalProps) => {
 										Existing Files
 									</SectionTitle>
 									<SectionDescription>
-										These older files are saved directly on this appliance. New uploads should use Appliance Documents below.
+										These older files are saved directly on this equipment. New uploads should use Equipment Documents below.
 									</SectionDescription>
 									<AttachmentList>
 										{(props.deviceFormData.files || []).map((file) => {
@@ -1006,7 +1006,7 @@ export const DeviceModal = (props: DeviceModalProps) => {
 									</AttachmentList>
 								</AttachmentSection>
 								<FieldHint>
-									New uploads should use Appliance Documents below.
+									New uploads should use Equipment Documents below.
 								</FieldHint>
 							</FormGroupFull>
 							)}
@@ -1478,7 +1478,7 @@ export const DeviceModal = (props: DeviceModalProps) => {
 			</GenericModal>
 			<BarcodeScannerModal
 				isOpen={isDeviceScanOpen}
-				title='Appliance Capture Assistant'
+				title='Equipment Capture Assistant'
 				defaultMethod='photo'
 				captureIntent='appliance'
 				onClose={() => setIsDeviceScanOpen(false)}

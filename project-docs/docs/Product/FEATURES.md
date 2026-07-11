@@ -27,7 +27,7 @@ For related documentation:
 Maintley is centered around a simple maintenance record workflow:
 
 1. Add a property.
-2. Add appliances and systems.
+2. Add equipment.
 3. Create maintenance tasks.
 4. Complete maintenance tasks.
 5. Build maintenance history.
@@ -57,7 +57,7 @@ Current capabilities:
 * Mark properties as favorites.
 * Hide properties from dashboard views.
 * Track property-level information and notes.
-* Associate appliances and systems with properties.
+* Associate equipment with properties.
 * Associate tasks with properties.
 * Associate maintenance history with properties.
 * Associate contractors with properties.
@@ -79,8 +79,8 @@ The Property Setup Assistant helps users create initial property records more ef
 Current capabilities:
 
 * Review common rooms and property areas.
-* Identify systems and appliances present at a property.
-* Create appliance and system records.
+* Identify systems and equipment present at a property.
+* Create equipment and system records.
 * Generate suggested maintenance tasks.
 * Support progressive setup over time.
 * Provide quick recommendations after setup completion.
@@ -165,7 +165,7 @@ Current capabilities:
 * Complete tasks.
 * Assign tasks.
 * Link tasks to properties.
-* Link tasks to appliances and systems.
+* Link tasks to equipment.
 * Configure due dates.
 * Configure recurring schedules.
 * Configure priorities.
@@ -193,7 +193,7 @@ Current capabilities:
 * Store attachments.
 * Store warranty-related records.
 * Create manual maintenance entries.
-* Display appliance-specific history.
+* Display equipment-specific history.
 * Display property-specific history.
 
 Current canonical storage:
@@ -211,7 +211,7 @@ Maintley supports storing maintenance-related records and supporting documentati
 Current capabilities:
 
 * Property photos.
-* Appliance photos.
+* Equipment photos.
 * Maintenance attachments.
 * Task attachments.
 * Warranty documents.
@@ -354,7 +354,7 @@ Current article topics include:
 
 * Building a useful property record.
 * Turning completed tasks into maintenance history.
-* Tracking appliances and systems.
+* Tracking equipment.
 * Organizing property documents.
 * Reviewing document suggestions before applying them.
 * Configuring maintenance reminders.
@@ -424,7 +424,7 @@ User-facing language should prioritize clarity over industry terminology.
 Preferred terminology:
 
 * Property
-* Appliance
+* Equipment
 * System
 * Task
 * Maintenance History

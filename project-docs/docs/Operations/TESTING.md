@@ -195,7 +195,7 @@ Plus:
 Examples:
 
 * Task workflows
-* Appliance workflows
+* Equipment workflows
 * Property workflows
 * Maintley Intelligence updates
 

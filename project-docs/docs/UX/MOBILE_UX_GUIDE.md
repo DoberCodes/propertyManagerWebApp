@@ -60,7 +60,7 @@ Preferred:
 
 * Complete Task
 * Add Property
-* Add Appliance
+* Add Equipment
 * Add Maintenance Record
 
 Avoid burying important actions beneath informational content.
@@ -89,7 +89,7 @@ Users should generally make one primary decision at a time.
 Good:
 
 * Select Property
-* Select Appliance
+* Select Equipment
 * Complete Task
 * Review Recommendations
 
@@ -161,14 +161,14 @@ Examples:
 * Next
 * Complete Task
 * Add Property
-* Add Appliance
+* Add Equipment
 * Add Task
 
 The most common action should be visually obvious.
 
 When the mobile bottom navigation already provides an action through Quick
 Create, avoid repeating that create button within the page. This applies to
-adding tasks, appliances or systems, contractors, and property documents.
+adding tasks, equipment, contractors, and property documents.
 Desktop pages should retain their contextual create actions.
 
 Property tabs and property Quick Create actions should use shareable URL
@@ -186,10 +186,10 @@ parameters:
 /property/:slug/device/:deviceSlug?action=add-log
 ```
 
-When Quick Create is used from a nested property page, such as an appliance
+When Quick Create is used from a nested property page, such as an equipment
 profile, property-level actions should return to the property root before
-selecting the relevant tab. Appliance-level actions should remain on the
-appliance profile and open the appliance-specific edit, task, upload, or log
+selecting the relevant tab. Equipment-level actions should remain on the
+equipment profile and open the equipment-specific edit, task, upload, or log
 workflow. After an action is handled, remove the `action` parameter while
 retaining any remaining navigation parameters. Treat action parameters as
 one-time triggers and replace the current history entry so Back navigation
@@ -200,9 +200,9 @@ home as the default property context once a home exists. Do not continue to
 show **Add Home** when the account cannot add another home. Prefer useful
 home-memory actions such as **Add Task**, **Add Equipment**, and **Upload
 Document**, routed to the existing home.
-Appliance profile back navigation should respect the entry point. Profiles
-opened from a property should return to that property's Appliances tab, while
-profiles opened from the global Appliances page should return to `/devices`.
+Equipment profile back navigation should respect the entry point. Profiles
+opened from a property should return to that property's Equipment tab, while
+profiles opened from the global Equipment page should return to `/devices`.
 
 ---
 
@@ -227,9 +227,9 @@ Avoid:
 ```text
 Property
   ↓
-Appliances
+Equipment
   ↓
-Appliance
+Equipment Profile
   ↓
 Tasks
   ↓
@@ -251,7 +251,7 @@ Recommended primary destinations:
 * Dashboard
 * Properties
 * Tasks
-* Appliances
+* Equipment
 * More
 
 The exact implementation may evolve, but core maintenance workflows should remain accessible without opening multiple menus.
@@ -277,7 +277,7 @@ Maintley supports two modes of navigation:
 Focused on:
 
 * Tasks
-* Appliances
+* Equipment
 * Reports
 * Recommendations
 * Portfolio activity
@@ -314,7 +314,7 @@ using a simple property selector.
 
 Property context changes should require a single interaction whenever possible.
 
-Global Dashboard, Tasks, and Appliances views should offer this same property
+Global Dashboard, Tasks, and Equipment views should offer this same property
 scope control. On tablet and mobile, Property is the first option in the
 floating search and filter panel. A mobile selection remains a draft until the
 user applies the filters; dismissing the panel preserves the current view.
@@ -371,6 +371,12 @@ or property selector so users understand whether they are seeing personal work
 or the broader visible property set.
 
 The dashboard should focus on immediate action.
+
+Tabbed dashboard modules, such as Home Activity, should keep their tab row
+visible on mobile. Use a compact horizontally scrollable tab strip when labels
+cannot fit in one line. Let the page handle vertical scrolling on mobile rather
+than placing the module body inside its own scroll area; keep each activity list
+to a short preview, typically no more than 10 items.
 
 ---
 
@@ -494,7 +500,7 @@ Review screens should focus on confirmation and refinement.
 
 Good review actions:
 
-* Add missing appliance
+* Add missing equipment
 * Add missing task
 * Upload documentation
 * Run Quick Scan
@@ -604,7 +610,7 @@ If the answer is yes, simplify the experience.
 A successful mobile experience should allow users to:
 
 * Add a property
-* Add an appliance
+* Add equipment
 * Create a task
 * Complete a task
 * Upload documentation

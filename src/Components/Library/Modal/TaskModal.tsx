@@ -66,19 +66,26 @@ import {
 } from '../../../tasks/taskAssignment';
 import { useTaskAssigneeOptions } from '../../../tasks/useTaskAssigneeOptions';
 
-const LINKED_DEVICE_NOTES_START = '--- Linked Appliance Details ---';
-const LINKED_DEVICE_NOTES_END = '--- End Linked Appliance Details ---';
+const LINKED_DEVICE_NOTES_START = '--- Linked Equipment Details ---';
+const LINKED_DEVICE_NOTES_END = '--- End Linked Equipment Details ---';
+const LEGACY_LINKED_DEVICE_NOTES_START = '--- Linked Appliance Details ---';
+const LEGACY_LINKED_DEVICE_NOTES_END = '--- End Linked Appliance Details ---';
 
 const escapeForRegex = (value: string) =>
 	value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 const stripLinkedDeviceNotes = (notes: string) => {
 	if (!notes) return '';
-	const markerPattern = new RegExp(
-		`${escapeForRegex(LINKED_DEVICE_NOTES_START)}[\\s\\S]*?${escapeForRegex(LINKED_DEVICE_NOTES_END)}`,
-		'g',
+	const markerPatterns = [
+		[LINKED_DEVICE_NOTES_START, LINKED_DEVICE_NOTES_END],
+		[LEGACY_LINKED_DEVICE_NOTES_START, LEGACY_LINKED_DEVICE_NOTES_END],
+	].map(
+		([start, end]) =>
+			new RegExp(`${escapeForRegex(start)}[\\s\\S]*?${escapeForRegex(end)}`, 'g'),
 	);
-	return notes.replace(markerPattern, '').trim();
+	return markerPatterns
+		.reduce((nextNotes, pattern) => nextNotes.replace(pattern, ''), notes)
+		.trim();
 };
 
 const buildLinkedDeviceDetailsSection = (devices: Device[]) => {
@@ -86,7 +93,7 @@ const buildLinkedDeviceDetailsSection = (devices: Device[]) => {
 
 	const lines: string[] = [
 		LINKED_DEVICE_NOTES_START,
-		'Use these linked appliance details while performing this task:',
+		'Use these linked equipment details while performing this task:',
 		'',
 	];
 
@@ -94,7 +101,7 @@ const buildLinkedDeviceDetailsSection = (devices: Device[]) => {
 		const displayName =
 			(device.brand && device.model
 				? `${device.brand} ${device.model}`
-				: device.model || device.brand || device.type || `Appliance ${index + 1}`) +
+				: device.model || device.brand || device.type || `Equipment ${index + 1}`) +
 			(device.type ? ` (${device.type})` : '');
 		const serviceItems = device.serviceItems || [];
 
@@ -109,7 +116,7 @@ const buildLinkedDeviceDetailsSection = (devices: Device[]) => {
 				);
 			});
 		} else {
-			// Backward compatibility for older appliances that still use scalar fields.
+			// Backward compatibility for older equipment records that still use scalar fields.
 			if (device.partNumber) lines.push(`   Part Number: ${device.partNumber}`);
 			if (device.filterSize) lines.push(`   Filter Size: ${device.filterSize}`);
 			if (device.specNotes) lines.push(`   Service Notes: ${device.specNotes}`);
@@ -122,7 +129,7 @@ const buildLinkedDeviceDetailsSection = (devices: Device[]) => {
 			!device.filterSize &&
 			!device.specNotes
 		) {
-			lines.push('   No additional appliance specs saved yet.');
+			lines.push('   No additional equipment specs saved yet.');
 		}
 		lines.push('');
 	});
@@ -702,7 +709,7 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 			const displayName =
 				device.brand && device.model
 					? `${device.brand} ${device.model}`
-					: device.type || 'Unknown Appliance';
+					: device.type || 'Unknown Equipment';
 			return {
 				label: `${displayName} (${device.type || 'Unknown Type'})`,
 				value: device.id,
@@ -1875,16 +1882,16 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 
 									{internalDeviceOptions.length > 0 && (
 										<FormGroup>
-											<FormLabel>Connected Appliances (Optional)</FormLabel>
+											<FormLabel>Connected Equipment (Optional)</FormLabel>
 											<MultiSelect
 												options={internalDeviceOptions}
 												value={formState.devices || []}
 												onChange={handleDeviceChange}
-												placeholder='Select appliances for this task...'
+												placeholder='Select equipment for this task...'
 											/>
 											<small style={{ color: '#6b7280' }}>
-												Linked appliance service items are automatically appended to task
-												notes when you save. Leave blank for non-appliance tasks.
+												Linked equipment service items are automatically appended to task
+												notes when you save. Leave blank for tasks that do not involve equipment.
 											</small>
 										</FormGroup>
 									)}
