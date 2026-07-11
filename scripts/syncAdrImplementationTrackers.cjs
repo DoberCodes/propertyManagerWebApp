@@ -435,10 +435,7 @@ const syncAdr = async ({ adr, previousAdr, github, options }) => {
 			return result;
 		}
 
-	if (!shouldTrackAdr(adr)) {
-		result.message = adr.status
-			? `ADR status is not tracked: ${adr.status}`
-			: 'ADR has no status';
+		result.message = statusMessage;
 		return result;
 	}
 
@@ -471,13 +468,6 @@ const syncAdr = async ({ adr, previousAdr, github, options }) => {
 	result.message = isTrackedStatus ? existingIssue.html_url : statusMessage;
 
 	if (hasStatusChange) {
-	result.message = existingIssue.html_url;
-
-	const previousStatus = previousAdr?.status || '';
-	if (
-		previousStatus &&
-		normalizeStatus(previousStatus) !== adr.normalizedStatus
-	) {
 		await addComment({
 			...github,
 			issueNumber: existingIssue.number,
