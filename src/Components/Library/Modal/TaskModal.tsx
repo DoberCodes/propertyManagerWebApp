@@ -68,17 +68,24 @@ import { useTaskAssigneeOptions } from '../../../tasks/useTaskAssigneeOptions';
 
 const LINKED_DEVICE_NOTES_START = '--- Linked Equipment Details ---';
 const LINKED_DEVICE_NOTES_END = '--- End Linked Equipment Details ---';
+const LEGACY_LINKED_DEVICE_NOTES_START = '--- Linked Appliance Details ---';
+const LEGACY_LINKED_DEVICE_NOTES_END = '--- End Linked Appliance Details ---';
 
 const escapeForRegex = (value: string) =>
 	value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 const stripLinkedDeviceNotes = (notes: string) => {
 	if (!notes) return '';
-	const markerPattern = new RegExp(
-		`${escapeForRegex(LINKED_DEVICE_NOTES_START)}[\\s\\S]*?${escapeForRegex(LINKED_DEVICE_NOTES_END)}`,
-		'g',
+	const markerPatterns = [
+		[LINKED_DEVICE_NOTES_START, LINKED_DEVICE_NOTES_END],
+		[LEGACY_LINKED_DEVICE_NOTES_START, LEGACY_LINKED_DEVICE_NOTES_END],
+	].map(
+		([start, end]) =>
+			new RegExp(`${escapeForRegex(start)}[\\s\\S]*?${escapeForRegex(end)}`, 'g'),
 	);
-	return notes.replace(markerPattern, '').trim();
+	return markerPatterns
+		.reduce((nextNotes, pattern) => nextNotes.replace(pattern, ''), notes)
+		.trim();
 };
 
 const buildLinkedDeviceDetailsSection = (devices: Device[]) => {
@@ -1268,7 +1275,7 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 						...(deviceSnapshot.data() as Omit<Device, 'id'>),
 					} as Device;
 				} catch (error) {
-					console.warn('Failed to load full linked equipment details for task notes', {
+					console.warn('Failed to load full linked appliance details for task notes', {
 						deviceId,
 						error,
 					});
@@ -1406,7 +1413,7 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 					updatesRaw.assignee = '';
 				}
 
-				// Keep equipment and history linking optional by omitting empty arrays.
+				// Keep appliance and history linking optional by omitting empty arrays.
 				if (Array.isArray(updatesRaw.devices) && updatesRaw.devices.length === 0) {
 					delete updatesRaw.devices;
 				}
@@ -1471,7 +1478,7 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 					delete newTaskRaw.assignee;
 				}
 
-				// Keep equipment and history linking optional by omitting empty arrays.
+				// Keep appliance and history linking optional by omitting empty arrays.
 				if (Array.isArray(newTaskRaw.devices) && newTaskRaw.devices.length === 0) {
 					delete newTaskRaw.devices;
 				}
@@ -1884,7 +1891,7 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 											/>
 											<small style={{ color: '#6b7280' }}>
 												Linked equipment service items are automatically appended to task
-												notes when you save. Leave blank for tasks that are not tied to equipment.
+												notes when you save. Leave blank for tasks that do not involve equipment.
 											</small>
 										</FormGroup>
 									)}

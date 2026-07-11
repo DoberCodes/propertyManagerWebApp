@@ -1079,7 +1079,7 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 									</span>
 								</label>
 								<div style={{ fontSize: 12, color: '#64748b', lineHeight: 1.45 }}>
-									Equipment records are created as new records on the duplicate property.
+									Equipment is created as new records on the duplicate property.
 									Task schedules and assignments can be copied too; unit links stay
 									with the original property.
 								</div>

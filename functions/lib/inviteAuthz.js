@@ -54,7 +54,8 @@ const assertInviteCapability = async (uid, capability) => {
         throw new functions.https.HttpsError('not-found', 'Account owner profile not found');
     }
     const accountOwnerData = accountOwnerDoc.data() || {};
-    const subscription = (accountOwnerData.subscription || {});
+    const subscription = (accountOwnerData.subscription ||
+        {});
     const effectivePlan = (0, subscriptionEntitlements_1.getEffectiveSubscriptionPlanId)(subscription, 'homeowner');
     if (!(0, subscriptionEntitlements_1.isSubscriptionCurrentlyEntitled)(subscription)) {
         throw new functions.https.HttpsError('permission-denied', 'An active subscription is required for this invite action');

@@ -44,6 +44,7 @@ import { getTaskAssigneeDisplayName } from '../../utils/taskUtils';
 import { DetailPageLayout, TabContent, ReusableTable, GenericModal, ButtonGroup, FormInput, FormLabel, FormRow, FormSelect, FormTextarea } from '../../Components/Library';
 import { DeviceModal } from '../../Components/Library/Modal';
 import { TaskModal } from '../../Components/Library/Modal/TaskModal';
+import { TaskCompletionModal } from '../../Components/TaskCompletionModal';
 import { TabConfig } from '../../types/DetailPage.types';
 import {
 	InfoGrid,
@@ -63,12 +64,14 @@ import {
 	formatCurrency,
 	getFinancialDisplayTotal,
 	hasCostData,
+	normalizeFinancialsWithTotals,
 	toNumberOrUndefined,
 } from '../../utils/financialUtils';
 import { uploadDeviceFile } from '../../utils/deviceFileUpload';
 import { usePropertyDocumentUploadWorkflow } from '../../propertyKnowledge/usePropertyDocumentUploadWorkflow';
 import { COLORS } from '../../constants/colors';
 import {
+	buildDeviceSlug,
 	getDeviceIdFromSlug,
 } from '../../utils/deviceSlug';
 import {
@@ -133,6 +136,17 @@ const parseDisplayDate = (value?: string): Date | null => {
 	return Number.isNaN(date.getTime()) ? null : date;
 };
 
+const getTodayDateOnly = (): string => {
+	const today = new Date();
+	const year = today.getFullYear();
+	const month = String(today.getMonth() + 1).padStart(2, '0');
+	const day = String(today.getDate()).padStart(2, '0');
+	return `${year}-${month}-${day}`;
+};
+
+const getDisplayDateTime = (value?: string | null): number =>
+	parseDisplayDate(value || undefined)?.getTime() || 0;
+
 const formatDate = (value?: string) => {
 	if (!value) return 'N/A';
 	const date = parseDisplayDate(value);
@@ -142,8 +156,8 @@ const formatDate = (value?: string) => {
 
 const formatRelativeTime = (value?: string): string => {
 	if (!value) return 'recently';
-	const date = new Date(value);
-	if (Number.isNaN(date.getTime())) return 'recently';
+	const date = parseDisplayDate(value);
+	if (!date) return 'recently';
 
 	const diffMs = Date.now() - date.getTime();
 	const diffDays = Math.round(Math.abs(diffMs) / 86400000);
@@ -466,12 +480,13 @@ export const DeviceDetailPage: React.FC = () => {
 	const [showRecurringTaskModal, setShowRecurringTaskModal] = useState(false);
 	const [showPartModal, setShowPartModal] = useState(false);
 	const [selectedTask, setSelectedTask] = useState<any | null>(null);
+	const [taskToComplete, setTaskToComplete] = useState<any | null>(null);
 	const [isEditingTask, setIsEditingTask] = useState(false);
 	const [showQuickLogModal, setShowQuickLogModal] = useState(false);
 	const [quickLogMode, setQuickLogMode] = useState<
 		'note' | 'repair' | 'invoice' | 'inspection' | 'warranty' | 'contractor'
 	>('note');
-	const [quickLogDate, setQuickLogDate] = useState(new Date().toISOString().split('T')[0]);
+	const [quickLogDate, setQuickLogDate] = useState(getTodayDateOnly());
 	const [quickLogDescription, setQuickLogDescription] = useState('');
 	const [quickLogAttachment, setQuickLogAttachment] = useState<File | null>(null);
 	const [quickLogWarrantyExpiration, setQuickLogWarrantyExpiration] = useState('');
@@ -558,21 +573,40 @@ export const DeviceDetailPage: React.FC = () => {
 		? 'Back to Equipment'
 		: 'Back to Property';
 
-	const { data: device, isLoading: deviceLoading } = useGetDeviceQuery(deviceId || '', {
+	const { data: queriedDevice, isLoading: deviceLoading } = useGetDeviceQuery(deviceId || '', {
 		skip: !deviceId,
 	});
 
 	const { data: units = [] } = useGetUnitsQuery(property?.id || '', {
 		skip: !property?.id,
 	});
+	const { data: propertyDevices = [] } = useGetDevicesQuery(property?.id || '', {
+		skip: !property?.id,
+	});
+
+	const device = useMemo(() => {
+		if (queriedDevice) {
+			return queriedDevice;
+		}
+		const decodedSlug = decodeURIComponent(deviceSlug || '');
+		if (!decodedSlug) return undefined;
+		return propertyDevices.find((candidate: any) => {
+			const candidateId = String(candidate?.id || '');
+			if (!candidateId) return false;
+			return (
+				decodedSlug === candidateId ||
+				decodedSlug.endsWith(`-${candidateId}`) ||
+				decodedSlug.endsWith(`--${candidateId}`) ||
+				buildDeviceSlug(candidate) === decodedSlug
+			);
+		});
+	}, [queriedDevice, deviceSlug, propertyDevices]);
+
 	const { data: unitById } = useGetUnitQuery(device?.location?.unitId || '', {
 		skip: !device?.location?.unitId,
 	});
 
 	const { data: allTasks = [] } = useGetTasksQuery();
-	const { data: propertyDevices = [] } = useGetDevicesQuery(property?.id || '', {
-		skip: !property?.id,
-	});
 	const { data: propertyContractors = [] } = useGetContractorsByPropertyQuery(
 		property?.id || '',
 		{
@@ -624,7 +658,7 @@ export const DeviceDetailPage: React.FC = () => {
 			.trim() || 'Equipment';
 		return {
 			title: `${deviceName} maintenance`,
-			dueDate: new Date().toISOString().split('T')[0],
+			dueDate: getTodayDateOnly(),
 			status: 'Initiated',
 			propertyId: property.id,
 			unitId: String(device.location?.unitId || ''),
@@ -694,8 +728,8 @@ export const DeviceDetailPage: React.FC = () => {
 				return false;
 			})
 			.sort((a: any, b: any) => {
-				const aDate = new Date(getMaintenanceEventDate(a) || 0).getTime() || 0;
-				const bDate = new Date(getMaintenanceEventDate(b) || 0).getTime() || 0;
+				const aDate = getDisplayDateTime(getMaintenanceEventDate(a));
+				const bDate = getDisplayDateTime(getMaintenanceEventDate(b));
 				return bDate - aDate;
 			});
 	}, [device, propertyMaintenanceHistory]);
@@ -729,8 +763,8 @@ export const DeviceDetailPage: React.FC = () => {
 		}));
 
 		return [...deviceMaintenanceEntries, ...propertyEntries].sort((a, b) => {
-			const aDate = new Date(a.date || 0).getTime() || 0;
-			const bDate = new Date(b.date || 0).getTime() || 0;
+			const aDate = getDisplayDateTime(a.date);
+			const bDate = getDisplayDateTime(b.date);
 			return bDate - aDate;
 		});
 	}, [device?.maintenanceHistory, relatedMaintenanceHistory]);
@@ -738,8 +772,7 @@ export const DeviceDetailPage: React.FC = () => {
 	const scheduledTaskTimelineEntries = useMemo(() => {
 		return linkedTasks
 			.filter((task: any) => {
-				const dueDate = task?.dueDate ? new Date(task.dueDate) : null;
-				return Boolean(dueDate && !Number.isNaN(dueDate.getTime()));
+				return Boolean(parseDisplayDate(task?.dueDate));
 			})
 			.map((task: any) => ({
 				id: `scheduled-task-${task.id}`,
@@ -751,16 +784,16 @@ export const DeviceDetailPage: React.FC = () => {
 				raw: task,
 			}))
 			.sort((a, b) => {
-				const aDate = new Date(a.date || 0).getTime() || 0;
-				const bDate = new Date(b.date || 0).getTime() || 0;
+				const aDate = getDisplayDateTime(a.date);
+				const bDate = getDisplayDateTime(b.date);
 				return bDate - aDate;
 			});
 	}, [linkedTasks]);
 
 	const combinedTimelineEntries = useMemo(
 		() => [...scheduledTaskTimelineEntries, ...deviceTimelineEntries].sort((a, b) => {
-			const aDate = new Date(a.date || 0).getTime() || 0;
-			const bDate = new Date(b.date || 0).getTime() || 0;
+			const aDate = getDisplayDateTime(a.date);
+			const bDate = getDisplayDateTime(b.date);
 			return bDate - aDate;
 		}),
 		[scheduledTaskTimelineEntries, deviceTimelineEntries],
@@ -811,8 +844,8 @@ export const DeviceDetailPage: React.FC = () => {
 		}
 
 		return records.sort((a, b) => {
-			const aDate = new Date(getMaintenanceEventDate(a) || a?.date || 0).getTime() || 0;
-			const bDate = new Date(getMaintenanceEventDate(b) || b?.date || 0).getTime() || 0;
+			const aDate = getDisplayDateTime(getMaintenanceEventDate(a) || a?.date);
+			const bDate = getDisplayDateTime(getMaintenanceEventDate(b) || b?.date);
 			return bDate - aDate;
 		});
 	}, [device?.maintenanceHistory, relatedMaintenanceHistory]);
@@ -838,6 +871,9 @@ export const DeviceDetailPage: React.FC = () => {
 	const resolvedDeviceStatus = device?.decommissionDate
 		? 'Decommissioned'
 		: device?.status || 'Active';
+	const deviceInstallDate = String(
+		device?.installationDate || device?.installDate || '',
+	).trim();
 	const hasApplianceDetails = useMemo(() => {
 		const serviceItems = Array.isArray(device?.serviceItems) ? device.serviceItems : [];
 		const files = Array.isArray(device?.files) ? device.files : [];
@@ -848,12 +884,12 @@ export const DeviceDetailPage: React.FC = () => {
 			String(device?.partNumber || '').trim() ||
 			String(device?.filterSize || '').trim() ||
 			String(device?.specNotes || '').trim() ||
-			String(device?.installationDate || '').trim() ||
+			deviceInstallDate ||
 			String(device?.decommissionDate || '').trim() ||
 			serviceItems.length > 0 ||
 			files.length > 0,
 		);
-	}, [device]);
+	}, [device, deviceInstallDate]);
 	const activePartFields = useMemo(
 		() =>
 			DEVICE_SERVICE_ITEM_FIELDS_BY_CATEGORY[partFormData.category] ||
@@ -954,8 +990,8 @@ export const DeviceDetailPage: React.FC = () => {
 		});
 
 		return Array.from(all.values()).sort((a, b) => {
-			const aTime = new Date(a.date || 0).getTime() || 0;
-			const bTime = new Date(b.date || 0).getTime() || 0;
+			const aTime = getDisplayDateTime(a.date);
+			const bTime = getDisplayDateTime(b.date);
 			return bTime - aTime;
 		});
 	}, [device?.id, deviceDocumentFiles, property, relatedMaintenanceHistory]);
@@ -993,7 +1029,7 @@ export const DeviceDetailPage: React.FC = () => {
 		if (!String(device?.brand || '').trim()) suggestions.push('Add make or brand');
 		if (!String(device?.model || '').trim()) suggestions.push('Add model number');
 		if (!String(device?.serialNumber || '').trim()) suggestions.push('Add serial number');
-		if (!String(device?.installationDate || '').trim()) suggestions.push('Add install date');
+		if (!deviceInstallDate) suggestions.push('Add install date');
 		if (serviceFilterItems.length === 0 && /hvac|furnace|air handler|heat pump/i.test(`${device?.type || ''} ${device?.assetType || ''} ${device?.assetVariant || ''}`)) {
 			suggestions.push('Add filter sizes');
 		}
@@ -1001,7 +1037,7 @@ export const DeviceDetailPage: React.FC = () => {
 		if (!hasWarrantyDocument) suggestions.push('Upload warranty information');
 		if (!hasManualDocument) suggestions.push('Upload manual');
 		return suggestions;
-	}, [device, hasManualDocument, hasRecurringTask, hasWarrantyDocument, serviceFilterItems.length]);
+	}, [device, deviceInstallDate, hasManualDocument, hasRecurringTask, hasWarrantyDocument, serviceFilterItems.length]);
 
 	const recommendedNextStep = useMemo(() => {
 		const deviceText = `${device?.type || ''} ${device?.assetType || ''} ${device?.assetVariant || ''}`.toLowerCase();
@@ -1051,6 +1087,11 @@ export const DeviceDetailPage: React.FC = () => {
 		setShowTaskModal(true);
 	};
 
+	const openCompleteTaskModal = (task: any) => {
+		if (!roleCapabilities.canCompleteTasks || !task?.id) return;
+		setTaskToComplete(task);
+	};
+
 	const handleDeleteLinkedTask = async (task: any) => {
 		if (!roleCapabilities.canManageTasks || !task?.id) return;
 		if (!window.confirm(`Delete the task "${task.title || 'Task'}"?`)) return;
@@ -1073,7 +1114,7 @@ export const DeviceDetailPage: React.FC = () => {
 		}
 		setQuickLogMode(mode);
 		setQuickLogDescription('');
-		setQuickLogDate(new Date().toISOString().split('T')[0]);
+		setQuickLogDate(getTodayDateOnly());
 		setQuickLogAttachment(null);
 		setQuickLogWarrantyExpiration('');
 		setQuickLogFinancials({
@@ -1155,10 +1196,10 @@ export const DeviceDetailPage: React.FC = () => {
 			};
 			const financials =
 				shouldCaptureFinancials && hasCostData(financialActual)
-					? {
+					? normalizeFinancialsWithTotals({
 						currency: 'USD',
 						actual: financialActual,
-					}
+					})
 					: undefined;
 
 			let completedBy: string | undefined;
@@ -1212,7 +1253,7 @@ export const DeviceDetailPage: React.FC = () => {
 				propertyTitle: property.title,
 				title: `${descriptionPrefix} ${summaryDescription}`,
 				description: descriptionText,
-				completionDate: new Date(quickLogDate).toISOString(),
+				completionDate: quickLogDate,
 				completedBy,
 				completedByName,
 				unitId: device.location?.unitId,
@@ -1324,7 +1365,7 @@ export const DeviceDetailPage: React.FC = () => {
 			model: device?.model || '',
 			serialNumber: device?.serialNumber || '',
 			serviceItems: device?.serviceItems || [],
-			installationDate: device?.installationDate || '',
+			installationDate: deviceInstallDate,
 			decommissionDate: device?.decommissionDate || '',
 			status: device?.decommissionDate ? 'Decommissioned' : device?.status || 'Active',
 			location: device?.location || { propertyId: property?.id || '' },
@@ -1342,7 +1383,7 @@ export const DeviceDetailPage: React.FC = () => {
 			model: device.model || '',
 			serialNumber: device.serialNumber || '',
 			serviceItems: device.serviceItems || [],
-			installationDate: device.installationDate || '',
+			installationDate: deviceInstallDate,
 			decommissionDate: device.decommissionDate || '',
 			status: device.decommissionDate ? 'Decommissioned' : device.status || 'Active',
 			location: device.location || { propertyId: property.id },
@@ -1446,7 +1487,7 @@ export const DeviceDetailPage: React.FC = () => {
 			setShowDeviceEditModal(false);
 			resetDeviceEditState();
 		} catch (error) {
-			console.error('Failed to save equipment edits:', error);
+			console.error('Failed to save appliance edits:', error);
 		}
 	};
 
@@ -1714,7 +1755,7 @@ export const DeviceDetailPage: React.FC = () => {
 				if (!canLogMaintenanceActions) break;
 				setQuickLogMode('note');
 				setQuickLogDescription('');
-				setQuickLogDate(new Date().toISOString().split('T')[0]);
+				setQuickLogDate(getTodayDateOnly());
 				setQuickLogAttachment(null);
 				setQuickLogWarrantyExpiration('');
 				setQuickLogFinancials({
@@ -1950,8 +1991,8 @@ export const DeviceDetailPage: React.FC = () => {
 							)}
 
 							<PhotoSection>
-								<DevicePhotoCard>
-									{devicePhotoFile?.url ? (
+										<DevicePhotoCard>
+											{devicePhotoFile?.url ? (
 										<DevicePhotoImg src={devicePhotoFile.url} alt={`${device.type || 'Equipment'} photo`} />
 									) : (
 										<PhotoPlaceholder>No equipment photo selected</PhotoPlaceholder>
@@ -2021,7 +2062,7 @@ export const DeviceDetailPage: React.FC = () => {
 								</InfoCard>
 								<InfoCard>
 									<InfoLabel>Installed</InfoLabel>
-									<InfoValue>{formatDate(device.installationDate)}</InfoValue>
+									<InfoValue>{formatDate(deviceInstallDate)}</InfoValue>
 								</InfoCard>
 								<InfoCard>
 									<InfoLabel>Decommissioned</InfoLabel>
@@ -2171,6 +2212,12 @@ export const DeviceDetailPage: React.FC = () => {
 												</MobileDetailMeta>
 												{roleCapabilities.canManageTasks && (
 													<ButtonGroup>
+														{roleCapabilities.canCompleteTasks && (
+															<ActionButton onClick={() => openCompleteTaskModal(task)}>
+																<FontAwesomeIcon icon={faCircleCheck} />
+																Complete
+															</ActionButton>
+														)}
 														<ActionButton onClick={() => openEditTaskModal(task)}>
 															<FontAwesomeIcon icon={faEdit} />
 															Edit
@@ -2266,6 +2313,15 @@ export const DeviceDetailPage: React.FC = () => {
 									emptyActionLabel={canCreateTaskActions ? 'Add Task' : undefined}
 									onEmptyAction={canCreateTaskActions ? openCreateTaskModal : undefined}
 									actions={roleCapabilities.canManageTasks ? [
+										...(roleCapabilities.canCompleteTasks
+											? [
+													{
+														label: 'Complete',
+														icon: faCircleCheck,
+														onClick: (task: any) => openCompleteTaskModal(task),
+													},
+											  ]
+											: []),
 										{
 											label: 'Edit',
 											icon: faEdit,
@@ -2776,6 +2832,16 @@ export const DeviceDetailPage: React.FC = () => {
 					unitId={device?.location?.unitId || null}
 					unitOptions={taskUnitOptions}
 				/>
+
+				{taskToComplete?.id && (
+					<TaskCompletionModal
+						taskId={String(taskToComplete.id)}
+						taskTitle={taskToComplete.title || 'Task'}
+						task={taskToComplete}
+						onClose={() => setTaskToComplete(null)}
+						onSuccess={() => setTaskToComplete(null)}
+					/>
+				)}
 
 				<TaskModal
 					isOpen={showRecurringTaskModal}

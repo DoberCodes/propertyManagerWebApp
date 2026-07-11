@@ -46,7 +46,7 @@ const FeaturesSectionComponent = () => {
 					</FeatureIcon>
 					<FeatureTitle>Equipment Records</FeatureTitle>
 					<FeatureDescription>
-						Keep HVAC, filters, parts, and equipment history with
+						Keep HVAC, equipment, filters, parts, and service history with
 						the records they belong to.
 					</FeatureDescription>
 				</FeatureCard>

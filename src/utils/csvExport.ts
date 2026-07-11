@@ -99,8 +99,8 @@ export const generateTaskReport = (
 	const normalizedTasks = tasks.map((task) => {
 		const estimate = task.financials?.estimate;
 		const actual = task.financials?.actual;
-		const estimatedTotal = calculateCostTotal(estimate);
-		const actualTotal = calculateCostTotal(actual);
+		const estimatedTotal = task.financials?.estimatedCost ?? calculateCostTotal(estimate);
+		const actualTotal = task.financials?.actualCost ?? calculateCostTotal(actual);
 
 		return {
 			...task,
@@ -166,6 +166,7 @@ export const MAINTENANCE_REQUEST_COLUMN_OPTIONS = {
 	category: 'Category',
 	status: 'Status',
 	propertyTitle: 'Property',
+	linkedEquipment: 'Equipment',
 	unit: 'Unit',
 	suite: 'Suite',
 	submittedByName: 'Submitted By',
@@ -377,8 +378,8 @@ export const generateMaintenanceHistoryReport = (
 	const normalizedRecords = maintenanceRecords.map((record) => {
 		const estimate = record.financials?.estimate;
 		const actual = record.financials?.actual;
-		const estimatedTotal = calculateCostTotal(estimate);
-		const actualTotal = calculateCostTotal(actual);
+		const estimatedTotal = record.financials?.estimatedCost ?? calculateCostTotal(estimate);
+		const actualTotal = record.financials?.actualCost ?? calculateCostTotal(actual);
 
 		return {
 			...record,

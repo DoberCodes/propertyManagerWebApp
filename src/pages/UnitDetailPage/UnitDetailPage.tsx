@@ -906,7 +906,7 @@ export const UnitDetailPage: React.FC = () => {
 
 	const handleDeleteDeviceQuick = async (device: any) => {
 		if (!device?.id) return;
-		if (!window.confirm(`Delete equipment ${device.type || ''} ${device.model || ''}?`)) {
+		if (!window.confirm(`Delete equipment "${[device.brand, device.type, device.model].filter(Boolean).join(' ') || 'record'}"?`)) {
 			return;
 		}
 		try {

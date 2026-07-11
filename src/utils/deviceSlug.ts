@@ -23,7 +23,7 @@ export const buildDeviceSlug = (
 	device: Pick<Device, 'id' | 'type' | 'brand' | 'model'>,
 ): string => {
 	const normalizedBase = getBaseSlug(device);
-	return `${normalizedBase}-${device.id}`;
+	return `${normalizedBase}--${device.id}`;
 };
 
 export const getDeviceIdFromSlug = (

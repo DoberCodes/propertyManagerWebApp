@@ -364,15 +364,16 @@ export const TeamGroupActionButton = styled.button`
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	width: 34px;
-	height: 34px;
+	gap: 6px;
+	min-height: 34px;
 	background: #f8fafc;
 	border: 1px solid #e2e8f0;
 	border-radius: 999px;
 	color: #64748b;
 	font-size: 0;
+	font-weight: 800;
 	cursor: pointer;
-	padding: 0;
+	padding: 0 10px;
 	transition:
 		background 0.2s ease,
 		border-color 0.2s ease,
@@ -383,6 +384,11 @@ export const TeamGroupActionButton = styled.button`
 		font-size: 14px;
 	}
 
+	&::after {
+		content: attr(aria-label);
+		font-size: 12px;
+	}
+
 	&:hover {
 		background: ${COLORS.primaryLight};
 		border-color: ${COLORS.primaryHover};
@@ -391,8 +397,7 @@ export const TeamGroupActionButton = styled.button`
 	}
 
 	@media (max-width: 480px) {
-		width: 38px;
-		height: 38px;
+		min-height: 38px;
 	}
 `;
 
@@ -477,6 +482,8 @@ export const TeamMemberActions = styled.div`
 	right: 12px;
 	display: flex;
 	gap: 6px;
+	flex-wrap: wrap;
+	justify-content: flex-end;
 	opacity: 1;
 	transition: opacity 0.2s ease;
 `;
@@ -485,18 +492,25 @@ export const TeamMemberActionButton = styled.button`
 	background-color: ${COLORS.bgWhite};
 	border: 1px solid #e5e7eb;
 	border-radius: 999px;
-	width: 28px;
-	height: 28px;
+	min-height: 28px;
 	display: flex;
 	align-items: center;
 	justify-content: center;
+	gap: 5px;
 	cursor: pointer;
 	transition: all 0.2s ease;
 	font-size: 0;
+	font-weight: 800;
 	color: #64748b;
+	padding: 0 8px;
 
 	svg {
 		font-size: 12px;
+	}
+
+	&::after {
+		content: attr(aria-label);
+		font-size: 11px;
 	}
 
 	&:hover {

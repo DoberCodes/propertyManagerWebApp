@@ -383,7 +383,14 @@ const DEFAULT_REPORT_COLUMNS: Partial<Record<ReportType, string[]>> = {
 		'convertedToTaskId',
 		'timeToConversionDays',
 	],
-	'maintenance-history': ['date', 'description', 'propertyTitle', 'status', 'completedBy'],
+	'maintenance-history': [
+		'date',
+		'description',
+		'propertyTitle',
+		'linkedEquipment',
+		'status',
+		'completedBy',
+	],
 	'maintenance-costs': [
 		'propertyTitle',
 		'date',
@@ -789,8 +796,9 @@ export const ReportBuilder: React.FC = () => {
 			normalizeMaintenanceHistoryReportRows(
 				scopedMaintenanceHistory,
 				scopedProperties,
+				devicesData,
 			),
-		[scopedMaintenanceHistory, scopedProperties],
+		[scopedMaintenanceHistory, scopedProperties, devicesData],
 	);
 
 	const maintenanceRequests = useMemo(

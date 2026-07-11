@@ -935,7 +935,7 @@ export const DeviceModal = (props: DeviceModalProps) => {
 										Existing Files
 									</SectionTitle>
 									<SectionDescription>
-										These older files are saved directly on this equipment record. New uploads should use Equipment Documents below.
+										These older files are saved directly on this equipment. New uploads should use Equipment Documents below.
 									</SectionDescription>
 									<AttachmentList>
 										{(props.deviceFormData.files || []).map((file) => {

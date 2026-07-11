@@ -231,10 +231,6 @@ Workflow
 Workflows
 ```
 
-Task list filter areas should stay compact by default. Show quick filters and
-the visible task count first, then place search, sort, and advanced filters
-behind a clear expand/collapse control.
-
 ---
 
 ## Systems & Equipment
@@ -301,9 +297,7 @@ Operational Score
 | ---------------------- | --------------------------------------- |
 | Workflow               | Task                                    |
 | Workflows              | Tasks                                   |
-| Devices                | Equipment                              |
-| Appliances             | Equipment                              |
-| Appliances & Systems   | Equipment                              |
+| Devices                | Systems or Equipment                    |
 | Operational Continuity | Maintenance History or Property Records |
 | Continuity Risk        | Needs Attention                         |
 | Device Status          | System Status                           |
@@ -327,19 +321,6 @@ Preferred dashboard sections:
 * Upcoming
 * Recommendations
 * Recent Activity
-* Home Activity
-
-The operational lower dashboard area should use a single `Home Activity` module
-with folder-style tabs:
-
-```text
-Needs Attention | Recent Maintenance | Home Timeline
-```
-
-`Needs Attention` is the default tab. `Recent Maintenance` should be spelled out
-rather than shortened. `Home Timeline` is preferred over `Property Timeline` for
-homeowner-facing dashboard language. Avoid adding extra status pills to this
-module when the tabs already provide enough structure.
 
 Dashboard framing should adapt to the user's responsibility. Use `Your Focus`
 or `Your Tasks` for assigned users, `Team Focus` or `Team Tasks` for maintenance
@@ -622,7 +603,7 @@ No systems found.
 Use:
 
 ```text id="mf2k7k"
-Add equipment like your HVAC, water heater, roof, generator, safety devices, or anything else you want to track.
+Add equipment like your HVAC, water heater, roof, generator, or other home systems you want to track.
 ```
 
 ---

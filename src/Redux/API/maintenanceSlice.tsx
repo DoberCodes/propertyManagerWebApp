@@ -17,6 +17,7 @@ import {
 } from './accountContext';
 import { TaskFinancials } from '../../types/Task.types';
 import { MaintenanceEvent } from '../../types/MaintenanceEvent.types';
+import { normalizeFinancialsWithTotals } from '../../utils/financialUtils';
 
 const maintenanceSlice = apiSlice.injectEndpoints({
 	endpoints: (builder) => ({
@@ -291,7 +292,7 @@ const maintenanceSlice = apiSlice.injectEndpoints({
 							: undefined,
 						recurringTaskId,
 						linkedTaskIds,
-						financials,
+						financials: normalizeFinancialsWithTotals(financials),
 					};
 
 					const result = await callFirebaseFunction<

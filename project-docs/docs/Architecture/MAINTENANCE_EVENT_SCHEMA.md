@@ -128,6 +128,10 @@ Common fields:
 * createdByName
 * createdAt
 * updatedAt
+
+`completionDate` may be stored as a date-only string such as `2026-07-10`.
+Date-only maintenance values are calendar dates and should be displayed in the
+user's local calendar without shifting through UTC conversion.
 * priority
 * tags
 * linkedTaskIds
@@ -246,7 +250,10 @@ Current shape:
 
 Some task workflows support more detailed cost structures.
 
-When linking task financials to maintenance events, verify conversion and normalization behavior.
+When linking task financials to maintenance events, detailed estimate and actual
+cost breakdowns should be preserved. Summary totals such as `estimatedCost` and
+`actualCost` should be derived during event creation when they are not already
+present so cost views and reports can read a consistent total.
 
 When a completed task creates a Maintenance Event, the Maintenance Event becomes the owner of the recorded cost for that completed work. The original task may remain linked through `originalTaskId` or `linkedTaskIds`, but derived cost views should use the event cost and avoid counting the same completed task financials twice.
 

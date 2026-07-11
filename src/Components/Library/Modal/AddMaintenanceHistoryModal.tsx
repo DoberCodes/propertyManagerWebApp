@@ -18,6 +18,7 @@ import {
 	toNumberOrUndefined,
 	calculateCostTotal,
 	formatCurrency,
+	normalizeFinancialsWithTotals,
 } from '../../../utils/financialUtils';
 import { TaskFinancials } from '../../../types/Task.types';
 import { COLORS } from '../../../constants/colors';
@@ -252,10 +253,10 @@ export const AddMaintenanceHistoryModal: React.FC<
 					otherCost: toNumberOrUndefined(formData.otherCost),
 				};
 				if (!hasCostData(actual)) return undefined;
-				return {
+				return normalizeFinancialsWithTotals({
 					currency: 'USD',
 					actual,
-				};
+				});
 			})(),
 			title: formData.title,
 			completionDate: formData.completionDate,

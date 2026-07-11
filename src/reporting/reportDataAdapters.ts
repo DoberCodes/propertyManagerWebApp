@@ -326,8 +326,8 @@ export const normalizeTaskReportRows = (
 	return tasks.map((task: any) => {
 		const estimate = task.financials?.estimate;
 		const actual = task.financials?.actual;
-		const estimatedTotal = calculateCostTotal(estimate);
-		const actualTotal = calculateCostTotal(actual);
+		const estimatedTotal = task.financials?.estimatedCost ?? calculateCostTotal(estimate);
+		const actualTotal = task.financials?.actualCost ?? calculateCostTotal(actual);
 		const propertyTitle = resolveTaskPropertyTitle(task, propertyLookup);
 		return {
 			...task,
@@ -357,14 +357,41 @@ export const normalizeTaskReportRows = (
 export const normalizeMaintenanceHistoryReportRows = (
 	records: any[],
 	properties: any[] = [],
+	devices: any[] = [],
 ): any[] => {
 	const propertyLookup = createPropertyLookup(properties);
+	const deviceNameById = new Map(
+		devices
+			.map((device: any) => {
+				const id = String(device?.id || '').trim();
+				const label = [
+					device?.brand || device?.manufacturer,
+					device?.type || device?.assetType,
+					device?.model,
+				]
+					.filter(Boolean)
+					.join(' ')
+					.trim();
+				return id ? [id, label || id] : null;
+			})
+			.filter(Boolean) as Array<[string, string]>,
+	);
 	return records.map((record: any) => {
 		const propertyId = String(record.propertyId || '').trim();
 		const estimate = record.financials?.estimate;
 		const actual = record.financials?.actual;
-		const estimatedTotal = calculateCostTotal(estimate);
-		const actualTotal = calculateCostTotal(actual);
+		const estimatedTotal = record.financials?.estimatedCost ?? calculateCostTotal(estimate);
+		const actualTotal = record.financials?.actualCost ?? calculateCostTotal(actual);
+		const completionDate = cleanDateValue(
+			record.completionDate || record.date || record.createdAt,
+		);
+		const description = String(
+			record.description || record.completionNotes || record.title || '',
+		).trim();
+		const linkedEquipment = (record.deviceIds || record.devices || [])
+			.map((id: any) => deviceNameById.get(String(id)) || String(id))
+			.filter(Boolean)
+			.join('; ');
 		return {
 			...record,
 			propertyId,
@@ -373,6 +400,10 @@ export const normalizeMaintenanceHistoryReportRows = (
 				propertyLookup,
 				record.propertyTitle || record.property,
 			),
+			completionDate,
+			date: completionDate,
+			description,
+			linkedEquipment,
 			estimateContractorCost: estimate?.contractorCost,
 			estimateMaterialsCost: estimate?.materialsCost,
 			estimateLaborCost: estimate?.laborCost,
@@ -1301,7 +1332,7 @@ export const getAccessibleReports = (
 		{
 			value: 'appliance-service',
 			label: 'Equipment Service',
-			description: 'Service history, open work, and documents by equipment record',
+			description: 'Service history, open work, and documents by equipment',
 			requiresTeamAccess: false,
 			requiresMultiProperty: false,
 		},

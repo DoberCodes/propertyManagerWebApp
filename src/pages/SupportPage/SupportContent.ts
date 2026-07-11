@@ -247,7 +247,7 @@ export const helpfulArticles: HelpfulArticle[] = [
 	},
 	{
 		slug: 'track-appliances-and-home-systems',
-		title: 'Track equipment',
+		title: 'Track equipment and home systems',
 		summary:
 			'Keep equipment details, parts, documents, tasks, and service history connected.',
 		readTime: '5 min read',
@@ -263,7 +263,7 @@ export const helpfulArticles: HelpfulArticle[] = [
 			{
 				heading: 'What this helps you do',
 				paragraphs: [
-					'Use equipment profiles for anything you maintain, repair, replace, or reference during service work. Common examples include HVAC systems, water heaters, refrigerators, roofs, generators, pumps, and safety equipment.',
+					'Use equipment profiles for items you maintain, repair, replace, or reference during service work. Common examples include HVAC systems, water heaters, kitchen equipment, roofs, generators, pumps, and safety equipment.',
 					'Each profile can hold manufacturer details, model and serial numbers, install dates, filters, parts, notes, documents, tasks, and Maintenance History.',
 				],
 				image: {
@@ -320,7 +320,7 @@ export const helpfulArticles: HelpfulArticle[] = [
 				heading: 'Where to attach files',
 				steps: [
 					'Attach general inspections or property photos to the property.',
-					'Attach manuals, warranties, label photos, and equipment receipts to the equipment record.',
+					'Attach manuals, warranties, label photos, and receipts to the equipment.',
 					'Attach invoices, service reports, receipts, and work photos to the completed maintenance record.',
 				],
 				image: {

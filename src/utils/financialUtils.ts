@@ -31,6 +31,32 @@ export const calculateCostTotal = (costs?: CostBreakdown): number | undefined =>
 	return parts.reduce((sum, value) => sum + value, 0);
 };
 
+const getLegacyFinancialTotal = (financials?: TaskFinancials): number | undefined => {
+	if (!financials) return undefined;
+	const legacy = financials as TaskFinancials & {
+		totalCost?: unknown;
+		cost?: unknown;
+		amount?: unknown;
+		contractorCost?: unknown;
+		materialsCost?: unknown;
+		laborCost?: unknown;
+		otherCost?: unknown;
+	};
+
+	const directTotal =
+		toNumberOrUndefined(legacy.totalCost) ??
+		toNumberOrUndefined(legacy.cost) ??
+		toNumberOrUndefined(legacy.amount);
+	if (directTotal !== undefined) return directTotal;
+
+	return calculateCostTotal({
+		contractorCost: toNumberOrUndefined(legacy.contractorCost),
+		materialsCost: toNumberOrUndefined(legacy.materialsCost),
+		laborCost: toNumberOrUndefined(legacy.laborCost),
+		otherCost: toNumberOrUndefined(legacy.otherCost),
+	});
+};
+
 export const formatCurrency = (
 	value?: number,
 	currency: string = 'USD',
@@ -48,7 +74,30 @@ export const getFinancialDisplayTotal = (
 ): number | undefined => {
 	if (!financials) return undefined;
 	return (
+		toNumberOrUndefined(financials.actualCost) ??
 		calculateCostTotal(financials.actual) ??
-		calculateCostTotal(financials.estimate)
+		toNumberOrUndefined(financials.estimatedCost) ??
+		calculateCostTotal(financials.estimate) ??
+		getLegacyFinancialTotal(financials)
 	);
+};
+
+export const normalizeFinancialsWithTotals = (
+	financials?: TaskFinancials,
+): TaskFinancials | undefined => {
+	if (!financials) return undefined;
+
+	const estimatedCost =
+		toNumberOrUndefined(financials.estimatedCost) ??
+		calculateCostTotal(financials.estimate);
+	const actualCost =
+		toNumberOrUndefined(financials.actualCost) ??
+		calculateCostTotal(financials.actual) ??
+		getLegacyFinancialTotal(financials);
+
+	return {
+		...financials,
+		...(estimatedCost !== undefined ? { estimatedCost } : {}),
+		...(actualCost !== undefined ? { actualCost } : {}),
+	};
 };

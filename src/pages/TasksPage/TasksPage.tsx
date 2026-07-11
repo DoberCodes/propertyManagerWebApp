@@ -1454,7 +1454,7 @@ export const TasksPage = () => {
 				<>
 					{/* Task Grid Section */}
 					<TaskGridSection>
-						{filteredTasks.length === 0 && (
+						{filteredTasks.length === 0 ? (
 							<AppZeroState
 								kind='noTaskMatches'
 								actions={[
@@ -1470,8 +1470,8 @@ export const TasksPage = () => {
 									},
 								]}
 							/>
-						)}
-						<ReusableTable
+						) : (
+							<ReusableTable
 							rowData={filteredTasks}
 							columns={columns}
 							actions={taskActions}
@@ -1521,6 +1521,7 @@ export const TasksPage = () => {
 								}
 							} : undefined}
 						/>
+						)}
 					</TaskGridSection>
 				</>
 			)}

@@ -1890,8 +1890,9 @@ export const Properties = () => {
 			return;
 		}
 
+		const groupName = targetGroup?.name || 'this property group';
 		if (
-			!window.confirm('Are you sure you want to delete this property group?')
+			!window.confirm(`Are you sure you want to delete "${groupName}"? This cannot be undone.`)
 		) {
 			return;
 		}
@@ -2344,6 +2345,7 @@ export const Properties = () => {
 				propertyType: effectivePropertyType,
 				bedrooms: formData.bedrooms,
 				bathrooms: formData.bathrooms,
+				notes: formData.notes,
 				isRental: !!formData.isRental,
 				taskHistory: formData.maintenanceHistory || [],
 				...sharingData,
@@ -2386,9 +2388,9 @@ export const Properties = () => {
 								deviceIdMap = await cloneDuplicateAppliances(result.data);
 								copiedApplianceCount = deviceIdMap.size;
 							} catch (applianceCopyError) {
-								console.error('Failed to copy equipment records:', applianceCopyError);
+								console.error('Failed to copy equipment:', applianceCopyError);
 								feedback.notify(
-									'Property was duplicated, but equipment records could not all be copied.',
+									'Property was duplicated, but equipment could not all be copied.',
 								);
 							}
 						}

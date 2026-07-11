@@ -75,7 +75,7 @@ Account
 
 Properties serve as the primary organizational object.
 
-Equipment records belong to properties.
+Equipment belongs to properties.
 
 Tasks belong to properties and may optionally reference one or more equipment records.
 
@@ -1346,7 +1346,7 @@ Accepted contractor suggestions should become contractor records for the propert
 
 Accepted invoice, financial, service, part, and supply suggestions should become Maintenance Event history when they describe completed work or a received invoice. Incomplete part mentions may be retained in history notes so useful property context is not lost simply because a full model number is unavailable.
 
-Accepted part and supply suggestions that are linked to a specific equipment or system may become `serviceItems` on the related device record. This preserves parts and supplies inside the existing equipment source record rather than creating a parallel parts collection in this phase.
+Accepted part and supply suggestions that are linked to specific equipment may become `serviceItems` on the related device record. This preserves parts and supplies inside the existing equipment source record rather than creating a parallel parts collection in this phase.
 
 The Part Knowledge Catalog is a taxonomy used by Property Knowledge Acquisition. It should define conservative matches and target fields, but it should not update records directly or generate recommendations.
 
