@@ -21,6 +21,11 @@
     <priority>0.85</priority>
   </url>
   <url>
+    <loc>https://maintleyapp.com/home-health/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.85</priority>
+  </url>
+  <url>
     <loc>https://maintleyapp.com/maintenance-reminders/</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
@@ -36,9 +41,49 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://maintleyapp.com/homeowners/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://maintleyapp.com/property-managers/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://maintleyapp.com/features/</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://maintleyapp.com/pricing/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://maintleyapp.com/resources/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.75</priority>
+  </url>
+  <url>
+    <loc>https://maintleyapp.com/resources/home-maintenance-checklist/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://maintleyapp.com/resources/appliance-maintenance-log/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://maintleyapp.com/resources/how-to-create-home-maintenance-log/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://maintleyapp.com/resources/what-maintenance-records-should-homeowners-keep/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
   </url>
   <url>
     <loc>https://maintleyapp.com/legal/</loc>

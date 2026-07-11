@@ -133,6 +133,56 @@ h1 {
 	color: var(--maintley-muted);
 }
 
+.breadcrumb {
+	max-width: 1120px;
+	margin: 0 auto;
+	padding: 18px 20px 0;
+	color: var(--maintley-muted);
+	font-size: 14px;
+}
+
+.breadcrumb a {
+	font-weight: 700;
+	text-decoration: none;
+}
+
+.article-meta {
+	margin: 0 0 18px;
+	color: var(--maintley-muted);
+	font-size: 14px;
+	font-weight: 700;
+}
+
+.article-body {
+	max-width: 860px;
+}
+
+.article-body h2 {
+	margin-top: 34px;
+}
+
+.article-body h3 {
+	margin: 24px 0 8px;
+	font-size: 22px;
+}
+
+.article-body p,
+.article-body li {
+	color: var(--maintley-muted);
+}
+
+.article-body ol,
+.article-body ul {
+	padding-left: 24px;
+}
+
+.two-column {
+	display: grid;
+	grid-template-columns: minmax(0, 0.95fr) minmax(280px, 0.55fr);
+	gap: 28px;
+	align-items: start;
+}
+
 .grid {
 	display: grid;
 	grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -172,11 +222,39 @@ h1 {
 }
 
 .check-list li::before {
-	content: "✓";
+	content: "";
 	position: absolute;
 	left: 0;
+	top: 0.55em;
+	width: 10px;
+	height: 5px;
+	border-left: 2px solid var(--maintley-green);
+	border-bottom: 2px solid var(--maintley-green);
+	transform: rotate(-45deg);
 	color: var(--maintley-green);
 	font-weight: 900;
+}
+
+.screenshot-panel {
+	display: grid;
+	grid-template-columns: minmax(0, 0.9fr) minmax(320px, 1.1fr);
+	gap: 28px;
+	align-items: center;
+	margin-top: 24px;
+}
+
+.screenshot-frame {
+	overflow: hidden;
+	border: 1px solid var(--maintley-border);
+	border-radius: 14px;
+	background: #ffffff;
+	box-shadow: 0 16px 40px rgba(31, 41, 55, 0.1);
+}
+
+.screenshot-frame img {
+	display: block;
+	width: 100%;
+	height: auto;
 }
 
 .faq {
@@ -231,7 +309,9 @@ h1 {
 		flex-direction: column;
 	}
 
-	.grid {
+	.grid,
+	.screenshot-panel,
+	.two-column {
 		grid-template-columns: 1fr;
 	}
 }

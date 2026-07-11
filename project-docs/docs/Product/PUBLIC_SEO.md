@@ -32,8 +32,17 @@ static public pages from `public/`:
 * `/home-maintenance-log/`
 * `/maintenance-reminders/`
 * `/home-document-organizer/`
+* `/home-health/`
 * `/property-maintenance-software/`
+* `/homeowners/`
+* `/property-managers/`
+* `/pricing/`
 * `/legal/`
+* `/resources/`
+* `/resources/home-maintenance-checklist/`
+* `/resources/appliance-maintenance-log/`
+* `/resources/how-to-create-home-maintenance-log/`
+* `/resources/what-maintenance-records-should-homeowners-keep/`
 
 These pages are listed in:
 
@@ -62,6 +71,19 @@ The homepage also includes:
 * Organization JSON-LD
 * WebSite JSON-LD
 * SoftwareApplication JSON-LD
+
+Resource articles include Article JSON-LD where appropriate. FAQ pages should
+include FAQPage JSON-LD when the visible FAQ content is stable.
+
+Resource guides should also include BreadcrumbList JSON-LD so search engines can
+understand the `/resources/` hierarchy.
+
+Pricing pages should include offer-oriented SoftwareApplication JSON-LD when the
+public pricing page describes available plans.
+
+Public pages should use real Maintley screenshots when they help explain the
+product. Prefer screenshots that show the actual dashboard, timeline, equipment,
+documents, reports, or Home Health views over generic decorative imagery.
 
 ---
 
@@ -97,8 +119,10 @@ Avoid leading with generic phrases such as:
 
 Recommended next SEO phases:
 
-1. Add FAQPage JSON-LD to pages with FAQ sections.
-2. Add resource articles under `/resources/`.
-3. Add screenshots or branded OG images for social sharing.
-4. Consider moving public marketing routes from static HTML to first-class clean
+1. Add more FAQPage JSON-LD to pages with stable FAQ sections.
+2. Expand `/resources/` with more product-led guides.
+3. Add branded OG images for social sharing.
+4. Submit `https://maintleyapp.com/sitemap.xml` in Google Search Console and
+   Bing Webmaster Tools after deploy.
+5. Consider moving public marketing routes from static HTML to first-class clean
    React routes if Maintley moves away from `HashRouter`.

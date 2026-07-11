@@ -44,6 +44,15 @@ export const LandingNavbar = () => {
 				<NavExternalLink href='/features/' className='secondary-nav-link'>
 					Feature Catalog
 				</NavExternalLink>
+				<NavExternalLink href='/homeowners/' className='secondary-nav-link'>
+					Homeowners
+				</NavExternalLink>
+				<NavExternalLink href='/pricing/' className='secondary-nav-link'>
+					Pricing
+				</NavExternalLink>
+				<NavExternalLink href='/resources/' className='secondary-nav-link'>
+					Resources
+				</NavExternalLink>
 				<NavAnchor
 					to='#Pricing'
 					scroll={(el) =>

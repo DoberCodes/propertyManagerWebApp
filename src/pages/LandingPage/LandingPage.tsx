@@ -716,6 +716,42 @@ const LandingPageComponent = () => {
 							</FooterLink>
 							<FooterLink
 								as='a'
+								href='/homeowners/'
+								onClick={(e) => {
+									e.preventDefault();
+									window.location.href = '/homeowners/';
+								}}>
+								Homeowners
+							</FooterLink>
+							<FooterLink
+								as='a'
+								href='/property-managers/'
+								onClick={(e) => {
+									e.preventDefault();
+									window.location.href = '/property-managers/';
+								}}>
+								Property Owners
+							</FooterLink>
+							<FooterLink
+								as='a'
+								href='/pricing/'
+								onClick={(e) => {
+									e.preventDefault();
+									window.location.href = '/pricing/';
+								}}>
+								Pricing
+							</FooterLink>
+							<FooterLink
+								as='a'
+								href='/resources/'
+								onClick={(e) => {
+									e.preventDefault();
+									window.location.href = '/resources/';
+								}}>
+								Resources
+							</FooterLink>
+							<FooterLink
+								as='a'
 								href='/home-maintenance-tracker/'
 								onClick={(e) => {
 									e.preventDefault();

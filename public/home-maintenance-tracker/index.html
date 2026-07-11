@@ -11,12 +11,45 @@
 		<script type="application/ld+json">
 			{
 				"@context": "https://schema.org",
-				"@type": "SoftwareApplication",
-				"name": "Maintley",
-				"applicationCategory": "HomeApplication",
-				"operatingSystem": "Web, Android",
-				"url": "https://maintleyapp.com/home-maintenance-tracker/",
-				"description": "A home maintenance tracker for tasks, equipment records, service history, warranties, documents, and recurring reminders."
+				"@graph": [
+					{
+						"@type": "SoftwareApplication",
+						"name": "Maintley",
+						"applicationCategory": "HomeApplication",
+						"operatingSystem": "Web, Android",
+						"url": "https://maintleyapp.com/home-maintenance-tracker/",
+						"description": "A home maintenance tracker for tasks, equipment records, service history, warranties, documents, and recurring reminders."
+					},
+					{
+						"@type": "FAQPage",
+						"mainEntity": [
+							{
+								"@type": "Question",
+								"name": "What is a home maintenance tracker?",
+								"acceptedAnswer": {
+									"@type": "Answer",
+									"text": "A home maintenance tracker helps you record upcoming tasks, completed work, equipment details, documents, and recurring reminders for your home."
+								}
+							},
+							{
+								"@type": "Question",
+								"name": "Can Maintley track both tasks and history?",
+								"acceptedAnswer": {
+									"@type": "Answer",
+									"text": "Yes. Maintley tracks open tasks and completed maintenance records so the work you finish becomes part of the long-term home history."
+								}
+							},
+							{
+								"@type": "Question",
+								"name": "Is Maintley only for landlords?",
+								"acceptedAnswer": {
+									"@type": "Answer",
+									"text": "No. Maintley is homeowner-first, but it also supports property owners and landlords who need better maintenance records across multiple homes."
+								}
+							}
+						]
+					}
+				]
 			}
 		</script>
 	</head>
