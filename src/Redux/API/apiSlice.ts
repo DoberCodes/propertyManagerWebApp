@@ -119,7 +119,13 @@ export const apiSlice = createApi({
 	endpoints: (builder) => ({
 		// App Version
 		getAppVersion: builder.query<
-			{ version: string; releaseDate?: string; releaseNotes?: string },
+			{
+				version: string;
+				releaseDate?: string;
+				releaseNotes?: string;
+				apkUrl?: string;
+				releaseUrl?: string;
+			},
 			void
 		>({
 			async queryFn() {
@@ -143,6 +149,8 @@ export const apiSlice = createApi({
 							version: data.version || '1.0.0',
 							releaseDate: data.releaseDate,
 							releaseNotes: data.releaseNotes,
+							apkUrl: data.apkUrl,
+							releaseUrl: data.releaseUrl,
 						},
 					};
 				} catch (error: any) {

@@ -4,6 +4,7 @@ import {
 	shouldShowUpdateNotification,
 	dismissUpdateNotification,
 	downloadAPK,
+	openUpdateReleasePage,
 	getAvailableVersion,
 	getCurrentAppVersion,
 	checkForUpdates,
@@ -224,8 +225,13 @@ export const UpdateNotification: React.FC<UpdateNotificationProps> = ({
 		};
 	}, []);
 
-	// The handleDownload function is not related to push notifications, so it remains unchanged.
 	const handleDownload = async () => {
+		if (isNativeApp()) {
+			await openUpdateReleasePage();
+			handleDismiss();
+			return;
+		}
+
 		const confirmed = window.confirm(
 			'Before downloading:\n\n' +
 				'Android requires enabling installs from unknown sources for APKs not from the Play Store.\n\n' +
@@ -282,8 +288,9 @@ export const UpdateNotification: React.FC<UpdateNotificationProps> = ({
 				</span>
 			</NotificationTitle>
 			<NotificationText>
-				A new version of Maintley is ready to download. Get the latest features
-				and improvements.
+				{isNativeApp()
+					? 'A new version of Maintley is ready. Open the GitHub release page to download and install the APK.'
+					: 'A new version of Maintley is ready to download. Get the latest features and improvements.'}
 			</NotificationText>
 			<HelpLink onClick={handleOpenHelp}>
 				Need help enabling installs from unknown sources?
@@ -293,7 +300,7 @@ export const UpdateNotification: React.FC<UpdateNotificationProps> = ({
 					Remind Later
 				</Button>
 				<Button variant='primary' onClick={handleDownload}>
-					Download Now
+					{isNativeApp() ? 'Open Release' : 'Download Now'}
 				</Button>
 			</ButtonGroup>
 			<VersionInfo>

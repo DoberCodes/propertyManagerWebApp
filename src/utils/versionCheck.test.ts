@@ -33,7 +33,9 @@ jest.mock('../config/appVersion', () => ({
 import {
 	getAPKDownloadURL,
 	getAPKReleaseAssetName,
+	getUpdateReleasePageURL,
 	getVersionedAPKDownloadURL,
+	getVersionedReleasePageURL,
 	setAvailableVersion,
 } from './versionCheck';
 
@@ -53,11 +55,41 @@ describe('versionCheck APK release URLs', () => {
 		);
 	});
 
+	it('builds a versioned GitHub release page URL', () => {
+		expect(getVersionedReleasePageURL('2.8.0')).toBe(
+			'https://github.com/DoberFamilyVentures/propertyManagerWebApp/releases/tag/v2.8.0',
+		);
+	});
+
 	it('uses the available update version for APK downloads', () => {
 		setAvailableVersion('2.8.0');
 
 		expect(getAPKDownloadURL()).toBe(
 			'https://github.com/DoberFamilyVentures/propertyManagerWebApp/releases/download/v2.8.0/maintley-2.8.0-release.apk',
+		);
+	});
+
+	it('prefers the published APK URL when release metadata is available', () => {
+		setAvailableVersion('2.8.0', {
+			apkUrl:
+				'https://github.com/DoberFamilyVentures/propertyManagerWebApp/releases/download/v2.8.0/app-release.apk',
+			releaseUrl:
+				'https://github.com/DoberFamilyVentures/propertyManagerWebApp/releases/tag/v2.8.0',
+		});
+
+		expect(getAPKDownloadURL()).toBe(
+			'https://github.com/DoberFamilyVentures/propertyManagerWebApp/releases/download/v2.8.0/app-release.apk',
+		);
+		expect(getUpdateReleasePageURL()).toBe(
+			'https://github.com/DoberFamilyVentures/propertyManagerWebApp/releases/tag/v2.8.0',
+		);
+	});
+
+	it('falls back to the versioned release page when no published release URL is stored', () => {
+		setAvailableVersion('2.8.0');
+
+		expect(getUpdateReleasePageURL()).toBe(
+			'https://github.com/DoberFamilyVentures/propertyManagerWebApp/releases/tag/v2.8.0',
 		);
 	});
 });

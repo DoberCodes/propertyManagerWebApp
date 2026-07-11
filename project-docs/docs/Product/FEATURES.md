@@ -409,7 +409,9 @@ Current capabilities:
 * Push notification registration.
 * Mobile-optimized navigation.
 * APK distribution workflows.
-* Native update support.
+* Native update support. In-app update prompts open the published GitHub
+  release page on Android so users can download the APK from the same release
+  page used for manual installs.
 
 The Android application shares the same core functionality and data model as the web application.
 
