@@ -1045,13 +1045,13 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 										}
 									/>
 									<span>
-										Copy appliance records
+										Copy equipment records
 										{duplicateApplianceCount > 0
 											? ` (${duplicateApplianceCount} ${duplicateApplianceCount === 1
-												? 'appliance'
-												: 'appliances'
+												? 'equipment record'
+												: 'equipment records'
 											})`
-											: ' (no appliances found)'}
+											: ' (no equipment found)'}
 									</span>
 								</label>
 								<label
@@ -1079,7 +1079,7 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 									</span>
 								</label>
 								<div style={{ fontSize: 12, color: '#64748b', lineHeight: 1.45 }}>
-									Appliances are created as new records on the duplicate property.
+									Equipment is created as new records on the duplicate property.
 									Task schedules and assignments can be copied too; unit links stay
 									with the original property.
 								</div>

@@ -32,7 +32,7 @@ One intelligence engine. Multiple experiences.
 ## Decision
 
 - Maintley Intelligence is implemented as a derived guidance layer rather than a canonical data source.
-- It may analyze properties, maintenance events, appliances and systems, documents, and tasks to produce recommendations and insights.
+- It may analyze properties, maintenance events, equipment, documents, and tasks to produce recommendations and insights.
 - It must not become a competing source of truth for property or maintenance records.
 - Maintley Intelligence uses one shared engine that evaluates recorded property data and produces structured findings.
 - UI surfaces, dashboards, scans, audits, email reports, and future intelligence experiences consume findings from the shared engine rather than implementing separate recommendation logic.

@@ -88,7 +88,7 @@ describe('Dashboard Intelligence consumer', () => {
 			'systems-missing-maintenance-history',
 		);
 		expect(result.primarySuggestion?.title).toBe(
-			'Record first maintenance note for Maintley HVAC Model system-1',
+			'Record first maintenance note for Maintley HVAC',
 		);
 		expect(result.primarySuggestion?.contextLabel).toBe('Main Home');
 		expect(result.primarySuggestion?.affectedPropertyIds).toEqual([firstProperty.id]);
@@ -132,7 +132,7 @@ describe('Dashboard Intelligence consumer', () => {
 			'knowledge-pack-record-details-missing',
 		);
 		expect(homeownerPlusResult.primarySuggestion?.title).toBe(
-			'Add filter size for Maintley HVAC Model hvac-1',
+			'Add filter size for Maintley HVAC',
 		);
 		expect(homeownerPlusResult.primarySuggestion?.contextLabel).toBe(
 			'Main Home',
@@ -172,6 +172,92 @@ describe('Dashboard Intelligence consumer', () => {
 		expect(result.primarySuggestion?.source).toBe('history_inference');
 		expect(result.primarySuggestion?.ruleId).toBe(
 			'baseline-maintenance-cadence-overdue',
+		);
+		expect(result.primarySuggestion?.title).toBe(
+			'Replace or inspect HVAC filter may be due',
+		);
+		expect(result.primarySuggestion?.contextLabel).toBe(
+			'Main Home - Maintley HVAC',
+		);
+		expect(result.primarySuggestion?.evidenceDetails).toEqual([
+			{
+				label: 'Observation',
+				text: 'Your maintenance history shows the HVAC filter was last serviced about 9 months ago.',
+			},
+			{
+				label: 'Context',
+				text: 'The common timeframe is about 3 months.',
+			},
+			{
+				label: 'Recommendation',
+				text: 'It may be worth a quick look.',
+			},
+		]);
+		expect(result.primarySuggestion?.evidenceSummary).toBe(
+			'Your maintenance history shows the HVAC filter was last serviced about 9 months ago. The common timeframe is about 3 months. It may be worth a quick look.',
+		);
+	});
+
+	it('suggests reviewing a linked recurring task when it is scheduled farther out than the common timeframe', () => {
+		const property = makeProperty('property-1', 'Main Home');
+		const hvac = makeSystem('hvac-1', property.id);
+		const recurringTask = makeTask('filter-task', property.id, {
+			title: 'Replace HVAC filter',
+			dueDate: '2026-12-01',
+			isRecurring: true,
+			recurrenceFrequency: 'quarterly',
+			devices: [hvac.id],
+		});
+		const maintenanceHistory = [
+			{
+				id: 'history-filter',
+				deviceId: hvac.id,
+				title: 'Replace HVAC filter',
+				date: '2026-01-01T12:00:00.000Z',
+			},
+		];
+
+		const result = runDashboardIntelligence({
+			properties: [property],
+			systems: [hvac],
+			tasks: [recurringTask],
+			maintenanceHistory,
+			planId: 'homeowner_plus',
+			currentDate: '2026-10-01T12:00:00.000Z',
+			createdAt: '2026-10-01T12:00:00.000Z',
+		});
+
+		expect(result.primarySuggestion?.title).toBe(
+			'Your HVAC filter schedule may need an update',
+		);
+		expect(result.primarySuggestion?.category).toBe('Schedule Optimization');
+		expect(result.primarySuggestion?.contextLabel).toBe(
+			'Main Home - Maintley HVAC',
+		);
+		expect(result.primarySuggestion?.whyItMatters).toBe(
+			'A filter schedule that matches the actual maintenance routine helps keep future reminders useful.',
+		);
+		expect(result.primarySuggestion?.suggestedActionLabel).toBe(
+			'Review scheduled task',
+		);
+		expect(result.primarySuggestion?.suggestedActionType).toBe('open_task');
+		expect(result.primarySuggestion?.relatedTaskIds).toEqual(['filter-task']);
+		expect(result.primarySuggestion?.evidenceDetails).toEqual([
+			{
+				label: 'Observation',
+				text: 'Your maintenance history shows this HVAC filter was last serviced about 9 months ago.',
+			},
+			{
+				label: 'Reminder',
+				text: 'Your recurring "Replace HVAC filter" task is scheduled for 12/01/2026 and repeats every 3 months.',
+			},
+			{
+				label: 'Recommendation',
+				text: 'Your maintenance history and recurring task currently reflect about an 11-month interval. Reviewing the next reminder date or the recorded maintenance history may help keep them aligned.',
+			},
+		]);
+		expect(result.primarySuggestion?.evidenceSummary).toBe(
+			'Your maintenance history shows this HVAC filter was last serviced about 9 months ago. Your recurring "Replace HVAC filter" task is scheduled for 12/01/2026 and repeats every 3 months. Your maintenance history and recurring task currently reflect about an 11-month interval. Reviewing the next reminder date or the recorded maintenance history may help keep them aligned.',
 		);
 	});
 

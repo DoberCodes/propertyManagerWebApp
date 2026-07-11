@@ -52,6 +52,13 @@ type EventAttachmentInput = {
 	description?: string;
 };
 
+type CostBreakdownInput = {
+	contractorCost?: unknown;
+	materialsCost?: unknown;
+	laborCost?: unknown;
+	otherCost?: unknown;
+};
+
 type MaintenanceEventInput = {
 	accountId?: string;
 	propertyId: string;
@@ -77,6 +84,8 @@ type MaintenanceEventInput = {
 	financials?: {
 		estimatedCost?: number;
 		actualCost?: number;
+		estimate?: CostBreakdownInput;
+		actual?: CostBreakdownInput;
 		currency?: string;
 		notes?: string;
 	};
@@ -92,6 +101,32 @@ type CreateMaintenanceEventsBatchRequest = {
 };
 
 const toString = (value: unknown): string => String(value || '').trim();
+
+const toNumberOrUndefined = (value: unknown): number | undefined => {
+	if (value === null || value === undefined || value === '') return undefined;
+	const parsed = typeof value === 'number' ? value : Number(value);
+	return Number.isFinite(parsed) ? parsed : undefined;
+};
+
+const normalizeCostBreakdown = (
+	value?: CostBreakdownInput,
+): Record<string, number> | undefined => {
+	if (!value) return undefined;
+	const normalized = {
+		contractorCost: toNumberOrUndefined(value.contractorCost),
+		materialsCost: toNumberOrUndefined(value.materialsCost),
+		laborCost: toNumberOrUndefined(value.laborCost),
+		otherCost: toNumberOrUndefined(value.otherCost),
+	};
+	const cleaned = stripUndefinedDeep(normalized) as Record<string, number>;
+	return Object.keys(cleaned).length > 0 ? cleaned : undefined;
+};
+
+const calculateCostTotal = (value?: CostBreakdownInput): number | undefined => {
+	const costs = normalizeCostBreakdown(value);
+	if (!costs) return undefined;
+	return Object.values(costs).reduce((sum, cost) => sum + cost, 0);
+};
 
 const stripUndefinedDeep = (value: unknown): unknown => {
 	if (Array.isArray(value)) {
@@ -260,6 +295,14 @@ const buildEventDoc = (
 	const eventType = toString(event.eventType);
 	const eventSource = toString(event.eventSource || 'manual_entry');
 	const completionDate = toString(event.completionDate || event.timestamp || nowIso);
+	const estimateBreakdown = normalizeCostBreakdown(event.financials?.estimate);
+	const actualBreakdown = normalizeCostBreakdown(event.financials?.actual);
+	const estimatedCost =
+		toNumberOrUndefined(event.financials?.estimatedCost) ??
+		calculateCostTotal(event.financials?.estimate);
+	const actualCost =
+		toNumberOrUndefined(event.financials?.actualCost) ??
+		calculateCostTotal(event.financials?.actual);
 
 	const payload = {
 		accountId,
@@ -287,14 +330,10 @@ const buildEventDoc = (
 		attachments: attachments.length > 0 ? attachments : undefined,
 		financials: event.financials
 			? {
-				estimatedCost:
-					typeof event.financials.estimatedCost === 'number'
-						? event.financials.estimatedCost
-						: undefined,
-				actualCost:
-					typeof event.financials.actualCost === 'number'
-						? event.financials.actualCost
-						: undefined,
+				estimatedCost,
+				actualCost,
+				estimate: estimateBreakdown,
+				actual: actualBreakdown,
 				currency: toString(event.financials.currency) || 'USD',
 				notes: toString(event.financials.notes) || undefined,
 			}

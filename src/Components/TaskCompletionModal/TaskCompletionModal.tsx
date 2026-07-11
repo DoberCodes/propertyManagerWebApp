@@ -13,6 +13,7 @@ import {
 	calculateCostTotal,
 	formatCurrency,
 	hasCostData,
+	normalizeFinancialsWithTotals,
 	toNumberOrUndefined,
 } from '../../utils/financialUtils';
 import { useSubmitTaskCompletionMutation } from '../../Redux/API/taskSlice';
@@ -141,15 +142,17 @@ export const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
 				otherCost: toNumberOrUndefined(actualCosts.otherCost),
 			};
 			const hasActualCosts = hasCostData(actualBreakdown);
+			const actualCost = calculateCostTotal(actualBreakdown);
 			const estimateBreakdown = task?.financials?.estimate;
 			const financials =
 				hasActualCosts || estimateBreakdown || financialNotes
-					? {
+					? normalizeFinancialsWithTotals({
 							currency: task?.financials?.currency || 'USD',
 							estimate: estimateBreakdown,
 							actual: hasActualCosts ? actualBreakdown : undefined,
+							actualCost,
 							notes: financialNotes || undefined,
-						}
+						})
 					: undefined;
 
 			let completionFileData: CompletionFile | undefined;

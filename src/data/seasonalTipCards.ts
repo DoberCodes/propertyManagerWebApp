@@ -241,10 +241,10 @@ export const seasonalTipCards: SeasonalCard[] = [
 		riskCategory: 'water',
 		priorityLevel: 'medium',
 	},
-	// Appliance Performance Check
+	// Equipment Performance Check
 	{
 		id: 'appliances',
-		title: 'Appliance Performance Check',
+		title: 'Equipment Performance Check',
 		image: 'Assets/TipsImages/appliances.jpg',
 		bullets: [
 			'Clean refrigerator coils',

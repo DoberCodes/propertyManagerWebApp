@@ -2,6 +2,7 @@ import { MaintenanceEvent } from '../types/MaintenanceEvent.types';
 import { CompletionFile, Task, TaskFinancials } from '../types/Task.types';
 import { calculateNextDueDate } from '../utils/recurringTaskUtils';
 import { getDefaultTaskNotifications } from '../utils/taskNotificationUtils';
+import { normalizeFinancialsWithTotals } from '../utils/financialUtils';
 
 export const sanitizeTaskLifecycleRecord = (
 	record: Record<string, unknown>,
@@ -57,7 +58,7 @@ export const buildMaintenanceEventFromTask = ({
 		completedBy,
 		completedByName,
 		completionFile,
-		financials: financials || task.financials,
+		financials: normalizeFinancialsWithTotals(financials || task.financials),
 		linkedTaskIds: [taskId],
 		originalTaskId: taskId,
 		recurringTaskId: task.isRecurring ? task.parentTaskId || taskId : undefined,

@@ -67,6 +67,8 @@ export interface CostBreakdown {
 
 export interface TaskFinancials {
 	currency?: string;
+	estimatedCost?: number;
+	actualCost?: number;
 	estimate?: CostBreakdown;
 	actual?: CostBreakdown;
 	notes?: string;

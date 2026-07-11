@@ -51,7 +51,7 @@ const INITIAL_DATA_LOADING_STEPS = [
 	'Reviewing Maintley Intelligence recommendations...',
 	'Organizing your documents...',
 	'Indexing warranties...',
-	'Reading appliance information...',
+	'Reading equipment information...',
 	'Reviewing your property...',
 	'Connecting maintenance history...',
 	'Looking for missing documentation...',

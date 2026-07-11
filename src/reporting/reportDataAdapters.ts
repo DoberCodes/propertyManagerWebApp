@@ -326,8 +326,8 @@ export const normalizeTaskReportRows = (
 	return tasks.map((task: any) => {
 		const estimate = task.financials?.estimate;
 		const actual = task.financials?.actual;
-		const estimatedTotal = calculateCostTotal(estimate);
-		const actualTotal = calculateCostTotal(actual);
+		const estimatedTotal = task.financials?.estimatedCost ?? calculateCostTotal(estimate);
+		const actualTotal = task.financials?.actualCost ?? calculateCostTotal(actual);
 		const propertyTitle = resolveTaskPropertyTitle(task, propertyLookup);
 		return {
 			...task,
@@ -357,14 +357,41 @@ export const normalizeTaskReportRows = (
 export const normalizeMaintenanceHistoryReportRows = (
 	records: any[],
 	properties: any[] = [],
+	devices: any[] = [],
 ): any[] => {
 	const propertyLookup = createPropertyLookup(properties);
+	const deviceNameById = new Map(
+		devices
+			.map((device: any) => {
+				const id = String(device?.id || '').trim();
+				const label = [
+					device?.brand || device?.manufacturer,
+					device?.type || device?.assetType,
+					device?.model,
+				]
+					.filter(Boolean)
+					.join(' ')
+					.trim();
+				return id ? [id, label || id] : null;
+			})
+			.filter(Boolean) as Array<[string, string]>,
+	);
 	return records.map((record: any) => {
 		const propertyId = String(record.propertyId || '').trim();
 		const estimate = record.financials?.estimate;
 		const actual = record.financials?.actual;
-		const estimatedTotal = calculateCostTotal(estimate);
-		const actualTotal = calculateCostTotal(actual);
+		const estimatedTotal = record.financials?.estimatedCost ?? calculateCostTotal(estimate);
+		const actualTotal = record.financials?.actualCost ?? calculateCostTotal(actual);
+		const completionDate = cleanDateValue(
+			record.completionDate || record.date || record.createdAt,
+		);
+		const description = String(
+			record.description || record.completionNotes || record.title || '',
+		).trim();
+		const linkedEquipment = (record.deviceIds || record.devices || [])
+			.map((id: any) => deviceNameById.get(String(id)) || String(id))
+			.filter(Boolean)
+			.join('; ');
 		return {
 			...record,
 			propertyId,
@@ -373,6 +400,10 @@ export const normalizeMaintenanceHistoryReportRows = (
 				propertyLookup,
 				record.propertyTitle || record.property,
 			),
+			completionDate,
+			date: completionDate,
+			description,
+			linkedEquipment,
 			estimateContractorCost: estimate?.contractorCost,
 			estimateMaterialsCost: estimate?.materialsCost,
 			estimateLaborCost: estimate?.laborCost,
@@ -788,9 +819,9 @@ export const buildDocumentInventoryRows = ({
 				id: file.id || `${device.id}-${file.name}`,
 				propertyId,
 				propertyTitle: getPropertyTitle(propertyId, propertyLookup, device.propertyTitle),
-				documentName: file.name || 'Appliance file',
+				documentName: file.name || 'Equipment file',
 				documentType: file.documentType || file.category || 'other',
-				source: 'Appliance',
+				source: 'Equipment',
 				linkedApplianceCount: 1,
 				linkedTaskCount: 0,
 				linkedMaintenanceEventCount: 0,
@@ -889,7 +920,7 @@ export const buildWarrantyExpirationRows = ({
 		rows.push({
 			propertyId,
 			propertyTitle: getPropertyTitle(propertyId, propertyLookup, device.propertyTitle),
-			applianceSystem: device.type || device.assetType || 'Appliance/System',
+			applianceSystem: device.type || device.assetType || 'Equipment',
 			manufacturer: device.manufacturer || device.brand || '',
 			model: device.model || '',
 			serialNumber: device.serialNumber || '',
@@ -979,7 +1010,7 @@ export const buildApplianceServiceRows = ({
 		return {
 			propertyId,
 			propertyTitle: getPropertyTitle(propertyId, propertyLookup, device.propertyTitle),
-			applianceSystem: device.type || device.assetType || 'Appliance/System',
+			applianceSystem: device.type || device.assetType || 'Equipment',
 			type: device.type || '',
 			manufacturer: device.manufacturer || device.brand || '',
 			model: device.model || '',
@@ -1234,8 +1265,8 @@ export const getAccessibleReports = (
 		},
 		{
 			value: 'devices',
-			label: 'Appliances',
-			description: 'Property appliances with installation dates, status, and maintenance notes',
+			label: 'Equipment',
+			description: 'Property equipment with installation dates, status, and maintenance notes',
 			requiresTeamAccess: false,
 			requiresMultiProperty: false,
 		},
@@ -1280,28 +1311,28 @@ export const getAccessibleReports = (
 		{
 			value: 'document-inventory',
 			label: 'Document Inventory',
-			description: 'Inventory of property, appliance, task, request, and maintenance files',
+			description: 'Inventory of property, equipment, task, request, and maintenance files',
 			requiresTeamAccess: false,
 			requiresMultiProperty: false,
 		},
 		{
 			value: 'warranty-expiration',
 			label: 'Warranty & Expiration',
-			description: 'Warranty details and attached warranty documents by appliance or property',
+			description: 'Warranty details and attached warranty documents by equipment or property',
 			requiresTeamAccess: false,
 			requiresMultiProperty: false,
 		},
 		{
 			value: 'recurring-maintenance',
 			label: 'Recurring Maintenance Schedule',
-			description: 'Recurring tasks, next due dates, reminders, and linked appliances',
+			description: 'Recurring tasks, next due dates, reminders, and linked equipment',
 			requiresTeamAccess: false,
 			requiresMultiProperty: false,
 		},
 		{
 			value: 'appliance-service',
-			label: 'Appliance & System Service',
-			description: 'Service history, open work, and documents by appliance or system',
+			label: 'Equipment Service',
+			description: 'Service history, open work, and documents by equipment',
 			requiresTeamAccess: false,
 			requiresMultiProperty: false,
 		},

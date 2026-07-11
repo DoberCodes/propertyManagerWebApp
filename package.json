@@ -102,6 +102,8 @@
 		"migrate:feedback-ticket-numbers:apply": "node scripts/migrateFeedbackTicketNumbers.cjs --apply",
 		"migrate:maintenance-events": "node scripts/migrateMaintenanceHistoryToEvents.cjs",
 		"migrate:maintenance-events:apply": "node scripts/migrateMaintenanceHistoryToEvents.cjs --apply",
+		"migrate:equipment-terminology": "node scripts/migrateEquipmentTerminology.cjs",
+		"migrate:equipment-terminology:apply": "node scripts/migrateEquipmentTerminology.cjs --apply",
 		"migrate:orphaned-data": "node scripts/migrateRemoveOrphanedData.cjs",
 		"migrate:orphaned-data:apply": "node scripts/migrateRemoveOrphanedData.cjs --apply",
 		"migrate:prune-inactive-user-data": "node scripts/migratePruneInactiveUserData.cjs",

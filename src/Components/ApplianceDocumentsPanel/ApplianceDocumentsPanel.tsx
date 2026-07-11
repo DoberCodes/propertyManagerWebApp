@@ -142,8 +142,8 @@ export const ApplianceDocumentsPanel: React.FC<ApplianceDocumentsPanelProps> = (
 			setSelectedFiles([]);
 			setSelectedCategory('other');
 		} catch (error: any) {
-			console.error('Error uploading appliance documents:', error);
-			feedback.notify(error?.message || 'Could not upload appliance documents.');
+			console.error('Error uploading equipment documents:', error);
+			feedback.notify(error?.message || 'Could not upload equipment documents.');
 		} finally {
 			setIsUploading(false);
 		}
@@ -181,7 +181,7 @@ export const ApplianceDocumentsPanel: React.FC<ApplianceDocumentsPanelProps> = (
 			feedback.notify('Document updated.');
 			closeEditModal();
 		} catch (error) {
-			console.error('Error updating appliance document:', error);
+			console.error('Error updating equipment document:', error);
 			feedback.notify('Could not update document. Please try again.');
 		} finally {
 			setIsUploading(false);
@@ -199,7 +199,7 @@ export const ApplianceDocumentsPanel: React.FC<ApplianceDocumentsPanelProps> = (
 			try {
 				await deletePropertyDocumentFile(document.storagePath);
 			} catch (storageError) {
-				console.warn('Could not delete appliance document file:', storageError);
+				console.warn('Could not delete equipment document file:', storageError);
 			}
 			await updateProperty({
 				id: resolvedPropertyId,
@@ -209,7 +209,7 @@ export const ApplianceDocumentsPanel: React.FC<ApplianceDocumentsPanelProps> = (
 			}).unwrap();
 			feedback.notify('Document deleted.');
 		} catch (error) {
-			console.error('Error deleting appliance document:', error);
+			console.error('Error deleting equipment document:', error);
 			feedback.notify('Could not delete document. Please try again.');
 		} finally {
 			setIsUploading(false);
@@ -220,9 +220,9 @@ export const ApplianceDocumentsPanel: React.FC<ApplianceDocumentsPanelProps> = (
 		<>
 		<Panel>
 			<PanelHeader>
-				<PanelTitle>Assigned Appliance Documents</PanelTitle>
+				<PanelTitle>Assigned Equipment Documents</PanelTitle>
 				<PanelText>
-					Attach manuals, warranties, invoices, or photos that belong with this appliance.
+					Attach manuals, warranties, invoices, or photos that belong with this equipment.
 				</PanelText>
 			</PanelHeader>
 
@@ -261,7 +261,7 @@ export const ApplianceDocumentsPanel: React.FC<ApplianceDocumentsPanelProps> = (
 					))}
 				</DocumentList>
 			) : (
-				<EmptyText>No property documents assigned to this appliance yet.</EmptyText>
+				<EmptyText>No property documents assigned to this equipment yet.</EmptyText>
 			)}
 
 			{isPendingMode && displayedPendingFiles.length > 0 && (
@@ -269,7 +269,7 @@ export const ApplianceDocumentsPanel: React.FC<ApplianceDocumentsPanelProps> = (
 					{displayedPendingFiles.map((file) => (
 						<DocumentItem key={`${file.name}-${file.size}`}>
 							<DocumentName>{file.name}</DocumentName>
-							<DocumentMeta>Uploads when the appliance is saved.</DocumentMeta>
+							<DocumentMeta>Uploads when the equipment is saved.</DocumentMeta>
 							<DocumentActions>
 								<DocumentActionButton
 									type='button'

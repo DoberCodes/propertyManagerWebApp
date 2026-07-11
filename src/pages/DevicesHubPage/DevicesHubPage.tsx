@@ -146,7 +146,11 @@ const getLatestMaintenanceEntry = (
 
 const buildFriendlyDeviceName = (device: Device): string => {
 	const deviceType = device.type?.trim();
-	if (deviceType) return deviceType;
+	const brand = device.brand?.trim();
+	const title = [brand, deviceType]
+		.filter((value): value is string => Boolean(value))
+		.join(' ');
+	if (title) return title;
 
 	const fallback = [device.brand, device.model]
 		.filter((value): value is string => Boolean(value && value.trim()))
@@ -154,11 +158,14 @@ const buildFriendlyDeviceName = (device: Device): string => {
 		.join(' ')
 		.trim();
 
-	return fallback || 'Appliance';
+	return fallback || 'Equipment';
 };
 
 const buildTechnicalSubtitle = (device: Device): string => {
-	const pieces = [device.brand, device.model, device.serialNumber]
+	const pieces = [
+		device.model ? `Model ${device.model}` : '',
+		device.serialNumber ? `Serial ${device.serialNumber}` : '',
+	]
 		.filter((value): value is string => Boolean(value && value.trim()))
 		.map((value) => value.trim());
 	if (pieces.length === 0) return 'No technical subtitle recorded';
@@ -493,7 +500,7 @@ export const DevicesHubPage: React.FC = () => {
 			}
 
 			setShowDeviceModal(false);
-			feedback.notify('Appliance added successfully.');
+			feedback.notify('Equipment added successfully.');
 		} catch (error: any) {
 			console.error('Error saving equipment record from hub:', error);
 			feedback.notify(error?.message || 'Unable to add equipment right now.');

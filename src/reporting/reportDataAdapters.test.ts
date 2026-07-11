@@ -118,7 +118,7 @@ describe('reportDataAdapters', () => {
 		expect(rows.map((row) => row.id)).not.toContain('outside-request');
 	});
 
-	it('normalizes appliance fields from current and legacy device shapes', () => {
+	it('normalizes equipment fields from current and legacy device shapes', () => {
 		const rows = normalizeDeviceReportRows(
 			[
 				{
@@ -260,7 +260,7 @@ describe('reportDataAdapters', () => {
 		});
 	});
 
-	it('builds appliance service rows from linked tasks and maintenance records', () => {
+	it('builds equipment service rows from linked tasks and maintenance records', () => {
 		const rows = buildApplianceServiceRows({
 			properties: [{ id: 'property-1', title: 'Oak House' }],
 			devices: [

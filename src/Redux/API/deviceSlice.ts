@@ -42,6 +42,20 @@ const uniqueDevicesById = (devices: Device[]) =>
 		new Map(devices.map((device) => [device.id, device])).values(),
 	) as Device[];
 
+const normalizeDeviceDates = <T extends Partial<Device>>(device: T): T => {
+	const installationDate = String(
+		device.installationDate || device.installDate || '',
+	).trim();
+	if (!installationDate) {
+		return device;
+	}
+	return {
+		...device,
+		installationDate,
+		installDate: installationDate,
+	} as T;
+};
+
 const deviceSlice = apiSlice.injectEndpoints({
 	endpoints: (builder) => ({
 		// Device endpoints
@@ -128,7 +142,7 @@ const deviceSlice = apiSlice.injectEndpoints({
 							String(data.location?.propertyId || ''),
 						)
 					) {
-						return { error: 'Not authorized to view this appliance' };
+						return { error: 'Not authorized to view this equipment' };
 					}
 					return { data: data as Device };
 				} catch (error: any) {
@@ -165,13 +179,13 @@ const deviceSlice = apiSlice.injectEndpoints({
 
 						if (currentDeviceCount >= maxDevices) {
 							throw new Error(
-								`Appliance limit reached for current plan (${maxDevices} max).`,
+								`Equipment limit reached for current plan (${maxDevices} max).`,
 							);
 						}
 
 						const nowIso = new Date().toISOString();
 						transaction.set(deviceRef, {
-							...newDevice,
+							...normalizeDeviceDates(newDevice),
 							userId: targetUserId,
 							accountId: targetUserId,
 							createdAt: nowIso,
@@ -186,7 +200,7 @@ const deviceSlice = apiSlice.injectEndpoints({
 					return {
 						data: {
 							id: deviceRef.id,
-							...newDevice,
+							...normalizeDeviceDates(newDevice),
 							userId: targetUserId,
 							accountId: targetUserId,
 						} as Device,
@@ -206,10 +220,10 @@ const deviceSlice = apiSlice.injectEndpoints({
 				try {
 					const docRef = doc(db, 'devices', id);
 					await updateDoc(docRef, {
-						...updates,
+						...normalizeDeviceDates(updates),
 						updatedAt: new Date().toISOString(),
 					});
-					return { data: { id, ...updates } as Device };
+					return { data: { id, ...normalizeDeviceDates(updates) } as Device };
 				} catch (error: any) {
 					return { error: error.message };
 				}

@@ -69,6 +69,7 @@ import { TaskFinancials } from 'types/Task.types';
 import { PropertyDocument } from 'types/Property.types';
 import { RoleCapabilities } from 'utils/permissions';
 import { COLORS } from '../../../constants/colors';
+import { formatDisplayDate, getDisplayDateTime, parseDisplayDate } from '../../../utils/dateDisplay';
 
 const maintenanceEventTypeLabels: Record<string, string> = {
 	task_completed: 'Task Completed',
@@ -98,8 +99,8 @@ const getMaintenanceEventType = (record: any) => {
 
 const formatRelativeTime = (value?: string): string => {
 	if (!value) return 'No activity recorded yet';
-	const target = new Date(value).getTime();
-	if (Number.isNaN(target)) return 'No activity recorded yet';
+	const target = getDisplayDateTime(value);
+	if (!target) return 'No activity recorded yet';
 
 	const now = Date.now();
 	const diffMs = now - target;
@@ -253,12 +254,12 @@ const getMaintenanceAttachments = (
 const getOperationalStatus = (record: any) => {
 	const eventType = getMaintenanceEventType(record);
 	const completionDate = record.completionDate;
-	const date = completionDate ? new Date(completionDate).getTime() : NaN;
-	const ageDays = Number.isNaN(date)
+	const date = completionDate ? getDisplayDateTime(completionDate) : 0;
+	const ageDays = !date
 		? Number.POSITIVE_INFINITY
 		: Math.floor((Date.now() - date) / (1000 * 60 * 60 * 24));
 
-	if (!completionDate || Number.isNaN(date)) {
+	if (!completionDate || !date) {
 		return { label: 'No Activity', color: '#64748b', background: '#f8fafc', border: '#e2e8f0' };
 	}
 
@@ -482,9 +483,13 @@ export const MaintenanceTab = ({
 			return;
 		}
 
-		// ask via dialog instead of window.confirm
+		const recordNames = deletableRecords
+			.slice(0, 3)
+			.map((record) => record.title || record.description || record.completionNotes || 'Maintenance record')
+			.join(', ');
+		const moreCount = Math.max(0, deletableRecords.length - 3);
 		setDeleteDialogMessage(
-			`Delete ${deletableRecords.length} maintenance history record(s) in this group? This cannot be undone. Linked tasks will not be deleted.`,
+			`Delete ${deletableRecords.length} maintenance history record(s): ${recordNames}${moreCount ? `, and ${moreCount} more` : ''}? This cannot be undone. Linked tasks will not be deleted.`,
 		);
 		setPendingDeleteAction(() => async () => {
 			for (const record of deletableRecords) {
@@ -639,7 +644,7 @@ export const MaintenanceTab = ({
 					.filter(Boolean)
 					.join(' ') ||
 				device?.serialNumber ||
-				`Appliance ${id}`;
+				`Equipment ${id}`;
 			map.set(id, label);
 		});
 
@@ -677,7 +682,7 @@ export const MaintenanceTab = ({
 			const labels = ids
 				.map((id: any) => String(id))
 				.filter(Boolean)
-				.map((id: string) => deviceNameById.get(id) || `Appliance ${id}`);
+				.map((id: string) => deviceNameById.get(id) || `Equipment ${id}`);
 
 			if (labels.length === 0) {
 				return '-';
@@ -756,7 +761,7 @@ export const MaintenanceTab = ({
 			? [
 					{
 						key: 'linkedDevice',
-						label: 'Linked Appliance',
+						label: 'Linked Equipment',
 						type: 'select' as const,
 						options: deviceFilterOptions,
 					},
@@ -853,8 +858,8 @@ export const MaintenanceTab = ({
 				return (a.title || '').localeCompare(b.title || '');
 			}
 
-			const timeA = a.completionDate ? new Date(a.completionDate).getTime() : 0;
-			const timeB = b.completionDate ? new Date(b.completionDate).getTime() : 0;
+			const timeA = a.completionDate ? getDisplayDateTime(a.completionDate) : 0;
+			const timeB = b.completionDate ? getDisplayDateTime(b.completionDate) : 0;
 			return sortBy === 'dateAsc' ? timeA - timeB : timeB - timeA;
 		});
 	}, [
@@ -902,7 +907,7 @@ export const MaintenanceTab = ({
 		if (filters.linkedDevice) {
 			chips.push({
 				key: 'linkedDevice',
-				label: `Linked Appliance: ${
+				label: `Linked Equipment: ${
 					deviceNameById.get(String(filters.linkedDevice)) ||
 					String(filters.linkedDevice)
 				}`,
@@ -960,16 +965,16 @@ export const MaintenanceTab = ({
 		Object.keys(groups).forEach((key) => {
 			groups[key].sort(
 				(a, b) =>
-					new Date(b.completionDate).getTime() -
-					new Date(a.completionDate).getTime(),
+					getDisplayDateTime(b.completionDate) -
+					getDisplayDateTime(a.completionDate),
 			);
 		});
 
 		// Sort ungrouped records by completion date (newest first)
 		ungrouped.sort(
 			(a, b) =>
-				new Date(b.completionDate).getTime() -
-				new Date(a.completionDate).getTime(),
+				getDisplayDateTime(b.completionDate) -
+				getDisplayDateTime(a.completionDate),
 		);
 
 		return { groups, ungrouped };
@@ -1021,7 +1026,7 @@ export const MaintenanceTab = ({
 						<div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', color: '#475569', fontSize: 12, fontWeight: 700 }}>
 							<span>{eventVisual.label}</span>
 							<span>•</span>
-							<span>{row.linkedDevices || 'No linked appliance'}</span>
+							<span>{row.linkedDevices || 'No linked equipment'}</span>
 							<span>•</span>
 							<span>{relative}</span>
 						</div>
@@ -1118,7 +1123,7 @@ export const MaintenanceTab = ({
 					<div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
 						<span style={{ fontWeight: 700, color: '#0f172a' }}>{formatRelativeTime(value)}</span>
 						<span style={{ fontSize: 12, color: '#64748b' }}>
-							{new Date(value).toLocaleDateString()}
+							{formatDisplayDate(value) || value}
 						</span>
 						<span style={{ fontSize: 12, color: '#64748b' }}>
 							{formatCurrency(
@@ -1227,7 +1232,8 @@ export const MaintenanceTab = ({
 					{
 						filteredRecords.filter((record) => {
 							if (!record.completionDate) return false;
-							const date = new Date(record.completionDate);
+							const date = parseDisplayDate(record.completionDate);
+							if (!date) return false;
 							const now = new Date();
 							return (
 								date.getMonth() === now.getMonth() &&

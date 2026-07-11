@@ -51,7 +51,7 @@ Maintley helps homeowners keep documents with the property records they support.
 
 The right document is most useful when it is connected to the right part of the home.
 
-A warranty helps more when it is tied to the appliance.
+A warranty helps more when it is tied to the equipment record.
 
 A receipt helps more when it is tied to the repair.
 
@@ -69,7 +69,7 @@ Maintley helps homeowners keep documents, warranties, receipts, photos, and main
 
 The right document is most useful when it is connected to the right part of the home.
 
-A warranty helps more when it is tied to the appliance.
+A warranty helps more when it is tied to the equipment record.
 
 A receipt helps more when it is tied to the repair.
 
@@ -139,5 +139,5 @@ High
 # Future Follow-ups
 
 - Three documents every homeowner should be able to find quickly.
-- Why warranty information should live with the appliance record.
+- Why warranty information should live with the equipment record.
 - How scattered documents make maintenance harder.

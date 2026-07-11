@@ -65,7 +65,7 @@ const APP_ZERO_STATE_COPY: Record<AppZeroStateKind, AppZeroStateContent> = {
 	noAppliances: {
 		title: 'No equipment records yet',
 		description:
-			'Add HVAC, water heater, roof, appliances, or other equipment you want to track.',
+			'Add HVAC, water heater, roof, generator, or other equipment you want to track.',
 	},
 	noApplianceMatches: {
 		title: 'No equipment matches your filters',

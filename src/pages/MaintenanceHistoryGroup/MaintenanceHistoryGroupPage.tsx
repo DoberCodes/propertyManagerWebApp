@@ -170,8 +170,13 @@ export const MaintenanceHistoryGroupPage: React.FC = () => {
 			return;
 		}
 
+		const recordNames = deletableRecords
+			.slice(0, 3)
+			.map((record: any) => record.title || record.description || record.completionNotes || 'Maintenance record')
+			.join(', ');
+		const moreCount = Math.max(0, deletableRecords.length - 3);
 		setDeleteDialogMessage(
-			`Delete ${deletableRecords.length} maintenance history record(s) in this group? This cannot be undone. Linked tasks will not be deleted.`,
+			`Delete ${deletableRecords.length} maintenance history record(s): ${recordNames}${moreCount ? `, and ${moreCount} more` : ''}? This cannot be undone. Linked tasks will not be deleted.`,
 		);
 		setPendingDeleteAction(() => async () => {
 			for (const record of deletableRecords) {

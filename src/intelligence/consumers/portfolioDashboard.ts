@@ -36,6 +36,8 @@ export interface DashboardIntelligenceSuggestion {
 	title: string;
 	description: string;
 	whyItMatters: string;
+	evidenceSummary?: string;
+	evidenceDetails?: DashboardIntelligenceEvidenceDetail[];
 	contextLabel: string;
 	propertyTitle: string;
 	suggestedActionLabel: string;
@@ -49,6 +51,11 @@ export interface DashboardIntelligenceSuggestion {
 	relatedTaskIds: string[];
 	suggestedTask?: DashboardSuggestedTaskPrefill;
 	metadata: Record<string, unknown>;
+}
+
+export interface DashboardIntelligenceEvidenceDetail {
+	label: string;
+	text: string;
 }
 
 export interface DashboardSuggestedTaskPrefill {
@@ -423,12 +430,236 @@ const getPropertyMaintenanceHistory = (
 	});
 };
 
+const getNumberMetadata = (
+	metadata: Record<string, unknown>,
+	key: string,
+): number | undefined => {
+	const value = metadata[key];
+	if (typeof value === 'number' && Number.isFinite(value)) return value;
+	if (typeof value === 'string' && value.trim()) {
+		const parsed = Number(value);
+		if (Number.isFinite(parsed)) return parsed;
+	}
+	return undefined;
+};
+
+const formatDayCount = (days: number): string =>
+	days === 1 ? '1 day' : `${days} days`;
+
+const formatFriendlyTimeframe = (days: number): string => {
+	if (days >= 60) {
+		const months = Math.max(1, Math.round(days / 30));
+		return months === 1 ? 'about 1 month' : `about ${months} months`;
+	}
+	return `about ${formatDayCount(days)}`;
+};
+
+const getIntervalArticle = (value: number): 'a' | 'an' => {
+	const text = String(value);
+	return text.startsWith('8') || text.startsWith('11') || text.startsWith('18')
+		? 'an'
+		: 'a';
+};
+
+const formatIntervalNoun = (days?: number): string => {
+	if (!days || days <= 0) return 'an interval that may be out of sync';
+	if (days >= 60) {
+		const months = Math.max(1, Math.round(days / 30));
+		return `about ${getIntervalArticle(months)} ${months}-month interval`;
+	}
+	if (days % 7 === 0 && days >= 14) {
+		const weeks = days / 7;
+		return `about ${getIntervalArticle(weeks)} ${weeks}-week interval`;
+	}
+	return `about ${getIntervalArticle(days)} ${days}-day interval`;
+};
+
+const formatRecurrenceCadence = (days?: number): string => {
+	if (!days || days <= 0) return 'on a recurring schedule';
+	if (days === 1) return 'every day';
+	if (days === 7) return 'every week';
+	if (days === 14) return 'every 2 weeks';
+	if (days === 30) return 'every month';
+	if (days === 90) return 'every 3 months';
+	if (days === 180) return 'every 6 months';
+	if (days === 365) return 'every year';
+	if (days % 365 === 0) {
+		const years = days / 365;
+		return years === 1 ? 'every year' : `every ${years} years`;
+	}
+	if (days % 30 === 0) {
+		const months = days / 30;
+		return months === 1 ? 'every month' : `every ${months} months`;
+	}
+	if (days % 7 === 0) {
+		const weeks = days / 7;
+		return weeks === 1 ? 'every week' : `every ${weeks} weeks`;
+	}
+	return days === 1 ? 'every day' : `every ${days} days`;
+};
+
+const formatDateLabel = (value: unknown): string => {
+	if (!value) return '';
+	const parsed = new Date(String(value));
+	if (Number.isNaN(parsed.getTime())) return '';
+	const month = String(parsed.getUTCMonth() + 1).padStart(2, '0');
+	const day = String(parsed.getUTCDate()).padStart(2, '0');
+	return `${month}/${day}/${parsed.getUTCFullYear()}`;
+};
+
+const getEvidenceSubjectLabel = (label: string): string => {
+	const subject = label
+		.trim()
+		.replace(/^replace or inspect\s+/i, '')
+		.replace(/^record\s+/i, '')
+		.replace(/^review\s+/i, '');
+
+	return subject || 'this maintenance';
+};
+
+const getSpecificEvidenceSubject = (subject: string): string =>
+	/^(this|that|the)\b/i.test(subject) ? subject : `this ${subject}`;
+
+const getScheduleReminderTaskText = (
+	metadata: Record<string, unknown>,
+	scheduledDateLabel: string,
+): string => {
+	const recurrenceIntervalDays = getNumberMetadata(
+		metadata,
+		'scheduledTaskRecurrenceIntervalDays',
+	);
+	const recurrenceText = formatRecurrenceCadence(recurrenceIntervalDays);
+	const scheduledTaskTitle = String(metadata.scheduledTaskTitle || '').trim();
+
+	if (scheduledTaskTitle && scheduledDateLabel) {
+		return `Your recurring "${scheduledTaskTitle}" task is scheduled for ${scheduledDateLabel} and repeats ${recurrenceText}.`;
+	}
+
+	if (scheduledTaskTitle) {
+		return `Your recurring "${scheduledTaskTitle}" task repeats ${recurrenceText}.`;
+	}
+
+	if (scheduledDateLabel) {
+		return `Your recurring reminder is scheduled for ${scheduledDateLabel} and repeats ${recurrenceText}.`;
+	}
+
+	return `Your recurring reminder repeats ${recurrenceText}.`;
+};
+
+const getScheduleAlignmentText = (
+	metadata: Record<string, unknown>,
+): string => {
+	const scheduledDaysFromLastService = getNumberMetadata(
+		metadata,
+		'scheduledTaskDaysFromLastMaintenance',
+	);
+	if (!scheduledDaysFromLastService || scheduledDaysFromLastService <= 0) {
+		return 'Your maintenance history and recurring task may no longer line up. Reviewing the next reminder date or the recorded maintenance history may help keep them aligned.';
+	}
+
+	const intervalText = formatIntervalNoun(scheduledDaysFromLastService);
+	return `Your maintenance history and recurring task currently reflect ${intervalText}. Reviewing the next reminder date or the recorded maintenance history may help keep them aligned.`;
+};
+
+const buildEvidenceDetails = (
+	finding: MaintleyFinding,
+): DashboardIntelligenceEvidenceDetail[] => {
+	if (finding.ruleId !== 'baseline-maintenance-cadence-overdue') {
+		return [];
+	}
+
+	const elapsedDays = getNumberMetadata(finding.metadata, 'elapsedDays');
+	const baselineIntervalDays = getNumberMetadata(
+		finding.metadata,
+		'baselineIntervalDays',
+	);
+	const evidenceSubject = getEvidenceSubjectLabel(String(
+		finding.metadata.baselineCadenceLabel || 'this maintenance',
+	));
+	const specificEvidenceSubject = getSpecificEvidenceSubject(evidenceSubject);
+	const scheduledTaskTitle = String(
+		finding.metadata.scheduledTaskTitle || '',
+	).trim();
+	const hasLaterScheduledTask = Boolean(
+		finding.metadata.scheduledTaskId ||
+		finding.metadata.taskId ||
+		scheduledTaskTitle,
+	);
+
+	if (elapsedDays === undefined) {
+		return [];
+	}
+
+	const elapsedText = formatFriendlyTimeframe(elapsedDays);
+
+	if (hasLaterScheduledTask) {
+		const scheduledDateLabel = formatDateLabel(
+			finding.metadata.scheduledTaskDueDate,
+		);
+		return [
+			{
+				label: 'Observation',
+				text: `Your maintenance history shows ${specificEvidenceSubject} was last serviced ${elapsedText} ago.`,
+			},
+			{
+				label: 'Reminder',
+				text: getScheduleReminderTaskText(
+					finding.metadata,
+					scheduledDateLabel,
+				),
+			},
+			{
+				label: 'Recommendation',
+				text: getScheduleAlignmentText(finding.metadata),
+			},
+		];
+	}
+
+	const commonTimeframeText =
+		baselineIntervalDays && baselineIntervalDays > 0
+			? `The common timeframe is ${formatFriendlyTimeframe(baselineIntervalDays)}.`
+			: 'The maintenance history suggests it may be time to review this.';
+
+	return [
+		{
+			label: 'Observation',
+			text: `Your maintenance history shows the ${evidenceSubject} was last serviced ${elapsedText} ago.`,
+		},
+		{
+			label: 'Context',
+			text: commonTimeframeText,
+		},
+		{
+			label: 'Recommendation',
+			text: 'It may be worth a quick look.',
+		},
+	];
+};
+
+const buildEvidenceSummary = (finding: MaintleyFinding): string | undefined => {
+	const evidenceDetails = buildEvidenceDetails(finding);
+	if (evidenceDetails.length === 0) return undefined;
+	return evidenceDetails.map((detail) => detail.text).join(' ');
+};
+
 const makeDashboardSuggestion = (
 	finding: MaintleyFinding,
 	propertyLookup: Map<string, Property>,
 	systemLookup: Map<string, Device>,
 ): DashboardIntelligenceSuggestion => {
 	const propertyTitle = getPropertyTitle(propertyLookup, finding.propertyId);
+	const systemId = getPrimaryAffectedSystemId(finding);
+	const system = systemId ? systemLookup.get(systemId) : undefined;
+	const systemName = String(finding.metadata.systemName || '').trim() ||
+		(system ? getAssetDisplayName(system) : '');
+	const contextLabel = [
+		propertyTitle,
+		finding.ruleId === 'baseline-maintenance-cadence-overdue'
+			? systemName
+			: '',
+	]
+		.filter(Boolean)
+		.join(' - ');
 
 	return {
 		id: `maintley-intelligence:dashboard:${finding.id}`,
@@ -436,7 +667,9 @@ const makeDashboardSuggestion = (
 		title: finding.title,
 		description: finding.description,
 		whyItMatters: finding.whyItMatters,
-		contextLabel: propertyTitle,
+		evidenceSummary: buildEvidenceSummary(finding),
+		evidenceDetails: buildEvidenceDetails(finding),
+		contextLabel,
 		propertyTitle,
 		suggestedActionLabel: finding.suggestedActionLabel,
 		suggestedActionType: finding.suggestedActionType,

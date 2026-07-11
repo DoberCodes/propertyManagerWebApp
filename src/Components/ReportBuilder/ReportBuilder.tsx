@@ -182,7 +182,7 @@ const DOCUMENT_INVENTORY_COLUMN_OPTIONS = {
 	documentName: 'Document',
 	documentType: 'Document Type',
 	source: 'Source',
-	linkedApplianceCount: 'Linked Appliances',
+	linkedApplianceCount: 'Linked Equipment',
 	linkedTaskCount: 'Linked Tasks',
 	linkedMaintenanceEventCount: 'Linked Maintenance Records',
 	uploadedAt: 'Uploaded',
@@ -195,7 +195,7 @@ const DOCUMENT_INVENTORY_COLUMN_OPTIONS = {
 
 const WARRANTY_EXPIRATION_COLUMN_OPTIONS = {
 	propertyTitle: 'Property',
-	applianceSystem: 'Appliance/System',
+	applianceSystem: 'Equipment',
 	manufacturer: 'Manufacturer',
 	model: 'Model',
 	serialNumber: 'Serial Number',
@@ -221,12 +221,12 @@ const RECURRING_MAINTENANCE_COLUMN_OPTIONS = {
 	lastCompleted: 'Last Completed',
 	reminderEnabled: 'Reminder Enabled',
 	assignee: 'Assignee',
-	applianceCount: 'Linked Appliances',
+	applianceCount: 'Linked Equipment',
 };
 
 const APPLIANCE_SERVICE_COLUMN_OPTIONS = {
 	propertyTitle: 'Property',
-	applianceSystem: 'Appliance/System',
+	applianceSystem: 'Equipment',
 	type: 'Type',
 	manufacturer: 'Manufacturer',
 	model: 'Model',
@@ -383,7 +383,14 @@ const DEFAULT_REPORT_COLUMNS: Partial<Record<ReportType, string[]>> = {
 		'convertedToTaskId',
 		'timeToConversionDays',
 	],
-	'maintenance-history': ['date', 'description', 'propertyTitle', 'status', 'completedBy'],
+	'maintenance-history': [
+		'date',
+		'description',
+		'propertyTitle',
+		'linkedEquipment',
+		'status',
+		'completedBy',
+	],
 	'maintenance-costs': [
 		'propertyTitle',
 		'date',
@@ -471,9 +478,9 @@ const EMPTY_REPORT_MESSAGES: Partial<Record<ReportType, string>> = {
 	'resident-request-lifecycle': 'Resident requests will appear here once submitted or converted to tasks.',
 	'maintenance-history': 'Completed maintenance records will appear here.',
 	'maintenance-costs': 'Maintenance records with cost details will appear here.',
-	devices: 'Add an appliance or system to include it in this report.',
+	devices: 'Add equipment to include it in this report.',
 	'warranty-expiration': 'Add warranty details or upload warranty documents to see them here.',
-	'appliance-service': 'Add appliances, tasks, or service records to build this report.',
+	'appliance-service': 'Add equipment, tasks, or service records to build this report.',
 	'document-inventory': 'Upload property documents or attach files to tasks and maintenance records.',
 	contractors: 'Add a contractor to include them in this report.',
 	'contractor-service-spend': 'Contractor work with cost details will appear here.',
@@ -649,7 +656,7 @@ export const ReportBuilder: React.FC = () => {
 	const { data: contractors = [], isLoading: contractorsLoading } =
 		useGetContractorsQuery();
 
-	// Get all units and appliances across all properties
+	// Get all units and equipment across all properties
 	const { data: allUnits = [] } = useGetAllUnitsQuery();
 
 	const { data: allDevices = [] } = useGetAllDevicesQuery();
@@ -789,8 +796,9 @@ export const ReportBuilder: React.FC = () => {
 			normalizeMaintenanceHistoryReportRows(
 				scopedMaintenanceHistory,
 				scopedProperties,
+				devicesData,
 			),
-		[scopedMaintenanceHistory, scopedProperties],
+		[scopedMaintenanceHistory, scopedProperties, devicesData],
 	);
 
 	const maintenanceRequests = useMemo(

@@ -4,6 +4,7 @@ import {
 	buildNextRecurringTask,
 	withDefaultTaskNotificationSchedule,
 } from './taskLifecycle';
+import { normalizeFinancialsWithTotals } from '../utils/financialUtils';
 
 export type RecurringTaskFailureInput = {
 	userId: string;
@@ -53,6 +54,10 @@ export const mergeCompletionFinancials = (
 	return {
 		currency:
 			completionFinancials.currency || taskFinancials?.currency || 'USD',
+		estimatedCost:
+			completionFinancials.estimatedCost ?? taskFinancials?.estimatedCost,
+		actualCost:
+			completionFinancials.actualCost ?? taskFinancials?.actualCost,
 		estimate: completionFinancials.estimate || taskFinancials?.estimate,
 		actual: completionFinancials.actual || taskFinancials?.actual,
 		notes:
@@ -130,10 +135,10 @@ export const submitTaskCompletionWorkflow = async (
 	const accountId = String(
 		(task as any).accountId || input.accountId || task.userId || '',
 	).trim();
-	const mergedFinancials = mergeCompletionFinancials(
+	const mergedFinancials = normalizeFinancialsWithTotals(mergeCompletionFinancials(
 		task.financials,
 		input.financials,
-	);
+	));
 	const eventPayload = buildMaintenanceEventFromTask({
 		task: { ...task, status: 'Completed' },
 		taskId: input.taskId,

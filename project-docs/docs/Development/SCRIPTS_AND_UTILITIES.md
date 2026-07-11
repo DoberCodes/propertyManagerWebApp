@@ -760,7 +760,7 @@ yarn seed:demo-account -- --email portfolio-demo@example.com --plan portfolio
 Purpose:
 
 Populates an existing Firebase Auth user/account with rich demo records:
-properties, appliances and systems, contractors, active tasks, notifications,
+properties, equipment, contractors, active tasks, notifications,
 Maintley Intelligence scan snapshots, and four years of Maintenance Events.
 
 Behavior:

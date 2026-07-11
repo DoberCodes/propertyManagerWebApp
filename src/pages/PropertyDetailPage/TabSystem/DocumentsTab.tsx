@@ -277,8 +277,8 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 		const assetId = document.assignedDeviceId || document.links?.assetIds?.[0];
 		if (assetId) {
 			const device = deviceById.get(String(assetId));
-			return `Appliance/System: ${
-				device?.type || device?.name || 'Unknown appliance/system'
+			return `Equipment: ${
+				device?.type || device?.name || 'Unknown equipment'
 			}`;
 		}
 		const taskId = document.assignedTaskId || document.links?.taskIds?.[0];
@@ -333,7 +333,7 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 					name: file.name,
 					url: file.url,
 					source: 'appliance',
-					sourceLabel: device?.type || device?.name || 'Appliance/System',
+					sourceLabel: device?.type || device?.name || 'Equipment',
 					date: getRecordDateValue(file),
 				});
 			});
@@ -662,7 +662,7 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 				<div>
 					<SectionHeader>Files & Documents ({allDocuments.length})</SectionHeader>
 					<SectionLead>
-						Review every file attached across this property, including manuals, warranties, appliance records, and maintenance documentation.
+						Review every file attached across this property, including manuals, warranties, equipment records, and maintenance documentation.
 					</SectionLead>
 				</div>
 				{canManageDocuments && (
@@ -676,7 +676,7 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 					{propertyFileDocuments.length} manual/warranty file{propertyFileDocuments.length === 1 ? '' : 's'}
 				</TabSummaryPill>
 				<TabSummaryPill>
-					{applianceDocuments.length} appliance/system file{applianceDocuments.length === 1 ? '' : 's'}
+					{applianceDocuments.length} equipment file{applianceDocuments.length === 1 ? '' : 's'}
 				</TabSummaryPill>
 				<TabSummaryPill>
 					{maintenanceDocuments.length} maintenance file{maintenanceDocuments.length === 1 ? '' : 's'}
@@ -686,7 +686,7 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 				<EmptyState>
 					<h3>No files or documents yet</h3>
 					<p>
-						Upload manuals, warranty documents, appliance files, or task completion records to build the property record.
+						Upload manuals, warranty documents, equipment files, or task completion records to build the property record.
 					</p>
 					{canManageDocuments && (
 						<UploadButton type='button' onClick={() => setIsUploadOpen(true)}>
@@ -738,7 +738,7 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 										{isPropertyDocument
 											? getCategoryLabel(file.category)
 											: file.source === 'appliance'
-												? 'Appliance/System'
+												? 'Equipment'
 												: 'Maintenance'}
 									</DocumentBadge>
 								</DocumentTitleRow>

@@ -881,9 +881,18 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 			return;
 		}
 
+		const recordToDelete = maintenanceHistoryRecords.find(
+			(record: any) => String(record.id) === String(historyId),
+		);
+		const recordToDeleteDetails = recordToDelete as any;
+		const recordName =
+			recordToDeleteDetails?.title ||
+			recordToDeleteDetails?.description ||
+			recordToDeleteDetails?.completionNotes ||
+			'this maintenance history record';
 		if (
 			!window.confirm(
-				'Are you sure you want to delete this maintenance history record?',
+				`Are you sure you want to delete "${recordName}"? This cannot be undone.`,
 			)
 		) {
 			return;

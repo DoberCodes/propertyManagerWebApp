@@ -5,7 +5,7 @@ import {
 } from './barcodeScanParser';
 
 describe('barcodeScanParser', () => {
-	it('extracts appliance model and serial from common sticker labels', () => {
+	it('extracts equipment model and serial from common sticker labels', () => {
 		const parsed = parseDeviceBarcodePayload(`
 			WHIRLPOOL CORPORATION
 			MODEL NO. WTW4816FW3    SERIAL NO. C91234567
@@ -54,7 +54,7 @@ describe('barcodeScanParser', () => {
 		expect(parsed.partNumber).toBe('AB-4455');
 	});
 
-	it('normalizes OCR dash and spacing noise in appliance identifiers', () => {
+	it('normalizes OCR dash and spacing noise in equipment identifiers', () => {
 		const parsed = parseDeviceBarcodePayload(`
 			LENNOX
 			Model Number
@@ -68,7 +68,7 @@ describe('barcodeScanParser', () => {
 		expect(parsed.serialNumber).toBe('ABC-123-XY');
 	});
 
-	it('does not turn raw OCR text into appliance service notes', () => {
+	it('does not turn raw OCR text into equipment service notes', () => {
 		const parsed = parseDeviceBarcodePayload(`
 			LENNOX
 			Model: CHX35-36B-6F-1
@@ -92,7 +92,7 @@ describe('barcodeScanParser', () => {
 		expect(parsed.mervRating).toBe('11');
 	});
 
-	it('infers appliance type when sticker text names the equipment', () => {
+	it('infers equipment type when sticker text names the equipment', () => {
 		const parsed = parseDeviceBarcodePayload(`
 			A. O. SMITH
 			GAS WATER HEATER
