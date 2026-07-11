@@ -85,6 +85,46 @@ Public pages should use real Maintley screenshots when they help explain the
 product. Prefer screenshots that show the actual dashboard, timeline, equipment,
 documents, reports, or Home Health views over generic decorative imagery.
 
+Public pages should include Open Graph and Twitter card metadata using absolute
+URLs. Use a topic-relevant Maintley screenshot for `og:image` and
+`twitter:image` when possible.
+
+The public `robots.txt` should continue to reference:
+
+```text
+https://maintleyapp.com/sitemap.xml
+```
+
+---
+
+# Post-Deploy Search Submission
+
+After deploying public SEO changes:
+
+1. Open Google Search Console for `maintleyapp.com`.
+2. Submit or refresh `https://maintleyapp.com/sitemap.xml`.
+3. Inspect the homepage URL and a few important landing pages:
+   * `https://maintleyapp.com/home-maintenance-tracker/`
+   * `https://maintleyapp.com/appliance-maintenance-tracker/`
+   * `https://maintleyapp.com/resources/home-maintenance-checklist/`
+4. Open Bing Webmaster Tools.
+5. Submit or refresh the same sitemap URL.
+6. Check for indexing errors, blocked resources, redirect issues, and missing
+   canonical URLs after the crawlers process the sitemap.
+
+The first query tracking set should include:
+
+* home maintenance tracker
+* appliance maintenance tracker
+* home maintenance log
+* property maintenance history
+* home maintenance app
+* landlord maintenance tracker
+* property maintenance software
+* appliance warranty organizer
+* home document organizer
+* recurring maintenance reminders
+
 ---
 
 # Content Positioning
@@ -119,9 +159,10 @@ Avoid leading with generic phrases such as:
 
 Recommended next SEO phases:
 
-1. Add more FAQPage JSON-LD to pages with stable FAQ sections.
+1. Add more FAQPage JSON-LD to future pages with stable FAQ sections.
 2. Expand `/resources/` with more product-led guides.
-3. Add branded OG images for social sharing.
+3. Replace screenshot-based social previews with custom branded OG images if
+   Maintley needs more polished share cards.
 4. Submit `https://maintleyapp.com/sitemap.xml` in Google Search Console and
    Bing Webmaster Tools after deploy.
 5. Consider moving public marketing routes from static HTML to first-class clean
