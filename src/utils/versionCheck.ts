@@ -33,6 +33,9 @@ export const getVersionedAPKDownloadURL = (
 ): string =>
 	`https://github.com/${GITHUB_RELEASE_REPOSITORY}/releases/download/v${version}/${assetName}`;
 
+export const getVersionedReleasePageURL = (version: string): string =>
+	`https://github.com/${GITHUB_RELEASE_REPOSITORY}/releases/tag/v${version}`;
+
 export const getLatestAPKDownloadURL = (): string => {
 	const version = getAvailableVersion() || CURRENT_APP_VERSION;
 	return getVersionedAPKDownloadURL(version);
@@ -41,7 +44,20 @@ export const getLatestAPKDownloadURL = (): string => {
 interface VersionCheckData {
 	lastChecked: number;
 	availableVersion: string;
+	apkUrl?: string;
+	releaseUrl?: string;
 }
+
+const getVersionCheckData = (): VersionCheckData | null => {
+	try {
+		const versionCheck = localStorage.getItem(STORAGE_KEY);
+		if (!versionCheck) return null;
+		return JSON.parse(versionCheck) as VersionCheckData;
+	} catch (error) {
+		console.error('Error reading app version metadata:', error);
+		return null;
+	}
+};
 
 const formatBytes = (bytes) => {
 	var marker = 1024; // Change to 1000 if required
@@ -117,11 +133,10 @@ export const getAPKFileSize = async () => {
  */
 export const shouldShowUpdateNotification = (): boolean => {
 	try {
-		const versionCheck = localStorage.getItem(STORAGE_KEY);
+		const data = getVersionCheckData();
 		const dismissedVersion = localStorage.getItem(DISMISS_KEY);
 
-		if (versionCheck) {
-			const data: VersionCheckData = JSON.parse(versionCheck);
+		if (data) {
 			// Check if version is newer
 			if (
 				data.availableVersion &&
@@ -146,27 +161,33 @@ export const shouldShowUpdateNotification = (): boolean => {
  * Get the available version from storage
  */
 export const getAvailableVersion = (): string | null => {
-	try {
-		const versionCheck = localStorage.getItem(STORAGE_KEY);
-		if (versionCheck) {
-			const data: VersionCheckData = JSON.parse(versionCheck);
-			return data.availableVersion || null;
-		}
-		return null;
-	} catch (error) {
-		console.error('Error getting available version:', error);
-		return null;
-	}
+	const data = getVersionCheckData();
+	return data?.availableVersion || null;
+};
+
+export const getPublishedAPKDownloadURL = (): string | null => {
+	const url = String(getVersionCheckData()?.apkUrl || '').trim();
+	return url || null;
+};
+
+export const getPublishedReleasePageURL = (): string | null => {
+	const url = String(getVersionCheckData()?.releaseUrl || '').trim();
+	return url || null;
 };
 
 /**
  * Set the available version (typically called from a backend API check)
  */
-export const setAvailableVersion = (version: string): void => {
+export const setAvailableVersion = (
+	version: string,
+	metadata: { apkUrl?: string; releaseUrl?: string } = {},
+): void => {
 	try {
 		const data: VersionCheckData = {
 			lastChecked: Date.now(),
 			availableVersion: version,
+			...(metadata.apkUrl ? { apkUrl: metadata.apkUrl } : {}),
+			...(metadata.releaseUrl ? { releaseUrl: metadata.releaseUrl } : {}),
 		};
 		localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
 	} catch (error) {
@@ -204,6 +225,11 @@ export const resetUpdateNotification = (): void => {
  * Get the download URL for the APK
  */
 export const getAPKDownloadURL = (): string => {
+	const publishedUrl = getPublishedAPKDownloadURL();
+	if (publishedUrl) {
+		return publishedUrl;
+	}
+
 	const configuredUrl = process.env.REACT_APP_APK_URL;
 	if (configuredUrl) {
 		// Ignore legacy GitHub Pages URL to ensure we always check the release asset
@@ -213,6 +239,16 @@ export const getAPKDownloadURL = (): string => {
 		return configuredUrl;
 	}
 	return getLatestAPKDownloadURL();
+};
+
+export const getUpdateReleasePageURL = (): string => {
+	const publishedUrl = getPublishedReleasePageURL();
+	if (publishedUrl) {
+		return publishedUrl;
+	}
+
+	const version = getAvailableVersion() || CURRENT_APP_VERSION;
+	return getVersionedReleasePageURL(version);
 };
 
 /**
@@ -235,6 +271,17 @@ export const downloadAPK = async (): Promise<void> => {
 		link.click();
 		document.body.removeChild(link);
 	}
+};
+
+export const openUpdateReleasePage = async (): Promise<void> => {
+	const url = getUpdateReleasePageURL();
+
+	if (Capacitor.isNativePlatform()) {
+		await Browser.open({ url });
+		return;
+	}
+
+	window.open(url, '_blank', 'noopener,noreferrer');
 };
 
 /**
@@ -289,7 +336,10 @@ export const checkForUpdates = async (): Promise<boolean> => {
 			const isNewer = compareVersions(latestVersion, CURRENT_APP_VERSION) > 0;
 
 			if (isNewer) {
-				setAvailableVersion(latestVersion);
+				setAvailableVersion(latestVersion, {
+					apkUrl: result.data.apkUrl,
+					releaseUrl: result.data.releaseUrl,
+				});
 				resetUpdateNotification();
 			}
 
