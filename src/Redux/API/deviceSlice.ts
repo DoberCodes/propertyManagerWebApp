@@ -22,6 +22,7 @@ import {
 	getEffectiveSubscriptionPlanId,
 	getMaxDevicesForPlan,
 } from '../../utils/subscriptionUtils';
+import { trackAnalyticsEvent } from '../../analytics/analytics';
 
 const readDeviceQuery = async (...clauses: ReturnType<typeof where>[]) => {
 	const snapshot = await getDocs(query(collection(db, 'devices'), ...clauses));
@@ -197,10 +198,23 @@ const deviceSlice = apiSlice.injectEndpoints({
 							updatedAt: nowIso,
 						});
 					});
+					const normalizedDevice = normalizeDeviceDates(newDevice);
+					void trackAnalyticsEvent('equipment_created', {
+						equipment_type: String(
+							normalizedDevice.assetType || normalizedDevice.type || 'unspecified',
+						),
+						equipment_category: String(
+							normalizedDevice.assetCategory || 'unspecified',
+						),
+						has_install_date: Boolean(
+							normalizedDevice.installationDate || normalizedDevice.installDate,
+						),
+						has_filter_size: Boolean(String(normalizedDevice.filterSize || '').trim()),
+					});
 					return {
 						data: {
 							id: deviceRef.id,
-							...normalizeDeviceDates(newDevice),
+							...normalizedDevice,
 							userId: targetUserId,
 							accountId: targetUserId,
 						} as Device,

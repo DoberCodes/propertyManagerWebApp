@@ -38,6 +38,8 @@ const readRequiredEnv = (name: string) => {
 	);
 };
 
+const firebaseMeasurementId = process.env.REACT_APP_FIREBASE_MEASUREMENT_ID?.trim();
+
 const firebaseConfig = {
 	apiKey: readRequiredEnv('REACT_APP_FIREBASE_API_KEY'),
 	authDomain: readRequiredEnv('REACT_APP_FIREBASE_AUTH_DOMAIN'),
@@ -46,6 +48,11 @@ const firebaseConfig = {
 	messagingSenderId:
 		readRequiredEnv('REACT_APP_FIREBASE_MESSAGING_SENDER_ID'),
 	appId: readRequiredEnv('REACT_APP_FIREBASE_APP_ID'),
+	...(firebaseMeasurementId && !isPlaceholderValue(firebaseMeasurementId)
+		? {
+				measurementId: firebaseMeasurementId,
+		  }
+		: {}),
 };
 
 // Initialize Firebase

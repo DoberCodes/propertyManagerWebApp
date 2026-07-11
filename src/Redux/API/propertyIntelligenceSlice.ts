@@ -23,6 +23,7 @@ import {
 } from '../../utils/propertyIntelligenceScan';
 import { apiSlice, docToData } from './apiSlice';
 import { publishMaintleyEvent } from '../../services/maintleyEventService';
+import { trackAnalyticsEvent } from '../../analytics/analytics';
 
 export interface PropertyScanSnapshot {
 	id?: string;
@@ -271,6 +272,13 @@ const propertyIntelligenceSlice = apiSlice.injectEndpoints({
 					} catch (eventError) {
 						console.warn('Could not publish Quick Scan event:', eventError);
 					}
+					void trackAnalyticsEvent('property_scan_completed', {
+						scan_type: payload.scanType,
+						recommendation_count: payload.summary.recommendations,
+						overdue_count: payload.summary.overdue,
+						systems_reviewed: payload.systemsReviewed,
+						tasks_reviewed: payload.tasksReviewed || 0,
+					});
 
 					return {
 						data: {
@@ -327,6 +335,13 @@ const propertyIntelligenceSlice = apiSlice.injectEndpoints({
 					} catch (eventError) {
 						console.warn('Could not publish Property Audit event:', eventError);
 					}
+					void trackAnalyticsEvent('property_scan_completed', {
+						scan_type: payload.scanType,
+						recommendation_count: payload.summary.recommendations,
+						overdue_count: payload.summary.overdue,
+						systems_reviewed: payload.systemsReviewed,
+						tasks_reviewed: payload.tasksReviewed || 0,
+					});
 
 					return {
 						data: {

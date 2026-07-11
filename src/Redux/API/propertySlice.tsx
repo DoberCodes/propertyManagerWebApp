@@ -31,6 +31,7 @@ import {
 	getMaxPropertiesForPlan,
 } from '../../utils/subscriptionUtils';
 import type { SubscriptionData } from '../../utils/subscriptionUtils';
+import { trackAnalyticsEvent } from '../../analytics/analytics';
 
 const PROPERTY_GROUP_MEMBERSHIPS_COLLECTION = 'propertyGroupMemberships';
 
@@ -1286,6 +1287,11 @@ const propertySlice = apiSlice.injectEndpoints({
 
 					const savedSnapshot = await getDoc(doc(db, 'properties', propertyRef.id));
 					const savedData = docToData(savedSnapshot) as Property;
+					void trackAnalyticsEvent('property_created', {
+						property_type: String(savedData.propertyType || 'unspecified'),
+						has_group: Boolean(savedData.groupId),
+						has_notes: Boolean(String(savedData.notes || '').trim()),
+					});
 					return { data: savedData };
 				} catch (error: any) {
 					return { error: error.message };

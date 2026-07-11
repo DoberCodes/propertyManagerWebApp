@@ -238,6 +238,41 @@ Units and suites remain intentionally hidden from active navigation.
 
 ---
 
+# Product Analytics
+
+Maintley uses a centralized analytics layer in:
+
+```text
+src/analytics/
+```
+
+Analytics is intentionally treated as a product-learning system, not a customer
+record system.
+
+It may track:
+
+* Sanitized route views using route patterns such as `/property/:slug`
+* Successful product workflow events such as property creation, equipment
+  creation, task creation, task completion, maintenance history creation,
+  property scans, and report downloads
+* Non-identifying metadata such as route area, task priority, report type,
+  counts, booleans, and workflow source
+
+It must not track:
+
+* Property names or addresses
+* Task titles, notes, or descriptions
+* Equipment brand, model, serial number, or part number
+* User email addresses, names, or free-form customer-entered content
+* Maintenance notes or document contents
+
+Analytics is disabled unless `REACT_APP_ENABLE_ANALYTICS=true` and
+`REACT_APP_FIREBASE_MEASUREMENT_ID` is present. Tests always no-op analytics.
+Firebase automatic page-view collection is disabled so route analytics can use
+sanitized route patterns instead of customer-specific URL values.
+
+---
+
 # State Management
 
 Redux is configured through:

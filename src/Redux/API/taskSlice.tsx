@@ -30,6 +30,7 @@ import {
 	submitTaskCompletionWorkflow,
 	TaskLifecycleDependencies,
 } from '../../tasks/taskLifecycleWorkflow';
+import { trackAnalyticsEvent } from '../../analytics/analytics';
 
 const getSharedPropertyIdsForUser = async (
 	userId: string,
@@ -294,6 +295,21 @@ export const taskSlice = apiSlice.injectEndpoints({
 						createdAt: new Date().toISOString(),
 						updatedAt: new Date().toISOString(),
 					});
+					void trackAnalyticsEvent('task_created', {
+						task_priority: String(preparedTask.priority || 'unspecified'),
+						task_status: String(preparedTask.status || 'unspecified'),
+						has_due_date: Boolean(preparedTask.dueDate),
+						has_equipment: Boolean(
+							(preparedTask as any).deviceId ||
+								(preparedTask as any).applianceId ||
+								((preparedTask as any).deviceIds || []).length,
+						),
+						is_recurring: Boolean((preparedTask as any).recurrence?.enabled),
+						has_notifications: Boolean(
+							Array.isArray((preparedTask as any).notifications) &&
+								(preparedTask as any).notifications.length > 0,
+						),
+					});
 					return {
 						data: {
 							id: docRef.id,
@@ -373,6 +389,14 @@ export const taskSlice = apiSlice.injectEndpoints({
 							notifyUserId: auth.currentUser?.uid || targetUserId,
 							deps: createTaskLifecycleDependencies(),
 						});
+						void trackAnalyticsEvent('task_completed', {
+							completion_path: 'task_update',
+							task_priority: String(existingTask.priority || 'unspecified'),
+							has_completion_file: Boolean((preparedUpdates as any).completionFile),
+							has_financials: Boolean((preparedUpdates as any).financials),
+							is_recurring: Boolean((existingTask as any).recurrence?.enabled),
+							approval_required: false,
+						});
 					}
 
 					return { data: { id, ...preparedUpdates } as Task };
@@ -437,6 +461,13 @@ export const taskSlice = apiSlice.injectEndpoints({
 						},
 						createTaskLifecycleDependencies(),
 					);
+					void trackAnalyticsEvent('task_completed', {
+						completion_path: 'completion_workflow',
+						has_completion_file: Boolean(completionFile),
+						has_financials: Boolean(financials),
+						approval_required: true,
+						has_completion_notes: Boolean(String(completionNotes || '').trim()),
+					});
 
 					return { data: result };
 				} catch (error: any) {
