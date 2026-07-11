@@ -197,6 +197,41 @@ export const NavRouteLink = styled(Link)`
 	}
 `;
 
+export const NavExternalLink = styled.a`
+	font-size: 15px;
+	font-weight: 600;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	margin: 0px 4px;
+	padding: 8px 10px;
+	text-decoration: none;
+	color: ${COLORS.white};
+	white-space: nowrap;
+	border-radius: 4px;
+	transition: background-color 0.2s, transform 0.2s;
+
+	&:hover {
+		background-color: rgba(255, 255, 255, 0.2);
+		transform: translateY(-2px);
+	}
+
+	@media (max-width: 1024px) {
+		font-size: 14px;
+		margin: 0;
+		padding: 6px 10px;
+	}
+
+	@media (max-width: 480px) {
+		font-size: 11px;
+		margin: 2px 3px;
+		padding: 5px 7px;
+		flex: 0 1 auto;
+		min-width: fit-content;
+		text-align: center;
+	}
+`;
+
 export const NavButton = styled(Link)`
 	font-size: 17px;
 	font-weight: 700;

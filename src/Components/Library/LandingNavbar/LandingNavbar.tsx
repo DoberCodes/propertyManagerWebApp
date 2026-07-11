@@ -3,7 +3,7 @@ import {
 	ButtonWrapper,
 	NavAnchor,
 	NavButton,
-	NavRouteLink,
+	NavExternalLink,
 	NavTitle,
 	NavWrapper,
 } from './LandingNavbar.styles';
@@ -41,9 +41,9 @@ export const LandingNavbar = () => {
 					}>
 					Feature Highlights
 				</NavAnchor>
-				<NavRouteLink to='/features' className='secondary-nav-link'>
+				<NavExternalLink href='/features/' className='secondary-nav-link'>
 					Feature Catalog
-				</NavRouteLink>
+				</NavExternalLink>
 				<NavAnchor
 					to='#Pricing'
 					scroll={(el) =>

@@ -33,37 +33,24 @@
 
 		<meta
 			name="description"
-			content="Maintley - Property Management Made Simple"
+			content="Track home maintenance, appliances, service history, warranties, documents, and recurring tasks in one place."
 		/>
 		<meta
 			name="keywords"
-			content="property maintenance, maintenance history, landlord, property manager"
+			content="home maintenance tracker, appliance maintenance tracker, home maintenance log, property maintenance history, recurring maintenance reminders"
 		/>
+		<meta name="robots" content="index, follow" />
 
 		<!-- Open Graph / Social -->
 		<meta property="og:type" content="website" />
-		<meta
-			property="og:title"
-			content="Maintley — Maintenance & Property History"
-		/>
-		<meta
-			property="og:description"
-			content="Capture, track and report maintenance — never lose a repair or invoice again."
-		/>
-		<meta property="og:image" content="%PUBLIC_URL%/icons/icon-512.png" />
 		<meta property="og:url" content="https://maintleyapp.com/" />
-
-		<!-- Twitter -->
+		<meta property="og:title" content="Maintley | Home Maintenance Tracker & Property Memory App" />
+		<meta property="og:description" content="Track home maintenance, appliances, service history, warranties, documents, and recurring tasks in one place." />
+		<meta property="og:image" content="https://maintleyapp.com/icons/icon-512.png" />
 		<meta name="twitter:card" content="summary_large_image" />
-		<meta
-			name="twitter:title"
-			content="Maintley — Maintenance & Property History"
-		/>
-		<meta
-			name="twitter:description"
-			content="Capture, track and report maintenance — never lose a repair or invoice again."
-		/>
-		<meta name="twitter:image" content="%PUBLIC_URL%/icons/icon-512.png" />
+		<meta name="twitter:title" content="Maintley | Home Maintenance Tracker & Property Memory App" />
+		<meta name="twitter:description" content="Track home maintenance, appliances, service history, warranties, documents, and recurring tasks in one place." />
+		<meta name="twitter:image" content="https://maintleyapp.com/icons/icon-512.png" />
 
 		<link rel="canonical" href="https://maintleyapp.com/" />
 
@@ -73,13 +60,51 @@
 			content="%PUBLIC_URL%/mstile-150x150.png"
 		/>
 		<link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
+		<link rel="stylesheet" href="%PUBLIC_URL%/seo-page.css" />
+		<script type="application/ld+json">
+			{
+				"@context": "https://schema.org",
+				"@graph": [
+					{
+						"@type": "Organization",
+						"@id": "https://maintleyapp.com/#organization",
+						"name": "Maintley",
+						"url": "https://maintleyapp.com/",
+						"logo": "https://maintleyapp.com/icons/icon-512.png"
+					},
+					{
+						"@type": "WebSite",
+						"@id": "https://maintleyapp.com/#website",
+						"name": "Maintley",
+						"url": "https://maintleyapp.com/",
+						"publisher": {
+							"@id": "https://maintleyapp.com/#organization"
+						}
+					},
+					{
+						"@type": "SoftwareApplication",
+						"@id": "https://maintleyapp.com/#software",
+						"name": "Maintley",
+						"applicationCategory": "HomeApplication",
+						"operatingSystem": "Web, Android",
+						"url": "https://maintleyapp.com/",
+						"description": "Maintley helps homeowners and property owners track home maintenance, equipment records, warranties, documents, service history, and recurring maintenance reminders.",
+						"offers": {
+							"@type": "Offer",
+							"price": "0",
+							"priceCurrency": "USD"
+						}
+					}
+				]
+			}
+		</script>
 		<style>
 			html,
 			body,
 			#root {
 				min-height: 100%;
 				margin: 0;
-				background: #047857;
+				background: #fafaf8;
 			}
 
 			body {
@@ -248,83 +273,56 @@
 				}
 			}
 		</style>
-		<title>Maintley</title>
+		<title>Maintley | Home Maintenance Tracker & Property Memory App</title>
 	</head>
 	<body>
-		<noscript>You need to enable JavaScript to run this app.</noscript>
+		<noscript>Maintley works best with JavaScript enabled, but this page explains how Maintley helps you track home maintenance, equipment records, service history, warranties, documents, and recurring care.</noscript>
 		<div id="root">
-			<div class="maintley-shell-loader" role="status" aria-live="polite">
-				<div class="maintley-shell-loader__card">
-					<div class="maintley-shell-loader__wordmark">Maintley</div>
-					<svg
-						class="maintley-shell-loader__house"
-						viewBox="0 0 86 76"
-						role="img"
-						aria-label="Building property records">
-						<g class="maintley-shell-loader__roof">
-							<path
-								d="M16 37 L43 14 L70 37 L64 43 L43 25 L22 43 Z"
-								fill="#047857"
-							/>
-						</g>
-						<rect
-							x="21"
-							y="34"
-							width="44"
-							height="34"
-							rx="8"
-							fill="#effcf5"
-							stroke="rgba(0, 158, 113, 0.46)"
-							stroke-width="1.5"
-						/>
-						<rect
-							class="maintley-shell-loader__block maintley-shell-loader__block--one"
-							x="28"
-							y="41"
-							width="14"
-							height="10"
-							rx="3"
-							fill="#047857"
-						/>
-						<rect
-							class="maintley-shell-loader__block maintley-shell-loader__block--two"
-							x="45"
-							y="41"
-							width="14"
-							height="10"
-							rx="3"
-							fill="#047857"
-						/>
-						<rect
-							class="maintley-shell-loader__block maintley-shell-loader__block--three"
-							x="28"
-							y="55"
-							width="14"
-							height="10"
-							rx="3"
-							fill="#047857"
-						/>
-						<rect
-							class="maintley-shell-loader__block maintley-shell-loader__block--four"
-							x="45"
-							y="55"
-							width="14"
-							height="10"
-							rx="3"
-							fill="#047857"
-						/>
-					</svg>
-					<div class="maintley-shell-loader__title">Getting Maintley ready</div>
-					<div class="maintley-shell-loader__message">
-						Preparing your property records...
+			<div class="site-header">
+				<nav class="site-nav">
+					<a class="brand" href="/">Maintley</a>
+					<div class="nav-links">
+						<a href="/features/">Features</a>
+						<a href="/home-maintenance-tracker/">Home Maintenance</a>
+						<a href="/appliance-maintenance-tracker/">Equipment</a>
+						<a href="/#/login">Login</a>
+						<a class="nav-cta" href="/#/register">Start free</a>
 					</div>
-					<div class="maintley-shell-loader__dots" aria-hidden="true">
-						<span></span>
-						<span></span>
-						<span></span>
-					</div>
-				</div>
+				</nav>
 			</div>
+			<main>
+				<section class="hero">
+					<p class="eyebrow">Home maintenance tracker</p>
+					<h1>The home maintenance tracker that remembers every repair, appliance, and document</h1>
+					<p class="lead">
+						Maintley helps homeowners and property owners build a living maintenance memory for every home. Track maintenance tasks, equipment records, service history, warranties, manuals, invoices, photos, and recurring reminders in one place.
+					</p>
+					<div class="button-row">
+						<a class="button" href="/#/register">Start tracking your home</a>
+						<a class="button secondary" href="/features/">See how Maintley works</a>
+					</div>
+				</section>
+				<section class="section">
+					<h2>Keep the home record together</h2>
+					<p>
+						A home builds history through repairs, replacements, inspections, warranties, documents, and recurring maintenance. Maintley keeps that history connected to the home so future you can find what happened, when it happened, and what needs attention next.
+					</p>
+					<div class="grid">
+						<article class="card">
+							<h3>Track maintenance tasks</h3>
+							<p>Create one-time and recurring tasks for filter changes, seasonal work, inspections, repairs, and follow-up care.</p>
+						</article>
+						<article class="card">
+							<h3>Build equipment records</h3>
+							<p>Keep appliance and equipment details with the home, including HVAC systems, water heaters, filters, warranties, and service notes.</p>
+						</article>
+						<article class="card">
+							<h3>Preserve service history</h3>
+							<p>Turn completed work, invoices, photos, and documents into a useful home maintenance log.</p>
+						</article>
+					</div>
+				</section>
+			</main>
 		</div>
 		<!--
       This HTML file is a template.
