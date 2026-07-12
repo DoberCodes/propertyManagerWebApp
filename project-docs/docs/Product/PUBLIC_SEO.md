@@ -43,6 +43,9 @@ static public pages from `public/`:
 * `/resources/appliance-maintenance-log/`
 * `/resources/how-to-create-home-maintenance-log/`
 * `/resources/what-maintenance-records-should-homeowners-keep/`
+* `/resources/appliance-warranty-organizer/`
+* `/resources/hvac-filter-replacement-schedule/`
+* `/resources/new-home-maintenance-tracker/`
 
 These pages are listed in:
 
@@ -160,7 +163,8 @@ Avoid leading with generic phrases such as:
 Recommended next SEO phases:
 
 1. Add more FAQPage JSON-LD to future pages with stable FAQ sections.
-2. Expand `/resources/` with more product-led guides.
+2. Expand `/resources/` with more product-led guides based on Search Console
+   impressions and user questions.
 3. Replace screenshot-based social previews with custom branded OG images if
    Maintley needs more polished share cards.
 4. Submit `https://maintleyapp.com/sitemap.xml` in Google Search Console and
