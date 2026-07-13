@@ -2,14 +2,16 @@ package com.maintleyapp;
 
 import android.app.Activity;
 import android.content.Intent;
+import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
 import android.os.Bundle;
 import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.ScaleGestureDetector;
 import android.view.View;
-import android.widget.Button;
 import android.widget.FrameLayout;
+import android.widget.ImageButton;
+import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -28,6 +30,9 @@ import androidx.camera.core.ZoomState;
 import androidx.camera.lifecycle.ProcessCameraProvider;
 import androidx.camera.view.PreviewView;
 import androidx.core.content.ContextCompat;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.mlkit.vision.barcode.BarcodeScanner;
@@ -52,6 +57,12 @@ public class NativeScannerActivity extends AppCompatActivity {
     private static final String MODE_PHOTO = "photo";
 
     private PreviewView previewView;
+    private TextView hintView;
+    private ImageButton torchButton;
+    private FrameLayout.LayoutParams closeParams;
+    private FrameLayout.LayoutParams torchParams;
+    private FrameLayout.LayoutParams hintParams;
+    private FrameLayout.LayoutParams captureParams;
     private Camera camera;
     private ImageCapture imageCapture;
     private ImageAnalysis imageAnalysis;
@@ -96,70 +107,143 @@ public class NativeScannerActivity extends AppCompatActivity {
             )
         );
 
-        TextView hint = new TextView(this);
-        hint.setText(MODE_PHOTO.equals(mode)
+        hintView = new TextView(this);
+        hintView.setText(MODE_PHOTO.equals(mode)
             ? "Pinch to zoom. Tap to focus."
             : "Point at a barcode. Pinch to zoom. Tap to focus.");
-        hint.setTextColor(0xFFFFFFFF);
-        hint.setTextSize(14);
-        hint.setGravity(Gravity.CENTER);
-        hint.setBackgroundColor(0x99000000);
-        hint.setPadding(18, 10, 18, 10);
-        FrameLayout.LayoutParams hintParams = new FrameLayout.LayoutParams(
+        hintView.setTextColor(0xFFFFFFFF);
+        hintView.setTextSize(13);
+        hintView.setGravity(Gravity.CENTER);
+        hintView.setBackground(buildRoundedBackground(0x99000000, dp(18)));
+        hintView.setPadding(dp(14), dp(8), dp(14), dp(8));
+        hintParams = new FrameLayout.LayoutParams(
             FrameLayout.LayoutParams.WRAP_CONTENT,
             FrameLayout.LayoutParams.WRAP_CONTENT,
-            Gravity.TOP | Gravity.CENTER_HORIZONTAL
+            Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL
         );
-        hintParams.topMargin = 42;
-        root.addView(hint, hintParams);
+        root.addView(hintView, hintParams);
 
-        Button closeButton = buildButton("Close");
-        FrameLayout.LayoutParams closeParams = new FrameLayout.LayoutParams(
-            FrameLayout.LayoutParams.WRAP_CONTENT,
-            FrameLayout.LayoutParams.WRAP_CONTENT,
+        ImageButton closeButton = buildIconButton(
+            R.drawable.ic_scanner_close,
+            "Close scanner",
+            dp(48),
+            0xB3000000
+        );
+        closeParams = new FrameLayout.LayoutParams(
+            dp(48),
+            dp(48),
             Gravity.TOP | Gravity.START
         );
-        closeParams.topMargin = 34;
-        closeParams.leftMargin = 18;
         root.addView(closeButton, closeParams);
         closeButton.setOnClickListener((view) -> finishCanceled());
 
-        Button torchButton = buildButton("Flash");
-        FrameLayout.LayoutParams torchParams = new FrameLayout.LayoutParams(
-            FrameLayout.LayoutParams.WRAP_CONTENT,
-            FrameLayout.LayoutParams.WRAP_CONTENT,
+        torchButton = buildIconButton(
+            R.drawable.ic_scanner_flash,
+            "Turn flashlight on",
+            dp(48),
+            0xB3000000
+        );
+        torchParams = new FrameLayout.LayoutParams(
+            dp(48),
+            dp(48),
             Gravity.TOP | Gravity.END
         );
-        torchParams.topMargin = 34;
-        torchParams.rightMargin = 18;
         root.addView(torchButton, torchParams);
         torchButton.setOnClickListener((view) -> toggleTorch(torchButton));
+        torchButton.setAlpha(0.55f);
+        torchButton.setEnabled(false);
 
         if (MODE_PHOTO.equals(mode)) {
-            Button captureButton = buildButton("Capture");
-            captureButton.setTextSize(16);
-            captureButton.setPadding(28, 14, 28, 14);
-            FrameLayout.LayoutParams captureParams = new FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.WRAP_CONTENT,
-                FrameLayout.LayoutParams.WRAP_CONTENT,
+            ImageButton captureButton = buildIconButton(
+                R.drawable.ic_scanner_camera,
+                "Capture photo",
+                dp(72),
+                0xEE047857
+            );
+            captureParams = new FrameLayout.LayoutParams(
+                dp(72),
+                dp(72),
                 Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL
             );
-            captureParams.bottomMargin = 40;
             root.addView(captureButton, captureParams);
             captureButton.setOnClickListener((view) -> capturePhoto());
         }
 
+        applyOverlayInsets(getStatusBarHeight(), getNavigationBarHeight(), 0);
+        ViewCompat.setOnApplyWindowInsetsListener(root, (view, insets) -> {
+            Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
+            applyOverlayInsets(
+                systemBars.top,
+                systemBars.bottom,
+                Math.max(systemBars.left, systemBars.right)
+            );
+            return insets;
+        });
         setContentView(root);
+        ViewCompat.requestApplyInsets(root);
     }
 
-    private Button buildButton(String label) {
-        Button button = new Button(this);
-        button.setText(label);
-        button.setAllCaps(false);
-        button.setTextColor(0xFFFFFFFF);
-        button.setBackgroundColor(0xCC047857);
-        button.setPadding(18, 10, 18, 10);
+    private ImageButton buildIconButton(int iconResource, String contentDescription, int size, int backgroundColor) {
+        ImageButton button = new ImageButton(this);
+        button.setImageResource(iconResource);
+        button.setContentDescription(contentDescription);
+        button.setBackground(buildOvalBackground(backgroundColor));
+        button.setColorFilter(0xFFFFFFFF);
+        button.setScaleType(ImageView.ScaleType.CENTER);
+        button.setPadding(size / 4, size / 4, size / 4, size / 4);
         return button;
+    }
+
+    private GradientDrawable buildOvalBackground(int color) {
+        GradientDrawable drawable = new GradientDrawable();
+        drawable.setShape(GradientDrawable.OVAL);
+        drawable.setColor(color);
+        return drawable;
+    }
+
+    private GradientDrawable buildRoundedBackground(int color, int radius) {
+        GradientDrawable drawable = new GradientDrawable();
+        drawable.setShape(GradientDrawable.RECTANGLE);
+        drawable.setCornerRadius(radius);
+        drawable.setColor(color);
+        return drawable;
+    }
+
+    private void applyOverlayInsets(int topInset, int bottomInset, int horizontalInset) {
+        int topMargin = Math.max(topInset, 0) + dp(16);
+        int sideMargin = Math.max(horizontalInset, 0) + dp(16);
+        int bottomMargin = Math.max(bottomInset, 0) + dp(MODE_PHOTO.equals(mode) ? 120 : 28);
+
+        if (closeParams != null) {
+            closeParams.topMargin = topMargin;
+            closeParams.leftMargin = sideMargin;
+        }
+        if (torchParams != null) {
+            torchParams.topMargin = topMargin;
+            torchParams.rightMargin = sideMargin;
+        }
+        if (hintParams != null) {
+            hintParams.leftMargin = dp(16);
+            hintParams.rightMargin = dp(16);
+            hintParams.bottomMargin = bottomMargin;
+        }
+        if (captureParams != null) {
+            captureParams.bottomMargin = Math.max(bottomInset, 0) + dp(32);
+        }
+    }
+
+    private int dp(int value) {
+        return Math.round(value * getResources().getDisplayMetrics().density);
+    }
+
+    private int getStatusBarHeight() {
+        int resourceId = getResources().getIdentifier("status_bar_height", "dimen", "android");
+        return resourceId > 0 ? getResources().getDimensionPixelSize(resourceId) : 0;
+    }
+
+    private int getNavigationBarHeight() {
+        int resourceId = getResources().getIdentifier("navigation_bar_height", "dimen", "android");
+        return resourceId > 0 ? getResources().getDimensionPixelSize(resourceId) : 0;
     }
 
     private void setupGestures() {
@@ -231,6 +315,7 @@ public class NativeScannerActivity extends AppCompatActivity {
                         imageCapture
                     );
                 }
+                updateTorchAvailability();
             } catch (Exception error) {
                 Toast.makeText(this, "Unable to open camera.", Toast.LENGTH_SHORT).show();
                 finishCanceled();
@@ -291,14 +376,22 @@ public class NativeScannerActivity extends AppCompatActivity {
         camera.getCameraControl().startFocusAndMetering(action);
     }
 
-    private void toggleTorch(Button torchButton) {
+    private void updateTorchAvailability() {
+        if (torchButton == null || camera == null) return;
+        boolean hasFlash = camera.getCameraInfo().hasFlashUnit();
+        torchButton.setEnabled(hasFlash);
+        torchButton.setAlpha(hasFlash ? 1f : 0.45f);
+    }
+
+    private void toggleTorch(ImageButton torchButton) {
         if (camera == null || !camera.getCameraInfo().hasFlashUnit()) {
             Toast.makeText(this, "Flash is not available.", Toast.LENGTH_SHORT).show();
             return;
         }
         isTorchOn = !isTorchOn;
         camera.getCameraControl().enableTorch(isTorchOn);
-        torchButton.setText(isTorchOn ? "Flash Off" : "Flash");
+        torchButton.setBackground(buildOvalBackground(isTorchOn ? 0xEE047857 : 0xB3000000));
+        torchButton.setContentDescription(isTorchOn ? "Turn flashlight off" : "Turn flashlight on");
     }
 
     private void capturePhoto() {

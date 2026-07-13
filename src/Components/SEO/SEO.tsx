@@ -81,9 +81,11 @@ export const SEO: React.FC<SEOProps> = ({
 			link.setAttribute('href', url);
 		}
 
-		// noindex
+		// robots
 		if (noindex) {
 			setMeta('meta[name="robots"]', 'content', 'noindex');
+		} else {
+			setMeta('meta[name="robots"]', 'content', 'index, follow');
 		}
 
 		// JSON-LD structured data

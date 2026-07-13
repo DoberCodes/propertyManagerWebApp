@@ -131,13 +131,13 @@ const LandingPageComponent = () => {
 
 	// SEO — important for public landing page (site-wide defaults are in public/index.html)
 	const seo = {
-		title: 'Maintley - Home Maintenance History That Helps Future You',
+		title: 'Maintley | Home Maintenance Tracker & Property Memory App',
 		description:
-			'Maintley preserves your property history so every maintenance record, warranty, document, and repair helps future you make better decisions.',
+			'Track home maintenance, appliances, service history, warranties, documents, and recurring tasks in one place.',
 		url: 'https://maintleyapp.com/',
-		image: `${window.location.origin}/icons/icon-512.png`,
+		image: 'https://maintleyapp.com/icons/icon-512.png',
 		keywords:
-			'home maintenance history, property records, recurring maintenance, equipment service history, property memory',
+			'home maintenance tracker, appliance maintenance tracker, home maintenance log, property maintenance history, recurring maintenance reminders',
 		structuredData: {
 			'@context': 'https://schema.org',
 			'@type': 'WebSite',
@@ -707,12 +707,75 @@ const LandingPageComponent = () => {
 							</FooterLink>
 							<FooterLink
 								as='a'
-								href='#/features'
+								href='/features/'
 								onClick={(e) => {
 									e.preventDefault();
-									window.location.href = '#/features';
+									window.location.href = '/features/';
 								}}>
 								Feature Catalog
+							</FooterLink>
+							<FooterLink
+								as='a'
+								href='/homeowners/'
+								onClick={(e) => {
+									e.preventDefault();
+									window.location.href = '/homeowners/';
+								}}>
+								Homeowners
+							</FooterLink>
+							<FooterLink
+								as='a'
+								href='/property-managers/'
+								onClick={(e) => {
+									e.preventDefault();
+									window.location.href = '/property-managers/';
+								}}>
+								Property Owners
+							</FooterLink>
+							<FooterLink
+								as='a'
+								href='/pricing/'
+								onClick={(e) => {
+									e.preventDefault();
+									window.location.href = '/pricing/';
+								}}>
+								Pricing
+							</FooterLink>
+							<FooterLink
+								as='a'
+								href='/resources/'
+								onClick={(e) => {
+									e.preventDefault();
+									window.location.href = '/resources/';
+								}}>
+								Resources
+							</FooterLink>
+							<FooterLink
+								as='a'
+								href='/home-maintenance-tracker/'
+								onClick={(e) => {
+									e.preventDefault();
+									window.location.href = '/home-maintenance-tracker/';
+								}}>
+								Home Maintenance Tracker
+							</FooterLink>
+							<FooterLink
+								as='a'
+								href='/appliance-maintenance-tracker/'
+								onClick={(e) => {
+									e.preventDefault();
+									window.location.href = '/appliance-maintenance-tracker/';
+								}}>
+								Equipment Tracker
+							</FooterLink>
+							<FooterLink
+								as='a'
+								href='/home-maintenance-log/'
+								onClick={(e) => {
+									e.preventDefault();
+									window.location.href = '/home-maintenance-log/';
+								}}>
+								Maintenance Log
 							</FooterLink>
 							<FooterLink
 								onClick={() => {

@@ -249,6 +249,9 @@ Important frontend variables include:
 * Stripe price identifiers where needed by frontend flows
 * `REACT_APP_FIREBASE_WEB_PUSH_VAPID_KEY`, required for browser push
   notification registration
+* `REACT_APP_FIREBASE_MEASUREMENT_ID`, optional for Firebase Analytics / GA4
+* `REACT_APP_ENABLE_ANALYTICS`, optional; set to `true` only when production
+  analytics collection is intended
 * `REACT_APP_FIREBASE_FUNCTIONS_EMULATOR_HOST`, optional for local development
   when routing callable Functions to the emulator, such as `localhost:5001`
 
@@ -269,6 +272,9 @@ Important GitHub Actions secrets include:
   * `PROD_REACT_APP_FIREBASE_STORAGE_BUCKET`
   * `PROD_REACT_APP_FIREBASE_MESSAGING_SENDER_ID`
   * `PROD_REACT_APP_FIREBASE_APP_ID`
+  * `PROD_REACT_APP_FIREBASE_MEASUREMENT_ID`, optional for analytics
+  * `PROD_REACT_APP_ENABLE_ANALYTICS`, optional; set to `true` to enable
+    production analytics
 * `PROD_FIREBASE_PROJECT_ID` for Firebase deploy targeting; if omitted, the
   deploy workflow falls back to `PROD_REACT_APP_FIREBASE_PROJECT_ID`
 * `PROD_REACT_APP_FIREBASE_WEB_PUSH_VAPID_KEY` for browser push builds

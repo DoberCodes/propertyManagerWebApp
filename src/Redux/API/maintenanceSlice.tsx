@@ -18,6 +18,7 @@ import {
 import { TaskFinancials } from '../../types/Task.types';
 import { MaintenanceEvent } from '../../types/MaintenanceEvent.types';
 import { normalizeFinancialsWithTotals } from '../../utils/financialUtils';
+import { trackAnalyticsEvent } from '../../analytics/analytics';
 
 const maintenanceSlice = apiSlice.injectEndpoints({
 	endpoints: (builder) => ({
@@ -299,6 +300,14 @@ const maintenanceSlice = apiSlice.injectEndpoints({
 						{ event: Record<string, unknown> },
 						{ success: boolean; id: string }
 					>('createMaintenanceEvent', { event: historyData });
+					void trackAnalyticsEvent('maintenance_history_added', {
+						event_type: String(historyData.eventType || 'maintenance_recorded'),
+						event_source: String(historyData.eventSource || 'manual_entry'),
+						has_attachment: Boolean(resolvedCompletionFileData),
+						has_financials: Boolean(financials),
+						equipment_count: Array.isArray(deviceIds) ? deviceIds.length : 0,
+						has_notes: Boolean(String(completionNotes || description || '').trim()),
+					});
 					return { data: { id: result.data.id, ...(historyData as any) } };
 				} catch (error: any) {
 					return { error: error.message };

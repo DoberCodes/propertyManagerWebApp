@@ -15,13 +15,17 @@ const HeroSection = () => {
 	return (
 		<Hero>
 			<HeroContent>
-				<HeroTitle>Your Home Builds History. Maintley Makes Sure It Never Gets Lost.</HeroTitle>
+				<HeroTitle>
+					The home maintenance tracker that remembers every repair, appliance,
+					and document
+				</HeroTitle>
 				<HeroSubtitle>
-					Keep systems, maintenance, documents, warranties, and replacements
-					together in one place, so every repair becomes part of your property's long-term history, helping future you make better maintenance decisions.
+					Track home maintenance tasks, equipment records, service history,
+					warranties, manuals, invoices, photos, and recurring reminders in one
+					place.
 				</HeroSubtitle>
 				<HeroCTA onClick={() => navigate('/register')}>
-					Get Started Free
+					Start tracking your home
 				</HeroCTA>
 			</HeroContent>
 			<HeroImage>

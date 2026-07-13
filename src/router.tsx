@@ -19,6 +19,7 @@ import type { RootState } from './Redux/store/store';
 import { USER_ROLES } from './constants/roles';
 import { hasMaintleyAdminAccess } from './utils/maintleyRole';
 import { SplashScreen } from './Components/Library/SplashScreen';
+import { AnalyticsRouteTracker } from './analytics/routeAnalytics';
 
 const lazyNamed = <TModule, TKey extends keyof TModule>(
 	importer: () => Promise<TModule>,
@@ -61,6 +62,10 @@ const DashboardTab = lazyNamed(
 const TasksPage = lazyNamed(
 	() => import('./pages/TasksPage/TasksPage'),
 	'TasksPage',
+);
+const MaintenanceProfilePage = lazyNamed(
+	() => import('./pages/MaintenanceProfilePage'),
+	'MaintenanceProfilePage',
 );
 const Properties = lazyNamed(
 	() => import('./Components/PropertiesTab/PropertiesTab'),
@@ -166,6 +171,7 @@ export const RouterComponent = () => {
 		currentUser?.role === USER_ROLES.TENANT ? 'tenant-profile' : 'dashboard';
 	return (
 		<Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+			<AnalyticsRouteTracker />
 			<Suspense fallback={<RouteLoadingState />}>
 				<Routes>
 					{/* Public Routes */}
@@ -217,6 +223,7 @@ export const RouterComponent = () => {
 						}>
 						<Route path='dashboard' element={<DashboardTab />} />
 						<Route path='tasks' element={<TasksPage />} />
+						<Route path='tasks/:taskId' element={<MaintenanceProfilePage />} />
 						<Route path='devices' element={<DevicesHubPage />} />
 
 						{/* Properties management - accessible to all authenticated users */}

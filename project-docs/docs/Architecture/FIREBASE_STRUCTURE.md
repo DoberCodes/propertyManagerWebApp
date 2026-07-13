@@ -179,7 +179,11 @@ Expected frontend environment variables:
 * REACT_APP_FIREBASE_STORAGE_BUCKET
 * REACT_APP_FIREBASE_MESSAGING_SENDER_ID
 * REACT_APP_FIREBASE_APP_ID
+* REACT_APP_FIREBASE_MEASUREMENT_ID, optional and only required when product
+  analytics is enabled
 * REACT_APP_FIREBASE_WEB_PUSH_VAPID_KEY
+* REACT_APP_ENABLE_ANALYTICS, optional; set to `true` to enable GA4/Firebase
+  Analytics in supported browser builds
 
 Additional billing-related environment variables may be required for Stripe integration.
 

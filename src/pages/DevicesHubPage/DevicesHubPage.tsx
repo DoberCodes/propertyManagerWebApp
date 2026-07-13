@@ -1,6 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import {
+	faChevronDown,
+	faChevronUp,
+} from '@fortawesome/free-solid-svg-icons';
 import {
 	useCreateDeviceMutation,
 	useGetAllDevicesQuery,
@@ -41,10 +46,6 @@ import {
 	AppPageTitleBlock as StandardAppPageTitleBlock,
 } from '../../Components/Library/AppPageLayout/AppPageLayout.styles';
 import {
-	SummaryRow,
-	MetricCard,
-	MetricLabel,
-	MetricValue,
 	FilterBar,
 	CompactFilterResultCount,
 	HubFilterFields,
@@ -55,6 +56,26 @@ import {
 	PropertySelect,
 	FilterResultCount,
 	List,
+	EquipmentHero,
+	EquipmentHeroContent,
+	EquipmentHeroEyebrow,
+	EquipmentHeroTitle,
+	EquipmentHeroText,
+	EquipmentHeroActions,
+	EquipmentHeroButton,
+	EquipmentHeroStats,
+	EquipmentHeroStat,
+	EquipmentHeroStatLabel,
+	EquipmentHeroStatValue,
+	EquipmentGroupStack,
+	EquipmentGroupSection,
+	EquipmentGroupHeader,
+	EquipmentGroupTitleBlock,
+	EquipmentGroupTitle,
+	EquipmentGroupDescription,
+	EquipmentGroupMeta,
+	EquipmentGroupBadge,
+	EquipmentGroupBody,
 	DeviceCard,
 	Field,
 	Label,
@@ -239,6 +260,103 @@ const isTaskOverdue = (task: any): boolean => {
 	return dueDate < today;
 };
 
+type EquipmentGroupId =
+	| 'comfort'
+	| 'safety'
+	| 'exterior'
+	| 'utilities'
+	| 'appliances'
+	| 'other';
+
+const equipmentGroupDetails: Record<
+	EquipmentGroupId,
+	{ label: string; description: string }
+> = {
+	comfort: {
+		label: 'Comfort',
+		description: 'Heating, cooling, air quality, and comfort systems.',
+	},
+	safety: {
+		label: 'Safety',
+		description: 'Detectors, alarms, and home safety equipment.',
+	},
+	exterior: {
+		label: 'Exterior',
+		description: 'Outdoor, garage, roof, drainage, and yard-related equipment.',
+	},
+	utilities: {
+		label: 'Utilities',
+		description: 'Electrical, plumbing, water, sump, and utility systems.',
+	},
+	appliances: {
+		label: 'Appliances',
+		description: 'Kitchen, laundry, and household appliances.',
+	},
+	other: {
+		label: 'Other',
+		description: 'Equipment that does not fit another group yet.',
+	},
+};
+
+const equipmentGroupOrder: EquipmentGroupId[] = [
+	'comfort',
+	'safety',
+	'exterior',
+	'utilities',
+	'appliances',
+	'other',
+];
+
+const getEquipmentGroupId = (device: Device): EquipmentGroupId => {
+	const context = [
+		device.type,
+		(device as any).assetType,
+		(device as any).assetVariant,
+		(device as any).category,
+		device.brand,
+	]
+		.filter(Boolean)
+		.join(' ')
+		.toLowerCase();
+
+	if (
+		/\b(hvac|furnace|air conditioner|ac|heat pump|mini split|thermostat|boiler|humidifier|dehumidifier)\b/.test(
+			context,
+		)
+	) {
+		return 'comfort';
+	}
+	if (
+		/\b(smoke|carbon monoxide|co detector|alarm|detector|fire|extinguisher|security)\b/.test(
+			context,
+		)
+	) {
+		return 'safety';
+	}
+	if (
+		/\b(roof|gutter|garage|driveway|lawn|irrigation|sprinkler|pool|spa|exterior|siding|door)\b/.test(
+			context,
+		)
+	) {
+		return 'exterior';
+	}
+	if (
+		/\b(electrical|panel|plumbing|water heater|well|septic|sump|softener|generator|breaker)\b/.test(
+			context,
+		)
+	) {
+		return 'utilities';
+	}
+	if (
+		/\b(refrigerator|fridge|dishwasher|washer|dryer|oven|range|stove|microwave|freezer|cooktop)\b/.test(
+			context,
+		)
+	) {
+		return 'appliances';
+	}
+	return 'other';
+};
+
 type DeviceFormData = {
 	type: string;
 	brand: string;
@@ -285,6 +403,16 @@ export const DevicesHubPage: React.FC = () => {
 	const [draftStatusFilter, setDraftStatusFilter] =
 		useState<typeof statusFilter>('All');
 	const [draftPropertyFilter, setDraftPropertyFilter] = useState('');
+	const [collapsedEquipmentGroups, setCollapsedEquipmentGroups] = useState<
+		Record<EquipmentGroupId, boolean>
+	>({
+		comfort: false,
+		safety: false,
+		exterior: false,
+		utilities: false,
+		appliances: false,
+		other: false,
+	});
 	const [showDeviceModal, setShowDeviceModal] = useState(false);
 	const [isSavingDevice, setIsSavingDevice] = useState(false);
 	const [pendingUploadFiles, setPendingUploadFiles] = useState<File[]>([]);
@@ -733,6 +861,32 @@ export const DevicesHubPage: React.FC = () => {
 		});
 	}, [deviceRows, searchQuery, statusFilter, propertyFilter]);
 
+	const equipmentGroups = useMemo(() => {
+		const groups = new Map<
+			EquipmentGroupId,
+			Array<(typeof filteredDeviceRows)[number]>
+		>();
+		equipmentGroupOrder.forEach((groupId) => groups.set(groupId, []));
+		filteredDeviceRows.forEach((row) => {
+			const groupId = getEquipmentGroupId(row.device);
+			groups.get(groupId)?.push(row);
+		});
+		return equipmentGroupOrder
+			.map((groupId) => ({
+				id: groupId,
+				...equipmentGroupDetails[groupId],
+				rows: groups.get(groupId) || [],
+			}))
+			.filter((group) => group.rows.length > 0);
+	}, [filteredDeviceRows]);
+
+	const toggleEquipmentGroup = (groupId: EquipmentGroupId) => {
+		setCollapsedEquipmentGroups((current) => ({
+			...current,
+			[groupId]: !current[groupId],
+		}));
+	};
+
 	const needsAttentionCount = useMemo(
 		() =>
 			deviceRows.filter(
@@ -753,6 +907,35 @@ export const DevicesHubPage: React.FC = () => {
 			return !!date && date <= dueSoon;
 		}).length;
 	}, [deviceRows]);
+
+	const highlightedEquipmentRow = useMemo(() => {
+		return (
+			deviceRows.find((row) => row.status === 'Broken') ||
+			deviceRows.find((row) => row.status === 'Maintenance') ||
+			deviceRows.find((row) => row.overdueTaskCount > 0) ||
+			deviceRows.find((row) => row.openTaskCount > 0) ||
+			deviceRows[0]
+		);
+	}, [deviceRows]);
+
+	const highlightedEquipmentProperty = highlightedEquipmentRow
+		? properties.find(
+				(property: any) =>
+					String(property.id) === highlightedEquipmentRow.propertyId,
+		  )
+		: null;
+	const highlightedEquipmentPath =
+		highlightedEquipmentRow && highlightedEquipmentProperty?.slug
+			? `/property/${highlightedEquipmentProperty.slug}/device/${buildDeviceSlug(
+					highlightedEquipmentRow.device,
+			  )}?from=devices`
+			: '';
+	const highlightedEquipmentNeedsAttention = highlightedEquipmentRow
+		? highlightedEquipmentRow.status === 'Broken' ||
+		  highlightedEquipmentRow.status === 'Maintenance' ||
+		  highlightedEquipmentRow.overdueTaskCount > 0 ||
+		  highlightedEquipmentRow.openTaskCount > 0
+		: false;
 
 
 	if (isLoadingProperties || isLoading) {
@@ -842,29 +1025,74 @@ export const DevicesHubPage: React.FC = () => {
 				</StandardAppPageTitleBlock>
 			</StandardAppPageHeader>
 
-			<SummaryRow>
-				<MetricCard>
-					<MetricLabel>Total Equipment</MetricLabel>
-					<MetricValue>{devices.length}</MetricValue>
-				</MetricCard>
-				<MetricCard>
-					<MetricLabel>Maintenance Risks</MetricLabel>
-					<MetricValue>{needsAttentionCount}</MetricValue>
-				</MetricCard>
-				<MetricCard>
-					<MetricLabel>Due in 30 Days</MetricLabel>
-					<MetricValue>{upcomingDueSoonCount}</MetricValue>
-				</MetricCard>
-				<MetricCard>
-					<MetricLabel>Open Linked Tasks</MetricLabel>
-					<MetricValue>
-						{Array.from(linkedOpenTaskCountByDevice.values()).reduce(
-							(total, count) => total + count,
-							0,
+			<EquipmentHero>
+				<EquipmentHeroContent>
+					<EquipmentHeroEyebrow>Your next equipment recommendation</EquipmentHeroEyebrow>
+					<EquipmentHeroTitle>
+						{highlightedEquipmentRow
+							? highlightedEquipmentNeedsAttention
+								? `Your ${highlightedEquipmentRow.friendlyName} needs attention`
+								: `Start with your ${highlightedEquipmentRow.friendlyName}`
+							: 'Every equipment record at a glance'}
+					</EquipmentHeroTitle>
+					<EquipmentHeroText>
+						{highlightedEquipmentRow
+							? `${highlightedEquipmentRow.locationLabel} has ${highlightedEquipmentRow.overdueTaskCount > 0
+								? `${highlightedEquipmentRow.overdueTaskCount} overdue linked task${highlightedEquipmentRow.overdueTaskCount === 1 ? '' : 's'}`
+								: highlightedEquipmentRow.openTaskCount > 0
+									? `${highlightedEquipmentRow.openTaskCount} open linked task${highlightedEquipmentRow.openTaskCount === 1 ? '' : 's'}`
+									: `a ${highlightedEquipmentRow.status.toLowerCase()} equipment status`
+							}. Keeping equipment records current makes service history easier to trust.`
+							: 'Track status, upcoming service, and maintenance history across the equipment connected to your home.'}
+					</EquipmentHeroText>
+					<EquipmentHeroActions>
+						{highlightedEquipmentPath && (
+							<EquipmentHeroButton
+								type='button'
+								onClick={() => navigate(highlightedEquipmentPath)}>
+								Open Equipment Profile
+							</EquipmentHeroButton>
 						)}
-					</MetricValue>
-				</MetricCard>
-			</SummaryRow>
+						{canManageAppliances && (
+							<EquipmentHeroButton
+								type='button'
+								$variant='secondary'
+								onClick={() => navigate('/devices?action=create')}>
+								Add Equipment
+							</EquipmentHeroButton>
+						)}
+					</EquipmentHeroActions>
+				</EquipmentHeroContent>
+				<EquipmentHeroStats>
+					<EquipmentHeroStat>
+						<EquipmentHeroStatLabel>Total Equipment</EquipmentHeroStatLabel>
+						<EquipmentHeroStatValue>{devices.length}</EquipmentHeroStatValue>
+					</EquipmentHeroStat>
+					<EquipmentHeroStat>
+						<EquipmentHeroStatLabel>Needs Attention</EquipmentHeroStatLabel>
+						<EquipmentHeroStatValue
+							$tone={needsAttentionCount > 0 ? 'danger' : 'success'}>
+							{needsAttentionCount}
+						</EquipmentHeroStatValue>
+					</EquipmentHeroStat>
+					<EquipmentHeroStat>
+						<EquipmentHeroStatLabel>Due in 30 Days</EquipmentHeroStatLabel>
+						<EquipmentHeroStatValue
+							$tone={upcomingDueSoonCount > 0 ? 'warning' : 'success'}>
+							{upcomingDueSoonCount}
+						</EquipmentHeroStatValue>
+					</EquipmentHeroStat>
+					<EquipmentHeroStat>
+						<EquipmentHeroStatLabel>Open Tasks</EquipmentHeroStatLabel>
+						<EquipmentHeroStatValue>
+							{Array.from(linkedOpenTaskCountByDevice.values()).reduce(
+								(total, count) => total + count,
+								0,
+							)}
+						</EquipmentHeroStatValue>
+					</EquipmentHeroStat>
+				</EquipmentHeroStats>
+			</EquipmentHero>
 
 			<FilterBar>
 				<SearchInput
@@ -974,8 +1202,34 @@ export const DevicesHubPage: React.FC = () => {
 					]}
 				/>
 			) : (
-				<List>
-					{filteredDeviceRows.map((row) => {
+				<EquipmentGroupStack>
+					{equipmentGroups.map((group) => {
+						const isCollapsed = collapsedEquipmentGroups[group.id];
+						return (
+							<EquipmentGroupSection key={group.id}>
+								<EquipmentGroupHeader
+									type='button'
+									onClick={() => toggleEquipmentGroup(group.id)}
+									aria-expanded={!isCollapsed}
+									aria-label={`${isCollapsed ? 'Expand' : 'Collapse'} ${group.label}`}>
+									<EquipmentGroupTitleBlock>
+										<EquipmentGroupTitle>{group.label}</EquipmentGroupTitle>
+										<EquipmentGroupDescription>
+											{group.description}
+										</EquipmentGroupDescription>
+									</EquipmentGroupTitleBlock>
+									<EquipmentGroupMeta>
+										<EquipmentGroupBadge>{group.rows.length}</EquipmentGroupBadge>
+										<FontAwesomeIcon
+											icon={isCollapsed ? faChevronDown : faChevronUp}
+											aria-hidden='true'
+										/>
+									</EquipmentGroupMeta>
+								</EquipmentGroupHeader>
+								{!isCollapsed && (
+									<EquipmentGroupBody>
+										<List>
+											{group.rows.map((row) => {
 						const propertyName =
 							propertyNameById.get(row.propertyId) || 'Unknown Property';
 						const property = properties.find((p: any) => String(p.id) === row.propertyId);
@@ -1065,7 +1319,13 @@ export const DevicesHubPage: React.FC = () => {
 							</DeviceCard>
 						);
 					})}
-				</List>
+										</List>
+									</EquipmentGroupBody>
+								)}
+							</EquipmentGroupSection>
+						);
+					})}
+				</EquipmentGroupStack>
 			)}
 
 			{showDeviceModal && selectedCreateProperty && canManageAppliances && (

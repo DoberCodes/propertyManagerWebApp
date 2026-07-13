@@ -414,6 +414,117 @@ const SummaryRow = styled.div`
     }
 `;
 
+const EquipmentHero = styled.section`
+    display: grid;
+    grid-template-columns: minmax(0, 1.25fr) minmax(280px, 0.75fr);
+    gap: 16px;
+    align-items: stretch;
+    padding: 20px;
+    border: 1px solid rgba(4, 120, 87, 0.2);
+    border-radius: 16px;
+    background: linear-gradient(135deg, #f3fbf7 0%, #ffffff 100%);
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.07);
+
+    @media (max-width: 900px) {
+        grid-template-columns: 1fr;
+    }
+`;
+
+const EquipmentHeroContent = styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+`;
+
+const EquipmentHeroEyebrow = styled.div`
+    color: ${COLORS.primaryDark};
+    font-size: 0.72rem;
+    font-weight: 850;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+`;
+
+const EquipmentHeroTitle = styled.h2`
+    margin: 0;
+    color: ${COLORS.textPrimary};
+    font-size: 1.75rem;
+    line-height: 1.12;
+    font-weight: 850;
+`;
+
+const EquipmentHeroText = styled.p`
+    margin: 0;
+    max-width: 760px;
+    color: ${COLORS.textSecondary};
+    font-size: 0.92rem;
+    font-weight: 650;
+    line-height: 1.5;
+`;
+
+const EquipmentHeroActions = styled.div`
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 4px;
+`;
+
+const EquipmentHeroButton = styled.button<{ $variant?: 'primary' | 'secondary' }>`
+    min-height: 40px;
+    padding: 0 14px;
+    border-radius: 10px;
+    border: 1px solid
+        ${(props) => (props.$variant === 'secondary' ? 'rgba(4, 120, 87, 0.28)' : COLORS.primary)};
+    background: ${(props) => (props.$variant === 'secondary' ? COLORS.white : COLORS.primary)};
+    color: ${(props) => (props.$variant === 'secondary' ? COLORS.primaryDark : COLORS.textInverse)};
+    font-size: 0.86rem;
+    font-weight: 850;
+    cursor: pointer;
+
+    &:hover {
+        background: ${(props) => (props.$variant === 'secondary' ? COLORS.successLight : COLORS.primaryHover)};
+    }
+`;
+
+const EquipmentHeroStats = styled.div`
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+
+    @media (max-width: 520px) {
+        grid-template-columns: 1fr;
+    }
+`;
+
+const EquipmentHeroStat = styled.div`
+    padding: 13px;
+    border: 1px solid ${COLORS.border};
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.86);
+`;
+
+const EquipmentHeroStatLabel = styled.div`
+    color: ${COLORS.textSecondary};
+    font-size: 0.66rem;
+    font-weight: 850;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+`;
+
+const EquipmentHeroStatValue = styled.div<{ $tone?: 'danger' | 'warning' | 'success' }>`
+    margin-top: 4px;
+    color: ${(props) =>
+        props.$tone === 'danger'
+            ? COLORS.errorDark
+            : props.$tone === 'warning'
+                ? COLORS.warningDark
+                : props.$tone === 'success'
+                    ? COLORS.primaryDark
+                    : COLORS.textPrimary};
+    font-size: 1.04rem;
+    font-weight: 850;
+    line-height: 1.25;
+`;
+
 const MetricCard = styled.div`
     border: 1px solid ${COLORS.border};
     border-radius: 14px;
@@ -441,6 +552,88 @@ const List = styled.div`
     display: flex;
     flex-direction: column;
     gap: 10px;
+`;
+
+const EquipmentGroupStack = styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+`;
+
+const EquipmentGroupSection = styled.section`
+    border: 1px solid ${COLORS.border};
+    border-radius: 16px;
+    background: ${COLORS.white};
+    box-shadow: ${COLORS.shadow};
+    overflow: hidden;
+`;
+
+const EquipmentGroupHeader = styled.button`
+    width: 100%;
+    border: none;
+    background: linear-gradient(180deg, ${COLORS.white} 0%, ${COLORS.bgLight} 100%);
+    padding: 15px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    text-align: left;
+    cursor: pointer;
+
+    &:hover {
+        background: ${COLORS.successLight};
+    }
+`;
+
+const EquipmentGroupTitleBlock = styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+`;
+
+const EquipmentGroupTitle = styled.h2`
+    margin: 0;
+    color: ${COLORS.textPrimary};
+    font-size: 1rem;
+    font-weight: 850;
+`;
+
+const EquipmentGroupDescription = styled.div`
+    color: ${COLORS.textSecondary};
+    font-size: 0.82rem;
+    font-weight: 650;
+    line-height: 1.4;
+`;
+
+const EquipmentGroupMeta = styled.div`
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    color: ${COLORS.textSecondary};
+    font-size: 0.82rem;
+    font-weight: 850;
+    flex-shrink: 0;
+`;
+
+const EquipmentGroupBadge = styled.span`
+    min-width: 28px;
+    height: 28px;
+    padding: 0 9px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: ${COLORS.primaryDark};
+    background: ${COLORS.successLight};
+`;
+
+const EquipmentGroupBody = styled.div`
+    padding: 12px;
+
+    ${List} {
+        gap: 10px;
+    }
 `;
 
 const DeviceCard = styled.div`
@@ -701,10 +894,30 @@ export {
     FilterResultCount,
     Header,
     SummaryRow,
+    EquipmentHero,
+    EquipmentHeroContent,
+    EquipmentHeroEyebrow,
+    EquipmentHeroTitle,
+    EquipmentHeroText,
+    EquipmentHeroActions,
+    EquipmentHeroButton,
+    EquipmentHeroStats,
+    EquipmentHeroStat,
+    EquipmentHeroStatLabel,
+    EquipmentHeroStatValue,
     MetricCard,
     MetricLabel,
     MetricValue,
     List,
+    EquipmentGroupStack,
+    EquipmentGroupSection,
+    EquipmentGroupHeader,
+    EquipmentGroupTitleBlock,
+    EquipmentGroupTitle,
+    EquipmentGroupDescription,
+    EquipmentGroupMeta,
+    EquipmentGroupBadge,
+    EquipmentGroupBody,
     DeviceCard,
     Field,
     Label,

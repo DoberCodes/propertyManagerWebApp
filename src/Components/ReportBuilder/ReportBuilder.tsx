@@ -26,6 +26,7 @@ import { useGetAllDevicesQuery } from '../../Redux/API/deviceSlice';
 import {
 	useGetAllMaintenanceHistoryForUserQuery,
 } from '../../Redux/API/userSlice';
+import { trackAnalyticsEvent } from '../../analytics/analytics';
 import {
 	FormGroup as LibraryFormGroup,
 	FormLabel as LibraryLabel,
@@ -1248,6 +1249,13 @@ export const ReportBuilder: React.FC = () => {
 		}
 
 		if (exportSimpleCsvReport(reportType, previewData, visibleSelectedColumns)) {
+			void trackAnalyticsEvent('report_downloaded', {
+				report_type: reportType,
+				row_count: previewData.length,
+				column_count: visibleSelectedColumns.length,
+				export_format: 'csv',
+				hide_empty_columns: hideEmptyColumns,
+			});
 			return;
 		}
 
@@ -1299,6 +1307,13 @@ export const ReportBuilder: React.FC = () => {
 				generatePropertySummaryReport(previewData, visibleSelectedColumns);
 				break;
 		}
+		void trackAnalyticsEvent('report_downloaded', {
+			report_type: reportType,
+			row_count: previewData.length,
+			column_count: visibleSelectedColumns.length,
+			export_format: 'pdf',
+			hide_empty_columns: hideEmptyColumns,
+		});
 	};
 
 	// Check if any queries are loading
