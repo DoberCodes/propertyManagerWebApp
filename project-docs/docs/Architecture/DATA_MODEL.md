@@ -530,6 +530,11 @@ Tasks may exist independently or be associated with one or more devices.
 Maintenance Profile views may group task records by timing, origin, linked
 equipment, related documents, and linked Maintenance Events. Those relationships
 should be resolved from existing source records and links whenever possible.
+When direct task links are unavailable, profile views may use conservative
+same-property maintenance-topic matching, such as connecting `Change HVAC
+Filters` to `Replace HVAC Filter`. These inferred relationships should remain
+derived, visible, and explainable rather than creating duplicate historical
+state.
 
 Task assignment stores both:
 

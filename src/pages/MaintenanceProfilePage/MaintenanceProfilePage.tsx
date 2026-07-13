@@ -61,14 +61,106 @@ import {
 const normalize = (value?: string) =>
 	String(value || '').trim().toLowerCase().replace(/\s+/g, ' ');
 
+const normalizeMaintenanceText = (value?: string): string =>
+	normalize(value)
+		.replace(/[^a-z0-9\s]/g, ' ')
+		.replace(/\s+/g, ' ')
+		.trim();
+
+const singularizeToken = (token: string): string => {
+	if (token.endsWith('ies') && token.length > 4) return `${token.slice(0, -3)}y`;
+	if (token.endsWith('s') && token.length > 3) return token.slice(0, -1);
+	return token;
+};
+
+const ACTION_TOKENS = new Set([
+	'add',
+	'added',
+	'change',
+	'changed',
+	'changing',
+	'check',
+	'checked',
+	'clean',
+	'cleaned',
+	'inspect',
+	'inspected',
+	'inspection',
+	'maintenance',
+	'note',
+	'record',
+	'recorded',
+	'replace',
+	'replaced',
+	'review',
+	'service',
+	'serviced',
+	'task',
+	'test',
+	'tested',
+]);
+
+const getMaintenanceTokens = (value?: string): string[] =>
+	normalizeMaintenanceText(value)
+		.split(' ')
+		.map(singularizeToken)
+		.filter((token) => token.length > 2 && !ACTION_TOKENS.has(token));
+
+const hasAnyToken = (tokens: string[], candidates: string[]) =>
+	candidates.some((candidate) => tokens.includes(candidate));
+
+const getMaintenanceTopicKey = (value?: string): string => {
+	const tokens = getMaintenanceTokens(value);
+	const text = ` ${tokens.join(' ')} `;
+	const hasFilter = tokens.includes('filter');
+	const hasHvac =
+		hasAnyToken(tokens, ['hvac', 'furnace', 'air', 'cooling', 'heating']) ||
+		text.includes(' heat pump ') ||
+		text.includes(' air conditioner ');
+	if (hasFilter && hasHvac) return 'hvac-filter';
+	if (hasFilter && hasAnyToken(tokens, ['refrigerator', 'fridge', 'freezer'])) {
+		return 'refrigerator-filter';
+	}
+	if (hasAnyToken(tokens, ['water', 'heater']) && hasAnyToken(tokens, ['flush', 'tank'])) {
+		return 'water-heater-service';
+	}
+	if (hasAnyToken(tokens, ['smoke', 'carbon', 'monoxide', 'detector', 'alarm'])) {
+		return 'detector-test';
+	}
+	if (hasAnyToken(tokens, ['gutter']) && hasAnyToken(tokens, ['clean', 'leaf'])) {
+		return 'gutter-cleaning';
+	}
+	return '';
+};
+
+const hasStrongMaintenanceTokenOverlap = (left?: string, right?: string): boolean => {
+	const leftTokens = new Set(getMaintenanceTokens(left));
+	const rightTokens = new Set(getMaintenanceTokens(right));
+	const overlap = Array.from(leftTokens).filter((token) => rightTokens.has(token));
+	return overlap.length >= 2;
+};
+
 const parseDate = (value?: string): Date | null => {
 	if (!value) return null;
+	if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+		const [year, month, day] = value.split('-').map(Number);
+		return new Date(year, month - 1, day);
+	}
 	const date = new Date(value);
 	return Number.isNaN(date.getTime()) ? null : date;
 };
 
 const formatDate = (value?: string): string => {
 	const date = parseDate(value);
+	if (!date) return 'Not recorded';
+	return date.toLocaleDateString('en-US', {
+		month: 'short',
+		day: 'numeric',
+		year: 'numeric',
+	});
+};
+
+const formatDateValue = (date?: Date | null): string => {
 	if (!date) return 'Not recorded';
 	return date.toLocaleDateString('en-US', {
 		month: 'short',
@@ -183,6 +275,29 @@ const getTaskLinkKeys = (task: Task): Set<string> => {
 	);
 };
 
+const getEventSearchText = (event: any): string =>
+	[
+		event.title,
+		event.description,
+		event.completionNotes,
+		event.notes,
+		event.category,
+		event.eventType,
+	]
+		.filter(Boolean)
+		.join(' ');
+
+const getTaskSearchText = (task: Task): string =>
+	[
+		task.title,
+		task.description,
+		task.notes,
+		task.category,
+		task.location,
+	]
+		.filter(Boolean)
+		.join(' ');
+
 const isRelatedMaintenanceEvent = (event: any, task: Task): boolean => {
 	const taskKeys = getTaskLinkKeys(task);
 	const eventTaskKeys = [
@@ -195,14 +310,25 @@ const isRelatedMaintenanceEvent = (event: any, task: Task): boolean => {
 		.map((value) => String(value));
 	if (eventTaskKeys.some((key) => taskKeys.has(key))) return true;
 
+	if (String(event.propertyId || '') !== String(task.propertyId || '')) {
+		return false;
+	}
+
+	const taskSearchText = getTaskSearchText(task);
+	const eventSearchText = getEventSearchText(event);
+
 	if (
-		String(event.propertyId || '') === String(task.propertyId || '') &&
-		normalize(event.title || event.description) === normalize(task.title)
+		normalize(event.title || event.description) === normalize(task.title) ||
+		normalize(eventSearchText) === normalize(taskSearchText)
 	) {
 		return true;
 	}
 
-	return false;
+	const taskTopic = getMaintenanceTopicKey(taskSearchText);
+	const eventTopic = getMaintenanceTopicKey(eventSearchText);
+	if (taskTopic && taskTopic === eventTopic) return true;
+
+	return hasStrongMaintenanceTokenOverlap(taskSearchText, eventSearchText);
 };
 
 const getEventDate = (event: any): string =>
@@ -238,6 +364,15 @@ const getAverageIntervalDays = (events: any[]): number | null => {
 		intervals.reduce((total, value) => total + value, 0) / intervals.length,
 	);
 };
+
+const addDays = (date: Date, days: number): Date => {
+	const nextDate = new Date(date);
+	nextDate.setDate(nextDate.getDate() + days);
+	return nextDate;
+};
+
+const getDayDifference = (left: Date, right: Date): number =>
+	Math.round((left.getTime() - right.getTime()) / 86400000);
 
 export const MaintenanceProfilePage: React.FC = () => {
 	const { taskId } = useParams<{ taskId: string }>();
@@ -300,6 +435,19 @@ export const MaintenanceProfilePage: React.FC = () => {
 	const why = task ? getMaintenanceWhy(task, relatedDevices) : null;
 	const expectedIntervalDays = task ? getExpectedIntervalDays(task) : null;
 	const averageIntervalDays = getAverageIntervalDays(relatedEvents);
+	const latestRelatedEvent = relatedEvents[0];
+	const latestRelatedEventDate = latestRelatedEvent
+		? parseDate(getEventDate(latestRelatedEvent))
+		: null;
+	const expectedNextServiceDate =
+		latestRelatedEventDate && expectedIntervalDays
+			? addDays(latestRelatedEventDate, expectedIntervalDays)
+			: null;
+	const scheduledNextServiceDate = task ? parseDate(task.dueDate) : null;
+	const scheduleDateDriftDays =
+		expectedNextServiceDate && scheduledNextServiceDate
+			? getDayDifference(scheduledNextServiceDate, expectedNextServiceDate)
+			: 0;
 
 	const relationshipPropertyHref = property?.slug ? `/property/${property.slug}` : '';
 	const firstRelatedDevice = relatedDevices[0];
@@ -360,6 +508,34 @@ export const MaintenanceProfilePage: React.FC = () => {
 	const intelligence = useMemo(() => {
 		if (!task) return [];
 		const insights: string[] = [];
+		const scheduleDriftThreshold = expectedIntervalDays
+			? Math.max(7, Math.round(expectedIntervalDays * 0.1))
+			: 7;
+		if (
+			latestRelatedEventDate &&
+			expectedNextServiceDate &&
+			scheduledNextServiceDate &&
+			Math.abs(scheduleDateDriftDays) > scheduleDriftThreshold
+		) {
+			const direction =
+				scheduleDateDriftDays > 0 ? 'later than' : 'earlier than';
+			const relatedEventTitle =
+				latestRelatedEvent?.title || latestRelatedEvent?.description || 'a completed service record';
+			const currentReminderTitle = task.title || 'this reminder';
+			insights.push(
+				`Maintley's records connect this profile to "${relatedEventTitle}", completed ${formatDate(
+					getEventDate(latestRelatedEvent),
+				)}. Based on the ${formatRecurrence(
+					task,
+				).toLowerCase()} schedule, the next reminder should be around ${formatDateValue(
+					expectedNextServiceDate,
+				)}. The current reminder, "${currentReminderTitle}", is scheduled for ${formatDate(
+					task.dueDate,
+				)}. That is about ${Math.abs(
+					scheduleDateDriftDays,
+				)} days ${direction} expected, so reviewing the reminder date or service record can help keep this plan aligned.`,
+			);
+		}
 		if (
 			averageIntervalDays &&
 			expectedIntervalDays &&
@@ -387,7 +563,12 @@ export const MaintenanceProfilePage: React.FC = () => {
 		averageIntervalDays,
 		documentCount,
 		expectedIntervalDays,
+		expectedNextServiceDate,
+		latestRelatedEvent,
+		latestRelatedEventDate,
 		relatedEvents,
+		scheduleDateDriftDays,
+		scheduledNextServiceDate,
 		serviceRecordCount,
 		task,
 	]);

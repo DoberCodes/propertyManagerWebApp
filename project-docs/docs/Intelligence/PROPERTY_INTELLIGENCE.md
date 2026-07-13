@@ -1102,6 +1102,12 @@ This future layer should be predictive and contextual.
 
 It should still remain explainable and derived from Maintley records.
 
+Maintenance Profile intelligence may compare related Maintenance Events with the
+active maintenance schedule. If saved history suggests the next reminder date no
+longer aligns with the schedule, Maintley should explain the related service
+record, expected reminder date, current reminder date, and drift without
+silently changing user data.
+
 ---
 
 ## Product Hierarchy
