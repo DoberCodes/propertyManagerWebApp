@@ -381,6 +381,11 @@ devices
 
 for compatibility reasons.
 
+Equipment Hub grouping is derived presentation logic. Group names such as
+Comfort, Safety, Exterior, Utilities, Appliances, and Other should be inferred
+from existing equipment metadata and should not become a competing ownership or
+classification model unless a future ADR explicitly introduces one.
+
 ---
 
 ## devices
@@ -484,6 +489,11 @@ Tasks focus on future or pending work.
 
 Completed work should ultimately be represented through Maintenance Events.
 
+The Maintenance Profile is the task-centered product surface for understanding
+a maintenance activity over time. It is derived from existing task, property,
+equipment, document, and Maintenance Event records. It must not create a new
+Firestore collection or duplicate historical data simply to power the profile.
+
 ---
 
 ## tasks
@@ -516,6 +526,10 @@ Optional fields may include:
 * actualCost
 
 Tasks may exist independently or be associated with one or more devices.
+
+Maintenance Profile views may group task records by timing, origin, linked
+equipment, related documents, and linked Maintenance Events. Those relationships
+should be resolved from existing source records and links whenever possible.
 
 Task assignment stores both:
 
@@ -1718,6 +1732,7 @@ Examples of derived records:
 * Recommendations
 * Property Insights
 * Dashboard Summaries
+* Maintenance Profiles
 * Setup Progress
 * Portfolio Intelligence
 

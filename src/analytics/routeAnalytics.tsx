@@ -27,6 +27,7 @@ const routeDefinitions: RouteDefinition[] = [
 	{ pattern: '/legal/:documentName', routeName: 'legal_document', area: 'legal' },
 	{ pattern: '/dashboard', routeName: 'dashboard', area: 'dashboard' },
 	{ pattern: '/tasks', routeName: 'tasks', area: 'tasks' },
+	{ pattern: '/tasks/:taskId', routeName: 'maintenance_profile', area: 'tasks' },
 	{ pattern: '/devices', routeName: 'equipment', area: 'equipment' },
 	{ pattern: '/properties', routeName: 'properties', area: 'properties' },
 	{ pattern: '/property/:slug', routeName: 'property_detail', area: 'properties' },

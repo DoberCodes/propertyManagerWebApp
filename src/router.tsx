@@ -63,6 +63,10 @@ const TasksPage = lazyNamed(
 	() => import('./pages/TasksPage/TasksPage'),
 	'TasksPage',
 );
+const MaintenanceProfilePage = lazyNamed(
+	() => import('./pages/MaintenanceProfilePage'),
+	'MaintenanceProfilePage',
+);
 const Properties = lazyNamed(
 	() => import('./Components/PropertiesTab/PropertiesTab'),
 	'Properties',
@@ -219,6 +223,7 @@ export const RouterComponent = () => {
 						}>
 						<Route path='dashboard' element={<DashboardTab />} />
 						<Route path='tasks' element={<TasksPage />} />
+						<Route path='tasks/:taskId' element={<MaintenanceProfilePage />} />
 						<Route path='devices' element={<DevicesHubPage />} />
 
 						{/* Properties management - accessible to all authenticated users */}

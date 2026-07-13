@@ -41,6 +41,29 @@ import {
 import { useGetTeamMembersQuery } from '../../Redux/API/teamSlice';
 import {
 	TaskGridSection,
+	TaskOverviewGrid,
+	TaskHeroCard,
+	TaskHeroEyebrow,
+	TaskHeroTitle,
+	TaskHeroMeta,
+	TaskHeroActions,
+	TaskHeroButton,
+	TaskGroupStack,
+	TaskGroupSection,
+	TaskGroupHeader,
+	TaskGroupTitleBlock,
+	TaskGroupTitle,
+	TaskGroupDescription,
+	TaskGroupHeaderMeta,
+	TaskGroupBadge,
+	TaskGroupList,
+	TaskDecisionCard,
+	TaskDecisionIcon,
+	TaskDecisionContent,
+	TaskDecisionTitle,
+	TaskDecisionMeta,
+	TaskDecisionActions,
+	TaskDecisionAction,
 	TaskControlPanel,
 	TaskControlRow,
 	TaskFilterAdvancedBody,
@@ -92,6 +115,11 @@ import {
 	AppPageTitleBlock as StandardAppPageTitleBlock,
 } from '../../Components/Library/AppPageLayout/AppPageLayout.styles';
 import { COLORS } from '../../constants/colors';
+import { Task } from '../../types/Task.types';
+import {
+	buildTaskTimeBuckets,
+	TaskTimeBucketId,
+} from '../../tasks/taskTimeBuckets';
 
 export const TasksPage = () => {
 	const navigate = useNavigate();
@@ -197,6 +225,15 @@ export const TasksPage = () => {
 		taskTitle: string;
 		timeoutId: number;
 	} | null>(null);
+	const [collapsedTaskGroups, setCollapsedTaskGroups] = useState<
+		Record<TaskTimeBucketId, boolean>
+	>({
+		overdue: false,
+		today: false,
+		'this-week': false,
+		upcoming: false,
+		'no-due-date': false,
+	});
 	// track the property id for the task we're assigning so the modal can fetch contractors immediately
 	const [assigningTaskPropertyId, setAssigningTaskPropertyId] =
 		useState<string>('');
@@ -662,6 +699,16 @@ export const TasksPage = () => {
 		sortState,
 	]);
 
+	const taskTimeBuckets = useMemo(
+		() =>
+			buildTaskTimeBuckets(filteredTasks as Task[]).filter(
+				(bucket) => bucket.tasks.length > 0,
+			),
+		[filteredTasks],
+	);
+	const nextStepTask = taskTimeBuckets.find((bucket) => bucket.tasks.length > 0)
+		?.tasks[0];
+
 	// Count of active tasks (before timeframe filtering)
 	const activeTasksCount = useMemo(() => {
 		const filtered = filterTasksByRole(
@@ -885,7 +932,7 @@ export const TasksPage = () => {
 						</div>
 						<button
 							type='button'
-							onClick={() => handleEditTask(task)}
+							onClick={() => openTaskProfile(task)}
 							style={{
 								border: 'none',
 								background: 'transparent',
@@ -896,7 +943,7 @@ export const TasksPage = () => {
 								textAlign: 'left',
 								fontSize: 12,
 							}}>
-							View history
+							Open profile
 						</button>
 					</div>
 				);
@@ -984,6 +1031,27 @@ export const TasksPage = () => {
 		taskHandlers.setAssigningTaskId(task.id);
 		setAssigningTaskPropertyId(task.propertyId || '');
 		taskHandlers.setShowTaskAssignDialog(true);
+	};
+
+	const openTaskProfile = (task: any) => {
+		if (!task?.id) return;
+		navigate(`/tasks/${task.id}`);
+	};
+
+	const toggleTaskGroup = (bucketId: TaskTimeBucketId) => {
+		setCollapsedTaskGroups((current) => ({
+			...current,
+			[bucketId]: !current[bucketId],
+		}));
+	};
+
+	const getTaskGroupTone = (
+		bucketId: TaskTimeBucketId,
+	): 'danger' | 'warning' | 'success' | 'neutral' => {
+		if (bucketId === 'overdue') return 'danger';
+		if (bucketId === 'today' || bucketId === 'this-week') return 'warning';
+		if (bucketId === 'upcoming') return 'success';
+		return 'neutral';
 	};
 
 	const getAssigneeLabel = (task: any) =>
@@ -1105,6 +1173,52 @@ export const TasksPage = () => {
 		setShowTaskCompletionModal(false);
 		setCompletingTaskId(null);
 		setSelectedRows(new Set());
+	};
+
+	const renderTaskDecisionCard = (task: any) => {
+		const operational = getTaskDisplayStatus(task);
+		const iconStyle = getTaskIcon(task);
+		const isOverdue = operational.isOverdue;
+		const assigneeLabel = getAssigneeLabel(task);
+		return (
+			<TaskDecisionCard key={task.id} $overdue={isOverdue}>
+				<TaskDecisionIcon
+					$color={iconStyle.color}
+					$background={iconStyle.background}>
+					<FontAwesomeIcon icon={iconStyle.icon} />
+				</TaskDecisionIcon>
+				<TaskDecisionContent>
+					<TaskDecisionTitle
+						type='button'
+						onClick={() => openTaskProfile(task)}>
+						{task.title || 'Untitled task'}
+					</TaskDecisionTitle>
+					<TaskDecisionMeta $danger={isOverdue}>
+						{formatRelativeDue(task.dueDate)}
+						{task.priority ? ` - ${task.priority} priority` : ''}
+					</TaskDecisionMeta>
+					<TaskDecisionMeta>
+						{taskPropertyLanguage.itemPrefix}: {getTaskPropertyLabel(task)}
+						{assigneeLabel ? ` - ${assigneeLabel}` : ''}
+					</TaskDecisionMeta>
+				</TaskDecisionContent>
+				<TaskDecisionActions>
+					<TaskDecisionAction
+						type='button'
+						$primary
+						onClick={() => openTaskProfile(task)}>
+						Open
+					</TaskDecisionAction>
+					{canManageTasks && task.status !== 'Completed' && (
+						<TaskDecisionAction
+							type='button'
+							onClick={() => handleTaskCompletion(task.id)}>
+							Complete
+						</TaskDecisionAction>
+					)}
+				</TaskDecisionActions>
+			</TaskDecisionCard>
+		);
 	};
 
 	if (!isLoadingProperties && ownedProperties.length === 0) {
@@ -1301,7 +1415,93 @@ export const TasksPage = () => {
 				</QuickFilterChips>
 			</FloatingFilterPanel>
 
-			{isMobile ? (
+			{filteredTasks.length === 0 ? (
+				<AppZeroState
+					kind='noTaskMatches'
+					actions={[
+						{
+							label: 'Clear Filters',
+							onClick: () => {
+								clearTopFilters();
+								setSortState({
+									key: 'dueDate',
+									direction: 'asc',
+								});
+							},
+						},
+					]}
+				/>
+			) : (
+				<TaskOverviewGrid>
+					<TaskHeroCard>
+						<TaskHeroEyebrow>Handle what matters first</TaskHeroEyebrow>
+						<TaskHeroTitle>
+							{nextStepTask?.title || 'Review your open maintenance'}
+						</TaskHeroTitle>
+						<TaskHeroMeta>
+							{nextStepTask
+								? `${formatRelativeDue(nextStepTask.dueDate)} - ${nextStepTask.priority || 'Low'} priority - ${getTaskPropertyLabel(nextStepTask)}`
+								: 'Open maintenance will appear here when it is ready to review.'}
+						</TaskHeroMeta>
+						{nextStepTask && (
+							<TaskHeroActions>
+								{canManageTasks && nextStepTask.status !== 'Completed' && (
+									<TaskHeroButton
+										type='button'
+										onClick={() => handleTaskCompletion(nextStepTask.id)}>
+										Complete Task
+									</TaskHeroButton>
+								)}
+								<TaskHeroButton
+									type='button'
+									$variant='secondary'
+									onClick={() => openTaskProfile(nextStepTask)}>
+									Open Profile
+								</TaskHeroButton>
+							</TaskHeroActions>
+						)}
+					</TaskHeroCard>
+
+					<TaskGroupStack>
+						{taskTimeBuckets.map((bucket) => {
+							const tone = getTaskGroupTone(bucket.id);
+							const isCollapsed = collapsedTaskGroups[bucket.id];
+							return (
+								<TaskGroupSection key={bucket.id} $tone={tone}>
+									<TaskGroupHeader
+										type='button'
+										onClick={() => toggleTaskGroup(bucket.id)}
+										aria-expanded={!isCollapsed}>
+										<TaskGroupTitleBlock>
+											<TaskGroupTitle>{bucket.label}</TaskGroupTitle>
+											<TaskGroupDescription>
+												{bucket.description}
+											</TaskGroupDescription>
+										</TaskGroupTitleBlock>
+										<TaskGroupHeaderMeta>
+											<TaskGroupBadge $tone={tone}>
+												{bucket.tasks.length}
+											</TaskGroupBadge>
+											<FontAwesomeIcon
+												icon={isCollapsed ? faChevronDown : faChevronUp}
+											/>
+										</TaskGroupHeaderMeta>
+									</TaskGroupHeader>
+									{!isCollapsed && (
+										<TaskGroupList>
+											{bucket.tasks.map((task) =>
+												renderTaskDecisionCard(task),
+											)}
+										</TaskGroupList>
+									)}
+								</TaskGroupSection>
+							);
+						})}
+					</TaskGroupStack>
+				</TaskOverviewGrid>
+			)}
+
+			{isMobile || filteredTasks.length === 0 ? (
 				<MobileListSection>
 					{filteredTasks.length === 0 && (
 						<AppZeroState
@@ -1417,8 +1617,8 @@ export const TasksPage = () => {
 								</MobileTaskMetaGrid>
 								{canManageTasks && (
 									<MobileTaskActions>
-										<MobileActionButton onClick={() => handleEditTask(task)}>
-											Edit Task
+										<MobileActionButton onClick={() => openTaskProfile(task)}>
+											Open Profile
 										</MobileActionButton>
 										<MobileActionLinkRow>
 											<MobileActionLinkButton onClick={() => handleAssignTask(task)}>

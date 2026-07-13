@@ -141,6 +141,8 @@ Current capabilities:
 * Upload files and documentation.
 * Associate tasks.
 * Associate maintenance history.
+* Browse Equipment Hub groups such as Comfort, Safety, Exterior, Utilities,
+  Appliances, and Other.
 
 Supported statuses:
 
@@ -173,8 +175,13 @@ Current capabilities:
 * Configure work requirements.
 * Track task status.
 * Identify overdue tasks.
+* Open a Maintenance Profile for a task or recurring maintenance program.
+* Review related property, equipment, service records, documents, schedule,
+  costs, notes, and timeline context from one task-centered view.
 
-Task completion contributes to maintenance history.
+Task completion contributes to maintenance history. The Maintenance Profile is
+a derived view of existing task, equipment, property, document, and Maintenance
+Event records; it should not introduce a duplicate source of truth.
 
 ---
 

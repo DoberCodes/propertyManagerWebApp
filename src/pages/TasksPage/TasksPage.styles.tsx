@@ -35,6 +35,243 @@ export const TaskGridSection = styled.div`
 	}
 `;
 
+export const TaskOverviewGrid = styled.section`
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+`;
+
+export const TaskHeroCard = styled.article`
+	padding: 20px;
+	border: 1px solid rgba(4, 120, 87, 0.2);
+	border-radius: 16px;
+	background: linear-gradient(135deg, #f3fbf7 0%, #ffffff 100%);
+	box-shadow: 0 12px 28px rgba(15, 23, 42, 0.07);
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+`;
+
+export const TaskHeroEyebrow = styled.div`
+	color: ${COLORS.primaryDark};
+	font-size: 0.72rem;
+	font-weight: 850;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+`;
+
+export const TaskHeroTitle = styled.h2`
+	margin: 0;
+	color: ${COLORS.textPrimary};
+	font-size: 1.7rem;
+	line-height: 1.12;
+	font-weight: 850;
+`;
+
+export const TaskHeroMeta = styled.div`
+	color: ${COLORS.textSecondary};
+	font-size: 0.9rem;
+	font-weight: 700;
+	line-height: 1.45;
+`;
+
+export const TaskHeroActions = styled.div`
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px;
+	margin-top: auto;
+`;
+
+export const TaskHeroButton = styled.button<{ $variant?: 'primary' | 'secondary' }>`
+	min-height: 40px;
+	padding: 0 14px;
+	border-radius: 10px;
+	border: 1px solid
+		${(props) => (props.$variant === 'secondary' ? 'rgba(4, 120, 87, 0.28)' : COLORS.primary)};
+	background: ${(props) => (props.$variant === 'secondary' ? COLORS.white : COLORS.primary)};
+	color: ${(props) => (props.$variant === 'secondary' ? COLORS.primaryDark : COLORS.textInverse)};
+	font-size: 0.86rem;
+	font-weight: 850;
+	cursor: pointer;
+
+	&:hover {
+		background: ${(props) => (props.$variant === 'secondary' ? COLORS.successLight : COLORS.primaryHover)};
+	}
+`;
+
+export const TaskGroupStack = styled.section`
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+`;
+
+export const TaskGroupSection = styled.section<{ $tone?: 'danger' | 'warning' | 'success' | 'neutral' }>`
+	border: 1px solid
+		${(props) => {
+		if (props.$tone === 'danger') return 'rgba(239, 68, 68, 0.22)';
+		if (props.$tone === 'warning') return 'rgba(245, 158, 11, 0.24)';
+		if (props.$tone === 'success') return 'rgba(4, 120, 87, 0.18)';
+		return COLORS.border;
+	}};
+	border-radius: 16px;
+	background: ${COLORS.white};
+	box-shadow: 0 8px 22px rgba(15, 23, 42, 0.06);
+	overflow: hidden;
+`;
+
+export const TaskGroupHeader = styled.button`
+	width: 100%;
+	border: none;
+	background: transparent;
+	padding: 15px 16px;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	cursor: pointer;
+	text-align: left;
+`;
+
+export const TaskGroupTitleBlock = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+	min-width: 0;
+`;
+
+export const TaskGroupTitle = styled.h3`
+	margin: 0;
+	color: ${COLORS.textPrimary};
+	font-size: 1rem;
+	font-weight: 850;
+`;
+
+export const TaskGroupDescription = styled.div`
+	color: ${COLORS.textSecondary};
+	font-size: 0.82rem;
+	font-weight: 650;
+`;
+
+export const TaskGroupHeaderMeta = styled.div`
+	display: inline-flex;
+	align-items: center;
+	gap: 9px;
+	flex: 0 0 auto;
+`;
+
+export const TaskGroupBadge = styled.span<{ $tone?: 'danger' | 'warning' | 'success' | 'neutral' }>`
+	min-width: 28px;
+	height: 28px;
+	padding: 0 9px;
+	border-radius: 999px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 0.78rem;
+	font-weight: 850;
+	color: ${(props) => {
+		if (props.$tone === 'danger') return COLORS.errorDark;
+		if (props.$tone === 'warning') return COLORS.warningDark;
+		if (props.$tone === 'success') return COLORS.primaryDark;
+		return COLORS.textSecondary;
+	}};
+	background: ${(props) => {
+		if (props.$tone === 'danger') return '#fee2e2';
+		if (props.$tone === 'warning') return '#fef3c7';
+		if (props.$tone === 'success') return COLORS.successLight;
+		return COLORS.bgLight;
+	}};
+`;
+
+export const TaskGroupList = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: 0;
+	padding: 0 16px 16px;
+`;
+
+export const TaskDecisionCard = styled.article<{ $overdue?: boolean }>`
+	display: grid;
+	grid-template-columns: 44px minmax(0, 1fr) auto;
+	gap: 12px;
+	align-items: center;
+	padding: 14px 0;
+	border-top: 1px solid ${COLORS.borderLight};
+
+	@media (max-width: 720px) {
+		grid-template-columns: 42px minmax(0, 1fr);
+	}
+`;
+
+export const TaskDecisionIcon = styled.div<{ $color: string; $background: string }>`
+	width: 42px;
+	height: 42px;
+	border-radius: 50%;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	color: ${(props) => props.$color};
+	background: ${(props) => props.$background};
+	font-size: 1rem;
+`;
+
+export const TaskDecisionContent = styled.div`
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 5px;
+`;
+
+export const TaskDecisionTitle = styled.button`
+	border: none;
+	background: transparent;
+	padding: 0;
+	margin: 0;
+	color: ${COLORS.textPrimary};
+	font-size: 0.96rem;
+	font-weight: 850;
+	text-align: left;
+	cursor: pointer;
+
+	&:hover {
+		color: ${COLORS.primaryDark};
+	}
+`;
+
+export const TaskDecisionMeta = styled.div<{ $danger?: boolean }>`
+	color: ${(props) => (props.$danger ? COLORS.errorDark : COLORS.textSecondary)};
+	font-size: 0.82rem;
+	font-weight: ${(props) => (props.$danger ? 800 : 650)};
+	line-height: 1.4;
+`;
+
+export const TaskDecisionActions = styled.div`
+	display: flex;
+	align-items: center;
+	gap: 8px;
+
+	@media (max-width: 720px) {
+		grid-column: 1 / -1;
+		padding-left: 54px;
+	}
+`;
+
+export const TaskDecisionAction = styled.button<{ $primary?: boolean }>`
+	min-height: 34px;
+	padding: 0 11px;
+	border-radius: 9px;
+	border: 1px solid ${(props) => (props.$primary ? COLORS.primary : 'rgba(4, 120, 87, 0.28)')};
+	background: ${(props) => (props.$primary ? COLORS.primary : COLORS.white)};
+	color: ${(props) => (props.$primary ? COLORS.textInverse : COLORS.primaryDark)};
+	font-size: 0.78rem;
+	font-weight: 850;
+	cursor: pointer;
+
+	&:hover {
+		background: ${(props) => (props.$primary ? COLORS.primaryHover : COLORS.successLight)};
+	}
+`;
+
 export const TaskControlPanel = styled.div`
 	display: flex;
 	flex-direction: column;
@@ -231,7 +468,7 @@ export const MobileListSection = styled.div`
 	display: none;
 
 	@media (max-width: 1024px) {
-		display: flex;
+		display: none;
 		flex-direction: column;
 		gap: 12px;
 	}
