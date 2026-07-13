@@ -614,6 +614,9 @@ Release note: Clearer dashboard focus controls help each user reduce noise.
 Maintley now shows clearer dashboard focus controls for each user.
 ```
 
+Maintley's pull request template includes a `Customer Release Note` section so
+user-visible changes can be captured before merge.
+
 `build:signed` does not regenerate release notes. It downloads the successful
 `release-notes.yml` artifact for the current `main` commit and reads release
 metadata from:
