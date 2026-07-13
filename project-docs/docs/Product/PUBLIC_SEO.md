@@ -27,10 +27,13 @@ static public pages from `public/`:
 
 * `/`
 * `/features/`
+* `/home-maintenance-app/`
 * `/home-maintenance-tracker/`
 * `/appliance-maintenance-tracker/`
 * `/home-maintenance-log/`
 * `/maintenance-reminders/`
+* `/property-records/`
+* `/warranty-tracker/`
 * `/home-document-organizer/`
 * `/home-health/`
 * `/property-maintenance-software/`
@@ -122,6 +125,8 @@ The first query tracking set should include:
 * home maintenance log
 * property maintenance history
 * home maintenance app
+* property records
+* warranty tracker
 * landlord maintenance tracker
 * property maintenance software
 * appliance warranty organizer
