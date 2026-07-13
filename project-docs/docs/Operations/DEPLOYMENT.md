@@ -668,6 +668,11 @@ The workflow uses `scripts/prepareReleaseVersion.cjs` and
 feature or breaking change later lands on `main`, the same `release/next` PR is
 updated with the higher required bump.
 
+If `package.json` is already ahead of the latest `v*` tag because a release was
+prepared but not tagged locally yet, new releaseable changes are bumped from the
+prepared package version. For example, a new patch change after prepared version
+`2.7.30` produces `2.7.31` rather than reusing `2.7.30`.
+
 `release/next` is treated as a version-only administrative PR. Release note
 previews and E2E tests are skipped for that PR, while Build Check runs only
 `yarn version:validate`. After the release PR merges to `main`, Release Prep
