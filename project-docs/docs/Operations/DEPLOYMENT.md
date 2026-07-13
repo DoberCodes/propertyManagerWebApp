@@ -643,7 +643,8 @@ customer-facing entries, the customer notes use a short behind-the-scenes
 improvement message instead of publishing a blank GitHub Release body.
 Pull request previews read the live pull request body from the GitHub Actions
 event payload so the `Customer Release Note` section can be previewed before the
-PR is merged.
+PR is merged. Engineering previews also include bullets from the PR body's
+`Engineering Summary` section under the related PR entry.
 Release-prep PRs such as `Release v2.7.23` are excluded from generated release
 notes so they do not appear as customer-facing improvements.
 

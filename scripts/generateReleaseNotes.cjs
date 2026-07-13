@@ -467,6 +467,7 @@ const buildPrEntry = (pr, commit) => {
 		category,
 		customerCategory,
 		customerSummary: toCustomerSummary({ title: rawTitle, body: pr.body || '' }),
+		engineeringSummary: extractEngineeringSummary(pr.body || ''),
 		bump: inferBump({ title: rawTitle, labels, body: pr.body || '' }),
 	};
 };
@@ -496,6 +497,7 @@ const buildPrFallbackEntry = (number, commit) => {
 		category,
 		customerCategory,
 		customerSummary: toCustomerSummary({ title: rawTitle, body: '' }),
+		engineeringSummary: [],
 		bump: inferBump({ title: rawTitle, labels: [], body: '' }),
 	};
 };
@@ -525,6 +527,7 @@ const buildDirectEntry = (commit) => {
 		category,
 		customerCategory,
 		customerSummary: toCustomerSummary({ title: rawTitle, body: '' }),
+		engineeringSummary: [],
 		bump: inferBump({ title: rawTitle, labels: [], body: '' }),
 	};
 };
@@ -546,6 +549,42 @@ const hasAny = (values, patterns) =>
 	values.some((value) => patterns.some((pattern) => pattern.test(value)));
 
 const hasLabel = (labels, patterns) => hasAny(labels, patterns);
+
+const normalizeMarkdownHeading = (line) =>
+	String(line || '')
+		.replace(/^\s*#{1,6}\s*/, '')
+		.replace(/\s*#+\s*$/, '')
+		.trim()
+		.toLowerCase();
+
+const extractMarkdownSectionLines = (body, headings) => {
+	const normalizedHeadings = headings.map((heading) => heading.toLowerCase());
+	const lines = String(body || '').split(/\r?\n/);
+	const startIndex = lines.findIndex((line) =>
+		normalizedHeadings.includes(normalizeMarkdownHeading(line)),
+	);
+	if (startIndex === -1) return [];
+
+	const sectionLines = [];
+	for (let index = startIndex + 1; index < lines.length; index += 1) {
+		const line = lines[index];
+		if (/^\s*#{1,6}\s+\S+/.test(line)) break;
+		const trimmed = line.trim();
+		if (!trimmed && sectionLines.length === 0) continue;
+		if (!trimmed || /^[-*]\s*$/.test(trimmed)) continue;
+		sectionLines.push(trimmed);
+	}
+
+	return sectionLines;
+};
+
+const extractEngineeringSummary = (body) =>
+	extractMarkdownSectionLines(body, [
+		'engineering summary',
+		'technical summary',
+		'implementation summary',
+		'summary',
+	]);
 
 const extractReleaseNote = (body) => {
 	const lines = String(body || '').split(/\r?\n/);
@@ -749,7 +788,16 @@ const formatEntry = (entry) => {
 		entry.type === 'pr'
 			? ` (#${entry.number})`
 			: ` (${String(entry.sha || '').slice(0, 7)})`;
-	return `- ${entry.title}${suffix}`;
+	const line = `- ${entry.title}${suffix}`;
+	if (!Array.isArray(entry.engineeringSummary) || entry.engineeringSummary.length === 0) {
+		return line;
+	}
+	const details = entry.engineeringSummary.map((detail) => {
+		const normalizedDetail = String(detail || '').trim().replace(/^\*\s+/, '- ');
+		if (/^[-*]\s+/.test(normalizedDetail)) return `  ${normalizedDetail}`;
+		return `  - ${normalizedDetail}`;
+	});
+	return [line, ...details].join('\n');
 };
 
 const formatCustomerEntry = (entry) => `- ${entry.customerSummary || entry.title}`;
