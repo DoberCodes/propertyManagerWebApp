@@ -351,7 +351,57 @@ const fetchPr = (number) => {
 	}
 };
 
+const readCurrentPullRequest = () => {
+	const eventPath = String(process.env.GITHUB_EVENT_PATH || '').trim();
+	if (!eventPath || !fs.existsSync(eventPath)) return null;
+
+	try {
+		const event = JSON.parse(fs.readFileSync(eventPath, 'utf8'));
+		const pr = event.pull_request;
+		if (!pr?.number) return null;
+		return {
+			number: pr.number,
+			title: pr.title || '',
+			body: pr.body || '',
+			labels: Array.isArray(pr.labels) ? pr.labels : [],
+			author: pr.user ? { login: pr.user.login || '' } : null,
+			mergedAt: pr.merged_at || '',
+			url: pr.html_url || '',
+			baseRefName: pr.base?.ref || '',
+			headRefName: pr.head?.ref || '',
+		};
+	} catch (_error) {
+		return null;
+	}
+};
+
+const buildPullRequestPreviewEntry = (pr, commits) => {
+	const files = Array.from(
+		new Set(commits.flatMap((commit) => commit.files || [])),
+	).sort();
+	const latestCommit = commits[commits.length - 1] || {};
+	const commit = {
+		sha: latestCommit.sha || '',
+		authorName: latestCommit.authorName || '',
+		date: latestCommit.date || new Date().toISOString(),
+		subject: `${pr.title || 'Pull request'} (#${pr.number})`,
+		files,
+	};
+	const entry = buildPrEntry(pr, commit);
+	entry.commits = commits;
+	return entry;
+};
+
 const buildEntries = (commits) => {
+	const currentPullRequest = readCurrentPullRequest();
+	if (currentPullRequest && commits.length > 0) {
+		const entry = buildPullRequestPreviewEntry(currentPullRequest, commits);
+		return {
+			entries: isReleaseAutomationEntry(entry) ? [] : [entry],
+			warnings: [],
+		};
+	}
+
 	const prEntries = new Map();
 	const directEntries = [];
 	const warnings = [];
