@@ -878,11 +878,19 @@ const main = () => {
 	const expectedVersionFromPreviousTag = previousVersion
 		? bumpVersion(previousVersion, selectedBump)
 		: bumpVersion(packageVersion, selectedBump);
-	const selectedAutomaticVersion =
+	const expectedVersionFromPackageVersion = bumpVersion(packageVersion, selectedBump);
+	const shouldBumpPreparedPackageVersion =
+		entries.length > 0 &&
+		selectedBump !== 'none' &&
 		packageVersionIsAheadOfPreviousTag &&
-		compareVersions(packageVersion, expectedVersionFromPreviousTag) > 0
-			? packageVersion
-			: expectedVersionFromPreviousTag;
+		compareVersions(packageVersion, expectedVersionFromPreviousTag) >= 0;
+	const selectedAutomaticVersion =
+		shouldBumpPreparedPackageVersion
+			? expectedVersionFromPackageVersion
+			: packageVersionIsAheadOfPreviousTag &&
+				  compareVersions(packageVersion, expectedVersionFromPreviousTag) > 0
+				? packageVersion
+				: expectedVersionFromPreviousTag;
 	const version =
 		options.version || selectedAutomaticVersion;
 	if (!isSemverVersion(version)) {
@@ -914,6 +922,8 @@ const main = () => {
 		packageVersion,
 		packageVersionIsPrepared,
 		expectedVersionFromPreviousTag,
+		expectedVersionFromPackageVersion,
+		shouldBumpPreparedPackageVersion,
 		bump: selectedBump,
 		inferredBump,
 		counts: {
