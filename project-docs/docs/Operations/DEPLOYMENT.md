@@ -614,6 +614,9 @@ Release note: Clearer dashboard focus controls help each user reduce noise.
 Maintley now shows clearer dashboard focus controls for each user.
 ```
 
+Maintley's pull request template includes a `Customer Release Note` section so
+user-visible changes can be captured before merge.
+
 `build:signed` does not regenerate release notes. It downloads the successful
 `release-notes.yml` artifact for the current `main` commit and reads release
 metadata from:
@@ -638,6 +641,10 @@ The action also generates release note previews for pull requests into `main`
 and release note artifacts after merges to `main`. When a release has no
 customer-facing entries, the customer notes use a short behind-the-scenes
 improvement message instead of publishing a blank GitHub Release body.
+Pull request previews read the live pull request body from the GitHub Actions
+event payload so the `Customer Release Note` section can be previewed before the
+PR is merged. Engineering previews also include bullets from the PR body's
+`Engineering Summary` section under the related PR entry.
 Release-prep PRs such as `Release v2.7.23` are excluded from generated release
 notes so they do not appear as customer-facing improvements.
 
