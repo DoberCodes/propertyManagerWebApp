@@ -50,6 +50,7 @@
 		"start": "node ./node_modules/react-scripts/bin/react-scripts.js start",
 		"build": "node scripts/validateFrontendEnv.cjs && node ./node_modules/react-scripts/bin/react-scripts.js build",
 		"validate:frontend-env": "node scripts/validateFrontendEnv.cjs",
+		"validate:seo": "node scripts/validatePublicSeo.cjs",
 		"lint": "eslint 'src/**/*.{ts,tsx}'",
 		"test": "node ./node_modules/react-scripts/bin/react-scripts.js test",
 		"test:ci": "node ./node_modules/react-scripts/bin/react-scripts.js test --watchAll=false --passWithNoTests",

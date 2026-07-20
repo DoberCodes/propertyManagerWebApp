@@ -8,6 +8,10 @@ Whenever possible, use package scripts from `package.json` rather than executing
 
 Run individual script files only when no package alias exists.
 
+Run `npm run validate:seo` after changing public search pages. It checks titles,
+descriptions, H1s, canonical URLs, robots directives, social metadata, JSON-LD,
+and sitemap coverage for every public `index.html`.
+
 ---
 
 # Directory Layout

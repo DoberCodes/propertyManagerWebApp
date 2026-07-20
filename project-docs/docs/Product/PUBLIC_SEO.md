@@ -49,6 +49,8 @@ static public pages from `public/`:
 * `/resources/appliance-warranty-organizer/`
 * `/resources/hvac-filter-replacement-schedule/`
 * `/resources/new-home-maintenance-tracker/`
+* `/resources/seasonal-home-maintenance-schedule/`
+* `/resources/home-service-history/`
 
 These pages are listed in:
 
@@ -167,8 +169,8 @@ Avoid leading with generic phrases such as:
 
 Recommended next SEO phases:
 
-1. Add more FAQPage JSON-LD to future pages with stable FAQ sections.
-2. Expand `/resources/` with more product-led guides based on Search Console
+1. Expand FAQPage JSON-LD only where the visible page has stable FAQ content.
+2. Continue expanding `/resources/` with product-led guides based on Search Console
    impressions and user questions.
 3. Replace screenshot-based social previews with custom branded OG images if
    Maintley needs more polished share cards.
@@ -176,3 +178,6 @@ Recommended next SEO phases:
    Bing Webmaster Tools after deploy.
 5. Consider moving public marketing routes from static HTML to first-class clean
    React routes if Maintley moves away from `HashRouter`.
+
+Run `npm run validate:seo` before deploying public page changes. The validator
+checks page metadata, canonical URLs, JSON-LD parsing, and sitemap coverage.
