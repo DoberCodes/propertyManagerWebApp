@@ -31,24 +31,21 @@ const currentAttribute = (route, destination) =>
 		: '';
 
 const buildNav = (route) => {
-	const resourceMenu = route.startsWith('/resources/')
-		? `
+	const resourceNavigation = `
 					<details class="resource-menu">
-						<summary>Browse guides</summary>
+						<summary>Browse Resources</summary>
 						<div class="resource-menu-panel">
 							<a href="/resources/">All resources</a>
 ${resourceGuides.map(([href, label]) => `\t\t\t\t\t\t\t<a href="${href}"${currentAttribute(route, href)}>${label}</a>`).join('\n')}
 						</div>
-					</details>`
-		: '';
+					</details>`;
 
 	return `<nav class="site-nav" aria-label="Primary navigation">
 				<a class="brand" href="/">Maintley</a>
 				<div class="nav-links">
 					<a href="/"${currentAttribute(route, '/')}>Home</a>
 					<a href="/features/"${currentAttribute(route, '/features/')}>Features</a>
-					<a href="/pricing/"${currentAttribute(route, '/pricing/')}>Pricing</a>
-					<a href="/resources/"${currentAttribute(route, '/resources/')}>Resources</a>${resourceMenu}
+					<a href="/pricing/"${currentAttribute(route, '/pricing/')}>Pricing</a>${resourceNavigation}
 					<a href="/#/login">Login</a>
 					<a class="nav-cta" href="/#/register">Start free</a>
 				</div>
@@ -60,8 +57,9 @@ walk(publicRoot);
 for (const filePath of pages) {
 	const route = `/${path.relative(publicRoot, path.dirname(filePath)).replace(/\\/g, '/')}/`;
 	const html = fs.readFileSync(filePath, 'utf8');
-	const nextHtml = html.replace(/<nav class="site-nav">[\s\S]*?<\/nav>/, buildNav(route));
-	if (nextHtml === html) throw new Error(`Could not find public navigation in ${filePath}`);
+	const navPattern = /<nav class="site-nav"[^>]*>[\s\S]*?<\/nav>/;
+	if (!navPattern.test(html)) throw new Error(`Could not find public navigation in ${filePath}`);
+	const nextHtml = html.replace(navPattern, buildNav(route));
 	fs.writeFileSync(filePath, nextHtml);
 }
 

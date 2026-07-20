@@ -98,9 +98,10 @@ URLs. Use a topic-relevant Maintley screenshot for `og:image` and
 `twitter:image` when possible.
 
 All static public pages use the same primary navigation: Home, Features,
-Pricing, Resources, Login, and Start free. Resource pages add a secondary
-Browse guides menu without replacing those primary destinations. Run
-`npm run sync:seo-nav` after changing the shared public navigation definition.
+Pricing, Browse Resources, Login, and Start free. Browse Resources is a dropdown
+containing the resource hub and individual guides, so its behavior remains
+consistent throughout the public site. Run `npm run sync:seo-nav` after changing
+the shared public navigation definition.
 
 The public `robots.txt` should continue to reference:
 
