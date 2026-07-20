@@ -368,8 +368,8 @@ const LandingPageComponent = () => {
 					<BenefitRow>
 						<BenefitImage>
 							<img
-								src='/screenshots/desktop_taskhistory.png'
-								alt='Maintley maintenance history showing completed property work'
+								src={require('../../Assets/images/cabin_woods.jpg')}
+								alt='Time efficiency'
 							/>
 						</BenefitImage>
 						<BenefitContent>
@@ -407,8 +407,8 @@ const LandingPageComponent = () => {
 					<BenefitRow $reverse>
 						<BenefitImage>
 							<img
-								src='/screenshots/desktop_documents.png'
-								alt='Maintley property documents organized with the home record'
+								src={require('../../Assets/images/privacy.jpg')}
+								alt='Data security'
 							/>
 						</BenefitImage>
 						<BenefitContent>
@@ -444,8 +444,8 @@ const LandingPageComponent = () => {
 					<BenefitRow>
 						<BenefitImage>
 							<img
-								src='/screenshots/mobile_tasks.png'
-								alt='Maintley maintenance tasks on a mobile phone'
+								src={require('../../Assets/images/camper in the woods.jpg')}
+								alt='Mobile access'
 							/>
 						</BenefitImage>
 						<BenefitContent>
@@ -478,8 +478,8 @@ const LandingPageComponent = () => {
 					<BenefitRow>
 						<BenefitImage>
 							<img
-								src='/screenshots/desktop_appliance.png'
-								alt='Maintley equipment profile with appliance maintenance details'
+								src={require('../../Assets/images/more than property.jpg')}
+								alt='Equipment management'
 							/>
 						</BenefitImage>
 						<BenefitContent>
