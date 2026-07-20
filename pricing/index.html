@@ -25,22 +25,40 @@
 				"@type": "SoftwareApplication",
 				"name": "Maintley",
 				"applicationCategory": "HomeApplication",
-				"offers": {
-					"@type": "AggregateOffer",
-					"priceCurrency": "USD",
-					"lowPrice": "0"
-				}
+				"operatingSystem": "Web, Android",
+				"url": "https://maintleyapp.com/pricing/",
+				"description": "Home maintenance tracking, equipment records, documents, recurring reminders, and property history.",
+				"offers": [
+					{ "@type": "Offer", "name": "Free", "price": "0", "priceCurrency": "USD", "url": "https://maintleyapp.com/#/register" },
+					{ "@type": "Offer", "name": "Homeowner+ monthly", "price": "3.99", "priceCurrency": "USD", "url": "https://maintleyapp.com/#/register" },
+					{ "@type": "Offer", "name": "Homeowner+ yearly", "price": "39.99", "priceCurrency": "USD", "url": "https://maintleyapp.com/#/register" }
+				]
 			}
 		</script>
 	</head>
 	<body>
 		<header class="site-header">
-			<nav class="site-nav">
+			<nav class="site-nav" aria-label="Primary navigation">
 				<a class="brand" href="/">Maintley</a>
 				<div class="nav-links">
+					<a href="/">Home</a>
 					<a href="/features/">Features</a>
-					<a href="/homeowners/">Homeowners</a>
-					<a href="/property-managers/">Property Owners</a>
+					<a href="/pricing/" aria-current="page">Pricing</a>
+					<details class="resource-menu">
+						<summary>Browse Resources</summary>
+						<div class="resource-menu-panel">
+							<a href="/resources/">All resources</a>
+							<a href="/resources/home-maintenance-checklist/">Seasonal checklist</a>
+							<a href="/resources/seasonal-home-maintenance-schedule/">Seasonal schedule</a>
+							<a href="/resources/home-service-history/">Home service history</a>
+							<a href="/resources/appliance-maintenance-log/">Appliance maintenance log</a>
+							<a href="/resources/how-to-create-home-maintenance-log/">Create a maintenance log</a>
+							<a href="/resources/what-maintenance-records-should-homeowners-keep/">Records to keep</a>
+							<a href="/resources/appliance-warranty-organizer/">Warranty organizer</a>
+							<a href="/resources/hvac-filter-replacement-schedule/">HVAC filter schedule</a>
+							<a href="/resources/new-home-maintenance-tracker/">New home tracker</a>
+						</div>
+					</details>
 					<a href="/#/login">Login</a>
 					<a class="nav-cta" href="/#/register">Start free</a>
 				</div>
