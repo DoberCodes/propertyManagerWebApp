@@ -5,7 +5,6 @@ import { AppZeroState } from '../../Components/Library/AppZeroState';
 import { TaskModal } from '../../Components/Library';
 import { TaskAssignModal } from '../../Components/Library/Modal/TaskAssignModal';
 import { TaskCompletionModal } from '../../Components/TaskCompletionModal';
-import { MaintleyTimeline, MaintleyTimelineItem } from '../../Components/Library/MaintleyTimeline';
 import { LoadingState } from '../../Components/LoadingState';
 import { useGetAllDevicesQuery } from '../../Redux/API/deviceSlice';
 import { useGetPropertiesQuery } from '../../Redux/API/propertySlice';
@@ -456,48 +455,6 @@ export const MaintenanceProfilePage: React.FC = () => {
 			? `/property/${property.slug}/device/${buildDeviceSlug(firstRelatedDevice)}?from=tasks`
 			: '';
 
-	const timelineItems: MaintleyTimelineItem[] = useMemo(() => {
-		if (!task) return [];
-		const items: MaintleyTimelineItem[] = [
-			{
-				id: `${task.id}-created`,
-				kind: 'created',
-				title: getTaskOrigin(task),
-				date: task.createdAt,
-				description: 'This maintenance profile began from the task record.',
-			},
-			...relatedEvents.map((event: any) => ({
-				id: String(event.id || `${event.title}-${getEventDate(event)}`),
-				kind: 'completed' as const,
-				title: event.title || task.title || 'Completed maintenance',
-				date: getEventDate(event),
-				description: getEventDescription(event) || 'Maintenance was recorded.',
-				metadata: [
-					...(event.completedByName ? [{ label: 'Completed by', value: event.completedByName }] : []),
-					...(getFinancialDisplayTotal(event.financials) !== undefined
-						? [{ label: 'Cost', value: formatCurrency(getFinancialDisplayTotal(event.financials), event.financials?.currency || 'USD') }]
-						: []),
-				],
-			})),
-			...(task.dueDate && task.status !== 'Completed'
-				? [
-						{
-							id: `${task.id}-next-due`,
-							kind: 'scheduled' as const,
-							title: 'Next scheduled maintenance',
-							date: task.dueDate,
-							description: formatRelativeDue(task.dueDate),
-						},
-				  ]
-				: []),
-		];
-		return items.sort((a, b) => {
-			const left = parseDate(a.date)?.getTime() || 0;
-			const right = parseDate(b.date)?.getTime() || 0;
-			return left - right;
-		});
-	}, [relatedEvents, task]);
-
 	const costValues = relatedEvents
 		.map((event: any) => getFinancialDisplayTotal(event.financials))
 		.filter((value): value is number => value !== undefined);
@@ -583,7 +540,7 @@ export const MaintenanceProfilePage: React.FC = () => {
 					'Loading task details...',
 					'Connecting property context...',
 					'Finding related equipment...',
-					'Building maintenance timeline...',
+					'Finding related service records...',
 				]}
 			/>
 		);
@@ -722,11 +679,6 @@ export const MaintenanceProfilePage: React.FC = () => {
 								<strong>Typical interval:</strong> {why.interval}
 							</SectionText>
 						)}
-					</ProfileSection>
-
-					<ProfileSection>
-						<SectionTitle>Maintenance Timeline</SectionTitle>
-						<MaintleyTimeline items={timelineItems} />
 					</ProfileSection>
 
 					<ProfileSection>

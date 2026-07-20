@@ -320,7 +320,7 @@ Preferred dashboard sections:
 * Needs Attention
 * Upcoming
 * Recommendations
-* Recent Activity
+* Home Timeline
 
 Dashboard framing should adapt to the user's responsibility. Use `Your Focus`
 or `Your Tasks` for assigned users, `Team Focus` or `Team Tasks` for maintenance

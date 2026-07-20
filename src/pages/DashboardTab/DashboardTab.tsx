@@ -96,12 +96,6 @@ import {
 	DashboardIntelligenceImpact,
 	DashboardIntelligenceEvidence,
 	DashboardIntelligenceActions,
-	RecentActivityList,
-	RecentActivityRow,
-	RecentActivityMain,
-	RecentActivityTitle,
-	RecentActivityMeta,
-	RecentActivityDate,
 	RecentActivityEmpty,
 	HomeActivitySection,
 	HomeActivityHeader,
@@ -281,7 +275,7 @@ type DashboardAudience =
 	| 'single_property';
 
 type DashboardScopePreference = 'my_focus' | 'all_visible_properties';
-type HomeActivityTabKey = 'needs_attention' | 'recent_maintenance' | 'home_timeline';
+type HomeActivityTabKey = 'needs_attention' | 'home_timeline';
 
 type HomeTimelineEntry = {
 	id: string;
@@ -998,22 +992,6 @@ export const DashboardTab = () => {
 		};
 	}, [visiblePropertyIdsKey, fetchMaintenanceHistoryByProperty]);
 
-	const deviceLookup = useMemo(
-		() =>
-			new Map(
-				visibleDevices.map((device: any) => {
-					const id = String(device?.id || '').trim();
-					const name =
-						[device?.brand, device?.type || device?.assetType]
-							.filter(Boolean)
-							.join(' ')
-							.trim() || 'Equipment';
-					return [id, name];
-				}),
-			),
-		[visibleDevices],
-	);
-
 	const scopedMaintenanceHistory = useMemo(() => {
 		const visiblePropertyIds = new Set(allProperties.map((property) => property.id));
 		const visiblePropertyTitles = new Set(
@@ -1386,66 +1364,6 @@ export const DashboardTab = () => {
 		);
 	};
 
-	const recentMaintenanceActivity = useMemo(() => {
-		const sourceRecords = dashboardMaintenanceHistory.length
-			? dashboardMaintenanceHistory
-			: scopedMaintenanceHistory;
-
-		const activity = sourceRecords
-			.map((record: any) => {
-				const timestamp = new Date(getMaintenanceEventDate(record) || '');
-				if (Number.isNaN(timestamp.getTime())) {
-					return null;
-				}
-
-				const recordPropertyId = String(record?.propertyId || '').trim();
-				const propertyName =
-					propertyLookup.get(recordPropertyId)?.title ||
-					String(record?.propertyTitle || '').trim() ||
-					'Property';
-
-				const rawDeviceIds = Array.isArray(record?.deviceIds)
-					? record.deviceIds
-					: Array.isArray(record?.devices)
-						? record.devices
-						: record?.deviceId
-							? [record.deviceId]
-							: [];
-				const normalizedDeviceIds = rawDeviceIds
-					.map((id: any) => String(id).trim())
-					.filter(Boolean);
-
-				const deviceName = normalizedDeviceIds.length
-					? deviceLookup.get(normalizedDeviceIds[0]) || 'Equipment'
-					: 'Property-level';
-
-				return {
-					id:
-						String(record?.id || '').trim() ||
-						`${recordPropertyId}-${String(record?.completionDate || '')}-${String(record?.title || '')}`,
-					timestamp,
-					description: String(
-						record?.title ||
-						record?.description ||
-						record?.completionNotes ||
-						'Maintenance event logged',
-					).trim(),
-					deviceName,
-					propertyName,
-				};
-			})
-			.filter(Boolean)
-			.sort((a: any, b: any) => b.timestamp.getTime() - a.timestamp.getTime())
-			.slice(0, HOME_ACTIVITY_LIST_LIMIT);
-
-		return activity;
-	}, [
-		dashboardMaintenanceHistory,
-		scopedMaintenanceHistory,
-		propertyLookup,
-		deviceLookup,
-	]);
-
 	const urgentTasks = useMemo(() => {
 		const now = new Date();
 		const maxDueDate = new Date(now);
@@ -1600,22 +1518,19 @@ export const DashboardTab = () => {
 
 		filteredTasks.forEach((task) => {
 			const completionValue = String(task.completionDate || task.approvedAt || '').trim();
-			const dueValue = String(task.dueDate || '').trim();
-			const dateValue = completionValue || dueValue;
+			if (!completionValue) return;
+
+			const dateValue = completionValue;
 			const eventDate = new Date(dateValue);
 			if (Number.isNaN(eventDate.getTime())) return;
 
 			const propertyName = getUrgentTaskPropertyName(task);
 			const displayStatus = getTaskDisplayStatus(task).label;
-			const isCompleted = displayStatus === 'Completed' || Boolean(completionValue);
-			const title = isCompleted
-				? `${task.title} completed`
-				: `${task.title} ${new Date(dateValue).getTime() < Date.now() ? 'due' : 'scheduled'}`;
 
 			entries.push({
 				id: `task-${task.id}-${dateValue}`,
 				type: 'task',
-				title,
+				title: `${task.title} completed`,
 				meta: `${propertyName} - ${displayStatus}`,
 				date: eventDate,
 				dateLabel: formatTimelineDate(eventDate),
@@ -1675,15 +1590,10 @@ export const DashboardTab = () => {
 					'Overdue and upcoming maintenance tasks grouped so you can decide what to handle next.',
 			},
 			{
-				key: 'recent_maintenance' as HomeActivityTabKey,
-				label: 'Recent Maintenance',
-				description: 'Recently completed work and logged service records.',
-			},
-			{
 				key: 'home_timeline' as HomeActivityTabKey,
 				label: 'Home Timeline',
 				description:
-					'A full chronological view of tasks, service records, documents, and home updates.',
+					'A chronological view of completed tasks, service records, documents, and home updates.',
 			},
 		],
 		[],
@@ -2291,35 +2201,6 @@ export const DashboardTab = () => {
 										</UrgentTaskGroup>
 									)}
 								</UrgentTaskList>
-							)}
-						</>
-					)}
-
-					{activeHomeActivityTab === 'recent_maintenance' && (
-						<>
-							{recentMaintenanceActivity.length === 0 ? (
-								<RecentActivityEmpty>
-									<p>No maintenance records yet. Complete tasks or add a maintenance record to build the service history.</p>
-									<FocusButton
-										type='button'
-										onClick={() => handleOpenCreateTask()}>
-										Add Task
-									</FocusButton>
-								</RecentActivityEmpty>
-							) : (
-								<RecentActivityList>
-									{recentMaintenanceActivity.map((entry: any) => (
-										<RecentActivityRow key={entry.id}>
-											<RecentActivityMain>
-												<RecentActivityTitle>{entry.description}</RecentActivityTitle>
-												<RecentActivityMeta>
-													{entry.deviceName} - {entry.propertyName}
-												</RecentActivityMeta>
-											</RecentActivityMain>
-											<RecentActivityDate>{formatActivityDate(entry.timestamp)}</RecentActivityDate>
-										</RecentActivityRow>
-									))}
-								</RecentActivityList>
 							)}
 						</>
 					)}

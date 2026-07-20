@@ -18,6 +18,7 @@ export const LandingNavbar = () => {
 			<ButtonWrapper>
 				<NavAnchor
 					to='#About'
+					className='optional-nav-link'
 					scroll={(el) =>
 						el.scrollIntoView({
 							behavior: 'auto',
@@ -28,27 +29,17 @@ export const LandingNavbar = () => {
 				</NavAnchor>
 				<NavAnchor
 					to='#MaintleyLoop'
+					className='optional-nav-link'
 					scroll={(el) =>
 						el.scrollIntoView({ behavior: 'auto', block: 'start' })
 					}>
 					How It Works
 				</NavAnchor>
-				<NavAnchor
-					to='#Features'
-					className='secondary-nav-link'
-					scroll={(el) =>
-						el.scrollIntoView({ behavior: 'auto', block: 'start' })
-					}>
-					Feature Highlights
-				</NavAnchor>
 				<NavExternalLink href='/features/' className='secondary-nav-link'>
-					Feature Catalog
+					Features
 				</NavExternalLink>
 				<NavExternalLink href='/homeowners/' className='secondary-nav-link'>
 					Homeowners
-				</NavExternalLink>
-				<NavExternalLink href='/pricing/' className='secondary-nav-link'>
-					Pricing
 				</NavExternalLink>
 				<NavExternalLink href='/resources/' className='secondary-nav-link'>
 					Resources
@@ -59,14 +50,6 @@ export const LandingNavbar = () => {
 						el.scrollIntoView({ behavior: 'auto', block: 'start' })
 					}>
 					Pricing
-				</NavAnchor>
-				<NavAnchor
-					to='#Contact'
-					className='secondary-nav-link'
-					scroll={(el) =>
-						el.scrollIntoView({ behavior: 'auto', block: 'start' })
-					}>
-					Contact
 				</NavAnchor>
 				<NavButton to='/login'>Login</NavButton>
 			</ButtonWrapper>

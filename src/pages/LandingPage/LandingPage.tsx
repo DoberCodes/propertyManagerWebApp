@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
@@ -13,7 +13,6 @@ import {
 	faCar,
 	faScrewdriverWrench,
 	faChartLine,
-	faDownload,
 	faPaperPlane,
 	faCircleCheck,
 } from '@fortawesome/free-solid-svg-icons';
@@ -100,31 +99,14 @@ import {
 	FooterCopyright,
 } from './LandingPage.styles';
 
-import {
-	getAPKFileSize,
-	getAPKDownloadURL,
-	getAPKReleaseAssetName,
-	getGitHubReleaseApiUrl,
-} from '../../utils/versionCheck';
+import { getGooglePlayStoreURL } from '../../utils/versionCheck';
 import { CURRENT_APP_VERSION } from '../../config/appVersion';
 import SEO from 'Components/SEO/SEO';
 import { legalDocuments } from '../LegalPage/legalDocuments';
 
-const formatBytes = (bytes: number) => {
-	var marker = 1024;
-	var decimal = 2;
-	var kiloBytes = marker;
-	var megaBytes = marker * marker;
-
-	if (bytes < kiloBytes) return bytes + ' Bytes';
-	else if (bytes < megaBytes)
-		return (bytes / kiloBytes).toFixed(decimal) + ' KB';
-	else return (bytes / megaBytes).toFixed(decimal) + ' MB';
-};
-
 const LandingPageComponent = () => {
 	const navigate = useNavigate();
-	const apkDownloadUrl = getAPKDownloadURL();
+	const androidAppUrl = getGooglePlayStoreURL();
 	const handleFooterLink = (href: string) => {
 		window.location.href = href;
 	};
@@ -216,39 +198,6 @@ const LandingPageComponent = () => {
 	const [formStatus, setFormStatus] = useState<
 		'idle' | 'sending' | 'success' | 'error'
 	>('idle');
-
-	const [apkFileSize, setApkFileSize] = useState('Unknown');
-
-	useEffect(() => {
-		const fetchFileSizesAndVersionInfo = async () => {
-			try {
-				// Fetch latest release info
-				const releaseResponse = await fetch(getGitHubReleaseApiUrl('latest'));
-				if (releaseResponse.ok) {
-					const release = await releaseResponse.json();
-					const assets = release.assets || [];
-					const latestReleaseVersion = String(release.tag_name || '')
-						.replace(/^v/, '') || CURRENT_APP_VERSION;
-					const latestReleaseAssetName = getAPKReleaseAssetName(latestReleaseVersion);
-					const latestApk = assets.find(
-						(asset) =>
-							asset.name === latestReleaseAssetName ||
-							/^maintley-.+-release\.apk$/i.test(asset.name || ''),
-					);
-
-					if (latestApk?.size) {
-						setApkFileSize(formatBytes(latestApk.size));
-					}
-				}
-			} catch (error) {
-				console.warn('Error fetching version info:', error);
-				// Fallback to basic file size fetching
-				const size = await getAPKFileSize();
-				setApkFileSize(size);
-			}
-		};
-		fetchFileSizesAndVersionInfo();
-	}, []);
 
 	const handleInputChange = (
 		e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
@@ -643,28 +592,31 @@ const LandingPageComponent = () => {
 				{/* Download Section */}
 				<DownloadSection id='Download'>
 					<DownloadContainer>
-						<DownloadHeading>Download the App</DownloadHeading>
+						<DownloadHeading>Use Maintley on Android, iPhone, and iPad</DownloadHeading>
 						<DownloadSubtext>
-							Install Maintley and start preserving your maintenance history today.
-							Log work, attach records, and keep your home timeline organized.
-							Available on Android.
+							Get the Android app from Google Play. On iPhone or iPad, open
+							Maintley in Safari and choose Add to Home Screen for app-like
+							access. You can also use Maintley directly in any supported browser.
 						</DownloadSubtext>
-						<DownloadButton href={apkDownloadUrl} download>
-							<FontAwesomeIcon icon={faDownload} /> Download Latest APK (
-							{apkFileSize})
+						<DownloadButton
+							href={androidAppUrl}
+							target='_blank'
+							rel='noopener noreferrer'>
+							<FontAwesomeIcon icon={faMobileScreenButton} /> Get Maintley on
+							Google Play
 						</DownloadButton>
 						<DownloadInfo>
 							<InfoItem>
-								<strong>File Size</strong>
-								<span>{apkFileSize}</span>
+								<strong>Android</strong>
+								<span>Available on Google Play</span>
 							</InfoItem>
 							<InfoItem>
-								<strong>Android Version</strong>
-								<span>8.0 and above</span>
+								<strong>iPhone and iPad</strong>
+								<span>Add to Home Screen from Safari</span>
 							</InfoItem>
 							<InfoItem>
-								<strong>Version</strong>
-								<span>{`${CURRENT_APP_VERSION} (latest)`}</span>
+								<strong>Web browser</strong>
+								<span>{`Use online, Android v${CURRENT_APP_VERSION}`}</span>
 							</InfoItem>
 						</DownloadInfo>
 					</DownloadContainer>

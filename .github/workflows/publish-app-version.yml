@@ -26,7 +26,7 @@ jobs:
       - name: Install dependencies
         run: yarn install --frozen-lockfile
 
-      - name: Resolve release
+      - name: Resolve release metadata
         id: release
         shell: bash
         env:
@@ -34,44 +34,18 @@ jobs:
           INPUT_VERSION: ${{ github.event.inputs.version }}
           RELEASE_TAG: ${{ github.event.release.tag_name }}
           GITHUB_REPOSITORY: ${{ github.repository }}
+          PLAY_STORE_URL: https://play.google.com/store/apps/details?id=com.maintleyapp
         run: |
           VERSION="${INPUT_VERSION:-${RELEASE_TAG#v}}"
           TAG="v$VERSION"
-          APK_ASSET_NAME="maintley-$VERSION-release.apk"
-          EXPECTED_APK_URL="https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG/$APK_ASSET_NAME"
-          APK_URL=""
           RELEASE_URL="https://github.com/$GITHUB_REPOSITORY/releases/tag/$TAG"
 
           mkdir -p tmp
           gh release view "$TAG" --json body --jq '.body // ""' > tmp/release-notes.customer.md
 
-          for attempt in 1 2 3 4 5 6 7 8 9 10 11 12; do
-            APK_URL="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG" \
-              --jq ".assets[] | select(.name == \"$APK_ASSET_NAME\" or .label == \"$APK_ASSET_NAME\" or .name == \"app-release.apk\") | .browser_download_url" \
-              2>/dev/null | head -n 1 || true)"
-
-            if [[ -z "$APK_URL" ]]; then
-              APK_URL="$EXPECTED_APK_URL"
-            fi
-
-            if curl -fsIL "$APK_URL" >/dev/null; then
-              echo "APK is available at $APK_URL"
-              break
-            fi
-
-            if [[ "$attempt" == "12" ]]; then
-              echo "APK asset $APK_ASSET_NAME was not reachable for $TAG."
-              echo "Last checked URL: $APK_URL"
-              exit 1
-            fi
-
-            echo "APK is not reachable yet. Waiting before retry $attempt..."
-            sleep 10
-          done
-
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "apk_url=$APK_URL" >> "$GITHUB_OUTPUT"
           echo "release_url=$RELEASE_URL" >> "$GITHUB_OUTPUT"
+          echo "play_store_url=$PLAY_STORE_URL" >> "$GITHUB_OUTPUT"
 
       - name: Publish Firestore app version
         env:
@@ -81,8 +55,8 @@ jobs:
           node scripts/publishAppVersion.cjs \
             --version "${{ steps.release.outputs.version }}" \
             --release-notes-file tmp/release-notes.customer.md \
-            --apk-url "${{ steps.release.outputs.apk_url }}" \
             --release-url "${{ steps.release.outputs.release_url }}" \
+            --play-store-url "${{ steps.release.outputs.play_store_url }}" \
             --json
 
       - name: Write summary
@@ -92,5 +66,5 @@ jobs:
             echo ""
             echo "**Version:** v${{ steps.release.outputs.version }}"
             echo ""
-            echo "**APK:** ${{ steps.release.outputs.apk_url }}"
+            echo "**Android updates:** ${{ steps.release.outputs.play_store_url }}"
           } >> "$GITHUB_STEP_SUMMARY"

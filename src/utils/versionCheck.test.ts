@@ -31,65 +31,45 @@ jest.mock('../config/appVersion', () => ({
 }));
 
 import {
-	getAPKDownloadURL,
-	getAPKReleaseAssetName,
-	getUpdateReleasePageURL,
-	getVersionedAPKDownloadURL,
-	getVersionedReleasePageURL,
+	getGooglePlayStoreURL,
+	getUpdateDestinationURL,
 	setAvailableVersion,
 } from './versionCheck';
 
-describe('versionCheck APK release URLs', () => {
+describe('versionCheck Android update destination', () => {
 	beforeEach(() => {
 		localStorage.clear();
-		delete process.env.REACT_APP_APK_URL;
+		delete process.env.REACT_APP_PLAY_STORE_URL;
 	});
 
-	it('builds Maintley versioned APK asset names', () => {
-		expect(getAPKReleaseAssetName('2.8.0')).toBe('maintley-2.8.0-release.apk');
-	});
-
-	it('builds a versioned GitHub release APK URL by default', () => {
-		expect(getVersionedAPKDownloadURL('2.8.0')).toBe(
-			'https://github.com/DoberFamilyVentures/propertyManagerWebApp/releases/download/v2.8.0/maintley-2.8.0-release.apk',
+	it('uses the Maintley Google Play listing by default', () => {
+		expect(getGooglePlayStoreURL()).toBe(
+			'https://play.google.com/store/apps/details?id=com.maintleyapp',
+		);
+		expect(getUpdateDestinationURL()).toBe(
+			'https://play.google.com/store/apps/details?id=com.maintleyapp',
 		);
 	});
 
-	it('builds a versioned GitHub release page URL', () => {
-		expect(getVersionedReleasePageURL('2.8.0')).toBe(
-			'https://github.com/DoberFamilyVentures/propertyManagerWebApp/releases/tag/v2.8.0',
+	it('uses a configured Play Store URL when provided', () => {
+		process.env.REACT_APP_PLAY_STORE_URL =
+			'https://play.google.com/store/apps/details?id=com.example';
+
+		expect(getGooglePlayStoreURL()).toBe(
+			'https://play.google.com/store/apps/details?id=com.example',
 		);
 	});
 
-	it('uses the available update version for APK downloads', () => {
-		setAvailableVersion('2.8.0');
-
-		expect(getAPKDownloadURL()).toBe(
-			'https://github.com/DoberFamilyVentures/propertyManagerWebApp/releases/download/v2.8.0/maintley-2.8.0-release.apk',
-		);
-	});
-
-	it('prefers the published APK URL when release metadata is available', () => {
+	it('prefers the published Play Store URL from version metadata', () => {
+		process.env.REACT_APP_PLAY_STORE_URL =
+			'https://play.google.com/store/apps/details?id=com.example';
 		setAvailableVersion('2.8.0', {
-			apkUrl:
-				'https://github.com/DoberFamilyVentures/propertyManagerWebApp/releases/download/v2.8.0/app-release.apk',
-			releaseUrl:
-				'https://github.com/DoberFamilyVentures/propertyManagerWebApp/releases/tag/v2.8.0',
+			playStoreUrl:
+				'https://play.google.com/store/apps/details?id=com.maintleyapp',
 		});
 
-		expect(getAPKDownloadURL()).toBe(
-			'https://github.com/DoberFamilyVentures/propertyManagerWebApp/releases/download/v2.8.0/app-release.apk',
-		);
-		expect(getUpdateReleasePageURL()).toBe(
-			'https://github.com/DoberFamilyVentures/propertyManagerWebApp/releases/tag/v2.8.0',
-		);
-	});
-
-	it('falls back to the versioned release page when no published release URL is stored', () => {
-		setAvailableVersion('2.8.0');
-
-		expect(getUpdateReleasePageURL()).toBe(
-			'https://github.com/DoberFamilyVentures/propertyManagerWebApp/releases/tag/v2.8.0',
+		expect(getUpdateDestinationURL()).toBe(
+			'https://play.google.com/store/apps/details?id=com.maintleyapp',
 		);
 	});
 });

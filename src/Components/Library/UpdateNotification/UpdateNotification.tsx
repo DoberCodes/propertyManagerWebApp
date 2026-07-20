@@ -3,8 +3,7 @@ import styled from 'styled-components';
 import {
 	shouldShowUpdateNotification,
 	dismissUpdateNotification,
-	downloadAPK,
-	openUpdateReleasePage,
+	openGooglePlayUpdate,
 	getAvailableVersion,
 	getCurrentAppVersion,
 	checkForUpdates,
@@ -78,7 +77,7 @@ const Button = styled.button<{ variant?: 'primary' | 'secondary' }>`
 	white-space: nowrap;
 
 	${(props) =>
-	props.variant === 'primary'
+		props.variant === 'primary'
 			? `
 		background: white;
 		color: ${COLORS.primary};
@@ -127,71 +126,6 @@ const VersionInfo = styled.div`
 	border-top: 1px solid rgba(255, 255, 255, 0.2);
 `;
 
-const HelpLink = styled.button`
-	background: none;
-	border: none;
-	color: rgba(255, 255, 255, 0.9);
-	font-size: 12px;
-	text-decoration: underline;
-	cursor: pointer;
-	padding: 0;
-	margin-top: 8px;
-	align-self: flex-start;
-
-	&:hover {
-		color: white;
-	}
-`;
-
-const HelpOverlay = styled.div`
-	position: fixed;
-	top: 0;
-	left: 0;
-	width: 100vw;
-	height: 100vh;
-	background: rgba(0, 0, 0, 0.5);
-	backdrop-filter: blur(3px);
-	z-index: 1100;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	padding: 16px;
-`;
-
-const HelpModal = styled.div`
-	background: white;
-	color: #1f2937;
-	border-radius: 12px;
-	max-width: 520px;
-	width: 100%;
-	padding: 20px 22px;
-	box-shadow: 0 12px 32px rgba(0, 0, 0, 0.2);
-`;
-
-const HelpTitle = styled.h4`
-	margin: 0 0 10px 0;
-	font-size: 16px;
-	font-weight: 700;
-`;
-
-const HelpText = styled.p`
-	margin: 0 0 10px 0;
-	font-size: 14px;
-	line-height: 1.5;
-`;
-
-const HelpList = styled.ol`
-	margin: 0 0 12px 18px;
-	font-size: 14px;
-	line-height: 1.5;
-`;
-
-const HelpActions = styled.div`
-	display: flex;
-	justify-content: flex-end;
-	margin-top: 12px;
-`;
-
 interface UpdateNotificationProps {
 	onDismiss?: () => void;
 }
@@ -200,7 +134,6 @@ export const UpdateNotification: React.FC<UpdateNotificationProps> = ({
 	onDismiss,
 }) => {
 	const [show, setShow] = useState(false);
-	const [showHelp, setShowHelp] = useState(false);
 
 	useEffect(() => {
 		let isMounted = true;
@@ -213,7 +146,6 @@ export const UpdateNotification: React.FC<UpdateNotificationProps> = ({
 			}
 
 			if (isMounted) {
-				// Only show if on native app
 				setShow(isNativeApp() && shouldShowUpdateNotification());
 			}
 		};
@@ -225,28 +157,8 @@ export const UpdateNotification: React.FC<UpdateNotificationProps> = ({
 		};
 	}, []);
 
-	const handleDownload = async () => {
-		if (isNativeApp()) {
-			await openUpdateReleasePage();
-			handleDismiss();
-			return;
-		}
-
-		const confirmed = window.confirm(
-			'Before downloading:\n\n' +
-				'Android requires enabling installs from unknown sources for APKs not from the Play Store.\n\n' +
-				'Instructions (may vary by device):\n' +
-				'1) Open Settings → Security (or Privacy)\n' +
-				'2) Enable "Install unknown apps" / "Unknown sources"\n' +
-				'3) Select your browser and allow installs\n\n' +
-				'Continue to download the APK?',
-		);
-
-		if (!confirmed) {
-			return;
-		}
-
-		await downloadAPK();
+	const handleUpdate = async () => {
+		await openGooglePlayUpdate();
 		handleDismiss();
 	};
 
@@ -254,14 +166,6 @@ export const UpdateNotification: React.FC<UpdateNotificationProps> = ({
 		dismissUpdateNotification();
 		setShow(false);
 		onDismiss?.();
-	};
-
-	const handleOpenHelp = () => {
-		setShowHelp(true);
-	};
-
-	const handleCloseHelp = () => {
-		setShowHelp(false);
 	};
 
 	if (!show) {
@@ -273,9 +177,11 @@ export const UpdateNotification: React.FC<UpdateNotificationProps> = ({
 
 	return (
 		<NotificationWrapper>
-			<CloseButton onClick={handleDismiss}>×</CloseButton>
+			<CloseButton aria-label='Dismiss update' onClick={handleDismiss}>
+				&times;
+			</CloseButton>
 			<NotificationTitle>
-				📱 Update Available
+				Update Available
 				<span
 					style={{
 						fontWeight: 400,
@@ -284,68 +190,25 @@ export const UpdateNotification: React.FC<UpdateNotificationProps> = ({
 						marginTop: 2,
 					}}>
 					Current: v{currentVersion}{' '}
-					{availableVersion && `→ Available: v${availableVersion}`}
+					{availableVersion && `-> Available: v${availableVersion}`}
 				</span>
 			</NotificationTitle>
 			<NotificationText>
-				{isNativeApp()
-					? 'A new version of Maintley is ready. Open the GitHub release page to download and install the APK.'
-					: 'A new version of Maintley is ready to download. Get the latest features and improvements.'}
+				A new version of Maintley is ready. Open Google Play to update the
+				Android app.
 			</NotificationText>
-			<HelpLink onClick={handleOpenHelp}>
-				Need help enabling installs from unknown sources?
-			</HelpLink>
 			<ButtonGroup>
 				<Button variant='secondary' onClick={handleDismiss}>
 					Remind Later
 				</Button>
-				<Button variant='primary' onClick={handleDownload}>
-					{isNativeApp() ? 'Open Release' : 'Download Now'}
+				<Button variant='primary' onClick={handleUpdate}>
+					Open Google Play
 				</Button>
 			</ButtonGroup>
 			<VersionInfo>
 				Current: v{currentVersion}{' '}
-				{availableVersion && `→ Available: v${availableVersion}`}
+				{availableVersion && `-> Available: v${availableVersion}`}
 			</VersionInfo>
-			{showHelp && (
-				<HelpOverlay onClick={handleCloseHelp}>
-					<HelpModal onClick={(event) => event.stopPropagation()}>
-						<HelpTitle>Installing Updates Safely</HelpTitle>
-						<HelpText>
-							Android blocks APK installs from outside the Play Store by
-							default. You can allow it for your browser just while installing
-							the update.
-						</HelpText>
-						<HelpText>
-							Your data stays private—this update doesn’t request new access to
-							your personal information.
-						</HelpText>
-						<HelpList>
-							<li>
-								Open <strong>Settings</strong> → <strong>Security</strong> (or
-								<strong>Privacy</strong>).
-							</li>
-							<li>
-								Tap <strong>Install unknown apps</strong> or{' '}
-								<strong>Unknown sources</strong>.
-							</li>
-							<li>
-								Select your browser (Chrome, Samsung Internet, etc.) and toggle
-								<strong>Allow</strong>.
-							</li>
-							<li>After installing, you can turn this back off.</li>
-						</HelpList>
-						<HelpText>
-							If you get stuck, close this popup and try the download again.
-						</HelpText>
-						<HelpActions>
-							<Button variant='primary' onClick={handleCloseHelp}>
-								Got it
-							</Button>
-						</HelpActions>
-					</HelpModal>
-				</HelpOverlay>
-			)}
 		</NotificationWrapper>
 	);
 };

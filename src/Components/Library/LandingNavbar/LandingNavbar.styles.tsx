@@ -5,7 +5,7 @@ import { COLORS } from '../../../constants/colors';
 
 export const NavWrapper = styled.div`
 	display: flex;
-	height: 110px;
+	height: 88px;
 	width: 100%;
 	background: ${COLORS.gradientPrimary};
 	align-items: center;
@@ -17,7 +17,7 @@ export const NavWrapper = styled.div`
 	left: 0;
 	right: 0;
 	box-sizing: border-box;
-	flex-wrap: wrap;
+	flex-wrap: nowrap;
 	gap: 10px;
 	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 	z-index: 100;
@@ -28,6 +28,12 @@ export const NavWrapper = styled.div`
 		gap: 8px;
 		flex-direction: row;
 		flex-wrap: nowrap;
+	}
+
+	@media (max-width: 1180px) {
+		.optional-nav-link {
+			display: none;
+		}
 	}
 
 	@media (max-width: 900px) {
@@ -49,7 +55,7 @@ export const NavTitle = styled.div`
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	flex: 0 0 300px;
+	flex: 0 1 260px;
 	min-width: 0;
 	height: 100%;
 	margin: 0;
@@ -57,7 +63,7 @@ export const NavTitle = styled.div`
 
 	img {
 		display: block;
-		width: min(280px, 100%);
+		width: min(240px, 100%);
 		height: auto;
 		max-height: 86px;
 		object-fit: contain;
@@ -106,6 +112,7 @@ export const ButtonWrapper = styled.div`
 	flex: 1 1 auto;
 	min-width: 0;
 	max-width: 100%;
+	flex-wrap: nowrap;
 
 	@media (max-width: 1024px) {
 		gap: 6px;

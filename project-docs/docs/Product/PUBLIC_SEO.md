@@ -49,6 +49,8 @@ static public pages from `public/`:
 * `/resources/appliance-warranty-organizer/`
 * `/resources/hvac-filter-replacement-schedule/`
 * `/resources/new-home-maintenance-tracker/`
+* `/resources/seasonal-home-maintenance-schedule/`
+* `/resources/home-service-history/`
 
 These pages are listed in:
 
@@ -94,6 +96,12 @@ documents, reports, or Home Health views over generic decorative imagery.
 Public pages should include Open Graph and Twitter card metadata using absolute
 URLs. Use a topic-relevant Maintley screenshot for `og:image` and
 `twitter:image` when possible.
+
+All static public pages use the same primary navigation: Home, Features,
+Pricing, Browse Resources, Login, and Start free. Browse Resources is a dropdown
+containing the resource hub and individual guides, so its behavior remains
+consistent throughout the public site. Run `npm run sync:seo-nav` after changing
+the shared public navigation definition.
 
 The public `robots.txt` should continue to reference:
 
@@ -154,6 +162,10 @@ Use plain homeowner-friendly terms:
 * manuals
 * recurring reminders
 * home documents
+* add to Home Screen on iPhone and iPad
+
+Avoid using `PWA` as the primary customer-facing label. Explain that iPhone and
+iPad users can open Maintley in Safari and add it to their Home Screen.
 
 Avoid leading with generic phrases such as:
 
@@ -167,8 +179,8 @@ Avoid leading with generic phrases such as:
 
 Recommended next SEO phases:
 
-1. Add more FAQPage JSON-LD to future pages with stable FAQ sections.
-2. Expand `/resources/` with more product-led guides based on Search Console
+1. Expand FAQPage JSON-LD only where the visible page has stable FAQ content.
+2. Continue expanding `/resources/` with product-led guides based on Search Console
    impressions and user questions.
 3. Replace screenshot-based social previews with custom branded OG images if
    Maintley needs more polished share cards.
@@ -176,3 +188,6 @@ Recommended next SEO phases:
    Bing Webmaster Tools after deploy.
 5. Consider moving public marketing routes from static HTML to first-class clean
    React routes if Maintley moves away from `HashRouter`.
+
+Run `npm run validate:seo` before deploying public page changes. The validator
+checks page metadata, canonical URLs, JSON-LD parsing, and sitemap coverage.

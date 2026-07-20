@@ -847,7 +847,7 @@ Low
 
 ---
 
-## Build APK
+## Build Android Web Assets
 
 ```bash
 yarn build:apk
@@ -865,21 +865,20 @@ Low
 
 ---
 
-## Build Signed APK
+## Build Signed Android Artifacts
 
 ```bash
 yarn build:signed
 ```
 
-Builds a signed Android APK.
+Builds signed Android artifacts for internal validation and app-store
+maintenance.
 
-`build:signed` remains the local signed APK helper while Android signing secrets
-stay local. Release notes, version preparation, and Firestore app-version
-publication are handled by GitHub Actions. The command validates prepared
-version files, builds the signed APK, creates or updates the GitHub Release, and
-uploads versioned Android assets such as `maintley-{version}-release.apk`. It
-does not commit, push to `main`, deploy GitHub Pages, or publish Firestore
-app-version state.
+`build:signed` remains the local signed Android artifact helper while Android
+signing secrets stay local. Release notes, version preparation, and Firestore
+app-version publication are handled by GitHub Actions. Public Android
+distribution and updates are handled through Google Play, not direct APK
+downloads.
 
 Risk:
 
@@ -895,7 +894,8 @@ Requires signing configuration.
 yarn testDeploy
 ```
 
-Validates the local signed APK workflow without building or publishing a release.
+Validates the local signed Android artifact workflow without building or
+publishing a release.
 
 Risk:
 
@@ -1002,12 +1002,12 @@ Low
 ## Publish App Version
 
 ```bash
-yarn version:publish -- --version 2.8.0 --release-notes-file RELEASE_NOTES.txt --apk-url <url>
+yarn version:publish -- --version 2.8.0 --release-notes-file RELEASE_NOTES.txt --play-store-url https://play.google.com/store/apps/details?id=com.maintleyapp
 ```
 
 Publishes Firestore `appConfig/version`. The Publish App Version GitHub Action
-uses this only after the GitHub Release APK is reachable, so users do not see an
-update notification before the APK exists.
+uses this after the Google Play release is ready, so Android update prompts send
+users to the Play Store listing.
 
 Risk:
 

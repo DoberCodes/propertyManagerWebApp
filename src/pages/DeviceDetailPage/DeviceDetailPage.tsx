@@ -4,15 +4,9 @@ import { useSelector } from 'react-redux';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
 	faCircleCheck,
-	faClipboardCheck,
 	faClock,
-	faCommentDots,
 	faEdit,
-	faFileInvoiceDollar,
-	faFileLines,
-	faRepeat,
 	faScrewdriverWrench,
-	faShieldHalved,
 	faTrash,
 } from '@fortawesome/free-solid-svg-icons';
 import { RootState } from '../../Redux/store/store';
@@ -97,7 +91,7 @@ import {
 } from '../../constants/deviceServiceItems';
 import { BarcodeScannerModal } from '../../Components/Library/BarcodeScanner/BarcodeScannerModal';
 import { LoadingState } from '../../Components/LoadingState';
-import { PageStack, HeroEditButton, SummaryGrid, SummaryCard, SummaryLabel, SummaryValue, QuickActionPanel, QuickActionHeader, ViewActionsButton, QuickActionGrid, QuickActionButton, QuickActionHint, SectionBlock, SectionEyebrow, SectionTitleStrong, SectionDescription, PhotoActions, ScanButton, PhotoHelperText, PhotoSection, DevicePhotoCard, DevicePhotoImg, PhotoPlaceholder, PhotoActionButton, RemovePhotoButton, MobileCardStack, MobileDetailCard, MobileDetailHeader, MobileDetailTitle, MobileDetailMeta, ActionButton, SubmitButton, CombinedHistoryContainer, TimelineList, TimelineItem, TimelineDate, TimelineDateSub, TimelineContent, TimelineTitleRow, TimelineIconBadge, TimelineTitle, TimelineEventBadge, TimelineDescription, TimelineMeta, TimelineExpandButton, TimelineDetailsPanel, TimelineDetailBlock, TimelineDetailLabel, TimelineDetailValue, TimelineAttachmentList, TimelineAttachmentLink, PartsForm, FormField, DynamicFieldsGrid, PartsTable, RecordSuggestionList, RecordSuggestionItem, ServiceItemDetailsList, ServiceItemDetail } from './DeviceDetailPage.styles';
+import { PageStack, HeroEditButton, SummaryGrid, SummaryCard, SummaryLabel, SummaryValue, QuickActionPanel, QuickActionHeader, ViewActionsButton, QuickActionGrid, QuickActionButton, QuickActionHint, SectionBlock, SectionEyebrow, SectionTitleStrong, SectionDescription, PhotoActions, ScanButton, PhotoHelperText, PhotoSection, DevicePhotoCard, DevicePhotoImg, PhotoPlaceholder, PhotoActionButton, RemovePhotoButton, MobileCardStack, MobileDetailCard, MobileDetailHeader, MobileDetailTitle, MobileDetailMeta, ActionButton, SubmitButton, CombinedHistoryContainer, TimelineAttachmentList, TimelineAttachmentLink, PartsForm, FormField, DynamicFieldsGrid, PartsTable, RecordSuggestionList, RecordSuggestionItem, ServiceItemDetailsList, ServiceItemDetail } from './DeviceDetailPage.styles';
 
 type PartFormState = Omit<DeviceServiceItem, 'id'>;
 
@@ -154,32 +148,6 @@ const formatDate = (value?: string) => {
 	return date.toLocaleDateString();
 };
 
-const formatRelativeTime = (value?: string): string => {
-	if (!value) return 'recently';
-	const date = parseDisplayDate(value);
-	if (!date) return 'recently';
-
-	const diffMs = Date.now() - date.getTime();
-	const diffDays = Math.round(Math.abs(diffMs) / 86400000);
-
-	if (diffDays === 0) return diffMs >= 0 ? 'today' : 'later today';
-	if (diffDays === 1) return diffMs >= 0 ? 'yesterday' : 'tomorrow';
-	if (diffDays < 7) return diffMs >= 0 ? `${diffDays} days ago` : `in ${diffDays} days`;
-	if (diffDays < 30) {
-		const weeks = Math.round(diffDays / 7);
-		return diffMs >= 0 ? `${weeks} weeks ago` : `in ${weeks} weeks`;
-	}
-	const months = Math.round(diffDays / 30);
-	return diffMs >= 0 ? `${months} months ago` : `in ${months} months`;
-};
-
-const getTimelineEntryKey = (entry: any, index: number): string => {
-	if (entry?.id) return String(entry.id);
-	if (entry?.raw?.id) return String(entry.raw.id);
-	if (entry?.raw?.originalTaskId) return `task-${entry.raw.originalTaskId}`;
-	return `${entry?.sourceType || 'timeline'}-${entry?.date || 'no-date'}-${entry?.title || 'event'}-${index}`;
-};
-
 const getTimelineAttachments = (entry: any): Array<{ name: string; url?: string }> => {
 	const raw = entry?.raw || {};
 	const files: Array<{ name: string; url?: string }> = [];
@@ -229,45 +197,6 @@ const getTimelineAttachments = (entry: any): Array<{ name: string; url?: string 
 	return Array.from(deduped.values());
 };
 
-const getTimelineContractorLabel = (entry: any): string => {
-	const raw = entry?.raw || {};
-	if (raw.assignedTo?.name) return String(raw.assignedTo.name);
-	if (raw.assigneeName) return String(raw.assigneeName);
-	if (raw.completedByName) return String(raw.completedByName);
-	if (raw.contractorName) return String(raw.contractorName);
-	if (raw.contractorCompany) return String(raw.contractorCompany);
-	return 'Not recorded';
-};
-
-const getTimelinePartsUsed = (entry: any): string => {
-	const raw = entry?.raw || {};
-	const parts: string[] = [];
-
-	if (Array.isArray(raw.partsUsed)) {
-		raw.partsUsed.forEach((part: any) => {
-			if (typeof part === 'string' && part.trim()) parts.push(part.trim());
-			if (part && typeof part === 'object' && part.name) parts.push(String(part.name));
-		});
-	}
-
-	if (Array.isArray(raw.serviceItems)) {
-		raw.serviceItems.forEach((item: any) => {
-			if (item?.name) parts.push(String(item.name));
-		});
-	}
-
-	if (parts.length === 0) return 'Not documented';
-	return Array.from(new Set(parts)).join(', ');
-};
-
-const getTimelineNotes = (entry: any): string => {
-	const raw = entry?.raw || {};
-	if (raw.completionNotes) return String(raw.completionNotes);
-	if (raw.notes) return String(raw.notes);
-	if (raw.financials?.notes) return String(raw.financials.notes);
-	return 'No additional notes recorded';
-};
-
 const getTimelineTitle = (description?: string) => {
 	const raw = String(description || '').trim();
 	if (!raw) return 'Maintenance event';
@@ -290,57 +219,6 @@ const getTimelineDescription = (description?: string) => {
 	return raw.slice(colonIndex + 1).trim() || raw;
 };
 
-type TimelineEventCategory =
-	| 'repair'
-	| 'invoice'
-	| 'inspection'
-	| 'recurring'
-	| 'scheduled'
-	| 'completed'
-	| 'warranty'
-	| 'document'
-	| 'note'
-	| 'default';
-
-const getTimelineEventCategory = (entry: { title?: string; description?: string; type?: string }): TimelineEventCategory => {
-	const text = `${String(entry.title || '')} ${String(entry.description || '')} ${String(entry.type || '')}`.toLowerCase();
-	if (text.includes('repair')) return 'repair';
-	if (text.includes('invoice')) return 'invoice';
-	if (text.includes('inspection')) return 'inspection';
-	if (text.includes('recurring')) return 'recurring';
-	if (text.includes('scheduled task') || text.includes('due on') || text.includes('scheduled maintenance')) return 'scheduled';
-	if (text.includes('warranty')) return 'warranty';
-	if (text.includes('document') || text.includes('upload') || text.includes('file')) return 'document';
-	if (text.includes('note')) return 'note';
-	if (text.includes('complete') || text.includes('approved') || text.includes('done')) return 'completed';
-	return 'default';
-};
-
-const getTimelineEventIcon = (category: TimelineEventCategory) => {
-	switch (category) {
-		case 'repair':
-			return { icon: faScrewdriverWrench, color: '#92400e', background: '#fef3c7' };
-		case 'invoice':
-			return { icon: faFileInvoiceDollar, color: '#1d4ed8', background: '#dbeafe' };
-		case 'inspection':
-			return { icon: faClipboardCheck, color: COLORS.primaryDark, background: COLORS.primaryLight };
-		case 'recurring':
-			return { icon: faRepeat, color: '#7c3aed', background: '#ede9fe' };
-		case 'scheduled':
-			return { icon: faClock, color: '#1d4ed8', background: '#dbeafe' };
-		case 'completed':
-			return { icon: faCircleCheck, color: COLORS.successDark, background: COLORS.successLight };
-		case 'warranty':
-			return { icon: faShieldHalved, color: '#1e3a8a', background: '#dbeafe' };
-		case 'document':
-			return { icon: faFileLines, color: '#334155', background: '#e2e8f0' };
-		case 'note':
-			return { icon: faCommentDots, color: COLORS.primaryDark, background: COLORS.primaryLight };
-		default:
-			return { icon: faClock, color: '#475569', background: '#e2e8f0' };
-	}
-};
-
 const getTimelineEventLabel = (entry: { type?: string; title?: string; description?: string }) => {
 	const eventType = String(entry.type || '').toLowerCase();
 	const text = `${String(entry.title || '')} ${String(entry.description || '')} ${String(entry.type || '')}`.toLowerCase();
@@ -358,13 +236,6 @@ const getTimelineEventLabel = (entry: { type?: string; title?: string; descripti
 	if (eventType === 'warranty_added' || text.includes('warranty')) return 'Warranty added';
 	if (eventType === 'completed' || text.includes('complete') || text.includes('done')) return 'Completed';
 	return 'Event';
-};
-
-const getTimelineMetaLabel = (entry: { sourceType?: string; type?: string; title?: string; description?: string }) => {
-	if (entry.sourceType === 'scheduled-task') return 'Upcoming scheduled work';
-	if (entry.sourceType === 'device-log') return 'Equipment log';
-	if (entry.sourceType === 'maintenance-record') return getTimelineEventLabel(entry);
-	return getTimelineEventLabel(entry);
 };
 
 const getMaintenanceRecordStatusLabel = (record: any): string => {
@@ -512,7 +383,6 @@ export const DeviceDetailPage: React.FC = () => {
 	const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
 	const [isDeviceScanOpen, setIsDeviceScanOpen] = useState(false);
 	const [isPartScanOpen, setIsPartScanOpen] = useState(false);
-	const [expandedTimelineEntries, setExpandedTimelineEntries] = useState<Record<string, boolean>>({});
 	const [partFormData, setPartFormData] = useState<PartFormState>({
 		name: '',
 		category: 'part',
@@ -768,36 +638,6 @@ export const DeviceDetailPage: React.FC = () => {
 			return bDate - aDate;
 		});
 	}, [device?.maintenanceHistory, relatedMaintenanceHistory]);
-
-	const scheduledTaskTimelineEntries = useMemo(() => {
-		return linkedTasks
-			.filter((task: any) => {
-				return Boolean(parseDisplayDate(task?.dueDate));
-			})
-			.map((task: any) => ({
-				id: `scheduled-task-${task.id}`,
-				sourceType: 'scheduled-task',
-				date: task.dueDate,
-				title: task.title || 'Scheduled maintenance task',
-				description: `Due on ${formatDate(task.dueDate)}${task.priority ? ` - ${task.priority} priority` : ''}${getTaskAssigneeDisplayName(task, '') ? ` - Assigned to ${getTaskAssigneeDisplayName(task, '')}` : ''}`,
-				type: 'scheduled_task',
-				raw: task,
-			}))
-			.sort((a, b) => {
-				const aDate = getDisplayDateTime(a.date);
-				const bDate = getDisplayDateTime(b.date);
-				return bDate - aDate;
-			});
-	}, [linkedTasks]);
-
-	const combinedTimelineEntries = useMemo(
-		() => [...scheduledTaskTimelineEntries, ...deviceTimelineEntries].sort((a, b) => {
-			const aDate = getDisplayDateTime(a.date);
-			const bDate = getDisplayDateTime(b.date);
-			return bDate - aDate;
-		}),
-		[scheduledTaskTimelineEntries, deviceTimelineEntries],
-	);
 
 	const applianceMaintenanceFeedRecords = useMemo(() => {
 		const records: any[] = [];
@@ -1062,13 +902,6 @@ export const DeviceDetailPage: React.FC = () => {
 	const lastServicedEntry = useMemo(() => deviceTimelineEntries[0] || null, [deviceTimelineEntries]);
 
 	const maintenanceEventCount = deviceTimelineEntries.length;
-
-	const toggleTimelineDetails = (entryKey: string) => {
-		setExpandedTimelineEntries((prev) => ({
-			...prev,
-			[entryKey]: !prev[entryKey],
-		}));
-	};
 
 	const openCreateTaskModal = () => {
 		if (!canCreateTaskActions) return;
@@ -1497,7 +1330,7 @@ export const DeviceDetailPage: React.FC = () => {
 		{
 			id: 'history' as any,
 			label: 'History',
-			count: combinedTimelineEntries.length,
+			count: applianceMaintenanceFeedRecords.length,
 		},
 		{ id: 'documents' as any, label: 'Documents', count: documentCount },
 		{ id: 'parts' as any, label: 'Parts', count: serviceParts.length },
@@ -2343,138 +2176,6 @@ export const DeviceDetailPage: React.FC = () => {
 				{activeTab === 'history' && (
 					<TabContent>
 						<CombinedHistoryContainer>
-							<SectionContainer>
-								<SectionBlock>
-									<SectionEyebrow>Upcoming</SectionEyebrow>
-									<SectionTitleStrong>Upcoming Scheduled Work</SectionTitleStrong>
-									<SectionDescription>
-										Scheduled tasks for this equipment appear here before they become service history.
-									</SectionDescription>
-								</SectionBlock>
-								{scheduledTaskTimelineEntries.length > 0 ? (
-									<TimelineList>
-										{scheduledTaskTimelineEntries.map((entry: any, index: number) => (
-											<TimelineItem key={getTimelineEntryKey(entry, index)}>
-												<div>
-													<TimelineDate>{formatRelativeTime(entry.date)}</TimelineDate>
-													<TimelineDateSub>{formatDate(entry.date)}</TimelineDateSub>
-												</div>
-												<TimelineContent>
-													<TimelineTitleRow>
-														{(() => {
-															const iconData = getTimelineEventIcon(
-																getTimelineEventCategory(entry),
-															);
-															return (
-																<TimelineIconBadge
-																	$color={iconData.color}
-																	$background={iconData.background}>
-																	<FontAwesomeIcon icon={iconData.icon} />
-																</TimelineIconBadge>
-															);
-														})()}
-														<TimelineTitle>{entry.title}</TimelineTitle>
-														<TimelineEventBadge>{getTimelineEventLabel(entry)}</TimelineEventBadge>
-													</TimelineTitleRow>
-													<TimelineDescription>{entry.description}</TimelineDescription>
-													<TimelineMeta>{getTimelineMetaLabel(entry)}</TimelineMeta>
-													{entry.sourceType === 'scheduled-task' && roleCapabilities.canManageTasks ? (
-														<ButtonGroup>
-															<ActionButton onClick={() => openEditTaskModal(entry.raw)}>
-																<FontAwesomeIcon icon={faEdit} />
-																Edit Task
-															</ActionButton>
-															<ActionButton className='delete' onClick={() => handleDeleteLinkedTask(entry.raw)}>
-																<FontAwesomeIcon icon={faTrash} />
-																Delete Task
-															</ActionButton>
-														</ButtonGroup>
-													) : null}
-													<TimelineExpandButton
-														type='button'
-														onClick={() => toggleTimelineDetails(getTimelineEntryKey(entry, index))}>
-														{expandedTimelineEntries[getTimelineEntryKey(entry, index)]
-															? 'Hide details'
-															: 'View details'}
-													</TimelineExpandButton>
-													{expandedTimelineEntries[getTimelineEntryKey(entry, index)] ? (
-														<TimelineDetailsPanel>
-															<TimelineDetailBlock>
-																<TimelineDetailLabel>Notes</TimelineDetailLabel>
-																<TimelineDetailValue>{getTimelineNotes(entry)}</TimelineDetailValue>
-															</TimelineDetailBlock>
-															<TimelineDetailBlock>
-																<TimelineDetailLabel>Contractor Info</TimelineDetailLabel>
-																<TimelineDetailValue>{getTimelineContractorLabel(entry)}</TimelineDetailValue>
-															</TimelineDetailBlock>
-															<TimelineDetailBlock>
-																<TimelineDetailLabel>Attachments, Photos, Invoices</TimelineDetailLabel>
-																{getTimelineAttachments(entry).length > 0 ? (
-																	<TimelineAttachmentList>
-																		{getTimelineAttachments(entry).map((file, fileIndex) =>
-																			file.url ? (
-																				<TimelineAttachmentLink
-																					key={`${file.name}-${file.url || 'no-url'}-${fileIndex}`}
-																					href={file.url}
-																					target='_blank'
-																					rel='noreferrer'>
-																					{file.name}
-																				</TimelineAttachmentLink>
-																			) : (
-																				<TimelineDetailValue key={`${file.name}-label-${fileIndex}`}>
-																					{file.name}
-																				</TimelineDetailValue>
-																			),
-																		)}
-																	</TimelineAttachmentList>
-																) : (
-																	<TimelineDetailValue>No files attached</TimelineDetailValue>
-																)}
-															</TimelineDetailBlock>
-															<TimelineDetailBlock>
-																<TimelineDetailLabel>Parts Used</TimelineDetailLabel>
-																<TimelineDetailValue>{getTimelinePartsUsed(entry)}</TimelineDetailValue>
-															</TimelineDetailBlock>
-															<TimelineDetailBlock>
-																<TimelineDetailLabel>Invoice / Cost</TimelineDetailLabel>
-																<TimelineDetailValue>
-																	{entry.raw?.financials
-																		? `${formatCurrency(
-																			getFinancialDisplayTotal(entry.raw.financials),
-																			entry.raw.financials.currency || 'USD',
-																		)}${entry.raw.financials.notes ? ` • ${entry.raw.financials.notes}` : ''}`
-																		: 'No financials recorded'}
-																</TimelineDetailValue>
-															</TimelineDetailBlock>
-														</TimelineDetailsPanel>
-													) : null}
-												</TimelineContent>
-											</TimelineItem>
-										))}
-									</TimelineList>
-								) : (
-									<EmptyState>
-										<p>
-											No scheduled work linked to this equipment yet. Add a task or recurring reminder when there is work to track.
-										</p>
-										{(canCreateTaskActions || canLogMaintenanceActions) && (
-											<ButtonGroup>
-												{canCreateTaskActions && (
-													<SubmitButton type='button' onClick={openCreateTaskModal}>
-														Add Task
-													</SubmitButton>
-												)}
-												{canLogMaintenanceActions && (
-													<ScanButton type='button' onClick={() => openQuickLogModal('note')}>
-														Log work
-													</ScanButton>
-												)}
-											</ButtonGroup>
-										)}
-									</EmptyState>
-								)}
-							</SectionContainer>
-
 							<SectionContainer>
 								<SectionBlock>
 									<SectionEyebrow>Service History</SectionEyebrow>
