@@ -30,8 +30,8 @@ const HeroSection = () => {
 			</HeroContent>
 			<HeroImage>
 				<img
-					src='https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=600&h=400&fit=crop'
-					alt='Organized home maintenance history view'
+					src='/screenshots/maintleyDashboard.png'
+					alt='Maintley home maintenance dashboard showing property health and upcoming work'
 				/>
 			</HeroImage>
 		</Hero>

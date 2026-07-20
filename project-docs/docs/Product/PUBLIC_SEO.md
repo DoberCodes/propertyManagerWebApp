@@ -97,6 +97,11 @@ Public pages should include Open Graph and Twitter card metadata using absolute
 URLs. Use a topic-relevant Maintley screenshot for `og:image` and
 `twitter:image` when possible.
 
+All static public pages use the same primary navigation: Home, Features,
+Pricing, Resources, Login, and Start free. Resource pages add a secondary
+Browse guides menu without replacing those primary destinations. Run
+`npm run sync:seo-nav` after changing the shared public navigation definition.
+
 The public `robots.txt` should continue to reference:
 
 ```text
@@ -156,6 +161,10 @@ Use plain homeowner-friendly terms:
 * manuals
 * recurring reminders
 * home documents
+* add to Home Screen on iPhone and iPad
+
+Avoid using `PWA` as the primary customer-facing label. Explain that iPhone and
+iPad users can open Maintley in Safari and add it to their Home Screen.
 
 Avoid leading with generic phrases such as:
 

@@ -368,8 +368,8 @@ const LandingPageComponent = () => {
 					<BenefitRow>
 						<BenefitImage>
 							<img
-								src={require('../../Assets/images/cabin_woods.jpg')}
-								alt='Time efficiency'
+								src='/screenshots/desktop_taskhistory.png'
+								alt='Maintley maintenance history showing completed property work'
 							/>
 						</BenefitImage>
 						<BenefitContent>
@@ -407,8 +407,8 @@ const LandingPageComponent = () => {
 					<BenefitRow $reverse>
 						<BenefitImage>
 							<img
-								src={require('../../Assets/images/privacy.jpg')}
-								alt='Data security'
+								src='/screenshots/desktop_documents.png'
+								alt='Maintley property documents organized with the home record'
 							/>
 						</BenefitImage>
 						<BenefitContent>
@@ -444,8 +444,8 @@ const LandingPageComponent = () => {
 					<BenefitRow>
 						<BenefitImage>
 							<img
-								src={require('../../Assets/images/camper in the woods.jpg')}
-								alt='Mobile access'
+								src='/screenshots/mobile_tasks.png'
+								alt='Maintley maintenance tasks on a mobile phone'
 							/>
 						</BenefitImage>
 						<BenefitContent>
@@ -478,8 +478,8 @@ const LandingPageComponent = () => {
 					<BenefitRow>
 						<BenefitImage>
 							<img
-								src={require('../../Assets/images/more than property.jpg')}
-								alt='Equipment management'
+								src='/screenshots/desktop_appliance.png'
+								alt='Maintley equipment profile with appliance maintenance details'
 							/>
 						</BenefitImage>
 						<BenefitContent>
@@ -592,11 +592,11 @@ const LandingPageComponent = () => {
 				{/* Download Section */}
 				<DownloadSection id='Download'>
 					<DownloadContainer>
-						<DownloadHeading>Get Maintley on Google Play</DownloadHeading>
+						<DownloadHeading>Use Maintley on Android, iPhone, and iPad</DownloadHeading>
 						<DownloadSubtext>
-							Maintley is available on Google Play for Android. You can
-							also use Maintley in your browser as a progressive web app when
-							you prefer web access.
+							Get the Android app from Google Play. On iPhone or iPad, open
+							Maintley in Safari and choose Add to Home Screen for app-like
+							access. You can also use Maintley directly in any supported browser.
 						</DownloadSubtext>
 						<DownloadButton
 							href={androidAppUrl}
@@ -611,12 +611,12 @@ const LandingPageComponent = () => {
 								<span>Available on Google Play</span>
 							</InfoItem>
 							<InfoItem>
-								<strong>Web</strong>
-								<span>Installable PWA</span>
+								<strong>iPhone and iPad</strong>
+								<span>Add to Home Screen from Safari</span>
 							</InfoItem>
 							<InfoItem>
-								<strong>Updates</strong>
-								<span>{`Google Play, v${CURRENT_APP_VERSION}`}</span>
+								<strong>Web browser</strong>
+								<span>{`Use online, Android v${CURRENT_APP_VERSION}`}</span>
 							</InfoItem>
 						</DownloadInfo>
 					</DownloadContainer>

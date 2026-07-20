@@ -5,7 +5,7 @@ export const Wrapper = styled.div`
 	overflow-x: hidden;
 	width: 100%;
 	background-color: ${COLORS.bgWhite};
-	margin-top: 80px;
+	margin-top: 88px;
 	padding-top: max(env(safe-area-inset-top), 0px);
 
 	@media (max-width: 1024px) {
@@ -555,7 +555,10 @@ export const MemoryHeader = styled.h2`
 	font-size: 40px;
 	font-weight: 800;
 	line-height: 1.16;
-	color: ${COLORS.textPrimary};
+	background: ${COLORS.gradientPrimary};
+	-webkit-background-clip: text;
+	-webkit-text-fill-color: transparent;
+	background-clip: text;
 
 	@media (max-width: 1024px) {
 		font-size: 32px;
@@ -997,9 +1000,33 @@ export const PricingSubtitle = styled.p`
 	margin: 0 0 36px 0;
 `;
 
+export const PricingAudienceControls = styled.div`
+	display: flex;
+	justify-content: center;
+	gap: 6px;
+	width: fit-content;
+	margin: 0 auto 30px;
+	padding: 5px;
+	border: 1px solid ${COLORS.gray200};
+	border-radius: 999px;
+	background: ${COLORS.bgWhite};
+`;
+
+export const PricingAudienceButton = styled.button<{ $active: boolean }>`
+	min-width: 120px;
+	padding: 9px 18px;
+	border: 0;
+	border-radius: 999px;
+	background: ${({ $active }) => ($active ? COLORS.gradientPrimary : 'transparent')};
+	color: ${({ $active }) => ($active ? COLORS.textInverse : COLORS.textPrimary)};
+	font: inherit;
+	font-weight: 700;
+	cursor: pointer;
+`;
+
 export const PricingGrid = styled.div`
 	display: grid;
-	grid-template-columns: repeat(3, minmax(0, 1fr));
+	grid-template-columns: repeat(2, minmax(0, 1fr));
 	gap: 20px;
 	max-width: 1200px;
 	margin: 0 auto 34px auto;
@@ -1107,13 +1134,13 @@ export const PricingComparisonTitle = styled.h4`
 	color: ${COLORS.textPrimary};
 `;
 
-export const PricingTable = styled.div`
+export const PricingTable = styled.div<{ $planCount?: number }>`
 	display: grid;
-	grid-template-columns: minmax(220px, 2fr) repeat(4, minmax(132px, 1fr));
-	min-width: 760px;
+	grid-template-columns: minmax(220px, 2fr) repeat(${({ $planCount = 2 }) => $planCount}, minmax(160px, 1fr));
+	min-width: 560px;
 
 	@media (max-width: 1024px) {
-		grid-template-columns: minmax(200px, 1.7fr) repeat(4, minmax(124px, 1fr));
+		grid-template-columns: minmax(200px, 1.7fr) repeat(${({ $planCount = 2 }) => $planCount}, minmax(140px, 1fr));
 		font-size: 13px;
 	}
 `;
@@ -1143,7 +1170,7 @@ export const PricingTableCell = styled.div`
 		background: ${COLORS.gray100};
 	}
 
-	&:nth-child(5n + 1) {
+	&.label-cell {
 		justify-content: flex-start;
 		text-align: left;
 		color: ${COLORS.textPrimary};

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
@@ -15,6 +15,8 @@ import {
 	PricingSection,
 	PricingTitle,
 	PricingSubtitle,
+	PricingAudienceControls,
+	PricingAudienceButton,
 	PricingGrid,
 	PricingCard,
 	PricingBadge,
@@ -43,6 +45,13 @@ const paidPlans = [
 	SUBSCRIPTION_PLANS.PROPERTY,
 	SUBSCRIPTION_PLANS.PORTFOLIO,
 ];
+
+type PlanAudience = 'home' | 'business';
+
+const planGroups: Record<PlanAudience, number[]> = {
+	home: [0, 1],
+	business: [2, 3],
+};
 
 const cardFeatureHighlights: Record<string, string[]> = {
 	home: [
@@ -123,6 +132,8 @@ const quickComparisonRows = [
 
 const PricingSectionComponent = () => {
 	const navigate = useNavigate();
+	const [planAudience, setPlanAudience] = useState<PlanAudience>('home');
+	const visiblePlanIndexes = planGroups[planAudience];
 
 	const renderComparisonValue = (value: boolean | string) => {
 		if (typeof value === 'boolean') {
@@ -148,12 +159,29 @@ const PricingSectionComponent = () => {
 		<PricingSection id='Pricing'>
 			<PricingTitle>Simple Pricing That Grows With You</PricingTitle>
 			<PricingSubtitle>
-				Start with the free tier, then upgrade when you need more capacity or
-				advanced tools. No hidden fees.
+				{planAudience === 'home'
+					? 'Start free, then add reminders, deeper records, and Maintley Intelligence when your home needs them.'
+					: 'Choose the property capacity and coordination tools that fit your rentals or portfolio.'}
 			</PricingSubtitle>
+			<PricingAudienceControls aria-label='Pricing audience'>
+				<PricingAudienceButton
+					type='button'
+					$active={planAudience === 'home'}
+					onClick={() => setPlanAudience('home')}>
+					Homeowner
+				</PricingAudienceButton>
+				<PricingAudienceButton
+					type='button'
+					$active={planAudience === 'business'}
+					onClick={() => setPlanAudience('business')}>
+					Business
+				</PricingAudienceButton>
+			</PricingAudienceControls>
 
 			<PricingGrid>
-				{paidPlans.map((plan, index) => (
+				{visiblePlanIndexes.map((index) => {
+					const plan = paidPlans[index];
+					return (
 					<PricingCard key={plan.id} className={plan.id === 'homeowner_plus' ? 'popular' : ''}>
 						{plan.id === 'homeowner_plus' && <PricingBadge>Most Popular</PricingBadge>}
 						<PricingPlan>
@@ -176,25 +204,27 @@ const PricingSectionComponent = () => {
 							))}
 						</PricingFeatureList>
 					</PricingCard>
-				))}
+					);
+				})}
 			</PricingGrid>
 
 			<PricingComparison>
 				<PricingComparisonTitle>Quick Plan Comparison</PricingComparisonTitle>
-				<PricingTable>
+				<PricingTable $planCount={visiblePlanIndexes.length}>
 					<PricingTableHead>
-						<PricingTableCell className='head-cell'>Feature</PricingTableCell>
-						<PricingTableCell className='head-cell'>Free</PricingTableCell>
-						<PricingTableCell className='head-cell'>Homeowner+</PricingTableCell>
-						<PricingTableCell className='head-cell'>Property</PricingTableCell>
-						<PricingTableCell className='head-cell'>Portfolio</PricingTableCell>
+						<PricingTableCell className='head-cell label-cell'>Feature</PricingTableCell>
+						{visiblePlanIndexes.map((index) => (
+							<PricingTableCell className='head-cell' key={paidPlans[index].id}>
+								{paidPlans[index].name}
+							</PricingTableCell>
+						))}
 					</PricingTableHead>
 					{quickComparisonRows.map(({ label, values }) => (
 						<PricingTableRow key={label}>
-							<PricingTableCell>{label}</PricingTableCell>
-							{values.map((value, index) => (
+							<PricingTableCell className='label-cell'>{label}</PricingTableCell>
+							{visiblePlanIndexes.map((index) => (
 								<PricingTableCell key={`${label}-${paidPlans[index].id}`}>
-									{renderComparisonValue(value)}
+									{renderComparisonValue(values[index])}
 								</PricingTableCell>
 							))}
 						</PricingTableRow>
