@@ -7,7 +7,7 @@
  * Usage:
  * - Check if an update is available: shouldShowUpdateNotification()
  * - Dismiss notification: dismissUpdateNotification()
- * - Trigger download: downloadAPK()
+ * - Open Android update listing: openGooglePlayUpdate()
  */
 import { apiSlice } from '../Redux/API/apiSlice';
 import { Capacitor } from '@capacitor/core';
@@ -17,35 +17,13 @@ import { CURRENT_APP_VERSION } from '../config/appVersion';
 
 const STORAGE_KEY = 'app_version_check';
 const DISMISS_KEY = 'app_update_dismissed_version';
-
-export const GITHUB_RELEASE_REPOSITORY =
-	'DoberFamilyVentures/propertyManagerWebApp';
-export const getAPKReleaseAssetName = (version: string): string =>
-	`maintley-${version}-release.apk`;
-export const APK_RELEASE_ASSET_NAME = getAPKReleaseAssetName(CURRENT_APP_VERSION);
-
-export const getGitHubReleaseApiUrl = (release: string): string =>
-	`https://api.github.com/repos/${GITHUB_RELEASE_REPOSITORY}/releases/${release}`;
-
-export const getVersionedAPKDownloadURL = (
-	version: string,
-	assetName = getAPKReleaseAssetName(version),
-): string =>
-	`https://github.com/${GITHUB_RELEASE_REPOSITORY}/releases/download/v${version}/${assetName}`;
-
-export const getVersionedReleasePageURL = (version: string): string =>
-	`https://github.com/${GITHUB_RELEASE_REPOSITORY}/releases/tag/v${version}`;
-
-export const getLatestAPKDownloadURL = (): string => {
-	const version = getAvailableVersion() || CURRENT_APP_VERSION;
-	return getVersionedAPKDownloadURL(version);
-};
+const DEFAULT_GOOGLE_PLAY_STORE_URL =
+	'https://play.google.com/store/apps/details?id=com.maintleyapp';
 
 interface VersionCheckData {
 	lastChecked: number;
 	availableVersion: string;
-	apkUrl?: string;
-	releaseUrl?: string;
+	playStoreUrl?: string;
 }
 
 const getVersionCheckData = (): VersionCheckData | null => {
@@ -59,73 +37,6 @@ const getVersionCheckData = (): VersionCheckData | null => {
 	}
 };
 
-const formatBytes = (bytes) => {
-	var marker = 1024; // Change to 1000 if required
-	var decimal = 3; // Change as required
-	var kiloBytes = marker; // One Kilobyte is 1024 bytes
-	var megaBytes = marker * marker; // One MB is 1024 KB
-	var gigaBytes = marker * marker * marker; // One GB is 1024 MB
-
-	// return bytes if less than a KB
-	if (bytes < kiloBytes) return bytes + ' Bytes';
-	// return KB if less than a MB
-	else if (bytes < megaBytes)
-		return (bytes / kiloBytes).toFixed(decimal) + ' KB';
-	// return MB if less than a GB
-	else if (bytes < gigaBytes)
-		return (bytes / megaBytes).toFixed(decimal) + ' MB';
-	// return GB if less than a TB
-	else return (bytes / gigaBytes).toFixed(decimal) + ' GB';
-};
-
-export const getAPKFileSize = async () => {
-	try {
-		// Prefer GitHub Releases API to avoid CORS issues on asset URLs
-		const releaseResponse = await fetch(getGitHubReleaseApiUrl('latest'), {
-			cache: 'no-store',
-		});
-		if (releaseResponse.ok) {
-			const release = await releaseResponse.json();
-			const assets = release?.assets || [];
-			const releaseVersion = String(release?.tag_name || '')
-				.replace(/^v/, '') || CURRENT_APP_VERSION;
-			const releaseAssetName = getAPKReleaseAssetName(releaseVersion);
-			const apkAsset = assets.find(
-				(asset) =>
-					asset?.name === releaseAssetName ||
-					asset?.label === releaseAssetName ||
-					asset?.name === APK_RELEASE_ASSET_NAME ||
-					asset?.label === APK_RELEASE_ASSET_NAME ||
-					/^maintley-.+-release\.apk$/i.test(asset?.name || '') ||
-					asset?.label === 'PropertyManager.apk',
-			);
-			if (apkAsset?.size) {
-				return formatBytes(Number(apkAsset.size));
-			}
-		}
-	} catch (error) {
-		console.warn(
-			'Release API request failed, falling back to download size:',
-			error,
-		);
-	}
-
-	try {
-		const fallbackUrl = getLatestAPKDownloadURL();
-		const fallbackResponse = await fetch(`${fallbackUrl}?t=${Date.now()}`, {
-			method: 'HEAD',
-			cache: 'no-store',
-		});
-		const fallbackLength = fallbackResponse.headers.get('content-length');
-		if (fallbackLength) {
-			return formatBytes(Number(fallbackLength));
-		}
-	} catch (error) {
-		console.warn('Fallback HEAD request failed:', error);
-	}
-
-	return 'Unknown';
-};
 /**
  * Check if update notification should be displayed
  * Returns true if there's a newer version available and hasn't been dismissed
@@ -165,14 +76,15 @@ export const getAvailableVersion = (): string | null => {
 	return data?.availableVersion || null;
 };
 
-export const getPublishedAPKDownloadURL = (): string | null => {
-	const url = String(getVersionCheckData()?.apkUrl || '').trim();
-	return url || null;
-};
+export const getGooglePlayStoreURL = (): string => {
+	const publishedUrl = String(getVersionCheckData()?.playStoreUrl || '').trim();
+	if (publishedUrl) {
+		return publishedUrl;
+	}
 
-export const getPublishedReleasePageURL = (): string | null => {
-	const url = String(getVersionCheckData()?.releaseUrl || '').trim();
-	return url || null;
+	return (
+		process.env.REACT_APP_PLAY_STORE_URL?.trim() || DEFAULT_GOOGLE_PLAY_STORE_URL
+	);
 };
 
 /**
@@ -180,14 +92,13 @@ export const getPublishedReleasePageURL = (): string | null => {
  */
 export const setAvailableVersion = (
 	version: string,
-	metadata: { apkUrl?: string; releaseUrl?: string } = {},
+	metadata: { playStoreUrl?: string } = {},
 ): void => {
 	try {
 		const data: VersionCheckData = {
 			lastChecked: Date.now(),
 			availableVersion: version,
-			...(metadata.apkUrl ? { apkUrl: metadata.apkUrl } : {}),
-			...(metadata.releaseUrl ? { releaseUrl: metadata.releaseUrl } : {}),
+			...(metadata.playStoreUrl ? { playStoreUrl: metadata.playStoreUrl } : {}),
 		};
 		localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
 	} catch (error) {
@@ -221,60 +132,10 @@ export const resetUpdateNotification = (): void => {
 	localStorage.removeItem(DISMISS_KEY);
 };
 
-/**
- * Get the download URL for the APK
- */
-export const getAPKDownloadURL = (): string => {
-	const publishedUrl = getPublishedAPKDownloadURL();
-	if (publishedUrl) {
-		return publishedUrl;
-	}
+export const getUpdateDestinationURL = (): string => getGooglePlayStoreURL();
 
-	const configuredUrl = process.env.REACT_APP_APK_URL;
-	if (configuredUrl) {
-		// Ignore legacy GitHub Pages URL to ensure we always check the release asset
-		if (configuredUrl.includes('github.io')) {
-			return getLatestAPKDownloadURL();
-		}
-		return configuredUrl;
-	}
-	return getLatestAPKDownloadURL();
-};
-
-export const getUpdateReleasePageURL = (): string => {
-	const publishedUrl = getPublishedReleasePageURL();
-	if (publishedUrl) {
-		return publishedUrl;
-	}
-
-	const version = getAvailableVersion() || CURRENT_APP_VERSION;
-	return getVersionedReleasePageURL(version);
-};
-
-/**
- * Trigger APK download
- */
-export const downloadAPK = async (): Promise<void> => {
-	const url = getAPKDownloadURL();
-
-	// On mobile, open in external browser for better download support
-	if (Capacitor.isNativePlatform()) {
-		await Browser.open({ url });
-	} else {
-		// On web, trigger direct download
-		const link = document.createElement('a');
-		link.href = url;
-		link.download = getAPKReleaseAssetName(
-			getAvailableVersion() || CURRENT_APP_VERSION,
-		);
-		document.body.appendChild(link);
-		link.click();
-		document.body.removeChild(link);
-	}
-};
-
-export const openUpdateReleasePage = async (): Promise<void> => {
-	const url = getUpdateReleasePageURL();
+export const openGooglePlayUpdate = async (): Promise<void> => {
+	const url = getUpdateDestinationURL();
 
 	if (Capacitor.isNativePlatform()) {
 		await Browser.open({ url });
@@ -282,13 +143,6 @@ export const openUpdateReleasePage = async (): Promise<void> => {
 	}
 
 	window.open(url, '_blank', 'noopener,noreferrer');
-};
-
-/**
- * Open APK download in new tab
- */
-export const openAPKDownload = (): void => {
-	window.open(getAPKDownloadURL(), '_blank');
 };
 
 /**
@@ -337,8 +191,7 @@ export const checkForUpdates = async (): Promise<boolean> => {
 
 			if (isNewer) {
 				setAvailableVersion(latestVersion, {
-					apkUrl: result.data.apkUrl,
-					releaseUrl: result.data.releaseUrl,
+					playStoreUrl: result.data.playStoreUrl,
 				});
 				resetUpdateNotification();
 			}

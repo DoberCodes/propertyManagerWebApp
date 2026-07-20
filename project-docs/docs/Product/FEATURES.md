@@ -177,7 +177,7 @@ Current capabilities:
 * Identify overdue tasks.
 * Open a Maintenance Profile for a task or recurring maintenance program.
 * Review related property, equipment, service records, documents, schedule,
-  costs, notes, and timeline context from one task-centered view.
+  costs, and notes from one task-centered view.
 
 Task completion contributes to maintenance history. The Maintenance Profile is
 a derived view of existing task, equipment, property, document, and Maintenance
@@ -415,10 +415,10 @@ Current capabilities:
 * Native Android packaging.
 * Push notification registration.
 * Mobile-optimized navigation.
-* APK distribution workflows.
-* Native update support. In-app update prompts open the published GitHub
-  release page on Android so users can download the APK from the same release
-  page used for manual installs.
+* Google Play distribution for Android users.
+* Progressive Web App support for browser-based installation where supported.
+* Native update support. In-app update prompts open Maintley's Google Play
+  listing so Android users can update through the Play Store.
 
 The Android application shares the same core functionality and data model as the web application.
 

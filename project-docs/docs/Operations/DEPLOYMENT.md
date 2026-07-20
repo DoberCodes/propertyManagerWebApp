@@ -694,13 +694,13 @@ Firestore app-version publication is handled by:
 .github/workflows/publish-app-version.yml
 ```
 
-`build:signed` dispatches the Publish App Version workflow after the signed APK
-and AAB are uploaded to the GitHub Release. The workflow waits until the
-versioned APK release asset is reachable, then writes `appConfig/version`. This
-prevents users from seeing an update notification before the APK exists.
+Android updates are distributed through Google Play. The Publish App Version
+workflow writes `appConfig/version` with the current release version, release
+notes, and Maintley's Google Play listing URL. Native Android update prompts use
+that Play Store URL rather than a direct APK download.
 
-If the dispatch step fails, run it manually after confirming the release asset
-exists:
+If the dispatch step fails, run it manually after confirming the Google Play
+release is ready for users:
 
 ```bash
 gh workflow run publish-app-version.yml --repo DoberFamilyVentures/propertyManagerWebApp --ref main -f version=2.9.16
@@ -724,16 +724,20 @@ Do not commit keystores or signing secrets.
 
 ### Android Release Assets
 
-Android releases are published to the active GitHub repository as:
+Android build artifacts may still be created for internal validation and app
+store maintenance:
 
 ```text
 maintley-{version}-release.apk
 maintley-{version}-release.aab
 ```
 
-`build:signed` copies the Gradle outputs into these versioned filenames before
-uploading them. Do not rely on GitHub Release asset labels for the download URL;
-GitHub download paths are based on the uploaded file name.
+The APK is no longer the public Android distribution path. Public Android users
+should install and update Maintley through Google Play:
+
+```text
+https://play.google.com/store/apps/details?id=com.maintleyapp
+```
 
 Example release asset names for v2.9.16:
 
@@ -742,14 +746,7 @@ maintley-2.9.16-release.apk
 maintley-2.9.16-release.aab
 ```
 
-The current public APK download endpoint for a release is:
-
-```text
-https://github.com/DoberFamilyVentures/propertyManagerWebApp/releases/download/v{version}/maintley-{version}-release.apk
-```
-
-The Android App Bundle is also attached to each GitHub Release for app-store
-bundle maintenance:
+The Android App Bundle is used for app-store bundle maintenance:
 
 ```text
 https://github.com/DoberFamilyVentures/propertyManagerWebApp/releases/download/v{version}/maintley-{version}-release.aab

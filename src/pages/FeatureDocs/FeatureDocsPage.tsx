@@ -329,7 +329,7 @@ export const FeatureDocsPage: React.FC = () => {
 							optimizations.
 						</Paragraph>
 						<FeatureList>
-							<FeatureItem>Native Android APK downloads</FeatureItem>
+							<FeatureItem>Available on Google Play</FeatureItem>
 							<FeatureItem>Push notifications for task updates</FeatureItem>
 							<FeatureItem>Automatic update notifications</FeatureItem>
 							<FeatureItem>Mobile-optimized interface</FeatureItem>

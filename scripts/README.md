@@ -94,7 +94,7 @@ yarn version:update -- <version> "<notes>"
 yarn version:prepare -- --version 2.8.0
 yarn version:prepare -- --metadata tmp/release-notes.json
 yarn version:validate
-yarn version:publish -- --version 2.8.0 --release-notes-file RELEASE_NOTES.txt --apk-url <url>
+yarn version:publish -- --version 2.8.0 --release-notes-file RELEASE_NOTES.txt --play-store-url https://play.google.com/store/apps/details?id=com.maintleyapp
 yarn version:sync
 ```
 
@@ -225,9 +225,9 @@ It increments Android `versionCode` when the Android `versionName` changes.
 `validateReleaseVersion.cjs` verifies those version surfaces are synchronized
 and that the client app version is derived from `package.json`.
 
-`publishAppVersion.cjs` publishes Firestore `appConfig/version` after a release
-APK is available. The GitHub Action uses this to avoid showing app update
-notifications before the downloadable APK exists.
+`publishAppVersion.cjs` publishes Firestore `appConfig/version` after the
+Google Play release is ready for Android users. Update notifications use the
+Play Store listing instead of a direct APK download.
 
 The legacy commit/date-based generator is archived at:
 
@@ -351,7 +351,7 @@ for execution guidance and archive policies.
 
 # Release Pipeline
 
-Maintley's local signed APK command is:
+Maintley's local signed Android artifact command is:
 
 ```bash
 yarn build:signed
@@ -366,15 +366,11 @@ The release workflow uses split ownership:
   files land on `main`, normally after the `release/next` PR is merged.
 * `build:signed` remains the local Android signing helper while signing secrets
   stay local. It validates that version files were already prepared, builds the
-  signed APK and AAB, creates or updates the GitHub Release, and uploads
-  versioned assets such as `maintley-2.9.16-release.apk` and
-  `maintley-2.9.16-release.aab`. The helper copies Gradle's `app-release.*`
-  outputs into those versioned filenames before upload so GitHub download URLs
-  match the release asset names. It does not commit, push to `main`, or deploy
-  GitHub Pages.
-* After Android assets are uploaded, `build:signed` dispatches the Publish App
-  Version Action. That action writes Firestore `appConfig/version` only after
-  the GitHub Release APK is reachable.
+  signed Android artifacts needed for validation and app-store maintenance, and
+  creates or updates the GitHub Release. Public Android distribution and updates
+  are handled through Google Play.
+* After release artifacts are prepared, Publish App Version writes Firestore
+  `appConfig/version` with release metadata and the Google Play listing URL.
 
 Do not modify release behavior without reviewing the release workflows and
 signed Android artifact helper together.
@@ -402,7 +398,7 @@ Before running migrations, cleanup scripts, or destructive operations:
 * E2E scripts are intended to be cross-platform.
 * Deploy remains the primary deployment command.
 * deploy:gh-pages exists as an explicit alias.
-* build:signed is the local signed APK helper.
+* build:signed is the local signed Android artifact helper.
 * stripe:webhook:auto in functions/package.json is currently Unix-only.
 * Archived scripts should be treated as historical reference, not supported tooling.
 

@@ -26,11 +26,11 @@ const parseArgs = (argv) => {
 		} else if (arg === '--release-notes-file') {
 			options.releaseNotesFile = argv[index + 1];
 			index += 1;
-		} else if (arg === '--apk-url') {
-			options.apkUrl = argv[index + 1];
-			index += 1;
 		} else if (arg === '--release-url') {
 			options.releaseUrl = argv[index + 1];
+			index += 1;
+		} else if (arg === '--play-store-url') {
+			options.playStoreUrl = argv[index + 1];
 			index += 1;
 		} else if (arg === '--dry-run') {
 			options.dryRun = true;
@@ -100,12 +100,12 @@ const main = async () => {
 		updatedAt: new Date().toISOString(),
 	};
 
-	if (options.apkUrl) {
-		update.apkUrl = options.apkUrl;
-	}
-
 	if (options.releaseUrl) {
 		update.releaseUrl = options.releaseUrl;
+	}
+
+	if (options.playStoreUrl) {
+		update.playStoreUrl = options.playStoreUrl;
 	}
 
 	if (options.dryRun) {

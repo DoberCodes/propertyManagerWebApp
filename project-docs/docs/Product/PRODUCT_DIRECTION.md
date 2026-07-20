@@ -430,14 +430,15 @@ The lower dashboard area should combine operational activity into one tabbed
 module:
 
 ```text
-Needs Attention | Recent Maintenance | Home Timeline
+Needs Attention | Home Timeline
 ```
 
-`Needs Attention` shows current overdue and upcoming work. `Recent Maintenance`
-shows recently completed work and logged service records. `Home Timeline` is the
-full chronological activity view for tasks, service records, documents, and home
-updates. Dynamic timelines belong on the dashboard; property details should stay
-focused on stable home facts, ownership, insurance, notes, and record metadata.
+`Needs Attention` shows current overdue and upcoming work. `Home Timeline` is
+the chronological activity view for completed tasks, service records, documents,
+and home updates. Upcoming work should stay out of timelines and remain in
+action-oriented task surfaces. Dynamic timelines belong on the dashboard;
+property details should stay focused on stable home facts, ownership, insurance,
+notes, and record metadata.
 
 Dashboard scope is a user preference. `My Focus` narrows the Dashboard toward
 tasks assigned to the current user and the property context needed for that

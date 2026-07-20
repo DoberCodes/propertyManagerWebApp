@@ -123,8 +123,8 @@ export const apiSlice = createApi({
 				version: string;
 				releaseDate?: string;
 				releaseNotes?: string;
-				apkUrl?: string;
 				releaseUrl?: string;
+				playStoreUrl?: string;
 			},
 			void
 		>({
@@ -149,8 +149,8 @@ export const apiSlice = createApi({
 							version: data.version || '1.0.0',
 							releaseDate: data.releaseDate,
 							releaseNotes: data.releaseNotes,
-							apkUrl: data.apkUrl,
 							releaseUrl: data.releaseUrl,
+							playStoreUrl: data.playStoreUrl,
 						},
 					};
 				} catch (error: any) {
