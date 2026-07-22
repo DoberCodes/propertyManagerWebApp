@@ -319,6 +319,56 @@ Low
 
 ---
 
+## Synchronize Public Navigation
+
+```bash
+npm run sync:seo-nav
+```
+
+Generates navigation for every static public SEO page from
+`src/config/publicNavigation.json`. The React landing navigation consumes the
+same definition directly.
+
+Run this after changing public navigation labels, destinations, groups, or
+enabled state.
+
+Risk:
+
+Low
+
+---
+
+## Synchronize Public Pricing
+
+```bash
+npm run sync:public-pricing
+```
+
+Generates the static `/pricing/` cards and SoftwareApplication offers from
+`src/config/publicPlanFacts.json`. Core subscription constants and homepage
+pricing consume the same public facts.
+
+Risk:
+
+Low
+
+---
+
+## Validate Public SEO and Pricing
+
+```bash
+npm run validate:seo
+```
+
+Checks metadata, canonical URLs, JSON-LD parsing, sitemap coverage, and exact
+agreement between the four public pricing cards and shared plan facts.
+
+Risk:
+
+Low
+
+---
+
 # Testing Scripts
 
 Testing strategy is documented in:
@@ -1012,6 +1062,64 @@ users to the Play Store listing.
 Risk:
 
 Medium
+
+---
+
+# Public Site Synchronization
+
+## Public Navigation
+
+```bash
+npm run sync:seo-nav
+```
+
+Regenerates navigation across all static public SEO pages from:
+
+```text
+src/config/publicNavigation.json
+```
+
+The React homepage imports the same definition directly. Disabled destinations
+remain absent from generated navigation.
+
+Risk:
+
+Low
+
+---
+
+## Public Pricing
+
+```bash
+npm run sync:public-pricing
+```
+
+Regenerates the four-plan pricing section and SoftwareApplication offers in
+`public/pricing/index.html` from:
+
+```text
+src/config/publicPlanFacts.json
+```
+
+Risk:
+
+Low
+
+---
+
+## Public SEO Validation
+
+```bash
+npm run validate:seo
+```
+
+Validates public metadata and sitemap coverage, shared static navigation, and
+public pricing consistency. Run it after changing public pages, navigation, plan
+facts, or generated pricing.
+
+Risk:
+
+Low
 
 ---
 

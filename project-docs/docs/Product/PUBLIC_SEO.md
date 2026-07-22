@@ -7,6 +7,9 @@ Last reviewed: 2026-07
 Maintley's public search presence should explain the product clearly before a
 visitor signs in.
 
+For page-level keyword ownership, search intent, internal linking, metadata
+briefs, and cannibalization decisions, see `PUBLIC_SEO_ARCHITECTURE.md`.
+
 The first SEO wedge is:
 
 ```text
@@ -91,17 +94,41 @@ public pricing page describes available plans.
 
 Public pages should use real Maintley screenshots when they help explain the
 product. Prefer screenshots that show the actual dashboard, timeline, equipment,
-documents, reports, or Home Health views over generic decorative imagery.
+documents, reports, or Maintley Intelligence views over generic decorative imagery.
 
 Public pages should include Open Graph and Twitter card metadata using absolute
 URLs. Use a topic-relevant Maintley screenshot for `og:image` and
 `twitter:image` when possible.
 
-All static public pages use the same primary navigation: Home, Features,
-Pricing, Browse Resources, Login, and Start free. Browse Resources is a dropdown
-containing the resource hub and individual guides, so its behavior remains
-consistent throughout the public site. Run `npm run sync:seo-nav` after changing
-the shared public navigation definition.
+The React homepage and static public pages share the data-only navigation source:
+
+```text
+src/config/publicNavigation.json
+```
+
+The enabled primary navigation contains Features, Solutions, Resources, Pricing,
+Login, and Start Free. Solutions contains Homeowners and Property Owners &
+Managers. Resources contains three featured guides plus All Articles. The future
+Service Businesses entry remains disabled and must not render, enter structured
+data, or appear in the sitemap before its launch gates pass.
+
+React controls dropdown state directly. Opening one group closes the other, and
+Escape, outside interaction, navigation, or focus leaving the menu closes the
+active dropdown. Static pages use `public/public-nav.js` for equivalent progressive
+enhancement while keeping every link usable without JavaScript.
+
+Run `npm run sync:seo-nav` after changing the shared navigation definition.
+
+Public plan names, prices, limits, positioning, and card highlights use:
+
+```text
+src/config/publicPlanFacts.json
+```
+
+Core subscription permissions and features remain in
+`src/constants/subscriptions.ts`, which imports the shared public facts. Run
+`npm run sync:public-pricing` after changing public plan facts. SEO validation
+checks the generated pricing page against all four current plans.
 
 The public `robots.txt` should continue to reference:
 
@@ -172,6 +199,41 @@ Avoid leading with generic phrases such as:
 * property management made simple
 * asset configuration
 * operational workflow
+
+---
+
+# Homepage Content Architecture
+
+The React homepage is a concise public-site hub. Its current order is:
+
+```text
+Hero
+Product proof
+How Maintley Works
+Who Maintley Is For
+Core Features
+Security and control
+Compact pricing preview
+Final call to action
+```
+
+Product proof uses current Maintley screenshots before extended explanation.
+Screenshot images must include explicit dimensions, meaningful alternative text,
+and lazy loading when they appear below the first proof view.
+
+The Who Maintley Is For section reads enabled solution destinations from
+`src/config/publicNavigation.json`. Disabled destinations, including Service
+Businesses, must not render in the section or footer.
+
+The homepage Core Features section is intentionally compact and links to
+`/features/` for detailed evaluation. Homepage pricing reads the same
+`src/config/publicPlanFacts.json` facts used by subscriptions and the static
+`/pricing/` page, but presents only a short plan preview and links to the full
+comparison.
+
+Long-form founder narrative, full property timelines, full feature and pricing
+matrices, contact forms without reliable server submission, and detailed install
+instructions do not belong on the homepage.
 
 ---
 

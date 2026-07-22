@@ -1,17 +1,23 @@
+import publicPlanFacts from '../config/publicPlanFacts.json';
+
 // Subscription plans and legacy access-period settings
 export const TRIAL_DURATION_DAYS = 14; // Legacy access-period duration
+
+const getPublicPlan = (planId: string) => {
+	const plan = publicPlanFacts.plans.find(({ id }) => id === planId);
+	if (!plan) throw new Error(`Missing public plan facts for ${planId}`);
+	return plan;
+};
+
+const HOMEOWNER_PUBLIC = getPublicPlan('homeowner');
+const HOMEOWNER_PLUS_PUBLIC = getPublicPlan('homeowner_plus');
+const PROPERTY_PUBLIC = getPublicPlan('property');
+const PORTFOLIO_PUBLIC = getPublicPlan('portfolio');
 
 export const SUBSCRIPTION_PLANS = {
 	// ========== CORE SUBSCRIPTION TIERS ==========
 	HOMEOWNER: {
-		id: 'homeowner',
-		name: 'Free',
-		priceMonthly: 0,
-		priceYearly: 0,
-		maxProperties: 1,
-		maxDevices: 15,
-		maxFiles: 10,
-		maxStorageGb: 1,
+		...HOMEOWNER_PUBLIC,
 		features: [
 			'1 Home',
 			'Up to 15 Equipment Records',
@@ -47,14 +53,7 @@ export const SUBSCRIPTION_PLANS = {
 		},
 	},
 	HOMEOWNER_PLUS: {
-		id: 'homeowner_plus',
-		name: 'Homeowner+',
-		priceMonthly: 3.99,
-		priceYearly: 39.99,
-		maxProperties: 1,
-		maxDevices: 999, // Unlimited
-		maxFiles: 250,
-		maxStorageGb: 5,
+		...HOMEOWNER_PLUS_PUBLIC,
 		features: [
 			'Everything in Free, plus:',
 			'Unlimited Equipment Records',
@@ -92,14 +91,7 @@ export const SUBSCRIPTION_PLANS = {
 		},
 	},
 	PROPERTY: {
-		id: 'property',
-		name: 'Property',
-		priceMonthly: 8.99,
-		priceYearly: 89,
-		maxProperties: 7,
-		maxDevices: 999, // Unlimited
-		maxFiles: 1500,
-		maxStorageGb: 15,
+		...PROPERTY_PUBLIC,
 		features: [
 			'Everything in Homeowner+, plus:',
 			'Up to 7 Properties',
@@ -133,14 +125,7 @@ export const SUBSCRIPTION_PLANS = {
 		},
 	},
 	PORTFOLIO: {
-		id: 'portfolio',
-		name: 'Portfolio',
-		priceMonthly: 23.99,
-		priceYearly: 249,
-		maxProperties: 15,
-		maxDevices: 999, // Unlimited
-		maxFiles: 5000,
-		maxStorageGb: 25,
+		...PORTFOLIO_PUBLIC,
 		features: [
 			'Everything in Property, plus:',
 			'Up to 15 Properties',

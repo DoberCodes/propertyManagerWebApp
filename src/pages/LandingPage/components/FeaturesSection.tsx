@@ -4,11 +4,7 @@ import {
 	faClipboardList,
 	faBuilding,
 	faScrewdriverWrench,
-	faCamera,
-	faMagnifyingGlass,
-	faMobileScreenButton,
 	faFileLines,
-	faUsers,
 } from '@fortawesome/free-solid-svg-icons';
 import {
 	FeaturesSection,
@@ -20,14 +16,15 @@ import {
 	FeatureTitle,
 	FeatureDescription,
 } from '../LandingPage.styles';
+import { CenteredAction, SectionLink } from './HomepageSections.styles';
 
 const FeaturesSectionComponent = () => {
 	return (
 		<FeaturesSection id='Features'>
-			<FeaturesTitle>Everything Maintley Keeps Together</FeaturesTitle>
+			<FeaturesTitle>Core Features</FeaturesTitle>
 			<FeaturesIntro>
-				Maintley brings the records, equipment, documents, people, and recurring
-				care around your home into one place so every detail has a purpose.
+				The essentials for building useful property history without turning the
+				homepage into a full feature catalog.
 			</FeaturesIntro>
 			<FeatureGrid>
 				<FeatureCard $flagship>
@@ -70,47 +67,10 @@ const FeaturesSectionComponent = () => {
 						Maintley can identify useful details for you to review before saving.
 					</FeatureDescription>
 				</FeatureCard>
-				<FeatureCard>
-					<FeatureIcon className='documentation'>
-						<FontAwesomeIcon icon={faCamera} />
-					</FeatureIcon>
-					<FeatureTitle>Documents & Photos</FeatureTitle>
-					<FeatureDescription>
-						Attach receipts, warranties, photos, and notes where future
-						decisions will need them.
-					</FeatureDescription>
-				</FeatureCard>
-				<FeatureCard>
-					<FeatureIcon className='search'>
-						<FontAwesomeIcon icon={faMagnifyingGlass} />
-					</FeatureIcon>
-					<FeatureTitle>Find Anything Fast</FeatureTitle>
-					<FeatureDescription>
-						Find the answer later without digging through texts, folders,
-						calendars, or emails.
-					</FeatureDescription>
-				</FeatureCard>
-				<FeatureCard>
-					<FeatureIcon className='mobile'>
-						<FontAwesomeIcon icon={faMobileScreenButton} />
-					</FeatureIcon>
-					<FeatureTitle>Mobile Recordkeeping</FeatureTitle>
-					<FeatureDescription>
-						Capture maintenance while the details are still fresh, from any
-						device.
-					</FeatureDescription>
-				</FeatureCard>
-				<FeatureCard>
-					<FeatureIcon className='mobile'>
-						<FontAwesomeIcon icon={faUsers} />
-					</FeatureIcon>
-					<FeatureTitle>Team Coordination</FeatureTitle>
-					<FeatureDescription>
-						Help tenants, contractors, and maintenance partners work from the
-						same property history.
-					</FeatureDescription>
-				</FeatureCard>
 			</FeatureGrid>
+			<CenteredAction>
+				<SectionLink href='/features/'>See the complete feature list →</SectionLink>
+			</CenteredAction>
 		</FeaturesSection>
 	);
 };

@@ -1,6 +1,6 @@
 # Maintley Plan Feature Matrix
 
-Last Reviewed: 2026-06
+Last Reviewed: 2026-07
 
 ## Purpose
 
@@ -15,6 +15,18 @@ This document serves as the source of truth for:
 This document answers:
 
 > Which plans include which capabilities?
+
+Machine-readable public plan names, prices, limits, positioning, and pricing-card
+highlights are maintained in:
+
+```text
+src/config/publicPlanFacts.json
+```
+
+`src/constants/subscriptions.ts` imports those shared public facts and remains the
+implementation source for permissions and complete feature behavior. Public plan
+facts must remain aligned with this matrix; run `npm run sync:public-pricing` and
+`npm run validate:seo` after changing either source.
 
 This document does not define:
 

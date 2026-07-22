@@ -4,8 +4,9 @@ import styled from 'styled-components';
 import { COLORS } from '../../../constants/colors';
 
 export const NavWrapper = styled.div`
+	--landing-nav-height: 88px;
 	display: flex;
-	height: 88px;
+	height: var(--landing-nav-height);
 	width: 100%;
 	background: ${COLORS.gradientPrimary};
 	align-items: center;
@@ -23,7 +24,8 @@ export const NavWrapper = styled.div`
 	z-index: 100;
 
 	@media (max-width: 1024px) {
-		height: 84px;
+		--landing-nav-height: 84px;
+		height: var(--landing-nav-height);
 		padding: 10px max(12px, env(safe-area-inset-right)) 10px max(12px, env(safe-area-inset-left));
 		gap: 8px;
 		flex-direction: row;
@@ -31,12 +33,14 @@ export const NavWrapper = styled.div`
 	}
 
 	@media (max-width: 900px) {
-		height: 76px;
+		--landing-nav-height: 76px;
+		height: var(--landing-nav-height);
 		padding: max(8px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) 8px max(16px, env(safe-area-inset-left));
 	}
 
 	@media (max-width: 480px) {
-		height: 72px;
+		--landing-nav-height: 72px;
+		height: var(--landing-nav-height);
 		min-height: 72px;
 	}
 `;
@@ -117,10 +121,20 @@ export const ButtonWrapper = styled.div<{ $isOpen: boolean }>`
 		flex-direction: column;
 		align-items: stretch;
 		gap: 2px;
-		padding: 10px max(16px, env(safe-area-inset-right)) 16px max(16px, env(safe-area-inset-left));
+		max-height: calc(100dvh - var(--landing-nav-height));
+		overflow-y: auto;
+		overscroll-behavior: contain;
+		padding: 10px max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
 		background: ${COLORS.gradientPrimary};
 		box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
 		box-sizing: border-box;
+
+		> a {
+			min-height: 44px;
+			width: 100%;
+			margin: 0;
+			box-sizing: border-box;
+		}
 	}
 `;
 
@@ -278,7 +292,7 @@ export const NavDropdown = styled.details`
 		left: 50%;
 		transform: translateX(-50%);
 		display: flex;
-		min-width: 210px;
+		min-width: 280px;
 		flex-direction: column;
 		gap: 2px;
 		padding: 8px;
@@ -293,7 +307,16 @@ export const NavDropdown = styled.details`
 
 	@media (max-width: 900px) {
 		width: 100%;
-		summary { padding: 11px 12px; font-size: 15px; text-align: center; }
+		summary {
+			display: flex;
+			min-height: 44px;
+			align-items: center;
+			justify-content: center;
+			box-sizing: border-box;
+			padding: 11px 12px;
+			font-size: 15px;
+			text-align: center;
+		}
 		> div {
 			position: static;
 			transform: none;
@@ -309,7 +332,7 @@ export const NavDropdown = styled.details`
 export const NavDropdownLink = styled.a`
 	display: flex;
 	align-items: center;
-	min-height: 40px;
+	min-height: 44px;
 	padding: 8px 12px;
 	border-radius: 6px;
 	color: ${COLORS.slate};
@@ -326,6 +349,37 @@ export const NavDropdownLink = styled.a`
 		color: ${COLORS.white};
 		&:hover,
 		&:focus-visible { background: rgba(255, 255, 255, 0.18); color: ${COLORS.white}; }
+	}
+`;
+
+export const NavDropdownAnchor = styled(HashLink)`
+	display: flex;
+	align-items: center;
+	min-height: 40px;
+	padding: 8px 12px;
+	border-radius: 6px;
+	color: ${COLORS.slate};
+	font-size: 14px;
+	font-weight: 600;
+	text-decoration: none;
+	white-space: nowrap;
+
+	&:hover,
+	&:focus-visible {
+		background: rgba(4, 120, 87, 0.1);
+		color: ${COLORS.primary};
+		outline: none;
+	}
+
+	@media (max-width: 900px) {
+		justify-content: center;
+		color: ${COLORS.white};
+
+		&:hover,
+		&:focus-visible {
+			background: rgba(255, 255, 255, 0.18);
+			color: ${COLORS.white};
+		}
 	}
 `;
 

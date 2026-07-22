@@ -3,7 +3,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { LandingNavbar } from './LandingNavbar';
 
 describe('LandingNavbar', () => {
-	it('exposes every landing destination through the mobile menu', () => {
+	it('exposes enabled destinations and keeps dropdowns mutually exclusive', () => {
 		render(
 			<MemoryRouter>
 				<LandingNavbar />
@@ -17,20 +17,29 @@ describe('LandingNavbar', () => {
 
 		expect(menuButton).toHaveAttribute('aria-expanded', 'true');
 		expect(screen.getByRole('link', { name: 'Features' })).toBeInTheDocument();
-		fireEvent.click(screen.getByText('Solutions'));
+		const solutionsSummary = screen.getByText('Solutions', { selector: 'summary' });
+		const resourcesSummary = screen.getByText('Resources', { selector: 'summary' });
+		fireEvent.click(solutionsSummary);
+		expect(solutionsSummary.closest('details')).toHaveAttribute('open');
 		expect(screen.getByRole('link', { name: 'Homeowners' })).toBeInTheDocument();
-		expect(screen.getByRole('link', { name: 'Property Managers' })).toBeInTheDocument();
-		expect(screen.getByRole('link', { name: 'Businesses' })).toBeInTheDocument();
-		fireEvent.click(screen.getByText('Resources', { selector: 'summary' }));
-		expect(screen.getByRole('link', { name: 'Resources' })).toBeInTheDocument();
-		expect(screen.getByRole('link', { name: 'Help Center' })).toBeInTheDocument();
-		expect(screen.getByRole('link', { name: 'Download' })).toBeInTheDocument();
-		expect(screen.getByRole('link', { name: 'Pricing' })).toBeInTheDocument();
+		expect(screen.getByRole('link', { name: 'Property Owners & Managers' })).toBeInTheDocument();
+		expect(screen.queryByRole('link', { name: 'Service Businesses' })).not.toBeInTheDocument();
+
+		fireEvent.click(resourcesSummary);
+		expect(resourcesSummary.closest('details')).toHaveAttribute('open');
+		expect(solutionsSummary.closest('details')).not.toHaveAttribute('open');
+		expect(screen.getByRole('link', { name: 'Home Maintenance Checklist' })).toHaveAttribute('href', '/resources/home-maintenance-checklist/');
+		expect(screen.getByRole('link', { name: 'Seasonal Maintenance Schedule' })).toHaveAttribute('href', '/resources/seasonal-home-maintenance-schedule/');
+		expect(screen.getByRole('link', { name: 'Home Service History' })).toHaveAttribute('href', '/resources/home-service-history/');
+		expect(screen.getByRole('link', { name: 'All Articles' })).toHaveAttribute('href', '/resources/');
+		expect(screen.queryByRole('link', { name: 'Help Center' })).not.toBeInTheDocument();
+		expect(screen.queryByRole('link', { name: 'Download' })).not.toBeInTheDocument();
+		expect(screen.getByRole('link', { name: 'Pricing' })).toHaveAttribute('href', '/pricing/');
 		expect(screen.getByRole('link', { name: 'Login' })).toBeInTheDocument();
 		expect(screen.getByRole('link', { name: 'Start Free' })).toBeInTheDocument();
 	});
 
-	it('closes the menu with Escape', () => {
+	it('closes the menu and an open dropdown with Escape', () => {
 		render(
 			<MemoryRouter>
 				<LandingNavbar />
@@ -38,10 +47,13 @@ describe('LandingNavbar', () => {
 		);
 
 		fireEvent.click(screen.getByLabelText('Open navigation menu'));
+		const solutionsSummary = screen.getByText('Solutions', { selector: 'summary' });
+		fireEvent.click(solutionsSummary);
 		fireEvent.keyDown(window, { key: 'Escape' });
 
 		expect(
 			screen.getByLabelText('Open navigation menu'),
 		).toHaveAttribute('aria-expanded', 'false');
+		expect(solutionsSummary.closest('details')).not.toHaveAttribute('open');
 	});
 });

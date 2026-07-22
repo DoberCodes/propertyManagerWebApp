@@ -3,18 +3,10 @@
 const fs = require('fs');
 const path = require('path');
 
-const publicRoot = path.resolve(__dirname, '..', 'public');
-const resourceGuides = [
-	['/resources/home-maintenance-checklist/', 'Seasonal checklist'],
-	['/resources/seasonal-home-maintenance-schedule/', 'Seasonal schedule'],
-	['/resources/home-service-history/', 'Home service history'],
-	['/resources/appliance-maintenance-log/', 'Appliance maintenance log'],
-	['/resources/how-to-create-home-maintenance-log/', 'Create a maintenance log'],
-	['/resources/what-maintenance-records-should-homeowners-keep/', 'Records to keep'],
-	['/resources/appliance-warranty-organizer/', 'Warranty organizer'],
-	['/resources/hvac-filter-replacement-schedule/', 'HVAC filter schedule'],
-	['/resources/new-home-maintenance-tracker/', 'New home tracker'],
-];
+const projectRoot = path.resolve(__dirname, '..');
+const publicRoot = path.join(projectRoot, 'public');
+const navigationPath = path.join(projectRoot, 'src', 'config', 'publicNavigation.json');
+const navigation = JSON.parse(fs.readFileSync(navigationPath, 'utf8'));
 
 const pages = [];
 const walk = (directory) => {
@@ -25,31 +17,50 @@ const walk = (directory) => {
 	}
 };
 
+const escapeHtml = (value) => String(value)
+	.replace(/&/g, '&amp;')
+	.replace(/</g, '&lt;')
+	.replace(/>/g, '&gt;')
+	.replace(/"/g, '&quot;')
+	.replace(/'/g, '&#039;');
+
+const enabled = (item) => item.enabled !== false;
+const destinationFor = (item) => item.publicHref || item.href;
 const currentAttribute = (route, destination) =>
-	route === destination || (destination === '/resources/' && route.startsWith('/resources/'))
+	route === destination || (destination === '/resources/' && route === '/resources/')
 		? ' aria-current="page"'
 		: '';
 
+const buildDestination = (item, route, indentation = '\t\t\t\t\t') => {
+	const destination = destinationFor(item);
+	if (!destination) throw new Error(`Navigation item ${item.id} has no destination`);
+	const className = item.style === 'cta' ? ' class="nav-cta"' : '';
+	return `${indentation}<a${className} href="${escapeHtml(destination)}"${currentAttribute(route, item.href)}>${escapeHtml(item.label)}</a>`;
+};
+
+const buildGroup = (item, route) => {
+	const children = (item.children || []).filter(enabled);
+	if (!children.length) return '';
+	return `\t\t\t\t\t<details class="nav-menu nav-menu-${escapeHtml(item.id)}" data-public-nav-menu>
+\t\t\t\t\t\t<summary>${escapeHtml(item.label)}</summary>
+\t\t\t\t\t\t<div class="nav-menu-panel">
+${children.map((child) => buildDestination(child, route, '\t\t\t\t\t\t\t')).join('\n')}
+\t\t\t\t\t\t</div>
+\t\t\t\t\t</details>`;
+};
+
 const buildNav = (route) => {
-	const resourceNavigation = `
-					<details class="resource-menu">
-						<summary>Resources</summary>
-						<div class="resource-menu-panel">
-							<a href="/resources/">All resources</a>
-${resourceGuides.map(([href, label]) => `\t\t\t\t\t\t\t<a href="${href}"${currentAttribute(route, href)}>${label}</a>`).join('\n')}
-						</div>
-					</details>`;
+	const items = navigation.items.filter(enabled);
+	const links = items.map((item) => item.type === 'group'
+		? buildGroup(item, route)
+		: buildDestination(item, route)).join('\n');
 
 	return `<nav class="site-nav" aria-label="Primary navigation">
-				<a class="brand" href="/">Maintley</a>
-				<div class="nav-links">
-					<a href="/"${currentAttribute(route, '/')}>Home</a>
-					<a href="/features/"${currentAttribute(route, '/features/')}>Features</a>
-					<a href="/pricing/"${currentAttribute(route, '/pricing/')}>Pricing</a>${resourceNavigation}
-					<a href="/#/login">Login</a>
-					<a class="nav-cta" href="/#/register">Start free</a>
-				</div>
-			</nav>`;
+\t\t\t\t<a class="brand" href="/">Maintley</a>
+\t\t\t\t<div class="nav-links">
+${links}
+\t\t\t\t</div>
+\t\t\t</nav>`;
 };
 
 walk(publicRoot);
@@ -59,8 +70,12 @@ for (const filePath of pages) {
 	const html = fs.readFileSync(filePath, 'utf8');
 	const navPattern = /<nav class="site-nav"[^>]*>[\s\S]*?<\/nav>/;
 	if (!navPattern.test(html)) throw new Error(`Could not find public navigation in ${filePath}`);
-	const nextHtml = html.replace(navPattern, buildNav(route));
+
+	let nextHtml = html.replace(navPattern, buildNav(route));
+	if (!nextHtml.includes('src="/public-nav.js"')) {
+		nextHtml = nextHtml.replace('</body>', '\t\t<script src="/public-nav.js" defer></script>\n\t</body>');
+	}
 	fs.writeFileSync(filePath, nextHtml);
 }
 
-console.log(`Synchronized navigation across ${pages.length} public SEO pages.`);
+console.log(`Synchronized navigation across ${pages.length} static public SEO pages.`);
