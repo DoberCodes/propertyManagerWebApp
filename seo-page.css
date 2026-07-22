@@ -17,7 +17,12 @@ body {
 	margin: 0;
 	background: var(--maintley-canvas);
 	color: var(--maintley-text);
-	font-family: Manrope, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+	font-family:
+		Manrope,
+		-apple-system,
+		BlinkMacSystemFont,
+		'Segoe UI',
+		sans-serif;
 	line-height: 1.6;
 }
 
@@ -60,31 +65,34 @@ a {
 	text-decoration: none;
 }
 
-.nav-links a[aria-current="page"] {
+.nav-links a[aria-current='page'] {
 	text-decoration: underline;
 	text-underline-offset: 5px;
 }
 
-.resource-menu {
+.nav-menu {
 	position: relative;
 }
 
-.resource-menu summary {
+.nav-menu summary {
+	display: flex;
+	min-height: 44px;
+	align-items: center;
 	cursor: pointer;
 	color: var(--maintley-green);
 	font-weight: 700;
 	list-style: none;
 }
 
-.resource-menu summary::-webkit-details-marker {
+.nav-menu summary::-webkit-details-marker {
 	display: none;
 }
 
-.resource-menu summary::after {
-	content: " ▾";
+.nav-menu summary::after {
+	content: ' ▾';
 }
 
-.resource-menu-panel {
+.nav-menu-panel {
 	position: absolute;
 	top: calc(100% + 10px);
 	right: 0;
@@ -98,12 +106,16 @@ a {
 	box-shadow: 0 16px 36px rgba(31, 41, 55, 0.16);
 }
 
-.resource-menu-panel a {
+.nav-menu-panel a {
+	display: flex;
+	min-height: 44px;
+	align-items: center;
 	padding: 8px 10px;
 	border-radius: 6px;
 }
 
-.resource-menu-panel a:hover {
+.nav-menu-panel a:hover,
+.nav-menu-panel a:focus-visible {
 	background: var(--maintley-mint);
 }
 
@@ -269,7 +281,7 @@ h1 {
 }
 
 .check-list li::before {
-	content: "";
+	content: '';
 	position: absolute;
 	left: 0;
 	top: 0.55em;
@@ -350,23 +362,58 @@ h1 {
 	color: #ffffff;
 }
 
-@media (max-width: 780px) {
+@media (max-width: 1024px) {
 	.site-nav {
-		align-items: flex-start;
+		align-items: center;
 		flex-direction: column;
+		gap: 8px;
+		padding: 14px 20px 16px;
 	}
 
-	.resource-menu-panel {
-		position: fixed;
-		left: 20px;
-		right: 20px;
-		top: auto;
-		width: auto;
+	.brand {
+		align-self: center;
+	}
+
+	.nav-links {
+		display: grid;
+		width: 100%;
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+		gap: 8px 12px;
+	}
+
+	.nav-links > a,
+	.nav-menu summary {
+		display: flex;
+		width: 100%;
+		min-height: 48px;
+		align-items: center;
+		justify-content: center;
+		padding: 0 14px;
+		box-sizing: border-box;
+		border-radius: 8px;
+		text-align: center;
+	}
+
+	.nav-menu {
+		width: 100%;
 	}
 
 	.grid,
 	.screenshot-panel,
 	.two-column {
 		grid-template-columns: 1fr;
+	}
+}
+
+@media (max-width: 640px) {
+	.nav-links {
+		grid-template-columns: 1fr;
+	}
+
+	.nav-menu-panel {
+		position: static;
+		width: 100%;
+		margin-top: 4px;
+		box-sizing: border-box;
 	}
 }
