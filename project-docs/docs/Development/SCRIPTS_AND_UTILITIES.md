@@ -231,6 +231,24 @@ Low
 
 ---
 
+## Synchronize Android Launcher Icons
+
+```bash
+yarn sync:android-icons
+```
+
+Purpose:
+
+Regenerates the legacy and adaptive Android launcher icon assets for every
+density bucket from `public/icons/icon-512.png`. Run this whenever the
+canonical Maintley app icon changes so the web and Android brands stay aligned.
+
+Risk:
+
+Low
+
+---
+
 ## Bundle Asset Report
 
 ```bash

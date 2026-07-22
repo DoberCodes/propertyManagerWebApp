@@ -53,6 +53,7 @@
 		"validate:seo": "node scripts/validatePublicSeo.cjs && node scripts/validatePublicNavigation.cjs && node scripts/validatePublicPricing.cjs",
 		"sync:seo-nav": "node scripts/syncPublicSeoNav.cjs",
 		"sync:public-pricing": "node scripts/syncPublicPricing.cjs",
+		"sync:android-icons": "node scripts/syncAndroidLauncherIcons.cjs",
 		"lint": "eslint 'src/**/*.{ts,tsx}'",
 		"test": "node ./node_modules/react-scripts/bin/react-scripts.js test",
 		"test:ci": "node ./node_modules/react-scripts/bin/react-scripts.js test --watchAll=false --passWithNoTests",
