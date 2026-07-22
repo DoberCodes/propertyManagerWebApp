@@ -86,7 +86,8 @@ import {
 	FooterContent,
 	FooterBrand,
 	FooterLinks,
-	FooterLegalLinks,
+	FooterGroup,
+	FooterGroupTitle,
 	FooterLink,
 	FooterLegalLink,
 	DownloadSection,
@@ -102,14 +103,10 @@ import {
 import { getGooglePlayStoreURL } from '../../utils/versionCheck';
 import { CURRENT_APP_VERSION } from '../../config/appVersion';
 import SEO from 'Components/SEO/SEO';
-import { legalDocuments } from '../LegalPage/legalDocuments';
 
 const LandingPageComponent = () => {
 	const navigate = useNavigate();
 	const androidAppUrl = getGooglePlayStoreURL();
-	const handleFooterLink = (href: string) => {
-		window.location.href = href;
-	};
 
 	// SEO — important for public landing page (site-wide defaults are in public/index.html)
 	const seo = {
@@ -632,161 +629,34 @@ const LandingPageComponent = () => {
 							</p>
 						</FooterBrand>
 
-						<FooterLinks>
-							<FooterLink
-								onClick={() => {
-									document
-										.getElementById('About')
-										?.scrollIntoView({ behavior: 'smooth' });
-								}}>
-								About
-							</FooterLink>
-							<FooterLink
-								onClick={() => {
-									document
-										.getElementById('MaintleyLoop')
-										?.scrollIntoView({ behavior: 'smooth' });
-								}}>
-								How It Works
-							</FooterLink>
-							<FooterLink
-								onClick={() => {
-									document
-										.getElementById('Features')
-										?.scrollIntoView({ behavior: 'smooth' });
-								}}>
-								Feature Highlights
-							</FooterLink>
-							<FooterLink
-								as='a'
-								href='/features/'
-								onClick={(e) => {
-									e.preventDefault();
-									window.location.href = '/features/';
-								}}>
-								Feature Catalog
-							</FooterLink>
-							<FooterLink
-								as='a'
-								href='/homeowners/'
-								onClick={(e) => {
-									e.preventDefault();
-									window.location.href = '/homeowners/';
-								}}>
-								Homeowners
-							</FooterLink>
-							<FooterLink
-								as='a'
-								href='/property-managers/'
-								onClick={(e) => {
-									e.preventDefault();
-									window.location.href = '/property-managers/';
-								}}>
-								Property Owners
-							</FooterLink>
-							<FooterLink
-								as='a'
-								href='/pricing/'
-								onClick={(e) => {
-									e.preventDefault();
-									window.location.href = '/pricing/';
-								}}>
-								Pricing
-							</FooterLink>
-							<FooterLink
-								as='a'
-								href='/resources/'
-								onClick={(e) => {
-									e.preventDefault();
-									window.location.href = '/resources/';
-								}}>
-								Resources
-							</FooterLink>
-							<FooterLink
-								as='a'
-								href='/home-maintenance-tracker/'
-								onClick={(e) => {
-									e.preventDefault();
-									window.location.href = '/home-maintenance-tracker/';
-								}}>
-								Home Maintenance Tracker
-							</FooterLink>
-							<FooterLink
-								as='a'
-								href='/appliance-maintenance-tracker/'
-								onClick={(e) => {
-									e.preventDefault();
-									window.location.href = '/appliance-maintenance-tracker/';
-								}}>
-								Equipment Tracker
-							</FooterLink>
-							<FooterLink
-								as='a'
-								href='/home-maintenance-log/'
-								onClick={(e) => {
-									e.preventDefault();
-									window.location.href = '/home-maintenance-log/';
-								}}>
-								Maintenance Log
-							</FooterLink>
-							<FooterLink
-								onClick={() => {
-									document
-										.getElementById('Benefits')
-										?.scrollIntoView({ behavior: 'smooth' });
-								}}>
-								Benefits
-							</FooterLink>
-							<FooterLink
-								as='a'
-								href='#/help'
-								onClick={(e) => {
-									e.preventDefault();
-									window.location.href = '#/help';
-								}}>
-								Help Center
-							</FooterLink>
-							<FooterLink
-								onClick={() => {
-									document
-										.getElementById('Contact')
-										?.scrollIntoView({ behavior: 'smooth' });
-								}}>
-								Contact
-							</FooterLink>
-							<FooterLink
-								onClick={() => {
-									document
-										.getElementById('Download')
-										?.scrollIntoView({ behavior: 'smooth' });
-								}}>
-								Download
-							</FooterLink>
+						<FooterLinks aria-label='Footer navigation'>
+							<FooterGroup><FooterGroupTitle>Product</FooterGroupTitle>
+								<FooterLink as='a' href='/features/'>Features</FooterLink>
+								<FooterLink as='a' href='/pricing/'>Pricing</FooterLink>
+								<FooterLink onClick={() => document.getElementById('Download')?.scrollIntoView({ behavior: 'smooth' })}>Download</FooterLink>
+							</FooterGroup>
+							<FooterGroup><FooterGroupTitle>Solutions</FooterGroupTitle>
+								<FooterLink as='a' href='/homeowners/'>Homeowners</FooterLink>
+								<FooterLink as='a' href='/property-managers/'>Property Managers</FooterLink>
+								<FooterLink onClick={() => document.getElementById('Contact')?.scrollIntoView({ behavior: 'smooth' })}>Service Businesses</FooterLink>
+							</FooterGroup>
+							<FooterGroup><FooterGroupTitle>Resources</FooterGroupTitle>
+								<FooterLink as='a' href='/resources/home-maintenance-checklist/'>Guides</FooterLink>
+								<FooterLink as='a' href='#/help'>Help Center</FooterLink>
+								<FooterLink as='a' href='/resources/'>Resources</FooterLink>
+							</FooterGroup>
+							<FooterGroup><FooterGroupTitle>Company</FooterGroupTitle>
+								<FooterLink onClick={() => document.getElementById('About')?.scrollIntoView({ behavior: 'smooth' })}>About</FooterLink>
+								<FooterLink onClick={() => document.getElementById('Contact')?.scrollIntoView({ behavior: 'smooth' })}>Contact</FooterLink>
+							</FooterGroup>
+							<FooterGroup><FooterGroupTitle>Legal</FooterGroupTitle>
+								<FooterLegalLink as='a' href='#/legal'>Legal Hub</FooterLegalLink>
+								<FooterLegalLink as='a' href='#/legal/privacy-policy'>Privacy</FooterLegalLink>
+								<FooterLegalLink as='a' href='#/legal/terms-of-service'>Terms</FooterLegalLink>
+								<FooterLegalLink as='a' href='#/legal/eula'>EULA</FooterLegalLink>
+								<FooterLegalLink as='a' href='#/legal/user-content-policy'>Policies</FooterLegalLink>
+							</FooterGroup>
 						</FooterLinks>
-
-						<FooterLegalLinks>
-							<FooterLegalLink
-								as='a'
-								href='#/legal'
-								onClick={(e) => {
-									e.preventDefault();
-									handleFooterLink('#/legal');
-								}}>
-								Legal Hub
-							</FooterLegalLink>
-							{legalDocuments.map((doc) => (
-								<FooterLegalLink
-									key={doc.filename}
-									as='a'
-									href={`#/legal/${doc.filename}`}
-									onClick={(e) => {
-										e.preventDefault();
-										handleFooterLink(`#/legal/${doc.filename}`);
-									}}>
-									{doc.title}
-								</FooterLegalLink>
-							))}
-						</FooterLegalLinks>
 					</FooterContent>
 					<FooterCopyright>
 						&copy; 2026 Maintley. Built for homeowners and long-term owners.

@@ -33,7 +33,7 @@ const currentAttribute = (route, destination) =>
 const buildNav = (route) => {
 	const resourceNavigation = `
 					<details class="resource-menu">
-						<summary>Browse Resources</summary>
+						<summary>Resources</summary>
 						<div class="resource-menu-panel">
 							<a href="/resources/">All resources</a>
 ${resourceGuides.map(([href, label]) => `\t\t\t\t\t\t\t<a href="${href}"${currentAttribute(route, href)}>${label}</a>`).join('\n')}
