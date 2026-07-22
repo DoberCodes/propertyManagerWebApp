@@ -76,7 +76,8 @@ export const ProofGrid = styled.div`
 export const ProofCard = styled.article<{ $wide?: boolean }>`
 	display: grid;
 	grid-column: ${({ $wide }) => ($wide ? '1 / -1' : 'auto')};
-	grid-template-columns: ${({ $wide }) => ($wide ? 'minmax(0, 1.25fr) minmax(260px, 0.75fr)' : '1fr')};
+	grid-template-columns: ${({ $wide }) =>
+		$wide ? 'minmax(0, 1.25fr) minmax(260px, 0.75fr)' : '1fr'};
 	align-items: center;
 	overflow: hidden;
 	background: ${COLORS.white};
@@ -192,6 +193,82 @@ export const TrustCard = styled.article`
 	border-radius: 14px;
 `;
 
+export const ResourceGrid = styled.div`
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 18px;
+
+	@media (max-width: 760px) {
+		grid-template-columns: 1fr;
+	}
+`;
+
+export const ResourceCard = styled.article`
+	display: flex;
+	flex-direction: column;
+	padding: 24px;
+	background: ${COLORS.white};
+	border: 1px solid ${COLORS.border};
+	border-radius: 14px;
+	box-shadow: ${COLORS.shadow};
+
+	${SectionLink} {
+		margin-top: auto;
+		padding-top: 8px;
+	}
+`;
+
+export const FaqList = styled.div`
+	display: grid;
+	gap: 12px;
+	max-width: 860px;
+	margin: 0 auto;
+`;
+
+export const FaqItem = styled.details`
+	background: ${COLORS.white};
+	border: 1px solid ${COLORS.border};
+	border-radius: 12px;
+
+	summary {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 18px;
+		min-height: 56px;
+		padding: 14px 18px;
+		color: ${COLORS.textPrimary};
+		cursor: pointer;
+		font-weight: 800;
+		line-height: 1.4;
+		list-style: none;
+	}
+
+	summary::-webkit-details-marker {
+		display: none;
+	}
+
+	summary::after {
+		content: '+';
+		flex: 0 0 auto;
+		color: ${COLORS.primary};
+		font-size: 24px;
+		font-weight: 500;
+	}
+
+	&[open] summary::after {
+		content: '';
+	}
+`;
+
+export const FaqAnswer = styled.p`
+	margin: 0;
+	padding: 0 18px 18px;
+	color: ${COLORS.textSecondary};
+	font-size: 15px;
+	line-height: 1.65;
+`;
+
 export const PricingGrid = styled.div`
 	display: grid;
 	grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -214,7 +291,8 @@ export const PriceCard = styled.article<{ $featured?: boolean }>`
 	border: ${({ $featured }) =>
 		$featured ? `2px solid ${COLORS.primary}` : `1px solid ${COLORS.border}`};
 	border-radius: 14px;
-	box-shadow: ${({ $featured }) => ($featured ? COLORS.shadowLg : COLORS.shadow)};
+	box-shadow: ${({ $featured }) =>
+		$featured ? COLORS.shadowLg : COLORS.shadow};
 `;
 
 export const PriceName = styled.h3`

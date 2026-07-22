@@ -17,7 +17,12 @@ body {
 	margin: 0;
 	background: var(--maintley-canvas);
 	color: var(--maintley-text);
-	font-family: Manrope, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+	font-family:
+		Manrope,
+		-apple-system,
+		BlinkMacSystemFont,
+		'Segoe UI',
+		sans-serif;
 	line-height: 1.6;
 }
 
@@ -60,7 +65,7 @@ a {
 	text-decoration: none;
 }
 
-.nav-links a[aria-current="page"] {
+.nav-links a[aria-current='page'] {
 	text-decoration: underline;
 	text-underline-offset: 5px;
 }
@@ -84,7 +89,7 @@ a {
 }
 
 .nav-menu summary::after {
-	content: " ▾";
+	content: ' ▾';
 }
 
 .nav-menu-panel {
@@ -276,7 +281,7 @@ h1 {
 }
 
 .check-list li::before {
-	content: "";
+	content: '';
 	position: absolute;
 	left: 0;
 	top: 0.55em;
@@ -357,23 +362,52 @@ h1 {
 	color: #ffffff;
 }
 
-	@media (max-width: 780px) {
+@media (max-width: 1024px) {
 	.site-nav {
-		align-items: stretch;
+		align-items: center;
 		flex-direction: column;
+		gap: 8px;
+		padding: 14px 20px 16px;
+	}
+
+	.brand {
+		align-self: center;
 	}
 
 	.nav-links {
 		display: grid;
 		width: 100%;
-		grid-template-columns: 1fr;
-		gap: 4px;
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+		gap: 8px 12px;
 	}
 
 	.nav-links > a,
 	.nav-menu summary {
-		min-height: 44px;
+		display: flex;
+		width: 100%;
+		min-height: 48px;
+		align-items: center;
 		justify-content: center;
+		padding: 0 14px;
+		box-sizing: border-box;
+		border-radius: 8px;
+		text-align: center;
+	}
+
+	.nav-menu {
+		width: 100%;
+	}
+
+	.grid,
+	.screenshot-panel,
+	.two-column {
+		grid-template-columns: 1fr;
+	}
+}
+
+@media (max-width: 640px) {
+	.nav-links {
+		grid-template-columns: 1fr;
 	}
 
 	.nav-menu-panel {
@@ -381,11 +415,5 @@ h1 {
 		width: 100%;
 		margin-top: 4px;
 		box-sizing: border-box;
-	}
-
-	.grid,
-	.screenshot-panel,
-	.two-column {
-		grid-template-columns: 1fr;
 	}
 }

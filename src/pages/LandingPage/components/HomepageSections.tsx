@@ -29,6 +29,9 @@ import {
 	CardText,
 	CardTitle,
 	CenteredAction,
+	FaqAnswer,
+	FaqItem,
+	FaqList,
 	PriceCard,
 	PriceDescription,
 	PriceName,
@@ -39,6 +42,8 @@ import {
 	ProofCopy,
 	ProofGrid,
 	PublicSection,
+	ResourceCard,
+	ResourceGrid,
 	ScreenshotFrame,
 	SectionEyebrow,
 	SectionHeading,
@@ -126,14 +131,87 @@ const enabledSolutions =
 		? (solutionsEntry.children ?? []).filter((item) => item.enabled)
 		: [];
 
+const resourcesEntry = publicNavigation.items.find(
+	(item) => item.id === 'resources',
+);
+const featuredResources =
+	resourcesEntry && 'children' in resourcesEntry
+		? (resourcesEntry.children ?? [])
+				.filter((item) => item.enabled && item.id !== 'all-articles')
+				.slice(0, 3)
+		: [];
+
+const resourceCopy: Record<string, { topic: string; description: string }> = {
+	'home-maintenance-checklist': {
+		topic: 'Checklist',
+		description:
+			'Build a practical seasonal routine without trying to remember every task at once.',
+	},
+	'seasonal-maintenance-schedule': {
+		topic: 'Seasonal planning',
+		description:
+			'Organize recurring home care by season and turn the schedule into useful history.',
+	},
+	'home-service-history': {
+		topic: 'Property records',
+		description:
+			'Learn what to record after service visits so future repairs start with better context.',
+	},
+};
+
+export const homepageFaqs = [
+	{
+		question: 'Is Maintley free?',
+		answer:
+			'Yes. The Free plan supports one home with essential maintenance tasks, up to 15 equipment records, and starter document storage. Paid plans add more capacity and guidance.',
+	},
+	{
+		question: 'Can I manage multiple properties?',
+		answer:
+			'Yes. The Property plan supports up to seven properties, while Portfolio supports up to fifteen properties and broader team coordination.',
+	},
+	{
+		question: 'Who owns the information I add?',
+		answer:
+			'You retain ownership of the information you enter. Maintley receives only the permission needed to store and process it to operate the service.',
+	},
+	{
+		question: 'Can contractors or service businesses access my property?',
+		answer:
+			'Maintley does not automatically give outside companies access. Property information is available only to people with the appropriate account and property permissions.',
+	},
+	{
+		question: 'Does Maintley verify maintenance work?',
+		answer:
+			'No. Maintley stores and displays submitted records and can show who recorded them, but it does not certify that work was performed or verify its quality.',
+	},
+	{
+		question: 'Can I export my information?',
+		answer:
+			'Maintley supports property and maintenance reports in formats such as PDF or CSV. Exports are informational records and are not certified for legal, insurance, resale, or regulatory use.',
+	},
+	{
+		question: 'Where can I use Maintley?',
+		answer:
+			'Maintley works on the web and through the Android app. On iPhone and iPad, you can open Maintley in Safari and add it to your Home Screen.',
+	},
+	{
+		question: 'What happens if I cancel a paid subscription?',
+		answer:
+			'You can cancel at any time, and paid access continues through the end of the current billing period. Canceling a subscription does not automatically delete your account.',
+	},
+];
+
 const formatMonthlyPrice = (price: number) =>
 	price === 0 ? 'Free' : `$${price.toFixed(2)}/month`;
 
 export const ProductProofSection = () => (
-	<PublicSection id='ProductProof' $tint>
+	<PublicSection id="ProductProof" $tint>
 		<SectionShell>
 			<SectionEyebrow>Built around real property records</SectionEyebrow>
-			<SectionHeading>See your home’s maintenance story in one place</SectionHeading>
+			<SectionHeading>
+				See your home’s maintenance story in one place
+			</SectionHeading>
 			<SectionIntro>
 				Maintley connects what happened, what was saved, and what may need your
 				attention next. These are real views from the product.
@@ -148,7 +226,7 @@ export const ProductProofSection = () => (
 								height={item.height}
 								alt={item.alt}
 								loading={item.wide ? 'eager' : 'lazy'}
-								decoding='async'
+								decoding="async"
 							/>
 						</ScreenshotFrame>
 						<ProofCopy>
@@ -160,14 +238,14 @@ export const ProductProofSection = () => (
 				))}
 			</ProofGrid>
 			<CenteredAction>
-				<SectionLink href='/features/'>Explore all features →</SectionLink>
+				<SectionLink href="/features/">Explore all features →</SectionLink>
 			</CenteredAction>
 		</SectionShell>
 	</PublicSection>
 );
 
 export const HowItWorksSection = () => (
-	<MemorySection id='HowItWorks'>
+	<MemorySection id="HowItWorks">
 		<MemoryShell>
 			<MemoryHeader>How Maintley Works</MemoryHeader>
 			<MemoryIntro>
@@ -197,10 +275,12 @@ export const HowItWorksSection = () => (
 );
 
 export const SolutionsSection = () => (
-	<PublicSection id='Solutions' $tint>
+	<PublicSection id="Solutions" $tint>
 		<SectionShell>
 			<SectionEyebrow>Who Maintley is for</SectionEyebrow>
-			<SectionHeading>Property records that fit your responsibility</SectionHeading>
+			<SectionHeading>
+				Property records that fit your responsibility
+			</SectionHeading>
 			<SectionIntro>
 				Start with the way you care for property today. Maintley keeps the
 				property—not a company or tenant profile—at the center.
@@ -215,7 +295,9 @@ export const SolutionsSection = () => (
 							<CardKicker>{solution.label}</CardKicker>
 							<CardTitle>{copy.title}</CardTitle>
 							<CardText>{copy.text}</CardText>
-							<SectionLink href={solution.href}>See how Maintley helps →</SectionLink>
+							<SectionLink href={solution.href}>
+								See how Maintley helps →
+							</SectionLink>
 						</AudienceCard>
 					);
 				})}
@@ -225,43 +307,98 @@ export const SolutionsSection = () => (
 );
 
 export const SecuritySection = () => (
-	<PublicSection id='Security'>
+	<PublicSection id="Security">
 		<SectionShell>
 			<SectionEyebrow>Security and control</SectionEyebrow>
-			<SectionHeading>Your records stay under clear account control</SectionHeading>
+			<SectionHeading>
+				Your records stay under clear account control
+			</SectionHeading>
 			<SectionIntro>
-				Maintley is responsible for protecting the software and enforcing access.
-				You control the property information you choose to keep in it.
+				Maintley is responsible for protecting the software and enforcing
+				access. You control the property information you choose to keep in it.
 			</SectionIntro>
 			<TrustGrid>
 				<TrustCard>
-					<CardKicker><FontAwesomeIcon icon={faKey} /> Access</CardKicker>
+					<CardKicker>
+						<FontAwesomeIcon icon={faKey} /> Access
+					</CardKicker>
 					<CardTitle>Permission-based access</CardTitle>
-					<CardText>Only people with the appropriate property access can view or change its records.</CardText>
+					<CardText>
+						Only people with the appropriate property access can view or change
+						its records.
+					</CardText>
 				</TrustCard>
 				<TrustCard>
-					<CardKicker><FontAwesomeIcon icon={faUserCheck} /> Accountability</CardKicker>
+					<CardKicker>
+						<FontAwesomeIcon icon={faUserCheck} /> Accountability
+					</CardKicker>
 					<CardTitle>Clear record attribution</CardTitle>
-					<CardText>Maintenance information can show who recorded it without implying Maintley certified the work.</CardText>
+					<CardText>
+						Maintenance information can show who recorded it without implying
+						Maintley certified the work.
+					</CardText>
 				</TrustCard>
 				<TrustCard>
-					<CardKicker><FontAwesomeIcon icon={faFileShield} /> Privacy</CardKicker>
+					<CardKicker>
+						<FontAwesomeIcon icon={faFileShield} /> Privacy
+					</CardKicker>
 					<CardTitle>Purposeful property data</CardTitle>
-					<CardText>Maintley is designed for useful property records, not unnecessary personal profiles.</CardText>
+					<CardText>
+						Maintley is designed for useful property records, not unnecessary
+						personal profiles.
+					</CardText>
 				</TrustCard>
 			</TrustGrid>
 			<CenteredAction>
-				<SectionLink href='/legal/'>Review privacy and legal information →</SectionLink>
+				<SectionLink href="/security-and-privacy/">
+					Review security and privacy
+				</SectionLink>
+			</CenteredAction>
+		</SectionShell>
+	</PublicSection>
+);
+
+export const FeaturedResourcesSection = () => (
+	<PublicSection id="Resources" $tint>
+		<SectionShell>
+			<SectionEyebrow>Practical home maintenance guides</SectionEyebrow>
+			<SectionHeading>Start with the information you need today</SectionHeading>
+			<SectionIntro>
+				Use a checklist, build a seasonal routine, or decide what to save after
+				a service visit. Each guide answers the question first, then helps you
+				keep the result useful.
+			</SectionIntro>
+			<ResourceGrid>
+				{featuredResources.map((resource) => {
+					const copy = resourceCopy[resource.id];
+					if (!copy || !('href' in resource)) return null;
+
+					return (
+						<ResourceCard key={resource.id}>
+							<CardKicker>{copy.topic}</CardKicker>
+							<CardTitle>{resource.label}</CardTitle>
+							<CardText>{copy.description}</CardText>
+							<SectionLink href={resource.href}>Read the guide</SectionLink>
+						</ResourceCard>
+					);
+				})}
+			</ResourceGrid>
+			<CenteredAction>
+				<PrimaryPageLink href="/resources/">
+					Browse all articles
+				</PrimaryPageLink>
 			</CenteredAction>
 		</SectionShell>
 	</PublicSection>
 );
 
 export const PricingPreviewSection = () => (
-	<PublicSection id='Pricing' $tint>
+	<PublicSection id="Pricing">
 		<SectionShell>
 			<SectionEyebrow>Simple plans</SectionEyebrow>
-			<SectionHeading>Start free, then grow with your properties</SectionHeading>
+			<SectionHeading>
+				Start free, then grow with your properties
+			</SectionHeading>
 			<SectionIntro>
 				Choose a homeowner plan for one home or a property plan for managing
 				several. Portfolio remains available for larger property collections.
@@ -276,8 +413,29 @@ export const PricingPreviewSection = () => (
 				))}
 			</PricingGrid>
 			<CenteredAction>
-				<PrimaryPageLink href='/pricing/'>Compare every plan</PrimaryPageLink>
+				<PrimaryPageLink href="/pricing/">Compare every plan</PrimaryPageLink>
 			</CenteredAction>
+		</SectionShell>
+	</PublicSection>
+);
+
+export const FAQSection = () => (
+	<PublicSection id="FAQ" $tint>
+		<SectionShell>
+			<SectionEyebrow>Common questions</SectionEyebrow>
+			<SectionHeading>Know what to expect before you start</SectionHeading>
+			<SectionIntro>
+				Clear answers about plans, property records, access, exports, and what
+				Maintley does not verify.
+			</SectionIntro>
+			<FaqList>
+				{homepageFaqs.map((item) => (
+					<FaqItem key={item.question}>
+						<summary>{item.question}</summary>
+						<FaqAnswer>{item.answer}</FaqAnswer>
+					</FaqItem>
+				))}
+			</FaqList>
 		</SectionShell>
 	</PublicSection>
 );

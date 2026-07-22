@@ -43,6 +43,7 @@ static public pages from `public/`:
 * `/homeowners/`
 * `/property-managers/`
 * `/pricing/`
+* `/security-and-privacy/`
 * `/legal/`
 * `/resources/`
 * `/resources/home-maintenance-checklist/`
@@ -116,6 +117,10 @@ React controls dropdown state directly. Opening one group closes the other, and
 Escape, outside interaction, navigation, or focus leaving the menu closes the
 active dropdown. Static pages use `public/public-nav.js` for equivalent progressive
 enhancement while keeping every link usable without JavaScript.
+
+At 1024px and below, the React header uses its compact menu so tablet widths do
+not compress the desktop links. Static pages use a three-column tablet
+navigation grid, then switch to one column at 640px and below.
 
 Run `npm run sync:seo-nav` after changing the shared navigation definition.
 
@@ -211,9 +216,10 @@ Hero
 Product proof
 How Maintley Works
 Who Maintley Is For
-Core Features
 Security and control
+Featured resources
 Compact pricing preview
+FAQ
 Final call to action
 ```
 
@@ -225,11 +231,23 @@ The Who Maintley Is For section reads enabled solution destinations from
 `src/config/publicNavigation.json`. Disabled destinations, including Service
 Businesses, must not render in the section or footer.
 
-The homepage Core Features section is intentionally compact and links to
-`/features/` for detailed evaluation. Homepage pricing reads the same
-`src/config/publicPlanFacts.json` facts used by subscriptions and the static
-`/pricing/` page, but presents only a short plan preview and links to the full
-comparison.
+The homepage does not repeat the feature catalog. Product proof and How Maintley
+Works provide enough capability context, while `/features/` owns detailed
+feature evaluation.
+
+Featured homepage resources use the enabled guide labels and routes from
+`src/config/publicNavigation.json` and add short page-specific descriptions.
+The visible homepage FAQ is rendered from the same data used to generate its
+FAQPage structured data.
+
+Homepage pricing reads the same `src/config/publicPlanFacts.json` facts used by
+subscriptions and the static `/pricing/` page, but presents only a short plan
+preview and links to the full comparison.
+
+The indexed `/security-and-privacy/` page provides a customer-friendly
+explanation of current account access, property permissions, record attribution,
+exports, deletion, and privacy-request routes. It complements rather than
+replaces the governing documents in `/legal/`.
 
 Long-form founder narrative, full property timelines, full feature and pricing
 matrices, contact forms without reliable server submission, and detailed install
@@ -241,14 +259,19 @@ instructions do not belong on the homepage.
 
 Recommended next SEO phases:
 
-1. Expand FAQPage JSON-LD only where the visible page has stable FAQ content.
-2. Continue expanding `/resources/` with product-led guides based on Search Console
+1. Create the approved About page and move the full product-origin narrative
+   there when that content is ready.
+2. Create Contact only with a reliable server-backed submission path and abuse
+   controls.
+3. Review Search Console and backlink evidence before implementing the three
+   approved URL consolidations.
+4. Continue expanding `/resources/` with product-led guides based on Search Console
    impressions and user questions.
-3. Replace screenshot-based social previews with custom branded OG images if
+5. Replace screenshot-based social previews with custom branded OG images if
    Maintley needs more polished share cards.
-4. Submit `https://maintleyapp.com/sitemap.xml` in Google Search Console and
+6. Submit `https://maintleyapp.com/sitemap.xml` in Google Search Console and
    Bing Webmaster Tools after deploy.
-5. Consider moving public marketing routes from static HTML to first-class clean
+7. Consider moving public marketing routes from static HTML to first-class clean
    React routes if Maintley moves away from `HashRouter`.
 
 Run `npm run validate:seo` before deploying public page changes. The validator

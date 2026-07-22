@@ -11,7 +11,8 @@ export const NavWrapper = styled.div`
 	background: ${COLORS.gradientPrimary};
 	align-items: center;
 	justify-content: space-between;
-	padding: 0 max(20px, env(safe-area-inset-right)) 0 max(20px, env(safe-area-inset-left));
+	padding: 0 max(20px, env(safe-area-inset-right)) 0
+		max(20px, env(safe-area-inset-left));
 	margin: 0 auto;
 	position: fixed;
 	top: 0;
@@ -26,7 +27,8 @@ export const NavWrapper = styled.div`
 	@media (max-width: 1024px) {
 		--landing-nav-height: 84px;
 		height: var(--landing-nav-height);
-		padding: 10px max(12px, env(safe-area-inset-right)) 10px max(12px, env(safe-area-inset-left));
+		padding: 10px max(12px, env(safe-area-inset-right)) 10px
+			max(12px, env(safe-area-inset-left));
 		gap: 8px;
 		flex-direction: row;
 		flex-wrap: nowrap;
@@ -35,7 +37,9 @@ export const NavWrapper = styled.div`
 	@media (max-width: 900px) {
 		--landing-nav-height: 76px;
 		height: var(--landing-nav-height);
-		padding: max(8px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) 8px max(16px, env(safe-area-inset-left));
+		padding: max(8px, env(safe-area-inset-top))
+			max(16px, env(safe-area-inset-right)) 8px
+			max(16px, env(safe-area-inset-left));
 	}
 
 	@media (max-width: 480px) {
@@ -108,11 +112,6 @@ export const ButtonWrapper = styled.div<{ $isOpen: boolean }>`
 	flex-wrap: nowrap;
 
 	@media (max-width: 1024px) {
-		gap: 6px;
-		justify-content: flex-end;
-	}
-
-	@media (max-width: 900px) {
 		display: ${({ $isOpen }) => ($isOpen ? 'flex' : 'none')};
 		position: absolute;
 		top: 100%;
@@ -121,10 +120,13 @@ export const ButtonWrapper = styled.div<{ $isOpen: boolean }>`
 		flex-direction: column;
 		align-items: stretch;
 		gap: 2px;
+		justify-content: flex-start;
 		max-height: calc(100dvh - var(--landing-nav-height));
 		overflow-y: auto;
 		overscroll-behavior: contain;
-		padding: 10px max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+		padding: 10px max(16px, env(safe-area-inset-right))
+			max(16px, env(safe-area-inset-bottom))
+			max(16px, env(safe-area-inset-left));
 		background: ${COLORS.gradientPrimary};
 		box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
 		box-sizing: border-box;
@@ -158,7 +160,7 @@ export const MobileMenuButton = styled.button`
 		outline-offset: 2px;
 	}
 
-	@media (max-width: 900px) {
+	@media (max-width: 1024px) {
 		display: flex;
 		flex: 0 0 44px;
 	}
@@ -176,7 +178,9 @@ export const NavAnchor = styled(HashLink)`
 	color: ${COLORS.white};
 	white-space: nowrap;
 	border-radius: 4px;
-	transition: background-color 0.2s, transform 0.2s;
+	transition:
+		background-color 0.2s,
+		transform 0.2s;
 
 	&:hover {
 		background-color: rgba(255, 255, 255, 0.2);
@@ -210,7 +214,9 @@ export const NavRouteLink = styled(Link)`
 	color: ${COLORS.white};
 	white-space: nowrap;
 	border-radius: 4px;
-	transition: background-color 0.2s, transform 0.2s;
+	transition:
+		background-color 0.2s,
+		transform 0.2s;
 
 	&:hover {
 		background-color: rgba(255, 255, 255, 0.2);
@@ -244,7 +250,9 @@ export const NavExternalLink = styled.a`
 	color: ${COLORS.white};
 	white-space: nowrap;
 	border-radius: 4px;
-	transition: background-color 0.2s, transform 0.2s;
+	transition:
+		background-color 0.2s,
+		transform 0.2s;
 
 	&:hover {
 		background-color: rgba(255, 255, 255, 0.2);
@@ -280,11 +288,19 @@ export const NavDropdown = styled.details`
 		cursor: pointer;
 	}
 
-	summary::-webkit-details-marker { display: none; }
-	summary::after { content: ' ▾'; font-size: 12px; }
+	summary::-webkit-details-marker {
+		display: none;
+	}
+	summary::after {
+		content: ' ▾';
+		font-size: 12px;
+	}
 	&[open] summary,
 	summary:hover,
-	summary:focus-visible { background: rgba(255, 255, 255, 0.2); outline: none; }
+	summary:focus-visible {
+		background: rgba(255, 255, 255, 0.2);
+		outline: none;
+	}
 
 	> div {
 		position: absolute;
@@ -302,10 +318,6 @@ export const NavDropdown = styled.details`
 	}
 
 	@media (max-width: 1024px) {
-		summary { padding: 6px 8px; font-size: 14px; }
-	}
-
-	@media (max-width: 900px) {
 		width: 100%;
 		summary {
 			display: flex;
@@ -342,13 +354,20 @@ export const NavDropdownLink = styled.a`
 	white-space: nowrap;
 
 	&:hover,
-	&:focus-visible { background: rgba(4, 120, 87, 0.1); color: ${COLORS.primary}; outline: none; }
+	&:focus-visible {
+		background: rgba(4, 120, 87, 0.1);
+		color: ${COLORS.primary};
+		outline: none;
+	}
 
-	@media (max-width: 900px) {
+	@media (max-width: 1024px) {
 		justify-content: center;
 		color: ${COLORS.white};
 		&:hover,
-		&:focus-visible { background: rgba(255, 255, 255, 0.18); color: ${COLORS.white}; }
+		&:focus-visible {
+			background: rgba(255, 255, 255, 0.18);
+			color: ${COLORS.white};
+		}
 	}
 `;
 
@@ -371,7 +390,7 @@ export const NavDropdownAnchor = styled(HashLink)`
 		outline: none;
 	}
 
-	@media (max-width: 900px) {
+	@media (max-width: 1024px) {
 		justify-content: center;
 		color: ${COLORS.white};
 
@@ -396,9 +415,12 @@ export const NavLoginLink = styled(Link)`
 	white-space: nowrap;
 
 	&:hover,
-	&:focus-visible { background: rgba(255, 255, 255, 0.2); outline: none; }
+	&:focus-visible {
+		background: rgba(255, 255, 255, 0.2);
+		outline: none;
+	}
 
-	@media (max-width: 900px) {
+	@media (max-width: 1024px) {
 		width: 100%;
 		padding: 11px 12px;
 		box-sizing: border-box;
