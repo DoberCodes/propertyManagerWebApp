@@ -151,7 +151,16 @@ yarn cleanup:optional-groups:apply
 
 yarn cleanup:shared-properties:dry-run
 yarn cleanup:shared-properties:apply
+
+yarn migrate:tenant-data
+yarn migrate:tenant-data:apply
 ```
+
+`migrate:tenant-data` is dry-run by default and logs counts and retired field
+names only. The apply command is intentionally limited to environments where
+the operator has confirmed there are no real tenant records. It deletes legacy
+`tenantProfiles`, clears legacy unit occupants, and removes non-minimal fields
+from embedded property tenant relationships.
 
 ---
 

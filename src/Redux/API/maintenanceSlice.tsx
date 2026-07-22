@@ -16,12 +16,42 @@ import {
 	resolveTargetUserId,
 } from './accountContext';
 import { TaskFinancials } from '../../types/Task.types';
-import { MaintenanceEvent } from '../../types/MaintenanceEvent.types';
+import {
+	MaintenanceEvent,
+	MaintenanceEventRevision,
+} from '../../types/MaintenanceEvent.types';
 import { normalizeFinancialsWithTotals } from '../../utils/financialUtils';
 import { trackAnalyticsEvent } from '../../analytics/analytics';
 
 const maintenanceSlice = apiSlice.injectEndpoints({
 	endpoints: (builder) => ({
+		getMaintenanceEventRevisionsByProperty: builder.query<
+			MaintenanceEventRevision[],
+			string
+		>({
+			async queryFn(propertyId) {
+				try {
+					if (!propertyId) return { data: [] };
+					const snapshot = await getDocs(
+						query(
+							collection(db, 'maintenanceEventRevisions'),
+							where('propertyId', '==', propertyId),
+						),
+					);
+					const revisions = snapshot.docs
+						.map((revisionDoc) => docToData(revisionDoc) as MaintenanceEventRevision)
+						.sort(
+							(a, b) =>
+								new Date(b.createdAt || 0).getTime() -
+								new Date(a.createdAt || 0).getTime(),
+						);
+					return { data: revisions };
+				} catch (error: any) {
+					return { error: error.message };
+				}
+			},
+			providesTags: ['MaintenanceEvents'],
+		}),
 		// Maintenance endpoints
 		getMaintenanceHistoryByProperty: builder.query<MaintenanceEvent[], string>({
 			async queryFn(propertyId: string, { signal }) {
@@ -174,7 +204,11 @@ const maintenanceSlice = apiSlice.injectEndpoints({
 						}
 					}
 
-					return { data: records };
+					return {
+						data: records.filter(
+							(record) => record.status !== 'deleted' && !record.deletedAt,
+						),
+					};
 				} catch (error: any) {
 					return { error: error.message };
 				}
@@ -191,6 +225,7 @@ const maintenanceSlice = apiSlice.injectEndpoints({
 				completionDate: string;
 				completedBy?: string;
 				completedByName?: string;
+				performedBy?: MaintenanceEvent['performedBy'];
 				completionNotes?: string;
 				unitId?: string;
 				deviceIds?: string[];
@@ -227,6 +262,7 @@ const maintenanceSlice = apiSlice.injectEndpoints({
 				completionDate,
 				completedBy,
 				completedByName,
+				performedBy,
 				completionNotes,
 				unitId,
 				deviceIds,
@@ -271,6 +307,14 @@ const maintenanceSlice = apiSlice.injectEndpoints({
 						title,
 						description,
 						completionDate,
+						serviceDate: completionDate,
+						performedBy:
+							performedBy ||
+							(completedByName
+								? { type: 'external_provider' as const, displayName: completedByName }
+								: completedBy
+									? { type: 'user' as const, id: completedBy }
+									: undefined),
 						completedBy,
 						completedByName,
 						completionNotes,
@@ -316,14 +360,28 @@ const maintenanceSlice = apiSlice.injectEndpoints({
 			invalidatesTags: ['MaintenanceHistory', 'MaintenanceEvents'],
 		}),
 
-		deleteMaintenanceHistory: builder.mutation<void, string>({
-			async queryFn(historyId) {
+		deleteMaintenanceHistory: builder.mutation<
+			void,
+			string | { id: string; correctionReason: string }
+		>({
+			async queryFn(input) {
 				try {
+					const historyId = typeof input === 'string' ? input : input.id;
+					const correctionReason =
+						typeof input === 'string'
+							? 'Removed through the maintenance history interface.'
+							: input.correctionReason;
 					// Try new collection first, then fall back to legacy
 					const newDocRef = doc(db, 'maintenanceEvents', historyId);
 					const newSnap = await getDoc(newDocRef);
 					if (newSnap.exists()) {
-						await deleteDoc(newDocRef);
+						await callFirebaseFunction(
+							'deleteMaintenanceEvent',
+							{
+								eventId: historyId,
+								correctionReason,
+							},
+						);
 					} else {
 						await deleteDoc(doc(db, 'maintenanceHistory', historyId));
 					}
@@ -345,7 +403,14 @@ const maintenanceSlice = apiSlice.injectEndpoints({
 					const newDocRef = doc(db, 'maintenanceEvents', id);
 					const newSnap = await getDoc(newDocRef);
 					if (newSnap.exists()) {
-						await updateDoc(newDocRef, { ...updates, updatedAt: new Date().toISOString() });
+						await callFirebaseFunction(
+							'updateMaintenanceEvent',
+							{
+								eventId: id,
+								updates,
+								correctionReason: 'Corrected through the maintenance history interface.',
+							},
+						);
 					} else {
 						await updateDoc(doc(db, 'maintenanceHistory', id), {
 							...updates,
@@ -363,6 +428,7 @@ const maintenanceSlice = apiSlice.injectEndpoints({
 });
 
 export const {
+	useGetMaintenanceEventRevisionsByPropertyQuery,
 	useGetMaintenanceHistoryByPropertyQuery,
 	useLazyGetMaintenanceHistoryByPropertyQuery,
 	useAddMaintenanceHistoryMutation,

@@ -35,6 +35,22 @@ export const UnifiedMaintenanceHistory: React.FC<
 }) => {
 	const [isExpanded, setIsExpanded] = useState(false);
 	const latestRecord = records[0]; // Records are sorted by date, newest first
+	const getRecordedByLabel = (record: any): string =>
+		String(
+			record?.recordedBy?.displayName ||
+				record?.createdByName ||
+				'',
+		).trim();
+	const getPerformedByLabel = (record: any): string =>
+		String(
+			record?.performedBy?.displayName ||
+				record?.completedByName ||
+				'',
+		).trim();
+	const getCorrections = (record: any): any[] =>
+		(Array.isArray(record?.revisions) ? record.revisions : []).filter(
+			(revision: any) => revision.action === 'corrected',
+		);
 
 	const actionButtonBase: React.CSSProperties = {
 		padding: '8px 12px',
@@ -287,6 +303,16 @@ export const UnifiedMaintenanceHistory: React.FC<
 							<div style={cardMetaRowStyle}>
 								<span style={cardMetaPillStyle}>{formatRecordDate(record.completionDate)}</span>
 								<span style={cardMetaPillStyle}>{getCostLabel(record)}</span>
+								{getRecordedByLabel(record) && (
+									<span style={cardMetaPillStyle}>
+										Recorded by {getRecordedByLabel(record)}
+									</span>
+								)}
+								{getPerformedByLabel(record) && (
+									<span style={cardMetaPillStyle}>
+										Performed by {getPerformedByLabel(record)}
+									</span>
+								)}
 								{record.unitId && getUnitName(record.unitId) && (
 									<span style={cardMetaPillStyle}>{getUnitName(record.unitId)}</span>
 								)}
@@ -295,6 +321,20 @@ export const UnifiedMaintenanceHistory: React.FC<
 								)}
 							</div>
 							<p style={notesPreviewStyle}>{getNotesPreview(record)}</p>
+							{getCorrections(record).length > 0 && (
+								<details>
+									<summary style={{ cursor: 'pointer', fontSize: 12, fontWeight: 700, color: '#475569' }}>
+										Correction history ({getCorrections(record).length})
+									</summary>
+									<div style={{ display: 'grid', gap: 6, marginTop: 8 }}>
+										{getCorrections(record).map((revision: any) => (
+											<div key={revision.id} style={{ fontSize: 12, color: '#64748b' }}>
+												{new Date(revision.createdAt).toLocaleString()} — {revision.actor?.displayName || 'Authorized user'} changed {(revision.changedFields || []).join(', ')}{revision.reason ? `: ${revision.reason}` : ''}
+											</div>
+										))}
+									</div>
+								</details>
+							)}
 							<div style={actionRowStyle}>
 								<button
 									onClick={(e) => {

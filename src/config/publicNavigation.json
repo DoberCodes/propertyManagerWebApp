@@ -1,0 +1,101 @@
+{
+	"items": [
+		{
+			"id": "features",
+			"label": "Features",
+			"type": "page",
+			"href": "/features/",
+			"enabled": true
+		},
+		{
+			"id": "solutions",
+			"label": "Solutions",
+			"type": "group",
+			"enabled": true,
+			"children": [
+				{
+					"id": "homeowners",
+					"label": "Homeowners",
+					"type": "page",
+					"href": "/homeowners/",
+					"enabled": true
+				},
+				{
+					"id": "property-owners-managers",
+					"label": "Property Owners & Managers",
+					"type": "page",
+					"href": "/property-managers/",
+					"enabled": true
+				},
+				{
+					"id": "service-businesses",
+					"label": "Service Businesses",
+					"type": "page",
+					"href": "/service-businesses/",
+					"enabled": false
+				}
+			]
+		},
+		{
+			"id": "resources",
+			"label": "Resources",
+			"type": "group",
+			"enabled": true,
+			"children": [
+				{
+					"id": "home-maintenance-checklist",
+					"label": "Home Maintenance Checklist",
+					"type": "page",
+					"href": "/resources/home-maintenance-checklist/",
+					"enabled": true
+				},
+				{
+					"id": "seasonal-maintenance-schedule",
+					"label": "Seasonal Maintenance Schedule",
+					"type": "page",
+					"href": "/resources/seasonal-home-maintenance-schedule/",
+					"enabled": true
+				},
+				{
+					"id": "home-service-history",
+					"label": "Home Service History",
+					"type": "page",
+					"href": "/resources/home-service-history/",
+					"enabled": true
+				},
+				{
+					"id": "all-articles",
+					"label": "All Articles",
+					"type": "page",
+					"href": "/resources/",
+					"enabled": true
+				}
+			]
+		},
+		{
+			"id": "pricing",
+			"label": "Pricing",
+			"type": "page",
+			"href": "/pricing/",
+			"enabled": true
+		},
+		{
+			"id": "login",
+			"label": "Login",
+			"type": "application",
+			"href": "/login",
+			"publicHref": "/#/login",
+			"style": "login",
+			"enabled": true
+		},
+		{
+			"id": "start-free",
+			"label": "Start Free",
+			"type": "application",
+			"href": "/register",
+			"publicHref": "/#/register",
+			"style": "cta",
+			"enabled": true
+		}
+	]
+}

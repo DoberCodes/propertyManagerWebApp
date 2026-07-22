@@ -1818,13 +1818,14 @@ export const FooterContent = styled.div`
 	max-width: 1200px;
 	margin: 0 auto 40px auto;
 	display: grid;
-	grid-template-columns: 1fr minmax(420px, 560px);
+	grid-template-columns: minmax(220px, 0.8fr) minmax(620px, 2fr);
 	column-gap: 40px;
 	row-gap: 10px;
 	align-items: start;
 
 	@media (max-width: 1024px) {
 		grid-template-columns: 1fr;
+		row-gap: 24px;
 		margin-bottom: 30px;
 	}
 `;
@@ -1833,6 +1834,12 @@ export const FooterBrand = styled.div`
 	width: 80%;
 	max-width: 400px;
 	padding: 0 10px;
+
+	@media (max-width: 1024px) {
+		width: 100%;
+		max-width: 560px;
+		padding: 0;
+	}
 
 	@media (max-width: 480px) {
 		width: 100%;
@@ -1859,29 +1866,39 @@ export const FooterBrand = styled.div`
 `;
 
 export const FooterLinks = styled.div`
-	display: flex;
-	width: 80%;
-	max-width: 500px;
-	padding-top: 30px;
-	flex-wrap: wrap;
-	align-items: center;
-	gap: 10px 18px;
-	justify-content: center;
-	margin-left: auto;
+	display: grid;
+	width: 100%;
+	grid-template-columns: repeat(4, minmax(120px, 1fr));
+	gap: 28px;
+	padding-top: 4px;
 
 	@media (max-width: 1024px) {
-		max-width: none;
-		margin-left: 0;
-		justify-content: flex-start;
-		align-items: center;
-		gap: 10px 14px;
+		grid-template-columns: minmax(170px, 200px) minmax(220px, 280px);
+		column-gap: clamp(28px, 5vw, 52px);
+		row-gap: 28px;
+		justify-content: start;
+		padding-top: 0;
 	}
 
-	@media (max-width: 480px) {
-		width: 100%;
-		max-width: none;
-		padding-top: 20px;
+	@media (max-width: 640px) {
+		grid-template-columns: 1fr;
+		row-gap: 24px;
+		column-gap: 0;
 	}
+`;
+
+export const FooterGroup = styled.div`
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 11px;
+`;
+
+export const FooterGroupTitle = styled.h3`
+	margin: 0 0 3px;
+	color: ${COLORS.white};
+	font-size: 15px;
+	font-weight: 700;
 `;
 
 export const FooterLegalLinks = styled(FooterLinks)`

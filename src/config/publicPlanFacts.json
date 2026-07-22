@@ -1,0 +1,76 @@
+{
+	"plans": [
+		{
+			"id": "homeowner",
+			"name": "Free",
+			"audience": "home",
+			"priceMonthly": 0,
+			"priceYearly": 0,
+			"maxProperties": 1,
+			"maxDevices": 15,
+			"maxFiles": 10,
+			"maxStorageGb": 1,
+			"bestFor": "Best for: organizing one home's essential records",
+			"highlights": [
+				"Manual maintenance tasks",
+				"Up to 15 equipment records",
+				"Basic record gap check",
+				"Starter document storage"
+			]
+		},
+		{
+			"id": "homeowner_plus",
+			"name": "Homeowner+",
+			"audience": "home",
+			"priceMonthly": 3.99,
+			"priceYearly": 39.99,
+			"maxProperties": 1,
+			"maxDevices": 999,
+			"maxFiles": 250,
+			"maxStorageGb": 5,
+			"bestFor": "Best for: turning records into maintenance guidance",
+			"highlights": [
+				"Unlimited equipment records",
+				"Maintley Intelligence",
+				"Reminders and timelines",
+				"Advanced document storage"
+			]
+		},
+		{
+			"id": "property",
+			"name": "Property",
+			"audience": "business",
+			"priceMonthly": 8.99,
+			"priceYearly": 89,
+			"maxProperties": 7,
+			"maxDevices": 999,
+			"maxFiles": 1500,
+			"maxStorageGb": 15,
+			"bestFor": "Best for: managing several properties in one place",
+			"highlights": [
+				"Unlimited equipment records",
+				"Simple team management",
+				"Property groups",
+				"Resident maintenance requests"
+			]
+		},
+		{
+			"id": "portfolio",
+			"name": "Portfolio",
+			"audience": "business",
+			"priceMonthly": 23.99,
+			"priceYearly": 249,
+			"maxProperties": 15,
+			"maxDevices": 999,
+			"maxFiles": 5000,
+			"maxStorageGb": 25,
+			"bestFor": "Best for: coordinating a property portfolio with your team",
+			"highlights": [
+				"Team collaboration",
+				"Resident maintenance requests",
+				"Role-based access",
+				"Cross-property reporting"
+			]
+		}
+	]
+}

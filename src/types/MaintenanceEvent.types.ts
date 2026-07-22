@@ -23,6 +23,30 @@ export type MaintenanceEventSource =
 	| 'document_upload'
 	| 'contractor_entry';
 
+export interface MaintenanceEventActor {
+	userId: string;
+	displayName?: string;
+}
+
+export interface MaintenanceEventPerformer {
+	type: 'user' | 'contractor' | 'external_provider' | 'homeowner' | 'unknown';
+	id?: string;
+	displayName?: string;
+}
+
+export interface MaintenanceEventRevision {
+	id: string;
+	eventId: string;
+	accountId: string;
+	propertyId: string;
+	action: 'created' | 'corrected' | 'deleted';
+	actor: MaintenanceEventActor;
+	changedFields: string[];
+	previousValues?: Record<string, unknown>;
+	reason?: string;
+	createdAt: string;
+}
+
 export interface MaintenanceEvent {
 	id: string;
 	accountId: string;
@@ -32,6 +56,16 @@ export interface MaintenanceEvent {
 	deviceIds?: string[];
 	title: string;
 	completionDate: string;
+	serviceDate?: string;
+	recordedBy?: MaintenanceEventActor;
+	recordedAt?: string;
+	performedBy?: MaintenanceEventPerformer;
+	status?: 'active' | 'deleted';
+	updatedBy?: MaintenanceEventActor;
+	deletedAt?: string;
+	deletedBy?: MaintenanceEventActor;
+	deletionReason?: string;
+	correctionCount?: number;
 	completionNotes?: string;
 	completedBy?: string;
 	completedByName?: string;

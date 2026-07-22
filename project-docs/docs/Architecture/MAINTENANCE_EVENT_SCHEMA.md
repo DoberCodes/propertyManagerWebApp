@@ -38,6 +38,12 @@ Canonical collection:
 maintenanceEvents/{eventId}
 ```
 
+Immutable correction log:
+
+```text
+maintenanceEventRevisions/{revisionId}
+```
+
 Legacy compatibility:
 
 ```text
@@ -90,6 +96,32 @@ Maintenance Events provide the long-term historical layer connecting these recor
 
 ---
 
+# Revision Records
+
+Every canonical event creation, correction, and deletion writes a server-owned
+revision record. Revision fields are:
+
+* eventId
+* accountId
+* propertyId
+* action (`created`, `corrected`, or `deleted`)
+* actor (authenticated user ID and minimal display snapshot)
+* changedFields
+* previousValues (allowlisted non-sensitive fields only)
+* reason
+* createdAt
+
+Revisions always store changed field names. Previous values are retained only
+for allowlisted descriptive fields such as title, description, service date,
+category, performer, priority, tags, equipment IDs, and unit ID. Financials,
+attachments, and free-form data store changed-field metadata only so the audit
+trail does not become a second repository of potentially sensitive content.
+Deletion requires a correction reason and soft-deletes the event. Revision
+records and the underlying historical event survive removal from active views
+and cannot be created, changed, or deleted by clients.
+
+---
+
 # Collection
 
 ```text
@@ -121,17 +153,38 @@ Common fields:
 * title
 * description
 * completionDate
+* serviceDate
 * maintenanceCategory
 * eventType
 * eventSource
 * createdBy
 * createdByName
+* recordedBy
+* recordedAt
+* performedBy
+* correctionCount
 * createdAt
 * updatedAt
 
 `completionDate` may be stored as a date-only string such as `2026-07-10`.
 Date-only maintenance values are calendar dates and should be displayed in the
 user's local calendar without shifting through UTC conversion.
+
+`serviceDate` is the canonical date on which the work occurred.
+`completionDate` remains a compatibility alias while existing readers migrate.
+
+`recordedBy` and `recordedAt` are server-authoritative. `recordedBy` contains
+the authenticated user ID and a minimal display-name snapshot resolved by the
+server. Clients cannot supply or override these fields.
+
+`performedBy` is optional and identifies the person or provider reported to
+have performed the work. Its supported types are `user`, `contractor`,
+`external_provider`, `homeowner`, and `unknown`. This is attribution supplied
+with the record; it is not verification or certification by Maintley.
+
+`correctionCount` is maintained by the server for efficient timeline and report
+display. The immutable revision collection remains the authoritative source for
+correction details.
 * priority
 * tags
 * linkedTaskIds

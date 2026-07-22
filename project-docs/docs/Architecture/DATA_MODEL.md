@@ -169,6 +169,7 @@ Core collections include:
 * devices
 * tasks
 * maintenanceEvents
+* maintenanceEventRevisions
 * contractors
 * tenantProfiles
 * teamMembers
@@ -738,6 +739,11 @@ Typical fields:
 * contractorId
 * createdAt
 * updatedAt
+* serviceDate
+* recordedBy
+* recordedAt
+* performedBy
+* eventSource
 
 Optional fields may include:
 
@@ -748,6 +754,10 @@ Optional fields may include:
 * notes
 
 Maintenance Events should be treated as historical records rather than active workflows.
+
+Corrections and removals are function-managed. Removal is a soft deletion so
+the historical event and its immutable `maintenanceEventRevisions` audit record
+remain available for authorized support and dispute handling.
 
 ---
 
@@ -954,12 +964,14 @@ Typical fields:
 
 Optional fields may include:
 
-* moveInDate
-* moveOutDate
-* emergencyContact
-* notes
+* leaseEnd
 
 Tenant records should remain maintenance-focused.
+
+Maintley does not collect or manage tenant-screening, rental-application,
+financial, employment, credit, identification, reference, pet, vehicle, or
+background-check information. Legacy `tenantProfiles` records are read-only
+while tenant relationships are consolidated around basic property access.
 
 ---
 

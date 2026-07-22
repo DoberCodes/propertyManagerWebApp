@@ -70,6 +70,7 @@ import { PropertyDocument } from 'types/Property.types';
 import { RoleCapabilities } from 'utils/permissions';
 import { COLORS } from '../../../constants/colors';
 import { formatDisplayDate, getDisplayDateTime, parseDisplayDate } from '../../../utils/dateDisplay';
+import { useGetMaintenanceEventRevisionsByPropertyQuery } from '../../../Redux/API/maintenanceSlice';
 
 const maintenanceEventTypeLabels: Record<string, string> = {
 	task_completed: 'Task Completed',
@@ -360,6 +361,19 @@ export const MaintenanceTab = ({
 }: MaintenanceTabProps) => {
 	const feedback = useAppFeedback();
 	const navigate = useNavigate();
+	const { data: maintenanceEventRevisions = [] } =
+		useGetMaintenanceEventRevisionsByPropertyQuery(property?.id || '', {
+			skip: !property?.id,
+		});
+	const revisionsByEventId = useMemo(() => {
+		const grouped = new Map<string, any[]>();
+		maintenanceEventRevisions.forEach((revision) => {
+			const existing = grouped.get(revision.eventId) || [];
+			existing.push(revision);
+			grouped.set(revision.eventId, existing);
+		});
+		return grouped;
+	}, [maintenanceEventRevisions]);
 	const [filters, setFilters] = useState<FilterValues>({});
 	const [showAddModal, setShowAddModal] = useState(false);
 	const [showFilters, setShowFilters] = useState(false);
@@ -779,6 +793,10 @@ export const MaintenanceTab = ({
 		() => [
 			...maintenanceHistoryRecords.filter(isContinuityEvent).map((record) => ({
 				...record,
+				revisions: revisionsByEventId.get(String(record.id)) || [],
+				correctionCount: (revisionsByEventId.get(String(record.id)) || []).filter(
+					(revision: any) => revision.action === 'corrected',
+				).length,
 				completionDate: getMaintenanceEventDate(record),
 				title: getMaintenanceEventTitle(record),
 				eventType: getMaintenanceEventType(record),
@@ -808,6 +826,7 @@ export const MaintenanceTab = ({
 		],
 		[
 			maintenanceHistoryRecords,
+			revisionsByEventId,
 			property,
 			resolveCompletedByName,
 			getLinkedDeviceLabel,
@@ -1001,6 +1020,11 @@ export const MaintenanceTab = ({
 				const eventDate = row.completionDate;
 				const relative = formatRelativeTime(eventDate);
 				const notesPreview = String(row.notes || '').trim();
+				const recordedBy = String(row.recordedBy?.displayName || '').trim();
+				const performedBy = String(row.performedBy?.displayName || '').trim();
+				const corrections = (Array.isArray(row.revisions) ? row.revisions : []).filter(
+					(revision: any) => revision.action === 'corrected',
+				);
 
 				return (
 					<div style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: 280 }}>
@@ -1037,7 +1061,12 @@ export const MaintenanceTab = ({
 									? `Cost ${formatCurrency(getFinancialDisplayTotal(row.financials), row.financials?.currency || 'USD')}`
 									: 'No cost recorded',
 								row.groupId ? 'Grouped maintenance record' : 'Standalone maintenance record',
-							].map((signal, signalIndex) => (
+								recordedBy ? `Recorded by ${recordedBy}` : '',
+								performedBy ? `Performed by ${performedBy}` : '',
+								row.correctionCount
+									? `${row.correctionCount} correction${row.correctionCount === 1 ? '' : 's'}`
+									: '',
+							].filter(Boolean).map((signal, signalIndex) => (
 								<span
 									key={`${row.id || row.groupId || row.title}-signal-${signalIndex}`}
 									style={{
@@ -1063,6 +1092,20 @@ export const MaintenanceTab = ({
 							<div style={{ color: '#94a3b8', fontSize: 13, lineHeight: 1.45 }}>
 								No additional notes recorded.
 							</div>
+						)}
+						{corrections.length > 0 && (
+							<details>
+								<summary style={{ cursor: 'pointer', color: '#475569', fontSize: 12, fontWeight: 700 }}>
+									Correction history ({corrections.length})
+								</summary>
+								<div style={{ display: 'grid', gap: 5, marginTop: 7 }}>
+									{corrections.map((revision: any) => (
+										<div key={revision.id} style={{ color: '#64748b', fontSize: 12 }}>
+											{new Date(revision.createdAt).toLocaleString()} — {revision.actor?.displayName || 'Authorized user'} changed {(revision.changedFields || []).join(', ')}{revision.reason ? `: ${revision.reason}` : ''}
+										</div>
+									))}
+								</div>
+							</details>
 						)}
 					</div>
 				);

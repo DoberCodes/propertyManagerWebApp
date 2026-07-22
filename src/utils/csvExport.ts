@@ -357,6 +357,10 @@ export const MAINTENANCE_HISTORY_COLUMN_OPTIONS = {
 	completedBy: 'Completed By',
 	approvedBy: 'Approved By',
 	completionDate: 'Completion Date',
+	recordedBy: 'Recorded By',
+	recordedAt: 'Recorded At',
+	performedBy: 'Performed By',
+	correctionCount: 'Corrections',
 	estimateContractorCost: 'Est. Contractor Cost',
 	estimateMaterialsCost: 'Est. Materials Cost',
 	estimateLaborCost: 'Est. Labor Cost',
@@ -411,14 +415,12 @@ export const generateMaintenanceHistoryReport = (
 // ============= TENANT PROFILE REPORTS =============
 
 export const TENANT_PROFILE_COLUMN_OPTIONS = {
+	propertyTitle: 'Property',
 	firstName: 'First Name',
 	lastName: 'Last Name',
 	email: 'Email',
 	phone: 'Phone',
-	emergencyContact: 'Emergency Contact',
-	preferences: 'Preferences',
-	profileCompleteness: 'Profile Completeness (%)',
-	isPublic: 'Public Profile',
+	leaseEnd: 'Lease End Date',
 };
 
 export const generateTenantProfileReport = (

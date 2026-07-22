@@ -983,11 +983,16 @@ export const UnitDetailPage: React.FC = () => {
 
 	const handleDeleteMaintenanceHistoryQuick = async (record: any) => {
 		if (!record?.id) return;
-		if (!window.confirm('Delete this maintenance history record?')) {
+		if (!window.confirm('Remove this record from maintenance history? The correction will remain in the audit trail.')) {
 			return;
 		}
+		const correctionReason = window.prompt(
+			'Why is this maintenance record being removed?',
+			'Duplicate or incorrect record',
+		)?.trim();
+		if (!correctionReason) return;
 		try {
-			await deleteMaintenanceHistory(record.id).unwrap();
+			await deleteMaintenanceHistory({ id: record.id, correctionReason }).unwrap();
 			feedback.notify('Maintenance history deleted');
 		} catch (error) {
 			console.error('Failed to delete maintenance history:', error);

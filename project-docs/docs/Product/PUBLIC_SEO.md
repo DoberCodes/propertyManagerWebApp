@@ -7,6 +7,9 @@ Last reviewed: 2026-07
 Maintley's public search presence should explain the product clearly before a
 visitor signs in.
 
+For page-level keyword ownership, search intent, internal linking, metadata
+briefs, and cannibalization decisions, see `PUBLIC_SEO_ARCHITECTURE.md`.
+
 The first SEO wedge is:
 
 ```text
@@ -40,6 +43,7 @@ static public pages from `public/`:
 * `/homeowners/`
 * `/property-managers/`
 * `/pricing/`
+* `/security-and-privacy/`
 * `/legal/`
 * `/resources/`
 * `/resources/home-maintenance-checklist/`
@@ -91,17 +95,45 @@ public pricing page describes available plans.
 
 Public pages should use real Maintley screenshots when they help explain the
 product. Prefer screenshots that show the actual dashboard, timeline, equipment,
-documents, reports, or Home Health views over generic decorative imagery.
+documents, reports, or Maintley Intelligence views over generic decorative imagery.
 
 Public pages should include Open Graph and Twitter card metadata using absolute
 URLs. Use a topic-relevant Maintley screenshot for `og:image` and
 `twitter:image` when possible.
 
-All static public pages use the same primary navigation: Home, Features,
-Pricing, Browse Resources, Login, and Start free. Browse Resources is a dropdown
-containing the resource hub and individual guides, so its behavior remains
-consistent throughout the public site. Run `npm run sync:seo-nav` after changing
-the shared public navigation definition.
+The React homepage and static public pages share the data-only navigation source:
+
+```text
+src/config/publicNavigation.json
+```
+
+The enabled primary navigation contains Features, Solutions, Resources, Pricing,
+Login, and Start Free. Solutions contains Homeowners and Property Owners &
+Managers. Resources contains three featured guides plus All Articles. The future
+Service Businesses entry remains disabled and must not render, enter structured
+data, or appear in the sitemap before its launch gates pass.
+
+React controls dropdown state directly. Opening one group closes the other, and
+Escape, outside interaction, navigation, or focus leaving the menu closes the
+active dropdown. Static pages use `public/public-nav.js` for equivalent progressive
+enhancement while keeping every link usable without JavaScript.
+
+At 1024px and below, the React header uses its compact menu so tablet widths do
+not compress the desktop links. Static pages use a three-column tablet
+navigation grid, then switch to one column at 640px and below.
+
+Run `npm run sync:seo-nav` after changing the shared navigation definition.
+
+Public plan names, prices, limits, positioning, and card highlights use:
+
+```text
+src/config/publicPlanFacts.json
+```
+
+Core subscription permissions and features remain in
+`src/constants/subscriptions.ts`, which imports the shared public facts. Run
+`npm run sync:public-pricing` after changing public plan facts. SEO validation
+checks the generated pricing page against all four current plans.
 
 The public `robots.txt` should continue to reference:
 
@@ -175,18 +207,71 @@ Avoid leading with generic phrases such as:
 
 ---
 
+# Homepage Content Architecture
+
+The React homepage is a concise public-site hub. Its current order is:
+
+```text
+Hero
+Product proof
+How Maintley Works
+Who Maintley Is For
+Security and control
+Featured resources
+Compact pricing preview
+FAQ
+Final call to action
+```
+
+Product proof uses current Maintley screenshots before extended explanation.
+Screenshot images must include explicit dimensions, meaningful alternative text,
+and lazy loading when they appear below the first proof view.
+
+The Who Maintley Is For section reads enabled solution destinations from
+`src/config/publicNavigation.json`. Disabled destinations, including Service
+Businesses, must not render in the section or footer.
+
+The homepage does not repeat the feature catalog. Product proof and How Maintley
+Works provide enough capability context, while `/features/` owns detailed
+feature evaluation.
+
+Featured homepage resources use the enabled guide labels and routes from
+`src/config/publicNavigation.json` and add short page-specific descriptions.
+The visible homepage FAQ is rendered from the same data used to generate its
+FAQPage structured data.
+
+Homepage pricing reads the same `src/config/publicPlanFacts.json` facts used by
+subscriptions and the static `/pricing/` page, but presents only a short plan
+preview and links to the full comparison.
+
+The indexed `/security-and-privacy/` page provides a customer-friendly
+explanation of current account access, property permissions, record attribution,
+exports, deletion, and privacy-request routes. It complements rather than
+replaces the governing documents in `/legal/`.
+
+Long-form founder narrative, full property timelines, full feature and pricing
+matrices, contact forms without reliable server submission, and detailed install
+instructions do not belong on the homepage.
+
+---
+
 # Future Work
 
 Recommended next SEO phases:
 
-1. Expand FAQPage JSON-LD only where the visible page has stable FAQ content.
-2. Continue expanding `/resources/` with product-led guides based on Search Console
+1. Create the approved About page and move the full product-origin narrative
+   there when that content is ready.
+2. Create Contact only with a reliable server-backed submission path and abuse
+   controls.
+3. Review Search Console and backlink evidence before implementing the three
+   approved URL consolidations.
+4. Continue expanding `/resources/` with product-led guides based on Search Console
    impressions and user questions.
-3. Replace screenshot-based social previews with custom branded OG images if
+5. Replace screenshot-based social previews with custom branded OG images if
    Maintley needs more polished share cards.
-4. Submit `https://maintleyapp.com/sitemap.xml` in Google Search Console and
+6. Submit `https://maintleyapp.com/sitemap.xml` in Google Search Console and
    Bing Webmaster Tools after deploy.
-5. Consider moving public marketing routes from static HTML to first-class clean
+7. Consider moving public marketing routes from static HTML to first-class clean
    React routes if Maintley moves away from `HashRouter`.
 
 Run `npm run validate:seo` before deploying public page changes. The validator

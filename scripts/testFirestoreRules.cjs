@@ -304,6 +304,36 @@ async function seedFirestore(env) {
 			adminUserId: 'admin-record',
 			createdAt: '2026-07-01T12:00:00.000Z',
 		});
+
+		await db.doc('tenantProfiles/legacy-resident').set({
+			accountId,
+			propertyId: 'property-1',
+			userId: 'legacy-resident',
+			firstName: 'Legacy',
+			lastName: 'Resident',
+			email: 'legacy-resident@example.com',
+			creditScore: 700,
+		});
+
+		await db.doc('maintenanceEvents/server-created-event').set({
+			accountId,
+			propertyId: 'property-1',
+			title: 'Server-created event',
+			eventType: 'maintenance_recorded',
+			eventSource: 'manual_entry',
+			recordedBy: { userId: ownerUid },
+			recordedAt: '2026-07-01T12:00:00.000Z',
+		});
+
+		await db.doc('maintenanceEventRevisions/revision-existing').set({
+			accountId,
+			propertyId: 'property-1',
+			eventId: 'server-created-event',
+			action: 'created',
+			actor: { userId: ownerUid },
+			changedFields: ['title'],
+			createdAt: '2026-07-01T12:00:00.000Z',
+		});
 	});
 }
 
@@ -415,6 +445,55 @@ async function run() {
 		);
 		await assertFails(
 			ownerDb.doc(`accountMemberships/${membershipId(maintenanceUid)}`).delete(),
+		);
+
+		await assertSucceeds(ownerDb.doc('tenantProfiles/legacy-resident').get());
+		await assertFails(outsiderDb.doc('tenantProfiles/legacy-resident').get());
+		await assertFails(
+			ownerDb.doc('tenantProfiles/new-resident-profile').set({
+				accountId,
+				propertyId: 'property-1',
+				firstName: 'New',
+				lastName: 'Resident',
+				email: 'new-resident@example.com',
+			}),
+		);
+		await assertFails(
+			ownerDb.doc('tenantProfiles/legacy-resident').update({
+				creditScore: 750,
+			}),
+		);
+		await assertFails(
+			ownerDb.doc('maintenanceEvents/client-created-event').set({
+				accountId,
+				propertyId: 'property-1',
+				title: 'Client-created event',
+				eventType: 'maintenance_recorded',
+				eventSource: 'manual_entry',
+			}),
+		);
+		await assertSucceeds(
+			ownerDb.doc('maintenanceEventRevisions/revision-existing').get(),
+		);
+		await assertFails(
+			outsiderDb.doc('maintenanceEventRevisions/revision-existing').get(),
+		);
+		await assertFails(
+			ownerDb.doc('maintenanceEvents/server-created-event').update({ title: 'Forged correction' }),
+		);
+		await assertFails(ownerDb.doc('maintenanceEvents/server-created-event').delete());
+		await assertFails(
+			ownerDb.doc('maintenanceEventRevisions/client-revision').set({
+				accountId,
+				eventId: 'server-created-event',
+				action: 'corrected',
+			}),
+		);
+		await assertFails(
+			ownerDb.doc('maintenanceEventRevisions/revision-existing').update({ action: 'deleted' }),
+		);
+		await assertFails(
+			ownerDb.doc('maintenanceEventRevisions/revision-existing').delete(),
 		);
 
 		await assertFails(ownerDb.doc('admin_users/admin-record').get());

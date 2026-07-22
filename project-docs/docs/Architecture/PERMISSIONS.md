@@ -562,11 +562,29 @@ Create:
 
 Update:
 
-* Account managers
+* Authorized server processes only
 
 Delete:
 
-* Account managers
+* Authorized server processes only
+
+Canonical event corrections and deletions use callable functions that write an
+immutable revision in the same batch.
+
+---
+
+## maintenanceEventRevisions
+
+Read:
+
+* Account readers
+
+Create, update, delete:
+
+* Authorized server processes only
+
+Revisions contain correction metadata and changed field names, not copies of
+previous field values.
 
 Subscription limits are enforced separately.
 
@@ -584,11 +602,16 @@ Create:
 
 Update:
 
-* Account managers
+* Authorized server processes only
 
 Delete:
 
-* Account managers
+* Authorized server processes only
+
+Authenticated account managers initiate corrections through callable
+functions. The server validates account and property scope, writes the event
+change, and appends an immutable revision atomically. Delete requests require a
+reason and mark the event deleted without erasing its historical record.
 
 Subscription limits are enforced separately.
 
@@ -632,8 +655,11 @@ Read:
 
 Create:
 
-* Account managers
-* Authorized server processes
+* Authorized server processes only
+
+Clients must use the Maintenance Event callable functions. This ensures
+`recordedBy`, `recordedAt`, account scope, and creation timestamps are derived
+from authenticated server context and cannot be forged.
 
 Update:
 
