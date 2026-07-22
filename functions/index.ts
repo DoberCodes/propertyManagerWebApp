@@ -46,6 +46,8 @@ export { ensureFamilyAccount } from './ensureFamilyAccount';
 export {
 	createMaintenanceEvent,
 	createMaintenanceEventsBatch,
+	updateMaintenanceEvent,
+	deleteMaintenanceEvent,
 	notifyTaskCompletion,
 } from './maintenanceEvents';
 export {

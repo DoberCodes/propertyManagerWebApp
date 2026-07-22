@@ -563,13 +563,18 @@ service cloud.firestore {
       allow read: if isAuthenticated() &&
         ('accountId' in resource.data) &&
         canReadAccount(resource.data.accountId);
-      allow create: if isAuthenticated() &&
-        ('accountId' in request.resource.data) &&
-        canManageAccount(request.resource.data.accountId);
-      allow update, delete: if isAuthenticated() &&
-        ('accountId' in resource.data) &&
-        canManageAccount(resource.data.accountId);
-    }
+      // Creation is function-only so recorder attribution cannot be forged.
+      allow create: if false;
+	  // Corrections and deletions are function-only so every change produces a revision.
+	  allow update, delete: if false;
+	}
+
+	match /maintenanceEventRevisions/{revisionId} {
+	  allow read: if isAuthenticated() &&
+		('accountId' in resource.data) &&
+		canReadAccount(resource.data.accountId);
+	  allow create, update, delete: if false;
+	}
 
     match /propertyScanLatest/{propertyId} {
       allow read: if isAuthenticated() &&
@@ -776,25 +781,10 @@ service cloud.firestore {
         resource.data.tenantId == request.auth.uid ||
         resource.data.userId == request.auth.uid
       );
-      allow create: if isAuthenticated() &&
-        ('accountId' in request.resource.data) &&
-        hasActiveManagedInvitePlan(request.resource.data.accountId) &&
-        (
-          canManageAccount(request.resource.data.accountId) ||
-          (
-            profileId == request.auth.uid &&
-            ('userId' in request.resource.data) &&
-            request.resource.data.userId == request.auth.uid
-          )
-        );
-      allow update: if isAuthenticated() &&
-        ('accountId' in resource.data) &&
-        hasActiveManagedInvitePlan(resource.data.accountId) &&
-        (
-          canManageAccount(resource.data.accountId) ||
-          resource.data.tenantId == request.auth.uid ||
-          resource.data.userId == request.auth.uid
-        );
+      // Legacy profile records are read-only while resident data is consolidated
+      // around property access and maintenance requests. Broad client profile
+      // writes previously allowed rental-screening and financial fields.
+      allow create, update: if false;
       allow delete: if isAuthenticated() &&
         ('accountId' in resource.data) &&
         hasActiveManagedInvitePlan(resource.data.accountId) &&

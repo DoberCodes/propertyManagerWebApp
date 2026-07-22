@@ -309,6 +309,7 @@ Primary collections:
 * devices
 * tasks
 * maintenanceEvents
+* maintenanceEventRevisions (function-managed, append-only correction metadata)
 * maintenanceHistory
 * propertyScanLatest
 * propertyScanSnapshots

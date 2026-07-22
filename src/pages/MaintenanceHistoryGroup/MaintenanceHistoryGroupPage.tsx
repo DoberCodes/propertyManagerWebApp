@@ -176,11 +176,14 @@ export const MaintenanceHistoryGroupPage: React.FC = () => {
 			.join(', ');
 		const moreCount = Math.max(0, deletableRecords.length - 3);
 		setDeleteDialogMessage(
-			`Delete ${deletableRecords.length} maintenance history record(s): ${recordNames}${moreCount ? `, and ${moreCount} more` : ''}? This cannot be undone. Linked tasks will not be deleted.`,
+			`Remove ${deletableRecords.length} maintenance history record(s): ${recordNames}${moreCount ? `, and ${moreCount} more` : ''}? Corrections will remain in the audit trail. Linked tasks will not be deleted.`,
 		);
 		setPendingDeleteAction(() => async () => {
 			for (const record of deletableRecords) {
-				await deleteMaintenanceHistory(record.id).unwrap();
+				await deleteMaintenanceHistory({
+					id: record.id,
+					correctionReason: 'Removed as part of a maintenance history group correction.',
+				}).unwrap();
 			}
 			navigate(`/property/${property?.slug || slug}`);
 		});

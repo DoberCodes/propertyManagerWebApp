@@ -892,14 +892,19 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 			'this maintenance history record';
 		if (
 			!window.confirm(
-				`Are you sure you want to delete "${recordName}"? This cannot be undone.`,
+				`Remove "${recordName}" from maintenance history? The correction will remain in the audit trail.`,
 			)
 		) {
 			return;
 		}
+		const correctionReason = window.prompt(
+			'Why is this maintenance record being removed?',
+			'Duplicate or incorrect record',
+		)?.trim();
+		if (!correctionReason) return;
 
 		try {
-			await deleteMaintenanceHistory(historyId).unwrap();
+			await deleteMaintenanceHistory({ id: historyId, correctionReason }).unwrap();
 		} catch (error) {
 			console.error('Failed to delete maintenance history:', error);
 			feedback.notify('Failed to delete maintenance history. Please try again.');

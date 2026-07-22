@@ -20,7 +20,6 @@ import {
 	useGetPropertiesQuery,
 	useGetAllUnitsQuery,
 } from '../../Redux/API/propertySlice';
-import { useGetPublicTenantProfilesQuery } from '../../Redux/API/tenantSlice';
 import { useGetContractorsQuery } from '../../Redux/API/contractorSlice';
 import { useGetAllDevicesQuery } from '../../Redux/API/deviceSlice';
 import {
@@ -390,7 +389,9 @@ const DEFAULT_REPORT_COLUMNS: Partial<Record<ReportType, string[]>> = {
 		'propertyTitle',
 		'linkedEquipment',
 		'status',
-		'completedBy',
+		'recordedBy',
+		'performedBy',
+		'correctionCount',
 	],
 	'maintenance-costs': [
 		'propertyTitle',
@@ -450,7 +451,7 @@ const DEFAULT_REPORT_COLUMNS: Partial<Record<ReportType, string[]>> = {
 		'tasksCompleted',
 		'completionRate',
 	],
-	'tenant-profiles': ['firstName', 'lastName', 'email', 'phone', 'profileCompleteness'],
+	'tenant-profiles': ['propertyTitle', 'firstName', 'lastName', 'email', 'phone', 'leaseEnd'],
 	'property-summary': [
 		'propertyTitle',
 		'propertyType',
@@ -488,7 +489,7 @@ const EMPTY_REPORT_MESSAGES: Partial<Record<ReportType, string>> = {
 	team: 'Add team members to include them in this report.',
 	'team-workload': 'Assigned team tasks will appear here.',
 	'employee-efficiency': 'Assigned and completed team tasks will appear here.',
-	'tenant-profiles': 'Resident profiles will appear here when available.',
+	'tenant-profiles': 'Residents associated with a property will appear here.',
 	'property-summary': 'Add property records to build this summary.',
 	'portfolio-overview': 'Add multiple properties to build a portfolio overview.',
 	suites: 'Commercial suites will appear here when added to a property.',
@@ -651,9 +652,6 @@ export const ReportBuilder: React.FC = () => {
 		isLoading: maintenanceHistoryLoading,
 	} = useGetAllMaintenanceHistoryForUserQuery();
 
-	const { data: publicTenantProfiles = [], isLoading: tenantProfilesLoading } =
-		useGetPublicTenantProfilesQuery();
-
 	const { data: contractors = [], isLoading: contractorsLoading } =
 		useGetContractorsQuery();
 
@@ -711,12 +709,19 @@ export const ReportBuilder: React.FC = () => {
 	}, [allMaintenanceHistory, activeAccountId, allowedPropertyIdSet]);
 
 	const scopedTenantProfiles = useMemo(() => {
-		return filterRecordsForAccountOrProperties(
-			publicTenantProfiles,
-			activeAccountId,
-			allowedPropertyIdSet,
+		return scopedProperties.flatMap((property: any) =>
+			(property.tenants || []).map((tenant: any) => ({
+				id: tenant.id,
+				propertyId: property.id,
+				propertyTitle: property.title || property.name || '',
+				firstName: tenant.firstName || '',
+				lastName: tenant.lastName || '',
+				email: tenant.email || '',
+				phone: tenant.phone || '',
+				leaseEnd: tenant.leaseEnd || '',
+			})),
 		);
-	}, [publicTenantProfiles, activeAccountId, allowedPropertyIdSet]);
+	}, [scopedProperties]);
 
 	const scopedContractors = useMemo(() => {
 		return filterRecordsForAccountOrProperties(
@@ -1322,7 +1327,6 @@ export const ReportBuilder: React.FC = () => {
 		propertiesLoading ||
 		teamLoading ||
 		maintenanceHistoryLoading ||
-		tenantProfilesLoading ||
 		contractorsLoading;
 
 	// Get accessible reports for this user

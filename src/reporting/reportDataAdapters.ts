@@ -392,6 +392,12 @@ export const normalizeMaintenanceHistoryReportRows = (
 			.map((id: any) => deviceNameById.get(String(id)) || String(id))
 			.filter(Boolean)
 			.join('; ');
+		const recordedBy = String(
+			record.recordedBy?.displayName || record.createdByName || '',
+		).trim();
+		const performedBy = String(
+			record.performedBy?.displayName || record.completedByName || '',
+		).trim();
 		return {
 			...record,
 			propertyId,
@@ -404,6 +410,10 @@ export const normalizeMaintenanceHistoryReportRows = (
 			date: completionDate,
 			description,
 			linkedEquipment,
+			recordedBy,
+			recordedAt: cleanDateValue(record.recordedAt || record.createdAt),
+			performedBy,
+			correctionCount: Number(record.correctionCount || 0),
 			estimateContractorCost: estimate?.contractorCost,
 			estimateMaterialsCost: estimate?.materialsCost,
 			estimateLaborCost: estimate?.laborCost,

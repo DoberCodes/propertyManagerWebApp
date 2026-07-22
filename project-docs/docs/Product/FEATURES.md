@@ -278,6 +278,10 @@ Team members:
 
 Tenant functionality supports resident communication and maintenance requests.
 
+Resident information is intentionally limited to basic identity and contact
+details, an optional lease end date, property access, and maintenance-request
+participation. Maintley is not a tenant-screening or rental-application system.
+
 Current capabilities:
 
 * Add tenants.
@@ -288,6 +292,11 @@ Current capabilities:
 * Track request activity.
 
 The tenant experience remains intentionally simpler than the owner maintenance workflow.
+
+Resident information is limited to basic identity and contact details, an
+optional lease end date, property access, and maintenance requests. Maintley
+does not provide rental applications, tenant screening, credit checks,
+financial profiling, or lease-document management.
 
 ---
 

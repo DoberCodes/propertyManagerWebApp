@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.createMaintenanceEventsBatch = exports.createMaintenanceEvent = exports.notifyTaskCompletion = void 0;
+exports.deleteMaintenanceEvent = exports.updateMaintenanceEvent = exports.createMaintenanceEventsBatch = exports.createMaintenanceEvent = exports.notifyTaskCompletion = void 0;
 const admin = __importStar(require("firebase-admin"));
 const functions = __importStar(require("firebase-functions/v1"));
 const accountAuthz_1 = require("./accountAuthz");
@@ -68,6 +68,35 @@ const ALLOWED_EVENT_SOURCES = new Set([
     'contractor_entry',
 ]);
 const WRITER_ROLES = ['owner', 'admin', 'manager', 'editor', 'member'];
+const MUTABLE_EVENT_FIELDS = new Set([
+    'title',
+    'description',
+    'serviceDate',
+    'completionDate',
+    'maintenanceCategory',
+    'performedBy',
+    'attachments',
+    'priority',
+    'tags',
+    'deviceIds',
+    'unitId',
+    'financials',
+    'data',
+]);
+// Financials, attachments, and free-form data are intentionally excluded so
+// revision documents do not become a second store of potentially sensitive data.
+const REVISION_VALUE_FIELDS = new Set([
+    'title',
+    'description',
+    'serviceDate',
+    'completionDate',
+    'maintenanceCategory',
+    'performedBy',
+    'priority',
+    'tags',
+    'deviceIds',
+    'unitId',
+]);
 const toString = (value) => String(value || '').trim();
 const toNumberOrUndefined = (value) => {
     if (value === null || value === undefined || value === '')
@@ -119,6 +148,63 @@ const dedupeStringArray = (value) => {
         .filter(Boolean);
     return Array.from(new Set(normalized));
 };
+const normalizePerformer = (value) => {
+    if (!value)
+        return undefined;
+    const allowedTypes = new Set([
+        'user',
+        'contractor',
+        'external_provider',
+        'homeowner',
+        'unknown',
+    ]);
+    const type = toString(value.type) || 'unknown';
+    if (!allowedTypes.has(type)) {
+        throw new functions.https.HttpsError('invalid-argument', 'event.performedBy.type is invalid.');
+    }
+    const id = toString(value.id);
+    const displayName = toString(value.displayName);
+    if (!id && !displayName && type !== 'unknown')
+        return undefined;
+    return stripUndefinedDeep({ type, id: id || undefined, displayName: displayName || undefined });
+};
+const getRecorderSnapshot = async (uid) => {
+    const userDoc = await db.collection('users').doc(uid).get();
+    const data = userDoc.data() || {};
+    const displayName = toString(data.displayName) ||
+        [toString(data.firstName), toString(data.lastName)].filter(Boolean).join(' ');
+    return stripUndefinedDeep({ userId: uid, displayName: displayName || undefined });
+};
+const buildRevision = ({ eventId, accountId, propertyId, action, actor, changedFields, previousValues, reason, nowIso, }) => stripUndefinedDeep({
+    eventId,
+    accountId,
+    propertyId,
+    action,
+    actor,
+    changedFields: Array.from(new Set(changedFields)).sort(),
+    previousValues,
+    reason: toString(reason) || undefined,
+    createdAt: nowIso,
+});
+const normalizeEventUpdates = (updates) => {
+    const normalized = {};
+    for (const [field, value] of Object.entries(updates || {})) {
+        if (MUTABLE_EVENT_FIELDS.has(field) && value !== undefined)
+            normalized[field] = value;
+    }
+    if ('serviceDate' in normalized || 'completionDate' in normalized) {
+        const serviceDate = toString(normalized.serviceDate || normalized.completionDate);
+        normalized.serviceDate = serviceDate;
+        normalized.completionDate = serviceDate;
+    }
+    if ('performedBy' in normalized) {
+        normalized.performedBy = normalizePerformer(normalized.performedBy);
+    }
+    return stripUndefinedDeep(normalized);
+};
+const getRevisionPreviousValues = (existing, changedFields) => stripUndefinedDeep(Object.fromEntries(changedFields
+    .filter((field) => REVISION_VALUE_FIELDS.has(field))
+    .map((field) => [field, existing[field]])));
 const normalizeAttachments = (value, nowIso) => {
     if (!Array.isArray(value))
         return [];
@@ -192,7 +278,7 @@ const assertPropertyBelongsToAccount = async (propertyId, accountId, uid) => {
         throw new functions.https.HttpsError('permission-denied', 'Cannot write maintenance event for this property.');
     }
 };
-const buildEventDoc = (event, uid, accountId, nowIso) => {
+const buildEventDoc = (event, uid, accountId, nowIso, recordedBy) => {
     const deviceIds = dedupeStringArray([...(event.deviceIds || []), event.deviceId]);
     const tags = dedupeStringArray(event.tags);
     const linkedTaskIds = dedupeStringArray(event.linkedTaskIds);
@@ -200,7 +286,8 @@ const buildEventDoc = (event, uid, accountId, nowIso) => {
     const attachments = normalizeAttachments(event.attachments, nowIso);
     const eventType = toString(event.eventType);
     const eventSource = toString(event.eventSource || 'manual_entry');
-    const completionDate = toString(event.completionDate || event.timestamp || nowIso);
+    const serviceDate = toString(event.serviceDate || event.completionDate || event.timestamp || nowIso);
+    const performedBy = normalizePerformer(event.performedBy);
     const estimateBreakdown = normalizeCostBreakdown(event.financials?.estimate);
     const actualBreakdown = normalizeCostBreakdown(event.financials?.actual);
     const estimatedCost = toNumberOrUndefined(event.financials?.estimatedCost) ??
@@ -215,12 +302,17 @@ const buildEventDoc = (event, uid, accountId, nowIso) => {
         deviceIds: deviceIds.length > 0 ? deviceIds : undefined,
         title: toString(event.title),
         description: toString(event.description) || undefined,
-        completionDate,
+        serviceDate,
+        // Compatibility alias while readers migrate to serviceDate.
+        completionDate: serviceDate,
         maintenanceCategory: toString(event.maintenanceCategory) || undefined,
         eventType,
         eventSource,
         createdBy: uid,
-        createdByName: toString((event.data || {}).createdByName) || undefined,
+        recordedBy,
+        recordedAt: nowIso,
+        performedBy,
+        correctionCount: 0,
         updatedAt: nowIso,
         createdAt: nowIso,
         priority: toString(event.priority) || undefined,
@@ -301,12 +393,26 @@ const writeMaintenanceEvent = async (event, uid) => {
     const propertyId = toString(event.propertyId);
     await assertPropertyBelongsToAccount(propertyId, accountId, uid);
     const nowIso = new Date().toISOString();
+    const recordedBy = await getRecorderSnapshot(uid);
     const ref = db.collection('maintenanceEvents').doc();
-    const payload = stripUndefinedDeep(buildEventDoc(event, uid, accountId, nowIso));
-    await ref.set({
+    const payload = stripUndefinedDeep(buildEventDoc(event, uid, accountId, nowIso, recordedBy));
+    const eventDoc = {
         id: ref.id,
         ...payload,
-    });
+    };
+    const revisionRef = db.collection('maintenanceEventRevisions').doc();
+    const batch = db.batch();
+    batch.set(ref, eventDoc);
+    batch.set(revisionRef, buildRevision({
+        eventId: ref.id,
+        accountId,
+        propertyId,
+        action: 'created',
+        actor: recordedBy,
+        changedFields: Object.keys(payload),
+        nowIso,
+    }));
+    await batch.commit();
     return {
         id: ref.id,
         accountId,
@@ -354,4 +460,94 @@ exports.createMaintenanceEventsBatch = functions
         count: results.length,
         results,
     };
+});
+exports.updateMaintenanceEvent = functions
+    .region('us-central1')
+    .https.onCall(async (data, context) => {
+    const uid = assertAuthenticated(context);
+    const eventId = toString(data?.eventId);
+    if (!eventId) {
+        throw new functions.https.HttpsError('invalid-argument', 'eventId is required.');
+    }
+    const updates = normalizeEventUpdates(data?.updates || {});
+    const changedFields = Object.keys(updates);
+    if (changedFields.length === 0) {
+        throw new functions.https.HttpsError('invalid-argument', 'No supported updates were provided.');
+    }
+    const eventRef = db.collection('maintenanceEvents').doc(eventId);
+    const snapshot = await eventRef.get();
+    if (!snapshot.exists)
+        throw new functions.https.HttpsError('not-found', 'Maintenance event not found.');
+    const existing = snapshot.data() || {};
+    if (existing.deletedAt) {
+        throw new functions.https.HttpsError('failed-precondition', 'Deleted maintenance events cannot be edited.');
+    }
+    const accountId = await resolveWritableAccountId(uid, toString(existing.accountId));
+    const propertyId = toString(existing.propertyId);
+    await assertPropertyBelongsToAccount(propertyId, accountId, uid);
+    const actor = await getRecorderSnapshot(uid);
+    const nowIso = new Date().toISOString();
+    const revisionRef = db.collection('maintenanceEventRevisions').doc();
+    const batch = db.batch();
+    batch.update(eventRef, {
+        ...updates,
+        updatedAt: nowIso,
+        updatedBy: actor,
+        correctionCount: admin.firestore.FieldValue.increment(1),
+    });
+    batch.set(revisionRef, buildRevision({
+        eventId,
+        accountId,
+        propertyId,
+        action: 'corrected',
+        actor,
+        changedFields,
+        previousValues: getRevisionPreviousValues(existing, changedFields),
+        reason: data?.correctionReason,
+        nowIso,
+    }));
+    await batch.commit();
+    return { success: true, id: eventId };
+});
+exports.deleteMaintenanceEvent = functions
+    .region('us-central1')
+    .https.onCall(async (data, context) => {
+    const uid = assertAuthenticated(context);
+    const eventId = toString(data?.eventId);
+    const reason = toString(data?.correctionReason);
+    if (!eventId || !reason) {
+        throw new functions.https.HttpsError('invalid-argument', 'eventId and correctionReason are required.');
+    }
+    const eventRef = db.collection('maintenanceEvents').doc(eventId);
+    const snapshot = await eventRef.get();
+    if (!snapshot.exists)
+        throw new functions.https.HttpsError('not-found', 'Maintenance event not found.');
+    const existing = snapshot.data() || {};
+    const accountId = await resolveWritableAccountId(uid, toString(existing.accountId));
+    const propertyId = toString(existing.propertyId);
+    await assertPropertyBelongsToAccount(propertyId, accountId, uid);
+    const actor = await getRecorderSnapshot(uid);
+    const nowIso = new Date().toISOString();
+    const revisionRef = db.collection('maintenanceEventRevisions').doc();
+    const batch = db.batch();
+    batch.set(revisionRef, buildRevision({
+        eventId,
+        accountId,
+        propertyId,
+        action: 'deleted',
+        actor,
+        changedFields: ['deletedAt', 'deletedBy', 'deletionReason', 'status'],
+        reason,
+        nowIso,
+    }));
+    batch.update(eventRef, {
+        status: 'deleted',
+        deletedAt: nowIso,
+        deletedBy: actor,
+        deletionReason: reason,
+        updatedAt: nowIso,
+        updatedBy: actor,
+    });
+    await batch.commit();
+    return { success: true, id: eventId };
 });
