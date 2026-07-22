@@ -4,7 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 import LandingPageComponent from './LandingPage';
 
 describe('LandingPage public hierarchy', () => {
-	it('shows product proof and audience fit before the core feature overview', () => {
+	it('shows product proof and audience fit without repeating the feature catalog', () => {
 		render(
 			<MemoryRouter>
 				<LandingPageComponent />
@@ -19,7 +19,6 @@ describe('LandingPage public hierarchy', () => {
 			'ProductProof',
 			'HowItWorks',
 			'Solutions',
-			'Features',
 			'Security',
 			'Pricing',
 		]);
@@ -30,10 +29,29 @@ describe('LandingPage public hierarchy', () => {
 		).toBeInTheDocument();
 		expect(
 			document.querySelectorAll('img[src^="/screenshots/maintley"]'),
-		).toHaveLength(4);
+		).toHaveLength(2);
+		expect(
+			screen.getByRole('img', {
+				name:
+					'Maintley Maintenance History tab showing completed work and record details',
+			}),
+		).toHaveAttribute('src', '/screenshots/desktop_taskhistory.png');
+		expect(
+			screen.getByRole('img', {
+				name:
+					'Maintley Intelligence property scan results showing explainable maintenance findings',
+			}),
+		).toHaveAttribute('src', '/screenshots/desktop_quickscan2.png');
 		expect(screen.getByText('For Homeowners')).toBeInTheDocument();
 		expect(screen.getByText('For Property Owners & Managers')).toBeInTheDocument();
 		expect(screen.queryByText('Service Businesses')).not.toBeInTheDocument();
+		expect(screen.queryByRole('heading', { name: 'Core Features' })).not.toBeInTheDocument();
+		expect(
+			screen.getByRole('img', {
+				name:
+					'Illustrated home connected to maintenance, document, schedule, and warranty records',
+			}),
+		).toHaveAttribute('src', '/screenshots/maintleyHomeHeroV2.webp');
 	});
 
 	it('keeps pricing compact while preserving every current public plan', () => {

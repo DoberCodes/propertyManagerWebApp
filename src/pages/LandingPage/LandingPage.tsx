@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { LandingNavbar } from 'Components/Library/LandingNavbar';
 import SEO from 'Components/SEO/SEO';
 import HeroSection from './components/Hero';
-import FeaturesSectionComponent from './components/FeaturesSection';
 import {
 	HowItWorksSection,
 	PricingPreviewSection,
@@ -63,7 +62,6 @@ const LandingPageComponent = () => {
 				<ProductProofSection />
 				<HowItWorksSection />
 				<SolutionsSection />
-				<FeaturesSectionComponent />
 				<SecuritySection />
 				<PricingPreviewSection />
 

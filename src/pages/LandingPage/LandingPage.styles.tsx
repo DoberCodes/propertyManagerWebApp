@@ -1825,6 +1825,7 @@ export const FooterContent = styled.div`
 
 	@media (max-width: 1024px) {
 		grid-template-columns: 1fr;
+		row-gap: 24px;
 		margin-bottom: 30px;
 	}
 `;
@@ -1833,6 +1834,12 @@ export const FooterBrand = styled.div`
 	width: 80%;
 	max-width: 400px;
 	padding: 0 10px;
+
+	@media (max-width: 1024px) {
+		width: 100%;
+		max-width: 560px;
+		padding: 0;
+	}
 
 	@media (max-width: 480px) {
 		width: 100%;
@@ -1861,19 +1868,22 @@ export const FooterBrand = styled.div`
 export const FooterLinks = styled.div`
 	display: grid;
 	width: 100%;
-	grid-template-columns: repeat(5, minmax(110px, 1fr));
+	grid-template-columns: repeat(4, minmax(120px, 1fr));
 	gap: 28px;
 	padding-top: 4px;
 
 	@media (max-width: 1024px) {
-		grid-template-columns: repeat(3, minmax(140px, 1fr));
-		gap: 28px 20px;
+		grid-template-columns: minmax(170px, 200px) minmax(220px, 280px);
+		column-gap: clamp(28px, 5vw, 52px);
+		row-gap: 28px;
+		justify-content: start;
+		padding-top: 0;
 	}
 
-	@media (max-width: 480px) {
-		padding-top: 20px;
-		grid-template-columns: repeat(2, minmax(120px, 1fr));
-		gap: 28px 18px;
+	@media (max-width: 640px) {
+		grid-template-columns: 1fr;
+		row-gap: 24px;
+		column-gap: 0;
 	}
 `;
 
