@@ -55,6 +55,8 @@ const BUMP_ORDER = {
 };
 
 const SEMVER_PATTERN = /^v?\d+\.\d+\.\d+$/;
+const RELEASE_PREP_SUBJECT_PATTERN =
+    /^(?:release:\s*prepare\s+v|release\s+v)(\d+\.\d+\.\d+)(?:\s+\(#\d+\))?$/i;
 
 const parseArgs = (argv) => {
 	const options = {
@@ -214,6 +216,51 @@ const bumpVersion = (currentVersion, bump) => {
 		});
 	}
 	return formatVersion(parsed);
+};
+
+const getReleasePrepVersionFromSubject = (subject) => {
+	const match = String(subject || '').trim().match(RELEASE_PREP_SUBJECT_PATTERN);
+	return match ? match[1] : '';
+};
+
+const selectAutomaticReleaseVersion = ({
+	packageVersion,
+	previousVersion,
+	selectedBump,
+	hasEntries,
+	targetReleasePrepVersion,
+}) => {
+	const packageVersionIsAheadOfPreviousTag =
+		previousVersion && compareVersions(packageVersion, previousVersion) > 0;
+	const expectedVersionFromPreviousTag = previousVersion
+		? bumpVersion(previousVersion, selectedBump)
+		: bumpVersion(packageVersion, selectedBump);
+	const expectedVersionFromPackageVersion = bumpVersion(packageVersion, selectedBump);
+	const targetIsMatchingReleasePrep = Boolean(
+		targetReleasePrepVersion &&
+			compareVersions(targetReleasePrepVersion, packageVersion) === 0,
+	);
+	const shouldBumpPreparedPackageVersion =
+		hasEntries &&
+		selectedBump !== 'none' &&
+		packageVersionIsAheadOfPreviousTag &&
+		compareVersions(packageVersion, expectedVersionFromPreviousTag) >= 0 &&
+		!targetIsMatchingReleasePrep;
+	const selectedAutomaticVersion = shouldBumpPreparedPackageVersion
+		? expectedVersionFromPackageVersion
+		: packageVersionIsAheadOfPreviousTag &&
+			  compareVersions(packageVersion, expectedVersionFromPreviousTag) > 0
+			? packageVersion
+			: expectedVersionFromPreviousTag;
+
+	return {
+		expectedVersionFromPackageVersion,
+		expectedVersionFromPreviousTag,
+		packageVersionIsAheadOfPreviousTag,
+		selectedAutomaticVersion,
+		shouldBumpPreparedPackageVersion,
+		targetIsMatchingReleasePrep,
+	};
 };
 
 const getLatestVersionTag = () => {
@@ -873,24 +920,22 @@ const main = () => {
 	const inferredBump = inferOverallBump(entries);
 	const selectedBump = options.bump || inferredBump || 'patch';
 	const previousVersion = getVersionFromRef(previousVersionTag);
-	const packageVersionIsAheadOfPreviousTag =
-		previousVersion && compareVersions(packageVersion, previousVersion) > 0;
-	const expectedVersionFromPreviousTag = previousVersion
-		? bumpVersion(previousVersion, selectedBump)
-		: bumpVersion(packageVersion, selectedBump);
-	const expectedVersionFromPackageVersion = bumpVersion(packageVersion, selectedBump);
-	const shouldBumpPreparedPackageVersion =
-		entries.length > 0 &&
-		selectedBump !== 'none' &&
-		packageVersionIsAheadOfPreviousTag &&
-		compareVersions(packageVersion, expectedVersionFromPreviousTag) >= 0;
-	const selectedAutomaticVersion =
-		shouldBumpPreparedPackageVersion
-			? expectedVersionFromPackageVersion
-			: packageVersionIsAheadOfPreviousTag &&
-				  compareVersions(packageVersion, expectedVersionFromPreviousTag) > 0
-				? packageVersion
-				: expectedVersionFromPreviousTag;
+	const targetSubject = tryRun('git', ['log', '-1', '--format=%s', targetRef]);
+	const targetReleasePrepVersion = getReleasePrepVersionFromSubject(targetSubject);
+	const {
+		expectedVersionFromPackageVersion,
+		expectedVersionFromPreviousTag,
+		packageVersionIsAheadOfPreviousTag,
+		selectedAutomaticVersion,
+		shouldBumpPreparedPackageVersion,
+		targetIsMatchingReleasePrep,
+	} = selectAutomaticReleaseVersion({
+		packageVersion,
+		previousVersion,
+		selectedBump,
+		hasEntries: entries.length > 0,
+		targetReleasePrepVersion,
+	});
 	const version =
 		options.version || selectedAutomaticVersion;
 	if (!isSemverVersion(version)) {
@@ -924,6 +969,8 @@ const main = () => {
 		expectedVersionFromPreviousTag,
 		expectedVersionFromPackageVersion,
 		shouldBumpPreparedPackageVersion,
+		targetReleasePrepVersion: targetReleasePrepVersion || null,
+		targetIsMatchingReleasePrep,
 		bump: selectedBump,
 		inferredBump,
 		counts: {
@@ -973,9 +1020,16 @@ const main = () => {
 	}
 };
 
-try {
-	main();
-} catch (error) {
-	process.stderr.write(`Release notes generation failed: ${error.message}\n`);
-	process.exit(1);
+if (require.main === module) {
+	try {
+		main();
+	} catch (error) {
+		process.stderr.write(`Release notes generation failed: ${error.message}\n`);
+		process.exit(1);
+	}
 }
+
+module.exports = {
+	getReleasePrepVersionFromSubject,
+	selectAutomaticReleaseVersion,
+};

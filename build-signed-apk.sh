@@ -569,7 +569,8 @@ else
     -Pandroid.injected.signing.store.password="$KEYSTORE_PASSWORD" \
     -Pandroid.injected.signing.key.alias=my-key-alias \
     -Pandroid.injected.signing.key.password="$KEY_PASSWORD" \
-    --quiet; then
+    --quiet \
+    --no-problems-report; then
     cd ..
     print_error "Gradle build failed!"
     send_slack_notification "APK build failed for v$NEW_VERSION" "error"
