@@ -15,7 +15,7 @@ interface AddTenantModalProps {
 	propertyId: string;
 	mode?: 'create' | 'edit';
 	tenant?: any;
-	/** Pre-fill and lock the unit field (e.g. when opened from a unit detail page) */
+	/** @deprecated Unit assignment is no longer part of resident access. */
 	defaultUnit?: string;
 }
 
@@ -25,7 +25,6 @@ export const AddTenantModal: React.FC<AddTenantModalProps> = ({
 	propertyId,
 	mode = 'create',
 	tenant,
-	defaultUnit,
 }) => {
 	const resolveMutationErrorMessage = (
 		error: any,
@@ -59,8 +58,6 @@ export const AddTenantModal: React.FC<AddTenantModalProps> = ({
 		lastName: '',
 		email: '',
 		phone: '',
-		unit: defaultUnit || '',
-		leaseStart: '',
 		leaseEnd: '',
 	});
 
@@ -86,8 +83,6 @@ export const AddTenantModal: React.FC<AddTenantModalProps> = ({
 				lastName: tenant.lastName || '',
 				email: tenant.email || '',
 				phone: tenant.phone || '',
-				unit: tenant.unit || '',
-				leaseStart: tenant.leaseStart || '',
 				leaseEnd: tenant.leaseEnd || '',
 			});
 		} else if (mode === 'create') {
@@ -96,8 +91,6 @@ export const AddTenantModal: React.FC<AddTenantModalProps> = ({
 				lastName: '',
 				email: '',
 				phone: '',
-				unit: '',
-				leaseStart: '',
 				leaseEnd: '',
 			});
 		}
@@ -147,8 +140,6 @@ export const AddTenantModal: React.FC<AddTenantModalProps> = ({
 						lastName: formData.lastName,
 						email: formData.email.toLowerCase(),
 						phone: formData.phone,
-						unit: formData.unit,
-						leaseStart: formData.leaseStart,
 						leaseEnd: formData.leaseEnd,
 					},
 				}).unwrap();
@@ -173,8 +164,6 @@ export const AddTenantModal: React.FC<AddTenantModalProps> = ({
 				lastName: formData.lastName,
 				email: normalizedEmail,
 				phone: formData.phone,
-				unit: formData.unit,
-				leaseStart: formData.leaseStart,
 				leaseEnd: formData.leaseEnd,
 				tenantInvitationCodeId: promoCodeId,
 			}).unwrap();
@@ -186,8 +175,6 @@ export const AddTenantModal: React.FC<AddTenantModalProps> = ({
 				lastName: '',
 				email: '',
 				phone: '',
-				unit: defaultUnit || '',
-				leaseStart: '',
 				leaseEnd: '',
 			});
 			// Don't auto-close so user can copy the invitation code
@@ -360,50 +347,6 @@ export const AddTenantModal: React.FC<AddTenantModalProps> = ({
 					value={formData.phone}
 					onChange={handleChange}
 					placeholder='Enter phone number'
-				/>
-			</FormGroup>
-
-			{/* Units are temporarily hidden from the app flow.
-			<FormGroup>
-				<FormLabel>Unit</FormLabel>
-				{defaultUnit ? (
-					<FormInput
-						name='unit'
-						value={formData.unit}
-						readOnly
-						style={{ backgroundColor: '#f3f4f6', cursor: 'not-allowed' }}
-					/>
-				) : (
-					<select
-						name='unit'
-						value={formData.unit}
-						onChange={handleChange}
-						style={{
-							width: '100%',
-							padding: '8px 12px',
-							border: '1px solid #d1d5db',
-							borderRadius: '6px',
-							fontSize: '14px',
-							backgroundColor: 'white',
-						}}>
-						<option value=''>Select a unit</option>
-						{units.map((unit: any) => (
-							<option key={unit.id} value={unit.name}>
-								{unit.name}
-							</option>
-						))}
-					</select>
-				)}
-			</FormGroup>
-			*/}
-
-			<FormGroup>
-				<FormLabel>Lease Start Date</FormLabel>
-				<FormInput
-					type='date'
-					name='leaseStart'
-					value={formData.leaseStart}
-					onChange={handleChange}
 				/>
 			</FormGroup>
 

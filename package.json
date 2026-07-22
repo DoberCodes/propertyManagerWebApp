@@ -87,6 +87,8 @@
 		"cleanup:optional-groups:apply": "node scripts/cleanupOptionalGroupLinks.cjs --apply",
 		"cleanup:shared-properties:dry-run": "node scripts/cleanupSharedPropertiesData.cjs",
 		"cleanup:shared-properties:apply": "node scripts/cleanupSharedPropertiesData.cjs --apply",
+		"migrate:tenant-data": "node scripts/migrateTenantDataReduction.cjs",
+		"migrate:tenant-data:apply": "node scripts/migrateTenantDataReduction.cjs --apply --confirm-no-real-tenants",
 		"eject": "node ./node_modules/react-scripts/bin/react-scripts.js eject",
 		"predeploy": "npm run build && npm run check:asset-budgets",
 		"deploy": "gh-pages -d build",

@@ -5,7 +5,6 @@ import {
 	getDocs,
 	orderBy,
 	query,
-	setDoc,
 	updateDoc,
 	where,
 } from 'firebase/firestore';
@@ -13,10 +12,7 @@ import { apiSlice } from './apiSlice';
 import { db } from '../../config/firebase';
 import { callFirebaseFunction } from '../../config/firebaseFunctions';
 import { resolveTargetUserId } from './accountContext';
-import {
-	TenantInvitationCode,
-	TenantProfile,
-} from '../../types/TenantProfile.types';
+import { TenantInvitationCode } from '../../types/TenantProfile.types';
 import { assertCanManageTenants } from './inviteCapabilities';
 
 const mapCallableErrorMessage = (
@@ -71,7 +67,9 @@ const tenantSlice = apiSlice.injectEndpoints({
 				lastName: string;
 				email: string;
 				phone?: string;
+				/** @deprecated Retained only for compatibility with legacy callers. */
 				unit?: string;
+				/** @deprecated Retained only for compatibility with legacy callers. */
 				leaseStart?: string;
 				leaseEnd?: string;
 				tenantInvitationCodeId?: string;
@@ -97,8 +95,6 @@ const tenantSlice = apiSlice.injectEndpoints({
 						lastName: tenantData.lastName,
 						email: tenantData.email,
 						phone: tenantData.phone || '',
-						unit: tenantData.unit || '',
-						leaseStart: tenantData.leaseStart || '',
 						leaseEnd: tenantData.leaseEnd || '',
 						...(tenantData.tenantInvitationCodeId && {
 							tenantInvitationCodeId: tenantData.tenantInvitationCodeId,
@@ -112,7 +108,7 @@ const tenantSlice = apiSlice.injectEndpoints({
 					// Best-effort: sync tenant into the unit's occupants array.
 					// This is intentionally isolated — a failure here must not block
 					// the tenant save that already committed above.
-					if (tenantData.unit) {
+					if (false) {
 						try {
 							const unitsQuery = query(
 								collection(db, 'units'),
@@ -132,7 +128,7 @@ const tenantSlice = apiSlice.injectEndpoints({
 									lastName: newTenant.lastName,
 									email: newTenant.email,
 									phone: newTenant.phone,
-									leaseStart: newTenant.leaseStart,
+									leaseStart: '',
 									leaseEnd: newTenant.leaseEnd,
 								};
 
@@ -165,7 +161,9 @@ const tenantSlice = apiSlice.injectEndpoints({
 					lastName: string;
 					email: string;
 					phone: string;
+					/** @deprecated Retained only for legacy-record cleanup. */
 					unit: string;
+					/** @deprecated Retained only for legacy-record cleanup. */
 					leaseStart: string;
 					leaseEnd: string;
 					tenantInvitationCodeId: string;
@@ -434,119 +432,6 @@ const tenantSlice = apiSlice.injectEndpoints({
 			invalidatesTags: ['Properties'],
 		}),
 
-		// Tenant Profiles
-		getTenantProfile: builder.query<TenantProfile, string>({
-			async queryFn(userId) {
-				try {
-					const profileDoc = await getDoc(doc(db, 'tenantProfiles', userId));
-
-					if (!profileDoc.exists()) {
-						return { error: 'Tenant profile not found' };
-					}
-
-					const data = profileDoc.data() as TenantProfile;
-					return { data };
-				} catch (error: any) {
-					return { error: error.message };
-				}
-			},
-			providesTags: ['TenantProfiles'],
-		}),
-
-		createTenantProfile: builder.mutation<
-			TenantProfile,
-			Partial<TenantProfile>
-		>({
-			async queryFn(profileData) {
-				try {
-					if (!profileData.userId) {
-						return { error: 'User ID is required' };
-					}
-					const targetUserId = await resolveTargetUserId();
-
-					const now = new Date().toISOString();
-					const newProfile: Partial<TenantProfile> = {
-						...profileData,
-						accountId: (profileData as any).accountId || targetUserId,
-						createdAt: now,
-						updatedAt: now,
-						profileCompleteness: 0,
-					};
-
-					// Use userId as document ID for easy lookup
-					await setDoc(
-						doc(db, 'tenantProfiles', profileData.userId),
-						newProfile,
-					);
-
-					return {
-						data: { id: profileData.userId, ...newProfile } as TenantProfile,
-					};
-				} catch (error: any) {
-					return { error: error.message };
-				}
-			},
-			invalidatesTags: ['TenantProfiles'],
-		}),
-
-		updateTenantProfile: builder.mutation<
-			TenantProfile,
-			{ userId: string; updates: Partial<TenantProfile> }
-		>({
-			async queryFn({ userId, updates }) {
-				try {
-					const profileRef = doc(db, 'tenantProfiles', userId);
-					const profileSnap = await getDoc(profileRef);
-
-					if (!profileSnap.exists()) {
-						return { error: 'Tenant profile not found' };
-					}
-
-					const existingProfile = profileSnap.data() as TenantProfile;
-					const targetUserId = await resolveTargetUserId();
-					const updatedData = {
-						...updates,
-						accountId:
-							(updates as any).accountId ||
-							(existingProfile as any).accountId ||
-							targetUserId,
-						updatedAt: new Date().toISOString(),
-					};
-
-					await updateDoc(profileRef, updatedData);
-
-					const updatedProfile = {
-						id: userId,
-						...profileSnap.data(),
-						...updatedData,
-					} as TenantProfile;
-
-					return { data: updatedProfile };
-				} catch (error: any) {
-					return { error: error.message };
-				}
-			},
-			invalidatesTags: ['TenantProfiles'],
-		}),
-
-		getPublicTenantProfiles: builder.query<TenantProfile[], void>({
-			async queryFn() {
-				try {
-					const profilesRef = collection(db, 'tenantProfiles');
-					const q = query(profilesRef, where('isPublic', '==', true));
-					const snapshot = await getDocs(q);
-
-					const profiles = snapshot.docs
-						.map((doc) => doc.data() as TenantProfile)
-						.filter(Boolean) as TenantProfile[];
-
-					return { data: profiles };
-				} catch (error: any) {
-					return { error: error.message };
-				}
-			},
-			providesTags: ['TenantProfiles'],
-		}),
 	}),
 });
 
@@ -561,8 +446,4 @@ export const {
 	useLazyGetTenantInvitationCodesByEmailQuery,
 
 	useRemoveTenantMutation,
-	useGetTenantProfileQuery,
-	useCreateTenantProfileMutation,
-	useUpdateTenantProfileMutation,
-	useGetPublicTenantProfilesQuery,
 } = tenantSlice;
