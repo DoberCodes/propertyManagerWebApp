@@ -5,6 +5,7 @@ const BUNDLE_VERSION = 'v1';
 const PLAN_IDS = Object.freeze([
 	'homeowner',
 	'homeowner_plus',
+	'multi_homeowner',
 	'property',
 	'portfolio',
 	'guest',
@@ -14,6 +15,7 @@ const PLAN_IDS = Object.freeze([
 
 const PAID_PLAN_IDS = Object.freeze([
 	'homeowner_plus',
+	'multi_homeowner',
 	'property',
 	'portfolio',
 ]);
@@ -195,6 +197,11 @@ const HOMEOWNER_PLUS_CAPABILITIES = [
 	'property_knowledge.acquire',
 ];
 
+const MULTI_HOMEOWNER_CAPABILITIES = [
+	...HOMEOWNER_PLUS_CAPABILITIES,
+	'property_groups.manage',
+];
+
 const PROPERTY_CAPABILITIES = [
 	...HOMEOWNER_PLUS_CAPABILITIES,
 	'team.manage',
@@ -240,6 +247,18 @@ const PLAN_PRESETS = Object.freeze({
 			suggested_maintenance_packages: 999,
 		},
 	),
+	multi_homeowner: createPreset(
+		'multi_homeowner',
+		'base',
+		MULTI_HOMEOWNER_CAPABILITIES,
+		{
+			properties: 5,
+			devices: 999,
+			files: 250,
+			storage_gb: 5,
+			suggested_maintenance_packages: 999,
+		},
+	),
 	property: createPreset('property', 'base', PROPERTY_CAPABILITIES, {
 		properties: 7,
 		devices: 999,
@@ -276,6 +295,15 @@ const normalizePlanId = (planId, fallbackPlanId = 'homeowner') => {
 	return PLAN_ID_SET.has(fallback) ? fallback : 'homeowner';
 };
 
+const isPlanEnabled = (planId, featureFlags = DEFAULT_ENTITLEMENT_FEATURE_FLAGS) => {
+	const normalizedPlanId = normalizeRawPlanId(planId);
+	if (!PLAN_ID_SET.has(normalizedPlanId)) return false;
+	if (normalizedPlanId === 'multi_homeowner') {
+		return featureFlags && featureFlags.multiHomeownerPlan === true;
+	}
+	return true;
+};
+
 const getPlanPreset = (planId) => PLAN_PRESETS[normalizePlanId(planId)];
 
 const isSubscriptionCurrentlyEntitled = (subscription, nowMs = Date.now()) => {
@@ -298,6 +326,7 @@ const resolveBasePlan = ({
 	nowMs,
 	mode,
 	allowLegacyPlanWithoutStatus,
+	featureFlags,
 	diagnostics,
 }) => {
 	const fallback = normalizePlanId(fallbackPlanId);
@@ -309,6 +338,14 @@ const resolveBasePlan = ({
 				planId: rawPlanId,
 			}),
 		);
+	}
+	if (rawPlanId && PLAN_ID_SET.has(rawPlanId) && !isPlanEnabled(rawPlanId, featureFlags)) {
+		diagnostics.push(
+			createDiagnostic('disabled_plan', 'Disabled plan defaulted to Free access.', {
+				planId: rawPlanId,
+			}),
+		);
+		return fallback;
 	}
 
 	const usesLegacyPlanWithoutStatus = Boolean(
@@ -498,6 +535,7 @@ const resolveAccountEntitlements = (input = {}) => {
 		nowMs,
 		mode,
 		allowLegacyPlanWithoutStatus: Boolean(input.allowLegacyPlanWithoutStatus),
+		featureFlags: input.featureFlags || DEFAULT_ENTITLEMENT_FEATURE_FLAGS,
 		diagnostics,
 	});
 	let basePreset = PLAN_PRESETS[basePlanId];
@@ -677,6 +715,7 @@ module.exports = {
 	getComplimentaryTransitionIssues,
 	PLAN_PRESETS,
 	normalizePlanId,
+	isPlanEnabled,
 	getPlanPreset,
 	isSubscriptionCurrentlyEntitled,
 	resolveAccountEntitlements,

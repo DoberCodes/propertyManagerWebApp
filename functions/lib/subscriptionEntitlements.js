@@ -33,12 +33,17 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.canUsePropertyKnowledgeAcquisition = exports.getSubscriptionLimit = exports.hasSubscriptionCapability = exports.getEffectiveSubscriptionPlanId = exports.isSubscriptionCurrentlyEntitled = exports.normalizePlanId = void 0;
+exports.canUsePropertyKnowledgeAcquisition = exports.getSubscriptionLimit = exports.hasSubscriptionCapability = exports.getEffectiveSubscriptionPlanId = exports.isSubscriptionCurrentlyEntitled = exports.ENTITLEMENT_FEATURE_FLAGS = exports.normalizePlanId = void 0;
 const functions = __importStar(require("firebase-functions/v1"));
 const entitlements_1 = require("@maintley/entitlements");
 Object.defineProperty(exports, "normalizePlanId", { enumerable: true, get: function () { return entitlements_1.normalizePlanId; } });
+exports.ENTITLEMENT_FEATURE_FLAGS = Object.freeze({
+    ...entitlements_1.DEFAULT_ENTITLEMENT_FEATURE_FLAGS,
+    multiHomeownerPlan: process.env.ENABLE_MULTI_HOMEOWNER_PLAN === 'true',
+});
 const DEFAULT_DENY_DIAGNOSTIC_CODES = new Set([
     'unknown_plan',
+    'disabled_plan',
     'unknown_bundle_version',
     'unknown_capability',
     'unknown_limit',
@@ -49,6 +54,7 @@ const resolveSubscriptionEntitlements = (subscription) => {
         subscription,
         fallbackPlanId: 'homeowner',
         mode: 'compatibility',
+        featureFlags: exports.ENTITLEMENT_FEATURE_FLAGS,
     });
     for (const diagnostic of result.diagnostics) {
         if (DEFAULT_DENY_DIAGNOSTIC_CODES.has(diagnostic.code)) {
@@ -79,6 +85,7 @@ const getEffectiveSubscriptionPlanId = (subscription, fallbackPlanId = 'homeowne
         subscription,
         fallbackPlanId,
         mode: 'compatibility',
+        featureFlags: exports.ENTITLEMENT_FEATURE_FLAGS,
     }).basePlanId;
 exports.getEffectiveSubscriptionPlanId = getEffectiveSubscriptionPlanId;
 const hasSubscriptionCapability = (subscription, capabilityId) => (0, entitlements_1.hasCapability)(resolveSubscriptionEntitlements(subscription), capabilityId);

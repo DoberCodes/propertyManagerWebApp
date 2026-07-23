@@ -51,6 +51,7 @@ Current plans:
 | -------------- | -------------------------------- |
 | homeowner      | Free homeowner plan              |
 | homeowner_plus | Paid homeowner plan              |
+| multi_homeowner | Five-home homeowner plan (launch-gated) |
 | property       | Small portfolio plan             |
 | portfolio      | Advanced portfolio and team plan |
 
@@ -83,6 +84,19 @@ The package defines temporary and permanent grant, billing-transition,
 administrative-audit, and rollout-flag contracts, but no production workflow
 currently writes entitlement grants or initiates a complimentary-to-paid
 transition. All new access-program flags default to off.
+
+Clients cannot create a user with a paid base plan or rewrite authoritative
+subscription fields after signup. Firestore permits only non-billable initial
+plans and narrowly scoped pending-checkout or promo-code changes. Stripe
+Functions, webhooks, and approved admin operations remain responsible for paid
+plan, billing status, period, customer, and subscription identifiers.
+
+Multi-Homeowner is also disabled by default during its staged rollout. The web
+uses `REACT_APP_ENABLE_MULTI_HOMEOWNER_PLAN`; Functions use
+`ENABLE_MULTI_HOMEOWNER_PLAN`. When disabled, public pricing, registration,
+checkout, and admin selection omit or reject the plan. Its canonical Stripe
+prices remain server-owned and map to `multi_homeowner` only when the launch
+flag is enabled.
 
 ---
 

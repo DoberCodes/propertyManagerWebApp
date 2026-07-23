@@ -66,6 +66,11 @@ describe('permission selectors', () => {
 			).toBe(true);
 			expect(
 				selectIsHomeowner({
+					user: { currentUser: { subscription: { plan: 'multi_homeowner' } } },
+				} as any),
+			).toBe(true);
+			expect(
+				selectIsHomeowner({
 					user: { currentUser: { subscription: { plan: 'team' } } },
 				} as any),
 			).toBe(false);

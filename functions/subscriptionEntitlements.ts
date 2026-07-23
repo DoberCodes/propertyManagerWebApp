@@ -1,6 +1,7 @@
 import * as functions from 'firebase-functions/v1';
 import {
 	CapabilityId,
+	DEFAULT_ENTITLEMENT_FEATURE_FLAGS,
 	getEntitlementLimit,
 	hasCapability,
 	LimitId,
@@ -14,8 +15,14 @@ export type { SubscriptionEntitlementLike } from '@maintley/entitlements';
 
 export { normalizePlanId };
 
+export const ENTITLEMENT_FEATURE_FLAGS = Object.freeze({
+	...DEFAULT_ENTITLEMENT_FEATURE_FLAGS,
+	multiHomeownerPlan: process.env.ENABLE_MULTI_HOMEOWNER_PLAN === 'true',
+});
+
 const DEFAULT_DENY_DIAGNOSTIC_CODES = new Set([
 	'unknown_plan',
+	'disabled_plan',
 	'unknown_bundle_version',
 	'unknown_capability',
 	'unknown_limit',
@@ -29,6 +36,7 @@ const resolveSubscriptionEntitlements = (
 		subscription,
 		fallbackPlanId: 'homeowner',
 		mode: 'compatibility',
+		featureFlags: ENTITLEMENT_FEATURE_FLAGS,
 	});
 
 	for (const diagnostic of result.diagnostics) {
@@ -69,6 +77,7 @@ export const getEffectiveSubscriptionPlanId = (
 				subscription,
 				fallbackPlanId,
 				mode: 'compatibility',
+				featureFlags: ENTITLEMENT_FEATURE_FLAGS,
 		  }).basePlanId;
 
 export const hasSubscriptionCapability = (

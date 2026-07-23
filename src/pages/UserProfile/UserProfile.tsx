@@ -632,14 +632,19 @@ export const UserProfile: React.FC = () => {
 	};
 
 	const hasBlockingSubscription =
-		(['homeowner_plus', 'property', 'portfolio'].includes(
+		(['homeowner_plus', 'multi_homeowner', 'property', 'portfolio'].includes(
 			String(currentUser?.subscription?.plan || '').trim().toLowerCase(),
 		) &&
 			(currentUser?.subscription?.status === 'active' ||
 				currentUser?.subscription?.status === 'past_due')) ||
 		false;
 
-	const paidPlanIds = ['homeowner_plus', 'property', 'portfolio'];
+	const paidPlanIds = [
+		'homeowner_plus',
+		'multi_homeowner',
+		'property',
+		'portfolio',
+	];
 	const currentPlanId = getEffectiveSubscriptionPlanId(
 		currentUser?.subscription,
 		'homeowner',

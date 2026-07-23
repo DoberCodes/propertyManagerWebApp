@@ -81,6 +81,8 @@ const getPlanLabel = (planId: string): string => {
 	switch (planId) {
 		case 'homeowner_plus':
 			return 'Homeowner+';
+		case 'multi_homeowner':
+			return 'Multi-Homeowner';
 		case 'property':
 			return 'Property';
 		case 'portfolio':

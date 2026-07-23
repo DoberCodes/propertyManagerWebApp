@@ -1,6 +1,6 @@
 # ADR 0029: Homeowner Multi-Property Plan
 
-Status: Proposed
+Status: Accepted
 
 Date: 2026-07-23
 
@@ -30,13 +30,12 @@ ADR 0027 separately preserves Property and Portfolio as business subscription
 plans. A homeowner-oriented multi-property option must not rename, remove, or
 silently redefine either business plan.
 
-## Proposed decision
+## Decision
 
 ### 1. Add a distinct homeowner plan
 
 Introduce a dedicated **Multi-Homeowner** plan within the Homeowner audience.
-The working internal identifier is `multi_homeowner`; the final public name and
-identifier must be confirmed before implementation.
+Its stable internal identifier is `multi_homeowner`.
 
 The plan is intended for:
 
@@ -83,14 +82,23 @@ property memory. Maintley should prevent creation of additional properties until
 the account is within its active limit and provide a clear path to upgrade or
 archive an unneeded property.
 
-### 5. Keep pricing configuration explicit
+### 5. Keep pricing configuration explicit and launch-gated
 
-The target monthly price is approximately **$5.99**, but monthly and annual
-public pricing remain subject to confirmation. Stripe products and prices have
-been provisioned, and corresponding local, Firebase, and GitHub configuration
-names have been prepared. They must not be wired into checkout or made publicly
-available until the public name, stable identifier, prices, resource limits, and
-canonical configuration vocabulary are approved.
+The approved public prices are **$5.99 monthly** and **$59.99 annually**. The
+plan inherits Homeowner+'s 250-file and 5 GB storage limits. Separate canonical
+monthly and annual Stripe configuration names are required.
+
+The plan must remain unavailable by default behind one explicit launch flag.
+The flag controls public presentation, registration, checkout, and admin plan
+selection. Stripe remains authoritative for an actual paid subscription.
+
+### 6. Restrict business-to-homeowner self-downgrades
+
+An existing Property or Portfolio subscriber may self-downgrade to
+Multi-Homeowner only when the account is within the five-property limit and no
+active business-only team, resident, or organization relationships remain.
+Maintley must explain the blocking records and require the customer to resolve
+them or contact support. A downgrade must never delete or hide those records.
 
 ## Required implementation behavior
 
@@ -127,13 +135,15 @@ Implementation must:
 * Additional pricing choices can increase comparison complexity if the public
   presentation is not kept audience-focused.
 
-## Open decisions before acceptance
+## Resolved configuration
 
-1. Confirm the customer-facing name: **Multi-Homeowner**, **Multi-Home**, or
-   another homeowner-friendly name.
-2. Confirm the stable internal plan identifier.
-3. Confirm monthly and annual prices.
-4. Confirm file-count and storage limits; equipment remains unlimited because
-   the plan includes Homeowner+.
-5. Confirm whether an existing Property subscriber may self-downgrade to this
-   plan when no business-only records or relationships are active.
+* Customer-facing name: **Multi-Homeowner**
+* Stable plan ID: `multi_homeowner`
+* Monthly price: **$5.99**
+* Annual price: **$59.99**
+* Property limit: **5**
+* File limit: **250**
+* Storage limit: **5 GB**
+* Equipment limit: unlimited
+* Self-downgrade: permitted only after the business-only relationship and
+  resource checks in this ADR pass

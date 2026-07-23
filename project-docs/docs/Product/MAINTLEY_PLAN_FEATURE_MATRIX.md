@@ -86,6 +86,33 @@ Best for:
 
 ---
 
+## Multi-Homeowner (launch-gated)
+
+Maintain several personal or family homes without adopting business workflows.
+
+Answers:
+
+> How do I preserve and organize maintenance across the homes I care for?
+
+Best for:
+
+* Vacation and second homes
+* Family or inherited properties
+* Homeowners responsible for up to five homes
+
+Multi-Homeowner is disabled by default during staged implementation. When
+enabled, it includes every Homeowner+ capability, raises the property limit to
+five, and adds Property Groups. It retains Homeowner+'s limits of 250 files and
+5 GB of storage. It does not include resident profiles or requests, business
+teams, advanced permissions, portfolio reporting, organizations, or
+professional-contribution workflows.
+
+Approved pricing is $5.99 monthly or $59.99 annually. Public pricing,
+registration, checkout, and admin plan selection must remain hidden or rejected
+until the launch flag is enabled.
+
+---
+
 ## Property
 
 Manage a small portfolio of properties.
@@ -134,7 +161,9 @@ Best for:
 ### Notes
 
 * Property Groups are intended for multi-property workflows.
-* Homeowner plans are optimized around a single-property experience.
+* Free and Homeowner+ are optimized around a single-property experience.
+* Multi-Homeowner adds homeowner-oriented grouping for up to five properties
+  without enabling resident, team, or other business workflows.
 * Future property limits may evolve based on usage patterns.
 
 ---

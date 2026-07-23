@@ -13,6 +13,7 @@ import {
 	MaintleyEventStatus,
 	publishMaintleyEventRecord,
 } from './maintleyEventEngine';
+import { ENTITLEMENT_FEATURE_FLAGS } from './subscriptionEntitlements';
 
 if (!admin.apps.length) {
 	admin.initializeApp();
@@ -32,6 +33,12 @@ const STRIPE_PRICE_PARAMS = {
 	),
 	homeownerPlusAnnualPriceId: optionalStringParam(
 		'STRIPE_HOMEOWNER_PLUS_ANNUAL_PRICE_ID',
+	),
+	multiHomeownerMonthlyPriceId: optionalStringParam(
+		'STRIPE_MULTI_HOMEOWNER_MONTHLY_PRICE_ID',
+	),
+	multiHomeownerAnnualPriceId: optionalStringParam(
+		'STRIPE_MULTI_HOMEOWNER_ANNUAL_PRICE_ID',
 	),
 	propertyMonthlyPriceId: optionalStringParam('STRIPE_PROPERTY_MONTHLY_PRICE_ID'),
 	propertyAnnualPriceId: optionalStringParam('STRIPE_PROPERTY_ANNUAL_PRICE_ID'),
@@ -809,6 +816,12 @@ const resolveStripePriceIdForPlan = (
 		readExportedStripeConfig('property_monthly_price_id') ||
 		readExportedStripeConfig('property_price_id') ||
 		readEnv('REACT_APP_STRIPE_PROPERTY_PLAN_ID');
+	const multiHomeownerPriceId =
+		readStringParam(STRIPE_PRICE_PARAMS.multiHomeownerMonthlyPriceId) ||
+		readExportedStripeConfig('multi_homeowner_monthly_price_id');
+	const multiHomeownerAnnualPriceId =
+		readStringParam(STRIPE_PRICE_PARAMS.multiHomeownerAnnualPriceId) ||
+		readExportedStripeConfig('multi_homeowner_annual_price_id');
 	const propertyAnnualPriceId =
 		readStringParam(STRIPE_PRICE_PARAMS.propertyAnnualPriceId) ||
 		readExportedStripeConfig('property_annual_price_id') ||
@@ -826,11 +839,13 @@ const resolveStripePriceIdForPlan = (
 
 	const monthlyPriceMap: Record<string, string> = {
 		homeowner_plus: homeownerPlusPriceId,
+		multi_homeowner: multiHomeownerPriceId,
 		property: propertyPriceId,
 		portfolio: portfolioPriceId,
 	};
 	const annualPriceMap: Record<string, string> = {
 		homeowner_plus: homeownerPlusAnnualPriceId || homeownerPlusPriceId,
+		multi_homeowner: multiHomeownerAnnualPriceId || multiHomeownerPriceId,
 		property: propertyAnnualPriceId || propertyPriceId,
 		portfolio: portfolioAnnualPriceId || portfolioPriceId,
 	};
@@ -942,7 +957,12 @@ const resolveMaintleyPlanFromStripePriceId = (priceId: string): string => {
 	const normalizedPriceId = String(priceId || '').trim();
 	if (!normalizedPriceId) return '';
 
-	for (const planId of ['homeowner_plus', 'property', 'portfolio']) {
+	for (const planId of [
+		'homeowner_plus',
+		'multi_homeowner',
+		'property',
+		'portfolio',
+	]) {
 		for (const billingCycle of ['month', 'year'] as const) {
 			if (resolveStripePriceIdForPlan(planId, billingCycle) === normalizedPriceId) {
 				return planId;
@@ -1278,7 +1298,7 @@ const requireMaintleyAdmin = async (
 
 	const userData = (userDoc.data() || {}) as Record<string, unknown>;
 	const maintleyRole = normalizeMaintleyRole(userData.maintley_role);
-	if (maintleyRole !== 'admin') {
+	if (!['admin', 'owner', 'maintley_owner', 'platform_owner'].includes(maintleyRole)) {
 		throw new functions.https.HttpsError('permission-denied', 'Admin access is required.');
 	}
 
@@ -2385,6 +2405,15 @@ export const adminPortalCreateBillingCoupon = functions
 			}
 
 			const appliesToPlan = String(data?.appliesToPlan || '').trim().toLowerCase();
+			if (
+				appliesToPlan === 'multi_homeowner' &&
+				!ENTITLEMENT_FEATURE_FLAGS.multiHomeownerPlan
+			) {
+				throw new functions.https.HttpsError(
+					'failed-precondition',
+					'Multi-Homeowner is not currently available.',
+				);
+			}
 			const appliesToBillingCycle = normalizeBillingCycle(data?.appliesToBillingCycle);
 			const appliesToProductId = appliesToPlan
 				? await resolveStripeProductIdForPlan(appliesToPlan, appliesToBillingCycle)
@@ -2527,6 +2556,15 @@ export const adminPortalCreateCheckoutLinkWithCoupon = functions
 				throw new functions.https.HttpsError(
 					'invalid-argument',
 					'Select a paid plan before creating a checkout link.',
+				);
+			}
+			if (
+				planId === 'multi_homeowner' &&
+				!ENTITLEMENT_FEATURE_FLAGS.multiHomeownerPlan
+			) {
+				throw new functions.https.HttpsError(
+					'failed-precondition',
+					'Multi-Homeowner is not currently available.',
 				);
 			}
 			if (!promoCode) {
@@ -2799,9 +2837,18 @@ export const adminPortalApplyUserBillingActions = functions
 			}
 			if (
 				nextPlanId &&
-				!['homeowner', 'homeowner_plus', 'property', 'portfolio'].includes(nextPlanId)
+				!['homeowner', 'homeowner_plus', 'multi_homeowner', 'property', 'portfolio'].includes(nextPlanId)
 			) {
 				throw new functions.https.HttpsError('invalid-argument', 'Select a valid plan.');
+			}
+			if (
+				nextPlanId === 'multi_homeowner' &&
+				!ENTITLEMENT_FEATURE_FLAGS.multiHomeownerPlan
+			) {
+				throw new functions.https.HttpsError(
+					'failed-precondition',
+					'Multi-Homeowner is not currently available.',
+				);
 			}
 			if (rawTrialDays && (!Number.isFinite(trialDays) || trialDays < 1 || trialDays > 90)) {
 				throw new functions.https.HttpsError(
@@ -3260,6 +3307,16 @@ export const adminPortalManageUserSubscription = functions
 
 		if (action === 'change_plan' && !nextPlanId) {
 			throw new functions.https.HttpsError('invalid-argument', 'planId is required for change_plan.');
+		}
+		if (
+			action === 'change_plan' &&
+			nextPlanId === 'multi_homeowner' &&
+			!ENTITLEMENT_FEATURE_FLAGS.multiHomeownerPlan
+		) {
+			throw new functions.https.HttpsError(
+				'failed-precondition',
+				'Multi-Homeowner is not currently available.',
+			);
 		}
 
 		if (action === 'extend_trial' && (!Number.isFinite(trialDays) || trialDays < 1 || trialDays > 90)) {

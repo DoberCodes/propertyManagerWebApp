@@ -2,11 +2,10 @@
 
 Date: 2026-07-23
 
-Status: Approved implementation plan; Phase 1 complete; Phase 2 in progress
+Status: Approved implementation plan; Phases 1 and 2 complete; Phase 3 implemented behind a disabled launch flag
 
 Related proposed ADRs:
 
-* `project-docs/ADR/0029-homeowner-multi-property-plan.md`
 * `project-docs/ADR/0030-homeowner-plus-trial-experience.md`
 
 Related accepted ADRs:
@@ -14,6 +13,7 @@ Related accepted ADRs:
 * `project-docs/ADR/0031-homeowner-plus-trial-lifecycle-and-communication.md`
 * `project-docs/ADR/0032-centralized-entitlement-architecture.md`
 * `project-docs/ADR/0028-firebase-hosting-and-browser-routing-migration.md`
+* `project-docs/ADR/0029-homeowner-multi-property-plan.md`
 
 ## Purpose
 
@@ -27,10 +27,11 @@ This report inventories the current repository and defines a clean path for:
 6. communicating trial and promotional-access transitions predictably
 
 This report is an implementation plan, not current-behavior documentation. The
-entitlement and lifecycle architecture in ADRs 0031 and 0032 is Accepted. ADRs
-0029 and 0030 remain Proposed while their remaining commercial and trial-policy
-configuration is finalized. Documentation approval does not itself change plan,
-billing, trial, email, Firebase, or task behavior.
+entitlement and lifecycle architecture in ADRs 0031 and 0032 is Accepted. ADR
+0029 is Accepted with its commercial configuration resolved. ADR 0030 remains
+Proposed while its remaining trial-policy configuration is finalized.
+Documentation approval does not itself change plan, billing, trial, email,
+Firebase, or task behavior.
 
 No additional ADR is required for the accepted entitlement, communication,
 administrative-audit, or manual synthetic-subscription migration direction.
@@ -48,10 +49,40 @@ Phase 1 completed on 2026-07-23. The current foundation includes:
   deterministic parity fixtures
 * explicit Firestore denial of client access to authoritative grant records
 
-Phase 2 now routes the primary web and Functions feature gates through the
+Phase 2 routes the primary web and Functions feature gates through the
 shared capability and limit helpers. No internal grant issuance,
-Multi-Homeowner behavior, Homeowner+ product trial, automatic paid transition,
-or access-lifecycle delivery is enabled.
+Homeowner+ product trial, automatic paid transition, or access-lifecycle
+delivery is enabled.
+
+Phase 3 implements Multi-Homeowner behind a disabled-by-default launch
+flag. The stable plan ID is `multi_homeowner`; approved pricing is $5.99 monthly
+and $59.99 annually. The preset composes Homeowner+ with five properties and
+Property Groups while retaining Homeowner+'s 250-file and 5 GB limits. Team,
+resident, portfolio-reporting, and organization capabilities remain excluded.
+
+The implementation includes server-owned monthly and annual price mappings,
+webhook and admin mappings, public facts, registration and plan-selection
+surfaces, deployment preflight, a five-property Firestore rule mirror, and
+emulator tests. Firestore also rejects client-created paid subscriptions and
+client changes to authoritative subscription fields while preserving the
+pending-checkout recovery fields. Both modern plan-and-cycle checkout and the measured legacy
+price-only path reject the plan while the flag is disabled. A Property or
+Portfolio self-downgrade is blocked when the account exceeds five properties or
+still has business-only team or resident records; the check does not mutate
+those records.
+
+The separate `maintley_role` platform-employment field is server-managed. Its
+`owner` value means Maintley's owner and is not a customer property or account
+ownership role; it remains authorized for trusted admin operations.
+
+Validation completed with the flag disabled and with targeted plan-surface
+tests enabled: 61 web test suites (426 passing tests and one todo), production
+web build, Functions TypeScript build, entitlement-boundary validation,
+Firestore emulator rules, public SEO/pricing validation, and asset budgets.
+Before launch, the remaining operational gate is a Stripe test-mode purchase,
+webhook, renewal, cancellation, restoration, and downgrade exercise using the
+deployed environment and canonical price secrets. Static public pricing must be
+regenerated with `npm run sync:public-pricing` in the same flag-enabled release.
 
 ### Phase 2 direct-check inventory
 

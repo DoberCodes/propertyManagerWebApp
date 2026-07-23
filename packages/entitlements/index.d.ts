@@ -1,13 +1,18 @@
 export type PlanId =
 	| 'homeowner'
 	| 'homeowner_plus'
+	| 'multi_homeowner'
 	| 'property'
 	| 'portfolio'
 	| 'guest'
 	| 'team'
 	| 'tenant';
 
-export type PaidPlanId = 'homeowner_plus' | 'property' | 'portfolio';
+export type PaidPlanId =
+	| 'homeowner_plus'
+	| 'multi_homeowner'
+	| 'property'
+	| 'portfolio';
 
 export type CapabilityId =
 	| 'properties.create'
@@ -181,6 +186,7 @@ export type ComplimentaryTransitionIssue =
 
 export type EntitlementDiagnosticCode =
 	| 'unknown_plan'
+	| 'disabled_plan'
 	| 'pending_checkout_ignored'
 	| 'unconfirmed_paid_subscription'
 	| 'legacy_paid_access'
@@ -213,6 +219,7 @@ export interface ResolveAccountEntitlementsInput {
 	nowMs?: number;
 	mode?: 'compatibility' | 'strict';
 	allowLegacyPlanWithoutStatus?: boolean;
+	featureFlags?: Partial<EntitlementFeatureFlags>;
 }
 
 export interface ResolvedAccountEntitlements {
@@ -278,6 +285,10 @@ export function normalizePlanId(
 	planId?: unknown,
 	fallbackPlanId?: PlanId | string,
 ): PlanId;
+export function isPlanEnabled(
+	planId?: unknown,
+	featureFlags?: Partial<EntitlementFeatureFlags>,
+): boolean;
 export function getPlanPreset(planId?: unknown): PlanPreset;
 export function isSubscriptionCurrentlyEntitled(
 	subscription?: SubscriptionEntitlementLike | null,

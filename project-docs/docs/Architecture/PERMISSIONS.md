@@ -186,6 +186,13 @@ Never the UI.
 
 The `/admin` route is an app-admin workflow and is separate from normal Maintley user authentication.
 
+`maintley_role` is a platform-employment authority field. The `owner` value
+means owner of Maintley itself; it never means homeowner, property owner,
+landlord, family-account owner, or customer account owner. Customer ownership
+continues to use account membership and `isAccountOwner` fields. Clients cannot
+create or modify `maintley_role`; only trusted server or administrative
+operations may assign it.
+
 Rules:
 
 * Standard user login should not grant access to admin inbox workflows.

@@ -16,6 +16,9 @@ const maintenanceLeadUid = 'maintenance-lead-user';
 const maintenanceUid = 'maintenance-user';
 const inactiveLeadUid = 'inactive-maintenance-lead-user';
 const outsiderUid = 'outsider-user';
+const multiHomeownerAccountId = 'multi-homeowner-account';
+const multiHomeownerUid = multiHomeownerAccountId;
+const maliciousNewUserUid = 'malicious-new-user';
 
 const membershipId = (uid) => `${accountId}_${uid}`;
 
@@ -86,6 +89,8 @@ async function seedFirestore(env) {
 			subscription: {
 				status: 'active',
 				plan: 'portfolio',
+				pendingCheckoutPlan: 'homeowner_plus',
+				pendingCheckoutStartedAt: 1,
 			},
 		});
 
@@ -124,6 +129,14 @@ async function seedFirestore(env) {
 			isAccountOwner: true,
 		});
 
+		await db.doc(`users/${multiHomeownerUid}`).set({
+			id: multiHomeownerUid,
+			accountId: multiHomeownerAccountId,
+			role: 'admin',
+			isAccountOwner: true,
+			subscription: { status: 'active', plan: 'multi_homeowner' },
+		});
+
 		await db.doc(`accountMemberships/${membershipId(ownerUid)}`).set({
 			accountId,
 			userId: ownerUid,
@@ -158,10 +171,26 @@ async function seedFirestore(env) {
 			status: 'inactive',
 		});
 
+		await db
+			.doc(`accountMemberships/${multiHomeownerAccountId}_${multiHomeownerUid}`)
+			.set({
+				accountId: multiHomeownerAccountId,
+				userId: multiHomeownerUid,
+				roles: ['account_owner', 'admin', 'member'],
+				status: 'active',
+			});
+
 		await db.doc('familyAccounts/account-owner').set({
 			ownerId: ownerUid,
 			memberIds: [maintenanceLeadUid, maintenanceUid, inactiveLeadUid],
 			propertyCount: 1,
+			deviceCount: 0,
+		});
+
+		await db.doc(`familyAccounts/${multiHomeownerAccountId}`).set({
+			ownerId: multiHomeownerUid,
+			memberIds: [],
+			propertyCount: 4,
 			deviceCount: 0,
 		});
 
@@ -369,6 +398,86 @@ async function run() {
 		const maintenanceDb = authedDb(env, maintenanceUid);
 		const inactiveLeadDb = authedDb(env, inactiveLeadUid);
 		const outsiderDb = authedDb(env, outsiderUid);
+		const multiHomeownerDb = authedDb(env, multiHomeownerUid);
+		const maliciousNewUserDb = authedDb(env, maliciousNewUserUid);
+
+		await assertFails(
+			multiHomeownerDb.doc(`users/${multiHomeownerUid}`).update({
+				subscription: { status: 'active', plan: 'portfolio' },
+			}),
+		);
+		await assertFails(
+			multiHomeownerDb.doc(`users/${multiHomeownerUid}`).update({
+				maintley_role: 'owner',
+			}),
+		);
+		await assertFails(
+			maliciousNewUserDb.doc(`users/${maliciousNewUserUid}`).set({
+				id: maliciousNewUserUid,
+				subscription: { status: 'active', plan: 'portfolio' },
+			}),
+		);
+		await assertFails(
+			maliciousNewUserDb.doc(`users/${maliciousNewUserUid}`).set({
+				id: maliciousNewUserUid,
+				maintley_role: 'owner',
+				subscription: { status: 'active', plan: 'homeowner' },
+			}),
+		);
+		await assertSucceeds(
+			ownerDb.doc(`users/${ownerUid}`).update({
+				subscription: { status: 'active', plan: 'portfolio' },
+			}),
+		);
+
+		const fifthPropertyBatch = multiHomeownerDb.batch();
+		fifthPropertyBatch.set(
+			multiHomeownerDb.doc('properties/multi-homeowner-property-5'),
+			{
+				accountId: multiHomeownerAccountId,
+				userId: multiHomeownerUid,
+				title: 'Fifth family home',
+			},
+		);
+		fifthPropertyBatch.update(
+			multiHomeownerDb.doc(`familyAccounts/${multiHomeownerAccountId}`),
+			{ propertyCount: 5 },
+		);
+		await assertSucceeds(fifthPropertyBatch.commit());
+
+		const sixthPropertyBatch = multiHomeownerDb.batch();
+		sixthPropertyBatch.set(
+			multiHomeownerDb.doc('properties/multi-homeowner-property-6'),
+			{
+				accountId: multiHomeownerAccountId,
+				userId: multiHomeownerUid,
+				title: 'Sixth family home',
+			},
+		);
+		sixthPropertyBatch.update(
+			multiHomeownerDb.doc(`familyAccounts/${multiHomeownerAccountId}`),
+			{ propertyCount: 6 },
+		);
+		await assertFails(sixthPropertyBatch.commit());
+
+		await assertSucceeds(
+			multiHomeownerDb.doc('propertyGroups/family-homes').set({
+				accountId: multiHomeownerAccountId,
+				name: 'Family homes',
+			}),
+		);
+		await assertFails(
+			multiHomeownerDb.doc('teamMembers/multi-homeowner-team-member').set({
+				accountId: multiHomeownerAccountId,
+				name: 'Business team member',
+				role: 'admin',
+			}),
+		);
+		await assertFails(
+			multiHomeownerDb
+				.doc('properties/multi-homeowner-property-5')
+				.update({ tenants: ['resident-user'] }),
+		);
 
 		await assertSucceeds(
 			maintenanceLeadDb.doc('tasks/task-existing').get(),

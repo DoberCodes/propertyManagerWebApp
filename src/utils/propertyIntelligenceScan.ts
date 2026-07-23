@@ -35,6 +35,7 @@ export type PropertyScanSeverity = MaintleyFindingSeverity;
 export type PropertyScanPlanId =
 	| 'homeowner'
 	| 'homeowner_plus'
+	| 'multi_homeowner'
 	| 'property'
 	| 'portfolio'
 	| 'guest'

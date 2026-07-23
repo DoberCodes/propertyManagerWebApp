@@ -6,6 +6,7 @@ import {
 	PLAN_PRESETS,
 	getEntitlementLimit,
 	hasCapability,
+	isPlanEnabled,
 	getAdminAuditEventId,
 	getComplimentaryTransitionIssues,
 	resolveAccountEntitlements,
@@ -40,6 +41,7 @@ describe('centralized entitlement resolver', () => {
 		const plans = [
 			SUBSCRIPTION_PLANS.HOMEOWNER,
 			SUBSCRIPTION_PLANS.HOMEOWNER_PLUS,
+			SUBSCRIPTION_PLANS.MULTI_HOMEOWNER,
 			SUBSCRIPTION_PLANS.PROPERTY,
 			SUBSCRIPTION_PLANS.PORTFOLIO,
 			SUBSCRIPTION_PLANS.GUEST,
@@ -59,6 +61,37 @@ describe('centralized entitlement resolver', () => {
 			});
 			expect(toLegacyPermissions(preset)).toEqual(plan.permissions);
 		}
+	});
+
+	it('keeps Multi-Homeowner disabled until its launch flag is enabled', () => {
+		const subscription = activeSubscription('multi_homeowner', 'sub-multi');
+		const disabled = resolveAccountEntitlements({
+			subscription,
+			nowMs: NOW_MS,
+		});
+		const enabled = resolveAccountEntitlements({
+			subscription,
+			nowMs: NOW_MS,
+			featureFlags: { multiHomeownerPlan: true },
+		});
+
+		expect(isPlanEnabled('multi_homeowner')).toBe(false);
+		expect(isPlanEnabled('unknown-plan')).toBe(false);
+		expect(
+			isPlanEnabled('multi_homeowner', { multiHomeownerPlan: true }),
+		).toBe(true);
+		expect(disabled.basePlanId).toBe('homeowner');
+		expect(disabled.diagnostics.map(({ code }) => code)).toContain(
+			'disabled_plan',
+		);
+		expect(enabled.basePlanId).toBe('multi_homeowner');
+		expect(enabled.limits.properties).toBe(5);
+		expect(enabled.limits.files).toBe(250);
+		expect(enabled.limits.storage_gb).toBe(5);
+		expect(enabled.capabilities['property_groups.manage']).toBe(true);
+		expect(enabled.capabilities['team.manage']).toBe(false);
+		expect(enabled.capabilities['residents.manage']).toBe(false);
+		expect(enabled.capabilities['portfolio.reporting']).toBe(false);
 	});
 
 	it('provides typed default-deny capability and limit lookups', () => {

@@ -32,6 +32,7 @@ const allowedDirectPlanChecks = new Map([
 	['src/Redux/selectors/permissionSelectors.ts', 'account persona classification'],
 	['src/services/authService.ts', 'migration compatibility'],
 	['src/services/userProfileService.ts', 'subscription mirror migration compatibility'],
+	['src/entitlements/planAvailability.ts', 'disabled launch-flag boundary'],
 	['src/utils/subscriptionUtils.ts', 'approved resolver compatibility boundary'],
 ]);
 

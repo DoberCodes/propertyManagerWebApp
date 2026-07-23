@@ -14,6 +14,9 @@ import {
 	normalizePlanId,
 	resolveAccountEntitlements,
 } from '@maintley/entitlements';
+import { ENTITLEMENT_FEATURE_FLAGS } from '../entitlements/featureFlags';
+
+export { ENTITLEMENT_FEATURE_FLAGS } from '../entitlements/featureFlags';
 
 export interface SubscriptionData {
 	status: SubscriptionStatus;
@@ -49,6 +52,7 @@ const resolveSubscriptionEntitlements = (
 		fallbackPlanId: 'homeowner',
 		mode: 'compatibility',
 		allowLegacyPlanWithoutStatus: true,
+		featureFlags: ENTITLEMENT_FEATURE_FLAGS,
 	});
 
 const subscriptionHasCapability = (
@@ -77,6 +81,7 @@ export const getEffectiveSubscriptionPlanId = (
 		fallbackPlanId,
 		mode: 'compatibility',
 		allowLegacyPlanWithoutStatus: true,
+		featureFlags: ENTITLEMENT_FEATURE_FLAGS,
 	}).basePlanId;
 };
 
