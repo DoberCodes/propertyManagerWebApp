@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ensureFamilyAccount = void 0;
+exports.ensureFamilyAccount = exports.ensureFamilyAccountForUser = void 0;
 const functions = __importStar(require("firebase-functions/v1"));
 const admin = __importStar(require("firebase-admin"));
 if (!admin.apps.length) {
@@ -73,17 +73,16 @@ const serializeFirestoreValue = (value) => {
     }
     return value;
 };
-exports.ensureFamilyAccount = functions.https.onCall(async (data, context) => {
-    if (!context.auth) {
-        throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
+const ensureFamilyAccountForUser = async (uid, data = {}, knownUserData) => {
+    let userData = knownUserData;
+    if (!userData) {
+        const userRef = db.collection('users').doc(uid);
+        const userDoc = await userRef.get();
+        if (!userDoc.exists) {
+            throw new functions.https.HttpsError('not-found', 'User profile not found');
+        }
+        userData = userDoc.data() || {};
     }
-    const uid = context.auth.uid;
-    const userRef = db.collection('users').doc(uid);
-    const userDoc = await userRef.get();
-    if (!userDoc.exists) {
-        throw new functions.https.HttpsError('not-found', 'User profile not found');
-    }
-    const userData = userDoc.data() || {};
     const requestedAccountId = String(data?.accountId || '').trim();
     const accountId = requestedAccountId || String(userData.accountId || '').trim() || uid;
     const isOwner = userData.isAccountOwner === true ||
@@ -158,4 +157,11 @@ exports.ensureFamilyAccount = functions.https.onCall(async (data, context) => {
         subscription: serializeFirestoreValue(finalData.subscription),
         updatedAt: serializeFirestoreValue(finalData.updatedAt),
     };
+};
+exports.ensureFamilyAccountForUser = ensureFamilyAccountForUser;
+exports.ensureFamilyAccount = functions.https.onCall(async (data, context) => {
+    if (!context.auth) {
+        throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
+    }
+    return (0, exports.ensureFamilyAccountForUser)(context.auth.uid, data);
 });

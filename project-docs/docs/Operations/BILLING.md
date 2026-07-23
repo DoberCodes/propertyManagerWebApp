@@ -1,6 +1,6 @@
 # Billing and Stripe
 
-Last reviewed: 2026-06
+Last reviewed: 2026-07
 
 This document describes Maintley's billing architecture, subscription lifecycle, Stripe integration, and resource enforcement.
 
@@ -99,19 +99,67 @@ Users may use the free homeowner plan without creating a Stripe subscription.
 
 No Stripe customer is required until entering a paid plan flow.
 
+Free registration is complete as soon as Firebase creates the user and Firestore
+profile. Maintley should keep that authenticated profile active and open
+onboarding directly. It must not clear the new session or add a second
+authentication-loading transition before onboarding.
+
 ---
 
 ## Paid Plans
 
 Paid plans are purchased through Stripe Checkout.
 
+The embedded registration selector and the authenticated Plans page share the
+same responsive pricing-card system. Each card keeps the plan name, price,
+billing cycle, intended audience, four feature highlights, and selection action
+visible. Remaining features use progressive disclosure so users can review the
+complete plan without making the initial comparison unnecessarily tall. The
+selector also states that checkout is handled by Stripe, card details are not
+stored by Maintley, and the final total can be reviewed before payment.
+
 Expected flow:
 
 1. User selects plan.
-2. Checkout session is created.
-3. Stripe processes payment.
-4. Webhook updates subscription state.
-5. Firestore subscription records are synchronized.
+2. Maintley creates the Firebase account with the Free plan as its entitlement
+   and records the selected paid plan as pending checkout intent.
+3. The browser opens the protected `/#/checkout/start` route outside the main
+   application layout.
+4. That route requests a Stripe Checkout session and redirects the browser to
+   the returned Stripe URL.
+5. Stripe processes payment and returns the authenticated user to
+   `/#/checkout/complete`.
+6. Maintley verifies that the Checkout session belongs to the signed-in user.
+7. Firestore user and family-account subscription records are synchronized.
+8. Maintley reloads the authoritative user profile and then opens the dashboard.
+
+Checkout launch has a 30-second request timeout. A timeout or launch failure
+must replace the loading screen with actions to retry secure checkout or
+continue using the Free plan. Authenticated users with pending checkout intent
+are routed back through `/#/checkout/start`, allowing interrupted registrations
+and later logins to recover without entering onboarding or the dashboard first.
+
+Paid registration returns after the authenticated user profile, accepted legal
+documents, Free entitlement, and pending checkout intent are durable. It does
+not wait on a separate `ensureFamilyAccount` callable. The
+`createCheckoutSession` function initializes or synchronizes the family account
+and owner membership within the same server invocation before creating the
+Stripe session. This avoids an additional callable cold start while preserving
+account consistency. Free registration still completes family-account setup
+before opening onboarding because it has no checkout step to perform that work.
+
+Checkout completion runs outside the primary application layout. The dashboard
+and onboarding flow must not mount until verification and profile refresh finish.
+Checkout completion must not use a full-page reload to discover the paid plan.
+If verification is temporarily unavailable, the completion page provides retry
+and return-to-plans actions while preserving the user's account.
+
+If Stripe checkout is cancelled or checkout creation fails, Maintley clears the
+pending checkout intent and leaves the account on the Free plan. The Plans page
+shows Free as the current plan; the user does not need to select it again and
+may continue on Free or start another upgrade. Cancellation must synchronize
+the confirmed Free subscription to both the user and family-account records so
+a later profile refresh cannot restore stale pending-checkout intent.
 
 Checkout intent is not paid-plan access. If a user starts Stripe Checkout and
 backs out before Stripe confirms the subscription, Maintley may keep billing

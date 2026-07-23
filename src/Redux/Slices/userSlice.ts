@@ -70,6 +70,7 @@ export interface User {
 		canceledAt?: number;
 		stripeCustomerId?: string;
 		stripeSubscriptionId?: string;
+		promoCode?: string;
 		updatedAt?: string;
 		hasScheduledSubscription?: boolean;
 		scheduledPlan?: string;

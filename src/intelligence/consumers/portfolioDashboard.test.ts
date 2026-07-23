@@ -244,20 +244,12 @@ describe('Dashboard Intelligence consumer', () => {
 		expect(result.primarySuggestion?.relatedTaskIds).toEqual(['filter-task']);
 		expect(result.primarySuggestion?.evidenceDetails).toEqual([
 			{
-				label: 'Observation',
-				text: 'Your maintenance history shows this HVAC filter was last serviced about 9 months ago.',
-			},
-			{
-				label: 'Reminder',
-				text: 'Your recurring "Replace HVAC filter" task is scheduled for 12/01/2026 and repeats every 3 months.',
-			},
-			{
-				label: 'Recommendation',
-				text: 'Your maintenance history and recurring task currently reflect about an 11-month interval. Reviewing the next reminder date or the recorded maintenance history may help keep them aligned.',
+				label: 'Schedule mismatch',
+				text: 'This HVAC filter was last serviced about 9 months ago. The next "Replace HVAC filter" reminder is set for 12/01/2026 and repeats every 3 months, creating about an 11-month interval between the saved service and reminder. Review the reminder date or service record to correct the mismatch.',
 			},
 		]);
 		expect(result.primarySuggestion?.evidenceSummary).toBe(
-			'Your maintenance history shows this HVAC filter was last serviced about 9 months ago. Your recurring "Replace HVAC filter" task is scheduled for 12/01/2026 and repeats every 3 months. Your maintenance history and recurring task currently reflect about an 11-month interval. Reviewing the next reminder date or the recorded maintenance history may help keep them aligned.',
+			'This HVAC filter was last serviced about 9 months ago. The next "Replace HVAC filter" reminder is set for 12/01/2026 and repeats every 3 months, creating about an 11-month interval between the saved service and reminder. Review the reminder date or service record to correct the mismatch.',
 		);
 	});
 

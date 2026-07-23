@@ -47,10 +47,6 @@ jest.mock('firebase/functions', () => ({
 	httpsCallable: jest.fn(),
 }));
 
-jest.mock('./stripeService', () => ({
-	createCheckoutSession: jest.fn(),
-}));
-
 describe('Family Account Functionality', () => {
 	const mockAccountId = 'account-owner-id';
 	const mockFamilyMemberId = 'family-member-id';
@@ -62,27 +58,24 @@ describe('Family Account Functionality', () => {
 		const mockGetDocs = require('firebase/firestore').getDocs;
 		const mockGetFunctions = require('firebase/functions').getFunctions;
 		const mockHttpsCallable = require('firebase/functions').httpsCallable;
-		const mockCreateCheckoutSession =
-			require('./stripeService').createCheckoutSession;
 		mockFetchSignInMethodsForEmail.mockResolvedValue([]);
 		mockGetDocs.mockResolvedValue({ empty: true, docs: [] });
 		mockGetFunctions.mockReturnValue({ app: 'test-functions-app' });
-		mockCreateCheckoutSession.mockResolvedValue(
-			'https://checkout.stripe.com/c/pay/cs_test_default',
+		mockHttpsCallable.mockImplementation(
+			(_functions: unknown, name: string) => {
+				if (name === 'getFamilyAccountSummary') {
+					return jest.fn().mockResolvedValue({
+						data: { accountId: mockAccountId, subscription: null },
+					});
+				}
+				if (name === 'ensureFamilyAccount') {
+					return jest.fn().mockResolvedValue({
+						data: { success: true, accountId: mockAccountId },
+					});
+				}
+				return jest.fn().mockResolvedValue({ data: { success: true } });
+			},
 		);
-		mockHttpsCallable.mockImplementation((_functions: unknown, name: string) => {
-			if (name === 'getFamilyAccountSummary') {
-				return jest.fn().mockResolvedValue({
-					data: { accountId: mockAccountId, subscription: null },
-				});
-			}
-			if (name === 'ensureFamilyAccount') {
-				return jest.fn().mockResolvedValue({
-					data: { success: true, accountId: mockAccountId },
-				});
-			}
-			return jest.fn().mockResolvedValue({ data: { success: true } });
-		});
 	});
 
 	describe('addFamilyMember', () => {
@@ -264,8 +257,7 @@ describe('Family Account Functionality', () => {
 	});
 
 	describe('getUserProfile migration', () => {
-		const mockGetDocFromServer =
-			require('firebase/firestore').getDocFromServer;
+		const mockGetDocFromServer = require('firebase/firestore').getDocFromServer;
 		const mockUpdateDoc = require('firebase/firestore').updateDoc;
 		const mockSetDoc = require('firebase/firestore').setDoc;
 
@@ -352,7 +344,9 @@ describe('Family Account Functionality', () => {
 			require('firebase/auth').createUserWithEmailAndPassword.mockImplementation(
 				mockCreateUserWithEmailAndPassword,
 			);
-			require('firebase/auth').updateProfile.mockImplementation(mockUpdateProfile);
+			require('firebase/auth').updateProfile.mockImplementation(
+				mockUpdateProfile,
+			);
 		});
 
 		it('keeps paid signup on Homeowner entitlement until Stripe confirms checkout', async () => {
@@ -360,8 +354,6 @@ describe('Family Account Functionality', () => {
 			const mockSetDoc = require('firebase/firestore').setDoc;
 			const mockUpdateDoc = require('firebase/firestore').updateDoc;
 			const mockHttpsCallable = require('firebase/functions').httpsCallable;
-			const mockCreateCheckoutSession =
-				require('./stripeService').createCheckoutSession;
 			const ensureFamilyAccount = jest.fn().mockResolvedValue({
 				data: { success: true, accountId: 'new-user-id' },
 			});
@@ -378,13 +370,11 @@ describe('Family Account Functionality', () => {
 			mockUpdateProfile.mockResolvedValue(undefined);
 			mockSetDoc.mockResolvedValue(undefined);
 			mockUpdateDoc.mockResolvedValue(undefined);
-			mockCreateCheckoutSession.mockResolvedValue(
-				'https://checkout.stripe.com/c/pay/cs_test_paid',
-			);
-			mockHttpsCallable.mockImplementation((_functions: unknown, name: string) =>
-				name === 'ensureFamilyAccount'
-					? ensureFamilyAccount
-					: jest.fn().mockResolvedValue({ data: { success: true } }),
+			mockHttpsCallable.mockImplementation(
+				(_functions: unknown, name: string) =>
+					name === 'ensureFamilyAccount'
+						? ensureFamilyAccount
+						: jest.fn().mockResolvedValue({ data: { success: true } }),
 			);
 
 			const result = await signUpWithEmail(
@@ -397,8 +387,11 @@ describe('Family Account Functionality', () => {
 				'SUMMER',
 			);
 
-			expect(result.checkoutUrl).toBe(
-				'https://checkout.stripe.com/c/pay/cs_test_paid',
+			expect(result.user.subscription).toEqual(
+				expect.objectContaining({
+					plan: 'homeowner',
+					pendingCheckoutPlan: 'portfolio',
+				}),
 			);
 
 			const userProfileWrite = mockSetDoc.mock.calls.find(
@@ -415,23 +408,64 @@ describe('Family Account Functionality', () => {
 				}),
 			);
 
-			expect(ensureFamilyAccount).toHaveBeenCalledWith(
-				expect.objectContaining({
-					accountId: 'new-user-id',
-					syncSubscription: true,
-					subscription: expect.objectContaining({
-						status: SUBSCRIPTION_STATUS.ACTIVE,
-						plan: 'homeowner',
-						pendingCheckoutPlan: 'portfolio',
-					}),
-				}),
-			);
+			expect(ensureFamilyAccount).not.toHaveBeenCalled();
 
 			const paidPlanGroupWrites = mockSetDoc.mock.calls.filter(
 				([docRef]: [{ collectionName: string }]) =>
 					['propertyGroups', 'teamGroups'].includes(docRef.collectionName),
 			);
 			expect(paidPlanGroupWrites).toEqual([]);
+		});
+
+		it('finishes family account provisioning before returning a free signup', async () => {
+			const mockDoc = require('firebase/firestore').doc;
+			const mockSetDoc = require('firebase/firestore').setDoc;
+			const mockUpdateDoc = require('firebase/firestore').updateDoc;
+			const mockHttpsCallable = require('firebase/functions').httpsCallable;
+			const ensureFamilyAccount = jest.fn().mockResolvedValue({
+				data: { success: true, accountId: 'free-user-id' },
+			});
+
+			mockDoc.mockImplementation(
+				(_db: unknown, collectionName: string, id: string) => ({
+					collectionName,
+					id,
+				}),
+			);
+			mockCreateUserWithEmailAndPassword.mockResolvedValue({
+				user: { uid: 'free-user-id', email: 'free@example.com' },
+			});
+			mockUpdateProfile.mockResolvedValue(undefined);
+			mockSetDoc.mockResolvedValue(undefined);
+			mockUpdateDoc.mockResolvedValue(undefined);
+			mockHttpsCallable.mockImplementation(
+				(_functions: unknown, name: string) =>
+					name === 'ensureFamilyAccount'
+						? ensureFamilyAccount
+						: jest.fn().mockResolvedValue({ data: { success: true } }),
+			);
+
+			const result = await signUpWithEmail(
+				'free@example.com',
+				'Testing123!',
+				'Free',
+				'User',
+				USER_ROLES.ADMIN,
+				'homeowner',
+			);
+
+			expect(result.user.subscription).toEqual(
+				expect.objectContaining({
+					status: SUBSCRIPTION_STATUS.ACTIVE,
+					plan: 'homeowner',
+				}),
+			);
+			expect(ensureFamilyAccount).toHaveBeenCalledWith(
+				expect.objectContaining({
+					accountId: 'free-user-id',
+					syncSubscription: true,
+				}),
+			);
 		});
 	});
 });

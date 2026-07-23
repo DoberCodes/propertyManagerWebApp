@@ -33,6 +33,7 @@ const renderProtectedRoute = (
 			<Routes>
 				<Route path='/login' element={<div>Login Page</div>} />
 				<Route path='/paywall' element={<div>Paywall Page</div>} />
+				<Route path='/checkout/start' element={<div>Checkout Start Page</div>} />
 				<Route
 					path='/report'
 					element={
@@ -84,6 +85,26 @@ describe('ProtectedRoutes', () => {
 		renderProtectedRoute('/report', { requireSubscription: true });
 
 		expect(screen.getByText('Paywall Page')).toBeInTheDocument();
+	});
+
+	it('recovers an authenticated pending checkout before entering the app', () => {
+		mockState.user.currentUser = {
+			id: 'u1',
+			email: 'user@test.com',
+			role: 'homeowner',
+			subscription: {
+				status: 'active',
+				plan: 'homeowner',
+				currentPeriodStart: 1,
+				currentPeriodEnd: 1,
+				pendingCheckoutPlan: 'homeowner_plus',
+			},
+		};
+
+		renderProtectedRoute('/report');
+
+		expect(screen.getByText('Checkout Start Page')).toBeInTheDocument();
+		expect(screen.queryByText('Report Page')).not.toBeInTheDocument();
 	});
 
 	it('redirects users with expired subscription when expired access is not allowed', () => {

@@ -520,45 +520,50 @@ const getEvidenceSubjectLabel = (label: string): string => {
 const getSpecificEvidenceSubject = (subject: string): string =>
 	/^(this|that|the)\b/i.test(subject) ? subject : `this ${subject}`;
 
-const getScheduleReminderTaskText = (
+const capitalizeSentence = (value: string): string =>
+	value ? `${value.charAt(0).toUpperCase()}${value.slice(1)}` : value;
+
+const getScheduleMismatchEvidenceText = (
 	metadata: Record<string, unknown>,
+	specificEvidenceSubject: string,
+	elapsedText: string,
 	scheduledDateLabel: string,
 ): string => {
 	const recurrenceIntervalDays = getNumberMetadata(
 		metadata,
 		'scheduledTaskRecurrenceIntervalDays',
 	);
-	const recurrenceText = formatRecurrenceCadence(recurrenceIntervalDays);
 	const scheduledTaskTitle = String(metadata.scheduledTaskTitle || '').trim();
-
-	if (scheduledTaskTitle && scheduledDateLabel) {
-		return `Your recurring "${scheduledTaskTitle}" task is scheduled for ${scheduledDateLabel} and repeats ${recurrenceText}.`;
-	}
-
-	if (scheduledTaskTitle) {
-		return `Your recurring "${scheduledTaskTitle}" task repeats ${recurrenceText}.`;
-	}
-
-	if (scheduledDateLabel) {
-		return `Your recurring reminder is scheduled for ${scheduledDateLabel} and repeats ${recurrenceText}.`;
-	}
-
-	return `Your recurring reminder repeats ${recurrenceText}.`;
-};
-
-const getScheduleAlignmentText = (
-	metadata: Record<string, unknown>,
-): string => {
 	const scheduledDaysFromLastService = getNumberMetadata(
 		metadata,
 		'scheduledTaskDaysFromLastMaintenance',
 	);
-	if (!scheduledDaysFromLastService || scheduledDaysFromLastService <= 0) {
-		return 'Your maintenance history and recurring task may no longer line up. Reviewing the next reminder date or the recorded maintenance history may help keep them aligned.';
+	const serviceSentence = `${capitalizeSentence(specificEvidenceSubject)} was last serviced ${elapsedText} ago.`;
+	const reminderSubject = scheduledTaskTitle
+		? `The next "${scheduledTaskTitle}" reminder`
+		: 'The next recurring reminder';
+	const recurrenceText =
+		recurrenceIntervalDays && recurrenceIntervalDays > 0
+			? ` and repeats ${formatRecurrenceCadence(recurrenceIntervalDays)}`
+			: '';
+	const intervalText =
+		scheduledDaysFromLastService && scheduledDaysFromLastService > 0
+			? `, creating ${formatIntervalNoun(scheduledDaysFromLastService)} between the saved service and reminder`
+			: '';
+
+	if (scheduledDateLabel) {
+		return `${serviceSentence} ${reminderSubject} is set for ${scheduledDateLabel}${recurrenceText}${intervalText}. Review the reminder date or service record to correct the mismatch.`;
 	}
 
-	const intervalText = formatIntervalNoun(scheduledDaysFromLastService);
-	return `Your maintenance history and recurring task currently reflect ${intervalText}. Reviewing the next reminder date or the recorded maintenance history may help keep them aligned.`;
+	const reminderDescription = scheduledTaskTitle
+		? `The "${scheduledTaskTitle}" reminder`
+		: 'The linked recurring reminder';
+	const cadenceText =
+		recurrenceIntervalDays && recurrenceIntervalDays > 0
+			? ` repeats ${formatRecurrenceCadence(recurrenceIntervalDays)}`
+			: ' may no longer match that record';
+
+	return `${serviceSentence} ${reminderDescription}${cadenceText}. Review the reminder or service record to keep the schedule accurate.`;
 };
 
 const buildEvidenceDetails = (
@@ -598,19 +603,13 @@ const buildEvidenceDetails = (
 		);
 		return [
 			{
-				label: 'Observation',
-				text: `Your maintenance history shows ${specificEvidenceSubject} was last serviced ${elapsedText} ago.`,
-			},
-			{
-				label: 'Reminder',
-				text: getScheduleReminderTaskText(
+				label: 'Schedule mismatch',
+				text: getScheduleMismatchEvidenceText(
 					finding.metadata,
+					specificEvidenceSubject,
+					elapsedText,
 					scheduledDateLabel,
 				),
-			},
-			{
-				label: 'Recommendation',
-				text: getScheduleAlignmentText(finding.metadata),
 			},
 		];
 	}

@@ -13,6 +13,7 @@ export const RegistrationPage = () => {
 	const navigate = useNavigate();
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
 	const authLoading = useSelector((state: RootState) => state.user.authLoading);
+	const pendingCheckoutPlan = currentUser?.subscription?.pendingCheckoutPlan;
 
 	useEffect(() => {
 		if (!isNativeApp()) return;
@@ -25,9 +26,9 @@ export const RegistrationPage = () => {
 	if (isNativeApp()) {
 		return (
 			<LoadingState
-				loadingKey='registration'
-				title='Opening signup'
-				message='Opening secure signup in your browser.'
+				loadingKey="registration"
+				title="Opening signup"
+				message="Opening secure signup in your browser."
 				steps={[
 					'Opening secure signup...',
 					'Preparing your account setup...',
@@ -41,10 +42,18 @@ export const RegistrationPage = () => {
 		return <LoadingState />;
 	}
 
+	if (pendingCheckoutPlan) {
+		return <Navigate to="/checkout/start" replace />;
+	}
+
 	if (currentUser) {
 		return (
 			<Navigate
-				to={currentUser.role === USER_ROLES.TENANT ? '/tenant-profile' : '/dashboard'}
+				to={
+					currentUser.role === USER_ROLES.TENANT
+						? '/tenant-profile'
+						: '/dashboard'
+				}
 				replace
 			/>
 		);

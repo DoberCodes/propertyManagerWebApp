@@ -41,6 +41,7 @@ const functions = __importStar(require("firebase-functions/v1"));
 const admin = __importStar(require("firebase-admin"));
 const stripe_1 = __importDefault(require("stripe"));
 const params_1 = require("firebase-functions/params");
+const ensureFamilyAccount_1 = require("./ensureFamilyAccount");
 const STRIPE_SECRET_KEY = (0, params_1.defineSecret)('STRIPE_SECRET_KEY');
 const STRIPE_WEBHOOK_SECRET = (0, params_1.defineSecret)('STRIPE_WEBHOOK_SECRET');
 const FUNCTIONS_CONFIG_EXPORT = (0, params_1.defineJsonSecret)('FUNCTIONS_CONFIG_EXPORT');
@@ -302,6 +303,10 @@ exports.createCheckoutSession = functions
     }
     const { priceId: requestedPriceId, planId, billingCycle, userId, email, successUrl, cancelUrl, promoCode: requestedPromoCode, } = data;
     const normalizedPlanId = String(planId || '').trim().toLowerCase();
+    const authenticatedUserId = context.auth.uid;
+    if (String(userId || '').trim() !== authenticatedUserId) {
+        throw new functions.https.HttpsError('permission-denied', 'Checkout can only be created for the signed-in account');
+    }
     const resolvedPlanPriceId = resolvePriceIdForPlan(normalizedPlanId, String(billingCycle || '').toLowerCase() === 'year' ? 'year' : 'month');
     const resolvedRequestedPriceId = sanitizeSecret(String(requestedPriceId || ''));
     const resolvedPriceId = normalizedPlanId
@@ -323,7 +328,15 @@ exports.createCheckoutSession = functions
         // Get user data to check current subscription
         const userRef = db.collection('users').doc(userId);
         const userDoc = await userRef.get();
-        const userData = userDoc.data();
+        if (!userDoc.exists) {
+            throw new functions.https.HttpsError('not-found', 'User profile not found');
+        }
+        const userData = userDoc.data() || {};
+        await (0, ensureFamilyAccount_1.ensureFamilyAccountForUser)(authenticatedUserId, {
+            accountId: String(userData.accountId || authenticatedUserId),
+            syncSubscription: true,
+            subscription: userData.subscription,
+        }, userData);
         console.log('User data retrieved:', userData);
         const accountPromoCode = normalizePromoCode(requestedPromoCode || userData?.subscription?.promoCode);
         let promotionCodeId = null;
@@ -589,6 +602,9 @@ exports.verifyCheckoutSession = functions
         const firebaseUID = session.metadata?.firebaseUID;
         if (!firebaseUID) {
             throw new functions.https.HttpsError('invalid-argument', 'Invalid session metadata');
+        }
+        if (firebaseUID !== context.auth.uid) {
+            throw new functions.https.HttpsError('permission-denied', 'This checkout session belongs to a different account');
         }
         // Get subscription details
         const subscription = await getStripe().subscriptions.retrieve(session.subscription);
