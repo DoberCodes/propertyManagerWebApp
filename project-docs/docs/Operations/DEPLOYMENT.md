@@ -673,6 +673,12 @@ prepared but not tagged locally yet, new releaseable changes are bumped from the
 prepared package version. For example, a new patch change after prepared version
 `2.7.30` produces `2.7.31` rather than reusing `2.7.30`.
 
+When the current `main` commit is the matching release-preparation merge, the
+release-note generator keeps that prepared package version. It only bumps from
+the prepared version after another product change lands. This allows
+`build:signed` to consume the release-notes artifact from the release merge
+without requesting an additional, empty version-preparation cycle.
+
 `release/next` is treated as a version-only administrative PR. Release note
 previews and E2E tests are skipped for that PR, while Build Check runs only
 `yarn version:validate`. After the release PR merges to `main`, Release Prep

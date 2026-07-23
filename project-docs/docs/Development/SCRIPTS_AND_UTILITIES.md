@@ -1023,6 +1023,14 @@ yarn release:notes
 
 Generates release notes from project history.
 
+The generator recognizes a matching release-preparation merge at `HEAD` and
+keeps its prepared package version. Subsequent product commits continue to bump
+from that prepared version. The policy is covered by:
+
+```bash
+yarn test:release-version
+```
+
 Risk:
 
 Low

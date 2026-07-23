@@ -48,6 +48,9 @@ jobs:
       - name: Unit tests
         run: yarn test:ci
 
+      - name: Release version policy tests
+        run: yarn test:release-version
+
       - name: Use Java for Firebase emulators
         uses: actions/setup-java@v4
         with:

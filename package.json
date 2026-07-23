@@ -138,7 +138,8 @@
 		"test:stripe:cards:sandbox": "npm --prefix functions run test:cards:sandbox",
 		"test:stripe:e2e": "node ./node_modules/@playwright/test/cli.js test e2e/payment.spec.ts e2e/stripe-hosted-checkout.spec.ts --project=chromium",
 		"test:stripe:webhook:sandbox": "npm --prefix functions run test:webhook:sandbox",
-		"test:stripe:all": "yarn test:stripe:sandbox && yarn test:stripe:cards:sandbox && yarn test:stripe:webhook:sandbox && yarn test:stripe:e2e"
+		"test:stripe:all": "yarn test:stripe:sandbox && yarn test:stripe:cards:sandbox && yarn test:stripe:webhook:sandbox && yarn test:stripe:e2e",
+		"test:release-version": "node --test scripts/generateReleaseNotes.test.cjs"
 	},
 	"browserslist": {
 		"production": [
