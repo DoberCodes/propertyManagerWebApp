@@ -51,6 +51,11 @@ The migration will:
 * remove the production dependency on GitHub Pages
 * allow the GitHub repository to become private
 
+The migration will also separate the web and Android release lifecycles. Web
+releases must not require an Android build. Android releases will remain an
+explicit local operation initiated through `yarn build:signed`; GitHub Actions
+will not build, sign, or upload the Android application at this stage.
+
 `HashRouter` will be removed completely. Maintley will not maintain a
 permanent compatibility layer for legacy `/#/` application URLs.
 
@@ -138,6 +143,47 @@ been validated. At minimum, release validation includes:
 * PWA installation and launch behavior
 * service-worker installation, activation, and update behavior
 
+### Independent web and Android releases
+
+Web release preparation, deployment, tags, and GitHub Releases must be able to
+complete without producing an Android artifact. A Maintley version may ship to
+the web without being selected for Google Play.
+
+Android releases remain intentionally opt-in and locally controlled:
+
+* `yarn build:signed` remains the operator-facing Android release command.
+* The command may be implemented as a wrapper around focused validation,
+  Capacitor synchronization, bundle, signing, and upload stages.
+* Android signing and Google Play credentials remain outside GitHub Actions.
+* The signed Android App Bundle (`.aab`) is the only normal Play artifact.
+* APK generation is removed from the normal release path.
+* The first distribution target is Google Play internal testing.
+* Production promotion is a deliberate operator action after testing.
+
+The same tested AAB and `versionCode` will be promoted from internal testing to
+production. A rebuild is not required for promotion. If testing results in any
+application change, a new signed AAB with a new, higher `versionCode` must be
+created and tested.
+
+### Android version policy
+
+Maintley may choose which web versions receive an Android release. Google Play
+`versionCode` values therefore do not need to be consecutive. Every uploaded
+value must still be unique and higher than all values previously uploaded for
+the application, including uploads that remain only on a testing track.
+
+The local Android release flow must check the prepared repository version
+against Google Play before upload and fail clearly rather than silently
+rewriting an already prepared release version.
+
+### Published-version timing
+
+Uploading an AAB to internal testing does not make it Maintley's public Android
+release. Customer-facing published-version records and production Play links
+must be updated only after the tested release is promoted to production and
+its rollout is confirmed. Release notes and version metadata should reuse the
+repository's existing release-generation conventions.
+
 ## Required migration constraints
 
 ### Complete discovery before code changes
@@ -210,6 +256,11 @@ rather than retaining hash routing as an undocumented exception.
 Android and PWA validation are release gates. The migration cannot ship merely
 because the browser-hosted application works.
 
+The Android release gate must validate the Play-distributed internal-testing
+build, not only a locally assembled bundle. This ensures Play signing,
+packaging, Capacitor assets, navigation, and callbacks are tested in the same
+artifact later promoted to production.
+
 ### Use Firebase SPA fallback deliberately
 
 Firebase Hosting must return `index.html` for valid client-side application
@@ -272,6 +323,8 @@ This ADR does not introduce:
 * edge rendering
 * backend API architecture changes
 * a legacy hash-route compatibility service
+* Android builds, signing, or Google Play submission in GitHub Actions
+* a combined Apple and Android store-delivery pipeline
 
 Those require separate architectural decisions if pursued.
 
@@ -297,6 +350,10 @@ The decision is implemented when:
 * The packaged Android application passes its routing and authentication checks.
 * GitHub Actions deploys the web build directly to Firebase.
 * GitHub Pages is no longer part of production deployment or rollback.
+* The signed AAB passes internal testing and can be promoted unchanged to production.
+* Web releases complete without requiring an Android release.
+* Android releases are explicitly initiated locally and use unique, increasing
+  Google Play `versionCode` values.
 * The repository can be private without affecting production availability.
 * Current architecture, deployment, SEO, PWA, and development documentation is updated.
 
@@ -308,3 +365,9 @@ The decision is implemented when:
 * Public content and PWA assets must survive the SPA rewrite.
 * Android and PWA compatibility are release gates.
 * Cutover must remain reversible until production validation is complete.
+* Web and Android releases have independent lifecycles.
+* AAB is the normal Android distribution artifact; APK is not part of the
+  normal release path.
+* Android releases are built and uploaded locally to internal testing, then the
+  tested artifact is promoted deliberately to production.
+* Google Play version codes may contain gaps but may never be reused or decrease.

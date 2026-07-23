@@ -29,6 +29,9 @@ jobs:
       - name: Validate release version files
         run: yarn version:validate
 
+      - name: Validate GitHub Pages deployment freeze
+        run: yarn validate:deployment-freeze
+
   unit-test:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.ref != 'release/next'
     runs-on: ubuntu-latest
@@ -44,6 +47,9 @@ jobs:
 
       - name: Install dependencies
         run: yarn install --frozen-lockfile
+
+      - name: Validate GitHub Pages deployment freeze
+        run: yarn validate:deployment-freeze
 
       - name: Unit tests
         run: yarn test:ci

@@ -1,0 +1,112 @@
+name: Finalize Web Release
+
+on:
+  workflow_call:
+    inputs:
+      deployed_sha:
+        description: Exact commit successfully deployed by the hosting workflow.
+        required: true
+        type: string
+      hosting_target:
+        description: Hosting platform that completed the deployment.
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  finalize-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Require Firebase Hosting caller
+        env:
+          HOSTING_TARGET: ${{ inputs.hosting_target }}
+        run: |
+          if [ "$HOSTING_TARGET" != "firebase-hosting" ]; then
+            echo "::error::Release finalization is allowed only after a Firebase Hosting deployment."
+            exit 1
+          fi
+
+      - name: Checkout deployed commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.deployed_sha }}
+          fetch-depth: 0
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'yarn'
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Validate release version files
+        run: yarn version:validate
+
+      - name: Validate GitHub Pages deployment freeze
+        run: yarn validate:deployment-freeze
+
+      - name: Verify deployed commit belongs to main
+        env:
+          DEPLOYED_SHA: ${{ inputs.deployed_sha }}
+        run: |
+          git fetch origin main --tags
+          test "$(git rev-parse HEAD)" = "$DEPLOYED_SHA"
+          git merge-base --is-ancestor "$DEPLOYED_SHA" origin/main
+
+      - name: Generate repository release notes
+        run: >
+          yarn release:notes
+          --output tmp/release-notes.customer.md
+          --engineering-output tmp/release-notes.engineering.md
+          --metadata-output tmp/release-notes.json
+
+      - name: Read prepared version
+        id: version
+        shell: bash
+        run: |
+          VERSION="$(node -p "require('./package.json').version")"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Require a new immutable release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          if git show-ref --tags --verify --quiet "refs/tags/$TAG"; then
+            echo "::error::Tag $TAG already exists. Releases are immutable."
+            exit 1
+          fi
+          if gh release view "$TAG" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            echo "::error::GitHub Release $TAG already exists. Releases are immutable."
+            exit 1
+          fi
+
+      - name: Preserve generated release metadata
+        uses: actions/upload-artifact@v4
+        with:
+          name: finalized-release-${{ steps.version.outputs.version }}
+          path: |
+            tmp/release-notes.customer.md
+            tmp/release-notes.engineering.md
+            tmp/release-notes.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Create tag and GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+          VERSION: ${{ steps.version.outputs.version }}
+          DEPLOYED_SHA: ${{ inputs.deployed_sha }}
+        run: >
+          gh release create "$TAG"
+          --repo "${{ github.repository }}"
+          --target "$DEPLOYED_SHA"
+          --title "Release v$VERSION"
+          --notes-file tmp/release-notes.customer.md

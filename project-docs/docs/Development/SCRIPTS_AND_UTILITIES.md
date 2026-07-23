@@ -34,8 +34,8 @@ Before running any migration, cleanup, pruning, or apply script, verify it again
 
 ## Current Script Notes
 
-- `deploy` remains the primary web deployment script.
-- `deploy:gh-pages` is available as an explicit alias.
+- `deploy` and `deploy:gh-pages` are migration-freeze guards and intentionally fail.
+- No supported script publishes to GitHub Pages during the Firebase migration.
 - `stripe:webhook:auto` is Unix-only.
 - E2E scripts are intended to be cross-platform.
 - `adr:author` prepares humanized review drafts in `project-docs/reports/decision-audit-YYYY-MM/approved/`.
@@ -985,7 +985,8 @@ Deployment procedures are documented in:
 yarn predeploy
 ```
 
-Runs the application build before deployment.
+Intentionally fails through the GitHub Pages migration guard so the package
+lifecycle cannot build and continue into the historical Pages deploy command.
 
 ---
 
@@ -993,21 +994,19 @@ Runs the application build before deployment.
 
 ```bash
 yarn deploy
+yarn deploy:gh-pages
 ```
 
-Deploys the application using the configured deployment target.
+Both commands intentionally fail through
+`scripts/assertGitHubPagesFrozen.cjs`. GitHub Pages publishing is frozen while
+Firebase Hosting and BrowserRouter are migrated.
 
-Current implementation:
-
-```text
-gh-pages -d build
-```
-
-Verify deployment strategy before use.
+Do not bypass this guard or call `gh-pages` directly.
 
 Risk:
 
-Medium
+High
+
 
 ---
 

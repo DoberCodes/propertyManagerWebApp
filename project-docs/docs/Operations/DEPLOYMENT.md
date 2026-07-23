@@ -1,6 +1,6 @@
 # Deployment
 
-Last reviewed: 2026-06
+Last reviewed: 2026-07-23
 
 This document describes Maintley's current build, deployment, environment, and release validation process.
 
@@ -90,23 +90,15 @@ The production build is written to:
 build/
 ```
 
-The root `package.json` also includes:
+The root `package.json` retains `deploy` and `deploy:gh-pages` as guard
+commands during the Firebase Hosting migration. Both commands intentionally
+exit with an error before publishing anything.
 
-```bash
-npm run deploy
-```
+No repository-supported command may update the `gh-pages` branch during the
+migration freeze. The last verified GitHub Pages build remains online as the
+current site and future rollback target until Firebase cutover is complete.
 
-This uses:
-
-```bash
-gh-pages -d build
-```
-
-`npm run deploy:gh-pages` is also available as an explicit alias to the same command.
-
-Confirm the intended hosting target before using this command.
-
-Firebase Hosting is not configured in `firebase.json`.
+Firebase Hosting is not yet configured as the production deployment path.
 
 ---
 
@@ -119,21 +111,23 @@ intentionally reintroduced.
 
 ---
 
-# GitHub Pages PWA Assets
+# GitHub Pages Migration Freeze
 
-The active web deployment publishes the React `build/` output through GitHub
-Pages on Maintley's custom domain.
+GitHub Pages continues to serve the last verified production build, but
+publishing is frozen for the duration of the Firebase Hosting and BrowserRouter
+migration.
 
-GitHub Pages deployment is handled by:
+The former automatic workflow has been removed:
 
 ```text
 .github/workflows/deploy-web.yml
 ```
 
-The workflow runs after release version files are pushed to `main`, which
-normally happens when the `release/next` PR is merged. It builds the web app,
-runs asset budget checks, and publishes the existing `build/` folder with
-`gh-pages` using the workflow `GITHUB_TOKEN`.
+The `deploy` and `deploy:gh-pages` package commands invoke
+`scripts/assertGitHubPagesFrozen.cjs` and exit unsuccessfully. Do not bypass the
+guard or update the `gh-pages` branch manually. Rollback during the migration
+means restoring DNS or hosting to the existing verified Pages build, not
+publishing a new Pages build.
 
 PWA files live in `public/` and are copied to the root of `build/` during
 `npm run build`:
@@ -712,8 +706,9 @@ release is ready for users:
 gh workflow run publish-app-version.yml --repo DoberFamilyVentures/propertyManagerWebApp --ref main -f version=2.9.16
 ```
 
-Web deployment is handled separately by the Deploy Web workflow when release
-version files land on `main`. `build:signed` does not deploy GitHub Pages.
+GitHub Pages publishing is frozen during the migration. The removed Deploy Web
+workflow and guarded local deploy commands must not be restored as a temporary
+release path.
 
 The release-notes action is not a test workflow. `build:signed` still performs
 its local test, build, and asset-budget validation before publishing a release.

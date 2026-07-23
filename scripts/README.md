@@ -104,12 +104,15 @@ yarn version:sync
 
 ---
 
-## Deploy Web
+## Web Deployment Freeze
 
 ```bash
 yarn deploy
 yarn deploy:gh-pages
 ```
+
+Both commands intentionally fail. They are retained as visible migration guards
+so a familiar deployment command cannot publish to GitHub Pages accidentally.
 
 ---
 
@@ -375,8 +378,8 @@ The release workflow uses split ownership:
 * Release Notes Action generates customer and engineering notes.
 * Release Prep Action opens or updates the `release/next` PR with the correct
   version bump.
-* Deploy Web Action publishes the web app to GitHub Pages when release version
-  files land on `main`, normally after the `release/next` PR is merged.
+* GitHub Pages publishing is frozen. The automatic Deploy Web workflow has been
+  removed and the local deploy aliases fail through the migration guard.
 * `build:signed` remains the local Android signing helper while signing secrets
   stay local. It validates that version files were already prepared, builds the
   signed Android artifacts needed for validation and app-store maintenance, and
@@ -409,8 +412,8 @@ Before running migrations, cleanup scripts, or destructive operations:
 * `e2e:workflows:chrome` and `e2e:full-safe` use the demo account and are intended for manual workflow validation.
 * GitHub Actions runs `cleanup:test-data:full` after manual E2E workflow suites and requires `E2E_FIREBASE_SERVICE_ACCOUNT_JSON`.
 * E2E scripts are intended to be cross-platform.
-* Deploy remains the primary deployment command.
-* deploy:gh-pages exists as an explicit alias.
+* `deploy` and `deploy:gh-pages` intentionally fail during the migration.
+* No supported repository command publishes to GitHub Pages.
 * build:signed is the local signed Android artifact helper.
 * stripe:webhook:auto in functions/package.json is currently Unix-only.
 * Archived scripts should be treated as historical reference, not supported tooling.
