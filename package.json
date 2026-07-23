@@ -5,6 +5,7 @@
 	"type": "module",
 	"homepage": "./",
 	"dependencies": {
+		"@maintley/entitlements": "file:packages/entitlements",
 		"@capacitor/android": "^8.4.1",
 		"@capacitor/app": "^8.1.0",
 		"@capacitor/browser": "^8.0.3",

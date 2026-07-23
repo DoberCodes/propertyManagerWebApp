@@ -302,6 +302,7 @@ Primary collections:
 
 * users
 * familyAccounts
+  * entitlementGrants (reserved server-written subcollection; issuance disabled)
 * accountMemberships
 * properties
 * propertyGroups

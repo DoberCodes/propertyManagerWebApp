@@ -751,6 +751,12 @@ service cloud.firestore {
             (('propertyCount' in request.resource.data) ? request.resource.data.propertyCount : 0) == (('propertyCount' in resource.data) ? resource.data.propertyCount : 0)
           )
         );
+
+      // Internal grants are authoritative, server-written records. Clients use
+      // a trusted derived access view rather than reading or mutating grants.
+      match /entitlementGrants/{grantId} {
+        allow read, create, update, delete: if false;
+      }
     }
 
     match /accountMemberships/{membershipId} {

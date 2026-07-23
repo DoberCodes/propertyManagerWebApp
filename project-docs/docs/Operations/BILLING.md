@@ -38,8 +38,10 @@ Those definitions belong in MAINTLEY_PLAN_FEATURE_MATRIX.md.
 
 Source files:
 
+* packages/entitlements
 * src/constants/subscriptions.ts
 * src/utils/subscriptionUtils.ts
+* functions/subscriptionEntitlements.ts
 * functions/stripeFunctions.ts
 * src/services/stripeService.ts
 
@@ -60,6 +62,22 @@ Special non-subscription access types:
 Detailed plan limits and capabilities are defined in:
 
 MAINTLEY_PLAN_FEATURE_MATRIX.md
+
+## Entitlement foundation
+
+The web application and Firebase Functions now share the pure resolver in
+`packages/entitlements`. Existing helpers remain as compatibility wrappers so
+current plan behavior can migrate incrementally without enabling new plans,
+trials, or internal grant issuance.
+
+Compatibility mode preserves existing paid-plan records while synthetic Stripe
+access is reviewed manually. Strict mode requires Stripe confirmation before a
+paid plan supplies paid access. Pending Checkout never supplies paid access.
+
+The package defines temporary and permanent grant, billing-transition,
+administrative-audit, and rollout-flag contracts, but no production workflow
+currently writes entitlement grants or initiates a complimentary-to-paid
+transition. All new access-program flags default to off.
 
 ---
 
@@ -333,6 +351,9 @@ Examples:
 * getRemainingPropertySlots
 * getRemainingDeviceSlots
 * getEffectiveSubscriptionPlanId
+
+`getEffectiveSubscriptionPlanId` now delegates to the shared resolver in
+compatibility mode. Feature-specific helpers continue migrating in later phases.
 
 ---
 

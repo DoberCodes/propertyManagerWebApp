@@ -2,7 +2,7 @@
 
 Date: 2026-07-23
 
-Status: Approved implementation plan; implementation not started
+Status: Approved implementation plan; Phase 1 in progress
 
 Related proposed ADRs:
 
@@ -34,6 +34,24 @@ billing, trial, email, Firebase, or task behavior.
 
 No additional ADR is required for the accepted entitlement, communication,
 administrative-audit, or manual synthetic-subscription migration direction.
+
+## Implementation progress
+
+Phase 1 began on 2026-07-23. The current foundation includes:
+
+* one workspace-local entitlement package consumed by the web app and Functions
+* stable capability and limit IDs with versioned existing-plan presets
+* temporary and permanent account-grant contracts and additive resolution
+* compatibility and strict Stripe-backed base-plan modes
+* complimentary-transition, high-value audit, and default-off flag contracts
+* account ownership, explicit-clock expiration, unknown-value diagnostics, and
+  deterministic parity fixtures
+* explicit Firestore denial of client access to authoritative grant records
+
+No internal grant issuance, Multi-Homeowner behavior, Homeowner+ product trial,
+automatic paid transition, or access-lifecycle delivery is enabled by this
+foundation. Existing feature callers continue through compatibility wrappers
+until Phase 2 migration.
 
 ## Executive recommendation
 

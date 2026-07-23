@@ -249,6 +249,25 @@ Purpose:
 
 Defines ownership boundaries for all account-scoped resources.
 
+### entitlementGrants subcollection
+
+Reserved path:
+
+```text
+familyAccounts/{accountId}/entitlementGrants/{grantId}
+```
+
+The shared contract supports temporary and permanent grants with stable grant
+and program IDs, lifecycle state, versioned bundle or capability overrides,
+authoritative timestamps, source, idempotency, beneficiary, and audit metadata.
+Grants belong to the family account and are additive.
+
+This collection is server-written and client-inaccessible. The resolver and
+schema are implemented, but production grant issuance is still disabled and no
+existing account requires a grant. Later account experiences consume a trusted
+derived access view rather than treating client-visible grant data as writable
+authority.
+
 ---
 
 ## accountMemberships

@@ -742,6 +742,22 @@ Create/Delete:
 
 * Managed by controlled workflows
 
+### entitlementGrants
+
+Path:
+
+```text
+familyAccounts/{accountId}/entitlementGrants/{grantId}
+```
+
+Read, create, update, delete:
+
+* Cloud Functions and Admin SDK only
+
+Clients cannot read or write authoritative grant records. Effective access is
+resolved by trusted code, and future customer-facing access summaries must use
+a constrained derived view.
+
 ---
 
 ## accountMemberships

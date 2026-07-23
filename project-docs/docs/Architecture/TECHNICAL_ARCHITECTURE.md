@@ -441,6 +441,24 @@ See:
 * BILLING.md
 * MAINTLEY_PLAN_FEATURE_MATRIX.md
 
+## Shared entitlement resolver
+
+Runtime-neutral entitlement contracts and resolution live in:
+
+```text
+packages/entitlements
+```
+
+The browser and Firebase Functions consume the same pure resolver through local
+package dependencies. It separates billing state from effective capabilities,
+supports versioned plan bundles and account-scoped additive grants, uses an
+explicit clock for expiration, and emits diagnostics for compatibility or
+default-deny outcomes.
+
+The current rollout is compatibility-only. Existing feature callers remain in
+place, internal grant issuance is disabled, and no persisted entitlement grant
+is required for existing accounts.
+
 ---
 
 # Push Notification Services

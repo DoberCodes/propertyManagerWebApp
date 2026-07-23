@@ -1,0 +1,31 @@
+# Maintley Entitlements
+
+This workspace-local package is the runtime-neutral entitlement boundary shared
+by the web application and Firebase Functions.
+
+It currently owns:
+
+* stable plan, capability, and quantitative-limit identifiers
+* versioned presets for existing plans and legacy access types
+* temporary and permanent internal-grant contracts
+* complimentary-to-paid transition and admin-audit type contracts
+* default-off rollout flags
+* the pure account entitlement resolver
+
+The resolver has two billing modes:
+
+* `compatibility` preserves existing paid-plan records while synthetic Stripe
+  access is reviewed and migrated manually.
+* `strict` requires Stripe confirmation before a paid plan contributes access.
+
+Pending Checkout never grants paid access in either mode. Grant merging is
+account-scoped and additive: Boolean capabilities use logical OR and numeric
+limits use the greatest approved value. Unknown plans, versions, bundles,
+capabilities, and limits fall back safely and emit diagnostics.
+
+The frontend compatibility wrapper explicitly supports legacy records that have
+a plan but no subscription status. Functions do not enable that exception.
+
+The package does not issue grants, initiate Stripe billing, or send lifecycle
+communications. Those workflows remain disabled until later implementation
+phases add trusted persistence and server operations.

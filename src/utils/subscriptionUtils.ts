@@ -5,6 +5,10 @@ import {
 	SUBSCRIPTION_STATUS,
 	SubscriptionStatus,
 } from '../constants/subscriptions';
+import {
+	normalizePlanId,
+	resolveAccountEntitlements,
+} from '@maintley/entitlements';
 
 export interface SubscriptionData {
 	status: SubscriptionStatus;
@@ -22,48 +26,14 @@ export interface SubscriptionData {
 	pendingCheckoutStartedAt?: number;
 }
 
-const CURRENT_PLAN_IDS = new Set([
-	'homeowner',
-	'homeowner_plus',
-	'property',
-	'portfolio',
-	'guest',
-	'team',
-	'tenant',
-]);
-const PAID_PLAN_IDS = new Set(['homeowner_plus', 'property', 'portfolio']);
 const UNLIMITED_DEVICE_LIMIT_SENTINEL = 999;
 const UNLIMITED_FEATURE_LIMIT_SENTINEL = 999;
 
-const resolvePlanId = (planId: string): string => {
-	const normalizedPlanId = String(planId || '').trim().toLowerCase();
-	return CURRENT_PLAN_IDS.has(normalizedPlanId) ? normalizedPlanId : 'homeowner';
-};
+const resolvePlanId = (planId: string): string => normalizePlanId(planId);
 
 const getPlanById = (planId: string) => {
 	const normalizedPlanId = resolvePlanId(planId);
 	return Object.values(SUBSCRIPTION_PLANS).find((p) => p.id === normalizedPlanId);
-};
-
-const hasCurrentEntitlement = (
-	subscription?: Pick<SubscriptionData, 'status' | 'trialEndsAt'> | null,
-): boolean => {
-	if (!subscription?.status) return true;
-	if (subscription.status === SUBSCRIPTION_STATUS.ACTIVE) return true;
-	if (subscription.status !== SUBSCRIPTION_STATUS.TRIAL) return false;
-	if (!subscription.trialEndsAt) return true;
-	const now = Math.floor(Date.now() / 1000);
-	return now < subscription.trialEndsAt;
-};
-
-const hasUnconfirmedPaidCheckout = (
-	subscription?: Pick<
-		SubscriptionData,
-		'pendingCheckoutPlan' | 'stripeSubscriptionId'
-	> | null,
-): boolean => {
-	const pendingPlan = resolvePlanId(subscription?.pendingCheckoutPlan || '');
-	return PAID_PLAN_IDS.has(pendingPlan) && !subscription?.stripeSubscriptionId;
 };
 
 const getEffectivePlan = (subscription: SubscriptionData) =>
@@ -82,16 +52,12 @@ export const getEffectiveSubscriptionPlanId = (
 	> | null,
 	fallbackPlanId = 'homeowner',
 ): string => {
-	if (!hasCurrentEntitlement(subscription)) {
-		return resolvePlanId(fallbackPlanId);
-	}
-
-	if (hasUnconfirmedPaidCheckout(subscription)) {
-		return resolvePlanId(fallbackPlanId);
-	}
-
-	const planId = String(subscription?.plan || fallbackPlanId).trim();
-	return resolvePlanId(planId || fallbackPlanId);
+	return resolveAccountEntitlements({
+		subscription,
+		fallbackPlanId,
+		mode: 'compatibility',
+		allowLegacyPlanWithoutStatus: true,
+	}).basePlanId;
 };
 
 export const isUnlimitedDeviceLimit = (maxDevices?: number): boolean =>

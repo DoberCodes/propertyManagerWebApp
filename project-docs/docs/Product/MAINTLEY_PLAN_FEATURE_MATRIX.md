@@ -23,10 +23,15 @@ highlights are maintained in:
 src/config/publicPlanFacts.json
 ```
 
-`src/constants/subscriptions.ts` imports those shared public facts and remains the
-implementation source for permissions and complete feature behavior. Public plan
-facts must remain aligned with this matrix; run `npm run sync:public-pricing` and
-`npm run validate:seo` after changing either source.
+`packages/entitlements` defines the shared versioned plan presets, capability
+vocabulary, limits, and compatibility resolver used by the web application and
+Firebase Functions. During the existing-plan parity migration,
+`src/constants/subscriptions.ts` remains the legacy feature-permission map and
+must match the shared presets. The resolver parity tests enforce that boundary.
+
+Public plan facts must remain aligned with this matrix; run
+`npm run sync:public-pricing` and `npm run validate:seo` after changing either
+source.
 
 This document does not define:
 

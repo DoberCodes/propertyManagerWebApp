@@ -165,6 +165,16 @@ async function seedFirestore(env) {
 			deviceCount: 0,
 		});
 
+		await db
+			.doc('familyAccounts/account-owner/entitlementGrants/grant-existing')
+			.set({
+				grantId: 'grant-existing',
+				programId: 'program-existing',
+				accountId,
+				kind: 'temporary',
+				state: 'active',
+			});
+
 		await db.doc('properties/property-1').set({
 			accountId,
 			userId: ownerUid,
@@ -499,6 +509,22 @@ async function run() {
 		await assertFails(ownerDb.doc('admin_users/admin-record').get());
 		await assertFails(ownerDb.doc('admin_sessions/session-record').get());
 		await assertFails(ownerDb.doc('admin_audit_logs/audit-record').get());
+		await assertFails(
+			ownerDb
+				.doc('familyAccounts/account-owner/entitlementGrants/grant-existing')
+				.get(),
+		);
+		await assertFails(
+			ownerDb
+				.doc('familyAccounts/account-owner/entitlementGrants/client-grant')
+				.set({
+					grantId: 'client-grant',
+					programId: 'client-program',
+					accountId,
+					kind: 'permanent',
+					state: 'active',
+				}),
+		);
 		await assertFails(
 			ownerDb.doc('admin_users/admin-record').update({
 				status: 'inactive',

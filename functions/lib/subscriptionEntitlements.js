@@ -1,44 +1,19 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.canUsePropertyKnowledgeAcquisition = exports.getEffectiveSubscriptionPlanId = exports.isSubscriptionCurrentlyEntitled = exports.normalizePlanId = void 0;
-const CURRENT_PLAN_IDS = new Set([
-    'homeowner',
-    'homeowner_plus',
-    'property',
-    'portfolio',
-    'guest',
-    'team',
-    'tenant',
-]);
-const PAID_PLAN_IDS = new Set(['homeowner_plus', 'property', 'portfolio']);
-const normalizePlanId = (planId) => {
-    const normalizedPlanId = String(planId || '').trim().toLowerCase();
-    return CURRENT_PLAN_IDS.has(normalizedPlanId) ? normalizedPlanId : 'homeowner';
-};
-exports.normalizePlanId = normalizePlanId;
-const isSubscriptionCurrentlyEntitled = (subscription) => {
-    if (!subscription?.status)
-        return false;
-    if (subscription.status === 'active')
-        return true;
-    if (subscription.status !== 'trial')
-        return false;
-    if (!subscription.trialEndsAt)
-        return true;
-    return subscription.trialEndsAt > Date.now() / 1000;
-};
+const entitlements_1 = require("@maintley/entitlements");
+Object.defineProperty(exports, "normalizePlanId", { enumerable: true, get: function () { return entitlements_1.normalizePlanId; } });
+const isSubscriptionCurrentlyEntitled = (subscription) => (0, entitlements_1.isSubscriptionCurrentlyEntitled)(subscription);
 exports.isSubscriptionCurrentlyEntitled = isSubscriptionCurrentlyEntitled;
-const getEffectiveSubscriptionPlanId = (subscription, fallbackPlanId = 'homeowner') => {
-    if (!(0, exports.isSubscriptionCurrentlyEntitled)(subscription)) {
-        return (0, exports.normalizePlanId)(fallbackPlanId);
-    }
-    const pendingCheckoutPlan = (0, exports.normalizePlanId)(subscription?.pendingCheckoutPlan);
-    if (PAID_PLAN_IDS.has(pendingCheckoutPlan) &&
-        !String(subscription?.stripeSubscriptionId || '').trim()) {
-        return (0, exports.normalizePlanId)(fallbackPlanId);
-    }
-    return (0, exports.normalizePlanId)(subscription?.plan || fallbackPlanId);
-};
+const getEffectiveSubscriptionPlanId = (subscription, fallbackPlanId = 'homeowner') => (0, entitlements_1.resolveAccountEntitlements)({
+    subscription,
+    fallbackPlanId,
+    mode: 'compatibility',
+}).basePlanId;
 exports.getEffectiveSubscriptionPlanId = getEffectiveSubscriptionPlanId;
-const canUsePropertyKnowledgeAcquisition = (subscription) => PAID_PLAN_IDS.has((0, exports.getEffectiveSubscriptionPlanId)(subscription, 'homeowner'));
+const canUsePropertyKnowledgeAcquisition = (subscription) => (0, entitlements_1.resolveAccountEntitlements)({
+    subscription,
+    fallbackPlanId: 'homeowner',
+    mode: 'compatibility',
+}).capabilities['property_knowledge.acquire'];
 exports.canUsePropertyKnowledgeAcquisition = canUsePropertyKnowledgeAcquisition;
