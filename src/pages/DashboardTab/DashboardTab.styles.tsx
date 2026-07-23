@@ -539,6 +539,7 @@ export const ActionFirstTopSection = styled.section`
 	display: grid;
 	grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
 	gap: 14px;
+	align-items: stretch;
 
 	@media (max-width: 1024px) {
 		grid-template-columns: 1fr;
@@ -606,10 +607,16 @@ const sharedCard = `
 	border: 1px solid ${COLORS.border};
 	border-radius: 14px;
 	box-shadow: ${COLORS.shadow};
-	padding: 16px;
+	padding: 14px;
 	display: flex;
 	flex-direction: column;
-	gap: 12px;
+	justify-content: space-between;
+	gap: 10px;
+
+	@media (min-width: 1025px) and (max-height: 820px) {
+		padding: 12px;
+		gap: 8px;
+	}
 `;
 
 export const TodayFocusCard = styled.article`
@@ -710,7 +717,7 @@ export const DashboardIntelligenceImpact = styled.p`
 	color: ${COLORS.textSecondary};
 `;
 
-export const DashboardIntelligenceEvidence = styled.div`
+export const DashboardIntelligenceEvidence = styled.details`
 	margin: 0;
 	padding: 9px 10px;
 	border: 1px solid rgba(4, 120, 87, 0.16);
@@ -720,13 +727,38 @@ export const DashboardIntelligenceEvidence = styled.div`
 	font-size: 0.8rem;
 	font-weight: 600;
 	line-height: 1.45;
-	display: flex;
-	flex-direction: column;
-	gap: 7px;
-
-	.evidence-heading {
+	summary {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 8px;
 		color: ${COLORS.primaryDark};
 		font-weight: 900;
+		cursor: pointer;
+		list-style: none;
+	}
+
+	summary::-webkit-details-marker {
+		display: none;
+	}
+
+	summary::after {
+		content: '+';
+		font-size: 1rem;
+		line-height: 1;
+	}
+
+	&[open] summary::after {
+		content: '−';
+	}
+
+	.evidence-content {
+		display: flex;
+		flex-direction: column;
+		gap: 6px;
+		margin-top: 7px;
+		padding-top: 7px;
+		border-top: 1px solid rgba(4, 120, 87, 0.12);
 	}
 
 	.evidence-line,
@@ -872,7 +904,7 @@ export const TodayFocusButtons = styled.div`
 `;
 
 export const FocusButton = styled.button<{ $variant?: 'primary' | 'secondary' | 'success' }>`
-	height: 42px;
+	height: 40px;
 	padding: 0 14px;
 	border-radius: 10px;
 	font-size: 0.9rem;
@@ -908,25 +940,18 @@ export const FocusButton = styled.button<{ $variant?: 'primary' | 'secondary' | 
 	}
 `;
 
-export const PortfolioMetrics = styled.div`
-	display: grid;
-	grid-template-columns: repeat(3, minmax(0, 1fr));
-	gap: 10px;
-
-	@media (max-width: 640px) {
-		grid-template-columns: 1fr;
-	}
-`;
-
 export const HomeHealthSummary = styled.div`
-	display: flex;
+	display: grid;
+	grid-template-columns: minmax(148px, 1fr) minmax(0, 1.1fr);
 	align-items: center;
-	justify-content: space-between;
-	gap: 16px;
+	column-gap: 18px;
+	row-gap: 10px;
+	width: 100%;
+	min-width: 0;
 
 	@media (max-width: 420px) {
 		align-items: flex-start;
-		flex-direction: column;
+		grid-template-columns: 1fr;
 		gap: 10px;
 	}
 `;
@@ -935,6 +960,7 @@ export const HomeHealthStatus = styled.div`
 	display: flex;
 	flex-direction: column;
 	gap: 8px;
+	min-width: 0;
 `;
 
 export const HomeHealthStatusLine = styled.div`
@@ -991,15 +1017,19 @@ export const HomeHealthMemoryText = styled.p`
 export const HomeHealthBreakdown = styled.div`
 	display: flex;
 	flex-direction: column;
-	gap: 8px;
+	gap: 10px;
+	width: 100%;
+	min-width: 0;
 `;
 
 export const HomeHealthBreakdownRow = styled.button<{ $clickable?: boolean }>`
 	display: grid;
-	grid-template-columns: 112px minmax(90px, 1fr) 42px;
+	grid-template-columns: minmax(0, 1fr) max-content;
 	align-items: center;
-	gap: 8px;
+	column-gap: 8px;
+	row-gap: 4px;
 	width: 100%;
+	min-width: 0;
 	border: 0;
 	background: transparent;
 	padding: 0;
@@ -1019,13 +1049,26 @@ export const HomeHealthBreakdownRow = styled.button<{ $clickable?: boolean }>`
 		cursor: default;
 	}
 
-	@media (max-width: 420px) {
-		width: 100%;
-		grid-template-columns: 104px minmax(90px, 1fr) 42px;
+	> span:first-child {
+		grid-column: 1 / -1;
+		min-width: 0;
+	}
+
+	> span:last-child {
+		grid-column: 2;
+		grid-row: 2;
+		justify-self: end;
+		white-space: nowrap;
+	}
+
+	> div {
+		grid-column: 1;
+		grid-row: 2;
 	}
 `;
 
 export const HomeHealthBarTrack = styled.div`
+	min-width: 0;
 	height: 8px;
 	border-radius: 999px;
 	background: ${COLORS.gray100};
@@ -1044,25 +1087,6 @@ export const PortfolioHeaderText = styled.p`
 	font-size: 0.82rem;
 	font-weight: 600;
 	color: ${COLORS.textSecondary};
-`;
-
-export const HomeHealthGapRow = styled.div`
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	gap: 10px;
-	border-top: 1px solid ${COLORS.borderLight};
-	border-bottom: 1px solid ${COLORS.borderLight};
-	padding: 9px 0;
-	color: ${COLORS.textSecondary};
-	font-size: 0.78rem;
-	font-weight: 800;
-
-	strong {
-		color: ${COLORS.textPrimary};
-		font-size: 0.82rem;
-		text-align: right;
-	}
 `;
 
 export const HomeHealthQuickWin = styled.div`
@@ -1119,57 +1143,6 @@ export const HomeHealthQuickWinButton = styled.button`
 	&:hover,
 	&:focus-visible {
 		border-color: rgba(4, 120, 87, 0.4);
-		color: ${COLORS.primaryHover};
-		outline: none;
-	}
-`;
-
-export const HomeHealthOpportunityList = styled.div`
-	display: flex;
-	flex-direction: column;
-	gap: 6px;
-	color: ${COLORS.textSecondary};
-	font-size: 0.78rem;
-	font-weight: 800;
-
-	ul {
-		margin: 0;
-		padding-left: 18px;
-		display: flex;
-		flex-direction: column;
-		gap: 3px;
-	}
-
-	li {
-		color: ${COLORS.textPrimary};
-		font-weight: 650;
-	}
-`;
-
-export const HomeHealthActionRow = styled.div`
-	display: flex;
-	justify-content: flex-end;
-	margin-top: -2px;
-
-	@media (max-width: 640px) {
-		justify-content: flex-start;
-	}
-`;
-
-export const HomeHealthTextButton = styled.button`
-	border: none;
-	background: transparent;
-	padding: 0;
-	color: ${COLORS.primaryDark};
-	font-size: 0.82rem;
-	font-weight: 800;
-	cursor: pointer;
-	text-decoration: underline;
-	text-underline-offset: 4px;
-	text-decoration-thickness: 1px;
-
-	&:hover,
-	&:focus-visible {
 		color: ${COLORS.primaryHover};
 		outline: none;
 	}
@@ -1253,26 +1226,6 @@ export const HomeHealthDialogFooter = styled.p`
 	letter-spacing: 0.06em;
 	text-align: center;
 	text-transform: uppercase;
-`;
-
-export const PortfolioMetric = styled.div`
-	border: 1px solid ${COLORS.border};
-	border-radius: 10px;
-	padding: 10px;
-	background: ${COLORS.gray50};
-`;
-
-export const PortfolioMetricLabel = styled.p`
-	margin: 0;
-	font-size: 0.75rem;
-	color: ${COLORS.textSecondary};
-`;
-
-export const PortfolioMetricValue = styled.p`
-	margin: 4px 0 0;
-	font-size: 1.35rem;
-	font-weight: 800;
-	color: ${COLORS.textPrimary};
 `;
 
 export const RecentActivitySection = styled.section`
@@ -1377,6 +1330,8 @@ export const HomeActivitySection = styled.section`
 	padding: 0;
 	display: flex;
 	flex-direction: column;
+	flex: 0 0 auto;
+	min-width: 0;
 	gap: 0;
 	overflow: hidden;
 
@@ -1459,9 +1414,14 @@ export const HomeActivityContent = styled.div`
 	gap: 12px;
 	padding: 16px;
 	background: ${COLORS.bgWhite};
-	max-height: 620px;
+	min-height: 0;
+	max-height: clamp(280px, calc(100vh - 220px), 620px);
 	overflow-y: auto;
 	overscroll-behavior: contain;
+
+	@supports (height: 100dvh) {
+		max-height: clamp(280px, calc(100dvh - 220px), 620px);
+	}
 
 	@media (max-width: 768px) {
 		max-height: none;

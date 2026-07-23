@@ -32,9 +32,12 @@ export const getFirebaseFunctions = async (): Promise<Functions> => {
 export const callFirebaseFunction = async <RequestData, ResponseData>(
 	name: string,
 	data: RequestData,
+	options?: { timeout?: number },
 ): Promise<HttpsCallableResult<ResponseData>> => {
 	const { httpsCallable } = await import('firebase/functions');
 	const functions = await getFirebaseFunctions();
-	const callable = httpsCallable<RequestData, ResponseData>(functions, name);
+	const callable = options
+		? httpsCallable<RequestData, ResponseData>(functions, name, options)
+		: httpsCallable<RequestData, ResponseData>(functions, name);
 	return callable(data);
 };

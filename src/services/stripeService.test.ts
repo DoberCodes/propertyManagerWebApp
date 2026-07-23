@@ -39,6 +39,7 @@ describe('stripeService', () => {
 		expect(httpsCallable).toHaveBeenCalledWith(
 			expect.anything(),
 			'createCheckoutSession',
+			{ timeout: 30_000 },
 		);
 		expect(callableMock).toHaveBeenCalledWith(
 			expect.objectContaining({

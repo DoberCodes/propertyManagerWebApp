@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from 'Redux/store/store';
 import { setCurrentUser } from 'Redux/Slices/userSlice';
@@ -42,10 +42,7 @@ import {
 	isTrialExpired,
 } from 'utils/subscriptionUtils';
 import { USER_ROLES } from 'constants/roles';
-import {
-	handleCheckoutSuccess,
-	syncSubscriptionFromStripe,
-} from 'services/stripeService';
+import { syncSubscriptionFromStripe } from 'services/stripeService';
 import {
 	ActionFirstTopSection,
 	TodayFocusCard,
@@ -59,7 +56,6 @@ import {
 	TodayFocusButtons,
 	FocusButton,
 	PortfolioHealthCard,
-	PortfolioHeaderText,
 	HomeHealthBarFill,
 	HomeHealthBarTrack,
 	HomeHealthBreakdown,
@@ -67,8 +63,10 @@ import {
 	HomeHealthMemoryBlock,
 	HomeHealthMemoryBlocks,
 	HomeHealthMemoryText,
-	HomeHealthGapRow,
-	HomeHealthOpportunityList,
+	HomeHealthQuickWin,
+	HomeHealthQuickWinLabel,
+	HomeHealthQuickWinText,
+	HomeHealthQuickWinButton,
 	HomeHealthStatus,
 	HomeHealthStatusLabel,
 	HomeHealthStatusLine,
@@ -77,18 +75,12 @@ import {
 	HomeHealthHeader,
 	HomeHealthHelp,
 	HomeHealthHelpButton,
-	HomeHealthActionRow,
-	HomeHealthTextButton,
 	HomeHealthDialogBody,
 	HomeHealthDialogLead,
 	HomeHealthDialogNote,
 	HomeHealthDialogSection,
 	HomeHealthDialogSubhead,
 	HomeHealthDialogFooter,
-	PortfolioMetrics,
-	PortfolioMetric,
-	PortfolioMetricLabel,
-	PortfolioMetricValue,
 	DashboardIntelligenceCard,
 	DashboardIntelligenceHeader,
 	DashboardIntelligenceSourcePill,
@@ -340,7 +332,6 @@ export const DashboardTab = () => {
 	const DASHBOARD_DUE_WINDOW_DAYS = 90;
 
 	const navigate = useNavigate();
-	const location = useLocation();
 	const dispatch = useDispatch();
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
 	const isHomeowner = useSelector(selectIsHomeowner);
@@ -478,30 +469,6 @@ export const DashboardTab = () => {
 			}
 		}
 	}, [currentUser, isUserTenant, navigate]);
-
-	// Handle Stripe checkout success
-	useEffect(() => {
-		const urlParams = new URLSearchParams(location.search);
-		const sessionId = urlParams.get('session_id');
-
-		if (sessionId && currentUser) {
-			const currentHash = window.location.hash;
-			const cleanHash = currentHash.replace(/[?&]session_id=[^&]*/, '');
-			window.history.replaceState(
-				{},
-				'',
-				window.location.pathname + window.location.search + cleanHash,
-			);
-
-			handleCheckoutSuccess(sessionId)
-				.then(() => {
-					window.location.reload();
-				})
-				.catch((error) => {
-					console.error('Checkout verification failed:', error);
-				});
-		}
-	}, [location.search, currentUser]);
 
 	const [showTaskCompletionModal, setShowTaskCompletionModal] = useState(false);
 	const [dashboardTaskPrefill, setDashboardTaskPrefill] =
@@ -1139,85 +1106,6 @@ export const DashboardTab = () => {
 		ACTIVE_TASK_STATUSES,
 		DASHBOARD_DUE_WINDOW_DAYS,
 	]);
-
-	const overdueDeviceIds = useMemo(() => {
-		const now = Date.now();
-		const ids = new Set<string>();
-
-		filteredTasks.forEach((task) => {
-			if (!task.dueDate || !ACTIVE_TASK_STATUSES.has(task.status)) {
-				return;
-			}
-
-			if (new Date(task.dueDate).getTime() >= now) {
-				return;
-			}
-
-			getLinkedDeviceIds(task).forEach((deviceId) => ids.add(deviceId));
-		});
-
-		return ids;
-	}, [filteredTasks, ACTIVE_TASK_STATUSES]);
-
-	const upcomingServiceWindowCount = useMemo(() => {
-		const now = new Date();
-		now.setHours(0, 0, 0, 0);
-		const maxDate = new Date(now);
-		maxDate.setDate(maxDate.getDate() + 30);
-		const dueSoonDeviceIds = new Set<string>();
-
-		filteredTasks.forEach((task) => {
-			if (!task.dueDate || !ACTIVE_TASK_STATUSES.has(task.status)) {
-				return;
-			}
-
-			const dueDate = new Date(task.dueDate);
-			if (Number.isNaN(dueDate.getTime())) {
-				return;
-			}
-			dueDate.setHours(0, 0, 0, 0);
-
-			if (dueDate < now || dueDate > maxDate) {
-				return;
-			}
-
-			getLinkedDeviceIds(task).forEach((deviceId) => dueSoonDeviceIds.add(deviceId));
-		});
-
-		return dueSoonDeviceIds.size;
-	}, [filteredTasks, ACTIVE_TASK_STATUSES]);
-
-	const systemsNeedingAttentionCount = useMemo(
-		() =>
-			visibleDevices.filter((device: any) => {
-				const status = String(device?.status || '');
-				return (
-					status === 'Broken' ||
-					status === 'Maintenance' ||
-					overdueDeviceIds.has(String(device.id))
-				);
-			}).length,
-		[visibleDevices, overdueDeviceIds],
-	);
-
-	const maintenanceEventsThisMonth = useMemo(() => {
-		const now = new Date();
-		const currentMonth = now.getMonth();
-		const currentYear = now.getFullYear();
-
-		const sourceRecords = dashboardMaintenanceHistory.length
-			? dashboardMaintenanceHistory
-			: scopedMaintenanceHistory;
-
-		return sourceRecords.filter((record: any) => {
-			const eventDate = new Date(getMaintenanceEventDate(record) || '');
-			return (
-				!Number.isNaN(eventDate.getTime()) &&
-				eventDate.getMonth() === currentMonth &&
-				eventDate.getFullYear() === currentYear
-			);
-		}).length;
-	}, [dashboardMaintenanceHistory, scopedMaintenanceHistory]);
 
 	const homeHealth = useMemo(() => {
 		const sourceRecords = dashboardMaintenanceHistory.length
@@ -1960,54 +1848,22 @@ export const DashboardTab = () => {
 							))}
 						</HomeHealthBreakdown>
 					</HomeHealthSummary>
-					<PortfolioHeaderText>
-						{isHomeowner
-							? "Maintley's assessment of how complete and useful your home's maintenance records are, based on the information you've saved."
-							: "Maintley's assessment of how complete and useful this property's maintenance records are, based on the information saved."}
-					</PortfolioHeaderText>
-					<HomeHealthGapRow>
-						<span>Largest gap</span>
-						<strong>
-							{homeHealth.largestGap.label} - {homeHealth.largestGap.value}%
-						</strong>
-					</HomeHealthGapRow>
-					<HomeHealthOpportunityList>
-						<span>Biggest opportunities</span>
-						<ul>
-							{homeHealth.opportunities.map((opportunity) => (
-								<li key={opportunity}>{opportunity}</li>
-							))}
-						</ul>
-					</HomeHealthOpportunityList>
-					{canOpenHealthReview && (
-						<HomeHealthActionRow>
-							<HomeHealthTextButton
+					<HomeHealthQuickWin>
+						<div>
+							<HomeHealthQuickWinLabel>Next best step</HomeHealthQuickWinLabel>
+							<HomeHealthQuickWinText>
+								<strong>{homeHealth.quickWin.label}</strong>
+								<span>{homeHealth.quickWin.detail}</span>
+							</HomeHealthQuickWinText>
+						</div>
+						{canOpenHealthReview && (
+							<HomeHealthQuickWinButton
 								type='button'
 								onClick={handleOpenHealthReview}>
 								View {healthReviewLabel}
-							</HomeHealthTextButton>
-						</HomeHealthActionRow>
-					)}
-					<PortfolioMetrics>
-						<PortfolioMetric>
-							<PortfolioMetricValue>
-								{systemsNeedingAttentionCount}
-							</PortfolioMetricValue>
-							<PortfolioMetricLabel>Needs Attention</PortfolioMetricLabel>
-						</PortfolioMetric>
-						<PortfolioMetric>
-							<PortfolioMetricValue>
-								{upcomingServiceWindowCount}
-							</PortfolioMetricValue>
-							<PortfolioMetricLabel>Upcoming Service</PortfolioMetricLabel>
-						</PortfolioMetric>
-						<PortfolioMetric>
-							<PortfolioMetricValue>
-								{maintenanceEventsThisMonth}
-							</PortfolioMetricValue>
-							<PortfolioMetricLabel>Completed This Month</PortfolioMetricLabel>
-						</PortfolioMetric>
-					</PortfolioMetrics>
+							</HomeHealthQuickWinButton>
+						)}
+					</HomeHealthQuickWin>
 				</PortfolioHealthCard>
 
 				{dashboardSuggestion && (
@@ -2030,18 +1886,20 @@ export const DashboardTab = () => {
 						{(dashboardSuggestion.evidenceDetails?.length ||
 							dashboardSuggestion.evidenceSummary) && (
 							<DashboardIntelligenceEvidence>
-								<span className='evidence-heading'>Why</span>
-								{dashboardSuggestion.evidenceDetails?.length ? (
-									dashboardSuggestion.evidenceDetails.map((detail, index) => (
-										<span className='evidence-line' key={`${detail.label}-${index}`}>
-											{detail.text}
+								<summary>Why</summary>
+								<div className='evidence-content'>
+									{dashboardSuggestion.evidenceDetails?.length ? (
+										dashboardSuggestion.evidenceDetails.map((detail, index) => (
+											<span className='evidence-line' key={`${detail.label}-${index}`}>
+												{detail.text}
+											</span>
+										))
+									) : (
+										<span className='evidence-text'>
+											{dashboardSuggestion.evidenceSummary}
 										</span>
-									))
-								) : (
-									<span className='evidence-text'>
-										{dashboardSuggestion.evidenceSummary}
-									</span>
-								)}
+									)}
+								</div>
 							</DashboardIntelligenceEvidence>
 						)}
 						<DashboardIntelligenceActions>
@@ -2285,14 +2143,6 @@ export const DashboardTab = () => {
 							Maintley Intelligence reviews completed maintenance history
 							connected to this {healthRecordLabel}. More history provides
 							better context for future guidance.
-						</span>
-					</HomeHealthDialogSection>
-					<HomeHealthDialogSection>
-						<strong>Operational metrics</strong>
-						<span>
-							Needs Attention, Upcoming Service, and Completed This Month are
-							shown below the score as a current snapshot. They do not drive
-							the Home Health percentage.
 						</span>
 					</HomeHealthDialogSection>
 					<HomeHealthDialogNote>

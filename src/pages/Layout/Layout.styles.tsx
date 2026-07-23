@@ -39,7 +39,7 @@ export const Sidebar = styled.div`
 	min-width: 250px;
 	height: 100%; /* Match height of Main */
 	flex-shrink: 0; /* Prevent sidebar from shrinking */
-	overflow-y: auto;
+	overflow: hidden;
 	border-right: 1px solid #e5e7eb;
 	background-color: #fefefe;
 	display: flex;

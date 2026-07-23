@@ -3,34 +3,36 @@ import { COLORS } from '../../constants/colors';
 
 export const PaywallWrapper = styled.div<{
 	variant?: 'full' | 'embedded';
-	wide?: boolean;
 }>`
 	width: 100%;
+	box-sizing: border-box;
 	min-height: ${(props) => (props.variant === 'embedded' ? 'auto' : '100vh')};
 	padding: ${(props) =>
-		props.variant === 'embedded' ? '10px 0' : '80px 40px'};
+		props.variant === 'embedded' ? '6px 0' : '48px 24px 64px'};
 	background: ${(props) =>
 		props.variant === 'embedded'
 			? 'transparent'
 			: `linear-gradient(135deg, ${COLORS.bgLight} 0%, ${COLORS.bgWhite} 100%)`};
-	margin-top: ${(props) => (props.variant === 'embedded' ? '0' : '80px')};
+	margin-top: ${(props) => (props.variant === 'embedded' ? '0' : '64px')};
+
+	@media (max-width: 768px) {
+		padding: ${(props) =>
+			props.variant === 'embedded' ? '4px 0' : '28px 16px 48px'};
+		margin-top: ${(props) => (props.variant === 'embedded' ? '0' : '56px')};
+	}
 `;
 
 export const PaywallContainer = styled.div<{
 	variant?: 'full' | 'embedded';
-	wide?: boolean;
 }>`
-	max-width: ${(props) => {
-		if (props.variant === 'embedded') {
-			return props.wide ? '100%' : '100%';
-		}
-		return '1200px';
-	}};
+	width: 100%;
+	box-sizing: border-box;
+	max-width: ${(props) => (props.variant === 'embedded' ? '100%' : '1120px')};
 	margin: 0 auto;
-	padding: ${(props) => (props.variant === 'embedded' ? '0 10px' : '0 40px')};
+	padding: ${(props) => (props.variant === 'embedded' ? '0' : '0 20px')};
 
 	@media (max-width: 1024px) {
-		padding: ${(props) => (props.variant === 'embedded' ? '0 8px' : '0 20px')};
+		padding: ${(props) => (props.variant === 'embedded' ? '0' : '0 8px')};
 	}
 `;
 
@@ -96,15 +98,15 @@ export const BackButton = styled.button<{ variant?: 'full' | 'embedded' }>`
 export const TrialBannerWrapper = styled.div<{ variant?: 'full' | 'embedded' }>`
 	background: ${COLORS.gradientPrimary};
 	color: white;
-	padding: ${(props) => (props.variant === 'embedded' ? '12px 16px' : '40px')};
+	padding: ${(props) => (props.variant === 'embedded' ? '12px 16px' : '28px 32px')};
 	border-radius: ${(props) => (props.variant === 'embedded' ? '8px' : '12px')};
-	margin-bottom: ${(props) => (props.variant === 'embedded' ? '16px' : '60px')};
+	margin-bottom: ${(props) => (props.variant === 'embedded' ? '16px' : '32px')};
 	text-align: center;
 	box-shadow: 0 10px 30px rgba(16, 185, 129, 0.2);
 `;
 
 export const TrialBannerTitle = styled.h2<{ variant?: 'full' | 'embedded' }>`
-	font-size: ${(props) => (props.variant === 'embedded' ? '16px' : '32px')};
+	font-size: ${(props) => (props.variant === 'embedded' ? '16px' : '28px')};
 	font-weight: 800;
 	margin: 0 0 ${(props) => (props.variant === 'embedded' ? '6px' : '15px')} 0;
 
@@ -114,7 +116,7 @@ export const TrialBannerTitle = styled.h2<{ variant?: 'full' | 'embedded' }>`
 `;
 
 export const TrialBannerText = styled.p<{ variant?: 'full' | 'embedded' }>`
-	font-size: ${(props) => (props.variant === 'embedded' ? '12px' : '18px')};
+	font-size: ${(props) => (props.variant === 'embedded' ? '12px' : '16px')};
 	margin: 0 0 ${(props) => (props.variant === 'embedded' ? '0' : '20px')} 0;
 	opacity: 0.95;
 
@@ -178,6 +180,40 @@ export const PlanGroupIntro = styled.p<{ variant?: 'full' | 'embedded' }>`
 	max-width: 640px;
 `;
 
+export const CheckoutConfidence = styled.div`
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-wrap: wrap;
+	gap: 8px 20px;
+	margin: 0 auto 18px;
+	color: ${COLORS.textSecondary};
+	font-size: 12px;
+	font-weight: 600;
+
+	span {
+		display: inline-flex;
+		align-items: center;
+		gap: 7px;
+	}
+
+	span::before {
+		content: '';
+		width: 6px;
+		height: 6px;
+		border-radius: 999px;
+		background: ${COLORS.primary};
+		box-shadow: 0 0 0 3px ${COLORS.primaryLight};
+	}
+
+	@media (max-width: 640px) {
+		align-items: flex-start;
+		flex-direction: column;
+		width: fit-content;
+		margin-bottom: 14px;
+	}
+`;
+
 export const CardHeaderRow = styled.div`
 	display: flex;
 	align-items: flex-start;
@@ -232,11 +268,12 @@ export const PricingCardsGrid = styled.div<{ layout?: 'grid' | 'horizontal' }>`
 	grid-template-columns: ${(props) =>
 		props.layout === 'horizontal'
 			? 'none'
-			: 'repeat(2, minmax(280px, 1fr))'};
+			: 'repeat(2, minmax(0, 1fr))'};
 	gap: ${(props) => (props.layout === 'horizontal' ? '16px' : '24px')};
-	margin-bottom: ${(props) =>
-		props.layout === 'horizontal' ? '20px' : '40px'};
-	margin-top: ${(props) => (props.layout === 'horizontal' ? '10px' : '22px')};
+	width: 100%;
+	max-width: 980px;
+	margin: ${(props) =>
+		props.layout === 'horizontal' ? '10px auto 20px' : '20px auto 28px'};
 	align-items: stretch;
 	justify-content: center;
 	flex-wrap: ${(props) => (props.layout === 'horizontal' ? 'nowrap' : 'wrap')};
@@ -245,9 +282,10 @@ export const PricingCardsGrid = styled.div<{ layout?: 'grid' | 'horizontal' }>`
 	overflow-y: visible;
 	padding-bottom: ${(props) => (props.layout === 'horizontal' ? '12px' : '0')};
 
-	@media (max-width: 1024px) {
+	@media (max-width: 860px) {
 		display: grid;
 		grid-template-columns: 1fr;
+		max-width: 660px;
 		gap: 12px;
 		overflow-x: visible;
 		flex-wrap: wrap;
@@ -257,24 +295,24 @@ export const PricingCardsGrid = styled.div<{ layout?: 'grid' | 'horizontal' }>`
 `;
 
 export const PricingCard = styled.div<{
-	isPopular?: boolean;
-	isCurrentPlan?: boolean;
+	$isPopular?: boolean;
+	$isCurrentPlan?: boolean;
 	layout?: 'grid' | 'horizontal';
 }>`
 	background: ${(props) =>
-		props.isCurrentPlan ? COLORS.primary : COLORS.bgWhite};
+		props.$isCurrentPlan ? COLORS.primary : COLORS.bgWhite};
 	border: ${(props) =>
-		props.isPopular
+		props.$isPopular
 			? `2px solid ${COLORS.primary}`
 			: `1.5px solid ${COLORS.gray200}`};
 	border-radius: ${(props) => (props.layout === 'horizontal' ? '8px' : '10px')};
 	padding: ${(props) =>
-		props.layout === 'horizontal' ? '18px 16px' : '28px 26px'};
+		props.layout === 'horizontal' ? '18px 16px' : '24px 24px'};
 	position: relative;
 	transition: all 0.3s ease;
 	display: flex;
 	flex-direction: column;
-	box-shadow: ${(props) => (props.isPopular ? COLORS.shadowLg : COLORS.shadow)};
+	box-shadow: ${(props) => (props.$isPopular ? COLORS.shadowLg : COLORS.shadow)};
 	min-width: ${(props) => (props.layout === 'horizontal' ? '260px' : 'auto')};
 	max-width: ${(props) => (props.layout === 'horizontal' ? '320px' : 'none')};
 	flex: ${(props) =>
@@ -356,7 +394,7 @@ export const PlanFeatureToggle = styled.button<{ color?: 'white' | 'black' }>`
 	border: none;
 	background: transparent;
 	padding: 0;
-	margin: 0 0 10px;
+	margin: 2px 0 14px;
 	font-size: 13px;
 	font-weight: 700;
 	cursor: pointer;
@@ -364,28 +402,21 @@ export const PlanFeatureToggle = styled.button<{ color?: 'white' | 'black' }>`
 		props.color === 'white' ? 'rgba(255, 255, 255, 0.92)' : COLORS.primary};
 	text-align: left;
 
-	@media (min-width: 769px) {
-		display: none;
+	&:hover {
+		text-decoration: underline;
 	}
 `;
 
-export const PlanFeatures = styled.ul<{ $collapsed?: boolean }>`
+export const PlanFeatures = styled.ul`
 	list-style: none;
 	padding: 0;
-	margin: 22px 0;
+	margin: 10px 0 18px;
 	flex-grow: 1;
-
-	@media (max-width: 768px) {
-		margin: 10px 0 16px;
-		max-height: ${(props) => (props.$collapsed ? '0' : '700px')};
-		overflow: hidden;
-		transition: max-height 0.28s ease;
-	}
 `;
 
 export const PlanFeature = styled.li<{ color?: 'white' | 'black' }>`
 	font-size: 14px;
-	padding: 9px 0;
+	padding: 6px 0;
 	color: ${(props) =>
 		props.color === 'white' ? 'rgba(255, 255, 255, 0.9)' : COLORS.textPrimary};
 	display: flex;
@@ -400,7 +431,7 @@ export const PlanFeature = styled.li<{ color?: 'white' | 'black' }>`
 	}
 `;
 
-export const SelectPlanButton = styled.button<{ isCurrentPlan?: boolean }>`
+export const SelectPlanButton = styled.button<{ $isCurrentPlan?: boolean }>`
 	width: 100%;
 	padding: 14px 24px;
 	font-size: 16px;
@@ -408,11 +439,11 @@ export const SelectPlanButton = styled.button<{ isCurrentPlan?: boolean }>`
 	border: none;
 	border-radius: 8px;
 	background: ${(props) =>
-		props.isCurrentPlan ? 'rgba(255, 255, 255, 0.2)' : COLORS.primary};
-	color: ${(props) => (props.isCurrentPlan ? 'white' : COLORS.bgWhite)};
+		props.$isCurrentPlan ? 'rgba(255, 255, 255, 0.2)' : COLORS.primary};
+	color: ${(props) => (props.$isCurrentPlan ? 'white' : COLORS.bgWhite)};
 	cursor: pointer;
 	transition: all 0.3s ease;
-	border: ${(props) => (props.isCurrentPlan ? '2px solid white' : 'none')};
+	border: ${(props) => (props.$isCurrentPlan ? '2px solid white' : 'none')};
 
 	&:hover {
 		opacity: 0.9;
@@ -488,11 +519,15 @@ export const AdditionalOptionsContainer = styled.div<{
 	$single?: boolean;
 }>`
 	display: grid;
+	width: 100%;
+	max-width: 980px;
 	grid-template-columns: ${(props) =>
 		props.$single ? 'minmax(0, 560px)' : '1fr 1fr'};
 	gap: ${(props) => (props.layout === 'horizontal' ? '16px' : '24px')};
 	margin-top: ${(props) => (props.layout === 'horizontal' ? '20px' : '40px')};
 	justify-content: center;
+	margin-left: auto;
+	margin-right: auto;
 
 	@media (max-width: 1024px) {
 		grid-template-columns: 1fr;

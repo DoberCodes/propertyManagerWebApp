@@ -3,19 +3,15 @@ import { font_main } from '../../../../global.styles';
 import { Link } from 'react-router-dom';
 import { COLORS } from '../../../../constants/colors';
 
-const TOP_NAV_HEIGHT = '64px'; // Dynamic TopNav height
-
 export const DesktopWrapper = styled.div`
 	background-color: ${COLORS.white};
 	display: flex;
 	flex-direction: column;
-	height: calc(100vh - ${TOP_NAV_HEIGHT}); /* Subtract dynamic TopNav height */
-	max-height: calc(
-		100vh - ${TOP_NAV_HEIGHT}
-	); /* Prevent overflow beyond viewport minus TopNav */
-	flex: 1; /* Fill available space */
-	overflow-y: auto; /* Single natural sidebar scroll */
-	overflow-x: hidden; /* Prevent horizontal scrolling */
+	height: 100%;
+	max-height: 100%;
+	min-height: 0;
+	flex: 1 1 auto;
+	overflow: hidden;
 
 	@media (max-width: 1024px) {
 		display: none;
@@ -186,9 +182,21 @@ export const MobileNavItem = styled(Link)`
 export const MenuSection = styled.div`
 	display: flex;
 	flex-direction: column;
-	gap: 6px;
-	padding: 14px 16px;
-	flex-shrink: 0;
+	gap: 4px;
+	padding: 12px 14px 8px;
+	flex: 1 1 auto;
+	min-height: 0;
+	overflow: hidden;
+
+	> div:first-child {
+		flex: 0 0 auto;
+	}
+
+	> div:not(:first-child) {
+		flex: 1 1 auto;
+		min-height: 0;
+		overflow: hidden;
+	}
 
 	@media (max-width: 1024px) {
 		padding: 20px;
@@ -208,7 +216,7 @@ export const MenuSection = styled.div`
 export const MenuNav = styled.div`
 	display: flex;
 	flex-direction: column;
-	gap: 8px;
+	gap: 5px;
 
 	@media (max-width: 1024px) {
 		gap: 8px;
@@ -220,7 +228,7 @@ export const MenuItem = styled(Link)`
 	text-decoration: none;
 	font-size: ${font_main};
 	font-weight: 500;
-	padding: 8px 10px;
+	padding: 7px 10px;
 	border-radius: 4px;
 	transition: all 0.2s ease;
 	cursor: pointer;
@@ -396,9 +404,9 @@ export const ManagePlanButton = styled.button`
 export const Section = styled.div`
 	display: flex;
 	flex-direction: column;
-	gap: 8px;
-	padding: 14px 16px;
-	flex-shrink: 0; /* Prevent shrinking */
+	gap: 6px;
+	padding: 12px 14px;
+	flex-shrink: 0;
 	border-bottom: 1px solid ${COLORS.border};
 
 	&:last-of-type {
@@ -436,12 +444,13 @@ export const SectionTitle = styled.h3`
 export const SectionContent = styled.div<{ $scrollable?: boolean }>`
 	display: flex;
 	flex-direction: column;
-	gap: 8px;
+	gap: 6px;
 	font-size: ${font_main};
 	color: ${COLORS.textPrimary};
 	max-height: ${({ $scrollable = true }) => ($scrollable ? '200px' : 'none')};
 	overflow-y: ${({ $scrollable = true }) => ($scrollable ? 'auto' : 'visible')};
-	flex-shrink: 0; /* Prevent shrinking */
+	flex: 0 1 auto;
+	min-height: 0;
 
 	@media (max-width: 1024px) {
 		gap: 10px;
@@ -459,10 +468,10 @@ export const SectionContent = styled.div<{ $scrollable?: boolean }>`
 export const BottomSections = styled.div`
 	display: flex;
 	flex-direction: column;
-	gap: 10px;
+	gap: 6px;
 	margin-top: auto;
-	padding: 12px 16px 16px;
-	flex-shrink: 0; /* Prevent shrinking */
+	padding: 8px 14px 10px;
+	flex-shrink: 0;
 
 	@media (max-width: 1024px) {
 		padding: 20px;
@@ -477,7 +486,7 @@ export const BottomSections = styled.div`
 `;
 
 export const AppVersionFooter = styled.div`
-	padding: 0 16px 12px;
+	padding: 0 14px 8px;
 	font-size: 11px;
 	font-weight: 600;
 	line-height: 1.4;
