@@ -44,13 +44,8 @@ if (!admin.apps.length) {
     admin.initializeApp();
 }
 const db = admin.firestore();
-const PROPERTY_INSIGHTS_PLANS = new Set([
-    'homeowner_plus',
-    'property',
-    'portfolio',
-]);
 const MAX_EMAIL_OBSERVATIONS = 5;
-const canUsePropertyInsights = (user) => PROPERTY_INSIGHTS_PLANS.has((0, subscriptionEntitlements_1.getEffectiveSubscriptionPlanId)(user.subscription, 'homeowner'));
+const canUsePropertyInsights = (user) => (0, subscriptionEntitlements_1.hasSubscriptionCapability)(user.subscription, 'property_intelligence.use');
 const getDisplayName = (user) => {
     const name = (user.firstName || user.displayName || '').trim();
     return name || 'there';

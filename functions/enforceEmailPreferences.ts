@@ -1,25 +1,12 @@
 import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
+import { hasSubscriptionCapability } from './subscriptionEntitlements';
 
 if (!admin.apps.length) {
 	admin.initializeApp();
 }
 
 const db = admin.firestore();
-
-const PAID_TASK_REMINDER_EMAIL_PLANS = new Set([
-	'homeowner_plus',
-	'property',
-	'portfolio',
-]);
-
-const PROPERTY_INSIGHTS_PLANS = new Set([
-	'homeowner_plus',
-	'property',
-	'portfolio',
-]);
-
-const TEAM_MEMBER_REPORT_PLANS = new Set(['property', 'portfolio']);
 
 interface UserSubscriptionLike {
 	status?: string;
@@ -42,27 +29,6 @@ interface UserLike {
 	emailPreferences?: UserEmailPreferencesLike;
 }
 
-const normalizePlanId = (planId?: string): string => {
-	return String(planId || '').trim().toLowerCase();
-};
-
-const hasCurrentEntitlement = (subscription?: UserSubscriptionLike): boolean => {
-	if (!subscription?.status) return false;
-	if (subscription.status === 'active') return true;
-	if (subscription.status !== 'trial') return false;
-	if (!subscription.trialEndsAt) return true;
-	return subscription.trialEndsAt > Date.now() / 1000;
-};
-
-const getEffectivePlanId = (subscription?: UserSubscriptionLike): string => {
-	if (!hasCurrentEntitlement(subscription)) {
-		return 'homeowner';
-	}
-
-	const plan = normalizePlanId(subscription?.plan);
-	return plan || 'homeowner';
-};
-
 export const enforceEmailPreferences = functions.firestore
 	.document('users/{userId}')
 	.onWrite(async (change, context) => {
@@ -83,12 +49,18 @@ export const enforceEmailPreferences = functions.firestore
 			return null;
 		}
 
-		const effectivePlan = getEffectivePlanId(afterData.subscription);
-		const canUseTaskReminderEmails = PAID_TASK_REMINDER_EMAIL_PLANS.has(
-			effectivePlan,
+		const canUseTaskReminderEmails = hasSubscriptionCapability(
+			afterData.subscription,
+			'notifications.use',
 		);
-		const canUsePropertyInsights = PROPERTY_INSIGHTS_PLANS.has(effectivePlan);
-		const canUseTeamMemberReports = TEAM_MEMBER_REPORT_PLANS.has(effectivePlan);
+		const canUsePropertyInsights = hasSubscriptionCapability(
+			afterData.subscription,
+			'property_intelligence.use',
+		);
+		const canUseTeamMemberReports = hasSubscriptionCapability(
+			afterData.subscription,
+			'team.manage',
+		);
 
 		const updates: Record<string, unknown> = {};
 		if (taskRemindersEnabled && !canUseTaskReminderEmails) {
@@ -115,7 +87,7 @@ export const enforceEmailPreferences = functions.firestore
 
 		functions.logger.info('Disabled paid-only email preferences for ineligible plan', {
 			userId: context.params.userId,
-			effectivePlan,
+			plan: String(afterData.subscription?.plan || '').trim() || 'homeowner',
 			updates: Object.keys(updates),
 		});
 

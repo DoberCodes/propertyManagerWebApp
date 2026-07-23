@@ -36,18 +36,12 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.sendPushForNotification = void 0;
 const admin = __importStar(require("firebase-admin"));
 const subscriptionEntitlements_1 = require("./subscriptionEntitlements");
-const PUSH_NOTIFICATION_PLANS = new Set([
-    'homeowner_plus',
-    'property',
-    'portfolio',
-]);
 const getDb = () => admin.firestore();
 const canUsePushNotifications = (subscription) => {
     if (!subscription) {
         return false;
     }
-    const effectivePlan = (0, subscriptionEntitlements_1.getEffectiveSubscriptionPlanId)(subscription, 'homeowner');
-    return PUSH_NOTIFICATION_PLANS.has(effectivePlan);
+    return (0, subscriptionEntitlements_1.hasSubscriptionCapability)(subscription, 'notifications.use');
 };
 const getUserPushTokens = (user, options = {}) => {
     const tokens = new Set();

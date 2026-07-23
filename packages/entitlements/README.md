@@ -11,6 +11,7 @@ It currently owns:
 * complimentary-to-paid transition and admin-audit type contracts
 * default-off rollout flags
 * the pure account entitlement resolver
+* default-deny `hasCapability` and `getEntitlementLimit` accessors
 
 The resolver has two billing modes:
 

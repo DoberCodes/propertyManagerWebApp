@@ -206,6 +206,23 @@ const resolvePriceIdForPlan = (
 	);
 };
 
+const CHECKOUT_PLAN_IDS = ['homeowner_plus', 'property', 'portfolio'] as const;
+const LEGACY_PRICE_ONLY_CHECKOUT_REMOVAL_RELEASE = '2.10.0';
+
+const resolveConfiguredPlanForPriceId = (priceId: string): string => {
+	const normalizedPriceId = sanitizeSecret(String(priceId || ''));
+	if (!normalizedPriceId) return '';
+
+	for (const planId of CHECKOUT_PLAN_IDS) {
+		for (const billingCycle of ['month', 'year'] as const) {
+			if (resolvePriceIdForPlan(planId, billingCycle) === normalizedPriceId) {
+				return planId;
+			}
+		}
+	}
+	return '';
+};
+
 const resolvePromotionCodeId = async (
 	promoCode: string,
 ): Promise<string | null> => {
@@ -393,6 +410,7 @@ export const createCheckoutSession = functions
 			promoCode: requestedPromoCode,
 		} = data;
 		const normalizedPlanId = String(planId || '').trim().toLowerCase();
+		const normalizedBillingCycle = String(billingCycle || '').toLowerCase();
 		const authenticatedUserId = context.auth.uid;
 		if (String(userId || '').trim() !== authenticatedUserId) {
 			throw new functions.https.HttpsError(
@@ -400,19 +418,43 @@ export const createCheckoutSession = functions
 				'Checkout can only be created for the signed-in account',
 			);
 		}
-		const resolvedPlanPriceId = resolvePriceIdForPlan(
-			normalizedPlanId,
-			String(billingCycle || '').toLowerCase() === 'year' ? 'year' : 'month',
-		);
 		const resolvedRequestedPriceId = sanitizeSecret(String(requestedPriceId || ''));
-		const resolvedPriceId = normalizedPlanId
-			? resolvedPlanPriceId || resolvedRequestedPriceId
-			: resolvedRequestedPriceId;
+		let checkoutPlanId = normalizedPlanId;
+		let resolvedPriceId = '';
+
+		if (checkoutPlanId) {
+			if (!CHECKOUT_PLAN_IDS.includes(checkoutPlanId as typeof CHECKOUT_PLAN_IDS[number])) {
+				throw new functions.https.HttpsError(
+					'invalid-argument',
+					'Checkout requires a supported paid plan ID.',
+				);
+			}
+			if (!['month', 'year'].includes(normalizedBillingCycle)) {
+				throw new functions.https.HttpsError(
+					'invalid-argument',
+					'Checkout requires a monthly or annual billing cycle.',
+				);
+			}
+			resolvedPriceId = resolvePriceIdForPlan(
+				checkoutPlanId,
+				normalizedBillingCycle as 'month' | 'year',
+			);
+		} else {
+			checkoutPlanId = resolveConfiguredPlanForPriceId(resolvedRequestedPriceId);
+			resolvedPriceId = checkoutPlanId ? resolvedRequestedPriceId : '';
+			if (checkoutPlanId) {
+				functions.logger.warn('Legacy price-only checkout compatibility path used', {
+					userId: authenticatedUserId,
+					resolvedPlanId: checkoutPlanId,
+					removalRelease: LEGACY_PRICE_ONLY_CHECKOUT_REMOVAL_RELEASE,
+				});
+			}
+		}
 
 		if (!resolvedPriceId || !userId || !email) {
 			throw new functions.https.HttpsError(
-				'invalid-argument',
-				`Missing required Stripe configuration: no price ID resolved for plan '${String(planId || '')}'. Provide a valid price ID in the client request or configure STRIPE_*_PRICE_ID in functions environment.`,
+				'failed-precondition',
+				`No server-owned Stripe price is configured for plan '${String(planId || '')}', or the legacy price-only request is not recognized.`,
 			);
 		}
 
@@ -529,7 +571,7 @@ export const createCheckoutSession = functions
 					status: toLocalSubscriptionStatus(updatedSubscription.status),
 					plan: getPlanFromPriceId(
 						updatedPriceId,
-						normalizedPlanId || userData?.subscription?.plan || 'homeowner',
+						checkoutPlanId || userData?.subscription?.plan || 'homeowner',
 					),
 					currentPeriodStart: updatedSubscription.current_period_start,
 					currentPeriodEnd: updatedSubscription.current_period_end,

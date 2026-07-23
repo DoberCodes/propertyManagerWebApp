@@ -60,14 +60,12 @@ const COMPLETED_EVENT_TYPES = new Set([
     'inspection_completed',
     'recurring_maintenance_completed',
 ]);
-const TEAM_REPORT_PLANS = new Set(['property', 'portfolio']);
 const canUseTeamReports = (user) => {
     const subscription = user.subscription;
     if (!(0, subscriptionEntitlements_1.isSubscriptionCurrentlyEntitled)(subscription)) {
         return false;
     }
-    const plan = (0, subscriptionEntitlements_1.getEffectiveSubscriptionPlanId)(subscription, 'homeowner');
-    return TEAM_REPORT_PLANS.has(plan);
+    return (0, subscriptionEntitlements_1.hasSubscriptionCapability)(subscription, 'team.manage');
 };
 const getAccountId = (userId, user) => String(user.accountId || '').trim() || userId;
 const getName = (member) => {

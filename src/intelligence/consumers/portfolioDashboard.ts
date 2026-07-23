@@ -13,6 +13,7 @@ import {
 import { getBaselineDefinitionForAsset } from '../baselineCareLibrary';
 import { runMaintleyIntelligence } from '../engine';
 import { normalizeMaintleyPlanId } from '../planFilter';
+import { getPlanPreset, hasCapability } from '@maintley/entitlements';
 import {
 	getAssetDisplayName,
 	normalizeText,
@@ -142,7 +143,7 @@ const DASHBOARD_PAID_SPOTLIGHT_SOURCES = new Set<MaintleyFindingSource>([
 ]);
 
 const isExpandedIntelligencePlan = (planId: MaintleyPlanId): boolean =>
-	!['guest', 'tenant', 'homeowner'].includes(planId);
+	hasCapability(getPlanPreset(planId), 'property_intelligence.use');
 
 const compareDashboardFindings = (
 	left: MaintleyFinding,

@@ -1,6 +1,7 @@
 import * as admin from 'firebase-admin';
 import * as functions from 'firebase-functions/v1';
 import { assertAccountRole } from './accountAuthz';
+import { hasSubscriptionCapability } from './subscriptionEntitlements';
 
 if (!admin.apps.length) {
 	admin.initializeApp();
@@ -10,7 +11,6 @@ const db = admin.firestore();
 
 const PROPERTY_GROUP_DELETE_ROLES = ['account_owner', 'admin', 'manager'];
 const BATCH_LIMIT = 450;
-const PROPERTY_GROUP_PLANS = new Set(['property', 'portfolio']);
 
 type DeletePropertyGroupRequest = {
 	groupId?: string;
@@ -26,33 +26,8 @@ type DeletePropertyGroupResult = {
 
 const toString = (value: unknown): string => String(value || '').trim();
 
-const normalizePlanId = (value: unknown): string => {
-	return toString(value).toLowerCase();
-};
-
-const isTrialActive = (subscription: any): boolean => {
-	if (subscription?.status !== 'trial') {
-		return false;
-	}
-
-	if (!subscription.trialEndsAt) {
-		return true;
-	}
-
-	return subscription.trialEndsAt > Date.now() / 1000;
-};
-
 const canUsePropertyGroups = (subscription: any): boolean => {
-	if (!subscription) {
-		return false;
-	}
-
-	if (subscription.status !== 'active' && !isTrialActive(subscription)) {
-		return false;
-	}
-
-	const plan = normalizePlanId(subscription.plan);
-	return PROPERTY_GROUP_PLANS.has(plan);
+	return hasSubscriptionCapability(subscription, 'property_groups.manage');
 };
 
 const chunk = <T>(items: T[], size: number): T[][] => {

@@ -286,6 +286,14 @@ export function isSubscriptionCurrentlyEntitled(
 export function resolveAccountEntitlements(
 	input?: ResolveAccountEntitlementsInput,
 ): ResolvedAccountEntitlements;
+export function hasCapability(
+	presetOrResult: Pick<PlanPreset, 'capabilities'> | null | undefined,
+	capabilityId: CapabilityId,
+): boolean;
+export function getEntitlementLimit(
+	presetOrResult: Pick<PlanPreset, 'limits'> | null | undefined,
+	limitId: LimitId,
+): number;
 export function toLegacyPermissions(
 	presetOrResult: Pick<PlanPreset, 'capabilities' | 'limits'>,
 ): LegacyPermissions;

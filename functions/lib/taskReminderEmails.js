@@ -39,6 +39,7 @@ const admin = __importStar(require("firebase-admin"));
 const params_1 = require("firebase-functions/params");
 const emailService_1 = require("./emailService");
 const taskDisplayStatus_1 = require("./taskDisplayStatus");
+const subscriptionEntitlements_1 = require("./subscriptionEntitlements");
 const RESEND_API_KEY = (0, params_1.defineSecret)(process.env.RESEND_API_KEY_SECRET_NAME || 'RESEND_API_KEY');
 if (!admin.apps.length) {
     admin.initializeApp();
@@ -51,34 +52,8 @@ const ACTIVE_TASK_STATUSES = new Set([
     'Awaiting Approval',
     'Overdue',
 ]);
-const PAID_TASK_REMINDER_EMAIL_PLANS = new Set([
-    'homeowner_plus',
-    'property',
-    'portfolio',
-]);
-const normalizePlanId = (planId) => {
-    return String(planId || '').trim().toLowerCase();
-};
-const hasCurrentEntitlement = (subscription) => {
-    if (!subscription?.status)
-        return false;
-    if (subscription.status === 'active')
-        return true;
-    if (subscription.status !== 'trial')
-        return false;
-    if (!subscription.trialEndsAt)
-        return true;
-    return subscription.trialEndsAt > Date.now() / 1000;
-};
-const getEffectivePlanId = (subscription) => {
-    if (!hasCurrentEntitlement(subscription)) {
-        return 'homeowner';
-    }
-    const plan = normalizePlanId(subscription?.plan);
-    return plan || 'homeowner';
-};
 const canReceiveTaskReminderEmails = (user) => user.emailPreferences?.taskReminders === true &&
-    PAID_TASK_REMINDER_EMAIL_PLANS.has(getEffectivePlanId(user.subscription));
+    (0, subscriptionEntitlements_1.hasSubscriptionCapability)(user.subscription, 'notifications.use');
 const toDateOnly = (date) => date.toISOString().slice(0, 10);
 const parseTaskDueDate = (dueDate) => {
     if (!dueDate)

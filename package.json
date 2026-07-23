@@ -49,7 +49,7 @@
 	},
 	"scripts": {
 		"start": "node ./node_modules/react-scripts/bin/react-scripts.js start",
-		"build": "node scripts/validateFrontendEnv.cjs && node ./node_modules/react-scripts/bin/react-scripts.js build",
+		"build": "node scripts/validateFrontendEnv.cjs && node scripts/checkEntitlementBoundaries.cjs && node ./node_modules/react-scripts/bin/react-scripts.js build",
 		"validate:frontend-env": "node scripts/validateFrontendEnv.cjs",
 		"validate:seo": "node scripts/validatePublicSeo.cjs && node scripts/validatePublicNavigation.cjs && node scripts/validatePublicPricing.cjs",
 		"sync:seo-nav": "node scripts/syncPublicSeoNav.cjs",
@@ -61,6 +61,7 @@
 		"analyze:bundle": "node scripts/reportBuildAssets.cjs",
 		"analyze:media": "node scripts/reportMediaAssets.cjs",
 		"check:asset-budgets": "node scripts/checkAssetBudgets.cjs",
+		"check:entitlement-boundaries": "node scripts/checkEntitlementBoundaries.cjs",
 		"audit:scripts": "node scripts/auditScripts.cjs",
 		"audit:decisions": "node scripts/auditDecisions.cjs",
 		"adr:author": "node scripts/promoteAdrCandidates.cjs --author",

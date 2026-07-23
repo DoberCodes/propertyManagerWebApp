@@ -42,9 +42,9 @@ if (!admin.apps.length) {
     admin.initializeApp();
 }
 const db = admin.firestore();
-const PLAN_CAPABILITIES = {
-    team: new Set(['property', 'portfolio']),
-    tenant: new Set(['property', 'portfolio']),
+const INVITE_CAPABILITIES = {
+    team: 'team.manage',
+    tenant: 'residents.manage',
 };
 const assertInviteCapability = async (uid, capability) => {
     const accountId = await (0, accountAuthz_1.resolveAccountIdForUser)(uid);
@@ -56,11 +56,10 @@ const assertInviteCapability = async (uid, capability) => {
     const accountOwnerData = accountOwnerDoc.data() || {};
     const subscription = (accountOwnerData.subscription ||
         {});
-    const effectivePlan = (0, subscriptionEntitlements_1.getEffectiveSubscriptionPlanId)(subscription, 'homeowner');
     if (!(0, subscriptionEntitlements_1.isSubscriptionCurrentlyEntitled)(subscription)) {
         throw new functions.https.HttpsError('permission-denied', 'An active subscription is required for this invite action');
     }
-    if (!PLAN_CAPABILITIES[capability].has(effectivePlan)) {
+    if (!(0, subscriptionEntitlements_1.hasSubscriptionCapability)(subscription, INVITE_CAPABILITIES[capability])) {
         throw new functions.https.HttpsError('permission-denied', capability === 'team'
             ? 'Your current subscription plan does not allow inviting team members.'
             : 'Your current subscription plan does not allow inviting tenants.');

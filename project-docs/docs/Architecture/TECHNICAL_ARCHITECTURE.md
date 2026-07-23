@@ -455,9 +455,12 @@ supports versioned plan bundles and account-scoped additive grants, uses an
 explicit clock for expiration, and emits diagnostics for compatibility or
 default-deny outcomes.
 
-The current rollout is compatibility-only. Existing feature callers remain in
-place, internal grant issuance is disabled, and no persisted entitlement grant
-is required for existing accounts.
+The current rollout keeps subscription compatibility while routing primary web
+and Functions feature decisions through shared capability and limit helpers.
+Direct plan-name checks are restricted to classified billing, pricing,
+presentation, analytics, and migration boundaries by repository validation.
+Internal grant issuance remains disabled, and no persisted entitlement grant is
+required for existing accounts.
 
 ---
 

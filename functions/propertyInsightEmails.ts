@@ -6,7 +6,7 @@ import {
 	getResendClient,
 	sendMaintleyEmail,
 } from './emailService';
-import { getEffectiveSubscriptionPlanId } from './subscriptionEntitlements';
+import { hasSubscriptionCapability } from './subscriptionEntitlements';
 
 const RESEND_API_KEY = defineSecret(
 	process.env.RESEND_API_KEY_SECRET_NAME || 'RESEND_API_KEY',
@@ -17,12 +17,6 @@ if (!admin.apps.length) {
 }
 
 const db = admin.firestore();
-
-const PROPERTY_INSIGHTS_PLANS = new Set([
-	'homeowner_plus',
-	'property',
-	'portfolio',
-]);
 
 interface UserSubscriptionLike {
 	status?: string;
@@ -103,9 +97,7 @@ interface InsightSummary {
 const MAX_EMAIL_OBSERVATIONS = 5;
 
 const canUsePropertyInsights = (user: PropertyInsightsUser): boolean =>
-	PROPERTY_INSIGHTS_PLANS.has(
-		getEffectiveSubscriptionPlanId(user.subscription, 'homeowner'),
-	);
+	hasSubscriptionCapability(user.subscription, 'property_intelligence.use');
 
 const getDisplayName = (user: PropertyInsightsUser): string => {
 	const name = (user.firstName || user.displayName || '').trim();

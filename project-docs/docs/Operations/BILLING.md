@@ -66,13 +66,18 @@ MAINTLEY_PLAN_FEATURE_MATRIX.md
 ## Entitlement foundation
 
 The web application and Firebase Functions now share the pure resolver in
-`packages/entitlements`. Existing helpers remain as compatibility wrappers so
-current plan behavior can migrate incrementally without enabling new plans,
-trials, or internal grant issuance.
+`packages/entitlements`. Client and server feature helpers resolve typed
+capabilities and limits from that package. Compatibility wrappers preserve
+existing subscription records without enabling new plans, trials, or internal
+grant issuance.
 
 Compatibility mode preserves existing paid-plan records while synthetic Stripe
 access is reviewed manually. Strict mode requires Stripe confirmation before a
 paid plan supplies paid access. Pending Checkout never supplies paid access.
+Unknown entitlement values emit structured default-deny diagnostics from the
+Functions boundary. Setting `ENTITLEMENT_COMPARE_MODE=true` emits structured
+stored-plan versus resolved-plan comparison events during a controlled rollout;
+it does not change the access result.
 
 The package defines temporary and permanent grant, billing-transition,
 administrative-audit, and rollout-flag contracts, but no production workflow
@@ -150,6 +155,13 @@ Expected flow:
 6. Maintley verifies that the Checkout session belongs to the signed-in user.
 7. Firestore user and family-account subscription records are synchronized.
 8. Maintley reloads the authoritative user profile and then opens the dashboard.
+
+Current clients submit a stable paid plan ID and `month` or `year` billing
+cycle. The Function selects the Stripe price from server-owned configuration;
+a client-provided price ID is not normal checkout authority. The temporary
+price-only compatibility path accepts only prices already present in that
+server catalog, emits a structured warning when used, and is scheduled for
+removal in release `2.10.0`.
 
 Checkout launch has a 30-second request timeout. A timeout or launch failure
 must replace the loading screen with actions to retry secure checkout or
@@ -352,8 +364,9 @@ Examples:
 * getRemainingDeviceSlots
 * getEffectiveSubscriptionPlanId
 
-`getEffectiveSubscriptionPlanId` now delegates to the shared resolver in
-compatibility mode. Feature-specific helpers continue migrating in later phases.
+`getEffectiveSubscriptionPlanId` delegates to the shared resolver in
+compatibility mode. Feature decisions use typed capability helpers and numeric
+limits use the shared plan presets.
 
 ---
 
@@ -361,10 +374,13 @@ compatibility mode. Feature-specific helpers continue migrating in later phases.
 
 Examples:
 
-* maxPropertiesForPlan
-* maxDevicesForPlan
+* planLimit mirror
+* planHasCapability mirror
 * property counter validation
 * device counter validation
+
+Firestore Rules cannot import the runtime package, so their narrow mirror is
+kept centralized in these two functions and covered by emulator parity tests.
 
 ---
 

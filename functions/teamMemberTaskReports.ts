@@ -8,7 +8,7 @@ import {
 } from './emailService';
 import { getTaskDisplayStatus } from './taskDisplayStatus';
 import {
-	getEffectiveSubscriptionPlanId,
+	hasSubscriptionCapability,
 	isSubscriptionCurrentlyEntitled,
 } from './subscriptionEntitlements';
 
@@ -119,16 +119,13 @@ const COMPLETED_EVENT_TYPES = new Set([
 	'recurring_maintenance_completed',
 ]);
 
-const TEAM_REPORT_PLANS = new Set(['property', 'portfolio']);
-
 const canUseTeamReports = (user: OwnerUser): boolean => {
 	const subscription = user.subscription;
 	if (!isSubscriptionCurrentlyEntitled(subscription)) {
 		return false;
 	}
 
-	const plan = getEffectiveSubscriptionPlanId(subscription, 'homeowner');
-	return TEAM_REPORT_PLANS.has(plan);
+	return hasSubscriptionCapability(subscription, 'team.manage');
 };
 
 const getAccountId = (userId: string, user: OwnerUser): string =>

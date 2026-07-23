@@ -37,16 +37,13 @@ exports.redeemTeamMemberInvitationCode = exports.revokeTeamMemberInvitationCode 
 const functions = __importStar(require("firebase-functions/v1"));
 const admin = __importStar(require("firebase-admin"));
 const inviteAuthz_1 = require("./inviteAuthz");
+const subscriptionEntitlements_1 = require("./subscriptionEntitlements");
 if (!admin.apps.length) {
     admin.initializeApp();
 }
 const db = admin.firestore();
-const normalizePlanId = (plan) => {
-    return String(plan || '').trim().toLowerCase();
-};
-const isPropertySimpleTeamPlan = (plan) => normalizePlanId(plan) === 'property';
-const assertSimpleTeamProfileAllowed = (plan, teamMemberData) => {
-    if (!isPropertySimpleTeamPlan(plan)) {
+const assertSimpleTeamProfileAllowed = (advancedTeamAllowed, teamMemberData) => {
+    if (advancedTeamAllowed) {
         return;
     }
     const role = String(teamMemberData?.role || '').trim();
@@ -217,7 +214,7 @@ exports.createTeamMemberInvitationCode = functions.https.onCall(async (data, con
         .collection('teamMembers')
         .doc(teamMemberId)
         .get();
-    assertSimpleTeamProfileAllowed(subscription.plan, teamMemberDoc.data());
+    assertSimpleTeamProfileAllowed((0, subscriptionEntitlements_1.hasSubscriptionCapability)(subscription, 'team.advanced'), teamMemberDoc.data());
     const now = new Date().toISOString();
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
     const invitationCode = {
@@ -380,7 +377,7 @@ exports.redeemTeamMemberInvitationCode = functions.https.onCall(async (data, con
             .doc(inviteData.accountId)
             .get();
         const accountOwnerSubscription = accountOwnerDoc.data()?.subscription || {};
-        assertSimpleTeamProfileAllowed(accountOwnerSubscription.plan, teamMemberProfile || undefined);
+        assertSimpleTeamProfileAllowed((0, subscriptionEntitlements_1.hasSubscriptionCapability)(accountOwnerSubscription, 'team.advanced'), teamMemberProfile || undefined);
         await upsertTeamMemberAccess({
             uid: context.auth.uid,
             email: callerEmail,

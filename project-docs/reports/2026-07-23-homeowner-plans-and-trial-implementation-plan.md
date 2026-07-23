@@ -2,7 +2,7 @@
 
 Date: 2026-07-23
 
-Status: Approved implementation plan; Phase 1 in progress
+Status: Approved implementation plan; Phase 1 complete; Phase 2 in progress
 
 Related proposed ADRs:
 
@@ -37,7 +37,7 @@ administrative-audit, or manual synthetic-subscription migration direction.
 
 ## Implementation progress
 
-Phase 1 began on 2026-07-23. The current foundation includes:
+Phase 1 completed on 2026-07-23. The current foundation includes:
 
 * one workspace-local entitlement package consumed by the web app and Functions
 * stable capability and limit IDs with versioned existing-plan presets
@@ -48,10 +48,34 @@ Phase 1 began on 2026-07-23. The current foundation includes:
   deterministic parity fixtures
 * explicit Firestore denial of client access to authoritative grant records
 
-No internal grant issuance, Multi-Homeowner behavior, Homeowner+ product trial,
-automatic paid transition, or access-lifecycle delivery is enabled by this
-foundation. Existing feature callers continue through compatibility wrappers
-until Phase 2 migration.
+Phase 2 now routes the primary web and Functions feature gates through the
+shared capability and limit helpers. No internal grant issuance,
+Multi-Homeowner behavior, Homeowner+ product trial, automatic paid transition,
+or access-lifecycle delivery is enabled.
+
+### Phase 2 direct-check inventory
+
+The repository validation command `yarn check:entitlement-boundaries` enforces
+the following classification. It runs as part of the production web build.
+
+| Classification | Approved locations and purpose |
+| --- | --- |
+| Resolver boundary | `packages/entitlements`, `src/utils/subscriptionUtils.ts`, `functions/subscriptionEntitlements.ts`, and the Firestore rule mirror define capabilities, limits, compatibility behavior, and default-deny handling. |
+| Billing and pricing | Stripe Functions, the admin billing portal, account deletion billing cleanup, registration, Paywall, User Profile, billing banners, and public pricing compare or display plan identity because the plan is the billing or packaging subject. |
+| Presentation and persona | Account snapshots, primary navigation, homeowner vocabulary, setup, device, and tab surfaces use the resolved plan only to select labels or layout. These checks do not authorize a feature. |
+| Analytics | Plan identity may remain an event and reporting dimension; effective-access reporting remains separate. No analytics event grants access. |
+| Migration compatibility | Authentication and user/family subscription reconciliation may compare legacy plan records while those mirrors remain supported. |
+| Prohibited feature logic | No unexplained runtime feature allowlist remains. Web, intelligence, email, push, invite, report, reminder, property-group, and task-completion gates use shared capability or limit helpers. |
+
+Functions emit structured warnings for unknown values that default safely and
+support an opt-in `ENTITLEMENT_COMPARE_MODE=true` metric stream comparing stored
+and resolved plan identity without changing the authorization result.
+
+Current clients send stable plan and billing-cycle IDs to Checkout. The server
+selects the configured Stripe price. A measured older-client path accepts a
+price-only request only when the price matches the server-owned catalog, logs
+its use, and is scheduled for removal in release `2.10.0`; arbitrary client
+price IDs are never authoritative.
 
 ## Executive recommendation
 

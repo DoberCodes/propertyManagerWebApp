@@ -28,6 +28,7 @@ import {
 	PropertyScanRecommendation,
 } from '../../utils/propertyIntelligenceScan';
 import {
+	canUsePropertyInsights,
 	getEffectiveSubscriptionPlanId,
 	SubscriptionData,
 } from '../../utils/subscriptionUtils';
@@ -139,7 +140,7 @@ export const PropertyAuditPanel: React.FC<PropertyAuditPanelProps> = ({
 		() => new Set(),
 	);
 	const currentPlanId = getEffectiveSubscriptionPlanId(subscription, 'homeowner');
-	const isFreePlan = currentPlanId === 'homeowner';
+	const isFreePlan = !canUsePropertyInsights(subscription);
 	const canRunFullReview = canRunAudit && !isFreePlan;
 	const {
 		data: persistedAuditSnapshot,

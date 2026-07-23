@@ -7,6 +7,7 @@ import {
 	sendMaintleyEmail,
 } from './emailService';
 import { getTaskDisplayStatus } from './taskDisplayStatus';
+import { hasSubscriptionCapability } from './subscriptionEntitlements';
 
 const RESEND_API_KEY = defineSecret(
 	process.env.RESEND_API_KEY_SECRET_NAME || 'RESEND_API_KEY',
@@ -24,12 +25,6 @@ const ACTIVE_TASK_STATUSES = new Set([
 	'In Progress',
 	'Awaiting Approval',
 	'Overdue',
-]);
-
-const PAID_TASK_REMINDER_EMAIL_PLANS = new Set([
-	'homeowner_plus',
-	'property',
-	'portfolio',
 ]);
 
 type TaskNotificationType = 'reminder' | 'overdue';
@@ -91,30 +86,9 @@ interface DeliveryResult {
 	reason?: string;
 }
 
-const normalizePlanId = (planId?: string): string => {
-	return String(planId || '').trim().toLowerCase();
-};
-
-const hasCurrentEntitlement = (subscription?: UserSubscriptionLike): boolean => {
-	if (!subscription?.status) return false;
-	if (subscription.status === 'active') return true;
-	if (subscription.status !== 'trial') return false;
-	if (!subscription.trialEndsAt) return true;
-	return subscription.trialEndsAt > Date.now() / 1000;
-};
-
-const getEffectivePlanId = (subscription?: UserSubscriptionLike): string => {
-	if (!hasCurrentEntitlement(subscription)) {
-		return 'homeowner';
-	}
-
-	const plan = normalizePlanId(subscription?.plan);
-	return plan || 'homeowner';
-};
-
 const canReceiveTaskReminderEmails = (user: UserLike): boolean =>
 	user.emailPreferences?.taskReminders === true &&
-	PAID_TASK_REMINDER_EMAIL_PLANS.has(getEffectivePlanId(user.subscription));
+	hasSubscriptionCapability(user.subscription, 'notifications.use');
 
 const toDateOnly = (date: Date): string => date.toISOString().slice(0, 10);
 

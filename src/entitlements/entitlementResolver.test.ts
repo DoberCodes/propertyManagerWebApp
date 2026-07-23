@@ -4,6 +4,8 @@ import {
 	EntitlementGrant,
 	PlanId,
 	PLAN_PRESETS,
+	getEntitlementLimit,
+	hasCapability,
 	getAdminAuditEventId,
 	getComplimentaryTransitionIssues,
 	resolveAccountEntitlements,
@@ -57,6 +59,26 @@ describe('centralized entitlement resolver', () => {
 			});
 			expect(toLegacyPermissions(preset)).toEqual(plan.permissions);
 		}
+	});
+
+	it('provides typed default-deny capability and limit lookups', () => {
+		expect(hasCapability(PLAN_PRESETS.homeowner_plus, 'notifications.use')).toBe(
+			true,
+		);
+		expect(hasCapability(PLAN_PRESETS.homeowner, 'notifications.use')).toBe(false);
+		expect(getEntitlementLimit(PLAN_PRESETS.property, 'properties')).toBe(7);
+		expect(
+			hasCapability(
+				PLAN_PRESETS.portfolio,
+				'unknown.capability' as Parameters<typeof hasCapability>[1],
+			),
+		).toBe(false);
+		expect(
+			getEntitlementLimit(
+				PLAN_PRESETS.portfolio,
+				'unknown_limit' as Parameters<typeof getEntitlementLimit>[1],
+			),
+		).toBe(0);
 	});
 
 	it('preserves current active, trial, expired, pending, and scheduled behavior', () => {

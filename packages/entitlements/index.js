@@ -608,6 +608,23 @@ const resolveAccountEntitlements = (input = {}) => {
 	};
 };
 
+const hasCapability = (presetOrResult, capabilityId) => {
+	if (!CAPABILITY_ID_SET.has(capabilityId)) return false;
+	return Boolean(
+		presetOrResult &&
+			presetOrResult.capabilities &&
+			presetOrResult.capabilities[capabilityId],
+	);
+};
+
+const getEntitlementLimit = (presetOrResult, limitId) => {
+	if (!LIMIT_ID_SET.has(limitId)) return 0;
+	const value = Number(
+		presetOrResult && presetOrResult.limits && presetOrResult.limits[limitId],
+	);
+	return Number.isFinite(value) && value >= 0 ? value : 0;
+};
+
 const LEGACY_PERMISSION_CAPABILITIES = Object.freeze({
 	canManageTeam: 'team.manage',
 	canManageTenants: 'residents.manage',
@@ -663,5 +680,7 @@ module.exports = {
 	getPlanPreset,
 	isSubscriptionCurrentlyEntitled,
 	resolveAccountEntitlements,
+	hasCapability,
+	getEntitlementLimit,
 	toLegacyPermissions,
 };

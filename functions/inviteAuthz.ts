@@ -2,7 +2,7 @@ import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 import { assertAccountRole, resolveAccountIdForUser } from './accountAuthz';
 import {
-	getEffectiveSubscriptionPlanId,
+	hasSubscriptionCapability,
 	isSubscriptionCurrentlyEntitled,
 	SubscriptionEntitlementLike,
 } from './subscriptionEntitlements';
@@ -13,12 +13,12 @@ if (!admin.apps.length) {
 
 const db = admin.firestore();
 
-const PLAN_CAPABILITIES = {
-	team: new Set(['property', 'portfolio']),
-	tenant: new Set(['property', 'portfolio']),
+const INVITE_CAPABILITIES = {
+	team: 'team.manage',
+	tenant: 'residents.manage',
 } as const;
 
-type InviteCapability = keyof typeof PLAN_CAPABILITIES;
+type InviteCapability = keyof typeof INVITE_CAPABILITIES;
 
 export const assertInviteCapability = async (
 	uid: string,
@@ -38,8 +38,6 @@ export const assertInviteCapability = async (
 	const accountOwnerData = accountOwnerDoc.data() || {};
 	const subscription = (accountOwnerData.subscription ||
 		{}) as SubscriptionEntitlementLike;
-	const effectivePlan = getEffectiveSubscriptionPlanId(subscription, 'homeowner');
-
 	if (!isSubscriptionCurrentlyEntitled(subscription)) {
 		throw new functions.https.HttpsError(
 			'permission-denied',
@@ -47,7 +45,7 @@ export const assertInviteCapability = async (
 		);
 	}
 
-	if (!PLAN_CAPABILITIES[capability].has(effectivePlan)) {
+	if (!hasSubscriptionCapability(subscription, INVITE_CAPABILITIES[capability])) {
 		throw new functions.https.HttpsError(
 			'permission-denied',
 			capability === 'team'

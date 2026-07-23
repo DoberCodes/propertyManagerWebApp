@@ -97,13 +97,13 @@ describe('stripeService', () => {
 
 		expect(callableMock).toHaveBeenCalledWith(
 			expect.objectContaining({
-				priceId: '',
 				planId: 'homeowner_plus',
 				billingCycle: 'month',
 				userId: 'user_homeowner_plus',
 				email: 'plus@example.com',
 			}),
 		);
+		expect(callableMock.mock.calls[0][0]).not.toHaveProperty('priceId');
 		expect(result).toBe(
 			'https://checkout.stripe.com/c/pay/cs_test_homeowner_plus',
 		);

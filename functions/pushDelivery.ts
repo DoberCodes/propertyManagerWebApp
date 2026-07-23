@@ -1,11 +1,5 @@
 import * as admin from 'firebase-admin';
-import { getEffectiveSubscriptionPlanId } from './subscriptionEntitlements';
-
-const PUSH_NOTIFICATION_PLANS = new Set([
-	'homeowner_plus',
-	'property',
-	'portfolio',
-]);
+import { hasSubscriptionCapability } from './subscriptionEntitlements';
 
 type PushTokenRecord = {
 	token?: unknown;
@@ -32,8 +26,7 @@ const canUsePushNotifications = (subscription?: {
 		return false;
 	}
 
-	const effectivePlan = getEffectiveSubscriptionPlanId(subscription, 'homeowner');
-	return PUSH_NOTIFICATION_PLANS.has(effectivePlan);
+	return hasSubscriptionCapability(subscription, 'notifications.use');
 };
 
 const getUserPushTokens = (

@@ -6,15 +6,21 @@ import {
 	MaintleyRequiredPlan,
 } from './types';
 import { getCapabilitiesForPlan } from './capabilities';
+import {
+	CapabilityId,
+	getPlanPreset,
+	hasCapability,
+	normalizePlanId,
+} from '@maintley/entitlements';
 
-const PLAN_RANK: Record<MaintleyPlanId, number> = {
-	guest: 0,
-	tenant: 0,
-	homeowner: 0,
-	homeowner_plus: 1,
-	property: 2,
-	team: 2,
-	portfolio: 3,
+const REQUIRED_PLAN_CAPABILITY: Record<
+	MaintleyRequiredPlan,
+	CapabilityId | null
+> = {
+	homeowner: null,
+	homeowner_plus: 'property_intelligence.use',
+	property: 'team.manage',
+	portfolio: 'team.advanced',
 };
 
 const SOURCE_REQUIRED_PLAN: Record<MaintleyFindingSource, MaintleyRequiredPlan> = {
@@ -25,13 +31,7 @@ const SOURCE_REQUIRED_PLAN: Record<MaintleyFindingSource, MaintleyRequiredPlan> 
 };
 
 export const normalizeMaintleyPlanId = (planId?: string): MaintleyPlanId => {
-	const normalizedPlanId = String(planId || '')
-		.trim()
-		.toLowerCase();
-	if (normalizedPlanId in PLAN_RANK) {
-		return normalizedPlanId as MaintleyPlanId;
-	}
-	return 'homeowner';
+	return normalizePlanId(planId, 'homeowner') as MaintleyPlanId;
 };
 
 export const getRequiredPlanForFindingSource = (
@@ -44,15 +44,18 @@ export const canAccessMaintleyFinding = (
 		source?: MaintleyFindingSource;
 	},
 	planId?: string,
-): boolean =>
-	PLAN_RANK[normalizeMaintleyPlanId(planId)] >=
-	PLAN_RANK[
-		normalizeMaintleyPlanId(
-			finding.source
-				? getRequiredPlanForFindingSource(finding.source)
-				: finding.requiredPlan || 'homeowner',
-		)
-	];
+): boolean => {
+	const requiredPlan = finding.source
+		? getRequiredPlanForFindingSource(finding.source)
+		: finding.requiredPlan || 'homeowner';
+	const requiredCapability = REQUIRED_PLAN_CAPABILITY[requiredPlan];
+	return requiredCapability === null
+		? true
+		: hasCapability(
+				getPlanPreset(normalizeMaintleyPlanId(planId)),
+				requiredCapability,
+		  );
+};
 
 export const filterFindingsForPlan = (
 	findings: MaintleyFinding[],

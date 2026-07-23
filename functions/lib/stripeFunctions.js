@@ -187,6 +187,21 @@ const resolvePriceIdForPlan = (planId, billingCycle = 'month') => {
     };
     return ((normalizedCycle === 'year' ? annualPriceMap : monthlyPriceMap)[normalizedPlan] || '');
 };
+const CHECKOUT_PLAN_IDS = ['homeowner_plus', 'property', 'portfolio'];
+const LEGACY_PRICE_ONLY_CHECKOUT_REMOVAL_RELEASE = '2.10.0';
+const resolveConfiguredPlanForPriceId = (priceId) => {
+    const normalizedPriceId = sanitizeSecret(String(priceId || ''));
+    if (!normalizedPriceId)
+        return '';
+    for (const planId of CHECKOUT_PLAN_IDS) {
+        for (const billingCycle of ['month', 'year']) {
+            if (resolvePriceIdForPlan(planId, billingCycle) === normalizedPriceId) {
+                return planId;
+            }
+        }
+    }
+    return '';
+};
 const resolvePromotionCodeId = async (promoCode) => {
     if (!promoCode) {
         return null;
@@ -303,17 +318,36 @@ exports.createCheckoutSession = functions
     }
     const { priceId: requestedPriceId, planId, billingCycle, userId, email, successUrl, cancelUrl, promoCode: requestedPromoCode, } = data;
     const normalizedPlanId = String(planId || '').trim().toLowerCase();
+    const normalizedBillingCycle = String(billingCycle || '').toLowerCase();
     const authenticatedUserId = context.auth.uid;
     if (String(userId || '').trim() !== authenticatedUserId) {
         throw new functions.https.HttpsError('permission-denied', 'Checkout can only be created for the signed-in account');
     }
-    const resolvedPlanPriceId = resolvePriceIdForPlan(normalizedPlanId, String(billingCycle || '').toLowerCase() === 'year' ? 'year' : 'month');
     const resolvedRequestedPriceId = sanitizeSecret(String(requestedPriceId || ''));
-    const resolvedPriceId = normalizedPlanId
-        ? resolvedPlanPriceId || resolvedRequestedPriceId
-        : resolvedRequestedPriceId;
+    let checkoutPlanId = normalizedPlanId;
+    let resolvedPriceId = '';
+    if (checkoutPlanId) {
+        if (!CHECKOUT_PLAN_IDS.includes(checkoutPlanId)) {
+            throw new functions.https.HttpsError('invalid-argument', 'Checkout requires a supported paid plan ID.');
+        }
+        if (!['month', 'year'].includes(normalizedBillingCycle)) {
+            throw new functions.https.HttpsError('invalid-argument', 'Checkout requires a monthly or annual billing cycle.');
+        }
+        resolvedPriceId = resolvePriceIdForPlan(checkoutPlanId, normalizedBillingCycle);
+    }
+    else {
+        checkoutPlanId = resolveConfiguredPlanForPriceId(resolvedRequestedPriceId);
+        resolvedPriceId = checkoutPlanId ? resolvedRequestedPriceId : '';
+        if (checkoutPlanId) {
+            functions.logger.warn('Legacy price-only checkout compatibility path used', {
+                userId: authenticatedUserId,
+                resolvedPlanId: checkoutPlanId,
+                removalRelease: LEGACY_PRICE_ONLY_CHECKOUT_REMOVAL_RELEASE,
+            });
+        }
+    }
     if (!resolvedPriceId || !userId || !email) {
-        throw new functions.https.HttpsError('invalid-argument', `Missing required Stripe configuration: no price ID resolved for plan '${String(planId || '')}'. Provide a valid price ID in the client request or configure STRIPE_*_PRICE_ID in functions environment.`);
+        throw new functions.https.HttpsError('failed-precondition', `No server-owned Stripe price is configured for plan '${String(planId || '')}', or the legacy price-only request is not recognized.`);
     }
     try {
         console.log('Creating checkout session with:', {
@@ -392,7 +426,7 @@ exports.createCheckoutSession = functions
             const updatedPriceId = updatedSubscription.items.data[0]?.price?.id || resolvedPriceId;
             const subscriptionData = removeUndefinedFields({
                 status: toLocalSubscriptionStatus(updatedSubscription.status),
-                plan: getPlanFromPriceId(updatedPriceId, normalizedPlanId || userData?.subscription?.plan || 'homeowner'),
+                plan: getPlanFromPriceId(updatedPriceId, checkoutPlanId || userData?.subscription?.plan || 'homeowner'),
                 currentPeriodStart: updatedSubscription.current_period_start,
                 currentPeriodEnd: updatedSubscription.current_period_end,
                 trialEndsAt: updatedSubscription.trial_end,

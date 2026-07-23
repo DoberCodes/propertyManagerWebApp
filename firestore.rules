@@ -123,20 +123,30 @@ service cloud.firestore {
         : 0;
     }
 
-    function maxPropertiesForPlan(plan) {
-      return ['homeowner', 'homeowner_plus'].hasAny([plan])
-        ? 1
-        : (plan == 'property'
-          ? 7
-          : (plan == 'portfolio' ? 15 : 0));
+    // Firestore cannot import the shared package. Keep this narrow mirror aligned
+    // with @maintley/entitlements and cover it with emulator parity tests.
+    function planLimit(plan, limitId) {
+      return limitId == 'properties'
+        ? (['homeowner', 'homeowner_plus'].hasAny([plan])
+          ? 1
+          : (plan == 'property' ? 7 : (plan == 'portfolio' ? 15 : 0)))
+        : (limitId == 'devices'
+          ? (plan == 'homeowner'
+            ? 15
+            : (['homeowner_plus', 'property', 'portfolio'].hasAny([plan]) ? 999 : 0))
+          : 0);
     }
 
-    function maxDevicesForPlan(plan) {
-      return plan == 'homeowner'
-        ? 15
-        : (['homeowner_plus', 'property', 'portfolio'].hasAny([plan])
-          ? 999
-          : 0);
+    function planHasCapability(plan, capabilityId) {
+      return capabilityId == 'properties.manage'
+        ? ['homeowner', 'homeowner_plus', 'property', 'portfolio'].hasAny([plan])
+        : (capabilityId == 'residents.manage'
+          ? ['property', 'portfolio'].hasAny([plan])
+          : (capabilityId == 'property_groups.manage'
+            ? ['property', 'portfolio'].hasAny([plan])
+            : (capabilityId == 'team.manage'
+              ? ['property', 'portfolio'].hasAny([plan])
+              : (capabilityId == 'team.advanced' ? plan == 'portfolio' : false))));
     }
 
     function subscriptionHasCurrentEntitlement(subscription) {
@@ -160,11 +170,11 @@ service cloud.firestore {
     }
 
     function maxPropertiesForAccount(accountId) {
-      return maxPropertiesForPlan(entitledPlanForAccount(accountId));
+      return planLimit(entitledPlanForAccount(accountId), 'properties');
     }
 
     function maxDevicesForAccount(accountId) {
-      return maxDevicesForPlan(entitledPlanForAccount(accountId));
+      return planLimit(entitledPlanForAccount(accountId), 'devices');
     }
 
     function hasPropertyCounterCreateIncrement(accountId) {
@@ -208,7 +218,10 @@ service cloud.firestore {
             )
           )
         ) &&
-        ['property', 'portfolio'].hasAny([accountOwnerData(accountId).subscription.plan]);
+        planHasCapability(
+          accountOwnerData(accountId).subscription.plan,
+          'residents.manage'
+        );
     }
 
     function hasActiveCoreSubscription(accountId) {
@@ -229,28 +242,36 @@ service cloud.firestore {
 
     function hasCorePlanForResources(accountId) {
       return hasActiveCoreSubscription(accountId) &&
-        ['homeowner', 'homeowner_plus', 'property', 'portfolio']
-          .hasAny([accountOwnerData(accountId).subscription.plan]);
+        planHasCapability(
+          accountOwnerData(accountId).subscription.plan,
+          'properties.manage'
+        );
     }
 
     // Plan gates mirror PLAN_FEATURE_MATRIX.md: property groups start at Property.
     function canUsePropertyGroups(accountId) {
       return hasActiveCoreSubscription(accountId) &&
-        ['property', 'portfolio']
-          .hasAny([accountOwnerData(accountId).subscription.plan]);
+        planHasCapability(
+          accountOwnerData(accountId).subscription.plan,
+          'property_groups.manage'
+        );
     }
 
     // Property has simple team management; Portfolio has advanced team roles and property assignments.
     function canUseSimpleTeam(accountId) {
       return hasActiveCoreSubscription(accountId) &&
-        ['property', 'portfolio']
-          .hasAny([accountOwnerData(accountId).subscription.plan]);
+        planHasCapability(
+          accountOwnerData(accountId).subscription.plan,
+          'team.manage'
+        );
     }
 
     function canUseAdvancedTeam(accountId) {
       return hasActiveCoreSubscription(accountId) &&
-        ['portfolio']
-          .hasAny([accountOwnerData(accountId).subscription.plan]);
+        planHasCapability(
+          accountOwnerData(accountId).subscription.plan,
+          'team.advanced'
+        );
     }
 
     function isSimpleTeamMemberData(data) {
