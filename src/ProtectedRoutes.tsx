@@ -56,6 +56,17 @@ export const ProtectedRoutes = ({
 		location.pathname === '/login/' ||
 		location.pathname === '/forgot-password' ||
 		location.pathname === '/forgot-password/';
+	const isCheckoutRecoveryRoute =
+		location.pathname === '/checkout/start' ||
+		location.pathname === '/checkout/complete' ||
+		location.pathname === '/paywall';
+
+	if (
+		currentUser?.subscription?.pendingCheckoutPlan &&
+		!isCheckoutRecoveryRoute
+	) {
+		return <Navigate to='/checkout/start' replace />;
+	}
 
 	// If authenticated and on login page, redirect to dashboard
 	if (currentUser && isLoginRoute) {

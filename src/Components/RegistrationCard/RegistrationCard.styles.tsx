@@ -9,8 +9,12 @@ export const Wrapper = styled.form<{ $wide?: boolean }>`
 	border: none;
 	border-radius: 16px;
 	background: linear-gradient(180deg, ${COLORS.white} 0%, ${COLORS.canvas} 100%);
-	width: 100%;
-	max-width: ${(props) => (props.$wide ? '1200px' : '420px')};
+	box-sizing: border-box;
+	width: ${(props) =>
+		props.$wide
+			? 'min(1120px, calc(100vw - 48px))'
+			: 'min(420px, calc(100vw - 40px))'};
+	max-width: none;
 	box-shadow: 0 20px 42px rgba(4, 120, 87, 0.16);
 	border: 1px solid ${COLORS.border};
 	position: relative;
@@ -28,19 +32,17 @@ export const Wrapper = styled.form<{ $wide?: boolean }>`
 	}
 
 	@media (max-width: 1024px) {
-		max-width: ${(props) => (props.$wide ? '980px' : '420px')};
 		padding: ${(props) => (props.$wide ? '20px 28px' : '32px 24px')};
-	}
-
-	@media (max-width: 1024px) {
-		max-width: ${(props) => (props.$wide ? '100%' : '380px')};
-		padding: ${(props) => (props.$wide ? '20px 20px' : '28px 20px')};
+		width: ${(props) =>
+			props.$wide
+				? 'min(920px, calc(100vw - 40px))'
+				: 'min(420px, calc(100vw - 40px))'};
 		border-radius: 14px;
 	}
 
 	@media (max-width: 768px) {
 		width: 100%;
-		max-width: ${(props) => (props.$wide ? '100%' : '540px')};
+		max-width: 540px;
 		padding: ${(props) => (props.$wide ? '18px 16px 16px' : '20px 16px 16px')};
 		margin: 10px auto;
 		border-radius: 14px;
@@ -48,7 +50,7 @@ export const Wrapper = styled.form<{ $wide?: boolean }>`
 	}
 
 	@media (max-width: 480px) {
-		max-width: ${(props) => (props.$wide ? '100%' : '420px')};
+		max-width: 420px;
 		padding: ${(props) => (props.$wide ? '18px 14px 14px' : '18px 14px 14px')};
 		border-radius: 12px;
 		margin: 8px auto;

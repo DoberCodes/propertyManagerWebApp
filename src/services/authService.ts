@@ -23,9 +23,7 @@ import { clearUserLocalStorage } from '../utils/localStorageCleanup';
 import { User } from '../Redux/Slices/userSlice';
 import { USER_ROLES } from '../constants/roles';
 import { SUBSCRIPTION_STATUS } from '../constants/subscriptions';
-import { getStripePriceIdForPlan } from '../constants/stripe';
 import { createLegalAgreementDocuments } from '../constants/legal';
-import { createCheckoutSession } from './stripeService';
 import { DEFAULT_NOTIFICATION_PREFERENCES } from '../utils/notificationPreferences';
 import { DEFAULT_EMAIL_PREFERENCES } from '../utils/emailPreferences';
 import { getUserProfile } from './userProfileService';
@@ -153,7 +151,10 @@ const findActiveTenantPromoCode = async (promoCode: string, email: string) => {
 	return result.data.valid ? { valid: true } : null;
 };
 
-const findActiveTeamMemberPromoCode = async (promoCode: string, email: string) => {
+const findActiveTeamMemberPromoCode = async (
+	promoCode: string,
+	email: string,
+) => {
 	const validateInvite = await getAuthCallable<
 		{ promoCode: string; teamMemberEmail: string },
 		{
@@ -223,10 +224,6 @@ export const validateTeamInviteForRegistration = async (
 /**
  * Create subscription for new user
  */
-const getPriceIdForPlan = (planId: string): string => {
-	return getStripePriceIdForPlan(planId, 'month');
-};
-
 const createPendingCheckoutSubscription = (
 	selectedPlan: string,
 	promoCode?: string,
@@ -247,7 +244,7 @@ const createPendingCheckoutSubscription = (
 			? {
 					pendingCheckoutPlan: normalizedPendingPlan,
 					pendingCheckoutStartedAt: now,
-			  }
+				}
 			: {}),
 		...(normalizedPromoCode ? { promoCode: normalizedPromoCode } : {}),
 	};
@@ -271,7 +268,6 @@ type CreateUserSubscriptionResult = {
 	subscription: NonNullable<User['subscription']> & {
 		promoCode?: string;
 	};
-	checkoutUrl?: string;
 };
 
 const NON_BILLABLE_SIGNUP_PLANS = new Set([
@@ -284,17 +280,18 @@ const NON_BILLABLE_SIGNUP_PLANS = new Set([
 const TEAM_GROUP_ELIGIBLE_PLANS = new Set(['property', 'portfolio']);
 
 const isNonBillableSignupPlan = (plan: string): boolean =>
-	NON_BILLABLE_SIGNUP_PLANS.has(String(plan || '').trim().toLowerCase());
+	NON_BILLABLE_SIGNUP_PLANS.has(
+		String(plan || '')
+			.trim()
+			.toLowerCase(),
+	);
 
 const createUserSubscription = async (
 	selectedPlan: string,
 	promoCode: string | undefined,
-	userId: string,
-	email: string,
-) : Promise<CreateUserSubscriptionResult> => {
+): Promise<CreateUserSubscriptionResult> => {
 	const normalizedPromoCode = promoCode?.trim() || undefined;
 	const isNonBillablePlan = isNonBillableSignupPlan(selectedPlan);
-	const priceId = getPriceIdForPlan(selectedPlan);
 
 	if (isNonBillablePlan) {
 		return {
@@ -305,28 +302,11 @@ const createUserSubscription = async (
 		};
 	}
 
-	const checkoutUrl = await createCheckoutSession(
-		priceId,
-		userId,
-		email,
-		undefined,
-		normalizedPromoCode,
-		selectedPlan,
-		'month', // Keep registration checkout monthly
-	);
-
-	if (!checkoutUrl) {
-		throw new Error(
-			'Unable to start checkout for this plan. Please try again or contact support.',
-		);
-	}
-
 	return {
 		subscription: createPendingCheckoutSubscription(
 			selectedPlan,
 			normalizedPromoCode,
 		),
-		checkoutUrl,
 	};
 };
 
@@ -378,7 +358,7 @@ export const signUpWithEmail = async (
 		};
 	},
 	inviteType?: 'tenant' | 'team',
-): Promise<{ user: User; checkoutUrl?: string }> => {
+): Promise<{ user: User }> => {
 	try {
 		let shouldRedeemTenantInvite = false;
 		let shouldRedeemTeamInvite = false;
@@ -463,12 +443,10 @@ export const signUpWithEmail = async (
 			emailPreferences: DEFAULT_EMAIL_PREFERENCES,
 		};
 
-		const normalizedPlan = String(selectedPlan || '')
-			.trim()
-			.toLowerCase();
-		const provisionalSubscription = isNonBillableSignupPlan(normalizedPlan)
-			? createFreeSubscription(selectedPlan)
-			: createPendingCheckoutSubscription(selectedPlan, promoCode);
+		const { subscription } = await createUserSubscription(
+			selectedPlan,
+			promoCode,
+		);
 
 		// Prepare legal agreement data
 		const agreedAt = new Date().toISOString();
@@ -479,34 +457,34 @@ export const signUpWithEmail = async (
 							? {
 									...legalAgreement.documents.termsOfService,
 									agreedAt,
-							  }
+								}
 							: undefined,
 						privacyPolicy: legalAgreement.documents.privacyPolicy
 							? {
 									...legalAgreement.documents.privacyPolicy,
 									agreedAt,
-							  }
+								}
 							: undefined,
 						maintenanceDisclaimer: legalAgreement.documents
 							.maintenanceDisclaimer
 							? {
 									...legalAgreement.documents.maintenanceDisclaimer,
 									agreedAt,
-							  }
+								}
 							: undefined,
 						subscriptionTerms: legalAgreement.documents.subscriptionTerms
 							? {
 									...legalAgreement.documents.subscriptionTerms,
 									agreedAt,
-							  }
+								}
 							: undefined,
 						eula: legalAgreement.documents.eula
 							? {
 									...legalAgreement.documents.eula,
 									agreedAt,
-							  }
+								}
 							: undefined,
-				  }
+					}
 				: createLegalAgreementDocuments(agreedAt, legalAgreement.agreedVersion)
 			: undefined;
 		const legalAgreementData = legalAgreement
@@ -517,7 +495,7 @@ export const signUpWithEmail = async (
 						agreedVersion: legalAgreement.agreedVersion,
 						documents: legalDocuments,
 					},
-			  }
+				}
 			: {};
 
 		await setDoc(doc(db, 'users', userCredential.user.uid), {
@@ -525,36 +503,22 @@ export const signUpWithEmail = async (
 			...legalAgreementData,
 			createdAt: serverTimestamp(),
 			updatedAt: serverTimestamp(),
-			subscription: provisionalSubscription,
+			subscription,
 		});
 
-		const { subscription, checkoutUrl } = await createUserSubscription(
-			selectedPlan,
-			promoCode,
-			userCredential.user.uid,
-			email,
-		);
+		if (!isTeamInviteSignup && isNonBillableSignupPlan(selectedPlan)) {
+			const ensureFamilyAccountCallable = await getAuthCallable<
+				{
+					accountId?: string;
+					syncSubscription?: boolean;
+					subscription?: Record<string, unknown>;
+				},
+				{
+					id: string;
+					subscription?: Record<string, unknown>;
+				}
+			>('ensureFamilyAccount');
 
-		if (!checkoutUrl) {
-			await updateDoc(doc(db, 'users', userCredential.user.uid), {
-				subscription,
-				updatedAt: serverTimestamp(),
-			});
-		}
-
-		const ensureFamilyAccountCallable = await getAuthCallable<
-			{
-				accountId?: string;
-				syncSubscription?: boolean;
-				subscription?: Record<string, unknown>;
-			},
-			{
-				id: string;
-				subscription?: Record<string, unknown>;
-			}
-		>('ensureFamilyAccount');
-
-		if (!isTeamInviteSignup) {
 			await ensureFamilyAccountCallable({
 				accountId: userCredential.user.uid,
 				syncSubscription: true,
@@ -622,11 +586,10 @@ export const signUpWithEmail = async (
 								documents: legalDocuments,
 							},
 						}),
-				  } as User);
+					} as User);
 
 		return {
 			user: finalUser,
-			...(checkoutUrl ? { checkoutUrl } : {}),
 		};
 	} catch (error: any) {
 		console.error('Sign up error:', error);
@@ -639,7 +602,9 @@ export const signUpWithEmail = async (
 		if (authErrorMessage !== 'Authentication failed. Please try again') {
 			throw new Error(authErrorMessage);
 		}
-		throw new Error(error?.message || 'Authentication failed. Please try again');
+		throw new Error(
+			error?.message || 'Authentication failed. Please try again',
+		);
 	}
 };
 
@@ -953,4 +918,3 @@ const autoAcceptGuestInvitations = async (
 		console.error('Error auto-accepting guest invitations:', error);
 	}
 };
-

@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from 'Redux/store/store';
 import { setCurrentUser } from 'Redux/Slices/userSlice';
@@ -42,10 +42,7 @@ import {
 	isTrialExpired,
 } from 'utils/subscriptionUtils';
 import { USER_ROLES } from 'constants/roles';
-import {
-	handleCheckoutSuccess,
-	syncSubscriptionFromStripe,
-} from 'services/stripeService';
+import { syncSubscriptionFromStripe } from 'services/stripeService';
 import {
 	ActionFirstTopSection,
 	TodayFocusCard,
@@ -340,7 +337,6 @@ export const DashboardTab = () => {
 	const DASHBOARD_DUE_WINDOW_DAYS = 90;
 
 	const navigate = useNavigate();
-	const location = useLocation();
 	const dispatch = useDispatch();
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
 	const isHomeowner = useSelector(selectIsHomeowner);
@@ -478,30 +474,6 @@ export const DashboardTab = () => {
 			}
 		}
 	}, [currentUser, isUserTenant, navigate]);
-
-	// Handle Stripe checkout success
-	useEffect(() => {
-		const urlParams = new URLSearchParams(location.search);
-		const sessionId = urlParams.get('session_id');
-
-		if (sessionId && currentUser) {
-			const currentHash = window.location.hash;
-			const cleanHash = currentHash.replace(/[?&]session_id=[^&]*/, '');
-			window.history.replaceState(
-				{},
-				'',
-				window.location.pathname + window.location.search + cleanHash,
-			);
-
-			handleCheckoutSuccess(sessionId)
-				.then(() => {
-					window.location.reload();
-				})
-				.catch((error) => {
-					console.error('Checkout verification failed:', error);
-				});
-		}
-	}, [location.search, currentUser]);
 
 	const [showTaskCompletionModal, setShowTaskCompletionModal] = useState(false);
 	const [dashboardTaskPrefill, setDashboardTaskPrefill] =

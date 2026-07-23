@@ -95,6 +95,14 @@ const AdminInboxPage = lazyNamed(
 	'AdminInboxPage',
 );
 const PaywallPageIndex = React.lazy(() => import('./pages/PaywallPage'));
+const CheckoutCompletionPage = lazyNamed(
+	() => import('./pages/CheckoutCompletionPage/CheckoutCompletionPage'),
+	'CheckoutCompletionPage',
+);
+const CheckoutStartPage = lazyNamed(
+	() => import('./pages/CheckoutStartPage/CheckoutStartPage'),
+	'CheckoutStartPage',
+);
 const MaintenanceHistoryGroupPage = lazyNamed(
 	() => import('pages/MaintenanceHistoryGroup'),
 	'MaintenanceHistoryGroupPage',
@@ -203,6 +211,22 @@ export const RouterComponent = () => {
 						element={
 							<ProtectedRoutes>
 								<PaywallPageIndex />
+							</ProtectedRoutes>
+						}
+					/>
+					<Route
+						path='checkout/start'
+						element={
+							<ProtectedRoutes>
+								<CheckoutStartPage />
+							</ProtectedRoutes>
+						}
+					/>
+					<Route
+						path='checkout/complete'
+						element={
+							<ProtectedRoutes>
+								<CheckoutCompletionPage />
 							</ProtectedRoutes>
 						}
 					/>

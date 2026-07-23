@@ -45,10 +45,13 @@ const mapCheckoutErrorMessage = (error: unknown): string => {
 
 	if (
 		code.includes('unavailable') ||
+		code.includes('deadline-exceeded') ||
+		rawMessage.includes('timed out') ||
+		rawMessage.includes('timeout') ||
 		rawMessage.includes('network') ||
 		rawMessage.includes('failed to fetch')
 	) {
-		return 'Unable to reach the payment service right now. Please check your connection and try again.';
+		return 'Secure checkout took too long to respond. Please check your connection and try again.';
 	}
 
 	return 'Unable to start checkout right now. Please try again in a moment.';
@@ -107,7 +110,7 @@ export const createCheckoutSession = async (
 			cancelUrl: STRIPE_CHECKOUT_CONFIG.CANCEL_URL,
 			...(trialEnd && { trialEnd }),
 			...(promoCode && { promoCode }),
-		});
+		}, { timeout: 30_000 });
 		const data = result.data;
 		if (data.subscriptionUpdated) {
 			return '';

@@ -668,15 +668,17 @@ const resolveSuccessUrl = (providedValue) => {
         return provided;
     const baseUrl = resolveAdminCheckoutBaseUrl();
     return baseUrl
-        ? `${baseUrl}/#/dashboard?session_id={CHECKOUT_SESSION_ID}`
-        : 'https://maintley.com/#/dashboard?session_id={CHECKOUT_SESSION_ID}';
+        ? `${baseUrl}/#/checkout/complete?session_id={CHECKOUT_SESSION_ID}`
+        : 'https://maintley.com/#/checkout/complete?session_id={CHECKOUT_SESSION_ID}';
 };
 const resolveCancelUrl = (providedValue) => {
     const provided = String(providedValue || '').trim();
     if (provided)
         return provided;
     const baseUrl = resolveAdminCheckoutBaseUrl();
-    return baseUrl ? `${baseUrl}/#/paywall` : 'https://maintley.com/#/paywall';
+    return baseUrl
+        ? `${baseUrl}/#/paywall?checkout=cancelled`
+        : 'https://maintley.com/#/paywall?checkout=cancelled';
 };
 const resolveStripeProductIdForPlan = async (planId, billingCycle) => {
     const priceId = resolveStripePriceIdForPlan(planId, billingCycle);

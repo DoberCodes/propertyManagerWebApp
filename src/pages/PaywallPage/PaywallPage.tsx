@@ -36,6 +36,7 @@ import {
 	FreePlanBadge,
 	PlanBestFor,
 	PlanFeatureToggle,
+	CheckoutConfidence,
 	MobilePromoContainer,
 	MobilePromoToggle,
 	MobilePromoPanel,
@@ -70,8 +71,8 @@ interface PaywallPageProps {
 	variant?: 'full' | 'embedded';
 	selectionOnly?: boolean;
 	onPlanSelect?: (planId: string) => void;
-	wide?: boolean;
 	onPromoCodeApplied?: (promoCode: string) => void;
+	onFreePlanContinue?: () => Promise<void>;
 	initialPlanAudience?: PlanAudience;
 }
 
@@ -111,6 +112,8 @@ const DEFAULT_PLAN_BILLING: Record<PaidPlanId, BillingCycle> = {
 	portfolio: 'month',
 };
 
+const FEATURE_PREVIEW_LIMIT = 4;
+
 const getAudienceForPlan = (
 	planId: string,
 	fallback: PlanAudience = 'home',
@@ -129,8 +132,8 @@ export const PaywallPage: React.FC<PaywallPageProps> = ({
 	variant = 'full',
 	selectionOnly = false,
 	onPlanSelect,
-	wide = false,
 	onPromoCodeApplied,
+	onFreePlanContinue,
 	initialPlanAudience = 'home',
 }) => {
 	const navigate = useNavigate();
@@ -164,7 +167,7 @@ export const PaywallPage: React.FC<PaywallPageProps> = ({
 	});
 	const isOnTrial = isTrialActive(subscription);
 	const daysRemaining = getTrialDaysRemaining(subscription);
-	const cardLayout = wide ? 'horizontal' : layout;
+	const cardLayout = layout;
 	const nativeApp = isNativeApp();
 
 	useEffect(() => {
@@ -278,6 +281,20 @@ export const PaywallPage: React.FC<PaywallPageProps> = ({
 			return;
 		}
 
+		if (planId === 'homeowner') {
+			setLoading(true);
+			setError(null);
+			try {
+				await onFreePlanContinue?.();
+				navigate('/dashboard');
+			} catch (err) {
+				console.error('Failed to continue with the free plan:', err);
+				setError('Unable to update your account. Please try again.');
+				setLoading(false);
+			}
+			return;
+		}
+
 		// Only prevent selecting the current plan if user has an active PAID subscription
 		// Legacy access-period users should be able to upgrade anytime
 		if (
@@ -293,12 +310,6 @@ export const PaywallPage: React.FC<PaywallPageProps> = ({
 		setError(null);
 
 		try {
-			// Homeowner is the free local plan and does not go through Stripe.
-			if (planId === 'homeowner') {
-				navigate('/dashboard');
-				return;
-			}
-
 			// Create checkout session for paid plans
 			const priceId = getPriceIdForPlan(planId);
 			if (!userId || !userEmail) {
@@ -407,7 +418,7 @@ export const PaywallPage: React.FC<PaywallPageProps> = ({
 
 	const renderBillingControl = (planId: PaidPlanId) => {
 		if (planId === 'homeowner') {
-			return <FreePlanBadge>Free</FreePlanBadge>;
+			return <FreePlanBadge>No card needed</FreePlanBadge>;
 		}
 
 		const selectedCycle = getBillingCycleForPlan(planId);
@@ -505,12 +516,17 @@ export const PaywallPage: React.FC<PaywallPageProps> = ({
 		const buttonIsCurrent =
 			(isCurrentPlan || isScheduledPlan) && !isOnTrial && !selectionOnly;
 		const isFeaturesExpanded = expandedFeaturePlans[planId];
+		const visibleFeatures = isFeaturesExpanded
+			? plan.features
+			: plan.features.slice(0, FEATURE_PREVIEW_LIMIT);
+		const remainingFeatureCount = plan.features.length - FEATURE_PREVIEW_LIMIT;
+		const featureListId = `${planId}-plan-features`;
 
 		return (
 			<PricingCard
 				key={planId}
-				isPopular={planId === 'homeowner_plus' || planId === 'property'}
-				isCurrentPlan={isCurrentPlan}
+				$isPopular={planId === 'homeowner_plus' || planId === 'property'}
+				$isCurrentPlan={isCurrentPlan}
 				layout={cardLayout}>
 				{(planId === 'homeowner_plus' || planId === 'property') && <PopularBadge>Most Popular</PopularBadge>}
 				<CardHeaderRow>
@@ -528,7 +544,16 @@ export const PaywallPage: React.FC<PaywallPageProps> = ({
 				<PlanBestFor color={useInvertedColors ? 'white' : 'black'}>
 					{PLAN_BEST_FOR[planId]}
 				</PlanBestFor>
-				{isMobileView && (
+				<PlanFeatures id={featureListId}>
+					{visibleFeatures.map((feature, idx) => (
+						<PlanFeature
+							key={idx}
+							color={useInvertedColors ? 'white' : 'black'}>
+							{feature}
+						</PlanFeature>
+					))}
+				</PlanFeatures>
+				{remainingFeatureCount > 0 && (
 					<PlanFeatureToggle
 						type='button'
 						color={useInvertedColors ? 'white' : 'black'}
@@ -538,19 +563,13 @@ export const PaywallPage: React.FC<PaywallPageProps> = ({
 								[planId]: !current[planId],
 							}))
 						}
-						aria-expanded={isFeaturesExpanded}>
-						{isFeaturesExpanded ? 'Hide features' : 'Show features'}
+						aria-expanded={isFeaturesExpanded}
+						aria-controls={featureListId}>
+						{isFeaturesExpanded
+							? 'Show fewer features'
+							: `Show ${remainingFeatureCount} more features`}
 					</PlanFeatureToggle>
 				)}
-				<PlanFeatures $collapsed={isMobileView && !isFeaturesExpanded}>
-					{plan.features.map((feature, idx) => (
-						<PlanFeature
-							key={idx}
-							color={useInvertedColors ? 'white' : 'black'}>
-							{feature}
-						</PlanFeature>
-					))}
-				</PlanFeatures>
 				{isCurrentPlan || isScheduledPlan ? (
 					<CurrentPlanLabel>
 						{isScheduledPlan && subscription?.hasScheduledSubscription
@@ -559,7 +578,7 @@ export const PaywallPage: React.FC<PaywallPageProps> = ({
 					</CurrentPlanLabel>
 				) : null}
 				<SelectPlanButton
-					isCurrentPlan={buttonIsCurrent}
+					$isCurrentPlan={buttonIsCurrent}
 					disabled={
 						selectionOnly
 							? loading
@@ -574,8 +593,8 @@ export const PaywallPage: React.FC<PaywallPageProps> = ({
 
 	if (nativeApp) {
 		return (
-			<PaywallWrapper variant={variant} wide={wide}>
-				<PaywallContainer variant={variant} wide={wide}>
+			<PaywallWrapper variant={variant}>
+				<PaywallContainer variant={variant}>
 					<TrialBannerWrapper variant={variant}>
 						<TrialBannerTitle variant={variant}>
 							Manage billing in your browser
@@ -599,8 +618,8 @@ export const PaywallPage: React.FC<PaywallPageProps> = ({
 			: 'Start with core property records, then upgrade when you need assignments, reporting, resident workflows, and cross-property coordination.';
 
 	return (
-		<PaywallWrapper variant={variant} wide={wide}>
-			<PaywallContainer variant={variant} wide={wide}>
+		<PaywallWrapper variant={variant}>
+			<PaywallContainer variant={variant}>
 				{variant === 'full' && (
 					<BackButton variant={variant} onClick={handleBackToSettings}>
 						← Back to Settings
@@ -687,6 +706,11 @@ export const PaywallPage: React.FC<PaywallPageProps> = ({
 				<PlanGroupIntro variant={variant}>
 					{PLAN_GROUP_COPY[planAudience]}
 				</PlanGroupIntro>
+				<CheckoutConfidence aria-label='Checkout information'>
+					<span>Secure checkout through Stripe</span>
+					<span>Maintley does not store card details</span>
+					<span>Review your total before payment</span>
+				</CheckoutConfidence>
 
 				{isMobileView && (
 					<MobilePromoContainer>

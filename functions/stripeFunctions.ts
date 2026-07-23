@@ -7,6 +7,7 @@ import {
 	defineString,
 	StringParam,
 } from 'firebase-functions/params';
+import { ensureFamilyAccountForUser } from './ensureFamilyAccount';
 const STRIPE_SECRET_KEY = defineSecret('STRIPE_SECRET_KEY');
 const STRIPE_WEBHOOK_SECRET = defineSecret('STRIPE_WEBHOOK_SECRET');
 const FUNCTIONS_CONFIG_EXPORT = defineJsonSecret<Record<string, any>>(
@@ -392,6 +393,13 @@ export const createCheckoutSession = functions
 			promoCode: requestedPromoCode,
 		} = data;
 		const normalizedPlanId = String(planId || '').trim().toLowerCase();
+		const authenticatedUserId = context.auth.uid;
+		if (String(userId || '').trim() !== authenticatedUserId) {
+			throw new functions.https.HttpsError(
+				'permission-denied',
+				'Checkout can only be created for the signed-in account',
+			);
+		}
 		const resolvedPlanPriceId = resolvePriceIdForPlan(
 			normalizedPlanId,
 			String(billingCycle || '').toLowerCase() === 'year' ? 'year' : 'month',
@@ -422,7 +430,24 @@ export const createCheckoutSession = functions
 			// Get user data to check current subscription
 			const userRef = db.collection('users').doc(userId);
 			const userDoc = await userRef.get();
-			const userData = userDoc.data();
+			if (!userDoc.exists) {
+				throw new functions.https.HttpsError(
+					'not-found',
+					'User profile not found',
+				);
+			}
+			const userData = userDoc.data() || {};
+			await ensureFamilyAccountForUser(
+				authenticatedUserId,
+				{
+					accountId: String(userData.accountId || authenticatedUserId),
+					syncSubscription: true,
+					subscription: userData.subscription as
+						| Record<string, unknown>
+						| undefined,
+				},
+				userData,
+			);
 			console.log('User data retrieved:', userData);
 
 			const accountPromoCode = normalizePromoCode(
@@ -474,10 +499,10 @@ export const createCheckoutSession = functions
 				}
 
 				console.log('Updating existing Stripe subscription instead of creating a new one:', {
-					subscriptionId: existingSubscription.id,
-					subscriptionItemId: subscriptionItem.id,
-					currentPriceId: subscriptionItem.price?.id,
-					newPriceId: resolvedPriceId,
+						subscriptionId: existingSubscription.id,
+						subscriptionItemId: subscriptionItem.id,
+						currentPriceId: subscriptionItem.price?.id,
+						newPriceId: resolvedPriceId,
 				});
 
 				const updatedSubscription = await getStripe().subscriptions.update(
@@ -809,6 +834,12 @@ export const verifyCheckoutSession = functions
 					'Invalid session metadata',
 				);
 			}
+			if (firebaseUID !== context.auth.uid) {
+				throw new functions.https.HttpsError(
+					'permission-denied',
+					'This checkout session belongs to a different account',
+				);
+			}
 
 			// Get subscription details
 			const subscription = await getStripe().subscriptions.retrieve(
@@ -1048,12 +1079,12 @@ export const syncSubscriptionFromStripe = functions
 			stripeSubscription.status === 'active'
 				? 'active'
 				: stripeSubscription.status === 'trialing'
-				? 'trial'
-				: stripeSubscription.status === 'past_due'
-				? 'past_due'
-				: stripeSubscription.status === 'canceled'
-				? 'cancelled'
-				: String(stripeSubscription.status || 'expired');
+					? 'trial'
+					: stripeSubscription.status === 'past_due'
+						? 'past_due'
+						: stripeSubscription.status === 'canceled'
+							? 'cancelled'
+							: String(stripeSubscription.status || 'expired');
 
 		const currentPriceId =
 			stripeSubscription.items.data[0]?.price?.id ||
@@ -1064,18 +1095,18 @@ export const syncSubscriptionFromStripe = functions
 			status: localStatus,
 			plan: getPlanFromPriceId(
 				String(currentPriceId),
-					String(existingSubscription.plan || 'homeowner'),
+				String(existingSubscription.plan || 'homeowner'),
 			),
 			currentPeriodStart: stripeSubscription.current_period_start,
 			currentPeriodEnd: stripeSubscription.current_period_end,
-				trialEndsAt: stripeSubscription.trial_end,
-				stripeCustomerId: String(stripeSubscription.customer || stripeCustomerId),
-				stripeSubscriptionId: stripeSubscription.id,
-				pendingCheckoutPlan: null,
-				pendingCheckoutStartedAt: null,
-				updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-				...(stripeSubscription.status === 'canceled'
-					? { canceledAt: stripeSubscription.canceled_at }
+			trialEndsAt: stripeSubscription.trial_end,
+			stripeCustomerId: String(stripeSubscription.customer || stripeCustomerId),
+			stripeSubscriptionId: stripeSubscription.id,
+			pendingCheckoutPlan: null,
+			pendingCheckoutStartedAt: null,
+			updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+			...(stripeSubscription.status === 'canceled'
+				? { canceledAt: stripeSubscription.canceled_at }
 				: {}),
 		});
 
@@ -1223,8 +1254,8 @@ const handleSubscriptionUpdate = async (subscription: any) => {
 					subscription.status === 'active'
 						? 'active'
 						: subscription.status === 'trialing'
-						? 'trial'
-						: subscription.status,
+							? 'trial'
+							: subscription.status,
 				plan: getPlanFromPriceId(
 					subscription.items.data[0].price.id,
 					userData?.subscription?.plan || 'homeowner',
@@ -1415,8 +1446,8 @@ const handleSubscriptionCreated = async (subscription: any) => {
 					subscription.status === 'active'
 						? 'active'
 						: subscription.status === 'trialing'
-						? 'trial'
-						: subscription.status,
+							? 'trial'
+							: subscription.status,
 				plan: getPlanFromPriceId(
 					subscription.items.data[0].price.id,
 					userData?.subscription?.plan || 'homeowner',

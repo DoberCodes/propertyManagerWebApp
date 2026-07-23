@@ -32,13 +32,9 @@ import {
 	validateTenantInviteForRegistration,
 	validateTeamInviteForRegistration,
 } from '../../services/authService';
-import { redirectToCheckout } from '../../services/stripeService';
 import { USER_ROLES } from '../../constants/roles';
 import { useLocation, useNavigate } from 'react-router-dom';
-import {
-	beginAuthTransition,
-	setCurrentUser,
-} from '../../Redux/Slices/userSlice';
+import { setCurrentUser } from '../../Redux/Slices/userSlice';
 import { PaywallPage } from '../../pages/PaywallPage/PaywallPage';
 import DocumentViewer from '../DocumentViewer';
 import { TRIAL_DURATION_DAYS } from '../../constants/subscriptions';
@@ -46,6 +42,7 @@ import {
 	LEGAL_AGREEMENT_VERSION,
 	createLegalAgreementDocuments,
 } from '../../constants/legal';
+import { auth } from '../../config/firebase';
 
 // Map selected account type to appropriate role
 const getRoleFromAccountType = (accountType: string): string => {
@@ -106,6 +103,9 @@ export const RegistrationCard = () => {
 	// Tenants skip plan selection, invite mode skips plan selection
 	const isTenantSignup = accountType === 'tenant';
 	const skipsPlanSelection = inviteMode || isTenantSignup;
+	const isPaidCheckoutSelection =
+		!skipsPlanSelection &&
+		['homeowner_plus', 'property', 'portfolio'].includes(selectedPlan);
 	const totalSteps = skipsPlanSelection ? 2 : 3;
 	const displayStep = step;
 
@@ -369,7 +369,7 @@ export const RegistrationCard = () => {
 				: isTenantSignup ? '' : promoCode.trim();
 
 			// Register with Firebase - use mapped role, trim values
-			const { user, checkoutUrl } = await signUpWithEmail(
+			const { user } = await signUpWithEmail(
 				email.trim(),
 				password.trim(),
 				firstName.trim(),
@@ -400,19 +400,21 @@ export const RegistrationCard = () => {
 			// Update Redux store to mark user as logged in
 			dispatch(setCurrentUser(user));
 
-			if (checkoutUrl) {
-				setLoading(false);
-				redirectToCheckout(checkoutUrl);
+			if (user.subscription?.pendingCheckoutPlan) {
+				navigate('/checkout/start', { replace: true });
 				return;
 			}
 
-			dispatch(beginAuthTransition());
 			navigate(
 				user.role === USER_ROLES.TENANT ? '/tenant-profile' : '/dashboard',
 				{ replace: true },
 			);
 		} catch (error: any) {
 			console.error('RegistrationCard: Registration error', error);
+			if (isPaidCheckoutSelection && auth.currentUser) {
+				navigate('/paywall?checkout=failed', { replace: true });
+				return;
+			}
 			setError(error.message || 'Registration failed. Please try again.');
 			setLoading(false);
 		}
@@ -704,7 +706,6 @@ export const RegistrationCard = () => {
 						currentPlan={selectedPlan}
 						variant='embedded'
 						selectionOnly={true}
-						wide={true}
 						initialPlanAudience='home'
 						onPlanSelect={(planId) => {
 							setSelectedPlan(planId);
@@ -717,7 +718,11 @@ export const RegistrationCard = () => {
 					/>
 					<Submit type='button' onClick={signup} disabled={loading}>
 						{loading && <LoadingSpinner />}
-						{loading ? 'Creating account...' : 'Create Account'}
+						{loading
+							? isPaidCheckoutSelection
+								? 'Opening secure checkout...'
+								: 'Creating account...'
+							: 'Create Account'}
 					</Submit>
 				</>
 			)}

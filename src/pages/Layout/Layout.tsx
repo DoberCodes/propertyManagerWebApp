@@ -133,7 +133,7 @@ export const Layout = () => {
 						...latestUser,
 						...userData,
 						id: latestUser.id,
-						subscription: latestUser.subscription,
+						subscription: userData.subscription ?? latestUser.subscription,
 					}),
 				);
 			},
@@ -148,6 +148,11 @@ export const Layout = () => {
 	useEffect(() => {
 		if (currentUser) {
 			if (shouldBypassOnboarding(currentUser)) {
+				setShowOnboarding(false);
+				return;
+			}
+
+			if (currentUser.subscription?.pendingCheckoutPlan) {
 				setShowOnboarding(false);
 				return;
 			}
