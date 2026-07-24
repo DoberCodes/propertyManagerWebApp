@@ -7,6 +7,7 @@ import {
 } from '../constants/subscriptions';
 import {
 	CapabilityId,
+	EntitlementGrant,
 	getEntitlementLimit,
 	getPlanPreset,
 	hasCapability,
@@ -32,6 +33,8 @@ export interface SubscriptionData {
 	scheduledPlan?: string;
 	pendingCheckoutPlan?: string;
 	pendingCheckoutStartedAt?: number;
+	entitlementAccountId?: string;
+	entitlementGrants?: EntitlementGrant[];
 }
 
 const UNLIMITED_DEVICE_LIMIT_SENTINEL = 999;
@@ -46,14 +49,24 @@ const getPlanById = (planId: string) => {
 
 const resolveSubscriptionEntitlements = (
 	subscription?: Parameters<typeof getEffectiveSubscriptionPlanId>[0],
-) =>
-	resolveAccountEntitlements({
+) => {
+	const grants = Array.isArray(subscription?.entitlementGrants)
+		? (subscription.entitlementGrants as EntitlementGrant[])
+		: [];
+	const accountId =
+		String(subscription?.entitlementAccountId || '').trim() ||
+		String(grants[0]?.accountId || '').trim();
+
+	return resolveAccountEntitlements({
 		subscription,
+		accountId,
+		grants,
 		fallbackPlanId: 'homeowner',
 		mode: 'compatibility',
 		allowLegacyPlanWithoutStatus: true,
 		featureFlags: ENTITLEMENT_FEATURE_FLAGS,
 	});
+};
 
 const subscriptionHasCapability = (
 	subscription: Parameters<typeof getEffectiveSubscriptionPlanId>[0],
@@ -73,16 +86,87 @@ export const getEffectiveSubscriptionPlanId = (
 		| 'scheduledPlan'
 		| 'pendingCheckoutPlan'
 		| 'stripeSubscriptionId'
+		| 'entitlementAccountId'
+		| 'entitlementGrants'
 	> | null,
 	fallbackPlanId = 'homeowner',
 ): string => {
 	return resolveAccountEntitlements({
 		subscription,
+		accountId: String(subscription?.entitlementAccountId || '').trim(),
+		grants: subscription?.entitlementGrants || [],
 		fallbackPlanId,
 		mode: 'compatibility',
 		allowLegacyPlanWithoutStatus: true,
 		featureFlags: ENTITLEMENT_FEATURE_FLAGS,
 	}).basePlanId;
+};
+
+export const getEffectiveAccessPlanId = (
+	subscription?: Parameters<typeof getEffectiveSubscriptionPlanId>[0],
+): string => {
+	const result = resolveSubscriptionEntitlements(subscription);
+	const candidates = [
+		result.basePlanId,
+		...result.appliedBundleIds.map((value) => String(value).split('@')[0]),
+	];
+	const rank: Record<string, number> = {
+		guest: 0,
+		team: 0,
+		tenant: 0,
+		homeowner: 1,
+		homeowner_plus: 2,
+		multi_homeowner: 3,
+		property: 4,
+		portfolio: 5,
+	};
+	return candidates.reduce((best, candidate) =>
+		(rank[candidate] || 0) > (rank[best] || 0) ? candidate : best,
+	result.basePlanId);
+};
+
+export type HomeownerPlusTrialSummary = {
+	grantId: string;
+	programId: string;
+	startsAtMs: number;
+	endsAtMs: number;
+	daysRemaining: number;
+};
+
+export const getActiveHomeownerPlusTrial = (
+	subscription?: Pick<
+		SubscriptionData,
+		'entitlementGrants'
+	> | null,
+	nowMs = Date.now(),
+): HomeownerPlusTrialSummary | null => {
+	const grant = subscription?.entitlementGrants?.find((candidate) => {
+		const startsAtMs = Number(candidate.startsAtMs);
+		const endsAtMs = Number(candidate.endsAtMs);
+		return (
+			candidate.programId === 'homeowner_plus_first_property_trial_v1' &&
+			candidate.state === 'active' &&
+			candidate.bundleId === 'homeowner_plus' &&
+			Number.isFinite(startsAtMs) &&
+			startsAtMs <= nowMs &&
+			Number.isFinite(endsAtMs) &&
+			endsAtMs > nowMs
+		);
+	});
+
+	if (!grant) return null;
+	const startsAtMs = Number(grant.startsAtMs);
+	const endsAtMs = Number(grant.endsAtMs);
+	return {
+		grantId: grant.grantId,
+		programId: grant.programId,
+		startsAtMs,
+		endsAtMs,
+		daysRemaining: Math.max(
+			1,
+			Math.ceil((endsAtMs - nowMs) / (24 * 60 * 60 * 1000)),
+		),
+	};
 };
 
 export const isUnlimitedDeviceLimit = (maxDevices?: number): boolean =>

@@ -244,6 +244,8 @@ Typical fields:
 * updatedAt
 * subscriptionStatus
 * subscriptionPlan
+* entitlementPrograms
+* effectiveEntitlementProjection
 
 Purpose:
 
@@ -262,11 +264,17 @@ and program IDs, lifecycle state, versioned bundle or capability overrides,
 authoritative timestamps, source, idempotency, beneficiary, and audit metadata.
 Grants belong to the family account and are additive.
 
-This collection is server-written and client-inaccessible. The resolver and
-schema are implemented, but production grant issuance is still disabled and no
-existing account requires a grant. Later account experiences consume a trusted
-derived access view rather than treating client-visible grant data as writable
-authority.
+This collection is server-written and client-inaccessible. The first persisted
+program is `homeowner_plus_first_property_trial_v1`. Eligible new Free owner
+accounts receive its deterministic temporary grant only after the first
+property commit. The account stores a constrained, server-written
+`effectiveEntitlementProjection` for client capability resolution; that
+projection is derived and never becomes independent authority.
+
+Trial eligibility is stored under `entitlementPrograms` when the family account
+is first created. Issuance records the program as consumed, so trigger retries,
+duplicate property events, profile recreation, and later property creation
+cannot restart the program.
 
 ---
 

@@ -601,6 +601,50 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
                         </UserDetailsItem>
                     </UserDetailsGrid>
 
+					<Label>Effective Access</Label>
+					<UserDetailsGrid>
+						<UserDetailsItem>
+							<UserDetailsKey>Base Plan</UserDetailsKey>
+							<UserDetailsValue>{formatLabel(details.access?.basePlan || details.profile.subscriptionPlan)}</UserDetailsValue>
+						</UserDetailsItem>
+						<UserDetailsItem>
+							<UserDetailsKey>Active Grants</UserDetailsKey>
+							<UserDetailsValue>{String(details.access?.activeGrantCount ?? 0)}</UserDetailsValue>
+						</UserDetailsItem>
+						<UserDetailsItem>
+							<UserDetailsKey>Effective Bundles</UserDetailsKey>
+							<UserDetailsValue>
+								{details.access?.effectiveBundles?.length
+									? details.access.effectiveBundles.map(formatLabel).join(', ')
+									: formatLabel(details.profile.subscriptionPlan)}
+							</UserDetailsValue>
+						</UserDetailsItem>
+						<UserDetailsItem>
+							<UserDetailsKey>Homeowner+ Trial</UserDetailsKey>
+							<UserDetailsValue>
+								{details.access?.homeownerPlusTrial
+									? `${formatLabel(details.access.homeownerPlusTrial.state)} through ${formatDate(details.access.homeownerPlusTrial.endsAt)}`
+									: 'Not issued'}
+							</UserDetailsValue>
+						</UserDetailsItem>
+					</UserDetailsGrid>
+
+					{details.access?.timeline?.length ? (
+						<>
+							<Label>Access Timeline</Label>
+							<UserDetailsGrid>
+								{details.access.timeline.map((event) => (
+									<UserDetailsItem key={event.id}>
+										<UserDetailsKey>{formatDate(event.createdAt || undefined)}</UserDetailsKey>
+										<UserDetailsValue>
+											{formatLabel(event.action)}{event.reason ? ` — ${event.reason}` : ''}
+										</UserDetailsValue>
+									</UserDetailsItem>
+								))}
+							</UserDetailsGrid>
+						</>
+					) : null}
+
                     <div>
                         <Label>Support History</Label>
                         <UserActivityList>

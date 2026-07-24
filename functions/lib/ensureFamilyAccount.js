@@ -36,6 +36,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.ensureFamilyAccount = exports.ensureFamilyAccountForUser = void 0;
 const functions = __importStar(require("firebase-functions/v1"));
 const admin = __importStar(require("firebase-admin"));
+const entitlementGrants_1 = require("./entitlementGrants");
 if (!admin.apps.length) {
     admin.initializeApp();
 }
@@ -125,6 +126,7 @@ const ensureFamilyAccountForUser = async (uid, data = {}, knownUserData) => {
             const subscriptionToStore = data?.subscription ||
                 userData.subscription ||
                 null;
+            const trialEligibility = (0, entitlementGrants_1.getInitialTrialEligibility)(subscriptionToStore, userData.createdAt);
             transaction.set(accountRef, {
                 id: accountId,
                 ownerId: uid,
@@ -132,6 +134,13 @@ const ensureFamilyAccountForUser = async (uid, data = {}, knownUserData) => {
                 propertyCount: 0,
                 deviceCount: 0,
                 subscription: subscriptionToStore,
+                ...(trialEligibility
+                    ? {
+                        entitlementPrograms: {
+                            [entitlementGrants_1.HOMEOWNER_PLUS_TRIAL_PROGRAM_ID]: trialEligibility,
+                        },
+                    }
+                    : {}),
                 createdAt: admin.firestore.FieldValue.serverTimestamp(),
                 updatedAt: admin.firestore.FieldValue.serverTimestamp(),
             });
@@ -155,6 +164,7 @@ const ensureFamilyAccountForUser = async (uid, data = {}, knownUserData) => {
         ownerId: finalData.ownerId,
         memberIds: Array.isArray(finalData.memberIds) ? finalData.memberIds : [],
         subscription: serializeFirestoreValue(finalData.subscription),
+        effectiveEntitlementProjection: serializeFirestoreValue(finalData.effectiveEntitlementProjection),
         updatedAt: serializeFirestoreValue(finalData.updatedAt),
     };
 };

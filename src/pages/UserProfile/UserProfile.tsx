@@ -94,6 +94,7 @@ import COLORS from 'constants/colors';
 import { PortfolioPlanSub, PortfolioTop, PortfolioUsage, PortfolioUsageBadge, ProgressFill, ProgressTrack } from 'Components/Library/Navbar/SideNav/SideNav.styles';
 import {
 	canManageTeam,
+	getActiveHomeownerPlusTrial,
 	getEffectiveSubscriptionPlanId,
 	getRemainingPropertySlots,
 	getSubscriptionPlanDetails,
@@ -486,6 +487,9 @@ export const UserProfile: React.FC = () => {
 		'homeowner',
 	);
 	const planDetails = getSubscriptionPlanDetails(effectivePlanId);
+	const activeHomeownerPlusTrial = getActiveHomeownerPlusTrial(
+		currentUser?.subscription,
+	);
 
 	const remainingSlots = currentUser?.subscription
 		? getRemainingPropertySlots(currentUser.subscription, totalProperties)
@@ -920,6 +924,32 @@ export const UserProfile: React.FC = () => {
 						<PortfolioPlanSub>
 							{planSubtitle}
 						</PortfolioPlanSub>
+						{activeHomeownerPlusTrial ? (
+							<div
+								style={{
+									padding: '12px',
+									borderRadius: '8px',
+									background: '#ECFDF5',
+									border: '1px solid #A7F3D0',
+									color: '#065F46',
+								}}
+							>
+								<strong>Homeowner+ trial active</strong>
+								<div style={{ marginTop: '4px', fontSize: '14px' }}>
+									{activeHomeownerPlusTrial.daysRemaining} days remaining. Your
+									 complimentary access ends{' '}
+									{new Date(
+										activeHomeownerPlusTrial.endsAtMs,
+									).toLocaleDateString(undefined, {
+										month: 'long',
+										day: 'numeric',
+										year: 'numeric',
+									})}
+									. No payment method is connected and you will not be charged.
+									 Your account returns to the Free plan afterward.
+								</div>
+							</div>
+						) : null}
 						<ProgressTrack>
 							<ProgressFill $percent={Math.min(100, usagePercent)} />
 						</ProgressTrack>

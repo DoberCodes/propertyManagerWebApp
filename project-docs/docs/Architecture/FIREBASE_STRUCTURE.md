@@ -302,7 +302,7 @@ Primary collections:
 
 * users
 * familyAccounts
-  * entitlementGrants (reserved server-written subcollection; issuance disabled)
+  * entitlementGrants (server-written temporary and permanent access grants)
 * accountMemberships
 * properties
 * propertyGroups
@@ -328,6 +328,13 @@ Primary collections:
 * feedback
 * admin_users (function-managed)
 * admin_sessions (function-managed)
+* admin_audit_logs (server-written high-value administrative and program decisions)
+
+The first-property Homeowner+ trial uses a Firestore property-create trigger.
+Account bootstrap marks only eligible new Free owner accounts; the trigger then
+creates one deterministic generic grant, updates the derived account access
+projection, consumes eligibility, and appends an immutable audit event in one
+transaction. All issuance flags default off.
 
 Admin portal collection notes:
 

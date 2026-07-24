@@ -33,13 +33,15 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.canUsePropertyKnowledgeAcquisition = exports.getSubscriptionLimit = exports.hasSubscriptionCapability = exports.getEffectiveSubscriptionPlanId = exports.isSubscriptionCurrentlyEntitled = exports.ENTITLEMENT_FEATURE_FLAGS = exports.normalizePlanId = void 0;
+exports.resolveEntitlementsForAccount = exports.canUsePropertyKnowledgeAcquisition = exports.getSubscriptionLimit = exports.hasSubscriptionCapability = exports.getEffectiveSubscriptionPlanId = exports.isSubscriptionCurrentlyEntitled = exports.ENTITLEMENT_FEATURE_FLAGS = exports.normalizePlanId = void 0;
 const functions = __importStar(require("firebase-functions/v1"));
 const entitlements_1 = require("@maintley/entitlements");
 Object.defineProperty(exports, "normalizePlanId", { enumerable: true, get: function () { return entitlements_1.normalizePlanId; } });
 exports.ENTITLEMENT_FEATURE_FLAGS = Object.freeze({
     ...entitlements_1.DEFAULT_ENTITLEMENT_FEATURE_FLAGS,
     multiHomeownerPlan: process.env.ENABLE_MULTI_HOMEOWNER_PLAN === 'true',
+    homeownerPlusProductTrial: process.env.ENABLE_HOMEOWNER_PLUS_PRODUCT_TRIAL === 'true',
+    internalEntitlementGrantIssuance: process.env.ENABLE_INTERNAL_ENTITLEMENT_GRANT_ISSUANCE === 'true',
 });
 const DEFAULT_DENY_DIAGNOSTIC_CODES = new Set([
     'unknown_plan',
@@ -94,3 +96,52 @@ const getSubscriptionLimit = (subscription, limitId) => (0, entitlements_1.getEn
 exports.getSubscriptionLimit = getSubscriptionLimit;
 const canUsePropertyKnowledgeAcquisition = (subscription) => (0, exports.hasSubscriptionCapability)(subscription, 'property_knowledge.acquire');
 exports.canUsePropertyKnowledgeAcquisition = canUsePropertyKnowledgeAcquisition;
+const toGrantMillis = (value) => {
+    if (Number.isFinite(Number(value)))
+        return Number(value);
+    if (value && typeof value.toMillis === 'function') {
+        return value.toMillis();
+    }
+    return null;
+};
+const resolveEntitlementsForAccount = async (accountId, subscription, nowMs = Date.now()) => {
+    const admin = await Promise.resolve().then(() => __importStar(require('firebase-admin')));
+    if (!admin.apps.length)
+        admin.initializeApp();
+    const normalizedAccountId = String(accountId || '').trim();
+    if (!normalizedAccountId) {
+        return (0, entitlements_1.resolveAccountEntitlements)({
+            subscription,
+            fallbackPlanId: 'homeowner',
+            mode: 'compatibility',
+            featureFlags: exports.ENTITLEMENT_FEATURE_FLAGS,
+            nowMs,
+        });
+    }
+    const snapshot = await admin
+        .firestore()
+        .collection('familyAccounts')
+        .doc(normalizedAccountId)
+        .collection('entitlementGrants')
+        .get();
+    const grants = snapshot.docs.map((grantDoc) => {
+        const data = grantDoc.data() || {};
+        return {
+            ...data,
+            grantId: String(data.grantId || grantDoc.id),
+            accountId: String(data.accountId || normalizedAccountId),
+            startsAtMs: toGrantMillis(data.startsAtMs ?? data.startsAt) || 0,
+            endsAtMs: toGrantMillis(data.endsAtMs ?? data.endsAt),
+        };
+    });
+    return (0, entitlements_1.resolveAccountEntitlements)({
+        accountId: normalizedAccountId,
+        subscription,
+        grants,
+        fallbackPlanId: 'homeowner',
+        mode: 'compatibility',
+        featureFlags: exports.ENTITLEMENT_FEATURE_FLAGS,
+        nowMs,
+    });
+};
+exports.resolveEntitlementsForAccount = resolveEntitlementsForAccount;

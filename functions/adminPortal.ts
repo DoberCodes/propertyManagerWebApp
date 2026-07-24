@@ -2133,6 +2133,7 @@ export const getAdminPortalUserTroubleshootingDetails = functions
 		const lastName = String(userData.lastName || '').trim();
 		const email = String(userData.email || '').trim() || null;
 		const accountId = String(userData.accountId || '').trim();
+		const entitlementAccountId = accountId || targetUserId;
 		const maintleyRole = normalizeMaintleyRole(userData.maintley_role) || 'user';
 		const accountStatus = normalizeAdminUserStatus(userData);
 		const subscription =
@@ -2146,6 +2147,66 @@ export const getAdminPortalUserTroubleshootingDetails = functions
 		const inviteCode =
 			String(userData.inviteCode || userData.invitationCode || userData.teamInviteCode || '')
 				.trim() || null;
+
+		const [entitlementAccountDoc, entitlementGrantSnapshot, entitlementAuditSnapshot] =
+			await Promise.all([
+				db.collection('familyAccounts').doc(entitlementAccountId).get(),
+				db
+					.collection('familyAccounts')
+					.doc(entitlementAccountId)
+					.collection('entitlementGrants')
+					.get(),
+				db
+					.collection(ADMIN_AUDIT_LOGS_COLLECTION)
+					.where('targetAccountId', '==', entitlementAccountId)
+					.limit(50)
+					.get(),
+			]);
+		const entitlementAccount = entitlementAccountDoc.data() || {};
+		const entitlementProjection =
+			typeof entitlementAccount.effectiveEntitlementProjection === 'object' &&
+			entitlementAccount.effectiveEntitlementProjection
+				? (entitlementAccount.effectiveEntitlementProjection as Record<string, unknown>)
+				: {};
+		const nowMs = Date.now();
+		const grants: Array<Record<string, unknown>> =
+			entitlementGrantSnapshot.docs.map((grantDoc) => ({
+				id: grantDoc.id,
+				...((grantDoc.data() || {}) as Record<string, unknown>),
+			}));
+		const activeGrants = grants.filter((grant) => {
+			const startsAtMs = Number(grant.startsAtMs || 0);
+			const endsAtMs = Number(grant.endsAtMs || 0);
+			return (
+				String(grant.state || '') === 'active' &&
+				startsAtMs <= nowMs &&
+				(String(grant.kind || '') === 'permanent' || endsAtMs > nowMs)
+			);
+		});
+		const homeownerPlusTrial = grants.find(
+			(grant) =>
+				String(grant.programId || '') ===
+					'homeowner_plus_first_property_trial_v1',
+		);
+		const accessTimeline = entitlementAuditSnapshot.docs
+			.map((auditDoc) => {
+				const event = auditDoc.data() || {};
+				return {
+					id: auditDoc.id,
+					action: String(event.action || ''),
+					reason: String(event.reason || ''),
+					grantId: String(event.grantId || '') || null,
+					programId: String(event.programId || '') || null,
+					actorUserId: String(event.actorUserId || '') || null,
+					createdAt: toIsoString(event.createdAt),
+					before:
+						typeof event.before === 'object' && event.before ? event.before : null,
+					after:
+						typeof event.after === 'object' && event.after ? event.after : null,
+				};
+			})
+			.sort((left, right) => toMillis(right.createdAt) - toMillis(left.createdAt))
+			.slice(0, 20);
 
 		const [propertyCountByAccount, propertyCountByUserId, propertyCountByOwnerId] = await Promise.all([
 			tryCountWhere(PROPERTIES_COLLECTION, 'accountId', accountId),
@@ -2306,6 +2367,33 @@ export const getAdminPortalUserTroubleshootingDetails = functions
 				openTicketCount: recentSupportRequests.filter((entry) =>
 					String(entry.status || '').trim().toLowerCase() !== 'closed',
 				).length,
+			},
+			access: {
+				basePlan: String(subscription.plan || '').trim() || 'homeowner',
+				effectiveBundles: Array.isArray(entitlementProjection.activeBundleIds)
+					? entitlementProjection.activeBundleIds
+					: [],
+				activeGrantCount: activeGrants.length,
+				grants: grants.map((grant) => ({
+					grantId: String(grant.grantId || grant.id || ''),
+					programId: String(grant.programId || ''),
+					state: String(grant.state || ''),
+					kind: String(grant.kind || ''),
+					bundleId: String(grant.bundleId || '') || null,
+					startsAt: toIsoString(grant.startsAtMs) || null,
+					endsAt: Number.isFinite(Number(grant.endsAtMs)) && Number(grant.endsAtMs) > 0
+						? toIsoString(grant.endsAtMs)
+						: null,
+					source: String(grant.source || ''),
+				})),
+				homeownerPlusTrial: homeownerPlusTrial
+					? {
+							state: String(homeownerPlusTrial.state || ''),
+							startsAt: toIsoString(homeownerPlusTrial.startsAtMs),
+							endsAt: toIsoString(homeownerPlusTrial.endsAtMs),
+						  }
+					: null,
+				timeline: accessTimeline,
 			},
 			recentSupportRequests,
 			recentErrors,

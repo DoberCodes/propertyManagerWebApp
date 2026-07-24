@@ -1,6 +1,7 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { clearUserLocalStorage } from '../../utils/localStorageCleanup';
 import { UserRole } from 'constants/roles';
+import type { EntitlementGrant } from '@maintley/entitlements';
 
 // Family account type for shared subscriptions
 export interface FamilyAccount {
@@ -76,6 +77,17 @@ export interface User {
 		scheduledPlan?: string;
 		pendingCheckoutPlan?: string;
 		pendingCheckoutStartedAt?: number;
+		entitlementAccountId?: string;
+		entitlementGrants?: EntitlementGrant[];
+	};
+	effectiveEntitlementProjection?: {
+		resolverVersion?: string;
+		bundleVersions?: string[];
+		activeBundleIds?: string[];
+		bundleExpirationsMs?: Record<string, number>;
+		activeGrants?: EntitlementGrant[];
+		calculatedAt?: string;
+		nextTransitionAtMs?: number;
 	};
 	legalAgreement?: {
 		agreedToTerms: boolean;
@@ -214,6 +226,28 @@ const userSlice = createSlice({
 			}
 			state.authLoading = false;
 		},
+		updateEntitlementProjection: (
+			state,
+			action: PayloadAction<{
+				accountId: string;
+				projection: User['effectiveEntitlementProjection'] | null;
+			}>,
+		) => {
+			if (!state.currentUser?.subscription) return;
+			const currentAccountId =
+				String(state.currentUser.accountId || '').trim() || state.currentUser.id;
+			if (currentAccountId !== action.payload.accountId) return;
+
+			const projection = action.payload.projection || undefined;
+			state.currentUser.effectiveEntitlementProjection = projection;
+			state.currentUser.subscription.entitlementAccountId = currentAccountId;
+			state.currentUser.subscription.entitlementGrants =
+				projection?.activeGrants || [];
+			localStorage.setItem(
+				'loggedUser',
+				JSON.stringify(getLoggedUserSession(state.currentUser)),
+			);
+		},
 		setUserCred: (state, action: PayloadAction<any>) => {
 			state.cred = action.payload;
 		},
@@ -233,6 +267,7 @@ const userSlice = createSlice({
 export const {
 	beginAuthTransition,
 	setCurrentUser,
+	updateEntitlementProjection,
 	setUserCred,
 	setAuthLoading,
 	logout,

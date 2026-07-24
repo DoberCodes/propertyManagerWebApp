@@ -1,6 +1,6 @@
 # ADR 0030: Homeowner+ Trial Experience
 
-Status: Proposed
+Status: Accepted
 
 Date: 2026-07-23
 
@@ -32,17 +32,25 @@ Maintley also has a Stripe-backed trial-subscription callable. A Free product
 trial must not require a Stripe customer, payment method, or subscription and
 must not be represented as an unconfirmed paid purchase.
 
-## Proposed decision
+## Decision
 
 ### 1. Give new Free owner accounts a 30-day Homeowner+ trial
 
-A newly created homeowner account that intentionally selects the Free plan
-receives one 30-day Homeowner+ product trial. Guest, team-member, resident, and
-other invited access accounts are not eligible.
+A newly created homeowner account that intentionally selects the Free plan is
+eligible for one 30-day Homeowner+ product trial. Guest, team-member, resident,
+paid-intent, and other invited access accounts are not eligible.
 
-The trial starts from a trusted, auditable account-creation event and is granted
-once per owning account. Reinstalling the application, changing an email
-address, or recreating a client profile must not restart it.
+The trial starts only after the account's first property is successfully
+created and committed. Beginning or partially completing setup is not enough.
+A trusted server operation issues the grant once per owning account and must be
+idempotent across retries, duplicate events, and interrupted onboarding.
+Reinstalling the application, changing an email address, or recreating a client
+profile must not restart it.
+
+Failed or abandoned paid Checkout does not earn the trial. A paid-intent
+account must make an intentional transition to Free before it can become
+eligible under a separately trusted flow. Existing Free accounts are not
+automatically included; any launch cohort must use a separate audited program.
 
 ### 2. Separate the base plan from the trial entitlement
 
@@ -56,6 +64,11 @@ The trial is not:
 * a pending checkout plan
 * a paid-plan ownership claim
 * an account-level `expired` status after day 30
+* an automatic conversion or future charge
+
+Paid conversion always requires an intentional Stripe Checkout flow. The
+internal trial does not create a Stripe customer, payment method, subscription,
+schedule, or billing relationship.
 
 Entitlement resolution should answer both:
 
@@ -156,17 +169,14 @@ job running at exactly the expiration moment.
 * Existing legacy trial code and terminology require careful migration or
   removal.
 
-## Open decisions before acceptance
+## Initial implementation boundaries
 
-1. Confirm whether the trial begins at account creation or after the homeowner
-   creates the first property. Account creation is the recommended deterministic
-   boundary.
-2. Confirm whether accounts that originally selected a paid plan but cancelled
-   checkout should receive the Free trial. The current proposal limits automatic
-   issuance to an intentional Free selection.
-3. Confirm whether any existing Free-user launch cohort receives a one-time
-   trial; the default recommendation is new accounts only.
-4. Confirm whether upgrading during the product trial charges immediately or
-   schedules paid billing for the trial end date.
-5. Confirm whether support can grant a replacement trial and what audit reason
-   is required.
+The first implementation uses the generic account grant contract from ADR 0032
+with a stable trial `programId`; it must not introduce a trial-specific storage
+shape. Issuance, lifecycle state, bundle versioning, entitlement resolution,
+and audit records follow the shared grant model.
+
+The initial phase does not include automatic Stripe conversion, support
+regrants, existing-user launch cohorts, or `maintley_role` administration.
+Support regrants remain unavailable until the governed admin grant tooling,
+preview, confirmation, idempotency, and immutable auditing are implemented.

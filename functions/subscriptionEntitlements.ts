@@ -2,6 +2,7 @@ import * as functions from 'firebase-functions/v1';
 import {
 	CapabilityId,
 	DEFAULT_ENTITLEMENT_FEATURE_FLAGS,
+	EntitlementGrant,
 	getEntitlementLimit,
 	hasCapability,
 	LimitId,
@@ -18,6 +19,10 @@ export { normalizePlanId };
 export const ENTITLEMENT_FEATURE_FLAGS = Object.freeze({
 	...DEFAULT_ENTITLEMENT_FEATURE_FLAGS,
 	multiHomeownerPlan: process.env.ENABLE_MULTI_HOMEOWNER_PLAN === 'true',
+	homeownerPlusProductTrial:
+		process.env.ENABLE_HOMEOWNER_PLUS_PRODUCT_TRIAL === 'true',
+	internalEntitlementGrantIssuance:
+		process.env.ENABLE_INTERNAL_ENTITLEMENT_GRANT_ISSUANCE === 'true',
 });
 
 const DEFAULT_DENY_DIAGNOSTIC_CODES = new Set([
@@ -95,3 +100,57 @@ export const getSubscriptionLimit = (
 export const canUsePropertyKnowledgeAcquisition = (
 	subscription?: SubscriptionEntitlementLike | null,
 ): boolean => hasSubscriptionCapability(subscription, 'property_knowledge.acquire');
+
+const toGrantMillis = (value: unknown): number | null => {
+	if (Number.isFinite(Number(value))) return Number(value);
+	if (value && typeof (value as { toMillis?: unknown }).toMillis === 'function') {
+		return (value as { toMillis: () => number }).toMillis();
+	}
+	return null;
+};
+
+export const resolveEntitlementsForAccount = async (
+	accountId: string,
+	subscription?: SubscriptionEntitlementLike | null,
+	nowMs = Date.now(),
+) => {
+	const admin = await import('firebase-admin');
+	if (!admin.apps.length) admin.initializeApp();
+	const normalizedAccountId = String(accountId || '').trim();
+	if (!normalizedAccountId) {
+		return resolveAccountEntitlements({
+			subscription,
+			fallbackPlanId: 'homeowner',
+			mode: 'compatibility',
+			featureFlags: ENTITLEMENT_FEATURE_FLAGS,
+			nowMs,
+		});
+	}
+
+	const snapshot = await admin
+		.firestore()
+		.collection('familyAccounts')
+		.doc(normalizedAccountId)
+		.collection('entitlementGrants')
+		.get();
+	const grants = snapshot.docs.map((grantDoc) => {
+		const data = grantDoc.data() || {};
+		return {
+			...data,
+			grantId: String(data.grantId || grantDoc.id),
+			accountId: String(data.accountId || normalizedAccountId),
+			startsAtMs: toGrantMillis(data.startsAtMs ?? data.startsAt) || 0,
+			endsAtMs: toGrantMillis(data.endsAtMs ?? data.endsAt),
+		} as EntitlementGrant;
+	});
+
+	return resolveAccountEntitlements({
+		accountId: normalizedAccountId,
+		subscription,
+		grants,
+		fallbackPlanId: 'homeowner',
+		mode: 'compatibility',
+		featureFlags: ENTITLEMENT_FEATURE_FLAGS,
+		nowMs,
+	});
+};

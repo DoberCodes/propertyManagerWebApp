@@ -762,8 +762,10 @@ Read, create, update, delete:
 * Cloud Functions and Admin SDK only
 
 Clients cannot read or write authoritative grant records. Effective access is
-resolved by trusted code, and future customer-facing access summaries must use
-a constrained derived view.
+resolved by trusted code. Customer-facing access summaries use the constrained
+`familyAccounts.effectiveEntitlementProjection`, which clients may read through
+normal account access but cannot create or modify. Grant issuance, eligibility,
+program consumption, and audit events remain server-only.
 
 ---
 

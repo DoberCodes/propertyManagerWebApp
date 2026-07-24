@@ -280,6 +280,13 @@ export function getAdminAuditEventId(
 export function getComplimentaryTransitionIssues(
 	transition?: ComplimentaryPaidTransition | null,
 ): readonly ComplimentaryTransitionIssue[];
+export function isFirstPropertyTrialEligible(input: {
+	homeownerPlusProductTrial?: boolean;
+	internalEntitlementGrantIssuance?: boolean;
+	accountCreatedAtMs?: number;
+	eligibilityStartMs?: number;
+	subscription?: SubscriptionEntitlementLike | null;
+}): boolean;
 
 export function normalizePlanId(
 	planId?: unknown,

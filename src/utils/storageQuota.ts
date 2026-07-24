@@ -9,7 +9,7 @@ import {
 import { db } from '../config/firebase';
 import { resolveTargetUserId } from '../Redux/API/accountContext';
 import {
-	getEffectiveSubscriptionPlanId,
+	getEffectiveAccessPlanId,
 	getMaxFilesForPlan,
 	getMaxStorageGbForPlan,
 } from './subscriptionUtils';
@@ -85,9 +85,19 @@ const addFiles = (
 };
 
 const getPlanIdForAccount = async (accountId: string) => {
-	const userSnapshot = await getDoc(doc(db, 'users', accountId));
+	const [userSnapshot, accountSnapshot] = await Promise.all([
+		getDoc(doc(db, 'users', accountId)),
+		getDoc(doc(db, 'familyAccounts', accountId)),
+	]);
 	const userData = userSnapshot.data() || {};
-	return getEffectiveSubscriptionPlanId(userData.subscription, 'homeowner');
+	const projection = accountSnapshot.data()?.effectiveEntitlementProjection || {};
+	return getEffectiveAccessPlanId({
+		...(userData.subscription || {}),
+		entitlementAccountId: accountId,
+		entitlementGrants: Array.isArray(projection.activeGrants)
+			? projection.activeGrants
+			: [],
+	});
 };
 
 export const resolveStorageAccountId = async (propertyId?: string) => {

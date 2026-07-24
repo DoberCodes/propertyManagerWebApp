@@ -60,6 +60,9 @@ jobs:
       - name: Firestore rules tests
         run: yarn test:rules
 
+      - name: Entitlement grant issuance tests
+        run: yarn test:entitlement-grants
+
       - name: Storage rules tests
         run: yarn test:storage
 
@@ -93,6 +96,8 @@ jobs:
           REACT_APP_FIREBASE_WEB_PUSH_VAPID_KEY: ${{ secrets.PROD_REACT_APP_FIREBASE_WEB_PUSH_VAPID_KEY }}
           REACT_APP_STRIPE_PUBLIC_KEY: ${{ secrets.PROD_REACT_APP_STRIPE_PUBLIC_KEY }}
           REACT_APP_ENABLE_MULTI_HOMEOWNER_PLAN: ${{ vars.ENABLE_MULTI_HOMEOWNER_PLAN || 'false' }}
+          REACT_APP_ENABLE_HOMEOWNER_PLUS_PRODUCT_TRIAL: ${{ vars.ENABLE_HOMEOWNER_PLUS_PRODUCT_TRIAL || 'false' }}
+          REACT_APP_ENABLE_INTERNAL_ENTITLEMENT_GRANT_ISSUANCE: ${{ vars.ENABLE_INTERNAL_ENTITLEMENT_GRANT_ISSUANCE || 'false' }}
         run: |
           yarn sync:public-pricing
           yarn build

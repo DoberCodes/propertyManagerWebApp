@@ -69,8 +69,8 @@ MAINTLEY_PLAN_FEATURE_MATRIX.md
 The web application and Firebase Functions now share the pure resolver in
 `packages/entitlements`. Client and server feature helpers resolve typed
 capabilities and limits from that package. Compatibility wrappers preserve
-existing subscription records without enabling new plans, trials, or internal
-grant issuance.
+existing subscription records. Internal grant issuance remains independently
+launch-gated.
 
 Compatibility mode preserves existing paid-plan records while synthetic Stripe
 access is reviewed manually. Strict mode requires Stripe confirmation before a
@@ -81,9 +81,17 @@ stored-plan versus resolved-plan comparison events during a controlled rollout;
 it does not change the access result.
 
 The package defines temporary and permanent grant, billing-transition,
-administrative-audit, and rollout-flag contracts, but no production workflow
-currently writes entitlement grants or initiates a complimentary-to-paid
-transition. All new access-program flags default to off.
+administrative-audit, and rollout-flag contracts. The Homeowner+ first-property
+trial is the first persisted generic grant workflow. It remains disabled unless
+both `ENABLE_HOMEOWNER_PLUS_PRODUCT_TRIAL` and
+`ENABLE_INTERNAL_ENTITLEMENT_GRANT_ISSUANCE` are true and
+`HOMEOWNER_PLUS_TRIAL_ELIGIBILITY_START_AT` is a valid launch boundary. Existing
+grants continue resolving when issuance is disabled. No internal trial creates
+a Stripe customer, subscription, payment method, schedule, or automatic charge.
+
+The web equivalents are `REACT_APP_ENABLE_HOMEOWNER_PLUS_PRODUCT_TRIAL` and
+`REACT_APP_ENABLE_INTERNAL_ENTITLEMENT_GRANT_ISSUANCE`; these describe rollout
+state but do not revoke an already-issued grant.
 
 Clients cannot create a user with a paid base plan or rewrite authoritative
 subscription fields after signup. Firestore permits only non-billable initial

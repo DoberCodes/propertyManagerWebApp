@@ -2,14 +2,11 @@
 
 Date: 2026-07-23
 
-Status: Approved implementation plan; Phases 1 and 2 complete; Phase 3 implemented behind a disabled launch flag
-
-Related proposed ADRs:
-
-* `project-docs/ADR/0030-homeowner-plus-trial-experience.md`
+Status: Approved implementation plan; Phases 1 and 2 complete; Phases 3 and 4 implemented behind disabled launch flags
 
 Related accepted ADRs:
 
+* `project-docs/ADR/0030-homeowner-plus-trial-experience.md`
 * `project-docs/ADR/0031-homeowner-plus-trial-lifecycle-and-communication.md`
 * `project-docs/ADR/0032-centralized-entitlement-architecture.md`
 * `project-docs/ADR/0028-firebase-hosting-and-browser-routing-migration.md`
@@ -27,9 +24,9 @@ This report inventories the current repository and defines a clean path for:
 6. communicating trial and promotional-access transitions predictably
 
 This report is an implementation plan, not current-behavior documentation. The
-entitlement and lifecycle architecture in ADRs 0031 and 0032 is Accepted. ADR
-0029 is Accepted with its commercial configuration resolved. ADR 0030 remains
-Proposed while its remaining trial-policy configuration is finalized.
+entitlement and lifecycle architecture in ADRs 0031 and 0032 is Accepted. ADRs
+0029 and 0030 are Accepted with their commercial and trial-policy configuration
+resolved.
 Documentation approval does not itself change plan, billing, trial, email,
 Firebase, or task behavior.
 
@@ -83,6 +80,28 @@ Before launch, the remaining operational gate is a Stripe test-mode purchase,
 webhook, renewal, cancellation, restoration, and downgrade exercise using the
 deployed environment and canonical price secrets. Static public pricing must be
 regenerated with `npm run sync:public-pricing` in the same flag-enabled release.
+
+Phase 4 implements the Homeowner+ product trial as the first persisted use of
+the generic ADR 0032 grant model. When both issuance flags are enabled, account
+bootstrap marks only intentional Free owner accounts created on or after the
+configured eligibility boundary. A trusted property-create trigger issues one
+deterministic 30-day grant after the first committed property, consumes program
+eligibility, writes the derived account access projection, and appends the
+immutable audit event in one transaction. Authoritative grant documents remain
+client-inaccessible.
+
+The account profile shows the end date, days remaining, no-payment-method and
+no-charge behavior, and Free fallback. The admin customer lookup shows the
+billing plan separately from effective bundles, grants, trial state, and the
+access timeline. Active grants resolve dynamically by timestamp, so disabling
+issuance does not revoke existing access and expiration does not depend on a
+scheduled state mutation.
+
+Phase 4 excludes Stripe conversion automation, support regrants, existing-user
+launch cohorts, and `maintley_role` editing. Paid conversion still requires
+Checkout. Before either issuance flag is enabled, the deployed environment must
+validate account creation, first-property issuance, retry idempotency, UI
+refresh, expiration, security rules, and audit visibility.
 
 ### Phase 2 direct-check inventory
 
@@ -1194,47 +1213,42 @@ Update, rather than pre-emptively changing, current documentation:
 * `project-docs/docs/Architecture/PERMISSIONS.md`
 * relevant development script and deployment documentation
 
-## Implementation configuration still required
+## Remaining implementation configuration
 
 These values do not reopen the accepted architecture in ADRs 0031 and 0032.
 They must be recorded and validated before enabling the affected plan, trial,
 program, or migration:
 
-1. Final Multi-Homeowner public name and internal ID.
-2. Monthly and annual pricing.
-3. Multi-Homeowner file-count and storage limits.
-4. Trial start boundary: account creation or first property.
-5. Eligibility after a paid-plan checkout is cancelled.
-6. Whether any existing Free accounts receive a launch trial.
-7. Whether a paid conversion charges immediately or begins at trial end.
-8. Whether support may regrant a trial and under what audit policy.
-9. Per-message preference and consent handling within the approved operational,
+Multi-Homeowner naming, price, limits, and configuration vocabulary are resolved
+in Phase 3. ADR 0030 resolves the initial trial policy: the trial begins after
+the first committed property; abandoned paid checkout is ineligible; existing
+Free users require a separate audited program; support regrants are deferred;
+and conversion requires Checkout rather than an automatic charge.
+
+The following later-phase configuration remains:
+
+1. Per-message preference and consent handling within the approved operational,
    product-education, and marketing classifications.
-10. Which key milestones receive in-app notices in the first release.
-11. Stable entitlement naming, value types, and default-deny behavior.
-12. The initial global and cross-property views included with Multi-Homeowner.
-13. Whether to rename the prepared `MULTIPLE_HOMEOWNER_PLUS` configuration to
-    the recommended `MULTI_HOMEOWNER` vocabulary before implementation.
-14. The rollout sequence for server-owned Stripe price selection and retirement
+2. Which key milestones receive in-app notices in the first release.
+3. The rollout sequence for server-owned Stripe price selection and retirement
     of normal client price-ID authority.
-15. Whether implementation is reviewed as phased PRs or one feature PR with
-    independently gated commits and flags.
-16. The account-by-account classification of existing 100% Stripe subscriptions
+4. The account-by-account classification of existing 100% Stripe subscriptions
     for the approved manual migration.
-17. Detailed labels within the separate billing-state and effective-access
+5. Detailed labels within the separate billing-state and effective-access
     reporting dimensions.
-18. The transition mode and legally reviewed reminder schedule configured for
+6. The transition mode and legally reviewed reminder schedule configured for
     each promotional program.
 
 
 ## Recommended configuration and implementation order
 
-The entitlement and lifecycle architecture is approved. Configure the
-entitlement vocabulary and existing-plan parity first. Then finalize plan
-commercial details, trial eligibility and conversion rules, program transition
-modes, and per-message consent treatment. Phase 1 and Phase 2 begin before
-adding isolated plan cards or trial flags. Proposed ADRs 0029 and 0030 must be
-accepted before their Multi-Homeowner and Homeowner+ trial behavior is enabled.
+The entitlement and lifecycle architecture is approved. Phases 1 through 4
+establish the entitlement vocabulary, existing-plan parity, Multi-Homeowner
+bundle, and first-property Homeowner+ trial. Later phases finalize lifecycle
+communications, program transition modes, billing-state reporting, and
+per-message consent treatment. ADRs 0029 and 0030 are accepted; their guarded
+behavior remains disabled until the applicable launch configuration and
+deployed-environment validation gates are complete.
 
 All four ADRs and this approved companion report belong together in the current
 planning PR. For implementation, the preferred review boundaries are:

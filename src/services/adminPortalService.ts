@@ -123,6 +123,34 @@ export type AdminPortalUserTroubleshootingDetails = {
 		recentErrorCount?: number;
 		openTicketCount?: number;
 	};
+	access?: {
+		basePlan: string;
+		effectiveBundles: string[];
+		activeGrantCount: number;
+		grants: Array<{
+			grantId: string;
+			programId: string;
+			state: string;
+			kind: string;
+			bundleId?: string | null;
+			startsAt?: string | null;
+			endsAt?: string | null;
+			source?: string;
+		}>;
+		homeownerPlusTrial?: {
+			state: string;
+			startsAt: string;
+			endsAt: string;
+		} | null;
+		timeline: Array<{
+			id: string;
+			action: string;
+			reason: string;
+			createdAt?: string | null;
+			grantId?: string | null;
+			programId?: string | null;
+		}>;
+	};
 	recentSupportRequests: Array<{
 		id: string;
 		ticketNumber?: string | null;

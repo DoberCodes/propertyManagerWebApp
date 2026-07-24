@@ -15,6 +15,7 @@ import {
 	canUseSuggestedMaintenancePackages,
 	canViewReports,
 	getEffectiveSubscriptionPlanId,
+	getActiveHomeownerPlusTrial,
 	getMaxFilesForPlan,
 	getMaxPropertiesForPlan,
 	getMaxStorageGbForPlan,
@@ -245,5 +246,58 @@ describe('subscriptionUtils', () => {
 			'homeowner',
 		);
 		expect(canManageTeam(currentHomeownerWithScheduledPortfolio)).toBe(false);
+	});
+
+	it('layers an active Homeowner+ trial grant over the Free base plan', () => {
+		const nowMs = Date.now();
+		const freeWithTrial: SubscriptionData = {
+			...activeSubscription('homeowner'),
+			entitlementAccountId: 'account-1',
+			entitlementGrants: [
+				{
+					grantId: 'homeowner_plus_first_property_trial',
+					programId: 'homeowner_plus_first_property_trial_v1',
+					accountId: 'account-1',
+					kind: 'temporary',
+					state: 'active',
+					bundleId: 'homeowner_plus',
+					bundleVersion: 'v1',
+					startsAtMs: nowMs - 1000,
+					endsAtMs: nowMs + 30 * 24 * 60 * 60 * 1000,
+					source: 'trial',
+				},
+			],
+		};
+
+		expect(getEffectiveSubscriptionPlanId(freeWithTrial)).toBe('homeowner');
+		expect(canUseRecurringTasks(freeWithTrial)).toBe(true);
+		expect(canUseNotifications(freeWithTrial)).toBe(true);
+		expect(getActiveHomeownerPlusTrial(freeWithTrial, nowMs)?.daysRemaining).toBe(30);
+	});
+
+	it('falls back to Free behavior when the internal trial grant expires', () => {
+		const nowMs = Date.now();
+		const freeWithExpiredTrial: SubscriptionData = {
+			...activeSubscription('homeowner'),
+			entitlementAccountId: 'account-1',
+			entitlementGrants: [
+				{
+					grantId: 'homeowner_plus_first_property_trial',
+					programId: 'homeowner_plus_first_property_trial_v1',
+					accountId: 'account-1',
+					kind: 'temporary',
+					state: 'active',
+					bundleId: 'homeowner_plus',
+					bundleVersion: 'v1',
+					startsAtMs: nowMs - 31 * 24 * 60 * 60 * 1000,
+					endsAtMs: nowMs - 1000,
+					source: 'trial',
+				},
+			],
+		};
+
+		expect(canUseRecurringTasks(freeWithExpiredTrial)).toBe(false);
+		expect(canUseNotifications(freeWithExpiredTrial)).toBe(false);
+		expect(getActiveHomeownerPlusTrial(freeWithExpiredTrial, nowMs)).toBeNull();
 	});
 });

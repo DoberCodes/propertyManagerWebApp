@@ -157,6 +157,24 @@ const getComplimentaryTransitionIssues = (transition) => {
 	return Object.freeze(issues);
 };
 
+const isFirstPropertyTrialEligible = (input = {}) => {
+	const subscription = input.subscription || {};
+	const createdAtMs = Number(input.accountCreatedAtMs);
+	const eligibilityStartMs = Number(input.eligibilityStartMs);
+	return Boolean(
+		input.homeownerPlusProductTrial === true &&
+			input.internalEntitlementGrantIssuance === true &&
+			Number.isFinite(createdAtMs) &&
+			Number.isFinite(eligibilityStartMs) &&
+			createdAtMs >= eligibilityStartMs &&
+			String(subscription.plan || '').trim().toLowerCase() === 'homeowner' &&
+			String(subscription.status || '').trim().toLowerCase() === 'active' &&
+			!String(subscription.pendingCheckoutPlan || '').trim() &&
+			!String(subscription.stripeCustomerId || '').trim() &&
+			!String(subscription.stripeSubscriptionId || '').trim(),
+	);
+};
+
 const PLAN_ID_SET = new Set(PLAN_IDS);
 const PAID_PLAN_ID_SET = new Set(PAID_PLAN_IDS);
 const CAPABILITY_ID_SET = new Set(CAPABILITY_IDS);
@@ -713,6 +731,7 @@ module.exports = {
 	DEFAULT_ENTITLEMENT_FEATURE_FLAGS,
 	getAdminAuditEventId,
 	getComplimentaryTransitionIssues,
+	isFirstPropertyTrialEligible,
 	PLAN_PRESETS,
 	normalizePlanId,
 	isPlanEnabled,

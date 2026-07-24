@@ -9,6 +9,7 @@ import {
 	isPlanEnabled,
 	getAdminAuditEventId,
 	getComplimentaryTransitionIssues,
+	isFirstPropertyTrialEligible,
 	resolveAccountEntitlements,
 	toLegacyPermissions,
 } from '@maintley/entitlements';
@@ -406,5 +407,39 @@ describe('centralized entitlement resolver', () => {
 				stripeSubscriptionScheduleId: 'sub_sched_1',
 			}),
 		).toEqual([]);
+	});
+
+	it('limits first-property trial eligibility to new intentional Free accounts', () => {
+		const eligibleInput = {
+			homeownerPlusProductTrial: true,
+			internalEntitlementGrantIssuance: true,
+			accountCreatedAtMs: 2000,
+			eligibilityStartMs: 1000,
+			subscription: { status: 'active', plan: 'homeowner' },
+		};
+
+		expect(isFirstPropertyTrialEligible(eligibleInput)).toBe(true);
+		expect(
+			isFirstPropertyTrialEligible({
+				...eligibleInput,
+				accountCreatedAtMs: 999,
+			}),
+		).toBe(false);
+		expect(
+			isFirstPropertyTrialEligible({
+				...eligibleInput,
+				subscription: {
+					status: 'active',
+					plan: 'homeowner',
+					pendingCheckoutPlan: 'homeowner_plus',
+				},
+			}),
+		).toBe(false);
+		expect(
+			isFirstPropertyTrialEligible({
+				...eligibleInput,
+				homeownerPlusProductTrial: false,
+			}),
+		).toBe(false);
 	});
 });

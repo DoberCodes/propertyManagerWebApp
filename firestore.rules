@@ -197,12 +197,29 @@ service cloud.firestore {
         );
     }
 
-    function entitledPlanForAccount(accountId) {
+    function baseEntitledPlanForAccount(accountId) {
       return accountOwnerDocExists(accountId) &&
         ('subscription' in accountOwnerData(accountId)) &&
         subscriptionHasCurrentEntitlement(accountOwnerData(accountId).subscription)
         ? accountOwnerData(accountId).subscription.plan
         : 'homeowner';
+    }
+
+    function hasActiveProjectedBundle(accountId, bundleId) {
+      return familyAccountExists(accountId) &&
+        ('effectiveEntitlementProjection' in familyAccountData(accountId)) &&
+        ('activeBundleIds' in familyAccountData(accountId).effectiveEntitlementProjection) &&
+        familyAccountData(accountId).effectiveEntitlementProjection.activeBundleIds.hasAny([bundleId]) &&
+        ('bundleExpirationsMs' in familyAccountData(accountId).effectiveEntitlementProjection) &&
+        (bundleId in familyAccountData(accountId).effectiveEntitlementProjection.bundleExpirationsMs) &&
+        familyAccountData(accountId).effectiveEntitlementProjection.bundleExpirationsMs[bundleId] > request.time.toMillis();
+    }
+
+    function entitledPlanForAccount(accountId) {
+      return baseEntitledPlanForAccount(accountId) == 'homeowner' &&
+        hasActiveProjectedBundle(accountId, 'homeowner_plus')
+        ? 'homeowner_plus'
+        : baseEntitledPlanForAccount(accountId);
     }
 
     function maxPropertiesForAccount(accountId) {
