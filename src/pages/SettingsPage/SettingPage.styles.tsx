@@ -101,6 +101,11 @@ export const PlanStatus = styled.span<{ status: string }>`
                         background: ${COLORS.successLight};
                         color: ${COLORS.successDark};
                     `;
+            case 'granted':
+                return `
+                        background: #d1fae5;
+                        color: #047857;
+                    `;
             case 'cancelled':
                 return `
                         background: #fee2e2;
@@ -117,6 +122,55 @@ export const PlanStatus = styled.span<{ status: string }>`
 
 export const PlanDetails = styled.div`
     margin-bottom: 16px;
+`;
+
+export const GrantedAccessCard = styled.div`
+    display: grid;
+    gap: 6px;
+    margin: 0 0 16px;
+    padding: 14px 16px;
+    border: 1px solid #86efac;
+    border-radius: 10px;
+    background: #f0fdf4;
+    color: #14532d;
+`;
+
+export const GrantedAccessHeader = styled.div`
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+`;
+
+export const GrantedAccessTitle = styled.strong`
+    font-size: 1rem;
+    color: #065f46;
+`;
+
+export const GrantedAccessBadge = styled.span`
+    display: inline-flex;
+    padding: 4px 9px;
+    border-radius: 999px;
+    background: #d1fae5;
+    color: #047857;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+`;
+
+export const GrantedAccessText = styled.p`
+    margin: 0;
+    color: #166534;
+    font-size: 0.875rem;
+    line-height: 1.45;
+`;
+
+export const BillingPlanSummary = styled.p`
+    margin: 0 0 12px;
+    color: ${COLORS.textSecondary};
+    font-size: 0.875rem;
 `;
 
 export const PlanPrice = styled.p`

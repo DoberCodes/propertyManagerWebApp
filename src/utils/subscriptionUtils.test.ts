@@ -15,6 +15,8 @@ import {
 	canUseSuggestedMaintenancePackages,
 	canViewReports,
 	getEffectiveSubscriptionPlanId,
+	getEffectiveAccessPlanId,
+	getActiveGrantedPlanAccess,
 	getActiveHomeownerPlusTrial,
 	getMaxFilesForPlan,
 	getMaxPropertiesForPlan,
@@ -270,6 +272,14 @@ describe('subscriptionUtils', () => {
 		};
 
 		expect(getEffectiveSubscriptionPlanId(freeWithTrial)).toBe('homeowner');
+		expect(getEffectiveAccessPlanId(freeWithTrial)).toBe('homeowner_plus');
+		expect(getActiveGrantedPlanAccess(freeWithTrial, nowMs)).toEqual({
+			planId: 'homeowner_plus',
+			kind: 'temporary',
+			source: 'trial',
+			endsAtMs: nowMs + 30 * 24 * 60 * 60 * 1000,
+			grantIds: ['homeowner_plus_first_property_trial'],
+		});
 		expect(canUseRecurringTasks(freeWithTrial)).toBe(true);
 		expect(canUseNotifications(freeWithTrial)).toBe(true);
 		expect(getActiveHomeownerPlusTrial(freeWithTrial, nowMs)?.daysRemaining).toBe(30);
@@ -299,5 +309,38 @@ describe('subscriptionUtils', () => {
 		expect(canUseRecurringTasks(freeWithExpiredTrial)).toBe(false);
 		expect(canUseNotifications(freeWithExpiredTrial)).toBe(false);
 		expect(getActiveHomeownerPlusTrial(freeWithExpiredTrial, nowMs)).toBeNull();
+		expect(getActiveGrantedPlanAccess(freeWithExpiredTrial, nowMs)).toBeNull();
+	});
+
+	it('reports permanent Portfolio access separately from the Free billing plan', () => {
+		const nowMs = Date.now();
+		const freeWithLifetimePortfolio: SubscriptionData = {
+			...activeSubscription('homeowner'),
+			entitlementAccountId: 'account-1',
+			entitlementGrants: [
+				{
+					grantId: 'lifetime_portfolio',
+					programId: 'lifetime_portfolio_v1',
+					accountId: 'account-1',
+					kind: 'permanent',
+					state: 'active',
+					bundleId: 'portfolio',
+					bundleVersion: 'v1',
+					startsAtMs: nowMs - 1000,
+					endsAtMs: null,
+					source: 'lifetime',
+				},
+			],
+		};
+
+		expect(getEffectiveSubscriptionPlanId(freeWithLifetimePortfolio)).toBe('homeowner');
+		expect(getEffectiveAccessPlanId(freeWithLifetimePortfolio)).toBe('portfolio');
+		expect(getActiveGrantedPlanAccess(freeWithLifetimePortfolio, nowMs)).toEqual({
+			planId: 'portfolio',
+			kind: 'permanent',
+			source: 'lifetime',
+			endsAtMs: null,
+			grantIds: ['lifetime_portfolio'],
+		});
 	});
 });

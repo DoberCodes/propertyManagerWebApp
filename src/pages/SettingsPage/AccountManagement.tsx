@@ -1,6 +1,6 @@
 import React from "react";
-import { getEffectiveSubscriptionPlanId, getSubscriptionPlanDetails } from "utils/subscriptionUtils";
-import { BillingPortalButton, ButtonContainer, CancelButton, Container, PlanDetails, PlanFeature, PlanFeatures, PlanName, PlanPrice, PlanStatus, Section, SectionTitle, SubscriptionHeader, SubscriptionSection, Title, UpgradeButton } from "./SettingPage.styles";
+import { getActiveGrantedPlanAccess, getEffectiveAccessPlanId, getEffectiveSubscriptionPlanId, getSubscriptionPlanDetails } from "utils/subscriptionUtils";
+import { BillingPlanSummary, BillingPortalButton, ButtonContainer, CancelButton, Container, GrantedAccessBadge, GrantedAccessCard, GrantedAccessHeader, GrantedAccessText, GrantedAccessTitle, PlanDetails, PlanFeature, PlanFeatures, PlanName, PlanPrice, PlanStatus, Section, SectionTitle, SubscriptionHeader, SubscriptionSection, Title, UpgradeButton } from "./SettingPage.styles";
 import { RootState } from "Redux/store/store";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
@@ -24,18 +24,33 @@ export const AccountManagement: React.FC<AccountManagementProps> = ({ setShowCan
         (currentUser.isAccountOwner || currentUser.accountId === currentUser.id);
 
     const canViewPlanSection = !isTenant && isPrimaryAccountHolder;
-    const planStatusDisplay = subscription?.status === 'active'
+    const grantedAccess = getActiveGrantedPlanAccess(subscription);
+    const planStatusDisplay = grantedAccess
+        ? 'Granted'
+        : subscription?.status === 'active'
         ? 'Active'
         : subscription?.status === 'trial'
             ? 'Trial'
             : subscription?.status === 'expired'
                 ? 'Expired'
                 : 'Unknown';
-    const effectivePlanId = getEffectiveSubscriptionPlanId(subscription, 'homeowner');
+    const billingPlanId = getEffectiveSubscriptionPlanId(subscription, 'homeowner');
+    const effectivePlanId = getEffectiveAccessPlanId(subscription);
 
     const planDetails = getSubscriptionPlanDetails(effectivePlanId);
-    const isFreePlan = effectivePlanId === 'homeowner';
+    const billingPlanDetails = getSubscriptionPlanDetails(billingPlanId);
+    const grantedPlanDetails = grantedAccess
+        ? getSubscriptionPlanDetails(grantedAccess.planId)
+        : null;
+    const isFreePlan = billingPlanId === 'homeowner';
     const hasStripeBillingRelationship = Boolean(subscription?.stripeCustomerId);
+    const grantedAccessEndsLabel = grantedAccess?.endsAtMs
+        ? new Date(grantedAccess.endsAtMs).toLocaleDateString(undefined, {
+            month: 'long',
+            day: 'numeric',
+            year: 'numeric',
+        })
+        : null;
 
     if (!subscription) {
         return (
@@ -53,14 +68,36 @@ export const AccountManagement: React.FC<AccountManagementProps> = ({ setShowCan
                 <>
                     <SubscriptionSection>
                         <SubscriptionHeader>
-                            <PlanName>{planDetails?.name || 'Unknown Plan'}</PlanName>
-                            <PlanStatus status={planStatusDisplay}>
+                            <PlanName>{planDetails?.name || 'Unknown Plan'} Access</PlanName>
+                            <PlanStatus status={planStatusDisplay.toLowerCase()}>
                                 {planStatusDisplay}
                             </PlanStatus>
                         </SubscriptionHeader>
 
                         <PlanDetails>
-                            <PlanPrice>${planDetails?.priceMonthly || 0}/month</PlanPrice>
+                            {grantedAccess ? (
+                                <GrantedAccessCard>
+                                    <GrantedAccessHeader>
+                                        <GrantedAccessTitle>
+                                            {grantedPlanDetails?.name || planDetails?.name || 'Plan'} access granted
+                                        </GrantedAccessTitle>
+                                        <GrantedAccessBadge>
+                                            {grantedAccess.kind === 'permanent' ? 'No expiration' : 'Temporary access'}
+                                        </GrantedAccessBadge>
+                                    </GrantedAccessHeader>
+                                    <GrantedAccessText>
+                                        {grantedAccess.kind === 'permanent'
+                                            ? 'Maintley has granted this account permanent access.'
+                                            : `Maintley has granted this account access through ${grantedAccessEndsLabel || 'the scheduled end date'}.`}
+                                        {' '}This access is separate from Stripe billing.
+                                    </GrantedAccessText>
+                                </GrantedAccessCard>
+                            ) : (
+                                <PlanPrice>${planDetails?.priceMonthly || 0}/month</PlanPrice>
+                            )}
+                            <BillingPlanSummary>
+                                Billing plan: {billingPlanDetails?.name || 'Homeowner'} · ${billingPlanDetails?.priceMonthly || 0}/month
+                            </BillingPlanSummary>
                             <PlanFeatures>
                                 {planDetails?.features.map((feature, index) => (
                                     <PlanFeature key={index}>{feature}</PlanFeature>
