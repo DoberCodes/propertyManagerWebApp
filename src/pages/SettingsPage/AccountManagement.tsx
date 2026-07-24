@@ -89,7 +89,6 @@ export const AccountManagement: React.FC<AccountManagementProps> = ({ setShowCan
                                         {grantedAccess.kind === 'permanent'
                                             ? 'Maintley has granted this account permanent access.'
                                             : `Maintley has granted this account access through ${grantedAccessEndsLabel || 'the scheduled end date'}.`}
-                                        {' '}This access is separate from Stripe billing.
                                     </GrantedAccessText>
                                 </GrantedAccessCard>
                             ) : (

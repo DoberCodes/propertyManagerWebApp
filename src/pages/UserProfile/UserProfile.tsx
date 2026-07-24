@@ -94,9 +94,10 @@ import COLORS from 'constants/colors';
 import { PortfolioPlanSub, PortfolioTop, PortfolioUsage, PortfolioUsageBadge, ProgressFill, ProgressTrack } from 'Components/Library/Navbar/SideNav/SideNav.styles';
 import {
 	canManageTeam,
+	getActiveGrantedPlanAccess,
 	getActiveHomeownerPlusTrial,
+	getEffectiveAccessPlanId,
 	getEffectiveSubscriptionPlanId,
-	getRemainingPropertySlots,
 	getSubscriptionPlanDetails,
 } from 'utils/subscriptionUtils';
 import { filterPropertyGroupsByRole } from 'utils/dataFilters';
@@ -482,19 +483,15 @@ export const UserProfile: React.FC = () => {
 			).length,
 		[filteredPropertyGroups],
 	);
-	const effectivePlanId = getEffectiveSubscriptionPlanId(
-		currentUser?.subscription,
-		'homeowner',
-	);
+	const effectivePlanId = getEffectiveAccessPlanId(currentUser?.subscription);
 	const planDetails = getSubscriptionPlanDetails(effectivePlanId);
+	const grantedAccess = getActiveGrantedPlanAccess(currentUser?.subscription);
 	const activeHomeownerPlusTrial = getActiveHomeownerPlusTrial(
 		currentUser?.subscription,
 	);
 
-	const remainingSlots = currentUser?.subscription
-		? getRemainingPropertySlots(currentUser.subscription, totalProperties)
-		: 0;
 	const maxProperties = planDetails?.maxProperties ?? 1;
+	const remainingSlots = Math.max(0, maxProperties - totalProperties);
 	const planRecordNoun = maxProperties <= 1 ? 'home' : 'property';
 	const usagePercent = maxProperties > 0 ? (totalProperties / maxProperties) * 100 : 0;
 	const hasPropertyCapacity = maxProperties > 0;
@@ -503,7 +500,14 @@ export const UserProfile: React.FC = () => {
 		: remainingSlots === 0 && totalProperties > maxProperties
 			? `${totalProperties - maxProperties} over plan limit`
 			: `${remainingSlots} ${planRecordNoun} slot${remainingSlots === 1 ? '' : 's'} available`;
-	const planSubtitle = `Plan: ${planDetails?.name || 'Home'}`;
+	const planSubtitle = `${grantedAccess ? 'Effective access' : 'Plan'}: ${planDetails?.name || 'Home'}`;
+	const grantedAccessEndsLabel = grantedAccess?.endsAtMs
+		? new Date(grantedAccess.endsAtMs).toLocaleDateString(undefined, {
+			month: 'long',
+			day: 'numeric',
+			year: 'numeric',
+		})
+		: null;
 	const storageUsagePercent = Math.min(100, storageUsage?.usagePercent || 0);
 	const storageUsageLabel = isStorageUsageLoading
 		? 'Loading storage...'
@@ -916,15 +920,15 @@ export const UserProfile: React.FC = () => {
 					<Section style={{ padding: '16px', border: '1px solid #E0E0E0', borderRadius: '8px', display: 'flex', flexDirection: 'column', flexWrap: 'wrap', gap: '12px' }}>
 						<PortfolioTop>
 							<FormLabel style={{ fontSize: '14px', color: '#666' }}>Plan & Usage</FormLabel>
-							<StatusPill style={{ backgroundColor: currentUser?.subscription?.status === 'active' ? COLORS.primary : COLORS.gray300, color: COLORS.bgWhite }}>
-								{planDetails?.name || 'Home Plan'}
+							<StatusPill style={{ backgroundColor: grantedAccess || currentUser?.subscription?.status === 'active' ? COLORS.primary : COLORS.gray300, color: COLORS.bgWhite }}>
+								{grantedAccess ? 'Granted' : planDetails?.name || 'Home Plan'}
 							</StatusPill>
 
 						</PortfolioTop>
 						<PortfolioPlanSub>
 							{planSubtitle}
 						</PortfolioPlanSub>
-						{activeHomeownerPlusTrial ? (
+						{grantedAccess ? (
 							<div
 								style={{
 									padding: '12px',
@@ -934,19 +938,13 @@ export const UserProfile: React.FC = () => {
 									color: '#065F46',
 								}}
 							>
-								<strong>Homeowner+ trial active</strong>
+								<strong>{planDetails?.name || 'Plan'} access granted</strong>
 								<div style={{ marginTop: '4px', fontSize: '14px' }}>
-									{activeHomeownerPlusTrial.daysRemaining} days remaining. Your
-									 complimentary access ends{' '}
-									{new Date(
-										activeHomeownerPlusTrial.endsAtMs,
-									).toLocaleDateString(undefined, {
-										month: 'long',
-										day: 'numeric',
-										year: 'numeric',
-									})}
-									. No payment method is connected and you will not be charged.
-									 Your account returns to the Free plan afterward.
+									{activeHomeownerPlusTrial
+										? `${activeHomeownerPlusTrial.daysRemaining} days remaining. Your complimentary access ends ${grantedAccessEndsLabel}. Your account returns to the Free plan afterward.`
+										: grantedAccess.kind === 'permanent'
+											? 'Maintley has granted this account permanent access.'
+											: `Maintley has granted this account access through ${grantedAccessEndsLabel || 'the scheduled end date'}.`}
 								</div>
 							</div>
 						) : null}
