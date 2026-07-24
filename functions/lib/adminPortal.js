@@ -118,6 +118,14 @@ const ADMIN_GRANT_PROGRAMS = Object.freeze([
         allowedKinds: ['permanent'],
         ownerOnly: true,
     },
+    {
+        programId: 'lifetime_portfolio_v1',
+        label: 'Lifetime Portfolio Access',
+        bundleId: 'portfolio',
+        source: 'lifetime',
+        allowedKinds: ['permanent'],
+        ownerOnly: true,
+    },
 ]);
 const FEEDBACK_STATUSES = new Set([
     'received',
@@ -2033,6 +2041,7 @@ exports.getAdminPortalUserTroubleshootingDetails = functions
                 programs: ADMIN_GRANT_PROGRAMS.filter((program) => !program.ownerOnly || grantAuthority.isMaintleyOwner).map((program) => ({
                     programId: program.programId,
                     label: program.label,
+                    bundleId: program.bundleId,
                     allowedKinds: program.allowedKinds,
                     defaultDurationDays: program.defaultDurationDays || null,
                     maxDurationDays: program.maxDurationDays || null,

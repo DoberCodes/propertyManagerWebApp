@@ -1152,7 +1152,7 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
 					{grantAction === 'create' ? (
 						<>
 							<div>
-								<Label>Approved program</Label>
+								<Label>Approved access program</Label>
 								<Select
 									value={grantProgramId}
 									onChange={(event) => {
@@ -1171,6 +1171,18 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
 										</option>
 									))}
 								</Select>
+							</div>
+							<div>
+								<Label>Access bundle</Label>
+								<Input
+									type='text'
+									value={formatLabel(
+										details?.access?.grantAdministration?.programs.find(
+											(program) => program.programId === grantProgramId,
+										)?.bundleId || '',
+									)}
+									readOnly
+								/>
 							</div>
 							<div>
 								<Label>Grant type</Label>
