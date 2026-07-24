@@ -73,6 +73,10 @@ const subscriptionHasCapability = (
 	capabilityId: CapabilityId,
 ): boolean => hasCapability(resolveSubscriptionEntitlements(subscription), capabilityId);
 
+const hasActiveSubscriptionOrGrant = (subscription: SubscriptionData): boolean =>
+	isSubscriptionActive(subscription) ||
+	resolveSubscriptionEntitlements(subscription).activeGrantIds.length > 0;
+
 const getPlanLimit = (planId: string, limitId: LimitId): number =>
 	getEntitlementLimit(getPlanPreset(planId), limitId);
 
@@ -643,7 +647,7 @@ export const canTrackWarranties = (subscription: SubscriptionData): boolean => {
 export const getSuggestedMaintenancePackageLimit = (
 	subscription: SubscriptionData,
 ): number => {
-	if (!isSubscriptionActive(subscription)) {
+	if (!hasActiveSubscriptionOrGrant(subscription)) {
 		return 0;
 	}
 
@@ -668,7 +672,7 @@ export const canUseUnlimitedSuggestedMaintenancePackages = (
 export const canUseSuggestedMaintenancePackages = (
 	subscription: SubscriptionData,
 ): boolean => {
-	if (!isSubscriptionActive(subscription)) {
+	if (!hasActiveSubscriptionOrGrant(subscription)) {
 		return false;
 	}
 
@@ -676,7 +680,7 @@ export const canUseSuggestedMaintenancePackages = (
 };
 
 export const canUseRecurringTasks = (subscription: SubscriptionData): boolean => {
-	if (!isSubscriptionActive(subscription)) {
+	if (!hasActiveSubscriptionOrGrant(subscription)) {
 		return false;
 	}
 
@@ -684,7 +688,7 @@ export const canUseRecurringTasks = (subscription: SubscriptionData): boolean =>
 };
 
 export const canUseNotifications = (subscription: SubscriptionData): boolean => {
-	if (!isSubscriptionActive(subscription)) {
+	if (!hasActiveSubscriptionOrGrant(subscription)) {
 		return false;
 	}
 

@@ -343,4 +343,33 @@ describe('subscriptionUtils', () => {
 			grantIds: ['lifetime_portfolio'],
 		});
 	});
+
+	it('keeps maintenance-package access active when an internal grant outlives billing', () => {
+		const nowMs = Date.now();
+		const expiredWithLifetimePortfolio: SubscriptionData = {
+			...expiredSubscription('portfolio'),
+			entitlementAccountId: 'account-1',
+			entitlementGrants: [
+				{
+					grantId: 'lifetime_portfolio',
+					programId: 'lifetime_portfolio_v1',
+					accountId: 'account-1',
+					kind: 'permanent',
+					state: 'active',
+					bundleId: 'portfolio',
+					bundleVersion: 'v1',
+					startsAtMs: nowMs - 1000,
+					endsAtMs: null,
+					source: 'lifetime',
+				},
+			],
+		};
+
+		expect(canUseSuggestedMaintenancePackages(expiredWithLifetimePortfolio)).toBe(true);
+		expect(getSuggestedMaintenancePackageLimit(expiredWithLifetimePortfolio)).toBe(
+			Number.POSITIVE_INFINITY,
+		);
+		expect(canUseRecurringTasks(expiredWithLifetimePortfolio)).toBe(true);
+		expect(canUseNotifications(expiredWithLifetimePortfolio)).toBe(true);
+	});
 });

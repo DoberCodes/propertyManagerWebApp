@@ -34,7 +34,7 @@ import { getDefaultTaskNotifications } from '../../utils/taskNotificationUtils';
 import {
 	canUseSuggestedMaintenancePackages,
 	canUseUnlimitedSuggestedMaintenancePackages,
-	getEffectiveSubscriptionPlanId,
+	getEffectiveAccessPlanId,
 	getSuggestedMaintenancePackageLimit,
 } from '../../utils/subscriptionUtils';
 import { normalizeAssetType } from '../../utils/systemTypes';
@@ -129,10 +129,7 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 	onUploadDocuments,
 }) => {
 	const feedback = useAppFeedback();
-	const effectivePlanId = getEffectiveSubscriptionPlanId(
-		currentUser?.subscription,
-		'homeowner',
-	);
+	const effectivePlanId = getEffectiveAccessPlanId(currentUser?.subscription);
 	const isHomeownerMode =
 		effectivePlanId === 'homeowner' ||
 		effectivePlanId === 'homeowner_plus' ||
