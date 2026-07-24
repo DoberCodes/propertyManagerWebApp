@@ -743,6 +743,13 @@ The workflow uses `scripts/prepareReleaseVersion.cjs` and
 feature or breaking change later lands on `main`, the same `release/next` PR is
 updated with the higher required bump.
 
+Firebase deployment jobs install both the root validation dependencies and the
+Functions deployment dependencies. Firestore and Storage emulator gates use
+the root rules-testing package, while Functions builds and callable emulator
+tests use `functions/node_modules`; neither dependency set may be omitted from
+the deployment job merely because the earlier build-check job installed it in a
+separate runner.
+
 If `package.json` is already ahead of the latest `v*` tag because a release was
 prepared but not tagged locally yet, new releaseable changes are bumped from the
 prepared package version. For example, a new patch change after prepared version
