@@ -215,11 +215,13 @@ chooses to continue, paid conversion requires intentional Stripe Checkout and
 Stripe confirmation under ADR 0032.
 
 Before a multi-property grant expires, key email and in-app notices must explain
-that Maintley preserves every owned property and its records. The notices must
-also explain which property remains active on Free, how to choose that property,
-and how preserved additional properties can be restored through eligible paid
-or complimentary access. Maintley must not describe preserved properties as
-deleted, lost, or transferred.
+that Maintley preserves access to every existing owned property and its records
+at the resulting plan's capability level. The notices must explain that the
+customer cannot add properties or team members while over the resulting limits,
+that paid automation and business capabilities stop, and that existing active
+team relationships continue with their current property scope and the resulting
+account capabilities. Maintley must not describe existing properties, records,
+or active team relationships as deleted, lost, or transferred.
 
 ## Consequences
 
@@ -240,8 +242,9 @@ deleted, lost, or transferred.
 * Promotional programs must provide accurate renewal terms to communication
   templates and lifecycle scheduling.
 * Account surfaces must remain synchronized with Stripe-backed billing facts.
-* Multi-property complimentary programs require downgrade-aware property
-  messaging and an accessible property-selection experience.
+* Multi-property complimentary programs require downgrade-aware messaging that
+  distinguishes retained existing access from blocked expansion and ended paid
+  capabilities.
 
 ## Implementation configuration
 

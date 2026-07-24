@@ -414,29 +414,44 @@ program and outcome without retaining the redeemable secret.
 
 ### Entitlement loss and property visibility
 
-Property ownership and inventory visibility are not paid capabilities. Losing
-a multi-property entitlement must never delete, transfer, or conceal an owned
-property or its property memory.
+Property ownership, existing-property access, and existing relationship scope
+are not revoked because a paid entitlement ends. Losing a multi-property or
+business entitlement must never delete, transfer, conceal, or lock an owned
+property, its property memory, or an already active team relationship.
 
-When an account falls back to Free while owning more properties than the Free
-limit:
+A newly created Free account remains limited to one property and receives no
+team, resident-management, business-collaboration, or Organization capability.
+The continuity policy applies only when an account legitimately created or
+received resources while a qualifying paid or complimentary entitlement was
+active and later loses that entitlement.
 
-* every owned property remains discoverable in the property list and selector
-* one customer-selected property remains the active Free property
-* additional properties remain preserved and visibly restricted
-* restricted properties retain their equipment, documents, maintenance
-  history, tasks, relationships, and audit records
-* new paid-only activity and over-limit creation are blocked without deleting
-  existing records
-* essential data-control actions remain available, including export, download,
-  transfer, deletion, and selection of the active Free property
-* restored eligible access immediately re-enables the preserved properties
+When a downgraded account is above its resulting property or team limits:
+
+* every existing owned property remains visible and usable at the resulting
+  plan's capability level
+* existing equipment, documents, maintenance history, tasks, relationships,
+  and audit records remain available subject to role and relationship rules
+* existing active team members retain their current property scope and may use
+  capabilities still provided by the account's resulting plan
+* the account owner may remove members, reduce permissions, export, transfer,
+  download, or delete existing data and relationships
+* property creation, claiming, duplication, import, transfer-in, new team
+  invitations, reactivation, and other count-increasing actions are blocked
+  while the applicable limit is exceeded
+* pending invitations cannot activate when doing so would exceed the resulting
+  limit
+* recurring automation, portfolio reporting, advanced collaboration, premium
+  delivery, and other capabilities absent from the resulting plan stop even
+  though their underlying records remain
+* removing a property or team member does not create a replacement slot until
+  the account is below the resulting limit
+* restored eligible access immediately restores expansion and paid capabilities
   according to the resolved bundle and current relationship permissions
 
-If the customer has not selected an active Free property before expiration, a
-deterministic server-owned fallback chooses one without changing ownership.
-Lifecycle communication and the authenticated account experience must provide
-the customer a reasonable opportunity to choose before that fallback occurs.
+This over-limit continuity state is not a Free-plan feature bundle and does not
+allow a new Free account to create multiple properties or establish a team.
+Quantitative limits govern net-new expansion; capabilities govern what existing
+resources can do; ownership and active relationships govern who may see them.
 
 ## Complimentary-to-paid transition contract
 
@@ -628,8 +643,8 @@ Each individual migration uses this sequence:
   product access.
 * Incorrect resolver behavior could affect multiple features, requiring strong
   parity and regression tests.
-* Multi-property downgrades require a visible restricted-property state instead
-  of treating the plan limit as a property-list filter.
+* Downgrades require an explicit over-limit continuity state instead of treating
+  a quantitative limit as a property-list or relationship-access filter.
 
 ## Future considerations
 

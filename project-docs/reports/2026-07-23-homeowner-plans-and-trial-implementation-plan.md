@@ -847,12 +847,20 @@ Maintley never writes suggested schedules without confirmation.
   returns within the limit.
 * Keep every owned property visible in the property list and selector after a
   multi-property grant or subscription ends.
-* Let the customer choose one active Free property and represent additional
-  properties as preserved and restricted rather than absent or deleted.
-* Define a deterministic server-owned fallback when no active Free property was
-  selected before expiration, without changing property ownership.
-* Preserve essential export, transfer, deletion, and active-property-selection
-  actions for restricted properties.
+* Keep every existing property usable through capabilities available on the
+  resulting plan; do not select, lock, or hide additional properties merely
+  because the account is now above its creation limit.
+* Preserve existing active team relationships and current property scope while
+  applying the resulting account capabilities to every member.
+* Allow security-reducing and data-control actions such as member removal,
+  permission reduction, export, transfer-out, download, and deletion.
+* Block property creation, claiming, duplication, import, transfer-in, team
+  invitation, reactivation, pending-invite activation, and other expansion while
+  the corresponding resulting-plan limit is exceeded.
+* Keep a newly created Free account limited to one property with no team,
+  resident-management, business-collaboration, or Organization capabilities;
+  over-limit continuity is available only after legitimate downgrade or grant
+  expiration.
 * Refresh entitlements during active sessions and before premium writes so an
   old browser or Android client cannot retain stale trial access.
 * Apply the approved paid-conversion timing, suppress the temporary grant without
@@ -905,9 +913,10 @@ unconfirmed paid access.
   zone, and test daylight-saving and time-zone boundaries.
 * Suppress remaining trial messages after paid conversion, deletion, revocation,
   or terminal ineligibility.
-* For expiring multi-property access, show the active Free property, affected
-  preserved properties, the selection action, and the intentional Checkout path
-  without implying that records will be deleted.
+* For expiring multi-property or business access, explain that all existing
+  properties and active team relationships remain accessible, expansion is
+  blocked while over the resulting limits, paid capabilities stop, and
+  intentional Checkout restores eligible capabilities.
 * Write a high-value admin audit event for an admin-triggered email request and
   keep provider attempts, retries, bounces, and delivery results in linked
   operational logs.
@@ -940,11 +949,12 @@ route format.
 * Add a customer-facing redemption surface that previews the included bundle,
   duration, expiration behavior, and absence of automatic billing before
   confirmation.
-* Add a downgrade-safe property selector that remains usable on Free, lists all
-  owned properties, distinguishes the active Free property from preserved
-  restricted properties, and provides the approved data-control actions.
-* Add a pre-expiration active-property selection flow and deterministic fallback
-  when the customer makes no selection.
+* Add a downgrade-safe property selector that remains usable on Free, lists and
+  opens every existing owned property, and clearly distinguishes retained basic
+  access from capabilities that ended with the grant.
+* Add an over-limit continuity experience for existing properties and active
+  team members. It must block expansion without presenting existing resources
+  as locked, deleted, or newly included in Free.
 * Route voluntary continuation through intentional Stripe Checkout. Suppress
   obsolete access-code lifecycle messages only after Stripe confirms paid
   access.
@@ -952,11 +962,14 @@ route format.
   redemption outcomes without recording the redeemable secret.
 * Keep access-code redemption behind an independent server-controlled flag.
 
-**Gate:** a Portfolio complimentary-access code cannot launch until a Free
-account can discover every owned property, choose its active Free property, use
-essential data-control actions on preserved restricted properties, and restore
-eligible access without data loss; concurrent redemption tests issue at most one
-grant and no path creates a Stripe billing relationship without Checkout.
+**Gate:** a Portfolio complimentary-access code cannot launch until a downgraded
+Free account can discover and use every existing owned property at Free
+capability levels, retain existing active team relationships and property scope,
+block every count-increasing property or team action while over limit, and
+restore eligible capabilities without data loss. A newly created Free fixture
+must still be limited to one property and no team or business capabilities;
+concurrent redemption tests issue at most one grant and no path creates a Stripe
+billing relationship without Checkout.
 
 ### Phase 9 - Release, observe, and remove legacy paths
 
@@ -1050,7 +1063,8 @@ server owns Stripe price selection.
 * authenticated paywall, settings, and admin support views
 * authenticated complimentary-access, access-code redemption, and billing
   control surfaces
-* downgrade-safe property selector and preserved restricted-property state
+* downgrade-safe property selector and over-limit continuity state for existing
+  properties and active team relationships
 * homepage and static pricing
 * Property Setup Assistant and trial status messaging
 * account and dashboard trial surfaces
@@ -1158,15 +1172,20 @@ server owns Stripe price selection.
   concurrent requests.
 * A Portfolio grant exposes the approved capabilities and limits only for its
   authoritative active period.
-* Expiration leaves every owned property visible, preserves its records, and
-  leaves exactly one customer-selected or deterministically selected active
-  Free property.
-* Preserved restricted properties retain export, download, transfer, deletion,
-  and active-property-selection controls without permitting paid-only writes.
-* Renewed paid or complimentary eligibility restores preserved properties
-  without migration, duplication, or ownership changes.
+* Expiration leaves every existing owned property visible and usable through
+  Free capabilities without permitting new properties while over the Free
+  limit.
+* Existing active team members retain their current relationships and property
+  scope but cannot use capabilities absent from Free or expand the team.
+* Removal, permission reduction, export, download, transfer-out, and deletion
+  remain available without creating replacement capacity while still over the
+  resulting limit.
+* A newly created Free account remains limited to one property and cannot create
+  or activate team, resident, business-collaboration, or Organization records.
+* Renewed paid or complimentary eligibility restores expansion and eligible
+  capabilities without migration, duplication, or ownership changes.
 * The Portfolio access-code launch flag cannot enable while the downgrade-safe
-  property-selection gate is incomplete.
+  over-limit continuity gate is incomplete.
 
 ### Admin grant governance and auditing
 
@@ -1189,7 +1208,11 @@ server owns Stripe price selection.
 * It receives Homeowner+ equipment capability and the approved storage limits.
 * It can organize Property Groups but cannot create teams, resident
   relationships, business collaboration, or Organization authority.
-* Downgrades preserve records and prevent only new over-limit creation.
+* A newly created Free account is limited to one property and cannot create or
+  activate team or other business relationships.
+* Downgrades preserve access to existing properties and active team
+  relationships at the resulting capability level while preventing new
+  over-limit creation, invitation, reactivation, or other expansion.
 * Firestore emulator tests match client and Functions entitlements.
 
 ### Trial eligibility and state
