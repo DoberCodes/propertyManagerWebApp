@@ -203,6 +203,10 @@ export const UpgradeButton = styled(LinkButton)`
     }
 `;
 
+export const BillingPortalButton = styled(LinkButton)`
+    margin: 0;
+`;
+
 export const ButtonContainer = styled.div`
     display: flex;
     flex-direction: column;

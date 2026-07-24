@@ -1,11 +1,11 @@
 import React from "react";
 import { getEffectiveSubscriptionPlanId, getSubscriptionPlanDetails } from "utils/subscriptionUtils";
-import { ButtonContainer, CancelButton, Container, PlanDetails, PlanFeature, PlanFeatures, PlanName, PlanPrice, PlanStatus, Section, SectionTitle, SubscriptionHeader, SubscriptionSection, Title, UpgradeButton } from "./SettingPage.styles";
+import { BillingPortalButton, ButtonContainer, CancelButton, Container, PlanDetails, PlanFeature, PlanFeatures, PlanName, PlanPrice, PlanStatus, Section, SectionTitle, SubscriptionHeader, SubscriptionSection, Title, UpgradeButton } from "./SettingPage.styles";
 import { RootState } from "Redux/store/store";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { isNativeApp } from "utils/platform";
-import { openSubscriptionManagementInBrowser } from "utils/authLinks";
+import { openCustomerBillingPortal, openSubscriptionManagementInBrowser } from "utils/authLinks";
 
 interface AccountManagementProps {
     setShowCancelSubscriptionModal: (show: boolean) => void;
@@ -35,6 +35,7 @@ export const AccountManagement: React.FC<AccountManagementProps> = ({ setShowCan
 
     const planDetails = getSubscriptionPlanDetails(effectivePlanId);
     const isFreePlan = effectivePlanId === 'homeowner';
+    const hasStripeBillingRelationship = Boolean(subscription?.stripeCustomerId);
 
     if (!subscription) {
         return (
@@ -84,8 +85,20 @@ export const AccountManagement: React.FC<AccountManagementProps> = ({ setShowCan
                             </UpgradeButton>
                             {nativeApp && (
                                 <div style={{ fontSize: '12px', color: '#64748b', marginTop: '8px' }}>
-                                    Opens the secure billing portal in your browser.
+                                    Opens Maintley plan management in your browser.
                                 </div>
+                            )}
+                            {hasStripeBillingRelationship && (
+                                <>
+                                    <BillingPortalButton
+                                        type="button"
+                                        onClick={() => void openCustomerBillingPortal()}>
+                                        Manage Billing & Payment Methods
+                                    </BillingPortalButton>
+                                    <div style={{ fontSize: '12px', color: '#64748b' }}>
+                                        Opens Stripe to update payment methods and billing details.
+                                    </div>
+                                </>
                             )}
                             {!nativeApp && subscription.status === 'active' &&
                                 subscription.stripeSubscriptionId && (
