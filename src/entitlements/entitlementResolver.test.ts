@@ -249,6 +249,30 @@ describe('centralized entitlement resolver', () => {
 		expect(result.activeGrantIds).toEqual(['grant-1']);
 	});
 
+	it('resolves lifetime Portfolio access without changing the billing base plan', () => {
+		const result = resolveAccountEntitlements({
+			accountId: 'demo-account',
+			subscription: activeSubscription('homeowner'),
+			grants: [
+				grant({
+					accountId: 'demo-account',
+					kind: 'permanent',
+					endsAtMs: null,
+					source: 'lifetime',
+					programId: 'lifetime_portfolio_v1',
+					bundleId: 'portfolio',
+					bundleVersion: 'v1',
+				}),
+			],
+			nowMs: NOW_MS,
+		});
+
+		expect(result.basePlanId).toBe('homeowner');
+		expect(result.appliedBundleIds).toContain('portfolio@v1');
+		expect(result.capabilities['portfolio.reporting']).toBe(true);
+		expect(result.limits.properties).toBe(15);
+	});
+
 	it('derives active access from lifecycle state and authoritative timestamps', () => {
 		const inactiveGrants: EntitlementGrant[] = [
 			grant({ grantId: 'future', startsAtMs: NOW_MS + 1 }),

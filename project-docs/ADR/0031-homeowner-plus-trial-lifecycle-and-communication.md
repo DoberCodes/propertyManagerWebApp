@@ -193,6 +193,44 @@ Before enabling an automatically paid transition, review must cover:
 The implementation plan may define technical controls, but it does not replace
 appropriate legal review.
 
+### 10. Apply the lifecycle contract to complimentary access codes
+
+Maintley may allow a customer to redeem a complimentary access code that
+issues a temporary internal entitlement grant. These codes are access-program
+credentials, not Stripe coupons or promotion codes. Redemption must not create
+a Stripe customer, subscription, invoice, payment method, renewal, or charge.
+
+Each access-code program must clearly identify:
+
+* the included access bundle and complimentary end date
+* whether access simply ends or requires an intentional Checkout action to
+  continue
+* the account access that remains after expiration
+* any properties or capabilities that will become restricted
+* the direct path to continue with paid access when offered
+
+Non-renewing access-code programs use transition mode `none` or
+`checkout_required`; they never imply automatic continuation. If a customer
+chooses to continue, paid conversion requires intentional Stripe Checkout and
+Stripe confirmation under ADR 0032.
+
+Before a multi-property grant expires, key email and in-app notices must explain
+that Maintley preserves access to every existing owned property and its records
+at the resulting plan's capability level. The notices must explain that the
+customer cannot add properties or team members while over the resulting limits,
+that paid automation and business capabilities stop, and that existing active
+team relationships continue with their current property scope and the resulting
+account capabilities. The notices must also disclose the resulting file-count
+and storage limits, current usage, and whether new uploads will pause.
+
+Where tenant or resident records already exist, messaging must distinguish
+manual occupancy records from authenticated tenant access. Downgraded accounts
+may continue data-minimized manual occupancy administration for existing
+properties, but a newly recorded tenant does not receive an invitation, login,
+portal, or direct maintenance-request access. Maintley must not describe
+existing properties, files, records, active team relationships, or continuing
+minimal tenant relationships as deleted, lost, or transferred.
+
 ## Consequences
 
 ### Benefits
@@ -212,6 +250,11 @@ appropriate legal review.
 * Promotional programs must provide accurate renewal terms to communication
   templates and lifecycle scheduling.
 * Account surfaces must remain synchronized with Stripe-backed billing facts.
+* Multi-property complimentary programs require downgrade-aware messaging that
+  distinguishes retained existing access from blocked expansion and ended paid
+  capabilities.
+* Storage and tenant-continuity messaging must remain synchronized with actual
+  quotas, relationships, and invitation behavior.
 
 ## Implementation configuration
 
@@ -223,6 +266,9 @@ settings. Implementation must configure and validate:
 3. whether conversion also sends a separate paid-plan confirmation
 4. the approved program catalog and transition mode for each program
 5. the reminder schedule required by program terms and applicable law
+6. access-code eligibility, redemption limits, expiration, and post-grant
+   fallback behavior
+7. promotional file-count and storage overrides and the resulting upload state
 
 For a 30-day complimentary period, activation satisfies the 30-day reminder
 requirement and a second activation-day reminder must not be sent.

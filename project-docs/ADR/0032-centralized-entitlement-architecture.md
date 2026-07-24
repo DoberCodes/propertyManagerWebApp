@@ -390,6 +390,121 @@ The Homeowner+ trial in ADR 0030 is the first planned use of this grant model.
 Its expiration removes the temporary Homeowner+ capabilities while leaving the
 active Free base plan intact.
 
+### Customer-redeemed complimentary access programs
+
+A customer-redeemed complimentary access code is a trusted issuance path into
+the canonical grant model. It is not a Stripe coupon, billing discount, plan,
+or independently resolved entitlement. A successful redemption creates the
+approved temporary grant for the code's stable program and bundle.
+
+Every access-code program must define server-owned policy for:
+
+* stable program and bundle identifiers
+* grant duration and redemption expiration
+* total and per-account redemption limits
+* eligible account and relationship types
+* capability and quantitative-limit overrides, including promotional file-count
+  and storage limits that may be lower than the equivalent paid bundle
+* transition mode after complimentary access
+* revocation, support, reporting, and audit treatment
+
+Redemption must be transactional, idempotent, rate-limited, and server
+validated. Redeemable secrets must not be stored or logged in plaintext.
+Repeated, expired, exhausted, or ineligible redemption attempts must fail
+without partially issuing or extending a grant. Audit records identify the
+program and outcome without retaining the redeemable secret.
+
+### Entitlement loss and property visibility
+
+Property ownership, existing-property access, and existing relationship scope
+are not revoked because a paid entitlement ends. Losing a multi-property or
+business entitlement must never delete, transfer, conceal, or lock an owned
+property, its property memory, or an already active team relationship.
+
+A newly created Free account remains limited to one property and receives no
+team, resident-management, business-collaboration, or Organization capability.
+The continuity policy applies only when an account legitimately created or
+received resources while a qualifying paid or complimentary entitlement was
+active and later loses that entitlement.
+
+When a downgraded account is above its resulting property or team limits:
+
+* every existing owned property remains visible and usable at the resulting
+  plan's capability level
+* existing equipment, documents, maintenance history, tasks, relationships,
+  and audit records remain available subject to role and relationship rules
+* existing active team members retain their current property scope and may use
+  capabilities still provided by the account's resulting plan
+* the account owner may remove members, reduce permissions, export, transfer,
+  download, or delete existing data and relationships
+* property creation, claiming, duplication, import, transfer-in, new team
+  invitations, reactivation, and other count-increasing actions are blocked
+  while the applicable limit is exceeded
+* pending invitations cannot activate when doing so would exceed the resulting
+  limit
+* recurring automation, portfolio reporting, advanced collaboration, premium
+  delivery, and other capabilities absent from the resulting plan stop even
+  though their underlying records remain
+* removing a property or team member does not create a replacement slot until
+  the account is below the resulting limit
+* restored eligible access immediately restores expansion and paid capabilities
+  according to the resolved bundle and current relationship permissions
+
+This over-limit continuity state is not a Free-plan feature bundle and does not
+allow a new Free account to create multiple properties or establish a team.
+Quantitative limits govern net-new expansion; capabilities govern what existing
+resources can do; ownership and active relationships govern who may see them.
+
+### Tenant occupancy continuity
+
+Tenant or resident occupancy records are distinct from authenticated tenant
+access. A downgraded account with existing rental operations may continue to
+create, edit, end, or archive data-minimized manual occupancy records for its
+existing properties. This continuity exception does not grant general resident
+management to a newly created Free account.
+
+Creating a manual occupancy record after downgrade must not create a Maintley
+user, send an invitation, activate a portal, enable automated communication, or
+grant direct maintenance-request access. The account may record a maintenance
+request on the occupant's behalf through capabilities available on the
+resulting plan.
+
+An already activated tenant relationship may retain the minimal tenant
+experience approved for the property: basic self and lease information and
+maintenance-request submission. It gains no business capability and remains
+subject to its existing property scope, lease state, role restrictions, and
+revocation. New tenant invitations and activations remain blocked without an
+eligible entitlement.
+
+Ending an occupancy normally archives the relationship and preserves historical
+maintenance attribution. Required personal-data correction or deletion remains
+a separate privacy operation and must not rewrite maintenance history without an
+audited reason.
+
+### Storage continuity
+
+Downgrade does not automatically delete uploaded documents, photos, invoices,
+or attachments. Existing files remain viewable, downloadable, exportable, and
+deletable subject to role and property scope.
+
+File-count and storage-byte limits govern net-new uploaded binary data. When an
+account exceeds either resulting limit, all new uploads pause until usage is
+below both limits or eligible access returns. Quotas are account-wide across
+retained properties, and existing team members cannot bypass them. Removing
+files restores upload capacity only after the account is below the applicable
+file-count and byte limits.
+
+Structured property details, equipment, maintenance history, tasks, manual
+occupancy records, and audit history are not treated as binary-file quota merely
+because the account is over its upload allowance. Their writes remain governed
+by the resulting plan's capabilities, security rules, and abuse controls.
+
+Complimentary programs may apply file-count or storage overrides lower than the
+equivalent paid bundle. This allows a program to demonstrate Portfolio or other
+capabilities without granting the paid plan's maximum retained storage. The
+authenticated account experience must show current usage, resulting limits, the
+upload state, export and deletion paths, and the intentional upgrade path.
+
 ## Complimentary-to-paid transition contract
 
 An internal grant may describe an intended transition to paid access, but grant
@@ -580,6 +695,10 @@ Each individual migration uses this sequence:
   product access.
 * Incorrect resolver behavior could affect multiple features, requiring strong
   parity and regression tests.
+* Downgrades require an explicit over-limit continuity state instead of treating
+  a quantitative limit as a property-list or relationship-access filter.
+* Retained binary storage creates ongoing cost, so complimentary programs and
+  upload gates require explicit quota policy and monitoring.
 
 ## Future considerations
 
@@ -592,6 +711,7 @@ This architecture supports:
 * grandfathered plan bundles
 * Organization-specific feature flags
 * additional homeowner and business plan variations
+* customer-redeemed complimentary access programs
 
 The objective is to keep Maintley as one application with shared interfaces,
 while assembling product experiences through entitlement bundles rather than

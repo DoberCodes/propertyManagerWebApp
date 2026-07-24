@@ -171,6 +171,7 @@ export type AdminPortalUserTroubleshootingDetails = {
 			programs: Array<{
 				programId: string;
 				label: string;
+				bundleId: 'homeowner_plus' | 'portfolio';
 				allowedKinds: Array<'temporary' | 'permanent'>;
 				defaultDurationDays?: number | null;
 				maxDurationDays?: number | null;

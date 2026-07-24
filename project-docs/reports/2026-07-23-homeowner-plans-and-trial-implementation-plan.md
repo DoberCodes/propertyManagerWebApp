@@ -640,7 +640,8 @@ Phase 0: decisions and canonical configuration
             -> Phase 5: premium onboarding
             -> Phase 6: expiration and conversion
             -> Phase 7: lifecycle communication
-  -> Phase 8: staged release, observation, and cleanup
+            -> Phase 8: access codes and downgrade-safe resource continuity
+  -> Phase 9: staged release, observation, and cleanup
 ```
 
 Phases 3 and 4 may be developed independently after Phase 2 passes, but they
@@ -678,6 +679,12 @@ behavior, quantitative limits, delivery gates, and authorization.
   cancellation and opt-out presentation, promotional terms, communication
   classification, reminder timing, jurisdictional requirements, and retention.
 * Define independent launch flags and rollback owners.
+* Configure complimentary access-code programs, including bundle, duration,
+  redemption expiration, eligibility, total and per-account limits, transition
+  mode, and post-expiration fallback.
+* Configure program-specific capability, file-count, and storage overrides;
+  complimentary Portfolio access does not automatically require the paid
+  Portfolio storage allowance.
 
 **Gate:** decisions are recorded, the canonical names are present in every
 required environment, and no secret or price value is committed to Git.
@@ -841,6 +848,36 @@ Maintley never writes suggested schedules without confirmation.
 * For counts or storage above Free limits, preserve read/download/delete access
   and prevent only additional over-limit creation until the account upgrades or
   returns within the limit.
+* Keep every owned property visible in the property list and selector after a
+  multi-property grant or subscription ends.
+* Keep every existing property usable through capabilities available on the
+  resulting plan; do not select, lock, or hide additional properties merely
+  because the account is now above its creation limit.
+* Preserve existing active team relationships and current property scope while
+  applying the resulting account capabilities to every member.
+* Distinguish manual tenant occupancy records from authenticated tenant access.
+  Let downgraded rental accounts add, edit, end, or archive data-minimized
+  occupancy records for existing properties without creating a user, invitation,
+  portal, automated communication, or direct maintenance-request access.
+* Preserve already activated tenants' minimal property-scoped access to basic
+  self and lease information and maintenance-request submission until the
+  relationship ends or is revoked; block new tenant invitations and activation.
+* Allow security-reducing and data-control actions such as member removal,
+  permission reduction, export, transfer-out, download, and deletion.
+* Block property creation, claiming, duplication, import, transfer-in, team
+  invitation, reactivation, pending-invite activation, and other expansion while
+  the corresponding resulting-plan limit is exceeded.
+* Keep a newly created Free account limited to one property with no team,
+  resident-management, business-collaboration, or Organization capabilities;
+  over-limit continuity is available only after legitimate downgrade or grant
+  expiration.
+* Keep existing uploaded files viewable, downloadable, exportable, and
+  deletable. Pause new uploads whenever either the resulting file-count or
+  storage-byte limit is exceeded, and resume only after usage falls below both
+  limits or eligible access returns.
+* Keep structured property, equipment, maintenance, task, manual occupancy, and
+  audit records outside the binary-file quota while continuing to enforce their
+  applicable capabilities and security rules.
 * Refresh entitlements during active sessions and before premium writes so an
   old browser or Android client cannot retain stale trial access.
 * Apply the approved paid-conversion timing, suppress the temporary grant without
@@ -893,6 +930,15 @@ unconfirmed paid access.
   zone, and test daylight-saving and time-zone boundaries.
 * Suppress remaining trial messages after paid conversion, deletion, revocation,
   or terminal ineligibility.
+* For expiring multi-property or business access, explain that all existing
+  properties and active team relationships remain accessible, expansion is
+  blocked while over the resulting limits, paid capabilities stop, and
+  intentional Checkout restores eligible capabilities.
+* Show current file count and storage usage, resulting limits, whether uploads
+  will pause, and the retained download, export, and deletion paths.
+* Distinguish continuing manual occupancy administration and existing minimal
+  tenant access from new tenant invitation or portal activation, which remains
+  blocked without eligible access.
 * Write a high-value admin audit event for an admin-triggered email request and
   keep provider attempts, retries, bounces, and delivery results in linked
   operational logs.
@@ -910,7 +956,54 @@ does not duplicate activation and 30-day notices, handles time-zone boundaries,
 separates audit decisions from delivery logs, and links to the correct current
 route format.
 
-### Phase 8 - Release, observe, and remove legacy paths
+### Phase 8 - Add complimentary access codes and downgrade-safe resource continuity
+
+* Model a complimentary access code as a server-validated credential for one
+  approved grant program; do not model it as a Stripe coupon, subscription, or
+  plan.
+* Store only a secure verifier for redeemable codes and prevent plaintext codes
+  from appearing in Firestore records, logs, analytics, or audit metadata.
+* Add trusted transactional redemption with stable request IDs, per-account
+  idempotency, total redemption limits, program expiration, account eligibility,
+  abuse throttling, and explicit terminal outcomes.
+* Issue the same canonical account grant used by administrative programs and
+  resolve it through the shared entitlement resolver.
+* Support server-owned promotional capability and quantitative-limit overrides
+  so an access code can grant Portfolio workflows with a lower file-count or
+  storage allowance than the paid Portfolio bundle.
+* Add a customer-facing redemption surface that previews the included bundle,
+  duration, expiration behavior, and absence of automatic billing before
+  confirmation.
+* Add a downgrade-safe property selector that remains usable on Free, lists and
+  opens every existing owned property, and clearly distinguishes retained basic
+  access from capabilities that ended with the grant.
+* Add an over-limit continuity experience for existing properties and active
+  team members. It must block expansion without presenting existing resources
+  as locked, deleted, or newly included in Free.
+* Add tenant occupancy continuity that permits manual records for existing
+  rental properties without silently issuing tenant accounts or invitations.
+* Add account-wide file-count and storage usage surfaces and server enforcement
+  that preserve existing files while pausing net-new uploads above either limit.
+* Route voluntary continuation through intentional Stripe Checkout. Suppress
+  obsolete access-code lifecycle messages only after Stripe confirms paid
+  access.
+* Audit successful, failed, expired, exhausted, repeated, and ineligible
+  redemption outcomes without recording the redeemable secret.
+* Keep access-code redemption behind an independent server-controlled flag.
+
+**Gate:** a Portfolio complimentary-access code cannot launch until a downgraded
+Free account can discover and use every existing owned property at Free
+capability levels, retain existing active team relationships and property scope,
+block every count-increasing property or team action while over limit, and
+restore eligible capabilities without data loss. Manual occupancy records must
+not create tenant access, existing activated tenants must retain only their
+approved minimal scope, and files must remain retrievable while new uploads are
+blocked above either resulting quota. A newly created Free fixture must still be
+limited to one property and no team, tenant-management, or business
+capabilities; concurrent redemption tests issue at most one grant and no path
+creates a Stripe billing relationship without Checkout.
+
+### Phase 9 - Release, observe, and remove legacy paths
 
 * Deploy additive Functions, indexes, and rules that remain compatible with the
   currently hosted client before deploying code that depends on them.
@@ -922,6 +1015,9 @@ route format.
   checkout, webhook, admin repair, cancellation, and downgrade exercises.
 * Enable trial issuance, onboarding automation, expiration, and lifecycle email
   independently for internal accounts before any broader cohort.
+* Enable complimentary access-code redemption only for internal programs after
+  the Phase 8 downgrade and redemption gates pass; expand through staged code
+  cohorts independently from trial issuance.
 * Run the synthetic Stripe migration inventory in report-only mode, then migrate
   accounts manually in the approved order: internal founder and development
   accounts, lifetime complimentary accounts, and remaining synthetic accounts
@@ -983,6 +1079,8 @@ not remain parallel implementations.
 * `functions/stripeFunctions.ts` and `functions/adminPortal.ts`
 * transition-mode, consent, payment-method summary, first-charge, opt-out, and
   failed-conversion services
+* secure access-code program configuration, verifier storage, redemption
+  transaction, rate limiting, and outcome audit services
 * checkout, webhook, price-to-plan, plan-to-price, coupon, schedule, and repair
   tests
 * `.env.example` and Firebase/GitHub deployment environment generation
@@ -995,7 +1093,14 @@ server owns Stripe price selection.
 
 * registration and paid-checkout recovery
 * authenticated paywall, settings, and admin support views
-* authenticated complimentary-access and billing control surface
+* authenticated complimentary-access, access-code redemption, and billing
+  control surfaces
+* downgrade-safe property selector and over-limit continuity state for existing
+  properties and active team relationships
+* manual tenant occupancy continuity separated from tenant invitation and
+  authenticated portal access
+* account-wide file-count and storage usage, retained-file access, and upload
+  pause states
 * homepage and static pricing
 * Property Setup Assistant and trial status messaging
 * account and dashboard trial surfaces
@@ -1091,6 +1196,44 @@ server owns Stripe price selection.
 * Failed payment, required authentication, and missing payment method never
   produce unconfirmed paid access or data loss.
 
+### Complimentary access-code redemption and downgrade preservation
+
+* Access codes issue only the approved program's canonical temporary grant and
+  never create Stripe billing objects.
+* Plaintext codes do not appear in stored records, logs, analytics, or audit
+  entries.
+* Concurrent, repeated, expired, exhausted, rate-limited, and ineligible
+  attempts cannot partially issue, duplicate, or extend access.
+* Program-wide and per-account redemption limits remain correct under
+  concurrent requests.
+* A Portfolio grant exposes the approved capabilities and limits only for its
+  authoritative active period.
+* Expiration leaves every existing owned property visible and usable through
+  Free capabilities without permitting new properties while over the Free
+  limit.
+* Existing active team members retain their current relationships and property
+  scope but cannot use capabilities absent from Free or expand the team.
+* Downgraded rental accounts may maintain manual occupancy records for existing
+  properties without creating tenant users, invitations, portal access, or
+  direct maintenance-request access.
+* Already activated tenants retain only their approved minimal property-scoped
+  experience until the relationship ends or is revoked; new activation remains
+  blocked without eligible access.
+* Removal, permission reduction, export, download, transfer-out, and deletion
+  remain available without creating replacement capacity while still over the
+  resulting limit.
+* Existing uploaded files remain viewable, downloadable, exportable, and
+  deletable; new uploads fail clearly while either the resulting file-count or
+  storage-byte quota is exceeded and resume only below both limits.
+* Program-specific storage overrides can remain below the paid bundle allowance
+  without changing the granted capability bundle.
+* A newly created Free account remains limited to one property and cannot create
+  or activate team, resident, business-collaboration, or Organization records.
+* Renewed paid or complimentary eligibility restores expansion and eligible
+  capabilities without migration, duplication, or ownership changes.
+* The Portfolio access-code launch flag cannot enable while the downgrade-safe
+  over-limit continuity gate is incomplete.
+
 ### Admin grant governance and auditing
 
 * General admin access without the grant permission cannot mutate grants.
@@ -1112,7 +1255,17 @@ server owns Stripe price selection.
 * It receives Homeowner+ equipment capability and the approved storage limits.
 * It can organize Property Groups but cannot create teams, resident
   relationships, business collaboration, or Organization authority.
-* Downgrades preserve records and prevent only new over-limit creation.
+* A newly created Free account is limited to one property and cannot create or
+  activate team or other business relationships.
+* Downgrades preserve access to existing properties and active team
+  relationships at the resulting capability level while preventing new
+  over-limit creation, invitation, reactivation, or other expansion.
+* Manual occupancy creation after downgrade does not create authenticated tenant
+  access, while existing activated tenants retain only the approved minimal
+  relationship scope.
+* Binary-file quotas preserve existing file access and block only net-new
+  uploads above the resulting file-count or storage-byte limit; structured core
+  records remain governed by capabilities rather than file quota.
 * Firestore emulator tests match client and Functions entitlements.
 
 ### Trial eligibility and state
@@ -1212,6 +1365,7 @@ Use independent server-controlled flags for:
 * Homeowner+ trial issuance
 * premium onboarding automation
 * lifecycle email dispatch
+* complimentary access-code redemption
 
 Disabling a flag must stop new enrollment or delivery without deleting grants,
 subscriptions, properties, tasks, documents, or history.

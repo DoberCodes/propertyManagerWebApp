@@ -81,7 +81,7 @@ const ENTITLEMENT_GRANT_POLICY_VERSION = 'admin-grants-v1';
 type AdminGrantProgramDefinition = {
 	programId: string;
 	label: string;
-	bundleId: 'homeowner_plus';
+	bundleId: 'homeowner_plus' | 'portfolio';
 	source: EntitlementGrantSource;
 	allowedKinds: Array<'temporary' | 'permanent'>;
 	defaultDurationDays?: number;
@@ -121,6 +121,14 @@ const ADMIN_GRANT_PROGRAMS: ReadonlyArray<AdminGrantProgramDefinition> = Object.
 		programId: 'lifetime_homeowner_plus_v1',
 		label: 'Lifetime Homeowner+',
 		bundleId: 'homeowner_plus',
+		source: 'lifetime',
+		allowedKinds: ['permanent'],
+		ownerOnly: true,
+	},
+	{
+		programId: 'lifetime_portfolio_v1',
+		label: 'Lifetime Portfolio Access',
+		bundleId: 'portfolio',
 		source: 'lifetime',
 		allowedKinds: ['permanent'],
 		ownerOnly: true,
@@ -2777,6 +2785,7 @@ export const getAdminPortalUserTroubleshootingDetails = functions
 					).map((program) => ({
 						programId: program.programId,
 						label: program.label,
+						bundleId: program.bundleId,
 						allowedKinds: program.allowedKinds,
 						defaultDurationDays: program.defaultDurationDays || null,
 						maxDurationDays: program.maxDurationDays || null,
