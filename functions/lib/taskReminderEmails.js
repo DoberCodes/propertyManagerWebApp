@@ -52,8 +52,6 @@ const ACTIVE_TASK_STATUSES = new Set([
     'Awaiting Approval',
     'Overdue',
 ]);
-const canReceiveTaskReminderEmails = (user) => user.emailPreferences?.taskReminders === true &&
-    (0, subscriptionEntitlements_1.hasSubscriptionCapability)(user.subscription, 'notifications.use');
 const toDateOnly = (date) => date.toISOString().slice(0, 10);
 const parseTaskDueDate = (dueDate) => {
     if (!dueDate)
@@ -233,8 +231,12 @@ const sendTaskReminderEmail = async (task, notification, currentDate, appUrl) =>
     if (!email) {
         return { sent: false, skipped: true, reason: 'missing_email' };
     }
-    if (!canReceiveTaskReminderEmails(user)) {
+    if (user.emailPreferences?.taskReminders !== true) {
         return { sent: false, skipped: true, reason: 'email_preference_disabled' };
+    }
+    const accountId = String(user.accountId || task.accountId || '').trim() || recipientUserId;
+    if (!(await (0, subscriptionEntitlements_1.hasAccountCapability)(accountId, user.subscription, 'notifications.use', currentDate.getTime()))) {
+        return { sent: false, skipped: true, reason: 'plan_not_eligible' };
     }
     const resendApiKey = RESEND_API_KEY.value();
     const resend = (0, emailService_1.getResendClient)(resendApiKey);

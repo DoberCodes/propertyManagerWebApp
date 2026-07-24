@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.resolveEntitlementsForAccount = exports.canUsePropertyKnowledgeAcquisition = exports.getSubscriptionLimit = exports.hasSubscriptionCapability = exports.getEffectiveSubscriptionPlanId = exports.isSubscriptionCurrentlyEntitled = exports.ENTITLEMENT_FEATURE_FLAGS = exports.normalizePlanId = void 0;
+exports.getAccountEntitlementLimit = exports.hasAccountCapability = exports.resolveEntitlementsForAccount = exports.canUsePropertyKnowledgeAcquisition = exports.getSubscriptionLimit = exports.hasSubscriptionCapability = exports.getEffectiveSubscriptionPlanId = exports.isSubscriptionCurrentlyEntitled = exports.ENTITLEMENT_FEATURE_FLAGS = exports.normalizePlanId = void 0;
 const functions = __importStar(require("firebase-functions/v1"));
 const entitlements_1 = require("@maintley/entitlements");
 Object.defineProperty(exports, "normalizePlanId", { enumerable: true, get: function () { return entitlements_1.normalizePlanId; } });
@@ -119,12 +119,18 @@ const resolveEntitlementsForAccount = async (accountId, subscription, nowMs = Da
             nowMs,
         });
     }
-    const snapshot = await admin
+    const accountRef = admin
         .firestore()
         .collection('familyAccounts')
-        .doc(normalizedAccountId)
-        .collection('entitlementGrants')
-        .get();
+        .doc(normalizedAccountId);
+    const [accountSnapshot, snapshot] = await Promise.all([
+        accountRef.get(),
+        accountRef.collection('entitlementGrants').get(),
+    ]);
+    const accountSubscription = accountSnapshot.data()?.subscription;
+    const effectiveSubscription = accountSubscription && typeof accountSubscription === 'object'
+        ? accountSubscription
+        : subscription;
     const grants = snapshot.docs.map((grantDoc) => {
         const data = grantDoc.data() || {};
         return {
@@ -137,7 +143,7 @@ const resolveEntitlementsForAccount = async (accountId, subscription, nowMs = Da
     });
     return (0, entitlements_1.resolveAccountEntitlements)({
         accountId: normalizedAccountId,
-        subscription,
+        subscription: effectiveSubscription,
         grants,
         fallbackPlanId: 'homeowner',
         mode: 'compatibility',
@@ -146,3 +152,7 @@ const resolveEntitlementsForAccount = async (accountId, subscription, nowMs = Da
     });
 };
 exports.resolveEntitlementsForAccount = resolveEntitlementsForAccount;
+const hasAccountCapability = async (accountId, subscription, capabilityId, nowMs = Date.now()) => (0, entitlements_1.hasCapability)(await (0, exports.resolveEntitlementsForAccount)(accountId, subscription, nowMs), capabilityId);
+exports.hasAccountCapability = hasAccountCapability;
+const getAccountEntitlementLimit = async (accountId, subscription, limitId, nowMs = Date.now()) => (0, entitlements_1.getEntitlementLimit)(await (0, exports.resolveEntitlementsForAccount)(accountId, subscription, nowMs), limitId);
+exports.getAccountEntitlementLimit = getAccountEntitlementLimit;

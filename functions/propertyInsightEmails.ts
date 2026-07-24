@@ -6,7 +6,7 @@ import {
 	getResendClient,
 	sendMaintleyEmail,
 } from './emailService';
-import { hasSubscriptionCapability } from './subscriptionEntitlements';
+import { hasAccountCapability } from './subscriptionEntitlements';
 
 const RESEND_API_KEY = defineSecret(
 	process.env.RESEND_API_KEY_SECRET_NAME || 'RESEND_API_KEY',
@@ -95,9 +95,6 @@ interface InsightSummary {
 }
 
 const MAX_EMAIL_OBSERVATIONS = 5;
-
-const canUsePropertyInsights = (user: PropertyInsightsUser): boolean =>
-	hasSubscriptionCapability(user.subscription, 'property_intelligence.use');
 
 const getDisplayName = (user: PropertyInsightsUser): string => {
 	const name = (user.firstName || user.displayName || '').trim();
@@ -554,7 +551,14 @@ const sendPropertyInsightsForUser = async (
 		return { sent: false, skipped: true, reason: 'property_insights_not_opted_in' };
 	}
 
-	if (!canUsePropertyInsights(user)) {
+	const accountId = getAccountId(userId, user);
+	if (
+		!(await hasAccountCapability(
+			accountId,
+			user.subscription,
+			'property_intelligence.use',
+		))
+	) {
 		return { sent: false, skipped: true, reason: 'plan_not_eligible' };
 	}
 
@@ -569,7 +573,6 @@ const sendPropertyInsightsForUser = async (
 		throw new Error('Resend client is not configured');
 	}
 
-	const accountId = getAccountId(userId, user);
 	const [devices, events, properties] = await Promise.all([
 		getDocsByAccount<InsightDevice>('devices', accountId, userId),
 		getDocsByAccount<InsightEvent>('maintenanceEvents', accountId, userId),

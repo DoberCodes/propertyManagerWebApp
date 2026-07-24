@@ -459,8 +459,16 @@ The current rollout keeps subscription compatibility while routing primary web
 and Functions feature decisions through shared capability and limit helpers.
 Direct plan-name checks are restricted to classified billing, pricing,
 presentation, analytics, and migration boundaries by repository validation.
-Internal grant issuance remains disabled, and no persisted entitlement grant is
-required for existing accounts.
+Server capability decisions that can be affected by complimentary access use
+the account-aware resolver. It loads the family account's authoritative billing
+state and entitlement-grant collection before evaluating background email,
+push, invite, report, property-group, and document-intelligence behavior.
+Subscription-only checks are reserved for questions that are specifically
+about Stripe-paid state, such as paid-conversion communication suppression.
+
+Internal grant issuance remains disabled by default and requires an explicit
+deployment variable. Existing grants continue to resolve even when new issuance
+is disabled.
 
 ---
 

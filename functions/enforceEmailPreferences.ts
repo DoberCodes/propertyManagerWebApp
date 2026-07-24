@@ -1,6 +1,7 @@
 import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
-import { hasSubscriptionCapability } from './subscriptionEntitlements';
+import { hasCapability } from '@maintley/entitlements';
+import { resolveEntitlementsForAccount } from './subscriptionEntitlements';
 
 if (!admin.apps.length) {
 	admin.initializeApp();
@@ -25,6 +26,7 @@ interface UserEmailPreferencesLike {
 }
 
 interface UserLike {
+	accountId?: string;
 	subscription?: UserSubscriptionLike;
 	emailPreferences?: UserEmailPreferencesLike;
 }
@@ -49,16 +51,22 @@ export const enforceEmailPreferences = functions.firestore
 			return null;
 		}
 
-		const canUseTaskReminderEmails = hasSubscriptionCapability(
+		const accountId =
+			String(afterData.accountId || '').trim() || String(context.params.userId);
+		const entitlements = await resolveEntitlementsForAccount(
+			accountId,
 			afterData.subscription,
+		);
+		const canUseTaskReminderEmails = hasCapability(
+			entitlements,
 			'notifications.use',
 		);
-		const canUsePropertyInsights = hasSubscriptionCapability(
-			afterData.subscription,
+		const canUsePropertyInsights = hasCapability(
+			entitlements,
 			'property_intelligence.use',
 		);
-		const canUseTeamMemberReports = hasSubscriptionCapability(
-			afterData.subscription,
+		const canUseTeamMemberReports = hasCapability(
+			entitlements,
 			'team.manage',
 		);
 

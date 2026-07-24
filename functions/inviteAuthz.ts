@@ -1,9 +1,12 @@
 import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
+import {
+	hasCapability,
+	ResolvedAccountEntitlements,
+} from '@maintley/entitlements';
 import { assertAccountRole, resolveAccountIdForUser } from './accountAuthz';
 import {
-	hasSubscriptionCapability,
-	isSubscriptionCurrentlyEntitled,
+	resolveEntitlementsForAccount,
 	SubscriptionEntitlementLike,
 } from './subscriptionEntitlements';
 
@@ -23,7 +26,11 @@ type InviteCapability = keyof typeof INVITE_CAPABILITIES;
 export const assertInviteCapability = async (
 	uid: string,
 	capability: InviteCapability,
-): Promise<{ accountId: string; subscription: SubscriptionEntitlementLike }> => {
+): Promise<{
+	accountId: string;
+	subscription: SubscriptionEntitlementLike;
+	entitlements: ResolvedAccountEntitlements;
+}> => {
 	const accountId = await resolveAccountIdForUser(uid);
 	await assertAccountRole(uid, accountId, ['account_owner', 'admin', 'manager']);
 
@@ -38,14 +45,8 @@ export const assertInviteCapability = async (
 	const accountOwnerData = accountOwnerDoc.data() || {};
 	const subscription = (accountOwnerData.subscription ||
 		{}) as SubscriptionEntitlementLike;
-	if (!isSubscriptionCurrentlyEntitled(subscription)) {
-		throw new functions.https.HttpsError(
-			'permission-denied',
-			'An active subscription is required for this invite action',
-		);
-	}
-
-	if (!hasSubscriptionCapability(subscription, INVITE_CAPABILITIES[capability])) {
+	const entitlements = await resolveEntitlementsForAccount(accountId, subscription);
+	if (!hasCapability(entitlements, INVITE_CAPABILITIES[capability])) {
 		throw new functions.https.HttpsError(
 			'permission-denied',
 			capability === 'team'
@@ -54,5 +55,5 @@ export const assertInviteCapability = async (
 		);
 	}
 
-	return { accountId, subscription };
+	return { accountId, subscription, entitlements };
 };

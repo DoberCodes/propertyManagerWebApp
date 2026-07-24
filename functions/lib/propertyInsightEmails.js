@@ -45,7 +45,6 @@ if (!admin.apps.length) {
 }
 const db = admin.firestore();
 const MAX_EMAIL_OBSERVATIONS = 5;
-const canUsePropertyInsights = (user) => (0, subscriptionEntitlements_1.hasSubscriptionCapability)(user.subscription, 'property_intelligence.use');
 const getDisplayName = (user) => {
     const name = (user.firstName || user.displayName || '').trim();
     return name || 'there';
@@ -377,7 +376,8 @@ const sendPropertyInsightsForUser = async (userId, appUrl) => {
     if (user.emailPreferences?.propertyInsights !== true) {
         return { sent: false, skipped: true, reason: 'property_insights_not_opted_in' };
     }
-    if (!canUsePropertyInsights(user)) {
+    const accountId = getAccountId(userId, user);
+    if (!(await (0, subscriptionEntitlements_1.hasAccountCapability)(accountId, user.subscription, 'property_intelligence.use'))) {
         return { sent: false, skipped: true, reason: 'plan_not_eligible' };
     }
     const email = String(user.email || '').trim();
@@ -389,7 +389,6 @@ const sendPropertyInsightsForUser = async (userId, appUrl) => {
     if (!resend) {
         throw new Error('Resend client is not configured');
     }
-    const accountId = getAccountId(userId, user);
     const [devices, events, properties] = await Promise.all([
         getDocsByAccount('devices', accountId, userId),
         getDocsByAccount('maintenanceEvents', accountId, userId),

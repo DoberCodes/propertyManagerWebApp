@@ -1,7 +1,8 @@
 import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
+import { hasCapability } from '@maintley/entitlements';
 import { assertInviteCapability } from './inviteAuthz';
-import { hasSubscriptionCapability } from './subscriptionEntitlements';
+import { resolveEntitlementsForAccount } from './subscriptionEntitlements';
 
 if (!admin.apps.length) {
 	admin.initializeApp();
@@ -279,7 +280,7 @@ export const createTeamMemberInvitationCode = functions.https.onCall(
 			);
 		}
 
-		const { accountId, subscription } = await assertInviteCapability(
+		const { accountId, entitlements } = await assertInviteCapability(
 			context.auth.uid,
 			'team',
 		);
@@ -288,7 +289,7 @@ export const createTeamMemberInvitationCode = functions.https.onCall(
 			.doc(teamMemberId)
 			.get();
 		assertSimpleTeamProfileAllowed(
-			hasSubscriptionCapability(subscription, 'team.advanced'),
+			hasCapability(entitlements, 'team.advanced'),
 			teamMemberDoc.data(),
 		);
 		const now = new Date().toISOString();
@@ -539,11 +540,12 @@ export const redeemTeamMemberInvitationCode = functions.https.onCall(
 				.doc(inviteData.accountId)
 				.get();
 			const accountOwnerSubscription = accountOwnerDoc.data()?.subscription || {};
+			const entitlements = await resolveEntitlementsForAccount(
+				inviteData.accountId,
+				accountOwnerSubscription,
+			);
 			assertSimpleTeamProfileAllowed(
-				hasSubscriptionCapability(
-					accountOwnerSubscription,
-					'team.advanced',
-				),
+				hasCapability(entitlements, 'team.advanced'),
 				teamMemberProfile || undefined,
 			);
 

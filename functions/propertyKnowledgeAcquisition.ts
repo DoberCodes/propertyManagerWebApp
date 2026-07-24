@@ -8,7 +8,7 @@ import {
 } from './maintleyEventEngine';
 import {
 	SubscriptionEntitlementLike,
-	canUsePropertyKnowledgeAcquisition,
+	hasAccountCapability,
 } from './subscriptionEntitlements';
 
 if (!admin.apps.length) {
@@ -214,7 +214,13 @@ const assertCanUsePropertyKnowledgeAcquisitionForProperty = async (
 	const accountId = getPropertyAccountId(propertyData);
 	const ownerId = toString(propertyData.userId);
 	const subscription = await loadAccountSubscription(accountId, ownerId);
-	if (canUsePropertyKnowledgeAcquisition(subscription)) {
+	if (
+		await hasAccountCapability(
+			accountId || ownerId,
+			subscription,
+			'property_knowledge.acquire',
+		)
+	) {
 		return;
 	}
 

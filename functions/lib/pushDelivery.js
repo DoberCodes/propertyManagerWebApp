@@ -37,12 +37,6 @@ exports.sendPushForNotification = void 0;
 const admin = __importStar(require("firebase-admin"));
 const subscriptionEntitlements_1 = require("./subscriptionEntitlements");
 const getDb = () => admin.firestore();
-const canUsePushNotifications = (subscription) => {
-    if (!subscription) {
-        return false;
-    }
-    return (0, subscriptionEntitlements_1.hasSubscriptionCapability)(subscription, 'notifications.use');
-};
 const getUserPushTokens = (user, options = {}) => {
     const tokens = new Set();
     const legacyToken = String(user.pushToken || '').trim();
@@ -125,7 +119,8 @@ const sendPushForNotification = async (notificationId, notification, options = {
         console.log(`No push tokens for user ${userId}`);
         return;
     }
-    if (!canUsePushNotifications(user.subscription)) {
+    const accountId = String(user.accountId || '').trim() || userId;
+    if (!(await (0, subscriptionEntitlements_1.hasAccountCapability)(accountId, user.subscription, 'notifications.use'))) {
         console.log(`Push skipped for user ${userId}: plan does not include push notifications`);
         return;
     }

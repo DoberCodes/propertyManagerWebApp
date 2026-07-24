@@ -36,6 +36,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.enforceEmailPreferences = void 0;
 const functions = __importStar(require("firebase-functions/v1"));
 const admin = __importStar(require("firebase-admin"));
+const entitlements_1 = require("@maintley/entitlements");
 const subscriptionEntitlements_1 = require("./subscriptionEntitlements");
 if (!admin.apps.length) {
     admin.initializeApp();
@@ -56,9 +57,11 @@ exports.enforceEmailPreferences = functions.firestore
         !teamMemberReportsEnabled) {
         return null;
     }
-    const canUseTaskReminderEmails = (0, subscriptionEntitlements_1.hasSubscriptionCapability)(afterData.subscription, 'notifications.use');
-    const canUsePropertyInsights = (0, subscriptionEntitlements_1.hasSubscriptionCapability)(afterData.subscription, 'property_intelligence.use');
-    const canUseTeamMemberReports = (0, subscriptionEntitlements_1.hasSubscriptionCapability)(afterData.subscription, 'team.manage');
+    const accountId = String(afterData.accountId || '').trim() || String(context.params.userId);
+    const entitlements = await (0, subscriptionEntitlements_1.resolveEntitlementsForAccount)(accountId, afterData.subscription);
+    const canUseTaskReminderEmails = (0, entitlements_1.hasCapability)(entitlements, 'notifications.use');
+    const canUsePropertyInsights = (0, entitlements_1.hasCapability)(entitlements, 'property_intelligence.use');
+    const canUseTeamMemberReports = (0, entitlements_1.hasCapability)(entitlements, 'team.manage');
     const updates = {};
     if (taskRemindersEnabled && !canUseTaskReminderEmails) {
         updates['emailPreferences.taskReminders'] = false;

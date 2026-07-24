@@ -14,6 +14,9 @@ const {
 	HOMEOWNER_PLUS_TRIAL_PROGRAM_ID,
 	issueFirstPropertyTrial,
 } = require('../functions/lib/entitlementGrants.js');
+const {
+	hasAccountCapability,
+} = require('../functions/lib/subscriptionEntitlements.js');
 
 const db = admin.firestore();
 const startsAtMs = Date.parse('2026-07-23T16:00:00.000Z');
@@ -96,6 +99,45 @@ async function run() {
 		account.effectiveEntitlementProjection.nextTransitionAtMs,
 		grant.endsAtMs,
 	);
+	assert.equal(
+		await hasAccountCapability(
+			eligibleAccountId,
+			freeSubscription,
+			'notifications.use',
+			startsAtMs + 1,
+		),
+		true,
+		'Active account grants must enable server-side capabilities.',
+	);
+	assert.equal(
+		await hasAccountCapability(
+			eligibleAccountId,
+			freeSubscription,
+			'property_intelligence.use',
+			startsAtMs + 1,
+		),
+		true,
+	);
+	assert.equal(
+		await hasAccountCapability(
+			eligibleAccountId,
+			freeSubscription,
+			'team.manage',
+			startsAtMs + 1,
+		),
+		false,
+		'Grants must not supply capabilities outside their approved bundle.',
+	);
+	assert.equal(
+		await hasAccountCapability(
+			eligibleAccountId,
+			freeSubscription,
+			'notifications.use',
+			grant.endsAtMs + 1,
+		),
+		false,
+		'Expired grants must stop contributing to server-side capabilities.',
+	);
 
 	const auditSnapshot = await db
 		.collection('admin_audit_logs')
@@ -129,15 +171,38 @@ async function run() {
 	);
 
 	const paidAccountId = 'paid-owner';
-	await seedAccount(paidAccountId, {
+	const paidSubscription = {
 		status: 'active',
-		plan: 'homeowner_plus',
+		plan: 'property',
 		stripeCustomerId: 'cus_test',
 		stripeSubscriptionId: 'sub_test',
-	});
+	};
+	await seedAccount(paidAccountId, paidSubscription);
 	assert.equal(
 		await issueFirstPropertyTrial(paidAccountId, 'property-paid', startsAtMs),
 		'ineligible',
+	);
+	assert.equal(
+		await hasAccountCapability(
+			paidAccountId,
+			freeSubscription,
+			'team.manage',
+			startsAtMs + 1,
+		),
+		true,
+		'The family-account subscription must override a stale caller fallback.',
+	);
+
+	await grantSnapshot.ref.update({ state: 'revoked' });
+	assert.equal(
+		await hasAccountCapability(
+			eligibleAccountId,
+			freeSubscription,
+			'notifications.use',
+			startsAtMs + 2,
+		),
+		false,
+		'Revoked grants must not contribute to server-side capabilities.',
 	);
 
 	console.log('Entitlement grant issuance emulator tests passed.');

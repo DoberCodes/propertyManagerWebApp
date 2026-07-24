@@ -51,6 +51,14 @@ shared capability and limit helpers. No internal grant issuance,
 Homeowner+ product trial, automatic paid transition, or access-lifecycle
 delivery is enabled.
 
+Firebase Functions capability consumers now resolve the family account's
+authoritative subscription and grant collection together. This includes email
+preference enforcement, task reminders, property insights, push delivery, team
+reports and invitations, property-group deletion, and property-document
+knowledge acquisition. Repository validation prevents new subscription-only
+server capability checks outside the approved resolver boundary. Stripe-paid
+state checks remain separate where billing state itself is the decision.
+
 Phase 3 implements Multi-Homeowner behind a disabled-by-default launch
 flag. The stable plan ID is `multi_homeowner`; approved pricing is $5.99 monthly
 and $59.99 annually. The preset composes Homeowner+ with five properties and

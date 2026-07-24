@@ -45,9 +45,6 @@ const db = admin.firestore();
 const PROPERTY_GROUP_DELETE_ROLES = ['account_owner', 'admin', 'manager'];
 const BATCH_LIMIT = 450;
 const toString = (value) => String(value || '').trim();
-const canUsePropertyGroups = (subscription) => {
-    return (0, subscriptionEntitlements_1.hasSubscriptionCapability)(subscription, 'property_groups.manage');
-};
 const chunk = (items, size) => {
     const chunks = [];
     for (let index = 0; index < items.length; index += size) {
@@ -109,7 +106,7 @@ exports.deletePropertyGroupCascade = functions
     }
     await (0, accountAuthz_1.assertAccountRole)(uid, accountId, PROPERTY_GROUP_DELETE_ROLES);
     const accountOwnerDoc = await db.collection('users').doc(accountId).get();
-    if (!canUsePropertyGroups(accountOwnerDoc.data()?.subscription)) {
+    if (!(await (0, subscriptionEntitlements_1.hasAccountCapability)(accountId, accountOwnerDoc.data()?.subscription, 'property_groups.manage'))) {
         throw new functions.https.HttpsError('permission-denied', 'Property groups are available on Property and Portfolio plans.');
     }
     const deleted = {};

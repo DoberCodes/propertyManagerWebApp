@@ -8,8 +8,7 @@ import {
 } from './emailService';
 import { getTaskDisplayStatus } from './taskDisplayStatus';
 import {
-	hasSubscriptionCapability,
-	isSubscriptionCurrentlyEntitled,
+	hasAccountCapability,
 } from './subscriptionEntitlements';
 
 const RESEND_API_KEY = defineSecret(
@@ -118,15 +117,6 @@ const COMPLETED_EVENT_TYPES = new Set([
 	'inspection_completed',
 	'recurring_maintenance_completed',
 ]);
-
-const canUseTeamReports = (user: OwnerUser): boolean => {
-	const subscription = user.subscription;
-	if (!isSubscriptionCurrentlyEntitled(subscription)) {
-		return false;
-	}
-
-	return hasSubscriptionCapability(subscription, 'team.manage');
-};
 
 const getAccountId = (userId: string, user: OwnerUser): string =>
 	String(user.accountId || '').trim() || userId;
@@ -465,7 +455,13 @@ const sendTeamReportForOwner = async (
 
 	const accountId = getAccountId(userId, user);
 	const isAccountOwner = user.isTeamMemberAccount !== true && accountId === userId;
-	if (!isAccountOwner || !canUseTeamReports(user)) {
+	const canUseTeamReports = await hasAccountCapability(
+		accountId,
+		user.subscription,
+		'team.manage',
+		now.getTime(),
+	);
+	if (!isAccountOwner || !canUseTeamReports) {
 		return [{ sent: false, skipped: true, reason: 'not_allowed' }];
 	}
 

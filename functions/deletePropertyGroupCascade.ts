@@ -1,7 +1,7 @@
 import * as admin from 'firebase-admin';
 import * as functions from 'firebase-functions/v1';
 import { assertAccountRole } from './accountAuthz';
-import { hasSubscriptionCapability } from './subscriptionEntitlements';
+import { hasAccountCapability } from './subscriptionEntitlements';
 
 if (!admin.apps.length) {
 	admin.initializeApp();
@@ -25,10 +25,6 @@ type DeletePropertyGroupResult = {
 };
 
 const toString = (value: unknown): string => String(value || '').trim();
-
-const canUsePropertyGroups = (subscription: any): boolean => {
-	return hasSubscriptionCapability(subscription, 'property_groups.manage');
-};
 
 const chunk = <T>(items: T[], size: number): T[][] => {
 	const chunks: T[][] = [];
@@ -119,7 +115,13 @@ export const deletePropertyGroupCascade = functions
 
 			await assertAccountRole(uid, accountId, PROPERTY_GROUP_DELETE_ROLES);
 			const accountOwnerDoc = await db.collection('users').doc(accountId).get();
-			if (!canUsePropertyGroups(accountOwnerDoc.data()?.subscription)) {
+			if (
+				!(await hasAccountCapability(
+					accountId,
+					accountOwnerDoc.data()?.subscription,
+					'property_groups.manage',
+				))
+			) {
 				throw new functions.https.HttpsError(
 					'permission-denied',
 					'Property groups are available on Property and Portfolio plans.',

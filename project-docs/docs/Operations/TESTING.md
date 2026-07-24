@@ -456,6 +456,16 @@ Firestore rules:
 yarn test:rules
 ```
 
+Account-grant issuance and server capability resolution:
+
+```bash
+npm run test:entitlement-grants
+```
+
+This emulator test verifies active, expired, and revoked grants, approved-bundle
+boundaries, authoritative family-account billing precedence, idempotent trial
+issuance, and the absence of Stripe identifiers on internal grants.
+
 This runs Firestore Emulator-backed allow/deny assertions. It should be used for
 permission behavior such as account roles, task writes, account memberships,
 support/admin boundaries, notification ownership, and denied access.
@@ -482,6 +492,9 @@ Important:
 
 * Firestore rules are authoritative.
 * Verify Storage testing behavior before assuming deployed Storage security coverage.
+* `npm run build` also rejects new Firebase Functions feature checks that use
+  subscription-only capability resolution outside the approved resolver
+  boundary.
 
 ---
 

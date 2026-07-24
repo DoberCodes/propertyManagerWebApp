@@ -55,6 +55,7 @@ const directPlanPattern =
 const duplicateFeatureMapPattern =
 	/(?:PLAN_CAPABILITIES|PUSH_NOTIFICATION_PLANS|PROPERTY_INSIGHTS_PLANS|PAID_TASK_REMINDER_EMAIL_PLANS|TEAM_MEMBER_REPORT_PLANS|PROPERTY_GROUP_PLANS)/;
 const legacyPermissionPattern = /\.permissions\.(?:can|prioritySupport)/;
+const subscriptionOnlyServerCapabilityPattern = /hasSubscriptionCapability\s*\(/;
 
 const failures = [];
 for (const root of roots) {
@@ -68,10 +69,15 @@ for (const root of roots) {
 			const isDirectPlanCheck = directPlanPattern.test(line);
 			const isDuplicateFeatureMap = duplicateFeatureMapPattern.test(line);
 			const isLegacyPermissionRead = legacyPermissionPattern.test(line);
+			const isSubscriptionOnlyServerCapability =
+				relativePath.startsWith('functions/') &&
+				relativePath !== 'functions/subscriptionEntitlements.ts' &&
+				subscriptionOnlyServerCapabilityPattern.test(line);
 			if (
 				(isDirectPlanCheck && !allowedDirectPlanChecks.has(relativePath)) ||
 				isDuplicateFeatureMap ||
-				isLegacyPermissionRead
+				isLegacyPermissionRead ||
+				isSubscriptionOnlyServerCapability
 			) {
 				failures.push(`${relativePath}:${index + 1}: ${line.trim()}`);
 			}

@@ -7,7 +7,7 @@ import {
 	sendMaintleyEmail,
 } from './emailService';
 import { getTaskDisplayStatus } from './taskDisplayStatus';
-import { hasSubscriptionCapability } from './subscriptionEntitlements';
+import { hasAccountCapability } from './subscriptionEntitlements';
 
 const RESEND_API_KEY = defineSecret(
 	process.env.RESEND_API_KEY_SECRET_NAME || 'RESEND_API_KEY',
@@ -71,6 +71,7 @@ interface UserSubscriptionLike {
 }
 
 interface UserLike {
+	accountId?: string;
 	email?: string;
 	firstName?: string;
 	displayName?: string;
@@ -85,10 +86,6 @@ interface DeliveryResult {
 	skipped: boolean;
 	reason?: string;
 }
-
-const canReceiveTaskReminderEmails = (user: UserLike): boolean =>
-	user.emailPreferences?.taskReminders === true &&
-	hasSubscriptionCapability(user.subscription, 'notifications.use');
 
 const toDateOnly = (date: Date): string => date.toISOString().slice(0, 10);
 
@@ -340,8 +337,20 @@ const sendTaskReminderEmail = async (
 		return { sent: false, skipped: true, reason: 'missing_email' };
 	}
 
-	if (!canReceiveTaskReminderEmails(user)) {
+	if (user.emailPreferences?.taskReminders !== true) {
 		return { sent: false, skipped: true, reason: 'email_preference_disabled' };
+	}
+	const accountId =
+		String(user.accountId || task.accountId || '').trim() || recipientUserId;
+	if (
+		!(await hasAccountCapability(
+			accountId,
+			user.subscription,
+			'notifications.use',
+			currentDate.getTime(),
+		))
+	) {
+		return { sent: false, skipped: true, reason: 'plan_not_eligible' };
 	}
 
 	const resendApiKey = RESEND_API_KEY.value();

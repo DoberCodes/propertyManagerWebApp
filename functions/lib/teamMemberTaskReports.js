@@ -60,13 +60,6 @@ const COMPLETED_EVENT_TYPES = new Set([
     'inspection_completed',
     'recurring_maintenance_completed',
 ]);
-const canUseTeamReports = (user) => {
-    const subscription = user.subscription;
-    if (!(0, subscriptionEntitlements_1.isSubscriptionCurrentlyEntitled)(subscription)) {
-        return false;
-    }
-    return (0, subscriptionEntitlements_1.hasSubscriptionCapability)(subscription, 'team.manage');
-};
 const getAccountId = (userId, user) => String(user.accountId || '').trim() || userId;
 const getName = (member) => {
     const name = `${member.firstName || ''} ${member.lastName || ''}`.trim();
@@ -296,7 +289,8 @@ const sendTeamReportForOwner = async (userId, user, now, appUrl) => {
     }
     const accountId = getAccountId(userId, user);
     const isAccountOwner = user.isTeamMemberAccount !== true && accountId === userId;
-    if (!isAccountOwner || !canUseTeamReports(user)) {
+    const canUseTeamReports = await (0, subscriptionEntitlements_1.hasAccountCapability)(accountId, user.subscription, 'team.manage', now.getTime());
+    if (!isAccountOwner || !canUseTeamReports) {
         return [{ sent: false, skipped: true, reason: 'not_allowed' }];
     }
     const frequency = preference.frequency || 'weekly';

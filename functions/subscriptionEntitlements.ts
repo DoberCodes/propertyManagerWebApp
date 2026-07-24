@@ -129,12 +129,19 @@ export const resolveEntitlementsForAccount = async (
 		});
 	}
 
-	const snapshot = await admin
+	const accountRef = admin
 		.firestore()
 		.collection('familyAccounts')
-		.doc(normalizedAccountId)
-		.collection('entitlementGrants')
-		.get();
+		.doc(normalizedAccountId);
+	const [accountSnapshot, snapshot] = await Promise.all([
+		accountRef.get(),
+		accountRef.collection('entitlementGrants').get(),
+	]);
+	const accountSubscription = accountSnapshot.data()?.subscription;
+	const effectiveSubscription =
+		accountSubscription && typeof accountSubscription === 'object'
+			? (accountSubscription as SubscriptionEntitlementLike)
+			: subscription;
 	const grants = snapshot.docs.map((grantDoc) => {
 		const data = grantDoc.data() || {};
 		return {
@@ -148,7 +155,7 @@ export const resolveEntitlementsForAccount = async (
 
 	return resolveAccountEntitlements({
 		accountId: normalizedAccountId,
-		subscription,
+		subscription: effectiveSubscription,
 		grants,
 		fallbackPlanId: 'homeowner',
 		mode: 'compatibility',
@@ -156,3 +163,25 @@ export const resolveEntitlementsForAccount = async (
 		nowMs,
 	});
 };
+
+export const hasAccountCapability = async (
+	accountId: string,
+	subscription: SubscriptionEntitlementLike | null | undefined,
+	capabilityId: CapabilityId,
+	nowMs = Date.now(),
+): Promise<boolean> =>
+	hasCapability(
+		await resolveEntitlementsForAccount(accountId, subscription, nowMs),
+		capabilityId,
+	);
+
+export const getAccountEntitlementLimit = async (
+	accountId: string,
+	subscription: SubscriptionEntitlementLike | null | undefined,
+	limitId: LimitId,
+	nowMs = Date.now(),
+): Promise<number> =>
+	getEntitlementLimit(
+		await resolveEntitlementsForAccount(accountId, subscription, nowMs),
+		limitId,
+	);

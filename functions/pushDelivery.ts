@@ -1,5 +1,5 @@
 import * as admin from 'firebase-admin';
-import { hasSubscriptionCapability } from './subscriptionEntitlements';
+import { hasAccountCapability } from './subscriptionEntitlements';
 
 type PushTokenRecord = {
 	token?: unknown;
@@ -12,22 +12,6 @@ type PushDeliveryOptions = {
 };
 
 const getDb = () => admin.firestore();
-
-const canUsePushNotifications = (subscription?: {
-	status?: string;
-	plan?: string;
-	hasScheduledSubscription?: boolean;
-	scheduledPlan?: string;
-	trialEndsAt?: number | null;
-	pendingCheckoutPlan?: string;
-	stripeSubscriptionId?: string;
-}): boolean => {
-	if (!subscription) {
-		return false;
-	}
-
-	return hasSubscriptionCapability(subscription, 'notifications.use');
-};
 
 const getUserPushTokens = (
 	user: FirebaseFirestore.DocumentData,
@@ -138,7 +122,14 @@ export const sendPushForNotification = async (
 		return;
 	}
 
-	if (!canUsePushNotifications(user.subscription)) {
+	const accountId = String(user.accountId || '').trim() || userId;
+	if (
+		!(await hasAccountCapability(
+			accountId,
+			user.subscription,
+			'notifications.use',
+		))
+	) {
 		console.log(
 			`Push skipped for user ${userId}: plan does not include push notifications`,
 		);
