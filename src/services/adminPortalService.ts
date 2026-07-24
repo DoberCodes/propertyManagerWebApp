@@ -166,6 +166,8 @@ export type AdminPortalUserTroubleshootingDetails = {
 			canManage: boolean;
 			isMaintleyOwner: boolean;
 			canSelfGrant: boolean;
+			targetAllowed: boolean;
+			targetRestrictionReason?: string | null;
 			programs: Array<{
 				programId: string;
 				label: string;
@@ -444,25 +446,33 @@ export const adminPortalMutateEntitlementGrant = async (params: {
 export const adminPortalManageUserSubscription = async (params: {
 	sessionToken: string;
 	userId: string;
-	action: 'change_plan' | 'extend_trial' | 'cancel_subscription';
+	action: 'change_plan' | 'extend_trial' | 'cancel_subscription' | 'clear_stripe_linkage';
 	planId?: string;
 	trialDays?: number;
 	syncStripe?: boolean;
+	reason?: string;
+	confirmation?: string;
+	requestId?: string;
 }): Promise<{
 	success: true;
 	subscriptionPlan: string;
 	subscriptionStatus: string;
 	trialEndsAt: number | null;
 	stripeUpdated: boolean;
+	stripeLinkageCleared?: boolean;
+	replayed?: boolean;
 }> => {
 	const callable = await getAdminCallable<
 		{
 			sessionToken: string;
 			userId: string;
-			action: 'change_plan' | 'extend_trial' | 'cancel_subscription';
+			action: 'change_plan' | 'extend_trial' | 'cancel_subscription' | 'clear_stripe_linkage';
 			planId?: string;
 			trialDays?: number;
 			syncStripe?: boolean;
+			reason?: string;
+			confirmation?: string;
+			requestId?: string;
 		},
 		{
 			success: true;
@@ -470,6 +480,8 @@ export const adminPortalManageUserSubscription = async (params: {
 			subscriptionStatus: string;
 			trialEndsAt: number | null;
 			stripeUpdated: boolean;
+			stripeLinkageCleared?: boolean;
+			replayed?: boolean;
 		}
 	>('adminPortalManageUserSubscription');
 

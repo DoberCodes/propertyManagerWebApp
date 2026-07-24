@@ -721,6 +721,12 @@ const resolveSuccessUrl = (providedValue) => {
         ? `${baseUrl}/#/checkout/complete?session_id={CHECKOUT_SESSION_ID}`
         : 'https://maintley.com/#/checkout/complete?session_id={CHECKOUT_SESSION_ID}';
 };
+const isMissingStripeResourceError = (error) => {
+    const stripeError = error;
+    return (stripeError?.code === 'resource_missing' ||
+        stripeError?.raw?.code === 'resource_missing' ||
+        stripeError?.statusCode === 404);
+};
 const resolveCancelUrl = (providedValue) => {
     const provided = String(providedValue || '').trim();
     if (provided)
@@ -1764,6 +1770,13 @@ exports.getAdminPortalUserTroubleshootingDetails = functions
     const email = String(userData.email || '').trim() || null;
     const accountId = String(userData.accountId || '').trim();
     const entitlementAccountId = accountId || targetUserId;
+    const targetGrantRestricted = (0, adminEntitlementGrantPolicy_1.isProhibitedSelfGrantTarget)({
+        maintleyRole: grantAuthority.maintleyRole,
+        actorUserId: grantAuthority.actorUserId,
+        actorAccountId: grantAuthority.actorAccountId,
+        targetUserId,
+        targetAccountId: entitlementAccountId,
+    });
     const maintleyRole = normalizeMaintleyRole(userData.maintley_role) || 'user';
     const accountStatus = normalizeAdminUserStatus(userData);
     const subscription = typeof userData.subscription === 'object' && userData.subscription
@@ -2013,6 +2026,10 @@ exports.getAdminPortalUserTroubleshootingDetails = functions
                 canManage: grantAuthority.canManageGrants,
                 isMaintleyOwner: grantAuthority.isMaintleyOwner,
                 canSelfGrant: grantAuthority.isMaintleyOwner,
+                targetAllowed: !targetGrantRestricted,
+                targetRestrictionReason: targetGrantRestricted
+                    ? 'Administrators cannot grant access to their own account. Maintley owner is the only exception.'
+                    : null,
                 programs: ADMIN_GRANT_PROGRAMS.filter((program) => !program.ownerOnly || grantAuthority.isMaintleyOwner).map((program) => ({
                     programId: program.programId,
                     label: program.label,
@@ -3067,8 +3084,8 @@ exports.adminPortalManageUserSubscription = functions
     if (!targetUserId) {
         throw new functions.https.HttpsError('invalid-argument', 'userId is required.');
     }
-    if (!['change_plan', 'extend_trial', 'cancel_subscription'].includes(action)) {
-        throw new functions.https.HttpsError('invalid-argument', 'action must be change_plan, extend_trial, or cancel_subscription.');
+    if (!['change_plan', 'extend_trial', 'cancel_subscription', 'clear_stripe_linkage'].includes(action)) {
+        throw new functions.https.HttpsError('invalid-argument', 'action must be change_plan, extend_trial, cancel_subscription, or clear_stripe_linkage.');
     }
     if (action === 'change_plan' && !nextPlanId) {
         throw new functions.https.HttpsError('invalid-argument', 'planId is required for change_plan.');
@@ -3090,6 +3107,143 @@ exports.adminPortalManageUserSubscription = functions
     const currentSubscription = typeof userData.subscription === 'object' && userData.subscription
         ? userData.subscription
         : {};
+    if (action === 'clear_stripe_linkage') {
+        const reason = String(data?.reason || '').trim();
+        const confirmation = String(data?.confirmation || '').trim();
+        const requestId = String(data?.requestId || '').trim();
+        if (reason.length < 10) {
+            throw new functions.https.HttpsError('invalid-argument', 'Provide an audit reason of at least 10 characters.');
+        }
+        if (confirmation !== 'CLEAR STRIPE LINK') {
+            throw new functions.https.HttpsError('failed-precondition', 'Type CLEAR STRIPE LINK to confirm this reconciliation.');
+        }
+        if (!requestId || requestId.length > 160) {
+            throw new functions.https.HttpsError('invalid-argument', 'A valid request ID is required.');
+        }
+        const auditEventId = (0, entitlements_1.getAdminAuditEventId)('billing.stripe_linkage_cleared', requestId);
+        const auditRef = db.collection(ADMIN_AUDIT_LOGS_COLLECTION).doc(auditEventId);
+        if ((await auditRef.get()).exists) {
+            return {
+                success: true,
+                subscriptionPlan: 'homeowner',
+                subscriptionStatus: 'active',
+                trialEndsAt: null,
+                stripeUpdated: false,
+                stripeLinkageCleared: true,
+                replayed: true,
+            };
+        }
+        const stripeCustomerId = String(currentSubscription.stripeCustomerId || '').trim();
+        const stripeSubscriptionId = String(currentSubscription.stripeSubscriptionId || '').trim();
+        if (!stripeCustomerId && !stripeSubscriptionId) {
+            throw new functions.https.HttpsError('failed-precondition', 'This account has no stored Stripe linkage to clear.');
+        }
+        const stripe = getAdminPortalStripe();
+        let verifiedCustomerState = stripeCustomerId ? 'missing' : 'not_recorded';
+        let verifiedSubscriptionState = stripeSubscriptionId ? 'missing' : 'not_recorded';
+        if (stripeCustomerId) {
+            try {
+                const customer = await stripe.customers.retrieve(stripeCustomerId);
+                if (!customer.deleted) {
+                    throw new functions.https.HttpsError('failed-precondition', 'The Stripe customer still exists. Delete it in Stripe before clearing Maintley linkage.');
+                }
+                verifiedCustomerState = 'deleted';
+            }
+            catch (stripeError) {
+                if (!isMissingStripeResourceError(stripeError))
+                    throw stripeError;
+            }
+        }
+        if (stripeSubscriptionId) {
+            try {
+                const subscription = await stripe.subscriptions.retrieve(stripeSubscriptionId);
+                verifiedSubscriptionState = subscription.status;
+                if (!['canceled', 'incomplete_expired'].includes(subscription.status)) {
+                    throw new functions.https.HttpsError('failed-precondition', `Stripe subscription ${stripeSubscriptionId} is still ${subscription.status}. Cancel it before clearing Maintley linkage.`);
+                }
+            }
+            catch (stripeError) {
+                if (!isMissingStripeResourceError(stripeError))
+                    throw stripeError;
+            }
+        }
+        const nextSubscription = { ...currentSubscription };
+        for (const key of [
+            'stripeCustomerId',
+            'stripeSubscriptionId',
+            'stripePriceId',
+            'stripeProductId',
+            'currentPeriodStart',
+            'currentPeriodEnd',
+            'trialEndsAt',
+            'canceledAt',
+            'cancelAtPeriodEnd',
+            'hasScheduledSubscription',
+            'scheduledPlan',
+        ]) {
+            delete nextSubscription[key];
+        }
+        nextSubscription.plan = 'homeowner';
+        nextSubscription.status = 'active';
+        nextSubscription.updatedAt = new Date().toISOString();
+        const batch = db.batch();
+        batch.update(userRef, {
+            subscription: nextSubscription,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        const accountId = String(userData.accountId || '').trim();
+        if (accountId) {
+            const accountRef = db.collection('familyAccounts').doc(accountId);
+            if ((await accountRef.get()).exists) {
+                batch.update(accountRef, {
+                    subscription: nextSubscription,
+                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                });
+            }
+        }
+        batch.create(auditRef, {
+            eventId: auditEventId,
+            action: 'billing.stripe_linkage_cleared',
+            category: 'user_subscription',
+            actorUserId: adminAuth.uid,
+            targetAccountId: accountId || targetUserId,
+            targetUserId,
+            reason,
+            requestId,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            before: {
+                plan: String(currentSubscription.plan || '').trim() || 'none',
+                status: String(currentSubscription.status || '').trim() || 'none',
+                stripeCustomerId: stripeCustomerId || null,
+                stripeSubscriptionId: stripeSubscriptionId || null,
+            },
+            after: {
+                plan: 'homeowner',
+                status: 'active',
+                stripeCustomerId: null,
+                stripeSubscriptionId: null,
+            },
+            metadata: {
+                verifiedCustomerState,
+                verifiedSubscriptionState,
+            },
+            performedBy: {
+                uid: adminAuth.uid,
+                email: adminAuth.email,
+                displayName: adminAuth.displayName,
+            },
+        });
+        await batch.commit();
+        return {
+            success: true,
+            subscriptionPlan: 'homeowner',
+            subscriptionStatus: 'active',
+            trialEndsAt: null,
+            stripeUpdated: false,
+            stripeLinkageCleared: true,
+            replayed: false,
+        };
+    }
     const nowSeconds = Math.floor(Date.now() / 1000);
     const nextSubscription = {
         ...currentSubscription,
