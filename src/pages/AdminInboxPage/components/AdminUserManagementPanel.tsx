@@ -167,9 +167,7 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
             setSelectedPlan(result.profile.subscriptionPlan || 'property');
             setTrialDays('');
             setCheckoutCouponCode('');
-            if (!result.profile.hasStripeSubscription) {
-                setSyncStripe(false);
-            }
+			setSyncStripe(Boolean(result.profile.hasStripeSubscription));
         } catch (detailError) {
             const message =
                 detailError instanceof Error
@@ -257,10 +255,11 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
                 syncStripe,
             });
             const createdCheckoutLink = result.checkoutUrl || '';
-            setActionMessage(
-                `Billing updates applied for ${formatLabel(result.subscriptionPlan)} (${formatLabel(result.subscriptionStatus)}). ${result.stripeUpdated ? 'Stripe updated. ' : ''
-                }${result.applied.checkoutLinkCreated ? 'Checkout link created. ' : ''}Audit log saved.`,
-            );
+			setActionMessage(
+				result.applied.checkoutLinkCreated
+					? 'Stripe Checkout link created. No paid access was granted; Maintley will update only after Stripe confirms the subscription. Audit log saved.'
+					: `Stripe billing updated for ${formatLabel(result.subscriptionPlan)} (${formatLabel(result.subscriptionStatus)}). Audit log saved.`,
+			);
             await handleInspectUser(selectedUserId);
             setCheckoutLink(createdCheckoutLink);
             setTrialDays('');
@@ -476,7 +475,7 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
                             <UserDetailsValue>{formatDate(details.profile.lastActivityAt)}</UserDetailsValue>
                         </UserDetailsItem>
                         <UserDetailsItem>
-                            <UserDetailsKey>Plan</UserDetailsKey>
+							<UserDetailsKey>Billing Plan</UserDetailsKey>
                             <UserDetailsValue>
                                 {formatLabel(details.profile.subscriptionPlan)} ({formatLabel(details.profile.subscriptionStatus)})
                             </UserDetailsValue>
@@ -515,7 +514,12 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
                         </UserDetailsItem>
                     </UserDetailsGrid>
 
-                    <Label>Subscription Management</Label>
+					<div style={{ marginTop: 20 }}>
+						<Label>Stripe Billing</Label>
+						<p style={{ margin: '4px 0 12px' }}>
+							Paid subscriptions, invoices, renewals, coupons, and Stripe trial periods. These controls do not create internal complimentary grants.
+						</p>
+					</div>
                     <UserDetailsGrid>
                         <UserDetailsItem>
                             <UserDetailsKey>Current Plan</UserDetailsKey>
@@ -601,15 +605,45 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
                         </UserDetailsItem>
                     </UserDetailsGrid>
 
-					<Label>Effective Access</Label>
+					<div style={{ marginTop: 20 }}>
+						<Label>Internal Access Grants</Label>
+						<p style={{ margin: '4px 0 12px' }}>
+							Complimentary Maintley access issued outside Stripe. A grant does not create a Stripe customer, subscription, invoice, renewal, or charge.
+						</p>
+					</div>
 					<UserDetailsGrid>
 						<UserDetailsItem>
-							<UserDetailsKey>Base Plan</UserDetailsKey>
-							<UserDetailsValue>{formatLabel(details.access?.basePlan || details.profile.subscriptionPlan)}</UserDetailsValue>
+							<UserDetailsKey>Active Internal Grants</UserDetailsKey>
+							<UserDetailsValue>{String(details.access?.activeGrantCount ?? 0)}</UserDetailsValue>
 						</UserDetailsItem>
 						<UserDetailsItem>
-							<UserDetailsKey>Active Grants</UserDetailsKey>
-							<UserDetailsValue>{String(details.access?.activeGrantCount ?? 0)}</UserDetailsValue>
+							<UserDetailsKey>Grant Administration</UserDetailsKey>
+							<UserDetailsValue>
+								View only. Creating, extending, and revoking grants will be added through a separate audited workflow.
+							</UserDetailsValue>
+						</UserDetailsItem>
+						{details.access?.grants?.map((grant) => (
+							<UserDetailsItem key={grant.grantId}>
+								<UserDetailsKey>{formatLabel(grant.programId || grant.grantId)}</UserDetailsKey>
+								<UserDetailsValue>
+									{formatLabel(grant.state)} · {formatLabel(grant.kind)}
+									{grant.bundleId ? ` · ${formatLabel(grant.bundleId)}` : ''}
+									{grant.endsAt ? ` · Ends ${formatDate(grant.endsAt)}` : ''}
+								</UserDetailsValue>
+							</UserDetailsItem>
+						))}
+					</UserDetailsGrid>
+
+					<div style={{ marginTop: 20 }}>
+						<Label>Resolved Product Access</Label>
+						<p style={{ margin: '4px 0 12px' }}>
+							The access Maintley currently resolves from the Stripe billing plan plus any active internal grants.
+						</p>
+					</div>
+					<UserDetailsGrid>
+						<UserDetailsItem>
+							<UserDetailsKey>Billing Base Plan</UserDetailsKey>
+							<UserDetailsValue>{formatLabel(details.access?.basePlan || details.profile.subscriptionPlan)}</UserDetailsValue>
 						</UserDetailsItem>
 						<UserDetailsItem>
 							<UserDetailsKey>Effective Bundles</UserDetailsKey>
@@ -743,7 +777,7 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
 
             <GenericModal
                 isOpen={showBillingActionsDialog}
-                title='Manage billing'
+				title='Manage Stripe billing'
                 onClose={() => {
                     if (!planActionLoading) {
                         setShowBillingActionsDialog(false);
@@ -764,10 +798,13 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
                             {details?.profile.stripeSubscription?.planLabel ||
                                 (details?.profile.hasStripeSubscription ? 'Connected' : 'No subscription on record')}
                         </p>
+						<p style={{ margin: '10px 0 0', padding: 10, background: '#FAFAF8', border: '1px solid #3FCC7C', borderRadius: 8 }}>
+							This workflow manages paid billing only. For complimentary access without a billing relationship, use the separate Internal Access Grants workflow when grant administration is enabled.
+						</p>
                     </div>
 
                     <div style={{ display: 'grid', gap: 8 }}>
-                        <Label>Billing updates</Label>
+						<Label>Stripe subscription or Checkout</Label>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 8 }}>
                             <div>
                                 <Label>Plan</Label>
@@ -793,13 +830,14 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
                                 </Select>
                             </div>
                             <div>
-                                <Label>Add trial days</Label>
+								<Label>Add Stripe trial days</Label>
                                 <Input
                                     type='number'
                                     min={1}
                                     max={90}
-                                    placeholder='Optional'
+									placeholder={details?.profile.stripeSubscription?.status === 'trialing' ? 'Optional' : 'Requires trialing Stripe subscription'}
                                     value={trialDays}
+									disabled={details?.profile.stripeSubscription?.status !== 'trialing'}
                                     onChange={(event) => setTrialDays(event.target.value)}
                                 />
                             </div>
@@ -816,25 +854,20 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
                     </div>
 
                     <div style={{ display: 'grid', gap: 8 }}>
-                        <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-                            <input
-                                type='checkbox'
-                                checked={syncStripe}
-                                disabled={!details?.profile.hasStripeSubscription || planActionLoading}
-                                onChange={(event) => setSyncStripe(event.target.checked)}
-                            />
-                            <span>
-                                Update Stripe subscription first
-                                {details?.profile.hasStripeSubscription
-                                    ? ''
-                                    : ' (requires a Stripe subscription on the user record)'}
-                            </span>
-                        </label>
+						<p style={{ margin: 0 }}>
+							{details?.profile.hasStripeSubscription
+								? 'Changes update the existing Stripe subscription first, then refresh Maintley.'
+								: 'This account has no Stripe subscription. Selecting a paid plan creates a Checkout link; it does not grant paid access immediately.'}
+						</p>
                         <Button
                             type='button'
                             disabled={planActionLoading || !hasBillingUpdatesToApply}
                             onClick={() => void handleApplyBillingUpdates()}>
-                            {planActionLoading ? 'Applying...' : 'Apply Billing Updates'}
+							{planActionLoading
+								? 'Applying...'
+								: details?.profile.hasStripeSubscription
+									? 'Update Stripe Billing'
+									: 'Create Stripe Checkout Link'}
                         </Button>
                         {checkoutLink ? (
                             <Button

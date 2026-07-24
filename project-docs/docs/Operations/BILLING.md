@@ -97,6 +97,15 @@ that paid continuation requires intentional Checkout. Internal delivery data
 cannot initiate billing; Stripe remains the only authority for whether a charge
 can occur.
 
+The admin customer view separates **Stripe Billing**, **Internal Access
+Grants**, and **Resolved Product Access**. Paid plan changes update an existing
+Stripe subscription first. When no Stripe subscription exists, choosing a paid
+plan creates a Checkout link and does not grant paid access until Stripe
+confirms the subscription. "Stripe trial days" can extend only an existing
+trialing Stripe subscription. Complimentary access without billing belongs in
+the separately authorized and audited internal-grant workflow; it must never be
+represented by a local paid-plan or trial edit.
+
 The web equivalents are `REACT_APP_ENABLE_HOMEOWNER_PLUS_PRODUCT_TRIAL` and
 `REACT_APP_ENABLE_INTERNAL_ENTITLEMENT_GRANT_ISSUANCE`; these describe rollout
 state but do not revoke an already-issued grant.

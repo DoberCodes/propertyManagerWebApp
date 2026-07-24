@@ -2949,7 +2949,7 @@ export const adminPortalApplyUserBillingActions = functions
 			const rawTrialDays = String(data?.trialDays ?? '').trim();
 			const trialDays = rawTrialDays ? Number(rawTrialDays) : 0;
 			const promoCode = normalizePromoCode(data?.promoCode);
-			const syncStripe = Boolean(data?.syncStripe);
+			const requestedStripeSync = Boolean(data?.syncStripe);
 
 			if (!targetUserId) {
 				throw new functions.https.HttpsError('invalid-argument', 'userId is required.');
@@ -3017,12 +3017,13 @@ export const adminPortalApplyUserBillingActions = functions
 				updatedAt: new Date().toISOString(),
 			};
 			const stripeSubscriptionId = String(currentSubscription.stripeSubscriptionId || '').trim();
+			const syncStripe = Boolean(stripeSubscriptionId);
 			let stripeUpdated = false;
 			let checkoutUrl: string | null = null;
 			let checkoutSessionId: string | null = null;
 			let stripeCustomerId = String(currentSubscription.stripeCustomerId || '').trim();
 
-			if (syncStripe && stripeSubscriptionId) {
+			if (syncStripe) {
 				const existingSubscription = await stripe.subscriptions.retrieve(stripeSubscriptionId);
 				const existingItem = existingSubscription.items.data[0];
 				if (!existingItem?.id) {
@@ -3109,26 +3110,24 @@ export const adminPortalApplyUserBillingActions = functions
 				);
 				stripeCustomerId = String(updatedSubscription.customer || stripeCustomerId || '');
 				stripeUpdated = true;
-			} else {
-				if (planChanged) {
-					nextSubscription.plan = nextPlanId;
-					if (!String(nextSubscription.status || '').trim()) {
-						nextSubscription.status = 'active';
-					}
-				}
-
-				if (trialDays) {
-					const currentTrialEnd = Number(currentSubscription.trialEndsAt || 0);
-					const trialBase = Math.max(currentTrialEnd || nowSeconds, nowSeconds);
-					nextSubscription.status = 'trial';
-					nextSubscription.trialEndsAt = trialBase + trialDays * 24 * 60 * 60;
-					nextSubscription.currentPeriodStart =
-						Number(currentSubscription.currentPeriodStart || 0) || nowSeconds;
-					nextSubscription.currentPeriodEnd = nextSubscription.trialEndsAt;
-				}
+			} else if (trialDays) {
+				throw new functions.https.HttpsError(
+					'failed-precondition',
+					'Stripe trial days require an existing Stripe trialing subscription. Use an internal access grant for complimentary access without billing.',
+				);
+			}
+			if (!syncStripe && planChanged && nextPlanId === 'homeowner') {
+				throw new functions.https.HttpsError(
+					'failed-precondition',
+					'Moving an account to Homeowner is a cancellation or synthetic-access migration action, not a local billing plan edit.',
+				);
 			}
 
-			if (promotionCode && !stripeUpdated) {
+			const shouldCreateCheckout =
+				!stripeUpdated &&
+				Boolean(nextPlanId && nextPlanId !== 'homeowner') &&
+				(Boolean(planChanged) || Boolean(promotionCode));
+			if (shouldCreateCheckout) {
 				const checkoutPlanId = nextPlanId || currentPlan;
 				if (!checkoutPlanId || checkoutPlanId === 'homeowner') {
 					throw new functions.https.HttpsError(
@@ -3172,7 +3171,9 @@ export const adminPortalApplyUserBillingActions = functions
 					mode: 'subscription',
 					success_url: resolveSuccessUrl(data?.successUrl),
 					cancel_url: resolveCancelUrl(data?.cancelUrl),
-					discounts: [{ promotion_code: promotionCode.id }],
+					...(promotionCode
+						? { discounts: [{ promotion_code: promotionCode.id }] }
+						: {}),
 					metadata: {
 						firebaseUID: targetUserId,
 						promoCode,
@@ -3221,6 +3222,7 @@ export const adminPortalApplyUserBillingActions = functions
 					trialDays: trialDays || null,
 					promoCode: promoCode || null,
 					promotionCodeId: promotionCode?.id || null,
+					requestedStripeSync,
 					syncStripe,
 					stripeUpdated,
 					stripeSubscriptionId:
@@ -3241,7 +3243,7 @@ export const adminPortalApplyUserBillingActions = functions
 				checkoutSessionId,
 				stripeCustomerId: stripeCustomerId || null,
 				applied: {
-					planChanged,
+					planChanged: Boolean(planChanged && stripeUpdated),
 					trialExtended: Boolean(trialDays),
 					couponApplied: Boolean(promotionCode && stripeUpdated),
 					checkoutLinkCreated: Boolean(checkoutUrl),
