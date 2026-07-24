@@ -1285,18 +1285,10 @@ const syncAdminFamilyAccountSubscription = async (
 };
 
 const resolveLastActiveMillis = (record: Record<string, unknown>): number => {
-	const subscription =
-		typeof record.subscription === 'object' && record.subscription
-			? (record.subscription as Record<string, unknown>)
-			: {};
-
 	return Math.max(
 		toMillis(record.lastActiveAt),
 		toMillis(record.lastLoginAt),
 		toMillis(record.lastSeenAt),
-		toMillis(record.updatedAt),
-		toMillis(subscription.updatedAt),
-		toMillis(record.createdAt),
 	);
 };
 
@@ -2697,6 +2689,7 @@ export const getAdminPortalUserTroubleshootingDetails = functions
 			}, 0);
 			return total + attachmentBytes;
 		}, 0);
+		const lastActiveAtMillis = resolveLastActiveMillis(userData);
 
 		return {
 			profile: {
@@ -2723,9 +2716,9 @@ export const getAdminPortalUserTroubleshootingDetails = functions
 				inviteCode,
 				lastLoginAt: toIsoString(userData.lastLoginAt),
 				lastActivityAt:
-					recentActivity.length > 0
-						? String(recentActivity[0]?.createdAt || '')
-						: toIsoString(userData.updatedAt),
+					lastActiveAtMillis > 0
+						? new Date(lastActiveAtMillis).toISOString()
+						: null,
 				createdAt: toIsoString(userData.createdAt),
 				updatedAt: toIsoString(userData.updatedAt),
 			},

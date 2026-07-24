@@ -676,7 +676,7 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
                             <UserDetailsValue>{formatDate(details.profile.lastLoginAt)}</UserDetailsValue>
                         </UserDetailsItem>
                         <UserDetailsItem>
-                            <UserDetailsKey>Last Activity</UserDetailsKey>
+							<UserDetailsKey>Last Customer Activity</UserDetailsKey>
                             <UserDetailsValue>{formatDate(details.profile.lastActivityAt)}</UserDetailsValue>
                         </UserDetailsItem>
                         <UserDetailsItem>

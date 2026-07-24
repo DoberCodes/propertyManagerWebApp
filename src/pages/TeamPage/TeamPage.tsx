@@ -2,10 +2,8 @@ import React, { useState, useMemo } from 'react';
 
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
-	faBan,
 	faChevronDown,
 	faChevronUp,
-	faCopy,
 	faFolderOpen,
 	faPen,
 	faPlus,
@@ -70,8 +68,6 @@ import {
 	TeamMemberCard,
 	TeamMemberIdentity,
 	TeamMemberAvatarWrap,
-	TeamMemberActions,
-	TeamMemberActionButton,
 	TeamMemberImage,
 	TeamMemberImagePlaceholder,
 	TeamMemberDetails,
@@ -83,7 +79,6 @@ import {
 	TeamMemberPropertyChip,
 	TeamMemberInviteToken,
 	TeamMemberInviteCode,
-	TeamMemberInviteCopyButton,
 	AccessPill,
 	AccessControlToggle,
 	AccessControlPanel,
@@ -136,6 +131,7 @@ import {
 	RemoveFileButton,
 	DialogFooter,
 	CancelButton,
+	DeleteMemberButton,
 	EmptyState,
 	SaveButton,
 } from './TeamPage.styles';
@@ -846,7 +842,7 @@ export default function TeamPage() {
 		setShowTeamMemberDialog(true);
 	};
 
-	const handleDeleteTeamMember = async (memberId: string) => {
+	const handleDeleteTeamMember = async (memberId: string): Promise<boolean> => {
 		try {
 			const memberToDelete = groupsWithMembers
 				.flatMap((g) => g.members || [])
@@ -885,9 +881,29 @@ export default function TeamPage() {
 			} catch (notifError) {
 				console.error('Notification failed:', notifError);
 			}
+
+			return true;
 		} catch (error) {
 			console.error('Error deleting team member:', error);
+			feedback.notify('Failed to delete team member. Please try again.');
+			return false;
 		}
+	};
+	const handleRequestDeleteTeamMember = (member: TeamMember) => {
+		setWarningDialogTitle('Delete Team Member');
+		setWarningDialogMessage(
+			`Are you sure you want to delete ${member.firstName} ${member.lastName}? This action cannot be undone.`,
+		);
+		setWarningDialogConfirmText('Delete');
+		setWarningDialogCancelText('Cancel');
+		setWarningDialogOnConfirm(() => async () => {
+			setWarningDialogOpen(false);
+			const deleted = await handleDeleteTeamMember(member.id);
+			if (deleted) {
+				setShowTeamMemberDialog(false);
+			}
+		});
+		setWarningDialogOpen(true);
 	};
 
 	const handleRevokeAccess = async (member: TeamMember) => {
@@ -1333,44 +1349,6 @@ export default function TeamPage() {
 											cursor: canManage ? 'pointer' : 'default',
 											opacity: canManage ? 1 : 0.7,
 										}}>
-										{canManage && currentUser?.email !== member.email && (
-											<TeamMemberActions>
-												{hasRevocableTeamAccess(member) && (
-													<TeamMemberActionButton
-														className='revoke'
-														aria-label='Revoke'
-														title='Revoke access'
-														onClick={(e) => {
-															e.stopPropagation();
-															handleRevokeAccess(member);
-														}}>
-														<FontAwesomeIcon icon={faBan} />
-														🚫
-													</TeamMemberActionButton>
-												)}
-												<TeamMemberActionButton
-													className='delete'
-													aria-label='Delete'
-													title='Delete team member'
-													onClick={(e) => {
-														e.stopPropagation();
-														setWarningDialogTitle('Delete Team Member');
-														setWarningDialogMessage(
-															`Are you sure you want to delete ${member.firstName} ${member.lastName}? This action cannot be undone.`,
-														);
-														setWarningDialogConfirmText('Delete');
-														setWarningDialogCancelText('Cancel');
-														setWarningDialogOnConfirm(() => () => {
-															setWarningDialogOpen(false);
-															handleDeleteTeamMember(member.id);
-														});
-														setWarningDialogOpen(true);
-													}}>
-													<FontAwesomeIcon icon={faTrash} />
-													🗑
-												</TeamMemberActionButton>
-											</TeamMemberActions>
-										)}
 										<TeamMemberIdentity>
 											<TeamMemberAvatarWrap>
 												{member.image ? (
@@ -1436,26 +1414,6 @@ export default function TeamPage() {
 												)}
 											</TeamMemberPropertyList>
 										</TeamMemberProperties>
-										{canShowInvitationToken(member) &&
-											getVisibleInvitationCode(member) && (
-												<TeamMemberInviteToken>
-													<span>Invitation token</span>
-													<TeamMemberInviteCode>
-														{getVisibleInvitationCode(member)}
-													</TeamMemberInviteCode>
-													<TeamMemberInviteCopyButton
-														type='button'
-														onClick={(event) => {
-															event.stopPropagation();
-															void handleCopyInvitationCode(
-																getVisibleInvitationCode(member),
-															);
-														}}>
-														<FontAwesomeIcon icon={faCopy} />
-														Copy token
-													</TeamMemberInviteCopyButton>
-												</TeamMemberInviteToken>
-											)}
 									</TeamMemberCard>
 								);
 							})}
@@ -2131,6 +2089,17 @@ export default function TeamPage() {
 						</DialogBody>
 
 						<DialogFooter>
+							{editingMember &&
+								canManage &&
+								currentUser?.email !== editingMember.email && (
+									<DeleteMemberButton
+										type='button'
+										onClick={() =>
+											handleRequestDeleteTeamMember(editingMember)
+										}>
+										Delete Member
+									</DeleteMemberButton>
+								)}
 							<CancelButton onClick={() => setShowTeamMemberDialog(false)}>
 								Cancel
 							</CancelButton>

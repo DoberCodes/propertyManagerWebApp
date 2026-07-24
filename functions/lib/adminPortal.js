@@ -991,10 +991,7 @@ const syncAdminFamilyAccountSubscription = async (userData, subscription) => {
     }, { merge: true });
 };
 const resolveLastActiveMillis = (record) => {
-    const subscription = typeof record.subscription === 'object' && record.subscription
-        ? record.subscription
-        : {};
-    return Math.max(toMillis(record.lastActiveAt), toMillis(record.lastLoginAt), toMillis(record.lastSeenAt), toMillis(record.updatedAt), toMillis(subscription.updatedAt), toMillis(record.createdAt));
+    return Math.max(toMillis(record.lastActiveAt), toMillis(record.lastLoginAt), toMillis(record.lastSeenAt));
 };
 const addFileUsageFromRecord = (record, fieldName, seen, totals, prefix) => {
     const list = record[fieldName];
@@ -1965,6 +1962,7 @@ exports.getAdminPortalUserTroubleshootingDetails = functions
         }, 0);
         return total + attachmentBytes;
     }, 0);
+    const lastActiveAtMillis = resolveLastActiveMillis(userData);
     return {
         profile: {
             id: targetUserId,
@@ -1985,9 +1983,9 @@ exports.getAdminPortalUserTroubleshootingDetails = functions
                 Boolean(String(subscription.stripeCustomerId || '').trim()),
             inviteCode,
             lastLoginAt: toIsoString(userData.lastLoginAt),
-            lastActivityAt: recentActivity.length > 0
-                ? String(recentActivity[0]?.createdAt || '')
-                : toIsoString(userData.updatedAt),
+            lastActivityAt: lastActiveAtMillis > 0
+                ? new Date(lastActiveAtMillis).toISOString()
+                : null,
             createdAt: toIsoString(userData.createdAt),
             updatedAt: toIsoString(userData.updatedAt),
         },

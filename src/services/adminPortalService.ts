@@ -108,7 +108,7 @@ export type AdminPortalUserTroubleshootingDetails = {
 		} | null;
 		inviteCode?: string | null;
 		lastLoginAt?: string;
-		lastActivityAt?: string;
+		lastActivityAt?: string | null;
 		createdAt?: string;
 		updatedAt?: string;
 	};
