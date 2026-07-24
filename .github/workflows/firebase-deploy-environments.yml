@@ -156,6 +156,17 @@ jobs:
         if: steps.deploy-targets.outputs.has_targets == 'true' && contains(steps.deploy-targets.outputs.targets, 'functions')
         run: yarn --cwd functions build
 
+      - name: Use Java for Firebase emulators
+        if: steps.deploy-targets.outputs.has_targets == 'true' && contains(steps.deploy-targets.outputs.targets, 'functions')
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Entitlement grant issuance tests
+        if: steps.deploy-targets.outputs.has_targets == 'true' && contains(steps.deploy-targets.outputs.targets, 'functions')
+        run: node ./functions/node_modules/firebase-tools/lib/bin/firebase.js emulators:exec --only firestore "node scripts/testEntitlementGrantIssuance.cjs"
+
       - name: Authenticate to Google Cloud
         if: steps.deploy-targets.outputs.has_targets == 'true'
         uses: google-github-actions/auth@v3
