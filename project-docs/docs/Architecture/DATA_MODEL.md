@@ -244,10 +244,70 @@ Typical fields:
 * updatedAt
 * subscriptionStatus
 * subscriptionPlan
+* entitlementPrograms
+* effectiveEntitlementProjection
 
 Purpose:
 
 Defines ownership boundaries for all account-scoped resources.
+
+### entitlementGrants subcollection
+
+Reserved path:
+
+```text
+familyAccounts/{accountId}/entitlementGrants/{grantId}
+```
+
+The shared contract supports temporary and permanent grants with stable grant
+and program IDs, lifecycle state, versioned bundle or capability overrides,
+authoritative timestamps, source, idempotency, beneficiary, and audit metadata.
+Grants belong to the family account and are additive.
+
+This collection is server-written and client-inaccessible. The first persisted
+program is `homeowner_plus_first_property_trial_v1`. Eligible new Free owner
+accounts receive its deterministic temporary grant only after the first
+property commit. The account stores a constrained, server-written
+`effectiveEntitlementProjection` for client capability resolution; that
+projection is derived and never becomes independent authority.
+
+Trial eligibility is stored under `entitlementPrograms` when the family account
+is first created. Issuance records the program as consumed, so trigger retries,
+duplicate property events, profile recreation, and later property creation
+cannot restart the program.
+
+Approved admin-grant programs use the same generic documents. Create, extend,
+and revoke operations are server-only, request-idempotent, and rebuild the
+derived account projection in the same transaction. The admin interface does
+not accept arbitrary bundles or program IDs. Current program IDs cover support,
+beta, legacy-outreach, and Maintley-owner-only lifetime Homeowner+ access.
+Permanent lifetime access is not a Stripe subscription and does not establish a
+billing relationship.
+
+Grant decisions are recorded separately in `admin_audit_logs` with actor,
+target account and user, grant and program IDs, request ID, reason,
+before-and-after state, and policy metadata. The audit record is append-only;
+lower-level resolver execution remains in operational logs.
+
+### accessLifecycleDeliveries subcollection
+
+Reserved path:
+
+```text
+familyAccounts/{accountId}/accessLifecycleDeliveries/{deliveryId}
+```
+
+Stores server-written operational evidence for access lifecycle messages. The
+deterministic delivery ID includes program, grant, milestone, and template
+version. Typical fields include `accountId`, `grantId`, `programId`,
+`milestone`, `templateVersion`, `targetAtMs`, `status`, `outcome`, `attempts`,
+lease timestamps, recipient, provider message ID, rendered time zone, and
+terminal timestamps.
+
+This is not customer activity history and is not the immutable administrative
+decision audit. Clients cannot read or write these records. Admin
+troubleshooting may expose a minimized delivery timeline through a trusted
+callable without exposing message content.
 
 ---
 

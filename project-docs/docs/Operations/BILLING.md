@@ -38,8 +38,10 @@ Those definitions belong in MAINTLEY_PLAN_FEATURE_MATRIX.md.
 
 Source files:
 
+* packages/entitlements
 * src/constants/subscriptions.ts
 * src/utils/subscriptionUtils.ts
+* functions/subscriptionEntitlements.ts
 * functions/stripeFunctions.ts
 * src/services/stripeService.ts
 
@@ -49,6 +51,7 @@ Current plans:
 | -------------- | -------------------------------- |
 | homeowner      | Free homeowner plan              |
 | homeowner_plus | Paid homeowner plan              |
+| multi_homeowner | Five-home homeowner plan (launch-gated) |
 | property       | Small portfolio plan             |
 | portfolio      | Advanced portfolio and team plan |
 
@@ -60,6 +63,65 @@ Special non-subscription access types:
 Detailed plan limits and capabilities are defined in:
 
 MAINTLEY_PLAN_FEATURE_MATRIX.md
+
+## Entitlement foundation
+
+The web application and Firebase Functions now share the pure resolver in
+`packages/entitlements`. Client and server feature helpers resolve typed
+capabilities and limits from that package. Compatibility wrappers preserve
+existing subscription records. Internal grant issuance remains independently
+launch-gated.
+
+Compatibility mode preserves existing paid-plan records while synthetic Stripe
+access is reviewed manually. Strict mode requires Stripe confirmation before a
+paid plan supplies paid access. Pending Checkout never supplies paid access.
+Unknown entitlement values emit structured default-deny diagnostics from the
+Functions boundary. Setting `ENTITLEMENT_COMPARE_MODE=true` emits structured
+stored-plan versus resolved-plan comparison events during a controlled rollout;
+it does not change the access result.
+
+The package defines temporary and permanent grant, billing-transition,
+administrative-audit, and rollout-flag contracts. The Homeowner+ first-property
+trial is the first persisted generic grant workflow. It remains disabled unless
+both `ENABLE_HOMEOWNER_PLUS_PRODUCT_TRIAL` and
+`ENABLE_INTERNAL_ENTITLEMENT_GRANT_ISSUANCE` are true and
+`HOMEOWNER_PLUS_TRIAL_ELIGIBILITY_START_AT` is a valid launch boundary. Existing
+grants continue resolving when issuance is disabled. No internal trial creates
+a Stripe customer, subscription, payment method, schedule, or automatic charge.
+
+Lifecycle email and in-app delivery has its own server flag,
+`ENABLE_ACCESS_LIFECYCLE_COMMUNICATION`. Enabling grant issuance does not enable
+messages automatically, and disabling messages does not revoke a grant. The
+current internal trial always states that no payment method is connected and
+that paid continuation requires intentional Checkout. Internal delivery data
+cannot initiate billing; Stripe remains the only authority for whether a charge
+can occur.
+
+The admin customer view separates **Stripe Billing**, **Internal Access
+Grants**, and **Resolved Product Access**. Paid plan changes update an existing
+Stripe subscription first. When no Stripe subscription exists, choosing a paid
+plan creates a Checkout link and does not grant paid access until Stripe
+confirms the subscription. "Stripe trial days" can extend only an existing
+trialing Stripe subscription. Complimentary access without billing belongs in
+the separately authorized and audited internal-grant workflow; it must never be
+represented by a local paid-plan or trial edit.
+
+The web equivalents are `REACT_APP_ENABLE_HOMEOWNER_PLUS_PRODUCT_TRIAL` and
+`REACT_APP_ENABLE_INTERNAL_ENTITLEMENT_GRANT_ISSUANCE`; these describe rollout
+state but do not revoke an already-issued grant.
+
+Clients cannot create a user with a paid base plan or rewrite authoritative
+subscription fields after signup. Firestore permits only non-billable initial
+plans and narrowly scoped pending-checkout or promo-code changes. Stripe
+Functions, webhooks, and approved admin operations remain responsible for paid
+plan, billing status, period, customer, and subscription identifiers.
+
+Multi-Homeowner is also disabled by default during its staged rollout. The web
+uses `REACT_APP_ENABLE_MULTI_HOMEOWNER_PLAN`; Functions use
+`ENABLE_MULTI_HOMEOWNER_PLAN`. When disabled, public pricing, registration,
+checkout, and admin selection omit or reject the plan. Its canonical Stripe
+prices remain server-owned and map to `multi_homeowner` only when the launch
+flag is enabled.
 
 ---
 
@@ -132,6 +194,13 @@ Expected flow:
 6. Maintley verifies that the Checkout session belongs to the signed-in user.
 7. Firestore user and family-account subscription records are synchronized.
 8. Maintley reloads the authoritative user profile and then opens the dashboard.
+
+Current clients submit a stable paid plan ID and `month` or `year` billing
+cycle. The Function selects the Stripe price from server-owned configuration;
+a client-provided price ID is not normal checkout authority. The temporary
+price-only compatibility path accepts only prices already present in that
+server catalog, emits a structured warning when used, and is scheduled for
+removal in release `2.10.0`.
 
 Checkout launch has a 30-second request timeout. A timeout or launch failure
 must replace the loading screen with actions to retry secure checkout or
@@ -216,19 +285,10 @@ Cancellation should:
 
 ## Admin Support Adjustments
 
-The admin portal includes support-only subscription actions for troubleshooting
-and account repair:
-
-* Apply billing updates for plan, trial, and coupon changes in one action.
-* Mark subscription cancelled as a separate destructive action.
-
-By default, plan and trial updates write Maintley's user subscription record and
-write one `admin_audit_logs` entry without contacting Stripe.
-
-Support staff may choose **Update Stripe subscription first** when the user
-record already has a Stripe subscription ID. In that mode, the admin action
-updates Stripe first and then syncs Maintley's subscription record from the
-Stripe result.
+The admin portal separates paid subscription repair from complimentary access.
+Stripe Billing actions operate on a real Stripe relationship. Internal Access
+Grant actions use Maintley's generic grant model and never create or modify a
+Stripe customer, subscription, invoice, payment method, or scheduled charge.
 
 Current Stripe-backed support behavior:
 
@@ -241,9 +301,16 @@ Current Stripe-backed support behavior:
   address in Stripe.
 * Cancellations set the existing Stripe subscription to cancel at period end.
 
-If the user record does not have a Stripe subscription ID, plan and trial support
-actions remain Maintley-only. Coupon codes create a Stripe Checkout link for a
-paid plan instead of manually discounting the user in Firestore.
+If the user does not have a Stripe subscription, selecting a paid plan creates
+Checkout rather than writing a local paid plan. Complimentary support, beta,
+legacy, or lifetime access must use the separately authorized Internal Access
+Grant workflow. Lifetime grants are restricted to Maintley's `owner` role.
+
+Grant changes require a preview of current and proposed access, an audit reason,
+a stable request ID, and typed confirmation. Non-owner grant managers cannot
+target their own user or account. `maintley_role: owner` is the only self-grant
+exception and refers exclusively to the owner of Maintley, never a customer
+property owner.
 
 Refresh from Stripe is the preferred support repair when Stripe already has an
 active subscription but Firebase does not show the customer as subscribed. The
@@ -300,6 +367,8 @@ Exported functions:
 * adminPortalCreateBillingCoupon
 * adminPortalListBillingCoupons
 * adminPortalCreateCheckoutLinkWithCoupon
+* adminPortalPreviewEntitlementGrant
+* adminPortalMutateEntitlementGrant
 
 Stripe webhook processing lives in:
 
@@ -334,16 +403,23 @@ Examples:
 * getRemainingDeviceSlots
 * getEffectiveSubscriptionPlanId
 
+`getEffectiveSubscriptionPlanId` delegates to the shared resolver in
+compatibility mode. Feature decisions use typed capability helpers and numeric
+limits use the shared plan presets.
+
 ---
 
 ## Firestore Rules
 
 Examples:
 
-* maxPropertiesForPlan
-* maxDevicesForPlan
+* planLimit mirror
+* planHasCapability mirror
 * property counter validation
 * device counter validation
+
+Firestore Rules cannot import the runtime package, so their narrow mirror is
+kept centralized in these two functions and covered by emulator parity tests.
 
 ---
 

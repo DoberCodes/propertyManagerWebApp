@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import {
 	beginAuthTransition,
 	setCurrentUser,
+	updateEntitlementProjection,
 	setAuthLoading,
 } from './Redux/Slices/userSlice';
 import type { AppDispatch, RootState } from './Redux/store/store';
@@ -18,6 +19,9 @@ import { canUseNotifications } from './utils/subscriptionUtils';
 import { COLORS } from './constants/colors';
 import { SplashScreen } from './Components/Library/SplashScreen';
 import { clearAccountScopedClientState } from './Redux/utils/clearAccountScopedClientState';
+import { doc, onSnapshot } from 'firebase/firestore';
+import { db } from './config/firebase';
+import type { User } from './Redux/Slices/userSlice';
 
 const UpdateNotification = React.lazy(
 	() => import('./Components/Library/UpdateNotification/UpdateNotification'),
@@ -101,6 +105,32 @@ export const App = () => {
 	useEffect(() => {
 		currentUserIdRef.current = currentUser?.id || null;
 	}, [currentUser?.id]);
+
+	useEffect(() => {
+		if (!currentUser?.id) return undefined;
+		const accountId =
+			String(currentUser.accountId || '').trim() || currentUser.id;
+
+		return onSnapshot(
+			doc(db, 'familyAccounts', accountId),
+			(snapshot) => {
+				const rawProjection = snapshot.data()?.effectiveEntitlementProjection;
+				const projection = rawProjection
+					? ({
+							...rawProjection,
+							calculatedAt:
+								typeof rawProjection.calculatedAt?.toDate === 'function'
+									? rawProjection.calculatedAt.toDate().toISOString()
+									: rawProjection.calculatedAt,
+					  } as User['effectiveEntitlementProjection'])
+					: null;
+				dispatch(updateEntitlementProjection({ accountId, projection }));
+			},
+			(error) => {
+				console.warn('Account access updates could not be loaded:', error);
+			},
+		);
+	}, [currentUser?.accountId, currentUser?.id, dispatch]);
 
 	// Register push notifications on native app startup
 	useEffect(() => {

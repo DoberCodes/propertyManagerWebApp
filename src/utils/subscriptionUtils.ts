@@ -5,6 +5,19 @@ import {
 	SUBSCRIPTION_STATUS,
 	SubscriptionStatus,
 } from '../constants/subscriptions';
+import {
+	CapabilityId,
+	EntitlementGrant,
+	getEntitlementLimit,
+	getPlanPreset,
+	hasCapability,
+	LimitId,
+	normalizePlanId,
+	resolveAccountEntitlements,
+} from '@maintley/entitlements';
+import { ENTITLEMENT_FEATURE_FLAGS } from '../entitlements/featureFlags';
+
+export { ENTITLEMENT_FEATURE_FLAGS } from '../entitlements/featureFlags';
 
 export interface SubscriptionData {
 	status: SubscriptionStatus;
@@ -20,54 +33,48 @@ export interface SubscriptionData {
 	scheduledPlan?: string;
 	pendingCheckoutPlan?: string;
 	pendingCheckoutStartedAt?: number;
+	entitlementAccountId?: string;
+	entitlementGrants?: EntitlementGrant[];
 }
 
-const CURRENT_PLAN_IDS = new Set([
-	'homeowner',
-	'homeowner_plus',
-	'property',
-	'portfolio',
-	'guest',
-	'team',
-	'tenant',
-]);
-const PAID_PLAN_IDS = new Set(['homeowner_plus', 'property', 'portfolio']);
 const UNLIMITED_DEVICE_LIMIT_SENTINEL = 999;
 const UNLIMITED_FEATURE_LIMIT_SENTINEL = 999;
 
-const resolvePlanId = (planId: string): string => {
-	const normalizedPlanId = String(planId || '').trim().toLowerCase();
-	return CURRENT_PLAN_IDS.has(normalizedPlanId) ? normalizedPlanId : 'homeowner';
-};
+const resolvePlanId = (planId: string): string => normalizePlanId(planId);
 
 const getPlanById = (planId: string) => {
 	const normalizedPlanId = resolvePlanId(planId);
 	return Object.values(SUBSCRIPTION_PLANS).find((p) => p.id === normalizedPlanId);
 };
 
-const hasCurrentEntitlement = (
-	subscription?: Pick<SubscriptionData, 'status' | 'trialEndsAt'> | null,
-): boolean => {
-	if (!subscription?.status) return true;
-	if (subscription.status === SUBSCRIPTION_STATUS.ACTIVE) return true;
-	if (subscription.status !== SUBSCRIPTION_STATUS.TRIAL) return false;
-	if (!subscription.trialEndsAt) return true;
-	const now = Math.floor(Date.now() / 1000);
-	return now < subscription.trialEndsAt;
+const resolveSubscriptionEntitlements = (
+	subscription?: Parameters<typeof getEffectiveSubscriptionPlanId>[0],
+) => {
+	const grants = Array.isArray(subscription?.entitlementGrants)
+		? (subscription.entitlementGrants as EntitlementGrant[])
+		: [];
+	const accountId =
+		String(subscription?.entitlementAccountId || '').trim() ||
+		String(grants[0]?.accountId || '').trim();
+
+	return resolveAccountEntitlements({
+		subscription,
+		accountId,
+		grants,
+		fallbackPlanId: 'homeowner',
+		mode: 'compatibility',
+		allowLegacyPlanWithoutStatus: true,
+		featureFlags: ENTITLEMENT_FEATURE_FLAGS,
+	});
 };
 
-const hasUnconfirmedPaidCheckout = (
-	subscription?: Pick<
-		SubscriptionData,
-		'pendingCheckoutPlan' | 'stripeSubscriptionId'
-	> | null,
-): boolean => {
-	const pendingPlan = resolvePlanId(subscription?.pendingCheckoutPlan || '');
-	return PAID_PLAN_IDS.has(pendingPlan) && !subscription?.stripeSubscriptionId;
-};
+const subscriptionHasCapability = (
+	subscription: Parameters<typeof getEffectiveSubscriptionPlanId>[0],
+	capabilityId: CapabilityId,
+): boolean => hasCapability(resolveSubscriptionEntitlements(subscription), capabilityId);
 
-const getEffectivePlan = (subscription: SubscriptionData) =>
-	getPlanById(getEffectiveSubscriptionPlanId(subscription));
+const getPlanLimit = (planId: string, limitId: LimitId): number =>
+	getEntitlementLimit(getPlanPreset(planId), limitId);
 
 export const getEffectiveSubscriptionPlanId = (
 	subscription?: Pick<
@@ -79,19 +86,87 @@ export const getEffectiveSubscriptionPlanId = (
 		| 'scheduledPlan'
 		| 'pendingCheckoutPlan'
 		| 'stripeSubscriptionId'
+		| 'entitlementAccountId'
+		| 'entitlementGrants'
 	> | null,
 	fallbackPlanId = 'homeowner',
 ): string => {
-	if (!hasCurrentEntitlement(subscription)) {
-		return resolvePlanId(fallbackPlanId);
-	}
+	return resolveAccountEntitlements({
+		subscription,
+		accountId: String(subscription?.entitlementAccountId || '').trim(),
+		grants: subscription?.entitlementGrants || [],
+		fallbackPlanId,
+		mode: 'compatibility',
+		allowLegacyPlanWithoutStatus: true,
+		featureFlags: ENTITLEMENT_FEATURE_FLAGS,
+	}).basePlanId;
+};
 
-	if (hasUnconfirmedPaidCheckout(subscription)) {
-		return resolvePlanId(fallbackPlanId);
-	}
+export const getEffectiveAccessPlanId = (
+	subscription?: Parameters<typeof getEffectiveSubscriptionPlanId>[0],
+): string => {
+	const result = resolveSubscriptionEntitlements(subscription);
+	const candidates = [
+		result.basePlanId,
+		...result.appliedBundleIds.map((value) => String(value).split('@')[0]),
+	];
+	const rank: Record<string, number> = {
+		guest: 0,
+		team: 0,
+		tenant: 0,
+		homeowner: 1,
+		homeowner_plus: 2,
+		multi_homeowner: 3,
+		property: 4,
+		portfolio: 5,
+	};
+	return candidates.reduce((best, candidate) =>
+		(rank[candidate] || 0) > (rank[best] || 0) ? candidate : best,
+	result.basePlanId);
+};
 
-	const planId = String(subscription?.plan || fallbackPlanId).trim();
-	return resolvePlanId(planId || fallbackPlanId);
+export type HomeownerPlusTrialSummary = {
+	grantId: string;
+	programId: string;
+	startsAtMs: number;
+	endsAtMs: number;
+	daysRemaining: number;
+};
+
+export const getActiveHomeownerPlusTrial = (
+	subscription?: Pick<
+		SubscriptionData,
+		'entitlementGrants'
+	> | null,
+	nowMs = Date.now(),
+): HomeownerPlusTrialSummary | null => {
+	const grant = subscription?.entitlementGrants?.find((candidate) => {
+		const startsAtMs = Number(candidate.startsAtMs);
+		const endsAtMs = Number(candidate.endsAtMs);
+		return (
+			candidate.programId === 'homeowner_plus_first_property_trial_v1' &&
+			candidate.state === 'active' &&
+			candidate.bundleId === 'homeowner_plus' &&
+			Number.isFinite(startsAtMs) &&
+			startsAtMs <= nowMs &&
+			Number.isFinite(endsAtMs) &&
+			endsAtMs > nowMs
+		);
+	});
+
+	if (!grant) return null;
+	const startsAtMs = Number(grant.startsAtMs);
+	const endsAtMs = Number(grant.endsAtMs);
+	return {
+		grantId: grant.grantId,
+		programId: grant.programId,
+		startsAtMs,
+		endsAtMs,
+		daysRemaining: Math.max(
+			1,
+			Math.ceil((endsAtMs - nowMs) / (24 * 60 * 60 * 1000)),
+		),
+	};
 };
 
 export const isUnlimitedDeviceLimit = (maxDevices?: number): boolean =>
@@ -217,27 +292,23 @@ export const createTrialSubscription = (
  * Get the maximum number of properties allowed for a subscription plan
  */
 export const getMaxPropertiesForPlan = (planId: string): number => {
-	const plan = getPlanById(planId);
-	return plan?.maxProperties ?? 1; // Default to Homeowner if plan not found
+	return getPlanLimit(planId, 'properties');
 };
 
 /**
  * Get the maximum number of devices allowed for a subscription plan
  */
 export const getMaxDevicesForPlan = (planId: string): number => {
-	const plan = getPlanById(planId);
-	const maxDevices = plan?.maxDevices ?? 15; // Default to Homeowner if plan not found
+	const maxDevices = getPlanLimit(planId, 'devices');
 	return isUnlimitedDeviceLimit(maxDevices) ? Number.POSITIVE_INFINITY : maxDevices;
 };
 
 export const getMaxFilesForPlan = (planId: string): number => {
-	const plan = getPlanById(planId);
-	return Number(plan?.maxFiles ?? 0);
+	return getPlanLimit(planId, 'files');
 };
 
 export const getMaxStorageGbForPlan = (planId: string): number => {
-	const plan = getPlanById(planId);
-	return Number(plan?.maxStorageGb ?? 0);
+	return getPlanLimit(planId, 'storage_gb');
 };
 
 export const canUseTaskReminderEmails = (
@@ -252,8 +323,7 @@ export const canUseTaskReminderEmails = (
 		| 'stripeSubscriptionId'
 	> | null,
 ): boolean => {
-	const effectivePlan = getEffectiveSubscriptionPlanId(subscription, 'homeowner');
-	return ['homeowner_plus', 'property', 'portfolio'].includes(effectivePlan);
+	return subscriptionHasCapability(subscription, 'notifications.use');
 };
 
 export const canUsePropertyInsights = (
@@ -268,8 +338,7 @@ export const canUsePropertyInsights = (
 		| 'stripeSubscriptionId'
 	> | null,
 ): boolean => {
-	const effectivePlan = getEffectiveSubscriptionPlanId(subscription, 'homeowner');
-	return ['homeowner_plus', 'property', 'portfolio'].includes(effectivePlan);
+	return subscriptionHasCapability(subscription, 'property_intelligence.use');
 };
 
 export const canUsePropertyKnowledgeAcquisition = (
@@ -284,8 +353,7 @@ export const canUsePropertyKnowledgeAcquisition = (
 		| 'stripeSubscriptionId'
 	> | null,
 ): boolean => {
-	const effectivePlan = getEffectiveSubscriptionPlanId(subscription, 'homeowner');
-	return ['homeowner_plus', 'property', 'portfolio'].includes(effectivePlan);
+	return subscriptionHasCapability(subscription, 'property_knowledge.acquire');
 };
 
 /**
@@ -377,8 +445,7 @@ export const canManageTeam = (subscription: SubscriptionData): boolean => {
 		return false;
 	}
 
-	const plan = getEffectivePlan(subscription);
-	return plan?.permissions.canManageTeam || false;
+	return subscriptionHasCapability(subscription, 'team.manage');
 };
 
 /**
@@ -389,6 +456,14 @@ export const canUseSimpleTeamManagement = (
 	subscription: SubscriptionData,
 ): boolean => canManageTeam(subscription);
 
+export const canManageProperties = (subscription: SubscriptionData): boolean => {
+	if (!isSubscriptionActive(subscription)) {
+		return false;
+	}
+
+	return subscriptionHasCapability(subscription, 'properties.manage');
+};
+
 export const canUseAdvancedTeamManagement = (
 	subscription: SubscriptionData,
 ): boolean => {
@@ -396,7 +471,7 @@ export const canUseAdvancedTeamManagement = (
 		return false;
 	}
 
-	return getEffectiveSubscriptionPlanId(subscription) === 'portfolio';
+	return subscriptionHasCapability(subscription, 'team.advanced');
 };
 
 /**
@@ -407,8 +482,7 @@ export const canManageTenants = (subscription: SubscriptionData): boolean => {
 		return false;
 	}
 
-	const plan = getEffectivePlan(subscription);
-	return plan?.permissions.canManageTenants || false;
+	return subscriptionHasCapability(subscription, 'residents.manage');
 };
 
 /**
@@ -419,8 +493,7 @@ export const canViewReports = (subscription: SubscriptionData): boolean => {
 		return false;
 	}
 
-	const plan = getEffectivePlan(subscription);
-	return plan?.permissions.canViewReports || false;
+	return subscriptionHasCapability(subscription, 'reports.view');
 };
 
 export const canAccessReportBuilder = (
@@ -430,8 +503,7 @@ export const canAccessReportBuilder = (
 		return false;
 	}
 
-	const plan = getEffectivePlan(subscription);
-	return plan?.permissions.canViewReports || false;
+	return subscriptionHasCapability(subscription, 'reports.view');
 };
 
 /**
@@ -442,8 +514,7 @@ export const canExportData = (subscription: SubscriptionData): boolean => {
 		return false;
 	}
 
-	const plan = getEffectivePlan(subscription);
-	return plan?.permissions.canExportData || false;
+	return subscriptionHasCapability(subscription, 'data.export');
 };
 
 export const canExportReports = (subscription: SubscriptionData): boolean => {
@@ -451,8 +522,7 @@ export const canExportReports = (subscription: SubscriptionData): boolean => {
 		return false;
 	}
 
-	const plan = getEffectivePlan(subscription);
-	return plan?.permissions.canExportData || false;
+	return subscriptionHasCapability(subscription, 'data.export');
 };
 
 /**
@@ -463,8 +533,7 @@ export const hasPrioritySupport = (subscription: SubscriptionData): boolean => {
 		return false;
 	}
 
-	const plan = getEffectivePlan(subscription);
-	return plan?.permissions.prioritySupport || false;
+	return subscriptionHasCapability(subscription, 'support.priority');
 };
 
 /**
@@ -477,8 +546,7 @@ export const canSubmitMaintenanceRequests = (
 		return false;
 	}
 
-	const plan = getEffectivePlan(subscription);
-	return plan?.permissions.canSubmitMaintenanceRequests || false;
+	return subscriptionHasCapability(subscription, 'maintenance_requests.submit');
 };
 
 /**
@@ -489,8 +557,7 @@ export const canViewTenantInfo = (subscription: SubscriptionData): boolean => {
 		return false;
 	}
 
-	const plan = getEffectivePlan(subscription);
-	return plan?.permissions.canViewTenantInfo || false;
+	return subscriptionHasCapability(subscription, 'residents.view');
 };
 
 /**
@@ -501,8 +568,7 @@ export const canLinkParts = (subscription: SubscriptionData): boolean => {
 		return false;
 	}
 
-	const plan = getEffectivePlan(subscription);
-	return plan?.permissions.canLinkParts || false;
+	return subscriptionHasCapability(subscription, 'parts.link');
 };
 
 /**
@@ -513,8 +579,7 @@ export const canTrackWarranties = (subscription: SubscriptionData): boolean => {
 		return false;
 	}
 
-	const plan = getEffectivePlan(subscription);
-	return plan?.permissions.canTrackWarranties || false;
+	return subscriptionHasCapability(subscription, 'warranties.track');
 };
 
 /**
@@ -528,8 +593,10 @@ export const getSuggestedMaintenancePackageLimit = (
 		return 0;
 	}
 
-	const plan = getPlanById(getEffectiveSubscriptionPlanId(subscription));
-	const limit = Number(plan?.permissions.suggestedMaintenancePackageLimit || 0);
+	const limit = getEntitlementLimit(
+		resolveSubscriptionEntitlements(subscription),
+		'suggested_maintenance_packages',
+	);
 	return isUnlimitedFeatureLimit(limit) ? Number.POSITIVE_INFINITY : limit;
 };
 
@@ -551,8 +618,7 @@ export const canUseSuggestedMaintenancePackages = (
 		return false;
 	}
 
-	const plan = getPlanById(getEffectiveSubscriptionPlanId(subscription));
-	return Boolean(plan?.permissions.canUseSuggestedMaintenancePackages);
+	return subscriptionHasCapability(subscription, 'maintenance_packages.suggested');
 };
 
 export const canUseRecurringTasks = (subscription: SubscriptionData): boolean => {
@@ -560,8 +626,7 @@ export const canUseRecurringTasks = (subscription: SubscriptionData): boolean =>
 		return false;
 	}
 
-	const plan = getPlanById(getEffectiveSubscriptionPlanId(subscription));
-	return Boolean(plan?.permissions.canUseRecurringTasks);
+	return subscriptionHasCapability(subscription, 'recurring_tasks.use');
 };
 
 export const canUseNotifications = (subscription: SubscriptionData): boolean => {
@@ -569,8 +634,7 @@ export const canUseNotifications = (subscription: SubscriptionData): boolean => 
 		return false;
 	}
 
-	const plan = getPlanById(getEffectiveSubscriptionPlanId(subscription));
-	return Boolean(plan?.permissions.canUseNotifications);
+	return subscriptionHasCapability(subscription, 'notifications.use');
 };
 
 /**
@@ -581,8 +645,7 @@ export const canAdvancedAuditTrail = (subscription: SubscriptionData): boolean =
 		return false;
 	}
 
-	const plan = getEffectivePlan(subscription);
-	return plan?.permissions.canAdvancedAuditTrail || false;
+	return subscriptionHasCapability(subscription, 'audit.advanced');
 };
 
 /**
@@ -593,8 +656,7 @@ export const canManageMultiUnit = (subscription: SubscriptionData): boolean => {
 		return false;
 	}
 
-	const plan = getEffectivePlan(subscription);
-	return plan?.permissions.canManageMultiUnit || false;
+	return subscriptionHasCapability(subscription, 'multi_unit.manage');
 };
 
 /**
@@ -605,8 +667,7 @@ export const canPortfolioReporting = (subscription: SubscriptionData): boolean =
 		return false;
 	}
 
-	const plan = getEffectivePlan(subscription);
-	return plan?.permissions.canPortfolioReporting || false;
+	return subscriptionHasCapability(subscription, 'portfolio.reporting');
 };
 
 /**
@@ -617,8 +678,7 @@ export const canAdvancedAnalytics = (subscription: SubscriptionData): boolean =>
 		return false;
 	}
 
-	const plan = getEffectivePlan(subscription);
-	return plan?.permissions.canAdvancedAnalytics || false;
+	return subscriptionHasCapability(subscription, 'analytics.advanced');
 };
 
 /**
@@ -629,8 +689,7 @@ export const canPropertyGroups = (subscription: SubscriptionData): boolean => {
 		return false;
 	}
 
-	const plan = getEffectivePlan(subscription);
-	return plan?.permissions.canPropertyGroups || false;
+	return subscriptionHasCapability(subscription, 'property_groups.manage');
 };
 
 /**

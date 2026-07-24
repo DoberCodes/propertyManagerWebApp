@@ -8,8 +8,7 @@ import {
 } from './emailService';
 import { getTaskDisplayStatus } from './taskDisplayStatus';
 import {
-	getEffectiveSubscriptionPlanId,
-	isSubscriptionCurrentlyEntitled,
+	hasAccountCapability,
 } from './subscriptionEntitlements';
 
 const RESEND_API_KEY = defineSecret(
@@ -118,18 +117,6 @@ const COMPLETED_EVENT_TYPES = new Set([
 	'inspection_completed',
 	'recurring_maintenance_completed',
 ]);
-
-const TEAM_REPORT_PLANS = new Set(['property', 'portfolio']);
-
-const canUseTeamReports = (user: OwnerUser): boolean => {
-	const subscription = user.subscription;
-	if (!isSubscriptionCurrentlyEntitled(subscription)) {
-		return false;
-	}
-
-	const plan = getEffectiveSubscriptionPlanId(subscription, 'homeowner');
-	return TEAM_REPORT_PLANS.has(plan);
-};
 
 const getAccountId = (userId: string, user: OwnerUser): string =>
 	String(user.accountId || '').trim() || userId;
@@ -416,12 +403,12 @@ const getTeamReportHtml = ({
 			  : 'Weekly';
 
 	return `
-		<div style="margin:0; padding:0; background:#edf7ef; font-family:Arial,sans-serif; color:#10251a;">
-			<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#edf7ef; padding:34px 14px;">
+		<div style="margin:0; padding:0; background:#FAFAF8; font-family:Manrope,-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif; color:#1F2937;">
+			<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#FAFAF8; padding:34px 14px;">
 				<tr><td align="center">
 					<table role="presentation" width="640" cellpadding="0" cellspacing="0" style="max-width:640px; width:100%; background:#ffffff; border-radius:20px; overflow:hidden; border:1px solid #cfe8d4;">
 						<tr>
-							<td style="background:#16a34a; color:#ffffff; padding:28px 32px;">
+							<td style="background:#047857; color:#FFFFFF; padding:28px 32px;">
 								<div style="font-size:13px; text-transform:uppercase; letter-spacing:0.08em; font-weight:800;">Maintley</div>
 								<h1 style="margin:10px 0 0 0; font-size:27px; line-height:1.2;">Team Task Update</h1>
 								<p style="margin:10px 0 0 0; font-size:15px; line-height:1.6; color:#eaf8ee;">${escapeHtml(frequencyLabel)} maintenance task update.</p>
@@ -445,7 +432,7 @@ const getTeamReportHtml = ({
 								${renderRows(overdueTasks, propertyById, 'No overdue tasks are currently recorded.', (task) => task.dueDate)}
 							</div>
 
-							<a href="${escapeHtml(dashboardUrl)}" style="display:inline-block; background:#16a34a; color:#ffffff; text-decoration:none; padding:13px 20px; border-radius:12px; font-size:14px; font-weight:900;">Open Maintley</a>
+							<a href="${escapeHtml(dashboardUrl)}" style="display:inline-block; background:#047857; color:#FFFFFF; text-decoration:none; padding:13px 20px; border-radius:12px; font-size:14px; font-weight:900;">Open Maintley</a>
 						</td></tr>
 						<tr><td style="padding:18px 32px; border-top:1px solid #e5efe7; font-size:12px; line-height:1.6; color:#667085;">This report is controlled by the account owner in Maintley email preferences.</td></tr>
 					</table>
@@ -468,7 +455,13 @@ const sendTeamReportForOwner = async (
 
 	const accountId = getAccountId(userId, user);
 	const isAccountOwner = user.isTeamMemberAccount !== true && accountId === userId;
-	if (!isAccountOwner || !canUseTeamReports(user)) {
+	const canUseTeamReports = await hasAccountCapability(
+		accountId,
+		user.subscription,
+		'team.manage',
+		now.getTime(),
+	);
+	if (!isAccountOwner || !canUseTeamReports) {
 		return [{ sent: false, skipped: true, reason: 'not_allowed' }];
 	}
 

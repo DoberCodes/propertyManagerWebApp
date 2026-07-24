@@ -84,6 +84,17 @@ Examples:
 
 Unit tests should be fast and focused.
 
+Entitlement administration policy is validated with:
+
+```bash
+npm run test:admin-grant-policy
+```
+
+The policy test distinguishes Maintley owner from customer ownership, verifies
+the explicit grant-management permission, denies non-owner grants to the
+actor's own user or account, and preserves the Maintley-owner self-grant
+exception.
+
 ---
 
 ## Integration Tests
@@ -374,6 +385,18 @@ Maintley Event Engine validation:
 yarn test:notifications
 ```
 
+Email brand and access-lifecycle template validation:
+
+```bash
+yarn test:email-templates
+```
+
+This verifies milestone boundaries, deterministic delivery identity, current
+route generation, recipient escaping, no-surprise billing copy, and removal of
+legacy brand colors from Maintley email sources. Time-controlled integration
+tests are still required before enabling a production cohort to validate
+Firestore retries, suppression, catch-up windows, and provider behavior.
+
 Additional validation:
 
 * Test notification delivery
@@ -433,6 +456,16 @@ Firestore rules:
 yarn test:rules
 ```
 
+Account-grant issuance and server capability resolution:
+
+```bash
+npm run test:entitlement-grants
+```
+
+This emulator test verifies active, expired, and revoked grants, approved-bundle
+boundaries, authoritative family-account billing precedence, idempotent trial
+issuance, and the absence of Stripe identifiers on internal grants.
+
 This runs Firestore Emulator-backed allow/deny assertions. It should be used for
 permission behavior such as account roles, task writes, account memberships,
 support/admin boundaries, notification ownership, and denied access.
@@ -459,6 +492,9 @@ Important:
 
 * Firestore rules are authoritative.
 * Verify Storage testing behavior before assuming deployed Storage security coverage.
+* `npm run build` also rejects new Firebase Functions feature checks that use
+  subscription-only capability resolution outside the approved resolver
+  boundary.
 
 ---
 

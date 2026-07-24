@@ -47,7 +47,12 @@ jobs:
           REACT_APP_ENABLE_ANALYTICS: ${{ secrets.PROD_REACT_APP_ENABLE_ANALYTICS }}
           REACT_APP_FIREBASE_WEB_PUSH_VAPID_KEY: ${{ secrets.PROD_REACT_APP_FIREBASE_WEB_PUSH_VAPID_KEY }}
           REACT_APP_STRIPE_PUBLIC_KEY: ${{ secrets.PROD_REACT_APP_STRIPE_PUBLIC_KEY }}
-        run: yarn build
+          REACT_APP_ENABLE_MULTI_HOMEOWNER_PLAN: ${{ vars.ENABLE_MULTI_HOMEOWNER_PLAN || 'false' }}
+          REACT_APP_ENABLE_HOMEOWNER_PLUS_PRODUCT_TRIAL: ${{ vars.ENABLE_HOMEOWNER_PLUS_PRODUCT_TRIAL || 'false' }}
+          REACT_APP_ENABLE_INTERNAL_ENTITLEMENT_GRANT_ISSUANCE: ${{ vars.ENABLE_INTERNAL_ENTITLEMENT_GRANT_ISSUANCE || 'false' }}
+        run: |
+          yarn sync:public-pricing
+          yarn build
 
       - name: Check asset budgets
         run: yarn check:asset-budgets

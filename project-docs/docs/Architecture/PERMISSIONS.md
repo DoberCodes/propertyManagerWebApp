@@ -186,6 +186,13 @@ Never the UI.
 
 The `/admin` route is an app-admin workflow and is separate from normal Maintley user authentication.
 
+`maintley_role` is a platform-employment authority field. The `owner` value
+means owner of Maintley itself; it never means homeowner, property owner,
+landlord, family-account owner, or customer account owner. Customer ownership
+continues to use account membership and `isAccountOwner` fields. Clients cannot
+create or modify `maintley_role`; only trusted server or administrative
+operations may assign it.
+
 Rules:
 
 * Standard user login should not grant access to admin inbox workflows.
@@ -195,6 +202,26 @@ Rules:
 * Admin audit log viewing is restricted to top-level Maintley roles and enforced in Cloud Functions.
 
 This keeps admin access isolated from customer account roles and prevents UI-only protection from becoming a security dependency.
+
+## Internal entitlement-grant administration
+
+Internal access grants use a narrower authority than general admin-portal
+access. A Maintley administrator must hold the server-managed
+`entitlement_grants.manage` permission (or its legacy
+`entitlement_grant_manager` role token) before previewing or changing grants.
+
+`maintley_role: owner` is the sole exception. It means the owner of Maintley,
+is unrestricted by the grant-management permission, may use owner-only grant
+programs, and may grant access to the owner's own Maintley account. No customer
+role—including homeowner, property owner, landlord, or account owner—receives
+this exception.
+
+All other Maintley administrators are prohibited from granting access to their
+own identity or family account, including indirectly targeting another user in
+that same account. Grant programs, bundles, kinds, and durations remain
+server-allowlisted for every actor. Every successful mutation requires preview,
+typed confirmation, a reason, and a stable request ID, and is written to the
+immutable admin audit trail.
 
 ---
 
@@ -741,6 +768,41 @@ Update:
 Create/Delete:
 
 * Managed by controlled workflows
+
+### entitlementGrants
+
+Path:
+
+```text
+familyAccounts/{accountId}/entitlementGrants/{grantId}
+```
+
+Read, create, update, delete:
+
+* Cloud Functions and Admin SDK only
+
+Clients cannot read or write authoritative grant records. Effective access is
+resolved by trusted code. Customer-facing access summaries use the constrained
+`familyAccounts.effectiveEntitlementProjection`, which clients may read through
+normal account access but cannot create or modify. Grant issuance, eligibility,
+program consumption, and audit events remain server-only.
+
+### accessLifecycleDeliveries
+
+Path:
+
+```text
+familyAccounts/{accountId}/accessLifecycleDeliveries/{deliveryId}
+```
+
+Read, create, update, delete:
+
+* Cloud Functions and Admin SDK only
+
+The admin customer troubleshooting callable may return a minimized operational
+timeline to authenticated Maintley staff. Direct client access is denied. The
+test-send callable is also restricted by the server-managed `maintley_role` and
+does not write production delivery markers.
 
 ---
 

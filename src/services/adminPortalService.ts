@@ -123,6 +123,59 @@ export type AdminPortalUserTroubleshootingDetails = {
 		recentErrorCount?: number;
 		openTicketCount?: number;
 	};
+	access?: {
+		basePlan: string;
+		effectiveBundles: string[];
+		activeGrantCount: number;
+		grants: Array<{
+			grantId: string;
+			programId: string;
+			state: string;
+			kind: string;
+			bundleId?: string | null;
+			startsAt?: string | null;
+			endsAt?: string | null;
+			source?: string;
+		}>;
+		homeownerPlusTrial?: {
+			state: string;
+			startsAt: string;
+			endsAt: string;
+		} | null;
+		timeline: Array<{
+			id: string;
+			action: string;
+			reason: string;
+			createdAt?: string | null;
+			grantId?: string | null;
+			programId?: string | null;
+		}>;
+		lifecycleDeliveries: Array<{
+			id: string;
+			milestone: string;
+			status: string;
+			outcome: string;
+			templateVersion: string;
+			attempts: number;
+			targetAt?: string | null;
+			sentAt?: string | null;
+			updatedAt?: string | null;
+		}>;
+		grantAdministration: {
+			enabled: boolean;
+			canManage: boolean;
+			isMaintleyOwner: boolean;
+			canSelfGrant: boolean;
+			programs: Array<{
+				programId: string;
+				label: string;
+				allowedKinds: Array<'temporary' | 'permanent'>;
+				defaultDurationDays?: number | null;
+				maxDurationDays?: number | null;
+				ownerOnly: boolean;
+			}>;
+		};
+	};
 	recentSupportRequests: Array<{
 		id: string;
 		ticketNumber?: string | null;
@@ -307,6 +360,83 @@ export const getAdminPortalUserTroubleshootingDetails = async (params: {
 		AdminPortalUserTroubleshootingDetails
 	>('getAdminPortalUserTroubleshootingDetails');
 
+	const result = await callable(params);
+	return result.data;
+};
+
+export type AdminEntitlementGrantAction = 'create' | 'extend' | 'revoke';
+
+export type AdminEntitlementAccessPreview = {
+	billingPlan: string;
+	effectiveBundles: string[];
+	activeGrantIds: string[];
+	propertyLimit: number;
+	fileLimit: number;
+	storageGb: number;
+};
+
+export const adminPortalPreviewEntitlementGrant = async (params: {
+	sessionToken: string;
+	targetUserId: string;
+	action: AdminEntitlementGrantAction;
+	programId?: string;
+	kind?: 'temporary' | 'permanent';
+	durationDays?: number;
+	grantId?: string;
+}): Promise<{
+	action: AdminEntitlementGrantAction;
+	programId: string;
+	programLabel: string;
+	kind: 'temporary' | 'permanent';
+	durationDays: number | null;
+	currentAccess: AdminEntitlementAccessPreview;
+	proposedAccess: AdminEntitlementAccessPreview;
+	confirmationPhrase: string;
+	billingRelationshipCreated: false;
+}> => {
+	const callable = await getAdminCallable<
+		typeof params,
+		{
+			action: AdminEntitlementGrantAction;
+			programId: string;
+			programLabel: string;
+			kind: 'temporary' | 'permanent';
+			durationDays: number | null;
+			currentAccess: AdminEntitlementAccessPreview;
+			proposedAccess: AdminEntitlementAccessPreview;
+			confirmationPhrase: string;
+			billingRelationshipCreated: false;
+		}
+	>('adminPortalPreviewEntitlementGrant');
+	const result = await callable(params);
+	return result.data;
+};
+
+export const adminPortalMutateEntitlementGrant = async (params: {
+	sessionToken: string;
+	targetUserId: string;
+	action: AdminEntitlementGrantAction;
+	programId?: string;
+	kind?: 'temporary' | 'permanent';
+	durationDays?: number;
+	grantId?: string;
+	reason: string;
+	requestId: string;
+	confirmation: string;
+}): Promise<{
+	success: true;
+	replayed: boolean;
+	grantId: string;
+	programId: string;
+	billingRelationshipCreated: false;
+}> => {
+	const callable = await getAdminCallable<typeof params, {
+		success: true;
+		replayed: boolean;
+		grantId: string;
+		programId: string;
+		billingRelationshipCreated: false;
+	}>('adminPortalMutateEntitlementGrant');
 	const result = await callable(params);
 	return result.data;
 };

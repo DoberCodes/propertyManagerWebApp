@@ -1,7 +1,15 @@
 export type MaintleyRoleValue = Record<string, unknown> | string | boolean | null | undefined;
 
+const MAINTLEY_ADMIN_ROLES = new Set([
+	'admin',
+	'owner',
+	'maintley_owner',
+	'platform_owner',
+]);
+
 const isAdminRole = (value: unknown): boolean =>
-	typeof value === 'string' && value.trim().toLowerCase() === 'admin';
+	typeof value === 'string' &&
+	MAINTLEY_ADMIN_ROLES.has(value.trim().toLowerCase().replace(/[\s-]+/g, '_'));
 
 export const hasMaintleyAdminAccess = (maintleyRole: MaintleyRoleValue): boolean => {
 	if (!maintleyRole) return false;

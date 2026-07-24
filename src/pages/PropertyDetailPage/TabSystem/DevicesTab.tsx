@@ -689,7 +689,9 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 		'homeowner',
 	);
 	const isHomeownerMode =
-		effectivePlanId === 'homeowner' || effectivePlanId === 'homeowner_plus';
+		effectivePlanId === 'homeowner' ||
+		effectivePlanId === 'homeowner_plus' ||
+		effectivePlanId === 'multi_homeowner';
 	const equipmentLanguage = {
 		contextNoun: isHomeownerMode ? 'this home' : 'this property',
 	};

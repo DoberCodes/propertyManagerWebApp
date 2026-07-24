@@ -16,6 +16,11 @@ const maintenanceLeadUid = 'maintenance-lead-user';
 const maintenanceUid = 'maintenance-user';
 const inactiveLeadUid = 'inactive-maintenance-lead-user';
 const outsiderUid = 'outsider-user';
+const multiHomeownerAccountId = 'multi-homeowner-account';
+const multiHomeownerUid = multiHomeownerAccountId;
+const maliciousNewUserUid = 'malicious-new-user';
+const trialOwnerUid = 'trial-owner';
+const expiredTrialOwnerUid = 'expired-trial-owner';
 
 const membershipId = (uid) => `${accountId}_${uid}`;
 
@@ -77,6 +82,52 @@ const createPropertyKnowledgeSuggestion = (overrides = {}) => ({
 async function seedFirestore(env) {
 	await env.withSecurityRulesDisabled(async (context) => {
 		const db = context.firestore();
+		for (const uid of [trialOwnerUid, expiredTrialOwnerUid]) {
+			await db.doc(`users/${uid}`).set({
+				id: uid,
+				accountId: uid,
+				isAccountOwner: true,
+				subscription: { status: 'active', plan: 'homeowner' },
+			});
+			await db.doc(`accountMemberships/${uid}_${uid}`).set({
+				accountId: uid,
+				userId: uid,
+				roles: ['account_owner'],
+				status: 'active',
+			});
+			await db.doc(`familyAccounts/${uid}`).set({
+				id: uid,
+				ownerId: uid,
+				memberIds: [uid],
+				propertyCount: 1,
+				deviceCount: 15,
+				subscription: { status: 'active', plan: 'homeowner' },
+				effectiveEntitlementProjection: {
+					activeBundleIds: ['homeowner_plus'],
+					bundleExpirationsMs: {
+						homeowner_plus: uid === trialOwnerUid ? 4102444800000 : 1,
+					},
+					nextTransitionAtMs:
+						uid === trialOwnerUid ? 4102444800000 : 1,
+				},
+			});
+			await db
+				.doc(`familyAccounts/${uid}/entitlementGrants/homeowner_plus_first_property_trial`)
+				.set({
+					grantId: 'homeowner_plus_first_property_trial',
+					programId: 'homeowner_plus_first_property_trial_v1',
+					accountId: uid,
+					state: 'active',
+				});
+			for (let index = 1; index <= 15; index += 1) {
+				await db.doc(`devices/${uid}-device-${index}`).set({
+					accountId: uid,
+					userId: uid,
+					propertyId: `${uid}-property`,
+					name: `Equipment ${index}`,
+				});
+			}
+		}
 
 		await db.doc(`users/${ownerUid}`).set({
 			id: ownerUid,
@@ -86,6 +137,8 @@ async function seedFirestore(env) {
 			subscription: {
 				status: 'active',
 				plan: 'portfolio',
+				pendingCheckoutPlan: 'homeowner_plus',
+				pendingCheckoutStartedAt: 1,
 			},
 		});
 
@@ -124,6 +177,14 @@ async function seedFirestore(env) {
 			isAccountOwner: true,
 		});
 
+		await db.doc(`users/${multiHomeownerUid}`).set({
+			id: multiHomeownerUid,
+			accountId: multiHomeownerAccountId,
+			role: 'admin',
+			isAccountOwner: true,
+			subscription: { status: 'active', plan: 'multi_homeowner' },
+		});
+
 		await db.doc(`accountMemberships/${membershipId(ownerUid)}`).set({
 			accountId,
 			userId: ownerUid,
@@ -158,12 +219,38 @@ async function seedFirestore(env) {
 			status: 'inactive',
 		});
 
+		await db
+			.doc(`accountMemberships/${multiHomeownerAccountId}_${multiHomeownerUid}`)
+			.set({
+				accountId: multiHomeownerAccountId,
+				userId: multiHomeownerUid,
+				roles: ['account_owner', 'admin', 'member'],
+				status: 'active',
+			});
+
 		await db.doc('familyAccounts/account-owner').set({
 			ownerId: ownerUid,
 			memberIds: [maintenanceLeadUid, maintenanceUid, inactiveLeadUid],
 			propertyCount: 1,
 			deviceCount: 0,
 		});
+
+		await db.doc(`familyAccounts/${multiHomeownerAccountId}`).set({
+			ownerId: multiHomeownerUid,
+			memberIds: [],
+			propertyCount: 4,
+			deviceCount: 0,
+		});
+
+		await db
+			.doc('familyAccounts/account-owner/entitlementGrants/grant-existing')
+			.set({
+				grantId: 'grant-existing',
+				programId: 'program-existing',
+				accountId,
+				kind: 'temporary',
+				state: 'active',
+			});
 
 		await db.doc('properties/property-1').set({
 			accountId,
@@ -359,6 +446,136 @@ async function run() {
 		const maintenanceDb = authedDb(env, maintenanceUid);
 		const inactiveLeadDb = authedDb(env, inactiveLeadUid);
 		const outsiderDb = authedDb(env, outsiderUid);
+		const multiHomeownerDb = authedDb(env, multiHomeownerUid);
+		const maliciousNewUserDb = authedDb(env, maliciousNewUserUid);
+		const trialOwnerDb = authedDb(env, trialOwnerUid);
+		const expiredTrialOwnerDb = authedDb(env, expiredTrialOwnerUid);
+
+		await assertSucceeds(trialOwnerDb.doc(`familyAccounts/${trialOwnerUid}`).get());
+		await assertFails(
+			trialOwnerDb
+				.doc(`familyAccounts/${trialOwnerUid}/entitlementGrants/homeowner_plus_first_property_trial`)
+				.get(),
+		);
+		await assertFails(
+			trialOwnerDb.doc(`familyAccounts/${trialOwnerUid}`).update({
+				effectiveEntitlementProjection: {
+					activeBundleIds: ['portfolio'],
+					bundleExpirationsMs: { portfolio: 4102444800000 },
+					nextTransitionAtMs: 4102444800000,
+				},
+			}),
+		);
+
+		const activeTrialDeviceBatch = trialOwnerDb.batch();
+		activeTrialDeviceBatch.set(
+			trialOwnerDb.doc('devices/trial-owner-device-16'),
+			{
+				accountId: trialOwnerUid,
+				userId: trialOwnerUid,
+				propertyId: `${trialOwnerUid}-property`,
+				name: 'Equipment 16',
+			},
+		);
+		activeTrialDeviceBatch.update(
+			trialOwnerDb.doc(`familyAccounts/${trialOwnerUid}`),
+			{ deviceCount: 16 },
+		);
+		await assertSucceeds(activeTrialDeviceBatch.commit());
+
+		const expiredTrialDeviceBatch = expiredTrialOwnerDb.batch();
+		expiredTrialDeviceBatch.set(
+			expiredTrialOwnerDb.doc('devices/expired-trial-owner-device-16'),
+			{
+				accountId: expiredTrialOwnerUid,
+				userId: expiredTrialOwnerUid,
+				propertyId: `${expiredTrialOwnerUid}-property`,
+				name: 'Equipment 16',
+			},
+		);
+		expiredTrialDeviceBatch.update(
+			expiredTrialOwnerDb.doc(`familyAccounts/${expiredTrialOwnerUid}`),
+			{ deviceCount: 16 },
+		);
+		await assertFails(expiredTrialDeviceBatch.commit());
+
+		await assertFails(
+			multiHomeownerDb.doc(`users/${multiHomeownerUid}`).update({
+				subscription: { status: 'active', plan: 'portfolio' },
+			}),
+		);
+		await assertFails(
+			multiHomeownerDb.doc(`users/${multiHomeownerUid}`).update({
+				maintley_role: 'owner',
+			}),
+		);
+		await assertFails(
+			maliciousNewUserDb.doc(`users/${maliciousNewUserUid}`).set({
+				id: maliciousNewUserUid,
+				subscription: { status: 'active', plan: 'portfolio' },
+			}),
+		);
+		await assertFails(
+			maliciousNewUserDb.doc(`users/${maliciousNewUserUid}`).set({
+				id: maliciousNewUserUid,
+				maintley_role: 'owner',
+				subscription: { status: 'active', plan: 'homeowner' },
+			}),
+		);
+		await assertSucceeds(
+			ownerDb.doc(`users/${ownerUid}`).update({
+				subscription: { status: 'active', plan: 'portfolio' },
+			}),
+		);
+
+		const fifthPropertyBatch = multiHomeownerDb.batch();
+		fifthPropertyBatch.set(
+			multiHomeownerDb.doc('properties/multi-homeowner-property-5'),
+			{
+				accountId: multiHomeownerAccountId,
+				userId: multiHomeownerUid,
+				title: 'Fifth family home',
+			},
+		);
+		fifthPropertyBatch.update(
+			multiHomeownerDb.doc(`familyAccounts/${multiHomeownerAccountId}`),
+			{ propertyCount: 5 },
+		);
+		await assertSucceeds(fifthPropertyBatch.commit());
+
+		const sixthPropertyBatch = multiHomeownerDb.batch();
+		sixthPropertyBatch.set(
+			multiHomeownerDb.doc('properties/multi-homeowner-property-6'),
+			{
+				accountId: multiHomeownerAccountId,
+				userId: multiHomeownerUid,
+				title: 'Sixth family home',
+			},
+		);
+		sixthPropertyBatch.update(
+			multiHomeownerDb.doc(`familyAccounts/${multiHomeownerAccountId}`),
+			{ propertyCount: 6 },
+		);
+		await assertFails(sixthPropertyBatch.commit());
+
+		await assertSucceeds(
+			multiHomeownerDb.doc('propertyGroups/family-homes').set({
+				accountId: multiHomeownerAccountId,
+				name: 'Family homes',
+			}),
+		);
+		await assertFails(
+			multiHomeownerDb.doc('teamMembers/multi-homeowner-team-member').set({
+				accountId: multiHomeownerAccountId,
+				name: 'Business team member',
+				role: 'admin',
+			}),
+		);
+		await assertFails(
+			multiHomeownerDb
+				.doc('properties/multi-homeowner-property-5')
+				.update({ tenants: ['resident-user'] }),
+		);
 
 		await assertSucceeds(
 			maintenanceLeadDb.doc('tasks/task-existing').get(),
@@ -499,6 +716,37 @@ async function run() {
 		await assertFails(ownerDb.doc('admin_users/admin-record').get());
 		await assertFails(ownerDb.doc('admin_sessions/session-record').get());
 		await assertFails(ownerDb.doc('admin_audit_logs/audit-record').get());
+		await assertFails(
+			ownerDb
+				.doc('familyAccounts/account-owner/entitlementGrants/grant-existing')
+				.get(),
+		);
+		await assertFails(
+			ownerDb
+				.doc('familyAccounts/account-owner/entitlementGrants/client-grant')
+				.set({
+					grantId: 'client-grant',
+					programId: 'client-program',
+					accountId,
+					kind: 'permanent',
+					state: 'active',
+				}),
+		);
+		await assertFails(
+			ownerDb
+				.doc('familyAccounts/account-owner/accessLifecycleDeliveries/delivery-existing')
+				.get(),
+		);
+		await assertFails(
+			ownerDb
+				.doc('familyAccounts/account-owner/accessLifecycleDeliveries/client-delivery')
+				.set({
+					accountId,
+					grantId: 'grant-existing',
+					milestone: 'activation',
+					status: 'sent',
+				}),
+		);
 		await assertFails(
 			ownerDb.doc('admin_users/admin-record').update({
 				status: 'inactive',

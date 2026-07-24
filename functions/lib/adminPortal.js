@@ -36,13 +36,16 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.updateFeedbackAdminTicketStatus = exports.deleteFeedbackAdminParentTicket = exports.unlinkFeedbackAdminTicket = exports.linkFeedbackAdminTickets = exports.adminPortalManageUserSubscription = exports.adminPortalApplyUserBillingActions = exports.adminPortalRefreshUserSubscriptionFromStripe = exports.adminPortalCreateCheckoutLinkWithCoupon = exports.adminPortalListBillingCoupons = exports.adminPortalCreateBillingCoupon = exports.getAdminPortalUserTroubleshootingDetails = exports.listAdminPortalAuditLogs = exports.listAdminPortalUsers = exports.listFeedbackAdminTickets = exports.adminPortalResetPassword = exports.adminPortalLogout = exports.validateAdminPortalSession = exports.adminPortalLogin = void 0;
+exports.updateFeedbackAdminTicketStatus = exports.deleteFeedbackAdminParentTicket = exports.unlinkFeedbackAdminTicket = exports.linkFeedbackAdminTickets = exports.adminPortalManageUserSubscription = exports.adminPortalApplyUserBillingActions = exports.adminPortalRefreshUserSubscriptionFromStripe = exports.adminPortalCreateCheckoutLinkWithCoupon = exports.adminPortalListBillingCoupons = exports.adminPortalCreateBillingCoupon = exports.adminPortalMutateEntitlementGrant = exports.adminPortalPreviewEntitlementGrant = exports.getAdminPortalUserTroubleshootingDetails = exports.listAdminPortalAuditLogs = exports.listAdminPortalUsers = exports.listFeedbackAdminTickets = exports.adminPortalResetPassword = exports.adminPortalLogout = exports.validateAdminPortalSession = exports.adminPortalLogin = void 0;
 const functions = __importStar(require("firebase-functions/v1"));
 const admin = __importStar(require("firebase-admin"));
 const crypto_1 = require("crypto");
 const stripe_1 = __importDefault(require("stripe"));
 const params_1 = require("firebase-functions/params");
 const maintleyEventEngine_1 = require("./maintleyEventEngine");
+const subscriptionEntitlements_1 = require("./subscriptionEntitlements");
+const entitlements_1 = require("@maintley/entitlements");
+const adminEntitlementGrantPolicy_1 = require("./adminEntitlementGrantPolicy");
 if (!admin.apps.length) {
     admin.initializeApp();
 }
@@ -54,6 +57,8 @@ const optionalStringParam = (name) => (0, params_1.defineString)(name, { default
 const STRIPE_PRICE_PARAMS = {
     homeownerPlusMonthlyPriceId: optionalStringParam('STRIPE_HOMEOWNER_PLUS_MONTHLY_PRICE_ID'),
     homeownerPlusAnnualPriceId: optionalStringParam('STRIPE_HOMEOWNER_PLUS_ANNUAL_PRICE_ID'),
+    multiHomeownerMonthlyPriceId: optionalStringParam('STRIPE_MULTI_HOMEOWNER_MONTHLY_PRICE_ID'),
+    multiHomeownerAnnualPriceId: optionalStringParam('STRIPE_MULTI_HOMEOWNER_ANNUAL_PRICE_ID'),
     propertyMonthlyPriceId: optionalStringParam('STRIPE_PROPERTY_MONTHLY_PRICE_ID'),
     propertyAnnualPriceId: optionalStringParam('STRIPE_PROPERTY_ANNUAL_PRICE_ID'),
     portfolioMonthlyPriceId: optionalStringParam('STRIPE_PORTFOLIO_MONTHLY_PRICE_ID'),
@@ -76,6 +81,44 @@ const MAINTENANCE_HISTORY_COLLECTION = 'maintenanceHistory';
 const SESSION_TTL_HOURS = 12;
 const MAX_TICKET_RESULTS = 250;
 const FEEDBACK_TICKET_PREFIX = 'MNT';
+const ENTITLEMENT_GRANT_POLICY_VERSION = 'admin-grants-v1';
+const ADMIN_GRANT_PROGRAMS = Object.freeze([
+    {
+        programId: 'support_homeowner_plus_v1',
+        label: 'Support Resolution — Homeowner+',
+        bundleId: 'homeowner_plus',
+        source: 'support',
+        allowedKinds: ['temporary'],
+        defaultDurationDays: 30,
+        maxDurationDays: 90,
+    },
+    {
+        programId: 'beta_homeowner_plus_v1',
+        label: 'Beta Access — Homeowner+',
+        bundleId: 'homeowner_plus',
+        source: 'beta',
+        allowedKinds: ['temporary'],
+        defaultDurationDays: 90,
+        maxDurationDays: 180,
+    },
+    {
+        programId: 'legacy_homeowner_plus_v1',
+        label: 'Legacy Outreach — Homeowner+',
+        bundleId: 'homeowner_plus',
+        source: 'promotion',
+        allowedKinds: ['temporary'],
+        defaultDurationDays: 30,
+        maxDurationDays: 365,
+    },
+    {
+        programId: 'lifetime_homeowner_plus_v1',
+        label: 'Lifetime Homeowner+',
+        bundleId: 'homeowner_plus',
+        source: 'lifetime',
+        allowedKinds: ['permanent'],
+        ownerOnly: true,
+    },
+]);
 const FEEDBACK_STATUSES = new Set([
     'received',
     'in_progress',
@@ -148,6 +191,7 @@ const getTicketNumberFromRecord = (record, docId) => {
 const normalizeStringArray = (value) => Array.isArray(value)
     ? [...new Set(value.map((item) => String(item || '').trim()).filter(Boolean))]
     : [];
+const toRecord = (value) => typeof value === 'object' && value ? value : {};
 const isGroupTicketRecord = (record) => Boolean(record.isGroupTicket);
 const normalizeTicketStatus = (value) => {
     const normalized = String(value || '').trim().toLowerCase();
@@ -632,6 +676,10 @@ const resolveStripePriceIdForPlan = (planId, billingCycle = 'month') => {
         readExportedStripeConfig('property_monthly_price_id') ||
         readExportedStripeConfig('property_price_id') ||
         readEnv('REACT_APP_STRIPE_PROPERTY_PLAN_ID');
+    const multiHomeownerPriceId = readStringParam(STRIPE_PRICE_PARAMS.multiHomeownerMonthlyPriceId) ||
+        readExportedStripeConfig('multi_homeowner_monthly_price_id');
+    const multiHomeownerAnnualPriceId = readStringParam(STRIPE_PRICE_PARAMS.multiHomeownerAnnualPriceId) ||
+        readExportedStripeConfig('multi_homeowner_annual_price_id');
     const propertyAnnualPriceId = readStringParam(STRIPE_PRICE_PARAMS.propertyAnnualPriceId) ||
         readExportedStripeConfig('property_annual_price_id') ||
         readEnv('REACT_APP_STRIPE_PROPERTY_ANNUAL_PLAN_ID');
@@ -645,11 +693,13 @@ const resolveStripePriceIdForPlan = (planId, billingCycle = 'month') => {
         readEnv('REACT_APP_STRIPE_PORTFOLIO_ANNUAL_PLAN_ID');
     const monthlyPriceMap = {
         homeowner_plus: homeownerPlusPriceId,
+        multi_homeowner: multiHomeownerPriceId,
         property: propertyPriceId,
         portfolio: portfolioPriceId,
     };
     const annualPriceMap = {
         homeowner_plus: homeownerPlusAnnualPriceId || homeownerPlusPriceId,
+        multi_homeowner: multiHomeownerAnnualPriceId || multiHomeownerPriceId,
         property: propertyAnnualPriceId || propertyPriceId,
         portfolio: portfolioAnnualPriceId || portfolioPriceId,
     };
@@ -737,7 +787,12 @@ const resolveMaintleyPlanFromStripePriceId = (priceId) => {
     const normalizedPriceId = String(priceId || '').trim();
     if (!normalizedPriceId)
         return '';
-    for (const planId of ['homeowner_plus', 'property', 'portfolio']) {
+    for (const planId of [
+        'homeowner_plus',
+        'multi_homeowner',
+        'property',
+        'portfolio',
+    ]) {
         for (const billingCycle of ['month', 'year']) {
             if (resolveStripePriceIdForPlan(planId, billingCycle) === normalizedPriceId) {
                 return planId;
@@ -992,7 +1047,7 @@ const requireMaintleyAdmin = async (context) => {
     }
     const userData = (userDoc.data() || {});
     const maintleyRole = normalizeMaintleyRole(userData.maintley_role);
-    if (maintleyRole !== 'admin') {
+    if (!['admin', 'owner', 'maintley_owner', 'platform_owner'].includes(maintleyRole)) {
         throw new functions.https.HttpsError('permission-denied', 'Admin access is required.');
     }
     const firstName = String(userData.firstName || '').trim();
@@ -1003,8 +1058,43 @@ const requireMaintleyAdmin = async (context) => {
     const displayName = `${firstName} ${lastName}`.trim() || email || 'Maintley Admin';
     return {
         uid,
+        accountId: String(userData.accountId || uid).trim() || uid,
         email,
         displayName,
+        maintleyRole,
+        permissions: normalizeStringArray(userData.maintley_permissions || userData.maintleyPermissions || userData.permissions).map(normalizeRoleToken),
+    };
+};
+const resolveGrantAdminAuthority = async (context, sessionToken, requirePermission = true) => {
+    const adminAuth = await requireMaintleyAdmin(context);
+    let adminSession = null;
+    const normalizedSessionToken = String(sessionToken || '').trim();
+    if (normalizedSessionToken) {
+        try {
+            adminSession = await requireAdminSession(normalizedSessionToken);
+        }
+        catch {
+            adminSession = null;
+        }
+    }
+    const permissionTokens = new Set([
+        ...adminAuth.permissions.map(normalizeRoleToken),
+        ...(adminSession?.roles || []).map(normalizeRoleToken),
+    ]);
+    const isMaintleyOwner = (0, adminEntitlementGrantPolicy_1.isMaintleyOwnerGrantRole)(adminAuth.maintleyRole);
+    const canManageGrants = (0, adminEntitlementGrantPolicy_1.canManageEntitlementGrants)(adminAuth.maintleyRole, Array.from(permissionTokens));
+    if (requirePermission && !canManageGrants) {
+        throw new functions.https.HttpsError('permission-denied', 'Internal access grants require the entitlement_grants.manage Maintley permission.');
+    }
+    return {
+        actor: adminSession
+            ? actorFromAdminSession(adminSession)
+            : actorFromMaintleyAdmin(adminAuth),
+        actorUserId: adminAuth.uid,
+        actorAccountId: adminAuth.accountId,
+        maintleyRole: adminAuth.maintleyRole,
+        isMaintleyOwner,
+        canManageGrants,
     };
 };
 const TOP_LEVEL_MAINTLEY_ROLE_TOKENS = new Set([
@@ -1523,10 +1613,143 @@ exports.listAdminPortalAuditLogs = functions.https.onCall(async (data, context) 
     }
     return { logs };
 });
+const getAdminGrantProgram = (programId) => {
+    const normalizedProgramId = String(programId || '').trim();
+    const program = ADMIN_GRANT_PROGRAMS.find((candidate) => candidate.programId === normalizedProgramId);
+    if (!program) {
+        throw new functions.https.HttpsError('invalid-argument', 'Select an approved internal access grant program.');
+    }
+    return program;
+};
+const normalizeAdminGrantRequestId = (value) => {
+    const requestId = String(value || '').trim();
+    if (!/^[a-zA-Z0-9:_-]{8,120}$/.test(requestId)) {
+        throw new functions.https.HttpsError('invalid-argument', 'A stable request ID between 8 and 120 characters is required.');
+    }
+    return requestId;
+};
+const normalizeAdminGrantReason = (value) => {
+    const reason = String(value || '').trim();
+    if (reason.length < 10 || reason.length > 500) {
+        throw new functions.https.HttpsError('invalid-argument', 'A grant reason between 10 and 500 characters is required.');
+    }
+    return reason;
+};
+const getAdminGrantTarget = async (targetUserId) => {
+    const normalizedUserId = String(targetUserId || '').trim();
+    if (!normalizedUserId) {
+        throw new functions.https.HttpsError('invalid-argument', 'A target user is required.');
+    }
+    const userRef = db.collection(USERS_COLLECTION).doc(normalizedUserId);
+    const userSnapshot = await userRef.get();
+    if (!userSnapshot.exists) {
+        throw new functions.https.HttpsError('not-found', 'The target user was not found.');
+    }
+    const user = userSnapshot.data() || {};
+    const accountId = String(user.accountId || normalizedUserId).trim();
+    const accountRef = db.collection('familyAccounts').doc(accountId);
+    const accountSnapshot = await accountRef.get();
+    if (!accountSnapshot.exists) {
+        throw new functions.https.HttpsError('not-found', 'The target account was not found.');
+    }
+    return {
+        targetUserId: normalizedUserId,
+        user,
+        accountId,
+        accountRef,
+        account: accountSnapshot.data() || {},
+    };
+};
+const normalizeStoredGrant = (doc, accountId) => {
+    const grant = doc.data() || {};
+    return {
+        ...grant,
+        grantId: String(grant.grantId || doc.id),
+        programId: String(grant.programId || ''),
+        accountId: String(grant.accountId || accountId),
+        kind: String(grant.kind || ''),
+        state: String(grant.state || ''),
+        startsAtMs: toMillis(grant.startsAtMs || grant.startsAt),
+        endsAtMs: toMillis(grant.endsAtMs || grant.endsAt) || null,
+        source: String(grant.source || 'support'),
+    };
+};
+const summarizeAdminGrantAccess = (accountId, subscription, grants, nowMs) => {
+    const resolved = (0, entitlements_1.resolveAccountEntitlements)({
+        accountId,
+        subscription: toRecord(subscription),
+        grants,
+        fallbackPlanId: 'homeowner',
+        mode: 'compatibility',
+        allowLegacyPlanWithoutStatus: true,
+        featureFlags: subscriptionEntitlements_1.ENTITLEMENT_FEATURE_FLAGS,
+        nowMs,
+    });
+    return {
+        billingPlan: resolved.basePlanId,
+        effectiveBundles: resolved.appliedBundleIds,
+        activeGrantIds: resolved.activeGrantIds,
+        propertyLimit: resolved.limits.properties,
+        fileLimit: resolved.limits.files,
+        storageGb: resolved.limits.storage_gb,
+    };
+};
+const buildAdminGrantProjection = (accountId, subscription, grants, nowMs) => {
+    const summary = summarizeAdminGrantAccess(accountId, subscription, grants, nowMs);
+    const activeGrantIdSet = new Set(summary.activeGrantIds);
+    const activeGrants = grants
+        .filter((grant) => activeGrantIdSet.has(grant.grantId))
+        .map((grant) => ({
+        grantId: grant.grantId,
+        programId: grant.programId,
+        accountId: grant.accountId,
+        kind: grant.kind,
+        state: grant.state,
+        bundleId: grant.bundleId || null,
+        bundleVersion: grant.bundleVersion || entitlements_1.BUNDLE_VERSION,
+        startsAtMs: grant.startsAtMs,
+        endsAtMs: grant.endsAtMs || null,
+        source: grant.source,
+    }));
+    const bundleExpirationsMs = {};
+    for (const grant of activeGrants) {
+        const bundleId = String(grant.bundleId || '').trim();
+        const endsAtMs = Number(grant.endsAtMs || 0);
+        if (bundleId && Number.isFinite(endsAtMs) && endsAtMs > 0) {
+            bundleExpirationsMs[bundleId] = Math.max(bundleExpirationsMs[bundleId] || 0, endsAtMs);
+        }
+    }
+    const transitionCandidates = activeGrants
+        .map((grant) => Number(grant.endsAtMs || 0))
+        .filter((endsAtMs) => Number.isFinite(endsAtMs) && endsAtMs > nowMs);
+    return {
+        resolverVersion: 'v1',
+        bundleVersions: Array.from(new Set(activeGrants.map((grant) => `${String(grant.bundleId || '')}@${String(grant.bundleVersion || entitlements_1.BUNDLE_VERSION)}`))),
+        activeBundleIds: Array.from(new Set(activeGrants.map((grant) => String(grant.bundleId || '')).filter(Boolean))),
+        bundleExpirationsMs,
+        activeGrants,
+        calculatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        nextTransitionAtMs: transitionCandidates.length > 0 ? Math.min(...transitionCandidates) : null,
+    };
+};
+const assertGrantTargetAllowed = (authority, targetUserId, targetAccountId, program) => {
+    if ((0, adminEntitlementGrantPolicy_1.isProhibitedSelfGrantTarget)({
+        maintleyRole: authority.maintleyRole,
+        actorUserId: authority.actorUserId,
+        actorAccountId: authority.actorAccountId,
+        targetUserId,
+        targetAccountId,
+    })) {
+        throw new functions.https.HttpsError('permission-denied', 'Administrators cannot grant access to their own account. Maintley owner is the only exception.');
+    }
+    if (program.ownerOnly && !authority.isMaintleyOwner) {
+        throw new functions.https.HttpsError('permission-denied', 'This grant program is restricted to Maintley owner.');
+    }
+};
 exports.getAdminPortalUserTroubleshootingDetails = functions
     .runWith({ secrets: ADMIN_PORTAL_STRIPE_SECRETS })
     .https.onCall(async (data, context) => {
-    await requireMaintleyAdmin(context);
+    const grantAuthority = await resolveGrantAdminAuthority(context, String(data?.sessionToken || ''), false);
     const targetUserId = String(data?.userId || '').trim();
     if (!targetUserId) {
         throw new functions.https.HttpsError('invalid-argument', 'userId is required.');
@@ -1540,6 +1763,7 @@ exports.getAdminPortalUserTroubleshootingDetails = functions
     const lastName = String(userData.lastName || '').trim();
     const email = String(userData.email || '').trim() || null;
     const accountId = String(userData.accountId || '').trim();
+    const entitlementAccountId = accountId || targetUserId;
     const maintleyRole = normalizeMaintleyRole(userData.maintley_role) || 'user';
     const accountStatus = normalizeAdminUserStatus(userData);
     const subscription = typeof userData.subscription === 'object' && userData.subscription
@@ -1549,6 +1773,78 @@ exports.getAdminPortalUserTroubleshootingDetails = functions
     const stripeSubscriptionSummary = await getAdminStripeSubscriptionSummary(stripeSubscriptionId);
     const inviteCode = String(userData.inviteCode || userData.invitationCode || userData.teamInviteCode || '')
         .trim() || null;
+    const [entitlementAccountDoc, entitlementGrantSnapshot, entitlementAuditSnapshot, accessLifecycleDeliverySnapshot,] = await Promise.all([
+        db.collection('familyAccounts').doc(entitlementAccountId).get(),
+        db
+            .collection('familyAccounts')
+            .doc(entitlementAccountId)
+            .collection('entitlementGrants')
+            .get(),
+        db
+            .collection(ADMIN_AUDIT_LOGS_COLLECTION)
+            .where('targetAccountId', '==', entitlementAccountId)
+            .limit(50)
+            .get(),
+        db
+            .collection('familyAccounts')
+            .doc(entitlementAccountId)
+            .collection('accessLifecycleDeliveries')
+            .get(),
+    ]);
+    const entitlementAccount = entitlementAccountDoc.data() || {};
+    const entitlementProjection = typeof entitlementAccount.effectiveEntitlementProjection === 'object' &&
+        entitlementAccount.effectiveEntitlementProjection
+        ? entitlementAccount.effectiveEntitlementProjection
+        : {};
+    const nowMs = Date.now();
+    const grants = entitlementGrantSnapshot.docs.map((grantDoc) => ({
+        id: grantDoc.id,
+        ...(grantDoc.data() || {}),
+    }));
+    const activeGrants = grants.filter((grant) => {
+        const startsAtMs = Number(grant.startsAtMs || 0);
+        const endsAtMs = Number(grant.endsAtMs || 0);
+        return (String(grant.state || '') === 'active' &&
+            startsAtMs <= nowMs &&
+            (String(grant.kind || '') === 'permanent' || endsAtMs > nowMs));
+    });
+    const homeownerPlusTrial = grants.find((grant) => String(grant.programId || '') ===
+        'homeowner_plus_first_property_trial_v1');
+    const accessTimeline = entitlementAuditSnapshot.docs
+        .map((auditDoc) => {
+        const event = auditDoc.data() || {};
+        return {
+            id: auditDoc.id,
+            action: String(event.action || ''),
+            reason: String(event.reason || ''),
+            grantId: String(event.grantId || '') || null,
+            programId: String(event.programId || '') || null,
+            actorUserId: String(event.actorUserId || '') || null,
+            createdAt: toIsoString(event.createdAt),
+            before: typeof event.before === 'object' && event.before ? event.before : null,
+            after: typeof event.after === 'object' && event.after ? event.after : null,
+        };
+    })
+        .sort((left, right) => toMillis(right.createdAt) - toMillis(left.createdAt))
+        .slice(0, 20);
+    const lifecycleDeliveries = accessLifecycleDeliverySnapshot.docs
+        .map((deliveryDoc) => {
+        const delivery = deliveryDoc.data() || {};
+        return {
+            id: deliveryDoc.id,
+            milestone: String(delivery.milestone || ''),
+            status: String(delivery.status || ''),
+            outcome: String(delivery.outcome || ''),
+            templateVersion: String(delivery.templateVersion || ''),
+            attempts: Number(delivery.attempts || 0),
+            targetAt: toIsoString(delivery.targetAtMs),
+            sentAt: toIsoString(delivery.sentAt),
+            updatedAt: toIsoString(delivery.updatedAt),
+        };
+    })
+        .sort((left, right) => toMillis(right.sentAt || right.updatedAt || right.targetAt) -
+        toMillis(left.sentAt || left.updatedAt || left.targetAt))
+        .slice(0, 20);
     const [propertyCountByAccount, propertyCountByUserId, propertyCountByOwnerId] = await Promise.all([
         tryCountWhere(PROPERTIES_COLLECTION, 'accountId', accountId),
         tryCountWhere(PROPERTIES_COLLECTION, 'userId', targetUserId),
@@ -1685,11 +1981,415 @@ exports.getAdminPortalUserTroubleshootingDetails = functions
             recentErrorCount: recentErrors.length,
             openTicketCount: recentSupportRequests.filter((entry) => String(entry.status || '').trim().toLowerCase() !== 'closed').length,
         },
+        access: {
+            basePlan: String(subscription.plan || '').trim() || 'homeowner',
+            effectiveBundles: Array.isArray(entitlementProjection.activeBundleIds)
+                ? entitlementProjection.activeBundleIds
+                : [],
+            activeGrantCount: activeGrants.length,
+            grants: grants.map((grant) => ({
+                grantId: String(grant.grantId || grant.id || ''),
+                programId: String(grant.programId || ''),
+                state: String(grant.state || ''),
+                kind: String(grant.kind || ''),
+                bundleId: String(grant.bundleId || '') || null,
+                startsAt: toIsoString(grant.startsAtMs) || null,
+                endsAt: Number.isFinite(Number(grant.endsAtMs)) && Number(grant.endsAtMs) > 0
+                    ? toIsoString(grant.endsAtMs)
+                    : null,
+                source: String(grant.source || ''),
+            })),
+            homeownerPlusTrial: homeownerPlusTrial
+                ? {
+                    state: String(homeownerPlusTrial.state || ''),
+                    startsAt: toIsoString(homeownerPlusTrial.startsAtMs),
+                    endsAt: toIsoString(homeownerPlusTrial.endsAtMs),
+                }
+                : null,
+            timeline: accessTimeline,
+            lifecycleDeliveries,
+            grantAdministration: {
+                enabled: subscriptionEntitlements_1.ENTITLEMENT_FEATURE_FLAGS.internalEntitlementGrantIssuance === true,
+                canManage: grantAuthority.canManageGrants,
+                isMaintleyOwner: grantAuthority.isMaintleyOwner,
+                canSelfGrant: grantAuthority.isMaintleyOwner,
+                programs: ADMIN_GRANT_PROGRAMS.filter((program) => !program.ownerOnly || grantAuthority.isMaintleyOwner).map((program) => ({
+                    programId: program.programId,
+                    label: program.label,
+                    allowedKinds: program.allowedKinds,
+                    defaultDurationDays: program.defaultDurationDays || null,
+                    maxDurationDays: program.maxDurationDays || null,
+                    ownerOnly: Boolean(program.ownerOnly),
+                })),
+            },
+        },
         recentSupportRequests,
         recentErrors,
         recentNotifications,
         recentActivity,
     };
+});
+const getAdminGrantConfirmationPhrase = (action, kind) => {
+    if (action === 'revoke')
+        return 'REVOKE ACCESS';
+    if (action === 'extend')
+        return 'EXTEND ACCESS';
+    return kind === 'permanent' ? 'GRANT LIFETIME ACCESS' : 'GRANT ACCESS';
+};
+const validateAdminGrantDuration = (program, kind, value) => {
+    if (!program.allowedKinds.includes(kind)) {
+        throw new functions.https.HttpsError('invalid-argument', `${program.label} does not support ${kind} grants.`);
+    }
+    if (kind === 'permanent')
+        return null;
+    const durationDays = Number(value || program.defaultDurationDays || 0);
+    if (!Number.isInteger(durationDays) ||
+        durationDays < 1 ||
+        durationDays > Number(program.maxDurationDays || 0)) {
+        throw new functions.https.HttpsError('invalid-argument', `Duration must be between 1 and ${program.maxDurationDays} days.`);
+    }
+    return durationDays;
+};
+const loadAdminAccountGrants = async (accountRef) => {
+    const snapshot = await accountRef.collection('entitlementGrants').get();
+    return snapshot.docs.map((grantDoc) => normalizeStoredGrant(grantDoc, accountRef.id));
+};
+exports.adminPortalPreviewEntitlementGrant = functions.https.onCall(async (data, context) => {
+    if (!subscriptionEntitlements_1.ENTITLEMENT_FEATURE_FLAGS.internalEntitlementGrantIssuance) {
+        throw new functions.https.HttpsError('failed-precondition', 'Internal entitlement grant administration is disabled.');
+    }
+    const authority = await resolveGrantAdminAuthority(context, String(data?.sessionToken || ''));
+    const target = await getAdminGrantTarget(String(data?.targetUserId || ''));
+    const action = String(data?.action || '');
+    if (!['create', 'extend', 'revoke'].includes(action)) {
+        throw new functions.https.HttpsError('invalid-argument', 'Select a grant action.');
+    }
+    const grants = await loadAdminAccountGrants(target.accountRef);
+    const nowMs = Date.now();
+    const currentAccess = summarizeAdminGrantAccess(target.accountId, target.account.subscription || target.user.subscription, grants, nowMs);
+    let proposedGrants = [...grants];
+    let program;
+    let kind = 'temporary';
+    let durationDays = null;
+    if (action === 'create') {
+        program = getAdminGrantProgram(data?.programId);
+        assertGrantTargetAllowed(authority, target.targetUserId, target.accountId, program);
+        kind = data?.kind === 'permanent' ? 'permanent' : 'temporary';
+        durationDays = validateAdminGrantDuration(program, kind, data?.durationDays);
+        const previewGrantId = `preview_${program.programId}`;
+        proposedGrants.push({
+            grantId: previewGrantId,
+            programId: program.programId,
+            accountId: target.accountId,
+            kind,
+            state: 'active',
+            bundleId: program.bundleId,
+            bundleVersion: entitlements_1.BUNDLE_VERSION,
+            startsAtMs: nowMs,
+            endsAtMs: durationDays ? nowMs + durationDays * 24 * 60 * 60 * 1000 : null,
+            source: program.source,
+        });
+    }
+    else {
+        const grantId = String(data?.grantId || '').trim();
+        const existing = grants.find((grant) => grant.grantId === grantId);
+        if (!existing) {
+            throw new functions.https.HttpsError('not-found', 'The selected grant was not found.');
+        }
+        program = getAdminGrantProgram(existing.programId);
+        assertGrantTargetAllowed(authority, target.targetUserId, target.accountId, program);
+        kind = existing.kind;
+        if (action === 'extend') {
+            if (existing.kind !== 'temporary' || existing.state !== 'active') {
+                throw new functions.https.HttpsError('failed-precondition', 'Only active temporary grants can be extended.');
+            }
+            durationDays = validateAdminGrantDuration(program, 'temporary', data?.durationDays);
+            const nextEndsAtMs = Math.max(Number(existing.endsAtMs || 0), nowMs) +
+                Number(durationDays) * 24 * 60 * 60 * 1000;
+            if (nextEndsAtMs - nowMs > Number(program.maxDurationDays || 0) * 24 * 60 * 60 * 1000) {
+                throw new functions.https.HttpsError('invalid-argument', `The resulting grant cannot exceed ${program.maxDurationDays} remaining days.`);
+            }
+            proposedGrants = grants.map((grant) => grant.grantId === grantId ? { ...grant, endsAtMs: nextEndsAtMs } : grant);
+        }
+        else {
+            if (!['active', 'scheduled'].includes(existing.state)) {
+                throw new functions.https.HttpsError('failed-precondition', 'Only active or scheduled grants can be revoked.');
+            }
+            proposedGrants = grants.map((grant) => grant.grantId === grantId
+                ? { ...grant, state: 'revoked', terminalAtMs: nowMs }
+                : grant);
+        }
+    }
+    return {
+        action,
+        programId: program.programId,
+        programLabel: program.label,
+        kind,
+        durationDays,
+        currentAccess,
+        proposedAccess: summarizeAdminGrantAccess(target.accountId, target.account.subscription || target.user.subscription, proposedGrants, nowMs),
+        confirmationPhrase: getAdminGrantConfirmationPhrase(action, kind),
+        billingRelationshipCreated: false,
+    };
+});
+const writeFailedGrantAudit = async (params) => {
+    const eventId = (0, entitlements_1.getAdminAuditEventId)('admin_action.failed', `${params.requestId}:${params.action}`);
+    try {
+        await db.collection(ADMIN_AUDIT_LOGS_COLLECTION).doc(eventId).create({
+            eventId,
+            action: 'admin_action.failed',
+            category: 'entitlement_grant',
+            actorUserId: params.authority.actorUserId,
+            targetAccountId: params.targetAccountId,
+            targetUserId: params.targetUserId,
+            reason: params.reason,
+            requestId: params.requestId,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            metadata: {
+                requestedAction: params.action,
+                error: params.error instanceof Error ? params.error.message : String(params.error),
+            },
+            performedBy: params.authority.actor,
+        });
+    }
+    catch (auditError) {
+        functions.logger.warn('Unable to append failed grant audit event', {
+            eventId,
+            error: auditError instanceof Error ? auditError.message : String(auditError),
+        });
+    }
+};
+exports.adminPortalMutateEntitlementGrant = functions.https.onCall(async (data, context) => {
+    const authority = await resolveGrantAdminAuthority(context, String(data?.sessionToken || ''));
+    const requestId = normalizeAdminGrantRequestId(data?.requestId);
+    const reason = normalizeAdminGrantReason(data?.reason);
+    const action = String(data?.action || '');
+    let targetAccountId = '';
+    let targetUserId = String(data?.targetUserId || '').trim();
+    try {
+        if (!subscriptionEntitlements_1.ENTITLEMENT_FEATURE_FLAGS.internalEntitlementGrantIssuance) {
+            throw new functions.https.HttpsError('failed-precondition', 'Internal entitlement grant administration is disabled.');
+        }
+        if (!['create', 'extend', 'revoke'].includes(action)) {
+            throw new functions.https.HttpsError('invalid-argument', 'Select a grant action.');
+        }
+        const target = await getAdminGrantTarget(targetUserId);
+        targetAccountId = target.accountId;
+        targetUserId = target.targetUserId;
+        const existingGrants = await loadAdminAccountGrants(target.accountRef);
+        let program;
+        let kind = 'temporary';
+        let durationDays = null;
+        let selectedGrant;
+        if (action === 'create') {
+            program = getAdminGrantProgram(data?.programId);
+            kind = data?.kind === 'permanent' ? 'permanent' : 'temporary';
+            durationDays = validateAdminGrantDuration(program, kind, data?.durationDays);
+        }
+        else {
+            selectedGrant = existingGrants.find((grant) => grant.grantId === String(data?.grantId || '').trim());
+            if (!selectedGrant) {
+                throw new functions.https.HttpsError('not-found', 'The selected grant was not found.');
+            }
+            program = getAdminGrantProgram(selectedGrant.programId);
+            kind = selectedGrant.kind;
+            if (action === 'extend') {
+                durationDays = validateAdminGrantDuration(program, 'temporary', data?.durationDays);
+            }
+        }
+        assertGrantTargetAllowed(authority, targetUserId, targetAccountId, program);
+        const expectedConfirmation = getAdminGrantConfirmationPhrase(action, kind);
+        if (String(data?.confirmation || '').trim() !== expectedConfirmation) {
+            throw new functions.https.HttpsError('failed-precondition', `Type ${expectedConfirmation} to confirm this access change.`);
+        }
+        const auditAction = action === 'create'
+            ? kind === 'permanent'
+                ? 'grant.lifetime_created'
+                : 'grant.created'
+            : action === 'extend'
+                ? 'grant.extended'
+                : 'grant.revoked';
+        const auditEventId = (0, entitlements_1.getAdminAuditEventId)(auditAction, requestId);
+        const auditRef = db.collection(ADMIN_AUDIT_LOGS_COLLECTION).doc(auditEventId);
+        const nowMs = Date.now();
+        const generatedGrantId = action === 'create'
+            ? `admin_${(0, crypto_1.createHash)('sha256')
+                .update(`${target.accountId}:${program.programId}:${requestId}`)
+                .digest('hex')
+                .slice(0, 24)}`
+            : String(selectedGrant?.grantId || '');
+        const grantRef = target.accountRef
+            .collection('entitlementGrants')
+            .doc(generatedGrantId);
+        const result = await db.runTransaction(async (transaction) => {
+            const [accountSnapshot, grantSnapshot, auditSnapshot, grantsSnapshot] = await Promise.all([
+                transaction.get(target.accountRef),
+                transaction.get(grantRef),
+                transaction.get(auditRef),
+                transaction.get(target.accountRef.collection('entitlementGrants')),
+            ]);
+            if (auditSnapshot.exists) {
+                const priorAudit = auditSnapshot.data() || {};
+                const matchesOriginalRequest = String(priorAudit.action || '') === auditAction &&
+                    String(priorAudit.targetAccountId || '') === target.accountId &&
+                    String(priorAudit.targetUserId || '') === targetUserId &&
+                    String(priorAudit.grantId || '') === generatedGrantId &&
+                    String(priorAudit.programId || '') === program.programId;
+                if (!matchesOriginalRequest) {
+                    throw new functions.https.HttpsError('already-exists', 'This request ID was already used for a different access change.');
+                }
+                const replayEventId = (0, entitlements_1.getAdminAuditEventId)('admin_action.replayed', `${requestId}:${action}`);
+                const replayRef = db.collection(ADMIN_AUDIT_LOGS_COLLECTION).doc(replayEventId);
+                const replaySnapshot = await transaction.get(replayRef);
+                if (!replaySnapshot.exists) {
+                    transaction.create(replayRef, {
+                        eventId: replayEventId,
+                        action: 'admin_action.replayed',
+                        category: 'entitlement_grant',
+                        actorUserId: authority.actorUserId,
+                        targetAccountId: target.accountId,
+                        targetUserId,
+                        grantId: generatedGrantId,
+                        programId: program.programId,
+                        reason,
+                        requestId,
+                        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                        performedBy: authority.actor,
+                    });
+                }
+                return { replayed: true };
+            }
+            if (!accountSnapshot.exists) {
+                throw new functions.https.HttpsError('not-found', 'The target account was not found.');
+            }
+            const account = accountSnapshot.data() || {};
+            const transactionGrants = grantsSnapshot.docs.map((grantDoc) => normalizeStoredGrant(grantDoc, target.accountId));
+            let beforeGrant = grantSnapshot.exists
+                ? toRecord(grantSnapshot.data())
+                : null;
+            let afterGrant;
+            if (action === 'create') {
+                if (grantSnapshot.exists) {
+                    throw new functions.https.HttpsError('already-exists', 'The grant already exists.');
+                }
+                const overlappingProgram = transactionGrants.some((grant) => grant.programId === program.programId &&
+                    grant.state === 'active' &&
+                    (grant.kind === 'permanent' || Number(grant.endsAtMs || 0) > nowMs));
+                if (overlappingProgram) {
+                    throw new functions.https.HttpsError('already-exists', 'An active grant for this program already exists.');
+                }
+                afterGrant = {
+                    grantId: generatedGrantId,
+                    programId: program.programId,
+                    accountId: target.accountId,
+                    kind,
+                    state: 'active',
+                    bundleId: program.bundleId,
+                    bundleVersion: entitlements_1.BUNDLE_VERSION,
+                    startsAtMs: nowMs,
+                    endsAtMs: durationDays
+                        ? nowMs + durationDays * 24 * 60 * 60 * 1000
+                        : null,
+                    source: program.source,
+                    beneficiaryUserId: targetUserId,
+                    idempotencyKey: requestId,
+                    issuedByUserId: authority.actorUserId,
+                    issuedAtMs: nowMs,
+                    auditReason: reason,
+                    policyVersion: ENTITLEMENT_GRANT_POLICY_VERSION,
+                    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                };
+                transaction.create(grantRef, afterGrant);
+            }
+            else {
+                if (!grantSnapshot.exists) {
+                    throw new functions.https.HttpsError('not-found', 'The grant no longer exists.');
+                }
+                const currentGrant = normalizeStoredGrant(grantSnapshot, target.accountId);
+                beforeGrant = { ...currentGrant };
+                if (action === 'extend') {
+                    if (currentGrant.kind !== 'temporary' || currentGrant.state !== 'active') {
+                        throw new functions.https.HttpsError('failed-precondition', 'Only active temporary grants can be extended.');
+                    }
+                    const nextEndsAtMs = Math.max(Number(currentGrant.endsAtMs || 0), nowMs) +
+                        Number(durationDays) * 24 * 60 * 60 * 1000;
+                    if (nextEndsAtMs - nowMs > Number(program.maxDurationDays || 0) * 24 * 60 * 60 * 1000) {
+                        throw new functions.https.HttpsError('invalid-argument', `The resulting grant cannot exceed ${program.maxDurationDays} remaining days.`);
+                    }
+                    afterGrant = {
+                        ...currentGrant,
+                        endsAtMs: nextEndsAtMs,
+                        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                    };
+                }
+                else {
+                    if (!['active', 'scheduled'].includes(currentGrant.state)) {
+                        throw new functions.https.HttpsError('failed-precondition', 'Only active or scheduled grants can be revoked.');
+                    }
+                    afterGrant = {
+                        ...currentGrant,
+                        state: 'revoked',
+                        terminalReason: reason,
+                        terminalAtMs: nowMs,
+                        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                    };
+                }
+                transaction.set(grantRef, afterGrant, { merge: true });
+            }
+            const nextGrants = transactionGrants
+                .filter((grant) => grant.grantId !== generatedGrantId)
+                .concat(afterGrant);
+            transaction.set(target.accountRef, {
+                effectiveEntitlementProjection: buildAdminGrantProjection(target.accountId, account.subscription || target.user.subscription, nextGrants, nowMs),
+                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            }, { merge: true });
+            transaction.create(auditRef, {
+                eventId: auditEventId,
+                action: auditAction,
+                category: 'entitlement_grant',
+                actorUserId: authority.actorUserId,
+                targetAccountId: target.accountId,
+                targetUserId,
+                grantId: generatedGrantId,
+                programId: program.programId,
+                reason,
+                requestId,
+                createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                before: beforeGrant,
+                after: afterGrant,
+                metadata: {
+                    policyVersion: ENTITLEMENT_GRANT_POLICY_VERSION,
+                    durationDays,
+                    billingRelationshipCreated: false,
+                    maintleyOwnerOverride: authority.isMaintleyOwner &&
+                        (authority.actorUserId === targetUserId ||
+                            authority.actorAccountId === target.accountId),
+                },
+                performedBy: authority.actor,
+            });
+            return { replayed: false, grant: afterGrant };
+        });
+        return {
+            success: true,
+            ...result,
+            grantId: generatedGrantId,
+            programId: program.programId,
+            billingRelationshipCreated: false,
+        };
+    }
+    catch (error) {
+        await writeFailedGrantAudit({
+            authority,
+            targetAccountId,
+            targetUserId,
+            requestId,
+            reason,
+            action,
+            error,
+        });
+        throw error;
+    }
 });
 exports.adminPortalCreateBillingCoupon = functions
     .runWith({ secrets: ADMIN_PORTAL_STRIPE_SECRETS })
@@ -1736,6 +2436,10 @@ exports.adminPortalCreateBillingCoupon = functions
         expiresAtSeconds = Math.floor(parsed / 1000);
     }
     const appliesToPlan = String(data?.appliesToPlan || '').trim().toLowerCase();
+    if (appliesToPlan === 'multi_homeowner' &&
+        !subscriptionEntitlements_1.ENTITLEMENT_FEATURE_FLAGS.multiHomeownerPlan) {
+        throw new functions.https.HttpsError('failed-precondition', 'Multi-Homeowner is not currently available.');
+    }
     const appliesToBillingCycle = normalizeBillingCycle(data?.appliesToBillingCycle);
     const appliesToProductId = appliesToPlan
         ? await resolveStripeProductIdForPlan(appliesToPlan, appliesToBillingCycle)
@@ -1838,6 +2542,10 @@ exports.adminPortalCreateCheckoutLinkWithCoupon = functions
     }
     if (!planId || planId === 'homeowner') {
         throw new functions.https.HttpsError('invalid-argument', 'Select a paid plan before creating a checkout link.');
+    }
+    if (planId === 'multi_homeowner' &&
+        !subscriptionEntitlements_1.ENTITLEMENT_FEATURE_FLAGS.multiHomeownerPlan) {
+        throw new functions.https.HttpsError('failed-precondition', 'Multi-Homeowner is not currently available.');
     }
     if (!promoCode) {
         throw new functions.https.HttpsError('invalid-argument', 'Coupon code is required.');
@@ -2030,13 +2738,17 @@ exports.adminPortalApplyUserBillingActions = functions
     const rawTrialDays = String(data?.trialDays ?? '').trim();
     const trialDays = rawTrialDays ? Number(rawTrialDays) : 0;
     const promoCode = normalizePromoCode(data?.promoCode);
-    const syncStripe = Boolean(data?.syncStripe);
+    const requestedStripeSync = Boolean(data?.syncStripe);
     if (!targetUserId) {
         throw new functions.https.HttpsError('invalid-argument', 'userId is required.');
     }
     if (nextPlanId &&
-        !['homeowner', 'homeowner_plus', 'property', 'portfolio'].includes(nextPlanId)) {
+        !['homeowner', 'homeowner_plus', 'multi_homeowner', 'property', 'portfolio'].includes(nextPlanId)) {
         throw new functions.https.HttpsError('invalid-argument', 'Select a valid plan.');
+    }
+    if (nextPlanId === 'multi_homeowner' &&
+        !subscriptionEntitlements_1.ENTITLEMENT_FEATURE_FLAGS.multiHomeownerPlan) {
+        throw new functions.https.HttpsError('failed-precondition', 'Multi-Homeowner is not currently available.');
     }
     if (rawTrialDays && (!Number.isFinite(trialDays) || trialDays < 1 || trialDays > 90)) {
         throw new functions.https.HttpsError('invalid-argument', 'Trial days must be a number between 1 and 90.');
@@ -2073,11 +2785,12 @@ exports.adminPortalApplyUserBillingActions = functions
         updatedAt: new Date().toISOString(),
     };
     const stripeSubscriptionId = String(currentSubscription.stripeSubscriptionId || '').trim();
+    const syncStripe = Boolean(stripeSubscriptionId);
     let stripeUpdated = false;
     let checkoutUrl = null;
     let checkoutSessionId = null;
     let stripeCustomerId = String(currentSubscription.stripeCustomerId || '').trim();
-    if (syncStripe && stripeSubscriptionId) {
+    if (syncStripe) {
         const existingSubscription = await stripe.subscriptions.retrieve(stripeSubscriptionId);
         const existingItem = existingSubscription.items.data[0];
         if (!existingItem?.id) {
@@ -2140,24 +2853,16 @@ exports.adminPortalApplyUserBillingActions = functions
         stripeCustomerId = String(updatedSubscription.customer || stripeCustomerId || '');
         stripeUpdated = true;
     }
-    else {
-        if (planChanged) {
-            nextSubscription.plan = nextPlanId;
-            if (!String(nextSubscription.status || '').trim()) {
-                nextSubscription.status = 'active';
-            }
-        }
-        if (trialDays) {
-            const currentTrialEnd = Number(currentSubscription.trialEndsAt || 0);
-            const trialBase = Math.max(currentTrialEnd || nowSeconds, nowSeconds);
-            nextSubscription.status = 'trial';
-            nextSubscription.trialEndsAt = trialBase + trialDays * 24 * 60 * 60;
-            nextSubscription.currentPeriodStart =
-                Number(currentSubscription.currentPeriodStart || 0) || nowSeconds;
-            nextSubscription.currentPeriodEnd = nextSubscription.trialEndsAt;
-        }
+    else if (trialDays) {
+        throw new functions.https.HttpsError('failed-precondition', 'Stripe trial days require an existing Stripe trialing subscription. Use an internal access grant for complimentary access without billing.');
     }
-    if (promotionCode && !stripeUpdated) {
+    if (!syncStripe && planChanged && nextPlanId === 'homeowner') {
+        throw new functions.https.HttpsError('failed-precondition', 'Moving an account to Homeowner is a cancellation or synthetic-access migration action, not a local billing plan edit.');
+    }
+    const shouldCreateCheckout = !stripeUpdated &&
+        Boolean(nextPlanId && nextPlanId !== 'homeowner') &&
+        (Boolean(planChanged) || Boolean(promotionCode));
+    if (shouldCreateCheckout) {
         const checkoutPlanId = nextPlanId || currentPlan;
         if (!checkoutPlanId || checkoutPlanId === 'homeowner') {
             throw new functions.https.HttpsError('invalid-argument', 'Select a paid plan before creating a checkout link with a coupon.');
@@ -2188,7 +2893,9 @@ exports.adminPortalApplyUserBillingActions = functions
             mode: 'subscription',
             success_url: resolveSuccessUrl(data?.successUrl),
             cancel_url: resolveCancelUrl(data?.cancelUrl),
-            discounts: [{ promotion_code: promotionCode.id }],
+            ...(promotionCode
+                ? { discounts: [{ promotion_code: promotionCode.id }] }
+                : {}),
             metadata: {
                 firebaseUID: targetUserId,
                 promoCode,
@@ -2231,6 +2938,7 @@ exports.adminPortalApplyUserBillingActions = functions
             trialDays: trialDays || null,
             promoCode: promoCode || null,
             promotionCodeId: promotionCode?.id || null,
+            requestedStripeSync,
             syncStripe,
             stripeUpdated,
             stripeSubscriptionId: String(nextSubscription.stripeSubscriptionId || '').trim() || null,
@@ -2249,7 +2957,7 @@ exports.adminPortalApplyUserBillingActions = functions
         checkoutSessionId,
         stripeCustomerId: stripeCustomerId || null,
         applied: {
-            planChanged,
+            planChanged: Boolean(planChanged && stripeUpdated),
             trialExtended: Boolean(trialDays),
             couponApplied: Boolean(promotionCode && stripeUpdated),
             checkoutLinkCreated: Boolean(checkoutUrl),
@@ -2364,6 +3072,11 @@ exports.adminPortalManageUserSubscription = functions
     }
     if (action === 'change_plan' && !nextPlanId) {
         throw new functions.https.HttpsError('invalid-argument', 'planId is required for change_plan.');
+    }
+    if (action === 'change_plan' &&
+        nextPlanId === 'multi_homeowner' &&
+        !subscriptionEntitlements_1.ENTITLEMENT_FEATURE_FLAGS.multiHomeownerPlan) {
+        throw new functions.https.HttpsError('failed-precondition', 'Multi-Homeowner is not currently available.');
     }
     if (action === 'extend_trial' && (!Number.isFinite(trialDays) || trialDays < 1 || trialDays > 90)) {
         throw new functions.https.HttpsError('invalid-argument', 'trialDays must be a number between 1 and 90.');

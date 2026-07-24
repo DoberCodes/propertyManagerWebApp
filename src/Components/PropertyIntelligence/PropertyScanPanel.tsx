@@ -26,6 +26,7 @@ import {
 	shouldShowPropertyScanRecommendationForPlan,
 } from '../../utils/propertyIntelligenceScan';
 import {
+	canUsePropertyInsights,
 	getEffectiveSubscriptionPlanId,
 	SubscriptionData,
 } from '../../utils/subscriptionUtils';
@@ -80,6 +81,8 @@ const getPlanLabel = (planId: string): string => {
 	switch (planId) {
 		case 'homeowner_plus':
 			return 'Homeowner+';
+		case 'multi_homeowner':
+			return 'Multi-Homeowner';
 		case 'property':
 			return 'Property';
 		case 'portfolio':
@@ -345,7 +348,7 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 	});
 	const [savePropertyScanSnapshot] = useSavePropertyScanSnapshotMutation();
 	const currentPlanId = getEffectiveSubscriptionPlanId(subscription, 'homeowner');
-	const isFreePlan = currentPlanId === 'homeowner';
+	const isFreePlan = !canUsePropertyInsights(subscription);
 	const intelligenceSourceCards = [
 		{
 			label: scanLanguage.memoryLabel,

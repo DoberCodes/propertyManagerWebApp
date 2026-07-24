@@ -193,7 +193,7 @@ const getPropertyLabel = (item, propertyById) => {
 const renderMetric = (label, value) => `
 	<td style="width:33.333%; padding:8px;">
 		<div style="border:1px solid #dbe7dc; border-radius:14px; padding:16px; background:#f8fbf8;">
-			<div style="font-size:28px; line-height:1; font-weight:900; color:#0f766e;">${value}</div>
+			<div style="font-size:28px; line-height:1; font-weight:900; color:#047857;">${value}</div>
 			<div style="font-size:12px; line-height:1.45; color:#52625a; margin-top:8px;">${(0, emailService_1.escapeHtml)(label)}</div>
 		</div>
 	</td>
@@ -236,21 +236,21 @@ const getMonthlyDigestHtml = ({ name, counts, upcomingTasks, overdueTasks, recen
     const escapedName = (0, emailService_1.escapeHtml)(name);
     const dashboardUrl = appUrl.replace(/\/$/, '');
     return `
-		<div style="margin:0; padding:0; background:#edf7ef; font-family:Arial,sans-serif; color:#10251a;">
-			<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#edf7ef; padding:34px 14px;">
+		<div style="margin:0; padding:0; background:#FAFAF8; font-family:Manrope,-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif; color:#1F2937;">
+			<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#FAFAF8; padding:34px 14px;">
 				<tr><td align="center">
-					<table role="presentation" width="640" cellpadding="0" cellspacing="0" style="max-width:640px; width:100%; background:#ffffff; border-radius:20px; overflow:hidden; border:1px solid #cfe8d4; box-shadow:0 10px 30px rgba(16,37,26,0.08);">
+					<table role="presentation" width="640" cellpadding="0" cellspacing="0" style="max-width:640px; width:100%; background:#FFFFFF; border-radius:20px; overflow:hidden; border:1px solid #3FCC7C; box-shadow:0 10px 30px rgba(31,41,55,0.08);">
 						<tr>
-							<td style="background:#16a34a; color:#ffffff; padding:30px 32px;">
+							<td style="background:#047857; color:#FFFFFF; padding:30px 32px;">
 								<div style="font-size:13px; text-transform:uppercase; letter-spacing:0.08em; font-weight:800;">Maintley</div>
 								<h1 style="margin:10px 0 0 0; font-size:28px; line-height:1.2;">Monthly Property Summary</h1>
-								<p style="margin:10px 0 0 0; font-size:15px; line-height:1.6; color:#eaf8ee;">A calm snapshot of what is currently recorded across your Maintley account.</p>
+								<p style="margin:10px 0 0 0; font-size:15px; line-height:1.6; color:#FFFFFF;">A calm snapshot of what is currently recorded across your Maintley account.</p>
 							</td>
 						</tr>
 						<tr><td style="padding:32px;">
 							<p style="margin:0 0 22px 0; font-size:16px; line-height:1.65; color:#33443a;">Hi ${escapedName}, here is a quick look at the property records, tasks, and maintenance activity already documented in Maintley.</p>
 
-							<div style="font-size:12px; text-transform:uppercase; letter-spacing:0.08em; font-weight:900; color:#0f766e; margin-bottom:8px;">This month at a glance</div>
+							<div style="font-size:12px; text-transform:uppercase; letter-spacing:0.08em; font-weight:900; color:#047857; margin-bottom:8px;">This month at a glance</div>
 							<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 -8px 24px -8px;">
 								<tr>
 									${renderMetric('Properties', counts.propertyCount)}
@@ -274,7 +274,7 @@ const getMonthlyDigestHtml = ({ name, counts, upcomingTasks, overdueTasks, recen
 								${renderCompletedRows(recentlyCompleted, propertyById)}
 							</div>
 
-							<a href="${(0, emailService_1.escapeHtml)(dashboardUrl)}" style="display:inline-block; background:#16a34a; color:#ffffff; text-decoration:none; padding:13px 20px; border-radius:12px; font-size:14px; font-weight:900;">Open Maintley</a>
+							<a href="${(0, emailService_1.escapeHtml)(dashboardUrl)}" style="display:inline-block; background:#047857; color:#FFFFFF; text-decoration:none; padding:13px 20px; border-radius:12px; font-size:14px; font-weight:900;">Open Maintley</a>
 						</td></tr>
 						<tr><td style="padding:18px 32px; border-top:1px solid #e5efe7; font-size:12px; line-height:1.6; color:#667085;">This summary does not make maintenance recommendations. It only reflects information currently recorded in Maintley. You can update email preferences anytime in Settings.</td></tr>
 					</table>

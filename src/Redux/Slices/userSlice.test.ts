@@ -4,6 +4,7 @@ import userReducer, {
 	setUserCred,
 	setAuthLoading,
 	logout,
+	updateEntitlementProjection,
 	UserState,
 } from './userSlice';
 
@@ -100,6 +101,42 @@ describe('userSlice', () => {
 			const actual = userReducer(initialState, setUserCred(mockCred));
 
 			expect(actual.cred).toEqual(mockCred);
+		});
+
+		it('applies only the current account entitlement projection', () => {
+			const stateWithUser = userReducer(
+				initialState,
+				setCurrentUser({
+					...mockUser,
+					accountId: 'account-1',
+					subscription: {
+						status: 'active',
+						plan: 'homeowner',
+						currentPeriodStart: 0,
+						currentPeriodEnd: 1,
+					},
+				} as any),
+			);
+			const grant = {
+				grantId: 'trial-grant',
+				programId: 'homeowner_plus_first_property_trial_v1',
+				accountId: 'account-1',
+				kind: 'temporary',
+				state: 'active',
+				startsAtMs: 1,
+				endsAtMs: 2,
+				source: 'trial',
+			} as const;
+			const actual = userReducer(
+				stateWithUser,
+				updateEntitlementProjection({
+					accountId: 'account-1',
+					projection: { activeGrants: [grant] },
+				}),
+			);
+
+			expect(actual.currentUser?.subscription?.entitlementAccountId).toBe('account-1');
+			expect(actual.currentUser?.subscription?.entitlementGrants).toEqual([grant]);
 		});
 
 		it('should handle setAuthLoading true', () => {

@@ -23,7 +23,7 @@ import {
 import { useCreateNotificationMutation } from '../../Redux/API/notificationSlice';
 import { useAppFeedback } from '../Library/AppFeedback/AppFeedbackProvider';
 import {
-	getEffectiveSubscriptionPlanId,
+	canManageProperties,
 } from '../../utils/subscriptionUtils';
 import { canApproveTaskCompletions } from '../../utils/permissions';
 import { usePropertyDocumentUploadWorkflow } from '../../propertyKnowledge/usePropertyDocumentUploadWorkflow';
@@ -69,18 +69,13 @@ export const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
 	const { uploadPropertyDocuments } = usePropertyDocumentUploadWorkflow();
 	const { data: allProperties = [] } = useGetPropertiesQuery();
 	const feedback = useAppFeedback();
-	const effectivePlan = getEffectiveSubscriptionPlanId(
-		currentUser?.subscription,
-		'homeowner',
-	);
-	const isHomeownerPlan =
-		effectivePlan === 'homeowner' ||
-		effectivePlan === 'homeowner_plus' ||
-		effectivePlan === 'property';
+	const hasPropertyManagementAccess = currentUser?.subscription
+		? canManageProperties(currentUser.subscription)
+		: false;
 	const hasApprovalRole = canApproveTaskCompletions(
 		(currentUser?.role ?? '') as Parameters<typeof canApproveTaskCompletions>[0],
 	);
-	const canSelfComplete = isHomeownerPlan || hasApprovalRole;
+	const canSelfComplete = hasPropertyManagementAccess || hasApprovalRole;
 	const requiresWorkOrder = Boolean(task?.requiresWorkOrder);
 	const taskProperty = allProperties.find(
 		(property: any) => String(property.id || '') === String(task?.propertyId || ''),

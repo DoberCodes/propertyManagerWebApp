@@ -74,6 +74,13 @@ class FakeDocRef {
 	async update(data) {
 		this.db.updateDoc(this.collectionName, this.id, data);
 	}
+
+	collection(name) {
+		return new FakeCollectionRef(
+			this.db,
+			`${this.collectionName}/${this.id}/${name}`,
+		);
+	}
 }
 
 class FakeCollectionRef {
@@ -84,6 +91,14 @@ class FakeCollectionRef {
 
 	doc(id) {
 		return new FakeDocRef(this.db, this.name, id);
+	}
+
+	async get() {
+		return {
+			docs: Array.from(this.db.ensureCollection(this.name).entries()).map(
+				([id, data]) => new FakeDocSnapshot(id, data),
+			),
+		};
 	}
 }
 
@@ -416,12 +431,29 @@ const testPushDeliveryAndroidFiltering = async () => {
 	const messagingCalls = [];
 	const adminMock = createAdminMock(db, messagingCalls);
 	seedPushEnabledUser(db, 'push-user', {
+		accountId: 'push-account',
+		subscription: { status: 'active', plan: 'homeowner' },
 		pushToken: 'legacy-token',
 		pushTokens: [
 			{ token: 'android-token', platform: 'android' },
 			{ token: 'web-token', platform: 'web' },
 			{ token: 'disabled-token', platform: 'android', disabled: true },
 		],
+	});
+	db.setDoc('familyAccounts', 'push-account', {
+		subscription: { status: 'active', plan: 'homeowner' },
+	});
+	db.setDoc('familyAccounts/push-account/entitlementGrants', 'push-grant', {
+		grantId: 'push-grant',
+		programId: 'support_homeowner_plus_v1',
+		accountId: 'push-account',
+		kind: 'temporary',
+		state: 'active',
+		bundleId: 'homeowner_plus',
+		bundleVersion: 'v1',
+		startsAtMs: Date.now() - 60_000,
+		endsAtMs: Date.now() + 60_000,
+		source: 'support',
 	});
 
 	await withModuleMocks(

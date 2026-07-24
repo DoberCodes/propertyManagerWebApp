@@ -1,6 +1,8 @@
 import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
+import { hasCapability } from '@maintley/entitlements';
 import { assertInviteCapability } from './inviteAuthz';
+import { resolveEntitlementsForAccount } from './subscriptionEntitlements';
 
 if (!admin.apps.length) {
 	admin.initializeApp();
@@ -8,18 +10,11 @@ if (!admin.apps.length) {
 
 const db = admin.firestore();
 
-const normalizePlanId = (plan?: unknown): string => {
-	return String(plan || '').trim().toLowerCase();
-};
-
-const isPropertySimpleTeamPlan = (plan?: unknown): boolean =>
-	normalizePlanId(plan) === 'property';
-
 const assertSimpleTeamProfileAllowed = (
-	plan: unknown,
+	advancedTeamAllowed: boolean,
 	teamMemberData: admin.firestore.DocumentData | undefined,
 ) => {
-	if (!isPropertySimpleTeamPlan(plan)) {
+	if (advancedTeamAllowed) {
 		return;
 	}
 
@@ -285,7 +280,7 @@ export const createTeamMemberInvitationCode = functions.https.onCall(
 			);
 		}
 
-		const { accountId, subscription } = await assertInviteCapability(
+		const { accountId, entitlements } = await assertInviteCapability(
 			context.auth.uid,
 			'team',
 		);
@@ -293,7 +288,10 @@ export const createTeamMemberInvitationCode = functions.https.onCall(
 			.collection('teamMembers')
 			.doc(teamMemberId)
 			.get();
-		assertSimpleTeamProfileAllowed(subscription.plan, teamMemberDoc.data());
+		assertSimpleTeamProfileAllowed(
+			hasCapability(entitlements, 'team.advanced'),
+			teamMemberDoc.data(),
+		);
 		const now = new Date().toISOString();
 		const expiresAt = new Date(
 			Date.now() + 7 * 24 * 60 * 60 * 1000,
@@ -542,8 +540,12 @@ export const redeemTeamMemberInvitationCode = functions.https.onCall(
 				.doc(inviteData.accountId)
 				.get();
 			const accountOwnerSubscription = accountOwnerDoc.data()?.subscription || {};
+			const entitlements = await resolveEntitlementsForAccount(
+				inviteData.accountId,
+				accountOwnerSubscription,
+			);
 			assertSimpleTeamProfileAllowed(
-				accountOwnerSubscription.plan,
+				hasCapability(entitlements, 'team.advanced'),
 				teamMemberProfile || undefined,
 			);
 

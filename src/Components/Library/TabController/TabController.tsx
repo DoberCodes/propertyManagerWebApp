@@ -43,7 +43,9 @@ export const TabController: React.FC<TabsContextProps> = ({
 		'homeowner',
 	);
 	const isHomeowner =
-		effectivePlan === 'homeowner' || effectivePlan === 'homeowner_plus';
+		effectivePlan === 'homeowner' ||
+		effectivePlan === 'homeowner_plus' ||
+		effectivePlan === 'multi_homeowner';
 	const isPropertyManager = currentUser ? !isHomeowner : true;
 	const isTenant = currentUser?.role === USER_ROLES.TENANT;
 	const isContractor = currentUser?.role === USER_ROLES.CONTRACTOR;

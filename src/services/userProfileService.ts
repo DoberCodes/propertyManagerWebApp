@@ -50,6 +50,8 @@ export const getUserProfile = async (uid: string): Promise<User> => {
 
 		// Get family account summary via backend callable (rules-safe)
 		let familyAccountSubscription: Record<string, unknown> | null = null;
+		let familyEntitlementProjection: Record<string, unknown> | null = null;
+		let resolvedFamilyAccountId: string | null = null;
 		const userData = userDoc.data();
 		if (userData.accountId) {
 			try {
@@ -62,11 +64,15 @@ export const getUserProfile = async (uid: string): Promise<User> => {
 					{
 						id: string;
 						subscription?: Record<string, unknown>;
+						effectiveEntitlementProjection?: Record<string, unknown>;
 					}
 				>('ensureFamilyAccount', {
 					accountId: String(userData.accountId),
 				});
 				familyAccountSubscription = accountSummary.data?.subscription || null;
+				familyEntitlementProjection =
+					accountSummary.data?.effectiveEntitlementProjection || null;
+				resolvedFamilyAccountId = accountSummary.data?.id || null;
 			} catch (accountError) {
 				console.warn(
 					'Failed to load family account subscription:',
@@ -231,7 +237,21 @@ export const getUserProfile = async (uid: string): Promise<User> => {
 					string,
 					unknown
 				>),
+				...(resolvedFamilyAccountId
+					? { entitlementAccountId: resolvedFamilyAccountId }
+					: {}),
+				...(Array.isArray(familyEntitlementProjection?.activeGrants)
+					? {
+							entitlementGrants: serializeFirestoreValue(
+								familyEntitlementProjection.activeGrants,
+							),
+					  }
+					: {}),
 			};
+			if (familyEntitlementProjection) {
+				serializedData.effectiveEntitlementProjection =
+					serializeFirestoreValue(familyEntitlementProjection);
+			}
 
 			// If we had to prefer the user subscription over family subscription,
 			// sync family account subscription for owners to prevent repeated stale reads.

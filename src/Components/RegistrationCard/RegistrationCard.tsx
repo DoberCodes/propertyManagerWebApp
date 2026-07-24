@@ -43,6 +43,7 @@ import {
 	createLegalAgreementDocuments,
 } from '../../constants/legal';
 import { auth } from '../../config/firebase';
+import { isPlanAvailable } from '../../entitlements/planAvailability';
 
 // Map selected account type to appropriate role
 const getRoleFromAccountType = (accountType: string): string => {
@@ -105,7 +106,9 @@ export const RegistrationCard = () => {
 	const skipsPlanSelection = inviteMode || isTenantSignup;
 	const isPaidCheckoutSelection =
 		!skipsPlanSelection &&
-		['homeowner_plus', 'property', 'portfolio'].includes(selectedPlan);
+		['homeowner_plus', 'multi_homeowner', 'property', 'portfolio'].includes(
+			selectedPlan,
+		) && isPlanAvailable(selectedPlan);
 	const totalSteps = skipsPlanSelection ? 2 : 3;
 	const displayStep = step;
 

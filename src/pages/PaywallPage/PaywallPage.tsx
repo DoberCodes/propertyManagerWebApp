@@ -61,6 +61,7 @@ import {
 } from '../../constants/stripe';
 import { isNativeApp } from '../../utils/platform';
 import { openSubscriptionManagementInBrowser } from '../../utils/authLinks';
+import { isMultiHomeownerPlanEnabled } from '../../entitlements/planAvailability';
 
 interface PaywallPageProps {
 	subscription: SubscriptionData;
@@ -76,18 +77,28 @@ interface PaywallPageProps {
 	initialPlanAudience?: PlanAudience;
 }
 
-type PaidPlanId = 'homeowner' | 'homeowner_plus' | 'property' | 'portfolio';
+type PaidPlanId =
+	| 'homeowner'
+	| 'homeowner_plus'
+	| 'multi_homeowner'
+	| 'property'
+	| 'portfolio';
 type PlanAudience = 'home' | 'business';
 
 const PLAN_BY_ID = {
 	homeowner: SUBSCRIPTION_PLANS.HOMEOWNER,
 	homeowner_plus: SUBSCRIPTION_PLANS.HOMEOWNER_PLUS,
+	multi_homeowner: SUBSCRIPTION_PLANS.MULTI_HOMEOWNER,
 	property: SUBSCRIPTION_PLANS.PROPERTY,
 	portfolio: SUBSCRIPTION_PLANS.PORTFOLIO,
 } as const;
 
 const PLAN_GROUPS: Record<PlanAudience, PaidPlanId[]> = {
-	home: ['homeowner', 'homeowner_plus'],
+	home: [
+		'homeowner',
+		'homeowner_plus',
+		...(isMultiHomeownerPlanEnabled() ? (['multi_homeowner'] as const) : []),
+	],
 	business: ['property', 'portfolio'],
 };
 
@@ -101,6 +112,7 @@ const PLAN_GROUP_COPY: Record<PlanAudience, string> = {
 const PLAN_BEST_FOR: Record<PaidPlanId, string> = {
 	homeowner: 'Ideal for finding gaps in one home record.',
 	homeowner_plus: 'Ideal for deeper records, reminders, and proactive upkeep.',
+	multi_homeowner: 'Ideal for several personal, vacation, or family homes.',
 	property: 'Ideal for managing multiple properties with stronger controls.',
 	portfolio: 'Ideal for teams operating larger property portfolios.',
 };
@@ -108,6 +120,7 @@ const PLAN_BEST_FOR: Record<PaidPlanId, string> = {
 const DEFAULT_PLAN_BILLING: Record<PaidPlanId, BillingCycle> = {
 	homeowner: 'month',
 	homeowner_plus: 'month',
+	multi_homeowner: 'month',
 	property: 'month',
 	portfolio: 'month',
 };
@@ -119,7 +132,11 @@ const getAudienceForPlan = (
 	fallback: PlanAudience = 'home',
 ): PlanAudience => {
 	if (planId === 'property' || planId === 'portfolio') return 'business';
-	if (planId === 'homeowner' || planId === 'homeowner_plus') return 'home';
+	if (
+		planId === 'homeowner' ||
+		planId === 'homeowner_plus' ||
+		planId === 'multi_homeowner'
+	) return 'home';
 	return fallback;
 };
 
@@ -162,6 +179,7 @@ export const PaywallPage: React.FC<PaywallPageProps> = ({
 	>({
 		homeowner: false,
 		homeowner_plus: false,
+		multi_homeowner: false,
 		property: false,
 		portfolio: false,
 	});

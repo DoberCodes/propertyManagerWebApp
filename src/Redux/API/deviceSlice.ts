@@ -19,7 +19,7 @@ import {
 	resolveTargetUserId,
 } from './accountContext';
 import {
-	getEffectiveSubscriptionPlanId,
+	getEffectiveAccessPlanId,
 	getMaxDevicesForPlan,
 } from '../../utils/subscriptionUtils';
 import { trackAnalyticsEvent } from '../../analytics/analytics';
@@ -171,11 +171,18 @@ const deviceSlice = apiSlice.injectEndpoints({
 						);
 						const userData = userSnapshot.data() || {};
 						const subscription = userData.subscription || {};
-						const planId = getEffectiveSubscriptionPlanId(subscription);
-						const maxDevices = getMaxDevicesForPlan(planId);
-
 						const accountSnapshot = await transaction.get(accountRef);
 						const accountData = accountSnapshot.data() || {};
+						const projection = accountData.effectiveEntitlementProjection || {};
+						const subscriptionWithGrants = {
+							...subscription,
+							entitlementAccountId: targetUserId,
+							entitlementGrants: Array.isArray(projection.activeGrants)
+								? projection.activeGrants
+								: [],
+						};
+						const planId = getEffectiveAccessPlanId(subscriptionWithGrants);
+						const maxDevices = getMaxDevicesForPlan(planId);
 						const currentDeviceCount = Number(accountData.deviceCount || 0);
 
 						if (currentDeviceCount >= maxDevices) {

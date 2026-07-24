@@ -39,6 +39,7 @@ const admin = __importStar(require("firebase-admin"));
 const params_1 = require("firebase-functions/params");
 const emailService_1 = require("./emailService");
 const taskDisplayStatus_1 = require("./taskDisplayStatus");
+const subscriptionEntitlements_1 = require("./subscriptionEntitlements");
 const RESEND_API_KEY = (0, params_1.defineSecret)(process.env.RESEND_API_KEY_SECRET_NAME || 'RESEND_API_KEY');
 if (!admin.apps.length) {
     admin.initializeApp();
@@ -51,34 +52,6 @@ const ACTIVE_TASK_STATUSES = new Set([
     'Awaiting Approval',
     'Overdue',
 ]);
-const PAID_TASK_REMINDER_EMAIL_PLANS = new Set([
-    'homeowner_plus',
-    'property',
-    'portfolio',
-]);
-const normalizePlanId = (planId) => {
-    return String(planId || '').trim().toLowerCase();
-};
-const hasCurrentEntitlement = (subscription) => {
-    if (!subscription?.status)
-        return false;
-    if (subscription.status === 'active')
-        return true;
-    if (subscription.status !== 'trial')
-        return false;
-    if (!subscription.trialEndsAt)
-        return true;
-    return subscription.trialEndsAt > Date.now() / 1000;
-};
-const getEffectivePlanId = (subscription) => {
-    if (!hasCurrentEntitlement(subscription)) {
-        return 'homeowner';
-    }
-    const plan = normalizePlanId(subscription?.plan);
-    return plan || 'homeowner';
-};
-const canReceiveTaskReminderEmails = (user) => user.emailPreferences?.taskReminders === true &&
-    PAID_TASK_REMINDER_EMAIL_PLANS.has(getEffectivePlanId(user.subscription));
 const toDateOnly = (date) => date.toISOString().slice(0, 10);
 const parseTaskDueDate = (dueDate) => {
     if (!dueDate)
@@ -163,11 +136,11 @@ const getTaskReminderHtml = ({ name, message, task, propertyLabel, appUrl, }) =>
         ? `${appUrl.replace(/\/$/, '')}/properties/${encodeURIComponent(task.propertyId)}`
         : appUrl;
     return `
-		<div style="margin:0; padding:0; background:#edf7ef; font-family:Arial,sans-serif; color:#111827;">
-			<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#edf7ef; padding:24px 0;">
+		<div style="margin:0; padding:0; background:#FAFAF8; font-family:Manrope,-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif; color:#1F2937;">
+			<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#FAFAF8; padding:24px 0;">
 				<tr><td align="center">
 					<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px; width:100%; background:#ffffff; border-radius:12px; overflow:hidden; border:1px solid #cfe8d4;">
-						<tr><td style="background:#16a34a; color:#ffffff; padding:20px 24px; font-size:24px; font-weight:700;">Maintley</td></tr>
+						<tr><td style="background:#047857; color:#FFFFFF; padding:20px 24px; font-size:24px; font-weight:700;">Maintley</td></tr>
 						<tr><td style="padding:24px;">
 							<h2 style="margin:0 0 12px 0; font-size:22px; color:#111827;">Maintenance Reminder</h2>
 							<p style="margin:0 0 16px 0; font-size:15px; line-height:1.6; color:#374151;">Hi ${(0, emailService_1.escapeHtml)(name)}, ${(0, emailService_1.escapeHtml)(message)}</p>
@@ -177,7 +150,7 @@ const getTaskReminderHtml = ({ name, message, task, propertyLabel, appUrl, }) =>
 								<p style="margin:0 0 8px 0; font-size:14px; color:#0f172a;"><strong>Status:</strong> ${(0, emailService_1.escapeHtml)(displayStatus.label)}</p>
 								<p style="margin:0; font-size:14px; color:#0f172a;"><strong>Due:</strong> ${(0, emailService_1.escapeHtml)(task.dueDate || 'Not set')}</p>
 							</div>
-							<a href="${(0, emailService_1.escapeHtml)(taskUrl)}" style="display:inline-block; background:#16a34a; color:#ffffff; text-decoration:none; padding:11px 18px; border-radius:8px; font-size:14px; font-weight:600;">Open maintenance task</a>
+							<a href="${(0, emailService_1.escapeHtml)(taskUrl)}" style="display:inline-block; background:#047857; color:#FFFFFF; text-decoration:none; padding:11px 18px; border-radius:8px; font-size:14px; font-weight:600;">Open maintenance task</a>
 						</td></tr>
 						<tr><td style="padding:16px 24px; border-top:1px solid #cfe8d4; font-size:12px; line-height:1.5; color:#6b7280;">This email follows the notification schedule saved on this task. You can update email preferences anytime in Settings.</td></tr>
 					</table>
@@ -258,8 +231,12 @@ const sendTaskReminderEmail = async (task, notification, currentDate, appUrl) =>
     if (!email) {
         return { sent: false, skipped: true, reason: 'missing_email' };
     }
-    if (!canReceiveTaskReminderEmails(user)) {
+    if (user.emailPreferences?.taskReminders !== true) {
         return { sent: false, skipped: true, reason: 'email_preference_disabled' };
+    }
+    const accountId = String(user.accountId || task.accountId || '').trim() || recipientUserId;
+    if (!(await (0, subscriptionEntitlements_1.hasAccountCapability)(accountId, user.subscription, 'notifications.use', currentDate.getTime()))) {
+        return { sent: false, skipped: true, reason: 'plan_not_eligible' };
     }
     const resendApiKey = RESEND_API_KEY.value();
     const resend = (0, emailService_1.getResendClient)(resendApiKey);

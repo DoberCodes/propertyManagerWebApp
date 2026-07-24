@@ -134,7 +134,7 @@ const assertCanUsePropertyKnowledgeAcquisitionForProperty = async (propertyData)
     const accountId = getPropertyAccountId(propertyData);
     const ownerId = toString(propertyData.userId);
     const subscription = await loadAccountSubscription(accountId, ownerId);
-    if ((0, subscriptionEntitlements_1.canUsePropertyKnowledgeAcquisition)(subscription)) {
+    if (await (0, subscriptionEntitlements_1.hasAccountCapability)(accountId || ownerId, subscription, 'property_knowledge.acquire')) {
         return;
     }
     throw new functions.https.HttpsError('permission-denied', 'Suggested details from documents are available with Homeowner+.');

@@ -153,18 +153,18 @@ exports.createFamilyInvite = functions
         if (resend) {
             const html = `
 				<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-					<h2 style="color: #16a34a;">Welcome to Maintley!</h2>
+					<h2 style="color: #047857;">Welcome to Maintley!</h2>
 					<p>Hi ${firstName},</p>
 					<p>${ownerName} has added you to their family account on Maintley.</p>
 					<p>Your account has been created. Click the button below to set your password and get started:</p>
 					<p>
-						<a href="${resetLink}" style="display:inline-block;background:#16a34a;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600;">
+						<a href="${resetLink}" style="display:inline-block;background:#047857;color:#FFFFFF;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600;">
 							Set Your Password
 						</a>
 					</p>
 					<p style="font-size:14px;color:#6b7280;">
 						If you have trouble clicking the button, copy and paste this link into your browser:<br/>
-						<a href="${resetLink}" style="color:#16a34a;word-break:break-all;">${resetLink}</a>
+						<a href="${resetLink}" style="color:#047857;word-break:break-all;">${resetLink}</a>
 					</p>
 					<p style="font-size:14px;color:#6b7280;">This link will expire in 1 hour.</p>
 				</div>

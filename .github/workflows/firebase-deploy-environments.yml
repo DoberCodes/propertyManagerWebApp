@@ -46,7 +46,12 @@ jobs:
           REACT_APP_ENABLE_ANALYTICS: ${{ secrets.PROD_REACT_APP_ENABLE_ANALYTICS }}
           REACT_APP_FIREBASE_WEB_PUSH_VAPID_KEY: ${{ secrets.PROD_REACT_APP_FIREBASE_WEB_PUSH_VAPID_KEY }}
           REACT_APP_STRIPE_PUBLIC_KEY: ${{ secrets.PROD_REACT_APP_STRIPE_PUBLIC_KEY }}
-        run: yarn build
+          REACT_APP_ENABLE_MULTI_HOMEOWNER_PLAN: ${{ vars.ENABLE_MULTI_HOMEOWNER_PLAN || 'false' }}
+          REACT_APP_ENABLE_HOMEOWNER_PLUS_PRODUCT_TRIAL: ${{ vars.ENABLE_HOMEOWNER_PLUS_PRODUCT_TRIAL || 'false' }}
+          REACT_APP_ENABLE_INTERNAL_ENTITLEMENT_GRANT_ISSUANCE: ${{ vars.ENABLE_INTERNAL_ENTITLEMENT_GRANT_ISSUANCE || 'false' }}
+        run: |
+          yarn sync:public-pricing
+          yarn build
 
   deploy:
     runs-on: ubuntu-latest
@@ -151,6 +156,21 @@ jobs:
         if: steps.deploy-targets.outputs.has_targets == 'true' && contains(steps.deploy-targets.outputs.targets, 'functions')
         run: yarn --cwd functions build
 
+      - name: Email branding and lifecycle template tests
+        if: steps.deploy-targets.outputs.has_targets == 'true' && contains(steps.deploy-targets.outputs.targets, 'functions')
+        run: node scripts/testEmailTemplates.cjs
+
+      - name: Use Java for Firebase emulators
+        if: steps.deploy-targets.outputs.has_targets == 'true' && contains(steps.deploy-targets.outputs.targets, 'functions')
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Entitlement grant issuance tests
+        if: steps.deploy-targets.outputs.has_targets == 'true' && contains(steps.deploy-targets.outputs.targets, 'functions')
+        run: node ./functions/node_modules/firebase-tools/lib/bin/firebase.js emulators:exec --only firestore "node scripts/testEntitlementGrantIssuance.cjs"
+
       - name: Authenticate to Google Cloud
         if: steps.deploy-targets.outputs.has_targets == 'true'
         uses: google-github-actions/auth@v3
@@ -163,6 +183,13 @@ jobs:
         env:
           STRIPE_HOMEOWNER_PLUS_MONTHLY_PRICE_ID: ${{ secrets.PROD_STRIPE_HOMEOWNER_PLUS_MONTHLY_PRICE_ID || secrets.PROD_REACT_APP_STRIPE_HOMEOWNER_PLUS_MONTHLY_PRICE_ID }}
           STRIPE_HOMEOWNER_PLUS_ANNUAL_PRICE_ID: ${{ secrets.PROD_STRIPE_HOMEOWNER_PLUS_ANNUAL_PRICE_ID || secrets.PROD_REACT_APP_STRIPE_HOMEOWNER_PLUS_ANNUAL_PRICE_ID }}
+          STRIPE_MULTI_HOMEOWNER_MONTHLY_PRICE_ID: ${{ secrets.PROD_STRIPE_MULTI_HOMEOWNER_MONTHLY_PRICE_ID || secrets.PROD_STRIPE_MULTIPLE_HOMEOWNER_PLUS_MONTHLY_PRICE_ID }}
+          STRIPE_MULTI_HOMEOWNER_ANNUAL_PRICE_ID: ${{ secrets.PROD_STRIPE_MULTI_HOMEOWNER_ANNUAL_PRICE_ID || secrets.PROD_STRIPE_MULTIPLE_HOMEOWNER_PLUS_ANNUAL_PRICE_ID }}
+          ENABLE_MULTI_HOMEOWNER_PLAN: ${{ vars.ENABLE_MULTI_HOMEOWNER_PLAN || 'false' }}
+          ENABLE_HOMEOWNER_PLUS_PRODUCT_TRIAL: ${{ vars.ENABLE_HOMEOWNER_PLUS_PRODUCT_TRIAL || 'false' }}
+          ENABLE_INTERNAL_ENTITLEMENT_GRANT_ISSUANCE: ${{ vars.ENABLE_INTERNAL_ENTITLEMENT_GRANT_ISSUANCE || 'false' }}
+          ENABLE_ACCESS_LIFECYCLE_COMMUNICATION: ${{ vars.ENABLE_ACCESS_LIFECYCLE_COMMUNICATION || 'false' }}
+          HOMEOWNER_PLUS_TRIAL_ELIGIBILITY_START_AT: ${{ vars.HOMEOWNER_PLUS_TRIAL_ELIGIBILITY_START_AT || '' }}
           STRIPE_PROPERTY_MONTHLY_PRICE_ID: ${{ secrets.PROD_STRIPE_PROPERTY_MONTHLY_PRICE_ID || secrets.PROD_REACT_APP_STRIPE_PROPERTY_MONTHLY_PRICE_ID }}
           STRIPE_PROPERTY_ANNUAL_PRICE_ID: ${{ secrets.PROD_STRIPE_PROPERTY_ANNUAL_PRICE_ID || secrets.PROD_REACT_APP_STRIPE_PROPERTY_ANNUAL_PRICE_ID }}
           STRIPE_PORTFOLIO_MONTHLY_PRICE_ID: ${{ secrets.PROD_STRIPE_PORTFOLIO_MONTHLY_PRICE_ID || secrets.PROD_REACT_APP_STRIPE_PORTFOLIO_MONTHLY_PRICE_ID }}
@@ -172,6 +199,8 @@ jobs:
           for name in \
             STRIPE_HOMEOWNER_PLUS_MONTHLY_PRICE_ID \
             STRIPE_HOMEOWNER_PLUS_ANNUAL_PRICE_ID \
+            STRIPE_MULTI_HOMEOWNER_MONTHLY_PRICE_ID \
+            STRIPE_MULTI_HOMEOWNER_ANNUAL_PRICE_ID \
             STRIPE_PROPERTY_MONTHLY_PRICE_ID \
             STRIPE_PROPERTY_ANNUAL_PRICE_ID \
             STRIPE_PORTFOLIO_MONTHLY_PRICE_ID \
@@ -191,6 +220,13 @@ jobs:
           {
             echo "STRIPE_HOMEOWNER_PLUS_MONTHLY_PRICE_ID=$STRIPE_HOMEOWNER_PLUS_MONTHLY_PRICE_ID"
             echo "STRIPE_HOMEOWNER_PLUS_ANNUAL_PRICE_ID=$STRIPE_HOMEOWNER_PLUS_ANNUAL_PRICE_ID"
+            echo "STRIPE_MULTI_HOMEOWNER_MONTHLY_PRICE_ID=$STRIPE_MULTI_HOMEOWNER_MONTHLY_PRICE_ID"
+            echo "STRIPE_MULTI_HOMEOWNER_ANNUAL_PRICE_ID=$STRIPE_MULTI_HOMEOWNER_ANNUAL_PRICE_ID"
+            echo "ENABLE_MULTI_HOMEOWNER_PLAN=$ENABLE_MULTI_HOMEOWNER_PLAN"
+            echo "ENABLE_HOMEOWNER_PLUS_PRODUCT_TRIAL=$ENABLE_HOMEOWNER_PLUS_PRODUCT_TRIAL"
+            echo "ENABLE_INTERNAL_ENTITLEMENT_GRANT_ISSUANCE=$ENABLE_INTERNAL_ENTITLEMENT_GRANT_ISSUANCE"
+            echo "ENABLE_ACCESS_LIFECYCLE_COMMUNICATION=$ENABLE_ACCESS_LIFECYCLE_COMMUNICATION"
+            echo "HOMEOWNER_PLUS_TRIAL_ELIGIBILITY_START_AT=$HOMEOWNER_PLUS_TRIAL_ELIGIBILITY_START_AT"
             echo "STRIPE_PROPERTY_MONTHLY_PRICE_ID=$STRIPE_PROPERTY_MONTHLY_PRICE_ID"
             echo "STRIPE_PROPERTY_ANNUAL_PRICE_ID=$STRIPE_PROPERTY_ANNUAL_PRICE_ID"
             echo "STRIPE_PORTFOLIO_MONTHLY_PRICE_ID=$STRIPE_PORTFOLIO_MONTHLY_PRICE_ID"

@@ -101,7 +101,9 @@ export const createCheckoutSession = async (
 				subscriptionUpdated?: boolean;
 			}
 		>('createCheckoutSession', {
-			priceId,
+			// Current clients identify the product by stable plan and billing-cycle IDs.
+			// priceId is sent only for the time-bounded older-client compatibility path.
+			...(!planId && priceId ? { priceId } : {}),
 			...(planId ? { planId } : {}),
 			billingCycle,
 			userId,

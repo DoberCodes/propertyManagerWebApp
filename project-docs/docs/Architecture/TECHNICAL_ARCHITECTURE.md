@@ -441,6 +441,35 @@ See:
 * BILLING.md
 * MAINTLEY_PLAN_FEATURE_MATRIX.md
 
+## Shared entitlement resolver
+
+Runtime-neutral entitlement contracts and resolution live in:
+
+```text
+packages/entitlements
+```
+
+The browser and Firebase Functions consume the same pure resolver through local
+package dependencies. It separates billing state from effective capabilities,
+supports versioned plan bundles and account-scoped additive grants, uses an
+explicit clock for expiration, and emits diagnostics for compatibility or
+default-deny outcomes.
+
+The current rollout keeps subscription compatibility while routing primary web
+and Functions feature decisions through shared capability and limit helpers.
+Direct plan-name checks are restricted to classified billing, pricing,
+presentation, analytics, and migration boundaries by repository validation.
+Server capability decisions that can be affected by complimentary access use
+the account-aware resolver. It loads the family account's authoritative billing
+state and entitlement-grant collection before evaluating background email,
+push, invite, report, property-group, and document-intelligence behavior.
+Subscription-only checks are reserved for questions that are specifically
+about Stripe-paid state, such as paid-conversion communication suppression.
+
+Internal grant issuance remains disabled by default and requires an explicit
+deployment variable. Existing grants continue to resolve even when new issuance
+is disabled.
+
 ---
 
 # Push Notification Services

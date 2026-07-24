@@ -32,6 +32,7 @@ import {
 import { addBillingCoupon } from '../../../Redux/Slices/adminPortalSlice';
 import { fetchBillingCoupons } from '../../../Redux/thunks/adminPortalThunks';
 import type { AppDispatch } from '../../../Redux/store/store';
+import { isMultiHomeownerPlanEnabled } from '../../../entitlements/planAvailability';
 
 interface AdminBillingToolsPanelProps {
 	sessionToken: string;
@@ -40,6 +41,9 @@ interface AdminBillingToolsPanelProps {
 const PLAN_OPTIONS = [
 	{ value: '', label: 'All Paid Plans' },
 	{ value: 'homeowner_plus', label: 'Homeowner+' },
+	...(isMultiHomeownerPlanEnabled()
+		? [{ value: 'multi_homeowner', label: 'Multi-Homeowner' }]
+		: []),
 	{ value: 'property', label: 'Property' },
 	{ value: 'portfolio', label: 'Portfolio' },
 ];

@@ -36,15 +36,16 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.assertInviteCapability = void 0;
 const functions = __importStar(require("firebase-functions/v1"));
 const admin = __importStar(require("firebase-admin"));
+const entitlements_1 = require("@maintley/entitlements");
 const accountAuthz_1 = require("./accountAuthz");
 const subscriptionEntitlements_1 = require("./subscriptionEntitlements");
 if (!admin.apps.length) {
     admin.initializeApp();
 }
 const db = admin.firestore();
-const PLAN_CAPABILITIES = {
-    team: new Set(['property', 'portfolio']),
-    tenant: new Set(['property', 'portfolio']),
+const INVITE_CAPABILITIES = {
+    team: 'team.manage',
+    tenant: 'residents.manage',
 };
 const assertInviteCapability = async (uid, capability) => {
     const accountId = await (0, accountAuthz_1.resolveAccountIdForUser)(uid);
@@ -56,15 +57,12 @@ const assertInviteCapability = async (uid, capability) => {
     const accountOwnerData = accountOwnerDoc.data() || {};
     const subscription = (accountOwnerData.subscription ||
         {});
-    const effectivePlan = (0, subscriptionEntitlements_1.getEffectiveSubscriptionPlanId)(subscription, 'homeowner');
-    if (!(0, subscriptionEntitlements_1.isSubscriptionCurrentlyEntitled)(subscription)) {
-        throw new functions.https.HttpsError('permission-denied', 'An active subscription is required for this invite action');
-    }
-    if (!PLAN_CAPABILITIES[capability].has(effectivePlan)) {
+    const entitlements = await (0, subscriptionEntitlements_1.resolveEntitlementsForAccount)(accountId, subscription);
+    if (!(0, entitlements_1.hasCapability)(entitlements, INVITE_CAPABILITIES[capability])) {
         throw new functions.https.HttpsError('permission-denied', capability === 'team'
             ? 'Your current subscription plan does not allow inviting team members.'
             : 'Your current subscription plan does not allow inviting tenants.');
     }
-    return { accountId, subscription };
+    return { accountId, subscription, entitlements };
 };
 exports.assertInviteCapability = assertInviteCapability;

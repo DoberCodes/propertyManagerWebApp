@@ -37,36 +37,14 @@ exports.deletePropertyGroupCascade = void 0;
 const admin = __importStar(require("firebase-admin"));
 const functions = __importStar(require("firebase-functions/v1"));
 const accountAuthz_1 = require("./accountAuthz");
+const subscriptionEntitlements_1 = require("./subscriptionEntitlements");
 if (!admin.apps.length) {
     admin.initializeApp();
 }
 const db = admin.firestore();
 const PROPERTY_GROUP_DELETE_ROLES = ['account_owner', 'admin', 'manager'];
 const BATCH_LIMIT = 450;
-const PROPERTY_GROUP_PLANS = new Set(['property', 'portfolio']);
 const toString = (value) => String(value || '').trim();
-const normalizePlanId = (value) => {
-    return toString(value).toLowerCase();
-};
-const isTrialActive = (subscription) => {
-    if (subscription?.status !== 'trial') {
-        return false;
-    }
-    if (!subscription.trialEndsAt) {
-        return true;
-    }
-    return subscription.trialEndsAt > Date.now() / 1000;
-};
-const canUsePropertyGroups = (subscription) => {
-    if (!subscription) {
-        return false;
-    }
-    if (subscription.status !== 'active' && !isTrialActive(subscription)) {
-        return false;
-    }
-    const plan = normalizePlanId(subscription.plan);
-    return PROPERTY_GROUP_PLANS.has(plan);
-};
 const chunk = (items, size) => {
     const chunks = [];
     for (let index = 0; index < items.length; index += size) {
@@ -128,7 +106,7 @@ exports.deletePropertyGroupCascade = functions
     }
     await (0, accountAuthz_1.assertAccountRole)(uid, accountId, PROPERTY_GROUP_DELETE_ROLES);
     const accountOwnerDoc = await db.collection('users').doc(accountId).get();
-    if (!canUsePropertyGroups(accountOwnerDoc.data()?.subscription)) {
+    if (!(await (0, subscriptionEntitlements_1.hasAccountCapability)(accountId, accountOwnerDoc.data()?.subscription, 'property_groups.manage'))) {
         throw new functions.https.HttpsError('permission-denied', 'Property groups are available on Property and Portfolio plans.');
     }
     const deleted = {};
