@@ -62,6 +62,8 @@
 		"analyze:media": "node scripts/reportMediaAssets.cjs",
 		"check:asset-budgets": "node scripts/checkAssetBudgets.cjs",
 		"check:entitlement-boundaries": "node scripts/checkEntitlementBoundaries.cjs",
+		"check:entitlement-package-version": "node scripts/checkEntitlementPackageVersion.cjs",
+		"test:entitlement-package-version": "node --test scripts/checkEntitlementPackageVersion.test.cjs",
 		"validate:functions-package": "node scripts/validateFunctionsDeployPackage.cjs",
 		"audit:scripts": "node scripts/auditScripts.cjs",
 		"audit:decisions": "node scripts/auditDecisions.cjs",

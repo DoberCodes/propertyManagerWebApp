@@ -152,6 +152,12 @@ jobs:
         if: steps.deploy-targets.outputs.has_targets == 'true'
         run: yarn --cwd functions install --frozen-lockfile
 
+      - name: Require an entitlement package version bump
+        if: github.event_name == 'push' && steps.deploy-targets.outputs.has_targets == 'true' && contains(steps.deploy-targets.outputs.targets, 'functions')
+        env:
+          ENTITLEMENT_PACKAGE_BASE_REF: ${{ github.event.before }}
+        run: yarn check:entitlement-package-version
+
       - name: Validate Functions deploy package
         if: steps.deploy-targets.outputs.has_targets == 'true' && contains(steps.deploy-targets.outputs.targets, 'functions')
         run: yarn validate:functions-package

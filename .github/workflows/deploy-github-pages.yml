@@ -10,6 +10,28 @@ on:
   workflow_dispatch:
 
 jobs:
+  entitlement-package-version:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Require an entitlement package version bump
+        env:
+          ENTITLEMENT_PACKAGE_BASE_REF: ${{ github.event.pull_request.base.sha }}
+        run: yarn check:entitlement-package-version
+
+      - name: Entitlement package version policy tests
+        run: yarn test:entitlement-package-version
+
   version-validate:
     if: github.event_name == 'pull_request' && github.event.pull_request.head.ref == 'release/next'
     runs-on: ubuntu-latest
