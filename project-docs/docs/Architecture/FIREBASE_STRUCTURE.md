@@ -303,6 +303,7 @@ Primary collections:
 * users
 * familyAccounts
   * entitlementGrants (server-written temporary and permanent access grants)
+  * accessLifecycleDeliveries (server-written message idempotency and outcomes)
 * accountMemberships
 * properties
 * propertyGroups
@@ -525,6 +526,14 @@ Examples:
 * sendTaskReminderEmails
 * sendTeamMemberTaskReports
 * sendSeasonalGuidanceEmails
+* sendAccessLifecycleEmails
+* sendAccessLifecycleActivationOnGrantCreate
+
+Access lifecycle delivery uses an hourly UTC dispatcher plus a grant-create
+activation trigger. Both are independently disabled by
+`ENABLE_ACCESS_LIFECYCLE_COMMUNICATION`. Key lifecycle milestones also publish
+in-app Maintley Events. Provider attempts and outcomes remain operational data,
+separate from immutable admin decision audit records.
 
 ---
 

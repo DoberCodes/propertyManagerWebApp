@@ -767,6 +767,23 @@ resolved by trusted code. Customer-facing access summaries use the constrained
 normal account access but cannot create or modify. Grant issuance, eligibility,
 program consumption, and audit events remain server-only.
 
+### accessLifecycleDeliveries
+
+Path:
+
+```text
+familyAccounts/{accountId}/accessLifecycleDeliveries/{deliveryId}
+```
+
+Read, create, update, delete:
+
+* Cloud Functions and Admin SDK only
+
+The admin customer troubleshooting callable may return a minimized operational
+timeline to authenticated Maintley staff. Direct client access is denied. The
+test-send callable is also restricted by the server-managed `maintley_role` and
+does not write production delivery markers.
+
 ---
 
 ## accountMemberships

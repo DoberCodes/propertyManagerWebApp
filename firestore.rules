@@ -836,6 +836,12 @@ service cloud.firestore {
       match /entitlementGrants/{grantId} {
         allow read, create, update, delete: if false;
       }
+
+	  // Lifecycle delivery state is operational evidence written by Functions.
+	  // It is intentionally separate from user activity and admin decision audit logs.
+	  match /accessLifecycleDeliveries/{deliveryId} {
+		allow read, create, update, delete: if false;
+	  }
     }
 
     match /accountMemberships/{membershipId} {

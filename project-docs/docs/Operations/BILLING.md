@@ -89,6 +89,14 @@ both `ENABLE_HOMEOWNER_PLUS_PRODUCT_TRIAL` and
 grants continue resolving when issuance is disabled. No internal trial creates
 a Stripe customer, subscription, payment method, schedule, or automatic charge.
 
+Lifecycle email and in-app delivery has its own server flag,
+`ENABLE_ACCESS_LIFECYCLE_COMMUNICATION`. Enabling grant issuance does not enable
+messages automatically, and disabling messages does not revoke a grant. The
+current internal trial always states that no payment method is connected and
+that paid continuation requires intentional Checkout. Internal delivery data
+cannot initiate billing; Stripe remains the only authority for whether a charge
+can occur.
+
 The web equivalents are `REACT_APP_ENABLE_HOMEOWNER_PLUS_PRODUCT_TRIAL` and
 `REACT_APP_ENABLE_INTERNAL_ENTITLEMENT_GRANT_ISSUANCE`; these describe rollout
 state but do not revoke an already-issued grant.

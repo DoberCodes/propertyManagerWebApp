@@ -374,6 +374,18 @@ Maintley Event Engine validation:
 yarn test:notifications
 ```
 
+Email brand and access-lifecycle template validation:
+
+```bash
+yarn test:email-templates
+```
+
+This verifies milestone boundaries, deterministic delivery identity, current
+route generation, recipient escaping, no-surprise billing copy, and removal of
+legacy brand colors from Maintley email sources. Time-controlled integration
+tests are still required before enabling a production cohort to validate
+Firestore retries, suppression, catch-up windows, and provider behavior.
+
 Additional validation:
 
 * Test notification delivery

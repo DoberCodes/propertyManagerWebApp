@@ -276,6 +276,26 @@ is first created. Issuance records the program as consumed, so trigger retries,
 duplicate property events, profile recreation, and later property creation
 cannot restart the program.
 
+### accessLifecycleDeliveries subcollection
+
+Reserved path:
+
+```text
+familyAccounts/{accountId}/accessLifecycleDeliveries/{deliveryId}
+```
+
+Stores server-written operational evidence for access lifecycle messages. The
+deterministic delivery ID includes program, grant, milestone, and template
+version. Typical fields include `accountId`, `grantId`, `programId`,
+`milestone`, `templateVersion`, `targetAtMs`, `status`, `outcome`, `attempts`,
+lease timestamps, recipient, provider message ID, rendered time zone, and
+terminal timestamps.
+
+This is not customer activity history and is not the immutable administrative
+decision audit. Clients cannot read or write these records. Admin
+troubleshooting may expose a minimized delivery timeline through a trusted
+callable without exposing message content.
+
 ---
 
 ## accountMemberships

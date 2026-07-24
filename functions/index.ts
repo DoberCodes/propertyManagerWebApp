@@ -45,6 +45,11 @@ export { updateFamilyMember } from './updateFamilyMember';
 export { ensureFamilyAccount } from './ensureFamilyAccount';
 export { issueHomeownerPlusTrialOnFirstProperty } from './entitlementGrants';
 export {
+	sendAccessLifecycleActivationOnGrantCreate,
+	sendAccessLifecycleEmails,
+	sendAccessLifecycleEmailTest,
+} from './accessLifecycleEmails';
+export {
 	createMaintenanceEvent,
 	createMaintenanceEventsBatch,
 	updateMaintenanceEvent,

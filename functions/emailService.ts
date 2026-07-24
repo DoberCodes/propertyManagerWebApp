@@ -6,6 +6,7 @@ export interface EmailSendRequest {
 	html: string;
 	from?: string;
 	replyTo?: string;
+	idempotencyKey?: string;
 	attachments?: Array<{
 		filename: string;
 		content: string;
@@ -34,14 +35,22 @@ export const sendMaintleyEmail = async (
 		throw new Error('Resend client is not configured');
 	}
 
-	return client.emails.send({
+	const response = await client.emails.send({
 		to: request.to,
 		from: request.from || getDefaultFromAddress(),
 		subject: request.subject,
 		html: request.html,
 		...(request.replyTo && { replyTo: request.replyTo }),
 		...(request.attachments && { attachments: request.attachments }),
-	});
+	}, request.idempotencyKey
+		? { idempotencyKey: request.idempotencyKey }
+		: undefined);
+
+	if (response.error) {
+		throw new Error(response.error.message || 'Email provider rejected the message.');
+	}
+
+	return response;
 };
 
 export const escapeHtml = (value: string): string =>

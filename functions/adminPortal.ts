@@ -2148,7 +2148,12 @@ export const getAdminPortalUserTroubleshootingDetails = functions
 			String(userData.inviteCode || userData.invitationCode || userData.teamInviteCode || '')
 				.trim() || null;
 
-		const [entitlementAccountDoc, entitlementGrantSnapshot, entitlementAuditSnapshot] =
+		const [
+			entitlementAccountDoc,
+			entitlementGrantSnapshot,
+			entitlementAuditSnapshot,
+			accessLifecycleDeliverySnapshot,
+		] =
 			await Promise.all([
 				db.collection('familyAccounts').doc(entitlementAccountId).get(),
 				db
@@ -2160,6 +2165,11 @@ export const getAdminPortalUserTroubleshootingDetails = functions
 					.collection(ADMIN_AUDIT_LOGS_COLLECTION)
 					.where('targetAccountId', '==', entitlementAccountId)
 					.limit(50)
+					.get(),
+				db
+					.collection('familyAccounts')
+					.doc(entitlementAccountId)
+					.collection('accessLifecycleDeliveries')
 					.get(),
 			]);
 		const entitlementAccount = entitlementAccountDoc.data() || {};
@@ -2206,6 +2216,26 @@ export const getAdminPortalUserTroubleshootingDetails = functions
 				};
 			})
 			.sort((left, right) => toMillis(right.createdAt) - toMillis(left.createdAt))
+			.slice(0, 20);
+		const lifecycleDeliveries = accessLifecycleDeliverySnapshot.docs
+			.map((deliveryDoc) => {
+				const delivery = deliveryDoc.data() || {};
+				return {
+					id: deliveryDoc.id,
+					milestone: String(delivery.milestone || ''),
+					status: String(delivery.status || ''),
+					outcome: String(delivery.outcome || ''),
+					templateVersion: String(delivery.templateVersion || ''),
+					attempts: Number(delivery.attempts || 0),
+					targetAt: toIsoString(delivery.targetAtMs),
+					sentAt: toIsoString(delivery.sentAt),
+					updatedAt: toIsoString(delivery.updatedAt),
+				};
+			})
+			.sort((left, right) =>
+				toMillis(right.sentAt || right.updatedAt || right.targetAt) -
+				toMillis(left.sentAt || left.updatedAt || left.targetAt),
+			)
 			.slice(0, 20);
 
 		const [propertyCountByAccount, propertyCountByUserId, propertyCountByOwnerId] = await Promise.all([
@@ -2394,6 +2424,7 @@ export const getAdminPortalUserTroubleshootingDetails = functions
 						  }
 					: null,
 				timeline: accessTimeline,
+				lifecycleDeliveries,
 			},
 			recentSupportRequests,
 			recentErrors,

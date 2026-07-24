@@ -150,6 +150,17 @@ export type AdminPortalUserTroubleshootingDetails = {
 			grantId?: string | null;
 			programId?: string | null;
 		}>;
+		lifecycleDeliveries: Array<{
+			id: string;
+			milestone: string;
+			status: string;
+			outcome: string;
+			templateVersion: string;
+			attempts: number;
+			targetAt?: string | null;
+			sentAt?: string | null;
+			updatedAt?: string | null;
+		}>;
 	};
 	recentSupportRequests: Array<{
 		id: string;

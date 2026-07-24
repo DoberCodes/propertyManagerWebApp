@@ -113,7 +113,7 @@ export const resendFamilyMemberInvite = functions
 				try {
 					const html = `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2 style="color: #16a34a;">Password Reset for Maintley</h2>
+            <h2 style="color: #047857;">Password Reset for Maintley</h2>
             <p>Hi ${memberFirstName},</p>
               
             <p>${ownerName} has sent you a password reset link for your Maintley account.</p>
@@ -121,14 +121,14 @@ export const resendFamilyMemberInvite = functions
             <p>Click the button below to set a new password:</p>
 
             <p>
-              <a href="${resetLink}" style="display: inline-block; background: #16a34a; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 600;">
+              <a href="${resetLink}" style="display: inline-block; background: #047857; color: #FFFFFF; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 600;">
                 Set Your Password
               </a>
             </p>
 
             <p style="font-size:14px;color:#6b7280;">
               If you have trouble clicking the button, copy and paste this link into your browser:<br/>
-              <a href="${resetLink}" style="color:#16a34a;word-break:break-all;">${resetLink}</a>
+              <a href="${resetLink}" style="color:#047857;word-break:break-all;">${resetLink}</a>
             </p>
 
             <p style="font-size:14px;color:#6b7280;">This link will expire in 1 hour.</p>

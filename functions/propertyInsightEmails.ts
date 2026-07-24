@@ -444,8 +444,8 @@ const getPriorityLabel = (priority: RecordObservation['priority']): string => {
 };
 
 const getPriorityColor = (priority: RecordObservation['priority']): string => {
-	if (priority === 'high') return '#0f766e';
-	if (priority === 'medium') return '#2f6f4e';
+	if (priority === 'high') return '#036151';
+	if (priority === 'medium') return '#009E71';
 	return '#667085';
 };
 
@@ -470,7 +470,7 @@ const renderObservationRows = (observations: RecordObservation[]): string =>
 const renderTopOpportunities = (topOpportunities: string[]): string =>
 	topOpportunities.length > 0
 		? `
-			<div style="font-size:12px; text-transform:uppercase; letter-spacing:0.08em; font-weight:900; color:#0f766e; margin-top:16px;">Possible record gaps to review</div>
+			<div style="font-size:12px; text-transform:uppercase; letter-spacing:0.08em; font-weight:900; color:#047857; margin-top:16px;">Possible record gaps to review</div>
 			<ul style="margin:8px 0 0 20px; padding:0; color:#405348; font-size:14px; line-height:1.7;">
 				${topOpportunities.map((opportunity) => `<li>${escapeHtml(opportunity)}</li>`).join('')}
 			</ul>
@@ -503,34 +503,34 @@ const getPropertyInsightsHtml = ({
 	);
 
 	return `
-		<div style="margin:0; padding:0; background:#edf7ef; font-family:Arial,sans-serif; color:#10251a;">
-			<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#edf7ef; padding:34px 14px;">
+		<div style="margin:0; padding:0; background:#FAFAF8; font-family:Manrope,-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif; color:#1F2937;">
+			<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#FAFAF8; padding:34px 14px;">
 				<tr><td align="center">
-					<table role="presentation" width="640" cellpadding="0" cellspacing="0" style="max-width:640px; width:100%; background:#ffffff; border-radius:20px; overflow:hidden; border:1px solid #cfe8d4; box-shadow:0 10px 30px rgba(16,37,26,0.08);">
+					<table role="presentation" width="640" cellpadding="0" cellspacing="0" style="max-width:640px; width:100%; background:#FFFFFF; border-radius:20px; overflow:hidden; border:1px solid #3FCC7C; box-shadow:0 10px 30px rgba(31,41,55,0.08);">
 						<tr>
-							<td style="background:#0f766e; color:#ffffff; padding:30px 32px;">
+							<td style="background:#047857; color:#FFFFFF; padding:30px 32px;">
 								<div style="font-size:13px; text-transform:uppercase; letter-spacing:0.08em; font-weight:800;">Maintley</div>
 								<h1 style="margin:10px 0 0 0; font-size:28px; line-height:1.2;">Property Insights</h1>
-								<p style="margin:10px 0 0 0; font-size:15px; line-height:1.6; color:#eaf8ee;">A focused review of possible record gaps in your documented property information.</p>
+								<p style="margin:10px 0 0 0; font-size:15px; line-height:1.6; color:#FFFFFF;">A focused review of possible record gaps in your documented property information.</p>
 							</td>
 						</tr>
 						<tr><td style="padding:32px;">
 							<p style="margin:0 0 22px 0; font-size:16px; line-height:1.65; color:#33443a;">Hi ${escapeHtml(name)}, Maintley reviewed your documented appliances, systems, and maintenance history for possible record gaps. These are observations about your records, not maintenance instructions.</p>
 
 							<div style="border:1px solid #dbe7dc; border-radius:18px; padding:22px; margin-bottom:24px; background:#f8fbf8;">
-								<div style="font-size:13px; text-transform:uppercase; letter-spacing:0.08em; font-weight:800; color:#0f766e;">Property Record Completeness</div>
+								<div style="font-size:13px; text-transform:uppercase; letter-spacing:0.08em; font-weight:800; color:#047857;">Property Record Completeness</div>
 								<div style="font-size:40px; line-height:1.05; font-weight:900; color:#10251a; margin-top:8px;">${completenessScore}%</div>
 								<div style="font-size:13px; color:#52625a; line-height:1.7; margin-top:8px;">${deviceCount} appliances/systems reviewed. ${historyCount} maintenance history records reviewed.</div>
 								${renderTopOpportunities(topOpportunities)}
 							</div>
 
-							<div style="font-size:13px; text-transform:uppercase; letter-spacing:0.08em; font-weight:900; color:#0f766e; margin-bottom:12px;">Top ${observations.length} ${observations.length === 1 ? 'Insight' : 'Insights'}</div>
+							<div style="font-size:13px; text-transform:uppercase; letter-spacing:0.08em; font-weight:900; color:#047857; margin-bottom:12px;">Top ${observations.length} ${observations.length === 1 ? 'Insight' : 'Insights'}</div>
 							<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:10px;">
 								${renderObservationRows(observations)}
 							</table>
 							${hiddenObservationCount > 0 ? `<p style="margin:0 0 22px 0; font-size:13px; line-height:1.6; color:#667085;">${hiddenObservationCount} additional ${hiddenObservationCount === 1 ? 'observation is' : 'observations are'} available in Maintley.</p>` : ''}
 
-							<a href="${escapeHtml(dashboardUrl)}" style="display:inline-block; background:#16a34a; color:#ffffff; text-decoration:none; padding:13px 20px; border-radius:12px; font-size:14px; font-weight:900;">View all property insights</a>
+							<a href="${escapeHtml(dashboardUrl)}" style="display:inline-block; background:#047857; color:#FFFFFF; text-decoration:none; padding:13px 20px; border-radius:12px; font-size:14px; font-weight:900;">View all property insights</a>
 						</td></tr>
 						<tr><td style="padding:18px 32px; border-top:1px solid #e5efe7; font-size:12px; line-height:1.6; color:#667085;">Property Insights are documentation observations, not professional maintenance advice. They only reflect information recorded in Maintley. You can update email preferences anytime in Settings.</td></tr>
 					</table>

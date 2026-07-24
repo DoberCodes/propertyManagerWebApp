@@ -19,6 +19,7 @@ export type MaintleyEventType =
 	| 'document_review_failed'
 	| 'quick_scan_completed'
 	| 'property_audit_completed'
+	| 'access_lifecycle'
 	| 'ticket_received'
 	| 'ticket_in_progress'
 	| 'ticket_testing_fix'
@@ -111,6 +112,8 @@ const getNotificationType = (type: MaintleyEventType): string => {
 			return 'quick_scan_completed';
 		case 'property_audit_completed':
 			return 'property_audit_completed';
+		case 'access_lifecycle':
+			return 'other';
 		case 'ticket_received':
 		case 'ticket_in_progress':
 		case 'ticket_testing_fix':

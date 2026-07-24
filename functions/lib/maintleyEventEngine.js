@@ -84,6 +84,8 @@ const getNotificationType = (type) => {
             return 'quick_scan_completed';
         case 'property_audit_completed':
             return 'property_audit_completed';
+        case 'access_lifecycle':
+            return 'other';
         case 'ticket_received':
         case 'ticket_in_progress':
         case 'ticket_testing_fix':

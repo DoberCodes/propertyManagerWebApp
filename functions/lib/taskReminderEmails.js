@@ -138,11 +138,11 @@ const getTaskReminderHtml = ({ name, message, task, propertyLabel, appUrl, }) =>
         ? `${appUrl.replace(/\/$/, '')}/properties/${encodeURIComponent(task.propertyId)}`
         : appUrl;
     return `
-		<div style="margin:0; padding:0; background:#edf7ef; font-family:Arial,sans-serif; color:#111827;">
-			<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#edf7ef; padding:24px 0;">
+		<div style="margin:0; padding:0; background:#FAFAF8; font-family:Manrope,-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif; color:#1F2937;">
+			<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#FAFAF8; padding:24px 0;">
 				<tr><td align="center">
 					<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px; width:100%; background:#ffffff; border-radius:12px; overflow:hidden; border:1px solid #cfe8d4;">
-						<tr><td style="background:#16a34a; color:#ffffff; padding:20px 24px; font-size:24px; font-weight:700;">Maintley</td></tr>
+						<tr><td style="background:#047857; color:#FFFFFF; padding:20px 24px; font-size:24px; font-weight:700;">Maintley</td></tr>
 						<tr><td style="padding:24px;">
 							<h2 style="margin:0 0 12px 0; font-size:22px; color:#111827;">Maintenance Reminder</h2>
 							<p style="margin:0 0 16px 0; font-size:15px; line-height:1.6; color:#374151;">Hi ${(0, emailService_1.escapeHtml)(name)}, ${(0, emailService_1.escapeHtml)(message)}</p>
@@ -152,7 +152,7 @@ const getTaskReminderHtml = ({ name, message, task, propertyLabel, appUrl, }) =>
 								<p style="margin:0 0 8px 0; font-size:14px; color:#0f172a;"><strong>Status:</strong> ${(0, emailService_1.escapeHtml)(displayStatus.label)}</p>
 								<p style="margin:0; font-size:14px; color:#0f172a;"><strong>Due:</strong> ${(0, emailService_1.escapeHtml)(task.dueDate || 'Not set')}</p>
 							</div>
-							<a href="${(0, emailService_1.escapeHtml)(taskUrl)}" style="display:inline-block; background:#16a34a; color:#ffffff; text-decoration:none; padding:11px 18px; border-radius:8px; font-size:14px; font-weight:600;">Open maintenance task</a>
+							<a href="${(0, emailService_1.escapeHtml)(taskUrl)}" style="display:inline-block; background:#047857; color:#FFFFFF; text-decoration:none; padding:11px 18px; border-radius:8px; font-size:14px; font-weight:600;">Open maintenance task</a>
 						</td></tr>
 						<tr><td style="padding:16px 24px; border-top:1px solid #cfe8d4; font-size:12px; line-height:1.5; color:#6b7280;">This email follows the notification schedule saved on this task. You can update email preferences anytime in Settings.</td></tr>
 					</table>

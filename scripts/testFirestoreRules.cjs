@@ -733,6 +733,21 @@ async function run() {
 				}),
 		);
 		await assertFails(
+			ownerDb
+				.doc('familyAccounts/account-owner/accessLifecycleDeliveries/delivery-existing')
+				.get(),
+		);
+		await assertFails(
+			ownerDb
+				.doc('familyAccounts/account-owner/accessLifecycleDeliveries/client-delivery')
+				.set({
+					accountId,
+					grantId: 'grant-existing',
+					milestone: 'activation',
+					status: 'sent',
+				}),
+		);
+		await assertFails(
 			ownerDb.doc('admin_users/admin-record').update({
 				status: 'inactive',
 			}),

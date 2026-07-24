@@ -23,6 +23,8 @@ export const ENTITLEMENT_FEATURE_FLAGS = Object.freeze({
 		process.env.ENABLE_HOMEOWNER_PLUS_PRODUCT_TRIAL === 'true',
 	internalEntitlementGrantIssuance:
 		process.env.ENABLE_INTERNAL_ENTITLEMENT_GRANT_ISSUANCE === 'true',
+	accessLifecycleCommunication:
+		process.env.ENABLE_ACCESS_LIFECYCLE_COMMUNICATION === 'true',
 });
 
 const DEFAULT_DENY_DIAGNOSTIC_CODES = new Set([

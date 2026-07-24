@@ -645,6 +645,28 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
 						</>
 					) : null}
 
+					{details.access?.lifecycleDeliveries?.length ? (
+						<>
+							<Label>Access Lifecycle Deliveries</Label>
+							<UserDetailsGrid>
+								{details.access.lifecycleDeliveries.map((delivery) => (
+									<UserDetailsItem key={delivery.id}>
+										<UserDetailsKey>
+											{formatLabel(delivery.milestone)} · {formatLabel(delivery.status)}
+										</UserDetailsKey>
+										<UserDetailsValue>
+											{delivery.outcome ? formatLabel(delivery.outcome) : 'Pending'}
+											{` · ${delivery.attempts} attempt${delivery.attempts === 1 ? '' : 's'}`}
+											{delivery.sentAt || delivery.updatedAt
+												? ` · ${formatDate(delivery.sentAt || delivery.updatedAt || undefined)}`
+												: ''}
+										</UserDetailsValue>
+									</UserDetailsItem>
+								))}
+							</UserDetailsGrid>
+						</>
+					) : null}
+
                     <div>
                         <Label>Support History</Label>
                         <UserActivityList>

@@ -2,7 +2,7 @@
 
 Date: 2026-07-23
 
-Status: Approved implementation plan; Phases 1 and 2 complete; Phases 3 and 4 implemented behind disabled launch flags
+Status: Approved implementation plan; Phases 1 and 2 complete; Phases 3 and 4 implemented behind disabled launch flags; Phase 7 trial-lifecycle foundation in progress behind a separate disabled flag
 
 Related accepted ADRs:
 
@@ -102,6 +102,21 @@ launch cohorts, and `maintley_role` editing. Paid conversion still requires
 Checkout. Before either issuance flag is enabled, the deployed environment must
 validate account creation, first-property issuance, retry idempotency, UI
 refresh, expiration, security rules, and audit visibility.
+
+The initial Phase 7 trial-lifecycle foundation is implemented behind the
+independent disabled `ENABLE_ACCESS_LIFECYCLE_COMMUNICATION` flag. It includes
+the Day 0, 7, 21, and 30 Homeowner+ trial messages, persistent notices at key
+milestones, program/grant/template/milestone idempotency, bounded catch-up,
+retry leases, paid and terminal-state suppression, provider outcomes, shared
+route generation, Maintley-branded templates, a staff-only test path that does
+not write production delivery state, and minimized admin troubleshooting
+visibility. Property-document progress is calculated from the canonical
+embedded property records rather than a nonexistent secondary collection.
+
+This does not complete Phase 7. Generic non-trial promotional templates,
+automatic-transition 30/7/1-day communications, admin-requested sends and their
+high-value audit events, provider alerting, and time-controlled Firestore and
+delivery integration tests remain required before broader lifecycle rollout.
 
 ### Phase 2 direct-check inventory
 
