@@ -2,9 +2,12 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import styled from 'styled-components';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faChevronDown, faChevronUp } from '@fortawesome/free-solid-svg-icons';
+import { useDispatch } from 'react-redux';
 import { useCreateDeviceMutation } from '../../Redux/API/deviceSlice';
 import { useUpdatePropertyMutation } from '../../Redux/API/propertySlice';
 import { useCreateTaskMutation } from '../../Redux/API/taskSlice';
+import { apiSlice } from '../../Redux/API/apiSlice';
+import type { AppDispatch } from '../../Redux/store/store';
 import { User } from '../../Redux/Slices/userSlice';
 import {
 	Device,
@@ -40,6 +43,11 @@ import {
 import { normalizeAssetType } from '../../utils/systemTypes';
 import { COLORS } from '../../constants/colors';
 import { LoadingState } from '../LoadingState';
+import { trackAnalyticsEvent } from '../../analytics/analytics';
+import {
+	activatePropertySetupMaintenancePlan,
+	type PropertySetupTaskProposal,
+} from '../../services/propertySetupAssistantService';
 
 interface PropertySetupAssistantProps {
 	property: Property;
@@ -101,6 +109,8 @@ const normalize = (value: string) =>
 
 const compact = (value: string) => normalize(value).replace(/\s+/g, '');
 const SETUP_SAVE_MESSAGE_MIN_MS = 4200;
+const TRUSTED_SETUP_PLAN_ACTIVATION_ENABLED =
+	process.env.REACT_APP_ENABLE_TRUSTED_SETUP_PLAN_ACTIVATION === 'true';
 const PROPERTY_SETUP_ITEM_ORDER = PROPERTY_SETUP_AREAS.flatMap(
 	(area) => area.itemIds,
 );
@@ -129,6 +139,7 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 	onUploadDocuments,
 }) => {
 	const feedback = useAppFeedback();
+	const dispatch = useDispatch<AppDispatch>();
 	const effectivePlanId = getEffectiveAccessPlanId(currentUser?.subscription);
 	const isHomeownerMode = currentUser?.workspaceMode
 		? currentUser.workspaceMode === 'homeowner'
@@ -377,8 +388,8 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 		selectedTaskIds = getSuggestedTaskIdsForSystems([itemId]),
 	): Promise<SuggestedTaskCreateResult> => {
 		const suggestedTasks = getSuggestedTasksForSystems([itemId], selectedTaskIds);
-		const taskIds: string[] = [];
-		const createdTaskIds: string[] = [];
+		const existingTaskIds: string[] = [];
+		const proposals: PropertySetupTaskProposal[] = [];
 		const systemOrderIndex = Math.max(
 			PROPERTY_SETUP_ITEM_ORDER.indexOf(itemId),
 			0,
@@ -398,66 +409,119 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 			});
 
 			if (existingTask?.id) {
-				taskIds.push(existingTask.id);
+				existingTaskIds.push(existingTask.id);
 				continue;
 			}
 
-			try {
-				const createdTask = await createTask(
-					stripUndefinedValues({
-						userId: currentUser.id,
-						propertyId: property.id,
-						property: property.title,
-						propertyTitle: property.title,
-						title: suggestedTask.title,
-						dueDate: getSuggestedTaskDueDate(
-							suggestedTask,
-							new Date(
-								Date.now() +
+			proposals.push(
+				stripUndefinedValues({
+					proposalId: `${itemId}:${suggestedTask.id}`,
+					title: suggestedTask.title,
+					dueDate: getSuggestedTaskDueDate(
+						suggestedTask,
+						new Date(
+							Date.now() +
 								((systemOrderIndex * 5 + taskIndex * 9) % 35) *
 								24 *
 								60 *
 								60 *
 								1000,
-							),
 						),
-						status: 'Initiated',
-						priority: suggestedTask.priority || 'Medium',
-						category: 'Suggested Maintenance',
-						notes: [
-							`${suggestedTask.title} was added from the Property Setup Assistant.`,
-							suggestedTask.notes,
-							SUGGESTED_MAINTENANCE_DISCLAIMER,
-						]
-							.filter(Boolean)
-							.join(' '),
-						...(hasPaidSuggestedMaintenancePackages
-							? {
-								isRecurring: true,
-								recurrenceFrequency: suggestedTask.recurrenceFrequency,
-								recurrenceInterval: suggestedTask.recurrenceInterval,
-								recurrenceCustomUnit: suggestedTask.recurrenceCustomUnit,
-							}
-							: { isRecurring: false }),
-						enableNotifications: true,
-						notifications: getDefaultTaskNotifications(),
-						...(deviceId ? { devices: [deviceId] } : {}),
-					}) as any,
-				).unwrap();
-				if (createdTask?.id) {
-					taskIds.push(createdTask.id);
-					createdTaskIds.push(createdTask.id);
-				}
-			} catch (error) {
-				console.warn('Property setup assistant could not create task:', {
-					itemId,
-					suggestedTask,
-					error,
-				});
-			}
+					),
+					priority: suggestedTask.priority || 'Medium',
+					notes: [
+						`${suggestedTask.title} was added from the Property Setup Assistant.`,
+						suggestedTask.notes,
+						SUGGESTED_MAINTENANCE_DISCLAIMER,
+					]
+						.filter(Boolean)
+						.join(' '),
+					...(deviceId ? { deviceId } : {}),
+					recurrenceFrequency: suggestedTask.recurrenceFrequency,
+					recurrenceInterval: suggestedTask.recurrenceInterval,
+					recurrenceCustomUnit: suggestedTask.recurrenceCustomUnit,
+				}) as PropertySetupTaskProposal,
+			);
 		}
 
-		return { taskIds, createdTaskIds };
+		if (proposals.length === 0) {
+			return { taskIds: existingTaskIds, createdTaskIds: [] };
+		}
+
+		if (!TRUSTED_SETUP_PLAN_ACTIVATION_ENABLED) {
+			const createdTaskIds: string[] = [];
+			for (const proposal of proposals) {
+				try {
+					const createdTask = await createTask(
+						stripUndefinedValues({
+							userId: currentUser.id,
+							propertyId: property.id,
+							property: property.title,
+							propertyTitle: property.title,
+							title: proposal.title,
+							dueDate: proposal.dueDate,
+							status: 'Initiated',
+							priority: proposal.priority || 'Medium',
+							category: 'Suggested Maintenance',
+							notes: proposal.notes,
+							...(hasPaidSuggestedMaintenancePackages
+								? {
+									isRecurring: true,
+									recurrenceFrequency: proposal.recurrenceFrequency,
+									recurrenceInterval: proposal.recurrenceInterval,
+									recurrenceCustomUnit: proposal.recurrenceCustomUnit,
+								  }
+								: { isRecurring: false }),
+							enableNotifications: true,
+							notifications: getDefaultTaskNotifications(),
+							...(proposal.deviceId ? { devices: [proposal.deviceId] } : {}),
+						}) as any,
+					).unwrap();
+					if (createdTask?.id) {
+						createdTaskIds.push(createdTask.id);
+					}
+				} catch (error) {
+					console.warn('Property setup assistant could not create task:', {
+						itemId,
+						proposal,
+						error,
+					});
+				}
+			}
+
+			return {
+				taskIds: [...existingTaskIds, ...createdTaskIds],
+				createdTaskIds,
+			};
+		}
+
+		try {
+			const result = await activatePropertySetupMaintenancePlan({
+				propertyId: property.id,
+				requestId: `setup-plan:${property.id}:${itemId}:${selectedTaskIds
+					.slice()
+					.sort()
+					.join(',')}`,
+				proposals,
+			});
+			dispatch(apiSlice.util.invalidateTags(['Tasks']));
+			void trackAnalyticsEvent('property_setup_plan_activated', {
+				proposal_count: proposals.length,
+				created_task_count: result.createdTaskIds.length,
+				replayed_task_count: result.replayedTaskIds.length,
+				recurring_access_applied: result.recurringAccessApplied,
+			});
+			return {
+				taskIds: Array.from(new Set([...existingTaskIds, ...result.taskIds])),
+				createdTaskIds: result.createdTaskIds,
+			};
+		} catch (error) {
+			console.warn('Property setup assistant could not activate tasks:', {
+				itemId,
+				error,
+			});
+			throw error;
+		}
 	};
 
 	const findExistingSuggestedTask = (

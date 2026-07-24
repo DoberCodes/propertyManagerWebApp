@@ -44,6 +44,7 @@ export { updateFamilyMemberRole } from './updateFamilyMemberRole';
 export { updateFamilyMember } from './updateFamilyMember';
 export { ensureFamilyAccount } from './ensureFamilyAccount';
 export { issueHomeownerPlusTrialOnFirstProperty } from './entitlementGrants';
+export { activatePropertySetupMaintenancePlan } from './activatePropertySetupMaintenancePlan';
 export {
 	sendAccessLifecycleActivationOnGrantCreate,
 	sendAccessLifecycleEmails,

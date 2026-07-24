@@ -2,7 +2,7 @@
 
 Date: 2026-07-23
 
-Status: Approved implementation plan; Phases 1 and 2 complete; Phases 3 and 4 implemented behind disabled launch flags; Phase 7 trial-lifecycle foundation in progress behind a separate disabled flag
+Status: Approved implementation plan; Phases 1 and 2 complete; Phases 3 and 4 implemented behind disabled launch flags; Phase 5 trusted activation foundation implemented behind a disabled flag; Phase 7 trial-lifecycle foundation in progress behind a separate disabled flag
 
 Related accepted ADRs:
 
@@ -110,6 +110,21 @@ launch cohorts, and `maintley_role` editing. Paid conversion still requires
 Checkout. Before either issuance flag is enabled, the deployed environment must
 validate account creation, first-property issuance, retry idempotency, UI
 refresh, expiration, security rules, and audit visibility.
+
+The initial Phase 5 trusted activation boundary is implemented behind the
+default-off `REACT_APP_ENABLE_TRUSTED_SETUP_PLAN_ACTIVATION` client flag. The
+callable resolves the authenticated account and active internal grants,
+authorizes the property, validates linked equipment, applies recurring-task
+access server-side, and creates deterministic task documents transactionally.
+Replaying the same setup proposal returns the existing task ID instead of
+creating another task. The existing client-write path remains active while the
+flag is disabled so the additive Function can deploy and be validated before
+the client depends on it.
+
+This does not complete Phase 5. Interrupted unsaved-draft continuity,
+proposal-viewed and dismissed analytics, callable authorization/emulator
+coverage, and deployed end-to-end validation remain required before enabling
+trusted activation.
 
 The initial Phase 7 trial-lifecycle foundation is implemented behind the
 independent disabled `ENABLE_ACCESS_LIFECYCLE_COMMUNICATION` flag. It includes

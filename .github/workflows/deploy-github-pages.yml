@@ -144,6 +144,9 @@ jobs:
       - name: Build functions
         run: yarn --cwd functions build
 
+      - name: Property setup activation tests
+        run: yarn --cwd functions test:setup-plan
+
       - name: Email branding and lifecycle template tests
         run: node scripts/testEmailTemplates.cjs
 

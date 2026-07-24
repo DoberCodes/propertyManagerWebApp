@@ -11,6 +11,7 @@ export type AnalyticsEventName =
 	| 'task_created'
 	| 'task_completed'
 	| 'maintenance_history_added'
+	| 'property_setup_plan_activated'
 	| 'property_scan_completed'
 	| 'report_downloaded';
 

@@ -166,6 +166,10 @@ jobs:
         if: steps.deploy-targets.outputs.has_targets == 'true' && contains(steps.deploy-targets.outputs.targets, 'functions')
         run: yarn --cwd functions build
 
+      - name: Property setup activation tests
+        if: steps.deploy-targets.outputs.has_targets == 'true' && contains(steps.deploy-targets.outputs.targets, 'functions')
+        run: yarn --cwd functions test:setup-plan
+
       - name: Email branding and lifecycle template tests
         if: steps.deploy-targets.outputs.has_targets == 'true' && contains(steps.deploy-targets.outputs.targets, 'functions')
         run: node scripts/testEmailTemplates.cjs
