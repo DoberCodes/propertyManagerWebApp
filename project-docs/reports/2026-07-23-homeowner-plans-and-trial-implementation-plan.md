@@ -640,7 +640,7 @@ Phase 0: decisions and canonical configuration
             -> Phase 5: premium onboarding
             -> Phase 6: expiration and conversion
             -> Phase 7: lifecycle communication
-            -> Phase 8: access codes and downgrade-safe property access
+            -> Phase 8: access codes and downgrade-safe resource continuity
   -> Phase 9: staged release, observation, and cleanup
 ```
 
@@ -682,6 +682,9 @@ behavior, quantitative limits, delivery gates, and authorization.
 * Configure complimentary access-code programs, including bundle, duration,
   redemption expiration, eligibility, total and per-account limits, transition
   mode, and post-expiration fallback.
+* Configure program-specific capability, file-count, and storage overrides;
+  complimentary Portfolio access does not automatically require the paid
+  Portfolio storage allowance.
 
 **Gate:** decisions are recorded, the canonical names are present in every
 required environment, and no secret or price value is committed to Git.
@@ -852,6 +855,13 @@ Maintley never writes suggested schedules without confirmation.
   because the account is now above its creation limit.
 * Preserve existing active team relationships and current property scope while
   applying the resulting account capabilities to every member.
+* Distinguish manual tenant occupancy records from authenticated tenant access.
+  Let downgraded rental accounts add, edit, end, or archive data-minimized
+  occupancy records for existing properties without creating a user, invitation,
+  portal, automated communication, or direct maintenance-request access.
+* Preserve already activated tenants' minimal property-scoped access to basic
+  self and lease information and maintenance-request submission until the
+  relationship ends or is revoked; block new tenant invitations and activation.
 * Allow security-reducing and data-control actions such as member removal,
   permission reduction, export, transfer-out, download, and deletion.
 * Block property creation, claiming, duplication, import, transfer-in, team
@@ -861,6 +871,13 @@ Maintley never writes suggested schedules without confirmation.
   resident-management, business-collaboration, or Organization capabilities;
   over-limit continuity is available only after legitimate downgrade or grant
   expiration.
+* Keep existing uploaded files viewable, downloadable, exportable, and
+  deletable. Pause new uploads whenever either the resulting file-count or
+  storage-byte limit is exceeded, and resume only after usage falls below both
+  limits or eligible access returns.
+* Keep structured property, equipment, maintenance, task, manual occupancy, and
+  audit records outside the binary-file quota while continuing to enforce their
+  applicable capabilities and security rules.
 * Refresh entitlements during active sessions and before premium writes so an
   old browser or Android client cannot retain stale trial access.
 * Apply the approved paid-conversion timing, suppress the temporary grant without
@@ -917,6 +934,11 @@ unconfirmed paid access.
   properties and active team relationships remain accessible, expansion is
   blocked while over the resulting limits, paid capabilities stop, and
   intentional Checkout restores eligible capabilities.
+* Show current file count and storage usage, resulting limits, whether uploads
+  will pause, and the retained download, export, and deletion paths.
+* Distinguish continuing manual occupancy administration and existing minimal
+  tenant access from new tenant invitation or portal activation, which remains
+  blocked without eligible access.
 * Write a high-value admin audit event for an admin-triggered email request and
   keep provider attempts, retries, bounces, and delivery results in linked
   operational logs.
@@ -934,7 +956,7 @@ does not duplicate activation and 30-day notices, handles time-zone boundaries,
 separates audit decisions from delivery logs, and links to the correct current
 route format.
 
-### Phase 8 - Add complimentary access codes and downgrade-safe property access
+### Phase 8 - Add complimentary access codes and downgrade-safe resource continuity
 
 * Model a complimentary access code as a server-validated credential for one
   approved grant program; do not model it as a Stripe coupon, subscription, or
@@ -946,6 +968,9 @@ route format.
   abuse throttling, and explicit terminal outcomes.
 * Issue the same canonical account grant used by administrative programs and
   resolve it through the shared entitlement resolver.
+* Support server-owned promotional capability and quantitative-limit overrides
+  so an access code can grant Portfolio workflows with a lower file-count or
+  storage allowance than the paid Portfolio bundle.
 * Add a customer-facing redemption surface that previews the included bundle,
   duration, expiration behavior, and absence of automatic billing before
   confirmation.
@@ -955,6 +980,10 @@ route format.
 * Add an over-limit continuity experience for existing properties and active
   team members. It must block expansion without presenting existing resources
   as locked, deleted, or newly included in Free.
+* Add tenant occupancy continuity that permits manual records for existing
+  rental properties without silently issuing tenant accounts or invitations.
+* Add account-wide file-count and storage usage surfaces and server enforcement
+  that preserve existing files while pausing net-new uploads above either limit.
 * Route voluntary continuation through intentional Stripe Checkout. Suppress
   obsolete access-code lifecycle messages only after Stripe confirms paid
   access.
@@ -966,10 +995,13 @@ route format.
 Free account can discover and use every existing owned property at Free
 capability levels, retain existing active team relationships and property scope,
 block every count-increasing property or team action while over limit, and
-restore eligible capabilities without data loss. A newly created Free fixture
-must still be limited to one property and no team or business capabilities;
-concurrent redemption tests issue at most one grant and no path creates a Stripe
-billing relationship without Checkout.
+restore eligible capabilities without data loss. Manual occupancy records must
+not create tenant access, existing activated tenants must retain only their
+approved minimal scope, and files must remain retrievable while new uploads are
+blocked above either resulting quota. A newly created Free fixture must still be
+limited to one property and no team, tenant-management, or business
+capabilities; concurrent redemption tests issue at most one grant and no path
+creates a Stripe billing relationship without Checkout.
 
 ### Phase 9 - Release, observe, and remove legacy paths
 
@@ -1065,6 +1097,10 @@ server owns Stripe price selection.
   control surfaces
 * downgrade-safe property selector and over-limit continuity state for existing
   properties and active team relationships
+* manual tenant occupancy continuity separated from tenant invitation and
+  authenticated portal access
+* account-wide file-count and storage usage, retained-file access, and upload
+  pause states
 * homepage and static pricing
 * Property Setup Assistant and trial status messaging
 * account and dashboard trial surfaces
@@ -1177,9 +1213,20 @@ server owns Stripe price selection.
   limit.
 * Existing active team members retain their current relationships and property
   scope but cannot use capabilities absent from Free or expand the team.
+* Downgraded rental accounts may maintain manual occupancy records for existing
+  properties without creating tenant users, invitations, portal access, or
+  direct maintenance-request access.
+* Already activated tenants retain only their approved minimal property-scoped
+  experience until the relationship ends or is revoked; new activation remains
+  blocked without eligible access.
 * Removal, permission reduction, export, download, transfer-out, and deletion
   remain available without creating replacement capacity while still over the
   resulting limit.
+* Existing uploaded files remain viewable, downloadable, exportable, and
+  deletable; new uploads fail clearly while either the resulting file-count or
+  storage-byte quota is exceeded and resume only below both limits.
+* Program-specific storage overrides can remain below the paid bundle allowance
+  without changing the granted capability bundle.
 * A newly created Free account remains limited to one property and cannot create
   or activate team, resident, business-collaboration, or Organization records.
 * Renewed paid or complimentary eligibility restores expansion and eligible
@@ -1213,6 +1260,12 @@ server owns Stripe price selection.
 * Downgrades preserve access to existing properties and active team
   relationships at the resulting capability level while preventing new
   over-limit creation, invitation, reactivation, or other expansion.
+* Manual occupancy creation after downgrade does not create authenticated tenant
+  access, while existing activated tenants retain only the approved minimal
+  relationship scope.
+* Binary-file quotas preserve existing file access and block only net-new
+  uploads above the resulting file-count or storage-byte limit; structured core
+  records remain governed by capabilities rather than file quota.
 * Firestore emulator tests match client and Functions entitlements.
 
 ### Trial eligibility and state

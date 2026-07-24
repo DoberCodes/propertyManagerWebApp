@@ -403,6 +403,8 @@ Every access-code program must define server-owned policy for:
 * grant duration and redemption expiration
 * total and per-account redemption limits
 * eligible account and relationship types
+* capability and quantitative-limit overrides, including promotional file-count
+  and storage limits that may be lower than the equivalent paid bundle
 * transition mode after complimentary access
 * revocation, support, reporting, and audit treatment
 
@@ -452,6 +454,56 @@ This over-limit continuity state is not a Free-plan feature bundle and does not
 allow a new Free account to create multiple properties or establish a team.
 Quantitative limits govern net-new expansion; capabilities govern what existing
 resources can do; ownership and active relationships govern who may see them.
+
+### Tenant occupancy continuity
+
+Tenant or resident occupancy records are distinct from authenticated tenant
+access. A downgraded account with existing rental operations may continue to
+create, edit, end, or archive data-minimized manual occupancy records for its
+existing properties. This continuity exception does not grant general resident
+management to a newly created Free account.
+
+Creating a manual occupancy record after downgrade must not create a Maintley
+user, send an invitation, activate a portal, enable automated communication, or
+grant direct maintenance-request access. The account may record a maintenance
+request on the occupant's behalf through capabilities available on the
+resulting plan.
+
+An already activated tenant relationship may retain the minimal tenant
+experience approved for the property: basic self and lease information and
+maintenance-request submission. It gains no business capability and remains
+subject to its existing property scope, lease state, role restrictions, and
+revocation. New tenant invitations and activations remain blocked without an
+eligible entitlement.
+
+Ending an occupancy normally archives the relationship and preserves historical
+maintenance attribution. Required personal-data correction or deletion remains
+a separate privacy operation and must not rewrite maintenance history without an
+audited reason.
+
+### Storage continuity
+
+Downgrade does not automatically delete uploaded documents, photos, invoices,
+or attachments. Existing files remain viewable, downloadable, exportable, and
+deletable subject to role and property scope.
+
+File-count and storage-byte limits govern net-new uploaded binary data. When an
+account exceeds either resulting limit, all new uploads pause until usage is
+below both limits or eligible access returns. Quotas are account-wide across
+retained properties, and existing team members cannot bypass them. Removing
+files restores upload capacity only after the account is below the applicable
+file-count and byte limits.
+
+Structured property details, equipment, maintenance history, tasks, manual
+occupancy records, and audit history are not treated as binary-file quota merely
+because the account is over its upload allowance. Their writes remain governed
+by the resulting plan's capabilities, security rules, and abuse controls.
+
+Complimentary programs may apply file-count or storage overrides lower than the
+equivalent paid bundle. This allows a program to demonstrate Portfolio or other
+capabilities without granting the paid plan's maximum retained storage. The
+authenticated account experience must show current usage, resulting limits, the
+upload state, export and deletion paths, and the intentional upgrade path.
 
 ## Complimentary-to-paid transition contract
 
@@ -645,6 +697,8 @@ Each individual migration uses this sequence:
   parity and regression tests.
 * Downgrades require an explicit over-limit continuity state instead of treating
   a quantitative limit as a property-list or relationship-access filter.
+* Retained binary storage creates ongoing cost, so complimentary programs and
+  upload gates require explicit quota policy and monitoring.
 
 ## Future considerations
 

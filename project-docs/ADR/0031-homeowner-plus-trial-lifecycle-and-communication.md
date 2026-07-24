@@ -220,8 +220,16 @@ at the resulting plan's capability level. The notices must explain that the
 customer cannot add properties or team members while over the resulting limits,
 that paid automation and business capabilities stop, and that existing active
 team relationships continue with their current property scope and the resulting
-account capabilities. Maintley must not describe existing properties, records,
-or active team relationships as deleted, lost, or transferred.
+account capabilities. The notices must also disclose the resulting file-count
+and storage limits, current usage, and whether new uploads will pause.
+
+Where tenant or resident records already exist, messaging must distinguish
+manual occupancy records from authenticated tenant access. Downgraded accounts
+may continue data-minimized manual occupancy administration for existing
+properties, but a newly recorded tenant does not receive an invitation, login,
+portal, or direct maintenance-request access. Maintley must not describe
+existing properties, files, records, active team relationships, or continuing
+minimal tenant relationships as deleted, lost, or transferred.
 
 ## Consequences
 
@@ -245,6 +253,8 @@ or active team relationships as deleted, lost, or transferred.
 * Multi-property complimentary programs require downgrade-aware messaging that
   distinguishes retained existing access from blocked expansion and ended paid
   capabilities.
+* Storage and tenant-continuity messaging must remain synchronized with actual
+  quotas, relationships, and invitation behavior.
 
 ## Implementation configuration
 
@@ -258,6 +268,7 @@ settings. Implementation must configure and validate:
 5. the reminder schedule required by program terms and applicable law
 6. access-code eligibility, redemption limits, expiration, and post-grant
    fallback behavior
+7. promotional file-count and storage overrides and the resulting upload state
 
 For a 30-day complimentary period, activation satisfies the 30-day reminder
 requirement and a second activation-day reminder must not be sent.
