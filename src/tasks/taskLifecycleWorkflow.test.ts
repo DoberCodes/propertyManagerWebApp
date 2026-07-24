@@ -30,6 +30,7 @@ const createDeps = (task: Task | null = baseTask): TaskLifecycleDependencies => 
 	getTask: jest.fn(async () => task),
 	writeMaintenanceEvent: jest.fn(async () => undefined),
 	createTask: jest.fn(async () => undefined),
+	canGenerateNextRecurringTask: jest.fn(async () => true),
 	deleteTask: jest.fn(async () => undefined),
 	notifyRecurringTaskGenerationFailure: jest.fn(async () => undefined),
 	now: jest.fn(() => '2026-07-05T12:00:00.000Z'),
@@ -130,6 +131,7 @@ describe('task lifecycle workflows', () => {
 				completionDate: '2026-07-05',
 				completedBy: 'member-1',
 				completionNotes: 'Completed and verified.',
+				recurrenceGenerationOutcome: 'created',
 			}),
 		);
 	});
@@ -137,7 +139,7 @@ describe('task lifecycle workflows', () => {
 	it('submits completion without creating a next task for non-recurring work', async () => {
 		const deps = createDeps();
 
-		await submitTaskCompletionWorkflow(
+		const result = await submitTaskCompletionWorkflow(
 			{
 				taskId: 'task-1',
 				accountId: 'account-1',
@@ -151,6 +153,57 @@ describe('task lifecycle workflows', () => {
 		expect(deps.writeMaintenanceEvent).toHaveBeenCalledTimes(1);
 		expect(deps.createTask).not.toHaveBeenCalled();
 		expect(deps.deleteTask).toHaveBeenCalledWith('task-1');
+		expect(result.recurrenceGenerationOutcome).toBe('not_recurring');
+	});
+
+	it('records completion but suppresses the next occurrence when access expired', async () => {
+		const deps = createDeps({
+			...baseTask,
+			isRecurring: true,
+			recurrenceFrequency: 'monthly',
+			recurrenceInterval: 1,
+		});
+		(deps.canGenerateNextRecurringTask as jest.Mock).mockResolvedValueOnce(false);
+
+		const result = await submitTaskCompletionWorkflow(
+			{
+				taskId: 'task-1',
+				accountId: 'account-1',
+				notifyUserId: 'user-1',
+				completionDate: '2026-07-05',
+				completedBy: 'member-1',
+			},
+			deps,
+		);
+
+		expect(deps.writeMaintenanceEvent).toHaveBeenCalledTimes(1);
+		expect(deps.createTask).not.toHaveBeenCalled();
+		expect(deps.notifyRecurringTaskGenerationFailure).not.toHaveBeenCalled();
+		expect(deps.deleteTask).toHaveBeenCalledWith('task-1');
+		expect(result.recurrenceGenerationOutcome).toBe('not_entitled');
+	});
+
+	it('returns invalid_recurrence without failing completion for an incomplete schedule', async () => {
+		const deps = createDeps({
+			...baseTask,
+			isRecurring: true,
+			recurrenceFrequency: 'custom',
+		});
+
+		const result = await submitTaskCompletionWorkflow(
+			{
+				taskId: 'task-1',
+				accountId: 'account-1',
+				notifyUserId: 'user-1',
+				completionDate: '2026-07-05',
+				completedBy: 'member-1',
+			},
+			deps,
+		);
+
+		expect(deps.createTask).not.toHaveBeenCalled();
+		expect(deps.deleteTask).toHaveBeenCalledWith('task-1');
+		expect(result.recurrenceGenerationOutcome).toBe('invalid_recurrence');
 	});
 
 	it('keeps completion successful when task cleanup fails after the event is written', async () => {
@@ -185,7 +238,7 @@ describe('task lifecycle workflows', () => {
 		});
 		(deps.createTask as jest.Mock).mockRejectedValueOnce(new Error('write failed'));
 
-		await submitTaskCompletionWorkflow(
+		const result = await submitTaskCompletionWorkflow(
 			{
 				taskId: 'task-1',
 				accountId: 'account-1',
@@ -204,6 +257,7 @@ describe('task lifecycle workflows', () => {
 			}),
 		);
 		expect(deps.deleteTask).toHaveBeenCalledWith('task-1');
+		expect(result.recurrenceGenerationOutcome).toBe('failed');
 	});
 
 	it('approves a task by writing one approval event and deleting the active task', async () => {

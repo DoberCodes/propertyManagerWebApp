@@ -86,11 +86,23 @@ const writeMaintenanceEvent = async (
 };
 
 const canAccountUseRecurringTasks = async (accountId: string): Promise<boolean> => {
-	const accountUserSnapshot = await getDoc(doc(db, 'users', accountId));
+	const [accountUserSnapshot, familyAccountSnapshot] = await Promise.all([
+		getDoc(doc(db, 'users', accountId)),
+		getDoc(doc(db, 'familyAccounts', accountId)),
+	]);
 	const accountUserData = accountUserSnapshot.data() || {};
+	const entitlementProjection =
+		familyAccountSnapshot.data()?.effectiveEntitlementProjection || {};
+	const activeGrants = Array.isArray(entitlementProjection.activeGrants)
+		? entitlementProjection.activeGrants
+		: [];
 	return Boolean(
 		accountUserData.subscription &&
-			canUseRecurringTasks(accountUserData.subscription as any),
+			canUseRecurringTasks({
+				...accountUserData.subscription,
+				entitlementAccountId: accountId,
+				entitlementGrants: activeGrants,
+			} as any),
 	);
 };
 
@@ -144,6 +156,7 @@ const createTaskLifecycleDependencies = (): TaskLifecycleDependencies => {
 		createTask: async (task) => {
 			await addDoc(collection(db, 'tasks'), task);
 		},
+		canGenerateNextRecurringTask: canAccountUseRecurringTasks,
 		deleteTask: async (taskId) => {
 			await deleteDoc(doc(db, 'tasks', taskId));
 		},

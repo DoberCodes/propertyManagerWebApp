@@ -2,7 +2,7 @@
 
 Date: 2026-07-23
 
-Status: Approved implementation plan; Phases 1 and 2 complete; Phases 3 and 4 implemented behind disabled launch flags; Phase 5 trusted activation foundation implemented behind a disabled flag; Phase 7 trial-lifecycle foundation in progress behind a separate disabled flag
+Status: Approved implementation plan; Phases 1 and 2 complete; Phases 3 and 4 implemented behind disabled launch flags; Phase 5 trusted activation foundation implemented behind a disabled flag; Phase 6 expiration enforcement in progress; Phase 7 trial-lifecycle foundation in progress behind a separate disabled flag
 
 Related accepted ADRs:
 
@@ -132,6 +132,18 @@ This does not complete Phase 5. Callable authorization/emulator coverage and
 deployed end-to-end validation remain required before enabling trusted
 activation. Draft recovery is intentionally same-device; cross-device draft
 synchronization is not introduced as a second Firestore source of truth.
+
+The initial Phase 6 recurrence-expiration contract is implemented in the task
+completion workflow. Completion writes the Maintenance Event first, resolves
+current paid and internal-grant access from the account projection, and returns
+`created`, `not_recurring`, `not_entitled`, `invalid_recurrence`, or `failed`.
+An expired grant therefore suppresses only the next occurrence and does not
+turn completed maintenance into an error or discard its history.
+
+This does not complete Phase 6. Recurring creation and editing still require a
+trusted server write boundary, contextual `not_entitled` upgrade messaging,
+active-session entitlement refresh validation, and the remaining downgrade,
+storage, team, tenant, and conversion gates.
 
 The initial Phase 7 trial-lifecycle foundation is implemented behind the
 independent disabled `ENABLE_ACCESS_LIFECYCLE_COMMUNICATION` flag. It includes

@@ -756,11 +756,15 @@ Tasks track planned work.
 
 Maintenance Events preserve historical work.
 
-When a recurring task is completed, Maintley creates the next `Initiated` task
-from the recurring schedule before removing the completed task from the active
-task list. Built-in recurrence options include daily, weekly, biweekly,
-monthly, quarterly, and yearly schedules; custom schedules use an interval and
-unit.
+When a recurring task is completed, Maintley first preserves the completed work
+as a Maintenance Event. It then evaluates the account's current recurring-task
+access before creating the next `Initiated` task and removing the completed task
+from the active task list. Expired access returns `not_entitled`: completion
+still succeeds, history remains intact, and no next occurrence is generated.
+Other recurrence outcomes are `created`, `not_recurring`,
+`invalid_recurrence`, and `failed`. Built-in recurrence options include daily,
+weekly, biweekly, monthly, quarterly, and yearly schedules; custom schedules
+use an interval and unit.
 
 ---
 
