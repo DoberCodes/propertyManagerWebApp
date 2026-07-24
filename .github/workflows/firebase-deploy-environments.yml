@@ -153,6 +153,10 @@ jobs:
           node-version: '20'
           cache: 'yarn'
 
+      - name: Install root validation dependencies
+        if: steps.deploy-targets.outputs.has_targets == 'true'
+        run: yarn install --frozen-lockfile
+
       - name: Install functions dependencies
         if: steps.deploy-targets.outputs.has_targets == 'true'
         run: yarn --cwd functions install --frozen-lockfile
