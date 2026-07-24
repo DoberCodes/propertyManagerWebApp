@@ -183,6 +183,37 @@ describe('task lifecycle workflows', () => {
 		expect(result.recurrenceGenerationOutcome).toBe('not_entitled');
 	});
 
+	it('delegates next-occurrence generation to the trusted writer when configured', async () => {
+		const deps = createDeps({
+			...baseTask,
+			accountId: 'account-1',
+			isRecurring: true,
+			recurrenceFrequency: 'monthly',
+			recurrenceInterval: 1,
+		} as Task);
+		deps.generateNextRecurringTask = jest.fn(async () => 'created');
+
+		const result = await submitTaskCompletionWorkflow(
+			{
+				taskId: 'task-1',
+				accountId: 'account-1',
+				notifyUserId: 'user-1',
+				completionDate: '2026-07-05',
+				completedBy: 'member-1',
+			},
+			deps,
+		);
+
+		expect(deps.generateNextRecurringTask).toHaveBeenCalledWith({
+			taskId: 'task-1',
+			accountId: 'account-1',
+			completionDate: '2026-07-05',
+		});
+		expect(deps.canGenerateNextRecurringTask).not.toHaveBeenCalled();
+		expect(deps.createTask).not.toHaveBeenCalled();
+		expect(result.recurrenceGenerationOutcome).toBe('created');
+	});
+
 	it('returns invalid_recurrence without failing completion for an incomplete schedule', async () => {
 		const deps = createDeps({
 			...baseTask,

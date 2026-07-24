@@ -622,6 +622,16 @@ assignment resolver rather than rebuilt independently by each task surface. This
 keeps eligible people and contractors consistent across Dashboard, Tasks,
 property tasks, device tasks, and mobile task editing.
 
+Recurring-task creation, recurrence schedule edits, and next-occurrence
+generation are trusted operations. The server resolves the account's current
+`recurring_tasks.use` capability from paid access and authoritative internal
+grants, validates the property relationship and recurrence shape, and uses a
+stable request ID for idempotent creation. Firestore rules independently reject
+active recurrence metadata for an account without current access. A temporary
+default-off web rollout flag preserves the previous entitled-user path only
+until the callable has been deployed and observed; it is not a permanent second
+implementation and must be removed after rollout.
+
 ---
 
 # Task Status Model

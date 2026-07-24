@@ -25,6 +25,11 @@ export type TaskLifecycleDependencies = {
 	writeMaintenanceEvent: (event: Record<string, unknown>) => Promise<void>;
 	createTask: (task: Omit<Task, 'id'>) => Promise<void>;
 	canGenerateNextRecurringTask: (accountId: string) => Promise<boolean>;
+	generateNextRecurringTask?: (input: {
+		taskId: string;
+		accountId: string;
+		completionDate: string;
+	}) => Promise<RecurringTaskGenerationOutcome>;
 	deleteTask: (taskId: string) => Promise<void>;
 	notifyRecurringTaskGenerationFailure: (
 		input: RecurringTaskFailureInput,
@@ -92,6 +97,7 @@ export const createNextRecurringTaskForCompletion = async ({
 		TaskLifecycleDependencies,
 		| 'createTask'
 		| 'canGenerateNextRecurringTask'
+		| 'generateNextRecurringTask'
 		| 'notifyRecurringTaskGenerationFailure'
 		| 'now'
 		| 'warn'
@@ -99,6 +105,19 @@ export const createNextRecurringTaskForCompletion = async ({
 }): Promise<RecurringTaskGenerationOutcome> => {
 	if (!task.isRecurring) {
 		return 'not_recurring';
+	}
+
+	if (deps.generateNextRecurringTask) {
+		try {
+			return await deps.generateNextRecurringTask({
+				taskId,
+				accountId,
+				completionDate,
+			});
+		} catch (error) {
+			deps.warn?.('Failed to generate next recurring task through trusted writer:', error);
+			return 'failed';
+		}
 	}
 
 	const nextTask = buildNextRecurringTask({

@@ -600,6 +600,68 @@ async function run() {
 			),
 		);
 
+		await assertSucceeds(
+			trialOwnerDb.doc('tasks/trial-recurring-task').set({
+				...createTask({
+					accountId: trialOwnerUid,
+					propertyId: `${trialOwnerUid}-property`,
+					title: 'Active grant recurring task',
+				}),
+				isRecurring: true,
+				recurrenceFrequency: 'monthly',
+				recurrenceInterval: 1,
+			}),
+		);
+
+		await assertFails(
+			expiredTrialOwnerDb.doc('tasks/expired-recurring-task').set({
+				...createTask({
+					accountId: expiredTrialOwnerUid,
+					propertyId: `${expiredTrialOwnerUid}-property`,
+					title: 'Expired grant recurring task',
+				}),
+				isRecurring: true,
+				recurrenceFrequency: 'monthly',
+				recurrenceInterval: 1,
+			}),
+		);
+
+		await assertSucceeds(
+			expiredTrialOwnerDb.doc('tasks/expired-non-recurring-task').set({
+				...createTask({
+					accountId: expiredTrialOwnerUid,
+					propertyId: `${expiredTrialOwnerUid}-property`,
+					title: 'Expired grant ordinary task',
+				}),
+				isRecurring: false,
+			}),
+		);
+
+		await assertSucceeds(
+			expiredTrialOwnerDb.doc('tasks/expired-recurring-task-to-disable').set({
+				...createTask({
+					accountId: expiredTrialOwnerUid,
+					propertyId: `${expiredTrialOwnerUid}-property`,
+					title: 'Legacy recurring task to disable',
+				}),
+				isRecurring: false,
+			}),
+		);
+		await assertSucceeds(
+			expiredTrialOwnerDb.doc('tasks/expired-recurring-task-to-disable').update({
+				isRecurring: false,
+				updatedAt: '2026-07-01T13:00:00.000Z',
+			}),
+		);
+		await assertFails(
+			expiredTrialOwnerDb.doc('tasks/expired-recurring-task-to-disable').update({
+				isRecurring: true,
+				recurrenceFrequency: 'weekly',
+				recurrenceInterval: 1,
+				updatedAt: '2026-07-01T14:00:00.000Z',
+			}),
+		);
+
 		await assertFails(
 			inactiveLeadDb.doc('tasks/task-created-by-inactive-lead').set(
 				createTask({

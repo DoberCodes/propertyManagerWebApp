@@ -870,6 +870,15 @@ Maintley never writes suggested schedules without confirmation.
 
 ### Phase 6 - Enforce expiration, preservation, and conversion
 
+Status: in progress. Recurrence generation now returns reasoned outcomes and
+checks current billing or internal-grant access. The trusted `manageRecurringTask`
+callable covers recurring creation, schedule updates, and deterministic
+next-occurrence generation. Rules deny active recurrence writes after access
+expires. Client routing is protected by the default-off
+`REACT_APP_ENABLE_TRUSTED_RECURRING_TASK_WRITES` deployment bridge until the
+callable is deployed and validated. The direct client fallback and rollout flag
+must be removed after the production observation gate.
+
 * Derive active access from the grant end timestamp and current clock; do not
   depend on an expiration job updating state on time.
 * Add an explicit recurrence-generation outcome including `not_entitled`.

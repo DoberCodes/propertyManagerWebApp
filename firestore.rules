@@ -148,7 +148,11 @@ service cloud.firestore {
             ? ['multi_homeowner', 'property', 'portfolio'].hasAny([plan])
             : (capabilityId == 'team.manage'
               ? ['property', 'portfolio'].hasAny([plan])
-              : (capabilityId == 'team.advanced' ? plan == 'portfolio' : false))));
+              : (capabilityId == 'team.advanced'
+                ? plan == 'portfolio'
+                : (capabilityId == 'recurring_tasks.use'
+                  ? ['homeowner_plus', 'multi_homeowner', 'property', 'portfolio'].hasAny([plan])
+                  : false)))));
     }
 
     function clientInitialSubscriptionIsSafe(data) {
@@ -210,9 +214,11 @@ service cloud.firestore {
         ('effectiveEntitlementProjection' in familyAccountData(accountId)) &&
         ('activeBundleIds' in familyAccountData(accountId).effectiveEntitlementProjection) &&
         familyAccountData(accountId).effectiveEntitlementProjection.activeBundleIds.hasAny([bundleId]) &&
-        ('bundleExpirationsMs' in familyAccountData(accountId).effectiveEntitlementProjection) &&
-        (bundleId in familyAccountData(accountId).effectiveEntitlementProjection.bundleExpirationsMs) &&
-        familyAccountData(accountId).effectiveEntitlementProjection.bundleExpirationsMs[bundleId] > request.time.toMillis();
+        (
+          !('bundleExpirationsMs' in familyAccountData(accountId).effectiveEntitlementProjection) ||
+          !(bundleId in familyAccountData(accountId).effectiveEntitlementProjection.bundleExpirationsMs) ||
+          familyAccountData(accountId).effectiveEntitlementProjection.bundleExpirationsMs[bundleId] > request.time.toMillis()
+        );
     }
 
     function entitledPlanForAccount(accountId) {
@@ -220,6 +226,58 @@ service cloud.firestore {
         hasActiveProjectedBundle(accountId, 'homeowner_plus')
         ? 'homeowner_plus'
         : baseEntitledPlanForAccount(accountId);
+    }
+
+    function hasRecurringTaskConfiguration(data) {
+      return ('isRecurring' in data) && data.isRecurring == true;
+    }
+
+    function hasActiveProjectedRecurringBundle(accountId) {
+      let projection = familyAccountData(accountId).effectiveEntitlementProjection;
+      let activeBundleIds = projection.activeBundleIds;
+      return familyAccountExists(accountId) &&
+        ('effectiveEntitlementProjection' in familyAccountData(accountId)) &&
+        ('activeBundleIds' in projection) &&
+        (
+          (
+            activeBundleIds.hasAny(['homeowner_plus']) &&
+            (
+              !('bundleExpirationsMs' in projection) ||
+              !('homeowner_plus' in projection.bundleExpirationsMs) ||
+              projection.bundleExpirationsMs.homeowner_plus > request.time.toMillis()
+            )
+          ) ||
+          (
+            activeBundleIds.hasAny(['multi_homeowner']) &&
+            (
+              !('bundleExpirationsMs' in projection) ||
+              !('multi_homeowner' in projection.bundleExpirationsMs) ||
+              projection.bundleExpirationsMs.multi_homeowner > request.time.toMillis()
+            )
+          ) ||
+          (
+            activeBundleIds.hasAny(['property']) &&
+            (
+              !('bundleExpirationsMs' in projection) ||
+              !('property' in projection.bundleExpirationsMs) ||
+              projection.bundleExpirationsMs.property > request.time.toMillis()
+            )
+          ) ||
+          (
+            activeBundleIds.hasAny(['portfolio']) &&
+            (
+              !('bundleExpirationsMs' in projection) ||
+              !('portfolio' in projection.bundleExpirationsMs) ||
+              projection.bundleExpirationsMs.portfolio > request.time.toMillis()
+            )
+          )
+        );
+    }
+
+    function recurringTaskWriteIsEntitled(accountId, data) {
+      return !hasRecurringTaskConfiguration(data) ||
+        planHasCapability(baseEntitledPlanForAccount(accountId), 'recurring_tasks.use') ||
+        hasActiveProjectedRecurringBundle(accountId);
     }
 
     function maxPropertiesForAccount(accountId) {
@@ -614,13 +672,18 @@ service cloud.firestore {
       allow create: if isAuthenticated() &&
         ('accountId' in request.resource.data) &&
         canManageTasks(request.resource.data.accountId) &&
-        unitCreateRespectsResidentPlan(request.resource.data.accountId);
+        unitCreateRespectsResidentPlan(request.resource.data.accountId) &&
+        recurringTaskWriteIsEntitled(request.resource.data.accountId, request.resource.data);
       allow update: if isAuthenticated() &&
         scopedRecordAccountId(resource.data) != '' &&
         ('accountId' in request.resource.data) &&
         request.resource.data.accountId == scopedRecordAccountId(resource.data) &&
         canManageTasks(scopedRecordAccountId(resource.data)) &&
-        unitWriteRespectsResidentPlan(scopedRecordAccountId(resource.data));
+        unitWriteRespectsResidentPlan(scopedRecordAccountId(resource.data)) &&
+        recurringTaskWriteIsEntitled(
+          scopedRecordAccountId(resource.data),
+          request.resource.data
+        );
       allow delete: if isAuthenticated() &&
         scopedRecordAccountId(resource.data) != '' &&
         canManageAccount(scopedRecordAccountId(resource.data));
