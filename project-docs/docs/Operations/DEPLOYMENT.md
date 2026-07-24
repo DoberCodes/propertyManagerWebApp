@@ -291,6 +291,41 @@ The Firebase deploy workflow falls back to matching frontend secret names with
 the `PROD_REACT_APP_` prefix for Stripe price IDs when the backend-specific
 secret names are not present.
 
+## GitHub Actions rollout variables
+
+Rollout flags and non-sensitive rollout dates belong in:
+
+```text
+GitHub repository
+  > Settings
+  > Secrets and variables
+  > Actions
+  > Variables
+  > New repository variable
+```
+
+Do not add these values under **Secrets**. The workflows read them through the
+GitHub Actions `vars` context and apply safe disabled defaults when a variable
+is absent.
+
+| Repository variable | Value format | Workflow destination | Purpose |
+| --- | --- | --- | --- |
+| `ENABLE_MULTI_HOMEOWNER_PLAN` | `true` or `false` | Web: `REACT_APP_ENABLE_MULTI_HOMEOWNER_PLAN`; Functions: `ENABLE_MULTI_HOMEOWNER_PLAN` | Makes the multi-homeowner plan available to the configured web and backend paths. |
+| `ENABLE_HOMEOWNER_PLUS_PRODUCT_TRIAL` | `true` or `false` | Web: `REACT_APP_ENABLE_HOMEOWNER_PLUS_PRODUCT_TRIAL`; Functions: `ENABLE_HOMEOWNER_PLUS_PRODUCT_TRIAL` | Enables the Homeowner+ internal trial surfaces and issuance path. |
+| `ENABLE_INTERNAL_ENTITLEMENT_GRANT_ISSUANCE` | `true` or `false` | Web: `REACT_APP_ENABLE_INTERNAL_ENTITLEMENT_GRANT_ISSUANCE`; Functions: `ENABLE_INTERNAL_ENTITLEMENT_GRANT_ISSUANCE` | Enables internal entitlement-grant administration and server issuance. |
+| `ENABLE_ACCESS_LIFECYCLE_COMMUNICATION` | `true` or `false` | Functions: `ENABLE_ACCESS_LIFECYCLE_COMMUNICATION` | Enables lifecycle delivery processing. |
+| `HOMEOWNER_PLUS_TRIAL_ELIGIBILITY_START_AT` | ISO 8601 timestamp, for example `2026-08-01T00:00:00-04:00` | Functions: same name | Sets the first-property trial eligibility boundary. Leave empty until a launch boundary is approved. |
+| `ENABLE_TRUSTED_SETUP_PLAN_ACTIVATION` | `true` or `false` | Web: `REACT_APP_ENABLE_TRUSTED_SETUP_PLAN_ACTIVATION` | Routes setup-plan activation through the trusted callable after its backend deployment is verified. |
+
+`ENABLE_TRUSTED_SETUP_PLAN_ACTIVATION` must remain `false` or absent until
+`activatePropertySetupMaintenancePlan` is deployed and authorization has been
+validated. Enable it by setting the repository variable to `true`, then run a
+new web build. Roll back by setting it to `false` and rebuilding the web app.
+
+Local development uses the destination names shown above in `.env` or
+`functions/.env`. The repository commits only `.env.example`; `.env*` files are
+ignored, and generated CI `functions/.env` files must never be committed.
+
 Frontend builds run `scripts/validateFrontendEnv.cjs` before `react-scripts
 build`. Missing values or placeholder values such as `YOUR_STORAGE_BUCKET`
 block the build so production cannot publish a bundle pointed at a placeholder

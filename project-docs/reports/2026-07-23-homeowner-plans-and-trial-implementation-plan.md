@@ -121,10 +121,17 @@ creating another task. The existing client-write path remains active while the
 flag is disabled so the additive Function can deploy and be validated before
 the client depends on it.
 
-This does not complete Phase 5. Interrupted unsaved-draft continuity,
-proposal-viewed and dismissed analytics, callable authorization/emulator
-coverage, and deployed end-to-end validation remain required before enabling
-trusted activation.
+Phase 5 now preserves unfinished setup changes in a versioned, user- and
+property-scoped browser draft for up to 30 days. Newer committed property
+progress takes precedence, successful saves and explicit discards remove the
+draft, and Firestore remains the only authoritative setup record. Proposal
+viewed, dismissed, confirmed, and trusted activation events use aggregate
+counts without property, equipment, or task identifiers.
+
+This does not complete Phase 5. Callable authorization/emulator coverage and
+deployed end-to-end validation remain required before enabling trusted
+activation. Draft recovery is intentionally same-device; cross-device draft
+synchronization is not introduced as a second Firestore source of truth.
 
 The initial Phase 7 trial-lifecycle foundation is implemented behind the
 independent disabled `ENABLE_ACCESS_LIFECYCLE_COMMUNICATION` flag. It includes
