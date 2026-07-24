@@ -5,8 +5,8 @@ import { RootState } from '../../../Redux/store/store';
 import { USER_ROLES } from '../../../constants/roles';
 import { COLORS } from '../../../constants/colors';
 import { RoleCapabilities } from '../../../utils/permissions';
-import { getEffectiveSubscriptionPlanId } from '../../../utils/subscriptionUtils';
 import { useSearchParams } from 'react-router-dom';
+import { selectIsHomeowner } from '../../../Redux/selectors/permissionSelectors';
 
 export interface TabsContextProps {
 	property: any;
@@ -38,14 +38,7 @@ export const TabController: React.FC<TabsContextProps> = ({
 	const activeTab =
 		useSelector((state: RootState) => state.app.activeTab) || 'details';
 
-	const effectivePlan = getEffectiveSubscriptionPlanId(
-		currentUser?.subscription,
-		'homeowner',
-	);
-	const isHomeowner =
-		effectivePlan === 'homeowner' ||
-		effectivePlan === 'homeowner_plus' ||
-		effectivePlan === 'multi_homeowner';
+	const isHomeowner = useSelector(selectIsHomeowner);
 	const isPropertyManager = currentUser ? !isHomeowner : true;
 	const isTenant = currentUser?.role === USER_ROLES.TENANT;
 	const isContractor = currentUser?.role === USER_ROLES.CONTRACTOR;

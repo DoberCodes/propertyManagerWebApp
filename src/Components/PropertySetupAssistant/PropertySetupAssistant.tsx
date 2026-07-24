@@ -130,10 +130,11 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 }) => {
 	const feedback = useAppFeedback();
 	const effectivePlanId = getEffectiveAccessPlanId(currentUser?.subscription);
-	const isHomeownerMode =
-		effectivePlanId === 'homeowner' ||
-		effectivePlanId === 'homeowner_plus' ||
-		effectivePlanId === 'multi_homeowner';
+	const isHomeownerMode = currentUser?.workspaceMode
+		? currentUser.workspaceMode === 'homeowner'
+		: effectivePlanId === 'homeowner' ||
+			effectivePlanId === 'homeowner_plus' ||
+			effectivePlanId === 'multi_homeowner';
 	const setupLanguage = {
 		eyebrow: isHomeownerMode ? 'Home Setup Assistant' : 'Property Setup Assistant',
 		completeLabel: isHomeownerMode ? 'Home setup complete' : 'Property setup complete',

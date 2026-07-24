@@ -443,60 +443,6 @@ const MinimizedWaitingButton = styled.button`
 	}
 `;
 
-// Role selection
-const RoleGrid = styled.div`
-	display: grid;
-	grid-template-columns: repeat(2, 1fr);
-	gap: 12px;
-	margin-top: 24px;
-
-	@media (max-width: 768px) {
-		grid-template-columns: 1fr;
-		margin-top: 12px;
-	}
-`;
-
-const RoleCard = styled.button<{ $selected?: boolean }>`
-	padding: 18px 16px;
-	border-radius: 12px;
-	border: 2px solid ${(p) => (p.$selected ? COLORS.primaryHover : COLORS.gray200)};
-	background: ${(p) => (p.$selected ? COLORS.primaryLight : COLORS.bgLight)};
-	cursor: pointer;
-	text-align: left;
-	transition: all 0.2s ease;
-	display: flex;
-	flex-direction: column;
-	gap: 6px;
-
-	&:hover {
-		border-color: ${COLORS.primaryHover};
-		background: ${COLORS.primaryLight};
-		transform: translateY(-1px);
-	}
-
-	@media (max-width: 768px) {
-		padding: 12px 12px;
-		gap: 4px;
-	}
-`;
-
-const RoleCardEmoji = styled.div`
-	font-size: 26px;
-	margin-bottom: 2px;
-`;
-
-const RoleCardLabel = styled.div`
-	font-size: 15px;
-	font-weight: 700;
-	color: ${COLORS.textPrimary};
-`;
-
-const RoleCardDesc = styled.div`
-	font-size: 12px;
-	color: ${COLORS.textSecondary};
-	line-height: 1.4;
-`;
-
 // Payoff preview card
 const PayoffPreview = styled.div`
 	background: linear-gradient(
@@ -648,7 +594,6 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
 
 	const [currentStepIndex, setCurrentStepIndex] = useState(0);
 	const [showCelebration, setShowCelebration] = useState(false);
-	const [userPersona, setUserPersona] = useState<'homeowner' | 'landlord' | 'manager' | null>(null);
 	const [isCompactMobile, setIsCompactMobile] = useState(
 		typeof window !== 'undefined' ? window.innerWidth <= 768 : false,
 	);
@@ -752,34 +697,19 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
 
 	// Enhanced step definitions with validation and celebration logic
 	const getSteps = (): OnboardingStep[] => {
-		// Persona-aware copy
-		const welcomeHeadline =
-			userPersona === 'homeowner'
-				? 'Stop letting maintenance pile up.'
-				: userPersona === 'landlord'
-					? 'Stop managing properties from memory.'
-					: userPersona === 'manager'
-						? 'Bring order to multi-property maintenance.'
-						: 'Your property maintenance, finally organized.';
+		const welcomeHeadline = isHomeowner
+			? 'Stop letting maintenance pile up.'
+			: 'Bring order to property maintenance.';
 
-		const welcomeSubtext =
-			userPersona === 'homeowner'
-				? isCompactMobile
-					? 'Stay ahead of repairs with a simple system for tasks, service history, and reminders.'
-					: "We'll help you stay ahead of repairs, track every service, and never forget an important maintenance task again."
-				: userPersona === 'landlord'
-					? isCompactMobile
-						? 'Track repairs, equipment, and service records across properties in one place.'
-						: "Track equipment, repairs, contractors, and service history across all your properties in one place."
-					: userPersona === 'manager'
-						? isCompactMobile
-							? 'Manage tasks, teams, and records across your portfolio with less back-and-forth.'
-							: "Manage tasks, tenants, contractors, and maintenance records across your entire portfolio."
-						: isCompactMobile
-							? 'Track equipment, repairs, and service history so nothing falls through the cracks.'
-							: 'Track equipment, repairs, tasks, and service history in one place — so nothing falls through the cracks.';
+		const welcomeSubtext = isHomeowner
+			? isCompactMobile
+				? 'Stay ahead of repairs with a simple system for tasks, service history, and reminders.'
+				: "We'll help you stay ahead of repairs, track every service, and never forget an important maintenance task again."
+			: isCompactMobile
+				? 'Manage tasks, teams, and records across your properties with less back-and-forth.'
+				: 'Track equipment, repairs, contractors, and service history across all your properties in one place.';
 
-		const isHomeownerTour = userPersona === 'homeowner' || isHomeowner;
+		const isHomeownerTour = isHomeowner;
 		const recordLabel = isHomeownerTour ? 'home' : 'property';
 		const recordTitleLabel = isHomeownerTour ? 'Home' : 'Property';
 		const recordPageLabel = isHomeownerTour ? 'home record' : 'property record';
@@ -789,37 +719,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
 		const paidAutomationEnabled = hasSuggestedTaskAutomation;
 
 		const steps: OnboardingStep[] = [
-			// Step 0: Role selection
-			{
-				id: 'who_are_you',
-				type: 'instruction',
-				title: 'First — how are you using Maintley?',
-				description: 'Pick your role so we can keep this relevant and fast.',
-				content: (
-					<RoleGrid>
-						{[
-							{ id: 'homeowner' as const, emoji: '🏡', label: 'Homeowner', desc: 'Keeping my home maintained and organized' },
-							{ id: 'landlord' as const, emoji: '🏘️', label: 'Landlord / Investor', desc: 'Managing 1–5 rental or investment properties' },
-							{ id: 'manager' as const, emoji: '🏢', label: 'Property Manager', desc: 'Managing portfolios and teams' },
-						].map((role) => (
-							<RoleCard
-								key={role.id}
-								type="button"
-								$selected={userPersona === role.id}
-								onClick={() => setUserPersona(role.id)}>
-								<RoleCardEmoji>{role.emoji}</RoleCardEmoji>
-								<RoleCardLabel>{role.label}</RoleCardLabel>
-								<RoleCardDesc>{role.desc}</RoleCardDesc>
-							</RoleCard>
-						))}
-					</RoleGrid>
-				),
-				actionLabel: userPersona ? 'Continue →' : undefined,
-				action: () => advanceToNextStep(),
-				skipLabel: 'Skip',
-			},
-
-			// Step 1: Welcome
+			// Welcome
 			{
 				id: 'welcome_beta',
 				type: 'instruction',
