@@ -11,6 +11,21 @@ function readJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, 'utf8'));
 }
 
+function readText(filePath) {
+  return fs.readFileSync(filePath, 'utf8');
+}
+
+function lockEntryHasVersion(lockText, selector, version) {
+  const entryStart = lockText.indexOf(`"${selector}":`);
+  if (entryStart < 0) return false;
+  const entryEnd = lockText.indexOf('\n\n', entryStart);
+  const entry = lockText.slice(
+    entryStart,
+    entryEnd < 0 ? lockText.length : entryEnd,
+  );
+  return entry.includes(`version "${version}"`);
+}
+
 function fail(message) {
   console.error(`Functions deploy package validation failed: ${message}`);
   process.exitCode = 1;
@@ -19,6 +34,7 @@ function fail(message) {
 const rootPackage = readJson(path.join(rootDir, 'package.json'));
 const functionsPackage = readJson(path.join(functionsDir, 'package.json'));
 const entitlementPackage = readJson(path.join(packageDir, 'package.json'));
+const entitlementModule = require(path.join(packageDir, 'index.js'));
 
 if (
   rootPackage.dependencies?.['@maintley/entitlements'] !==
@@ -42,6 +58,41 @@ for (const fileName of ['package.json', 'index.js', 'index.d.ts', 'README.md']) 
 
 if (entitlementPackage.name !== '@maintley/entitlements') {
   fail('the bundled entitlement package has an unexpected package name.');
+}
+
+const functionsLock = readText(path.join(functionsDir, 'yarn.lock'));
+const rootLock = readText(path.join(rootDir, 'yarn.lock'));
+
+if (
+  !lockEntryHasVersion(
+    functionsLock,
+    '@maintley/entitlements@file:packages/entitlements',
+    entitlementPackage.version,
+  )
+) {
+  fail('functions/yarn.lock does not match the bundled entitlement package version.');
+}
+
+if (
+  !lockEntryHasVersion(
+    rootLock,
+    '@maintley/entitlements@file:functions/packages/entitlements',
+    entitlementPackage.version,
+  )
+) {
+  fail('the root yarn.lock does not match the bundled entitlement package version.');
+}
+
+const adminPortalSource = readText(path.join(functionsDir, 'adminPortal.ts'));
+const literalAuditActions = Array.from(
+  adminPortalSource.matchAll(/getAdminAuditEventId\(\s*['"]([^'"]+)['"]/g),
+  (match) => match[1],
+);
+
+for (const action of literalAuditActions) {
+  if (!entitlementModule.ADMIN_AUDIT_ACTIONS.includes(action)) {
+    fail(`adminPortal.ts uses unknown administrative audit action ${action}.`);
+  }
 }
 
 const functionsDependencyPath = path.resolve(

@@ -451,7 +451,7 @@
   integrity sha512-4JQNk+3mVzK3xh2rqd6RB4J46qUR19azEHBneZyTZM+c456qOrbbM/5xcR8huNCCcbVt7+UmizG6GuUvPvKUYg==
 
 "@maintley/entitlements@file:packages/entitlements":
-  version "0.1.0"
+  version "0.1.1"
 
 "@modelcontextprotocol/sdk@^1.24.0":
   version "1.25.3"
