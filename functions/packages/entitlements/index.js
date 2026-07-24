@@ -84,6 +84,9 @@ const ADMIN_AUDIT_ACTIONS = Object.freeze([
 	'grant.converted',
 	'grant.lifetime_created',
 	'program.applied',
+	'program.configured',
+	'program.redemption_failed',
+	'program.redemption_replayed',
 	'billing_transition.linked',
 	'billing_transition.updated',
 	'billing_transition.opted_out',
@@ -497,6 +500,35 @@ const mergePreset = (capabilities, limits, preset) => {
 	}
 };
 
+const mergeGrantBundle = (capabilities, limits, preset, grant, diagnostics) => {
+	for (const capabilityId of CAPABILITY_IDS) {
+		if (preset.capabilities[capabilityId]) capabilities[capabilityId] = true;
+	}
+	const bundleLimitOverrides = grant.bundleLimitOverrides || {};
+	for (const [limitId, value] of Object.entries(bundleLimitOverrides)) {
+		const numericValue = Number(value);
+		if (!LIMIT_ID_SET.has(limitId) || !Number.isFinite(numericValue) || numericValue < 0) {
+			diagnostics.push(
+				createDiagnostic(
+					'unknown_limit',
+					'Unknown or invalid grant bundle limit override was ignored.',
+					{ grantId: grant.grantId, limitId },
+				),
+			);
+		}
+	}
+	for (const limitId of LIMIT_IDS) {
+		const override = Number(bundleLimitOverrides[limitId]);
+		const contributedLimit =
+			Object.prototype.hasOwnProperty.call(bundleLimitOverrides, limitId) &&
+			Number.isFinite(override) &&
+			override >= 0
+				? override
+				: preset.limits[limitId];
+		limits[limitId] = Math.max(limits[limitId], contributedLimit);
+	}
+};
+
 const mergeGrantOverrides = (capabilities, limits, grant, diagnostics) => {
 	for (const [capabilityId, value] of Object.entries(
 		grant.capabilityOverrides || {},
@@ -636,7 +668,7 @@ const resolveAccountEntitlements = (input = {}) => {
 					),
 				);
 			} else {
-				mergePreset(capabilities, limits, preset);
+				mergeGrantBundle(capabilities, limits, preset, grant, diagnostics);
 				appliedBundleIds.push(`${preset.id}@${preset.bundleVersion}`);
 			}
 		}

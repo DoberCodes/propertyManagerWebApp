@@ -44,10 +44,24 @@ export { updateFamilyMemberRole } from './updateFamilyMemberRole';
 export { updateFamilyMember } from './updateFamilyMember';
 export { ensureFamilyAccount } from './ensureFamilyAccount';
 export { issueHomeownerPlusTrialOnFirstProperty } from './entitlementGrants';
+export { activatePropertySetupMaintenancePlan } from './activatePropertySetupMaintenancePlan';
+export { manageRecurringTask } from './manageRecurringTask';
+export { manageManualOccupancy } from './manageManualOccupancy';
+export {
+	reserveStorageUpload,
+	getStorageQuotaStatus,
+	finalizeStorageQuotaUsage,
+	releaseStorageQuotaUsage,
+} from './storageQuota';
+export {
+	previewComplimentaryAccessCode,
+	redeemComplimentaryAccessCode,
+} from './complimentaryAccessCodes';
 export {
 	sendAccessLifecycleActivationOnGrantCreate,
 	sendAccessLifecycleEmails,
 	sendAccessLifecycleEmailTest,
+	sendAdminAccessLifecycleEmail,
 } from './accessLifecycleEmails';
 export {
 	createMaintenanceEvent,

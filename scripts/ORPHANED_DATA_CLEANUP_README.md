@@ -1,146 +1,62 @@
-# Orphaned Data Cleanup Migration
+# Firestore orphan cleanup
 
-This script (`scripts/migrateRemoveOrphanedData.cjs`) is designed to clean up orphaned data in Firestore that is no longer connected to active user accounts. It's safe to run repeatedly and is built to scale with your application.
+`migrateRemoveOrphanedData.cjs` is the guarded maintenance command for data
+that can be proven to have no remaining Firebase Auth user, active account,
+property, or task relationship. It also removes empty property and team groups.
 
-## Purpose
+Firebase Auth is authoritative for user existence. An account is preserved
+when an Auth-backed owner, member, user profile, or active account membership
+still reaches it. This prevents deletion of a shared account merely because one
+former user was removed.
 
-When users delete their accounts or are removed from Firebase Auth, their associated data in Firestore becomes "orphaned" - it still exists but references user IDs that no longer exist. This script identifies and removes such data while preserving relationships for active users.
+The cleanup covers:
 
-## How It Works
+- `users/{uid}` profiles whose UID is absent from Firebase Auth, including any
+  nested Firestore documents;
+- inactive `familyAccounts` and nested grants/deliveries;
+- root records with an inactive `accountId`;
+- supported legacy records owned only by a deleted user;
+- property- and task-related records whose parent no longer survives;
+- stale user IDs in property sharing arrays and family member arrays;
+- invalid property-group memberships and invalid team-member group links;
+- property groups with no current membership, legacy property link, or embedded
+  property;
+- team groups with no member, embedded member, or surviving linked property.
 
-The script performs three phases of cleanup:
+Admin audit records are intentionally not deleted by this script. An active
+shared account whose owner is missing from Auth is also preserved and reported
+for manual ownership review.
 
-### Phase 1: User-Owned Collections
+## Always preview first
 
-Removes documents that have a `userId` field pointing to a deleted user.
-
-### Phase 2: Property-Related Collections
-
-Removes documents that reference properties owned by deleted users.
-
-### Phase 3: Shared User References
-
-Removes deleted user IDs from arrays in shared documents (like co-owners, administrators, viewers).
-
-## Current Collections Cleaned
-
-### User-Owned Collections (Direct userId references)
-
-- `propertyGroups` - User's property groupings
-- `teamGroups` - User's team organizations
-- `teamMembers` - User's team member records
-- `favorites` - User's property favorites
-- `tasks` - User's created tasks
-- `users` - **User profile data (CRITICAL - was missing before!)**
-- `notifications` - User's notification history
-- `contractors` - User's contractor relationships
-
-### Property-Related Collections (Reference propertyId)
-
-- `tasks` - Tasks associated with properties
-- `suites` - Property suites/units
-- `units` - Property units
-- `devices` - Devices installed on properties
-- `propertyShares` - Property sharing relationships
-- `userInvitations` - Property invitation records
-- `maintenanceHistory` - Property maintenance records
-
-### Shared User Arrays
-
-- `properties` - coOwners, administrators, viewers arrays
-
-## Maintenance as App Expands
-
-### Adding New Collections
-
-Edit the `COLLECTION_CONFIG` object at the top of `migrateRemoveOrphanedData.cjs`:
-
-#### For User-Owned Collections:
-
-```javascript
-userOwned: [
-    'propertyGroups',
-    'teamGroups',
-    'teamMembers',
-    'favorites',
-    'tasks',
-    'userProfiles',        // NEW: Add here
-    'userSettings',        // NEW: Add here
-],
+```powershell
+npm.cmd run migrate:orphaned-data -- --report=cleanup-report.json
 ```
 
-#### For Property-Related Collections:
+The dry-run reads Firestore and Firebase Auth but performs no mutations. Review
+every listed path and the category totals in the report.
 
-```javascript
-propertyRelated: [
-    { name: 'tasks', field: 'propertyId' },
-    { name: 'suites', field: 'propertyId' },
-    { name: 'maintenanceHistory', field: 'propertyId' },  // NEW: Add here
-    { name: 'propertyDocuments', field: 'propertyId' },   // NEW: Add here
-],
+## Apply an approved report
+
+Apply mode requires four independent safeguards: a recoverable Firestore
+backup/export reference, the exact Firebase project ID, a fixed confirmation
+phrase, and a maximum permitted deletion count.
+
+```powershell
+npm.cmd run migrate:orphaned-data:apply -- --confirm-project=<firebase-project-id> --confirm-delete=DELETE_ORPHANED_DATA --backup-reference=<firestore-export-or-backup-id> --max-delete=<reviewed-delete-count-or-safe-upper-bound> --report=cleanup-applied.json
 ```
 
-#### For Shared User Arrays:
+If the planned delete count exceeds `--max-delete`, the command stops before
+writing. Without an explicit `--max-delete`, the ceiling is 100 deletes.
+`--backup-reference` is recorded in the report for operator traceability; the
+script cannot independently verify that an external backup completed.
 
-```javascript
-sharedUserArrays: [
-    { collection: 'properties', fields: ['coOwners', 'administrators', 'viewers'] },
-    { collection: 'teamGroups', fields: ['memberIds', 'managerIds'] },  // NEW: Add here
-],
-```
+Credentials may come from `FIREBASE_SERVICE_ACCOUNT_JSON`,
+`FIREBASE_SERVICE_ACCOUNT_PATH`, or the ignored root `serviceAccountKey.json`.
+Any scan or write error fails the command; it does not silently continue.
+Runs larger than 400 mutations use multiple Firestore batches, so a later batch
+failure can leave an earlier batch applied. Re-run the idempotent dry-run after
+any interrupted apply before taking further action.
 
-### Running the Migration
-
-```bash
-# From the project root
-node scripts/migrateRemoveOrphanedData.cjs
-```
-
-## Safety Features
-
-- **Idempotent**: Safe to run multiple times
-- **Batch Operations**: Handles Firestore limits (500 operations per batch)
-- **Error Handling**: Continues processing even if individual operations fail
-- **Logging**: Detailed output shows exactly what was cleaned
-- **Preservation**: Only removes data truly disconnected from active users
-
-## When to Run
-
-- After implementing account deletion features
-- Periodically for database maintenance (monthly/quarterly)
-- Before major deployments
-- When adding new collections that reference users
-
-## Output Example
-
-```
-🚀 Starting orphaned data cleanup migration...
-
-📋 Configuration loaded for collections:
-   • User-owned: propertyGroups, teamGroups, teamMembers, favorites, tasks
-   • Property-related: tasks, suites, units, devices, propertyShares, userInvitations
-   • Shared user arrays: properties(coOwners,administrators,viewers)
-
-Fetching all current Firebase Auth users...
-Found 8 current users in Firebase Auth
-
-🧹 Phase 1: Cleaning user-owned collections...
-🔍 Checking collection: propertyGroups
-   ✅ Removed 0 orphaned documents from propertyGroups
-
-🎉 Migration completed successfully!
-📊 Summary:
-   • Total orphaned documents removed: 0
-   • Properties with cleaned shared references: 0
-   • Active users preserved: 8
-```
-
-## Future-Proofing
-
-The script includes commented placeholders for common future collections:
-
-- `userProfiles`, `userSettings` (user-owned)
-- `maintenanceHistory`, `propertyDocuments` (property-related)
-- `memberIds`, `managerIds` (shared user arrays)
-
-Simply uncomment and modify as needed when implementing these features.
+The older `migratePruneInactiveUserData.cjs` command is retained only as a
+compatibility entrypoint and now invokes this same guarded cleanup.

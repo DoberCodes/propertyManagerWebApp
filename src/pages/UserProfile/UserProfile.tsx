@@ -94,9 +94,10 @@ import COLORS from 'constants/colors';
 import { PortfolioPlanSub, PortfolioTop, PortfolioUsage, PortfolioUsageBadge, ProgressFill, ProgressTrack } from 'Components/Library/Navbar/SideNav/SideNav.styles';
 import {
 	canManageTeam,
+	getActiveGrantedPlanAccess,
 	getActiveHomeownerPlusTrial,
+	getEffectiveAccessPlanId,
 	getEffectiveSubscriptionPlanId,
-	getRemainingPropertySlots,
 	getSubscriptionPlanDetails,
 } from 'utils/subscriptionUtils';
 import { filterPropertyGroupsByRole } from 'utils/dataFilters';
@@ -116,6 +117,13 @@ import {
 } from 'firebase/auth';
 import { auth } from 'config/firebase';
 import { callFirebaseFunction } from 'config/firebaseFunctions';
+import { getCustomerBillingPortalUrl } from 'utils/authLinks';
+import {
+	complimentaryAccessCodesEnabled,
+	ComplimentaryAccessCodePreview,
+	previewComplimentaryAccessCode,
+	redeemComplimentaryAccessCode,
+} from 'services/complimentaryAccessCodeService';
 
 export const UserProfile: React.FC = () => {
 	const dispatch = useDispatch<AppDispatch>();
@@ -147,6 +155,11 @@ export const UserProfile: React.FC = () => {
 	const [deleteAccountError, setDeleteAccountError] = useState('');
 	const [deleteConfirmationInput, setDeleteConfirmationInput] = useState('');
 	const [isChangingPassword, setIsChangingPassword] = useState(false);
+	const [accessCode, setAccessCode] = useState('');
+	const [accessCodePreview, setAccessCodePreview] =
+		useState<ComplimentaryAccessCodePreview | null>(null);
+	const [accessCodeError, setAccessCodeError] = useState('');
+	const [isAccessCodeBusy, setIsAccessCodeBusy] = useState(false);
 	const [isDeletingAccount, setIsDeletingAccount] = useState(false);
 	const [showCurrentPassword, setShowCurrentPassword] = useState(false);
 	const [showNewPassword, setShowNewPassword] = useState(false);
@@ -482,19 +495,15 @@ export const UserProfile: React.FC = () => {
 			).length,
 		[filteredPropertyGroups],
 	);
-	const effectivePlanId = getEffectiveSubscriptionPlanId(
-		currentUser?.subscription,
-		'homeowner',
-	);
+	const effectivePlanId = getEffectiveAccessPlanId(currentUser?.subscription);
 	const planDetails = getSubscriptionPlanDetails(effectivePlanId);
+	const grantedAccess = getActiveGrantedPlanAccess(currentUser?.subscription);
 	const activeHomeownerPlusTrial = getActiveHomeownerPlusTrial(
 		currentUser?.subscription,
 	);
 
-	const remainingSlots = currentUser?.subscription
-		? getRemainingPropertySlots(currentUser.subscription, totalProperties)
-		: 0;
 	const maxProperties = planDetails?.maxProperties ?? 1;
+	const remainingSlots = Math.max(0, maxProperties - totalProperties);
 	const planRecordNoun = maxProperties <= 1 ? 'home' : 'property';
 	const usagePercent = maxProperties > 0 ? (totalProperties / maxProperties) * 100 : 0;
 	const hasPropertyCapacity = maxProperties > 0;
@@ -503,7 +512,37 @@ export const UserProfile: React.FC = () => {
 		: remainingSlots === 0 && totalProperties > maxProperties
 			? `${totalProperties - maxProperties} over plan limit`
 			: `${remainingSlots} ${planRecordNoun} slot${remainingSlots === 1 ? '' : 's'} available`;
-	const planSubtitle = `Plan: ${planDetails?.name || 'Home'}`;
+	const planSubtitle = `${grantedAccess ? 'Effective access' : 'Plan'}: ${planDetails?.name || 'Home'}`;
+	const grantedAccessEndsLabel = grantedAccess?.endsAtMs
+		? new Date(grantedAccess.endsAtMs).toLocaleDateString(undefined, {
+			month: 'long',
+			day: 'numeric',
+			year: 'numeric',
+		})
+		: null;
+	const accessTransition = grantedAccess?.transition;
+	const automaticTransition = accessTransition?.mode === 'automatic';
+	const firstChargeAt = accessTransition?.firstChargeAt;
+	const firstChargeMs =
+		typeof firstChargeAt === 'number'
+			? firstChargeAt
+			: typeof (firstChargeAt as any)?.toMillis === 'function'
+				? (firstChargeAt as any).toMillis()
+				: Number.NaN;
+	const firstChargeLabel = Number.isFinite(firstChargeMs)
+		? new Date(firstChargeMs).toLocaleDateString(undefined, {
+				year: 'numeric', month: 'long', day: 'numeric',
+			})
+		: null;
+	const recurringPriceLabel = Number.isFinite(Number(accessTransition?.recurringAmountMinor))
+		? new Intl.NumberFormat(undefined, {
+				style: 'currency',
+				currency: String(accessTransition?.currency || 'USD'),
+			}).format(Number(accessTransition?.recurringAmountMinor) / 100)
+		: null;
+	const hasStripeBillingRelationship = Boolean(
+		currentUser?.subscription?.stripeCustomerId || accessTransition?.stripeCustomerId,
+	);
 	const storageUsagePercent = Math.min(100, storageUsage?.usagePercent || 0);
 	const storageUsageLabel = isStorageUsageLoading
 		? 'Loading storage...'
@@ -515,6 +554,42 @@ export const UserProfile: React.FC = () => {
 	const storageFileLabel = storageUsage
 		? `${storageUsage.fileCount} of ${storageUsage.maxFiles} files`
 		: '';
+	const canRedeemComplimentaryAccess =
+		complimentaryAccessCodesEnabled &&
+		!isUserTenant &&
+		!isTeamMemberAccount &&
+		currentUser?.isAccountOwner !== false;
+
+	const handlePreviewAccessCode = async () => {
+		setAccessCodeError('');
+		setAccessCodePreview(null);
+		setIsAccessCodeBusy(true);
+		try {
+			setAccessCodePreview(await previewComplimentaryAccessCode(accessCode));
+		} catch (previewError: any) {
+			setAccessCodeError(
+				String(previewError?.message || 'This complimentary access code is not available.'),
+			);
+		} finally {
+			setIsAccessCodeBusy(false);
+		}
+	};
+
+	const handleRedeemAccessCode = async () => {
+		if (!accessCodePreview) return;
+		setAccessCodeError('');
+		setIsAccessCodeBusy(true);
+		try {
+			await redeemComplimentaryAccessCode(accessCode);
+			window.location.reload();
+		} catch (redeemError: any) {
+			setAccessCodeError(
+				String(redeemError?.message || 'Maintley could not apply this access code.'),
+			);
+			setAccessCodePreview(null);
+			setIsAccessCodeBusy(false);
+		}
+	};
 
 	// Initialize form with current user data
 	useEffect(() => {
@@ -916,15 +991,15 @@ export const UserProfile: React.FC = () => {
 					<Section style={{ padding: '16px', border: '1px solid #E0E0E0', borderRadius: '8px', display: 'flex', flexDirection: 'column', flexWrap: 'wrap', gap: '12px' }}>
 						<PortfolioTop>
 							<FormLabel style={{ fontSize: '14px', color: '#666' }}>Plan & Usage</FormLabel>
-							<StatusPill style={{ backgroundColor: currentUser?.subscription?.status === 'active' ? COLORS.primary : COLORS.gray300, color: COLORS.bgWhite }}>
-								{planDetails?.name || 'Home Plan'}
+							<StatusPill style={{ backgroundColor: grantedAccess || currentUser?.subscription?.status === 'active' ? COLORS.primary : COLORS.gray300, color: COLORS.bgWhite }}>
+								{grantedAccess ? 'Granted' : planDetails?.name || 'Home Plan'}
 							</StatusPill>
 
 						</PortfolioTop>
 						<PortfolioPlanSub>
 							{planSubtitle}
 						</PortfolioPlanSub>
-						{activeHomeownerPlusTrial ? (
+						{grantedAccess ? (
 							<div
 								style={{
 									padding: '12px',
@@ -934,22 +1009,35 @@ export const UserProfile: React.FC = () => {
 									color: '#065F46',
 								}}
 							>
-								<strong>Homeowner+ trial active</strong>
+								<strong>{planDetails?.name || 'Plan'} access granted</strong>
 								<div style={{ marginTop: '4px', fontSize: '14px' }}>
-									{activeHomeownerPlusTrial.daysRemaining} days remaining. Your
-									 complimentary access ends{' '}
-									{new Date(
-										activeHomeownerPlusTrial.endsAtMs,
-									).toLocaleDateString(undefined, {
-										month: 'long',
-										day: 'numeric',
-										year: 'numeric',
-									})}
-									. No payment method is connected and you will not be charged.
-									 Your account returns to the Free plan afterward.
+									{activeHomeownerPlusTrial
+										? `${activeHomeownerPlusTrial.daysRemaining} days remaining. Your complimentary access ends ${grantedAccessEndsLabel}. Your account returns to the Free plan afterward.`
+										: grantedAccess.kind === 'permanent'
+											? 'Maintley has granted this account permanent access.'
+											: `Maintley has granted this account access through ${grantedAccessEndsLabel || 'the scheduled end date'}.`}
 								</div>
 							</div>
 						) : null}
+						<div style={{ display: 'grid', gap: '6px', fontSize: '14px' }}>
+							<div><strong>Payment method:</strong> {hasStripeBillingRelationship ? 'Managed securely in Stripe' : 'Not connected'}</div>
+							<div><strong>After complimentary access:</strong> {automaticTransition ? 'Continues as a paid subscription unless cancelled' : accessTransition?.mode === 'checkout_required' ? 'Paid continuation requires Checkout' : 'No automatic billing'}</div>
+							{automaticTransition && firstChargeLabel ? <div><strong>First charge:</strong> {firstChargeLabel}{recurringPriceLabel ? ` at ${recurringPriceLabel} per ${accessTransition?.billingCycle || 'billing period'}` : ''}</div> : null}
+						</div>
+						<div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+							{hasStripeBillingRelationship ? (
+								<ProfileActionButton
+									type='button'
+									onClick={() => window.open(getCustomerBillingPortalUrl(), '_blank', 'noopener,noreferrer')}
+								>
+									Manage payment, renewal, or cancellation
+								</ProfileActionButton>
+							) : (
+								<ProfileActionButton type='button' onClick={() => navigate('/paywall')}>
+									Review plan options
+								</ProfileActionButton>
+							)}
+						</div>
 						<ProgressTrack>
 							<ProgressFill $percent={Math.min(100, usagePercent)} />
 						</ProgressTrack>
@@ -970,6 +1058,68 @@ export const UserProfile: React.FC = () => {
 						<PortfolioUsage>
 							{storageUsageLabel}
 						</PortfolioUsage>
+						{canRedeemComplimentaryAccess ? (
+							<div
+								style={{
+									marginTop: '8px',
+									paddingTop: '16px',
+									borderTop: '1px solid #E0E0E0',
+									display: 'grid',
+									gap: '10px',
+								}}
+							>
+								<FormLabel htmlFor='complimentary-access-code'>
+									Complimentary access code
+								</FormLabel>
+								<ActionHelperText>
+									Preview the included access and end behavior before applying it to this account.
+								</ActionHelperText>
+								<div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+									<FormInput
+										id='complimentary-access-code'
+										value={accessCode}
+										onChange={(event) => {
+											setAccessCode(event.target.value);
+											setAccessCodePreview(null);
+											setAccessCodeError('');
+										}}
+										placeholder='Enter access code'
+										autoComplete='off'
+										style={{ flex: '1 1 220px' }}
+									/>
+									<ProfileActionButton
+										type='button'
+										disabled={isAccessCodeBusy || accessCode.trim().length < 8}
+										onClick={handlePreviewAccessCode}
+									>
+										{isAccessCodeBusy && !accessCodePreview ? 'Checking...' : 'Preview access'}
+									</ProfileActionButton>
+								</div>
+								{accessCodePreview ? (
+									<div
+										style={{
+											padding: '12px',
+											borderRadius: '8px',
+											background: '#ECFDF5',
+											border: '1px solid #A7F3D0',
+										}}
+									>
+										<strong>{accessCodePreview.label}</strong>
+										<p style={{ margin: '6px 0 12px' }}>
+											Adds {accessCodePreview.durationDays} days of {accessCodePreview.bundleId.replaceAll('_', ' ')} access. It does not create a charge or automatic renewal. When it ends, your existing records remain available through the Free plan and paid continuation requires Checkout.
+										</p>
+										<SaveButton
+											type='button'
+											disabled={isAccessCodeBusy}
+											onClick={handleRedeemAccessCode}
+										>
+											{isAccessCodeBusy ? 'Applying...' : 'Apply complimentary access'}
+										</SaveButton>
+									</div>
+								) : null}
+								{accessCodeError ? <ErrorMessage>{accessCodeError}</ErrorMessage> : null}
+							</div>
+						) : null}
 						{/* <ManagePlanButton
 							type='button'
 							onClick={() => navigate('/paywall')}>

@@ -3,6 +3,8 @@ import { clearUserLocalStorage } from '../../utils/localStorageCleanup';
 import { UserRole } from 'constants/roles';
 import type { EntitlementGrant } from '@maintley/entitlements';
 
+export type WorkspaceMode = 'homeowner' | 'property_operator';
+
 // Family account type for shared subscriptions
 export interface FamilyAccount {
 	id: string;
@@ -45,6 +47,7 @@ export interface User {
 	dashboardPreferences?: {
 		scope?: 'my_focus' | 'all_visible_properties';
 	};
+	workspaceMode?: WorkspaceMode;
 	pushToken?: string; // Push notification token for FCM
 	pushTokenUpdatedAt?: string; // When push token was last updated
 	pushTokens?: Array<{

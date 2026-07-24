@@ -15,6 +15,8 @@ import {
 	canUseSuggestedMaintenancePackages,
 	canViewReports,
 	getEffectiveSubscriptionPlanId,
+	getEffectiveAccessPlanId,
+	getActiveGrantedPlanAccess,
 	getActiveHomeownerPlusTrial,
 	getMaxFilesForPlan,
 	getMaxPropertiesForPlan,
@@ -270,6 +272,15 @@ describe('subscriptionUtils', () => {
 		};
 
 		expect(getEffectiveSubscriptionPlanId(freeWithTrial)).toBe('homeowner');
+		expect(getEffectiveAccessPlanId(freeWithTrial)).toBe('homeowner_plus');
+		expect(getActiveGrantedPlanAccess(freeWithTrial, nowMs)).toEqual({
+			programId: 'homeowner_plus_first_property_trial_v1',
+			planId: 'homeowner_plus',
+			kind: 'temporary',
+			source: 'trial',
+			endsAtMs: nowMs + 30 * 24 * 60 * 60 * 1000,
+			grantIds: ['homeowner_plus_first_property_trial'],
+		});
 		expect(canUseRecurringTasks(freeWithTrial)).toBe(true);
 		expect(canUseNotifications(freeWithTrial)).toBe(true);
 		expect(getActiveHomeownerPlusTrial(freeWithTrial, nowMs)?.daysRemaining).toBe(30);
@@ -299,5 +310,68 @@ describe('subscriptionUtils', () => {
 		expect(canUseRecurringTasks(freeWithExpiredTrial)).toBe(false);
 		expect(canUseNotifications(freeWithExpiredTrial)).toBe(false);
 		expect(getActiveHomeownerPlusTrial(freeWithExpiredTrial, nowMs)).toBeNull();
+		expect(getActiveGrantedPlanAccess(freeWithExpiredTrial, nowMs)).toBeNull();
+	});
+
+	it('reports permanent Portfolio access separately from the Free billing plan', () => {
+		const nowMs = Date.now();
+		const freeWithLifetimePortfolio: SubscriptionData = {
+			...activeSubscription('homeowner'),
+			entitlementAccountId: 'account-1',
+			entitlementGrants: [
+				{
+					grantId: 'lifetime_portfolio',
+					programId: 'lifetime_portfolio_v1',
+					accountId: 'account-1',
+					kind: 'permanent',
+					state: 'active',
+					bundleId: 'portfolio',
+					bundleVersion: 'v1',
+					startsAtMs: nowMs - 1000,
+					endsAtMs: null,
+					source: 'lifetime',
+				},
+			],
+		};
+
+		expect(getEffectiveSubscriptionPlanId(freeWithLifetimePortfolio)).toBe('homeowner');
+		expect(getEffectiveAccessPlanId(freeWithLifetimePortfolio)).toBe('portfolio');
+		expect(getActiveGrantedPlanAccess(freeWithLifetimePortfolio, nowMs)).toEqual({
+			programId: 'lifetime_portfolio_v1',
+			planId: 'portfolio',
+			kind: 'permanent',
+			source: 'lifetime',
+			endsAtMs: null,
+			grantIds: ['lifetime_portfolio'],
+		});
+	});
+
+	it('keeps maintenance-package access active when an internal grant outlives billing', () => {
+		const nowMs = Date.now();
+		const expiredWithLifetimePortfolio: SubscriptionData = {
+			...expiredSubscription('portfolio'),
+			entitlementAccountId: 'account-1',
+			entitlementGrants: [
+				{
+					grantId: 'lifetime_portfolio',
+					programId: 'lifetime_portfolio_v1',
+					accountId: 'account-1',
+					kind: 'permanent',
+					state: 'active',
+					bundleId: 'portfolio',
+					bundleVersion: 'v1',
+					startsAtMs: nowMs - 1000,
+					endsAtMs: null,
+					source: 'lifetime',
+				},
+			],
+		};
+
+		expect(canUseSuggestedMaintenancePackages(expiredWithLifetimePortfolio)).toBe(true);
+		expect(getSuggestedMaintenancePackageLimit(expiredWithLifetimePortfolio)).toBe(
+			Number.POSITIVE_INFINITY,
+		);
+		expect(canUseRecurringTasks(expiredWithLifetimePortfolio)).toBe(true);
+		expect(canUseNotifications(expiredWithLifetimePortfolio)).toBe(true);
 	});
 });

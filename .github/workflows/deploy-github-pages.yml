@@ -10,6 +10,28 @@ on:
   workflow_dispatch:
 
 jobs:
+  entitlement-package-version:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Require an entitlement package version bump
+        env:
+          ENTITLEMENT_PACKAGE_BASE_REF: ${{ github.event.pull_request.base.sha }}
+        run: yarn check:entitlement-package-version
+
+      - name: Entitlement package version policy tests
+        run: yarn test:entitlement-package-version
+
   version-validate:
     if: github.event_name == 'pull_request' && github.event.pull_request.head.ref == 'release/next'
     runs-on: ubuntu-latest
@@ -92,9 +114,14 @@ jobs:
           REACT_APP_ENABLE_ANALYTICS: ${{ secrets.PROD_REACT_APP_ENABLE_ANALYTICS }}
           REACT_APP_FIREBASE_WEB_PUSH_VAPID_KEY: ${{ secrets.PROD_REACT_APP_FIREBASE_WEB_PUSH_VAPID_KEY }}
           REACT_APP_STRIPE_PUBLIC_KEY: ${{ secrets.PROD_REACT_APP_STRIPE_PUBLIC_KEY }}
+          REACT_APP_STRIPE_CUSTOMER_PORTAL_URL: ${{ vars.STRIPE_CUSTOMER_PORTAL_URL || 'https://billing.stripe.com/p/login/00wbJ27029Gxama5Cg5gc00' }}
           REACT_APP_ENABLE_MULTI_HOMEOWNER_PLAN: ${{ vars.ENABLE_MULTI_HOMEOWNER_PLAN || 'false' }}
           REACT_APP_ENABLE_HOMEOWNER_PLUS_PRODUCT_TRIAL: ${{ vars.ENABLE_HOMEOWNER_PLUS_PRODUCT_TRIAL || 'false' }}
           REACT_APP_ENABLE_INTERNAL_ENTITLEMENT_GRANT_ISSUANCE: ${{ vars.ENABLE_INTERNAL_ENTITLEMENT_GRANT_ISSUANCE || 'false' }}
+          REACT_APP_ENABLE_TRUSTED_SETUP_PLAN_ACTIVATION: ${{ vars.ENABLE_TRUSTED_SETUP_PLAN_ACTIVATION || 'false' }}
+          REACT_APP_ENABLE_TRUSTED_RECURRING_TASK_WRITES: ${{ vars.ENABLE_TRUSTED_RECURRING_TASK_WRITES || 'false' }}
+          REACT_APP_ENABLE_COMPLIMENTARY_ACCESS_CODES: ${{ vars.ENABLE_COMPLIMENTARY_ACCESS_CODES || 'false' }}
+          REACT_APP_ENABLE_TRUSTED_STORAGE_QUOTA: ${{ vars.ENABLE_TRUSTED_STORAGE_QUOTA || 'false' }}
         run: |
           yarn sync:public-pricing
           yarn build
@@ -122,6 +149,15 @@ jobs:
       - name: Build functions
         run: yarn --cwd functions build
 
+      - name: Property setup activation tests
+        run: yarn --cwd functions test:setup-plan
+
+      - name: Recurring task entitlement tests
+        run: yarn --cwd functions test:recurring-task
+
+      - name: Manual occupancy continuity tests
+        run: yarn --cwd functions test:manual-occupancy
+
       - name: Email branding and lifecycle template tests
         run: node scripts/testEmailTemplates.cjs
 
@@ -133,4 +169,7 @@ jobs:
 
       - name: Entitlement grant issuance tests
         run: node ./functions/node_modules/firebase-tools/lib/bin/firebase.js emulators:exec --only firestore "node scripts/testEntitlementGrantIssuance.cjs"
+
+      - name: Complimentary access code tests
+        run: yarn test:access-codes
 

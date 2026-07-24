@@ -2,9 +2,12 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import styled from 'styled-components';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faChevronDown, faChevronUp } from '@fortawesome/free-solid-svg-icons';
+import { useDispatch } from 'react-redux';
 import { useCreateDeviceMutation } from '../../Redux/API/deviceSlice';
 import { useUpdatePropertyMutation } from '../../Redux/API/propertySlice';
 import { useCreateTaskMutation } from '../../Redux/API/taskSlice';
+import { apiSlice } from '../../Redux/API/apiSlice';
+import type { AppDispatch } from '../../Redux/store/store';
 import { User } from '../../Redux/Slices/userSlice';
 import {
 	Device,
@@ -34,12 +37,22 @@ import { getDefaultTaskNotifications } from '../../utils/taskNotificationUtils';
 import {
 	canUseSuggestedMaintenancePackages,
 	canUseUnlimitedSuggestedMaintenancePackages,
-	getEffectiveSubscriptionPlanId,
+	getEffectiveAccessPlanId,
 	getSuggestedMaintenancePackageLimit,
 } from '../../utils/subscriptionUtils';
 import { normalizeAssetType } from '../../utils/systemTypes';
 import { COLORS } from '../../constants/colors';
 import { LoadingState } from '../LoadingState';
+import { trackAnalyticsEvent } from '../../analytics/analytics';
+import {
+	activatePropertySetupMaintenancePlan,
+	type PropertySetupTaskProposal,
+} from '../../services/propertySetupAssistantService';
+import {
+	clearPropertySetupDraft,
+	readPropertySetupDraft,
+	writePropertySetupDraft,
+} from './propertySetupDraft';
 
 interface PropertySetupAssistantProps {
 	property: Property;
@@ -101,9 +114,27 @@ const normalize = (value: string) =>
 
 const compact = (value: string) => normalize(value).replace(/\s+/g, '');
 const SETUP_SAVE_MESSAGE_MIN_MS = 4200;
+const TRUSTED_SETUP_PLAN_ACTIVATION_ENABLED =
+	process.env.REACT_APP_ENABLE_TRUSTED_SETUP_PLAN_ACTIVATION === 'true';
 const PROPERTY_SETUP_ITEM_ORDER = PROPERTY_SETUP_AREAS.flatMap(
 	(area) => area.itemIds,
 );
+
+const getDraftProposalCount = (
+	items: NonNullable<PropertySetupAssistantState['items']>,
+) =>
+	Object.entries(items).reduce((count, [itemId, itemState]) => {
+		if (itemState?.status !== 'present') return count;
+		const defaultTaskIds = getSuggestedTaskIdsForSystems([
+			itemId as SuggestedSystemId,
+		]);
+		const selectedTaskIds = Array.isArray(itemState.selectedSuggestedTaskIds)
+			? itemState.selectedSuggestedTaskIds.filter((taskId) =>
+					defaultTaskIds.includes(taskId),
+				)
+			: defaultTaskIds;
+		return count + selectedTaskIds.length;
+	}, 0);
 
 const waitForMinimumDuration = (startedAt: number) => {
 	const remainingMs = SETUP_SAVE_MESSAGE_MIN_MS - (Date.now() - startedAt);
@@ -129,14 +160,13 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 	onUploadDocuments,
 }) => {
 	const feedback = useAppFeedback();
-	const effectivePlanId = getEffectiveSubscriptionPlanId(
-		currentUser?.subscription,
-		'homeowner',
-	);
-	const isHomeownerMode =
-		effectivePlanId === 'homeowner' ||
-		effectivePlanId === 'homeowner_plus' ||
-		effectivePlanId === 'multi_homeowner';
+	const dispatch = useDispatch<AppDispatch>();
+	const effectivePlanId = getEffectiveAccessPlanId(currentUser?.subscription);
+	const isHomeownerMode = currentUser?.workspaceMode
+		? currentUser.workspaceMode === 'homeowner'
+		: effectivePlanId === 'homeowner' ||
+			effectivePlanId === 'homeowner_plus' ||
+			effectivePlanId === 'multi_homeowner';
 	const setupLanguage = {
 		eyebrow: isHomeownerMode ? 'Home Setup Assistant' : 'Property Setup Assistant',
 		completeLabel: isHomeownerMode ? 'Home setup complete' : 'Property setup complete',
@@ -167,6 +197,7 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 		NonNullable<PropertySetupAssistantState['items']>
 	>(setupAssistant.items || {});
 	const [hasUserDraftChanges, setHasUserDraftChanges] = useState(false);
+	const [wasDraftRestored, setWasDraftRestored] = useState(false);
 	const [isCloseConfirmOpen, setIsCloseConfirmOpen] = useState(false);
 	const [isAssistantCardCollapsed, setIsAssistantCardCollapsed] =
 		useState(savedSetupProgress.isComplete);
@@ -174,6 +205,7 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 		getFirstIncompleteSetupAreaId(setupAssistant),
 	);
 	const areaPanelRef = useRef<HTMLDivElement | null>(null);
+	const hasTrackedProposalViewRef = useRef(false);
 	const [isSavingAssistant, setIsSavingAssistant] = useState(false);
 	const [isSaveComplete, setIsSaveComplete] = useState(false);
 	const [completionSummary, setCompletionSummary] =
@@ -205,6 +237,11 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 	}, [property.id, property.setupAssistant, isOpen]);
 
 	useEffect(() => {
+		hasTrackedProposalViewRef.current = false;
+		setWasDraftRestored(false);
+	}, [property.id]);
+
+	useEffect(() => {
 		setIsAssistantCardCollapsed(savedSetupProgress.isComplete);
 	}, [property.id, savedSetupProgress.isComplete]);
 
@@ -216,6 +253,60 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 		setIsOpen(true);
 		onInitialOpenHandled?.();
 	}, [initiallyOpen, canUseAssistant, onInitialOpenHandled]);
+
+	useEffect(() => {
+		if (!isOpen || !currentUser?.id || typeof window === 'undefined') return;
+		const restoredDraft = readPropertySetupDraft(window.localStorage, {
+			userId: currentUser.id,
+			propertyId: property.id,
+			serverUpdatedAt: setupAssistant.updatedAt,
+		});
+		if (!restoredDraft) return;
+
+		setDraftItems(restoredDraft.items);
+		setSelectedAreaId(restoredDraft.selectedAreaId);
+		setHasUserDraftChanges(true);
+		setWasDraftRestored(true);
+	}, [currentUser?.id, isOpen, property.id, setupAssistant.updatedAt]);
+
+	useEffect(() => {
+		if (
+			!isOpen ||
+			!hasUserDraftChanges ||
+			!currentUser?.id ||
+			typeof window === 'undefined'
+		) {
+			return;
+		}
+
+		writePropertySetupDraft(window.localStorage, {
+			userId: currentUser.id,
+			propertyId: property.id,
+			baseUpdatedAt: setupAssistant.updatedAt,
+			selectedAreaId,
+			items: draftItems,
+		});
+	}, [
+		currentUser?.id,
+		draftItems,
+		hasUserDraftChanges,
+		isOpen,
+		property.id,
+		selectedAreaId,
+		setupAssistant.updatedAt,
+	]);
+
+	useEffect(() => {
+		if (!isOpen || hasTrackedProposalViewRef.current) return;
+		const proposalCount = getDraftProposalCount(draftItems);
+		if (proposalCount <= 0) return;
+
+		hasTrackedProposalViewRef.current = true;
+		void trackAnalyticsEvent('property_setup_proposal_viewed', {
+			proposal_count: proposalCount,
+			restored_draft: wasDraftRestored,
+		});
+	}, [draftItems, isOpen, wasDraftRestored]);
 
 	useEffect(() => {
 		areaPanelRef.current?.scrollTo({
@@ -233,6 +324,8 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 		const nextDraftItems = buildDraftItems(setupAssistant.items || {});
 		setDraftItems(nextDraftItems);
 		setHasUserDraftChanges(false);
+		setWasDraftRestored(false);
+		hasTrackedProposalViewRef.current = false;
 		setIsCloseConfirmOpen(false);
 		setIsSaveComplete(false);
 		setCompletionSummary(null);
@@ -379,8 +472,8 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 		selectedTaskIds = getSuggestedTaskIdsForSystems([itemId]),
 	): Promise<SuggestedTaskCreateResult> => {
 		const suggestedTasks = getSuggestedTasksForSystems([itemId], selectedTaskIds);
-		const taskIds: string[] = [];
-		const createdTaskIds: string[] = [];
+		const existingTaskIds: string[] = [];
+		const proposals: PropertySetupTaskProposal[] = [];
 		const systemOrderIndex = Math.max(
 			PROPERTY_SETUP_ITEM_ORDER.indexOf(itemId),
 			0,
@@ -400,66 +493,119 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 			});
 
 			if (existingTask?.id) {
-				taskIds.push(existingTask.id);
+				existingTaskIds.push(existingTask.id);
 				continue;
 			}
 
-			try {
-				const createdTask = await createTask(
-					stripUndefinedValues({
-						userId: currentUser.id,
-						propertyId: property.id,
-						property: property.title,
-						propertyTitle: property.title,
-						title: suggestedTask.title,
-						dueDate: getSuggestedTaskDueDate(
-							suggestedTask,
-							new Date(
-								Date.now() +
+			proposals.push(
+				stripUndefinedValues({
+					proposalId: `${itemId}:${suggestedTask.id}`,
+					title: suggestedTask.title,
+					dueDate: getSuggestedTaskDueDate(
+						suggestedTask,
+						new Date(
+							Date.now() +
 								((systemOrderIndex * 5 + taskIndex * 9) % 35) *
 								24 *
 								60 *
 								60 *
 								1000,
-							),
 						),
-						status: 'Initiated',
-						priority: suggestedTask.priority || 'Medium',
-						category: 'Suggested Maintenance',
-						notes: [
-							`${suggestedTask.title} was added from the Property Setup Assistant.`,
-							suggestedTask.notes,
-							SUGGESTED_MAINTENANCE_DISCLAIMER,
-						]
-							.filter(Boolean)
-							.join(' '),
-						...(hasPaidSuggestedMaintenancePackages
-							? {
-								isRecurring: true,
-								recurrenceFrequency: suggestedTask.recurrenceFrequency,
-								recurrenceInterval: suggestedTask.recurrenceInterval,
-								recurrenceCustomUnit: suggestedTask.recurrenceCustomUnit,
-							}
-							: { isRecurring: false }),
-						enableNotifications: true,
-						notifications: getDefaultTaskNotifications(),
-						...(deviceId ? { devices: [deviceId] } : {}),
-					}) as any,
-				).unwrap();
-				if (createdTask?.id) {
-					taskIds.push(createdTask.id);
-					createdTaskIds.push(createdTask.id);
-				}
-			} catch (error) {
-				console.warn('Property setup assistant could not create task:', {
-					itemId,
-					suggestedTask,
-					error,
-				});
-			}
+					),
+					priority: suggestedTask.priority || 'Medium',
+					notes: [
+						`${suggestedTask.title} was added from the Property Setup Assistant.`,
+						suggestedTask.notes,
+						SUGGESTED_MAINTENANCE_DISCLAIMER,
+					]
+						.filter(Boolean)
+						.join(' '),
+					...(deviceId ? { deviceId } : {}),
+					recurrenceFrequency: suggestedTask.recurrenceFrequency,
+					recurrenceInterval: suggestedTask.recurrenceInterval,
+					recurrenceCustomUnit: suggestedTask.recurrenceCustomUnit,
+				}) as PropertySetupTaskProposal,
+			);
 		}
 
-		return { taskIds, createdTaskIds };
+		if (proposals.length === 0) {
+			return { taskIds: existingTaskIds, createdTaskIds: [] };
+		}
+
+		if (!TRUSTED_SETUP_PLAN_ACTIVATION_ENABLED) {
+			const createdTaskIds: string[] = [];
+			for (const proposal of proposals) {
+				try {
+					const createdTask = await createTask(
+						stripUndefinedValues({
+							userId: currentUser.id,
+							propertyId: property.id,
+							property: property.title,
+							propertyTitle: property.title,
+							title: proposal.title,
+							dueDate: proposal.dueDate,
+							status: 'Initiated',
+							priority: proposal.priority || 'Medium',
+							category: 'Suggested Maintenance',
+							notes: proposal.notes,
+							...(hasPaidSuggestedMaintenancePackages
+								? {
+									isRecurring: true,
+									recurrenceFrequency: proposal.recurrenceFrequency,
+									recurrenceInterval: proposal.recurrenceInterval,
+									recurrenceCustomUnit: proposal.recurrenceCustomUnit,
+								  }
+								: { isRecurring: false }),
+							enableNotifications: true,
+							notifications: getDefaultTaskNotifications(),
+							...(proposal.deviceId ? { devices: [proposal.deviceId] } : {}),
+						}) as any,
+					).unwrap();
+					if (createdTask?.id) {
+						createdTaskIds.push(createdTask.id);
+					}
+				} catch (error) {
+					console.warn('Property setup assistant could not create task:', {
+						itemId,
+						proposal,
+						error,
+					});
+				}
+			}
+
+			return {
+				taskIds: [...existingTaskIds, ...createdTaskIds],
+				createdTaskIds,
+			};
+		}
+
+		try {
+			const result = await activatePropertySetupMaintenancePlan({
+				propertyId: property.id,
+				requestId: `setup-plan:${property.id}:${itemId}:${selectedTaskIds
+					.slice()
+					.sort()
+					.join(',')}`,
+				proposals,
+			});
+			dispatch(apiSlice.util.invalidateTags(['Tasks']));
+			void trackAnalyticsEvent('property_setup_plan_activated', {
+				proposal_count: proposals.length,
+				created_task_count: result.createdTaskIds.length,
+				replayed_task_count: result.replayedTaskIds.length,
+				recurring_access_applied: result.recurringAccessApplied,
+			});
+			return {
+				taskIds: Array.from(new Set([...existingTaskIds, ...result.taskIds])),
+				createdTaskIds: result.createdTaskIds,
+			};
+		} catch (error) {
+			console.warn('Property setup assistant could not activate tasks:', {
+				itemId,
+				error,
+			});
+			throw error;
+		}
 	};
 
 	const findExistingSuggestedTask = (
@@ -579,6 +725,13 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 	) => {
 		if (isSavingAssistant) return;
 		setHasUserDraftChanges(true);
+		const remainingProposalCount = Math.max(
+			getDraftProposalCount(draftItems) - 1,
+			0,
+		);
+		void trackAnalyticsEvent('property_setup_proposal_dismissed', {
+			remaining_proposal_count: remainingProposalCount,
+		});
 		setDraftItems((prev) => {
 			const currentState = prev[itemId] || { status: 'present' as const };
 			return {
@@ -633,11 +786,19 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 	};
 
 	const closeAssistant = () => {
+		if (currentUser?.id && typeof window !== 'undefined') {
+			clearPropertySetupDraft(window.localStorage, {
+				userId: currentUser.id,
+				propertyId: property.id,
+			});
+		}
 		setIsCloseConfirmOpen(false);
 		setIsSaveComplete(false);
 		setCompletionSummary(null);
 		setIsOpen(false);
 		setHasUserDraftChanges(false);
+		setWasDraftRestored(false);
+		hasTrackedProposalViewRef.current = false;
 		setDraftItems(setupAssistant.items || {});
 		onAssistantClosed?.();
 	};
@@ -783,10 +944,23 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 					setupAssistant: nextSetupAssistant,
 				},
 			}).unwrap();
+			if (currentUser?.id && typeof window !== 'undefined') {
+				clearPropertySetupDraft(window.localStorage, {
+					userId: currentUser.id,
+					propertyId: property.id,
+				});
+			}
+			void trackAnalyticsEvent('property_setup_plan_confirmed', {
+				created_equipment_count: createdApplianceCount,
+				created_task_count: createdTaskCount,
+				linked_task_count: linkedTaskIdSet.size,
+				trusted_activation_enabled: TRUSTED_SETUP_PLAN_ACTIVATION_ENABLED,
+			});
 			await waitForMinimumDuration(saveStartedAt);
 			setLocalSetupAssistant(nextSetupAssistant);
 			setDraftItems(nextItems);
 			setHasUserDraftChanges(false);
+			setWasDraftRestored(false);
 			setIsCloseConfirmOpen(false);
 			setCompletionSummary({
 				applianceLabels: Array.from(applianceLabelSet),
@@ -917,6 +1091,11 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 
 						<ModalBody>
 							<AreaPanel ref={areaPanelRef}>
+								{wasDraftRestored && (
+									<RestoredDraftNotice role='status'>
+										Your unfinished setup changes were restored on this device.
+									</RestoredDraftNotice>
+								)}
 								<WizardProgressHeader>
 									<WizardProgressText>
 										Step {selectedAreaIndex + 1} of {PROPERTY_SETUP_AREAS.length}
@@ -1516,6 +1695,17 @@ const AreaPanel = styled.div`
 		padding: 14px 14px max(24px, calc(18px + env(safe-area-inset-bottom)));
 		gap: 12px;
 	}
+`;
+
+const RestoredDraftNotice = styled.div`
+	padding: 12px 14px;
+	border: 1px solid ${COLORS.primary};
+	border-radius: 10px;
+	background: ${COLORS.primaryLight};
+	color: ${COLORS.primaryDark};
+	font-size: 13px;
+	font-weight: 700;
+	line-height: 1.45;
 `;
 
 const WizardProgressHeader = styled.div`

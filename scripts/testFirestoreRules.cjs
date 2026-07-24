@@ -21,6 +21,8 @@ const multiHomeownerUid = multiHomeownerAccountId;
 const maliciousNewUserUid = 'malicious-new-user';
 const trialOwnerUid = 'trial-owner';
 const expiredTrialOwnerUid = 'expired-trial-owner';
+const portfolioGrantOwnerUid = 'portfolio-grant-owner';
+const downgradedOwnerUid = 'downgraded-owner';
 
 const membershipId = (uid) => `${accountId}_${uid}`;
 
@@ -128,6 +130,80 @@ async function seedFirestore(env) {
 				});
 			}
 		}
+
+		await db.doc(`users/${portfolioGrantOwnerUid}`).set({
+			id: portfolioGrantOwnerUid,
+			accountId: portfolioGrantOwnerUid,
+			isAccountOwner: true,
+			subscription: { status: 'active', plan: 'homeowner' },
+		});
+		await db
+			.doc(`accountMemberships/${portfolioGrantOwnerUid}_${portfolioGrantOwnerUid}`)
+			.set({
+				accountId: portfolioGrantOwnerUid,
+				userId: portfolioGrantOwnerUid,
+				roles: ['account_owner'],
+				status: 'active',
+			});
+		await db.doc(`familyAccounts/${portfolioGrantOwnerUid}`).set({
+			id: portfolioGrantOwnerUid,
+			ownerId: portfolioGrantOwnerUid,
+			memberIds: [portfolioGrantOwnerUid],
+			propertyCount: 1,
+			deviceCount: 0,
+			subscription: { status: 'active', plan: 'homeowner' },
+			effectiveEntitlementProjection: {
+				activeBundleIds: ['portfolio'],
+				bundleExpirationsMs: { portfolio: 4102444800000 },
+				nextTransitionAtMs: 4102444800000,
+			},
+		});
+		await db.doc(`properties/${portfolioGrantOwnerUid}-property`).set({
+			accountId: portfolioGrantOwnerUid,
+			userId: portfolioGrantOwnerUid,
+			title: 'Granted portfolio property',
+		});
+
+		await db.doc(`users/${downgradedOwnerUid}`).set({
+			id: downgradedOwnerUid,
+			accountId: downgradedOwnerUid,
+			isAccountOwner: true,
+			subscription: { status: 'active', plan: 'homeowner' },
+		});
+		await db
+			.doc(`accountMemberships/${downgradedOwnerUid}_${downgradedOwnerUid}`)
+			.set({
+				accountId: downgradedOwnerUid,
+				userId: downgradedOwnerUid,
+				roles: ['account_owner'],
+				status: 'active',
+			});
+		await db.doc(`familyAccounts/${downgradedOwnerUid}`).set({
+			id: downgradedOwnerUid,
+			ownerId: downgradedOwnerUid,
+			memberIds: [downgradedOwnerUid],
+			propertyCount: 2,
+			deviceCount: 0,
+			subscription: { status: 'active', plan: 'homeowner' },
+			effectiveEntitlementProjection: {
+				activeBundleIds: ['portfolio'],
+				bundleExpirationsMs: { portfolio: 1 },
+				nextTransitionAtMs: 1,
+			},
+		});
+		for (const propertyNumber of [1, 2]) {
+			await db.doc(`properties/${downgradedOwnerUid}-property-${propertyNumber}`).set({
+				accountId: downgradedOwnerUid,
+				userId: downgradedOwnerUid,
+				title: `Retained property ${propertyNumber}`,
+			});
+		}
+		await db.doc('teamMembers/downgraded-existing-member').set({
+			accountId: downgradedOwnerUid,
+			firstName: 'Existing',
+			lastName: 'Member',
+			role: 'admin',
+		});
 
 		await db.doc(`users/${ownerUid}`).set({
 			id: ownerUid,
@@ -450,6 +526,8 @@ async function run() {
 		const maliciousNewUserDb = authedDb(env, maliciousNewUserUid);
 		const trialOwnerDb = authedDb(env, trialOwnerUid);
 		const expiredTrialOwnerDb = authedDb(env, expiredTrialOwnerUid);
+		const portfolioGrantOwnerDb = authedDb(env, portfolioGrantOwnerUid);
+		const downgradedOwnerDb = authedDb(env, downgradedOwnerUid);
 
 		await assertSucceeds(trialOwnerDb.doc(`familyAccounts/${trialOwnerUid}`).get());
 		await assertFails(
@@ -600,6 +678,127 @@ async function run() {
 			),
 		);
 
+		await assertSucceeds(
+			trialOwnerDb.doc('tasks/trial-recurring-task').set({
+				...createTask({
+					accountId: trialOwnerUid,
+					propertyId: `${trialOwnerUid}-property`,
+					title: 'Active grant recurring task',
+				}),
+				isRecurring: true,
+				recurrenceFrequency: 'monthly',
+				recurrenceInterval: 1,
+			}),
+		);
+
+		await assertFails(
+			expiredTrialOwnerDb.doc('tasks/expired-recurring-task').set({
+				...createTask({
+					accountId: expiredTrialOwnerUid,
+					propertyId: `${expiredTrialOwnerUid}-property`,
+					title: 'Expired grant recurring task',
+				}),
+				isRecurring: true,
+				recurrenceFrequency: 'monthly',
+				recurrenceInterval: 1,
+			}),
+		);
+
+		const grantedSecondPropertyBatch = portfolioGrantOwnerDb.batch();
+		grantedSecondPropertyBatch.set(
+			portfolioGrantOwnerDb.doc('properties/portfolio-grant-property-2'),
+			{
+				accountId: portfolioGrantOwnerUid,
+				userId: portfolioGrantOwnerUid,
+				title: 'Second granted property',
+			},
+		);
+		grantedSecondPropertyBatch.update(
+			portfolioGrantOwnerDb.doc(`familyAccounts/${portfolioGrantOwnerUid}`),
+			{ propertyCount: 2 },
+		);
+		await assertSucceeds(grantedSecondPropertyBatch.commit());
+		await assertSucceeds(
+			portfolioGrantOwnerDb.doc('teamMembers/portfolio-grant-member').set({
+				accountId: portfolioGrantOwnerUid,
+				firstName: 'Granted',
+				lastName: 'Teammate',
+				role: 'admin',
+			}),
+		);
+		await assertSucceeds(
+			portfolioGrantOwnerDb
+				.doc(`properties/${portfolioGrantOwnerUid}-property`)
+				.update({ tenants: [{ firstName: 'Manual', lastName: 'Occupant' }] }),
+		);
+		await assertSucceeds(
+			downgradedOwnerDb.doc(`properties/${downgradedOwnerUid}-property-1`).get(),
+		);
+		await assertSucceeds(
+			downgradedOwnerDb.doc(`properties/${downgradedOwnerUid}-property-2`).get(),
+		);
+		const blockedDowngradeExpansion = downgradedOwnerDb.batch();
+		blockedDowngradeExpansion.set(
+			downgradedOwnerDb.doc(`properties/${downgradedOwnerUid}-property-3`),
+			{
+				accountId: downgradedOwnerUid,
+				userId: downgradedOwnerUid,
+				title: 'Blocked property',
+			},
+		);
+		blockedDowngradeExpansion.update(
+			downgradedOwnerDb.doc(`familyAccounts/${downgradedOwnerUid}`),
+			{ propertyCount: 3 },
+		);
+		await assertFails(blockedDowngradeExpansion.commit());
+		await assertFails(
+			downgradedOwnerDb.doc('teamMembers/downgraded-new-member').set({
+				accountId: downgradedOwnerUid,
+				firstName: 'New',
+				lastName: 'Member',
+				role: 'admin',
+			}),
+		);
+		await assertSucceeds(
+			downgradedOwnerDb.doc('teamMembers/downgraded-existing-member').delete(),
+		);
+
+		await assertSucceeds(
+			expiredTrialOwnerDb.doc('tasks/expired-non-recurring-task').set({
+				...createTask({
+					accountId: expiredTrialOwnerUid,
+					propertyId: `${expiredTrialOwnerUid}-property`,
+					title: 'Expired grant ordinary task',
+				}),
+				isRecurring: false,
+			}),
+		);
+
+		await assertSucceeds(
+			expiredTrialOwnerDb.doc('tasks/expired-recurring-task-to-disable').set({
+				...createTask({
+					accountId: expiredTrialOwnerUid,
+					propertyId: `${expiredTrialOwnerUid}-property`,
+					title: 'Legacy recurring task to disable',
+				}),
+				isRecurring: false,
+			}),
+		);
+		await assertSucceeds(
+			expiredTrialOwnerDb.doc('tasks/expired-recurring-task-to-disable').update({
+				isRecurring: false,
+				updatedAt: '2026-07-01T13:00:00.000Z',
+			}),
+		);
+		await assertFails(
+			expiredTrialOwnerDb.doc('tasks/expired-recurring-task-to-disable').update({
+				isRecurring: true,
+				recurrenceFrequency: 'weekly',
+				recurrenceInterval: 1,
+				updatedAt: '2026-07-01T14:00:00.000Z',
+			}),
+		);
+
 		await assertFails(
 			inactiveLeadDb.doc('tasks/task-created-by-inactive-lead').set(
 				createTask({
@@ -720,6 +919,14 @@ async function run() {
 			ownerDb
 				.doc('familyAccounts/account-owner/entitlementGrants/grant-existing')
 				.get(),
+		);
+		await assertFails(ownerDb.doc('entitlementAccessPrograms/program-v1').get());
+		await assertFails(ownerDb.doc('entitlementAccessCodes/code-hash').get());
+		await assertFails(
+			ownerDb.doc('accessCodeRedemptionAttempts/client-attempt').set({
+				accountId,
+				outcome: 'redeemed',
+			}),
 		);
 		await assertFails(
 			ownerDb

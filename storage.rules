@@ -113,52 +113,85 @@ service firebase.storage {
         request.resource.size <= maxBytes;
     }
 
+    function trustedStorageQuotaRequired() {
+      return firestore.exists(/databases/(default)/documents/appConfig/entitlementRollout) &&
+        firestore.get(/databases/(default)/documents/appConfig/entitlementRollout).data.trustedStorageQuotaRequired == true;
+    }
+
+    function validQuotaReservation(accountId, storagePath) {
+      return request.resource != null &&
+        ('quotaReservationId' in request.resource.metadata) &&
+        ('accountId' in request.resource.metadata) &&
+        request.resource.metadata.accountId == accountId &&
+        firestore.exists(/databases/(default)/documents/storageUploadReservations/$(request.resource.metadata.quotaReservationId)) &&
+        firestore.get(/databases/(default)/documents/storageUploadReservations/$(request.resource.metadata.quotaReservationId)).data.accountId == accountId &&
+        firestore.get(/databases/(default)/documents/storageUploadReservations/$(request.resource.metadata.quotaReservationId)).data.storagePath == storagePath &&
+        firestore.get(/databases/(default)/documents/storageUploadReservations/$(request.resource.metadata.quotaReservationId)).data.sizeBytes == request.resource.size &&
+        firestore.get(/databases/(default)/documents/storageUploadReservations/$(request.resource.metadata.quotaReservationId)).data.status == 'reserved' &&
+        firestore.get(/databases/(default)/documents/storageUploadReservations/$(request.resource.metadata.quotaReservationId)).data.expiresAt > request.time;
+    }
+
+    function quotaAllowsCreate(accountId, storagePath) {
+      return !trustedStorageQuotaRequired() || validQuotaReservation(accountId, storagePath);
+    }
+
     match /properties/{accountId}/{fileName} {
       allow read: if canReadAccount(accountId);
-      allow create, update: if canManageAccount(accountId) &&
+      allow create: if canManageAccount(accountId) &&
         isSupportedDocumentUpload() &&
-        isUnderSizeLimit(10 * 1024 * 1024);
+		isUnderSizeLimit(10 * 1024 * 1024) &&
+		quotaAllowsCreate(accountId, 'properties/' + accountId + '/' + fileName);
+      allow update: if false;
       allow delete: if canManageAccount(accountId);
     }
 
     match /user-profile-images/{userId}/{fileName} {
       allow read: if isAuthenticated();
-      allow create, update: if isAuthenticated() &&
+      allow create: if isAuthenticated() &&
         request.auth.uid == userId &&
         isImageUpload() &&
-        isUnderSizeLimit(8 * 1024 * 1024);
+		isUnderSizeLimit(8 * 1024 * 1024);
+      allow update: if false;
       allow delete: if isAuthenticated() && request.auth.uid == userId;
     }
 
     match /team-member-images/{accountId}/{memberId}/{fileName} {
       allow read: if canReadAccount(accountId);
-      allow create, update: if canManageAccount(accountId) &&
+      allow create: if canManageAccount(accountId) &&
         isImageUpload() &&
-        isUnderSizeLimit(8 * 1024 * 1024);
+		isUnderSizeLimit(8 * 1024 * 1024) &&
+		quotaAllowsCreate(accountId, 'team-member-images/' + accountId + '/' + memberId + '/' + fileName);
+      allow update: if false;
       allow delete: if canManageAccount(accountId);
     }
 
     match /team-member-files/{accountId}/{memberId}/{fileName} {
       allow read: if canReadAccount(accountId);
-      allow create, update: if canManageAccount(accountId) &&
+      allow create: if canManageAccount(accountId) &&
         isSupportedDocumentUpload() &&
-        isUnderSizeLimit(10 * 1024 * 1024);
+		isUnderSizeLimit(10 * 1024 * 1024) &&
+		quotaAllowsCreate(accountId, 'team-member-files/' + accountId + '/' + memberId + '/' + fileName);
+      allow update: if false;
       allow delete: if canManageAccount(accountId);
     }
 
     match /device-files/{propertyId}/{deviceId}/{fileName} {
       allow read: if canReadProperty(propertyId);
-      allow create, update: if canManageProperty(propertyId) &&
+      allow create: if canManageProperty(propertyId) &&
         isSupportedDocumentUpload() &&
-        isUnderSizeLimit(10 * 1024 * 1024);
+		isUnderSizeLimit(10 * 1024 * 1024) &&
+		quotaAllowsCreate(propertyAccountId(propertyId), 'device-files/' + propertyId + '/' + deviceId + '/' + fileName);
+      allow update: if false;
       allow delete: if canManageProperty(propertyId);
     }
 
     match /maintenance-files/{propertyId}/{fileName} {
       allow read: if canReadProperty(propertyId);
-      allow create, update: if canManageProperty(propertyId) &&
+      allow create: if canManageProperty(propertyId) &&
         isSupportedDocumentUpload() &&
-        isUnderSizeLimit(10 * 1024 * 1024);
+		isUnderSizeLimit(10 * 1024 * 1024) &&
+		quotaAllowsCreate(propertyAccountId(propertyId), 'maintenance-files/' + propertyId + '/' + fileName);
+      allow update: if false;
       allow delete: if canManageProperty(propertyId);
     }
 

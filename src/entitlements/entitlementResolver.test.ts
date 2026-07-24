@@ -249,6 +249,43 @@ describe('centralized entitlement resolver', () => {
 		expect(result.activeGrantIds).toEqual(['grant-1']);
 	});
 
+	it('supports a promotional bundle with lower grant-specific file limits', () => {
+		const result = resolveAccountEntitlements({
+			accountId: 'account-1',
+			subscription: activeSubscription('homeowner'),
+			grants: [
+				grant({
+					bundleId: 'portfolio',
+					bundleVersion: 'v1',
+					bundleLimitOverrides: { files: 100, storage_gb: 2 },
+				}),
+			],
+			nowMs: NOW_MS,
+		});
+
+		expect(result.capabilities['portfolio.reporting']).toBe(true);
+		expect(result.limits.files).toBe(100);
+		expect(result.limits.storage_gb).toBe(2);
+	});
+
+	it('never lets a promotional bundle reduce the underlying paid plan limits', () => {
+		const result = resolveAccountEntitlements({
+			accountId: 'account-1',
+			subscription: activeSubscription('property'),
+			grants: [
+				grant({
+					bundleId: 'portfolio',
+					bundleVersion: 'v1',
+					bundleLimitOverrides: { files: 100, storage_gb: 2 },
+				}),
+			],
+			nowMs: NOW_MS,
+		});
+
+		expect(result.limits.files).toBe(1500);
+		expect(result.limits.storage_gb).toBe(15);
+	});
+
 	it('resolves lifetime Portfolio access without changing the billing base plan', () => {
 		const result = resolveAccountEntitlements({
 			accountId: 'demo-account',

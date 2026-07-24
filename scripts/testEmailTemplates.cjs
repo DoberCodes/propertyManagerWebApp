@@ -9,6 +9,7 @@ const links = require(path.join(projectRoot, 'functions', 'lib', 'emailLinks.js'
 const DAY_MS = 24 * 60 * 60 * 1000;
 const grant = {
 	grantId: 'grant:homeowner+trial',
+	programId: 'homeowner_plus_first_property_trial_v1',
 	startsAtMs: Date.UTC(2026, 6, 1, 16),
 	endsAtMs: Date.UTC(2026, 6, 31, 16),
 };
@@ -63,6 +64,74 @@ const activation = lifecycle.renderAccessLifecycleEmail({
 });
 assert.ok(activation.html.includes('No payment method is connected'));
 assert.ok(activation.html.includes('will not be charged automatically'));
+
+const promotionalGrant = {
+	grantId: 'portfolio-preview',
+	programId: 'portfolio_preview_v1',
+	bundleId: 'portfolio',
+	startsAtMs: Date.UTC(2026, 6, 1, 16),
+	endsAtMs: Date.UTC(2026, 6, 31, 16),
+	transition: { mode: 'checkout_required', status: 'not_configured' },
+};
+assert.deepStrictEqual(
+	lifecycle.getLifecycleMilestoneDefinitions(promotionalGrant).map((item) => item.id),
+	['activation', 'access_ending_7', 'expired'],
+);
+const promotionalActivation = lifecycle.renderPromotionalAccessLifecycleEmail({
+	milestone: 'activation',
+	name: 'Austin',
+	endsAtMs: promotionalGrant.endsAtMs,
+	timeZone: 'America/New_York',
+	progress: { properties: 0, equipment: 0, documents: 0, recurringTasks: 0 },
+	dashboardUrl: 'https://maintleyapp.com/#/dashboard',
+	upgradeUrl: 'https://maintleyapp.com/#/paywall',
+	grant: promotionalGrant,
+});
+assert.ok(promotionalActivation.subject.includes('complimentary Portfolio access'));
+assert.ok(promotionalActivation.html.includes('No automatic charge is scheduled'));
+assert.ok(promotionalActivation.html.includes('intentional Stripe Checkout'));
+
+const automaticGrant = {
+	...promotionalGrant,
+	grantId: 'partner-auto',
+	programId: 'partner_auto_v1',
+	transition: {
+		mode: 'automatic',
+		targetPlanId: 'portfolio',
+		billingCycle: 'monthly',
+		currency: 'USD',
+		recurringAmountMinor: 1499,
+		firstChargeAt: promotionalGrant.endsAtMs,
+		paymentMethodStatus: 'usable',
+		disclosureVersion: 'disclosure-v1',
+		termsVersion: 'terms-v1',
+		consentAt: promotionalGrant.startsAtMs,
+		consentActorUserId: 'customer-1',
+		stripeSubscriptionScheduleId: 'sub_sched_test',
+	},
+};
+assert.deepStrictEqual(
+	lifecycle.getLifecycleMilestoneDefinitions(automaticGrant).map((item) => item.id),
+	['activation', 'renewal_7', 'renewal_1', 'expired'],
+	'activation replaces a same-day 30-day reminder',
+);
+const renewal = lifecycle.renderPromotionalAccessLifecycleEmail({
+	milestone: 'renewal_7',
+	name: 'Austin',
+	endsAtMs: automaticGrant.endsAtMs,
+	timeZone: 'America/New_York',
+	progress: { properties: 0, equipment: 0, documents: 0, recurringTasks: 0 },
+	dashboardUrl: 'https://maintleyapp.com/#/profile',
+	upgradeUrl: 'https://maintleyapp.com/#/paywall',
+	grant: automaticGrant,
+});
+assert.ok(renewal.html.includes('$14.99'));
+assert.ok(renewal.html.includes('Review, cancel, or opt out'));
+
+const beforeDst = lifecycle.formatLifecycleDate(Date.UTC(2026, 2, 8, 6, 30), 'America/New_York');
+const afterDst = lifecycle.formatLifecycleDate(Date.UTC(2026, 2, 8, 8, 30), 'America/New_York');
+assert.ok(beforeDst.includes('EST'));
+assert.ok(afterDst.includes('EDT'));
 
 delete process.env.APP_ROUTER_MODE;
 assert.strictEqual(

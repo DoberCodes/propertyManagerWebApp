@@ -123,6 +123,13 @@ checkout, and admin selection omit or reject the plan. Its canonical Stripe
 prices remain server-owned and map to `multi_homeowner` only when the launch
 flag is enabled.
 
+Complimentary access codes are internal grant credentials, not Stripe coupons.
+They are independently gated by `ENABLE_COMPLIMENTARY_ACCESS_CODES`, store only
+a keyed verifier, and can use `none` or `checkout_required` continuation. They
+cannot configure automatic billing. Programs are provisioned with
+`npm --prefix functions run provision:access-code -- ...`; the plaintext code
+and matching pepper are supplied only through the operator's local environment.
+
 ---
 
 # Subscription Shape

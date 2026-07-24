@@ -7,6 +7,7 @@ import {
 	where,
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
+import { callFirebaseFunction } from '../config/firebaseFunctions';
 import { resolveTargetUserId } from '../Redux/API/accountContext';
 import {
 	getEffectiveAccessPlanId,
@@ -16,6 +17,8 @@ import {
 
 const BYTES_PER_GB = 1024 * 1024 * 1024;
 const BYTES_PER_MB = 1024 * 1024;
+export const trustedStorageQuotaEnabled =
+	process.env.REACT_APP_ENABLE_TRUSTED_STORAGE_QUOTA === 'true';
 
 type FileLike = {
 	size?: number;
@@ -120,6 +123,18 @@ export const getStorageUsageForAccount = async (
 	planIdOverride?: string,
 ): Promise<StorageUsage> => {
 	const resolvedAccountId = accountId || (await resolveTargetUserId());
+	if (trustedStorageQuotaEnabled && !planIdOverride) {
+		const response = await callFirebaseFunction<
+			Record<string, never>,
+			{ accountId: string; planId: string; usedBytes: number; maxBytes: number; fileCount: number; maxFiles: number }
+		>('getStorageQuotaStatus', {});
+		const data = response.data;
+		return {
+			...data,
+			usagePercent: data.maxBytes > 0 ? (data.usedBytes / data.maxBytes) * 100 : 0,
+			filePercent: data.maxFiles > 0 ? (data.fileCount / data.maxFiles) * 100 : 0,
+		};
+	}
 	const planId = planIdOverride || (await getPlanIdForAccount(resolvedAccountId));
 	const maxFiles = getMaxFilesForPlan(planId);
 	const maxStorageGb = getMaxStorageGbForPlan(planId);
@@ -240,4 +255,31 @@ export const assertStorageQuotaForFiles = async (
 	}
 
 	return usage;
+};
+
+export const prepareStorageUpload = async (
+	file: File,
+	storagePath: string,
+	options: { propertyId?: string; accountId?: string } = {},
+) => {
+	const accountId = options.accountId || (await resolveStorageAccountId(options.propertyId));
+	if (!trustedStorageQuotaEnabled) {
+		await assertStorageQuotaForFiles(file, { ...options, accountId });
+		return { contentType: file.type };
+	}
+	const response = await callFirebaseFunction<
+		{ storagePath: string; sizeBytes: number; contentType: string },
+		{ success: true; reservationId: string; accountId: string; expiresAtMs: number }
+	>('reserveStorageUpload', {
+		storagePath,
+		sizeBytes: file.size,
+		contentType: file.type,
+	});
+	return {
+		contentType: file.type,
+		customMetadata: {
+			quotaReservationId: response.data.reservationId,
+			accountId: response.data.accountId,
+		},
+	};
 };

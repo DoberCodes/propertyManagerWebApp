@@ -73,6 +73,10 @@ const subscriptionHasCapability = (
 	capabilityId: CapabilityId,
 ): boolean => hasCapability(resolveSubscriptionEntitlements(subscription), capabilityId);
 
+const hasActiveSubscriptionOrGrant = (subscription: SubscriptionData): boolean =>
+	isSubscriptionActive(subscription) ||
+	resolveSubscriptionEntitlements(subscription).activeGrantIds.length > 0;
+
 const getPlanLimit = (planId: string, limitId: LimitId): number =>
 	getEntitlementLimit(getPlanPreset(planId), limitId);
 
@@ -123,6 +127,66 @@ export const getEffectiveAccessPlanId = (
 	return candidates.reduce((best, candidate) =>
 		(rank[candidate] || 0) > (rank[best] || 0) ? candidate : best,
 	result.basePlanId);
+};
+
+export type ActiveGrantedPlanAccess = {
+	programId: string;
+	planId: string;
+	kind: 'temporary' | 'permanent';
+	source: EntitlementGrant['source'];
+	endsAtMs: number | null;
+	grantIds: string[];
+	transition?: EntitlementGrant['transition'];
+};
+
+const GRANTED_PLAN_RANK: Record<string, number> = {
+	homeowner_plus: 1,
+	multi_homeowner: 2,
+	property: 3,
+	portfolio: 4,
+};
+
+export const getActiveGrantedPlanAccess = (
+	subscription?: Pick<SubscriptionData, 'entitlementGrants'> | null,
+	nowMs = Date.now(),
+): ActiveGrantedPlanAccess | null => {
+	const activeGrants = (subscription?.entitlementGrants || []).filter((grant) => {
+		const startsAtMs = Number(grant.startsAtMs || 0);
+		const endsAtMs = Number(grant.endsAtMs || 0);
+		return (
+			grant.state === 'active' &&
+			startsAtMs <= nowMs &&
+			(grant.kind === 'permanent' || (Number.isFinite(endsAtMs) && endsAtMs > nowMs)) &&
+			Boolean(grant.bundleId && GRANTED_PLAN_RANK[grant.bundleId])
+		);
+	});
+
+	if (!activeGrants.length) return null;
+
+	const planId = activeGrants.reduce((highestPlanId, grant) => {
+		const candidatePlanId = String(grant.bundleId || '');
+		return (GRANTED_PLAN_RANK[candidatePlanId] || 0) >
+			(GRANTED_PLAN_RANK[highestPlanId] || 0)
+			? candidatePlanId
+			: highestPlanId;
+	}, '');
+	const planGrants = activeGrants.filter((grant) => grant.bundleId === planId);
+	const permanentGrant = planGrants.find((grant) => grant.kind === 'permanent');
+	const representativeGrant = permanentGrant || planGrants.reduce((latest, grant) =>
+		Number(grant.endsAtMs || 0) > Number(latest.endsAtMs || 0) ? grant : latest,
+	planGrants[0]);
+
+	return {
+		programId: representativeGrant.programId,
+		planId,
+		kind: permanentGrant ? 'permanent' : 'temporary',
+		source: representativeGrant.source,
+		endsAtMs: permanentGrant ? null : Number(representativeGrant.endsAtMs || 0),
+		grantIds: planGrants.map((grant) => grant.grantId),
+		...(representativeGrant.transition
+			? { transition: representativeGrant.transition }
+			: {}),
+	};
 };
 
 export type HomeownerPlusTrialSummary = {
@@ -589,7 +653,7 @@ export const canTrackWarranties = (subscription: SubscriptionData): boolean => {
 export const getSuggestedMaintenancePackageLimit = (
 	subscription: SubscriptionData,
 ): number => {
-	if (!isSubscriptionActive(subscription)) {
+	if (!hasActiveSubscriptionOrGrant(subscription)) {
 		return 0;
 	}
 
@@ -614,7 +678,7 @@ export const canUseUnlimitedSuggestedMaintenancePackages = (
 export const canUseSuggestedMaintenancePackages = (
 	subscription: SubscriptionData,
 ): boolean => {
-	if (!isSubscriptionActive(subscription)) {
+	if (!hasActiveSubscriptionOrGrant(subscription)) {
 		return false;
 	}
 
@@ -622,7 +686,7 @@ export const canUseSuggestedMaintenancePackages = (
 };
 
 export const canUseRecurringTasks = (subscription: SubscriptionData): boolean => {
-	if (!isSubscriptionActive(subscription)) {
+	if (!hasActiveSubscriptionOrGrant(subscription)) {
 		return false;
 	}
 
@@ -630,7 +694,7 @@ export const canUseRecurringTasks = (subscription: SubscriptionData): boolean =>
 };
 
 export const canUseNotifications = (subscription: SubscriptionData): boolean => {
-	if (!isSubscriptionActive(subscription)) {
+	if (!hasActiveSubscriptionOrGrant(subscription)) {
 		return false;
 	}
 

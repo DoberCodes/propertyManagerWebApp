@@ -1,10 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import styled from 'styled-components';
 import {
-	useAddTenantMutation,
+	useAddManualOccupancyMutation,
 	useCreateTenantInvitationCodeMutation,
 	useRevokeTenantInvitationCodeMutation,
-	useUpdateTenantMutation,
+	useUpdateManualOccupancyMutation,
 } from '../../Redux/API/tenantSlice';
 import { GenericModal, FormGroup, FormLabel, FormInput } from '../Library';
 import { COLORS } from '../../constants/colors';
@@ -68,8 +68,8 @@ export const AddTenantModal: React.FC<AddTenantModalProps> = ({
 	const [codeCopied, setCodeCopied] = useState(false);
 	const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-	const [addTenant, { isLoading }] = useAddTenantMutation();
-	const [updateTenant, { isLoading: isUpdating }] = useUpdateTenantMutation();
+	const [addTenant, { isLoading }] = useAddManualOccupancyMutation();
+	const [updateTenant, { isLoading: isUpdating }] = useUpdateManualOccupancyMutation();
 	const [createTenantInvitationCode] = useCreateTenantInvitationCodeMutation();
 	const [revokeTenantInvitationCode, { isLoading: isRevoking }] =
 		useRevokeTenantInvitationCodeMutation();
@@ -151,25 +151,31 @@ export const AddTenantModal: React.FC<AddTenantModalProps> = ({
 			}
 
 			const normalizedEmail = formData.email.toLowerCase();
-			const promoCodeResult = await createTenantInvitationCode({
-				propertyId,
-				tenantEmail: normalizedEmail,
-				code: buildPromoCode(),
-			}).unwrap();
-			const promoCodeId = promoCodeResult.id;
-
-			await addTenant({
+			const occupancyResult = await addTenant({
 				propertyId,
 				firstName: formData.firstName,
 				lastName: formData.lastName,
 				email: normalizedEmail,
 				phone: formData.phone,
 				leaseEnd: formData.leaseEnd,
-				tenantInvitationCodeId: promoCodeId,
 			}).unwrap();
 
-			setGeneratedInviteCode(promoCodeResult.code);
-			setSuccess('Tenant added! Share the invitation code below with your tenant.');
+			if (occupancyResult.canInviteTenantAccess) {
+				const promoCodeResult = await createTenantInvitationCode({
+					propertyId,
+					tenantEmail: normalizedEmail,
+					code: buildPromoCode(),
+				}).unwrap();
+				await updateTenant({
+					propertyId,
+					tenantId: occupancyResult.tenantId,
+					updates: { tenantInvitationCodeId: promoCodeResult.id },
+				}).unwrap();
+				setGeneratedInviteCode(promoCodeResult.code);
+				setSuccess('Resident added. Share the invitation code below for tenant access.');
+			} else {
+				setSuccess('Resident record added. Tenant login and invitations are unavailable on the current plan.');
+			}
 			setFormData({
 				firstName: '',
 				lastName: '',

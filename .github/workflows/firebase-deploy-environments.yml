@@ -46,9 +46,14 @@ jobs:
           REACT_APP_ENABLE_ANALYTICS: ${{ secrets.PROD_REACT_APP_ENABLE_ANALYTICS }}
           REACT_APP_FIREBASE_WEB_PUSH_VAPID_KEY: ${{ secrets.PROD_REACT_APP_FIREBASE_WEB_PUSH_VAPID_KEY }}
           REACT_APP_STRIPE_PUBLIC_KEY: ${{ secrets.PROD_REACT_APP_STRIPE_PUBLIC_KEY }}
+          REACT_APP_STRIPE_CUSTOMER_PORTAL_URL: ${{ vars.STRIPE_CUSTOMER_PORTAL_URL || 'https://billing.stripe.com/p/login/00wbJ27029Gxama5Cg5gc00' }}
           REACT_APP_ENABLE_MULTI_HOMEOWNER_PLAN: ${{ vars.ENABLE_MULTI_HOMEOWNER_PLAN || 'false' }}
           REACT_APP_ENABLE_HOMEOWNER_PLUS_PRODUCT_TRIAL: ${{ vars.ENABLE_HOMEOWNER_PLUS_PRODUCT_TRIAL || 'false' }}
           REACT_APP_ENABLE_INTERNAL_ENTITLEMENT_GRANT_ISSUANCE: ${{ vars.ENABLE_INTERNAL_ENTITLEMENT_GRANT_ISSUANCE || 'false' }}
+          REACT_APP_ENABLE_TRUSTED_SETUP_PLAN_ACTIVATION: ${{ vars.ENABLE_TRUSTED_SETUP_PLAN_ACTIVATION || 'false' }}
+          REACT_APP_ENABLE_TRUSTED_RECURRING_TASK_WRITES: ${{ vars.ENABLE_TRUSTED_RECURRING_TASK_WRITES || 'false' }}
+          REACT_APP_ENABLE_COMPLIMENTARY_ACCESS_CODES: ${{ vars.ENABLE_COMPLIMENTARY_ACCESS_CODES || 'false' }}
+          REACT_APP_ENABLE_TRUSTED_STORAGE_QUOTA: ${{ vars.ENABLE_TRUSTED_STORAGE_QUOTA || 'false' }}
         run: |
           yarn sync:public-pricing
           yarn build
@@ -152,6 +157,12 @@ jobs:
         if: steps.deploy-targets.outputs.has_targets == 'true'
         run: yarn --cwd functions install --frozen-lockfile
 
+      - name: Require an entitlement package version bump
+        if: github.event_name == 'push' && steps.deploy-targets.outputs.has_targets == 'true' && contains(steps.deploy-targets.outputs.targets, 'functions')
+        env:
+          ENTITLEMENT_PACKAGE_BASE_REF: ${{ github.event.before }}
+        run: yarn check:entitlement-package-version
+
       - name: Validate Functions deploy package
         if: steps.deploy-targets.outputs.has_targets == 'true' && contains(steps.deploy-targets.outputs.targets, 'functions')
         run: yarn validate:functions-package
@@ -160,20 +171,44 @@ jobs:
         if: steps.deploy-targets.outputs.has_targets == 'true' && contains(steps.deploy-targets.outputs.targets, 'functions')
         run: yarn --cwd functions build
 
+      - name: Property setup activation tests
+        if: steps.deploy-targets.outputs.has_targets == 'true' && contains(steps.deploy-targets.outputs.targets, 'functions')
+        run: yarn --cwd functions test:setup-plan
+
+      - name: Recurring task entitlement tests
+        if: steps.deploy-targets.outputs.has_targets == 'true' && contains(steps.deploy-targets.outputs.targets, 'functions')
+        run: yarn --cwd functions test:recurring-task
+
+      - name: Manual occupancy continuity tests
+        if: steps.deploy-targets.outputs.has_targets == 'true' && contains(steps.deploy-targets.outputs.targets, 'functions')
+        run: yarn --cwd functions test:manual-occupancy
+
       - name: Email branding and lifecycle template tests
         if: steps.deploy-targets.outputs.has_targets == 'true' && contains(steps.deploy-targets.outputs.targets, 'functions')
         run: node scripts/testEmailTemplates.cjs
 
       - name: Use Java for Firebase emulators
-        if: steps.deploy-targets.outputs.has_targets == 'true' && contains(steps.deploy-targets.outputs.targets, 'functions')
+        if: steps.deploy-targets.outputs.has_targets == 'true' && (contains(steps.deploy-targets.outputs.targets, 'functions') || contains(steps.deploy-targets.outputs.targets, 'firestore') || contains(steps.deploy-targets.outputs.targets, 'storage'))
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '21'
 
+      - name: Firestore rules tests
+        if: steps.deploy-targets.outputs.has_targets == 'true' && (contains(steps.deploy-targets.outputs.targets, 'functions') || contains(steps.deploy-targets.outputs.targets, 'firestore'))
+        run: yarn test:rules
+
       - name: Entitlement grant issuance tests
         if: steps.deploy-targets.outputs.has_targets == 'true' && contains(steps.deploy-targets.outputs.targets, 'functions')
         run: node ./functions/node_modules/firebase-tools/lib/bin/firebase.js emulators:exec --only firestore "node scripts/testEntitlementGrantIssuance.cjs"
+
+      - name: Complimentary access code tests
+        if: steps.deploy-targets.outputs.has_targets == 'true' && contains(steps.deploy-targets.outputs.targets, 'functions')
+        run: yarn test:access-codes
+
+      - name: Trusted storage quota rules tests
+        if: steps.deploy-targets.outputs.has_targets == 'true' && (contains(steps.deploy-targets.outputs.targets, 'functions') || contains(steps.deploy-targets.outputs.targets, 'storage'))
+        run: yarn test:storage
 
       - name: Authenticate to Google Cloud
         if: steps.deploy-targets.outputs.has_targets == 'true'
@@ -187,12 +222,14 @@ jobs:
         env:
           STRIPE_HOMEOWNER_PLUS_MONTHLY_PRICE_ID: ${{ secrets.PROD_STRIPE_HOMEOWNER_PLUS_MONTHLY_PRICE_ID || secrets.PROD_REACT_APP_STRIPE_HOMEOWNER_PLUS_MONTHLY_PRICE_ID }}
           STRIPE_HOMEOWNER_PLUS_ANNUAL_PRICE_ID: ${{ secrets.PROD_STRIPE_HOMEOWNER_PLUS_ANNUAL_PRICE_ID || secrets.PROD_REACT_APP_STRIPE_HOMEOWNER_PLUS_ANNUAL_PRICE_ID }}
-          STRIPE_MULTI_HOMEOWNER_MONTHLY_PRICE_ID: ${{ secrets.PROD_STRIPE_MULTI_HOMEOWNER_MONTHLY_PRICE_ID || secrets.PROD_STRIPE_MULTIPLE_HOMEOWNER_PLUS_MONTHLY_PRICE_ID }}
-          STRIPE_MULTI_HOMEOWNER_ANNUAL_PRICE_ID: ${{ secrets.PROD_STRIPE_MULTI_HOMEOWNER_ANNUAL_PRICE_ID || secrets.PROD_STRIPE_MULTIPLE_HOMEOWNER_PLUS_ANNUAL_PRICE_ID }}
+          STRIPE_MULTI_HOMEOWNER_MONTHLY_PRICE_ID: ${{ secrets.PROD_STRIPE_MULTIPLE_HOMEOWNER_PLUS_MONTHLY_PRICE_ID }}
+          STRIPE_MULTI_HOMEOWNER_ANNUAL_PRICE_ID: ${{ secrets.PROD_STRIPE_MULTIPLE_HOMEOWNER_PLUS_ANNUAL_PRICE_ID }}
           ENABLE_MULTI_HOMEOWNER_PLAN: ${{ vars.ENABLE_MULTI_HOMEOWNER_PLAN || 'false' }}
           ENABLE_HOMEOWNER_PLUS_PRODUCT_TRIAL: ${{ vars.ENABLE_HOMEOWNER_PLUS_PRODUCT_TRIAL || 'false' }}
           ENABLE_INTERNAL_ENTITLEMENT_GRANT_ISSUANCE: ${{ vars.ENABLE_INTERNAL_ENTITLEMENT_GRANT_ISSUANCE || 'false' }}
           ENABLE_ACCESS_LIFECYCLE_COMMUNICATION: ${{ vars.ENABLE_ACCESS_LIFECYCLE_COMMUNICATION || 'false' }}
+          ENABLE_COMPLIMENTARY_ACCESS_CODES: ${{ vars.ENABLE_COMPLIMENTARY_ACCESS_CODES || 'false' }}
+          ENABLE_TRUSTED_STORAGE_QUOTA: ${{ vars.ENABLE_TRUSTED_STORAGE_QUOTA || 'false' }}
           HOMEOWNER_PLUS_TRIAL_ELIGIBILITY_START_AT: ${{ vars.HOMEOWNER_PLUS_TRIAL_ELIGIBILITY_START_AT || '' }}
           STRIPE_PROPERTY_MONTHLY_PRICE_ID: ${{ secrets.PROD_STRIPE_PROPERTY_MONTHLY_PRICE_ID || secrets.PROD_REACT_APP_STRIPE_PROPERTY_MONTHLY_PRICE_ID }}
           STRIPE_PROPERTY_ANNUAL_PRICE_ID: ${{ secrets.PROD_STRIPE_PROPERTY_ANNUAL_PRICE_ID || secrets.PROD_REACT_APP_STRIPE_PROPERTY_ANNUAL_PRICE_ID }}
@@ -230,6 +267,8 @@ jobs:
             echo "ENABLE_HOMEOWNER_PLUS_PRODUCT_TRIAL=$ENABLE_HOMEOWNER_PLUS_PRODUCT_TRIAL"
             echo "ENABLE_INTERNAL_ENTITLEMENT_GRANT_ISSUANCE=$ENABLE_INTERNAL_ENTITLEMENT_GRANT_ISSUANCE"
             echo "ENABLE_ACCESS_LIFECYCLE_COMMUNICATION=$ENABLE_ACCESS_LIFECYCLE_COMMUNICATION"
+            echo "ENABLE_COMPLIMENTARY_ACCESS_CODES=$ENABLE_COMPLIMENTARY_ACCESS_CODES"
+            echo "ENABLE_TRUSTED_STORAGE_QUOTA=$ENABLE_TRUSTED_STORAGE_QUOTA"
             echo "HOMEOWNER_PLUS_TRIAL_ELIGIBILITY_START_AT=$HOMEOWNER_PLUS_TRIAL_ELIGIBILITY_START_AT"
             echo "STRIPE_PROPERTY_MONTHLY_PRICE_ID=$STRIPE_PROPERTY_MONTHLY_PRICE_ID"
             echo "STRIPE_PROPERTY_ANNUAL_PRICE_ID=$STRIPE_PROPERTY_ANNUAL_PRICE_ID"

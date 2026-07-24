@@ -8,6 +8,16 @@ import {
     Label,
 	MoreActionsMenu,
 	MoreActionsMenuContent,
+	GrantWizardActions,
+	GrantWizardFieldGrid,
+	GrantWizardMeta,
+	GrantWizardNotice,
+	GrantWizardPanel,
+	GrantWizardReview,
+	GrantWizardReviewRow,
+	GrantWizardStep,
+	GrantWizardStepNumber,
+	GrantWizardSteps,
     Select,
 	SecondaryButton,
     SubTitle,
@@ -30,6 +40,7 @@ import { GenericModal } from 'Components/Library';
 import {
     adminPortalApplyUserBillingActions,
 	adminPortalMutateEntitlementGrant,
+	adminSendAccessLifecycleEmail,
 	adminPortalPreviewEntitlementGrant,
     adminPortalManageUserSubscription,
     adminPortalRefreshUserSubscriptionFromStripe,
@@ -151,6 +162,7 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
 	const [grantReason, setGrantReason] = useState('');
 	const [grantRequestId, setGrantRequestId] = useState('');
 	const [grantConfirmation, setGrantConfirmation] = useState('');
+	const [grantWizardStep, setGrantWizardStep] = useState<1 | 2 | 3>(1);
 	const [grantPreview, setGrantPreview] = useState<{
 		currentAccess: AdminEntitlementAccessPreview;
 		proposedAccess: AdminEntitlementAccessPreview;
@@ -158,7 +170,7 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
 		programLabel: string;
 	} | null>(null);
 	const [grantActionLoading, setGrantActionLoading] = useState(false);
-	const grantPreviewRef = useRef<HTMLDivElement | null>(null);
+	const [accessEmailLoadingGrantId, setAccessEmailLoadingGrantId] = useState('');
 	const billingMoreActionsRef = useRef<HTMLDetailsElement | null>(null);
     const displayError = localError || error || '';
 
@@ -172,6 +184,60 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
             return String(left.displayName || '').localeCompare(String(right.displayName || ''));
         });
     }, [filteredUsers]);
+
+	const activeInternalGrants = useMemo(
+		() => {
+			const nowMs = Date.now();
+			return (details?.access?.grants || []).filter((grant) => {
+				const startsAtMs = grant.startsAt ? new Date(grant.startsAt).getTime() : 0;
+				const endsAtMs = grant.endsAt ? new Date(grant.endsAt).getTime() : 0;
+				return (
+					grant.state === 'active' &&
+					(!Number.isFinite(startsAtMs) || startsAtMs <= nowMs) &&
+					(grant.kind === 'permanent' || (Number.isFinite(endsAtMs) && endsAtMs > nowMs))
+				);
+			});
+		},
+		[details],
+	);
+	const grantDurationValue = Number(grantDurationDays || 0);
+	const grantDurationRequired =
+		grantAction === 'extend' ||
+		(grantAction === 'create' && grantKind !== 'permanent');
+	const grantConfigurationReady =
+		grantReason.trim().length >= 10 &&
+		(grantAction === 'create' ? Boolean(grantProgramId) : Boolean(selectedGrantId)) &&
+		(!grantDurationRequired || (Number.isInteger(grantDurationValue) && grantDurationValue > 0));
+
+	const handleSendAccessEmail = async (grantId: string) => {
+		if (!selectedUserId || !grantId) return;
+		setLocalError('');
+		setActionMessage('');
+		setAccessEmailLoadingGrantId(grantId);
+		try {
+			const result = await adminSendAccessLifecycleEmail({
+				sessionToken,
+				targetUserId: selectedUserId,
+				grantId,
+				milestone: 'activation',
+				requestId: createGrantRequestId().replace(/^grant:/, 'access-email:'),
+				reason: 'Admin requested the authoritative complimentary-access activation message.',
+			});
+			setActionMessage(
+				result.outcome === 'sent'
+					? 'Complimentary-access email sent. Audit log saved.'
+					: 'The lifecycle delivery was already handled or is currently processing; no duplicate email was sent. Audit log saved.',
+			);
+		} catch (emailError) {
+			setLocalError(
+				emailError instanceof Error
+					? emailError.message
+					: 'Unable to request the complimentary-access email.',
+			);
+		} finally {
+			setAccessEmailLoadingGrantId('');
+		}
+	};
 
     const handleLoadUsers = async () => {
         await dispatch(
@@ -358,6 +424,7 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
 	const resetGrantPreview = () => {
 		setGrantPreview(null);
 		setGrantConfirmation('');
+		setGrantWizardStep(1);
 	};
 
 	const handleOpenGrantDialog = () => {
@@ -375,6 +442,7 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
 		setGrantRequestId(createGrantRequestId());
 		setGrantConfirmation('');
 		setGrantPreview(null);
+		setGrantWizardStep(1);
 		setLocalError('');
 		setActionMessage('');
 		setShowGrantDialog(true);
@@ -398,9 +466,7 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
 			});
 			setGrantPreview(preview);
 			setGrantConfirmation('');
-			window.requestAnimationFrame(() => {
-				grantPreviewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-			});
+			setGrantWizardStep(2);
 		} catch (previewError) {
 			setLocalError(
 				previewError instanceof Error
@@ -642,7 +708,7 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
                             <UserDetailsValue>{formatDate(details.profile.lastLoginAt)}</UserDetailsValue>
                         </UserDetailsItem>
                         <UserDetailsItem>
-                            <UserDetailsKey>Last Activity</UserDetailsKey>
+							<UserDetailsKey>Last Customer Activity</UserDetailsKey>
                             <UserDetailsValue>{formatDate(details.profile.lastActivityAt)}</UserDetailsValue>
                         </UserDetailsItem>
                         <UserDetailsItem>
@@ -827,7 +893,41 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
 					<UserDetailsGrid>
 						<UserDetailsItem>
 							<UserDetailsKey>Active Internal Grants</UserDetailsKey>
-							<UserDetailsValue>{String(details.access?.activeGrantCount ?? 0)}</UserDetailsValue>
+							<div style={{ display: 'grid', gap: 8 }}>
+								<UserDetailsValue>
+									{activeInternalGrants.length} active
+								</UserDetailsValue>
+								{activeInternalGrants.length ? (
+									activeInternalGrants.map((grant) => (
+										<div key={grant.grantId} style={{ padding: 10, border: '1px solid #d1fae5', borderRadius: 8, background: '#f0fdf4' }}>
+											<strong>
+												{details.access?.grantAdministration?.programs.find(
+													(program) => program.programId === grant.programId,
+												)?.label || formatLabel(grant.programId || grant.grantId)}
+											</strong>
+											<div style={{ marginTop: 3, fontSize: 13 }}>
+												{grant.kind === 'permanent' ? 'Permanent access' : formatLabel(grant.kind)}
+												{grant.bundleId ? ` · ${formatLabel(grant.bundleId)}` : ''}
+												{grant.endsAt ? ` · Ends ${formatDate(grant.endsAt)}` : grant.kind === 'permanent' ? ' · No expiration' : ''}
+											</div>
+											{details.access?.grantAdministration?.enabled &&
+											details.access.grantAdministration.canManage ? (
+												<SecondaryButton
+													type='button'
+													style={{ marginTop: 8 }}
+													disabled={Boolean(accessEmailLoadingGrantId)}
+													onClick={() => handleSendAccessEmail(grant.grantId)}>
+													{accessEmailLoadingGrantId === grant.grantId
+														? 'Sending...'
+														: 'Send access email'}
+												</SecondaryButton>
+											) : null}
+										</div>
+									))
+								) : (
+									<UserDetailsValue>No active internal grants.</UserDetailsValue>
+								)}
+							</div>
 						</UserDetailsItem>
 						<UserDetailsItem>
 							<UserDetailsKey>Grant Administration</UserDetailsKey>
@@ -859,16 +959,6 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
 								</Button>
 							</div>
 						</UserDetailsItem>
-						{details.access?.grants?.map((grant) => (
-							<UserDetailsItem key={grant.grantId}>
-								<UserDetailsKey>{formatLabel(grant.programId || grant.grantId)}</UserDetailsKey>
-								<UserDetailsValue>
-									{formatLabel(grant.state)} · {formatLabel(grant.kind)}
-									{grant.bundleId ? ` · ${formatLabel(grant.bundleId)}` : ''}
-									{grant.endsAt ? ` · Ends ${formatDate(grant.endsAt)}` : ''}
-								</UserDetailsValue>
-							</UserDetailsItem>
-						))}
 					</UserDetailsGrid>
 
 					<div style={{ marginTop: 20 }}>
@@ -1128,176 +1218,278 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
 				compact>
 				<div style={{ display: 'grid', gap: 16 }}>
 					{localError ? <ErrorText role='alert'>{localError}</ErrorText> : null}
-					<div style={{ padding: 12, background: '#FAFAF8', border: '1px solid #3FCC7C', borderRadius: 8 }}>
+					<GrantWizardNotice>
 						<strong>No Stripe billing relationship</strong>
-						<p style={{ margin: '6px 0 0' }}>
+						<p>
 							This workflow changes Maintley product access only. It does not create or modify a Stripe customer, subscription, invoice, renewal, payment method, or charge.
 						</p>
-					</div>
+					</GrantWizardNotice>
 
-					<div>
-						<Label>Action</Label>
-						<Select
-							value={grantAction}
-							onChange={(event) => {
-								setGrantAction(event.target.value as AdminEntitlementGrantAction);
-								resetGrantPreview();
-							}}>
-							<option value='create'>Create grant</option>
-							<option value='extend'>Extend grant</option>
-							<option value='revoke'>Revoke grant</option>
-						</Select>
-					</div>
+					<GrantWizardSteps aria-label='Grant workflow progress'>
+						{(['Configure', 'Review', 'Confirm'] as const).map((label, index) => {
+							const step = (index + 1) as 1 | 2 | 3;
+							return (
+								<GrantWizardStep
+									key={label}
+									$active={grantWizardStep === step}
+									$complete={grantWizardStep > step}
+									aria-current={grantWizardStep === step ? 'step' : undefined}>
+									<GrantWizardStepNumber>{step}</GrantWizardStepNumber>
+									{label}
+								</GrantWizardStep>
+							);
+						})}
+					</GrantWizardSteps>
 
-					{grantAction === 'create' ? (
-						<>
+					{grantWizardStep === 1 ? (
+						<GrantWizardPanel aria-label='Configure access change'>
+							<SubTitle>
+								Choose the authorized access change and provide the audit reason before reviewing its effect.
+							</SubTitle>
 							<div>
-								<Label>Approved access program</Label>
+								<Label>Action</Label>
 								<Select
-									value={grantProgramId}
+									value={grantAction}
 									onChange={(event) => {
-										const programId = event.target.value;
-										const program = details?.access?.grantAdministration?.programs.find(
-											(candidate) => candidate.programId === programId,
-										);
-										setGrantProgramId(programId);
-										setGrantKind(program?.allowedKinds?.[0] || 'temporary');
-										setGrantDurationDays(String(program?.defaultDurationDays || 30));
-										resetGrantPreview();
+											const nextAction = event.target.value as AdminEntitlementGrantAction;
+											const eligibleGrant = details?.access?.grants.find((grant) =>
+												nextAction === 'extend'
+													? grant.state === 'active' && grant.kind === 'temporary'
+													: ['active', 'scheduled'].includes(grant.state),
+											);
+											setGrantAction(nextAction);
+											if (nextAction !== 'create') {
+												setSelectedGrantId(eligibleGrant?.grantId || '');
+											}
+											resetGrantPreview();
 									}}>
-									{details?.access?.grantAdministration?.programs.map((program) => (
-										<option key={program.programId} value={program.programId}>
-											{program.label}{program.ownerOnly ? ' — Maintley owner only' : ''}
-										</option>
-									))}
+									<option value='create'>Create grant</option>
+									<option value='extend'>Extend grant</option>
+									<option value='revoke'>Revoke grant</option>
 								</Select>
 							</div>
+
+							{grantAction === 'create' ? (
+								<GrantWizardFieldGrid>
+									<div>
+										<Label>Approved access program</Label>
+										<Select
+											value={grantProgramId}
+											onChange={(event) => {
+												const programId = event.target.value;
+												const program = details?.access?.grantAdministration?.programs.find(
+													(candidate) => candidate.programId === programId,
+												);
+												setGrantProgramId(programId);
+												setGrantKind(program?.allowedKinds?.[0] || 'temporary');
+												setGrantDurationDays(String(program?.defaultDurationDays || 30));
+												resetGrantPreview();
+											}}>
+											{details?.access?.grantAdministration?.programs.map((program) => (
+												<option key={program.programId} value={program.programId}>
+													{program.label}{program.ownerOnly ? ' — Maintley owner only' : ''}
+												</option>
+											))}
+										</Select>
+									</div>
+									<div>
+										<Label>Access bundle</Label>
+										<Input
+											type='text'
+											value={formatLabel(
+												details?.access?.grantAdministration?.programs.find(
+													(program) => program.programId === grantProgramId,
+												)?.bundleId || '',
+											)}
+											readOnly
+										/>
+									</div>
+									<div>
+										<Label>Grant type</Label>
+										<Select
+											value={grantKind}
+											onChange={(event) => {
+												setGrantKind(event.target.value as 'temporary' | 'permanent');
+												resetGrantPreview();
+											}}>
+											{details?.access?.grantAdministration?.programs
+												.find((program) => program.programId === grantProgramId)
+												?.allowedKinds.map((kind) => (
+													<option key={kind} value={kind}>{formatLabel(kind)}</option>
+												))}
+										</Select>
+									</div>
+									{grantKind !== 'permanent' ? (
+										<div>
+											<Label>Duration in days</Label>
+											<Input
+												type='number'
+												min={1}
+												value={grantDurationDays}
+												onChange={(event) => {
+													setGrantDurationDays(event.target.value);
+													resetGrantPreview();
+												}}
+											/>
+										</div>
+									) : null}
+								</GrantWizardFieldGrid>
+							) : (
+								<GrantWizardFieldGrid>
+									<div>
+										<Label>Existing grant</Label>
+										<Select
+											value={selectedGrantId}
+											onChange={(event) => {
+												setSelectedGrantId(event.target.value);
+												resetGrantPreview();
+											}}>
+											<option value=''>Select a grant</option>
+											{details?.access?.grants
+												.filter((grant) =>
+													grantAction === 'extend'
+														? grant.state === 'active' && grant.kind === 'temporary'
+														: ['active', 'scheduled'].includes(grant.state),
+												)
+												.map((grant) => (
+													<option key={grant.grantId} value={grant.grantId}>
+														{formatLabel(grant.programId)} — {formatLabel(grant.state)}
+													</option>
+												))}
+										</Select>
+									</div>
+									{grantAction === 'extend' ? (
+										<div>
+											<Label>Additional days</Label>
+											<Input
+												type='number'
+												min={1}
+												value={grantDurationDays}
+												onChange={(event) => {
+													setGrantDurationDays(event.target.value);
+													resetGrantPreview();
+												}}
+											/>
+										</div>
+									) : null}
+								</GrantWizardFieldGrid>
+							)}
+
 							<div>
-								<Label>Access bundle</Label>
+								<Label>Required audit reason</Label>
 								<Input
 									type='text'
-									value={formatLabel(
-										details?.access?.grantAdministration?.programs.find(
-											(program) => program.programId === grantProgramId,
-										)?.bundleId || '',
-									)}
-									readOnly
+									placeholder='Explain why this access change is authorized'
+									value={grantReason}
+									onChange={(event) => setGrantReason(event.target.value)}
 								/>
 							</div>
-							<div>
-								<Label>Grant type</Label>
-								<Select
-									value={grantKind}
-									onChange={(event) => {
-										setGrantKind(event.target.value as 'temporary' | 'permanent');
-										resetGrantPreview();
-									}}>
-									{details?.access?.grantAdministration?.programs
-										.find((program) => program.programId === grantProgramId)
-										?.allowedKinds.map((kind) => (
-											<option key={kind} value={kind}>{formatLabel(kind)}</option>
-										))}
-								</Select>
-							</div>
-						</>
-					) : (
-						<div>
-							<Label>Existing grant</Label>
-							<Select
-								value={selectedGrantId}
-								onChange={(event) => {
-									setSelectedGrantId(event.target.value);
-									resetGrantPreview();
-								}}>
-								<option value=''>Select a grant</option>
-								{details?.access?.grants
-									.filter((grant) =>
-										grantAction === 'extend'
-											? grant.state === 'active' && grant.kind === 'temporary'
-											: ['active', 'scheduled'].includes(grant.state),
-									)
-									.map((grant) => (
-										<option key={grant.grantId} value={grant.grantId}>
-											{formatLabel(grant.programId)} — {formatLabel(grant.state)}
-										</option>
-									))}
-							</Select>
-						</div>
-					)}
-
-					{grantAction !== 'revoke' && grantKind !== 'permanent' ? (
-						<div>
-							<Label>{grantAction === 'extend' ? 'Additional days' : 'Duration in days'}</Label>
-							<Input
-								type='number'
-								min={1}
-								value={grantDurationDays}
-								onChange={(event) => {
-									setGrantDurationDays(event.target.value);
-									resetGrantPreview();
-								}}
-							/>
-						</div>
+							<GrantWizardMeta>Request ID: {grantRequestId}</GrantWizardMeta>
+							<GrantWizardActions>
+								<SecondaryButton
+									type='button'
+									disabled={grantActionLoading}
+									onClick={() => setShowGrantDialog(false)}>
+									Cancel
+								</SecondaryButton>
+								<Button
+									type='button'
+									disabled={grantActionLoading || !grantConfigurationReady}
+									onClick={() => void handlePreviewGrant()}>
+									{grantActionLoading ? 'Checking...' : 'Review Access Change'}
+								</Button>
+							</GrantWizardActions>
+						</GrantWizardPanel>
 					) : null}
 
-					<div>
-						<Label>Required audit reason</Label>
-						<Input
-							type='text'
-							placeholder='Explain why this access change is authorized'
-							value={grantReason}
-							onChange={(event) => setGrantReason(event.target.value)}
-						/>
-					</div>
-					<div>
-						<Label>Request ID</Label>
-						<Input type='text' value={grantRequestId} readOnly />
-					</div>
+					{grantWizardStep === 2 && grantPreview ? (
+						<GrantWizardPanel aria-label='Review access change'>
+							<div>
+								<strong>{grantPreview.programLabel}</strong>
+								<SubTitle>No access has changed yet. Verify the resulting account state before continuing.</SubTitle>
+							</div>
+							<GrantWizardReview>
+								<GrantWizardReviewRow>
+									<strong>Action</strong>
+									<span>{formatLabel(grantAction)}</span>
+								</GrantWizardReviewRow>
+								<GrantWizardReviewRow>
+									<strong>Current bundles</strong>
+									<span>{grantPreview.currentAccess.effectiveBundles.map(formatLabel).join(', ') || 'None'}</span>
+								</GrantWizardReviewRow>
+								<GrantWizardReviewRow>
+									<strong>Resulting bundles</strong>
+									<span>{grantPreview.proposedAccess.effectiveBundles.map(formatLabel).join(', ') || 'None'}</span>
+								</GrantWizardReviewRow>
+								<GrantWizardReviewRow>
+									<strong>Property limit</strong>
+									<span>{grantPreview.currentAccess.propertyLimit} → {grantPreview.proposedAccess.propertyLimit}</span>
+								</GrantWizardReviewRow>
+								<GrantWizardReviewRow>
+									<strong>Active grants</strong>
+									<span>{grantPreview.currentAccess.activeGrantIds.length} → {grantPreview.proposedAccess.activeGrantIds.length}</span>
+								</GrantWizardReviewRow>
+							</GrantWizardReview>
+							<GrantWizardMeta>Audit reason: {grantReason}</GrantWizardMeta>
+							<GrantWizardActions>
+								<SecondaryButton type='button' onClick={() => setGrantWizardStep(1)}>
+									Back
+								</SecondaryButton>
+								<Button
+									type='button'
+									onClick={() => {
+										setGrantConfirmation('');
+										setGrantWizardStep(3);
+									}}>
+									Continue to Confirmation
+								</Button>
+							</GrantWizardActions>
+						</GrantWizardPanel>
+					) : null}
 
-					<Button
-						type='button'
-						disabled={
-							grantActionLoading ||
-							grantReason.trim().length < 10 ||
-							(grantAction === 'create' ? !grantProgramId : !selectedGrantId)
-						}
-						onClick={() => void handlePreviewGrant()}>
-						{grantActionLoading ? 'Checking...' : 'Preview Access Change'}
-					</Button>
-					<SubTitle>
-						Previewing does not change access. Review the result below, enter the confirmation phrase, and apply the grant to save it.
-					</SubTitle>
-
-					{grantPreview ? (
-						<div ref={grantPreviewRef} style={{ display: 'grid', gap: 10, padding: 12, border: '1px solid #3FCC7C', borderRadius: 8 }}>
-							<strong>{grantPreview.programLabel}</strong>
+					{grantWizardStep === 3 && grantPreview ? (
+						<GrantWizardPanel aria-label='Confirm access change'>
 							<div>
-								Current bundles: {grantPreview.currentAccess.effectiveBundles.map(formatLabel).join(', ') || 'None'}
+								<strong>Confirm {grantPreview.programLabel}</strong>
+								<SubTitle>
+									This final action changes effective product access and writes an immutable administrative audit event.
+								</SubTitle>
 							</div>
-							<div>
-								Resulting bundles: {grantPreview.proposedAccess.effectiveBundles.map(formatLabel).join(', ') || 'None'}
-							</div>
-							<div>
-								Property limit: {grantPreview.currentAccess.propertyLimit} → {grantPreview.proposedAccess.propertyLimit}
-							</div>
-							<div>
-								Active grants: {grantPreview.currentAccess.activeGrantIds.length} → {grantPreview.proposedAccess.activeGrantIds.length}
-							</div>
+							<GrantWizardReview>
+								<GrantWizardReviewRow>
+									<strong>Resulting bundles</strong>
+									<span>{grantPreview.proposedAccess.effectiveBundles.map(formatLabel).join(', ') || 'None'}</span>
+								</GrantWizardReviewRow>
+								<GrantWizardReviewRow>
+									<strong>Property limit</strong>
+									<span>{grantPreview.proposedAccess.propertyLimit}</span>
+								</GrantWizardReviewRow>
+							</GrantWizardReview>
 							<div>
 								<Label>Type “{grantPreview.confirmationPhrase}” to confirm</Label>
 								<Input
 									type='text'
 									value={grantConfirmation}
+									autoComplete='off'
 									onChange={(event) => setGrantConfirmation(event.target.value)}
 								/>
 							</div>
-							<Button
-								type='button'
-								disabled={grantActionLoading || grantConfirmation !== grantPreview.confirmationPhrase}
-								onClick={() => void handleApplyGrant()}>
-								{grantActionLoading ? 'Applying...' : `${formatLabel(grantAction)} Internal Access`}
-							</Button>
-						</div>
+							<GrantWizardMeta>Request ID: {grantRequestId}</GrantWizardMeta>
+							<GrantWizardActions>
+								<SecondaryButton
+									type='button'
+									disabled={grantActionLoading}
+									onClick={() => setGrantWizardStep(2)}>
+									Back
+								</SecondaryButton>
+								<Button
+									type='button'
+									disabled={grantActionLoading || grantConfirmation !== grantPreview.confirmationPhrase}
+									onClick={() => void handleApplyGrant()}>
+									{grantActionLoading ? 'Applying...' : `${formatLabel(grantAction)} Internal Access`}
+								</Button>
+							</GrantWizardActions>
+						</GrantWizardPanel>
 					) : null}
 				</div>
 			</GenericModal>

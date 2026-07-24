@@ -16,6 +16,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { RootState } from 'Redux/store';
+import { selectIsHomeowner } from 'Redux/selectors/permissionSelectors';
 import {
 	useGetDevicesQuery,
 	useLazyGetAllDevicesQuery,
@@ -684,14 +685,7 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 	const { uploadPropertyDocuments } = usePropertyDocumentUploadWorkflow();
 	const isTeamMemberAccount = currentUser?.isTeamMemberAccount === true;
 	const canManageAppliances = permissions?.canManageAppliances ?? true;
-	const effectivePlanId = getEffectiveSubscriptionPlanId(
-		currentUser?.subscription,
-		'homeowner',
-	);
-	const isHomeownerMode =
-		effectivePlanId === 'homeowner' ||
-		effectivePlanId === 'homeowner_plus' ||
-		effectivePlanId === 'multi_homeowner';
+	const isHomeownerMode = useSelector(selectIsHomeowner);
 	const equipmentLanguage = {
 		contextNoun: isHomeownerMode ? 'this home' : 'this property',
 	};

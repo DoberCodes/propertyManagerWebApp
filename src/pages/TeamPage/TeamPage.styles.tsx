@@ -136,7 +136,8 @@ export const TeamHeroEyebrow = styled.div`
 	padding: 7px 10px;
 	border-radius: 999px;
 	background: rgba(255, 255, 255, 0.14);
-	color: ${COLORS.successLight};
+	border: 1px solid rgba(255, 255, 255, 0.24);
+	color: ${COLORS.white};
 	font-size: 12px;
 	font-weight: 800;
 	letter-spacing: 0.08em;
@@ -465,66 +466,10 @@ export const TeamMemberIdentity = styled.div`
 	align-items: flex-start;
 	gap: 12px;
 	min-width: 0;
-	padding-right: 62px;
-
-	@media (max-width: 480px) {
-		padding-right: 58px;
-	}
 `;
 
 export const TeamMemberAvatarWrap = styled.div`
 	flex: 0 0 auto;
-`;
-
-export const TeamMemberActions = styled.div`
-	position: absolute;
-	top: 12px;
-	right: 12px;
-	display: flex;
-	gap: 6px;
-	flex-wrap: wrap;
-	justify-content: flex-end;
-	opacity: 1;
-	transition: opacity 0.2s ease;
-`;
-
-export const TeamMemberActionButton = styled.button`
-	background-color: ${COLORS.bgWhite};
-	border: 1px solid #e5e7eb;
-	border-radius: 999px;
-	min-height: 28px;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	gap: 5px;
-	cursor: pointer;
-	transition: all 0.2s ease;
-	font-size: 0;
-	font-weight: 800;
-	color: #64748b;
-	padding: 0 8px;
-
-	svg {
-		font-size: 12px;
-	}
-
-	&::after {
-		content: attr(aria-label);
-		font-size: 11px;
-	}
-
-	&:hover {
-		background-color: ${COLORS.primaryLight};
-		border-color: ${COLORS.primaryHover};
-		color: ${COLORS.primary};
-		transform: translateY(-1px);
-	}
-
-	&.delete:hover {
-		background-color: #fee2e2;
-		color: #dc2626;
-		border-color: #fecaca;
-	}
 `;
 
 export const TeamMemberImage = styled.img`
@@ -674,27 +619,6 @@ export const TeamMemberInviteCode = styled.code`
 	font-weight: 800;
 	color: #0f172a;
 	word-break: break-all;
-`;
-
-export const TeamMemberInviteCopyButton = styled.button`
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	gap: 6px;
-	border: 1px solid transparent;
-	background: transparent;
-	color: ${COLORS.primary};
-	font-size: 11px;
-	font-weight: 800;
-	cursor: pointer;
-	padding: 4px 0;
-	border-radius: 4px;
-	text-align: center;
-	line-height: 1.25;
-
-	&:hover {
-		text-decoration: underline;
-	}
 `;
 
 export const AccessPill = styled.div<{
@@ -1317,37 +1241,13 @@ export const RightColumn = styled.div`
 	display: flex;
 	flex-direction: column;
 	gap: 20px;
-	overflow-y: auto;
-	max-height: calc(90vh - 200px);
 
 	@media (max-width: 1024px) {
-		max-height: none;
-		overflow: visible;
 		gap: 15px;
 	}
 
 	@media (max-width: 640px) {
-		max-height: none;
-		overflow: visible;
 		gap: 15px;
-	}
-
-	&::-webkit-scrollbar {
-		width: 6px;
-	}
-
-	&::-webkit-scrollbar-track {
-		background: #f1f5f9;
-		border-radius: 3px;
-	}
-
-	&::-webkit-scrollbar-thumb {
-		background: #cbd5e1;
-		border-radius: 3px;
-
-		&:hover {
-			background: #94a3b8;
-		}
 	}
 `;
 
@@ -1505,7 +1405,6 @@ export const TaskHistoryItem = styled.div`
 		color: #6b7280;
 	}
 `;
-
 export const FileUploadSection = styled.div`
 	display: flex;
 	flex-direction: column;
@@ -1657,6 +1556,22 @@ export const CancelButton = styled(DialogButton)`
 			background: transparent;
 			color: #374151;
 		}
+	}
+`;
+
+export const DeleteMemberButton = styled(DialogButton)`
+	margin-right: auto;
+	background-color: #fef2f2;
+	border-color: #fecaca;
+	color: #b91c1c;
+
+	&:hover:not(:disabled) {
+		background-color: #fee2e2;
+		border-color: #fca5a5;
+	}
+
+	@media (max-width: 640px) {
+		flex: 0 0 auto;
 	}
 `;
 

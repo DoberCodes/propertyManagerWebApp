@@ -108,7 +108,7 @@ export type AdminPortalUserTroubleshootingDetails = {
 		} | null;
 		inviteCode?: string | null;
 		lastLoginAt?: string;
-		lastActivityAt?: string;
+		lastActivityAt?: string | null;
 		createdAt?: string;
 		updatedAt?: string;
 	};
@@ -440,6 +440,22 @@ export const adminPortalMutateEntitlementGrant = async (params: {
 		programId: string;
 		billingRelationshipCreated: false;
 	}>('adminPortalMutateEntitlementGrant');
+	const result = await callable(params);
+	return result.data;
+};
+
+export const adminSendAccessLifecycleEmail = async (params: {
+	sessionToken: string;
+	targetUserId: string;
+	grantId: string;
+	milestone: 'activation';
+	requestId: string;
+	reason: string;
+}): Promise<{ success: true; outcome: 'sent' | 'skipped' | 'deferred' | 'replayed'; requestId: string }> => {
+	const callable = await getAdminCallable<
+		typeof params,
+		{ success: true; outcome: 'sent' | 'skipped' | 'deferred' | 'replayed'; requestId: string }
+	>('sendAdminAccessLifecycleEmail');
 	const result = await callable(params);
 	return result.data;
 };

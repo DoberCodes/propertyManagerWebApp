@@ -30,7 +30,7 @@ import {
 } from '../../Redux/API/maintenanceSlice';
 import { useCreateNotificationMutation } from '../../Redux/API/notificationSlice';
 import {
-	useRemoveTenantMutation,
+	useRemoveManualOccupancyMutation,
 	useLazyGetTenantInvitationCodeQuery,
 	useLazyGetTenantInvitationCodesByEmailQuery,
 } from '../../Redux/API/tenantSlice';
@@ -198,7 +198,7 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 	const [deleteMaintenanceHistory] = useDeleteMaintenanceHistoryMutation();
 	const [updateMaintenanceHistory] = useUpdateMaintenanceHistoryMutation();
 	const [createNotification] = useCreateNotificationMutation();
-	const [removeTenant] = useRemoveTenantMutation();
+	const [removeTenant] = useRemoveManualOccupancyMutation();
 	const [getTenantInvitationCode] = useLazyGetTenantInvitationCodeQuery();
 	const [getTenantInvitationCodesByEmail] =
 		useLazyGetTenantInvitationCodesByEmailQuery();

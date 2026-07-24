@@ -10,15 +10,26 @@ import type { SubscriptionData } from '../../utils/subscriptionUtils';
 const getAccountSubscription = async (
 	accountId: string,
 ): Promise<SubscriptionData | null> => {
-	const accountOwnerRef = doc(db, 'users', accountId);
-	const accountOwnerSnap = await getDoc(accountOwnerRef);
+	const [accountOwnerSnap, familyAccountSnap] = await Promise.all([
+		getDoc(doc(db, 'users', accountId)),
+		getDoc(doc(db, 'familyAccounts', accountId)),
+	]);
 	if (!accountOwnerSnap.exists()) {
 		return null;
 	}
 
 	const accountOwnerData = accountOwnerSnap.data() || {};
 	const subscription = accountOwnerData.subscription as SubscriptionData | undefined;
-	return subscription || null;
+	const projection = familyAccountSnap.data()?.effectiveEntitlementProjection || {};
+	return subscription
+		? {
+				...subscription,
+				entitlementAccountId: accountId,
+				entitlementGrants: Array.isArray(projection.activeGrants)
+					? projection.activeGrants
+					: [],
+			}
+		: null;
 };
 
 export const assertCanManageTeamMembers = async (

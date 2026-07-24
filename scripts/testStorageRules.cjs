@@ -322,6 +322,46 @@ async function run() {
 			),
 		);
 
+		const quotaPath = `properties/${accountId}/quota-approved.txt`;
+		await env.withSecurityRulesDisabled(async (context) => {
+			const db = context.firestore();
+			await db.doc('appConfig/entitlementRollout').set({ trustedStorageQuotaRequired: true });
+			await db.doc('storageUploadReservations/reservation-approved').set({
+				accountId,
+				storagePath: quotaPath,
+				sizeBytes: Buffer.byteLength(fileData),
+				status: 'reserved',
+				expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+			});
+			await db.doc('storageUploadReservations/reservation-wrong-path').set({
+				accountId,
+				storagePath: `properties/${accountId}/different.txt`,
+				sizeBytes: Buffer.byteLength(fileData),
+				status: 'reserved',
+				expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+			});
+		});
+		await assertFails(
+			ownerStorage.ref(`properties/${accountId}/quota-bypass.txt`).putString(
+				fileData,
+				'raw',
+				{ contentType: 'text/plain' },
+			),
+		);
+		await assertFails(
+			ownerStorage.ref(quotaPath).putString(fileData, 'raw', {
+				contentType: 'text/plain',
+				customMetadata: { quotaReservationId: 'reservation-wrong-path', accountId },
+			}),
+		);
+		await assertSucceeds(
+			ownerStorage.ref(quotaPath).putString(fileData, 'raw', {
+				contentType: 'text/plain',
+				customMetadata: { quotaReservationId: 'reservation-approved', accountId },
+			}),
+		);
+		await assertSucceeds(ownerStorage.ref(quotaPath).delete());
+
 		await assertFails(
 			ownerStorage.ref('unknown/path/file.txt').putString(fileData, 'raw', {
 				contentType: 'text/plain',

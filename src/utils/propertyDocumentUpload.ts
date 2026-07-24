@@ -7,7 +7,7 @@ import {
 	PropertyDocumentLinks,
 	PropertyDocumentType,
 } from '../types/Property.types';
-import { assertStorageQuotaForFiles, resolveStorageAccountId } from './storageQuota';
+import { prepareStorageUpload, resolveStorageAccountId } from './storageQuota';
 import { signalStorageUsageUpdated } from './storageUsageEvents';
 
 const MAX_PROPERTY_DOCUMENT_BYTES = 10 * 1024 * 1024; // 10MB
@@ -111,15 +111,15 @@ export const uploadPropertyDocument = async (
 		throw new Error('Invalid file. Please use a valid file type under 10MB.');
 	}
 
-	await assertStorageQuotaForFiles(file, { propertyId });
 	const accountId = await resolveStorageAccountId(propertyId);
 
 	const fileName = buildFileName(file, propertyId);
 	const storagePath = `properties/${accountId}/${fileName}`;
 	const storageRef = ref(storage, storagePath);
+	const uploadMetadata = await prepareStorageUpload(file, storagePath, { propertyId, accountId });
 
 	try {
-		await uploadBytes(storageRef, file, { contentType: file.type });
+		await uploadBytes(storageRef, file, uploadMetadata);
 	} catch (error: any) {
 		if (error?.code === 'storage/unauthorized') {
 			throw new Error(
