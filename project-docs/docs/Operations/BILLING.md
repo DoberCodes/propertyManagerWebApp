@@ -285,19 +285,10 @@ Cancellation should:
 
 ## Admin Support Adjustments
 
-The admin portal includes support-only subscription actions for troubleshooting
-and account repair:
-
-* Apply billing updates for plan, trial, and coupon changes in one action.
-* Mark subscription cancelled as a separate destructive action.
-
-By default, plan and trial updates write Maintley's user subscription record and
-write one `admin_audit_logs` entry without contacting Stripe.
-
-Support staff may choose **Update Stripe subscription first** when the user
-record already has a Stripe subscription ID. In that mode, the admin action
-updates Stripe first and then syncs Maintley's subscription record from the
-Stripe result.
+The admin portal separates paid subscription repair from complimentary access.
+Stripe Billing actions operate on a real Stripe relationship. Internal Access
+Grant actions use Maintley's generic grant model and never create or modify a
+Stripe customer, subscription, invoice, payment method, or scheduled charge.
 
 Current Stripe-backed support behavior:
 
@@ -310,9 +301,16 @@ Current Stripe-backed support behavior:
   address in Stripe.
 * Cancellations set the existing Stripe subscription to cancel at period end.
 
-If the user record does not have a Stripe subscription ID, plan and trial support
-actions remain Maintley-only. Coupon codes create a Stripe Checkout link for a
-paid plan instead of manually discounting the user in Firestore.
+If the user does not have a Stripe subscription, selecting a paid plan creates
+Checkout rather than writing a local paid plan. Complimentary support, beta,
+legacy, or lifetime access must use the separately authorized Internal Access
+Grant workflow. Lifetime grants are restricted to Maintley's `owner` role.
+
+Grant changes require a preview of current and proposed access, an audit reason,
+a stable request ID, and typed confirmation. Non-owner grant managers cannot
+target their own user or account. `maintley_role: owner` is the only self-grant
+exception and refers exclusively to the owner of Maintley, never a customer
+property owner.
 
 Refresh from Stripe is the preferred support repair when Stripe already has an
 active subscription but Firebase does not show the customer as subscribed. The
@@ -369,6 +367,8 @@ Exported functions:
 * adminPortalCreateBillingCoupon
 * adminPortalListBillingCoupons
 * adminPortalCreateCheckoutLinkWithCoupon
+* adminPortalPreviewEntitlementGrant
+* adminPortalMutateEntitlementGrant
 
 Stripe webhook processing lives in:
 

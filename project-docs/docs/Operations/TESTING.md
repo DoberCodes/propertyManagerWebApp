@@ -84,6 +84,17 @@ Examples:
 
 Unit tests should be fast and focused.
 
+Entitlement administration policy is validated with:
+
+```bash
+npm run test:admin-grant-policy
+```
+
+The policy test distinguishes Maintley owner from customer ownership, verifies
+the explicit grant-management permission, denies non-owner grants to the
+actor's own user or account, and preserves the Maintley-owner self-grant
+exception.
+
 ---
 
 ## Integration Tests

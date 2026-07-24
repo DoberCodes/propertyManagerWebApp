@@ -82,6 +82,8 @@ export {
 	listAdminPortalUsers,
 	listAdminPortalAuditLogs,
 	getAdminPortalUserTroubleshootingDetails,
+	adminPortalPreviewEntitlementGrant,
+	adminPortalMutateEntitlementGrant,
 	adminPortalManageUserSubscription,
 	adminPortalRefreshUserSubscriptionFromStripe,
 	adminPortalApplyUserBillingActions,

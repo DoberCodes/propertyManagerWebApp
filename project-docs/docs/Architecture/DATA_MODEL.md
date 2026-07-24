@@ -276,6 +276,19 @@ is first created. Issuance records the program as consumed, so trigger retries,
 duplicate property events, profile recreation, and later property creation
 cannot restart the program.
 
+Approved admin-grant programs use the same generic documents. Create, extend,
+and revoke operations are server-only, request-idempotent, and rebuild the
+derived account projection in the same transaction. The admin interface does
+not accept arbitrary bundles or program IDs. Current program IDs cover support,
+beta, legacy-outreach, and Maintley-owner-only lifetime Homeowner+ access.
+Permanent lifetime access is not a Stripe subscription and does not establish a
+billing relationship.
+
+Grant decisions are recorded separately in `admin_audit_logs` with actor,
+target account and user, grant and program IDs, request ID, reason,
+before-and-after state, and policy metadata. The audit record is append-only;
+lower-level resolver execution remains in operational logs.
+
 ### accessLifecycleDeliveries subcollection
 
 Reserved path:

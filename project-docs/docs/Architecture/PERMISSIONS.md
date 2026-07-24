@@ -203,6 +203,26 @@ Rules:
 
 This keeps admin access isolated from customer account roles and prevents UI-only protection from becoming a security dependency.
 
+## Internal entitlement-grant administration
+
+Internal access grants use a narrower authority than general admin-portal
+access. A Maintley administrator must hold the server-managed
+`entitlement_grants.manage` permission (or its legacy
+`entitlement_grant_manager` role token) before previewing or changing grants.
+
+`maintley_role: owner` is the sole exception. It means the owner of Maintley,
+is unrestricted by the grant-management permission, may use owner-only grant
+programs, and may grant access to the owner's own Maintley account. No customer
+role—including homeowner, property owner, landlord, or account owner—receives
+this exception.
+
+All other Maintley administrators are prohibited from granting access to their
+own identity or family account, including indirectly targeting another user in
+that same account. Grant programs, bundles, kinds, and durations remain
+server-allowlisted for every actor. Every successful mutation requires preview,
+typed confirmation, a reason, and a stable request ID, and is written to the
+immutable admin audit trail.
+
 ---
 
 # Authentication vs Authorization

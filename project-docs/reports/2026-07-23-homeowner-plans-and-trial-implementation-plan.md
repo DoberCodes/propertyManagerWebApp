@@ -768,9 +768,13 @@ without receiving team, resident, or Organization access.
 * Expose trial name, start/end date, days remaining, Free fallback, and paid
   conversion state through one account-level view model.
 * Add admin visibility and grant actions protected by a grant-specific Maintley
-  permission; general admin access alone is insufficient.
+  permission; general admin access alone is insufficient. Maintley's
+  server-managed `maintley_role: owner` is unrestricted and is the only actor
+  permitted to grant access to the actor's own user or account. This never
+  refers to a customer property owner.
 * Restrict grant programs, bundles, limits, and durations to server-owned
-  allowlists and prevent administrators from granting their own accounts.
+  allowlists and prevent non-owner administrators from granting their own
+  identities or accounts, including another user within the same account.
 * Add a preview of resulting effective access and elevated confirmation for
   permanent, unusually broad, or extended grants.
 * Require reason and request ID; make create, extend, revoke, convert, lifetime,
