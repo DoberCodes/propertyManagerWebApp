@@ -7,6 +7,7 @@ import {
     InlineToggle,
     Label,
     Select,
+	SecondaryButton,
     SubTitle,
     SuccessText,
     UserActivityItem,
@@ -758,12 +759,28 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
                                     onClick={() => setShowBillingActionsDialog(true)}>
                                     Manage Billing
                                 </Button>
-                                <Button
+								<SecondaryButton
                                     type='button'
                                     disabled={planActionLoading || stripeRefreshLoading}
                                     onClick={() => void handleRefreshSubscriptionFromStripe()}>
                                     {stripeRefreshLoading ? 'Refreshing...' : 'Refresh From Stripe'}
-                                </Button>
+								</SecondaryButton>
+								{details.profile.hasStripeSubscription ? (
+									<SecondaryButton
+										type='button'
+										disabled={planActionLoading || stripeRefreshLoading}
+										onClick={() => setShowCancelConfirm(true)}>
+										Cancel Subscription
+									</SecondaryButton>
+								) : null}
+								{details.profile.stripeCustomerId || details.profile.stripeSubscriptionId ? (
+									<SecondaryButton
+										type='button'
+										disabled={planActionLoading || stripeRefreshLoading}
+										onClick={handleOpenClearStripeLinkage}>
+										Clear Stale Stripe Linkage
+									</SecondaryButton>
+								) : null}
                             </div>
                         </UserDetailsItem>
                     </UserDetailsGrid>
@@ -1066,33 +1083,6 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
                         ) : null}
                     </div>
 
-                    <div style={{ display: 'grid', gap: 8, borderTop: '1px solid #f3c7aa', paddingTop: 14 }}>
-                        <Label>Cancel subscription</Label>
-                        <p style={{ margin: 0 }}>
-                            Use this only when the customer should stop renewing. This action stays separate from plan, trial, and coupon updates.
-                        </p>
-                        <Button
-                            type='button'
-                            disabled={planActionLoading}
-                            onClick={() => setShowCancelConfirm(true)}>
-                            {planActionLoading ? 'Updating...' : 'Cancel Subscription'}
-                        </Button>
-                    </div>
-
-					{details?.profile.stripeCustomerId || details?.profile.stripeSubscriptionId ? (
-						<div style={{ display: 'grid', gap: 8, borderTop: '1px solid #f3c7aa', paddingTop: 14 }}>
-							<Label>Clear stale Stripe linkage</Label>
-							<p style={{ margin: 0 }}>
-								Use this only after the Stripe customer has been deleted and any subscription is cancelled or missing. Maintley will verify Stripe before clearing its stored IDs.
-							</p>
-							<Button
-								type='button'
-								disabled={planActionLoading}
-								onClick={handleOpenClearStripeLinkage}>
-								Clear Stale Stripe Linkage
-							</Button>
-						</div>
-					) : null}
                 </div>
             </GenericModal>
 
