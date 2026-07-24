@@ -678,6 +678,59 @@ export const TicketHeader = styled.div`
 	}
 `;
 
+export const MoreActionsMenu = styled.details`
+	position: relative;
+
+	> summary {
+		list-style: none;
+		padding: 8px 12px;
+		border-radius: 8px;
+		border: 1px solid #fdba74;
+		background: #fff7ed;
+		color: #9a3412;
+		font-weight: 600;
+		cursor: pointer;
+		user-select: none;
+		text-align: center;
+	}
+
+	> summary::-webkit-details-marker {
+		display: none;
+	}
+
+	> summary::after {
+		content: ' ▾';
+	}
+
+	&[open] > summary {
+		background: #ffedd5;
+	}
+
+	&[open] > summary::after {
+		content: ' ▴';
+	}
+`;
+
+export const MoreActionsMenuContent = styled.div`
+	position: absolute;
+	right: 0;
+	top: calc(100% + 6px);
+	z-index: 20;
+	width: min(260px, 80vw);
+	padding: 8px;
+	border: 1px solid #fdba74;
+	border-radius: 10px;
+	background: #ffffff;
+	box-shadow: 0 12px 28px rgba(124, 45, 18, 0.16);
+	display: grid;
+	gap: 6px;
+
+	> button {
+		width: 100%;
+		text-align: left;
+	}
+`;
+
 export const TicketCollapseButton = styled.button`
 	display: inline-flex;
 	align-items: center;

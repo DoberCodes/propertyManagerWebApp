@@ -6,6 +6,8 @@ import {
     Input,
     InlineToggle,
     Label,
+	MoreActionsMenu,
+	MoreActionsMenuContent,
     Select,
 	SecondaryButton,
     SubTitle,
@@ -157,6 +159,7 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
 	} | null>(null);
 	const [grantActionLoading, setGrantActionLoading] = useState(false);
 	const grantPreviewRef = useRef<HTMLDivElement | null>(null);
+	const billingMoreActionsRef = useRef<HTMLDetailsElement | null>(null);
     const displayError = localError || error || '';
 
     const sortedUsers = useMemo(() => {
@@ -460,6 +463,10 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
 		setShowClearStripeConfirm(true);
 	};
 
+	const closeBillingMoreActions = () => {
+		if (billingMoreActionsRef.current) billingMoreActionsRef.current.open = false;
+	};
+
 	const handleClearStripeLinkage = async (): Promise<void> => {
 		if (!selectedUserId) return;
 		setPlanActionLoading(true);
@@ -759,28 +766,54 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
                                     onClick={() => setShowBillingActionsDialog(true)}>
                                     Manage Billing
                                 </Button>
-								<SecondaryButton
-                                    type='button'
-                                    disabled={planActionLoading || stripeRefreshLoading}
-                                    onClick={() => void handleRefreshSubscriptionFromStripe()}>
-                                    {stripeRefreshLoading ? 'Refreshing...' : 'Refresh From Stripe'}
-								</SecondaryButton>
-								{details.profile.hasStripeSubscription ? (
-									<SecondaryButton
-										type='button'
-										disabled={planActionLoading || stripeRefreshLoading}
-										onClick={() => setShowCancelConfirm(true)}>
-										Cancel Subscription
-									</SecondaryButton>
-								) : null}
-								{details.profile.stripeCustomerId || details.profile.stripeSubscriptionId ? (
-									<SecondaryButton
-										type='button'
-										disabled={planActionLoading || stripeRefreshLoading}
-										onClick={handleOpenClearStripeLinkage}>
-										Clear Stale Stripe Linkage
-									</SecondaryButton>
-								) : null}
+								<MoreActionsMenu
+									ref={billingMoreActionsRef}
+									onBlur={(event) => {
+										if (!event.relatedTarget || !event.currentTarget.contains(event.relatedTarget as Node)) {
+											event.currentTarget.open = false;
+										}
+									}}
+									onKeyDown={(event) => {
+										if (event.key === 'Escape') {
+											event.currentTarget.open = false;
+											event.currentTarget.querySelector('summary')?.focus();
+										}
+									}}>
+									<summary>More Actions</summary>
+									<MoreActionsMenuContent>
+										<SecondaryButton
+											type='button'
+											disabled={planActionLoading || stripeRefreshLoading}
+											onClick={() => {
+												closeBillingMoreActions();
+												void handleRefreshSubscriptionFromStripe();
+											}}>
+											{stripeRefreshLoading ? 'Refreshing...' : 'Refresh From Stripe'}
+										</SecondaryButton>
+										{details.profile.hasStripeSubscription ? (
+											<SecondaryButton
+												type='button'
+												disabled={planActionLoading || stripeRefreshLoading}
+												onClick={() => {
+													closeBillingMoreActions();
+													setShowCancelConfirm(true);
+												}}>
+												Cancel Subscription
+											</SecondaryButton>
+										) : null}
+										{details.profile.stripeCustomerId || details.profile.stripeSubscriptionId ? (
+											<SecondaryButton
+												type='button'
+												disabled={planActionLoading || stripeRefreshLoading}
+												onClick={() => {
+													closeBillingMoreActions();
+													handleOpenClearStripeLinkage();
+												}}>
+												Clear Stale Stripe Linkage
+											</SecondaryButton>
+										) : null}
+									</MoreActionsMenuContent>
+								</MoreActionsMenu>
                             </div>
                         </UserDetailsItem>
                     </UserDetailsGrid>
