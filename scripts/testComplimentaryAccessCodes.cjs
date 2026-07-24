@@ -1,5 +1,7 @@
 const assert = require('node:assert/strict');
-const admin = require('firebase-admin');
+// This emulator test runs in both root-installed and Functions-only CI jobs.
+// Resolve the Admin SDK from the deployable Functions package in either case.
+const admin = require('../functions/node_modules/firebase-admin');
 
 process.env.GCLOUD_PROJECT = process.env.GCLOUD_PROJECT || 'maintley-access-code-test';
 if (!process.env.FIRESTORE_EMULATOR_HOST) {
