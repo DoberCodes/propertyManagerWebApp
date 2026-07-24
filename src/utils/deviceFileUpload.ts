@@ -1,6 +1,6 @@
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { storage } from '../config/firebaseStorage';
-import { assertStorageQuotaForFiles } from './storageQuota';
+import { prepareStorageUpload } from './storageQuota';
 import { signalStorageUsageUpdated } from './storageUsageEvents';
 
 const MAX_DEVICE_FILE_BYTES = 10 * 1024 * 1024; // 10MB
@@ -46,15 +46,15 @@ export const uploadDeviceFile = async (
 	if (!isValidDeviceFile(file)) {
 		throw new Error('Invalid file. Please use a valid file type under 10MB.');
 	}
-	await assertStorageQuotaForFiles(file, { propertyId });
-
 	const fileName = buildFileName(file);
 	const folder = deviceId
 		? `device-files/${propertyId}/${deviceId}`
 		: `device-files/${propertyId}/temp-${Date.now()}`;
-	const storageRef = ref(storage, `${folder}/${fileName}`);
+	const storagePath = `${folder}/${fileName}`;
+	const storageRef = ref(storage, storagePath);
+	const uploadMetadata = await prepareStorageUpload(file, storagePath, { propertyId });
 
-	await uploadBytes(storageRef, file, { contentType: file.type });
+	await uploadBytes(storageRef, file, uploadMetadata);
 	const url = await getDownloadURL(storageRef);
 	signalStorageUsageUpdated();
 

@@ -55,7 +55,7 @@ import {
 } from '../../Redux/API/maintenanceSlice';
 import { useDeleteTaskMutation } from '../../Redux/API/taskSlice';
 import { getTaskAssigneeDisplayName } from '../../utils/taskUtils';
-import { useRemoveTenantMutation } from '../../Redux/API/tenantSlice';
+import { useRemoveManualOccupancyMutation } from '../../Redux/API/tenantSlice';
 import { getDeviceName } from '../../utils/detailPageUtils';
 import { TabConfig } from '../../types/DetailPage.types';
 import { addMaintenanceRequest } from '../../Redux/Slices/maintenanceRequestsSlice';
@@ -624,7 +624,7 @@ export const UnitDetailPage: React.FC = () => {
 	const [createDevice] = useCreateDeviceMutation();
 	const [updateDevice] = useUpdateDeviceMutation();
 	const [deleteDevice] = useDeleteDeviceMutation();
-	const [removeTenant] = useRemoveTenantMutation();
+	const [removeTenant] = useRemoveManualOccupancyMutation();
 	const [deleteTask] = useDeleteTaskMutation();
 	const [addMaintenanceHistory] = useAddMaintenanceHistoryMutation();
 	const [deleteMaintenanceHistory] = useDeleteMaintenanceHistoryMutation();

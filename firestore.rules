@@ -281,11 +281,26 @@ service cloud.firestore {
     }
 
     function maxPropertiesForAccount(accountId) {
-      return planLimit(entitledPlanForAccount(accountId), 'properties');
+      let baseLimit = planLimit(baseEntitledPlanForAccount(accountId), 'properties');
+      return hasActiveProjectedBundle(accountId, 'portfolio') && baseLimit < 15
+        ? 15
+        : (hasActiveProjectedBundle(accountId, 'property') && baseLimit < 7
+          ? 7
+          : (hasActiveProjectedBundle(accountId, 'multi_homeowner') && baseLimit < 5
+            ? 5
+            : baseLimit));
     }
 
     function maxDevicesForAccount(accountId) {
-      return planLimit(entitledPlanForAccount(accountId), 'devices');
+      let baseLimit = planLimit(baseEntitledPlanForAccount(accountId), 'devices');
+      return (
+        hasActiveProjectedBundle(accountId, 'homeowner_plus') ||
+        hasActiveProjectedBundle(accountId, 'multi_homeowner') ||
+        hasActiveProjectedBundle(accountId, 'property') ||
+        hasActiveProjectedBundle(accountId, 'portfolio')
+      ) && baseLimit < 999
+        ? 999
+        : baseLimit;
     }
 
     function hasPropertyCounterCreateIncrement(accountId) {
@@ -317,21 +332,10 @@ service cloud.firestore {
     // Resident/tenant access and maintenance requests start on Property.
     function hasActiveManagedInvitePlan(accountId) {
       return accountOwnerDocExists(accountId) &&
-        ('subscription' in accountOwnerData(accountId)) &&
         (
-          accountOwnerData(accountId).subscription.status == 'active' ||
-          (
-            accountOwnerData(accountId).subscription.status == 'trial' &&
-            (
-              !('trialEndsAt' in accountOwnerData(accountId).subscription) ||
-              accountOwnerData(accountId).subscription.trialEndsAt == null ||
-              accountOwnerData(accountId).subscription.trialEndsAt > (request.time.toMillis() / 1000)
-            )
-          )
-        ) &&
-        planHasCapability(
-          accountOwnerData(accountId).subscription.plan,
-          'residents.manage'
+          planHasCapability(baseEntitledPlanForAccount(accountId), 'residents.manage') ||
+          hasActiveProjectedBundle(accountId, 'property') ||
+          hasActiveProjectedBundle(accountId, 'portfolio')
         );
     }
 
@@ -352,36 +356,36 @@ service cloud.firestore {
     }
 
     function hasCorePlanForResources(accountId) {
-      return hasActiveCoreSubscription(accountId) &&
-        planHasCapability(
-          accountOwnerData(accountId).subscription.plan,
-          'properties.manage'
-        );
+      return accountOwnerDocExists(accountId) &&
+        planHasCapability(baseEntitledPlanForAccount(accountId), 'properties.manage');
     }
 
     // Plan gates mirror PLAN_FEATURE_MATRIX.md: property groups start at Property.
     function canUsePropertyGroups(accountId) {
-      return hasActiveCoreSubscription(accountId) &&
-        planHasCapability(
-          accountOwnerData(accountId).subscription.plan,
-          'property_groups.manage'
+      return accountOwnerDocExists(accountId) &&
+        (
+          planHasCapability(baseEntitledPlanForAccount(accountId), 'property_groups.manage') ||
+          hasActiveProjectedBundle(accountId, 'multi_homeowner') ||
+          hasActiveProjectedBundle(accountId, 'property') ||
+          hasActiveProjectedBundle(accountId, 'portfolio')
         );
     }
 
     // Property has simple team management; Portfolio has advanced team roles and property assignments.
     function canUseSimpleTeam(accountId) {
-      return hasActiveCoreSubscription(accountId) &&
-        planHasCapability(
-          accountOwnerData(accountId).subscription.plan,
-          'team.manage'
+      return accountOwnerDocExists(accountId) &&
+        (
+          planHasCapability(baseEntitledPlanForAccount(accountId), 'team.manage') ||
+          hasActiveProjectedBundle(accountId, 'property') ||
+          hasActiveProjectedBundle(accountId, 'portfolio')
         );
     }
 
     function canUseAdvancedTeam(accountId) {
-      return hasActiveCoreSubscription(accountId) &&
-        planHasCapability(
-          accountOwnerData(accountId).subscription.plan,
-          'team.advanced'
+      return accountOwnerDocExists(accountId) &&
+        (
+          planHasCapability(baseEntitledPlanForAccount(accountId), 'team.advanced') ||
+          hasActiveProjectedBundle(accountId, 'portfolio')
         );
     }
 
@@ -765,11 +769,9 @@ service cloud.firestore {
           (('accountId' in resource.data) && canWriteTeamMemberData(resource.data.accountId, request.resource.data)) ||
           (('userId' in resource.data) && canWriteTeamMemberData(resource.data.userId, request.resource.data))
         );
-      allow delete: if isAuthenticated() && canManageTeamMemberResource() &&
-        (
-          (('accountId' in resource.data) && canUseSimpleTeam(resource.data.accountId)) ||
-          (('userId' in resource.data) && canUseSimpleTeam(resource.data.userId))
-        );
+      // Removing a relationship is always permitted to an account manager,
+      // including after downgrade. Entitlements gate expansion, not cleanup.
+      allow delete: if isAuthenticated() && canManageTeamMemberResource();
     }
 
     match /devices/{deviceId} {
@@ -913,6 +915,24 @@ service cloud.firestore {
         hasAnyRole(resource.data.accountId, ['account_owner', 'admin'])
       );
       allow create, update, delete: if false;
+    }
+
+    // Complimentary access program policy, verifiers, and attempt records are
+    // server-owned. Clients receive only minimized callable previews.
+    match /entitlementAccessPrograms/{programId} {
+      allow read, create, update, delete: if false;
+    }
+
+    match /entitlementAccessCodes/{codeHash} {
+      allow read, create, update, delete: if false;
+    }
+
+    match /accessCodeRedemptionAttempts/{attemptId} {
+      allow read, create, update, delete: if false;
+    }
+
+    match /storageUploadReservations/{reservationId} {
+      allow read, create, update, delete: if false;
     }
 
     // Family invites are function-managed only (list/revoke/resend/accept via callable).

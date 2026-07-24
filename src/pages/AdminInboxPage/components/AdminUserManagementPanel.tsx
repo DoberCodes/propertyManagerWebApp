@@ -40,6 +40,7 @@ import { GenericModal } from 'Components/Library';
 import {
     adminPortalApplyUserBillingActions,
 	adminPortalMutateEntitlementGrant,
+	adminSendAccessLifecycleEmail,
 	adminPortalPreviewEntitlementGrant,
     adminPortalManageUserSubscription,
     adminPortalRefreshUserSubscriptionFromStripe,
@@ -169,6 +170,7 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
 		programLabel: string;
 	} | null>(null);
 	const [grantActionLoading, setGrantActionLoading] = useState(false);
+	const [accessEmailLoadingGrantId, setAccessEmailLoadingGrantId] = useState('');
 	const billingMoreActionsRef = useRef<HTMLDetailsElement | null>(null);
     const displayError = localError || error || '';
 
@@ -206,6 +208,36 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
 		grantReason.trim().length >= 10 &&
 		(grantAction === 'create' ? Boolean(grantProgramId) : Boolean(selectedGrantId)) &&
 		(!grantDurationRequired || (Number.isInteger(grantDurationValue) && grantDurationValue > 0));
+
+	const handleSendAccessEmail = async (grantId: string) => {
+		if (!selectedUserId || !grantId) return;
+		setLocalError('');
+		setActionMessage('');
+		setAccessEmailLoadingGrantId(grantId);
+		try {
+			const result = await adminSendAccessLifecycleEmail({
+				sessionToken,
+				targetUserId: selectedUserId,
+				grantId,
+				milestone: 'activation',
+				requestId: createGrantRequestId().replace(/^grant:/, 'access-email:'),
+				reason: 'Admin requested the authoritative complimentary-access activation message.',
+			});
+			setActionMessage(
+				result.outcome === 'sent'
+					? 'Complimentary-access email sent. Audit log saved.'
+					: 'The lifecycle delivery was already handled or is currently processing; no duplicate email was sent. Audit log saved.',
+			);
+		} catch (emailError) {
+			setLocalError(
+				emailError instanceof Error
+					? emailError.message
+					: 'Unable to request the complimentary-access email.',
+			);
+		} finally {
+			setAccessEmailLoadingGrantId('');
+		}
+	};
 
     const handleLoadUsers = async () => {
         await dispatch(
@@ -878,6 +910,18 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
 												{grant.bundleId ? ` · ${formatLabel(grant.bundleId)}` : ''}
 												{grant.endsAt ? ` · Ends ${formatDate(grant.endsAt)}` : grant.kind === 'permanent' ? ' · No expiration' : ''}
 											</div>
+											{details.access?.grantAdministration?.enabled &&
+											details.access.grantAdministration.canManage ? (
+												<SecondaryButton
+													type='button'
+													style={{ marginTop: 8 }}
+													disabled={Boolean(accessEmailLoadingGrantId)}
+													onClick={() => handleSendAccessEmail(grant.grantId)}>
+													{accessEmailLoadingGrantId === grant.grantId
+														? 'Sending...'
+														: 'Send access email'}
+												</SecondaryButton>
+											) : null}
 										</div>
 									))
 								) : (

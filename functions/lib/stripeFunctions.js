@@ -312,11 +312,21 @@ const syncFamilyAccountSubscription = async (userData, subscription) => {
         return;
     }
     try {
+        const normalizedPlan = String(subscription.plan || '').trim().toLowerCase();
+        const preservesResidentContinuity = BUSINESS_PLAN_IDS.has(normalizedPlan);
         await db
             .collection('familyAccounts')
             .doc(accountId)
             .set({
             subscription: removeUndefinedFields(subscription),
+            ...(preservesResidentContinuity
+                ? {
+                    resourceContinuity: {
+                        residentManagementPreviouslyEntitled: true,
+                        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                    },
+                }
+                : {}),
             updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         }, { merge: true });
     }

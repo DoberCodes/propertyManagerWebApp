@@ -1,6 +1,6 @@
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { storage } from '../config/firebaseStorage';
-import { assertStorageQuotaForFiles } from './storageQuota';
+import { prepareStorageUpload } from './storageQuota';
 import { signalStorageUsageUpdated } from './storageUsageEvents';
 
 const MAX_TEAM_MEMBER_IMAGE_BYTES = 8 * 1024 * 1024; // 8MB
@@ -43,15 +43,15 @@ export const uploadTeamMemberImage = async (
 	if (!isValidTeamMemberImageFile(file)) {
 		throw new Error('Invalid image. Please use an image under 8MB.');
 	}
-	await assertStorageQuotaForFiles(file, { accountId: userId });
-
 	const fileName = buildFileName(file);
 	const folder = memberId
 		? `team-member-images/${userId}/${memberId}`
 		: `team-member-images/${userId}/uploads`;
-	const storageRef = ref(storage, `${folder}/${fileName}`);
+	const storagePath = `${folder}/${fileName}`;
+	const storageRef = ref(storage, storagePath);
+	const uploadMetadata = await prepareStorageUpload(file, storagePath, { accountId: userId });
 
-	await uploadBytes(storageRef, file, { contentType: file.type });
+	await uploadBytes(storageRef, file, uploadMetadata);
 	const downloadUrl = await getDownloadURL(storageRef);
 	signalStorageUsageUpdated();
 	return downloadUrl;
@@ -78,15 +78,15 @@ export const uploadTeamMemberFile = async (
 	if (!isValidTeamMemberFile(file)) {
 		throw new Error('Invalid file. Please use a valid file type under 10MB.');
 	}
-	await assertStorageQuotaForFiles(file, { accountId: userId });
-
 	const fileName = buildFileName(file);
 	const folder = memberId
 		? `team-member-files/${userId}/${memberId}`
 		: `team-member-files/${userId}/uploads`;
-	const storageRef = ref(storage, `${folder}/${fileName}`);
+	const storagePath = `${folder}/${fileName}`;
+	const storageRef = ref(storage, storagePath);
+	const uploadMetadata = await prepareStorageUpload(file, storagePath, { accountId: userId });
 
-	await uploadBytes(storageRef, file, { contentType: file.type });
+	await uploadBytes(storageRef, file, uploadMetadata);
 	const url = await getDownloadURL(storageRef);
 	signalStorageUsageUpdated();
 

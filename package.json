@@ -123,6 +123,8 @@
 		"test:rules": "node ./node_modules/firebase-tools/lib/bin/firebase.js emulators:exec --only firestore \"node scripts/testFirestoreRules.cjs\"",
 		"test:entitlement-grants": "npm --prefix functions run build && node ./node_modules/firebase-tools/lib/bin/firebase.js emulators:exec --only firestore \"node scripts/testEntitlementGrantIssuance.cjs\"",
 		"test:admin-grant-policy": "npm --prefix functions run build && node scripts/testAdminEntitlementGrantPolicy.cjs",
+		"test:access-codes": "npm --prefix functions run build && node --test functions/complimentaryAccessCodes.test.cjs && node ./node_modules/firebase-tools/lib/bin/firebase.js emulators:exec --only firestore \"node scripts/testComplimentaryAccessCodes.cjs\"",
+		"test:manual-occupancy": "npm --prefix functions run test:manual-occupancy",
 		"test:rules:structure": "node scripts/testFirebaseRules.cjs",
 		"test:storage": "node ./node_modules/firebase-tools/lib/bin/firebase.js emulators:exec --only firestore,storage \"node scripts/testStorageRules.cjs\"",
 		"test:rules:all": "yarn test:rules && yarn test:storage",

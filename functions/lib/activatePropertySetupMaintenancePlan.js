@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.activatePropertySetupMaintenancePlan = exports.buildPropertySetupRecurrence = exports.getPropertySetupTaskId = void 0;
+exports.activatePropertySetupMaintenancePlan = exports.buildPropertySetupRecurrence = exports.getPropertySetupTaskId = exports.deviceBelongsToProperty = exports.propertyBelongsToAccount = exports.validatePropertySetupProposals = exports.validatePropertySetupProposal = void 0;
 const crypto_1 = require("crypto");
 const admin = __importStar(require("firebase-admin"));
 const functions = __importStar(require("firebase-functions/v1"));
@@ -67,7 +67,7 @@ const assertBoundedText = (value, field, maxLength, required = false) => {
     }
     return normalized;
 };
-const validateProposal = (raw) => {
+const validatePropertySetupProposal = (raw) => {
     const proposalId = assertBoundedText(raw?.proposalId, 'proposalId', 160, true);
     const title = assertBoundedText(raw?.title, 'title', 160, true);
     const dueDate = assertBoundedText(raw?.dueDate, 'dueDate', 32, true);
@@ -110,6 +110,25 @@ const validateProposal = (raw) => {
         recurrenceCustomUnit,
     };
 };
+exports.validatePropertySetupProposal = validatePropertySetupProposal;
+const validatePropertySetupProposals = (rawProposals) => {
+    const proposals = Array.isArray(rawProposals) ? rawProposals : [];
+    if (proposals.length > MAX_PROPOSALS) {
+        throw new functions.https.HttpsError('invalid-argument', `No more than ${MAX_PROPOSALS} maintenance proposals may be activated at once.`);
+    }
+    const validated = proposals.map((proposal) => (0, exports.validatePropertySetupProposal)(proposal));
+    if (new Set(validated.map(({ proposalId }) => proposalId)).size !== validated.length) {
+        throw new functions.https.HttpsError('invalid-argument', 'Each proposalId must be unique within an activation request.');
+    }
+    return validated;
+};
+exports.validatePropertySetupProposals = validatePropertySetupProposals;
+const propertyBelongsToAccount = (propertyData, accountId) => (text(propertyData.accountId) ||
+    text(propertyData.userId) ||
+    text(propertyData.ownerId)) === text(accountId);
+exports.propertyBelongsToAccount = propertyBelongsToAccount;
+const deviceBelongsToProperty = (deviceData, propertyId) => text(deviceData.location?.propertyId || deviceData.propertyId) === text(propertyId);
+exports.deviceBelongsToProperty = deviceBelongsToProperty;
 const getPropertySetupTaskId = (accountId, propertyId, proposalId) => `setup_${(0, crypto_1.createHash)('sha256')
     .update(`${accountId}:${propertyId}:${proposalId}`)
     .digest('hex')
@@ -142,14 +161,7 @@ exports.activatePropertySetupMaintenancePlan = functions
     }
     const propertyId = assertBoundedText(data?.propertyId, 'propertyId', 160, true);
     const requestId = assertBoundedText(data?.requestId, 'requestId', 200, true);
-    const rawProposals = Array.isArray(data?.proposals) ? data.proposals : [];
-    if (rawProposals.length > MAX_PROPOSALS) {
-        throw new functions.https.HttpsError('invalid-argument', `No more than ${MAX_PROPOSALS} maintenance proposals may be activated at once.`);
-    }
-    const proposals = rawProposals.map(validateProposal);
-    if (new Set(proposals.map(({ proposalId }) => proposalId)).size !== proposals.length) {
-        throw new functions.https.HttpsError('invalid-argument', 'Each proposalId must be unique within an activation request.');
-    }
+    const proposals = (0, exports.validatePropertySetupProposals)(data?.proposals);
     const accountId = await (0, accountAuthz_1.resolveAccountIdForUser)(uid);
     await (0, accountAuthz_1.assertAccountRole)(uid, accountId, SETUP_ACTIVATION_ROLES);
     const [propertySnapshot, accountOwnerSnapshot] = await Promise.all([
@@ -160,18 +172,14 @@ exports.activatePropertySetupMaintenancePlan = functions
         throw new functions.https.HttpsError('not-found', 'Property was not found.');
     }
     const propertyData = propertySnapshot.data() || {};
-    const propertyAccountId = text(propertyData.accountId) ||
-        text(propertyData.userId) ||
-        text(propertyData.ownerId);
-    if (propertyAccountId !== accountId) {
+    if (!(0, exports.propertyBelongsToAccount)(propertyData, accountId)) {
         throw new functions.https.HttpsError('permission-denied', 'This property does not belong to the active account.');
     }
     const deviceIds = Array.from(new Set(proposals.map(({ deviceId }) => deviceId).filter(Boolean)));
     const deviceSnapshots = await Promise.all(deviceIds.map((deviceId) => db.collection('devices').doc(deviceId).get()));
     for (const deviceSnapshot of deviceSnapshots) {
         const deviceData = deviceSnapshot.data() || {};
-        if (!deviceSnapshot.exists ||
-            text(deviceData.location?.propertyId || deviceData.propertyId) !== propertyId) {
+        if (!deviceSnapshot.exists || !(0, exports.deviceBelongsToProperty)(deviceData, propertyId)) {
             throw new functions.https.HttpsError('invalid-argument', 'Every linked device must belong to the selected property.');
         }
     }

@@ -2,6 +2,8 @@ import * as admin from 'firebase-admin';
 import * as functions from 'firebase-functions/v1';
 import { defineSecret } from 'firebase-functions/params';
 import {
+	getAdminAuditEventId,
+	getComplimentaryTransitionIssues,
 	hasCapability,
 	isSubscriptionCurrentlyEntitled,
 	resolveAccountEntitlements,
@@ -19,6 +21,10 @@ import {
 	HOMEOWNER_PLUS_TRIAL_PROGRAM_ID,
 } from './entitlementGrants';
 import { ENTITLEMENT_FEATURE_FLAGS } from './subscriptionEntitlements';
+import {
+	isMaintleyOwnerGrantRole,
+} from './adminEntitlementGrantPolicy';
+import { resolveGrantAdminAuthority } from './adminPortal';
 
 if (!admin.apps.length) admin.initializeApp();
 
@@ -33,11 +39,16 @@ export const ACCESS_LIFECYCLE_DELIVERIES_COLLECTION =
 const DELIVERY_LEASE_MS = 10 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_TIME_ZONE = 'America/New_York';
+const ADMIN_AUDIT_LOGS_COLLECTION = 'admin_audit_logs';
 
 export type AccessLifecycleMilestone =
 	| 'activation'
 	| 'progress'
 	| 'ending'
+	| 'access_ending_7'
+	| 'renewal_30'
+	| 'renewal_7'
+	| 'renewal_1'
 	| 'expired';
 
 export const ACCESS_LIFECYCLE_MILESTONES: ReadonlyArray<{
@@ -60,6 +71,8 @@ type GrantRecord = Record<string, unknown> & {
 	startsAtMs?: number;
 	endsAtMs?: number;
 	beneficiaryUserId?: string;
+	bundleId?: string;
+	transition?: Record<string, unknown>;
 };
 
 type ProgressCounts = {
@@ -81,6 +94,15 @@ type LifecycleEmailInput = {
 
 const asRecord = (value: unknown): Record<string, unknown> =>
 	typeof value === 'object' && value ? (value as Record<string, unknown>) : {};
+
+const toMillis = (value: unknown): number => {
+	if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
+	if (value && typeof value === 'object' && 'toMillis' in value) {
+		return Number((value as { toMillis: () => number }).toMillis()) || 0;
+	}
+	const parsed = Date.parse(String(value || ''));
+	return Number.isFinite(parsed) ? parsed : 0;
+};
 
 const normalizeTimeZone = (value: unknown): string => {
 	const candidate = String(value || '').trim() || DEFAULT_TIME_ZONE;
@@ -104,18 +126,79 @@ export const formatLifecycleDate = (
 		timeZoneName: 'short',
 	}).format(new Date(valueMs));
 
+type LifecycleMilestoneDefinition = {
+	id: AccessLifecycleMilestone;
+	targetAtMs: number;
+	graceHours: number;
+	inApp: boolean;
+};
+
+const isHomeownerPlusTrial = (grant: GrantRecord): boolean =>
+	String(grant.programId || '') === HOMEOWNER_PLUS_TRIAL_PROGRAM_ID;
+
+export const getLifecycleMilestoneDefinitions = (
+	grant: GrantRecord,
+): LifecycleMilestoneDefinition[] => {
+	const startsAtMs = Number(grant.startsAtMs || 0);
+	const endsAtMs = Number(grant.endsAtMs || 0);
+	if (!Number.isFinite(startsAtMs) || !Number.isFinite(endsAtMs)) return [];
+	if (isHomeownerPlusTrial(grant)) {
+		return ACCESS_LIFECYCLE_MILESTONES.map((definition) => ({
+			id: definition.id,
+			targetAtMs:
+				definition.id === 'expired'
+					? endsAtMs
+					: startsAtMs + definition.offsetDays * DAY_MS,
+			graceHours: definition.graceHours,
+			inApp: definition.inApp,
+		}));
+	}
+
+	const transition = asRecord(grant.transition);
+	const automatic =
+		transition.mode === 'automatic' &&
+		getComplimentaryTransitionIssues(transition as any).length === 0;
+	const firstChargeAtMs = toMillis(transition.firstChargeAt) || endsAtMs;
+	const definitions: LifecycleMilestoneDefinition[] = [
+		{ id: 'activation', targetAtMs: startsAtMs, graceHours: 48, inApp: true },
+	];
+	if (automatic) {
+		for (const [id, days] of [
+			['renewal_30', 30],
+			['renewal_7', 7],
+			['renewal_1', 1],
+		] as const) {
+			const targetAtMs = firstChargeAtMs - days * DAY_MS;
+			// Activation already satisfies a reminder due on the same day.
+			if (targetAtMs > startsAtMs + 60 * 1000) {
+				definitions.push({ id, targetAtMs, graceHours: 72, inApp: true });
+			}
+		}
+	} else {
+		const targetAtMs = endsAtMs - 7 * DAY_MS;
+		if (targetAtMs > startsAtMs) {
+			definitions.push({
+				id: 'access_ending_7',
+				targetAtMs,
+				graceHours: 72,
+				inApp: true,
+			});
+		}
+	}
+	definitions.push({ id: 'expired', targetAtMs: endsAtMs, graceHours: 168, inApp: true });
+	return definitions.sort((left, right) => left.targetAtMs - right.targetAtMs);
+};
+
+const getMilestoneDefinition = (
+	milestone: AccessLifecycleMilestone,
+	grant: GrantRecord,
+): LifecycleMilestoneDefinition | undefined =>
+	getLifecycleMilestoneDefinitions(grant).find((candidate) => candidate.id === milestone);
+
 const getMilestoneTargetMs = (
 	milestone: AccessLifecycleMilestone,
 	grant: GrantRecord,
-): number => {
-	if (milestone === 'expired' && Number.isFinite(Number(grant.endsAtMs))) {
-		return Number(grant.endsAtMs);
-	}
-	const definition = ACCESS_LIFECYCLE_MILESTONES.find(
-		(candidate) => candidate.id === milestone,
-	);
-	return Number(grant.startsAtMs) + Number(definition?.offsetDays || 0) * DAY_MS;
-};
+): number => getMilestoneDefinition(milestone, grant)?.targetAtMs || 0;
 
 export const getLifecycleDeliveryId = (
 	grantId: string,
@@ -130,8 +213,8 @@ export const getDueLifecycleMilestones = (
 	grant: GrantRecord,
 	nowMs: number,
 ): AccessLifecycleMilestone[] =>
-	ACCESS_LIFECYCLE_MILESTONES.filter(
-		(milestone) => getMilestoneTargetMs(milestone.id, grant) <= nowMs,
+	getLifecycleMilestoneDefinitions(grant).filter(
+		(milestone) => milestone.targetAtMs <= nowMs,
 	).map((milestone) => milestone.id);
 
 const renderProgressCards = (progress: ProgressCounts): string =>
@@ -231,6 +314,121 @@ export const renderAccessLifecycleEmail = ({
 	};
 };
 
+type PromotionalLifecycleEmailInput = LifecycleEmailInput & {
+	grant: GrantRecord;
+};
+
+const bundleLabel = (bundleId: unknown): string => {
+	const labels: Record<string, string> = {
+		homeowner_plus: 'Homeowner+',
+		multi_homeowner: 'Multi-Homeowner',
+		property: 'Property',
+		portfolio: 'Portfolio',
+	};
+	return labels[String(bundleId || '')] || 'Maintley';
+};
+
+const formatTransitionPrice = (transition: Record<string, unknown>): string => {
+	const amount = Number(transition.recurringAmountMinor);
+	const currency = String(transition.currency || 'USD').toUpperCase();
+	if (!Number.isFinite(amount) || amount < 0) return 'the disclosed recurring price';
+	try {
+		return new Intl.NumberFormat('en-US', {
+			style: 'currency',
+			currency,
+		}).format(amount / 100);
+	} catch {
+		return `${currency} ${(amount / 100).toFixed(2)}`;
+	}
+};
+
+export const renderPromotionalAccessLifecycleEmail = ({
+	milestone,
+	name,
+	endsAtMs,
+	timeZone,
+	dashboardUrl,
+	upgradeUrl,
+	grant,
+}: PromotionalLifecycleEmailInput): { subject: string; html: string } => {
+	const safeName = escapeHtml(name || 'there');
+	const accessLabel = escapeHtml(bundleLabel(grant.bundleId));
+	const endDate = escapeHtml(formatLifecycleDate(endsAtMs, timeZone));
+	const transition = asRecord(grant.transition);
+	const automatic =
+		transition.mode === 'automatic' &&
+		getComplimentaryTransitionIssues(transition as any).length === 0;
+	const firstChargeAtMs = toMillis(transition.firstChargeAt) || endsAtMs;
+	const firstChargeDate = escapeHtml(formatLifecycleDate(firstChargeAtMs, timeZone));
+	const safeDashboardUrl = escapeHtml(dashboardUrl);
+	const safeUpgradeUrl = escapeHtml(upgradeUrl);
+	const commonIntro = `<p style="margin:0 0 16px; font-size:15px; line-height:1.7; color:${EMAIL_BRAND.slate};">Hi ${safeName},</p>`;
+
+	if (milestone === 'activation') {
+		const transitionCopy = automatic
+			? `Your complimentary period is connected to a Stripe billing relationship. Unless you opt out, the first charge is scheduled for <strong>${firstChargeDate}</strong> at <strong>${escapeHtml(formatTransitionPrice(transition))}</strong> per ${escapeHtml(String(transition.billingCycle || 'billing period'))}.`
+			: transition.mode === 'checkout_required'
+				? 'No automatic charge is scheduled. Continuing after the complimentary period requires an intentional Stripe Checkout.'
+				: 'No payment method is required and no automatic charge is scheduled.';
+		return {
+			subject: `Your complimentary ${accessLabel} access is active`,
+			html: renderMaintleyEmailShell({
+				title: `${accessLabel} access is active`,
+				previewText: `Your complimentary access ends ${endDate}.`,
+				bodyHtml: `${commonIntro}
+					<p style="margin:0 0 14px; font-size:15px; line-height:1.7; color:${EMAIL_BRAND.slate};">Your account now includes complimentary <strong>${accessLabel}</strong> access through <strong>${endDate}</strong>.</p>
+					<div style="margin:18px 0; padding:16px; border-radius:10px; background:${EMAIL_BRAND.canvas}; border:1px solid ${EMAIL_BRAND.accent}; color:${EMAIL_BRAND.slate};">${transitionCopy}</div>
+					${renderMaintleyEmailButton('Open Maintley', safeDashboardUrl)}`,
+			}),
+		};
+	}
+
+	if (['renewal_30', 'renewal_7', 'renewal_1'].includes(milestone)) {
+		const days = milestone === 'renewal_30' ? 30 : milestone === 'renewal_7' ? 7 : 1;
+		return {
+			subject: `${accessLabel} billing begins in ${days} day${days === 1 ? '' : 's'}`,
+			html: renderMaintleyEmailShell({
+				title: 'Upcoming paid continuation',
+				previewText: `Your first charge is scheduled for ${firstChargeDate}.`,
+				bodyHtml: `${commonIntro}
+					<p style="margin:0 0 14px; font-size:15px; line-height:1.7; color:${EMAIL_BRAND.slate};">Your complimentary ${accessLabel} period is approaching its paid continuation.</p>
+					<p style="margin:0 0 14px; font-size:15px; line-height:1.7; color:${EMAIL_BRAND.slate};">Stripe reports the first charge is scheduled for <strong>${firstChargeDate}</strong> at <strong>${escapeHtml(formatTransitionPrice(transition))}</strong> per ${escapeHtml(String(transition.billingCycle || 'billing period'))}.</p>
+					<p style="margin:0 0 18px; font-size:15px; line-height:1.7; color:${EMAIL_BRAND.slate};">Review, cancel, or opt out before that date if you do not want paid access to continue.</p>
+					${renderMaintleyEmailButton('Manage billing', safeDashboardUrl)}`,
+			}),
+		};
+	}
+
+	if (milestone === 'access_ending_7') {
+		return {
+			subject: `Your complimentary ${accessLabel} access ends soon`,
+			html: renderMaintleyEmailShell({
+				title: 'Complimentary access is ending',
+				previewText: `Your access ends ${endDate}; your saved records remain available.`,
+				bodyHtml: `${commonIntro}
+					<p style="margin:0 0 14px; font-size:15px; line-height:1.7; color:${EMAIL_BRAND.slate};">Your complimentary ${accessLabel} access ends on <strong>${endDate}</strong>.</p>
+					<p style="margin:0 0 14px; font-size:15px; line-height:1.7; color:${EMAIL_BRAND.slate};">Every existing property and saved record remains available through your resulting plan. New properties, team members, uploads, and paid automation pause when they exceed that plan's limits.</p>
+					<p style="margin:0 0 18px; font-size:15px; line-height:1.7; color:${EMAIL_BRAND.slate};">No automatic charge is scheduled. Continuing requires intentional Checkout.</p>
+					${renderMaintleyEmailButton('Review plan options', safeUpgradeUrl)}`,
+			}),
+		};
+	}
+
+	return {
+		subject: `Your complimentary ${accessLabel} period has ended`,
+		html: renderMaintleyEmailShell({
+			title: 'Your saved records remain available',
+			previewText: 'Complimentary access ended without deleting your property memory.',
+			bodyHtml: `${commonIntro}
+				<p style="margin:0 0 14px; font-size:15px; line-height:1.7; color:${EMAIL_BRAND.slate};">Your complimentary ${accessLabel} access ended on <strong>${endDate}</strong>.</p>
+				<p style="margin:0 0 14px; font-size:15px; line-height:1.7; color:${EMAIL_BRAND.slate};">Your existing properties, files, maintenance history, and active relationships were not deleted. Paid automation and expansion beyond your resulting limits have stopped.</p>
+				${renderMaintleyEmailButton('Open your account', safeDashboardUrl)}
+				<span style="display:inline-block; width:8px;"></span>
+				${renderMaintleyEmailButton('Review plan options', safeUpgradeUrl)}`,
+		}),
+	};
+};
+
 const isLifecycleEnabled = (): boolean =>
 	ENTITLEMENT_FEATURE_FLAGS.accessLifecycleCommunication === true;
 
@@ -273,6 +471,7 @@ const hasConfirmedPaidAccess = (subscription: unknown, nowMs: number): boolean =
 		nowMs,
 	});
 	return (
+		String(normalizedSubscription.status || '').trim().toLowerCase() === 'active' &&
 		hasCapability(result, 'recurring_tasks.use') &&
 		isSubscriptionCurrentlyEntitled(normalizedSubscription, nowMs)
 	);
@@ -350,10 +549,9 @@ const publishLifecycleNotice = async (
 	grantId: string,
 	endsAtMs: number,
 	timeZone: string,
+	grant: GrantRecord,
 ): Promise<void> => {
-	const definition = ACCESS_LIFECYCLE_MILESTONES.find(
-		(candidate) => candidate.id === milestone,
-	);
+	const definition = getMilestoneDefinition(milestone, grant);
 	if (!definition?.inApp) return;
 	const endDate = formatLifecycleDate(endsAtMs, timeZone);
 	const content: Record<AccessLifecycleMilestone, { title: string; message: string; actionLabel: string; actionUrl: string }> = {
@@ -373,6 +571,30 @@ const publishLifecycleNotice = async (
 			title: 'Homeowner+ trial ending soon',
 			message: `Your trial ends ${endDate}. Your saved property records remain available on Free.`,
 			actionLabel: 'Review your plan',
+			actionUrl: '/profile',
+		},
+		access_ending_7: {
+			title: 'Complimentary access ending soon',
+			message: `Your access ends ${endDate}. Existing properties and saved records remain available through your resulting plan.`,
+			actionLabel: 'Review your plan',
+			actionUrl: '/profile',
+		},
+		renewal_30: {
+			title: 'Paid continuation in 30 days',
+			message: 'Review the first-charge date, recurring price, payment method, and opt-out options in Plan & Usage.',
+			actionLabel: 'Manage billing',
+			actionUrl: '/profile',
+		},
+		renewal_7: {
+			title: 'Paid continuation in 7 days',
+			message: 'Review or change your paid continuation before the first scheduled charge.',
+			actionLabel: 'Manage billing',
+			actionUrl: '/profile',
+		},
+		renewal_1: {
+			title: 'Paid continuation tomorrow',
+			message: 'Your account shows the scheduled first charge and a direct billing-management path.',
+			actionLabel: 'Manage billing',
 			actionUrl: '/profile',
 		},
 		expired: {
@@ -416,9 +638,7 @@ const processMilestone = async (
 		.collection(ACCESS_LIFECYCLE_DELIVERIES_COLLECTION)
 		.doc(deliveryId);
 	const targetAtMs = getMilestoneTargetMs(milestone, grant);
-	const definition = ACCESS_LIFECYCLE_MILESTONES.find(
-		(candidate) => candidate.id === milestone,
-	);
+	const definition = getMilestoneDefinition(milestone, grant);
 	const base = {
 		deliveryId,
 		accountId,
@@ -493,7 +713,7 @@ const processMilestone = async (
 		);
 		const progress = await getProgressCounts(accountId);
 		const origin = getCanonicalAppOrigin();
-		const rendered = renderAccessLifecycleEmail({
+		const renderInput = {
 			milestone,
 			name: String(context.owner.firstName || context.owner.displayName || 'there'),
 			endsAtMs: Number(grant.endsAtMs),
@@ -501,7 +721,10 @@ const processMilestone = async (
 			progress,
 			dashboardUrl: buildAppRouteUrl('/dashboard', origin),
 			upgradeUrl: buildAppRouteUrl('/paywall', origin),
-		});
+		};
+		const rendered = isHomeownerPlusTrial(grant)
+			? renderAccessLifecycleEmail(renderInput)
+			: renderPromotionalAccessLifecycleEmail({ ...renderInput, grant });
 		const resend = getResendClient(RESEND_API_KEY.value());
 		const response = await sendMaintleyEmail(resend, {
 			to: email,
@@ -516,6 +739,7 @@ const processMilestone = async (
 			grantId,
 			Number(grant.endsAtMs),
 			timeZone,
+			grant,
 		);
 		await markDelivery(deliveryRef, {
 			...base,
@@ -549,9 +773,11 @@ export const processAccessLifecycleGrant = async (
 ): Promise<void> => {
 	if (!isLifecycleEnabled()) return;
 	if (
-		String(grant.programId || '') !== HOMEOWNER_PLUS_TRIAL_PROGRAM_ID ||
+		!String(grant.programId || '').trim() ||
+		!String(grant.grantId || '').trim() ||
 		!Number.isFinite(Number(grant.startsAtMs)) ||
-		!Number.isFinite(Number(grant.endsAtMs))
+		!Number.isFinite(Number(grant.endsAtMs)) ||
+		Number(grant.endsAtMs) <= Number(grant.startsAtMs)
 	) {
 		return;
 	}
@@ -609,10 +835,7 @@ export const sendAccessLifecycleEmails = functions
 	.timeZone('Etc/UTC')
 	.onRun(async () => {
 		if (!isLifecycleEnabled()) return null;
-		const snapshot = await db
-			.collectionGroup('entitlementGrants')
-			.where('programId', '==', HOMEOWNER_PLUS_TRIAL_PROGRAM_ID)
-			.get();
+		const snapshot = await db.collectionGroup('entitlementGrants').get();
 		let processed = 0;
 		let failed = 0;
 		for (const grantDoc of snapshot.docs) {
@@ -635,6 +858,12 @@ export const sendAccessLifecycleEmails = functions
 			processed,
 			failed,
 		});
+		if (failed > 0) {
+			functions.logger.warn('Access lifecycle delivery requires operational review', {
+				failed,
+				candidates: snapshot.size,
+			});
+		}
 		return null;
 	});
 
@@ -708,3 +937,87 @@ export const sendAccessLifecycleEmailTest = functions
 		});
 		return { success: true, productionDeliveryStateWritten: false };
 	});
+
+export const sendAdminAccessLifecycleEmail = functions
+	.region('us-central1')
+	.runWith({ secrets: ['RESEND_API_KEY'], timeoutSeconds: 180, memory: '256MB' })
+	.https.onCall(
+		async (
+			data: {
+				sessionToken?: string;
+				targetUserId?: string;
+				grantId?: string;
+				milestone?: string;
+				requestId?: string;
+				reason?: string;
+			},
+			context,
+		) => {
+			if (!isLifecycleEnabled()) {
+				throw new functions.https.HttpsError('failed-precondition', 'Access lifecycle communication is disabled.');
+			}
+			const authority = await resolveGrantAdminAuthority(
+				context,
+				String(data?.sessionToken || ''),
+				true,
+			);
+			const targetUserId = String(data?.targetUserId || '').trim();
+			const grantId = String(data?.grantId || '').trim();
+			const requestId = String(data?.requestId || '').trim();
+			const reason = String(data?.reason || '').trim();
+			const milestone = String(data?.milestone || 'activation') as AccessLifecycleMilestone;
+			if (!targetUserId || !grantId || !/^[a-zA-Z0-9:_-]{8,120}$/.test(requestId)) {
+				throw new functions.https.HttpsError('invalid-argument', 'Target, grant, and stable request ID are required.');
+			}
+			if (reason.length < 10 || reason.length > 500) {
+				throw new functions.https.HttpsError('invalid-argument', 'An audit reason between 10 and 500 characters is required.');
+			}
+			const targetSnapshot = await db.collection('users').doc(targetUserId).get();
+			if (!targetSnapshot.exists) {
+				throw new functions.https.HttpsError('not-found', 'Target user was not found.');
+			}
+			const target = targetSnapshot.data() || {};
+			const accountId = String(target.accountId || targetUserId).trim();
+			if (
+				!isMaintleyOwnerGrantRole(authority.maintleyRole) &&
+				(authority.actorAccountId === accountId || authority.actorUserId === targetUserId)
+			) {
+				throw new functions.https.HttpsError('permission-denied', 'Administrators cannot send grant email to their own account.');
+			}
+			const accountRef = db.collection('familyAccounts').doc(accountId);
+			const grantSnapshot = await accountRef.collection('entitlementGrants').doc(grantId).get();
+			if (!grantSnapshot.exists) {
+				throw new functions.https.HttpsError('not-found', 'The access grant was not found.');
+			}
+			const grant = grantSnapshot.data() as GrantRecord;
+			if (!getMilestoneDefinition(milestone, grant)) {
+				throw new functions.https.HttpsError('invalid-argument', 'That message is not valid for this access program.');
+			}
+			const sentEventId = getAdminAuditEventId('access_email.sent', requestId);
+			const sentAuditRef = db.collection(ADMIN_AUDIT_LOGS_COLLECTION).doc(sentEventId);
+			if ((await sentAuditRef.get()).exists) {
+				return { success: true, outcome: 'replayed', requestId };
+			}
+			const outcome = await processMilestone(accountRef, grant, milestone, Date.now());
+			const action = outcome === 'sent' ? 'access_email.sent' : 'admin_action.replayed';
+			const effectiveRequestId = outcome === 'sent' ? requestId : `${requestId}:replay`;
+			const eventId = getAdminAuditEventId(action, effectiveRequestId);
+			await db.collection(ADMIN_AUDIT_LOGS_COLLECTION).doc(eventId).create({
+				eventId,
+				action,
+				category: 'access_lifecycle',
+				actorUserId: authority.actorUserId,
+				targetAccountId: accountId,
+				targetUserId,
+				grantId,
+				programId: String(grant.programId || ''),
+				reason,
+				requestId: effectiveRequestId,
+				createdAt: admin.firestore.FieldValue.serverTimestamp(),
+				before: { milestone, deliveryRequested: false },
+				after: { milestone, deliveryRequested: true, outcome },
+				metadata: { source: 'admin_access_email', templateVersion: ACCESS_LIFECYCLE_TEMPLATE_VERSION },
+			});
+			return { success: true, outcome, requestId };
+		},
+	);

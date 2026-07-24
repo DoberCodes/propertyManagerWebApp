@@ -88,7 +88,7 @@ const assertBoundedText = (
 	return normalized;
 };
 
-const validateProposal = (raw: SetupTaskProposal): ValidatedProposal => {
+export const validatePropertySetupProposal = (raw: SetupTaskProposal): ValidatedProposal => {
 	const proposalId = assertBoundedText(raw?.proposalId, 'proposalId', 160, true);
 	const title = assertBoundedText(raw?.title, 'title', 160, true);
 	const dueDate = assertBoundedText(raw?.dueDate, 'dueDate', 32, true);
@@ -158,6 +158,42 @@ const validateProposal = (raw: SetupTaskProposal): ValidatedProposal => {
 	};
 };
 
+export const validatePropertySetupProposals = (
+	rawProposals: unknown,
+): ValidatedProposal[] => {
+	const proposals = Array.isArray(rawProposals) ? rawProposals : [];
+	if (proposals.length > MAX_PROPOSALS) {
+		throw new functions.https.HttpsError(
+			'invalid-argument',
+			`No more than ${MAX_PROPOSALS} maintenance proposals may be activated at once.`,
+		);
+	}
+	const validated = proposals.map((proposal) =>
+		validatePropertySetupProposal(proposal as SetupTaskProposal),
+	);
+	if (new Set(validated.map(({ proposalId }) => proposalId)).size !== validated.length) {
+		throw new functions.https.HttpsError(
+			'invalid-argument',
+			'Each proposalId must be unique within an activation request.',
+		);
+	}
+	return validated;
+};
+
+export const propertyBelongsToAccount = (
+	propertyData: Record<string, unknown>,
+	accountId: string,
+): boolean =>
+	(text(propertyData.accountId) ||
+		text(propertyData.userId) ||
+		text(propertyData.ownerId)) === text(accountId);
+
+export const deviceBelongsToProperty = (
+	deviceData: Record<string, any>,
+	propertyId: string,
+): boolean =>
+	text(deviceData.location?.propertyId || deviceData.propertyId) === text(propertyId);
+
 export const getPropertySetupTaskId = (
 	accountId: string,
 	propertyId: string,
@@ -211,20 +247,7 @@ export const activatePropertySetupMaintenancePlan = functions
 
 			const propertyId = assertBoundedText(data?.propertyId, 'propertyId', 160, true);
 			const requestId = assertBoundedText(data?.requestId, 'requestId', 200, true);
-			const rawProposals = Array.isArray(data?.proposals) ? data.proposals : [];
-			if (rawProposals.length > MAX_PROPOSALS) {
-				throw new functions.https.HttpsError(
-					'invalid-argument',
-					`No more than ${MAX_PROPOSALS} maintenance proposals may be activated at once.`,
-				);
-			}
-			const proposals = rawProposals.map(validateProposal);
-			if (new Set(proposals.map(({ proposalId }) => proposalId)).size !== proposals.length) {
-				throw new functions.https.HttpsError(
-					'invalid-argument',
-					'Each proposalId must be unique within an activation request.',
-				);
-			}
+			const proposals = validatePropertySetupProposals(data?.proposals);
 
 			const accountId = await resolveAccountIdForUser(uid);
 			await assertAccountRole(uid, accountId, SETUP_ACTIVATION_ROLES);
@@ -237,11 +260,7 @@ export const activatePropertySetupMaintenancePlan = functions
 				throw new functions.https.HttpsError('not-found', 'Property was not found.');
 			}
 			const propertyData = propertySnapshot.data() || {};
-			const propertyAccountId =
-				text(propertyData.accountId) ||
-				text(propertyData.userId) ||
-				text(propertyData.ownerId);
-			if (propertyAccountId !== accountId) {
+			if (!propertyBelongsToAccount(propertyData, accountId)) {
 				throw new functions.https.HttpsError(
 					'permission-denied',
 					'This property does not belong to the active account.',
@@ -256,10 +275,7 @@ export const activatePropertySetupMaintenancePlan = functions
 			);
 			for (const deviceSnapshot of deviceSnapshots) {
 				const deviceData = deviceSnapshot.data() || {};
-				if (
-					!deviceSnapshot.exists ||
-					text(deviceData.location?.propertyId || deviceData.propertyId) !== propertyId
-				) {
+				if (!deviceSnapshot.exists || !deviceBelongsToProperty(deviceData, propertyId)) {
 					throw new functions.https.HttpsError(
 						'invalid-argument',
 						'Every linked device must belong to the selected property.',

@@ -528,12 +528,23 @@ Examples:
 * sendSeasonalGuidanceEmails
 * sendAccessLifecycleEmails
 * sendAccessLifecycleActivationOnGrantCreate
+* previewComplimentaryAccessCode
+* redeemComplimentaryAccessCode
+* manageManualOccupancy
+* reserveStorageUpload
+* getStorageQuotaStatus
 
 Access lifecycle delivery uses an hourly UTC dispatcher plus a grant-create
 activation trigger. Both are independently disabled by
 `ENABLE_ACCESS_LIFECYCLE_COMMUNICATION`. Key lifecycle milestones also publish
 in-app Maintley Events. Provider attempts and outcomes remain operational data,
 separate from immutable admin decision audit records.
+
+Complimentary access programs, code verifiers, redemption attempts, storage
+upload reservations, grant records, and lifecycle delivery state are
+server-written and client-inaccessible. Storage finalize/delete triggers keep
+the trusted account usage projection synchronized; Storage rules can require a
+live path- and size-bound reservation while preserving read and delete access.
 
 ---
 

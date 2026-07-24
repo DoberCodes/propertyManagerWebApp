@@ -130,11 +130,13 @@ export const getEffectiveAccessPlanId = (
 };
 
 export type ActiveGrantedPlanAccess = {
+	programId: string;
 	planId: string;
 	kind: 'temporary' | 'permanent';
 	source: EntitlementGrant['source'];
 	endsAtMs: number | null;
 	grantIds: string[];
+	transition?: EntitlementGrant['transition'];
 };
 
 const GRANTED_PLAN_RANK: Record<string, number> = {
@@ -175,11 +177,15 @@ export const getActiveGrantedPlanAccess = (
 	planGrants[0]);
 
 	return {
+		programId: representativeGrant.programId,
 		planId,
 		kind: permanentGrant ? 'permanent' : 'temporary',
 		source: representativeGrant.source,
 		endsAtMs: permanentGrant ? null : Number(representativeGrant.endsAtMs || 0),
 		grantIds: planGrants.map((grant) => grant.grantId),
+		...(representativeGrant.transition
+			? { transition: representativeGrant.transition }
+			: {}),
 	};
 };
 

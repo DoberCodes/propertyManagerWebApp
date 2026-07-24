@@ -274,6 +274,7 @@ describe('subscriptionUtils', () => {
 		expect(getEffectiveSubscriptionPlanId(freeWithTrial)).toBe('homeowner');
 		expect(getEffectiveAccessPlanId(freeWithTrial)).toBe('homeowner_plus');
 		expect(getActiveGrantedPlanAccess(freeWithTrial, nowMs)).toEqual({
+			programId: 'homeowner_plus_first_property_trial_v1',
 			planId: 'homeowner_plus',
 			kind: 'temporary',
 			source: 'trial',
@@ -336,6 +337,7 @@ describe('subscriptionUtils', () => {
 		expect(getEffectiveSubscriptionPlanId(freeWithLifetimePortfolio)).toBe('homeowner');
 		expect(getEffectiveAccessPlanId(freeWithLifetimePortfolio)).toBe('portfolio');
 		expect(getActiveGrantedPlanAccess(freeWithLifetimePortfolio, nowMs)).toEqual({
+			programId: 'lifetime_portfolio_v1',
 			planId: 'portfolio',
 			kind: 'permanent',
 			source: 'lifetime',

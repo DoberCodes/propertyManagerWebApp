@@ -2,7 +2,7 @@
 
 Date: 2026-07-23
 
-Status: Approved implementation plan; Phases 1 and 2 complete; Phases 3 and 4 implemented behind disabled launch flags; Phase 5 trusted activation foundation implemented behind a disabled flag; Phase 6 expiration enforcement in progress; Phase 7 trial-lifecycle foundation in progress behind a separate disabled flag
+Status: Approved implementation plan; Phases 1 and 2 complete; Phases 3 through 8 implemented behind independent disabled rollout flags; Phase 9 deployment, production-like validation, observation, and legacy removal remain operational work
 
 Related accepted ADRs:
 
@@ -128,10 +128,12 @@ draft, and Firestore remains the only authoritative setup record. Proposal
 viewed, dismissed, confirmed, and trusted activation events use aggregate
 counts without property, equipment, or task identifiers.
 
-This does not complete Phase 5. Callable authorization/emulator coverage and
-deployed end-to-end validation remain required before enabling trusted
-activation. Draft recovery is intentionally same-device; cross-device draft
-synchronization is not introduced as a second Firestore source of truth.
+Phase 5 source validation now covers proposal input, cross-account property and
+equipment rejection, active privileged membership, deterministic writes, and
+recurrence removal when access is unavailable. Deployed callable and Android
+end-to-end validation remain Phase 9 release gates. Draft recovery is
+intentionally same-device; cross-device draft synchronization is not introduced
+as a second Firestore source of truth.
 
 The initial Phase 6 recurrence-expiration contract is implemented in the task
 completion workflow. Completion writes the Maintenance Event first, resolves
@@ -140,12 +142,21 @@ current paid and internal-grant access from the account projection, and returns
 An expired grant therefore suppresses only the next occurrence and does not
 turn completed maintenance into an error or discard its history.
 
-This does not complete Phase 6. Recurring creation and editing still require a
-trusted server write boundary, contextual `not_entitled` upgrade messaging,
-active-session entitlement refresh validation, and the remaining downgrade,
-storage, team, tenant, and conversion gates.
+Phase 6 now includes the trusted recurring-task writer, grant-aware Firestore
+rule mirrors, over-limit property visibility, team-removal continuity, and a
+trusted manual-occupancy path. Manual occupancy never creates an invitation or
+tenant login. A new Free account cannot use rental continuity; a previously
+eligible rental account can continue data-minimized occupancy administration.
+Stripe synchronization preserves the historical rental-continuity marker.
 
-The initial Phase 7 trial-lifecycle foundation is implemented behind the
+Account-wide storage enforcement now uses short-lived server reservations,
+trusted usage state, Storage-rule verification, and finalize/delete accounting.
+The legacy client-only quota check remains the disabled-flag fallback until the
+new callable, client, Storage rules, and existing-file reconciliation are
+deployed in the required order. Existing files retain read, download, and
+delete access.
+
+Phase 7 lifecycle delivery is implemented behind the
 independent disabled `ENABLE_ACCESS_LIFECYCLE_COMMUNICATION` flag. It includes
 the Day 0, 7, 21, and 30 Homeowner+ trial messages, persistent notices at key
 milestones, program/grant/template/milestone idempotency, bounded catch-up,
@@ -155,10 +166,22 @@ not write production delivery state, and minimized admin troubleshooting
 visibility. Property-document progress is calculated from the canonical
 embedded property records rather than a nonexistent secondary collection.
 
-This does not complete Phase 7. Generic non-trial promotional templates,
-automatic-transition 30/7/1-day communications, admin-requested sends and their
-high-value audit events, provider alerting, and time-controlled Firestore and
-delivery integration tests remain required before broader lifecycle rollout.
+The dispatcher now supports generic promotional activation and expiration,
+Checkout-required ending notices, validated automatic-transition 30/7/1-day
+notices, duplicate 30-day suppression, admin-requested delivery with immutable
+auditing, paid-conversion suppression, and daylight-saving/time-zone fixtures.
+Operational alert routing and production provider validation remain Phase 9
+deployment responsibilities.
+
+Phase 8 implements server-validated complimentary access codes behind
+`ENABLE_COMPLIMENTARY_ACCESS_CODES`. Only HMAC verifiers are stored. Preview and
+transactional redemption enforce program and code limits, account eligibility,
+per-account idempotency, throttling, generic grants, immutable outcome auditing,
+and no Stripe relationship. Promotional bundles can contribute lower
+grant-specific file and storage limits without reducing a separately paid base
+plan. A dry-run-first provisioning command configures programs without printing
+the plaintext code or verifier. Phase 8 must not be enabled before trusted
+storage quota and downgrade continuity pass the deployed Phase 9 gate.
 
 ### Phase 2 direct-check inventory
 
@@ -327,7 +350,7 @@ or printing any secret or price-ID values:
 | --- | --- | --- |
 | Project `.env` | `REACT_APP_STRIPE_MULTIPLE_HOMEOWNER_PLUS_MONTHLY_PRICE_ID`, `REACT_APP_STRIPE_MULTIPLE_HOMEOWNER_PLUS_ANNUAL_PRICE_ID` | Present locally; no current client mapping consumes them |
 | Functions `.env` | `STRIPE_MULTIPLE_HOMEOWNER_PLUS_MONTHLY_PRICE_ID`, `STRIPE_MULTIPLE_HOMEOWNER_PLUS_ANNUAL_PRICE_ID` | Present locally; no current Functions parameter or resolver consumes them |
-| GitHub Actions secrets | `PROD_STRIPE_MULTIPLE_HOMEOWNER_PLUS_MONTHLY_PRICE_ID`, `PROD_STRIPE_MULTIPLE_HOMEOWNER_PLUS_ANNUAL_PRICE_ID` | Secret names verified; the deployment workflow does not currently pass or validate them |
+| GitHub Actions secrets | `PROD_STRIPE_MULTIPLE_HOMEOWNER_PLUS_MONTHLY_PRICE_ID`, `PROD_STRIPE_MULTIPLE_HOMEOWNER_PLUS_ANNUAL_PRICE_ID` | Canonical repository secret names; the deployment workflow maps them to the server-owned Multi-Homeowner price keys and validates both values |
 | `.env.example` | No Multi-Homeowner keys | Must be documented after canonical names are approved |
 | Stripe | Products and prices reported as created by the owner | Price values and product metadata were not independently queried |
 | Firebase runtime | Reported as configured by the owner | Deployed parameter values cannot be established from repository files alone |
@@ -347,8 +370,8 @@ Recommended canonical naming:
 plan ID: multi_homeowner
 server monthly key: STRIPE_MULTI_HOMEOWNER_MONTHLY_PRICE_ID
 server annual key: STRIPE_MULTI_HOMEOWNER_ANNUAL_PRICE_ID
-GitHub names: PROD_STRIPE_MULTI_HOMEOWNER_MONTHLY_PRICE_ID
-              PROD_STRIPE_MULTI_HOMEOWNER_ANNUAL_PRICE_ID
+GitHub names: PROD_STRIPE_MULTIPLE_HOMEOWNER_PLUS_MONTHLY_PRICE_ID
+              PROD_STRIPE_MULTIPLE_HOMEOWNER_PLUS_ANNUAL_PRICE_ID
 ```
 
 The customer-facing plan name remains a separate approval decision.
@@ -870,7 +893,7 @@ Maintley never writes suggested schedules without confirmation.
 
 ### Phase 6 - Enforce expiration, preservation, and conversion
 
-Status: in progress. Recurrence generation now returns reasoned outcomes and
+Status: source implementation complete behind staged rollout controls. Recurrence generation now returns reasoned outcomes and
 checks current billing or internal-grant access. The trusted `manageRecurringTask`
 callable covers recurring creation, schedule updates, and deterministic
 next-occurrence generation. Rules deny active recurrence writes after access
@@ -947,6 +970,10 @@ unconfirmed paid access.
 
 ### Phase 7 - Add lifecycle communication
 
+Status: source implementation complete behind the disabled lifecycle-delivery
+flag. Provider delivery, scheduler alert routing, and production-like duplicate
+observation remain Phase 9 validation gates.
+
 * Add one shared application-link builder before adding templates; it emits the
   current HashRouter format and later changes centrally under ADR 0028.
 * Merge Day 0 trial explanation into the existing welcome path after trusted
@@ -1000,6 +1027,10 @@ separates audit decisions from delivery logs, and links to the correct current
 route format.
 
 ### Phase 8 - Add complimentary access codes and downgrade-safe resource continuity
+
+Status: source implementation complete behind independent disabled access-code
+and trusted-storage flags. Program provisioning, deployed downgrade exercises,
+and staged storage-rule enforcement remain Phase 9 operational gates.
 
 * Model a complimentary access code as a server-validated credential for one
   approved grant program; do not model it as a Stripe coupon, subscription, or
@@ -1087,6 +1118,186 @@ legacy compatibility path has an evidence-based removal decision; every
 manually completed synthetic migration has start and completion audit events,
 verified access parity, an observation result, rollback status, and confirmation
 that no future Stripe invoice remains scheduled.
+
+#### Phase 9 execution plan
+
+Phase 9 is an operational rollout, not a single feature release. Complete each
+stage in order and record its evidence before advancing.
+
+##### 9.0 - Release preflight
+
+* Confirm the production backup/export is recent and restorable.
+* Confirm the entitlement package version, generated Functions output, rules,
+  indexes, and documentation are included in the release commit.
+* Confirm every GitHub Actions variable and secret in the rollout-readiness
+  report exists in the correct location.
+* Confirm Firebase Secrets `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, and
+  `RESEND_API_KEY` exist. Create `COMPLIMENTARY_ACCESS_CODE_PEPPER` before the
+  Functions deployment.
+* Keep every new rollout flag `false`, except a previously validated internal
+  grant flag that is already intentionally active.
+* Record the release commit, deployed Functions revision, rules revision,
+  Android version, web version, test-account IDs, and rollback owner.
+
+**Advance gate:** CI passes from the release commit; configuration contains no
+placeholder values; a rollback operator and test accounts are available.
+
+##### 9.1 - Additive deployment with behavior disabled
+
+* Deploy Functions first, then Firestore rules and Storage rules in compatibility
+  mode, then the web client. Do not require trusted storage reservations yet.
+* Verify callable discovery and CORS from the deployed web origin and localhost
+  for admin grant, setup activation, recurring-task, manual-occupancy,
+  access-code preview, and storage-quota endpoints.
+* Confirm scheduled lifecycle processing remains inert while its flag is false.
+* Confirm no grants, emails, Stripe objects, tasks, tenant invitations, or
+  storage reservations are created merely by deployment.
+
+**Advance gate:** existing Free, Homeowner+, Property, and Portfolio accounts
+behave as before; no new behavior occurs while flags are disabled.
+
+##### 9.2 - Baseline entitlement and client parity
+
+* Test existing plans on desktop web, mobile/tablet web, and a signed Android
+  build.
+* Compare billing plan, effective access, capabilities, limits, and admin view
+  for Free, paid, temporary-grant, permanent-grant, expired-grant, and cancelled
+  fixtures.
+* Re-test Maintley-role authorization, including the Maintley owner exception,
+  and verify ordinary property owners never inherit that exception.
+* Verify the Plan and Usage surface and Stripe customer portal for paid and
+  non-Stripe accounts.
+
+**Advance gate:** zero unexplained entitlement mismatches, unauthorized actions,
+or differences between web, Android, Functions, rules, and admin display.
+
+##### 9.3 - Trusted maintenance writes
+
+* Enable `ENABLE_TRUSTED_SETUP_PLAN_ACTIVATION`, rebuild the clients, and test
+  proposed-plan confirmation, retries, cross-account denial, and duplicate-task
+  prevention.
+* Enable `ENABLE_TRUSTED_RECURRING_TASK_WRITES`, rebuild the clients, and test
+  recurrence creation, editing, completion, next-occurrence generation, and
+  expiration behavior.
+* Leave direct-client compatibility paths in place during observation.
+
+**Rollback:** set the affected variable to `false` and rebuild. Do not delete
+tasks or maintenance events produced by successful trusted requests.
+
+##### 9.4 - Multi-Homeowner paid plan
+
+* Confirm the monthly and annual Stripe prices point to the intended product,
+  amount, currency, tax behavior, and active environment.
+* Enable `ENABLE_MULTI_HOMEOWNER_PLAN` for internal testing.
+* Complete monthly and annual Checkout, webhook activation, customer-portal
+  access, payment-method update, cancellation, failed-payment, admin repair, and
+  downgrade exercises.
+* Verify homeowner terminology and multi-property limits without granting
+  business-only capabilities.
+
+**Rollback:** disable the flag to prevent new selection and Checkout. Preserve
+access for already paid accounts according to Stripe and the resolver; do not
+silently downgrade a valid paid subscription.
+
+##### 9.5 - Homeowner+ first-property trial
+
+* Set `HOMEOWNER_PLUS_TRIAL_ELIGIBILITY_START_AT` to the approved prospective
+  launch boundary.
+* Enable internal grant issuance and the Homeowner+ trial flag for controlled
+  test accounts.
+* Verify no trial is issued when setup begins, property creation fails, Checkout
+  is abandoned, the account predates the eligibility boundary, or the issuance
+  request is retried.
+* Verify exactly one grant after the first property successfully commits, with
+  the correct program ID, timestamps, audit entry, UI, and Free fallback.
+* Exercise expiration with a time-controlled test grant before waiting for a
+  real 30-day trial.
+
+**Rollback:** disable new trial issuance. Existing grants remain authoritative
+until their recorded end or an explicit audited revocation.
+
+##### 9.6 - Lifecycle communications
+
+* Confirm the production Resend sender/domain and recipient safeguards.
+* Enable `ENABLE_ACCESS_LIFECYCLE_COMMUNICATION` only after trial state is
+  accurate in the deployed environment.
+* Test activation, progress, ending, expiration, manual admin send, preference
+  classification, in-app notice, time-zone rendering, paid-conversion
+  suppression, retry, and idempotency behavior.
+* Confirm a 30-day program does not send a duplicate activation-day 30-day
+  reminder.
+* Route scheduler failure, elevated provider failure, and duplicate-key alerts
+  to an owned operational channel before expanding the cohort.
+
+**Rollback:** disable lifecycle communication. This stops new deliveries without
+changing grants, billing, or already-written delivery/audit records.
+
+##### 9.7 - Downgrade, occupancy, and storage continuity
+
+* Use an internal Portfolio fixture above Free property, team, file-count, and
+  storage limits.
+* Expire or revoke its grant and verify all existing properties, active team
+  relationships, records, and files remain discoverable; creation and invitation
+  expansion must stop while above limits.
+* Verify manual occupancy remains editable for existing rental properties,
+  creates no login or invitation, and already activated tenants retain only the
+  approved minimal access.
+* Deploy trusted storage with enforcement off. Enable
+  `ENABLE_TRUSTED_STORAGE_QUOTA`, rebuild supported clients, reconcile usage,
+  and test every upload family plus delete/re-upload behavior.
+* Only after compatible web and Android clients pass, set
+  `appConfig/entitlementRollout.trustedStorageQuotaRequired=true`.
+
+**Rollback:** set the Firestore enforcement field to `false` first, then disable
+the GitHub storage flag and rebuild if necessary. Never delete usage state or
+stored files as part of rollback.
+
+##### 9.8 - Complimentary access codes
+
+* Provision one internal, low-redemption-limit program using the audited local
+  provisioning command. Do not store or print the plaintext code after secure
+  delivery to the intended tester.
+* Enable `ENABLE_COMPLIMENTARY_ACCESS_CODES` and test preview, confirmation,
+  concurrent redemption, replay, expiration, exhausted limits, ineligible
+  account handling, lower promotional quotas, and Free fallback.
+* Confirm no Stripe customer, subscription, invoice, or payment method is
+  created by code redemption. Voluntary continuation must enter Checkout.
+
+**Rollback:** disable the access-code flag to stop preview and redemption.
+Already issued grants remain governed by their recorded lifecycle.
+
+##### 9.9 - Manual synthetic Stripe migration
+
+* Generate a report-only inventory and classify internal/development, lifetime
+  complimentary, and remaining synthetic subscriptions.
+* Migrate one account at a time in that order.
+* Record migration start, intended replacement grant, before-state, operator,
+  reason, and request ID.
+* Create the internal grant idempotently, verify effective-access parity, and
+  observe the account before ending the synthetic Stripe subscription.
+* Confirm cancellation in Stripe, no future invoice, renewal, or schedule, and
+  correct Maintley billing/effective-access reporting.
+* Record completion or rollback. Never bulk-migrate the current account set.
+
+##### 9.10 - Cohort expansion and legacy removal
+
+* Expand one feature and one cohort at a time: Maintley internal accounts,
+  invited testers, a small external cohort, then general availability.
+* Stop immediately for any unauthorized access, data loss, unconsented charge,
+  duplicate grant, duplicate task, duplicate lifecycle message, or hidden
+  retained property/file.
+* During broader cohorts, pause expansion when checkout or callable failure
+  exceeds 5 percent, the same critical workflow fails twice consecutively, or
+  support volume cannot be reviewed within one business day.
+* Remove each legacy path only after all supported web and Android versions use
+  its trusted replacement, its observation window is complete, rollback has
+  been proven, and repository searches/tests identify no remaining consumer.
+* Run the planned full legacy-code audit only after the entitlement rollout is
+  stable. Treat cleanup as a separate reviewed change set.
+
+**Completion gate:** every enabled feature has recorded test evidence, monitoring
+and an owner; every migration has a complete audit trail; all remaining legacy
+paths have a documented keep/remove decision; current docs match production.
 
 ## Expected implementation surface by subsystem
 

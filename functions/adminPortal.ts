@@ -1403,7 +1403,7 @@ const requireMaintleyAdmin = async (
 	};
 };
 
-type GrantAdminAuthority = {
+export type GrantAdminAuthority = {
 	actor: AdminPortalActor;
 	actorUserId: string;
 	actorAccountId: string;
@@ -1412,7 +1412,7 @@ type GrantAdminAuthority = {
 	canManageGrants: boolean;
 };
 
-const resolveGrantAdminAuthority = async (
+export const resolveGrantAdminAuthority = async (
 	context: functions.https.CallableContext,
 	sessionToken: string,
 	requirePermission = true,

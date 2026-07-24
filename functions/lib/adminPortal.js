@@ -36,7 +36,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.updateFeedbackAdminTicketStatus = exports.deleteFeedbackAdminParentTicket = exports.unlinkFeedbackAdminTicket = exports.linkFeedbackAdminTickets = exports.adminPortalManageUserSubscription = exports.adminPortalApplyUserBillingActions = exports.adminPortalRefreshUserSubscriptionFromStripe = exports.adminPortalCreateCheckoutLinkWithCoupon = exports.adminPortalListBillingCoupons = exports.adminPortalCreateBillingCoupon = exports.adminPortalMutateEntitlementGrant = exports.adminPortalPreviewEntitlementGrant = exports.getAdminPortalUserTroubleshootingDetails = exports.listAdminPortalAuditLogs = exports.listAdminPortalUsers = exports.listFeedbackAdminTickets = exports.adminPortalResetPassword = exports.adminPortalLogout = exports.validateAdminPortalSession = exports.adminPortalLogin = void 0;
+exports.updateFeedbackAdminTicketStatus = exports.deleteFeedbackAdminParentTicket = exports.unlinkFeedbackAdminTicket = exports.linkFeedbackAdminTickets = exports.adminPortalManageUserSubscription = exports.adminPortalApplyUserBillingActions = exports.adminPortalRefreshUserSubscriptionFromStripe = exports.adminPortalCreateCheckoutLinkWithCoupon = exports.adminPortalListBillingCoupons = exports.adminPortalCreateBillingCoupon = exports.adminPortalMutateEntitlementGrant = exports.adminPortalPreviewEntitlementGrant = exports.getAdminPortalUserTroubleshootingDetails = exports.listAdminPortalAuditLogs = exports.listAdminPortalUsers = exports.listFeedbackAdminTickets = exports.adminPortalResetPassword = exports.adminPortalLogout = exports.validateAdminPortalSession = exports.adminPortalLogin = exports.resolveGrantAdminAuthority = void 0;
 const functions = __importStar(require("firebase-functions/v1"));
 const admin = __importStar(require("firebase-admin"));
 const crypto_1 = require("crypto");
@@ -1108,6 +1108,7 @@ const resolveGrantAdminAuthority = async (context, sessionToken, requirePermissi
         canManageGrants,
     };
 };
+exports.resolveGrantAdminAuthority = resolveGrantAdminAuthority;
 const TOP_LEVEL_MAINTLEY_ROLE_TOKENS = new Set([
     'admin',
     'top_level',
@@ -1760,7 +1761,7 @@ const assertGrantTargetAllowed = (authority, targetUserId, targetAccountId, prog
 exports.getAdminPortalUserTroubleshootingDetails = functions
     .runWith({ secrets: ADMIN_PORTAL_STRIPE_SECRETS })
     .https.onCall(async (data, context) => {
-    const grantAuthority = await resolveGrantAdminAuthority(context, String(data?.sessionToken || ''), false);
+    const grantAuthority = await (0, exports.resolveGrantAdminAuthority)(context, String(data?.sessionToken || ''), false);
     const targetUserId = String(data?.userId || '').trim();
     if (!targetUserId) {
         throw new functions.https.HttpsError('invalid-argument', 'userId is required.');
@@ -2082,7 +2083,7 @@ exports.adminPortalPreviewEntitlementGrant = functions.https.onCall(async (data,
     if (!subscriptionEntitlements_1.ENTITLEMENT_FEATURE_FLAGS.internalEntitlementGrantIssuance) {
         throw new functions.https.HttpsError('failed-precondition', 'Internal entitlement grant administration is disabled.');
     }
-    const authority = await resolveGrantAdminAuthority(context, String(data?.sessionToken || ''));
+    const authority = await (0, exports.resolveGrantAdminAuthority)(context, String(data?.sessionToken || ''));
     const target = await getAdminGrantTarget(String(data?.targetUserId || ''));
     const action = String(data?.action || '');
     if (!['create', 'extend', 'revoke'].includes(action)) {
@@ -2184,7 +2185,7 @@ const writeFailedGrantAudit = async (params) => {
     }
 };
 exports.adminPortalMutateEntitlementGrant = functions.https.onCall(async (data, context) => {
-    const authority = await resolveGrantAdminAuthority(context, String(data?.sessionToken || ''));
+    const authority = await (0, exports.resolveGrantAdminAuthority)(context, String(data?.sessionToken || ''));
     const requestId = normalizeAdminGrantRequestId(data?.requestId);
     const reason = normalizeAdminGrantReason(data?.reason);
     const action = String(data?.action || '');

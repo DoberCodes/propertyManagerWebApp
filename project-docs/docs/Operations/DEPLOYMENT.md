@@ -282,6 +282,8 @@ Important GitHub Actions secrets include:
 * Stripe price IDs for non-interactive Functions deploy:
   * `PROD_STRIPE_HOMEOWNER_PLUS_MONTHLY_PRICE_ID`
   * `PROD_STRIPE_HOMEOWNER_PLUS_ANNUAL_PRICE_ID`
+  * `PROD_STRIPE_MULTIPLE_HOMEOWNER_PLUS_MONTHLY_PRICE_ID`
+  * `PROD_STRIPE_MULTIPLE_HOMEOWNER_PLUS_ANNUAL_PRICE_ID`
   * `PROD_STRIPE_PROPERTY_MONTHLY_PRICE_ID`
   * `PROD_STRIPE_PROPERTY_ANNUAL_PRICE_ID`
   * `PROD_STRIPE_PORTFOLIO_MONTHLY_PRICE_ID`
@@ -317,6 +319,9 @@ is absent.
 | `HOMEOWNER_PLUS_TRIAL_ELIGIBILITY_START_AT` | ISO 8601 timestamp, for example `2026-08-01T00:00:00-04:00` | Functions: same name | Sets the first-property trial eligibility boundary. Leave empty until a launch boundary is approved. |
 | `ENABLE_TRUSTED_SETUP_PLAN_ACTIVATION` | `true` or `false` | Web: `REACT_APP_ENABLE_TRUSTED_SETUP_PLAN_ACTIVATION` | Routes setup-plan activation through the trusted callable after its backend deployment is verified. |
 | `ENABLE_TRUSTED_RECURRING_TASK_WRITES` | `true` or `false` | Web: `REACT_APP_ENABLE_TRUSTED_RECURRING_TASK_WRITES` | Routes recurring-task creation, schedule edits, and next-occurrence generation through `manageRecurringTask` after the callable is deployed and verified. |
+| `ENABLE_COMPLIMENTARY_ACCESS_CODES` | `true` or `false` | Web: `REACT_APP_ENABLE_COMPLIMENTARY_ACCESS_CODES`; Functions: `ENABLE_COMPLIMENTARY_ACCESS_CODES` | Enables customer preview and redemption of pre-provisioned internal access-code programs. It never enables Stripe billing. |
+| `ENABLE_TRUSTED_STORAGE_QUOTA` | `true` or `false` | Web: `REACT_APP_ENABLE_TRUSTED_STORAGE_QUOTA`; Functions: `ENABLE_TRUSTED_STORAGE_QUOTA` | Routes uploads and usage displays through server quota reservations. Storage-rule enforcement is activated separately after compatible clients deploy. |
+| `STRIPE_CUSTOMER_PORTAL_URL` | Public Stripe-hosted portal URL | Web: `REACT_APP_STRIPE_CUSTOMER_PORTAL_URL` | Sends customers to Stripe's hosted billing-management login. This is a repository variable, not a secret. |
 
 `ENABLE_TRUSTED_SETUP_PLAN_ACTIVATION` must remain `false` or absent until
 `activatePropertySetupMaintenancePlan` is deployed and authorization has been
@@ -333,6 +338,26 @@ remain only for contextual interface messaging.
 Local development uses the destination names shown above in `.env` or
 `functions/.env`. The repository commits only `.env.example`; `.env*` files are
 ignored, and generated CI `functions/.env` files must never be committed.
+
+`COMPLIMENTARY_ACCESS_CODE_PEPPER` is a Firebase Functions secret, not a GitHub
+Actions variable and not a normal dotenv value in production. Create it with
+`firebase functions:secrets:set COMPLIMENTARY_ACCESS_CODE_PEPPER` using at least
+32 random characters before deploying the access-code callables. `RESEND_API_KEY`
+remains the Firebase Functions secret used by lifecycle delivery. Do not copy
+either value into repository Variables.
+
+Trusted storage quota rollout has three deliberate steps: deploy the callable,
+triggers, and compatible clients while both rollout controls are disabled; set
+`ENABLE_TRUSTED_STORAGE_QUOTA=true` and validate reservations internally; then
+set `appConfig/entitlementRollout.trustedStorageQuotaRequired=true` only after
+all supported clients use reservations. The Firestore setting is server-managed
+operational configuration, not a GitHub Actions variable. Reverting it to
+`false` immediately restores the compatibility rule without deleting usage
+state or files.
+
+Account quota covers property documents and photos, equipment and maintenance
+files, and account team files. Authentication profile avatars are identity UI
+assets and are intentionally outside the property-record quota.
 
 Frontend builds run `scripts/validateFrontendEnv.cjs` before `react-scripts
 build`. Missing values or placeholder values such as `YOUR_STORAGE_BUCKET`

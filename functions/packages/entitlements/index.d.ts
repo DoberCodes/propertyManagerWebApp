@@ -57,6 +57,9 @@ export type AdminAuditAction =
 	| 'grant.converted'
 	| 'grant.lifetime_created'
 	| 'program.applied'
+	| 'program.configured'
+	| 'program.redemption_failed'
+	| 'program.redemption_replayed'
 	| 'billing_transition.linked'
 	| 'billing_transition.updated'
 	| 'billing_transition.opted_out'
@@ -114,6 +117,9 @@ export interface EntitlementGrant {
 	bundleId?: string;
 	bundleVersion?: string;
 	capabilityOverrides?: Partial<Record<CapabilityId | string, boolean>>;
+	/** Replaces limits contributed by this grant's bundle before additive account merging. */
+	bundleLimitOverrides?: Partial<Record<LimitId | string, number>>;
+	/** Adds account-level limits after the grant bundle is merged. */
 	limitOverrides?: Partial<Record<LimitId | string, number>>;
 	startsAtMs: number;
 	endsAtMs?: number | null;
@@ -126,6 +132,7 @@ export interface EntitlementGrant {
 	policyVersion?: string;
 	terminalReason?: string;
 	terminalAtMs?: number;
+	transition?: ComplimentaryPaidTransition;
 }
 
 export interface ComplimentaryPaidTransition<TTimestamp = unknown> {
