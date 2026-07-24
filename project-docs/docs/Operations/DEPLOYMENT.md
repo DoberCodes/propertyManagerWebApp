@@ -301,6 +301,13 @@ During CI, these Stripe price IDs are written into a temporary
 Firebase Functions params are resolved from dotenv files during non-interactive
 deploys. The file is ignored by git and should not be committed.
 
+The shared `@maintley/entitlements` package is stored at
+`functions/packages/entitlements`. Firebase uploads only the configured
+Functions source directory, so local file dependencies used by Functions must
+remain inside that boundary. Run `yarn validate:functions-package` before a
+Functions deployment. The Firebase predeploy hook and GitHub Actions workflow
+also run this validation automatically.
+
 Review environment setup before deploying billing, email, or notification changes.
 
 ## GitHub Actions Firebase Deploy Authentication

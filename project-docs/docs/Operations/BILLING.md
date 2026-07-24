@@ -38,7 +38,7 @@ Those definitions belong in MAINTLEY_PLAN_FEATURE_MATRIX.md.
 
 Source files:
 
-* packages/entitlements
+* functions/packages/entitlements
 * src/constants/subscriptions.ts
 * src/utils/subscriptionUtils.ts
 * functions/subscriptionEntitlements.ts
@@ -67,7 +67,7 @@ MAINTLEY_PLAN_FEATURE_MATRIX.md
 ## Entitlement foundation
 
 The web application and Firebase Functions now share the pure resolver in
-`packages/entitlements`. Client and server feature helpers resolve typed
+`functions/packages/entitlements`. Client and server feature helpers resolve typed
 capabilities and limits from that package. Compatibility wrappers preserve
 existing subscription records. Internal grant issuance remains independently
 launch-gated.

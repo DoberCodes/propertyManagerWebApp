@@ -23,7 +23,7 @@ highlights are maintained in:
 src/config/publicPlanFacts.json
 ```
 
-`packages/entitlements` defines the shared versioned plan presets, capability
+`functions/packages/entitlements` defines the shared versioned plan presets, capability
 vocabulary, limits, and compatibility resolver used by the web application and
 Firebase Functions. During the existing-plan parity migration,
 `src/constants/subscriptions.ts` remains the legacy feature-permission map and

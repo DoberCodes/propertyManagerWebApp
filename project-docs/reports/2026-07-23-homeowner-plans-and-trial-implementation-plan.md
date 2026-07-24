@@ -133,7 +133,7 @@ the following classification. It runs as part of the production web build.
 
 | Classification | Approved locations and purpose |
 | --- | --- |
-| Resolver boundary | `packages/entitlements`, `src/utils/subscriptionUtils.ts`, `functions/subscriptionEntitlements.ts`, and the Firestore rule mirror define capabilities, limits, compatibility behavior, and default-deny handling. |
+| Resolver boundary | `functions/packages/entitlements`, `src/utils/subscriptionUtils.ts`, `functions/subscriptionEntitlements.ts`, and the Firestore rule mirror define capabilities, limits, compatibility behavior, and default-deny handling. |
 | Billing and pricing | Stripe Functions, the admin billing portal, account deletion billing cleanup, registration, Paywall, User Profile, billing banners, and public pricing compare or display plan identity because the plan is the billing or packaging subject. |
 | Presentation and persona | Account snapshots, primary navigation, homeowner vocabulary, setup, device, and tab surfaces use the resolved plan only to select labels or layout. These checks do not authorize a feature. |
 | Analytics | Plan identity may remain an event and reporting dimension; effective-access reporting remains separate. No analytics event grants access. |

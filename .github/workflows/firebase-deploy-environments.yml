@@ -152,6 +152,10 @@ jobs:
         if: steps.deploy-targets.outputs.has_targets == 'true'
         run: yarn --cwd functions install --frozen-lockfile
 
+      - name: Validate Functions deploy package
+        if: steps.deploy-targets.outputs.has_targets == 'true' && contains(steps.deploy-targets.outputs.targets, 'functions')
+        run: yarn validate:functions-package
+
       - name: Build functions
         if: steps.deploy-targets.outputs.has_targets == 'true' && contains(steps.deploy-targets.outputs.targets, 'functions')
         run: yarn --cwd functions build

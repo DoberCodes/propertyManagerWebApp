@@ -12,6 +12,7 @@ const extensions = new Set(['.ts', '.tsx', '.js']);
 const allowedDirectPlanChecks = new Map([
 	['functions/adminPortal.ts', 'billing and admin presentation'],
 	['functions/deleteUserAccount.ts', 'billing cleanup'],
+	['functions/packages/entitlements/index.js', 'canonical shared resolver'],
 	['functions/stripeFunctions.ts', 'server pricing and billing mapping'],
 	['functions/subscriptionEntitlements.ts', 'approved resolver boundary'],
 	['src/Components/AccountSnapshot/AccountSnapshot.tsx', 'plan presentation'],

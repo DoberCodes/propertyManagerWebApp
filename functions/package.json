@@ -23,7 +23,7 @@
 		"stripe:webhook:auto": "bash listen-and-update-webhook-secret.sh"
 	},
 	"dependencies": {
-		"@maintley/entitlements": "file:../packages/entitlements",
+		"@maintley/entitlements": "file:packages/entitlements",
 		"cors": "^2.8.6",
 		"dotenv": "^17.2.3",
 		"firebase-admin": "^12.0.0",

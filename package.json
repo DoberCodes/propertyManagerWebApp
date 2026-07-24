@@ -5,7 +5,7 @@
 	"type": "module",
 	"homepage": "./",
 	"dependencies": {
-		"@maintley/entitlements": "file:packages/entitlements",
+		"@maintley/entitlements": "file:functions/packages/entitlements",
 		"@capacitor/android": "^8.4.1",
 		"@capacitor/app": "^8.1.0",
 		"@capacitor/browser": "^8.0.3",
@@ -62,6 +62,7 @@
 		"analyze:media": "node scripts/reportMediaAssets.cjs",
 		"check:asset-budgets": "node scripts/checkAssetBudgets.cjs",
 		"check:entitlement-boundaries": "node scripts/checkEntitlementBoundaries.cjs",
+		"validate:functions-package": "node scripts/validateFunctionsDeployPackage.cjs",
 		"audit:scripts": "node scripts/auditScripts.cjs",
 		"audit:decisions": "node scripts/auditDecisions.cjs",
 		"adr:author": "node scripts/promoteAdrCandidates.cjs --author",
