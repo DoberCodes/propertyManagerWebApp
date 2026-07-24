@@ -146,16 +146,24 @@ jobs:
           echo "has_targets=true" >> "$GITHUB_OUTPUT"
           echo "Firebase deploy targets: $TARGETS"
 
-      - name: Use Node.js
+      - name: Use Node.js for root validation dependencies
         if: steps.deploy-targets.outputs.has_targets == 'true'
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
           cache: 'yarn'
 
       - name: Install root validation dependencies
         if: steps.deploy-targets.outputs.has_targets == 'true'
         run: yarn install --frozen-lockfile
+
+      - name: Use Node.js for Functions
+        if: steps.deploy-targets.outputs.has_targets == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'yarn'
+          cache-dependency-path: functions/yarn.lock
 
       - name: Install functions dependencies
         if: steps.deploy-targets.outputs.has_targets == 'true'

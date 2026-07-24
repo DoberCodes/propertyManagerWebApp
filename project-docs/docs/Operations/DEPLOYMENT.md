@@ -748,7 +748,9 @@ Functions deployment dependencies. Firestore and Storage emulator gates use
 the root rules-testing package, while Functions builds and callable emulator
 tests use `functions/node_modules`; neither dependency set may be omitted from
 the deployment job merely because the earlier build-check job installed it in a
-separate runner.
+separate runner. Root dependencies are installed under Node 24 to satisfy the
+current web and Capacitor tooling engines; the job then switches to Node 20 for
+the Functions package, matching the deployed Functions runtime.
 
 If `package.json` is already ahead of the latest `v*` tag because a release was
 prepared but not tagged locally yet, new releaseable changes are bumped from the
