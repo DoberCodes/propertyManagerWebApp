@@ -734,8 +734,10 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
 							<UserDetailsKey>Grant Administration</UserDetailsKey>
 							<div style={{ display: 'grid', gap: 8 }}>
 								<UserDetailsValue>
-									{!details.access?.grantAdministration?.enabled
-										? 'Disabled by the internal entitlement-grant rollout flag.'
+									{!details.access?.grantAdministration
+										? 'Grant administration is unavailable until the updated Firebase Functions are deployed.'
+										: !details.access.grantAdministration.enabled
+											? 'Disabled by the internal entitlement-grant rollout flag.'
 										: details.access.grantAdministration.canManage
 											? details.access.grantAdministration.isMaintleyOwner
 												? 'Maintley owner: unrestricted grant administration, including self-grants and lifetime access.'
