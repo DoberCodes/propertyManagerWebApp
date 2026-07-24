@@ -2823,7 +2823,7 @@
   resolved "https://registry.npmjs.org/@leichtgewicht/ip-codec/-/ip-codec-2.0.5.tgz"
   integrity sha512-Vo+PSpZG2/fmgmiNzYK9qWRh8h/CHrwD0mo1h1DzL4yzHNSfWYujGTYsWGreD000gcgmZ7K4Ys6Tx9TxtsKdDw==
 
-"@maintley/entitlements@file:packages/entitlements":
+"@maintley/entitlements@file:functions/packages/entitlements":
   version "0.1.0"
 
 "@modelcontextprotocol/sdk@^1.24.0":

@@ -41,6 +41,7 @@ Before running any migration, cleanup, pruning, or apply script, verify it again
 - `adr:author` prepares humanized review drafts in `project-docs/reports/decision-audit-YYYY-MM/approved/`.
 - `adr:promote` writes final accepted ADRs into `project-docs/ADR/`.
 - `adr:author`, `adr:promote`, and `adr:promote:dry-run` are the canonical ADR workflow commands.
+- `validate:functions-package` verifies that local Functions dependencies are contained within the Firebase upload boundary.
 
 ### ADR Promotion Queue Workflow
 

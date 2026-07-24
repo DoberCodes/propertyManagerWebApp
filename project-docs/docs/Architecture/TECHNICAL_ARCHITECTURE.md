@@ -446,11 +446,12 @@ See:
 Runtime-neutral entitlement contracts and resolution live in:
 
 ```text
-packages/entitlements
+functions/packages/entitlements
 ```
 
 The browser and Firebase Functions consume the same pure resolver through local
-package dependencies. It separates billing state from effective capabilities,
+package dependencies. The canonical package lives inside the Functions source
+directory so Firebase includes it in the deployment upload. It separates billing state from effective capabilities,
 supports versioned plan bundles and account-scoped additive grants, uses an
 explicit clock for expiration, and emits diagnostics for compatibility or
 default-deny outcomes.
