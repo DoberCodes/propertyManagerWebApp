@@ -10,6 +10,10 @@ on:
       - android/app/build.gradle
   workflow_dispatch:
 
+concurrency:
+  group: release-prep
+  cancel-in-progress: true
+
 jobs:
   prepare-release-pr:
     if: "${{ github.event_name != 'push' || startsWith(github.event.head_commit.message, 'release: prepare v') == false }}"
@@ -92,6 +96,12 @@ jobs:
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          REMOTE_BRANCH_SHA="$(git ls-remote --heads origin "refs/heads/$BRANCH" | awk '{print $1}')"
+          if [[ -n "$REMOTE_BRANCH_SHA" ]]; then
+            git fetch origin "+refs/heads/$BRANCH:refs/remotes/origin/$BRANCH"
+          fi
+
           git checkout -B "$BRANCH"
           git add package.json client/package.json android/app/build.gradle
           git commit -m "release: prepare v$VERSION"
