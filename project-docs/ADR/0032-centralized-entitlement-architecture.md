@@ -390,6 +390,54 @@ The Homeowner+ trial in ADR 0030 is the first planned use of this grant model.
 Its expiration removes the temporary Homeowner+ capabilities while leaving the
 active Free base plan intact.
 
+### Customer-redeemed complimentary access programs
+
+A customer-redeemed complimentary access code is a trusted issuance path into
+the canonical grant model. It is not a Stripe coupon, billing discount, plan,
+or independently resolved entitlement. A successful redemption creates the
+approved temporary grant for the code's stable program and bundle.
+
+Every access-code program must define server-owned policy for:
+
+* stable program and bundle identifiers
+* grant duration and redemption expiration
+* total and per-account redemption limits
+* eligible account and relationship types
+* transition mode after complimentary access
+* revocation, support, reporting, and audit treatment
+
+Redemption must be transactional, idempotent, rate-limited, and server
+validated. Redeemable secrets must not be stored or logged in plaintext.
+Repeated, expired, exhausted, or ineligible redemption attempts must fail
+without partially issuing or extending a grant. Audit records identify the
+program and outcome without retaining the redeemable secret.
+
+### Entitlement loss and property visibility
+
+Property ownership and inventory visibility are not paid capabilities. Losing
+a multi-property entitlement must never delete, transfer, or conceal an owned
+property or its property memory.
+
+When an account falls back to Free while owning more properties than the Free
+limit:
+
+* every owned property remains discoverable in the property list and selector
+* one customer-selected property remains the active Free property
+* additional properties remain preserved and visibly restricted
+* restricted properties retain their equipment, documents, maintenance
+  history, tasks, relationships, and audit records
+* new paid-only activity and over-limit creation are blocked without deleting
+  existing records
+* essential data-control actions remain available, including export, download,
+  transfer, deletion, and selection of the active Free property
+* restored eligible access immediately re-enables the preserved properties
+  according to the resolved bundle and current relationship permissions
+
+If the customer has not selected an active Free property before expiration, a
+deterministic server-owned fallback chooses one without changing ownership.
+Lifecycle communication and the authenticated account experience must provide
+the customer a reasonable opportunity to choose before that fallback occurs.
+
 ## Complimentary-to-paid transition contract
 
 An internal grant may describe an intended transition to paid access, but grant
@@ -580,6 +628,8 @@ Each individual migration uses this sequence:
   product access.
 * Incorrect resolver behavior could affect multiple features, requiring strong
   parity and regression tests.
+* Multi-property downgrades require a visible restricted-property state instead
+  of treating the plan limit as a property-list filter.
 
 ## Future considerations
 
@@ -592,6 +642,7 @@ This architecture supports:
 * grandfathered plan bundles
 * Organization-specific feature flags
 * additional homeowner and business plan variations
+* customer-redeemed complimentary access programs
 
 The objective is to keep Maintley as one application with shared interfaces,
 while assembling product experiences through entitlement bundles rather than

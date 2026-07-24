@@ -193,6 +193,34 @@ Before enabling an automatically paid transition, review must cover:
 The implementation plan may define technical controls, but it does not replace
 appropriate legal review.
 
+### 10. Apply the lifecycle contract to complimentary access codes
+
+Maintley may allow a customer to redeem a complimentary access code that
+issues a temporary internal entitlement grant. These codes are access-program
+credentials, not Stripe coupons or promotion codes. Redemption must not create
+a Stripe customer, subscription, invoice, payment method, renewal, or charge.
+
+Each access-code program must clearly identify:
+
+* the included access bundle and complimentary end date
+* whether access simply ends or requires an intentional Checkout action to
+  continue
+* the account access that remains after expiration
+* any properties or capabilities that will become restricted
+* the direct path to continue with paid access when offered
+
+Non-renewing access-code programs use transition mode `none` or
+`checkout_required`; they never imply automatic continuation. If a customer
+chooses to continue, paid conversion requires intentional Stripe Checkout and
+Stripe confirmation under ADR 0032.
+
+Before a multi-property grant expires, key email and in-app notices must explain
+that Maintley preserves every owned property and its records. The notices must
+also explain which property remains active on Free, how to choose that property,
+and how preserved additional properties can be restored through eligible paid
+or complimentary access. Maintley must not describe preserved properties as
+deleted, lost, or transferred.
+
 ## Consequences
 
 ### Benefits
@@ -212,6 +240,8 @@ appropriate legal review.
 * Promotional programs must provide accurate renewal terms to communication
   templates and lifecycle scheduling.
 * Account surfaces must remain synchronized with Stripe-backed billing facts.
+* Multi-property complimentary programs require downgrade-aware property
+  messaging and an accessible property-selection experience.
 
 ## Implementation configuration
 
@@ -223,6 +253,8 @@ settings. Implementation must configure and validate:
 3. whether conversion also sends a separate paid-plan confirmation
 4. the approved program catalog and transition mode for each program
 5. the reminder schedule required by program terms and applicable law
+6. access-code eligibility, redemption limits, expiration, and post-grant
+   fallback behavior
 
 For a 30-day complimentary period, activation satisfies the 30-day reminder
 requirement and a second activation-day reminder must not be sent.

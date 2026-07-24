@@ -640,7 +640,8 @@ Phase 0: decisions and canonical configuration
             -> Phase 5: premium onboarding
             -> Phase 6: expiration and conversion
             -> Phase 7: lifecycle communication
-  -> Phase 8: staged release, observation, and cleanup
+            -> Phase 8: access codes and downgrade-safe property access
+  -> Phase 9: staged release, observation, and cleanup
 ```
 
 Phases 3 and 4 may be developed independently after Phase 2 passes, but they
@@ -678,6 +679,9 @@ behavior, quantitative limits, delivery gates, and authorization.
   cancellation and opt-out presentation, promotional terms, communication
   classification, reminder timing, jurisdictional requirements, and retention.
 * Define independent launch flags and rollback owners.
+* Configure complimentary access-code programs, including bundle, duration,
+  redemption expiration, eligibility, total and per-account limits, transition
+  mode, and post-expiration fallback.
 
 **Gate:** decisions are recorded, the canonical names are present in every
 required environment, and no secret or price value is committed to Git.
@@ -841,6 +845,14 @@ Maintley never writes suggested schedules without confirmation.
 * For counts or storage above Free limits, preserve read/download/delete access
   and prevent only additional over-limit creation until the account upgrades or
   returns within the limit.
+* Keep every owned property visible in the property list and selector after a
+  multi-property grant or subscription ends.
+* Let the customer choose one active Free property and represent additional
+  properties as preserved and restricted rather than absent or deleted.
+* Define a deterministic server-owned fallback when no active Free property was
+  selected before expiration, without changing property ownership.
+* Preserve essential export, transfer, deletion, and active-property-selection
+  actions for restricted properties.
 * Refresh entitlements during active sessions and before premium writes so an
   old browser or Android client cannot retain stale trial access.
 * Apply the approved paid-conversion timing, suppress the temporary grant without
@@ -893,6 +905,9 @@ unconfirmed paid access.
   zone, and test daylight-saving and time-zone boundaries.
 * Suppress remaining trial messages after paid conversion, deletion, revocation,
   or terminal ineligibility.
+* For expiring multi-property access, show the active Free property, affected
+  preserved properties, the selection action, and the intentional Checkout path
+  without implying that records will be deleted.
 * Write a high-value admin audit event for an admin-triggered email request and
   keep provider attempts, retries, bounces, and delivery results in linked
   operational logs.
@@ -910,7 +925,40 @@ does not duplicate activation and 30-day notices, handles time-zone boundaries,
 separates audit decisions from delivery logs, and links to the correct current
 route format.
 
-### Phase 8 - Release, observe, and remove legacy paths
+### Phase 8 - Add complimentary access codes and downgrade-safe property access
+
+* Model a complimentary access code as a server-validated credential for one
+  approved grant program; do not model it as a Stripe coupon, subscription, or
+  plan.
+* Store only a secure verifier for redeemable codes and prevent plaintext codes
+  from appearing in Firestore records, logs, analytics, or audit metadata.
+* Add trusted transactional redemption with stable request IDs, per-account
+  idempotency, total redemption limits, program expiration, account eligibility,
+  abuse throttling, and explicit terminal outcomes.
+* Issue the same canonical account grant used by administrative programs and
+  resolve it through the shared entitlement resolver.
+* Add a customer-facing redemption surface that previews the included bundle,
+  duration, expiration behavior, and absence of automatic billing before
+  confirmation.
+* Add a downgrade-safe property selector that remains usable on Free, lists all
+  owned properties, distinguishes the active Free property from preserved
+  restricted properties, and provides the approved data-control actions.
+* Add a pre-expiration active-property selection flow and deterministic fallback
+  when the customer makes no selection.
+* Route voluntary continuation through intentional Stripe Checkout. Suppress
+  obsolete access-code lifecycle messages only after Stripe confirms paid
+  access.
+* Audit successful, failed, expired, exhausted, repeated, and ineligible
+  redemption outcomes without recording the redeemable secret.
+* Keep access-code redemption behind an independent server-controlled flag.
+
+**Gate:** a Portfolio complimentary-access code cannot launch until a Free
+account can discover every owned property, choose its active Free property, use
+essential data-control actions on preserved restricted properties, and restore
+eligible access without data loss; concurrent redemption tests issue at most one
+grant and no path creates a Stripe billing relationship without Checkout.
+
+### Phase 9 - Release, observe, and remove legacy paths
 
 * Deploy additive Functions, indexes, and rules that remain compatible with the
   currently hosted client before deploying code that depends on them.
@@ -922,6 +970,9 @@ route format.
   checkout, webhook, admin repair, cancellation, and downgrade exercises.
 * Enable trial issuance, onboarding automation, expiration, and lifecycle email
   independently for internal accounts before any broader cohort.
+* Enable complimentary access-code redemption only for internal programs after
+  the Phase 8 downgrade and redemption gates pass; expand through staged code
+  cohorts independently from trial issuance.
 * Run the synthetic Stripe migration inventory in report-only mode, then migrate
   accounts manually in the approved order: internal founder and development
   accounts, lifetime complimentary accounts, and remaining synthetic accounts
@@ -983,6 +1034,8 @@ not remain parallel implementations.
 * `functions/stripeFunctions.ts` and `functions/adminPortal.ts`
 * transition-mode, consent, payment-method summary, first-charge, opt-out, and
   failed-conversion services
+* secure access-code program configuration, verifier storage, redemption
+  transaction, rate limiting, and outcome audit services
 * checkout, webhook, price-to-plan, plan-to-price, coupon, schedule, and repair
   tests
 * `.env.example` and Firebase/GitHub deployment environment generation
@@ -995,7 +1048,9 @@ server owns Stripe price selection.
 
 * registration and paid-checkout recovery
 * authenticated paywall, settings, and admin support views
-* authenticated complimentary-access and billing control surface
+* authenticated complimentary-access, access-code redemption, and billing
+  control surfaces
+* downgrade-safe property selector and preserved restricted-property state
 * homepage and static pricing
 * Property Setup Assistant and trial status messaging
 * account and dashboard trial surfaces
@@ -1090,6 +1145,28 @@ server owns Stripe price selection.
   complimentary access, refresh the view, and create the correct audit event.
 * Failed payment, required authentication, and missing payment method never
   produce unconfirmed paid access or data loss.
+
+### Complimentary access-code redemption and downgrade preservation
+
+* Access codes issue only the approved program's canonical temporary grant and
+  never create Stripe billing objects.
+* Plaintext codes do not appear in stored records, logs, analytics, or audit
+  entries.
+* Concurrent, repeated, expired, exhausted, rate-limited, and ineligible
+  attempts cannot partially issue, duplicate, or extend access.
+* Program-wide and per-account redemption limits remain correct under
+  concurrent requests.
+* A Portfolio grant exposes the approved capabilities and limits only for its
+  authoritative active period.
+* Expiration leaves every owned property visible, preserves its records, and
+  leaves exactly one customer-selected or deterministically selected active
+  Free property.
+* Preserved restricted properties retain export, download, transfer, deletion,
+  and active-property-selection controls without permitting paid-only writes.
+* Renewed paid or complimentary eligibility restores preserved properties
+  without migration, duplication, or ownership changes.
+* The Portfolio access-code launch flag cannot enable while the downgrade-safe
+  property-selection gate is incomplete.
 
 ### Admin grant governance and auditing
 
@@ -1212,6 +1289,7 @@ Use independent server-controlled flags for:
 * Homeowner+ trial issuance
 * premium onboarding automation
 * lifecycle email dispatch
+* complimentary access-code redemption
 
 Disabling a flag must stop new enrollment or delivery without deleting grants,
 subscriptions, properties, tasks, documents, or history.
