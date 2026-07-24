@@ -60,6 +60,7 @@ export type AdminAuditAction =
 	| 'billing_transition.linked'
 	| 'billing_transition.updated'
 	| 'billing_transition.opted_out'
+	| 'billing.stripe_linkage_cleared'
 	| 'access_email.sent'
 	| 'stripe_migration.started'
 	| 'stripe_migration.completed'

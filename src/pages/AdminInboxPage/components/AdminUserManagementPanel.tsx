@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import {
     Button,
@@ -128,6 +128,10 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
     const [trialDays, setTrialDays] = useState('');
     const [planActionLoading, setPlanActionLoading] = useState(false);
     const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+	const [showClearStripeConfirm, setShowClearStripeConfirm] = useState(false);
+	const [stripeClearReason, setStripeClearReason] = useState('');
+	const [stripeClearConfirmation, setStripeClearConfirmation] = useState('');
+	const [stripeClearRequestId, setStripeClearRequestId] = useState('');
     const [showBillingActionsDialog, setShowBillingActionsDialog] = useState(false);
     const [actionMessage, setActionMessage] = useState('');
     const [syncStripe, setSyncStripe] = useState(false);
@@ -151,6 +155,7 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
 		programLabel: string;
 	} | null>(null);
 	const [grantActionLoading, setGrantActionLoading] = useState(false);
+	const grantPreviewRef = useRef<HTMLDivElement | null>(null);
     const displayError = localError || error || '';
 
     const sortedUsers = useMemo(() => {
@@ -366,6 +371,8 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
 		setGrantRequestId(createGrantRequestId());
 		setGrantConfirmation('');
 		setGrantPreview(null);
+		setLocalError('');
+		setActionMessage('');
 		setShowGrantDialog(true);
 	};
 
@@ -387,6 +394,9 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
 			});
 			setGrantPreview(preview);
 			setGrantConfirmation('');
+			window.requestAnimationFrame(() => {
+				grantPreviewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+			});
 		} catch (previewError) {
 			setLocalError(
 				previewError instanceof Error
@@ -440,6 +450,45 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
             setShowBillingActionsDialog(false);
         }
     };
+
+	const handleOpenClearStripeLinkage = () => {
+		setStripeClearReason('');
+		setStripeClearConfirmation('');
+		setStripeClearRequestId(createGrantRequestId().replace(/^grant:/, 'billing-clear:'));
+		setLocalError('');
+		setShowClearStripeConfirm(true);
+	};
+
+	const handleClearStripeLinkage = async (): Promise<void> => {
+		if (!selectedUserId) return;
+		setPlanActionLoading(true);
+		setLocalError('');
+		setActionMessage('');
+		try {
+			await adminPortalManageUserSubscription({
+				sessionToken,
+				userId: selectedUserId,
+				action: 'clear_stripe_linkage',
+				reason: stripeClearReason,
+				confirmation: stripeClearConfirmation,
+				requestId: stripeClearRequestId,
+			});
+			setShowClearStripeConfirm(false);
+			setShowBillingActionsDialog(false);
+			await handleInspectUser(selectedUserId);
+			setActionMessage(
+				'Stale Stripe linkage cleared. Billing returned to the free Homeowner plan; internal grants were preserved. Audit log saved.',
+			);
+		} catch (clearError) {
+			setLocalError(
+				clearError instanceof Error
+					? clearError.message
+					: 'Unable to clear the stale Stripe linkage.',
+			);
+		} finally {
+			setPlanActionLoading(false);
+		}
+	};
 
     const selectedRow = sortedUsers.find((user) => String(user.id) === selectedUserId) || null;
     const selectedUserCurrentPlan = details?.profile.subscriptionPlan || '';
@@ -744,12 +793,16 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
 												: 'Authorized grant manager. Self-grants are prohibited.'
 											: 'Requires the entitlement_grants.manage Maintley permission.'}
 								</UserDetailsValue>
+								{details.access?.grantAdministration?.targetRestrictionReason ? (
+									<ErrorText>{details.access.grantAdministration.targetRestrictionReason}</ErrorText>
+								) : null}
 								<Button
 									type='button'
 									disabled={
 										grantActionLoading ||
 										!details.access?.grantAdministration?.enabled ||
-										!details.access?.grantAdministration?.canManage
+										!details.access?.grantAdministration?.canManage ||
+										details.access?.grantAdministration?.targetAllowed === false
 									}
 									onClick={handleOpenGrantDialog}>
 									Manage Internal Grants
@@ -1025,6 +1078,21 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
                             {planActionLoading ? 'Updating...' : 'Cancel Subscription'}
                         </Button>
                     </div>
+
+					{details?.profile.stripeCustomerId || details?.profile.stripeSubscriptionId ? (
+						<div style={{ display: 'grid', gap: 8, borderTop: '1px solid #f3c7aa', paddingTop: 14 }}>
+							<Label>Clear stale Stripe linkage</Label>
+							<p style={{ margin: 0 }}>
+								Use this only after the Stripe customer has been deleted and any subscription is cancelled or missing. Maintley will verify Stripe before clearing its stored IDs.
+							</p>
+							<Button
+								type='button'
+								disabled={planActionLoading}
+								onClick={handleOpenClearStripeLinkage}>
+								Clear Stale Stripe Linkage
+							</Button>
+						</div>
+					) : null}
                 </div>
             </GenericModal>
 
@@ -1036,6 +1104,7 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
 				}}
 				compact>
 				<div style={{ display: 'grid', gap: 16 }}>
+					{localError ? <ErrorText role='alert'>{localError}</ErrorText> : null}
 					<div style={{ padding: 12, background: '#FAFAF8', border: '1px solid #3FCC7C', borderRadius: 8 }}>
 						<strong>No Stripe billing relationship</strong>
 						<p style={{ margin: '6px 0 0' }}>
@@ -1160,9 +1229,12 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
 						onClick={() => void handlePreviewGrant()}>
 						{grantActionLoading ? 'Checking...' : 'Preview Access Change'}
 					</Button>
+					<SubTitle>
+						Previewing does not change access. Review the result below, enter the confirmation phrase, and apply the grant to save it.
+					</SubTitle>
 
 					{grantPreview ? (
-						<div style={{ display: 'grid', gap: 10, padding: 12, border: '1px solid #3FCC7C', borderRadius: 8 }}>
+						<div ref={grantPreviewRef} style={{ display: 'grid', gap: 10, padding: 12, border: '1px solid #3FCC7C', borderRadius: 8 }}>
 							<strong>{grantPreview.programLabel}</strong>
 							<div>
 								Current bundles: {grantPreview.currentAccess.effectiveBundles.map(formatLabel).join(', ') || 'None'}
@@ -1224,6 +1296,59 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
                     {formatLabel(details?.profile.subscriptionStatus || 'none')}).
                 </p>
             </GenericModal>
+
+			<GenericModal
+				isOpen={showClearStripeConfirm}
+				title='Clear stale Stripe linkage?'
+				onClose={() => {
+					if (!planActionLoading) setShowClearStripeConfirm(false);
+				}}
+				compact>
+				<div style={{ display: 'grid', gap: 14 }}>
+					{localError ? <ErrorText role='alert'>{localError}</ErrorText> : null}
+					<p style={{ margin: 0 }}>
+						This does not delete anything in Stripe. It verifies that the Stripe customer is deleted or missing and that the subscription is cancelled, expired, or missing.
+					</p>
+					<p style={{ margin: 0 }}>
+						Maintley billing will return to the free Homeowner plan. Internal entitlement grants remain unchanged.
+					</p>
+					<div>
+						<Label>Stored Stripe customer</Label>
+						<UserDetailsValue>{details?.profile.stripeCustomerId || 'None'}</UserDetailsValue>
+					</div>
+					<div>
+						<Label>Stored Stripe subscription</Label>
+						<UserDetailsValue>{details?.profile.stripeSubscriptionId || 'None'}</UserDetailsValue>
+					</div>
+					<div>
+						<Label>Required audit reason</Label>
+						<Input
+							type='text'
+							placeholder='Explain why this stale billing relationship is being cleared'
+							value={stripeClearReason}
+							onChange={(event) => setStripeClearReason(event.target.value)}
+						/>
+					</div>
+					<div>
+						<Label>Type “CLEAR STRIPE LINK” to confirm</Label>
+						<Input
+							type='text'
+							value={stripeClearConfirmation}
+							onChange={(event) => setStripeClearConfirmation(event.target.value)}
+						/>
+					</div>
+					<Button
+						type='button'
+						disabled={
+							planActionLoading ||
+							stripeClearReason.trim().length < 10 ||
+							stripeClearConfirmation !== 'CLEAR STRIPE LINK'
+						}
+						onClick={() => void handleClearStripeLinkage()}>
+						{planActionLoading ? 'Verifying Stripe...' : 'Verify and Clear Linkage'}
+					</Button>
+				</div>
+			</GenericModal>
         </UserPanelWrap>
     );
 };
