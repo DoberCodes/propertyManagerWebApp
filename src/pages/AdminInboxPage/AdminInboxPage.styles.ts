@@ -537,6 +537,141 @@ export const ButtonRow = styled.div`
 	}
 `;
 
+export const GrantWizardSteps = styled.ol`
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 8px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+`;
+
+export const GrantWizardStep = styled.li<{ $active?: boolean; $complete?: boolean }>`
+	display: grid;
+	gap: 5px;
+	padding: 10px;
+	border: 1px solid ${({ $active, $complete }) =>
+		$active || $complete ? '#3FCC7C' : '#e5e7eb'};
+	border-radius: 8px;
+	background: ${({ $active }) => ($active ? '#ecfdf5' : '#ffffff')};
+	color: ${({ $active, $complete }) =>
+		$active || $complete ? '#065f46' : '#6b7280'};
+	font-size: 12px;
+	font-weight: 700;
+
+	@media (max-width: 480px) {
+		padding: 8px 6px;
+		text-align: center;
+	}
+`;
+
+export const GrantWizardStepNumber = styled.span`
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 22px;
+	height: 22px;
+	border-radius: 999px;
+	background: #d1fae5;
+	color: #047857;
+	font-size: 12px;
+
+	@media (max-width: 480px) {
+		margin: 0 auto;
+	}
+`;
+
+export const GrantWizardPanel = styled.section`
+	display: grid;
+	gap: 14px;
+`;
+
+export const GrantWizardFieldGrid = styled.div`
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 12px;
+
+	@media (max-width: 560px) {
+		grid-template-columns: 1fr;
+	}
+`;
+
+export const GrantWizardNotice = styled.div`
+	padding: 12px;
+	background: #f0fdf4;
+	border: 1px solid #86efac;
+	border-radius: 8px;
+	color: #14532d;
+	font-size: 13px;
+	line-height: 1.45;
+
+	p {
+		margin: 5px 0 0;
+	}
+`;
+
+export const GrantWizardReview = styled.div`
+	display: grid;
+	gap: 0;
+	border: 1px solid #d1d5db;
+	border-radius: 10px;
+	overflow: hidden;
+	background: #ffffff;
+`;
+
+export const GrantWizardReviewRow = styled.div`
+	display: grid;
+	grid-template-columns: minmax(120px, 0.8fr) minmax(0, 1.2fr);
+	gap: 14px;
+	padding: 11px 12px;
+	border-bottom: 1px solid #e5e7eb;
+	font-size: 13px;
+	line-height: 1.4;
+
+	&:last-child {
+		border-bottom: 0;
+	}
+
+	strong {
+		color: #374151;
+	}
+
+	span {
+		color: #111827;
+		overflow-wrap: anywhere;
+	}
+
+	@media (max-width: 480px) {
+		grid-template-columns: 1fr;
+		gap: 3px;
+	}
+`;
+
+export const GrantWizardMeta = styled.p`
+	margin: 0;
+	color: #6b7280;
+	font-size: 12px;
+	overflow-wrap: anywhere;
+`;
+
+export const GrantWizardActions = styled.div`
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 10px;
+	padding-top: 4px;
+
+	@media (max-width: 480px) {
+		align-items: stretch;
+		flex-direction: column-reverse;
+
+		& > button {
+			width: 100%;
+			min-height: 42px;
+		}
+	}
+`;
+
 // ============================================================================
 // Form Elements
 // ============================================================================
