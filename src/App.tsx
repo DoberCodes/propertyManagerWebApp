@@ -115,15 +115,24 @@ export const App = () => {
 			doc(db, 'familyAccounts', accountId),
 			(snapshot) => {
 				const rawProjection = snapshot.data()?.effectiveEntitlementProjection;
-				const projection = rawProjection
-					? ({
-							...rawProjection,
-							calculatedAt:
-								typeof rawProjection.calculatedAt?.toDate === 'function'
-									? rawProjection.calculatedAt.toDate().toISOString()
-									: rawProjection.calculatedAt,
-					  } as User['effectiveEntitlementProjection'])
-					: null;
+				// A missing projection means this account snapshot has not supplied an
+				// authoritative entitlement result. It must not erase a grant that was
+				// already resolved during authentication. Grant revocation and expiration
+				// write an explicit projection with an empty activeGrants array.
+				if (
+					!rawProjection ||
+					typeof rawProjection !== 'object' ||
+					Array.isArray(rawProjection)
+				) {
+					return;
+				}
+				const projection = {
+					...rawProjection,
+					calculatedAt:
+						typeof rawProjection.calculatedAt?.toDate === 'function'
+							? rawProjection.calculatedAt.toDate().toISOString()
+							: rawProjection.calculatedAt,
+				} as User['effectiveEntitlementProjection'];
 				dispatch(updateEntitlementProjection({ accountId, projection }));
 			},
 			(error) => {
