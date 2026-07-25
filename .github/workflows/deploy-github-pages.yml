@@ -161,8 +161,14 @@ jobs:
       - name: Stripe billing disclosure tests
         run: yarn --cwd functions test:billing-disclosure
 
+      - name: Admin entitlement grant policy tests
+        run: node scripts/testAdminEntitlementGrantPolicy.cjs
+
       - name: Email branding and lifecycle template tests
         run: node scripts/testEmailTemplates.cjs
+
+      - name: Maintley Event lifecycle delivery tests
+        run: node scripts/testMaintleyEventEngine.cjs
 
       - name: Use Java for Firebase emulators
         uses: actions/setup-java@v4

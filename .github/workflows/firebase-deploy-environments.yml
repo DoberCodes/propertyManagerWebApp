@@ -199,9 +199,17 @@ jobs:
         if: steps.deploy-targets.outputs.has_targets == 'true' && contains(steps.deploy-targets.outputs.targets, 'functions')
         run: yarn --cwd functions test:billing-disclosure
 
+      - name: Admin entitlement grant policy tests
+        if: steps.deploy-targets.outputs.has_targets == 'true' && contains(steps.deploy-targets.outputs.targets, 'functions')
+        run: node scripts/testAdminEntitlementGrantPolicy.cjs
+
       - name: Email branding and lifecycle template tests
         if: steps.deploy-targets.outputs.has_targets == 'true' && contains(steps.deploy-targets.outputs.targets, 'functions')
         run: node scripts/testEmailTemplates.cjs
+
+      - name: Maintley Event lifecycle delivery tests
+        if: steps.deploy-targets.outputs.has_targets == 'true' && contains(steps.deploy-targets.outputs.targets, 'functions')
+        run: node scripts/testMaintleyEventEngine.cjs
 
       - name: Use Java for Firebase emulators
         if: steps.deploy-targets.outputs.has_targets == 'true' && (contains(steps.deploy-targets.outputs.targets, 'functions') || contains(steps.deploy-targets.outputs.targets, 'firestore') || contains(steps.deploy-targets.outputs.targets, 'storage'))

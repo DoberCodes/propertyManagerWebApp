@@ -29,7 +29,7 @@ assert.strictEqual(
 );
 
 const expectedSubjects = {
-	activation: 'Your 30-day Homeowner+ trial is active',
+	activation: 'Your first property is ready - Homeowner+ is active',
 	progress: 'Your Homeowner+ trial progress',
 	ending: 'Your Homeowner+ trial ends',
 	expired: 'Your Maintley account is now on the Free plan',
@@ -64,6 +64,8 @@ const activation = lifecycle.renderAccessLifecycleEmail({
 });
 assert.ok(activation.html.includes('No payment method is connected'));
 assert.ok(activation.html.includes('will not be charged automatically'));
+assert.ok(activation.html.includes('Congratulations on creating your first property'));
+assert.ok(activation.html.includes('Your first property record is ready'));
 
 const promotionalGrant = {
 	grantId: 'portfolio-preview',

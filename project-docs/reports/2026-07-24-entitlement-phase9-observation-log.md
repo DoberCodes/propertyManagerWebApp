@@ -144,8 +144,8 @@ deploy `#89`, then repeat the navigation sequence on the deployed web origin.
 
 ## 9.2 baseline entitlement and client parity
 
-Status: deployed permanent-grant and paid Stripe fixtures passed entitlement
-parity; billing-disclosure remediation is in progress before cohort expansion.
+Status: deployed permanent-grant, paid Stripe, and first-property temporary
+grant fixtures passed the current production observation checks.
 
 Completed locally:
 
@@ -164,6 +164,22 @@ Completed on the deployed web origin:
   Stripe customer-portal action.
 * Cancellation was exercised for Portfolio and Homeowner fixtures without an
   entitlement mismatch.
+* The paid Stripe account displayed its current plan, discount, next invoice,
+  and customer-portal action. The hosted portal's emailed-link handoff worked.
+* After Firebase deployment `#244`, a fresh Free account created after the
+  configured eligibility boundary received a temporary Homeowner+ grant when
+  its first property was successfully committed.
+* Settings kept the billing plan at Free, showed no payment method, required an
+  intentional Checkout for paid continuation, and showed Homeowner+ access
+  through August 24, 2026.
+* The grant-creation lifecycle Function completed successfully. Its activation
+  email was accepted by the provider before the idempotent in-app lifecycle
+  notice appeared. The notice accurately stated the end date and that no
+  automatic charge would occur.
+* Observation found that property creation navigated into setup before the
+  asynchronous first-property grant was guaranteed to be available. It also
+  confirmed that signup welcome and first-property activation are distinct
+  milestones and should not use competing welcome language.
 
 Production observation found one billing-presentation mismatch on the paid
 Portfolio fixture: Settings showed the active Stripe plan while Profile showed
@@ -171,7 +187,7 @@ the internal-grant-only statement that no automatic billing would occur. The
 subscription uses a real Stripe billing relationship with a 100% discount, so
 the statement was not an authoritative description of its renewal state.
 
-Remediation in progress:
+Remediation deployed and under observation:
 
 * Persist a sanitized Stripe billing disclosure on both user and family-account
   subscription records, including list price, discount duration, next invoice,
@@ -192,11 +208,15 @@ Remediation in progress:
 * Show internal complimentary-transition language only for internal grants;
   paid and discounted Stripe subscriptions use Stripe-derived disclosure.
 
-This remediation requires deployed verification before the 9.2 advance gate
-can close. It does not authorize a charge or create a billing relationship.
+Deployed verification now confirms the paid disclosure and temporary-grant
+activation paths described above. It does not authorize a charge or create a
+billing relationship.
 
 Remaining before the 9.2 advance gate:
 
+* Deploy and validate the synchronous eligible-Free first-property activation
+  loading sequence, immediate recurring-task access in setup, server-side race
+  guard, and distinct property-created activation email.
 * Repeat the permanent-grant checks on the deployed web origin and a signed
   Android build.
 * Validate Free, paid, temporary-grant, expired-grant, and cancelled fixtures.

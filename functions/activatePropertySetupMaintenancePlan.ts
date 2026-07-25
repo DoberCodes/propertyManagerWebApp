@@ -3,6 +3,10 @@ import * as admin from 'firebase-admin';
 import * as functions from 'firebase-functions/v1';
 import { assertAccountRole, resolveAccountIdForUser } from './accountAuthz';
 import { hasAccountCapability } from './subscriptionEntitlements';
+import {
+	isIntentionalFreeOwnerSubscription,
+	issueFirstPropertyTrial,
+} from './entitlementGrants';
 
 if (!admin.apps.length) {
 	admin.initializeApp();
@@ -264,6 +268,24 @@ export const activatePropertySetupMaintenancePlan = functions
 				throw new functions.https.HttpsError(
 					'permission-denied',
 					'This property does not belong to the active account.',
+				);
+			}
+
+			// The first-property grant normally finishes before the setup assistant
+			// opens. This idempotent server-side guard closes the remaining race if a
+			// client reaches task confirmation before its entitlement refresh arrives.
+			if (
+				isIntentionalFreeOwnerSubscription(
+					accountOwnerSnapshot.data()?.subscription,
+				)
+			) {
+				const propertyCreatedAtMs = Date.parse(String(propertyData.createdAt || ''));
+				await issueFirstPropertyTrial(
+					accountId,
+					propertyId,
+					Number.isFinite(propertyCreatedAtMs)
+						? propertyCreatedAtMs
+						: Date.now(),
 				);
 			}
 

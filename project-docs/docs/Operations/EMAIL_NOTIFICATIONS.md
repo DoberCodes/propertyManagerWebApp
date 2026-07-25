@@ -228,7 +228,8 @@ Classification:
 The first implemented program is the internal Homeowner+ first-property trial.
 It has four milestones:
 
-* Activation / Day 0: confirms the 30-day period, absence of a payment method,
+* Activation / Day 0: congratulates the homeowner on the successfully committed
+  first property and confirms the 30-day period, absence of a payment method,
   no automatic charge, end date, and Free fallback.
 * Day 7: factual progress using saved-record counts; it is not a certification
   or physical inspection.

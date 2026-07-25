@@ -113,10 +113,18 @@ export interface PropertyFormData {
 	openSetupAfterCreate?: boolean;
 }
 
+export interface PropertySaveProgress {
+	title: string;
+	text: string;
+}
+
 interface PropertyDialogProps {
 	isOpen: boolean;
 	onClose: () => void;
-	onSave: (data: PropertyFormData) => Promise<void>;
+	onSave: (
+		data: PropertyFormData,
+		reportProgress?: (progress: PropertySaveProgress) => void,
+	) => Promise<void>;
 	onDeleteProperty?: () => Promise<void> | void;
 	forceSingleFamily?: boolean;
 	initialData?: PropertyFormData;
@@ -269,6 +277,9 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 	// Units are temporarily hidden from the app flow.
 	// const [unitInput, setUnitInput] = useState('');
 	const [isSubmitting, setIsSubmitting] = useState(false);
+	const [saveProgress, setSaveProgress] = useState<PropertySaveProgress | null>(
+		null,
+	);
 	const [newGroupName, setNewGroupName] = useState('');
 	const [isCreateGroupOpen, setIsCreateGroupOpen] = useState(false);
 	const [isPhotoUploadOpen, setIsPhotoUploadOpen] = useState(false);
@@ -648,17 +659,19 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 			return;
 		}
 		setIsSubmitting(true);
+		setSaveProgress(null);
 		try {
 			await onSave({
 				...formData,
 				accessSnapshots: buildAccessSnapshots(),
 				propertyType: forceSingleFamily ? 'Single Family' : formData.propertyType,
-			});
+			}, setSaveProgress);
 			onClose();
 		} catch (error) {
 			console.error('Error saving property:', error);
 		} finally {
 			setIsSubmitting(false);
+			setSaveProgress(null);
 		}
 	};
 
@@ -1302,15 +1315,15 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 
 	if (!isOpen) return null;
 
-	const savingTitle = isDuplicate
+	const savingTitle = saveProgress?.title || (isDuplicate
 		? `Creating duplicate ${recordLowerLabel}...`
 		: initialData
 			? `Saving ${recordLowerLabel} changes...`
-			: `Creating your ${recordLowerLabel}...`;
+			: `Creating your ${recordLowerLabel}...`);
 	const savingText =
-		!initialData && !isDuplicate && formData.openSetupAfterCreate !== false
+		saveProgress?.text || (!initialData && !isDuplicate && formData.openSetupAfterCreate !== false
 			? `Please wait while we create the ${recordPageLabel}. Next, we will open the ${setupAssistantLabel}.`
-			: `Please wait while we save this ${recordLowerLabel}.`;
+			: `Please wait while we save this ${recordLowerLabel}.`);
 
 	return (
 		<>

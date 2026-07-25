@@ -7,6 +7,7 @@ import {
 	isFirstPropertyTrialEligible,
 } from '@maintley/entitlements';
 import { ENTITLEMENT_FEATURE_FLAGS } from './subscriptionEntitlements';
+import { assertAccountRole, resolveAccountIdForUser } from './accountAuthz';
 
 if (!admin.apps.length) {
 	admin.initializeApp();
@@ -31,7 +32,7 @@ const isTrialIssuanceEnabled = (): boolean =>
 const asRecord = (value: unknown): Record<string, unknown> =>
 	typeof value === 'object' && value ? (value as Record<string, unknown>) : {};
 
-const isIntentionalFreeOwnerSubscription = (value: unknown): boolean => {
+export const isIntentionalFreeOwnerSubscription = (value: unknown): boolean => {
 	return isFirstPropertyTrialEligible({
 		homeownerPlusProductTrial: true,
 		internalEntitlementGrantIssuance: true,
@@ -39,6 +40,24 @@ const isIntentionalFreeOwnerSubscription = (value: unknown): boolean => {
 		eligibilityStartMs: 1,
 		subscription: asRecord(value),
 	});
+};
+
+const serializeCallableValue = (value: unknown): unknown => {
+	if (value instanceof admin.firestore.Timestamp) {
+		return value.toDate().toISOString();
+	}
+	if (Array.isArray(value)) {
+		return value.map(serializeCallableValue);
+	}
+	if (value && typeof value === 'object') {
+		return Object.fromEntries(
+			Object.entries(value as Record<string, unknown>).map(([key, entry]) => [
+				key,
+				serializeCallableValue(entry),
+			]),
+		);
+	}
+	return value;
 };
 
 export const getInitialTrialEligibility = (
@@ -308,4 +327,58 @@ export const issueHomeownerPlusTrialOnFirstProperty = functions.firestore
 			propertyId: context.params.propertyId,
 			result,
 		});
+	});
+
+export const finalizeFirstPropertyTrial = functions
+	.region('us-central1')
+	.https.onCall(async (data, context) => {
+		const uid = String(context.auth?.uid || '').trim();
+		if (!uid) {
+			throw new functions.https.HttpsError(
+				'unauthenticated',
+				'You must be signed in to finish first-property setup.',
+			);
+		}
+
+		const propertyId = String(data?.propertyId || '').trim();
+		if (!propertyId || propertyId.length > 160) {
+			throw new functions.https.HttpsError(
+				'invalid-argument',
+				'A valid property is required.',
+			);
+		}
+
+		const accountId = await resolveAccountIdForUser(uid);
+		await assertAccountRole(uid, accountId, ['account_owner']);
+
+		const propertySnapshot = await db.collection('properties').doc(propertyId).get();
+		if (!propertySnapshot.exists) {
+			throw new functions.https.HttpsError('not-found', 'Property was not found.');
+		}
+		const property = propertySnapshot.data() || {};
+		const propertyAccountId = String(
+			property.accountId || property.userId || '',
+		).trim();
+		if (propertyAccountId !== accountId) {
+			throw new functions.https.HttpsError(
+				'permission-denied',
+				'This property does not belong to the active account.',
+			);
+		}
+
+		const createdAtMs = Date.parse(String(property.createdAt || ''));
+		const result = await issueFirstPropertyTrial(
+			accountId,
+			propertyId,
+			Number.isFinite(createdAtMs) ? createdAtMs : Date.now(),
+		);
+		const accountSnapshot = await db.collection('familyAccounts').doc(accountId).get();
+
+		return {
+			result,
+			accountId,
+			effectiveEntitlementProjection: serializeCallableValue(
+				accountSnapshot.data()?.effectiveEntitlementProjection || null,
+			),
+		};
 	});

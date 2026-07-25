@@ -33,11 +33,12 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.issueHomeownerPlusTrialOnFirstProperty = exports.issueFirstPropertyTrial = exports.getInitialTrialEligibility = exports.HOMEOWNER_PLUS_TRIAL_DURATION_DAYS = exports.HOMEOWNER_PLUS_TRIAL_POLICY_VERSION = exports.HOMEOWNER_PLUS_TRIAL_GRANT_ID = exports.HOMEOWNER_PLUS_TRIAL_PROGRAM_ID = void 0;
+exports.finalizeFirstPropertyTrial = exports.issueHomeownerPlusTrialOnFirstProperty = exports.issueFirstPropertyTrial = exports.getInitialTrialEligibility = exports.isIntentionalFreeOwnerSubscription = exports.HOMEOWNER_PLUS_TRIAL_DURATION_DAYS = exports.HOMEOWNER_PLUS_TRIAL_POLICY_VERSION = exports.HOMEOWNER_PLUS_TRIAL_GRANT_ID = exports.HOMEOWNER_PLUS_TRIAL_PROGRAM_ID = void 0;
 const functions = __importStar(require("firebase-functions/v1"));
 const admin = __importStar(require("firebase-admin"));
 const entitlements_1 = require("@maintley/entitlements");
 const subscriptionEntitlements_1 = require("./subscriptionEntitlements");
+const accountAuthz_1 = require("./accountAuthz");
 if (!admin.apps.length) {
     admin.initializeApp();
 }
@@ -59,6 +60,22 @@ const isIntentionalFreeOwnerSubscription = (value) => {
         eligibilityStartMs: 1,
         subscription: asRecord(value),
     });
+};
+exports.isIntentionalFreeOwnerSubscription = isIntentionalFreeOwnerSubscription;
+const serializeCallableValue = (value) => {
+    if (value instanceof admin.firestore.Timestamp) {
+        return value.toDate().toISOString();
+    }
+    if (Array.isArray(value)) {
+        return value.map(serializeCallableValue);
+    }
+    if (value && typeof value === 'object') {
+        return Object.fromEntries(Object.entries(value).map(([key, entry]) => [
+            key,
+            serializeCallableValue(entry),
+        ]));
+    }
+    return value;
 };
 const getInitialTrialEligibility = (subscription, accountCreatedAt) => {
     const eligibilityStartMs = Date.parse(String(process.env.HOMEOWNER_PLUS_TRIAL_ELIGIBILITY_START_AT || ''));
@@ -148,8 +165,8 @@ const issueFirstPropertyTrial = async (accountId, propertyId, startsAtMs) => {
             programState.consumedAt ||
             propertyCount < 1 ||
             !ownerIsEligible ||
-            !isIntentionalFreeOwnerSubscription(accountSubscription) ||
-            !isIntentionalFreeOwnerSubscription(ownerSubscription)) {
+            !(0, exports.isIntentionalFreeOwnerSubscription)(accountSubscription) ||
+            !(0, exports.isIntentionalFreeOwnerSubscription)(ownerSubscription)) {
             return 'ineligible';
         }
         const safeStartsAtMs = Number.isFinite(startsAtMs) ? startsAtMs : Date.now();
@@ -269,4 +286,35 @@ exports.issueHomeownerPlusTrialOnFirstProperty = functions.firestore
         propertyId: context.params.propertyId,
         result,
     });
+});
+exports.finalizeFirstPropertyTrial = functions
+    .region('us-central1')
+    .https.onCall(async (data, context) => {
+    const uid = String(context.auth?.uid || '').trim();
+    if (!uid) {
+        throw new functions.https.HttpsError('unauthenticated', 'You must be signed in to finish first-property setup.');
+    }
+    const propertyId = String(data?.propertyId || '').trim();
+    if (!propertyId || propertyId.length > 160) {
+        throw new functions.https.HttpsError('invalid-argument', 'A valid property is required.');
+    }
+    const accountId = await (0, accountAuthz_1.resolveAccountIdForUser)(uid);
+    await (0, accountAuthz_1.assertAccountRole)(uid, accountId, ['account_owner']);
+    const propertySnapshot = await db.collection('properties').doc(propertyId).get();
+    if (!propertySnapshot.exists) {
+        throw new functions.https.HttpsError('not-found', 'Property was not found.');
+    }
+    const property = propertySnapshot.data() || {};
+    const propertyAccountId = String(property.accountId || property.userId || '').trim();
+    if (propertyAccountId !== accountId) {
+        throw new functions.https.HttpsError('permission-denied', 'This property does not belong to the active account.');
+    }
+    const createdAtMs = Date.parse(String(property.createdAt || ''));
+    const result = await (0, exports.issueFirstPropertyTrial)(accountId, propertyId, Number.isFinite(createdAtMs) ? createdAtMs : Date.now());
+    const accountSnapshot = await db.collection('familyAccounts').doc(accountId).get();
+    return {
+        result,
+        accountId,
+        effectiveEntitlementProjection: serializeCallableValue(accountSnapshot.data()?.effectiveEntitlementProjection || null),
+    };
 });

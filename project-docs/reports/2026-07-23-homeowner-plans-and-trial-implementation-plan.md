@@ -173,6 +173,9 @@ route generation, Maintley-branded templates, a staff-only test path that does
 not write production delivery state, and minimized admin troubleshooting
 visibility. Property-document progress is calculated from the canonical
 embedded property records rather than a nonexistent secondary collection.
+The signup welcome and Day 0 activation remain separate event messages: signup
+confirms the account, while Day 0 congratulates the homeowner on the committed
+first property and confirms the resulting temporary access.
 
 The dispatcher now supports generic promotional activation and expiration,
 Checkout-required ending notices, validated automatic-transition 30/7/1-day
@@ -1243,8 +1246,21 @@ silently downgrade a valid paid subscription.
 * Verify no trial is issued when setup begins, property creation fails, Checkout
   is abandoned, the account predates the eligibility boundary, or the issuance
   request is retried.
+* Delete the triggering property, create a replacement, and verify the stable
+  account-level grant and consumed program marker prevent a restarted or
+  extended trial.
 * Verify exactly one grant after the first property successfully commits, with
   the correct program ID, timestamps, audit entry, UI, and Free fallback.
+* Verify an eligible Free account remains in the property-creation loading
+  sequence until the first-property grant is committed and reflected in client
+  entitlements, then opens setup with recurring-task access immediately.
+* Verify the synchronous client wait requires both the trial and internal-grant
+  client rollout flags so a partially deployed client cannot assume access that
+  its resolver is configured to ignore.
+* Verify setup task activation performs an idempotent server-side trial check so
+  an entitlement-listener delay cannot silently create one-time tasks.
+* Verify paid accounts and later property creation do not incur the additional
+  first-property activation wait.
 * Exercise expiration with a time-controlled test grant before waiting for a
   real 30-day trial.
 
@@ -1263,6 +1279,8 @@ until their recorded end or an explicit audited revocation.
   reminder.
 * Route scheduler failure, elevated provider failure, and duplicate-key alerts
   to an owned operational channel before expanding the cohort.
+* Require deployment CI to run both lifecycle template checks and the Maintley
+  Event delivery-engine suite used by persistent in-app notices.
 
 **Rollback:** disable lifecycle communication. This stops new deliveries without
 changing grants, billing, or already-written delivery/audit records.
@@ -1410,6 +1428,19 @@ server owns Stripe price selection.
 * email preference enforcement and the shared route-link builder
 * `functions/index.ts`, provider integration, logs, alerts, and admin visibility
 * analytics events that avoid property-specific personal information
+
+#### Deferred Stripe promotion lifecycle expansion
+
+Future fixed-duration Stripe promotions, including a free year or a temporary
+discounted period, should participate in an operational billing lifecycle that
+is distinct from internal complimentary-grant expiration. Stripe remains
+authoritative for the promotion, discount end, invoice schedule, and charge.
+Before the promotional price ends, Maintley should communicate the discount end
+date, first undiscounted charge date and amount, recurring price, and a direct
+billing-management or cancellation action. Reminder timing must be configurable
+per program, idempotent, and suppress obsolete messages after cancellation or a
+billing change. This expansion is deferred and is not part of the current
+Homeowner+ trial rollout.
 
 ### Admin governance and audit
 

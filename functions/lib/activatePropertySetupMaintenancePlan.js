@@ -39,6 +39,7 @@ const admin = __importStar(require("firebase-admin"));
 const functions = __importStar(require("firebase-functions/v1"));
 const accountAuthz_1 = require("./accountAuthz");
 const subscriptionEntitlements_1 = require("./subscriptionEntitlements");
+const entitlementGrants_1 = require("./entitlementGrants");
 if (!admin.apps.length) {
     admin.initializeApp();
 }
@@ -174,6 +175,15 @@ exports.activatePropertySetupMaintenancePlan = functions
     const propertyData = propertySnapshot.data() || {};
     if (!(0, exports.propertyBelongsToAccount)(propertyData, accountId)) {
         throw new functions.https.HttpsError('permission-denied', 'This property does not belong to the active account.');
+    }
+    // The first-property grant normally finishes before the setup assistant
+    // opens. This idempotent server-side guard closes the remaining race if a
+    // client reaches task confirmation before its entitlement refresh arrives.
+    if ((0, entitlementGrants_1.isIntentionalFreeOwnerSubscription)(accountOwnerSnapshot.data()?.subscription)) {
+        const propertyCreatedAtMs = Date.parse(String(propertyData.createdAt || ''));
+        await (0, entitlementGrants_1.issueFirstPropertyTrial)(accountId, propertyId, Number.isFinite(propertyCreatedAtMs)
+            ? propertyCreatedAtMs
+            : Date.now());
     }
     const deviceIds = Array.from(new Set(proposals.map(({ deviceId }) => deviceId).filter(Boolean)));
     const deviceSnapshots = await Promise.all(deviceIds.map((deviceId) => db.collection('devices').doc(deviceId).get()));
