@@ -5,6 +5,7 @@ import userReducer, {
 	setAuthLoading,
 	logout,
 	updateEntitlementProjection,
+	updateSubscriptionFromStripe,
 	UserState,
 } from './userSlice';
 
@@ -137,6 +138,40 @@ describe('userSlice', () => {
 
 			expect(actual.currentUser?.subscription?.entitlementAccountId).toBe('account-1');
 			expect(actual.currentUser?.subscription?.entitlementGrants).toEqual([grant]);
+		});
+
+		it('applies a Stripe synchronization only to the matching signed-in user', () => {
+			const stateWithUser = userReducer(
+				initialState,
+				setCurrentUser({
+					...mockUser,
+					subscription: {
+						status: 'active',
+						plan: 'portfolio',
+						currentPeriodStart: 1,
+						currentPeriodEnd: 2,
+					},
+				} as any),
+			);
+			const staleResult = userReducer(
+				stateWithUser,
+				updateSubscriptionFromStripe({
+					userId: 'different-user',
+					subscription: { cancelAtPeriodEnd: true },
+				}),
+			);
+
+			expect(staleResult.currentUser?.subscription?.cancelAtPeriodEnd).toBeUndefined();
+
+			const matchingResult = userReducer(
+				staleResult,
+				updateSubscriptionFromStripe({
+					userId: 'user-123',
+					subscription: { cancelAtPeriodEnd: true },
+				}),
+			);
+
+			expect(matchingResult.currentUser?.subscription?.cancelAtPeriodEnd).toBe(true);
 		});
 
 		it('preserves resolved grants when the same-account auth profile omits its projection', () => {

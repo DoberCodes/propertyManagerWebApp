@@ -42,7 +42,6 @@ import {
 	isTrialExpired,
 } from 'utils/subscriptionUtils';
 import { USER_ROLES } from 'constants/roles';
-import { syncSubscriptionFromStripe } from 'services/stripeService';
 import {
 	ActionFirstTopSection,
 	TodayFocusCard,
@@ -473,23 +472,6 @@ export const DashboardTab = () => {
 	const [showTaskCompletionModal, setShowTaskCompletionModal] = useState(false);
 	const [dashboardTaskPrefill, setDashboardTaskPrefill] =
 		useState<DashboardSuggestedTaskPrefill | null>(null);
-	const hasAttemptedSubscriptionSyncRef = useRef(false);
-
-	useEffect(() => {
-		if (hasAttemptedSubscriptionSyncRef.current) {
-			return;
-		}
-
-		if (!currentUser?.subscription?.stripeCustomerId) {
-			return;
-		}
-
-		hasAttemptedSubscriptionSyncRef.current = true;
-		syncSubscriptionFromStripe().catch((error) => {
-			console.warn('Background Stripe subscription sync skipped:', error);
-		});
-	}, [currentUser?.subscription?.stripeCustomerId]);
-
 	const [completingTaskId, setCompletingTaskId] = useState<string | null>(null);
 	const [dashboardMaintenanceHistory, setDashboardMaintenanceHistory] = useState<
 		any[]

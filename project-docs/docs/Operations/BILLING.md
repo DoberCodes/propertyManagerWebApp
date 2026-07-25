@@ -110,6 +110,24 @@ The web equivalents are `REACT_APP_ENABLE_HOMEOWNER_PLUS_PRODUCT_TRIAL` and
 `REACT_APP_ENABLE_INTERNAL_ENTITLEMENT_GRANT_ISSUANCE`; these describe rollout
 state but do not revoke an already-issued grant.
 
+Grant-aware voluntary Checkout is independently controlled by the server-only
+`ENABLE_COMPLIMENTARY_PAID_TRANSITIONS` flag. When enabled, the highest active
+grant bundle defines whether a paid selection is equivalent, lower, or higher:
+
+* an equivalent or lower selection under temporary Checkout-required access
+  creates the Stripe subscription now and sets its first charge for the end of
+  the controlling complimentary period
+* a higher selection starts paid access immediately and converts only temporary
+  grants whose program explicitly permits Checkout conversion
+* an equivalent or lower selection already covered by permanent access is
+  rejected as redundant
+
+The client may explain this policy, but it cannot choose the timing. Functions
+load authoritative grants, derive the policy, configure Stripe, and append the
+high-value transition audit. Stripe remains authoritative for subscription
+state and whether a charge can occur. Disabling the flag prevents new
+grant-aware transitions without changing existing grants or Stripe schedules.
+
 Clients cannot create a user with a paid base plan or rewrite authoritative
 subscription fields after signup. Firestore permits only non-billable initial
 plans and narrowly scoped pending-checkout or promo-code changes. Stripe
@@ -146,6 +164,9 @@ Important fields:
 * canceledAt
 * stripeCustomerId
 * stripeSubscriptionId
+* cancelAtPeriodEnd
+* billingDisclosure
+* billingSyncIssue
 * promoCode
 * hasScheduledSubscription
 * scheduledPlan
@@ -157,6 +178,37 @@ Supported statuses:
 * cancelled
 * expired
 * past_due
+
+`billingDisclosure` is a server-written, sanitized projection of the Stripe
+subscription facts needed by Maintley's account surfaces. It may include the
+list price and interval, discount duration, current-period end, cancellation
+state, and next invoice amount and date. It must not contain a raw Stripe
+object, card details, payment-method details, or secrets.
+
+Stripe webhooks are the primary synchronization path. Authenticated application
+initialization also performs one non-blocking, account-owner synchronization as
+a recovery check when the profile has a Stripe customer. The callable verifies
+that the requested subscription belongs to the authenticated user, retrieves
+the current state from Stripe, writes the same projection to the user and
+family-account records, and returns that projection so the active client state
+can update immediately. This recovery check never creates, renews, converts, or
+charges a subscription.
+
+The initialization recovery check evaluates the Stripe customer's subscription
+set even when Firestore already contains a subscription ID. One current Stripe
+subscription (`active`, `trialing`, `past_due`, or `unpaid`) supersedes an older
+cancelled or deleted stored reference, allowing an existing configured Maintley
+plan assigned directly in Stripe to repair local state. If Stripe reports more
+than one current subscription, Maintley must not guess which subscription owns
+access. It preserves the last resolved plan, writes a
+`multiple_current_subscriptions` billing sync issue to the user and
+family-account subscription records, and requires operational review. A later
+successful single-subscription synchronization clears that issue.
+
+Account and profile billing language must use `billingDisclosure` when a Stripe
+billing relationship exists. Internal grant transition language applies only
+to internal grants; it must not be used to describe a paid or discounted Stripe
+subscription.
 
 ---
 

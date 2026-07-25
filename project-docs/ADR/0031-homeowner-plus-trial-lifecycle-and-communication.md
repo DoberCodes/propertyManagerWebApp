@@ -144,6 +144,14 @@ intentionally establishes a Stripe billing relationship, provides the required
 payment information, and gives versioned consent to automatic renewal. Other
 complimentary programs end or require an intentional Checkout action.
 
+When a user voluntarily selects a paid plan equivalent to an active temporary
+grant bundle, the upgrade flow remains available but must present the grant end
+as the earliest first-charge date. This comparison uses effective granted
+access, not the Free billing base. After Stripe confirms the scheduled billing
+relationship, generic expiration messages are replaced by accurate
+first-charge and renewal reminders. Cancelling before the first charge leaves
+the original complimentary end date intact.
+
 Key lifecycle email communications should have complementary in-app notices
 where appropriate. Conversion to a confirmed paid subscription immediately
 suppresses obsolete complimentary-access messages.

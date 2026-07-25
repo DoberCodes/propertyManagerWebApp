@@ -158,6 +158,9 @@ jobs:
       - name: Manual occupancy continuity tests
         run: yarn --cwd functions test:manual-occupancy
 
+      - name: Stripe billing disclosure tests
+        run: yarn --cwd functions test:billing-disclosure
+
       - name: Email branding and lifecycle template tests
         run: node scripts/testEmailTemplates.cjs
 

@@ -537,6 +537,47 @@ admin-entered grant field cannot satisfy those conditions. Promo-code Checkout
 remains valid when the user is intentionally establishing a Stripe subscription
 and future billing relationship.
 
+### Grant-aware voluntary upgrade policy
+
+Paid-plan comparisons during an upgrade use the account's effective grant
+bundle, not only its Stripe billing base plan. For example, an account whose
+billing base is Free Homeowner but whose active temporary grant bundle is
+Homeowner+ is treated as converting equivalent Homeowner+ access when it
+selects paid Homeowner+. It is not treated as upgrading from Free for billing
+timing purposes. The paid Homeowner+ route must remain available and visible.
+
+For a temporary grant whose program permits paid conversion:
+
+* Selecting a paid plan with the same bundle ID as the effective grant is an
+  `equivalent_access_conversion`. Stripe Checkout must disclose and establish a
+  first charge no earlier than the grant's existing end time. The grant remains
+  active through that time so cancellation before the first charge does not
+  shorten already-awarded access. Stripe remains authoritative for the trial
+  end, schedule, invoice, and eventual charge.
+* Selecting a higher paid bundle is an immediate upgrade. After Stripe confirms
+  the higher paid subscription, only the overlapping convertible promotional
+  grant may move to `converted`; unrelated grants remain additive.
+* Selecting a lower paid bundle schedules paid access for the temporary grant's
+  end rather than charging immediately for a lower level of access.
+
+Bundle comparison uses the versioned grant bundle and target paid bundle, not
+the account's Free fallback, UI label, or current billing-plan field. A
+grant-specific storage or limit override does not change the bundle comparison;
+the paid bundle's full approved limits apply when its Stripe-backed access is
+effective.
+
+Permanent or lifetime grants are never silently converted. Equivalent or lower
+Checkout is blocked as redundant. A higher paid plan may layer over the
+permanent grant, which remains available if the paid plan later ends. Beta,
+support, partner, feature-only, and other unrelated grants also remain additive
+unless their own approved program policy explicitly permits conversion.
+
+Conversion records are retained rather than deleted and include the trusted
+Stripe customer, subscription or schedule, Checkout session, conversion time,
+reason, and append-only audit event. Checkout and transition creation are
+idempotent and must reuse an existing linked Stripe transition instead of
+creating a second subscription.
+
 Cancelling or opting out of an automatic transition must update or cancel the
 authoritative Stripe schedule or subscription first. Maintley then refreshes the
 transition view. Cancelling future billing does not shorten the already granted
