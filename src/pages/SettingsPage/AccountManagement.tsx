@@ -116,6 +116,11 @@ export const AccountManagement: React.FC<AccountManagementProps> = ({ setShowCan
                             {billingPresentation.renewalLabel && (
                                 <BillingPlanSummary>{billingPresentation.renewalLabel}</BillingPlanSummary>
                             )}
+                            {subscription.billingSyncIssue?.code === 'multiple_current_subscriptions' && (
+                                <BillingPlanSummary role="alert">
+                                    Billing needs attention: more than one current Stripe subscription was found. Contact Maintley support before changing your plan.
+                                </BillingPlanSummary>
+                            )}
                             <PlanFeatures>
                                 {planDetails?.features.map((feature, index) => (
                                     <PlanFeature key={index}>{feature}</PlanFeature>

@@ -10,6 +10,7 @@ import {
 import { ensureFamilyAccountForUser } from './ensureFamilyAccount';
 import { ENTITLEMENT_FEATURE_FLAGS } from './subscriptionEntitlements';
 import { buildStripeBillingDisclosure } from './stripeBillingDisclosure';
+import { selectCustomerSubscription } from './stripeSubscriptionSelection';
 const STRIPE_SECRET_KEY = defineSecret('STRIPE_SECRET_KEY');
 const STRIPE_WEBHOOK_SECRET = defineSecret('STRIPE_WEBHOOK_SECRET');
 const FUNCTIONS_CONFIG_EXPORT = defineJsonSecret<Record<string, any>>(
@@ -1151,7 +1152,7 @@ export const syncSubscriptionFromStripe = functions
 			string,
 			any
 		>;
-		const stripeCustomerId = String(existingSubscription.stripeCustomerId || '');
+		let stripeCustomerId = String(existingSubscription.stripeCustomerId || '');
 		const existingStripeSubscriptionId = String(
 			existingSubscription.stripeSubscriptionId || '',
 		);
@@ -1163,42 +1164,104 @@ export const syncSubscriptionFromStripe = functions
 			};
 		}
 
-		let stripeSubscription: Stripe.Subscription | null = null;
+		const subscriptionCandidates: Stripe.Subscription[] = [];
+		let storedStripeSubscription: Stripe.Subscription | null = null;
 
 		if (
 			existingStripeSubscriptionId &&
 			existingStripeSubscriptionId !== 'YOUR_SUBSCRIPTION_ID_HERE'
 		) {
 			try {
-				stripeSubscription = await getStripe().subscriptions.retrieve(
+				storedStripeSubscription = await getStripe().subscriptions.retrieve(
 					existingStripeSubscriptionId,
 					{ expand: ['discounts'] },
 				);
+				if (!stripeCustomerId) {
+					stripeCustomerId =
+						typeof storedStripeSubscription.customer === 'string'
+							? storedStripeSubscription.customer
+							: storedStripeSubscription.customer?.id || '';
+				}
+				subscriptionCandidates.push(storedStripeSubscription);
 			} catch (error) {
 				console.warn(
-					`Unable to retrieve Stripe subscription ${existingStripeSubscriptionId}; falling back to customer listing.`,
+					`Unable to retrieve stored Stripe subscription ${existingStripeSubscriptionId}; checking the customer subscription list.`,
 				);
 			}
 		}
 
-		if (!stripeSubscription && stripeCustomerId) {
-			const subscriptions = await getStripe().subscriptions.list({
-				customer: stripeCustomerId,
-				status: 'all',
-				limit: 10,
-			});
-
-			stripeSubscription =
-				subscriptions.data.find((sub) =>
-					['active', 'trialing', 'past_due', 'unpaid'].includes(sub.status),
-				) || subscriptions.data[0] || null;
+		if (stripeCustomerId) {
+			try {
+				const subscriptions = await getStripe().subscriptions.list({
+					customer: stripeCustomerId,
+					status: 'all',
+					limit: 100,
+				});
+				subscriptionCandidates.push(...subscriptions.data);
+			} catch (error) {
+				if (!storedStripeSubscription) throw error;
+				console.warn(
+					`Unable to list subscriptions for Stripe customer ${stripeCustomerId}; using the verified stored subscription.`,
+				);
+			}
 		}
 
-		if (!stripeSubscription) {
+		const selection = selectCustomerSubscription(
+			subscriptionCandidates,
+			existingStripeSubscriptionId,
+		);
+
+		if (selection.kind === 'conflict') {
+			const billingSyncIssue = {
+				code: 'multiple_current_subscriptions',
+				stripeSubscriptionIds: selection.subscriptions.map(
+					(subscription) => subscription.id,
+				),
+				detectedAt: new Date().toISOString(),
+			};
+			const conflictedSubscription = buildMergedSubscription(
+				existingSubscription,
+				{ billingSyncIssue },
+			);
+
+			await userRef.update({
+				subscription: conflictedSubscription,
+				updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+			});
+			await syncFamilyAccountSubscription(userData, conflictedSubscription);
+
+			console.error('Stripe billing synchronization conflict:', {
+				userId,
+				stripeCustomerId,
+				stripeSubscriptionIds: billingSyncIssue.stripeSubscriptionIds,
+			});
+			return {
+				success: false,
+				reason: 'Multiple current Stripe subscriptions require review',
+				conflict: true,
+				subscription: { billingSyncIssue },
+			};
+		}
+
+		if (selection.kind === 'none') {
 			return {
 				success: false,
 				reason: 'No Stripe subscription found for this user',
 			};
+		}
+
+		let stripeSubscription = selection.subscription;
+		if (stripeSubscription !== storedStripeSubscription) {
+			try {
+				stripeSubscription = await getStripe().subscriptions.retrieve(
+					stripeSubscription.id,
+					{ expand: ['discounts'] },
+				);
+			} catch (error) {
+				console.warn(
+					`Unable to expand selected Stripe subscription ${stripeSubscription.id}; using the customer-list representation.`,
+				);
+			}
 		}
 
 		const localStatus =
@@ -1236,6 +1299,7 @@ export const syncSubscriptionFromStripe = functions
 			pendingCheckoutPlan: null,
 			pendingCheckoutStartedAt: null,
 			billingDisclosure,
+			billingSyncIssue: null,
 			updatedAt: admin.firestore.FieldValue.serverTimestamp(),
 			...(stripeSubscription.status === 'canceled'
 				? { canceledAt: stripeSubscription.canceled_at }

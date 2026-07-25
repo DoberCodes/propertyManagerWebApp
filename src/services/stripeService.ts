@@ -221,6 +221,7 @@ export interface StripeSubscriptionSyncResult {
 	success: boolean;
 	source?: string;
 	reason?: string;
+	conflict?: boolean;
 	subscription?: Partial<NonNullable<User['subscription']>>;
 }
 

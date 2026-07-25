@@ -180,6 +180,12 @@ Remediation in progress:
   initialization as a stale-state recovery check.
 * Update active Redux state immediately from that recovery response so account
   surfaces do not wait for a later profile snapshot.
+* Evaluate all subscriptions on the Stripe customer during recovery so a newly
+  assigned, current configured Maintley plan supersedes an older cancelled
+  stored subscription ID.
+* Treat multiple simultaneous current Stripe subscriptions as an explicit
+  billing conflict, preserve the last resolved plan instead of guessing, and
+  expose the conflict in account settings for operational review.
 * Restrict subscription detail and cancellation callables to the authenticated
   owner of the stored Stripe subscription.
 * Show internal complimentary-transition language only for internal grants;

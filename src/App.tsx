@@ -127,12 +127,18 @@ export const App = () => {
 
 		syncSubscriptionFromStripe()
 			.then((result) => {
-				if (result.success && result.subscription) {
+				if (result.subscription) {
 					dispatch(
 						updateSubscriptionFromStripe({
 							userId: currentUser.id,
 							subscription: result.subscription,
 						}),
+					);
+				}
+				if (result.conflict) {
+					console.warn(
+						'Stripe subscription sync requires review:',
+						result.reason,
 					);
 				}
 			})

@@ -171,6 +171,8 @@ test('clears resolved grants when the account snapshot explicitly reports none',
 });
 
 test('hydrates Stripe billing disclosure without blocking authenticated rendering', async () => {
+	mockStripeSubscriptionSync.mockClear();
+	mockAccountSnapshotSubscribe.mockImplementation(() => () => {});
 	mockStripeSubscriptionSync.mockResolvedValueOnce({
 		success: true,
 		subscription: {
@@ -229,6 +231,61 @@ test('hydrates Stripe billing disclosure without blocking authenticated renderin
 		).toBe('price_portfolio');
 	});
 	expect(mockStripeSubscriptionSync).toHaveBeenCalledTimes(1);
+	act(() => {
+		store.dispatch(setCurrentUser(null));
+	});
+});
+
+test('hydrates an explicit Stripe subscription conflict without replacing the plan', async () => {
+	mockStripeSubscriptionSync.mockClear();
+	mockAccountSnapshotSubscribe.mockImplementation(() => () => {});
+	mockStripeSubscriptionSync.mockResolvedValueOnce({
+		success: false,
+		conflict: true,
+		reason: 'Multiple current Stripe subscriptions require review',
+		subscription: {
+			billingSyncIssue: {
+				code: 'multiple_current_subscriptions',
+				stripeSubscriptionIds: ['sub_existing', 'sub_portfolio'],
+				detectedAt: '2026-07-25T00:00:00.000Z',
+			},
+		},
+	});
+	act(() => {
+		store.dispatch(
+			setCurrentUser({
+				id: 'conflicted-user',
+				email: 'conflict@example.com',
+				role: 'admin',
+				accountId: 'conflicted-user',
+				isAccountOwner: true,
+				subscription: {
+					status: 'active',
+					plan: 'homeowner_plus',
+					currentPeriodStart: 1,
+					currentPeriodEnd: 2,
+					stripeCustomerId: 'cus_conflict',
+					stripeSubscriptionId: 'sub_existing',
+				},
+			} as any),
+		);
+	});
+
+	render(
+		<Provider store={store}>
+			<App />
+		</Provider>,
+	);
+
+	await waitFor(() => {
+		expect(
+			store.getState().user.currentUser?.subscription?.billingSyncIssue
+				?.code,
+		).toBe('multiple_current_subscriptions');
+	});
+	expect(store.getState().user.currentUser?.subscription?.plan).toBe(
+		'homeowner_plus',
+	);
 	act(() => {
 		store.dispatch(setCurrentUser(null));
 	});

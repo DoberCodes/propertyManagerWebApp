@@ -36,6 +36,12 @@ export interface BillingDisclosure {
 	syncedAt: string;
 }
 
+export interface BillingSyncIssue {
+	code: 'multiple_current_subscriptions';
+	stripeSubscriptionIds: string[];
+	detectedAt: string;
+}
+
 // Family account type for shared subscriptions
 export interface FamilyAccount {
 	id: string;
@@ -58,6 +64,7 @@ export interface FamilyAccount {
 		pendingCheckoutStartedAt?: number;
 		cancelAtPeriodEnd?: boolean;
 		billingDisclosure?: BillingDisclosure;
+		billingSyncIssue?: BillingSyncIssue | null;
 	};
 	createdAt: string;
 	updatedAt: string;
@@ -115,6 +122,7 @@ export interface User {
 		pendingCheckoutStartedAt?: number;
 		cancelAtPeriodEnd?: boolean;
 		billingDisclosure?: BillingDisclosure;
+		billingSyncIssue?: BillingSyncIssue | null;
 		entitlementAccountId?: string;
 		entitlementGrants?: EntitlementGrant[];
 	};

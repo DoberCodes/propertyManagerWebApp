@@ -148,6 +148,7 @@ Important fields:
 * stripeSubscriptionId
 * cancelAtPeriodEnd
 * billingDisclosure
+* billingSyncIssue
 * promoCode
 * hasScheduledSubscription
 * scheduledPlan
@@ -174,6 +175,17 @@ the current state from Stripe, writes the same projection to the user and
 family-account records, and returns that projection so the active client state
 can update immediately. This recovery check never creates, renews, converts, or
 charges a subscription.
+
+The initialization recovery check evaluates the Stripe customer's subscription
+set even when Firestore already contains a subscription ID. One current Stripe
+subscription (`active`, `trialing`, `past_due`, or `unpaid`) supersedes an older
+cancelled or deleted stored reference, allowing an existing configured Maintley
+plan assigned directly in Stripe to repair local state. If Stripe reports more
+than one current subscription, Maintley must not guess which subscription owns
+access. It preserves the last resolved plan, writes a
+`multiple_current_subscriptions` billing sync issue to the user and
+family-account subscription records, and requires operational review. A later
+successful single-subscription synchronization clears that issue.
 
 Account and profile billing language must use `billingDisclosure` when a Stripe
 billing relationship exists. Internal grant transition language applies only
