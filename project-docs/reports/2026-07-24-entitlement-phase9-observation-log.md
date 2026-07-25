@@ -2,9 +2,13 @@
 
 Date opened: 2026-07-24
 
-Release branch: `austin/guard-entitlement-package-version`
+Release implementation branch: `austin/guard-entitlement-package-version`
 
-Pull request: `#86`
+Release implementation pull request: `#86`
+
+Release deployment pull request: `#88`
+
+Observation remediation branch: `austin/fix-entitlement-hydration`
 
 Production project: `mypropertymanager-cda42`
 
@@ -39,14 +43,19 @@ Rollback owner: Maintley owner
   restoreability still require independent cloud-console confirmation before
   merge.
 
-### Pending before 9.1
+### Completed after preflight
 
-* Commit and push the Phase 6-8 implementation and Phase 9 documentation to PR
-  #86.
-* Obtain passing PR checks for the updated head commit.
+* The release deployment reached production from merge commit `34ad0aab`.
+* Firebase Functions, Firestore rules, and Storage rules deployed successfully.
+* Deployment validation, including callable CORS preflights, passed.
+* Internal entitlement-grant issuance remained the only enabled entitlement
+  rollout flag.
+
+### Still required for the release record
+
 * Independently confirm the Firestore export exists and is restorable.
-* Record the final merge commit, deployed Functions revision, web version,
-  signed Android version, and the named human rollback operator.
+* Record the deployed Functions revision, web version, signed Android version,
+  and the named human rollback operator.
 
 ## Current rollout-variable state
 
@@ -73,4 +82,34 @@ consecutively, or support events cannot be reviewed within one business day.
 
 ## 9.1 additive disabled deployment
 
-Status: not started. Awaiting updated PR checks, merge, and backup confirmation.
+Status: deployed with cohort expansion paused.
+
+Production observation found that a permanent Portfolio grant initially resolved
+correctly, but navigating through a route outside the protected application
+layout and returning to the dashboard could replace the resolved grant with the
+base Free billing profile. Property terminology persisted and existing retained
+properties remained visible, but grant-derived capabilities, plan presentation,
+team navigation, storage allowances, recurring-task access, and new-property
+access reverted until a full page reload.
+
+Root cause: authentication/profile hydration and the family-account listener
+treated an omitted `effectiveEntitlementProjection` as an authoritative empty
+projection. That allowed a partial same-account profile refresh to erase the
+already-resolved grant in client state.
+
+Remediation on `austin/fix-entitlement-hydration`:
+
+* Preserve an existing resolved projection only when a same-user,
+  same-account profile refresh omits the projection.
+* Continue treating an explicitly present projection with
+  `activeGrants: []` as authoritative revocation or expiration.
+* Never preserve grants across a user or account boundary.
+* Ignore family-account snapshots that omit the projection instead of
+  translating omission into revocation.
+* Cover preservation, explicit clearing, and account-isolation behavior with
+  reducer and application-listener regression tests.
+
+Advance gate: keep all additional rollout variables disabled until the fix is
+deployed and the grant remains stable after dashboard navigation, View All
+Features navigation, Settings/Profile navigation, and returning from an
+unauthorized admin route without requiring a page reload.

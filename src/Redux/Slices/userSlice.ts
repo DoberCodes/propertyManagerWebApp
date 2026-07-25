@@ -206,6 +206,52 @@ const getLoggedUserSession = (user: User) => ({
 	user,
 });
 
+const getUserAccountId = (user: User | null | undefined): string =>
+	String(user?.accountId || '').trim() || String(user?.id || '').trim();
+
+const hasOwnEntitlementProjection = (user: User): boolean =>
+	Object.prototype.hasOwnProperty.call(user, 'effectiveEntitlementProjection');
+
+const mergeAuthenticatedUser = (
+	currentUser: User | null,
+	incomingUser: User,
+): User => {
+	const nextUser: User = {
+		...incomingUser,
+		...(incomingUser.subscription
+			? { subscription: { ...incomingUser.subscription } }
+			: {}),
+	};
+	const incomingHasProjection = hasOwnEntitlementProjection(incomingUser);
+	const sameEntitlementAccount = Boolean(
+		currentUser &&
+		currentUser.id === incomingUser.id &&
+		getUserAccountId(currentUser) === getUserAccountId(incomingUser),
+	);
+
+	if (sameEntitlementAccount && !incomingHasProjection && currentUser) {
+		if (hasOwnEntitlementProjection(currentUser)) {
+			nextUser.effectiveEntitlementProjection =
+				currentUser.effectiveEntitlementProjection;
+		}
+
+		const currentGrants = currentUser.subscription?.entitlementGrants;
+		if (nextUser.subscription && currentGrants) {
+			nextUser.subscription.entitlementAccountId = getUserAccountId(currentUser);
+			nextUser.subscription.entitlementGrants = currentGrants;
+		}
+		return nextUser;
+	}
+
+	if (incomingHasProjection && nextUser.subscription) {
+		nextUser.subscription.entitlementAccountId = getUserAccountId(incomingUser);
+		nextUser.subscription.entitlementGrants =
+			incomingUser.effectiveEntitlementProjection?.activeGrants || [];
+	}
+
+	return nextUser;
+};
+
 const userSlice = createSlice({
 	name: 'user',
 	initialState,
@@ -218,10 +264,13 @@ const userSlice = createSlice({
 		},
 		setCurrentUser: (state, action: PayloadAction<User | null>) => {
 			if (action.payload) {
-				state.currentUser = action.payload;
+				state.currentUser = mergeAuthenticatedUser(
+					state.currentUser,
+					action.payload,
+				);
 				localStorage.setItem(
 					'loggedUser',
-					JSON.stringify(getLoggedUserSession(action.payload)),
+					JSON.stringify(getLoggedUserSession(state.currentUser)),
 				);
 			} else {
 				state.currentUser = null;
