@@ -6,6 +6,7 @@ import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { isNativeApp } from "utils/platform";
 import { openCustomerBillingPortal, openSubscriptionManagementInBrowser } from "utils/authLinks";
+import { getStripeBillingPresentation } from "utils/billingDisclosure";
 
 interface AccountManagementProps {
     setShowCancelSubscriptionModal: (show: boolean) => void;
@@ -44,6 +45,9 @@ export const AccountManagement: React.FC<AccountManagementProps> = ({ setShowCan
         : null;
     const isFreePlan = billingPlanId === 'homeowner';
     const hasStripeBillingRelationship = Boolean(subscription?.stripeCustomerId);
+    const billingPresentation = getStripeBillingPresentation(
+        subscription?.billingDisclosure,
+    );
     const grantedAccessEndsLabel = grantedAccess?.endsAtMs
         ? new Date(grantedAccess.endsAtMs).toLocaleDateString(undefined, {
             month: 'long',
@@ -92,11 +96,26 @@ export const AccountManagement: React.FC<AccountManagementProps> = ({ setShowCan
                                     </GrantedAccessText>
                                 </GrantedAccessCard>
                             ) : (
-                                <PlanPrice>${planDetails?.priceMonthly || 0}/month</PlanPrice>
+                                <PlanPrice>
+                                    {billingPresentation.listPriceLabel || `$${planDetails?.priceMonthly || 0}/month`}
+                                </PlanPrice>
                             )}
                             <BillingPlanSummary>
-                                Billing plan: {billingPlanDetails?.name || 'Homeowner'} · ${billingPlanDetails?.priceMonthly || 0}/month
+                                Billing plan: {billingPlanDetails?.name || 'Homeowner'} · {billingPresentation.listPriceLabel || `$${billingPlanDetails?.priceMonthly || 0}/month`}
                             </BillingPlanSummary>
+                            {billingPresentation.discountLabel && (
+                                <BillingPlanSummary>
+                                    Stripe discount: {billingPresentation.discountLabel}
+                                </BillingPlanSummary>
+                            )}
+                            {billingPresentation.nextInvoiceLabel && (
+                                <BillingPlanSummary>
+                                    Next invoice: {billingPresentation.nextInvoiceLabel}
+                                </BillingPlanSummary>
+                            )}
+                            {billingPresentation.renewalLabel && (
+                                <BillingPlanSummary>{billingPresentation.renewalLabel}</BillingPlanSummary>
+                            )}
                             <PlanFeatures>
                                 {planDetails?.features.map((feature, index) => (
                                     <PlanFeature key={index}>{feature}</PlanFeature>
@@ -137,6 +156,8 @@ export const AccountManagement: React.FC<AccountManagementProps> = ({ setShowCan
                                 </>
                             )}
                             {!nativeApp && subscription.status === 'active' &&
+                                !subscription.cancelAtPeriodEnd &&
+                                !subscription.billingDisclosure?.cancelAtPeriodEnd &&
                                 subscription.stripeSubscriptionId && (
                                     <CancelButton
                                         onClick={() => setShowCancelSubscriptionModal(true)}>

@@ -143,7 +143,8 @@ deploy `#89`, then repeat the navigation sequence on the deployed web origin.
 
 ## 9.2 baseline entitlement and client parity
 
-Status: local permanent-grant fixture passed; full matrix pending.
+Status: deployed permanent-grant and paid Stripe fixtures passed entitlement
+parity; billing-disclosure remediation is in progress before cohort expansion.
 
 Completed locally:
 
@@ -152,6 +153,40 @@ Completed locally:
   Team navigation remain aligned across desktop, tablet, and mobile web.
 * Plan and Usage accurately states that no payment method is connected and no
   automatic billing follows permanent complimentary access.
+
+Completed on the deployed web origin:
+
+* Permanent Portfolio access remained stable through dashboard, Features,
+  Settings, and Profile navigation at desktop, tablet, and mobile sizes.
+* A paid Stripe Portfolio account retained paid access through navigation and
+  reload, showed the expected Team and property-limit surfaces, and exposed the
+  Stripe customer-portal action.
+* Cancellation was exercised for Portfolio and Homeowner fixtures without an
+  entitlement mismatch.
+
+Production observation found one billing-presentation mismatch on the paid
+Portfolio fixture: Settings showed the active Stripe plan while Profile showed
+the internal-grant-only statement that no automatic billing would occur. The
+subscription uses a real Stripe billing relationship with a 100% discount, so
+the statement was not an authoritative description of its renewal state.
+
+Remediation in progress:
+
+* Persist a sanitized Stripe billing disclosure on both user and family-account
+  subscription records, including list price, discount duration, next invoice,
+  renewal date, and scheduled cancellation state.
+* Keep Stripe webhooks as the primary synchronization path and perform a
+  non-blocking, ownership-verified synchronization during authenticated app
+  initialization as a stale-state recovery check.
+* Update active Redux state immediately from that recovery response so account
+  surfaces do not wait for a later profile snapshot.
+* Restrict subscription detail and cancellation callables to the authenticated
+  owner of the stored Stripe subscription.
+* Show internal complimentary-transition language only for internal grants;
+  paid and discounted Stripe subscriptions use Stripe-derived disclosure.
+
+This remediation requires deployed verification before the 9.2 advance gate
+can close. It does not authorize a charge or create a billing relationship.
 
 Remaining before the 9.2 advance gate:
 

@@ -5,6 +5,37 @@ import type { EntitlementGrant } from '@maintley/entitlements';
 
 export type WorkspaceMode = 'homeowner' | 'property_operator';
 
+export interface BillingDisclosure {
+	source: 'stripe';
+	status: string;
+	priceId: string | null;
+	productId: string | null;
+	currency: string;
+	interval: 'day' | 'week' | 'month' | 'year' | null;
+	intervalCount: number | null;
+	quantity: number;
+	listAmountMinor: number | null;
+	currentPeriodEnd: number | null;
+	cancelAtPeriodEnd: boolean;
+	discount: {
+		couponId: string;
+		name: string | null;
+		percentOff: number | null;
+		amountOffMinor: number | null;
+		currency: string | null;
+		duration: 'forever' | 'once' | 'repeating';
+		durationInMonths: number | null;
+		startsAt: number;
+		endsAt: number | null;
+	} | null;
+	nextInvoice: {
+		amountDueMinor: number;
+		currency: string;
+		dueAt: number | null;
+	} | null;
+	syncedAt: string;
+}
+
 // Family account type for shared subscriptions
 export interface FamilyAccount {
 	id: string;
@@ -25,6 +56,8 @@ export interface FamilyAccount {
 		scheduledPlan?: string;
 		pendingCheckoutPlan?: string;
 		pendingCheckoutStartedAt?: number;
+		cancelAtPeriodEnd?: boolean;
+		billingDisclosure?: BillingDisclosure;
 	};
 	createdAt: string;
 	updatedAt: string;
@@ -80,6 +113,8 @@ export interface User {
 		scheduledPlan?: string;
 		pendingCheckoutPlan?: string;
 		pendingCheckoutStartedAt?: number;
+		cancelAtPeriodEnd?: boolean;
+		billingDisclosure?: BillingDisclosure;
 		entitlementAccountId?: string;
 		entitlementGrants?: EntitlementGrant[];
 	};
@@ -300,6 +335,29 @@ const userSlice = createSlice({
 				JSON.stringify(getLoggedUserSession(state.currentUser)),
 			);
 		},
+		updateSubscriptionFromStripe: (
+			state,
+			action: PayloadAction<{
+				userId: string;
+				subscription: Partial<NonNullable<User['subscription']>>;
+			}>,
+		) => {
+			if (
+				!state.currentUser?.subscription ||
+				state.currentUser.id !== action.payload.userId
+			) {
+				return;
+			}
+
+			state.currentUser.subscription = {
+				...state.currentUser.subscription,
+				...action.payload.subscription,
+			};
+			localStorage.setItem(
+				'loggedUser',
+				JSON.stringify(getLoggedUserSession(state.currentUser)),
+			);
+		},
 		setUserCred: (state, action: PayloadAction<any>) => {
 			state.cred = action.payload;
 		},
@@ -320,6 +378,7 @@ export const {
 	beginAuthTransition,
 	setCurrentUser,
 	updateEntitlementProjection,
+	updateSubscriptionFromStripe,
 	setUserCred,
 	setAuthLoading,
 	logout,

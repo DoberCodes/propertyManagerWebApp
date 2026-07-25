@@ -146,6 +146,8 @@ Important fields:
 * canceledAt
 * stripeCustomerId
 * stripeSubscriptionId
+* cancelAtPeriodEnd
+* billingDisclosure
 * promoCode
 * hasScheduledSubscription
 * scheduledPlan
@@ -157,6 +159,26 @@ Supported statuses:
 * cancelled
 * expired
 * past_due
+
+`billingDisclosure` is a server-written, sanitized projection of the Stripe
+subscription facts needed by Maintley's account surfaces. It may include the
+list price and interval, discount duration, current-period end, cancellation
+state, and next invoice amount and date. It must not contain a raw Stripe
+object, card details, payment-method details, or secrets.
+
+Stripe webhooks are the primary synchronization path. Authenticated application
+initialization also performs one non-blocking, account-owner synchronization as
+a recovery check when the profile has a Stripe customer. The callable verifies
+that the requested subscription belongs to the authenticated user, retrieves
+the current state from Stripe, writes the same projection to the user and
+family-account records, and returns that projection so the active client state
+can update immediately. This recovery check never creates, renews, converts, or
+charges a subscription.
+
+Account and profile billing language must use `billingDisclosure` when a Stripe
+billing relationship exists. Internal grant transition language applies only
+to internal grants; it must not be used to describe a paid or discounted Stripe
+subscription.
 
 ---
 

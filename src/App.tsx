@@ -4,6 +4,7 @@ import {
 	beginAuthTransition,
 	setCurrentUser,
 	updateEntitlementProjection,
+	updateSubscriptionFromStripe,
 	setAuthLoading,
 } from './Redux/Slices/userSlice';
 import type { AppDispatch, RootState } from './Redux/store/store';
@@ -22,6 +23,7 @@ import { clearAccountScopedClientState } from './Redux/utils/clearAccountScopedC
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from './config/firebase';
 import type { User } from './Redux/Slices/userSlice';
+import { syncSubscriptionFromStripe } from './services/stripeService';
 
 const UpdateNotification = React.lazy(
 	() => import('./Components/Library/UpdateNotification/UpdateNotification'),
@@ -95,6 +97,7 @@ export const App = () => {
 	const currentUserIdRef = useRef<string | null>(null);
 	const resolvedAuthUserIdRef = useRef<string | null | undefined>(undefined);
 	const pushNotificationsInitializedRef = useRef(false);
+	const stripeSyncKeyRef = useRef('');
 
 	useEffect(() => {
 		if ('scrollRestoration' in window.history) {
@@ -105,6 +108,45 @@ export const App = () => {
 	useEffect(() => {
 		currentUserIdRef.current = currentUser?.id || null;
 	}, [currentUser?.id]);
+
+	useEffect(() => {
+		if (!currentUser?.id || !currentUser.subscription?.stripeCustomerId) {
+			stripeSyncKeyRef.current = '';
+			return;
+		}
+		if (currentUser.isTeamMemberAccount || currentUser.isAccountOwner === false) {
+			return;
+		}
+
+		const syncKey = `${currentUser.id}:${
+			currentUser.subscription.stripeSubscriptionId ||
+			currentUser.subscription.stripeCustomerId
+		}`;
+		if (stripeSyncKeyRef.current === syncKey) return;
+		stripeSyncKeyRef.current = syncKey;
+
+		syncSubscriptionFromStripe()
+			.then((result) => {
+				if (result.success && result.subscription) {
+					dispatch(
+						updateSubscriptionFromStripe({
+							userId: currentUser.id,
+							subscription: result.subscription,
+						}),
+					);
+				}
+			})
+			.catch((error) => {
+				console.warn('Background Stripe subscription sync skipped:', error);
+			});
+	}, [
+		currentUser?.id,
+		currentUser?.isAccountOwner,
+		currentUser?.isTeamMemberAccount,
+		currentUser?.subscription?.stripeCustomerId,
+		currentUser?.subscription?.stripeSubscriptionId,
+		dispatch,
+	]);
 
 	useEffect(() => {
 		if (!currentUser?.id) return undefined;

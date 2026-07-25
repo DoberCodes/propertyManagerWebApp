@@ -100,6 +100,7 @@ import {
 	getEffectiveSubscriptionPlanId,
 	getSubscriptionPlanDetails,
 } from 'utils/subscriptionUtils';
+import { getStripeBillingPresentation } from 'utils/billingDisclosure';
 import { filterPropertyGroupsByRole } from 'utils/dataFilters';
 import { TeamMember } from 'Redux/Slices/teamSlice';
 import { useStorageUsage } from 'Hooks/useStorageUsage';
@@ -542,6 +543,9 @@ export const UserProfile: React.FC = () => {
 		: null;
 	const hasStripeBillingRelationship = Boolean(
 		currentUser?.subscription?.stripeCustomerId || accessTransition?.stripeCustomerId,
+	);
+	const stripeBillingPresentation = getStripeBillingPresentation(
+		currentUser?.subscription?.billingDisclosure,
 	);
 	const storageUsagePercent = Math.min(100, storageUsage?.usagePercent || 0);
 	const storageUsageLabel = isStorageUsageLoading
@@ -1021,7 +1025,10 @@ export const UserProfile: React.FC = () => {
 						) : null}
 						<div style={{ display: 'grid', gap: '6px', fontSize: '14px' }}>
 							<div><strong>Payment method:</strong> {hasStripeBillingRelationship ? 'Managed securely in Stripe' : 'Not connected'}</div>
-							<div><strong>After complimentary access:</strong> {automaticTransition ? 'Continues as a paid subscription unless cancelled' : accessTransition?.mode === 'checkout_required' ? 'Paid continuation requires Checkout' : 'No automatic billing'}</div>
+							{hasStripeBillingRelationship && stripeBillingPresentation.renewalLabel ? <div><strong>Subscription renewal:</strong> {stripeBillingPresentation.renewalLabel}</div> : null}
+							{hasStripeBillingRelationship && stripeBillingPresentation.discountLabel ? <div><strong>Stripe discount:</strong> {stripeBillingPresentation.discountLabel}</div> : null}
+							{hasStripeBillingRelationship && stripeBillingPresentation.nextInvoiceLabel ? <div><strong>Next invoice:</strong> {stripeBillingPresentation.nextInvoiceLabel}</div> : null}
+							{grantedAccess ? <div><strong>After complimentary access:</strong> {automaticTransition ? 'Continues as a paid subscription unless cancelled' : accessTransition?.mode === 'checkout_required' ? 'Paid continuation requires Checkout' : 'No automatic billing'}</div> : null}
 							{automaticTransition && firstChargeLabel ? <div><strong>First charge:</strong> {firstChargeLabel}{recurringPriceLabel ? ` at ${recurringPriceLabel} per ${accessTransition?.billingCycle || 'billing period'}` : ''}</div> : null}
 						</div>
 						<div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>

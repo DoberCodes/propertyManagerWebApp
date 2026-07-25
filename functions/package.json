@@ -14,6 +14,7 @@
 		"test:recurring-task": "npm run build && node --test manageRecurringTask.test.cjs",
 		"test:access-codes": "npm run build && node --test complimentaryAccessCodes.test.cjs",
 		"test:manual-occupancy": "npm run build && node --test manageManualOccupancy.test.cjs",
+		"test:billing-disclosure": "npm run build && node --test stripeBillingDisclosure.test.cjs",
 		"test:sandbox": "npx ts-node test-stripe-sandbox.ts",
 		"test:cards:sandbox": "npx ts-node test-stripe-card-scenarios-sandbox.ts",
 		"test:webhook:sandbox": "npx ts-node test-stripe-webhook-sandbox.ts",

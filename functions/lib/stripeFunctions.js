@@ -43,6 +43,7 @@ const stripe_1 = __importDefault(require("stripe"));
 const params_1 = require("firebase-functions/params");
 const ensureFamilyAccount_1 = require("./ensureFamilyAccount");
 const subscriptionEntitlements_1 = require("./subscriptionEntitlements");
+const stripeBillingDisclosure_1 = require("./stripeBillingDisclosure");
 const STRIPE_SECRET_KEY = (0, params_1.defineSecret)('STRIPE_SECRET_KEY');
 const STRIPE_WEBHOOK_SECRET = (0, params_1.defineSecret)('STRIPE_WEBHOOK_SECRET');
 const FUNCTIONS_CONFIG_EXPORT = (0, params_1.defineJsonSecret)('FUNCTIONS_CONFIG_EXPORT');
@@ -461,6 +462,7 @@ exports.createCheckoutSession = functions
                 },
             });
             const updatedPriceId = updatedSubscription.items.data[0]?.price?.id || resolvedPriceId;
+            const billingDisclosure = await (0, stripeBillingDisclosure_1.buildStripeBillingDisclosure)(getStripe(), updatedSubscription);
             const subscriptionData = removeUndefinedFields({
                 status: toLocalSubscriptionStatus(updatedSubscription.status),
                 plan: getPlanFromPriceId(updatedPriceId, checkoutPlanId || userData?.subscription?.plan || 'homeowner'),
@@ -473,6 +475,7 @@ exports.createCheckoutSession = functions
                 scheduledPlan: null,
                 pendingCheckoutPlan: null,
                 pendingCheckoutStartedAt: null,
+                billingDisclosure,
                 ...(accountPromoCode ? { promoCode: accountPromoCode } : {}),
             });
             const mergedSubscription = buildMergedSubscription(userData?.subscription, subscriptionData);
@@ -678,6 +681,7 @@ exports.verifyCheckoutSession = functions
         }
         // Get subscription details
         const subscription = await getStripe().subscriptions.retrieve(session.subscription);
+        const billingDisclosure = await (0, stripeBillingDisclosure_1.buildStripeBillingDisclosure)(getStripe(), subscription);
         const subscriptionStatus = toLocalSubscriptionStatus(subscription.status);
         if (!['active', 'trial'].includes(subscriptionStatus)) {
             throw new functions.https.HttpsError('failed-precondition', `Subscription not active yet (status: ${subscription.status || 'unknown'})`);
@@ -693,6 +697,7 @@ exports.verifyCheckoutSession = functions
             stripeSubscriptionId: subscription.id,
             pendingCheckoutPlan: null,
             pendingCheckoutStartedAt: null,
+            billingDisclosure,
         };
         const userRef = db.collection('users').doc(firebaseUID);
         const userDoc = await userRef.get();
@@ -726,31 +731,38 @@ exports.cancelSubscription = functions
         throw new functions.https.HttpsError('invalid-argument', 'Subscription ID is required');
     }
     try {
+        const userRef = db.collection('users').doc(context.auth.uid);
+        const userDoc = await userRef.get();
+        const userData = userDoc.data() || {};
+        const storedSubscriptionId = String(userData?.subscription?.stripeSubscriptionId || '').trim();
+        if (!userDoc.exists || storedSubscriptionId !== String(subscriptionId)) {
+            throw new functions.https.HttpsError('permission-denied', 'This subscription does not belong to the signed-in account.');
+        }
         // Cancel subscription in Stripe
         const subscription = await getStripe().subscriptions.update(subscriptionId, {
             cancel_at_period_end: true,
         });
-        // Update user subscription status
-        const userQuery = await db
-            .collection('users')
-            .where('subscription.stripeSubscriptionId', '==', subscriptionId)
-            .get();
-        if (!userQuery.empty) {
-            const userDoc = userQuery.docs[0];
-            const userData = userDoc.data();
-            const mergedSubscription = buildMergedSubscription(userData.subscription, {
-                status: 'cancelled',
-                canceledAt: subscription.cancel_at,
-            });
-            await userDoc.ref.update({
-                subscription: mergedSubscription,
-                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-            });
-            await syncFamilyAccountSubscription(userData, mergedSubscription);
-        }
-        return { success: true, cancelAt: subscription.cancel_at };
+        const billingDisclosure = await (0, stripeBillingDisclosure_1.buildStripeBillingDisclosure)(getStripe(), subscription);
+        const mergedSubscription = buildMergedSubscription(userData.subscription, {
+            status: toLocalSubscriptionStatus(subscription.status),
+            cancelAtPeriodEnd: Boolean(subscription.cancel_at_period_end),
+            canceledAt: subscription.canceled_at,
+            billingDisclosure,
+        });
+        await userRef.update({
+            subscription: mergedSubscription,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        await syncFamilyAccountSubscription(userData, mergedSubscription);
+        return {
+            success: true,
+            cancelAt: subscription.cancel_at || subscription.current_period_end,
+            subscription: mergedSubscription,
+        };
     }
     catch (error) {
+        if (error instanceof functions.https.HttpsError)
+            throw error;
         console.error('Error canceling subscription:', error);
         throw new functions.https.HttpsError('internal', 'Failed to cancel subscription');
     }
@@ -770,10 +782,21 @@ exports.getSubscriptionDetails = functions
         throw new functions.https.HttpsError('invalid-argument', 'Subscription ID is required');
     }
     try {
-        const subscription = await getStripe().subscriptions.retrieve(subscriptionId);
-        return subscription;
+        const userDoc = await db.collection('users').doc(context.auth.uid).get();
+        const storedSubscriptionId = String(userDoc.data()?.subscription?.stripeSubscriptionId || '').trim();
+        if (!userDoc.exists || storedSubscriptionId !== String(subscriptionId)) {
+            throw new functions.https.HttpsError('permission-denied', 'This subscription does not belong to the signed-in account.');
+        }
+        const subscription = await getStripe().subscriptions.retrieve(subscriptionId, { expand: ['discounts'] });
+        return {
+            id: subscription.id,
+            status: subscription.status,
+            billingDisclosure: await (0, stripeBillingDisclosure_1.buildStripeBillingDisclosure)(getStripe(), subscription),
+        };
     }
     catch (error) {
+        if (error instanceof functions.https.HttpsError)
+            throw error;
         console.error('Error getting subscription details:', error);
         throw new functions.https.HttpsError('internal', 'Failed to get subscription details');
     }
@@ -808,7 +831,7 @@ exports.syncSubscriptionFromStripe = functions
     if (existingStripeSubscriptionId &&
         existingStripeSubscriptionId !== 'YOUR_SUBSCRIPTION_ID_HERE') {
         try {
-            stripeSubscription = await getStripe().subscriptions.retrieve(existingStripeSubscriptionId);
+            stripeSubscription = await getStripe().subscriptions.retrieve(existingStripeSubscriptionId, { expand: ['discounts'] });
         }
         catch (error) {
             console.warn(`Unable to retrieve Stripe subscription ${existingStripeSubscriptionId}; falling back to customer listing.`);
@@ -841,6 +864,7 @@ exports.syncSubscriptionFromStripe = functions
     const currentPriceId = stripeSubscription.items.data[0]?.price?.id ||
         existingSubscription.currentPriceId ||
         '';
+    const billingDisclosure = await (0, stripeBillingDisclosure_1.buildStripeBillingDisclosure)(getStripe(), stripeSubscription);
     const subscriptionPatch = removeUndefinedFields({
         status: localStatus,
         plan: getPlanFromPriceId(String(currentPriceId), String(existingSubscription.plan || 'homeowner')),
@@ -849,8 +873,10 @@ exports.syncSubscriptionFromStripe = functions
         trialEndsAt: stripeSubscription.trial_end,
         stripeCustomerId: String(stripeSubscription.customer || stripeCustomerId),
         stripeSubscriptionId: stripeSubscription.id,
+        cancelAtPeriodEnd: Boolean(stripeSubscription.cancel_at_period_end),
         pendingCheckoutPlan: null,
         pendingCheckoutStartedAt: null,
+        billingDisclosure,
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         ...(stripeSubscription.status === 'canceled'
             ? { canceledAt: stripeSubscription.canceled_at }
@@ -970,6 +996,8 @@ const handleSubscriptionUpdate = async (subscription) => {
         if (!userQuery.empty) {
             const userDoc = userQuery.docs[0];
             const userData = userDoc.data();
+            const authoritativeSubscription = await getStripe().subscriptions.retrieve(subscription.id, { expand: ['discounts'] });
+            const billingDisclosure = await (0, stripeBillingDisclosure_1.buildStripeBillingDisclosure)(getStripe(), authoritativeSubscription);
             // Update subscription data
             const subscriptionData = {
                 status: subscription.status === 'active'
@@ -982,9 +1010,11 @@ const handleSubscriptionUpdate = async (subscription) => {
                 currentPeriodEnd: subscription.current_period_end,
                 trialEndsAt: subscription.trial_end,
                 stripeSubscriptionId: subscription.id,
+                cancelAtPeriodEnd: Boolean(subscription.cancel_at_period_end),
                 pendingCheckoutPlan: null,
                 pendingCheckoutStartedAt: null,
                 updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                billingDisclosure,
             };
             // Check if this is a pre-scheduled subscription
             if (subscription.metadata?.preScheduled === 'true' &&
@@ -1022,9 +1052,12 @@ const handleSubscriptionCancellation = async (subscription) => {
         if (!userQuery.empty) {
             const userDoc = userQuery.docs[0];
             const userData = userDoc.data();
+            const billingDisclosure = await (0, stripeBillingDisclosure_1.buildStripeBillingDisclosure)(getStripe(), subscription);
             const mergedSubscription = buildMergedSubscription(userData.subscription, {
                 status: 'cancelled',
                 canceledAt: subscription.canceled_at,
+                cancelAtPeriodEnd: false,
+                billingDisclosure,
             });
             await userDoc.ref.update({
                 subscription: mergedSubscription,
@@ -1112,6 +1145,8 @@ const handleSubscriptionCreated = async (subscription) => {
         if (!userQuery.empty) {
             const userDoc = userQuery.docs[0];
             const userData = userDoc.data();
+            const authoritativeSubscription = await getStripe().subscriptions.retrieve(subscription.id, { expand: ['discounts'] });
+            const billingDisclosure = await (0, stripeBillingDisclosure_1.buildStripeBillingDisclosure)(getStripe(), authoritativeSubscription);
             // Update subscription data
             const subscriptionData = {
                 status: subscription.status === 'active'
@@ -1124,10 +1159,12 @@ const handleSubscriptionCreated = async (subscription) => {
                 currentPeriodEnd: subscription.current_period_end,
                 trialEndsAt: subscription.trial_end,
                 stripeSubscriptionId: subscription.id,
+                cancelAtPeriodEnd: Boolean(subscription.cancel_at_period_end),
                 pendingCheckoutPlan: null,
                 pendingCheckoutStartedAt: null,
                 createdAt: admin.firestore.FieldValue.serverTimestamp(),
                 updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                billingDisclosure,
             };
             // Check if this is a pre-scheduled subscription
             if (subscription.metadata?.preScheduled === 'true' &&
@@ -1323,6 +1360,29 @@ const handlePaymentMethodDetached = async (paymentMethod) => {
 /**
  * Handle discount creation from Stripe webhooks
  */
+const refreshBillingDisclosureForDiscountEvent = async (userDoc, discount) => {
+    const userData = userDoc.data();
+    const storedSubscriptionId = String(userData?.subscription?.stripeSubscriptionId || '').trim();
+    const eventSubscriptionId = typeof discount?.subscription === 'string'
+        ? discount.subscription
+        : discount?.subscription?.id || '';
+    const subscriptionId = eventSubscriptionId || storedSubscriptionId;
+    if (!subscriptionId)
+        return;
+    const subscription = await getStripe().subscriptions.retrieve(subscriptionId, {
+        expand: ['discounts'],
+    });
+    const billingDisclosure = await (0, stripeBillingDisclosure_1.buildStripeBillingDisclosure)(getStripe(), subscription);
+    const mergedSubscription = buildMergedSubscription(userData.subscription, {
+        billingDisclosure,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+    await userDoc.ref.update({
+        subscription: mergedSubscription,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+    await syncFamilyAccountSubscription(userData, mergedSubscription);
+};
 const handleDiscountCreated = async (discount) => {
     try {
         // Find user by customer ID
@@ -1332,6 +1392,7 @@ const handleDiscountCreated = async (discount) => {
             .get();
         if (!userQuery.empty) {
             const userDoc = userQuery.docs[0];
+            await refreshBillingDisclosureForDiscountEvent(userDoc, discount);
             console.log('Discount applied for user:', userDoc.id, 'Coupon:', discount.coupon?.id);
         }
     }
@@ -1351,6 +1412,7 @@ const handleDiscountDeleted = async (discount) => {
             .get();
         if (!userQuery.empty) {
             const userDoc = userQuery.docs[0];
+            await refreshBillingDisclosureForDiscountEvent(userDoc, discount);
             console.log('Discount removed for user:', userDoc.id);
         }
     }
