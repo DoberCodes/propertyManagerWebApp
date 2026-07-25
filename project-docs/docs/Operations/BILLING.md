@@ -110,6 +110,24 @@ The web equivalents are `REACT_APP_ENABLE_HOMEOWNER_PLUS_PRODUCT_TRIAL` and
 `REACT_APP_ENABLE_INTERNAL_ENTITLEMENT_GRANT_ISSUANCE`; these describe rollout
 state but do not revoke an already-issued grant.
 
+Grant-aware voluntary Checkout is independently controlled by the server-only
+`ENABLE_COMPLIMENTARY_PAID_TRANSITIONS` flag. When enabled, the highest active
+grant bundle defines whether a paid selection is equivalent, lower, or higher:
+
+* an equivalent or lower selection under temporary Checkout-required access
+  creates the Stripe subscription now and sets its first charge for the end of
+  the controlling complimentary period
+* a higher selection starts paid access immediately and converts only temporary
+  grants whose program explicitly permits Checkout conversion
+* an equivalent or lower selection already covered by permanent access is
+  rejected as redundant
+
+The client may explain this policy, but it cannot choose the timing. Functions
+load authoritative grants, derive the policy, configure Stripe, and append the
+high-value transition audit. Stripe remains authoritative for subscription
+state and whether a charge can occur. Disabling the flag prevents new
+grant-aware transitions without changing existing grants or Stripe schedules.
+
 Clients cannot create a user with a paid base plan or rewrite authoritative
 subscription fields after signup. Firestore permits only non-billable initial
 plans and narrowly scoped pending-checkout or promo-code changes. Stripe

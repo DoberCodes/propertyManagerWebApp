@@ -35,6 +35,7 @@ import {
 	CardBillingButton,
 	FreePlanBadge,
 	PlanBestFor,
+	GrantTransitionNotice,
 	PlanFeatureToggle,
 	CheckoutConfidence,
 	MobilePromoContainer,
@@ -126,6 +127,13 @@ const DEFAULT_PLAN_BILLING: Record<PaidPlanId, BillingCycle> = {
 };
 
 const FEATURE_PREVIEW_LIMIT = 4;
+const PLAN_RANK: Record<PaidPlanId, number> = {
+	homeowner: 0,
+	homeowner_plus: 1,
+	multi_homeowner: 2,
+	property: 3,
+	portfolio: 4,
+};
 
 const getAudienceForPlan = (
 	planId: string,
@@ -187,6 +195,87 @@ export const PaywallPage: React.FC<PaywallPageProps> = ({
 	const daysRemaining = getTrialDaysRemaining(subscription);
 	const cardLayout = layout;
 	const nativeApp = isNativeApp();
+	const activePlanGrants = (subscription.entitlementGrants || []).filter(
+		(grant) => {
+			const planId = String(grant.bundleId || '') as PaidPlanId;
+			const startsAtMs = Number(grant.startsAtMs || 0);
+			const endsAtMs = Number(grant.endsAtMs || 0);
+			return (
+				grant.state === 'active' &&
+				Object.prototype.hasOwnProperty.call(PLAN_RANK, planId) &&
+				startsAtMs <= Date.now() &&
+				(grant.kind === 'permanent' || endsAtMs > Date.now())
+			);
+		},
+	);
+	const effectiveGrantPlanId = activePlanGrants.reduce<PaidPlanId | null>(
+		(highestPlanId, grant) => {
+			const candidate = grant.bundleId as PaidPlanId;
+			return !highestPlanId || PLAN_RANK[candidate] > PLAN_RANK[highestPlanId]
+				? candidate
+				: highestPlanId;
+		},
+		null,
+	);
+
+	const getGrantCheckoutState = (planId: PaidPlanId) => {
+		if (selectionOnly || planId === 'homeowner' || !effectiveGrantPlanId) {
+			return null;
+		}
+		const targetRank = PLAN_RANK[planId];
+		const grantRank = PLAN_RANK[effectiveGrantPlanId];
+		const permanentCoveringGrant = activePlanGrants
+			.filter(
+				(grant) =>
+					grant.kind === 'permanent' &&
+					PLAN_RANK[grant.bundleId as PaidPlanId] >= targetRank,
+			)
+			.sort(
+				(left, right) =>
+					PLAN_RANK[right.bundleId as PaidPlanId] -
+					PLAN_RANK[left.bundleId as PaidPlanId],
+			)[0];
+		if (permanentCoveringGrant) {
+			return {
+				kind: 'permanent' as const,
+				grantPlanId: permanentCoveringGrant.bundleId as PaidPlanId,
+			};
+		}
+		const convertibleGrants = activePlanGrants.filter(
+			(grant) =>
+				grant.kind === 'temporary' &&
+				grant.transition?.mode === 'checkout_required',
+		);
+		if (convertibleGrants.length) {
+			const controllingTemporaryGrants = activePlanGrants.filter(
+				(grant) =>
+					grant.kind === 'temporary' && grant.bundleId === effectiveGrantPlanId,
+			);
+			if (
+				targetRank <= grantRank &&
+				controllingTemporaryGrants.some(
+					(grant) => grant.transition?.mode === 'checkout_required',
+				)
+			) {
+				return {
+					kind: 'delayed' as const,
+					grantPlanId: effectiveGrantPlanId,
+					endsAtMs: Math.max(
+						...controllingTemporaryGrants.map((grant) =>
+							Number(grant.endsAtMs || 0),
+						),
+					),
+				};
+			}
+			if (targetRank > grantRank) {
+				return {
+					kind: 'immediate' as const,
+					grantPlanId: effectiveGrantPlanId,
+				};
+			}
+		}
+		return null;
+	};
 
 	useEffect(() => {
 		setPlanAudience(getAudienceForPlan(currentPlan, initialPlanAudience));
@@ -460,6 +549,11 @@ export const PaywallPage: React.FC<PaywallPageProps> = ({
 	};
 
 	const getPlanButtonLabel = (planId: PaidPlanId) => {
+		const grantCheckoutState = getGrantCheckoutState(planId);
+		if (grantCheckoutState?.kind === 'permanent') return 'Included permanently';
+		if (grantCheckoutState?.kind === 'delayed') {
+			return 'Continue after complimentary access';
+		}
 		const planIsCurrent =
 			currentPlan === planId && isSubscriptionActive(subscription);
 		const planIsScheduled = isOnTrial && subscription?.scheduledPlan === planId;
@@ -539,6 +633,11 @@ export const PaywallPage: React.FC<PaywallPageProps> = ({
 			: plan.features.slice(0, FEATURE_PREVIEW_LIMIT);
 		const remainingFeatureCount = plan.features.length - FEATURE_PREVIEW_LIMIT;
 		const featureListId = `${planId}-plan-features`;
+		const grantCheckoutState = getGrantCheckoutState(planId);
+		const grantPlanName = grantCheckoutState
+			? PLAN_BY_ID[grantCheckoutState.grantPlanId]?.name ||
+				grantCheckoutState.grantPlanId.replace(/_/g, ' ')
+			: '';
 
 		return (
 			<PricingCard
@@ -562,6 +661,17 @@ export const PaywallPage: React.FC<PaywallPageProps> = ({
 				<PlanBestFor color={useInvertedColors ? 'white' : 'black'}>
 					{PLAN_BEST_FOR[planId]}
 				</PlanBestFor>
+				{grantCheckoutState && (
+					<GrantTransitionNotice color={useInvertedColors ? 'white' : 'black'}>
+						{grantCheckoutState.kind === 'permanent'
+							? `Your permanent ${grantPlanName} access already includes this plan.`
+							: grantCheckoutState.kind === 'delayed'
+								? `Your complimentary ${grantPlanName} access continues through ${new Date(
+										grantCheckoutState.endsAtMs,
+									).toLocaleDateString()}. Complete Checkout now and billing for this plan will begin afterward.`
+								: `Choosing this higher plan starts paid access now. Eligible temporary ${grantPlanName} grants will be converted.`}
+					</GrantTransitionNotice>
+				)}
 				<PlanFeatures id={featureListId}>
 					{visibleFeatures.map((feature, idx) => (
 						<PlanFeature
@@ -600,7 +710,9 @@ export const PaywallPage: React.FC<PaywallPageProps> = ({
 					disabled={
 						selectionOnly
 							? loading
-							: (isCurrentPlan && subscription.status !== 'trial') || loading
+							: (isCurrentPlan && subscription.status !== 'trial') ||
+								grantCheckoutState?.kind === 'permanent' ||
+								loading
 					}
 					onClick={() => handlePlanSelect(planId)}>
 					{getPlanButtonLabel(planId)}

@@ -55,6 +55,33 @@ export const AccountManagement: React.FC<AccountManagementProps> = ({ setShowCan
             year: 'numeric',
         })
         : null;
+    const accessTransition = grantedAccess?.transition;
+    const firstChargeAt = accessTransition?.firstChargeAt;
+    const firstChargeMs = typeof firstChargeAt === 'number'
+        ? firstChargeAt
+        : typeof (firstChargeAt as any)?.toMillis === 'function'
+            ? (firstChargeAt as any).toMillis()
+            : Number.NaN;
+    const firstChargeLabel = Number.isFinite(firstChargeMs)
+        ? new Date(firstChargeMs).toLocaleDateString(undefined, {
+            month: 'long', day: 'numeric', year: 'numeric',
+        })
+        : null;
+    const recurringPriceLabel = Number.isFinite(Number(accessTransition?.recurringAmountMinor))
+        ? new Intl.NumberFormat(undefined, {
+            style: 'currency',
+            currency: String(accessTransition?.currency || 'USD'),
+        }).format(Number(accessTransition?.recurringAmountMinor) / 100)
+        : null;
+    const paymentMethodLabel = accessTransition?.paymentMethodStatus === 'usable'
+        ? 'On file in Stripe'
+        : accessTransition?.paymentMethodStatus === 'requires_action'
+            ? 'Needs verification'
+            : accessTransition?.paymentMethodStatus === 'missing'
+                ? 'Not connected'
+                : hasStripeBillingRelationship
+                    ? 'Managed securely in Stripe'
+                    : 'Not connected';
 
     if (!subscription) {
         return (
@@ -116,6 +143,27 @@ export const AccountManagement: React.FC<AccountManagementProps> = ({ setShowCan
                             {billingPresentation.renewalLabel && (
                                 <BillingPlanSummary>{billingPresentation.renewalLabel}</BillingPlanSummary>
                             )}
+                            {grantedAccess && (
+                                <>
+                                    <BillingPlanSummary>
+                                        Payment method: {paymentMethodLabel}
+                                    </BillingPlanSummary>
+                                    <BillingPlanSummary>
+                                        After complimentary access: {accessTransition?.mode === 'automatic'
+                                            ? 'Continues as a paid subscription unless cancelled'
+                                            : accessTransition?.mode === 'checkout_required'
+                                                ? 'Paid continuation requires Checkout'
+                                                : 'No automatic billing'}
+                                    </BillingPlanSummary>
+                                    {accessTransition?.mode === 'automatic' && firstChargeLabel && (
+                                        <BillingPlanSummary>
+                                            First charge: {firstChargeLabel}{recurringPriceLabel
+                                                ? ` at ${recurringPriceLabel} per ${accessTransition?.billingCycle || 'billing period'}`
+                                                : ''}
+                                        </BillingPlanSummary>
+                                    )}
+                                </>
+                            )}
                             {subscription.billingSyncIssue?.code === 'multiple_current_subscriptions' && (
                                 <BillingPlanSummary role="alert">
                                     Billing needs attention: more than one current Stripe subscription was found. Contact Maintley support before changing your plan.
@@ -160,7 +208,7 @@ export const AccountManagement: React.FC<AccountManagementProps> = ({ setShowCan
                                     </div>
                                 </>
                             )}
-                            {!nativeApp && subscription.status === 'active' &&
+                            {!nativeApp && ['active', 'trial'].includes(subscription.status) &&
                                 !subscription.cancelAtPeriodEnd &&
                                 !subscription.billingDisclosure?.cancelAtPeriodEnd &&
                                 subscription.stripeSubscriptionId && (

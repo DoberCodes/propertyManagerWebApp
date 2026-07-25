@@ -100,6 +100,11 @@ const createTrialGrant = (accountId, ownerId, propertyId, startsAtMs) => ({
     issuedAtMs: startsAtMs,
     auditReason: 'Eligible homeowner created the first property.',
     policyVersion: exports.HOMEOWNER_PLUS_TRIAL_POLICY_VERSION,
+    transition: {
+        mode: 'checkout_required',
+        targetPlanId: 'homeowner_plus',
+        status: 'not_configured',
+    },
     triggerPropertyId: propertyId,
     createdAt: admin.firestore.FieldValue.serverTimestamp(),
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -168,6 +173,7 @@ const issueFirstPropertyTrial = async (accountId, propertyId, startsAtMs) => {
                 endsAtMs: grant.endsAtMs,
                 source: grant.source,
                 policyVersion: grant.policyVersion,
+                transition: grant.transition,
             },
         ];
         const activeBundleIds = Array.from(new Set([

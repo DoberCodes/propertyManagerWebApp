@@ -30,11 +30,12 @@ resolved.
 Documentation approval does not itself change plan, billing, trial, email,
 Firebase, or task behavior.
 
-The grant-aware voluntary-upgrade policy added on 2026-07-25 is an approved
-implementation requirement, not current Checkout behavior. Equivalent-access
-delayed billing, permanent-grant redundant-Checkout prevention, and audited
-automatic conversion must be implemented and validated before those upgrade
-paths are enabled for grant recipients.
+The grant-aware voluntary-upgrade policy added on 2026-07-25 is implemented
+behind the disabled server-side complimentary-transition flag. Equivalent-
+access delayed billing, permanent-grant redundant-Checkout prevention, higher-
+plan immediate conversion, and audited transition linkage remain deployment and
+Stripe test-mode validation gates before those paths are enabled for grant
+recipients.
 
 No additional ADR is required for the accepted entitlement, communication,
 administrative-audit, or manual synthetic-subscription migration direction.
@@ -111,9 +112,10 @@ access timeline. Active grants resolve dynamically by timestamp, so disabling
 issuance does not revoke existing access and expiration does not depend on a
 scheduled state mutation.
 
-Phase 4 excludes Stripe conversion automation, support regrants, existing-user
-launch cohorts, and `maintley_role` editing. Paid conversion still requires
-Checkout. Before either issuance flag is enabled, the deployed environment must
+Phase 4 excludes support regrants, existing-user launch cohorts, and
+`maintley_role` editing. Paid conversion still requires Checkout. Grant-aware
+Checkout is implemented separately under Phase 6 and remains independently
+disabled. Before either issuance flag is enabled, the deployed environment must
 validate account creation, first-property issuance, retry idempotency, UI
 refresh, expiration, security rules, and audit visibility.
 
@@ -924,6 +926,16 @@ expires. Client routing is protected by the default-off
 `REACT_APP_ENABLE_TRUSTED_RECURRING_TASK_WRITES` deployment bridge until the
 callable is deployed and validated. The direct client fallback and rollout flag
 must be removed after the production observation gate.
+
+Grant-aware voluntary Checkout is implemented behind the default-off
+`ENABLE_COMPLIMENTARY_PAID_TRANSITIONS` Functions flag. The server derives
+equivalence from the effective active grant bundle, schedules the first Stripe
+charge after eligible temporary access, starts higher paid access immediately,
+blocks redundant permanent-access Checkout, synchronizes webhook state, and
+writes append-only transition or conversion audits. The Paywall explains the
+result before Checkout. Deployed Stripe test-mode verification remains required
+for payment-method collection, exact first-charge timing, cancellation before
+charge, webhook idempotency, and paid activation after the complimentary period.
 
 * Derive active access from the grant end timestamp and current clock; do not
   depend on an expiration job updating state on time.

@@ -17,6 +17,7 @@ step begins.
 | `ENABLE_MULTI_HOMEOWNER_PLAN` | `false` | Web and Functions |
 | `ENABLE_HOMEOWNER_PLUS_PRODUCT_TRIAL` | `false` | Web and Functions |
 | `ENABLE_INTERNAL_ENTITLEMENT_GRANT_ISSUANCE` | `false` | Web and Functions |
+| `ENABLE_COMPLIMENTARY_PAID_TRANSITIONS` | `false` | Functions |
 | `ENABLE_ACCESS_LIFECYCLE_COMMUNICATION` | `false` | Functions |
 | `HOMEOWNER_PLUS_TRIAL_ELIGIBILITY_START_AT` | empty until approved; then an ISO 8601 timestamp | Functions |
 | `ENABLE_TRUSTED_SETUP_PLAN_ACTIVATION` | `false` | Web |

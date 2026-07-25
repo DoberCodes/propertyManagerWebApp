@@ -23,6 +23,8 @@ export const ENTITLEMENT_FEATURE_FLAGS = Object.freeze({
 		process.env.ENABLE_HOMEOWNER_PLUS_PRODUCT_TRIAL === 'true',
 	internalEntitlementGrantIssuance:
 		process.env.ENABLE_INTERNAL_ENTITLEMENT_GRANT_ISSUANCE === 'true',
+	complimentaryPaidTransitions:
+		process.env.ENABLE_COMPLIMENTARY_PAID_TRANSITIONS === 'true',
 	accessLifecycleCommunication:
 		process.env.ENABLE_ACCESS_LIFECYCLE_COMMUNICATION === 'true',
 });

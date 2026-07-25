@@ -42,6 +42,7 @@ exports.ENTITLEMENT_FEATURE_FLAGS = Object.freeze({
     multiHomeownerPlan: process.env.ENABLE_MULTI_HOMEOWNER_PLAN === 'true',
     homeownerPlusProductTrial: process.env.ENABLE_HOMEOWNER_PLUS_PRODUCT_TRIAL === 'true',
     internalEntitlementGrantIssuance: process.env.ENABLE_INTERNAL_ENTITLEMENT_GRANT_ISSUANCE === 'true',
+    complimentaryPaidTransitions: process.env.ENABLE_COMPLIMENTARY_PAID_TRANSITIONS === 'true',
     accessLifecycleCommunication: process.env.ENABLE_ACCESS_LIFECYCLE_COMMUNICATION === 'true',
 });
 const DEFAULT_DENY_DIAGNOSTIC_CODES = new Set([

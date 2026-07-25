@@ -74,4 +74,83 @@ describe('PaywallPage free-plan recovery', () => {
 			screen.getByRole('button', { name: 'Show fewer features' }),
 		).toHaveAttribute('aria-expanded', 'true');
 	});
+
+	it('explains that equivalent paid billing begins after temporary granted access', () => {
+		(useNavigate as jest.Mock).mockReturnValue(jest.fn());
+		const endsAtMs = Date.now() + 30 * 24 * 60 * 60 * 1000;
+
+		render(
+			<PaywallPage
+				subscription={{
+					status: 'active',
+					plan: 'homeowner',
+					currentPeriodStart: 0,
+					currentPeriodEnd: 0,
+					entitlementGrants: [
+						{
+							grantId: 'grant-1',
+							programId: 'trial-program',
+							accountId: 'account-1',
+							kind: 'temporary',
+							state: 'active',
+							bundleId: 'homeowner_plus',
+							startsAtMs: Date.now() - 1_000,
+							endsAtMs,
+							source: 'trial',
+							transition: {
+								mode: 'checkout_required',
+								status: 'not_configured',
+							},
+						},
+					],
+				}}
+				currentPlan='homeowner'
+			/>,
+		);
+
+		expect(
+			screen.getByText(/complimentary Homeowner\+ access continues through/i),
+		).toBeInTheDocument();
+		expect(
+			screen.getByRole('button', {
+				name: 'Continue after complimentary access',
+			}),
+		).toBeEnabled();
+	});
+
+	it('prevents redundant checkout for permanent equivalent access', () => {
+		(useNavigate as jest.Mock).mockReturnValue(jest.fn());
+
+		render(
+			<PaywallPage
+				subscription={{
+					status: 'active',
+					plan: 'homeowner',
+					currentPeriodStart: 0,
+					currentPeriodEnd: 0,
+					entitlementGrants: [
+						{
+							grantId: 'grant-lifetime',
+							programId: 'lifetime-program',
+							accountId: 'account-1',
+							kind: 'permanent',
+							state: 'active',
+							bundleId: 'homeowner_plus',
+							startsAtMs: Date.now() - 1_000,
+							endsAtMs: null,
+							source: 'lifetime',
+						},
+					],
+				}}
+				currentPlan='homeowner'
+			/>,
+		);
+
+		expect(
+			screen.getByText(/permanent Homeowner\+ access already includes this plan/i),
+		).toBeInTheDocument();
+		expect(
+			screen.getByRole('button', { name: 'Included permanently' }),
+		).toBeDisabled();
+	});
 });

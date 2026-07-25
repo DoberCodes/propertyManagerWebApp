@@ -390,6 +390,19 @@ export const PlanBestFor = styled.p<{ color?: 'white' | 'black' }>`
 			: COLORS.textSecondary};
 `;
 
+export const GrantTransitionNotice = styled.p<{ color?: 'white' | 'black' }>`
+	margin: 0 0 14px;
+	padding: 10px 12px;
+	border-radius: 8px;
+	font-size: 12px;
+	line-height: 1.45;
+	font-weight: 650;
+	background: ${(props) =>
+		props.color === 'white' ? 'rgba(255, 255, 255, 0.14)' : COLORS.primaryLight};
+	color: ${(props) =>
+		props.color === 'white' ? 'white' : COLORS.primaryDark};
+`;
+
 export const PlanFeatureToggle = styled.button<{ color?: 'white' | 'black' }>`
 	border: none;
 	background: transparent;
