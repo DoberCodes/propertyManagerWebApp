@@ -113,3 +113,57 @@ Advance gate: keep all additional rollout variables disabled until the fix is
 deployed and the grant remains stable after dashboard navigation, View All
 Features navigation, Settings/Profile navigation, and returning from an
 unauthorized admin route without requiring a page reload.
+
+### Hydration-remediation validation
+
+Status: local validation passed; deployed validation pending.
+
+Pull request `#89` is open with all required Build Check, Functions build,
+unit-test, E2E, entitlement-package-version, and release-note checks passing.
+It has not yet been merged or deployed.
+
+The permanent Portfolio demo fixture passed the original reproduction path on
+localhost:
+
+* Settings continued to show `Billing plan: Free` separately from granted,
+  permanent Portfolio access.
+* Navigating to View All Features and returning preserved Portfolio access and
+  Team navigation without requiring a page reload.
+* Dashboard navigation preserved access to all nine existing properties and
+  the Portfolio navigation surface.
+* Profile showed effective Portfolio access, six remaining property slots,
+  18 of 5,000 files, 2.9 MB of 25 GB, and the existing team.
+* The same Profile and Usage entitlement presentation remained present at
+  desktop, 768-by-1,024 tablet, and 390-by-844 mobile viewport sizes.
+* The operator independently confirmed that the originally observed navigation
+  fallback appeared resolved in local testing.
+
+Do not treat this as completion of the 9.1 production advance gate. Merge and
+deploy `#89`, then repeat the navigation sequence on the deployed web origin.
+
+## 9.2 baseline entitlement and client parity
+
+Status: local permanent-grant fixture passed; full matrix pending.
+
+Completed locally:
+
+* Permanent Portfolio grant resolves independently from the Free billing plan.
+* Granted capabilities, limits, storage presentation, property visibility, and
+  Team navigation remain aligned across desktop, tablet, and mobile web.
+* Plan and Usage accurately states that no payment method is connected and no
+  automatic billing follows permanent complimentary access.
+
+Remaining before the 9.2 advance gate:
+
+* Repeat the permanent-grant checks on the deployed web origin and a signed
+  Android build.
+* Validate Free, paid, temporary-grant, expired-grant, and cancelled fixtures.
+* Compare billing plan, effective access, capability limits, admin display, and
+  Plan and Usage for every fixture.
+* Re-test Maintley-role authorization, including the Maintley owner exception,
+  and confirm that an ordinary customer property owner receives no exception.
+* Verify Stripe customer-portal access for a paid fixture and its absence or
+  appropriate alternative presentation for non-Stripe fixtures.
+
+Advance gate remains zero unexplained entitlement mismatches or unauthorized
+actions across web, signed Android, Functions, rules, and the admin display.
