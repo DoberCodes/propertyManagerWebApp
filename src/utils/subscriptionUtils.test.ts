@@ -22,6 +22,7 @@ import {
 	getMaxPropertiesForPlan,
 	getMaxStorageGbForPlan,
 	getSuggestedMaintenancePackageLimit,
+	isIntentionalFreeAccountSubscription,
 	SubscriptionData,
 } from './subscriptionUtils';
 
@@ -179,6 +180,22 @@ describe('subscriptionUtils', () => {
 		expect(canManageTeam(pendingPaidCheckout)).toBe(false);
 		expect(canManageTenants(pendingPaidCheckout)).toBe(false);
 		expect(canUseAdvancedTeamManagement(pendingPaidCheckout)).toBe(false);
+		expect(isIntentionalFreeAccountSubscription(pendingPaidCheckout)).toBe(false);
+	});
+
+	it('identifies only active Free accounts without a Stripe billing relationship as first-property candidates', () => {
+		expect(
+			isIntentionalFreeAccountSubscription(activeSubscription('homeowner')),
+		).toBe(true);
+		expect(
+			isIntentionalFreeAccountSubscription({
+				...activeSubscription('homeowner'),
+				stripeCustomerId: 'cus_test',
+			}),
+		).toBe(false);
+		expect(
+			isIntentionalFreeAccountSubscription(activeSubscription('homeowner_plus')),
+		).toBe(false);
 	});
 
 	it('does not grant paid feature access from a pending checkout on expired access', () => {

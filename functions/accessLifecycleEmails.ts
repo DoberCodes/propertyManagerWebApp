@@ -123,6 +123,8 @@ export const formatLifecycleDate = (
 		month: 'long',
 		day: 'numeric',
 		year: 'numeric',
+		hour: 'numeric',
+		minute: '2-digit',
 		timeZoneName: 'short',
 	}).format(new Date(valueMs));
 
@@ -256,14 +258,14 @@ export const renderAccessLifecycleEmail = ({
 
 	if (milestone === 'activation') {
 		return {
-			subject: 'Your 30-day Homeowner+ trial is active',
+			subject: 'Your first property is ready - Homeowner+ is active',
 			html: renderMaintleyEmailShell({
-				title: 'Homeowner+ is active',
+				title: 'Congratulations on creating your first property',
 				previewText: `Your complimentary Homeowner+ access ends ${endDate}.`,
 				bodyHtml: `${commonIntro}
-					<p style="margin:0 0 14px; font-size:15px; line-height:1.7; color:${EMAIL_BRAND.slate};">Your Free account now includes 30 days of complimentary Homeowner+ access. It ends on <strong>${endDate}</strong>.</p>
+					<p style="margin:0 0 14px; font-size:15px; line-height:1.7; color:${EMAIL_BRAND.slate};">Your first property record is ready. Creating it also activated 30 days of complimentary Homeowner+ access on your Free account. Access ends on <strong>${endDate}</strong>.</p>
 					<div style="margin:18px 0; padding:16px; border-radius:10px; background:${EMAIL_BRAND.canvas}; border:1px solid ${EMAIL_BRAND.accent}; color:${EMAIL_BRAND.slate};"><strong>No payment method is connected.</strong><br />You will not be charged automatically. Continuing with Homeowner+ later requires an intentional Checkout.</div>
-					<p style="margin:0 0 18px; font-size:15px; line-height:1.7; color:${EMAIL_BRAND.slate};">A useful next step is to finish your property details and record the major systems you want Maintley to remember.</p>
+					<p style="margin:0 0 18px; font-size:15px; line-height:1.7; color:${EMAIL_BRAND.slate};">Continue setup to add the major systems you want Maintley to remember and review suggested recurring maintenance before anything is created.</p>
 					${renderMaintleyEmailButton('Continue property setup', safeDashboardUrl)}`,
 			}),
 		};

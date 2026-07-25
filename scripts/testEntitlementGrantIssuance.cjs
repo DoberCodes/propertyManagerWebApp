@@ -19,6 +19,7 @@ const {
 } = require('../functions/lib/subscriptionEntitlements.js');
 
 const db = admin.firestore();
+const DAY_MS = 24 * 60 * 60 * 1_000;
 const startsAtMs = Date.parse('2026-07-23T16:00:00.000Z');
 const freeSubscription = { status: 'active', plan: 'homeowner' };
 
@@ -149,6 +150,42 @@ async function run() {
 		auditSnapshot.docs[0].data().grantId,
 		HOMEOWNER_PLUS_TRIAL_GRANT_ID,
 	);
+
+	const replacementAccountId = 'deleted-and-replaced-first-property-owner';
+	await seedAccount(replacementAccountId);
+	assert.equal(
+		await issueFirstPropertyTrial(
+			replacementAccountId,
+			'property-original',
+			startsAtMs,
+		),
+		'created',
+	);
+	await db.collection('familyAccounts').doc(replacementAccountId).update({
+		propertyCount: 0,
+	});
+	await db.collection('familyAccounts').doc(replacementAccountId).update({
+		propertyCount: 1,
+	});
+	assert.equal(
+		await issueFirstPropertyTrial(
+			replacementAccountId,
+			'property-replacement',
+			startsAtMs + 10 * DAY_MS,
+		),
+		'already_exists',
+		'Deleting the first property and creating another must not restart the trial.',
+	);
+	const replacementGrant = (
+		await db
+			.collection('familyAccounts')
+			.doc(replacementAccountId)
+			.collection('entitlementGrants')
+			.doc(HOMEOWNER_PLUS_TRIAL_GRANT_ID)
+			.get()
+	).data();
+	assert.equal(replacementGrant.triggerPropertyId, 'property-original');
+	assert.equal(replacementGrant.startsAtMs, startsAtMs);
 
 	const checkoutAccountId = 'pending-checkout-owner';
 	await seedAccount(checkoutAccountId, {

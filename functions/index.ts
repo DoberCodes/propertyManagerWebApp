@@ -43,7 +43,10 @@ export { acceptFamilyInvite } from './acceptFamilyInvite';
 export { updateFamilyMemberRole } from './updateFamilyMemberRole';
 export { updateFamilyMember } from './updateFamilyMember';
 export { ensureFamilyAccount } from './ensureFamilyAccount';
-export { issueHomeownerPlusTrialOnFirstProperty } from './entitlementGrants';
+export {
+	finalizeFirstPropertyTrial,
+	issueHomeownerPlusTrialOnFirstProperty,
+} from './entitlementGrants';
 export { activatePropertySetupMaintenancePlan } from './activatePropertySetupMaintenancePlan';
 export { manageRecurringTask } from './manageRecurringTask';
 export { manageManualOccupancy } from './manageManualOccupancy';

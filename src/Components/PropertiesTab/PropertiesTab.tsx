@@ -1,7 +1,11 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
-import { PropertyDialog, PropertyFormData } from './PropertyDialog';
+import {
+	PropertyDialog,
+	PropertyFormData,
+	PropertySaveProgress,
+} from './PropertyDialog';
 import {
 	getPropertyImageSrc,
 	isPropertyImageFallback,
@@ -28,7 +32,10 @@ import {
 import { useRecentlyViewed } from '../../Hooks/useRecentlyViewed';
 import { useFavorites } from '../../Hooks/useFavorites';
 import { RootState } from '../../Redux/store/store';
-import { setCurrentUser } from '../../Redux/Slices/userSlice';
+import {
+	setCurrentUser,
+	updateEntitlementProjection,
+} from '../../Redux/Slices/userSlice';
 import {
 	selectCanAccessProperties,
 	selectIsHomeowner,
@@ -55,6 +62,7 @@ import {
 	getMaxPropertiesForPlan,
 	getRemainingPropertySlots,
 	getSubscriptionPlanDetails,
+	isIntentionalFreeAccountSubscription,
 	isTrialExpired,
 } from '../../utils/subscriptionUtils';
 import { LockedFeatureCallout } from '../Library/LockedFeatureCallout';
@@ -67,6 +75,8 @@ import { canDeleteProperty, getRoleCapabilities } from '../../utils/permissions'
 import { TeamMember } from '../../Redux/Slices/teamSlice';
 import { USER_ROLES } from '../../constants/roles';
 import { COLORS } from '../../constants/colors';
+import { finalizeFirstPropertyTrial } from '../../services/entitlementGrantService';
+import { isHomeownerPlusTrialEnabled } from '../../entitlements/planAvailability';
 import {
 	Wrapper,
 	TopActions,
@@ -2194,7 +2204,10 @@ export const Properties = () => {
 		return copiedTaskCount;
 	};
 
-	const handleSaveProperty = async (formData: any) => {
+	const handleSaveProperty = async (
+		formData: any,
+		reportProgress?: (progress: PropertySaveProgress) => void,
+	) => {
 		const normalizedName = String(formData.name || '').trim();
 		const normalizedAddress = String(formData.address || '').trim();
 		const buildPropertySlug = (value: string) =>
@@ -2299,6 +2312,12 @@ export const Properties = () => {
 			}
 		} else {
 			// Add new property
+			const shouldFinalizeFirstPropertyTrial =
+				totalProperties === 0 &&
+				isHomeownerPlusTrialEnabled() &&
+				isIntentionalFreeAccountSubscription(currentUser?.subscription) &&
+				!isTeamMemberAccount &&
+				currentUser?.isAccountOwner !== false;
 			const slug = buildPropertySlug(normalizedName);
 			if (!normalizedName || !slug) {
 				feedback.notify('Please add a property name before saving.');
@@ -2360,6 +2379,31 @@ export const Properties = () => {
 				const result = await createProperty(newPropertyData);
 
 				if ('data' in result) {
+					let firstPropertyTrialActivationFailed = false;
+					if (shouldFinalizeFirstPropertyTrial) {
+						reportProgress?.({
+							title: 'Activating Homeowner+...',
+							text: `Your ${isHomeowner ? 'home' : 'property'} is saved. We are preparing the 30-day Homeowner+ access used by the setup assistant.`,
+						});
+						try {
+							const activation = await finalizeFirstPropertyTrial(result.data.id);
+							if (activation.effectiveEntitlementProjection) {
+								dispatch(
+									updateEntitlementProjection({
+										accountId: activation.accountId,
+										projection: activation.effectiveEntitlementProjection as any,
+									}),
+								);
+							}
+						} catch (activationError) {
+							firstPropertyTrialActivationFailed = true;
+							console.error(
+								'Property was created but Homeowner+ activation did not finish:',
+								activationError,
+							);
+						}
+					}
+
 					try {
 						await applyDashboardVisibilityPreference(
 							result.data.id,
@@ -2425,12 +2469,20 @@ export const Properties = () => {
 								? `Duplicated ${formData.name} with ${copiedDetails.join(' and ')}.`
 								: `Duplicated ${formData.name}.`,
 						);
-					} else if (formData.openSetupAfterCreate !== false) {
+					} else if (
+						formData.openSetupAfterCreate !== false &&
+						!firstPropertyTrialActivationFailed
+					) {
 						feedback.notify(
 							`${formData.name} was created. Opening ${isHomeowner ? 'home' : 'property'} setup.`,
 							'success',
 						);
 						navigate(`/property/${result.data.slug}?setup=1`);
+					} else if (firstPropertyTrialActivationFailed) {
+						feedback.notify(
+							`${formData.name} was created, but Homeowner+ access is still activating. Open setup after the access notice appears.`,
+						);
+						navigate(`/property/${result.data.slug}`);
 					} else {
 						feedback.notify(`${formData.name} was created.`, 'success');
 					}

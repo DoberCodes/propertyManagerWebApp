@@ -106,6 +106,19 @@ export const getEffectiveSubscriptionPlanId = (
 	}).basePlanId;
 };
 
+export const isIntentionalFreeAccountSubscription = (
+	subscription?: Partial<SubscriptionData> | null,
+): boolean =>
+	Boolean(
+		subscription &&
+			getEffectiveSubscriptionPlanId(subscription as SubscriptionData) ===
+				'homeowner' &&
+			String(subscription.status || '').trim().toLowerCase() === 'active' &&
+			!String(subscription.pendingCheckoutPlan || '').trim() &&
+			!String(subscription.stripeCustomerId || '').trim() &&
+			!String(subscription.stripeSubscriptionId || '').trim(),
+	);
+
 export const getEffectiveAccessPlanId = (
 	subscription?: Parameters<typeof getEffectiveSubscriptionPlanId>[0],
 ): string => {

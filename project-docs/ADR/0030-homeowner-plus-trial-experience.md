@@ -45,7 +45,10 @@ created and committed. Beginning or partially completing setup is not enough.
 A trusted server operation issues the grant once per owning account and must be
 idempotent across retries, duplicate events, and interrupted onboarding.
 Reinstalling the application, changing an email address, or recreating a client
-profile must not restart it.
+profile must not restart it. Deleting the first property and creating a
+replacement property must not restart or extend the trial. The consumed program
+marker and stable account-level grant remain independent from the triggering
+property's lifecycle.
 
 Failed or abandoned paid Checkout does not earn the trial. A paid-intent
 account must make an intentional transition to Free before it can become

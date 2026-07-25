@@ -31,8 +31,9 @@ Homeowner+ trial lifecycle sequence.
 
 Eligible Homeowner+ product trials receive this sequence:
 
-**Day 0 - Welcome and activation**
+**Day 0 - First-property confirmation and activation**
 
+* Congratulate the homeowner on successfully creating the first property.
 * Explain that the account is on Free with a 30-day Homeowner+ trial.
 * Encourage completing property setup.
 * Link to the next useful onboarding action.
@@ -60,14 +61,25 @@ Eligible Homeowner+ product trials receive this sequence:
 Future Maintley Intelligence summaries may improve these messages, but they are
 not required for the initial lifecycle.
 
-### 2. Send one welcome message, not two
+### 2. Keep signup welcome and first-property activation distinct
 
-The Day 0 trial message should replace or extend the existing general welcome
-email for eligible Free-trial accounts. Maintley must not send a generic welcome
-email and a separate trial welcome email for the same signup.
+Account creation and first-property creation are separate customer milestones.
+The existing general welcome email confirms that the Maintley account was
+created. The Day 0 access message confirms that the first property was
+successfully committed and that the resulting 30-day Homeowner+ access is now
+active. The activation message must not present itself as a second welcome.
 
-Non-trial and invited accounts continue to receive the appropriate existing
-welcome or invitation behavior.
+Accounts that do not create a property may still receive the signup welcome but
+must not receive the property or access confirmation. Non-trial and invited
+accounts continue to receive the appropriate welcome or invitation behavior.
+
+The first-property activation delivery must not begin until the grant is
+authoritatively committed. Property creation should keep the user in one loading
+sequence while eligible Free-account activation finishes, refresh effective
+entitlements before opening setup, and use an idempotent server-side check when
+the homeowner confirms suggested recurring work. This prevents setup from
+silently creating reduced one-time tasks because an asynchronous grant trigger
+has not completed yet.
 
 ### 3. Make access lifecycle delivery idempotent and account-aware
 

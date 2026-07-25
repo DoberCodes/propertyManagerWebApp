@@ -82,4 +82,44 @@ describe('PropertyDialog', () => {
 		expect(savedArg.propertyType).toBe('Single Family');
 		expect(savedArg.openSetupAfterCreate).toBe(true);
 	});
+
+	test('keeps first-property access activation inside the save loading state', async () => {
+		const user = userEvent.setup();
+		let finishSave: (() => void) | undefined;
+		const onSave = jest.fn(async (_data, reportProgress) => {
+			reportProgress?.({
+				title: 'Activating Homeowner+...',
+				text: 'Your home is saved. We are preparing your trial access.',
+			});
+			await new Promise<void>((resolve) => {
+				finishSave = resolve;
+			});
+		});
+
+		render(
+			<Provider store={store}>
+				<PropertyDialog
+					isOpen
+					onClose={jest.fn()}
+					onSave={onSave}
+					groups={[]}
+					forceSingleFamily
+					showOnboardingSetupTip
+				/>
+			</Provider>,
+		);
+
+		await user.type(screen.getByPlaceholderText('Enter home name'), 'Willow House');
+		await user.type(screen.getByPlaceholderText('Enter address'), '123 Willow Lane');
+		void user.click(screen.getByRole('button', { name: /save home/i }));
+
+		expect(await screen.findByText('Activating Homeowner+...')).toBeInTheDocument();
+		expect(
+			screen.getByText('Your home is saved. We are preparing your trial access.'),
+		).toBeInTheDocument();
+		expect(screen.getByRole('button', { name: /saving/i })).toBeDisabled();
+
+		finishSave?.();
+		await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
+	});
 });
