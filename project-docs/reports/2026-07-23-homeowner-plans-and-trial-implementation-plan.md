@@ -30,6 +30,12 @@ resolved.
 Documentation approval does not itself change plan, billing, trial, email,
 Firebase, or task behavior.
 
+The grant-aware voluntary-upgrade policy added on 2026-07-25 is an approved
+implementation requirement, not current Checkout behavior. Equivalent-access
+delayed billing, permanent-grant redundant-Checkout prevention, and audited
+automatic conversion must be implemented and validated before those upgrade
+paths are enabled for grant recipients.
+
 No additional ADR is required for the accepted entitlement, communication,
 administrative-audit, or manual synthetic-subscription migration direction.
 
@@ -534,6 +540,23 @@ Stripe subscription and future billing relationship. Cancelling an automatic
 continuation updates Stripe first and then refreshes Maintley's transition view.
 Failure, additional-authentication, and missing-payment-method outcomes never
 grant paid access until Stripe confirms the paid subscription.
+
+Voluntary upgrade flows compare the selected paid bundle with the active
+effective grant bundle rather than the Free billing base. A Free billing account
+with a temporary Homeowner+ grant selecting paid Homeowner+ is an
+`equivalent_access_conversion`: Checkout remains an available upgrade route,
+but Stripe schedules the first charge for the grant end after disclosing the
+date and recurring price. The grant remains active until its original end so an
+opt-out or failed transition does not shorten complimentary access.
+
+A higher paid bundle begins after Stripe confirms the immediate purchase and
+may convert only the overlapping convertible promotional grant. A lower paid
+bundle begins at the temporary grant end. Permanent, lifetime, beta, partner,
+support, and unrelated grants are not silently converted. Equivalent or lower
+Checkout is blocked for permanent access, while a higher paid bundle layers
+over it. Every transition must be idempotent, reuse a linked Stripe object when
+one exists, retain the grant record, and write the required conversion or
+transition audit events.
 
 ### Customer access and billing surface
 
@@ -1443,6 +1466,19 @@ server owns Stripe price selection.
 * Automatic continuation requires trusted Stripe objects, payment-method state,
   and versioned consent evidence.
 * Promo-code Checkout remains supported for intentional future billing.
+* Upgrade comparison uses the active effective grant bundle rather than the
+  Free billing base or current billing-plan label.
+* A temporary Homeowner+ grant selecting paid Homeowner+ remains an available
+  upgrade route and schedules its first Stripe charge no earlier than the grant
+  end with the date and recurring price disclosed before confirmation.
+* Cancelling an equivalent-access transition before its first charge preserves
+  the original temporary grant end date and does not create paid access.
+* A higher paid bundle converts only an overlapping convertible promotional
+  grant after Stripe confirmation; permanent and unrelated grants remain.
+* Permanent equivalent or lower Checkout is blocked as redundant, while a
+  higher paid bundle layers over the permanent grant.
+* Repeated Checkout or callback requests reuse the linked Stripe transition and
+  cannot create a duplicate subscription, conversion, or audit event.
 * The account surface shows the correct end date, payment-method status,
   transition, first charge, recurring price, and interval on web and Android.
 * Manage, cancel, and opt-out update Stripe first, preserve disclosed
