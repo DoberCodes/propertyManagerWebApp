@@ -1364,6 +1364,10 @@ Already issued grants remain governed by their recorded lifecycle.
   been proven, and repository searches/tests identify no remaining consumer.
 * Run the planned full legacy-code audit only after the entitlement rollout is
   stable. Treat cleanup as a separate reviewed change set.
+* Use `2026-07-25-legacy-code-removal-safety-audit.md` as the initial classified
+  inventory. Its clearly dead source may be cleaned independently, but every
+  observation-gated or migration-gated path remains subject to this phase's
+  release and evidence requirements.
 
 **Completion gate:** every enabled feature has recorded test evidence, monitoring
 and an owner; every migration has a complete audit trail; all remaining legacy
