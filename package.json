@@ -66,6 +66,8 @@
 		"test:entitlement-package-version": "node --test scripts/checkEntitlementPackageVersion.test.cjs",
 		"validate:functions-package": "node scripts/validateFunctionsDeployPackage.cjs",
 		"audit:scripts": "node scripts/auditScripts.cjs",
+		"audit:maintenance-history": "node scripts/inventoryMaintenanceHistory.cjs",
+		"test:maintenance-history-inventory": "node --test scripts/maintenanceHistoryInventoryCore.test.cjs",
 		"audit:decisions": "node scripts/auditDecisions.cjs",
 		"adr:author": "node scripts/promoteAdrCandidates.cjs --author",
 		"adr:promote": "node scripts/promoteAdrCandidates.cjs --promote",
