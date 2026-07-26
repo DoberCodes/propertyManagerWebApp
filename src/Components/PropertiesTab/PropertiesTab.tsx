@@ -899,7 +899,6 @@ export const Properties = () => {
 			bathrooms: propertyToDuplicate.bathrooms ?? 0,
 			notes: propertyToDuplicate.notes || '',
 			isRental: propertyToDuplicate.isRental ?? false,
-			maintenanceHistory: [],
 			groupId:
 				selectedGroupForDialog ||
 				propertyToDuplicate.groupId ||
@@ -2085,7 +2084,6 @@ export const Properties = () => {
 				location: {
 					propertyId: newProperty.id,
 				},
-				maintenanceHistory: [],
 			});
 
 			const createdDevice = await createDevice(clonedDevice).unwrap();
@@ -2222,7 +2220,6 @@ export const Properties = () => {
 					bathrooms: formData.bathrooms,
 					notes: formData.notes,
 					isRental: !!formData.isRental,
-					taskHistory: formData.maintenanceHistory || [],
 					...sharingData,
 				};
 				const sanitizedUpdates = Object.fromEntries(
@@ -2325,7 +2322,6 @@ export const Properties = () => {
 				bathrooms: formData.bathrooms,
 				notes: formData.notes,
 				isRental: !!formData.isRental,
-				taskHistory: formData.maintenanceHistory || [],
 				...sharingData,
 			};
 
@@ -2888,8 +2884,6 @@ export const Properties = () => {
 								bathrooms: selectedPropertyForEdit.bathrooms || 0,
 								notes: selectedPropertyForEdit.notes || '',
 								isRental: selectedPropertyForEdit.isRental ?? false,
-								maintenanceHistory:
-									selectedPropertyForEdit.maintenanceHistory || [],
 								coOwners: selectedPropertyForEdit.coOwners || [],
 								administrators: selectedPropertyForEdit.administrators || [],
 								viewers: selectedPropertyForEdit.viewers || [],

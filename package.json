@@ -68,6 +68,7 @@
 		"audit:scripts": "node scripts/auditScripts.cjs",
 		"audit:maintenance-history": "node scripts/inventoryMaintenanceHistory.cjs",
 		"test:maintenance-history-inventory": "node --test scripts/maintenanceHistoryInventoryCore.test.cjs",
+		"test:maintenance-history-containment": "npm --prefix functions run test:maintenance-history-containment && node --test scripts/maintenanceHistoryWriteContainment.test.cjs",
 		"audit:decisions": "node scripts/auditDecisions.cjs",
 		"adr:author": "node scripts/promoteAdrCandidates.cjs --author",
 		"adr:promote": "node scripts/promoteAdrCandidates.cjs --promote",

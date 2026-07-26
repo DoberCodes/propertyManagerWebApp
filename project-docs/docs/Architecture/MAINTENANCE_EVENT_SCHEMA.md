@@ -53,6 +53,7 @@ maintenanceHistory/{historyId}
 `maintenanceEvents` is the authoritative source for maintenance history.
 
 `maintenanceHistory` remains available only for compatibility with older records.
+New workflows do not write legacy collection or embedded history records.
 
 ---
 
@@ -400,6 +401,13 @@ New maintenance records should be written to:
 maintenanceEvents
 ```
 
+The transitional history UI sends corrections and removals to
+`correctMaintenanceHistoryRecord`. Canonical events are corrected normally. A
+legacy-only record is promoted to the same deterministic event ID first, with
+`data.migration` provenance and a server-authored creation revision, and is then
+corrected or soft-deleted. Ambiguous legacy records are refused for manual
+migration review rather than being changed directly.
+
 ---
 
 # Query Patterns
@@ -436,24 +444,22 @@ Review Firestore index requirements when introducing new reporting or dashboard 
 
 # Migration
 
-Migration helpers:
+Report-only migration inventory:
 
 ```bash
-npm run migrate:maintenance-events
-npm run migrate:maintenance-events:apply
+npm run audit:maintenance-history -- --confirm-project=<project-id>
 ```
 
 Implementation:
 
 ```text
-scripts/migrateMaintenanceHistoryToEvents.cjs
+scripts/inventoryMaintenanceHistory.cjs
 ```
 
-Review migration logic carefully before applying to production environments.
-
-Migration utilities exist to support legacy maintenanceHistory records.
-
-They should not be required for normal application operation.
+The inventory has no apply mode. Do not run the older
+`migrateMaintenanceHistoryToEvents.cjs --apply` path; it predates current
+provenance, revision, parity, backup, and rollback requirements. A replacement
+controlled backfill requires separate approval after inventory review.
 
 ---
 

@@ -186,7 +186,9 @@ inventory.
 
 ## Phase 2: Legacy Write Containment
 
-After Phase 1 approval:
+Status: implemented and build/test validated on the Phase 2 write-containment branch.
+
+Implementation:
 
 1. Stop duplicating equipment Quick Logs into embedded history.
 2. Stop recording recurring-task creation as completed history.
@@ -195,6 +197,15 @@ After Phase 1 approval:
 5. Replace direct legacy update/delete behavior with a server-controlled
    promote-then-correct workflow so attribution and revisions cannot be bypassed.
 6. Preserve legacy reads until backfill parity is proven.
+
+The correction boundary uses the existing record ID as the deterministic
+canonical ID. A promoted record receives migration source metadata and a
+source hash, a system-authored creation revision, and then the authenticated
+user's correction or deletion revision. Historical recorder attribution is
+preserved only when explicitly present in the source; an older ownership
+`userId` is not inferred to be the recorder. Records without a reliable current
+property, service date, or historical description are refused for manual
+review. Legacy source documents remain unchanged.
 
 Acceptance gate:
 

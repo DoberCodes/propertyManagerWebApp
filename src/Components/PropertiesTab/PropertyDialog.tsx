@@ -85,11 +85,6 @@ import { User } from '../../Redux/Slices/userSlice';
 import { getFamilyMembers } from '../../services/authService';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faInfoCircle } from '@fortawesome/free-solid-svg-icons';
-interface MaintenanceRecord {
-	date: string;
-	description: string;
-}
-
 export interface PropertyFormData {
 	photo?: string;
 	name: string;
@@ -100,7 +95,6 @@ export interface PropertyFormData {
 	bedrooms?: number | null;
 	bathrooms?: number | null;
 	notes: string;
-	maintenanceHistory?: MaintenanceRecord[];
 	groupId?: string | null;
 	coOwners?: string[];
 	administrators?: string[];
@@ -257,7 +251,6 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 		bedrooms: 0,
 		bathrooms: 0,
 		notes: '',
-		maintenanceHistory: [],
 		groupId: selectedGroupId ?? null,
 		coOwners: [],
 		administrators: [],
@@ -336,7 +329,6 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 				bedrooms: 0,
 				bathrooms: 0,
 				notes: '',
-				maintenanceHistory: [],
 				groupId: selectedGroupId ?? null,
 				coOwners: [],
 				administrators: [],

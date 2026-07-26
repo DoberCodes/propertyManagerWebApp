@@ -12,6 +12,7 @@
 		"test": "npx ts-node test-stripe-integration.ts",
 		"test:setup-plan": "node --test activatePropertySetupMaintenancePlan.test.cjs",
 		"test:recurring-task": "npm run build && node --test manageRecurringTask.test.cjs",
+		"test:maintenance-history-containment": "npm run build && node --test legacyMaintenancePromotion.test.cjs",
 		"test:access-codes": "npm run build && node --test complimentaryAccessCodes.test.cjs",
 		"test:manual-occupancy": "npm run build && node --test manageManualOccupancy.test.cjs",
 		"test:billing-disclosure": "npm run build && node --test stripeBillingDisclosure.test.cjs stripeSubscriptionSelection.test.cjs grantAwareCheckout.test.cjs",

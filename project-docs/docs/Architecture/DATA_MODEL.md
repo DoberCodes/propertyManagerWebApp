@@ -833,6 +833,12 @@ Corrections and removals are function-managed. Removal is a soft deletion so
 the historical event and its immutable `maintenanceEventRevisions` audit record
 remain available for authorized support and dispute handling.
 
+During the legacy dual-read period, corrections use the same server boundary.
+If a visible `maintenanceHistory` record has no canonical event with the same
+ID, the server promotes it into `maintenanceEvents` with source provenance and
+a creation revision before applying the correction or soft deletion. The
+legacy source is retained unchanged for parity review.
+
 ---
 
 ## Historical Source of Truth
@@ -862,6 +868,10 @@ maintenanceHistory
 ```
 
 This collection exists for compatibility.
+
+Normal property, equipment, recurring-task, and Quick Log workflows do not
+write or rewrite this collection or embedded property/equipment history.
+Legacy reads remain temporarily available until migration parity is proven.
 
 Future development should favor:
 

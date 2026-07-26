@@ -653,7 +653,6 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 			bathrooms: formData.bathrooms,
 			notes: formData.notes,
 			isRental: !!formData.isRental,
-			taskHistory: formData.maintenanceHistory || [],
 			...sharingData,
 		};
 
@@ -1725,7 +1724,6 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 							bathrooms: (property as any).bathrooms || 0,
 							notes: (property as any).notes || '',
 							isRental: (property as any).isRental ?? false,
-							maintenanceHistory: (property as any).maintenanceHistory || [],
 							coOwners: (property as any).coOwners || [],
 							administrators: (property as any).administrators || [],
 							viewers: (property as any).viewers || [],
