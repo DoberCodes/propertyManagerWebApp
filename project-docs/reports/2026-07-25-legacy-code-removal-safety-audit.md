@@ -1,7 +1,7 @@
 # Legacy Code Removal-Safety Audit
 
 Date: 2026-07-25
-Status: Report only; no runtime code or production data was removed
+Status: Audit complete; all Safe-now cleanup implemented; production data was not removed
 
 ## Purpose
 
@@ -10,7 +10,8 @@ candidate cleanup by removal safety. It focuses on code that is clearly
 unreachable, compatibility code that still serves existing data, and rollout or
 migration gates that must be satisfied before removal.
 
-This is not permission to perform destructive production-data cleanup. Each
+This does not authorize destructive production-data cleanup. The Safe-now
+source cleanup recorded below was separately approved; every gated
 implementation wave remains a separately reviewed change set.
 
 ## Prior Audits Reviewed
@@ -100,6 +101,25 @@ Functions TypeScript build, and 64 passing web test suites containing 460
 passing tests and one existing todo. The unused-symbol audit decreased from 42
 to 38 diagnostics; the remaining findings are unrelated mechanical cleanup.
 
+## Implementation Update: Remaining Safe-Now Cleanup Completed
+
+The remaining Safe-now cleanup was implemented after Wave 1:
+
+* Removed the unconsumed `DebugConsole` and `FirebaseConnectionTest`
+  components.
+* Removed the disconnected task-notification source, commented export,
+  TypeScript exclusion, and stale compiled artifact. Current Maintley Event and
+  lifecycle communication systems remain unchanged.
+* Removed the broken `check-resend` and `seed:admin-user` package commands and
+  the stale admin-seeding documentation that referenced a missing script.
+* Removed all 38 mechanically unused imports/symbols identified by the strict
+  TypeScript audit. A repeat audit reports zero unused-symbol diagnostics.
+* Regenerated `script-audit-2026-07.md`; missing script targets decreased from
+  two to zero.
+
+No Review-before-archiving, observation-gated, migration-gated, or Keep item
+was removed by this pass.
+
 ## Findings
 
 ### A. Safe Now: Dormant Unit and Suite UI
@@ -184,7 +204,7 @@ location snapshot before deleting relationships. Verify the migrated UI,
 reports, account export, and property/account deletion behavior. Only then can
 rules and collection cleanup be considered.
 
-### E. Safe Now: Other Clearly Unconsumed Source
+### E. Safe Now: Other Clearly Unconsumed Source - Completed
 
 Static reference searches found no active consumer for:
 
@@ -209,7 +229,7 @@ Remove the disconnected source, commented exports, exclusion, and stale build
 artifact together. This does not mean removing the current Maintley Event or
 lifecycle communication systems.
 
-### F. Safe Now: Broken Script Commands
+### F. Safe Now: Broken Script Commands - Completed
 
 The Functions package currently declares two commands whose targets do not
 exist:
@@ -241,7 +261,7 @@ Recommended classification:
 Archived scripts are historical artifacts, not active runtime dead code, and
 should not be deleted merely because package manifests do not reference them.
 
-### H. Safe Mechanical Cleanup: Unused Imports
+### H. Safe Mechanical Cleanup: Unused Imports - Completed
 
 The TypeScript audit produced 42 unused-symbol diagnostics. Most are obsolete
 default `React` imports left after the automatic JSX transform. Removing these

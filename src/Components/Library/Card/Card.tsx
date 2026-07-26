@@ -1,4 +1,3 @@
-import React from 'react';
 import { CardBody, CardTitle, Wrapper } from './Card.styles';
 
 export interface CardProps {

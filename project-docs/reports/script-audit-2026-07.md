@@ -1,6 +1,6 @@
 # Script Audit - 2026-07
 
-Generated: 2026-07-26T03:05:26.138Z
+Generated: 2026-07-26T03:40:58.404Z
 Mode: report-only (no cleanup or migration actions performed)
 
 ## Summary
@@ -9,7 +9,7 @@ Mode: report-only (no cleanup or migration actions performed)
 - Active scripts scanned (scripts/): 65
 - Archived scripts scanned (scripts/archive/): 19
 - Alias scripts detected: 1
-- Missing script targets: 2
+- Missing script targets: 0
 - Unreferenced active scripts: 15
 - Duplicate filenames: 0
 - Risky scripts detected: 29
@@ -23,8 +23,7 @@ Mode: report-only (no cleanup or migration actions performed)
 
 ## Missing Script Targets
 
-- functions/package.json -> check-resend: missing target scripts/check-resend.cjs
-- functions/package.json -> seed:admin-user: missing target scripts/seed-admin-user.cjs
+- None found.
 
 ## Unreferenced Active Scripts (scripts/)
 

@@ -1,4 +1,3 @@
-import React from 'react';
 import { PropertyDetailSectionProps } from '../../types/PropertyDetailPage.types';
 import {
 	InfoCard,

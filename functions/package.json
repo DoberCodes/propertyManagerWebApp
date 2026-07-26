@@ -23,8 +23,6 @@
 		"migrate:device-assets:dry-run": "npm run build && node lib/scripts/backfill-device-assets.js",
 		"migrate:device-assets": "npm run build && node lib/scripts/backfill-device-assets.js --apply",
 		"provision:access-code": "npm run build && node lib/scripts/provision-complimentary-access-code.js",
-		"check-resend": "node scripts/check-resend.cjs",
-		"seed:admin-user": "node scripts/seed-admin-user.cjs",
 		"stripe:webhook": "stripe listen --forward-to localhost:3000/webhook",
 		"stripe:webhook:auto": "bash listen-and-update-webhook-secret.sh"
 	},

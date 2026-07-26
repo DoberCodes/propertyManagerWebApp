@@ -1,4 +1,3 @@
-import React from 'react';
 import { DetailsTab } from './DetailsTab';
 import { DevicesTab } from './DevicesTab';
 import { TasksTab } from './TasksTab';
