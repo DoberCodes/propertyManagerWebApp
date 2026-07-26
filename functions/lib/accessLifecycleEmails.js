@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.sendAdminAccessLifecycleEmail = exports.sendAccessLifecycleEmailTest = exports.sendAccessLifecycleEmails = exports.sendAccessLifecycleActivationOnGrantCreate = exports.processAccessLifecycleGrant = exports.renderPromotionalAccessLifecycleEmail = exports.renderAccessLifecycleEmail = exports.getDueLifecycleMilestones = exports.getLifecycleDeliveryId = exports.getLifecycleMilestoneDefinitions = exports.formatLifecycleDate = exports.ACCESS_LIFECYCLE_MILESTONES = exports.ACCESS_LIFECYCLE_DELIVERIES_COLLECTION = exports.ACCESS_LIFECYCLE_TEMPLATE_VERSION = void 0;
+exports.sendAdminAccessLifecycleEmail = exports.sendAccessLifecycleEmailTest = exports.sendAccessLifecycleEmails = exports.sendAccessLifecycleActivationOnGrantCreate = exports.processAccessLifecycleGrant = exports.renderPromotionalAccessLifecycleEmail = exports.renderAccessLifecycleEmail = exports.getDueLifecycleMilestones = exports.getLifecycleProviderIdempotencyKey = exports.getLifecycleDeliveryId = exports.getLifecycleMilestoneDefinitions = exports.formatLifecycleDate = exports.ACCESS_LIFECYCLE_MILESTONES = exports.ACCESS_LIFECYCLE_DELIVERIES_COLLECTION = exports.ACCESS_LIFECYCLE_TEMPLATE_VERSION = void 0;
 const admin = __importStar(require("firebase-admin"));
 const functions = __importStar(require("firebase-functions/v1"));
 const params_1 = require("firebase-functions/params");
@@ -149,6 +149,10 @@ const getLifecycleDeliveryId = (grantId, milestone, programId = entitlementGrant
     .replace(/[^a-zA-Z0-9_-]/g, '_')
     .slice(0, 180);
 exports.getLifecycleDeliveryId = getLifecycleDeliveryId;
+const getLifecycleProviderIdempotencyKey = (accountId, deliveryId) => `${accountId}__${deliveryId}`
+    .replace(/[^a-zA-Z0-9_-]/g, '_')
+    .slice(0, 240);
+exports.getLifecycleProviderIdempotencyKey = getLifecycleProviderIdempotencyKey;
 const getDueLifecycleMilestones = (grant, nowMs) => (0, exports.getLifecycleMilestoneDefinitions)(grant).filter((milestone) => milestone.targetAtMs <= nowMs).map((milestone) => milestone.id);
 exports.getDueLifecycleMilestones = getDueLifecycleMilestones;
 const renderProgressCards = (progress) => [
@@ -572,7 +576,7 @@ const processMilestone = async (accountRef, grant, milestone, nowMs) => {
             to: email,
             subject: rendered.subject,
             html: rendered.html,
-            idempotencyKey: deliveryId,
+            idempotencyKey: (0, exports.getLifecycleProviderIdempotencyKey)(accountId, deliveryId),
         });
         await publishLifecycleNotice(milestone, accountId, context.ownerId, grantId, Number(grant.endsAtMs), timeZone, grant);
         await markDelivery(deliveryRef, {

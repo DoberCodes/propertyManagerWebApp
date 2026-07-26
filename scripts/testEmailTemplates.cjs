@@ -27,6 +27,24 @@ assert.strictEqual(
 	lifecycle.getLifecycleDeliveryId(grant.grantId, 'activation'),
 	'homeowner_plus_first_property_trial_v1__grant_homeowner_trial__activation__v1',
 );
+const sharedDeliveryId = lifecycle.getLifecycleDeliveryId(grant.grantId, 'activation');
+const firstAccountProviderKey = lifecycle.getLifecycleProviderIdempotencyKey(
+	'account-one',
+	sharedDeliveryId,
+);
+const secondAccountProviderKey = lifecycle.getLifecycleProviderIdempotencyKey(
+	'account-two',
+	sharedDeliveryId,
+);
+assert.notStrictEqual(
+	firstAccountProviderKey,
+	secondAccountProviderKey,
+	'provider idempotency keys must be unique across accounts',
+);
+assert.strictEqual(
+	firstAccountProviderKey,
+	`account-one__${sharedDeliveryId}`,
+);
 
 const expectedSubjects = {
 	activation: 'Your first property is ready - Homeowner+ is active',
