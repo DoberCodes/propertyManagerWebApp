@@ -287,6 +287,41 @@ silently fall back to a preview.
 
 * testFirebaseRules.cjs
 * testStorageRules.cjs
+* inventoryMaintenanceHistory.cjs
+
+### Maintenance History migration inventory
+
+`inventoryMaintenanceHistory.cjs` is the report-only discovery gate for ADR
+0024. It scans canonical Maintenance Events, the legacy `maintenanceHistory`
+collection, and embedded property/equipment history. It classifies records but
+does not create, update, or delete Firestore data.
+
+The command permanently rejects `--apply`, requires explicit confirmation of
+the Firebase project encoded by the service account, and only writes JSON
+reports beneath the gitignored `tmp/` directory.
+
+```bash
+yarn audit:maintenance-history --confirm-project=mypropertymanager-cda42
+```
+
+Optional account-scoped report:
+
+```bash
+yarn audit:maintenance-history \
+  --confirm-project=mypropertymanager-cda42 \
+  --account-id=<account-id> \
+  --report=tmp/maintenance-history-inventory.json
+```
+
+Run deterministic classifier fixtures with:
+
+```bash
+yarn test:maintenance-history-inventory
+```
+
+Do not run `migrateMaintenanceHistoryToEvents.cjs --apply`. Its earlier
+backfill behavior predates the inventory, provenance, revision, parity, and
+rollback requirements now established for the migration.
 
 ---
 

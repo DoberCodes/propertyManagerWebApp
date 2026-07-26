@@ -1,19 +1,19 @@
 # Script Audit - 2026-07
 
-Generated: 2026-07-26T03:58:33.429Z
+Generated: 2026-07-26T05:05:33.750Z
 Mode: report-only (no cleanup or migration actions performed)
 
 ## Summary
 
 - Package manifests scanned: 3
-- Active scripts scanned (scripts/): 50
+- Active scripts scanned (scripts/): 52
 - Archived scripts scanned (scripts/archive/): 23
 - Alias scripts detected: 1
 - Missing script targets: 0
 - Unreferenced active scripts: 0
 - Duplicate filenames: 0
-- Risky scripts detected: 29
-- Risky scripts without dry-run signal: 18
+- Risky scripts detected: 30
+- Risky scripts without dry-run signal: 19
 
 ## Package Script Aliases
 
@@ -77,6 +77,7 @@ Mode: report-only (no cleanup or migration actions performed)
 | scripts/cleanupSharedPropertiesData.cjs | apply, delete, remove | yes |
 | scripts/generateMaintleyContentIdea.cjs | remove | yes |
 | scripts/initFirestore.cjs | delete | no |
+| scripts/inventoryMaintenanceHistory.cjs | apply | no |
 | scripts/migrateEquipmentTerminology.cjs | apply | yes |
 | scripts/migrateFeedbackTicketNumbers.cjs | apply | no |
 | scripts/migrateFixReportAccountIntegrity.cjs | apply | no |
@@ -104,6 +105,7 @@ Mode: report-only (no cleanup or migration actions performed)
 - scripts/auditDecisions.cjs
 - scripts/checkEntitlementBoundaries.cjs
 - scripts/initFirestore.cjs
+- scripts/inventoryMaintenanceHistory.cjs
 - scripts/migrateFeedbackTicketNumbers.cjs
 - scripts/migrateFixReportAccountIntegrity.cjs
 - scripts/migratePruneInactiveUserData.cjs
