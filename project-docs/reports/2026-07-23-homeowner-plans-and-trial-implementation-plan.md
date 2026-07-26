@@ -1281,6 +1281,23 @@ until their recorded end or an explicit audited revocation.
   to an owned operational channel before expanding the cohort.
 * Require deployment CI to run both lifecycle template checks and the Maintley
   Event delivery-engine suite used by persistent in-app notices.
+* Treat the current hourly collection-group scan as a controlled-rollout
+  recovery implementation, not the long-term scheduler. It currently reads
+  every historical entitlement grant and at least one scoped delivery record
+  per grant on each run, even when no milestone is due.
+* Before broad cohort expansion—or earlier when telemetry projects more than
+  25,000 lifecycle-scheduler reads per day—replace the full scan with an indexed
+  due-work query. Store a server-managed `nextLifecycleAtMs` and dispatch state,
+  query only active or retryable grants whose next delivery is due, and remove
+  terminal or fully delivered grants from the candidate set without deleting
+  their immutable grant or delivery history.
+* Backfill scheduling metadata for existing grants, retain the full-scan path as
+  a temporary rollback during observation, and validate that activation
+  recovery, failed-delivery retries, milestone advancement, paid-conversion
+  suppression, and account-scoped provider idempotency remain correct.
+* Record candidate count, due count, processed count, failure count, execution
+  duration, and estimated Firestore reads so the optimization gate is based on
+  measured production behavior rather than account-count assumptions.
 
 **Rollback:** disable lifecycle communication. This stops new deliveries without
 changing grants, billing, or already-written delivery/audit records.
