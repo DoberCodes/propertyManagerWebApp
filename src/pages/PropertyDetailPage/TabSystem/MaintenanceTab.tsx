@@ -19,7 +19,6 @@ import {
 	SectionLead,
 	EmptyState,
 } from './index.styles';
-import { getDeviceNameUtil } from '../PropertyDetailPage.utils';
 import {
 	FilterBar,
 	FilterConfig,
@@ -773,8 +772,8 @@ export const MaintenanceTab = ({
 
 	// Combine all maintenance records for filtering
 	const allMaintenanceRecords = useMemo(
-		() => [
-			...maintenanceHistoryRecords.filter(isContinuityEvent).map((record) => ({
+		() =>
+			maintenanceHistoryRecords.filter(isContinuityEvent).map((record) => ({
 				...record,
 				revisions: revisionsByEventId.get(String(record.id)) || [],
 				correctionCount: (revisionsByEventId.get(String(record.id)) || []).filter(
@@ -787,30 +786,12 @@ export const MaintenanceTab = ({
 				completedBy: record.completedBy || record.approvedBy || record.assignee,
 				completedByName: resolveCompletedByName(record),
 				notes: record.completionNotes || record.notes,
-				isLegacy: false,
+				isLegacy: !record.isCanonicalMaintenanceEvent,
 				groupId: record.maintenanceGroupId, // Ensure groupId is included
 			})),
-			...(property.maintenanceHistory || []).map(
-				(record: any, index: number) => ({
-					id: `legacy-${index}`,
-					completionDate: record.date,
-					title: record.description,
-					linkedDevices:
-						record.deviceId !== undefined && record.deviceId !== null
-							? getDeviceNameUtil(record.deviceId, property)
-							: '-',
-					completedBy: getDeviceNameUtil(record.deviceId, property),
-					completedByName: getDeviceNameUtil(record.deviceId, property),
-					groupId: record.maintenanceGroupId || null, // Add groupId for legacy records
-					notes: '-',
-					isLegacy: true,
-				}),
-			),
-		],
 		[
 			maintenanceHistoryRecords,
 			revisionsByEventId,
-			property,
 			resolveCompletedByName,
 			getLinkedDeviceLabel,
 		],

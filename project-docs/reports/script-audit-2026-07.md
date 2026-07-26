@@ -1,12 +1,12 @@
 # Script Audit - 2026-07
 
-Generated: 2026-07-26T05:34:03.125Z
+Generated: 2026-07-26T05:53:37.495Z
 Mode: report-only (no cleanup or migration actions performed)
 
 ## Summary
 
 - Package manifests scanned: 3
-- Active scripts scanned (scripts/): 53
+- Active scripts scanned (scripts/): 54
 - Archived scripts scanned (scripts/archive/): 23
 - Alias scripts detected: 1
 - Missing script targets: 0

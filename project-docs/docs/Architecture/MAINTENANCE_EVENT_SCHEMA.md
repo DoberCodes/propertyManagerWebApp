@@ -31,6 +31,7 @@ Implementation references:
 * functions/maintenanceEvents.ts
 * src/Redux/API/maintenanceSlice.tsx
 * src/Redux/API/taskSlice.tsx
+* src/maintenanceHistory/maintenanceHistoryAdapter.ts
 
 Canonical collection:
 
@@ -382,7 +383,8 @@ Recommendation systems should not create parallel maintenance-history structures
 
 # Reading Strategy
 
-The application currently supports dual-read behavior.
+The application currently supports dual-read behavior through one shared,
+source-aware adapter.
 
 Sources:
 
@@ -394,6 +396,20 @@ Purpose:
 * Support older data.
 * Support migration efforts.
 * Preserve compatibility during transition periods.
+
+The adapter normalizes dates, titles, descriptions, property relationships,
+equipment relationships, source identity, and canonical status into one
+UI-facing shape. It removes duplicate query results by source identity, prefers
+a canonical event when the legacy collection uses the same ID, and honors
+explicit migration provenance.
+
+Property `taskHistory` and `maintenanceHistory` arrays are treated as aliases
+and deduplicated against each other. Similar independent records are not
+automatically merged; content similarity alone is not sufficient evidence that
+two records describe the same work.
+
+Property- and account-scoped RTK query paths both use the adapter. Property
+detail consumers do not independently merge embedded property history.
 
 New maintenance records should be written to:
 

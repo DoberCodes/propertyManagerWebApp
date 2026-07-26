@@ -17,6 +17,12 @@ import {
 	resolveAccessibleAccountIds,
 } from './accountContext';
 import { shouldCreateNotification } from '../../utils/notificationPreferences';
+import {
+	AdaptedMaintenanceHistoryRecord,
+	MaintenanceHistorySourceRecord,
+	mergeMaintenanceHistorySources,
+	propertyEmbeddedHistorySources,
+} from '../../maintenanceHistory/maintenanceHistoryAdapter';
 
 const MAX_FAVORITES = 5;
 
@@ -209,7 +215,10 @@ const userSlice = apiSlice.injectEndpoints({
 			invalidatesTags: ['Favorites'],
 		}),
 
-		getAllMaintenanceHistoryForUser: builder.query<any[], void>({
+		getAllMaintenanceHistoryForUser: builder.query<
+			AdaptedMaintenanceHistoryRecord[],
+			void
+		>({
 			async queryFn() {
 				try {
 					// Get authenticated user from Firebase Auth
@@ -237,16 +246,18 @@ const userSlice = apiSlice.injectEndpoints({
 						}
 					}
 
-					let ownedPropertyIds: string[] = [];
+					const ownedPropertyIds: string[] = [];
 					const ownedPropertyTitles = new Set<string>();
+					const ownedProperties = new Map<string, Record<string, any>>();
 					const addOwnedProperty = (propertyDoc: any) => {
 						const propertyData = docToData(propertyDoc) as
-							| Record<string, unknown>
+							| Record<string, any>
 							| null;
 						if (!propertyData?.id) {
 							return;
 						}
 						ownedPropertyIds.push(String(propertyData.id));
+						ownedProperties.set(String(propertyData.id), propertyData);
 						const title = String(propertyData.title || '').trim();
 						if (title) {
 							ownedPropertyTitles.add(title);
@@ -317,80 +328,100 @@ const userSlice = apiSlice.injectEndpoints({
 					}
 
 					const allPropertyIds = Array.from(new Set(ownedPropertyIds));
+					const collectionsToQuery = [
+						'maintenanceEvents',
+						'maintenanceHistory',
+					] as const;
+					const sourceRecords: MaintenanceHistorySourceRecord[] = [];
+					const addDocuments = (
+						collectionName: (typeof collectionsToQuery)[number],
+						documents: any[],
+					) => {
+						documents.forEach((recordDoc) => {
+							const record = docToData(recordDoc);
+							if (record) {
+								sourceRecords.push({
+									source: collectionName,
+									sourceId: recordDoc.id,
+									record,
+								});
+							}
+						});
+					};
 
-				// Dual-read: maintenanceEvents (canonical) + maintenanceHistory (legacy)
-				const collectionsToQuery = ['maintenanceEvents', 'maintenanceHistory'];
-				const seenIds = new Set<string>();
-				const allRecords: Record<string, unknown>[] = [];
-
-				const addUnique = (docs: any[]) => {
-					docs.forEach((d) => {
-						const data = docToData(d) as Record<string, unknown> | null;
-						if (data && !seenIds.has(data.id as string)) {
-							seenIds.add(data.id as string);
-							allRecords.push(data);
-						}
-					});
-				};
-
-				// Query by accountId across both collections
-				for (const col of collectionsToQuery) {
-					for (const accountId of accessibleAccountIds) {
-						try {
-							const q = query(collection(db, col), where('accountId', '==', accountId));
-							const snap = await getDocs(q);
-							addUnique(snap.docs);
-						} catch (error) {
-							logMaintenanceHistoryReadWarning(
-								'Could not fetch account-linked maintenance records batch:',
-								error,
-							);
-						}
-					}
-				}
-
-				// Query by propertyId across both collections
-				for (const col of collectionsToQuery) {
-					for (let i = 0; i < allPropertyIds.length; i += 10) {
-						const batch = allPropertyIds.slice(i, i + 10);
-						try {
-							const q = query(collection(db, col), where('propertyId', 'in', batch));
-							const snap = await getDocs(q);
-							addUnique(snap.docs);
-						} catch (e) {
-							logMaintenanceHistoryReadWarning(
-								'Could not fetch property-linked maintenance batch:',
-								e,
-							);
-						}
-					}
-				}
-
-				// Fallback for legacy records that only stored propertyTitle
-				const propertyTitleList = Array.from(ownedPropertyTitles);
-				for (const col of collectionsToQuery) {
-					for (const accountId of accessibleAccountIds) {
-						for (let i = 0; i < propertyTitleList.length; i += 10) {
-							const titleBatch = propertyTitleList.slice(i, i + 10);
+					for (const collectionName of collectionsToQuery) {
+						for (const accountId of accessibleAccountIds) {
 							try {
-								const q = query(
-									collection(db, col),
-									where('accountId', '==', accountId),
-									where('propertyTitle', 'in', titleBatch),
+								const snapshot = await getDocs(
+									query(
+										collection(db, collectionName),
+										where('accountId', '==', accountId),
+									),
 								);
-								const snap = await getDocs(q);
-								addUnique(snap.docs);
-							} catch (e) {
+								addDocuments(collectionName, snapshot.docs);
+							} catch (error) {
 								logMaintenanceHistoryReadWarning(
-									'Could not fetch legacy title-linked maintenance batch:',
-									e,
+									'Could not fetch account-linked maintenance records batch:',
+									error,
 								);
 							}
 						}
 					}
-				}
 
-				return { data: allRecords };
+					for (const collectionName of collectionsToQuery) {
+						for (let i = 0; i < allPropertyIds.length; i += 10) {
+							const batch = allPropertyIds.slice(i, i + 10);
+							if (batch.length === 0) continue;
+							try {
+								const snapshot = await getDocs(
+									query(
+										collection(db, collectionName),
+										where('propertyId', 'in', batch),
+									),
+								);
+								addDocuments(collectionName, snapshot.docs);
+							} catch (error) {
+								logMaintenanceHistoryReadWarning(
+									'Could not fetch property-linked maintenance batch:',
+									error,
+								);
+							}
+						}
+					}
+
+					const propertyTitleList = Array.from(ownedPropertyTitles);
+					for (const collectionName of collectionsToQuery) {
+						for (const accountId of accessibleAccountIds) {
+							for (let i = 0; i < propertyTitleList.length; i += 10) {
+								const titleBatch = propertyTitleList.slice(i, i + 10);
+								if (titleBatch.length === 0) continue;
+								try {
+									const snapshot = await getDocs(
+										query(
+											collection(db, collectionName),
+											where('accountId', '==', accountId),
+											where('propertyTitle', 'in', titleBatch),
+										),
+									);
+									addDocuments(collectionName, snapshot.docs);
+								} catch (error) {
+									logMaintenanceHistoryReadWarning(
+										'Could not fetch legacy title-linked maintenance batch:',
+										error,
+									);
+								}
+							}
+						}
+					}
+
+					return {
+						data: mergeMaintenanceHistorySources([
+							...sourceRecords,
+							...Array.from(ownedProperties.values()).flatMap(
+								propertyEmbeddedHistorySources,
+							),
+						]),
+					};
 				} catch (error: any) {
 					if (isFirestorePermissionDeniedError(error)) {
 						return { data: [] };

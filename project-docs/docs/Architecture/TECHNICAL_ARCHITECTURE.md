@@ -713,7 +713,17 @@ Maintenance Event
 Notification
 ```
 
-Maintenance history views currently support both collections.
+Maintenance history views currently support both collections through:
+
+```text
+src/maintenanceHistory/maintenanceHistoryAdapter.ts
+```
+
+Property- and account-scoped RTK queries feed collection and embedded-property
+sources into this adapter. It owns the UI-facing shape, source identity,
+canonical preference, safe provenance deduplication, and ordering. Individual
+property views should consume the adapted records rather than merging legacy
+arrays independently.
 
 See:
 
