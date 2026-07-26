@@ -246,6 +246,65 @@ export type AdminComplimentaryAccessCode = {
 	createdAt?: string | null;
 };
 
+export type AdminMaintleyTeamMember = {
+	id: string;
+	email?: string | null;
+	displayName: string;
+	maintleyRole: 'owner' | 'admin' | 'support' | 'operations' | string;
+	permissions: string[];
+	updatedAt?: string | null;
+};
+
+export const adminPortalListMaintleyTeam = async (params: {
+	sessionToken: string;
+}): Promise<{
+	members: AdminMaintleyTeamMember[];
+	actorRole: string;
+	canAssignElevatedRoles: boolean;
+}> => {
+	const callable = await getAdminCallable<
+		typeof params,
+		{
+			members: AdminMaintleyTeamMember[];
+			actorRole: string;
+			canAssignElevatedRoles: boolean;
+		}
+	>('adminPortalListMaintleyTeam');
+	const result = await callable(params);
+	return result.data;
+};
+
+export const adminPortalMutateMaintleyTeam = async (params: {
+	sessionToken: string;
+	action: 'invite' | 'update' | 'revoke';
+	targetUserId?: string;
+	email?: string;
+	firstName?: string;
+	lastName?: string;
+	role?: 'owner' | 'admin' | 'support' | 'operations';
+	reason: string;
+	requestId: string;
+	confirmation?: string;
+}): Promise<{
+	success: true;
+	outcome: 'completed' | 'replayed';
+	requestId: string;
+	targetUserId?: string;
+	createdAuthUser?: boolean;
+	invitationEmailOutcome?: 'not_applicable' | 'sent' | 'failed';
+}> => {
+	const callable = await getAdminCallable<typeof params, {
+		success: true;
+		outcome: 'completed' | 'replayed';
+		requestId: string;
+		targetUserId?: string;
+		createdAuthUser?: boolean;
+		invitationEmailOutcome?: 'not_applicable' | 'sent' | 'failed';
+	}>('adminPortalMutateMaintleyTeam');
+	const result = await callable(params);
+	return result.data;
+};
+
 export type AdminPortalAuditLogRecord = {
 	id: string;
 	category?: string | null;
@@ -649,6 +708,27 @@ export const adminPortalCreateBillingCoupon = async (params: {
 		{ success: true; coupon: AdminBillingCoupon }
 	>('adminPortalCreateBillingCoupon');
 
+	const result = await callable(params);
+	return result.data;
+};
+
+export const adminSendOperationalUserEmail = async (params: {
+	sessionToken: string;
+	targetUserId: string;
+	category: 'support_follow_up' | 'account_notice' | 'billing_access';
+	subject: string;
+	message: string;
+	reason: string;
+	requestId: string;
+}): Promise<{
+	success: true;
+	outcome: 'sent' | 'replayed';
+	requestId: string;
+}> => {
+	const callable = await getAdminCallable<
+		typeof params,
+		{ success: true; outcome: 'sent' | 'replayed'; requestId: string }
+	>('sendAdminOperationalUserEmail');
 	const result = await callable(params);
 	return result.data;
 };

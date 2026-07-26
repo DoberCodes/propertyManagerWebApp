@@ -64,7 +64,7 @@ describe('centralized entitlement resolver', () => {
 		}
 	});
 
-	it('keeps Multi-Homeowner disabled until its launch flag is enabled', () => {
+	it('keeps Multi-Homeowner acquisition disabled without hiding an existing paid subscription', () => {
 		const subscription = activeSubscription('multi_homeowner', 'sub-multi');
 		const disabled = resolveAccountEntitlements({
 			subscription,
@@ -81,9 +81,9 @@ describe('centralized entitlement resolver', () => {
 		expect(
 			isPlanEnabled('multi_homeowner', { multiHomeownerPlan: true }),
 		).toBe(true);
-		expect(disabled.basePlanId).toBe('homeowner');
+		expect(disabled.basePlanId).toBe('multi_homeowner');
 		expect(disabled.diagnostics.map(({ code }) => code)).toContain(
-			'disabled_plan',
+			'disabled_plan_preserved',
 		);
 		expect(enabled.basePlanId).toBe('multi_homeowner');
 		expect(enabled.limits.properties).toBe(5);
@@ -417,6 +417,8 @@ describe('centralized entitlement resolver', () => {
 				'grant.created',
 				'billing_transition.opted_out',
 				'access_email.sent',
+				'user_email.sent',
+				'maintley_role.updated',
 				'stripe_migration.started',
 				'stripe_migration.completed',
 				'admin_action.failed',

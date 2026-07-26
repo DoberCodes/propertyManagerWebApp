@@ -383,6 +383,8 @@ export default function TeamPage() {
 	// Check if user can manage team members based on subscription plan (selector)
 	const canManage = useSelector(selectCanInviteTeamMembers);
 	const isTeamMemberAccount = useSelector(selectIsTeamMemberAccount);
+	const canReviewRetainedTeam =
+		!isTeamMemberAccount && currentUser?.hasExistingTeamMembers === true;
 	const isAdvancedTeamManagement =
 		!!currentUser?.subscription &&
 		canUseAdvancedTeamManagement(currentUser.subscription);
@@ -1213,8 +1215,9 @@ export default function TeamPage() {
 					</TeamHeroEyebrow>
 					<TeamHeroTitle>Keep the right people connected to the right properties.</TeamHeroTitle>
 					<TeamHeroText>
-						Invite your team, assign property access, and keep contact details,
-						notes, and documents in one place.
+						{canManage
+							? 'Invite your team, assign property access, and keep contact details, notes, and documents in one place.'
+							: 'Review the team relationships retained from your previous plan and remove access when it is no longer needed.'}
 					</TeamHeroText>
 				</TeamHeroContent>
 				<TeamStatsGrid aria-label='Team summary'>
@@ -1343,11 +1346,12 @@ export default function TeamPage() {
 									<TeamMemberCard
 										key={member.id}
 										onClick={() =>
-											canManage && handleEditTeamMember(member, group.id)
+											(canManage || canReviewRetainedTeam) &&
+											handleEditTeamMember(member, group.id)
 										}
 										style={{
-											cursor: canManage ? 'pointer' : 'default',
-											opacity: canManage ? 1 : 0.7,
+											cursor: canManage || canReviewRetainedTeam ? 'pointer' : 'default',
+											opacity: canManage || canReviewRetainedTeam ? 1 : 0.7,
 										}}>
 										<TeamMemberIdentity>
 											<TeamMemberAvatarWrap>
@@ -1457,6 +1461,9 @@ export default function TeamPage() {
 							access, and store helpful notes or files for future reference.
 						</DialogIntro>
 
+						<fieldset
+							disabled={!canManage}
+							style={{ border: 0, margin: 0, padding: 0, minWidth: 0 }}>
 						<DialogBody>
 							<LeftColumn>
 								<CollapsibleDialogSection
@@ -2087,10 +2094,11 @@ export default function TeamPage() {
 								)}
 							</RightColumn>
 						</DialogBody>
+						</fieldset>
 
 						<DialogFooter>
 							{editingMember &&
-								canManage &&
+								(canManage || canReviewRetainedTeam) &&
 								currentUser?.email !== editingMember.email && (
 									<DeleteMemberButton
 										type='button'
@@ -2101,11 +2109,13 @@ export default function TeamPage() {
 									</DeleteMemberButton>
 								)}
 							<CancelButton onClick={() => setShowTeamMemberDialog(false)}>
-								Cancel
+								{canManage ? 'Cancel' : 'Close'}
 							</CancelButton>
-							<SaveButton onClick={handleSaveTeamMember}>
-								{editingMember ? 'Update Member' : 'Add Member'}
-							</SaveButton>
+							{canManage && (
+								<SaveButton onClick={handleSaveTeamMember}>
+									{editingMember ? 'Update Member' : 'Add Member'}
+								</SaveButton>
+							)}
 						</DialogFooter>
 					</TeamDialogContent>
 				</DialogOverlay>

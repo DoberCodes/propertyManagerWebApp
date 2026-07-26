@@ -259,7 +259,11 @@ grant issuance so rollout and rollback do not revoke effective access.
 Key milestones also publish persistent in-app Maintley Events. Automated email
 delivery results are operational logs, not administrative decisions and not
 entries in the immutable admin audit trail. Admin-requested sends remain
-high-value audited actions when that tool is introduced.
+high-value audited actions. The admin user-detail page may send approved
+operational support, account, or billing/access messages. It requires a message
+preview, administrative reason, stable request ID, provider idempotency, and an
+immutable `user_email.sent` audit record. This tool is not a marketing composer;
+marketing remains subject to separate consent and preference handling.
 
 ---
 

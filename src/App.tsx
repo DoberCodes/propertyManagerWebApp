@@ -24,6 +24,9 @@ import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from './config/firebase';
 import type { User } from './Redux/Slices/userSlice';
 import { syncSubscriptionFromStripe } from './services/stripeService';
+import { recordCurrentUserActivity } from './services/userActivityService';
+
+const USER_ACTIVITY_HEARTBEAT_INTERVAL_MS = 15 * 60 * 1000;
 
 const UpdateNotification = React.lazy(
 	() => import('./Components/Library/UpdateNotification/UpdateNotification'),
@@ -107,6 +110,30 @@ export const App = () => {
 
 	useEffect(() => {
 		currentUserIdRef.current = currentUser?.id || null;
+	}, [currentUser?.id]);
+
+	useEffect(() => {
+		if (!currentUser?.id) return undefined;
+
+		const recordActivity = () => {
+			if (document.visibilityState !== 'visible') return;
+			recordCurrentUserActivity().catch((error) => {
+				console.warn('User activity heartbeat could not be recorded:', error);
+			});
+		};
+		const handleVisibilityChange = () => recordActivity();
+
+		recordActivity();
+		const intervalId = window.setInterval(
+			recordActivity,
+			USER_ACTIVITY_HEARTBEAT_INTERVAL_MS,
+		);
+		document.addEventListener('visibilitychange', handleVisibilityChange);
+
+		return () => {
+			window.clearInterval(intervalId);
+			document.removeEventListener('visibilitychange', handleVisibilityChange);
+		};
 	}, [currentUser?.id]);
 
 	useEffect(() => {

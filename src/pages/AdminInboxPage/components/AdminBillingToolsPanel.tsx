@@ -5,6 +5,7 @@ import {
 	ButtonRow,
 	ErrorText,
 	Input,
+	InlineToggle,
 	Label,
 	Select,
 	SubTitle,
@@ -99,7 +100,9 @@ export const AdminBillingToolsPanel: React.FC<AdminBillingToolsPanelProps> = ({
 	const [appliesToBillingCycle, setAppliesToBillingCycle] = useState<'month' | 'year'>('month');
 	const [internalNote, setInternalNote] = useState('');
 	const [couponsLoaded, setCouponsLoaded] = useState(false);
+	const [showInactiveCoupons, setShowInactiveCoupons] = useState(false);
 	const [accessCodes, setAccessCodes] = useState<AdminComplimentaryAccessCode[]>([]);
+	const [showInactiveAccessCodes, setShowInactiveAccessCodes] = useState(false);
 	const [accessCodesLoading, setAccessCodesLoading] = useState(false);
 	const [accessCodesLoaded, setAccessCodesLoaded] = useState(false);
 	const [accessLabel, setAccessLabel] = useState('');
@@ -118,6 +121,24 @@ export const AdminBillingToolsPanel: React.FC<AdminBillingToolsPanelProps> = ({
 		() => coupons.filter((coupon) => coupon.status === 'active').length,
 		[coupons],
 	);
+	const visibleCoupons = useMemo(
+		() => showInactiveCoupons
+			? coupons
+			: coupons.filter((coupon) => coupon.status === 'active'),
+		[coupons, showInactiveCoupons],
+	);
+	const visibleAccessCodes = useMemo(() => {
+		if (showInactiveAccessCodes) return accessCodes;
+		const nowMs = Date.now();
+		return accessCodes.filter((accessCode) => {
+			const expiresAtMs = accessCode.expiresAt
+				? new Date(accessCode.expiresAt).getTime()
+				: Number.POSITIVE_INFINITY;
+			return accessCode.status === 'active' &&
+				expiresAtMs > nowMs &&
+				accessCode.redeemedCount < accessCode.maxRedemptions;
+		});
+	}, [accessCodes, showInactiveAccessCodes]);
 
 	const loadCoupons = async () => {
 		await dispatch(fetchBillingCoupons({ sessionToken, limit: 100 }));
@@ -376,6 +397,15 @@ export const AdminBillingToolsPanel: React.FC<AdminBillingToolsPanelProps> = ({
 			<UserDetailsPanel>
 				<ButtonRow>
 					<Label>View Coupons</Label>
+					<InlineToggle>
+						<input
+							type='checkbox'
+							aria-label='Show inactive and expired coupons'
+							checked={showInactiveCoupons}
+							onChange={(event) => setShowInactiveCoupons(event.target.checked)}
+						/>
+						Show inactive and expired
+					</InlineToggle>
 					<Button type='button' onClick={() => void loadCoupons()} disabled={loading}>
 						{loading ? 'Loading...' : 'Refresh'}
 					</Button>
@@ -398,12 +428,12 @@ export const AdminBillingToolsPanel: React.FC<AdminBillingToolsPanelProps> = ({
 							</tr>
 						</thead>
 						<tbody>
-							{coupons.length === 0 ? (
+							{visibleCoupons.length === 0 ? (
 								<tr>
-									<td colSpan={8}>No Stripe coupons loaded yet.</td>
+									<td colSpan={8}>{coupons.length ? 'No active Stripe coupons.' : 'No Stripe coupons loaded yet.'}</td>
 								</tr>
 							) : (
-								coupons.map((coupon) => (
+								visibleCoupons.map((coupon) => (
 									<tr key={coupon.id}>
 										<td>
 											{coupon.code}
@@ -521,6 +551,15 @@ export const AdminBillingToolsPanel: React.FC<AdminBillingToolsPanelProps> = ({
 				<UserDetailsPanel>
 					<ButtonRow>
 						<Label>Issued Codes</Label>
+						<InlineToggle>
+							<input
+								type='checkbox'
+								aria-label='Show inactive and expired access codes'
+								checked={showInactiveAccessCodes}
+								onChange={(event) => setShowInactiveAccessCodes(event.target.checked)}
+							/>
+							Show inactive and expired
+						</InlineToggle>
 						<Button type='button' disabled={accessCodesLoading} onClick={() => void loadAccessCodes()}>
 							{accessCodesLoading ? 'Loading...' : 'Refresh'}
 						</Button>
@@ -529,9 +568,9 @@ export const AdminBillingToolsPanel: React.FC<AdminBillingToolsPanelProps> = ({
 						<UserTable>
 							<thead><tr><th>Program</th><th>Access</th><th>Duration</th><th>Redeemed</th><th>Redeem by</th><th>Recipient</th><th>Status</th></tr></thead>
 							<tbody>
-								{accessCodes.length === 0 ? (
-									<tr><td colSpan={7}>No complimentary access codes loaded yet.</td></tr>
-								) : accessCodes.map((accessCode) => (
+								{visibleAccessCodes.length === 0 ? (
+									<tr><td colSpan={7}>{accessCodes.length ? 'No active complimentary access codes.' : 'No complimentary access codes loaded yet.'}</td></tr>
+								) : visibleAccessCodes.map((accessCode) => (
 									<tr key={accessCode.codeId}>
 										<td>{accessCode.label}<div style={{ fontSize: 11 }}>{accessCode.codeId}</div></td>
 										<td>{formatLabel(accessCode.bundleId)}</td>

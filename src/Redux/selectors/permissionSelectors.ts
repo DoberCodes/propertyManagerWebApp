@@ -50,7 +50,7 @@ export const selectIsHomeowner = createSelector([selectUser], (user) => {
 export const selectCanAccessTeam = createSelector([selectUser], (user) => {
 	if (isTeamMemberAccount(user)) return false;
 	if (!user || !user.subscription) return false;
-	return canManageTeam(user.subscription);
+	return canManageTeam(user.subscription) || user.hasExistingTeamMembers === true;
 });
 
 export const selectCanInviteTeamMembers = createSelector(

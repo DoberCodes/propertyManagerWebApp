@@ -369,7 +369,6 @@ export const teamSlice = apiSlice.injectEndpoints({
 			async queryFn(memberId: string) {
 				try {
 					const targetUserId = await resolveTargetUserId();
-					await assertCanManageTeamMembers(targetUserId);
 					// Get the team member's email
 					const memberDoc = await getDoc(doc(db, 'teamMembers', memberId));
 					if (!memberDoc.exists()) {

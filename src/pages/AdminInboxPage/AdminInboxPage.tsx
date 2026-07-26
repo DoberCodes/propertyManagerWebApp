@@ -6,7 +6,7 @@
  */
 
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import type { AppDispatch } from '../../Redux/store/store';
 import {
@@ -29,6 +29,7 @@ import {
 	TicketCard,
 	AdminUserManagementPanel,
 	AdminBillingToolsPanel,
+	AdminMaintleyTeamPanel,
 	AdminAuditLogPanel,
 } from './components';
 import type { AdminNavPage } from './components';
@@ -74,14 +75,20 @@ const hasTopLevelRole = (roles: string[]): boolean =>
 export const AdminInboxPage: React.FC = () => {
 	const dispatch = useDispatch<AppDispatch>();
 	const navigate = useNavigate();
+	const location = useLocation();
 	const auth = useAdminAuth();
 	const tickets = useAdminTickets();
 	const ticketLinking = useAdminTicketLinking();
 	const notes = useAdminNotes();
 	const [showSettingsMenu, setShowSettingsMenu] = useState(false);
 	const [activePage, setActivePage] = useState<AdminNavPage>('inbox');
+	const adminUserRouteMatch = location.pathname.match(/^\/admin\/users\/([^/]+)$/);
+	const selectedAdminUserId = adminUserRouteMatch
+		? decodeURIComponent(adminUserRouteMatch[1])
+		: '';
 	const [selectedTicketByGroup, setSelectedTicketByGroup] = useState<Record<string, string>>({});
 	const canViewAuditLogs = hasTopLevelRole(auth.adminUser?.roles || []);
+	const canManageMaintleyTeam = hasTopLevelRole(auth.adminUser?.roles || []);
 	const ticketGroups = React.useMemo(() => groupTicketsForDisplay(tickets.tickets), [tickets.tickets]);
 	const visibleTicketCounts = React.useMemo(
 		() => calculateTicketCounts(ticketGroups.map((group) => group.primaryTicket)),
@@ -97,6 +104,12 @@ export const AdminInboxPage: React.FC = () => {
 
 	// Ensure tickets load after auth (must come before early returns per rules of hooks)
 	React.useEffect(() => {
+		if (location.pathname === '/admin/users' || selectedAdminUserId) {
+			setActivePage('users');
+		}
+	}, [location.pathname, selectedAdminUserId]);
+
+	React.useEffect(() => {
 		if (auth.sessionToken && !tickets.tickets.length && !tickets.loadingTickets) {
 			void tickets.loadTickets(auth.sessionToken, tickets.statusFilter, tickets.typeFilter);
 		}
@@ -108,6 +121,12 @@ export const AdminInboxPage: React.FC = () => {
 			setActivePage('inbox');
 		}
 	}, [activePage, canViewAuditLogs]);
+
+	React.useEffect(() => {
+		if (!canManageMaintleyTeam && activePage === 'team') {
+			setActivePage('inbox');
+		}
+	}, [activePage, canManageMaintleyTeam]);
 
 	// Load data when tabs change
 	React.useEffect(() => {
@@ -314,6 +333,10 @@ export const AdminInboxPage: React.FC = () => {
 	const handleBackToApp = () => {
 		navigate('/dashboard');
 	};
+	const handleAdminNavigate = (page: AdminNavPage) => {
+		setActivePage(page);
+		navigate(page === 'users' ? '/admin/users' : '/admin');
+	};
 
 	return (
 		<Shell>
@@ -332,7 +355,8 @@ export const AdminInboxPage: React.FC = () => {
 				activePage={activePage}
 				adminUser={auth.adminUser}
 				canViewAuditLogs={canViewAuditLogs}
-				onNavigate={setActivePage}
+				canManageMaintleyTeam={canManageMaintleyTeam}
+				onNavigate={handleAdminNavigate}
 				onLogout={auth.handleLogout}
 				onBackToApp={handleBackToApp}
 			/>
@@ -351,9 +375,20 @@ export const AdminInboxPage: React.FC = () => {
 					/>
 
 					{activePage === 'users' ? (
-						<AdminUserManagementPanel sessionToken={auth.sessionToken!} />
+					<AdminUserManagementPanel
+						sessionToken={auth.sessionToken!}
+						requestedUserId={selectedAdminUserId}
+						onOpenUser={(userId) => navigate(`/admin/users/${encodeURIComponent(userId)}`)}
+						onBackToUsers={() => navigate('/admin/users')}
+					/>
 					) : activePage === 'billing' ? (
 						<AdminBillingToolsPanel sessionToken={auth.sessionToken!} />
+					) : activePage === 'team' ? (
+						canManageMaintleyTeam ? (
+							<AdminMaintleyTeamPanel sessionToken={auth.sessionToken!} />
+						) : (
+							<ErrorText>Maintley Owner or Admin authority is required.</ErrorText>
+						)
 					) : activePage === 'audit' ? (
 						canViewAuditLogs ? (
 							<AdminAuditLogPanel sessionToken={auth.sessionToken!} />

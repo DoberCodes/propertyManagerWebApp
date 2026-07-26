@@ -80,6 +80,15 @@ Functions boundary. Setting `ENTITLEMENT_COMPARE_MODE=true` emits structured
 stored-plan versus resolved-plan comparison events during a controlled rollout;
 it does not change the access result.
 
+Public plan flags determine whether a customer can start a new Checkout for a
+plan. They do not invalidate an already active Stripe-confirmed subscription.
+Profile and Settings surfaces continue to resolve the existing canonical plan
+while purchase surfaces honor the acquisition flag.
+
+Admin Billing lists current active Stripe coupons and complimentary access
+codes by default. Administrators may explicitly enable `Show inactive and
+expired` within either section to review historical or exhausted records.
+
 The package defines temporary and permanent grant, billing-transition,
 administrative-audit, and rollout-flag contracts. The Homeowner+ first-property
 trial is the first persisted generic grant workflow. It remains disabled unless

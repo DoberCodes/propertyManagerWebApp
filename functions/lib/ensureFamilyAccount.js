@@ -159,12 +159,17 @@ const ensureFamilyAccountForUser = async (uid, data = {}, knownUserData) => {
     });
     const finalAccountDoc = await accountRef.get();
     const finalData = finalAccountDoc.data() || {};
+    const [accountTeamMembers, legacyTeamMembers] = await Promise.all([
+        db.collection('teamMembers').where('accountId', '==', accountId).limit(1).get(),
+        db.collection('teamMembers').where('userId', '==', accountId).limit(1).get(),
+    ]);
     return {
         id: accountId,
         ownerId: finalData.ownerId,
         memberIds: Array.isArray(finalData.memberIds) ? finalData.memberIds : [],
         subscription: serializeFirestoreValue(finalData.subscription),
         effectiveEntitlementProjection: serializeFirestoreValue(finalData.effectiveEntitlementProjection),
+        hasExistingTeamMembers: !accountTeamMembers.empty || !legacyTeamMembers.empty,
         updatedAt: serializeFirestoreValue(finalData.updatedAt),
     };
 };

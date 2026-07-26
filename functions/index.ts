@@ -43,6 +43,7 @@ export { acceptFamilyInvite } from './acceptFamilyInvite';
 export { updateFamilyMemberRole } from './updateFamilyMemberRole';
 export { updateFamilyMember } from './updateFamilyMember';
 export { ensureFamilyAccount } from './ensureFamilyAccount';
+export { recordUserActivity } from './recordUserActivity';
 export {
 	finalizeFirstPropertyTrial,
 	issueHomeownerPlusTrialOnFirstProperty,
@@ -65,6 +66,7 @@ export {
 	sendAccessLifecycleEmails,
 	sendAccessLifecycleEmailTest,
 	sendAdminAccessLifecycleEmail,
+	sendAdminOperationalUserEmail,
 } from './accessLifecycleEmails';
 export {
 	createMaintenanceEvent,
@@ -116,3 +118,7 @@ export {
 	deleteFeedbackAdminParentTicket,
 } from './adminPortal';
 export { cleanupClosedFeedbackAttachments } from './cleanupClosedFeedbackAttachments';
+export {
+	adminPortalListMaintleyTeam,
+	adminPortalMutateMaintleyTeam,
+} from './maintleyTeamAdmin';

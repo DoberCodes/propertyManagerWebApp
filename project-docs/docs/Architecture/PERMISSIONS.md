@@ -223,6 +223,39 @@ server-allowlisted for every actor. Every successful mutation requires preview,
 typed confirmation, a reason, and a stable request ID, and is written to the
 immutable admin audit trail.
 
+## Maintley Team administration
+
+The admin portal exposes a `Maintley Team` surface only to authenticated
+Maintley Owner and Admin roles. This is employment authority and must never be
+derived from a customer's homeowner, property-owner, account-owner, landlord,
+or property-management role.
+
+* Maintley Owner may invite and manage Owner, Admin, Support, and Operations
+  roles.
+* Maintley Admin may invite and manage Support and Operations roles, but cannot
+  create, modify, revoke, or demote Owner or Admin authority.
+* Non-owner administrators cannot change their own Maintley role.
+* The final Maintley Owner cannot be revoked.
+* New team identities receive a Firebase-managed password-setup link; an
+  administrator never selects another person's password.
+* A new team identity receives a normal, empty homeowner workspace. Its
+  `maintley_role` controls Maintley employment authority only and does not
+  pre-populate customer data or assign a customer-level administrator role.
+* Invitations, updates, and revocations write immutable before/after audit
+  records with actor, target, reason, request ID, and role metadata.
+
+Support and Operations are employment classifications and do not independently
+grant access to the admin portal. Additional portal permissions remain an
+explicit, server-managed decision.
+
+## User activity timestamps
+
+`lastActiveAt` records customer application activity, not administrator
+inspection. The authenticated app requests a throttled heartbeat that writes
+only to the caller's own user document with a server timestamp. The callable
+accepts no target user identifier, so viewing or troubleshooting another user
+cannot update the inspected customer's activity.
+
 ---
 
 # Authentication vs Authorization

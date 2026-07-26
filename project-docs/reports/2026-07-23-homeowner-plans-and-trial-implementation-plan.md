@@ -1367,6 +1367,12 @@ Already issued grants remain governed by their recorded lifecycle.
 
 ##### 9.10 - Cohort expansion and legacy removal
 
+Before cohort expansion, validate the admin operational controls added during
+observation: active-only coupon/code lists with an explicit historical toggle,
+caller-only Last Active heartbeat, routed admin user details, audited
+operational user email, and owner/admin-governed Maintley Team roles. Admin user
+inspection must never update the inspected customer's `lastActiveAt` value.
+
 * Expand one feature and one cohort at a time: Maintley internal accounts,
   invited testers, a small external cohort, then general availability.
 * Stop immediately for any unauthorized access, data loss, unconsented charge,

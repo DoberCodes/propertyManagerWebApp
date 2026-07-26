@@ -198,7 +198,7 @@ export const RouterComponent = () => {
 					/>
 					<Route path='registration' element={<RegistrationPage />} />
 					<Route path='register' element={<RegistrationPage />} />
-					<Route path='admin' element={<MaintleyAdminRoute />} />
+					<Route path='admin/*' element={<MaintleyAdminRoute />} />
 					<Route path='unauthorized' element={<UnauthorizedPage />} />
 					<Route path='subscription/*' element={<LegacySubscriptionRoute />} />
 					{/* Paywall - accessible to authenticated users */}

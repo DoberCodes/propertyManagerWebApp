@@ -94,7 +94,6 @@ import { formatDate } from 'utils/detailPageUtils';
 import COLORS from 'constants/colors';
 import { PortfolioPlanSub, PortfolioTop, PortfolioUsage, PortfolioUsageBadge, ProgressFill, ProgressTrack } from 'Components/Library/Navbar/SideNav/SideNav.styles';
 import {
-	canManageTeam,
 	getActiveGrantedPlanAccess,
 	getActiveHomeownerPlusTrial,
 	getEffectiveAccessPlanId,
@@ -108,6 +107,7 @@ import { useStorageUsage } from 'Hooks/useStorageUsage';
 import {
 	selectIsTeamMemberAccount,
 	selectIsTenant,
+	selectCanAccessTeam,
 } from 'Redux/selectors/permissionSelectors';
 import { formatStorageBytes } from 'utils/storageQuota';
 import { isContinuityEvent } from 'utils/maintenanceEventUtils';
@@ -128,6 +128,7 @@ export const UserProfile: React.FC = () => {
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
 	const [updateUser] = useUpdateUserMutation();
 	const isTeamMemberAccount = useSelector(selectIsTeamMemberAccount);
+	const canAccessTeam = useSelector(selectCanAccessTeam);
 	const [isEditing, setIsEditing] = useState(false);
 
 	const [formData, setFormData] = useState({
@@ -185,9 +186,7 @@ export const UserProfile: React.FC = () => {
 			),
 		[sourceMaintenanceHistory, summarySystems],
 	);
-	const showTeamSection =
-		isTeamMemberAccount ||
-		(!!currentUser?.subscription && canManageTeam(currentUser.subscription));
+	const showTeamSection = isTeamMemberAccount || canAccessTeam;
 	const { data: profileTeamMembers = [], isLoading: areTeamMembersLoading } =
 		useGetTeamMembersQuery(undefined, {
 			skip: !showTeamSection,

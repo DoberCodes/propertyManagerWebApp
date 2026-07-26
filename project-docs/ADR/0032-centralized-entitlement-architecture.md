@@ -470,10 +470,21 @@ When a downgraded account is above its resulting property or team limits:
 * restored eligible access immediately restores expansion and paid capabilities
   according to the resolved bundle and current relationship permissions
 
+The application navigation must preserve a route to existing active team
+relationships after downgrade. This is a distinct view-and-reduce permission,
+not `team.manage`: the account owner may inspect and remove retained members,
+while invitation, reactivation, group creation, permission expansion, and other
+count-increasing actions remain blocked.
+
 This over-limit continuity state is not a Free-plan feature bundle and does not
 allow a new Free account to create multiple properties or establish a team.
 Quantitative limits govern net-new expansion; capabilities govern what existing
 resources can do; ownership and active relationships govern who may see them.
+
+Plan rollout flags control acquisition, not recognition. A valid existing
+Stripe-confirmed subscription remains resolvable even if the corresponding
+public acquisition flag is later disabled. Disabling acquisition must never
+silently relabel paid access as Free.
 
 ### Tenant occupancy continuity
 

@@ -216,6 +216,20 @@ Required remediation and validation:
 * Verify the continuity behavior on desktop, tablet, mobile web, direct-route
   navigation, reload, and signed Android.
 
+Implemented for the next deployed validation:
+
+* Account bootstrap derives whether an account has any existing team-member
+  relationship without turning that relationship into a paid capability.
+* Team navigation and the direct route remain available for that retained
+  relationship even when the resulting plan cannot invite team members.
+* The downgraded member detail is read-only except for relationship removal;
+  invitation, group, edit, and replacement actions remain gated.
+* Existing Stripe-confirmed Multi-Homeowner subscriptions remain recognized
+  when public acquisition is disabled. The launch flag continues controlling
+  new selection and Checkout only.
+* Profile and Settings plan labels therefore use the paid canonical plan rather
+  than silently displaying Free access.
+
 Remediation deployed and under observation:
 
 * Persist a sanitized Stripe billing disclosure on both user and family-account
