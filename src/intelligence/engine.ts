@@ -7,6 +7,7 @@ import {
 } from './planFilter';
 import { prioritizeMaintleyFindings } from './prioritization';
 import { maintleyIntelligenceRules } from './rules';
+import { mergeMaintenanceHistoryWithDeviceSources } from '../maintenanceHistory/maintenanceHistoryAdapter';
 import {
 	MaintleyFinding,
 	MaintleyIntelligenceInput,
@@ -45,12 +46,16 @@ export const runMaintleyIntelligence = (
 	const capabilities =
 		input.capabilities ||
 		(planId ? getCapabilitiesForPlan(planId) : {});
+	const maintenanceHistory = mergeMaintenanceHistoryWithDeviceSources(
+		input.maintenanceHistory,
+		assets,
+	);
 	const context = {
 		property: input.property,
 		assets,
 		systems: assets,
 		tasks: input.tasks,
-		maintenanceHistory: input.maintenanceHistory,
+		maintenanceHistory,
 		documents: input.documents || [],
 		files: input.files || [],
 		planId,

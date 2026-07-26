@@ -85,6 +85,8 @@ import {
 import { COLORS } from '../../../constants/colors';
 import { expectsEquipmentIdentityDetails } from '../../../intelligence/assetRecordExpectations';
 import { formatDisplayDate, getDisplayDateTime, parseDisplayDate } from '../../../utils/dateDisplay';
+import { getMaintenanceEventDate } from '../../../utils/maintenanceEventUtils';
+import { mergeMaintenanceHistoryWithDeviceSources } from '../../../maintenanceHistory/maintenanceHistoryAdapter';
 
 const SectionLead = styled.p`
 	margin: -4px 0 14px;
@@ -119,12 +121,14 @@ interface DeviceFormData {
 
 interface DevicesTabProps {
 	property: Property;
+	maintenanceHistoryRecords?: any[];
 	permissions?: RoleCapabilities;
 	openCreateDeviceToken?: number;
 }
 
 export const DevicesTab: React.FC<DevicesTabProps> = ({
 	property,
+	maintenanceHistoryRecords = [],
 	permissions,
 	openCreateDeviceToken = 0,
 }) => {
@@ -176,6 +180,14 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 		useLazyGetAllDevicesQuery();
 	const { data: units = [] } = useGetUnitsQuery(property.id);
 	const { data: allTasks = [] } = useGetTasksQuery();
+	const resolvedMaintenanceHistory = useMemo(
+		() =>
+			mergeMaintenanceHistoryWithDeviceSources(
+				maintenanceHistoryRecords,
+				devices,
+			),
+		[maintenanceHistoryRecords, devices],
+	);
 
 	const openPropertyTasks = useMemo(
 		() =>
@@ -299,18 +311,22 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 	}, [getDeviceInstallDate]);
 
 	const getLastServicedDate = (device: any): string => {
-		const history = Array.isArray(device?.maintenanceHistory)
-			? device.maintenanceHistory
-			: [];
-		const latest = history
-			.filter((entry: any) => entry?.date)
+		const deviceId = String(device?.id || '').trim();
+		const latest = resolvedMaintenanceHistory
+			.filter((record: any) =>
+				(Array.isArray(record.deviceIds) ? record.deviceIds : [record.deviceId])
+					.map((id: any) => String(id || '').trim())
+					.includes(deviceId),
+			)
+			.filter((record: any) => getMaintenanceEventDate(record))
 			.sort((a: any, b: any) => {
-				const left = getDisplayDateTime(a.date);
-				const right = getDisplayDateTime(b.date);
+				const left = getDisplayDateTime(getMaintenanceEventDate(a));
+				const right = getDisplayDateTime(getMaintenanceEventDate(b));
 				return right - left;
 			})[0];
-		if (!latest?.date) return 'Last serviced not recorded';
-		const formatted = formatDisplayDate(latest.date);
+		const latestDate = latest ? getMaintenanceEventDate(latest) : '';
+		if (!latestDate) return 'Last serviced not recorded';
+		const formatted = formatDisplayDate(latestDate);
 		if (!formatted) return 'Last serviced not recorded';
 		return `Last serviced ${formatted}`;
 	};

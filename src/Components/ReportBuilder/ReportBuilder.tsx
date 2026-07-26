@@ -26,6 +26,7 @@ import {
 	useGetAllMaintenanceHistoryForUserQuery,
 } from '../../Redux/API/userSlice';
 import { trackAnalyticsEvent } from '../../analytics/analytics';
+import { mergeMaintenanceHistoryWithDeviceSources } from '../../maintenanceHistory/maintenanceHistoryAdapter';
 import {
 	FormGroup as LibraryFormGroup,
 	FormLabel as LibraryLabel,
@@ -700,13 +701,18 @@ export const ReportBuilder: React.FC = () => {
 		});
 	}, [firebaseTeamMembers, activeAccountId]);
 
+	const resolvedMaintenanceHistory = useMemo(
+		() => mergeMaintenanceHistoryWithDeviceSources(allMaintenanceHistory, allDevices),
+		[allMaintenanceHistory, allDevices],
+	);
+
 	const scopedMaintenanceHistory = useMemo(() => {
 		return filterRecordsForAccountOrProperties(
-			allMaintenanceHistory,
+			resolvedMaintenanceHistory,
 			activeAccountId,
 			allowedPropertyIdSet,
 		);
-	}, [allMaintenanceHistory, activeAccountId, allowedPropertyIdSet]);
+	}, [resolvedMaintenanceHistory, activeAccountId, allowedPropertyIdSet]);
 
 	const scopedTenantProfiles = useMemo(() => {
 		return scopedProperties.flatMap((property: any) =>

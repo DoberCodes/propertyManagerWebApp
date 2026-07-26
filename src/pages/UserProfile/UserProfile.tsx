@@ -11,6 +11,7 @@ import { useGetPropertiesQuery } from 'Redux/API/propertySlice';
 import { useGetAllDevicesQuery } from 'Redux/API/deviceSlice';
 import { useGetTasksQuery } from 'Redux/API/taskSlice';
 import { useGetTeamMembersQuery } from 'Redux/API/teamSlice';
+import { mergeMaintenanceHistoryWithDeviceSources } from '../../maintenanceHistory/maintenanceHistoryAdapter';
 import { FileUploader } from 'Components/Library/FileUploader';
 import { uploadUserProfileImage } from 'utils/userProfileImageUpload';
 import {
@@ -184,9 +185,17 @@ export const UserProfile: React.FC = () => {
 		isLoading: areTasksLoading,
 	} = useGetTasksQuery();
 	const {
-		data: maintenanceHistory = [],
+		data: sourceMaintenanceHistory = [],
 		isLoading: isMaintenanceHistoryLoading,
 	} = useGetAllMaintenanceHistoryForUserQuery();
+	const maintenanceHistory = React.useMemo(
+		() =>
+			mergeMaintenanceHistoryWithDeviceSources(
+				sourceMaintenanceHistory,
+				summarySystems,
+			),
+		[sourceMaintenanceHistory, summarySystems],
+	);
 	const showTeamSection =
 		isTeamMemberAccount ||
 		(!!currentUser?.subscription && canManageTeam(currentUser.subscription));
@@ -274,16 +283,7 @@ export const UserProfile: React.FC = () => {
 			}
 		});
 
-		if (completedTaskKeys.size > 0) {
-			return completedTaskKeys.size;
-		}
-
-		return summaryProperties.reduce((total, property: any) => {
-			const taskHistoryCount = Array.isArray(property.taskHistory)
-				? property.taskHistory.length
-				: 0;
-			return total + taskHistoryCount;
-		}, 0);
+		return completedTaskKeys.size;
 	}, [maintenanceHistory, summaryProperties, summaryTasks]);
 
 	const profileInitials = React.useMemo(() => {

@@ -6,6 +6,7 @@ import { useMemo } from 'react';
 import { useSelector } from 'react-redux';
 import { RootState } from '../Redux/store/store';
 import { useGetMaintenanceHistoryByPropertyQuery } from '../Redux/API/maintenanceSlice';
+import { useGetDevicesQuery } from '../Redux/API/deviceSlice';
 import { Property } from '../types/Property.types';
 import { Task } from '../types/Task.types';
 import { MaintenanceRequestItem } from '../types/MaintenanceRequest.types';
@@ -14,6 +15,7 @@ import {
 	filterMaintenanceRequests,
 } from '../utils/detailPageUtils';
 import { isContinuityEvent } from '../utils/maintenanceEventUtils';
+import { mergeMaintenanceHistoryWithDeviceSources } from '../maintenanceHistory/maintenanceHistoryAdapter';
 
 interface UseDetailPageDataParams {
 	propertySlug: string;
@@ -60,15 +62,21 @@ export const useDetailPageData = ({
 		return filterTasksForEntity(allTasks, property);
 	}, [allTasks, property]);
 
-	const { data: maintenanceHistoryRecords = [] } =
+	const { data: sourceMaintenanceHistoryRecords = [] } =
 		useGetMaintenanceHistoryByPropertyQuery(property?.id || '', {
 			skip: !property?.id,
 		});
+	const { data: propertyDevices = [] } = useGetDevicesQuery(property?.id || '', {
+		skip: !property?.id,
+	});
 
 	const maintenanceHistory = useMemo(() => {
 		if (!property) return [];
-		return maintenanceHistoryRecords.filter(isContinuityEvent);
-	}, [property, maintenanceHistoryRecords]);
+		return mergeMaintenanceHistoryWithDeviceSources(
+			sourceMaintenanceHistoryRecords,
+			propertyDevices,
+		).filter(isContinuityEvent);
+	}, [property, sourceMaintenanceHistoryRecords, propertyDevices]);
 
 	const maintenanceRequests = useMemo(() => {
 		if (!property) return [];

@@ -398,6 +398,9 @@ export const MaintenanceTab = ({
 	const canBulkEdit = canManageMaintenanceHistory && Boolean(onUpdateMaintenanceHistory);
 	const canDeleteHistory =
 		canManageMaintenanceHistory && Boolean(onDeleteMaintenanceHistory);
+	const isEmbeddedCompatibilityRecord = (record: any): boolean =>
+		String(record?.historySource || '').startsWith('property.') ||
+		String(record?.historySource || '') === 'device.maintenanceHistory';
 	const propertyDocuments = useMemo<PropertyDocument[]>(
 		() => (Array.isArray(property?.documents) ? property.documents : []),
 		[property?.documents],
@@ -464,7 +467,10 @@ export const MaintenanceTab = ({
 
 			const selectedRecords = Array.from(selectedRecordIds)
 				.map((id) => allRecords.find((r) => r.id === id))
-				.filter((r) => r !== undefined);
+				.filter(
+					(record) =>
+						record !== undefined && !isEmbeddedCompatibilityRecord(record),
+				);
 
 			// Update all selected records with the maintenanceGroupId
 			for (const record of selectedRecords) {
@@ -487,7 +493,8 @@ export const MaintenanceTab = ({
 		if (!canDeleteHistory || !onDeleteMaintenanceHistory) return;
 
 		const deletableRecords = records.filter(
-			(record) => !record.isLegacy && record.id,
+			(record) =>
+				!isEmbeddedCompatibilityRecord(record) && !record.isLegacy && record.id,
 		);
 		if (deletableRecords.length === 0) {
 			feedback.notify(
@@ -536,8 +543,25 @@ export const MaintenanceTab = ({
 
 	const openEditHistoryModal = (record: any) => {
 		if (!canManageMaintenanceHistory || !onUpdateMaintenanceHistory || !record?.id) return;
+		if (isEmbeddedCompatibilityRecord(record)) {
+			feedback.notify(
+				'This older embedded record is read-only until it is migrated into Maintenance History.',
+			);
+			return;
+		}
 		setEditingHistoryRecord(record);
 		setShowAddModal(true);
+	};
+
+	const requestDeleteRecord = (record: any) => {
+		if (!onDeleteMaintenanceHistory || !record?.id) return;
+		if (isEmbeddedCompatibilityRecord(record)) {
+			feedback.notify(
+				'This older embedded record is read-only until it is migrated into Maintenance History.',
+			);
+			return;
+		}
+		onDeleteMaintenanceHistory(record.id);
 	};
 
 	const handleHistoryModalSubmit = async (data: {
@@ -1457,7 +1481,7 @@ export const MaintenanceTab = ({
 									}}
 									onNavigate={handleNavigation}
 									onEdit={canManageMaintenanceHistory ? openEditHistoryModal : undefined}
-									onDelete={canDeleteHistory ? onDeleteMaintenanceHistory : undefined}
+									onDelete={canDeleteHistory ? requestDeleteRecord : undefined}
 									onDeleteGroup={
 										canDeleteHistory ? handleDeleteGroup : undefined
 									}
@@ -1483,7 +1507,7 @@ export const MaintenanceTab = ({
 									}}
 									onNavigate={handleNavigation}
 									onEdit={canManageMaintenanceHistory ? openEditHistoryModal : undefined}
-									onDelete={canDeleteHistory ? onDeleteMaintenanceHistory : undefined}
+									onDelete={canDeleteHistory ? requestDeleteRecord : undefined}
 									onDeleteGroup={
 										canDeleteHistory ? handleDeleteGroup : undefined
 									}

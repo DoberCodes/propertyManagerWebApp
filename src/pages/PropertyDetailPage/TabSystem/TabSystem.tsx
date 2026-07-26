@@ -175,6 +175,7 @@ export const TabSystem = ({
 				return (
 					<DevicesTab
 						property={property}
+						maintenanceHistoryRecords={maintenanceHistoryRecords}
 						permissions={permissions}
 						openCreateDeviceToken={openCreateDeviceToken}
 					/>

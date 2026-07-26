@@ -95,10 +95,6 @@ export const hasMaintenanceHistory = (
 	system: Device,
 	maintenanceHistory: any[],
 ): boolean => {
-	if (Array.isArray(system.maintenanceHistory) && system.maintenanceHistory.length > 0) {
-		return true;
-	}
-
 	return maintenanceHistory.some((record) => historyMatchesSystem(record, system.id));
 };
 

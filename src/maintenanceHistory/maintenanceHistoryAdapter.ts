@@ -329,3 +329,39 @@ export const deviceEmbeddedHistorySources = (
 		index,
 	}));
 };
+
+const isMaintenanceHistorySource = (
+	value: unknown,
+): value is MaintenanceHistorySource =>
+	typeof value === 'string' && value in SOURCE_PRIORITY;
+
+/**
+ * Rehydrates already-adapted records into source inputs so another supported
+ * compatibility source can be added without losing the original identity or
+ * provenance metadata.
+ */
+export const adaptedMaintenanceHistorySources = (
+	records: readonly Record<string, any>[],
+): MaintenanceHistorySourceRecord[] =>
+	records.map((record) => ({
+		source: isMaintenanceHistorySource(record.historySource)
+			? record.historySource
+			: 'maintenanceEvents',
+		sourceId: normalizeString(record.historySourceId || record.id),
+		propertyId: normalizeString(record.propertyId),
+		record,
+	}));
+
+/**
+ * Adds the final embedded equipment compatibility source through the same
+ * adapter used by collection and property history. Consumers should use this
+ * boundary instead of reading or merging device.maintenanceHistory directly.
+ */
+export const mergeMaintenanceHistoryWithDeviceSources = (
+	records: readonly Record<string, any>[],
+	devices: readonly Record<string, any>[],
+): AdaptedMaintenanceHistoryRecord[] =>
+	mergeMaintenanceHistorySources([
+		...adaptedMaintenanceHistorySources(records),
+		...devices.flatMap(deviceEmbeddedHistorySources),
+	]);

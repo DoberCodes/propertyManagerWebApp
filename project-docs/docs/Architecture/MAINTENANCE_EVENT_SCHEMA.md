@@ -410,6 +410,12 @@ two records describe the same work.
 
 Property- and account-scoped RTK query paths both use the adapter. Property
 detail consumers do not independently merge embedded property history.
+Equipment-embedded compatibility records enter through the adapter's shared
+device-source boundary. Equipment timelines, reports, account/profile metrics,
+dashboard health, Maintenance Profiles, and Maintley Intelligence consume that
+adapted result rather than reading `devices.maintenanceHistory` directly.
+Embedded compatibility records remain visible but read-only until an approved
+controlled backfill creates their canonical Maintenance Events.
 
 New maintenance records should be written to:
 
