@@ -99,37 +99,6 @@ const deviceSlice = apiSlice.injectEndpoints({
 			providesTags: ['Devices'],
 		}),
 
-		getUnitDevices: builder.query<Device[], string>({
-			async queryFn(unitId: string) {
-				try {
-					if (!unitId) {
-						return { data: [] };
-					}
-					const accessContext = await resolveAccountAccessContext();
-					const accessibleAccountIds = accessContext.accountIds;
-					const devices: Device[] = [];
-					for (const accountId of accessibleAccountIds) {
-						const batch = await getDevicesForAccount(
-							accountId,
-							[where('location.unitId', '==', unitId)],
-						);
-						devices.push(...batch);
-					}
-					const uniqueDevices = uniqueDevicesById(devices);
-					return {
-						data: filterRecordsByAccessProperties(
-							uniqueDevices,
-							accessContext,
-							(device) => String(device.location?.propertyId || ''),
-						),
-					};
-				} catch (error: any) {
-					return { error: error.message };
-				}
-			},
-			providesTags: ['Devices'],
-		}),
-
 		getDevice: builder.query<Device, string>({
 			async queryFn(deviceId: string) {
 				try {
@@ -320,7 +289,6 @@ const deviceSlice = apiSlice.injectEndpoints({
 
 export const {
 	useGetDevicesQuery,
-	useGetUnitDevicesQuery,
 	useGetDeviceQuery,
 	useCreateDeviceMutation,
 	useUpdateDeviceMutation,

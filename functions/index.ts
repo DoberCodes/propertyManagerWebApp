@@ -113,8 +113,3 @@ export {
 	deleteFeedbackAdminParentTicket,
 } from './adminPortal';
 export { cleanupClosedFeedbackAttachments } from './cleanupClosedFeedbackAttachments';
-// Temporarily disabled due to missing utils/taskNotificationScheduler module
-// export {
-// 	scheduledTaskNotifications,
-// 	triggerTaskNotifications,
-// } from './src/taskNotifications';

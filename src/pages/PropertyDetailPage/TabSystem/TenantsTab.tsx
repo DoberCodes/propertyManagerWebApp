@@ -229,9 +229,7 @@ export const TenantsTab: React.FC<TenantsTabProps> = ({
 	// Apply filters to tenants
 	const filteredTenants = useMemo(() => {
 		if (!property.tenants) return [];
-		let tenants = property.tenants;
-		// Units are temporarily hidden from the app flow; do not apply unit scoping.
-		return applyFilters(tenants, filters, {
+		return applyFilters(property.tenants, filters, {
 			textFields: ['firstName', 'lastName', 'email', 'phone', 'unit'],
 			dateRangeFields: [
 				{ field: 'leaseStart', filterKey: 'leaseDate' },
@@ -467,22 +465,6 @@ export const TenantsTab: React.FC<TenantsTabProps> = ({
 					</Toolbar>
 				)}
 
-				{/* Units are temporarily hidden from the app flow.
-				{unitOptions.length > 0 && (
-					<FormSelect
-						name='unitFilter'
-						value={selectedUnitId || ''}
-						onChange={(e) => onSelectUnit && onSelectUnit(e.target.value)}
-						style={{ marginLeft: 0 }}>
-						<option value=''>All units</option>
-						{unitOptions.map((u, idx) => (
-							<option key={u.value ?? `unit-${idx}`} value={u.value}>
-								{u.label}
-							</option>
-						))}
-					</FormSelect>
-				)}
-				*/}
 				<CompactFilterResultCount>
 					Showing {filteredTenants.length} of {(property?.tenants || []).length}{' '}
 					tenants for {property?.title || 'this property'}

@@ -526,9 +526,6 @@ export interface PropertySummaryMetrics {
 export const PROPERTY_SUMMARY_COLUMN_OPTIONS = {
 	propertyTitle: 'Property Name',
 	address: 'Address',
-	// Units are temporarily hidden from the app flow.
-	// totalUnits: 'Total Units',
-	// occupiedUnits: 'Occupied Units',
 	totalTenants: 'Total Tenants',
 	totalTasks: 'Total Tasks',
 	completedTasks: 'Completed Tasks',

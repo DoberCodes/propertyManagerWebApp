@@ -554,13 +554,6 @@ export const DeviceDetailPage: React.FC = () => {
 		};
 	}, [canAccessRecurringTasks, deviceTaskTemplate]);
 
-	const taskUnitOptions = useMemo(() => {
-		return units.map((unit: any) => ({
-			label: unit.unitName || unit.name || unit.title || 'Unit',
-			value: String(unit.id || ''),
-		}));
-	}, [units]);
-
 	const linkedTasks = useMemo(() => {
 		if (!device || !property) return [];
 		const deviceIdString = String(device.id);
@@ -2531,7 +2524,6 @@ export const DeviceDetailPage: React.FC = () => {
 					}}
 					currentUser={currentUser || null}
 					unitId={device?.location?.unitId || null}
-					unitOptions={taskUnitOptions}
 				/>
 
 				{taskToComplete?.id && (
@@ -2554,7 +2546,6 @@ export const DeviceDetailPage: React.FC = () => {
 					onSaved={handleRecurringTaskSaved}
 					currentUser={currentUser || null}
 					unitId={device?.location?.unitId || null}
-					unitOptions={taskUnitOptions}
 				/>
 
 				<GenericModal

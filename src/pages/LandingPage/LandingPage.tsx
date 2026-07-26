@@ -1,4 +1,3 @@
-import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LandingNavbar } from 'Components/Library/LandingNavbar';
 import SEO from 'Components/SEO/SEO';

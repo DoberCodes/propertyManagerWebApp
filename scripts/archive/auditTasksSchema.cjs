@@ -1,9 +1,14 @@
+// HISTORICAL DIAGNOSTIC ONLY.
+// Archived on 2026-07-25. Do not run against production without reviewing the
+// current task schema, Firebase project target, credentials, and output scope.
+// This file is retained only as migration and investigation reference.
+
 // auditTasksSchema.cjs
 // Audit Firestore tasks for missing fields compared to app Task schema
 // Usage: node scripts/auditTasksSchema.cjs
 
 const admin = require('firebase-admin');
-const serviceAccount = require('../serviceAccountKey.json');
+const serviceAccount = require('../../serviceAccountKey.json');
 
 admin.initializeApp({
 	credential: admin.credential.cert(serviceAccount),

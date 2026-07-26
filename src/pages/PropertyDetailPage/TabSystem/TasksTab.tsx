@@ -645,10 +645,7 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 
 	// Apply filters to tasks
 	const filteredTasks = useMemo(() => {
-		// Units are temporarily hidden from the app flow; do not apply unit scoping.
-		const unitFiltered = processedTasks;
-
-		const filtered = applyFilters(unitFiltered, filters, {
+		const filtered = applyFilters(processedTasks, filters, {
 			textFields: ['title', 'notes'],
 			selectFields: [
 				{ field: 'status', filterKey: 'status' },

@@ -7,7 +7,7 @@ import { COLORS } from '../../../constants/colors';
  */
 
 /**
- * Green gradient header used in UnitDetailPage, SuiteDetailPage, and other detail views
+ * Green gradient header used across detail views
  */
 export const GradientHeader = styled.div`
 	position: relative;

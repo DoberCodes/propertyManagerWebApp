@@ -74,8 +74,6 @@ export const AddTenantModal: React.FC<AddTenantModalProps> = ({
 	const [revokeTenantInvitationCode, { isLoading: isRevoking }] =
 		useRevokeTenantInvitationCodeMutation();
 
-	// Units are temporarily hidden from the app flow.
-
 	useEffect(() => {
 		if (mode === 'edit' && tenant) {
 			setFormData({

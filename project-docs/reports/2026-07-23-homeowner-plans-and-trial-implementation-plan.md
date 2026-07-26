@@ -1281,6 +1281,23 @@ until their recorded end or an explicit audited revocation.
   to an owned operational channel before expanding the cohort.
 * Require deployment CI to run both lifecycle template checks and the Maintley
   Event delivery-engine suite used by persistent in-app notices.
+* Treat the current hourly collection-group scan as a controlled-rollout
+  recovery implementation, not the long-term scheduler. It currently reads
+  every historical entitlement grant and at least one scoped delivery record
+  per grant on each run, even when no milestone is due.
+* Before broad cohort expansion—or earlier when telemetry projects more than
+  25,000 lifecycle-scheduler reads per day—replace the full scan with an indexed
+  due-work query. Store a server-managed `nextLifecycleAtMs` and dispatch state,
+  query only active or retryable grants whose next delivery is due, and remove
+  terminal or fully delivered grants from the candidate set without deleting
+  their immutable grant or delivery history.
+* Backfill scheduling metadata for existing grants, retain the full-scan path as
+  a temporary rollback during observation, and validate that activation
+  recovery, failed-delivery retries, milestone advancement, paid-conversion
+  suppression, and account-scoped provider idempotency remain correct.
+* Record candidate count, due count, processed count, failure count, execution
+  duration, and estimated Firestore reads so the optimization gate is based on
+  measured production behavior rather than account-count assumptions.
 
 **Rollback:** disable lifecycle communication. This stops new deliveries without
 changing grants, billing, or already-written delivery/audit records.
@@ -1347,6 +1364,10 @@ Already issued grants remain governed by their recorded lifecycle.
   been proven, and repository searches/tests identify no remaining consumer.
 * Run the planned full legacy-code audit only after the entitlement rollout is
   stable. Treat cleanup as a separate reviewed change set.
+* Use `2026-07-25-legacy-code-removal-safety-audit.md` as the initial classified
+  inventory. Its clearly dead source may be cleaned independently, but every
+  observation-gated or migration-gated path remains subject to this phase's
+  release and evidence requirements.
 
 **Completion gate:** every enabled feature has recorded test evidence, monitoring
 and an owner; every migration has a complete audit trail; all remaining legacy

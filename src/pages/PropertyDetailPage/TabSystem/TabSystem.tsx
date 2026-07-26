@@ -1,4 +1,3 @@
-import React from 'react';
 import { DetailsTab } from './DetailsTab';
 import { DevicesTab } from './DevicesTab';
 import { TasksTab } from './TasksTab';
@@ -38,10 +37,6 @@ interface TabsProps {
 	familyMembers: any[];
 	allTasks: Task[];
 	homeownerMode?: boolean;
-	// unit filtering support for multifamily properties
-	unitOptions?: { label: string; value: string }[];
-	selectedUnitId?: string;
-	onSelectUnit?: (id: string) => void;
 	openCreateTaskToken?: number;
 	createTaskDraft?: (Partial<TaskFormData> & { propertyId?: string }) | null;
 	createTaskDraftRecommendationId?: string | null;
@@ -89,9 +84,6 @@ export const TabSystem = ({
 	familyMembers,
 	allTasks,
 	homeownerMode = false,
-	unitOptions = [],
-	selectedUnitId,
-	onSelectUnit,
 	openCreateTaskToken = 0,
 	createTaskDraft = null,
 	createTaskDraftRecommendationId = null,
@@ -187,17 +179,12 @@ export const TabSystem = ({
 						openCreateDeviceToken={openCreateDeviceToken}
 					/>
 				);
-			case 'suites':
-				return null;
 			case 'tasks':
 				return (
 					<TasksTab
 						property={property}
 						propertyTasks={propertyTasks}
 						currentUser={currentUser}
-						unitOptions={unitOptions}
-						selectedUnitId={selectedUnitId}
-						onSelectUnit={onSelectUnit}
 						openCreateTaskToken={openCreateTaskToken}
 						createTaskDraft={createTaskDraft}
 						createTaskDraftRecommendationId={createTaskDraftRecommendationId}
@@ -251,9 +238,6 @@ export const TabSystem = ({
 						<TenantsTab
 							property={property}
 							currentUser={currentUser}
-							unitOptions={unitOptions}
-							selectedUnitId={selectedUnitId}
-							onSelectUnit={onSelectUnit}
 							setShowAddTenantModal={setShowAddTenantModal}
 							onEditTenant={handleEditTenant}
 							onDeleteTenant={handleDeleteTenant}
@@ -262,8 +246,6 @@ export const TabSystem = ({
 						/>
 					)
 				);
-			case 'units':
-				return null;
 			case 'requests':
 				return (
 					property?.isRental && (
@@ -271,9 +253,6 @@ export const TabSystem = ({
 							propertyMaintenanceRequests={propertyMaintenanceRequests}
 							propertyTitle={property?.title || 'this property'}
 							currentUser={currentUser}
-							unitOptions={unitOptions}
-							selectedUnitId={selectedUnitId}
-							onSelectUnit={onSelectUnit}
 							canApproveMaintenanceRequest={canApproveMaintenanceRequest}
 							handleConvertRequestToTask={handleConvertRequestToTask}
 							onCreateTask={() => handleCreateTask(property)}
@@ -301,9 +280,6 @@ export const TabSystem = ({
 				<TabController
 					property={property}
 					currentUser={currentUser}
-					unitOptions={unitOptions}
-					selectedUnitId={selectedUnitId}
-					onSelectUnit={onSelectUnit}
 					propertyMaintenanceRequests={propertyMaintenanceRequests}
 					canApproveMaintenanceRequest={canApproveMaintenanceRequest}
 					permissions={permissions}

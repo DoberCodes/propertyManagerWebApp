@@ -152,15 +152,15 @@ surface area.
 
 Decision:
 
-Keep unit/suite support as hidden legacy compatibility while Maintley remains
-focused on property-first maintenance workflows.
+Keep only the Unit/Suite compatibility needed for existing records while
+Maintley remains focused on property-first maintenance workflows.
 
 Completed:
 
-* Unit and suite routes remain hidden from the active app flow.
-* Unit and suite property tabs remain hidden from property detail navigation.
-* Unit and suite creation fields remain hidden from active property, task,
-  device, tenant, and request flows where currently implemented.
+* Dormant Unit and Suite routes, detail pages, property tabs, modal, handlers,
+  and current-source write hooks have been retired.
+* Dead Unit/Suite filter and navigation scaffolding has been removed from active
+  property, task, device, resident, and request surfaces.
 * Unit and suite report templates are hidden from active Report Builder
   availability while legacy adapters remain available for existing data paths.
 
@@ -168,6 +168,8 @@ Remaining:
 
 * Keep legacy `unitId` and `suiteId` read compatibility where existing records
   need location context.
+* Keep Unit/Suite rules, reporting/export adapters, and cascade deletion until a
+  production inventory and migration prove they can be removed safely.
 * Do not relaunch unit/suite management without a new product decision and ADR
   update.
 

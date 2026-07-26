@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import {
@@ -895,9 +895,6 @@ export const Properties = () => {
 			owner: propertyToDuplicate.owner || '',
 			address: propertyToDuplicate.address || '',
 			propertyType: propertyToDuplicate.propertyType || 'Single Family',
-			units: [],
-			hasSuites: false,
-			suites: [],
 			bedrooms: propertyToDuplicate.bedrooms ?? 0,
 			bathrooms: propertyToDuplicate.bathrooms ?? 0,
 			notes: propertyToDuplicate.notes || '',
@@ -1780,40 +1777,10 @@ export const Properties = () => {
 		setSelectedPropertyForEdit(null);
 	};
 
-	const getTenantUnitRoute = useCallback(
+	const getTenantPropertyRoute = useCallback(
 		(property: Property): string | null => {
-			// Units are temporarily hidden from the app flow; tenant cards should open
-			// the property page until unit-level surfaces return.
+			// Resident access is property-scoped.
 			return property.slug ? `/property/${property.slug}` : null;
-
-			/*
-			if (!isUserTenant) {
-				return null;
-			}
-
-			const assignment = getTenantAssignmentForProperty(property, currentUser.email);
-			if (!assignment?.unit && !assignment?.unitId) {
-				return null;
-			}
-
-			const units = (((property as any).units as Array<any>) || []).filter(Boolean);
-			const matchedUnit = units.find(
-				(unit) =>
-					(assignment.unitId && unit?.id === assignment.unitId) ||
-					(assignment.unit && (unit?.id === assignment.unit || unit?.name === assignment.unit)),
-			);
-
-			const unitName =
-				typeof matchedUnit?.name === 'string' && matchedUnit.name.trim().length > 0
-					? matchedUnit.name
-					: assignment.unit;
-
-			if (!unitName) {
-				return null;
-			}
-
-			return `/property/${property.slug}/unit/${encodeURIComponent(unitName)}`;
-			*/
 		},
 		[],
 	);
@@ -1848,7 +1815,7 @@ export const Properties = () => {
 
 	const singlePropertyRoute =
 		singleVisibleProperty && !hasRemainingCapacity
-			? getTenantUnitRoute(singleVisibleProperty) ||
+			? getTenantPropertyRoute(singleVisibleProperty) ||
 			`/property/${singleVisibleProperty.slug}`
 			: null;
 
@@ -2251,14 +2218,6 @@ export const Properties = () => {
 					owner: formData.owner,
 					address: formData.address,
 					propertyType: effectivePropertyType,
-					hasSuites:
-						effectivePropertyType === 'Commercial'
-							? false
-							: undefined,
-					suites:
-						effectivePropertyType === 'Commercial'
-							? []
-							: undefined,
 					bedrooms: formData.bedrooms,
 					bathrooms: formData.bathrooms,
 					notes: formData.notes,
@@ -2369,11 +2328,6 @@ export const Properties = () => {
 				taskHistory: formData.maintenanceHistory || [],
 				...sharingData,
 			};
-
-			if (effectivePropertyType === 'Commercial') {
-				newPropertyData.hasSuites = false;
-				newPropertyData.suites = [];
-			}
 
 			try {
 				const result = await createProperty(newPropertyData);
@@ -2930,13 +2884,6 @@ export const Properties = () => {
 								address: selectedPropertyForEdit.address || '',
 								propertyType:
 									selectedPropertyForEdit.propertyType || 'Single Family',
-								units: (selectedPropertyForEdit.units || []).map((u: any) =>
-									typeof u === 'string' ? u : u.name,
-								),
-								hasSuites: selectedPropertyForEdit.hasSuites ?? false,
-								suites: (selectedPropertyForEdit.suites || []).map((s: any) =>
-									typeof s === 'string' ? s : s.name,
-								),
 								bedrooms: selectedPropertyForEdit.bedrooms || 0,
 								bathrooms: selectedPropertyForEdit.bathrooms || 0,
 								notes: selectedPropertyForEdit.notes || '',
@@ -3078,7 +3025,7 @@ export const Properties = () => {
 										const propertyImageSrc = getPropertyImageSrc(property.image);
 										const isFallbackImage = isPropertyImageFallback(property.image);
 										const propertyRoute =
-											getTenantUnitRoute(property) ||
+											getTenantPropertyRoute(property) ||
 											`/property/${property.slug}`;
 										const openProperty = () => {
 											addRecentlyViewed({
